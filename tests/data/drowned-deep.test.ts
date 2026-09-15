@@ -38,7 +38,7 @@ function opsOf(d: CardDef): EffectOp[] {
 describe('Drowned Deep transcription', () => {
   it('pins the actual 252-card cut and its 13/17/23/75/124 rarity mix', () => {
     expect(DROWNED_DEEP).toHaveLength(252);
-    // The 250 target is 12/16/23/75/124. The owner retained one extra UR and SSR.
+    // RULED 2026-09-15: the set over-delivers on UR and SSR; 13/17/23/75/124 = 252 is the locked histogram.
     expect(Object.fromEntries(rarities.map((rarity) => [
       rarity, DROWNED_DEEP.filter((d) => d.rarity === rarity).length,
     ]))).toEqual({ ur: 13, ssr: 17, sr: 23, r: 75, c: 124 });
@@ -161,17 +161,22 @@ describe('Drowned Deep transcription', () => {
     expect(permanents.filter((d) => ['ONE-SHOT', 'BLANK'].includes(classifyPermanent(d).klass)).map((d) => d.id)).toEqual([]);
   });
 
-  it('registers the catalog and display identity while excluding the set from live acquisition', () => {
+  it('registers the catalog and display identity and makes the set live for acquisition', () => {
     expect(DROWNED_DEEP_SET).toBe('drowned-deep');
     expect(SET_IDS).toContain('drowned-deep');
     expect(SET_TITLES['drowned-deep']).toBe('Drowned Deep');
     expect(SET_BLURBS['drowned-deep']).toBe('The lamps are lit, and the Deep is owed');
-    expect(isLiveSet(DROWNED_DEEP_SET)).toBe(false);
+    expect(isLiveSet(DROWNED_DEEP_SET)).toBe(true);
     for (const d of DROWNED_DEEP) {
       expect(CARD_DB[d.id]).toEqual(d);
-      expect(isLiveCollectible(CARD_DB[d.id]), d.id).toBe(false);
+      expect(isLiveCollectible(CARD_DB[d.id]), d.id).toBe(true);
     }
-    for (const rarity of rarities) expect(packPool(CARD_DB, rarity, DROWNED_DEEP_SET)).toEqual([]);
+    for (const rarity of rarities) {
+      expect(packPool(CARD_DB, rarity, DROWNED_DEEP_SET).sort()).toEqual(
+        DROWNED_DEEP.filter((card) => card.rarity === rarity).map((card) => card.id).sort(),
+      );
+    }
+    for (const id of tokenIds) expect(isLiveCollectible(CARD_DB[id]), id).toBe(false);
     expect(AXES).toContain('Horror');
     expect(AXES).toContain('Warden');
     expect(AXES).not.toContain('Plant');
@@ -200,6 +205,7 @@ describe('Drowned Deep transcription', () => {
     expect(ALL_CARDS.filter((d) => d.set === DROWNED_DEEP_SET && !d.token)).toHaveLength(252);
     expect(ALL_CARDS.filter((d) => d.set === DROWNED_DEEP_SET && d.token).map((d) => d.id)).toEqual(tokenIds);
     expect(ALL_CARDS.filter((d) => d.set !== DROWNED_DEEP_SET)).toHaveLength(1259);
+    expect(ALL_CARDS.filter(isLiveCollectible)).toHaveLength(1482);
   });
 
   it('preserves cost and attack caps and opponent-only targets', () => {
@@ -310,4 +316,3 @@ describe('Drowned Deep transcription', () => {
     }
   });
 });
-

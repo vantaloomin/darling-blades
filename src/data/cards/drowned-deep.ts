@@ -2527,7 +2527,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
   // Recall target creature and draw 2. Whispers {1}{U}.
   {
     id: 'dd-undertow',
-    name: 'Undertow',
+    name: 'Drawn Under',
     types: ['charm'],
     subtypes: [],
     cost: cost(2, 'UU'),
@@ -3335,7 +3335,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
   // Recall target creature with cost 2 or less.
   {
     id: 'dd-undertow-charm',
-    name: 'Undertow',
+    name: 'Slack Water',
     types: ['charm'],
     subtypes: [],
     cost: cost(0, 'U'),

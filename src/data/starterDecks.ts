@@ -1157,4 +1157,71 @@ export const THEME_DECKS: DeckList[] = [
       ['land-mountain', 2],
     ]),
   },
+  {
+    id: 'theme-drowned-deep',
+    name: 'Lanterns Below',
+    // Lanterns Below: U/B Drowned Deep tide-and-whisper control. Cheap bodies and tappers hold the ground, self-mill fills the graveyard on schedule, the looters turn dead draws into tagged Whispers, and the Whispers spells are the value engine; two or three Horrors on the curve with Tithe as the tempo lever, Mother Hydra at the top.
+    cards: expand([
+      ['land-island', 12],
+      ['land-swamp', 12],
+      ['dd-tide-clerk', 3],
+      ['dd-drowned-child', 2],
+      ['dd-deep-one-cultist', 2],
+      ['dd-low-street-witch', 2],
+      ['dd-low-street-looter', 2],
+      ['dd-harbour-mermaid', 2],
+      ['dd-deep-one-scout', 2],
+      ['dd-cold-water-diver', 2],
+      ['dd-deep-one-bride', 2],
+      ['dd-tithe-collector', 1],
+      ['dd-deep-one-hierophant', 1],
+      ['dd-mother-hydra', 1],
+      ['dd-fog-bank', 2],
+      ['dd-salt-in-the-eyes', 2],
+      ['dd-the-price', 2],
+      ['dd-memory-of-the-drowned', 2],
+      ['dd-tide-that-turns', 2],
+      ['dd-tithe-to-the-deep', 1],
+      ['dd-drowned-bell', 2],
+      ['dd-low-tide-grave', 1],
+    ]),
+    // Converter-shaped reserve package, mirrored from the Broodship at 40 cards; the classic list above remains the locked authored package.
+    reserveCards: expand([
+      ['dd-tide-clerk', 3],
+      ['dd-drowned-child', 2],
+      ['dd-deep-one-cultist', 2],
+      ['dd-low-street-witch', 2],
+      ['dd-low-street-looter', 2],
+      ['dd-harbour-mermaid', 2],
+      ['dd-deep-one-scout', 2],
+      ['dd-cold-water-diver', 2],
+      ['dd-deep-one-bride', 2],
+      ['dd-tithe-collector', 1],
+      ['dd-deep-one-hierophant', 1],
+      ['dd-mother-hydra', 1],
+      ['dd-fog-bank', 2],
+      ['dd-salt-in-the-eyes', 2],
+      ['dd-the-price', 2],
+      ['dd-memory-of-the-drowned', 2],
+      ['dd-tide-that-turns', 2],
+      ['dd-tithe-to-the-deep', 1],
+      ['dd-drowned-bell', 2],
+      ['dd-low-tide-grave', 1],
+      ['dd-still-harbour', 2],
+      ['dd-what-the-sea-wants', 2],
+    ]),
+    // Harness: scripts/balance-matrix.ts full prefab round-robin; runCell
+    // uses the same field order and seeds across eight independent workers.
+    // MEASURED 2026-09-15 (hard AI, 150 seeds/cell, 19-deck prefab field):
+    // 18.9% (511/2700 decided, +0 draws) across the full 171-cell
+    // round-robin. Lanterns Below row rates in Crimson/Wild/Burning/Shadow/
+    // Grave/Valhalla/Glimmer/Questing/Bloodmoon/Midnight/Neon/Pride/Broodship/
+    // Rite/Nine/The/Flood/Bastet order: 11.3/14.7/12/20/18.7/22/28.7/26/
+    // 10.7/22.7/22/9.3/20/26/14.7/28.7/25.3/8%.
+    // No tuning was made from this measurement.
+    landReserve: expand([
+      ['land-island', 5],
+      ['land-swamp', 5],
+    ]),
+  },
 ];

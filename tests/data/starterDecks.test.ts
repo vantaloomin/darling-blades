@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { STARTER_DECKS, THEME_DECKS } from '../../src/data/starterDecks';
+import { DECK_INFO } from '../../src/data/deckInfo';
 import { CARD_DB } from '../../src/data/catalog';
 import { MediumAI } from '../../src/ai/MediumAI';
 import { Game } from '../../src/engine/Game';
@@ -48,10 +49,11 @@ describe('starter roster shape', () => {
 });
 
 describe('theme roster shape', () => {
-  it('lands eight theme decks including the Starborne precon', () => {
-    expect(THEME_DECKS).toHaveLength(8);
-    expect(new Set(THEME_DECKS.map((deck) => deck.id)).size).toBe(8);
+  it('lands nine theme decks including the Drowned Deep precon', () => {
+    expect(THEME_DECKS).toHaveLength(9);
+    expect(new Set(THEME_DECKS.map((deck) => deck.id)).size).toBe(9);
     expect(THEME_DECKS.find((deck) => deck.id === 'theme-starborne')?.name).toBe('Chrome-Violet Broodship');
+    expect(THEME_DECKS.at(-1)).toMatchObject({ id: 'theme-drowned-deep', name: 'Lanterns Below' });
   });
 });
 
@@ -163,9 +165,13 @@ describe.each(THEME_DECKS.map((d) => [d.name, d] as const))('theme deck legality
     }
   });
 
-  it('keeps legendaries at 2-3 copies (legend-rule friendly)', () => {
+  it('keeps legendaries at 2-3 copies except the authored Mother Hydra singleton', () => {
     for (const [id, n] of counts) {
       if (CARD_DB[id]?.supertypes?.includes('legendary')) {
+        if (deck.id === 'theme-drowned-deep' && id === 'dd-mother-hydra') {
+          expect(n, `${id} x${n}`).toBe(1);
+          continue;
+        }
         expect(n, `${id} x${n}`).toBeGreaterThanOrEqual(2);
         expect(n, `${id} x${n}`).toBeLessThanOrEqual(3);
       }
@@ -350,6 +356,76 @@ describe('Chrome-Violet Broodship composition', () => {
     expect(deck.cards).toHaveLength(RULES.deckSize);
     expect(deck.reserveCards).toHaveLength(40);
     expect(deck.landReserve).toHaveLength(10);
+  });
+});
+
+describe('Lanterns Below composition', () => {
+  const deck = THEME_DECKS.find((entry) => entry.id === 'theme-drowned-deep')!;
+  const expectedCounts = {
+    'land-island': 12,
+    'land-swamp': 12,
+    'dd-tide-clerk': 3,
+    'dd-drowned-child': 2,
+    'dd-deep-one-cultist': 2,
+    'dd-low-street-witch': 2,
+    'dd-low-street-looter': 2,
+    'dd-harbour-mermaid': 2,
+    'dd-deep-one-scout': 2,
+    'dd-cold-water-diver': 2,
+    'dd-deep-one-bride': 2,
+    'dd-tithe-collector': 1,
+    'dd-deep-one-hierophant': 1,
+    'dd-mother-hydra': 1,
+    'dd-fog-bank': 2,
+    'dd-salt-in-the-eyes': 2,
+    'dd-the-price': 2,
+    'dd-memory-of-the-drowned': 2,
+    'dd-tide-that-turns': 2,
+    'dd-tithe-to-the-deep': 1,
+    'dd-drowned-bell': 2,
+    'dd-low-tide-grave': 1,
+  };
+
+  it('uses the exact approved U/B Drowned Deep list and 40-card reserve', () => {
+    const expectedCards = Object.entries(expectedCounts).flatMap(([id, count]) => Array<string>(count).fill(id));
+    const expectedReserveCounts = {
+      ...Object.fromEntries(Object.entries(expectedCounts).filter(([id]) => id.startsWith('dd-'))),
+      'dd-still-harbour': 2,
+      'dd-what-the-sea-wants': 2,
+    };
+    const expectedReserve = Object.entries(expectedReserveCounts).flatMap(([id, count]) => Array<string>(count).fill(id));
+
+    expect(deck).toMatchObject({ id: 'theme-drowned-deep', name: 'Lanterns Below' });
+    expect(countCards(deck.cards)).toEqual(expectedCounts);
+    expect(deck.cards).toEqual(expectedCards);
+    expect(deck.cards).toHaveLength(RULES.deckSize);
+    expect(countCards(deck.reserveCards!)).toEqual(expectedReserveCounts);
+    expect(deck.reserveCards).toEqual(expectedReserve);
+    expect(deck.reserveCards).toHaveLength(40);
+    expect(deck.landReserve).toEqual([
+      ...Array<string>(5).fill('land-island'),
+      ...Array<string>(5).fill('land-swamp'),
+    ]);
+    expect(deck.landReserve).toHaveLength(10);
+
+    for (const id of deck.reserveCards!) {
+      const card = CARD_DB[id];
+      expect(card, `${id} must exist`).toBeDefined();
+      expect(card.set, `${id} must be Drowned Deep`).toBe('drowned-deep');
+      expect(card.token, `${id} must be collectible`).toBeFalsy();
+      expect(card.types, `${id} must not be a land`).not.toContain('land');
+      expect(card.colors.every((color) => color === 'U' || color === 'B'), `${id} color identity`).toBe(true);
+    }
+  });
+
+  it('uses the verbatim approved shop identity and featured cards', () => {
+    expect(DECK_INFO['theme-drowned-deep']).toEqual({
+      colors: 'U/B',
+      archetype: 'Drowned Deep tide-and-whisper control',
+      plays:
+        'Cheap bodies and tappers hold the ground while self-mill fills the graveyard on a schedule. The looters turn dead draws into tagged Whispers, the Whispers Charms and Rituals are the value engine, and two or three Horrors on the curve close with Tithe as the tempo lever.',
+      featured: ['dd-mother-hydra', 'dd-the-price', 'dd-drowned-bell'],
+    });
   });
 });
 

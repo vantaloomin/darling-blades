@@ -5,7 +5,6 @@ import { DARK_TALES_COMPANION } from './cards/dark-tales-companion';
 /** The expansion key is stamped by catalog.ts without widening engine types. */
 export const DUAT_SET = 'sands-of-the-duat' as const;
 export const STARBORNE_SET = 'starborne' as const;
-/** Catalog-only until the separate retail contract lands. */
 export const DROWNED_DEEP_SET = 'drowned-deep' as const;
 const DT_COMPANION_IDS: ReadonlySet<string> = new Set(DARK_TALES_COMPANION.map((card) => card.id));
 
@@ -16,7 +15,6 @@ const DT_COMPANION_IDS: ReadonlySet<string> = new Set(DARK_TALES_COMPANION.map((
  */
 export function isLiveCollectible(card: CardDef): boolean {
   if (card.token || card.supertypes?.includes('basic')) return false;
-  if (card.set === DROWNED_DEEP_SET) return false;
   if (DT_COMPANION_IDS.has(card.id)) return FEATURES.dtCompanionLive;
   return String(card.set) !== DUAT_SET || FEATURES.duatLive;
 }
@@ -27,6 +25,5 @@ export function isLiveCollectible(card: CardDef): boolean {
  * not appear as an empty filter option before its flip.
  */
 export function isLiveSet(id: string): boolean {
-  if (id === DROWNED_DEEP_SET) return false;
   return id !== DUAT_SET || FEATURES.duatLive;
 }

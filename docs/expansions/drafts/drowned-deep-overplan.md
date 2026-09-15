@@ -68,7 +68,7 @@ percent of the pool.
 | dd-lamp-oil-saint | Saint of the Lamp Oil | SSR | W | Creature, Human Warden | {3}{W} | 2/4 | Warding Gaze. Duty, {1}: gain 2 life. Whenever you gain life, put a Mark on this. | She keeps the lamps full and the books balanced, and the second is harder. | flex |
 | dd-tidewife | Ysolt the Tidewife | SSR | U | Creature, Mermaid, legendary | {4}{U}{U} | 4/4 | Skyborne. Arrives: grind self 3. Duty: recall target creature with cost 3 or less. | She married the tide. The tide has been very attentive. | core |
 | dd-drowned-scholar | Drowned Scholar of the Reach | SSR | U | Creature, Human | {2}{U} | 1/4 | Duty: draw a card, then discard a card. | Everything she knows she read underwater, and it has not stopped being true. | core |
-| dd-undertow | Undertow | SSR | U | Charm | {2}{U}{U} | none | Recall target creature and draw 2. Whispers {1}{U}. | The current does not take you out to sea. It takes you down. | core |
+| dd-undertow | Drawn Under | SSR | U | Charm | {2}{U}{U} | none | Recall target creature and draw 2. Whispers {1}{U}. | The current does not take you out to sea. It takes you down. | core |
 | dd-glass-that-came-back | The Glass That Came Back | SSR | U | Artifact | {2}{U} | none | Duty: Foresee 2. Duty, {2}: draw a card. | It was a bottle. Then it spent a century below. Now it shows you things. | flex |
 | dd-drowned-bride | The Drowned Bride | SSR | B | Creature, Deep One Horror | {3}{B}{B} | 5/4 | Dreaded. Tithe. Dies: return this to your hand. | The wedding was held on the wharf. The groom was never described. | core |
 | dd-wharf-rat-queen | Sable, the Wharf Queen | SSR | B | Creature, Human Witch, legendary | {3}{B}{B} | 3/3 | Deathblade. Duty: opponent discards a card at random. Skim {B}. | The town's secrets are kept in her cellar, in jars, and the jars are labelled. | core |
@@ -314,7 +314,7 @@ near-vanilla.
 | dd-cold-water-diver | Cold-Water Diver | C | U | Creature, Human | {3}{U} | 3/3 | Arrives: grind self 2. Skim {U}. | What she brings up, she brings up wet and wrong. | core |
 | dd-tide-glass | Tide-Glass | C | U | Artifact | {1} | none | During your Dawn: Foresee 1. | Green glass from the drowned church. Hold it to the light and the coast is different. | core |
 | dd-fog-bank | Fog Bank | C | U | Charm | {U} | none | Tap target creature. Whispers {U}. | It came in with the tide and it did not leave with it. | core |
-| dd-undertow-charm | Undertow | C | U | Charm | {U} | none | Recall target creature with cost 2 or less. | The current is a hand, and it is patient. | core |
+| dd-undertow-charm | Slack Water | C | U | Charm | {U} | none | Recall target creature with cost 2 or less. | The current is a hand, and it is patient. | core |
 | dd-deep-one-scout | Deep One Scout | C | U | Creature, Deep One Horror | {2}{U}{U} | 3/3 | Tithe. | She comes up under the boats to count them. | core |
 | dd-tide-that-turns | The Tide That Turns | C | U | Ritual | {3}{U} | none | Draw 2. Grind self 1. Whispers {2}{U}. | Out, in, and the town between. | core |
 | dd-still-harbour | Still Harbour | C | U | Charm | {1}{U} | none | Cancel target spell with cost 2 or less. | The water went flat, and the boats stopped, and nobody spoke. | core |
@@ -479,7 +479,7 @@ are the value engine. Finishers: two or three Horrors on the curve (Deep One
 Bride, Wharf Collector, Deep One Hierophant) with Tithe as the tempo
 lever, and Mother Hydra as the top. The list must contest the board when
 no Whispers fires; the seeded matrix measures it against the 13 prefab
-columns before it ships. Name and the exact 40 are authored at the cut.
+columns before it ships. The name and the exact list are authored below (2026-09-15).
 
 ## Gauntlet bosses, rungs 25 and 26
 
@@ -495,6 +495,141 @@ columns before it ships. Name and the exact 40 are authored at the cut.
   Coral-Mother for the go-wide line when the Horrors do not come. The AI's
   Tithe policy (lowest-value pairs first) is what the seeded pass measures
   here.
+
+## Undertow renamed (2026-09-15)
+
+RULED: the set printed two cards named Undertow, and the catalog already had
+one (`in-undertow`). The Double Super Rare `dd-undertow` is now **Drawn Under**
+and the common `dd-undertow-charm` is now **Slack Water**; ids, art, rules and
+flavour are unchanged.
+
+## Lanterns Below, the exact list (2026-09-15)
+
+Authored at the cut, per the precon brief above: board-first at common, self-mill
+on a schedule, looters turning dead draws into tagged Whispers, the Whispers
+spells as the value engine, two or three Horrors on the curve and Mother Hydra
+at the top. 60 cards, 24 lands, max four copies, the legendary at one. The set
+prints no lands (the 1.8 land economy is a separate decision, D3), so the mana
+is basics only, as The Violet Signal Queen's is.
+
+| Count | Card | Cost | Role |
+| --- | --- | --- | --- |
+| 12 | Island | | |
+| 12 | Swamp | | |
+| 3 | Tide-Clerk (`dd-tide-clerk`) | {1}{U} | early body, Foresee 1 |
+| 2 | The Drowned (`dd-drowned-child`) | {1}{B} | early body, grind 1 |
+| 2 | Deep One Cultist (`dd-deep-one-cultist`) | {1}{B} | early body, grind 2 on death |
+| 2 | Low Street Witch (`dd-low-street-witch`) | {1}{B} | looter (Duty, {1}) |
+| 2 | Low Street Looter (`dd-low-street-looter`) | {2}{U} | looter |
+| 2 | Harbour Mermaid (`dd-harbour-mermaid`) | {2}{U} | Skyborne, grind 1 |
+| 2 | Deep One Scout (`dd-deep-one-scout`) | {2}{U}{U} | Tithe body |
+| 2 | Cold-Water Diver (`dd-cold-water-diver`) | {3}{U} | grind 2, Skim |
+| 2 | Deep One Bride (`dd-deep-one-bride`) | {2}{B}{B} | Tithe, drains on death |
+| 1 | Wharf Collector (`dd-tithe-collector`) | {4}{B} | Tithe, Duty drain |
+| 1 | Deep One Hierophant (`dd-deep-one-hierophant`) | {3}{B}{B} | Dreaded Tithe, drain 2 |
+| 1 | Mother Hydra, Queen Beneath Dunmarrow (`dd-mother-hydra`) | {5}{B}{B} | the top |
+| 2 | Fog Bank (`dd-fog-bank`) | {U} | tap, Whispers {U} |
+| 2 | Salt in the Eyes (`dd-salt-in-the-eyes`) | {B} | -2/-1, Whispers {B} |
+| 2 | The Price (`dd-the-price`) | {1}{B} | removal, Whispers {B} |
+| 2 | Memory of the Drowned (`dd-memory-of-the-drowned`) | {2}{U} | draw, Whispers {U} |
+| 2 | The Tide That Turns (`dd-tide-that-turns`) | {3}{U} | draw 2, Whispers {2}{U} |
+| 1 | Due to the Deep (`dd-tithe-to-the-deep`) | {2}{B} | edict, grind, drain, Whispers {1}{B} |
+| 2 | Drowned Bell (`dd-drowned-bell`) | {1}{U} | the schedule: grind 1 and Foresee 1 each Dawn |
+| 1 | Low-Tide Grave (`dd-low-tide-grave`) | {1}{B} | the schedule, death drain |
+
+Creatures 22, spells 14. Curve: two-drops 9 creatures plus the two cheap
+enchantments and The Price, three-drops 6, four-drops 9, five-drops 2, seven 1.
+
+The reserve package (40, no lands) is the 36 spells above plus Still Harbour
+(`dd-still-harbour`) x2 and What the Sea Wants (`dd-what-the-sea-wants`) x2;
+the land reserve is 5 Island and 5 Swamp.
+
+Shop metadata: colours U/B, archetype "Drowned Deep tide-and-whisper control",
+featured Mother Hydra, The Price, Drowned Bell. Blurb for the deck card: "The
+tide fills the grave on a schedule, and the Whispers do the rest. Hold the
+ground, let the Deep collect, and cast what the water gives back."
+
+## The summit pair, the exact lists (2026-09-15)
+
+Both avatars are the portrait creature's own office, in the set's voice: every
+character is a woman, and a title is a job. The Darling is the deck's exact
+two-colour legendary. Names, titles, blurbs and personalities are authored
+here; the reserve decks, land reserves and Darlings decks are the converter's
+(gen, then sync), and the floors come from the measured pass, never from these
+lists.
+
+### Rung 25: The Drowned Deacon (U/B), "The Bell Beneath the Harbour"
+
+- Blurb: "She mills her own library on a schedule and calls it housekeeping.
+  Every card she loses is one she meant to cast from the grave, and the
+  counters are held for the one spell you needed to resolve."
+- Theme: Blue-Black Whispers Control (Grind, Cancel, Tithe).
+- Portrait: `dd-drowned-deacon`. Darling: `dd-father-dagon` (Dagon, the Deep
+  Itself, U/B).
+- Personality: aggression 0.7, holdback 1.3, attackThreshold 0.15,
+  removalBias 1.0, subtypeBias 0.4, preferred Deep One, Horror.
+
+| Count | Card |
+| --- | --- |
+| 12 | Island |
+| 12 | Swamp |
+| 3 | Tide-Clerk (`dd-tide-clerk`) |
+| 2 | Current-Caller (`dd-current-caller`) |
+| 2 | Tide-Reader of the Reach (`dd-tide-reader`) |
+| 2 | Salvage Diver (`dd-harbour-looter`) |
+| 2 | Drowned Bell Choir (`dd-drowned-bell-choir`) |
+| 2 | Keeper of the Drowned Light (`dd-drowned-lighthouse-keeper`) |
+| 3 | The Drowned Deacon (`dd-drowned-deacon`) |
+| 2 | Deep One Hierophant (`dd-deep-one-hierophant`) |
+| 2 | The Drowned Bride (`dd-drowned-bride`) |
+| 1 | Dagon, the Deep Itself (`dd-father-dagon`) |
+| 2 | Cold Current (`dd-cold-current`) |
+| 2 | Still Water (`dd-still-water`) |
+| 2 | The Price (`dd-the-price`) |
+| 2 | Drawn Under (`dd-undertow`) |
+| 2 | Memory of the Drowned (`dd-memory-of-the-drowned`) |
+| 2 | The Tide That Turns (`dd-tide-that-turns`) |
+| 2 | Drowned Bell (`dd-drowned-bell`) |
+| 1 | The Tide That Remembers (`dd-tide-that-remembers`) |
+
+### Rung 26: The Marsh-Mother (B/G), "Everything Planted Here Comes Up"
+
+- Blurb: "She plants Kelp Shades in the spring and Horrors in the autumn, and
+  the Tithe is how she harvests. Two tokens go under for every Horror that
+  comes up, and the last one is bigger than the marsh."
+- Theme: Black-Green Tithe Garden (Kelp Shade tokens, Tithe, Overrun).
+- Portrait: `dd-marsh-mother-horror`. Darling: `dd-marsh-mother-horror`
+  (Marsh-Mother, B/G, legendary by DC3).
+- Personality: aggression 1.2, holdback 0.8, attackThreshold 0.3,
+  removalBias 0.6, subtypeBias 0.6, preferred Horror, Plant, Deep One.
+
+| Count | Card |
+| --- | --- |
+| 12 | Swamp |
+| 12 | Forest |
+| 3 | Kelp-Tender (`dd-kelp-shade`) |
+| 2 | Kelp-Shade Warden (`dd-kelp-shade-warden`) |
+| 2 | Reed-Wight (`dd-marsh-wight-lesser`) |
+| 2 | Horror in the Crib (`dd-horror-in-the-crib`) |
+| 2 | Deep One Bride (`dd-deep-one-bride`) |
+| 2 | Something Under the Wharf (`dd-something-under-the-wharf`) |
+| 2 | Reef Horror (`dd-reef-horror`) |
+| 1 | Deep-Spawn Tender (`dd-deep-spawn-tender`) |
+| 1 | Coral-Mother (`dd-coral-mother`) |
+| 3 | Marsh-Mother (`dd-marsh-mother-horror`) |
+| 1 | Marsh-Born Horror (`dd-salt-marsh-horror`) |
+| 1 | The Reef That Walks (`dd-the-reef-that-walks`) |
+| 2 | The Horror Garden (`dd-horror-garden`) |
+| 2 | Net Full of Stars (`dd-net-full-of-stars`) |
+| 2 | Kelp Swarm (`dd-kelp-shade-swarm`) |
+| 2 | Reef Bloom (`dd-reef-bloom`) |
+| 2 | Due to the Deep (`dd-tithe-to-the-deep`) |
+| 2 | The Price (`dd-the-price`) |
+| 2 | Salt-Marsh Bargain (`dd-salt-marsh-bargain`) |
+
+The summit gate: the 23-24 precedent holds (a 24-avatar matrix blew the 900 s
+per-test ceiling), so rungs 25-26 get their own termination gate, floors
+provisional at tier 6 until the measured pass, exactly as 23-24 did.
 
 ## Balance pass (2026-09-11, before any card exists in the engine)
 
@@ -824,9 +959,10 @@ and the white, blue and black Rares, then had the remaining Rares and every
 Common decided by extrapolation from those picks (the rules below, applied by
 the extrapolation script kept with the session's cut-board tooling, every
 auto decision carrying its reason on the cut board). The list is **252 kept of 322**: two over the 250 target because
-Ultra Rare and Double Super Rare are each one over their histogram; the two
-demotions or cuts that close it are the owner's call (the pass already
-recommends moving The Lightkeeper's Oath to Rare). Two rows are still
+Ultra Rare and Double Super Rare are each one over their histogram. RULED
+2026-09-15: the set over-delivers on both; the shipped histogram is
+**13/17/23/75/124 = 252** and it is the locked histogram for this set (no
+demotion; The Lightkeeper's Oath stays Double Super Rare). Two rows are still
 undecided: The Choir Below (owner note: save for a future set) and Vigil at
 Low Water (protect-first, the white sweeper).
 
@@ -875,7 +1011,7 @@ items from the pass: The Lightkeeper's Oath, Vigil Bell, The Fog That Stays.
 **Double Super Rare (17)**
 
 - White: Constance Reyne, Harbourmaster (`dd-harbourmaster`), The Salt Gate (`dd-gate-of-salt`), Saint of the Lamp Oil (`dd-lamp-oil-saint`)
-- Blue: Ysolt the Tidewife (`dd-tidewife`), Drowned Scholar of the Reach (`dd-drowned-scholar`), Undertow (`dd-undertow`), The Glass That Came Back (`dd-glass-that-came-back`)
+- Blue: Ysolt the Tidewife (`dd-tidewife`), Drowned Scholar of the Reach (`dd-drowned-scholar`), Drawn Under (`dd-undertow`), The Glass That Came Back (`dd-glass-that-came-back`)
 - Black: The Drowned Bride (`dd-drowned-bride`), Sable, the Wharf Queen (`dd-wharf-rat-queen`), Marsh-Born Horror (`dd-salt-marsh-horror`)
 - Green: Elowen Cray, Reef-Warden (`dd-reef-warden`), Kelp Cathedral (`dd-kelp-cathedral`), Marsh-Risen (`dd-marsh-grave-risen`)
 - Red: Wreckfire (`dd-wreckfire`), The False Beacon (`dd-false-beacon`), Storm Surge (`dd-storm-surge`)
@@ -901,7 +1037,7 @@ items from the pass: The Lightkeeper's Oath, Vigil Bell, The Fog That Stays.
 **Common (124)**
 
 - White: Lamp-Bearer (`dd-lamp-bearer`), Wharf Watch (`dd-wharf-watch`), Salt-Stair Guard (`dd-salt-stair-guard`), Chapel Sister (`dd-chapel-sister`), Bell-Hand (`dd-bell-hand`), Net-Mender of the Point (`dd-net-mender-of-the-point`), Shore Lantern (`dd-shore-lantern`), Harbour Vigil (`dd-harbour-vigil`), Tide-Warden (`dd-tide-warden`), Widow of the Reach (`dd-widow-of-the-reach`), Chapel Bell (`dd-drowned-chapel-bell`), Salt and Prayer (`dd-salt-and-prayer`), Watch Recruit (`dd-watch-recruit`), Sentinel of the Point (`dd-point-sentinel`), Wisp-Caller (`dd-lantern-wisp-caller`), Whitecap Rider (`dd-whitecap-rider`), Chapel Warden (`dd-drowned-chapel-warden`), Shore-Mother (`dd-shore-mother`), Lamp Relay (`dd-lamp-relay`), Drowned Lantern (`dd-drowned-lantern`), Rite of the Lamp (`dd-rite-of-the-lamp`), Breakwater Warden (`dd-breakwater-warden`), Salt Chapel (`dd-salt-chapel`), Lamp and Ledger (`dd-lamp-and-ledger`), Chapel Ward (`dd-chapel-ward`)
-- Blue: Tide-Clerk (`dd-tide-clerk`), Low Street Looter (`dd-low-street-looter`), Harbour Mermaid (`dd-harbour-mermaid`), Drowned Scrivener (`dd-drowned-scrivener`), Cold-Water Diver (`dd-cold-water-diver`), Tide-Glass (`dd-tide-glass`), Fog Bank (`dd-fog-bank`), Undertow (`dd-undertow-charm`), Deep One Scout (`dd-deep-one-scout`), The Tide That Turns (`dd-tide-that-turns`), Still Harbour (`dd-still-harbour`), Drowned Chorister (`dd-drowned-choir-singer`), Net of Glass (`dd-net-of-glass`), Current-Reader (`dd-current-reader`), Drowned Bell (`dd-drowned-bell`), Envoy of the Cold Water (`dd-deep-envoy-lesser`), Salt Fog (`dd-salt-fog`), Tidewater Scholar (`dd-tidewater-scholar`), Memory of the Drowned (`dd-memory-of-the-drowned`), Mermaid of the Shallows (`dd-mermaid-of-the-shallows`), Cold-Current Horror (`dd-cold-current-horror`), Cartographer's Mate (`dd-drowned-cartographers-mate`), Tide-Caller of the Reach (`dd-reach-tide-caller`), The Glass-Eyed Drowned (`dd-glass-eyed-drowned`), Cold Harbour (`dd-cold-harbour`)
+- Blue: Tide-Clerk (`dd-tide-clerk`), Low Street Looter (`dd-low-street-looter`), Harbour Mermaid (`dd-harbour-mermaid`), Drowned Scrivener (`dd-drowned-scrivener`), Cold-Water Diver (`dd-cold-water-diver`), Tide-Glass (`dd-tide-glass`), Fog Bank (`dd-fog-bank`), Slack Water (`dd-undertow-charm`), Deep One Scout (`dd-deep-one-scout`), The Tide That Turns (`dd-tide-that-turns`), Still Harbour (`dd-still-harbour`), Drowned Chorister (`dd-drowned-choir-singer`), Net of Glass (`dd-net-of-glass`), Current-Reader (`dd-current-reader`), Drowned Bell (`dd-drowned-bell`), Envoy of the Cold Water (`dd-deep-envoy-lesser`), Salt Fog (`dd-salt-fog`), Tidewater Scholar (`dd-tidewater-scholar`), Memory of the Drowned (`dd-memory-of-the-drowned`), Mermaid of the Shallows (`dd-mermaid-of-the-shallows`), Cold-Current Horror (`dd-cold-current-horror`), Cartographer's Mate (`dd-drowned-cartographers-mate`), Tide-Caller of the Reach (`dd-reach-tide-caller`), The Glass-Eyed Drowned (`dd-glass-eyed-drowned`), Cold Harbour (`dd-cold-harbour`)
 - Black: Low Street Witch (`dd-low-street-witch`), The Drowned (`dd-drowned-child`), Deep One Cultist (`dd-deep-one-cultist`), Deep-Spawn Tender (`dd-deep-spawn-tender`), Deep One Warrior (`dd-deep-one-warrior`), Drowned Horror (`dd-drowned-horror`), Cellar Jar (`dd-cellar-jar`), Salt in the Eyes (`dd-salt-in-the-eyes`), The Deep Collects (`dd-the-deep-collects`), The Wharf's Due (`dd-tithe-of-the-wharf`), Drowned Sailor (`dd-drowned-sailor`), Marsh-Widow (`dd-marsh-widow`), Deep One Acolyte (`dd-deep-one-acolyte`), Cold Bargain (`dd-cold-bargain`), Wharf Rat (`dd-wharf-rat`), Horror in the Well (`dd-horror-in-the-well`), What the Sea Wants (`dd-what-the-sea-wants`), Black Tide Rising (`dd-black-tide-rising`), Deep-Spawn Hatchery (`dd-deep-spawn-hatchery`), Salt-Marsh Ghoul (`dd-salt-marsh-ghoul`), Drowned Nurse (`dd-drowned-nurse`), Jar of Eyes (`dd-jar-of-eyes`), Marsh-Lamp Lure (`dd-marsh-lamp-lure`), Low Street Mourner (`dd-low-street-mourner`), Gravedigger of the Flats (`dd-drowned-sexton-lesser`)
 - Green: Kelp-Tender (`dd-kelp-shade`), Reef Crab (`dd-reef-crab`), Tidepool Warden (`dd-tidepool-warden`), Marsh Horror (`dd-marsh-horror`), Coral Graft (`dd-coral-graft`), Reef Warden (`dd-reef-warden-lesser`), Tide-Worn Brute (`dd-tide-worn-brute`), Kelp Swarm (`dd-kelp-shade-swarm`), Reef-Lantern (`dd-reef-lantern`), Marsh-Road Warden (`dd-marsh-road-warden`), Reed-Witch (`dd-drowned-druid-lesser`), Old-Growth Horror (`dd-old-growth-horror`), Tidepool Bloom (`dd-tidepool-bloom`), Reed-Wight (`dd-marsh-wight-lesser`), Salt-Heron (`dd-shore-heron`), Coral-Witch (`dd-coral-mother-lesser`), Kelp Wall (`dd-kelp-wall`), Marsh Brute (`dd-marsh-brute`), Reef Growth (`dd-reef-growth`), Drowned Gardener (`dd-drowned-gardener`), Reed-Caller (`dd-reed-caller`), Shallows Hunter (`dd-shallows-hunter`), Marsh Gate (`dd-marsh-gate`), Elder Kelp Shade (`dd-kelp-shade-elder`)
 - Red: Wreck-Runner (`dd-wreck-runner`), Breakwater Brawler (`dd-breakwater-brawler`), Wrecker's Lantern-Bearer (`dd-wrecker-lantern-bearer`), Storm-Caller (`dd-storm-caller-lesser`), Salt-Fire Charm (`dd-salt-fire-lesser`), Storm Horror (`dd-storm-horror`), Wrecker's Lookout (`dd-wrecker-lookout`), Forge-Lamp (`dd-forge-lamp`), Rage of the Reach (`dd-rage-of-the-reach`), Fire Under Water (`dd-drowned-fire-lesser`), Storm-Rider (`dd-storm-rider`), Wrecker Mate (`dd-wrecker-captain-lesser`), Squall Line (`dd-storm-front-lesser`), Squall-Witch (`dd-storm-witch-lesser`), Forge-Hand (`dd-drowned-forge-hand`), Fire on the Water (`dd-fire-on-the-water`), Breakwater Veteran (`dd-breakwater-veteran`), Surge (`dd-storm-surge-lesser`), Wreck-Diver (`dd-wreck-diver`), Gale Horror (`dd-gale-horror`), Forge-Fire (`dd-drowned-forge-fire`), Reach Raider (`dd-reach-raider`), Rite of the Lamp-Fire (`dd-rite-of-the-lamp-fire`), Storm-Tide Brute (`dd-storm-tide-brute`), Forge-Master of the Reach (`dd-drowned-forge-master`)

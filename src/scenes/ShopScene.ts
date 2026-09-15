@@ -147,6 +147,15 @@ const STARBORNE_PACK_TINT: PackTint = {
   mist: '#c8d2dc',
 };
 
+const DROWNED_DEEP_PACK_TINT: PackTint = {
+  start: '#eef0ea',
+  middle: '#16303a',
+  end: '#0d1a22',
+  trim: '#a8783c',
+  foil: '#d6e07c',
+  mist: '#7d8590',
+};
+
 const packRR = (
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -318,6 +327,13 @@ export const STARBORNE_PACK_ART: PackArtOpts = {
   trimY: 63,
 };
 
+export const DROWNED_DEEP_PACK_ART: PackArtOpts = {
+  key: 'packart-drowned-deep',
+  sceneArtKey: 'scene-pack-art-drowned-deep',
+  tint: DROWNED_DEEP_PACK_TINT,
+  trimY: 63,
+};
+
 export function packTextureForSku(sku: BoosterSku): string {
   if (sku === 'ragnarok') return 'packart-ragnarok';
   if (sku === 'celtic-fae') return 'packart-celtic-fae';
@@ -327,6 +343,7 @@ export function packTextureForSku(sku: BoosterSku): string {
   if (sku === 'yokai-nights') return 'packart-yokai-nights';
   if (sku === 'sands-of-the-duat') return 'packart-sands-of-the-duat';
   if (sku === 'starborne') return 'packart-starborne';
+  if (sku === 'drowned-deep') return 'packart-drowned-deep';
   return 'packart';
 }
 
@@ -340,6 +357,7 @@ export function packPriceForSku(sku: BoosterSku): number {
   if (sku === 'yokai-nights') return ECONOMY.yokaiNightsPackPrice;
   if (sku === 'sands-of-the-duat') return ECONOMY.sandsOfTheDuatPackPrice;
   if (sku === 'starborne') return ECONOMY.starbornePackPrice;
+  if (sku === 'drowned-deep') return ECONOMY.drownedDeepPackPrice;
   return ECONOMY.packPrice;
 }
 
@@ -361,6 +379,7 @@ export const BOOSTER_SKUS: ReadonlyArray<{ label: string; textureKey: string; sk
   { label: SET_TITLES['yokai-nights'], textureKey: 'packart-yokai-nights', sku: 'yokai-nights' },
   { label: SET_TITLES['sands-of-the-duat'], textureKey: 'packart-sands-of-the-duat', sku: 'sands-of-the-duat' },
   { label: SET_TITLES.starborne, textureKey: 'packart-starborne', sku: 'starborne' },
+  { label: SET_TITLES['drowned-deep'], textureKey: 'packart-drowned-deep', sku: 'drowned-deep' },
 ];
 
 /**
@@ -375,7 +394,7 @@ export function visibleBoosterSkus(): ReadonlyArray<{ label: string; textureKey:
 }
 
 /** Only the newest SKU gets launch emphasis. Keep this beside BOOSTER_SKUS. */
-export const NEWEST_SKU: BoosterSku = 'starborne';
+export const NEWEST_SKU: BoosterSku = 'drowned-deep';
 
 /**
  * Bake a booster-pack texture once (shared with PackOpeningScene). Real front
@@ -676,6 +695,7 @@ export class ShopScene extends Phaser.Scene {
     bakePackArt(this, YOKAI_NIGHTS_PACK_ART);
     bakePackArt(this, SANDS_OF_THE_DUAT_PACK_ART);
     bakePackArt(this, STARBORNE_PACK_ART);
+    bakePackArt(this, DROWNED_DEEP_PACK_ART);
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('shop');
 
