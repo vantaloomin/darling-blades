@@ -27,8 +27,10 @@ them off in Settings at any time.
 
 ## 1. Who is responsible
 
-Blade Darlings is responsible for the information described here (the "data
-controller" under the GDPR). Contact: admin@bladedarlings.com.
+Darling Blades is an independent, non-commercial project. Blade Darlings is
+the name its developer publishes under, and is responsible for the
+information described here (the "data controller" under the GDPR). Contact:
+admin@bladedarlings.com.
 
 ## 2. Your save stays on your device
 

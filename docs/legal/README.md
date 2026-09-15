@@ -32,7 +32,7 @@ Every `[BRACKETED]` token in the drafts is an owner input. The full set:
 
 | Token | What it needs | Note |
 | --- | --- | --- |
-| ~~`[OPERATOR NAME]`~~ | **Filled 2026-09-15: `Blade Darlings`** | GDPR Art. 13 requires the controller identity. If this is a trade name rather than a registered entity, add the legal name behind it before publishing |
+| ~~`[OPERATOR NAME]`~~ | **Filled 2026-09-15: `Blade Darlings`** | A publishing name, not an entity (owner ruling 2026-09-15: no LLC for 1.8, non-commercial, stay pseudonymous). Policy section 1 says so. Revisit at 2.1, when accounts hold real emails |
 | ~~`[CONTACT EMAIL]`~~ | **Filled 2026-09-15: `admin@bladedarlings.com`** | A dedicated inbox, not a personal one. Watch it: the policy promises a reply within 30 days |
 | ~~`[COUNTRY / STATE]`~~ | **Filled 2026-09-15: Maryland, USA** | Governing law and venue for the terms |
 | `[1.8 RELEASE DATE]` | The 1.8 ship date, the effective date of both documents | Change it on every material edit after launch |
