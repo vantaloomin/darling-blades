@@ -9,6 +9,7 @@ import {
 } from '../battlefield';
 import { anyPayableHauntlink } from '../hauntlinkWindow';
 import { drawCards } from '../phases';
+import { freshGraveyardCard } from '../graveyard';
 import { rngInt } from '../rng';
 import { getEffectiveStats, isQuestActive } from '../statics';
 import { enumerateTargets } from './targeting';
@@ -323,7 +324,8 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       const hand = state.players[victim].hand;
       for (let i = 0; i < op.n && hand.length > 0; i++) {
         const idx = rngInt(state.rng, hand.length);
-        const [card] = hand.splice(idx, 1);
+        // Hand -> graveyard (opponent's random discard): enables Whispers.
+        const card = freshGraveyardCard(state, db, hand.splice(idx, 1)[0], victim);
         state.players[victim].graveyard.push(card);
         fireGraveyardTriggers(state, db, emit, card, victim, ctx.markTriggerDepth);
         emit({ e: 'discarded', player: victim, cardId: cardIdOf(card) });
@@ -388,6 +390,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       for (let i = 0; i < op.n; i++) {
         const card = grave.pop(); // most recent card is the graveyard top
         if (card === undefined) break;
+        if (isCardInstance(card)) delete card.whispersUntilDawnOf;
         state.players[victim].severed.push(card);
         emit({ e: 'severed', player: victim, cardId: cardIdOf(card), from: 'graveyard' });
       }
@@ -421,6 +424,8 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
             state.players[item.controller].severed.push(card);
             emit({ e: 'severed', player: item.controller, cardId: item.cardId, from: 'graveyard' });
           } else {
+            // Stack -> graveyard (cancel): stackCard carries identity only,
+            // never a Whispers freshness marker.
             state.players[item.controller].graveyard.push(card);
             fireGraveyardTriggers(state, db, emit, card, item.controller, ctx.markTriggerDepth);
           }
@@ -684,6 +689,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         if (ref.kind !== 'grave' || ref.player !== ctx.controller) continue;
         if (ref.index < grave.length) {
           const [card] = grave.splice(ref.index, 1);
+          if (isCardInstance(card)) delete card.whispersUntilDawnOf;
           state.players[ctx.controller].hand.push(card);
         }
       }
@@ -693,8 +699,10 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       const victim = op.who === 'self' ? ctx.controller : opponentOf(ctx.controller);
       const lib = state.players[victim].deck;
       for (let i = 0; i < op.n; i++) {
-        const card = lib.pop(); // top of deck is the last element
-        if (card === undefined) break; // empty deck: deck-out is a DRAW check, not here
+        const milled = lib.pop(); // top of deck is the last element
+        if (milled === undefined) break; // empty deck: deck-out is a DRAW check, not here
+        // Deck -> graveyard (self or opponent grind): enables Whispers.
+        const card = freshGraveyardCard(state, db, milled, victim);
         state.players[victim].graveyard.push(card);
         fireGraveyardTriggers(state, db, emit, card, victim, ctx.markTriggerDepth);
         emit({ e: 'milled', player: victim, cardId: cardIdOf(card) });

@@ -11,16 +11,20 @@ import {
 import { enumerateTargets, isLegalTarget } from './effects/targeting';
 import { canPay, combineManaCosts, manaSources, maxPayableX, solveMana } from './mana';
 import { castTargetSpecs } from './resolve';
+import { getEffectiveStats } from './statics';
 import type { CardDb, CardDef, GameState, ManaCost, Permanent, PlayerId, TargetRef, TargetSpec } from './types';
 import {
   cardIdOf,
   def,
   isType,
+  isCardInstance,
   manaValue,
   opponentOf,
   validateEmpowerDef,
   validateHauntlinkDef,
   validatePreserveDef,
+  validateTitheDef,
+  validateWhispersDef,
 } from './types';
 
 const moveMarkCache = new WeakMap<CardDef, { normal: boolean; empowered: boolean }>();
@@ -54,16 +58,20 @@ export type Action =
   | {
       type: 'castSpell';
       handIndex: number;
-      /** Retell casts use graveIndex as their authoritative source index. */
+      /** Retell and Whispers use graveIndex as their authoritative source index. */
       graveIndex?: number;
       targets?: TargetRef[];
-      /** Battlefield iids sacrificed as a Rite additional cost. */
+      /** Battlefield iids sacrificed as a Rite or Tithe cost. */
       sacrifices?: number[];
       x?: number;
       /** Omitted means the ordinary cast. X cards cannot be empowered. */
       empowered?: boolean;
       /** Cast this card from its controller's graveyard for retell.cost. */
       retell?: boolean;
+      /** Cast a freshly tagged graveyard card for its Whispers cost. */
+      whispers?: true;
+      /** Apply the optional discount from the chosen creature sacrifices. */
+      tithe?: true;
       /** Cast this card for hauntlink.cost and attach it to targets[0]. */
       hauntlinked?: boolean;
       manaPlan?: number[]; // explicit source iids; omitted = auto-solve
@@ -156,9 +164,10 @@ function pushCastActions(
   d: CardDef,
   retell = false,
   hauntlinked = false,
+  mode: { whispers?: true; tithe?: true } = {},
 ): void {
   const xs: (number | undefined)[] = d.x
-    ? retell || hauntlinked
+      ? retell || hauntlinked || mode.whispers || mode.tithe
       ? []
       : Array.from(
           { length: Math.max(0, maxPayableX(state, db, player, d.cost!) - d.x.min + 1) },
@@ -177,8 +186,14 @@ function pushCastActions(
         .map((perm) => perm.iid)
     : undefined;
   // One action per (Empower option, legal target selection, X value).
-  for (const empowered of !retell && !hauntlinked && canEmpower(d) ? [false, true] : [false]) {
-    const cost = castCost(d, empowered, retell, hauntlinked);
+  for (const empowered of !retell && !hauntlinked && !mode.whispers && canEmpower(d) ? [false, true] : [false]) {
+    const fodder = mode.tithe ? canonicalTitheSacrifices(state, db, player, d, empowered) : sacrifices;
+    // The ordinary cast already represents the empty set; never duplicate it.
+    if (mode.tithe && fodder?.length === 0) continue;
+    const options = { ...mode, sacrifices: fodder, state, db, graveIndex: sourceIndex };
+    if ((mode.whispers || mode.tithe) &&
+      castBlockers(state, db, player, d, empowered, 0, retell, hauntlinked, options) !== null) continue;
+    const cost = castCost(d, empowered, retell, hauntlinked, options);
     if (!cost) continue;
     const specs = castTargetSpecsFor(d, retell, hauntlinked, empowered);
     const targetLists = targetListsForCast(state, db, player, d, specs, empowered);
@@ -195,9 +210,11 @@ function pushCastActions(
           // engine treats graveIndex as authoritative for Retell.
           handIndex: sourceIndex,
           ...(retell ? { graveIndex: sourceIndex, retell: true } : {}),
+          ...(mode.whispers ? { graveIndex: sourceIndex, whispers: true } : {}),
+          ...(mode.tithe ? { tithe: true } : {}),
           ...(hauntlinked ? { hauntlinked: true } : {}),
           ...(targets ? { targets } : {}),
-          ...(sacrifices ? { sacrifices } : {}),
+          ...(fodder ? { sacrifices: fodder } : {}),
           ...(x === undefined ? {} : { x }),
           ...(empowered ? { empowered: true } : {}),
         });
@@ -211,17 +228,87 @@ function canEmpower(d: CardDef): boolean {
   return d.empower !== undefined && !d.x;
 }
 
-function castCost(
+export interface CastCostOptions {
+  whispers?: boolean;
+  tithe?: boolean;
+  sacrifices?: readonly number[];
+  /** Required when calculating a Tithe discount from battlefield instances. */
+  state?: GameState;
+  db?: CardDb;
+}
+
+export function castCost(
   d: CardDef,
   empowered: boolean,
   retell = false,
   hauntlinked = false,
+  options: CastCostOptions = {},
 ): CardDef['cost'] {
+  if (options.whispers) {
+    if (empowered || retell || hauntlinked || options.tithe || validateWhispersDef(d).length > 0) return undefined;
+    return d.whispers?.cost;
+  }
+  if (options.tithe && (retell || hauntlinked || !d.tithe || validateTitheDef(d).length > 0)) return undefined;
   if (hauntlinked) return d.hauntlink?.cost;
   if (retell) return d.retell?.cost;
   if (!d.cost) return undefined;
-  if (!empowered) return d.cost;
-  return canEmpower(d) ? combineManaCosts(d.cost, d.empower!.cost) : undefined;
+  const cost = empowered
+    ? canEmpower(d) ? combineManaCosts(d.cost, d.empower!.cost) : undefined
+    : d.cost;
+  if (!cost || !options.tithe) return cost;
+  const { state, db, sacrifices = [] } = options;
+  if (!state || !db) return undefined;
+  const defense = sacrifices.reduce((sum, iid) => sum + getEffectiveStats(state.battlefield, db, iid).defense, 0);
+  return { generic: Math.max(0, cost.generic - Math.floor(defense / 2)), pips: { ...cost.pips } };
+}
+
+/** One stable fodder set per cost variant, never an exponential subset menu. */
+function canonicalTitheSacrifices(state: GameState, db: CardDb, player: PlayerId, d: CardDef, empowered: boolean): number[] {
+  const generic = castCost(d, empowered)?.generic ?? 0;
+  const bodies = state.battlefield
+    .filter((perm) => perm.controller === player && isType(def(db, perm.cardId), 'creature'))
+    .map((perm) => ({ iid: perm.iid, defense: getEffectiveStats(state.battlefield, db, perm.iid).defense }))
+    .sort((a, b) => a.defense - b.defense);
+  const sacrifices: number[] = [];
+  let defense = 0;
+  for (const body of bodies) {
+    if (Math.floor(defense / 2) >= generic) break;
+    sacrifices.push(body.iid);
+    defense += body.defense;
+  }
+  return sacrifices;
+}
+
+function liveWhispers(state: GameState, player: PlayerId, graveIndex: number | undefined, d: CardDef): boolean {
+  if (graveIndex === undefined) return false;
+  const card = state.players[player].graveyard[graveIndex];
+  return card !== undefined && isCardInstance(card) && card.cardId === d.id &&
+    card.whispersUntilDawnOf === opponentOf(player);
+}
+
+/** Normal card speed, with explicit main/empty-stack guards for the new cast. */
+function whispersCastableNow(state: GameState, player: PlayerId, d: CardDef): boolean {
+  return castableNow(state, player, d) && (isType(d, 'charm') ||
+    ((state.step === 'main1' || state.step === 'main2') && state.stack.length === 0));
+}
+
+/** Add the new riders without changing any awaiting-kind dispatcher. */
+function pushAdditionalCastActions(out: Action[], state: GameState, db: CardDb, player: PlayerId): void {
+  const kind = state.awaiting.kind;
+  if (kind !== 'main' && kind !== 'respond' && kind !== 'endStepWindow') return;
+  state.players[player].graveyard.forEach((card, index) => {
+    const d = def(db, card);
+    if (d.whispers && liveWhispers(state, player, index, d) && whispersCastableNow(state, player, d)) {
+      pushCastActions(out, state, db, player, index, d, false, false, { whispers: true });
+    }
+  });
+  const seen = new Set<string>();
+  state.players[player].hand.forEach((card, index) => {
+    const d = def(db, card);
+    if (!d.tithe || seen.has(d.id) || !castableNow(state, player, d)) return;
+    seen.add(d.id);
+    pushCastActions(out, state, db, player, index, d, false, false, { tithe: true });
+  });
 }
 
 /** Printed Darling cost plus its accumulated generic command-zone tax. */
@@ -259,9 +346,9 @@ function targetListsForCast(
   if (specs.length === 0) return [undefined];
   const candidatesFor = (spec: TargetSpec): TargetRef[] => {
     const candidates = enumerateTargets(state, db, player, spec, sourceIid);
-    // Keep legacy cast enumeration unchanged. Activation sources also filter
-    // player/grave refs, which enumerateTargets can append before qualifiers.
-    const legal = sourceIid === undefined ? candidates : candidates.filter(
+    // Keep legacy card enumeration unchanged. New cast mechanics and Duty
+    // also filter player/grave refs appended before permanent qualifiers.
+    const legal = sourceIid === undefined && !d.whispers && !d.tithe ? candidates : candidates.filter(
       (ref) => isLegalTarget(state, db, player, spec, ref, sourceIid),
     );
     return moveMark ? legal.filter((ref) => spec.what === 'spell' || (
@@ -369,7 +456,7 @@ function validateTargetList(
 }
 
 function retellable(d: CardDef): boolean {
-  return d.retell !== undefined && !d.x && (isType(d, 'ritual') || isType(d, 'charm'));
+  return d.retell !== undefined && !d.x && !d.whispers && !d.tithe && (isType(d, 'ritual') || isType(d, 'charm'));
 }
 
 function preserveBlockers(
@@ -543,16 +630,24 @@ function castBlockers(
   x = d.x ? d.x.min : 0,
   retell = false,
   hauntlinked = false,
+  options: CastCostOptions & { graveIndex?: number } = {},
 ): string | null {
+  if (options.whispers) {
+    if (!d.whispers || validateWhispersDef(d).length > 0 || empowered || retell || hauntlinked || options.tithe) {
+      return 'invalid Whispers cast';
+    }
+    if (!liveWhispers(state, player, options.graveIndex, d)) return 'Whispers marker is not live';
+  }
+  if (options.tithe && (!d.tithe || validateTitheDef(d).length > 0 || retell || hauntlinked)) return 'invalid Tithe cast';
   if (empowered && d.empower && validateEmpowerDef(d).length > 0) return 'invalid Empower definition';
   if (hauntlinked && !isHauntlinkCarrier(d)) return 'invalid Hauntlink carrier';
-  if (!retell && !d.cost) return 'card has no mana cost';
+  if (!retell && !options.whispers && !d.cost) return 'card has no mana cost';
   if (retell && !retellable(d)) return 'card cannot be Retold';
   const creatures = creatureCount(state, db, player);
   if (d.rite && creatures < d.rite.n) return 'not enough creatures for Rite';
   if (
     isType(d, 'creature') &&
-    creatures - (d.rite?.n ?? 0) >= RULES.maxCreatures
+    creatures - (options.tithe ? options.sacrifices?.length ?? 0 : d.rite?.n ?? 0) >= RULES.maxCreatures
   )
     return 'creature battlefield cap reached';
   if (
@@ -563,7 +658,7 @@ function castBlockers(
     !hauntlinked && noncreaturePermCount(state, db, player) >= RULES.maxNoncreaturePermanents
   )
     return 'noncreature permanent cap reached';
-  const cost = castCost(d, empowered, retell, hauntlinked);
+  const cost = castCost(d, empowered, retell, hauntlinked, options);
   if (!cost || !canPay(state, db, player, cost, d.x && !empowered && !retell ? x : 0)) {
     return 'cannot pay cost';
   }
@@ -798,6 +893,7 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
 
   }
 
+  pushAdditionalCastActions(out, state, db, player);
   out.push({ type: 'concede' });
   return out;
 }
@@ -911,18 +1007,27 @@ export function validateAction(
     case 'castSpell': {
       const isRetell = action.retell === true;
       const isHauntlinked = action.hauntlinked === true;
+      const isWhispers = action.whispers === true;
+      const isTithe = action.tithe === true;
+      const fromGrave = isRetell || isWhispers;
+      if (isWhispers && (isRetell || isHauntlinked || isTithe || action.empowered || action.x !== undefined)) {
+        return 'Whispers cannot combine with Retell, Hauntlink, Tithe, Empower or X';
+      }
+      if (isTithe && (isRetell || isHauntlinked || action.x !== undefined)) return 'Tithe cannot combine with Retell, Hauntlink or X';
       if (isRetell && isHauntlinked) return 'Retell and Hauntlink cannot be combined';
       if (isRetell && action.empowered) return 'Retell and Empower cannot be combined';
       if (isRetell && action.graveIndex === undefined) return 'Retell needs a graveyard index';
-      if (!isRetell && action.graveIndex !== undefined) return 'graveyard index requires Retell';
-      const sourceIndex = isRetell ? action.graveIndex! : action.handIndex;
-      const cardId = isRetell ? me.graveyard[sourceIndex] : me.hand[sourceIndex];
+      if (isWhispers && !Number.isInteger(action.graveIndex)) return 'Whispers needs a graveyard index';
+      if (!fromGrave && action.graveIndex !== undefined) return 'graveyard index requires Retell or Whispers';
+      const sourceIndex = fromGrave ? action.graveIndex! : action.handIndex;
+      const cardId = fromGrave ? me.graveyard[sourceIndex] : me.hand[sourceIndex];
       if (cardId === undefined) return 'bad hand index';
       const d = def(db, cardId);
       if (usesActivatedHauntlink(state) && isHauntlinked) {
         return 'Hauntlink is activated from the battlefield in this rules revision';
       }
       if (!castableNow(state, player, d)) return 'cannot cast this now';
+      if (isWhispers && !whispersCastableNow(state, player, d)) return 'cannot cast Whispers now';
       if (isRetell && !retellable(d)) return 'card cannot be Retold';
       if (isRetell && d.x) return 'X spells cannot be Retold';
       if (isHauntlinked && !d.hauntlink) return 'card has no Hauntlink option';
@@ -931,15 +1036,19 @@ export function validateAction(
       }
       if (action.empowered && !d.empower) return 'card has no Empower option';
       if (action.empowered && d.x) return 'X spells cannot be empowered';
-      if (!d.rite && action.sacrifices !== undefined) return 'card has no Rite cost';
+      if (isTithe && (!d.tithe || validateTitheDef(d).length > 0)) return 'invalid Tithe cast';
+      if (!d.rite && !isTithe && action.sacrifices !== undefined) return 'card has no Rite cost';
       if (d.rite) {
         if (!action.sacrifices || action.sacrifices.length !== d.rite.n) {
           return `Rite requires exactly ${d.rite.n} sacrifice${d.rite.n === 1 ? '' : 's'}`;
         }
+      }
+      if (d.rite || isTithe) {
+        const mechanic = isTithe ? 'Tithe' : 'Rite';
         const seen = new Set<number>();
-        for (const iid of action.sacrifices) {
-          if (!Number.isInteger(iid)) return 'bad Rite sacrifice iid';
-          if (seen.has(iid)) return 'duplicate Rite sacrifice';
+        for (const iid of action.sacrifices ?? []) {
+          if (!Number.isInteger(iid)) return `bad ${mechanic} sacrifice iid`;
+          if (seen.has(iid)) return `duplicate ${mechanic} sacrifice`;
           seen.add(iid);
           const perm = state.battlefield.find((candidate) => candidate.iid === iid);
           if (
@@ -947,10 +1056,11 @@ export function validateAction(
             perm.controller !== player ||
             !isType(def(db, perm.cardId), 'creature')
           ) {
-            return 'Rite sacrifices must be creatures you control';
+            return `${mechanic} sacrifices must be creatures you control`;
           }
         }
       }
+      const options = { whispers: isWhispers, tithe: isTithe, sacrifices: action.sacrifices, graveIndex: action.graveIndex, state, db };
       const blocked = castBlockers(
         state,
         db,
@@ -960,6 +1070,7 @@ export function validateAction(
         action.x ?? 0,
         isRetell,
         isHauntlinked,
+        options,
       );
       if (blocked) return blocked;
       if (d.x && (action.x === undefined || action.x < d.x.min)) return 'bad X';
@@ -976,10 +1087,11 @@ export function validateAction(
           action.empowered === true,
           isRetell,
           isHauntlinked,
+          options,
         );
         if (err) return err;
       } else {
-        const cost = castCost(d, action.empowered === true, isRetell, isHauntlinked);
+        const cost = castCost(d, action.empowered === true, isRetell, isHauntlinked, options);
         if (!cost || solveMana(
           state,
           db,
@@ -1107,6 +1219,7 @@ function validateManaPlan(
   empowered: boolean,
   retell: boolean,
   hauntlinked: boolean,
+  options: CastCostOptions = {},
 ): string | null {
   const available = new Map(manaSources(state, db, player).map((s) => [s.iid, s]));
   const seen = new Set<number>();
@@ -1119,7 +1232,7 @@ function validateManaPlan(
   const others = manaSources(state, db, player)
     .filter((s) => !plan.includes(s.iid))
     .map((s) => s.iid);
-  const cost = castCost(d, empowered, retell, hauntlinked);
+  const cost = castCost(d, empowered, retell, hauntlinked, options);
   if (!cost) return 'invalid cast cost';
   const solved = solveMana(
     state,
@@ -1233,8 +1346,19 @@ export function reasonUncastable(
   return null; // castable
 }
 
-/** Any instant in hand or Retell Charm in the graveyard that `player` could pay AND target right now? (window auto-pass check) */
+/** Live, payable and targetable Whispers Charm, even before a response awaiting is installed. */
+function hasWhispersCharm(state: GameState, db: CardDb, player: PlayerId): boolean {
+  return state.players[player].graveyard.some((card, graveIndex) => {
+    const d = def(db, card);
+    if (!d.whispers || !isType(d, 'charm')) return false;
+    if (castBlockers(state, db, player, d, false, 0, false, false, { whispers: true, graveIndex }) !== null) return false;
+    return targetListsForCast(state, db, player, d, castTargetSpecsFor(d, false), false).length > 0;
+  });
+}
+
+/** Any instant in hand or graveyard that `player` could pay AND target? (window auto-pass check) */
 export function hasCastableInstant(state: GameState, db: CardDb, player: PlayerId): boolean {
+  if (hasWhispersCharm(state, db, player)) return true;
   if (hasPayableHauntlinkAction(state, db, player)) return true;
   const me = state.players[player];
   for (const cardId of me.hand) {
@@ -1263,6 +1387,7 @@ export function hasCastableInstant(state: GameState, db: CardDb, player: PlayerI
  * fuel an unbounded chain of reopened windows.
  */
 export function hasCastableCharm(state: GameState, db: CardDb, player: PlayerId): boolean {
+  if (hasWhispersCharm(state, db, player)) return true;
   if (hasPayableHauntlinkAction(state, db, player)) return true;
   const me = state.players[player];
   for (const cardId of me.hand) {

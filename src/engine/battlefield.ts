@@ -231,6 +231,8 @@ function pushMovedCard(
   } else if (zone === 'darlingZone') {
     state.players[perm.owner].darlingZone = card;
   } else {
+    // Battlefield -> selected zone; a graveyard entry here never enables
+    // Whispers. Reconstruct identity without any prior graveyard marker.
     state.players[perm.owner][zone].push(card);
   }
   return card;

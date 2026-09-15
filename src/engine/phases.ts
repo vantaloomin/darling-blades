@@ -4,7 +4,7 @@ import type { Emit } from './battlefield';
 import { fireTriggers } from './effects/EffectInterpreter';
 import { checkStateBased } from './sba';
 import type { CardDb, GameState, PlayerId, Step } from './types';
-import { cardIdOf, opponentOf } from './types';
+import { cardIdOf, isCardInstance, opponentOf } from './types';
 
 export function endGame(
   state: GameState,
@@ -69,6 +69,12 @@ export function startTurn(state: GameState, db: CardDb, emit: Emit): void {
   // abilities resolve first, then a Quest advances and resolves its chapter.
   // Chapter ops are trigger-safe and can queue FIFO pending decisions.
   setStep(state, 'dawn', emit);
+  // Expire both graveyards before this player's Dawn triggers can add new tags.
+  for (const player of state.players) {
+    for (const card of player.graveyard) {
+      if (isCardInstance(card) && card.whispersUntilDawnOf === active) delete card.whispersUntilDawnOf;
+    }
+  }
   for (const perm of [...state.battlefield]) {
     if (perm.controller !== active) continue;
     if (!state.battlefield.some((p) => p.iid === perm.iid)) continue;
