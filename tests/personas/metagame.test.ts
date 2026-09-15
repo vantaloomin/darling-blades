@@ -67,9 +67,10 @@ const firstAvailableProposal = (
   return incoming ? proposalWithIncoming(current, incoming) : null;
 };
 
-// 2026-09-15: every loop test that plays real crafts carries the 120 s budget; the live pool
-// (1,482 cards) and the 14-prefab field pushed three of them past vitest's 5 s default on CI.
-describe('persona metagame loop', () => {
+// 2026-09-15: every test in this block plays real crafts, and the live pool (1,482 cards) with the
+// 14-prefab field pushes several past vitest's 5 s default on CI hardware, so the whole block
+// carries the 120 s budget the long-running ones already declared.
+describe('persona metagame loop', { timeout: 120_000 }, () => {
   it('keeps round 0 byte-identical to the v1 craft through the real measure path', () => {
     const singleDir = mkdtempSync(join(tmpdir(), 'darling-persona-single-'));
     const metagameDir = mkdtempSync(join(tmpdir(), 'darling-persona-metagame-'));
