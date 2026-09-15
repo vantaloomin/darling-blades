@@ -22,6 +22,7 @@ import { GREEK } from '../src/data/cards/greek';
 import { RAGNAROK } from '../src/data/cards/ragnarok';
 import { SANDS_OF_THE_DUAT } from '../src/data/cards/sands-of-the-duat';
 import { STARBORNE } from '../src/data/cards/starborne';
+import { DROWNED_DEEP } from '../src/data/cards/drowned-deep';
 import { TK_JIN } from '../src/data/cards/tk-jin';
 import { TK_OTHER } from '../src/data/cards/tk-other';
 import { TK_SHU } from '../src/data/cards/tk-shu';
@@ -59,6 +60,7 @@ const FILE_MAP: { file: string; sets: readonly (readonly CardDef[])[] }[] = [
   { file: 'constructs-and-tokens.md', sets: [ARTIFACTS, BASE_TOKENS] },
   { file: 'sands-of-the-duat.md', sets: [SANDS_OF_THE_DUAT] },
   { file: 'starborne.md', sets: [STARBORNE] },
+  { file: 'drowned-deep.md', sets: [DROWNED_DEEP] },
 ];
 
 /** The 13 template fields from index.md §8, exact labels, exact order. */

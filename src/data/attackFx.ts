@@ -1,6 +1,7 @@
 import type { CardDef } from '../engine/types';
 import { isType } from '../engine/types';
 import { STARBORNE } from './cards/starborne';
+import { DROWNED_DEEP } from './cards/drowned-deep';
 import { TOKENS } from './cards/tokens';
 
 // ---------------------------------------------------------------------------
@@ -768,6 +769,53 @@ const STARBORNE_TOKEN_IDS = new Set([
 for (const card of [...STARBORNE, ...TOKENS.filter((token) => STARBORNE_TOKEN_IDS.has(token.id))]) {
   if (isType(card, 'creature') && !ATTACK_FX_MAP[card.id]) {
     ATTACK_FX_MAP[card.id] = { archetype: fallbackArchetype(card), heavy: fallbackHeavy(card) };
+  }
+}
+
+const DROWNED_DEEP_TOKEN_FX: Record<string, AttackFxSpec> = {
+  'tok-deep-spawn': { archetype: 'claw', heavy: false },
+  'tok-drowned-spirit': { archetype: 'shadow', heavy: false },
+  'tok-lantern-wisp': { archetype: 'radiance', heavy: false },
+  'tok-kelp-shade': { archetype: 'impact', heavy: false },
+};
+
+const DROWNED_DEEP_FX_RULES: readonly {
+  matches: (card: CardDef) => boolean;
+  archetype: AttackArchetype;
+  heavy: (card: CardDef) => boolean;
+}[] = [
+  { matches: (card) => card.subtypes.some((subtype) => subtype === 'Horror' || subtype === 'Deep One'),
+    archetype: 'claw', heavy: (card) => (card.attack ?? 0) >= 5 },
+  { matches: (card) => card.subtypes.includes('Spirit'), archetype: 'shadow', heavy: () => false },
+  { matches: (card) => card.subtypes.includes('Mermaid'), archetype: 'frost', heavy: () => false },
+  { matches: (card) => card.subtypes.includes('Witch'), archetype: 'arcane', heavy: () => false },
+  { matches: (card) => card.subtypes.includes('Warden'), archetype: 'radiance', heavy: (card) => (card.attack ?? 0) >= 4 },
+  { matches: (card) => card.subtypes.includes('Plant'), archetype: 'impact', heavy: (card) => (card.defense ?? 0) >= 6 },
+  { matches: (card) => card.subtypes.includes('Bird') || card.keywords?.includes('skyborne') === true,
+    archetype: 'aerial', heavy: () => false },
+  { matches: (card) => card.subtypes.some((subtype) => subtype === 'Beast' || subtype === 'Beastkin'),
+    archetype: 'claw', heavy: (card) => (card.attack ?? 0) >= 4 },
+  { matches: (card) => card.subtypes.includes('Human'), archetype: 'slash', heavy: (card) => (card.attack ?? 0) >= 5 },
+];
+
+// Drowned Deep (2026-09-15): subtype rules, reviewed with the card list
+// First match wins; the four token identities above override these creature rules.
+// Horror or Deep One: claw, heavy at attack >= 5.
+// Spirit: shadow, never heavy.
+// Mermaid: frost, never heavy.
+// Witch: arcane, never heavy.
+// Warden: radiance, heavy at attack >= 4.
+// Plant: impact, heavy at defense >= 6.
+// Bird or skyborne: aerial, never heavy.
+// Beast or Beastkin: claw, heavy at attack >= 4.
+// Other Human: slash, heavy at attack >= 5.
+// Unmatched: fallbackArchetype and fallbackHeavy.
+for (const card of [...DROWNED_DEEP, ...TOKENS.filter((token) => DROWNED_DEEP_TOKEN_FX[token.id])]) {
+  if (isType(card, 'creature') && !ATTACK_FX_MAP[card.id]) {
+    const rule = DROWNED_DEEP_FX_RULES.find((candidate) => candidate.matches(card));
+    ATTACK_FX_MAP[card.id] = DROWNED_DEEP_TOKEN_FX[card.id] ?? (rule
+      ? { archetype: rule.archetype, heavy: rule.heavy(card) }
+      : { archetype: fallbackArchetype(card), heavy: fallbackHeavy(card) });
   }
 }
 

@@ -344,12 +344,22 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
     });
 
     it('never rejects a card whose targets are ordinary creatures', () => {
+      // 1.8 cost caps, attack floors and exact-pair qualifiers need target supply.
       const creatureRemoval = Object.values(CARD_DB).filter((card) =>
-        (card.abilities ?? []).some((a) => (a.targets ?? []).some((t) => t.what === 'creature' && !t.marked)));
+        (card.abilities ?? []).some((a) => (a.targets ?? []).some((t) =>
+          t.what === 'creature' && !t.marked &&
+          t.maxCost === undefined && t.minAttack === undefined && t.exactly === undefined)));
       expect(creatureRemoval.length).toBeGreaterThan(0);
       for (const card of creatureRemoval) {
         expect(hasNoLegalTargets(card, new Set()), `${card.id} wrongly flagged`).toBe(false);
       }
+    });
+
+    it('requires a creature costing 2 or less in the supply for Bell-Hand', () => {
+      const bellHand = CARD_DB['dd-bell-hand'];
+      expect(hasNoLegalTargets(bellHand, new Set())).toBe(true);
+      expect(hasNoLegalTargets(bellHand, deckTargetSupply([bellHand.id], CARD_DB))).toBe(true);
+      expect(hasNoLegalTargets(bellHand, deckTargetSupply([bellHand.id, 'dd-lamp-bearer'], CARD_DB))).toBe(false);
     });
 
     it('also excludes a dead-target card from catalog refill', () => {

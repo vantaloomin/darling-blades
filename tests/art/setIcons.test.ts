@@ -11,6 +11,7 @@ const EXPECTED: CardSetId[] = [
   'yokai-nights',
   'sands-of-the-duat',
   'starborne',
+  'drowned-deep',
 ];
 
 // Matches the absolute-only path contract documented by setIcons.ts.

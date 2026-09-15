@@ -97,10 +97,21 @@ describe('Drowned Deep converter compatibility', () => {
 
 describe('Drowned Deep persona scorer compatibility', () => {
   it('keeps all 1,259 shipped persona rates byte-identical', () => {
-    expect(ALL_CARDS).toHaveLength(1259);
-    const rows = ALL_CARDS.map((definition) => [definition.id, rateCard(definition)]);
+    const shipped = ALL_CARDS.filter((definition) => definition.set !== 'drowned-deep');
+    expect(shipped).toHaveLength(1259);
+    const rows = shipped.map((definition) => [definition.id, rateCard(definition)]);
     expect(createHash('sha256').update(JSON.stringify(rows)).digest('hex')).toBe(
       '19595ef09acaac1bff9d0944b9edde43cfdd110aaf878e6e0da236dbb47d1066',
+    );
+  });
+
+  it('pins the 252 Drowned Deep persona scores', () => {
+    // Drowned Deep PR 3b (2026-09-15): transcription baseline.
+    const drownedDeep = ALL_CARDS.filter((definition) => definition.set === 'drowned-deep' && !definition.token);
+    expect(drownedDeep).toHaveLength(252);
+    const rows = drownedDeep.map((definition) => [definition.id, rateCard(definition)]);
+    expect(createHash('sha256').update(JSON.stringify(rows)).digest('hex')).toBe(
+      '4f47c0d833141ee814628508f09290ade6c93df7df2a990f50ebe05b95c2b217',
     );
   });
 
