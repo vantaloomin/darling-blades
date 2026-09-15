@@ -47,7 +47,9 @@ Concretely in the code:
 - **Block:** one blocker per attacker, prefers blocks that kill or survive,
   chump-blocks only when at life ≤ 5.
 - **Respond:** passes 85% of windows; otherwise a random useful Charm, or a
-  Skim when no Charm is castable.
+  Skim when no Charm is castable. The Hauntlink window is a policy call, not
+  a coin flip (phase B). Empower's extra mana is charged the develop score of
+  the spell it displaces, so an affordable rider is no longer always paid.
 - **Hand-size discard:** a uniformly random legal set (the loot discard uses
   the shared `discardPolicy` like every other brain).
 
@@ -287,13 +289,13 @@ If you want to move the numbers, these are the levers:
 | `src/ai/combatPlans.ts`| Shared attack/block heuristics (damage weights, trick-risk, double-blocks, holdback). |
 | `src/ai/foresee.ts`    | Shared deterministic foresee (scry) policy (all brains + ScriptAI): keep lands while developing, then bottom excess lands and uncastably expensive cards. |
 | `src/ai/whispersPolicy.ts` | Whispers (1.8): keeps a whispered cast only while its graveyard index is in the public `whispersLive` list and `whispersValue` (the cast at its Whispers cost, +0.75 when the marker dies at the next Dawn, -0.25 when it survives into the owner's next turn) beats the best hand cast; every brain applies it before its cast ladder, Hard's whitelists admit whispered casts in main and response. |
-| `src/ai/tithePolicy.ts` | Tithe (1.8): rewrites the engine's canonical fodder set or drops the flag. Candidates sorted by `permValue` per point of effective Defense; pairs preferred so odd totals waste nothing; never the single best body, never a planned attacker; a body is sold only when the generic mana saved beats its board value. Applied beside `applyRitePolicy` in all three brains and the rollouts. |
+| `src/ai/tithePolicy.ts` | Tithe (1.8): rewrites the engine's canonical fodder set or drops the flag. Candidates sorted by `permValue` per point of effective Defense; pairs preferred so odd totals waste nothing; never the single best body, never a planned attacker, never the cast's own target. Since phase B (2026-09-15, owner ruling D5) a fodder-class body (a token, Defense 2 or less, or summoning-sick and unable to attack) may be sold undamaged at a fifth of its board value, but only when the generic mana saved is two or more, or the saving turns an unaffordable spell into a legal cast this turn; any other body is sold only when the mana saved beats its full board value. Applied beside `applyRitePolicy` in all three brains and the rollouts. |
 | `src/ai/discardPolicy.ts` | Loot (1.8): the shared deterministic discard choice for every brain and ScriptAI: the highest-cost spell current mana cannot pay first, then a land beyond four projected sources, then the lowest-value card; the last affordable spell is protected unless the count forces it. |
 | `src/ai/sacrificePolicy.ts` | Edicts (1.8): the shared mandatory sacrifice choice: the lowest `permValue` body, battlefield order on ties; Rite and Tithe fodder policies protect a chosen target from being sold. |
-| `src/ai/activatedPolicy.ts` | Duty (1.8): when and which tap ability to use, including `abilityIndex` on multi-Duty carriers; tap-only Duties in the Morning, paid ones in the Afternoon, never a Rage body, never a self-harming ability; targets by public impact. Runs before the develop step in main two. |
+| `src/ai/activatedPolicy.ts` | Duty (1.8): when and which tap ability to use, including `abilityIndex` on multi-Duty carriers; tap-only Duties in the Morning, paid ones in the Afternoon, never a Rage body, never a self-harming ability; targets by public impact. Since phase B Medium's `constrainMainMana` reserves development mana against a paid Afternoon Duty (develop first, the Duty runs on what remains) and `liveCharm` holds mana, colours preserved, for a Charm whose rule is live against the public board (removal, counter, fog, trick, global removal, tap, bounce); Hard searches the two best distinct Duty choices. |
 | `src/ai/ritePolicy.ts` | Rite: the fodder set (cheapest bodies, never the best body or a planned attacker or the cast's own target) and the decline rule when the fodder outvalues the cast. |
 | `src/ai/preservePolicy.ts` | Preserve: fires when mana is idle or the brain is behind on bodies; picks the bigger affordable body by public `cardValue`. |
-| `src/ai/hauntlinkPolicy.ts` | Hauntlink (rules rev 4): links an unlinked carrier in main to the highest-`permValue` host. It never moves a link and no brain acts in the `hauntlinkWindow` yet (phase B). |
+| `src/ai/hauntlinkPolicy.ts` | Hauntlink (rules rev 4, phase B 2026-09-15): `hauntlinkHostFit` scores what the rider grants each host (keywords it lacks, fights the stats change, marks it can use), ties to the larger body; a main-phase move must beat the link's mana cost times 0.65 plus 0.25 (no churn); `chooseHauntlinkWindow` moves the link in the combat-damage window to save a blocked attacker or blocker, and in the trigger window when the trigger about to resolve threatens the current host. Easy and Medium decline a move whose forecast meets an op it cannot project; Hard searches every legal link in the window with its response margin. |
 | `src/ai/targeting.ts` | The greedy target picker for deferred trigger targets and the vocabulary target policy (`maxCost`, `minAttack`, `exactly` pairs, `opponentCreature`, per-op `targetIndex`, creature Retell) that keeps one best assignment per cast mode. |
 | `src/ai/landPolicy.ts`, `src/ai/darlingPolicy.ts` | Reserve-format land choice (fix missing colours, keep basics when mana is idle) and the conservative Darling tax paydown. |
 
@@ -373,8 +375,9 @@ the accepted non-monotonic summit shape, not a regression.
 The Starborne pair (Chrome Broodmother 23, The Violet Signal Queen 24; floors
 0.585 and 0.615) and the Drowned Deep pair (The Drowned Deacon 25, The
 Marsh-Mother 26, the final rung) each carry their own termination gate.
-Measured untuned 2026-09-15 at 200 seeds: Deacon 33% (35.5% after phase A),
-Marsh-Mother 77% (77.9%). The Deacon's plan is fog, tap and cheap counter
+Measured untuned 2026-09-15 at 200 seeds: Deacon 33% (35.5% after phase A,
+35.9% after B), Marsh-Mother 77% (77.9% after A, 74.8% after B: the Tithe
+fodder rule costs her, see the next section). The Deacon's plan is fog, tap and cheap counter
 Charms on a schedule; phase A taught the ladder those shapes and moved her
 only a little, so her deck owes a tuning pass of its own.
 
@@ -388,19 +391,22 @@ every card plays; as intended, not yet. Two test files are the scoreboard:
   every Darlings precon, one seed each, under one 900 s file budget. No
   crashes, no illegal actions, every game to `gameOver`.
 - `tests/ai/documentedBehaviour.test.ts` pins one test per claim in this
-  document. Thirty-one pass (phase A flipped its five on 2026-09-15); nine
-  are marked `it.fails` and name the phase that owns them (B mechanics 3,
-  C combat 3, D draft 3). A phase lands by flipping its own tests to `it`; a
+  document. Thirty-four pass (phase A flipped five and phase B three on
+  2026-09-15); six are marked `it.fails` and name the phase that owns them
+  (C combat 3, D draft 3). A phase lands by flipping its own tests to `it`; a
   fixture or legality error inside an expected failure fails the file, so the
   marker can never hide a broken brain. Phase A's own rules are pinned in
   `tests/ai/castLadder.test.ts`, `castLadderReview.test.ts` and
   `hardTiming.test.ts`.
 
-The gaps the remaining nine tests describe, in the order the plan closes
-them: the Tithe policy sells only damaged bodies; Hauntlink hosts are chosen
-by raw value, never moved, and the damage window is never played; a mana Duty
-can pre-empt a creature cast in main two; `combatPlans` models neither double
-strike nor vigilance; the draft picker scores nothing newer than a keyword.
+The gaps the remaining six tests describe: `combatPlans` models neither
+double strike nor vigilance (phase C); the draft picker scores nothing newer
+than a keyword (phase D). Phase B closed the mechanic gaps (Tithe fodder,
+Hauntlink fit, moves and windows, Duty ordering and mana holding, Empower
+cost) with the gates unchanged and rungs 15, 16, 18 and 20 up one to two
+points; Kitsune, the Hauntlink spine, moved 82.9 to 84.5. The Tithe boss
+(the Marsh-Mother) measured 77.9 to 74.8 after the fodder rule, so the fodder
+rate is the first knob the tuning pass looks at.
 Phase A closed the cast-ladder gap (spell bodies, wraths, lethal, the five
 Charm rules, Hard's pass and hold, Quest-gated pricing) with the two brain
 gates unchanged at 83.0 and 78.5 and every rung above its floor; rungs 17 and
