@@ -1,18 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { AVATARS, avatarForRung, avatarById } from '../../src/data/opponents';
 import { CARD_DB } from '../../src/data/catalog';
-import { buildAI } from '../../src/ai/personality';
-import { MediumAI } from '../../src/ai/MediumAI';
-import { Game } from '../../src/engine/Game';
 import type { Color } from '../../src/engine/types';
 import { ECONOMY, RULES } from '../../src/config/rules';
 
 /**
- * SUITE C — Avatar legality + termination smoke.
+ * SUITE C — Avatar data legality.
  *
  * Every gauntlet deck must be a legal 60-card list built from real ids, and
- * every avatar must be able to play a full game to completion (guards against
- * defensive personalities stalling into the turn-100 draw cap).
+ * reserve-native termination is covered in tests/ai/rungSmokes.test.ts.
  */
 
 describe('avatar roster shape', () => {
@@ -351,35 +347,5 @@ describe.each(AVATARS.map((a) => [a.name, a] as const))('avatar deck legality �
   });
 });
 
-describe('avatar termination smoke (3 seeds each, vs Medium)', () => {
-  const opponent = () =>
-    // A neutral aggressive-ish opponent deck: the starter is fine as a foil.
-    AVATARS[0].deck; // Meng Huo's stompy list makes a decent generic opponent
-
-  for (const avatar of AVATARS) {
-    it(`${avatar.name} plays 3 games to completion`, () => {
-      for (let s = 0; s < 3; s++) {
-        const seed = s * 101 + 7;
-        const decks: [string[], string[]] = [avatar.deck, opponent()];
-        const game = new Game({ decks, seed, db: CARD_DB });
-        const ais = [
-          buildAI(avatar.difficulty, CARD_DB, seed * 3 + 1, avatar.personality),
-          new MediumAI(CARD_DB),
-        ];
-        let terminated = false;
-        for (let i = 0; i < 40000; i++) {
-          const a = game.awaiting;
-          if (a.kind === 'gameOver') {
-            terminated = true;
-            break;
-          }
-          const p = a.player;
-          game.submit(p, ais[p].chooseAction(game.viewFor(p), game.legalActions(p)));
-        }
-        expect(terminated, `${avatar.name} seed ${seed} did not terminate`).toBe(true);
-        // turn cap is a legal draw outcome, but flag persistent stalling
-        expect(game.state.winner === 0 || game.state.winner === 1 || game.state.winner === 'draw').toBe(true);
-      }
-    }, 60_000);
-  }
-});
+// Retired classic avatar.deck smoke: tests/ai/rungSmokes.test.ts now covers
+// every avatar's shipped reserveDeck and darlingsDeck with its actual brain.
