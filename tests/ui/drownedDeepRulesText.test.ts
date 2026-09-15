@@ -15,10 +15,21 @@ function spell(ops: EffectOp[], targets?: TargetSpec[]): CardDef {
 
 describe('Drowned Deep vocabulary rules text', () => {
   it('keeps all 1,259 shipped card texts byte-identical', () => {
-    expect(ALL_CARDS).toHaveLength(1259);
-    const rows = ALL_CARDS.map((definition) => [definition.id, rulesText(definition)]);
+    const shipped = ALL_CARDS.filter((definition) => definition.set !== 'drowned-deep');
+    expect(shipped).toHaveLength(1259);
+    const rows = shipped.map((definition) => [definition.id, rulesText(definition)]);
     expect(createHash('sha256').update(JSON.stringify(rows)).digest('hex')).toBe(
       '4f66abb01950ed0296e456d017f080cd8c7d6ff8116660398f56f51fd3c67cfd',
+    );
+  });
+
+  it('pins the 252 Drowned Deep rules text', () => {
+    // Drowned Deep PR 3b (2026-09-15): transcription baseline.
+    const drownedDeep = ALL_CARDS.filter((definition) => definition.set === 'drowned-deep' && !definition.token);
+    expect(drownedDeep).toHaveLength(252);
+    const rows = drownedDeep.map((definition) => [definition.id, rulesText(definition)]);
+    expect(createHash('sha256').update(JSON.stringify(rows)).digest('hex')).toBe(
+      'db5f7a1ef643a56e286dee9496dda068a60b20842fd86bdf3428347091c1d656',
     );
   });
 

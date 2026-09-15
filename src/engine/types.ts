@@ -400,7 +400,7 @@ export interface CardDef {
   flavor?: string;
   artRef?: string;
   token?: boolean; // non-collectible
-  set?: 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales' | 'yokai-nights'; // expansion grouping; absent ⇒ 'base' (stamped in catalog.buildDb)
+  set?: 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales' | 'yokai-nights' | 'drowned-deep'; // expansion grouping; absent ⇒ 'base' (stamped in catalog.buildDb)
 }
 
 export type CardDb = Readonly<Record<string, CardDef>>;

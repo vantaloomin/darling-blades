@@ -41,4 +41,8 @@ export const AXES: readonly string[] = [
   // Axes; 11 Yokai Nights creatures carry the type. Recorded in
   // docs/plan-tribal-pass.md.
   'Yokai',
+  // DC4, 2026-09-15: Horror and Warden join the Axes; Plant remains token-only.
+  // The owner records the ruling in docs/plan-tribal-pass.md.
+  'Horror',
+  'Warden',
 ];

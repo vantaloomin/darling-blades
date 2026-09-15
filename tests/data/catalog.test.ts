@@ -28,6 +28,7 @@ import { LANDS } from '../../src/data/cards/lands';
 import { RAGNAROK } from '../../src/data/cards/ragnarok';
 import { SANDS_OF_THE_DUAT } from '../../src/data/cards/sands-of-the-duat';
 import { STARBORNE } from '../../src/data/cards/starborne';
+import { DROWNED_DEEP } from '../../src/data/cards/drowned-deep';
 import { SORCERIES } from '../../src/data/cards/sorceries';
 import { TK_JIN } from '../../src/data/cards/tk-jin';
 import { TK_OTHER } from '../../src/data/cards/tk-other';
@@ -107,6 +108,10 @@ describe('catalog integrity', () => {
       for (const ability of card.abilities ?? []) {
         const subtype = ability.static?.filter?.subtype;
         if (subtype === undefined) continue;
+        // DC4, 2026-09-15: these three Plant-token anthems do not make Plant an Axis.
+        // Keep both predicates: a token-only filter without Plant would buff every token.
+        if (subtype === 'Plant' && ability.static?.filter?.token === true &&
+          ['dd-kelp-cathedral', 'dd-marsh-road', 'dd-kelp-shade-elder'].includes(card.id)) continue;
         expect(AXES, `${card.id} static filters on non-Axis subtype '${subtype}'`).toContain(
           subtype,
         );
@@ -140,6 +145,7 @@ describe('catalog integrity', () => {
       [YOKAI_NIGHTS, 'yn-'],
       [SANDS_OF_THE_DUAT, 'sd-'],
       [STARBORNE, 'sb-'],
+      [DROWNED_DEEP, 'dd-'],
       [INSTANTS, 'in-'],
       [SORCERIES, 'so-'],
       [ENCHANTMENTS, 'en-'],
@@ -275,7 +281,8 @@ describe('catalog integrity', () => {
     // The 2026-09-03 minterless-token cut removes tok-lumen-drone,
     // tok-violet-hullguard and tok-void-mote (no card ever minted them):
     // 1262 -> 1259.
-    expect(ALL_CARDS).toHaveLength(1259);
+    // Drowned Deep adds 252 collectibles and four tokens: 1259 -> 1515.
+    expect(ALL_CARDS).toHaveLength(1515);
   });
 
   it('stamps every expansion card with its set and every other collectible set:base', () => {
@@ -297,6 +304,8 @@ describe('catalog integrity', () => {
         expect(String(card.set), card.id + ' should be set:sands-of-the-duat').toBe('sands-of-the-duat');
       } else if (card.id.startsWith('sb-')) {
         expect(String(card.set), card.id + ' should be set:starborne').toBe('starborne');
+      } else if (card.id.startsWith('dd-')) {
+        expect(card.set, card.id + ' should be set:drowned-deep').toBe('drowned-deep');
       } else {
         expect(card.set ?? 'base', `${card.id} should be set:base`).toBe('base');
       }
@@ -369,6 +378,8 @@ describe('catalog integrity', () => {
     // (orbital-cleansing {1}{W}{B}). Adding a name here is a ruling.
     const MULTICOLOR_EXCEPTIONS = new Set([
       'sd-harvest-after-rain', 'gm-grave-rose-garden', 'sb-orbital-cleansing',
+      // DC3, 2026-09-15: the three Drowned Deep multicolour spells remain non-legendary.
+      'dd-lightkeepers-oath', 'dd-watch-and-tide', 'dd-horror-garden',
     ]);
     for (const card of ALL_CARDS) {
       if (card.types.includes('land') || card.colors.length < 2) continue;
