@@ -206,9 +206,9 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
    * covers marked-target cards when no card in the format can add a mark.
    */
   describe('retention rejects cards whose targets cannot exist in the format', () => {
-    const supplyFor = (source: readonly string[]): ReadonlySet<string> => new Set([
-      ...deckTargetSupply(STARTER_DECKS.flatMap((deck) => deck.reserveCards ?? [])),
-      ...deckTargetSupply(source),
+    const supplyFor = (source: readonly string[]): ReadonlySet<string> => deckTargetSupply([
+      ...STARTER_DECKS.flatMap((deck) => deck.reserveCards ?? []),
+      ...source,
     ]);
 
     it('the five starter columns really do supply no artifact or enchantment', () => {
@@ -458,14 +458,22 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
     const sorted = (cards: readonly string[]): string[] => [...cards].sort();
     for (const avatar of AVATARS) {
       // The historical pre-Starborne fixture intentionally excludes sb-*;
-      // the new Starborne avatar must be checked against the live catalog.
-      const sourceDb = avatar.id === 'chrome-broodmother' || avatar.id === 'the-violet-signal-queen'
+      // Starborne and Drowned Deep converter surfaces use the live catalog.
+      const isDrownedDeep = avatar.id === 'the-drowned-deacon' || avatar.id === 'the-marsh-mother';
+      const sourceDb = isDrownedDeep || avatar.id === 'chrome-broodmother' || avatar.id === 'the-violet-signal-queen'
         ? CARD_DB
         : PRE_STARBORNE_DB;
       const first = convertAvatarReserveDecks(avatar, sourceDb);
       const second = convertAvatarReserveDecks(avatar, sourceDb);
       expect(first, `${avatar.id} converter is not deterministic`).toEqual(second);
       expect(sorted(first.landReserve)).toEqual(sorted(avatar.landReserve));
+      if (isDrownedDeep) {
+        // All three reserve surfaces are the untuned deterministic converter output.
+        expect(sorted(first.reserveDeck)).toEqual(sorted(avatar.reserveDeck));
+        expect(sorted(first.darlingsDeck)).toEqual(sorted(avatar.darlingsDeck));
+        expect(first.darlingId).toEqual(avatar.darlingId);
+        continue;
+      }
       if (avatar.id === 'chrome-broodmother' || avatar.id === 'the-violet-signal-queen') {
         // Starborne's classic, reserve, and land lists are locked authored
         // contract fields. Only the Darlings surface is converter-owned here.

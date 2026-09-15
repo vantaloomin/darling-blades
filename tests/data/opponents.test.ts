@@ -16,16 +16,16 @@ import { ECONOMY, RULES } from '../../src/config/rules';
  */
 
 describe('avatar roster shape', () => {
-  it('has exactly 24 landed avatars with unique tiers 1..24', () => {
-    expect(AVATARS).toHaveLength(24);
+  it('has exactly 26 landed avatars with unique tiers 1..26', () => {
+    expect(AVATARS).toHaveLength(26);
     const tiers = AVATARS.map((a) => a.tier).sort((x, y) => x - y);
-    expect(tiers).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]);
-    expect(new Set(AVATARS.map((a) => a.id)).size).toBe(24);
-    expect(ECONOMY.gauntletRungGold).toHaveLength(24);
-    expect(ECONOMY.gauntletRungGold.slice(14)).toEqual([330, 350, 370, 390, 410, 430, 450, 470, 490, 510]);
+    expect(tiers).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26]);
+    expect(new Set(AVATARS.map((a) => a.id)).size).toBe(26);
+    expect(ECONOMY.gauntletRungGold).toHaveLength(26);
+    expect(ECONOMY.gauntletRungGold.slice(14)).toEqual([330, 350, 370, 390, 410, 430, 450, 470, 490, 510, 530, 550]);
   });
 
-  it('assigns difficulty by tier band (1-3 easy, 4-6 medium, 7-24 hard)', () => {
+  it('assigns difficulty by tier band (1-3 easy, 4-6 medium, 7-26 hard)', () => {
     for (const a of AVATARS) {
       const expected = a.tier <= 3 ? 'easy' : a.tier <= 6 ? 'medium' : 'hard';
       expect(a.difficulty).toBe(expected);
@@ -33,7 +33,7 @@ describe('avatar roster shape', () => {
   });
 
   it('avatarForRung / avatarById resolve consistently', () => {
-    for (let rung = 1; rung <= 24; rung++) {
+    for (let rung = 1; rung <= 26; rung++) {
       const a = avatarForRung(rung);
       expect(a.tier).toBe(rung);
       expect(avatarById(a.id)).toBe(a);
@@ -55,7 +55,11 @@ describe('avatar roster shape', () => {
     expect(avatarForRung(23).name).toBe('Chrome Broodmother');
     expect(avatarForRung(24).id).toBe('the-violet-signal-queen');
     expect(avatarForRung(24).name).toBe('The Violet Signal Queen');
-    expect(() => avatarForRung(25)).toThrow();
+    expect(avatarForRung(25).id).toBe('the-drowned-deacon');
+    expect(avatarForRung(25).name).toBe('The Drowned Deacon');
+    expect(avatarForRung(26).id).toBe('the-marsh-mother');
+    expect(avatarForRung(26).name).toBe('The Marsh-Mother');
+    expect(() => avatarForRung(27)).toThrow();
     expect(() => avatarById('nope')).toThrow();
   });
 });
@@ -171,6 +175,128 @@ describe('The Violet Signal Queen contract shape', () => {
       'land-swamp', 'land-swamp', 'land-swamp', 'land-swamp', 'land-swamp',
     ]);
     expect(avatar.darlingsDeck).toHaveLength(79);
+    expect(avatar.darlingsDeck).not.toContain(avatar.darlingId);
+  });
+});
+
+
+describe('The Drowned Deacon contract shape', () => {
+  const avatar = AVATARS.find((entry) => entry.id === 'the-drowned-deacon')!;
+
+  it('lands the authored identity, personality, and exact classic counts', () => {
+    expect(avatar).toMatchObject({
+      id: 'the-drowned-deacon',
+      name: 'The Drowned Deacon',
+      title: 'The Bell Beneath the Harbour',
+      blurb: 'She mills her own library on a schedule and calls it housekeeping. Every card she loses is one she meant to cast from the grave, and the counters are held for the one spell you needed to resolve.',
+      theme: 'Blue-Black Whispers Control (Grind, Cancel, Tithe)',
+      tier: 25,
+      difficulty: 'hard',
+      portraitCardId: 'dd-drowned-deacon',
+      darlingId: 'dd-father-dagon',
+      personality: {
+        aggression: 0.7,
+        holdback: 1.3,
+        attackThreshold: 0.15,
+        removalBias: 1.0,
+        subtypeBias: 0.4,
+        preferredSubtypes: ['Deep One', 'Horror'],
+      },
+    });
+    const expectedCounts = {
+      'land-island': 12,
+      'land-swamp': 12,
+      'dd-tide-clerk': 3,
+      'dd-current-caller': 2,
+      'dd-tide-reader': 2,
+      'dd-harbour-looter': 2,
+      'dd-drowned-bell-choir': 2,
+      'dd-drowned-lighthouse-keeper': 2,
+      'dd-drowned-deacon': 3,
+      'dd-deep-one-hierophant': 2,
+      'dd-drowned-bride': 2,
+      'dd-father-dagon': 1,
+      'dd-cold-current': 2,
+      'dd-still-water': 2,
+      'dd-the-price': 2,
+      'dd-undertow': 2,
+      'dd-memory-of-the-drowned': 2,
+      'dd-tide-that-turns': 2,
+      'dd-drowned-bell': 2,
+      'dd-tide-that-remembers': 1,
+    };
+    const actualCounts = Object.fromEntries(
+      [...new Set(avatar.deck)].map((id) => [id, avatar.deck.filter((cardId) => cardId === id).length]),
+    );
+    expect(actualCounts).toEqual(expectedCounts);
+    expect(avatar.reserveDeck).toHaveLength(40);
+    expect(avatar.landReserve).toEqual([
+      'land-island', 'land-island', 'land-island', 'land-island', 'land-island',
+      'land-swamp', 'land-swamp', 'land-swamp', 'land-swamp', 'land-swamp',
+    ]);
+    expect(avatar.darlingsDeck).toHaveLength(79);
+    expect(new Set(avatar.darlingsDeck).size).toBe(79);
+    expect(avatar.darlingsDeck).not.toContain(avatar.darlingId);
+  });
+});
+
+describe('The Marsh-Mother contract shape', () => {
+  const avatar = AVATARS.find((entry) => entry.id === 'the-marsh-mother')!;
+
+  it('lands the authored identity, personality, and exact classic counts', () => {
+    expect(avatar).toMatchObject({
+      id: 'the-marsh-mother',
+      name: 'The Marsh-Mother',
+      title: 'Everything Planted Here Comes Up',
+      blurb: 'She plants Kelp Shades in the spring and Horrors in the autumn, and the Tithe is how she harvests. Two tokens go under for every Horror that comes up, and the last one is bigger than the marsh.',
+      theme: 'Black-Green Tithe Garden (Kelp Shade tokens, Tithe, Overrun)',
+      tier: 26,
+      difficulty: 'hard',
+      portraitCardId: 'dd-marsh-mother-horror',
+      darlingId: 'dd-marsh-mother-horror',
+      personality: {
+        aggression: 1.2,
+        holdback: 0.8,
+        attackThreshold: 0.3,
+        removalBias: 0.6,
+        subtypeBias: 0.6,
+        preferredSubtypes: ['Horror', 'Plant', 'Deep One'],
+      },
+    });
+    const expectedCounts = {
+      'land-swamp': 12,
+      'land-forest': 12,
+      'dd-kelp-shade': 3,
+      'dd-kelp-shade-warden': 2,
+      'dd-marsh-wight-lesser': 2,
+      'dd-horror-in-the-crib': 2,
+      'dd-deep-one-bride': 2,
+      'dd-something-under-the-wharf': 2,
+      'dd-reef-horror': 2,
+      'dd-deep-spawn-tender': 1,
+      'dd-coral-mother': 1,
+      'dd-marsh-mother-horror': 3,
+      'dd-salt-marsh-horror': 1,
+      'dd-the-reef-that-walks': 1,
+      'dd-horror-garden': 2,
+      'dd-net-full-of-stars': 2,
+      'dd-kelp-shade-swarm': 2,
+      'dd-reef-bloom': 2,
+      'dd-tithe-to-the-deep': 2,
+      'dd-the-price': 2,
+      'dd-salt-marsh-bargain': 2,
+    };
+    const actualCounts = Object.fromEntries(
+      [...new Set(avatar.deck)].map((id) => [id, avatar.deck.filter((cardId) => cardId === id).length]),
+    );
+    expect(actualCounts).toEqual(expectedCounts);
+    expect(avatar.reserveDeck).toHaveLength(40);
+    expect(avatar.landReserve).toEqual([
+      'land-swamp', 'land-swamp', 'land-swamp', 'land-swamp', 'land-swamp',
+      'land-forest', 'land-forest', 'land-forest', 'land-forest', 'land-forest',
+    ]);
+    expect(avatar.darlingsDeck).toHaveLength(79);
+    expect(new Set(avatar.darlingsDeck).size).toBe(79);
     expect(avatar.darlingsDeck).not.toContain(avatar.darlingId);
   });
 });

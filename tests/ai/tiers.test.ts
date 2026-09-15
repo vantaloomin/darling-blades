@@ -33,8 +33,8 @@ describe('tower AI tiers', () => {
     expect(buildTierAI(6, TEST_DB, 123)).toBeInstanceOf(HardAI);
   });
 
-  it('maps all 24 landed floors and clamps later floors to tier 6', () => {
-    expect(Array.from({ length: 24 }, (_, i) => floorTier(i + 1))).toEqual([
+  it('maps all 26 landed floors and clamps later floors to tier 6', () => {
+    expect(Array.from({ length: 26 }, (_, i) => floorTier(i + 1))).toEqual([
       1, 1, 1,
       2, 2, 2,
       3, 3, 3,
@@ -44,22 +44,25 @@ describe('tower AI tiers', () => {
       6, 6,
       6, 6,
       6, 6,
+      6, 6,
     ]);
-    expect(floorTier(24)).toBe(6);
+    expect(floorTier(26)).toBe(6);
     expect(floorTier(1000)).toBe(6);
   });
 
   it('derives difficulty labels and pips from the floor brain', () => {
-    expect(Array.from({ length: 24 }, (_, i) => floorBrain(i + 1))).toEqual([
+    expect(Array.from({ length: 26 }, (_, i) => floorBrain(i + 1))).toEqual([
       'easy', 'easy', 'easy', 'easy', 'easy', 'easy',
       'medium', 'medium', 'medium', 'medium', 'medium', 'medium',
       'hard', 'hard', 'hard', 'hard', 'hard', 'hard', 'hard', 'hard', 'hard', 'hard',
       'hard', 'hard',
+      'hard', 'hard',
     ]);
-    expect(Array.from({ length: 24 }, (_, i) => floorDifficultyPips(i + 1))).toEqual([
+    expect(Array.from({ length: 26 }, (_, i) => floorDifficultyPips(i + 1))).toEqual([
       1, 1, 1, 1, 1, 1,
       2, 2, 2, 2, 2, 2,
       3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+      3, 3,
       3, 3,
     ]);
   });
