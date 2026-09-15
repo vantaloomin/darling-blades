@@ -54,11 +54,28 @@ Assay rescore). Replay version: the loot decision adds a pending-decision
 shape the log records, so v14 if the decision is logged, else none; the
 contract decides with the replay ladder in hand.
 
-## 2. Rewords that keep the card inside today's vocabulary
+## 2. The one-card shapes: also built, not reworded (owner ruling DC2, 2026-09-15)
 
-Where the extension would serve one card and a plain reword keeps the
-design, reword. Each row names the current line, the proposed line and the
-scoring consequence (the Assay rescore runs after the rulings).
+The recommendation here was to reword these ten cards rather than extend
+the engine for one card each. **The owner ruled the other way: "we need a
+picker for this, expand scope."** Every row below is therefore an engine
+feature in wave PR 3a, and the printed line stands. The proposed rewords
+stay in the table as the record of what was considered.
+
+| Card | Printed (stands) | Engine need |
+| --- | --- | --- |
+| Saint of the Lamp Oil | "Whenever you gain life, put a Mark on this." | `when: 'youGainLife'` observer. |
+| The Glass That Came Back | "Duty: Foresee 2. Duty, {2}: draw a card." | Multiple activated abilities per card (`activated` becomes a list); the duel UI and the AI choose which Duty. |
+| Wrecker Queen | "Whenever this attacks, damage target creature 1." | Targeted attack trigger: the controller chooses the target when the trigger fires, through the same deferred-target path arrival triggers use. |
+| Marsh Gate | "During your Dawn: put a Mark on target creature you control." | Targeted Dawn trigger, same path. |
+| The Marsh Remembers | "Return target creature card from your graveyard to your hand. Put a Mark on target creature you control." | Per-op target binding on a spell (two independent target specs, two choices). |
+| Reach-Fire Witch | "Arrives: damage target creature 2. Retell {2}{R}: damage target creature 2." | Retell on a creature with an ops override: the graveyard cast resolves the override only and severs the card, never putting the creature on the battlefield. |
+| Drowned Chapel Bell | "Tap two target creatures." | An exact target count (`exactly: 2`) beside `upTo`. |
+| Harbour Vigil | "Prevent combat damage to target creature this turn." | Targeted combat-damage prevention op. |
+| Due to the Deep, Marsh-Lamp Lure | "Opponent sacrifices a creature." | An edict: the opponent chooses, through a pending decision for the non-acting seat; the human uses the sacrifice picker from PR #368, the AI a sacrifice policy (feed the cheapest, protect the best body). |
+| Reckoning Below | "Each player sacrifices a creature." | The same edict for both seats in turn order, the caster first. |
+
+The rewords considered, for the record:
 
 | Card | Printed | Proposed | Note |
 | --- | --- | --- | --- |
@@ -90,15 +107,17 @@ scoring consequence (the Assay rescore runs after the rulings).
 
 ## 5. Owner rulings
 
-- DC1 Section 1 extensions: build all / build a subset / reword instead. **Pending.**
-- DC2 Section 2 rewords: approve as proposed, or amend per card. **Pending.**
-- DC3 Multicolour legendary status and exceptions (3.1). **Pending.**
-- DC4 Warden and Plant Axes (3.2). **Pending.**
-- DC5 Drowned Spirit name (3.3). **Pending.**
-- DC6 Loot choice in the replay log (3.4). **Pending.**
+- DC1 Section 1 extensions. **RULED 2026-09-15: build all of it.**
+- DC2 Section 2. **RULED 2026-09-15: no rewords; build the pickers and the shapes, expand scope.** Every section-2 row is an engine feature in PR 3a.
+- DC3 Multicolour legendary status. **RULED 2026-09-15: approved.** Drowned Deacon and Marsh-Mother Horror become legendary; The Lightkeeper's Oath, Watch and Tide and The Horror Garden take the listed non-legendary exception.
+- DC4 Axes. **RULED 2026-09-15: approved to adjust.** Warden becomes an Axis (recorded in `plan-tribal-pass.md` and `src/data/axes.ts` with Horror); Plant does not, and the three Kelp anthems use the token filter.
+- DC5 Token name. **RULED 2026-09-15: Drowned Spirit** (`tok-drowned-spirit`).
+- DC6 Loot choice in the replay log. **RULED 2026-09-15: approved.** The loot discard and the edict sacrifice choices are recorded; the log moves to v14 at rules revision 4.
 
-Sequencing after the rulings: wave PR 3a (engine vocabulary, Codex), the
-Assay rescore of the reworded rows, wave PR 3b (the transcription, Codex),
+Sequencing after the rulings: wave PR 3a (the engine vocabulary of sections 1
+and 2 with its AI policies, Codex), PR 3a-ui (the duel pickers: loot discard,
+edict sacrifice, Duty selector, deferred trigger targets, Codex), the Assay
+rates for the new triggers, wave PR 3b (the transcription, Codex),
 then the browser checks of the Whispers rows and the sacrifice picker on
 real cards, the converter run for the two boss decks, and the terms check
 for blades-db.
