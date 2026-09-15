@@ -1,3 +1,4 @@
+import { activatedAbilitiesOf } from '../../src/engine/types';
 import { describe, expect, it } from 'vitest';
 import { CURRENT_RULES_REV } from '../../src/config/rules';
 import type { Action } from '../../src/engine/actions';
@@ -407,7 +408,7 @@ describe('activation costs, effects and turn interactions', () => {
 
   it.each([[undefined], [[90, 92]]] as [number[] | undefined][])('pays the mana part using auto or explicit plan %j, then resolves immediately', (manaPlan) => {
     const game = Game.restore(manaBoard(), DB);
-    const plan = manaPlan ?? solveMana(game.instanceState, DB, 0, DB.tap_paid.activated!.cost.mana!)!;
+    const plan = manaPlan ?? solveMana(game.instanceState, DB, 0, activatedAbilitiesOf(DB.tap_paid)[0].cost.mana!)!;
     const events = game.submit(0, {
       type: 'activate', iid: SOURCE, targets: [{ kind: 'player', player: 1 }],
       ...(manaPlan === undefined ? {} : { manaPlan }),
@@ -530,7 +531,7 @@ function recordFixtureGame(db: CardDb, decks: [string[], string[]], seed: number
     if (land) action = land;
     else if (activate) {
       const card = db[game.instanceState.battlefield.find((perm) => perm.iid === activate.iid)!.cardId];
-      const cost = card.activated!.cost.mana;
+      const cost = activatedAbilitiesOf(card)[0].cost.mana;
       action = { ...activate, manaPlan: cost ? solveMana(game.instanceState, db, player, cost)! : [] };
     } else action = legal.find((candidate) => candidate.type === 'choosePlayDraw') ?? botAction(legal);
     events.push(...game.submit(player, action));
@@ -548,7 +549,7 @@ describe('activation replay and deterministic compatibility', () => {
   it('records inline targets and explicit payment in a naturally terminal game and replays every byte', () => {
     const recorded = activationReplayFixture();
     expect(CURRENT_RULES_REV).toBe(4);
-    expect(recorded.log.v).toBe(13);
+    expect(recorded.log.v).toBe(14);
     expect(recorded.game.awaiting.kind).toBe('gameOver');
     expect(recorded.game.instanceState.winReason).toBe('life');
     const uses = recorded.log.actions.filter((step) => step.a.type === 'activate');

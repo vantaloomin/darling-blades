@@ -8,7 +8,7 @@ import {
   targetSpecsOf,
 } from './effects/EffectInterpreter';
 import { isLegalTarget } from './effects/targeting';
-import type { CardDb, CardDef, CardEntry, GameState, StackItem, TargetSpec } from './types';
+import type { CardDb, CardDef, CardEntry, EffectOp, GameState, StackItem, TargetSpec } from './types';
 import { def, isType } from './types';
 
 export type { Emit };
@@ -24,7 +24,7 @@ export function castTargetSpecs(d: CardDef): readonly TargetSpec[] {
   return targetSpecsOf(d.abilities);
 }
 
-/** R4 override casts use their target-free Retell ops instead of printed body. */
+/** Override casts use their own Retell ops and targets instead of the printed body. */
 export function castTargetSpecsFor(
   d: CardDef,
   retell: boolean,
@@ -32,9 +32,14 @@ export function castTargetSpecsFor(
   empowered = false,
 ): readonly TargetSpec[] {
   if (hauntlinked) return [{ what: 'yourCreature' }];
-  if (retell && d.retell?.ops) return [];
+  if (retell && d.retell?.ops) return d.retell.targets ?? [];
   if (empowered && d.empower?.targets) return d.empower.targets;
   return castTargetSpecs(d);
+}
+
+function usesExplicitTargetSlot(ops: readonly EffectOp[]): boolean {
+  return ops.some(op => ('targetIndex' in op && op.targetIndex !== undefined) ||
+    (op.op === 'ifTargetMarked' && (usesExplicitTargetSlot(op.then) || usesExplicitTargetSlot(op.else ?? []))));
 }
 
 function moveSpellOnExit(state: GameState, db: CardDb, item: StackItem, emit: Emit): void {
@@ -71,10 +76,11 @@ export function resolveStackItem(
   );
   if (specs.length > 0) {
     const optionalTargets = specs.length === 1 && specs[0].upTo !== undefined;
+    const batchTargets = optionalTargets || (specs.length === 1 && specs[0].exactly !== undefined);
     const anyLegal =
       (optionalTargets && item.targets.length === 0) ||
       item.targets.some((ref, i) => {
-        const spec = optionalTargets ? specs[0] : specs[i];
+        const spec = batchTargets ? specs[0] : specs[i];
         return spec !== undefined && isLegalTarget(state, db, item.controller, spec, ref);
       });
     if (!anyLegal) {
@@ -86,12 +92,12 @@ export function resolveStackItem(
 
   emit({ e: 'spellResolved', sid: item.sid });
 
-  if (
+  if (!(item.retell && d.retell?.ops) && (
     isType(d, 'creature') ||
     isType(d, 'artifact') ||
     isType(d, 'enchantment') ||
     (isType(d, 'ritual') && d.chapters !== undefined)
-  ) {
+  )) {
     const attachedTo =
       (isAura(d) || item.hauntlinked === true) && item.targets[0]?.kind === 'permanent'
         ? item.targets[0].iid
@@ -111,14 +117,16 @@ export function resolveStackItem(
     return;
   }
 
-  if (isType(d, 'charm') || isType(d, 'ritual')) {
+  if (isType(d, 'charm') || isType(d, 'ritual') || (item.retell && d.retell?.ops)) {
     if (item.retell && d.retell?.ops) {
-      // R4 contract: Retell override ops are trigger-safe and target-free.
+      // A Retell override resolves its own ops and target slots, then severs.
       runOps(
         state,
         db,
         emit,
-        { controller: item.controller, sourceCardId: item.cardId, targets: [], x: item.x },
+        { controller: item.controller, sourceCardId: item.cardId, targets: item.targets, x: item.x,
+          ...(specs.length ? { targetSpecs: specs } : {}),
+          ...(specs.length === 1 && (specs[0].upTo || specs[0].exactly) ? { targetBatch: true } : {}) },
         d.retell.ops,
       );
     } else {
@@ -136,7 +144,8 @@ export function resolveStackItem(
               controller: item.controller,
               sourceCardId: item.cardId,
               targets: item.targets,
-              ...(specs.length === 1 && specs[0].upTo !== undefined ? { targetBatch: true } : {}),
+              ...(usesExplicitTargetSlot(ab.ops) || specs.some(s => s.maxCost !== undefined || s.minAttack !== undefined || s.exactly) ? { targetSpecs: specs } : {}),
+              ...(specs.length === 1 && (specs[0].upTo !== undefined || specs[0].exactly !== undefined) ? { targetBatch: true } : {}),
               x: item.x,
             },
             ab.ops,
@@ -172,7 +181,8 @@ function runEmpowerRider(
       sourceCardId: item.cardId,
       ...(sourceIid === undefined ? {} : { sourceIid }),
       targets: item.targets,
-      ...(specs.length === 1 && specs[0].upTo !== undefined ? { targetBatch: true } : {}),
+      ...(usesExplicitTargetSlot(d.empower.ops) || specs.some(spec => spec.maxCost !== undefined || spec.minAttack !== undefined || spec.exactly) ? { targetSpecs: specs } : {}),
+      ...(specs.length === 1 && (specs[0].upTo !== undefined || specs[0].exactly !== undefined) ? { targetBatch: true } : {}),
     },
     d.empower.ops,
   );

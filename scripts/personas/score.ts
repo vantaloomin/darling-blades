@@ -1,4 +1,4 @@
-import { manaValue, type AbilityDef, type CardDef, type EffectOp, type Keyword, type TriggerWhen } from '../../src/engine/types';
+import { activatedAbilitiesOf, manaValue, type AbilityDef, type CardDef, type EffectOp, type Keyword, type TriggerWhen } from '../../src/engine/types';
 import type { CurveBand, DeckRole, PersonaTemplate, SpellRole } from './templates';
 
 export interface PersonaDeckState {
@@ -24,6 +24,7 @@ const OP_VALUE: Readonly<Record<EffectOp['op'], number>> = {
   gainLife: 0.55,
   loseLife: 1.2,
   draw: 1.35,
+  discard: -1.05, // NEEDS MATH: self-discard uses the existing discard magnitude as a cost.
   discardRandom: 1.05,
   destroy: 2.1,
   sever: 2.25,
@@ -45,12 +46,16 @@ const OP_VALUE: Readonly<Record<EffectOp['op'], number>> = {
   ifTargetMarked: 0.6, // NEEDS MATH: §4 leaves conditional branch value judgment-based.
   severSelf: 0.8, // NEEDS MATH: §4 does not yet rule this self-sever mapping.
   tap: 0.7,
+  tapAll: 0.7, // NEEDS MATH: compatibility anchor from tap; mass-tap pricing belongs to the Assay.
   extraLandDrop: 0.7,
   createToken: 1.15,
   destroyNewestOpponentArtifactOrEnchantment: 1.15,
   massDestroy: 3,
   preventCombat: 1,
+  preventCombatTo: 1, // NEEDS MATH: compatibility anchor from preventCombat.
+  sacrifice: 2.1, // NEEDS MATH: compatibility anchor from destroy; edict pricing belongs to the Assay.
   reclaim: 1.15,
+  reclaimSelf: 1.15, // NEEDS MATH: compatibility anchor from reclaim.
   grind: 0.5,
   foresee: 0.7,
   awaken: 1.2,
@@ -59,6 +64,7 @@ const OP_VALUE: Readonly<Record<EffectOp['op'], number>> = {
 
 type BoostScope = Extract<EffectOp, { op: 'boost' }>['scope'];
 const BOOST_SCOPE_MULTIPLIER: Readonly<Record<BoostScope, number>> = {
+  self: 1,
   target: 1,
   allYours: 1,
   all: 1,
@@ -103,7 +109,9 @@ function cardEffectEntries(card: CardDef): EffectEntry[] {
   for (const chapter of card.chapters ?? []) appendEffectEntries(entries, chapter);
   appendEffectEntries(entries, card.empower?.ops ?? []);
   // Duty ops also feed roles and synergy: a {T}: damage target carrier is removal.
-  appendEffectEntries(entries, card.activated?.ops ?? [], { activated: true });
+  for (const ability of activatedAbilitiesOf(card)) {
+    appendEffectEntries(entries, ability.ops, { activated: true });
+  }
   return entries;
 }
 
@@ -173,8 +181,10 @@ export function rateCard(card: CardDef): number {
   raw += (card.keywords ?? []).reduce((sum, keyword) => sum + KEYWORD_VALUE[keyword] / mv, 0);
   const entries = cardEffectEntries(card);
   raw += entries.filter((entry) => !entry.activated).reduce((sum, entry) => sum + effectValue(entry, card) / mv, 0);
-  if (card.activated) {
-    const perTrigger = entries.filter((entry) => entry.activated)
+  for (const ability of activatedAbilitiesOf(card)) {
+    const activatedEntries: EffectEntry[] = [];
+    appendEffectEntries(activatedEntries, ability.ops, { activated: true });
+    const perTrigger = activatedEntries
       .reduce((sum, entry) => sum + effectValue(entry, card), 0);
     // plan-tap-abilities section 5: TAP_MULT reuses DAWN_MULT_CREATURE /
     // DAWN_MULT_NONCREATURE, the same 2.0 / 3.0 expected-activation split.
@@ -182,14 +192,14 @@ export function rateCard(card: CardDef): number {
     // NEEDS MATH: the top of the creature range; repeatable removal on a tap prices at perTrigger + 1.0 in precedent, not 2.0x
     const repeatedValue = card.types.includes('creature') && perTrigger >= 2.0 ? perTrigger + 1.0 : mult * perTrigger;
     // NEEDS MATH: D is a midpoint across ladders that disagree by 5x (0 to 1.5 per mana); capped at 1.5
-    const discount = Math.min(1.5, 0.4 * manaValue(card.activated.cost.mana));
+    const discount = Math.min(1.5, 0.4 * manaValue(ability.cost.mana));
     const activatedValue = Math.max(0, repeatedValue - discount);
     raw += activatedValue / mv;
   }
   raw += (card.abilities ?? []).filter((ability) => ability.static).length * 0.35;
   raw += ((card.awakening?.p ?? 0) + (card.awakening?.t ?? 0)) * 0.12;
   raw += (card.abilities ?? []).reduce((sum, ability) => sum + Math.max(0, (ability.targets?.length ?? 0) - 1) * 0.1, 0);
-  raw += Math.max(0, (card.activated?.targets?.length ?? 0) - 1) * 0.1;
+  raw += activatedAbilitiesOf(card).reduce((sum, ability) => sum + Math.max(0, (ability.targets?.length ?? 0) - 1) * 0.1, 0);
   return Math.max(0, raw * RARITY_MULTIPLIER[card.rarity]);
 }
 

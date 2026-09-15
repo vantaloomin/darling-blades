@@ -1,6 +1,6 @@
 import type { GameEvent } from './events';
 import { DARLING_TAX_STEP } from '../config/rules';
-import type { CardDb, CardEntry, CardInstance, GameState, Permanent, PlayerId } from './types';
+import type { CardDb, CardEntry, CardInstance, GameState, Keyword, Permanent, PlayerId } from './types';
 import { cardIdOf, def, isCardInstance, isType, variantKeyOf } from './types';
 
 export type Emit = (e: GameEvent) => void;
@@ -30,6 +30,7 @@ export function enterBattlefield(
     attachedTo?: number;
     tapped?: boolean;
     plusOneCounters?: number;
+    grantKeywords?: Keyword[];
     variantKey?: string | null;
   } = {},
 ): Permanent {
@@ -59,6 +60,7 @@ export function enterBattlefield(
     attachedTo: opts.attachedTo,
     plusOneCounters: isType(d, 'creature') ? opts.plusOneCounters ?? 0 : 0,
     untilEotMods: [],
+    ...(opts.grantKeywords?.length ? { grantedKeywords: [...opts.grantKeywords] } : {}),
   };
   state.battlefield.push(perm);
   if (opts.attachedTo !== undefined) {
@@ -133,6 +135,19 @@ export function firesDiesForDestroy(state: GameState, db: CardDb, perm: Permanen
   return !perm.severBranded && !basicReturnsToReserve(state, db, perm);
 }
 
+const deathHistoryByDb = new WeakMap<CardDb, boolean>();
+
+/** Keep legacy snapshots unchanged when the card pool never reads death history. */
+function tracksCreatureDeaths(db: CardDb): boolean {
+  const cached = deathHistoryByDb.get(db);
+  if (cached !== undefined) return cached;
+  const enabled = Object.values(db).some((card) => card.abilities?.some(
+    (ability) => ability.condition === 'creatureDiedThisTurn',
+  ));
+  deathHistoryByDb.set(db, enabled);
+  return enabled;
+}
+
 /** Battlefield → owner's graveyard (tokens evaporate). Returns true if it died. */
 export function destroyPermanent(
   state: GameState,
@@ -144,6 +159,9 @@ export function destroyPermanent(
   const idx = state.battlefield.findIndex((p) => p.iid === perm.iid);
   if (idx < 0) return false;
   if (perm.severBranded) return severPermanent(state, db, perm, emit);
+  if (firesDiesForDestroy(state, db, perm) && isType(def(db, perm.cardId), 'creature') && tracksCreatureDeaths(db)) {
+    state.creatureDiedThisTurn = true;
+  }
   state.battlefield.splice(idx, 1);
   detachFromHost(state, perm);
   const isToken = isTokenPermanent(db, perm);

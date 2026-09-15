@@ -690,8 +690,8 @@ describe('Whispers replay and determinism', () => {
   it('round-trips a naturally terminal v13 log through a whispered cast with byte-identical state and events', () => {
     const recorded = replayFixture();
     expect(CURRENT_RULES_REV).toBe(4);
-    expect(REPLAY_LOG_VERSION).toBe(13);
-    expect(recorded.log.v).toBe(13);
+    expect(REPLAY_LOG_VERSION).toBe(14);
+    expect(recorded.log.v).toBe(14);
     expect(recorded.game.instanceState.winReason).toBe('life');
     const casts = recorded.log.actions.filter((step) => step.a.type === 'castSpell' && step.a.whispers);
     expect(casts.length).toBeGreaterThan(0);

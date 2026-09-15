@@ -1,7 +1,7 @@
 import { Game } from '../engine/Game';
 import { createRngState, rngShuffle, type RngState } from '../engine/rng';
 import type { CardDb, CardDef, GameState, PlayerId, PlayerState } from '../engine/types';
-import { def, isType, opponentOf } from '../engine/types';
+import { cardIdOf, def, isType, opponentOf } from '../engine/types';
 import type { PlayerView } from '../engine/view';
 
 /**
@@ -122,11 +122,18 @@ const STAND_IN_DEFS: readonly CardDef[] = [
   },
 ];
 
+const SIM_DATABASES = new WeakMap<CardDb, CardDb>();
+
 /** db + the stand-ins so the sim can look them up. */
 export function simDb(db: CardDb): CardDb {
+  const cached = SIM_DATABASES.get(db);
+  if (cached) return cached;
   const extra: Record<string, CardDef> = {};
   for (const d of STAND_IN_DEFS) extra[d.id] = d;
-  return { ...db, ...extra };
+  const augmented = { ...db, ...extra };
+  SIM_DATABASES.set(db, augmented);
+  SIM_DATABASES.set(augmented, augmented);
+  return augmented;
 }
 
 // --- deck-shape priors -------------------------------------------------------
@@ -236,6 +243,7 @@ function pendingDecisionsForView(
   view: PlayerView,
   db: CardDb,
 ): GameState['pendingDecisions'] {
+  if (view.pendingDecisions !== undefined) return structuredClone(view.pendingDecisions);
   const awaiting = view.awaiting;
   if (awaiting.kind !== 'chooseTarget') return [];
   const source = view.battlefield.find((perm) => perm.iid === awaiting.sourceIid);
@@ -299,17 +307,20 @@ export function determinize(view: PlayerView, db: CardDb, seed = 1): Game {
   // this simulation; non-live entries retain the existing string path.
   let markerId = Math.max(0,
     ...view.battlefield.map((perm) => perm.instanceId ?? 0),
-    ...view.stack.map((item) => item.instanceId ?? 0)) + 1;
-  const graveyard = (cards: string[], live: number[], owner: PlayerId): PlayerState['graveyard'] =>
-    cards.map((cardId, index) => live.includes(index)
-      ? { cardId, instanceId: markerId++, variantKey: null, whispersUntilDawnOf: opponentOf(owner) }
+    ...view.stack.map((item) => item.instanceId ?? 0),
+    ...(view.you.graveyardInstances ?? []).map((iid) => iid ?? 0),
+    ...(view.opp.graveyardInstances ?? []).map((iid) => iid ?? 0)) + 1;
+  const graveyard = (cards: string[], live: number[], owner: PlayerId, instances?: (number | null)[]): PlayerState['graveyard'] =>
+    cards.map((cardId, index) => live.includes(index) || instances?.[index] != null
+      ? { cardId, instanceId: instances?.[index] ?? markerId++, variantKey: null,
+          ...(live.includes(index) ? { whispersUntilDawnOf: opponentOf(owner) } : {}) }
       : cardId);
 
   const mine: PlayerState = {
     life: view.you.life,
     deck: myFill.deck,
     hand: [...view.you.hand],
-    graveyard: graveyard(view.you.graveyard, view.you.whispersLive, me),
+    graveyard: graveyard(view.you.graveyard, view.you.whispersLive, me, view.you.graveyardInstances),
     severed: [...view.you.severed],
     ...(view.you.landReserve !== undefined ? { landReserve: [...view.you.landReserve] } : {}),
     ...(view.you.darlingZone !== undefined
@@ -328,7 +339,7 @@ export function determinize(view: PlayerView, db: CardDb, seed = 1): Game {
     life: view.opp.life,
     deck: theirFill.deck,
     hand: theirFill.hand,
-    graveyard: graveyard(view.opp.graveyard, view.opp.whispersLive, opp),
+    graveyard: graveyard(view.opp.graveyard, view.opp.whispersLive, opp, view.opp.graveyardInstances),
     severed: [...view.opp.severed],
     ...(view.opp.landReserve !== undefined ? { landReserve: [...view.opp.landReserve] } : {}),
     ...(view.opp.darlingZone !== undefined
@@ -348,6 +359,17 @@ export function determinize(view: PlayerView, db: CardDb, seed = 1): Game {
   const maxIid = Math.max(0, ...view.battlefield.map((p) => p.iid));
   const maxSid = Math.max(0, ...view.stack.map((s) => s.sid));
 
+  const pendingDecisions = pendingDecisionsForView(view, db);
+  const awaiting = structuredClone(view.awaiting);
+  if (view.pendingDecisions !== undefined && awaiting.kind === 'foresee') {
+    const pending = pendingDecisions[0];
+    const library = players[awaiting.player].deck;
+    const known = awaiting.player === me ? awaiting.cards.map(cardIdOf) : [];
+    if (known.length > 0) library.splice(Math.max(0, library.length - known.length), known.length, ...known.reverse());
+    const count = pending?.kind === 'foresee' ? Math.min(pending.n, library.length) : awaiting.cards.length;
+    awaiting.cards = count > 0 ? library.slice(-count).reverse() : [];
+  }
+
   const state: GameState = {
     ...((view.rulesRev ?? 1) >= 2
       ? { rulesRev: view.rulesRev, episode: { resolvedSinceOffer: 0, reopensThisStep: 0 } }
@@ -360,17 +382,20 @@ export function determinize(view: PlayerView, db: CardDb, seed = 1): Game {
     players,
     battlefield: structuredClone(view.battlefield),
     stack: structuredClone(view.stack),
-    stackClosed: false,
+    stackClosed: view.stackClosed ?? false,
     combat: structuredClone(view.combat),
     fogThisTurn: view.fogThisTurn,
-    awaiting: structuredClone(view.awaiting),
+    awaiting,
+    ...(view.creatureDiedThisTurn ? { creatureDiedThisTurn: true } : {}),
+    ...(view.sunsetPendingWindow ? { sunsetPendingWindow: true } : {}),
+    ...(view.decisionResume ? { decisionResume: structuredClone(view.decisionResume) } : {}),
     // No fetch can be mid-flight at a Hard entry point, and stand-in lands
     // aren't `basic`, so this stays empty in sims — but it must exist so the
     // engine's pendingDecisions reads never hit undefined.
     // Hard can enter while a public targeted-arrival choice is awaiting. The
     // pending queue is reconstructed from that public source card and ability
     // index; hidden state is still filled only through the redacted view.
-    pendingDecisions: pendingDecisionsForView(view, db),
+    pendingDecisions,
     nextIid: maxIid + 1,
     nextSid: maxSid + 1,
     winner: null,

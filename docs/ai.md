@@ -255,6 +255,8 @@ If you want to move the numbers, these are the levers:
 | `src/ai/foresee.ts`    | Shared deterministic foresee (scry) policy (all brains + ScriptAI): keep lands while developing, then bottom excess lands and uncastably expensive cards. |
 | `src/ai/whispersPolicy.ts` | Whispers (1.8): keeps a whispered cast only while its graveyard index is in the public `whispersLive` list and `whispersValue` (the cast at its Whispers cost, +0.75 when the marker dies at the next Dawn, -0.25 when it survives into the owner's next turn) beats the best hand cast; every brain applies it before its cast ladder, Hard's whitelists admit whispered casts in main and response. |
 | `src/ai/tithePolicy.ts` | Tithe (1.8): rewrites the engine's canonical fodder set or drops the flag. Candidates sorted by `permValue` per point of effective Defense; pairs preferred so odd totals waste nothing; never the single best body, never a planned attacker; a body is sold only when the generic mana saved beats its board value. Applied beside `applyRitePolicy` in all three brains and the rollouts. |
+| `src/ai/discardPolicy.ts` | Loot (1.8): the shared deterministic discard choice for every brain and ScriptAI: the highest-cost spell current mana cannot pay first, then a land beyond four projected sources, then the lowest-value card; the last affordable spell is protected unless the count forces it. |
+| `src/ai/sacrificePolicy.ts` | Edicts (1.8): the shared mandatory sacrifice choice: the lowest `permValue` body, battlefield order on ties; Rite and Tithe fodder policies protect a chosen target from being sold. |
 
 `determinize.ts` is the opponent-modeling knob: the deck-shape priors
 (`LAND_FRACTION`, `INTERACTION_FRACTION`, `CURVE_WEIGHTS`) and the

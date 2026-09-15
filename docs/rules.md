@@ -501,6 +501,40 @@ Hauntlink, Whispers or Rite.
 replay log bumped to v13; the rules revision stays 4, since no shipped card
 changes behaviour. The marker is derived state and is not recorded.
 
+### The Drowned Deep vocabulary (1.8)
+
+The cut's printed lines needed a short list of general constructs, all of
+them inert until a card uses them (no shipped card changes behaviour, so
+the rules revision stays 4):
+
+- **Observers.** A creature's `dies` trigger fires for itself; the new
+  `allyDies` observer on a permanent fires whenever a creature its
+  controller controls dies, filtered to "another" creature, a subtype, or
+  a sacrifice. `youGainLife`, `youCastCharm` and `allyAttacks` observe the
+  controller's life gains, Charm casts and attack declarations. Observers
+  fire in battlefield order after the batched deaths, the `dies` rule.
+- **Sunset triggers.** "At Sunset" fires at the controller's Sunset step;
+  "if a creature died this turn" is a per-turn condition cleared at the next
+  Dawn.
+- **Targeted attack and Dawn triggers.** Since 1.7 an arrival trigger may
+  target, its choice deferred to the controller; attack and Dawn triggers
+  now take the same path. A trigger with no legal target fizzles silently.
+- **Looting.** "Draw a card, then discard a card" draws, then the
+  controller chooses the discard (a decision, recorded in the replay log);
+  cards discarded this way came from a hand, so a Whispers card is fresh.
+- **Edicts.** "Opponent sacrifices a creature" is the opponent's choice, a
+  decision for that seat; "each player sacrifices a creature" asks the
+  caster first, then the opponent. The deaths fire triggers normally.
+- **Target qualifiers.** "with cost N or less", "with attack N or more",
+  "a creature an opponent controls" and "two target creatures" are exact:
+  the legality check enforces the cap, the controller and the pair.
+- **Multiple Duties.** A permanent may carry several Duties; activating
+  names which one, and each prints on its own line.
+
+**Records.** The loot discard, the edict sacrifice and the deferred trigger
+target are recorded as decisions, so the replay log bumped to v14, still at
+rules revision 4.
+
 ## Board caps
 
 Two per-player caps are enforced at **cast legality** (`castBlockers` in

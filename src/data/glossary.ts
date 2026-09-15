@@ -1,4 +1,5 @@
 import type { CardDef, CardType, Color, EffectOp, Keyword, Rarity } from '../engine/types';
+import { activatedAbilitiesOf } from '../engine/types';
 
 /**
  * The rules vocabulary, as pure data. This lives in `src/data` — not in the
@@ -155,7 +156,7 @@ function cardOps(d: CardDef): EffectOp[] {
     ...(d.chapters ?? []).flatMap((chapter) => flatten(chapter)),
     ...flatten(d.empower?.ops ?? []),
     ...flatten(d.retell?.ops ?? []),
-    ...flatten(d.activated?.ops ?? []),
+    ...activatedAbilitiesOf(d).flatMap((ability) => flatten(ability.ops)),
   ];
 }
 

@@ -1,4 +1,4 @@
-import { fireTriggers } from '../effects/EffectInterpreter';
+import { firePlayerObservers, fireTriggers } from '../effects/EffectInterpreter';
 import { checkStateBased } from '../sba';
 import { endGame } from '../phases';
 import { getEffectiveStats } from '../statics';
@@ -110,7 +110,7 @@ function dealCombatDamage(
     return firstStrikeStep ? fs || ds : ds || !fs;
   };
 
-  const hits: Hit[] = [];
+  let hits: Hit[] = [];
 
   // Attackers deal damage.
   for (const attackerIid of combat.attackers) {
@@ -206,6 +206,11 @@ function dealCombatDamage(
     });
   }
 
+  if (state.battlefield.some((perm) => perm.combatDamagePrevented)) {
+    hits = hits.filter((hit) => hit.target.kind !== 'permanent' ||
+      !state.battlefield.some((perm) => hit.target.kind === 'permanent' &&
+        perm.iid === hit.target.iid && perm.combatDamagePrevented));
+  }
   if (hits.length === 0) return;
 
   emit({
@@ -239,6 +244,15 @@ function dealCombatDamage(
         delta: hit.amount,
         now: healed.life,
       });
+    }
+  }
+
+  // Every positive source of Blood Oath gains life separately. Observe only
+  // after the whole simultaneous damage/life-gain batch has been applied.
+  for (const hit of hits) {
+    if (state.winner !== null) return;
+    if (hit.lifelink && hit.amount > 0) {
+      firePlayerObservers(state, db, emit, 'youGainLife', hit.sourceController);
     }
   }
 

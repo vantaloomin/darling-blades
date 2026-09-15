@@ -18,9 +18,9 @@ import type { GameFormat, ReserveFormat } from '../config/rules';
  * worse than an honest "recorded on an older version" notice).
  */
 
-// Whispers and Tithe add castSpell riders. Older logs retain their execution
-// paths; v11, v12 and v13 all map to rules revision 4.
-export const REPLAY_LOG_VERSION = 13 as const;
+// v14 records chosen loot discards, edict sacrifices, deferred trigger targets
+// and indexed Duty actions. v11 through v14 all map to rules revision 4.
+export const REPLAY_LOG_VERSION = 14 as const;
 /** Newest-first FIFO cap for SaveData.replays (mirrors limited.history's 20). */
 export const REPLAY_CAP = 10;
 const LEGACY_WARCHEST_FORMATS = new Set(['battle' + 'box', 'battle' + 'Box']);
@@ -37,7 +37,7 @@ export interface ReplayContext {
 }
 
 export interface ReplayLog {
-  /** Numeric for legacy save fixtures; v6-v12 retain executable paths. */
+  /** Numeric for legacy save fixtures; v6-v14 retain executable paths. */
   v: number;
   /** Card-db drift stamp (replayDbStamp) — replays refuse a different db. */
   dbStamp: string;
@@ -235,11 +235,11 @@ export function isReplayLog(value: unknown): value is ReplayLog {
         : false;
   const legacyPayloadShape = (rawFormat === undefined && log.landReserves === undefined && log.darlings === undefined) ||
     (format !== undefined && reserveShape && log.darlings === undefined);
-  const payloadShape = log.v === REPLAY_LOG_VERSION || log.v === 12 || log.v === 11 || log.v === 10 || log.v === 9 || log.v === 8 || log.v === 7 || log.v === 6 || log.v === 5
+  const payloadShape = log.v === REPLAY_LOG_VERSION || log.v === 13 || log.v === 12 || log.v === 11 || log.v === 10 || log.v === 9 || log.v === 8 || log.v === 7 || log.v === 6 || log.v === 5
     ? currentPayloadShape
     : legacyPayloadShape;
   const valid =
-    (log.v === REPLAY_LOG_VERSION || log.v === 12 || log.v === 11 || log.v === 10 || log.v === 9 || log.v === 8 || log.v === 7 || log.v === 6 || log.v === 5 || log.v === 4 || log.v === 3 || log.v === 2) &&
+    (log.v === REPLAY_LOG_VERSION || log.v === 13 || log.v === 12 || log.v === 11 || log.v === 10 || log.v === 9 || log.v === 8 || log.v === 7 || log.v === 6 || log.v === 5 || log.v === 4 || log.v === 3 || log.v === 2) &&
     typeof log.dbStamp === 'string' &&
     typeof log.seed === 'number' &&
     startingHandSizeShape &&
