@@ -620,7 +620,7 @@ Three rules for every reserved-gold mention in every prompt:
 ### The three peoples and their tells
 
 Every Drowned Deep character is an adult woman, per the global rule. Titles
-are offices, not sexes: Father Dagon, the Deacon of the Deep and the Drowned
+are offices, not sexes: Dagon (once Father Dagon), the Deacon of the Deep and the Drowned
 Sexton are women holding old names. The coast reads through three costume
 languages and one set of species tells:
 
@@ -836,7 +836,7 @@ and the token's entry in `constructs-and-tokens.md` must both match them.
   green, no face detail beyond two pale eyes, no gold.
 - **The Deep's court (Drowned Deep)** — `dd-mother-hydra` is the Deep's
   queen: vast, serene, crowned in bell chains, her Deep-Spawn brood visible
-  around her. `dd-father-dagon` holds the old title as a woman: the Deep
+  around her. `dd-father-dagon` (Dagon, the Deep Itself; the Father title dropped 2026-09-14) is a woman: the Deep
   itself given a body, the drowned bell tower of Dunmarrow always in her
   frame. `dd-the-brood-below` and `dd-deep-one-midwife` show Deep-Spawn as
   defined above. `dd-horror-lord` (the Deacon of the Deep) wears a drowned

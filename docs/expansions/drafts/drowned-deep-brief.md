@@ -136,7 +136,7 @@ red, at least two at common (owner-approved 2026-09-11, Q4).
   Two lines hold: **our own coast** (no Innsmouth, no R'lyeh, no borrowed
   place names, so the set is not fan fiction of a place), and **names from
   Lovecraft's own texts only**, never later authors' additions, which are
-  still copyrighted. Father Dagon and Mother Hydra are the natural picks for
+  still copyrighted. Dagon (renamed from Father Dagon 2026-09-14) and Mother Hydra are the natural picks for
   the two Horror URs.
 - **Warden** (23 shipped cards) is the Lantern Watch's type and gets white
   Duty carriers; **Spirit** (14) is the drowned; **Mermaid** (an Axis, 6

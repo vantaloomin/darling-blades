@@ -43,7 +43,7 @@ percent of the pool.
 | ID | Name | Rarity | Colour | Type | Cost | Stats | Mechanics sketch | Flavour hook | CUT-PRIORITY |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | dd-mother-hydra | Mother Hydra, Queen Beneath Dunmarrow | UR | B | Creature, Deep One Horror, legendary | {5}{B}{B} | 6/7 | Dreaded. Tithe. During your Dawn, if you control another Horror, opponent loses 2 life. | She has been the town's landlord for three hundred years and has never once raised the rent. | core |
-| dd-father-dagon | Father Dagon, the Deep Itself | UR | U/B | Creature, Deep One Horror, legendary | {6}{U}{B} | 8/8 | Dreaded. Overrun. Tithe. Arrives: each player grinds 3. | The harbour floor is not the bottom. It is his brow. | core |
+| dd-father-dagon | Dagon, the Deep Itself | UR | U/B | Creature, Deep One Horror, legendary | {6}{U}{B} | 8/8 | Dreaded. Overrun. Tithe. Arrives: each player grinds 3. | The harbour floor is not the bottom. It is her brow. | core |
 | dd-lightkeeper | Maren Holt, the Lightkeeper | UR | W | Creature, Human Warden, legendary | {4}{W}{W} | 3/6 | Sentinel. Warding Gaze. Duty, {1}: gain 3 life and tap target creature an opponent controls. | The light has not gone dark in three hundred years, and she is why. | core |
 | dd-bell-that-will-not-ring | The Bell That Will Not Ring | UR | W | Artifact, legendary | {2}{W} | none | Duty, {2}: tap target creature. During your Dawn: gain 1 life. Your Wardens get +1/+1. | It was cast to warn the town. It has decided the town should not know. | core |
 | dd-tide-that-remembers | The Tide That Remembers | UR | U | Ritual | {3}{U}{U} | none | Draw 4, then grind self 3. Whispers {2}{U}{U}. | The water keeps every name it was ever given, and returns them in the wrong order. | core |
@@ -184,7 +184,7 @@ and where Retell and Empower are sprinkled.
 | dd-horror-lord | The Deacon of the Deep | R | B | Creature, Deep One Horror | {4}{B}{B} | 3/4 | Tithe. Your other Horrors get +1/+0 and have Dreaded. | The church still holds services. The congregation has changed. | core |
 | dd-cellar-witch | Cellar-Witch of Low Street | R | B | Creature, Human Witch | {2}{B} | 1/2 | Duty: draw a card, then discard a card. | Her cellar is dry, which on Low Street is its own kind of witchcraft. | core |
 | dd-deep-one-bride | Deep One Bride | R | B | Creature, Deep One Horror | {2}{B}{B} | 4/3 | Tithe. Dies: opponent loses 2 life. | The dress was her grandmother's. So was the groom. | core |
-| dd-drowned-fisherman | The Drowned Fisherman | R | B | Creature, Spirit | {1}{B}{B} | 3/2 | Deathblade. Arrives: grind self 2. Whispers {B}{B}. | He went out in the storm of '09 and has been coming home ever since. | core |
+| dd-drowned-fisherman | The Drowned Fisherman | R | B | Creature, Spirit | {1}{B}{B} | 3/2 | Deathblade. Arrives: grind self 2. Whispers {B}{B}. | She went out in the storm of '09 and has been coming home ever since. | core |
 | dd-the-price | The Price | R | B | Charm | {1}{B} | none | Destroy target creature with cost 3 or less. Whispers {B}. | Reasonable. Fair. Final. | core |
 | dd-tithe-collector | Wharf Collector | R | B | Creature, Deep One Horror | {4}{B} | 2/4 | Tithe. Duty: opponent loses 1 life and you gain 1 life. | She comes round on the first of the month with a basket, and the basket is always heavier leaving. | core |
 | dd-what-the-jars-hold | What the Jars Hold | R | B | Ritual | {2}{B} | none | Opponent discards two cards at random. Opponent loses 2 life. Whispers {1}{B}. | Labelled, dated, and shelved by the sin. | core |
@@ -250,7 +250,7 @@ and where Retell and Empower are sprinkled.
 
 | ID | Name | Rarity | Colour | Type | Cost | Stats | Mechanics sketch | Flavour hook | CUT-PRIORITY |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| dd-drowned-deacon | The Drowned Deacon | R | U/B | Creature, Deep One Horror | {2}{U}{B} | 2/4 | Tithe. Arrives: grind self 3. Duty: Foresee 1. | He kept the church books. He keeps them still, in a different ink. | core |
+| dd-drowned-deacon | The Drowned Deacon | R | U/B | Creature, Deep One Horror | {2}{U}{B} | 2/4 | Tithe. Arrives: grind self 3. Duty: Foresee 1. | She kept the church books. She keeps them still, in a different ink. | core |
 | dd-horror-garden | The Horror Garden | R | B/G | Enchantment | {2}{B}{G} | none | During your Dawn: create a 1/1 black Drowned Spirit token. Whenever you sacrifice a creature, gain 1 life. | Planted in the marsh, fed on the drowned, and coming up beautifully. | core |
 | dd-watch-and-tide | Watch and Tide | R | W/U | Charm | {1}{W}{U} | none | Tap target creature, then draw a card. Whispers {W}{U}. | The Watch sets the lamps by the tide, and the tide by the lamps, and neither has been wrong yet. | flex |
 | dd-marsh-mother-horror | Marsh-Mother | R | B/G | Creature, Deep One Horror | {4}{B}{G} | 4/4 | Tithe. Overrun. Dies: create a 2/2 green Kelp Shade token. | She feeds the marsh and the marsh feeds her, and the town is in the middle. | core |
@@ -397,10 +397,10 @@ near-vanilla.
 | dd-old-growth-horror | Old-Growth Horror | C | G | Creature, Horror | {6}{G}{G} | 6/7 | Tithe. Overrun. | The forest that was here before the town, and it has a grudge. | core |
 | dd-tidepool-bloom | Tidepool Bloom | C | G | Ritual | {1}{G} | none | Put a Mark on target creature. Gain 3 life. | One night a year the pools flower and the whole coast comes to see. | flex |
 | dd-marsh-wight-lesser | Reed-Wight | C | G | Creature, Spirit | {3}{G} | 3/2 | Dies: create a 2/2 green Kelp Shade token. Whispers {2}{G}. | Buried in the reeds. Back as the reeds. | flex |
-| dd-shore-heron | Salt-Heron | C | G | Creature, Bird | {2}{G} | 2/2 | Skyborne. Warding Gaze. | It watches the water and the sky, and something in each watches it. | flex |
+| dd-shore-heron | Salt-Heron | C | G | Creature, Bird | {2}{G} | 2/2 | Skyborne. Skim {G}. | It watches the water and the sky, and something in each watches it. | flex |
 | dd-coral-mother-lesser | Coral-Witch | C | G | Creature, Human Witch | {3}{G} | 3/3 | Arrives: put a Mark on target creature you control. | What she grows keeps growing. | flex |
 | dd-kelp-wall | Kelp Wall | C | G | Creature, Plant | {2}{G} | 0/7 | Bulwark. | The harbour wall was stone. It is not stone any more. | core |
-| dd-marsh-brute | Marsh Brute | C | G | Creature, Beast | {2}{G}{G} | 4/4 | Warcry. | It came out of the marsh at a run. | flex |
+| dd-marsh-brute | Marsh Brute | C | G | Creature, Beastkin | {2}{G}{G} | 4/4 | Warcry. | It came out of the marsh at a run. | flex |
 | dd-reef-growth | Reef Growth | C | G | Enchantment | {1}{G} | none | Your creatures with Marks get +1/+1. | The coral takes the wharf, then the boats, then the town, and it is only getting started. | flex |
 | dd-drowned-gardener | Drowned Gardener | C | G | Creature, Human | {1}{G} | 2/1 | Arrives: gain 1 life. Skim {G}. Whispers {G}. | The garden flooded. The garden thrived. | flex |
 | dd-marsh-giant | Marsh Giant | C | G | Creature, Horror | {6}{G} | 5/6 | Tithe. | It sleeps in the marsh and the marsh sleeps around it. | flex |
@@ -485,7 +485,7 @@ columns before it ships. Name and the exact 40 are authored at the cut.
 
 - **Rung 25, The Bell Beneath the Harbour (U/B).** The Whispers control
   boss: self-mill on a schedule, counters and bounce at Charm speed, Duty
-  scryers, the Drowned Deacon and Father Dagon at the top. A Whispers pilot
+  scryers, the Drowned Deacon and Dagon at the top. A Whispers pilot
   is the AI's greedy Retell-with-a-deadline comparison, so the boss is
   playable at every difficulty; the summit gate shape is decided before the
   rung lands (the CI budget note in `plan-1.8.md`).
@@ -787,7 +787,7 @@ and the new-mechanic rows are flagged for the Assay after those waves.
 
 1. **Mother Hydra, Queen Beneath Dunmarrow**: the flagship Horror and the
    Tithe finisher every black deck wants.
-2. **Father Dagon, the Deep Itself**: the two-colour top with the set's
+2. **Dagon, the Deep Itself** (renamed from Father Dagon 2026-09-14, owner): the two-colour top with the set's
    thesis on it (each player grinds 3: mill feeds Whispers for both).
 3. **Maren Holt, the Lightkeeper**: the Duty creature showcase, Sentinel
    plus tap-to-tap, the card the AI policy's creature branch was built for.
@@ -870,7 +870,7 @@ items from the pass: The Lightkeeper's Oath, Vigil Bell, The Fog That Stays.
 - Black: Mother Hydra, Queen Beneath Dunmarrow (`dd-mother-hydra`), Agathe Vane, the Salt Widow (`dd-agathe-vane`), The Brood Below (`dd-the-brood-below`)
 - Green: The Reef That Walks (`dd-the-reef-that-walks`), Old Marrow, Keeper of the Salt Marsh (`dd-old-marrow`)
 - Red: Brenna Gale, Storm-Caller of the Reach (`dd-brenna-gale`), Cinderjaw, the Fire That Swims (`dd-cinderjaw`)
-- Multicolour: Father Dagon, the Deep Itself (`dd-father-dagon`), The Lantern Watch (`dd-the-lantern-watch`)
+- Multicolour: Dagon, the Deep Itself (`dd-father-dagon`), The Lantern Watch (`dd-the-lantern-watch`)
 
 **Double Super Rare (17)**
 
