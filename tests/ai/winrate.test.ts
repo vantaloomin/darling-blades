@@ -238,4 +238,25 @@ describe('AI win-rate gates', () => {
       expect(cell.draws, 'new boss cell must terminate decisively').toBe(0);
     }
   }, 900_000);
+
+  it('Drowned Deep rungs 25-26 field complete matrices and terminate decisively', () => {
+    // No floors yet: both are tier-6 PROVISIONAL until the owner's tuning
+    // pass. This gate proves complete, decisive games at CI's 40-seed budget.
+    const report = runAvatarMatrix(40, ['the-drowned-deacon', 'the-marsh-mother']);
+    reportAvatarRates(report);
+    const row = (id: string) => report.rows.find((entry) => entry.avatar.id === id);
+    const r25 = row('the-drowned-deacon');
+    const r26 = row('the-marsh-mother');
+    expect(r25).toBeDefined();
+    expect(r26).toBeDefined();
+    if (!r25 || !r26) return;
+    expect(r25.cells).toHaveLength(5);
+    expect(r26.cells).toHaveLength(5);
+    for (const cell of [...r25.cells, ...r26.cells]) {
+      expect(cell.games, 'new boss cell must field all 40 seeded games').toBe(40);
+      expect(cell.rowWins + cell.colWins, 'new boss cell must decide all 40 seeded games').toBe(40);
+      expect(cell.draws, 'new boss cell must terminate decisively').toBe(0);
+    }
+  }, 900_000);
+
 });
