@@ -429,11 +429,11 @@ describe('Lanterns Below composition', () => {
   });
 });
 
-describe('theme deck termination smoke (vs Crimson Muster)', () => {
+describe('theme deck termination smoke (3 seeds each, vs Crimson Muster)', () => {
   const crimson = STARTER_DECKS.find((d) => d.id === 'starter-crimson')!;
   for (const deck of THEME_DECKS) {
-    it(`${deck.name} plays a game to completion`, () => {
-      const seed = 11;
+    it.each([11, 23, 47])(`${deck.name} plays a game to completion (seed %i)`, (seed) => {
+      const started = performance.now();
       const decks: [string[], string[]] = [deck.cards, crimson.cards];
       const game = new Game({ decks, seed, db: CARD_DB });
       const ais = [new MediumAI(CARD_DB), new MediumAI(CARD_DB)];
@@ -445,9 +445,19 @@ describe('theme deck termination smoke (vs Crimson Muster)', () => {
           break;
         }
         const p = a.player;
-        game.submit(p, ais[p].chooseAction(game.viewFor(p), game.legalActions(p)));
+        let action: ReturnType<MediumAI['chooseAction']> | undefined;
+        try {
+          action = ais[p].chooseAction(game.viewFor(p), game.legalActions(p));
+          game.submit(p, action);
+        } catch (error) {
+          throw new Error(`${deck.name}; seed ${seed}; P${p}; turn ${game.state.turn}; ` +
+            `awaiting ${JSON.stringify(a)}; action ${JSON.stringify(action)}; ${String(error)}`, { cause: error });
+        }
       }
       expect(terminated, `${deck.name} seed ${seed} did not terminate`).toBe(true);
+      expect([0, 1, 'draw']).toContain(game.state.winner);
+      console.log(JSON.stringify({ smoke: `Theme ${deck.name}`, brain: 'medium', seed,
+        winner: game.state.winner, turns: game.state.turn, wallMs: Math.round(performance.now() - started) }));
     }, 60_000);
   }
 });

@@ -1653,6 +1653,16 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
 > (investigation, 2026-08-28); it stays parked at 2.1 until its open decisions
 > are ruled, and still has no code.
 
+- **AI brain modernization (audit, 2026-09-15).** [plan-ai-modernization.md](plan-ai-modernization.md)
+  is the answer to "can the tower and draft AIs play every card as intended":
+  legally yes, as intended no. The widest gap predates 1.8: Medium's cast
+  ladder reads only kill removal, counters, pumps, draw and reach burn, so 41
+  Charms are never cast and 148 Rituals are cast by mana value (nine wraths
+  into the AI's own winning board); Hard cannot pass. The 1.8-specific gaps:
+  Tithe sells only damaged bodies, no brain acts in the Hauntlink window, the
+  draft picker is mechanic-blind. Five phases proposed (proof, cast ladder,
+  1.7 and 1.8 mechanics, combat keywords, draft picker), each behind the
+  existing gates. NOTHING AUTHORIZED; owner decisions D1-D5 in the doc.
 - **The 1.8 train (proposal, 2026-09-07).** [plan-1.8.md](plan-1.8.md) is the
   opening pass: what the spine committed 1.8 to (Drowned Deep at 250+ cards,
   Whispers, activated abilities with tap costs, the land economy treatment,

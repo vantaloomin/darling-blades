@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/personality.ts, src/ai/NoisyAI.ts, src/ai/tiers.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts · last-verified: 2026-09-03
+<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/ScriptAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/targeting.ts, src/ai/activatedPolicy.ts, src/ai/ritePolicy.ts, src/ai/tithePolicy.ts, src/ai/whispersPolicy.ts, src/ai/discardPolicy.ts, src/ai/sacrificePolicy.ts, src/ai/preservePolicy.ts, src/ai/hauntlinkPolicy.ts, src/ai/landPolicy.ts, src/ai/darlingPolicy.ts, src/ai/foresee.ts, src/ai/personality.ts, src/ai/NoisyAI.ts, src/ai/tiers.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts, tests/ai/rungSmokes.test.ts, tests/ai/documentedBehaviour.test.ts, docs/plan-ai-modernization.md · last-verified: 2026-09-15
      If you change those files, update this doc or re-verify the date. -->
 
 # AI
@@ -40,12 +40,16 @@ Concretely in the code:
   otherwise mulligan everything.
 - **Main:** 20% of the time picks a random non-concede action; otherwise plays a
   land, else casts the biggest affordable spell, else passes.
-- **Attack:** all-in when its untapped-creature count meets or beats the
-  opponent's untapped blockers, otherwise attacks with nothing — the signature
-  Easy weakness.
+- **Attack:** all-in when its blocker demand (a Dreaded attacker demands two
+  blockers) plus the `easyAllIn` margin meets or beats the opponent's untapped
+  blockers, otherwise attacks with nothing — the signature Easy weakness. Rage
+  bodies are compelled by the engine and attack regardless.
 - **Block:** one blocker per attacker, prefers blocks that kill or survive,
   chump-blocks only when at life ≤ 5.
-- **Respond:** passes 85% of windows; otherwise a random Charm.
+- **Respond:** passes 85% of windows; otherwise a random useful Charm, or a
+  Skim when no Charm is castable.
+- **Hand-size discard:** a uniformly random legal set (the loot discard uses
+  the shared `discardPolicy` like every other brain).
 
 Easy has its own seeded RNG (`createRngState`) so its randomness is reproducible.
 
@@ -154,8 +158,14 @@ surface for future pools where real decks punish attacks more often.
 Hard defers to Medium where the sim adds nothing, and searches where the
 engine's exact firstBlade/overrun/deathblade math beats any heuristic:
 
-- **Main phase:** trusts Medium's casting policy outright (`searchMain` just
-  calls Medium).
+- **Main phase** (`searchMain`): Medium's choice is the baseline; Hard then
+  simulates a whitelist of alternatives against it: Skim, Empower, Retell,
+  Whispers, Rite and Tithe casts, the vocabulary casts (qualified targets,
+  pairs, creature Retell), one Preserve, one Duty, and Darling casts, capped at
+  eight ordinary candidates beyond the always-searched Rite, Tithe and
+  vocabulary ones. **Hard cannot pass or hold:** `passStep` is not a candidate,
+  so Hard can upgrade Medium's cast but never decline it (owned by phase A of
+  the modernization plan).
 - **Attacks** (`searchAttack`): Medium's attack set is the baseline. Hard runs
   a **full-turn attack lookahead** — each candidate set plays through the
   opponent's whole counterattack turn (`lookahead`) before evaluation, so the
@@ -224,10 +234,15 @@ or in hand.
 `tests/ai/winrate.test.ts` plays hundreds of seeded AI-vs-AI games with sides
 alternated (so neither AI owns the better deck) and asserts:
 
-| Matchup            | Gate                 | Current (2026-07-02)    |
+| Matchup            | Gate                 | Current (2026-09-15)    |
 | ------------------ | -------------------- | ----------------------- |
-| Medium vs Easy     | **≥ 80%**            | ~**82.5%** (passing)    |
-| Hard vs Medium     | CI floor **≥ 0.70**  | ~**78.0%**              |
+| Medium vs Easy     | **≥ 80%**            | **83.0%** (166/200)     |
+| Hard vs Medium     | CI floor **≥ 0.70**  | **78.5%** (157/200)     |
+
+The same file gates the tower's summit: rungs 14-22 hold per-avatar floors
+and ordering relations, and rungs 23-24 and 25-26 each have a separate
+termination gate (five complete 40-seed cells, zero draws) so no single
+matrix blows CI's 900 s per-test budget.
 
 The original plan gate for Hard was **60% — met and exceeded**. The honest
 history: **53%** (full-turn attack lookahead + terminal-outcome detection only)
@@ -239,9 +254,9 @@ section). Richer hidden-card opponent models were measured and all lost win
 rate — see the Determinize section above. The floor ships at **0.70** to leave
 CI-variance margin (±3.5pp at 200 games) under the measured ~0.78.
 
-Despite the search doing more work, the whole suite is fast: the win-rate
-gates (including 200 Hard-vs-Medium games) finish in roughly **20 seconds** —
-the search rework also made Hard cheap to run.
+The win-rate file is the suite's long pole: the five gates plus the mini-fuzz
+take about **350 s** locally (2026-09-15), with the full suite at about
+11 minutes; run it on an idle machine.
 
 ## Tuning surface
 
@@ -257,6 +272,12 @@ If you want to move the numbers, these are the levers:
 | `src/ai/tithePolicy.ts` | Tithe (1.8): rewrites the engine's canonical fodder set or drops the flag. Candidates sorted by `permValue` per point of effective Defense; pairs preferred so odd totals waste nothing; never the single best body, never a planned attacker; a body is sold only when the generic mana saved beats its board value. Applied beside `applyRitePolicy` in all three brains and the rollouts. |
 | `src/ai/discardPolicy.ts` | Loot (1.8): the shared deterministic discard choice for every brain and ScriptAI: the highest-cost spell current mana cannot pay first, then a land beyond four projected sources, then the lowest-value card; the last affordable spell is protected unless the count forces it. |
 | `src/ai/sacrificePolicy.ts` | Edicts (1.8): the shared mandatory sacrifice choice: the lowest `permValue` body, battlefield order on ties; Rite and Tithe fodder policies protect a chosen target from being sold. |
+| `src/ai/activatedPolicy.ts` | Duty (1.8): when and which tap ability to use, including `abilityIndex` on multi-Duty carriers; tap-only Duties in the Morning, paid ones in the Afternoon, never a Rage body, never a self-harming ability; targets by public impact. Runs before the develop step in main two. |
+| `src/ai/ritePolicy.ts` | Rite: the fodder set (cheapest bodies, never the best body or a planned attacker or the cast's own target) and the decline rule when the fodder outvalues the cast. |
+| `src/ai/preservePolicy.ts` | Preserve: fires when mana is idle or the brain is behind on bodies; picks the bigger affordable body by public `cardValue`. |
+| `src/ai/hauntlinkPolicy.ts` | Hauntlink (rules rev 4): links an unlinked carrier in main to the highest-`permValue` host. It never moves a link and no brain acts in the `hauntlinkWindow` yet (phase B). |
+| `src/ai/targeting.ts` | The greedy target picker for deferred trigger targets and the vocabulary target policy (`maxCost`, `minAttack`, `exactly` pairs, `opponentCreature`, per-op `targetIndex`, creature Retell) that keeps one best assignment per cast mode. |
+| `src/ai/landPolicy.ts`, `src/ai/darlingPolicy.ts` | Reserve-format land choice (fix missing colours, keep basics when mana is idle) and the conservative Darling tax paydown. |
 
 `determinize.ts` is the opponent-modeling knob: the deck-shape priors
 (`LAND_FRACTION`, `INTERACTION_FRACTION`, `CURVE_WEIGHTS`) and the
@@ -269,8 +290,8 @@ be judged on the same 200-game gate.
 
 An **avatar/personality system** (shipped 2026-07-02) layers tunable knobs over these
 three brains — themed opponents with their own aggression/greed dials, without
-rewriting the cores. The knobs live in `src/ai/personality.ts` (frozen `DEFAULT_PERSONALITY` reproduces the base brains bit-for-bit — enforced by lockstep tests in `tests/ai/personality.test.ts`); the 22 avatars with decks and tunings live in `src/data/opponents.ts` (the base
-8 plus fourteen expansion gauntlet bosses through the Sands of the Duat summit pair).
+rewriting the cores. The knobs live in `src/ai/personality.ts` (frozen `DEFAULT_PERSONALITY` reproduces the base brains bit-for-bit — enforced by lockstep tests in `tests/ai/personality.test.ts`); the 26 avatars with decks and tunings live in `src/data/opponents.ts` (the base
+8 plus eighteen expansion gauntlet bosses through the Drowned Deep summit pair at rungs 25-26).
 
 Balance is measured, not guessed: `scripts/balance-matrix.ts`
 (`npm run balance-matrix`) runs deterministic avatar-vs-starter, starter-mirror,
@@ -279,11 +300,9 @@ green as of 2026-07-02) lives in a comment block in `src/data/opponents.ts` —
 re-measure and refresh it after any change to decks, personalities, starters,
 or brains.
 
-The Yokai Nights summit pair is now present at rungs 19-20. The final
-40-seed-per-cell avatar measurement is Queen of the Lanterned Roof 71% average
-and Kitsune Neon Tyrant 75% average, with provisional floors of 66% and 70%.
-The pressure ordering is green; the Queen remains below the R18 point estimate
-and is intentionally left for the end-of-set re-baseline.
+The Yokai Nights summit pair sits at rungs 19-20 (Queen of the Lanterned Roof,
+Kitsune Neon Tyrant); their shipped floors are the reserve-native re-centre
+below (0.545 and 0.805), not the pre-re-centre numbers.
 
 The Sands of the Duat summit pair is present at rungs 21-22: Anubis, Who Holds
 the Scale at rung 21 and Bastet, Mistress of the Ninth Return as the final rung
@@ -332,6 +351,42 @@ two that look like obvious improvements and measured as losses.
 
 The ladder still dips at R19 (61) and R21 (57) relative to R18 and R20. That is
 the accepted non-monotonic summit shape, not a regression.
+
+The Starborne pair (Chrome Broodmother 23, The Violet Signal Queen 24; floors
+0.585 and 0.615) and the Drowned Deep pair (The Drowned Deacon 25, The
+Marsh-Mother 26, the final rung) each carry their own termination gate.
+Measured untuned 2026-09-15 at 200 seeds: Deacon 33%, Marsh-Mother 77%. The
+Deacon's number is the brain's, not the deck's: her plan is fog, tap and cheap
+counter Charms on a schedule, the shapes Medium's cast ladder does not read
+(see the next section); her tuning pass waits for phase A.
+
+## What the AI provably does, and the known gaps (2026-09-15)
+
+[plan-ai-modernization.md](plan-ai-modernization.md) is the audit: legally
+every card plays; as intended, not yet. Two test files are the scoreboard:
+
+- `tests/ai/rungSmokes.test.ts` plays every gauntlet rung in both reserve
+  formats (Warchest and Darlings) with its own brain and personality, and
+  every Darlings precon, one seed each, under one 900 s file budget. No
+  crashes, no illegal actions, every game to `gameOver`.
+- `tests/ai/documentedBehaviour.test.ts` pins one test per claim in this
+  document. Twenty-six pass today; fourteen are marked `it.fails` and name
+  the phase that owns them (A cast ladder 5, B mechanics 3, C combat 3,
+  D draft 3). A phase lands by flipping its own tests to `it`; a fixture or
+  legality error inside an expected failure fails the file, so the marker
+  can never hide a broken brain.
+
+The gaps those fourteen tests describe, in the order the plan closes them:
+Medium's cast ladder reads only kill removal, counters, pumps, draw and reach
+burn, so Charms outside those shapes are never cast and Rituals are cast by
+mana value (creature wraths included, since `removalKind` does not classify
+`massDestroy`), and face damage and drain are never lethal-checked; Hard has
+no pass candidate; the Tithe policy sells only damaged bodies; Hauntlink
+hosts are chosen by raw value, never moved, and the damage window is never
+played; `combatPlans` models neither double strike nor vigilance; a mana Duty
+can pre-empt a creature cast in main two; the draft picker scores nothing
+newer than a keyword. Everything the tests do prove is listed beside the
+claim it proves, in the file.
 
 ## Tower strength tiers (the decision-noise dial)
 
