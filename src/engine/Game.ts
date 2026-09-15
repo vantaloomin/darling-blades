@@ -9,7 +9,7 @@ import {
   usesLandReserve,
 } from '../config/rules';
 import type { Action } from './actions';
-import { darlingCastCost, legalActions, validateAction } from './actions';
+import { castCost, darlingCastCost, legalActions, validateAction } from './actions';
 import { hasCastableCharm, hasCastableInstant, hasPayableHauntlinkAction } from './actions';
 import { anyPayableHauntlink } from './hauntlinkWindow';
 import { resolveCombatDamage } from './combat/damage';
@@ -21,7 +21,8 @@ import {
 } from './effects/EffectInterpreter';
 import { enumerateTargets } from './effects/targeting';
 import type { GameEvent } from './events';
-import { combineManaCosts, solveMana } from './mana';
+import { solveMana } from './mana';
+import { freshGraveyardCard } from './graveyard';
 import { attachPermanent, destroyPermanent, firesDiesForDestroy } from './battlefield';
 import { checkStateBased } from './sba';
 import { getEffectiveStats } from './statics';
@@ -720,8 +721,10 @@ export class Game {
         }
         if (plan.length > 0) emit({ e: 'manaTapped', player, iids: plan });
         me.hand.splice(action.handIndex, 1);
-        me.graveyard.push(card);
-        fireGraveyardTriggers(st, this.db, emit, card, player);
+        // Hand -> graveyard (Skim): this origin enables Whispers.
+        const graveCard = freshGraveyardCard(st, this.db, card, player);
+        me.graveyard.push(graveCard);
+        fireGraveyardTriggers(st, this.db, emit, graveCard, player);
         emit({ e: 'skimmed', player, cardId });
         drawCards(st, emit, player, 1);
         return;
@@ -736,6 +739,7 @@ export class Game {
         if (plan.length > 0) emit({ e: 'manaTapped', player, iids: plan });
 
         me.graveyard.splice(action.graveIndex, 1);
+        if (isCardInstance(card)) delete card.whispersUntilDawnOf;
         me.severed.push(card);
         emit({ e: 'severed', player, cardId, from: 'graveyard' });
         emit({ e: 'preserved', player, cardId });
@@ -778,27 +782,24 @@ export class Game {
       case 'castSpell': {
         const isRetell = action.retell === true;
         const isHauntlinked = action.hauntlinked === true;
-        const sourceIndex = isRetell ? action.graveIndex! : action.handIndex;
-        const card = isRetell ? me.graveyard[sourceIndex] : me.hand[sourceIndex];
+        const isWhispers = action.whispers === true;
+        const fromGrave = isRetell || isWhispers;
+        const sourceIndex = fromGrave ? action.graveIndex! : action.handIndex;
+        const card = fromGrave ? me.graveyard[sourceIndex] : me.hand[sourceIndex];
         const cardId = cardIdOf(card);
         const d = def(this.db, card);
         const extra = action.x ?? 0;
-        // Retell replaces the printed cost. Empower is an additional cost on a
-        // normal cast (validateAction rejects X+empower and Retell+Empower).
-        const cost =
-          isHauntlinked
-            ? d.hauntlink!.cost
-            : isRetell
-            ? d.retell!.cost
-            : action.empowered && d.empower
-              ? combineManaCosts(d.cost!, d.empower.cost)
-              : d.cost!;
+        // Price against the pre-payment board, before any sacrificed static
+        // source leaves. Enumeration, validation and payment share this cost.
+        const cost = castCost(d, action.empowered === true, isRetell, isHauntlinked, {
+          whispers: isWhispers, tithe: action.tithe, sacrifices: action.sacrifices, state: st, db: this.db,
+        })!;
         const plan = action.manaPlan ?? solveMana(
           st,
           this.db,
           player,
           cost,
-          isRetell || isHauntlinked ? 0 : extra,
+          isRetell || isHauntlinked || isWhispers ? 0 : extra,
         )!;
         for (const iid of plan) {
           const src = findPermanent(st, iid)!;
@@ -806,14 +807,14 @@ export class Game {
         }
         if (plan.length > 0) emit({ e: 'manaTapped', player, iids: plan });
 
-        if (isRetell) me.graveyard.splice(sourceIndex, 1);
+        if (fromGrave) me.graveyard.splice(sourceIndex, 1);
         else me.hand.splice(sourceIndex, 1);
 
-        // Rite is paid before the spell reaches the stack. Snapshot in
+        // Rite and Tithe are paid before the spell reaches the stack. Snapshot in
         // battlefield order, remove every sacrifice, then fire their dies
         // triggers in that same order so no trigger observes a half-paid cost.
-        if (d.rite) {
-          const sacrificeIids = new Set(action.sacrifices!);
+        if (d.rite || action.tithe) {
+          const sacrificeIids = new Set(action.sacrifices ?? []);
           const sacrifices = st.battlefield.filter((perm) => sacrificeIids.has(perm.iid));
           const fallen: typeof sacrifices = [];
           const graveyardEntries: { card: CardEntry; owner: PlayerId }[] = [];
@@ -849,6 +850,7 @@ export class Game {
           x: action.x,
           ...(action.empowered ? { empowered: true } : {}),
           ...(isRetell ? { retell: true } : {}),
+          ...(isWhispers ? { whispered: true } : {}),
           ...(isHauntlinked ? { hauntlinked: true } : {}),
         };
         st.stack.push(item);
@@ -860,6 +862,7 @@ export class Game {
           targets: item.targets,
           ...(isHauntlinked ? { hauntlinked: true } : {}),
         });
+        if (isWhispers) emit({ e: 'whispered', player, cardId });
         this.openResponseWindow(opponentOf(player), { type: 'spell', sid: item.sid }, emit);
         return;
       }
@@ -1010,8 +1013,10 @@ export class Game {
         const sorted = [...action.handIndices].sort((a, b) => b - a);
         for (const i of sorted) {
           const [card] = me.hand.splice(i, 1);
-          me.graveyard.push(card);
-          fireGraveyardTriggers(st, this.db, emit, card, player);
+          // Hand -> graveyard (cleanup discard): this origin enables Whispers.
+          const graveCard = freshGraveyardCard(st, this.db, card, player);
+          me.graveyard.push(graveCard);
+          fireGraveyardTriggers(st, this.db, emit, graveCard, player);
           emit({ e: 'discarded', player, cardId: cardIdOf(card) });
         }
         finishCleanup(st, this.db, emit);

@@ -84,6 +84,8 @@ From `CardDef` in `src/engine/types.ts` (re-exported through
 | `retell`      | `{ cost: ManaCost; ops?: EffectOp[] }?`| Alternative-cost cast from your graveyard; the card is severed after resolving. With `ops` the override resolves instead of the body (target-free); **without `ops` Retell recasts the printed body** — prefer that unless the override is a genuinely different mode. |
 | `hauntlink`   | `HauntlinkDef?`                        | Charm-speed, stack-free battlefield link action with its own cost. Noncreature Artifact/Enchantment only (validated); the linked rider is an attached-static layer, the cost may be paid again to move it immediately, and a linked carrier dies when its host leaves play. |
 | `activated`   | `ActivatedDef?`                        | **Duty** (1.8): a repeatable tap-cost ability, `{ cost: { tap: true, mana? }, ops, targets? }`. Creatures, artifacts and enchantments only, never lands; never beside `hauntlink` or `manaAbility`. Own Morning or Afternoon, empty stack, off-stack resolution; the carrier cannot tap the turn it arrives unless it has Warcry. Targets are chosen inline under the spell target rules. Validator rules below; the rules line is generated, never written. |
+| `whispers`    | `WhispersDef?`                         | **Whispers** (1.8): a fresh-graveyard alternative cost, `{ cost }`. Castable from your graveyard only while the entry carries the `whispersUntilDawnOf` marker (hand and deck origins, cleared at the named player's Dawn), at the window rules of the card's own type; the Whispers cost replaces the printed cost with no Empower and no X. Never beside `retell`, `rite`, `hauntlink` or an X cost. The rules line is generated. |
+| `tithe`       | `TitheDef?`                            | **Tithe** (1.8): an any-number sacrifice discount, `{ per: 2 }`. Creatures only in Drowned Deep (Horrors, a catalog rule); each two combined Defense among the sacrificed creatures pays one generic mana. Never beside `retell`, `rite`, `hauntlink`, `whispers` or an X cost. The rules line is the bare keyword. |
 
 ### `activated` (Duty) validator rules
 
@@ -109,6 +111,31 @@ The rules line is rendered by `activatedText` in `src/ui/rulesText.ts`: the
 tap pip, the mana cost if any, a colon, then the ops in the spell template.
 The glossary entry (`duty` in `src/data/glossary.ts`) carries the taught
 definition and the arrival rule; card text never repeats it.
+
+### `whispers` validator rules
+
+`validateWhispersDef` (`src/engine/types.ts`) runs on every card in the
+catalog test and refuses:
+
+- a cost that is not a well-formed mana cost (negative or non-integer parts);
+- a card that also has `retell`, `rite`, `hauntlink` or `tithe`, or an X
+  cost (the Rite and Hauntlink validators refuse the pairing from their side
+  too; Retell has no validator of its own, its eligibility lives in
+  `actions.ts`);
+- nothing about Empower: a card may carry both, and Empower simply never
+  applies to the Whispers cast.
+
+### `tithe` validator rules
+
+`validateTitheDef` (`src/engine/types.ts`) refuses:
+
+- a carrier that is not a creature;
+- a `per` other than 2 (the only rate this revision prints);
+- a carrier that also has `retell`, `rite`, `hauntlink` or `whispers`, or an
+  X cost.
+
+The Horror-only rule of Drowned Deep is a set test in `tests/data`, not a
+validator rule, so a later set can print Tithe elsewhere.
 
 ### `cost()` shorthand
 

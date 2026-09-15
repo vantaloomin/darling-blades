@@ -436,6 +436,71 @@ prices a creature's Duty against the attack it forgoes.
 v12; the rules revision stays 4, since no existing card changes behaviour. The
 `activated` game event is logged before the ops run, after `manaTapped`.
 
+### Whispers (fresh-graveyard cast)
+
+A card with a `whispers` block (`CardDef.whispers`, 1.8) can be cast from
+your graveyard for its **Whispers** cost, but only while the card is fresh:
+it must have reached the graveyard from your **hand or your deck** (a Skim, a
+discard, a cleanup discard, a grind), and the chance ends at your opponent's
+next Dawn. A card that reaches the graveyard from the battlefield or from the
+stack is never fresh, and a severed card is gone. The rules line prints
+`Whispers {N}`; the glossary teaches the mechanic under the name Whispers.
+
+**The marker.** When a card enters a graveyard from a hand or a deck, the
+engine tags the entry with `whispersUntilDawnOf`, the owner's opponent at
+that moment. At the start of that player's Dawn, beside untap, every marker
+naming them is cleared on both graveyards. A card tagged on your own turn is
+castable this Afternoon and gone at your opponent's Dawn; one tagged on their
+turn survives their turn and your whole next turn. The marker is public
+information (graveyards are open); the redacted view carries it once the
+wave's AI pass lands, and until then the legal-action list is what offers a
+whispered cast.
+
+**Timing and cost.** A Whispers cast obeys the window rules a hand cast of
+that card type obeys: a Charm at Charm speed, anything else in your own
+Morning or Afternoon with an empty stack. `castSpell` carries `whispers:
+true` and uses Retell's graveyard source model. The Whispers cost replaces
+the printed cost outright: no Empower, no X, and never on a card with
+Retell, Rite or Hauntlink (the validator refuses the combinations in both
+directions). A live Whispers Charm counts as a castable Charm for every
+window gate.
+
+**Resolution.** A whispered spell resolves as itself; a Charm or Ritual
+returns to the graveyard untagged (it arrived from the stack, not from a
+hand), and a permanent arrives with no marker, so a later death does not
+re-tag it. Graveyard triggers fire once, on entry, as today. The `whispered`
+game event is emitted when the cast is announced, for narration.
+
+### Tithe (sacrifice discount)
+
+A creature with a `tithe` block (`CardDef.tithe`, 1.8) can be cast by
+sacrificing **any number** of your creatures as an additional cost: every
+two points of combined Defense among the sacrificed creatures pays one
+generic mana of the printed cost, rounded down, and coloured pips are never
+reduced. The rules line prints the bare keyword `Tithe`; the glossary
+teaches it under that name. Drowned Deep prints Tithe only on Horrors; that
+is a per-set catalog rule, not an engine one.
+
+**Choosing the fodder.** `castSpell` carries `tithe: true` and the chosen
+creatures' battlefield iids in `sacrifices`, Rite's field; any legal subset of your own
+creatures is accepted. The legal-action list offers the cast without a
+sacrifice and one canonical cast whose fodder is your bodies sorted by
+effective Defense ascending, taken until the discount covers the generic
+part or the board runs out. Defense is read from `getEffectiveStats`, so
+marks and statics count and tokens are legal fodder. With Empower also
+chosen, the discount applies to the generic part of the combined total.
+
+**Payment.** The sacrifice is paid the way Rite pays: the chosen creatures
+leave the battlefield in battlefield order before the spell reaches the
+stack, their graveyard and dies triggers batched, and a cancelled Tithe
+spell does not refund them. The creature-cap check at cast time subtracts
+the fodder count, the Rite rule. Tithe never appears beside X, Retell,
+Hauntlink, Whispers or Rite.
+
+**Records.** Both riders live on the existing `castSpell` action, so the
+replay log bumped to v13; the rules revision stays 4, since no shipped card
+changes behaviour. The marker is derived state and is not recorded.
+
 ## Board caps
 
 Two per-player caps are enforced at **cast legality** (`castBlockers` in

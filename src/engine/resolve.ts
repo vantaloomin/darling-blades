@@ -44,6 +44,8 @@ function moveSpellOnExit(state: GameState, db: CardDb, item: StackItem, emit: Em
     // Deferred: the event union has no `from: 'stack'`; the UI workstream owns that decision.
     emit({ e: 'severed', player: item.controller, cardId: item.cardId, from: 'graveyard' });
   } else {
+    // Stack -> graveyard (resolution/fizzle), including Whispers: stackCard
+    // reconstructs identity only, so no fresh-graveyard marker survives.
     state.players[item.controller].graveyard.push(card);
     fireGraveyardTriggers(state, db, emit, card, item.controller);
   }

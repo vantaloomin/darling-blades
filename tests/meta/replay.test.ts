@@ -235,7 +235,7 @@ describe('deterministic replays (src/meta/Replay.ts)', () => {
     expect(cards.every((entry) => typeof entry === 'object' && 'instanceId' in entry)).toBe(true);
     expect(JSON.stringify(state)).toBe(instanceFinalState);
     expect(log.v).toBe(REPLAY_LOG_VERSION);
-    expect(REPLAY_LOG_VERSION).toBe(12);
+    expect(REPLAY_LOG_VERSION).toBe(13);
   });
 
   it('replays a v8 battlefield Hauntlink action and its public relationship stream-exactly', () => {

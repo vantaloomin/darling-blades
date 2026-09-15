@@ -154,7 +154,7 @@ Three things fall out of this:
   cannot demonstrate the weakness. Treat their win-rate numbers with suspicion
   and check them against the theme precons too.
 
-## 5. The thirteen mechanics
+## 5. The fifteen mechanics
 
 | Mechanic | Cards | Sets | Status | Watch for |
 | --- | --- | --- | --- | --- |
@@ -171,6 +171,8 @@ Three things fall out of this:
 | **Rite** | 11 | 1 | Re-usable | Sacrifice creatures as an additional cost. Only one set so far, which is history rather than a rule. **Needs fodder shipped alongside it**, which is the job Duat did; a set with a token package already has it. |
 | **Champion Awakening** | 7 | 3 | Rare | A one-way upgrade granting listed stats and keywords. Smallest population in the game; treat as a marquee tool. |
 | **Duty** | 0 | 0 | New (1.8) | A repeatable tap ability on a creature, artifact or enchantment. **Costed like a Dawn trigger the player chooses to fire** (2.0x the per-trigger rate on a creature, 3.0x on a non-creature, minus 0.4 per activation mana), so it is never a free sprinkle. **On a body it is priced against the attack it forgoes**: a tapped creature neither attacks nor blocks, and Attack 2 or more carriers pay about 1.0 less in precedent. Repeatable removal on a tap never appears below six mana or below rare in twenty years of Magic; see [plan-tap-abilities.md](plan-tap-abilities.md) section 5 for the anchors and the `NEEDS MATH` bands. No shipping cards yet; Drowned Deep prints the first. |
+| **Whispers** | 0 | 0 | New (1.8) | A fresh-graveyard alternative cost. **Costed as a Charm option at half the mana gap** (section 4r of the formula): the Whispers cost sits one below printed and keeps the card's own pips, so a one-drop's Whispers may equal its printed cost. Needs outlets shipped alongside it: at least one and a half self-mill, Skim or discard effects per Whispers card in each colour that prints it. |
+| **Tithe** | 0 | 0 | New (1.8) | An any-number sacrifice discount, one generic per two combined Defense. **A flat +0.5 option** (section 4s): it never changes what the card does, only what it costs on a wide board. Drowned Deep prints it on Horrors only; the fodder is the set's token package. |
 
 ### Nine Lives against marks: INTENDED FRICTION, ruled 2026-08-26
 

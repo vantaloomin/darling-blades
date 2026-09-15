@@ -178,6 +178,16 @@ export interface RetellDef {
   ops?: EffectOp[];
 }
 
+/** Fresh-graveyard alternative cost, available until the opponent's next Dawn. */
+export interface WhispersDef {
+  cost: ManaCost;
+}
+
+/** Optional creature sacrifices discount one generic per two combined Defense. */
+export interface TitheDef {
+  per: 2;
+}
+
 /** Additional creature-sacrifice cost paid while casting the card. */
 export interface RiteDef {
   n: number;
@@ -345,6 +355,10 @@ export interface CardDef {
   skim?: SkimDef;
   /** Optional alternative-cost cast from this card's graveyard. */
   retell?: RetellDef;
+  /** Optional alternative cost after entering the graveyard from hand or deck. */
+  whispers?: WhispersDef;
+  /** Optional any-number creature sacrifice discount paid while casting. */
+  tithe?: TitheDef;
   /** Optional additional cast cost that sacrifices controlled creatures. */
   rite?: RiteDef;
   /** Returns once after dying without a +1/+1 mark. */
@@ -375,6 +389,8 @@ export interface CardInstance {
   instanceId: number;
   cardId: string;
   variantKey: string | null;
+  /** Graveyard-only Whispers deadline: the owner's opponent at entry time. */
+  whispersUntilDawnOf?: PlayerId;
 }
 
 /** Compatibility inputs accepted by the engine boundary. */
@@ -417,6 +433,8 @@ export function validateHauntlinkDef(d: CardDef): string[] {
   if (d.empower) errors.push('Hauntlink carrier cannot combine with Empower');
   if (d.skim) errors.push('Hauntlink carrier cannot combine with Skim');
   if (d.retell) errors.push('Hauntlink carrier cannot combine with Retell');
+  if (d.whispers) errors.push('Hauntlink carrier cannot combine with Whispers');
+  if (d.tithe) errors.push('Hauntlink carrier cannot combine with Tithe');
   if ((d.abilities ?? []).some((ability) => ability.static?.scope === 'attached')) {
     errors.push('Hauntlink carrier cannot also carry an attached static');
   }
@@ -440,6 +458,8 @@ export function validateRiteDef(d: CardDef): string[] {
   if (d.x) errors.push('Rite card cannot be X');
   if (d.retell) errors.push('Rite card cannot combine with Retell');
   if (d.hauntlink) errors.push('Rite card cannot combine with Hauntlink');
+  if (d.whispers) errors.push('Rite card cannot combine with Whispers');
+  if (d.tithe) errors.push('Rite card cannot combine with Tithe');
   if (d.skim) errors.push('Rite card cannot combine with Skim');
   if (
     d.subtypes.includes('Aura') ||
@@ -449,6 +469,38 @@ export function validateRiteDef(d: CardDef): string[] {
   ) {
     errors.push('Rite card cannot have cast targets');
   }
+  return errors;
+}
+
+/** Catalog-facing validation for the fresh-graveyard alternative cost. */
+export function validateWhispersDef(d: CardDef): string[] {
+  if (!d.whispers) return [];
+  const errors: string[] = [];
+  if (d.retell) errors.push('Whispers card cannot combine with Retell');
+  if (d.rite) errors.push('Whispers card cannot combine with Rite');
+  if (d.hauntlink) errors.push('Whispers card cannot combine with Hauntlink');
+  if (d.tithe) errors.push('Whispers card cannot combine with Tithe');
+  if (d.x) errors.push('Whispers card cannot be X');
+  const cost = d.whispers.cost;
+  if (!cost) errors.push('Whispers needs a mana cost');
+  else if (!Number.isInteger(cost.generic) || cost.generic < 0 ||
+    Object.entries(cost.pips).some(([color, pip]) =>
+      !['W', 'U', 'B', 'R', 'G'].includes(color) || !Number.isInteger(pip) || pip < 0,
+    )) errors.push('Whispers cost must be non-negative');
+  return errors;
+}
+
+/** Tithe carriers are creatures; subtype restrictions belong to the set catalog. */
+export function validateTitheDef(d: CardDef): string[] {
+  if (!d.tithe) return [];
+  const errors: string[] = [];
+  if (!isType(d, 'creature')) errors.push('Tithe carrier must be a creature');
+  if (d.tithe.per !== 2) errors.push('Tithe requires two Defense per generic mana');
+  if (d.retell) errors.push('Tithe card cannot combine with Retell');
+  if (d.rite) errors.push('Tithe card cannot combine with Rite');
+  if (d.hauntlink) errors.push('Tithe card cannot combine with Hauntlink');
+  if (d.whispers) errors.push('Tithe card cannot combine with Whispers');
+  if (d.x) errors.push('Tithe card cannot be X');
   return errors;
 }
 
@@ -596,6 +648,8 @@ export interface StackItem {
   empowered?: boolean;
   /** Omitted means the card was cast from hand. */
   retell?: boolean;
+  /** Cast from a freshly tagged graveyard entry; exits normally without a tag. */
+  whispered?: true;
   /** Omitted means the ordinary cast; true means pay Hauntlink and attach. */
   hauntlinked?: boolean;
 }

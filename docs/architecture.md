@@ -105,6 +105,7 @@ The full `GameEvent` union (`src/engine/events.ts`):
 | `darlingTaxPaidDown`    | `player`, `tax`                                 | (describe me)                                                                                                                          |
 | `darlingReturned`       | `player`, `cardId`, `tax`, `reason`             | (describe me)                                                                                                                          |
 | `skimmed`               | `player`, `cardId`                              | (describe me)                                                                                                                          |
+| `whispered`             | `player`, `cardId`                              | A Whispers cast was announced from a fresh graveyard entry; emitted beside the cast event, for narration                               |
 | `spellCast`             | `sid`, `cardId`, `controller`, `targets`        | A spell went on the stack.                                                                                                             |
 | `responseWindowOpened`  | `player`, `reopened?`                           | A response window opened for `player`; `reopened: true` marks a revision-2 post-flush offer.                                           |
 | `spellResolved`         | `sid`                                           | A stack item resolved.                                                                                                                 |

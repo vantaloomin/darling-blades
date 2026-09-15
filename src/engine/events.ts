@@ -21,6 +21,7 @@ export type GameEvent =
   | { e: 'darlingTaxPaidDown'; player: PlayerId; tax: number }
   | { e: 'darlingReturned'; player: PlayerId; cardId: string; tax: number; reason: 'died' | 'severed' | 'recalled' }
   | { e: 'skimmed'; player: PlayerId; cardId: string }
+  | { e: 'whispered'; player: PlayerId; cardId: string }
   | {
       e: 'spellCast';
       sid: number;
