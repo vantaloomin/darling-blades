@@ -11,7 +11,7 @@
  * four-point star ("The Silver Veil"); arthurian-court = a five-point royal
  * crown. Tuned to read at ~21px on the card face and ~40px in the glossary.
  */
-export type CardSetId = 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales' | 'yokai-nights' | 'sands-of-the-duat' | 'starborne';
+export type CardSetId = 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales' | 'yokai-nights' | 'sands-of-the-duat' | 'starborne' | 'drowned-deep';
 
 export const SET_ICON_PATHS: Record<CardSetId, string> = {
   // Heart pierced by a blade: grip + crossguard above the cleft, a tapered
@@ -70,4 +70,13 @@ export const SET_ICON_PATHS: Record<CardSetId, string> = {
     'M44 64 A6 6 0 1 0 56 64 A6 6 0 1 0 44 64 Z ' +
     'M45.5 44 A4.5 4.5 0 1 0 54.5 44 A4.5 4.5 0 1 0 45.5 44 Z ' +
     'M47 28 A3 3 0 1 0 53 28 A3 3 0 1 0 47 28 Z',
+  // The drowned bell (Drowned Deep, 2026-09-15): Dunmarrow's bell with the
+  // tide-line punched across it as one wave band, and the clapper hanging
+  // free below the lip. Curved shoulders, flared lip and the wave keep it
+  // apart from the rectilinear Ragnarök hammer at card size.
+  'drowned-deep':
+    'M50 10 C34 10 27 34 25 60 L14 72 L86 72 L75 60 C73 34 66 10 50 10 Z ' +
+    'M29 50 C34 45 39 45 44 50 C49 55 54 55 59 50 C64 45 69 45 71 50 L71 60 ' +
+    'C66 55 61 55 56 60 C51 65 46 65 41 60 C36 55 31 55 29 60 Z ' +
+    'M43 83 A7 7 0 1 1 57 83 A7 7 0 1 1 43 83 Z',
 };
