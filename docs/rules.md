@@ -452,9 +452,9 @@ that moment. At the start of that player's Dawn, beside untap, every marker
 naming them is cleared on both graveyards. A card tagged on your own turn is
 castable this Afternoon and gone at your opponent's Dawn; one tagged on their
 turn survives their turn and your whole next turn. The marker is public
-information (graveyards are open); the redacted view carries it once the
-wave's AI pass lands, and until then the legal-action list is what offers a
-whispered cast.
+information (graveyards are open): the redacted view lists each side's live
+entries as `whispersLive`, graveyard indices, and the brains read it only
+there.
 
 **Timing and cost.** A Whispers cast obeys the window rules a hand cast of
 that card type obeys: a Charm at Charm speed, anything else in your own

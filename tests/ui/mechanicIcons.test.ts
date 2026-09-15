@@ -25,6 +25,15 @@ describe('mechanic and card-type icons', () => {
     for (const key of Object.values(CARD_TYPE_ICON_KEY)) expect(key).toMatch(/^cardtype-/);
   });
 
+  it('gives Whispers and Tithe distinct mechanic textures beside Retell and Rite', () => {
+    expect(MECHANIC_ICON_KEY.whispers).toBe('mechanic-whispers');
+    expect(MECHANIC_ICON_KEY.tithe).toBe('mechanic-tithe');
+    expect(new Set([
+      MECHANIC_ICON_KEY.whispers, MECHANIC_ICON_KEY.tithe,
+      MECHANIC_ICON_KEY.retell, MECHANIC_ICON_KEY.rite,
+    ]).size).toBe(4);
+  });
+
   it('gives every texture key a unique name across all three icon families', () => {
     const keys = [
       ...Object.values(KEYWORD_ICON_KEY),

@@ -295,11 +295,21 @@ export function determinize(view: PlayerView, db: CardDb, seed = 1): Game {
     fillRng,
   );
 
+  // Reconstruct only public live markers. Physical identities are local to
+  // this simulation; non-live entries retain the existing string path.
+  let markerId = Math.max(0,
+    ...view.battlefield.map((perm) => perm.instanceId ?? 0),
+    ...view.stack.map((item) => item.instanceId ?? 0)) + 1;
+  const graveyard = (cards: string[], live: number[], owner: PlayerId): PlayerState['graveyard'] =>
+    cards.map((cardId, index) => live.includes(index)
+      ? { cardId, instanceId: markerId++, variantKey: null, whispersUntilDawnOf: opponentOf(owner) }
+      : cardId);
+
   const mine: PlayerState = {
     life: view.you.life,
     deck: myFill.deck,
     hand: [...view.you.hand],
-    graveyard: [...view.you.graveyard],
+    graveyard: graveyard(view.you.graveyard, view.you.whispersLive, me),
     severed: [...view.you.severed],
     ...(view.you.landReserve !== undefined ? { landReserve: [...view.you.landReserve] } : {}),
     ...(view.you.darlingZone !== undefined
@@ -318,7 +328,7 @@ export function determinize(view: PlayerView, db: CardDb, seed = 1): Game {
     life: view.opp.life,
     deck: theirFill.deck,
     hand: theirFill.hand,
-    graveyard: [...view.opp.graveyard],
+    graveyard: graveyard(view.opp.graveyard, view.opp.whispersLive, opp),
     severed: [...view.opp.severed],
     ...(view.opp.landReserve !== undefined ? { landReserve: [...view.opp.landReserve] } : {}),
     ...(view.opp.darlingZone !== undefined

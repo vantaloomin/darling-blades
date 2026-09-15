@@ -56,8 +56,10 @@ export type MechanicId =
   | 'empower'
   | 'skim'
   | 'retell'
+  | 'whispers'
   | 'hauntlink'
   | 'rite'
+  | 'tithe'
   | 'nineLives'
   | 'preserve'
   | 'duty';
@@ -72,8 +74,10 @@ export const MECHANIC_NAMES: Record<MechanicId, string> = {
   empower: 'Empower',
   skim: 'Skim',
   retell: 'Retell',
+  whispers: 'Whispers',
   hauntlink: 'Hauntlink',
   rite: 'Rite',
+  tithe: 'Tithe',
   nineLives: 'Nine Lives',
   preserve: 'Preserve',
   duty: 'Duty',
@@ -90,8 +94,10 @@ export const MECHANIC_DEFINITIONS: Record<MechanicId, string> = {
   empower: 'pay the extra cost as you cast this for the listed bonus effect',
   skim: 'pay the listed cost, discard this card, then draw a card',
   retell: 'cast this from your graveyard for the listed cost, then sever it',
+  whispers: 'if this card is put into your graveyard from your hand or your deck, you may cast it from there for its Whispers cost until your opponent\'s next Dawn.',
   hauntlink: 'pay Hauntlink at Charm speed to link this permanent to one of your creatures',
   rite: 'as an additional cost to cast this, sacrifice the listed number of creatures',
+  tithe: 'you may sacrifice any number of creatures you control as you cast this. It costs one less for every two points of their combined Defense, rounded down. Coloured mana is still paid.',
   nineLives: 'when this dies with no +1/+1 marks on it, it returns to the battlefield with a +1/+1 mark on it',
   preserve: 'pay the listed cost and Sever this card from your graveyard to create a token copy of it; only during Morning or Afternoon',
   duty: 'Tap this permanent, and pay any listed cost, during your Morning or Afternoon to perform its Duty. A permanent cannot tap the turn it arrives unless it has Warcry.',
@@ -190,8 +196,10 @@ export function cardMechanics(d: CardDef): MechanicId[] {
   if (d.empower) present.push('empower');
   if (d.skim) present.push('skim');
   if (d.retell) present.push('retell');
+  if (d.whispers) present.push('whispers');
   if (d.hauntlink) present.push('hauntlink');
   if (d.rite) present.push('rite');
+  if (d.tithe) present.push('tithe');
   if (d.nineLives) present.push('nineLives');
   if (d.preserve) present.push('preserve');
   if (d.activated) present.push('duty');
@@ -294,8 +302,10 @@ const MECHANIC_ORDER: MechanicId[] = [
   'empower',
   'skim',
   'retell',
+  'whispers',
   'hauntlink',
   'rite',
+  'tithe',
   'nineLives',
   'preserve',
   'duty',

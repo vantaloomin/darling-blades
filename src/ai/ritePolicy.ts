@@ -7,7 +7,7 @@ import { cardValue, empowerValue, permValue } from './value';
 type SpellCast = Extract<Action, { type: 'castSpell' }>;
 
 function cardIdFor(view: PlayerView, cast: SpellCast): string {
-  return cast.retell && cast.graveIndex !== undefined
+  return (cast.retell || cast.whispers) && cast.graveIndex !== undefined
     ? view.you.graveyard[cast.graveIndex]
     : view.you.hand[cast.handIndex];
 }

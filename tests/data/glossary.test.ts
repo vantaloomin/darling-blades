@@ -13,10 +13,15 @@ import {
   type MechanicId,
 } from '../../src/data/glossary';
 import { CARD_DB } from '../../src/data/catalog';
+import { classifyPermanent } from '../../src/data/permanentClass';
 import { cardGlossaryEntries } from '../../src/ui/rulesText';
 import type { CardDef, Keyword } from '../../src/engine/types';
 
 const collectible = (Object.values(CARD_DB) as CardDef[]).filter((d) => !d.token);
+const mechanicFixture: CardDef = {
+  id: 'drowned-deep-glossary-fixture', name: 'Mechanic Fixture', types: ['creature'],
+  subtypes: [], colors: [], rarity: 'c', attack: 1, defense: 2,
+};
 
 describe('glossary vocabulary', () => {
   it('gives every keyword a name, a reminder, and a Combat Traits row', () => {
@@ -78,6 +83,22 @@ describe('glossary vocabulary', () => {
     expect(sectionOfTerm('Duty')).toBe('mechanics');
   });
 
+  it('teaches Whispers and Tithe with the ruled definitions and their own icons', () => {
+    const terms = glossarySection('mechanics').terms;
+    expect(terms).toContainEqual({
+      name: 'Whispers',
+      description: 'if this card is put into your graveyard from your hand or your deck, you may cast it from there for its Whispers cost until your opponent\'s next Dawn.',
+      icon: { kind: 'mechanic', key: 'whispers' },
+    });
+    expect(terms).toContainEqual({
+      name: 'Tithe',
+      description: 'you may sacrifice any number of creatures you control as you cast this. It costs one less for every two points of their combined Defense, rounded down. Coloured mana is still paid.',
+      icon: { kind: 'mechanic', key: 'tithe' },
+    });
+    expect(sectionOfTerm('Whispers')).toBe('mechanics');
+    expect(sectionOfTerm('Tithe')).toBe('mechanics');
+  });
+
   it('teaches the day-cycle phase names without legacy Upkeep or End rows', () => {
     const phases = glossarySection('phases');
     expect(phases.terms.map((term) => term.name)).toEqual([
@@ -99,6 +120,22 @@ describe('glossary vocabulary', () => {
 });
 
 describe('cardMechanics', () => {
+  it('detects Whispers and Tithe from their fields without implying Sever', () => {
+    const whispers: CardDef = {
+      ...mechanicFixture, whispers: { cost: { generic: 1, pips: {} } },
+    };
+    const tithe: CardDef = { ...mechanicFixture, tithe: { per: 2 } };
+    expect(cardMechanics(whispers)).toEqual(['whispers']);
+    expect(cardMechanics(tithe)).toEqual(['tithe']);
+    expect(cardGlossaryEntries(whispers)).toEqual([
+      { name: 'Whispers', reminder: MECHANIC_DEFINITIONS.whispers },
+    ]);
+    expect(cardGlossaryEntries(tithe)).toEqual([
+      { name: 'Tithe', reminder: MECHANIC_DEFINITIONS.tithe },
+    ]);
+    expect(cardMechanics({ ...mechanicFixture, name: 'Whispers and Tithe' })).toEqual([]);
+  });
+
   it('detects Duty and terms in its nested effect ops for search and the Keyword Guide', () => {
     const fixture: CardDef = {
       id: 'duty-glossary-fixture', name: 'Duty Fixture', types: ['artifact'],
@@ -149,6 +186,13 @@ describe('cardMechanics', () => {
 });
 
 describe('cardTermNames', () => {
+  it('makes both Drowned Deep mechanic names available to card search', () => {
+    expect(cardTermNames({
+      ...mechanicFixture, whispers: { cost: { generic: 1, pips: {} } },
+    })).toEqual(['Whispers']);
+    expect(cardTermNames({ ...mechanicFixture, tithe: { per: 2 } })).toEqual(['Tithe']);
+  });
+
   it('spells terms the way the card face does', () => {
     const nineLives = collectible.find((d) => d.nineLives)!;
     expect(cardTermNames(nineLives)).toContain('Nine Lives');
@@ -171,5 +215,37 @@ describe('cardTermNames', () => {
       const names = cardTermNames(card);
       expect(new Set(names).size).toBe(names.length);
     }
+  });
+});
+
+describe('Drowned Deep permanent riders', () => {
+  it('treats Whispers like Retell without making an arrival-only permanent recurring', () => {
+    const whispers: CardDef = {
+      ...mechanicFixture, whispers: { cost: { generic: 1, pips: {} } },
+    };
+    expect(classifyPermanent(whispers)).toEqual({
+      klass: 'BLANK', evidence: 'nothing on the battlefield',
+      riders: 'Whispers (fresh-graveyard cast)',
+    });
+    const arrival: CardDef = {
+      ...whispers, abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 1 }] }],
+    };
+    expect(classifyPermanent(arrival).klass).toBe('ONE-SHOT');
+    expect(classifyPermanent({
+      ...arrival, whispers: undefined, retell: { cost: { generic: 1, pips: {} } },
+    }).klass).toBe('ONE-SHOT');
+  });
+
+  it('records Tithe as a cost rider without changing the permanent class', () => {
+    const tithe: CardDef = { ...mechanicFixture, tithe: { per: 2 } };
+    expect(classifyPermanent(tithe)).toEqual({
+      klass: 'BLANK', evidence: 'nothing on the battlefield',
+      riders: 'Tithe (optional creature sacrifice discount)',
+    });
+    const recurring: CardDef = {
+      ...mechanicFixture, abilities: [{ when: 'dawn', ops: [{ op: 'gainLife', n: 1 }] }],
+    };
+    expect(classifyPermanent({ ...recurring, tithe: { per: 2 } }).klass)
+      .toBe(classifyPermanent(recurring).klass);
   });
 });

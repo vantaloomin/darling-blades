@@ -57,6 +57,17 @@ function playGame(
   throw new Error(`game ${seed} did not terminate`);
 }
 
+/** Keep the measured matrix values visible beside the existing assertions. */
+function reportAvatarRates(report: ReturnType<typeof runAvatarMatrix>): void {
+  for (const row of report.rows) {
+    const wins = row.cells.reduce((sum, cell) => sum + cell.rowWins, 0);
+    const games = row.cells.reduce((sum, cell) => sum + cell.games, 0);
+    const draws = row.cells.reduce((sum, cell) => sum + cell.draws, 0);
+    console.log(`R${row.avatar.tier} ${row.avatar.name}: ${wins}/${games - draws}, ` +
+      `mean ${(row.avg * 100).toFixed(1)}%, ${draws} draws (${row.cells.length} cells, 40 seeds/cell)`);
+  }
+}
+
 describe('AI win-rate gates', () => {
   it('Medium beats Easy ≥ 80% over 200 seeded games (sides alternate)', () => {
     let mediumWins = 0;
@@ -126,6 +137,7 @@ describe('AI win-rate gates', () => {
       'kitsune-neon-tyrant', 'anubis-who-holds-the-scale',
       'bastet-mistress-of-the-ninth-return',
     ]);
+    reportAvatarRates(report);
     const row = (id: string) => report.rows.find((entry) => entry.avatar.id === id);
     const r14 = row('artoria');
     const r15 = row('carmilla');
@@ -207,6 +219,7 @@ describe('AI win-rate gates', () => {
     // the same documented 6.5pp noise band, rounded down to the half point:
     // 58.5% and 61.5%.
     const report = runAvatarMatrix(40, ['chrome-broodmother', 'the-violet-signal-queen']);
+    reportAvatarRates(report);
     const row = (id: string) => report.rows.find((entry) => entry.avatar.id === id);
     const r23 = row('chrome-broodmother');
     const r24 = row('the-violet-signal-queen');
