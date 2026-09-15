@@ -66,15 +66,21 @@ lookahead." Its rules:
   instead: keep a fresh hand with ≥ 2 spells castable by turn 3 (mana value ≤ 3),
   ≥ 1 after a mulligan; `mulliganShift` moves those thresholds the same way.
 - **Main phase priority order** (`main`):
-  1. **Lethal burn to the face** — if a face-damage spell deals ≥ the opponent's
-     life, cast it.
+  1. **Lethal to the face** — if a spell's own ops deal the opponent's life or
+     more (targeted burn, targetless face damage, life loss, drain, and their
+     combinations, at the spell's real cost including its Whispers or Retell
+     mode), cast it (phase A, 2026-09-15).
   2. **Removal on the opponent's best creature** — only when it actually kills
      the target (`removalKills`) and the target is worth it (value ≥ 0.8× the
      spell's cost and ≥ 2.5).
   3. **Burn as reach** — once the opponent is at ≤ 8 life, throw burn at the
      face.
-  4. **Develop** — cast the highest-value creature/permanent; holds instants for
-     windows; plays buff auras on its own creatures and debuff auras on enemies.
+  4. **Develop** — cast the highest-value permanent or Ritual; a spell's body
+     is valued through the same op valuator the triggers use, so Rituals are
+     ordered by what they do rather than by mana value (phase A). Creature
+     wraths and symmetric damage sweeps are removal under the asymmetry gate:
+     cast when behind on board, held when ahead. Charms are held for windows;
+     buff auras go on its own creatures and debuff auras on enemies.
 - **Combat** is delegated to the shared planners (`chooseAttackers`,
   `chooseBlocks` in `combatPlans.ts`).
 - **Trick-risk** (`trickBuff`) is **evidence-gated**: defenders are inflated by
@@ -94,7 +100,16 @@ lookahead." Its rules:
 - **Responses / end step:** counter a big enemy spell (mv ≥ 4), a spell hitting
   its best creature, or a `massDestroy`; remove a dangerous attacker; pump a
   creature to win or survive a fight; spend spare removal and free card-draw at
-  the opponent's end step.
+  the opponent's end step. Since phase A (2026-09-15) the ladder also reads the
+  shapes it used to leave in hand: **fog** when the incoming damage is lethal or
+  drops it under the life curve's knee, or saves a blocked body worth more than
+  the cast; **precombat taps** (offensive when the attack becomes lethal or
+  clearly profitable by the combat forecast, defensive when the blocks improve;
+  `tapAll` only for lethal); **debuffs** as removal when they kill and as a
+  fight flip otherwise; **mark placement and transfer** by survival and
+  thresholds, with enemy mark removal treated as removal; and **bounce-to-save**
+  for an owned creature under lethal targeted removal or a losing block. Every
+  rule reads the redacted view and the legal menu only.
 
 Medium **deliberately does not model face-down information** beyond "open mana
 plus a demonstrated Charm = maybe a trick," and it never knowingly holds back
@@ -163,9 +178,12 @@ engine's exact firstBlade/overrun/deathblade math beats any heuristic:
   Whispers, Rite and Tithe casts, the vocabulary casts (qualified targets,
   pairs, creature Retell), one Preserve, one Duty, and Darling casts, capped at
   eight ordinary candidates beyond the always-searched Rite, Tithe and
-  vocabulary ones. **Hard cannot pass or hold:** `passStep` is not a candidate,
-  so Hard can upgrade Medium's cast but never decline it (owned by phase A of
-  the modernization plan).
+  vocabulary ones. Since phase A (2026-09-15) **`passStep` is a candidate**
+  (it must strictly outscore Medium's cast in the sim) and a creature cast in
+  main one is compared against holding it for main two at the same settled
+  endpoint; across the gate games the pass won 2,643 main decisions and the
+  hold 305, out of about 109,000. The ordinary candidate cap is seven plus the
+  pass slot.
 - **Attacks** (`searchAttack`): Medium's attack set is the baseline. Hard runs
   a **full-turn attack lookahead** — each candidate set plays through the
   opponent's whole counterattack turn (`lookahead`) before evaluation, so the
@@ -355,10 +373,10 @@ the accepted non-monotonic summit shape, not a regression.
 The Starborne pair (Chrome Broodmother 23, The Violet Signal Queen 24; floors
 0.585 and 0.615) and the Drowned Deep pair (The Drowned Deacon 25, The
 Marsh-Mother 26, the final rung) each carry their own termination gate.
-Measured untuned 2026-09-15 at 200 seeds: Deacon 33%, Marsh-Mother 77%. The
-Deacon's number is the brain's, not the deck's: her plan is fog, tap and cheap
-counter Charms on a schedule, the shapes Medium's cast ladder does not read
-(see the next section); her tuning pass waits for phase A.
+Measured untuned 2026-09-15 at 200 seeds: Deacon 33% (35.5% after phase A),
+Marsh-Mother 77% (77.9%). The Deacon's plan is fog, tap and cheap counter
+Charms on a schedule; phase A taught the ladder those shapes and moved her
+only a little, so her deck owes a tuning pass of its own.
 
 ## What the AI provably does, and the known gaps (2026-09-15)
 
@@ -370,23 +388,26 @@ every card plays; as intended, not yet. Two test files are the scoreboard:
   every Darlings precon, one seed each, under one 900 s file budget. No
   crashes, no illegal actions, every game to `gameOver`.
 - `tests/ai/documentedBehaviour.test.ts` pins one test per claim in this
-  document. Twenty-six pass today; fourteen are marked `it.fails` and name
-  the phase that owns them (A cast ladder 5, B mechanics 3, C combat 3,
-  D draft 3). A phase lands by flipping its own tests to `it`; a fixture or
-  legality error inside an expected failure fails the file, so the marker
-  can never hide a broken brain.
+  document. Thirty-one pass (phase A flipped its five on 2026-09-15); nine
+  are marked `it.fails` and name the phase that owns them (B mechanics 3,
+  C combat 3, D draft 3). A phase lands by flipping its own tests to `it`; a
+  fixture or legality error inside an expected failure fails the file, so the
+  marker can never hide a broken brain. Phase A's own rules are pinned in
+  `tests/ai/castLadder.test.ts`, `castLadderReview.test.ts` and
+  `hardTiming.test.ts`.
 
-The gaps those fourteen tests describe, in the order the plan closes them:
-Medium's cast ladder reads only kill removal, counters, pumps, draw and reach
-burn, so Charms outside those shapes are never cast and Rituals are cast by
-mana value (creature wraths included, since `removalKind` does not classify
-`massDestroy`), and face damage and drain are never lethal-checked; Hard has
-no pass candidate; the Tithe policy sells only damaged bodies; Hauntlink
-hosts are chosen by raw value, never moved, and the damage window is never
-played; `combatPlans` models neither double strike nor vigilance; a mana Duty
-can pre-empt a creature cast in main two; the draft picker scores nothing
-newer than a keyword. Everything the tests do prove is listed beside the
-claim it proves, in the file.
+The gaps the remaining nine tests describe, in the order the plan closes
+them: the Tithe policy sells only damaged bodies; Hauntlink hosts are chosen
+by raw value, never moved, and the damage window is never played; a mana Duty
+can pre-empt a creature cast in main two; `combatPlans` models neither double
+strike nor vigilance; the draft picker scores nothing newer than a keyword.
+Phase A closed the cast-ladder gap (spell bodies, wraths, lethal, the five
+Charm rules, Hard's pass and hold, Quest-gated pricing) with the two brain
+gates unchanged at 83.0 and 78.5 and every rung above its floor; rungs 17 and
+18 measure a few points lower because the neutral Medium proxy they face
+improved too. The untuned Deacon moved 33 to 35.5 and Lanterns Below 18.9 to
+20.1, so those two decks owe a tuning pass of their own. Everything the tests
+do prove is listed beside the claim it proves, in the file.
 
 ## Tower strength tiers (the decision-noise dial)
 
