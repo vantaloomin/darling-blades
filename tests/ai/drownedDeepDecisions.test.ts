@@ -166,7 +166,8 @@ describe('Drowned Deep honest determinization and Hard whitelists', () => {
       hard.chooseAction(game.viewFor(0), game.legalActions(0));
       const searched = outcomes.mock.calls.slice(1).flatMap(([, actions]) => actions);
       expect(searched.some((action) => action.type === 'castSpell' && action.handIndex === 12)).toBe(true);
-      expect(searched.filter((action) => action.type === 'skim')).toHaveLength(response ? 10 : 8);
+      // Phase A: main's 8 skims -> 7 skims plus pass; response remains 10.
+      expect(searched.filter((action) => action.type === 'skim')).toHaveLength(response ? 10 : 7);
     }
   });
   it('the new policies leave ordinary Medium cast and cleanup behavior unchanged', () => {

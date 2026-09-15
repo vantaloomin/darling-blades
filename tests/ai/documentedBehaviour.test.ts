@@ -125,12 +125,12 @@ describe('documented Medium casting and responses', () => {
   });
 
   // docs/ai.md:65-67. Phase A cast ladder: recognize targetless face-damage lethal before develop.
-  it.fails('Medium casts a lethal targetless face-damage Ritual before developing', () => {
+  it('Medium casts a lethal targetless face-damage Ritual before developing', () => {
     expect(lethalRitual('face_ritual')).toEqual({ type: 'castSpell', handIndex: 0 });
   });
 
   // docs/ai.md:65-67. Phase A cast ladder: recognize loseLife lethal before develop.
-  it.fails('Medium casts a lethal loseLife Ritual before developing', () => {
+  it('Medium casts a lethal loseLife Ritual before developing', () => {
     expect(lethalRitual('drain_ritual')).toEqual({ type: 'castSpell', handIndex: 0 });
   });
 
@@ -207,7 +207,7 @@ describe('documented Medium casting and responses', () => {
   });
 
   // docs/ai.md:90-93. Phase A cast ladder: fog must save the player from lethal combat.
-  it.fails('Medium casts a fog Charm when facing lethal on board', () => {
+  it('Medium casts a fog Charm when facing lethal on board', () => {
     const game = checked(() => {
       const g = fixture(['fog'], [...lands(1), body(20, 'giant', 1)], (state) => {
         state.activePlayer = 1;
@@ -231,7 +231,7 @@ describe('documented Medium casting and responses', () => {
   });
 
   // docs/ai.md:67-75. Phase A cast ladder: hold a creature wrath on a winning board.
-  it.fails('Medium holds a creature wrath when ahead on board', () => {
+  it('Medium holds a creature wrath when ahead on board', () => {
     const game = wrathBoard(true);
     requireLegal(game, { type: 'castSpell', handIndex: 0 });
     expect(act(game)).toEqual({ type: 'passStep' });
@@ -320,7 +320,7 @@ describe('Hard search and combat keyword proof', () => {
   });
 
   // docs/ai.md:157-158. Phase A cast ladder: Hard must be able to veto Medium's blind wrath.
-  it.fails('Hard passes instead of following a blind wrath into its own winning board', () => {
+  it('Hard passes instead of following a blind wrath into its own winning board', () => {
     const game = wrathBoard(true);
     requireLegal(game, { type: 'castSpell', handIndex: 0 });
     const brain = hard();

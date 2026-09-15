@@ -1,5 +1,6 @@
 import type { Action } from '../engine/actions';
-import { getEffectiveStats } from '../engine/statics';
+import { castTargetSpecsFor } from '../engine/resolve';
+import { getEffectiveStats, isQuestActive } from '../engine/statics';
 import type { AbilityDef, ActivatedDef, CardDb, EffectOp, Keyword, Permanent, PlayerId, TargetRef, TargetSpec } from '../engine/types';
 import { activatedAbilitiesOf, def, effectOpUsesTarget, isType, manaValue, opponentOf } from '../engine/types';
 import type { PlayerView } from '../engine/view';
@@ -64,7 +65,9 @@ function awakeningValue(d: ReturnType<typeof def>): number {
  * These discounts are intentionally provisional: card-shaped value has no
  * battlefield, so target selection and evaluation do the exact board work.
  */
-export function abilityConditionMultiplier(condition: AbilityDef['condition']): number {
+export function abilityConditionMultiplier(condition: AbilityDef['condition'], questActive?: boolean): number {
+  // No public context preserves the legacy shared-policy estimate (Easy).
+  if (condition === 'questActive' && questActive !== undefined) return questActive ? 1 : 0.55;
   if (condition === 'creatureDiedThisTurn') return 0.6;
   if (typeof condition === 'object' && condition.kind === 'controlsOther') return 0.65;
   if (condition === 'controlMarked') return 0.55;
@@ -638,7 +641,86 @@ export type RemovalKind =
   | 'branch'
   | 'massDestroy'
   | 'destroyNewest'
+  | 'debuff'
+  | 'removeMarks'
   | 'damage';
+
+/** Explicit cast context opts the stronger brains into spell-body decisions. */
+export type SpellMode = Pick<Extract<Action, { type: 'castSpell' }>,
+  'targets' | 'x' | 'retell' | 'whispers' | 'empowered' | 'hauntlinked'>;
+
+function publicCondition(view: PlayerView, db: CardDb, condition: AbilityDef['condition']): boolean {
+  if (condition === undefined) return true;
+  if (condition === 'questActive') return isQuestActive(view.battlefield, db, view.myId);
+  if (condition === 'creatureDiedThisTurn') return view.creatureDiedThisTurn === true;
+  const mine = view.battlefield.filter((p) => p.controller === view.myId && isType(def(db, p.cardId), 'creature'));
+  if (condition === 'controlMarked') return mine.some((p) => p.plusOneCounters > 0);
+  if (condition.kind === 'controlsOther') return mine.some((p) => def(db, p.cardId).subtypes.includes(condition.subtype));
+  return mine.filter((p) => p.plusOneCounters > 0).length >= condition.n;
+}
+
+/** The chosen mode's own ops only: Retell replaces the body, Empower appends. */
+export function castSpellOps(db: CardDb, cardId: string, mode: SpellMode = {}, view?: PlayerView): EffectOp[] {
+  const d = def(db, cardId);
+  const ops = mode.retell && d.retell?.ops ? d.retell.ops : (d.abilities ?? [])
+    .filter((ab) => ab.when === 'spell' && (!view || publicCondition(view, db, ab.condition)))
+    .flatMap((ab) => ab.ops ?? []);
+  return [...ops, ...(mode.empowered ? d.empower?.ops ?? [] : [])];
+}
+
+export function spellOpTargets(db: CardDb, cardId: string, mode: SpellMode, op: EffectOp): readonly TargetRef[] {
+  const targets = mode.targets ?? [];
+  if ('targetIndex' in op && op.targetIndex !== undefined) return targets.slice(op.targetIndex, op.targetIndex + 1);
+  if (op.op === 'moveMark') return targets;
+  const specs = castTargetSpecsFor(def(db, cardId), !!mode.retell, !!mode.hauntlinked, !!mode.empowered);
+  return specs.length === 1 && (specs[0].upTo !== undefined || specs[0].exactly !== undefined) ? targets : targets.slice(0, 1);
+}
+
+/** Bind slots and select mark branches using only public facts. Mark writes
+ * are projected in order because later ops in this same spell can read them. */
+export function boundCastEffects(view: PlayerView, db: CardDb, cardId: string, mode: SpellMode = {}): { op: EffectOp; targets: readonly TargetRef[] }[] {
+  const effects: { op: EffectOp; targets: readonly TargetRef[] }[] = [];
+  const marks = new Map(view.battlefield.map((p) => [p.iid, p.plusOneCounters]));
+  const visit = (ops: readonly EffectOp[], branchTarget?: TargetRef): void => {
+    for (const op of ops) {
+      const refs = branchTarget && !('targetIndex' in op && op.targetIndex !== undefined)
+        ? [branchTarget] : spellOpTargets(db, cardId, mode, op);
+      if (op.op === 'ifTargetMarked') {
+        for (const ref of refs) visit(ref.kind === 'permanent' && (marks.get(ref.iid) ?? 0) > 0 ? op.then : op.else ?? [], ref);
+        continue;
+      }
+      effects.push({ op, targets: refs });
+      if (op.op === 'removeMarks' || op.op === 'addCounters' && op.to === 'target') {
+        for (const ref of refs) if (ref.kind === 'permanent') marks.set(ref.iid,
+          op.op === 'removeMarks' ? 0 : (marks.get(ref.iid) ?? 0) + op.n);
+      } else if (op.op === 'moveMark') {
+        const [from, to] = refs.filter((ref) => ref.kind === 'permanent');
+        if (from && to && from.iid !== to.iid && (marks.get(from.iid) ?? 0) > 0) {
+          marks.set(from.iid, marks.get(from.iid)! - 1);
+          marks.set(to.iid, (marks.get(to.iid) ?? 0) + 1);
+        }
+      }
+    }
+  };
+  visit(castSpellOps(db, cardId, mode, view));
+  return effects;
+}
+
+/** Spell-only reach, never assumed combat damage, triggers, or other stack items. */
+export function faceDamageForCast(view: PlayerView, db: CardDb, cardId: string, mode: SpellMode = {}): number {
+  return boundCastEffects(view, db, cardId, mode).reduce((sum, { op, targets }) => {
+    if (op.op === 'loseLife') return sum + op.n;
+    if (op.op === 'loseLifePerTheirMarked') return sum + view.battlefield.filter((p) =>
+      p.controller !== view.myId && p.plusOneCounters > 0 && isType(def(db, p.cardId), 'creature')).length;
+    if (op.op === 'damage') {
+      const n = op.n === 'X' ? mode.x ?? 0 : op.n;
+      if (op.to === 'opponent') return sum + n;
+      if (op.to === 'target') return sum + n * targets
+        .filter((ref) => ref.kind === 'player' && ref.player !== view.myId).length;
+    }
+    return sum;
+  }, 0);
+}
 
 function spellOps(db: CardDb, cardId: string): EffectOp[] {
   return (def(db, cardId).abilities ?? [])
@@ -680,8 +762,17 @@ function symmetricCreatureSweepValue(
 }
 
 /** Classify only cast-time spell bodies. Arrival/dawn removal riders stay ETB value. */
-export function removalKind(db: CardDb, cardId: string): RemovalKind | null {
-  for (const ab of def(db, cardId).abilities ?? []) {
+export function removalKind(db: CardDb, cardId: string, mode?: SpellMode): RemovalKind | null {
+  const d = def(db, cardId);
+  const flatten = (ops: readonly EffectOp[]): EffectOp[] => ops.flatMap((op) => op.op === 'ifTargetMarked'
+    ? [op, ...flatten(op.then), ...flatten(op.else ?? [])] : [op]);
+  // A mixed targeted/mark body must not bypass the sweeper asymmetry gate.
+  if (mode !== undefined && flatten(castSpellOps(db, cardId, mode)).some((op) =>
+    op.op === 'massDestroy' || op.op === 'damage' && (op.to === 'eachCreature' || op.to === 'eachOpponentCreature') ||
+    op.op === 'boost' && op.scope === 'all' && (op.p < 0 || op.t < 0))) return 'massDestroy';
+  const abilities: AbilityDef[] = mode?.retell && d.retell?.ops
+    ? [{ when: 'spell', ops: d.retell.ops, targets: d.retell.targets }] : d.abilities ?? [];
+  for (const ab of abilities) {
     if (ab.when !== 'spell') continue;
     const permanentTarget = ab.targets?.some(
       (target) =>
@@ -694,17 +785,19 @@ export function removalKind(db: CardDb, cardId: string): RemovalKind | null {
         target.what === 'enchantment' ||
         target.what === 'artifactOrEnchantment',
     );
-    for (const op of ab.ops ?? []) {
+    for (const op of mode === undefined ? ab.ops ?? [] : flatten(ab.ops ?? [])) {
       if (op.op === 'destroy') return 'destroy';
       if ((op.op === 'sever' || op.op === 'recall') && permanentTarget) {
         return op.op;
       }
       if (op.op === 'destroyArtifactOrSeverEnchantment') return 'branch';
-      if (op.op === 'massDestroy' && op.filter === 'allEnchantments') return 'massDestroy';
+      if (op.op === 'massDestroy' && (mode !== undefined || op.filter === 'allEnchantments')) return 'massDestroy';
       if (op.op === 'destroyNewestOpponentArtifactOrEnchantment') return 'destroyNewest';
       if (op.op === 'damage' && op.to === 'target') return 'damage';
       if (op.op === 'damage' && (op.to === 'eachCreature' || op.to === 'eachOpponentCreature')) return 'massDestroy';
       if (op.op === 'boost' && op.scope === 'all' && (op.p < 0 || op.t < 0)) return 'massDestroy';
+      if (mode !== undefined && op.op === 'boost' && op.scope === 'target' && op.p + op.t <= 0) return 'debuff';
+      if (mode !== undefined && op.op === 'removeMarks') return 'removeMarks';
     }
   }
   return null;
@@ -717,31 +810,51 @@ export function removalValueForCast(
   caster: PlayerId,
   cardId: string,
   target?: Permanent,
+  mode?: SpellMode,
+  view?: PlayerView,
 ): number {
   const opponent = opponentOf(caster);
   let value = 0;
-  for (const op of spellOps(db, cardId)) {
+  const effects = view && mode ? boundCastEffects(view, db, cardId, mode) :
+    (mode === undefined ? spellOps(db, cardId) : castSpellOps(db, cardId, mode))
+      .map((op) => ({ op, targets: mode ? spellOpTargets(db, cardId, mode, op) : [] }));
+  for (const { op, targets } of effects) {
+    const bound = mode === undefined || targets.some((ref) => ref.kind === 'permanent' && ref.iid === target?.iid);
     if (
       (op.op === 'destroy' ||
         op.op === 'sever' ||
         op.op === 'recall' ||
         op.op === 'destroyArtifactOrSeverEnchantment') &&
-      target?.controller === opponent
+      target?.controller === opponent && bound
     ) {
       value += removalTargetValue(battlefield, db, target);
     } else if (op.op === 'massDestroy') {
       const doomed = battlefield.filter((perm) => {
-        if (perm.controller !== opponent) return false;
+        if (perm.controller !== opponent && (mode === undefined || op.filter === 'allEnchantments')) return false;
         const d = def(db, perm.cardId);
         if (op.filter === 'allEnchantments') return isType(d, 'enchantment');
         if (!isType(d, 'creature')) return false;
         return op.filter === 'allCreatures' || getEffectiveStats(battlefield, db, perm.iid).keywords.has('skyborne');
       });
-      value += doomed.reduce((sum, perm) => sum + removalTargetValue(battlefield, db, perm), 0);
+      value += doomed.reduce((sum, perm) => sum + removalTargetValue(battlefield, db, perm) *
+        (perm.controller === opponent ? 1 : -1), 0);
     } else if (op.op === 'damage' && (op.to === 'eachCreature' || op.to === 'eachOpponentCreature')) {
       value += symmetricCreatureSweepValue(battlefield, db, caster, op);
     } else if (op.op === 'boost' && op.scope === 'all' && (op.p < 0 || op.t < 0)) {
       value += symmetricCreatureSweepValue(battlefield, db, caster, op);
+    } else if (mode !== undefined && target?.controller === opponent) {
+      if (bound && isType(def(db, target.cardId), 'creature')) {
+        const stats = getEffectiveStats(battlefield, db, target.iid);
+        if (op.op === 'damage' && op.to === 'target') {
+          const n = op.n === 'X' ? mode.x ?? 0 : op.n;
+          value += n >= stats.defense - target.damage ? removalTargetValue(battlefield, db, target) : n * 0.45;
+        } else if (op.op === 'boost' && op.scope === 'target' && op.p + op.t <= 0) {
+          value += stats.defense + op.t <= target.damage ? removalTargetValue(battlefield, db, target) : -(op.p + op.t) * 0.375;
+        } else if (op.op === 'removeMarks') {
+          value += stats.defense - target.plusOneCounters <= target.damage
+            ? removalTargetValue(battlefield, db, target) : target.plusOneCounters * 1.15;
+        }
+      }
     } else if (op.op === 'destroyNewestOpponentArtifactOrEnchantment') {
       for (let i = battlefield.length - 1; i >= 0; i--) {
         const perm = battlefield[i];
@@ -760,7 +873,7 @@ export function removalValueForCast(
 }
 
 /** Shared card-value heuristic — printed stats (hand cards, hypotheticals). */
-export function conditionalAbilityValue(db: CardDb, cardId: string): number {
+export function conditionalAbilityValue(db: CardDb, cardId: string, view?: PlayerView): number {
   const d = def(db, cardId);
   let value = 0;
   for (const ab of d.abilities ?? []) {
@@ -786,14 +899,15 @@ export function conditionalAbilityValue(db: CardDb, cardId: string): number {
     const vocabularyTrigger = ['allyDies', 'youGainLife', 'youCastCharm', 'allyAttacks', 'sunset'].includes(ab.when);
     const vocabularyCondition = ab.condition === 'creatureDiedThisTurn' ||
       typeof ab.condition === 'object' && ab.condition.kind === 'controlsOther';
-    if (!markedOps && !markedCondition && !vocabularyTrigger && !vocabularyCondition) continue;
+    if (!markedOps && !markedCondition && !vocabularyTrigger && !vocabularyCondition &&
+      !(view && ab.condition === 'questActive')) continue;
     value += (ab.ops ?? []).reduce((sum, op) => sum + opImpactValue(op), 0) *
-      abilityConditionMultiplier(ab.condition) * 0.5;
+      abilityConditionMultiplier(ab.condition, view && isQuestActive(view.battlefield, db, view.myId)) * 0.5;
   }
   return value;
 }
 
-export function cardValue(db: CardDb, cardId: string): number {
+export function cardValue(db: CardDb, cardId: string, view?: PlayerView, mode: SpellMode = {}): number {
   const d = def(db, cardId);
   let v = manaValue(d.cost);
   if (isType(d, 'creature')) {
@@ -806,10 +920,34 @@ export function cardValue(db: CardDb, cardId: string): number {
   // New marked/arrival mechanics get a conservative printed premium. Keep
   // this restricted to the provisional wave so existing card valuations and
   // their measured win-rate gates remain byte-for-byte behaviorally stable.
-  v += conditionalAbilityValue(db, cardId);
+  v += conditionalAbilityValue(db, cardId, view);
+  // Explicit public context keeps Easy and the shared discard/fodder policies
+  // byte-identical. Medium/Hard can price a spell's actual body and target.
+  if (view && !isType(d, 'creature') && (isType(d, 'charm') || isType(d, 'ritual'))) {
+    const abilities = mode.retell && d.retell?.ops
+      ? [{ when: 'spell' as const, ops: d.retell.ops }] : d.abilities ?? [];
+    for (const ab of abilities) {
+      if (ab.when !== 'spell') continue;
+      v += (ab.ops ?? []).reduce((sum, op) => sum + opImpactValue(op), 0) *
+        abilityConditionMultiplier(ab.condition, isQuestActive(view.battlefield, db, view.myId));
+    }
+    const targets = view.battlefield.filter((p) => mode.targets?.some((ref) => ref.kind === 'permanent' && ref.iid === p.iid));
+    if (removalKind(db, cardId, mode) !== 'massDestroy') {
+      for (const target of targets) v += removalValueForCast(view.battlefield, db, view.myId, cardId, target, mode, view);
+    }
+  }
   if (d.chapters) v += d.chapters.length * 0.75;
   if (isType(d, 'creature') && d.awakening) v += 0.5 + awakeningValue(d);
   return v;
+}
+
+/** Recurring Quest riders beyond body stats; statics already use effective stats. */
+export function questBoardValue(battlefield: readonly Permanent[], db: CardDb, controller: PlayerId): number {
+  const multiplier = abilityConditionMultiplier('questActive', isQuestActive(battlefield, db, controller));
+  return battlefield.filter((p) => p.controller === controller).reduce((sum, p) => sum +
+    (def(db, p.cardId).abilities ?? []).filter((ab) => ab.condition === 'questActive' &&
+      ab.when !== 'spell' && ab.when !== 'static' && ab.when !== 'arrives')
+      .reduce((total, ab) => total + (ab.ops ?? []).reduce((n, op) => n + opImpactValue(op), 0) * multiplier * 0.5, 0), 0);
 }
 
 /** Cheap deterministic estimate used when an AI chooses whether to pay Empower. */
