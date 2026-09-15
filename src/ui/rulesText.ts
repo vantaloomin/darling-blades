@@ -290,6 +290,11 @@ export function riteText(d: CardDef): string | undefined {
   return `Rite ${d.rite.n}.`;
 }
 
+export function titheText(d: CardDef): string | undefined {
+  if (!d.tithe) return undefined;
+  return 'Tithe.';
+}
+
 export function nineLivesText(d: CardDef): string | undefined {
   if (!d.nineLives) return undefined;
   return 'Nine Lives.';
@@ -318,6 +323,11 @@ export function activatedText(d: CardDef): string | undefined {
 export function retellText(d: CardDef): string | undefined {
   if (!d.retell) return undefined;
   return `Retell ${manaCostText(d.retell.cost)}: You may cast this from your graveyard, then sever it.`;
+}
+
+export function whispersText(d: CardDef): string | undefined {
+  if (!d.whispers) return undefined;
+  return `Whispers ${manaCostText(d.whispers.cost)}.`;
 }
 
 export function hauntlinkText(d: CardDef): string | undefined {
@@ -534,6 +544,8 @@ export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
   if (hauntlink) lines.push(hauntlink);
   const rite = riteText(d);
   if (rite) lines.push(rite);
+  const tithe = titheText(d);
+  if (tithe) lines.push(tithe);
   const nineLives = nineLivesText(d);
   if (nineLives) lines.push(nineLives);
   for (const [index, chapter] of (d.chapters ?? []).entries()) {
@@ -550,11 +562,13 @@ export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
   if (empower) lines.push(empower);
   const preserve = preserveText(d);
   if (preserve) lines.push(preserve);
-  // Retell prints LAST, below the effect it recasts (the printed-card
+  // Graveyard casts print LAST, below the effect they cast (the printed-card
   // convention for graveyard recast lines; user-reported 2026-07-31 that
   // leading with Retell read backwards).
   const retell = retellText(d);
   if (retell) lines.push(retell);
+  const whispers = whispersText(d);
+  if (whispers) lines.push(whispers);
   // abilityText returns '' for a static carrying neither stats nor keywords;
   // joining it unfiltered would print a blank line into the rules box.
   return lines.filter((line) => line.length > 0).join('\n');

@@ -512,8 +512,8 @@ export function activatedAbilityValue(battlefield: readonly Permanent[], db: Car
     myId: source.controller, activePlayer: source.controller, startingPlayer: source.controller,
     turn: 0, step: 'main2', battlefield: [...battlefield], stack: [], combat: null,
     fogThisTurn: false, awaiting: { kind: 'main', player: source.controller }, winner: null,
-    you: { life: 0, hand: [], deckCount: 0, graveyard: [], severed: [], landDropsRemaining: 0, mulligans: 0 },
-    opp: { life: 0, handCount: 0, deckCount: 0, graveyard: [], severed: [], landDropsRemaining: 0, mulligans: 0 },
+    you: { life: 0, hand: [], deckCount: 0, graveyard: [], whispersLive: [], severed: [], landDropsRemaining: 0, mulligans: 0 },
+    opp: { life: 0, handCount: 0, deckCount: 0, graveyard: [], whispersLive: [], severed: [], landDropsRemaining: 0, mulligans: 0 },
   };
   let lists: TargetRef[][] = [[]];
   for (const spec of ability.targets ?? []) {
@@ -824,6 +824,23 @@ export function retellValue(db: CardDb, cardId: string): number {
   if (!d.retell) return 0;
   const ops = d.retell.ops ?? spellOps(db, cardId);
   return 0.75 + ops.reduce((sum, op) => sum + opImpactValue(op), 0);
+}
+
+/** A live marker expires next Dawn on our turn; on theirs it survives ours. */
+export function whispersValue(
+  db: CardDb,
+  cardId: string,
+  ctx: Pick<PlayerView, 'myId' | 'activePlayer'>,
+): number {
+  const d = def(db, cardId);
+  if (!d.whispers) return 0;
+  const body = isType(d, 'creature')
+    ? cardValue(db, cardId)
+    : Math.max(cardValue(db, cardId), 0.75 + spellOps(db, cardId).reduce(
+      (sum, op) => sum + opImpactValue(op), 0,
+    ));
+  const saving = manaValue(d.cost) - manaValue(d.whispers.cost);
+  return body + saving * 0.65 + (ctx.activePlayer === ctx.myId ? 0.75 : -0.25);
 }
 
 /**

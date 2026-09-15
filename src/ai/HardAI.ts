@@ -14,8 +14,10 @@ import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { choosePlayDraw } from './playDraw';
 import { preserveActionValue } from './preservePolicy';
 import { applyRitePolicy, isRiteCast, riteSacrificeValue } from './ritePolicy';
+import { applyTithePolicy, isTitheCast, titheManaSaved } from './tithePolicy';
+import { applyWhispersPolicy } from './whispersPolicy';
 import { chooseTargetAction } from './targeting';
-import { cardValue, hauntlinkCastValue } from './value';
+import { cardValue, hauntlinkCastValue, whispersValue } from './value';
 
 /**
  * Hard: Medium's heuristics as candidate generators, then honest simulation
@@ -45,7 +47,13 @@ export class HardAI implements AIPlayer {
   }
 
   chooseAction(view: PlayerView, legal: Action[]): Action {
+    legal = applyTithePolicy(view, this.db, legal, this.pers, () =>
+      view.step === 'main1' && view.activePlayer === view.myId
+        ? chooseAttackers(view.battlefield, this.db, view.myId, view.opp.life,
+          this.openManaBuff(view), view.you.life, this.pers)
+        : []);
     legal = applyRitePolicy(view, this.db, legal);
+    legal = applyWhispersPolicy(view, this.db, legal);
     switch (view.awaiting.kind) {
       case 'choosePlayDraw':
         return choosePlayDraw(legal);
@@ -229,8 +237,8 @@ export class HardAI implements AIPlayer {
     if (baseline.type === 'linkHaunt') return baseline;
     const activations = new Map(scoredActivationCandidates(view, this.db, legal)
       .map(({ action, value }) => [action, value]));
-    // Keep the narrow candidate set for now. It compares Skim, Retell,
-    // Empower, Rite, and Darling casts against Medium's baseline; making passStep a candidate
+    // Keep the narrow candidate set for now. It compares Skim, Retell, Whispers,
+    // Empower, Rite, Tithe, and Darling casts against Medium's baseline; making passStep a candidate
     // is future work. Skim must not be offered as a lookahead line when its
     // draw would deck out the player.
     const candidates = legal
@@ -238,7 +246,8 @@ export class HardAI implements AIPlayer {
         (a) =>
           (a.type === 'skim' && view.you.deckCount > 0) ||
           (a.type === 'castSpell' &&
-            (a.empowered === true || a.retell === true || isRiteCast(view, this.db, a))) ||
+            (a.empowered === true || a.retell === true || a.whispers === true ||
+              isRiteCast(view, this.db, a) || isTitheCast(view, this.db, a))) ||
           a.type === 'preserveCard' ||
           (a.type === 'activate' && activations.has(a)) ||
           a.type === 'castDarling',
@@ -272,7 +281,7 @@ export class HardAI implements AIPlayer {
         return activations.get(candidate) ?? -Infinity;
       }
       if (candidate.type !== 'castSpell') return -Infinity;
-      const cardId = candidate.retell && candidate.graveIndex !== undefined
+      const cardId = (candidate.retell || candidate.whispers) && candidate.graveIndex !== undefined
         ? view.you.graveyard[candidate.graveIndex]
         : view.you.hand[candidate.handIndex];
       if (candidate.hauntlinked) {
@@ -281,12 +290,13 @@ export class HardAI implements AIPlayer {
           ? hauntlinkCastValue(view.battlefield, this.db, cardId, host.iid)
           : -Infinity;
       }
-      return cardValue(this.db, cardId) + (candidate.empowered ? 0.01 : 0) -
+      return (candidate.whispers ? whispersValue(this.db, cardId, view) : cardValue(this.db, cardId)) +
+        (candidate.empowered ? 0.01 : 0) + titheManaSaved(view, this.db, candidate) -
         riteSacrificeValue(view, this.db, candidate);
     };
     // Cap the sim fanout: variants scale with target count, so rank Hauntlink
     // hosts and Preserve bodies by public value before truncating the menu.
-    // Rite stays ahead of the cap, and the single best Preserve action is
+    // Rite and Tithe stay ahead of the cap, and the single best Preserve action is
     // always searched.
     const rankedCandidates = candidates
       .map((candidate, index) => ({ candidate, index }))
@@ -305,7 +315,7 @@ export class HardAI implements AIPlayer {
       })
       .map(({ candidate }) => candidate);
     const riteCandidates = rankedCandidates.filter((candidate) =>
-      isRiteCast(view, this.db, candidate),
+      isRiteCast(view, this.db, candidate) || isTitheCast(view, this.db, candidate),
     );
     const preserveCandidates = rankedCandidates.filter(
       (candidate) => candidate.type === 'preserveCard',
@@ -321,7 +331,8 @@ export class HardAI implements AIPlayer {
       ...rankedCandidates
         .filter(
           (candidate) =>
-            !isRiteCast(view, this.db, candidate) && candidate.type !== 'preserveCard' &&
+            !isRiteCast(view, this.db, candidate) && !isTitheCast(view, this.db, candidate) &&
+            candidate.type !== 'preserveCard' &&
             candidate.type !== 'activate',
         )
         .slice(0, 8),
@@ -342,7 +353,7 @@ export class HardAI implements AIPlayer {
     if (!targetRef || targetRef.kind !== 'permanent') return false;
     const target = view.battlefield.find((p) => p.iid === targetRef.iid);
     if (!target || target.controller !== view.myId) return false;
-    const cardId = action.retell && action.graveIndex !== undefined
+    const cardId = (action.retell || action.whispers) && action.graveIndex !== undefined
       ? view.you.graveyard[action.graveIndex]
       : view.you.hand[action.handIndex];
     return (this.db[cardId]?.abilities ?? []).some((ab) =>
@@ -552,9 +563,14 @@ export class HardAI implements AIPlayer {
    * or a dodged loss clears any margin). */
   private searchResponse(view: PlayerView, legal: Action[]): Action {
     const mediumChoice = this.medium.chooseAction(view, legal);
-    const candidates = legal
-      .filter((l) => l.type === 'castSpell' || l.type === 'skim')
-      .slice(0, 10);
+    // Graveyard casts come after hand variants in the engine menu. Keep live
+    // Whispers Charms reachable even when ten hand variants fill the cap.
+    const whispered = legal.filter((action) => action.type === 'castSpell' && action.whispers);
+    const candidates = [
+      ...whispered,
+      ...legal.filter((action) => action.type === 'skim' ||
+        (action.type === 'castSpell' && !action.whispers)).slice(0, 10),
+    ];
     if (candidates.length === 0) return mediumChoice;
     const base = this.aggregateOutcome(view, [mediumChoice]);
     if (!base || base.wonAll) return mediumChoice;

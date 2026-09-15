@@ -14,6 +14,8 @@ import { chooseReserveLand } from './landPolicy';
 import { choosePlayDraw } from './playDraw';
 import { choosePreserve } from './preservePolicy';
 import { applyRitePolicy, riteSacrificeValue } from './ritePolicy';
+import { applyTithePolicy, titheManaSaved } from './tithePolicy';
+import { applyWhispersPolicy } from './whispersPolicy';
 import { chooseTargetAction } from './targeting';
 import {
   cardValue,
@@ -25,6 +27,7 @@ import {
   removalValueForCast,
   retellValue,
   skimValue,
+  whispersValue,
 } from './value';
 
 type SpellCast = Extract<Action, { type: 'castSpell' }>;
@@ -43,7 +46,9 @@ export class MediumAI implements AIPlayer {
   ) {}
 
   chooseAction(view: PlayerView, legal: Action[]): Action {
+    legal = applyTithePolicy(view, this.db, legal, this.pers);
     legal = applyRitePolicy(view, this.db, legal);
+    legal = applyWhispersPolicy(view, this.db, legal, (cast) => this.castScore(view, cast));
     switch (view.awaiting.kind) {
       case 'choosePlayDraw':
         return choosePlayDraw(legal);
@@ -193,7 +198,7 @@ export class MediumAI implements AIPlayer {
 
   private cardIdFor(view: PlayerView, cast: Cast): string {
     if (cast.type === 'castDarling') return view.you.darlingZone ?? '';
-    return cast.retell && cast.graveIndex !== undefined
+    return (cast.retell || cast.whispers) && cast.graveIndex !== undefined
       ? view.you.graveyard[cast.graveIndex]
       : view.you.hand[cast.handIndex];
   }
@@ -208,13 +213,15 @@ export class MediumAI implements AIPlayer {
         ? hauntlinkCastValue(view.battlefield, this.db, cardId, host.iid)
         : -Infinity;
     }
-    const value = cast.retell
+    const value = cast.whispers
+      ? whispersValue(this.db, cardId, view)
+      : cast.retell
       ? retellValue(this.db, cardId) + 0.01
       : this.developScore(cardId) + (cast.x ?? 0) +
           (cast.empowered ? empowerValue(this.db, cardId) + 0.01 : 0);
     // Printed value cannot see that Propagate and mark-all multiply by the
     // board; on an empty one they are the wrong card to lead with.
-    return value + markBoardAdjust(view.battlefield, this.db, view.myId, cardId) -
+    return value + titheManaSaved(view, this.db, cast) + markBoardAdjust(view.battlefield, this.db, view.myId, cardId) -
       riteSacrificeValue(view, this.db, cast);
   }
 
@@ -350,7 +357,9 @@ export class MediumAI implements AIPlayer {
             : b,
         );
         const worth = this.removalWorth(view, best);
-        const cost = manaValue(def(this.db, this.cardIdFor(view, best)).cost) +
+        const definition = def(this.db, this.cardIdFor(view, best));
+        const cost = manaValue(best.type === 'castSpell' && best.whispers
+          ? definition.whispers?.cost : definition.cost) +
           (best.type === 'castSpell' ? (best.x ?? 0) : 0);
         if (worth >= cost * 0.8 && worth >= 2.5 + this.pers.removalBias) return best;
       }
@@ -378,7 +387,9 @@ export class MediumAI implements AIPlayer {
           view.myId,
           this.cardIdFor(view, best),
         );
-        const cost = manaValue(def(this.db, this.cardIdFor(view, best)).cost) +
+        const definition = def(this.db, this.cardIdFor(view, best));
+        const cost = manaValue(best.type === 'castSpell' && best.whispers
+          ? definition.whispers?.cost : definition.cost) +
           (best.type === 'castSpell' ? (best.x ?? 0) : 0);
         if (worth >= cost * 0.8 && worth >= 2.5 + this.pers.removalBias) return best;
       }
@@ -409,7 +420,9 @@ export class MediumAI implements AIPlayer {
       const developable = casts.filter((c) => {
         const cardId = this.cardIdFor(view, c);
         const d = def(this.db, cardId);
-        if (isType(d, 'charm')) return false; // hold tricks for windows
+        // A fresh, targetless Charm on our turn expires before another turn.
+        if (isType(d, 'charm') && !(c.type === 'castSpell' && c.whispers &&
+          (c.targets?.length ?? 0) === 0)) return false; // hold tricks for windows
         if (this.isRemoval(cardId)) return false; // handled above
         if (d.subtypes.includes('Aura')) {
           const perm = this.targetPerm(view, c.targets?.[0]);
@@ -553,7 +566,14 @@ export class MediumAI implements AIPlayer {
         }
       }
     }
-    return pass;
+    return this.whispersFreebie(view, casts) ?? pass;
+  }
+
+  /** Spend useful targetless Whispers in any response window before expiry. */
+  private whispersFreebie(view: PlayerView, casts: SpellCast[]): SpellCast | undefined {
+    return casts.filter((cast) => cast.whispers && (cast.targets?.length ?? 0) === 0 &&
+      this.isRemoval(this.cardIdFor(view, cast)) === null)
+      .sort((a, b) => this.castScore(view, b) - this.castScore(view, a))[0];
   }
 
   /** End of the opponent's turn: spend spare removal / value instants freely. */
@@ -607,6 +627,6 @@ export class MediumAI implements AIPlayer {
         isType(d, 'charm')
       );
     });
-    return freebie ?? pass;
+    return freebie ?? this.whispersFreebie(view, casts) ?? pass;
   }
 }

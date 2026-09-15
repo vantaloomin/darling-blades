@@ -75,12 +75,12 @@ export class ScriptAI implements AIPlayer {
 
     const creatureCasts = legal.filter(
       (l): l is Extract<Action, { type: 'castSpell' }> =>
-        l.type === 'castSpell' && isType(def(this.db, view.you.hand[l.handIndex]), 'creature'),
+        l.type === 'castSpell' && isType(def(this.db, this.castCardId(view, l)), 'creature'),
     );
     if (creatureCasts.length > 0) {
       return creatureCasts.reduce((a, b) =>
-        manaValue(def(this.db, view.you.hand[a.handIndex]).cost) <=
-        manaValue(def(this.db, view.you.hand[b.handIndex]).cost)
+        manaValue(def(this.db, this.castCardId(view, a)).cost) <=
+        manaValue(def(this.db, this.castCardId(view, b)).cost)
           ? a
           : b,
       );
@@ -91,6 +91,12 @@ export class ScriptAI implements AIPlayer {
 
     // Nothing scripted applies — pass if we can, else take whatever is legal.
     return passResponse ?? legal[0] ?? { type: 'concede' };
+  }
+
+  /** Graveyard casts retain their authoritative source index. */
+  private castCardId(view: PlayerView, cast: Extract<Action, { type: 'castSpell' }>): string {
+    return (cast.retell || cast.whispers) && cast.graveIndex !== undefined
+      ? view.you.graveyard[cast.graveIndex] : view.you.hand[cast.handIndex];
   }
 
   /** Base attack of a permanent I control, for the never-lethal guard. */

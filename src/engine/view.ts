@@ -7,7 +7,7 @@ import type {
   StackItem,
   Step,
 } from './types';
-import { cardIdOf, opponentOf } from './types';
+import { cardIdOf, isCardInstance, opponentOf } from './types';
 
 /**
  * Hidden-information redaction. AIs (at every difficulty) receive ONLY this
@@ -20,6 +20,8 @@ export interface SelfView {
   hand: string[];
   deckCount: number;
   graveyard: string[];
+  /** Graveyard indices whose Whispers marker lasts until the owner's opponent's Dawn. */
+  whispersLive: number[];
   severed: string[];
   /** Public ordered reserve. Omitted for classic games. */
   landReserve?: string[];
@@ -37,6 +39,8 @@ export interface OpponentView {
   handCount: number;
   deckCount: number;
   graveyard: string[];
+  /** Public live Whispers indices into this side's graveyard. */
+  whispersLive: number[];
   severed: string[];
   /** Public ordered reserve. Omitted for classic games. */
   landReserve?: string[];
@@ -92,6 +96,9 @@ export function viewFor(
       hand: me.hand.map(cardIdOf),
       deckCount: me.deck.length,
       graveyard: me.graveyard.map(cardIdOf),
+      whispersLive: me.graveyard.flatMap((card, index) =>
+        isCardInstance(card) && card.whispersUntilDawnOf === opponentOf(player) ? [index] : [],
+      ),
       severed: me.severed.map(cardIdOf),
       ...(me.landReserve !== undefined ? { landReserve: me.landReserve.map(cardIdOf) } : {}),
       ...(me.darlingZone !== undefined
@@ -110,6 +117,9 @@ export function viewFor(
       handCount: them.hand.length,
       deckCount: them.deck.length,
       graveyard: them.graveyard.map(cardIdOf),
+      whispersLive: them.graveyard.flatMap((card, index) =>
+        isCardInstance(card) && card.whispersUntilDawnOf === player ? [index] : [],
+      ),
       severed: them.severed.map(cardIdOf),
       ...(them.landReserve !== undefined ? { landReserve: them.landReserve.map(cardIdOf) } : {}),
       ...(them.darlingZone !== undefined

@@ -71,7 +71,9 @@ export function classifyPermanent(card: CardDef): PermanentClassResult {
   if (card.skim) riders.push('Skim (hand only — does not count)');
   if (card.empower) riders.push('Empower (cast rider on the arrival)');
   if (card.retell) riders.push('Retell (graveyard cast)');
+  if (card.whispers) riders.push('Whispers (fresh-graveyard cast)');
   if (card.rite) riders.push(`Rite ${card.rite.n} (creature sacrifice cost)`);
+  if (card.tithe) riders.push('Tithe (optional creature sacrifice discount)');
   if (card.nineLives) riders.push('Nine Lives (returns once)');
   if (card.preserve) riders.push('Preserve (graveyard activation)');
   if (card.activated) riders.push('Duty (battlefield tap activation)');

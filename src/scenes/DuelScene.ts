@@ -132,6 +132,7 @@ import {
 import { shouldPlayVersusBumper, versusLeitmotifPitch } from '../ui/versusBumperPresentation';
 import { activeVisibleSavedDeck } from '../ui/deckBuilderHelpers';
 import { ModalGuard } from '../ui/Modal';
+import { castActionCost, handCastChoices, sacrificeCandidates, sacrificeSelection, toggleSacrifice, whispersDeadline, type HandCastAction } from '../ui/castSacrifice';
 import { renderManaText } from '../ui/ManaText';
 import { PHASE_TRACK_ROWS, phaseTrackRowForStep, type PhaseTrackRow } from '../ui/phaseTrack';
 import { empowerText, manaCostText, romanNumeral } from '../ui/rulesText';
@@ -417,6 +418,8 @@ export class DuelScene extends Phaser.Scene {
   private blockAssignments: { blocker: number; attacker: number }[] = [];
   private pendingBlocker: number | null = null;
   private pendingCasts: PendingTargetAction[] | null = null;
+  /** Visual choice only; pendingCasts keeps the existing targeting input guards active. */
+  private pendingSacrifice: { casts: HandCastAction[]; selected: number[] } | null = null;
   private dutyTargets: TargetRef[] = [];
   private dutyTargetsUnordered = false;
   private dutyFinishButton: ThemedButton | null = null;
@@ -561,6 +564,7 @@ export class DuelScene extends Phaser.Scene {
   /** Retell action ids stay available until their graveyard exit is narrated. */
   private retellSpellIds = new Set<number>();
   private retellCardsInFlight = new Set<string>();
+  private whispersSpellIds = new Set<number>();
   /** Link ids announced by the engine before their host-linked death event. */
   private brokenHauntlinks = new Set<number>();
 
@@ -662,6 +666,7 @@ export class DuelScene extends Phaser.Scene {
     this.playRevealGhosts = new Set();
     this.retellSpellIds = new Set();
     this.retellCardsInFlight = new Set();
+    this.whispersSpellIds = new Set();
     this.brokenHauntlinks = new Set();
     this.manaPips = [];
     this.manaStripZones = [];
@@ -689,6 +694,7 @@ export class DuelScene extends Phaser.Scene {
     // 2026-07-16; the restart-hygiene trap class from playbook §11).
     this.aiTimer = null;
     this.pendingCasts = null;
+    this.pendingSacrifice = null;
     this.dutyTargets = [];
     this.dutyTargetsUnordered = false;
     this.dutyFinishButton = null;
@@ -1144,7 +1150,11 @@ export class DuelScene extends Phaser.Scene {
     // it covers the classic hand drop and the Warchest reserve drop alike.
     const canPlayLand = legal.some((l) => l.type === 'playLand');
     const castableOfType = (t: import('../engine/types').CardType): boolean =>
-      legal.some((l) => l.type === 'castSpell' && isType(def(CARD_DB, you.hand[l.handIndex]), t));
+      legal.some((action) => {
+        if (action.type !== 'castSpell') return false;
+        const cardId = this.actionCardId(action);
+        return cardId !== undefined && isType(def(CARD_DB, cardId), t);
+      });
     const hasCastableCreature = castableOfType('creature');
     const hasCastableRitual = castableOfType('ritual');
     const hasCastableCharm = castableOfType('charm');
@@ -1910,6 +1920,7 @@ export class DuelScene extends Phaser.Scene {
       this.blockAssignments = [];
       this.pendingBlocker = null;
       this.pendingCasts = null;
+      this.pendingSacrifice = null;
       this.processEvents(events);
       this.afterEvents();
     } catch {
@@ -2021,8 +2032,8 @@ export class DuelScene extends Phaser.Scene {
       const snapshot = this.duel.clone(); // pre-action state; kept for Undo iff still local
       // Tutorial: note which taught spell/beat this action is BEFORE it resolves
       // (a cast card leaves the hand on submit), so the guide can advance.
-      if (this.tutorial && action.type === 'castSpell') {
-        const types = def(CARD_DB, this.duel.state.players[HUMAN].hand[action.handIndex]).types;
+      if (this.tutorial && action.type === 'castSpell' && playedCardId) {
+        const types = def(CARD_DB, playedCardId).types;
         if (types.includes('ritual')) this.tutRitualCast = true;
         if (types.includes('charm')) this.tutCharmCast = true;
       }
@@ -2037,6 +2048,7 @@ export class DuelScene extends Phaser.Scene {
       this.blockAssignments = [];
       this.pendingBlocker = null;
       this.pendingCasts = null;
+      this.pendingSacrifice = null;
       this.processEvents(events);
       this.afterEvents();
     } catch (err) {
@@ -2086,7 +2098,7 @@ export class DuelScene extends Phaser.Scene {
       return entry === undefined ? undefined : cardIdOf(entry);
     }
     if (action.type === 'castSpell') {
-      const entry = action.retell === true
+      const entry = action.retell === true || action.whispers === true
         ? player.graveyard[action.graveIndex ?? action.handIndex]
         : player.hand[action.handIndex];
       return entry === undefined ? undefined : cardIdOf(entry);
@@ -2105,7 +2117,7 @@ export class DuelScene extends Phaser.Scene {
     }
     if (action.type === 'skim') return this.handOrigin(action.handIndex);
     if (action.type === 'castSpell') {
-      return action.retell === true
+      return action.retell === true || action.whispers === true
         ? this.graveOrigin(HUMAN)
         : this.handOrigin(action.handIndex);
     }
@@ -2136,6 +2148,8 @@ export class DuelScene extends Phaser.Scene {
   /** All currently clickable target refs, whether cast-time or trigger-time. */
   private targetRefsForInput(): TargetRef[] {
     const awaiting = this.duel.awaiting;
+    if (this.pendingSacrifice) return sacrificeCandidates(this.duel.instanceState, CARD_DB, HUMAN)
+      .map((iid) => ({ kind: 'permanent', iid }));
     if (this.pendingCasts?.[0]?.type === 'activate') return this.pendingDutyStep().targets;
     const refs = (this.pendingCasts ?? [])
       .map((action) => this.pendingActionTarget(action))
@@ -2167,6 +2181,10 @@ export class DuelScene extends Phaser.Scene {
     if (this.targetPrompt?.active) this.targetPrompt.destroy();
     this.targetPrompt = null;
     this.dutyFinishButton = null;
+    if (this.pendingSacrifice) {
+      this.syncSacrificePrompt();
+      return;
+    }
     const duty = this.pendingCasts?.[0];
     if (duty?.type === 'activate') {
       const source = this.duel.state.battlefield.find((perm) => perm.iid === duty.iid);
@@ -2227,12 +2245,64 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private rememberRetellAction(action: Action, events: readonly GameEvent[]): void {
-    if (action.type !== 'castSpell' || action.retell !== true) return;
+    if (action.type !== 'castSpell' || (action.retell !== true && action.whispers !== true)) return;
     for (const event of events) {
       if (event.e !== 'spellCast') continue;
-      this.retellSpellIds.add(event.sid);
-      this.retellCardsInFlight.add(event.cardId);
+      if (action.whispers) this.whispersSpellIds.add(event.sid);
+      else {
+        this.retellSpellIds.add(event.sid);
+        this.retellCardsInFlight.add(event.cardId);
+      }
     }
+  }
+
+  /** The existing board target prompt also hosts the purely visual sacrifice choice. */
+  private syncSacrificePrompt(): void {
+    const pick = this.pendingSacrifice;
+    if (!pick) return;
+    const cardId = this.actionCardId(pick.casts[0]);
+    if (!cardId) return;
+    const card = def(CARD_DB, cardId);
+    const selection = sacrificeSelection(this.duel.instanceState, CARD_DB, HUMAN, pick.casts, pick.selected);
+    const layout = TARGET_PROMPT_LAYOUT;
+    const prompt = this.add.container(0, 0).setDepth(theme.depth.toast);
+    const source = new CardView(this, layout.cardX, layout.cardY).setScale(layout.cardScale);
+    source.setCard(card, { fx: 'none' });
+    prompt.add(source);
+    prompt.add(this.add.text(layout.titleX, layout.titleY,
+      card.rite ? `Rite: choose ${card.rite.n} creatures` : 'Tithe: choose creatures', {
+        fontFamily: theme.fonts.display, fontSize: `${theme.type.label}px`, color: theme.colors.gold,
+        wordWrap: { width: layout.textWidth }, resolution: 2,
+      }).setOrigin(0, 0.5));
+    prompt.add(this.add.text(layout.textX, layout.textY,
+      `${pick.selected.length}${card.rite ? `/${card.rite.n}` : ''} selected${card.tithe ? ` · ${selection.defense} Defense` : ''}\nClick again to remove.`, {
+        fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px`, color: theme.colors.body,
+        wordWrap: { width: layout.textWidth }, lineSpacing: 3, resolution: 2,
+      }));
+    if (selection.cost) {
+      renderManaText(this, prompt, layout.textX, layout.textY + 48, `Cast for ${manaCostText(selection.cost)}`, {
+        fontFamily: theme.fonts.ui, fontSize: `${theme.type.label}px`, color: theme.colors.gold, resolution: 2,
+      });
+    }
+    this.dutyFinishButton = themedButton(this, LAYOUT.cluster.x, LAYOUT.cluster.endTurnY, 'Confirm cast', {
+      variant: 'primary', minWidth: 150, enabled: selection.actions.length > 0,
+      onTap: (pointer) => {
+        if (!pointer.rightButtonReleased()) this.confirmSacrificeSelection();
+      },
+    });
+    prompt.add(this.dutyFinishButton.container);
+    this.targetPrompt = prompt;
+  }
+
+  private confirmSacrificeSelection(): void {
+    const current = this.pendingSacrifice;
+    if (!current || this.ended || this.animatingCombat) return;
+    const ready = sacrificeSelection(this.duel.instanceState, CARD_DB, HUMAN, current.casts, current.selected).actions;
+    if (ready.length === 0) return;
+    this.pendingSacrifice = null;
+    this.pendingCasts = null;
+    this.sync();
+    this.continueCast(ready, true);
   }
 
   /** Restore the pre-action snapshot and reset scene-side selection state. */
@@ -2240,6 +2310,7 @@ export class DuelScene extends Phaser.Scene {
     if (!this.undoSnapshot || this.ended || this.animatingCombat) return;
     this.duel = this.undoSnapshot;
     this.undoSnapshot = null;
+    this.whispersSpellIds = new Set(this.duel.state.stack.filter((item) => item.whispered).map((item) => item.sid));
     // The undone submit must leave the replay too — the tail is that action
     // by contract (undo dies the moment priority reaches the AI).
     if (this.replayDraft) undoReplayAction(this.replayDraft, HUMAN);
@@ -2248,6 +2319,7 @@ export class DuelScene extends Phaser.Scene {
     this.blockAssignments = [];
     this.pendingBlocker = null;
     this.pendingCasts = null;
+    this.pendingSacrifice = null;
     this.sync();
   }
 
@@ -2407,6 +2479,16 @@ export class DuelScene extends Phaser.Scene {
 
   /** In targeting mode: try to complete the pending cast with this target. */
   private tryTarget(ref: import('../engine/types').TargetRef): void {
+    if (this.pendingSacrifice) {
+      if (ref.kind !== 'permanent') return;
+      const { casts, selected } = this.pendingSacrifice;
+      const cardId = this.actionCardId(casts[0]);
+      if (!cardId) return;
+      this.pendingSacrifice.selected = toggleSacrifice(selected, ref.iid,
+        sacrificeCandidates(this.duel.instanceState, CARD_DB, HUMAN), def(CARD_DB, cardId).rite?.n);
+      this.sync();
+      return;
+    }
     const awaiting = this.duel.awaiting;
     if (awaiting.kind === 'chooseTarget' && awaiting.player === HUMAN) {
       if (awaiting.targets.some((target) => this.targetRefEquals(target, ref))) {
@@ -2491,7 +2573,7 @@ export class DuelScene extends Phaser.Scene {
     const a = this.duel.awaiting;
     if (!('player' in a) || a.player !== HUMAN) return;
     if (a.kind === 'foresee') return; // mandatory revealed-card pick; never auto-skip
-    if (!forcedAction(this.duel.state, CARD_DB, HUMAN)) return;
+    if (!forcedAction(this.duel.instanceState, CARD_DB, HUMAN)) return;
     this.autoSkipTimer = this.time.delayedCall(300, () => {
       this.autoSkipTimer = null;
       if (this.ended) return;
@@ -2502,7 +2584,7 @@ export class DuelScene extends Phaser.Scene {
       if (awaiting.kind === 'foresee') return; // re-check after the delay
       // Re-evaluate fresh — the state may have moved while we waited (e.g.
       // the player clicked the smart button during the delay).
-      const forced = forcedAction(this.duel.state, CARD_DB, HUMAN);
+      const forced = forcedAction(this.duel.instanceState, CARD_DB, HUMAN);
       if (!forced) return;
       this.showSkipNotice(this.skipMessage(forced));
       // Mark the transition so a near-simultaneous smart-button click (already in
@@ -2763,6 +2845,13 @@ export class DuelScene extends Phaser.Scene {
         this.log(`${e.player === HUMAN ? 'Skimmed' : 'Opponent skimmed'} ${this.cardRef(e.cardId)}`, e.cardId);
         this.showSkimTravel(e);
         break;
+      case 'whispered': {
+        const cast = batch.find((event): event is Extract<GameEvent, { e: 'spellCast' }> =>
+          event.e === 'spellCast' && event.cardId === e.cardId && event.controller === e.player);
+        const at = cast ? this.spellTargetsText(cast.targets, batch, e.player) : '';
+        this.log(`${e.player === HUMAN ? 'You whispered' : 'Opponent whispered'} ${this.cardRef(e.cardId)}${at}`, e.cardId);
+        break;
+      }
       case 'spellCast': {
         Sfx.play('cast');
         // Targeted casts name their targets; the row's tappable card stays the
@@ -2773,25 +2862,31 @@ export class DuelScene extends Phaser.Scene {
           : e.controller === HUMAN
             ? 'You cast'
             : 'Opponent casts';
-        this.log(`${prefix} ${this.cardRef(e.cardId)}${at}`, e.cardId);
+        if (!this.whispersSpellIds.has(e.sid)) this.log(`${prefix} ${this.cardRef(e.cardId)}${at}`, e.cardId);
         const entered = batch.find(
           (candidate): candidate is Extract<GameEvent, { e: 'permanentEntered' }> =>
             candidate.e === 'permanentEntered' &&
             candidate.perm.cardId === e.cardId &&
             candidate.perm.controller === e.controller,
         );
-        this.queuePlayReveal(e.cardId, e.controller, entered?.perm.iid);
+        this.queuePlayReveal(e.cardId, e.controller, entered?.perm.iid,
+          this.whispersSpellIds.has(e.sid) ? this.graveOrigin(e.controller) : undefined);
         if (e.controller === HUMAN) this.portrait.reactCast();
         else this.oppPortrait.reactCast();
         break;
       }
+      case 'spellResolved':
+        this.whispersSpellIds.delete(e.sid);
+        break;
       case 'spellCountered':
+        this.whispersSpellIds.delete(e.sid);
         this.log('Spell cancelled!');
         break;
       case 'responseWindowOpened':
         if (e.reopened && e.player === HUMAN) this.showSkipNotice('Respond again');
         break;
       case 'targetsFizzled':
+        this.whispersSpellIds.delete(e.sid);
         this.log('Spell fizzled (no legal targets)');
         break;
       case 'landPlayed':
@@ -3079,12 +3174,13 @@ export class DuelScene extends Phaser.Scene {
   }
 
   /** Queue a state-driven reveal; its destination is read only after the immediate sync. */
-  private queuePlayReveal(cardId: string, controller: PlayerId, permanentIid?: number): void {
+  private queuePlayReveal(cardId: string, controller: PlayerId, permanentIid?: number,
+    source?: { x: number; y: number; scale: number; angle: number }): void {
     const humanSource =
       controller === HUMAN && this.humanPlayOrigin?.cardId === cardId
         ? this.humanPlayOrigin.source
         : undefined;
-    this.pendingPlayReveals.push({ cardId, controller, permanentIid, source: humanSource });
+    this.pendingPlayReveals.push({ cardId, controller, permanentIid, source: humanSource ?? source });
     if (humanSource) this.humanPlayOrigin = null;
   }
 
@@ -3514,9 +3610,8 @@ export class DuelScene extends Phaser.Scene {
     this.myDeckPile.setCount(st.players[HUMAN].deck.length);
     this.myGravePile.setCount(st.players[HUMAN].graveyard.length);
     // Graveyard affordance: pulse the grave pile with the count of graveyard
-    // SLOTS you can act on right now (Retell or Preserve), matching the grid
-    // one-tile-per-card (legality already folds in mana, so the alert clears on
-    // its own when you tap out or priority moves on).
+    // slots with Retell/Preserve actions or a live Whispers deadline. Whispers
+    // stays visible while unaffordable, matching its disabled modal row.
     this.myGravePile.setAlert(this.graveActionSlots(HUMAN).size);
     if (SEVER_ENABLED) {
       this.oppSeveredPile.setCount(view.opp.severed.length);
@@ -3812,6 +3907,7 @@ export class DuelScene extends Phaser.Scene {
   private highlightFor(perm: Permanent): BoardHighlight {
     const a = this.duel.awaiting;
     const combat = this.duel.state.combat;
+    if (this.pendingSacrifice?.selected.includes(perm.iid)) return 'selectedSacrifice';
     if (this.targetRefsForInput().some(
       (target) => target.kind === 'permanent' && target.iid === perm.iid,
     ))
@@ -3901,10 +3997,13 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private cancelPendingTargeting(): void {
+    const sacrifice = this.pendingSacrifice;
+    this.pendingSacrifice = null;
     this.pendingCasts = null;
     this.dutyTargets = [];
     this.closeGravePicker(false);
     this.sync();
+    if (sacrifice) this.onHandClick(sacrifice.casts[0].handIndex);
   }
 
   private dutyBlockedReason(iid: number): string | null {
@@ -4322,22 +4421,21 @@ export class DuelScene extends Phaser.Scene {
    * inspect directly. X spells mirror onHandClick by previewing their max X.
    */
   private previewManaPlan(handIndex: number): void {
+    if (this.pendingSacrifice) return;
     const hand = this.duel.state.players[HUMAN].hand;
     const cardId = hand[handIndex];
     if (!cardId) return;
     const card = def(CARD_DB, cardId);
     if (isType(card, 'land') || !card.cost) return;
-    if (reasonUncastable(this.duel.state, CARD_DB, HUMAN, handIndex)) return;
-
-    const casts = this.duel
-      .legalActions(HUMAN)
-      .filter(
-        (action): action is Extract<Action, { type: 'castSpell' }> =>
-          action.type === 'castSpell' && hand[action.handIndex] === cardId,
-      );
+    const casts = handCastChoices(this.duel.legalActions(HUMAN), hand, handIndex);
     if (casts.length === 0) return;
+    // A full-price cast previews normally; a Tithe-only cast previews its
+    // enumerated cost until the player chooses the actual fodder.
+    const cast = casts.find((action) => !action.tithe && !action.empowered) ?? casts[0];
+    const cost = castActionCost(this.duel.instanceState, CARD_DB, HUMAN, cast);
+    if (!cost) return;
     const extraGeneric = casts.reduce((best, cast) => Math.max(best, cast.x ?? 0), 0);
-    this.previewManaPlanForCost(card.cost, extraGeneric);
+    this.previewManaPlanForCost(cost, extraGeneric);
   }
 
   /** Darling hover uses this same auto-tap marker path with tax folded into generic cost. */
@@ -4464,7 +4562,7 @@ export class DuelScene extends Phaser.Scene {
     const playableIdx = new Set<number>();
     for (const l of legal) {
       if (l.type === 'playLand' || l.type === 'castSpell' || l.type === 'skim') {
-        if (l.type === 'castSpell' && l.retell === true) continue;
+        if (l.type === 'castSpell' && (l.retell === true || l.whispers === true)) continue;
         // dedupe means only first copy is listed; mark all copies of that card
         const cardId = hand[l.handIndex];
         hand.forEach((c, i) => {
@@ -5061,6 +5159,10 @@ export class DuelScene extends Phaser.Scene {
     if (this.gravePicker) return;
     if (this.carry) return; // a lifted card decides by drop or cancel, never Space
     if (this.ended || this.inspect || this.zoneModal) return; // modals do not pass under
+    if (this.pendingSacrifice) {
+      this.confirmSacrificeSelection();
+      return;
+    }
     if (this.overlay && this.confirmForeseeOverlay()) return;
     this.onButton(); // self-guards: auto-skip input lock + not-your-decision
   }
@@ -5108,13 +5210,17 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private onHandClick(handIndex: number): void {
-    if (this.isHumanChooseTarget()) return;
+    if (this.isHumanChooseTarget() || this.pendingSacrifice) return;
     this.clearManaPlanPreview();
-    // Dimmed-card feedback: a card that can't be played explains itself on the
-    // skip-toast instead of being a silent no-op. reasonUncastable === null iff
-    // the card is genuinely playable now, so the branches below only decide HOW.
+    // Dimmed-card feedback names the reason; enumerated Tithe casts also admit
+    // a discounted play when the legacy explanation sees only the full price.
+    const hand = this.duel.state.players[HUMAN].hand;
+    const legal = this.duel.legalActions(HUMAN);
+    const casts = handCastChoices(legal, hand, handIndex);
     const reason = reasonUncastable(this.duel.state, CARD_DB, HUMAN, handIndex);
-    if (reason) {
+    // The core's legacy hand explanation does not account for Tithe's
+    // discount. Its enumerated legal cast is the authority for that option.
+    if (reason && !casts.some((cast) => cast.tithe)) {
       this.showSkipNotice(reason);
       return;
     }
@@ -5126,17 +5232,7 @@ export class DuelScene extends Phaser.Scene {
       return;
     }
 
-    const casts = this.duel
-      .legalActions(HUMAN)
-      .filter(
-        (l): l is Extract<Action, { type: 'castSpell' }> =>
-          l.type === 'castSpell' &&
-          l.retell !== true &&
-          this.duel.state.players[HUMAN].hand[l.handIndex] === cardId,
-      )
-      .map((c) => ({ ...c, handIndex }));
-    const skims = this.duel
-      .legalActions(HUMAN)
+    const skims = legal
       .filter(
         (l): l is Extract<Action, { type: 'skim' }> =>
           l.type === 'skim' && this.duel.state.players[HUMAN].hand[l.handIndex] === cardId,
@@ -5151,6 +5247,11 @@ export class DuelScene extends Phaser.Scene {
 
     if (casts.length === 0) {
       this.act(skims[0]);
+      return;
+    }
+
+    if (d.tithe || d.rite) {
+      this.showSacrificeCastChooser(d, casts, skims);
       return;
     }
 
@@ -5195,12 +5296,19 @@ export class DuelScene extends Phaser.Scene {
   }
 
   /** The cast flow after any Empower choice: act, grave-pick, or target. */
-  private continueCast(casts: Extract<Action, { type: 'castSpell' }>[]): void {
+  private continueCast(casts: Extract<Action, { type: 'castSpell' }>[], sacrificesChosen = false): void {
+    const cardId = this.actionCardId(casts[0]);
+    if (!sacrificesChosen && cardId && (casts[0].tithe || def(CARD_DB, cardId).rite)) {
+      this.pendingSacrifice = { casts, selected: [] };
+      this.pendingCasts = casts;
+      this.sync();
+      return;
+    }
     const targeted = casts[0].targets !== undefined && casts[0].targets.length > 0;
     if (!targeted) {
       // untargeted; for X spells default to the biggest X
       const best = casts.reduce((x, y) => ((x.x ?? 0) >= (y.x ?? 0) ? x : y));
-      if (this.carryEligibleFor(best)) this.beginCarry(best);
+      if (!sacrificesChosen && this.carryEligibleFor(best)) this.beginCarry(best);
       else this.act(best);
       return;
     }
@@ -5227,6 +5335,7 @@ export class DuelScene extends Phaser.Scene {
       !this.tutorial &&
       !this.replayMode &&
       action.retell !== true &&
+      action.whispers !== true &&
       this.handViewFor(action.handIndex) !== undefined &&
       this.handPoses.get(action.handIndex) !== undefined &&
       carryCastEligible({
@@ -5835,12 +5944,13 @@ export class DuelScene extends Phaser.Scene {
    */
   private retellActionsByGraveIndex(
     player: PlayerId,
+    mechanic: 'retell' | 'whispers' = 'retell',
   ): Map<number, Extract<Action, { type: 'castSpell' }>[]> {
     const actions = new Map<number, Array<Extract<Action, { type: 'castSpell' }>>>();
     if (player !== HUMAN) return actions;
     const grave = this.duel.state.players[HUMAN].graveyard;
     for (const action of this.duel.legalActions(HUMAN)) {
-      if (action.type !== 'castSpell' || action.retell !== true || action.graveIndex === undefined) continue;
+      if (action.type !== 'castSpell' || action[mechanic] !== true || action.graveIndex === undefined) continue;
       if (!grave[action.graveIndex]) continue;
       const existing = actions.get(action.graveIndex);
       if (existing) existing.push(action);
@@ -5874,6 +5984,7 @@ export class DuelScene extends Phaser.Scene {
   private graveActionSlots(player: PlayerId): Set<number> {
     const slots = new Set<number>(this.retellActionsByGraveIndex(player).keys());
     for (const index of this.preserveActionsByGraveIndex(player).keys()) slots.add(index);
+    if (player === HUMAN) for (const index of this.duel.viewFor(player).you.whispersLive) slots.add(index);
     return slots;
   }
 
@@ -5886,11 +5997,15 @@ export class DuelScene extends Phaser.Scene {
   private graveyardEntries(cardIds: readonly string[], player: PlayerId): ZoneContentsEntry[] {
     const styled = player === HUMAN;
     const retellActions = this.retellActionsByGraveIndex(player);
+    const whispersActions = this.retellActionsByGraveIndex(player, 'whispers');
+    const liveWhispers = new Set(this.duel.viewFor(player).you.whispersLive);
     const preserveActions = this.preserveActionsByGraveIndex(player);
     return orderedGraveyardSlots(cardIds).map((slot) => {
       const card = def(CARD_DB, slot.cardId);
       const casts = retellActions.get(slot.index);
       const preserve = preserveActions.get(slot.index);
+      const whisperedCasts = whispersActions.get(slot.index);
+      const whispered = liveWhispers.has(slot.index) && card.whispers !== undefined;
       const choice = graveActionChoice(
         casts !== undefined && card.retell !== undefined,
         preserve !== undefined && card.preserve !== undefined,
@@ -5901,6 +6016,7 @@ export class DuelScene extends Phaser.Scene {
         // One card per tile: the count chip becomes the position marker, and
         // every tile below the top carries no chip at all.
         badge: slot.top ? 'Top' : null,
+        ...(whispered ? { deadline: whispersDeadline(this.duel.state.activePlayer, player, HUMAN) } : {}),
         landStyle: styled ? this.humanLandStyleFor(slot.cardId) : undefined,
         variant: styled ? displayVariantFor(Services.save.data, slot.cardId) : undefined,
         ...(choice === 'retell' && casts && card.retell
@@ -5919,6 +6035,15 @@ export class DuelScene extends Phaser.Scene {
                 cost: card.preserve.cost,
                 onSelect: () => this.act(preserve),
               },
+            }
+          : {}),
+        ...(whispered && player === HUMAN && card.whispers
+          ? {
+              additionalActions: [{
+                label: 'Whisper for', cost: card.whispers.cost,
+                enabled: whisperedCasts !== undefined,
+                onSelect: () => { if (whisperedCasts) this.startCast(whisperedCasts); },
+              }],
             }
           : {}),
       };
@@ -6403,6 +6528,65 @@ export class DuelScene extends Phaser.Scene {
     }).container);
     c.add(themedButton(this, 640, 614, DUTY_CANCEL_LABEL, {
       variant: 'ghost', minWidth: 180,
+      onTap: (pointer) => { if (!pointer.rightButtonReleased()) this.closeEmpowerChooser(); },
+    }).container);
+    this.empowerChooser = c;
+    this.empowerChooserGuard.open([...this.overlayGuardTargets(), this.undoBtn]);
+  }
+
+  /** Sacrifice carriers retain ordinary payment choices before choosing any fodder. */
+  private showSacrificeCastChooser(d: CardDef, casts: HandCastAction[], skims: Extract<Action, { type: 'skim' }>[]): void {
+    const c = this.add.container(0, 0).setDepth(105);
+    const dim = this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.82).setInteractive();
+    bindTapButton(this, dim, (pointer) => {
+      if (!pointer.rightButtonReleased()) this.closeEmpowerChooser();
+    });
+    c.add(dim);
+    c.add(this.add.text(640, 130, 'How will you cast this?', {
+      fontFamily: theme.fonts.display, fontSize: '28px', color: theme.colors.heading,
+    }).setOrigin(0.5));
+    const variant = displayVariantFor(Services.save.data, d.id);
+    const card = new CardView(this, 640, 330).setScale(0.62);
+    card.setCard(d, { fx: 'none', variant, fullArt: variant.fullArt });
+    c.add(card);
+    card.enableInput();
+    this.zoom.attach(card, d, variant);
+    const normal = casts.filter((cast) => !cast.tithe && !cast.empowered);
+    const empowered = casts.filter((cast) => !cast.tithe && cast.empowered);
+    const tithe = casts.filter((cast) => cast.tithe);
+    // Zero sacrifices is legal too, including when the printed generic cost
+    // is zero and the enumerator correctly omits its duplicate Tithe action.
+    for (const cast of casts.filter((candidate) => !candidate.tithe)) {
+      if (!tithe.some((candidate) => !!candidate.empowered === !!cast.empowered)) {
+        tithe.push({ ...cast, tithe: true, sacrifices: [] });
+      }
+    }
+    const option = (x: number, y: number, label: string, cost: CardDef['cost'], enabled: boolean, select: () => void): void => {
+      if (cost) {
+        const price = renderManaText(this, c, x, y - 40, manaCostText(cost), {
+          fontFamily: theme.fonts.ui, fontSize: '20px', color: theme.colors.gold, resolution: 2,
+        });
+        price.text.setOrigin(0.5);
+        price.reflow();
+      }
+      c.add(themedButton(this, x, y, label, {
+        variant: 'primary', minWidth: 180, enabled,
+        onTap: (pointer) => {
+          if (pointer.rightButtonReleased()) return;
+          this.closeEmpowerChooser();
+          select();
+        },
+      }).container);
+    };
+    const xs = d.tithe ? [380, 640, 900] : [470, 810];
+    option(xs[0], 550, 'Cast', d.cost, normal.length > 0, () => this.continueCast(normal));
+    const empoweredCost = d.cost && d.empower ? combineManaCosts(d.cost, d.empower.cost) : undefined;
+    if (d.empower || d.tithe) option(xs[1], 550, 'Empower', empoweredCost, empowered.length > 0,
+      () => this.continueCast(empowered));
+    if (d.tithe) option(xs[2], 550, 'Sacrifice to cast', undefined, tithe.length > 0, () => this.startCast(tithe));
+    if (skims.length > 0) option(480, 638, 'Skim', d.skim?.cost, true, () => this.act(skims[0]));
+    c.add(themedButton(this, skims.length > 0 ? 800 : 640, 638, 'Cancel', {
+      variant: 'ghost', minWidth: 160,
       onTap: (pointer) => { if (!pointer.rightButtonReleased()) this.closeEmpowerChooser(); },
     }).container);
     this.empowerChooser = c;

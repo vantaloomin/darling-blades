@@ -1,5 +1,5 @@
 import type { Action } from '../engine/actions';
-import { blockOptions, minimumBlockersForAttacker } from '../engine/combat/legality';
+import { blockOptions, compelledAttackers, eligibleAttackers, minimumBlockersForAttacker } from '../engine/combat/legality';
 import { createRngState, rngFloat, rngInt, type RngState } from '../engine/rng';
 import { getEffectiveStats } from '../engine/statics';
 import type { CardDb } from '../engine/types';
@@ -15,6 +15,8 @@ import { chooseReserveLand } from './landPolicy';
 import { choosePlayDraw } from './playDraw';
 import { choosePreserve, type MainCast } from './preservePolicy';
 import { applyRitePolicy, riteSacrificeValue } from './ritePolicy';
+import { applyTithePolicy, titheManaSaved } from './tithePolicy';
+import { applyWhispersPolicy } from './whispersPolicy';
 import { chooseTargetAction } from './targeting';
 import {
   conditionalAbilityValue,
@@ -25,6 +27,7 @@ import {
   removalValueForCast,
   retellValue,
   skimValue,
+  whispersValue,
 } from './value';
 
 /**
@@ -46,7 +49,16 @@ export class EasyAI implements AIPlayer {
   }
 
   chooseAction(view: PlayerView, legal: Action[]): Action {
+    legal = applyTithePolicy(view, this.db, legal, this.pers, () => {
+      if (view.step !== 'main1' || view.activePlayer !== view.myId) return [];
+      const planned = this.attack(view, [
+        { type: 'declareAttackers', attackers: eligibleAttackers(view.battlefield, this.db, view.myId) },
+        { type: 'declareAttackers', attackers: compelledAttackers(view.battlefield, this.db, view.myId) },
+      ]);
+      return planned.type === 'declareAttackers' ? planned.attackers : [];
+    });
     legal = applyRitePolicy(view, this.db, legal);
+    legal = applyWhispersPolicy(view, this.db, legal, (cast) => this.castScore(view, cast));
     const a = view.awaiting;
     switch (a.kind) {
       case 'choosePlayDraw':
@@ -85,7 +97,7 @@ export class EasyAI implements AIPlayer {
     cast: Extract<Action, { type: 'castSpell' | 'castDarling' }>,
   ): string {
     if (cast.type === 'castDarling') return view.you.darlingZone ?? '';
-    return cast.retell && cast.graveIndex !== undefined
+    return (cast.retell || cast.whispers) && cast.graveIndex !== undefined
       ? view.you.graveyard[cast.graveIndex]
       : view.you.hand[cast.handIndex];
   }
@@ -100,11 +112,13 @@ export class EasyAI implements AIPlayer {
         ? hauntlinkCastValue(view.battlefield, this.db, cardId, host.iid)
         : -Infinity;
     }
-    const castValue = action.retell
+    const castValue = action.whispers
+      ? whispersValue(this.db, cardId, view)
+      : action.retell
       ? retellValue(this.db, cardId) + 0.01
       : manaValue(d.cost) + nineLivesValue(d) + conditionalAbilityValue(this.db, cardId) + (action.x ?? 0) +
           (action.empowered ? empowerValue(this.db, cardId) + 0.01 : 0);
-    return castValue - riteSacrificeValue(view, this.db, action);
+    return castValue + titheManaSaved(view, this.db, action) - riteSacrificeValue(view, this.db, action);
   }
 
   /** Targeted damage should not default to a friendly permanent or player. */
