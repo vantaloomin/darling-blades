@@ -60,7 +60,8 @@ import {
 import { Services } from '../meta/services';
 import { checkpointAchievements } from '../meta/achievementCheckpoint';
 import { deckColorStyle, type DeckColorStyle } from '../meta/deckColorIdentity';
-import { activatedBlockers, forcedAction, reasonUncastable, type Action } from '../engine/actions';
+import { activatedBlockers, forcedAction, reasonUncastable, validateAction, type Action } from '../engine/actions';
+import { castTargetSpecsFor } from '../engine/resolve';
 import { previewCombat } from '../engine/combat/damage';
 import { compelledAttackers, eligibleAttackers, blockOptions, minimumBlockersForAttacker } from '../engine/combat/legality';
 import type { GameEvent } from '../engine/events';
@@ -109,7 +110,6 @@ import {
   DUTY_PLAYER_LABELS,
   dutyBlockedCopy,
   dutyNarration,
-  dutyTargetStep,
   dutyTargetsNeedPicker,
   type DutyAction,
   OPPONENT_RESERVE_PILE_LAYOUT,
@@ -124,7 +124,6 @@ import {
   shouldArmLandDrop,
   targetArrowShaftEnd,
   TARGET_PROMPT_LAYOUT,
-  targetAbilityText,
   targetPromptTitle,
   type LandDropGuardInput,
   targetRingTone,
@@ -133,6 +132,9 @@ import { shouldPlayVersusBumper, versusLeitmotifPitch } from '../ui/versusBumper
 import { activeVisibleSavedDeck } from '../ui/deckBuilderHelpers';
 import { ModalGuard } from '../ui/Modal';
 import { castActionCost, handCastChoices, sacrificeCandidates, sacrificeSelection, toggleSacrifice, whispersDeadline, type HandCastAction } from '../ui/castSacrifice';
+import { confirmDeferredTarget, deferredTargetPrompt, dutyChoices, edictSacrificeSelection, lootDiscardSelection } from '../ui/drownedDeepChoices';
+import { confirmedTargetSelection, removeLastTargetSelection, targetSelectionStep, toggleTargetSelection, type TargetSelectionAction } from '../ui/targetSelection';
+import { showDutyPicker, showLootPicker, type ChoiceOverlay } from '../ui/choiceOverlays';
 import { renderManaText } from '../ui/ManaText';
 import { PHASE_TRACK_ROWS, phaseTrackRowForStep, type PhaseTrackRow } from '../ui/phaseTrack';
 import { empowerText, manaCostText, romanNumeral } from '../ui/rulesText';
@@ -420,8 +422,16 @@ export class DuelScene extends Phaser.Scene {
   private pendingCasts: PendingTargetAction[] | null = null;
   /** Visual choice only; pendingCasts keeps the existing targeting input guards active. */
   private pendingSacrifice: { casts: HandCastAction[]; selected: number[] } | null = null;
-  private dutyTargets: TargetRef[] = [];
-  private dutyTargetsUnordered = false;
+  private targetPicks: TargetRef[] = [];
+  private targetPicksUnordered = false;
+  private targetsExact = false;
+  private edictPicks: number[] = [];
+  private choiceState: Game['state'] | null = null;
+  private targetFocus = 0;
+  private keyboardTarget: TargetRef | null = null;
+  private lootPicker: ChoiceOverlay | null = null;
+  private dutyPicker: ChoiceOverlay | null = null;
+  private dutyConfirm: (() => void) | null = null;
   private dutyFinishButton: ThemedButton | null = null;
   private dutyHighlights = new Set<number>();
   private dutyActionsBySource = new Map<number, DutyAction[]>();
@@ -695,8 +705,15 @@ export class DuelScene extends Phaser.Scene {
     this.aiTimer = null;
     this.pendingCasts = null;
     this.pendingSacrifice = null;
-    this.dutyTargets = [];
-    this.dutyTargetsUnordered = false;
+    this.targetPicks = [];
+    this.targetPicksUnordered = false;
+    this.edictPicks = [];
+    this.choiceState = null;
+    this.targetFocus = 0;
+    this.keyboardTarget = null;
+    this.lootPicker = null;
+    this.dutyPicker = null;
+    this.dutyConfirm = null;
     this.dutyFinishButton = null;
     this.dutyHighlights = new Set();
     this.dutyActionsBySource = new Map();
@@ -2132,12 +2149,9 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private pendingActionTarget(action: PendingTargetAction): TargetRef | undefined {
-    if (action.type === 'activate') {
-      return dutyTargetStep([action], this.dutyTargets, this.dutyTargetsUnordered).targets[0];
-    }
     return action.type === 'linkHaunt'
       ? { kind: 'permanent', iid: action.hostIid }
-      : action.targets?.[0];
+      : targetSelectionStep([action], this.targetPicks, this.targetPicksUnordered).targets[0];
   }
 
   private isHumanChooseTarget(): boolean {
@@ -2145,12 +2159,20 @@ export class DuelScene extends Phaser.Scene {
     return a.kind === 'chooseTarget' && a.player === HUMAN;
   }
 
+  private isMandatoryChoice(): boolean {
+    const a = this.duel.awaiting;
+    return this.isHumanChooseTarget() || (a.kind === 'discardToHandSize' && a.player === HUMAN);
+  }
+
   /** All currently clickable target refs, whether cast-time or trigger-time. */
   private targetRefsForInput(): TargetRef[] {
     const awaiting = this.duel.awaiting;
     if (this.pendingSacrifice) return sacrificeCandidates(this.duel.instanceState, CARD_DB, HUMAN)
       .map((iid) => ({ kind: 'permanent', iid }));
-    if (this.pendingCasts?.[0]?.type === 'activate') return this.pendingDutyStep().targets;
+    if (this.pendingCasts && this.pendingCasts[0]?.type !== 'linkHaunt') {
+      const step = this.pendingTargetStep();
+      return this.targetPicksUnordered ? [...step.targets, ...this.targetPicks] : step.targets;
+    }
     const refs = (this.pendingCasts ?? [])
       .map((action) => this.pendingActionTarget(action))
       .filter((target): target is TargetRef => target !== undefined);
@@ -2181,37 +2203,40 @@ export class DuelScene extends Phaser.Scene {
     if (this.targetPrompt?.active) this.targetPrompt.destroy();
     this.targetPrompt = null;
     this.dutyFinishButton = null;
-    if (this.pendingSacrifice) {
+    if (this.pendingSacrifice || edictSacrificeSelection(this.duel.instanceState, CARD_DB, HUMAN, this.edictPicks)) {
       this.syncSacrificePrompt();
       return;
     }
     const duty = this.pendingCasts?.[0];
-    if (duty?.type === 'activate') {
-      const source = this.duel.state.battlefield.find((perm) => perm.iid === duty.iid);
-      if (!source) return;
+    if (duty && duty.type !== 'linkHaunt') {
+      const cardId = duty.type === 'activate'
+        ? this.duel.state.battlefield.find((perm) => perm.iid === duty.iid)?.cardId
+        : this.actionCardId(duty);
+      if (!cardId) return;
+      const step = this.pendingTargetStep();
       const prompt = this.add.container(0, 0).setDepth(theme.depth.toast);
-      prompt.add(this.add.text(640, LAYOUT.gap.cy, targetPromptTitle(def(CARD_DB, source.cardId).name), {
+      prompt.add(this.add.text(640, LAYOUT.gap.cy, `${targetPromptTitle(def(CARD_DB, cardId).name)} · ${step.countText}`, {
         fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px`, color: theme.colors.gold,
-        resolution: 2,
+        wordWrap: { width: 480 }, align: 'center', resolution: 2,
       }).setOrigin(0.5));
-      const complete = this.pendingDutyStep().complete;
-      if (complete) {
-        this.dutyFinishButton = themedButton(this, LAYOUT.cluster.x, LAYOUT.cluster.endTurnY, DUTY_ACTION_LABEL, {
-          variant: 'primary', minWidth: 150,
-          onTap: (pointer) => { if (!pointer.rightButtonReleased()) this.act(complete); },
+      this.dutyFinishButton = themedButton(this, LAYOUT.cluster.x, LAYOUT.cluster.endTurnY,
+        duty.type === 'activate' ? DUTY_ACTION_LABEL : 'Confirm targets', {
+          variant: 'primary', minWidth: 150, enabled: step.complete !== null,
+          onTap: (pointer) => { if (!pointer.rightButtonReleased()) this.confirmPendingTargets(); },
         });
-        prompt.add(this.dutyFinishButton.container);
+      prompt.add(this.dutyFinishButton.container);
+      if (!this.targetPicksUnordered && step.count > 1 && this.targetPicks.length > 0) {
+        prompt.add(themedButton(this, 640, LAYOUT.gap.cy + 42, 'Undo target', {
+          size: 'sm', minWidth: 120,
+          onTap: pointer => { if (!pointer.rightButtonReleased()) this.undoTargetSelection(); },
+        }).container);
       }
       this.targetPrompt = prompt;
       return;
     }
-    const awaiting = this.duel.awaiting;
-    if (awaiting.kind !== 'chooseTarget' || awaiting.player !== HUMAN) return;
-    const source = this.duel.state.battlefield.find(
-      (perm) => perm.iid === awaiting.sourceIid,
-    );
-    if (!source) return;
-    const card = def(CARD_DB, source.cardId);
+    const deferred = deferredTargetPrompt(this.duel.instanceState, CARD_DB, HUMAN);
+    if (!deferred) return;
+    const card = def(CARD_DB, deferred.sourceCardId);
     const layout = TARGET_PROMPT_LAYOUT;
     const prompt = this.add.container(0, 0).setDepth(theme.depth.toast);
     const sourceCard = new CardView(this, layout.cardX, layout.cardY);
@@ -2219,7 +2244,7 @@ export class DuelScene extends Phaser.Scene {
     prompt.add(sourceCard);
     prompt.add(
       this.add
-        .text(layout.titleX, layout.titleY, targetPromptTitle(card.name), {
+        .text(layout.titleX, layout.titleY, deferred.title, {
           fontFamily: theme.fonts.display,
           fontSize: `${theme.type.label}px`,
           fontStyle: theme.weight.w700,
@@ -2231,7 +2256,7 @@ export class DuelScene extends Phaser.Scene {
     );
     prompt.add(
       this.add
-        .text(layout.textX, layout.textY, targetAbilityText(card, awaiting.abilityIndex), {
+        .text(layout.textX, layout.textY, deferred.text, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           color: theme.colors.body,
@@ -2259,33 +2284,35 @@ export class DuelScene extends Phaser.Scene {
   /** The existing board target prompt also hosts the purely visual sacrifice choice. */
   private syncSacrificePrompt(): void {
     const pick = this.pendingSacrifice;
-    if (!pick) return;
-    const cardId = this.actionCardId(pick.casts[0]);
+    const edict = edictSacrificeSelection(this.duel.instanceState, CARD_DB, HUMAN, this.edictPicks);
+    if (!pick && !edict) return;
+    const cardId = edict?.sourceCardId ?? (pick && this.actionCardId(pick.casts[0]));
     if (!cardId) return;
     const card = def(CARD_DB, cardId);
-    const selection = sacrificeSelection(this.duel.instanceState, CARD_DB, HUMAN, pick.casts, pick.selected);
+    const selection = pick ? sacrificeSelection(this.duel.instanceState, CARD_DB, HUMAN, pick.casts, pick.selected) : null;
     const layout = TARGET_PROMPT_LAYOUT;
     const prompt = this.add.container(0, 0).setDepth(theme.depth.toast);
     const source = new CardView(this, layout.cardX, layout.cardY).setScale(layout.cardScale);
     source.setCard(card, { fx: 'none' });
     prompt.add(source);
     prompt.add(this.add.text(layout.titleX, layout.titleY,
-      card.rite ? `Rite: choose ${card.rite.n} creatures` : 'Tithe: choose creatures', {
+      edict?.prompt ?? (card.rite ? `Rite: choose ${card.rite.n} creatures` : 'Tithe: choose creatures'), {
         fontFamily: theme.fonts.display, fontSize: `${theme.type.label}px`, color: theme.colors.gold,
         wordWrap: { width: layout.textWidth }, resolution: 2,
       }).setOrigin(0, 0.5));
     prompt.add(this.add.text(layout.textX, layout.textY,
-      `${pick.selected.length}${card.rite ? `/${card.rite.n}` : ''} selected${card.tithe ? ` · ${selection.defense} Defense` : ''}\nClick again to remove.`, {
+      edict ? `${this.edictPicks.length} of ${edict.count} selected\nClick again to remove.` :
+        `${pick!.selected.length}${card.rite ? `/${card.rite.n}` : ''} selected${card.tithe ? ` · ${selection!.defense} Defense` : ''}\nClick again to remove.`, {
         fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px`, color: theme.colors.body,
         wordWrap: { width: layout.textWidth }, lineSpacing: 3, resolution: 2,
       }));
-    if (selection.cost) {
+    if (selection?.cost) {
       renderManaText(this, prompt, layout.textX, layout.textY + 48, `Cast for ${manaCostText(selection.cost)}`, {
         fontFamily: theme.fonts.ui, fontSize: `${theme.type.label}px`, color: theme.colors.gold, resolution: 2,
       });
     }
-    this.dutyFinishButton = themedButton(this, LAYOUT.cluster.x, LAYOUT.cluster.endTurnY, 'Confirm cast', {
-      variant: 'primary', minWidth: 150, enabled: selection.actions.length > 0,
+    this.dutyFinishButton = themedButton(this, LAYOUT.cluster.x, LAYOUT.cluster.endTurnY, edict ? 'Confirm sacrifice' : 'Confirm cast', {
+      variant: 'primary', minWidth: 150, enabled: edict ? edict.action !== null : selection!.actions.length > 0,
       onTap: (pointer) => {
         if (!pointer.rightButtonReleased()) this.confirmSacrificeSelection();
       },
@@ -2295,6 +2322,15 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private confirmSacrificeSelection(): void {
+    if (this.ended || this.animatingCombat) return;
+    const edict = edictSacrificeSelection(this.duel.instanceState, CARD_DB, HUMAN, this.edictPicks);
+    if (edict) {
+      if (edict.action) {
+        this.closeGravePicker(false);
+        this.act(edict.action);
+      }
+      return;
+    }
     const current = this.pendingSacrifice;
     if (!current || this.ended || this.animatingCombat) return;
     const ready = sacrificeSelection(this.duel.instanceState, CARD_DB, HUMAN, current.casts, current.selected).actions;
@@ -2307,7 +2343,7 @@ export class DuelScene extends Phaser.Scene {
 
   /** Restore the pre-action snapshot and reset scene-side selection state. */
   private undoLastAction(): void {
-    if (!this.undoSnapshot || this.ended || this.animatingCombat) return;
+    if (!this.undoSnapshot || this.ended || this.animatingCombat || this.isMandatoryChoice()) return;
     this.duel = this.undoSnapshot;
     this.undoSnapshot = null;
     this.whispersSpellIds = new Set(this.duel.state.stack.filter((item) => item.whispered).map((item) => item.sid));
@@ -2326,7 +2362,7 @@ export class DuelScene extends Phaser.Scene {
   /** Undo is offered only while the snapshot is valid and it is your decision. */
   private syncUndoButton(): void {
     this.undoBtn.setVisible(
-      !this.ended && !this.animatingCombat && this.undoSnapshot !== null && this.isHumanTurnDecision(),
+      !this.ended && !this.animatingCombat && !this.isMandatoryChoice() && this.undoSnapshot !== null && this.isHumanTurnDecision(),
     );
   }
 
@@ -2479,6 +2515,10 @@ export class DuelScene extends Phaser.Scene {
 
   /** In targeting mode: try to complete the pending cast with this target. */
   private tryTarget(ref: import('../engine/types').TargetRef): void {
+    if (!this.targetRefsForInput().some(candidate => this.targetRefEquals(candidate, ref))) return;
+    // Both keyboard and pointer leave the old modal before advancing to the next slot.
+    this.closeGravePicker(false);
+    this.keyboardTarget = ref;
     if (this.pendingSacrifice) {
       if (ref.kind !== 'permanent') return;
       const { casts, selected } = this.pendingSacrifice;
@@ -2491,21 +2531,23 @@ export class DuelScene extends Phaser.Scene {
     }
     const awaiting = this.duel.awaiting;
     if (awaiting.kind === 'chooseTarget' && awaiting.player === HUMAN) {
-      if (awaiting.targets.some((target) => this.targetRefEquals(target, ref))) {
-        this.act({ type: 'chooseTarget', target: ref });
-      }
+      const edict = edictSacrificeSelection(this.duel.instanceState, CARD_DB, HUMAN, this.edictPicks);
+      if (edict && ref.kind === 'permanent') {
+        this.edictPicks = toggleSacrifice(this.edictPicks, ref.iid, edict.candidates, edict.count);
+        this.sync();
+      } else if (!edict) this.confirmTriggerTarget(ref);
       return;
     }
     if (!this.pendingCasts) return;
-    if (this.pendingCasts[0]?.type === 'activate') {
-      if (!this.pendingDutyStep().targets.some((target) => this.targetRefEquals(target, ref))) return;
-      this.dutyTargets.push(ref);
-      const next = this.pendingDutyStep();
-      this.pendingCasts = next.actions;
-      if (next.complete && next.targets.length === 0) this.act(next.complete);
+    if (this.pendingCasts[0]?.type !== 'linkHaunt') {
+      const actions = this.pendingCasts.filter((a): a is TargetSelectionAction => a.type !== 'linkHaunt');
+      this.targetPicks = toggleTargetSelection(actions, this.targetPicks, ref, this.targetPicksUnordered);
+      const next = this.pendingTargetStep();
+      if (next.complete && ((next.count === 1 && !this.targetPicksUnordered) ||
+        (actions[0].type === 'activate' && !this.targetsExact && next.targets.length === 0))) this.confirmPendingTargets();
       else {
         this.sync();
-        if (this.dutyNeedsPicker()) this.showGravePicker(next.actions);
+        if (this.targetsNeedPicker()) this.showGravePicker(actions);
       }
       return;
     }
@@ -2797,6 +2839,9 @@ export class DuelScene extends Phaser.Scene {
         } else if (v) this.log(`${who} ${this.cardRef(e.cardId)} died`, e.cardId);
         break;
       }
+      case 'discarded':
+        this.log(`${e.player === HUMAN ? 'You discard' : 'Opponent discards'} ${this.cardRef(e.cardId)}.`, e.cardId);
+        break;
       case 'hauntlinkFormed': {
         const host = this.duel.state.battlefield.find((perm) => perm.iid === e.hostIid);
         const hostName = host ? def(CARD_DB, host.cardId).name : 'a creature';
@@ -3592,6 +3637,13 @@ export class DuelScene extends Phaser.Scene {
     // A board rebuild invalidates every source position from a hover plan.
     this.clearManaPlanPreview();
     const st = this.duel.state;
+    if (this.choiceState !== st) {
+      this.choiceState = st;
+      this.edictPicks = [];
+      this.targetPicks = [];
+      this.targetFocus = 0;
+      this.keyboardTarget = null;
+    }
     const view = this.duel.viewFor(HUMAN);
     this.refreshDutyActions();
     this.boardTargets.clear();
@@ -3711,6 +3763,7 @@ export class DuelScene extends Phaser.Scene {
     this.syncButton();
     this.drawArrows();
     this.syncOverlay();
+    if (this.isHumanChooseTarget() && !this.gravePicker && this.targetsNeedPicker()) this.showGravePicker([]);
     if (this.tutorial) this.tutorialTick();
   }
 
@@ -3850,7 +3903,7 @@ export class DuelScene extends Phaser.Scene {
           view.enableInput();
           view.on('pointerup', (p: Phaser.Input.Pointer) => {
             if (p.wasTouch || p.rightButtonReleased()) return;
-            if (this.pendingCasts) this.onBattlefieldClick(link.iid);
+            if (this.pendingCasts || this.isHumanChooseTarget()) this.onBattlefieldClick(link.iid);
             else if (!this.beginHauntlinkTargeting(link.iid)) this.showInspect(d, ownedVariant);
           });
           view.on('pointerdown', (p: Phaser.Input.Pointer) => {
@@ -3860,7 +3913,7 @@ export class DuelScene extends Phaser.Scene {
             card: d,
             variant: ownedVariant,
             onTap: () => {
-              if (this.pendingCasts) this.onBattlefieldClick(link.iid);
+              if (this.pendingCasts || this.isHumanChooseTarget()) this.onBattlefieldClick(link.iid);
               else if (!this.beginHauntlinkTargeting(link.iid)) this.showInspect(d, ownedVariant);
             },
           });
@@ -3907,7 +3960,11 @@ export class DuelScene extends Phaser.Scene {
   private highlightFor(perm: Permanent): BoardHighlight {
     const a = this.duel.awaiting;
     const combat = this.duel.state.combat;
-    if (this.pendingSacrifice?.selected.includes(perm.iid)) return 'selectedSacrifice';
+    if (this.pendingSacrifice?.selected.includes(perm.iid) ||
+      (this.isHumanChooseTarget() && this.edictPicks.includes(perm.iid))) return 'selectedSacrifice';
+    if (this.pendingCasts && this.targetPicks.some(ref => ref.kind === 'permanent' && ref.iid === perm.iid)) return 'selectedAttacker';
+    if (this.keyboardTarget?.kind === 'permanent' && this.keyboardTarget.iid === perm.iid &&
+      this.targetRefsForInput().some(ref => this.targetRefEquals(ref, this.keyboardTarget!))) return 'pendingBlocker';
     if (this.targetRefsForInput().some(
       (target) => target.kind === 'permanent' && target.iid === perm.iid,
     ))
@@ -3939,6 +3996,8 @@ export class DuelScene extends Phaser.Scene {
   private beginHauntlinkTargeting(iid: number): boolean {
     const actions = this.hauntlinkActionsFor(iid);
     if (actions.length === 0) return false;
+    this.targetPicks = [];
+    this.keyboardTarget = null;
     this.pendingCasts = actions;
     this.sync();
     return true;
@@ -3968,40 +4027,95 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private beginActivate(iid: number): boolean {
+    const source = this.duel.state.battlefield.find((perm) => perm.iid === iid);
+    if (!source || source.controller !== HUMAN || this.ended || this.replayMode) return false;
+    const card = def(CARD_DB, source.cardId);
+    const awaiting = this.duel.awaiting;
+    if (activatedAbilitiesOf(card).length > 1 && awaiting.kind === 'main' && awaiting.player === HUMAN) {
+      this.dutyPicker = showDutyPicker(this, {
+        card, choices: () => dutyChoices(card, iid, this.duel.legalActions(HUMAN)),
+        choose: abilityIndex => {
+          const choice = dutyChoices(card, iid, this.duel.legalActions(HUMAN))[abilityIndex];
+          if (!choice?.enabled) return;
+          this.closeEmpowerChooser();
+          this.beginDutyActions(card, choice.actions);
+        },
+        cancel: () => this.closeEmpowerChooser(),
+      });
+      this.empowerChooser = this.dutyPicker.container;
+      this.empowerChooserGuard.open([...this.overlayGuardTargets(), this.undoBtn]);
+      return true;
+    }
     const actions = this.activateActionsFor(iid);
     if (actions.length === 0) return false;
-    const source = this.duel.state.battlefield.find((perm) => perm.iid === iid)!;
-    const card = def(CARD_DB, source.cardId);
-    const ability = activatedAbilitiesOf(card)[actions[0].abilityIndex ?? 0];
-    this.clearManaPlanPreview();
-    if (!ability.targets?.length) this.showDutyConfirm(card, actions[0]);
-    else {
-      this.dutyTargets = [];
-      this.dutyTargetsUnordered = ability.targets[0].upTo !== undefined;
-      this.pendingCasts = actions;
-      this.sync();
-      if (this.dutyNeedsPicker()) {
-        this.showGravePicker(actions);
-      }
-    }
+    this.beginDutyActions(card, actions);
     return true;
   }
 
-  private pendingDutyStep(): ReturnType<typeof dutyTargetStep> {
-    const actions = (this.pendingCasts ?? []).filter((action): action is DutyAction => action.type === 'activate');
-    return dutyTargetStep(actions, this.dutyTargets, this.dutyTargetsUnordered);
+  private beginDutyActions(card: CardDef, actions: DutyAction[]): void {
+    const ability = activatedAbilitiesOf(card)[actions[0].abilityIndex ?? 0];
+    this.clearManaPlanPreview();
+    if (!ability.targets?.length) this.showDutyConfirm(card, actions[0]);
+    else this.beginTargetSelection(actions);
   }
 
-  private dutyNeedsPicker(): boolean {
+  private pendingTargetStep() {
+    const actions = (this.pendingCasts ?? []).filter((action): action is TargetSelectionAction => action.type !== 'linkHaunt');
+    return targetSelectionStep(actions, this.targetPicks, this.targetPicksUnordered);
+  }
+
+  private targetsNeedPicker(): boolean {
     const visible = new Set([...this.views].filter(([, view]) => view.active).map(([iid]) => iid));
-    return dutyTargetsNeedPicker(this.pendingDutyStep().targets, visible);
+    return dutyTargetsNeedPicker(this.targetRefsForInput(), visible);
+  }
+
+  private beginTargetSelection(actions: TargetSelectionAction[]): void {
+    const action = actions[0];
+    const cardId = action.type === 'activate'
+      ? this.duel.state.battlefield.find(perm => perm.iid === action.iid)?.cardId : this.actionCardId(action);
+    if (!cardId) return;
+    const card = def(CARD_DB, cardId);
+    const specs = action.type === 'activate' ? activatedAbilitiesOf(card)[action.abilityIndex ?? 0].targets ?? []
+      : castTargetSpecsFor(card, action.type === 'castSpell' && action.retell === true,
+        action.type === 'castSpell' && action.hauntlinked === true, action.type === 'castSpell' && action.empowered === true);
+    this.targetPicks = [];
+    this.targetFocus = 0;
+    this.targetPicksUnordered = specs.length === 1 && (specs[0].upTo !== undefined || specs[0].exactly !== undefined);
+    this.targetsExact = specs.length === 1 && specs[0].exactly !== undefined;
+    this.pendingCasts = actions;
+    this.sync();
+    if (this.targetsNeedPicker()) this.showGravePicker(actions);
+  }
+
+  private confirmPendingTargets(): void {
+    const actions = (this.pendingCasts ?? []).filter((action): action is TargetSelectionAction => action.type !== 'linkHaunt');
+    const action = confirmedTargetSelection(this.duel.instanceState, CARD_DB, HUMAN, actions, this.targetPicks, this.targetPicksUnordered);
+    if (!action) return;
+    this.closeGravePicker(false);
+    this.act(action);
+  }
+
+  private undoTargetSelection(): void {
+    if (!this.pendingCasts || this.pendingSacrifice) return;
+    this.targetPicks = removeLastTargetSelection(this.targetPicks);
+    this.closeGravePicker(false);
+    this.sync();
+    if (this.targetsNeedPicker()) this.showGravePicker(this.pendingCasts.filter((a): a is TargetSelectionAction => a.type !== 'linkHaunt'));
+  }
+
+  private confirmTriggerTarget(ref: TargetRef): void {
+    const action = confirmDeferredTarget(this.duel.instanceState, CARD_DB, HUMAN, ref);
+    if (!action) return;
+    this.closeGravePicker(false);
+    this.act(action);
   }
 
   private cancelPendingTargeting(): void {
     const sacrifice = this.pendingSacrifice;
     this.pendingSacrifice = null;
     this.pendingCasts = null;
-    this.dutyTargets = [];
+    this.targetPicks = [];
+    this.keyboardTarget = null;
     this.closeGravePicker(false);
     this.sync();
     if (sacrifice) this.onHandClick(sacrifice.casts[0].handIndex);
@@ -5119,11 +5233,15 @@ export class DuelScene extends Phaser.Scene {
     kb?.on('keydown-SPACE', this.onConfirmKey, this);
     kb?.on('keydown-ENTER', this.onConfirmKey, this);
     kb?.on('keydown-ESC', this.onCancelKey, this);
+    for (const key of ['LEFT', 'RIGHT', 'UP', 'DOWN']) kb?.on(`keydown-${key}`, this.onChoiceNavigate, this);
+    kb?.on('keydown-BACKSPACE', this.onTargetBackspace, this);
     this.input.on('pointermove', this.onTargetPointerMove, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       kb?.off('keydown-SPACE', this.onConfirmKey, this);
       kb?.off('keydown-ENTER', this.onConfirmKey, this);
       kb?.off('keydown-ESC', this.onCancelKey, this);
+      for (const key of ['LEFT', 'RIGHT', 'UP', 'DOWN']) kb?.off(`keydown-${key}`, this.onChoiceNavigate, this);
+      kb?.off('keydown-BACKSPACE', this.onTargetBackspace, this);
       this.input.off('pointermove', this.onTargetPointerMove, this);
     });
   }
@@ -5157,16 +5275,73 @@ export class DuelScene extends Phaser.Scene {
     e.preventDefault(); // Space would otherwise scroll the page in the browser
     if (this.versusBumperActive) return;
     if (this.replayMode) return;
-    if (this.empowerChooser) return;
-    if (this.gravePicker) return;
-    if (this.carry) return; // a lifted card decides by drop or cancel, never Space
-    if (this.ended || this.inspect || this.zoneModal) return; // modals do not pass under
-    if (this.pendingSacrifice) {
-      this.confirmSacrificeSelection();
+    if (this.ended || this.animatingCombat || this.inspect || this.zoneModal || this.pauseOverlay) return;
+    if (this.empowerChooser) {
+      if (this.dutyPicker) this.dutyPicker.confirm();
+      else this.dutyConfirm?.();
       return;
     }
+    const space = e.code === 'Space' || e.keyCode === 32;
+    if (this.lootPicker?.container.active) {
+      if (space) this.lootPicker.toggle?.();
+      else this.lootPicker.confirm();
+      return;
+    }
+    if (this.carry) return; // a lifted card decides by drop or cancel, never Space
+    if (this.ended || this.inspect || this.zoneModal) return; // modals do not pass under
+    const refs = this.targetRefsForInput();
+    const focused = refs.find(ref => this.keyboardTarget && this.targetRefEquals(ref, this.keyboardTarget)) ??
+      refs[this.targetFocus % Math.max(1, refs.length)];
+    if (this.pendingSacrifice || edictSacrificeSelection(this.duel.instanceState, CARD_DB, HUMAN, this.edictPicks)) {
+      if (space && focused) this.tryTarget(focused);
+      else this.confirmSacrificeSelection();
+      return;
+    }
+    if (this.isHumanChooseTarget()) {
+      if (focused) this.confirmTriggerTarget(focused);
+      return;
+    }
+    if (this.pendingCasts?.[0]?.type !== 'linkHaunt' && this.pendingCasts) {
+      if (space && focused) this.tryTarget(focused);
+      else this.confirmPendingTargets();
+      return;
+    }
+    if (this.gravePicker) return;
     if (this.overlay && this.confirmForeseeOverlay()) return;
+    if (this.overlay) return;
     this.onButton(); // self-guards: auto-skip input lock + not-your-decision
+  }
+
+  private onChoiceNavigate(e: KeyboardEvent): void {
+    if (this.ended || this.replayMode || this.animatingCombat || this.inspect || this.zoneModal || this.pauseOverlay) return;
+    const delta = e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.keyCode === 37 || e.keyCode === 38 ? -1 : 1;
+    const picker = this.dutyPicker ?? this.lootPicker;
+    if (picker?.container.active) {
+      e.preventDefault();
+      picker.move(delta);
+      return;
+    }
+    if (this.empowerChooser || this.overlay) return;
+    const refs = this.targetRefsForInput();
+    if (!refs.length) return;
+    e.preventDefault();
+    const current = refs.findIndex(ref => this.keyboardTarget && this.targetRefEquals(ref, this.keyboardTarget));
+    this.targetFocus = ((current >= 0 ? current : this.targetFocus) + delta + refs.length) % refs.length;
+    this.keyboardTarget = refs[this.targetFocus];
+    const ref = this.keyboardTarget;
+    const cardId = ref.kind === 'permanent' ? this.duel.state.battlefield.find(p => p.iid === ref.iid)?.cardId
+      : ref.kind === 'grave' ? this.duel.state.players[ref.player].graveyard[ref.index]
+        : ref.kind === 'stackItem' ? this.duel.state.stack.find(item => item.sid === ref.sid)?.cardId : undefined;
+    this.showTransientNotice(cardId ? `Target: ${def(CARD_DB, cardId).name}` : ref.kind === 'player' ? DUTY_PLAYER_LABELS[ref.player] : 'Choose a target');
+    for (const perm of this.duel.state.battlefield) this.views.get(perm.iid)?.setHighlight(this.highlightFor(perm));
+  }
+
+  private onTargetBackspace(e: KeyboardEvent): void {
+    if (this.overlay || this.empowerChooser || this.inspect || this.zoneModal || this.pauseOverlay || this.isHumanChooseTarget()) return;
+    if (this.pendingCasts && !this.pendingSacrifice) {
+      e.preventDefault();
+      this.undoTargetSelection();
+    }
   }
 
   private onCancelKey(e: KeyboardEvent): void {
@@ -5287,14 +5462,13 @@ export class DuelScene extends Phaser.Scene {
   /** Darling casts share the hand-cast target selection and auto-mana submission path. */
   private startDarlingCast(casts: DarlingCastAction[]): void {
     if (casts.length === 0) return;
-    const targeted = casts[0].targets !== undefined && casts[0].targets.length > 0;
+    const targeted = casts.some(cast => (cast.targets?.length ?? 0) > 0);
     if (!targeted) {
       const best = casts.reduce((left, right) => ((left.x ?? 0) >= (right.x ?? 0) ? left : right));
       this.act(best);
       return;
     }
-    this.pendingCasts = this.pendingCasts ? null : casts;
-    this.sync();
+    this.beginTargetSelection(casts);
   }
 
   /** The cast flow after any Empower choice: act, grave-pick, or target. */
@@ -5306,7 +5480,7 @@ export class DuelScene extends Phaser.Scene {
       this.sync();
       return;
     }
-    const targeted = casts[0].targets !== undefined && casts[0].targets.length > 0;
+    const targeted = casts.some(cast => (cast.targets?.length ?? 0) > 0);
     if (!targeted) {
       // untargeted; for X spells default to the biggest X
       const best = casts.reduce((x, y) => ((x.x ?? 0) >= (y.x ?? 0) ? x : y));
@@ -5314,14 +5488,7 @@ export class DuelScene extends Phaser.Scene {
       else this.act(best);
       return;
     }
-    if (casts[0].targets![0].kind === 'grave') {
-      // Each enumerated cast is a distinct grave creature — let the player pick
-      // which one to return rather than silently taking the first.
-      this.showGravePicker(casts);
-      return;
-    }
-    this.pendingCasts = this.pendingCasts ? null : casts; // click again cancels
-    this.sync();
+    this.beginTargetSelection(casts);
   }
 
   /**
@@ -6386,39 +6553,48 @@ export class DuelScene extends Phaser.Scene {
    * distinct grave creature (targeting dedupes by card id), so we render one
    * option per cast and submit the chosen one. Its own guard deadens the board.
    */
-  private showGravePicker(casts: (Extract<Action, { type: 'castSpell' }> | DutyAction)[]): void {
+  private showGravePicker(casts: TargetSelectionAction[]): void {
+    if (this.gravePicker) return;
     const width = 1280;
     const height = 720;
     const duty = casts[0]?.type === 'activate';
-    const options = duty ? this.pendingDutyStep().targets : casts.map((cast) => cast.targets![0]);
+    const mandatory = this.isHumanChooseTarget();
+    const deferred = deferredTargetPrompt(this.duel.instanceState, CARD_DB, HUMAN);
+    const edict = edictSacrificeSelection(this.duel.instanceState, CARD_DB, HUMAN, this.edictPicks);
+    const options = this.targetRefsForInput();
     const c = this.add.container(0, 0).setDepth(105);
     const dim = this.add
       .rectangle(width / 2, height / 2, width, height, 0x000000, 0.82)
       .setInteractive();
     dim.on('pointerup', (p: Phaser.Input.Pointer) => {
       if (p.rightButtonReleased()) return;
-      this.closeGravePicker(); // tap outside a card cancels the cast
+      if (!mandatory) this.closeGravePicker();
     });
     c.add(dim);
     c.add(
       this.add
-        .text(width / 2, 150, duty ? targetPromptTitle(DUTY_ACTION_LABEL) : 'Return which creature to hand?', {
+        .text(width / 2, 150, edict ? `${edict.prompt} · ${this.edictPicks.length} of ${edict.count}` :
+          deferred?.title ?? `${duty ? DUTY_ACTION_LABEL : 'Choose targets'} · ${this.pendingTargetStep().countText}`, {
           fontFamily: 'Cinzel, Georgia, serif',
           fontSize: '28px',
           color: '#f0e6ff',
         })
         .setOrigin(0.5),
     );
+    if (deferred || edict) {
+      const source = new CardView(this, 210, 150).setScale(0.2);
+      source.setCard(def(CARD_DB, (deferred ?? edict)!.sourceCardId), { fx: 'none' });
+      c.add(source);
+    }
     const n = options.length;
     const spacing = Math.min(160, (width - 240) / Math.max(1, n));
     options.forEach((ref, i) => {
       const x = width / 2 - ((n - 1) * spacing) / 2 + i * spacing;
       const pick = (): void => {
         this.closeGravePicker(false);
-        if (duty) this.tryTarget(ref);
-        else this.act(casts[i]);
+        this.tryTarget(ref);
       };
-      if (duty && ref.kind === 'player') {
+      if (ref.kind === 'player') {
         c.add(themedButton(this, x, 370, DUTY_PLAYER_LABELS[ref.player], {
           variant: 'primary', minWidth: 140,
           onTap: (pointer) => { if (!pointer.rightButtonReleased()) pick(); },
@@ -6429,12 +6605,14 @@ export class DuelScene extends Phaser.Scene {
         ? this.duel.state.players[ref.player].graveyard[ref.index]
         : ref.kind === 'permanent'
           ? this.duel.state.battlefield.find((perm) => perm.iid === ref.iid)?.cardId
-          : undefined;
+          : ref.kind === 'stackItem' ? this.duel.state.stack.find(item => item.sid === ref.sid)?.cardId : undefined;
       if (!cardId) return;
       const v = new CardView(this, x, 370).setScale(0.62);
       const d = def(CARD_DB, cardId);
       const variant = displayVariantFor(Services.save.data, cardId);
       v.setCard(d, { fx: 'none', variant, fullArt: variant.fullArt });
+      if ((ref.kind === 'permanent' && edict && this.edictPicks.includes(ref.iid)) ||
+        this.targetPicks.some(picked => this.targetRefEquals(picked, ref))) v.setAlpha(theme.alpha.subtle);
       c.add(v);
       // Same read affordances as the mulligan cards: hover/long-press zoom.
       v.enableInput();
@@ -6446,14 +6624,14 @@ export class DuelScene extends Phaser.Scene {
       });
       attachTouchGestures(this, v, { card: d, onTap: pick });
     });
-    const complete = duty ? this.pendingDutyStep().complete : null;
-    if (complete) {
-      c.add(themedButton(this, width / 2, 540, DUTY_ACTION_LABEL, {
-        variant: 'primary', minWidth: 180,
+    const complete = this.pendingTargetStep().complete;
+    if (!mandatory || edict) {
+      c.add(themedButton(this, width / 2, 540, edict ? 'Confirm sacrifice' : duty ? DUTY_ACTION_LABEL : 'Confirm targets', {
+        variant: 'primary', minWidth: 180, enabled: edict ? edict.action !== null : complete !== null,
         onTap: (pointer) => {
           if (pointer.rightButtonReleased()) return;
-          this.closeGravePicker(false);
-          this.act(complete);
+          if (edict) this.confirmSacrificeSelection();
+          else this.confirmPendingTargets();
         },
       }).container);
     }
@@ -6472,19 +6650,21 @@ export class DuelScene extends Phaser.Scene {
       this.closeGravePicker();
     });
     inflateHitArea(cancel, 90, 60);
-    c.add(cancel);
+    if (mandatory) cancel.destroy();
+    else c.add(cancel);
     this.gravePicker = c;
-    this.gravePickerGuard.open([...this.overlayGuardTargets(), ...(duty ? [this.undoBtn] : [])]);
+    this.gravePickerGuard.open([...this.overlayGuardTargets(), this.undoBtn]);
   }
 
   private closeGravePicker(cancelDuty = true): void {
+    if (cancelDuty && this.isHumanChooseTarget()) return;
     if (!this.gravePicker) return;
     this.gravePicker.destroy();
     this.gravePicker = null;
     this.gravePickerGuard.close();
-    if (cancelDuty && this.pendingCasts?.[0]?.type === 'activate') {
+    if (cancelDuty && this.pendingCasts) {
       this.pendingCasts = null;
-      this.dutyTargets = [];
+      this.targetPicks = [];
       this.sync();
     }
     this.maybeAutoSkip();
@@ -6520,12 +6700,16 @@ export class DuelScene extends Phaser.Scene {
     c.add(this.add.image(left + pipSize / 2, 500, 'pip-T').setDisplaySize(pipSize, pipSize));
     mana.text.setPosition(left + pipSize, 500).setOrigin(0, 0.5);
     mana.reflow();
+    this.dutyConfirm = () => {
+      if (!c.active || validateAction(this.duel.instanceState, CARD_DB, HUMAN, action) !== null) return;
+      this.closeEmpowerChooser();
+      this.act(action);
+    };
     c.add(themedButton(this, 640, 555, DUTY_ACTION_LABEL, {
       variant: 'primary', minWidth: 220,
       onTap: (pointer) => {
         if (pointer.rightButtonReleased()) return;
-        this.closeEmpowerChooser();
-        this.act(action);
+        this.dutyConfirm?.();
       },
     }).container);
     c.add(themedButton(this, 640, 614, DUTY_CANCEL_LABEL, {
@@ -6820,6 +7004,8 @@ export class DuelScene extends Phaser.Scene {
     if (!this.empowerChooser) return;
     this.empowerChooser.destroy();
     this.empowerChooser = null;
+    this.dutyPicker = null;
+    this.dutyConfirm = null;
     this.empowerChooserGuard.close();
     this.maybeAutoSkip();
     this.endTurnTick();
@@ -6867,6 +7053,7 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private syncOverlay(): void {
+    this.lootPicker = null;
     // Timer cleanup runs before ANY early return (incl. replay mode): a
     // pending CPU-choice banner timer must never outlive an overlay rebuild.
     this.coinChoiceTimer?.remove(false);
@@ -6906,8 +7093,31 @@ export class DuelScene extends Phaser.Scene {
     } else if (a.kind === 'foresee') {
       this.buildForeseeOverlay(a.cards);
     } else if (a.kind === 'discardToHandSize') {
-      this.buildPickOverlay(discardTitle(a.count), a.count, ['Confirm']);
+      if (a.decision === 'discard') this.buildLootOverlay();
+      else this.buildPickOverlay(discardTitle(a.count), a.count, ['Confirm']);
     }
+  }
+
+  private buildLootOverlay(): void {
+    const cards = this.duel.state.players[HUMAN].hand.map(cardId => ({
+      card: def(CARD_DB, cardId), variant: displayVariantFor(Services.save.data, cardId),
+      landStyle: this.humanLandStyleFor(cardId),
+    }));
+    this.lootPicker = showLootPicker(this, {
+      cards, selection: picked => lootDiscardSelection(this.duel.instanceState, CARD_DB, HUMAN, picked),
+      submit: action => this.act(action),
+      decorate: (view, entry, toggle) => {
+        this.zoom.attach(view, entry.card, entry.variant, entry.landStyle);
+        view.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+          if (!pointer.wasTouch && !pointer.rightButtonReleased()) toggle();
+        });
+        attachTouchGestures(this, view, { ...entry, onTap: toggle });
+      },
+    });
+    for (const view of this.handViews) view.setVisible(false);
+    for (const decor of this.handDecor) (decor as Phaser.GameObjects.Arc).setVisible(false);
+    this.overlay = this.lootPicker.container;
+    this.guard.open([...this.overlayGuardTargets(), this.undoBtn]);
   }
 
   /** Render the high-resolution painted coin face for the pregame call and reveal. */
