@@ -3,7 +3,7 @@ import { castTargetSpecsFor } from '../engine/resolve';
 import type { AbilityDef, CardDb, CardDef, EffectOp, Permanent, TargetRef, TargetSpec } from '../engine/types';
 import { def } from '../engine/types';
 import type { PlayerView } from '../engine/view';
-import { spellTargetsValue, targetValueForAbility } from './value';
+import { boundCastEffects, spellTargetsValue, targetValueForAbility } from './value';
 
 export { targetValueForAbility } from './value';
 
@@ -87,9 +87,24 @@ export function vocabularyCastTargetValue(view: PlayerView, db: CardDb, action: 
 }
 
 /** Keep the best target assignment for each new cast mode before brain priorities. */
-export function applyVocabularyTargetPolicy(view: PlayerView, db: CardDb, legal: Action[]): Action[] {
+export function applyVocabularyTargetPolicy(view: PlayerView, db: CardDb, legal: Action[], keepTacticalTargets = false): Action[] {
   if (!databaseHasNewTargets(db)) return legal;
-  const ranked = legal.map((action) => ({ action, value: vocabularyCastTargetValue(view, db, action) }));
+  const ranked = legal.map((action) => {
+    let tacticalKey = '';
+    // A board-only greedy tie-break must not discard the friendly rescue or
+    // the combat-specific tap target before Medium/Hard inspect the window.
+    if (keepTacticalTargets && action.type === 'castSpell') {
+      const id = (action.retell || action.whispers) && action.graveIndex !== undefined
+        ? view.you.graveyard[action.graveIndex] : view.you.hand[action.handIndex];
+      const tactical = boundCastEffects(view, db, id, action).filter(({ op }) => op.op === 'recall' || op.op === 'tap' ||
+        op.op === 'preventCombatTo' || op.op === 'moveMark' || op.op === 'removeMarks' ||
+        op.op === 'addCounters' && op.to === 'target' || op.op === 'boost' && op.scope === 'target' && op.p + op.t <= 0);
+      // Keep each tactical assignment, while still selecting the best value
+      // in independent slots (for example reclaim + a battlefield Mark).
+      if (tactical.length > 0) tacticalKey = JSON.stringify(tactical.map(({ targets }) => targets));
+    }
+    return { action, value: vocabularyCastTargetValue(view, db, action), tacticalKey };
+  });
   if (!ranked.some((entry) => entry.value !== undefined)) return legal;
   const keyFor = (action: Action): string => {
     if (action.type !== 'castSpell') return '';
@@ -98,11 +113,11 @@ export function applyVocabularyTargetPolicy(view: PlayerView, db: CardDb, legal:
   const best = new Map<string, typeof ranked[number]>();
   for (const entry of ranked) {
     if (entry.value === undefined) continue;
-    const key = keyFor(entry.action);
+    const key = keyFor(entry.action) + entry.tacticalKey;
     const previous = best.get(key);
     if (!previous || entry.value > previous.value!) best.set(key, entry);
   }
-  return ranked.filter((entry) => entry.value === undefined || best.get(keyFor(entry.action)) === entry)
+  return ranked.filter((entry) => entry.value === undefined || best.get(keyFor(entry.action) + entry.tacticalKey) === entry)
     .map((entry) => entry.action);
 }
 

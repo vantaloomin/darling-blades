@@ -245,7 +245,8 @@ describe('Duty AI policy on fixture cards', () => {
     const outcomes = vi.spyOn(hard as unknown as Search, 'aggregateOutcome');
     choose(hard, game);
     const candidates = outcomes.mock.calls.slice(1).map(([, actions]) => actions[0]);
-    expect(candidates.filter((action) => action.type === 'skim')).toHaveLength(8);
+    // Phase A: 8 skims -> 7 skims plus the reserved pass candidate; same cap.
+    expect(candidates.filter((action) => action.type === 'skim')).toHaveLength(7);
     expect(candidates).toContainEqual({ type: 'activate', iid: SOURCE });
     outcomes.mockRestore();
   });

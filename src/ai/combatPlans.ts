@@ -73,7 +73,7 @@ export function openMana(bf: readonly Permanent[], db: CardDb, player: PlayerId)
  * the trade swings. Blocker exhaustion falls out naturally: 7 attackers vs
  * 4 blockers means 3 connect no matter what.
  */
-function scoreAttack(
+export function scoreAttack(
   bf: readonly Permanent[],
   db: CardDb,
   me: PlayerId,
@@ -150,6 +150,47 @@ function scoreAttack(
     }
   }
   return total;
+}
+
+/** Public one-step combat projection for fog, tap and rescue decisions.
+ * Uses the planner's existing keyword model; it does not change its plans. */
+export function combatForecast(
+  bf: readonly Permanent[], db: CardDb, combat: CombatState,
+): { damage: number; dying: number[] } {
+  const result = { damage: 0, dying: [] as number[] };
+  if (combat.damagePrevented) return result;
+  const exists = (iid: number): boolean => bf.some((p) => p.iid === iid);
+  const protectedBody = (iid: number): boolean => bf.find((p) => p.iid === iid)?.combatDamagePrevented === true;
+  for (const iid of combat.attackers.filter(exists)) {
+    const a = combatant(bf, db, iid);
+    const assigned = combat.blocks.filter((b) => b.attacker === iid);
+    const blockers = assigned.map((b) => b.blocker).filter(exists).map((b) => combatant(bf, db, b));
+    const strikes = !(combat.phase === 'firstStrikeDone' && a.firstStrike);
+    if (assigned.length === 0) {
+      if (strikes) result.damage += Math.max(0, a.attack);
+      continue;
+    }
+    // A recalled/dead blocker leaves its attacker blocked; only Overrun gets through.
+    const firstStrikePower = blockers.filter((b) => b.firstStrike).reduce((sum, b) => sum + b.attack, 0);
+    const diesFirst = combat.phase !== 'firstStrikeDone' && !a.firstStrike && !protectedBody(iid) &&
+      (firstStrikePower >= a.defense || blockers.some((b) => b.firstStrike && b.deathtouch && b.attack > 0));
+    let power = diesFirst || !strikes ? 0 : a.attack;
+    const killed = new Set<number>();
+    for (const b of [...blockers].sort((x, y) => x.defense - y.defense)) {
+      const needed = a.deathtouch ? 1 : Math.max(0, b.defense);
+      if (!protectedBody(b.iid) && power > 0 && power >= needed) {
+        result.dying.push(b.iid);
+        killed.add(b.iid);
+      }
+      power -= needed;
+    }
+    if (a.trample) result.damage += Math.max(0, power);
+    const striking = blockers.filter((b) => !(combat.phase === 'firstStrikeDone' && b.firstStrike) &&
+      (!a.firstStrike || b.firstStrike || !killed.has(b.iid)));
+    if (!protectedBody(iid) && (diesFirst || striking.reduce((sum, b) => sum + b.attack, 0) >= a.defense ||
+      striking.some((b) => b.deathtouch && b.attack > 0))) result.dying.push(iid);
+  }
+  return result;
 }
 
 export function chooseAttackers(
