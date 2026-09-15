@@ -107,4 +107,11 @@ export const DECK_INFO: Record<string, DeckInfo> = {
       'Efficient bodies establish one or two Marked creatures; Propagate and Broodlings turn a modest board wide. Blue filters with Foresee and answers with recall and cancel, while red finishes with damage and Overrun.',
     featured: ['sb-rootlight-broodmother', 'sb-the-long-crossing', 'sb-mycelial-star-gardener'],
   },
+  'theme-drowned-deep': {
+    colors: 'U/B',
+    archetype: 'Drowned Deep tide-and-whisper control',
+    plays:
+      'Cheap bodies and tappers hold the ground while self-mill fills the graveyard on a schedule. The looters turn dead draws into tagged Whispers, the Whispers Charms and Rituals are the value engine, and two or three Horrors on the curve close with Tithe as the tempo lever.',
+    featured: ['dd-mother-hydra', 'dd-the-price', 'dd-drowned-bell'],
+  },
 };

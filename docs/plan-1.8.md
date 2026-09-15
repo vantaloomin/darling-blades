@@ -256,7 +256,8 @@ and multiplayer (cancelled).
 ### Lane G — measurement and release mechanics
 
 - Every new mechanic gets its MEP rate before card data (owner rule); the
-  Assay rescore follows the transcription; the balance matrices re-run when
+  the Assay rescore and the persona audit are SKIPPED for 1.8 (owner ruling
+  2026-09-15; the Drowned Deep rows carry their overplan balance-pass scores); the balance matrices re-run when
   the AI or decks move; **the metagame sweep runs last** against the final
   field, never as a mid-train gate.
 - The suite is at 11 minutes and the win-rate gates dominate it. Two more
