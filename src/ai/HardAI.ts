@@ -6,6 +6,7 @@ import { manaValue, opponentOf } from '../engine/types';
 import type { PlayerView } from '../engine/view';
 import type { AIPlayer } from './AIPlayer';
 import { scoredActivationCandidates } from './activatedPolicy';
+import { rankedHauntlinkWindowCandidates } from './hauntlinkPolicy';
 import { chooseAttackers, chooseBlocks } from './combatPlans';
 import { determinize, simDb } from './determinize';
 import { evaluate } from './evaluate';
@@ -253,6 +254,7 @@ export class HardAI implements AIPlayer {
    * Medium. Main search has always required a strict improvement, with no
    * additional margin; the positive combat margins belong to those searches. */
   private searchMain(view: PlayerView, legal: Action[]): Action {
+    legal = this.medium.constrainMainMana(view, legal);
     const baseline = this.medium.chooseAction(view, legal);
     if (baseline.type === 'linkHaunt') return baseline;
     const pass = legal.find((action) => action.type === 'passStep');
@@ -343,10 +345,17 @@ export class HardAI implements AIPlayer {
     const preserveCandidates = rankedCandidates.filter(
       (candidate) => candidate.type === 'preserveCard',
     ).slice(0, 1);
-    // Like Preserve, the best Duty line survives the ordinary cast fanout cap.
+    // Keep the best target for each source/ability, then search the best two
+    // Duties. Alternate targets of one tap cannot crowd the second Duty out.
+    const seenDuties = new Set<string>();
     const activateCandidates = rankedCandidates.filter(
       (candidate) => candidate.type === 'activate',
-    ).sort((a, b) => candidateScore(b) - candidateScore(a)).slice(0, 1);
+    ).sort((a, b) => candidateScore(b) - candidateScore(a)).filter((candidate) => {
+      const key = `${candidate.iid}:${candidate.abilityIndex ?? 0}`;
+      if (seenDuties.has(key)) return false;
+      seenDuties.add(key);
+      return true;
+    }).slice(0, 2);
     const canHold = pass !== undefined && view.step === 'main1' && view.activePlayer === view.myId &&
       [baseline, ...rankedCandidates].some((candidate) => this.isCreatureCast(view, candidate)) &&
       chooseAttackers(view.battlefield, this.db, view.myId, view.opp.life,
@@ -716,6 +725,9 @@ export class HardAI implements AIPlayer {
     const vocabulary = legal.filter((action) => action.type === 'castSpell' && !action.whispers &&
       isVocabularyCast(view, this.db, action));
     const candidates = [
+      ...rankedHauntlinkWindowCandidates(view, this.db, legal),
+      ...(view.awaiting.kind === 'hauntlinkWindow'
+        ? legal.filter((action) => action.type === 'passResponse') : []),
       ...whispered,
       ...vocabulary,
       ...legal.filter((action) => action.type === 'skim' ||

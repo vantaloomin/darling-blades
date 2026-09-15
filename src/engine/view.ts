@@ -87,7 +87,7 @@ export function viewFor(
 ): PlayerView {
   const me = state.players[player];
   const them = state.players[opponentOf(player)];
-  const publicQueue = state.pendingDecisions.some(p => p.kind === 'discard' || p.kind === 'sacrifice' || p.continuations !== undefined || (p.kind === 'chooseTarget' && p.triggerWhen !== undefined) || (p.kind === 'resolveTrigger' && (p.newDecisionContext || p.ops.some(op => op.op === 'reclaimSelf'))));
+  const publicQueue = state.awaiting.kind === 'hauntlinkWindow' || state.pendingDecisions.some(p => p.kind === 'discard' || p.kind === 'sacrifice' || p.continuations !== undefined || (p.kind === 'chooseTarget' && p.triggerWhen !== undefined) || (p.kind === 'resolveTrigger' && (p.newDecisionContext || p.ops.some(op => op.op === 'reclaimSelf'))));
   const awaiting =
     state.awaiting.kind === 'foresee' && state.awaiting.player !== player
       ? { ...state.awaiting, cards: [] }

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { EasyAI } from '../../src/ai/EasyAI';
 import { HardAI } from '../../src/ai/HardAI';
 import { MediumAI } from '../../src/ai/MediumAI';
+import { chooseUnlinkedHauntlink, hauntlinkHostFit } from '../../src/ai/hauntlinkPolicy';
 import { cardValue, hauntlinkCastValue, linkedRiderValue } from '../../src/ai/value';
 import { Game } from '../../src/engine/Game';
 import { getEffectiveStats } from '../../src/engine/statics';
@@ -76,7 +77,7 @@ describe('Hauntlink AI valuation from PlayerView', () => {
     }
   });
 
-  it('does not spend mana swapping an existing link yet', () => {
+  it('does not spend mana swapping an existing link for equal rider fit', () => {
     const game = currentGame([
       { iid: 1, cardId: 'bear', controller: 0, attachments: [2] },
       { iid: 2, cardId: 'hauntlink_artifact', controller: 0, attachedTo: 1 },
@@ -112,5 +113,98 @@ describe('Hauntlink AI valuation from PlayerView', () => {
     const choiceB = brainB.chooseAction(b.viewFor(0), b.legalActions(0));
     expect(choiceA).toEqual(choiceB);
     expect(choiceA).toEqual({ type: 'linkHaunt', iid: 3, hostIid: 2 });
+  });
+
+  it('prefers a new keyword on a smaller host to a duplicate on the largest host', () => {
+    const game = currentGame([
+      { iid: 1, cardId: 'bear', controller: 0 },
+      { iid: 2, cardId: 'giant', controller: 0, untilEotMods: [{ p: 0, t: 0, keywords: ['skyborne'] }] },
+      { iid: 3, cardId: 'keyword_link', controller: 0 },
+    ]);
+    expect(new MediumAI(HAUNTLINK_DB).chooseAction(game.viewFor(0), game.legalActions(0)))
+      .toEqual({ type: 'linkHaunt', iid: 3, hostIid: 1 });
+  });
+
+  it('moves for a useful new keyword, then keeps the link on that host', () => {
+    const game = currentGame([
+      { iid: 1, cardId: 'bear', controller: 0 },
+      { iid: 2, cardId: 'giant', controller: 0, untilEotMods: [{ p: 0, t: 0, keywords: ['skyborne'] }], attachments: [3] },
+      { iid: 3, cardId: 'keyword_link', controller: 0, attachedTo: 2 },
+    ]);
+    const brain = new MediumAI(HAUNTLINK_DB);
+    const move = brain.chooseAction(game.viewFor(0), game.legalActions(0));
+    expect(move).toEqual({ type: 'linkHaunt', iid: 3, hostIid: 1 });
+    game.submit(0, move);
+    expect(brain.chooseAction(game.viewFor(0), game.legalActions(0)).type).not.toBe('linkHaunt');
+  });
+
+  it('charges a move its link mana and tempo margin', () => {
+    const db = { ...HAUNTLINK_DB, paid_link: { ...HAUNTLINK_DB.keyword_link, id: 'paid_link',
+      hauntlink: { cost: { generic: 2, pips: {} }, linked: { grantKeywords: ['skyborne' as const] } } } };
+    const state = makeTestState({ battlefield: [
+      { iid: 1, cardId: 'bear', controller: 0 },
+      { iid: 2, cardId: 'giant', controller: 0, untilEotMods: [{ p: 0, t: 0, keywords: ['skyborne'] }], attachments: [3] },
+      { iid: 3, cardId: 'paid_link', controller: 0, attachedTo: 2 },
+      { iid: 10, cardId: 'forest', controller: 0 }, { iid: 11, cardId: 'forest', controller: 0 },
+    ], active: 0 });
+    state.rulesRev = 4;
+    const game = Game.restore(state, db);
+    expect(game.legalActions(0)).toContainEqual({ type: 'linkHaunt', iid: 3, hostIid: 1 });
+    expect(chooseUnlinkedHauntlink(game.viewFor(0), db, game.legalActions(0))).toBeUndefined();
+  });
+
+  it('prefers stats that change a marked host fight over redundant stats on a giant', () => {
+    const game = currentGame([
+      { iid: 1, cardId: 'bear', controller: 0, plusOneCounters: 1 },
+      { iid: 2, cardId: 'giant', controller: 0 },
+      { iid: 3, cardId: 'hauntlink_enchantment', controller: 0 },
+      { iid: 4, cardId: 'bear', controller: 1, plusOneCounters: 1 },
+    ]);
+    const view = game.viewFor(0);
+    expect(hauntlinkHostFit(view.battlefield, HAUNTLINK_DB, 3, 1))
+      .toBeGreaterThan(hauntlinkHostFit(view.battlefield, HAUNTLINK_DB, 3, 2));
+    expect(chooseUnlinkedHauntlink(view, HAUNTLINK_DB, game.legalActions(0)))
+      .toEqual({ type: 'linkHaunt', iid: 3, hostIid: 1 });
+  });
+
+  it('does not buy better main-phase fit by killing the damaged former host', () => {
+    const game = currentGame([
+      { iid: 1, cardId: 'bear', controller: 0, damage: 2, tapped: true, attachments: [3] },
+      { iid: 2, cardId: 'bear', controller: 0 },
+      { iid: 3, cardId: 'hauntlink_enchantment', controller: 0, attachedTo: 1 },
+      { iid: 4, cardId: 'bear', controller: 1 },
+    ]);
+    const view = game.viewFor(0);
+    expect(hauntlinkHostFit(view.battlefield, HAUNTLINK_DB, 3, 2))
+      .toBeGreaterThan(hauntlinkHostFit(view.battlefield, HAUNTLINK_DB, 3, 1));
+    expect(chooseUnlinkedHauntlink(view, HAUNTLINK_DB, game.legalActions(0))).toBeUndefined();
+  });
+
+  it('does not award a tapped flying host rescue value from an impossible ground block', () => {
+    const game = currentGame([
+      { iid: 1, cardId: 'flyer', controller: 0, tapped: true },
+      { iid: 2, cardId: 'giant', controller: 0 },
+      { iid: 3, cardId: 'hauntlink_enchantment', controller: 0 },
+      { iid: 4, cardId: 'bear', controller: 1 },
+    ]);
+    const view = game.viewFor(0);
+    expect(hauntlinkHostFit(view.battlefield, HAUNTLINK_DB, 3, 1))
+      .toBe(hauntlinkHostFit(view.battlefield, HAUNTLINK_DB, 3, 2));
+    expect(chooseUnlinkedHauntlink(view, HAUNTLINK_DB, game.legalActions(0)))
+      .toEqual({ type: 'linkHaunt', iid: 3, hostIid: 2 });
+  });
+
+  it('counts a legal defending fight for a Bulwark host that cannot attack', () => {
+    const game = currentGame([
+      { iid: 1, cardId: 'bear', controller: 0, untilEotMods: [{ p: 0, t: 0, keywords: ['bulwark'] }] },
+      { iid: 2, cardId: 'giant', controller: 0 },
+      { iid: 3, cardId: 'hauntlink_enchantment', controller: 0 },
+      { iid: 4, cardId: 'bear', controller: 1 },
+    ]);
+    const view = game.viewFor(0);
+    expect(hauntlinkHostFit(view.battlefield, HAUNTLINK_DB, 3, 1))
+      .toBeGreaterThan(hauntlinkHostFit(view.battlefield, HAUNTLINK_DB, 3, 2));
+    expect(chooseUnlinkedHauntlink(view, HAUNTLINK_DB, game.legalActions(0)))
+      .toEqual({ type: 'linkHaunt', iid: 3, hostIid: 1 });
   });
 });
