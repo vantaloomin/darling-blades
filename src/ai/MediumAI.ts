@@ -1,7 +1,10 @@
 import type { Action } from '../engine/actions';
 import { castCost } from '../engine/actions';
 import { canBlock, eligibleAttackers } from '../engine/combat/legality';
-import type { CardDb, EffectOp, Permanent, TargetRef } from '../engine/types';
+import type { CardDb, EffectOp, ManaCost, Permanent, TargetRef } from '../engine/types';
+import { combineManaCosts, solveMana } from '../engine/mana';
+import { enumerateTargets } from '../engine/effects/targeting';
+import { castTargetSpecsFor } from '../engine/resolve';
 import { def, isType, manaValue, opponentOf } from '../engine/types';
 import { getEffectiveStats } from '../engine/statics';
 import type { PlayerView } from '../engine/view';
@@ -10,11 +13,12 @@ import { chooseActivate } from './activatedPolicy';
 import { chooseAttackers, chooseBlocks, combatForecast, scoreAttack } from './combatPlans';
 import { LIFE_CURVE_KNEE } from './evaluate';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
+import { determinize } from './determinize';
 import { chooseForesee } from './foresee';
 import { chooseDiscard } from './discardPolicy';
 import { chooseSacrifice } from './sacrificePolicy';
 import { chooseDarlingPaydown } from './darlingPolicy';
-import { chooseUnlinkedHauntlink } from './hauntlinkPolicy';
+import { chooseHauntlinkWindow, chooseUnlinkedHauntlink } from './hauntlinkPolicy';
 import { chooseReserveLand } from './landPolicy';
 import { choosePlayDraw } from './playDraw';
 import { choosePreserve } from './preservePolicy';
@@ -24,6 +28,9 @@ import { applyWhispersPolicy } from './whispersPolicy';
 import { applyVocabularyTargetPolicy, chooseTargetAction } from './targeting';
 import {
   cardValue,
+  actionManaCost,
+  manaPlanKeeping,
+  empowerOpportunityCost,
   empowerValue,
   boundCastEffects,
   faceDamageForCast,
@@ -74,7 +81,7 @@ export class MediumAI implements AIPlayer {
       case 'foresee':
         return chooseForesee(view, this.db);
       case 'main':
-        return this.main(view, legal);
+        return this.main(view, this.constrainMainMana(view, legal));
       case 'declareAttackers': {
         const attackers = chooseAttackers(
           view.battlefield,
@@ -101,8 +108,9 @@ export class MediumAI implements AIPlayer {
         return { type: 'declareBlockers', blocks };
       }
       case 'respond':
-      case 'hauntlinkWindow':
         return this.respond(view, legal);
+      case 'hauntlinkWindow':
+        return chooseHauntlinkWindow(view, this.db, legal) ?? { type: 'passResponse' };
       case 'endStepWindow':
         return this.endStep(view, legal);
       case 'chooseTarget':
@@ -218,7 +226,7 @@ export class MediumAI implements AIPlayer {
       : view.you.hand[cast.handIndex];
   }
 
-  /** Prefer a payable Empower rider when its deterministic value is positive. */
+  /** Empower competes with the best second develop cast its extra mana displaces. */
   private castScore(view: PlayerView, cast: Cast): number {
     const cardId = this.cardIdFor(view, cast);
     if (cast.type === 'castDarling') return this.developScore(cardId, view, cast);
@@ -233,7 +241,9 @@ export class MediumAI implements AIPlayer {
       : cast.retell
       ? retellValue(this.db, cardId) + 0.01
       : this.developScore(cardId, view, cast) + (cast.x ?? 0) +
-          (cast.empowered ? empowerValue(this.db, cardId) + 0.01 : 0);
+          (cast.empowered ? empowerValue(this.db, cardId) + 0.01 -
+            empowerOpportunityCost(view, this.db, cast, (otherView, other) =>
+              this.isDevelopable(otherView, other) ? this.castScore(otherView, other) : 0) : 0);
     // Printed value cannot see that Propagate and mark-all multiply by the
     // board; on an empty one they are the wrong card to lead with.
     return value + Math.max(0, this.markCastValue(view, cast)) + titheManaSaved(view, this.db, cast) + markBoardAdjust(view.battlefield, this.db, view.myId, cardId) -
@@ -510,6 +520,159 @@ export class MediumAI implements AIPlayer {
     }
     return undefined;
   }
+  /** Shared with Hard's candidate search; Easy deliberately never holds mana. */
+  constrainMainMana(view: PlayerView, legal: Action[]): Action[] {
+    const paidDuty = legal.some((a) => a.type === 'activate' &&
+      manaValue(actionManaCost(view, this.db, a)) > 0);
+    const hasCharm = view.you.hand.some((id) => isType(def(this.db, id), 'charm'));
+    if (!paidDuty && !hasCharm) return legal;
+    const held = hasCharm ? this.liveCharm(view, legal) : undefined;
+    const keep = (action: Action, cost: ManaCost): Action | undefined => {
+      if (action.type !== 'activate' && action.type !== 'castSpell' && action.type !== 'castDarling') return action;
+      const plan = manaPlanKeeping(view, this.db, action, cost);
+      if (plan === null) return undefined;
+      const payment = actionManaCost(view, this.db, action);
+      const ordinary = action.manaPlan ?? (payment && solveMana(view, this.db, view.myId, payment));
+      return JSON.stringify(plan) === JSON.stringify(ordinary) ? action : { ...action, manaPlan: plan };
+    };
+    const heldMenu = held ? legal.flatMap((action) => {
+      const duty = action.type === 'activate' && manaValue(actionManaCost(view, this.db, action)) > 0;
+      const marginal = (action.type === 'castSpell' || action.type === 'castDarling') &&
+        !(action.type === 'castSpell' && !action.retell && !action.whispers && action.handIndex === held.handIndex) &&
+        this.isDevelopable(view, action) && this.castScore(view, action) < held.value;
+      if (!duty && !marginal) return [action];
+      const payable = keep(action, held.cost);
+      return payable ? [payable] : [];
+    }) : legal;
+    if (!paidDuty || view.step !== 'main2') return heldMenu;
+    const develop = heldMenu.filter((a): a is Cast =>
+      (a.type === 'castSpell' || a.type === 'castDarling') && this.isDevelopable(view, a))
+      .sort((a, b) => this.castScore(view, b) - this.castScore(view, a))[0];
+    if (!develop) return heldMenu;
+    const cost = actionManaCost(view, this.db, develop);
+    if (!cost) return heldMenu;
+    const developIsHeld = held && develop.type === 'castSpell' && !develop.retell && !develop.whispers &&
+      develop.handIndex === held.handIndex;
+    const reserved = held && !developIsHeld ? combineManaCosts(cost, held.cost) : cost;
+    // A tap-only Duty retains its old place. Paid Duties use only mana the
+    // best develop cast does not need; the live menu is reconsidered next action.
+    return heldMenu.flatMap((action) => {
+      if (action.type !== 'activate' || manaValue(actionManaCost(view, this.db, action)) === 0) return [action];
+      const payable = keep(action, reserved);
+      return payable ? [payable] : [];
+    });
+  }
+
+  /** A reserve requires a rule that can use the opponent's public position.
+   * Counter readiness uses public mana capacity and a nonempty hidden hand,
+   * never an assumption about which card the opponent holds. Other tricks use
+   * the same response rules against a projected next-turn combat. */
+  private liveCharm(view: PlayerView, legal: Action[]): { cost: ManaCost; value: number; handIndex: number } | undefined {
+    let best: { cost: ManaCost; value: number; handIndex: number } | undefined;
+    let cleaned: PlayerView | undefined;
+    const afterCleanup = (): PlayerView => cleaned ??= { ...view, fogThisTurn: false, combat: null,
+      battlefield: view.battlefield.map((p) => ({ ...p, untilEotMods: [], damage: 0,
+        deathtouched: false, severBranded: false, combatDamagePrevented: undefined })) };
+    let future: PlayerView | undefined;
+    const futureCombat = (): PlayerView => {
+      if (future) return future;
+      const opp = opponentOf(view.myId);
+      const battlefield = afterCleanup().battlefield.map((p) => ({
+        ...p,
+        ...(p.controller === opp ? { tapped: false, enteredThisTurn: false } : {}),
+      }));
+      const attackers = chooseAttackers(battlefield, this.db, opp, view.you.life, 0, view.opp.life);
+      const combat = { attackers, blocks: [], phase: 'attackersDeclared' as const, damagePrevented: false };
+      const blocks = chooseBlocks(battlefield, this.db, view.myId, view.you.life, combat, 0, this.pers);
+      future = { ...view, battlefield, activePlayer: opp, step: 'combat', stack: [], fogThisTurn: false,
+        combat: { ...combat, blocks, phase: 'blockersDeclared' },
+        awaiting: { kind: 'respond', player: view.myId, over: { type: 'blockers' } } };
+      return future;
+    };
+    for (const [handIndex, id] of view.you.hand.entries()) {
+      const d = def(this.db, id);
+      if (!isType(d, 'charm') || !d.cost || solveMana(view, this.db, view.myId, d.cost) === null) continue;
+      const effects = boundCastEffects(view, this.db, id);
+      let value = 0;
+      let reserveCost = d.cost;
+      const offer = (worth: number, cost: ManaCost | undefined): void => {
+        if (cost && (worth > value || worth === value && manaValue(cost) < manaValue(reserveCost))) {
+          value = worth;
+          reserveCost = cost;
+        }
+      };
+      if (effects.some(({ op }) => op.op === 'cancel') && view.opp.handCount > 0) {
+        const capacity = view.battlefield.filter((p) => p.controller !== view.myId &&
+          (this.db[p.cardId]?.manaAbility?.length ?? 0) > 0).length;
+        if (capacity >= this.pers.counterFloor) {
+          // A counter may also require public creature or graveyard targets.
+          // Only the future spell slot is hypothetical; all other slots must
+          // already be satisfiable, including moveMark's distinct hosts.
+          const specs = castTargetSpecsFor(d, false).filter((spec) => spec.what !== 'spell');
+          const context = specs.length > 0 ? determinize(view, this.db).instanceState : undefined;
+          const targets = specs.map((spec) => enumerateTargets(context!, this.db, view.myId, spec));
+          const hasTargets = targets.every((refs, i) => specs[i].upTo !== undefined ||
+            refs.length >= (specs[i].exactly ?? 1));
+          const canMove = !effects.some(({ op }) => op.op === 'moveMark') ||
+            targets.length === 2 && targets[0].some((a) => a.kind === 'permanent' &&
+              targets[1].some((b) => b.kind === 'permanent' && b.iid !== a.iid));
+          const minimum = { generic: d.cost.generic + (d.x?.min ?? 0), pips: d.cost.pips };
+          if (hasTargets && canMove && solveMana(view, this.db, view.myId, minimum) !== null) {
+            offer(this.pers.counterFloor, minimum);
+          }
+        }
+      }
+      const casts = legal.filter((a): a is SpellCast => a.type === 'castSpell' &&
+        a.handIndex === handIndex && !a.empowered && !a.retell && !a.whispers);
+      for (const cast of casts) {
+        // Only the nonactive player gets the Sunset response. Damage and
+        // temporary stats clear before our held removal's next-turn window.
+        const kind = this.isRemoval(id, cast);
+        const worth = kind === 'massDestroy' || kind === 'destroyNewest'
+          ? this.removalCastValue(afterCleanup(), cast) : this.removalWorth(afterCleanup(), cast);
+        if (worth >= 3.5 + this.pers.removalBias) offer(worth, actionManaCost(view, this.db, cast));
+      }
+      if (casts.some((cast) => this.castEffects(view, cast).some(({ op }) => op.op === 'boost' || op.op === 'preventCombat' ||
+        op.op === 'preventCombatTo' || op.op === 'addCounters' || op.op === 'moveMark' ||
+        op.op === 'recall' || op.op === 'tap' || op.op === 'tapAll'))) {
+        const projected = futureCombat();
+        const choices = [this.respond(projected, [...casts, { type: 'passResponse' }]),
+          // Tapping has its own pre-declaration rule; a blocker-window
+          // forecast cannot establish its value after attackers are tapped.
+          this.tapBeforeCombat({ ...projected, step: 'main1', combat: null }, casts)];
+        for (const choice of choices) {
+          if (choice?.type !== 'castSpell' || projected.combat!.attackers.length === 0) continue;
+          const bodies = (choice.targets ?? []).flatMap((ref) => ref.kind === 'permanent'
+            ? [permValue(view.battlefield, this.db, ref.iid)] : []);
+          const forecast = combatForecast(projected.battlefield, this.db, projected.combat!);
+          offer(Math.max(0, ...bodies, Math.min(forecast.damage, view.you.life)), actionManaCost(view, this.db, choice));
+        }
+      }
+      if (value > 0 && (!best || value > best.value)) best = { cost: reserveCost, value, handIndex };
+    }
+    return best;
+  }
+
+  private isDevelopable(view: PlayerView, c: Cast): boolean {
+    const cardId = this.cardIdFor(view, c);
+    const d = def(this.db, cardId);
+    const ops = this.castOps(view, c);
+    if (ops.some((op) => op.op === 'preventCombat' || op.op === 'preventCombatTo' ||
+      op.op === 'tap' || op.op === 'tapAll')) return false;
+    if (this.isRemoval(cardId, c)) return false;
+    if (ops.some((op) => op.op === 'addCounters' && op.to === 'target' || op.op === 'moveMark')) {
+      return this.markCastValue(view, c) > 0;
+    }
+    if (isType(d, 'charm') && !(c.type === 'castSpell' && c.whispers &&
+      (c.targets?.length ?? 0) === 0)) return false;
+    if (d.subtypes.includes('Aura')) {
+      const perm = this.targetPerm(view, c.targets?.[0]);
+      const st = (d.abilities ?? []).find((ab) => ab.static)?.static;
+      return perm !== undefined && ((st?.p ?? 0) < 0
+        ? perm.controller !== view.myId : perm.controller === view.myId);
+    }
+    return true;
+  }
 
   private main(view: PlayerView, legal: Action[]): Action {
     const paydown = chooseDarlingPaydown(view, legal);
@@ -545,8 +708,6 @@ export class MediumAI implements AIPlayer {
       }
     }
     if (casts.length > 0) {
-      const opp = opponentOf(view.myId);
-
       // 1. One spell's combined face damage, at its actual legal cast cost.
       const lethal = casts.filter((c) => this.faceDamage(view, c) >= view.opp.life)
         .sort((a, b) => this.manaForCast(view, a) - this.manaForCast(view, b))[0];
@@ -606,30 +767,7 @@ export class MediumAI implements AIPlayer {
       // 3. Develop: cast the highest-value creature / permanent. Creatures
       //    without haste in main1 wait for main2 only if we plan to attack;
       //    keeping it simple: cast in whichever main we're in.
-      const developable = casts.filter((c) => {
-        const cardId = this.cardIdFor(view, c);
-        const d = def(this.db, cardId);
-        const ops = this.castOps(view, c);
-        // Fogs and taps need a combat decision even when whispered or Rituals.
-        if (ops.some((op) => op.op === 'preventCombat' || op.op === 'preventCombatTo' ||
-          op.op === 'tap' || op.op === 'tapAll')) return false;
-        if (this.isRemoval(cardId, c)) return false; // includes mixed sweepers
-        if (ops.some((op) => op.op === 'addCounters' && op.to === 'target' || op.op === 'moveMark')) {
-          return this.markCastValue(view, c) > 0;
-        }
-        // A fresh, targetless Charm on our turn expires before another turn.
-        if (isType(d, 'charm') && !(c.type === 'castSpell' && c.whispers &&
-          (c.targets?.length ?? 0) === 0)) return false; // hold tricks for windows
-        if (this.isRemoval(cardId, c)) return false; // handled above
-        if (d.subtypes.includes('Aura')) {
-          const perm = this.targetPerm(view, c.targets?.[0]);
-          // buff auras on own creatures, debuff auras on enemy creatures
-          const st = (d.abilities ?? []).find((ab) => ab.static)?.static;
-          const debuff = (st?.p ?? 0) < 0;
-          return perm !== undefined && (debuff ? perm.controller === opp : perm.controller === view.myId);
-        }
-        return true;
-      });
+      const developable = casts.filter((c) => this.isDevelopable(view, c));
       if (developable.length > 0) {
         const best = developable.reduce((a, b) =>
           this.castScore(view, a) >= this.castScore(view, b)

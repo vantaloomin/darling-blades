@@ -390,7 +390,7 @@ describe('Hard search and combat keyword proof', () => {
 
 describe('intended mechanics and draft behaviour', () => {
   // docs/ai.md:257. Phase B mechanics: sell eligible token fodder to unlock this turn's Tithe cast.
-  it.fails('Medium sells a Kelp Shade token to cast an otherwise unaffordable Tithe Horror', () => {
+  it('Medium sells a Kelp Shade token to cast an otherwise unaffordable Tithe Horror', () => {
     const game = fixture(['tithe_horror'], [...lands(3), body(10, 'tok-kelp-shade'), body(11, 'small_guard')], (state) => { state.step = 'main2'; });
     const intended: Action = { type: 'castSpell', handIndex: 0, tithe: true, sacrifices: [10] };
     requireLegal(game, intended);
@@ -399,7 +399,7 @@ describe('intended mechanics and draft behaviour', () => {
   });
 
   // docs/ai.md:90-93 response coverage omits this window. Phase B mechanics owns Hauntlink moves before damage.
-  it.fails('Medium moves Hauntlink in the revision-4 damage window to save its blocked attacker', () => {
+  it('Medium moves Hauntlink in the revision-4 damage window to save its blocked attacker', () => {
     const game = checked(() => {
       const g = fixture([], [
         body(10, 'bear'), body(11, 'small_guard', 0, { attachments: [30] }),
@@ -425,7 +425,7 @@ describe('intended mechanics and draft behaviour', () => {
   });
 
   // docs/ai.md:73-75 develop priority omits Duty. Phase B mechanics owns mana-Duty ordering.
-  it.fails('Medium develops before a mana Duty that consumes the same main-two mana', () => {
+  it('Medium develops before a mana Duty that consumes the same main-two mana', () => {
     const game = fixture(['bear'], [...lands(2), body(10, 'mana_duty')], (state) => { state.step = 'main2'; });
     requireLegal(game, { type: 'castSpell', handIndex: 0 });
     requireLegal(game, { type: 'activate', iid: 10 });
