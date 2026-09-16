@@ -45,7 +45,11 @@ Concretely in the code:
   blockers, otherwise attacks with nothing — the signature Easy weakness. Rage
   bodies are compelled by the engine and attack regardless.
 - **Block:** one blocker per attacker, prefers blocks that kill or survive,
-  chump-blocks only when at life ≤ 5.
+  chump-blocks only when at life ≤ 5. Since phase C (2026-09-16) "kills" counts
+  only hits the blocker lives to make (an attacker with firstBlade or
+  twinBlades that kills it in the first sub-step gets no return hit) and
+  "survives" counts a twinBlades attacker's two hits; nothing else about
+  Easy's combat changed.
 - **Respond:** passes 85% of windows; otherwise a random useful Charm, or a
   Skim when no Charm is castable. The Hauntlink window is a policy call, not
   a coin flip (phase B). Empower's extra mana is charged the develop score of
@@ -84,7 +88,16 @@ lookahead." Its rules:
      cast when behind on board, held when ahead. Charms are held for windows;
      buff auras go on its own creatures and debuff auras on enemies.
 - **Combat** is delegated to the shared planners (`chooseAttackers`,
-  `chooseBlocks` in `combatPlans.ts`).
+  `chooseBlocks` in `combatPlans.ts`). Since phase C every planner decision
+  runs through one sub-step exchange model (`combatExchange`) that matches
+  the engine's damage code: firstBlade and twinBlades strike in the first
+  sub-step, twinBlades strikes again in the normal one (firstBlade plus
+  twinBlades is two hits, not three), casualties leave between sub-steps, and
+  a body killed before it strikes deals nothing. An unblocked twinBlades
+  attacker connects for twice its attack in the attack score, the lethal
+  check, the overrun spill and the defender's incoming-damage pressure. A
+  sentinel attacker is not charged the holdback penalty, because attacking
+  does not tap it.
 - **Trick-risk** (`trickBuff`) is **evidence-gated**: defenders are inflated by
   +2 only when the opponent has **≥ 2 open mana sources AND ≥ 1 card in hand
   AND has shown ≥ 1 Charm this game** (checked against the public graveyard —
@@ -196,7 +209,8 @@ engine's exact firstBlade/overrun/deathblade math beats any heuristic:
 - **Blocks** (`searchBlocks`): a **greedy hill-climb from Medium's
   assignment**. Each round tries every single modification — unblock one, add
   a free blocker to any attacker (gang blocks up to 3), or move an assigned
-  blocker — and the engine plays each assignment through combat damage. Up to
+  blocker (never onto a full gang of three, never leaving a Dreaded attacker
+  singly blocked; phase C) — and the engine plays each assignment through combat damage. Up to
   4 rounds; a deviation must clear Medium's plan by **+1.5 sim score** (any
   margin if Medium's plan simulates into a loss). Blocks resolve this turn on
   public information, so this is where the sim is most trustworthy.
@@ -401,17 +415,27 @@ every card plays; as intended, not yet. Two test files are the scoreboard:
   every Darlings precon, one seed each, under one 900 s file budget. No
   crashes, no illegal actions, every game to `gameOver`.
 - `tests/ai/documentedBehaviour.test.ts` pins one test per claim in this
-  document. Thirty-four pass (phase A flipped five and phase B three on
-  2026-09-15); six are marked `it.fails` and name the phase that owns them
-  (C combat 3, D draft 3). A phase lands by flipping its own tests to `it`; a
+  document. Thirty-seven pass (phase A flipped five and phase B three on
+  2026-09-15, phase C three on 2026-09-16); three are marked `it.fails` and
+  name the phase that owns them (D draft 3). A phase lands by flipping its own tests to `it`; a
   fixture or legality error inside an expected failure fails the file, so the
   marker can never hide a broken brain. Phase A's own rules are pinned in
   `tests/ai/castLadder.test.ts`, `castLadderReview.test.ts` and
   `hardTiming.test.ts`.
 
-The gaps the remaining six tests describe: `combatPlans` models neither
-double strike nor vigilance (phase C); the draft picker scores nothing newer
-than a keyword (phase D). Phase B closed the mechanic gaps (Tithe fodder,
+The gap the remaining three tests describe: the draft picker scores nothing
+newer than a keyword (phase D). Phase C (2026-09-16) closed the combat gap
+with the shared exchange model above, and its measurement is the lesson of
+the phase: modelling twinBlades on both seats moved the two twinBlades-heavy
+avatars down, not up (Bastet 69 to 62.4 at 1,000 games, Brunhild 75 to
+69.7), because their opponents had been blocking a 2/1 double-striker with
+a 2/2 that died without striking. Reverting only the defender's incoming
+damage term recovered 6.5 of Bastet's 6.6 points; her own attack math
+recovered nothing. So the model stayed and Bastet's reserve deck, an untuned
+converter cut of sixteen x/1 bodies and no removal, got the measured tuning
+pass instead: burn for the four Claw-Prow Signalers and Kesi for two of the
+four Bakhets took her 62.4 to 73.6 with every cell up, and her 40-seed gate
+reads 75.0 against the 68.5 floor, which was not moved. Phase B closed the mechanic gaps (Tithe fodder,
 Hauntlink fit, moves and windows, Duty ordering and mana holding, Empower
 cost) with the gates unchanged and rungs 15, 16, 18 and 20 up one to two
 points; Kitsune, the Hauntlink spine, moved 82.9 to 84.5. The Tithe boss

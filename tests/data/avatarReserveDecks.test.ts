@@ -188,6 +188,10 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
     'hel',
     'glass-coffin-queen',
     'anubis-who-holds-the-scale',
+    // 2026-09-16 R22 B1+B5: Phase C removed defenders' twinBlades blind spot;
+    // the authored reserve tune measures 62.40% -> 73.60% over five 200-seed
+    // cells, with 0 draws. Classic/lands/personality/Darlings unchanged.
+    'bastet-mistress-of-the-ninth-return',
     'the-bride',
     // 2026-08-30 tuning pass: R23's fire-package surgery diverges from the
     // scripted first cut by measured intent. (R19's lantern swap landed in
