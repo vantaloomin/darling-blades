@@ -4444,11 +4444,47 @@ export const AVATARS: readonly Avatar[] = [
       ['dd-the-price', 2],
       ['dd-salt-marsh-bargain', 2],
     ]),
-    // MEASURED 2026-09-15 (hard AI, 200 seeds/cell, reserve-native avatar
-    // matrix): 77% average; cells 66/78/65/84/91% in
-    // Muster/Communion/Tides/Mandate/Harvest order. Every cell had 200
-    // decided games and zero draws. FLAGS none.
-    // Percentages are rounded by the matrix CLI; no tuning applied.
+    // MEASURED 2026-09-16: frozen V0 KEPT, hard AI, 200 seeds/cell,
+    // reserve-native avatar matrix; 74.80% mean (748/1000 decided, 0 draws).
+    // Cells in Muster/Communion/Tides/Mandate/Harvest order:
+    // 63.50/76.50/66.00/81.50/86.50%.
+    // This is the frozen "before" and the final retained list: no authored
+    // surgery qualified. Same 1,000 seeded games per variant; means average
+    // the five cell rates, excluding draws within each cell. Keep only >3pp
+    // above baseline, with no baseline cell down >6pp; a combination must
+    // beat the best single by >3pp. Existing rows kept their order; new IDs
+    // were appended in authored order. Every trial was restored before the next.
+    // 2026-09-16 owner-ruling surgery 1 REJECTED: -4 Reef Bloom, -1
+    // Coral-Mother; +2 Marsh-Mother (1 -> 3), +2 Horror in the Well,
+    // +1 Marsh Horror.
+    // Alone: 67.30% mean (673/1000 decided, 0 draws), -7.50pp from baseline;
+    // worst baseline cell decline 12.50pp. Both keep conditions fail.
+    // Cells: 58.00/66.00/53.50/74.00/85.00%.
+    // 2026-09-16 owner-ruling surgery 2 REJECTED: -2 Salt-Marsh Bargain
+    // (4 -> 2); +1 The Reef That Walks, +1 Tidepool Colossus.
+    // Alone: 72.80% mean (728/1000 decided, 0 draws), -2.00pp from baseline;
+    // worst baseline cell decline 4.00pp. The average fails the >3pp rule;
+    // the cell-drop limit passes.
+    // Cells: 63.50/77.50/62.50/78.00/82.50%.
+    // 2026-09-16 owner-ruling surgery 3 REJECTED: -1 Kelp-Tender
+    // (dd-kelp-shade, 3 -> 2), -1 Reed-Wight (dd-marsh-wight-lesser, 2 -> 1);
+    // +2 Marsh Brute.
+    // Alone: 73.90% mean (739/1000 decided, 0 draws), -0.90pp from baseline;
+    // worst baseline cell decline 4.00pp. The average fails the >3pp rule;
+    // the cell-drop limit passes.
+    // Cells: 63.00/81.00/62.00/78.50/85.00%.
+    // 2026-09-16 owner-ruling surgery 4 REJECTED: -2 Net Full of Stars
+    // (4 -> 2); +2 Deep One Hierophant.
+    // Alone: 73.98% mean (739/999 decided, 1 draw), -0.82pp from baseline;
+    // worst baseline cell decline 7.50pp. Both keep conditions fail.
+    // Cells: 67.00/79.50/58.50/79.40/85.50%; the draw was in Mandate.
+    // 2026-09-16 owner-ruling surgery 5 NOT RUN: 5 Swamp/5 Forest ->
+    // 4 Swamp/6 Forest was conditional on M1 or M2 being kept; neither was.
+    // No combinations measured: zero singles qualified. No hand-tuned
+    // exception earned; reserveDeck and landReserve stay converter-owned.
+    // Historical MEASURED 2026-09-15, same harness, before AI phases A and B:
+    // 77% (cells 66/78/65/84/91%); 77.9% after phase A, 74.8% after phase B
+    // (the Tithe fodder rule; rates 0.5, 1.0 and unlock-only all read 75.4).
     // Generated 2026-09-15 by `npx tsx scripts/avatarReserveDecks.ts --print`.
     reserveDeck: expand([
       ['dd-kelp-shade', 3],

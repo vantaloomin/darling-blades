@@ -384,7 +384,12 @@ authored reserve surgeries (bodies for the Bells, Thing in the Cistern for
 two Cold Currents, Mother Hydra and a third Hierophant for her top) took her
 from 35.9 to 66.4 at 200 seeds with every cell up, and her 40-seed gate from
 40.0 to 63.5. The full record, every single and combination with its cells,
-is the comment above her reserve list in `src/data/opponents.ts`.
+is the comment above her reserve list in `src/data/opponents.ts`. The
+Marsh-Mother got the same pass the same day and kept her list: four authored
+reserve surgeries (the Mark spells out for Horrors, a bigger top, early
+pressure, drain bodies) all measured below her frozen 74.8, the Mark cut
+worst at 67.3, so the Reef Blooms are doing work on her board and the
+rejections are recorded beside her list.
 
 ## What the AI provably does, and the known gaps (2026-09-15)
 
