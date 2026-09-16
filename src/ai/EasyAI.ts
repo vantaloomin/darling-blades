@@ -12,7 +12,7 @@ import { chooseForesee } from './foresee';
 import { chooseDiscard } from './discardPolicy';
 import { chooseSacrifice } from './sacrificePolicy';
 import { chooseDarlingPaydown } from './darlingPolicy';
-import { chooseUnlinkedHauntlink } from './hauntlinkPolicy';
+import { chooseHauntlinkWindow, chooseUnlinkedHauntlink } from './hauntlinkPolicy';
 import { chooseReserveLand } from './landPolicy';
 import { choosePlayDraw } from './playDraw';
 import { choosePreserve, type MainCast } from './preservePolicy';
@@ -23,6 +23,7 @@ import { applyVocabularyTargetPolicy, chooseTargetAction } from './targeting';
 import {
   conditionalAbilityValue,
   empowerValue,
+  empowerOpportunityCost,
   hauntlinkCastValue,
   nineLivesValue,
   removalKind,
@@ -80,8 +81,11 @@ export class EasyAI implements AIPlayer {
         return this.block(view);
       case 'respond':
       case 'endStepWindow':
-      case 'hauntlinkWindow':
         return this.respond(view, legal);
+      case 'hauntlinkWindow':
+        // This is a mechanic policy call; the 85% random pass belongs only
+        // to ordinary response windows, where Easy keeps that weakness.
+        return chooseHauntlinkWindow(view, this.db, legal) ?? { type: 'passResponse' };
       case 'chooseTarget':
         if (a.decision === 'sacrifice') return chooseSacrifice(view, this.db, legal);
         return chooseTargetAction(view, this.db, legal);
@@ -122,7 +126,8 @@ export class EasyAI implements AIPlayer {
       : action.retell
       ? retellValue(this.db, cardId) + 0.01
       : manaValue(d.cost) + nineLivesValue(d) + conditionalAbilityValue(this.db, cardId) + (action.x ?? 0) +
-          (action.empowered ? empowerValue(this.db, cardId) + 0.01 : 0);
+          (action.empowered ? empowerValue(this.db, cardId) + 0.01 -
+            empowerOpportunityCost(view, this.db, action, (otherView, other) => this.castScore(otherView, other)) : 0);
     return castValue + titheManaSaved(view, this.db, action) - riteSacrificeValue(view, this.db, action);
   }
 

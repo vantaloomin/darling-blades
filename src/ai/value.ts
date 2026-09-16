@@ -1,9 +1,126 @@
-import type { Action } from '../engine/actions';
+import { castCost, type Action } from '../engine/actions';
+import { RULES } from '../config/rules';
+import { combineManaCosts, solveMana } from '../engine/mana';
 import { castTargetSpecsFor } from '../engine/resolve';
 import { getEffectiveStats, isQuestActive } from '../engine/statics';
-import type { AbilityDef, ActivatedDef, CardDb, EffectOp, Keyword, Permanent, PlayerId, TargetRef, TargetSpec } from '../engine/types';
+import type { AbilityDef, ActivatedDef, CardDb, EffectOp, Keyword, ManaCost, Permanent, PlayerId, TargetRef, TargetSpec } from '../engine/types';
 import { activatedAbilitiesOf, def, effectOpUsesTarget, isType, manaValue, opponentOf } from '../engine/types';
 import type { PlayerView } from '../engine/view';
+import { determinize } from './determinize';
+
+type ManaSpendAction = Extract<Action, { type: 'castSpell' | 'castDarling' | 'activate' }>;
+
+/** The actual public payment, including modes, tax, X and Tithe's generic discount. */
+export function actionManaCost(view: PlayerView, db: CardDb, action: ManaSpendAction): ManaCost | undefined {
+  if (action.type === 'activate') {
+    const source = view.battlefield.find((p) => p.iid === action.iid);
+    return source ? activatedAbilitiesOf(def(db, source.cardId))[action.abilityIndex ?? 0]?.cost.mana ??
+      { generic: 0, pips: {} } : undefined;
+  }
+  const id = action.type === 'castDarling' ? view.you.darlingZone :
+    (action.retell || action.whispers) && action.graveIndex !== undefined
+      ? view.you.graveyard[action.graveIndex] : view.you.hand[action.handIndex];
+  if (!id) return undefined;
+  const d = def(db, id);
+  if (action.type === 'castDarling') return d.cost && {
+    generic: d.cost.generic + (view.you.darlingTax ?? 0) + (action.x ?? 0), pips: d.cost.pips,
+  };
+  const cost = castCost(d, !!action.empowered, !!action.retell, !!action.hauntlinked, { whispers: action.whispers });
+  if (!cost) return undefined;
+  const discount = action.tithe ? Math.floor((action.sacrifices ?? []).reduce((sum, iid) =>
+    sum + getEffectiveStats(view.battlefield, db, iid).defense, 0) / 2) : 0;
+  return { generic: Math.max(0, cost.generic - discount) + (action.x ?? 0), pips: cost.pips };
+}
+
+/** Pay this action while keeping another cost payable, including colored pips.
+ * Usually auto-tap already works. Search partitions only when its allocation
+ * spends a scarce color that the held spell needs. All sources are public. */
+export function manaPlanKeeping(
+  view: PlayerView, db: CardDb, action: ManaSpendAction, held: ManaCost,
+): number[] | null {
+  const cost = actionManaCost(view, db, action);
+  if (!cost) return null;
+  const sacrificed = action.type === 'castSpell' ? action.sacrifices ?? [] : [];
+  const battlefield = view.battlefield;
+  // Mana is paid before Tithe/Rite sacrifices; only the held payment loses those sources.
+  const after = (plan: readonly number[]) => ({ battlefield: battlefield.filter((p) => !sacrificed.includes(p.iid)).map((p) =>
+    plan.includes(p.iid) || action.type === 'activate' && action.iid === p.iid ? { ...p, tapped: true } : p) });
+  const ordinary = solveMana({ battlefield }, db, view.myId, cost);
+  if (ordinary === null) return null;
+  if (solveMana(after(ordinary), db, view.myId, held) !== null) return ordinary;
+  const combined = solveMana({ battlefield }, db, view.myId, combineManaCosts(cost, held));
+  if (combined === null) return null;
+  const needed = manaValue(cost);
+  const visit = (index: number, selected: number[]): number[] | null => {
+    if (selected.length === needed) {
+      // Restrict payments without removing statics that make a source usable.
+      const reserved = battlefield.filter((p) => !selected.includes(p.iid)).map((p) => p.iid);
+      return solveMana({ battlefield }, db, view.myId, cost, 0, reserved) !== null &&
+        solveMana(after(selected), db, view.myId, held) !== null ? selected : null;
+    }
+    for (let i = index; i <= combined.length - (needed - selected.length); i++) {
+      const found = visit(i + 1, [...selected, combined[i]]);
+      if (found) return found;
+    }
+    return null;
+  };
+  return visit(0, []);
+}
+
+/** Extra Empower mana competes with an indivisible second spell. Price the
+ * best displaced develop cast at its score per mana, charging at least its
+ * whole score when even a smaller rider payment makes that card uncastable.
+ * No charge when both spells fit, or when there is no legal second spell.
+ * The temporary world supplies only our known hand and public legal targets. */
+export function empowerOpportunityCost(
+  view: PlayerView, db: CardDb, cast: Extract<Action, { type: 'castSpell' }>,
+  developScore: (alternativeView: PlayerView, alternative: Extract<Action, { type: 'castSpell' | 'castDarling' }>) => number,
+): number {
+  if (!cast.empowered || view.awaiting.kind !== 'main') return 0;
+  const plain = { ...cast, empowered: false };
+  const fullCost = actionManaCost(view, db, cast);
+  const plainCost = actionManaCost(view, db, plain);
+  if (!fullCost || !plainCost) return 0;
+  const extra = manaValue(fullCost) - manaValue(plainCost);
+  if (extra <= 0) return 0;
+  const world = determinize(view, db);
+  // Removing this physical hand slot also makes a second copy of the same
+  // card visible through the engine's card-id-deduplicated menu.
+  world.instanceState.players[view.myId].hand.splice(cast.handIndex, 1);
+  const otherView = world.viewFor(view.myId);
+  const firstDef = def(db, view.you.hand[cast.handIndex]);
+  const firstSacrifices = cast.sacrifices ?? [];
+  const creatureCount = view.battlefield.filter((p) => p.controller === view.myId &&
+    isType(def(db, p.cardId), 'creature') && !firstSacrifices.includes(p.iid)).length;
+  const noncreature = (d: typeof firstDef) => !isType(d, 'creature') && !isType(d, 'land') &&
+    (isType(d, 'artifact') || isType(d, 'enchantment')) && !d.subtypes.includes('Aura');
+  const permanentCount = view.battlefield.filter((p) => p.controller === view.myId && p.attachedTo === undefined &&
+    noncreature(def(db, p.cardId))).length;
+  let best = 0;
+  for (const other of world.legalActions(view.myId)) {
+    if (other.type !== 'castDarling' && (other.type !== 'castSpell' || other.empowered)) continue;
+    const cost = actionManaCost(otherView, db, other);
+    if (!cost || manaValue(cost) === 0) continue;
+    const otherId = other.type === 'castDarling' ? otherView.you.darlingZone! :
+      (other.retell || other.whispers) && other.graveIndex !== undefined
+        ? otherView.you.graveyard[other.graveIndex] : otherView.you.hand[other.handIndex];
+    const otherDef = def(db, otherId);
+    const otherSacrifices = other.type === 'castSpell' ? other.sacrifices ?? [] : [];
+    if (otherSacrifices.some((iid) => firstSacrifices.includes(iid)) ||
+      other.targets?.some((ref) => ref.kind === 'permanent' && firstSacrifices.includes(ref.iid))) continue;
+    // The known first permanent occupies a slot. A second body beyond the
+    // board cap is not a displaced alternative, even if its mana would fit.
+    const otherIsBody = isType(otherDef, 'creature') &&
+      !(other.type === 'castSpell' && (other.hauntlinked || other.retell && otherDef.retell?.ops));
+    if (otherIsBody && creatureCount + Number(isType(firstDef, 'creature')) - otherSacrifices.length >= RULES.maxCreatures) continue;
+    if (noncreature(firstDef) && noncreature(otherDef) && permanentCount + 1 >= RULES.maxNoncreaturePermanents) continue;
+    if (manaPlanKeeping(view, db, plain, cost) === null ||
+      manaPlanKeeping(view, db, cast, cost) !== null) continue;
+    const score = Math.max(0, developScore(otherView, other));
+    best = Math.max(best, score * Math.max(1, extra / manaValue(cost)));
+  }
+  return best;
+}
 
 const KEYWORD_BONUS: Record<Keyword, number> = {
   skyborne: 1,
