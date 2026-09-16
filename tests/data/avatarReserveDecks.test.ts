@@ -197,6 +197,9 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
     // 40-card list is supported by the measured 200-seed boss pass.
     'abyssal-songstress',
     'chrome-broodmother',
+    // 2026-09-16 R25 D1+D2+D5: authored reserve surgery measured 35.90% ->
+    // 66.40% mean across five 200-seed cells; classic/lands/Darlings unchanged.
+    'the-drowned-deacon',
   ]);
 
   /**
@@ -468,8 +471,14 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
       expect(first, `${avatar.id} converter is not deterministic`).toEqual(second);
       expect(sorted(first.landReserve)).toEqual(sorted(avatar.landReserve));
       if (isDrownedDeep) {
-        // All three reserve surfaces are the untuned deterministic converter output.
-        expect(sorted(first.reserveDeck)).toEqual(sorted(avatar.reserveDeck));
+        // The measured Deacon reserve tune is registered above; the Marsh
+        // Mother reserve and both Darlings surfaces stay converter-owned.
+        if (HAND_TUNED_WARCHEST.has(avatar.id)) {
+          expect(sorted(first.reserveDeck), `${avatar.id} is listed as hand-tuned but matches the first cut`)
+            .not.toEqual(sorted(avatar.reserveDeck));
+        } else {
+          expect(sorted(first.reserveDeck)).toEqual(sorted(avatar.reserveDeck));
+        }
         expect(sorted(first.darlingsDeck)).toEqual(sorted(avatar.darlingsDeck));
         expect(first.darlingId).toEqual(avatar.darlingId);
         continue;

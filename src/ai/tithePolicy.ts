@@ -12,6 +12,17 @@ type SpellCast = Extract<Action, { type: 'castSpell' }>;
 
 // D5: only fodder-class bodies may trade long-term board value for this turn's
 // mana. One fifth lets two ordinary one-mana 1/1s buy one mana of real tempo.
+// MEASURED 2026-09-16: frozen lists, avatar 200 seeds/cell (1,000 each),
+// Lanterns reserve row 150 seeds/cell (2,700 games; see starterDecks.ts).
+// Marsh-Mother / Deacon / Lanterns averages, percent:
+// V0 (0.2, floor + unlock, KEPT): 74.8 / 35.9 / 14.60.
+// V1 (0.5 plain sales, REJECTED): 75.4 / 36.0 / 14.60.
+// V2 (0.2, unlock only, REJECTED): 75.4 / 36.0 / 14.60.
+// V3 (1.0 plain sales, REJECTED): 75.4 / 36.0 / 14.60.
+// V1/V3 retained the original 0.2 tempo-unlock price; only affordable
+// plain sales used the trial rate. The unchanged Kelp Shade case passed
+// under every trial. V1/V2/V3 gained only 0.6pp on Marsh-Mother, inside
+// the 3pp band: retain V0, the smallest change. Tempo unlock stays intact.
 const FODDER_VALUE_RATE = 0.2;
 
 export function isTitheCast(view: PlayerView, db: CardDb, action: Action): action is SpellCast {

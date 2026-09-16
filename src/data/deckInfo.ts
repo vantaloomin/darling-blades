@@ -111,7 +111,7 @@ export const DECK_INFO: Record<string, DeckInfo> = {
     colors: 'U/B',
     archetype: 'Drowned Deep tide-and-whisper control',
     plays:
-      'Cheap bodies and tappers hold the ground while self-mill fills the graveyard on a schedule. The looters turn dead draws into tagged Whispers, the Whispers Charms and Rituals are the value engine, and two or three Horrors on the curve close with Tithe as the tempo lever.',
-    featured: ['dd-mother-hydra', 'dd-the-price', 'dd-drowned-bell'],
+      'Cheap bodies hold the ground while the divers and the mermaids seed the graveyard. The looters turn dead draws into tagged Whispers, the Whispers Charms and Rituals are the value engine, Black Water resets a board that gets ahead, and a curve of Deep Ones and Horrors closes with Tithe as the tempo lever, the Hierophants draining on arrival.',
+    featured: ['dd-mother-hydra', 'dd-the-price', 'dd-black-water'],
   },
 };
