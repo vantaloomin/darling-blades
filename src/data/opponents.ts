@@ -4242,29 +4242,77 @@ export const AVATARS: readonly Avatar[] = [
       ['dd-drowned-bell', 2],
       ['dd-tide-that-remembers', 1],
     ]),
-    // MEASURED 2026-09-15 (hard AI, 200 seeds/cell, reserve-native avatar
-    // matrix): 33% average; cells 20/23/41/47/35% in
-    // Muster/Communion/Tides/Mandate/Harvest order. Every cell had 200
-    // decided games and zero draws. FLAGS none.
-    // Percentages are rounded by the matrix CLI; no tuning applied.
-    // Generated 2026-09-15 by `npx tsx scripts/avatarReserveDecks.ts --print`.
+    // MEASURED 2026-09-16: owner-ruling D1+D2+D5, hard AI, 200 seeds/cell,
+    // reserve-native avatar matrix; 66.40% mean (664/1000 decided, 0 draws).
+    // Cells in Muster/Communion/Tides/Mandate/Harvest order:
+    // 39.00/71.50/64.50/82.50/74.50%.
+    // Frozen V0 baseline under the adopted 0.2 Tithe policy: 35.90% mean
+    // (359/1000 decided, 0 draws); cells 21.00/26.00/43.00/55.00/34.50%.
+    // Same 1,000 seeded games per variant; means average the five cell rates,
+    // excluding draws within each cell. Keep only >3pp above baseline, with no
+    // baseline cell down >6pp; a combination must beat the best single by >3pp.
+    // 2026-09-16 owner-ruling surgery 1 KEPT in the final combination: -4
+    // Drowned Bell; +2 Drowned Bride, +2 Deep One Scout.
+    // Alone: 51.00% mean (510/1000 decided, 0 draws), +15.10pp from baseline;
+    // worst baseline cell decline 0.00pp.
+    // Cells: 27.00/53.00/46.00/65.00/64.00%.
+    // 2026-09-16 owner-ruling surgery 2 KEPT in the final combination: -2 Cold
+    // Current (4 -> 2); +2 Thing in the Cistern.
+    // Alone: 50.67% mean (506/999 decided, 1 draw), +14.77pp from baseline;
+    // worst baseline cell decline 0.00pp.
+    // Cells: 36.00/43.00/57.50/73.37/43.50%.
+    // 2026-09-16 owner-ruling surgery 3 REJECTED as superseded: -2 Tide Reader;
+    // +2 Cold Water Horror.
+    // Alone: 40.00% mean (400/1000 decided, 0 draws), +4.10pp from baseline;
+    // worst baseline cell decline 0.00pp.
+    // Cells: 25.50/30.00/48.50/56.00/40.00%.
+    // 2026-09-16 owner-ruling surgery 4 REJECTED: -2 Memory of the Drowned; +2
+    // Black Water.
+    // Alone: 36.30% mean (363/1000 decided, 0 draws), +0.40pp from baseline;
+    // worst baseline cell decline 5.50pp.
+    // The average gain is inside the 3pp band; the cell-drop limit passes.
+    // Cells: 26.50/30.50/37.50/52.50/34.50%.
+    // 2026-09-16 owner-ruling surgery 5 KEPT in the final combination: -1 Tide
+    // That Turns, -1 Current Caller (3 -> 2); +1 Mother Hydra, +1 Deep One
+    // Hierophant (2 -> 3).
+    // Alone: 44.70% mean (447/1000 decided, 0 draws), +8.80pp from baseline;
+    // worst baseline cell decline 0.00pp.
+    // Cells: 25.50/40.00/43.50/63.50/51.00%.
+    // 2026-09-16 owner-ruling surgery 6 REJECTED as superseded: D1+D2 combined.
+    // Combined: 64.20% mean (642/1000 decided, 0 draws), +28.30pp from
+    // baseline; worst baseline cell decline 0.00pp.
+    // +13.20pp over the best single.
+    // Cells: 38.50/65.00/66.50/81.50/69.50%.
+    // 2026-09-16 owner-ruling surgery 7 KEPT: D1+D2+D5 combined.
+    // Combined: 66.40% mean (664/1000 decided, 0 draws), +30.50pp from
+    // baseline; worst baseline cell decline 0.00pp.
+    // +15.40pp over the best single.
+    // Highest measured qualifying combination: +2.20pp over the pair is
+    // inside the 3pp band. Selection follows the explicit combination-vs-
+    // best-single rule, not a claim of separation from the pair.
+    // Cells: 39.00/71.50/64.50/82.50/74.50%.
+    // Hand-tuned from the 2026-09-15 deterministic converter first cut. Classic
+    // deck, landReserve (5 Island/5 Swamp), and Darlings surfaces remain
+    // unchanged; the reserve divergence is registered in HAND_TUNED_WARCHEST.
     reserveDeck: expand([
       ['dd-tide-clerk', 4],
-      ['dd-current-caller', 3],
+      ['dd-current-caller', 2],
       ['dd-tide-reader', 2],
       ['dd-harbour-looter', 2],
       ['dd-drowned-bell-choir', 2],
       ['dd-drowned-lighthouse-keeper', 2],
       ['dd-drowned-deacon', 3],
-      ['dd-deep-one-hierophant', 2],
+      ['dd-deep-one-hierophant', 3],
       ['dd-father-dagon', 1],
-      ['dd-cold-current', 4],
+      ['dd-cold-current', 2],
+      ['dd-thing-in-the-cistern', 2],
       ['dd-still-water', 2],
       ['dd-the-price', 4],
       ['dd-undertow', 2],
       ['dd-memory-of-the-drowned', 2],
-      ['dd-tide-that-turns', 1],
-      ['dd-drowned-bell', 4],
+      ['dd-mother-hydra', 1],
+      ['dd-drowned-bride', 2],
+      ['dd-deep-one-scout', 2],
     ]),
     landReserve: expand([
       ['land-island', 5],

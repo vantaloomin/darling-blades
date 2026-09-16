@@ -1174,18 +1174,18 @@ export const THEME_DECKS: DeckList[] = [
       ['dd-cold-water-diver', 2],
       ['dd-deep-one-bride', 2],
       ['dd-tithe-collector', 1],
-      ['dd-deep-one-hierophant', 1],
+      ['dd-deep-one-hierophant', 3],
       ['dd-mother-hydra', 1],
-      ['dd-fog-bank', 2],
-      ['dd-salt-in-the-eyes', 2],
+      ['dd-deep-one-warrior', 2],
+      ['dd-drowned-horror', 2],
       ['dd-the-price', 2],
-      ['dd-memory-of-the-drowned', 2],
       ['dd-tide-that-turns', 2],
       ['dd-tithe-to-the-deep', 1],
-      ['dd-drowned-bell', 2],
+      ['dd-black-water', 2],
       ['dd-low-tide-grave', 1],
     ]),
-    // Converter-shaped reserve package, mirrored from the Broodship at 40 cards; the classic list above remains the locked authored package.
+    // Owner-ruling surgeries L1/L3/L4 below are mirrored into the classic
+    // list for every shared removal/addition, following the Broodship precedent.
     reserveCards: expand([
       ['dd-tide-clerk', 3],
       ['dd-drowned-child', 2],
@@ -1197,28 +1197,76 @@ export const THEME_DECKS: DeckList[] = [
       ['dd-cold-water-diver', 2],
       ['dd-deep-one-bride', 2],
       ['dd-tithe-collector', 1],
-      ['dd-deep-one-hierophant', 1],
+      ['dd-deep-one-hierophant', 3],
       ['dd-mother-hydra', 1],
-      ['dd-fog-bank', 2],
-      ['dd-salt-in-the-eyes', 2],
+      ['dd-deep-one-warrior', 2],
+      ['dd-drowned-horror', 2],
       ['dd-the-price', 2],
-      ['dd-memory-of-the-drowned', 2],
       ['dd-tide-that-turns', 2],
       ['dd-tithe-to-the-deep', 1],
-      ['dd-drowned-bell', 2],
+      ['dd-black-water', 2],
       ['dd-low-tide-grave', 1],
       ['dd-still-harbour', 2],
       ['dd-what-the-sea-wants', 2],
     ]),
-    // Harness: scripts/balance-matrix.ts full prefab round-robin; runCell
-    // uses the same field order and seeds across eight independent workers.
-    // MEASURED 2026-09-15 (hard AI, 150 seeds/cell, 19-deck prefab field):
-    // 18.9% (511/2700 decided, +0 draws) across the full 171-cell
-    // round-robin. Lanterns Below row rates in Crimson/Wild/Burning/Shadow/
-    // Grave/Valhalla/Glimmer/Questing/Bloodmoon/Midnight/Neon/Pride/Broodship/
-    // Rite/Nine/The/Flood/Bastet order: 11.3/14.7/12/20/18.7/22/28.7/26/
-    // 10.7/22.7/22/9.3/20/26/14.7/28.7/25.3/8%.
-    // No tuning was made from this measurement.
+    // MEASURED 2026-09-16: owner-ruling L1+L3+L4, hard AI, 150 seeds/cell:
+    // 31.30% (845/2700 decided, zero draws), from frozen V0 14.60%
+    // (394/2699 decided, one Neon draw). All 18 baseline cells improved.
+    // Reserve-native field: 19 decks, 40 reserve cards, 10 reserve lands,
+    // opening hand 5. Production --prefabs still plays classic cards; this
+    // owner-authorized focused runner supplied Warchest reserves to runCell.
+    // Field order: STARTER_DECKS, THEME_DECKS, DUAT_ARCHETYPE_DECKS; Lanterns
+    // index 13, canonical upper-triangle seats, cellIndex = 100_000 +
+    // minIndex*100 + maxIndex; runCell uses cellIndex*100_000 + gameIndex.
+    // Cells below: Crimson/Wild/Burning/Shadow/Grave/Valhalla/Glimmer/
+    // Questing/Bloodmoon/Midnight/Neon/Pride/Broodship/Rite/Nine/The/Flood/Bastet.
+    // Frozen baseline cells:
+    // Cells: 4.67/9.33/11.33/21.33/14.67/13.33/24.67/16.00/7.33/
+    // 9.33/21.48/7.33/32.00/19.33/0.67/36.67/6.67/6.67%.
+    // 2026-09-16 owner-ruling surgery 1 KEPT in the final combination:
+    // -2 Fog Bank, -2 Salt in the Eyes; +2 Deep One Warrior, +2 Drowned
+    // Horror. Alone: 19.04% (514/2700, zero draws), +4.44pp; no cell fell.
+    // Cells: 5.33/13.33/12.67/25.33/20.00/18.67/34.67/20.00/12.00/
+    // 17.33/26.00/10.00/40.00/31.33/2.67/36.67/10.00/6.67%.
+    // 2026-09-16 owner-ruling surgery 2 REJECTED: -2 Low Street Witch,
+    // -1 Low Tide Grave; +2 Cold Current Horror, +1 The Deep Collects.
+    // Alone: 16.33% (441/2700, zero draws), +1.74pp, inside the 2pp band.
+    // Cells: 8.00/12.67/12.67/20.00/16.67/11.33/26.67/20.00/8.67/
+    // 8.00/28.67/8.67/33.33/19.33/0.67/41.33/10.67/6.67%.
+    // 2026-09-16 owner-ruling surgery 3 KEPT in the final combination:
+    // -2 Drowned Bell, +2 Black Water. Alone: 17.52% (473/2700, zero draws),
+    // +2.92pp; worst cell decline 0.67pp, inside the 8pp limit.
+    // Cells: 8.00/10.00/10.67/22.00/20.67/12.67/29.33/27.33/14.00/
+    // 9.33/24.67/9.33/36.67/23.33/0.67/40.67/7.33/8.67%.
+    // 2026-09-16 owner-ruling surgery 4 KEPT in the final combination:
+    // -2 Memory of the Drowned, +2 Deep One Hierophant (1 -> 3). Alone:
+    // 23.96% (647/2700, zero draws), +9.36pp; every cell improved.
+    // Cells: 9.33/17.33/15.33/28.67/24.00/19.33/53.33/26.67/16.00/
+    // 14.00/38.67/12.67/42.00/39.33/1.33/52.67/11.33/9.33%.
+    // 2026-09-16 owner-ruling surgery 5 REJECTED: reserve Island/Swamp
+    // 5/5 -> 4/6, alone after L1 qualified. 14.49% (391/2699, one Neon draw),
+    // -0.11pp from baseline. Final lands remain the authored 5/5.
+    // Cells: 4.00/8.67/10.00/19.33/16.00/12.00/24.00/22.00/8.67/
+    // 8.00/22.15/8.00/31.33/18.67/0.67/36.00/5.33/6.00%.
+    // 2026-09-16 owner-ruling surgery 6 REJECTED as superseded: L4+L1
+    // combined, 27.63% (746/2700, zero draws), +3.67pp over the best single;
+    // no baseline cell fell. It qualified, but surgery 7 beat it by 3.67pp.
+    // Cells: 7.33/24.67/22.67/36.67/34.00/30.67/52.67/23.33/16.00/
+    // 24.00/35.33/10.67/48.00/47.33/4.67/48.67/18.00/12.67%.
+    // 2026-09-16 owner-ruling surgery 7 KEPT: L4+L1+L3 combined, 31.30%
+    // (845/2700, zero draws), +7.33pp over the best single and +3.67pp over
+    // the pair; every baseline cell improved. This is the final reserve
+    // list, with those same authored substitutions mirrored into classic.
+    // Cells: 14.00/36.67/21.33/33.33/34.00/24.00/50.00/50.00/24.00/
+    // 20.00/41.33/14.67/60.00/50.00/4.00/48.67/18.00/19.33%.
+    // L3 first exposed the Still Harbour legality bug at Midnight cell
+    // 100913, game 38, seed 10091300038. Owner-authorized MediumAI.respond
+    // now returns its existing retarget only if the legal menu contains the
+    // same card and complete target list; otherwise it falls through. The
+    // post-fix frozen baseline matched all 18 cells exactly before L3 resumed.
+    // Historical classic-format MEASURED 2026-09-15: 18.9% (511/2700),
+    // cells 11.3/14.7/12/20/18.7/22/28.7/26/10.7/22.7/22/9.3/20/26/
+    // 14.7/28.7/25.3/8%. That classic result is not the reserve baseline.
     landReserve: expand([
       ['land-island', 5],
       ['land-swamp', 5],

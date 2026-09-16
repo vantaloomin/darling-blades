@@ -379,7 +379,12 @@ Measured untuned 2026-09-15 at 200 seeds: Deacon 33% (35.5% after phase A,
 35.9% after B), Marsh-Mother 77% (77.9% after A, 74.8% after B: the Tithe
 fodder rule costs her, see the next section). The Deacon's plan is fog, tap and cheap counter
 Charms on a schedule; phase A taught the ladder those shapes and moved her
-only a little, so her deck owes a tuning pass of its own.
+only a little, so her deck got a measured tuning pass on 2026-09-16: three
+authored reserve surgeries (bodies for the Bells, Thing in the Cistern for
+two Cold Currents, Mother Hydra and a third Hierophant for her top) took her
+from 35.9 to 66.4 at 200 seeds with every cell up, and her 40-seed gate from
+40.0 to 63.5. The full record, every single and combination with its cells,
+is the comment above her reserve list in `src/data/opponents.ts`.
 
 ## What the AI provably does, and the known gaps (2026-09-15)
 
@@ -406,13 +411,23 @@ Hauntlink fit, moves and windows, Duty ordering and mana holding, Empower
 cost) with the gates unchanged and rungs 15, 16, 18 and 20 up one to two
 points; Kitsune, the Hauntlink spine, moved 82.9 to 84.5. The Tithe boss
 (the Marsh-Mother) measured 77.9 to 74.8 after the fodder rule, so the fodder
-rate is the first knob the tuning pass looks at.
+rate was the first knob the tuning pass looked at (2026-09-16): rates 0.5
+and 1.0 and an unlock-only rule all read 75.4 on her and moved nothing else,
+inside the band, so the rule stands as ruled and the movement came from the
+decks instead. That pass also caught a 1.8-only legality bug: Medium's
+respond step rewrote the first counter's stack target to the top spell
+without checking a `maxCost` target spec (Still Harbour, cost 2 or less),
+and an illegal cast from the AI hard-locks the duel. The rewrite is now
+returned only when the legal menu carries the same card and target list;
+otherwise the brain falls through. Regression in `tests/ai/aiFixes.test.ts`.
 Phase A closed the cast-ladder gap (spell bodies, wraths, lethal, the five
 Charm rules, Hard's pass and hold, Quest-gated pricing) with the two brain
 gates unchanged at 83.0 and 78.5 and every rung above its floor; rungs 17 and
 18 measure a few points lower because the neutral Medium proxy they face
 improved too. The untuned Deacon moved 33 to 35.5 and Lanterns Below 18.9 to
-20.1, so those two decks owe a tuning pass of their own. Everything the tests
+20.1, so those two decks got a tuning pass of their own on 2026-09-16
+(Lanterns Below 14.6 to 31.3 on its reserve-native row, the Deacon 35.9 to
+66.4; the surgery records sit beside each list). Everything the tests
 do prove is listed beside the claim it proves, in the file.
 
 ## Tower strength tiers (the decision-noise dial)

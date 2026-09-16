@@ -4,6 +4,7 @@ import { MediumAI } from '../../src/ai/MediumAI';
 import { determinize } from '../../src/ai/determinize';
 import { removalKind } from '../../src/ai/value';
 import { CARD_DB } from '../../src/data/catalog';
+import { validateAction } from '../../src/engine/actions';
 import { Game } from '../../src/engine/Game';
 import { makeTestState } from '../helpers';
 import { DARK_TALES_DB } from '../darkTalesFixture';
@@ -15,6 +16,37 @@ function gameFromState(state: ReturnType<typeof makeTestState>): Game {
 }
 
 describe('AI defect regressions from the 1.5 instrumented probe', () => {
+  it.each([{ name: 'Medium', Brain: MediumAI }, { name: 'Hard', Brain: HardAI }])(
+    '$name keeps Still Harbour within its legal cost-limited targets', ({ Brain }) => {
+      // 1.8 tuning: Lanterns L3 vs Midnight, cell 100913 game 38,
+      // seed 10091300038. The legal cheap spell below Doom Bolt must not let
+      // respond() retarget Still Harbour beyond its maxCost 2 restriction.
+      const state = makeTestState({
+        battlefield: [
+          { iid: 1, cardId: 'land-island', controller: 0 },
+          { iid: 2, cardId: 'land-island', controller: 0 },
+          { iid: 3, cardId: 'dd-mother-hydra', controller: 0 },
+          { iid: 4, cardId: 'bear', controller: 1 },
+        ],
+        hands: [['dd-still-harbour'], []],
+        active: 0,
+      });
+      state.stack = [
+        { sid: 1, cardId: 'dd-salt-in-the-eyes', controller: 0, targets: [{ kind: 'permanent', iid: 4 }] },
+        { sid: 2, cardId: 'in-doom-bolt', controller: 1, targets: [{ kind: 'permanent', iid: 3 }] },
+      ];
+      state.nextSid = 3;
+      state.awaiting = { player: 0, kind: 'respond', over: { type: 'spell', sid: 2 } };
+      const game = gameFromState(state);
+      const legal = game.legalActions(0);
+      expect(legal).toContainEqual({ type: 'castSpell', handIndex: 0, targets: [{ kind: 'stackItem', sid: 1 }] });
+      const action = new Brain(DB).chooseAction(game.viewFor(0), legal);
+      expect(action).not.toMatchObject({ type: 'castSpell', handIndex: 0, targets: [{ kind: 'stackItem', sid: 2 }] });
+      expect(validateAction(game.instanceState, DB, 0, action)).toBeNull();
+      expect(() => game.submit(0, action)).not.toThrow();
+    },
+  );
+
   it('HardAI returns and can submit only a legal three-target Quiet Orbit cast with creature marks', () => {
     const state = makeTestState({
       battlefield: [

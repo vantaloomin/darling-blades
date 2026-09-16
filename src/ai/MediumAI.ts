@@ -809,7 +809,13 @@ export class MediumAI implements AIPlayer {
           const targets = counter.targets?.map((target) =>
             target.kind === 'stackItem' ? { ...target, sid: top.sid } : target,
           );
-          return { ...counter, ...(targets ? { targets } : {}) };
+          const rewritten = { ...counter, ...(targets ? { targets } : {}) };
+          // 1.8: Still Harbour's maxCost can forbid the top spell even when
+          // a cheaper spell below it was a legal target. Preserve the rewrite
+          // only when the same card and complete target list remain legal;
+          // otherwise fall through without choosing another counter.
+          if (casts.some((candidate) => this.cardIdFor(view, candidate) === this.cardIdFor(view, rewritten) &&
+            JSON.stringify(candidate.targets ?? []) === JSON.stringify(rewritten.targets ?? []))) return rewritten;
         }
       }
     }

@@ -361,6 +361,9 @@ describe('Chrome-Violet Broodship composition', () => {
 
 describe('Lanterns Below composition', () => {
   const deck = THEME_DECKS.find((entry) => entry.id === 'theme-drowned-deep')!;
+  // 2026-09-16 measured L1+L3+L4: 14.60% -> 31.30% reserve row.
+  // Fog Bank/Salt/Memory/Bell: 2 each -> 0; Warrior/Horror/Black Water:
+  // 0 each -> 2; Hierophant: 1 -> 3. Shared classic/reserve swaps match.
   const expectedCounts = {
     'land-island': 12,
     'land-swamp': 12,
@@ -374,15 +377,14 @@ describe('Lanterns Below composition', () => {
     'dd-cold-water-diver': 2,
     'dd-deep-one-bride': 2,
     'dd-tithe-collector': 1,
-    'dd-deep-one-hierophant': 1,
+    'dd-deep-one-hierophant': 3,
     'dd-mother-hydra': 1,
-    'dd-fog-bank': 2,
-    'dd-salt-in-the-eyes': 2,
+    'dd-deep-one-warrior': 2,
+    'dd-drowned-horror': 2,
     'dd-the-price': 2,
-    'dd-memory-of-the-drowned': 2,
     'dd-tide-that-turns': 2,
     'dd-tithe-to-the-deep': 1,
-    'dd-drowned-bell': 2,
+    'dd-black-water': 2,
     'dd-low-tide-grave': 1,
   };
 
@@ -423,8 +425,9 @@ describe('Lanterns Below composition', () => {
       colors: 'U/B',
       archetype: 'Drowned Deep tide-and-whisper control',
       plays:
-        'Cheap bodies and tappers hold the ground while self-mill fills the graveyard on a schedule. The looters turn dead draws into tagged Whispers, the Whispers Charms and Rituals are the value engine, and two or three Horrors on the curve close with Tithe as the tempo lever.',
-      featured: ['dd-mother-hydra', 'dd-the-price', 'dd-drowned-bell'],
+        'Cheap bodies hold the ground while the divers and the mermaids seed the graveyard. The looters turn dead draws into tagged Whispers, the Whispers Charms and Rituals are the value engine, Black Water resets a board that gets ahead, and a curve of Deep Ones and Horrors closes with Tithe as the tempo lever, the Hierophants draining on arrival.',
+      // Owner-ruling L3 featured card: dd-drowned-bell -> dd-black-water.
+      featured: ['dd-mother-hydra', 'dd-the-price', 'dd-black-water'],
     });
   });
 });
