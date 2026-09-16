@@ -3,6 +3,7 @@ import { EasyAI } from '../../src/ai/EasyAI';
 import { HardAI } from '../../src/ai/HardAI';
 import { MediumAI } from '../../src/ai/MediumAI';
 import { chooseHauntlinkWindow, rankedHauntlinkWindowCandidates } from '../../src/ai/hauntlinkPolicy';
+import { validateAction } from '../../src/engine/actions';
 import { Game } from '../../src/engine/Game';
 import { getEffectiveStats } from '../../src/engine/statics';
 import type { CardDb, EffectOp, GameState, TargetRef } from '../../src/engine/types';
@@ -109,15 +110,20 @@ describe('revision-4 Hauntlink windows from the documented behaviour fixture', (
     expect(rankedHauntlinkWindowCandidates(game.viewFor(0), DB, game.legalActions(0))).toEqual([]);
   });
 
-  it('lets Hard search a Twin Blades rescue beyond the shared combat forecast', () => {
+  it('lets the shared forecast and Hard both find a Twin Blades rescue', () => {
     const db: CardDb = { ...DB, saving_link: { ...DB.saving_link,
       hauntlink: { cost: { generic: 0, pips: {} }, linked: { grantKeywords: ['twinBlades'] } } } };
     const state = structuredClone(damageWindow().instanceState);
     state.battlefield.find((perm) => perm.iid === 20)!.cardId = 'giant';
     const game = Game.restore(state, db);
-    expect(chooseHauntlinkWindow(game.viewFor(0), db, game.legalActions(0))).toBeUndefined();
+    // Phase C pin: old shared result undefined (0 moves); new result links
+    // host 10 (1 move), because the shared forecast now sees the second hit.
+    const shared = chooseHauntlinkWindow(game.viewFor(0), db, game.legalActions(0));
+    expect(shared).toEqual({ type: 'linkHaunt', iid: 30, hostIid: 10 });
+    expect(validateAction(game.instanceState, db, 0, shared!)).toBeNull();
     const move = new HardAI(db).chooseAction(game.viewFor(0), game.legalActions(0));
     expect(move).toEqual({ type: 'linkHaunt', iid: 30, hostIid: 10 });
+    expect(validateAction(game.instanceState, db, 0, move)).toBeNull();
     game.submit(0, move);
     game.submit(0, { type: 'passResponse' });
     expect(game.viewFor(0).battlefield.some((perm) => perm.iid === 20)).toBe(false);

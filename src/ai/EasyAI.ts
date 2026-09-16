@@ -294,6 +294,39 @@ export class EasyAI implements AIPlayer {
     const usedBlockers = new Set<number>();
     const blockedAttackers = new Set<number>();
 
+    type CombatStats = ReturnType<typeof getEffectiveStats>;
+    const strikesIn = (stats: CombatStats, firstStep: boolean): boolean => firstStep
+      ? stats.keywords.has('firstBlade') || stats.keywords.has('twinBlades')
+      : !stats.keywords.has('firstBlade') || stats.keywords.has('twinBlades');
+    // Keep Easy's kill-or-survive rule, but count only hits the blockers get
+    // to make. Hits in each sub-step are simultaneous; casualties leave before
+    // the next step, and Twin Blades still strikes in that normal step.
+    const blockersKill = (atk: CombatStats, blockers: CombatStats[]): boolean => {
+      const defenders = blockers.map((stats) => ({ stats, defense: stats.defense }));
+      let attackerDamage = 0;
+      for (const firstStep of [true, false]) {
+        const alive = defenders.filter((b) => b.defense > 0);
+        const striking = alive.filter((b) => strikesIn(b.stats, firstStep));
+        const damage = striking.reduce((sum, b) => sum + Math.max(0, b.stats.attack), 0);
+        const deathblade = striking.some((b) => b.stats.attack > 0 && b.stats.keywords.has('deathblade'));
+        if (strikesIn(atk, firstStep)) {
+          const lethal = (b: (typeof defenders)[number]): number => atk.keywords.has('deathblade')
+            ? 1 : b.defense;
+          let power = Math.max(0, atk.attack);
+          for (const b of [...alive].sort((a, b) => lethal(a) - lethal(b))) {
+            const assigned = Math.min(power, lethal(b));
+            if (assigned > 0) {
+              b.defense = atk.keywords.has('deathblade') ? 0 : b.defense - assigned;
+              power -= assigned;
+            }
+          }
+        }
+        attackerDamage += damage;
+        if (deathblade || attackerDamage >= atk.defense) return true;
+      }
+      return false;
+    };
+
     const attackerPower = (iid: number): number =>
       getEffectiveStats(view.battlefield, this.db, iid).attack;
     const attackers = [...view.combat.attackers]
@@ -313,8 +346,7 @@ export class EasyAI implements AIPlayer {
           const first = getEffectiveStats(view.battlefield, this.db, candidates[i].blocker);
           for (let j = i + 1; j < candidates.length; j++) {
             const second = getEffectiveStats(view.battlefield, this.db, candidates[j].blocker);
-            const kills = first.attack + second.attack >= atk.defense ||
-              first.keywords.has('deathblade') || second.keywords.has('deathblade');
+            const kills = blockersKill(atk, [first, second]);
             // Commit the pair only when it kills; otherwise chump only when
             // desperate (the single-block philosophy, pair-sized).
             if (kills || desperate) {
@@ -326,8 +358,9 @@ export class EasyAI implements AIPlayer {
       } else {
         for (const c of candidates) {
           const blk = getEffectiveStats(view.battlefield, this.db, c.blocker);
-          const kills = blk.attack >= atk.defense || blk.keywords.has('deathblade');
-          const survives = blk.defense > atk.attack && !atk.keywords.has('deathblade');
+          const kills = blockersKill(atk, [blk]);
+          const damage = atk.attack * (atk.keywords.has('twinBlades') ? 2 : 1);
+          const survives = blk.defense > damage && !atk.keywords.has('deathblade');
           if (kills || survives || (desperate && candidates.length > 0)) {
             choices = [c.blocker];
             break;

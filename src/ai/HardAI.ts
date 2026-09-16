@@ -681,8 +681,13 @@ export class HardAI implements AIPlayer {
         }
       }
       for (const b of plan) {
+        const left = plan.filter((x) => x.attacker === b.attacker).length - 1;
+        if (left > 0 && minimumBlockersForAttacker(view.battlefield, this.db, b.attacker) > left) continue;
         for (const attacker of attackers) {
           if (attacker === b.attacker) continue;
+          if (!view.battlefield.some((p) => p.iid === attacker)) continue;
+          const gang = plan.filter((x) => x.attacker === attacker).length;
+          if (gang >= 3 || gang + 1 < minimumBlockersForAttacker(view.battlefield, this.db, attacker)) continue;
           out.push(plan.map((x) => (x === b ? { blocker: b.blocker, attacker } : x))); // move
         }
       }
