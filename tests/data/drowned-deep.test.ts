@@ -88,21 +88,19 @@ describe('Drowned Deep transcription', () => {
     expect(activatedAbilitiesOf(d).map((ability) => ability.cost.mana ? manaCostText(ability.cost.mana) : '{0}')).toEqual(dutyCosts);
   });
 
-  it('requires Tithe on every Horror except Cinderjaw and Horror on every Tithe carrier', () => {
+  // owner ruling 2026-09-17: Whispers and Tithe may share a card, so Cinderjaw
+  // takes Tithe and the named exception is gone. Tithe carriers 31 -> 32.
+  it('requires Tithe on every Horror and Horror on every Tithe carrier', () => {
     for (const d of DROWNED_DEEP) {
       expect(validateWhispersDef(d), d.id).toEqual([]);
       expect(validateTitheDef(d), d.id).toEqual([]);
       if (d.tithe) expect(d.subtypes, d.id).toContain('Horror');
-      if (d.id === 'dd-cinderjaw') {
-        // owner card 2026-09-11: the red Horror carries Whispers instead; Whispers and Tithe are mutually exclusive
-        expect(d.subtypes).toEqual(['Deep One', 'Horror']);
-        expect(d.whispers).toBeDefined();
-        expect(d.tithe).toBeUndefined();
-      } else if (d.subtypes.includes('Horror')) {
-        expect(d.tithe, d.id).toEqual({ per: 2 });
-      }
+      if (d.subtypes.includes('Horror')) expect(d.tithe, d.id).toEqual({ per: 2 });
     }
-    expect(DROWNED_DEEP.filter((d) => d.tithe)).toHaveLength(31);
+    expect(DROWNED_DEEP.filter((d) => d.tithe)).toHaveLength(32);
+    const cinderjaw = DROWNED_DEEP.find((d) => d.id === 'dd-cinderjaw')!;
+    expect(cinderjaw.whispers).toBeDefined();
+    expect(cinderjaw.tithe).toEqual({ per: 2 });
   });
 
   it('restricts Rite to white or red non-Horrors and excludes Whispers beside Retell', () => {

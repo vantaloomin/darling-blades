@@ -37,6 +37,10 @@ export const DB: CardDb = {
     empower: { cost: { generic: 2, pips: {} }, ops: [{ op: 'gainLife', n: 3 }] },
   }),
   tithe_pips: creature('tithe_pips', 5, 5, { cost: { generic: 0, pips: { G: 1 } }, tithe: { per: 2 } }),
+  // Cinderjaw's shape: one card carrying both Whispers and Tithe (2026-09-17 ruling).
+  wh_tithe: creature('wh_tithe', 5, 4, {
+    cost: { generic: 6, pips: {} }, whispers: { cost: { generic: 2, pips: {} } }, tithe: { per: 2 },
+  }),
   best: creature('best', 6, 6, { cost: { generic: 4, pips: {} } }),
   odd: creature('odd', 0, 3, { keywords: ['bulwark'], token: true }),
   one: creature('one', 0, 1, { keywords: ['bulwark'], token: true }),

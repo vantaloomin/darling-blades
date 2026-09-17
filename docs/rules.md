@@ -518,7 +518,13 @@ leave the battlefield in battlefield order before the spell reaches the
 stack, their graveyard and dies triggers batched, and a cancelled Tithe
 spell does not refund them. The creature-cap check at cast time subtracts
 the fodder count, the Rite rule. Tithe never appears beside X, Retell,
-Hauntlink, Whispers or Rite.
+Hauntlink or Rite. It may share a card with Whispers (owner ruling
+2026-09-17, for Cinderjaw, the Fire That Swims): a fresh Whispers card whose
+owner controls fodder is offered the plain Whispers cast and one canonical
+Whispers-plus-Tithe cast, and the discount pays the generic part of the
+Whispers cost the same way it pays the printed one, coloured pips untouched,
+never below zero generic. Payment and the fodder's departure follow the
+Tithe rules above whichever cost is being paid.
 
 **Records.** Both riders live on the existing `castSpell` action, so the
 replay log bumped to v13; the rules revision stays 4, since no shipped card

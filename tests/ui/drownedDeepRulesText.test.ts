@@ -5,6 +5,8 @@ import { cardMechanics } from '../../src/data/glossary';
 import type { AbilityDef, CardDef, EffectOp, TargetSpec } from '../../src/engine/types';
 import { activatedText, rulesText } from '../../src/ui/rulesText';
 
+const BREAK = String.fromCharCode(10);
+
 function card(fields: Partial<CardDef> = {}): CardDef {
   return { id: 'dd-vocabulary-text-fixture', name: 'Vocabulary fixture', types: ['ritual'], subtypes: [], colors: [], rarity: 'c', ...fields };
 }
@@ -29,12 +31,27 @@ describe('Drowned Deep vocabulary rules text', () => {
     // New: "Whenever you gain life, Mark this. This triggers only once each turn."
     // Old hash: db5f7a1ef643a56e286dee9496dda068a60b20842fd86bdf3428347091c1d656.
     // New hash: 6502f247289b0fa37d9a617a285bdb3ee003c0df43f7fdf47d3df4c0f4cb4a0d.
+    // Owner ruling 2026-09-17: Cinderjaw gains a Tithe line (the only text change).
+    // Old hash: 6502f247289b0fa37d9a617a285bdb3ee003c0df43f7fdf47d3df4c0f4cb4a0d.
+    // New hash: 729f4c3dd5f8b5b254dd7e58b1ca827ee2d2e990f0c46df83becc6441e859f13.
     const drownedDeep = ALL_CARDS.filter((definition) => definition.set === 'drowned-deep' && !definition.token);
     expect(drownedDeep).toHaveLength(252);
     const rows = drownedDeep.map((definition) => [definition.id, rulesText(definition)]);
     expect(createHash('sha256').update(JSON.stringify(rows)).digest('hex')).toBe(
-      '6502f247289b0fa37d9a617a285bdb3ee003c0df43f7fdf47d3df4c0f4cb4a0d',
+      '729f4c3dd5f8b5b254dd7e58b1ca827ee2d2e990f0c46df83becc6441e859f13',
     );
+  });
+
+  it('prints Cinderjaw with Tithe above her body and Whispers last', () => {
+    // Owner ruling 2026-09-17: the first card carrying both Whispers and Tithe.
+    expect(rulesText(CARD_DB['dd-cinderjaw'])).toBe([
+      '{T}, {R}: Deal 2 damage to target creature.',
+      'Warcry',
+      'Tithe.',
+      'Whenever this attacks, this deals 2 damage to your opponent.',
+      'Whispers {3}{R}{R}.',
+    ].join(BREAK));
+    expect(cardMechanics(CARD_DB['dd-cinderjaw'])).toEqual(['whispers', 'tithe', 'duty']);
   });
 
   it('prints the Saint once-per-turn sentence after her trigger', () => {
