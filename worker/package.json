@@ -2,12 +2,14 @@
   "name": "db-signals-worker",
   "private": true,
   "type": "module",
-  "description": "Darling Blades anonymous play-signals endpoint (Cloudflare Worker -> Workers Analytics Engine). Self-contained: its own lockfile, never part of the game bundle.",
+  "description": "Darling Blades anonymous play-signals endpoint (Cloudflare Worker -> Workers Analytics Engine). Self-contained: its own lockfile, never part of the game bundle. The behaviour tests live in the game repo at tests/worker/, which is the only place that can import both this Worker and src/meta/playSignals.ts.",
   "scripts": {
     "deploy": "wrangler deploy",
-    "dev": "wrangler dev",
+    "dev": "wrangler dev --local",
     "tail": "wrangler tail --format pretty",
-    "typecheck": "wrangler types && tsc --noEmit"
+    "typecheck": "wrangler types && tsc --noEmit",
+    "typecheck:scripts": "tsc --noEmit -p tsconfig.scripts.json",
+    "check": "npm run typecheck && npm run typecheck:scripts"
   },
   "devDependencies": {
     "typescript": "^5.9.0",
