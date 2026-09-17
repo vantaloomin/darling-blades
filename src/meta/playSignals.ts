@@ -18,7 +18,10 @@
  *   - `duel`      — one digest per completed duel, carrying NO card ids;
  *   - `cards`     — one batch at session end, tallied only in memory across a
  *                   single launch, one row per distinct card, carrying no duel
- *                   reference, no deck reference, no order and no time.
+ *                   reference, no deck reference, no order and no time. Every
+ *                   row repeats one bucketed count of the duels the launch
+ *                   contained, which is a denominator rather than a reference:
+ *                   it names no duel and orders nothing.
  *
  * `SIGNAL_FIELDS` is the field allowlist and the single source of truth. Every
  * builder constructs its output by projecting through the allowlist, so an
@@ -56,6 +59,7 @@ export const SIGNAL_FIELDS = {
     'streakBucket',
     'achievementsBucket',
     'winsBucket',
+    'lossesBucket',
     'packsBucket',
     'collectionBucket',
     'tutorialDone',
@@ -73,7 +77,7 @@ export const SIGNAL_FIELDS = {
     'result',
     'mulligans',
   ],
-  cards: ['cardId', 'countBucket'],
+  cards: ['cardId', 'countBucket', 'duelsBucket'],
 } as const;
 
 /** The nested `heartbeat.settings` allowlist, held apart so it can be asserted on its own. */
@@ -100,10 +104,17 @@ export type SignalPlatform = 'web' | 'desktop';
 export type SignalFormFactor = 'mobile' | 'tablet' | 'desktop';
 export type SignalAnimations = 'full' | 'reduced' | 'off';
 export type SignalRenderScale = '720p' | '1080p' | '1440p' | 'other';
-export type SignalDuelFormat = 'constructed' | 'darlings' | 'limited' | 'gauntlet';
+/**
+ * `warchest` is the reserve-native constructed format, which since the 1.6
+ * classic retirement is what every granted non-Darlings deck actually is
+ * (`grantedDeckBuild`, src/meta/Economy.ts). There is deliberately no
+ * `constructed` value.
+ */
+export type SignalDuelFormat = 'warchest' | 'darlings' | 'limited' | 'gauntlet';
 export type SignalDeckSource = 'precon' | 'custom' | 'drafted';
 export type SignalDifficulty = 'easy' | 'medium' | 'hard';
-export type SignalResult = 'win' | 'loss' | 'draw';
+/** A concede is its own outcome. It is never also reported as a loss. */
+export type SignalResult = 'win' | 'loss' | 'draw' | 'concede';
 
 export type StreakBucket = '0' | '1' | '2' | '3' | '4-6' | '7-13' | '14-29' | '30+';
 export type TenthsBucket =
@@ -152,6 +163,7 @@ interface HeartbeatFieldTypes {
   streakBucket: StreakBucket;
   achievementsBucket: TenthsBucket;
   winsBucket: CountBucket;
+  lossesBucket: CountBucket;
   packsBucket: CountBucket;
   collectionBucket: CollectionBucket;
   tutorialDone: boolean;
@@ -174,6 +186,8 @@ interface DuelFieldTypes {
 interface CardsFieldTypes {
   cardId: string;
   countBucket: CardCountBucket;
+  /** Duels in this launch, the same on every row of one batch. A denominator, not a reference. */
+  duelsBucket: CardCountBucket;
 }
 
 export type HeartbeatSettings = { [K in SettingsField]: SettingsFieldTypes[K] };
@@ -303,6 +317,15 @@ export function cardCountBucket(raw: unknown): CardCountBucket {
 }
 
 /**
+ * Duels completed in one launch. Deliberately the same bands and labels as the
+ * card count, so the batch reads as one vocabulary. Zero, negative, NaN and
+ * absent all read as `1`, since a batch only exists because a launch happened.
+ */
+export function duelsBucket(raw: unknown): CardCountBucket {
+  return bandOf(CARD_COUNT_BANDS, raw);
+}
+
+/**
  * A share in [0,1] bucketed to tenths, e.g. 0.64 -> `0.6`. Only an exact 1
  * reaches `1.0`; the epsilon keeps a clean tenth such as 0.7 off the band below
  * it when binary floating point lands it a hair short.
@@ -388,13 +411,13 @@ export interface SignalEnv {
 const FORM_FACTORS: ReadonlySet<string> = new Set<SignalFormFactor>(['mobile', 'tablet', 'desktop']);
 const ANIMATION_TIERS: ReadonlySet<string> = new Set<SignalAnimations>(['full', 'reduced', 'off']);
 const DUEL_FORMATS: ReadonlySet<string> = new Set<SignalDuelFormat>([
-  'constructed',
+  'warchest',
   'darlings',
   'limited',
   'gauntlet',
 ]);
 const DIFFICULTIES: ReadonlySet<string> = new Set<SignalDifficulty>(['easy', 'medium', 'hard']);
-const RESULTS: ReadonlySet<string> = new Set<SignalResult>(['win', 'loss', 'draw']);
+const RESULTS: ReadonlySet<string> = new Set<SignalResult>(['win', 'loss', 'draw', 'concede']);
 
 const ACHIEVEMENT_IDS: ReadonlySet<string> = new Set(ACHIEVEMENTS.map((def) => def.id));
 const BASIC_LAND_ID_SET: ReadonlySet<string> = new Set<string>(BASIC_LAND_IDS);
@@ -447,6 +470,7 @@ export function buildHeartbeat(save: SaveData, env: SignalEnv): HeartbeatSignal 
     streakBucket: streakBucket(save.daily?.streak?.count),
     achievementsBucket: tenthsBucket(unlockedShare(save)),
     winsBucket: countBucket(save.stats?.wins),
+    lossesBucket: countBucket(save.stats?.losses),
     packsBucket: countBucket(save.stats?.packsOpened),
     collectionBucket: collectionBucket(distinctOwned(save)),
     tutorialDone: save.tutorialDone === true,
@@ -569,7 +593,7 @@ export function buildDuelDigest(
   deck: DuelDeckInput,
   save: SaveData,
 ): DuelSignal {
-  const format: SignalDuelFormat = DUEL_FORMATS.has(result.format) ? result.format : 'constructed';
+  const format: SignalDuelFormat = DUEL_FORMATS.has(result.format) ? result.format : 'warchest';
   const drafted = format === 'limited' && (save.limited?.activeRun ?? null) !== null;
   const archetype = drafted ? CUSTOM_ARCHETYPE : deckArchetypeOf(deck);
   const deckSource: SignalDeckSource = drafted
@@ -587,7 +611,8 @@ export function buildDuelDigest(
     difficulty: DIFFICULTIES.has(result.difficulty) ? result.difficulty : ('medium' as SignalDifficulty),
     turnsBucket: turnsBucket(result.turns),
     // A malformed outcome reads as a draw rather than silently inflating either
-    // side of the win rate; draws are rare enough that the anomaly shows up.
+    // side of the win rate; draws are rare enough that the anomaly shows up. A
+    // concede passes through as itself and is never folded into `loss`.
     result: RESULTS.has(result.result) ? result.result : ('draw' as SignalResult),
     mulligans: cappedInt(result.mulligans, MULLIGAN_CAP),
   });
@@ -637,10 +662,23 @@ export function tallyCardsPlayed(
  * output is deterministic, with a bucketed count. No duel reference, no deck
  * reference, no order, no timestamp — by construction, since the row shape has
  * nowhere to put any of them.
+ *
+ * `duelsPlayed` is the denominator the batch would otherwise lack: how many
+ * duels this launch contained, bucketed with the card-count labels and repeated
+ * identically on every row. It is REQUIRED rather than optional so a caller
+ * cannot forget it and quietly ship a batch that cannot be read. It is a count
+ * and nothing else: it names no duel, references no duel, and orders nothing.
  */
-export function buildSessionCards(tally: CardTally): SessionCardSignal[] {
+export function buildSessionCards(tally: CardTally, duelsPlayed: number): SessionCardSignal[] {
+  const duels = duelsBucket(duelsPlayed);
   return Object.keys(tally)
     .filter((cardId) => !BASIC_LAND_ID_SET.has(cardId) && finite(tally[cardId]) > 0)
     .sort()
-    .map((cardId) => project(SIGNAL_FIELDS.cards, { cardId, countBucket: cardCountBucket(tally[cardId]) }));
+    .map((cardId) =>
+      project(SIGNAL_FIELDS.cards, {
+        cardId,
+        countBucket: cardCountBucket(tally[cardId]),
+        duelsBucket: duels,
+      }),
+    );
 }

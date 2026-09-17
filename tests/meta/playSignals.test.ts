@@ -21,6 +21,7 @@ import {
   curveBucket,
   deckArchetypeOf,
   deckColoursOf,
+  duelsBucket,
   GAUNTLET_RUNG_CAP,
   MULLIGAN_CAP,
   normalizeLang,
@@ -84,11 +85,15 @@ function allKeys(value: unknown, out: string[] = []): string[] {
   return out;
 }
 
-function allPayloads(save: SaveData, tally: CardTally = { 'fx-black-five': 5 }): string {
+function allPayloads(
+  save: SaveData,
+  tally: CardTally = { 'fx-black-five': 5 },
+  duelsPlayed = 3,
+): string {
   return JSON.stringify([
     buildHeartbeat(save, ENV),
     buildDuelDigest(RESULT, DECK, save),
-    buildSessionCards(tally),
+    buildSessionCards(tally, duelsPlayed),
   ]);
 }
 
@@ -116,7 +121,7 @@ describe('playSignals allowlist', () => {
   });
 
   it('every session card row key set EQUALS the allowlist, in both directions', () => {
-    const rows = buildSessionCards({ 'fx-white-two': 1, 'fx-blue-three': 9 });
+    const rows = buildSessionCards({ 'fx-white-two': 1, 'fx-blue-three': 9 }, 2);
     expect(rows).toHaveLength(2);
     for (const row of rows) {
       expect(Object.keys(row).sort()).toEqual([...SIGNAL_FIELDS.cards].sort());
@@ -134,6 +139,7 @@ describe('playSignals allowlist', () => {
       (SIGNAL_FIELDS.duel as unknown as string[]).push('email');
     }).toThrow();
     expect(SIGNAL_FIELDS.duel).toHaveLength(10);
+    expect(SIGNAL_FIELDS.cards).toHaveLength(3);
   });
 
   it('a stray key on a builder input cannot reach the payload', () => {
@@ -167,6 +173,7 @@ describe('playSignals allowlist coverage', () => {
       streakBucket: '30+',
       achievementsBucket: '1.0',
       winsBucket: '250+',
+      lossesBucket: '250+',
       packsBucket: '250+',
       collectionBucket: '1-24',
       tutorialDone: true,
@@ -197,9 +204,9 @@ describe('playSignals allowlist coverage', () => {
   });
 
   it('every allowlisted session card field is set by the input and read from the payload', () => {
-    const expected = { cardId: 'fx-black-five', countBucket: '4-7' };
+    const expected = { cardId: 'fx-black-five', countBucket: '4-7', duelsBucket: '2-3' };
     expect(Object.keys(expected).sort()).toEqual([...SIGNAL_FIELDS.cards].sort());
-    expect(buildSessionCards({ 'fx-black-five': 5 })).toEqual([expected]);
+    expect(buildSessionCards({ 'fx-black-five': 5 }, 3)).toEqual([expected]);
   });
 });
 
@@ -263,7 +270,7 @@ describe('playSignals carries nothing the player typed', () => {
     const keys = [
       ...allKeys(buildHeartbeat(save, ENV)),
       ...allKeys(buildDuelDigest(RESULT, DECK, save)),
-      ...allKeys(buildSessionCards({ 'fx-white-two': 2 })),
+      ...allKeys(buildSessionCards({ 'fx-white-two': 2 }, 4)),
     ];
     expect(keys.length).toBeGreaterThan(0);
     for (const key of keys) expect(prohibited.has(key)).toBe(false);
@@ -286,6 +293,40 @@ describe('playSignals emits buckets, never raw counts', () => {
   it("a rich fixture's distinctive raw numbers appear nowhere in the payloads", () => {
     const serialised = allPayloads(richSave());
     for (const raw of Object.values(RAW)) expect(serialised).not.toContain(String(raw));
+  });
+
+  it('the raw loss count never escapes: only its bucket does', () => {
+    const save = richSave();
+    expect(save.stats.losses).toBe(RAW.losses); // the fixture really carries it
+    const payload = buildHeartbeat(save, ENV);
+    expect(payload.lossesBucket).toBe('250+');
+    expect(JSON.stringify(payload)).not.toContain(String(RAW.losses));
+    expect(allPayloads(save)).not.toContain(String(RAW.losses));
+  });
+
+  it('lossesBucket lands on both sides of every boundary, read off the builder', () => {
+    const cases: [number, string][] = [
+      [-1, '0'], [0, '0'], [1, '1-4'], [4, '1-4'], [5, '5-9'], [9, '5-9'],
+      [10, '10-24'], [24, '10-24'], [25, '25-49'], [49, '25-49'],
+      [50, '50-99'], [99, '50-99'], [100, '100-249'], [249, '100-249'],
+      [250, '250+'], [RAW.losses, '250+'],
+    ];
+    const save = richSave();
+    for (const [value, label] of cases) {
+      save.stats.losses = value;
+      expect(buildHeartbeat(save, ENV).lossesBucket).toBe(label);
+    }
+    save.stats.losses = NaN;
+    expect(buildHeartbeat(save, ENV).lossesBucket).toBe('0');
+  });
+
+  it('wins and losses are bucketed independently', () => {
+    const save = richSave();
+    save.stats.wins = 3;
+    save.stats.losses = 120;
+    const payload = buildHeartbeat(save, ENV);
+    expect(payload.winsBucket).toBe('1-4');
+    expect(payload.lossesBucket).toBe('100-249');
   });
 
   it('streakBucket lands on both sides of every boundary', () => {
@@ -357,7 +398,7 @@ describe('playSignals emits buckets, never raw counts', () => {
 
   it('every bucketing function is total: NaN, Infinity, absent and fractional all land', () => {
     const odd: unknown[] = [NaN, Infinity, -Infinity, undefined, null, '17', {}, [], 0.5, -0.5, 1e308];
-    const buckets = [streakBucket, countBucket, collectionBucket, turnsBucket, curveBucket, cardCountBucket, tenthsBucket];
+    const buckets = [streakBucket, countBucket, collectionBucket, turnsBucket, curveBucket, cardCountBucket, duelsBucket, tenthsBucket];
     for (const bucket of buckets) {
       for (const value of odd) {
         const label = bucket(value);
@@ -423,27 +464,66 @@ describe('playSignals keeps cards unjoinable', () => {
   it('session card rows carry no deck reference, no duel reference, no order and no time', () => {
     const deck: DuelDeckInput = { cards: knownIds, landReserve: null, darlingId: null, db: TINY_DB };
     const digest = buildDuelDigest(RESULT, deck, richSave());
-    const rows = buildSessionCards({ 'fx-black-five': 2, 'fx-white-two': 1 });
+    const rows = buildSessionCards({ 'fx-black-five': 2, 'fx-white-two': 1 }, 6);
     const serialised = JSON.stringify(rows);
     expect(serialised).not.toContain(digest.deckArchetype);
     expect(serialised).not.toContain(digest.opponentId);
+    expect(serialised).not.toContain(digest.format);
     expect(serialised).not.toContain('deck');
-    expect(serialised).not.toContain('duel');
     expect(serialised).not.toContain('order');
     expect(serialised).not.toContain('index');
-    expect(allKeys(rows).sort()).toEqual(['cardId', 'cardId', 'countBucket', 'countBucket']);
+    // `duelsBucket` is the only key naming duels at all, and it is a count. No
+    // duel identifier, and nothing that could order or single one out.
+    expect(serialised).not.toMatch(/"duelId"|"duel"\s*:|"duels"\s*:/);
+    expect(allKeys(rows).sort()).toEqual([
+      'cardId', 'cardId', 'countBucket', 'countBucket', 'duelsBucket', 'duelsBucket',
+    ]);
+  });
+
+  it('the duel count is a denominator: identical on every row of one batch', () => {
+    const rows = buildSessionCards({ 'fx-black-five': 9, 'fx-white-two': 1, 'fx-red-one': 3 }, 5);
+    expect(rows).toHaveLength(3);
+    expect(new Set(rows.map((row) => row.duelsBucket)).size).toBe(1);
+    expect(rows.map((row) => row.duelsBucket)).toEqual(['4-7', '4-7', '4-7']);
+    // It says nothing about any individual card: the per-card counts differ.
+    expect(rows.map((row) => row.countBucket)).toEqual(['8+', '2-3', '1']);
+  });
+
+  it('duelsBucket lands on both sides of every boundary', () => {
+    const cases: [number, string][] = [
+      [1, '1'], [2, '2-3'], [3, '2-3'], [4, '4-7'], [7, '4-7'], [8, '8+'], [4096, '8+'],
+    ];
+    for (const [value, label] of cases) {
+      expect(duelsBucket(value)).toBe(label);
+      expect(buildSessionCards({ 'fx-red-one': 1 }, value)[0].duelsBucket).toBe(label);
+    }
+  });
+
+  it('a zero, negative or non-finite duel count reads as 1 rather than escaping', () => {
+    for (const value of [0, -1, -9999, NaN, Infinity, -Infinity]) {
+      expect(duelsBucket(value)).toBe('1');
+      expect(buildSessionCards({ 'fx-red-one': 1 }, value)[0].duelsBucket).toBe('1');
+    }
+    expect(duelsBucket(undefined)).toBe('1');
+    expect(duelsBucket('12')).toBe('1');
+  });
+
+  it('a raw duel count never escapes, however large', () => {
+    const serialised = JSON.stringify(buildSessionCards({ 'fx-red-one': 1 }, RAW.wins));
+    expect(serialised).not.toContain(String(RAW.wins));
+    expect(serialised).toContain('8+');
   });
 
   it('rows are sorted by card id, so the batch never encodes the order of play', () => {
     let tally: CardTally = {};
     tally = tallyCardsPlayed(tally, ['fx-green-four', 'fx-black-five', 'fx-white-two'], TINY_DB);
     tally = tallyCardsPlayed(tally, ['fx-white-two', 'fx-blue-three'], TINY_DB);
-    const forwards = buildSessionCards(tally).map((row) => row.cardId);
+    const forwards = buildSessionCards(tally, 3).map((row) => row.cardId);
 
     let reversed: CardTally = {};
     reversed = tallyCardsPlayed(reversed, ['fx-blue-third-missing', 'fx-blue-three'], TINY_DB);
     reversed = tallyCardsPlayed(reversed, ['fx-white-two', 'fx-white-two', 'fx-black-five', 'fx-green-four'], TINY_DB);
-    const backwards = buildSessionCards(reversed).map((row) => row.cardId);
+    const backwards = buildSessionCards(reversed, 3).map((row) => row.cardId);
 
     expect(forwards).toEqual([...forwards].sort());
     expect(backwards).toEqual(forwards);
@@ -452,12 +532,14 @@ describe('playSignals keeps cards unjoinable', () => {
   it('tokens, basic lands and unknown ids never enter the tally', () => {
     const tally = tallyCardsPlayed({}, ['fx-token-bear', 'land-plains', 'land-island', 'no-such-card', 'fx-red-one'], TINY_DB);
     expect(Object.keys(tally)).toEqual(['fx-red-one']);
-    expect(buildSessionCards(tally)).toEqual([{ cardId: 'fx-red-one', countBucket: '1' }]);
+    expect(buildSessionCards(tally, 1)).toEqual([
+      { cardId: 'fx-red-one', countBucket: '1', duelsBucket: '1' },
+    ]);
   });
 
   it('a basic land that somehow reached a tally is still dropped at build time', () => {
-    expect(buildSessionCards({ 'land-plains': 12, 'fx-red-one': 1 })).toEqual([
-      { cardId: 'fx-red-one', countBucket: '1' },
+    expect(buildSessionCards({ 'land-plains': 12, 'fx-red-one': 1 }, 2)).toEqual([
+      { cardId: 'fx-red-one', countBucket: '1', duelsBucket: '2-3' },
     ]);
   });
 
@@ -478,7 +560,7 @@ describe('playSignals deck identity', () => {
     const list = STARTER_DECKS[0];
     const deck: DuelDeckInput = { cards: list.cards, landReserve: null, darlingId: null, db: TINY_DB };
     expect(deckArchetypeOf(deck)).toBe(list.id);
-    const digest = buildDuelDigest({ ...RESULT, format: 'constructed' }, deck, richSave());
+    const digest = buildDuelDigest({ ...RESULT, format: 'warchest' }, deck, richSave());
     expect(digest.deckArchetype).toBe(list.id);
     expect(digest.deckSource).toBe('precon');
   });
@@ -582,10 +664,43 @@ describe('playSignals deck identity', () => {
       result: SENTINEL as unknown as DuelResultInput['result'],
     };
     const digest = buildDuelDigest(dirty, DECK, save);
-    expect(digest.format).toBe('constructed');
+    expect(digest.format).toBe('warchest');
     expect(digest.difficulty).toBe('medium');
     expect(digest.result).toBe('draw');
     expect(JSON.stringify(digest)).not.toContain(SENTINEL);
+  });
+
+  it('there is no `constructed` format left anywhere: the reserve format is `warchest`', () => {
+    const save = richSave();
+    for (const format of ['warchest', 'darlings', 'limited', 'gauntlet'] as const) {
+      expect(buildDuelDigest({ ...RESULT, format }, DECK, save).format).toBe(format);
+    }
+    const legacy = { ...RESULT, format: 'constructed' as unknown as DuelResultInput['format'] };
+    expect(buildDuelDigest(legacy, DECK, save).format).toBe('warchest');
+  });
+
+  it('a concede survives as its own outcome and is never folded into a loss', () => {
+    const save = richSave();
+    for (const result of ['win', 'loss', 'draw', 'concede'] as const) {
+      expect(buildDuelDigest({ ...RESULT, result }, DECK, save).result).toBe(result);
+    }
+    const conceded = buildDuelDigest({ ...RESULT, result: 'concede' }, DECK, save);
+    expect(conceded.result).toBe('concede');
+    expect(conceded.result).not.toBe('loss');
+    expect(JSON.stringify(conceded)).toContain('"concede"');
+    expect(JSON.stringify(conceded)).not.toContain('"loss"');
+  });
+
+  it('a garbage result still reads draw, never concede and never a loss', () => {
+    const save = richSave();
+    for (const junk of [SENTINEL, '', 'conceded', 'Concede', null, undefined, 7]) {
+      const digest = buildDuelDigest(
+        { ...RESULT, result: junk as unknown as DuelResultInput['result'] },
+        DECK,
+        save,
+      );
+      expect(digest.result).toBe('draw');
+    }
   });
 
   it('the language tag keeps only the primary subtag', () => {
@@ -651,7 +766,7 @@ describe('playSignals unlinkability and determinism', () => {
     expect(Object.keys(buildHeartbeat(save, ENV))).toEqual([...SIGNAL_FIELDS.heartbeat]);
     expect(Object.keys(buildHeartbeat(save, ENV).settings)).toEqual([...SIGNAL_SETTINGS_FIELDS]);
     expect(Object.keys(buildDuelDigest(RESULT, DECK, save))).toEqual([...SIGNAL_FIELDS.duel]);
-    expect(Object.keys(buildSessionCards({ 'fx-red-one': 1 })[0])).toEqual([...SIGNAL_FIELDS.cards]);
+    expect(Object.keys(buildSessionCards({ 'fx-red-one': 1 }, 2)[0])).toEqual([...SIGNAL_FIELDS.cards]);
   });
 
   it('a save built at a different moment produces the same payloads', () => {

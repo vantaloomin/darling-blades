@@ -202,7 +202,8 @@ carrier before any code is committed.
 wave inherits from it:
 
 - `SIGNAL_FIELDS` (frozen) is the allowlist the Worker's validator is held
-  equal to: heartbeat 13 fields, duel 10, cards 2 (`cardId`, `countBucket`).
+  equal to: heartbeat 14 fields, duel 10, cards 3 (`cardId`, `countBucket`,
+  `duelsBucket`), 63 tests after the owner's four schema rulings below.
   Four compile-time assertions fail the typecheck if a field-type map and its
   allowlist disagree in either direction, and the builders project through the
   allowlist, so a stray key cannot reach a payload.
@@ -216,10 +217,18 @@ wave inherits from it:
 - **Three inputs have no source anywhere in `src/` today** and T2 has to add
   them in the scene or platform layer: `formFactor` (only a touch predicate
   exists, and no dimensions may be sent), `lang`, and `reducedMotion`.
-- Proposed by the build and NOT added, each an owner call: a `warchest` value
-  for `format` (classic is retired, so `constructed` means Warchest in
-  practice), a way to tell a concede from a loss, a bucketed duel count on the
-  cards batch as a denominator, and a `lossesBucket` on the heartbeat.
+- Four schema additions proposed by the build, **all ruled IN by the owner the
+  same day**: `format`'s `constructed` value is renamed `warchest`; `result`
+  gains `concede`, never also a loss; every card row carries `duelsBucket`, a
+  bucketed count of the launch's duels with the card-count labels
+  (`buildSessionCards(tally, duelsPlayed)`, the count required); the heartbeat
+  gains `lossesBucket`. None has a producer yet. T2's scene layer owes: the
+  mapping of the save's `constructed` and `warchest` deck formats to the signal
+  value `warchest`; a branch on `showResults`'s `reason` for a concede; and a
+  launch-scoped duel counter beside the in-memory card tally, never persisted.
+- The two v35 preference fields are deliberately NOT signals. A consent flag
+  must not itself be reported; an opt-out rate would be a separate owner
+  decision and a separate field.
 - Standing flake risk found on the way: `tests/meta/balanceTelemetry.test.ts`
   "does not change fixed-seed simulation outcomes when attached" timed out at
   5 s once when two full suites overlapped; it takes 1.15 s alone.
