@@ -43,6 +43,13 @@ import { ACHIEVEMENTS } from './Achievements';
 import { deckColorIdentity } from './deckColorIdentity';
 import { BASIC_LAND_IDS, type SaveData } from './SaveManager';
 
+/**
+ * The notice version lives in a leaf module to avoid an import cycle with
+ * SaveManager, and is re-exported here because this is where it belongs:
+ * beside the allowlist. Bump it whenever SIGNAL_FIELDS changes.
+ */
+export { STATS_NOTICE_VERSION } from './statsNotice';
+
 // ---------------------------------------------------------------------------
 // The allowlist. One entry per event type, plus the nested `settings` object.
 // Nothing outside these names is ever emitted.

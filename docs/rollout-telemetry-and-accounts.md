@@ -45,7 +45,7 @@ done at least a week before that wave opens so a surprise does not stall it.
 | ~~Create a Cloudflare account~~ | T0 | **DONE 2026-09-10** (Workers Free plan). No custom domain needed — a Worker gets a free `*.workers.dev` hostname |
 | ~~Decide the Worker hostname~~ | T0 | **DECIDED 2026-09-10: `db-signals.loominvanta.workers.dev`.** A hello-world placeholder Worker named `db-signals` is deployed there to register the subdomain; the real signals Worker replaces it under the same name. It goes in the client and in the privacy page, so changing it later is a code change |
 | Cloudflare API token (Analytics read) → repo secret | T3 | Scope it to **Account Analytics: Read** only. Never a global key |
-| Set the Worker's salt secret in Cloudflare | T2 | Ruled 2026-09-17 (D-T0.2): the daily de-duplication salt is `hash(secret, UTC day)`, so one secret has to exist before the real Worker deploys. `wrangler secret put`, never in the repo |
+| ~~Set the Worker's salt secret in Cloudflare~~ | T2 | **DONE 2026-09-17**: `SALT_SECRET` is set on `db-signals`. Ruled the same day (D-T0.2, see the T0 finding): the daily salt is a random value held in one Workers KV key for the UTC day and then deleted, with `SALT_SECRET` mixed in, so a past day can never be recomputed. The KV namespace is created in T2 with the deploy token; it is not an owner step |
 | Create the Supabase **prod** project, **EU region** | C0 | Region is chosen at creation and cannot be changed later |
 | Create the Supabase **dev** project | C0 | This exhausts the free plan's 2-project allowance. There is no third |
 | Register OAuth apps (Discord / Google / GitHub) | C0 | Redirect URIs must cover the Pages origin **and** the Tauri custom scheme |
@@ -226,6 +226,16 @@ wave inherits from it:
   mapping of the save's `constructed` and `warchest` deck formats to the signal
   value `warchest`; a branch on `showResults`'s `reason` for a concede; and a
   launch-scoped duel counter beside the in-memory card tally, never persisted.
+- **v35 corrected in place, 2026-09-17.** PR 0b shipped to the train with a
+  one-shot `statsNoticeSeen: boolean`, built from a copy of this doc that
+  predated the owner ruling of 2026-09-10 (the amendment had landed on `main`
+  only). It is now `statsNoticeVersion: number`, 0 for a migrated save and
+  `STATS_NOTICE_VERSION` for a fresh one. No further save bump: v35 had not
+  shipped to any player. The constant lives in the leaf module
+  `src/meta/statsNotice.ts`, because `SaveManager` needs it and `playSignals`
+  imports `SaveManager`; `playSignals` re-exports it beside the allowlist, and
+  `tests/meta/statsNotice.test.ts` snapshots the allowlist per notice version,
+  so an allowlist edit without a bump fails the suite.
 - The two v35 preference fields are deliberately NOT signals. A consent flag
   must not itself be reported; an opt-out rate would be a separate owner
   decision and a separate field.

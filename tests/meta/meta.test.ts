@@ -575,7 +575,7 @@ describe('save migration old blobs ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã�
       // v35 additions. Sharing defaults on everywhere; the notice flag is
       // false here because this is a migrated save, not a fresh one.
       shareAnonStats: true,
-      statsNoticeSeen: false,
+      statsNoticeVersion: 0,
     });
     expect('animSpeed' in m.data.settings).toBe(false);
   });
@@ -665,7 +665,7 @@ describe('save migration old blobs ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã�
       confirmLandDrop: true, // v34 default
       // v35 additions; a migrated save has not been shown the notice.
       shareAnonStats: true,
-      statsNoticeSeen: false,
+      statsNoticeVersion: 0,
     });
     expect('animSpeed' in m.data.settings).toBe(false);
     expect(m.data.gauntlet.bestRung).toBe(2);

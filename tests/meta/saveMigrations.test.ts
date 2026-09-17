@@ -5,6 +5,7 @@ import { deckHealth } from '../../src/meta/deckRepair';
 import { grantDeckCards } from '../../src/meta/Economy';
 import { startDraftRun } from '../../src/meta/Limited';
 import { CURRENT_SAVE_VERSION, freshSave, SaveManager, type SaveData } from '../../src/meta/SaveManager';
+import { STATS_NOTICE_VERSION } from '../../src/meta/statsNotice';
 import { parseVariantKey, PLAIN_VARIANT, variantKey } from '../../src/meta/variants';
 import {
   CARD_BACKS,
@@ -841,7 +842,7 @@ describe('SaveData v35 migration (anonymous-stats preference)', () => {
     old.version = 34;
     // A real v34 blob has neither new setting and still carries both dead keys.
     delete (old.settings as Record<string, unknown>).shareAnonStats;
-    delete (old.settings as Record<string, unknown>).statsNoticeSeen;
+    delete (old.settings as Record<string, unknown>).statsNoticeVersion;
     old.cosmetics = { cardBack: 'back-violet-standard', playmat: 'playmat-house', owned: [] };
     storage.raw.set('darlingblades.save.v1', JSON.stringify(old));
 
@@ -850,7 +851,7 @@ describe('SaveData v35 migration (anonymous-stats preference)', () => {
     expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
     expect(migrated.settings.shareAnonStats).toBe(true);
     // An existing player is owed the notice; only a fresh save skips it.
-    expect(migrated.settings.statsNoticeSeen).toBe(false);
+    expect(migrated.settings.statsNoticeVersion).toBe(0);
     expect(migrated.cosmetics).toEqual({ owned: [] });
     expect(Object.keys(migrated.cosmetics)).toEqual(['owned']);
     // Nothing else about the save moves.
@@ -860,7 +861,7 @@ describe('SaveData v35 migration (anonymous-stats preference)', () => {
 
   it('is on AND already notified for a fresh save', () => {
     expect(freshSave(1).settings.shareAnonStats).toBe(true);
-    expect(freshSave(1).settings.statsNoticeSeen).toBe(true);
+    expect(freshSave(1).settings.statsNoticeVersion).toBe(STATS_NOTICE_VERSION);
     expect(freshSave(1).cosmetics).toEqual({ owned: [] });
   });
 
@@ -873,18 +874,18 @@ describe('SaveData v35 migration (anonymous-stats preference)', () => {
     const storage = fakeStorage();
     const current = freshSave(123);
     current.settings.shareAnonStats = false;
-    current.settings.statsNoticeSeen = true;
+    current.settings.statsNoticeVersion = STATS_NOTICE_VERSION;
     storage.raw.set('darlingblades.save.v1', JSON.stringify(current));
 
     const first = new SaveManager(storage, 456);
     expect(first.data.settings.shareAnonStats).toBe(false);
-    expect(first.data.settings.statsNoticeSeen).toBe(true);
+    expect(first.data.settings.statsNoticeVersion).toBe(STATS_NOTICE_VERSION);
 
     // Write it back out the way the game does, then load it again.
     first.flush();
     const second = new SaveManager(storage, 789).data;
     expect(second.settings.shareAnonStats).toBe(false);
-    expect(second.settings.statsNoticeSeen).toBe(true);
+    expect(second.settings.statsNoticeVersion).toBe(STATS_NOTICE_VERSION);
     expect(second.version).toBe(CURRENT_SAVE_VERSION);
   });
 
@@ -892,14 +893,14 @@ describe('SaveData v35 migration (anonymous-stats preference)', () => {
     const storage = fakeStorage();
     const current = freshSave(123) as unknown as Record<string, unknown>;
     (current.settings as Record<string, unknown>).shareAnonStats = 'yes';
-    (current.settings as Record<string, unknown>).statsNoticeSeen = 'yes';
+    (current.settings as Record<string, unknown>).statsNoticeVersion = 'yes';
     storage.raw.set('darlingblades.save.v1', JSON.stringify(current));
 
     const settings = new SaveManager(storage, 456).data.settings;
 
     expect(settings.shareAnonStats).toBe(true);
     // Not-yet-notified is the safe reading of a garbage value.
-    expect(settings.statsNoticeSeen).toBe(false);
+    expect(settings.statsNoticeVersion).toBe(0);
   });
 
   /**
@@ -914,14 +915,14 @@ describe('SaveData v35 migration (anonymous-stats preference)', () => {
       const old = freshSave(123) as unknown as Record<string, unknown>;
       old.version = version;
       delete (old.settings as Record<string, unknown>).shareAnonStats;
-      delete (old.settings as Record<string, unknown>).statsNoticeSeen;
+      delete (old.settings as Record<string, unknown>).statsNoticeVersion;
       storage.raw.set('darlingblades.save.v1', JSON.stringify(old));
 
       const migrated = new SaveManager(storage, 456).data;
 
       expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
       expect(migrated.settings.shareAnonStats).toBe(true);
-      expect(migrated.settings.statsNoticeSeen).toBe(false);
+      expect(migrated.settings.statsNoticeVersion).toBe(0);
       expect(migrated.cosmetics).toEqual({ owned: [] });
     },
   );

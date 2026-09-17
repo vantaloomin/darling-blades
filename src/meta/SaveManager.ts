@@ -10,6 +10,7 @@ import { isReplayLog, REPLAY_CAP, type ReplayLog } from './Replay';
 import { normalizeDarlingsFields } from './darlings';
 import { parseVariantKey, PLAIN_VARIANT, variantKey } from './variants';
 import { CARD_BACKS, PLAYMATS, cosmeticById, isKnownCosmeticId } from './cosmetics';
+import { STATS_NOTICE_VERSION, normalizeStatsNoticeVersion } from './statsNotice';
 
 export const CURRENT_SAVE_VERSION = 35 as const;
 const LEGACY_WARCHEST_FORMAT = 'battle' + 'box';
@@ -272,15 +273,19 @@ export interface SaveData {
      */
     shareAnonStats: boolean;
     /**
-     * Whether the player has been shown the one-time notice that anonymous
-     * stats are being collected. v35 addition; `true` for a fresh save (the
-     * first-run flow covers it) and `false` for every migrated save, so an
-     * existing player is TOLD on the update rather than having collection
-     * start silently. Garbage normalizes to `false`: not-yet-notified is the
-     * safe reading, because the cost of showing the notice twice is far lower
-     * than never showing it.
+     * The last version of the anonymous-stats notice this profile was shown.
+     * v35 addition; `STATS_NOTICE_VERSION` for a fresh save (the first-run
+     * flow covers it) and `0` for every migrated save, so an existing player
+     * is TOLD on the update rather than having collection start silently. The
+     * client shows the notice while this is below `STATS_NOTICE_VERSION` and
+     * then stamps it, so a later change to the fields sent re-arms the notice
+     * by bumping the constant, with no further save bump. A number rather
+     * than a boolean by owner ruling 2026-09-10: the privacy policy promises
+     * that re-notification. Garbage normalizes to `0`: not-yet-notified is
+     * the safe reading, because showing the notice twice costs far less than
+     * never showing it.
      */
-    statsNoticeSeen: boolean;
+    statsNoticeVersion: number;
   };
 }
 
@@ -349,7 +354,7 @@ export function freshSave(now: number): SaveData {
       shareAnonStats: true,
       // A fresh save meets the first-run flow, so it starts already-notified;
       // only an existing profile is owed the update notice.
-      statsNoticeSeen: true,
+      statsNoticeVersion: STATS_NOTICE_VERSION,
     },
   };
 }
@@ -434,7 +439,7 @@ export class SaveManager {
    * cosmetic ownership list; v32 -> v33 moves style onto the deck; v33 -> v34
    * adds `settings.confirmLandDrop` (default on); v34 -> v35 adds
    * `settings.shareAnonStats` (default ON everywhere) and
-   * `settings.statsNoticeSeen` (true only for a fresh save, so an existing
+   * `settings.statsNoticeVersion` (0 for a migrated save, so an existing
    * player is told on the update), and drops the two dead account-level
    * cosmetics fields that v33 superseded.
    * An unknown/garbage version starts fresh rather than crash.
@@ -917,9 +922,10 @@ export class SaveManager {
     }
     if (cur.version === 34) {
       // Telemetry preference. Sharing defaults ON everywhere (owner decision 1),
-      // but the NOTICE flag is deliberately asymmetric: a fresh save starts
-      // true because the first-run flow tells the player, while any migrated
-      // save starts false so the update owes them the notice.
+      // but the NOTICE version is deliberately asymmetric: a fresh save starts
+      // at the current notice version because the first-run flow tells the
+      // player, while any migrated save starts at 0 so the update owes them
+      // the notice.
       //
       // Both are keyed off `arrivedAtVersion` for the reason documented there:
       // the shared block above rewinds an up-to-date save to v22 and re-walks
@@ -931,16 +937,16 @@ export class SaveManager {
       // never reset by reopening the game — and, because the test is `>= 35`
       // rather than `=== CURRENT`, not by the next schema bump either. Getting
       // that wrong would silently re-enable collection for someone who opted
-      // out. Garbage lands on the same defaults: non-false shares, non-true has
-      // not been notified.
-      const s = (cur.settings ?? {}) as { shareAnonStats?: unknown; statsNoticeSeen?: unknown };
+      // out. Garbage lands on the same defaults: non-false shares, and anything
+      // that is not a non-negative integer reads as not yet notified.
+      const s = (cur.settings ?? {}) as { shareAnonStats?: unknown; statsNoticeVersion?: unknown };
       cur = {
         ...cur,
         version: 35,
         settings: {
           ...(cur.settings as object),
           shareAnonStats: arrivedAtVersion >= 35 ? s.shareAnonStats !== false : true,
-          statsNoticeSeen: arrivedAtVersion >= 35 ? s.statsNoticeSeen === true : false,
+          statsNoticeVersion: arrivedAtVersion >= 35 ? normalizeStatsNoticeVersion(s.statsNoticeVersion) : 0,
         },
       };
     }
