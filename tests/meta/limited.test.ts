@@ -535,7 +535,8 @@ function scoreDraftCardReference(db: CardDb, id: string, picks: readonly string[
 }
 
 function scoreBaseCardReference(d: CardDef): number {
-  // Independent Phase D arithmetic: literal DEFAULT weights, no production
+  // Independent Phase D arithmetic: literal DEFAULT weights (mechanicWeight 1,
+  // buffWeight 0 by owner ruling 2026-09-17 after measurement), no production
   // collector or scorer. Queue nested branches with their own source targets.
   const duties = d.activated === undefined ? [] : Array.isArray(d.activated) ? d.activated : [d.activated];
   const bodies: { ops?: readonly EffectOp[]; targets?: readonly TargetSpec[] }[] = [
@@ -588,16 +589,16 @@ function scoreBaseCardReference(d: CardDef): number {
   // Preserve's one token, and the life/graveyard/token style terms, contribute
   // zero at DEFAULT_PICKER. Its identity still earns the full mechanic weight.
   let mechanic = 0;
-  if (d.empower) mechanic += 2;
-  if (d.retell) mechanic += 2;
-  if (d.whispers) mechanic += 2;
-  if (d.tithe) mechanic += 2;
-  if (d.skim) mechanic += 1;
-  if (d.preserve) mechanic += 2;
-  if (duties.length > 0) mechanic += 2;
-  if (d.chapters) mechanic += 2;
-  if (d.hauntlink) mechanic += 2;
-  if (d.nineLives) mechanic += 2;
+  if (d.empower) mechanic += 1;
+  if (d.retell) mechanic += 1;
+  if (d.whispers) mechanic += 1;
+  if (d.tithe) mechanic += 1;
+  if (d.skim) mechanic += 0.5;
+  if (d.preserve) mechanic += 1;
+  if (duties.length > 0) mechanic += 1;
+  if (d.chapters) mechanic += 1;
+  if (d.hauntlink) mechanic += 1;
+  if (d.nineLives) mechanic += 1;
 
   let score = TIER_RANK[d.rarity] * 4;
   if (isType(d, 'creature')) {
@@ -608,7 +609,7 @@ function scoreBaseCardReference(d: CardDef): number {
   if (removal) score += 5;
   if (advantage) score += 3;
   score += mechanic;
-  score += buffs;
+  score += buffs * 0; // buffWeight ships at 0: counted, not paid (owner ruling 2026-09-17)
   score -= downside;
   const mv = manaValue(d.cost);
   if (mv >= 2 && mv <= 4) score += 2;
