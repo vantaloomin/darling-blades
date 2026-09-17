@@ -128,9 +128,9 @@ describe('AI win-rate gates', () => {
   }, 600_000);
 
   it('summit rungs 14-22 clear their reserve-native 40-seed floors and terminate', () => {
-    // Rungs 23-24 gate separately below: one 24-avatar matrix blew the 900s
-    // per-test budget on CI hardware (2026-08-29), and the Starborne pair
-    // carries no floors yet anyway (provisional until the tuning pass).
+    // Rungs 23-24 and 25-26 gate separately below: one 24-avatar matrix blew
+    // the 900s per-test budget on CI hardware (2026-08-29), so the summit is
+    // split across three gates. All six carry real floors since 2026-09-17.
     const report = runAvatarMatrix(40, [
       'artoria', 'carmilla', 'the-bride', 'glass-coffin-queen',
       'abyssal-songstress', 'queen-of-the-lanterned-roof',
@@ -198,7 +198,26 @@ describe('AI win-rate gates', () => {
     // lands enter tapped and landReserve is pinned to the converter, so she
     // cannot buy that tempo back any other way. Evidence chain, including
     // every rejected draft, lives in her opponents.ts entry.
-    expect(r21.avg, 'Anubis floor').toBeGreaterThanOrEqual(0.505);
+    //
+    // RUNGS 21-22 RE-BASELINED 2026-09-17, after the AI modernization (phases
+    // E, A, B, C, D) and the tuning passes that followed all landed on
+    // release/1.8. Rungs 14-20 were NOT re-measured in that pass and keep the
+    // 2026-08-23 floors above. Measured with one command,
+    // `--avatars --seeds 200 --only <the six summit ids>` (6,000 games,
+    // 1,433 s, FLAGS none); cells in Muster/Communion/Tides/Mandate/Harvest
+    // order, every cell 200 decided games and zero draws in the whole run:
+    //   R21 71/79/67/61/46 avg 65 · R22 54/85/61/84/85 avg 74
+    //
+    // R21 Anubis: 65 - 6.5 = 58.5, so the floor RATCHETS UP 0.505 -> 0.585.
+    // She read 57 at the 2026-08-23 re-centre and 61 on the 2026-08-29 full
+    // table; the summit brains gained more from the AI pass than the
+    // Medium-piloted starter columns did. Harvest (46) stays her weak column.
+    expect(r21.avg, 'Anubis floor').toBeGreaterThanOrEqual(0.585);
+    // R22 Bastet: 74 - 6.5 = 67.5, which is BELOW the standing 0.685 floor,
+    // so the floor is KEPT at 0.685 - floors only ratchet up, and a candidate
+    // under the current value is recorded, not applied. Her 2026-09-16 tuning
+    // pass measured 73.60 on this harness; 74 here is the same number inside
+    // the table's whole-percent rounding.
     expect(r22.avg, 'Bastet floor').toBeGreaterThanOrEqual(0.685);
     expect(r15.avg, 'rung 15 must clear rung 14').toBeGreaterThan(r14.avg);
     // Restored 2026-08-23 as a genuine ordering check: R16 measures 69% to
@@ -213,11 +232,14 @@ describe('AI win-rate gates', () => {
     }
   }, 900_000);
 
-  it('Starborne rungs 23-24 field complete matrices and terminate decisively', () => {
-    // Final `--avatars --seeds 200` table: R23 65% (46/83/59/60/77) and
-    // R24 68% (45/87/59/57/94), with no draws in these two rows. Floors use
-    // the same documented 6.5pp noise band, rounded down to the half point:
-    // 58.5% and 61.5%.
+  it('Starborne rungs 23-24 clear their floors and field complete matrices', () => {
+    // RE-BASELINED 2026-09-17 on the post-AI-modernization ladder, same
+    // command and run as rungs 21-22 above (`--avatars --seeds 200 --only
+    // <the six summit ids>`, 6,000 games, 1,433 s, FLAGS none); cells in
+    // Muster/Communion/Tides/Mandate/Harvest order, 200 decided, 0 draws:
+    //   R23 42/85/55/59/63 avg 60 · R24 51/88/64/62/91 avg 71
+    // Superseded 2026-08-30 reading, kept for the delta: R23 65
+    // (46/83/59/60/77) and R24 68 (45/87/59/57/94).
     const report = runAvatarMatrix(40, ['chrome-broodmother', 'the-violet-signal-queen']);
     reportAvatarRates(report);
     const row = (id: string) => report.rows.find((entry) => entry.avatar.id === id);
@@ -228,20 +250,35 @@ describe('AI win-rate gates', () => {
     if (!r23 || !r24) return;
     expect(r23.cells).toHaveLength(5);
     expect(r24.cells).toHaveLength(5);
-    // Floors set from the final post-surgery 200-seed band (2026-08-30: R23
-    // 65, R24 68) - the stronger Shadow Mandate column moved both Starborne
-    // rows. Same minus-6.5pp convention, rounded down to the half point:
-    // 58.5% and 61.5%.
+    // R23 Chrome Broodmother: 60 - 6.5 = 53.5, BELOW the standing 0.585
+    // floor, so 0.585 is KEPT - a candidate under the current value is
+    // recorded, never applied. FINDING for the owner: she has fallen 8pp
+    // from the 68 measured 2026-08-30, which leaves 1.5pp between her
+    // 200-seed mean and her own floor against a documented 6.5pp 40-seed
+    // band. That is the narrowest margin on the ladder; Muster (42) and
+    // Mandate (59) are where the AI modernization took the 8pp out of her.
     expect(r23.avg, 'Chrome Broodmother floor').toBeGreaterThanOrEqual(0.585);
-    expect(r24.avg, 'Violet Signal Queen floor').toBeGreaterThanOrEqual(0.615);
+    // R24 Violet Signal Queen: 71 - 6.5 = 64.5, so the floor RATCHETS UP
+    // 0.615 -> 0.645. Same minus-6.5pp convention, rounded down to the half
+    // point.
+    expect(r24.avg, 'Violet Signal Queen floor').toBeGreaterThanOrEqual(0.645);
     for (const cell of [...r23.cells, ...r24.cells]) {
       expect(cell.draws, 'new boss cell must terminate decisively').toBe(0);
     }
   }, 900_000);
 
-  it('Drowned Deep rungs 25-26 field complete matrices and terminate decisively', () => {
-    // No floors yet: both are tier-6 PROVISIONAL until the owner's tuning
-    // pass. This gate proves complete, decisive games at CI's 40-seed budget.
+  it('Drowned Deep rungs 25-26 clear their floors and field complete matrices', () => {
+    // FLOORS SET 2026-09-17. Both shipped gated on termination only, tier-6
+    // PROVISIONAL "until the owner's tuning pass" - which has now happened
+    // (the Deacon 35.9 -> 66.4 in #378; the Marsh-Mother's list measured and
+    // kept at 74.8 in #379), so they get real floors like every other rung.
+    // Same command and run as the two gates above (`--avatars --seeds 200
+    // --only <the six summit ids>`, 6,000 games, 1,433 s, FLAGS none); cells
+    // in Muster/Communion/Tides/Mandate/Harvest order, 200 decided, 0 draws:
+    //   R25 38/72/65/83/75 avg 66 · R26 64/77/66/81/87 avg 75
+    // Same minus-6.5pp 40-seed noise band, rounded down to the half point:
+    // 59.5% and 68.5%. The complete-matrix and zero-draw assertions this gate
+    // already carried are unchanged below.
     const report = runAvatarMatrix(40, ['the-drowned-deacon', 'the-marsh-mother']);
     reportAvatarRates(report);
     const row = (id: string) => report.rows.find((entry) => entry.avatar.id === id);
@@ -252,6 +289,12 @@ describe('AI win-rate gates', () => {
     if (!r25 || !r26) return;
     expect(r25.cells).toHaveLength(5);
     expect(r26.cells).toHaveLength(5);
+    // R25 The Drowned Deacon: 66 - 6.5 = 59.5. Muster (38) is the column the
+    // tuning pass could not fully buy back.
+    expect(r25.avg, 'Drowned Deacon floor').toBeGreaterThanOrEqual(0.595);
+    // R26 The Marsh-Mother: 75 - 6.5 = 68.5, on the converter-owned list that
+    // #379 measured four surgeries against and kept unchanged.
+    expect(r26.avg, 'Marsh-Mother floor').toBeGreaterThanOrEqual(0.685);
     for (const cell of [...r25.cells, ...r26.cells]) {
       expect(cell.games, 'new boss cell must field all 40 seeded games').toBe(40);
       expect(cell.rowWins + cell.colWins, 'new boss cell must decide all 40 seeded games').toBe(40);
