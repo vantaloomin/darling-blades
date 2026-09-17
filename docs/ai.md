@@ -423,8 +423,19 @@ every card plays; as intended, not yet. Two test files are the scoreboard:
   `tests/ai/castLadder.test.ts`, `castLadderReview.test.ts` and
   `hardTiming.test.ts`.
 
-The gap the remaining three tests describe: the draft picker scores nothing
-newer than a keyword (phase D). Phase C (2026-09-16) closed the combat gap
+Phase D (2026-09-17) closed the last gap, the draft picker, and every one of
+the forty documented behaviours now passes. Its measurement is the second
+lesson of the plan: a scorer that knows the mechanics does not draft
+stronger decks in Medium's hands. Seat-one decks drafted by the new scorer
+against decks drafted by the old one from the same seeds, Medium on both
+sides, 1,500 games per set: with the weights as first built (mechanic 2,
+buff 1) the new decks won 47.7 percent on base and 45.4 on Yokai Nights;
+with both weights at zero and only the classifier fixes kept, 49.8 and 52.9;
+with the shipped mechanic 1 and buff 0, 49.2 and 52.1, and 48.2 on Drowned Deep. The
+classifier fixes are neutral to positive; stacked weights that promote
+riders over bodies are a cost, so the shipped defaults keep the mechanics
+visible without paying for them. The same measurement found the trigger
+loop that #381 closed. Phase C (2026-09-16) closed the combat gap
 with the shared exchange model above, and its measurement is the lesson of
 the phase: modelling twinBlades on both seats moved the two twinBlades-heavy
 avatars down, not up (Bastet 69 to 62.4 at 1,000 games, Brunhild 75 to
@@ -487,11 +498,25 @@ of:
   curve/removal/keyword/subtype/legend weights, forced colors, big-stuff and
   bargain biases, and a `chaos` dial whose noise is a **pure hash** of
   `(draft seed, seat, pack, pick, cardId)` — no RNG state, fully deterministic.
-  The frozen `DEFAULT_PICKER` reproduces the pre-persona draft heuristic
-  **bit-for-bit** (same discipline as `DEFAULT_PERSONALITY`; lockstep specs in
-  `tests/meta/limited.test.ts` pin both the live bot-pick path across 20 full
-  drafts and the base score over every card in `CARD_DB`, which also guards the
-  shared limited auto-build path).
+  Since phase D (2026-09-17) the base scorer reads the whole card: Empower,
+  Preserve, Duty, Quest chapter and Hauntlink text feed the same removal,
+  card-advantage, token, life-gain and graveyard classifiers as plain
+  ability text; every mechanic (Empower, Retell, Whispers, Tithe, Skim at
+  half, Preserve, Duty, Quest, Hauntlink, Nine Lives; not Rite, not
+  Awakening) earns `mechanicWeight` once; Mark and boost effects earn
+  `buffWeight`; Bulwark and Rage are restrictions and earn no generic
+  keyword bonus (a persona's `keywordPrefs` still counts them); a
+  self-damage rider is not removal. The shipped defaults are
+  `mechanicWeight` 1 and `buffWeight` 0 by owner ruling after measurement
+  (see the proof section). `DEFAULT_PICKER` is therefore no longer the
+  pre-persona heuristic bit-for-bit: the lockstep specs in
+  `tests/meta/limited.test.ts` were re-baselined deliberately against an
+  independent reference of the phase-D arithmetic (525 of 1,482 collectible
+  base scores moved; 3,783 of 6,300 picks across the 20 pinned drafts),
+  and they still guard the shared limited auto-build path. Chris stays
+  exactly lockstep with the default; Cody stays chaotic; Tiffany still
+  takes the rarest card; every persona differentiation row isolates its
+  own knob.
 - a **`Personality`** spread — the persona you drafted against pilots your
   post-draft matches: `limitedDuelData` carries the seat's persona id, and
   DuelScene skins its name/portrait onto the duel and passes its Personality
