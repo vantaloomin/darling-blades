@@ -123,6 +123,36 @@ export type SignalDifficulty = 'easy' | 'medium' | 'hard';
 /** A concede is its own outcome. It is never also reported as a loss. */
 export type SignalResult = 'win' | 'loss' | 'draw' | 'concede';
 
+/**
+ * The closed value lists behind those unions, declared once. The membership
+ * sets used by the builders are derived from these tuples further down, and so
+ * is `SIGNAL_VOCAB`, so a value can never exist in one place and not the other.
+ * `satisfies` proves each tuple holds only legal values; the `NoUnlistedValue`
+ * assertions below prove it holds ALL of them.
+ */
+const PLATFORM_VALUES = ['web', 'desktop'] as const satisfies readonly SignalPlatform[];
+const FORM_FACTOR_VALUES = ['mobile', 'tablet', 'desktop'] as const satisfies readonly SignalFormFactor[];
+const ANIMATION_VALUES = ['full', 'reduced', 'off'] as const satisfies readonly SignalAnimations[];
+const DUEL_FORMAT_VALUES = [
+  'warchest',
+  'darlings',
+  'limited',
+  'gauntlet',
+] as const satisfies readonly SignalDuelFormat[];
+const DECK_SOURCE_VALUES = ['precon', 'custom', 'drafted'] as const satisfies readonly SignalDeckSource[];
+const DIFFICULTY_VALUES = ['easy', 'medium', 'hard'] as const satisfies readonly SignalDifficulty[];
+const RESULT_VALUES = ['win', 'loss', 'draw', 'concede'] as const satisfies readonly SignalResult[];
+
+/** Fails the typecheck if a union gains a value the tuple above does not list. */
+type NoUnlistedValue<T extends never> = T;
+export type PlatformValuesAreExact = NoUnlistedValue<Exclude<SignalPlatform, (typeof PLATFORM_VALUES)[number]>>;
+export type FormFactorValuesAreExact = NoUnlistedValue<Exclude<SignalFormFactor, (typeof FORM_FACTOR_VALUES)[number]>>;
+export type AnimationValuesAreExact = NoUnlistedValue<Exclude<SignalAnimations, (typeof ANIMATION_VALUES)[number]>>;
+export type FormatValuesAreExact = NoUnlistedValue<Exclude<SignalDuelFormat, (typeof DUEL_FORMAT_VALUES)[number]>>;
+export type DeckSourceValuesAreExact = NoUnlistedValue<Exclude<SignalDeckSource, (typeof DECK_SOURCE_VALUES)[number]>>;
+export type DifficultyValuesAreExact = NoUnlistedValue<Exclude<SignalDifficulty, (typeof DIFFICULTY_VALUES)[number]>>;
+export type ResultValuesAreExact = NoUnlistedValue<Exclude<SignalResult, (typeof RESULT_VALUES)[number]>>;
+
 export type StreakBucket = '0' | '1' | '2' | '3' | '4-6' | '7-13' | '14-29' | '30+';
 export type TenthsBucket =
   | '0.0' | '0.1' | '0.2' | '0.3' | '0.4' | '0.5'
@@ -379,6 +409,128 @@ export function safeBuildStamp(raw: unknown): string {
 }
 
 // ---------------------------------------------------------------------------
+// SIGNAL_VOCAB — the runtime vocabulary, one entry per emitted field.
+//
+// SIGNAL_FIELDS says which keys may leave; this says which VALUES may leave.
+// Together they are the whole contract the edge Worker's validator is held
+// equal to by `tests/worker/signalsSchema.test.ts`: the Worker restates this
+// table (it cannot import the game's modules, since it would drag the whole
+// card catalog into a Worker bundle), and the test fails the moment the two
+// disagree in either direction.
+//
+// Every list here is DERIVED — from the value tuples above, from the band
+// tables, or from the bucketing function itself — so no list is retyped and
+// none can drift from what the builders actually emit.
+// ---------------------------------------------------------------------------
+
+/** The label column of a band table, in band order, which is bucket order. */
+function labelsOf<L extends string>(bands: readonly Band<L>[]): readonly L[] {
+  return bands.map((band) => band.label);
+}
+
+/** Derived from `tenthsBucket` itself: the eleven shares it can return. */
+const TENTHS_VALUES: readonly TenthsBucket[] = Array.from({ length: 11 }, (_, i) => tenthsBucket(i / 10));
+
+/** Derived from `renderScaleBucket` itself: the three known scales plus the fallback. */
+const RENDER_SCALE_VALUES: readonly SignalRenderScale[] = [1, 1.5, 2, 0].map(renderScaleBucket);
+
+/**
+ * Every colour identity `deckColoursOf` can return: `C` for a deck with no
+ * coloured nonland card, else a non-empty subset of WUBRG in that fixed order
+ * (`deckColorIdentity` filters a WUBRG-ordered list, so no other order exists).
+ * 32 values, enumerated rather than matched by pattern, because a closed list
+ * is a stronger check than a regex and this one is small.
+ */
+const DECK_COLOUR_VALUES: readonly string[] = (() => {
+  const order = ['W', 'U', 'B', 'R', 'G'] as const;
+  const out: string[] = [COLOURLESS];
+  for (let mask = 1; mask < 1 << order.length; mask++) {
+    out.push(order.filter((_, bit) => (mask & (1 << bit)) !== 0).join(''));
+  }
+  return out;
+})();
+
+/**
+ * Ids (`opponentId`, `deckArchetype`, `cardId`) are checked by SHAPE, not by
+ * list. The lists are large (1,515 card ids, 46 opponents, 19 precons), they
+ * change with every set and every balance pass, and shipping them to the edge
+ * would mean a Worker deploy for every card added. Rare values are collapsed to
+ * `other` by the k = 10 floor at rollup anyway (plan-telemetry §k-anonymity), so
+ * an id the edge does not recognise costs nothing and a stale edge allowlist
+ * would silently drop real play. Measured 2026-09-17 across the catalog: every
+ * card, avatar, persona and precon id matches `^[a-z][a-z0-9-]*$`, the longest
+ * being 39 characters (`sd-bakhet-gate-warden-of-the-lower-city`); the cap
+ * below leaves room and still bounds the blob.
+ */
+const ID_PATTERN = '^[a-z][a-z0-9-]{0,47}$';
+const ID_MAX_LENGTH = 48;
+
+/** Charset and length `safeBuildStamp` narrows a build stamp to. Empty is reachable. */
+const BUILD_STAMP_PATTERN = `^[A-Za-z0-9._-]{0,${BUILD_STAMP_MAX_LENGTH}}$`;
+
+/** What one field may carry. Patterns are strings so the constant stays deep-frozen data. */
+export type SignalVocabSpec =
+  | { readonly kind: 'enum'; readonly values: readonly string[] }
+  | { readonly kind: 'int'; readonly min: number; readonly max: number }
+  | { readonly kind: 'bool' }
+  | { readonly kind: 'string'; readonly pattern: string; readonly maxLength: number };
+
+/** Every field that carries a value of its own; `settings` is a nested object, not a value. */
+export type SignalVocabField =
+  | Exclude<HeartbeatField, 'settings'>
+  | SettingsField
+  | DuelField
+  | CardsField;
+
+export const SIGNAL_VOCAB = {
+  // heartbeat
+  appVersion: { kind: 'string', pattern: BUILD_STAMP_PATTERN, maxLength: BUILD_STAMP_MAX_LENGTH },
+  buildSha: { kind: 'string', pattern: BUILD_STAMP_PATTERN, maxLength: BUILD_STAMP_MAX_LENGTH },
+  platform: { kind: 'enum', values: PLATFORM_VALUES },
+  formFactor: { kind: 'enum', values: FORM_FACTOR_VALUES },
+  lang: { kind: 'string', pattern: '^[a-z]{2}$', maxLength: 2 },
+  streakBucket: { kind: 'enum', values: labelsOf(STREAK_BANDS) },
+  achievementsBucket: { kind: 'enum', values: TENTHS_VALUES },
+  winsBucket: { kind: 'enum', values: labelsOf(COUNT_BANDS) },
+  lossesBucket: { kind: 'enum', values: labelsOf(COUNT_BANDS) },
+  packsBucket: { kind: 'enum', values: labelsOf(COUNT_BANDS) },
+  collectionBucket: { kind: 'enum', values: labelsOf(COLLECTION_BANDS) },
+  tutorialDone: { kind: 'bool' },
+  gauntletBestRung: { kind: 'int', min: 0, max: GAUNTLET_RUNG_CAP },
+  // heartbeat.settings
+  animations: { kind: 'enum', values: ANIMATION_VALUES },
+  reducedMotion: { kind: 'bool' },
+  renderScale: { kind: 'enum', values: RENDER_SCALE_VALUES },
+  // duel
+  format: { kind: 'enum', values: DUEL_FORMAT_VALUES },
+  deckColours: { kind: 'enum', values: DECK_COLOUR_VALUES },
+  deckArchetype: { kind: 'string', pattern: ID_PATTERN, maxLength: ID_MAX_LENGTH },
+  curveBucket: { kind: 'enum', values: labelsOf(CURVE_BANDS) },
+  deckSource: { kind: 'enum', values: DECK_SOURCE_VALUES },
+  opponentId: { kind: 'string', pattern: ID_PATTERN, maxLength: ID_MAX_LENGTH },
+  difficulty: { kind: 'enum', values: DIFFICULTY_VALUES },
+  turnsBucket: { kind: 'enum', values: labelsOf(TURNS_BANDS) },
+  result: { kind: 'enum', values: RESULT_VALUES },
+  mulligans: { kind: 'int', min: 0, max: MULLIGAN_CAP },
+  // cards
+  cardId: { kind: 'string', pattern: ID_PATTERN, maxLength: ID_MAX_LENGTH },
+  countBucket: { kind: 'enum', values: labelsOf(CARD_COUNT_BANDS) },
+  duelsBucket: { kind: 'enum', values: labelsOf(CARD_COUNT_BANDS) },
+} as const satisfies Readonly<Record<SignalVocabField, SignalVocabSpec>>;
+
+/** Fails the typecheck if `SIGNAL_VOCAB` names a field no allowlist does. */
+export type VocabAllowlistIsExact = NoExtraFields<Exclude<keyof typeof SIGNAL_VOCAB, SignalVocabField>>;
+
+// Frozen at runtime for the same reason the allowlist is: a later wave asserts
+// the edge validator against it, and a mutated vocabulary would make that
+// assertion prove nothing.
+Object.freeze(SIGNAL_VOCAB);
+for (const spec of Object.values(SIGNAL_VOCAB) as readonly SignalVocabSpec[]) {
+  Object.freeze(spec);
+  if (spec.kind === 'enum') Object.freeze(spec.values);
+}
+
+// ---------------------------------------------------------------------------
 // Allowlist projection. Builders construct their output through this, so only
 // allowlisted keys survive and the key order is the allowlist order.
 // ---------------------------------------------------------------------------
@@ -415,16 +567,13 @@ export interface SignalEnv {
   reducedMotion: boolean;
 }
 
-const FORM_FACTORS: ReadonlySet<string> = new Set<SignalFormFactor>(['mobile', 'tablet', 'desktop']);
-const ANIMATION_TIERS: ReadonlySet<string> = new Set<SignalAnimations>(['full', 'reduced', 'off']);
-const DUEL_FORMATS: ReadonlySet<string> = new Set<SignalDuelFormat>([
-  'warchest',
-  'darlings',
-  'limited',
-  'gauntlet',
-]);
-const DIFFICULTIES: ReadonlySet<string> = new Set<SignalDifficulty>(['easy', 'medium', 'hard']);
-const RESULTS: ReadonlySet<string> = new Set<SignalResult>(['win', 'loss', 'draw', 'concede']);
+// Derived from the value tuples above, never retyped, so the vocabulary the
+// builders enforce and the vocabulary `SIGNAL_VOCAB` publishes are one list.
+const FORM_FACTORS: ReadonlySet<string> = new Set<string>(FORM_FACTOR_VALUES);
+const ANIMATION_TIERS: ReadonlySet<string> = new Set<string>(ANIMATION_VALUES);
+const DUEL_FORMATS: ReadonlySet<string> = new Set<string>(DUEL_FORMAT_VALUES);
+const DIFFICULTIES: ReadonlySet<string> = new Set<string>(DIFFICULTY_VALUES);
+const RESULTS: ReadonlySet<string> = new Set<string>(RESULT_VALUES);
 
 const ACHIEVEMENT_IDS: ReadonlySet<string> = new Set(ACHIEVEMENTS.map((def) => def.id));
 const BASIC_LAND_ID_SET: ReadonlySet<string> = new Set<string>(BASIC_LAND_IDS);
