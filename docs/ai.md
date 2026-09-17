@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/ScriptAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/targeting.ts, src/ai/activatedPolicy.ts, src/ai/ritePolicy.ts, src/ai/tithePolicy.ts, src/ai/whispersPolicy.ts, src/ai/discardPolicy.ts, src/ai/sacrificePolicy.ts, src/ai/preservePolicy.ts, src/ai/hauntlinkPolicy.ts, src/ai/landPolicy.ts, src/ai/darlingPolicy.ts, src/ai/foresee.ts, src/ai/personality.ts, src/ai/NoisyAI.ts, src/ai/tiers.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts, tests/ai/rungSmokes.test.ts, tests/ai/documentedBehaviour.test.ts, docs/plan-ai-modernization.md · last-verified: 2026-09-15
+<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/ScriptAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/targeting.ts, src/ai/activatedPolicy.ts, src/ai/ritePolicy.ts, src/ai/tithePolicy.ts, src/ai/whispersPolicy.ts, src/ai/discardPolicy.ts, src/ai/sacrificePolicy.ts, src/ai/preservePolicy.ts, src/ai/hauntlinkPolicy.ts, src/ai/landPolicy.ts, src/ai/darlingPolicy.ts, src/ai/foresee.ts, src/ai/personality.ts, src/ai/NoisyAI.ts, src/ai/tiers.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts, tests/ai/rungSmokes.test.ts, tests/ai/documentedBehaviour.test.ts, docs/plan-ai-modernization.md · last-verified: 2026-09-17
      If you change those files, update this doc or re-verify the date. -->
 
 # AI
@@ -268,15 +268,17 @@ or in hand.
 `tests/ai/winrate.test.ts` plays hundreds of seeded AI-vs-AI games with sides
 alternated (so neither AI owns the better deck) and asserts:
 
-| Matchup            | Gate                 | Current (2026-09-15)    |
+| Matchup            | Gate                 | Current (2026-09-17)    |
 | ------------------ | -------------------- | ----------------------- |
-| Medium vs Easy     | **≥ 80%**            | **83.0%** (166/200)     |
-| Hard vs Medium     | CI floor **≥ 0.70**  | **78.5%** (157/200)     |
+| Medium vs Easy     | **≥ 80%**            | **81.5%** (163/200)     |
+| Hard vs Medium     | CI floor **≥ 0.70**  | **76.5%** (153/200)     |
 
-The same file gates the tower's summit: rungs 14-22 hold per-avatar floors
-and ordering relations, and rungs 23-24 and 25-26 each have a separate
-termination gate (five complete 40-seed cells, zero draws) so no single
-matrix blows CI's 900 s per-test budget.
+The same file gates the tower's summit across three tests so no single
+matrix blows CI's 900 s per-test budget: rungs 14-22 hold per-avatar floors
+and ordering relations, and rungs 23-24 and 25-26 each hold per-avatar
+floors plus a termination check (five complete 40-seed cells, zero draws).
+Every rung from 14 to 26 has carried a real floor since the 2026-09-17
+re-baseline described under Tower rungs below.
 
 The original plan gate for Hard was **60% — met and exceeded**. The honest
 history: **53%** (full-turn attack lookahead + terminal-outcome detection only)
@@ -289,8 +291,12 @@ rate — see the Determinize section above. The floor ships at **0.70** to leave
 CI-variance margin (±3.5pp at 200 games) under the measured ~0.78.
 
 The win-rate file is the suite's long pole: the five gates plus the mini-fuzz
-take about **350 s** locally (2026-09-15), with the full suite at about
-11 minutes; run it on an idle machine.
+took about **350 s** locally on 2026-09-15 and **962 s** on 2026-09-17, the
+second reading taken while another test run shared the machine, so re-measure
+idle before treating it as the new figure. Inside it the rungs 14-22 gate
+alone used 559 s of its 900 s per-test budget, so the next summit rung goes
+in a fourth gate, not on that list. The full suite takes about 11 minutes;
+run it on an idle machine.
 
 ## Tuning surface
 
@@ -386,9 +392,31 @@ two that look like obvious improvements and measured as losses.
 The ladder still dips at R19 (61) and R21 (57) relative to R18 and R20. That is
 the accepted non-monotonic summit shape, not a regression.
 
+**Rungs 21-26 were re-baselined on 2026-09-17**, after the AI modernization
+(phases E, A, B, C and D) and the tuning passes that followed had all landed
+on release/1.8. One command, `--avatars --seeds 200 --only` the six summit
+ids (6,000 games, FLAGS none, zero draws in the whole run): R21 Anubis 65
+(71/79/67/61/46) · R22 Bastet 74 (54/85/61/84/85) · R23 Chrome Broodmother
+60 (42/85/55/59/63) · R24 Violet Signal Queen 71 (51/88/64/62/91) · R25
+Drowned Deacon 66 (38/72/65/83/75) · R26 Marsh-Mother 75 (64/77/66/81/87).
+Same minus-6.5pp convention, and the ratchet: Anubis rose 0.505 to 0.585 and
+the Violet Signal Queen 0.615 to 0.645; Bastet (candidate 67.5) and Chrome
+Broodmother (candidate 53.5) kept their standing floors, because a candidate
+under the current value is recorded, never applied; the Deacon and the
+Marsh-Mother took their first real floors at 0.595 and 0.685, retiring the
+tier-6 provisional termination-only gate. Rungs 14-20 were not re-measured
+and keep the 2026-08-23 floors. Every new floor cleared at CI's 40 seeds the
+same day (R21 70.0 · R22 75.0 · R23 60.5 · R24 69.5 · R25 63.5 · R26 71.0).
+Two findings: Chrome Broodmother has fallen 68 to 60 since 2026-08-30, mostly
+out of Muster (46 to 42), which leaves 1.5pp between her 200-seed mean and
+her own floor, the narrowest margin on the ladder and the next deck owed a
+measured tuning pass; and Anubis is the AI pass's big winner, 57 to 61 to 65,
+with Harvest (46) still her only losing column.
+
 The Starborne pair (Chrome Broodmother 23, The Violet Signal Queen 24; floors
-0.585 and 0.615) and the Drowned Deep pair (The Drowned Deacon 25, The
-Marsh-Mother 26, the final rung) each carry their own termination gate.
+0.585 and 0.645) and the Drowned Deep pair (The Drowned Deacon 25, The
+Marsh-Mother 26, the final rung; floors 0.595 and 0.685) each carry their
+own gate with the termination check.
 Measured untuned 2026-09-15 at 200 seeds: Deacon 33% (35.5% after phase A,
 35.9% after B), Marsh-Mother 77% (77.9% after A, 74.8% after B: the Tithe
 fodder rule costs her, see the next section). The Deacon's plan is fog, tap and cheap counter
