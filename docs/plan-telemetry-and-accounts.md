@@ -174,7 +174,7 @@ Two event types. Both are digests, not streams.
 | `curveBucket`, `deckSource` | bucket, precon/custom/drafted | |
 | `opponentId` | our built-in opponent ids | ours, not a person |
 | `difficulty`, `turns`, `result`, `mulligans` | small ints/enums | |
-| `cardsPlayed` | **separate rows**, one per `cardId` + count | see the k-anonymity rule below |
+| ~~`cardsPlayed`~~ | moved off this event | **Ruled 2026-09-17 (D-T0.1):** played cards are tallied in memory across one launch and sent as a third event, `cards`, once when the session ends: one row per distinct `cardId` with a bucketed count, no duel reference, no deck reference. Nothing is stored on the device for it. See the k-anonymity rule below |
 
 **The prohibition list is part of the schema, not a guideline.** Never
 transmitted, at all, ever: deck names (player-authored free text, so a possible

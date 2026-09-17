@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-telemetry-and-accounts.md, docs/plan-save-portability.md, docs/plan-road-to-2.0.md, docs/roadmap.md, docs/git-workflow.md, docs/claude-playbook.md, src/meta/SaveManager.ts, src/meta/balanceTelemetry.ts, src/meta/SaveCode.ts, src/scenes/SettingsScene.ts, src/platform/env.ts, src/version.ts, eslint.config.js, scripts/balance-matrix.ts · last-verified: 2026-09-10 · rollout doc — the execution plan for plan-telemetry-and-accounts.md; re-verify when a wave lands or a vendor free tier moves -->
+<!-- source-of-truth: docs/plan-telemetry-and-accounts.md, docs/plan-save-portability.md, docs/plan-road-to-2.0.md, docs/roadmap.md, docs/git-workflow.md, docs/claude-playbook.md, src/meta/SaveManager.ts, src/meta/balanceTelemetry.ts, src/meta/SaveCode.ts, src/scenes/SettingsScene.ts, src/platform/env.ts, src/version.ts, eslint.config.js, scripts/balance-matrix.ts · last-verified: 2026-09-17 · rollout doc — the execution plan for plan-telemetry-and-accounts.md; re-verify when a wave lands or a vendor free tier moves -->
 
 # Rollout: anonymous telemetry and optional cloud accounts
 
@@ -45,10 +45,11 @@ done at least a week before that wave opens so a surprise does not stall it.
 | ~~Create a Cloudflare account~~ | T0 | **DONE 2026-09-10** (Workers Free plan). No custom domain needed — a Worker gets a free `*.workers.dev` hostname |
 | ~~Decide the Worker hostname~~ | T0 | **DECIDED 2026-09-10: `db-signals.loominvanta.workers.dev`.** A hello-world placeholder Worker named `db-signals` is deployed there to register the subdomain; the real signals Worker replaces it under the same name. It goes in the client and in the privacy page, so changing it later is a code change |
 | Cloudflare API token (Analytics read) → repo secret | T3 | Scope it to **Account Analytics: Read** only. Never a global key |
+| Set the Worker's salt secret in Cloudflare | T2 | Ruled 2026-09-17 (D-T0.2): the daily de-duplication salt is `hash(secret, UTC day)`, so one secret has to exist before the real Worker deploys. `wrangler secret put`, never in the repo |
 | Create the Supabase **prod** project, **EU region** | C0 | Region is chosen at creation and cannot be changed later |
 | Create the Supabase **dev** project | C0 | This exhausts the free plan's 2-project allowance. There is no third |
 | Register OAuth apps (Discord / Google / GitHub) | C0 | Redirect URIs must cover the Pages origin **and** the Tauri custom scheme |
-| Publish the privacy page | T2 | Must be live before the first event is ever sent, not after |
+| Publish the privacy page | T2 | Must be live before the first event is ever sent, not after. **RULED 2026-09-17: it goes live alongside 1.8.** The page ships inside the game's own Pages build, so the deploy that first carries a client able to send is the deploy that publishes the page: no build can send before its page exists. The desktop installer is tagged after that deploy |
 
 **Secret hygiene, on a public repo.** The Supabase **anon** key is designed to
 be public and belongs in the client bundle; RLS is what protects the data. The
@@ -197,20 +198,50 @@ carrier before any code is committed.
 
 ### T1 — The pure core
 
+**BUILT 2026-09-17** as `src/meta/playSignals.ts` with 53 tests. What the next
+wave inherits from it:
+
+- `SIGNAL_FIELDS` (frozen) is the allowlist the Worker's validator is held
+  equal to: heartbeat 13 fields, duel 10, cards 2 (`cardId`, `countBucket`).
+  Four compile-time assertions fail the typecheck if a field-type map and its
+  allowlist disagree in either direction, and the builders project through the
+  allowlist, so a stray key cannot reach a payload.
+- `deckArchetype` is the precon's own id when the list is an unmodified precon
+  (matched by a sorted signature against every shape a granted deck can take,
+  verified through the real grant path for all 19 products) and `custom`
+  otherwise. `DECK_INFO.archetype` was rejected: it is shop prose, not an enum.
+- An opponent id outside our 46 built-in ids becomes `unknown`; a malformed
+  result reads as `draw`, so a bug shows as an anomaly instead of inflating a
+  win rate. `collectionBucket` counts distinct cards owned, not a percentage.
+- **Three inputs have no source anywhere in `src/` today** and T2 has to add
+  them in the scene or platform layer: `formFactor` (only a touch predicate
+  exists, and no dimensions may be sent), `lang`, and `reducedMotion`.
+- Proposed by the build and NOT added, each an owner call: a `warchest` value
+  for `format` (classic is retired, so `constructed` means Warchest in
+  practice), a way to tell a concede from a loss, a bucketed duel count on the
+  cards batch as a denominator, and a `lossesBucket` on the heartbeat.
+- Standing flake risk found on the way: `tests/meta/balanceTelemetry.test.ts`
+  "does not change fixed-seed simulation outcomes when attached" timed out at
+  5 s once when two full suites overlapped; it takes 1.15 s alone.
+
 Branch: `claude/play-signals-core` · PR: `feat(meta): playSignals — the pure anonymous digest builders`
 
 - New `src/meta/playSignals.ts`. Pure. No browser API, no Phaser, no network —
   it is inside the iron-invariant fence and stays there.
 - Contents: the event types, every bucketing function, the **field allowlist as
-  an exported constant**, `buildHeartbeat(save, env)` and
-  `buildDuelDigest(result, deck, save)`.
+  an exported constant**, `buildHeartbeat(save, env)`,
+  `buildDuelDigest(result, deck, save)`, and since the 2026-09-17 ruling on
+  D-T0.1 a third pair: `tallyCardsPlayed(tally, cardIds)`, a pure reducer over
+  an in-memory tally the scene layer owns, and `buildSessionCards(tally)`, the
+  batch sent once when the session ends. The duel digest carries no cards.
 - Tests, and these are the point of the wave:
   - the outgoing key set **equals** the allowlist exactly — not "contains", equals;
   - a fixture save whose deck is named with a distinctive sentinel string
     produces a payload in which that sentinel **does not appear anywhere**,
     asserted against the serialised JSON;
   - every numeric field is bucketed — no raw counts escape;
-  - `buildDuelDigest` emits per-card rows carrying **no deck reference**;
+  - the duel digest carries **no card id at all**, and the session card rows
+    carry **no deck reference, no duel reference, no order and no timestamp**;
   - signed-in and signed-out inputs produce **byte-identical** output. This test
     is written now, before accounts exist, so C2 cannot quietly break it.
 
@@ -271,7 +302,14 @@ Docs:
 Worker (separate repo or a `worker/` directory — see the risk register):
 
 - Schema validation that drops anything malformed, a payload size cap, a
-  Cloudflare free-plan rate-limiting rule, and the rotating daily salt.
+  rate limit, and the rotating daily salt. **Corrected 2026-09-17:** the rate
+  limit is the Workers rate-limit binding (`[[ratelimits]]` in
+  `worker/wrangler.toml`, `limit` per `period` of 10 or 60 seconds, keyed on
+  the same daily hash), in code, not a dashboard rule. Dashboard rate-limiting
+  rules attach to a zone, a domain the account owns, and this Worker
+  deliberately has none, only its `workers.dev` hostname. The binding is
+  permissive and per Cloudflare location by design, which suits a spam brake
+  and is not an accounting system.
 - The salt rotates every 24h and **is never persisted**. The IP is read, hashed,
   and discarded within the request. Neither is ever written to WAE.
 

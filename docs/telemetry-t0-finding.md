@@ -215,6 +215,25 @@ from a live save rather than this matrix.
 
 ## Owner decisions raised by the spike
 
+**ALL THREE RULED 2026-09-17**, when the owner opened the telemetry build:
+
+- **D-T0.1: card rows are tallied per session, in memory.** A variant of (b)
+  that the spike did not list. Played cards are counted in memory across one
+  launch and sent as one batch when the session ends, one row per distinct
+  card with a bucketed count, carrying no duel and no deck reference. Chosen
+  over the per-day aggregate because a daily tally would have to live in the
+  save, and "nothing is stored on the device for telemetry" is the sentence
+  the whole consent posture rests on. Cost, accepted: a crash or a blocked
+  unload loses that session's card rows. Data points drop from about 90 to
+  about 20 for a five-duel session.
+- **D-T0.2: (b), the salt derives from a Worker secret plus the UTC day.**
+  Stable across isolates, still rotates daily, still never written. The owner
+  sets one secret in Cloudflare before T2 ships.
+- **D-T0.3: the Worker stays in `worker/` in this repo**, so its validator
+  sits beside the client's field allowlist and one test can hold them equal.
+
+The options as the spike wrote them, kept for the record:
+
 - **D-T0.1** Card rows: cap per duel (a), aggregate per day on the heartbeat
   (b, recommended), or drop from v1 (c).
 - **D-T0.2** De-duplication salt: accept per-isolate hashes (a), or derive
@@ -226,7 +245,9 @@ from a live save rather than this matrix.
 ## What T1 and T2 inherit
 
 - The Worker as built, with the schema changes D-T0.1 and D-T0.2 imply.
-- A Cloudflare dashboard rate-limiting rule on the route (not code; not
-  set up in the spike).
+- ~~A Cloudflare dashboard rate-limiting rule on the route.~~ Corrected
+  2026-09-17: a `workers.dev` hostname has no zone for a dashboard rule to
+  attach to, so T2 uses the Workers rate-limit binding in `wrangler.toml`
+  instead. It is code, and it is not an owner step.
 - The T3 token, created and tested separately (finding 2).
 - The pre-existing disclosures the privacy page must carry are unchanged.
