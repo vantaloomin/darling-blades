@@ -193,6 +193,10 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
     // cells, with 0 draws. Classic/lands/personality/Darlings unchanged.
     'bastet-mistress-of-the-ninth-return',
     'the-bride',
+    // 2026-09-17 R10 Brunhild R3: burn for the four Ember Valkyries measured
+    // 70% -> 79% mean across five 200-seed cells, 0 draws, after phase C took
+    // her twinBlades opponents' blind spot away. Classic/lands/Darlings unchanged.
+    'brunhild',
     // 2026-08-30 tuning pass: R23's fire-package surgery diverges from the
     // scripted first cut by measured intent. (R19's lantern swap landed in
     // the classic deck only; her reserve still matches the converter.)
