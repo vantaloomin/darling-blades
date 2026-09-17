@@ -16,6 +16,13 @@ rows dominate it (finding 3); the de-duplication salt is per isolate, not
 per account (finding 5); and the T3 rollup must use `_sample_interval`
 sums, never `count()` (finding 4).
 
+**Superseded in part, 2026-09-17.** The Worker this finding describes was the
+spike. Wave T2 rebuilt it: three events on `POST /v1/signals?e=...` with a raw
+body, dataset `db_signals_v2`, a KV daily salt with `SALT_SECRET`, an in-code
+rate limit, and scripts that build their payloads with the real client
+builders. The measurements below still stand; the code they describe does not.
+See the rollout doc's T2 block.
+
 ## What was built
 
 - `worker/`: a self-contained Cloudflare Worker (its own `package.json` and

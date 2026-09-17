@@ -269,6 +269,65 @@ code in the diff.
 
 ### T2 — Transport, consent surfaces, and the privacy page. **This is the shippable release.**
 
+**TRANSPORT BUILT 2026-09-17** (client core and Worker, two contracts in
+parallel; the consent surfaces and the privacy page follow). Nothing is
+deployed and the Settings toggle does not exist yet, so nothing sends.
+
+- **Wire format:** `POST /v1/signals?e=heartbeat|duel|cards`, the body being
+  the pure builder's output byte for byte. No envelope, no version field, no
+  type field: the client adds NOTHING in transit, and the kind travels in the
+  query. An optional `&v=` is reserved on the Worker (absent means 1). The two
+  halves were built apart and first agreed this by message;
+  `tests/net/clientToWorker.test.ts` now runs the real client against the real
+  Worker handler, so a drift on either side fails the suite. It caught one bug
+  on its first run: `cardsPlayed` decided the row cap per CALL, so a call
+  carrying several new ids that would overflow dropped all of them.
+- **The facade** (`src/net/signals.ts`): `start`, `noticeAcknowledged`,
+  `cardsPlayed`, `duelFinished`, `sessionEnding`. The consent UI needs only
+  `noticeAcknowledged()` after it stamps `statsNoticeVersion`; the toggle needs
+  no call, because the gate re-reads the save at every send.
+- **The gate** (`src/net/signalsGate.ts`), evaluated at send time, closed by any
+  of: the toggle off, `navigator.doNotTrack === '1'`,
+  `navigator.globalPrivacyControl === true`, `?telemetry=off`, a development
+  build (`IS_DEV`, which includes the local devtools flag, so it errs toward
+  sending less), or a saved notice version below `STATS_NOTICE_VERSION`. A
+  development build logs the exact payload with the prefix
+  `[signals:dry-run]` and sends nothing. Accumulation is gated too: a session
+  played with stats off leaves nothing in memory for a later toggle-on to send.
+- **No client-side daily cap** (legal review, finding 5): one heartbeat per
+  launch, tracked in memory, and the Worker's daily hash de-duplicates.
+- **Card batch:** at most 60 rows (`SESSION_CARD_ROW_CAP`), the first 60
+  distinct cards by play order, known cards still counting past the cap. The
+  Worker REJECTS an over-cap batch (400) rather than truncating, because the
+  batch is sorted by card id and an edge truncation would quietly bias the
+  card distribution toward the start of the alphabet. 60 against the free
+  tier's 100,000 data points a day: a five-duel session costs 26 points at the
+  expected 20 cards (about 3,800 player-days a day) and 66 at the cap (about
+  1,500). The body cap rose 4 KB to 8 KB: a full batch of the 60 longest real
+  card ids measures 4,956 bytes.
+- **Results:** `concede` only when the human conceded (the winner is the AI and
+  the reason is `concede`); an AI concede is a win; a draw comes from
+  `state.winner === 'draw'`. The save's `constructed`, `warchest` and absent
+  deck formats all report `warchest`.
+- **Worker storage:** dataset `db_signals_v2`. Heartbeat and duel rows are
+  indexed by the daily hash; card rows are indexed by card id and their hash
+  column is always empty, so a duel row and the same session's cards cannot be
+  re-joined. Card rows carry no `appVersion` and no `platform` (the cards
+  allowlist has three fields), so card play cannot be split by version or by
+  web and desktop; widening it is an owner decision.
+- **The harness trap, by machine:** eslint fences `**/net/*` off
+  engine/ai/data/meta, a full headless duel makes zero network calls, no
+  balance or sweep entry point imports `src/net` or `src/scenes`, and `src/net`
+  is imported by exactly `src/gameBoot.ts` and `src/scenes/DuelScene.ts`. One
+  pinned gap: a dynamic `import()` slips past the lint rule.
+- **Still owed before release:** the deploy (create the KV namespace, fill its
+  id, deploy, send one synthetic event of each kind, read it back); a live
+  browser probe that the toggle off shows zero requests to the signals host; a
+  desktop run to learn whether WebView2 exposes `doNotTrack`,
+  `globalPrivacyControl` and `sendBeacon` (the code survives any being absent;
+  which exist there is unmeasured); the k = 10 floor, which is T3's rollup and
+  is not true of anything yet.
+
 Branch: `claude/play-signals-transport` · PR: `feat: anonymous play stats, off in one tap`
 
 Client:
@@ -329,8 +388,13 @@ Worker (separate repo or a `worker/` directory — see the risk register):
   deliberately has none, only its `workers.dev` hostname. The binding is
   permissive and per Cloudflare location by design, which suits a spam brake
   and is not an accounting system.
-- The salt rotates every 24h and **is never persisted**. The IP is read, hashed,
-  and discarded within the request. Neither is ever written to WAE.
+- The salt is a random value created fresh each UTC day, held in one Workers
+  KV key with an absolute expiry just past the day, and mixed with
+  `SALT_SECRET` by HMAC (re-ruled 2026-09-17, see the T0 finding; it was "never
+  persisted"). A missing secret answers 503 and writes nothing: there is no
+  unsalted fallback. The IP is read, hashed, and discarded within the request.
+  Neither it nor anything else derived from the request is ever written to WAE
+  or logged.
 
 Gate: rungs 1-6, plus a probe run confirming that with the toggle off the
 network tab shows **zero** requests to the signals host. Exit criteria include

@@ -228,15 +228,16 @@ export const signals = {
    */
   cardsPlayed(cardIds: readonly string[]): void {
     if (cardIds.length === 0 || !permitted()) return;
-    const next = tallyCardsPlayed(cardTally, cardIds, CARD_DB);
-    if (Object.keys(next).length <= SESSION_CARD_ROW_CAP) {
-      cardTally = next;
-      return;
+    // One id at a time, in play order, so a call carrying several cards admits
+    // every one that still fits. At the cap (see SESSION_CARD_ROW_CAP) a card
+    // already in the tally keeps counting and a card that would open a new row
+    // does not. (Deciding per CALL dropped every new id in a call that would
+    // overflow, including the ones that fit; caught by
+    // tests/net/clientToWorker.test.ts, 2026-09-17.)
+    for (const cardId of cardIds) {
+      const next = tallyCardsPlayed(cardTally, [cardId], CARD_DB);
+      if (Object.keys(next).length <= SESSION_CARD_ROW_CAP) cardTally = next;
     }
-    // At the cap (see SESSION_CARD_ROW_CAP): a card already in the tally keeps
-    // counting, a card that would open a new row does not.
-    const known = cardIds.filter((cardId) => cardId in cardTally);
-    if (known.length > 0) cardTally = tallyCardsPlayed(cardTally, known, CARD_DB);
   },
 
   /**

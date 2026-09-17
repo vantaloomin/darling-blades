@@ -44,6 +44,20 @@ Concretely:
   xoshiro128** array stored at `state.rng` (`src/engine/rng.ts`), mutated in
   place. Cloning the state clones the RNG, so a cloned game replays identically.
 
+### The network layer is scene-side only (`src/net`)
+
+`src/net/` is the one impure directory that reaches the network, for the
+anonymous play stats (spec in
+[plan-telemetry-and-accounts.md](plan-telemetry-and-accounts.md)). The pure
+half lives in `src/meta/playSignals.ts`: the field allowlist and the builders
+that turn local state into bucketed digests. `src/net` only gates and sends
+what those builders return, adding nothing. `eslint.config.js` fences
+`**/net/*` off `engine/ai/data/meta`, exactly as it fences the presentation
+layer, because the balance matrices and the metagame sweep walk duel
+completion thousands of times and must never be able to emit. The only
+importers are `src/gameBoot.ts` and `src/scenes/DuelScene.ts`, and a test pins
+that list.
+
 ## The `Game` facade
 
 `src/engine/Game.ts` is the only public entry point to the engine. Its contract
