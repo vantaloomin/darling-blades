@@ -320,7 +320,9 @@ Numbered so rulings can cite them. Recommendations are the first option.
    with an owner-issued deploy token in the user environment; finding in
    [telemetry-t0-finding.md](telemetry-t0-finding.md), which raises three
    decisions of its own (D-T0.1 card rows, D-T0.2 the salt, D-T0.3 where the
-   Worker lives). Still open here: when the privacy page goes live.
+   Worker lives), all three ruled 2026-09-17. **The privacy page goes live
+   alongside 1.8 (owner ruling 2026-09-17)**, inside the same Pages deploy as
+   the first client that can send.
 6. **D6 Node 24 now.** Implement #342's one-PR change before 2026-09-23 and
    before the train opens, per the doc's three choices (smallest action majors,
    `engines` as a warning, timing).

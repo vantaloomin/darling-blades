@@ -215,6 +215,37 @@ from a live save rather than this matrix.
 
 ## Owner decisions raised by the spike
 
+**ALL THREE RULED 2026-09-17**, when the owner opened the telemetry build:
+
+- **D-T0.1: card rows are tallied per session, in memory.** A variant of (b)
+  that the spike did not list. Played cards are counted in memory across one
+  launch and sent as one batch when the session ends, one row per distinct
+  card with a bucketed count, carrying no duel and no deck reference. Chosen
+  over the per-day aggregate because a daily tally would have to live in the
+  save, and "nothing is stored on the device for telemetry" is the sentence
+  the whole consent posture rests on. Cost, accepted: a crash or a blocked
+  unload loses that session's card rows. Data points drop from about 90 to
+  about 20 for a five-duel session.
+- **D-T0.2: a random daily value, stored for the day, then deleted, with a
+  Worker secret mixed in.** Ruled twice on 2026-09-17. The first ruling was
+  (b) as the spike wrote it, `hash(secret, UTC day)`. Drafting the privacy
+  page exposed what that costs: a salt built only from a lasting secret can be
+  recomputed for any past day by whoever holds the secret, so a named IP
+  address and browser could be tested against 90 days of raw rows, and the
+  policy's sentence "even we cannot connect one day's summaries to another's"
+  would stop being true. The owner re-ruled the same day: the Worker draws a
+  fresh random value each UTC day, keeps it in one Workers KV key so every
+  isolate shares it (cached in isolate memory, so reads stay far inside the
+  free tier), deletes it when the day ends, and mixes in `SALT_SECRET` (set by
+  the owner 2026-09-17) so a KV leak alone yields nothing. After deletion
+  nobody can recompute a past day. Accepted cost: the salt exists in
+  Cloudflare's storage for up to a day, so "never persisted" becomes "kept
+  only for the day it is used".
+- **D-T0.3: the Worker stays in `worker/` in this repo**, so its validator
+  sits beside the client's field allowlist and one test can hold them equal.
+
+The options as the spike wrote them, kept for the record:
+
 - **D-T0.1** Card rows: cap per duel (a), aggregate per day on the heartbeat
   (b, recommended), or drop from v1 (c).
 - **D-T0.2** De-duplication salt: accept per-isolate hashes (a), or derive
@@ -226,7 +257,9 @@ from a live save rather than this matrix.
 ## What T1 and T2 inherit
 
 - The Worker as built, with the schema changes D-T0.1 and D-T0.2 imply.
-- A Cloudflare dashboard rate-limiting rule on the route (not code; not
-  set up in the spike).
+- ~~A Cloudflare dashboard rate-limiting rule on the route.~~ Corrected
+  2026-09-17: a `workers.dev` hostname has no zone for a dashboard rule to
+  attach to, so T2 uses the Workers rate-limit binding in `wrangler.toml`
+  instead. It is code, and it is not an owner step.
 - The T3 token, created and tested separately (finding 2).
 - The pre-existing disclosures the privacy page must carry are unchanged.

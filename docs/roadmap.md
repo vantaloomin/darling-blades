@@ -66,7 +66,7 @@ _Dated 2026-09-07. Review monthly._
   v25→v26 the Darlings command zone, Darlings tutorial, and free Zhou Yu
   claim, and — since — v32→v33 per-deck card back and playmat, v33→v34
   the land-drop confirmation, and v34→**v35** the anonymous-stats preference
-  (`settings.shareAnonStats`, `settings.statsNoticeSeen`) with the two dead
+  (`settings.shareAnonStats`, `settings.statsNoticeVersion`) with the two dead
   account-level cosmetics fields removed — see
   Recently shipped and the Full Art entry under Planned). By-ear tuning remains open (see Planned).
 

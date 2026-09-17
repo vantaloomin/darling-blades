@@ -161,20 +161,20 @@ Two event types. Both are digests, not streams.
 | `settings` | animations tier, reduced-motion, renderScale | product signal, no identity |
 | `streakBucket` | `0`,`1`,`2`,`3`,`4-6`,`7-13`,`14-29`,`30+` | from `daily.streak.count` |
 | `achievementsBucket` | share unlocked, bucketed to tenths | from `AchievementState` |
-| `winsBucket`, `packsBucket`, `collectionBucket` | bucketed | progress shape |
+| `winsBucket`, `lossesBucket`, `packsBucket`, `collectionBucket` | bucketed | progress shape. `lossesBucket` added by owner ruling 2026-09-17; `collectionBucket` counts distinct cards owned, not a percentage |
 | `tutorialDone`, `gauntletBestRung` | boolean, small int | funnel |
 
 **`duel` — one digest per completed duel.**
 
 | Field | Shape | Note |
 | --- | --- | --- |
-| `format` | constructed \| darlings \| limited \| gauntlet | |
+| `format` | warchest \| darlings \| limited \| gauntlet | `warchest` since the owner ruling of 2026-09-17: classic is retired, so the old `constructed` value meant Warchest anyway. The save still spells a deck's format `constructed` or `warchest`; the scene maps both to `warchest` |
 | `deckColours` | colour identity string | e.g. `WU` |
 | `deckArchetype` | enum from our own labels | **never the player's deck name** |
 | `curveBucket`, `deckSource` | bucket, precon/custom/drafted | |
 | `opponentId` | our built-in opponent ids | ours, not a person |
-| `difficulty`, `turns`, `result`, `mulligans` | small ints/enums | |
-| `cardsPlayed` | **separate rows**, one per `cardId` + count | see the k-anonymity rule below |
+| `difficulty`, `turns`, `result`, `mulligans` | small ints/enums | `turns` is bucketed; `result` is win \| loss \| draw \| concede, a concede being its own outcome and never also a loss (owner ruling 2026-09-17); `mulligans` caps at 3 |
+| ~~`cardsPlayed`~~ | moved off this event | **Ruled 2026-09-17 (D-T0.1):** played cards are tallied in memory across one launch and sent as a third event, `cards`, once when the session ends: one row per distinct `cardId` with a bucketed count, no duel reference, no deck reference, plus one bucketed count of the duels the launch contained, identical on every row: a denominator, not a reference (owner ruling 2026-09-17). Nothing is stored on the device for it. See the k-anonymity rule below |
 
 **The prohibition list is part of the schema, not a guideline.** Never
 transmitted, at all, ever: deck names (player-authored free text, so a possible

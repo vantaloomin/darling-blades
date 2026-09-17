@@ -3,6 +3,7 @@ import { deflateSync, strToU8 } from 'fflate';
 import { describe, expect, it } from 'vitest';
 import { decode, encode, MAX_DECODED_SAVE_BYTES, type SaveCodeDecodeResult } from '../../src/meta/SaveCode';
 import { CURRENT_SAVE_VERSION, freshSave, SaveManager, type SaveData } from '../../src/meta/SaveManager';
+import { STATS_NOTICE_VERSION } from '../../src/meta/statsNotice';
 import { parseVariantKey, variantKey } from '../../src/meta/variants';
 import { GOLDEN_FRESH_SAVE_CODE } from './saveCode.fixtures';
 
@@ -89,7 +90,7 @@ function currentVersionFixture(version: number): Record<string, unknown> {
   save.version = version;
   if (version < 35) {
     delete (save.settings as Record<string, unknown>).shareAnonStats;
-    delete (save.settings as Record<string, unknown>).statsNoticeSeen;
+    delete (save.settings as Record<string, unknown>).statsNoticeVersion;
   }
   // v32 added the account-level style pair; v33 superseded it and v35 removed
   // it. A blob from that window still carries both keys on disk.
@@ -216,11 +217,11 @@ describe('SaveCode', () => {
     // exactly one field differ between migrated and fresh on purpose: an
     // existing player has not seen the anonymous-stats notice, a new one has.
     // Before v35 the two were identical and this was a bare `toEqual`.
-    expect(regenerated.save.settings.statsNoticeSeen).toBe(true);
-    expect(golden.save.settings.statsNoticeSeen).toBe(false);
+    expect(regenerated.save.settings.statsNoticeVersion).toBe(STATS_NOTICE_VERSION);
+    expect(golden.save.settings.statsNoticeVersion).toBe(0);
     expect(golden.save).toEqual({
       ...regenerated.save,
-      settings: { ...regenerated.save.settings, statsNoticeSeen: false },
+      settings: { ...regenerated.save.settings, statsNoticeVersion: 0 },
     });
     expect(golden.preview).toEqual({ ...regenerated.preview, sourceSchemaVersion: 22 });
   });
@@ -240,7 +241,7 @@ describe('SaveCode', () => {
     expect(decoded.preview.sourceSchemaVersion).toBe(34);
     expect(decoded.save.version).toBe(CURRENT_SAVE_VERSION);
     expect(decoded.save.settings.shareAnonStats).toBe(true);
-    expect(decoded.save.settings.statsNoticeSeen).toBe(false);
+    expect(decoded.save.settings.statsNoticeVersion).toBe(0);
     expect(decoded.save.cosmetics).toEqual({ owned: [] });
     expect(Object.keys(decoded.save.cosmetics)).toEqual(['owned']);
     // The v34 payload's real content is untouched by the bump.
@@ -251,12 +252,12 @@ describe('SaveCode', () => {
   it('re-exports an imported v34 code without losing the preference', () => {
     const imported = expectOk(decode(codeForRaw(currentVersionFixture(34)))).save;
     imported.settings.shareAnonStats = false;
-    imported.settings.statsNoticeSeen = true;
+    imported.settings.statsNoticeVersion = STATS_NOTICE_VERSION;
 
     const round = expectOk(decode(encode(imported))).save;
 
     expect(round.settings.shareAnonStats).toBe(false);
-    expect(round.settings.statsNoticeSeen).toBe(true);
+    expect(round.settings.statsNoticeVersion).toBe(STATS_NOTICE_VERSION);
   });
 
   it('rejects a corrupted checksum as a structured checksum error', () => {
