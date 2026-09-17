@@ -1,4 +1,4 @@
-<!-- source-of-truth: package.json, src/art/ArtResolver.ts, src/art/PlaceholderArtGenerator.ts, src/art/ArtAtlas.ts, src/art/SeededRandom.ts, src/art/TribeEmblems.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/fx/HoloEffects.ts, src/ui/fx/IridescencePostFX.ts, src/ui/fx/FXSupport.ts, scripts/gen-art-manifest.ts, scripts/convert-art-webp.ts, scripts/gen-art-halfres.ts, scripts/gen-card-art.ts, scripts/gen-land-art.ts, scripts/gen-spell-art.ts, scripts/gen-scene-art.ts, scripts/smartcrop.py, scripts/recrop-art.ts, scripts/requirements.txt, src/data/art-manifest.json · last-verified: 2026-09-03
+<!-- source-of-truth: package.json, src/art/ArtResolver.ts, src/art/PlaceholderArtGenerator.ts, src/art/ArtAtlas.ts, src/art/SeededRandom.ts, src/art/TribeEmblems.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/fx/HoloEffects.ts, src/ui/fx/IridescencePostFX.ts, src/ui/fx/FXSupport.ts, scripts/gen-art-manifest.ts, scripts/convert-art-webp.ts, scripts/gen-art-halfres.ts, scripts/gen-card-art.ts, scripts/gen-land-art.ts, scripts/gen-spell-art.ts, scripts/gen-scene-art.ts, scripts/smartcrop.py, scripts/audit-art-window.py, scripts/recrop-art.ts, scripts/requirements.txt, src/data/art-manifest.json · last-verified: 2026-09-17
      If you change those files, update this doc or re-verify the date. -->
 
 # Art pipeline
@@ -108,16 +108,45 @@ dev-only Python dependencies with `python -m pip install -r scripts/requirements
 (`pillow` plus `dghs-imgutils`; detector models cache outside the repo via the
 normal HuggingFace cache).
 
-The cropper has two modes:
+The cropper has three modes:
 
 - `character` (used by `scripts/gen-card-art.ts`) runs dghs-imgutils detector
   APIs when available, preferring head detections, then face detections, then a
   person box, then the old center crop. Its focal line is
   `FOCAL_FRAC = 0.40`, so the selected head/face point lands around y=320 in the
   800px output.
-- `environment` (used by `scripts/gen-land-art.ts` and
-  `scripts/gen-spell-art.ts`) never runs detection and preserves the old Pillow
-  center cover-crop byte-for-byte, so land and spell output stays unchanged.
+- `environment` (used by `scripts/gen-land-art.ts`) never runs detection and
+  preserves the old Pillow center cover-crop byte-for-byte, so land output
+  stays unchanged.
+- `subject` (used by `scripts/gen-spell-art.ts` and the spell group of
+  `recrop-art` since 2026-09-17) is for art that is not a creature portrait
+  but may still show a person. It runs the head and face detectors only, never
+  the loose person box, which fires on distant figures in a landscape. With a
+  head or face it crops like character mode at a gentler focal line,
+  `SUBJECT_FOCAL_FRAC = 0.32`; with neither it is the environment center crop
+  byte-for-byte, so an effect-only spell is unchanged. Why it exists: spell,
+  artifact and enchantment art went through the blind center crop, and when
+  the image model drew the woman's head in the top fifth of the raw despite
+  the preamble, the card window cut her face off. The owner's Drowned Deep
+  hand-audit found 26 such cards in one set. Why 0.32 and not 0.40: a spell's
+  art is about the object or the effect as much as the woman holding it, and
+  at the creature target the zoom fallback cut the jar, the wave and the net
+  out of their own cards.
+
+Every crop result also carries a `window` block: where the detected subject's
+top, focal point and bottom land as fractions of the deliverable, the card
+window's own edges (`CARD_WINDOW_TOP_FRAC` 0.209 and `CARD_WINDOW_BOTTOM_FRAC`
+0.791, derived in the cropper from the 264x192 art window this doc owns
+below), and `focal_visible` / `fully_visible`. The crop is decided against the
+frame it will sit in, and a crop that hides a face shows up in the tooling
+rather than only on the card. If the frame's art window ever changes, those
+two constants change with it.
+
+What a crop cannot fix: every shipped crop already spans the full raw width,
+so "zoom out" is impossible, and a head drawn at the very top edge of the raw
+can only be brought into the window by zooming in until the rest of the scene
+is gone (five of the 26 needed 1.8x to 3.2x). Those want a regeneration with
+the composition fixed in the brief, not a crop.
 
 The optional `--margin-scale S` argument (default `1.0`) widens the selected
 crop window around the same focal anchor by `S`, zooming out without synthesizing
@@ -129,6 +158,19 @@ crop window vertically by `N` raw pixels, clamped to the raw bounds. The achieve
 offset is included as `achieved_offset_y` in the JSON result and reported on
 stderr when a non-zero request is made or the raw bounds clamp it. At `0`, the
 image crop remains byte-identical.
+
+The window audit is `python scripts/audit-art-window.py` (run it with the
+`.venv-art` interpreter; `--prefix dd-` or `--ids a,b` narrow it). It reads the
+shipped 640x800 files themselves, loads the detectors once, and lists every
+card whose detected head or face sits outside the card window, with whether a
+retained raw exists and the zoom a subject-aware re-crop would need: under
+about 1.8x is a cheap re-crop, above it the head is at the raw's top edge and
+the card wants a regeneration. The detector is trained on anime heads and
+fires on some non-human subjects (measured 2026-09-17: a plush rabbit in Dark
+Tales, a row of slimes and a lizard in Starborne), so the list is a set of
+candidates for a human look. Never bulk-apply re-crops from it, and look at
+the generator's per-card detection source when a spell with no figure in its
+brief reports `head`.
 
 The batch review tool is `npm run recrop-art` (`scripts/recrop-art.ts`). It
 reads retained raws from `%TEMP%/gen-card-art`, `%TEMP%/gen-land-art`, and
@@ -248,7 +290,7 @@ banner, seal, and oath cards invite them). Output goes to the same
 WebPs up automatically.
 
 The spell driver also accepts `--recrop <file>` for entries whose retained
-raws live in `%TEMP%/gen-spell-art/`; it uses environment mode and the same
+raws live in `%TEMP%/gen-spell-art/`; it uses subject mode and the same
 no-generation `OK` / `CAPPED` / `MISSING-RAW` reporting, including the
 `--out-dir` review-output mode.
 

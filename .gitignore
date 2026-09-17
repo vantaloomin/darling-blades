@@ -91,3 +91,6 @@ worker/.wrangler/
 worker/.dev.vars
 worker/node_modules/
 worker/worker-configuration.d.ts
+
+# Python bytecode from the art scripts (audit-art-window.py imports smartcrop)
+scripts/__pycache__/
