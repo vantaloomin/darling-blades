@@ -1872,6 +1872,39 @@ export const AVATARS: readonly Avatar[] = [
       ['rg-shieldwall-maiden', 4],
       ['rg-xuchu', 3],
     ]),
+    // MEASURED 2026-09-17: owner-ruling surgery R3, hard AI, 200 seeds/cell,
+    // reserve-native avatar matrix (the avatar vs the Medium-piloted starter
+    // reserve builds); 79% mean, cells 70/88/53/93/93% in Muster/Communion/
+    // Tides/Mandate/Harvest order, zero draws.
+    // Frozen baseline on the phase C tree (a10327c): 70% mean, cells
+    // 59/80/43/87/80%. Before phase C she measured 75% (67/86/45/91/86): the
+    // combat model then learned twinBlades on both seats, her opponents
+    // stopped blocking her double-strikers with bodies that died without
+    // striking, and she fell five points with nothing in her list changed.
+    // She has no rung floor (rung 10), so this pass followed the Deacon's and
+    // Bastet's: keep only >3pp above baseline with no cell down >6pp; a
+    // combination replaces the best single only if it beats it by >3pp.
+    // 2026-09-17 owner-ruling surgery R1 REJECTED: -1 each of the six
+    // converter singletons that are not bodies for her plan (Queen of the
+    // Last Procession, Ragnarok, Quest for the Grail, Round Table Vow, Storm
+    // Surge, Iron Gate Sentinel); +3 Valkyrie Vanguard, +3 Xu Chu (her
+    // classic's cut cards). Alone: 72% (59/84/50/88/81), +2pp, inside the band.
+    // 2026-09-17 owner-ruling surgery R2 REJECTED: -3 Berserker Chieftain
+    // (the self-damage attacker); +3 Warband Leader. Alone: 68% (59/77/39/
+    // 83/84), -2pp; Tides fell 4.
+    // 2026-09-17 owner-ruling surgery R3 KEPT: -4 Ember Valkyrie (a 2/1 the
+    // honest blockers eat); +2 Break the Coil, +2 Burn the Rope. She had no
+    // spell at all; two and three damage at instant speed clears the blocker
+    // or closes the race. Alone: 79% (70/88/53/93/93), +9pp, every cell up.
+    // 2026-09-17 owner-ruling surgery R4 REJECTED as superseded: -2 Shieldwall
+    // Maiden (4 -> 2), -2 Dawn Valkyrie (4 -> 2); +2 Zhao Yun, +2 Flamecaller
+    // Jotun. Alone: 73% (59/80/48/90/88), +3pp at the edge of the band.
+    // 2026-09-17 owner-ruling surgery 5 REJECTED: R3+R4 combined, 79%
+    // (67/89/57/88/95), +0.2pp over R3 alone, inside the band, so the smaller
+    // change stands. Hand-tuned from the 2026-08-21 converter first cut; the
+    // classic deck, landReserve (5 Mountain/5 Plains) and Darlings surfaces
+    // are unchanged; the reserve divergence is registered in HAND_TUNED_WARCHEST.
+    // Measured by the main session; Codex was out of usage credits.
     reserveDeck: expand([
       ['rg-brunhild', 3],
       ['rg-valkyrie-captain', 4],
@@ -1879,7 +1912,8 @@ export const AVATARS: readonly Avatar[] = [
       ['rg-einherjar-champion', 4],
       ['rg-berserker-duelist', 4],
       ['rg-dawn-valkyrie', 4],
-      ['rg-ember-valkyrie', 4],
+      ['sd-break-the-coil', 2],
+      ['sd-burn-the-rope', 2],
       ['rg-shieldwall-maiden', 4],
       ['tk-other-lubu', 1],
       ['tk-shu-guanyu', 1],

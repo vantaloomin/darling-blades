@@ -446,7 +446,11 @@ recovered nothing. So the model stayed and Bastet's reserve deck, an untuned
 converter cut of sixteen x/1 bodies and no removal, got the measured tuning
 pass instead: burn for the four Claw-Prow Signalers and Kesi for two of the
 four Bakhets took her 62.4 to 73.6 with every cell up, and her 40-seed gate
-reads 75.0 against the 68.5 floor, which was not moved. Phase B closed the mechanic gaps (Tithe fodder,
+reads 75.0 against the 68.5 floor, which was not moved. Brunhild, the other
+heavy twinBlades carrier (rung 10, no floor), had fallen 75 to 70 the same
+way and got the same shape of pass on 2026-09-17: burn for her four Ember
+Valkyries took her to 79 with every cell up; the three other authored
+surgeries and the pair are recorded beside her list. Phase B closed the mechanic gaps (Tithe fodder,
 Hauntlink fit, moves and windows, Duty ordering and mana holding, Empower
 cost) with the gates unchanged and rungs 15, 16, 18 and 20 up one to two
 points; Kitsune, the Hauntlink spine, moved 82.9 to 84.5. The Tithe boss
