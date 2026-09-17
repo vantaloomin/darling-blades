@@ -16,6 +16,9 @@ interface Combatant {
   defense: number; // effective minus marked damage
   deathtouch: boolean;
   firstStrike: boolean;
+  twinBlades: boolean;
+  sentinel: boolean;
+  damagePrevented: boolean;
   trample: boolean;
   lifelink: boolean;
   dreaded: boolean;
@@ -30,18 +33,66 @@ function combatant(bf: readonly Permanent[], db: CardDb, iid: number, trickBuff 
     defense: stats.defense - perm.damage + trickBuff,
     deathtouch: stats.keywords.has('deathblade'),
     firstStrike: stats.keywords.has('firstBlade'),
+    twinBlades: stats.keywords.has('twinBlades'),
+    sentinel: stats.keywords.has('sentinel'),
+    damagePrevented: perm.combatDamagePrevented === true,
     trample: stats.keywords.has('overrun'),
     lifelink: stats.keywords.has('bloodoath'),
     dreaded: stats.keywords.has('dreaded'),
   };
 }
 
-/** Does the striker kill the victim in a straight exchange? */
+const fullDamage = (c: Combatant): number => Math.max(0, c.attack) * (c.twinBlades ? 2 : 1);
+
+/** Same sub-step eligibility as engine/combat/damage.ts: FS + Twin = two hits. */
+function strikesInStep(c: Combatant, first: boolean): boolean {
+  return first ? c.firstStrike || c.twinBlades : c.twinBlades || !c.firstStrike;
+}
+
+/** Public-stat exchange, with simultaneous hits and casualties between steps.
+ * Carry marked damage forward and use the engine's cheapest-lethal assignment.
+ * Effective stats stay fixed for this heuristic; continuous effects changing
+ * after a death and triggered abilities remain the engine sim's job. */
+function combatExchange(
+  attacker: Combatant, blockers: Combatant[], firstStrikeDone = false, wasBlocked = true,
+): { damage: number; dying: number[] } {
+  const a = { ...attacker };
+  const defenders = blockers.map((b) => ({ ...b }));
+  const dying = new Set<number>();
+  let damage = 0;
+  const hit = (source: Combatant, target: Combatant, amount: number): void => {
+    if (amount <= 0 || target.damagePrevented) return;
+    target.defense -= amount;
+    if (source.deathtouch || target.defense <= 0) dying.add(target.iid);
+  };
+  for (const first of [true, false]) {
+    if (first && firstStrikeDone) continue;
+    if (dying.has(a.iid)) break;
+    const living = defenders.filter((b) => !dying.has(b.iid));
+    // Snapshot return hits BEFORE assigning damage: dying in this sub-step
+    // cannot cancel a simultaneous hit, only a hit in the following step.
+    const returning = living.filter((b) => strikesInStep(b, first));
+    if (strikesInStep(a, first)) {
+      let power = Math.max(0, a.attack);
+      const need = (b: Combatant): number => a.deathtouch ? 1 : Math.max(1, b.defense);
+      const ordered = [...living].sort((x, y) => need(x) - need(y));
+      for (let i = 0; i < ordered.length && power > 0; i++) {
+        const b = ordered[i];
+        const amount = a.trample || i < ordered.length - 1 ? Math.min(power, need(b)) : power;
+        hit(a, b, amount);
+        power -= amount;
+      }
+      // An attacker whose first hit killed every blocker is still blocked.
+      if (!wasBlocked || a.trample) damage += power;
+    }
+    for (const b of returning) hit(b, a, Math.max(0, b.attack));
+  }
+  return { damage, dying: [...dying] };
+}
+
+/** Does the striker kill the victim before or during their straight exchange? */
 function kills(striker: Combatant, victim: Combatant): boolean {
-  if (striker.attack <= 0) return false;
-  if (striker.deathtouch) return true;
-  // first-strike wins the race if it kills before the victim strikes
-  return striker.attack >= victim.defense;
+  return combatExchange(striker, [victim]).dying.includes(victim.iid);
 }
 
 function untappedBlockers(
@@ -108,87 +159,52 @@ export function scoreAttack(
   // blockers has a real cost.
   const oppPower = bf
     .filter((p) => p.controller === opp && isType(def(db, p.cardId), 'creature'))
-    .reduce((s, p) => s + combatant(bf, db, p.iid).attack, 0);
+    .reduce((s, p) => s + fullDamage(combatant(bf, db, p.iid)), 0);
   const holdbackPenalty =
     (myLife <= 10 && oppPower >= myLife * 0.6 ? 0.4 : myLife <= 14 && oppPower >= myLife ? 0.25 : 0) *
     pers.holdback;
-  let total = -holdbackPenalty * attackers.length;
+  let total = 0;
   for (const iid of attackers) {
     const A = combatant(bf, db, iid);
+    if (!A.sentinel) total -= holdbackPenalty;
     const myBlockers = blocks.filter((b) => b.attacker === iid).map((b) => b.blocker);
     if (myBlockers.length === 0) {
-      total += A.attack * dmgWeight;
-      if (A.attack >= oppLife) total += 100; // lethal connection
+      total += fullDamage(A) * dmgWeight;
+      if (fullDamage(A) >= oppLife) total += 100; // lethal connection
       continue;
     }
-    const combinedPower = myBlockers.reduce(
-      (s, b) => s + combatant(bf, db, b, trickBuff).attack,
-      0,
-    );
-    const iDie =
-      (combinedPower >= A.defense ||
-        myBlockers.some((b) => combatant(bf, db, b, trickBuff).deathtouch)) &&
-      !(
-        A.firstStrike &&
-        myBlockers.every((b) => {
-          const bC = combatant(bf, db, b, trickBuff);
-          return !bC.firstStrike && kills(A, bC) && myBlockers.length === 1;
-        })
-      );
+    const defenders = myBlockers.map((b) => combatant(bf, db, b, trickBuff));
+    const exchange = combatExchange(A, defenders);
+    const iDie = exchange.dying.includes(iid);
     // attacker kills the cheapest blocker it can (auto-assignment)
-    const killable = myBlockers
-      .map((b) => combatant(bf, db, b, trickBuff))
-      .filter((bC) => kills(A, bC));
+    const killable = defenders.filter((bC) => exchange.dying.includes(bC.iid));
     const killValue =
       killable.length > 0
         ? Math.min(...killable.map((bC) => permValue(bf, db, bC.iid)))
         : 0;
     total += killValue - (iDie ? permValue(bf, db, iid) : 0);
     if (A.trample && myBlockers.length === 1) {
-      const overflow = A.attack - combatant(bf, db, myBlockers[0], trickBuff).defense;
+      const overflow = exchange.damage;
       if (overflow > 0) total += overflow * dmgWeight;
     }
   }
   return total;
 }
 
-/** Public one-step combat projection for fog, tap and rescue decisions.
- * Uses the planner's existing keyword model; it does not change its plans. */
+/** Public combat projection for fog, tap and rescue decisions. */
 export function combatForecast(
   bf: readonly Permanent[], db: CardDb, combat: CombatState,
 ): { damage: number; dying: number[] } {
   const result = { damage: 0, dying: [] as number[] };
   if (combat.damagePrevented) return result;
   const exists = (iid: number): boolean => bf.some((p) => p.iid === iid);
-  const protectedBody = (iid: number): boolean => bf.find((p) => p.iid === iid)?.combatDamagePrevented === true;
   for (const iid of combat.attackers.filter(exists)) {
     const a = combatant(bf, db, iid);
     const assigned = combat.blocks.filter((b) => b.attacker === iid);
     const blockers = assigned.map((b) => b.blocker).filter(exists).map((b) => combatant(bf, db, b));
-    const strikes = !(combat.phase === 'firstStrikeDone' && a.firstStrike);
-    if (assigned.length === 0) {
-      if (strikes) result.damage += Math.max(0, a.attack);
-      continue;
-    }
-    // A recalled/dead blocker leaves its attacker blocked; only Overrun gets through.
-    const firstStrikePower = blockers.filter((b) => b.firstStrike).reduce((sum, b) => sum + b.attack, 0);
-    const diesFirst = combat.phase !== 'firstStrikeDone' && !a.firstStrike && !protectedBody(iid) &&
-      (firstStrikePower >= a.defense || blockers.some((b) => b.firstStrike && b.deathtouch && b.attack > 0));
-    let power = diesFirst || !strikes ? 0 : a.attack;
-    const killed = new Set<number>();
-    for (const b of [...blockers].sort((x, y) => x.defense - y.defense)) {
-      const needed = a.deathtouch ? 1 : Math.max(0, b.defense);
-      if (!protectedBody(b.iid) && power > 0 && power >= needed) {
-        result.dying.push(b.iid);
-        killed.add(b.iid);
-      }
-      power -= needed;
-    }
-    if (a.trample) result.damage += Math.max(0, power);
-    const striking = blockers.filter((b) => !(combat.phase === 'firstStrikeDone' && b.firstStrike) &&
-      (!a.firstStrike || b.firstStrike || !killed.has(b.iid)));
-    if (!protectedBody(iid) && (diesFirst || striking.reduce((sum, b) => sum + b.attack, 0) >= a.defense ||
-      striking.some((b) => b.deathtouch && b.attack > 0))) result.dying.push(iid);
+    const exchange = combatExchange(a, blockers, combat.phase === 'firstStrikeDone', assigned.length > 0);
+    result.damage += exchange.damage;
+    result.dying.push(...exchange.dying);
   }
   return result;
 }
@@ -223,13 +239,13 @@ export function chooseAttackers(
   const combatants = eligible.map((iid) => combatant(bf, db, iid));
   let blockersLeft = defenders.length;
   let absorbed = 0;
-  for (const c of [...combatants].sort((a, b) => b.attack - a.attack)) {
+  for (const c of [...combatants].sort((a, b) => fullDamage(b) - fullDamage(a))) {
     const needed = c.dreaded ? 2 : 1;
     if (blockersLeft < needed) continue;
-    absorbed += c.attack;
+    absorbed += fullDamage(c);
     blockersLeft -= needed;
   }
-  const through = combatants.reduce((s, c) => s + c.attack, 0) - absorbed;
+  const through = combatants.reduce((s, c) => s + fullDamage(c), 0) - absorbed;
   if (through >= oppLife) return withCompelled(eligible); // all-in for the kill
 
   // Greedy descent: start from all-in, drop the attacker whose removal most
@@ -306,7 +322,7 @@ export function chooseBlocks(
   const myCreatures = untappedBlockers(bf, db, me);
   if (attackers.length === 0 || myCreatures.length === 0) return [];
 
-  const incoming = attackers.reduce((s, iid) => s + combatant(bf, db, iid).attack, 0);
+  const incoming = attackers.reduce((s, iid) => s + fullDamage(combatant(bf, db, iid)), 0);
   const lethalMode = incoming >= myLife;
   const lifePressure =
     (myLife <= 8 || incoming >= myLife * 0.5 ? 1.0 : myLife <= 14 ? 0.55 : 0.3) *
@@ -323,12 +339,12 @@ export function chooseBlocks(
       if (!canBlock(bf, db, me, B.iid, aIid)) continue;
       const A = combatant(bf, db, aIid, trickBuff);
       const bC = combatant(bf, db, B.iid);
-      const iKill = kills(bC, A) && !(A.firstStrike && !bC.firstStrike && kills(A, bC));
+      const iKill = kills(bC, A);
       const iDie = kills(A, bC);
       const score =
         (iKill ? permValue(bf, db, aIid) : 0) -
         (iDie ? permValue(bf, db, B.iid) : 0) +
-        combatant(bf, db, aIid).attack * lifePressure;
+        fullDamage(combatant(bf, db, aIid)) * lifePressure;
       pairs.push({ blocker: B.iid, attacker: aIid, score });
     }
   }
@@ -360,7 +376,12 @@ export function chooseBlocks(
       for (let j = i + 1; j < free.length; j++) {
         const b1 = combatant(bf, db, free[i].iid);
         const b2 = combatant(bf, db, free[j].iid);
-        const killsIt = b1.attack + b2.attack >= A.defense || b1.deathtouch || b2.deathtouch;
+        // Preserve the existing pure-firstBlade gang approximation: Hard's
+        // documented three-block search starts from that two-block baseline.
+        // Twin Blades gangs must account for casualties before the second hit.
+        const killsIt = A.twinBlades || b1.twinBlades || b2.twinBlades
+          ? combatExchange(A, [b1, b2]).dying.includes(aIid)
+          : b1.attack + b2.attack >= A.defense || b1.deathtouch || b2.deathtouch;
         // A Dreaded attacker may also be double-chumped to survive lethal.
         if (!killsIt && !(A.dreaded && lethalMode)) continue;
         // attacker kills at most one of them (cheapest-kill-first auto-assign)

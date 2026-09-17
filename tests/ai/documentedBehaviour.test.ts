@@ -295,7 +295,7 @@ describe('Hard search and combat keyword proof', () => {
   });
 
   // docs/ai.md:166-172. Phase C combat: moving blockers must respect the same three-block cap as adding them.
-  it.fails('Hard never moves a fourth blocker onto an existing gang', () => {
+  it('Hard never moves a fourth blocker onto an existing gang', () => {
     const game = fixture([], [
       body(20, 'cap_attacker', 1, { tapped: true }), body(21, 'tok_fox', 1, { tapped: true }),
       ...[10, 11, 12, 13].map((iid) => body(iid, 'three')),
@@ -369,7 +369,7 @@ describe('Hard search and combat keyword proof', () => {
   });
 
   // docs/ai.md:74-75. Phase C combat: twinBlades must contribute two unblocked hits.
-  it.fails('Medium scores a twinBlades attacker as two hits', () => {
+  it('Medium scores a twinBlades attacker as two hits', () => {
     const personality = makePersonality({ attackThreshold: 1.35 });
     checked(() => expect(act(attacks('bear'), new MediumAI(DB, personality)))
       .toEqual({ type: 'declareAttackers', attackers: [] }));
@@ -378,7 +378,7 @@ describe('Hard search and combat keyword proof', () => {
   });
 
   // docs/ai.md:74-75. Phase C combat: Sentinel remains available to block after attacking.
-  it.fails('Medium does not tax Sentinel as tapped in the holdback term', () => {
+  it('Medium does not tax Sentinel as tapped in the holdback term', () => {
     const personality = makePersonality({ attackThreshold: 0.7 });
     const board = (card: string) => attacks(card, [body(20, 'giant', 1, { tapped: true })], 6);
     checked(() => expect(act(board('plain_sentinel'), new MediumAI(DB, personality)))

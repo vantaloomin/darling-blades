@@ -3759,20 +3759,70 @@ export const AVATARS: readonly Avatar[] = [
       ['sd-twinblade-at-the-prow', 2],
       ['sd-claw-prow-signaler', 2],
     ]),
-    // Deterministic converter output from the classic list, generated 2026-08-21.
+    // MEASURED 2026-09-16: owner-ruling B1+B5, hard AI, 200 seeds/cell,
+    // reserve-native avatar matrix; 73.60% mean (736/1000 decided, 0 draws).
+    // Cells in Muster/Communion/Tides/Mandate/Harvest order:
+    // 53.50/85.00/61.00/84.00/84.50%.
+    // Pre-phase-C history: 69% mean; cells 52/80/55/84/73% (rounded).
+    // Frozen phase-C baseline on 331f17c: 62.40% mean (624/1000 decided,
+    // 0 draws); cells 44.50/77.50/45.50/73.50/71.00%.
+    // Phase C removed the defenders' twinBlades blind spot, so the unchanged
+    // reserve lost strength that had depended on opponents misplaying combat.
+    // Same 1,000 seeded games per variant; means average the five cell rates,
+    // excluding draws within each cell. Keep only >3pp above baseline, with no
+    // baseline cell down >6pp; a combination must beat the best single by >3pp.
+    // Every trial was restored before the next; only this final list is adopted.
+    // 2026-09-16 owner-ruling surgery B1 KEPT in the final combination: -4
+    // Claw-Prow Signaler; +2 Burn the Rope, +2 Break the Coil. This replaces
+    // the converter-doubled 1/1 with instant removal and reach.
+    // Alone: 69.80% mean (698/1000 decided, 0 draws), +7.40pp from baseline;
+    // worst baseline cell decline 0.00pp.
+    // Cells: 50.50/80.50/56.50/79.50/82.00%.
+    // 2026-09-16 owner-ruling surgery B2 REJECTED: -4 Claw-Thread Lancer;
+    // +2 Blade-Dancer, +2 Ashwake Twinblade (ten twinBlades copies retained).
+    // Alone: 64.88% mean (648/999 decided, 1 draw), +2.48pp from baseline;
+    // worst baseline cell decline 5.00pp. The average gain is inside the 3pp
+    // band; the cell-drop limit passes. Mandate is 164/199 decided.
+    // Cells: 39.50/79.00/51.00/82.41/72.50%.
+    // 2026-09-16 owner-ruling surgery B3 REJECTED: -4 Lion-Gate Sentry;
+    // +2 Nefru, Keeper of the White Gate, +2 Tiaa, Who Holds the Lintel.
+    // Alone: 63.90% mean (639/1000 decided, 0 draws), +1.50pp from baseline;
+    // worst baseline cell decline 2.00pp. The gain is inside the 3pp band.
+    // Cells: 43.00/77.00/53.00/77.50/69.00%.
+    // 2026-09-16 owner-ruling surgery B4 REJECTED: -4 Dune-Pawed Outrider;
+    // +2 Merya, Red-Gate Spearwoman, +2 Sun-Rope Hauler.
+    // Alone: 57.20% mean (572/1000 decided, 0 draws), -5.20pp from baseline;
+    // worst baseline cell decline 7.00pp. Both selection limits fail.
+    // Cells: 38.00/70.50/42.50/69.50/65.50%.
+    // 2026-09-16 owner-ruling surgery B5 KEPT in the final combination: -2
+    // Bakhet, Gate-Warden of the Lower City (4 -> 2); +2 Kesi of the Paired Knives.
+    // Alone: 65.80% mean (658/1000 decided, 0 draws), +3.40pp from baseline;
+    // worst baseline cell decline 0.00pp.
+    // Cells: 46.50/80.00/49.50/79.00/74.00%.
+    // 2026-09-16 owner-ruling surgery 6 KEPT: B1+B5 combined.
+    // Combined: 73.60% mean (736/1000 decided, 0 draws), +11.20pp from
+    // baseline; worst baseline cell decline 0.00pp; +3.80pp over best single B1.
+    // Cells: 53.50/85.00/61.00/84.00/84.50%.
+    // Highest measured qualifying combination. Only B1 and B5 qualified as
+    // singles, so there was no qualifying third or fourth surgery to combine.
+    // Hand-tuned from the 2026-08-21 converter list. Classic deck, landReserve,
+    // personality and Darlings surfaces stay unchanged; the reserve divergence
+    // is registered in HAND_TUNED_WARCHEST.
     reserveDeck: expand([
       ['sd-barge-pawed-spearwoman', 4],
       ['sd-lion-gate-sentry', 4],
       ['sd-claw-thread-lancer', 4],
       ['sd-pridewall-runner', 4],
       ['sd-dune-pawed-outrider', 4],
-      ['sd-bakhet-gate-warden-of-the-lower-city', 4],
+      ['sd-bakhet-gate-warden-of-the-lower-city', 2],
+      ['sd-kesi-of-the-paired-knives', 2],
       ['sd-standard-bearer', 4],
       ['sd-war-priestess', 2],
       ['sd-bastet-gate-chorus', 2],
       ['sd-bastet-mistress-of-the-ninth-return', 2],
       ['sd-twinblade-at-the-prow', 2],
-      ['sd-claw-prow-signaler', 4],
+      ['sd-burn-the-rope', 2],
+      ['sd-break-the-coil', 2],
     ]),
     landReserve: expand([
       ['sd-land-noon-barge-landing', 4],
