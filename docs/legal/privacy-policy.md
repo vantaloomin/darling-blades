@@ -73,8 +73,8 @@ button.
 
 If "Share anonymous play stats" is on in Settings, the game sends short
 summaries of how it is played to a service we run on Cloudflare, at
-`db-signals.loominvanta.workers.dev`. It is on by default. Players who had the
-game before version 1.8 are told about it once, the first time they open 1.8.
+`db-signals.loominvanta.workers.dev`. It is on by default. Every player is
+told about it once, in the game, before anything is sent.
 The Privacy panel in Settings shows this same list.
 
 **What we want to learn:** which formats and colours get played, how long

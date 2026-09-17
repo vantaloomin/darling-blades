@@ -859,9 +859,10 @@ describe('SaveData v35 migration (anonymous-stats preference)', () => {
     expect(migrated.settings.confirmLandDrop).toBe(true);
   });
 
-  it('is on AND already notified for a fresh save', () => {
+  it('is on and NOT yet notified for a fresh save, the same as a migrated one', () => {
     expect(freshSave(1).settings.shareAnonStats).toBe(true);
-    expect(freshSave(1).settings.statsNoticeVersion).toBe(STATS_NOTICE_VERSION);
+    expect(freshSave(1).settings.statsNoticeVersion).toBe(0);
+    expect(freshSave(1).settings.statsNoticeVersion).toBeLessThan(STATS_NOTICE_VERSION);
     expect(freshSave(1).cosmetics).toEqual({ owned: [] });
   });
 

@@ -2,9 +2,10 @@
  * The version of the "anonymous stats" notice a player has been shown.
  *
  * `SaveData.settings.statsNoticeVersion` holds the last notice version a
- * profile saw: `0` for every migrated save, this constant for a fresh one
- * (the first-run flow covers it). The client shows the notice when the saved
- * value is BELOW this constant, then stamps it.
+ * profile saw: `0` for every save, fresh or migrated, until the notice has
+ * been shown (owner ruling 2026-09-17: show it to all players unless we can
+ * verify they have seen it). The client shows the notice when the saved value
+ * is BELOW this constant, then stamps it, and sends nothing before that.
  *
  * BUMP THIS whenever the set of fields the game sends changes. The privacy
  * policy (section 8) and the terms (section 12) promise that a change to what
