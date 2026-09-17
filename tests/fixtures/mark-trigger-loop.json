@@ -1,0 +1,33 @@
+{
+  "draftSeed": 20276755,
+  "gameSeed": 13831590,
+  "actions": 79,
+  "battlefield": [
+    {"iid":1,"instanceId":11,"cardId":"land-plains","variantKey":null,"owner":1,"controller":1,"tapped":true,"enteredThisTurn":false,"damage":0,"deathtouched":false,"severBranded":false,"attachments":[],"plusOneCounters":0,"untilEotMods":[]},
+    {"iid":2,"instanceId":1,"cardId":"land-plains","variantKey":null,"owner":0,"controller":0,"tapped":true,"enteredThisTurn":false,"damage":0,"deathtouched":false,"severBranded":false,"attachments":[],"plusOneCounters":0,"untilEotMods":[]},
+    {"iid":3,"instanceId":15,"cardId":"land-island","variantKey":null,"owner":1,"controller":1,"tapped":true,"enteredThisTurn":false,"damage":0,"deathtouched":false,"severBranded":false,"attachments":[],"plusOneCounters":0,"untilEotMods":[]},
+    {"iid":4,"instanceId":7,"cardId":"land-forest","variantKey":null,"owner":0,"controller":0,"tapped":true,"enteredThisTurn":false,"damage":0,"deathtouched":false,"severBranded":false,"attachments":[],"plusOneCounters":0,"untilEotMods":[]},
+    {"iid":5,"instanceId":43,"cardId":"dd-drowned-gardener","variantKey":null,"owner":0,"controller":0,"tapped":false,"enteredThisTurn":false,"damage":0,"deathtouched":false,"severBranded":false,"attachments":[],"plusOneCounters":1,"untilEotMods":[]},
+    {"iid":6,"instanceId":16,"cardId":"land-forest","variantKey":null,"owner":1,"controller":1,"tapped":true,"enteredThisTurn":false,"damage":0,"deathtouched":false,"severBranded":false,"attachments":[],"plusOneCounters":0,"untilEotMods":[]},
+    {"iid":7,"instanceId":63,"cardId":"dd-reef-warden-lesser","variantKey":null,"owner":1,"controller":1,"tapped":false,"enteredThisTurn":false,"damage":0,"deathtouched":false,"severBranded":false,"attachments":[],"plusOneCounters":1,"untilEotMods":[]},
+    {"iid":8,"instanceId":5,"cardId":"land-swamp","variantKey":null,"owner":0,"controller":0,"tapped":true,"enteredThisTurn":false,"damage":0,"deathtouched":false,"severBranded":false,"attachments":[],"plusOneCounters":0,"untilEotMods":[]},
+    {"iid":9,"instanceId":38,"cardId":"dd-shallows-hunter","variantKey":null,"owner":0,"controller":0,"tapped":false,"enteredThisTurn":false,"damage":0,"deathtouched":false,"severBranded":false,"attachments":[],"plusOneCounters":0,"untilEotMods":[]},
+    {"iid":10,"instanceId":12,"cardId":"land-plains","variantKey":null,"owner":1,"controller":1,"tapped":true,"enteredThisTurn":false,"damage":0,"deathtouched":false,"severBranded":false,"attachments":[],"plusOneCounters":0,"untilEotMods":[]},
+    {"iid":11,"instanceId":52,"cardId":"dd-bell-tower-sentry","variantKey":null,"owner":1,"controller":1,"tapped":true,"enteredThisTurn":false,"damage":0,"deathtouched":false,"severBranded":false,"attachments":[],"plusOneCounters":1,"untilEotMods":[]},
+    {"iid":12,"instanceId":2,"cardId":"land-plains","variantKey":null,"owner":0,"controller":0,"tapped":true,"enteredThisTurn":false,"damage":0,"deathtouched":false,"severBranded":false,"attachments":[],"plusOneCounters":0,"untilEotMods":[]},
+    {"iid":13,"instanceId":21,"cardId":"dd-lamp-oil-saint","variantKey":null,"owner":0,"controller":0,"tapped":true,"enteredThisTurn":false,"damage":0,"deathtouched":false,"severBranded":false,"attachments":[],"plusOneCounters":10,"untilEotMods":[]},
+    {"iid":14,"instanceId":13,"cardId":"land-plains","variantKey":null,"owner":1,"controller":1,"tapped":true,"enteredThisTurn":false,"damage":0,"deathtouched":false,"severBranded":false,"attachments":[],"plusOneCounters":0,"untilEotMods":[]},
+    {"iid":15,"instanceId":46,"cardId":"dd-lamp-oil-saint","variantKey":null,"owner":1,"controller":1,"tapped":true,"enteredThisTurn":false,"damage":0,"deathtouched":false,"severBranded":false,"attachments":[],"plusOneCounters":0,"untilEotMods":[]},
+    {"iid":16,"instanceId":8,"cardId":"land-forest","variantKey":null,"owner":0,"controller":0,"tapped":true,"enteredThisTurn":false,"damage":0,"deathtouched":false,"severBranded":false,"attachments":[],"plusOneCounters":0,"untilEotMods":[]},
+    {"iid":17,"instanceId":25,"cardId":"dd-gate-warden","variantKey":null,"owner":0,"controller":0,"tapped":true,"enteredThisTurn":false,"damage":0,"deathtouched":false,"severBranded":false,"attachments":[],"plusOneCounters":0,"untilEotMods":[]},
+    {"iid":18,"instanceId":14,"cardId":"land-plains","variantKey":null,"owner":1,"controller":1,"tapped":false,"enteredThisTurn":false,"damage":0,"deathtouched":false,"severBranded":false,"attachments":[],"plusOneCounters":0,"untilEotMods":[]},
+    {"iid":19,"instanceId":59,"cardId":"dd-kelp-wall","variantKey":null,"owner":1,"controller":1,"tapped":false,"enteredThisTurn":false,"damage":0,"deathtouched":false,"severBranded":false,"attachments":[],"plusOneCounters":0,"untilEotMods":[]},
+    {"iid":20,"instanceId":60,"cardId":"dd-the-lantern-watch","variantKey":null,"owner":1,"controller":1,"tapped":true,"enteredThisTurn":false,"damage":0,"deathtouched":false,"severBranded":false,"attachments":[],"plusOneCounters":0,"untilEotMods":[]},
+    {"iid":21,"instanceId":3,"cardId":"land-plains","variantKey":null,"owner":0,"controller":0,"tapped":true,"enteredThisTurn":false,"damage":0,"deathtouched":false,"severBranded":false,"attachments":[],"plusOneCounters":0,"untilEotMods":[]},
+    {"iid":22,"instanceId":39,"cardId":"dd-marsh-mother-horror","variantKey":null,"owner":0,"controller":0,"tapped":false,"enteredThisTurn":false,"damage":0,"deathtouched":false,"severBranded":false,"attachments":[],"plusOneCounters":0,"untilEotMods":[]},
+    {"iid":23,"instanceId":17,"cardId":"land-forest","variantKey":null,"owner":1,"controller":1,"tapped":true,"enteredThisTurn":true,"damage":0,"deathtouched":false,"severBranded":false,"attachments":[],"plusOneCounters":0,"untilEotMods":[]},
+    {"iid":24,"instanceId":69,"cardId":"dd-drowned-grove","variantKey":null,"owner":1,"controller":1,"tapped":false,"enteredThisTurn":true,"damage":0,"deathtouched":false,"severBranded":false,"attachments":[],"plusOneCounters":0,"untilEotMods":[]},
+    {"iid":25,"instanceId":4,"cardId":"land-island","variantKey":null,"owner":0,"controller":0,"tapped":false,"enteredThisTurn":true,"damage":0,"deathtouched":false,"severBranded":false,"attachments":[],"plusOneCounters":0,"untilEotMods":[]},
+    {"iid":26,"instanceId":23,"cardId":"dd-reef-shaman","variantKey":null,"owner":0,"controller":0,"tapped":false,"enteredThisTurn":true,"damage":0,"deathtouched":false,"severBranded":false,"attachments":[],"plusOneCounters":0,"untilEotMods":[]}
+  ]
+}

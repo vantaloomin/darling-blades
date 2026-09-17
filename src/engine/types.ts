@@ -153,6 +153,8 @@ export interface StaticDef {
 
 export interface AbilityDef {
   when: TriggerWhen;
+  /** A triggered ability fires at most once on each player's turn per source permanent. */
+  oncePerTurn?: true;
   /** The source controller must control a CardDef with `chapters` present. */
   condition?:
     | 'questActive'
@@ -656,6 +658,8 @@ export interface Permanent {
   controller: PlayerId;
   tapped: boolean;
   enteredThisTurn: boolean; // summoning sickness, checked vs haste on read
+  /** Ability indices already fired this turn; absent when none are spent. */
+  firedThisTurn?: number[];
   damage: number; // marked damage, cleared at cleanup
   deathtouched: boolean; // took damage from a deathtouch source this turn
   severBranded: boolean; // Redline Supernova replacement brand, cleared at cleanup

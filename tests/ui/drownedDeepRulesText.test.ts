@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { ALL_CARDS } from '../../src/data/catalog';
+import { ALL_CARDS, CARD_DB } from '../../src/data/catalog';
 import { cardMechanics } from '../../src/data/glossary';
 import type { AbilityDef, CardDef, EffectOp, TargetSpec } from '../../src/engine/types';
 import { activatedText, rulesText } from '../../src/ui/rulesText';
@@ -25,12 +25,31 @@ describe('Drowned Deep vocabulary rules text', () => {
 
   it('pins the 252 Drowned Deep rules text', () => {
     // Drowned Deep PR 3b (2026-09-15): transcription baseline.
+    // Old Saint sentence: "Whenever you gain life, Mark this."
+    // New: "Whenever you gain life, Mark this. This triggers only once each turn."
+    // Old hash: db5f7a1ef643a56e286dee9496dda068a60b20842fd86bdf3428347091c1d656.
+    // New hash: 6502f247289b0fa37d9a617a285bdb3ee003c0df43f7fdf47d3df4c0f4cb4a0d.
     const drownedDeep = ALL_CARDS.filter((definition) => definition.set === 'drowned-deep' && !definition.token);
     expect(drownedDeep).toHaveLength(252);
     const rows = drownedDeep.map((definition) => [definition.id, rulesText(definition)]);
     expect(createHash('sha256').update(JSON.stringify(rows)).digest('hex')).toBe(
-      'db5f7a1ef643a56e286dee9496dda068a60b20842fd86bdf3428347091c1d656',
+      '6502f247289b0fa37d9a617a285bdb3ee003c0df43f7fdf47d3df4c0f4cb4a0d',
     );
+  });
+
+  it('prints the Saint once-per-turn sentence after her trigger', () => {
+    expect(rulesText(CARD_DB['dd-lamp-oil-saint'])).toBe(
+      '{T}, {1}: You gain 2 life.\nWarding Gaze\nWhenever you gain life, Mark this. This triggers only once each turn.',
+    );
+  });
+
+  it.each([
+    { when: 'attacks', text: 'Whenever this attacks, you gain 1 life.' },
+    { when: 'dawn', text: 'During your Dawn, you gain 1 life.' },
+    { when: 'sunset', text: 'At Sunset, you gain 1 life.' },
+  ] as const)('prints the same limit on a $when fixture', ({ when, text }) => {
+    expect(rulesText(card({ abilities: [{ when, oncePerTurn: true, ops: [{ op: 'gainLife', n: 1 }] }] })))
+      .toBe(`${text} This triggers only once each turn.`);
   });
 
   it.each([

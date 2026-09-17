@@ -98,6 +98,15 @@ function targetRefsForOp(ctx: EffectContext): TargetRef[] {
 
 type MarkEvent = 'mark' | 'propagated';
 const MAX_MARK_TRIGGER_DEPTH = 8;
+
+/** Spend the allowance before executing or queuing a trigger, including recursive effects. */
+function claimTrigger(perm: Permanent, ability: AbilityDef, abilityIndex: number): boolean {
+  if (!ability.oncePerTurn) return true;
+  if (perm.firedThisTurn?.includes(abilityIndex)) return false;
+  (perm.firedThisTurn ??= []).push(abilityIndex);
+  return true;
+}
+
 const markEventAvailability = new WeakMap<object, {
   any: boolean;
   markedAllyAttacks: boolean;
@@ -150,14 +159,12 @@ function fireMarkTriggers(
   depth = 0,
 ): void {
   if (!markEventAbilitiesIn(db).any) return;
-  if (depth > MAX_MARK_TRIGGER_DEPTH) {
-    throw new Error('Mark-trigger recursion exceeded depth 8.');
-  }
+  if (depth > MAX_MARK_TRIGGER_DEPTH) return;
   const markedIsCreature = marked !== undefined && isType(def(db, marked.cardId), 'creature');
   for (const source of [...state.battlefield]) {
     if (!state.battlefield.some((perm) => perm.iid === source.iid)) continue;
     const sourceDef = def(db, source.cardId);
-    for (const ab of sourceDef.abilities ?? []) {
+    for (const [abilityIndex, ab] of (sourceDef.abilities ?? []).entries()) {
       const matches = event === 'propagated'
         ? ab.when === 'propagated' && source.controller === actor
         : marked !== undefined && (
@@ -169,6 +176,7 @@ function fireMarkTriggers(
           );
       if (!matches || !ab.ops) continue;
       if (ab.condition !== undefined && !conditionSatisfied(state, db, source.controller, ab.condition, source.iid)) continue;
+      if (!claimTrigger(source, ab, abilityIndex)) continue;
       emit({ e: 'triggerFired', iid: source.iid, when: ab.when });
       runOps(
         state,
@@ -996,12 +1004,13 @@ function fireAllyCreatureArrivesTriggers(
       holder.controller !== arriving.controller ||
       !state.battlefield.some((perm) => perm.iid === holder.iid)
     ) continue;
-    for (const ability of def(db, holder.cardId).abilities ?? []) {
+    for (const [abilityIndex, ability] of (def(db, holder.cardId).abilities ?? []).entries()) {
       if (ability.when !== 'allyCreatureArrives' || !ability.ops) continue;
       if (
         ability.condition !== undefined &&
         !conditionSatisfied(state, db, holder.controller, ability.condition, holder.iid)
       ) continue;
+      if (!claimTrigger(holder, ability, abilityIndex)) continue;
       emit({ e: 'triggerFired', iid: holder.iid, when: ability.when });
       runOps(
         state,
@@ -1042,6 +1051,7 @@ export function fireTriggers(
       }
       const spec = ab.targets[0];
       if (enumerateTargets(state, db, perm.controller, spec, perm.iid).length === 0) continue;
+      if (!claimTrigger(perm, ab, abilityIndex)) continue;
       emit({ e: 'triggerFired', iid: perm.iid, when });
       state.pendingDecisions.push({
         kind: 'chooseTarget',
@@ -1055,6 +1065,7 @@ export function fireTriggers(
       });
       continue;
     }
+    if (!claimTrigger(perm, ab, abilityIndex)) continue;
     emit({ e: 'triggerFired', iid: perm.iid, when });
     const selfGraveExclusion =
       when === 'dies'
@@ -1134,13 +1145,14 @@ export function fireMarkedAllyAttackTriggers(
       holder.controller !== attacker.controller
     ) continue;
     const abilities = def(db, holder.cardId).abilities ?? [];
-    for (const ability of abilities) {
+    for (const [abilityIndex, ability] of abilities.entries()) {
       if (
         ability.when !== 'markedAllyAttacks' ||
         !ability.ops
       ) continue;
       if (ability.condition !== undefined &&
           !conditionSatisfied(state, db, holder.controller, ability.condition, holder.iid)) continue;
+      if (!claimTrigger(holder, ability, abilityIndex)) continue;
       emit({ e: 'triggerFired', iid: holder.iid, when: ability.when });
       runOps(
         state,
@@ -1162,6 +1174,7 @@ export function fireMarkedAllyAttackTriggers(
 /** Public player events and battlefield-ordered creature observers. */
 export function firePlayerObservers(state: GameState, db: CardDb, emit: Emit,
   when: 'youGainLife' | 'youCastCharm', player: PlayerId, markTriggerDepth = 0): void {
+  if (when === 'youGainLife' && markTriggerDepth > MAX_MARK_TRIGGER_DEPTH) return;
   for (const source of [...state.battlefield]) {
     if (source.controller === player) fireTriggers(state, db, emit, when, source, { markTriggerDepth });
   }
@@ -1182,10 +1195,12 @@ export function fireCreatureObservers(state: GameState, db: CardDb, emit: Emit,
       if (ab.targets?.length) {
         if (ab.targets.length !== 1 || ab.targets[0].upTo || ab.targets[0].exactly) throw new Error('Observer needs one single target spec');
         if (!enumerateTargets(state, db, source.controller, ab.targets[0], source.iid).length) continue;
+        if (!claimTrigger(source, ab, abilityIndex)) continue;
         state.pendingDecisions.push({ kind: 'chooseTarget', player: source.controller, sourceIid: source.iid,
           sourceCardId: source.cardId, abilityIndex, spec: ab.targets[0], ops: ab.ops, triggerWhen: when });
         emit({ e: 'triggerFired', iid: source.iid, when });
       } else {
+        if (!claimTrigger(source, ab, abilityIndex)) continue;
         emit({ e: 'triggerFired', iid: source.iid, when });
         runOps(state, db, emit, { controller: source.controller, sourceCardId: source.cardId, sourceIid: source.iid, targets: [], newDecisionContext: true }, ab.ops);
       }

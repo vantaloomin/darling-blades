@@ -118,9 +118,12 @@ describe('Drowned Deep: decision continuation and response order', () => {
 
   it('preserves the existing depth-eight guard across life-gain and mark observers', () => {
     const state = board([[], []], [{ iid: 1, cardId: 'saint' }, { iid: 2, cardId: 'shaman' }]);
+    // Old expectation: toThrow('Mark-trigger recursion exceeded depth 8.') and 10 Marks.
     expect(() => runOps(state, db, () => {}, { controller: 0, sourceCardId: 'saint', targets: [] },
-      [{ op: 'gainLife', n: 1 }])).toThrow('Mark-trigger recursion exceeded depth 8.');
-    expect(state.battlefield[0].plusOneCounters).toBe(10);
+      [{ op: 'gainLife', n: 1 }])).not.toThrow();
+    expect(state.battlefield[0].plusOneCounters).toBe(9);
+    expect(state.players[0].life).toBe(30);
+    expect(state.winner).toBeNull();
   });
 
   it('does not share mark-observer availability between databases with the same stand-in', () => {

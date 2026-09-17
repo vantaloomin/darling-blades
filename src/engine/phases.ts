@@ -54,6 +54,7 @@ export function startTurn(state: GameState, db: CardDb, emit: Emit): void {
   setStep(state, 'untap', emit);
   const untapped: number[] = [];
   for (const perm of state.battlefield) {
+    delete perm.firedThisTurn;
     if (perm.controller !== active) continue;
     if (perm.tapped) {
       perm.tapped = false;
