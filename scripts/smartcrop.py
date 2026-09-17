@@ -5,6 +5,14 @@ Character mode uses dghs-imgutils detection when available and places the
 detected head/face focal point 40% down the 4:5 deliverable. Environment mode
 and the character center fallback intentionally preserve the old Pillow center
 cover-crop byte-for-byte.
+
+Subject mode (2026-09-17) is for art that is not a creature portrait but may
+still show a person: spells, artifacts and enchantments. It looks for a head
+or a face only (never the loose person box, which fires on distant figures in
+a landscape) and crops like character mode when it finds one; with no head or
+face it is the environment center crop, byte-for-byte. Every result also
+reports where the detected subject lands against the card frame's art window,
+so a crop that hides a face is visible in the tooling, not only on the card.
 """
 
 from __future__ import annotations
@@ -41,6 +49,23 @@ HEADROOM_FRAC = 0.25
 # <=282px wide, so a 2x upscale of the source crop still downsamples on card).
 ZOOM_TRIGGER_FRAC = 0.28
 MAX_UPSCALE = 2.0
+# The card frame's art window, as fractions of the 4:5 deliverable's height.
+# CardView cover-fits the 640x800 file into a 264x192 window (the same opening
+# CardFrameFactory bakes at 2x: 528x384), so width drives the scale and the
+# window shows the middle 192 / (264 * 800 / 640) = 58.2% of the rows:
+# 20.9% to 79.1%. docs/art-pipeline.md owns the derivation; if the frame's
+# art window ever changes, these two numbers change with it.
+CARD_WINDOW_TOP_FRAC = (1 - (192 / 264) * (640 / 800)) / 2
+CARD_WINDOW_BOTTOM_FRAC = 1 - CARD_WINDOW_TOP_FRAC
+MODES = ("character", "environment", "subject")
+# Subject mode aims the head higher in the frame than a creature portrait
+# does. A spell's art is about the object or the effect as much as the woman
+# holding it, so the crop moves and zooms only as far as it takes to bring her
+# face inside the window: 0.32 puts the face centre 11% of the deliverable
+# below the window's top edge (20.9%), against 19% for a creature at 0.40.
+# Measured on the 26 Drowned Deep raws of 2026-09-17: at 0.40 the zoom
+# fallback cut the jar, the wave and the net out of their own cards.
+SUBJECT_FOCAL_FRAC = 0.32
 
 RESAMPLE_LANCZOS = Image.Resampling.LANCZOS if hasattr(Image, "Resampling") else Image.LANCZOS
 
@@ -332,7 +357,7 @@ def call_detector(func: Callable[[Any], Any], src: Path, im: Image.Image) -> Any
     return []
 
 
-def detect_subject(src: Path, im: Image.Image) -> Detection | None:
+def detect_subject(src: Path, im: Image.Image, allow_person: bool = True) -> Detection | None:
     try:
         with contextlib.redirect_stdout(sys.stderr):
             import imgutils.detect as detect_module  # type: ignore[import-not-found]
@@ -347,6 +372,8 @@ def detect_subject(src: Path, im: Image.Image) -> Detection | None:
         ("face", ("detect_faces", "detect_face")),
         ("person", ("detect_person", "detect_persons")),
     ]
+    if not allow_person:
+        detector_groups = [group for group in detector_groups if group[0] != "person"]
     for source, names in detector_groups:
         for name in names:
             func = getattr(detect_module, name, None)
@@ -387,8 +414,8 @@ def crop_image(
 ) -> dict[str, Any]:
     if out_w <= 0 or out_h <= 0:
         raise ValueError("target width and height must be positive")
-    if mode not in {"character", "environment"}:
-        raise ValueError("mode must be character or environment")
+    if mode not in MODES:
+        raise ValueError("mode must be character, environment or subject")
     validate_margin_scale(margin_scale)
     validate_offset_y(offset_y)
 
@@ -398,6 +425,11 @@ def crop_image(
     det: Detection | None = None
     if mode == "character":
         det = detect_subject(src, im)
+    elif mode == "subject":
+        det = detect_subject(src, im, allow_person=False)
+        # An explicit --focal-frac still wins; only the default retargets.
+        if focal_frac == FOCAL_FRAC:
+            focal_frac = SUBJECT_FOCAL_FRAC
 
     if det is None:
         source = "center"
@@ -449,6 +481,28 @@ def crop_image(
         "H": out_h,
         "achieved_scale": achieved_scale,
         "achieved_offset_y": achieved_offset_y,
+        "window": subject_window(det, crop),
+    }
+
+
+def subject_window(det: Detection | None, crop: CropBox) -> dict[str, Any] | None:
+    """Where the detected subject lands against the card frame's art window."""
+    if det is None or crop.height <= 0:
+        return None
+    top = (det.bbox[1] - crop.top) / crop.height
+    bottom = (det.bbox[3] - crop.top) / crop.height
+    _, focal_y = focal_from_detection(det)
+    focal = (focal_y - crop.top) / crop.height
+    return {
+        "top": round(top, 4),
+        "focal": round(focal, 4),
+        "bottom": round(bottom, 4),
+        "window_top": round(CARD_WINDOW_TOP_FRAC, 4),
+        "window_bottom": round(CARD_WINDOW_BOTTOM_FRAC, 4),
+        # The focal point must be inside the window; a crown graze above the
+        # window edge is the accepted 2026-07-09 behavior, a hidden face is not.
+        "focal_visible": CARD_WINDOW_TOP_FRAC <= focal <= CARD_WINDOW_BOTTOM_FRAC,
+        "fully_visible": top >= CARD_WINDOW_TOP_FRAC and bottom <= CARD_WINDOW_BOTTOM_FRAC,
     }
 
 
@@ -531,6 +585,19 @@ def run_self_test() -> None:
         assert_equal(smart.read_bytes(), expected.read_bytes(), "environment bytes")
         assert_equal(result["source"], "center", "environment source")
         assert_equal(result["bbox"], None, "environment bbox")
+        assert_equal(result["window"], None, "environment window")
+
+    # The frame window is the middle 58.2% of the deliverable.
+    assert_equal(round(CARD_WINDOW_TOP_FRAC, 3), 0.209, "window top")
+    assert_equal(round(CARD_WINDOW_BOTTOM_FRAC, 3), 0.791, "window bottom")
+    # A head whose box sits at 25%..45% of a 1280-row crop is fully visible;
+    # the same head against a crop that starts 200 rows lower is hidden.
+    head = Detection("head", (400.0, 320.0, 620.0, 576.0), 0.9)
+    seen = subject_window(head, CropBox(0, 0, 1024, 1280))
+    assert_equal(seen is not None and seen["fully_visible"], True, "visible head")
+    hidden = subject_window(head, CropBox(0, 256, 1024, 1280))
+    assert_equal(hidden is not None and hidden["focal_visible"], False, "hidden head focal")
+    assert_equal(subject_window(None, CropBox(0, 0, 1024, 1280)), None, "no subject window")
 
 
 def main(argv: list[str]) -> int:
@@ -565,7 +632,7 @@ def main(argv: list[str]) -> int:
             i += 1
     if len(positional) != 5:
         print(
-            "usage: python scripts/smartcrop.py <src> <dst> <W> <H> <character|environment>"
+            "usage: python scripts/smartcrop.py <src> <dst> <W> <H> <character|environment|subject>"
             " [--band-frac F] [--focal-frac F] [--margin-scale S] [--offset-y N]",
             file=sys.stderr,
         )

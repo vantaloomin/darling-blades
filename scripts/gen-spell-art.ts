@@ -494,7 +494,7 @@ function runRecrop(file: string, dryRun: boolean, reviewOutDir?: string): void {
         tmpPath,
         String(OUT_W),
         String(OUT_H),
-        'environment',
+        'subject',
         '--margin-scale',
         String(entry.scale),
         '--offset-y',
@@ -629,7 +629,7 @@ function generateOne(
   // resolver trust file presence).
   const post = spawnSync(
     PYTHON,
-    [smartcropPath, rawPath, tmpPath, String(OUT_W), String(OUT_H), 'environment'],
+    [smartcropPath, rawPath, tmpPath, String(OUT_W), String(OUT_H), 'subject'],
     { encoding: 'utf8' },
   );
   if (post.status !== 0) {

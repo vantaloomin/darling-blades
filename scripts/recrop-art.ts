@@ -1,9 +1,11 @@
 /**
  * Re-crops retained raw art into a staging directory and emits a review sheet.
  *
- * Default mode processes character-card raws only. Environment raws can be
- * included with --all, but environment mode is intentionally the old center
- * crop and should be byte-identical to the shipped crop.
+ * Default mode processes character-card raws only. Land and spell raws can be
+ * included with --all. Lands use environment mode, the old center crop,
+ * byte-identical to the shipped crop. Spells use subject mode (2026-09-17):
+ * a detected head or face is cropped like a character, and a raw with
+ * neither stays the center crop byte-for-byte.
  *
  * Usage:
  *   npx tsx scripts/recrop-art.ts [--only id1,id2] [--limit N] [--dry-run]
@@ -47,7 +49,7 @@ const BOARD_ART_H = BOARD_TILE_H - BOARD_FRAME_MARGIN * 2;
 const BOARD_CROP_BIAS = 0.3;
 const PYTHON = process.env.PYTHON ?? (process.platform === 'win32' ? 'python' : 'python3');
 
-type Mode = 'character' | 'environment';
+type Mode = 'character' | 'environment' | 'subject';
 type Source = 'face' | 'head' | 'person' | 'center';
 
 interface Args {
@@ -148,11 +150,13 @@ function enumerateRaws(includeEnvironment: boolean): RawJob[] {
   const dirs: { dir: string; mode: Mode; group: string }[] = [
     { dir: join(tmpdir(), 'gen-card-art'), mode: 'character', group: 'cards' },
     { dir: join(tmpdir(), 'gen-land-art'), mode: 'environment', group: 'lands' },
-    { dir: join(tmpdir(), 'gen-spell-art'), mode: 'environment', group: 'spells' },
+    // Spells, artifacts and enchantments may show a person: subject mode crops
+    // to a detected head or face and is the center crop byte-for-byte without one.
+    { dir: join(tmpdir(), 'gen-spell-art'), mode: 'subject', group: 'spells' },
   ];
   const jobs: RawJob[] = [];
   for (const spec of dirs) {
-    if (!includeEnvironment && spec.mode === 'environment') continue;
+    if (!includeEnvironment && spec.mode !== 'character') continue;
     let files: string[];
     try {
       files = readdirSync(spec.dir);
@@ -270,7 +274,7 @@ function sourceRank(source: Source): number {
 }
 
 function isMode(value: unknown): value is Mode {
-  return value === 'character' || value === 'environment';
+  return value === 'character' || value === 'environment' || value === 'subject';
 }
 
 function isSource(value: unknown): value is Source {
