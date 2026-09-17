@@ -101,20 +101,44 @@ describe('draft persona differentiation', () => {
     { id: 'brandon', pack: ['rg-angrboda', 'tk-other-lubu'], expected: 'rg-angrboda', defaultExpected: 'tk-other-lubu' },
     { id: 'megan', pack: ['tk-shu-zhangfei', 'gk-zeus'], expected: 'tk-shu-zhangfei', defaultExpected: 'gk-zeus' },
     { id: 'kyle', pack: ['rg-freya', 'tk-other-lubu'], expected: 'rg-freya', defaultExpected: 'tk-other-lubu' },
-    { id: 'jessica', pack: ['rg-berserker-chieftain', 'gk-gaia'], expected: 'rg-berserker-chieftain', defaultExpected: 'gk-gaia' },
+    // Phase D, 2026-09-17: the old pack (rg-berserker-chieftain vs gk-gaia)
+    // stopped isolating her knob once the Chieftain's self-damage lost its
+    // false removal credit (51.7 -> 22.7), so the textbook drafter agreed with
+    // her. New pack: a deathblade body the textbook takes by 11.5 against a
+    // base-set burn Charm her removalWeight 28 takes by 11.5.
+    { id: 'jessica', pack: ['so-flame-lash', 'tk-jin-zhangchunhua'], expected: 'so-flame-lash', defaultExpected: 'tk-jin-zhangchunhua' },
     // gk-zeus stopped working as lauren's textbook foil when the v3.1 slate
     // cut him to {W}{W}{R}{R} - cheap enough that even her picker takes him.
     { id: 'lauren', pack: ['tk-wei-caocao', 'gk-gaia'], expected: 'tk-wei-caocao', defaultExpected: 'gk-gaia' },
-    { id: 'tyler', pack: ['rg-fenrir', 'tk-other-lubu'], expected: 'rg-fenrir', defaultExpected: 'tk-other-lubu' },
+    // Phase D, 2026-09-17: the old pack (rg-fenrir vs tk-other-lubu) stopped
+    // isolating his knob once Lu Bu lost Rage's keyword bonus and the false
+    // removal credit for his self-damage (39.4 -> 31.9), so the textbook took
+    // Fenrir too. New pack: a four-mana legend the textbook takes by 14.5
+    // against a seven-mana 6/7 his bigStuffBias 10 takes by 15.5.
+    { id: 'tyler', pack: ['dd-old-growth-horror', 'tk-wu-sunquan'], expected: 'dd-old-growth-horror', defaultExpected: 'tk-wu-sunquan' },
     { id: 'derek', pack: ['tk-wei-xiahoudun', 'tk-wei-caocao'], expected: 'tk-wei-xiahoudun', defaultExpected: 'tk-wei-caocao' },
     { id: 'amanda', pack: ['tk-wu-huanggai', 'rg-freya'], expected: 'rg-freya', defaultExpected: 'tk-wu-huanggai', picks: redPicks },
     // tk-other-lubu at {1}{R}{R} with Twin Blades (v3.1) now outbids brittany's
     // shu loyalty; gk-zeus is the bomb she can still walk past.
     { id: 'brittany', pack: ['tk-shu-guanyu', 'gk-zeus'], expected: 'tk-shu-guanyu', defaultExpected: 'gk-zeus' },
-    { id: 'kevin', pack: ['tk-wei-chenqun', 'tk-wei-zhanghe'], expected: 'tk-wei-chenqun', defaultExpected: 'tk-wei-zhanghe' },
+    // Phase D, 2026-09-17: the old pack (tk-wei-chenqun vs tk-wei-zhanghe)
+    // stopped isolating his knob once Bulwark lost its generic keyword bonus
+    // (11.3 -> 9.8 against an unchanged 10.9). His knob is statBias -1, not a
+    // keyword preference, so the new pack is a literal wall against a
+    // fighter: the textbook takes Zhu Ran by 3.1, the Wall Architect takes
+    // Turtlekin Bulwark by 3.3.
+    { id: 'kevin', pack: ['bk-turtlekin-bulwark', 'tk-wu-zhuran'], expected: 'bk-turtlekin-bulwark', defaultExpected: 'tk-wu-zhuran' },
     { id: 'stephanie', pack: ['bk-foxfire-priestess', 'tk-other-lubu'], expected: 'bk-foxfire-priestess', defaultExpected: 'tk-other-lubu' },
-    { id: 'zach', pack: ['rg-hel', 'tk-other-lubu'], expected: 'rg-hel', defaultExpected: 'tk-other-lubu' },
-    { id: 'rachel', pack: ['in-dream-fracture', 'gk-gaia'], expected: 'in-dream-fracture', defaultExpected: 'gk-gaia' },
+    // Phase D, 2026-09-17: the old pack (rg-hel vs tk-other-lubu) stopped
+    // isolating his knob for the same Lu Bu correction. New pack: a legend the
+    // textbook takes by 27.2 against a Starborne graveyard engine his
+    // graveyardWeight 18 takes by 26.8.
+    { id: 'zach', pack: ['sb-umbral-antenna', 'tk-shu-guanyu'], expected: 'sb-umbral-antenna', defaultExpected: 'tk-shu-guanyu' },
+    // Phase D, 2026-09-17: the old pack (in-dream-fracture vs gk-gaia) stopped
+    // isolating her knob once Gaia's Mark became visible (30.5 -> 31.5 against
+    // an unchanged 31). New pack: a body the textbook takes by 6.5 against a
+    // base-set Ritual her spellWeight 13 takes by 6.5.
+    { id: 'rachel', pack: ['so-night-extortion', 'tk-wei-dianwei'], expected: 'so-night-extortion', defaultExpected: 'tk-wei-dianwei' },
     { id: 'justin', pack: ['tk-wu-zhouyu', 'ar-siege-juggernaut'], expected: 'tk-wu-zhouyu', defaultExpected: 'ar-siege-juggernaut' },
     { id: 'samantha', pack: ['tk-shu-zhaoyun', 'tk-wei-caocao'], expected: 'tk-shu-zhaoyun', defaultExpected: 'tk-wei-caocao' },
     { id: 'matt', pack: ['in-comet-blast', 'tk-other-lubu'], expected: 'in-comet-blast', defaultExpected: 'tk-other-lubu' },
