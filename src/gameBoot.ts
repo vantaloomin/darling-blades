@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { Services } from './meta/services';
+import { signals } from './net/signals';
 import { applyDesktopWindowSize } from './platform/desktopWindow';
 import { IS_DEV } from './platform/env';
 import { qualityTier } from './platform/quality';
@@ -137,10 +138,26 @@ const game = new Phaser.Game({
 // frozen tabs without firing beforeunload, so a save touched < 250 ms before
 // an app switch would otherwise be lost (mobile-lan-plan §1.5). The listener
 // lives here in the browser layer — src/meta stays free of browser APIs.
-window.addEventListener('pagehide', () => Services.save.flush());
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden') Services.save.flush();
+// The same two moments carry the anonymous card batch off the device
+// (src/net/signals.ts). visibilitychange is the reliable one on mobile, where
+// a backgrounded tab is often discarded without a pagehide; whichever fires
+// first sends, and the other finds the batch already gone. Both calls are
+// gated, silent when the gate is closed, and cannot throw into the handler.
+window.addEventListener('pagehide', () => {
+  Services.save.flush();
+  signals.sessionEnding();
 });
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    Services.save.flush();
+    signals.sessionEnding();
+  }
+});
+
+// Anonymous play stats: one heartbeat per launch, if every suppressor in
+// src/net/signalsGate.ts lets it through. A save that has not seen the current
+// notice sends nothing here and sends on signals.noticeAcknowledged() instead.
+signals.start();
 
 // Dev-tool access (scene jumps, state inspection from the console).
 window.__game = game;
