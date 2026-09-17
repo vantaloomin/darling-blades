@@ -18,7 +18,14 @@ function card(id: string, extra: Partial<CardDef> = {}): CardDef {
   };
 }
 
-function gain(extra: Partial<CardDef>, profile: PickerProfile = DEFAULT_PICKER): number {
+// The rule tests below prove the arithmetic at an explicit profile so they do
+// not move when the shipped defaults do; the shipped defaults are pinned once,
+// with their measurement, in 'ships mechanicWeight 1 and buffWeight 0'.
+const RULES: PickerProfile = makePicker({ mechanicWeight: 2, buffWeight: 1 });
+/** A profile over the rule weights, not the shipped defaults. */
+const rules = (overrides: Partial<PickerProfile> = {}): PickerProfile => ({ ...RULES, ...overrides });
+
+function gain(extra: Partial<CardDef>, profile: PickerProfile = RULES): number {
   const vanilla = card('vanilla', { types: extra.types ?? ['creature'] });
   return scoreBasePick({ ...vanilla, ...extra }, profile) - scoreBasePick(vanilla, profile);
 }
@@ -53,16 +60,23 @@ describe('phase D mechanic identity and profile weights', () => {
 
   for (const row of mechanics) {
     it(`${row.name} earns its mechanic weight against a stat-identical vanilla`, () => {
-      const profile = makePicker({ buffWeight: 0 });
+      const profile = rules({ buffWeight: 0 });
       expect(gain(row.extra, profile)).toBe(row.expected);
-      expect(gain(row.extra, makePicker({ mechanicWeight: 6, buffWeight: 0 }))).toBe(row.expected * 3);
-      expect(gain(row.extra, makePicker({ mechanicWeight: 0, buffWeight: 0 }))).toBe(0);
+      expect(gain(row.extra, rules({ mechanicWeight: 6, buffWeight: 0 }))).toBe(row.expected * 3);
+      expect(gain(row.extra, rules({ mechanicWeight: 0, buffWeight: 0 }))).toBe(0);
     });
   }
 
-  it('defaults mechanicWeight to 2 and buffWeight to 1', () => {
-    expect(DEFAULT_PICKER.mechanicWeight).toBe(2);
-    expect(DEFAULT_PICKER.buffWeight).toBe(1);
+  // Owner ruling 2026-09-17 after the headline measurement (seat-1 new-scorer
+  // deck vs old-scorer deck, Medium mirror, 30 seeds x 50 games per set):
+  // mechanic 2 / buff 1 read base 47.7 and Yokai Nights 45.4; mechanic 1 /
+  // buff 0 read 49.2 and 52.1; both 0 read 49.8 and 52.9; noise about 2.5.
+  // The classifier fixes are neutral to positive; the stacked weights were
+  // the cost, so the shipped defaults keep a visible mechanic bonus and let
+  // Mark and boost effects count through the classifiers only.
+  it('ships mechanicWeight 1 and buffWeight 0', () => {
+    expect(DEFAULT_PICKER.mechanicWeight).toBe(1);
+    expect(DEFAULT_PICKER.buffWeight).toBe(0);
   });
 
   it('adds separate mechanic bonuses without multiplying Duty entries or Quest chapters', () => {
@@ -82,7 +96,7 @@ describe('phase D mechanic identity and profile weights', () => {
 
 describe('phase D whole-text effect collection', () => {
   // Distinct nonzero knobs make loss or duplication of any classifier visible.
-  const profile = makePicker({
+  const profile = rules({
     mechanicWeight: 0, buffWeight: 0, removalWeight: 7, cardAdvWeight: 11,
     tokenWeight: 13, lifeGainWeight: 17, graveyardWeight: 19,
   });
@@ -119,8 +133,8 @@ describe('phase D whole-text effect collection', () => {
   });
 
   it('Preserve exposes its one token-copy contribution to token-loving personas', () => {
-    expect(gain({ preserve: { cost } }, makePicker({ tokenWeight: 9 }))).toBe(11);
-    expect(gain({ preserve: { cost } }, makePicker({ mechanicWeight: 0, tokenWeight: 9 }))).toBe(9);
+    expect(gain({ preserve: { cost } }, rules({ tokenWeight: 9 }))).toBe(11);
+    expect(gain({ preserve: { cost } }, rules({ mechanicWeight: 0, tokenWeight: 9 }))).toBe(9);
   });
 
   it('Hauntlink exposes useful linked stats and keyword grants as one buff', () => {
@@ -150,7 +164,7 @@ describe('phase D marks and useful buffs', () => {
     { name: 'keyword-granting raise from top', op: { op: 'raise', to: 'top', grantKeywords: ['skyborne'] } },
     { name: 'raise with both marks and keywords', op: { op: 'raise', to: 'top', withMarks: 1, grantKeywords: ['sentinel'] } },
   ];
-  const profile = makePicker({ mechanicWeight: 0, cardAdvWeight: 0 });
+  const profile = rules({ mechanicWeight: 0, cardAdvWeight: 0 });
   for (const row of useful) {
     it(`${row.name} earns buffWeight once per useful op`, () => {
       const extra = { abilities: [{ when: 'arrives' as const, ops: [row.op] }] };
@@ -188,9 +202,9 @@ describe('phase D marks and useful buffs', () => {
 describe('phase D damage provenance and restriction keywords', () => {
   for (const source of sources) {
     it(`${source.name} penalizes a positive controller-damage rider without awarding removal`, () => {
-      expect(gain(source.put([{ op: 'damage', n: 2, to: 'controller' }]), makePicker({ mechanicWeight: 0 }))).toBe(-1);
-      expect(gain(source.put([{ op: 'damage', n: 'X', to: 'controller' }]), makePicker({ mechanicWeight: 0 }))).toBe(-1);
-      expect(gain(source.put([{ op: 'damage', n: 0, to: 'controller' }]), makePicker({ mechanicWeight: 0 }))).toBe(0);
+      expect(gain(source.put([{ op: 'damage', n: 2, to: 'controller' }]), rules({ mechanicWeight: 0 }))).toBe(-1);
+      expect(gain(source.put([{ op: 'damage', n: 'X', to: 'controller' }]), rules({ mechanicWeight: 0 }))).toBe(-1);
+      expect(gain(source.put([{ op: 'damage', n: 0, to: 'controller' }]), rules({ mechanicWeight: 0 }))).toBe(0);
     });
 
     if (!source.targeted) continue;
@@ -198,10 +212,10 @@ describe('phase D damage provenance and restriction keywords', () => {
       for (const what of ['yourCreature', 'yourPermanent'] as const) {
         const ops: EffectOp[] = [{ op: 'ifTargetMarked', then: [{ op: 'damage', n: 2, to: 'target', targetIndex: 1 }] }];
         const extra = source.put(ops, [{ what: 'opponentCreature' }, { what }]);
-        expect(gain(extra, makePicker({ mechanicWeight: 0 })), what).toBe(-1);
+        expect(gain(extra, rules({ mechanicWeight: 0 })), what).toBe(-1);
       }
       const extra = source.put([{ op: 'damage', n: 2, to: 'target' }], [{ what: 'yourCreature' }]);
-      expect(gain(extra, makePicker({ mechanicWeight: 0 }))).toBe(-1);
+      expect(gain(extra, rules({ mechanicWeight: 0 }))).toBe(-1);
     });
   }
 
@@ -230,13 +244,13 @@ describe('phase D damage provenance and restriction keywords', () => {
   });
 
   it('explicit Bulwark preferences retain their preference term unchanged', () => {
-    const profile = makePicker({ keywordPrefs: ['bulwark'], keywordWeight: 8 });
+    const profile = rules({ keywordPrefs: ['bulwark'], keywordWeight: 8 });
     expect(gain({ keywords: ['bulwark'] }, profile)).toBe(6.5);
     expect(gain({ keywords: ['rage'] }, profile)).toBe(0);
     expect(gain({ keywords: ['bulwark', 'sentinel'] }, profile)).toBe(8);
     // An unfiltered keyword collector still counts restrictions in its style
     // term; phase D removes only the generic 1.5, never that existing knob.
-    expect(gain({ keywords: ['bulwark', 'rage'] }, makePicker({ keywordWeight: 8 }))).toBe(13);
+    expect(gain({ keywords: ['bulwark', 'rage'] }, rules({ keywordWeight: 8 }))).toBe(13);
   });
 });
 
@@ -282,9 +296,9 @@ describe('phase D persona style and shared auto-build scoring', () => {
     expect(scorePick(db, 'green', [], DEFAULT_PICKER, 0.75)).toBe(scoreBasePick(green, DEFAULT_PICKER));
     expect(scorePick(db, 'green', picks, DEFAULT_PICKER, 0.75)).toBe(scoreBasePick(green, DEFAULT_PICKER) + 5);
     expect(scorePick(db, 'blue', picks, DEFAULT_PICKER, 0.75)).toBe(scoreBasePick(blue, DEFAULT_PICKER) - 7);
-    const noisy = makePicker({ chaos: 0.25 });
+    const noisy = rules({ chaos: 0.25 });
     expect(scorePick(db, 'green', picks, noisy, 0.75)).toBe((scoreBasePick(green, noisy) + 5) * 0.75 + 75 * 0.25);
-    expect(scorePick(db, 'green', picks, makePicker({ chaos: 1 }), 0.75)).toBe(75);
+    expect(scorePick(db, 'green', picks, rules({ chaos: 1 }), 0.75)).toBe(75);
   });
 
   for (const colors of [[], ['G']] as const) {
@@ -293,7 +307,7 @@ describe('phase D persona style and shared auto-build scoring', () => {
       const mechanic = card('z-mechanic', { colors: [...colors], activated: { cost: dutyCost, ops: [{ op: 'draw', n: 1 }] } });
       const db: CardDb = { [vanilla.id]: vanilla, [mechanic.id]: mechanic };
       expect(scorePick(db, mechanic.id, [], DEFAULT_PICKER, 0)).toBe(scoreBasePick(mechanic, DEFAULT_PICKER));
-      expect(scorePick(db, mechanic.id, [], DEFAULT_PICKER, 0) - scorePick(db, vanilla.id, [], DEFAULT_PICKER, 0)).toBe(5);
+      expect(scorePick(db, mechanic.id, [], DEFAULT_PICKER, 0) - scorePick(db, vanilla.id, [], DEFAULT_PICKER, 0)).toBe(DEFAULT_PICKER.mechanicWeight + DEFAULT_PICKER.cardAdvWeight);
       const deck = buildLimitedDeck(db, [...Array.from({ length: LIMITED_DECK_SIZE }, () => vanilla.id), mechanic.id]);
       expect(deck).toHaveLength(LIMITED_DECK_SIZE);
       expect(deck[0]).toBe(mechanic.id);
@@ -310,7 +324,7 @@ describe('phase D persona style and shared auto-build scoring', () => {
     const pool = [white, blue, black].flatMap((d) => Array.from({ length: 10 }, () => d.id));
     const before = buildLimitedDeck(vanillaDb, pool);
     const after = buildLimitedDeck(mechanicDb, pool);
-    expect(scorePick(mechanicDb, black.id, [], DEFAULT_PICKER, 0) - scorePick(vanillaDb, black.id, [], DEFAULT_PICKER, 0)).toBe(2);
+    expect(scorePick(mechanicDb, black.id, [], DEFAULT_PICKER, 0) - scorePick(vanillaDb, black.id, [], DEFAULT_PICKER, 0)).toBe(DEFAULT_PICKER.mechanicWeight);
     expect(before.filter((id) => id === blue.id)).toHaveLength(10);
     expect(before.filter((id) => id === black.id)).toHaveLength(5);
     expect(after.filter((id) => id === black.id)).toHaveLength(10);
