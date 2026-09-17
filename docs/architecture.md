@@ -534,13 +534,15 @@ anywhere:
 - **Cosmetics** (`src/meta/cosmetics.ts`) — pure account-style catalog for
   card backs and playmats. `CARD_BACKS` and `PLAYMATS` carry stable ids,
   player-facing names and blurbs, unlock metadata, and playmat recolor data.
-  `SaveData.cosmetics` stores nullable equipped ids plus granted non-default
-  ids; v1 defaults are always owned without being listed. `Achievements` can
+  `SaveData.cosmetics` stores only the granted non-default ids (`owned`);
+  defaults are always owned without being listed. Its two account-level
+  equipped ids were superseded by the per-deck fields in v33 and removed in
+  v35; the equipped back and playmat live on `SavedDeck`. `Achievements` can
   grant a known `cosmeticId` through the same idempotent claim path, which is
   the Courts unlock seam. Card backs bake once per id as `cardback-<id>` while
-  the violet default retains the legacy `cardback` texture. Profile owns the
-  picker, PackOpening snapshots the equipped back, and DuelScene snapshots the
-  equipped playmat. These choices never enter economy, engine, or replay data.
+  the violet default retains the legacy `cardback` texture. The deck's Style
+  picker owns the choice, PackOpening snapshots the active deck's back, and
+  DuelScene snapshots the fielded deck's playmat. These choices never enter economy, engine, or replay data.
 - **`deckColorIdentity`** (`deckColorIdentity.ts`) — pure nonland deck-color
   classifier used by tower-clear achievements. Mana-fixing lands are ignored so
   a mono-color spell suite remains mono-color even with dual lands.

@@ -673,12 +673,17 @@ describe('SaveData v32 migration (account cosmetics)', () => {
     const migrated = new SaveManager(storage, 456).data;
 
     expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
-    expect(migrated.cosmetics).toEqual({ cardBack: null, playmat: null, owned: [] });
+    // Was `{ cardBack: null, playmat: null, owned: [] }` before v35; the
+    // account-level pair is removed, so only `owned` survives.
+    expect(migrated.cosmetics).toEqual({ owned: [] });
   });
 
-  it('current blob keeps its explicit cosmetic choices', () => {
+  it('current blob keeps only owned, with the v35-removed fields gone', () => {
     const storage = fakeStorage();
-    const current = freshSave(123);
+    const current = freshSave(123) as unknown as Record<string, unknown>;
+    // A real v34 blob on disk still carries the two dead keys. Before v35 this
+    // test asserted they round-tripped as CARD_BACKS[1].id / PLAYMATS[1].id;
+    // now the normalizer must drop them rather than pass them through.
     current.cosmetics = {
       cardBack: CARD_BACKS[1].id,
       playmat: PLAYMATS[1].id,
@@ -686,20 +691,20 @@ describe('SaveData v32 migration (account cosmetics)', () => {
     };
     storage.raw.set('darlingblades.save.v1', JSON.stringify(current));
 
-    expect(new SaveManager(storage, 456).data.cosmetics).toEqual({
-      cardBack: CARD_BACKS[1].id,
-      playmat: PLAYMATS[1].id,
-      owned: [],
-    });
+    const cosmetics = new SaveManager(storage, 456).data.cosmetics;
+
+    expect(cosmetics).toEqual({ owned: [] });
+    expect(Object.keys(cosmetics)).toEqual(['owned']);
   });
 });
 
 /**
  * v33 moved style from the account onto the deck (owner ruling 2026-08-24), so
- * a deck can carry the look it was built with. The account values stay as the
- * fallback for decks that never chose and for deckless contexts like Pack
- * Opening, which is why this migration SEEDS rather than MOVES: nobody's decks
- * may change appearance across the upgrade.
+ * a deck can carry the look it was built with. The migration SEEDS rather than
+ * MOVES: nobody's decks may change appearance across the upgrade. The account
+ * pair it superseded was unreachable from then on and was removed in v35, so
+ * these fixtures keep writing it only to prove the per-deck fields with the
+ * IDENTICAL names are a separate, live thing.
  */
 describe('SaveData v33 migration (per-deck style)', () => {
   function v32WithDecks(cosmetics: { cardBack: string | null; playmat: string | null }): Record<string, unknown> {
@@ -756,7 +761,10 @@ describe('SaveData v33 migration (per-deck style)', () => {
 
   it('is idempotent: reloading a v33 save keeps each deck its own choice', () => {
     const storage = fakeStorage();
-    const current = freshSave(123);
+    const current = freshSave(123) as SaveData & { cosmetics: Record<string, unknown> };
+    // Deliberately writes the two keys v35 removed, as a stale on-disk blob
+    // would. They must be dropped without disturbing the per-deck pair below,
+    // which shares their names. (Before v35 this was a typed assignment.)
     current.cosmetics = { cardBack: CARD_BACKS[1].id, playmat: PLAYMATS[1].id, owned: [] };
     current.decks = [
       { id: 'a', name: 'Alpha', cards: ['tk-wei-caocao'], heroCardId: null, landStyle: null, cardBack: CARD_BACKS[2].id, playmat: null },
@@ -818,5 +826,163 @@ describe('SaveData v34 migration (land-drop confirmation)', () => {
 
   it('is a fresh-save default too', () => {
     expect(freshSave(1).settings.confirmLandDrop).toBe(true);
+  });
+});
+
+/**
+ * v35 adds the anonymous-stats preference and removes the two account-level
+ * cosmetics fields v33 left unreachable. Nothing reads either new field yet:
+ * no UI, no network. The migration is the whole feature.
+ */
+describe('SaveData v35 migration (anonymous-stats preference)', () => {
+  it('turns sharing on and the notice off for a v34 save, and drops the dead cosmetics', () => {
+    const storage = fakeStorage();
+    const old = freshSave(123) as unknown as Record<string, unknown>;
+    old.version = 34;
+    // A real v34 blob has neither new setting and still carries both dead keys.
+    delete (old.settings as Record<string, unknown>).shareAnonStats;
+    delete (old.settings as Record<string, unknown>).statsNoticeSeen;
+    old.cosmetics = { cardBack: 'back-violet-standard', playmat: 'playmat-house', owned: [] };
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(old));
+
+    const migrated = new SaveManager(storage, 456).data;
+
+    expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
+    expect(migrated.settings.shareAnonStats).toBe(true);
+    // An existing player is owed the notice; only a fresh save skips it.
+    expect(migrated.settings.statsNoticeSeen).toBe(false);
+    expect(migrated.cosmetics).toEqual({ owned: [] });
+    expect(Object.keys(migrated.cosmetics)).toEqual(['owned']);
+    // Nothing else about the save moves.
+    expect(migrated.createdAt).toBe(123);
+    expect(migrated.settings.confirmLandDrop).toBe(true);
+  });
+
+  it('is on AND already notified for a fresh save', () => {
+    expect(freshSave(1).settings.shareAnonStats).toBe(true);
+    expect(freshSave(1).settings.statsNoticeSeen).toBe(true);
+    expect(freshSave(1).cosmetics).toEqual({ owned: [] });
+  });
+
+  /**
+   * Trap (c). The shared block rewinds a current save to v22 and re-walks the
+   * whole chain, so the v35 step runs on every load. An opt-out that did not
+   * survive a reload would silently re-enable collection.
+   */
+  it('keeps an opt-out and a seen notice across save and reload', () => {
+    const storage = fakeStorage();
+    const current = freshSave(123);
+    current.settings.shareAnonStats = false;
+    current.settings.statsNoticeSeen = true;
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(current));
+
+    const first = new SaveManager(storage, 456);
+    expect(first.data.settings.shareAnonStats).toBe(false);
+    expect(first.data.settings.statsNoticeSeen).toBe(true);
+
+    // Write it back out the way the game does, then load it again.
+    first.flush();
+    const second = new SaveManager(storage, 789).data;
+    expect(second.settings.shareAnonStats).toBe(false);
+    expect(second.settings.statsNoticeSeen).toBe(true);
+    expect(second.version).toBe(CURRENT_SAVE_VERSION);
+  });
+
+  it('coerces garbage in both new fields to the migrated defaults', () => {
+    const storage = fakeStorage();
+    const current = freshSave(123) as unknown as Record<string, unknown>;
+    (current.settings as Record<string, unknown>).shareAnonStats = 'yes';
+    (current.settings as Record<string, unknown>).statsNoticeSeen = 'yes';
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(current));
+
+    const settings = new SaveManager(storage, 456).data.settings;
+
+    expect(settings.shareAnonStats).toBe(true);
+    // Not-yet-notified is the safe reading of a garbage value.
+    expect(settings.statsNoticeSeen).toBe(false);
+  });
+
+  /**
+   * Trap (b). The shared re-walk guard enumerates its versions by hand and the
+   * outgoing 34 had to be added to it, or every save sitting at v34 would skip
+   * the block entirely. This walks the whole matrix rather than just 34.
+   */
+  it.each(Array.from({ length: CURRENT_SAVE_VERSION - 1 }, (_, index) => index + 1))(
+    'walks a v%i blob all the way to a valid v35 save',
+    (version) => {
+      const storage = fakeStorage();
+      const old = freshSave(123) as unknown as Record<string, unknown>;
+      old.version = version;
+      delete (old.settings as Record<string, unknown>).shareAnonStats;
+      delete (old.settings as Record<string, unknown>).statsNoticeSeen;
+      storage.raw.set('darlingblades.save.v1', JSON.stringify(old));
+
+      const migrated = new SaveManager(storage, 456).data;
+
+      expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
+      expect(migrated.settings.shareAnonStats).toBe(true);
+      expect(migrated.settings.statsNoticeSeen).toBe(false);
+      expect(migrated.cosmetics).toEqual({ owned: [] });
+    },
+  );
+
+  /**
+   * Trap (a). `CosmeticsSave.cardBack` / `.playmat` were removed; the per-deck
+   * fields of the same name are the live 1.6.3 Style feature and must come
+   * through a v34 upgrade byte for byte.
+   */
+  it('leaves an upgrading v34 deck its own card back and playmat', () => {
+    const storage = fakeStorage();
+    const old = freshSave(123) as unknown as Record<string, unknown>;
+    old.version = 34;
+    old.cosmetics = { cardBack: CARD_BACKS[1].id, playmat: PLAYMATS[1].id, owned: [] };
+    old.decks = [
+      {
+        id: 'styled',
+        name: 'Styled',
+        cards: ['tk-wei-caocao'],
+        heroCardId: null,
+        landStyle: null,
+        cardBack: CARD_BACKS[2].id,
+        playmat: PLAYMATS[2].id,
+      },
+    ];
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(old));
+
+    const migrated = new SaveManager(storage, 456).data;
+
+    expect(migrated.decks[0].cardBack).toBe(CARD_BACKS[2].id);
+    expect(migrated.decks[0].playmat).toBe(PLAYMATS[2].id);
+    // And the removed account pair really is gone, not moved onto the deck.
+    expect(migrated.cosmetics).toEqual({ owned: [] });
+  });
+
+  /**
+   * The same class of bug as trap (c), one step out: the four older seeding
+   * steps used to ask `version === CURRENT`, which is false for a save that is
+   * merely one version behind. Every bump therefore reset the fields those
+   * steps guard. Measured on this branch before the fix: a v34 blob lost its
+   * per-deck style, its collection pins, its deck-repair acknowledgement, and
+   * both Darlings flags - including `darlingsFreeDeckClaimed`, which would have
+   * handed every existing player a second free Zhou Yu precon.
+   */
+  it('preserves every earlier one-way flag through a v34 upgrade', () => {
+    const storage = fakeStorage();
+    const old = freshSave(123) as unknown as Record<string, unknown>;
+    old.version = 34;
+    old.collection = { 'land-plains': 1 };
+    old.collectionVariants = { 'land-plains': { [variantKey(PLAIN_VARIANT)]: 1 } };
+    old.pinnedVariants = { 'land-plains': variantKey(PLAIN_VARIANT) };
+    old.darlingsTutorialSeen = true;
+    old.darlingsFreeDeckClaimed = true;
+    old.deckRepairNoticeAck = '["deck-a"]';
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(old));
+
+    const migrated = new SaveManager(storage, 456).data;
+
+    expect(migrated.pinnedVariants).toEqual({ 'land-plains': variantKey(PLAIN_VARIANT) });
+    expect(migrated.darlingsTutorialSeen).toBe(true);
+    expect(migrated.darlingsFreeDeckClaimed).toBe(true);
+    expect(migrated.deckRepairNoticeAck).toBe('["deck-a"]');
   });
 });

@@ -97,6 +97,15 @@ Gate: rungs 1-4 and 6. Exit: `npx vitest run tests/meta` green, no string
 
 ### PR 0b — `feat(save): v35 — anonymous-stats preference, and the parked cosmetics removal`
 
+**BUILT 2026-09-17**, scope as written below with one correction to trap 3:
+keying the seeding off `beganAtCurrentVersion` was itself the bug. That flag is
+true only for a save AT the current version, so every bump re-seeded the
+one-way fields of a save one version behind; measured on shipped code, the
+v33 to v34 update wiped per-deck style, display pins, the deck-repair
+acknowledgement and both Darlings flags. The guard is now
+`arrivedAtVersion >= N` per field, which also means an opt-out from anonymous
+stats survives the NEXT bump, not only a reload.
+
 Branch: `claude/save-v35-stats-preference`
 
 This is the bump the codebase has been waiting for. `CosmeticsSave.cardBack` and

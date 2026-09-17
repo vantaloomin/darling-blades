@@ -64,8 +64,10 @@ _Dated 2026-09-07. Review monthly._
   variant-deck pins, v23→v24 the empty-block confirmation preference, and
   v24→v25 the Warchest id reveal plus collection-level display pins, and
   v25→v26 the Darlings command zone, Darlings tutorial, and free Zhou Yu
-  claim, and — since — v32→v33 per-deck card back and playmat and v33→**v34**
-  the land-drop confirmation — see
+  claim, and — since — v32→v33 per-deck card back and playmat, v33→v34
+  the land-drop confirmation, and v34→**v35** the anonymous-stats preference
+  (`settings.shareAnonStats`, `settings.statsNoticeSeen`) with the two dead
+  account-level cosmetics fields removed — see
   Recently shipped and the Full Art entry under Planned). By-ear tuning remains open (see Planned).
 
 ## Recently shipped (2026-09-04 and 2026-09-05 · 1.7.1 and 1.7.2)
@@ -1712,8 +1714,11 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   and the desktop build reports. The execution plan is
   [rollout-telemetry-and-accounts.md](rollout-telemetry-and-accounts.md): wave 0
   is the rename (3 importing files) plus the **v35 save bump**, which finally
-  carries the `CosmeticsSave.cardBack`/`playmat` removal that has been parked
-  since v33 waiting for exactly this. **No code exists and none is authorized.**
+  carries the `CosmeticsSave.cardBack`/`playmat` removal that had been parked
+  since v33 waiting for exactly this. **The owner opened the build on
+  2026-09-17:** the rename landed 2026-09-07, the v35 bump and the pure
+  `playSignals` core (wave T1) are built, and nothing sends anything yet. The
+  transport, the Settings toggle, the privacy page and the Worker are wave T2.
 - **Save cards: a PNG that carries your save — ✅ SHIPPED in 1.7 (2026-09-01).**
   Export a save as an image instead of a text code: the player picks card art
   they own from a searchable grid, the game composites a titled cover, and the

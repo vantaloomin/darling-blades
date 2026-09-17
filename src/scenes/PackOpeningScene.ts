@@ -261,8 +261,8 @@ export class PackOpeningScene extends Phaser.Scene {
   /**
    * Packs open with the ACTIVE deck's back (v33). Style stopped being an
    * account setting when it moved onto the deck, and the Profile picker went
-   * with it, so reading `cosmetics.cardBack` here would pin this screen to a
-   * value nothing can change any more.
+   * with it; the account-level field this once read was removed in save v35,
+   * so the active deck is the only source there is.
    */
   private resolveCardBackTexture(): string {
     const save = Services.save.data;
