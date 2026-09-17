@@ -388,6 +388,29 @@ Propagate adds no player action and writes nothing new to the replay log, so
 the log version and **the rules revision both stay unchanged** (the Preserve
 precedent above bumped the log only because it recorded a new action).
 
+### Trigger chains and once-each-turn triggers
+
+Two observers can feed each other: Saint of the Lamp Oil marks herself
+whenever you gain life, and Reef Shaman of the Shallows gains you life
+whenever you put a Mark on a creature. Two rules keep that a synergy rather
+than a hang (owner ruling 2026-09-17, after the phase D draft measurement
+froze a duel on exactly that pair):
+
+- **A trigger chain stops after eight rounds.** When a triggered ability
+  would fire as the ninth link of a chain that its own resolution started,
+  it does not fire, nothing else changes, and the game goes on. The cap is
+  `MAX_MARK_TRIGGER_DEPTH` in `src/engine/effects/EffectInterpreter.ts` and
+  it applies to the mark observers and the life-gain observer alike. Until
+  the ruling the engine threw at the cap, which the tests pinned; now the
+  tests pin the bounded outcome.
+- **"This triggers only once each turn."** A triggered ability printed with
+  that sentence (`oncePerTurn: true` on the ability in card data) fires the
+  first time its event happens in a turn and not again until the next turn
+  begins, on either player's turn. The engine tracks it per permanent, so
+  two copies each fire once, and a permanent that leaves and returns starts
+  clean. The Saint carries it; the sentence renders from the flag, general
+  to every trigger kind.
+
 ### Duty (tap ability)
 
 A creature, artifact or enchantment with an `activated` block

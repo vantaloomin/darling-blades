@@ -196,7 +196,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     flavor: 'She logs every boat that leaves and every boat that returns. The ledgers do not match.',
     set: 'drowned-deep',
   },
-  // Warding Gaze. Duty, {1}: gain 2 life. Whenever you gain life, put a Mark on this.
+  // Warding Gaze. Duty, {1}: gain 2 life. Whenever you gain life, put a Mark on this. This triggers only once each turn.
   {
     id: 'dd-lamp-oil-saint',
     name: 'Saint of the Lamp Oil',
@@ -207,7 +207,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     attack: 2,
     defense: 4,
     keywords: ['wardingGaze'],
-    abilities: [{ when: 'youGainLife', ops: [{ op: 'addCounters', n: 1, to: 'self' }] }],
+    abilities: [{ when: 'youGainLife', oncePerTurn: true, ops: [{ op: 'addCounters', n: 1, to: 'self' }] }],
     activated: { cost: { tap: true, mana: cost(1) }, ops: [{ op: 'gainLife', n: 2 }] },
     rarity: 'ssr',
     flavor: 'She keeps the lamps full and the books balanced, and the second is harder.',

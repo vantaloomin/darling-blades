@@ -632,7 +632,10 @@ export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
   // icon line ([T]: Add [pip]) at the top of the rules box instead.
   let hasDawnAbility = false;
   for (const ab of d.abilities ?? []) {
-    lines.push(abilityText(ab, d, hasDawnAbility && ab.when === 'dawn'));
+    const sentence = abilityText(ab, d, hasDawnAbility && ab.when === 'dawn');
+    const limit = ab.oncePerTurn && ab.when !== 'spell' && ab.when !== 'static'
+      ? ' This triggers only once each turn.' : '';
+    lines.push(sentence + limit);
     hasDawnAbility ||= ab.when === 'dawn';
   }
   const empower = empowerText(d);
