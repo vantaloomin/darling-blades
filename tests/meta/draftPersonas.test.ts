@@ -101,20 +101,30 @@ describe('draft persona differentiation', () => {
     { id: 'brandon', pack: ['rg-angrboda', 'tk-other-lubu'], expected: 'rg-angrboda', defaultExpected: 'tk-other-lubu' },
     { id: 'megan', pack: ['tk-shu-zhangfei', 'gk-zeus'], expected: 'tk-shu-zhangfei', defaultExpected: 'gk-zeus' },
     { id: 'kyle', pack: ['rg-freya', 'tk-other-lubu'], expected: 'rg-freya', defaultExpected: 'tk-other-lubu' },
-    { id: 'jessica', pack: ['rg-berserker-chieftain', 'gk-gaia'], expected: 'rg-berserker-chieftain', defaultExpected: 'gk-gaia' },
+    // Phase D, 2026-09-17: old Jessica pick rg-berserker-chieftain -> gk-gaia.
+    // Self-damage loses false removal credit: 51.7 -> 22.7; Gaia's Mark 34.5 -> 35.5.
+    { id: 'jessica', pack: ['rg-berserker-chieftain', 'gk-gaia'], expected: 'gk-gaia', defaultExpected: 'gk-gaia' },
     // gk-zeus stopped working as lauren's textbook foil when the v3.1 slate
     // cut him to {W}{W}{R}{R} - cheap enough that even her picker takes him.
     { id: 'lauren', pack: ['tk-wei-caocao', 'gk-gaia'], expected: 'tk-wei-caocao', defaultExpected: 'gk-gaia' },
-    { id: 'tyler', pack: ['rg-fenrir', 'tk-other-lubu'], expected: 'rg-fenrir', defaultExpected: 'tk-other-lubu' },
+    // Phase D, 2026-09-17: old default tk-other-lubu -> rg-fenrir (unchanged 33).
+    // Lu Bu 39.4 -> 31.9: remove Rage's 1.5 and self-damage's false 5, then -1.
+    { id: 'tyler', pack: ['rg-fenrir', 'tk-other-lubu'], expected: 'rg-fenrir', defaultExpected: 'rg-fenrir' },
     { id: 'derek', pack: ['tk-wei-xiahoudun', 'tk-wei-caocao'], expected: 'tk-wei-xiahoudun', defaultExpected: 'tk-wei-caocao' },
     { id: 'amanda', pack: ['tk-wu-huanggai', 'rg-freya'], expected: 'rg-freya', defaultExpected: 'tk-wu-huanggai', picks: redPicks },
     // tk-other-lubu at {1}{R}{R} with Twin Blades (v3.1) now outbids brittany's
     // shu loyalty; gk-zeus is the bomb she can still walk past.
     { id: 'brittany', pack: ['tk-shu-guanyu', 'gk-zeus'], expected: 'tk-shu-guanyu', defaultExpected: 'gk-zeus' },
-    { id: 'kevin', pack: ['tk-wei-chenqun', 'tk-wei-zhanghe'], expected: 'tk-wei-chenqun', defaultExpected: 'tk-wei-zhanghe' },
+    // Phase D, 2026-09-17: old Kevin pick tk-wei-chenqun -> tk-wei-zhanghe.
+    // Removing Bulwark's generic bonus moves 11.3 -> 9.8 versus unchanged 10.9.
+    { id: 'kevin', pack: ['tk-wei-chenqun', 'tk-wei-zhanghe'], expected: 'tk-wei-zhanghe', defaultExpected: 'tk-wei-zhanghe' },
     { id: 'stephanie', pack: ['bk-foxfire-priestess', 'tk-other-lubu'], expected: 'bk-foxfire-priestess', defaultExpected: 'tk-other-lubu' },
-    { id: 'zach', pack: ['rg-hel', 'tk-other-lubu'], expected: 'rg-hel', defaultExpected: 'tk-other-lubu' },
-    { id: 'rachel', pack: ['in-dream-fracture', 'gk-gaia'], expected: 'in-dream-fracture', defaultExpected: 'gk-gaia' },
+    // Phase D, 2026-09-17: old default tk-other-lubu -> rg-hel (unchanged 32.8).
+    // Lu Bu 39.4 -> 31.9 for the same Rage/self-damage correction above.
+    { id: 'zach', pack: ['rg-hel', 'tk-other-lubu'], expected: 'rg-hel', defaultExpected: 'rg-hel' },
+    // Phase D, 2026-09-17: old Rachel pick in-dream-fracture -> gk-gaia.
+    // Gaia's previously invisible Mark moves 30.5 -> 31.5 versus unchanged 31.
+    { id: 'rachel', pack: ['in-dream-fracture', 'gk-gaia'], expected: 'gk-gaia', defaultExpected: 'gk-gaia' },
     { id: 'justin', pack: ['tk-wu-zhouyu', 'ar-siege-juggernaut'], expected: 'tk-wu-zhouyu', defaultExpected: 'ar-siege-juggernaut' },
     { id: 'samantha', pack: ['tk-shu-zhaoyun', 'tk-wei-caocao'], expected: 'tk-shu-zhaoyun', defaultExpected: 'tk-wei-caocao' },
     { id: 'matt', pack: ['in-comet-blast', 'tk-other-lubu'], expected: 'in-comet-blast', defaultExpected: 'tk-other-lubu' },

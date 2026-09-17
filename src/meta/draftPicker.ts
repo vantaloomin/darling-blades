@@ -1,6 +1,6 @@
 import { createRngState, rngShuffle } from '../engine/rng';
-import type { CardDb, CardDef, Color, Keyword } from '../engine/types';
-import { def, isType, manaValue } from '../engine/types';
+import type { CardDb, CardDef, Color, EffectOp, Keyword, TargetSpec } from '../engine/types';
+import { activatedAbilitiesOf, def, isType, manaValue } from '../engine/types';
 import { TIER_RANK } from './variants';
 
 const COLOR_ORDER: readonly Color[] = ['W', 'U', 'B', 'R', 'G'];
@@ -11,9 +11,8 @@ const DRAFT_SEATS = 8;
 const CHAOS_SCORE_SCALE = 100;
 
 /**
- * Tunable draft heuristics. DEFAULT_PICKER reproduces Limited.ts's original
- * scoreDraftCard/scoreBaseCard arithmetic exactly; persona hooks are neutral at
- * those defaults so roster edits cannot change the textbook drafter by accident.
+ * Tunable draft heuristics. Phase D teaches the shared base scorer mechanics;
+ * personas keep their style overrides, and Chris stays exactly at the defaults.
  */
 export interface PickerProfile {
   rarityWeight: number;
@@ -30,6 +29,8 @@ export interface PickerProfile {
   cheapBias: number;
   statBias: number;
   keywordWeight: number;
+  mechanicWeight: number;
+  buffWeight: number;
   keywordPrefs?: Keyword[];
   subtypeWeight: number;
   subtypePrefs?: string[];
@@ -54,6 +55,8 @@ export const DEFAULT_PICKER: Readonly<PickerProfile> = Object.freeze({
   cheapBias: 0,
   statBias: 0,
   keywordWeight: 1.5,
+  mechanicWeight: 2,
+  buffWeight: 1,
   subtypeWeight: 0,
   legendWeight: 0,
   tokenWeight: 0,
@@ -128,7 +131,41 @@ export function assignDraftPersonas(seed: number, rosterIds: readonly string[]):
 export function scoreBasePick(d: CardDef, profile: PickerProfile): number {
   let score = TIER_RANK[d.rarity] * profile.rarityWeight;
   const mv = manaValue(d.cost);
-  const ops = d.abilities?.flatMap((ability) => ability.ops ?? []) ?? [];
+  const duties = activatedAbilitiesOf(d);
+  const ops: EffectOp[] = [];
+  const selfDamage = new Set<number>();
+  // Keep target provenance while flattening conditional bodies: damage forced
+  // onto your own creature is a cost, not removal. Generic targets remain useful.
+  const collect = (effects: readonly EffectOp[], targets: readonly TargetSpec[] = []): void => {
+    for (const op of effects) {
+      if (op.op === 'ifTargetMarked') {
+        collect(op.then, targets);
+        collect(op.else ?? [], targets);
+      } else {
+        ops.push(op);
+        if (op.op === 'damage' && (op.n === 'X' || op.n > 0)) {
+          const what = op.to === 'target' ? targets[op.targetIndex ?? 0]?.what : undefined;
+          if (op.to === 'controller' || op.to === 'target' && (what === 'yourCreature' || what === 'yourPermanent')) {
+            selfDamage.add(ops.length - 1);
+          }
+        }
+      }
+    }
+  };
+  for (const ability of d.abilities ?? []) collect(ability.ops ?? [], ability.targets);
+  if (d.empower) collect(d.empower.ops, d.empower.targets);
+  if (d.retell) collect(d.retell.ops ?? [], d.retell.targets);
+  for (const duty of duties) collect(duty.ops, duty.targets);
+  for (const chapter of d.chapters ?? []) collect(chapter);
+  // Preserve has no authored ops: its engine effect is one token copy. Linked
+  // grants are a static rider; normalize them to the same buff classifier.
+  if (d.preserve) ops.push({ op: 'createToken', token: d.id, count: 1 });
+  if (d.hauntlink) ops.push({ op: 'boost', scope: 'target',
+    p: d.hauntlink.linked.p ?? 0, t: d.hauntlink.linked.t ?? 0,
+    keywords: d.hauntlink.linked.grantKeywords });
+
+  const mechanics = [d.empower, d.retell, d.whispers, d.tithe, d.preserve,
+    duties.length > 0, d.chapters, d.hauntlink, d.nineLives].filter(Boolean).length;
 
   if (isType(d, 'creature')) {
     const attackWeight = 1.2 + profile.statBias * 0.8;
@@ -138,14 +175,16 @@ export function scoreBasePick(d: CardDef, profile: PickerProfile): number {
     const preferredKeywords = profile.keywordPrefs?.length
       ? keywords.filter((keyword) => profile.keywordPrefs!.includes(keyword)).length
       : keywords.length;
-    score += keywords.length * 1.5 + preferredKeywords * (profile.keywordWeight - 1.5);
+    const benefits = keywords.filter((keyword) => keyword !== 'bulwark' && keyword !== 'rage').length;
+    score += benefits * 1.5 + preferredKeywords * (profile.keywordWeight - 1.5);
   } else if (isType(d, 'charm') || isType(d, 'ritual')) {
     score += profile.spellWeight;
   } else if (isType(d, 'enchantment') || isType(d, 'artifact')) {
     score += profile.permanentWeight;
   }
 
-  if (ops.some((op) => op.op === 'destroy' || op.op === 'damage' || op.op === 'cancel')) {
+  if (ops.some((op, index) => op.op === 'destroy' || op.op === 'cancel' ||
+    op.op === 'damage' && (op.n === 'X' || op.n > 0) && !selfDamage.has(index))) {
     score += profile.removalWeight;
   }
   if (ops.some((op) => op.op === 'draw' || op.op === 'raise' || op.op === 'reclaim')) {
@@ -154,6 +193,25 @@ export function scoreBasePick(d: CardDef, profile: PickerProfile): number {
   score += ops.reduce((sum, op) => sum + (op.op === 'createToken' ? op.count : 0), 0) * profile.tokenWeight;
   score += ops.filter((op) => op.op === 'gainLife').length * profile.lifeGainWeight;
   score += ops.filter((op) => op.op === 'raise' || op.op === 'grind' || op.op === 'reclaim').length * profile.graveyardWeight;
+  score += (mechanics + (d.skim ? 0.5 : 0)) * profile.mechanicWeight;
+  score += ops.filter((op) => {
+    switch (op.op) {
+      case 'addCounters': return op.n > 0;
+      case 'markAll':
+      case 'propagate':
+      case 'moveMark':
+      case 'awaken': return true;
+      case 'boost': return op.p > 0 || op.t > 0 ||
+        (op.keywords?.some((keyword) => keyword !== 'bulwark' && keyword !== 'rage') ?? false);
+      case 'createToken': return op.count > 0 && (op.marks ?? 0) > 0;
+      case 'raise': return op.to === 'top' && (op.withMarks ?? 0) > 0 ||
+        (op.grantKeywords?.some((keyword) => keyword !== 'bulwark' && keyword !== 'rage') ?? false);
+      default: return false;
+    }
+  }).length * profile.buffWeight;
+  // Flat, untuned downside per harmful rider. Removing the false removal
+  // credit alone would still tie the otherwise identical card without it.
+  score -= selfDamage.size;
 
   const preferredSubtypes = profile.subtypePrefs?.length
     ? d.subtypes.filter((subtype) => profile.subtypePrefs!.includes(subtype)).length

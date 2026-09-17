@@ -435,17 +435,17 @@ describe('intended mechanics and draft behaviour', () => {
   const score = (id: string) => checked(() => scorePick(DB, id, [], DEFAULT_PICKER, pickNoise(41, 1, 0, 0, id)));
 
   // docs/ai.md:359-369. Phase D draft: a useful Duty rider has positive pick value.
-  it.fails('Draft scores Duty-only text above an otherwise identical vanilla', () => {
+  it('Draft scores Duty-only text above an otherwise identical vanilla', () => {
     expect(score('draft_duty')).toBeGreaterThan(score('draft_vanilla'));
   });
 
   // docs/ai.md:359-369. Phase D draft: a useful Empower rider has positive pick value.
-  it.fails('Draft scores Empower-only text above an otherwise identical vanilla', () => {
+  it('Draft scores Empower-only text above an otherwise identical vanilla', () => {
     expect(score('draft_empower')).toBeGreaterThan(score('draft_vanilla'));
   });
 
   // docs/ai.md:359-369. Phase D draft: Bulwark is a restriction and earns no keyword upside.
-  it.fails('Draft gives Bulwark no positive keyword bonus', () => {
+  it('Draft gives Bulwark no positive keyword bonus', () => {
     expect(score('draft_bulwark')).toBeLessThanOrEqual(score('draft_vanilla'));
   });
 });
