@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/meta/warchest.ts, src/meta/PackOpener.ts, src/data/cards/, src/engine/types.ts, docs/plan-1.8.md, docs/plan-tap-abilities.md · last-verified: 2026-09-10 · decision brief + conversion slate for lane D of 1.8 (the 27 utility taplands become Duty artifacts); owner approves the slate, Codex transcribes -->
+<!-- source-of-truth: src/meta/warchest.ts, src/meta/PackOpener.ts, src/data/cards/, src/engine/types.ts, docs/plan-1.8.md, docs/plan-tap-abilities.md · last-verified: 2026-09-17 · decision brief + conversion slate for lane D of 1.8 (the 27 utility taplands become Duty artifacts); owner approves the slate, Codex transcribes -->
 
 # Land economy: the 27 utility taplands become Duty artifacts
 
@@ -7,6 +7,13 @@ Lane D of [plan-1.8.md](plan-1.8.md), the one 1.8 item that had no spec.
 with a tap ability.** This brief records the measurement, the ruling against
 the two alternatives, the per-card conversion slate for approval, and the
 blast radius the transcription wave has to cover. Nothing here is built.
+
+**Slate APPROVED 2026-09-17, with seven rows re-authored the same day.** The
+owner's direction: no Duty on the first slate cost more than one mana to
+activate, so a handful move to a tap cost of two or three with a heavier
+effect. The seven are marked **(heavier)** in section 4, ruled in design
+rule 9 and costed in section 5. The other twenty rows stand as first
+written.
 
 ## 1. The problem, measured
 
@@ -80,12 +87,27 @@ tapland: the reserve rule is an engine-level rule
    still reads (the object is in the scene, or the scene is what the object
    shows). Flavor text is kept where it still lands and refreshed where the
    object changes it. No em-dashes.
-7. **Repeatable draw is out.** `{1},{T}: draw` on an artifact has no
-   precedent in any era and the formula reads it three mana hot at common;
-   the colourless card gets Foresee 2 instead.
+7. **Cheap repeatable draw is out.** `{1},{T}: draw` on an artifact has no
+   precedent in any era and the formula reads it three mana hot at common.
+   Revised 2026-09-17: the colourless card draws at `{3},{T}` on a `{4}`
+   body, the shape Drowned Deep already ships as Net of Glass, which the
+   formula reads at +0.99. It is the hottest row on the slate and the one
+   the seeded matrix watches first; the fallback is `{2},{T}: Foresee 3` at
+   `{2}`.
 8. **The pinger stays slow.** `{T}: 1 damage to your opponent` is a
    real clock against a pool with five artifact answers (section 4i), so it
    prints at two mana, never one, and only one per set.
+9. **Seven rows carry a heavier Duty** (owner direction 2026-09-17). Rule 3
+   made every arrival effect a small repeatable rider, which left all 27
+   activating for one mana or none. Seven rows instead pay two or three to
+   activate for an effect a deck is built around: board control in white, a
+   pump in white, creature removal in red, a drain in black, creature
+   recursion in green, a deeper Foresee in blue and the colourless draw.
+   The printed cost rises with the effect, so these seven are two- to
+   four-mana commons, not one-drops. Three mirror shapes Drowned Deep
+   already ships on its own Duty artifacts (The Bell That Will Not Ring,
+   The Drowned Forge, Net of Glass); a line may repeat across sets, never
+   within one (rule 4).
 
 ## 4. The slate (27 rows, for approval)
 
@@ -113,10 +135,10 @@ so the transcription test suite pins it.
 | Id | Was | Becomes | Cost | Duty (rules line) | Delta | Flavor |
 | --- | --- | --- | --- | --- | --- | --- |
 | `ac-bramble-chapel` | Bramble Chapel | **Bramble Reliquary** | {G} | {T}: You gain 1 life. | -0.42 | Thorns frame the altar; the roots keep the old vows. (kept) |
-| `ac-lowland-fort` | Lowland Fort | **Lowland Fort Banner** | {W} | {1},{T}: You gain 2 life. | -0.30 | The fort is low, the walls are tired, and the banner still flies. |
+| `ac-lowland-fort` | Lowland Fort | **Lowland Fort Banner** (heavier) | {2}{W} | {2},{T}: Tap target creature an opponent controls. | -0.54 | The fort is low, the walls are tired, and the banner still flies. |
 | `ac-red-tournament-ground` | Red Tournament Ground | **Tournament Pennant** | {R} | {T}: Foresee 1. | +0.26 | Dust rises where champions promise they are not afraid. (kept) |
 | `ac-court-of-whispers` | Court of Whispers | **Listeners' Curtain** | {B} | {T}: Put the top card of your deck into your graveyard. | -0.65 | The court has no throne, only a hundred listeners behind the curtains. (kept) |
-| `ac-mirror-lake` | Mirror Lake | **Mirror-Lake Glass** | {U} | {1},{T}: Foresee 2. | +0.15 | The glass shows the face you bring and the one you leave behind. |
+| `ac-mirror-lake` | Mirror Lake | **Mirror-Lake Glass** (heavier) | {U} | {2},{T}: Foresee 3. | +0.20 | The glass shows the face you bring and the one you leave behind. |
 
 Court of Whispers is renamed because "Whispers" is now a taught mechanic;
 the card must not read as a Whispers card.
@@ -125,10 +147,10 @@ the card must not read as a Whispers card.
 
 | Id | Was | Becomes | Cost | Duty (rules line) | Delta | Flavor |
 | --- | --- | --- | --- | --- | --- | --- |
-| `gm-moor-path` | Moor Path | **Moorlight Lantern** | {1}{B} | {T}: Your opponent loses 1 life. | -0.42 | The light is warm, the path is damp, and something walks behind it. |
+| `gm-moor-path` | Moor Path | **Moorlight Lantern** (heavier) | {2}{B} | {3},{T}: Your opponent loses 2 life and you gain 2 life. | +0.42 | The light is warm, the path is damp, and something walks behind it. |
 | `gm-chapel-yard` | Chapel Yard | **Chapel-Yard Rosary** | {W} | {T}: Sever the top card of your opponent's graveyard. | +0.40 | The graves are tidy and the roses have opinions. (kept) |
 | `gm-lab-annex` | Lab Annex | **Annex Notebook** | {U} | {T}: Foresee 1. | +0.10 | The main lab exploded, so this is the responsible record. |
-| `gm-red-roof-village` | Red-Roof Village | **Festival Rocket** | {1}{R} | {T}: Deal 1 damage to your opponent. | -0.57 | The roofs are red from paint, weather, and one regrettable festival. (kept) |
+| `gm-red-roof-village` | Red-Roof Village | **Festival Rocket** (heavier) | {2}{R} | {2},{T}: Deal 2 damage to target creature. | +0.06 | The roofs are red from paint, weather, and one regrettable festival. (kept) |
 | `gm-thorned-cemetery` | Thorned Cemetery | **Cemetery Thorn** | {G} | {T}: Put the top card of your deck into your graveyard. | -0.65 | The vines keep visitors from leaving with the wrong memories. (kept) |
 
 ### Dark Tales (8)
@@ -139,25 +161,30 @@ the card must not read as a Whispers card.
 | `dt-palace-steps` | Palace Steps | **Glass Slipper** | {W} | {1},{T}: You gain 2 life. | -0.30 | Every guest climbs the steps. Not every guest reaches the ballroom. |
 | `dt-hearth-cinders` | Hearth Cinders | **Banked Cinders** | {1}{R} | {T}: Deal 1 damage to your opponent. | -0.57 | The fire is out, but the coals are still warm enough to bite. |
 | `dt-midnight-road` | Midnight Road | **Midnight Invitation** | {B} | {T}: Put the top card of your deck into your graveyard. | -0.65 | The road is empty because the invitation was accepted elsewhere. (kept) |
-| `dt-riverbend-trail` | Riverbend Trail | **Riverbend Waterwheel** | {G} | {1},{T}: Put the top two cards of your deck into your graveyard. | -0.60 | The wheel turns the river and every sensible conclusion. |
+| `dt-riverbend-trail` | Riverbend Trail | **Riverbend Waterwheel** (heavier) | {2}{G} | {3},{T}: Return target creature card from your graveyard to your hand. | -0.94 | The wheel turns the river and every sensible conclusion. |
 | `dt-sea-cave` | Sea Cave | **Sea-Cave Pearl** | {U} | {T}: Foresee 1. | +0.10 | Foam hides the entrance and the price of leaving. (kept) |
 | `dt-desert-rooftop` | Desert Rooftop | **Rooftop Spyglass** | {R} | {1},{T}: Foresee 2. | +0.37 | The city roof catches moonlight and runaway wishes. (kept) |
 | `dt-winter-bridge` | Winter Bridge | **Winter-Bridge Toll** | {U} | {T}: Sever the top card of your opponent's graveyard. | +0.40 | The bridge is clear until the palace decides otherwise. (kept) |
 
-Dark Tales gains five Whispers-relevant enablers (two self-mill Duties and
-three that touch the graveyard) in the set whose discard engine 1.8's
-headline mechanic is built to pay off.
+Dark Tales keeps its graveyard-facing Duties (Midnight Invitation's
+self-mill and Winter-Bridge Toll's sever) in the set whose discard engine
+1.8's headline mechanic is built to pay off, and since 2026-09-17 the
+Waterwheel turns from a second self-mill into the payoff beside them: a
+creature back to hand each turn for three mana. It is deliberately printed
+one mana colder than the formula asks (`{1}{G}` reads -0.12), because a
+repeatable return is an inevitability engine in a long game and the
+formula's recursion rate is a one-shot rate.
 
 ### Starborne (6)
 
 | Id | Was | Becomes | Cost | Duty (rules line) | Delta | Flavor |
 | --- | --- | --- | --- | --- | --- | --- |
-| `sb-pale-nebula` | Pale Nebula | **Nebula Beacon** | {1}{W} | {T}: Target creature you control gets +1/+1 until Sunset. | +0.18 | The cloud looks soft until you try to navigate it. (kept) |
+| `sb-pale-nebula` | Pale Nebula | **Nebula Beacon** (heavier) | {2}{W} | {2},{T}: Target creature you control gets +2/+2 until Sunset. | -0.24 | The cloud looks soft until you try to navigate it. (kept) |
 | `sb-deepfield-lands` | Deepfield Lands | **Deepfield Array** | {U} | {1},{T}: Move a Mark from target creature to target creature you control. | +0.00 | The deep field is quiet because everything there is listening. (kept) |
 | `sb-darkside-landing` | Darkside Landing | **Violet Landing Light** | {1}{B} | {T}: Remove the Marks from target Marked creature. | -0.12 | The landing lights are violet because red would look too hopeful. (kept) |
 | `sb-ember-lane` | Ember Lane | **Ember-Lane Flare** | {R} | {1},{T}: Deal 1 damage to your opponent. | -0.15 | The lane is hot, crowded, and officially one-way. (kept) |
 | `sb-overcanopy` | Overcanopy | **Overcanopy Trellis** | {1}{G} | {1},{T}: Put a Mark on target creature you control. | -0.22 (NEEDS MATH: the `{T}: counter` band) | A green aurora hangs low enough to touch from the watch deck. (kept) |
-| `sb-interstellar-crossing` | Interstellar Crossing | **Crossing Beacon** | {2} | {1},{T}: Foresee 2. | -0.05 (NEEDS MATH: non-creature `{T}: scry`) | The crossing takes three days if you walk and one blink if you trust it. (kept) |
+| `sb-interstellar-crossing` | Interstellar Crossing | **Crossing Beacon** (heavier) | {4} | {3},{T}: Draw a card. | +0.99 (hottest row, see rule 7) | The crossing takes three days if you walk and one blink if you trust it. (kept) |
 
 Starborne's six follow the set's colour rules
 ([plan-road-to-2.0.md](plan-road-to-2.0.md): green primary, red and white support,
@@ -188,6 +215,42 @@ Off-pie premiums are small at this size (blue Foresee is the cheapest,
 green the dearest by 0.34) and never move a row out of the band, so the
 slate keeps every card's original colour rather than chasing the premium.
 
+**The seven heavier rows (2026-09-17).** Each candidate was scored at five
+printed costs on the same workbench (`balance/scoreCore.ts`, probe in the
+session scratchpad); the chosen cost is the one at or just under fair,
+since a common utility artifact belongs slightly cold. Columns are the
+printed cost: the pip alone, then one to four generic beside it (the
+colourless card has no pip, so its columns are one to four generic).
+
+| Card | Duty | pip | +1 | +2 | +3 | +4 | Chosen |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Mirror-Lake Glass | `{2},{T}: Foresee 3` | +0.20 | -0.62 | -1.44 | -2.26 | -3.08 | {U} |
+| Lowland Fort Banner | `{2},{T}: tap target opposing creature` | +1.10 | +0.28 | -0.54 | -1.36 | -2.18 | {2}{W}, the Bell's cost |
+| Festival Rocket | `{2},{T}: 2 damage to target creature` | +1.70 | +0.88 | +0.06 | -0.76 | -1.58 | {2}{R} |
+| Moorlight Lantern | `{3},{T}: opponent loses 2, you gain 2` | +2.06 | +1.24 | +0.42 | -0.40 | -1.22 | {2}{B} |
+| Riverbend Waterwheel | `{3},{T}: return a creature card to hand` | +0.70 | -0.12 | -0.94 | -1.76 | -2.58 | {2}{G}, one colder on purpose |
+| Nebula Beacon | `{2},{T}: +2/+2 until Sunset` | +1.40 | +0.58 | -0.24 | -1.06 | -1.88 | {2}{W} |
+| Crossing Beacon | `{3},{T}: draw a card` | n/a | +3.45 | +2.63 | +1.81 | +0.99 | {4}, Net of Glass's cost |
+
+Alternates scored and not taken: `{3},{T}: Foresee 1, then draw` on the
+Glass (+0.57 even at four generic), `{3},{T}: gain 4 life` on the Banner
+(+0.10 at the pip, no more interesting than the row it replaced),
+`{3},{T}: 2 damage to your opponent` on the Rocket (-0.05 at the pip, the
+fallback if repeatable creature removal at common plays too hard),
+`{2},{T}: opponent loses 2` on the Lantern (+0.28 at one generic),
+`{2},{T}: mill three` on the Waterwheel (-0.55 at the pip), and
+`{3},{T}: 2 damage to any target` on Ember-Lane Flare (-0.04 at two
+generic; not taken, so Starborne keeps a cheap red pinger).
+
+Caveat, stated plainly: section 4q discounts a Duty 0.4 per activation
+mana, capped at 1.5, and that rate already carries a `NEEDS MATH` flag. A
+three-mana activation eats most of an early turn, which a 1.2 discount
+understates, so the formula reads these seven hotter than they will play
+and the printed costs above err cold. That is the safe side for commons;
+the seeded matrix after transcription is the check, and Festival Rocket
+(repeatable creature removal at common) and Crossing Beacon (repeatable
+draw) are the two rows it looks at first.
+
 ## 6. Blast radius for the transcription wave (grep, do not remember)
 
 - **Card data**: five set files (`src/data/cards/`), 27 rows: type,
@@ -201,7 +264,7 @@ slate keeps every card's original colour rather than chasing the premium.
   7 to 2, plus whichever Gothic, Dark Tales and Starborne assertions the
   grep finds), `tests/data/starborne.test.ts` (Interstellar Crossing),
   `tests/data/catalog.test.ts` mana-value bounds (all 27 now have a cost).
-- **Converter output**: 27 one- and two-mana artifacts become legal
+- **Converter output**: 27 one- to four-mana artifacts become legal
   singletons in their colours, so `scripts/avatarReserveDecks.ts` may pull
   them into avatar reserve decks. **Any change to committed converter output
   stops the wave for an owner decision** (the Starborne rule): the
@@ -210,7 +273,15 @@ slate keeps every card's original colour rather than chasing the premium.
 - **AI**: `activatedPolicy` (#359) already plays free non-creature Duties in
   Morning and paid ones in Afternoon; no new policy. The mark-aware brains
   see Overcanopy Trellis and Deepfield Array through the existing
-  `addCounters` / `moveMark` valuation.
+  `addCounters` / `moveMark` valuation. The seven heavier rows add targeted
+  Duties on artifacts outside Drowned Deep. Tap, creature damage and draw
+  already ship there (the Bell, the Forge, Net of Glass); the pump, the
+  drain and the graveyard return are new on a non-creature carrier. The
+  validator already admits `yourGraveCreature` as an activated target
+  (`validateActivatedDef`), so none needs an engine change, but the
+  transcription proves all three brains activate each of the seven with a
+  sensible target and hold the mana for a two- or three-mana Duty the way
+  phase B's mana holding does.
 - **Packs and drops**: `packPool` stops excluding them (they are no longer
   lands), so five sets gain commons in draft packs; the booster common row
   is unchanged in size. Collection percentage: unchanged count. Assay: 27
