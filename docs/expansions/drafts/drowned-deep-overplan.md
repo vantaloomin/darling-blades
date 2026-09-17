@@ -55,7 +55,7 @@ percent of the pool.
 | dd-brenna-gale | Brenna Gale, Storm-Caller of the Reach | UR | R | Creature, Human, legendary | {2}{R}{R} | 4/3 | Warcry. Rage. Duty: damage target creature 2. | She can hold the storm or hold the line. Not both, and she knows it. | core |
 | dd-the-choir-below | The Choir Below | UR | U/B | Enchantment, legendary | {2}{U}{B} | none | During your Dawn: grind self 2. Duty, {2}: Foresee 1, then draw 1. | They sing in the voices of the people you miss, and they are very good at it. | flex |
 | dd-the-lantern-watch | The Lantern Watch | UR | W/U | Enchantment, legendary | {1}{W}{U} | none | Your creatures get +0/+1. Your creatures have Warding Gaze. Duty: tap target creature. | Every lamp on the coast has a woman behind it, and every woman has a reason. | flex |
-| dd-cinderjaw | Cinderjaw, the Fire That Swims | UR | R | Creature, Deep One Horror, legendary | {4}{R}{R} | 5/4 | Warcry. Duty, {R}: damage target creature 2. Whenever this attacks, damage opponent 2. Whispers {3}{R}{R}. | The town burns its wrecks to keep the Deep away. The Deep learned to like it hot. | core |
+| dd-cinderjaw | Cinderjaw, the Fire That Swims | UR | R | Creature, Deep One Horror, legendary | {4}{R}{R} | 5/4 | Warcry. Tithe. Duty, {R}: damage target creature 2. Whenever this attacks, damage opponent 2. Whispers {3}{R}{R}. | The town burns its wrecks to keep the Deep away. The Deep learned to like it hot. | core |
 
 ## Double Super Rare (22; cut keeps 16)
 

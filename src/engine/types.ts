@@ -510,7 +510,8 @@ export function validateWhispersDef(d: CardDef): string[] {
   if (d.retell) errors.push('Whispers card cannot combine with Retell');
   if (d.rite) errors.push('Whispers card cannot combine with Rite');
   if (d.hauntlink) errors.push('Whispers card cannot combine with Hauntlink');
-  if (d.tithe) errors.push('Whispers card cannot combine with Tithe');
+  // Whispers and Tithe coexist (owner ruling 2026-09-17): the sacrifice pays
+  // down the generic part of the Whispers cost, exactly as it pays the printed one.
   if (d.x) errors.push('Whispers card cannot be X');
   const cost = d.whispers.cost;
   if (!cost) errors.push('Whispers needs a mana cost');
@@ -530,7 +531,6 @@ export function validateTitheDef(d: CardDef): string[] {
   if (d.retell) errors.push('Tithe card cannot combine with Retell');
   if (d.rite) errors.push('Tithe card cannot combine with Rite');
   if (d.hauntlink) errors.push('Tithe card cannot combine with Hauntlink');
-  if (d.whispers) errors.push('Tithe card cannot combine with Whispers');
   if (d.x) errors.push('Tithe card cannot be X');
   return errors;
 }

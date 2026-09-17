@@ -138,24 +138,28 @@ describe('Tithe definition contract', () => {
     expect(validateTitheDef({ ...DB.tithe, tithe: { per } as TitheDef }).length).toBeGreaterThan(0);
   });
 
+  // The Whispers row was removed here (owner ruling 2026-09-17: Whispers and
+  // Tithe may now share a card); Retell, Rite, Hauntlink and X are unchanged.
   it.each([
     ['Retell', { retell: { cost: { generic: 0, pips: {} } } }],
     ['Rite', { rite: { n: 1 } }],
     ['Hauntlink', { hauntlink: { cost: { generic: 0, pips: {} }, linked: { p: 1 } } }],
-    ['Whispers', { whispers: { cost: { generic: 0, pips: {} } } }],
     ['X', { x: { min: 1 } }],
   ] as [string, Partial<CardDef>][])('rejects Tithe with %s', (name, patch) => {
     expect(validateTitheDef({ ...DB.tithe, ...patch }).join('; ')).toContain(name);
   });
 
-  it('mirrors exclusions in Rite, Hauntlink and Whispers validators', () => {
+  it('accepts Tithe beside Whispers in both validators', () => {
+    const pair: CardDef = { ...DB.tithe, whispers: { cost: { generic: 1, pips: { R: 1 } } } };
+    expect(validateTitheDef(pair)).toEqual([]);
+    expect(validateWhispersDef(pair)).toEqual([]);
+  });
+
+  it('mirrors exclusions in the Rite and Hauntlink validators', () => {
     expect(validateRiteDef({ ...DB.tithe, rite: { n: 1 } }).join('; ')).toContain('Tithe');
     expect(validateHauntlinkDef({
       ...DB.tithe, types: ['artifact'],
       hauntlink: { cost: { generic: 0, pips: {} }, linked: { p: 1 } },
-    }).join('; ')).toContain('Tithe');
-    expect(validateWhispersDef({
-      ...DB.tithe, whispers: { cost: { generic: 0, pips: {} } },
     }).join('; ')).toContain('Tithe');
   });
 });

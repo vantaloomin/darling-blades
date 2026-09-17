@@ -188,7 +188,8 @@ function pushCastActions(
     : undefined;
   // One action per (Empower option, legal target selection, X value).
   for (const empowered of !retell && !hauntlinked && !mode.whispers && canEmpower(d) ? [false, true] : [false]) {
-    const fodder = mode.tithe ? canonicalTitheSacrifices(state, db, player, d, empowered) : sacrifices;
+    const fodder = mode.tithe
+      ? canonicalTitheSacrifices(state, db, player, d, empowered, mode.whispers === true) : sacrifices;
     // The ordinary cast already represents the empty set; never duplicate it.
     if (mode.tithe && fodder?.length === 0) continue;
     const options = { ...mode, sacrifices: fodder, state, db, graveIndex: sourceIndex };
@@ -246,8 +247,12 @@ export function castCost(
   options: CastCostOptions = {},
 ): CardDef['cost'] {
   if (options.whispers) {
-    if (empowered || retell || hauntlinked || options.tithe || validateWhispersDef(d).length > 0) return undefined;
-    return d.whispers?.cost;
+    if (empowered || retell || hauntlinked || validateWhispersDef(d).length > 0) return undefined;
+    if (options.tithe && (!d.tithe || validateTitheDef(d).length > 0)) return undefined;
+    const whispersCost = d.whispers?.cost;
+    if (!whispersCost || !options.tithe) return whispersCost;
+    // The sacrifice pays down the WHISPERS generic, not the printed one.
+    return titheDiscounted(whispersCost, options);
   }
   if (options.tithe && (retell || hauntlinked || !d.tithe || validateTitheDef(d).length > 0)) return undefined;
   if (hauntlinked) return d.hauntlink?.cost;
@@ -257,6 +262,11 @@ export function castCost(
     ? canEmpower(d) ? combineManaCosts(d.cost, d.empower!.cost) : undefined
     : d.cost;
   if (!cost || !options.tithe) return cost;
+  return titheDiscounted(cost, options);
+}
+
+/** Two points of sacrificed Defense buy one generic mana; coloured pips never move. */
+function titheDiscounted(cost: ManaCost, options: CastCostOptions): ManaCost | undefined {
   const { state, db, sacrifices = [] } = options;
   if (!state || !db) return undefined;
   const defense = sacrifices.reduce((sum, iid) => sum + getEffectiveStats(state.battlefield, db, iid).defense, 0);
@@ -264,8 +274,10 @@ export function castCost(
 }
 
 /** One stable fodder set per cost variant, never an exponential subset menu. */
-function canonicalTitheSacrifices(state: GameState, db: CardDb, player: PlayerId, d: CardDef, empowered: boolean): number[] {
-  const generic = castCost(d, empowered)?.generic ?? 0;
+function canonicalTitheSacrifices(
+  state: GameState, db: CardDb, player: PlayerId, d: CardDef, empowered: boolean, whispers = false,
+): number[] {
+  const generic = castCost(d, empowered, false, false, { whispers })?.generic ?? 0;
   const bodies = state.battlefield
     .filter((perm) => perm.controller === player && isType(def(db, perm.cardId), 'creature'))
     .map((perm) => ({ iid: perm.iid, defense: getEffectiveStats(state.battlefield, db, perm.iid).defense }))
@@ -301,6 +313,8 @@ function pushAdditionalCastActions(out: Action[], state: GameState, db: CardDb, 
     const d = def(db, card);
     if (d.whispers && liveWhispers(state, player, index, d) && whispersCastableNow(state, player, d)) {
       pushCastActions(out, state, db, player, index, d, false, false, { whispers: true });
+      // A Whispers carrier that also has Tithe offers one canonical fodder cast.
+      if (d.tithe) pushCastActions(out, state, db, player, index, d, false, false, { whispers: true, tithe: true });
     }
   });
   const seen = new Set<string>();
@@ -646,7 +660,7 @@ function castBlockers(
   options: CastCostOptions & { graveIndex?: number } = {},
 ): string | null {
   if (options.whispers) {
-    if (!d.whispers || validateWhispersDef(d).length > 0 || empowered || retell || hauntlinked || options.tithe) {
+    if (!d.whispers || validateWhispersDef(d).length > 0 || empowered || retell || hauntlinked) {
       return 'invalid Whispers cast';
     }
     if (!liveWhispers(state, player, options.graveIndex, d)) return 'Whispers marker is not live';
@@ -1027,8 +1041,8 @@ export function validateAction(
       const isWhispers = action.whispers === true;
       const isTithe = action.tithe === true;
       const fromGrave = isRetell || isWhispers;
-      if (isWhispers && (isRetell || isHauntlinked || isTithe || action.empowered || action.x !== undefined)) {
-        return 'Whispers cannot combine with Retell, Hauntlink, Tithe, Empower or X';
+      if (isWhispers && (isRetell || isHauntlinked || action.empowered || action.x !== undefined)) {
+        return 'Whispers cannot combine with Retell, Hauntlink, Empower or X';
       }
       if (isTithe && (isRetell || isHauntlinked || action.x !== undefined)) return 'Tithe cannot combine with Retell, Hauntlink or X';
       if (isRetell && isHauntlinked) return 'Retell and Hauntlink cannot be combined';

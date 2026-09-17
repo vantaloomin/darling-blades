@@ -25,9 +25,26 @@ type SpellCast = Extract<Action, { type: 'castSpell' }>;
 // the 3pp band: retain V0, the smallest change. Tempo unlock stays intact.
 const FODDER_VALUE_RATE = 0.2;
 
+/**
+ * A Tithe cast is normally a hand cast, but a card carrying both Whispers and
+ * Tithe pays its fodder from the graveyard, where handIndex only mirrors
+ * graveIndex. Every Tithe reader resolves its card through here.
+ */
+function titheCastCardId(view: PlayerView, action: SpellCast): string | undefined {
+  return action.whispers && action.graveIndex !== undefined
+    ? view.you.graveyard[action.graveIndex]
+    : view.you.hand[action.handIndex];
+}
+
+/** The cost the fodder pays down: the Whispers cost on a whispered cast. */
+function titheBaseCost(db: CardDb, cardId: string, cast: SpellCast): ReturnType<typeof castCost> {
+  return castCost(def(db, cardId), cast.empowered === true, false, false, { whispers: cast.whispers });
+}
+
 export function isTitheCast(view: PlayerView, db: CardDb, action: Action): action is SpellCast {
-  return action.type === 'castSpell' && action.tithe === true &&
-    db[view.you.hand[action.handIndex]]?.tithe !== undefined;
+  if (action.type !== 'castSpell' || action.tithe !== true) return false;
+  const cardId = titheCastCardId(view, action);
+  return cardId !== undefined && db[cardId]?.tithe !== undefined;
 }
 
 /** Use the combat planner's public Morning plan; Afternoon has already attacked. */
@@ -43,7 +60,9 @@ function plannedAttackers(view: PlayerView, db: CardDb, pers: Personality): numb
 /** Generic mana saved, including Empower, at the public effective Defense. */
 export function titheManaSaved(view: PlayerView, db: CardDb, cast: SpellCast): number {
   if (!cast.tithe) return 0;
-  const generic = castCost(def(db, view.you.hand[cast.handIndex]), cast.empowered === true)?.generic ?? 0;
+  const cardId = titheCastCardId(view, cast);
+  if (cardId === undefined) return 0;
+  const generic = titheBaseCost(db, cardId, cast)?.generic ?? 0;
   const defense = (cast.sacrifices ?? []).reduce((sum, iid) =>
     sum + getEffectiveStats(view.battlefield, db, iid).defense, 0);
   return Math.min(generic, Math.floor(defense / 2));
@@ -60,9 +79,11 @@ export function chooseTitheSacrifices(
   cast: SpellCast,
   attackers: readonly number[] = plannedAttackers(view, db, DEFAULT_PERSONALITY),
 ): number[] {
-  const d = def(db, view.you.hand[cast.handIndex]);
+  const cardId = titheCastCardId(view, cast);
+  if (cardId === undefined) return [];
+  const d = def(db, cardId);
   if (!d.tithe) return [];
-  const fullCost = castCost(d, cast.empowered === true);
+  const fullCost = titheBaseCost(db, cardId, cast);
   const generic = fullCost?.generic ?? 0;
   if (!fullCost || generic <= 0) return [];
   const bodies = view.battlefield.flatMap((perm, index) => {
@@ -143,6 +164,8 @@ export function applyTithePolicy(
     if (validateAction(world.instanceState, db, view.myId, candidate) !== null) continue;
     const alreadyOffered = legal.some((other) => other.type === 'castSpell' && !other.tithe &&
       other.handIndex === candidate.handIndex && other.empowered === candidate.empowered &&
+      // A whispered Tithe cast falls back to the plain Whispers cast, never a hand cast.
+      !!other.whispers === !!candidate.whispers && other.graveIndex === candidate.graveIndex &&
       JSON.stringify(other.targets ?? []) === JSON.stringify(candidate.targets ?? []));
     if (!alreadyOffered) prepared.push(candidate);
   }

@@ -160,7 +160,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     flavor: 'She can hold the storm or hold the line. Not both, and she knows it.',
     set: 'drowned-deep',
   },
-  // Warcry. Duty, {R}: damage target creature 2. Whenever this attacks, damage opponent 2. Whispers {3}{R}{R}.
+  // Warcry. Tithe. Duty, {R}: damage target creature 2. Whenever this attacks, damage opponent 2. Whispers {3}{R}{R}.
   {
     id: 'dd-cinderjaw',
     name: 'Cinderjaw, the Fire That Swims',
@@ -172,6 +172,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     attack: 5,
     defense: 4,
     keywords: ['warcry'],
+    tithe: { per: 2 },
     whispers: { cost: cost(3, 'RR') },
     abilities: [{ when: 'attacks', ops: [{ op: 'damage', n: 2, to: 'opponent' }] }],
     activated: { cost: { tap: true, mana: cost(0, 'R') }, targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 2, to: 'target' }] },

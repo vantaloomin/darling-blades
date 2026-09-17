@@ -6175,6 +6175,16 @@ export class DuelScene extends Phaser.Scene {
       const preserve = preserveActions.get(slot.index);
       const whisperedCasts = whispersActions.get(slot.index);
       const whispered = liveWhispers.has(slot.index) && card.whispers !== undefined;
+      // A Whispers carrier with Tithe (Cinderjaw, 2026-09-17) gets its own
+      // chip: the enumerator lists the plain cast first, so routing the whole
+      // list through continueCast would silently drop the fodder picker.
+      // Zero fodder is legal too, as in the hand chooser, so a Tithe variant
+      // the enumerator omitted is synthesized from the plain cast.
+      const plainWhispers = whisperedCasts?.filter((cast) => !cast.tithe) ?? [];
+      const titheWhispers = whisperedCasts?.filter((cast) => cast.tithe) ?? [];
+      if (card.tithe && titheWhispers.length === 0) {
+        titheWhispers.push(...plainWhispers.map((cast) => ({ ...cast, tithe: true as const, sacrifices: [] })));
+      }
       const choice = graveActionChoice(
         casts !== undefined && card.retell !== undefined,
         preserve !== undefined && card.preserve !== undefined,
@@ -6208,11 +6218,20 @@ export class DuelScene extends Phaser.Scene {
           : {}),
         ...(whispered && player === HUMAN && card.whispers
           ? {
-              additionalActions: [{
-                label: 'Whisper for', cost: card.whispers.cost,
-                enabled: whisperedCasts !== undefined,
-                onSelect: () => { if (whisperedCasts) this.startCast(whisperedCasts); },
-              }],
+              additionalActions: [
+                {
+                  label: 'Whisper for', cost: card.whispers.cost,
+                  enabled: plainWhispers.length > 0,
+                  onSelect: () => { if (plainWhispers.length > 0) this.startCast(plainWhispers); },
+                },
+                ...(card.tithe
+                  ? [{
+                      label: 'Whisper, sacrificing', cost: card.whispers.cost,
+                      enabled: titheWhispers.length > 0,
+                      onSelect: () => { if (titheWhispers.length > 0) this.startCast(titheWhispers); },
+                    }]
+                  : []),
+              ],
             }
           : {}),
       };
