@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ui/themeWidgets.ts, src/ui/modalDismissPresentation.ts, src/ui/Toast.ts, src/ui/toastQueue.ts, src/ui/navigation.ts, src/ui/deckBuilderHelpers.ts, src/ui/Dropdown.ts, src/ui/CardView.ts, src/ui/ManaText.ts, src/ui/CardThumbCache.ts, src/ui/CardZoomPreview.ts, src/ui/ZoneContentsModal.ts, src/ui/inspectHotkeys.ts, src/ui/OverlayCoordinator.ts, src/ui/CoachMark.ts, src/ui/KeywordGlossaryPanel.ts, src/ui/KeywordIcons.ts, src/scenes/GlossaryScene.ts, src/ui/MultilineInput.ts, src/platform/gestures.ts, src/ui/layout.ts, src/ui/theme.ts · last-verified: 2026-09-03
+<!-- source-of-truth: src/ui/themeWidgets.ts, src/ui/modalDismissPresentation.ts, src/ui/Toast.ts, src/ui/toastQueue.ts, src/ui/StatsPrivacyPanel.ts, src/ui/statsPrivacyPresentation.ts, src/ui/navigation.ts, src/ui/deckBuilderHelpers.ts, src/ui/Dropdown.ts, src/ui/CardView.ts, src/ui/ManaText.ts, src/ui/CardThumbCache.ts, src/ui/CardZoomPreview.ts, src/ui/ZoneContentsModal.ts, src/ui/inspectHotkeys.ts, src/ui/OverlayCoordinator.ts, src/ui/CoachMark.ts, src/ui/KeywordGlossaryPanel.ts, src/ui/KeywordIcons.ts, src/scenes/GlossaryScene.ts, src/ui/MultilineInput.ts, src/platform/gestures.ts, src/ui/layout.ts, src/ui/theme.ts · last-verified: 2026-09-17
      If you change those files, update this doc or re-verify the date. -->
 
 # Reusable UI components
@@ -85,7 +85,31 @@ net, keeping 8px between inflated hit rects.
   shine sweep, stacks up to three notices, collapses larger bursts to a
   caller-supplied summary, and pauses behind a `ModalGuard` or an owner-supplied
   blocking predicate. Notices persist across scene handoffs until a host can
-  present them at a safe boundary.
+  present them at a safe boundary. Since 2026-09-17 a notice may opt into four
+  optional fields, absent for every existing caller: `holdMs` (its own hold,
+  default 3200), `fitBody` (the plaque grows to fit a multi-line body instead
+  of centring it on a fixed line), `neverCollapse` (survives a burst whole
+  while the rest collapse to the summary) and `onShown` (called once the card,
+  its timer and its tween exist). `canPresentImmediately()` reports whether the
+  rail is live, unblocked and empty, which is how the anonymous-stats notice
+  refuses to queue behind other notices that would carry it into another
+  scene. `tests/ui/toastQueue.test.ts` pins that a burst with no opted-in
+  notice is handled byte for byte as before.
+- `StatsPrivacyPanel` (`createStatsPrivacyPanel`) with
+  `statsPrivacyPresentation.ts`: the "What is sent" modal reached from the
+  Settings Privacy row, and the pure module that holds every string of the
+  consent surfaces (transcribed from the author's copy, no em-dashes), the
+  three field-description maps keyed to `SIGNAL_FIELDS`, the layout numbers,
+  and the four pure decisions (which caption the Settings row shows, whether
+  the notice shows, the stamp order, the toggle). The panel renders one line
+  per field in allowlist order in three columns, the "Never sent" block, the
+  footer promise and a `Read the privacy policy` button opening
+  `./privacy.html`; it scrolls the way `KeywordGlossaryPanel` does only if it
+  ever overflows, and it never shrinks its text. Tests hold each description
+  map's key set equal to its allowlist in both directions, so the panel cannot
+  drift from what the code sends. The presentation module takes the signals
+  gate as an argument rather than importing `src/net`, which keeps `src/ui` off
+  the harness-trap importer list.
 - `modalShell` also participates in the scene-local modal stack used by
   `registerSceneBackNavigation`, so a modal opened after scene creation still
   wins the next ESC press. Its named dismissal preset determines whether the
