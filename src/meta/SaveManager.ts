@@ -10,7 +10,7 @@ import { isReplayLog, REPLAY_CAP, type ReplayLog } from './Replay';
 import { normalizeDarlingsFields } from './darlings';
 import { parseVariantKey, PLAIN_VARIANT, variantKey } from './variants';
 import { CARD_BACKS, PLAYMATS, cosmeticById, isKnownCosmeticId } from './cosmetics';
-import { STATS_NOTICE_VERSION, normalizeStatsNoticeVersion } from './statsNotice';
+import { normalizeStatsNoticeVersion } from './statsNotice';
 
 export const CURRENT_SAVE_VERSION = 35 as const;
 const LEGACY_WARCHEST_FORMAT = 'battle' + 'box';
@@ -274,9 +274,12 @@ export interface SaveData {
     shareAnonStats: boolean;
     /**
      * The last version of the anonymous-stats notice this profile was shown.
-     * v35 addition; `STATS_NOTICE_VERSION` for a fresh save (the first-run
-     * flow covers it) and `0` for every migrated save, so an existing player
-     * is TOLD on the update rather than having collection start silently. The
+     * v35 addition; `0` for a fresh save AND for every migrated save, so every
+     * player is TOLD before anything is sent rather than having collection
+     * start silently. Owner ruling 2026-09-17: show the notice to all players
+     * unless we can verify they have seen it, and the only proof is this stamp.
+     * (The first draft started a fresh save already-notified on the grounds
+     * that "the first-run flow covers it"; no first-run flow mentions stats.) The
      * client shows the notice while this is below `STATS_NOTICE_VERSION` and
      * then stamps it, so a later change to the fields sent re-arms the notice
      * by bumping the constant, with no further save bump. A number rather
@@ -352,9 +355,10 @@ export function freshSave(now: number): SaveData {
       instantCast: false,
       confirmLandDrop: true,
       shareAnonStats: true,
-      // A fresh save meets the first-run flow, so it starts already-notified;
-      // only an existing profile is owed the update notice.
-      statsNoticeVersion: STATS_NOTICE_VERSION,
+      // Not yet notified. A new player is told exactly as an existing one is:
+      // the only proof that anyone has seen the notice is the stamp the UI
+      // writes after showing it (owner ruling 2026-09-17).
+      statsNoticeVersion: 0,
     },
   };
 }
@@ -439,8 +443,8 @@ export class SaveManager {
    * cosmetic ownership list; v32 -> v33 moves style onto the deck; v33 -> v34
    * adds `settings.confirmLandDrop` (default on); v34 -> v35 adds
    * `settings.shareAnonStats` (default ON everywhere) and
-   * `settings.statsNoticeVersion` (0 for a migrated save, so an existing
-   * player is told on the update), and drops the two dead account-level
+   * `settings.statsNoticeVersion` (0 for every save until the notice has been
+   * shown, so every player is told first), and drops the two dead account-level
    * cosmetics fields that v33 superseded.
    * An unknown/garbage version starts fresh rather than crash.
    *
@@ -922,10 +926,8 @@ export class SaveManager {
     }
     if (cur.version === 34) {
       // Telemetry preference. Sharing defaults ON everywhere (owner decision 1),
-      // but the NOTICE version is deliberately asymmetric: a fresh save starts
-      // at the current notice version because the first-run flow tells the
-      // player, while any migrated save starts at 0 so the update owes them
-      // the notice.
+      // and the NOTICE version starts at 0, as it does for a fresh save: nobody
+      // has been told until the UI shows the notice and stamps it.
       //
       // Both are keyed off `arrivedAtVersion` for the reason documented there:
       // the shared block above rewinds an up-to-date save to v22 and re-walks

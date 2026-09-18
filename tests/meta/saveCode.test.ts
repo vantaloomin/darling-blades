@@ -213,16 +213,14 @@ describe('SaveCode', () => {
   it('keeps a literal golden code stable', () => {
     const golden = expectOk(decode(GOLDEN_FRESH_SAVE_CODE));
     const regenerated = expectOk(decode(encode(freshSave(NOW))));
-    // The golden code is a v22 blob, so it is a MIGRATED save, and v35 made
-    // exactly one field differ between migrated and fresh on purpose: an
-    // existing player has not seen the anonymous-stats notice, a new one has.
-    // Before v35 the two were identical and this was a bare `toEqual`.
-    expect(regenerated.save.settings.statsNoticeVersion).toBe(STATS_NOTICE_VERSION);
+    // The golden code is a v22 blob, so it is a MIGRATED save. A migrated save
+    // and a fresh one are identical again: neither has seen the anonymous-stats
+    // notice (owner ruling 2026-09-17, every player is told). For one day the
+    // first v35 draft made them differ on that field and this test had to
+    // assert the asymmetry; it is back to a bare `toEqual`.
+    expect(regenerated.save.settings.statsNoticeVersion).toBe(0);
     expect(golden.save.settings.statsNoticeVersion).toBe(0);
-    expect(golden.save).toEqual({
-      ...regenerated.save,
-      settings: { ...regenerated.save.settings, statsNoticeVersion: 0 },
-    });
+    expect(golden.save).toEqual(regenerated.save);
     expect(golden.preview).toEqual({ ...regenerated.preview, sourceSchemaVersion: 22 });
   });
 
