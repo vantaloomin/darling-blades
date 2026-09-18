@@ -21,9 +21,16 @@ import {
   rerollDailyQuest,
 } from '../meta/Quests';
 import { Services } from '../meta/services';
+import { normalizeStatsNoticeVersion, STATS_NOTICE_VERSION } from '../meta/statsNotice';
+import { signals } from '../net/signals';
 import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { MAIN_MENU_ITEMS, MAIN_MENU_X, mainMenuButtonY } from '../ui/mainMenuPresentation';
+import {
+  stampStatsNotice,
+  statsNoticeDecision,
+  statsNoticeToast,
+} from '../ui/statsPrivacyPresentation';
 import { colorInt, theme } from '../ui/theme';
 import { Toast } from '../ui/Toast';
 import { goldBadge, modalShell, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
@@ -35,6 +42,7 @@ const MENU_ITEMS = MAIN_MENU_ITEMS;
 export class MainMenuScene extends Phaser.Scene {
   private menuItems: Phaser.GameObjects.GameObject[] = [];
   private guard = new ModalGuard();
+  private toasts!: Toast;
 
   constructor() {
     super('MainMenu');
@@ -43,7 +51,7 @@ export class MainMenuScene extends Phaser.Scene {
   create(): void {
     this.menuItems = [];
     this.guard = new ModalGuard();
-    new Toast(this, { modalGuard: this.guard });
+    this.toasts = new Toast(this, { modalGuard: this.guard });
     // Design-space constants, NOT this.scale (= game size = 1280k×720k under
     // render scale; the camera shows the 1280×720 design window — see
     // src/platform/renderScale.ts). Identical at k=1.
@@ -163,7 +171,46 @@ export class MainMenuScene extends Phaser.Scene {
       color: theme.colors.muted,
     });
 
-    if (!this.showDeckRepairNotice() && !Services.save.data.tutorialDone) this.promptTutorial();
+    const repairShown = this.showDeckRepairNotice();
+    const tutorialShown = !repairShown && !Services.save.data.tutorialDone;
+    if (tutorialShown) this.promptTutorial();
+    this.maybeShowStatsNotice(repairShown || tutorialShown);
+  }
+
+  /**
+   * The one-time anonymous-stats notice (privacy policy section 8: a player is
+   * told before anything new is sent). It is a rail notice, never a blocking
+   * dialog, and it waits for a clear menu: not over the deck-repair modal, not
+   * over the tutorial prompt, and not behind other notices that are still on
+   * screen, because a notice queued behind them would travel to whatever scene
+   * the player opened next.
+   *
+   * Nothing is stamped here. The stamp runs from the rail's own `onShown`, so a
+   * player who leaves before the card is built is still owed the notice, and
+   * the gate keeps sending nothing until they have had it.
+   */
+  private maybeShowStatsNotice(overlayOpen: boolean): void {
+    const decision = statsNoticeDecision({
+      // Normalised the same way the gate reads it: garbage means not yet told.
+      savedVersion: normalizeStatsNoticeVersion(Services.save.data.settings.statsNoticeVersion),
+      currentVersion: STATS_NOTICE_VERSION,
+      screenClear: !overlayOpen && this.toasts.canPresentImmediately(),
+    });
+    if (decision !== 'show') return;
+    this.toasts.enqueue(
+      statsNoticeToast(() =>
+        stampStatsNotice(
+          {
+            setNoticeVersion: (version) => {
+              Services.save.data.settings.statsNoticeVersion = version;
+            },
+            touch: () => Services.save.touch(),
+            acknowledge: () => signals.noticeAcknowledged(),
+          },
+          STATS_NOTICE_VERSION,
+        ),
+      ),
+    );
   }
 
   private showDeckRepairNotice(): boolean {

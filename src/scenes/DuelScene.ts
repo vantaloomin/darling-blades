@@ -60,6 +60,7 @@ import {
 import { Services } from '../meta/services';
 import { checkpointAchievements } from '../meta/achievementCheckpoint';
 import { deckColorStyle, type DeckColorStyle } from '../meta/deckColorIdentity';
+import { signals, type DuelSignalDeck } from '../net/signals';
 import { activatedBlockers, forcedAction, reasonUncastable, validateAction, type Action } from '../engine/actions';
 import { castTargetSpecsFor } from '../engine/resolve';
 import { previewCombat } from '../engine/combat/damage';
@@ -491,6 +492,13 @@ export class DuelScene extends Phaser.Scene {
    * instead of the ranked win/loss path.
    */
   private tutorial = false;
+  /**
+   * The human deck exactly as this duel was launched, held only so the
+   * end-of-duel anonymous digest can derive colours, curve and precon-ness from
+   * it (src/net/signals.ts). Nothing on it is ever emitted, and it is replaced
+   * on every create().
+   */
+  private signalDeck: DuelSignalDeck | null = null;
   private limited: LimitedDuelData['limited'] | null = null;
   /**
    * Draft-mode Limited matches are played against the persona seated at
@@ -952,6 +960,15 @@ export class DuelScene extends Phaser.Scene {
       playDrawChoice: !this.tutorial,
       ...(this.tutorial ? { rulesRev: 1 as const } : {}),
     });
+    // Anonymous duel digest (src/net/signals.ts): the launched human list, kept
+    // because the results path can no longer reconstruct it. Read only to
+    // derive colours, curve and precon-ness; no card id from it is ever sent.
+    this.signalDeck = {
+      cards: myDeck.slice(),
+      landReserve: landReserves?.[0] ?? null,
+      darlingId: darlings?.[0] ?? null,
+      savedFormat: myDeckEntry?.format ?? null,
+    };
     const aiSeed = seed ^ 0x5eed;
     const personality = this.opponent?.personality ?? this.limitedPersona?.personality;
     this.ai = data.aiOverride ?? (this.gauntletRung !== null
@@ -2055,6 +2072,11 @@ export class DuelScene extends Phaser.Scene {
         if (types.includes('charm')) this.tutCharmCast = true;
       }
       const events = this.duel.submit(HUMAN, action);
+      // Anonymous card tally (src/net/signals.ts), after the submit so a
+      // rejected action never counts. Only real plays: `skim` discards the card
+      // rather than playing it, and the tutorial's scripted line would bias the
+      // corpus with a fixed deck no duel digest ever accompanies.
+      if (playedCardId && action.type !== 'skim' && !this.tutorial) signals.cardsPlayed([playedCardId]);
       this.rememberRetellAction(action, events);
       if (this.replayDraft) recordReplayAction(this.replayDraft, HUMAN, action);
       if (this.tutorial && action.type === 'declareBlockers' && action.blocks.length > 0) {
@@ -7850,6 +7872,24 @@ export class DuelScene extends Phaser.Scene {
         finishReplay(this.replayDraft, won ? 'win' : 'loss', Date.now(), this.duel.state.turn),
       );
       this.replayDraft = null;
+    }
+    // The one anonymous duel digest, reported here so a single call covers all
+    // three modes, and BEFORE the branches pay out: a Limited run is still open
+    // in the save at this point, which is how `deckSource` measures `drafted`
+    // instead of taking the caller's word for it.
+    if (this.signalDeck) {
+      signals.duelFinished({
+        deck: this.signalDeck,
+        limited: this.limited !== null,
+        gauntlet: this.opponent !== null && this.gauntletRung !== null,
+        opponentId: this.opponent?.id ?? this.limitedPersona?.id ?? null,
+        difficulty: this.difficulty,
+        winner: this.duel.state.winner,
+        reason,
+        turns: this.duel.state.turn,
+        mulligans: this.duel.state.players[HUMAN].mulligans,
+        save: Services.save.data,
+      });
     }
     if (this.opponent && this.gauntletRung !== null) {
       this.showGauntletResults(won, reason);

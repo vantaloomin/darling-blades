@@ -10,6 +10,19 @@
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
     />
     <meta name="theme-color" content="#0d0a14" />
+    <!-- The privacy page says these are the only hosts the game contacts. This
+         makes the browser enforce it: the update check (api.github.com) and the
+         anonymous play stats (db-signals). Everything else the game loads is
+         same-origin. Only connect-src is restricted, on purpose: a strict
+         script-src needs a probe of Phaser's WebGL and audio paths first
+         (docs/legal/README.md, telemetry review finding 6). 'self' also covers
+         the dev server's own HMR socket under CSP level 3. The desktop build's
+         policy lives in src-tauri/tauri.conf.json and must also allow Tauri's
+         IPC origins; it is set with a desktop run, not here. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="connect-src 'self' https://api.github.com https://db-signals.loominvanta.workers.dev"
+    />
     <!-- Favicon set derived from the in-game card-back art (public/assets/art/
          scenes/card-back.png), centre-cropped to its gold diamond emblem. All
          hrefs are relative (no leading slash) so they resolve under the GitHub

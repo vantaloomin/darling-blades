@@ -147,6 +147,12 @@ For deeper dives: [docs/architecture.md](docs/architecture.md) (layers, the even
 
 This is a personal, single-player project built and tuned by one developer; there's no multiplayer server, by design, and no public contribution pipeline at the moment. The codebase does hold itself to a few unusual disciplines for a solo project, though: the rules engine is fully headless and seeded-deterministic, every difficulty of AI is held to a measured (not assumed) win-rate floor, and the documentation in `docs/` carries anti-rot tooling (`npm run check-docs`) that flags a doc as stale the moment the code it describes changes without it.
 
+## Privacy
+
+Your game lives on your device. The game sets no cookies, loads no third-party scripts, runs no ads, and never receives your save.
+
+Starting with 1.8, the game can send anonymous play stats: short summaries of how it is played, such as which formats and colours get played and how long duels last. Every number is rounded into a broad range before it leaves your device, and no name, account, identifier, deck name, or exact collection is ever sent. The summaries cannot be linked to you, or to each other from one day to the next. It is on by default. Every player is told once, in the game, before anything is sent, and you can switch it off in Settings at any time, where the "What is sent" panel lists every field. The full policy, including the two things the game already disclosed before 1.8 (the update check asks GitHub, and GitHub Pages keeps request logs), is at [privacy.html](https://vantaloomin.github.io/darling-blades/privacy.html), generated from [docs/legal/privacy-policy.md](docs/legal/privacy-policy.md) at every build so the two never differ.
+
 ## License
 
 The source code in this repository is released under the [MIT License](LICENSE).
