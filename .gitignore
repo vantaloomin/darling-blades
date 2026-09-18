@@ -94,3 +94,6 @@ worker/worker-configuration.d.ts
 
 # Python bytecode from the art scripts (audit-art-window.py imports smartcrop)
 scripts/__pycache__/
+
+# Built from docs/legal/privacy-policy.md by scripts/gen-privacy-page.ts (dev and build)
+public/privacy.html
