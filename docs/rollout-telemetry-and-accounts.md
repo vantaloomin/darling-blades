@@ -119,8 +119,13 @@ Adds to `SaveData.settings`:
 
 - `shareAnonStats: boolean` — **`true`** for fresh saves and for migrated saves
   (decision 1).
-- `statsNoticeVersion: number` — `0` for migrated saves, the current notice
-  version for fresh ones (a fresh save sees the first-run flow instead). The
+- `statsNoticeVersion: number` — `0` for every save, fresh or migrated, until
+  the notice has been shown. **Owner ruling 2026-09-17: show the notice to all
+  players unless we can verify they have seen it**, and the only proof is this
+  stamp. (As first written a fresh save started at the current notice version
+  because "a fresh save sees the first-run flow instead"; no first-run flow
+  mentions stats, so a new player would only have learned of them from
+  Settings or the privacy page.) The
   client compares it against a `STATS_NOTICE_VERSION` constant that lives
   beside the allowlist in `playSignals.ts` and is bumped whenever the set of
   fields sent changes; a save below it sees the notice and is stamped. This

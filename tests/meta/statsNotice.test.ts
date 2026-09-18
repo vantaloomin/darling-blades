@@ -46,8 +46,9 @@ describe('stats notice version', () => {
     expect(Number.isInteger(STATS_NOTICE_VERSION) && STATS_NOTICE_VERSION >= 1).toBe(true);
   });
 
-  it('a fresh save is already notified and a migrated one is owed the notice', () => {
-    expect(freshSave(1).settings.statsNoticeVersion).toBe(STATS_NOTICE_VERSION);
+  it('every save is owed the notice until it is stamped: fresh and migrated alike', () => {
+    expect(freshSave(1).settings.statsNoticeVersion).toBe(0);
+    expect(freshSave(1).settings.statsNoticeVersion).toBeLessThan(STATS_NOTICE_VERSION);
     const old = structuredClone(freshSave(1)) as unknown as Record<string, unknown> & { settings: Record<string, unknown> };
     old.version = 34;
     delete old.settings.shareAnonStats;
@@ -63,6 +64,15 @@ describe('stats notice version', () => {
     }
     expect(normalizeStatsNoticeVersion(0)).toBe(0);
     expect(normalizeStatsNoticeVersion(1)).toBe(1);
+  });
+
+  it('a stamped save stays stamped across a reload', () => {
+    const stamped = structuredClone(freshSave(1));
+    stamped.settings.statsNoticeVersion = STATS_NOTICE_VERSION;
+    const reloaded = Object.create(SaveManager.prototype).migrate(
+      stamped as unknown as Record<string, unknown>, 1,
+    );
+    expect(reloaded.settings.statsNoticeVersion).toBe(STATS_NOTICE_VERSION);
   });
 
   it('keeps a stamp from a NEWER build, so a downgrade never re-shows an older notice', () => {
