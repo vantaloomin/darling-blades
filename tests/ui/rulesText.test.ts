@@ -71,12 +71,13 @@ describe('target-aware damage and land rules text', () => {
     expect(rulesText(CARD_DB['so-nurture'])).toBe('Mark target creature you control twice.');
   });
 
-  it('prints each mono tapland arrival-rider kind beside enters-tapped text', () => {
-    expect(rulesText(CARD_DB['cf-mist-road'])).toBe('Arrives tapped.\nWhen this arrives, Foresee 1.');
-    expect(rulesText(CARD_DB['ac-bramble-chapel'])).toBe('Arrives tapped.\nWhen this arrives, you gain 1 life.');
-    expect(rulesText(CARD_DB['ac-court-of-whispers'])).toBe('Arrives tapped.\nWhen this arrives, put the top card of your deck into your graveyard.');
-    expect(rulesText(CARD_DB['gm-chapel-yard'])).toBe("Arrives tapped.\nWhen this arrives, Sever the top card of your opponent's graveyard.");
+  // The four mono-tapland pins moved to tests/data/landEconomy.test.ts on
+  // 2026-09-17: the land-economy conversion made them Duty artifacts
+  // (docs/plan-land-economy.md). ac-holy-well is a dual, not on the slate, and
+  // keeps its Arrives-tapped pin here.
+  it('prints the arrives-tapped line for the duals that still enter tapped', () => {
     expect(rulesText(CARD_DB['ac-holy-well'])).toContain('Arrives tapped.');
+    expect(rulesText(CARD_DB['cf-moonlit-barrow'])).toContain('Arrives tapped.');
   });
 
   it('does not emit em-dashes in generated rules text', () => {

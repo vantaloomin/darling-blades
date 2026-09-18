@@ -20,8 +20,12 @@ describe('Drowned Deep vocabulary rules text', () => {
     const shipped = ALL_CARDS.filter((definition) => definition.set !== 'drowned-deep');
     expect(shipped).toHaveLength(1259);
     const rows = shipped.map((definition) => [definition.id, rulesText(definition)]);
+    // Re-baselined 2026-09-17: the land-economy conversion
+    // (docs/plan-land-economy.md) replaced the 27 utility taplands'
+    // arrives-tapped text with their Duty lines. The card COUNT is unchanged
+    // and the exact 27 new lines are pinned in tests/data/landEconomy.test.ts.
     expect(createHash('sha256').update(JSON.stringify(rows)).digest('hex')).toBe(
-      '4f66abb01950ed0296e456d017f080cd8c7d6ff8116660398f56f51fd3c67cfd',
+      '3c6b62d4570fd5215eb2d55c9609ded394099e6aa63506a3d3b9de488c4e3637',
     );
   });
 

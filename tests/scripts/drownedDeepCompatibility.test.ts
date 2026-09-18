@@ -100,8 +100,12 @@ describe('Drowned Deep persona scorer compatibility', () => {
     const shipped = ALL_CARDS.filter((definition) => definition.set !== 'drowned-deep');
     expect(shipped).toHaveLength(1259);
     const rows = shipped.map((definition) => [definition.id, rateCard(definition)]);
+    // Re-baselined 2026-09-17: the land-economy conversion
+    // (docs/plan-land-economy.md) re-rated the 27 utility taplands as Duty
+    // artifacts. The card COUNT is unchanged (they were always in ALL_CARDS)
+    // and no other card's rate moved, because rateCard is pure per definition.
     expect(createHash('sha256').update(JSON.stringify(rows)).digest('hex')).toBe(
-      '19595ef09acaac1bff9d0944b9edde43cfdd110aaf878e6e0da236dbb47d1066',
+      '67bf6a2e049127b9ebbc8c0f9404e4fd8207f2bc03bf8d4d6a1bbe171631f63f',
     );
   });
 

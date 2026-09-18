@@ -97,11 +97,11 @@ _Concretion note (2026-07-17): the 2026-07-10 sketch used vocabulary the engine 
 | gm-raven-courier | Raven Courier | C | U | Creature | Gothic raven | skyborne | Evasive common |
 | gm-wolfbane-shot | Wolfsbane Shot | C | W | Charm | Hunter shot | sever target creature | White removal |
 | gm-blood-candle | Blood Candle | C | B | Enchantment | Ritual candle | dawn: damage controller 1 + draw 1 | Black value |
-| gm-moor-path | Moor Path | C | Land | Land | Foggy road | entersTapped, manaAbility B, arrives: gainLife 1 | Common land |
-| gm-chapel-yard | Chapel Yard | C | Land | Land | Grave chapel | entersTapped, manaAbility W, arrives: severGrave opponent 1 | Common land |
-| gm-lab-annex | Lab Annex | C | Land | Land | Storm lab | entersTapped, manaAbility U, arrives: foresee 1 | Common land |
-| gm-red-roof-village | Red-Roof Village | C | Land | Land | Gothic village | entersTapped, manaAbility R, arrives: gainLife 1 | Common land |
-| gm-thorned-cemetery | Thorned Cemetery | C | Land | Land | Grave garden | entersTapped, manaAbility G, arrives: grind self 1 | Common land |
+| gm-moor-path | Moorlight Lantern | C | B | Artifact | Foggy road | {T}, {3}: Your opponent loses 2 life, then you gain 2 life. | Common Duty artifact |
+| gm-chapel-yard | Chapel-Yard Rosary | C | W | Artifact | Grave chapel | {T}: Sever the top card of your opponent's graveyard. | Common Duty artifact |
+| gm-lab-annex | Annex Notebook | C | U | Artifact | Storm lab | {T}: Foresee 1. | Common Duty artifact |
+| gm-red-roof-village | Festival Rocket | C | R | Artifact | Gothic village | {T}, {2}: Deal 2 damage to target creature. | Common Duty artifact |
+| gm-thorned-cemetery | Cemetery Thorn | C | G | Artifact | Grave garden | {T}: Put the top card of your deck into your graveyard. | Common Duty artifact |
 | gm-midnight-bite | Midnight Bite | C | B | Charm | Vampire bite | damage target 2, gainLife 2 | Black removal |
 | gm-tattered-invitation | Tattered Invitation | C | B | Ritual | Ball invite | discardRandom opponent 1; empower: damage opponent 2 | Disruption |
 | gm-lantern-patrol | Lantern Patrol | C | W | Creature | Hunter patrol | firstBlade | Hunter filler |

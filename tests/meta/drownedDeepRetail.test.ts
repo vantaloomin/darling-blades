@@ -100,7 +100,10 @@ describe('Drowned Deep retail pack pipeline', () => {
   it('exposes the set to live filters and adds 252 cards to the binder pool', () => {
     expect(SET_IDS.filter(isLiveSet)).toContain(DROWNED_DEEP_SET);
     const pool = collectiblePool(ALL_CARDS);
-    expect(pool).toHaveLength(1455);
+    // 1455 -> 1482 on 2026-09-17: the land-economy conversion returns the 27
+    // retired utility taplands to the collectible pool as common Duty
+    // artifacts (docs/plan-land-economy.md).
+    expect(pool).toHaveLength(1482);
     const filtered = applyFilters(pool, { ...defaultFilterState(), set: DROWNED_DEEP_SET }, freshSave(0));
     expect(filtered).toHaveLength(252);
     expect(filtered.every((card) => card.id.startsWith('dd-') && !card.token)).toBe(true);

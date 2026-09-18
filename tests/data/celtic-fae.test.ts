@@ -136,17 +136,16 @@ describe('Celtic Fae data integrity', () => {
     }
   });
 
-  it('has the three rare duals and three common mono lands, all entering tapped', () => {
+  // 6 -> 3 on 2026-09-17: the land-economy conversion turned the three common
+  // mono taplands into common Duty artifacts (docs/plan-land-economy.md).
+  it('has the three rare duals and no mono taplands, all entering tapped', () => {
     const lands = CELTIC_FAE.filter((card) => card.types.includes('land'));
-    expect(lands).toHaveLength(6);
+    expect(lands).toHaveLength(3);
     expect(lands.every((card) => card.entersTapped)).toBe(true);
     expect(Object.fromEntries(lands.map((card) => [card.id, card.manaAbility]))).toEqual({
       'cf-moonlit-barrow': ['U', 'B'],
       'cf-sunwell-grove': ['G', 'W'],
       'cf-blackthorn-crossing': ['B', 'G'],
-      'cf-mist-road': ['U'],
-      'cf-mossy-ring': ['G'],
-      'cf-raven-stone': ['B'],
     });
   });
 });

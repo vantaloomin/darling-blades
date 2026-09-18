@@ -235,7 +235,11 @@ export const STARBORNE = [
     abilities: [{ when: 'spell', targets: [{ what: 'creature', tapped: true }], ops: [{ op: 'sever', to: 'target' }] }], rarity: 'c',
     flavor: 'The tribunal waits until the target has nowhere left to run.',
   }),
-  land('sb-pale-nebula', 'Pale Nebula', ['W'], 'c', 'The cloud looks soft until you try to navigate it.'),
+  artifact('sb-pale-nebula', 'Nebula Beacon', {
+    cost: cost(2, 'W'), colors: W,
+    activated: { cost: { tap: true, mana: cost(2) }, targets: [{ what: 'yourCreature' }], ops: [{ op: 'boost', p: 2, t: 2, scope: 'target' }] }, rarity: 'c',
+    flavor: 'The cloud looks soft until you try to navigate it.',
+  }),
   charm('sb-signal-inversion', 'Signal Inversion', {
     cost: cost(0, 'U'), colors: U,
     abilities: [spell([
@@ -256,7 +260,11 @@ export const STARBORNE = [
     cost: cost(1), colors: C, skim: { cost: cost(1) }, abilities: [spell([{ op: 'foresee', n: 1 }])], rarity: 'c',
     flavor: 'Fold it once and it becomes a route through the impossible.',
   }),
-  land('sb-deepfield-lands', 'Deepfield Lands', ['U'], 'c', 'The deep field is quiet because everything there is listening.'),
+  artifact('sb-deepfield-lands', 'Deepfield Array', {
+    cost: cost(0, 'U'), colors: U,
+    activated: { cost: { tap: true, mana: cost(1) }, targets: [{ what: 'yourCreature' }, { what: 'yourCreature' }], ops: [{ op: 'moveMark' }] }, rarity: 'c',
+    flavor: 'The deep field is quiet because everything there is listening.',
+  }),
   charm('sb-night-market-bargain', 'Night-Market Bargain', {
     cost: cost(2, 'B'), colors: B, abilities: [spell([{ op: 'draw', n: 1 }, { op: 'loseLife', n: 1, who: 'opponent' }])], rarity: 'c',
     flavor: 'The seller offers memories, replacement organs, and a discount for honesty.',
@@ -277,7 +285,11 @@ export const STARBORNE = [
     cost: cost(1, 'B'), colors: B, abilities: [spell([{ op: 'damage', n: 2, to: 'target' }, { op: 'gainLife', n: 1 }], 'any')], rarity: 'c',
     flavor: 'It burns with the last useful thought in a dead thing.',
   }),
-  land('sb-darkside-landing', 'Darkside Landing', ['B'], 'c', 'The landing lights are violet because red would look too hopeful.'),
+  artifact('sb-darkside-landing', 'Violet Landing Light', {
+    cost: cost(1, 'B'), colors: B,
+    activated: { cost: { tap: true }, targets: [{ what: 'creature', marked: true }], ops: [{ op: 'removeMarks', to: 'target' }] }, rarity: 'c',
+    flavor: 'The landing lights are violet because red would look too hopeful.',
+  }),
   ritual('sb-flareburst', 'Flareburst', {
     cost: cost(1, 'R'), colors: R, abilities: [spell([{ op: 'damage', n: 1, to: 'target' }, { op: 'markAll', scope: 'yourCreatures' }], 'any')], rarity: 'c',
     flavor: 'The smallest star can still ruin a morning.',
@@ -300,7 +312,11 @@ export const STARBORNE = [
     cost: cost(1, 'R'), colors: R, abilities: [spell([{ op: 'damage', n: 4, to: 'target' }], 'creature')], rarity: 'c',
     flavor: 'A small meteor is still a large argument.',
   }),
-  land('sb-ember-lane', 'Ember Lane', ['R'], 'c', 'The lane is hot, crowded, and officially one-way.'),
+  artifact('sb-ember-lane', 'Ember-Lane Flare', {
+    cost: cost(0, 'R'), colors: R,
+    activated: { cost: { tap: true, mana: cost(1) }, ops: [{ op: 'damage', n: 1, to: 'opponent' }] }, rarity: 'c',
+    flavor: 'The lane is hot, crowded, and officially one-way.',
+  }),
   charm('sb-warhead-glint', 'Warhead Glint', {
     cost: cost(1, 'R'), colors: R, abilities: [spell([{ op: 'boost', p: 3, t: 1, keywords: ['warcry'], scope: 'target' }], 'creature')], rarity: 'c',
     flavor: 'Her war paint is an emergency light with excellent cheekbones.',
@@ -323,7 +339,11 @@ export const STARBORNE = [
     abilities: [{ when: 'allyCreatureArrives', ops: [{ op: 'addCounters', n: 1, to: 'target' }] }], rarity: 'c',
     flavor: 'The garden does not distinguish between crew and crop.',
   }),
-  land('sb-overcanopy', 'Overcanopy', ['G'], 'c', 'A green aurora hangs low enough to touch from the watch deck.'),
+  artifact('sb-overcanopy', 'Overcanopy Trellis', {
+    cost: cost(1, 'G'), colors: G,
+    activated: { cost: { tap: true, mana: cost(1) }, targets: [{ what: 'yourCreature' }], ops: [{ op: 'addCounters', n: 1, to: 'target' }] }, rarity: 'c',
+    flavor: 'A green aurora hangs low enough to touch from the watch deck.',
+  }),
   artifact('sb-starborne-relay', 'Starborne Relay', {
     cost: cost(6), colors: C,
     abilities: [
@@ -341,8 +361,9 @@ export const STARBORNE = [
     cost: cost(1), colors: C, skim: { cost: cost(1) }, abilities: [spell([{ op: 'foresee', n: 1 }, { op: 'severGrave', n: 1, who: 'self' }])], rarity: 'c',
     flavor: 'Its one job is to make the impossible route look routine.',
   }),
-make('sb-interstellar-crossing', 'Interstellar Crossing', ['land'], [], {
-    colors: C, entersTapped: true, manaAbility: ['C'], rarity: 'c',
+  artifact('sb-interstellar-crossing', 'Crossing Beacon', {
+    cost: cost(4), colors: C,
+    activated: { cost: { tap: true, mana: cost(3) }, ops: [{ op: 'draw', n: 1 }] }, rarity: 'c',
     flavor: 'The crossing takes three days if you walk and one blink if you trust it.',
   }),
   artifact('sb-violet-wake-beacon', 'Violet Wake Beacon', {

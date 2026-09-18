@@ -102,8 +102,8 @@ catalog test and refuses:
   inline target after a `foresee` (the tail resumes after the look-and-bottom
   decision, when no target can be chosen any more);
 - a target kind outside `creature`, `player`, `any`, `yourCreature`,
-  `yourPermanent`, `yourGraveCreature`, `artifact`, `enchantment` and
-  `artifactOrEnchantment`; a `player` target with `marked` or `tapped`;
+  `opponentCreature`, `yourPermanent`, `yourGraveCreature`, `artifact`,
+  `enchantment` and `artifactOrEnchantment`; a `player` target with `marked` or `tapped`;
   `upTo` on anything but a single spec with `upTo: 2`; and `moveMark` without
   exactly two single-target permanent specs.
 

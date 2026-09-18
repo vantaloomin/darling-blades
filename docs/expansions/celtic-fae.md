@@ -87,9 +87,9 @@ Visual anchors: silver moonlight, moss green, blackthorn, mist, pale gold torcs,
 | cf-ember-of-brigid | Ember of Brigid | C | R | Charm | Sacred flame | damage 2 | Red removal |
 | cf-bargain-for-time | Bargain for Time | C | U | Ritual | Time bargain | draw, scry | Blue cantrip |
 | cf-cold-iron-nail | Cold-Iron Nail | C | C | Artifact | Iron charm | exile grave card | Colorless utility |
-| cf-mist-road | Mist Road | C | Land | Veiled path | entersTapped, manaAbility U, arrives: foresee 1 | Common land |
-| cf-mossy-ring | Mossy Ring | C | Land | Fae circle | entersTapped, manaAbility G, arrives: gainLife 1 | Common land |
-| cf-raven-stone | Raven Stone | C | Land | Omen stone | entersTapped, manaAbility B, arrives: foresee 1 | Common land |
+| cf-mist-road | Mist-Road Waymark | C | U | Artifact | Veiled path | {T}: Foresee 1. | Common Duty artifact |
+| cf-mossy-ring | Ring-Stone Moss | C | G | Artifact | Fae circle | {T}: You gain 1 life. | Common Duty artifact |
+| cf-raven-stone | Raven Stone | C | B | Artifact | Omen stone | {T}: Foresee 1, then put the top card of your deck into your graveyard. | Common Duty artifact |
 | cf-dawn-torc | Dawn Torc | C | Artifact | Court trinket | tap: gainLife | White support |
 | cf-silver-thread | Silver Thread | C | Enchantment Aura | Fate thread | attached +0/+2, scry | Aura common |
 | cf-night-market-bargain | Night-Market Bargain | C | B | Ritual | Fae market | draw, loseLife | Black draw |

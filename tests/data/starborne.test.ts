@@ -90,7 +90,13 @@ describe('Starborne transcription', () => {
       { what: 'yourCreature' }, { what: 'yourCreature' },
     ]);
     expect(card('sb-the-long-crossing').chapters).toHaveLength(3);
-    expect(card('sb-interstellar-crossing').manaAbility).toEqual(['C']);
+    // 2026-09-17 land-economy conversion: the colourless tapland is now the
+    // colourless Duty artifact Crossing Beacon (docs/plan-land-economy.md).
+    expect(card('sb-interstellar-crossing').types).toEqual(['artifact']);
+    expect(card('sb-interstellar-crossing').manaAbility).toBeUndefined();
+    expect(card('sb-interstellar-crossing').activated).toEqual({
+      cost: { tap: true, mana: { generic: 3, pips: {} } }, ops: [{ op: 'draw', n: 1 }],
+    });
     expect(card('sb-gravitic-bloom').abilities?.[0].targets).toEqual([{ what: 'creature', upTo: 2 }]);
     expect(card('sb-bloomdrive-surge').abilities?.[0].targets).toEqual([{ what: 'creature', upTo: 2 }]);
     expect(card('sb-black-starving-orbit').abilities?.[0].targets).toEqual([{ what: 'creature', marked: true }]);

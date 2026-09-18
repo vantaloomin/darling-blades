@@ -182,40 +182,17 @@ function messages(issues: ReturnType<typeof validateWarchestDeck>): string[] {
 }
 
 describe('Warchest shared validators', () => {
+  // The list became EMPTY on 2026-09-17: the land-economy conversion turned
+  // all 27 utility taplands into common Duty artifacts
+  // (docs/plan-land-economy.md). The test stays as the engine-level guard that
+  // no set ever prints a utility tapland again; isUtilityTapland stays too.
   it('derives the current retired utility tapland set from land shape', () => {
     const retiredIds = Object.values(CARD_DB)
       .filter(isUtilityTapland)
       .map((card) => card.id)
       .sort();
-    expect(retiredIds).toEqual([
-      'ac-bramble-chapel',
-      'ac-court-of-whispers',
-      'ac-lowland-fort',
-      'ac-mirror-lake',
-      'ac-red-tournament-ground',
-      'cf-mist-road',
-      'cf-mossy-ring',
-      'cf-raven-stone',
-      'dt-desert-rooftop',
-      'dt-hearth-cinders',
-      'dt-midnight-road',
-      'dt-palace-steps',
-      'dt-riverbend-trail',
-      'dt-sea-cave',
-      'dt-winter-bridge',
-      'dt-wolf-path',
-      'gm-chapel-yard',
-      'gm-lab-annex',
-      'gm-moor-path',
-      'gm-red-roof-village',
-      'gm-thorned-cemetery',
-      'sb-darkside-landing',
-      'sb-deepfield-lands',
-      'sb-ember-lane',
-      'sb-interstellar-crossing',
-      'sb-overcanopy',
-      'sb-pale-nebula',
-    ]);
+    expect(retiredIds).toEqual([]);
+    expect(isUtilityTapland(card(SINGLE_LAND, { types: ['land'], manaAbility: ['G'] }))).toBe(true);
   });
 
   it('classifies duals from their mana ability shape, including three-color lands', () => {
