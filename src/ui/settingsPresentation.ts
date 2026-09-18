@@ -8,8 +8,40 @@ export interface SettingsChipLayout {
 }
 
 export const SETTINGS_GAMEPLAY_PANEL = { left: 670, right: 1210 } as const;
-/** Both settings panels span the same vertical band (SettingsScene.create). */
+/**
+ * The Gameplay (right) column's vertical band. The left column used to share
+ * it; since the Privacy section landed there it runs deeper - see
+ * `SETTINGS_LEFT_PANEL`. This band still bounds the "Your turn" section, whose
+ * rows must not grow past where the Privacy heading now starts.
+ */
 export const SETTINGS_PANEL_BAND = { top: 124, bottom: 594 } as const;
+
+/**
+ * The left (Audio / Your turn / Privacy) column's panel, in design space. It
+ * reaches the 684px title-safe bottom, which is what made room for the Privacy
+ * section without moving a single Audio or Your turn control.
+ */
+export const SETTINGS_LEFT_PANEL = { x: 70, y: 124, width: 540, height: 560 } as const;
+
+/** The same band as a top/bottom pair, for the layout assertions. */
+export const SETTINGS_LEFT_PANEL_BAND = {
+  top: SETTINGS_LEFT_PANEL.y,
+  bottom: SETTINGS_LEFT_PANEL.y + SETTINGS_LEFT_PANEL.height,
+} as const;
+
+/**
+ * The Reset save block, moved from under the Audio panel to under the Gameplay
+ * panel when the left column grew (+600 in x, same rows). Its internal geometry
+ * is unchanged, so the label, the armed button and the warning caption sit
+ * exactly as they did relative to one another.
+ */
+export const SETTINGS_RESET_BLOCK = {
+  labelX: 710,
+  buttonX: 960,
+  rowY: 620,
+  captionY: 650,
+  buttonMinWidth: 170,
+} as const;
 
 /**
  * The left column's second section, which holds the rows that decide how a

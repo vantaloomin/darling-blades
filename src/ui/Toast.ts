@@ -13,6 +13,13 @@ const TOAST_GAP = 12;
 const TOAST_ENTRY_MS = 220;
 const TOAST_HOLD_MS = 3200;
 const TOAST_STAGGER_MS = 140;
+// Card-relative text insets, measured from the plaque's own top or bottom edge
+// so they hold for a card that grew. At TOAST_H they reproduce the fixed
+// -28 / -5 / +25 offsets this rail has always drawn.
+const TITLE_INSET = 15;
+const BODY_CENTER_INSET = 38;
+const BODY_TOP_INSET = 30;
+const DETAIL_BOTTOM_INSET = 18;
 
 export interface ToastOptions {
   /** A scene-local ModalGuard pauses the rail and disables its tap targets. */
@@ -68,6 +75,17 @@ export class Toast {
     return this.live;
   }
 
+  /**
+   * Whether a notice handed to `enqueue` right now would be built on screen
+   * before that call returns. A caller that must not let its notice travel to
+   * another scene (the anonymous-stats notice belongs on the main menu and
+   * nowhere else) asks this first and simply waits for the next visit instead
+   * of queueing behind a rail that is blocked or already showing something.
+   */
+  canPresentImmediately(): boolean {
+    return this.live && !this.isBlocked() && this.visible.length === 0;
+  }
+
   enqueue(notice: ToastNotice): void {
     if (!this.live) {
       pendingToasts.push(notice);
@@ -112,25 +130,23 @@ export class Toast {
     if (!this.live || this.isBlocked() || this.visible.length > 0 || this.queued.length === 0) return;
     const batch = collapseToastBatch(this.queued.splice(0));
     const notices = batch.kind === 'stack' ? batch.notices : [batch.notice];
-    notices.forEach((notice, index) => this.present(notice, index));
+    // Stack by the cards' own heights. Every card that does not opt into
+    // `fitBody` measures TOAST_H, so this walks the same y's the fixed
+    // `TOAST_Y + index * (TOAST_H + TOAST_GAP)` used to produce.
+    let y = TOAST_Y;
+    notices.forEach((notice, index) => {
+      y += this.present(notice, index, y) + TOAST_GAP;
+    });
   }
 
-  private present(notice: ToastNotice, index: number): void {
-    const y = TOAST_Y + index * (TOAST_H + TOAST_GAP);
+  /** Builds one card at `y` and returns the height it took. */
+  private present(notice: ToastNotice, index: number, y: number): number {
     const container = this.scene.add
       .container(theme.design.width + TOAST_W / 2, y)
       .setDepth(theme.depth.toast)
       .setAlpha(0);
-    const plaque = this.scene.add.graphics();
-    plaque.fillStyle(theme.graphics.panelFill, 0.96);
-    plaque.fillRoundedRect(-TOAST_W / 2, -TOAST_H / 2, TOAST_W, TOAST_H, theme.radius.panel);
-    plaque.lineStyle(2, colorInt(theme.colors.gold), 0.92);
-    plaque.strokeRoundedRect(-TOAST_W / 2 + 1, -TOAST_H / 2 + 1, TOAST_W - 2, TOAST_H - 2, theme.radius.panel);
-    plaque.lineStyle(1, theme.graphics.panelStroke, 0.9);
-    plaque.strokeRoundedRect(-TOAST_W / 2 + 7, -TOAST_H / 2 + 7, TOAST_W - 14, TOAST_H - 14, theme.radius.control);
-
     const title = this.scene.add
-      .text(-TOAST_W / 2 + 18, -28, notice.title, {
+      .text(-TOAST_W / 2 + 18, 0, notice.title, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         fontStyle: theme.weight.w700,
@@ -138,7 +154,7 @@ export class Toast {
       })
       .setOrigin(0, 0.5);
     const body = this.scene.add
-      .text(-TOAST_W / 2 + 18, -5, notice.body, {
+      .text(-TOAST_W / 2 + 18, 0, notice.body, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.label}px`,
         color: theme.colors.body,
@@ -147,18 +163,43 @@ export class Toast {
       .setOrigin(0, 0.5);
     const detail = notice.detail
       ? this.scene.add
-          .text(-TOAST_W / 2 + 18, 25, notice.detail, {
+          .text(-TOAST_W / 2 + 18, 0, notice.detail, {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.caption}px`,
             color: theme.colors.muted,
           })
           .setOrigin(0, 0.5)
       : undefined;
+
+    // The card is TOAST_H unless the notice asked to be shown in full, in
+    // which case it grows to the body Phaser actually measured (a three-line
+    // body overruns the fixed plaque and lands on the title).
+    const height =
+      notice.fitBody === true
+        ? Math.max(
+            TOAST_H,
+            Math.ceil(BODY_TOP_INSET + body.height + (detail ? detail.height + 12 : 0) + 14),
+          )
+        : TOAST_H;
+    const top = -height / 2;
+    title.setY(top + TITLE_INSET);
+    if (notice.fitBody === true) body.setOrigin(0, 0).setY(top + BODY_TOP_INSET);
+    else body.setY(top + BODY_CENTER_INSET);
+    detail?.setY(height / 2 - DETAIL_BOTTOM_INSET);
+
+    const plaque = this.scene.add.graphics();
+    plaque.fillStyle(theme.graphics.panelFill, 0.96);
+    plaque.fillRoundedRect(-TOAST_W / 2, top, TOAST_W, height, theme.radius.panel);
+    plaque.lineStyle(2, colorInt(theme.colors.gold), 0.92);
+    plaque.strokeRoundedRect(-TOAST_W / 2 + 1, top + 1, TOAST_W - 2, height - 2, theme.radius.panel);
+    plaque.lineStyle(1, theme.graphics.panelStroke, 0.9);
+    plaque.strokeRoundedRect(-TOAST_W / 2 + 7, top + 7, TOAST_W - 14, height - 14, theme.radius.control);
+
     const shine = this.scene.add.graphics();
     shine.fillStyle(colorInt(theme.colors.gold), 0.2);
-    shine.fillRoundedRect(-TOAST_W / 2 + 14, -TOAST_H / 2 + 10, 22, TOAST_H - 20, theme.radius.control);
+    shine.fillRoundedRect(-TOAST_W / 2 + 14, top + 10, 22, height - 20, theme.radius.control);
     shine.setX(-TOAST_W / 2 + 14);
-    const input = this.scene.add.zone(0, 0, TOAST_W, TOAST_H).setInteractive({ useHandCursor: true });
+    const input = this.scene.add.zone(0, 0, TOAST_W, height).setInteractive({ useHandCursor: true });
     const card: ToastCard = { notice, container, input, timer: null };
     bindTapButton(this.scene, input, (pointer) => {
       if (pointer.rightButtonReleased()) return;
@@ -187,8 +228,15 @@ export class Toast {
       delay: index * TOAST_STAGGER_MS + 80,
       ease: 'Sine.easeInOut',
     });
-    card.timer = this.scene.time.delayedCall(TOAST_HOLD_MS + index * TOAST_STAGGER_MS, () => this.dismiss(card));
+    card.timer = this.scene.time.delayedCall(
+      (notice.holdMs ?? TOAST_HOLD_MS) + index * TOAST_STAGGER_MS,
+      () => this.dismiss(card),
+    );
     this.syncVisibility();
+    // Last, and only now: the card exists on screen. A caller that records
+    // having shown something records it here and nowhere earlier.
+    notice.onShown?.();
+    return height;
   }
 
   private dismiss(card: ToastCard, immediate = false): void {

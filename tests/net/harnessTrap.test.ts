@@ -176,6 +176,16 @@ describe('the import fence, read as text', () => {
         if (/(^|\/)net\//.test(spec)) importers.push(file);
       }
     }
-    expect(importers.sort()).toEqual(['src/gameBoot.ts', 'src/scenes/DuelScene.ts']);
+    // Boot sends the heartbeat, the duel scene the digests and the card batch,
+    // and the two consent scenes read the gate (Settings, for the row's
+    // caption) and acknowledge the notice (MainMenu). Nothing under
+    // engine/ai/data/meta/ui appears here, which is what keeps a harness run
+    // physically unable to reach the network.
+    expect(importers.sort()).toEqual([
+      'src/gameBoot.ts',
+      'src/scenes/DuelScene.ts',
+      'src/scenes/MainMenuScene.ts',
+      'src/scenes/SettingsScene.ts',
+    ]);
   });
 });
