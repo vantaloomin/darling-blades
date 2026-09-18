@@ -320,6 +320,15 @@ deployed and the Settings toggle does not exist yet, so nothing sends.
   balance or sweep entry point imports `src/net` or `src/scenes`, and `src/net`
   is imported by exactly `src/gameBoot.ts` and `src/scenes/DuelScene.ts`. One
   pinned gap: a dynamic `import()` slips past the lint rule.
+- **Privacy page, README and CSP, built 2026-09-17:** `scripts/gen-privacy-page.ts`
+  renders the policy to `public/privacy.html` on every dev and build (owner
+  ruling: the page goes live alongside 1.8, and shipping it inside the same
+  Pages deploy as the client is what makes "live before the first event"
+  true by construction). The README gains a Privacy section. `index.html`
+  carries `connect-src 'self' https://api.github.com
+  https://db-signals.loominvanta.workers.dev`, connect-src only. The desktop
+  CSP (`src-tauri/tauri.conf.json`, must also allow `ipc:` and
+  `http://ipc.localhost`) is owed with a desktop run.
 - **Still owed before release:** the deploy (create the KV namespace, fill its
   id, deploy, send one synthetic event of each kind, read it back); a live
   browser probe that the toggle off shows zero requests to the signals host; a

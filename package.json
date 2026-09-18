@@ -7,8 +7,8 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev": "npm run gen-art-manifest && vite",
-    "build": "npm run gen-art-manifest && tsc --noEmit && vite build",
+    "dev": "npm run gen-art-manifest && npm run gen-privacy-page && vite",
+    "build": "npm run gen-art-manifest && npm run gen-privacy-page && tsc --noEmit && vite build",
     "cardproof": "npm run cardproof:build && vite preview --config vite.cardproof.config.ts --host localhost --port 5175",
     "cardproof:build": "vite build --config vite.cardproof.config.ts",
     "preview": "vite preview",
@@ -29,6 +29,7 @@
     "recrop-art": "tsx scripts/recrop-art.ts",
     "play:lan": "tsx scripts/serve-lan.ts",
     "check-docs": "tsx scripts/check-docs.ts",
+    "gen-privacy-page": "tsx scripts/gen-privacy-page.ts",
     "check-art-bible": "tsx scripts/check-art-bible.ts",
     "check-release-notes": "tsx scripts/check-release-notes.ts",
     "gen-docs-tables": "tsx scripts/gen-docs-tables.ts",

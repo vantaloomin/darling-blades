@@ -35,8 +35,8 @@ Every `[BRACKETED]` token in the drafts is an owner input. The full set:
 | ~~`[OPERATOR NAME]`~~ | **Filled 2026-09-15: `Blade Darlings`** | A publishing name, not an entity (owner ruling 2026-09-15: no LLC for 1.8, non-commercial, stay pseudonymous). Policy section 1 says so. Revisit at 2.1, when accounts hold real emails |
 | ~~`[CONTACT EMAIL]`~~ | **Filled 2026-09-15: `admin@bladedarlings.com`** | A dedicated inbox, not a personal one. Watch it: the policy promises a reply within 30 days |
 | ~~`[COUNTRY / STATE]`~~ | **Filled 2026-09-15: Maryland, USA** | Governing law and venue for the terms |
-| `[1.8 RELEASE DATE]` | The 1.8 ship date, the effective date of both documents | Change it on every material edit after launch |
-| `[PRIVACY URL]` | Where the policy is hosted | See "Hosting" below |
+| `[1.8 RELEASE DATE]` | The 1.8 ship date, the effective date of both documents | Change it on every material edit after launch. **Release-cut step:** until it is filled, the generated page prints "the day version 1.8 is released" in its place |
+| ~~`[PRIVACY URL]`~~ | **Decided 2026-09-17: `https://vantaloomin.github.io/darling-blades/privacy.html`** | The generator substitutes it; see "Hosting" |
 | `[THIRD-PARTY NOTICES FILE]` | Path or link to the generated notices file | Notices only; see the TODO at its foot |
 
 The 2.1 staging file carries its own extra placeholders (email sender, auth
@@ -52,8 +52,19 @@ Options, cheapest first:
 1. Link the GitHub file view (`github.com/vantaloomin/darling-blades/blob/main/docs/legal/privacy-policy.md`). Zero work; ugly; fine for a first cut.
 2. Copy it into `public/privacy.html` at build time so it ships at `<pages-origin>/privacy.html` and inside the desktop bundle (works offline). Best long-term, one small build step.
 
-Either way the in-game panel should render the same text, generated from one
-source so the three never drift.
+**Chosen 2026-09-17: option 2, built rather than copied.**
+`scripts/gen-privacy-page.ts` renders `privacy-policy.md` to
+`public/privacy.html` on every `npm run dev` and `npm run build` (the file is
+gitignored, never hand-edited), styled with the game's own palette and fonts,
+so the page ships in the same Pages deploy as the client and inside the desktop
+bundle. It refuses to build on a markdown construct it does not cover or on an
+unfilled placeholder it does not know. The in-game "What is sent" panel renders
+its field list from `SIGNAL_FIELDS` with a test that keeps the descriptions in
+step, and the README's Privacy section links the page; three surfaces, one
+source. `index.html` also carries a `connect-src` Content-Security-Policy
+naming the two hosts the game contacts (finding 6), enforced by the browser;
+the desktop build's policy must also allow Tauri's IPC origins and is set with
+a desktop run, not blind.
 
 ## Telemetry review, 2026-09-10
 
