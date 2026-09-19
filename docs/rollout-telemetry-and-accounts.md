@@ -334,10 +334,25 @@ deployed and the Settings toggle does not exist yet, so nothing sends.
   https://db-signals.loominvanta.workers.dev`, connect-src only. The desktop
   CSP (`src-tauri/tauri.conf.json`, must also allow `ipc:` and
   `http://ipc.localhost`) is owed with a desktop run.
-- **Still owed before release:** the deploy (create the KV namespace, fill its
-  id, deploy, send one synthetic event of each kind, read it back); a live
-  browser probe that the toggle off shows zero requests to the signals host; a
-  desktop run to learn whether WebView2 exposes `doNotTrack`,
+- **DEPLOYED 2026-09-18** (owner-confirmed; replaces the T0 spike at the same
+  hostname). KV namespace `db-signals-salt` created and its id committed in
+  `worker/wrangler.toml` (an id is not a secret). The deploy token needed one
+  more permission first, Account / Workers KV Storage / Edit: the spike never
+  used KV, and without it `wrangler kv namespace list` fails with
+  authentication error 10000 while every script call still works. Verified
+  against the live Worker: `/health` answers `{"ok":true,"build":"t2"}`; all
+  three events accepted with 204 from the real client builders
+  (`worker/scripts/send-synthetic.ts`); fifteen malformed shapes refused with
+  400, oversize 413, wrong content type 415, foreign origin 403, GET 405; the
+  KV namespace holds exactly one key, `salt:<UTC date>`, expiring one hour
+  after the day ends; read back from `db_signals_v2` within a minute, where
+  all 37 card rows carry an EMPTY hash column and the heartbeat and duel rows
+  carry one 16-character hash (one machine, one day). Found and fixed on the
+  way: `worker/scripts/query.ts` discarded a positional SQL argument whenever
+  `--view` was absent and silently ran the summary instead. One thing only
+  the owner can see: the dashboard should show Workers Logs as off for
+  `db-signals`.
+- **Still owed before release:** a desktop run to learn whether WebView2 exposes `doNotTrack`,
   `globalPrivacyControl` and `sendBeacon` (the code survives any being absent;
   which exist there is unmeasured); the k = 10 floor, which is T3's rollup and
   is not true of anything yet.
