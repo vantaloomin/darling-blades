@@ -200,6 +200,11 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
     // 2026-08-30 tuning pass: R23's fire-package surgery diverges from the
     // scripted first cut by measured intent. (R19's lantern swap landed in
     // the classic deck only; her reserve still matches the converter.)
+    // 2026-09-19 R20 Kitsune: the converter had dropped her four authored
+    // Redline Queenpins and doubled her Hauntlink package; restoring the
+    // authored 4/2/2 measured 81.6% -> 89% across five 200-seed cells, 0 draws.
+    // Reserve list only; classic/lands/Darlings unchanged.
+    'kitsune-neon-tyrant',
     // 2026-09-19 R23 re-tune: four Ashwood Rangers give her a way to block a
     // flier, 60% -> 72.1% across five 200-seed cells, 0 draws. Reserve list
     // only; classic/lands/Darlings unchanged.

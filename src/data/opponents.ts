@@ -3476,15 +3476,50 @@ export const AVATARS: readonly Avatar[] = [
       ['in-fire-attack', 4],
       ['in-undertow', 4],
     ]),
+    // HAND-TUNED 2026-09-19 (reserve list only; classic, lands and Darlings
+    // unchanged; registered in tests/data/avatarReserveDecks.test.ts). She had
+    // never been tuned: this was the converter's first cut, and it read 87 on
+    // 2026-08-23, 84 after AI phase C and 81.6 on 2026-09-19 (74/70/82/91/92,
+    // reproduced exactly before anything changed), 1.1pp over her own floor.
+    // THE DEFECT was the converter's, the same shape that once hobbled The
+    // Bride: it DROPPED all four yn-redline-queenpin her authored list runs
+    // (5/4 Warcry, 4 damage on arrival) and DOUBLED her Hauntlink package to
+    // eight three-mana copies instead.
+    // MEASURED, not guessed (500 of her games, a read-only wrapper on her
+    // brain): once a Hauntlink card is on the battlefield the policy uses it
+    // (Burning Mask linked 0.82 times per cast, Ember-Link Chain 1.21), so the
+    // brains are not the problem. The list is: each Mask and Chain she saw was
+    // cast only about half the time (52% and 51%), the rest stranded in hand,
+    // because eight is more than her curve can spend. And yn-hauntlink-apex
+    // was cast in 7% of games (13% when seen): under rules rev 4 a link is an
+    // ability paid AFTER the card is cast, so Apex is eight mana in a ten-land
+    // format. That is a CARD finding for the owner, not fixed here; her two
+    // Apex stay because they are her authored identity.
+    // Attempt 1 KEPT, the accepted list: two yn-burning-mask-of-the-void and
+    // two yn-ember-link-chain become four yn-redline-queenpin, which restores
+    // the authored 4/2/2 proportions. Appended-order run 82/81/90/95/97, avg
+    // 89.0, no draws at 200 seeds/cell; the committed list's own numbers are
+    // in tests/ai/winrate.test.ts.
+    // Same lever, other payers: four Chain out 89.5; four Mask out 88.8; two
+    // Apex plus the two singletons out 85.5 (Lu Bu and the Glass Runner earn
+    // their slots); four in-undertow out 79.5 and four yn-network-sprite out
+    // 82.4 (both load-bearing). Not Queenpin: two Apex to two
+    // yn-moonlit-data-duelist 89.2; four Chain to four sd-burn-the-rope 87.4.
+    // CONFIRMED on the independent 14-deck reserve matrix before anything was
+    // stacked: baseline 86.8, this list 92.3, Chain out 92.5, Apex out 90.4.
+    // The lever is smooth, for a later owner call on her strength: two
+    // Queenpin (one Mask, one Chain out) read 86.9, her 2026-08-23 strength;
+    // three read 88.7; four read 89.0.
     reserveDeck: expand([
       ['yn-kitsune-neon-tyrant', 4],
+      ['yn-redline-queenpin', 4],
       ['yn-redline-kitsune', 4],
       ['yn-magenta-kitsune-runner', 4],
       ['yn-network-sprite', 4],
       ['bk-harpy-skirmisher', 4],
       ['yn-hauntlink-apex', 2],
-      ['yn-burning-mask-of-the-void', 4],
-      ['yn-ember-link-chain', 4],
+      ['yn-burning-mask-of-the-void', 2],
+      ['yn-ember-link-chain', 2],
       ['in-fire-attack', 4],
       ['in-undertow', 4],
       ['dt-midnight-glass-runner', 1],

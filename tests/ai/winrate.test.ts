@@ -206,6 +206,14 @@ describe('AI win-rate gates', () => {
     //       her soft columns. She is the next deck owed a measured tuning
     //       pass, the same position Chrome Broodmother was in on 2026-09-17.
     //   R14 Artoria has no absolute floor; 65.6, Muster 27 her one bad column.
+    //
+    // R20 KITSUNE TUNED 2026-09-19, the same day, closing that finding. The
+    // converter had dropped her four authored Redline Queenpins and doubled her
+    // Hauntlink package; restoring the authored 4/2/2 (her entry in
+    // src/data/opponents.ts has the full pass, the usage measurement and the
+    // 14-deck confirmation) reads 79/84/87/97/95 avg 88.3 on the committed
+    // list at 200 seeds/cell, one draw in 1,000 games. 88.3 - 6.5 = 81.8, so
+    // her floor RATCHETS UP 0.805 -> 0.815; CI's 40 seeds read 90.5, 0 draws.
     expect(r15.avg, 'Carmilla floor').toBeGreaterThanOrEqual(0.655);
     // R16 The Bride was HAND-TUNED in this pass, 54% -> 69%. The converter's
     // curve cap {6:2} had halved her legend from the 4 copies her own classic
@@ -216,7 +224,7 @@ describe('AI win-rate gates', () => {
     expect(r17.avg, 'Glass-Coffin Queen floor').toBeGreaterThanOrEqual(0.705);
     expect(r18.avg, 'Abyssal Songstress floor').toBeGreaterThanOrEqual(0.82);
     expect(r19.avg, 'Queen of the Lanterned Roof floor').toBeGreaterThanOrEqual(0.545);
-    expect(r20.avg, 'Kitsune Neon Tyrant floor').toBeGreaterThanOrEqual(0.805);
+    expect(r20.avg, 'Kitsune Neon Tyrant floor').toBeGreaterThanOrEqual(0.815);
     // R21 Anubis HAND-TUNED 33% -> 57%. Her converter build retained four
     // cards targeting artifactOrEnchantment into a format whose starter
     // columns hold none, so a tenth of her deck was blank in every game. The
