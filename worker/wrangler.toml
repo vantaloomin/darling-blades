@@ -30,14 +30,13 @@ dataset = "db_signals_v2"
 # The daily de-duplication salt (D-T0.2). ONE key per UTC day, shared by every
 # isolate, deleted automatically when the day is over. See src/index.ts.
 #
-# !!! PLACEHOLDER ID !!!  The main session must replace it after running
-# !!!   npx wrangler kv namespace create db-signals-salt
-# !!! and pasting the id the command prints. Deploying with the placeholder
-# !!! FAILS loudly (no such namespace), which is the intended behaviour: it can
-# !!! never silently write the salt into someone else's namespace.
+# Namespace `db-signals-salt`, created 2026-09-18 with
+#   npx wrangler kv namespace create db-signals-salt
+# The id names the namespace and is not a secret: reading or writing it still
+# needs an account token. It holds one key, today's salt, and nothing else.
 [[kv_namespaces]]
 binding = "SALT_KV"
-id = "00000000000000000000000000000000"
+id = "6f5eea2102c7446880ae42212e7d1690"
 
 # Spam brake. Corrected 2026-09-17: a `workers.dev` hostname has no zone, so a
 # dashboard rate-limiting rule cannot attach to this Worker; the binding is the

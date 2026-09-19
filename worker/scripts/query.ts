@@ -79,7 +79,9 @@ const VIEWS: Record<string, string> = {
 
 const args = process.argv.slice(2);
 const viewIndex = args.indexOf('--view');
-const positional = args.find((arg) => !arg.startsWith('--') && args[viewIndex + 1] !== arg);
+// Without --view, viewIndex is -1 and `args[viewIndex + 1]` is args[0]: the old
+// value comparison threw away the very SQL it was looking for (found 2026-09-18).
+const positional = args.find((arg, i) => !arg.startsWith('--') && (viewIndex < 0 || i !== viewIndex + 1));
 
 let sql: string;
 if (viewIndex >= 0) {
