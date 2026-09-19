@@ -24,8 +24,10 @@ describe('Drowned Deep vocabulary rules text', () => {
     // (docs/plan-land-economy.md) replaced the 27 utility taplands'
     // arrives-tapped text with their Duty lines. The card COUNT is unchanged
     // and the exact 27 new lines are pinned in tests/data/landEconomy.test.ts.
+    // Re-baselined 2026-09-18: owner ruling, a paid Duty prints mana first
+    // (`{2}, {T}:`). 41 cards carry such a line; nothing else in any text moved.
     expect(createHash('sha256').update(JSON.stringify(rows)).digest('hex')).toBe(
-      '3c6b62d4570fd5215eb2d55c9609ded394099e6aa63506a3d3b9de488c4e3637',
+      '4fb74434edd1b3918ad6321b211cd8ea5ea3e8020a715a5c1137c79f116d4648',
     );
   });
 
@@ -38,18 +40,21 @@ describe('Drowned Deep vocabulary rules text', () => {
     // Owner ruling 2026-09-17: Cinderjaw gains a Tithe line (the only text change).
     // Old hash: 6502f247289b0fa37d9a617a285bdb3ee003c0df43f7fdf47d3df4c0f4cb4a0d.
     // New hash: 729f4c3dd5f8b5b254dd7e58b1ca827ee2d2e990f0c46df83becc6441e859f13.
+    // Owner ruling 2026-09-18: a paid Duty prints mana first (`{2}, {T}:`).
+    // Old hash: 729f4c3dd5f8b5b254dd7e58b1ca827ee2d2e990f0c46df83becc6441e859f13.
+    // New hash: f024f24c100e1fc4ebe535a07f21a765b7b17a81e94f3d4b2c7dde2bc743771a.
     const drownedDeep = ALL_CARDS.filter((definition) => definition.set === 'drowned-deep' && !definition.token);
     expect(drownedDeep).toHaveLength(252);
     const rows = drownedDeep.map((definition) => [definition.id, rulesText(definition)]);
     expect(createHash('sha256').update(JSON.stringify(rows)).digest('hex')).toBe(
-      '729f4c3dd5f8b5b254dd7e58b1ca827ee2d2e990f0c46df83becc6441e859f13',
+      'f024f24c100e1fc4ebe535a07f21a765b7b17a81e94f3d4b2c7dde2bc743771a',
     );
   });
 
   it('prints Cinderjaw with Tithe above her body and Whispers last', () => {
     // Owner ruling 2026-09-17: the first card carrying both Whispers and Tithe.
     expect(rulesText(CARD_DB['dd-cinderjaw'])).toBe([
-      '{T}, {R}: Deal 2 damage to target creature.',
+      '{R}, {T}: Deal 2 damage to target creature.',
       'Warcry',
       'Tithe.',
       'Whenever this attacks, this deals 2 damage to your opponent.',
@@ -60,7 +65,7 @@ describe('Drowned Deep vocabulary rules text', () => {
 
   it('prints the Saint once-per-turn sentence after her trigger', () => {
     expect(rulesText(CARD_DB['dd-lamp-oil-saint'])).toBe(
-      '{T}, {1}: You gain 2 life.\nWarding Gaze\nWhenever you gain life, Mark this. This triggers only once each turn.',
+      '{1}, {T}: You gain 2 life.\nWarding Gaze\nWhenever you gain life, Mark this. This triggers only once each turn.',
     );
   });
 
@@ -157,7 +162,7 @@ describe('Drowned Deep vocabulary rules text', () => {
       { cost: { tap: true }, ops: [{ op: 'foresee', n: 2 }] },
       { cost: { tap: true, mana: { generic: 2, pips: {} } }, ops: [{ op: 'draw', n: 1 }, { op: 'discard', n: 1, who: 'self' }] },
     ] });
-    expect(activatedText(definition)).toBe('{T}: Foresee 2.\n{T}, {2}: Draw a card, then discard a card.');
+    expect(activatedText(definition)).toBe('{T}: Foresee 2.\n{2}, {T}: Draw a card, then discard a card.');
     expect(rulesText(definition)).toBe(activatedText(definition));
     expect(cardMechanics(definition)).toEqual(expect.arrayContaining(['duty', 'foresee']));
     definition.activated = [

@@ -30,8 +30,8 @@ describe('Drowned Deep card layout inputs', () => {
     const card = DROWNED_DEEP_CARD_LAYOUT_FIXTURES[1];
     const lines = activatedText(card)!.split('\n');
     expect(lines).toEqual([
-      '{T}, {2}{B}: Return target creature card with cost 2 or less from your graveyard to your hand.',
-      '{T}, {1}{B}: Deal 2 damage to target creature an opponent controls with cost 3 or less and attack 4 or more.',
+      '{2}{B}, {T}: Return target creature card with cost 2 or less from your graveyard to your hand.',
+      '{1}{B}, {T}: Deal 2 damage to target creature an opponent controls with cost 3 or less and attack 4 or more.',
     ]);
     expect(rulesText(card)).toBe(lines.join('\n'));
     const tidewifeDuty = activatedText(DROWNED_DEEP_CARD_LAYOUT_FIXTURES[0])!;

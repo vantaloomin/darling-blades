@@ -52,20 +52,20 @@ const ARTHURIAN_ROWS: Row[] = [
   { id: 'ac-bramble-chapel', name: 'Bramble Reliquary', generic: 0, pips: 'G', colors: ['G'], text: '{T}: You gain 1 life.' },
   {
     id: 'ac-lowland-fort', name: 'Lowland Fort Banner', generic: 2, pips: 'W', colors: ['W'],
-    text: '{T}, {2}: Tap target creature an opponent controls.',
+    text: '{2}, {T}: Tap target creature an opponent controls.',
   },
   { id: 'ac-red-tournament-ground', name: 'Tournament Pennant', generic: 0, pips: 'R', colors: ['R'], text: '{T}: Foresee 1.' },
   {
     id: 'ac-court-of-whispers', name: "Listeners' Curtain", generic: 0, pips: 'B', colors: ['B'],
     text: '{T}: Put the top card of your deck into your graveyard.',
   },
-  { id: 'ac-mirror-lake', name: 'Mirror-Lake Glass', generic: 0, pips: 'U', colors: ['U'], text: '{T}, {2}: Foresee 3.' },
+  { id: 'ac-mirror-lake', name: 'Mirror-Lake Glass', generic: 0, pips: 'U', colors: ['U'], text: '{2}, {T}: Foresee 3.' },
 ];
 
 const GOTHIC_ROWS: Row[] = [
   {
     id: 'gm-moor-path', name: 'Moorlight Lantern', generic: 2, pips: 'B', colors: ['B'],
-    text: '{T}, {3}: Your opponent loses 2 life, then you gain 2 life.',
+    text: '{3}, {T}: Your opponent loses 2 life, then you gain 2 life.',
   },
   {
     id: 'gm-chapel-yard', name: 'Chapel-Yard Rosary', generic: 0, pips: 'W', colors: ['W'],
@@ -74,7 +74,7 @@ const GOTHIC_ROWS: Row[] = [
   { id: 'gm-lab-annex', name: 'Annex Notebook', generic: 0, pips: 'U', colors: ['U'], text: '{T}: Foresee 1.' },
   {
     id: 'gm-red-roof-village', name: 'Festival Rocket', generic: 2, pips: 'R', colors: ['R'],
-    text: '{T}, {2}: Deal 2 damage to target creature.',
+    text: '{2}, {T}: Deal 2 damage to target creature.',
   },
   {
     id: 'gm-thorned-cemetery', name: 'Cemetery Thorn', generic: 0, pips: 'G', colors: ['G'],
@@ -84,7 +84,7 @@ const GOTHIC_ROWS: Row[] = [
 
 const DARK_TALES_ROWS: Row[] = [
   { id: 'dt-wolf-path', name: 'Wolf-Path Charm', generic: 0, pips: 'G', colors: ['G'], text: '{T}: You gain 1 life.' },
-  { id: 'dt-palace-steps', name: 'Glass Slipper', generic: 0, pips: 'W', colors: ['W'], text: '{T}, {1}: You gain 2 life.' },
+  { id: 'dt-palace-steps', name: 'Glass Slipper', generic: 0, pips: 'W', colors: ['W'], text: '{1}, {T}: You gain 2 life.' },
   {
     id: 'dt-hearth-cinders', name: 'Banked Cinders', generic: 1, pips: 'R', colors: ['R'],
     text: '{T}: This deals 1 damage to your opponent.',
@@ -95,10 +95,10 @@ const DARK_TALES_ROWS: Row[] = [
   },
   {
     id: 'dt-riverbend-trail', name: 'Riverbend Waterwheel', generic: 2, pips: 'G', colors: ['G'],
-    text: '{T}, {3}: Return target creature card from your graveyard to your hand.',
+    text: '{3}, {T}: Return target creature card from your graveyard to your hand.',
   },
   { id: 'dt-sea-cave', name: 'Sea-Cave Pearl', generic: 0, pips: 'U', colors: ['U'], text: '{T}: Foresee 1.' },
-  { id: 'dt-desert-rooftop', name: 'Rooftop Spyglass', generic: 0, pips: 'R', colors: ['R'], text: '{T}, {1}: Foresee 2.' },
+  { id: 'dt-desert-rooftop', name: 'Rooftop Spyglass', generic: 0, pips: 'R', colors: ['R'], text: '{1}, {T}: Foresee 2.' },
   {
     id: 'dt-winter-bridge', name: 'Winter-Bridge Toll', generic: 0, pips: 'U', colors: ['U'],
     text: "{T}: Sever the top card of your opponent's graveyard.",
@@ -108,7 +108,7 @@ const DARK_TALES_ROWS: Row[] = [
 const STARBORNE_ROWS: Row[] = [
   {
     id: 'sb-pale-nebula', name: 'Nebula Beacon', generic: 2, pips: 'W', colors: ['W'],
-    text: '{T}, {2}: Target creature you control gets +2/+2 until Sunset.',
+    text: '{2}, {T}: Target creature you control gets +2/+2 until Sunset.',
   },
   {
     // The slate reads "from target creature"; moveMark is engine-restricted to
@@ -116,7 +116,7 @@ const STARBORNE_ROWS: Row[] = [
     // renders that restriction, so the shipped line says "a creature you
     // control". Recorded in the transcription report, 2026-09-17.
     id: 'sb-deepfield-lands', name: 'Deepfield Array', generic: 0, pips: 'U', colors: ['U'],
-    text: '{T}, {1}: Move a Mark from a creature you control to another creature you control.',
+    text: '{1}, {T}: Move a Mark from a creature you control to another creature you control.',
   },
   {
     id: 'sb-darkside-landing', name: 'Violet Landing Light', generic: 1, pips: 'B', colors: ['B'],
@@ -124,13 +124,13 @@ const STARBORNE_ROWS: Row[] = [
   },
   {
     id: 'sb-ember-lane', name: 'Ember-Lane Flare', generic: 0, pips: 'R', colors: ['R'],
-    text: '{T}, {1}: This deals 1 damage to your opponent.',
+    text: '{1}, {T}: This deals 1 damage to your opponent.',
   },
   {
     id: 'sb-overcanopy', name: 'Overcanopy Trellis', generic: 1, pips: 'G', colors: ['G'],
-    text: '{T}, {1}: Mark target creature you control.',
+    text: '{1}, {T}: Mark target creature you control.',
   },
-  { id: 'sb-interstellar-crossing', name: 'Crossing Beacon', generic: 4, pips: '', colors: [], text: '{T}, {3}: Draw a card.' },
+  { id: 'sb-interstellar-crossing', name: 'Crossing Beacon', generic: 4, pips: '', colors: [], text: '{3}, {T}: Draw a card.' },
 ];
 
 const SET_TABLES: [CardDef['set'], Row[]][] = [
