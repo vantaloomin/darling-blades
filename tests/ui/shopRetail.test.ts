@@ -50,7 +50,7 @@ function isolatedDeclarations<T>(
   const { outputText } = ts.transpileModule(script, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
   });
-  return runInNewContext(outputText, bindings, { timeout: 1_000 }) as T;
+  return runInNewContext(outputText, bindings, { timeout: 10_000 } /* 2026-09-18: 1 s blew once under a full-suite run; a budget, not a behaviour */) as T;
 }
 
 interface RetailDeclarations {

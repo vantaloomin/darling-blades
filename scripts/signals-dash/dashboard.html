@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Signals Rollup</title>
+<style>
+  :root {
+    --dim:#0a0812; --panel:#161226; --stroke:#4a3f6e; --heading:#f0e6ff;
+    --body:#c9bde0; --muted:#8f83a8; --gold:#ffd88a; --bar:#6c5aa0; --bar-other:#4a4058;
+    --rule:#241d3a; --good:#9be6a8;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --dim:#f6f3fb; --panel:#ffffff; --stroke:#d6ccec; --heading:#2a1f45;
+      --body:#40365c; --muted:#6f6588; --gold:#8a6a1f; --bar:#9b8ad0; --bar-other:#c9c2d6;
+      --rule:#ece7f5; --good:#2f7a44;
+    }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--dim); color:var(--body);
+    font-family:'Segoe UI',system-ui,sans-serif; display:flex; justify-content:center; padding:28px 16px 60px; }
+  main { width:min(880px, 96vw); }
+  h1 { font-family:'Palatino Linotype',Georgia,serif; font-variant:small-caps;
+    color:var(--heading); font-weight:600; letter-spacing:0.05em; font-size:1.9rem; margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:0.9rem; margin-bottom:20px; }
+  .card { background:var(--panel); border:1px solid var(--stroke); border-radius:12px;
+    padding:18px 20px; margin-bottom:16px; }
+  h2 { color:var(--gold); font-size:0.8rem; text-transform:uppercase; letter-spacing:0.12em;
+    margin:0 0 12px; font-weight:600; }
+  h3 { color:var(--heading); font-size:0.95rem; margin:18px 0 8px; font-weight:600; }
+  h3:first-of-type { margin-top:0; }
+  select { background:var(--panel); color:var(--heading); border:1px solid var(--stroke);
+    border-radius:8px; padding:6px 10px; font-size:0.9rem; font-family:inherit; }
+  .totals { display:flex; flex-wrap:wrap; gap:22px; margin-top:14px; }
+  .total .n { color:var(--heading); font-size:1.5rem; font-variant-numeric:tabular-nums; }
+  .total .k { color:var(--muted); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.1em; }
+  .bars { display:grid; gap:5px; font-variant-numeric:tabular-nums; }
+  .b { display:grid; grid-template-columns:minmax(90px, 28%) 1fr auto; gap:10px; align-items:center;
+    font-size:0.85rem; }
+  .b .lab { color:var(--body); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .b .track { background:var(--rule); border-radius:999px; height:9px; }
+  .b .fill { background:var(--bar); border-radius:999px; height:100%; }
+  .b .n { color:var(--heading); min-width:56px; text-align:right; }
+  .b.other .lab { color:var(--muted); font-style:italic; }
+  .b.other .fill { background:var(--bar-other); background-image:repeating-linear-gradient(
+      135deg, rgba(255,255,255,0.22) 0 4px, rgba(255,255,255,0) 4px 8px); }
+  table { width:100%; border-collapse:collapse; font-size:0.85rem; margin-top:4px; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--rule); }
+  th { color:var(--muted); font-weight:600; font-size:0.7rem; letter-spacing:0.12em; text-transform:uppercase; }
+  td.n { text-align:right; font-variant-numeric:tabular-nums; color:var(--heading); }
+  td.rate { text-align:right; font-variant-numeric:tabular-nums; color:var(--good); }
+  tr.other td:first-child { color:var(--muted); font-style:italic; }
+  .note { color:var(--muted); font-size:0.8rem; margin-top:8px; line-height:1.5; }
+  .empty { color:var(--muted); font-size:0.95rem; line-height:1.6; }
+  code { background:var(--rule); border-radius:4px; padding:1px 5px; font-size:0.85em; }
+  .grid2 { display:grid; grid-template-columns:repeat(auto-fit, minmax(330px, 1fr)); gap:18px 26px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Signals Rollup</h1>
+  <div class="sub" id="sub">reading the rollup folder</div>
+  <div id="app"></div>
+</main>
+<script>
+  var K = 10;
+  var DAYS = [];
+  var OTHER = 'other';
+
+  function el(tag, cls, text) {
+    var node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+  function fmt(n) { return n.toLocaleString('en-US'); }
+
+  /** Sum published value maps across days. Every number in them is above the floor. */
+  function mergeDimension(days, section, name) {
+    var totals = {}, present = 0, suppressed = 0;
+    days.forEach(function (day) {
+      var sect = day[section];
+      if (!sect) { suppressed++; return; }
+      var published = sect.dimensions[name];
+      if (!published) { suppressed++; return; }
+      present++;
+      Object.keys(published).forEach(function (value) {
+        totals[value] = (totals[value] || 0) + published[value];
+      });
+    });
+    return { totals: totals, present: present, suppressed: suppressed };
+  }
+
+  function mergeCross(days, section, name) {
+    var rows = {}, by = '', suppressedSplits = 0, suppressedDays = 0;
+    days.forEach(function (day) {
+      var sect = day[section];
+      var cross = sect && sect.crosses ? sect.crosses[name] : null;
+      if (!cross) { suppressedDays++; return; }
+      by = cross.by;
+      Object.keys(cross.rows).forEach(function (value) {
+        var row = cross.rows[value];
+        var into = rows[value] || (rows[value] = { total: 0, split: {}, missingSplit: 0 });
+        into.total += row.total;
+        if (row.split) {
+          Object.keys(row.split).forEach(function (key) {
+            into.split[key] = (into.split[key] || 0) + row.split[key];
+          });
+        } else {
+          into.missingSplit++;
+          suppressedSplits++;
+        }
+      });
+    });
+    return { rows: rows, by: by, suppressedSplits: suppressedSplits, suppressedDays: suppressedDays };
+  }
+
+  /** Sorted, largest first, with the fold bucket pinned last however large it is. */
+  function sortedEntries(totals) {
+    return Object.keys(totals)
+      .map(function (value) { return { value: value, n: totals[value] }; })
+      .sort(function (a, b) {
+        if (a.value === OTHER) return 1;
+        if (b.value === OTHER) return -1;
+        return b.n - a.n || (a.value < b.value ? -1 : 1);
+      });
+  }
+
+  function barList(totals) {
+    var entries = sortedEntries(totals);
+    var max = entries.reduce(function (m, e) { return Math.max(m, e.n); }, 0) || 1;
+    var host = el('div', 'bars');
+    entries.forEach(function (entry) {
+      var row = el('div', 'b' + (entry.value === OTHER ? ' other' : ''));
+      row.appendChild(el('div', 'lab', entry.value));
+      var track = el('div', 'track');
+      var fill = el('div', 'fill');
+      fill.style.width = Math.max(2, Math.round(100 * entry.n / max)) + '%';
+      track.appendChild(fill);
+      row.appendChild(track);
+      row.appendChild(el('div', 'n', fmt(entry.n)));
+      host.appendChild(row);
+    });
+    return host;
+  }
+
+  function dimensionBlock(days, section, name) {
+    var merged = mergeDimension(days, section, name);
+    var block = el('div');
+    block.appendChild(el('h3', null, name));
+    if (Object.keys(merged.totals).length === 0) {
+      block.appendChild(el('div', 'note', 'Nothing published: every value was below the floor on every day selected.'));
+      return block;
+    }
+    block.appendChild(barList(merged.totals));
+    var notes = [];
+    if (merged.totals[OTHER] !== undefined) {
+      notes.push('"other" holds every value that fell below the floor, added together.');
+    }
+    if (merged.suppressed > 0) {
+      notes.push('Suppressed on ' + merged.suppressed + ' of ' + (merged.suppressed + merged.present) + ' days selected.');
+    }
+    if (notes.length) block.appendChild(el('div', 'note', notes.join(' ')));
+    return block;
+  }
+
+  function crossTable(days, section, name) {
+    var merged = mergeCross(days, section, name);
+    var block = el('div');
+    block.appendChild(el('h3', null, name + ' by ' + (merged.by || 'split')));
+    var values = Object.keys(merged.rows);
+    if (values.length === 0) {
+      block.appendChild(el('div', 'note', 'Nothing published on the days selected.'));
+      return block;
+    }
+    var splitKeys = {};
+    values.forEach(function (value) {
+      Object.keys(merged.rows[value].split).forEach(function (key) { splitKeys[key] = true; });
+    });
+    var columns = Object.keys(splitKeys).sort(function (a, b) {
+      if (a === OTHER) return 1;
+      if (b === OTHER) return -1;
+      return a < b ? -1 : 1;
+    });
+    var isResult = merged.by === 'result';
+
+    var table = el('table');
+    var head = el('tr');
+    head.appendChild(el('th', null, name));
+    head.appendChild(el('th', null, 'total'));
+    columns.forEach(function (key) { head.appendChild(el('th', null, key)); });
+    if (isResult) head.appendChild(el('th', null, 'win rate'));
+    table.appendChild(head);
+
+    values.sort(function (a, b) {
+      if (a === OTHER) return 1;
+      if (b === OTHER) return -1;
+      return merged.rows[b].total - merged.rows[a].total || (a < b ? -1 : 1);
+    }).forEach(function (value) {
+      var row = merged.rows[value];
+      var tr = el('tr', value === OTHER ? 'other' : null);
+      tr.appendChild(el('td', null, value));
+      tr.appendChild(el('td', 'n', fmt(row.total)));
+      columns.forEach(function (key) {
+        tr.appendChild(el('td', 'n', row.split[key] === undefined ? '' : fmt(row.split[key])));
+      });
+      if (isResult) {
+        // Published cells only. A win rate is never inferred from a total minus
+        // the cells beside it: the difference is exactly what the floor removed.
+        var wins = row.split.win;
+        var losses = row.split.loss;
+        var cell;
+        if (wins === undefined || losses === undefined || wins + losses === 0) {
+          cell = el('td', 'n', 'not published');
+        } else {
+          cell = el('td', 'rate', (100 * wins / (wins + losses)).toFixed(1) + '%');
+        }
+        tr.appendChild(cell);
+      }
+      table.appendChild(tr);
+    });
+    block.appendChild(table);
+
+    var notes = [];
+    if (isResult) {
+      notes.push('Win rate is wins over wins plus losses, counting published cells only. A blank cell was folded into "other" and is not added back.');
+    }
+    if (merged.suppressedSplits > 0) {
+      notes.push('The split was suppressed for ' + merged.suppressedSplits + ' row-days, which keep their total and show no breakdown.');
+    }
+    if (merged.suppressedDays > 0) {
+      notes.push('The whole breakdown was suppressed on ' + merged.suppressedDays + ' of the days selected.');
+    }
+    if (notes.length) block.appendChild(el('div', 'note', notes.join(' ')));
+    return block;
+  }
+
+  function seriesBlock(days) {
+    var card = el('div', 'card');
+    card.appendChild(el('h2', null, 'Installs per day'));
+    var totals = {};
+    days.forEach(function (day) {
+      if (day.heartbeat) totals[day.day] = day.heartbeat.installs;
+    });
+    if (Object.keys(totals).length === 0) {
+      card.appendChild(el('div', 'note', 'No day in the folder has enough installs to publish a heartbeat section.'));
+      return card;
+    }
+    var max = Object.keys(totals).reduce(function (m, key) { return Math.max(m, totals[key]); }, 0) || 1;
+    var host = el('div', 'bars');
+    Object.keys(totals).sort().forEach(function (day) {
+      var row = el('div', 'b');
+      row.appendChild(el('div', 'lab', day));
+      var track = el('div', 'track');
+      var fill = el('div', 'fill');
+      fill.style.width = Math.max(2, Math.round(100 * totals[day] / max)) + '%';
+      track.appendChild(fill);
+      row.appendChild(track);
+      row.appendChild(el('div', 'n', fmt(totals[day])));
+      host.appendChild(row);
+    });
+    card.appendChild(host);
+    var quiet = days.length - Object.keys(totals).length;
+    if (quiet > 0) {
+      card.appendChild(el('div', 'note', quiet + ' day(s) in the folder are below the floor for installs and publish no heartbeat section.'));
+    }
+    return card;
+  }
+
+  function totalsBlock(days) {
+    var card = el('div', 'card');
+    card.appendChild(el('h2', null, 'Totals for the selection'));
+    var installs = 0, duels = 0, rows = 0, duelInstalls = 0;
+    days.forEach(function (day) {
+      if (day.heartbeat) installs += day.heartbeat.installs;
+      if (day.duel) { duels += day.duel.duels; duelInstalls += day.duel.installs; }
+      if (day.cards) rows += day.cards.rows;
+    });
+    var host = el('div', 'totals');
+    [['days', days.length], ['install days', installs], ['duels', duels],
+     ['dueling install days', duelInstalls], ['card rows', rows]].forEach(function (pair) {
+      var box = el('div', 'total');
+      box.appendChild(el('div', 'n', fmt(pair[1])));
+      box.appendChild(el('div', 'k', pair[0]));
+      host.appendChild(box);
+    });
+    card.appendChild(host);
+    card.appendChild(el('div', 'note',
+      'Every number here is a sum of daily totals that each passed the k = ' + K + ' floor, so adding them is safe. '
+      + 'An install is counted once per day, so a player active on three days counts three install days.'));
+    return card;
+  }
+
+  function sectionCard(title, days, section, dimensions, crosses) {
+    var card = el('div', 'card');
+    card.appendChild(el('h2', null, title));
+    var present = days.filter(function (day) { return day[section]; }).length;
+    if (present === 0) {
+      card.appendChild(el('div', 'note', 'No day in the selection published this section.'));
+      return card;
+    }
+    var grid = el('div', 'grid2');
+    dimensions.forEach(function (name) { grid.appendChild(dimensionBlock(days, section, name)); });
+    card.appendChild(grid);
+    crosses.forEach(function (name) { card.appendChild(crossTable(days, section, name)); });
+    return card;
+  }
+
+  /** The dimension names present in the data, so the page follows the files. */
+  function namesIn(days, section, key) {
+    var seen = {};
+    days.forEach(function (day) {
+      var sect = day[section];
+      if (sect && sect[key]) Object.keys(sect[key]).forEach(function (name) { seen[name] = true; });
+    });
+    return Object.keys(seen).sort();
+  }
+
+  function render(selection) {
+    var app = document.getElementById('app');
+    app.innerHTML = '';
+    var days = DAYS;
+    if (selection === 'last7') days = DAYS.slice(-7);
+    else if (selection === 'last30') days = DAYS.slice(-30);
+    else if (selection !== 'all') days = DAYS.filter(function (day) { return day.day === selection; });
+
+    app.appendChild(totalsBlock(days));
+    app.appendChild(seriesBlock(DAYS));
+    app.appendChild(sectionCard('Heartbeat, counted in installs', days, 'heartbeat',
+      namesIn(days, 'heartbeat', 'dimensions'), []));
+    app.appendChild(sectionCard('Duels, counted in duels and gated by installs', days, 'duel',
+      namesIn(days, 'duel', 'dimensions'), namesIn(days, 'duel', 'crosses')));
+    app.appendChild(sectionCard('Cards, counted in session rows', days, 'cards',
+      namesIn(days, 'cards', 'dimensions'), namesIn(days, 'cards', 'crosses')));
+  }
+
+  function controls() {
+    var card = el('div', 'card');
+    card.appendChild(el('h2', null, 'Range'));
+    var select = el('select');
+    var options = [['all', 'All days (' + DAYS.length + ')'], ['last7', 'Last 7 days'], ['last30', 'Last 30 days']];
+    DAYS.slice().reverse().forEach(function (day) { options.push([day.day, day.day]); });
+    options.forEach(function (pair) {
+      var option = el('option', null, pair[1]);
+      option.value = pair[0];
+      select.appendChild(option);
+    });
+    select.onchange = function () { render(select.value); };
+    card.appendChild(select);
+    return card;
+  }
+
+  function empty(dir) {
+    var card = el('div', 'card');
+    card.appendChild(el('h2', null, 'Nothing to show yet'));
+    var note = el('div', 'empty');
+    note.appendChild(document.createTextNode('No day files were found in '));
+    note.appendChild(el('code', null, dir));
+    note.appendChild(document.createTextNode('. The rollup writes nothing until '));
+    note.appendChild(el('code', null, 'scripts/signals-rollup/config.json'));
+    note.appendChild(document.createTextNode(' has a start date and a day has been rolled up. '
+      + 'Point this page at another folder with --dir or SIGNALS_ROLLUP_DIR.'));
+    card.appendChild(note);
+    return card;
+  }
+
+  fetch('/data.json', { cache: 'no-store' }).then(function (response) {
+    return response.json();
+  }).then(function (data) {
+    DAYS = data.days || [];
+    K = data.k || 10;
+    document.getElementById('sub').textContent =
+      DAYS.length + ' day(s) from ' + data.dir + ', floor k = ' + K;
+    var app = document.getElementById('app');
+    if (DAYS.length === 0) { app.appendChild(empty(data.dir)); return; }
+    document.querySelector('main').insertBefore(controls(), app);
+    render('all');
+  }).catch(function () {
+    document.getElementById('sub').textContent = 'could not read the rollup folder';
+  });
+</script>
+</body>
+</html>

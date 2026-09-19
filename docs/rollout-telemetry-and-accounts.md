@@ -448,6 +448,84 @@ rollup.
 Gate: rungs 1-6. Exit: two consecutive successful cron runs, and a manual review
 of the first committed aggregate confirming no value sits below k.
 
+**BUILT 2026-09-18** (`scripts/signals-rollup/`, `scripts/signals-dash/`,
+`.github/workflows/signals-rollup.yml`). The spec above was three bullets; these
+are the decisions that filled it, all made on the safe side of the privacy
+policy's promise.
+
+- **The totals never touch `main`.** `main` deploys to Pages on every push, so a
+  daily data commit would be a daily deploy. The workflow writes to an orphan
+  branch, `signals-data`, which shares no history with `main` and is never
+  merged. `/signals-data/` is gitignored on every other branch.
+- **The floor counts installs, not rows.** A heartbeat or duel value publishes
+  only when at least ten DISTINCT INSTALLS reported it that day (and its own
+  number is at least ten). One player with fifty duels on a rare deck is a crowd
+  of one, and a row floor would publish them. This is stricter than the
+  policy's "fewer than 10 summaries", which is the direction a promise may be
+  exceeded in. Card rows carry no hash by design, so they are counted in rows.
+  Under sampling `count(DISTINCT blob3)` undercounts, which is also the safe
+  direction.
+- **Complementary suppression.** When the merged `other` is itself below the
+  floor, the next-smallest value is folded in, again and again, until `other`
+  passes; if nothing passes the dimension is `null`. Without this, one hidden
+  value is the day total minus the published ones. Install-gated folds take
+  the MAX of their members' gates as a lower bound (install sets overlap); row
+  folds add. The `other` row of a cross carries a total and never a split.
+- **Day gates.** A section with fewer than ten installs (heartbeat), ten
+  dueling installs and ten duels (duel) or ten rows (cards) is `null` for the
+  day. A day where all three close still writes a file, so the run is
+  idempotent and the gap explains itself.
+- **One guard before every write.** `assertNoSubFloorNumber` walks the day
+  object and refuses to write if any number under the three sections is below
+  ten or fractional. `ROLLUP_K` is a constant, and a test reads
+  `docs/legal/privacy-policy.md` and fails if the policy stops saying "fewer
+  than 10".
+- **A published day is never rewritten.** Two versions of one day are a
+  differencing leak. The backfill window is seven days and only fills gaps.
+  Accepted and stated: a value present one day and absent the next tells a
+  reader it was below ten that day, which is exactly what the policy describes.
+- **No time of day anywhere in a file** (legal finding 3), keys sorted, so a
+  re-run is byte-identical.
+- **The Actions log is public.** The run logs days, paths and counts of
+  published, folded and suppressed values. Never a query result, a raw count, a
+  hash, or the name of a folded value; a test holds every log line to an
+  allowlist of eight patterns.
+- **`config.json` ships with `startDate: null`,** and a null start date means
+  the run writes nothing. **Filling it is a release-cut item**, beside the
+  privacy policy's effective date. It also keeps the deploy-day synthetic rows
+  out of every report.
+- **The dimension table is held equal to `SIGNAL_FIELDS`** in both directions,
+  with `buildSha` the one named exclusion (a build hash is a near-unique value
+  and `appVersion` answers the question), so a schema change fails the suite
+  until someone decides how the new field rolls up.
+- **`other` is a real value of `settings.renderScale` today.** It is carried as
+  `other (reported)` so it can never be read as the fold bucket, and a test
+  pins `renderScale` as the only field that has one.
+- **Verified against the live dataset by the main session** (the agent never
+  touched Cloudflare): all 36 queries for a day run clean in Analytics
+  Engine's SQL dialect and return the expected columns and types against real
+  rows; a complete day with no rows writes the all-`null` file; the viewer
+  renders a fixture day with no console errors and no external request.
+- **Owner check done 2026-09-18:** the Cloudflare dashboard shows zero
+  observability events across a window holding about 45 real requests, so
+  Workers Logs are off as configured.
+- **What cannot be verified until 1.8 is on `main`:** the Actions run itself,
+  the first-run creation of the orphan branch, the push, and the two repo
+  secrets in use. GitHub runs schedules from the default branch only, so the
+  cron starts at the cut, and the exit criterion above is met after it.
+  `workflow_dispatch` is there for the first run. GitHub also disables a
+  schedule after 60 days without repository activity.
+- **Reading it:** `npm run signals-dash` (:5186) over a local checkout of the
+  branch, `git fetch origin signals-data` then
+  `git worktree add ../DarlingBlades-signals-data signals-data`, with
+  `SIGNALS_ROLLUP_DIR` pointed at its `rollups` folder. The raw store, for the
+  90 days it exists, is `npx tsx worker/scripts/query.ts`.
+- **Two standing load flakes, both timeouts and neither a regression:**
+  `tests/ui/shopRetail.test.ts` runs a transpiled source file under a 1,000 ms
+  `runInNewContext` budget, and `tests/meta/balanceTelemetry.test.ts` has a
+  5 s default; each has failed once under a full-suite run on a busy machine
+  and passes alone.
+
 ### T4 — Read it honestly
 
 Not a code wave. A standing rule that belongs in the release notes and in this
@@ -576,6 +654,8 @@ Written now, because the moment to write it is not at 2 a.m.
 | Signals volume spikes implausibly | Spam against the public endpoint | Tighten the rate-limiting rule. **Discard the affected window from every rollup** and note it, rather than reasoning over poisoned data |
 | Cloud sync failing for everyone | Supabase project **paused** after 7 days of low activity | Restore from Supabase Studio. Then check why the keep-alive cron stopped |
 | Cloud sync failing for one player | Token expiry, clock skew, or a conflict they dismissed | The export code is always the fallback. Never hand-edit a row |
+| The daily rollup workflow fails or stops | A rotated or expired `CLOUDFLARE_ANALYTICS_TOKEN`, a Cloudflare API change, or GitHub disabling the schedule after 60 days of repository inactivity | Nothing is lost for seven days: the next good run backfills every missing day in its window. Past seven days, run it locally with `--day` for each gap, before the 90-day wall takes the raw rows. A run that fails writes nothing, by design |
+| A rollup file holds a number below ten | A bug past both the fold and the guard | Treat as a publication incident: fix forward, do NOT rewrite the day silently, record what was exposed and for how long |
 | A player asks to be forgotten | — | Telemetry: nothing to delete, and say so plainly rather than implying a search happened. Accounts: point them at the in-app delete, which is self-serve by design |
 
 **Kill switches, in escalation order:** the Settings toggle (per player) →
