@@ -108,7 +108,8 @@ catalog test and refuses:
   exactly two single-target permanent specs.
 
 The rules line is rendered by `activatedText` in `src/ui/rulesText.ts`: the
-tap pip, the mana cost if any, a colon, then the ops in the spell template.
+mana cost if any, then the tap pip (`{2}, {T}:`, mana first since 2026-09-18),
+a colon, then the ops in the spell template.
 The glossary entry (`duty` in `src/data/glossary.ts`) carries the taught
 definition and the arrival rule; card text never repeats it.
 

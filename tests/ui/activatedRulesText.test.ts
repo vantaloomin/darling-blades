@@ -23,7 +23,7 @@ describe('Duty rules text', () => {
         ops: [{ op: 'gainLife', n: 2 }, { op: 'draw', n: 1 }],
       },
     };
-    expect(rulesText(card)).toMatchInlineSnapshot('"{T}, {1}{G}: You gain 2 life, then draw a card."');
+    expect(rulesText(card)).toMatchInlineSnapshot('"{1}{G}, {T}: You gain 2 life, then draw a card."');
   });
 
   it('treats an explicitly zero mana cost as the tap alone', () => {

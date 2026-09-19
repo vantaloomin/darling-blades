@@ -100,10 +100,10 @@ _Concretion note (2026-07-16): the original sketch used vocabulary the engine do
 | ac-rallying-horn | Rallying Horn | C | R | Ritual | War horn | boost allYours +2/+0 (until end of turn) | Utility |
 | ac-prophecy-attendant | Prophecy Attendant | C | U | Creature | Merlin's attendant | arrives if questActive: foresee 2 | Blue common |
 | ac-bramble-chapel | Bramble Reliquary | C | G | Artifact | Ruined chapel | {T}: You gain 1 life. | Common Duty artifact |
-| ac-lowland-fort | Lowland Fort Banner | C | W | Artifact | Border keep | {T}, {2}: Tap target creature an opponent controls. | Common Duty artifact |
+| ac-lowland-fort | Lowland Fort Banner | C | W | Artifact | Border keep | {2}, {T}: Tap target creature an opponent controls. | Common Duty artifact |
 | ac-red-tournament-ground | Tournament Pennant | C | R | Artifact | Joust field | {T}: Foresee 1. | Common Duty artifact |
 | ac-court-of-whispers | Listeners' Curtain | C | B | Artifact | Intrigue court | {T}: Put the top card of your deck into your graveyard. | Common Duty artifact |
-| ac-mirror-lake | Mirror-Lake Glass | C | U | Artifact | Avalon lake | {T}, {2}: Foresee 3. | Common Duty artifact |
+| ac-mirror-lake | Mirror-Lake Glass | C | U | Artifact | Avalon lake | {2}, {T}: Foresee 3. | Common Duty artifact |
 | ac-shieldwall-call | Shieldwall Call | C | W | Charm | Defensive formation | boost allYours +0/+N | Team trick |
 | ac-woodland-errand | Woodland Errand | C | G | Ritual | Quest errand | extraLandDrop | Ramp |
 | ac-treasonous-glance | Treasonous Glance | C | B | Charm | Betrayal | loseLife opponent, foresee | Black trick |

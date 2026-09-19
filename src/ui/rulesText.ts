@@ -366,7 +366,8 @@ export function activatedText(d: CardDef): string | undefined {
   if (abilities.length === 0) return undefined;
   return abilities.map((ability) => {
     const mana = ability.cost.mana ? manaCostText(ability.cost.mana) : undefined;
-    const cost = mana && mana !== '{0}' ? `{T}, ${mana}` : '{T}';
+    // Mana first, then the tap: `{2}, {T}:`, the order card players already read.
+    const cost = mana && mana !== '{0}' ? `${mana}, {T}` : '{T}';
     const effect = abilityText({ when: 'spell', ops: ability.ops, targets: ability.targets }, d);
     return `${cost}: ${effect}`;
   }).join('\n');

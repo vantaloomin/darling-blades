@@ -140,7 +140,7 @@ The list is rarity-banded for counting and implementation planning. The original
 | dt-dreaming-castle | Dreaming Castle | C | Land | Land | Thorn castle | Sleeping Beauty | entersTapped, manaAbility G/W | Dual land |
 | dt-tide-cavern | Tide Cavern | C | Land | Land | Sea grotto | Little Mermaid | entersTapped, manaAbility U/B | Dual land |
 | dt-wolf-path | Wolf-Path Charm | C | G | Artifact | Forest road | Red Riding Hood | {T}: You gain 1 life. | Common Duty artifact |
-| dt-palace-steps | Glass Slipper | C | W | Artifact | Castle approach | Cinderella | {T}, {1}: You gain 2 life. | Common Duty artifact |
+| dt-palace-steps | Glass Slipper | C | W | Artifact | Castle approach | Cinderella | {1}, {T}: You gain 2 life. | Common Duty artifact |
 | dt-midnight-road | Midnight Invitation | C | B | Artifact | Night road | Cinderella | {T}: Put the top card of your deck into your graveyard. | Common Duty artifact |
 | dt-sea-cave | Sea-Cave Pearl | C | U | Artifact | Ocean cave | Little Mermaid | {T}: Foresee 1. | Common Duty artifact |
 | dt-hearth-cinders | Banked Cinders | C | R | Artifact | Hearth ruin | Cinderella | {T}: This deals 1 damage to your opponent. | Common Duty artifact |
@@ -159,7 +159,7 @@ The list is rarity-banded for counting and implementation planning. The original
 | dt-winter-bridge | Winter-Bridge Toll | C | U | Artifact | Frozen bridge to a palace gate | Elsa / Frozen Queen | {T}: Sever the top card of your opponent's graveyard. | Common Duty artifact |
 | dt-palace-market-chase | Palace-Market Chase | C | R | Ritual | Desert market escape | Jasmine | damage target 2; Skim {cost} | Red removal/smoothing |
 | dt-brass-lamp-charm | Brass Lamp Charm | C | C | Artifact | Polished magic lamp | Jasmine | Skim {cost}; arrives: foresee 1 | Colorless smoothing |
-| dt-desert-rooftop | Rooftop Spyglass | C | R | Artifact | Palace city rooftop | Jasmine | {T}, {1}: Foresee 2. | Common Duty artifact |
+| dt-desert-rooftop | Rooftop Spyglass | C | R | Artifact | Palace city rooftop | Jasmine | {1}, {T}: Foresee 2. | Common Duty artifact |
 | dt-reflection-sword | Reflection Sword | C | W | Ritual | Family blade reflected in water | Mulan | boost allYours +1/+0 with firstBlade (until end of turn) | Combat relic |
 | dt-training-yard-dawn | Training-Yard Dawn | C | W | Charm | Martial training yard | Mulan | boost target +1/+1, foresee 1 | White combat trick |
 | dt-ancestor-smoke | Ancestor's Smoke | C | W | Charm | Ancestral spirit smoke | Mulan | foresee 2; Retell {cost} | Hybrid support trick |
@@ -170,7 +170,7 @@ The list is rarity-banded for counting and implementation planning. The original
 | dt-lagoon-current | Lagoon Current | C | U | Charm | Tidal push around a reef | Moana | recall target, foresee 1 | Flexible tempo trick |
 | dt-oceanic-islet | Oceanic Islet | C | Land | Land | Reef island passage | Moana | entersTapped, manaAbility U/G | Common dual land |
 | dt-windblown-leaf-paint | Windblown Leaf-Paint | C | G | Ritual | Painted leaves carried by wind | Pocahontas | foresee 2, gainLife 2 | Green selection |
-| dt-riverbend-trail | Riverbend Waterwheel | C | G | Artifact | Forest river bend | Pocahontas | {T}, {3}: Return target creature card from your graveyard to your hand. | Common Duty artifact |
+| dt-riverbend-trail | Riverbend Waterwheel | C | G | Artifact | Forest river bend | Pocahontas | {3}, {T}: Return target creature card from your graveyard to your hand. | Common Duty artifact |
 | dt-plaid-arrow | Plaid Arrow | C | G | Charm | Highland tournament shot | Merida | boost target +1/+1 with wardingGaze | Combat trick |
 | dt-casita-door-charm | Casita Door Charm | C | W | Artifact | Enchanted house door token | Mirabel | arrives: createToken Hearth Spirit + foresee 1 | Token setup |
 | dt-jade-dragon-scale | Jade Dragon Egg | C | G | Artifact | Sleeping jade dragon egg (retitled from scale 2026-07-23, art-led) | Raya | Skim {cost}; arrives: foresee 1 | Green utility |

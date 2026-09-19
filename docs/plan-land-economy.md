@@ -54,9 +54,10 @@ heavier rows. What the build found, and how the owner ruled the same day:
   deck is built from the Warchest columns. The lists are the owner's measured
   decks and were left alone; the land-count test reads 21 and 22 for those
   two.
-- **Cost order.** The generator prints `{T}, {2}:` where this slate and Magic
-  convention read `{2}, {T}:`. Ruled: mana first, as a separate change to the
-  text renderer, because it touches every Duty card in the game.
+- **Cost order.** The generator printed `{T}, {2}:` where this slate and Magic
+  convention read `{2}, {T}:`. Ruled: mana first. Done the same day as its
+  own change to the text renderer, because it touches every Duty card in the
+  game, Drowned Deep's included.
 - **Still owed:** the local card database rebuild and the Assay rows, an
   eyes-on pass for the 27 landscape arts in artifact frames, and the seeded
   matrix watch on Festival Rocket and Crossing Beacon once players can draft
