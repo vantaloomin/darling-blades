@@ -240,6 +240,11 @@ describe('AI win-rate gates', () => {
     //   R23 42/85/55/59/63 avg 60 · R24 51/88/64/62/91 avg 71
     // Superseded 2026-08-30 reading, kept for the delta: R23 65
     // (46/83/59/60/77) and R24 68 (45/87/59/57/94).
+    // R23 RE-TUNED 2026-09-19 (four Ashwood Rangers, her entry in
+    // src/data/opponents.ts has the full pass): 63/82/64/70/84 avg 72.1 at
+    // 200 seeds/cell, 0 draws, measured on the committed list with
+    // runAvatarMatrix under the same per-(rung, starter) seeding this gate
+    // uses; the 60 above reproduced exactly in the same session.
     const report = runAvatarMatrix(40, ['chrome-broodmother', 'the-violet-signal-queen']);
     reportAvatarRates(report);
     const row = (id: string) => report.rows.find((entry) => entry.avatar.id === id);
@@ -250,14 +255,12 @@ describe('AI win-rate gates', () => {
     if (!r23 || !r24) return;
     expect(r23.cells).toHaveLength(5);
     expect(r24.cells).toHaveLength(5);
-    // R23 Chrome Broodmother: 60 - 6.5 = 53.5, BELOW the standing 0.585
-    // floor, so 0.585 is KEPT - a candidate under the current value is
-    // recorded, never applied. FINDING for the owner: she has fallen 8pp
-    // from the 68 measured 2026-08-30, which leaves 1.5pp between her
-    // 200-seed mean and her own floor against a documented 6.5pp 40-seed
-    // band. That is the narrowest margin on the ladder; Muster (42) and
-    // Mandate (59) are where the AI modernization took the 8pp out of her.
-    expect(r23.avg, 'Chrome Broodmother floor').toBeGreaterThanOrEqual(0.585);
+    // R23 Chrome Broodmother: 72.1 - 6.5 = 65.6, rounded down to the half
+    // point, so the floor RATCHETS UP 0.585 -> 0.655. History: on 2026-09-17
+    // she read 60, 1.5pp above 0.585 against a 6.5pp 40-seed band, the
+    // narrowest margin on the ladder; the 2026-09-19 tuning pass found the
+    // cause (no way to block a flier) and closed it.
+    expect(r23.avg, 'Chrome Broodmother floor').toBeGreaterThanOrEqual(0.655);
     // R24 Violet Signal Queen: 71 - 6.5 = 64.5, so the floor RATCHETS UP
     // 0.615 -> 0.645. Same minus-6.5pp convention, rounded down to the half
     // point.
