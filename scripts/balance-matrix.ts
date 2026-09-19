@@ -474,14 +474,26 @@ export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   // 15-22 carry the 2026-08-23 reserve-native re-centre described above.
   // Superseded classic values, for the record: R15 .675 R16 .605 R17 .705
   // R18 .775 R19 .555 R20 .645 R21 .445 R22 .705.
-  15: { minAvg: 0.645 },
+  // SYNCED 2026-09-19 to the floors tests/ai/winrate.test.ts gates on. These
+  // bands had drifted behind the gate: rung 21 still carried its pre-ratchet
+  // .505 and rungs 23-26 had no band at all, so a manual `--avatars` run
+  // could not flag a summit boss under her own floor. The gate is the
+  // authority; when a floor ratchets there, it ratchets here in the same PR.
+  // 2026-09-19 re-baseline on the final 1.8 pool: R15 .645 -> .655,
+  // R17 .685 -> .705, R18 .795 -> .82; R16, R19 and R20 kept (candidates
+  // under the standing floor are recorded, never applied).
+  15: { minAvg: 0.655 },
   16: { minAvg: 0.625 },
-  17: { minAvg: 0.685 },
-  18: { minAvg: 0.795 },
+  17: { minAvg: 0.705 },
+  18: { minAvg: 0.82 },
   19: { minAvg: 0.545 },
   20: { minAvg: 0.805 },
-  21: { minAvg: 0.505 },
+  21: { minAvg: 0.585 },
   22: { minAvg: 0.685 },
+  23: { minAvg: 0.655 },
+  24: { minAvg: 0.645 },
+  25: { minAvg: 0.595 },
+  26: { minAvg: 0.685 },
 });
 
 // ---------------------------------------------------------------------------

@@ -180,15 +180,41 @@ describe('AI win-rate gates', () => {
     //   R21 57 · R22 75          FLAGS none
     // Each floor is that average minus the documented 6.5pp 40-seed noise
     // band, rounded down to the half point (CI runs this matrix at 40 seeds).
-    expect(r15.avg, 'Carmilla floor').toBeGreaterThanOrEqual(0.645);
+    //
+    // RUNGS 14-20 RE-BASELINED 2026-09-19 on the final 1.8 pool, after the AI
+    // modernization, the land-economy conversion and every tuning pass. Same
+    // harness and per-(rung, starter) seeding as this gate, 200 seeds/cell,
+    // one process per avatar, FLAGS none; cells in
+    // Muster/Communion/Tides/Mandate/Harvest order:
+    //   R14 27/91/66/75/71 avg 65.6 · R15 61/78/52/85/86 avg 72.3
+    //   R16 57/73/51/79/83 avg 68.6 · R17 70/76/62/94/85 avg 77.3
+    //   R18 88/93/73/95/95 avg 88.5 · R19 40/75/49/59/71 avg 58.6 (1 draw)
+    //   R20 74/70/82/91/92 avg 81.6
+    // Same minus-6.5pp convention, and the ratchet: a candidate under the
+    // standing floor is recorded, never applied.
+    //   R15 Carmilla 72.3 -> 65.5, RATCHETS UP from 0.645.
+    //   R16 The Bride 68.6 -> 62.0, below the standing 0.625, KEPT.
+    //   R17 Glass-Coffin Queen 77.3 -> 70.5, RATCHETS UP from 0.685.
+    //   R18 Abyssal Songstress 88.5 -> 82.0, RATCHETS UP from 0.795. Her
+    //       margin was 1.5pp at the 2026-08-30 reading; it is 6.5 again.
+    //   R19 Queen of the Lanterned Roof 58.6 -> 52.0, below 0.545, KEPT. Her
+    //       margin over her own floor is 4.1pp, inside the 6.5pp band.
+    //   R20 Kitsune Neon Tyrant 81.6 -> 75.0, below 0.805, KEPT. FINDING for
+    //       the owner: she read 87 on 2026-08-23 and 84 after AI phase C, and
+    //       81.6 now leaves 1.1pp between her 200-seed mean and her floor, the
+    //       narrowest margin on the ladder. Muster (74) and Communion (70) are
+    //       her soft columns. She is the next deck owed a measured tuning
+    //       pass, the same position Chrome Broodmother was in on 2026-09-17.
+    //   R14 Artoria has no absolute floor; 65.6, Muster 27 her one bad column.
+    expect(r15.avg, 'Carmilla floor').toBeGreaterThanOrEqual(0.655);
     // R16 The Bride was HAND-TUNED in this pass, 54% -> 69%. The converter's
     // curve cap {6:2} had halved her legend from the 4 copies her own classic
     // list runs, and left her a reanimator with nothing worth reanimating
     // (4x Stormtower Resurrection raising a 3/2). She had fallen BELOW rung
     // 14 on the reserve field; she no longer does.
     expect(r16.avg, 'The Bride floor').toBeGreaterThanOrEqual(0.625);
-    expect(r17.avg, 'Glass-Coffin Queen floor').toBeGreaterThanOrEqual(0.685);
-    expect(r18.avg, 'Abyssal Songstress floor').toBeGreaterThanOrEqual(0.795);
+    expect(r17.avg, 'Glass-Coffin Queen floor').toBeGreaterThanOrEqual(0.705);
+    expect(r18.avg, 'Abyssal Songstress floor').toBeGreaterThanOrEqual(0.82);
     expect(r19.avg, 'Queen of the Lanterned Roof floor').toBeGreaterThanOrEqual(0.545);
     expect(r20.avg, 'Kitsune Neon Tyrant floor').toBeGreaterThanOrEqual(0.805);
     // R21 Anubis HAND-TUNED 33% -> 57%. Her converter build retained four
