@@ -127,15 +127,19 @@ describe('AI win-rate gates', () => {
     expect(rate).toBeGreaterThanOrEqual(0.7);
   }, 600_000);
 
-  it('summit rungs 14-22 clear their reserve-native 40-seed floors and terminate', () => {
-    // Rungs 23-24 and 25-26 gate separately below: one 24-avatar matrix blew
-    // the 900s per-test budget on CI hardware (2026-08-29), so the summit is
-    // split across three gates. All six carry real floors since 2026-09-17.
+  it('summit rungs 14-18 clear their reserve-native 40-seed floors and terminate', () => {
+    // SPLIT 2026-09-19 from one rungs 14-22 gate. That gate measured 692.6 s on
+    // CI hardware against a 900 s budget (the #401 run), and the two tuning
+    // passes that day lengthened it: the Queen of the Lanterned Roof now
+    // survives her early turns, so her games run longer. Locally it went
+    // 394 s -> 507 s in a day; at CI's measured 1.57x that is about 800 s.
+    // The order rules divide cleanly: every one sits inside rungs 14-18
+    // except rung 20 against rung 19, which lives in the next gate. Rungs
+    // 23-24 and 25-26 gate separately below for the same reason (one
+    // 24-avatar matrix blew the budget on 2026-08-29). Same ids, same
+    // per-(rung, starter) seeding, same floors: only the grouping changed.
     const report = runAvatarMatrix(40, [
-      'artoria', 'carmilla', 'the-bride', 'glass-coffin-queen',
-      'abyssal-songstress', 'queen-of-the-lanterned-roof',
-      'kitsune-neon-tyrant', 'anubis-who-holds-the-scale',
-      'bastet-mistress-of-the-ninth-return',
+      'artoria', 'carmilla', 'the-bride', 'glass-coffin-queen', 'abyssal-songstress',
     ]);
     reportAvatarRates(report);
     const row = (id: string) => report.rows.find((entry) => entry.avatar.id === id);
@@ -144,20 +148,12 @@ describe('AI win-rate gates', () => {
     const r16 = row('the-bride');
     const r17 = row('glass-coffin-queen');
     const r18 = row('abyssal-songstress');
-    const r19 = row('queen-of-the-lanterned-roof');
-    const r20 = row('kitsune-neon-tyrant');
-    const r21 = row('anubis-who-holds-the-scale');
-    const r22 = row('bastet-mistress-of-the-ninth-return');
     expect(r14).toBeDefined();
     expect(r15).toBeDefined();
     expect(r16).toBeDefined();
     expect(r17).toBeDefined();
     expect(r18).toBeDefined();
-    expect(r19).toBeDefined();
-    expect(r20).toBeDefined();
-    expect(r21).toBeDefined();
-    expect(r22).toBeDefined();
-    if (!r14 || !r15 || !r16 || !r17 || !r18 || !r19 || !r20 || !r21 || !r22) return;
+    if (!r14 || !r15 || !r16 || !r17 || !r18) return;
 
     // FLOORS RE-CENTRED 2026-08-23 on the reserve-native avatar matrix.
     //
@@ -214,6 +210,15 @@ describe('AI win-rate gates', () => {
     // 14-deck confirmation) reads 79/84/87/97/95 avg 88.3 on the committed
     // list at 200 seeds/cell, one draw in 1,000 games. 88.3 - 6.5 = 81.8, so
     // her floor RATCHETS UP 0.805 -> 0.815; CI's 40 seeds read 90.5, 0 draws.
+    //
+    // R19 QUEEN OF THE LANTERNED ROOF TUNED 2026-09-19, closing the other thin
+    // margin above. Her converter cut had no creature below three mana; four
+    // Lantern Fixers for four Circuit Foretelling (her entry in
+    // src/data/opponents.ts has the full pass, including the converter-defect
+    // theory that did NOT survive the 14-deck matrix) reads 53/86/61/82/78
+    // avg 71.7 on the committed list at 200 seeds/cell, 0 draws.
+    // 71.7 - 6.5 = 65.2, so her floor RATCHETS UP 0.545 -> 0.65; CI's 40
+    // seeds read 68.0, 0 draws.
     expect(r15.avg, 'Carmilla floor').toBeGreaterThanOrEqual(0.655);
     // R16 The Bride was HAND-TUNED in this pass, 54% -> 69%. The converter's
     // curve cap {6:2} had halved her legend from the 4 copies her own classic
@@ -223,7 +228,37 @@ describe('AI win-rate gates', () => {
     expect(r16.avg, 'The Bride floor').toBeGreaterThanOrEqual(0.625);
     expect(r17.avg, 'Glass-Coffin Queen floor').toBeGreaterThanOrEqual(0.705);
     expect(r18.avg, 'Abyssal Songstress floor').toBeGreaterThanOrEqual(0.82);
-    expect(r19.avg, 'Queen of the Lanterned Roof floor').toBeGreaterThanOrEqual(0.545);
+    expect(r15.avg, 'rung 15 must clear rung 14').toBeGreaterThan(r14.avg);
+    // Restored 2026-08-23 as a genuine ordering check: R16 measures 69% to
+    // R14's 63%, so the tolerance gate below is doing real work again rather
+    // than papering over the format inversion it briefly carried.
+    expect(r16.avg, 'rung 16 must not fall behind rung 14').toBeGreaterThanOrEqual(r14.avg - 0.05);
+    expect(r17.avg, 'rung 17 must clear rung 16').toBeGreaterThan(r16.avg);
+    expect(r18.avg, 'rung 18 must be the measured summit').toBeGreaterThan(r17.avg);
+    for (const cell of [...r17.cells, ...r18.cells]) {
+      expect(cell.draws, 'new boss cell must terminate decisively').toBe(0);
+    }
+  }, 900_000);
+
+  it('summit rungs 19-22 clear their reserve-native 40-seed floors and terminate', () => {
+    // The second half of the 2026-09-19 split; the floor commentary for all of
+    // rungs 14-22, including both re-baselines, is in the gate above.
+    const report = runAvatarMatrix(40, [
+      'queen-of-the-lanterned-roof', 'kitsune-neon-tyrant',
+      'anubis-who-holds-the-scale', 'bastet-mistress-of-the-ninth-return',
+    ]);
+    reportAvatarRates(report);
+    const row = (id: string) => report.rows.find((entry) => entry.avatar.id === id);
+    const r19 = row('queen-of-the-lanterned-roof');
+    const r20 = row('kitsune-neon-tyrant');
+    const r21 = row('anubis-who-holds-the-scale');
+    const r22 = row('bastet-mistress-of-the-ninth-return');
+    expect(r19).toBeDefined();
+    expect(r20).toBeDefined();
+    expect(r21).toBeDefined();
+    expect(r22).toBeDefined();
+    if (!r19 || !r20 || !r21 || !r22) return;
+    expect(r19.avg, 'Queen of the Lanterned Roof floor').toBeGreaterThanOrEqual(0.65);
     expect(r20.avg, 'Kitsune Neon Tyrant floor').toBeGreaterThanOrEqual(0.815);
     // R21 Anubis HAND-TUNED 33% -> 57%. Her converter build retained four
     // cards targeting artifactOrEnchantment into a format whose starter
@@ -253,15 +288,8 @@ describe('AI win-rate gates', () => {
     // pass measured 73.60 on this harness; 74 here is the same number inside
     // the table's whole-percent rounding.
     expect(r22.avg, 'Bastet floor').toBeGreaterThanOrEqual(0.685);
-    expect(r15.avg, 'rung 15 must clear rung 14').toBeGreaterThan(r14.avg);
-    // Restored 2026-08-23 as a genuine ordering check: R16 measures 69% to
-    // R14's 63%, so the tolerance gate below is doing real work again rather
-    // than papering over the format inversion it briefly carried.
-    expect(r16.avg, 'rung 16 must not fall behind rung 14').toBeGreaterThanOrEqual(r14.avg - 0.05);
-    expect(r17.avg, 'rung 17 must clear rung 16').toBeGreaterThan(r16.avg);
-    expect(r18.avg, 'rung 18 must be the measured summit').toBeGreaterThan(r17.avg);
     expect(r20.avg, 'rung 20 must measure at or above rung 19').toBeGreaterThanOrEqual(r19.avg);
-    for (const cell of [...r17.cells, ...r18.cells, ...r19.cells, ...r20.cells, ...r21.cells, ...r22.cells]) {
+    for (const cell of [...r19.cells, ...r20.cells, ...r21.cells, ...r22.cells]) {
       expect(cell.draws, 'new boss cell must terminate decisively').toBe(0);
     }
   }, 900_000);
