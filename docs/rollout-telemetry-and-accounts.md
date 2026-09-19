@@ -386,8 +386,21 @@ UI:
   addition.**
 - An in-game Privacy panel reachable from Settings, listing the exact fields
   sent. Reuse `src/ui/Modal.ts`.
-- The notice for existing players, shown when `statsNoticeVersion` is below
-  `STATS_NOTICE_VERSION`, then stamped. A `Toast`, not a blocking dialog.
+- The notice, shown to every player when `statsNoticeVersion` is below
+  `STATS_NOTICE_VERSION`, then stamped. ~~A `Toast`, not a blocking dialog.~~
+  **Re-ruled 2026-09-19: a first-run dialog, shown BEFORE the tutorial prompt,
+  carrying the sharing toggle, default on.** As a toast it waited for a clear
+  menu, which for a new player meant after the tutorial, and it was easy to
+  miss. Default on stands (legal review finding 2): the basis is the
+  audience-measurement exemption and legitimate interest, not consent, and one
+  condition of that exemption is an easy way to object, which the dialog now
+  puts in front of every player before anything is sent. A pre-set toggle is
+  only invalid AS consent, so the dialog must never read as a consent request:
+  the button is `Continue`, and a test bans agree, accept, consent, allow and
+  permission from its copy. Nothing is sent while it is open. Probed in a
+  browser on a fresh save 2026-09-19: the dialog is first on screen, the
+  toggle saves at once, Escape closes only the `What is sent` panel, Continue
+  stamps and hands on to the tutorial prompt, no console errors.
 
 Docs:
 
