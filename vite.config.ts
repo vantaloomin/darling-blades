@@ -2,6 +2,7 @@
 import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
+import { cspForTarget, isDesktopBuild } from './scripts/cspForTarget';
 
 // Build identity stamped into the client (src/version.ts): the package version
 // and the short commit SHA. Git is present in local dev and CI checkout; a
@@ -20,6 +21,14 @@ const gitSha = ((): string => {
 })();
 
 export default defineConfig({
+  plugins: [
+    {
+      // The desktop build gains Tauri's IPC sources in the page's connection
+      // policy; the web build is returned untouched. See scripts/cspForTarget.ts.
+      name: 'csp-for-target',
+      transformIndexHtml: (html: string): string => cspForTarget(html, isDesktopBuild(process.env)),
+    },
+  ],
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __GIT_SHA__: JSON.stringify(gitSha),

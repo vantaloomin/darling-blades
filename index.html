@@ -16,9 +16,10 @@
          same-origin. Only connect-src is restricted, on purpose: a strict
          script-src needs a probe of Phaser's WebGL and audio paths first
          (docs/legal/README.md, telemetry review finding 6). 'self' also covers
-         the dev server's own HMR socket under CSP level 3. The desktop build's
-         policy lives in src-tauri/tauri.conf.json and must also allow Tauri's
-         IPC origins; it is set with a desktop run, not here. -->
+         the dev server's own HMR socket under CSP level 3. The desktop build
+         loads this same page, so at build time it gains Tauri's two IPC
+         sources here and nowhere else (scripts/cspForTarget.ts, measured
+         2026-09-19). The web build ships this tag exactly as written. -->
     <meta
       http-equiv="Content-Security-Policy"
       content="connect-src 'self' https://api.github.com https://db-signals.loominvanta.workers.dev"
