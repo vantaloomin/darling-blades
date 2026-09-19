@@ -427,12 +427,43 @@ CI's 40 seeds the same day (65.0 · 74.5 · 69.5 · 79.5 · 84.5 · 56.0 · 84.0
 zero draws, every order rule holding. **The finding: Kitsune has fallen 87 to
 84 to 81.6 across the AI passes and now sits 1.1pp over her own floor, the
 narrowest margin on the ladder,** with Muster (74) and Communion (70) her soft
-columns; the Queen of the Lanterned Roof sits 4.1pp over hers. The gate runs
+columns (tuned the same day, next paragraph); the Queen of the Lanterned Roof
+sits 4.1pp over hers. The gate runs
 fixed seeds, so a thin margin is not a random failure; it is fragility to the
 next change to the engine, the AI or a card either deck runs. Kitsune is the
 next deck owed a measured tuning pass. `RUNG_BANDS` in
 `scripts/balance-matrix.ts` was synced to the gate the same day: it had kept
 rung 21's pre-ratchet value and carried no band for rungs 23-26.
+
+**Kitsune's tuning pass, 2026-09-19,** closing that finding the same day. She
+had never been tuned: her list was the converter's first cut, and it had
+DROPPED the four Redline Queenpins her authored list runs (5/4 Warcry, 4
+damage on arrival) and DOUBLED her Hauntlink package to eight three-mana
+copies, the same shape of converter defect that once hobbled The Bride.
+Restoring the authored 4/2/2 (two Burning Mask and two Ember-Link Chain become
+four Queenpin) reads 88.3 on the committed list (79/84/87/97/95), her floor
+ratchets 0.805 to 0.815, and CI's 40 seeds read 90.5. Confirmed on the 14-deck
+reserve matrix first: baseline 86.8, this list 92.3. The lever is smooth (two
+Queenpin 86.9, three 88.7, four 89.0), which leaves her strength an owner dial.
+
+**What that pass measured before it cut anything, and the method worth
+keeping.** The first theory was that the brains do not use Hauntlink. It was
+stale (phase B wrote `hauntlinkPolicy.ts`) and it was also checkable, so it
+was checked: a read-only wrapper on her brain over 500 of her own matrix games
+counted, per Hauntlink card, casts, links and copies stranded in the final
+hand. Once a Hauntlink card is on the battlefield the policy uses it (Burning
+Mask linked 0.82 times per cast, Ember-Link Chain 1.21), so the brain was
+cleared. The list was the problem: each Mask and Chain she saw was cast about
+half the time (52% and 51%), because eight is more than her curve can spend.
+**A behaviour test proves a brain CAN make a play and a win-rate gate proves
+the boss wins enough; neither says how often she USES a mechanic when she
+could. Count that before tuning, or a tune can hide a policy bug by swapping
+the unused cards out.** A general per-mechanic usage audit on the balance
+telemetry is proposed for 1.9. **A card finding for the owner fell out of the
+same count:** Hauntlink Apex was cast in 7% of her games (13% when seen).
+Under rules rev 4 a link is an ability paid after the card is cast, so Apex
+costs eight mana in a ten-land format, where it was once a four-mana linked
+cast. Her two copies stay as her authored identity; the card wants a ruling.
 
 **Chrome Broodmother's tuning pass, 2026-09-19.** The 60 reproduced exactly
 first. The cause was structural, and it is the same lesson the combat-model
