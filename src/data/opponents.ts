@@ -3521,9 +3521,18 @@ export const AVATARS: readonly Avatar[] = [
     // cast only about half the time (52% and 51%), the rest stranded in hand,
     // because eight is more than her curve can spend. And yn-hauntlink-apex
     // was cast in 7% of games (13% when seen): under rules rev 4 a link is an
-    // ability paid AFTER the card is cast, so Apex is eight mana in a ten-land
-    // format. That is a CARD finding for the owner, not fixed here; her two
-    // Apex stay because they are her authored identity.
+    // ability paid AFTER the card is cast, so Apex is eight mana to cast, and
+    // her games end around her seventh turn.
+    // CORRECTED THE SAME DAY: this is a DECK-FIT fact, not a card defect, and
+    // the first version of this note was wrong to call it one. Land drops are
+    // guaranteed in this format, so eight mana is reliable on turn eight. The
+    // workbench rates Apex fair at eight (+0.46) and 3.7 too strong at four,
+    // because its Dawn draw alone is worth about five mana. And a dear link
+    // does not go unused where games run long: in the Queen of the Lanterned
+    // Roof's deck Sanctum of Many Masks (three to cast, four to link) was cast
+    // 70% of the time it was seen and linked 1.58 times per cast. No recost is
+    // proposed (docs/ai.md has the table). Her two Apex stay as her authored
+    // identity; swapping them is a deck dial, measured at +7.6 on the old list.
     // Attempt 1 KEPT, the accepted list: two yn-burning-mask-of-the-void and
     // two yn-ember-link-chain become four yn-redline-queenpin, which restores
     // the authored 4/2/2 proportions. Appended-order run 82/81/90/95/97, avg
