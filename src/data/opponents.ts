@@ -3339,6 +3339,35 @@ export const AVATARS: readonly Avatar[] = [
     // R20 81/70/81/94/96 avg 84; R21 53/79/60/63(199+1d)/51 avg 61;
     // R22 56/85/57/90/88 avg 75; R23 50/82/59/71/77 avg 68;
     // R24 64/87/59/82/94 avg 77. FLAGS none.
+    // HAND-TUNED 2026-09-19 (reserve list only; classic, lands and Darlings
+    // unchanged; registered in tests/data/avatarReserveDecks.test.ts). She had
+    // never been tuned. She read 61 on 2026-08-23 and 58.6 on 2026-09-19
+    // (40/75/49/59/71), 4.1pp over her own floor, the thinnest untuned boss.
+    // THE DEFECT WAS HER CURVE. The converter's cut has no creature below
+    // three mana, and her three-drop (Neon-Gate Warden) has Bulwark and cannot
+    // attack, so she did nothing on turns one and two while Crimson Muster
+    // (40) and Burning Tides (49) ran her over. Four of her forty were Circuit
+    // Foretelling, which looks at two cards and replaces nothing.
+    // Attempt 1 KEPT, the accepted list: four yn-circuit-foretelling become
+    // four yn-lantern-fixer (2/2 Kitsune for two, Foresee 1 on arrival; her
+    // three lords make it a 3/3 or better). 53/86/61/82/78, avg 71.7, no draws
+    // at 200 seeds/cell; the committed list's own numbers are in
+    // tests/ai/winrate.test.ts.
+    // The same two-drop, other payers: Signal Bridge out 70.6, Sanctum of Many
+    // Masks out 68.1; bk-kitsune-illusionist for Foretelling 69.3. LOAD-BEARING,
+    // do not cut: dt-sea-glass-knife out 60.0, yn-neon-gate-warden out 56.1.
+    // THE CONVERTER-DEFECT THEORY WAS TESTED AND DID NOT HOLD. The converter
+    // had halved her own legend and her Moonlit Data Duelists (4 -> 2 each)
+    // and doubled four cheap packages. Restoring both read 63.9 on the five
+    // starters (+5.3), but on the independent 14-deck reserve matrix the three
+    // lists read baseline 62.5, authored cards restored 63.5, this list 74.2.
+    // +1.0 is noise: the restoration was fitting the starter columns. A dropped
+    // namesake is a suspect, not a defect.
+    // SECOND LEVERS MEASURED ON THE STARTERS ONLY AND NOT TAKEN, because none
+    // has a 14-deck confirmation and the line above is why that matters: this
+    // list plus the authored legend and Duelists 77.5, plus four
+    // yn-echo-fox-informant for Signal Bridge 76.1, plus four
+    // bk-kitsune-illusionist 76.4.
     reserveDeck: expand([
       ['yn-queen-of-the-lanterned-roof', 2],
       ['yn-lantern-court-regent', 4],
@@ -3350,7 +3379,7 @@ export const AVATARS: readonly Avatar[] = [
       ['yn-neon-gate-warden', 4],
       ['dt-sea-glass-knife', 4],
       ['yn-signal-bridge', 4],
-      ['yn-circuit-foretelling', 4],
+      ['yn-lantern-fixer', 4],
     ]),
     landReserve: expand([
       ['ld-misty-palace-terrace', 4],

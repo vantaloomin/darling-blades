@@ -273,10 +273,11 @@ alternated (so neither AI owns the better deck) and asserts:
 | Medium vs Easy     | **≥ 80%**            | **81.5%** (163/200)     |
 | Hard vs Medium     | CI floor **≥ 0.70**  | **76.5%** (153/200)     |
 
-The same file gates the tower's summit across three tests so no single
-matrix blows CI's 900 s per-test budget: rungs 14-22 hold per-avatar floors
-and ordering relations, and rungs 23-24 and 25-26 each hold per-avatar
-floors plus a termination check (five complete 40-seed cells, zero draws).
+The same file gates the tower's summit across four tests so no single
+matrix blows CI's 900 s per-test budget: rungs 14-18 and rungs 19-22 hold
+per-avatar floors and ordering relations, and rungs 23-24 and 25-26 each hold
+per-avatar floors plus a termination check (five complete 40-seed cells, zero
+draws).
 Every rung from 14 to 26 has carried a real floor since the 2026-09-17
 re-baseline described under Tower rungs below.
 
@@ -293,9 +294,16 @@ CI-variance margin (±3.5pp at 200 games) under the measured ~0.78.
 The win-rate file is the suite's long pole: the five gates plus the mini-fuzz
 took about **350 s** locally on 2026-09-15 and **962 s** on 2026-09-17, the
 second reading taken while another test run shared the machine, so re-measure
-idle before treating it as the new figure. Inside it the rungs 14-22 gate
-alone used 559 s of its 900 s per-test budget, so the next summit rung goes
-in a fourth gate, not on that list. The full suite takes about 11 minutes;
+idle before treating it as the new figure. Inside it the single rungs 14-22
+gate used 559 s of its 900 s per-test budget that day and **692.6 s on CI
+hardware on 2026-09-19**, and the two tuning passes that day lengthened it
+again (394 s to 507 s locally, about 800 s at CI's measured 1.57x), because a
+boss who survives her early turns plays longer games. It was split the same
+day into rungs 14-18 and rungs 19-22: same ids, same seeding, same floors, and
+the order rules divide cleanly, since all but rung 20 against rung 19 sit
+inside 14-18. **A tuning pass that makes a slow boss stronger makes her gate
+slower; check the gate's wall time, not only its result.** The next summit
+rung goes in a gate of its own. The full suite takes about 11 minutes;
 run it on an idle machine.
 
 ## Tuning surface
@@ -427,13 +435,38 @@ CI's 40 seeds the same day (65.0 · 74.5 · 69.5 · 79.5 · 84.5 · 56.0 · 84.0
 zero draws, every order rule holding. **The finding: Kitsune has fallen 87 to
 84 to 81.6 across the AI passes and now sits 1.1pp over her own floor, the
 narrowest margin on the ladder,** with Muster (74) and Communion (70) her soft
-columns (tuned the same day, next paragraph); the Queen of the Lanterned Roof
-sits 4.1pp over hers. The gate runs
+columns; the Queen of the Lanterned Roof sits 4.1pp over hers. Both were
+tuned the same day, in the paragraphs that follow. The gate runs
 fixed seeds, so a thin margin is not a random failure; it is fragility to the
 next change to the engine, the AI or a card either deck runs. Kitsune is the
 next deck owed a measured tuning pass. `RUNG_BANDS` in
 `scripts/balance-matrix.ts` was synced to the gate the same day: it had kept
 rung 21's pre-ratchet value and carried no band for rungs 23-26.
+
+**The Queen of the Lanterned Roof's tuning pass, 2026-09-19,** closing the
+other thin margin. Her converter cut had no creature below three mana, and
+her three-drop (Neon-Gate Warden) has Bulwark and cannot attack, so she did
+nothing on turns one and two while Crimson Muster (40) and Burning Tides (49)
+ran her over. Four Circuit Foretelling became four Lantern Fixer, a 2/2
+Kitsune for two that her three lords make a 3/3 or better: 71.7 on the
+committed list (53/86/61/82/78, 0 draws), her floor ratchets 0.545 to 0.65, and
+CI's 40 seeds read 68.0. On the 14-deck reserve matrix: 62.5 to 74.2. Sea-Glass
+Knife and Neon-Gate Warden measured load-bearing (60.0 and 56.1 without them).
+
+**The converter-defect check, 2026-09-19, and what it was worth.** The
+converter caps expensive cards at two copies and fills the forty by inflating
+cheap packages to four. `balance/converter-audit.ts` (local) compares every
+boss's Warchest forty with her authored list; it flagged five untuned bosses
+whose namesake or core package was cut. Measured with the authored cards
+restored, on the five starters: the Queen of the Lanterned Roof 58.6 to 63.9,
+Yohime 76.1 to 80.2, Titania 58.6 to 58.3, Carmilla 72.3 to 71.9, and the
+Marsh-Mother 74.8 to 69.0, where restoring her own legend HURTS. Then the
+Queen's +5.3 went to the 14-deck matrix and read +1.0, which is noise. **So of
+five suspects, none was a real converter defect; Kitsune's four dropped
+Queenpins remain the one genuine case. A dropped namesake is a suspect, not a
+defect, and a starters-only gain is a suspect too.** The check still paid for
+itself: it put her list in front of a reader, and the missing two-drop was
+plain to see.
 
 **Kitsune's tuning pass, 2026-09-19,** closing that finding the same day. She
 had never been tuned: her list was the converter's first cut, and it had

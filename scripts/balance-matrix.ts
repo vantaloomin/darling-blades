@@ -482,12 +482,13 @@ export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   // 2026-09-19 re-baseline on the final 1.8 pool: R15 .645 -> .655,
   // R17 .685 -> .705, R18 .795 -> .82; R16, R19 and R20 kept (candidates
   // under the standing floor are recorded, never applied). R20 then took her
-  // tuning pass the same day and ratcheted .805 -> .815.
+  // tuning pass the same day and ratcheted .805 -> .815, and R19 hers,
+  // .545 -> .65.
   15: { minAvg: 0.655 },
   16: { minAvg: 0.625 },
   17: { minAvg: 0.705 },
   18: { minAvg: 0.82 },
-  19: { minAvg: 0.545 },
+  19: { minAvg: 0.65 },
   20: { minAvg: 0.815 },
   21: { minAvg: 0.585 },
   22: { minAvg: 0.685 },
