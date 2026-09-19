@@ -11,6 +11,7 @@ import {
   deckRepairNoticeFingerprint,
   deckRepairNoticeState,
   flaggedDecks,
+  type FlaggedDeckSummary,
 } from '../meta/deckRepair';
 import {
   claimDailyQuest,
@@ -23,13 +24,19 @@ import {
 import { Services } from '../meta/services';
 import { normalizeStatsNoticeVersion, STATS_NOTICE_VERSION } from '../meta/statsNotice';
 import { signals } from '../net/signals';
+import { readSignalsGateInput, signalsAllowed } from '../net/signalsGate';
 import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop } from '../ui/SceneBackdrop';
+import { createStatsNoticeDialog } from '../ui/StatsNoticeDialog';
 import { MAIN_MENU_ITEMS, MAIN_MENU_X, mainMenuButtonY } from '../ui/mainMenuPresentation';
 import {
-  stampStatsNotice,
-  statsNoticeDecision,
-  statsNoticeToast,
+  createStatsNoticeController,
+  menuArrivalSteps,
+  statsNoticeNoteText,
+  statsNoticeOwed,
+  statsRowNoteKind,
+  statsRowNoteState,
+  type MenuArrivalStep,
 } from '../ui/statsPrivacyPresentation';
 import { colorInt, theme } from '../ui/theme';
 import { Toast } from '../ui/Toast';
@@ -171,49 +178,102 @@ export class MainMenuScene extends Phaser.Scene {
       color: theme.colors.muted,
     });
 
-    const repairShown = this.showDeckRepairNotice();
-    const tutorialShown = !repairShown && !Services.save.data.tutorialDone;
-    if (tutorialShown) this.promptTutorial();
-    this.maybeShowStatsNotice(repairShown || tutorialShown);
+    this.runArrival();
   }
 
   /**
-   * The one-time anonymous-stats notice (privacy policy section 8: a player is
-   * told before anything new is sent). It is a rail notice, never a blocking
-   * dialog, and it waits for a clear menu: not over the deck-repair modal, not
-   * over the tutorial prompt, and not behind other notices that are still on
-   * screen, because a notice queued behind them would travel to whatever scene
-   * the player opened next.
+   * Everything the menu shows on arrival, in the order `menuArrivalSteps`
+   * gives: the first-run stats notice first whenever it is owed, then the
+   * deck-repair notice, else the tutorial prompt (owner ruling 2026-09-19).
    *
-   * Nothing is stamped here. The stamp runs from the rail's own `onShown`, so a
-   * player who leaves before the card is built is still owed the notice, and
-   * the gate keeps sending nothing until they have had it.
+   * The deck-repair decision is taken here, before anything opens, because it
+   * also syncs `deckRepairNoticeAck` and that sync has always run on every
+   * arrival. Only the modal itself is deferred to its turn in the chain.
    */
-  private maybeShowStatsNotice(overlayOpen: boolean): void {
-    const decision = statsNoticeDecision({
-      // Normalised the same way the gate reads it: garbage means not yet told.
-      savedVersion: normalizeStatsNoticeVersion(Services.save.data.settings.statsNoticeVersion),
-      currentVersion: STATS_NOTICE_VERSION,
-      screenClear: !overlayOpen && this.toasts.canPresentImmediately(),
+  private runArrival(): void {
+    const flagged = this.syncDeckRepairAck();
+    const steps = menuArrivalSteps({
+      noticeOwed: statsNoticeOwed({
+        // Normalised the same way the gate reads it: garbage means not yet told.
+        savedVersion: normalizeStatsNoticeVersion(Services.save.data.settings.statsNoticeVersion),
+        currentVersion: STATS_NOTICE_VERSION,
+      }),
+      deckRepairOwed: flagged !== null,
+      tutorialDone: Services.save.data.tutorialDone === true,
     });
-    if (decision !== 'show') return;
-    this.toasts.enqueue(
-      statsNoticeToast(() =>
-        stampStatsNotice(
-          {
-            setNoticeVersion: (version) => {
-              Services.save.data.settings.statsNoticeVersion = version;
-            },
-            touch: () => Services.save.touch(),
-            acknowledge: () => signals.noticeAcknowledged(),
-          },
-          STATS_NOTICE_VERSION,
-        ),
-      ),
-    );
+    this.runArrivalStep(steps, 0, flagged);
   }
 
-  private showDeckRepairNotice(): boolean {
+  /**
+   * Run one step and hand the rest on. Only the stats notice continues the
+   * chain (from its own close callback); the deck-repair modal and the tutorial
+   * prompt are terminal, exactly as they were before.
+   */
+  private runArrivalStep(
+    steps: readonly MenuArrivalStep[],
+    index: number,
+    flagged: readonly FlaggedDeckSummary[] | null,
+  ): void {
+    const step = steps[index];
+    if (step === undefined) return;
+    if (step === 'statsNotice') {
+      this.showStatsNotice(() => this.runArrivalStep(steps, index + 1, flagged));
+      return;
+    }
+    if (step === 'deckRepair') {
+      if (flagged) this.showDeckRepairNotice(flagged);
+      return;
+    }
+    this.promptTutorial();
+  }
+
+  /**
+   * The first-run anonymous-stats notice (privacy policy section 8: a player is
+   * told before anything new is sent). It blocks the menu and comes before the
+   * tutorial prompt, so a new player is told first and can switch sharing off
+   * in the same breath.
+   *
+   * Nothing is stamped while it is open: the gate re-reads the save at every
+   * send and refuses while the saved notice version is below the current one,
+   * so a player who leaves the scene with the dialog up is still owed it and
+   * has still sent nothing. The dialog's `Continue` is the only thing that
+   * stamps, and it stamps whether sharing was left on or turned off, because
+   * being told is not the same as opting in.
+   *
+   * `src/ui` may not import `src/net`, so the gate is evaluated here and the
+   * state-aware line is handed in as a finished string.
+   */
+  private showStatsNotice(onContinue: () => void): void {
+    const controller = createStatsNoticeController(
+      {
+        settings: Services.save.data.settings,
+        setNoticeVersion: (version) => {
+          Services.save.data.settings.statsNoticeVersion = version;
+        },
+        touch: () => Services.save.touch(),
+        acknowledge: () => signals.noticeAcknowledged(),
+      },
+      STATS_NOTICE_VERSION,
+    );
+    createStatsNoticeDialog(this, {
+      guard: this.guard,
+      guardTargets: this.menuItems,
+      controller,
+      // The gate decides, not this scene: `signalsAllowed` is handed in whole.
+      note: statsNoticeNoteText(
+        statsRowNoteKind(statsRowNoteState(readSignalsGateInput(null), signalsAllowed)),
+      ),
+      onContinue,
+    });
+  }
+
+  /**
+   * Keep `deckRepairNoticeAck` in step with the current flag set and report the
+   * decks that still need the notice, or null when none do. Unchanged from what
+   * `showDeckRepairNotice` used to do inline; split out only so the arrival
+   * chain can know its answer before the stats notice opens.
+   */
+  private syncDeckRepairAck(): readonly FlaggedDeckSummary[] | null {
     const save = Services.save.data;
     const flagged = flaggedDecks(CARD_DB, save);
     const noticeState = deckRepairNoticeState(flagged, save.deckRepairNoticeAck);
@@ -221,8 +281,11 @@ export class MainMenuScene extends Phaser.Scene {
       save.deckRepairNoticeAck = noticeState.acknowledgedFingerprint;
       Services.save.flush();
     }
-    if (!noticeState.needsNotice) return false;
+    return noticeState.needsNotice ? flagged : null;
+  }
 
+  private showDeckRepairNotice(flagged: readonly FlaggedDeckSummary[]): void {
+    const save = Services.save.data;
     let repairDeckId: string | null = null;
     const shell = modalShell(this, {
       width: 760,
@@ -298,7 +361,6 @@ export class MainMenuScene extends Phaser.Scene {
       },
     });
     content.add([fix.container, later.container, corner.container]);
-    return true;
   }
 
   /**

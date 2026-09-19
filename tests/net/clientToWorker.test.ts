@@ -11,6 +11,7 @@ import {
   type DuelFinishedInput,
 } from '../../src/net/signals';
 import { resetKeepaliveProbeForTest, setSignalsTestEndpoint, SIGNALS_ENDPOINT } from '../../src/net/signalsClient';
+import { createStatsNoticeController } from '../../src/ui/statsPrivacyPresentation';
 import type { DataPoint, Env, KvLike } from '../../worker/src/index';
 import worker, { resetSaltCacheForTests } from '../../worker/src/index';
 
@@ -216,13 +217,29 @@ describe('the real client against the real Worker', () => {
     expect(sink.points).toHaveLength(0);
   });
 
-  it('a save that has not seen the current notice reaches the Worker only after the stamp', async () => {
+  it('a save that has not seen the current notice reaches the Worker only after Continue', async () => {
     Services.save.data.settings.statsNoticeVersion = 0;
     signals.start();
     expect(requests).toHaveLength(0);
 
-    Services.save.data.settings.statsNoticeVersion = STATS_NOTICE_VERSION;
-    signals.noticeAcknowledged();
+    // The first-run dialog's own controller, wired the way MainMenuScene wires
+    // it. Nothing is stamped while it is open, so nothing reaches the Worker;
+    // `Continue` is the one call that does.
+    const notice = createStatsNoticeController(
+      {
+        settings: Services.save.data.settings,
+        setNoticeVersion: (version) => {
+          Services.save.data.settings.statsNoticeVersion = version;
+        },
+        touch: () => Services.save.touch(),
+        acknowledge: () => signals.noticeAcknowledged(),
+      },
+      STATS_NOTICE_VERSION,
+    );
+    expect(requests).toHaveLength(0);
+
+    notice.dismiss();
+    expect(Services.save.data.settings.statsNoticeVersion).toBe(STATS_NOTICE_VERSION);
     expect(await statuses()).toEqual([204]);
     expect(sink.points.map((point) => point.blobs?.[0])).toEqual(['heartbeat']);
   });
