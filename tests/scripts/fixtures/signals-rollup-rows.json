@@ -1,0 +1,330 @@
+{
+  "_comment": [
+    "Grouped rows exactly as the Analytics Engine SQL API returns them, keyed by",
+    "the query ids scripts/signals-rollup/queries.ts assigns. Numbers are STRINGS",
+    "on 2026-09-16 and real numbers on 2026-09-17, because the API returns strings",
+    "and the rollup must not care either way.",
+    "",
+    "2026-09-16 is a busy day built to hit every branch of the floor: an",
+    "install-gated value with a large n and a tiny gate (duel format limited: 120",
+    "duels from 9 installs), complementary suppression on most dimensions, a",
+    "dimension with nothing folded at all (heartbeat platform), a cross row whose",
+    "result split is entirely null (opponentId marsh-mother), a cross row that",
+    "publishes its split whole (difficulty medium), and a LITERAL value named",
+    "'other' that is real data (settings.renderScale, a real member of",
+    "SignalRenderScale) and must never be confused with the fold bucket.",
+    "",
+    "2026-09-17 is a quiet day: all three day gates close, and the run still writes",
+    "a file with three nulls so the gap in the series is explained.",
+    "",
+    "chrome-broodmother's 137 duels are a deliberately distinctive number, so the",
+    "logger test can prove a sub-floor count never reaches a line of output."
+  ],
+
+  "2026-09-16": {
+    "heartbeat.total": [{ "n": "220", "heartbeats": "540" }],
+
+    "heartbeat.dim.appVersion": [
+      { "value": "1.8.0", "n": "190", "heartbeats": "470" },
+      { "value": "1.7.2", "n": "24", "heartbeats": "52" },
+      { "value": "1.6.4", "n": "6", "heartbeats": "18" }
+    ],
+    "heartbeat.dim.platform": [
+      { "value": "web", "n": "180", "heartbeats": "430" },
+      { "value": "desktop", "n": "40", "heartbeats": "110" }
+    ],
+    "heartbeat.dim.formFactor": [
+      { "value": "desktop", "n": "150", "heartbeats": "360" },
+      { "value": "mobile", "n": "55", "heartbeats": "140" },
+      { "value": "tablet", "n": "15", "heartbeats": "40" }
+    ],
+    "heartbeat.dim.lang": [
+      { "value": "en", "n": "180", "heartbeats": "440" },
+      { "value": "de", "n": "12", "heartbeats": "30" },
+      { "value": "fr", "n": "11", "heartbeats": "26" },
+      { "value": "ja", "n": "9", "heartbeats": "22" },
+      { "value": "pt", "n": "8", "heartbeats": "22" }
+    ],
+    "heartbeat.dim.settings.animations": [
+      { "value": "full", "n": "200", "heartbeats": "490" },
+      { "value": "reduced", "n": "12", "heartbeats": "31" },
+      { "value": "off", "n": "8", "heartbeats": "19" }
+    ],
+    "heartbeat.dim.settings.renderScale": [
+      { "value": "1080p", "n": "120", "heartbeats": "300" },
+      { "value": "720p", "n": "60", "heartbeats": "140" },
+      { "value": "1440p", "n": "25", "heartbeats": "60" },
+      { "value": "other", "n": "15", "heartbeats": "40" }
+    ],
+    "heartbeat.dim.streakBucket": [
+      { "value": "0", "n": "150", "heartbeats": "360" },
+      { "value": "1", "n": "40", "heartbeats": "100" },
+      { "value": "2", "n": "18", "heartbeats": "44" },
+      { "value": "3", "n": "7", "heartbeats": "20" },
+      { "value": "4-6", "n": "5", "heartbeats": "16" }
+    ],
+    "heartbeat.dim.achievementsBucket": [
+      { "value": "0.0", "n": "100", "heartbeats": "240" },
+      { "value": "0.1", "n": "60", "heartbeats": "150" },
+      { "value": "0.2", "n": "40", "heartbeats": "100" },
+      { "value": "0.3", "n": "15", "heartbeats": "36" },
+      { "value": "0.4", "n": "5", "heartbeats": "14" }
+    ],
+    "heartbeat.dim.winsBucket": [
+      { "value": "0", "n": "90", "heartbeats": "210" },
+      { "value": "1-4", "n": "70", "heartbeats": "175" },
+      { "value": "5-9", "n": "30", "heartbeats": "75" },
+      { "value": "10-24", "n": "20", "heartbeats": "50" },
+      { "value": "25-49", "n": "10", "heartbeats": "30" }
+    ],
+    "heartbeat.dim.lossesBucket": [
+      { "value": "0", "n": "95", "heartbeats": "225" },
+      { "value": "1-4", "n": "65", "heartbeats": "160" },
+      { "value": "5-9", "n": "35", "heartbeats": "90" },
+      { "value": "10-24", "n": "25", "heartbeats": "65" }
+    ],
+    "heartbeat.dim.packsBucket": [
+      { "value": "0", "n": "120", "heartbeats": "290" },
+      { "value": "1-4", "n": "60", "heartbeats": "150" },
+      { "value": "5-9", "n": "30", "heartbeats": "75" },
+      { "value": "10-24", "n": "10", "heartbeats": "25" }
+    ],
+    "heartbeat.dim.collectionBucket": [
+      { "value": "1-24", "n": "130", "heartbeats": "310" },
+      { "value": "25-99", "n": "60", "heartbeats": "150" },
+      { "value": "100-249", "n": "25", "heartbeats": "62" },
+      { "value": "250-499", "n": "5", "heartbeats": "18" }
+    ],
+    "heartbeat.dim.settings.reducedMotion": [
+      { "value": "0", "n": "205", "heartbeats": "500" },
+      { "value": "1", "n": "15", "heartbeats": "40" }
+    ],
+    "heartbeat.dim.tutorialDone": [
+      { "value": "1", "n": "200", "heartbeats": "490" },
+      { "value": "0", "n": "20", "heartbeats": "50" }
+    ],
+    "heartbeat.dim.gauntletBestRung": [
+      { "value": "0", "n": "140", "heartbeats": "340" },
+      { "value": "1", "n": "40", "heartbeats": "100" },
+      { "value": "2", "n": "25", "heartbeats": "62" },
+      { "value": "3", "n": "9", "heartbeats": "22" },
+      { "value": "4", "n": "6", "heartbeats": "16" }
+    ],
+
+    "duel.total": [{ "n": "1840", "gate": "96" }],
+
+    "duel.dim.format": [
+      { "value": "warchest", "n": "900", "gate": "70" },
+      { "value": "gauntlet", "n": "520", "gate": "40" },
+      { "value": "darlings", "n": "300", "gate": "25" },
+      { "value": "limited", "n": "120", "gate": "9" }
+    ],
+    "duel.dim.deckColours": [
+      { "value": "WU", "n": "400", "gate": "30" },
+      { "value": "R", "n": "350", "gate": "28" },
+      { "value": "G", "n": "300", "gate": "24" },
+      { "value": "BR", "n": "260", "gate": "20" },
+      { "value": "WUB", "n": "250", "gate": "18" },
+      { "value": "C", "n": "180", "gate": "14" },
+      { "value": "WG", "n": "100", "gate": "6" }
+    ],
+    "duel.dim.deckArchetype": [
+      { "value": "custom", "n": "900", "gate": "60" },
+      { "value": "sd-ember-warband", "n": "400", "gate": "30" },
+      { "value": "sd-tide-chorus", "n": "300", "gate": "22" },
+      { "value": "th-grove-communion", "n": "140", "gate": "11" },
+      { "value": "th-lonely-vigil", "n": "100", "gate": "4" }
+    ],
+    "duel.dim.curveBucket": [
+      { "value": "2.5-2.9", "n": "700", "gate": "50" },
+      { "value": "3.0-3.4", "n": "600", "gate": "45" },
+      { "value": "2.0-2.4", "n": "300", "gate": "25" },
+      { "value": "3.5-3.9", "n": "200", "gate": "15" },
+      { "value": "<2.0", "n": "40", "gate": "5" }
+    ],
+    "duel.dim.deckSource": [
+      { "value": "precon", "n": "1000", "gate": "70" },
+      { "value": "custom", "n": "700", "gate": "50" },
+      { "value": "drafted", "n": "140", "gate": "9" }
+    ],
+    "duel.dim.opponentId": [
+      { "value": "anubis", "n": "400", "gate": "35" },
+      { "value": "bastet", "n": "350", "gate": "30" },
+      { "value": "brunhild", "n": "300", "gate": "26" },
+      { "value": "artoria", "n": "250", "gate": "20" },
+      { "value": "marsh-mother", "n": "200", "gate": "16" },
+      { "value": "deacon", "n": "180", "gate": "14" },
+      { "value": "chrome-broodmother", "n": "137", "gate": "8" },
+      { "value": "zz-hidden-persona", "n": "23", "gate": "2" }
+    ],
+    "duel.dim.difficulty": [
+      { "value": "medium", "n": "900", "gate": "65" },
+      { "value": "easy", "n": "500", "gate": "40" },
+      { "value": "hard", "n": "440", "gate": "35" }
+    ],
+    "duel.dim.turnsBucket": [
+      { "value": "6-10", "n": "700", "gate": "55" },
+      { "value": "11-15", "n": "600", "gate": "48" },
+      { "value": "16-20", "n": "300", "gate": "25" },
+      { "value": "1-5", "n": "150", "gate": "14" },
+      { "value": "21-30", "n": "80", "gate": "7" },
+      { "value": "31+", "n": "10", "gate": "2" }
+    ],
+    "duel.dim.result": [
+      { "value": "win", "n": "900", "gate": "70" },
+      { "value": "loss", "n": "800", "gate": "68" },
+      { "value": "concede", "n": "100", "gate": "12" },
+      { "value": "draw", "n": "40", "gate": "9" }
+    ],
+    "duel.dim.mulligans": [
+      { "value": "0", "n": "1200", "gate": "80" },
+      { "value": "1", "n": "500", "gate": "45" },
+      { "value": "2", "n": "120", "gate": "10" },
+      { "value": "3", "n": "20", "gate": "4" }
+    ],
+
+    "duel.cross.opponentId": [
+      { "value": "anubis", "split": "win", "n": "220", "gate": "28" },
+      { "value": "anubis", "split": "loss", "n": "170", "gate": "25" },
+      { "value": "anubis", "split": "draw", "n": "10", "gate": "3" },
+      { "value": "bastet", "split": "win", "n": "180", "gate": "22" },
+      { "value": "bastet", "split": "loss", "n": "160", "gate": "20" },
+      { "value": "bastet", "split": "concede", "n": "10", "gate": "5" },
+      { "value": "brunhild", "split": "win", "n": "150", "gate": "20" },
+      { "value": "brunhild", "split": "loss", "n": "150", "gate": "20" },
+      { "value": "artoria", "split": "win", "n": "120", "gate": "16" },
+      { "value": "artoria", "split": "loss", "n": "125", "gate": "15" },
+      { "value": "artoria", "split": "draw", "n": "5", "gate": "2" },
+      { "value": "marsh-mother", "split": "win", "n": "95", "gate": "9" },
+      { "value": "marsh-mother", "split": "loss", "n": "100", "gate": "9" },
+      { "value": "marsh-mother", "split": "draw", "n": "5", "gate": "1" },
+      { "value": "deacon", "split": "win", "n": "80", "gate": "12" },
+      { "value": "deacon", "split": "loss", "n": "100", "gate": "13" },
+      { "value": "chrome-broodmother", "split": "win", "n": "67", "gate": "7" },
+      { "value": "chrome-broodmother", "split": "loss", "n": "70", "gate": "8" },
+      { "value": "zz-hidden-persona", "split": "win", "n": "11", "gate": "2" },
+      { "value": "zz-hidden-persona", "split": "loss", "n": "12", "gate": "2" }
+    ],
+    "duel.cross.difficulty": [
+      { "value": "easy", "split": "win", "n": "280", "gate": "30" },
+      { "value": "easy", "split": "loss", "n": "200", "gate": "25" },
+      { "value": "easy", "split": "draw", "n": "10", "gate": "4" },
+      { "value": "easy", "split": "concede", "n": "10", "gate": "3" },
+      { "value": "medium", "split": "win", "n": "450", "gate": "50" },
+      { "value": "medium", "split": "loss", "n": "420", "gate": "48" },
+      { "value": "medium", "split": "concede", "n": "30", "gate": "12" },
+      { "value": "hard", "split": "win", "n": "170", "gate": "25" },
+      { "value": "hard", "split": "loss", "n": "180", "gate": "28" },
+      { "value": "hard", "split": "draw", "n": "30", "gate": "10" },
+      { "value": "hard", "split": "concede", "n": "60", "gate": "14" }
+    ],
+    "duel.cross.format": [
+      { "value": "warchest", "split": "win", "n": "470", "gate": "55" },
+      { "value": "warchest", "split": "loss", "n": "400", "gate": "50" },
+      { "value": "warchest", "split": "draw", "n": "10", "gate": "4" },
+      { "value": "warchest", "split": "concede", "n": "20", "gate": "8" },
+      { "value": "gauntlet", "split": "win", "n": "240", "gate": "30" },
+      { "value": "gauntlet", "split": "loss", "n": "250", "gate": "32" },
+      { "value": "gauntlet", "split": "concede", "n": "30", "gate": "12" },
+      { "value": "darlings", "split": "win", "n": "150", "gate": "18" },
+      { "value": "darlings", "split": "loss", "n": "150", "gate": "17" },
+      { "value": "limited", "split": "win", "n": "60", "gate": "6" },
+      { "value": "limited", "split": "loss", "n": "60", "gate": "7" }
+    ],
+    "duel.cross.deckArchetype": [
+      { "value": "custom", "split": "win", "n": "440", "gate": "48" },
+      { "value": "custom", "split": "loss", "n": "430", "gate": "45" },
+      { "value": "custom", "split": "draw", "n": "10", "gate": "5" },
+      { "value": "custom", "split": "concede", "n": "20", "gate": "8" },
+      { "value": "sd-ember-warband", "split": "win", "n": "210", "gate": "25" },
+      { "value": "sd-ember-warband", "split": "loss", "n": "180", "gate": "22" },
+      { "value": "sd-ember-warband", "split": "concede", "n": "10", "gate": "4" },
+      { "value": "sd-tide-chorus", "split": "win", "n": "140", "gate": "18" },
+      { "value": "sd-tide-chorus", "split": "loss", "n": "150", "gate": "20" },
+      { "value": "sd-tide-chorus", "split": "concede", "n": "10", "gate": "5" },
+      { "value": "th-grove-communion", "split": "win", "n": "70", "gate": "8" },
+      { "value": "th-grove-communion", "split": "loss", "n": "70", "gate": "9" },
+      { "value": "th-lonely-vigil", "split": "win", "n": "50", "gate": "3" },
+      { "value": "th-lonely-vigil", "split": "loss", "n": "50", "gate": "3" }
+    ],
+    "duel.cross.deckColours": [
+      { "value": "WU", "split": "win", "n": "210", "gate": "25" },
+      { "value": "WU", "split": "loss", "n": "180", "gate": "22" },
+      { "value": "WU", "split": "draw", "n": "10", "gate": "4" },
+      { "value": "R", "split": "win", "n": "180", "gate": "22" },
+      { "value": "R", "split": "loss", "n": "170", "gate": "20" },
+      { "value": "G", "split": "win", "n": "150", "gate": "18" },
+      { "value": "G", "split": "loss", "n": "140", "gate": "16" },
+      { "value": "G", "split": "concede", "n": "10", "gate": "4" },
+      { "value": "BR", "split": "win", "n": "130", "gate": "15" },
+      { "value": "BR", "split": "loss", "n": "120", "gate": "14" },
+      { "value": "BR", "split": "concede", "n": "10", "gate": "3" },
+      { "value": "WUB", "split": "win", "n": "120", "gate": "12" },
+      { "value": "WUB", "split": "loss", "n": "120", "gate": "12" },
+      { "value": "WUB", "split": "draw", "n": "10", "gate": "3" },
+      { "value": "C", "split": "win", "n": "90", "gate": "8" },
+      { "value": "C", "split": "loss", "n": "90", "gate": "8" },
+      { "value": "WG", "split": "win", "n": "50", "gate": "3" },
+      { "value": "WG", "split": "loss", "n": "50", "gate": "4" }
+    ],
+
+    "cards.total": [{ "n": "1459" }],
+
+    "cards.dim.cardId": [
+      { "value": "db-ember-scout", "n": "300" },
+      { "value": "db-tide-caller", "n": "260" },
+      { "value": "db-grove-warden", "n": "240" },
+      { "value": "db-ash-herald", "n": "200" },
+      { "value": "db-sand-lantern", "n": "180" },
+      { "value": "db-quiet-tithe", "n": "150" },
+      { "value": "db-moon-bell", "n": "120" },
+      { "value": "db-rare-relic", "n": "6" },
+      { "value": "db-obscure-omen", "n": "3" }
+    ],
+    "cards.dim.duelsBucket": [
+      { "value": "1", "n": "400" },
+      { "value": "2-3", "n": "600" },
+      { "value": "4-7", "n": "350" },
+      { "value": "8+", "n": "109" }
+    ],
+
+    "cards.cross.cardId": [
+      { "value": "db-ember-scout", "split": "1", "n": "120" },
+      { "value": "db-ember-scout", "split": "2-3", "n": "130" },
+      { "value": "db-ember-scout", "split": "4-7", "n": "45" },
+      { "value": "db-ember-scout", "split": "8+", "n": "5" },
+      { "value": "db-tide-caller", "split": "1", "n": "110" },
+      { "value": "db-tide-caller", "split": "2-3", "n": "120" },
+      { "value": "db-tide-caller", "split": "4-7", "n": "30" },
+      { "value": "db-grove-warden", "split": "1", "n": "100" },
+      { "value": "db-grove-warden", "split": "2-3", "n": "110" },
+      { "value": "db-grove-warden", "split": "4-7", "n": "30" },
+      { "value": "db-ash-herald", "split": "1", "n": "90" },
+      { "value": "db-ash-herald", "split": "2-3", "n": "100" },
+      { "value": "db-ash-herald", "split": "4-7", "n": "10" },
+      { "value": "db-sand-lantern", "split": "1", "n": "80" },
+      { "value": "db-sand-lantern", "split": "2-3", "n": "95" },
+      { "value": "db-sand-lantern", "split": "4-7", "n": "5" },
+      { "value": "db-quiet-tithe", "split": "1", "n": "70" },
+      { "value": "db-quiet-tithe", "split": "2-3", "n": "75" },
+      { "value": "db-quiet-tithe", "split": "4-7", "n": "5" },
+      { "value": "db-moon-bell", "split": "1", "n": "60" },
+      { "value": "db-moon-bell", "split": "2-3", "n": "55" },
+      { "value": "db-moon-bell", "split": "4-7", "n": "5" },
+      { "value": "db-rare-relic", "split": "1", "n": "6" },
+      { "value": "db-obscure-omen", "split": "1", "n": "3" }
+    ]
+  },
+
+  "2026-09-17": {
+    "heartbeat.total": [{ "n": 4, "heartbeats": 9 }],
+    "heartbeat.dim.platform": [
+      { "value": "web", "n": 3, "heartbeats": 7 },
+      { "value": "desktop", "n": 1, "heartbeats": 2 }
+    ],
+    "duel.total": [{ "n": 6, "gate": 3 }],
+    "duel.dim.format": [{ "value": "warchest", "n": 6, "gate": 3 }],
+    "cards.total": [{ "n": 5 }],
+    "cards.dim.cardId": [{ "value": "db-ember-scout", "n": 5 }]
+  }
+}

@@ -97,3 +97,11 @@ scripts/__pycache__/
 
 # Built from docs/legal/privacy-policy.md by scripts/gen-privacy-page.ts (dev and build)
 public/privacy.html
+
+# ── Signals rollup output ────────────────────────────────────────────────
+# The daily k-anonymised totals live on their own orphan branch, `signals-data`,
+# which .github/workflows/signals-rollup.yml checks out into this folder. It is
+# never part of a commit on main or a release branch: main auto-deploys to Pages,
+# and a data file has no business in that build. Local dry runs write here too,
+# or into balance/signals-rollups, which is already ignored.
+/signals-data/
