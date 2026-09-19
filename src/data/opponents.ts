@@ -4034,15 +4034,43 @@ export const AVATARS: readonly Avatar[] = [
     // R20 81/70/81/94/96 avg 84; R21 53/79/60/63(199+1d)/51 avg 61;
     // R22 56/85/57/90/88 avg 75; R23 50/82/59/71/77 avg 68;
     // R24 64/87/59/82/94 avg 77. FLAGS none.
+    //
+    // RE-TUNED 2026-09-19 (reserve list only; classic, lands and Darlings
+    // unchanged). The AI modernization took her from 68 to 60
+    // (42/85/55/59/63, re-measured and reproduced exactly on 2026-09-19),
+    // 1.5pp above her own floor. The defect was structural and the honest
+    // combat models exposed it: she fielded no Skyborne and no Warding Gaze,
+    // so she could not block a flier at all, and Crimson Muster fields twelve.
+    // Attempt 1 KEPT, the accepted list: two sb-burning-hull-runner and two
+    // sb-comet-kick-marauder become four ac-ashwood-ranger (3/3 Warding Gaze,
+    // "When this arrives, Mark this", so it blocks fliers AND is a Marked body
+    // for Ion-Storm Brawler and Propagate). THIS LIST AS COMMITTED measures
+    // 63/82/64/70/84, avg 72.1, no draws at 200 seeds/cell; Muster 42 -> 63.
+    // The same forty cards with the Rangers appended last read 62/86/63/65/88,
+    // avg 72.6: list order feeds the seeded shuffle, so that is a second
+    // sample of one deck, and the two agree. Every comparison below is against
+    // the appended-order runs.
+    // Same single lever, other payers or other bodies, all below it:
+    // Bloom Mother + Marauder out 72.4; four dd-shallows-hunter 65.8; Lash to
+    // four 64.7; four ac-court-archer for the Heatherblade Scouts 63.5;
+    // Supernova out for the Rangers 64.0 (the sweeper still earns its slots).
+    // REJECTED, and worth knowing: four gm-red-roof-village (Festival Rocket)
+    // 56.8 and two sb-overcanopy (Overcanopy Trellis) 59.8. In AI hands the
+    // repeatable two-damage Duty is too slow and the repeatable Mark source is
+    // not an engine on its own.
+    // A SECOND LEVER WAS MEASURED AND NOT TAKEN: two sb-lance-of-two-suns to
+    // two more sb-red-solar-lash read 77.5 on the five starters (+4.9), but on
+    // the independent 14-deck reserve matrix the three lists read baseline
+    // 61.2, this list 74.8, this list plus Lash 75.6. +0.8 is noise, so the
+    // second lever was fitting the five starter columns, not the field.
     reserveDeck: expand([
       ['sb-mycelial-star-gardener', 4],
       ['cf-heatherblade-scout', 4],
       ['sb-ion-storm-brawler', 2],
-      ['sb-burning-hull-runner', 2],
+      ['ac-ashwood-ranger', 4],
       ['sb-chrome-sunbreaker', 4],
       ['sb-lance-of-two-suns', 2],
       ['sb-ion-storm-brawler', 2],
-      ['sb-comet-kick-marauder', 2],
       ['sb-orbitroot-matriarch', 2],
       ['sb-rootlight-broodmother', 2],
       ['sb-emerald-bloom-mother', 2],

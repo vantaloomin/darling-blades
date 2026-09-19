@@ -413,8 +413,27 @@ her own floor, the narrowest margin on the ladder and the next deck owed a
 measured tuning pass; and Anubis is the AI pass's big winner, 57 to 61 to 65,
 with Harvest (46) still her only losing column.
 
+**Chrome Broodmother's tuning pass, 2026-09-19.** The 60 reproduced exactly
+first. The cause was structural, and it is the same lesson the combat-model
+work taught elsewhere: she fielded no Skyborne and no Warding Gaze, so she
+could not block a flier at all, and Crimson Muster fields twelve. While her
+opponents misplayed combat that hole cost little; once they stopped, it cost
+eight points. One lever closed it: two Burning Hull Runner and two Comet-Kick
+Marauder became four Ashwood Ranger (3/3 Warding Gaze that Marks itself, so
+it blocks fliers and is a Marked body for her Brawlers and Propagate). The
+committed list reads 72 (63/82/64/70/84, 0 draws), Muster 42 to 63, and her
+floor ratchets 0.585 to 0.655; CI's 40 seeds read 70.5 the same day. A second
+lever (two Lance of Two Suns to two more Red-Solar Lash) read 77.5 on the
+five starters and was NOT taken: on the independent 14-deck reserve matrix
+the three lists read 61.2, 74.8 and 75.6, so its gain was fitting the starter
+columns. **Confirm a tune on the wide matrix before stacking a second
+lever.** Two Duty artifacts from the land-economy slate were measured in her
+list and rejected: four Festival Rocket read 56.8 and two Overcanopy Trellis
+59.8, so in AI hands the repeatable two-damage Duty is too slow and the
+repeatable Mark source is not an engine on its own.
+
 The Starborne pair (Chrome Broodmother 23, The Violet Signal Queen 24; floors
-0.585 and 0.645) and the Drowned Deep pair (The Drowned Deacon 25, The
+0.655 and 0.645) and the Drowned Deep pair (The Drowned Deacon 25, The
 Marsh-Mother 26, the final rung; floors 0.595 and 0.685) each carry their
 own gate with the termination check.
 Measured untuned 2026-09-15 at 200 seeds: Deacon 33% (35.5% after phase A,
