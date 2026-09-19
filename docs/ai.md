@@ -492,11 +492,34 @@ half the time (52% and 51%), because eight is more than her curve can spend.
 the boss wins enough; neither says how often she USES a mechanic when she
 could. Count that before tuning, or a tune can hide a policy bug by swapping
 the unused cards out.** A general per-mechanic usage audit on the balance
-telemetry is proposed for 1.9. **A card finding for the owner fell out of the
-same count:** Hauntlink Apex was cast in 7% of her games (13% when seen).
-Under rules rev 4 a link is an ability paid after the card is cast, so Apex
-costs eight mana in a ten-land format, where it was once a four-mana linked
-cast. Her two copies stay as her authored identity; the card wants a ruling.
+telemetry is proposed for 1.9. The same count found Hauntlink Apex cast in 7%
+of her games (13% when seen), and the first version of this paragraph called
+that a card defect wanting a ruling. **It is not, and the Hauntlink recost
+proposal that followed the same day recommends NO recost.** What the
+follow-up measured:
+
+| Boss, shape | Card | Cast + link | Cast when seen | Links per cast |
+| --- | --- | --- | --- | --- |
+| Queen of the Lanterned Roof, control, about 10 turns each | Hauntlink Signal Lure | 1 + 1 | 76% | 0.96 |
+| | Sanctum of Many Masks | 3 + 4 | 70% | 1.58 |
+| Kitsune, aggro, about 7 turns each | Burning Mask of the Void | 3 + 3 | 40% | 0.84 |
+| | Ember-Link Chain | 3 + 1 | 41% | 1.32 |
+| | Hauntlink Apex | 8 + 4 | 10% | 0.75 |
+
+A four-mana link is used MORE per cast than a one-mana link where games run
+long, so dear links are not going unused. Land drops are guaranteed in this
+format, so eight mana is reliable on turn eight; Apex is dead in Kitsune's
+deck because her games end on turn seven, which is a deck-fit fact. The
+workbench agrees on the card: it rates Apex fair at eight (+0.46) and 3.7 too
+strong at four, because its Dawn draw alone is worth about five mana.
+**One real thing the exercise did find, recorded and not acted on:** the power
+formula prices a link at the face value of its rider and ignores the link's
+own cost (the one-cast floor, owner ruling 2026-08-28, binds for all sixteen
+carriers). So link cost is a balancing lever the formula cannot see, in both
+directions: Unanswered Signal reads +1.74, outside the fair band, with its
+four-mana link unpriced, and Burning Mask of the Void reads -1.83 with a
+three-mana link. Neither measured as a problem in play. If a later set leans
+on Hauntlink, the floor wants a second look with this table in hand.
 
 **Chrome Broodmother's tuning pass, 2026-09-19.** The 60 reproduced exactly
 first. The cause was structural, and it is the same lesson the combat-model
