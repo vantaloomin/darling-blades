@@ -353,18 +353,18 @@ export const CELTIC_FAE = [
     rarity: 'c', flavor: 'A very small answer to a very old fear.',
   },
   {
-    id: 'cf-mist-road', name: 'Mist Road', types: ['land'], subtypes: [], colors: [], manaAbility: ['U'], entersTapped: true,
-    abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
-    rarity: 'c', flavor: 'It appears when you need a shortcut and disappears when you need one home.',
+    id: 'cf-mist-road', name: 'Mist-Road Waymark', types: ['artifact'], subtypes: [], cost: cost(0, 'U'), colors: ['U'],
+    activated: { cost: { tap: true }, ops: [{ op: 'foresee', n: 1 }] },
+    rarity: 'c', flavor: 'It points the way you need and forgets it once you have gone.',
   },
   {
-    id: 'cf-mossy-ring', name: 'Mossy Ring', types: ['land'], subtypes: [], colors: [], manaAbility: ['G'], entersTapped: true,
-    abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 1 }] }],
+    id: 'cf-mossy-ring', name: 'Ring-Stone Moss', types: ['artifact'], subtypes: [], cost: cost(0, 'G'), colors: ['G'],
+    activated: { cost: { tap: true }, ops: [{ op: 'gainLife', n: 1 }] },
     rarity: 'c', flavor: 'The moss grows in a circle because the circle asked nicely.',
   },
   {
-    id: 'cf-raven-stone', name: 'Raven Stone', types: ['land'], subtypes: [], colors: [], manaAbility: ['B'], entersTapped: true,
-    abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
+    id: 'cf-raven-stone', name: 'Raven Stone', types: ['artifact'], subtypes: [], cost: cost(0, 'B'), colors: ['B'],
+    activated: { cost: { tap: true }, ops: [{ op: 'foresee', n: 1 }, { op: 'grind', n: 1, who: 'self' }] },
     rarity: 'c', flavor: 'Leave an offering. The raven will tell you whether it was enough.',
   },
   {

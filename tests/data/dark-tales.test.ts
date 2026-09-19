@@ -141,10 +141,13 @@ describe('Dark Tales data integrity', () => {
 describe('Midnight Storybook precon', () => {
   const deck = THEME_DECKS.find((entry) => entry.id === 'theme-dark-tales')!;
 
-  it('is a legal 60-card U/B/W Dark Tales deck with 24 lands and an approved off-set splash', () => {
+  // 24 -> 22 on 2026-09-17: the list's two Palace Steps became the Duty
+  // artifact Glass Slipper (docs/plan-land-economy.md). The authored list is
+  // the owner's measured deck and is not edited by the conversion wave.
+  it('is a legal 60-card U/B/W Dark Tales deck with 22 lands and an approved off-set splash', () => {
     expect(deck.name).toBe('Midnight Storybook');
     expect(deck.cards).toHaveLength(60);
-    expect(deck.cards.filter((id) => CARD_DB[id].types.includes('land'))).toHaveLength(24);
+    expect(deck.cards.filter((id) => CARD_DB[id].types.includes('land'))).toHaveLength(22);
     const counts = new Map<string, number>();
     for (const id of deck.cards) counts.set(id, (counts.get(id) ?? 0) + 1);
     let offSetNonlands = 0;

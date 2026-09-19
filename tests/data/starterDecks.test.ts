@@ -20,6 +20,17 @@ import { freshSave } from '../../src/meta/SaveManager';
  */
 
 const LANDS_PER_DECK = 24;
+// 2026-09-17 land-economy conversion (docs/plan-land-economy.md): two authored
+// theme lists counted a utility tapland toward their land slot, and those
+// taplands are now Duty artifacts. The lists themselves are the owner's
+// measured decks and are NOT edited by the conversion wave, so their land
+// count drops by the converted copies they carry. No player is affected: a
+// claimed deck is built from `reserveCards` + `landReserve`
+// (grantedDeckBuild), never from this legacy 60-card column.
+const CONVERTED_LAND_COPIES: Record<string, number> = {
+  'theme-arthurian-court': 3, // ac-lowland-fort x3, now Lowland Fort Banner
+  'theme-dark-tales': 2, // dt-palace-steps x2, now Glass Slipper
+};
 const ORIGINAL_IDS = ['starter-crimson', 'starter-wild'];
 
 const countCards = (cards: string[]) =>
@@ -119,14 +130,15 @@ describe.each(STARTER_DECKS.map((d) => [d.name, d] as const))('starter deck lega
 describe.each(THEME_DECKS.map((d) => [d.name, d] as const))('theme deck legality — %s', (_name, deck) => {
   const counts = new Map<string, number>();
   for (const id of deck.cards) counts.set(id, (counts.get(id) ?? 0) + 1);
+  const expectedLands = LANDS_PER_DECK - (CONVERTED_LAND_COPIES[deck.id] ?? 0);
 
   it('is exactly 60 cards', () => {
     expect(deck.cards).toHaveLength(RULES.deckSize);
   });
 
-  it(`has exactly ${LANDS_PER_DECK} lands`, () => {
+  it(`has exactly ${LANDS_PER_DECK} land slots, ${expectedLands} of them still lands`, () => {
     const lands = deck.cards.filter((id) => CARD_DB[id]?.types.includes('land'));
-    expect(lands).toHaveLength(LANDS_PER_DECK);
+    expect(lands).toHaveLength(expectedLands);
   });
 
   it('has ≤4 copies of every non-basic (basics unlimited)', () => {

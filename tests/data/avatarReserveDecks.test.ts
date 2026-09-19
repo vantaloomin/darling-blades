@@ -208,6 +208,11 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
     // 2026-09-16 R25 D1+D2+D5: authored reserve surgery measured 35.90% ->
     // 66.40% mean across five 200-seed cells; classic/lands/Darlings unchanged.
     'the-drowned-deacon',
+    // 2026-09-18 R14 Artoria: the land-economy conversion made Lowland Fort a
+    // legal artifact and the converter's new cut runs four of it. 200 seeds
+    // across the 14 player decks: the standing list 68%, the converter's 60%,
+    // lower in every column. The standing list is kept by measured intent.
+    'artoria',
   ]);
 
   /**
@@ -521,5 +526,7 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
     expect(warchest.table).toContain('reserve starters');
     const darlings = runAvatarReserveMatrix('darlings', 1, only);
     expect(darlings.rows).toHaveLength(1);
-  });
+    // 2026-09-18: nineteen real games across both modes ran 5.2 s against the
+    // default 5 s under full-suite load. An explicit budget, not a behaviour change.
+  }, 30_000);
 });

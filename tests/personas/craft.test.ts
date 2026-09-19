@@ -32,6 +32,10 @@ describe.each(PERSONA_TEMPLATES)('greedy persona builder: $id', (template) => {
   it('is deterministic for a fixed seed and snapshots aggregate counts', () => {
     // 2026-08-29: refresh reanimator aggregate counts after the Starborne
     // signal-inversion cost change altered the live full-pool selection.
+    // 2026-09-17: refreshed again for the land-economy conversion
+    // (docs/plan-land-economy.md). The 27 utility taplands became cheap Duty
+    // artifacts, so they enter the greedy builder's pool for the first time
+    // and pull attrition, midrange and reanimator curves toward early.
     const first = buildGreedyDeck(template, fullPool, 12_345);
     const second = buildGreedyDeck(template, fullPool, 12_345);
     expect(first).toEqual(second);

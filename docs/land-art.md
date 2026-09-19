@@ -278,24 +278,29 @@ white lightning — luxurious, never grimy. These are parsed by
 proposals). Per the player-copy style rule these Prompt lines use commas before
 the standard suffix instead of a dash.
 
-### Chapel Yard — `gm-chapel-yard`
+### Chapel-Yard Rosary — `gm-chapel-yard`
 - **Flavor:** "The graves are tidy and the roses have opinions." Single color: **W**.
+- **Now a Duty artifact (2026-09-17):** the art is unchanged and stays keyed by id; see docs/plan-land-economy.md.
 - **Prompt:** A tidy chapel graveyard at candlelit dusk, white chapel walls and neat rows of blank gravestones among climbing grave roses, warm lantern-light pooling on a swept stone path against a cold violet evening sky, gothic W palette (`#f2e8cf`, `#c9a84c`, `#fffef2`), the chapel and its yard centered in frame, no people, crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
 
-### Lab Annex — `gm-lab-annex`
-- **Flavor:** "The main lab exploded, so this one is the responsible branch." Single color: **U**.
+### Annex Notebook — `gm-lab-annex`
+- **Flavor:** "The main lab exploded, so this is the responsible record." Single color: **U**.
+- **Now a Duty artifact (2026-09-17):** the art is unchanged and stays keyed by id; see docs/plan-land-economy.md.
 - **Prompt:** A stone laboratory annex under a night storm, tall leaded windows glowing cold blue with stormglass apparatus arcing inside, a lightning rod on the slate roof catching a distant white bolt, rain-slick cobbles and copper pipes along the wall, U palette (`#4a90d9`, `#16294f`, `#a8d4f7`) with a white-lightning accent, the glowing annex centered in frame, no people, crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
 
-### Moor Path — `gm-moor-path`
-- **Flavor:** "The path is damp, dark, and technically a shortcut." Single color: **B**.
+### Moorlight Lantern — `gm-moor-path`
+- **Flavor:** "The light is warm, the path is damp, and something walks behind it." Single color: **B**.
+- **Now a Duty artifact (2026-09-17):** the art is unchanged and stays keyed by id; see docs/plan-land-economy.md.
 - **Prompt:** A damp moor path at night, a narrow flagstone track winding between black pools and leaning blank waymarker stones under a bruised violet sky, cold marsh-lights guttering low in the fog and one far-off candle-warm manor window, B palette (`#5a3a70`, `#140d1c`, `#9b6fc4`), the winding path centered in frame, no people, crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
 
-### Red-Roof Village — `gm-red-roof-village`
+### Festival Rocket — `gm-red-roof-village`
 - **Flavor:** "The roofs are red from paint, weather, and one regrettable festival." Single color: **R**.
+- **Now a Duty artifact (2026-09-17):** the art is unchanged and stays keyed by id; see docs/plan-land-economy.md.
 - **Prompt:** A gothic village of steep red rooftops at dusk, crooked chimneys and warm lantern-lit windows stacked down a hillside lane below a dark castle ridge, ember light glowing against a rolling storm sky, R palette (`#d95436`, `#5e0f0f`, `#f7b267`), the red rooftops centered in frame, no people, crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
 
-### Thorned Cemetery — `gm-thorned-cemetery`
+### Cemetery Thorn — `gm-thorned-cemetery`
 - **Flavor:** "The vines keep visitors from leaving with the wrong memories." Single color: **G**.
+- **Now a Duty artifact (2026-09-17):** the art is unchanged and stays keyed by id; see docs/plan-land-economy.md.
 - **Prompt:** An overgrown cemetery swallowed by briars, glowing green vines and dark crimson grave roses winding over blank tilted headstones, moonlight filtering through a broken iron fence onto moss-deep ground, G palette (`#4fa06a`, `#123a22`, `#a9dcae`), the thorn-wrapped graves centered in frame, no people, crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
 
 ### Stormtower Roof — `gm-stormtower-roof`
