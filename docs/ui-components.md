@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ui/themeWidgets.ts, src/ui/modalDismissPresentation.ts, src/ui/Toast.ts, src/ui/toastQueue.ts, src/ui/StatsPrivacyPanel.ts, src/ui/statsPrivacyPresentation.ts, src/ui/navigation.ts, src/ui/deckBuilderHelpers.ts, src/ui/Dropdown.ts, src/ui/CardView.ts, src/ui/ManaText.ts, src/ui/CardThumbCache.ts, src/ui/CardZoomPreview.ts, src/ui/ZoneContentsModal.ts, src/ui/inspectHotkeys.ts, src/ui/OverlayCoordinator.ts, src/ui/CoachMark.ts, src/ui/KeywordGlossaryPanel.ts, src/ui/KeywordIcons.ts, src/scenes/GlossaryScene.ts, src/ui/MultilineInput.ts, src/platform/gestures.ts, src/ui/layout.ts, src/ui/theme.ts · last-verified: 2026-09-17
+<!-- source-of-truth: src/ui/themeWidgets.ts, src/ui/modalDismissPresentation.ts, src/ui/Toast.ts, src/ui/toastQueue.ts, src/ui/StatsPrivacyPanel.ts, src/ui/StatsNoticeDialog.ts, src/ui/statsPrivacyPresentation.ts, src/ui/navigation.ts, src/ui/deckBuilderHelpers.ts, src/ui/Dropdown.ts, src/ui/CardView.ts, src/ui/ManaText.ts, src/ui/CardThumbCache.ts, src/ui/CardZoomPreview.ts, src/ui/ZoneContentsModal.ts, src/ui/inspectHotkeys.ts, src/ui/OverlayCoordinator.ts, src/ui/CoachMark.ts, src/ui/KeywordGlossaryPanel.ts, src/ui/KeywordIcons.ts, src/scenes/GlossaryScene.ts, src/ui/MultilineInput.ts, src/platform/gestures.ts, src/ui/layout.ts, src/ui/theme.ts · last-verified: 2026-09-19
      If you change those files, update this doc or re-verify the date. -->
 
 # Reusable UI components
@@ -91,17 +91,35 @@ net, keeping 8px between inflated hit rects.
   of centring it on a fixed line), `neverCollapse` (survives a burst whole
   while the rest collapse to the summary) and `onShown` (called once the card,
   its timer and its tween exist). `canPresentImmediately()` reports whether the
-  rail is live, unblocked and empty, which is how the anonymous-stats notice
-  refuses to queue behind other notices that would carry it into another
-  scene. `tests/ui/toastQueue.test.ts` pins that a burst with no opted-in
-  notice is handled byte for byte as before.
+  rail is live, unblocked and empty. The four were added for the
+  anonymous-stats notice, which became a dialog on 2026-09-19 and no longer
+  uses them; they stay for other callers. `tests/ui/toastQueue.test.ts` pins
+  that a burst with no opted-in notice is handled byte for byte as before.
+- `StatsNoticeDialog` (`createStatsNoticeDialog`): the first-run
+  anonymous-stats notice, a blocking overlay on the main menu shown BEFORE the
+  tutorial prompt whenever the saved notice version is below
+  `STATS_NOTICE_VERSION` (owner ruling 2026-09-19, superseding the toast). It
+  carries the sharing toggle in its SAVED state, the state-aware line only for
+  a development build or a browser signal, `What is sent` (opens the panel
+  below on its own `ModalGuard`, above the dialog) and `Continue`. There is no
+  close corner and the backdrop does not dismiss: Continue, Escape and Enter
+  are the only ways out and they do the same thing. The toggle writes the save
+  at once. Nothing is stamped while it is open; Continue stamps the version,
+  touches the save and calls `signals.noticeAcknowledged()`, in that order,
+  whatever the toggle says. It is a SETTING, not a consent request: the legal
+  basis for default-on is the audience-measurement exemption, not consent, so
+  a test bans agree, accept, consent, allow and permission from its copy. The
+  dialog holds no copy and no decisions; it draws the pure controller
+  `createStatsNoticeController`, and `menuArrivalSteps` owns the order (notice,
+  then deck repair or tutorial).
 - `StatsPrivacyPanel` (`createStatsPrivacyPanel`) with
   `statsPrivacyPresentation.ts`: the "What is sent" modal reached from the
   Settings Privacy row, and the pure module that holds every string of the
   consent surfaces (transcribed from the author's copy, no em-dashes), the
   three field-description maps keyed to `SIGNAL_FIELDS`, the layout numbers,
-  and the four pure decisions (which caption the Settings row shows, whether
-  the notice shows, the stamp order, the toggle). The panel renders one line
+  and the pure decisions (which caption the Settings row shows, whether the
+  notice is owed, the menu's arrival order, the dialog's controller, the stamp
+  order, the toggle). The panel renders one line
   per field in allowlist order in three columns, the "Never sent" block, the
   footer promise and a `Read the privacy policy` button opening
   `./privacy.html`; it scrolls the way `KeywordGlossaryPanel` does only if it

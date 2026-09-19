@@ -169,19 +169,23 @@ describe('the import fence, read as text', () => {
   });
 
   it('src/net is imported only by the scene and boot layers', () => {
-    const importers: string[] = [];
+    // One entry per FILE: MainMenuScene names two of src/net's modules (the
+    // facade and the gate), and what this pins is which files may reach it.
+    const importers = new Set<string>();
     for (const file of tsFilesUnder('src')) {
       if (file.startsWith('src/net/')) continue;
       for (const spec of importSpecifiers(code(file))) {
-        if (/(^|\/)net\//.test(spec)) importers.push(file);
+        if (/(^|\/)net\//.test(spec)) importers.add(file);
       }
     }
     // Boot sends the heartbeat, the duel scene the digests and the card batch,
-    // and the two consent scenes read the gate (Settings, for the row's
-    // caption) and acknowledge the notice (MainMenu). Nothing under
-    // engine/ai/data/meta/ui appears here, which is what keeps a harness run
-    // physically unable to reach the network.
-    expect(importers.sort()).toEqual([
+    // and the two privacy scenes read the gate (Settings for the row's caption,
+    // MainMenu for the first-run dialog's line) and acknowledge the notice
+    // (MainMenu). Nothing under engine/ai/data/meta/ui appears here, which is
+    // what keeps a harness run physically unable to reach the network. In
+    // particular src/ui/StatsNoticeDialog.ts does NOT: the scene evaluates the
+    // gate and hands it a finished string.
+    expect([...importers].sort()).toEqual([
       'src/gameBoot.ts',
       'src/scenes/DuelScene.ts',
       'src/scenes/MainMenuScene.ts',

@@ -1,11 +1,14 @@
 /**
- * The consent surfaces' copy and layout, with no Phaser in sight (rollout wave
- * T2, the UI half).
+ * The privacy surfaces' copy and layout, with no Phaser in sight (rollout wave
+ * T2, the UI half). "Privacy", not "consent": the legal basis for sending by
+ * default is the audience-measurement exemption plus legitimate interest, so
+ * none of these surfaces asks to be agreed with (docs/legal/README.md,
+ * finding 2).
  *
  * Three things live here and nowhere else:
  *
  * 1. **Every player-facing string** the Settings row, the "What is sent" panel
- *    and the one-time notice show. The scenes render from these constants, so
+ *    and the first-run notice show. The scenes render from these constants, so
  *    no sentence exists twice and a test can hold the wording against the
  *    privacy policy's.
  * 2. **The three field-description maps**, typed as `Record<HeartbeatField,
@@ -14,8 +17,9 @@
  *    both directions at runtime, so the panel cannot claim a field the code
  *    does not send, nor stay silent about one it does.
  * 3. **The layout numbers and the pure decisions** (which note the Settings row
- *    shows, whether the notice is owed, what order the stamp runs in), because
- *    tests never import Phaser.
+ *    shows, whether the notice is owed, what order the menu's arrival overlays
+ *    run in, what the dialog's controls do, and what order the stamp runs in),
+ *    because tests never import Phaser.
  *
  * It deliberately does NOT import `src/net`: the gate is handed in as a
  * function (`statsRowNoteState`), so the rules stay in one place and
@@ -23,7 +27,7 @@
  */
 
 import type { CardsField, DuelField, HeartbeatField } from '../meta/playSignals';
-import type { ToastNotice } from './toastQueue';
+import { theme } from './theme';
 
 // ---------------------------------------------------------------------------
 // Settings row
@@ -133,44 +137,51 @@ export const STATS_PRIVACY_LINK_LABEL = 'Read the privacy policy';
 export const STATS_PRIVACY_LINK_HREF = './privacy.html';
 
 // ---------------------------------------------------------------------------
-// The one-time notice
+// The first-run notice
 // ---------------------------------------------------------------------------
 
 /** The copy gives the notice the same name the panel carries. */
 export const STATS_NOTICE_TITLE = STATS_PANEL_TITLE;
 
-export const STATS_NOTICE_BODY =
-  'The game shares anonymous play stats to help improve it. No name, no account. You can turn this off in Settings.';
+/** What is shared and how coarse it is. */
+export const STATS_NOTICE_BODY_LEAD =
+  'Darling Blades shares anonymous play stats to help improve the game. They are broad summaries, like which bosses get beaten and which cards get played.';
 
-/** The toast's action line; tapping the card opens Settings. */
-export const STATS_NOTICE_ACTION_LABEL = 'Settings';
-
-/** The scene the notice's action starts. */
-export const STATS_NOTICE_ACTION_SCENE = 'Settings';
-
-/**
- * How long the notice holds, against the rail's 3200ms default. Two sentences
- * of body plus a title need more than a glance; the contract's floor is 8s.
- */
-export const STATS_NOTICE_HOLD_MS = 9000;
+/** What is not shared, and where the switch lives afterwards. */
+export const STATS_NOTICE_BODY_ASSURANCE =
+  'No name, no account, nothing that identifies you. You can change this at any time in Settings.';
 
 /**
- * The notice, as a rail notice. `fitBody` grows the plaque to the measured
- * body (three wrapped lines do not fit the default 86px card), `neverCollapse`
- * keeps it out of a "several notices" summary, and `onShown` is what lets the
- * caller stamp only once the card actually exists on screen.
+ * The dismiss button. It approves NOTHING: the legal basis for sending by
+ * default is the audience-measurement exemption plus legitimate interest, not
+ * consent, so this label acknowledges the telling and nothing else (see
+ * docs/legal/README.md, finding 2).
  */
-export function statsNoticeToast(onShown: () => void): ToastNotice {
-  return {
-    title: STATS_NOTICE_TITLE,
-    body: STATS_NOTICE_BODY,
-    detail: STATS_NOTICE_ACTION_LABEL,
-    action: { scene: STATS_NOTICE_ACTION_SCENE },
-    holdMs: STATS_NOTICE_HOLD_MS,
-    fitBody: true,
-    neverCollapse: true,
-    onShown,
-  };
+export const STATS_NOTICE_CONTINUE_LABEL = 'Continue';
+
+/**
+ * Every string the first-run dialog renders, gathered so the dialog can hold
+ * NO literal of its own: three of these are the existing Settings/panel
+ * constants, which is what keeps the notice and the Settings row from drifting.
+ * `tests/ui/statsPrivacyPresentation.test.ts` reads the dialog's source and
+ * fails if any of this wording is spelled out there instead.
+ */
+export const STATS_NOTICE_COPY = {
+  title: STATS_NOTICE_TITLE,
+  bodyLead: STATS_NOTICE_BODY_LEAD,
+  bodyAssurance: STATS_NOTICE_BODY_ASSURANCE,
+  /** The privacy policy's own wording, shared with the Settings row. */
+  toggleLabel: STATS_ROW_LABEL,
+  toggleOn: 'On',
+  toggleOff: 'Off',
+  /** Opens the existing "What is sent" panel. */
+  secondaryLabel: STATS_PANEL_BUTTON_LABEL,
+  primaryLabel: STATS_NOTICE_CONTINUE_LABEL,
+} as const;
+
+/** The toggle's label for a state, in the Settings row's own two words. */
+export function statsToggleLabel(on: boolean): string {
+  return on ? STATS_NOTICE_COPY.toggleOn : STATS_NOTICE_COPY.toggleOff;
 }
 
 // ---------------------------------------------------------------------------
@@ -250,6 +261,17 @@ export function statsRowNoteText(kind: StatsRowNoteKind): string {
   return STATS_ROW_NOTE_PLAIN;
 }
 
+/**
+ * The same line under the first-run notice's toggle, EXCEPT in the plain case,
+ * where the notice shows nothing at all: the dialog's own body already says
+ * what the Settings caption says, and repeating it twelve pixels lower reads
+ * as a second, weaker disclosure. Only the two "something else is stopping the
+ * sends" lines earn the space, and they reuse the row's existing wording.
+ */
+export function statsNoticeNoteText(kind: StatsRowNoteKind): string | null {
+  return kind === 'plain' ? null : statsRowNoteText(kind);
+}
+
 // ---------------------------------------------------------------------------
 // The toggle, the notice decision, and the stamp
 // ---------------------------------------------------------------------------
@@ -263,29 +285,61 @@ export function toggleShareAnonStats(settings: { shareAnonStats: boolean }): boo
   return settings.shareAnonStats;
 }
 
-export type StatsNoticeDecision = 'show' | 'alreadySeen' | 'waitForClearScreen';
-
-export interface StatsNoticeDecisionInput {
-  /** `settings.statsNoticeVersion`. */
+export interface StatsNoticeOwedInput {
+  /** `settings.statsNoticeVersion`, normalised. */
   savedVersion: number;
   /** `STATS_NOTICE_VERSION`. */
   currentVersion: number;
-  /**
-   * Nothing is over the menu: no tutorial prompt, no deck-repair notice, no
-   * modal, no other overlay, and the rail can present right now.
-   */
-  screenClear: boolean;
 }
 
 /**
  * Whether the notice is owed on this visit. Pure, so the whole truth table is
- * a test rather than a playthrough. `waitForClearScreen` is not a refusal: the
- * notice is still owed and shows the next time the menu is clear, which is why
- * nothing is stamped in that case.
+ * a test rather than a playthrough.
+ *
+ * There is no "wait for a clear screen" third answer any more: the notice is
+ * the FIRST thing the menu does (owner ruling 2026-09-19), so there is never an
+ * overlay to wait behind. A bump of `STATS_NOTICE_VERSION` re-arms this for a
+ * save stamped at the old version, which is what makes privacy policy section
+ * 8 true ("the game will tell you the next time you open it").
  */
-export function statsNoticeDecision(input: StatsNoticeDecisionInput): StatsNoticeDecision {
-  if (input.savedVersion >= input.currentVersion) return 'alreadySeen';
-  return input.screenClear ? 'show' : 'waitForClearScreen';
+export function statsNoticeOwed(input: StatsNoticeOwedInput): boolean {
+  return input.savedVersion < input.currentVersion;
+}
+
+// ---------------------------------------------------------------------------
+// The menu's arrival chain
+// ---------------------------------------------------------------------------
+
+/** One thing the main menu does on arrival, before the player touches it. */
+export type MenuArrivalStep = 'statsNotice' | 'deckRepair' | 'tutorialPrompt';
+
+export interface MenuArrivalInput {
+  /** `statsNoticeOwed(...)`. */
+  noticeOwed: boolean;
+  /** The deck-repair notice has something to report. */
+  deckRepairOwed: boolean;
+  /** `save.tutorialDone`. */
+  tutorialDone: boolean;
+}
+
+/**
+ * What the main menu shows on arrival, in order.
+ *
+ * The stats notice comes FIRST whenever it is owed (owner ruling 2026-09-19:
+ * "a new player sees: Privacy notice ... and then tutorial"), because it is the
+ * thing that must be said before anything is sent, and because a notice queued
+ * behind a modal is a notice a player can leave without ever seeing.
+ *
+ * After it, the rule that was already in the scene is unchanged: a deck-repair
+ * notice wins over the tutorial prompt, and a player who sees the repair notice
+ * is not also asked about the tutorial on the same visit.
+ */
+export function menuArrivalSteps(input: MenuArrivalInput): readonly MenuArrivalStep[] {
+  const steps: MenuArrivalStep[] = [];
+  if (input.noticeOwed) steps.push('statsNotice');
+  if (input.deckRepairOwed) steps.push('deckRepair');
+  else if (!input.tutorialDone) steps.push('tutorialPrompt');
+  return steps;
 }
 
 /** The three effects the stamp performs, injected so their order is testable. */
@@ -305,6 +359,181 @@ export function stampStatsNotice(target: StatsNoticeStampTarget, version: number
   target.setNoticeVersion(version);
   target.touch();
   target.acknowledge();
+}
+
+// ---------------------------------------------------------------------------
+// The first-run dialog's behaviour, with no Phaser attached to it
+// ---------------------------------------------------------------------------
+
+export interface StatsNoticeControllerTarget extends StatsNoticeStampTarget {
+  /** The live `settings` object from the save; the toggle edits it in place. */
+  settings: { shareAnonStats: boolean };
+}
+
+/**
+ * Everything the dialog can DO, so the dialog itself is only a drawing of it
+ * and the whole behaviour is testable headless.
+ */
+export interface StatsNoticeController {
+  /** The saved sharing choice, which is what the toggle shows. */
+  sharing(): boolean;
+  /** Flip the saved choice and persist it at once. Returns the new value. */
+  toggle(): boolean;
+  /**
+   * Continue, Escape or Enter: the only exit, and the only thing that stamps.
+   * Returns whether THIS call was the one that stamped, so a second press is
+   * free.
+   */
+  dismiss(): boolean;
+  /** Whether the stamp has been written. False for as long as the dialog is up. */
+  stamped(): boolean;
+}
+
+/**
+ * The dialog's behaviour, with its two rules made structural.
+ *
+ * 1. **The toggle persists immediately.** A player who switches sharing off and
+ *    then closes the app without pressing anything else has still been heard;
+ *    the notice simply shows again next launch, because nothing stamped.
+ * 2. **Nothing is stamped until the player leaves the dialog.** The gate re-reads
+ *    the save at every send and refuses while the saved notice version is below
+ *    the current one, so an unstamped save is a save that physically cannot
+ *    send. Tearing the dialog down without `dismiss()` therefore sends nothing
+ *    and leaves the notice owed.
+ *
+ * The stamp does NOT depend on the toggle. A player who turned sharing off has
+ * still been told, so the version is stamped and `acknowledge()` still runs;
+ * the gate is what refuses.
+ */
+export function createStatsNoticeController(
+  target: StatsNoticeControllerTarget,
+  version: number,
+): StatsNoticeController {
+  let stamped = false;
+  return {
+    sharing: () => target.settings.shareAnonStats === true,
+    toggle: () => {
+      const on = toggleShareAnonStats(target.settings);
+      target.touch();
+      return on;
+    },
+    dismiss: () => {
+      if (stamped) return false;
+      stamped = true;
+      stampStatsNotice(target, version);
+      return true;
+    },
+    stamped: () => stamped,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// The first-run dialog's layout
+// ---------------------------------------------------------------------------
+
+/**
+ * The blocking first-run dialog. Same footprint as the deck-repair notice the
+ * menu already shows (760x430), so the two arrival overlays read as one family,
+ * and well inside the 1280x720 design canvas and its title-safe frame.
+ *
+ * `depth` puts it BELOW `theme.depth.modal`, which is where the "What is sent"
+ * panel opens, so the panel is never obscured by the dialog that opened it.
+ */
+export const STATS_NOTICE_LAYOUT = {
+  width: 760,
+  height: 430,
+  /** Heavier than the panel's 0.62: this is the only thing on screen. */
+  dimAlpha: 0.72,
+  depth: theme.depth.overlay,
+  /** Between the two body paragraphs. */
+  paragraphGap: 14,
+  /** Body block to the top of the toggle row's band. */
+  toggleGap: 20,
+  /** The toggle row's band, at the touch-target floor. */
+  rowHeight: theme.control.minHitHeight,
+  /** Toggle row band to the state-aware line, when there is one. */
+  noteGap: 8,
+  /** The On/Off control's track, the same 90px the Settings row uses. */
+  toggleMinWidth: theme.control.minHitWidth,
+  /** Isolation space between the row label and the toggle beside it. */
+  minControlGap: 8,
+  /** The two footer buttons. */
+  secondaryMinWidth: 150,
+  primaryMinWidth: 160,
+  buttonGap: 24,
+} as const;
+
+export interface StatsNoticeMeasuredBody {
+  /** Rendered height of the first paragraph. */
+  paragraph1: number;
+  /** Rendered height of the second paragraph. */
+  paragraph2: number;
+  /** Rendered height of the state-aware line, or null when there is none. */
+  note: number | null;
+}
+
+export interface StatsNoticeBodyStack {
+  paragraph2Y: number;
+  /** TOP of the 44px row band. */
+  toggleRowY: number;
+  /** Vertical centre of the row band, where the label and toggle sit. */
+  toggleRowCenterY: number;
+  /** TOP of the state-aware line, or null when there is none. */
+  noteY: number | null;
+  /** Total height of the stack, for the fits-the-content-rect assertion. */
+  height: number;
+}
+
+/**
+ * Stack the dialog's body from the MEASURED paragraph heights rather than from
+ * hardcoded rows: glyph widths (and so wrap counts) are font-fallback dependent
+ * on Windows, which is the playbook's measure-then-place trap. Offsets are
+ * local to the modal shell's content rect.
+ */
+export function statsNoticeBodyStack(measured: StatsNoticeMeasuredBody): StatsNoticeBodyStack {
+  const paragraph2Y = measured.paragraph1 + STATS_NOTICE_LAYOUT.paragraphGap;
+  const toggleRowY = paragraph2Y + measured.paragraph2 + STATS_NOTICE_LAYOUT.toggleGap;
+  const rowBottom = toggleRowY + STATS_NOTICE_LAYOUT.rowHeight;
+  const noteY = measured.note === null ? null : rowBottom + STATS_NOTICE_LAYOUT.noteGap;
+  return {
+    paragraph2Y,
+    toggleRowY,
+    toggleRowCenterY: toggleRowY + STATS_NOTICE_LAYOUT.rowHeight / 2,
+    noteY,
+    height: noteY === null ? rowBottom : noteY + (measured.note ?? 0),
+  };
+}
+
+/** The On/Off control, right-aligned to the content rect's right edge. */
+export function statsNoticeToggleCenterX(contentRight: number, hitWidth: number): number {
+  return contentRight - hitWidth / 2;
+}
+
+/** How wide the row label may wrap before it reaches the toggle's hit box. */
+export function statsNoticeLabelWrapWidth(contentWidth: number, toggleHitWidth: number): number {
+  return Math.max(0, contentWidth - toggleHitWidth - STATS_NOTICE_LAYOUT.minControlGap);
+}
+
+export interface StatsNoticeFooterCenters {
+  secondaryX: number;
+  primaryX: number;
+}
+
+/**
+ * The footer pair: `Continue` right-aligned to the footer track, `What is sent`
+ * to its left. Measure-then-place again, because both labels are text-width
+ * dependent; the test walks every plausible pair of widths and proves the two
+ * hit boxes never touch and never leave the track.
+ */
+export function statsNoticeFooterCenters(
+  track: { x: number; width: number },
+  secondaryHitWidth: number,
+  primaryHitWidth: number,
+): StatsNoticeFooterCenters {
+  const primaryX = track.x + track.width - primaryHitWidth / 2;
+  const secondaryX =
+    primaryX - primaryHitWidth / 2 - STATS_NOTICE_LAYOUT.buttonGap - secondaryHitWidth / 2;
+  return { secondaryX, primaryX };
 }
 
 // ---------------------------------------------------------------------------

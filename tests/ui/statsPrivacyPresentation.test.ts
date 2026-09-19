@@ -19,9 +19,11 @@ import {
   STATS_HEARTBEAT_FIELD_LINES,
   STATS_NEVER_SENT_BODY,
   STATS_NEVER_SENT_TITLE,
-  STATS_NOTICE_ACTION_LABEL,
-  STATS_NOTICE_BODY,
-  STATS_NOTICE_HOLD_MS,
+  STATS_NOTICE_BODY_ASSURANCE,
+  STATS_NOTICE_BODY_LEAD,
+  STATS_NOTICE_CONTINUE_LABEL,
+  STATS_NOTICE_COPY,
+  STATS_NOTICE_LAYOUT,
   STATS_NOTICE_TITLE,
   STATS_PANEL_BUTTON_LABEL,
   STATS_PANEL_FOOTER,
@@ -37,24 +39,33 @@ import {
   STATS_ROW_NOTE_PLAIN,
   STATS_SECTION_TITLE,
   STATS_SETTINGS_ROW,
+  createStatsNoticeController,
+  menuArrivalSteps,
   stampStatsNotice,
-  statsNoticeDecision,
-  statsNoticeToast,
+  statsNoticeBodyStack,
+  statsNoticeFooterCenters,
+  statsNoticeLabelWrapWidth,
+  statsNoticeNoteText,
+  statsNoticeOwed,
+  statsNoticeToggleCenterX,
   statsPanelButtonCenterX,
   statsPanelColumns,
   statsPanelMaxScroll,
   statsRowNoteKind,
   statsRowNoteState,
   statsRowNoteText,
+  statsToggleLabel,
   toggleShareAnonStats,
+  type MenuArrivalStep,
   type StatsRowNoteKind,
 } from '../../src/ui/statsPrivacyPresentation';
 import { theme } from '../../src/ui/theme';
 
 /**
- * The consent surfaces, tested where they are testable: the copy, the two
+ * The privacy surfaces, tested where they are testable: the copy, the two
  * field-description maps' agreement with the allowlist, the layout numbers,
- * and the three pure decisions. No Phaser, so all of it runs headless.
+ * the menu's arrival order, and the first-run dialog's whole behaviour. No
+ * Phaser, so all of it runs headless.
  */
 
 const ROOT = resolve(__dirname, '../..');
@@ -78,12 +89,10 @@ const EVERY_STRING: readonly string[] = [
   STATS_NEVER_SENT_BODY,
   STATS_PANEL_FOOTER,
   STATS_PRIVACY_LINK_LABEL,
-  STATS_NOTICE_TITLE,
-  STATS_NOTICE_BODY,
-  STATS_NOTICE_ACTION_LABEL,
+  ...Object.values(STATS_NOTICE_COPY),
 ];
 
-describe('the consent copy', () => {
+describe('the privacy copy', () => {
   it('is complete and follows the owner copy rules', () => {
     for (const line of EVERY_STRING) {
       expect(line.length, line).toBeGreaterThan(0);
@@ -199,55 +208,269 @@ describe('the toggle', () => {
   });
 });
 
-describe('the one-time notice decision', () => {
-  const table: [number, number, boolean, string][] = [
-    // saved, current, screen clear, decision
-    [0, 1, true, 'show'],
-    [0, 1, false, 'waitForClearScreen'],
-    [1, 1, true, 'alreadySeen'],
-    [1, 1, false, 'alreadySeen'],
-    [2, 1, true, 'alreadySeen'],
-    [1, 2, true, 'show'],
-    [1, 2, false, 'waitForClearScreen'],
+describe('whether the first-run notice is owed', () => {
+  const table: [number, number, boolean][] = [
+    // saved, current, owed
+    [0, 1, true],
+    [1, 1, false],
+    [2, 1, false],
+    [1, 2, true],
+    [0, 2, true],
   ];
 
-  for (const [savedVersion, currentVersion, screenClear, expected] of table) {
-    it(`saved ${savedVersion}, current ${currentVersion}, clear ${screenClear} -> ${expected}`, () => {
-      expect(statsNoticeDecision({ savedVersion, currentVersion, screenClear })).toBe(expected);
+  for (const [savedVersion, currentVersion, expected] of table) {
+    it(`saved ${savedVersion}, current ${currentVersion} -> ${expected ? 'owed' : 'already seen'}`, () => {
+      expect(statsNoticeOwed({ savedVersion, currentVersion })).toBe(expected);
     });
   }
 
   it('never shows a save that is already at the current version', () => {
-    for (const screenClear of [true, false]) {
-      expect(
-        statsNoticeDecision({
-          savedVersion: STATS_NOTICE_VERSION,
-          currentVersion: STATS_NOTICE_VERSION,
-          screenClear,
-        }),
-      ).toBe('alreadySeen');
+    expect(
+      statsNoticeOwed({
+        savedVersion: STATS_NOTICE_VERSION,
+        currentVersion: STATS_NOTICE_VERSION,
+      }),
+    ).toBe(false);
+  });
+
+  it('re-arms for a save stamped at the old version when the notice version is bumped', () => {
+    // Privacy policy section 8: a change to what is sent is announced the next
+    // time the game opens. The bump IS the announcement.
+    expect(
+      statsNoticeOwed({
+        savedVersion: STATS_NOTICE_VERSION,
+        currentVersion: STATS_NOTICE_VERSION + 1,
+      }),
+    ).toBe(true);
+  });
+});
+
+describe("the menu's arrival order", () => {
+  /** All eight combinations, spelled out rather than recomputed. */
+  const table: [boolean, boolean, boolean, MenuArrivalStep[]][] = [
+    // noticeOwed, deckRepairOwed, tutorialDone, steps
+    [false, false, false, ['tutorialPrompt']],
+    [false, false, true, []],
+    [false, true, false, ['deckRepair']],
+    [false, true, true, ['deckRepair']],
+    [true, false, false, ['statsNotice', 'tutorialPrompt']],
+    [true, false, true, ['statsNotice']],
+    [true, true, false, ['statsNotice', 'deckRepair']],
+    [true, true, true, ['statsNotice', 'deckRepair']],
+  ];
+
+  for (const [noticeOwed, deckRepairOwed, tutorialDone, expected] of table) {
+    it(`notice ${noticeOwed}, repair ${deckRepairOwed}, tutorialDone ${tutorialDone} -> [${expected.join(', ')}]`, () => {
+      expect(menuArrivalSteps({ noticeOwed, deckRepairOwed, tutorialDone })).toEqual(expected);
+    });
+  }
+
+  it('puts the notice FIRST whenever it is owed, in every combination', () => {
+    for (const deckRepairOwed of [false, true]) {
+      for (const tutorialDone of [false, true]) {
+        const steps = menuArrivalSteps({ noticeOwed: true, deckRepairOwed, tutorialDone });
+        expect(steps[0], `repair=${deckRepairOwed} tutorial=${tutorialDone}`).toBe('statsNotice');
+      }
+    }
+  });
+
+  it('keeps the old rule that a repair notice replaces the tutorial prompt', () => {
+    for (const noticeOwed of [false, true]) {
+      const steps = menuArrivalSteps({ noticeOwed, deckRepairOwed: true, tutorialDone: false });
+      expect(steps).not.toContain('tutorialPrompt');
+    }
+  });
+
+  it('shows the notice on its own to a returning player with nothing else owed', () => {
+    expect(
+      menuArrivalSteps({ noticeOwed: true, deckRepairOwed: false, tutorialDone: true }),
+    ).toEqual(['statsNotice']);
+  });
+});
+
+describe('the first-run notice copy', () => {
+  const BANNED = ['agree', 'accept', 'consent', 'allow', 'permission'];
+  /** Everything the dialog can render, including the two note lines. */
+  const DIALOG_STRINGS: readonly string[] = [
+    ...Object.values(STATS_NOTICE_COPY),
+    STATS_ROW_NOTE_DEVELOPMENT,
+    STATS_ROW_NOTE_BROWSER,
+  ];
+
+  it('is complete and follows the owner copy rules', () => {
+    for (const line of DIALOG_STRINGS) {
+      expect(line.length, line).toBeGreaterThan(0);
+      expect(line.trim(), line).toBe(line);
+      expect(line.includes('—'), `em-dash in: ${line}`).toBe(false);
+      expect(line.includes('–'), `en-dash in: ${line}`).toBe(false);
+    }
+  });
+
+  it('never reads like a consent request, in any case', () => {
+    // The legal basis is the audience-measurement exemption plus legitimate
+    // interest, NOT consent (docs/legal/README.md, finding 2). A dialog that
+    // asks to be agreed with would undermine the basis it relies on.
+    for (const line of DIALOG_STRINGS) {
+      for (const word of BANNED) {
+        expect(line.toLowerCase().includes(word), `"${word}" in: ${line}`).toBe(false);
+      }
+    }
+  });
+
+  it('reuses the existing constants rather than restating them', () => {
+    expect(STATS_NOTICE_COPY.title).toBe(STATS_PANEL_TITLE);
+    expect(STATS_NOTICE_TITLE).toBe(STATS_PANEL_TITLE);
+    expect(STATS_NOTICE_COPY.toggleLabel).toBe(STATS_ROW_LABEL);
+    expect(STATS_NOTICE_COPY.secondaryLabel).toBe(STATS_PANEL_BUTTON_LABEL);
+    expect(STATS_NOTICE_COPY.primaryLabel).toBe(STATS_NOTICE_CONTINUE_LABEL);
+    expect(STATS_NOTICE_COPY.bodyLead).toBe(STATS_NOTICE_BODY_LEAD);
+    expect(STATS_NOTICE_COPY.bodyAssurance).toBe(STATS_NOTICE_BODY_ASSURANCE);
+  });
+
+  it('names the two states in the Settings row\'s own two words', () => {
+    expect(statsToggleLabel(true)).toBe(STATS_NOTICE_COPY.toggleOn);
+    expect(statsToggleLabel(false)).toBe(STATS_NOTICE_COPY.toggleOff);
+    // The same two words SettingsScene's refreshToggles() writes.
+    const scene = readFileSync(resolve(ROOT, 'src/scenes/SettingsScene.ts'), 'utf8');
+    expect(scene).toContain(`'${STATS_NOTICE_COPY.toggleOn}' : '${STATS_NOTICE_COPY.toggleOff}'`);
+  });
+
+  it('is spelled out nowhere in the dialog itself', () => {
+    // "Same reference, not a copied string", proven the only way a headless
+    // test can: the dialog's source carries none of this wording as a literal.
+    const source = readFileSync(resolve(ROOT, 'src/ui/StatsNoticeDialog.ts'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, ' ')
+      .replace(/\/\/.*$/gm, ' ');
+    for (const line of Object.values(STATS_NOTICE_COPY)) {
+      const quoted = new RegExp(`['"]${line.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}['"]`);
+      expect(quoted.test(source), `literal in the dialog: ${line}`).toBe(false);
     }
   });
 });
 
-describe('the notice, as a rail notice', () => {
-  it('carries the copy, holds long enough to read, and never collapses', () => {
-    const notice = statsNoticeToast(() => undefined);
-    expect(notice.title).toBe(STATS_NOTICE_TITLE);
-    expect(notice.body).toBe(STATS_NOTICE_BODY);
-    expect(notice.detail).toBe(STATS_NOTICE_ACTION_LABEL);
-    expect(notice.action).toEqual({ scene: 'Settings' });
-    // Two sentences of body: the contract's floor is eight seconds.
-    expect(notice.holdMs).toBe(STATS_NOTICE_HOLD_MS);
-    expect(STATS_NOTICE_HOLD_MS).toBeGreaterThanOrEqual(8000);
-    expect(notice.neverCollapse).toBe(true);
-    expect(notice.fitBody).toBe(true);
+describe("the line under the notice's toggle", () => {
+  it('shows development over a browser signal, and NOTHING in the plain case', () => {
+    expect(statsNoticeNoteText('development')).toBe(STATS_ROW_NOTE_DEVELOPMENT);
+    expect(statsNoticeNoteText('browserSignal')).toBe(STATS_ROW_NOTE_BROWSER);
+    // The body already says what the plain Settings caption says.
+    expect(statsNoticeNoteText('plain')).toBeNull();
   });
 
-  it('hands its onShown straight through, which is what the stamp hangs off', () => {
-    const shown = vi.fn();
-    statsNoticeToast(shown).onShown?.();
-    expect(shown).toHaveBeenCalledTimes(1);
+  it('uses the row\'s own wording, never a second copy of it', () => {
+    expect(statsNoticeNoteText('development')).toBe(statsRowNoteText('development'));
+    expect(statsNoticeNoteText('browserSignal')).toBe(statsRowNoteText('browserSignal'));
+  });
+
+  it('asks the real gate, so dev wins over a browser signal there too', () => {
+    const base: SignalsGateInput = {
+      shareAnonStats: true,
+      statsNoticeVersion: STATS_NOTICE_VERSION,
+      requiredNoticeVersion: STATS_NOTICE_VERSION,
+      doNotTrack: null,
+      globalPrivacyControl: null,
+      telemetryParam: null,
+      isDev: false,
+      testEndpoint: null,
+    };
+    const noteFor = (over: Partial<SignalsGateInput>): string | null =>
+      statsNoticeNoteText(statsRowNoteKind(statsRowNoteState({ ...base, ...over }, signalsAllowed)));
+    expect(noteFor({ isDev: true, doNotTrack: '1' })).toBe(STATS_ROW_NOTE_DEVELOPMENT);
+    expect(noteFor({ doNotTrack: '1' })).toBe(STATS_ROW_NOTE_BROWSER);
+    expect(noteFor({ globalPrivacyControl: true })).toBe(STATS_ROW_NOTE_BROWSER);
+    expect(noteFor({})).toBeNull();
+    // A player who simply has sharing off still gets no line: that is what the
+    // toggle beside it is for.
+    expect(noteFor({ shareAnonStats: false })).toBeNull();
+  });
+});
+
+describe('the dialog, as behaviour', () => {
+  /** The scene's own wiring, with every effect spied. */
+  const target = (shareAnonStats: boolean) => {
+    const order: string[] = [];
+    const settings = { shareAnonStats };
+    return {
+      order,
+      settings,
+      setNoticeVersion: vi.fn((version: number) => order.push(`version:${version}`)),
+      touch: vi.fn(() => order.push('touch')),
+      acknowledge: vi.fn(() => order.push('acknowledge')),
+    };
+  };
+
+  it('shows the SAVED choice, off included', () => {
+    expect(createStatsNoticeController(target(true), STATS_NOTICE_VERSION).sharing()).toBe(true);
+    expect(createStatsNoticeController(target(false), STATS_NOTICE_VERSION).sharing()).toBe(false);
+  });
+
+  it('writes the save and persists it the moment the toggle is flipped', () => {
+    const spy = target(true);
+    const controller = createStatsNoticeController(spy, STATS_NOTICE_VERSION);
+    expect(controller.toggle()).toBe(false);
+    expect(spy.settings.shareAnonStats).toBe(false);
+    // Immediately, exactly as the Settings row does: a player who flips it off
+    // and closes the app has been heard even though the notice shows again.
+    expect(spy.touch).toHaveBeenCalledTimes(1);
+    expect(controller.sharing()).toBe(false);
+    expect(controller.toggle()).toBe(true);
+    expect(spy.touch).toHaveBeenCalledTimes(2);
+  });
+
+  it('stamps NOTHING while the dialog is open, however much the toggle moves', () => {
+    const spy = target(true);
+    const controller = createStatsNoticeController(spy, STATS_NOTICE_VERSION);
+    controller.toggle();
+    controller.toggle();
+    controller.toggle();
+    expect(controller.stamped()).toBe(false);
+    expect(spy.setNoticeVersion).not.toHaveBeenCalled();
+    expect(spy.acknowledge).not.toHaveBeenCalled();
+  });
+
+  it('stamps nothing at all when it is torn down without Continue', () => {
+    const spy = target(true);
+    const controller = createStatsNoticeController(spy, STATS_NOTICE_VERSION);
+    // The scene was left with the dialog up: dismiss() never ran.
+    expect(controller.stamped()).toBe(false);
+    expect(spy.order).toEqual([]);
+  });
+
+  for (const sharing of [true, false]) {
+    it(`Continue writes the version, persists it, then acknowledges (sharing ${sharing ? 'on' : 'off'})`, () => {
+      // Being told is not the same as opting in: a player who turned sharing
+      // off has still been told, so the stamp runs identically and the gate is
+      // what refuses.
+      const spy = target(sharing);
+      const controller = createStatsNoticeController(spy, STATS_NOTICE_VERSION);
+      expect(controller.dismiss()).toBe(true);
+      expect(spy.order).toEqual([`version:${STATS_NOTICE_VERSION}`, 'touch', 'acknowledge']);
+      expect(controller.stamped()).toBe(true);
+      expect(spy.settings.shareAnonStats).toBe(sharing);
+    });
+  }
+
+  it('stamps once however many of Continue, Escape and Enter arrive', () => {
+    const spy = target(true);
+    const controller = createStatsNoticeController(spy, STATS_NOTICE_VERSION);
+    expect(controller.dismiss()).toBe(true);
+    expect(controller.dismiss()).toBe(false);
+    expect(controller.dismiss()).toBe(false);
+    expect(spy.setNoticeVersion).toHaveBeenCalledTimes(1);
+    expect(spy.acknowledge).toHaveBeenCalledTimes(1);
+  });
+
+  it('carries a toggle flipped before Continue into the stamped save', () => {
+    const spy = target(true);
+    const controller = createStatsNoticeController(spy, STATS_NOTICE_VERSION);
+    controller.toggle();
+    controller.dismiss();
+    expect(spy.settings.shareAnonStats).toBe(false);
+    expect(spy.order).toEqual([
+      'touch',
+      `version:${STATS_NOTICE_VERSION}`,
+      'touch',
+      'acknowledge',
+    ]);
   });
 });
 
@@ -264,12 +487,11 @@ describe('the stamp', () => {
     expect(target.acknowledge).toHaveBeenCalledTimes(1);
   });
 
-  it('does nothing at all when the notice was never shown', () => {
-    // The scene hangs the stamp off the rail's onShown, so "never rendered"
-    // is simply "never called". Proven here as the absence of every effect.
+  it('does nothing at all until it is called', () => {
+    // The dialog calls this from Continue and from nowhere else, so "the player
+    // left with it open" is simply "never called". Proven here as the absence
+    // of every effect.
     const target = { setNoticeVersion: vi.fn(), touch: vi.fn(), acknowledge: vi.fn() };
-    const notice = statsNoticeToast(() => stampStatsNotice(target, STATS_NOTICE_VERSION));
-    expect(notice.onShown).toBeTypeOf('function');
     expect(target.setNoticeVersion).not.toHaveBeenCalled();
     expect(target.touch).not.toHaveBeenCalled();
     expect(target.acknowledge).not.toHaveBeenCalled();
@@ -381,5 +603,79 @@ describe('the "What is sent" panel layout', () => {
   it('never renders body copy below the type scale\'s supporting size', () => {
     // The panel is dense, but shrinking a consent disclosure is not an option.
     expect(theme.type.caption).toBeGreaterThanOrEqual(theme.type.micro);
+  });
+});
+
+describe('the first-run dialog layout', () => {
+  const layout = modalShellLayout({
+    width: STATS_NOTICE_LAYOUT.width,
+    height: STATS_NOTICE_LAYOUT.height,
+  });
+  const content = layout.contentBounds;
+  /** A generous stand-in for the wrapped body: three lines each, not two. */
+  const ROOMY = { paragraph1: 3 * 24, paragraph2: 3 * 24, note: 2 * 16 };
+
+  it('fits the design canvas and its title-safe frame', () => {
+    expect(layout.fits).toBe(true);
+    expect(layout.tracksInsidePanel).toBe(true);
+    expect(layout.tracksInsideTitleSafe).toBe(true);
+    expect(STATS_NOTICE_LAYOUT.width).toBeLessThanOrEqual(theme.design.safeWidth);
+    expect(STATS_NOTICE_LAYOUT.height).toBeLessThanOrEqual(theme.design.safeHeight);
+  });
+
+  it('opens BELOW the "What is sent" panel, which it can open over itself', () => {
+    expect(STATS_NOTICE_LAYOUT.depth).toBeLessThan(theme.depth.modal);
+  });
+
+  it('stacks the body, the toggle row and the note in that order', () => {
+    const stack = statsNoticeBodyStack(ROOMY);
+    expect(stack.paragraph2Y).toBe(ROOMY.paragraph1 + STATS_NOTICE_LAYOUT.paragraphGap);
+    expect(stack.toggleRowY).toBeGreaterThan(stack.paragraph2Y + ROOMY.paragraph2);
+    expect(stack.toggleRowCenterY).toBe(stack.toggleRowY + STATS_NOTICE_LAYOUT.rowHeight / 2);
+    expect(stack.noteY).toBe(stack.toggleRowY + STATS_NOTICE_LAYOUT.rowHeight + STATS_NOTICE_LAYOUT.noteGap);
+  });
+
+  it('leaves the note out of the stack entirely when there is none', () => {
+    const stack = statsNoticeBodyStack({ ...ROOMY, note: null });
+    expect(stack.noteY).toBeNull();
+    expect(stack.height).toBe(stack.toggleRowY + STATS_NOTICE_LAYOUT.rowHeight);
+  });
+
+  it('fits a roomy body inside the shell\'s content rect, note and all', () => {
+    expect(statsNoticeBodyStack(ROOMY).height).toBeLessThanOrEqual(content.height);
+    expect(statsNoticeBodyStack({ ...ROOMY, note: null }).height).toBeLessThanOrEqual(content.height);
+  });
+
+  it('gives the toggle row a full touch target', () => {
+    expect(STATS_NOTICE_LAYOUT.rowHeight).toBeGreaterThanOrEqual(theme.control.minHitHeight);
+    expect(STATS_NOTICE_LAYOUT.toggleMinWidth).toBeGreaterThanOrEqual(theme.control.minHitWidth);
+  });
+
+  it('right-aligns the toggle and still leaves the label a column to wrap in', () => {
+    const right = content.x + content.width;
+    for (let hitWidth = theme.control.minHitWidth; hitWidth <= 140; hitWidth += 2) {
+      const center = statsNoticeToggleCenterX(right, hitWidth);
+      expect(center + hitWidth / 2, `edge at ${hitWidth}`).toBe(right);
+      const wrap = statsNoticeLabelWrapWidth(content.width, hitWidth);
+      expect(wrap, `wrap at ${hitWidth}`).toBeGreaterThan(300);
+      expect(content.x + wrap, `overlap at ${hitWidth}`).toBeLessThanOrEqual(center - hitWidth / 2);
+    }
+  });
+
+  it('keeps the two footer buttons apart and inside the footer track', () => {
+    const footer = layout.footerTrack;
+    for (let secondary = theme.control.minHitWidth; secondary <= 200; secondary += 5) {
+      for (let primary = theme.control.minHitWidth; primary <= 200; primary += 5) {
+        const centers = statsNoticeFooterCenters(footer, secondary, primary);
+        const label = `secondary ${secondary}, primary ${primary}`;
+        expect(centers.primaryX + primary / 2, label).toBe(footer.x + footer.width);
+        expect(centers.secondaryX - secondary / 2, label).toBeGreaterThanOrEqual(footer.x);
+        expect(
+          centers.primaryX - primary / 2 - (centers.secondaryX + secondary / 2),
+          label,
+        ).toBe(STATS_NOTICE_LAYOUT.buttonGap);
+      }
+    }
+    expect(footer.height).toBeGreaterThanOrEqual(theme.control.minHitHeight);
   });
 });
