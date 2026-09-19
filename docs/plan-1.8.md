@@ -206,6 +206,11 @@ leave them collectible and mark them in the binder as reserve-ineligible. Any
 option that changes the collectible pool touches drop tables, collectionPct,
 draft packs (`packPool` already excludes them), and the Assay.
 
+**BUILT 2026-09-18.** Option (b) was ruled 2026-09-11, the slate approved
+2026-09-17 with seven heavier rows, and the 27 cards transcribed the next day.
+What the build found and how the owner ruled is in
+[plan-land-economy.md](plan-land-economy.md).
+
 ### Lane E — anonymous telemetry (T0 to T3), parallel
 
 The execution plan is written: [rollout-telemetry-and-accounts.md](rollout-telemetry-and-accounts.md).

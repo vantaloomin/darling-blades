@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/meta/warchest.ts, src/meta/PackOpener.ts, src/data/cards/, src/engine/types.ts, docs/plan-1.8.md, docs/plan-tap-abilities.md · last-verified: 2026-09-17 · decision brief + conversion slate for lane D of 1.8 (the 27 utility taplands become Duty artifacts); owner approves the slate, Codex transcribes -->
+<!-- source-of-truth: src/meta/warchest.ts, src/meta/PackOpener.ts, src/data/cards/, src/engine/types.ts, docs/plan-1.8.md, docs/plan-tap-abilities.md · last-verified: 2026-09-18 · decision brief + conversion slate for lane D of 1.8 (the 27 utility taplands become Duty artifacts); slate approved 2026-09-17, transcribed 2026-09-18 -->
 
 # Land economy: the 27 utility taplands become Duty artifacts
 
@@ -6,7 +6,7 @@ Lane D of [plan-1.8.md](plan-1.8.md), the one 1.8 item that had no spec.
 **Ruled 2026-09-11 (D3): convert the 27 utility taplands into Duty artifacts
 with a tap ability.** This brief records the measurement, the ruling against
 the two alternatives, the per-card conversion slate for approval, and the
-blast radius the transcription wave has to cover. Nothing here is built.
+blast radius the transcription wave had to cover.
 
 **Slate APPROVED 2026-09-17, with seven rows re-authored the same day.** The
 owner's direction: no Duty on the first slate cost more than one mana to
@@ -14,6 +14,53 @@ activate, so a handful move to a tap cost of two or three with a heavier
 effect. The seven are marked **(heavier)** in section 4, ruled in design
 rule 9 and costed in section 5. The other twenty rows stand as first
 written.
+
+**BUILT 2026-09-18.** All 27 rows are transcribed in the five set files and
+pinned by `tests/data/landEconomy.test.ts`: shape, printed cost, colour, the
+generated rules line, the pools, design rule 4, one headless resolution test
+per Duty shape, and proof that all three brains activate each of the seven
+heavier rows. What the build found, and how the owner ruled the same day:
+
+- **The converter moved ten avatars, and the owner accepted its output.**
+  Nine avatars' Darlings lists swap two to nine fill cards for converted
+  commons in their colours, and those are regenerated. The tenth is Artoria:
+  her source list carried the old land twice, the converter retains a legal
+  spell as a playset, and its new cut ran four Lowland Fort Banners over two
+  Quest for the Grail and two catalog singletons. Measured at 200 seeds
+  across the 14 player decks, that cut scored 60% against the standing
+  list's 68%, lower in every column. So her standing list is kept and she is
+  registered as hand-tuned in `tests/data/avatarReserveDecks.test.ts`, the
+  same way Morgan, Hel and Bastet are.
+- **Deepfield Array moves Marks between your own creatures only.** The engine
+  restricts `moveMark` to two creatures the activator controls and the rules
+  line is fixed to match, so the slate's "from target creature" could not
+  ship without an engine change. Ruled: ship the own-side mover, which is what
+  the three blue Starborne Mark-movers already are. Taking a Mark off an
+  opposing creature every turn for one mana is a stronger card than this row
+  was costed as, and belongs to a later set at a higher rarity if it is ever
+  printed. The row in section 4 now carries the generated line.
+- **Section 1 was stale on one point.** The code already retired the taplands
+  from boosters, crafting, the collectible pool and set completion
+  (`isUtilityTapland` in `PackOpener`, `Collection` and `collectionFilter`).
+  Converting them re-admits all 27 everywhere, so four set-completion targets
+  rise: Celtic Fae 81 to 84, Grail Oath 78 to 83, Nocturne Manor 78 to 83,
+  Dark Tales 172 to 180. Ruled: accepted, with a line in the 1.8 release
+  notes. The collectible pool goes 1,455 to 1,482 and the common pack pool 716
+  to 743. The three guards stay in place, matching nothing, as the rule that
+  no later set prints a utility tapland.
+- **Two starter lists still name a converted card in their legacy 60-card
+  column** (Questing Table carries Lowland Fort three times, Midnight
+  Storybook carries Palace Steps twice). No player is affected: a claimed
+  deck is built from the Warchest columns. The lists are the owner's measured
+  decks and were left alone; the land-count test reads 21 and 22 for those
+  two.
+- **Cost order.** The generator prints `{T}, {2}:` where this slate and Magic
+  convention read `{2}, {T}:`. Ruled: mana first, as a separate change to the
+  text renderer, because it touches every Duty card in the game.
+- **Still owed:** the local card database rebuild and the Assay rows, an
+  eyes-on pass for the 27 landscape arts in artifact frames, and the seeded
+  matrix watch on Festival Rocket and Crossing Beacon once players can draft
+  them.
 
 ## 1. The problem, measured
 
@@ -180,7 +227,7 @@ formula's recursion rate is a one-shot rate.
 | Id | Was | Becomes | Cost | Duty (rules line) | Delta | Flavor |
 | --- | --- | --- | --- | --- | --- | --- |
 | `sb-pale-nebula` | Pale Nebula | **Nebula Beacon** (heavier) | {2}{W} | {2},{T}: Target creature you control gets +2/+2 until Sunset. | -0.24 | The cloud looks soft until you try to navigate it. (kept) |
-| `sb-deepfield-lands` | Deepfield Lands | **Deepfield Array** | {U} | {1},{T}: Move a Mark from target creature to target creature you control. | +0.00 | The deep field is quiet because everything there is listening. (kept) |
+| `sb-deepfield-lands` | Deepfield Lands | **Deepfield Array** | {U} | {1},{T}: Move a Mark from a creature you control to another creature you control. | +0.00 | The deep field is quiet because everything there is listening. (kept) |
 | `sb-darkside-landing` | Darkside Landing | **Violet Landing Light** | {1}{B} | {T}: Remove the Marks from target Marked creature. | -0.12 | The landing lights are violet because red would look too hopeful. (kept) |
 | `sb-ember-lane` | Ember Lane | **Ember-Lane Flare** | {R} | {1},{T}: Deal 1 damage to your opponent. | -0.15 | The lane is hot, crowded, and officially one-way. (kept) |
 | `sb-overcanopy` | Overcanopy | **Overcanopy Trellis** | {1}{G} | {1},{T}: Put a Mark on target creature you control. | -0.22 (NEEDS MATH: the `{T}: counter` band) | A green aurora hangs low enough to touch from the watch deck. (kept) |

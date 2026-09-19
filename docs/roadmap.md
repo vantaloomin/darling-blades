@@ -1675,6 +1675,17 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   and the set is authored fresh once the engine specs exist; and the land
   economy headline has no spec, while the pool holds 27 utility taplands no
   deck can play. **Nothing in it is authorized or implemented.**
+- **Land economy: the 27 utility taplands are Duty artifacts. ✅ BUILT
+  2026-09-18** (1.8 lane D, [plan-land-economy.md](plan-land-economy.md)).
+  Every converted card keeps its id, set, rarity and art; the mana colour
+  became the pip and the arrival effect became a repeatable tap ability,
+  seven of them at a tap cost of two or three. All 27 open from packs, draft,
+  craft and count toward set completion again, so four completion targets
+  rise. The converter moved ten avatars: nine Darlings lists are
+  regenerated, and Artoria keeps her standing reserve list as a registered
+  hand-tune after the converter's new cut measured 60% against her 68%. Owed: the Duty cost line
+  printing mana first, the local database and Assay rebuild, an eyes-on pass
+  for landscape art in artifact frames.
 - **Run the toolchain and CI on Node 24. ✅ IMPLEMENTED 2026-09-07** (the
   first 1.8 wave-0 chore; owner took the defaults). The v1.7.1 release run
   had warned that `actions/checkout@v4`, `actions/setup-node@v4`, and
