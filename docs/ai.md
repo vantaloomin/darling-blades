@@ -405,13 +405,34 @@ Broodmother (candidate 53.5) kept their standing floors, because a candidate
 under the current value is recorded, never applied; the Deacon and the
 Marsh-Mother took their first real floors at 0.595 and 0.685, retiring the
 tier-6 provisional termination-only gate. Rungs 14-20 were not re-measured
-and keep the 2026-08-23 floors. Every new floor cleared at CI's 40 seeds the
+in that pass; they were on 2026-09-19, below. Every new floor cleared at CI's 40 seeds the
 same day (R21 70.0 · R22 75.0 · R23 60.5 · R24 69.5 · R25 63.5 · R26 71.0).
 Two findings: Chrome Broodmother has fallen 68 to 60 since 2026-08-30, mostly
 out of Muster (46 to 42), which leaves 1.5pp between her 200-seed mean and
 her own floor, the narrowest margin on the ladder and the next deck owed a
 measured tuning pass; and Anubis is the AI pass's big winner, 57 to 61 to 65,
 with Harvest (46) still her only losing column.
+
+**Rungs 14-20 re-baselined, 2026-09-19,** on the final 1.8 pool, same harness
+and seeding as the gate, 200 seeds per cell, FLAGS none: R14 Artoria 65.6
+(27/91/66/75/71) · R15 Carmilla 72.3 (61/78/52/85/86) · R16 The Bride 68.6
+(57/73/51/79/83) · R17 Glass-Coffin Queen 77.3 (70/76/62/94/85) · R18 Abyssal
+Songstress 88.5 (88/93/73/95/95) · R19 Queen of the Lanterned Roof 58.6
+(40/75/49/59/71, one draw in 1,000 games) · R20 Kitsune Neon Tyrant 81.6
+(74/70/82/91/92). The ratchet: Carmilla 0.645 to 0.655, the Glass-Coffin Queen
+0.685 to 0.705, the Songstress 0.795 to 0.82 (her margin had shrunk to 1.5pp
+and is 6.5 again); The Bride (candidate 62.0), the Queen of the Lanterned Roof
+(52.0) and Kitsune (75.0) kept their standing floors. All seven cleared at
+CI's 40 seeds the same day (65.0 · 74.5 · 69.5 · 79.5 · 84.5 · 56.0 · 84.0),
+zero draws, every order rule holding. **The finding: Kitsune has fallen 87 to
+84 to 81.6 across the AI passes and now sits 1.1pp over her own floor, the
+narrowest margin on the ladder,** with Muster (74) and Communion (70) her soft
+columns; the Queen of the Lanterned Roof sits 4.1pp over hers. The gate runs
+fixed seeds, so a thin margin is not a random failure; it is fragility to the
+next change to the engine, the AI or a card either deck runs. Kitsune is the
+next deck owed a measured tuning pass. `RUNG_BANDS` in
+`scripts/balance-matrix.ts` was synced to the gate the same day: it had kept
+rung 21's pre-ratchet value and carried no band for rungs 23-26.
 
 **Chrome Broodmother's tuning pass, 2026-09-19.** The 60 reproduced exactly
 first. The cause was structural, and it is the same lesson the combat-model
