@@ -303,8 +303,8 @@ day into rungs 14-18 and rungs 19-22: same ids, same seeding, same floors, and
 the order rules divide cleanly, since all but rung 20 against rung 19 sit
 inside 14-18. **A tuning pass that makes a slow boss stronger makes her gate
 slower; check the gate's wall time, not only its result.** The next summit
-rung goes in a gate of its own. The full suite takes about 11 minutes;
-run it on an idle machine.
+rung goes in a gate of its own. The full suite takes about 15 minutes
+(3,817 tests, 908 s measured idle on 2026-09-19); run it on an idle machine.
 
 ## Tuning surface
 
