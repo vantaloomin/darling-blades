@@ -1655,7 +1655,27 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
 > (investigation, 2026-08-28); it stays parked at 2.1 until its open decisions
 > are ruled, and still has no code.
 
-- **AI brain modernization (audit, 2026-09-15).** [plan-ai-modernization.md](plan-ai-modernization.md)
+- **Mechanic usage audit (proposal, 2026-09-19, for 1.9).**
+  [plan-mechanic-usage-audit.md](plan-mechanic-usage-audit.md) proposes the
+  missing fourth layer of AI measurement. A policy proves the brain has a
+  rule, the documented-behaviour suite proves it CAN make a play, and the
+  win-rate gates prove the boss wins ENOUGH; nothing says how often she USES
+  a mechanic when she could. A read-only decorator on the row AI, riding the
+  existing matrices behind a `--usage` flag, counts per boss and per mechanic
+  the turns with a chance, the turns taken, "cast when seen" per card, and
+  uses per cast. Done by hand three times on 2026-09-19, it cleared a
+  suspected Hauntlink policy, pointed two tuning passes at the real cause,
+  and stopped a card recost. No engine change, no AI change, no player
+  telemetry, no CI gate at first. **NOTHING AUTHORIZED**; owner decisions U1
+  to U5 in the doc.
+- **AI brain modernization (audit, 2026-09-15). ✅ COMPLETE 2026-09-17.**
+  All five phases (proof, cast ladder, 1.7 and 1.8 mechanics, combat
+  keywords, draft picker) are merged on release/1.8 and 40 of 40 documented
+  behaviours pass; [ai.md](ai.md) carries the results and the tuning passes
+  that followed. The original entry is kept below as the audit's finding at
+  the time, and **its gaps are closed**: in particular the brains DO act in
+  the Hauntlink window since phase B (`src/ai/hauntlinkPolicy.ts`). As
+  written on 2026-09-15: [plan-ai-modernization.md](plan-ai-modernization.md)
   is the answer to "can the tower and draft AIs play every card as intended":
   legally yes, as intended no. The widest gap predates 1.8: Medium's cast
   ladder reads only kill removal, counters, pumps, draw and reach burn, so 41
@@ -1664,7 +1684,7 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   Tithe sells only damaged bodies, no brain acts in the Hauntlink window, the
   draft picker is mechanic-blind. Five phases proposed (proof, cast ladder,
   1.7 and 1.8 mechanics, combat keywords, draft picker), each behind the
-  existing gates. NOTHING AUTHORIZED; owner decisions D1-D5 in the doc.
+  existing gates. (All five were authorized and built; see above.)
 - **The 1.8 train (proposal, 2026-09-07).** [plan-1.8.md](plan-1.8.md) is the
   opening pass: what the spine committed 1.8 to (Drowned Deep at 250+ cards,
   Whispers, activated abilities with tap costs, the land economy treatment,
