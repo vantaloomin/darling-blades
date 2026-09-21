@@ -94,6 +94,23 @@ export function createStatsPrivacyPanel(
   guard.open(guardTargets);
 
   const container = shell.container;
+  // An opaque backing between the dim and the shell's chrome. The shared panel
+  // fill is 0.9 and this panel dims lightly (0.62), so it opens over bright
+  // text in both of its homes (the first-run notice and Settings) and 4% of
+  // that text ghosted through a page the player is meant to read closely.
+  container.addAt(
+    scene.add
+      .graphics()
+      .fillStyle(theme.graphics.panelFill, 1)
+      .fillRoundedRect(
+        theme.design.centerX - STATS_PANEL_LAYOUT.width / 2,
+        theme.design.centerY - STATS_PANEL_LAYOUT.height / 2,
+        STATS_PANEL_LAYOUT.width,
+        STATS_PANEL_LAYOUT.height,
+        theme.radius.panel,
+      ),
+    1,
+  );
   const content = shell.tracks.contentBounds;
   const titleTrack = shell.tracks.titleTrack;
   container.add(
