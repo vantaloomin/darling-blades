@@ -15,6 +15,10 @@
 #   .\scripts\run-sweep.ps1 -Workers 4          # gentler on the machine
 #   .\scripts\run-sweep.ps1 -Status             # is it alive, and how far in
 #   .\scripts\run-sweep.ps1 -Stop               # end it (journal is kept)
+#
+# ALTERNATIVE. .github/workflows/metagame-sweep.yml runs the same sweep on
+# GitHub-hosted runners, six crafts at a time, and returns a byte-identical
+# result; see docs/metagame-sweep.md.
 
 param(
   [int]$Workers = 8,

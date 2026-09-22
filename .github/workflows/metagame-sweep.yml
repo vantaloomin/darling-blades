@@ -1,0 +1,581 @@
+# The persona metagame sweep, fanned out across GitHub-hosted runners.
+#
+# The sweep crafts a deck for each persona against a reference field, then
+# re-crafts each against the field the others produced, for up to four rounds.
+# Every craft inside a round is independent and its seed derives from the run
+# seed, the round and the persona id, so the crafts of one round can run on six
+# machines at once and still be the crafts the in-process loop would have made.
+# Only the rounds are sequential. What comes back is byte-identical to a local
+# `npx tsx scripts/personas/craft.ts --metagame --all` at the same seed:
+# `tests/personas/fanout.test.ts` asserts that file for file.
+#
+# TO RUN IT. Actions tab, "Metagame sweep", Run workflow. The defaults are the
+# real sweep (seed 13003, four rounds, the prefab field, 150 seeds per matchup,
+# 80 hill-climb iterations, all six personas). For a dry run, dispatch with
+# seeds 10, iterations 5, rounds 1.
+#
+# WHAT COMES BACK. Every craft is uploaded as its own artifact, and the merge
+# job commits the whole sweep to the orphan branch `sweep-data` under
+# `sweeps/<run-date>-<seed>/`: `crafts/` holds one file per persona per round,
+# `artifacts/` holds the per-persona metagame artifacts and the merged journal.
+# Never to `main`, which auto-deploys.
+#
+# TO RESUME. A craft that hits its 350-minute timeout leaves no file and no
+# journal line; everything else survives on `sweep-data`. Re-dispatch with the
+# SAME inputs and set `resume_from` to the committed directory, for example
+# `sweeps/2026-09-22-13003`. Each round job checks out that directory first and
+# a persona whose craft is already there exits without recrafting, so only the
+# crafts that were lost run again.
+#
+# WHAT THIS DOES NOT CHANGE. The same seeds, the same games per matchup, the
+# same Hard brain on both seats, the same acceptance rule, the same artifact
+# schema. Worker count does not enter the result: a game's seed is derived from
+# its matchup and its index, not from which worker ran it (measured 2026-09-22,
+# crafts at one, two and four workers were byte-identical), so a four-core
+# runner and the owner's eight-worker local run produce the same numbers.
+
+name: Metagame sweep
+
+on:
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: Run seed
+        default: '13003'
+      rounds:
+        description: Maximum best-response rounds (1 to 4)
+        default: '4'
+      field:
+        description: Reference field
+        type: choice
+        options: [prefabs, starters]
+        default: prefabs
+      seeds:
+        description: Games per matchup
+        default: '150'
+      iterations:
+        description: Hill-climb swaps per craft
+        default: '80'
+      personas:
+        description: Personas to craft, comma separated
+        default: burn,draw-go,attrition,reanimator,weenie,midrange
+      resume_from:
+        description: 'Optional: a sweeps/<dir> path on the sweep-data branch to resume'
+        default: ''
+
+# The merge job commits to `sweep-data`. Nothing else is needed.
+permissions:
+  contents: write
+
+# Its own group, and never cancelled: two dispatches would upload crafts under
+# the same artifact names and merge each other's rounds.
+concurrency:
+  group: metagame-sweep
+  cancel-in-progress: false
+
+# Built once, here, so no step interpolates a dispatch input into a shell
+# command. Every craft job runs the same measurement configuration.
+env:
+  SWEEP_ARGS: >-
+    --personas ${{ inputs.personas }}
+    --rounds ${{ inputs.rounds }}
+    --field ${{ inputs.field }}
+    --pool all
+    --seeds ${{ inputs.seeds }}
+    --iterations ${{ inputs.iterations }}
+    --seed ${{ inputs.seed }}
+
+jobs:
+  setup:
+    name: Plan the sweep
+    runs-on: ubuntu-latest
+    outputs:
+      personas: ${{ steps.plan.outputs.personas }}
+      sweep-dir: ${{ steps.plan.outputs.sweep-dir }}
+    steps:
+      # The persona list becomes the matrix, and the output directory is fixed
+      # here so every job agrees on it even across a UTC midnight.
+      - name: Read the persona list
+        id: plan
+        env:
+          PERSONAS: ${{ inputs.personas }}
+          SEED: ${{ inputs.seed }}
+        run: |
+          set -euo pipefail
+          LIST=$(printf '%s' "$PERSONAS" | jq -Rc 'split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0))')
+          echo "personas=$LIST" >> "$GITHUB_OUTPUT"
+          echo "sweep-dir=sweeps/$(date -u +%Y-%m-%d)-$SEED" >> "$GITHUB_OUTPUT"
+          echo "Personas: $LIST"
+
+  round-0:
+    name: Round 0
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      # One persona's timeout must not cancel the other five: the merge reports
+      # a missing craft and the resume re-runs only that one.
+      fail-fast: false
+      matrix:
+        persona: ${{ fromJSON(needs.setup.outputs.personas) }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+
+      - name: Check out the resume source
+        if: inputs.resume_from != ''
+        uses: actions/checkout@v5
+        with:
+          ref: sweep-data
+          path: resume
+
+      - name: Craft round 0
+        env:
+          PERSONA: ${{ matrix.persona }}
+          RESUME_FROM: ${{ inputs.resume_from }}
+        run: |
+          set -euo pipefail
+          ARGS=(--metagame-craft "$PERSONA" --round 0 --out out --workers "$(nproc)")
+          if [ -n "$RESUME_FROM" ]; then ARGS+=(--resume-from "resume/$RESUME_FROM/crafts"); fi
+          npx tsx scripts/personas/craft.ts "${ARGS[@]}" $SWEEP_ARGS
+
+      # One journal per craft, named for it, so the round's uploads can be
+      # merged into one directory without colliding.
+      - name: Name this craft's journal line
+        env:
+          PERSONA: ${{ matrix.persona }}
+        run: mv "out/craft-journal.jsonl" "out/craft-journal-$PERSONA-r0.jsonl"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: craft-r0-${{ matrix.persona }}
+          path: out/
+          if-no-files-found: error
+
+  check-1:
+    name: Is round 1 needed
+    needs: [setup, round-0]
+    if: ${{ !cancelled() && fromJSON(inputs.rounds) >= 1 }}
+    runs-on: ubuntu-latest
+    outputs:
+      done: ${{ steps.verdict.outputs.done }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: craft-r*-*
+          path: sweep
+          merge-multiple: true
+      # The ONLY thing that ends a fan-out early: the merge replays the rounds
+      # through the loop's own convergence policy and says whether the loop
+      # would already have stopped.
+      - name: Merge what exists and read the verdict
+        id: verdict
+        env:
+          PREVIOUS: '0'
+        run: |
+          set -euo pipefail
+          npx tsx scripts/personas/craft.ts --metagame-merge sweep --check-stable | tee verdict.txt
+          DONE=$(grep '^done=' verdict.txt | cut -d= -f2)
+          COMPLETED=$(grep '^completed-rounds=' verdict.txt | cut -d= -f2)
+          if [ "$COMPLETED" -lt "$PREVIOUS" ]; then DONE=true; fi
+          echo "done=$DONE" >> "$GITHUB_OUTPUT"
+
+  round-1:
+    name: Round 1
+    needs: [setup, check-1]
+    if: ${{ !cancelled() && fromJSON(inputs.rounds) >= 1 && needs.check-1.result == 'success' && needs.check-1.outputs.done != 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        persona: ${{ fromJSON(needs.setup.outputs.personas) }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+
+      # The previous round's retained decks, one file per persona: the only
+      # state a fanned-out round needs from the round before it.
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: craft-r0-*
+          path: field
+          merge-multiple: true
+
+      - name: Check out the resume source
+        if: inputs.resume_from != ''
+        uses: actions/checkout@v5
+        with:
+          ref: sweep-data
+          path: resume
+
+      - name: Craft round 1
+        env:
+          PERSONA: ${{ matrix.persona }}
+          RESUME_FROM: ${{ inputs.resume_from }}
+        run: |
+          set -euo pipefail
+          ARGS=(--metagame-craft "$PERSONA" --round 1 --field-dir field --out out --workers "$(nproc)")
+          if [ -n "$RESUME_FROM" ]; then ARGS+=(--resume-from "resume/$RESUME_FROM/crafts"); fi
+          npx tsx scripts/personas/craft.ts "${ARGS[@]}" $SWEEP_ARGS
+
+      - name: Name this craft's journal line
+        env:
+          PERSONA: ${{ matrix.persona }}
+        run: mv "out/craft-journal.jsonl" "out/craft-journal-$PERSONA-r1.jsonl"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: craft-r1-${{ matrix.persona }}
+          path: out/
+          if-no-files-found: error
+
+  check-2:
+    name: Is round 2 needed
+    needs: [setup, round-1]
+    if: ${{ !cancelled() && fromJSON(inputs.rounds) >= 2 }}
+    runs-on: ubuntu-latest
+    outputs:
+      done: ${{ steps.verdict.outputs.done }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: craft-r*-*
+          path: sweep
+          merge-multiple: true
+      - name: Merge what exists and read the verdict
+        id: verdict
+        env:
+          PREVIOUS: '1'
+        run: |
+          set -euo pipefail
+          npx tsx scripts/personas/craft.ts --metagame-merge sweep --check-stable | tee verdict.txt
+          DONE=$(grep '^done=' verdict.txt | cut -d= -f2)
+          COMPLETED=$(grep '^completed-rounds=' verdict.txt | cut -d= -f2)
+          if [ "$COMPLETED" -lt "$PREVIOUS" ]; then DONE=true; fi
+          echo "done=$DONE" >> "$GITHUB_OUTPUT"
+
+  round-2:
+    name: Round 2
+    needs: [setup, check-2]
+    if: ${{ !cancelled() && fromJSON(inputs.rounds) >= 2 && needs.check-2.result == 'success' && needs.check-2.outputs.done != 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        persona: ${{ fromJSON(needs.setup.outputs.personas) }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: craft-r1-*
+          path: field
+          merge-multiple: true
+      - name: Check out the resume source
+        if: inputs.resume_from != ''
+        uses: actions/checkout@v5
+        with:
+          ref: sweep-data
+          path: resume
+      - name: Craft round 2
+        env:
+          PERSONA: ${{ matrix.persona }}
+          RESUME_FROM: ${{ inputs.resume_from }}
+        run: |
+          set -euo pipefail
+          ARGS=(--metagame-craft "$PERSONA" --round 2 --field-dir field --out out --workers "$(nproc)")
+          if [ -n "$RESUME_FROM" ]; then ARGS+=(--resume-from "resume/$RESUME_FROM/crafts"); fi
+          npx tsx scripts/personas/craft.ts "${ARGS[@]}" $SWEEP_ARGS
+      - name: Name this craft's journal line
+        env:
+          PERSONA: ${{ matrix.persona }}
+        run: mv "out/craft-journal.jsonl" "out/craft-journal-$PERSONA-r2.jsonl"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: craft-r2-${{ matrix.persona }}
+          path: out/
+          if-no-files-found: error
+
+  check-3:
+    name: Is round 3 needed
+    needs: [setup, round-2]
+    if: ${{ !cancelled() && fromJSON(inputs.rounds) >= 3 }}
+    runs-on: ubuntu-latest
+    outputs:
+      done: ${{ steps.verdict.outputs.done }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: craft-r*-*
+          path: sweep
+          merge-multiple: true
+      - name: Merge what exists and read the verdict
+        id: verdict
+        env:
+          PREVIOUS: '2'
+        run: |
+          set -euo pipefail
+          npx tsx scripts/personas/craft.ts --metagame-merge sweep --check-stable | tee verdict.txt
+          DONE=$(grep '^done=' verdict.txt | cut -d= -f2)
+          COMPLETED=$(grep '^completed-rounds=' verdict.txt | cut -d= -f2)
+          if [ "$COMPLETED" -lt "$PREVIOUS" ]; then DONE=true; fi
+          echo "done=$DONE" >> "$GITHUB_OUTPUT"
+
+  round-3:
+    name: Round 3
+    needs: [setup, check-3]
+    if: ${{ !cancelled() && fromJSON(inputs.rounds) >= 3 && needs.check-3.result == 'success' && needs.check-3.outputs.done != 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        persona: ${{ fromJSON(needs.setup.outputs.personas) }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: craft-r2-*
+          path: field
+          merge-multiple: true
+      - name: Check out the resume source
+        if: inputs.resume_from != ''
+        uses: actions/checkout@v5
+        with:
+          ref: sweep-data
+          path: resume
+      - name: Craft round 3
+        env:
+          PERSONA: ${{ matrix.persona }}
+          RESUME_FROM: ${{ inputs.resume_from }}
+        run: |
+          set -euo pipefail
+          ARGS=(--metagame-craft "$PERSONA" --round 3 --field-dir field --out out --workers "$(nproc)")
+          if [ -n "$RESUME_FROM" ]; then ARGS+=(--resume-from "resume/$RESUME_FROM/crafts"); fi
+          npx tsx scripts/personas/craft.ts "${ARGS[@]}" $SWEEP_ARGS
+      - name: Name this craft's journal line
+        env:
+          PERSONA: ${{ matrix.persona }}
+        run: mv "out/craft-journal.jsonl" "out/craft-journal-$PERSONA-r3.jsonl"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: craft-r3-${{ matrix.persona }}
+          path: out/
+          if-no-files-found: error
+
+  check-4:
+    name: Is round 4 needed
+    needs: [setup, round-3]
+    if: ${{ !cancelled() && fromJSON(inputs.rounds) >= 4 }}
+    runs-on: ubuntu-latest
+    outputs:
+      done: ${{ steps.verdict.outputs.done }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: craft-r*-*
+          path: sweep
+          merge-multiple: true
+      - name: Merge what exists and read the verdict
+        id: verdict
+        env:
+          PREVIOUS: '3'
+        run: |
+          set -euo pipefail
+          npx tsx scripts/personas/craft.ts --metagame-merge sweep --check-stable | tee verdict.txt
+          DONE=$(grep '^done=' verdict.txt | cut -d= -f2)
+          COMPLETED=$(grep '^completed-rounds=' verdict.txt | cut -d= -f2)
+          if [ "$COMPLETED" -lt "$PREVIOUS" ]; then DONE=true; fi
+          echo "done=$DONE" >> "$GITHUB_OUTPUT"
+
+  round-4:
+    name: Round 4
+    needs: [setup, check-4]
+    if: ${{ !cancelled() && fromJSON(inputs.rounds) >= 4 && needs.check-4.result == 'success' && needs.check-4.outputs.done != 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        persona: ${{ fromJSON(needs.setup.outputs.personas) }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: craft-r3-*
+          path: field
+          merge-multiple: true
+      - name: Check out the resume source
+        if: inputs.resume_from != ''
+        uses: actions/checkout@v5
+        with:
+          ref: sweep-data
+          path: resume
+      - name: Craft round 4
+        env:
+          PERSONA: ${{ matrix.persona }}
+          RESUME_FROM: ${{ inputs.resume_from }}
+        run: |
+          set -euo pipefail
+          ARGS=(--metagame-craft "$PERSONA" --round 4 --field-dir field --out out --workers "$(nproc)")
+          if [ -n "$RESUME_FROM" ]; then ARGS+=(--resume-from "resume/$RESUME_FROM/crafts"); fi
+          npx tsx scripts/personas/craft.ts "${ARGS[@]}" $SWEEP_ARGS
+      - name: Name this craft's journal line
+        env:
+          PERSONA: ${{ matrix.persona }}
+        run: mv "out/craft-journal.jsonl" "out/craft-journal-$PERSONA-r4.jsonl"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: craft-r4-${{ matrix.persona }}
+          path: out/
+          if-no-files-found: error
+
+  merge:
+    name: Merge the sweep
+    needs: [setup, round-0, check-1, round-1, check-2, round-2, check-3, round-3, check-4, round-4]
+    # A partial run still merges what finished, and still publishes the crafts
+    # so the next dispatch can resume from them.
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+
+      - name: Collect every craft
+        uses: actions/download-artifact@v4
+        with:
+          pattern: craft-r*-*
+          path: sweep
+          merge-multiple: true
+
+      # Continues on failure so the crafts still reach `sweep-data`: the merge
+      # refuses only when round 0 never completed for every persona, and that is
+      # exactly the run worth resuming.
+      - name: Merge into the loop's artifacts
+        id: merge
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          mkdir -p merged
+          npx tsx scripts/personas/craft.ts --metagame-merge sweep --out merged
+
+      - name: Upload the merged sweep
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: metagame-sweep-${{ inputs.seed }}
+          path: merged/
+          if-no-files-found: warn
+
+      - name: Does the data branch exist yet
+        if: always()
+        id: data_branch
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --heads origin sweep-data >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check out the data branch
+        if: ${{ always() && steps.data_branch.outputs.exists == 'true' }}
+        uses: actions/checkout@v5
+        with:
+          ref: sweep-data
+          path: sweep-data
+
+      # First run only: an ORPHAN branch, so sweep output shares no history with
+      # the game's source and can never fast-forward into it.
+      - name: Create the data branch
+        if: ${{ always() && steps.data_branch.outputs.exists == 'false' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p sweep-data
+          cd sweep-data
+          git init -q -b sweep-data
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          echo "Persona metagame sweeps from Darling Blades. Generated by .github/workflows/metagame-sweep.yml; see docs/metagame-sweep.md." > README.md
+
+      - name: Publish the sweep
+        if: always()
+        env:
+          SWEEP_DIR: ${{ needs.setup.outputs.sweep-dir }}
+        run: |
+          set -euo pipefail
+          mkdir -p "sweep-data/$SWEEP_DIR/crafts" "sweep-data/$SWEEP_DIR/artifacts"
+          cp -f sweep/*.json "sweep-data/$SWEEP_DIR/crafts/" 2>/dev/null || true
+          cp -f sweep/*.jsonl "sweep-data/$SWEEP_DIR/crafts/" 2>/dev/null || true
+          cp -f merged/* "sweep-data/$SWEEP_DIR/artifacts/" 2>/dev/null || true
+          cd sweep-data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "metagame-sweep: nothing new to publish."
+            exit 0
+          fi
+          git commit -q -m "chore(sweep): $SWEEP_DIR [skip ci]"
+          # HEAD:sweep-data, explicitly. This job can push to exactly one branch.
+          git push origin HEAD:sweep-data
+
+      - name: Fail if nothing could be merged
+        if: ${{ always() && steps.merge.outcome != 'success' }}
+        run: |
+          echo "The merge refused: no round completed for every persona."
+          echo "The crafts that did finish are on sweep-data; re-dispatch with resume_from."
+          exit 1

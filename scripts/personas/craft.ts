@@ -1,8 +1,10 @@
 import {
   appendFileSync,
+  copyFileSync,
   existsSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
   renameSync,
   writeFileSync,
 } from 'node:fs';
@@ -56,6 +58,25 @@ Metagame loop mode (informational, deterministic):
   --status-file <path>       Write live metagame progress JSON (sweep dashboards)
   --journal <path>           Append-only craft journal (default: <out>/craft-journal.jsonl)
   --resume                   Skip crafts already recorded in the journal
+
+Fan-out mode (the same loop, one craft per process; see docs/metagame-sweep.md):
+  --metagame-craft <id> --round <n> [--field-dir <dir>] [--resume-from <dir>]
+                             Craft ONE persona's ONE round and write
+                             <out>/craft-<id>-r<n>.json plus its journal line.
+                             Round 0 crafts against the static field; a later
+                             round reads the previous round's craft files from
+                             --field-dir, one per persona.
+  --metagame-merge <dir> [--check-stable]
+                             Replay the fanned-out crafts under <dir> through
+                             the loop's own convergence policy and write the
+                             per-persona artifacts and the merged journal that
+                             --metagame would have written. --check-stable
+                             prints the verdict and writes nothing.
+
+Fan-out crafts carry the run configuration (seed, seeds, iterations, rounds,
+personas, template, pool, field), so a merge refuses a file from another sweep
+instead of mixing two measurements. The merged result is byte-identical to the
+in-process loop at the same seed.
 
 DURABILITY. Every finished craft is appended to the journal SYNCHRONOUSLY, so
 a killed process keeps everything it completed. Re-run the identical command
@@ -849,15 +870,24 @@ function personaFieldComposition(
   ];
 }
 
+/**
+ * The craft seed for one persona in one round.
+ *
+ * Derived from the run seed, the round and the persona id and nothing else, so
+ * the same craft is byte-identical wherever it runs: in the in-process loop, in
+ * a resumed run, or in a single-craft job on a different machine.
+ */
+export function craftSeedFor(seed: number, personaId: string, round: number): number {
+  return round === 0 ? seed : stableHash(`${seed}|metagame|${personaId}|round|${round}`);
+}
+
 function craftMetagameRound(
   template: PersonaTemplate,
   round: number,
   fieldComposition: readonly FieldCompositionEntry[],
   options: MetagameOptions,
 ): MetagameRound {
-  const craftSeed = round === 0
-    ? options.seed
-    : stableHash(`${options.seed}|metagame|${template.id}|round|${round}`);
+  const craftSeed = craftSeedFor(options.seed, template.id, round);
   const measuredField: MeasuredFieldId = round === 0 ? options.field : 'personas';
   // Built before measureOptions: the reserve is color-derived, so it is fixed
   // for this persona across every hill-climb swap and every measurement.
@@ -915,12 +945,24 @@ function craftMetagameRound(
  * thing distinguishing a partial artifact is its summary, which carries
  * `stoppedReason: 'in-progress'` and `converged: false`.
  */
+/**
+ * The run-level facts an artifact records. Narrower than `MetagameOptions` so
+ * the merge can build artifacts from a journal config alone, with no card pool
+ * and no measure function.
+ */
+export interface ArtifactContext {
+  poolId: string;
+  seed: number;
+  seeds: number;
+  iterations: number;
+}
+
 function buildMetagameArtifacts(
   templates: readonly PersonaTemplate[],
   history: ReadonlyMap<string, MetagameRound[]>,
   summary: MetagameSummary,
   staticComposition: readonly FieldCompositionEntry[],
-  options: MetagameOptions,
+  options: ArtifactContext,
 ): PersonaArtifact[] {
   return templates.map((template) => {
     const rounds = history.get(template.id)!;
@@ -953,6 +995,108 @@ function buildMetagameArtifacts(
   });
 }
 
+interface DeckOccurrence {
+  firstRound: number;
+  lastRound: number;
+}
+
+/**
+ * Everything the convergence policy remembers between rounds: every persona's
+ * crafted rounds, the round it is currently answering with, and every deck
+ * signature it has ever produced with the first and most recent round it
+ * appeared in.
+ */
+export interface MetagameLoopState {
+  history: Map<string, MetagameRound[]>;
+  retained: Map<string, MetagameRound>;
+  seen: Map<string, Map<string, DeckOccurrence>>;
+}
+
+export interface MetagameRoundVerdict {
+  stable: boolean;
+  oscillations: MetagameOscillation[];
+}
+
+export function createMetagameLoopState(): MetagameLoopState {
+  return { history: new Map(), retained: new Map(), seen: new Map() };
+}
+
+/** Seat one persona's round-0 craft. */
+export function recordSeedRound(state: MetagameLoopState, personaId: string, round: MetagameRound): void {
+  state.history.set(personaId, [round]);
+  state.retained.set(personaId, round);
+  state.seen.set(personaId, new Map([[deckSignature(round.deck), { firstRound: 0, lastRound: 0 }]]));
+}
+
+/**
+ * Apply one completed best-response round and report what the stopping policy
+ * makes of it.
+ *
+ * This is the ONE implementation of the policy. The in-process loop calls it
+ * after crafting a round; the fan-out merge calls it after reading a round's
+ * six craft files off disk. Both therefore stop in the same place for the same
+ * reason, which is what lets a fanned-out sweep claim to be the same
+ * measurement as a local one.
+ */
+export function advanceMetagameRound(
+  state: MetagameLoopState,
+  personaIds: readonly string[],
+  next: ReadonlyMap<string, MetagameRound>,
+  roundNumber: number,
+): MetagameRoundVerdict {
+  const previous = state.retained;
+  const stable = personaIds.every((id) =>
+    deckSignature(next.get(id)!.deck) === deckSignature(previous.get(id)!.deck));
+  const oscillations: MetagameOscillation[] = [];
+  if (!stable) {
+    for (const id of personaIds) {
+      const currentSignature = deckSignature(next.get(id)!.deck);
+      const previousSignature = deckSignature(previous.get(id)!.deck);
+      const occurrence = state.seen.get(id)!.get(currentSignature);
+      if (occurrence !== undefined && currentSignature !== previousSignature) {
+        oscillations.push({
+          personaId: id,
+          firstRound: occurrence.firstRound,
+          repeatRound: roundNumber,
+          period: roundNumber - occurrence.lastRound,
+        });
+      }
+    }
+  }
+
+  for (const id of personaIds) {
+    const current = next.get(id)!;
+    state.history.get(id)!.push(current);
+    state.retained.set(id, current);
+    const signature = deckSignature(current.deck);
+    const occurrence = state.seen.get(id)!.get(signature);
+    if (occurrence) occurrence.lastRound = roundNumber;
+    else state.seen.get(id)!.set(signature, { firstRound: roundNumber, lastRound: roundNumber });
+  }
+
+  return { stable, oscillations };
+}
+
+export function metagameSummaryFor(options: {
+  maxRounds: number;
+  completedRounds: number;
+  baseField: FieldId;
+  stoppedReason: MetagameStopReason;
+  oscillations?: readonly MetagameOscillation[];
+}): MetagameSummary {
+  const oscillations = [...(options.oscillations ?? [])];
+  return {
+    policy: 'stable-decks-or-oscillation-or-max-rounds',
+    maxRounds: options.maxRounds,
+    completedRounds: options.completedRounds,
+    baseField: options.baseField,
+    converged: options.stoppedReason === 'stable-decks',
+    stoppedReason: options.stoppedReason,
+    oscillatingPersonas: oscillations.map((finding) => finding.personaId),
+    oscillations,
+  };
+}
+
 /**
  * 1.4 Pillar 2 policy: round 0 is the byte-identical v1 static-field craft,
  * followed by up to maxRounds simultaneous best responses. Stop on an all-deck
@@ -974,9 +1118,8 @@ export function runMetagameLoop(options: MetagameOptions): MetagameResult {
     throw new Error(`Unknown persona: ${unknown}`);
   }
 
-  const history = new Map<string, MetagameRound[]>();
-  const retained = new Map<string, MetagameRound>();
-  const seen = new Map<string, Map<string, { firstRound: number; lastRound: number }>>();
+  const personaOrder = templates.map((template) => template.id);
+  const state = createMetagameLoopState();
   const staticComposition = referenceComposition(options.field);
   /**
    * Emit the rounds crafted so far as artifacts. Cheap next to a round of
@@ -985,18 +1128,14 @@ export function runMetagameLoop(options: MetagameOptions): MetagameResult {
    */
   const emitCheckpoint = (roundsDone: number): void => {
     if (!options.onCheckpoint) return;
-    const partial: MetagameSummary = {
-      policy: 'stable-decks-or-oscillation-or-max-rounds',
+    const partial = metagameSummaryFor({
       maxRounds: options.maxRounds,
       completedRounds: roundsDone,
       baseField: options.field,
-      converged: false,
       stoppedReason: 'in-progress',
-      oscillatingPersonas: [],
-      oscillations: [],
-    };
+    });
     options.onCheckpoint(
-      buildMetagameArtifacts(templates, history, partial, staticComposition, options),
+      buildMetagameArtifacts(templates, state.history, partial, staticComposition, options),
       partial,
     );
   };
@@ -1009,9 +1148,7 @@ export function runMetagameLoop(options: MetagameOptions): MetagameResult {
     const resumed = options.resumeCraft?.(0, template.id);
     const round = resumed ?? craftMetagameRound(template, 0, staticComposition, options);
     if (!resumed) options.onCraftComplete?.(round, index, template.id);
-    history.set(template.id, [round]);
-    retained.set(template.id, round);
-    seen.set(template.id, new Map([[deckSignature(round.deck), { firstRound: 0, lastRound: 0 }]]));
+    recordSeedRound(state, template.id, round);
   }
 
   emitCheckpoint(0);
@@ -1019,7 +1156,7 @@ export function runMetagameLoop(options: MetagameOptions): MetagameResult {
   let completedRounds = 0;
   let summary: MetagameSummary | undefined;
   for (let roundNumber = 1; roundNumber <= options.maxRounds; roundNumber++) {
-    const previous = new Map(retained);
+    const previous = new Map(state.retained);
     const next = new Map<string, MetagameRound>();
     for (const [index, template] of templates.entries()) {
       options.onProgress?.({
@@ -1037,81 +1174,42 @@ export function runMetagameLoop(options: MetagameOptions): MetagameResult {
     }
     completedRounds = roundNumber;
 
-    const stable = templates.every((template) =>
-      deckSignature(next.get(template.id)!.deck) === deckSignature(previous.get(template.id)!.deck));
-    const oscillations: MetagameOscillation[] = [];
-    if (!stable) {
-      for (const template of templates) {
-        const current = next.get(template.id)!;
-        const currentSignature = deckSignature(current.deck);
-        const previousSignature = deckSignature(previous.get(template.id)!.deck);
-        const occurrence = seen.get(template.id)!.get(currentSignature);
-        if (occurrence !== undefined && currentSignature !== previousSignature) {
-          oscillations.push({
-            personaId: template.id,
-            firstRound: occurrence.firstRound,
-            repeatRound: roundNumber,
-            period: roundNumber - occurrence.lastRound,
-          });
-        }
-      }
-    }
-
-    for (const template of templates) {
-      const current = next.get(template.id)!;
-      history.get(template.id)!.push(current);
-      retained.set(template.id, current);
-      const signature = deckSignature(current.deck);
-      const occurrence = seen.get(template.id)!.get(signature);
-      if (occurrence) occurrence.lastRound = roundNumber;
-      else seen.get(template.id)!.set(signature, { firstRound: roundNumber, lastRound: roundNumber });
-    }
+    const verdict = advanceMetagameRound(state, personaOrder, next, roundNumber);
 
     emitCheckpoint(roundNumber);
 
-    if (stable) {
-      summary = {
-        policy: 'stable-decks-or-oscillation-or-max-rounds',
+    if (verdict.stable) {
+      summary = metagameSummaryFor({
         maxRounds: options.maxRounds,
         completedRounds,
         baseField: options.field,
-        converged: true,
         stoppedReason: 'stable-decks',
-        oscillatingPersonas: [],
-        oscillations: [],
-      };
+      });
       break;
     }
-    if (oscillations.length > 0) {
-      summary = {
-        policy: 'stable-decks-or-oscillation-or-max-rounds',
+    if (verdict.oscillations.length > 0) {
+      summary = metagameSummaryFor({
         maxRounds: options.maxRounds,
         completedRounds,
         baseField: options.field,
-        converged: false,
         stoppedReason: 'oscillation',
-        oscillatingPersonas: oscillations.map((finding) => finding.personaId),
-        oscillations,
-      };
+        oscillations: verdict.oscillations,
+      });
       break;
     }
   }
 
   if (!summary) {
-    summary = {
-      policy: 'stable-decks-or-oscillation-or-max-rounds',
+    summary = metagameSummaryFor({
       maxRounds: options.maxRounds,
       completedRounds,
       baseField: options.field,
-      converged: false,
       stoppedReason: 'max-rounds',
-      oscillatingPersonas: [],
-      oscillations: [],
-    };
+    });
   }
 
   return {
-    artifacts: buildMetagameArtifacts(templates, history, summary, staticComposition, options),
+    artifacts: buildMetagameArtifacts(templates, state.history, summary, staticComposition, options),
     summary,
   };
 }
@@ -1326,6 +1424,300 @@ export function readCraftJournal(path: string, expectedConfig?: JournalConfig): 
   return out;
 }
 
+// --- fan-out: one craft per process, merged back into the loop's artifacts ---
+//
+// A craft seed derives from the run seed, the round and the persona id, so the
+// SAME craft can be run on any machine. What a distributed round still needs is
+// the two things the in-process loop keeps in memory: the field composition the
+// round is answering (the previous round's retained decks) and the convergence
+// policy that decides when to stop. The first travels as one file per persona
+// per round; the second is `advanceMetagameRound`, which the merge and the loop
+// both call. Nothing here changes what is measured.
+
+/**
+ * One fanned-out craft on disk: exactly the `MetagameRound` the loop would have
+ * produced, plus who crafted it and the run configuration it belongs to, so a
+ * merge can refuse a file from a different sweep instead of averaging two.
+ */
+export interface SingleCraftArtifact extends MetagameRound {
+  personaId: string;
+  config: JournalConfig;
+}
+
+export function singleCraftFileName(personaId: string, round: number): string {
+  return `craft-${personaId}-r${round}.json`;
+}
+
+function parseSingleCraftFile(path: string): SingleCraftArtifact {
+  const parsed = JSON.parse(readFileSync(path, 'utf8')) as Partial<SingleCraftArtifact>;
+  const config = parseJournalConfig(parsed.config);
+  if (
+    typeof parsed.personaId !== 'string' ||
+    typeof parsed.round !== 'number' || !Number.isInteger(parsed.round) ||
+    typeof parsed.seed !== 'number' || !Number.isInteger(parsed.seed) ||
+    !Array.isArray(parsed.deck) || !Array.isArray(parsed.landReserve) ||
+    !Array.isArray(parsed.fieldComposition) ||
+    !config
+  ) {
+    throw new Error(`Invalid fanned-out craft file: ${basename(path)}`);
+  }
+  return { ...(parsed as SingleCraftArtifact), config };
+}
+
+/**
+ * The `MetagameRound` inside a craft file, with the fan-out's own keys removed.
+ *
+ * The file writes `personaId` and `config` FIRST and the round's own keys after
+ * them, so dropping those two leaves the exact object `craftMetagameRound`
+ * returned, in its original key order. That is what makes the merged journal
+ * line byte-identical to the one the in-process loop appends.
+ */
+function craftedRound(file: SingleCraftArtifact): MetagameRound {
+  const round: Partial<SingleCraftArtifact> = { ...file };
+  delete round.personaId;
+  delete round.config;
+  return round as MetagameRound;
+}
+
+function assertCraftBelongs(file: SingleCraftArtifact, path: string, config: JournalConfig): void {
+  if (!journalConfigsEqual(file.config, config)) {
+    throw new Error(
+      `Craft ${basename(path)} belongs to a different sweep: configuration mismatch. ` +
+      `The file uses ${journalConfigDescription(file.config)}. ` +
+      `This command uses ${journalConfigDescription(config)}.`,
+    );
+  }
+  const expectedSeed = craftSeedFor(config.seed, file.personaId, file.round);
+  if (file.seed !== expectedSeed) {
+    throw new Error(
+      `Craft ${basename(path)} was crafted from seed ${file.seed}, but round ${file.round} ` +
+      `of ${file.personaId} at run seed ${config.seed} derives ${expectedSeed}.`,
+    );
+  }
+}
+
+/**
+ * The previous round's retained decks, read from one file per persona. This is
+ * the only state a fanned-out round needs from the round before it.
+ */
+export function readFieldDirectory(
+  dir: string,
+  config: JournalConfig,
+  previousRound: number,
+): Map<string, MetagameRound> {
+  const out = new Map<string, MetagameRound>();
+  for (const personaId of config.personaIds) {
+    const path = join(dir, singleCraftFileName(personaId, previousRound));
+    if (!existsSync(path)) {
+      throw new Error(
+        `Field directory ${dir} has no round ${previousRound} craft for ${personaId} ` +
+        `(expected ${singleCraftFileName(personaId, previousRound)}). ` +
+        'A round can only be crafted against a complete previous round.',
+      );
+    }
+    const file = parseSingleCraftFile(path);
+    if (file.personaId !== personaId || file.round !== previousRound) {
+      throw new Error(
+        `Craft ${basename(path)} holds round ${file.round} of ${file.personaId}, ` +
+        `not round ${previousRound} of ${personaId}.`,
+      );
+    }
+    assertCraftBelongs(file, path, config);
+    out.set(personaId, craftedRound(file));
+  }
+  return out;
+}
+
+export interface SingleCraftOptions {
+  personaId: string;
+  round: number;
+  config: JournalConfig;
+  pool: readonly CardDef[];
+  /** Round 1 and later: where the previous round's per-persona crafts live. */
+  fieldDir?: string;
+  measure?: MeasureFunction;
+  propose?: MetagameOptions['propose'];
+}
+
+/**
+ * Craft exactly one persona's one round, the way the loop would have crafted it
+ * at that point in the run.
+ */
+export function runSingleCraft(options: SingleCraftOptions): MetagameRound {
+  const { config } = options;
+  const template = personaTemplate(options.personaId);
+  if (!config.personaIds.includes(template.id)) {
+    throw new Error(
+      `Persona ${template.id} is not in this sweep's persona set (${config.personaIds.join(',')}).`,
+    );
+  }
+  if (!Number.isInteger(options.round) || options.round < 0) {
+    throw new Error(`--round must be a non-negative integer (got ${options.round})`);
+  }
+  if (options.round > config.maxRounds) {
+    throw new Error(`--round ${options.round} is past this sweep's --rounds ${config.maxRounds}`);
+  }
+  const templates = PERSONA_TEMPLATES.filter((entry) => config.personaIds.includes(entry.id));
+  let fieldComposition: FieldCompositionEntry[];
+  if (options.round === 0) {
+    fieldComposition = referenceComposition(config.field);
+  } else {
+    if (!options.fieldDir) {
+      throw new Error(`Round ${options.round} needs --field-dir holding round ${options.round - 1}`);
+    }
+    const previous = readFieldDirectory(options.fieldDir, config, options.round - 1);
+    fieldComposition = personaFieldComposition(templates, previous, config.field)
+      .filter((entry) => entry.personaId !== template.id);
+  }
+  return craftMetagameRound(template, options.round, fieldComposition, {
+    poolId: config.poolId,
+    pool: options.pool,
+    field: config.field,
+    seeds: config.seeds,
+    iterations: config.iterations,
+    seed: config.seed,
+    maxRounds: config.maxRounds,
+    personaIds: config.personaIds,
+    measure: options.measure,
+    propose: options.propose,
+  });
+}
+
+function listCraftFiles(dir: string): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...listCraftFiles(path));
+    else if (/^craft-.+-r\d+\.json$/.test(entry.name)) out.push(path);
+  }
+  return out.sort();
+}
+
+export interface MergeShortfall {
+  round: number;
+  missing: string[];
+}
+
+export interface MergeResult {
+  config: JournalConfig;
+  artifacts: PersonaArtifact[];
+  summary: MetagameSummary;
+  /** The journal `--metagame` would have written for the rounds that merged. */
+  journal: string;
+  /** Rounds present on disk but incomplete, so not merged. */
+  shortfalls: MergeShortfall[];
+}
+
+/**
+ * Rebuild the in-process loop's output from the fanned-out crafts.
+ *
+ * The rounds are replayed through `advanceMetagameRound` in order, so the merge
+ * stops exactly where the loop would have stopped: a round whose decks are all
+ * unchanged ends the run as `stable-decks` at that round, and the later rounds
+ * the fan-out crafted anyway are discarded, because the loop never would have
+ * crafted them.
+ */
+export function mergeFannedOutCrafts(dir: string): MergeResult {
+  if (!existsSync(dir)) throw new Error(`Merge directory does not exist: ${dir}`);
+  const paths = listCraftFiles(dir);
+  if (paths.length === 0) throw new Error(`No craft-<persona>-r<n>.json files under ${dir}`);
+
+  let config: JournalConfig | undefined;
+  const byRound = new Map<number, Map<string, MetagameRound>>();
+  for (const path of paths) {
+    const file = parseSingleCraftFile(path);
+    config ??= file.config;
+    assertCraftBelongs(file, path, config);
+    const expectedName = singleCraftFileName(file.personaId, file.round);
+    if (basename(path) !== expectedName) {
+      throw new Error(`Craft ${basename(path)} holds round ${file.round} of ${file.personaId}, named ${expectedName}.`);
+    }
+    if (!config.personaIds.includes(file.personaId)) {
+      throw new Error(`Craft ${basename(path)} is for ${file.personaId}, which is not in this sweep.`);
+    }
+    const round = byRound.get(file.round) ?? new Map<string, MetagameRound>();
+    round.set(file.personaId, craftedRound(file));
+    byRound.set(file.round, round);
+  }
+  const resolved = config!;
+  const templates = PERSONA_TEMPLATES.filter((template) => resolved.personaIds.includes(template.id));
+  const personaOrder = templates.map((template) => template.id);
+  const missingIn = (round: number): string[] =>
+    personaOrder.filter((id) => !byRound.get(round)?.has(id));
+
+  if (missingIn(0).length > 0) {
+    throw new Error(
+      `Round 0 is incomplete: no craft for ${missingIn(0).join(', ')}. ` +
+      'Nothing can be merged until every persona has crafted round 0.',
+    );
+  }
+  let contiguous = 1;
+  while (byRound.has(contiguous) && missingIn(contiguous).length === 0) contiguous++;
+  const shortfalls: MergeShortfall[] = [...byRound.keys()]
+    .filter((round) => round >= contiguous)
+    .sort((a, b) => a - b)
+    .map((round) => ({ round, missing: missingIn(round) }));
+
+  const state = createMetagameLoopState();
+  for (const id of personaOrder) recordSeedRound(state, id, byRound.get(0)!.get(id)!);
+  let completedRounds = 0;
+  let summary: MetagameSummary | undefined;
+  for (let roundNumber = 1; roundNumber < contiguous; roundNumber++) {
+    const verdict = advanceMetagameRound(state, personaOrder, byRound.get(roundNumber)!, roundNumber);
+    completedRounds = roundNumber;
+    if (verdict.stable) {
+      summary = metagameSummaryFor({
+        maxRounds: resolved.maxRounds,
+        completedRounds,
+        baseField: resolved.field,
+        stoppedReason: 'stable-decks',
+      });
+      break;
+    }
+    if (verdict.oscillations.length > 0) {
+      summary = metagameSummaryFor({
+        maxRounds: resolved.maxRounds,
+        completedRounds,
+        baseField: resolved.field,
+        stoppedReason: 'oscillation',
+        oscillations: verdict.oscillations,
+      });
+      break;
+    }
+  }
+  summary ??= metagameSummaryFor({
+    maxRounds: resolved.maxRounds,
+    completedRounds,
+    baseField: resolved.field,
+    // A fan-out that ran every round ends where the loop ends. One that ran
+    // fewer is a partial sweep and says so, exactly as a killed run's last
+    // checkpoint does.
+    stoppedReason: completedRounds >= resolved.maxRounds ? 'max-rounds' : 'in-progress',
+  });
+
+  const lines = [JSON.stringify(journalHeader(resolved))];
+  for (let roundNumber = 0; roundNumber <= summary.completedRounds; roundNumber++) {
+    for (const id of personaOrder) {
+      const crafted = state.history.get(id)![roundNumber];
+      lines.push(JSON.stringify({ round: crafted.round, personaId: id, seed: crafted.seed, crafted }));
+    }
+  }
+
+  return {
+    config: resolved,
+    artifacts: buildMetagameArtifacts(
+      templates,
+      state.history,
+      summary,
+      referenceComposition(resolved.field),
+      resolved,
+    ),
+    summary,
+    journal: `${lines.join('\n')}\n`,
+    shortfalls,
+  };
+}
+
 export interface CliDependencies {
   measure?: MeasureFunction;
   log?: (message: string) => void;
@@ -1424,6 +1816,119 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
       log(`Retained: ${pct(artifact.measured)}`);
       log(`Current: ${pct(checked)}`);
       log(`Drift: ${((checked.score - artifact.measured.score) * 100).toFixed(1)} percentage points`);
+      return 0;
+    }
+
+    const fanOutPersona = opt('metagame-craft');
+    const mergeDir = opt('metagame-merge');
+    if (fanOutPersona !== undefined || mergeDir !== undefined) {
+      if (fanOutPersona !== undefined && mergeDir !== undefined) {
+        throw new Error('Choose one of --metagame-craft or --metagame-merge');
+      }
+      const outDir = resolve(opt('out') ?? 'scripts/personas/decks');
+      const today = dependencies.today?.() ?? new Date().toISOString().slice(0, 10);
+
+      if (mergeDir !== undefined) {
+        const merged = mergeFannedOutCrafts(resolve(mergeDir));
+        for (const shortfall of merged.shortfalls) {
+          log(`Incomplete round ${shortfall.round}: no craft for ${shortfall.missing.join(', ')}`);
+        }
+        const stopped = merged.summary.stoppedReason;
+        // Printed as key=value so a workflow step can read them straight into
+        // GITHUB_OUTPUT without a parser.
+        log(`stable=${merged.summary.converged}`);
+        log(`done=${stopped === 'stable-decks' || stopped === 'oscillation'}`);
+        log(`stopped-reason=${stopped}`);
+        log(`completed-rounds=${merged.summary.completedRounds}`);
+        if (has('check-stable')) return 0;
+
+        mkdirSync(outDir, { recursive: true });
+        for (const artifact of merged.artifacts) {
+          const artifactPath = join(outDir, `${today}-metagame-${artifact.persona.id}-${merged.config.poolId}.json`);
+          writeFileSync(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`, 'utf8');
+          log(`Merged ${artifact.persona.name} (${artifact.persona.id}): ${pct(artifact.measured)}`);
+          log(`Artifact: ${artifactPath}`);
+        }
+        const journalPath = join(outDir, 'craft-journal.jsonl');
+        writeFileSync(journalPath, merged.journal, 'utf8');
+        log(`Journal: ${journalPath}`);
+        log(`Convergence: ${stopped}; ${merged.summary.completedRounds}/${merged.summary.maxRounds} loop rounds`);
+        return 0;
+      }
+
+      // Single craft. Every flag that shapes the measurement is recorded in the
+      // journal config the file carries, so a merge can refuse a file that was
+      // crafted for a different sweep rather than mixing the two.
+      const poolId = opt('pool') ?? 'all';
+      const pool = cardsForPool(poolId);
+      const field = (opt('field') ?? 'prefabs') as FieldId;
+      if (field !== 'prefabs' && field !== 'starters') throw new Error(`--field must be prefabs or starters (got ${field})`);
+      const personaSet = opt('personas') === undefined
+        ? PERSONA_TEMPLATES.map((template) => template.id)
+        : parsePersonaIds(opt('personas'));
+      const config: JournalConfig = {
+        seed: parsePositiveInteger(opt('seed'), '--seed', DEFAULT_SEED, true),
+        seeds: parsePositiveInteger(opt('seeds'), '--seeds', DEFAULT_SEEDS),
+        iterations: parsePositiveInteger(opt('iterations'), '--iterations', DEFAULT_ITERATIONS, true),
+        maxRounds: parsePositiveInteger(opt('rounds'), '--rounds', DEFAULT_METAGAME_ROUNDS),
+        personaIds: PERSONA_TEMPLATES
+          .filter((template) => personaSet.includes(template.id))
+          .map((template) => template.id),
+        templateVersion: PERSONA_TEMPLATE_VERSION,
+        poolId,
+        field,
+      };
+      // Required, not defaulted: a silent round 0 would be a multi-hour craft
+      // of the wrong thing.
+      if (opt('round') === undefined) throw new Error('--metagame-craft requires --round <n>');
+      const round = parsePositiveInteger(opt('round'), '--round', 0, true);
+      // Refuses an unknown persona before anything else happens.
+      const template = personaTemplate(fanOutPersona!);
+      const fileName = singleCraftFileName(template.id, round);
+      mkdirSync(outDir, { recursive: true });
+      const target = join(outDir, fileName);
+      const journalPath = join(outDir, 'craft-journal.jsonl');
+      const writeJournalLine = (crafted: MetagameRound): void => {
+        if (!existsSync(journalPath)) writeJournalHeader(journalPath, config);
+        appendJournalEntry(journalPath, {
+          round: crafted.round,
+          personaId: template.id,
+          seed: crafted.seed,
+          crafted,
+        });
+      };
+
+      const resumeFrom = opt('resume-from');
+      if (resumeFrom !== undefined) {
+        const source = join(resolve(resumeFrom), fileName);
+        if (existsSync(source)) {
+          const file = parseSingleCraftFile(source);
+          assertCraftBelongs(file, source, config);
+          if (resolve(source) !== target) copyFileSync(source, target);
+          writeJournalLine(craftedRound(file));
+          log(`Resume: ${fileName} already crafted; nothing to do`);
+          log(`Craft: ${target}`);
+          return 0;
+        }
+        log(`Resume: no ${fileName} in ${resolve(resumeFrom)}; crafting it`);
+      }
+
+      const crafted = runSingleCraft({
+        personaId: template.id,
+        round,
+        config,
+        pool,
+        fieldDir: opt('field-dir') === undefined ? undefined : resolve(opt('field-dir')!),
+        measure: runtimeMeasure,
+      });
+      const file: SingleCraftArtifact = { personaId: template.id, config, ...crafted };
+      writeFileSync(target, `${JSON.stringify(file, null, 2)}\n`, 'utf8');
+      writeJournalLine(crafted);
+      log(`Crafted ${template.name} (${template.id}) round ${round}`);
+      log(`Measured: ${pct(crafted.measured)} against ${crafted.fieldComposition.length} decks`);
+      log(`Accepted swaps: ${crafted.hillClimb.acceptedSwaps.length}; rejected: ${crafted.hillClimb.rejectedSwaps}`);
+      log(`Craft: ${target}`);
+      log(`Journal: ${journalPath}`);
       return 0;
     }
 
