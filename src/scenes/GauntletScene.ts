@@ -19,6 +19,7 @@ import {
   scrollOffsetByDelta,
   type GauntletTowerLayout,
 } from '../ui/layout';
+import { gateOnArt } from '../ui/artGate';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { ellipsizeText } from '../ui/textFit';
 import { colorInt, theme } from '../ui/theme';
@@ -59,7 +60,11 @@ export class GauntletScene extends Phaser.Scene {
     super('Gauntlet');
   }
 
+  /** The tower rail and detail pane draw all 26 avatar portrait cards. */
   create(): void {
+    gateOnArt(this, AVATARS.map((avatar) => avatar.portraitCardId), () => this.build());
+  }
+  private build(): void {
     this.rowNodes = [];
     this.towerLayout = null;
     this.towerContent = null;

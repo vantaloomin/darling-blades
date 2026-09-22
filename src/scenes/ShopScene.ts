@@ -43,6 +43,8 @@ import { fxPolicy } from '../ui/fx/FXSupport';
 import { modalGuardTarget } from '../ui/Modal';
 import { createOddsModal, type BoosterSku } from '../ui/OddsModal';
 import { OverlayCoordinator } from '../ui/OverlayCoordinator';
+import { artMissing } from '../art/artLoader';
+import { awaitArt, gateOnArt } from '../ui/artGate';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
 import { queueAchievementUnlockToasts } from '../ui/achievementToast';
@@ -511,6 +513,8 @@ export class ShopScene extends Phaser.Scene {
   private inspect: ModalShell | null = null;
   /** Index into previewEntries shown by the open inspect; null when closed. */
   private inspectIdx: number | null = null;
+  /** Supersedes a pending inspect art wait when another row is tapped. */
+  private inspectWaitToken = 0;
   /** The open preview's distinct-card entries in visual order (creatures → spells → lands). */
   private previewEntries: PreviewEntry[] = [];
   private previewInteractiveTargets: Phaser.GameObjects.GameObject[] = [];
@@ -597,7 +601,35 @@ export class ShopScene extends Phaser.Scene {
     ];
   }
 
+  /**
+   * The art window on a deck card in the grid: a Darlings precon leads with
+   * its Darling, a standard deck with its first signature card. This is the
+   * only card art the Shop draws before a modal opens — the Packs tab is baked
+   * pack textures and set icons, both scene art PreloadScene already has.
+   */
+  private deckGridPortraitId(deck: DeckList | DarlingsPrecon): string {
+    return isDarlingsPrecon(deck)
+      ? deck.darlingId
+      : DECK_INFO[deck.id]?.featured?.[0] ?? grantedDeckBuild(deck).cards[0];
+  }
+
+  /**
+   * The create gate waits on the 19 purchasable decks' grid faces and nothing
+   * else (19 distinct art files, measured 2026-09-21). The Shop is the
+   * onboarding path — a new player claims the free starter here, right after
+   * the tutorial — so gating it on every card in every purchasable deck (427
+   * distinct files, ~4.3 s from cold at the loader's ~100 files/s) would put
+   * most of the set in front of that claim. `showDeckPreview` waits on its own
+   * deck instead: 10-22 files for a starter or theme deck, 79 for a Darlings
+   * precon (singleton lists).
+   */
   create(data: { tab?: ShopTab } = {}): void {
+    const faces = [...STARTER_DECKS, ...THEME_DECKS, ...DARLINGS_PRECONS].map((deck) =>
+      this.deckGridPortraitId(deck),
+    );
+    gateOnArt(this, faces, () => this.build(data));
+  }
+  private build(data: { tab?: ShopTab }): void {
     // Default tab follows the free-starter claim (user-directed 2026-07-17):
     // while a Claim Free deck is actually on offer the shop opens on the precon
     // decks so a new player lands on it; otherwise it opens on card packs. An
@@ -1393,9 +1425,8 @@ export class ShopScene extends Phaser.Scene {
 
     // The art window: a Darlings precon leads with its Darling; a standard
     // deck leads with its first signature card (the preview's featured list).
-    const portraitId = isDarlingsPrecon(deck)
-      ? deck.darlingId
-      : DECK_INFO[deck.id]?.featured?.[0] ?? grantedDeckBuild(deck).cards[0];
+    // Same helper the create-time art gate waits on, so the two cannot drift.
+    const portraitId = this.deckGridPortraitId(deck);
     this.addDeckPortrait(portraitId, 0, rowTop + 8 + DECK_CARD_ART_H / 2, DECK_CARD_W - 20, DECK_CARD_ART_H, tile);
 
     const name = this.add
@@ -1710,12 +1741,69 @@ export class ShopScene extends Phaser.Scene {
   }
 
   /**
+   * The deck preview draws the signature-card thumbs and its card inspect can
+   * open any card in the list, so it waits on this one deck's own build (10-22
+   * files, 79 for a Darlings precon) rather than the Shop's create gate
+   * waiting on all 427.
+   *
+   * It opens over a live scene, so the full-screen `gateOnArt` overlay would be
+   * wrong here: the wait shows the same loading line inside a modal of the
+   * preview's own footprint, which also blocks input the way the preview does,
+   * and `awaitArt` drops the build entirely if the scene shuts down first.
+   */
+  private showDeckPreview(sku: DeckSku): void {
+    this.closeOverlay();
+    const cards = grantedDeckBuild(sku.deck).cards;
+    if (artMissing(cards).length === 0) {
+      this.buildDeckPreview(sku);
+      return;
+    }
+    let cancelled = false;
+    const waiting = modalShell(this, {
+      width: 980,
+      height: 600,
+      dimAlpha: 0.52,
+      depth: theme.depth.modal,
+      dismissal: 'tap-only',
+      coordinator: this.coordinator,
+      registration: {
+        dismissible: true,
+        guardTargets: this.underlyingInteractiveTargets().map(modalGuardTarget),
+      },
+      onClose: () => {
+        cancelled = true;
+        if (this.overlay === waiting) this.overlay = null;
+      },
+    });
+    this.overlay = waiting;
+    const bounds = waiting.tracks.contentBounds;
+    const line = this.add
+      .text(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2, '', {
+        fontFamily: 'Georgia, serif',
+        fontSize: '22px',
+        color: theme.colors.muted,
+      })
+      .setOrigin(0.5);
+    waiting.container.add(line);
+    awaitArt(this, cards, {
+      onWait: (text) => {
+        if (line.active) line.setText(text);
+      },
+      onReady: () => {
+        if (cancelled) return;
+        waiting.close();
+        this.buildDeckPreview(sku);
+      },
+    });
+  }
+
+  /**
    * Inspect a deck before buying: identity + "how it plays", mana curve and
    * composition, what the purchase actually adds to the collection, the full
    * list as tappable rows (tap = card inspect, ←/→ steps), and a footer that
    * states the price/balance consequence before the player commits.
    */
-  private showDeckPreview(sku: DeckSku): void {
+  private buildDeckPreview(sku: DeckSku): void {
     this.closeOverlay();
     const { deck, price } = sku;
     const save = Services.save.data;
@@ -2110,9 +2198,42 @@ export class ShopScene extends Phaser.Scene {
     this.previewInteractiveTargets.push(close.inputZone);
   }
 
-  /** Full-card inspect layered above the deck preview; ←/→ steps the list. */
+  /**
+   * One card, blown up over the open preview. The preview's own wait already
+   * covered every card in its list, so this is a synchronous pass-through in
+   * practice; the guard is here so a missed case shows the loading line rather
+   * than the resolver's neutral stand-in. The token supersedes a stale wait
+   * when the player taps another row before the first one resolves.
+   */
   private showCardInspect(idx: number): void {
     this.closeInspect();
+    const entry = this.previewEntries[idx];
+    if (!entry) return;
+    const token = ++this.inspectWaitToken;
+    let line: Phaser.GameObjects.Text | null = null;
+    awaitArt(this, [entry.d.id], {
+      onWait: (text) => {
+        if (token !== this.inspectWaitToken) return;
+        line ??= this.add
+          .text(theme.design.centerX, theme.design.centerY, '', {
+            fontFamily: 'Georgia, serif',
+            fontSize: '22px',
+            color: theme.colors.muted,
+          })
+          .setOrigin(0.5)
+          .setDepth(theme.depth.inspect);
+        line.setText(text);
+      },
+      onReady: () => {
+        line?.destroy();
+        if (token !== this.inspectWaitToken) return;
+        this.buildCardInspect(idx);
+      },
+    });
+  }
+
+  /** Full-card inspect layered above the deck preview; ←/→ steps the list. */
+  private buildCardInspect(idx: number): void {
     const entry = this.previewEntries[idx];
     if (!entry) return;
     const shell = modalShell(this, {
@@ -2163,6 +2284,9 @@ export class ShopScene extends Phaser.Scene {
   }
 
   private closeInspect(): void {
+    // Also drops any pending inspect art wait, so a closed preview can never
+    // have an inspect open itself a beat later.
+    this.inspectWaitToken++;
     this.inspect?.close();
     this.inspect = null;
     this.inspectIdx = null;

@@ -11,6 +11,7 @@ import {
 } from './platform/renderScale';
 import { BootScene } from './scenes/BootScene';
 import { AchievementsScene } from './scenes/AchievementsScene';
+import { ArtLoaderScene } from './scenes/ArtLoaderScene';
 import { CardShowcaseScene } from './scenes/CardShowcaseScene';
 import { CollectionScene } from './scenes/CollectionScene';
 import { DeckBuilderScene } from './scenes/DeckBuilderScene';
@@ -112,6 +113,9 @@ const game = new Phaser.Game({
   scene: [
     BootScene,
     PreloadScene,
+    // Registered, never auto-started (Phaser starts only the first entry):
+    // PreloadScene launches it once the menu's own assets are in.
+    ArtLoaderScene,
     MainMenuScene,
     PlayScene,
     PracticePickerScene,

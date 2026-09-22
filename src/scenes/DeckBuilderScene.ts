@@ -74,6 +74,7 @@ import {
   type DeckPaneMode,
 } from '../ui/deckPanePresentation';
 import { Dropdown, type DropdownOption } from '../ui/Dropdown';
+import { gateOnArt } from '../ui/artGate';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { createSearchInput } from '../ui/SearchInput';
 import {
@@ -208,7 +209,11 @@ export class DeckBuilderScene extends Phaser.Scene {
     return hasLegacyVariantPin || typeof Services.save.data.pinnedVariants[cardId] === 'string';
   }
 
+  /** The pool pane browses the whole set, so it waits for the whole set. */
   create(data: { deckId?: string } = {}): void {
+    gateOnArt(this, null, () => this.build(data));
+  }
+  private build(data: { deckId?: string }): void {
     this.reserveFormatsEnabled = FEATURES.reserveFormats;
     this.classicRetired = FEATURES.classicRetired;
     this.workingDeckId = null;

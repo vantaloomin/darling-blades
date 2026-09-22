@@ -21,6 +21,7 @@ import { bindTapButton, inflateHitArea } from '../platform/gestures';
 import { CardView } from '../ui/CardView';
 import { computeDeckStats, curveBars, deckShapeLine } from '../ui/deckStats';
 import { LIMITED_DETAILS_PANEL } from '../ui/limitedPanePresentation';
+import { gateOnArt } from '../ui/artGate';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
 import { backButton, modalShell, pager, panel, registerSceneBackNavigation, themedButton, type ModalShell } from '../ui/themeWidgets';
@@ -64,7 +65,14 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
   constructor() {
     super('LimitedDeckBuilder');
   }
+  /** The pool pane and the deck column draw only the run's own pool. */
   create(): void {
+    const run = Services.save.data.limited.activeRun;
+    gateOnArt(this, [...(run?.pool ?? []), ...(run?.deck ?? []), ...(run?.landReserve ?? [])], () =>
+      this.build(),
+    );
+  }
+  private build(): void {
     this.cardInspect = null;
     this.leavePrompt = null;
     applyBackdrop(this, 'deckbuilder', {

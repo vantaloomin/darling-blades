@@ -10,6 +10,7 @@ import { firstDuelLaunchIssue, practiceDuelLaunchData } from '../meta/duelSetup'
 import { Services } from '../meta/services';
 import { attachTouchGestures } from '../platform/gestures';
 import { TAP_SLOP_PX } from '../platform/gestureCore';
+import { gateOnArt } from '../ui/artGate';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { showDarlingsTutorial } from '../ui/DarlingsTutorial';
 import { activeVisibleSavedDeck } from '../ui/deckBuilderHelpers';
@@ -101,7 +102,11 @@ export class PracticePickerScene extends Phaser.Scene {
     super('PracticePicker');
   }
 
+  /** The picker strip draws all 26 avatar portrait cards. */
   create(): void {
+    gateOnArt(this, AVATARS.map((avatar) => avatar.portraitCardId), () => this.build());
+  }
+  private build(): void {
     this.reserveFormatsEnabled = FEATURES.reserveFormats;
     this.selectedAvatarId = AVATARS[AVATARS.length - 1]?.id ?? '';
     this.tileNodes = [];

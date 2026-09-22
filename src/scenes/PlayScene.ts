@@ -13,6 +13,7 @@ import type { SavedDeck } from '../meta/SaveManager';
 import { bindTapButton } from '../platform/gestures';
 import { makeCardThumb } from '../ui/CardThumbCache';
 import { ModalGuard } from '../ui/Modal';
+import { gateOnArt } from '../ui/artGate';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
 import { backButton, goldBadge, modalShell, pager, panel, registerSceneBackNavigation, themedButton } from '../ui/themeWidgets';
@@ -56,7 +57,18 @@ export class PlayScene extends Phaser.Scene {
     super('Play');
   }
 
+  /**
+   * The active-deck plate and the quick-select modal draw one face card per
+   * saved deck (deckFace.ts) — nothing else here is card art.
+   */
   create(data: { launchNotice?: string } = {}): void {
+    this.reserveFormatsEnabled = FEATURES.reserveFormats;
+    const faces = Services.save.data.decks
+      .map((deck) => this.deckFaceId(deck))
+      .filter((id): id is string => id !== null);
+    gateOnArt(this, faces, () => this.build(data));
+  }
+  private build(data: { launchNotice?: string }): void {
     this.reserveFormatsEnabled = FEATURES.reserveFormats;
     this.classicRetired = FEATURES.classicRetired;
     this.guard = new ModalGuard();

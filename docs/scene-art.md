@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/scenes/ShopScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/CollectionScene.ts, src/scenes/DeckBuilderScene.ts, src/scenes/CardShowcaseScene.ts, src/scenes/PreloadScene.ts, src/ui/CardView.ts, src/ui/CardFrameFactory.ts, docs/art-bible/index.md, scripts/gen-scene-art.ts · last-verified: 2026-08-24 -->
+<!-- source-of-truth: src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/scenes/ShopScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/CollectionScene.ts, src/scenes/DeckBuilderScene.ts, src/scenes/CardShowcaseScene.ts, src/scenes/PreloadScene.ts, src/ui/CardView.ts, src/ui/CardFrameFactory.ts, docs/art-bible/index.md, src/ui/artGate.ts, scripts/gen-scene-art.ts · last-verified: 2026-09-21 -->
 
 # Scene & Menu Art — Direction + Integration Contract
 
@@ -365,6 +365,15 @@ wiring already falls back to the procedural tinted pack until the asset lands.
   the two bake functions, not scene backgrounds).
 
 ### Attach points, dim, and depth
+
+Scene art is unaffected by the 1.8 two-phase card-art load: `PreloadScene`
+still queues every `scene-<key>` file itself, so a backdrop is ready before any
+scene runs. What moved is CARD art (`src/art/artLoader.ts`) — the scenes that
+draw cards now wrap their `create()` body in `gateOnArt`
+(`src/ui/artGate.ts`), so for those the attach point named below is the top of
+the gated build rather than the literal first line of `create()`. While a gate
+waits it covers the scene with the boot loading label, so the backdrop still
+arrives with the rest of the scene.
 
 Each Phaser scene checks `this.textures.exists('scene-<key>')` at the **top of
 `create()`** (or the named bake/build function): if present, add the image at
