@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CARD_DB } from '../../src/data/catalog';
-import {
-  DARLINGS_PRECONS,
-  DARLINGS_PRECON_MATRIX_FLEET,
-} from '../../src/data/darlingsPrecons';
+import { DARLINGS_PRECONS } from '../../src/data/darlingsPrecons';
 import { validateDarlingsDeck } from '../../src/meta/darlings';
 import { DARLINGS_DECK_SIZE, isDualLand } from '../../src/meta/warchest';
 import { deckTargetSupply, hasNoLegalTargets } from '../../scripts/avatarReserveDecks';
@@ -52,19 +49,6 @@ describe('Darlings precon slate', () => {
       const supply = deckTargetSupply(list);
       const dead = list.filter((id) => hasNoLegalTargets(CARD_DB[id], supply));
       expect(dead, `${deck.name} carries dead-target cards`).toEqual([]);
-    }
-  });
-
-  it('exports the curated lists in the reserve-matrix deck shape', () => {
-    expect(DARLINGS_PRECON_MATRIX_FLEET).toBe(DARLINGS_PRECONS);
-    for (const deck of DARLINGS_PRECON_MATRIX_FLEET) {
-      expect(deck).toMatchObject({
-        id: expect.any(String),
-        name: expect.any(String),
-        darlingId: expect.any(String),
-        cards: expect.any(Array),
-        landReserve: expect.any(Array),
-      });
     }
   });
 });

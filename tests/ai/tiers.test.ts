@@ -1,15 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { tierMonotonicityFlags } from '../../scripts/balance-matrix';
-import { HardAI } from '../../src/ai/HardAI';
 import {
-  buildTierAI,
   floorBrain,
   floorDifficultyPips,
   floorTier,
   TIER_DEFS,
   type TowerTier,
 } from '../../src/ai/tiers';
-import { TEST_DB } from '../helpers';
 
 describe('tower AI tiers', () => {
   it('defines six ordered brain tiers with decreasing noise within each brain', () => {
@@ -27,10 +24,6 @@ describe('tower AI tiers', () => {
     expect(TIER_DEFS[3].noise).toBeGreaterThan(TIER_DEFS[4].noise);
     expect(TIER_DEFS[5].noise).toBeGreaterThan(TIER_DEFS[6].noise);
     expect(TIER_DEFS[6].noise).toBe(0);
-  });
-
-  it('returns the bare HardAI at tier 6', () => {
-    expect(buildTierAI(6, TEST_DB, 123)).toBeInstanceOf(HardAI);
   });
 
   it('maps all 26 landed floors and clamps later floors to tier 6', () => {

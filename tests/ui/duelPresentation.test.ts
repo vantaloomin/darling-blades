@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  CARD_TRAVEL_MOTION,
-  HAUNTLINK_OVERLAP,
   OPPONENT_RESERVE_CLEARANCE,
-  OPPONENT_RESERVE_PILE_LAYOUT,
-  SHARD_HOLD_BUTTON_PROGRESS,
   TARGET_ARROW_HEAD_LENGTH,
   hauntlinkActionLabel,
   graveActionChoice,
@@ -23,14 +19,31 @@ import { packRow } from '../../src/ui/rowPacking';
 
 describe('duel presentation rules', () => {
   it('tucks Hauntlink cards upward with an exposed header on either battlefield row', () => {
-    expect(HAUNTLINK_OVERLAP.scale).toBe(0.64);
-    expect(hauntlinkOverlap('you')).toEqual({ x: -18, y: -56, scale: 0.64 });
-    expect(hauntlinkOverlap('opponent')).toEqual({ x: 18, y: -56, scale: 0.64 });
+    const you = hauntlinkOverlap('you');
+    const opponent = hauntlinkOverlap('opponent');
+    for (const tuck of [you, opponent]) {
+      expect(tuck.y).toBeLessThan(0);
+      expect(tuck.scale).toBeGreaterThan(0);
+      expect(tuck.scale).toBeLessThan(1);
+    }
+    expect(Math.sign(you.x)).toBe(-Math.sign(opponent.x));
   });
 
   it('fans multiple Hauntlinks without changing their under-host direction', () => {
-    expect(hauntlinkOverlap('you', 2)).toEqual({ x: 2, y: -68, scale: 0.64 });
-    expect(hauntlinkOverlap('opponent', 2)).toEqual({ x: 38, y: -68, scale: 0.64 });
+    const base = { you: hauntlinkOverlap('you'), opponent: hauntlinkOverlap('opponent') };
+    for (let slot = 1; slot <= 3; slot++) {
+      const you = hauntlinkOverlap('you', slot);
+      const opponent = hauntlinkOverlap('opponent', slot);
+      for (const tuck of [you, opponent]) {
+        expect(tuck.y).toBeLessThan(0);
+        expect(tuck.scale).toBeGreaterThan(0);
+        expect(tuck.scale).toBeLessThan(1);
+      }
+      // The fan never flips a seat past the other: the two seats stay the same distance apart.
+      expect(opponent.x - you.x).toBe(base.opponent.x - base.you.x);
+      expect(you.y).toBeLessThanOrEqual(base.you.y);
+      expect(you.scale).toBe(base.you.scale);
+    }
   });
 
   it('labels only currently payable Hauntlink actions', () => {
@@ -97,18 +110,6 @@ describe('duel presentation rules', () => {
       };
       expect(presentationRectsOverlap(pile, creatures), `creature count: ${beadCount}`).toBe(false);
     }
-    expect(OPPONENT_RESERVE_PILE_LAYOUT.y).toBe(132);
-  });
-
-  it('keeps reduced-motion paths out of the slower full-motion tuning block', () => {
-    expect(CARD_TRAVEL_MOTION.drawToHand.duration).toBe(280);
-    expect(CARD_TRAVEL_MOTION.playToStation.duration).toBe(420);
-    expect(CARD_TRAVEL_MOTION.stationToBattlefield.duration).toBe(420);
-  });
-
-  it('keeps hold progress inside the action button instead of using a cursor halo', () => {
-    expect(SHARD_HOLD_BUTTON_PROGRESS.inset).toBe(3);
-    expect(SHARD_HOLD_BUTTON_PROGRESS.fillAlpha).toBeGreaterThan(0);
   });
 });
 

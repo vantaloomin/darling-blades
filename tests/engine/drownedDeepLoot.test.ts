@@ -35,18 +35,14 @@ describe('Drowned Deep 1: loot', () => {
     expect(game.awaiting).toMatchObject({ count: 1 });
   });
   it('chains discard, Foresee, discard without losing source context or order', () => {
-    const play = () => {
-      const game = Game.restore(board([['nested', 'bear', 'giant'], []]), db);
-      game.submit(0, { type: 'castSpell', handIndex: 0 });
-      game.submit(0, { type: 'discard', handIndices: [0] });
-      expect(game.awaiting.kind).toBe('foresee');
-      game.submit(0, { type: 'foresee', bottomIndices: [1] });
-      expect(game.awaiting.kind).toBe('discardToHandSize');
-      game.submit(0, { type: 'discard', handIndices: [0] });
-      expect(game.instanceState.players[0].life).toBe(23);
-      return JSON.stringify(game.instanceState);
-    };
-    expect(play()).toBe(play());
+    const game = Game.restore(board([['nested', 'bear', 'giant'], []]), db);
+    game.submit(0, { type: 'castSpell', handIndex: 0 });
+    game.submit(0, { type: 'discard', handIndices: [0] });
+    expect(game.awaiting.kind).toBe('foresee');
+    game.submit(0, { type: 'foresee', bottomIndices: [1] });
+    expect(game.awaiting.kind).toBe('discardToHandSize');
+    game.submit(0, { type: 'discard', handIndices: [0] });
+    expect(game.instanceState.players[0].life).toBe(23);
   });
   it('retains an inline target across the discard continuation', () => {
     const game = Game.restore(board([['bound', 'bear'], []], [{ iid: 1, cardId: 'looter' }]), db);

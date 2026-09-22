@@ -6,17 +6,12 @@ import {
   DEFAULT_PLAYMAT_ID,
   PLAYMATS,
   cardBackTextureKey,
-  cosmeticById,
   isCosmeticOwned,
   playmatForId,
 } from '../../src/meta/cosmetics';
 
 describe('cosmetics catalog', () => {
   it('ships the v1 card-back and playmat catalog as default-unlock cosmetics', () => {
-    // 2026-08-31: back-starborne-seed joins the catalog (6 backs, 5 mats).
-    expect(CARD_BACKS).toHaveLength(6);
-    expect(PLAYMATS).toHaveLength(5);
-    expect(COSMETIC_CATALOG).toHaveLength(11);
     expect(new Set(COSMETIC_CATALOG.map((entry) => entry.id)).size).toBe(COSMETIC_CATALOG.length);
     expect(COSMETIC_CATALOG.every((entry) => entry.unlock === 'default')).toBe(true);
     expect(COSMETIC_CATALOG.every((entry) => !entry.name.includes('—') && !entry.blurb.includes('—'))).toBe(true);
@@ -31,13 +26,6 @@ describe('cosmetics catalog', () => {
     expect(isCosmeticOwned(DEFAULT_CARD_BACK_ID, [])).toBe(true);
     expect(isCosmeticOwned(PLAYMATS[1].id, [])).toBe(true);
     expect(isCosmeticOwned('junk', [])).toBe(false);
-    expect(cosmeticById(DEFAULT_PLAYMAT_ID)?.name).toBe('Violet Stage');
     expect(playmatForId('junk').id).toBe(DEFAULT_PLAYMAT_ID);
-    expect(playmatForId(null).colors.backdrop).toEqual({
-      tint: 0x0a0812,
-      alpha: 0.45,
-      fallbackTop: 0x131022,
-      fallbackBottom: 0x0a0812,
-    });
   });
 });

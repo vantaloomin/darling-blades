@@ -94,21 +94,20 @@ describe('wingFurnishings', () => {
 describe('achievement claim presentation', () => {
   it('keeps the full cascade staggered and the individual stamp under 300ms', () => {
     const motion = achievementClaimMotion('full');
-    expect(motion).toMatchObject({ stampMs: 180, settleMs: 100, staggerMs: 70 });
     expect(motion.stampMs + motion.settleMs).toBeLessThanOrEqual(300);
-    expect(achievementCascadeDelay(3, 'full')).toBe(210);
+    expect(motion.staggerMs).toBeGreaterThan(0);
+    expect(achievementCascadeDelay(3, 'full')).toBe(3 * motion.staggerMs);
   });
 
   it('removes transform motion for reduced animation while retaining a short fade cascade', () => {
     const motion = achievementClaimMotion('reduced');
-    expect(motion).toEqual({
-      stampMs: 100,
-      settleMs: 0,
-      staggerMs: 50,
-      scaleFrom: 1,
-      angleFrom: 0,
-      angleTo: 0,
-    });
+    const full = achievementClaimMotion('full');
+    expect(motion.scaleFrom).toBe(1);
+    expect(motion.angleFrom).toBe(0);
+    expect(motion.angleTo).toBe(0);
+    expect(motion.settleMs).toBe(0);
+    expect(motion.stampMs).toBeGreaterThan(0);
+    expect(motion.stampMs).toBeLessThan(full.stampMs);
   });
 
   it('makes the off policy immediate without dropping completion timing', () => {

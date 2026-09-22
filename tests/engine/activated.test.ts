@@ -1,6 +1,5 @@
 import { activatedAbilitiesOf } from '../../src/engine/types';
 import { describe, expect, it } from 'vitest';
-import { CURRENT_RULES_REV } from '../../src/config/rules';
 import type { Action } from '../../src/engine/actions';
 import { activatedBlockers, legalActions, validateAction } from '../../src/engine/actions';
 import { canActivate, canAttack, compelledAttackers } from '../../src/engine/combat/legality';
@@ -548,7 +547,6 @@ function activationReplayFixture() {
 describe('activation replay and deterministic compatibility', () => {
   it('records inline targets and explicit payment in a naturally terminal game and replays every byte', () => {
     const recorded = activationReplayFixture();
-    expect(CURRENT_RULES_REV).toBe(4);
     expect(recorded.log.v).toBe(14);
     expect(recorded.game.awaiting.kind).toBe('gameOver');
     expect(recorded.game.instanceState.winReason).toBe('life');

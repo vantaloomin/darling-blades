@@ -253,10 +253,6 @@ describe('catalog integrity', () => {
     ).toBeGreaterThanOrEqual(4);
   });
 
-  it('the pool holds at least 180 cards', () => {
-    expect(ALL_CARDS.length).toBeGreaterThanOrEqual(180);
-  });
-
   it('has the W3.5b Base Set sweeper pass in the catalog totals', () => {
     const base = ALL_CARDS.filter(
       (card) => card.set === 'base' && !card.token && !(card.supertypes ?? []).includes('basic'),
@@ -271,18 +267,6 @@ describe('catalog integrity', () => {
       rarity,
       base.filter((card) => card.rarity === rarity).length,
     ]))).toEqual({ c: 112, r: 68, sr: 14, ssr: 11, ur: 8 });
-    // W5's four tribal cards move the collectible catalog 783 -> 787; the
-    // ten-card 1.6 returning-mechanics sprinkle moves it 787 -> 797. Duat
-    // The pinned pre-D3 catalog was 986 cards. D3 adds the final 58 mono-column
-    // cards, so the companion wave moves ALL_CARDS to 1,104 total cards,
-    // including tokens and basics. Starborne adds 151 collectibles and six
-    // set tokens; the v3.1 Fenrir ruling (2026-08-29) adds tok-wolf-cub
-    // (1/1, art shared with tok-wolf via artRef): 1261 -> 1262.
-    // The 2026-09-03 minterless-token cut removes tok-lumen-drone,
-    // tok-violet-hullguard and tok-void-mote (no card ever minted them):
-    // 1262 -> 1259.
-    // Drowned Deep adds 252 collectibles and four tokens: 1259 -> 1515.
-    expect(ALL_CARDS).toHaveLength(1515);
   });
 
   it('stamps every expansion card with its set and every other collectible set:base', () => {

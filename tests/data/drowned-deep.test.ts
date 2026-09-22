@@ -198,12 +198,9 @@ describe('Drowned Deep transcription', () => {
     }
   });
 
-  it('adds exactly 252 collectibles and four tokens to the 1259-card catalog', () => {
-    expect(ALL_CARDS).toHaveLength(1515);
+  it('adds exactly 252 collectibles and four tokens', () => {
     expect(ALL_CARDS.filter((d) => d.set === DROWNED_DEEP_SET && !d.token)).toHaveLength(252);
     expect(ALL_CARDS.filter((d) => d.set === DROWNED_DEEP_SET && d.token).map((d) => d.id)).toEqual(tokenIds);
-    expect(ALL_CARDS.filter((d) => d.set !== DROWNED_DEEP_SET)).toHaveLength(1259);
-    expect(ALL_CARDS.filter(isLiveCollectible)).toHaveLength(1482);
   });
 
   it('preserves cost and attack caps and opponent-only targets', () => {

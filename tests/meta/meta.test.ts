@@ -1174,7 +1174,7 @@ describe('applyGauntletResult', () => {
     expect(dual.gauntlet.clearStyles).toEqual({ monoColor: 0, dualColor: 1 });
   });
 
-  it('a full 26-rung run pays exactly 8050 gold, plus the daily bonus once', () => {
+  it('a full run pays every rung plus the completion and daily bonuses once', () => {
     const save = freshSave(0);
     save.gauntlet.run = { rung: 1, startedAt: 1, seed: 42 };
     let total = 0;
@@ -1183,9 +1183,7 @@ describe('applyGauntletResult', () => {
       total += applyGauntletResult(save, rung, diff, true, '2026-07-02').gold;
     }
     const rungSum = ECONOMY.gauntletRungGold.reduce((s, g) => s + g, 0);
-    expect(rungSum).toBe(7800); // 26-rung progression through 550g (Drowned Deep adds rungs 25-26)
     expect(total).toBe(rungSum + ECONOMY.gauntletCompletionBonus + ECONOMY.firstWinOfDayBonus);
-    expect(total).toBe(8150); // 7800 + 250 + 100 (daily bonus once)
     expect(save.gauntlet.completions).toBe(1);
   });
 

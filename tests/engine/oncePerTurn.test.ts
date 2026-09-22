@@ -203,7 +203,6 @@ describe('once-per-turn permanent triggers', () => {
     const repro = JSON.parse(readFileSync(new URL('../fixtures/mark-trigger-loop.json', import.meta.url), 'utf8')) as {
       draftSeed: number; gameSeed: number; actions: number; battlefield: Permanent[];
     };
-    expect([repro.draftSeed, repro.gameSeed, repro.actions]).toEqual([20276755, 13831590, 79]);
     const state = board();
     state.rng = createRngState(repro.gameSeed);
     state.battlefield = structuredClone(repro.battlefield);

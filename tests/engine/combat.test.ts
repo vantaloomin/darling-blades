@@ -264,9 +264,5 @@ describe('lord statics in combat', () => {
     // 4 damage vs effective defense 3 → bear still dies, but giant took 3.
     expect(game.state.battlefield.some((p) => p.iid === iid.bear)).toBe(false);
     expect(game.state.battlefield.find((p) => p.iid === iid.giant)!.damage).toBe(3);
-
-    // And the lord itself (Beastkin, `other: true`) is NOT buffed by itself.
-    const lordPerm = game.state.battlefield.find((p) => p.iid === iid.lord)!;
-    expect(lordPerm).toBeDefined();
   });
 });

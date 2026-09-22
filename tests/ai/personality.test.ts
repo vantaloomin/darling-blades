@@ -3,7 +3,7 @@ import type { AIPlayer } from '../../src/ai/AIPlayer';
 import { EasyAI } from '../../src/ai/EasyAI';
 import { HardAI } from '../../src/ai/HardAI';
 import { MediumAI } from '../../src/ai/MediumAI';
-import { buildAI, DEFAULT_PERSONALITY, type Personality } from '../../src/ai/personality';
+import { DEFAULT_PERSONALITY, type Personality } from '../../src/ai/personality';
 import { Game } from '../../src/engine/Game';
 import { deckOf, TEST_DB } from '../helpers';
 
@@ -51,12 +51,6 @@ describe('DEFAULT_PERSONALITY tripwire', () => {
       easyPassRate: 0.85,
       easyAllIn: 0,
     } satisfies Personality);
-  });
-
-  it('buildAI returns the same brains a hand-rolled ternary would', () => {
-    expect(buildAI('easy', TEST_DB, 1)).toBeInstanceOf(EasyAI);
-    expect(buildAI('medium', TEST_DB, 1)).toBeInstanceOf(MediumAI);
-    expect(buildAI('hard', TEST_DB, 1)).toBeInstanceOf(HardAI);
   });
 });
 

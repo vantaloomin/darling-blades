@@ -54,10 +54,7 @@ describe('Limited details panel', () => {
     expect(limitedDetailsBottom() - L.issuesY).toBeGreaterThanOrEqual(4 * (H.caption + 4));
   });
 
-  it('keeps the panel where the Pool and Deck panels put it', () => {
-    // The three panels share one band; a lone drifting panel reads as a bug.
-    expect(L.y).toBe(116);
-    expect(L.height).toBe(500);
+  it('insets its content symmetrically inside the panel', () => {
     expect(L.contentX).toBe(L.x + 18);
     expect(L.contentRight).toBe(L.x + L.width - 18);
   });

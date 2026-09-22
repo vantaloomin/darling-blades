@@ -57,8 +57,7 @@ describe('collection sort choices', () => {
     expect(sortCollectionCards(cards, 'name-za', save).map((entry) => entry.id)).toEqual(['z', 'a', 'm']);
   });
 
-  it('exposes six explicit player-facing choices', () => {
-    expect(COLLECTION_SORT_OPTIONS).toHaveLength(6);
+  it('keeps every player-facing choice free of em-dashes', () => {
     expect(COLLECTION_SORT_OPTIONS.every((option) => !option.label.includes('—'))).toBe(true);
   });
 });

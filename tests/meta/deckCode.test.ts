@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { STARTER_DECKS } from '../../src/data/starterDecks';
-import { CARD_DB } from '../../src/data/catalog';
+import { ALL_CARDS, CARD_DB } from '../../src/data/catalog';
 import { decodeDeck, deckCodeErrorMessage, encodeDeck } from '../../src/meta/DeckCode';
 import { validateDeck } from '../../src/meta/DeckStorage';
 import { grantDeckCards } from '../../src/meta/Economy';
@@ -35,9 +35,12 @@ describe('deck codes', () => {
   });
 
   it('has a collision-free hash table for the released catalog', () => {
-    const cards = Object.keys(CARD_DB);
-
-    expect(decodeDeck(encodeDeck([cards[0]]), cards)).toEqual({ ok: true, cards: [cards[0]] });
+    // Every collectible id, one at a time: a hash collision decodes as some
+    // OTHER card, which a single-card round trip catches immediately.
+    for (const card of ALL_CARDS) {
+      if (card.token) continue;
+      expect(decodeDeck(encodeDeck([card.id]), CARD_IDS), card.id).toEqual({ ok: true, cards: [card.id] });
+    }
   });
 
   it('keeps importing legacy DBD1 codes', () => {

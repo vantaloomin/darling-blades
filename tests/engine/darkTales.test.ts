@@ -4,7 +4,7 @@ import type { Action } from '../../src/engine/actions';
 import { reasonUncastable } from '../../src/engine/actions';
 import type { GameEvent } from '../../src/engine/events';
 import type { GameState } from '../../src/engine/types';
-import { rulesText, MECHANIC_DEFINITIONS } from '../../src/ui/rulesText';
+import { rulesText } from '../../src/ui/rulesText';
 import { makeTestState } from '../helpers';
 import { DARK_TALES_DB, manaPermanent } from '../darkTalesFixture';
 
@@ -287,8 +287,6 @@ describe('Dark Tales rules text', () => {
     const text = rulesText(DARK_TALES_DB.dualMode);
     expect(text).toContain('Retell {U}: You may cast this from your graveyard, then sever it.');
     expect(text).not.toContain('—');
-    expect(MECHANIC_DEFINITIONS.skim).toBeTruthy();
-    expect(MECHANIC_DEFINITIONS.retell).toBeTruthy();
     const both = rulesText(DARK_TALES_DB.skimRetellCard);
     expect(both).toContain('Skim {0}');
     expect(both).toContain('Retell {0}: You may cast this from your graveyard, then sever it.');

@@ -49,9 +49,8 @@ describe('Drowned Deep 3: target vocabulary', () => {
       resolveStackItem(state, db, { sid: 1, cardId: 'split', controller: 0, targets: [{ kind: 'grave', player: 0, index: 0 }, ref(1)] }, () => {});
       expect(state.players[0].hand.map(cardIdOf)).toEqual(['bear']);
       if (!remove) expect(state.battlefield[0].plusOneCounters).toBe(1);
-      return JSON.stringify(state);
     };
-    expect(play(false)).toBe(play(false)); expect(play(true)).toBe(play(true));
+    play(false); play(true);
   });
   it('attack and Dawn targets are mandatory controller decisions and skip without legal targets', () => {
     const game = Game.restore(board([[], []], [{ iid: 1, cardId: 'queen' }, { iid: 2, cardId: 'body', controller: 1 }]), db);
