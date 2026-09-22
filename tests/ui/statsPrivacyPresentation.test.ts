@@ -518,10 +518,15 @@ describe('the Settings row layout', () => {
     expect(STATS_SETTINGS_ROW.noteTopY).toBeGreaterThanOrEqual(STATS_SETTINGS_ROW.rowY + theme.control.heightSm / 2);
   });
 
-  it('leaves the Gameplay column and the "Your turn" section exactly where they were', () => {
-    expect(SETTINGS_PANEL_BAND.bottom).toBe(594);
-    expect(yourTurnRowY(0).row).toBe(456);
-    expect(yourTurnRowY(1).row).toBe(520);
+  it('reads the same rhythm as the "Your turn" section above it', () => {
+    // The gap from the last "Your turn" caption to the Privacy heading is the
+    // between-groups gap the whole scene uses, not a number of its own.
+    const lastNote = yourTurnRowY(YOUR_TURN_SECTION.rowCount - 1).note;
+    const captionBottom = lastNote + (theme.type.caption + 4) / 2;
+    expect(STATS_SETTINGS_ROW.sectionTitleY - theme.type.h2 / 2 - captionBottom).toBeGreaterThanOrEqual(16);
+    expect(STATS_SETTINGS_ROW.rowY - STATS_SETTINGS_ROW.sectionTitleY).toBe(
+      yourTurnRowY(0).row - YOUR_TURN_SECTION.headingY,
+    );
   });
 
   it('places the panel button clear of the toggle at every plausible width', () => {
@@ -548,14 +553,12 @@ describe('the Settings row layout', () => {
     );
   });
 
-  it('keeps the moved Reset block under the Gameplay column and off the footer', () => {
-    // It moved 600px right, same rows, when the left column grew.
-    expect(SETTINGS_RESET_BLOCK.labelX).toBe(710);
-    expect(SETTINGS_RESET_BLOCK.rowY).toBe(620);
-    expect(SETTINGS_RESET_BLOCK.captionY).toBe(650);
-    expect(SETTINGS_RESET_BLOCK.rowY - HIT_HALF).toBeGreaterThanOrEqual(SETTINGS_PANEL_BAND.bottom);
-    // Clear of the "Check for updates" control's 44px band at y 690.
-    expect(SETTINGS_RESET_BLOCK.captionY + theme.type.caption).toBeLessThan(690 - HIT_HALF);
+  it('keeps the Reset row inside the Gameplay panel, level with the Privacy row', () => {
+    // Both columns end in a one-row section under its own heading, so the two
+    // last rows share a y and the two panels read as a pair.
+    expect(SETTINGS_RESET_BLOCK.rowY).toBe(STATS_SETTINGS_ROW.rowY);
+    expect(SETTINGS_RESET_BLOCK.captionY + theme.type.caption).toBeLessThanOrEqual(SETTINGS_PANEL_BAND.bottom - 16);
+    expect(SETTINGS_RESET_BLOCK.rowY - HIT_HALF).toBeGreaterThan(SETTINGS_PANEL_BAND.top);
   });
 });
 

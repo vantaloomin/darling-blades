@@ -11,11 +11,21 @@ import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { createStatsPrivacyPanel } from '../ui/StatsPrivacyPanel';
 import {
+  ANIM_CHIP_WIDTH,
+  ANIM_CHIP_X,
   NO_BLOCK_CHIPS,
+  RENDER_CHIP_WIDTH,
+  RENDER_CHIP_X,
+  RIGHT_TOGGLE_X,
+  SETTINGS_COLUMNS,
+  SETTINGS_HEADER_ACTION,
+  SETTINGS_LEFT,
   SETTINGS_LEFT_PANEL,
+  SETTINGS_LEFT_SECTIONS,
+  SETTINGS_PANELS,
   SETTINGS_RESET_BLOCK,
-  yourTurnRowY,
-  YOUR_TURN_SECTION,
+  SETTINGS_RIGHT,
+  SETTINGS_RIGHT_SECTIONS,
 } from '../ui/settingsPresentation';
 import {
   STATS_PANEL_BUTTON_LABEL,
@@ -34,26 +44,14 @@ import { VERSION_LABEL, checkForUpdate } from '../version';
 
 const SEGMENTS = 10;
 const STEP = 0.1;
-const LEFT_LABEL_X = 110;
-const LEFT_CONTROL_X = 420;
-const RIGHT_LABEL_X = 710; // 40px inset from the panel edge at 670, mirroring Audio's 70→110
-const RIGHT_CONTROL_X = 1010;
-const ROW0_Y = 190;
-// Per-row y accumulation: plain rows advance ROW_PITCH; rows that carry a
-// caption note() advance ROW_PITCH + NOTE_EXTRA so the caption never crowds
-// the next row and the last Gameplay row stays inside its panel
-// (user-reported overflow 2026-07-12). Keep every pitch ≥56px (touch-safe).
-const ROW_PITCH = 64;
-const NOTE_EXTRA = 28;
-const rowYs = (notes: readonly boolean[]): number[] => {
-  const ys: number[] = [];
-  let y = ROW0_Y;
-  for (const hasNote of notes) {
-    ys.push(y);
-    y += ROW_PITCH + (hasNote ? NOTE_EXTRA : 0);
-  }
-  return ys;
-};
+// Every position below comes from src/ui/settingsPresentation.ts: one rhythm
+// for both columns, derived from the design-system tokens. Nothing in this
+// file carries a coordinate of its own any more.
+const LEFT_LABEL_X = SETTINGS_COLUMNS.left.labelX;
+const LEFT_CONTROL_X = SETTINGS_COLUMNS.left.controlX;
+const RIGHT_LABEL_X = SETTINGS_COLUMNS.right.labelX;
+const L = SETTINGS_LEFT;
+const R = SETTINGS_RIGHT;
 
 const ANIM_CHIPS: { value: AnimationLevel; label: string }[] = [
   { value: 'full', label: 'Full' },
@@ -116,24 +114,20 @@ export class SettingsScene extends Phaser.Scene {
     this.trackObject(backButton(this, 'Menu', () => this.scene.start('MainMenu')));
     registerSceneBackNavigation(this, () => this.scene.start('MainMenu'));
 
-    // The left column reaches the title-safe bottom so the Privacy section fits
-    // under "Your turn"; the Gameplay column is unchanged, and so is every row
-    // in either of them.
+    // Two equal panels to the title-safe bottom; every heading and row in each
+    // comes from the shared rhythm (settingsPresentation.ts), which is what
+    // keeps the isolation space between sections the same on both sides.
     panel(this, SETTINGS_LEFT_PANEL.x, SETTINGS_LEFT_PANEL.y, SETTINGS_LEFT_PANEL.width, SETTINGS_LEFT_PANEL.height);
-    panel(this, 670, 124, 540, 470);
-    this.sectionTitle(110, 150, 'Audio');
-    this.sectionTitle(710, 150, 'Gameplay');
-    // Audio: Sound effects · Master volume (note) · Music, then Your turn:
-    // Instant cast (note) · Confirm land drop (note), then Privacy:
-    // Share anonymous play stats (note) with the "What is sent" panel.
-    // Gameplay: Animations (note) · Render size (note) · Auto-skip · Confirm · Keyword reminders.
-    const leftRows = rowYs([false, true, false]);
-    const rightRows = rowYs([true, true, false, false, false, false]);
-    const leftY = (row: number): number => leftRows[row];
-    const rightY = (row: number): number => rightRows[row];
+    panel(this, SETTINGS_PANELS.right.x, SETTINGS_PANELS.top, SETTINGS_PANELS.right.width, SETTINGS_PANELS.bottom - SETTINGS_PANELS.top);
+    for (const section of SETTINGS_LEFT_SECTIONS) {
+      if (section.key !== 'privacy') this.sectionTitle(LEFT_LABEL_X, L.headings[section.key], section.title);
+    }
+    for (const section of SETTINGS_RIGHT_SECTIONS) {
+      this.sectionTitle(RIGHT_LABEL_X, R.headings[section.key], section.title);
+    }
 
-    this.rowLabel(LEFT_LABEL_X, leftY(0), 'Sound effects');
-    this.sfxToggle = this.toggle(LEFT_CONTROL_X, leftY(0), () => {
+    this.rowLabel(LEFT_LABEL_X, L.rows.sfx.row, 'Sound effects');
+    this.sfxToggle = this.toggle(LEFT_CONTROL_X, L.rows.sfx.row, () => {
       const settings = Services.save.data.settings;
       settings.sfxOn = !settings.sfxOn;
       Services.save.touch();
@@ -141,9 +135,9 @@ export class SettingsScene extends Phaser.Scene {
       if (settings.sfxOn) Sfx.play('click');
     });
 
-    this.rowLabel(LEFT_LABEL_X, leftY(1), 'Master volume');
+    this.rowLabel(LEFT_LABEL_X, L.rows.volume.row, 'Master volume');
     this.track(
-      themedButton(this, LEFT_CONTROL_X - 108, leftY(1), '−', {
+      themedButton(this, LEFT_CONTROL_X - 108, L.rows.volume.row, '−', {
         variant: 'ghost',
         size: 'sm',
         minWidth: 44,
@@ -151,33 +145,31 @@ export class SettingsScene extends Phaser.Scene {
       }),
     );
     this.volumeBar = this.add
-      .text(LEFT_CONTROL_X - 70, leftY(1), '', {
+      .text(LEFT_CONTROL_X - 70, L.rows.volume.row, '', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.label}px`,
         color: theme.colors.body,
       })
       .setOrigin(0, 0.5);
     this.track(
-      themedButton(this, LEFT_CONTROL_X + 108, leftY(1), '+', {
+      themedButton(this, LEFT_CONTROL_X + 108, L.rows.volume.row, '+', {
         variant: 'ghost',
         size: 'sm',
         minWidth: 44,
         onTap: () => this.stepVolume(STEP),
       }),
     );
-    this.note(LEFT_LABEL_X, leftY(1) + 28, 'Volume is the master level; music follows it too.');
+    this.note(LEFT_LABEL_X, L.rows.volume.note, 'Volume is the master level; music follows it too.');
 
-    this.rowLabel(LEFT_LABEL_X, leftY(2), 'Music');
-    this.musicToggle = this.toggle(LEFT_CONTROL_X, leftY(2), () => {
+    this.rowLabel(LEFT_LABEL_X, L.rows.music.row, 'Music');
+    this.musicToggle = this.toggle(LEFT_CONTROL_X, L.rows.music.row, () => {
       Music.setEnabled(!Music.enabled);
       this.refreshToggles();
     });
 
-    // The Audio column has spare rows; Gameplay's six already fill its panel.
     // Both rows here decide how a turn's actions get committed, which is why
     // the section is "Your turn" rather than the older Casting-only heading.
-    this.sectionTitle(110, YOUR_TURN_SECTION.headingY, 'Your turn');
-    const instant = yourTurnRowY(0);
+    const instant = L.rows.instantCast;
     this.rowLabel(LEFT_LABEL_X, instant.row, 'Instant cast');
     this.instantToggle = this.toggle(LEFT_CONTROL_X, instant.row, () => {
       const settings = Services.save.data.settings;
@@ -191,7 +183,7 @@ export class SettingsScene extends Phaser.Scene {
       'Casts spells on a single click instead of picking the card up.',
     );
 
-    const landDrop = yourTurnRowY(1);
+    const landDrop = L.rows.landDrop;
     this.rowLabel(LEFT_LABEL_X, landDrop.row, 'Confirm land drop');
     this.landDropToggle = this.toggle(LEFT_CONTROL_X, landDrop.row, () => {
       const settings = Services.save.data.settings;
@@ -205,14 +197,13 @@ export class SettingsScene extends Phaser.Scene {
       'Ending your turn with a land still unplayed takes a second press.',
     );
 
-    this.rowLabel(RIGHT_LABEL_X, rightY(0), 'Animations');
-    let ax = RIGHT_CONTROL_X - 130;
-    for (const { value, label } of ANIM_CHIPS) {
+    this.rowLabel(RIGHT_LABEL_X, R.rows.animations.row, 'Animations');
+    ANIM_CHIPS.forEach(({ value, label }, i) => {
       const button = this.track(
-        themedButton(this, ax, rightY(0), label, {
+        themedButton(this, ANIM_CHIP_X[i], R.rows.animations.row, label, {
           variant: 'ghost',
           size: 'sm',
-          minWidth: 82,
+          minWidth: ANIM_CHIP_WIDTH,
           onTap: () => {
             Services.save.data.settings.animations = value;
             Services.save.touch();
@@ -221,59 +212,56 @@ export class SettingsScene extends Phaser.Scene {
         }),
       );
       this.animChips.set(value, button);
-      ax += 90;
-    }
-    this.note(RIGHT_LABEL_X, rightY(0) + 28, 'Effect changes apply when you next change screens.');
+    });
+    this.note(RIGHT_LABEL_X, R.rows.animations.note, 'Effect changes apply when you next change screens.');
 
     const lite = qualityTier() === 'lite';
-    this.rowLabel(RIGHT_LABEL_X, rightY(1), 'Render size');
-    let rx = RIGHT_CONTROL_X - 126;
-    for (const { value, label, heavy } of RENDER_CHIPS) {
+    this.rowLabel(RIGHT_LABEL_X, R.rows.renderSize.row, 'Render size');
+    RENDER_CHIPS.forEach(({ value, label, heavy }, i) => {
       const button = this.track(
-        themedButton(this, rx, rightY(1), label, {
+        themedButton(this, RENDER_CHIP_X[i], R.rows.renderSize.row, label, {
           variant: 'ghost',
           size: 'sm',
-          minWidth: 84,
+          minWidth: RENDER_CHIP_WIDTH,
           enabled: !(lite && heavy),
           onTap: () => this.pickRenderScale(value),
         }),
       );
       this.renderChips.set(value, button);
-      rx += 92;
-    }
+    });
     this.note(
       RIGHT_LABEL_X,
-      rightY(1) + 28,
+      R.rows.renderSize.note,
       lite
         ? 'High resolutions are disabled on this device.'
         : 'Resizes the desktop window and reloads to apply.',
     );
 
-    this.rowLabel(RIGHT_LABEL_X, rightY(2), 'Auto-skip forced turns');
-    this.skipToggle = this.toggle(RIGHT_CONTROL_X, rightY(2), () => {
+    this.rowLabel(RIGHT_LABEL_X, R.rows.autoSkip.row, 'Auto-skip forced turns');
+    this.skipToggle = this.toggle(RIGHT_TOGGLE_X, R.rows.autoSkip.row, () => {
       const settings = Services.save.data.settings;
       settings.autoSkip = !settings.autoSkip;
       Services.save.touch();
       this.refreshToggles();
     });
-    this.rowLabel(RIGHT_LABEL_X, rightY(3), 'Confirm destructive actions');
-    this.confirmToggle = this.toggle(RIGHT_CONTROL_X, rightY(3), () => {
+    this.rowLabel(RIGHT_LABEL_X, R.rows.confirmDestructive.row, 'Confirm destructive actions');
+    this.confirmToggle = this.toggle(RIGHT_TOGGLE_X, R.rows.confirmDestructive.row, () => {
       const settings = Services.save.data.settings;
       settings.confirmDestructive = !settings.confirmDestructive;
       Services.save.touch();
       this.refreshToggles();
     });
-    this.rowLabel(RIGHT_LABEL_X, rightY(4), 'Keyword reminders');
-    this.keywordToggle = this.toggle(RIGHT_CONTROL_X, rightY(4), () => {
+    this.rowLabel(RIGHT_LABEL_X, R.rows.keywordReminders.row, 'Keyword reminders');
+    this.keywordToggle = this.toggle(RIGHT_TOGGLE_X, R.rows.keywordReminders.row, () => {
       const settings = Services.save.data.settings;
       settings.keywordReminders = !settings.keywordReminders;
       Services.save.touch();
       this.refreshToggles();
     });
-    this.rowLabel(RIGHT_LABEL_X, rightY(5), 'Confirm no-block');
+    this.rowLabel(RIGHT_LABEL_X, R.rows.noBlock.row, 'Confirm no-block');
     for (const { value, label, minWidth, x } of NO_BLOCK_CHIPS) {
       const button = this.track(
-        themedButton(this, x, rightY(5), label, {
+        themedButton(this, x, R.rows.noBlock.row, label, {
           variant: 'ghost',
           size: 'sm',
           minWidth,
@@ -384,25 +372,29 @@ export class SettingsScene extends Phaser.Scene {
     });
   }
 
+  /**
+   * The right column's last row, under its own "Save data" heading. The row
+   * label names the setting and the button names the action, the way every
+   * other row here reads; the armed state still spells out the consequence.
+   * Right-aligned to the column's control edge like the toggles above it,
+   * measure-then-place because the armed label is wider than the resting one.
+   */
   private buildReset(): void {
-    this.add
-      .text(SETTINGS_RESET_BLOCK.labelX, SETTINGS_RESET_BLOCK.rowY, 'Reset save', {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.body}px`,
-        color: theme.colors.danger,
-      })
-      .setOrigin(0, 0.5);
+    this.rowLabel(SETTINGS_RESET_BLOCK.labelX, SETTINGS_RESET_BLOCK.rowY, 'Reset save');
     const reset = this.track(
-      themedButton(this, SETTINGS_RESET_BLOCK.buttonX, SETTINGS_RESET_BLOCK.rowY, 'Reset save', {
+      themedButton(this, SETTINGS_RESET_BLOCK.buttonRight, SETTINGS_RESET_BLOCK.rowY, 'Reset', {
         variant: 'danger',
         minWidth: SETTINGS_RESET_BLOCK.buttonMinWidth,
         onTap: () => {
           if (reset.label.text !== 'Tap again to erase everything') {
             reset.setLabel('Tap again to erase everything');
             reset.setVariant('danger');
+            reset.container.setX(SETTINGS_RESET_BLOCK.buttonRight - reset.getMeasuredSize().hit.width / 2);
             this.time.delayedCall(4000, () => {
-              if (reset.container.active && reset.label.text === 'Tap again to erase everything')
-                reset.setLabel('Reset save');
+              if (reset.container.active && reset.label.text === 'Tap again to erase everything') {
+                reset.setLabel('Reset');
+                reset.container.setX(SETTINGS_RESET_BLOCK.buttonRight - reset.getMeasuredSize().hit.width / 2);
+              }
             });
             return;
           }
@@ -411,17 +403,19 @@ export class SettingsScene extends Phaser.Scene {
         },
       }),
     );
-    this.add.text(
+    reset.container.setX(SETTINGS_RESET_BLOCK.buttonRight - reset.getMeasuredSize().hit.width / 2);
+    this.note(
       SETTINGS_RESET_BLOCK.labelX,
       SETTINGS_RESET_BLOCK.captionY,
       'Erases your collection, decks, gold, and progress. Cannot be undone.',
-      {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.caption}px`,
-        color: theme.colors.muted,
-      },
     );
   }
+  /**
+   * The version stays in the corner outside the title-safe frame (expendable
+   * by the design system's rule); the update check is a control, so it sits
+   * in the header at the right, mirroring the back button, with its status
+   * line under it.
+   */
   private buildVersionFooter(): void {
     this.add
       .text(14, 702, VERSION_LABEL, {
@@ -431,16 +425,16 @@ export class SettingsScene extends Phaser.Scene {
       })
       .setOrigin(0, 0.5);
     const status = this.add
-      .text(640, 702, '', {
+      .text(SETTINGS_HEADER_ACTION.right, SETTINGS_HEADER_ACTION.statusY, '', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         color: theme.colors.muted,
       })
-      .setOrigin(0.5);
-    this.track(themedButton(this, 1180, 690, 'Check for updates', {
+      .setOrigin(1, 0.5);
+    const check = this.track(themedButton(this, SETTINGS_HEADER_ACTION.right, SETTINGS_HEADER_ACTION.y, 'Check for updates', {
       variant: 'ghost',
       size: 'sm',
-      minWidth: 150,
+      minWidth: SETTINGS_HEADER_ACTION.minWidth,
       onTap: () => {
         status.setText('Checking…').setColor(theme.colors.muted);
         void checkForUpdate().then((result) => {
@@ -457,6 +451,7 @@ export class SettingsScene extends Phaser.Scene {
         });
       },
     }));
+    check.container.setX(SETTINGS_HEADER_ACTION.right - check.getMeasuredSize().hit.width / 2);
   }
   private stepVolume(delta: number): void {
     Sfx.setVolume(Sfx.volume + delta);

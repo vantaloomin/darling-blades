@@ -28,6 +28,7 @@
 
 import type { CardsField, DuelField, HeartbeatField } from '../meta/playSignals';
 import { theme } from './theme';
+import { SETTINGS_LEFT } from './settingsPresentation';
 
 // ---------------------------------------------------------------------------
 // Settings row
@@ -541,19 +542,18 @@ export function statsNoticeFooterCenters(
 // ---------------------------------------------------------------------------
 
 /**
- * The Privacy section in the Settings scene's LEFT column, which is where new
- * rows land (the Gameplay column has been full at six rows since v34). The
- * numbers are design-space y positions in the same rhythm the rest of the
- * scene uses: a 20px section heading, a row 42px below it, and the caption 24px
- * under the row.
+ * The Privacy section in the Settings scene's LEFT column. Its vertical
+ * positions come from the scene's shared rhythm (`SETTINGS_LEFT` in
+ * settingsPresentation.ts), so it sits under "Your turn" with the same
+ * isolation space every other section gets.
  */
 export const STATS_SETTINGS_ROW = {
   /** Section heading baseline (origin 0, 0.5). */
-  sectionTitleY: 576,
+  sectionTitleY: SETTINGS_LEFT.headings.privacy,
   /** The row's label and controls (origin 0, 0.5 / centred). */
-  rowY: 618,
+  rowY: SETTINGS_LEFT.rows.stats.row,
   /** TOP of the caption, which wraps to two lines. */
-  noteTopY: 642,
+  noteTopY: SETTINGS_LEFT.rows.stats.noteTop,
   /** Wrap width for the caption, from `labelX` to `buttonRightX`. */
   noteWrapWidth: 460,
   labelX: 110,
