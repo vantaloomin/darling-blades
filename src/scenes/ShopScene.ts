@@ -739,7 +739,7 @@ export class ShopScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    this.goldBadge = goldBadge(this, width - 30, 30, { flashOnChange: true });
+    this.goldBadge = goldBadge(this, width - 30, theme.design.headerCenterY, { flashOnChange: true });
     this.refreshGold();
 
     this.buildTabBar();

@@ -28,7 +28,7 @@ import { readSignalsGateInput, signalsAllowed } from '../net/signalsGate';
 import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { createStatsNoticeDialog } from '../ui/StatsNoticeDialog';
-import { MAIN_MENU_ITEMS, MAIN_MENU_X, mainMenuButtonY } from '../ui/mainMenuPresentation';
+import { mainMenuButtonY, mainMenuCornerY, MAIN_MENU_CORNER, MAIN_MENU_ITEMS, MAIN_MENU_X } from '../ui/mainMenuPresentation';
 import {
   createStatsNoticeController,
   menuArrivalSteps,
@@ -107,14 +107,14 @@ export class MainMenuScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    goldBadge(this, width - 30, 30, { getValue: () => Services.save.data.gold });
+    goldBadge(this, MAIN_MENU_CORNER.badgeX, mainMenuCornerY(0), { getValue: () => Services.save.data.gold });
 
     // Settings entry: a gear under the gold counter (the 8-row menu list is
     // full). The gold text above is non-interactive, so the 90px inflated hit
     // rect has no interactive neighbor to collide with. It joins menuItems so
     // the starter-picker ModalGuard disables it too. (The old VolumeControl
     // widget is gone — SettingsScene owns all audio controls now.)
-    const gear = themedButton(this, width - 90, 82, '⚙ Settings', {
+    const gear = themedButton(this, MAIN_MENU_CORNER.rightX, mainMenuCornerY(1), '⚙ Settings', {
       variant: 'ghost', size: 'sm', minWidth: 130, onTap: () => this.scene.start('Settings'),
     });
     this.menuItems.push(gear.inputZone);
@@ -125,8 +125,8 @@ export class MainMenuScene extends Phaser.Scene {
     // The three learning-corner buttons share a centre and a width so the
     // cluster reads as one column; Profile was 120 wide at x 90 against the
     // other two at 150 wide and x 100, so it sat narrower and 5px left.
-    const profile = themedButton(this, 100, 30, '👤 Profile', {
-      variant: 'ghost', size: 'sm', minWidth: 150, onTap: () => this.scene.start('Profile'),
+    const profile = themedButton(this, MAIN_MENU_CORNER.leftX, mainMenuCornerY(0), '👤 Profile', {
+      variant: 'ghost', size: 'sm', minWidth: MAIN_MENU_CORNER.minWidth, onTap: () => this.scene.start('Profile'),
     });
     this.menuItems.push(profile.inputZone);
 
@@ -134,16 +134,16 @@ export class MainMenuScene extends Phaser.Scene {
     // Profile, mirroring ⚙ Settings on the right). Makes skipping reversible
     // (docs/plan-road-to-1.0.md Feature 1). Joins menuItems so the starter
     // picker's ModalGuard deadens it too.
-    const howto = themedButton(this, 100, 82, '❔ How to Play', {
-      variant: 'ghost', size: 'sm', minWidth: 150, onTap: () => this.startTutorial(),
+    const howto = themedButton(this, MAIN_MENU_CORNER.leftX, mainMenuCornerY(1), '❔ How to Play', {
+      variant: 'ghost', size: 'sm', minWidth: MAIN_MENU_CORNER.minWidth, onTap: () => this.startTutorial(),
     });
     this.menuItems.push(howto.inputZone);
 
     // Reference glossary, kept beside the tutorial so players can learn away
     // from a live duel. It joins the guard-managed menu targets like every
     // other learning-corner control.
-    const glossary = themedButton(this, 100, 124, '📖 Glossary', {
-      variant: 'ghost', size: 'sm', minWidth: 150, onTap: () => this.scene.start('Glossary'),
+    const glossary = themedButton(this, MAIN_MENU_CORNER.leftX, mainMenuCornerY(2), '📖 Glossary', {
+      variant: 'ghost', size: 'sm', minWidth: MAIN_MENU_CORNER.minWidth, onTap: () => this.scene.start('Glossary'),
     });
     this.menuItems.push(glossary.inputZone);
 

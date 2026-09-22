@@ -354,7 +354,7 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
       .filter((card) => isBasic(CARD_DB, card.id))
       .sort((a, b) => a.name.localeCompare(b.name))
       .forEach((card, i) =>
-        themedButton(this, 110 + i * 130, 642, `+ ${card.name}`, {
+        themedButton(this, 110 + i * 130, theme.design.footerCenterY, `+ ${card.name}`, {
           variant: 'ghost',
           size: 'sm',
           minWidth: 118,
@@ -367,37 +367,50 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
           },
         }),
       );
-    themedButton(this, 760, 642, 'Auto Build', {
-      variant: 'ghost',
-      minWidth: 120,
-      onTap: () => {
-        this.deck = buildLimitedDeck(CARD_DB, run.pool);
-        this.selectedDuals = limitedDraftDuals(CARD_DB, run.pool).slice(0, MAX_DUAL_LANDS);
-        this.selectedId = this.deck[0] ?? null;
-        this.persistAndRedraw(run);
-      },
-    });
-    themedButton(this, 760, 680, 'Clear Warchest', {
-      variant: 'ghost',
-      minWidth: 120,
-      onTap: () => {
-        this.selectedDuals = [];
-        this.persistAndRedraw(run);
-      },
-    });
-    themedButton(this, 900, 642, 'Clear', {
-      variant: 'ghost',
-      minWidth: 100,
-      onTap: () => {
-        this.deck = [];
-    this.persistAndRedraw(run);
-      },
-    });
-    themedButton(this, 1050, 642, 'Start Match', {
-      variant: 'primary',
-      minWidth: 140,
-      onTap: () => this.startMatch(run),
-    });
+    // One footer row on the shared footer line (theme.design.footerCenterY),
+    // the action cluster right-aligned to the title-safe edge and placed from
+    // measured widths. "Clear Warchest" used to sit on a second row at y 680,
+    // whose hit box ran to 702, past the frame (1.8 QC day, 2026-09-21).
+    const footerY = theme.design.footerCenterY;
+    const cluster = [
+      themedButton(this, 0, footerY, 'Auto Build', {
+        variant: 'ghost',
+        minWidth: 120,
+        onTap: () => {
+          this.deck = buildLimitedDeck(CARD_DB, run.pool);
+          this.selectedDuals = limitedDraftDuals(CARD_DB, run.pool).slice(0, MAX_DUAL_LANDS);
+          this.selectedId = this.deck[0] ?? null;
+          this.persistAndRedraw(run);
+        },
+      }),
+      themedButton(this, 0, footerY, 'Clear Warchest', {
+        variant: 'ghost',
+        minWidth: 120,
+        onTap: () => {
+          this.selectedDuals = [];
+          this.persistAndRedraw(run);
+        },
+      }),
+      themedButton(this, 0, footerY, 'Clear', {
+        variant: 'ghost',
+        minWidth: 100,
+        onTap: () => {
+          this.deck = [];
+          this.persistAndRedraw(run);
+        },
+      }),
+      themedButton(this, 0, footerY, 'Start Match', {
+        variant: 'primary',
+        minWidth: 140,
+        onTap: () => this.startMatch(run),
+      }),
+    ];
+    let edge = theme.design.safeRight;
+    for (let i = cluster.length - 1; i >= 0; i--) {
+      const hitWidth = cluster[i].getMeasuredSize().hit.width;
+      cluster[i].container.setX(edge - hitWidth / 2);
+      edge -= hitWidth + theme.space(2);
+    }
   }
 
   private leaveDraft(): void {
