@@ -17,6 +17,7 @@ import Phaser from 'phaser';
 import { SIGNAL_FIELDS } from '../meta/playSignals';
 import { scrollOffsetByDelta } from './layout';
 import type { ModalGuard } from './Modal';
+import { openExternalPage } from './openExternalPage';
 import {
   STATS_CARDS_EXTRA_LINE,
   STATS_CARDS_FIELD_LINES,
@@ -57,23 +58,6 @@ const COLUMNS: readonly StatsPanelColumn[] = [
     extra: STATS_CARDS_EXTRA_LINE,
   },
 ];
-
-/**
- * Open the privacy page beside the game. Relative, so it resolves under the
- * Pages project path and inside the packaged desktop bundle alike.
- *
- * A webview that refuses to open a second window (the Tauri case is unverified
- * on this branch) leaves the game exactly as it was: no navigation away from a
- * live session, and no throw into a tap handler.
- */
-function openPrivacyPage(): void {
-  try {
-    if (typeof window === 'undefined' || typeof window.open !== 'function') return;
-    window.open(STATS_PRIVACY_LINK_HREF, '_blank', 'noopener,noreferrer');
-  } catch {
-    /* no second window available: the panel's own text remains the disclosure */
-  }
-}
 
 /**
  * Build the panel. The caller owns the guard and the list of controls beneath
@@ -311,7 +295,7 @@ export function createStatsPrivacyPanel(
     footerTrack.x + linkWidth / 2,
     footerTrack.y + footerTrack.height / 2,
     STATS_PRIVACY_LINK_LABEL,
-    { variant: 'ghost', minWidth: linkWidth, onTap: () => openPrivacyPage() },
+    { variant: 'ghost', minWidth: linkWidth, onTap: () => openExternalPage(STATS_PRIVACY_LINK_HREF) },
   );
   container.add(link.container);
   shell.interactiveChildren.push(link.inputZone);

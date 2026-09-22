@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ui/themeWidgets.ts, src/ui/modalDismissPresentation.ts, src/ui/Toast.ts, src/ui/toastQueue.ts, src/ui/StatsPrivacyPanel.ts, src/ui/StatsNoticeDialog.ts, src/ui/statsPrivacyPresentation.ts, src/ui/navigation.ts, src/ui/deckBuilderHelpers.ts, src/ui/Dropdown.ts, src/ui/CardView.ts, src/ui/ManaText.ts, src/ui/CardThumbCache.ts, src/ui/CardZoomPreview.ts, src/ui/ZoneContentsModal.ts, src/ui/inspectHotkeys.ts, src/ui/OverlayCoordinator.ts, src/ui/CoachMark.ts, src/ui/KeywordGlossaryPanel.ts, src/ui/KeywordIcons.ts, src/scenes/GlossaryScene.ts, src/ui/MultilineInput.ts, src/platform/gestures.ts, src/ui/layout.ts, src/ui/theme.ts · last-verified: 2026-09-19
+<!-- source-of-truth: src/ui/themeWidgets.ts, src/ui/modalDismissPresentation.ts, src/ui/Toast.ts, src/ui/toastQueue.ts, src/ui/StatsPrivacyPanel.ts, src/ui/StatsNoticeDialog.ts, src/ui/statsPrivacyPresentation.ts, src/ui/LegalPanel.ts, src/ui/legalPresentation.ts, src/ui/openExternalPage.ts, src/ui/navigation.ts, src/ui/deckBuilderHelpers.ts, src/ui/Dropdown.ts, src/ui/CardView.ts, src/ui/ManaText.ts, src/ui/CardThumbCache.ts, src/ui/CardZoomPreview.ts, src/ui/ZoneContentsModal.ts, src/ui/inspectHotkeys.ts, src/ui/OverlayCoordinator.ts, src/ui/CoachMark.ts, src/ui/KeywordGlossaryPanel.ts, src/ui/KeywordIcons.ts, src/scenes/GlossaryScene.ts, src/ui/MultilineInput.ts, src/platform/gestures.ts, src/ui/layout.ts, src/ui/theme.ts · last-verified: 2026-09-22
      If you change those files, update this doc or re-verify the date. -->
 
 # Reusable UI components
@@ -128,6 +128,23 @@ net, keeping 8px between inflated hit rects.
   drift from what the code sends. The presentation module takes the signals
   gate as an argument rather than importing `src/net`, which keeps `src/ui` off
   the harness-trap importer list.
+- `LegalPanel` (`createLegalPanel`) with `legalPresentation.ts`: the **Legal**
+  modal reached from the button in the Settings header, beside `Check for
+  updates`. One row per published legal page (privacy policy, terms of service,
+  notices), each with a one-line summary and a `Read` button. The panel keeps no
+  list of its own: it walks `LEGAL_ENTRIES`, whose hrefs are the relative
+  sibling pages `scripts/gen-legal-pages.ts` writes into `public/`, and whose
+  privacy href is imported from `statsPrivacyPresentation.ts` rather than
+  restated. A test holds that link set equal to the set of pages the build
+  writes, so a page nothing offers or a row pointing at nothing fails. Rows are
+  stacked from MEASURED text heights (`legalRowStack`), never a fixed pitch, and
+  no row is shorter than the touch-target band. Escape and the dim close it;
+  `ModalGuard` deadens the Settings controls beneath.
+- `openExternalPage` (`openExternalPage.ts`): the one guarded `window.open`,
+  shared by the Legal panel's `Read` buttons and the "What is sent" panel's
+  privacy link. Relative hrefs only, so they resolve on the Pages site and
+  inside the desktop bundle alike; a webview that refuses a second window
+  leaves the game exactly as it was, with no throw reaching a tap handler.
 - `modalShell` also participates in the scene-local modal stack used by
   `registerSceneBackNavigation`, so a modal opened after scene creation still
   wins the next ESC press. Its named dismissal preset determines whether the

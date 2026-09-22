@@ -7,6 +7,8 @@ import { readSignalsGateInput, signalsAllowed } from '../net/signalsGate';
 import { qualityTier } from '../platform/quality';
 import type { AnimationLevel } from '../platform/animPolicy';
 import type { RenderScaleSetting } from '../platform/renderScale';
+import { createLegalPanel } from '../ui/LegalPanel';
+import { LEGAL_BUTTON_LABEL } from '../ui/legalPresentation';
 import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { createStatsPrivacyPanel } from '../ui/StatsPrivacyPanel';
@@ -19,6 +21,7 @@ import {
   RIGHT_TOGGLE_X,
   SETTINGS_COLUMNS,
   SETTINGS_HEADER_ACTION,
+  SETTINGS_HEADER_LEGAL,
   SETTINGS_LEFT,
   SETTINGS_LEFT_PANEL,
   SETTINGS_LEFT_SECTIONS,
@@ -26,6 +29,7 @@ import {
   SETTINGS_RESET_BLOCK,
   SETTINGS_RIGHT,
   SETTINGS_RIGHT_SECTIONS,
+  settingsHeaderCenters,
 } from '../ui/settingsPresentation';
 import {
   STATS_PANEL_BUTTON_LABEL,
@@ -81,6 +85,7 @@ export class SettingsScene extends Phaser.Scene {
   private guardTargets: Phaser.GameObjects.GameObject[] = [];
   private guard = new ModalGuard();
   private statsPanel: ModalShell | null = null;
+  private legalPanel: ModalShell | null = null;
 
   constructor() {
     super('Settings');
@@ -93,6 +98,7 @@ export class SettingsScene extends Phaser.Scene {
     this.guardTargets = [];
     this.guard = new ModalGuard();
     this.statsPanel = null;
+    this.legalPanel = null;
     applyBackdrop(this, 'mainmenu', {
       dim: theme.graphics.dim,
       dimAlpha: 0.62,
@@ -372,6 +378,15 @@ export class SettingsScene extends Phaser.Scene {
     });
   }
 
+  private openLegalPanel(): void {
+    if (this.legalPanel) return;
+    const shell = createLegalPanel(this, this.guard, this.guardTargets);
+    this.legalPanel = shell;
+    shell.container.once('destroy', () => {
+      if (this.legalPanel === shell) this.legalPanel = null;
+    });
+  }
+
   /**
    * The right column's last row, under its own "Save data" heading. The row
    * label names the setting and the button names the action, the way every
@@ -414,7 +429,10 @@ export class SettingsScene extends Phaser.Scene {
    * The version stays in the corner outside the title-safe frame (expendable
    * by the design system's rule); the update check is a control, so it sits
    * in the header at the right, mirroring the back button, with its status
-   * line under it.
+   * line under it. "Legal" sits beside it, one isolation gap to its left:
+   * both are about the whole game rather than any one setting, and the pair is
+   * placed from its measured widths so neither label's font fallback can push
+   * it past the title-safe edge or into the centred title.
    */
   private buildVersionFooter(): void {
     this.add
@@ -451,7 +469,20 @@ export class SettingsScene extends Phaser.Scene {
         });
       },
     }));
-    check.container.setX(SETTINGS_HEADER_ACTION.right - check.getMeasuredSize().hit.width / 2);
+    const legal = this.track(
+      themedButton(this, SETTINGS_HEADER_ACTION.right, SETTINGS_HEADER_LEGAL.y, LEGAL_BUTTON_LABEL, {
+        variant: 'ghost',
+        size: 'sm',
+        minWidth: SETTINGS_HEADER_LEGAL.minWidth,
+        onTap: () => this.openLegalPanel(),
+      }),
+    );
+    const centers = settingsHeaderCenters(
+      legal.getMeasuredSize().hit.width,
+      check.getMeasuredSize().hit.width,
+    );
+    legal.container.setX(centers.legalX);
+    check.container.setX(centers.updateX);
   }
   private stepVolume(delta: number): void {
     Sfx.setVolume(Sfx.volume + delta);

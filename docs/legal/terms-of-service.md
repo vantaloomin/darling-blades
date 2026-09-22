@@ -1,4 +1,4 @@
-<!-- source-of-truth: LICENSE, README.md, docs/plan-telemetry-and-accounts.md, docs/legal/privacy-policy.md, docs/legal/notices.md · last-verified: 2026-09-15 · DRAFT terms of service as of 1.8 — not live, not legal advice -->
+<!-- source-of-truth: LICENSE, README.md, docs/plan-telemetry-and-accounts.md, docs/legal/privacy-policy.md, docs/legal/notices.md · last-verified: 2026-09-22 · DRAFT terms of service as of 1.8 — not live, not legal advice -->
 
 <!--
 DRAFT, written as of the 1.8 release. Not published. Not reviewed by a lawyer.
@@ -38,10 +38,6 @@ browser data is cleared, your device fails, or you uninstall the app, your
 save may be lost, and we cannot restore it. Save codes are the way to keep a
 backup.
 
-Darling Blades is single-player. You are welcome to edit your own save or use
-the game's development tools on your own device. We may not be able to help
-with a save that has been edited, and edited saves may stop working after an
-update.
 
 ## 4. Changes to the game
 
