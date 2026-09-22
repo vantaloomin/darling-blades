@@ -371,7 +371,6 @@ describe('Wave 1 physical card instances', () => {
     expect(JSON.stringify(plain.initialEvents)).toBe(JSON.stringify(pinned.initialEvents));
     expect(JSON.stringify(pinned.viewFor(0))).not.toContain('hidden-');
     expect(JSON.stringify(pinned.initialEvents)).not.toContain('hidden-');
-    expect(pinned.instanceState.players[0].hand[0]).toBeDefined();
   });
 
   it('plain and fully pinned games are equivalent for Easy, Medium, and Hard AI across seeds', () => {

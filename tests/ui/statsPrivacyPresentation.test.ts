@@ -486,16 +486,6 @@ describe('the stamp', () => {
     expect(order).toEqual([`version:${STATS_NOTICE_VERSION}`, 'touch', 'acknowledge']);
     expect(target.acknowledge).toHaveBeenCalledTimes(1);
   });
-
-  it('does nothing at all until it is called', () => {
-    // The dialog calls this from Continue and from nowhere else, so "the player
-    // left with it open" is simply "never called". Proven here as the absence
-    // of every effect.
-    const target = { setNoticeVersion: vi.fn(), touch: vi.fn(), acknowledge: vi.fn() };
-    expect(target.setNoticeVersion).not.toHaveBeenCalled();
-    expect(target.touch).not.toHaveBeenCalled();
-    expect(target.acknowledge).not.toHaveBeenCalled();
-  });
 });
 
 describe('the Settings row layout', () => {

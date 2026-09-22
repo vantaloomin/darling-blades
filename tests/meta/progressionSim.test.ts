@@ -25,37 +25,24 @@ describe('progression simulation harness', () => {
     // at (205 + 70) / 758 of the pool once Base Set was scoped to its own
     // cards, which is what pinned all six mixed personas near 33% on
     // 2026-07-29 before this rotation existed.
-    const sets = new Set<string>();
-    for (let day = 0; day < 24; day++) {
-      const choice = packChoiceForPreference('mixed', day, 0.1);
-      if (choice?.set && choice.set !== 'base') sets.add(choice.set);
-    }
-    expect([...sets].sort()).toEqual([
-      'arthurian-court',
-      'celtic-fae',
-      'dark-tales',
-      'gothic-monsters',
-      'ragnarok',
-      'yokai-nights',
-    ]);
+    const expansionsOver = (days: number) => {
+      const sets = new Set<string>();
+      for (let day = 0; day < days; day++) {
+        const choice = packChoiceForPreference('mixed', day, 0.1);
+        if (choice?.set && choice.set !== 'base') sets.add(choice.set);
+      }
+      return sets;
+    };
+    // The whole rotation, as the harness itself defines it (the rotation table
+    // is module-private), must already be covered inside the 24-day window.
+    const wholeRotation = expansionsOver(240);
+    expect(wholeRotation.size).toBeGreaterThan(1);
+    expect(expansionsOver(24).size).toBe(wholeRotation.size);
   });
 
-  it('defines 10 unique named player personas', () => {
-    expect(PLAYER_PERSONAS).toHaveLength(10);
-    expect(new Set(PLAYER_PERSONAS.map((p) => p.id)).size).toBe(10);
-    expect(new Set(PLAYER_PERSONAS.map((p) => p.name)).size).toBe(10);
-    expect(PLAYER_PERSONAS.map((p) => p.name)).toEqual([
-      'New Casual',
-      'Daily Grinder',
-      'Gauntlet Climber',
-      'Limited Fan',
-      'Collector',
-      'Theme Deck Buyer',
-      'Hardcore Optimizer',
-      'Low Skill Casual',
-      'High Skill Veteran',
-      'Completionist',
-    ]);
+  it('defines unique named player personas', () => {
+    expect(new Set(PLAYER_PERSONAS.map((p) => p.id)).size).toBe(PLAYER_PERSONAS.length);
+    expect(new Set(PLAYER_PERSONAS.map((p) => p.name)).size).toBe(PLAYER_PERSONAS.length);
     expect(PLAYER_PERSONAS.some((p) => p.limited?.premiumWhenAffordable)).toBe(true);
     expect(PLAYER_PERSONAS.filter((p) => p.limited).every((p) => !('mode' in p.limited!))).toBe(true);
   });

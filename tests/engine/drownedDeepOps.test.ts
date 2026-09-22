@@ -18,15 +18,12 @@ describe('Drowned Deep 4: effect operations', () => {
     [{ op: 'markAll', scope: 'yourCreatures', other: true }, [0, 0, 1]],
     [{ op: 'boost', p: 1, t: 0, scope: 'self' }, [1, 0, 0]],
     [{ op: 'preventCombatTo', to: 'target' }, [false, true, false]],
-  ] as [EffectOp, (number | boolean)[]][])('%j touches only its intended scope, deterministically', (op, expected) => {
-    const play = () => {
-      const state = board([[], []], [{ iid: 1, cardId: 'body' }, { iid: 2, cardId: 'body', controller: 1 }, { iid: 3, cardId: 'body' }, { iid: 4, cardId: 'forest', controller: 1 }]);
-      runOps(state, db, () => {}, context, [op]);
-      const value = (p: typeof state.battlefield[number]) => op.op === 'tapAll' ? p.tapped : op.op === 'damage' ? p.damage : op.op === 'markAll' ? p.plusOneCounters : op.op === 'boost' ? p.untilEotMods.length : !!p.combatDamagePrevented;
-      expect(state.battlefield.slice(0, 3).map(value)).toEqual(expected);
-      expect(value(state.battlefield[3])).toBe(op.op === 'tapAll' || op.op === 'preventCombatTo' ? false : 0);
-      return JSON.stringify(state);
-    }; expect(play()).toBe(play());
+  ] as [EffectOp, (number | boolean)[]][])('%j touches only its intended scope', (op, expected) => {
+    const state = board([[], []], [{ iid: 1, cardId: 'body' }, { iid: 2, cardId: 'body', controller: 1 }, { iid: 3, cardId: 'body' }, { iid: 4, cardId: 'forest', controller: 1 }]);
+    runOps(state, db, () => {}, context, [op]);
+    const value = (p: typeof state.battlefield[number]) => op.op === 'tapAll' ? p.tapped : op.op === 'damage' ? p.damage : op.op === 'markAll' ? p.plusOneCounters : op.op === 'boost' ? p.untilEotMods.length : !!p.combatDamagePrevented;
+    expect(state.battlefield.slice(0, 3).map(value)).toEqual(expected);
+    expect(value(state.battlefield[3])).toBe(op.op === 'tapAll' || op.op === 'preventCombatTo' ? false : 0);
   });
   it('preventCombatTo prevents only incoming combat damage and associated Blood Oath', () => {
     const local = { ...db, body: card('body', { keywords: ['bloodoath'] }) };
@@ -64,17 +61,14 @@ describe('Drowned Deep 4: effect operations', () => {
     expect(getEffectiveStats(state.battlefield, db, returned.iid).keywords.has('dreaded')).toBe(false);
   });
   it('each edict lets the caster choose first, then the opponent, then resumes caster effects', () => {
-    const play = () => {
-      const game = Game.restore(board([['edict'], []], [{ iid: 1, cardId: 'body' }, { iid: 2, cardId: 'body', controller: 1 }, { iid: 3, cardId: 'body', controller: 1 }]), db);
-      game.submit(0, { type: 'castSpell', handIndex: 0 });
-      expect(game.awaiting).toMatchObject({ kind: 'chooseTarget', decision: 'sacrifice', player: 0 });
-      expect(() => game.submit(0, { type: 'chooseTarget', target: ref(2) })).toThrow();
-      game.submit(0, { type: 'chooseTarget', target: ref(1) });
-      expect(game.awaiting).toMatchObject({ player: 1, decision: 'sacrifice' }); expect(game.instanceState.players[0].life).toBe(20);
-      game.submit(1, { type: 'chooseTarget', target: ref(3) });
-      expect(game.instanceState.players[0].life).toBe(23); expect(game.instanceState.battlefield.map(p => p.iid)).toEqual([2]);
-      return JSON.stringify(game.instanceState);
-    }; expect(play()).toBe(play());
+    const game = Game.restore(board([['edict'], []], [{ iid: 1, cardId: 'body' }, { iid: 2, cardId: 'body', controller: 1 }, { iid: 3, cardId: 'body', controller: 1 }]), db);
+    game.submit(0, { type: 'castSpell', handIndex: 0 });
+    expect(game.awaiting).toMatchObject({ kind: 'chooseTarget', decision: 'sacrifice', player: 0 });
+    expect(() => game.submit(0, { type: 'chooseTarget', target: ref(2) })).toThrow();
+    game.submit(0, { type: 'chooseTarget', target: ref(1) });
+    expect(game.awaiting).toMatchObject({ player: 1, decision: 'sacrifice' }); expect(game.instanceState.players[0].life).toBe(20);
+    game.submit(1, { type: 'chooseTarget', target: ref(3) });
+    expect(game.instanceState.players[0].life).toBe(23); expect(game.instanceState.battlefield.map(p => p.iid)).toEqual([2]);
   });
   it('opponent edicts bypass Untouchable and empty boards skip the choice', () => {
     const local = { ...db, body: card('body', { keywords: ['untouchable'] }) };

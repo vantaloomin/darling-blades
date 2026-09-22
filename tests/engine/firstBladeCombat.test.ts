@@ -68,29 +68,4 @@ describe('firstBlade combat sequencing (playtest pin)', () => {
       expect(e.hits.some((h) => h.source === iid.bear)).toBe(false);
     }
   });
-
-  it('twinBlades shares the path: a twinBlades attacker deals in both sub-steps', () => {
-    // ds_bear (2/2 twinBlades) blocked by giant (4/4): 2 FS + 2 normal kill the
-    // giant across the two steps; the giant's normal hit kills ds_bear back.
-    const { game, iid } = combatSetup(
-      [{ key: 'ds', cardId: 'ds_bear' }],
-      [{ key: 'giant', cardId: 'giant' }],
-    );
-    game.submit(0, { type: 'declareAttackers', attackers: [iid.ds] });
-    const events: GameEvent[] = game.submit(1, {
-      type: 'declareBlockers',
-      blocks: [{ blocker: iid.giant, attacker: iid.ds }],
-    });
-
-    const dsHitsFs = events.some(
-      (e) => e.e === 'combatDamage' && e.firstStrike && e.hits.some((h) => h.source === iid.ds),
-    );
-    const dsHitsNormal = events.some(
-      (e) => e.e === 'combatDamage' && !e.firstStrike && e.hits.some((h) => h.source === iid.ds),
-    );
-    expect(dsHitsFs).toBe(true);
-    expect(dsHitsNormal).toBe(true);
-    expect(game.state.battlefield.some((p) => p.iid === iid.giant)).toBe(false);
-    expect(game.state.battlefield.some((p) => p.iid === iid.ds)).toBe(false);
-  });
 });

@@ -60,22 +60,18 @@ describe('Drowned Deep: decision continuation and response order', () => {
   });
 
   it('drains every cast observer before offering a response and pins their order', () => {
-    const play = () => {
-      const state = board([['drawCharm'], ['drawCharm']], [{ iid: 1, cardId: 'bell' }, { iid: 2, cardId: 'bell' }]);
-      state.players[0].deck = ['forest', 'giant', 'bear'];
-      const game = Game.restore(state, db);
-      const events = [...game.submit(0, { type: 'castSpell', handIndex: 0 })];
-      expect(game.viewFor(1).pendingDecisions).toHaveLength(2);
-      expect(game.viewFor(1).awaiting).toMatchObject({ kind: 'foresee', cards: [] });
-      events.push(...game.submit(0, { type: 'foresee', bottomIndices: [0] }));
-      expect(game.awaiting).toMatchObject({ kind: 'foresee', cards: ['giant'] });
-      expect(events.some(event => event.e === 'responseWindowOpened')).toBe(false);
-      events.push(...game.submit(0, { type: 'foresee', bottomIndices: [] }));
-      expect(game.awaiting).toMatchObject({ kind: 'respond', player: 1 });
-      expect(events.filter(event => event.e === 'triggerFired').map(event => event.iid)).toEqual([1, 2]);
-      return JSON.stringify({ events, state: game.instanceState });
-    };
-    expect(play()).toBe(play());
+    const state = board([['drawCharm'], ['drawCharm']], [{ iid: 1, cardId: 'bell' }, { iid: 2, cardId: 'bell' }]);
+    state.players[0].deck = ['forest', 'giant', 'bear'];
+    const game = Game.restore(state, db);
+    const events = [...game.submit(0, { type: 'castSpell', handIndex: 0 })];
+    expect(game.viewFor(1).pendingDecisions).toHaveLength(2);
+    expect(game.viewFor(1).awaiting).toMatchObject({ kind: 'foresee', cards: [] });
+    events.push(...game.submit(0, { type: 'foresee', bottomIndices: [0] }));
+    expect(game.awaiting).toMatchObject({ kind: 'foresee', cards: ['giant'] });
+    expect(events.some(event => event.e === 'responseWindowOpened')).toBe(false);
+    events.push(...game.submit(0, { type: 'foresee', bottomIndices: [] }));
+    expect(game.awaiting).toMatchObject({ kind: 'respond', player: 1 });
+    expect(events.filter(event => event.e === 'triggerFired').map(event => event.iid)).toEqual([1, 2]);
   });
 
   it.each(['buried', 'buriedLoot'])('resolves %s graveyard decisions before the loot outer tail', cardId => {

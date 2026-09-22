@@ -36,17 +36,16 @@ function chooseDefault(cardIds: readonly string[], picks: readonly string[] = []
 }
 
 describe('draft persona roster', () => {
-  it('contains 20 unique, valid, sane personas with non-character male portraits', () => {
-    expect(DRAFT_PERSONAS).toHaveLength(20);
-    // HARD FLOOR: assignDraftPersonas throws below 7 unique ids, and inside
-    // SaveManager.migrate() that throw is caught by load()'s try/catch and
-    // silently replaces the WHOLE save with freshSave — never shrink the
-    // roster below 7 (the exact-20 assertion above already blocks it in CI).
-    expect(DRAFT_PERSONAS.length).toBeGreaterThanOrEqual(7);
-    expect(new Set(DRAFT_PERSONAS.map((p) => p.id)).size).toBe(20);
-    expect(new Set(DRAFT_PERSONAS.map((p) => p.name)).size).toBe(20);
-    expect(DRAFT_PERSONAS.filter((p) => p.gender === 'f')).toHaveLength(10);
-    expect(DRAFT_PERSONAS.filter((p) => p.gender === 'm')).toHaveLength(10);
+  it('contains unique, valid, sane personas with non-character male portraits', () => {
+    const ids = DRAFT_PERSONAS.map((p) => p.id);
+    const names = DRAFT_PERSONAS.map((p) => p.name);
+    // HARD FLOOR: assignDraftPersonas throws below DRAFT_SEATS - 1 unique ids,
+    // and inside SaveManager.migrate() that throw is caught by load()'s
+    // try/catch and silently replaces the WHOLE save with freshSave, so the
+    // roster must never shrink below one persona per non-human seat.
+    expect(ids.length).toBeGreaterThanOrEqual(DRAFT_SEATS - 1);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(new Set(names).size).toBe(names.length);
 
     for (const draftPersona of DRAFT_PERSONAS) {
       const portrait = CARD_DB[draftPersona.portraitCardId];

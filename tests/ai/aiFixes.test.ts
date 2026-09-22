@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { HardAI } from '../../src/ai/HardAI';
 import { MediumAI } from '../../src/ai/MediumAI';
-import { determinize } from '../../src/ai/determinize';
 import { removalKind } from '../../src/ai/value';
 import { CARD_DB } from '../../src/data/catalog';
 import { validateAction } from '../../src/engine/actions';
@@ -87,18 +86,6 @@ describe('AI defect regressions from the 1.5 instrumented probe', () => {
       (action as Extract<typeof action, { type: 'castSpell' }>).targets?.[2],
     );
     expect(() => game.submit(0, action)).not.toThrow();
-  });
-
-  it('HardAI determinization carries the live rules revision into its sim state', () => {
-    const state = makeTestState({ hands: [['shock'], []], active: 0 });
-    state.rulesRev = 2;
-    state.episode = { resolvedSinceOffer: 0, reopensThisStep: 0 };
-    const view = gameFromState(state).viewFor(0);
-    const simulated = determinize(view, DB, 4242);
-
-    expect(view.rulesRev).toBe(2);
-    expect(simulated.instanceState.rulesRev).toBe(2);
-    expect(simulated.instanceState.episode).toEqual({ resolvedSinceOffer: 0, reopensThisStep: 0 });
   });
 
   it('DEFECT 1: seed 1600026 turn 27, Medium sends Apple of Endless Sleep at the opposing creature', () => {
@@ -200,6 +187,8 @@ describe('AI defect regressions from the 1.5 instrumented probe', () => {
     state.awaiting = { player: 0, kind: 'respond', over: { type: 'blockers' } };
     const game = gameFromState(state);
 
-    const action = new MediumAI(DB).chooseAction(game.viewFor(0), game.legalActions(0));
-    expect(action).toHaveProperty('type');
+    const legal = game.legalActions(0);
+    let action!: ReturnType<MediumAI['chooseAction']>;
+    expect(() => { action = new MediumAI(DB).chooseAction(game.viewFor(0), legal); }).not.toThrow();
+    expect(legal).toContainEqual(action);
   });

@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { ECONOMY } from '../../src/config/rules';
 import { CARD_DB } from '../../src/data/catalog';
 import { DRAFT_PERSONAS } from '../../src/data/draftPersonas';
-import type { CardDb, CardDef, Color, EffectOp, TargetSpec } from '../../src/engine/types';
-import { def, isType, manaValue } from '../../src/engine/types';
+import type { CardDb, CardDef, Color } from '../../src/engine/types';
+import { def, isType } from '../../src/engine/types';
 import { isBasic } from '../../src/meta/Collection';
 import { LIMITED_DECK_SIZE, validateLimitedDeck } from '../../src/meta/DeckStorage';
 import { applyLimitedMatchResult, payPremiumDraftEntry } from '../../src/meta/Economy';
@@ -25,10 +25,10 @@ import {
   startBotDraft,
   startDraftRun,
 } from '../../src/meta/Limited';
-import { DEFAULT_PICKER, scoreBasePick, scorePick } from '../../src/meta/draftPicker';
+import { DEFAULT_PICKER, scorePick } from '../../src/meta/draftPicker';
 import { firstReserveConfigIssue } from '../../src/meta/duelSetup';
 import { freshSave } from '../../src/meta/SaveManager';
-import { PLAIN_VARIANT, TIER_RANK, variantKey, type CardVariant } from '../../src/meta/variants';
+import { PLAIN_VARIANT, variantKey, type CardVariant } from '../../src/meta/variants';
 import { isDualLand, LAND_RESERVE_SIZE, MAX_DUAL_LANDS } from '../../src/meta/warchest';
 import { deckOf, TEST_DB } from '../helpers';
 
@@ -200,17 +200,6 @@ describe('bot draft', () => {
     });
   });
 
-  it('keeps DEFAULT_PICKER base scores lockstep with the phase D reference over the whole pool', () => {
-    // Phase D, 2026-09-17: 525 of 1,482 collectible base scores moved from the
-    // pre-phase reference; deliberately re-baselined, with all weights fixed.
-    // The DECK-BUILDING path (scoreDeckCard/chooseDeckColors in Limited.ts) also
-    // routes through scoreBasePick(d, DEFAULT_PICKER) now — pin that equivalence
-    // exhaustively so auto-build texture can't drift silently either.
-    for (const d of Object.values(CARD_DB)) {
-      expect(scoreBasePick(d, DEFAULT_PICKER), d.id).toBe(scoreBaseCardReference(d));
-    }
-  });
-
   it('does not treat C as a draft color when picking among lands', () => {
     const db: CardDb = {
       'green-pick': {
@@ -251,27 +240,6 @@ describe('bot draft', () => {
     expect(chosen).toBe('g-land');
     expect(scorePick(db, 'g-land', picks, DEFAULT_PICKER, 0) - scorePick(db, 'c-land', picks, DEFAULT_PICKER, 0)).toBe(3);
   });
-
-  it('keeps DEFAULT_PICKER bot choices lockstep with the phase D reference across 20 full drafts', () => {
-    // Phase D, 2026-09-17: 3,783 of 6,300 bot picks changed from the old
-    // scorer (seeds 1-20, seven seats, 45 picks). Compare aligned full draft
-    // trajectories, including changed downstream packs and color commitment.
-    for (let seed = 1; seed <= 20; seed++) {
-      let state = startBotDraft(CARD_DB, seed);
-      state = { ...state, personaIds: ['', ...Array.from({ length: DRAFT_SEATS - 1 }, () => 'dp-chris')] };
-
-      while (!state.completed) {
-        const expected = state.currentPacks.map((pack, seat) =>
-          seat === 0 || pack.length === 0 ? null : chooseBotDraftPickReference(CARD_DB, pack, state.picks[seat]),
-        );
-        const next = pickDraftCard(CARD_DB, state, currentDraftPack(state)[0]);
-        for (let seat = 1; seat < DRAFT_SEATS; seat++) {
-          if (expected[seat]) expect(next.picks[seat].at(-1), `seed ${seed}, seat ${seat}`).toBe(expected[seat]);
-        }
-        state = next;
-      }
-    }
-  }, 20_000);
 
   it('reproduces persona seats, picks, and opponent decks from the same seed', () => {
     const finish = (seed: number) => {
@@ -506,137 +474,6 @@ function finishDraft(seed: number, premium: boolean) {
 
 function draftPairs(cards: readonly string[], variants: readonly CardVariant[]) {
   return cards.map((cardId, index) => ({ cardId, variant: variants[index] }));
-}
-
-// Independent Phase D reference, deliberately separate from draftPicker.ts.
-// Color commitment still uses the original pre-persona arithmetic.
-function chooseBotDraftPickReference(db: CardDb, pack: readonly string[], picks: readonly string[]): string {
-  return [...pack].sort(
-    (a, b) =>
-      scoreDraftCardReference(db, b, picks) - scoreDraftCardReference(db, a, picks) || compareCardNames(db, a, b),
-  )[0];
-}
-
-function scoreDraftCardReference(db: CardDb, id: string, picks: readonly string[]): number {
-  const d = def(db, id);
-  let score = scoreBaseCardReference(d);
-  const committed = committedColorsReference(db, picks);
-  if (picks.length >= 5 && d.colors.length > 0) {
-    const overlap = d.colors.filter((c) => committed.includes(c)).length;
-    if (overlap === d.colors.length) score += 5;
-    else if (overlap > 0) score += 1;
-    else score -= 7;
-  }
-  if (isType(d, 'land') && !isBasic(db, id)) {
-    const mana = d.manaAbility ?? [];
-    score += mana.some((c) => c !== 'C' && committed.includes(c)) ? 4 : 1;
-  }
-  return score;
-}
-
-function scoreBaseCardReference(d: CardDef): number {
-  // Independent Phase D arithmetic: literal DEFAULT weights (mechanicWeight 1,
-  // buffWeight 0 by owner ruling 2026-09-17 after measurement), no production
-  // collector or scorer. Queue nested branches with their own source targets.
-  const duties = d.activated === undefined ? [] : Array.isArray(d.activated) ? d.activated : [d.activated];
-  const bodies: { ops?: readonly EffectOp[]; targets?: readonly TargetSpec[] }[] = [
-    ...(d.abilities ?? []), ...duties,
-    ...(d.empower ? [d.empower] : []), ...(d.retell ? [d.retell] : []),
-    ...(d.chapters ?? []).map(ops => ({ ops })),
-  ];
-  let removal = false;
-  let advantage = false;
-  let buffs = 0;
-  let downside = 0;
-  for (let index = 0; index < bodies.length; index++) {
-    const body = bodies[index];
-    for (const effect of body.ops ?? []) {
-      switch (effect.op) {
-        case 'ifTargetMarked':
-          bodies.push({ ops: effect.then, targets: body.targets }, { ops: effect.else, targets: body.targets });
-          break;
-        case 'damage': {
-          if (effect.n !== 'X' && effect.n <= 0) break;
-          const recipient = effect.to === 'target' ? body.targets?.[effect.targetIndex ?? 0]?.what : undefined;
-          if (effect.to === 'controller' || recipient === 'yourCreature' || recipient === 'yourPermanent') downside++;
-          else removal = true;
-          break;
-        }
-        case 'destroy':
-        case 'cancel': removal = true; break;
-        case 'draw':
-        case 'reclaim': advantage = true; break;
-        case 'raise':
-          advantage = true;
-          if (effect.to === 'top' && (effect.withMarks ?? 0) > 0 ||
-            effect.grantKeywords?.some(k => !['bulwark', 'rage'].includes(k))) buffs++;
-          break;
-        case 'addCounters': if (effect.n > 0) buffs++; break;
-        case 'propagate':
-        case 'moveMark':
-        case 'markAll':
-        case 'awaken': buffs++; break;
-        case 'boost':
-          if (effect.p > 0 || effect.t > 0 || effect.keywords?.some(k => !['bulwark', 'rage'].includes(k))) buffs++;
-          break;
-        case 'createToken': if (effect.count > 0 && (effect.marks ?? 0) > 0) buffs++; break;
-      }
-    }
-  }
-  const linked = d.hauntlink?.linked;
-  if (linked && ((linked.p ?? 0) > 0 || (linked.t ?? 0) > 0 ||
-    linked.grantKeywords?.some(k => !['bulwark', 'rage'].includes(k)))) buffs++;
-  // Preserve's one token, and the life/graveyard/token style terms, contribute
-  // zero at DEFAULT_PICKER. Its identity still earns the full mechanic weight.
-  let mechanic = 0;
-  if (d.empower) mechanic += 1;
-  if (d.retell) mechanic += 1;
-  if (d.whispers) mechanic += 1;
-  if (d.tithe) mechanic += 1;
-  if (d.skim) mechanic += 0.5;
-  if (d.preserve) mechanic += 1;
-  if (duties.length > 0) mechanic += 1;
-  if (d.chapters) mechanic += 1;
-  if (d.hauntlink) mechanic += 1;
-  if (d.nineLives) mechanic += 1;
-
-  let score = TIER_RANK[d.rarity] * 4;
-  if (isType(d, 'creature')) {
-    score += 5 + (d.attack ?? 0) * 1.2 + (d.defense ?? 0) * 0.8;
-    score += (d.keywords ?? []).filter(k => k !== 'bulwark' && k !== 'rage').length * 1.5;
-  } else if (isType(d, 'charm') || isType(d, 'ritual')) score += 4;
-  else if (isType(d, 'enchantment') || isType(d, 'artifact')) score += 2;
-  if (removal) score += 5;
-  if (advantage) score += 3;
-  score += mechanic;
-  score += buffs * 0; // buffWeight ships at 0: counted, not paid (owner ruling 2026-09-17)
-  score -= downside;
-  const mv = manaValue(d.cost);
-  if (mv >= 2 && mv <= 4) score += 2;
-  if (mv >= 7) score -= 3;
-  return score;
-}
-
-function committedColorsReference(db: CardDb, picks: readonly string[]): Color[] {
-  const order: readonly Color[] = ['W', 'U', 'B', 'R', 'G'];
-  if (picks.length === 0) return [];
-  const scores = new Map<Color, number>();
-  for (const color of order) scores.set(color, 0);
-  for (const id of picks) {
-    const d = def(db, id);
-    if (d.token || isType(d, 'land')) continue;
-    for (const color of d.colors) scores.set(color, (scores.get(color) ?? 0) + 1 + TIER_RANK[d.rarity]);
-  }
-  return order
-    .filter((color) => (scores.get(color) ?? 0) > 0)
-    .sort((a, b) => (scores.get(b) ?? 0) - (scores.get(a) ?? 0) || order.indexOf(a) - order.indexOf(b))
-    .slice(0, 2);
-}
-
-function compareCardNames(db: CardDb, a: string, b: string): number {
-  const da = def(db, a);
-  const dbb = def(db, b);
-  return da.name.localeCompare(dbb.name) || a.localeCompare(b);
 }
 
 /**

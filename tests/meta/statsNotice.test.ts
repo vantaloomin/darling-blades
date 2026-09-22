@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SIGNAL_FIELDS, SIGNAL_SETTINGS_FIELDS, STATS_NOTICE_VERSION } from '../../src/meta/playSignals';
 import { freshSave, SaveManager } from '../../src/meta/SaveManager';
-import { normalizeStatsNoticeVersion, STATS_NOTICE_VERSION as LEAF_VERSION } from '../../src/meta/statsNotice';
+import { normalizeStatsNoticeVersion } from '../../src/meta/statsNotice';
 
 /**
  * The allowlist as it stood at each notice version. The privacy policy
@@ -39,11 +39,6 @@ describe('stats notice version', () => {
   it('every earlier notice version keeps its own snapshot, and versions are contiguous from 1', () => {
     const versions = Object.keys(ALLOWLIST_AT_NOTICE_VERSION).map(Number).sort((a, b) => a - b);
     expect(versions).toEqual(Array.from({ length: STATS_NOTICE_VERSION }, (_, index) => index + 1));
-  });
-
-  it('playSignals re-exports the same constant the save layer uses', () => {
-    expect(STATS_NOTICE_VERSION).toBe(LEAF_VERSION);
-    expect(Number.isInteger(STATS_NOTICE_VERSION) && STATS_NOTICE_VERSION >= 1).toBe(true);
   });
 
   it('every save is owed the notice until it is stamped: fresh and migrated alike', () => {

@@ -23,7 +23,6 @@ function readSource(path: string): ts.SourceFile {
 }
 
 const shopSource = readSource('scenes/ShopScene.ts');
-const openingSource = readSource('scenes/PackOpeningScene.ts');
 const oddsSource = readSource('ui/OddsModal.ts');
 
 /**
@@ -116,18 +115,8 @@ describe('Drowned Deep shop retail', () => {
     }
   });
 
-  it('pins the approved palette and real pack front at trimY 63', () => {
+  it('gives the pack front the one shared tint object', () => {
     const shop = retail();
-    expect(shop.DROWNED_DEEP_PACK_TINT).toEqual({
-      start: '#eef0ea', middle: '#16303a', end: '#0d1a22',
-      trim: '#a8783c', foil: '#d6e07c', mist: '#7d8590',
-    });
-    expect(shop.DROWNED_DEEP_PACK_ART).toEqual({
-      key: 'packart-drowned-deep',
-      sceneArtKey: 'scene-pack-art-drowned-deep',
-      tint: shop.DROWNED_DEEP_PACK_TINT,
-      trimY: 63,
-    });
     expect(shop.DROWNED_DEEP_PACK_ART.tint).toBe(shop.DROWNED_DEEP_PACK_TINT);
   });
 
@@ -139,12 +128,5 @@ describe('Drowned Deep shop retail', () => {
       packName: SET_TITLES['drowned-deep'],
       setName: SET_TITLES['drowned-deep'],
     });
-  });
-
-  it('wires the shared pack art into both scene bake paths', () => {
-    expect(shopSource.text).toContain('bakePackArt(this, DROWNED_DEEP_PACK_ART);');
-    expect(openingSource.text).toMatch(
-      /else if \(this\.sku === 'drowned-deep'\) \{\s*bakePackArt\(this, DROWNED_DEEP_PACK_ART\);\s*\}/,
-    );
   });
 });

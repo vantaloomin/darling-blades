@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { CURRENT_RULES_REV } from '../../src/config/rules';
 import type { Action } from '../../src/engine/actions';
 import {
   castCost, hasCastableCharm, hasCastableInstant, legalActions, validateAction,
@@ -16,7 +15,7 @@ import {
   validateRiteDef, validateWhispersDef,
 } from '../../src/engine/types';
 import {
-  canReplay, finishReplay, isReplayLog, recordReplayAction, REPLAY_LOG_VERSION,
+  canReplay, finishReplay, isReplayLog, recordReplayAction,
   replayDbStamp, replayGame, startReplayDraft,
 } from '../../src/meta/Replay';
 import { botAction, makeTestState, TEST_DB } from '../helpers';
@@ -689,8 +688,6 @@ function replayFixture() {
 describe('Whispers replay and determinism', () => {
   it('round-trips a naturally terminal v13 log through a whispered cast with byte-identical state and events', () => {
     const recorded = replayFixture();
-    expect(CURRENT_RULES_REV).toBe(4);
-    expect(REPLAY_LOG_VERSION).toBe(14);
     expect(recorded.log.v).toBe(14);
     expect(recorded.game.instanceState.winReason).toBe('life');
     const casts = recorded.log.actions.filter((step) => step.a.type === 'castSpell' && step.a.whispers);

@@ -148,10 +148,6 @@ describe('SaveData v22 migration (tower roster and deck land style)', () => {
     expect(manager.data.createdAt).toBe(123);
   });
 
-  it('creates fresh saves at the current version', () => {
-    expect(freshSave(123).version).toBe(CURRENT_SAVE_VERSION);
-  });
-
   it('stamps an unstamped active v22 run from the UI staging gap', () => {
     const storage = fakeStorage();
     const current = freshSave(123);

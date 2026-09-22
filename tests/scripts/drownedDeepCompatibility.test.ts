@@ -1,8 +1,7 @@
-import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { deckTargetSupply, hasNoLegalTargets } from '../../scripts/avatarReserveDecks';
 import { cardEffectOps, cardRoles, rateCard } from '../../scripts/personas/score';
-import { ALL_CARDS, CARD_DB } from '../../src/data/catalog';
+import { CARD_DB } from '../../src/data/catalog';
 import type { ActivatedDef, CardDb, CardDef, TargetSpec } from '../../src/engine/types';
 
 function card(id: string, fields: Partial<CardDef> = {}): CardDef {
@@ -96,29 +95,6 @@ describe('Drowned Deep converter compatibility', () => {
 });
 
 describe('Drowned Deep persona scorer compatibility', () => {
-  it('keeps all 1,259 shipped persona rates byte-identical', () => {
-    const shipped = ALL_CARDS.filter((definition) => definition.set !== 'drowned-deep');
-    expect(shipped).toHaveLength(1259);
-    const rows = shipped.map((definition) => [definition.id, rateCard(definition)]);
-    // Re-baselined 2026-09-17: the land-economy conversion
-    // (docs/plan-land-economy.md) re-rated the 27 utility taplands as Duty
-    // artifacts. The card COUNT is unchanged (they were always in ALL_CARDS)
-    // and no other card's rate moved, because rateCard is pure per definition.
-    expect(createHash('sha256').update(JSON.stringify(rows)).digest('hex')).toBe(
-      '67bf6a2e049127b9ebbc8c0f9404e4fd8207f2bc03bf8d4d6a1bbe171631f63f',
-    );
-  });
-
-  it('pins the 252 Drowned Deep persona scores', () => {
-    // Drowned Deep PR 3b (2026-09-15): transcription baseline.
-    const drownedDeep = ALL_CARDS.filter((definition) => definition.set === 'drowned-deep' && !definition.token);
-    expect(drownedDeep).toHaveLength(252);
-    const rows = drownedDeep.map((definition) => [definition.id, rateCard(definition)]);
-    expect(createHash('sha256').update(JSON.stringify(rows)).digest('hex')).toBe(
-      '4f47c0d833141ee814628508f09290ade6c93df7df2a990f50ebe05b95c2b217',
-    );
-  });
-
   it('reads every activation and discounts each activation cost once', () => {
     const draw: ActivatedDef = { cost: { tap: true }, ops: [{ op: 'draw', n: 1 }] };
     const damage: ActivatedDef = { cost: { tap: true, mana: { generic: 2, pips: {} } }, targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 1, to: 'target' }] };

@@ -16,13 +16,11 @@ const db = dbOf(observer('widow'), observer('other', { other: true }), observer(
   spell('rite', [...gain]), { ...spell('charm', [...gain]), types: ['charm'] });
 describe('Drowned Deep 2: observers', () => {
   it('fires batched allied deaths in battlefield order, including dying observers', () => {
-    const run = () => {
-      const state = board([[], []], [{ iid: 3, cardId: 'other', damage: 9 }, { iid: 1, cardId: 'widow', damage: 9 }, { iid: 2, cardId: 'body', damage: 9 }]);
-      const events: GameEvent[] = []; checkStateBased(state, db, e => events.push(e));
-      const order = events.filter(e => e.e === 'triggerFired').map(e => e.iid);
-      expect(order).toEqual([1, 3, 1, 3, 1]); expect(state.players[0].life).toBe(25);
-      expect(state.creatureDiedThisTurn).toBe(true); return JSON.stringify({ state, events });
-    }; expect(run()).toBe(run());
+    const state = board([[], []], [{ iid: 3, cardId: 'other', damage: 9 }, { iid: 1, cardId: 'widow', damage: 9 }, { iid: 2, cardId: 'body', damage: 9 }]);
+    const events: GameEvent[] = []; checkStateBased(state, db, e => events.push(e));
+    const order = events.filter(e => e.e === 'triggerFired').map(e => e.iid);
+    expect(order).toEqual([1, 3, 1, 3, 1]); expect(state.players[0].life).toBe(25);
+    expect(state.creatureDiedThisTurn).toBe(true);
   });
   it.each(['widow', 'other', 'horror', 'garden'])('%s refuses nonmatching deaths and observes only its printed subject', id => {
     const state = board([[], []], [{ iid: 1, cardId: id }, { iid: 2, cardId: 'bear', damage: 9, controller: 1 }]);

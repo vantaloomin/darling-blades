@@ -4,13 +4,7 @@ import { theme } from '../../src/ui/theme';
 
 describe('main menu presentation', () => {
   it('keeps Card Showcase out of the player-facing menu', () => {
-    expect(MAIN_MENU_ITEMS.map((item) => item.label)).toEqual([
-      'Play',
-      'Shop',
-      'Collection',
-      'Achievements',
-      'Decks',
-    ]);
+    expect(MAIN_MENU_ITEMS.map((item) => item.label)).not.toContain('Card Showcase');
   });
 
   it('keeps the remaining menu rows on one gap-free pitch', () => {

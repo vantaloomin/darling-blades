@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { CURRENT_RULES_REV } from '../../src/config/rules';
 import type { Action } from '../../src/engine/actions';
 import { castCost, legalActions, validateAction } from '../../src/engine/actions';
 import type { GameEvent } from '../../src/engine/events';
@@ -372,10 +371,8 @@ function replayFixture() {
 describe('Whispers plus Tithe replay', () => {
   it('round-trips a terminal game containing the combined cast without a log version bump', () => {
     const recorded = replayFixture();
-    expect(CURRENT_RULES_REV).toBe(4);
-    // Both castSpell fields already existed: the log shape is unchanged at v14.
-    expect(REPLAY_LOG_VERSION).toBe(14);
-    expect(recorded.log.v).toBe(14);
+    // Both castSpell fields already existed: the log shape is unchanged.
+    expect(recorded.log.v).toBe(REPLAY_LOG_VERSION);
     expect(recorded.game.awaiting.kind).toBe('gameOver');
     const pairs = recorded.log.actions.filter((step) =>
       step.a.type === 'castSpell' && step.a.whispers && step.a.tithe);

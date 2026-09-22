@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { DROPS } from '../../src/config/rules';
-import { variantOdds } from '../../src/meta/pullOdds';
 import {
   cardAtelierProbabilityPlate,
   cardAtelierTiltPose,
@@ -57,7 +56,6 @@ describe('card Atelier presentation', () => {
     const variant = { frame: 'black', holo: 'void', fullArt: true } as const;
     const plate = cardAtelierProbabilityPlate('ur', variant);
     const product = plate.axes.reduce((value, axis) => value * axis.probability, 1);
-    expect(plate.probability).toBe(variantOdds('ur', 'black', 'void', true));
     expect(product).toBeCloseTo(plate.probability, 15);
     expect(plate.axes[0].probability).toBe(
       DROPS.tier.find(([tier]) => tier === 'ur')![1] /

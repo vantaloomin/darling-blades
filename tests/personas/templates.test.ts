@@ -14,10 +14,6 @@ describe('persona template roster', () => {
     ]);
   });
 
-  it('has unique persona ids', () => {
-    expect(new Set(PERSONA_TEMPLATES.map((template) => template.id)).size).toBe(6);
-  });
-
   it('uses one version for every template', () => {
     expect(new Set(PERSONA_TEMPLATES.map((template) => template.version))).toEqual(
       new Set([PERSONA_TEMPLATE_VERSION]),

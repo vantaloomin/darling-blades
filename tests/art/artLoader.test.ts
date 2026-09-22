@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import manifest from '../../src/data/art-manifest.json';
 import {
-  ART_BATCH_SIZE,
   ArtQueue,
   artFileUrl,
   artKeyFor,
@@ -304,9 +303,5 @@ describe('ArtQueue', () => {
     sink.finishBatch();
     expect(queue.missing(['k0', 'k1'])).toEqual([]);
     expect(queue.missing(null)).toEqual(['k2', 'k3', 'k4', 'k5']);
-  });
-
-  it('ships a batch size that is a real batch', () => {
-    expect(ART_BATCH_SIZE).toBe(48);
   });
 });
