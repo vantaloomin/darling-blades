@@ -8,7 +8,13 @@ export interface MainMenuItem {
 
 export const MAIN_MENU_X = 360;
 export const MAIN_MENU_FIRST_Y = 286;
-export const MAIN_MENU_PITCH_Y = 50;
+/**
+ * One pitch for every column of controls on this screen: the 44px hit box
+ * plus the within-group gap (docs/design-system.md, 8-12px). The list ran on
+ * 50 until the 1.8 QC day (2026-09-21), 6px between hit boxes, while the
+ * corner stacks ran on 52; the owner read the difference as uneven spacing.
+ */
+export const MAIN_MENU_PITCH_Y = theme.control.minHitHeight + theme.space(2);
 
 export const MAIN_MENU_ITEMS: readonly MainMenuItem[] = [
   { label: 'Play', scene: 'Play' },
@@ -36,8 +42,8 @@ export const MAIN_MENU_CORNER = {
   rightX: 1280 - 90,
   badgeX: 1280 - 30,
   firstY: theme.design.headerCenterY,
-  /** 44px hit box plus the within-group gap. */
-  pitch: theme.control.minHitHeight + theme.space(2),
+  /** The same pitch as the menu list, so the screen has one rhythm. */
+  pitch: MAIN_MENU_PITCH_Y,
   minWidth: 150,
 } as const;
 
