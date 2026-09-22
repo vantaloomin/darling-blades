@@ -1,4 +1,4 @@
-<!-- source-of-truth: .github/workflows/deploy.yml, .github/workflows/release.yml, package.json · last-verified: 2026-08-23 · process doc — re-verify when the CI workflow or branch model changes -->
+<!-- source-of-truth: .github/workflows/deploy.yml, .github/workflows/release.yml, package.json · last-verified: 2026-09-21 · process doc — re-verify when the CI workflow or branch model changes -->
 
 # Git workflow
 
@@ -174,6 +174,16 @@ agree before the tag: `package.json`, `src-tauri/tauri.conf.json`, and
 identifies itself as the previous version. `src-tauri/Cargo.lock` picks the new
 version up on its own the next time `npm run app:build` runs, so commit what
 cargo regenerates rather than hand-editing it.
+
+**Run the two manual balance matrices before tagging.** `npx tsx
+scripts/balance-matrix.ts --floors --seeds 80` (the tower as the player meets
+it) and `--avatars --seeds 200` (every boss against the starters). Neither runs
+in CI: their vitest wrapper is `describe.skip`, and the CI win-rate gates cover
+only rungs 14 and up. The 1.8 QC day found the top tier six points under its
+band, a drop that had happened during 1.7 and gone unmeasured through that
+whole cut. Both print FLAGS; a flag is either a regression to fix or a band to
+re-centre with the owner's word, and the dated tables go in
+`scripts/balance-matrix.ts` (floors) and `src/data/opponents.ts` (avatars).
 
 **Smoke-test the desktop build before tagging.** `release.yml` runs ONLY on tag
 push, never on PRs, so the `src-tauri` version bumps are otherwise completely

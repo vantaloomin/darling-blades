@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-road-to-2.0.md, docs/plan-expansion-slate.md, docs/rollout-telemetry-and-accounts.md, docs/plan-1.6.md, docs/plan-tribal-pass.md, docs/release-notes/v1.7.2.md, src/engine/types.ts, src/meta/warchest.ts, src/meta/SaveManager.ts · last-verified: 2026-09-10 · program doc — the 1.8 train proposal; re-verify when the owner rules on the open decisions or a lane lands -->
+<!-- source-of-truth: docs/plan-road-to-2.0.md, docs/plan-expansion-slate.md, docs/rollout-telemetry-and-accounts.md, docs/plan-1.6.md, docs/plan-tribal-pass.md, docs/release-notes/v1.7.2.md, src/engine/types.ts, src/meta/warchest.ts, src/meta/SaveManager.ts · last-verified: 2026-09-21 · program doc — the 1.8 train proposal; re-verify when the owner rules on the open decisions or a lane lands -->
 
 # Darling Blades 1.8 — program plan (proposal)
 
@@ -275,7 +275,9 @@ and multiplayer (cancelled).
 - Release cut follows the checklist that works: three version surfaces,
   `cargo update --workspace`, `app:build` before tagging, `docs/release-notes/v1.8.0.md`
   as the release body (`check-release-notes` fails the PR without it), README
-  figures re-measured, a two-parent merge into `main`.
+  figures re-measured, the two manual balance matrices (`--floors --seeds 80`
+  and `--avatars --seeds 200`, added to the checklist on the 1.8 QC day), a
+  two-parent merge into `main`.
 
 ## Sequencing
 
