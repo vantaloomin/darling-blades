@@ -15,8 +15,12 @@ describe('main menu presentation', () => {
 
   it('keeps the remaining menu rows on one gap-free pitch', () => {
     const ys = MAIN_MENU_ITEMS.map((_, index) => mainMenuButtonY(index));
-    expect(ys).toEqual([286, 336, 386, 436, 486]);
+    expect(ys[0]).toBe(286);
     expect(ys.slice(1).every((y, index) => y - ys[index] === MAIN_MENU_PITCH_Y)).toBe(true);
+    // One rhythm for the whole screen, and at least the within-group gap
+    // between consecutive 44px hit boxes.
+    expect(MAIN_MENU_PITCH_Y).toBe(MAIN_MENU_CORNER.pitch);
+    expect(MAIN_MENU_PITCH_Y - theme.control.minHitHeight).toBeGreaterThanOrEqual(8);
   });
 });
 
