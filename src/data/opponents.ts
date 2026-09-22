@@ -565,6 +565,70 @@ export interface Avatar {
  * (2 of 6 personas, round 0) when it projected ~37h. The mono-goodstuff
  * question the format gate raised (docs/plan-1.6.md) is still open with it.
  *
+ * ===========================================================================
+ * 2026-09-21 - THE 1.8 QC-DAY AVATAR BASELINE (all 26 rungs, release tip
+ * 7ce84b2). `runAvatarMatrix` per avatar at 200 seeds/cell, the gate's own
+ * seeding: 26,000 games, 5 turn-limit draws, 0 engine exceptions.
+ * ===========================================================================
+ *
+ *                                Muster  Communion  Tides  Mandate  Harvest | avg
+ *   R1  Meng Huo        [easy]     12       12        26      49       20   | 23.3
+ *   R2  Hestia          [easy]      6        6         2      23        5   |  8.4
+ *   R3  Lupa            [easy]      5        4        33      50       26   | 23.3
+ *   R4  Hera            [med]      25       39        27      36       18   | 28.8
+ *   R5  Zhurong         [med]      48       24        37      66       45   | 43.9
+ *   R6  Sima Yi         [med]      25       14        26      34       13   | 22.1
+ *   R7  Yohime          [hard]     65       77        76      79       85   | 76.1
+ *   R8  Cao Cao         [hard]     33       91        64      78       51   | 63.1
+ *   R9  Hel             [hard]     56       81        63      81       58   | 67.8
+ *   R10 Brunhild        [hard]     65       87        48      88       90   | 75.6
+ *   R11 The Morrigan    [hard]     43       63        19      30       61   | 43.0
+ *   R12 Titania         [hard]     32       89        66      64       43   | 58.6
+ *   R13 Morgan          [hard]     40       72        38      61       40   | 49.9
+ *   R14 Artoria         [hard]     27       91        66      75       71   | 65.6
+ *   R15 Carmilla        [hard]     61       78        52      85       86   | 72.3
+ *   R16 The Bride       [hard]     57       73        51      79       83   | 68.6
+ *   R17 Glass-Coffin    [hard]     70       76        62      94       85   | 77.3
+ *   R18 Songstress      [hard]     88       93        73      95       95   | 88.5
+ *   R19 Lanterned Roof  [hard]     53       86        61      82       78   | 71.7
+ *   R20 Neon Tyrant     [hard]     79       84        87      97       95   | 88.3
+ *   R21 Anubis          [hard]     71       79        67      61       46   | 64.6
+ *   R22 Bastet          [hard]     54       85        61      84       85   | 73.6
+ *   R23 Chrome Broodm.  [hard]     63       82        64      70       84   | 72.1
+ *   R24 Violet Signal   [hard]     51       88        64      62       91   | 70.8
+ *   R25 Drowned Deacon  [hard]     38       72        65      83       75   | 66.3
+ *   R26 Marsh-Mother    [hard]     64       77        66      81       87   | 74.8
+ *
+ * RUNGS 14-26 (the gated half) reproduce their recorded numbers to the tenth
+ * and every one clears her floor by the full 6.5-point margin.
+ *
+ * RUNGS 1-13 HAD NOT BEEN MEASURED ON THIS HARNESS BEFORE. The last full
+ * table for them is the 2026-07-31 W7 one below, taken on the classic format
+ * that retired on 2026-08-10, and RUNG_BANDS 1-13 in scripts/balance-matrix.ts
+ * still carry those classic values, so a manual `--avatars` run flags rungs
+ * 4, 6, 11, 12 and 13 as below band. To tell an old gap from a 1.8 regression
+ * the same thirteen avatars were run on the v1.7.2 tag, same harness, same
+ * seeds: R1 25.7 · R2 8.5 · R3 24.7 · R4 32.2 · R5 48.6 · R6 22.8 · R7 76.1 ·
+ * R8 65.1 · R9 65.7 · R10 78.6 · R11 47.3 · R12 58.0 · R13 58.5. So the
+ * shape is OLD: it dates from the move to the Warchest format, not from 1.8.
+ * Two rows did move in 1.8. Morgan fell 58.5 -> 49.9 (the honest combat
+ * model again: nothing in her list changed). Brunhild reads 75.6 where her
+ * 2026-09-17 tune recorded 79; her list is unchanged since, the 1.7.2 tag
+ * reads 78.6, and the difference is about two and a half standard errors,
+ * so treat 76 as her number.
+ *
+ * WHAT THIS DOES AND DOES NOT TOUCH. The tower the player climbs is NOT
+ * piloted by these rows: floor strength comes from the tier dial, and the
+ * roster rotates through it. That is runFloorMatrix, a MANUAL tool (its
+ * vitest wrapper is describe.skip); the same day's floor reading is in the
+ * dated block above FLOOR_BANDS in scripts/balance-matrix.ts. These rows are what a player meets in PRACTICE against a named
+ * boss, and there the read is plain: Hestia (8), Sima Yi (22) and The
+ * Morrigan (43, with a 19 into Burning Tides) are far softer than their
+ * rung suggests, and Yohime (76) is a wall at rung 7. None of this was
+ * tuned on QC day. Recorded for a 1.9 lower-tower pass, which would also be
+ * the moment to re-centre RUNG_BANDS 1-13 on this table (an owner call: a
+ * re-centre moves some bands DOWN, and only he authorizes that).
+ *
  * 2026-07-31 - RESERVE FORMAT BASELINES (1.5.5 reveal gate; the two
  * matrices the 1.5.0 release split left TO MEASURE). SUPERSEDED 2026-08-09
  * by the dated table above; retained as history. STALE 2026-08-06:

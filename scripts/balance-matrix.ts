@@ -1678,6 +1678,41 @@ export interface FloorMatrixReport {
  * every TIER moved under 3pp. The tower has now absorbed a set launch, a
  * companion wave, a 68-card health triage and two summit tunes without a
  * downward re-centre being spent.
+ *
+ * ===========================================================================
+ * RE-MEASURED 2026-09-21 - THE 1.8 QC-DAY FLOOR READING (release tip 7ce84b2).
+ * ===========================================================================
+ * `--floors --seeds 80`, 26 floors x 5 starters = 10,400 games, 2,050s, one
+ * turn-limit draw. The first floor measurement since the 1.6 cut; neither the
+ * 1.7 cut nor any 1.8 tune re-ran it, and tests/ai/balance.test.ts is
+ * `describe.skip` (a manual tool), so nothing in CI watches these bands.
+ *   T1 floors 1-3:   14.3 / 15.8 / 16.5        avg 15.5
+ *   T2 floors 4-6:   20.5 / 20.3 / 21.3        avg 20.7
+ *   T3 floors 7-9:   39.8 / 38.5 / 40.3        avg 39.5
+ *   T4 floors 10-12: 49.5 / 50.0 / 49.3        avg 49.6
+ *   T5 floors 13-15: 51.2 / 57.5 / 51.7        avg 53.5
+ *   T6 floors 16-26: 64.8 / 64.5 / 63.0 / 65.5 / 66.1 / 67.3 / 64.3 / 63.5 /
+ *                    65.5 / 63.5 / 67.0        avg 65.0
+ * Plateau gaps +5.2 / +18.8 / +10.1 / +3.9 / +11.5. FLAGS: floors 16-22 read
+ * under the T6 band minimum of 68 (the manual test tolerates 63, and floor 18
+ * reads exactly 63.0). T4->T5 is +3.9, under the 4-point spacing this block
+ * has held itself to.
+ *
+ * WHEN IT MOVED: the same command on the v1.7.2 tag (24 floors) reads
+ *   T1 16.6 · T2 22.2 · T3 37.5 · T4 43.8 · T5 51.8 · T6 66.2
+ * with its own flags on floors 4, 13, 17, 18, 19 and 21. So T6 fell from
+ * 72.0 to 66 DURING 1.7 and nobody measured it; 1.8 moved T6 by -1.2, which
+ * is inside noise, and lifted the middle (T3 +2.0, T4 +5.8, T5 +1.7). 1.8 did
+ * not soften the tower. What 1.7 changed under this matrix: two more avatars
+ * in the rotation, the 49-card redundancy recost, and the Medium proxy in the
+ * player's seat learning marks; which of those carried the six points was not
+ * isolated on QC day.
+ *
+ * NO BAND MOVED HERE. Bringing the T6 minimum down to where the tower has sat
+ * for two releases is a DOWNWARD re-centre, and that is the owner's to
+ * authorize; floors 23-26 also still have no row below. Recorded for that
+ * ruling, with the alternative stated: tune T6 back up toward 72 instead
+ * (src/ai/tiers.ts owns the dial).
  */
 export const FLOOR_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   1: { maxAvg: 0.33, cellMax: 0.5 },
