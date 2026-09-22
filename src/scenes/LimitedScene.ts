@@ -82,7 +82,7 @@ export class LimitedScene extends Phaser.Scene {
     registerSceneBackNavigation(this, () => this.scene.start('Play'));
     // Gold is spendable here (the Premium Draft entry), so show the balance in
     // its usual top-right corner spot.
-    goldBadge(this, 1250, 30, { getValue: () => Services.save.data.gold });
+    goldBadge(this, 1250, theme.design.headerCenterY, { getValue: () => Services.save.data.gold });
     this.drawRunPanel();
     this.drawStartPanel();
     this.drawHistory();

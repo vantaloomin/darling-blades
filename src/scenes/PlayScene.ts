@@ -95,7 +95,9 @@ export class PlayScene extends Phaser.Scene {
     backButton(this, 'Menu', () => this.scene.start('MainMenu'));
     registerSceneBackNavigation(this, () => this.scene.start('MainMenu'));
 
-    goldBadge(this, width - 30, 30, { getValue: () => Services.save.data.gold });
+    // On the shared header line (theme.design.headerCenterY), inside the
+    // title-safe frame; at y 30 the badge's box began above it.
+    goldBadge(this, width - 30, theme.design.headerCenterY, { getValue: () => Services.save.data.gold });
 
     const firstY = 286;
     const pitchY = 56;
