@@ -10,6 +10,7 @@ import {
   SETTINGS_COLUMNS,
   SETTINGS_GAMEPLAY_PANEL,
   SETTINGS_HEADER_ACTION,
+  SETTINGS_HEADER_LEGAL,
   SETTINGS_LEFT,
   SETTINGS_LEFT_SECTIONS,
   SETTINGS_PANELS,
@@ -17,10 +18,12 @@ import {
   SETTINGS_RESET_BLOCK,
   SETTINGS_RIGHT,
   SETTINGS_RIGHT_SECTIONS,
+  SETTINGS_TITLE_TRACK,
   YOUR_TURN_SECTION,
   layoutSettingsColumn,
   rightAlignedChipCenters,
   settingsChipBounds,
+  settingsHeaderCenters,
   yourTurnRowY,
   type SettingsColumnLayout,
   type SettingsSectionSpec,
@@ -156,10 +159,38 @@ describe('the right column controls', () => {
   });
 });
 
-describe('the header action', () => {
+describe('the header actions', () => {
   it('sits on the title row, inside the title-safe frame, above the panels', () => {
     expect(SETTINGS_HEADER_ACTION.right).toBeLessThanOrEqual(theme.design.safeRight);
     expect(SETTINGS_HEADER_ACTION.y - HIT_HALF).toBeGreaterThanOrEqual(theme.design.safeTop);
     expect(SETTINGS_HEADER_ACTION.statusY + theme.type.caption / 2).toBeLessThan(SETTINGS_PANELS.top);
+    expect(SETTINGS_HEADER_LEGAL.y).toBe(SETTINGS_HEADER_ACTION.y);
+  });
+
+  /**
+   * Both labels are text-width dependent, so the pair is placed from measured
+   * widths (playbook's measure-then-place trap). The rule has to hold for every
+   * plausible pair of widths, not for the one this machine's fonts produce.
+   */
+  it('keeps the pair inside the frame, disjoint, and clear of the title', () => {
+    for (let legalWidth = SETTINGS_HEADER_LEGAL.minWidth; legalWidth <= 150; legalWidth += 2) {
+      for (let updateWidth = SETTINGS_HEADER_ACTION.minWidth; updateWidth <= 220; updateWidth += 2) {
+        const at = `${legalWidth}/${updateWidth}`;
+        const { legalX, updateX } = settingsHeaderCenters(legalWidth, updateWidth);
+        const legal = { left: legalX - legalWidth / 2, right: legalX + legalWidth / 2 };
+        const update = { left: updateX - updateWidth / 2, right: updateX + updateWidth / 2 };
+
+        expect(update.right, at).toBeLessThanOrEqual(theme.design.safeRight);
+        expect(update.right, at).toBe(SETTINGS_HEADER_ACTION.right);
+        expect(update.left - legal.right, at).toBeGreaterThanOrEqual(MIN_GAP_WITHIN);
+        expect(
+          legal.left,
+          `${at}: the pair must clear the centred title's track`,
+        ).toBeGreaterThanOrEqual(SETTINGS_TITLE_TRACK.centerX + SETTINGS_TITLE_TRACK.halfWidth);
+        for (const box of [legal, update]) {
+          expect(box.left, at).toBeGreaterThanOrEqual(theme.design.safeLeft);
+        }
+      }
+    }
   });
 });

@@ -186,10 +186,11 @@ export const SETTINGS_RESET_BLOCK = {
 } as const;
 
 /**
- * The header's right-hand control, mirroring the back button at the left.
+ * The header's right-hand controls, mirroring the back button at the left.
  * "Check for updates" belongs with the version, not with any settings group;
  * it used to hang under the right panel at y 690, outside every panel and
- * past the title-safe frame's 684.
+ * past the title-safe frame's 684. "Legal" joins it there for the same reason:
+ * the three published pages are about the whole game, not about any one row.
  */
 export const SETTINGS_HEADER_ACTION = {
   right: SETTINGS_GAMEPLAY_PANEL.right,
@@ -197,6 +198,22 @@ export const SETTINGS_HEADER_ACTION = {
   /** The status line under it, right-aligned to the same edge. */
   statusY: 72 + HIT_HALF + theme.space(2) + CAPTION / 2, // 109
   minWidth: 150,
+} as const;
+
+/** The second header control, left of the update check and on its row. */
+export const SETTINGS_HEADER_LEGAL = {
+  y: SETTINGS_HEADER_ACTION.y,
+  minWidth: 96,
+} as const;
+
+/**
+ * The centred scene title's track. Its rendered width is font-fallback
+ * dependent, so the header controls clear a generous allowance rather than a
+ * measurement: eight display-size glyphs either side of centre.
+ */
+export const SETTINGS_TITLE_TRACK = {
+  centerX: theme.design.centerX,
+  halfWidth: theme.type.display * 4,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -248,3 +265,29 @@ export const RENDER_CHIP_WIDTH = 84;
 export const RENDER_CHIP_X = rightAlignedChipCenters([RENDER_CHIP_WIDTH, RENDER_CHIP_WIDTH, RENDER_CHIP_WIDTH]);
 /** A toggle at the 90px hit floor, right-aligned to the control edge. */
 export const RIGHT_TOGGLE_X = SETTINGS_COLUMNS.right.controlRight - theme.control.minHitWidth / 2; // 1125
+
+export interface SettingsHeaderCenters {
+  legalX: number;
+  updateX: number;
+}
+
+/**
+ * Where the header pair goes once both hit widths are measured: the update
+ * check right-aligned to the header edge, "Legal" one isolation gap to its
+ * left. Measure-then-place, and the same right-aligned-group rule the chip
+ * rows in the right column already use, so the gap between the two hit boxes
+ * is the design system's within-group space wherever the labels land.
+ */
+export function settingsHeaderCenters(
+  legalHitWidth: number,
+  updateHitWidth: number,
+): SettingsHeaderCenters {
+  const [legalX, updateX] = rightAlignedChipCenters(
+    [legalHitWidth, updateHitWidth],
+    SETTINGS_HEADER_ACTION.right,
+  );
+  return { legalX, updateX };
+}
+
+/** The gap the header pair, like every chip group, leaves between hit boxes. */
+export const SETTINGS_CONTROL_GAP = CHIP_GAP;

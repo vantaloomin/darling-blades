@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-telemetry-and-accounts.md, docs/plan-save-portability.md, docs/plan-road-to-2.0.md, docs/roadmap.md, docs/git-workflow.md, docs/claude-playbook.md, src/meta/SaveManager.ts, src/meta/balanceTelemetry.ts, src/meta/SaveCode.ts, src/scenes/SettingsScene.ts, src/platform/env.ts, src/version.ts, eslint.config.js, scripts/balance-matrix.ts · last-verified: 2026-09-17 · rollout doc — the execution plan for plan-telemetry-and-accounts.md; re-verify when a wave lands or a vendor free tier moves -->
+<!-- source-of-truth: docs/plan-telemetry-and-accounts.md, docs/plan-save-portability.md, docs/plan-road-to-2.0.md, docs/roadmap.md, docs/git-workflow.md, docs/claude-playbook.md, src/meta/SaveManager.ts, src/meta/balanceTelemetry.ts, src/meta/SaveCode.ts, src/scenes/SettingsScene.ts, src/platform/env.ts, src/version.ts, eslint.config.js, scripts/balance-matrix.ts, scripts/gen-legal-pages.ts, scripts/gen-third-party-notices.ts · last-verified: 2026-09-22 · rollout doc — the execution plan for plan-telemetry-and-accounts.md; re-verify when a wave lands or a vendor free tier moves -->
 
 # Rollout: anonymous telemetry and optional cloud accounts
 
@@ -325,11 +325,16 @@ deployed and the Settings toggle does not exist yet, so nothing sends.
   balance or sweep entry point imports `src/net` or `src/scenes`, and `src/net`
   is imported by exactly `src/gameBoot.ts` and `src/scenes/DuelScene.ts`. One
   pinned gap: a dynamic `import()` slips past the lint rule.
-- **Privacy page, README and CSP, built 2026-09-17:** `scripts/gen-privacy-page.ts`
-  renders the policy to `public/privacy.html` on every dev and build (owner
-  ruling: the page goes live alongside 1.8, and shipping it inside the same
-  Pages deploy as the client is what makes "live before the first event"
-  true by construction). The README gains a Privacy section. `index.html`
+- **Privacy page, README and CSP, built 2026-09-17; widened to all three legal
+  pages 2026-09-22:** `scripts/gen-legal-pages.ts` renders the policy, the terms
+  and the notices to `public/privacy.html`, `public/terms.html` and
+  `public/notices.html` on every dev and build, and
+  `scripts/gen-third-party-notices.ts` writes `public/THIRD_PARTY_NOTICES.txt`
+  beside them (owner ruling: the page goes live alongside 1.8, and shipping it
+  inside the same Pages deploy as the client is what makes "live before the
+  first event" true by construction). A **Legal** button in the Settings header
+  opens all three from inside the game. The README gains a Privacy section, and
+  its License section links the three published pages. `index.html`
   carries `connect-src 'self' https://api.github.com
   https://db-signals.loominvanta.workers.dev`, connect-src only. The desktop
   CSP (`src-tauri/tauri.conf.json`, must also allow `ipc:` and

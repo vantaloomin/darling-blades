@@ -1,4 +1,4 @@
-<!-- source-of-truth: LICENSE, README.md, package.json, src-tauri/Cargo.toml, docs/art-pipeline.md · last-verified: 2026-09-15 · DRAFT legal notices template — not live, not legal advice -->
+<!-- source-of-truth: LICENSE, README.md, package.json, src-tauri/Cargo.toml, docs/art-pipeline.md · last-verified: 2026-09-22 · DRAFT legal notices template — not live, not legal advice -->
 
 <!--
 DRAFT. Not published.
@@ -31,10 +31,8 @@ make non-commercial fan content about it. For anything else, including
 commercial use or using the art in another project, ask first at
 admin@bladedarlings.com.
 
-<!-- OPTIONAL, owner decision (docs/legal/README.md, decision 2):
 The card and scene art was created with the help of AI image generation tools
 and then selected, directed, and edited for the game.
--->
 
 ## Mythology and history
 
@@ -48,18 +46,8 @@ Darling Blades is built with open-source software, including Phaser (MIT
 License) and, in the desktop app, Tauri (MIT or Apache 2.0 License). The
 fonts Inter and Cinzel are used under the SIL Open Font License 1.1. The full
 list of third-party components and their licenses is in
-[THIRD-PARTY NOTICES FILE].
+[THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt).
 
 The desktop app runs on Microsoft Edge WebView2, a Windows component provided
 by Microsoft under its own terms.
 
-<!--
-TODO before the next desktop release: generate the third-party notices file.
-The NSIS installer redistributes compiled Rust crates, and several licenses
-(MIT, Apache 2.0, BSD) require their notice to travel with the binary.
-Candidates: `npx license-checker-rseidelsohn --production` for npm, and
-`cargo about generate` for src-tauri. Output to a THIRD_PARTY_NOTICES file
-bundled with both builds. The OFL fonts in public/assets/fonts/ (Inter,
-Cinzel) need their copyright line and the OFL text included in that file;
-the OFL requires it for redistribution.
--->
