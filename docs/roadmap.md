@@ -1,4 +1,4 @@
-<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/scenes/LimitedDraftScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, tests/meta/draftPersonas.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-09-04 · review monthly -->
+<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/scenes/LimitedDraftScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, tests/meta/draftPersonas.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-09-22 · review monthly -->
 
 # Roadmap
 
@@ -1640,6 +1640,19 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   see above).
 
 ## Planned
+
+- **A metagame sweep that fits in a night (proposal, 2026-09-22).**
+  [plan-sweep-speed.md](plan-sweep-speed.md). The sweep takes three to five
+  days on the owner's machine because it runs eight workers on thirty-two
+  threads and measures every losing swap at full precision. Four levers,
+  measured: sixteen workers inside the CPU cap (2x, no change to the
+  answer); racing swaps with early stopping (2 to 3x on the two thirds of
+  games that measure losers); a Medium screen before the Hard measurement
+  (2x more, one-persona comparison as the gate); and fanning the six
+  personas out across GitHub-hosted runners, free for a public repository
+  (the wall-clock lever, the owner's machine idle). Recommended: levers 1
+  and 4 for 1.8, 2 and 3 for 1.9 behind flags. NOTHING AUTHORIZED; three
+  owner decisions in the doc.
 
 > **The release spine from 1.7 to 2.0 lives in
 > [plan-road-to-2.0.md](plan-road-to-2.0.md)** (2026-08-24): the Large/Small
