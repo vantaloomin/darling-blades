@@ -20,6 +20,7 @@ import {
   achievementClaimMotion,
   achievementClaimPitch,
   hallWingFrames,
+  HALL_BUCKETS,
   togglePin,
   wingFurnishings,
   wingSummaries,
@@ -27,6 +28,7 @@ import {
   type WingSummary,
 } from '../ui/achievementPresentation';
 import { CardView } from '../ui/CardView';
+import { gateOnArt } from '../ui/artGate';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { bakeManaSymbols } from '../ui/ManaSymbols';
 import { colorInt, theme } from '../ui/theme';
@@ -120,8 +122,18 @@ export class AchievementsScene extends Phaser.Scene {
     super('Achievements');
   }
 
+  /**
+   * The only card art here is the Trophy Hall furnishing: two owned thumbs
+   * leaning behind each of the five wing plinths (`wingFurnishings`).
+   */
   create(
     data: { page?: number; filter?: AchievementFilter; view?: HallView; bucket?: HallBucket | 'all' } = {},
+  ): void {
+    const owned = Object.keys(Services.save.data.collection);
+    gateOnArt(this, HALL_BUCKETS.flatMap((bucket) => wingFurnishings(bucket, owned)), () => this.build(data));
+  }
+  private build(
+    data: { page?: number; filter?: AchievementFilter; view?: HallView; bucket?: HallBucket | 'all' },
   ): void {
     applyBackdrop(this, 'collection', {
       dim: colorInt(theme.colors.dim),

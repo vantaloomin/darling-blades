@@ -25,6 +25,7 @@ import { isReplayVisible } from '../ui/deckBuilderHelpers';
 import { OverlayCoordinator } from '../ui/OverlayCoordinator';
 import { createMultilineInput, type MultilineInputHandle } from '../ui/MultilineInput';
 import { createSearchInput, type SearchInputHandle } from '../ui/SearchInput';
+import { gateOnArt } from '../ui/artGate';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { makeCardThumb } from '../ui/CardThumbCache';
 import { canvasPngBytes, composeSaveCardCanvas, downloadPngBytes, pickPngFile } from '../ui/saveCard';
@@ -392,6 +393,15 @@ export class ProfileScene extends Phaser.Scene {
    * the save code, and downloads the PNG.
    */
   private openSaveCardPicker(getCode: () => string): void {
+    // The only card art the Profile draws: the owned-pool grid behind the save
+    // card export (src/ui/saveCard.ts composes the chosen card's art into the
+    // PNG, so a stand-in texture would ship inside the file).
+    gateOnArt(this, Object.keys(Services.save.data.collection), () =>
+      this.buildSaveCardPicker(getCode),
+    );
+  }
+
+  private buildSaveCardPicker(getCode: () => string): void {
     this.pickerShell?.close();
     const shell = modalShell(this, {
       width: 1120,

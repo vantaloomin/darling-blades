@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/meta/SaveManager.ts, src/meta/cosmetics.ts, src/meta/Achievements.ts, src/scenes/DuelScene.ts, src/scenes/ProfileScene.ts, src/scenes/PackOpeningScene.ts, src/ui/CardFrameFactory.ts, src/ui/CardView.ts, docs/design-system.md · last-verified: 2026-08-18 -->
+<!-- source-of-truth: src/meta/SaveManager.ts, src/meta/cosmetics.ts, src/meta/Achievements.ts, src/scenes/DuelScene.ts, src/scenes/ProfileScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/PreloadScene.ts, src/scenes/ArtLoaderScene.ts, src/art/artLoader.ts, src/ui/artGate.ts, src/ui/CardFrameFactory.ts, src/ui/CardView.ts, docs/design-system.md · last-verified: 2026-09-21 -->
      If you change those files, update this doc or re-verify the date. -->
 
 # Architecture
@@ -206,17 +206,41 @@ decision; `validateAction` cross-checks any submitted action against it.
 
 ## Scene map
 
-Scenes are registered in `src/main.ts` and flow:
+Scenes are registered in `src/gameBoot.ts` and flow:
 
 ```
 Boot → Preload → MainMenu → { Gauntlet→Duel, Duel, Shop→PackOpening, Collection, DeckBuilder, Limited→Duel, Achievements, Showcase }
+                 └ ArtLoader (launched, runs beside every scene for the session)
 ```
 
 - **Boot** (`BootScene.ts`) — registers the WebGL post-FX pipeline, then jumps
   to Preload.
-- **Preload** (`PreloadScene.ts`) — waits for webfonts, bakes shared textures
-  (frames, mana pips, FX), builds the placeholder art atlas, queues real art,
-  then starts MainMenu.
+- **Preload** (`PreloadScene.ts`) — **phase A of a two-phase load (1.8)**: only
+  what the menu needs. Scene backdrops, premium hero portraits, coin-flip
+  faces, webfonts, the shared texture bakes (frames, mana pips, FX, the
+  `art-loading` stand-in) and the placeholder art atlas. It then *launches*
+  ArtLoader and starts MainMenu.
+- **ArtLoader** (`ArtLoaderScene.ts`, key `ArtLoader`) — **phase B**: the 1,537
+  manifest card images (216 MiB), streamed in 48-file batches beside whatever
+  scene is on screen. Preload used to queue all of them itself, which put 16 s
+  between the splash and a menu that draws no card art (measured 2026-09-21,
+  production build, local disk). The scene is a thin shell over
+  `src/art/artLoader.ts`, which owns the load order (tutorial decks → starter
+  decks → avatar portraits → this save's decks → the rest of the manifest →
+  styled basic-land files), a front queue, and the module API
+  (`isArtLoaded` / `ensureArt` / `artProgress` / `requestArt`, plus the
+  `art-file` / `art-progress` / `art-complete` events on `game.events`).
+  A scene that draws card art wraps its `create()` body in
+  `gateOnArt(scene, ids, build)` (`src/ui/artGate.ts`): the ids jump the queue,
+  the boot loading label shows while they arrive, and the build runs
+  synchronously once they are in — which is every case after the session has
+  finished loading. A gate covers only what that scene actually draws, so the
+  Shop waits on its 19 deck-grid faces and each deck preview waits on its own
+  list; something that opens OVER a built scene (a modal) uses `awaitArt`
+  instead — the same wait without the full-screen overlay, drawing the loading
+  line in its own chrome. `ArtResolver.getArt` returns the neutral
+  `art-loading` texture for a file that is still queued, as a backstop, never
+  as the mechanism.
 - **MainMenu** (`MainMenuScene.ts`) — the menu + starter picker.
 - **Gauntlet** (`GauntletScene.ts`) — the Avatar Gauntlet ladder, reached from
   the MainMenu "Avatar Gauntlet" item; shows the ten rungs and launches

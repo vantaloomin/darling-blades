@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { Art, ArtResolver } from '../art/ArtResolver';
+import { Art, ArtResolver, bakeArtLoadingTexture } from '../art/ArtResolver';
 import manifest from '../data/art-manifest.json';
 import { CARD_DB } from '../data/catalog';
 import { PREMIUM_HEROES } from '../data/heroes';
@@ -17,8 +17,17 @@ import { applySceneSettings, sceneTextureKey } from '../ui/SceneBackdrop';
 const SCENE_KEYS: string[] = (manifest as { scenes?: string[] }).scenes ?? [];
 
 /**
- * Fonts → shared texture baking (frames, pips, fx) → placeholder art atlas →
- * manifest-listed real art. Everything the rest of the game renders with.
+ * Phase A of the two-phase boot (1.8): only what the MAIN MENU needs — scene
+ * backdrops, premium hero portraits, coin-flip faces, fonts, the shared
+ * texture bakes and the placeholder atlas. Then it launches `ArtLoader` and
+ * starts `MainMenu`.
+ *
+ * Phase B — the 1,537 manifest card images, 216 MiB — belongs to
+ * `ArtLoaderScene`, which streams it in batches beside every other scene
+ * (`src/art/artLoader.ts`). It used to happen HERE, which is why the menu took
+ * 16.2 s to appear on a local-disk production build (measured 2026-09-21); the
+ * menu, Settings, the Glossary, the first-run stats dialog and the tutorial
+ * prompt draw no card art at all.
  */
 export class PreloadScene extends Phaser.Scene {
   constructor() {
@@ -58,8 +67,10 @@ export class PreloadScene extends Phaser.Scene {
       label.setText(`Unsheathing Blades… ${Math.round(v * 100)}%`);
     });
 
+    // Card art is NOT queued here — ArtLoaderScene owns it (see the class
+    // comment). The resolver is still built now: every scene reads it through
+    // the Art singleton, and generatePlaceholders() runs in create().
     Art.resolver = new ArtResolver(this, CARD_DB);
-    Art.resolver.queueRealArt();
 
     // Queue every manifest-listed scene/menu backdrop as `scene-<key>` (same
     // zero-404 discipline as cards — only files the manifest lists are ever
@@ -99,8 +110,12 @@ export class PreloadScene extends Phaser.Scene {
     bakeManaSymbols(this);
     bakeCardFrames(this);
     bakeFxTextures(this);
+    bakeArtLoadingTexture(this);
     Art.resolver!.generatePlaceholders();
 
+    // launch, not start: the art loader has no visuals and must keep running
+    // alongside every scene for the rest of the session.
+    this.scene.launch('ArtLoader');
     this.scene.start('MainMenu');
   }
 }

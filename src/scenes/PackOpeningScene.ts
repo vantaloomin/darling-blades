@@ -38,6 +38,7 @@ import {
   RUNWAY_SKIP,
   virtualRange,
 } from '../ui/packRunwayPresentation';
+import { gateOnArt } from '../ui/artGate';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { bindInspectHotkeys } from '../ui/inspectHotkeys';
 import { colorInt, theme } from '../ui/theme';
@@ -144,7 +145,15 @@ export class PackOpeningScene extends Phaser.Scene {
     super('PackOpening');
   }
 
+  /** The reveal draws exactly the rolled cards, single pack or batch. */
   create(
+    data: (PackResult & { sku?: BoosterSku }) | { batch: PackResult[]; sku?: BoosterSku },
+  ): void {
+    const packs = 'batch' in data ? data.batch : [data];
+    const ids = packs.flatMap((pack) => pack.cards.map((card) => card.cardId));
+    gateOnArt(this, ids, () => this.build(data));
+  }
+  private build(
     data: (PackResult & { sku?: BoosterSku }) | { batch: PackResult[]; sku?: BoosterSku },
   ): void {
     // A repeat opener can re-enter this scene without a fresh Scene instance.

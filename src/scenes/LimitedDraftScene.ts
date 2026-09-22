@@ -36,6 +36,7 @@ import { computeDeckStats, CURVE_MAX, PIE_COLORS } from '../ui/deckStats';
 import { addKeywordGlossaryPanel } from '../ui/KeywordGlossaryPanel';
 import { bakeManaSymbols } from '../ui/ManaSymbols';
 import { ModalGuard } from '../ui/Modal';
+import { gateOnArt } from '../ui/artGate';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
 import {
@@ -108,7 +109,25 @@ export class LimitedDraftScene extends Phaser.Scene {
     super('LimitedDraft');
   }
 
+  /**
+   * Every card in every pack of the run — the picks table and the pack grid
+   * both draw from them — plus the seat portraits of the run's own personas
+   * (they are drawn beside the packs, so they belong in the same wait).
+   */
   create(): void {
+    const run = Services.save.data.limited.activeRun;
+    const draft = run?.draft;
+    const ids = [
+      ...(draft?.currentPacks.flat() ?? []),
+      ...(draft?.packs.flat(2) ?? []),
+      ...(draft?.picks.flat() ?? []),
+      ...(draft?.personaIds ?? [])
+        .map((id) => draftPersonaById(id)?.portraitCardId)
+        .filter((id): id is string => typeof id === 'string'),
+    ];
+    gateOnArt(this, ids, () => this.build());
+  }
+  private build(): void {
     this.selectedId = null;
     this.selectedCell = -1;
     this.packCells = [];

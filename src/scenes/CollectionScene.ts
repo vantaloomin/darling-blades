@@ -54,6 +54,7 @@ import {
 } from '../ui/collectionSort';
 import { addKeywordGlossaryPanel } from '../ui/KeywordGlossaryPanel';
 import { ModalGuard } from '../ui/Modal';
+import { gateOnArt } from '../ui/artGate';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { createSearchInput } from '../ui/SearchInput';
 import {
@@ -172,7 +173,11 @@ export class CollectionScene extends Phaser.Scene {
     super('Collection');
   }
 
+  /** The binder pages through the whole set, so it waits for the whole set. */
   create(): void {
+    gateOnArt(this, null, () => this.build());
+  }
+  private build(): void {
     this.state = { ...defaultFilterState(), ownedOnly: true };
     this.page = 0;
     this.sortSelection = DEFAULT_COLLECTION_SORT;
