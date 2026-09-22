@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-telemetry-and-accounts.md, docs/rollout-telemetry-and-accounts.md, src/version.ts, src/meta/SaveManager.ts, src-tauri/tauri.conf.json, src-tauri/src/lib.rs, LICENSE · last-verified: 2026-09-15 · legal drafts index — templates, NOT live, NOT legal advice; re-verify when telemetry or accounts code lands -->
+<!-- source-of-truth: docs/plan-telemetry-and-accounts.md, docs/rollout-telemetry-and-accounts.md, src/version.ts, src/meta/SaveManager.ts, src-tauri/tauri.conf.json, src-tauri/src/lib.rs, LICENSE · last-verified: 2026-09-21 · legal drafts index — templates, NOT live, NOT legal advice; re-verify when telemetry or accounts code lands -->
 
 # Legal documents (drafts)
 
