@@ -14,11 +14,20 @@
 # 80 hill-climb iterations, all six personas). For a dry run, dispatch with
 # seeds 10, iterations 5, rounds 1. Each round is a call to
 # metagame-sweep-round.yml: every persona's craft runs as a chain of up to
-# CHUNKS jobs of CHUNK_ITERATIONS iterations each (see WHY CHUNKS). A dry run
-# at iterations 5 finishes inside chunk 0, and the later chunks only copy the
-# finished craft forward, so expect about a minute each for them (checkout,
-# npm ci, a copy). A dispatch whose iterations exceed CHUNKS x
-# CHUNK_ITERATIONS is refused by the setup job before anything runs.
+# CHUNKS jobs (ten), each of which stops starting new iterations once
+# CHUNK_MINUTES (240) have passed (see WHY CHUNKS). A dry run at iterations 5
+# finishes inside chunk 0, and the nine chunks after it only copy the finished
+# craft forward; expect about a minute each for those (checkout, npm ci, a
+# copy).
+#
+# WHAT TO EXPECT. A round lasts as long as its slowest craft, because each
+# chunk job waits for every persona's previous chunk. While weenie is the
+# slowest persona, that is about 27 hours of chain per round (see WHY CHUNKS),
+# a little more for each chunk's setup, and a later round measures against 19
+# decks (the reference field plus the other five personas) instead of 14. So
+# the whole sweep is several days of wall clock on GitHub, with the owner's
+# machine idle throughout. This workflow cannot shorten that. The lever that
+# would is the cost of a weenie game in the Hard brain, which is a 1.9 item.
 #
 # WHAT COMES BACK. Every finished craft is uploaded as `craft-r<n>-<persona>`,
 # and the merge job commits the whole sweep to the orphan branch `sweep-data`
@@ -41,16 +50,31 @@
 #
 # WHY CHUNKS. GitHub stops a hosted job at 360 minutes, and a whole craft does
 # not fit. The first fanned-out sweep (run 35764255645, 2026-09-22, the
-# defaults above) ran round 0 on 4-core ubuntu-latest runners: midrange
-# finished in 270 minutes, burn in 347, and attrition, draw-go, reanimator and
-# weenie hit the 350-minute job timeout (GitHub reports a timeout as
-# `cancelled`). One candidate measurement (14 matchups x 150 games) takes
-# roughly four to six minutes there, and a craft is 81 of them. The timeout
-# cannot be raised, and a resume re-runs the same deterministic work into the
-# same wall, so a craft stops after CHUNK_ITERATIONS iterations, saves its
-# hill-climb state, and the next job continues it. Twenty iterations is about
-# 80 to 130 minutes of measuring, well inside the limit, and four chunks hold
-# the default 80.
+# defaults above) hit the 350-minute job timeout on four of six personas. The
+# chunked sweep that followed (run 35810005716, 2026-09-23, the defaults)
+# measured round 0, chunk 0 (the greedy build plus 20 iterations, so 21
+# measurements of 14 matchups x 150 games) on 4-core ubuntu-latest runners:
+#
+#   midrange     42 min
+#   burn         64 min
+#   reanimator   75 min
+#   draw-go     147 min
+#   attrition   226 min
+#   weenie      hit the 350-minute timeout
+#
+# Per game, weenie is roughly ten times slower than midrange (long go-wide
+# boards are expensive for the Hard brain). That puts one weenie measurement
+# near twenty minutes, and a whole weenie craft (81 measurements) near 27
+# hours of runner time. A chunk sized in iterations cannot suit both midrange
+# and weenie, and the measurement may not change during a sweep, so a chunk
+# stops on TIME: once CHUNK_MINUTES have passed since the craft command
+# started, no new iteration begins, the one in flight finishes, and the job
+# saves the hill-climb state for the next job. Every chunk runs at least one
+# iteration. 240 minutes leaves room inside the 350-minute job for the
+# iteration in flight (20 minutes or more for weenie), npm ci and the upload.
+# Ten chunks of 240 minutes hold about 40 hours of measuring per craft, room
+# for weenie's 27 with a margin; a craft that still has not finished in its
+# tenth chunk fails there, naming CHUNKS and CHUNK_MINUTES.
 #
 # WHAT THIS DOES NOT CHANGE. The same seeds, the same games per matchup, the
 # same Hard brain on both seats, the same acceptance rule, the same artifact
@@ -113,10 +137,10 @@ env:
     --seeds ${{ inputs.seeds }}
     --iterations ${{ inputs.iterations }}
     --seed ${{ inputs.seed }}
-  # Hill-climb iterations per chunk job, and chunk jobs per craft (at most 4,
-  # the jobs metagame-sweep-round.yml defines). See WHY CHUNKS above.
-  CHUNK_ITERATIONS: '20'
-  CHUNKS: '4'
+  # The time budget of one chunk job, in minutes, and chunk jobs per craft (at
+  # most 10, the jobs metagame-sweep-round.yml defines). See WHY CHUNKS above.
+  CHUNK_MINUTES: '240'
+  CHUNKS: '10'
 
 jobs:
   setup:
@@ -126,12 +150,13 @@ jobs:
       personas: ${{ steps.plan.outputs.personas }}
       sweep-dir: ${{ steps.plan.outputs.sweep-dir }}
       sweep-args: ${{ steps.plan.outputs.sweep-args }}
-      chunk-iterations: ${{ steps.plan.outputs.chunk-iterations }}
+      chunk-minutes: ${{ steps.plan.outputs.chunk-minutes }}
       chunks: ${{ steps.plan.outputs.chunks }}
     steps:
-      # Refused here, before any runner starts: a craft that cannot finish in
-      # its last chunk would spend hours and publish nothing.
-      - name: Check the iterations fit the chunks
+      # Refused here, before any runner starts. A budget of 300 minutes or more
+      # would leave the 350-minute job too little room for the iteration in
+      # flight (20 minutes or more for weenie), npm ci and the upload.
+      - name: Check the inputs and the chunk settings
         env:
           ITERATIONS: ${{ inputs.iterations }}
         run: |
@@ -140,17 +165,15 @@ jobs:
             echo "iterations must be a whole number (got $ITERATIONS)."
             exit 1
           fi
-          if ! [[ "$CHUNKS" =~ ^[1-4]$ ]] || ! [[ "$CHUNK_ITERATIONS" =~ ^[1-9][0-9]*$ ]]; then
-            echo "CHUNKS must be 1 to 4 and CHUNK_ITERATIONS a positive whole number (got $CHUNKS and $CHUNK_ITERATIONS)."
+          if ! [[ "$CHUNK_MINUTES" =~ ^[1-9][0-9]*$ ]] || [ "$CHUNK_MINUTES" -ge 300 ]; then
+            echo "CHUNK_MINUTES must be a positive whole number below 300 (got $CHUNK_MINUTES)."
             exit 1
           fi
-          CAPACITY=$((CHUNKS * CHUNK_ITERATIONS))
-          if [ "$ITERATIONS" -gt "$CAPACITY" ]; then
-            echo "iterations $ITERATIONS is more than a craft can run: $CHUNKS chunks of $CHUNK_ITERATIONS iterations hold $CAPACITY."
-            echo "Dispatch with iterations $CAPACITY or fewer, or raise CHUNK_ITERATIONS in metagame-sweep.yml."
+          if ! [[ "$CHUNKS" =~ ^([1-9]|10)$ ]]; then
+            echo "CHUNKS must be 1 to 10, the chunk jobs metagame-sweep-round.yml defines (got $CHUNKS)."
             exit 1
           fi
-          echo "iterations $ITERATIONS fit in $CHUNKS chunks of $CHUNK_ITERATIONS."
+          echo "Each craft runs in up to $CHUNKS chunks of $CHUNK_MINUTES minutes."
 
       # The persona list becomes the matrix, and the output directory is fixed
       # here so every job agrees on it even across a UTC midnight.
@@ -168,7 +191,7 @@ jobs:
           echo "personas=$LIST" >> "$GITHUB_OUTPUT"
           echo "sweep-dir=sweeps/$(date -u +%Y-%m-%d)-$SEED" >> "$GITHUB_OUTPUT"
           printf 'sweep-args=%s\n' "$SWEEP_ARGS" >> "$GITHUB_OUTPUT"
-          echo "chunk-iterations=$CHUNK_ITERATIONS" >> "$GITHUB_OUTPUT"
+          echo "chunk-minutes=$CHUNK_MINUTES" >> "$GITHUB_OUTPUT"
           echo "chunks=$CHUNKS" >> "$GITHUB_OUTPUT"
           echo "Personas: $LIST"
 
@@ -183,7 +206,7 @@ jobs:
       personas: ${{ needs.setup.outputs.personas }}
       sweep_args: ${{ needs.setup.outputs.sweep-args }}
       resume_from: ${{ inputs.resume_from }}
-      chunk_iterations: ${{ fromJSON(needs.setup.outputs.chunk-iterations) }}
+      chunk_minutes: ${{ fromJSON(needs.setup.outputs.chunk-minutes) }}
       chunks: ${{ fromJSON(needs.setup.outputs.chunks) }}
 
   check-1:
@@ -230,7 +253,7 @@ jobs:
       personas: ${{ needs.setup.outputs.personas }}
       sweep_args: ${{ needs.setup.outputs.sweep-args }}
       resume_from: ${{ inputs.resume_from }}
-      chunk_iterations: ${{ fromJSON(needs.setup.outputs.chunk-iterations) }}
+      chunk_minutes: ${{ fromJSON(needs.setup.outputs.chunk-minutes) }}
       chunks: ${{ fromJSON(needs.setup.outputs.chunks) }}
 
   check-2:
@@ -274,7 +297,7 @@ jobs:
       personas: ${{ needs.setup.outputs.personas }}
       sweep_args: ${{ needs.setup.outputs.sweep-args }}
       resume_from: ${{ inputs.resume_from }}
-      chunk_iterations: ${{ fromJSON(needs.setup.outputs.chunk-iterations) }}
+      chunk_minutes: ${{ fromJSON(needs.setup.outputs.chunk-minutes) }}
       chunks: ${{ fromJSON(needs.setup.outputs.chunks) }}
 
   check-3:
@@ -318,7 +341,7 @@ jobs:
       personas: ${{ needs.setup.outputs.personas }}
       sweep_args: ${{ needs.setup.outputs.sweep-args }}
       resume_from: ${{ inputs.resume_from }}
-      chunk_iterations: ${{ fromJSON(needs.setup.outputs.chunk-iterations) }}
+      chunk_minutes: ${{ fromJSON(needs.setup.outputs.chunk-minutes) }}
       chunks: ${{ fromJSON(needs.setup.outputs.chunks) }}
 
   check-4:
@@ -362,7 +385,7 @@ jobs:
       personas: ${{ needs.setup.outputs.personas }}
       sweep_args: ${{ needs.setup.outputs.sweep-args }}
       resume_from: ${{ inputs.resume_from }}
-      chunk_iterations: ${{ fromJSON(needs.setup.outputs.chunk-iterations) }}
+      chunk_minutes: ${{ fromJSON(needs.setup.outputs.chunk-minutes) }}
       chunks: ${{ fromJSON(needs.setup.outputs.chunks) }}
 
   merge:

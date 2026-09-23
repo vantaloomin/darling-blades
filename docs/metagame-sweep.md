@@ -1,4 +1,4 @@
-<!-- source-of-truth: scripts/personas/craft.ts, scripts/run-sweep.ps1, .github/workflows/metagame-sweep.yml, .github/workflows/metagame-sweep-round.yml, tests/personas/fanout.test.ts · last-verified: 2026-09-22 -->
+<!-- source-of-truth: scripts/personas/craft.ts, scripts/run-sweep.ps1, .github/workflows/metagame-sweep.yml, .github/workflows/metagame-sweep-round.yml, tests/personas/fanout.test.ts · last-verified: 2026-09-23 -->
 
 # The persona metagame sweep
 
@@ -58,41 +58,59 @@ gets 350 minutes, and one persona's failure does not cancel the other five.
 
 **Why a craft is split into chunks.** GitHub stops a hosted job at 360 minutes,
 and a whole craft at the defaults does not fit on the 4-core `ubuntu-latest`
-runner. The first fanned-out sweep (run 35764255645, 2026-09-22, defaults: 150
-seeds, 80 iterations, the prefab field, Hard on both seats) measured round 0:
+runner: the first fanned-out sweep (run 35764255645, 2026-09-22) ran each craft
+as one job, and four of the six hit the 350-minute job timeout (GitHub reports
+a timeout as `cancelled`). The cap cannot be raised, and a resume re-runs the
+same deterministic work into the same wall, so a craft now runs as a chain of
+jobs, each saving the hill climb's state for the next.
 
-| Persona | Round 0, one job |
+**Why the chunks stop on time, not on iterations.** The chunked sweep that
+followed (run 35810005716, 2026-09-23, the defaults: 150 seeds, 80 iterations,
+the prefab field, Hard on both seats) sized chunks at 20 iterations. Round 0,
+chunk 0 (the greedy build plus 20 iterations, so 21 measurements of 14 matchups
+x 150 games) took:
+
+| Persona | Round 0, chunk 0 |
 | --- | --- |
-| midrange | finished in 270 min |
-| burn | finished in 347 min |
-| attrition | hit the 350-min job timeout |
-| draw-go | hit the 350-min job timeout |
-| reanimator | hit the 350-min job timeout |
+| midrange | 42 min |
+| burn | 64 min |
+| reanimator | 75 min |
+| draw-go | 147 min |
+| attrition | 226 min |
 | weenie | hit the 350-min job timeout |
 
-GitHub reports a timeout as `cancelled`. One candidate measurement (14 matchups
-x 150 games) takes roughly four to six minutes on that runner, and a craft is 81
-of them (the greedy build, then one per iteration). The cap cannot be raised,
-and a resume re-runs the same deterministic work into the same wall, so a craft
-now stops after a fixed number of iterations, saves its state, and the next job
-continues it.
+The chunked dry run (seeds 10, iterations 5) had the same spread: weenie's
+chunk 0 took 4 min 43 s against midrange's 1 min 10 s. Per game, weenie is
+roughly ten times slower than midrange (long go-wide boards are expensive for
+the Hard brain). That puts one weenie measurement near twenty minutes, and a
+whole weenie craft (81 measurements) near 27 hours of runner time. A chunk sized
+in iterations cannot be right for both midrange and weenie, and the measurement
+may not change during a sweep, so a chunk stops on a time budget instead.
 
-**The chunk design.** `metagame-sweep.yml` sets `CHUNK_ITERATIONS: '20'` and
-`CHUNKS: '4'`. Twenty iterations is about 80 to 130 minutes of measuring, well
-inside the limit, and four chunks hold the default 80. The setup job refuses a
-dispatch whose `iterations` exceed `CHUNKS x CHUNK_ITERATIONS` before any runner
-starts. Per persona, the round runs:
+**The chunk design.** `metagame-sweep.yml` sets `CHUNK_MINUTES: '240'` and
+`CHUNKS: '10'`. Each chunk job runs `--metagame-craft ... --chunk-minutes 240`:
+the clock starts when the craft command starts (before the greedy build and its
+measurement, so the budget covers everything the job spends measuring), no new
+iteration begins once 240 minutes have passed, and the iteration in flight
+finishes. Every chunk runs at least one iteration, even one that starts past
+its budget, so the chain always makes progress. 240 minutes leaves room inside
+the 350-minute job for that iteration in flight (20 minutes or more for weenie),
+`npm ci`, and the upload; the setup job refuses a `CHUNK_MINUTES` of 300 or
+more, and a `CHUNKS` outside 1 to 10. Ten chunks of 240 minutes hold about 40
+hours of measuring per craft, room for weenie's 27 with a margin. Per persona,
+the round runs:
 
 ```
 chunk-0  fresh start (or the craft copied forward from resume_from)
 chunk-1  continues chunk-0's checkpoint, or copies its finished craft forward
 chunk-2  the same, from chunk-1
-chunk-3  the same, from chunk-2; names the journal and uploads craft-r<n>-<persona>
+...
+chunk-9  the same, from chunk-8; names the journal and uploads craft-r<n>-<persona>
 ```
 
-Each chunk job runs `--metagame-craft ... --chunk-iterations 20`, continuing
-with `--resume-from state` from the previous chunk's artifact, and uploads its
-`out/` as `chunk-r<n>-c<c>-<persona>`. That artifact holds either
+Each chunk after the first continues with `--resume-from state` from the
+previous chunk's artifact, and every chunk uploads its `out/` as
+`chunk-r<n>-c<c>-<persona>`. That artifact holds either
 `checkpoint-<persona>-r<n>.json` (the craft is not finished) or the finished
 `craft-<persona>-r<n>.json` with its journal line; chunk artifacts are kept five
 days and never match the `craft-r*-*` pattern the check and merge jobs read. A
@@ -100,12 +118,25 @@ checkpoint carries the hill climb's whole state (the next iteration, the rng,
 the greedy and retained builds with their measurements, the accepted-swap log
 and the two counters), the run configuration, the craft seed, and a fingerprint
 of the field it was climbed against, so it refuses to continue under a
-different configuration, round, or field. A craft that finishes early (a dry
-run at iterations 5 finishes in chunk 0) is copied forward by the later chunks;
-expect about a minute each for those (checkout, `npm ci`, a copy). Chunk boundaries do not enter the result: a craft
-finished in several chunks is byte-identical to one finished in one process,
-which `tests/personas/fanout.test.ts` asserts on a small run and under the real
+different configuration, round, or field. A craft that has not finished by the
+end of its last chunk fails there, with a message naming `CHUNKS` and
+`CHUNK_MINUTES`. A craft that finishes early is copied forward by the later
+chunks; expect about a minute each for those (checkout, `npm ci`, a copy), so a
+dry run at iterations 5 finishes in chunk 0 and nine copy-forward chunks follow.
+Chunk boundaries do not enter the result: wherever the budget stops a chunk, a
+craft finished in several chunks is byte-identical to one finished in one
+process, which `tests/personas/fanout.test.ts` asserts on a small run (chunks
+stopped by iteration count and by a test-driven clock) and under the real
 engine.
+
+**What to expect on the wall clock.** Each chunk job waits for every persona's
+previous chunk, so a round lasts as long as its slowest craft. While weenie is
+the slowest persona, a round is about 27 hours of chain, a little more for each
+chunk's setup, and a later round measures against 19 decks (the reference field
+plus the other five personas) instead of 14. The whole sweep is therefore
+several days of wall clock on GitHub, with the owner's machine idle throughout.
+The workflow cannot shorten that; the lever that would is the cost of a weenie
+game in the Hard brain, which is a 1.9 item.
 
 **What comes back.** Every finished craft is uploaded as its own artifact
 (`craft-r<n>-<persona>`), and the `merge` job runs whatever finished through the
@@ -157,14 +188,16 @@ npx tsx scripts/personas/craft.ts --metagame-craft burn --round 1 \
   --personas burn,draw-go,attrition,reanimator,weenie,midrange \
   --rounds 4 --field prefabs --pool all --seeds 150 --iterations 80 --seed 13003
 
-# The same craft in chunks of 20 iterations. Each call prints craft-complete=
-# and next-iteration=; until it finishes, it writes out/checkpoint-burn-r1.json
-# and the next call continues from it. The call that reaches --iterations
-# writes the craft and journal line an unchunked craft writes, byte for byte.
+# The same craft in chunks of 240 minutes, as the workflow runs it. Each call
+# prints craft-complete= and next-iteration=; until it finishes, it writes
+# <out>/checkpoint-burn-r1.json and the next call continues from it. The call
+# that reaches --iterations writes the craft and journal line an unchunked craft
+# writes, byte for byte. --chunk-iterations <n> bounds a chunk by iteration
+# count instead, or as well: whichever bound comes first ends the chunk.
 npx tsx scripts/personas/craft.ts --metagame-craft burn --round 1 \
-  --field-dir field --out c0 --chunk-iterations 20 --workers 4 <same flags>
+  --field-dir field --out c0 --chunk-minutes 240 --workers 4 <same flags>
 npx tsx scripts/personas/craft.ts --metagame-craft burn --round 1 \
-  --field-dir field --resume-from c0 --out c1 --chunk-iterations 20 --workers 4 <same flags>
+  --field-dir field --resume-from c0 --out c1 --chunk-minutes 240 --workers 4 <same flags>
 
 # Every craft under a directory, replayed through the loop's convergence policy.
 npx tsx scripts/personas/craft.ts --metagame-merge sweep --out merged
