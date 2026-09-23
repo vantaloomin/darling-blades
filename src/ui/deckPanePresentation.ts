@@ -166,3 +166,22 @@ export function warchestSlotPosition(index: number): { x: number; y: number } {
 export function warchestSlotLabel(index: number, name: string): string {
   return `${index + 1}. ${name}`;
 }
+
+export type DeckStatusTone = 'success' | 'danger';
+
+/** A one-off builder message (a refused import, a copied code) and how it reads. */
+export interface DeckStatusMessage {
+  text: string;
+  tone: DeckStatusTone;
+}
+
+/**
+ * The status band is one Text in one colour. A failure message never takes the
+ * success colour (a rejected import on a legal deck used to read green), and a
+ * blocking deck issue keeps the band red whatever message sits above it. With
+ * neither, a message reads as success; warnings alone keep the band's red.
+ */
+export function deckStatusTone(message: DeckStatusMessage | null, hasBlockingIssue: boolean): DeckStatusTone {
+  if (hasBlockingIssue || message?.tone === 'danger') return 'danger';
+  return message ? 'success' : 'danger';
+}

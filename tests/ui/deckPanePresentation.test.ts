@@ -3,6 +3,7 @@ import {
   DECK_PANE_LAYOUT,
   deckPaneOffsetY,
   deckPaneToggleState,
+  deckStatusTone,
   defaultDeckPaneMode,
   resolveDeckPaneMode,
   toggleDeckPaneMode,
@@ -144,6 +145,23 @@ describe('deck pane style view', () => {
     expect(t.warchestX - half).toBeGreaterThanOrEqual(t.cardsX + half);
     expect(t.styleX - half).toBeGreaterThanOrEqual(t.warchestX + half);
     expect(t.styleX + half).toBeLessThanOrEqual(DECK_PANE_LAYOUT.right);
+  });
+});
+
+/** The status band is one Text in one colour; the colour must not lie about the message. */
+describe('deck status band tone', () => {
+  const failure = { text: 'Import rejected', tone: 'danger' as const };
+  const success = { text: 'Deck code copied.', tone: 'success' as const };
+
+  it('never shows a failure in the success colour, even on a legal deck', () => {
+    expect(deckStatusTone(failure, false)).toBe('danger');
+    expect(deckStatusTone(failure, true)).toBe('danger');
+  });
+
+  it('reads a success message as success only while nothing blocks the deck', () => {
+    expect(deckStatusTone(success, false)).toBe('success');
+    // The blocking issue shares the band, and it must read as an error.
+    expect(deckStatusTone(success, true)).toBe('danger');
   });
 });
 

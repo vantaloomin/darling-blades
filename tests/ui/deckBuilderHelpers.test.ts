@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { freshSave } from '../../src/meta/SaveManager';
+import type { CardDb, CardDef } from '../../src/engine/types';
+import { switchDeckFormat } from '../../src/meta/DeckStorage';
+import { validateDarlingsDeck, validateWarchestDeck } from '../../src/meta/darlings';
+import { freshSave, type SavedDeck } from '../../src/meta/SaveManager';
 import { DARLINGS_DECK_SIZE, WARCHEST_DECK_SIZE } from '../../src/meta/warchest';
 import { backLabelFor } from '../../src/ui/navigation';
 import {
@@ -8,6 +11,8 @@ import {
   DARLINGS_RULES_COPY,
   builderFormatForDeck,
   collapseDeckRows,
+  deckBaseline,
+  deckCodeImportBlockers,
   isReplayVisible,
   isSavedDeckVisible,
   formatDeckSize,
@@ -17,8 +22,10 @@ import {
   formatPageSlice,
   gridPosition,
   isDeckBuilderDirty,
+  newDeckFormat,
   offeredBuilderFormats,
   reserveLandChipLabel,
+  restoreDeckBaseline,
   visibleBuilderFormatTabs,
   visibleSavedDecks,
 } from '../../src/ui/deckBuilderHelpers';
@@ -157,5 +164,141 @@ describe('deck builder helpers', () => {
     expect(isDeckBuilderDirty({ ...sameWorking, heroCardId: 'a', landReserve: ['land-plains'] }, saved)).toBe(true);
     expect(isDeckBuilderDirty({ cards: [], variantPins: [], landReserve: [], heroCardId: null }, null)).toBe(false);
     expect(isDeckBuilderDirty({ cards: ['a'], variantPins: [null], landReserve: [], heroCardId: null }, null)).toBe(true);
+    // A format switch writes the saved record at once, so on its own it is
+    // still an unsaved change against the baseline.
+    const savedStandard = { ...saved, format: 'warchest' as const };
+    const workingStandard = { ...sameWorking, landReserve: ['land-plains'], format: 'warchest' as const };
+    expect(isDeckBuilderDirty(workingStandard, savedStandard)).toBe(false);
+    expect(isDeckBuilderDirty({ ...workingStandard, format: 'darlings' }, savedStandard)).toBe(true);
+  });
+
+  it('drafts a deckless builder in a format that can still be saved', () => {
+    // Every offered format can be saved, so the draft must be one of them:
+    // after classic retirement that rules Constructed out.
+    expect(newDeckFormat(true, true)).toBe('warchest');
+    expect(offeredBuilderFormats(true, true)).toContain(newDeckFormat(true, true));
+    expect(newDeckFormat(true, false)).toBe('constructed');
+    expect(newDeckFormat(false, false)).toBe('constructed');
+  });
+});
+
+/** "Leave Without Saving" puts back the edited deck's last-saved state, and only onto that deck. */
+describe('deck builder baseline', () => {
+  function deck(id: string, over: Partial<SavedDeck> = {}): SavedDeck {
+    return {
+      id,
+      name: id,
+      cards: [],
+      heroCardId: null,
+      landStyle: null,
+      format: 'warchest',
+      darlingId: null,
+      landReserve: [],
+      variantPins: [],
+      ...over,
+    };
+  }
+
+  it('restores cards, Warchest, hero, Darling and format onto the edited deck', () => {
+    const edited = deck('deck-1', {
+      cards: ['a', 'b'],
+      variantPins: [null, 'blue|none|standard'],
+      heroCardId: 'b',
+      landReserve: ['land-plains', 'land-forest'],
+    });
+    const decks = [edited];
+    const baseline = deckBaseline(edited);
+
+    // Edits made in the builder, including a format switch, land on the saved record.
+    edited.cards = ['c'];
+    edited.variantPins = [null];
+    switchDeckFormat(edited, 'darlings');
+    edited.darlingId = 'queen';
+
+    expect(restoreDeckBaseline(decks, baseline, 'deck-1')).toBe(true);
+    expect(edited).toMatchObject({
+      format: 'warchest',
+      cards: ['a', 'b'],
+      variantPins: [null, 'blue|none|standard'],
+      heroCardId: 'b',
+      darlingId: null,
+      landReserve: ['land-plains', 'land-forest'],
+    });
+  });
+
+  it("never writes one deck's baseline onto a different deck", () => {
+    // The picker scenario: deck A is being edited, A is deleted, and the
+    // builder falls back to deck B while A's baseline is still in hand.
+    const deckA = deck('deck-a', { cards: ['a-card'], landReserve: ['land-plains'], heroCardId: 'a-card' });
+    const deckB = deck('deck-b', { cards: ['b-card'], landReserve: ['land-island'] });
+    const staleBaseline = deckBaseline(deckA);
+    const decks = [deckB];
+    const before = structuredClone(deckB);
+
+    expect(restoreDeckBaseline(decks, staleBaseline, 'deck-b')).toBe(false);
+    expect(deckB).toEqual(before);
+    // A baseline whose deck is gone writes nothing, even named as the working deck.
+    expect(restoreDeckBaseline(decks, staleBaseline, 'deck-a')).toBe(false);
+    expect(deckB).toEqual(before);
+  });
+});
+
+/**
+ * A deck code carries only a card list, so it is judged only on what that list
+ * causes; the real reserve-format validators supply the issues.
+ */
+describe('deck code import', () => {
+  function spell(id: string): CardDef {
+    return {
+      id,
+      name: id,
+      types: ['creature'],
+      subtypes: [],
+      colors: ['G'],
+      cost: { generic: 1, pips: { G: 1 } },
+      attack: 2,
+      defense: 2,
+      rarity: 'c',
+    };
+  }
+  const SPELLS = Array.from({ length: DARLINGS_DECK_SIZE }, (_, i) => `spell-${i}`);
+  const FOREST = 'forest';
+  const DB: CardDb = {
+    ...Object.fromEntries(SPELLS.map((id) => [id, spell(id)])),
+    [FOREST]: {
+      ...spell(FOREST),
+      types: ['land'],
+      supertypes: ['basic'],
+      cost: undefined,
+      attack: undefined,
+      defense: undefined,
+      manaAbility: ['G'],
+    },
+  };
+  const save = freshSave(0);
+  for (const id of SPELLS) save.collection[id] = 4;
+  // 40 cards as ten playsets: a legal Standard list.
+  const standardList = SPELLS.slice(0, WARCHEST_DECK_SIZE / 4).flatMap((id) => [id, id, id, id]);
+
+  it('imports a legal code into a new deck whose Warchest is still empty', () => {
+    const validate = (cards: readonly string[]) => validateWarchestDeck(DB, save, cards, []);
+    // The deck as a whole is not ready (its Warchest is empty)...
+    expect(validate(standardList).some((issue) => issue.kind === 'error')).toBe(true);
+    // ...but nothing about the imported list blocks it.
+    expect(deckCodeImportBlockers(validate, standardList)).toEqual([]);
+  });
+
+  it('imports a legal Darlings list before her Darling is chosen', () => {
+    const validate = (cards: readonly string[]) => validateDarlingsDeck(DB, save, cards, null, []);
+    expect(deckCodeImportBlockers(validate, SPELLS)).toEqual([]);
+  });
+
+  it('still rejects a list that breaks the rules itself', () => {
+    const validate = (cards: readonly string[]) => validateWarchestDeck(DB, save, cards, []);
+    expect(deckCodeImportBlockers(validate, standardList.slice(1)).length).toBeGreaterThan(0);
+    expect(deckCodeImportBlockers(validate, [...standardList.slice(1), FOREST]).length).toBeGreaterThan(0);
+    // Forty cards, but a fifth copy of spell-0 in place of a spell-9.
+    expect(deckCodeImportBlockers(validate, [...standardList.slice(0, -1), 'spell-0']).length).toBeGreaterThan(0);
+    expect(deckCodeImportBlockers(validate, []).length).toBeGreaterThan(0);
   });
 });
