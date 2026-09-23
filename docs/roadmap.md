@@ -1,8 +1,8 @@
-<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/scenes/LimitedDraftScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, tests/meta/draftPersonas.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-09-22 · review monthly -->
+<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/scenes/LimitedDraftScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, tests/meta/draftPersonas.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-09-24 · review monthly -->
 
 # Roadmap
 
-_Dated 2026-09-07. Review monthly._
+_Dated 2026-09-24, at the 1.8.0 cut. Review monthly._
 
 ## Status snapshot
 
@@ -11,44 +11,35 @@ _Dated 2026-09-07. Review monthly._
   configs; the save key moved to `darlingblades.save.v1` with a one-time read
   of the legacy `waifutcg.save.v1` key so existing saves survive. The on-disk
   repo folder is now `DarlingBlades` (renamed from `WaifuTCG`).
-- **Playable end-to-end.** First launch offers an optional **tutorial**; a new
-  player then claims a free starter deck in the shop and plays the **Avatar
-  Gauntlet** (24 themed opponents on a daily-reshuffled ladder, the Starborne
-  summit pair landing at rungs 23-24 in the 1.7 train) or Practice duels → rewards → shop →
-  pack opening → collection → deck builder, all wired, with procedural SFX +
-  ambient music.
+- **Playable end-to-end.** First launch shows the anonymous-stats notice
+  with its switch, then offers an optional **tutorial**; a new player claims a
+  free starter deck in the shop and plays the **Avatar Gauntlet** (a 26-rung
+  tower on a daily-reshuffled ladder, the Drowned Deep pair at rungs 25-26
+  since 1.8) or Practice duels, then rewards, shop, pack opening, collection
+  and deck builder, all wired, with procedural SFX and ambient music. The menu
+  opens in about a second and card art streams behind it (1.8).
 - **Feature- and art-complete for desktop + phone-over-LAN (Tier 1).** The
-  1,230-card collectible pool now spans nine sets; the Starborne art run is
-  complete at 151/151 plus three tokens, alongside the Duat, Yokai Nights, and
-  Dark Tales runs.
-  The remaining eyes-on work is the standing real-device pass and
-  by-ear/by-eye polish listed under Planned.
-- **1,946 tests green** (+4 skipped balance-tool assertions; count refreshed
-  2026-09-03 at the 1.7.0 cut) across 185 files
-  (engine, combat, keywords, mana, RNG, determinism, stack/effects, catalog
-  integrity, meta + gauntlet/save-migrations + variants/drop-distribution +
-  collection filters + achievements + deck-face picker + gauntlet-run-seed +
-  shard/per-variant playset, audio recipes + music patterns, platform gestures +
-  render-scale + anim policy, engine auto-pass, icon paths, hand-fan +
-  combat-sequence layout/timing math, AI smoke + win-rate + personality
-  lockstep/divergence + avatar/starter legality; and the QOL pass —
-  unplayable-reason, card-search filter, keyword-reminder coverage, undo
-  snapshot/restore round-trip, combat forecast (`previewCombat`),
-  deck-stats aggregation, profile win-rate, deck-storage ops); plus the
-  onboarding tutorial (scripted-line determinism, the pure coach-mark guide,
-  v9→v10 migration) and achievement/collection-goal coverage
-  (v10→v11 achievement migration, v11→v12 tower clear-style migration,
-  v12→v13 daily quest/streak migration,
-  unlock/claim idempotency, completion tallies, themed archetype and expansion
-  goals, deck-color identity). The whole suite runs in about eight minutes on
-  the release-prep Windows host (the 40-seed win-rate gates dominate).
-- **1,079 collectible cards across eight sets** (`CARD_DB`), spanning the Base
-  Set, Ragnarök, Celtic Fae, Arthurian Court, Gothic Monsters, Dark Tales,
-  Cyberpunk Yokai Nights, and Sands of the Duat. Yokai Nights adds 120 cards
-  around Hauntlink and Duat adds 245 cards around Rite, Nine Lives, and
-  Preserve, each with its own set-scoped booster.
-- **5 starter precons** (`src/data/starterDecks.ts`) covering all five colors,
-  each color in exactly two lists.
+  1,482-card collectible pool spans ten sets; every card carries finished art,
+  Drowned Deep at 252/252 plus four tokens. The remaining eyes-on work is the
+  standing real-device pass and the by-ear/by-eye polish listed under Planned.
+- **3,961 tests green** (+4 skipped balance-tool assertions; count
+  refreshed 2026-09-24 at the 1.8.0 cut) across 259 files, from engine
+  rules, keywords, mana, RNG and determinism through catalog integrity, save
+  migrations, the meta layer, audio recipes, platform gestures, layout rules,
+  AI behaviours and the win-rate gates. The suite was audited 2026-09-22
+  against three rules (no tautological tests, no change-detector tests, no
+  bug-named regression tests without a behavioural gap;
+  [test-audit-2026-09-22.md](test-audit-2026-09-22.md)). It runs in about
+  fifteen minutes on the release-prep Windows host.
+- **1,482 collectible cards across ten sets** (`CARD_DB`): the Base Set,
+  Ragnarök, Silver Veil, Grail Oath, Nocturne Manor, Dark Tales, Yokai Nights
+  (Hauntlink), Sands of the Duat (Rite, Nine Lives, Preserve), Starborne
+  (Marks, Propagate), and Drowned Deep (Whispers, Tithe), each with its own
+  set-scoped booster. Duty, the tap ability, is game-wide since 1.8: 82 cards
+  carry one, 27 of them the former utility taplands.
+- **5 starter precons, 9 theme decks and 5 Darlings precons**
+  (`src/data/starterDecks.ts`), the starters covering all five colours, each
+  colour in exactly two lists.
 - **Audio complete in structure**: a procedural WebAudio SFX layer
   (`src/audio/`, 18 recipes) wired into every scene with persisted volume +
   SFX toggle, plus **generative ambient music** (`src/audio/musicPatterns.ts`
@@ -69,6 +60,47 @@ _Dated 2026-09-07. Review monthly._
   (`settings.shareAnonStats`, `settings.statsNoticeVersion`) with the two dead
   account-level cosmetics fields removed — see
   Recently shipped and the Full Art entry under Planned). By-ear tuning remains open (see Planned).
+
+## Recently shipped (2026-09-24 · 1.8.0)
+
+The full player-facing account is [release-notes/v1.8.0.md](release-notes/v1.8.0.md);
+the program plan is [plan-1.8.md](plan-1.8.md).
+
+- **Drowned Deep, the tenth set (#364-#374).** 252 cards on Whispers (cast a
+  card from the graveyard it just reached, until the opponent's next Dawn)
+  and Tithe (sacrifice creatures as you cast, a discount per two points of
+  their Defense), complete art plus four tokens, its own boosters and shop
+  deck. Two cards were redesigned in release review (#429).
+- **Duty, the tap ability (#355 and the land economy #386, #393, #394).** The
+  set-agnostic activated-ability engine feature ruled at the 1.7 opening,
+  taught as Duty with the tap icon on the card. The 27 utility taplands
+  nobody could play became Duty artifacts; 82 cards carry a Duty.
+- **The tower climbs to 26 (#367-#370, #384, #399-#402, #407, #409).**
+  Deacon of the Drowned Choir and Lanterns Below at 25-26; six older bosses
+  rebuilt; every floor re-baselined on the reserve-native harness and the
+  rungs 1-13 bands re-centred on QC day; the two manual matrices joined the
+  cut checklist.
+- **The AI brain audit (#375-#383).** Forty behaviours written down and
+  tested: spell reading before casting, correct passing, combat around Twin
+  Blades, Sentinel and First Blade, sensible sacrifice, link movement, mana
+  held for a Duty, mechanic-aware drafting.
+- **Anonymous play stats (#388-#398).** Save v35, `playSignals`, the
+  Cloudflare Worker with a daily random salt, the rollup to the
+  `signals-data` branch, the first-run dialog with the switch, and the three
+  legal pages linked from Settings (#417).
+- **The menu first (#410).** Card art streams behind the menu: 16 seconds to
+  under one; a duel's cards arrive about a hundred milliseconds after the
+  tap. The failed-download retry followed in review (#432).
+- **QC day and the release-candidate review (#406-#414, #423-#432).** One
+  rhythm for Settings, every menu control inside the title-safe frame on all
+  four edges, one pitch for the main menu, the test-suite audit, and ten fix
+  PRs the day before launch (engine sacrifice payment, deck data loss, the
+  duel choosers, menu input, the shop, desktop legal links, updates).
+- **The metagame sweep on GitHub-hosted runners (#415, #418-#422).** Six
+  personas fanned out across runners, crafts that span jobs on a time budget,
+  byte-identical to the in-process loop. By owner ruling the 1.8 sweep runs
+  AFTER launch on five personas (weenie excluded for cost) and any egregious
+  finding ships as a 1.8.x hotfix.
 
 ## Recently shipped (2026-09-04 and 2026-09-05 · 1.7.1 and 1.7.2)
 
@@ -1641,18 +1673,22 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
 
 ## Planned
 
-- **A metagame sweep that fits in a night (proposal, 2026-09-22).**
-  [plan-sweep-speed.md](plan-sweep-speed.md). The sweep takes three to five
-  days on the owner's machine because it runs eight workers on thirty-two
-  threads and measures every losing swap at full precision. Four levers,
-  measured: sixteen workers inside the CPU cap (2x, no change to the
-  answer); racing swaps with early stopping (2 to 3x on the two thirds of
-  games that measure losers); a Medium screen before the Hard measurement
-  (2x more, one-persona comparison as the gate); and fanning the six
-  personas out across GitHub-hosted runners, free for a public repository
-  (the wall-clock lever, the owner's machine idle). Recommended: levers 1
-  and 4 for 1.8, 2 and 3 for 1.9 behind flags. NOTHING AUTHORIZED; three
-  owner decisions in the doc.
+- **A metagame sweep that fits in a night (2026-09-22; levers 1 and 4
+  shipped in 1.8).** [plan-sweep-speed.md](plan-sweep-speed.md). Fan-out
+  across GitHub-hosted runners shipped (#418, #421, #422; the owner's machine
+  idle). Still planned for 1.9 behind flags: racing swaps with early stopping
+  and a Medium screen before the Hard measurement.
+- **Weenie's game cost in the Hard brain (1.9).** Measured 2026-09-23 on the
+  hosted sweep: a weenie game costs the Hard brain about ten times a midrange
+  game (long go-wide boards), near twenty minutes per 150-seed measurement
+  and 27 hours per craft, which is why the 1.8 sweep excluded the persona.
+  Profile the combat evaluation on wide boards, fix without changing
+  decisions where possible, re-admit weenie to the sweep. Any brain change
+  re-baselines the floors.
+- **The seventeen art regenerations of 2026-09-22 (1.8.1).**
+  [plan-art-regen-2026-09-22.md](plan-art-regen-2026-09-22.md): five
+  close-ups and twelve hidden faces, prompts authored, to run through the
+  art pipeline and the owner's eyes.
 
 > **The release spine from 1.7 to 2.0 lives in
 > [plan-road-to-2.0.md](plan-road-to-2.0.md)** (2026-08-24): the Large/Small

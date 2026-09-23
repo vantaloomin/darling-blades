@@ -8,6 +8,7 @@
  * and nothing in the suite calls it.
  */
 
+import { PLACEHOLDERS } from '../../scripts/gen-legal-pages';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -186,13 +187,19 @@ describe('the command line and the config file', () => {
     expect(() => parseConfig('{"startDate":null}')).toThrow();
   });
 
-  it('ships with a start date of null, so a run before the 1.8 cut writes nothing', () => {
+  it('ships with the start date the legal pages name as the 1.8 effective date', () => {
+    // Both are filled at the cut, together: the rollup must not count the
+    // deploy-day synthetic rows, and the privacy policy tells players the day
+    // the stats began. A null start date is the pre-cut state and writes
+    // nothing; once filled, the two surfaces have to agree.
     const shipped = parseConfig(
       readFileSync(new URL('../../scripts/signals-rollup/config.json', import.meta.url), 'utf8'),
     );
-    expect(shipped.startDate).toBeNull();
     expect(shipped.build).toBe('t2');
     expect(shipped.dataset).toBe('db_signals_v2');
+    const effective = new Date(`${PLACEHOLDERS['[1.8 RELEASE DATE]']} UTC`);
+    expect(Number.isNaN(effective.getTime())).toBe(false);
+    expect(shipped.startDate).toBe(effective.toISOString().slice(0, 10));
   });
 });
 
