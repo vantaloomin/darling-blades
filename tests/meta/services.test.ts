@@ -51,6 +51,52 @@ describe('save service replacement', () => {
     expect(stub.getStored()?.gold).toBe(987);
   });
 
+  describe('the anonymous-stats choice', () => {
+    /** A device and an import, each with its own sharing choice and notice stamp. */
+    function importInto(
+      device: { share: boolean; notice: number },
+      incoming: { share: boolean; notice: number },
+    ): { manager: SaveManager; stored: SaveData | null } {
+      const stub = storageStub();
+      const manager = new SaveManager(stub.storage, NOW);
+      manager.data.settings.shareAnonStats = device.share;
+      manager.data.settings.statsNoticeVersion = device.notice;
+      manager.flush();
+      const imported = freshSave(NOW + 1);
+      imported.gold = 555;
+      imported.settings.shareAnonStats = incoming.share;
+      imported.settings.statsNoticeVersion = incoming.notice;
+      expect(replaceSave(imported, manager)).toBe(true);
+      return { manager, stored: stub.getStored() };
+    }
+
+    it('never switches sharing back on for a device where it is off', () => {
+      const { manager, stored } = importInto({ share: false, notice: 1 }, { share: true, notice: 1 });
+      expect(manager.data.settings.shareAnonStats).toBe(false);
+      expect(stored?.settings.shareAnonStats).toBe(false);
+      // The rest of the import still lands.
+      expect(manager.data.gold).toBe(555);
+    });
+
+    it('carries an imported "off" onto a device where sharing is on', () => {
+      const { manager } = importInto({ share: true, notice: 1 }, { share: false, notice: 1 });
+      expect(manager.data.settings.shareAnonStats).toBe(false);
+    });
+
+    it('keeps sharing on when both sides have it on', () => {
+      const { manager } = importInto({ share: true, notice: 1 }, { share: true, notice: 1 });
+      expect(manager.data.settings.shareAnonStats).toBe(true);
+    });
+
+    it('keeps the higher notice stamp, whichever side holds it', () => {
+      const deviceHigher = importInto({ share: true, notice: 1 }, { share: true, notice: 0 });
+      expect(deviceHigher.manager.data.settings.statsNoticeVersion).toBe(1);
+      expect(deviceHigher.stored?.settings.statsNoticeVersion).toBe(1);
+      const importHigher = importInto({ share: true, notice: 0 }, { share: true, notice: 2 });
+      expect(importHigher.manager.data.settings.statsNoticeVersion).toBe(2);
+    });
+  });
+
   it('restores the prior profile when the replacement write fails', () => {
     const stub = storageStub();
     const manager = new SaveManager(stub.storage, NOW);

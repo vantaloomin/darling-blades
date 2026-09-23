@@ -28,8 +28,10 @@ import {
   STATS_NOTICE_COPY,
   STATS_NOTICE_LAYOUT,
   statsNoticeBodyStack,
+  statsNoticeContentWidth,
   statsNoticeFooterCenters,
   statsNoticeLabelWrapWidth,
+  statsNoticeShellHeight,
   statsNoticeToggleCenterX,
   statsToggleLabel,
   type StatsNoticeController,
@@ -61,11 +63,48 @@ export function createStatsNoticeDialog(
   opts: StatsNoticeDialogOptions,
 ): ModalShell {
   const { controller } = opts;
+
+  // Measure-then-place, and then SIZE: the body is wrapped and measured before
+  // the shell exists (its wrap width depends on the dialog's width alone), so
+  // the shell can be exactly as tall as what it holds. Wrap counts are
+  // font-fallback dependent on Windows, so no line count is assumed.
+  const wrapWidth = statsNoticeContentWidth();
+  const paragraph = (text: string): Phaser.GameObjects.Text =>
+    scene.add
+      .text(0, 0, text, {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.body}px`,
+        color: theme.colors.body,
+        wordWrap: { width: wrapWidth },
+        lineSpacing: 4,
+      })
+      .setOrigin(0, 0);
+  const lead = paragraph(STATS_NOTICE_COPY.bodyLead);
+  const assurance = paragraph(STATS_NOTICE_COPY.bodyAssurance);
+  // The state-aware line joins the stack only when there is one.
+  const noteText =
+    opts.note === null
+      ? null
+      : scene.add
+          .text(0, 0, opts.note, {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.caption}px`,
+            color: theme.colors.muted,
+            wordWrap: { width: wrapWidth },
+            lineSpacing: 2,
+          })
+          .setOrigin(0, 0);
+  const stack = statsNoticeBodyStack({
+    paragraph1: lead.height,
+    paragraph2: assurance.height,
+    note: noteText === null ? null : noteText.height,
+  });
+
   // `mandatory`: no close X, no dim dismissal, no shell-owned Esc. The only
   // ways out are the three this module binds, and all three stamp.
   const shell = modalShell(scene, {
     width: STATS_NOTICE_LAYOUT.width,
-    height: STATS_NOTICE_LAYOUT.height,
+    height: statsNoticeShellHeight(stack.height),
     dimAlpha: STATS_NOTICE_LAYOUT.dimAlpha,
     depth: STATS_NOTICE_LAYOUT.depth,
     dismissal: 'mandatory',
@@ -87,46 +126,14 @@ export function createStatsNoticeDialog(
       .setOrigin(0, 0.5),
   );
 
-  const paragraph = (text: string): Phaser.GameObjects.Text => {
-    const object = scene.add
-      .text(content.x, content.y, text, {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.body}px`,
-        color: theme.colors.body,
-        wordWrap: { width: content.width },
-        lineSpacing: 4,
-      })
-      .setOrigin(0, 0);
-    container.add(object);
-    return object;
-  };
-  const lead = paragraph(STATS_NOTICE_COPY.bodyLead);
-  const assurance = paragraph(STATS_NOTICE_COPY.bodyAssurance);
-
-  // The state-aware line is built first so its height joins the stack, then
-  // moved into place: measure-then-place, like every other wrapped block here.
-  const noteText =
-    opts.note === null
-      ? null
-      : scene.add
-          .text(content.x, content.y, opts.note, {
-            fontFamily: theme.fonts.ui,
-            fontSize: `${theme.type.caption}px`,
-            color: theme.colors.muted,
-            wordWrap: { width: content.width },
-            lineSpacing: 2,
-          })
-          .setOrigin(0, 0);
-  if (noteText) container.add(noteText);
-
-  const stack = statsNoticeBodyStack({
-    paragraph1: lead.height,
-    paragraph2: assurance.height,
-    note: noteText === null ? null : noteText.height,
-  });
-  assurance.setY(content.y + stack.paragraph2Y);
+  lead.setPosition(content.x, content.y);
+  assurance.setPosition(content.x, content.y + stack.paragraph2Y);
+  container.add([lead, assurance]);
   const rowCenterY = content.y + stack.toggleRowCenterY;
-  if (noteText && stack.noteY !== null) noteText.setY(content.y + stack.noteY);
+  if (noteText && stack.noteY !== null) {
+    noteText.setPosition(content.x, content.y + stack.noteY);
+    container.add(noteText);
+  }
 
   // The toggle: the same look, the same two words and the same immediate write
   // as the Settings row. It shows the SAVED choice even when a browser signal

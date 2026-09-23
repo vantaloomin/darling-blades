@@ -150,7 +150,10 @@ not storage on the device and does not change the analysis.
 
 Two event types. Both are digests, not streams.
 
-**`heartbeat` — at most once per launch, and at most once per UTC day.**
+**`heartbeat` — at most once per launch.** There is no client-side daily
+cap: knowing what day it last sent would mean storing a date on the device
+(legal review finding 5, [legal/README.md](legal/README.md)), so the Worker's
+rotating daily hash does the once-a-day de-duplication instead.
 
 | Field | Shape | Note |
 | --- | --- | --- |

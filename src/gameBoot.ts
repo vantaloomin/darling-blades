@@ -106,6 +106,11 @@ const game = new Phaser.Game({
   // canvas so scenes can mount a real <input>. src/ui/SearchInput.ts is the only
   // consumer; nothing else uses this.add.dom.
   dom: { createContainer: true },
+  // A per-file request timeout. Phaser's default is none, so one stalled
+  // request held every later file in the art queue, and any scene gated on
+  // that art, until the page closed. A timed-out file becomes a load error,
+  // which the art gate already counts as settled.
+  loader: { timeout: 30_000 },
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,

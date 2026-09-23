@@ -5,16 +5,20 @@ import { defineConfig } from 'vite';
 import { cspForTarget, isDesktopBuild } from './scripts/cspForTarget';
 
 // Build identity stamped into the client (src/version.ts): the package version
-// and the short commit SHA. Git is present in local dev and CI checkout; a
-// non-git context (e.g. a source tarball) falls back to 'dev'.
+// and the commit SHA's first seven characters. Always seven, never `--short`:
+// git lengthens a short SHA once a clone passes 16,384 objects, so a local
+// full clone and CI's shallow checkout would stamp the same commit two ways.
+// Git is present in local dev and CI checkout; a non-git context (e.g. a
+// source tarball) falls back to 'dev'.
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as {
   version: string;
 };
 const gitSha = ((): string => {
   try {
-    return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
+    const full = execSync('git rev-parse HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
       .toString()
       .trim();
+    return /^[0-9a-f]{40}$/i.test(full) ? full.slice(0, 7).toLowerCase() : 'dev';
   } catch {
     return 'dev';
   }
@@ -27,6 +31,21 @@ export default defineConfig({
       // policy; the web build is returned untouched. See scripts/cspForTarget.ts.
       name: 'csp-for-target',
       transformIndexHtml: (html: string): string => cspForTarget(html, isDesktopBuild(process.env)),
+    },
+    {
+      // `version.json` beside index.html: the stamp of the build being served,
+      // which the web update check reads (src/version.ts) so it only claims an
+      // update that a reload would actually deliver. Build only; the dev server
+      // compares with main instead.
+      name: 'build-stamp',
+      apply: 'build',
+      generateBundle() {
+        this.emitFile({
+          type: 'asset',
+          fileName: 'version.json',
+          source: `${JSON.stringify({ version: pkg.version, sha: gitSha })}\n`,
+        });
+      },
     },
   ],
   define: {

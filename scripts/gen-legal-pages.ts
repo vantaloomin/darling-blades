@@ -25,13 +25,20 @@
  * `[notices](notices.md)` and the absolute `[PRIVACY URL]` both land on a page
  * that this run also built. That is what keeps the set navigable offline.
  *
+ * Each page carries one small script, the only one its policy admits (by
+ * hash): when the GAME opened the page, "Back to the game" closes the tab
+ * instead of starting a second copy of the game in it. See
+ * `OPENED_BY_GAME_SCRIPT`.
+ *
  * Usage:
  *   npx tsx scripts/gen-legal-pages.ts          write all three pages
  *   npx tsx scripts/gen-legal-pages.ts --check  exit 1 if any page is stale
  */
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { OPENED_BY_GAME } from '../src/ui/openExternalPage';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE_DIR = join(root, 'docs', 'legal');
@@ -64,6 +71,49 @@ export const PLACEHOLDERS: Record<string, string> = {
 
 /** The link back to the game, on every page. Relative, so the desktop bundle resolves it. */
 export const BACK_TO_GAME = { label: 'Back to the game', href: './' } as const;
+
+/** Shown beside "Back to the game" when the browser will not let the page close its own tab. */
+export const BACK_TO_GAME_NOTE = 'The game is still open in the tab you came from. Close this tab to return to it.';
+
+/**
+ * The pages' one script, for a page the GAME opened (src/ui/openExternalPage.ts
+ * adds `OPENED_BY_GAME` to the address on the web). Such a tab sits beside a
+ * running game, so following "Back to the game" to `./` would start a second
+ * copy of the game in it. Instead the link closes the tab, which returns the
+ * player to the game's own; where the browser refuses to let a page close its
+ * tab, the note beside the link says what to do. Links to the sibling pages
+ * carry the marker along, so the promise holds after reading on.
+ *
+ * Opened any other way (from the README, a bookmark, the desktop app) the
+ * script does nothing and "Back to the game" is an ordinary link. The desktop
+ * shell handles that link itself by closing the page's window.
+ *
+ * Plain ES5 over the DOM, no dependencies. Its hash is the page policy's only
+ * script source, so nothing else can run on the page.
+ */
+export const OPENED_BY_GAME_SCRIPT = `(function () {
+  var name = ${JSON.stringify(OPENED_BY_GAME.name)}, value = ${JSON.stringify(OPENED_BY_GAME.value)};
+  if (new URLSearchParams(location.search).get(name) !== value) return;
+  var links = document.querySelectorAll("a[href]");
+  for (var i = 0; i < links.length; i++) {
+    var href = links[i].getAttribute("href");
+    if (links[i].hasAttribute("data-back-to-game")) links[i].addEventListener("click", back);
+    else if (/^\\.\\/[\\w-]+\\.html$/.test(href)) links[i].setAttribute("href", href + "?" + name + "=" + value);
+  }
+  function back(event) {
+    event.preventDefault();
+    window.close();
+    setTimeout(function () {
+      var notes = document.querySelectorAll("[data-back-note]");
+      for (var j = 0; j < notes.length; j++) notes[j].hidden = false;
+    }, 300);
+  }
+})();`;
+
+/** The policy source that admits exactly `OPENED_BY_GAME_SCRIPT`. */
+export function scriptHashSource(script: string): string {
+  return `'sha256-${createHash('sha256').update(script, 'utf8').digest('base64')}'`;
+}
 
 const OUTPUTS = new Set(LEGAL_DOCUMENTS.map((doc) => doc.output));
 const SIBLING_BY_SOURCE = new Map(LEGAL_DOCUMENTS.map((doc) => [doc.source, `./${doc.output}`]));
@@ -185,10 +235,20 @@ export function footerNavLinks(doc: LegalDocument): readonly { label: string; hr
   ];
 }
 
+/**
+ * One nav link. "Back to the game" is marked for the page script and carries
+ * its hidden note, which the script shows only if the tab would not close.
+ */
+function navLink(link: { label: string; href: string }): string {
+  const anchor = `<a href="${escapeHtml(link.href)}"`;
+  if (link.href !== BACK_TO_GAME.href) return `${anchor}>${escapeHtml(link.label)}</a>`;
+  return `${anchor} data-back-to-game>${escapeHtml(link.label)}</a><span data-back-note hidden> ${escapeHtml(BACK_TO_GAME_NOTE)}</span>`;
+}
+
 export function renderPage(markdown: string, doc: LegalDocument): string {
   const { body, title } = documentToHtml(markdown, doc.source);
   const footer = footerNavLinks(doc)
-    .map((link) => `<a href="${escapeHtml(link.href)}">${escapeHtml(link.label)}</a>`)
+    .map(navLink)
     .join('<span aria-hidden="true"> · </span>');
   return `<!doctype html>
 <html lang="en">
@@ -196,7 +256,7 @@ export function renderPage(markdown: string, doc: LegalDocument): string {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#0d0a14" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; font-src 'self'; img-src 'self'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src ${scriptHashSource(OPENED_BY_GAME_SCRIPT)}; style-src 'unsafe-inline'; font-src 'self'; img-src 'self'" />
     <title>${escapeHtml(title)}</title>
     <link rel="icon" href="favicon.ico" />
     <style>
@@ -223,10 +283,11 @@ export function renderPage(markdown: string, doc: LegalDocument): string {
   </head>
   <body>
     <main>
-      <nav><a href="${escapeHtml(BACK_TO_GAME.href)}">${escapeHtml(BACK_TO_GAME.label)}</a></nav>
+      <nav>${navLink(BACK_TO_GAME)}</nav>
 ${body}
       <nav class="pages">${footer}</nav>
     </main>
+    <script>${OPENED_BY_GAME_SCRIPT}</script>
   </body>
 </html>
 `;

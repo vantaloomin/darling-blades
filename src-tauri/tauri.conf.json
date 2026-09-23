@@ -12,6 +12,8 @@
   "app": {
     "windows": [
       {
+        "label": "main",
+        "create": false,
         "title": "Darling Blades",
         "width": 1920,
         "height": 1080,
