@@ -1,8 +1,10 @@
 /** Phaser-free state and geometry for the Deck Builder's right-pane views. */
 
+import { theme } from './theme';
+
 /**
  * `style` joined in v33, when card back and playmat became per-deck. It is a
- * third VIEW rather than a new chrome row because the pane spans 900-1260 and
+ * third VIEW rather than a new chrome row because the pane is 360px wide and
  * both existing rows are full: the CTA row has no gap at all, and the View row
  * leaves ~54px, under the 90px hit-width floor.
  */
@@ -17,34 +19,83 @@ export interface DeckPaneToggleState {
   warchestLabel: 'Warchest' | 'Warchest ⚠';
 }
 
+/**
+ * The pane's content column is 360px wide and its right edge sits on the
+ * title-safe frame's right edge; every x below is measured from one of its two
+ * edges. It spanned 900-1260 until the 1.8 cut (2026-09-23), which put the
+ * View toggle, the Warchest slots, the count chips, the Decks button, and the
+ * Import button past the frame.
+ */
+const PANE_WIDTH = 360;
+const PANE_RIGHT = theme.design.safeRight;
+const PANE_LEFT = PANE_RIGHT - PANE_WIDTH;
+
+/**
+ * The bottom summary stack (design-system "Spacing and grouping" tiers).
+ * It must hold pager, curve, one merged summary line, a two-line status band,
+ * and the CTA row; the ledger the test pins is
+ * pager band | 12 | stats block | 16 | status | 8 | CTAs. The two old
+ * summary lines merged into one so the status band never overlaps the
+ * block above it (it could before 2026-08-18).
+ *
+ * The whole stack lifted 24px on 2026-08-25 to buy the status band its
+ * second line back WITH the stats on screen. Before that lift a blocking
+ * deck error had nowhere to go but a panel drawn OVER the curve, so a deck
+ * one card short of legal showed no curve and no color balance at all
+ * (player report). The error is a status line now, and the curve never
+ * leaves.
+ *
+ * The CTA row sits on the shared footer line (theme.design.footerCenterY).
+ * It was centred on y 684 until the 1.8 cut (2026-09-23), so its hit boxes ran
+ * to 706, past the title-safe frame; the stack above closed its spare gaps to
+ * the tier minimums and the pager rose 6px to make the room.
+ */
+const SUMMARY = {
+  pagerY: 462,
+  statsHeadingY: 504,
+  barBaseY: 552,
+  barMaxHeight: 24,
+  summaryLineY: 576,
+  statusBottomY: 632,
+  /** Two lines in every view: the status band is the only error surface. */
+  statusMaxLines: 2,
+  ctaY: theme.design.footerCenterY,
+} as const;
+
+/** One status-band line, for the band's height budget. */
+export const DECK_STATUS_LINE_HEIGHT = 16;
+
 export const DECK_PANE_LAYOUT = {
-  left: 900,
-  right: 1260,
+  /** The side panel's fill: one 20px gutter left of the content, to the screen edge. */
+  panelX: PANE_LEFT - 20,
+  left: PANE_LEFT,
+  right: PANE_RIGHT,
   toggle: {
-    labelX: 900,
-    /** Three views share the row since v33; 84px slots keep them inside 1260. */
-    cardsX: 1000,
-    warchestX: 1092,
-    styleX: 1184,
+    labelX: PANE_LEFT,
+    /** Three views share the row since v33; 84px slots keep them inside the pane. */
+    cardsX: PANE_LEFT + 100,
+    warchestX: PANE_LEFT + 192,
+    styleX: PANE_LEFT + 284,
     y: 112,
     minWidth: 84,
   },
   content: {
     top: 148,
-    bottom: 616,
+    /** The Warchest panel ends one gap above the status band's top line. */
+    bottom: SUMMARY.statusBottomY - DECK_STATUS_LINE_HEIGHT * SUMMARY.statusMaxLines - theme.space(3),
   },
   warchest: {
     headingY: 170,
     countY: 194,
     validationY: 218,
-    slotFirstX: 992,
+    slotFirstX: PANE_LEFT + 92,
     slotFirstY: 266,
     slotPitchX: 176,
     slotPitchY: 47,
     slotColumns: 2,
     slotWidth: 168,
     slotLabelWidth: 150,
-    rulesTop: 510,
+    rulesTop: 490,
     rulesWidth: 336,
   },
   /**
@@ -55,11 +106,11 @@ export const DECK_PANE_LAYOUT = {
    */
   cards: {
     rowPitch: 28,
-    starX: 900,
-    pinX: 924,
-    nameX: 944,
+    starX: PANE_LEFT,
+    pinX: PANE_LEFT + 24,
+    nameX: PANE_LEFT + 44,
     nameWidth: 250,
-    countRightX: 1244,
+    countRightX: PANE_RIGHT - 16,
     countReserve: 46,
     /** Row iconography (hero star / display pin), sized for the 28px pitch. */
     starSize: 20,
@@ -67,51 +118,41 @@ export const DECK_PANE_LAYOUT = {
   },
   /**
    * The Format conversion row (Warchest / Darlings). Tabs sit left of the
-   * Decks CTA's column: Decks centers at 1215 on the y 32 row, and its
-   * inflated hit band reaches down toward y 54, so nothing interactive may
-   * share both its column and the adjacent band - the tab row keeps every
-   * tab's right edge clear of Decks' hit column (pinned by test).
+   * Decks CTA's column: Decks is right-aligned to the pane on the y 32 row,
+   * and its inflated hit band reaches down toward y 54, so nothing
+   * interactive may share both its column and the adjacent band - the tab
+   * row keeps every tab's right edge clear of Decks' hit column (pinned by
+   * test).
    */
   formatRow: {
-    labelX: 900,
+    labelX: PANE_LEFT,
     y: 64,
-    tabFirstX: 990,
+    tabFirstX: PANE_LEFT + 90,
     tabPitch: 90,
     tabMinWidth: 78,
-    decksHitLeft: 1160,
+    decksHitLeft: PANE_RIGHT - 100,
+  },
+  /** The deck picker's '☰ Decks' button, right-aligned to the pane on the title row. */
+  decks: { x: PANE_RIGHT - 45, minWidth: 90 },
+  /**
+   * The bottom action row: Export left-aligned to the pane's left edge, Import
+   * right-aligned to its right edge, Save centred between them, all on
+   * `summary.ctaY`.
+   */
+  cta: {
+    exportX: PANE_LEFT + 52,
+    saveX: PANE_LEFT + 180,
+    importX: PANE_RIGHT - 52,
+    sideMinWidth: 104,
+    saveMinWidth: 140,
   },
   /** The mana curve stretches the full pane width (owner, 2026-08-18). */
   curve: {
-    firstX: 921,
+    firstX: PANE_LEFT + 21,
     pitch: 43,
     barWidth: 30,
   },
-  /**
-   * The bottom summary stack (design-system "Spacing and grouping" tiers).
-   * 216px must hold pager, curve, one merged summary line, a two-line status
-   * band, and the CTA row; the ledger the test pins is
-   * pager band | 12 | stats block | 20 | status | 10 | CTAs. The two old
-   * summary lines merged into one so the status band never overlaps the
-   * block above it (it could before 2026-08-18).
-   *
-   * The whole stack lifted 24px on 2026-08-25 to buy the status band its
-   * second line back WITH the stats on screen. Before that lift a blocking
-   * deck error had nowhere to go but a panel drawn OVER the curve, so a deck
-   * one card short of legal showed no curve and no color balance at all
-   * (player report). The error is a status line now, and the curve never
-   * leaves.
-   */
-  summary: {
-    pagerY: 468,
-    statsHeadingY: 510,
-    barBaseY: 560,
-    barMaxHeight: 24,
-    summaryLineY: 592,
-    statusBottomY: 660,
-    /** Two lines in every view: the status band is the only error surface. */
-    statusMaxLines: 2,
-    ctaY: 684,
-  },
+  summary: SUMMARY,
 } as const;
 
 /**

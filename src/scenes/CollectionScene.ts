@@ -64,6 +64,7 @@ import {
   shardHoldDuration,
   shardMoteCount,
 } from '../ui/shardRitual';
+import { HEADER_CURRENCY_ANCHOR } from '../ui/layout';
 import { colorInt, theme } from '../ui/theme';
 import { queueAchievementUnlockToasts } from '../ui/achievementToast';
 import { Toast } from '../ui/Toast';
@@ -112,12 +113,10 @@ const ATELIER_CARD = {
 //   row 1: image 397.5..602.5, face 401.3..598.7, badge strip centre 612.7
 // Everything (bleed included) tops out at ~621.7 — 98px above the 720 bound
 // (the pre-rewrite grid cropped its bottom row 19px past 720).
-// Above: chip row A centre y=84 (hit 59..109), row B centre y=136 (hit
-// 111..161) — 4.5px clear of the top pockets' hit rects at 165.5, so chips
-// and cards can never steal each other's taps.
-// Below: page label at y=655, covered by nothing.
-// Pager columns (hit 30..120 and 1160..1250) clear the outermost card faces
-// (156.5 / 1123.5) on both sides.
+// Above: the header row on the shared header line (y 58, track 36..80) and
+// the filter bar (centre y=104, hit 82..126), clear of the top pockets' hit
+// rects at 165.5, so controls and cards can never steal each other's taps.
+// Below: the pager at y=655 (hit 633..677), covered by nothing.
 // ---------------------------------------------------------------------------
 const THUMB_CARD_SCALE = 0.47;
 const FACE_W = 300 * THUMB_CARD_SCALE; // 141
@@ -221,9 +220,14 @@ export class CollectionScene extends Phaser.Scene {
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('shop'); // the light browsing bed
 
-    // Header band (y 0..56, above chip row A's hit top at 59).
+    // Header row on the shared header line (theme.design.headerCenterY), the
+    // back button's line, so every header control and label sits inside the
+    // title-safe frame. The title, search, and counters sat at y 30 until the
+    // 1.8 cut (2026-09-23), their boxes starting above the frame's top edge.
+    // The filter bar's hit band begins at 82, below the header track (36-80).
+    const headerY = theme.design.headerCenterY;
     this.add
-      .text(DESIGN_W / 2, 30, 'Collection', {
+      .text(DESIGN_W / 2, headerY, 'Collection', {
         fontFamily: theme.fonts.display,
         fontSize: `${theme.type.h1}px`,
         color: theme.colors.heading,
@@ -231,16 +235,17 @@ export class CollectionScene extends Phaser.Scene {
       .setOrigin(0.5);
     // Crafting spends gold here, so keep the shared currency badge beside the
     // collection stats and refresh it with the binder view.
-    this.goldBadge = goldBadge(this, DESIGN_W - 30, theme.design.headerCenterY, { flashOnChange: true });
+    this.goldBadge = goldBadge(this, HEADER_CURRENCY_ANCHOR.x, HEADER_CURRENCY_ANCHOR.y, { flashOnChange: true });
+    // The two stat lines stack on the header line, one half-pitch either side.
     this.counterText = this.add
-      .text(DESIGN_W - 200, 30, '', {
+      .text(DESIGN_W - 200, headerY - 11, '', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.label}px`,
         color: theme.colors.muted,
       })
       .setOrigin(1, 0.5);
     this.completionText = this.add
-      .text(DESIGN_W - 200, 52, '', {
+      .text(DESIGN_W - 200, headerY + 11, '', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         color: theme.colors.muted,
@@ -271,7 +276,7 @@ export class CollectionScene extends Phaser.Scene {
     // The old "Search name / type / trait / mechanic…" measured ~250 px of 14 px
     // Inter against the box's 228 px content width and cut off at "mechan".
     // This hint keeps all four search fields at ~187 px.
-    this.searchInput = createSearchInput(this, 355, 30, {
+    this.searchInput = createSearchInput(this, 355, headerY, {
       width: 250,
       placeholder: 'Name, type, trait, mechanic…',
       accessibleName: 'Search cards by name, type, trait, or mechanic',
@@ -598,15 +603,17 @@ export class CollectionScene extends Phaser.Scene {
       .ellipse(ATELIER_CARD.x, 588, 350, 30, colorInt(theme.colors.gold), 0.2)
       .setBlendMode(Phaser.BlendModes.ADD)
       .setVisible(false);
+    // Hung from the title-safe frame's top edge; centred on y 38 its box
+    // began above the frame (1.8 cut, 2026-09-23).
     const galleryTitle = this.add
-      .text(ATELIER_CARD.x, 38, 'FULL ART GALLERY LIGHT', {
+      .text(ATELIER_CARD.x, theme.design.safeTop, 'FULL ART GALLERY LIGHT', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.micro}px`,
         fontStyle: theme.weight.w700,
         color: theme.colors.gold,
         letterSpacing: 1.4,
       })
-      .setOrigin(0.5)
+      .setOrigin(0.5, 0)
       .setVisible(false);
     const view = new CardView(this, ATELIER_CARD.x, ATELIER_CARD.y);
     view.setScale(ATELIER_CARD.scale).setCard(

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   DECK_PANE_LAYOUT,
+  DECK_STATUS_LINE_HEIGHT,
   deckPaneOffsetY,
   deckPaneToggleState,
   deckStatusTone,
@@ -10,6 +11,7 @@ import {
   warchestSlotLabel,
   warchestSlotPosition,
 } from '../../src/ui/deckPanePresentation';
+import { theme } from '../../src/ui/theme';
 
 describe('deck pane presentation', () => {
   it('opens on Cards and toggles between the two reserve-deck views', () => {
@@ -52,11 +54,11 @@ describe('deck pane presentation', () => {
     // grows upward, so every line it is allowed to hold must clear the stats
     // above it. One clipped line used to be the price of showing the curve;
     // the stack lifted instead (player report 2026-08-25).
-    const statusTop = s.statusBottomY - 16 * s.statusMaxLines;
+    const statusTop = s.statusBottomY - DECK_STATUS_LINE_HEIGHT * s.statusMaxLines;
     expect(s.statusMaxLines).toBeGreaterThanOrEqual(2);
     expect(statusTop - (s.summaryLineY + 8)).toBeGreaterThanOrEqual(16);
-    // status -> CTA row: within the action group.
-    expect(s.ctaY - 14 - s.statusBottomY).toBeGreaterThanOrEqual(8);
+    // status -> CTA row: within the action group, measured to the CTAs' hit boxes.
+    expect(s.ctaY - theme.control.minHitHeight / 2 - s.statusBottomY).toBeGreaterThanOrEqual(8);
     // icons sized for the row pitch without overflowing it.
     expect(DECK_PANE_LAYOUT.cards.starSize).toBeLessThanOrEqual(DECK_PANE_LAYOUT.cards.rowPitch - 6);
     expect(DECK_PANE_LAYOUT.cards.pinSize).toBeLessThanOrEqual(DECK_PANE_LAYOUT.cards.starSize);
@@ -116,7 +118,7 @@ describe('deck pane presentation', () => {
 
 /**
  * v33 added Style as a third VIEW rather than a new chrome row, because the
- * deck pane spans 900-1260 and both existing rows were full. These pin that the
+ * deck pane is 360px wide and both existing rows were full. These pin that the
  * three buttons still fit inside the pane with the hit-width floor intact, and
  * that Style survives the constructed coercion (a deck has a look whether or
  * not it has a Warchest).
@@ -170,10 +172,14 @@ describe('deck stats survive an invalid deck', () => {
     // The repair banner this replaced was drawn at y 514-630, straight over
     // the curve. Nothing may occupy that band except the stats themselves.
     const s = DECK_PANE_LAYOUT.summary;
+    const statusTop = s.statusBottomY - DECK_STATUS_LINE_HEIGHT * s.statusMaxLines;
     for (const y of [s.pagerY, s.statsHeadingY, s.barBaseY, s.summaryLineY]) {
       expect(y).toBeGreaterThan(DECK_PANE_LAYOUT.toggle.y);
-      expect(y).toBeLessThan(s.statusBottomY - 16 * s.statusMaxLines);
+      expect(y).toBeLessThan(statusTop);
     }
     expect(s.statusBottomY).toBeLessThan(s.ctaY);
+    // The Warchest view's panel takes the stats' place, so it too must end
+    // above the status band that shares the pane with it.
+    expect(statusTop - DECK_PANE_LAYOUT.content.bottom).toBeGreaterThanOrEqual(8);
   });
 });

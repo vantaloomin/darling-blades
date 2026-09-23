@@ -144,9 +144,24 @@ const DECK_PAGER_Y = DECK_PANE_LAYOUT.summary.pagerY;
 const DECK_STATS_Y = DECK_PANE_LAYOUT.summary.statsHeadingY;
 // Rows stop clear of the stats heading band (isolation pass 2026-08-18),
 // which lifted 24px with the rest of the summary stack on 2026-08-25.
-const DECK_ROW_TRACK_BOTTOM = 478;
-/** Right-panel inner gutter: panel spans x 880–1280, content sits at 900–1260. */
-const PANEL_RIGHT_X = 1260;
+const DECK_ROW_TRACK_BOTTOM = DECK_STATS_Y - 32;
+/**
+ * The right panel's content column. Its fill runs from DECK_PANE_LAYOUT.panelX
+ * to the screen edge, and the content sits between the pane's left edge and
+ * PANEL_RIGHT_X, the title-safe frame's right edge (deckPanePresentation.ts).
+ */
+const PANEL_LEFT_X = DECK_PANE_LAYOUT.left;
+const PANEL_RIGHT_X = DECK_PANE_LAYOUT.right;
+/**
+ * The pool header's search and Filters controls end one group gap short of the
+ * deck panel's fill, so the Filters button never straddles the panel edge.
+ */
+const FILTER_BUTTON_WIDTH = 96;
+const FILTER_BUTTON_X = DECK_PANE_LAYOUT.panelX - theme.space(4) - FILTER_BUTTON_WIDTH / 2;
+const POOL_SEARCH_WIDTH = 240;
+const POOL_SEARCH_X = FILTER_BUTTON_X - FILTER_BUTTON_WIDTH / 2 - theme.space(3) - POOL_SEARCH_WIDTH / 2;
+/** The pool-filter popover opens on the title-safe frame's left edge. */
+const FILTER_PANEL = { x: theme.design.safeLeft, y: 82, width: 300, height: 554, inset: 24 } as const;
 const DECK_NAME_MAX_LENGTH = 24;
 const DARLING_PAGE_SIZE = 6;
 
@@ -264,7 +279,7 @@ export class DeckBuilderScene extends Phaser.Scene {
         grad.fillRect(0, 0, width, height);
       },
     });
-    themedPanel(this, width - 400, 0, 400, height, { alpha: theme.alpha.chrome, radius: 0 });
+    themedPanel(this, DECK_PANE_LAYOUT.panelX, 0, width - DECK_PANE_LAYOUT.panelX, height, { alpha: theme.alpha.chrome, radius: 0 });
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('shop'); // the light browsing bed
 
@@ -277,8 +292,8 @@ export class DeckBuilderScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     // Card search (F8): part of the same Collection-style filter state as the panel facets.
-    this.searchInput = createSearchInput(this, 620, 40, {
-      width: 240,
+    this.searchInput = createSearchInput(this, POOL_SEARCH_X, 40, {
+      width: POOL_SEARCH_WIDTH,
       placeholder: 'Search your pool…',
       onChange: (value) => {
         this.filterState.search = value;
@@ -286,10 +301,10 @@ export class DeckBuilderScene extends Phaser.Scene {
       },
     });
 
-    const filter = themedButton(this, 800, 40, 'Filters', {
+    const filter = themedButton(this, FILTER_BUTTON_X, 40, 'Filters', {
       variant: 'ghost',
       size: 'sm',
-      minWidth: 96,
+      minWidth: FILTER_BUTTON_WIDTH,
       onTap: () => this.toggleFilterPanel(),
     });
     this.filterButton = filter;
@@ -345,7 +360,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     });
 
     this.status = this.add
-      .text(width - 380, DECK_PANE_LAYOUT.summary.statusBottomY, '', {
+      .text(PANEL_LEFT_X, DECK_PANE_LAYOUT.summary.statusBottomY, '', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         color: theme.colors.danger,
@@ -477,16 +492,17 @@ export class DeckBuilderScene extends Phaser.Scene {
     const panel = this.add.container(0, 0).setDepth(80);
     this.filterPanel = panel;
 
-    const bg = themedPanel(this, 18, 82, 300, 554, { alpha: 0.98, strokeAlpha: theme.alpha.chrome });
+    const f = FILTER_PANEL;
+    const bg = themedPanel(this, f.x, f.y, f.width, f.height, { alpha: 0.98, strokeAlpha: theme.alpha.chrome });
     // A Graphics has no hit area, so `bg.setInteractive()` swallowed nothing:
     // a tap on the panel's empty space fell through and added the pool card
     // underneath, unseen (hover zoom is off while the panel is open). This
     // zone covers the whole footprint; the panel's controls sit above it.
-    const inputBlocker = this.add.zone(18 + 300 / 2, 82 + 554 / 2, 300, 554).setInteractive();
+    const inputBlocker = this.add.zone(f.x + f.width / 2, f.y + f.height / 2, f.width, f.height).setInteractive();
     panel.add([bg, inputBlocker]);
     panel.add(
       this.add
-        .text(42, 112, 'Pool Filters', {
+        .text(f.x + f.inset, 112, 'Pool Filters', {
           fontFamily: theme.fonts.display,
           fontSize: `${theme.type.h2}px`,
           color: theme.colors.heading,
@@ -494,7 +510,7 @@ export class DeckBuilderScene extends Phaser.Scene {
         .setOrigin(0, 0.5),
     );
 
-    const close = themedButton(this, 286, 112, '×', {
+    const close = themedButton(this, f.x + f.width - 32, 112, '×', {
       variant: 'ghost',
       size: 'sm',
       minWidth: 44,
@@ -510,7 +526,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       set: (v: T) => void,
       minW = 228,
     ): void => {
-      const dd = new Dropdown<T>(this, 42, y, {
+      const dd = new Dropdown<T>(this, f.x + f.inset, y, {
         label,
         options,
         value: get(),
@@ -575,7 +591,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     ];
     mk(366, 'Sort', sortOpts, () => this.filterState.sort, (v) => (this.filterState.sort = v));
 
-    const reset = themedButton(this, 108, 588, 'Reset Filters', {
+    const reset = themedButton(this, f.x + f.inset + 132 / 2, 588, 'Reset Filters', {
       variant: 'emphasis',
       size: 'sm',
       minWidth: 132,
@@ -1437,7 +1453,7 @@ export class DeckBuilderScene extends Phaser.Scene {
   private renderStylePanel(lift = 0): void {
     const active = this.activeSavedDeck();
     const top = DECK_PANE_LAYOUT.content.top - lift;
-    const x0 = 900;
+    const x0 = PANEL_LEFT_X;
 
     if (!active) {
       this.rightPane.push(
@@ -1633,7 +1649,9 @@ export class DeckBuilderScene extends Phaser.Scene {
     // switch/new/copy so unsaved changes aren't lost on the scene restart.
     this.syncDraftToActiveDeck();
     const deckPickerShell = modalShell(this, {
-      width: 1200,
+      // The title-safe frame's full width: at 1200 the panel's border ran
+      // 24px past the frame on both sides (1.8 cut, 2026-09-23).
+      width: theme.design.safeWidth,
       height: 640,
       dimAlpha: 0.52,
       depth: theme.depth.modal,
@@ -2494,8 +2512,7 @@ export class DeckBuilderScene extends Phaser.Scene {
   private renderDeck(): void {
     for (const c of this.rightPane) c.destroy();
     this.rightPane = [];
-    const width = 1280; // design-space width (see create())
-    const x0 = width - 380;
+    const x0 = PANEL_LEFT_X;
 
     const active = this.activeSavedDeck();
     const format = this.activeFormat();
@@ -2557,10 +2574,10 @@ export class DeckBuilderScene extends Phaser.Scene {
       this.rightPane.push(landStylesBtn.container);
     }
     // F15: deck picker (switch / new / copy / rename / delete).
-    const decksBtn = themedButton(this, PANEL_RIGHT_X - 45, 32, '☰ Decks', {
+    const decksBtn = themedButton(this, DECK_PANE_LAYOUT.decks.x, 32, '☰ Decks', {
       variant: 'emphasis',
       size: 'sm',
-      minWidth: 90,
+      minWidth: DECK_PANE_LAYOUT.decks.minWidth,
       onTap: () => this.showDeckPicker(),
     });
     this.rightPane.push(decksBtn.container);
@@ -2648,25 +2665,26 @@ export class DeckBuilderScene extends Phaser.Scene {
     // Bottom action row: Export left-aligned to the x0 gutter, Import
     // right-aligned to the panel gutter (the old x0+334 center clipped it
     // off-screen), Save centered between them on the same baseline.
-    const exportBtn = themedButton(this, x0 + 52, 684, 'Export Code', {
+    const cta = DECK_PANE_LAYOUT.cta;
+    const exportBtn = themedButton(this, cta.exportX, DECK_PANE_LAYOUT.summary.ctaY, 'Export Code', {
       variant: 'emphasis',
       size: 'sm',
-      minWidth: 104,
+      minWidth: cta.sideMinWidth,
       onTap: () => this.exportDeckCode(),
     });
-    const importBtn = themedButton(this, PANEL_RIGHT_X - 52, 684, 'Import Code', {
+    const importBtn = themedButton(this, cta.importX, DECK_PANE_LAYOUT.summary.ctaY, 'Import Code', {
       variant: 'emphasis',
       size: 'sm',
-      minWidth: 104,
+      minWidth: cta.sideMinWidth,
       onTap: () => this.importDeckCode(),
     });
     // A saved deck that has gone illegal cannot be saved back, so its centre
     // CTA stops being a dead Save button and becomes the way into the repair
     // list instead.
     const saveBtn = !repairingSavedDeck
-      ? themedButton(this, x0 + 180, DECK_PANE_LAYOUT.summary.ctaY, 'Save Deck', {
+      ? themedButton(this, cta.saveX, DECK_PANE_LAYOUT.summary.ctaY, 'Save Deck', {
         variant: 'primary',
-        minWidth: 140,
+        minWidth: cta.saveMinWidth,
         enabled: canSave,
         onTap: () => {
           if (!this.saveWorkingDeck()) {
@@ -2679,9 +2697,9 @@ export class DeckBuilderScene extends Phaser.Scene {
           });
         },
       })
-      : themedButton(this, x0 + 180, DECK_PANE_LAYOUT.summary.ctaY, `⚠ Fix Deck (${blocking.length})`, {
+      : themedButton(this, cta.saveX, DECK_PANE_LAYOUT.summary.ctaY, `⚠ Fix Deck (${blocking.length})`, {
         variant: 'danger',
-        minWidth: 140,
+        minWidth: cta.saveMinWidth,
         onTap: () => this.showRepairModal(blocking),
       });
     this.rightPane.push(exportBtn.container, importBtn.container, saveBtn.container);

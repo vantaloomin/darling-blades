@@ -46,6 +46,7 @@ import { OverlayCoordinator } from '../ui/OverlayCoordinator';
 import { artMissing } from '../art/artLoader';
 import { awaitArt, gateOnArt } from '../ui/artGate';
 import { applyBackdrop } from '../ui/SceneBackdrop';
+import { HEADER_CURRENCY_ANCHOR } from '../ui/layout';
 import { colorInt, theme } from '../ui/theme';
 import { queueAchievementUnlockToasts } from '../ui/achievementToast';
 import { queueToast, Toast } from '../ui/Toast';
@@ -778,7 +779,7 @@ export class ShopScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    this.goldBadge = goldBadge(this, width - 30, theme.design.headerCenterY, { flashOnChange: true });
+    this.goldBadge = goldBadge(this, HEADER_CURRENCY_ANCHOR.x, HEADER_CURRENCY_ANCHOR.y, { flashOnChange: true });
     this.refreshGold();
 
     this.buildTabBar();
@@ -1105,13 +1106,18 @@ export class ShopScene extends Phaser.Scene {
     // the Decks tab, where it competed with navigation for the eye and had to
     // be shoved sideways to clear the tab. Down here it sits directly under
     // the Buy buttons it multiplies and owns its own row.
+    // The chips sit on the shared footer line (theme.design.footerCenterY);
+    // at y 664 their hit boxes ran 2px past the title-safe frame, and the
+    // status line under them sat outside it entirely (1.8 cut, 2026-09-23).
+    const chipY = theme.design.footerCenterY;
     const lbl = this.add
       .text(640, 632, 'Buy quantity', { fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px`, color: theme.colors.muted })
       .setOrigin(0.5);
     group.add(lbl);
     let x = 536;
+    let chipsRight = x;
     for (const n of [1, 5, 10]) {
-      const chip = themedButton(this, x, 664, `×${n}`, {
+      const chip = themedButton(this, x, chipY, `×${n}`, {
         variant: 'ghost',
         size: 'sm',
         minWidth: 70,
@@ -1125,17 +1131,19 @@ export class ShopScene extends Phaser.Scene {
       this.qtyChips.set(n, chip);
       this.shopInteractiveTargets.push(chip.inputZone);
       group.add(chip.container);
+      chipsRight = x + chip.getMeasuredSize().hit.width / 2;
       x += 104;
     }
     // The one surviving affordability line: it explains a whole row of faded
     // Buy buttons, which a per-tile breakdown could only repeat seven times.
+    // It reads after the chips on their line, one group gap past the last.
     const status = this.add
-      .text(640, 694, '', {
+      .text(chipsRight + theme.space(4), chipY, '', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.micro}px`,
         color: theme.colors.muted,
       })
-      .setOrigin(0.5)
+      .setOrigin(0, 0.5)
       .setVisible(false);
     this.boosterQtyStatus = status;
     group.add(status);

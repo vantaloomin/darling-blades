@@ -115,7 +115,7 @@ export class MainMenuScene extends Phaser.Scene {
     // the starter-picker ModalGuard disables it too. (The old VolumeControl
     // widget is gone — SettingsScene owns all audio controls now.)
     const gear = themedButton(this, MAIN_MENU_CORNER.rightX, mainMenuCornerY(1), '⚙ Settings', {
-      variant: 'ghost', size: 'sm', minWidth: 130, onTap: () => this.scene.start('Settings'),
+      variant: 'ghost', size: 'sm', minWidth: MAIN_MENU_CORNER.rightMinWidth, onTap: () => this.scene.start('Settings'),
     });
     this.menuItems.push(gear.inputZone);
 

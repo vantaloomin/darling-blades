@@ -20,7 +20,7 @@ import { Services } from '../meta/services';
 import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestures';
 import { CardView } from '../ui/CardView';
 import { computeDeckStats, curveBars, deckShapeLine } from '../ui/deckStats';
-import { LIMITED_DETAILS_PANEL } from '../ui/limitedPanePresentation';
+import { LIMITED_BUILDER_COLUMNS, LIMITED_DETAILS_PANEL, limitedListRow } from '../ui/limitedPanePresentation';
 import { gateOnArt } from '../ui/artGate';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
@@ -169,10 +169,9 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
     this.drawActions(run);
   }
   private drawPool(run: LimitedRun): void {
-    const x = 40;
-    const y = 116;
-    panel(this, x, y, 385, 500);
-    this.heading(x + 18, y + 16, 'Pool');
+    const { poolX: x, y, width, height } = LIMITED_BUILDER_COLUMNS;
+    panel(this, x, y, width, height);
+    this.heading(x + LIMITED_BUILDER_COLUMNS.inset, y + 16, 'Pool');
     const poolCounts = countCards(run.pool);
     const deckCounts = countCards(this.deck);
     const reserveCounts = countCards(this.selectedDuals);
@@ -185,7 +184,7 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
       const dual = isDualLand(CARD_DB[id]);
       const reserveUsed = reserveCounts.get(id) ?? 0;
       this.cardRow(
-        x + 18,
+        x,
         y + 56 + i * 31,
         `${dual ? reserveUsed : used}/${owned} ${cardLine(id)}`,
         id,
@@ -208,17 +207,16 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
         },
       );
     });
-    pager(this, x + 18, y + 477, this.poolPage, maxPage + 1, (page) => {
+    pager(this, x + LIMITED_BUILDER_COLUMNS.inset, y + 477, this.poolPage, maxPage + 1, (page) => {
       this.poolPage = page;
       this.draw(run);
     });
   }
   private drawDeck(run: LimitedRun): void {
-    const x = 448;
-    const y = 116;
-    panel(this, x, y, 385, 500);
+    const { deckX: x, y, width, height } = LIMITED_BUILDER_COLUMNS;
+    panel(this, x, y, width, height);
     this.heading(
-      x + 18,
+      x + LIMITED_BUILDER_COLUMNS.inset,
       y + 16,
       `Deck ${this.deck.length}/${LIMITED_DECK_SIZE}`,
       this.deck.length === LIMITED_DECK_SIZE ? theme.colors.gold : theme.colors.danger,
@@ -229,7 +227,7 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
     this.deckPage = Math.min(this.deckPage, maxPage);
     ids.slice(this.deckPage * ROWS, this.deckPage * ROWS + ROWS).forEach((id, i) =>
       this.cardRow(
-        x + 18,
+        x,
         y + 56 + i * 31,
         `${counts.get(id) ?? 0}x ${cardLine(id)}`,
         id,
@@ -242,7 +240,7 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
         },
       ),
     );
-    pager(this, x + 18, y + 477, this.deckPage, maxPage + 1, (page) => {
+    pager(this, x + LIMITED_BUILDER_COLUMNS.inset, y + 477, this.deckPage, maxPage + 1, (page) => {
       this.deckPage = page;
       this.draw(run);
     });
@@ -304,7 +302,7 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         color: errors.length ? theme.colors.danger : theme.colors.success,
-        wordWrap: { width: 340 },
+        wordWrap: { width: L.contentRight - L.contentX },
         lineSpacing: 4,
       },
     );
@@ -466,8 +464,9 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
     });
     c.add([stay.container, leave.container]);
   }
+  /** One list row inside the panel whose left edge is `panelX` (limitedListRow owns the geometry). */
   private cardRow(
-    x: number,
+    panelX: number,
     y: number,
     label: string,
     id: string,
@@ -475,15 +474,16 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
     enabled: boolean,
     onAction: () => void,
   ): void {
+    const geometry = limitedListRow(panelX);
     const row = this.add
-      .text(x, y, short(label, 39), {
+      .text(geometry.plateX, y, short(label, 39), {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         color: theme.colors.heading,
         backgroundColor: theme.colors.rowFill,
         padding: { x: 8, y: 5 },
       })
-      .setFixedSize(296, 25)
+      .setFixedSize(geometry.plateWidth, 25)
       .setInteractive({ useHandCursor: true });
     row.on('pointerover', (p: Phaser.Input.Pointer) => {
       if (!p.wasTouch) {
@@ -500,10 +500,10 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
       this.showCardInspect(id);
     });
     inflateHitArea(row, 250, 31);
-    const action = themedButton(this, x + 326, y + 12, actionLabel, {
+    const action = themedButton(this, geometry.actionX, y + 12, actionLabel, {
       variant: actionLabel === '+' ? 'emphasis' : 'danger',
       size: 'sm',
-      minWidth: 39,
+      minWidth: geometry.actionWidth,
       enabled,
       onTap: onAction,
     });
@@ -553,7 +553,8 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
     c.add(
       this.add
         // The dim closes it; the panel itself does not, so "anywhere" was wrong.
-        .text(640, 682, `${isTouchDevice() ? 'Tap' : 'Click'} outside to close`, {
+        // On the shared footer line: at y 682 it ran past the title-safe frame.
+        .text(640, theme.design.footerCenterY, `${isTouchDevice() ? 'Tap' : 'Click'} outside to close`, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.label}px`,
           color: theme.colors.muted,

@@ -570,6 +570,19 @@ function centeredRect(centerX: number, centerY: number, size: RectSize): Rect {
   };
 }
 
+/**
+ * Where the currency badge hangs on every screen that shows one: its RIGHT
+ * edge on the title-safe frame's right edge, centred on the shared header
+ * line. The badge is right-origin text, so this is the point its text is
+ * placed at. Five scenes placed it by hand at x 1250 until the 1.8 cut
+ * (2026-09-23), 34px outside the frame the design system reserves for
+ * currency; the shared scene header already anchored it here.
+ */
+export const HEADER_CURRENCY_ANCHOR: Readonly<Point> = {
+  x: theme.design.safeRight,
+  y: theme.design.headerCenterY,
+};
+
 export interface HeaderFooterLayoutOptions {
   backVisual: RectSize;
   titleVisual: RectSize;
@@ -613,8 +626,8 @@ export function sceneHeaderFooterLayout(opts: HeaderFooterLayoutOptions): Header
     opts.backVisual.height,
   );
   const currency = centeredRect(
-    theme.design.safeRight - opts.currencyVisual.width / 2,
-    theme.design.headerCenterY,
+    HEADER_CURRENCY_ANCHOR.x - opts.currencyVisual.width / 2,
+    HEADER_CURRENCY_ANCHOR.y,
     opts.currencyVisual,
   );
   const trackGap = theme.space(6);
@@ -941,14 +954,17 @@ const GLOSSARY_FRAME_PADDING = theme.space(5);
 
 export function glossaryFrame(): GlossaryFrame {
   const { design } = theme;
-  const outerX = 48;
+  // Both panels sit on the title-safe frame's side edges. They ran from x 48
+  // to 1232 until the 1.8 cut (2026-09-23), which put the panel borders and
+  // the rail tabs' left edge outside the frame.
+  const outerX = design.safeLeft;
   const top = 112;
-  const bottom = design.height - 36;
+  const bottom = design.safeBottom;
   const height = bottom - top;
   const railWidth = 236;
   const gutter = theme.space(4);
   const contentX = outerX + railWidth + gutter;
-  const contentWidth = design.width - outerX - contentX;
+  const contentWidth = design.safeRight - contentX;
   const pad = GLOSSARY_FRAME_PADDING;
   const searchHeight = theme.control.heightSm;
   const searchWidth = 320;
@@ -1094,9 +1110,37 @@ export function glossaryRowsLayout(
  * the column scrolls, and the star column is subtracted from the name's width
  * budget here so the two can never occupy the same pixels.
  */
+/** The tower's scrollbar: a thin rail one step right of the viewport, and a wider thumb centred on it. */
+export const GAUNTLET_TOWER_SCROLLBAR = {
+  /** From the viewport's right edge to the rail's left edge. */
+  gap: theme.space(2),
+  railWidth: theme.space(0.5),
+  thumbWidth: theme.space(1.5),
+} as const;
+
+/** How far the scrollbar column reaches past the viewport's right edge. */
+const TOWER_SCROLLBAR_REACH =
+  GAUNTLET_TOWER_SCROLLBAR.gap +
+  (GAUNTLET_TOWER_SCROLLBAR.railWidth + GAUNTLET_TOWER_SCROLLBAR.thumbWidth) / 2;
+
+/**
+ * The Gauntlet tower's scroll viewport, anchored so the rows AND the scrollbar
+ * beside them end on the title-safe frame's right edge. The viewport sat at
+ * x 820-1240 until the 1.8 cut (2026-09-23), so every rung's tap target ran
+ * 24px past the frame and the scrollbar 36px past it.
+ */
+export const GAUNTLET_TOWER_VIEWPORT: Readonly<Rect> = {
+  x: theme.design.safeRight - TOWER_SCROLLBAR_REACH - 420,
+  y: 156,
+  width: 420,
+  height: 500,
+};
+
 export interface GauntletTowerLayout {
   /** Scroll viewport in design space; rows are positioned relative to its top. */
   viewport: Rect;
+  /** The scrollbar column (the thumb's full sweep), drawn only when the tower overflows. */
+  scrollbar: Rect;
   rowPitch: number;
   rowHeight: number;
   rowWidth: number;
@@ -1132,8 +1176,15 @@ export function gauntletTowerLayout(
   const labelX = padX;
   const count = Math.max(0, rungs);
   const contentHeight = count === 0 ? 0 : count * rowPitch - rowGap;
+  const { gap, railWidth, thumbWidth } = GAUNTLET_TOWER_SCROLLBAR;
   return {
     viewport,
+    scrollbar: {
+      x: viewport.x + viewport.width + gap - (thumbWidth - railWidth) / 2,
+      y: viewport.y,
+      width: thumbWidth,
+      height: viewport.height,
+    },
     rowPitch,
     rowHeight,
     rowWidth,

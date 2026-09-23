@@ -31,6 +31,5 @@ describe('the main menu corner clusters', () => {
       );
     }
     expect(mainMenuCornerY(2) + theme.control.minHitHeight / 2).toBeLessThan(mainMenuButtonY(0) - theme.control.minHitHeight / 2);
-    expect(MAIN_MENU_CORNER.badgeX).toBeLessThanOrEqual(theme.design.width);
   });
 });
