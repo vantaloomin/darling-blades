@@ -12,27 +12,54 @@
 # TO RUN IT. Actions tab, "Metagame sweep", Run workflow. The defaults are the
 # real sweep (seed 13003, four rounds, the prefab field, 150 seeds per matchup,
 # 80 hill-climb iterations, all six personas). For a dry run, dispatch with
-# seeds 10, iterations 5, rounds 1.
+# seeds 10, iterations 5, rounds 1. Each round is a call to
+# metagame-sweep-round.yml: every persona's craft runs as a chain of up to
+# CHUNKS jobs of CHUNK_ITERATIONS iterations each (see WHY CHUNKS). A dry run
+# at iterations 5 finishes inside chunk 0, and the later chunks only copy the
+# finished craft forward, so expect about a minute each for them (checkout,
+# npm ci, a copy). A dispatch whose iterations exceed CHUNKS x
+# CHUNK_ITERATIONS is refused by the setup job before anything runs.
 #
-# WHAT COMES BACK. Every craft is uploaded as its own artifact, and the merge
-# job commits the whole sweep to the orphan branch `sweep-data` under
-# `sweeps/<run-date>-<seed>/`: `crafts/` holds one file per persona per round,
-# `artifacts/` holds the per-persona metagame artifacts and the merged journal.
-# Never to `main`, which auto-deploys.
+# WHAT COMES BACK. Every finished craft is uploaded as `craft-r<n>-<persona>`,
+# and the merge job commits the whole sweep to the orphan branch `sweep-data`
+# under `sweeps/<run-date>-<seed>/`: `crafts/` holds one file per persona per
+# round, `artifacts/` holds the per-persona metagame artifacts and the merged
+# journal. Never to `main`, which auto-deploys. The chunk jobs also upload
+# `chunk-r<n>-c<c>-<persona>` (a checkpoint, or the craft once it finished);
+# those exist only to hand a craft from one job to the next, are kept five
+# days, and never reach `sweep-data`.
 #
-# TO RESUME. A craft that hits its 350-minute timeout leaves no file and no
-# journal line; everything else survives on `sweep-data`. Re-dispatch with the
-# SAME inputs and set `resume_from` to the committed directory, for example
-# `sweeps/2026-09-22-13003`. Each round job checks out that directory first and
-# a persona whose craft is already there exits without recrafting, so only the
-# crafts that were lost run again.
+# TO RESUME. A craft that fails or times out in any of its chunks leaves no
+# finished file and no journal line; everything else survives on
+# `sweep-data`. Re-dispatch with the SAME inputs and set `resume_from` to the
+# committed directory, for example `sweeps/2026-09-22-13003`. Chunk 0 of each
+# round checks out that directory first, and a persona whose craft is already
+# there is copied forward through the chain without recrafting, so only the
+# crafts that were lost run again. Resume works at craft granularity: a lost
+# craft starts over at chunk 0, because checkpoints are not published to
+# `sweep-data`.
+#
+# WHY CHUNKS. GitHub stops a hosted job at 360 minutes, and a whole craft does
+# not fit. The first fanned-out sweep (run 35764255645, 2026-09-22, the
+# defaults above) ran round 0 on 4-core ubuntu-latest runners: midrange
+# finished in 270 minutes, burn in 347, and attrition, draw-go, reanimator and
+# weenie hit the 350-minute job timeout (GitHub reports a timeout as
+# `cancelled`). One candidate measurement (14 matchups x 150 games) takes
+# roughly four to six minutes there, and a craft is 81 of them. The timeout
+# cannot be raised, and a resume re-runs the same deterministic work into the
+# same wall, so a craft stops after CHUNK_ITERATIONS iterations, saves its
+# hill-climb state, and the next job continues it. Twenty iterations is about
+# 80 to 130 minutes of measuring, well inside the limit, and four chunks hold
+# the default 80.
 #
 # WHAT THIS DOES NOT CHANGE. The same seeds, the same games per matchup, the
 # same Hard brain on both seats, the same acceptance rule, the same artifact
 # schema. Worker count does not enter the result: a game's seed is derived from
 # its matchup and its index, not from which worker ran it (measured 2026-09-22,
 # crafts at one, two and four workers were byte-identical), so a four-core
-# runner and the owner's eight-worker local run produce the same numbers.
+# runner and the owner's eight-worker local run produce the same numbers. Chunk
+# boundaries do not enter it either: a craft finished in several chunks is
+# byte-identical to one finished in a single process.
 
 name: Metagame sweep
 
@@ -74,7 +101,9 @@ concurrency:
   cancel-in-progress: false
 
 # Built once, here, so no step interpolates a dispatch input into a shell
-# command. Every craft job runs the same measurement configuration.
+# command. Every craft job runs the same measurement configuration. A called
+# workflow cannot see this block, and `env` is not available where a job
+# passes inputs to one, so the setup job republishes these as outputs.
 env:
   SWEEP_ARGS: >-
     --personas ${{ inputs.personas }}
@@ -84,6 +113,10 @@ env:
     --seeds ${{ inputs.seeds }}
     --iterations ${{ inputs.iterations }}
     --seed ${{ inputs.seed }}
+  # Hill-climb iterations per chunk job, and chunk jobs per craft (at most 4,
+  # the jobs metagame-sweep-round.yml defines). See WHY CHUNKS above.
+  CHUNK_ITERATIONS: '20'
+  CHUNKS: '4'
 
 jobs:
   setup:
@@ -92,7 +125,33 @@ jobs:
     outputs:
       personas: ${{ steps.plan.outputs.personas }}
       sweep-dir: ${{ steps.plan.outputs.sweep-dir }}
+      sweep-args: ${{ steps.plan.outputs.sweep-args }}
+      chunk-iterations: ${{ steps.plan.outputs.chunk-iterations }}
+      chunks: ${{ steps.plan.outputs.chunks }}
     steps:
+      # Refused here, before any runner starts: a craft that cannot finish in
+      # its last chunk would spend hours and publish nothing.
+      - name: Check the iterations fit the chunks
+        env:
+          ITERATIONS: ${{ inputs.iterations }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$ITERATIONS" =~ ^[0-9]+$ ]]; then
+            echo "iterations must be a whole number (got $ITERATIONS)."
+            exit 1
+          fi
+          if ! [[ "$CHUNKS" =~ ^[1-4]$ ]] || ! [[ "$CHUNK_ITERATIONS" =~ ^[1-9][0-9]*$ ]]; then
+            echo "CHUNKS must be 1 to 4 and CHUNK_ITERATIONS a positive whole number (got $CHUNKS and $CHUNK_ITERATIONS)."
+            exit 1
+          fi
+          CAPACITY=$((CHUNKS * CHUNK_ITERATIONS))
+          if [ "$ITERATIONS" -gt "$CAPACITY" ]; then
+            echo "iterations $ITERATIONS is more than a craft can run: $CHUNKS chunks of $CHUNK_ITERATIONS iterations hold $CAPACITY."
+            echo "Dispatch with iterations $CAPACITY or fewer, or raise CHUNK_ITERATIONS in metagame-sweep.yml."
+            exit 1
+          fi
+          echo "iterations $ITERATIONS fit in $CHUNKS chunks of $CHUNK_ITERATIONS."
+
       # The persona list becomes the matrix, and the output directory is fixed
       # here so every job agrees on it even across a UTC midnight.
       - name: Read the persona list
@@ -103,58 +162,29 @@ jobs:
         run: |
           set -euo pipefail
           LIST=$(printf '%s' "$PERSONAS" | jq -Rc 'split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0))')
+          case "$SWEEP_ARGS" in
+            *$'\n'*) echo "The dispatch inputs may not contain line breaks."; exit 1 ;;
+          esac
           echo "personas=$LIST" >> "$GITHUB_OUTPUT"
           echo "sweep-dir=sweeps/$(date -u +%Y-%m-%d)-$SEED" >> "$GITHUB_OUTPUT"
+          printf 'sweep-args=%s\n' "$SWEEP_ARGS" >> "$GITHUB_OUTPUT"
+          echo "chunk-iterations=$CHUNK_ITERATIONS" >> "$GITHUB_OUTPUT"
+          echo "chunks=$CHUNKS" >> "$GITHUB_OUTPUT"
           echo "Personas: $LIST"
 
+  # Each round is one call to the round workflow: a chain of chunk jobs, each a
+  # matrix over the personas. See metagame-sweep-round.yml.
   round-0:
     name: Round 0
     needs: setup
-    runs-on: ubuntu-latest
-    timeout-minutes: 350
-    strategy:
-      # One persona's timeout must not cancel the other five: the merge reports
-      # a missing craft and the resume re-runs only that one.
-      fail-fast: false
-      matrix:
-        persona: ${{ fromJSON(needs.setup.outputs.personas) }}
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
-
-      - name: Check out the resume source
-        if: inputs.resume_from != ''
-        uses: actions/checkout@v5
-        with:
-          ref: sweep-data
-          path: resume
-
-      - name: Craft round 0
-        env:
-          PERSONA: ${{ matrix.persona }}
-          RESUME_FROM: ${{ inputs.resume_from }}
-        run: |
-          set -euo pipefail
-          ARGS=(--metagame-craft "$PERSONA" --round 0 --out out --workers "$(nproc)")
-          if [ -n "$RESUME_FROM" ]; then ARGS+=(--resume-from "resume/$RESUME_FROM/crafts"); fi
-          npx tsx scripts/personas/craft.ts "${ARGS[@]}" $SWEEP_ARGS
-
-      # One journal per craft, named for it, so the round's uploads can be
-      # merged into one directory without colliding.
-      - name: Name this craft's journal line
-        env:
-          PERSONA: ${{ matrix.persona }}
-        run: mv "out/craft-journal.jsonl" "out/craft-journal-$PERSONA-r0.jsonl"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: craft-r0-${{ matrix.persona }}
-          path: out/
-          if-no-files-found: error
+    uses: ./.github/workflows/metagame-sweep-round.yml
+    with:
+      round: 0
+      personas: ${{ needs.setup.outputs.personas }}
+      sweep_args: ${{ needs.setup.outputs.sweep-args }}
+      resume_from: ${{ inputs.resume_from }}
+      chunk_iterations: ${{ fromJSON(needs.setup.outputs.chunk-iterations) }}
+      chunks: ${{ fromJSON(needs.setup.outputs.chunks) }}
 
   check-1:
     name: Is round 1 needed
@@ -194,55 +224,14 @@ jobs:
     name: Round 1
     needs: [setup, check-1]
     if: ${{ !cancelled() && fromJSON(inputs.rounds) >= 1 && needs.check-1.result == 'success' && needs.check-1.outputs.done != 'true' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 350
-    strategy:
-      fail-fast: false
-      matrix:
-        persona: ${{ fromJSON(needs.setup.outputs.personas) }}
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
-
-      # The previous round's retained decks, one file per persona: the only
-      # state a fanned-out round needs from the round before it.
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: craft-r0-*
-          path: field
-          merge-multiple: true
-
-      - name: Check out the resume source
-        if: inputs.resume_from != ''
-        uses: actions/checkout@v5
-        with:
-          ref: sweep-data
-          path: resume
-
-      - name: Craft round 1
-        env:
-          PERSONA: ${{ matrix.persona }}
-          RESUME_FROM: ${{ inputs.resume_from }}
-        run: |
-          set -euo pipefail
-          ARGS=(--metagame-craft "$PERSONA" --round 1 --field-dir field --out out --workers "$(nproc)")
-          if [ -n "$RESUME_FROM" ]; then ARGS+=(--resume-from "resume/$RESUME_FROM/crafts"); fi
-          npx tsx scripts/personas/craft.ts "${ARGS[@]}" $SWEEP_ARGS
-
-      - name: Name this craft's journal line
-        env:
-          PERSONA: ${{ matrix.persona }}
-        run: mv "out/craft-journal.jsonl" "out/craft-journal-$PERSONA-r1.jsonl"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: craft-r1-${{ matrix.persona }}
-          path: out/
-          if-no-files-found: error
+    uses: ./.github/workflows/metagame-sweep-round.yml
+    with:
+      round: 1
+      personas: ${{ needs.setup.outputs.personas }}
+      sweep_args: ${{ needs.setup.outputs.sweep-args }}
+      resume_from: ${{ inputs.resume_from }}
+      chunk_iterations: ${{ fromJSON(needs.setup.outputs.chunk-iterations) }}
+      chunks: ${{ fromJSON(needs.setup.outputs.chunks) }}
 
   check-2:
     name: Is round 2 needed
@@ -279,48 +268,14 @@ jobs:
     name: Round 2
     needs: [setup, check-2]
     if: ${{ !cancelled() && fromJSON(inputs.rounds) >= 2 && needs.check-2.result == 'success' && needs.check-2.outputs.done != 'true' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 350
-    strategy:
-      fail-fast: false
-      matrix:
-        persona: ${{ fromJSON(needs.setup.outputs.personas) }}
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: craft-r1-*
-          path: field
-          merge-multiple: true
-      - name: Check out the resume source
-        if: inputs.resume_from != ''
-        uses: actions/checkout@v5
-        with:
-          ref: sweep-data
-          path: resume
-      - name: Craft round 2
-        env:
-          PERSONA: ${{ matrix.persona }}
-          RESUME_FROM: ${{ inputs.resume_from }}
-        run: |
-          set -euo pipefail
-          ARGS=(--metagame-craft "$PERSONA" --round 2 --field-dir field --out out --workers "$(nproc)")
-          if [ -n "$RESUME_FROM" ]; then ARGS+=(--resume-from "resume/$RESUME_FROM/crafts"); fi
-          npx tsx scripts/personas/craft.ts "${ARGS[@]}" $SWEEP_ARGS
-      - name: Name this craft's journal line
-        env:
-          PERSONA: ${{ matrix.persona }}
-        run: mv "out/craft-journal.jsonl" "out/craft-journal-$PERSONA-r2.jsonl"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: craft-r2-${{ matrix.persona }}
-          path: out/
-          if-no-files-found: error
+    uses: ./.github/workflows/metagame-sweep-round.yml
+    with:
+      round: 2
+      personas: ${{ needs.setup.outputs.personas }}
+      sweep_args: ${{ needs.setup.outputs.sweep-args }}
+      resume_from: ${{ inputs.resume_from }}
+      chunk_iterations: ${{ fromJSON(needs.setup.outputs.chunk-iterations) }}
+      chunks: ${{ fromJSON(needs.setup.outputs.chunks) }}
 
   check-3:
     name: Is round 3 needed
@@ -357,48 +312,14 @@ jobs:
     name: Round 3
     needs: [setup, check-3]
     if: ${{ !cancelled() && fromJSON(inputs.rounds) >= 3 && needs.check-3.result == 'success' && needs.check-3.outputs.done != 'true' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 350
-    strategy:
-      fail-fast: false
-      matrix:
-        persona: ${{ fromJSON(needs.setup.outputs.personas) }}
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: craft-r2-*
-          path: field
-          merge-multiple: true
-      - name: Check out the resume source
-        if: inputs.resume_from != ''
-        uses: actions/checkout@v5
-        with:
-          ref: sweep-data
-          path: resume
-      - name: Craft round 3
-        env:
-          PERSONA: ${{ matrix.persona }}
-          RESUME_FROM: ${{ inputs.resume_from }}
-        run: |
-          set -euo pipefail
-          ARGS=(--metagame-craft "$PERSONA" --round 3 --field-dir field --out out --workers "$(nproc)")
-          if [ -n "$RESUME_FROM" ]; then ARGS+=(--resume-from "resume/$RESUME_FROM/crafts"); fi
-          npx tsx scripts/personas/craft.ts "${ARGS[@]}" $SWEEP_ARGS
-      - name: Name this craft's journal line
-        env:
-          PERSONA: ${{ matrix.persona }}
-        run: mv "out/craft-journal.jsonl" "out/craft-journal-$PERSONA-r3.jsonl"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: craft-r3-${{ matrix.persona }}
-          path: out/
-          if-no-files-found: error
+    uses: ./.github/workflows/metagame-sweep-round.yml
+    with:
+      round: 3
+      personas: ${{ needs.setup.outputs.personas }}
+      sweep_args: ${{ needs.setup.outputs.sweep-args }}
+      resume_from: ${{ inputs.resume_from }}
+      chunk_iterations: ${{ fromJSON(needs.setup.outputs.chunk-iterations) }}
+      chunks: ${{ fromJSON(needs.setup.outputs.chunks) }}
 
   check-4:
     name: Is round 4 needed
@@ -435,48 +356,14 @@ jobs:
     name: Round 4
     needs: [setup, check-4]
     if: ${{ !cancelled() && fromJSON(inputs.rounds) >= 4 && needs.check-4.result == 'success' && needs.check-4.outputs.done != 'true' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 350
-    strategy:
-      fail-fast: false
-      matrix:
-        persona: ${{ fromJSON(needs.setup.outputs.personas) }}
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: craft-r3-*
-          path: field
-          merge-multiple: true
-      - name: Check out the resume source
-        if: inputs.resume_from != ''
-        uses: actions/checkout@v5
-        with:
-          ref: sweep-data
-          path: resume
-      - name: Craft round 4
-        env:
-          PERSONA: ${{ matrix.persona }}
-          RESUME_FROM: ${{ inputs.resume_from }}
-        run: |
-          set -euo pipefail
-          ARGS=(--metagame-craft "$PERSONA" --round 4 --field-dir field --out out --workers "$(nproc)")
-          if [ -n "$RESUME_FROM" ]; then ARGS+=(--resume-from "resume/$RESUME_FROM/crafts"); fi
-          npx tsx scripts/personas/craft.ts "${ARGS[@]}" $SWEEP_ARGS
-      - name: Name this craft's journal line
-        env:
-          PERSONA: ${{ matrix.persona }}
-        run: mv "out/craft-journal.jsonl" "out/craft-journal-$PERSONA-r4.jsonl"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: craft-r4-${{ matrix.persona }}
-          path: out/
-          if-no-files-found: error
+    uses: ./.github/workflows/metagame-sweep-round.yml
+    with:
+      round: 4
+      personas: ${{ needs.setup.outputs.personas }}
+      sweep_args: ${{ needs.setup.outputs.sweep-args }}
+      resume_from: ${{ inputs.resume_from }}
+      chunk_iterations: ${{ fromJSON(needs.setup.outputs.chunk-iterations) }}
+      chunks: ${{ fromJSON(needs.setup.outputs.chunks) }}
 
   merge:
     name: Merge the sweep
