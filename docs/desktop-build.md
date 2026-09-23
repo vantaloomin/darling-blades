@@ -35,6 +35,24 @@ check for the app's root), instead of loading a second copy of the game, and the
 app exits when the game window closes, so the page window never outlives it. No
 capability names the `page` window, so the pages there have no IPC access.
 
+**Making a webview can break requests already in flight.** Measured 2026-09-23 on
+a release build: while a second webview (the `page` window) is being created,
+some requests the game already has in flight to its own address fail with
+`ERR_CONNECTION_REFUSED`, up to all 32 in flight at once. Load alone never does
+it (0 failures in 20,000 fetches at 8, 32 and 64 at a time, and 0 in 10 plain
+launches), so the parallel-download limit is not the cause. During the real boot
+art stream a page opened mid-stream broke requests in 1 of 29 window creations.
+Building the window from a thread after the new-window handler returns was
+tried and NOT kept: it helped under a synthetic 32-at-a-time fetch loop (broken
+creations 24 of 56 down to 0 of 30) but not on the real boot stream (3 of 29),
+and sharing the game's WebView2 environment with the page window did not help
+either. The cause sits inside WebView2 or wry. None of it reached a player in
+any run: Phaser's loader re-sends a request that fails this way twice at once,
+and the art loader asks once more for any file still missing when its batch
+ends (`src/art/artRetry.ts`), so a gated scene never builds over a transient
+failure. If it ever needs removing at the source, the lever is fewer webview
+creations: keep the page window alive (hidden) after its first use.
+
 **Render size drives the window.** The Settings "Render size" chips
 (720p/1080p/1440p) set both the render backing store (`1280·k × 720·k`) **and**
 the desktop window's logical size, clamped to the screen work area and re-centered

@@ -9,6 +9,7 @@ import {
   type ArtBatchHooks,
   type ArtFile,
 } from '../art/artLoader';
+import { loadBatchWithRetry, type ArtPassHooks } from '../art/artRetry';
 import { Services } from '../meta/services';
 
 /**
@@ -58,29 +59,44 @@ export class ArtLoaderScene extends Phaser.Scene {
   }
 
   /**
-   * One batch through this scene's own LoaderPlugin. A failed file is logged
-   * and counted as settled (the resolver falls back to the neutral loading
+   * One batch, with one retry for any file that did not arrive
+   * (`src/art/artRetry.ts`): a transient failure is asked for again before
+   * the batch settles, so a gate never builds over it. A file that fails twice
+   * settles without its art (the resolver falls back to the neutral loading
    * texture, and `ensure` must never hang on a 404).
-   *
-   * The next batch is kicked from a zero-delay timer rather than from inside
-   * the COMPLETE handler: `LoaderPlugin.start()` would re-enter the emit it is
-   * being called from, and yielding a frame between batches keeps decode and
-   * GPU upload from starving the scene that is actually on screen.
    */
   private loadBatch(files: readonly ArtFile[], hooks: ArtBatchHooks): void {
+    loadBatchWithRetry(files, (pending, pass) => this.loadPass(pending, pass), hooks, {
+      onRetry: (missing, attempt) =>
+        console.warn(
+          `ArtLoader: retrying ${missing.length} card art file(s), attempt ${attempt}: ${missing.map((file) => file.id).join(', ')}`,
+        ),
+    });
+  }
+
+  /**
+   * One pass of files through this scene's own LoaderPlugin. A file reports
+   * only when it actually arrived; whatever did not (an error, a timeout, an
+   * image that would not decode) is left for the retry rule to see.
+   *
+   * The pass ends from a zero-delay timer rather than from inside the COMPLETE
+   * handler: `LoaderPlugin.start()`, for the next batch or for a retry, would
+   * re-enter the emit it is being called from, and yielding a frame between
+   * passes keeps decode and GPU upload from starving the scene on screen.
+   */
+  private loadPass(files: readonly ArtFile[], pass: ArtPassHooks): void {
     const ids = new Map(files.map((file) => [file.textureKey, file.id]));
     const onFileComplete = (key: string): void => {
       const id = ids.get(key);
-      if (id !== undefined) hooks.onFile(id);
+      if (id !== undefined) pass.onLoaded(id);
     };
     const onLoadError = (file: Phaser.Loader.File): void => {
       console.warn(`ArtLoader: card art failed to load (${file.key})`);
-      onFileComplete(file.key);
     };
     const onComplete = (): void => {
       this.load.off('filecomplete', onFileComplete);
       this.load.off('loaderror', onLoadError);
-      this.time.delayedCall(0, () => hooks.onDone());
+      this.time.delayedCall(0, () => pass.onDone());
     };
     this.load.on('filecomplete', onFileComplete);
     this.load.on('loaderror', onLoadError);
