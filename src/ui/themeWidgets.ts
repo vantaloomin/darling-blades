@@ -17,6 +17,8 @@ import {
 } from './layout';
 import {
   resolveModalDismissPresentation,
+  SceneEscRouter,
+  type EscStackEntry,
   type LegacyModalDismissOptions,
   type ModalDismissPreset,
 } from './modalDismissPresentation';
@@ -556,6 +558,13 @@ export interface ModalShellOptions {
   x?: number;
   y?: number;
   dimAlpha?: number;
+  /**
+   * Fill the panel fully opaque instead of the shared `panel` alpha (0.9).
+   * For reading surfaces opened over bright text behind a light dim, where a
+   * 10% see-through panel lets the screen underneath ghost through the copy.
+   * Off by default, so every other modal keeps its look.
+   */
+  opaque?: boolean;
   /** Named dismissal behavior. Every migrated scene call site sets this. */
   dismissal?: ModalDismissPreset;
   /** @deprecated Use `dismissal`; retained for shared helpers outside this wave. */
@@ -591,24 +600,22 @@ export interface ModalShell {
   close(): void;
 }
 
-interface SceneModalEntry {
-  dismissible: boolean;
-  close: () => void;
-}
+/** One Esc route per running scene; see `SceneEscRouter` for the rules. */
+const SCENE_ESC_ROUTERS = new WeakMap<Phaser.Scene, SceneEscRouter>();
 
-const SCENE_MODAL_STACKS = new WeakMap<Phaser.Scene, SceneModalEntry[]>();
-
-function registerSceneModal(scene: Phaser.Scene, entry: SceneModalEntry): () => void {
-  const stack = SCENE_MODAL_STACKS.get(scene) ?? [];
-  stack.push(entry);
-  SCENE_MODAL_STACKS.set(scene, stack);
-  return () => {
-    const current = SCENE_MODAL_STACKS.get(scene);
-    if (!current) return;
-    const index = current.indexOf(entry);
-    if (index >= 0) current.splice(index, 1);
-    if (current.length === 0) SCENE_MODAL_STACKS.delete(scene);
-  };
+function sceneEscRouter(scene: Phaser.Scene): SceneEscRouter {
+  let router = SCENE_ESC_ROUTERS.get(scene);
+  if (!router) {
+    const created = new SceneEscRouter();
+    router = created;
+    SCENE_ESC_ROUTERS.set(scene, created);
+    // Scenes are reused across restarts; each run gets a fresh stack. Shells
+    // hold their own router reference, so their teardown is unaffected.
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      if (SCENE_ESC_ROUTERS.get(scene) === created) SCENE_ESC_ROUTERS.delete(scene);
+    });
+  }
+  return router;
 }
 
 /**
@@ -617,33 +624,29 @@ function registerSceneModal(scene: Phaser.Scene, entry: SceneModalEntry): () => 
  * gate on this instead of reaching into per-shell state.
  */
 export function sceneHasOpenModal(scene: Phaser.Scene): boolean {
-  return (SCENE_MODAL_STACKS.get(scene)?.length ?? 0) > 0;
+  return (SCENE_ESC_ROUTERS.get(scene)?.size ?? 0) > 0;
 }
 
 export interface SceneBackNavigationOptions {
   coordinator?: OverlayCoordinator;
 }
 
-/** Register the one scene-level ESC route for a screen with a back affordance. */
+/**
+ * Register the one scene-level ESC route for a screen with a back affordance.
+ * The top-most open modal takes the press first, whether it opened before or
+ * after this route was registered; only a press no modal claimed goes back.
+ */
 export function registerSceneBackNavigation(
   scene: Phaser.Scene,
   onBack: () => void,
   opts: SceneBackNavigationOptions = {},
 ): void {
-  const onEsc = (): void => {
-    if (opts.coordinator?.dispatchEsc().consumed) return;
-    const stack = SCENE_MODAL_STACKS.get(scene);
-    const top = stack?.[stack.length - 1];
-    if (top) {
-      if (top.dismissible) top.close();
-      return;
-    }
-    onBack();
+  const onEsc = (event?: KeyboardEvent): void => {
+    sceneEscRouter(scene).onBackEsc(event, onBack, () => opts.coordinator?.dispatchEsc().consumed ?? false);
   };
   scene.input.keyboard?.on('keydown-ESC', onEsc);
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
     scene.input.keyboard?.off('keydown-ESC', onEsc);
-    SCENE_MODAL_STACKS.delete(scene);
   });
 }
 
@@ -659,7 +662,14 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
     theme.graphics.dim,
     opts.dimAlpha ?? theme.alpha.overlayDim,
   );
-  const chrome = panel(scene, x - opts.width / 2, y - opts.height / 2, opts.width, opts.height);
+  const chrome = panel(
+    scene,
+    x - opts.width / 2,
+    y - opts.height / 2,
+    opts.width,
+    opts.height,
+    opts.opaque ? { alpha: 1 } : {},
+  );
   const container = scene.add.container(0, 0, [dim, chrome]).setDepth(opts.depth ?? theme.depth.modal);
   const interactiveChildren: Phaser.GameObjects.GameObject[] = [];
   const usesCoordinator = opts.coordinator !== undefined;
@@ -675,8 +685,14 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
   let closed = false;
   let overlayLease: OverlayLease | undefined;
   let unregisterSceneModal: (() => void) | null = null;
+  const escRouter = sceneEscRouter(scene);
+  const escEntry: EscStackEntry = { dismissible: dismissal.escToClose, close: () => close() };
+  // A shell's own Esc listener answers only while this shell is the top-most
+  // modal and no other listener has taken the press (SceneEscRouter), so one
+  // press closes one modal and never also runs the screen's back action.
+  const onEsc = (event?: KeyboardEvent): void => escRouter.onShellEsc(escEntry, event);
   const cleanup = (): void => {
-    if (!usesCoordinator && dismissal.escToClose) scene.input.keyboard?.off('keydown-ESC', close);
+    if (!usesCoordinator && dismissal.escToClose) scene.input.keyboard?.off('keydown-ESC', onEsc);
   };
   const close = (): void => {
     if (closed) return;
@@ -733,7 +749,7 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
       layout.closeTrack.y + layout.closeTrack.height / 2,
     );
   }
-  if (!usesCoordinator && dismissal.escToClose) scene.input.keyboard?.on('keydown-ESC', close);
+  if (!usesCoordinator && dismissal.escToClose) scene.input.keyboard?.on('keydown-ESC', onEsc);
   if (opts.coordinator) {
     const registration: OverlayRegistration = {
       ...opts.registration,
@@ -748,7 +764,7 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
     };
     overlayLease = opts.coordinator.open(registration);
   }
-  unregisterSceneModal = registerSceneModal(scene, { dismissible: dismissal.escToClose, close });
+  unregisterSceneModal = escRouter.push(escEntry);
   container.once('destroy', () => {
     cleanup();
     unregisterSceneModal?.();

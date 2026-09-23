@@ -4,6 +4,8 @@ import { Sfx } from '../audio/sfx';
 import type { ConfirmNoBlockSetting } from '../meta/SaveManager';
 import { Services } from '../meta/services';
 import { readSignalsGateInput, signalsAllowed } from '../net/signalsGate';
+import { isTauri } from '../platform/desktopWindow';
+import { isTouchDevice } from '../platform/gestures';
 import { qualityTier } from '../platform/quality';
 import type { AnimationLevel } from '../platform/animPolicy';
 import type { RenderScaleSetting } from '../platform/renderScale';
@@ -186,7 +188,7 @@ export class SettingsScene extends Phaser.Scene {
     this.note(
       LEFT_LABEL_X,
       instant.note,
-      'Casts spells on a single click instead of picking the card up.',
+      `Casts spells on a single ${isTouchDevice() ? 'tap' : 'click'} instead of picking the card up.`,
     );
 
     const landDrop = L.rows.landDrop;
@@ -235,12 +237,16 @@ export class SettingsScene extends Phaser.Scene {
       );
       this.renderChips.set(value, button);
     });
+    // Only the desktop app can resize its window; in a browser the size is a
+    // rendering resolution scaled to fit the page (src/platform/renderScale.ts).
     this.note(
       RIGHT_LABEL_X,
       R.rows.renderSize.note,
       lite
         ? 'High resolutions are disabled on this device.'
-        : 'Resizes the desktop window and reloads to apply.',
+        : isTauri()
+          ? 'Resizes the desktop window and reloads to apply.'
+          : 'Higher sizes render sharper in the browser. Reloads to apply.',
     );
 
     this.rowLabel(RIGHT_LABEL_X, R.rows.autoSkip.row, 'Auto-skip forced turns');
@@ -396,17 +402,21 @@ export class SettingsScene extends Phaser.Scene {
    */
   private buildReset(): void {
     this.rowLabel(SETTINGS_RESET_BLOCK.labelX, SETTINGS_RESET_BLOCK.rowY, 'Reset save');
+    let armed = false;
     const reset = this.track(
       themedButton(this, SETTINGS_RESET_BLOCK.buttonRight, SETTINGS_RESET_BLOCK.rowY, 'Reset', {
         variant: 'danger',
         minWidth: SETTINGS_RESET_BLOCK.buttonMinWidth,
-        onTap: () => {
-          if (reset.label.text !== 'Tap again to erase everything') {
-            reset.setLabel('Tap again to erase everything');
+        onTap: (pointer) => {
+          if (!armed) {
+            armed = true;
+            // The verb follows the press that armed it: Tap on touch, Click with a mouse.
+            reset.setLabel(`${pointer.wasTouch ? 'Tap' : 'Click'} again to erase everything`);
             reset.setVariant('danger');
             reset.container.setX(SETTINGS_RESET_BLOCK.buttonRight - reset.getMeasuredSize().hit.width / 2);
             this.time.delayedCall(4000, () => {
-              if (reset.container.active && reset.label.text === 'Tap again to erase everything') {
+              if (reset.container.active && armed) {
+                armed = false;
                 reset.setLabel('Reset');
                 reset.container.setX(SETTINGS_RESET_BLOCK.buttonRight - reset.getMeasuredSize().hit.width / 2);
               }

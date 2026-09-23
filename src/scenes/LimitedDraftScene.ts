@@ -213,7 +213,7 @@ export class LimitedDraftScene extends Phaser.Scene {
       .text(
         DESIGN_W / 2,
         76,
-        `Pack ${draft.packIndex + 1}/${DRAFT_PACKS} - Pick ${draft.pickIndex + 1}/${packSize}`,
+        `Pack ${draft.packIndex + 1}/${DRAFT_PACKS} · Pick ${draft.pickIndex + 1}/${packSize}`,
         {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.body}px`,
@@ -428,7 +428,7 @@ export class LimitedDraftScene extends Phaser.Scene {
     }
 
     this.add.rectangle(x + 184, y + 153, 336, 1, theme.graphics.panelStroke, 1);
-    this.add.text(x + 16, y + 164, 'DRAFTED CARDS  -  MOST RECENT FIRST', {
+    this.add.text(x + 16, y + 164, 'DRAFTED CARDS · MOST RECENT FIRST', {
       fontFamily: theme.fonts.ui,
       fontSize: `${theme.type.micro}px`,
       fontStyle: theme.weight.w700,
@@ -456,8 +456,8 @@ export class LimitedDraftScene extends Phaser.Scene {
       theme.design.safeLeft,
       660,
       isTouchDevice()
-        ? 'Tap a card to select  -  long-press to inspect'
-        : 'Click selects  -  right-click inspects  -  in inspect: arrows browse, Space/Enter selects then picks',
+        ? 'Tap a card to select · long-press to inspect'
+        : 'Click selects · right-click inspects · in inspect: arrows browse, Space/Enter selects then picks',
       {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
@@ -796,14 +796,15 @@ export class LimitedDraftScene extends Phaser.Scene {
       );
     }
 
-    if (card.keywords && card.keywords.length > 0) {
-      addKeywordGlossaryPanel(this, c, card, {
-        x: columnX,
-        y: 300,
-        width: columnWidth,
-        maxHeight: run?.premium ? 200 : 280,
-      });
-    }
+    // Every glossary term the card uses, not only combat keywords: the panel
+    // reads the same entries Collection's inspect shows (Duty, Foresee,
+    // Sever...) and draws nothing for a card with none.
+    addKeywordGlossaryPanel(this, c, card, {
+      x: columnX,
+      y: 300,
+      width: columnWidth,
+      maxHeight: run?.premium ? 200 : 280,
+    });
 
     if (run?.premium) {
       c.add(
@@ -844,7 +845,7 @@ export class LimitedDraftScene extends Phaser.Scene {
     this.refreshInspectHint();
     c.add(
       this.add
-        .text(884, 598, 'Click outside or use X to close', {
+        .text(884, 598, `${isTouchDevice() ? 'Tap' : 'Click'} outside or use × to close`, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           color: theme.colors.muted,
@@ -1058,8 +1059,8 @@ function premiumVariantLine(variant: CardVariant | undefined): string {
   if (!variant || isPlainVariant(variant)) return 'Standard print';
   const frame = capitalize(variant.frame);
   const holo = variant.holo === 'none' ? 'No holo' : `${capitalize(variant.holo)} holo`;
-  const fullArt = variant.fullArt ? 'Full Art - ' : '';
-  return `${fullArt}${frame} frame - ${holo} - yours when the draft completes`;
+  const fullArt = variant.fullArt ? 'Full Art · ' : '';
+  return `${fullArt}${frame} frame · ${holo} · yours when the draft completes`;
 }
 
 function capitalize(value: string): string {

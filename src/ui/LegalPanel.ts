@@ -36,11 +36,15 @@ export function createLegalPanel(
   guard: ModalGuard,
   guardTargets: readonly Phaser.GameObjects.GameObject[],
 ): ModalShell {
+  // Opaque chrome, the same as the "What is sent" panel beside it: this panel
+  // dims lightly over the Settings rows, and the shared 0.9 panel fill let
+  // their text ghost through the rows the player is here to read.
   const shell = modalShell(scene, {
     width: LEGAL_PANEL_LAYOUT.width,
     height: LEGAL_PANEL_LAYOUT.height,
     dismissal: 'dismissible',
     dimAlpha: LEGAL_PANEL_LAYOUT.dimAlpha,
+    opaque: true,
     onClose: () => guard.close(),
   });
   guard.open(guardTargets);
