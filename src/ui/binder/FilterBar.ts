@@ -78,7 +78,9 @@ export class FilterBar {
       { value: 'all', label: 'All sets' },
       ...SET_IDS.filter(isLiveSet).map((id) => ({ value: id, label: SET_TITLES[id] })),
     ];
-    mk(55, 'Set', setOpts, () => state.set, (v) => (state.set = v), 92);
+    // The row starts on the title-safe frame's left edge (it started at x 55
+    // until the 1.8 cut, 2026-09-23); reflow() places everything after it.
+    mk(theme.design.safeLeft, 'Set', setOpts, () => state.set, (v) => (state.set = v), 92);
 
     const colorOpts: DropdownOption<Color | 'all'>[] = [
       { value: 'all', label: 'All' },
@@ -128,10 +130,10 @@ export class FilterBar {
     } else {
       mk(775, 'Sort', sortOpts, () => state.sort, (v) => (state.sort = v), 92);
     }
-    this.reflow();
-
     // Owned toggle - a rounded shared trigger, since it is boolean, not a select.
-    this.ownedPill = roundedTrigger(scene, 955, y, '', {
+    // It joins the reflow after the last dropdown rather than sitting at a
+    // fixed x, so the row cannot run into it when the first chip moves.
+    this.ownedPill = roundedTrigger(scene, 0, y, '', {
       variant: 'ghost',
       size: 'sm',
       minWidth: 96,
@@ -143,6 +145,7 @@ export class FilterBar {
     });
     this.targets.push(this.ownedPill.inputZone);
     this.refreshOwned();
+    this.reflow();
 
     // On scene shutdown, drop each dropdown's outside-click pointer listener so
     // it cannot fire on a torn-down scene. Uses teardown() (listener + panel ref
@@ -157,6 +160,7 @@ export class FilterBar {
    * Interactive isolation for the chip row: selected labels change trigger
    * widths, so chips reflow left-to-right keeping at least 8px between
    * INFLATED hit rects (design-system.md; the first chip anchors the row).
+   * The Owned pill is the row's last control and follows the same rule.
    */
   private reflow(): void {
     const gap = theme.space(2);
@@ -166,6 +170,9 @@ export class FilterBar {
       if (cursor !== null) dd.setX(cursor - hit.x);
       cursor = dd.containerX + hit.x + hit.width + gap;
     }
+    if (cursor === null) return;
+    const pill = this.ownedPill.getMeasuredBounds().hit;
+    this.ownedPill.container.x = cursor - pill.x;
   }
 
   private closeAllExcept(keep: Dropdown<string>): void {

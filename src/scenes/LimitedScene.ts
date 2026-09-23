@@ -18,6 +18,7 @@ import { payPremiumDraftEntry, premiumEntryStatus, todayString } from '../meta/E
 import { Services } from '../meta/services';
 import { isTouchDevice } from '../platform/gestures';
 import { applyBackdrop } from '../ui/SceneBackdrop';
+import { HEADER_CURRENCY_ANCHOR } from '../ui/layout';
 import { theme } from '../ui/theme';
 import { Toast } from '../ui/Toast';
 import { backButton, goldBadge, panel, registerSceneBackNavigation, themedButton, type ThemedButton } from '../ui/themeWidgets';
@@ -92,7 +93,7 @@ export class LimitedScene extends Phaser.Scene {
     registerSceneBackNavigation(this, () => this.scene.start('Play'));
     // Gold is spendable here (the Premium Draft entry), so show the balance in
     // its usual top-right corner spot.
-    goldBadge(this, 1250, theme.design.headerCenterY, { getValue: () => Services.save.data.gold });
+    goldBadge(this, HEADER_CURRENCY_ANCHOR.x, HEADER_CURRENCY_ANCHOR.y, { getValue: () => Services.save.data.gold });
     this.drawRunPanel();
     this.drawStartPanel();
     this.drawHistory();
