@@ -599,7 +599,22 @@ Two per-player caps are enforced at **cast legality** (`castBlockers` in
 Token creation also respects the creature cap: `createToken` in
 `src/engine/effects/EffectInterpreter.ts` re-checks `RULES.maxCreatures` before
 each token and simply **stops** once the cap is hit (excess tokens are not
-created). Verify in the `createToken` case of `EffectInterpreter.ts`.
+created). Verify in the `createToken` case of `EffectInterpreter.ts`. The same
+check-then-stop guards every other effect that puts a creature onto the
+battlefield: `raise` returns nothing at the cap, and a Nine Lives return leaves
+the card in the graveyard.
+
+**The creature cap is a casting rule (owner ruling, 2026-09-23).** A creature
+spell is checked when it is cast, never again when it resolves. Rite and Tithe
+count their sacrifices as already gone at cast time (`castBlockers`), so a
+player at 8 can still cast them. Anything that adds a creature while the spell
+is on the stack, including a sacrificed creature's own dies trigger making a
+token or its Nine Lives return (Marsh-Mother, What the Nets Remember,
+Marsh-Wight, Reed-Wight), fills a freed slot first, and the spell then resolves
+onto a board of 8, leaving 9. That is by design: a resolution-time check would
+need a new rule for what happens to a paid-for creature, and the board lays out
+any count (`src/ui/rowPacking.ts`). No further creature can be cast, made or
+returned until the count drops below 8 again.
 
 ## State-based actions (SBAs)
 
