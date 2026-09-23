@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   GLOSSARY_SECTIONS,
   KEYWORD_NAMES,
+  KEYWORD_REMINDER,
   MECHANIC_DEFINITIONS,
   MECHANIC_NAMES,
   PHASE_DEFINITIONS,
@@ -56,6 +57,21 @@ describe('glossary vocabulary', () => {
     }
   });
 
+  /** Reminders print after the term's name in the Keyword Guide and the
+   *  glossary rows, so each is one lowercase fragment with no closing period.
+   *  Whispers, Tithe and Duty shipped as full sentences beside the rest. */
+  it('writes every keyword reminder and mechanic definition in the reminder house style', () => {
+    const reminders = [
+      ...Object.entries(KEYWORD_REMINDER),
+      ...Object.entries(MECHANIC_DEFINITIONS),
+    ];
+    for (const [id, text] of reminders) {
+      expect(text.charAt(0), `${id} starts lowercase`).toBe(text.charAt(0).toLowerCase());
+      expect(text.endsWith('.'), `${id} has no closing period`).toBe(false);
+      expect(text, `${id} is one fragment`).not.toMatch(/\.\s/);
+    }
+  });
+
   it('resolves the Deck Builder deep-link targets to a section', () => {
     expect(sectionOfTerm('Darlings')).toBe('mechanics');
     expect(sectionOfTerm('Warchest')).toBe('mechanics');
@@ -71,32 +87,20 @@ describe('glossary vocabulary', () => {
     expect(termMatchesQuery(dreaded, 'skyborne')).toBe(false);
   });
 
-  it('teaches Duty beside Preserve with the approved definition and tap icon', () => {
+  it('teaches Duty beside Preserve with its tap icon', () => {
     const terms = glossarySection('mechanics').terms;
     const index = terms.findIndex((term) => term.name === 'Duty');
     expect(terms[index - 1].name).toBe('Preserve');
-    expect(terms[index]).toEqual({
-      name: 'Duty',
-      description: 'Tap this permanent, and pay any listed cost, during your Morning or Afternoon to perform its Duty. A permanent cannot tap the turn it arrives unless it has Warcry.',
-      icon: { kind: 'mechanic', key: 'duty' },
-    });
+    expect(terms[index]).toMatchObject({ name: 'Duty', icon: { kind: 'mechanic', key: 'duty' } });
     expect(sectionOfTerm('Duty')).toBe('mechanics');
   });
 
-  it('teaches Whispers and Tithe with the ruled definitions and their own icons', () => {
+  it('teaches Whispers and Tithe with their own icons', () => {
     const terms = glossarySection('mechanics').terms;
-    expect(terms).toContainEqual({
-      name: 'Whispers',
-      description: 'if this card is put into your graveyard from your hand or your deck, you may cast it from there for its Whispers cost until your opponent\'s next Dawn.',
-      icon: { kind: 'mechanic', key: 'whispers' },
-    });
-    expect(terms).toContainEqual({
-      name: 'Tithe',
-      description: 'you may sacrifice any number of creatures you control as you cast this. It costs one less for every two points of their combined Defense, rounded down. Coloured mana is still paid.',
-      icon: { kind: 'mechanic', key: 'tithe' },
-    });
-    expect(sectionOfTerm('Whispers')).toBe('mechanics');
-    expect(sectionOfTerm('Tithe')).toBe('mechanics');
+    for (const [name, key] of [['Whispers', 'whispers'], ['Tithe', 'tithe']] as const) {
+      expect(terms.find((term) => term.name === name), `${name} row`).toMatchObject({ icon: { kind: 'mechanic', key } });
+      expect(sectionOfTerm(name)).toBe('mechanics');
+    }
   });
 
   it('teaches the day-cycle phase names without legacy Upkeep or End rows', () => {

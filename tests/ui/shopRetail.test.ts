@@ -107,10 +107,15 @@ describe('Drowned Deep shop retail', () => {
     expect(shop.packSetForSku('drowned-deep')).toBe('drowned-deep');
   });
 
-  it('keeps Drowned Deep visible independently of the Duat feature flag', () => {
+  /** The strip opens at index 0, so the newest set must lead it for the
+   *  launch SKU (and its New chip) to be in view when the Shop opens. */
+  it('leads the strip with the newest set, newest to oldest, whatever the Duat flag', () => {
     for (const duatLive of [false, true]) {
-      const visible = retail(duatLive).visibleBoosterSkus();
-      expect(visible.at(-1)?.sku).toBe('drowned-deep');
+      const shop = retail(duatLive);
+      const visible = shop.visibleBoosterSkus();
+      expect(visible[0]?.sku).toBe(shop.NEWEST_SKU);
+      const releaseRank = visible.map(({ sku }) => SKU_ORDER.indexOf(sku));
+      expect(releaseRank).toEqual([...releaseRank].sort((a, b) => b - a));
       expect(visible.some(({ sku }) => sku === 'sands-of-the-duat')).toBe(duatLive);
     }
   });

@@ -3,6 +3,7 @@ import { CARD_DB } from '../../src/data/catalog';
 import { DECK_INFO } from '../../src/data/deckInfo';
 import { DUAT_SET, isLiveCollectible } from '../../src/data/liveness';
 import { STARTER_DECKS, THEME_DECKS } from '../../src/data/starterDecks';
+import { grantedDeckBuild } from '../../src/meta/Economy';
 
 const SHOP_DECKS = [
   ...STARTER_DECKS,
@@ -19,15 +20,19 @@ describe('shop deck presentation data', () => {
     }
   });
 
-  it('features two or three real cards from each deck with rarity data', () => {
+  it('features two or three real cards from the build each purchase grants', () => {
     for (const deck of SHOP_DECKS) {
       const featured = DECK_INFO[deck.id]?.featured ?? [];
       expect(featured.length, `${deck.id} featured count`).toBeGreaterThanOrEqual(2);
       expect(featured.length, `${deck.id} featured count`).toBeLessThanOrEqual(3);
       expect(new Set(featured).size, `${deck.id} featured ids should be unique`).toBe(featured.length);
 
+      // The Shop previews and hands over grantedDeckBuild, not the classic
+      // DeckList; checking `deck.cards` let four picks go stale once the
+      // Warchest builds replaced them.
+      const granted = grantedDeckBuild(deck).cards;
       for (const id of featured) {
-        expect(deck.cards, `${deck.id} must contain featured card ${id}`).toContain(id);
+        expect(granted, `${deck.id} must grant featured card ${id}`).toContain(id);
         expect(CARD_DB[id], `${id} must exist in CARD_DB`).toBeDefined();
         expect(CARD_DB[id]?.rarity, `${id} needs rarity data`).toMatch(/^(c|r|sr|ssr|ur)$/);
       }

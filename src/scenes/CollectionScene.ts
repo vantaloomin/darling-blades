@@ -163,6 +163,12 @@ export class CollectionScene extends Phaser.Scene {
   private holoMove: ((p: Phaser.Input.Pointer) => void) | null = null;
   /** Cancels a release ritual if the inspect card is closed or rebuilt mid-flight. */
   private inspectRitualCleanup: (() => void) | null = null;
+  /**
+   * A shard changed the counts but the binder beneath the overlay has not
+   * re-rendered yet. The ritual's own finish re-renders it; if the overlay
+   * closes first, closeInspect does, so a thumb never keeps a stale ×N / ✦N.
+   */
+  private binderStale = false;
   /** The DOM search <input> — hidden while the inspect overlay is open (DOM
    * elements always float above the canvas, so the dim can't cover it). */
   private searchInput: Phaser.GameObjects.DOMElement | null = null;
@@ -192,6 +198,7 @@ export class CollectionScene extends Phaser.Scene {
     this.inspectDef = null;
     this.holoMove = null;
     this.inspectRitualCleanup = null;
+    this.binderStale = false;
 
     // Backdrop first (docs/scene-art.md §3); the gradient is the fallback.
     applyBackdrop(this, 'collection', {
@@ -261,9 +268,13 @@ export class CollectionScene extends Phaser.Scene {
 
     // Card search (F8): the DOM <input> feeds state.search through the same
     // reset-page + re-render path the filter chips use.
+    // The old "Search name / type / trait / mechanic…" measured ~250 px of 14 px
+    // Inter against the box's 228 px content width and cut off at "mechan".
+    // This hint keeps all four search fields at ~187 px.
     this.searchInput = createSearchInput(this, 355, 30, {
       width: 250,
-      placeholder: 'Search name / type / trait / mechanic…',
+      placeholder: 'Name, type, trait, mechanic…',
+      accessibleName: 'Search cards by name, type, trait, or mechanic',
       onChange: (value) => {
         this.state.search = value;
         this.page = 0;
@@ -394,6 +405,7 @@ export class CollectionScene extends Phaser.Scene {
    * gating — not container hit areas — is the safety here).
    */
   private renderPage(dir = 0): void {
+    this.binderStale = false;
     const save = Services.save.data;
     const collectible = collectiblePool(ALL_CARDS);
     const pool = this.currentPool();
@@ -403,8 +415,12 @@ export class CollectionScene extends Phaser.Scene {
     const completion = collectionCompletion(ALL_CARDS, save);
     this.goldBadge.refresh(save.gold);
     this.counterText.setText(`${ownedKinds}/${collectible.length} collected`);
+    // Floor, from the integer counts: rounding showed 1,481 of 1,482 as 100%,
+    // and 100% must mean complete. Integer math also dodges 0.29 * 100 =
+    // 28.999... flooring a whole percent away.
+    const poolPercent = completion.total === 0 ? 0 : Math.floor((completion.owned * 100) / completion.total);
     this.completionText.setText(
-      `${Math.round(completion.percent * 100)}% pool  |  ${completion.variants.specialCards} special cards`,
+      `${poolPercent}% pool · ${completion.variants.specialCards} special cards`,
     );
     this.pageControl.refresh(this.page, pageCount(pool.length, SPREAD_SIZE));
     this.emptyText.setVisible(pool.length === 0);
@@ -546,17 +562,22 @@ export class CollectionScene extends Phaser.Scene {
     // That release belongs to the hold, so the dim swallows exactly one
     // pointerup when it was built under an already-held pointer.
     let swallowHeldRelease = this.input.activePointer?.isDown === true;
+    // The same applies DURING the release ritual: a completed shard hold turns
+    // its button off, so the thumb's release falls through to this dim. It
+    // used to close the view mid-dissolve and cancel the ritual's binder
+    // refresh. The ritual is under a second long; Esc still closes it.
+    let ritualInProgress = false;
     dim.on('pointerup', () => {
       if (swallowHeldRelease) {
         swallowHeldRelease = false;
         return;
       }
+      if (ritualInProgress) return;
       if (this.time.now - openedAt < INSPECT_CLOSE_LOCK_MS) return; // swallow double-click flash
       this.closeInspect();
     });
     const shown = owned > 0 ? displayVariantFor(save, d.id) : null;
     let displayedVariant: CardVariant | undefined = shown ?? undefined;
-    let ritualInProgress = false;
     let comparisonVariant: CardVariant | undefined;
     let comparisonActive = false;
     let touchScrubbing = false;
@@ -971,6 +992,9 @@ export class CollectionScene extends Phaser.Scene {
           if (row.background.active) row.background.destroy();
           if (row.text.active) row.text.destroy();
           if (row.odds.active) row.odds.destroy();
+          // The pin is a themed button: without this the previous page's pins
+          // stayed behind (and stayed tappable) over the new page's rows.
+          if (row.pin.container.active) row.pin.container.destroy();
         }
         rows = [];
         const start = page * VARIANT_ROWS;
@@ -1251,6 +1275,7 @@ export class CollectionScene extends Phaser.Scene {
           // Keep the economy seam byte-for-byte identical and invoke it only
           // when the hold completes.
           const result = shardExcess(save, CARD_DB, d.id);
+          this.binderStale = true;
           const checkpoint = checkpointAchievements(save, CARD_DB);
           Services.save.flush();
           if (checkpoint.changed) queueAchievementUnlockToasts(checkpoint.ids);
@@ -1464,5 +1489,8 @@ export class CollectionScene extends Phaser.Scene {
     }
     this.inspectDef = null;
     this.searchInput?.setVisible(true);
+    // Closed (Esc, or a rebuild) before a shard ritual finished: its binder
+    // refresh was cancelled with it, so land the new ×N / ✦N badges here.
+    if (this.binderStale) this.renderPage();
   }
 }

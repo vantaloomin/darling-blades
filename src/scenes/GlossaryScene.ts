@@ -59,6 +59,8 @@ export class GlossaryScene extends Phaser.Scene {
 
   private frame!: GlossaryFrame;
   private activeTab: ActiveTab = 'combat';
+  /** The tab open when the current search began; clearing the query returns to it. */
+  private tabBeforeSearch: ActiveTab = 'combat';
   private query = '';
   private scrollOffset = 0;
   private layout: GlossaryRowsLayout | null = null;
@@ -81,6 +83,7 @@ export class GlossaryScene extends Phaser.Scene {
     this.focus = data.focus ?? null;
     this.returnTo = data.returnTo ?? { scene: 'MainMenu' };
     this.activeTab = this.focus ? sectionOfTerm(this.focus) ?? 'combat' : 'combat';
+    this.tabBeforeSearch = this.activeTab;
     this.query = '';
     this.scrollOffset = 0;
     this.railRows = [];
@@ -202,6 +205,8 @@ export class GlossaryScene extends Phaser.Scene {
       hit.on('pointerup', () => {
         if (this.activeTab === id) return;
         this.activeTab = id;
+        // A rail pick during a search is where clearing the query should land.
+        if (this.query.trim() !== '') this.tabBeforeSearch = id;
         this.scrollOffset = 0;
         this.focus = null;
         this.render();
@@ -262,10 +267,16 @@ export class GlossaryScene extends Phaser.Scene {
       placeholder: 'Search terms…',
       accessibleName: 'Search glossary terms',
       onChange: (value) => {
+        const searching = value.trim() !== '';
+        // Remember the tab being read as the search starts. Once typing flips
+        // the view to results (activeTab null), that tab was otherwise lost
+        // and clearing always fell back to Combat Traits.
+        if (searching && this.query.trim() === '') this.tabBeforeSearch = this.activeTab;
         this.query = value;
         // A query is a request to look everywhere, not inside the tab you
-        // happened to be reading; clearing it returns you to that tab.
-        this.activeTab = value.trim() === '' ? this.activeTab ?? 'combat' : null;
+        // happened to be reading; clearing it returns you to that tab, or to
+        // the tab you picked from the rail while the query was up.
+        this.activeTab = searching ? null : this.activeTab ?? this.tabBeforeSearch;
         this.scrollOffset = 0;
         this.focus = null;
         this.render();
