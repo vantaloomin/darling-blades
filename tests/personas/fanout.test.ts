@@ -1,8 +1,9 @@
-import { mkdtempSync, readFileSync, rmSync, unlinkSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, readFileSync, renameSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+  checkpointFileName,
   runCli,
   singleCraftFileName,
   type MeasuredRecord,
@@ -235,5 +236,220 @@ describe('metagame fan-out', { timeout: 600_000 }, () => {
     expect(readFileSync(join(fanDir, singleCraftFileName('burn', 0)), 'utf8')).toBe(crafted);
     expect(logged.some((line) => line.includes('already crafted'))).toBe(true);
     expect(craftLines(fanDir)).toHaveLength(1);
+  });
+});
+
+/**
+ * A measurement that depends on the deck's contents and nothing else, so the
+ * hill climb accepts some swaps and rejects others. A chunked craft only proves
+ * anything if the rng, the retained deck and the accepted-swap log all have to
+ * survive the trip through a checkpoint; a constant score would leave the rng
+ * the only moving part.
+ */
+const deckScoreMeasure = (deck: readonly string[], options: MeasureOptions): MeasuredRecord => {
+  let hash = 2_166_136_261;
+  const text = deck.join(',');
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16_777_619);
+  }
+  const rowWins = (hash >>> 0) % 1000;
+  return {
+    field: options.field,
+    seeds: 1,
+    matchups: [],
+    rowWins,
+    losses: 1000 - rowWins,
+    draws: 0,
+    games: 1000,
+    score: rowWins / 1000,
+  };
+};
+
+interface ChunkRun {
+  dir: string;
+  logs: string[][];
+}
+
+/**
+ * Run one craft as a chain of chunk invocations, each in its own --out and each
+ * continuing from the previous one's directory, the way the workflow's chunk
+ * jobs hand an artifact to the next job.
+ */
+function runChunked(
+  label: string,
+  args: string[],
+  chunkIterations: number,
+  invocations: number,
+  dependencies: Parameters<typeof runCli>[1],
+): ChunkRun {
+  const logs: string[][] = [];
+  let previous: string | undefined;
+  for (let chunk = 0; chunk < invocations; chunk++) {
+    const out = temp(`${label}-c${chunk}`);
+    const lines: string[] = [];
+    const resume = previous === undefined ? [] : ['--resume-from', previous];
+    expect(runCli([...args, '--chunk-iterations', String(chunkIterations), ...resume, '--out', out],
+      { ...dependencies, log: (line) => lines.push(line) })).toBe(0);
+    logs.push(lines);
+    previous = out;
+  }
+  return { dir: previous!, logs };
+}
+
+const craftFile = (dir: string, persona: string, round: number): string =>
+  readFileSync(join(dir, singleCraftFileName(persona, round)), 'utf8');
+
+/** `args` with the value after `flag` replaced. */
+const withFlag = (args: readonly string[], flag: string, value: string): string[] =>
+  args.map((arg, index) => args[index - 1] === flag ? value : arg);
+
+/**
+ * A craft that spans several processes must be the craft that ran in one. The
+ * workflow splits a craft only because a hosted runner stops at 360 minutes;
+ * if chunking changed a single byte of the result, the sweep would stop being
+ * one measurement.
+ */
+describe('chunked crafts', { timeout: 600_000 }, () => {
+  const stubArgs = [
+    '--metagame-craft', 'burn', '--round', '0', '--personas', 'burn,weenie', '--rounds', '2',
+    '--field', 'starters', '--pool', 'all', '--seeds', '1', '--iterations', '7', '--seed', '424242',
+    '--workers', '1',
+  ];
+  const stubDeps = { ...quiet, measure: deckScoreMeasure };
+
+  it('finishes byte-identical to an unchunked craft, in three chunks or in two', () => {
+    const wholeDir = temp('whole');
+    expect(runCli([...stubArgs, '--out', wholeDir], stubDeps)).toBe(0);
+    const whole = JSON.parse(craftFile(wholeDir, 'burn', 0)) as {
+      hillClimb: { acceptedSwaps: unknown[]; rejectedSwaps: number };
+    };
+    // The measurement has to move the climb, or the comparison proves little.
+    expect(whole.hillClimb.acceptedSwaps.length).toBeGreaterThan(0);
+    expect(whole.hillClimb.rejectedSwaps).toBeGreaterThan(0);
+
+    // 3 + 3 + 1 iterations, and 4 + 3.
+    const three = runChunked('three', stubArgs, 3, 3, stubDeps);
+    const two = runChunked('two', stubArgs, 4, 2, stubDeps);
+
+    for (const run of [three, two]) {
+      expect(craftFile(run.dir, 'burn', 0)).toBe(craftFile(wholeDir, 'burn', 0));
+      expect(journalLines(run.dir)).toEqual(journalLines(wholeDir));
+      expect(existsSync(join(run.dir, checkpointFileName('burn', 0)))).toBe(false);
+      expect(run.logs.at(-1)).toContain('craft-complete=true');
+      for (const lines of run.logs.slice(0, -1)) expect(lines).toContain('craft-complete=false');
+    }
+    expect(three.logs.map((lines) => lines.find((line) => line.startsWith('next-iteration='))))
+      .toEqual(['next-iteration=4', 'next-iteration=7', 'next-iteration=8']);
+  });
+
+  it('writes a checkpoint and no craft or journal line when a chunk stops short', () => {
+    const out = temp('short');
+    const lines: string[] = [];
+    expect(runCli([...stubArgs, '--chunk-iterations', '2', '--out', out],
+      { ...stubDeps, log: (line) => lines.push(line) })).toBe(0);
+    expect(existsSync(join(out, checkpointFileName('burn', 0)))).toBe(true);
+    expect(existsSync(join(out, singleCraftFileName('burn', 0)))).toBe(false);
+    expect(existsSync(join(out, 'craft-journal.jsonl'))).toBe(false);
+    expect(lines).toContain('craft-complete=false');
+    expect(lines).toContain('next-iteration=3');
+  });
+
+  it('copies a finished craft forward instead of continuing, and leaves no checkpoint', () => {
+    const finished = temp('finished');
+    expect(runCli([...stubArgs, '--out', finished], stubDeps)).toBe(0);
+    // A stale checkpoint beside the finished craft must not win over it.
+    const stale = temp('stale');
+    expect(runCli([...stubArgs, '--chunk-iterations', '2', '--out', stale], stubDeps)).toBe(0);
+    cpSync(join(stale, checkpointFileName('burn', 0)), join(finished, checkpointFileName('burn', 0)));
+
+    const out = temp('forward');
+    const lines: string[] = [];
+    expect(runCli([...stubArgs, '--chunk-iterations', '2', '--resume-from', finished, '--out', out],
+      { ...stubDeps, log: (line) => lines.push(line) })).toBe(0);
+    expect(craftFile(out, 'burn', 0)).toBe(craftFile(finished, 'burn', 0));
+    expect(craftLines(out)).toEqual(craftLines(finished));
+    expect(existsSync(join(out, checkpointFileName('burn', 0)))).toBe(false);
+    expect(lines).toContain('craft-complete=true');
+  });
+
+  it('refuses a checkpoint from a different configuration', () => {
+    const first = temp('config-first');
+    expect(runCli([...stubArgs, '--chunk-iterations', '2', '--out', first], stubDeps)).toBe(0);
+
+    const errors: string[] = [];
+    expect(runCli([...withFlag(stubArgs, '--seeds', '2'), '--chunk-iterations', '2', '--resume-from', first,
+      '--out', temp('config-next')], { ...stubDeps, error: (message) => errors.push(message) })).toBe(1);
+    expect(errors[0]).toContain('configuration mismatch');
+    expect(errors[0]).toContain('1 seeds');
+    expect(errors[0]).toContain('2 seeds');
+  });
+
+  /** Round 0 of both personas, whole, as a round-1 field directory. */
+  const roundZeroField = (label: string): string => {
+    const field = temp(label);
+    for (const persona of PERSONAS) {
+      expect(runCli([...withFlag(stubArgs, '--metagame-craft', persona), '--out', field], stubDeps)).toBe(0);
+    }
+    return field;
+  };
+  const roundOneArgs = (field: string): string[] => [...withFlag(stubArgs, '--round', '1'), '--field-dir', field];
+
+  it('refuses a checkpoint that holds a different round', () => {
+    const field = roundZeroField('round-field');
+    const source = temp('round-source');
+    expect(runCli([...stubArgs, '--chunk-iterations', '2', '--out', source], stubDeps)).toBe(0);
+    // A round-0 checkpoint filed under round 1's name.
+    renameSync(join(source, checkpointFileName('burn', 0)), join(source, checkpointFileName('burn', 1)));
+
+    const errors: string[] = [];
+    expect(runCli([...roundOneArgs(field), '--chunk-iterations', '2', '--resume-from', source,
+      '--out', temp('round-next')], { ...stubDeps, error: (message) => errors.push(message) })).toBe(1);
+    expect(errors[0]).toContain('holds round 0 of burn, not round 1 of burn');
+  });
+
+  it('refuses a checkpoint climbed against a different field', () => {
+    const field = roundZeroField('fingerprint-field');
+    const first = temp('fingerprint-first');
+    expect(runCli([...roundOneArgs(field), '--chunk-iterations', '2', '--out', first], stubDeps)).toBe(0);
+    expect(existsSync(join(first, checkpointFileName('burn', 1)))).toBe(true);
+
+    // The same sweep configuration with a different weenie deck in round 0,
+    // as if round 0 had been re-crafted by different code between dispatches.
+    const weeniePath = join(field, singleCraftFileName('weenie', 0));
+    const weenie = JSON.parse(readFileSync(weeniePath, 'utf8')) as { deck: string[] };
+    weenie.deck.reverse();
+    writeFileSync(weeniePath, `${JSON.stringify(weenie, null, 2)}\n`, 'utf8');
+
+    const errors: string[] = [];
+    expect(runCli([...roundOneArgs(field), '--chunk-iterations', '2', '--resume-from', first,
+      '--out', temp('fingerprint-next')], { ...stubDeps, error: (message) => errors.push(message) })).toBe(1);
+    expect(errors[0]).toContain('different field');
+  });
+
+  it('refuses --chunk-iterations on the in-process loop, which resumes from its journal', () => {
+    const errors: string[] = [];
+    expect(runCli([
+      '--metagame', '--personas', 'burn,weenie', '--rounds', '1', '--field', 'starters',
+      '--seeds', '1', '--iterations', '4', '--seed', '424242', '--chunk-iterations', '2',
+      '--out', temp('loop-chunk'),
+    ], { ...stubDeps, error: (message) => errors.push(message) })).toBe(1);
+    expect(errors[0]).toContain('--resume');
+  });
+
+  it('carries a real-engine craft across chunks byte for byte', () => {
+    // Tiny on purpose: five starter decks, two games each, four swaps. --no-memo
+    // on both sides, so the chunked craft really re-measures under the engine
+    // instead of reading the unchunked run's cache.
+    const args = [
+      '--metagame-craft', 'weenie', '--round', '0', '--personas', 'burn,weenie', '--rounds', '1',
+      '--field', 'starters', '--pool', 'all', '--seeds', '2', '--iterations', '4', '--seed', '13003',
+      '--workers', '1', '--no-memo',
+    ];
+    const wholeDir = temp('engine-whole');
+    expect(runCli([...args, '--out', wholeDir], quiet)).toBe(0);
+    const chunked = runChunked('engine', args, 3, 2, quiet);
+    expect(craftFile(chunked.dir, 'weenie', 0)).toBe(craftFile(wholeDir, 'weenie', 0));
+    expect(journalLines(chunked.dir)).toEqual(journalLines(wholeDir));
   });
 });

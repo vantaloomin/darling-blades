@@ -6,8 +6,10 @@ import {
   readFileSync,
   readdirSync,
   renameSync,
+  unlinkSync,
   writeFileSync,
 } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { cpus } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -66,6 +68,16 @@ Fan-out mode (the same loop, one craft per process; see docs/metagame-sweep.md):
                              Round 0 crafts against the static field; a later
                              round reads the previous round's craft files from
                              --field-dir, one per persona.
+  --chunk-iterations <m>     With --metagame-craft: run at most m hill-climb
+                             iterations, then write
+                             <out>/checkpoint-<id>-r<n>.json instead of the
+                             craft. --resume-from <dir> continues from a
+                             checkpoint there (a finished craft there is still
+                             copied forward first). The chunk that reaches
+                             --iterations writes the craft and journal line an
+                             unchunked craft writes, byte for byte, and leaves
+                             no checkpoint. Prints craft-complete=true|false
+                             and next-iteration=<k>.
   --metagame-merge <dir> [--check-stable]
                              Replay the fanned-out crafts under <dir> through
                              the loop's own convergence policy and write the
@@ -790,29 +802,67 @@ export interface HillClimbOptions {
   ) => ProposedSwap | null;
 }
 
-export function runHillClimb(options: HillClimbOptions): HillClimbResult {
+/**
+ * Everything a hill climb carries from one iteration to the next, and nothing
+ * else. Every field is plain JSON (the rng is a four-number array), so a climb
+ * can stop after any iteration, be written to disk, and continue in another
+ * process exactly where it left off. That is what lets one craft span several
+ * CI jobs when a whole craft would outrun a hosted runner's time limit.
+ */
+export interface HillClimbState {
+  /** The next iteration to run, 1-based. Past `iterations` means finished. */
+  nextIteration: number;
+  rng: RngState;
+  initial: GreedyBuild;
+  initialMeasurement: MeasuredRecord;
+  retained: GreedyBuild;
+  retainedMeasurement: MeasuredRecord;
+  acceptedSwaps: AcceptedSwap[];
+  rejectedSwaps: number;
+  unproposedIterations: number;
+}
+
+/** Seed the rng and measure the greedy build. No swap has been proposed yet. */
+export function createHillClimbState(options: HillClimbOptions): HillClimbState {
   const rng = createRngState(options.seed ^ 0x5ca1ab1e);
   const initialMeasurement = options.measure(options.initial.deck);
-  let retained = options.initial;
-  let retainedMeasurement = initialMeasurement;
-  const acceptedSwaps: AcceptedSwap[] = [];
-  let rejectedSwaps = 0;
-  let unproposedIterations = 0;
-  const proposer = options.propose ?? ((current, pool, template, state) => proposeQuotaLegalSwap(current, pool, template, state));
+  return {
+    nextIteration: 1,
+    rng,
+    initial: options.initial,
+    initialMeasurement,
+    retained: options.initial,
+    retainedMeasurement: initialMeasurement,
+    acceptedSwaps: [],
+    rejectedSwaps: 0,
+    unproposedIterations: 0,
+  };
+}
 
-  for (let iteration = 1; iteration <= options.iterations; iteration++) {
-    const proposal = proposer(retained, options.pool, options.template, rng, iteration);
+/**
+ * Run iterations `state.nextIteration` through `min(upTo, options.iterations)`,
+ * updating the state in place. Running the climb in one call or in several
+ * gives the same state, because the loop body reads nothing the state does not
+ * hold. Returns the same state for convenience.
+ */
+export function advanceHillClimb(state: HillClimbState, options: HillClimbOptions, upTo: number): HillClimbState {
+  const proposer = options.propose ?? ((current, pool, template, rng) => proposeQuotaLegalSwap(current, pool, template, rng));
+  const last = Math.min(upTo, options.iterations);
+
+  for (let iteration = state.nextIteration; iteration <= last; iteration++) {
+    state.nextIteration = iteration + 1;
+    const proposal = proposer(state.retained, options.pool, options.template, state.rng, iteration);
     if (!proposal) {
-      unproposedIterations++;
+      state.unproposedIterations++;
       continue;
     }
     assertCraftedDeckLegal(proposal.build.deck, proposal.build.landReserve);
     const candidateMeasurement = options.measure(proposal.build.deck);
-    if (candidateMeasurement.score > retainedMeasurement.score) {
-      const priorScore = retainedMeasurement.score;
-      retained = proposal.build;
-      retainedMeasurement = candidateMeasurement;
-      acceptedSwaps.push({
+    if (candidateMeasurement.score > state.retainedMeasurement.score) {
+      const priorScore = state.retainedMeasurement.score;
+      state.retained = proposal.build;
+      state.retainedMeasurement = candidateMeasurement;
+      state.acceptedSwaps.push({
         iteration,
         out: proposal.out,
         in: proposal.in,
@@ -822,24 +872,33 @@ export function runHillClimb(options: HillClimbOptions): HillClimbResult {
         scoreDelta: candidateMeasurement.score - priorScore,
       });
     } else {
-      rejectedSwaps++;
+      state.rejectedSwaps++;
     }
   }
+  return state;
+}
 
+/** The finished climb, in the shape every caller of `runHillClimb` reads. */
+export function finishHillClimb(state: HillClimbState): HillClimbResult {
+  const { initialMeasurement, retainedMeasurement, acceptedSwaps } = state;
   return {
-    build: retained,
+    build: state.retained,
     initialMeasurement,
     finalMeasurement: retainedMeasurement,
     log: {
-      initialList: [...options.initial.deck],
+      initialList: [...state.initial.deck],
       initialScore: initialMeasurement.score,
       acceptedSwaps,
-      rejectedSwaps,
-      unproposedIterations,
+      rejectedSwaps: state.rejectedSwaps,
+      unproposedIterations: state.unproposedIterations,
     },
     greedyBeatsFinal: initialMeasurement.score > retainedMeasurement.score,
     nonMonotonicClimb: acceptedSwaps.some((swap) => swap.scoreDelta <= 0),
   };
+}
+
+export function runHillClimb(options: HillClimbOptions): HillClimbResult {
+  return finishHillClimb(advanceHillClimb(createHillClimbState(options), options, options.iterations));
 }
 
 const countRecord = (deck: readonly string[]): Record<string, number> =>
@@ -881,12 +940,23 @@ export function craftSeedFor(seed: number, personaId: string, round: number): nu
   return round === 0 ? seed : stableHash(`${seed}|metagame|${personaId}|round|${round}`);
 }
 
-function craftMetagameRound(
+/**
+ * One persona's one round, set up but not yet climbed: the craft seed and the
+ * hill-climb options (greedy build, pool, measurement against this round's
+ * field). The whole craft and a chunked craft both start here, so they climb
+ * the same hill with the same measure.
+ */
+interface PreparedCraft {
+  craftSeed: number;
+  hillClimb: HillClimbOptions;
+}
+
+function prepareMetagameCraft(
   template: PersonaTemplate,
   round: number,
   fieldComposition: readonly FieldCompositionEntry[],
   options: MetagameOptions,
-): MetagameRound {
+): PreparedCraft {
   const craftSeed = craftSeedFor(options.seed, template.id, round);
   const measuredField: MeasuredFieldId = round === 0 ? options.field : 'personas';
   // Built before measureOptions: the reserve is color-derived, so it is fixed
@@ -903,15 +973,38 @@ function craftMetagameRound(
   const measure = (deck: readonly string[]): MeasuredRecord => options.measure
     ? options.measure(deck, measureOptions)
     : measureDeckAgainstField(deck, measureOptions, fieldComposition);
-  const result = runHillClimb({
-    initial,
-    pool: options.pool,
-    template,
-    iterations: options.iterations,
-    seed: craftSeed,
-    measure,
-    propose: options.propose,
-  });
+  return {
+    craftSeed,
+    hillClimb: {
+      initial,
+      pool: options.pool,
+      template,
+      iterations: options.iterations,
+      seed: craftSeed,
+      measure,
+      propose: options.propose,
+    },
+  };
+}
+
+function craftMetagameRound(
+  template: PersonaTemplate,
+  round: number,
+  fieldComposition: readonly FieldCompositionEntry[],
+  options: MetagameOptions,
+): MetagameRound {
+  const prepared = prepareMetagameCraft(template, round, fieldComposition, options);
+  return metagameRoundFrom(template, round, prepared.craftSeed, fieldComposition, options, runHillClimb(prepared.hillClimb));
+}
+
+function metagameRoundFrom(
+  template: PersonaTemplate,
+  round: number,
+  craftSeed: number,
+  fieldComposition: readonly FieldCompositionEntry[],
+  options: MetagameOptions,
+  result: HillClimbResult,
+): MetagameRound {
   return {
     round,
     seed: craftSeed,
@@ -1544,6 +1637,18 @@ export interface SingleCraftOptions {
  * at that point in the run.
  */
 export function runSingleCraft(options: SingleCraftOptions): MetagameRound {
+  const resolved = resolveSingleCraft(options);
+  return craftMetagameRound(resolved.template, options.round, resolved.fieldComposition, resolved.options);
+}
+
+/** What a single craft measures against, resolved once for the whole and the chunked path. */
+interface ResolvedSingleCraft {
+  template: PersonaTemplate;
+  fieldComposition: FieldCompositionEntry[];
+  options: MetagameOptions;
+}
+
+function resolveSingleCraft(options: SingleCraftOptions): ResolvedSingleCraft {
   const { config } = options;
   const template = personaTemplate(options.personaId);
   if (!config.personaIds.includes(template.id)) {
@@ -1569,18 +1674,187 @@ export function runSingleCraft(options: SingleCraftOptions): MetagameRound {
     fieldComposition = personaFieldComposition(templates, previous, config.field)
       .filter((entry) => entry.personaId !== template.id);
   }
-  return craftMetagameRound(template, options.round, fieldComposition, {
-    poolId: config.poolId,
-    pool: options.pool,
-    field: config.field,
-    seeds: config.seeds,
-    iterations: config.iterations,
-    seed: config.seed,
-    maxRounds: config.maxRounds,
-    personaIds: config.personaIds,
-    measure: options.measure,
-    propose: options.propose,
-  });
+  return {
+    template,
+    fieldComposition,
+    options: {
+      poolId: config.poolId,
+      pool: options.pool,
+      field: config.field,
+      seeds: config.seeds,
+      iterations: config.iterations,
+      seed: config.seed,
+      maxRounds: config.maxRounds,
+      personaIds: config.personaIds,
+      measure: options.measure,
+      propose: options.propose,
+    },
+  };
+}
+
+// --- chunked crafts: one craft spread across several processes ---
+//
+// A hosted CI job is capped at 360 minutes, and a full craft at the sweep's
+// defaults can take longer than that on a four-core runner. A chunked craft
+// runs at most N hill-climb iterations, writes the climb's state to a
+// checkpoint file, and the next process continues from it. The climb itself is
+// the same `advanceHillClimb` the whole craft runs, so a craft finished in any
+// number of chunks is byte-identical to one finished in a single call.
+
+export function checkpointFileName(personaId: string, round: number): string {
+  return `checkpoint-${personaId}-r${round}.json`;
+}
+
+/**
+ * A stable fingerprint of the decks a craft measures against. A checkpoint
+ * carries it so it can never be continued against a different field: the same
+ * run configuration with a different previous round would otherwise pass.
+ */
+export function fieldFingerprint(fieldComposition: readonly FieldCompositionEntry[]): string {
+  const canonical = JSON.stringify(fieldComposition.map((entry) => ({
+    kind: entry.kind,
+    id: entry.id,
+    personaId: entry.personaId ?? null,
+    deck: [...entry.deck],
+    landReserve: [...entry.landReserve],
+  })));
+  return createHash('sha256').update(canonical).digest('hex');
+}
+
+/** A craft stopped partway through its hill climb, on disk. */
+export interface CraftCheckpoint {
+  kind: 'checkpoint';
+  personaId: string;
+  round: number;
+  /** The craft seed (`craftSeedFor`), not the run seed; the run seed is in `config`. */
+  seed: number;
+  config: JournalConfig;
+  fieldFingerprint: string;
+  state: HillClimbState;
+}
+
+function parseCraftCheckpoint(path: string): CraftCheckpoint {
+  const parsed = recordValue(JSON.parse(readFileSync(path, 'utf8')));
+  const config = parseJournalConfig(parsed?.config);
+  const state = recordValue(parsed?.state);
+  const rng = state?.rng;
+  if (
+    parsed?.kind !== 'checkpoint' ||
+    typeof parsed.personaId !== 'string' ||
+    typeof parsed.round !== 'number' || !Number.isInteger(parsed.round) ||
+    typeof parsed.seed !== 'number' || !Number.isInteger(parsed.seed) ||
+    typeof parsed.fieldFingerprint !== 'string' ||
+    !config ||
+    typeof state?.nextIteration !== 'number' || !Number.isInteger(state.nextIteration) || state.nextIteration < 1 ||
+    !Array.isArray(rng) || rng.length !== 4 || !rng.every((value) => Number.isInteger(value)) ||
+    recordValue(state.initial) === undefined || recordValue(state.retained) === undefined ||
+    recordValue(state.initialMeasurement) === undefined || recordValue(state.retainedMeasurement) === undefined ||
+    !Array.isArray(state.acceptedSwaps) ||
+    typeof state.rejectedSwaps !== 'number' || typeof state.unproposedIterations !== 'number'
+  ) {
+    throw new Error(`Invalid craft checkpoint: ${basename(path)}`);
+  }
+  return { ...(parsed as unknown as CraftCheckpoint), config };
+}
+
+function assertCheckpointBelongs(
+  checkpoint: CraftCheckpoint,
+  path: string,
+  expected: { personaId: string; round: number; seed: number; config: JournalConfig; fieldFingerprint: string },
+): void {
+  const name = basename(path);
+  if (checkpoint.personaId !== expected.personaId || checkpoint.round !== expected.round) {
+    throw new Error(
+      `Checkpoint ${name} holds round ${checkpoint.round} of ${checkpoint.personaId}, ` +
+      `not round ${expected.round} of ${expected.personaId}.`,
+    );
+  }
+  if (!journalConfigsEqual(checkpoint.config, expected.config)) {
+    throw new Error(
+      `Checkpoint ${name} belongs to a different sweep: configuration mismatch. ` +
+      `The checkpoint uses ${journalConfigDescription(checkpoint.config)}. ` +
+      `This command uses ${journalConfigDescription(expected.config)}.`,
+    );
+  }
+  if (checkpoint.seed !== expected.seed) {
+    throw new Error(
+      `Checkpoint ${name} was crafted from seed ${checkpoint.seed}, but round ${expected.round} ` +
+      `of ${expected.personaId} at run seed ${expected.config.seed} derives ${expected.seed}.`,
+    );
+  }
+  if (checkpoint.fieldFingerprint !== expected.fieldFingerprint) {
+    throw new Error(
+      `Checkpoint ${name} was climbed against a different field (fingerprint ` +
+      `${checkpoint.fieldFingerprint.slice(0, 12)}, this field is ${expected.fieldFingerprint.slice(0, 12)}). ` +
+      'It cannot be continued against this one.',
+    );
+  }
+}
+
+export interface SingleCraftChunkOptions extends SingleCraftOptions {
+  /** At most this many hill-climb iterations in this call. */
+  chunkIterations: number;
+  /** A checkpoint file to continue from; a fresh climb starts when absent. */
+  checkpointPath?: string;
+}
+
+export type SingleCraftChunkResult =
+  | { complete: true; crafted: MetagameRound; nextIteration: number }
+  | { complete: false; checkpoint: CraftCheckpoint; nextIteration: number };
+
+/**
+ * Run one chunk of one persona's one round. Finishes the craft when the climb
+ * reaches the configured iteration count, and otherwise returns the checkpoint
+ * that the next chunk continues from.
+ */
+export function runSingleCraftChunk(options: SingleCraftChunkOptions): SingleCraftChunkResult {
+  if (!Number.isInteger(options.chunkIterations) || options.chunkIterations < 1) {
+    throw new Error(`--chunk-iterations must be a positive integer (got ${options.chunkIterations})`);
+  }
+  const resolved = resolveSingleCraft(options);
+  const prepared = prepareMetagameCraft(resolved.template, options.round, resolved.fieldComposition, resolved.options);
+  const fingerprint = fieldFingerprint(resolved.fieldComposition);
+
+  let state: HillClimbState;
+  if (options.checkpointPath !== undefined) {
+    const checkpoint = parseCraftCheckpoint(options.checkpointPath);
+    assertCheckpointBelongs(checkpoint, options.checkpointPath, {
+      personaId: resolved.template.id,
+      round: options.round,
+      seed: prepared.craftSeed,
+      config: options.config,
+      fieldFingerprint: fingerprint,
+    });
+    state = checkpoint.state;
+  } else {
+    state = createHillClimbState(prepared.hillClimb);
+  }
+
+  advanceHillClimb(state, prepared.hillClimb, state.nextIteration - 1 + options.chunkIterations);
+  if (state.nextIteration > options.config.iterations) {
+    const crafted = metagameRoundFrom(
+      resolved.template,
+      options.round,
+      prepared.craftSeed,
+      resolved.fieldComposition,
+      resolved.options,
+      finishHillClimb(state),
+    );
+    return { complete: true, crafted, nextIteration: state.nextIteration };
+  }
+  return {
+    complete: false,
+    nextIteration: state.nextIteration,
+    checkpoint: {
+      kind: 'checkpoint',
+      personaId: resolved.template.id,
+      round: options.round,
+      seed: prepared.craftSeed,
+      config: options.config,
+      fieldFingerprint: fingerprint,
+      state,
+    },
+  };
 }
 
 function listCraftFiles(dir: string): string[] {
@@ -1777,6 +2051,13 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
       return measureDeck(deck, configured);
     };
 
+    if (has('chunk-iterations') && opt('metagame-craft') === undefined) {
+      throw new Error(
+        '--chunk-iterations applies to --metagame-craft only. The in-process --metagame loop ' +
+        'continues an interrupted run from its journal with --resume.',
+      );
+    }
+
     const checkPath = opt('check');
     if (checkPath) {
       const artifact = readArtifact(checkPath);
@@ -1885,6 +2166,20 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
       // Refuses an unknown persona before anything else happens.
       const template = personaTemplate(fanOutPersona!);
       const fileName = singleCraftFileName(template.id, round);
+      // Absent: the whole craft in this process, exactly as before. Present:
+      // at most this many hill-climb iterations, then a checkpoint.
+      const chunkIterations = has('chunk-iterations')
+        ? parsePositiveInteger(opt('chunk-iterations'), '--chunk-iterations', 0)
+        : undefined;
+      // Printed as key=value so a workflow step can read them straight into
+      // GITHUB_OUTPUT, the way the merge prints done=.
+      const reportChunk = (complete: boolean, nextIteration: number): void => {
+        log(`craft-complete=${complete}`);
+        log(`next-iteration=${nextIteration}`);
+      };
+      const checkpointName = checkpointFileName(template.id, round);
+      const outCheckpoint = join(outDir, checkpointName);
+      let checkpointPath: string | undefined;
       mkdirSync(outDir, { recursive: true });
       const target = join(outDir, fileName);
       const journalPath = join(outDir, 'craft-journal.jsonl');
@@ -1908,19 +2203,57 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
           writeJournalLine(craftedRound(file));
           log(`Resume: ${fileName} already crafted; nothing to do`);
           log(`Craft: ${target}`);
+          if (chunkIterations !== undefined) {
+            if (existsSync(outCheckpoint)) unlinkSync(outCheckpoint);
+            reportChunk(true, config.iterations + 1);
+          }
           return 0;
         }
-        log(`Resume: no ${fileName} in ${resolve(resumeFrom)}; crafting it`);
+        const checkpointSource = join(resolve(resumeFrom), checkpointName);
+        if (chunkIterations !== undefined && existsSync(checkpointSource)) {
+          checkpointPath = checkpointSource;
+          log(`Resume: continuing ${checkpointName} from ${resolve(resumeFrom)}`);
+        } else {
+          log(`Resume: no ${fileName} in ${resolve(resumeFrom)}; crafting it`);
+        }
       }
 
-      const crafted = runSingleCraft({
-        personaId: template.id,
-        round,
-        config,
-        pool,
-        fieldDir: opt('field-dir') === undefined ? undefined : resolve(opt('field-dir')!),
-        measure: runtimeMeasure,
-      });
+      const fieldDir = opt('field-dir') === undefined ? undefined : resolve(opt('field-dir')!);
+      let crafted: MetagameRound;
+      if (chunkIterations === undefined) {
+        crafted = runSingleCraft({
+          personaId: template.id,
+          round,
+          config,
+          pool,
+          fieldDir,
+          measure: runtimeMeasure,
+        });
+      } else {
+        const chunk = runSingleCraftChunk({
+          personaId: template.id,
+          round,
+          config,
+          pool,
+          fieldDir,
+          measure: runtimeMeasure,
+          chunkIterations,
+          checkpointPath,
+        });
+        if (!chunk.complete) {
+          writeFileSync(outCheckpoint, `${JSON.stringify(chunk.checkpoint, null, 2)}\n`, 'utf8');
+          log(`Checkpoint: ${template.name} (${template.id}) round ${round} stopped before iteration ` +
+            `${chunk.nextIteration} of ${config.iterations}`);
+          log(`Checkpoint file: ${outCheckpoint}`);
+          reportChunk(false, chunk.nextIteration);
+          return 0;
+        }
+        // A finished craft leaves no checkpoint behind, even when --out is the
+        // directory an earlier chunk wrote its checkpoint to.
+        if (existsSync(outCheckpoint)) unlinkSync(outCheckpoint);
+        crafted = chunk.crafted;
+        reportChunk(true, chunk.nextIteration);
+      }
       const file: SingleCraftArtifact = { personaId: template.id, config, ...crafted };
       writeFileSync(target, `${JSON.stringify(file, null, 2)}\n`, 'utf8');
       writeJournalLine(crafted);
