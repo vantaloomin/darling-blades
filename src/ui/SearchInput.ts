@@ -105,9 +105,27 @@ export function createSearchInput(
   const onInput = (): void => opts.onChange(input.value);
   const onFocus = (): void => setFocusStyle(true);
   const onBlur = (): void => setFocusStyle(false);
+  // Esc belongs to the field while it has the caret: the first press clears
+  // the query, the next lets go of the caret, and neither reaches the game.
+  // Phaser's keyboard listens on the window and skips a press whose default
+  // was prevented, so without this the scene's back route (Glossary,
+  // Collection, Deck Builder) left the screen mid-search.
+  const onKeyDown = (event: KeyboardEvent): void => {
+    // An IME composition owns its own Escape (it cancels the composition).
+    if (event.key !== 'Escape' || event.isComposing) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (input.value !== '') {
+      input.value = '';
+      opts.onChange('');
+    } else {
+      input.blur();
+    }
+  };
   input.addEventListener('input', onInput);
   input.addEventListener('focus', onFocus);
   input.addEventListener('blur', onBlur);
+  input.addEventListener('keydown', onKeyDown);
 
   const handle = domElement as SearchInputHandle;
   const setVisible = (visible: boolean): SearchInputHandle => {
@@ -130,6 +148,7 @@ export function createSearchInput(
     input.removeEventListener('input', onInput);
     input.removeEventListener('focus', onFocus);
     input.removeEventListener('blur', onBlur);
+    input.removeEventListener('keydown', onKeyDown);
     suppression.dispose();
   };
   const destroy = (fromScene?: boolean): void => {

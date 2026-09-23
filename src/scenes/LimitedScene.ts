@@ -16,6 +16,7 @@ import {
 } from '../meta/Limited';
 import { payPremiumDraftEntry, premiumEntryStatus, todayString } from '../meta/Economy';
 import { Services } from '../meta/services';
+import { isTouchDevice } from '../platform/gestures';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { theme } from '../ui/theme';
 import { Toast } from '../ui/Toast';
@@ -24,23 +25,32 @@ import { backButton, goldBadge, panel, registerSceneBackNavigation, themedButton
 /**
  * One shared two-column CTA grid for every button row in the left panels
  * (Resume/Retire, Bot Draft/Premium, Reroll/Set Seed): a fixed width wide
- * enough for the longest label ("Premium Draft - 1,000g", the armed "Click
+ * enough for the longest label ("Premium Draft · 1,000g", the armed "Click
  * again to retire"), the left column's edge flush with the x+24 text inset
  * and the right column's edge flush with the right inset of the 540 panel.
  */
 const CTA_W = 220;
 const CTA_COL_LEFT = 24 + CTA_W / 2; // 134
 const CTA_COL_RIGHT = 540 - 24 - CTA_W / 2; // 406
+/** How long an armed Retire waits for its second press, as Settings' Reset does. */
+const RETIRE_ARM_MS = 4000;
 
 export class LimitedScene extends Phaser.Scene {
   private retireArmed = false;
   private retireBtn: ThemedButton | null = null;
+  /** The run's pool line, and the consequence line that replaces it while armed. */
+  private runPoolLine: Phaser.GameObjects.Text | null = null;
+  private retireWarning: Phaser.GameObjects.Text | null = null;
+  private retireDisarm: Phaser.Time.TimerEvent | null = null;
   constructor() {
     super('Limited');
   }
   create(): void {
     this.retireArmed = false;
     this.retireBtn = null;
+    this.runPoolLine = null;
+    this.retireWarning = null;
+    this.retireDisarm = null;
     applyBackdrop(this, 'gauntlet', {
       dim: theme.graphics.dim,
       dimAlpha: 0.52,
@@ -122,15 +132,26 @@ export class LimitedScene extends Phaser.Scene {
       theme.weight.w700,
     );
     this.text(x + 24, y + 106, `Record ${run.wins}-${run.losses}`, theme.type.label, theme.colors.body);
-    this.text(
+    this.runPoolLine = this.text(
       x + 24,
       y + 134,
       `Pool ${run.pool.length} cards   Deck ${run.deck.length}/${LIMITED_DECK_SIZE}`,
       theme.type.label,
       theme.colors.muted,
     );
+    // Shown in the pool line's place while Retire is armed: the second press
+    // is the one that loses something, so it has to say what.
+    this.retireWarning = this.text(
+      x + 24,
+      y + 134,
+      retireConsequence(run),
+      theme.type.caption,
+      theme.colors.danger,
+    ).setVisible(false);
     this.button(x + CTA_COL_LEFT, y + 196, primaryActionLabel(run), 'primary', () => this.continueRun(run));
-    this.retireBtn = this.button(x + CTA_COL_RIGHT, y + 196, 'Retire Run', 'danger', () => this.retireRun());
+    this.retireBtn = this.button(x + CTA_COL_RIGHT, y + 196, 'Retire Run', 'danger', (pointer) =>
+      this.retireRun(pointer),
+    );
   }
   private drawStartPanel(): void {
     const save = Services.save.data;
@@ -162,7 +183,7 @@ export class LimitedScene extends Phaser.Scene {
     this.button(
       x + CTA_COL_RIGHT,
       y + 84,
-      `Premium Draft - ${ECONOMY.premiumDraftEntry.toLocaleString('en-US')}g`,
+      `Premium Draft · ${ECONOMY.premiumDraftEntry.toLocaleString('en-US')}g`,
       'primary',
       () => {
         if (runActive) return;
@@ -254,23 +275,40 @@ export class LimitedScene extends Phaser.Scene {
     else if (run.status === 'build') this.scene.start('LimitedDeckBuilder');
     else this.scene.start('Duel', limitedDuelData(run));
   }
-  private retireRun(): void {
+  private retireRun(pointer?: Phaser.Input.Pointer): void {
     if (Services.save.data.settings.confirmDestructive && !this.retireArmed) {
-      this.retireArmed = true;
-      this.retireBtn?.setLabel('Click again to retire');
-      this.retireBtn?.setVariant('danger');
+      this.armRetire(pointer?.wasTouch ?? isTouchDevice());
       return;
     }
+    this.retireDisarm?.remove(false);
+    this.retireDisarm = null;
     Services.save.data.limited.activeRun = null;
     Services.save.flush();
     this.scene.restart();
+  }
+  /** First press: name the loss, then stand down after a few seconds unanswered. */
+  private armRetire(touch: boolean): void {
+    this.retireArmed = true;
+    this.retireBtn?.setLabel(`${touch ? 'Tap' : 'Click'} again to retire`);
+    this.retireBtn?.setVariant('danger');
+    this.runPoolLine?.setVisible(false);
+    this.retireWarning?.setVisible(true);
+    this.retireDisarm?.remove(false);
+    this.retireDisarm = this.time.delayedCall(RETIRE_ARM_MS, () => this.disarmRetire());
+  }
+  private disarmRetire(): void {
+    this.retireDisarm = null;
+    this.retireArmed = false;
+    if (this.retireBtn?.container.active) this.retireBtn.setLabel('Retire Run');
+    if (this.runPoolLine?.active) this.runPoolLine.setVisible(true);
+    if (this.retireWarning?.active) this.retireWarning.setVisible(false);
   }
   private button(
     x: number,
     y: number,
     label: string,
     variant: 'primary' | 'ghost' | 'danger',
-    onTap: () => void,
+    onTap: (pointer: Phaser.Input.Pointer) => void,
     disabled = false,
   ): ThemedButton {
     return themedButton(this, x, y, label, { variant, minWidth: CTA_W, enabled: !disabled, onTap });
@@ -292,11 +330,24 @@ export class LimitedScene extends Phaser.Scene {
     color: string,
     fontStyle?: string,
     fontFamily: string = theme.fonts.ui,
-  ): void {
-    this.add
+  ): Phaser.GameObjects.Text {
+    return this.add
       .text(x, y, text, { fontFamily, fontSize: `${size}px`, color, fontStyle })
       .setOrigin(0, 0.5);
   }
+}
+
+/**
+ * What the second Retire press loses. A Premium run's entry fee is not
+ * refunded, and before the draft completes its picks have not reached the
+ * collection yet (grantPremiumDraftPool runs at completion), so they go too.
+ */
+function retireConsequence(run: LimitedRun): string {
+  if (!run.premium) return 'Retiring discards this run: its pool, deck, and record.';
+  const fee = `${ECONOMY.premiumDraftEntry.toLocaleString('en-US')}g`;
+  return run.status === 'draft'
+    ? `Retiring forfeits the ${fee} entry fee and your picks so far.`
+    : `Retiring forfeits the ${fee} entry fee; your drafted cards are kept.`;
 }
 /** Draft runs roll a hidden seed at start — the run stays reproducible internally, but seed sharing is a gauntlet-only affordance. */
 function freshRunSeed(): number {

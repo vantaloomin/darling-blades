@@ -12,7 +12,7 @@ import {
   type ResolvedGauntletRoster,
 } from '../meta/gauntletSeed';
 import { Services } from '../meta/services';
-import { bindTapButton, inflateHitArea } from '../platform/gestures';
+import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestures';
 import {
   gauntletScrollToRung,
   gauntletTowerLayout,
@@ -25,6 +25,9 @@ import { ellipsizeText } from '../ui/textFit';
 import { colorInt, theme } from '../ui/theme';
 import { Toast } from '../ui/Toast';
 import { backButton, panel, registerSceneBackNavigation, themedButton, type ThemedButton } from '../ui/themeWidgets';
+
+/** How long an armed Abandon waits for its second press, as Settings' Reset does. */
+const ABANDON_ARM_MS = 4000;
 
 /**
  * The Avatar Gauntlet tower. A count-aware right-rail ladder (cleared ✓ /
@@ -50,6 +53,10 @@ export class GauntletScene extends Phaser.Scene {
   private towerDragged = false;
   private abandonArmed = false;
   private abandonBtn: ThemedButton | null = null;
+  /** The consequence line under Abandon, visible only while it is armed. */
+  private abandonWarning: Phaser.GameObjects.Text | null = null;
+  /** Abandon's left edge, shared with Fight, so a longer label grows rightward. */
+  private abandonLeft = 0;
   /** Seed the NEXT run will use (rerollable / player-settable until it begins). */
   private pendingSeed = 1;
   private seedBar: Phaser.GameObjects.Container | null = null;
@@ -74,6 +81,7 @@ export class GauntletScene extends Phaser.Scene {
     this.panel = null;
     this.abandonArmed = false;
     this.abandonBtn = null;
+    this.abandonWarning = null;
     this.seedBar = null;
 
     // Design-space constants, NOT this.scale (= game size = 1280k×720k under
@@ -347,6 +355,8 @@ export class GauntletScene extends Phaser.Scene {
   private buildPanel(): void {
     this.panel?.destroy();
     this.abandonArmed = false;
+    this.abandonBtn = null;
+    this.abandonWarning = null;
     const floor = this.selectedRung;
     const av = this.avatarForFloor(floor);
     const c = this.add.container(0, 0);
@@ -466,37 +476,67 @@ export class GauntletScene extends Phaser.Scene {
       );
     }
 
-    // Abandon Run (two-click confirm) — only while a run is in progress. Now a
+    // Abandon Run (two-press confirm) — only while a run is in progress. Now a
     // distinct destructive button (was a bare text link) set well below Fight
     // (y 556 vs 456): their inflated 90px hit rects were near-adjacent, so a
     // slip could abandon instead of fight. Kept below the fight line, not to its
-    // right — the armed "Click again to confirm" label is wide and would run
-    // under the tower rail.
+    // right — the armed label is wide and would run under the tower rail, so it
+    // grows rightward from the Fight button's left edge.
     if (Services.save.data.gauntlet.run) {
       const abandon = themedButton(this, textX + 104, 576, 'Abandon Run', {
         variant: 'danger',
         minWidth: 208,
-        onTap: () => this.onAbandon(),
+        onTap: (pointer) => this.onAbandon(pointer),
       });
       this.abandonBtn = abandon;
+      this.abandonLeft = textX;
       // Destructive: keeps its two-tap arm/confirm on top of tap classification.
       c.add(abandon.container);
+      // What the second press loses, shown only while armed.
+      this.abandonWarning = this.add
+        .text(textX, 606, 'Your climb restarts at rung 1. Gold already won is kept.', {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          color: theme.colors.danger,
+          wordWrap: { width: COL_W },
+        })
+        .setOrigin(0, 0)
+        .setVisible(false);
+      c.add(this.abandonWarning);
     }
 
     this.panel = c;
   }
 
-  private onAbandon(): void {
-    if (!this.abandonBtn) return;
+  private onAbandon(pointer?: Phaser.Input.Pointer): void {
+    const button = this.abandonBtn;
+    if (!button) return;
     // Shared destructive-confirm policy: two-tap unless the player opted out.
     if (Services.save.data.settings.confirmDestructive && !this.abandonArmed) {
       this.abandonArmed = true;
-      this.abandonBtn.setLabel('Click again to confirm');
+      const verb = (pointer?.wasTouch ?? isTouchDevice()) ? 'Tap' : 'Click';
+      this.setAbandonLabel(button, `${verb} again to abandon`);
+      this.abandonWarning?.setVisible(true);
+      // Stand down after a few seconds unanswered, as Settings' Reset does. A
+      // rebuilt panel has a new button and has already disarmed, so a timer
+      // from the old one leaves it alone.
+      this.time.delayedCall(ABANDON_ARM_MS, () => {
+        if (this.abandonBtn !== button || !button.container.active || !this.abandonArmed) return;
+        this.abandonArmed = false;
+        this.setAbandonLabel(button, 'Abandon Run');
+        if (this.abandonWarning?.active) this.abandonWarning.setVisible(false);
+      });
       return;
     }
     Services.save.data.gauntlet.run = null;
     Services.save.flush();
     this.scene.restart();
+  }
+
+  /** Relabel Abandon, keeping its left edge on the Fight button's. */
+  private setAbandonLabel(button: ThemedButton, label: string): void {
+    button.setLabel(label);
+    button.container.setX(this.abandonLeft + button.getMeasuredSize().visual.width / 2);
   }
 
   private startFight(av: Avatar, floor: number): void {

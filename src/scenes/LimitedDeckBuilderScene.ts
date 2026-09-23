@@ -17,7 +17,7 @@ import {
 } from '../meta/Limited';
 import { isDualLand, LAND_RESERVE_SIZE, MAX_DUAL_LANDS } from '../meta/warchest';
 import { Services } from '../meta/services';
-import { bindTapButton, inflateHitArea } from '../platform/gestures';
+import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestures';
 import { CardView } from '../ui/CardView';
 import { computeDeckStats, curveBars, deckShapeLine } from '../ui/deckStats';
 import { LIMITED_DETAILS_PANEL } from '../ui/limitedPanePresentation';
@@ -100,14 +100,23 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
       this.scene.start('Limited');
       return;
     }
-    backButton(this, 'Draft', () => this.leaveDraft());
     registerSceneBackNavigation(this, () => this.leaveDraft());
     this.deck = [...run.deck];
     this.selectedDuals = run.landReserve?.filter((id) => CARD_DB[id] && isDualLand(CARD_DB[id])) ?? [];
     this.draw(run);
   }
+  /**
+   * Rebuild the whole screen. The previous frame is DESTROYED first:
+   * `children.removeAll(true)` only detached it (the flag skips the remove
+   * callback, it does not destroy), so every earlier frame's rows and buttons
+   * stayed alive and tappable under the new one, and a greyed "+" could still
+   * add a card past its pool count.
+   */
   private draw(run: LimitedRun): void {
-    this.children.removeAll(true);
+    for (const child of [...this.children.list]) child.destroy();
+    // Any open modal went with the frame; forget it so it can open again.
+    this.cardInspect = null;
+    this.leavePrompt = null;
     applyBackdrop(this, 'deckbuilder', {
       dim: theme.graphics.dim,
       dimAlpha: 0.6,
@@ -123,6 +132,9 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
         g.fillRect(0, 0, 1280, 720);
       },
     });
+    // Part of every frame: a back control built once in build() was the first
+    // thing the first redraw destroyed.
+    backButton(this, 'Draft', () => this.leaveDraft());
     this.add
       .text(640, 52, 'Limited Deck Builder', {
         fontFamily: theme.fonts.display,
@@ -349,37 +361,23 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
       theme.colors.body,
     );
   }
+  /**
+   * One footer row on the shared footer line (theme.design.footerCenterY),
+   * placed from measured widths. The two resets sit at the left title-safe
+   * edge and the build actions at the right, so a slip on the way to Start
+   * Match cannot empty the deck. The row used to open with one "+ Basic"
+   * button per basic land, which could only make this format's deck illegal:
+   * Limited decks hold no lands and the Warchest is provided.
+   */
   private drawActions(run: LimitedRun): void {
-    Object.values(CARD_DB)
-      .filter((card) => isBasic(CARD_DB, card.id))
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .forEach((card, i) =>
-        themedButton(this, 110 + i * 130, theme.design.footerCenterY, `+ ${card.name}`, {
-          variant: 'ghost',
-          size: 'sm',
-          minWidth: 118,
-          onTap: () => {
-            if (this.deck.length < LIMITED_DECK_SIZE) {
-              this.deck.push(card.id);
-              this.selectedId = card.id;
-              this.persistAndRedraw(run);
-            }
-          },
-        }),
-      );
-    // One footer row on the shared footer line (theme.design.footerCenterY),
-    // the action cluster right-aligned to the title-safe edge and placed from
-    // measured widths. "Clear Warchest" used to sit on a second row at y 680,
-    // whose hit box ran to 702, past the frame (1.8 QC day, 2026-09-21).
     const footerY = theme.design.footerCenterY;
-    const cluster = [
-      themedButton(this, 0, footerY, 'Auto Build', {
+    const gap = theme.space(2);
+    const resets = [
+      themedButton(this, 0, footerY, 'Clear Deck', {
         variant: 'ghost',
         minWidth: 120,
         onTap: () => {
-          this.deck = buildLimitedDeck(CARD_DB, run.pool);
-          this.selectedDuals = limitedDraftDuals(CARD_DB, run.pool).slice(0, MAX_DUAL_LANDS);
-          this.selectedId = this.deck[0] ?? null;
+          this.deck = [];
           this.persistAndRedraw(run);
         },
       }),
@@ -391,11 +389,21 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
           this.persistAndRedraw(run);
         },
       }),
-      themedButton(this, 0, footerY, 'Clear', {
+    ];
+    let left = theme.design.safeLeft;
+    for (const button of resets) {
+      const hitWidth = button.getMeasuredSize().hit.width;
+      button.container.setX(left + hitWidth / 2);
+      left += hitWidth + gap;
+    }
+    const builds = [
+      themedButton(this, 0, footerY, 'Auto Build', {
         variant: 'ghost',
-        minWidth: 100,
+        minWidth: 120,
         onTap: () => {
-          this.deck = [];
+          this.deck = buildLimitedDeck(CARD_DB, run.pool);
+          this.selectedDuals = limitedDraftDuals(CARD_DB, run.pool).slice(0, MAX_DUAL_LANDS);
+          this.selectedId = this.deck[0] ?? null;
           this.persistAndRedraw(run);
         },
       }),
@@ -406,10 +414,10 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
       }),
     ];
     let edge = theme.design.safeRight;
-    for (let i = cluster.length - 1; i >= 0; i--) {
-      const hitWidth = cluster[i].getMeasuredSize().hit.width;
-      cluster[i].container.setX(edge - hitWidth / 2);
-      edge -= hitWidth + theme.space(2);
+    for (let i = builds.length - 1; i >= 0; i--) {
+      const hitWidth = builds[i].getMeasuredSize().hit.width;
+      builds[i].container.setX(edge - hitWidth / 2);
+      edge -= hitWidth + gap;
     }
   }
 
@@ -544,7 +552,8 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
     );
     c.add(
       this.add
-        .text(640, 682, 'Click anywhere to close', {
+        // The dim closes it; the panel itself does not, so "anywhere" was wrong.
+        .text(640, 682, `${isTouchDevice() ? 'Tap' : 'Click'} outside to close`, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.label}px`,
           color: theme.colors.muted,

@@ -26,7 +26,13 @@ import {
   type StripLayoutOptions,
 } from '../ui/boosterStripLayout';
 import { colorInt, theme } from '../ui/theme';
-import { backButton, registerSceneBackNavigation, themedButton, type ThemedButton } from '../ui/themeWidgets';
+import {
+  backButton,
+  registerSceneBackNavigation,
+  sceneHasOpenModal,
+  themedButton,
+  type ThemedButton,
+} from '../ui/themeWidgets';
 
 /**
  * The strip scrolls COLUMNS, and each column stacks two rivals. Twenty avatars
@@ -172,6 +178,9 @@ export class PracticePickerScene extends Phaser.Scene {
     this.buildRoster();
     this.buildDifficultyActions();
 
+    backButton(this, 'Play', () => this.scene.start('Play'));
+    registerSceneBackNavigation(this, () => this.scene.start('Play'));
+
     const activeDeck = activeVisibleSavedDeck(
       Services.save.data.decks,
       Services.save.data.activeDeckId,
@@ -185,9 +194,6 @@ export class PracticePickerScene extends Phaser.Scene {
         }),
       });
     }
-
-    backButton(this, 'Play', () => this.scene.start('Play'));
-    registerSceneBackNavigation(this, () => this.scene.start('Play'));
   }
 
   /**
@@ -372,6 +378,9 @@ export class PracticePickerScene extends Phaser.Scene {
     deltaY: number,
   ): void => {
     if (!this.pickerStripLayout) return;
+    // Scene-level wheel input bypasses the modal's dim (playbook trap), so the
+    // strip behind the Darlings tutorial would scroll under it.
+    if (sceneHasOpenModal(this)) return;
     const viewport = this.pickerStripLayout.viewport;
     if (
       pointer.worldX < viewport.x ||

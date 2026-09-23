@@ -134,40 +134,52 @@ export class PlayScene extends Phaser.Scene {
 
   private startPlayEntry(scene: string, data?: object): void {
     const deck = this.activeDeck();
+    // "Open Decks" opens whichever deck is active when it is pressed, never
+    // the one that was active when the notice went up.
+    const openDecks = {
+      label: 'Open Decks',
+      onTap: () => this.scene.start('DeckBuilder', { deckId: this.activeDeck()?.id }),
+    };
     if (scene === 'PracticePicker') {
       const issue = firstDuelLaunchIssue(CARD_DB, Services.save.data, deck);
       if (issue) {
-        this.showLaunchNotice(`Cannot start Practice: ${issue}`, {
-          label: 'Open Decks',
-          onTap: () => this.scene.start('DeckBuilder', { deckId: deck?.id }),
-        });
+        this.showLaunchNotice(`Cannot start Practice: ${issue}`, openDecks);
         return;
       }
     }
     if (scene === 'Gauntlet') {
       const issue = firstDuelLaunchIssue(CARD_DB, Services.save.data, deck);
       if (issue) {
-        this.showLaunchNotice(`Cannot start Gauntlet: ${issue}`, {
-          label: 'Open Decks',
-          onTap: () => this.scene.start('DeckBuilder', { deckId: deck?.id }),
-        });
+        this.showLaunchNotice(`Cannot start Gauntlet: ${issue}`, openDecks);
         return;
       }
+      // A format the tower does not take (Darlings) used to do nothing at
+      // all on this press; say why, and offer the deck switch right here.
       const format = builderFormatForDeck(deck, this.reserveFormatsEnabled);
-      if (formatGauntletUnavailableCopy(format, this.classicRetired)) {
-        this.buildDeckPlate();
+      const unavailable = formatGauntletUnavailableCopy(format, this.classicRetired);
+      if (unavailable) {
+        this.showLaunchNotice(`Cannot start Gauntlet: ${unavailable}`, {
+          label: 'Change Deck',
+          onTap: () => this.showDeckSelect(),
+        });
         return;
       }
     }
     this.scene.start(scene, data);
   }
 
+  /** A launch notice describes the deck it was raised for; a switch retires it. */
+  private clearLaunchNotice(): void {
+    this.launchNotice?.destroy();
+    this.launchNotice = null;
+    this.menuTargets = this.menuTargets.filter((target) => target.active);
+  }
+
   private showLaunchNotice(
     message: string,
     action?: { label: string; onTap: () => void },
   ): void {
-    this.launchNotice?.destroy();
-    this.menuTargets = this.menuTargets.filter((target) => target.active);
+    this.clearLaunchNotice();
     const notice = this.add.container(0, 0);
     this.launchNotice = notice;
     notice.add(
@@ -354,6 +366,7 @@ export class PlayScene extends Phaser.Scene {
       save.activeDeckId = id;
       Services.save.flush();
       shell.close();
+      this.clearLaunchNotice();
       this.buildDeckPlate();
     };
 

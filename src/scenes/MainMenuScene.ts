@@ -425,8 +425,8 @@ export class MainMenuScene extends Phaser.Scene {
       .setOrigin(1, 0);
 
     const streakText = streak.wonToday
-      ? `Streak ${streak.count} - win locked in`
-      : `Streak ${streak.count} - next win +${streak.nextGold}`;
+      ? `Streak ${streak.count} · win locked in`
+      : `Streak ${streak.count} · next win +${streak.nextGold}`;
     this.add.text(x + 24, y + 55, streakText, {
       fontFamily: theme.fonts.ui,
       fontSize: `${theme.type.label}px`,

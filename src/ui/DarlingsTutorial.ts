@@ -5,6 +5,7 @@ import {
   DARLINGS_TUTORIAL_LINES,
   DARLINGS_TUTORIAL_TITLE,
 } from './darlingsTutorialCopy';
+import { modalShellLayout } from './layout';
 import { theme } from './theme';
 import { modalShell, themedButton, type ModalShell } from './themeWidgets';
 
@@ -13,7 +14,20 @@ export interface DarlingsTutorialOptions {
   onReadMore: () => void;
 }
 
-/** Show the once-per-save command-zone explainer using the shared modal shell. */
+const TUTORIAL_WIDTH = 760;
+/** The explainer's measure: narrower than the content track, for line length. */
+const TUTORIAL_WRAP = 620;
+const PARAGRAPH_GAP = theme.space(4);
+const BUTTON_GAP = theme.space(6);
+
+/**
+ * Show the once-per-save command-zone explainer using the shared modal shell.
+ *
+ * Measure-then-place: the paragraphs are built first, the shell is sized to
+ * hold them, and the title, paragraphs and buttons then sit on the shell's own
+ * title, content and footer tracks. Wrap counts are font-fallback dependent on
+ * Windows (playbook trap), so no paragraph height is assumed.
+ */
 export function showDarlingsTutorial(
   scene: Phaser.Scene,
   options: DarlingsTutorialOptions,
@@ -25,42 +39,63 @@ export function showDarlingsTutorial(
     Services.save.flush();
     if (!readMore) options.onDismiss?.();
   };
-  const shell = modalShell(scene, {
-    width: 760,
-    height: 520,
-    dimAlpha: 0.62,
-    tapDimToClose: true,
-    escToClose: true,
-    showClose: true,
-    depth: theme.depth.inspect,
-    onClose: dismiss,
-  });
-  const content = shell.container;
-  content.add(
-    scene.add.text(640, 94, DARLINGS_TUTORIAL_TITLE, {
-      fontFamily: theme.fonts.display,
-      fontSize: `${theme.type.h1}px`,
-      color: theme.colors.heading,
-    }).setOrigin(0.5),
-  );
-  DARLINGS_TUTORIAL_LINES.forEach((line, index) => {
-    content.add(
-      scene.add.text(640, 148 + index * 68, line, {
+
+  const centerX = theme.design.centerX;
+  const paragraphs = DARLINGS_TUTORIAL_LINES.map((line) =>
+    scene.add
+      .text(centerX, 0, line, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         color: theme.colors.body,
         align: 'center',
-        wordWrap: { width: 620 },
+        wordWrap: { width: TUTORIAL_WRAP },
         lineSpacing: 3,
-      }).setOrigin(0.5),
-    );
+      })
+      .setOrigin(0.5, 0),
+  );
+  const contentHeight =
+    paragraphs.reduce((sum, text) => sum + text.height, 0) + PARAGRAPH_GAP * (paragraphs.length - 1);
+  // Everything the shell reserves around its content track (padding, title
+  // and footer tracks, their gaps), read off the shared layout itself.
+  const probeHeight = 1000;
+  const chrome = probeHeight - modalShellLayout({ width: TUTORIAL_WIDTH, height: probeHeight }).contentBounds.height;
+
+  const shell = modalShell(scene, {
+    width: TUTORIAL_WIDTH,
+    height: chrome + contentHeight,
+    dimAlpha: 0.62,
+    dismissal: 'dismissible',
+    depth: theme.depth.inspect,
+    onClose: dismiss,
   });
-  const gotIt = themedButton(scene, 520, 438, DARLINGS_TUTORIAL_BUTTONS[0], {
+  const container = shell.container;
+  const { titleTrack, contentBounds, footerTrack } = shell.tracks;
+
+  const title = scene.add
+    .text(0, titleTrack.y + titleTrack.height / 2, DARLINGS_TUTORIAL_TITLE, {
+      fontFamily: theme.fonts.display,
+      fontSize: `${theme.type.h1}px`,
+      color: theme.colors.heading,
+    })
+    .setOrigin(0.5);
+  // Centred over the paragraphs, but never into the close button's track.
+  title.setX(Math.min(centerX, titleTrack.x + titleTrack.width - title.width / 2));
+  container.add(title);
+
+  let cursor = contentBounds.y;
+  for (const text of paragraphs) {
+    text.setY(cursor);
+    cursor += text.height + PARAGRAPH_GAP;
+    container.add(text);
+  }
+
+  const footerY = footerTrack.y + footerTrack.height / 2;
+  const gotIt = themedButton(scene, 0, footerY, DARLINGS_TUTORIAL_BUTTONS[0], {
     variant: 'primary',
     minWidth: 132,
     onTap: shell.close,
   });
-  const more = themedButton(scene, 760, 438, DARLINGS_TUTORIAL_BUTTONS[1], {
+  const more = themedButton(scene, 0, footerY, DARLINGS_TUTORIAL_BUTTONS[1], {
     variant: 'ghost',
     minWidth: 142,
     onTap: () => {
@@ -71,6 +106,12 @@ export function showDarlingsTutorial(
       options.onReadMore();
     },
   });
-  content.add([gotIt.container, more.container]);
+  // The pair is centred as one group on the footer track.
+  const gotItWidth = gotIt.getMeasuredSize().visual.width;
+  const moreWidth = more.getMeasuredSize().visual.width;
+  const groupLeft = centerX - (gotItWidth + BUTTON_GAP + moreWidth) / 2;
+  gotIt.container.setX(groupLeft + gotItWidth / 2);
+  more.container.setX(groupLeft + gotItWidth + BUTTON_GAP + moreWidth / 2);
+  container.add([gotIt.container, more.container]);
   return shell;
 }
