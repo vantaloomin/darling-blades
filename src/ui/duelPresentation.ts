@@ -147,13 +147,46 @@ export const DUTY_ACTION_LABEL = 'Perform Duty';
 export const DUTY_CANCEL_LABEL = 'Cancel';
 export const DUTY_PLAYER_LABELS = ['You', 'Opponent'] as const;
 
-export function dutyNarration(cardName: string): string {
-  return `${cardName} performs its Duty.`;
+/** History line, in the Your/Enemy family of the other permanent lines. */
+export function dutyNarration(cardName: string, controller: DuelSide): string {
+  return `${controller === 'you' ? 'Your' : 'Enemy'} ${cardName} performs its Duty`;
+}
+
+/**
+ * A Duty row reads in the card face's order: the rules line prints mana first
+ * ("{2}, {T}: Draw a card.", owner ruling in #394) and a free Duty as
+ * "{T}: Foresee 2." ManaText has no tap symbol and would print "{T}"
+ * literally, so each tap becomes a colourless placeholder pip and `tapPips`
+ * names the placeholders (indices into ManaText's pips, which count every
+ * token, numerals included) to swap for the tap icon, as CardView does.
+ */
+export function dutyRowPips(line: string): { raw: string; tapPips: number[] } {
+  const tapPips: number[] = [];
+  let pip = 0;
+  const raw = line.replace(/\{(\d+|[WUBRGCT])\}/g, (token: string, symbol: string) => {
+    const index = pip++;
+    if (symbol !== 'T') return token;
+    tapPips.push(index);
+    return '{C}';
+  });
+  return { raw, tapPips };
+}
+
+const DUTY_TIMING_REASON = 'Activated abilities can only be used during your Morning or Afternoon';
+const DUTY_STACK_REASON = 'Activated abilities need an empty stack';
+
+/**
+ * The engine checks the decision window before the stack, so a response
+ * window inside your own Morning or Afternoon reports the phase. There the
+ * truer reason is the stack (or trigger) still waiting to resolve.
+ */
+export function dutyWindowReason(reason: string | null, ownMainPhase: boolean): string | null {
+  return reason === DUTY_TIMING_REASON && ownMainPhase ? DUTY_STACK_REASON : reason;
 }
 
 const DUTY_BLOCKED_COPY: Readonly<Record<string, string>> = {
-  'Activated abilities can only be used during your Morning or Afternoon': 'Duty: only in your Morning or Afternoon.',
-  'Activated abilities need an empty stack': 'Duty: wait for the stack to clear.',
+  [DUTY_TIMING_REASON]: 'Duty: only in your Morning or Afternoon.',
+  [DUTY_STACK_REASON]: 'Duty: wait for the stack to clear.',
   'Activated source is not on the battlefield': 'Duty: this permanent is not on the battlefield.',
   'Activated source is not under your control': 'Duty: you do not control this permanent.',
   'permanent has no activated ability': 'Duty: this permanent has no Duty.',
@@ -322,6 +355,55 @@ export function graveActionChoice(
 ): 'retell' | 'preserve' | null {
   if (hasRetell) return 'retell';
   return hasPreserve ? 'preserve' : null;
+}
+
+export type SacrificeCastKind = 'cast' | 'empower' | 'sacrifice';
+
+export interface SacrificeCastChoice {
+  kind: SacrificeCastKind;
+  label: string;
+  enabled: boolean;
+  /** Button centre in design space; the row is centred however many remain. */
+  x: number;
+}
+
+export interface SacrificeCastInput {
+  /** What the card prints. */
+  tithe: boolean;
+  empower: boolean;
+  /** A Skim of this hand card is legal (it takes its own row under the chooser). */
+  skim: boolean;
+  /** Which cast variants the engine enumerated. */
+  plainCast: boolean;
+  empoweredCast: boolean;
+  titheCast: boolean;
+  /** Creatures you control that could be sacrificed. */
+  fodder: number;
+}
+
+export const SACRIFICE_CHOOSER_CENTER_X = 640;
+
+/**
+ * The payment row of the Tithe and Rite cast chooser. Empower appears only on
+ * a card that prints it, and Sacrifice only on a Tithe card, live only when a
+ * creature could be sacrificed. `null` means there is nothing to choose (a
+ * Rite card with no Empower and no Skim): the fodder picker opens directly.
+ */
+export function sacrificeCastChoices(input: SacrificeCastInput): SacrificeCastChoice[] | null {
+  if (!input.tithe && !input.empower && !input.skim) return null;
+  const row: Omit<SacrificeCastChoice, 'x'>[] = [
+    { kind: 'cast', label: 'Cast', enabled: input.plainCast },
+    ...(input.empower ? [{ kind: 'empower' as const, label: 'Empower', enabled: input.empoweredCast }] : []),
+    ...(input.tithe
+      ? [{ kind: 'sacrifice' as const, label: 'Sacrifice to cast', enabled: input.titheCast && input.fodder > 0 }]
+      : []),
+  ];
+  // The two-button spacing every other cast chooser uses; three need less.
+  const spacing = row.length >= 3 ? 260 : 340;
+  return row.map((choice, index) => ({
+    ...choice,
+    x: SACRIFICE_CHOOSER_CENTER_X + (index - (row.length - 1) / 2) * spacing,
+  }));
 }
 
 /** Armed smart-button label, in the terse family of "Confirm: no blocks". */
