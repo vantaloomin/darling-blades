@@ -2511,7 +2511,9 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     flavor: 'The wreckers light the false beacon, and the sea lights everything else.',
     set: 'drowned-deep',
   },
-  // Duty, {1}{W}: prevent combat this turn. During your Dawn: gain 1 life.
+  // Duty: target creature you control gets +0/+3 and Sentinel until Sunset. During your Dawn: gain 1 life.
+  // Owner pick 2026-09-23: the Duty was a fog, which a main-phase Duty can only
+  // aim at its own attack. Sentinel leaves the creature untapped to block.
   {
     id: 'dd-gate-of-salt',
     name: 'The Salt Gate',
@@ -2520,7 +2522,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     cost: cost(2, 'W'),
     colors: ['W'],
     abilities: [{ when: 'dawn', ops: [{ op: 'gainLife', n: 1 }] }],
-    activated: { cost: { tap: true, mana: cost(1, 'W') }, ops: [{ op: 'preventCombat' }] },
+    activated: { cost: { tap: true }, targets: [{ what: 'yourCreature' }], ops: [{ op: 'boost', p: 0, t: 3, keywords: ['sentinel'], scope: 'target' }] },
     rarity: 'ssr',
     flavor: 'The gate holds the tide out and the town in. Nobody has asked which it was built for.',
     set: 'drowned-deep',
@@ -2623,10 +2625,11 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     set: 'drowned-deep',
   },
   // Prevent combat this turn. Draw a card. Whispers {1}{W}.
+  // Owner pick 2026-09-23: a Charm, so the fog can land in the opponent's combat.
   {
     id: 'dd-lamp-lit-vigil',
     name: 'Lamp-Lit Vigil',
-    types: ['ritual'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(2, 'W'),
     colors: ['W'],
