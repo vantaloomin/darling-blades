@@ -653,6 +653,14 @@ export class ShopScene extends Phaser.Scene {
    * precon (singleton lists).
    */
   create(data: ShopSceneData = {}): void {
+    // Entry data is one-shot. Phaser's Systems.start only replaces
+    // settings.data when a start passes some, so a plain scene.start('Shop')
+    // (the main menu's button, the navigation helpers) re-delivered the LAST
+    // entry: Pack Opening's tab and strip index outlived the trip back to the
+    // menu. Clearing it here means a plain entry gets the defaults (newest set
+    // first, the claim-aware default tab) while an explicit entry still wins.
+    // Nothing in the Shop restarts itself or reads settings.data later.
+    this.sys.settings.data = {};
     const faces = [...STARTER_DECKS, ...THEME_DECKS, ...DARLINGS_PRECONS].map((deck) =>
       this.deckGridPortraitId(deck),
     );
