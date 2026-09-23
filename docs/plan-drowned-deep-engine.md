@@ -35,7 +35,8 @@ opponent's next Dawn."** Printed line: `Whispers {N}`, after the Skim line
 when the card has one, otherwise where Retell prints.
 
 - **What tags it.** Entering your graveyard **from your hand** (your own
-  Skim, an opponent's discard effect, the hand-size discard at cleanup) or
+  Skim, an opponent's discard effect, and the hand-size discard at cleanup,
+  though that one never gets its chance; see the next bullet) or
   **from your deck** (any mill: `grind`, self-mill arrivals, opponent mill).
   Not from the battlefield: a creature dying is not a whisper. Not from the
   stack: a resolved or cancelled spell returning to the graveyard is not a
@@ -45,7 +46,11 @@ when the card has one, otherwise where Retell prints.
   Entering on the opponent's turn, the opponent's *next* Dawn is the start
   of the turn after yours, so the tag survives their turn and your whole
   next turn. One rule, tight when you did it, generous when it was done to
-  you.
+  you. The tightest case is empty: the hand-size discard at your own
+  cleanup is tagged, but your opponent's Dawn follows with no window in
+  between, so a card discarded to hand size is never castable this way
+  (measured on the 1.8 engine, 2026-09-23; the owner ruled the docs follow
+  the engine, and a window there would be a later engine change).
 - **Casting it.** At your normal opportunities for that card type: a Charm
   in any window you could cast a Charm; a creature, Ritual, artifact or
   enchantment in your own Morning or Afternoon with an empty stack. The
@@ -161,8 +166,10 @@ printed with it).
   count.
 - If the card also has Empower, the discount applies to the generic part of
   the total being paid (printed plus Empower).
-- Tithe never combines with X, Retell, Hauntlink, Whispers or Rite on one
-  card (one sacrifice mechanic per card).
+- Tithe never combines with X, Retell, Hauntlink or Rite on one card (one
+  sacrifice mechanic per card). Whispers was on this list until the owner
+  ruling of 2026-09-17 (Cinderjaw, the Fire That Swims) let the two share a
+  card; rules.md describes the combined cast.
 - **Carriers.** The engine allows Tithe on any creature. **Drowned Deep
   prints it only on Horrors**, a per-set data policy in the catalog test, so
   a later set can carry it on another subtype by changing one line. Fodder
@@ -211,8 +218,9 @@ same cost. This is the cost-reduction machinery the engine did not have; it
 is one function taking a discount and nothing else.
 
 **Payment.** Rite's block in `Game.ts` (snapshot in battlefield order,
-destroy, batched graveyard triggers, batched dies triggers, winner bail-out)
-runs for the chosen set. `castBlockers` subtracts the fodder count from the
+destroy, batched graveyard triggers, batched dies triggers, winner bail-out,
+and since 2026-09-23 a state-based check before any window is offered) runs
+for the chosen set. `castBlockers` subtracts the fodder count from the
 creature-cap check, the Rite rule.
 
 **Replay.** A rider on `castSpell`; the same single version bump as
@@ -336,9 +344,9 @@ and auras; post-2010 sets halved it to 1.
 **What the ruling changes.** E_FIRE was Wizards' pricing proxy because the
 first draft could only fire off the card's own Skim. Under the fresh-
 graveyard cast the fire rate is a real in-engine quantity: the 18 opponent-
-discard cards, every mill (self and opponent), cleanup discards and Skim all
-tag. **E_FIRE is therefore `NEEDS MATH` in the honest sense: measure it on a
-seeded matrix once the set's mill and discard density is known, then set
+discard cards, every mill (self and opponent) and Skim all tag (cleanup
+discards tag too but can never fire, section 1). **E_FIRE is therefore
+`NEEDS MATH` in the honest sense: measure it on a seeded matrix once the set's mill and discard density is known, then set
 the premium from the measured rate**, keeping 0.5 as the placeholder for
 charm-class cards and 0 for bodies until then. The enabler-density rule of
 thumb from MTG (1.5 to 3 outlets per payoff) becomes a design input for the

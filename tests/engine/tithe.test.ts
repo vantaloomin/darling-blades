@@ -55,6 +55,18 @@ const DB: CardDb = {
   fodder_draw: creature('fodder_draw', 2, {
     abilities: [{ when: 'dies', ops: [{ op: 'draw', n: 1 }] }],
   }),
+  fodder_drain: creature('fodder_drain', 2, {
+    abilities: [{ when: 'dies', ops: [{ op: 'loseLife', n: 2, who: 'opponent' }] }],
+  }),
+  link_relic: {
+    id: 'link_relic', name: 'link_relic', types: ['artifact'], subtypes: [], colors: [], rarity: 'c',
+    cost: { generic: 0, pips: {} }, hauntlink: { cost: { generic: 0, pips: {} }, linked: { p: 1 } },
+  },
+  mend: {
+    id: 'mend', name: 'mend', types: ['charm'], subtypes: [], colors: [], rarity: 'c',
+    cost: { generic: 0, pips: {} },
+    abilities: [{ when: 'spell', ops: [{ op: 'gainLife', n: 5 }] }],
+  },
   fodder_lord: creature('fodder_lord', 1, {
     abilities: [{ when: 'static', static: { scope: 'filter', filter: { other: true }, t: 1 } }],
   }),
@@ -425,6 +437,34 @@ describe('Tithe payment and resolution', () => {
     expect(game.instanceState.stack).toEqual([]);
     expect(events.some((event) => event.e === 'spellCast')).toBe(false);
     expect(game.instanceState.players[0].graveyard.map(cardIdOf)).toEqual(['fodder_draw']);
+  });
+
+  // The payment is a mutation batch: state-based checks run on it before the
+  // opponent is offered a window over the spell (here they hold a Charm, so
+  // a window would open).
+  it('ends the game before any window when paid fodder drains the opponent to 0', () => {
+    const state = board('tithe_small', [...forests(1), body(10, 'fodder_drain')], ['mend']);
+    state.players[1].life = 2;
+    const game = Game.restore(state, DB);
+    game.submit(0, titheAction([10], { manaPlan: [100] }));
+    expect(game.instanceState.players[1].life).toBe(0);
+    expect(game.instanceState.winner).toBe(0);
+    expect(game.instanceState.winReason).toBe('life');
+    expect(game.awaiting.kind).toBe('gameOver');
+  });
+
+  it('sends a linked Hauntlink to the graveyard with its sacrificed host before the window', () => {
+    const game = Game.restore(board('tithe_small', [
+      ...forests(1),
+      { ...body(10, 'fodder_two'), attachments: [50] },
+      { ...body(50, 'link_relic'), attachedTo: 10 },
+      body(20, 'fodder_four'),
+    ], ['counter']), DB);
+    const events = game.submit(0, titheAction([10], { manaPlan: [100] }));
+    expect(game.awaiting).toMatchObject({ player: 1, kind: 'respond' });
+    expect(events).toContainEqual(expect.objectContaining({ e: 'hauntlinkBroken', linkIid: 50, hostIid: 10 }));
+    expect(game.instanceState.battlefield.some((perm) => perm.iid === 50)).toBe(false);
+    expect(game.instanceState.players[0].graveyard.map(cardIdOf)).toEqual(['fodder_two', 'link_relic']);
   });
 });
 
