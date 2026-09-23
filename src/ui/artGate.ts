@@ -1,7 +1,9 @@
 import Phaser from 'phaser';
 import { ART_EVENT_PROGRESS, artMissing, ensureArt } from '../art/artLoader';
+import { backLabelFor } from './navigation';
 import { applySceneSettings } from './SceneBackdrop';
 import { theme } from './theme';
+import { backButton } from './themeWidgets';
 
 /**
  * Card-art gate for scenes that draw cards (1.8, with `src/art/artLoader.ts`).
@@ -26,6 +28,17 @@ const DESIGN_H = theme.design.height;
 const GATE_DEPTH = 10_000;
 /** The boot loader's own line; the one loading string the game has. */
 const LOADING_LABEL = 'Unsheathing Blades…';
+
+/**
+ * How the loading line looks: the boot loader's own face and size, so every
+ * wait in the game reads as the same wait. Exported for the modal waits that
+ * draw the line in their own chrome (`awaitArt` callers).
+ */
+export const ART_WAIT_TEXT_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
+  fontFamily: 'Georgia, serif',
+  fontSize: '22px',
+  color: theme.colors.muted,
+};
 
 /** The loading line as a percentage of THIS wait's set, not of the manifest. */
 function loadingLine(total: number, remaining: number): string {
@@ -91,6 +104,13 @@ export function awaitArt(
  * set). While waiting, cover the scene with the boot loader's own label over a
  * dim field. This is for a whole scene's `create()` body; something that opens
  * over a built scene uses `awaitArt` and draws the line in its own chrome.
+ *
+ * The wait is never a trap. The scene's own back control and Esc handler are
+ * built by `build`, which has not run yet, so the wait screen carries its own:
+ * the shared back affordance (at the touch-target floor) and Esc, both to the
+ * main menu. Leaving shuts the scene down, and `awaitArt` then drops the build.
+ * Collection and Decks gate on the whole card set, so early in a session this
+ * wait can be the longest one in the game.
  */
 export function gateOnArt(
   scene: Phaser.Scene,
@@ -99,6 +119,19 @@ export function gateOnArt(
 ): void {
   let shade: Phaser.GameObjects.Graphics | null = null;
   let label: Phaser.GameObjects.Text | null = null;
+  let back: Phaser.GameObjects.Text | null = null;
+
+  const keyboard = scene.input.keyboard;
+  let leaving = false;
+  const leave = (): void => {
+    if (leaving || !scene.sys.isActive()) return;
+    leaving = true;
+    scene.scene.start('MainMenu');
+  };
+  const onEsc = (): void => leave();
+  const stopEsc = (): void => {
+    keyboard?.off('keydown-ESC', onEsc);
+  };
 
   awaitArt(scene, ids, {
     onWait: (line) => {
@@ -114,20 +147,23 @@ export function gateOnArt(
           .fillRect(0, 0, DESIGN_W, DESIGN_H)
           .setDepth(GATE_DEPTH);
         label = scene.add
-          .text(DESIGN_W / 2, DESIGN_H / 2, line, {
-            fontFamily: 'Georgia, serif',
-            fontSize: '22px',
-            color: theme.colors.muted,
-          })
+          .text(DESIGN_W / 2, DESIGN_H / 2, line, ART_WAIT_TEXT_STYLE)
           .setOrigin(0.5)
           .setDepth(GATE_DEPTH + 1);
+        back = backButton(scene, backLabelFor('MainMenu'), () => leave()).setDepth(GATE_DEPTH + 1);
+        keyboard?.on('keydown-ESC', onEsc);
+        scene.events.once(Phaser.Scenes.Events.SHUTDOWN, stopEsc);
         return;
       }
       label.setText(line);
     },
     onReady: () => {
+      // Hand Esc back before `build` registers the scene's own handler.
+      stopEsc();
+      scene.events.off(Phaser.Scenes.Events.SHUTDOWN, stopEsc);
       shade?.destroy();
       label?.destroy();
+      back?.destroy();
       build();
     },
   });

@@ -25,7 +25,8 @@ import { isReplayVisible } from '../ui/deckBuilderHelpers';
 import { OverlayCoordinator } from '../ui/OverlayCoordinator';
 import { createMultilineInput, type MultilineInputHandle } from '../ui/MultilineInput';
 import { createSearchInput, type SearchInputHandle } from '../ui/SearchInput';
-import { gateOnArt } from '../ui/artGate';
+import { artMissing } from '../art/artLoader';
+import { ART_WAIT_TEXT_STYLE, awaitArt } from '../ui/artGate';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { makeCardThumb } from '../ui/CardThumbCache';
 import { canvasPngBytes, composeSaveCardCanvas, downloadPngBytes, pickPngFile } from '../ui/saveCard';
@@ -396,9 +397,54 @@ export class ProfileScene extends Phaser.Scene {
     // The only card art the Profile draws: the owned-pool grid behind the save
     // card export (src/ui/saveCard.ts composes the chosen card's art into the
     // PNG, so a stand-in texture would ship inside the file).
-    gateOnArt(this, Object.keys(Services.save.data.collection), () =>
-      this.buildSaveCardPicker(getCode),
-    );
+    const owned = Object.keys(Services.save.data.collection);
+    this.pickerShell?.close();
+    if (artMissing(owned).length === 0) {
+      this.buildSaveCardPicker(getCode);
+      return;
+    }
+    // The picker opens over the live export modal, so the wait is a modal of
+    // the picker's own footprint rather than `gateOnArt`'s full-screen shade
+    // (the artGate.ts rule, and ShopScene's deck preview). As a registered
+    // overlay it deadens the export controls and hides the export textarea
+    // while it is up, a second tap cannot stack a second wait, and Esc, the
+    // close button or a tap on the dim cancels it: a cancelled wait never
+    // opens the picker later.
+    let cancelled = false;
+    const waiting = modalShell(this, {
+      width: 1120,
+      height: 640,
+      dimAlpha: 0.88,
+      depth: theme.depth.results,
+      dismissal: 'dismissible',
+      coordinator: this.coordinator,
+      registration: {
+        dismissible: true,
+        guardTargets: this.exportInteractiveTargets.map(modalGuardTarget),
+        domHandles: this.exportInput ? [this.exportInput] : [],
+      },
+      onClose: () => {
+        cancelled = true;
+        if (this.pickerShell === waiting) this.pickerShell = null;
+      },
+    });
+    this.pickerShell = waiting;
+    this.addPanelTapBlocker(waiting, 1120, 640);
+    const bounds = waiting.tracks.contentBounds;
+    const line = this.add
+      .text(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2, '', ART_WAIT_TEXT_STYLE)
+      .setOrigin(0.5);
+    waiting.container.add(line);
+    awaitArt(this, owned, {
+      onWait: (text) => {
+        if (line.active) line.setText(text);
+      },
+      onReady: () => {
+        if (cancelled) return;
+        waiting.close();
+        this.buildSaveCardPicker(getCode);
+      },
+    });
   }
 
   private buildSaveCardPicker(getCode: () => string): void {

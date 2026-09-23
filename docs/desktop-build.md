@@ -1,4 +1,4 @@
-<!-- source-of-truth: src-tauri/tauri.conf.json, src-tauri/Cargo.toml, src-tauri/src/lib.rs, src-tauri/capabilities/default.json, src/platform/desktopWindow.ts, package.json, vite.config.ts, .github/workflows/release.yml · last-verified: 2026-08-04 · re-verify when the Tauri config or build scripts change -->
+<!-- source-of-truth: src-tauri/tauri.conf.json, src-tauri/Cargo.toml, src-tauri/src/lib.rs, src-tauri/capabilities/default.json, src/platform/desktopWindow.ts, src/ui/openExternalPage.ts, src/version.ts, scripts/cspForTarget.ts, package.json, vite.config.ts, .github/workflows/release.yml · last-verified: 2026-09-23 · re-verify when the Tauri config or build scripts change -->
 
 # Desktop build (Tauri)
 
@@ -9,15 +9,31 @@ the game's own assets — no bundled Chromium the way Electron does it.
 
 **The web frontend is almost entirely Tauri-agnostic.** The desktop app loads the
 exact same `dist/` that `npm run build` produces and that `npm run play:lan`
-serves to phones. The **one** exception is `src/platform/desktopWindow.ts`: when
-the render-resolution setting changes, it resizes the OS window to match — the
-chosen resolution lives in the webview's `localStorage`, so only the frontend can
-drive the resize. It is a guarded no-op in a plain browser (which can't resize its
-own window) and pulls the Tauri window API in via a **dynamic import**, so a
-browser build lazy-chunks it and never loads it. The only other game-visible
-difference is that the app has its own `localStorage`, so a save made in a browser
-does **not** carry into the desktop app (and vice-versa) — each is a separate
-storage origin.
+serves to phones. The only code that talks to Tauri is
+`src/platform/desktopWindow.ts`: when the render-resolution setting changes, it
+resizes the OS window to match — the chosen resolution lives in the webview's
+`localStorage`, so only the frontend can drive the resize. It is a guarded no-op
+in a plain browser (which can't resize its own window) and pulls the Tauri window
+API in via a **dynamic import**, so a browser build lazy-chunks it and never loads
+it. Its `isTauri()` is also what the few desktop-aware decisions read: the play
+stats `platform` field (`src/net/signals.ts`), the update check
+(`src/version.ts`, see below), and whether a page opened from the game carries
+the web-only "opened by the game" marker (`src/ui/openExternalPage.ts`). The only
+other game-visible difference is that the app has its own `localStorage`, so a
+save made in a browser does **not** carry into the desktop app (and vice-versa) —
+each is a separate storage origin.
+
+**The game's own pages open in a window of their own.** The privacy policy, the
+terms and the notices (Settings → Legal, and "Read the privacy policy" in the
+play-stats panel) are bundled pages the game opens with `window.open`. WebView2
+cancels every popup that the host does not handle, so `src-tauri/src/lib.rs`
+builds the main window itself (`"create": false` in `tauri.conf.json`) to attach
+an `on_new_window` handler: a same-origin request opens in one reusable `page`
+window, offline, titled from the page; anything else stays refused. That window
+closes itself when its "Back to the game" link is followed (an `on_navigation`
+check for the app's root), instead of loading a second copy of the game, and the
+app exits when the game window closes, so the page window never outlives it. No
+capability names the `page` window, so the pages there have no IPC access.
 
 **Render size drives the window.** The Settings "Render size" chips
 (720p/1080p/1440p) set both the render backing store (`1280·k × 720·k`) **and**
@@ -77,13 +93,23 @@ Release. `npm run app:build` remains the manual local build path.
   resizable, dark-titlebar window (min 960×540 — the game FITs any 16:9-ish size;
   the default matches the default 1080p render setting and `desktopWindow.ts`
   resizes it live to whatever resolution is picked), and
-  `bundle.targets: ["nsis"]`. `build.frontendDist` is `../dist`; `beforeBuildCommand`
-  is `npm run build`. `security.csp` is `null` — the game is fully offline and
-  makes no network requests, so no CSP is injected (a strict CSP risks breaking
-  Phaser's canvas/WebGL/blob usage; revisit only if remote content is ever added).
-- **`Cargo.toml` / `src/{main,lib}.rs`** — the stock Tauri 2 shell. `lib.rs` wires
-  `tauri-plugin-log` in debug builds only and otherwise just runs the webview; the
-  game needs no custom Rust commands or native APIs.
+  `bundle.targets: ["nsis"]`. The window is labelled `main` and has
+  `"create": false`: `lib.rs` builds it from this config so it can attach the
+  new-window handler (see "The game's own pages" above). `build.frontendDist` is
+  `../dist`; `beforeBuildCommand` is `npm run build`. `security.csp` is `null` on
+  purpose: the page's own meta policy (index.html) already names the two hosts
+  the game contacts, and a desktop build adds Tauri's two IPC sources to it at
+  build time (`scripts/cspForTarget.ts`, which records why a Tauri-injected
+  policy could not do this). The game plays fully offline; the network is used
+  only for the anonymous play stats (when on, see
+  [legal/privacy-policy.md](legal/privacy-policy.md)) and the Settings update
+  check, which on the desktop asks GitHub for the latest published release and
+  tells the player to download it (a reload changes nothing here).
+- **`Cargo.toml` / `src/{main,lib}.rs`** — a small Tauri 2 shell. `lib.rs` wires
+  `tauri-plugin-log` in debug builds only, builds the main window with the
+  new-window handler that opens the game's own pages in the `page` window, and
+  exits the app when the game window closes. The game needs no custom Rust
+  commands.
 - **`capabilities/default.json`** — `core:default` plus
   `core:window:allow-set-size` and `core:window:allow-center` (the only Tauri JS
   APIs the game calls, from `desktopWindow.ts`, to resize the window to the render

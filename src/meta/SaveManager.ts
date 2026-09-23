@@ -267,9 +267,10 @@ export interface SaveData {
     /**
      * Whether this profile contributes anonymous aggregate play statistics.
      * v35 addition; defaults ON for a fresh save AND for a migrated one (owner
-     * decision 1 of the telemetry rollout). NOTHING reads this yet — no UI, no
-     * network. The Settings row and the transport arrive together in a later
-     * wave, because a toggle that does nothing is a lie.
+     * decision 1 of the telemetry rollout). The signals gate re-reads it at
+     * every send (src/net/signalsGate.ts); the Settings row and the first-run
+     * notice edit it; an import can turn it off but never on
+     * (`withDeviceStatsChoice`).
      */
     shareAnonStats: boolean;
     /**
@@ -991,6 +992,10 @@ export class SaveManager {
    * the shared in-memory object changes, and both sides are restored if either
    * part fails. Keeping `data` in place refreshes every service consumer that
    * already holds the shared SaveData reference.
+   *
+   * This is the import boundary (a save code or a save card, through
+   * `Services.replaceSave`), and the one part of the profile it does NOT take
+   * wholesale is the anonymous-stats choice: see `withDeviceStatsChoice`.
    */
   replace(next: SaveData): boolean {
     if (this.timer) {
@@ -1002,7 +1007,7 @@ export class SaveManager {
     let nextBlob: string;
     try {
       previousBlob = JSON.stringify(this.data);
-      nextBlob = JSON.stringify(next);
+      nextBlob = JSON.stringify(withDeviceStatsChoice(next, this.data));
     } catch {
       return false;
     }
@@ -1053,6 +1058,35 @@ export class SaveManager {
     this.storage.removeItem(LEGACY_KEY);
     Object.assign(this.data, freshSave(now));
   }
+}
+
+/**
+ * The imported profile, with the anonymous-stats settings reconciled against
+ * the device's own, for `SaveManager.replace`.
+ *
+ * A save code carries the whole `settings` object, so taking it wholesale
+ * would let a code made where sharing was ON switch sharing back on for a
+ * player who turned it OFF on this device, silently: the notice was already
+ * stamped here, so nothing would show. An import can therefore switch sharing
+ * off but never on (it is on only when both sides have it on), and the notice
+ * version is the higher of the two, so a player told on either device stays
+ * told and a lower imported stamp never re-arms a notice this device already
+ * showed. Every other setting travels with the save.
+ */
+export function withDeviceStatsChoice(imported: SaveData, device: SaveData): SaveData {
+  const incoming: Partial<SaveData['settings']> = imported.settings ?? {};
+  const current: Partial<SaveData['settings']> = device.settings ?? {};
+  return {
+    ...imported,
+    settings: {
+      ...imported.settings,
+      shareAnonStats: incoming.shareAnonStats === true && current.shareAnonStats === true,
+      statsNoticeVersion: Math.max(
+        normalizeStatsNoticeVersion(incoming.statsNoticeVersion),
+        normalizeStatsNoticeVersion(current.statsNoticeVersion),
+      ),
+    },
+  };
 }
 
 /**

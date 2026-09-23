@@ -1,7 +1,8 @@
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   BACK_TO_GAME,
   LEGAL_DOCUMENTS,
@@ -14,6 +15,7 @@ import {
   resolveHref,
 } from '../../scripts/gen-legal-pages';
 import { NOTICES_FILE } from '../../scripts/gen-third-party-notices';
+import { markOpenedByGame } from '../../src/ui/openExternalPage';
 
 /**
  * The three legal pages are generated from the three owner-ruled documents at
@@ -138,5 +140,111 @@ describe('the legal pages', () => {
     expect(html).not.toContain('<script>');
     expect(html).toContain('&lt;script&gt;');
     expect(html).toContain('&amp;');
+  });
+});
+
+/** The one inline script a page carries, exactly as the browser hashes it. */
+function inlineScripts(html: string): string[] {
+  return [...html.matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/g)].map((m) => {
+    expect(m[1], 'a page loads no script from a file').toBe('');
+    return m[2];
+  });
+}
+
+describe("each page's policy", () => {
+  it.each([...PAGES.keys()])('%s admits its own inline script by hash and nothing else', (name) => {
+    const html = PAGES.get(name) ?? '';
+    const scripts = inlineScripts(html);
+    expect(scripts).toHaveLength(1);
+    const policy = /http-equiv="Content-Security-Policy" content="([^"]*)"/.exec(html)?.[1] ?? '';
+    const scriptSrc = policy.split(';').map((part) => part.trim()).find((part) => part.startsWith('script-src'));
+    const digest = createHash('sha256').update(scripts[0], 'utf8').digest('base64');
+    expect(scriptSrc).toBe(`script-src 'sha256-${digest}'`);
+    expect(policy).toContain("default-src 'none'");
+  });
+});
+
+describe('"Back to the game" on a page the game opened', () => {
+  interface FakeLink {
+    href: string;
+    back: boolean;
+    listeners: ((event: { preventDefault: () => void }) => void)[];
+  }
+
+  /**
+   * Run a page's real script against the page's real links, in a stand-in DOM
+   * holding only what the script touches. `search` is the address's query.
+   */
+  function openPage(name: string, search: string) {
+    const html = PAGES.get(name) ?? '';
+    const links: FakeLink[] = [...html.matchAll(/<a href="([^"]*)"( data-back-to-game)?/g)].map((m) => ({
+      href: m[1],
+      back: m[2] !== undefined,
+      listeners: [],
+    }));
+    const notes = [...html.matchAll(/<span data-back-note hidden>/g)].map(() => ({ hidden: true }));
+    const elements = links.map((link) => ({
+      getAttribute: (attr: string) => (attr === 'href' ? link.href : null),
+      setAttribute: (attr: string, value: string) => {
+        if (attr === 'href') link.href = value;
+      },
+      hasAttribute: (attr: string) => attr === 'data-back-to-game' && link.back,
+      addEventListener: (type: string, fn: FakeLink['listeners'][number]) => {
+        if (type === 'click') link.listeners.push(fn);
+      },
+    }));
+    const document = {
+      querySelectorAll: (selector: string) =>
+        selector === 'a[href]' ? elements : selector === '[data-back-note]' ? notes : [],
+    };
+    const win = { close: vi.fn() };
+    const timers: (() => void)[] = [];
+    const run = new Function('location', 'document', 'window', 'setTimeout', 'URLSearchParams', inlineScripts(html)[0]);
+    run({ search }, document, win, (fn: () => void) => timers.push(fn), URLSearchParams);
+    const clickBack = (): { prevented: boolean } => {
+      let prevented = false;
+      for (const fn of links.find((link) => link.back)?.listeners ?? []) fn({ preventDefault: () => (prevented = true) });
+      return { prevented };
+    };
+    return { links, notes, win, timers, clickBack };
+  }
+
+  const markedQuery = (href: string): string => markOpenedByGame(href).slice(href.length);
+
+  it.each([...PAGES.keys()])('%s: closes its tab instead of loading a second game', (name) => {
+    const page = openPage(name, markedQuery(`./${name}`));
+    expect(page.links.filter((link) => link.back).length).toBeGreaterThan(0);
+    for (const link of page.links.filter((l) => l.back)) expect(link.listeners.length).toBe(1);
+    expect(page.clickBack().prevented).toBe(true);
+    expect(page.win.close).toHaveBeenCalledTimes(1);
+  });
+
+  it('says what to do when the browser keeps the tab open', () => {
+    const page = openPage('privacy.html', markedQuery('./privacy.html'));
+    page.clickBack();
+    expect(page.notes.length).toBeGreaterThan(0);
+    expect(page.notes.every((note) => note.hidden)).toBe(true);
+    // Still here once the close has had its chance: the notes show.
+    for (const timer of page.timers) timer();
+    expect(page.notes.every((note) => !note.hidden)).toBe(true);
+  });
+
+  it('carries the marker to the sibling pages, and leaves every other link alone', () => {
+    const before = openPage('notices.html', '').links.map((link) => link.href);
+    const after = openPage('notices.html', markedQuery('./notices.html')).links.map((link) => link.href);
+    after.forEach((href, i) => {
+      const was = before[i];
+      if (BUILT.has(was.replace(/^\.\//, ''))) expect(href).toBe(markOpenedByGame(was));
+      else expect(href).toBe(was);
+    });
+  });
+
+  it('is an ordinary link when the page was not opened by the game', () => {
+    for (const name of PAGES.keys()) {
+      const page = openPage(name, '');
+      expect(page.links.every((link) => link.listeners.length === 0)).toBe(true);
+      expect(page.clickBack().prevented).toBe(false);
+      expect(page.win.close).not.toHaveBeenCalled();
+    }
   });
 });

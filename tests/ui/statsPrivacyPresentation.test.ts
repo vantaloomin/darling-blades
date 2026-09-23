@@ -43,10 +43,12 @@ import {
   menuArrivalSteps,
   stampStatsNotice,
   statsNoticeBodyStack,
+  statsNoticeContentWidth,
   statsNoticeFooterCenters,
   statsNoticeLabelWrapWidth,
   statsNoticeNoteText,
   statsNoticeOwed,
+  statsNoticeShellHeight,
   statsNoticeToggleCenterX,
   statsPanelButtonCenterX,
   statsPanelColumns,
@@ -436,7 +438,7 @@ describe('the dialog, as behaviour', () => {
   });
 
   for (const sharing of [true, false]) {
-    it(`Continue writes the version, persists it, then acknowledges (sharing ${sharing ? 'on' : 'off'})`, () => {
+    it(`Continue writes the version, schedules the write, then acknowledges (sharing ${sharing ? 'on' : 'off'})`, () => {
       // Being told is not the same as opting in: a player who turned sharing
       // off has still been told, so the stamp runs identically and the gate is
       // what refuses.
@@ -475,7 +477,9 @@ describe('the dialog, as behaviour', () => {
 });
 
 describe('the stamp', () => {
-  it('writes the version, persists it, and only then acknowledges', () => {
+  it('writes the version before it lets the facade send, and schedules the save write', () => {
+    // The gate reads the in-memory version at send time, so acknowledging
+    // first would have the launch's heartbeat refused and never retried.
     const order: string[] = [];
     const target = {
       setNoticeVersion: vi.fn((version: number) => order.push(`version:${version}`)),
@@ -483,7 +487,10 @@ describe('the stamp', () => {
       acknowledge: vi.fn(() => order.push('acknowledge')),
     };
     stampStatsNotice(target, STATS_NOTICE_VERSION);
-    expect(order).toEqual([`version:${STATS_NOTICE_VERSION}`, 'touch', 'acknowledge']);
+    const written = order.indexOf(`version:${STATS_NOTICE_VERSION}`);
+    expect(written).toBeGreaterThanOrEqual(0);
+    expect(written).toBeLessThan(order.indexOf('acknowledge'));
+    expect(target.touch).toHaveBeenCalledTimes(1);
     expect(target.acknowledge).toHaveBeenCalledTimes(1);
   });
 });
@@ -600,20 +607,63 @@ describe('the "What is sent" panel layout', () => {
 });
 
 describe('the first-run dialog layout', () => {
-  const layout = modalShellLayout({
-    width: STATS_NOTICE_LAYOUT.width,
-    height: STATS_NOTICE_LAYOUT.height,
-  });
-  const content = layout.contentBounds;
+  type Body = { paragraph1: number; paragraph2: number; note: number | null };
   /** A generous stand-in for the wrapped body: three lines each, not two. */
-  const ROOMY = { paragraph1: 3 * 24, paragraph2: 3 * 24, note: 2 * 16 };
+  const ROOMY: Body = { paragraph1: 3 * 24, paragraph2: 3 * 24, note: 2 * 16 };
+  /** The production case: the note line is absent unless something else stops the sends. */
+  const PLAIN: Body = { paragraph1: 2 * 24, paragraph2: 24, note: null };
+  const BODIES: readonly Body[] = [PLAIN, ROOMY, { ...ROOMY, note: null }, { paragraph1: 24, paragraph2: 24, note: 16 }];
+  /** The shell the dialog builds for a measured body. */
+  const shellFor = (body: Body) =>
+    modalShellLayout({
+      width: STATS_NOTICE_LAYOUT.width,
+      height: statsNoticeShellHeight(statsNoticeBodyStack(body).height),
+    });
+  const layout = shellFor(ROOMY);
+  const content = layout.contentBounds;
 
-  it('fits the design canvas and its title-safe frame', () => {
-    expect(layout.fits).toBe(true);
-    expect(layout.tracksInsidePanel).toBe(true);
-    expect(layout.tracksInsideTitleSafe).toBe(true);
+  it('fits the design canvas and its title-safe frame, however the body wraps', () => {
+    for (const body of BODIES) {
+      const shell = shellFor(body);
+      expect(shell.fits).toBe(true);
+      expect(shell.tracksInsidePanel).toBe(true);
+      expect(shell.tracksInsideTitleSafe).toBe(true);
+    }
     expect(STATS_NOTICE_LAYOUT.width).toBeLessThanOrEqual(theme.design.safeWidth);
-    expect(STATS_NOTICE_LAYOUT.height).toBeLessThanOrEqual(theme.design.safeHeight);
+    expect(statsNoticeShellHeight(10_000)).toBeLessThanOrEqual(theme.design.safeHeight);
+  });
+
+  it('is as tall as its body: all of it fits and no empty band is left beneath it', () => {
+    for (const body of BODIES) {
+      const stack = statsNoticeBodyStack(body);
+      const shell = shellFor(body);
+      const label = JSON.stringify(body);
+      expect(stack.height, label).toBeLessThanOrEqual(shell.contentBounds.height);
+      // All that is left under the body is the footer gap, plus rounding up to a whole pixel.
+      expect(shell.contentBounds.height - stack.height, label).toBeLessThan(STATS_NOTICE_LAYOUT.footerGap + 1);
+    }
+  });
+
+  it('is shorter without the note line, which production does not show', () => {
+    const withNote = statsNoticeShellHeight(statsNoticeBodyStack(ROOMY).height);
+    const withoutNote = statsNoticeShellHeight(statsNoticeBodyStack({ ...ROOMY, note: null }).height);
+    expect(withoutNote).toBeLessThan(withNote);
+  });
+
+  it('wraps the body to the content width the shell then has, at every height', () => {
+    for (const body of BODIES) expect(statsNoticeContentWidth()).toBe(shellFor(body).contentBounds.width);
+  });
+
+  it('spaces the body on the 4px grid, tighter inside a group than between groups', () => {
+    const { paragraphGap, toggleGap, noteGap, footerGap } = STATS_NOTICE_LAYOUT;
+    for (const gap of [paragraphGap, toggleGap, noteGap, footerGap]) expect(gap % 4, `${gap}`).toBe(0);
+    expect(paragraphGap).toBeLessThan(toggleGap);
+    // The toggle row sits nearer the copy it belongs to than to the footer actions.
+    for (const body of BODIES) {
+      const shell = shellFor(body);
+      const bodyBottom = shell.contentBounds.y + statsNoticeBodyStack(body).height;
+      expect(shell.footerTrack.y - bodyBottom).toBeGreaterThan(toggleGap);
+    }
   });
 
   it('opens BELOW the "What is sent" panel, which it can open over itself', () => {
@@ -632,11 +682,6 @@ describe('the first-run dialog layout', () => {
     const stack = statsNoticeBodyStack({ ...ROOMY, note: null });
     expect(stack.noteY).toBeNull();
     expect(stack.height).toBe(stack.toggleRowY + STATS_NOTICE_LAYOUT.rowHeight);
-  });
-
-  it('fits a roomy body inside the shell\'s content rect, note and all', () => {
-    expect(statsNoticeBodyStack(ROOMY).height).toBeLessThanOrEqual(content.height);
-    expect(statsNoticeBodyStack({ ...ROOMY, note: null }).height).toBeLessThanOrEqual(content.height);
   });
 
   it('gives the toggle row a full touch target', () => {

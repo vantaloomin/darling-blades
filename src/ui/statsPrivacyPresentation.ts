@@ -27,6 +27,7 @@
  */
 
 import type { CardsField, DuelField, HeartbeatField } from '../meta/playSignals';
+import { modalShellLayout } from './layout';
 import { theme } from './theme';
 import { SETTINGS_LEFT } from './settingsPresentation';
 
@@ -70,7 +71,7 @@ export const STATS_PANEL_INTRO =
 export const STATS_PANEL_HEADINGS = {
   heartbeat: 'When you open the game',
   duel: 'After each finished duel',
-  cards: 'When you close the game',
+  cards: 'When you leave or close the game',
 } as const;
 
 /**
@@ -351,10 +352,20 @@ export interface StatsNoticeStampTarget {
 }
 
 /**
- * Record that the player has been told, in the one order that is safe: write
- * the version, persist it, and only then let the facade send. Reversing the
- * last two would let a heartbeat leave against a save that had not yet been
- * written, so a crash in between would send without the promise being kept.
+ * Record that the player has been told, then let the facade send.
+ *
+ * The order that matters is the first and the last: the gate reads the
+ * IN-MEMORY save at send time and refuses while its notice version is below
+ * the current one, so the version must be written before `acknowledge()` or
+ * the launch's heartbeat would be refused and never retried.
+ *
+ * `touch()` only SCHEDULES the write (`SaveManager.touch` debounces it by a
+ * quarter second), so the heartbeat can leave before the stamp is on disk.
+ * That is safe in the one direction that counts: the player has already been
+ * told, and if the game dies inside that window the stamp is simply lost, the
+ * notice shows again next launch, and nothing is sent before it is answered.
+ * Showing the notice twice is the failure mode the save format already treats
+ * as the safe one (see `SaveData.settings.statsNoticeVersion`).
  */
 export function stampStatsNotice(target: StatsNoticeStampTarget, version: number): void {
   target.setNoticeVersion(version);
@@ -433,27 +444,36 @@ export function createStatsNoticeController(
 // ---------------------------------------------------------------------------
 
 /**
- * The blocking first-run dialog. Same footprint as the deck-repair notice the
- * menu already shows (760x430), so the two arrival overlays read as one family,
- * and well inside the 1280x720 design canvas and its title-safe frame.
+ * The blocking first-run dialog. The same width as the deck-repair notice the
+ * menu already shows (760), so the two arrival overlays read as one family;
+ * its HEIGHT is not a constant but the measured body plus the shell's own
+ * chrome (`statsNoticeShellHeight`), so there is no empty band between the
+ * toggle and the buttons, least of all in the production case, where the note
+ * line under the toggle is absent. Capped at the title-safe frame's height.
  *
  * `depth` puts it BELOW `theme.depth.modal`, which is where the "What is sent"
  * panel opens, so the panel is never obscured by the dialog that opened it.
  */
 export const STATS_NOTICE_LAYOUT = {
   width: 760,
-  height: 430,
+  /** The tallest the dialog may grow: the title-safe frame. */
+  maxHeight: theme.design.safeHeight,
   /** Heavier than the panel's 0.62: this is the only thing on screen. */
   dimAlpha: 0.72,
   depth: theme.depth.overlay,
-  /** Between the two body paragraphs. */
-  paragraphGap: 14,
-  /** Body block to the top of the toggle row's band. */
-  toggleGap: 20,
+  /** Between the two body paragraphs: one related group. */
+  paragraphGap: theme.space(3),
+  /** Body block to the top of the toggle row's band: the next group. */
+  toggleGap: theme.space(4),
   /** The toggle row's band, at the touch-target floor. */
   rowHeight: theme.control.minHitHeight,
   /** Toggle row band to the state-aware line, when there is one. */
-  noteGap: 8,
+  noteGap: theme.space(2),
+  /**
+   * Added under the body, on top of the shell's own track gap, so the toggle
+   * row sits nearer the copy it belongs to than to the footer actions.
+   */
+  footerGap: theme.space(2),
   /** The On/Off control's track, the same 90px the Settings row uses. */
   toggleMinWidth: theme.control.minHitWidth,
   /** Isolation space between the row label and the toggle beside it. */
@@ -503,6 +523,37 @@ export function statsNoticeBodyStack(measured: StatsNoticeMeasuredBody): StatsNo
     noteY,
     height: noteY === null ? rowBottom : noteY + (measured.note ?? 0),
   };
+}
+
+/**
+ * The shell's chrome: everything `modalShellLayout` spends outside the content
+ * rect (padding, the title track, the footer track and the gaps between them).
+ * Read off the shared layout rather than restated, so a change to the shell's
+ * tracks moves this dialog with it.
+ */
+function statsNoticeShellProbe(): { chrome: number; contentWidth: number } {
+  const probe = modalShellLayout({ width: STATS_NOTICE_LAYOUT.width, height: STATS_NOTICE_LAYOUT.maxHeight });
+  return {
+    chrome: probe.panel.height - probe.contentBounds.height,
+    contentWidth: probe.contentBounds.width,
+  };
+}
+
+/**
+ * The wrap width of the dialog's body. It depends on the width alone, so the
+ * body can be measured BEFORE the shell exists and the shell then sized to it.
+ */
+export function statsNoticeContentWidth(): number {
+  return statsNoticeShellProbe().contentWidth;
+}
+
+/**
+ * The dialog's height for a measured body stack: the stack, the footer gap and
+ * the shell's chrome, whole pixels, never taller than the title-safe frame.
+ */
+export function statsNoticeShellHeight(stackHeight: number): number {
+  const wanted = Math.ceil(stackHeight + STATS_NOTICE_LAYOUT.footerGap + statsNoticeShellProbe().chrome);
+  return Math.min(STATS_NOTICE_LAYOUT.maxHeight, wanted);
 }
 
 /** The On/Off control, right-aligned to the content rect's right edge. */

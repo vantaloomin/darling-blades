@@ -337,8 +337,10 @@ deployed and the Settings toggle does not exist yet, so nothing sends.
   its License section links the three published pages. `index.html`
   carries `connect-src 'self' https://api.github.com
   https://db-signals.loominvanta.workers.dev`, connect-src only. The desktop
-  CSP (`src-tauri/tauri.conf.json`, must also allow `ipc:` and
-  `http://ipc.localhost`) is owed with a desktop run.
+  build adds `ipc: http://ipc.localhost` to that same meta policy at build
+  time (`scripts/cspForTarget.ts`, when `TAURI_ENV_PLATFORM` is set; PR #397),
+  because a policy in `tauri.conf.json` is added to the meta one and cannot
+  loosen it.
 - **DEPLOYED 2026-09-18** (owner-confirmed; replaces the T0 spike at the same
   hostname). KV namespace `db-signals-salt` created and its id committed in
   `worker/wrangler.toml` (an id is not a secret). The deploy token needed one
@@ -357,10 +359,10 @@ deployed and the Settings toggle does not exist yet, so nothing sends.
   `--view` was absent and silently ran the summary instead. One thing only
   the owner can see: the dashboard should show Workers Logs as off for
   `db-signals`.
-- **Still owed before release:** a desktop run to learn whether WebView2 exposes `doNotTrack`,
-  `globalPrivacyControl` and `sendBeacon` (the code survives any being absent;
-  which exist there is unmeasured); the k = 10 floor, which is T3's rollup and
-  is not true of anything yet.
+- **Desktop run done (PR #397, 2026-09-19):** WebView2 153 reports
+  `doNotTrack` as null and `globalPrivacyControl` as undefined, and has
+  `sendBeacon`; the code handles all three. **Still owed before release:** the
+  k = 10 floor, which is T3's rollup and is not true of anything yet.
 
 Branch: `claude/play-signals-transport` · PR: `feat: anonymous play stats, off in one tap`
 

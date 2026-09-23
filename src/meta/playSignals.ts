@@ -14,7 +14,9 @@
  * enum, so the raw values never exist server-side to leak.
  *
  * Three events:
- *   - `heartbeat` — at most once per launch, at most once per UTC day;
+ *   - `heartbeat` — at most once per launch. There is no daily cap on the
+ *                   client (that would need a date stored on the device); the
+ *                   Worker's rotating daily hash counts each device once a day;
  *   - `duel`      — one digest per completed duel, carrying NO card ids;
  *   - `cards`     — one batch at session end, tallied only in memory across a
  *                   single launch, one row per distinct card, carrying no duel
