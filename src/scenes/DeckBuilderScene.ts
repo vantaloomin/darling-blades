@@ -62,16 +62,18 @@ import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestur
 import { makeCardThumb } from '../ui/CardThumbCache';
 import { CardZoomPreview } from '../ui/CardZoomPreview';
 import { showDarlingsTutorial } from '../ui/DarlingsTutorial';
-import { computeDeckStats, curveBars, deckShapeLine, PIE_COLORS } from '../ui/deckStats';
+import { computeDeckStats, curveBars, deckCountsLine, deckPipCounts, PIE_COLORS } from '../ui/deckStats';
 import {
   DECK_PANE_LAYOUT,
   deckPaneOffsetY,
   deckPaneToggleState,
+  deckStatusTone,
   defaultDeckPaneMode,
   resolveDeckPaneMode,
   warchestSlotLabel,
   warchestSlotPosition,
   type DeckPaneMode,
+  type DeckStatusMessage,
 } from '../ui/deckPanePresentation';
 import { Dropdown, type DropdownOption } from '../ui/Dropdown';
 import { gateOnArt } from '../ui/artGate';
@@ -95,6 +97,8 @@ import {
   activeVisibleSavedDeck,
   builderFormatForDeck,
   collapseDeckRows,
+  deckBaseline,
+  deckCodeImportBlockers,
   formatDeckSize,
   formatLabel,
   formatPageCount,
@@ -102,8 +106,11 @@ import {
   formatRulesCopy,
   gridPosition,
   isDeckBuilderDirty,
+  newDeckFormat,
   offeredBuilderFormats,
+  restoreDeckBaseline,
   type BuilderFormat,
+  type DeckBaseline,
   visibleBuilderFormatTabs,
   visibleSavedDecks,
 } from '../ui/deckBuilderHelpers';
@@ -179,7 +186,8 @@ export class DeckBuilderScene extends Phaser.Scene {
   private filterDropdownRefreshers: Array<() => void> = [];
   /** Collection-style facets over the owned-card pool. */
   private filterState: CollectionFilterState = { ...defaultFilterState(), ownedOnly: true };
-  private deckCodeMessage = '';
+  /** One-off status message above the deck issues; cleared by every deck edit. */
+  private statusMessage: DeckStatusMessage | null = null;
   private landReserve: string[] = [];
   private deckPaneMode: DeckPaneMode = defaultDeckPaneMode();
   /** The card-back / playmat chooser, so a re-render or shutdown can close it. */
@@ -189,7 +197,7 @@ export class DeckBuilderScene extends Phaser.Scene {
   private classicRetired = false;
   /** UI working deck. A hidden active deck remains untouched in the save. */
   private workingDeckId: string | null = null;
-  private savedDeckSnapshot: Pick<SavedDeck, 'cards' | 'variantPins' | 'landReserve' | 'heroCardId' | 'darlingId'> | null = null;
+  private savedDeckSnapshot: DeckBaseline | null = null;
   private exitPrompt: ModalShell | null = null;
 
   constructor() {
@@ -217,11 +225,12 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.reserveFormatsEnabled = FEATURES.reserveFormats;
     this.classicRetired = FEATURES.classicRetired;
     this.workingDeckId = null;
+    this.savedDeckSnapshot = null;
     this.page = 0;
     this.deckPage = 0;
     this.deckPaneMode = defaultDeckPaneMode();
     this.filterState = { ...defaultFilterState(), ownedOnly: true };
-    this.deckCodeMessage = '';
+    this.statusMessage = null;
     this.touch = isTouchDevice();
     this.cells = [];
     this.rightPane = [];
@@ -236,13 +245,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     const requested = typeof data.deckId === 'string'
       ? save.decks.find((deck) => deck.id === data.deckId) ?? null
       : null;
-    const active = requested ?? activeVisibleSavedDeck(save.decks, save.activeDeckId, this.reserveFormatsEnabled);
-    this.workingDeckId = active?.id ?? null;
-    const slots = active ? cloneDeckSlots(active.cards, active.variantPins) : cloneDeckSlots([]);
-    this.deck = slots.cards;
-    this.variantPins = slots.variantPins;
-    this.landReserve = active?.landReserve ? [...active.landReserve] : [];
-    this.savedDeckSnapshot = this.snapshotSavedDeck(active);
+    this.loadWorkingDeck(requested ?? activeVisibleSavedDeck(save.decks, save.activeDeckId, this.reserveFormatsEnabled));
 
     // Design-space constants, NOT this.scale (= game size = 1280k×720k under
     // render scale; the camera shows the 1280×720 design window — see
@@ -374,7 +377,12 @@ export class DeckBuilderScene extends Phaser.Scene {
   }
 
   private activeFormat(): BuilderFormat {
-    return builderFormatForDeck(this.activeSavedDeck(), this.reserveFormatsEnabled);
+    const deck = this.activeSavedDeck();
+    // With no saved deck (every deck deleted) the draft is a new deck, so it
+    // sits in the format New Deck would give it, never a retired one.
+    return deck
+      ? builderFormatForDeck(deck, this.reserveFormatsEnabled)
+      : newDeckFormat(this.reserveFormatsEnabled, this.classicRetired);
   }
 
   private isReserveFormat(): boolean {
@@ -470,8 +478,12 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.filterPanel = panel;
 
     const bg = themedPanel(this, 18, 82, 300, 554, { alpha: 0.98, strokeAlpha: theme.alpha.chrome });
-    bg.setInteractive();
-    panel.add(bg);
+    // A Graphics has no hit area, so `bg.setInteractive()` swallowed nothing:
+    // a tap on the panel's empty space fell through and added the pool card
+    // underneath, unseen (hover zoom is off while the panel is open). This
+    // zone covers the whole footprint; the panel's controls sit above it.
+    const inputBlocker = this.add.zone(18 + 300 / 2, 82 + 554 / 2, 300, 554).setInteractive();
+    panel.add([bg, inputBlocker]);
     panel.add(
       this.add
         .text(42, 112, 'Pool Filters', {
@@ -533,6 +545,8 @@ export class DeckBuilderScene extends Phaser.Scene {
     ];
     mk(210, 'Color', colorOpts, () => this.filterState.color, (v) => (this.filterState.color = v));
 
+    // A reserve-format pool holds no lands (they live in the Warchest), so a
+    // Land facet there could only ever empty the grid.
     const typeOpts: DropdownOption<CardType | 'all'>[] = [
       { value: 'all', label: 'All' },
       { value: 'creature', label: 'Creature' },
@@ -540,7 +554,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       { value: 'ritual', label: 'Ritual' },
       { value: 'enchantment', label: 'Enchantment' },
       { value: 'artifact', label: 'Artifact' },
-      { value: 'land', label: 'Land' },
+      ...(this.isReserveFormat() ? [] : [{ value: 'land' as const, label: 'Land' }]),
     ];
     mk(262, 'Type', typeOpts, () => this.filterState.type, (v) => (this.filterState.type = v));
 
@@ -620,6 +634,14 @@ export class DeckBuilderScene extends Phaser.Scene {
   private renderPool(): void {
     for (const c of this.cells) c.destroy();
     this.cells = [];
+    // A Land facet chosen on a classic deck cannot survive a switch to a
+    // reserve format (the pool drops lands there), so it resets rather than
+    // leaving an empty grid behind a lit Filters button.
+    if (this.isReserveFormat() && this.filterState.type === 'land') {
+      this.filterState.type = 'all';
+      for (const refresh of this.filterDropdownRefreshers) refresh();
+      this.syncFilterButton();
+    }
     const save = Services.save.data;
     const pool = this.pool();
     const pages = Math.max(1, Math.ceil(pool.length / GRID_SIZE));
@@ -627,8 +649,9 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.syncPoolPager(pages);
 
     if (pool.length === 0) {
+      const emptyCopy = this.activePoolFilterCount() > 0 ? 'No owned cards match these filters.' : 'No cards in this set yet.';
       const empty = this.add
-        .text(POOL_X0 + 1.5 * POOL_PITCH_X, POOL_Y0 + POOL_PITCH_Y, 'No cards in this set yet.', {
+        .text(POOL_X0 + 1.5 * POOL_PITCH_X, POOL_Y0 + POOL_PITCH_Y, emptyCopy, {
           fontFamily: theme.fonts.ui,
           fontSize: theme.type.body + 'px',
           color: theme.colors.muted,
@@ -694,7 +717,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     const inDeck = this.countIn(this.deck, id);
     const ownershipLimit = isBasicLand(card) ? Number.POSITIVE_INFINITY : ownedCount(save, id);
     if (inDeck >= Math.min(this.copyLimit(), ownershipLimit)) return;
-    this.deckCodeMessage = '';
+    this.statusMessage = null;
     const next = appendDeckSlot({ cards: this.deck, variantPins: this.variantPins }, id);
     this.deck = next.cards;
     this.variantPins = next.variantPins;
@@ -712,7 +735,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     const card = CARD_DB[id];
     if (!card || (this.isReserveFormat() && card.types.includes('land'))) return;
     const cap = Math.min(this.copyLimit(), ownedCount(Services.save.data, id));
-    this.deckCodeMessage = '';
+    this.statusMessage = null;
     const additions = new Array(Math.max(0, cap - this.countIn(this.deck, id))).fill(id);
     const next = appendDeckSlots({ cards: this.deck, variantPins: this.variantPins }, additions);
     this.deck = next.cards;
@@ -733,7 +756,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.variantPins = next.variantPins;
     const active = this.activeSavedDeck();
     if (active?.heroCardId === id) active.heroCardId = null;
-    this.deckCodeMessage = '';
+    this.statusMessage = null;
     this.renderPool();
     this.renderDeck();
   }
@@ -745,7 +768,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       this.deck = next.cards;
       this.variantPins = next.variantPins;
     }
-    this.deckCodeMessage = '';
+    this.statusMessage = null;
     this.renderPool();
     this.renderDeck();
   }
@@ -755,36 +778,34 @@ export class DeckBuilderScene extends Phaser.Scene {
     return save.decks.find((d) => d.id === this.workingDeckId) ?? null;
   }
 
-  private snapshotSavedDeck(deck: SavedDeck | null | undefined): Pick<SavedDeck, 'cards' | 'variantPins' | 'landReserve' | 'heroCardId' | 'darlingId'> | null {
-    if (!deck) return null;
-    return {
-      cards: [...deck.cards],
-      variantPins: deck.cards.map((_, index) => deck.variantPins?.[index] ?? null),
-      landReserve: deck.landReserve ? [...deck.landReserve] : null,
-      heroCardId: deck.heroCardId,
-      darlingId: deck.darlingId ?? null,
-    };
-  }
-
-  private restoreSavedDeckSnapshot(): void {
-    const active = this.activeSavedDeck();
-    const snapshot = this.savedDeckSnapshot;
-    if (!active || !snapshot) return;
-    active.cards = [...snapshot.cards];
-    active.variantPins = [...(snapshot.variantPins ?? [])];
-    active.landReserve = snapshot.landReserve ? [...snapshot.landReserve] : null;
-    active.heroCardId = snapshot.heroCardId;
-    active.darlingId = snapshot.darlingId ?? null;
+  /**
+   * Point the builder at a deck, or at none. The unsaved-changes baseline
+   * follows the deck: reloading the deck already being edited keeps its
+   * baseline (the saved record may hold this session's synced draft), and any
+   * other deck, including the one a delete falls back to, starts from its own
+   * saved record. Every path that changes the working deck comes through here,
+   * so the baseline can never belong to a different deck.
+   */
+  private loadWorkingDeck(deck: SavedDeck | null): void {
+    this.workingDeckId = deck?.id ?? null;
+    const slots = deck ? cloneDeckSlots(deck.cards, deck.variantPins) : cloneDeckSlots([]);
+    this.deck = slots.cards;
+    this.variantPins = slots.variantPins;
+    this.landReserve = deck?.landReserve ? [...deck.landReserve] : [];
+    if (this.savedDeckSnapshot?.id !== this.workingDeckId) this.savedDeckSnapshot = deckBaseline(deck);
+    this.statusMessage = null;
   }
 
   private hasUnsavedDeckEdits(): boolean {
+    const active = this.activeSavedDeck();
     return isDeckBuilderDirty(
       {
         cards: this.deck,
         variantPins: this.variantPins,
         landReserve: this.landReserve,
-        heroCardId: this.activeSavedDeck()?.heroCardId ?? null,
-        darlingId: this.activeSavedDeck()?.darlingId ?? null,
+        heroCardId: active?.heroCardId ?? null,
+        darlingId: active?.darlingId ?? null,
+        format: active?.format,
       },
       this.savedDeckSnapshot,
     );
@@ -794,7 +815,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     const issues = this.currentIssues();
     const blocking = issues.find((issue) => issue.kind === 'error');
     if (blocking) {
-      this.deckCodeMessage = `Save blocked: ${blocking.message}`;
+      this.statusMessage = { text: `Save blocked: ${blocking.message}`, tone: 'danger' };
       return false;
     }
     const save = Services.save.data;
@@ -821,9 +842,9 @@ export class DeckBuilderScene extends Phaser.Scene {
     });
     save.activeDeckId = id;
     this.workingDeckId = id;
-    this.savedDeckSnapshot = this.snapshotSavedDeck(save.decks.find((d) => d.id === id) ?? null);
+    this.savedDeckSnapshot = deckBaseline(save.decks.find((d) => d.id === id) ?? null);
     Services.save.flush();
-    this.deckCodeMessage = '';
+    this.statusMessage = null;
     return true;
   }
 
@@ -873,7 +894,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       enabled: this.currentIssues().every((issue) => issue.kind !== 'error'),
       onTap: () => {
         if (!this.saveWorkingDeck()) {
-          status.setText(this.deckCodeMessage);
+          status.setText(this.statusMessage?.text ?? '');
           return;
         }
         shell.close();
@@ -885,7 +906,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       minWidth: 190,
       onTap: () => {
         shell.close();
-        this.restoreSavedDeckSnapshot();
+        restoreDeckBaseline(Services.save.data.decks, this.savedDeckSnapshot, this.workingDeckId);
         Services.save.flush();
         this.scene.start('MainMenu');
       },
@@ -912,7 +933,10 @@ export class DeckBuilderScene extends Phaser.Scene {
     if (!deck || deck.format === 'darlings' || !this.deck.includes(id)) return;
     const next = deck.heroCardId === id ? null : id;
     deck.heroCardId = next;
-    this.deckCodeMessage = next ? `Hero Image: ${def(CARD_DB, id).name}` : 'Hero image cleared.';
+    this.statusMessage = {
+      text: next ? `Hero Image: ${def(CARD_DB, id).name}` : 'Hero image cleared.',
+      tone: 'success',
+    };
     Services.save.flush();
     Sfx.play('shimmer');
     this.renderDeck();
@@ -1062,16 +1086,23 @@ export class DeckBuilderScene extends Phaser.Scene {
     const active = this.syncDraftToActiveDeck();
     if (!active) {
       // No saved deck yet: formats live on the saved record, so tell the
-      // player instead of silently ignoring the tap.
-      this.deckCodeMessage = 'Save your deck first, then pick its format.';
-      this.renderDeck();
+      // player instead of silently ignoring the tap. The draft already sits in
+      // the new-deck format, so its own (lit) tab needs no answer.
+      if (this.activeFormat() !== format) {
+        this.statusMessage = { text: 'Save your deck first, then pick its format.', tone: 'danger' };
+        this.renderDeck();
+      }
       return;
     }
     if (this.activeFormat() === format) {
       if (format === 'darlings') this.openDarlingsFormat();
       return;
     }
+    // The switch writes the saved record at once (the format lives there), but
+    // it stays an unsaved change: the baseline carries the format, so Leave
+    // Without Saving puts the old format back with the old cards.
     this.landReserve = switchDeckFormat(active, format);
+    this.statusMessage = null;
     Services.save.flush();
     this.deckPage = 0;
     this.deckPaneMode = defaultDeckPaneMode();
@@ -1149,7 +1180,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       active.variantPins = [...this.variantPins];
       active.landReserve = [...this.landReserve];
       Services.save.flush();
-      this.deckCodeMessage = '';
+      this.statusMessage = null;
       this.renderPool();
       this.renderDeck();
       shell.close();
@@ -1220,6 +1251,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.landReserve = next.slice(0, LAND_RESERVE_SIZE);
     const active = this.syncDraftToActiveDeck();
     if (active) active.landReserve = [...this.landReserve];
+    this.statusMessage = null;
     Services.save.flush();
     this.renderDeck();
   }
@@ -1617,17 +1649,9 @@ export class DeckBuilderScene extends Phaser.Scene {
       // Dirty tracking follows the deck actually being edited, which is the
       // working deck rather than the saved active id (they diverge when a
       // hidden reserve deck is still the save's active deck).
-      const previousId = this.workingDeckId;
-      this.workingDeckId = id;
       save.activeDeckId = id;
-      const activeDeck = save.decks.find((d) => d.id === id);
-      const slots = activeDeck ? cloneDeckSlots(activeDeck.cards, activeDeck.variantPins) : cloneDeckSlots([]);
-      this.deck = slots.cards;
-      this.variantPins = slots.variantPins;
-      this.landReserve = activeDeck?.landReserve ? [...activeDeck.landReserve] : [];
+      this.loadWorkingDeck(save.decks.find((d) => d.id === id) ?? null);
       this.deckPaneMode = defaultDeckPaneMode();
-      if (id !== previousId) this.savedDeckSnapshot = this.snapshotSavedDeck(activeDeck);
-      this.deckCodeMessage = '';
       Services.save.flush();
       this.renderPool();
       this.renderDeck();
@@ -1753,13 +1777,11 @@ export class DeckBuilderScene extends Phaser.Scene {
         }
         deleteDeck(save, deck.id);
         if (isActive) {
-          const activeDeck = activeVisibleSavedDeck(save.decks, save.activeDeckId, this.reserveFormatsEnabled);
-          this.workingDeckId = activeDeck?.id ?? null;
-          const slots = activeDeck ? cloneDeckSlots(activeDeck.cards, activeDeck.variantPins) : cloneDeckSlots([]);
-          this.deck = slots.cards;
-          this.variantPins = slots.variantPins;
-          this.landReserve = activeDeck?.landReserve ? [...activeDeck.landReserve] : [];
-          this.deckCodeMessage = '';
+          // loadWorkingDeck also moves the unsaved-changes baseline to the
+          // fallback deck. Keeping the deleted deck's baseline made Leave
+          // Without Saving write the deleted deck over this one.
+          this.loadWorkingDeck(activeVisibleSavedDeck(save.decks, save.activeDeckId, this.reserveFormatsEnabled));
+          this.deckPaneMode = defaultDeckPaneMode();
           this.renderPool();
           this.renderDeck();
         }
@@ -1787,6 +1809,9 @@ export class DeckBuilderScene extends Phaser.Scene {
         pickerPage = Math.floor(index / pageSize);
         setActiveDeck(id);
         closeOverlay();
+        // A Darlings deck is unplayable until she is chosen, and her chooser
+        // was otherwise reachable only through the already-lit Darlings tab.
+        if (format === 'darlings') this.openDarlingsFormat();
       };
       const chooseFormat = (): void => this.showNewDeckFormatPrompt(create);
       const bg = this.add
@@ -2160,17 +2185,58 @@ export class DeckBuilderScene extends Phaser.Scene {
       );
     }
 
-    // One merged summary line (counts + pips): the old second line is what
-    // used to collide with the status band below (isolation pass 2026-08-18).
-    push(
-      this.add
-        .text(x0, DECK_PANE_LAYOUT.summary.summaryLineY, deckShapeLine(s, { lands: true }), {
+    // One merged summary line (counts left, colour pips right): the old second
+    // line is what used to collide with the status band below (isolation pass
+    // 2026-08-18). Colours are pip beads, as everywhere else in the builder;
+    // the old "W·12 R·44" letter run broke that convention. In a reserve
+    // format the counts name the Warchest fill, not a "0 lands" that never
+    // changes.
+    const y = DECK_PANE_LAYOUT.summary.summaryLineY;
+    const pipSize = 16;
+    let right = PANEL_RIGHT_X;
+    const pips = deckPipCounts(s);
+    const beads: Array<{ color: string; count: number | null }> = pips.length > 0
+      ? pips
+      // A deck of colorless spells shows the colorless bead, as its picker
+      // tile does; an empty deck shows no colour at all.
+      : s.nonlands > 0 ? [{ color: 'C', count: null }] : [];
+    for (const bead of [...beads].reverse()) {
+      if (bead.count !== null) {
+        const count = this.add
+          .text(right, y, `${bead.count}`, {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.caption}px`,
+            color: theme.colors.body,
+          })
+          .setOrigin(1, 0.5);
+        push(count);
+        right -= count.width + 3;
+      }
+      const key = `pip-${bead.color}`;
+      if (this.textures.exists(key)) {
+        push(this.add.image(right - pipSize / 2, y, key).setDisplaySize(pipSize, pipSize));
+      }
+      right -= pipSize + 10;
+    }
+    const counts = this.add
+      .text(
+        x0,
+        y,
+        deckCountsLine(
+          s,
+          this.isReserveFormat()
+            ? { kind: 'warchest', filled: this.landReserve.length, size: LAND_RESERVE_SIZE }
+            : { kind: 'list' },
+        ),
+        {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           color: theme.colors.body,
-        })
-        .setOrigin(0, 0.5),
-    );
+        },
+      )
+      .setOrigin(0, 0.5);
+    this.fitTextToWidth(counts, right - x0);
+    push(counts);
   }
 
   private removeCardAt(index: number, pointer: Phaser.Input.Pointer): void {
@@ -2185,7 +2251,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.variantPins = next.variantPins;
     const active = this.activeSavedDeck();
     if (active?.heroCardId === id && !this.deck.includes(id)) active.heroCardId = null;
-    this.deckCodeMessage = '';
+    this.statusMessage = null;
     this.renderPool();
     this.renderDeck();
   }
@@ -2226,20 +2292,25 @@ export class DeckBuilderScene extends Phaser.Scene {
       : rowsWithoutPager;
     const pages = formatPageCount(entries.length, rows);
     this.deckPage = Phaser.Math.Clamp(this.deckPage, 0, pages - 1);
+    // A Darlings deck's face is always its Darling (toggleDeckHero refuses
+    // there), so the hero star column would be a row of controls that do
+    // nothing. The unavailable-card marker still shows.
+    const heroEditable = this.activeFormat() !== 'darlings';
     formatPageSlice(entries, this.deckPage, rows).forEach((entry, i) => {
       const d = CARD_DB[entry.cardId];
       // All row elements center on one line (design-system alignment rule:
       // icons align to the optical center of the adjacent text).
       const cy = listY0 + i * rowPitch + Math.round(rowPitch / 2) - 7;
+      const starGlyph = !d ? '!' : !heroEditable ? '' : heroId === entry.cardId ? '★' : '☆';
       const star = this.add
-        .text(x0, cy, d ? heroId === entry.cardId ? '★' : '☆' : '!', {
+        .text(x0, cy, starGlyph, {
           fontFamily: theme.fonts.ui,
           fontSize: DECK_PANE_LAYOUT.cards.starSize + 'px',
           fontStyle: '700',
           color: d ? heroId === entry.cardId ? theme.colors.goldHover : theme.colors.muted : theme.colors.danger,
         })
         .setOrigin(0, 0.5);
-      if (d) {
+      if (d && heroEditable) {
         star.setInteractive({ useHandCursor: true });
         bindTapButton(this, star, () => this.toggleDeckHero(entry.cardId));
         // 44 wide so a near-miss lands on the star (hero toggle), never on
@@ -2415,7 +2486,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.variantPins = next.variantPins;
     const active = this.activeSavedDeck();
     if (active?.heroCardId && !this.deck.includes(active.heroCardId)) active.heroCardId = null;
-    this.deckCodeMessage = '';
+    this.statusMessage = null;
     this.renderPool();
     this.renderDeck();
   }
@@ -2528,7 +2599,7 @@ export class DeckBuilderScene extends Phaser.Scene {
         size: 'sm',
         minWidth: 90,
         onTap: () => {
-          this.deckCodeMessage = '';
+          this.statusMessage = null;
           const next = appendDeckSlot({ cards: this.deck, variantPins: this.variantPins }, id);
           this.deck = next.cards;
           this.variantPins = next.variantPins;
@@ -2561,14 +2632,17 @@ export class DeckBuilderScene extends Phaser.Scene {
     }
 
     // validation + save
+    const message = this.statusMessage;
     const issueLines = issues
-      .slice(0, this.deckCodeMessage ? 1 : 2)
+      .slice(0, message ? 1 : 2)
       .map((i) => `${i.kind === 'error' ? '✕' : '⚠'} ${i.message}`);
-    const statusLines = this.deckCodeMessage ? [this.deckCodeMessage, ...issueLines] : issueLines;
+    const statusLines = message ? [message.text, ...issueLines] : issueLines;
     // Two lines in every view: the status band is the only error surface now,
     // and one line clipped the first issue mid-sentence.
     this.status.setMaxLines(DECK_PANE_LAYOUT.summary.statusMaxLines);
-    this.status.setColor(issues.some((i) => i.kind === 'error') ? theme.colors.danger : this.deckCodeMessage ? theme.colors.success : theme.colors.danger);
+    this.status.setColor(
+      deckStatusTone(message, blocking.length > 0) === 'success' ? theme.colors.success : theme.colors.danger,
+    );
     this.status.setText(statusLines.join('\n'));
     const canSave = issues.every((i) => i.kind !== 'error');
     // Bottom action row: Export left-aligned to the x0 gutter, Import
@@ -2616,7 +2690,7 @@ export class DeckBuilderScene extends Phaser.Scene {
   private exportDeckCode(): void {
     const errors = this.currentIssues().filter((issue) => issue.kind === 'error');
     if (errors.length > 0) {
-      this.deckCodeMessage = `Export blocked: ${errors[0].message}`;
+      this.statusMessage = { text: `Export blocked: ${errors[0].message}`, tone: 'danger' };
       this.renderDeck();
       return;
     }
@@ -2632,22 +2706,32 @@ export class DeckBuilderScene extends Phaser.Scene {
   private applyDeckCodeImport(input: string, renderOnFailure = true): boolean {
     const decoded = decodeDeck(input, DECK_CODE_CARD_IDS);
     if (!decoded.ok) {
-      this.deckCodeMessage = `Import failed: ${deckCodeErrorMessage(decoded.error)}`;
+      this.statusMessage = { text: `Import failed: ${deckCodeErrorMessage(decoded.error)}`, tone: 'danger' };
       if (renderOnFailure) this.renderDeck();
       return false;
     }
 
-    let issues: ReturnType<typeof validateDeck>;
-    try {
-      issues = this.currentIssues(decoded.cards);
-    } catch {
-      this.deckCodeMessage = 'Import failed: that code contains an unknown card.';
+    // A retired classic deck takes no list until it changes format, and
+    // saying so beats judging a Standard code against the 60-card rules.
+    if (this.classicRetired && this.activeFormat() === 'constructed') {
+      this.statusMessage = { text: `Import rejected: ${CLASSIC_RETIRED_ISSUE}`, tone: 'danger' };
       if (renderOnFailure) this.renderDeck();
       return false;
     }
-    const blocking = issues.filter((issue) => issue.kind === 'error');
+
+    // Judged only on what the code carries: an unfinished Warchest or an
+    // unchosen Darling stays a status-band issue after the import, and no
+    // longer rejects a legal code for every new deck.
+    let blocking: ReturnType<typeof validateDeck>;
+    try {
+      blocking = deckCodeImportBlockers((cards) => this.currentIssues(cards), decoded.cards);
+    } catch {
+      this.statusMessage = { text: 'Import failed: that code contains an unknown card.', tone: 'danger' };
+      if (renderOnFailure) this.renderDeck();
+      return false;
+    }
     if (blocking.length > 0) {
-      this.deckCodeMessage = `Import rejected: ${blocking[0].message}`;
+      this.statusMessage = { text: `Import rejected: ${blocking[0].message}`, tone: 'danger' };
       if (renderOnFailure) this.renderDeck();
       return false;
     }
@@ -2656,7 +2740,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.deck = slots.cards;
     this.variantPins = slots.variantPins;
     this.deckPage = 0;
-    this.deckCodeMessage = 'Imported deck code. Click Save Deck to keep it.';
+    this.statusMessage = { text: 'Deck code imported. Save Deck to keep it.', tone: 'success' };
     this.renderPool();
     this.renderDeck();
     return true;
@@ -2758,8 +2842,14 @@ export class DeckBuilderScene extends Phaser.Scene {
         variant: 'primary',
         minWidth: 100,
         onTap: () => {
-          if (this.applyDeckCodeImport(textarea.value, false)) this.closeDeckCodeOverlay();
-          else note.setText(this.deckCodeMessage).setColor(theme.colors.danger);
+          if (this.applyDeckCodeImport(textarea.value, false)) {
+            this.closeDeckCodeOverlay();
+            return;
+          }
+          // The overlay's note owns this failure. Left in the status band it
+          // resurfaced at the next re-render, long after Cancel.
+          note.setText(this.statusMessage?.text ?? '').setColor(theme.colors.danger);
+          this.statusMessage = null;
         },
       });
       const cancelBtn = themedButton(this, 710, 472, 'Cancel', {
@@ -2797,7 +2887,7 @@ export class DeckBuilderScene extends Phaser.Scene {
         if (!document.execCommand('copy')) throw new Error('copy failed');
       }
       if (note.active) note.setText('Copied.').setColor(theme.colors.success);
-      this.deckCodeMessage = 'Deck code copied.';
+      this.statusMessage = { text: 'Deck code copied.', tone: 'success' };
       this.renderDeck();
     } catch {
       if (note.active) note.setText('Copy failed. Select the code and copy it manually.').setColor(theme.colors.danger);

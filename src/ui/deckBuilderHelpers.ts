@@ -1,3 +1,4 @@
+import type { DeckIssue } from '../meta/DeckStorage';
 import { DARLINGS_DECK_SIZE, WARCHEST_DECK_SIZE } from '../meta/warchest';
 import type { SavedDeck } from '../meta/SaveManager';
 
@@ -23,6 +24,17 @@ export function offeredBuilderFormats(
   return classicRetired
     ? ALL_BUILDER_FORMATS.filter((format) => format !== 'constructed')
     : [...ALL_BUILDER_FORMATS];
+}
+
+/**
+ * The format a builder with no saved deck drafts in: the first offered format,
+ * the same one the New Deck prompt leads with. A deckless builder (every deck
+ * deleted) used to fall back to Constructed unconditionally, which after
+ * classic retirement drafted a deck that could never be saved, under a red
+ * "Classic" label, while the format tabs answered "Save your deck first".
+ */
+export function newDeckFormat(reserveFormatsEnabled: boolean, classicRetired: boolean): BuilderFormat {
+  return offeredBuilderFormats(reserveFormatsEnabled, classicRetired)[0] ?? 'constructed';
 }
 
 /**
@@ -159,12 +171,60 @@ export interface DeckBuilderWorkingState {
   landReserve: readonly string[];
   heroCardId: string | null;
   darlingId?: string | null;
+  format?: SavedDeck['format'];
 }
 
-/** Compare every editable deck slot against the last saved deck record. */
+/**
+ * The last-saved state of the deck being edited: everything "Leave Without
+ * Saving" puts back, format included (a format switch writes the saved record
+ * at once, so without it the exit prompt's promise was false). It carries the
+ * deck's id so a restore can only ever land on the deck it was taken from.
+ */
+export type DeckBaseline = Pick<
+  SavedDeck,
+  'id' | 'format' | 'cards' | 'variantPins' | 'landReserve' | 'heroCardId' | 'darlingId'
+>;
+
+export function deckBaseline(deck: SavedDeck | null | undefined): DeckBaseline | null {
+  if (!deck) return null;
+  return {
+    id: deck.id,
+    format: deck.format,
+    cards: [...deck.cards],
+    variantPins: deck.cards.map((_, index) => deck.variantPins?.[index] ?? null),
+    landReserve: deck.landReserve ? [...deck.landReserve] : null,
+    heroCardId: deck.heroCardId,
+    darlingId: deck.darlingId ?? null,
+  };
+}
+
+/**
+ * Put the edited deck back to its baseline. Writes nothing, and returns false,
+ * unless the baseline's deck still exists AND is the deck being edited: a
+ * baseline left over from a deck deleted in the picker once wrote that deck's
+ * cards, Warchest, hero and Darling over the deck the builder fell back to.
+ */
+export function restoreDeckBaseline(
+  decks: readonly SavedDeck[],
+  baseline: DeckBaseline | null,
+  workingDeckId: string | null,
+): boolean {
+  if (!baseline || baseline.id !== workingDeckId) return false;
+  const deck = decks.find((candidate) => candidate.id === baseline.id);
+  if (!deck) return false;
+  deck.format = baseline.format;
+  deck.cards = [...baseline.cards];
+  deck.variantPins = [...(baseline.variantPins ?? [])];
+  deck.landReserve = baseline.landReserve ? [...baseline.landReserve] : null;
+  deck.heroCardId = baseline.heroCardId;
+  deck.darlingId = baseline.darlingId ?? null;
+  return true;
+}
+
+/** Compare every editable deck slot, and the format, against the last saved deck record. */
 export function isDeckBuilderDirty(
   working: DeckBuilderWorkingState,
-  saved: Pick<SavedDeck, 'cards' | 'variantPins' | 'landReserve' | 'heroCardId' | 'darlingId'> | null,
+  saved: Pick<SavedDeck, 'cards' | 'variantPins' | 'landReserve' | 'heroCardId' | 'darlingId' | 'format'> | null,
 ): boolean {
   if (!saved) return working.cards.length > 0 || working.landReserve.length > 0 || working.heroCardId !== null || working.darlingId != null;
   const savedPins = saved.cards.map((_, index) => saved.variantPins?.[index] ?? null);
@@ -173,7 +233,27 @@ export function isDeckBuilderDirty(
     || !sameArray(working.variantPins, savedPins)
     || !sameArray(working.landReserve, savedReserve)
     || working.heroCardId !== (saved.heroCardId ?? null)
-    || (working.darlingId ?? null) !== (saved.darlingId ?? null);
+    || (working.darlingId ?? null) !== (saved.darlingId ?? null)
+    || (working.format ?? 'constructed') !== (saved.format ?? 'constructed');
+}
+
+/**
+ * The issues that block importing a deck code. A code carries only a card
+ * list, so an import is judged only on what that list causes. Anything else
+ * (an unfinished Warchest, a Darling not yet chosen) reports the same issue
+ * whatever the list holds, so validating an empty list finds
+ * exactly those, and they stay in the status band instead of blocking the
+ * import. Every new reserve-format deck starts with an empty Warchest, so
+ * this used to reject a legal code for every new deck.
+ */
+export function deckCodeImportBlockers(
+  validate: (cards: readonly string[]) => readonly DeckIssue[],
+  imported: readonly string[],
+): DeckIssue[] {
+  // An empty import shares the empty list's deck-size issue, so only a
+  // non-empty list can tell card-independent issues apart.
+  const unrelated = new Set(imported.length > 0 ? validate([]).map((issue) => issue.message) : []);
+  return validate(imported).filter((issue) => issue.kind === 'error' && !unrelated.has(issue.message));
 }
 
 function sameArray(left: readonly unknown[], right: readonly unknown[]): boolean {

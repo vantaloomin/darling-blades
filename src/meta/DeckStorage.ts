@@ -162,7 +162,7 @@ export function validateLimitedDeck(
     if (d.types.includes('creature')) creatures += n;
   }
   if (cards.length === LIMITED_DECK_SIZE && creatures < 8) {
-    issues.push({ kind: 'warning', message: `${creatures} creatures - combat wins games` });
+    issues.push({ kind: 'warning', message: `Only ${creatures} creatures (combat wins games)` });
   }
   return issues;
 }
@@ -203,6 +203,12 @@ export function saveDeck(
         ? [...previous.landReserve]
         : null,
     variantPins: slots.variantPins,
+    // Style belongs to the deck (v33) and is edited in place on the saved
+    // record, never through this call, so a save carries it forward exactly as
+    // it carries landStyle. Rebuilding the record without these keys used to
+    // reset every saved deck to the default card back and playmat.
+    cardBack: previous?.cardBack ?? null,
+    playmat: previous?.playmat ?? null,
   };
   if (existing >= 0) save.decks[existing] = saved;
   else save.decks.push(saved);
@@ -263,6 +269,8 @@ export function copyDeck(save: SaveData, deckId: string): string | null {
     darlingId: src.darlingId ?? null,
     landReserve: src.landReserve ? [...src.landReserve] : null,
     variantPins: cloneDeckSlots(src.cards, src.variantPins).variantPins,
+    cardBack: src.cardBack ?? null,
+    playmat: src.playmat ?? null,
   });
   return id;
 }

@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { computeDeckStats, curveBars, CURVE_MAX, deckShapeLine } from '../../src/ui/deckStats';
+import {
+  computeDeckStats,
+  curveBars,
+  CURVE_MAX,
+  deckCountsLine,
+  deckPipCounts,
+  deckShapeLine,
+} from '../../src/ui/deckStats';
 import { deckOf, TEST_DB } from '../helpers';
 
 /** The deck-builder stats panel renders this aggregation; pin the math. */
@@ -89,6 +96,43 @@ describe('curve bar geometry', () => {
   });
 });
 
+/** The Deck Builder's summary: type counts left, colour pips (as beads) right. */
+describe('deck summary counts and pips', () => {
+  const spellsOnly = computeDeckStats(deckOf([['bear', 2], ['shock', 1]]), TEST_DB);
+  const withLands = computeDeckStats(deckOf([['forest', 3], ['bear', 2], ['shock', 1]]), TEST_DB);
+
+  it('names the Warchest fill in a reserve format instead of a land count that reads zero', () => {
+    const line = deckCountsLine(spellsOnly, { kind: 'warchest', filled: 7, size: 10 });
+    expect(line).toContain('Warchest 7/10');
+    expect(line).toContain('2 creatures');
+    expect(line).not.toContain('lands');
+  });
+
+  it('counts lands where they really are', () => {
+    // A classic deck holds its lands in the list.
+    expect(deckCountsLine(withLands, { kind: 'list' })).toContain('3 lands');
+    expect(deckCountsLine(withLands, { kind: 'list' })).not.toContain('Warchest');
+    // A migrated deck awaiting repair still has lands in its reserve-format
+    // list, and the line says so until the repair removes them.
+    expect(deckCountsLine(withLands, { kind: 'warchest', filled: 0, size: 10 })).toContain('3 lands');
+  });
+
+  it('gives each present colour its pip count, in WUBRG order, for the beads', () => {
+    expect(deckPipCounts(withLands)).toEqual([
+      { color: 'R', count: 1 },
+      { color: 'G', count: 2 },
+    ]);
+    expect(deckPipCounts(computeDeckStats(deckOf([['forest', 2]]), TEST_DB))).toEqual([]);
+  });
+
+  it('keeps player-facing copy free of em-dashes', () => {
+    for (const lands of [{ kind: 'list' as const }, { kind: 'warchest' as const, filled: 10, size: 10 }]) {
+      expect(deckCountsLine(withLands, lands)).not.toContain('—');
+    }
+  });
+});
+
+/** The text-only form the Limited builder still prints. */
 describe('deck shape line', () => {
   const stats = computeDeckStats(deckOf([['forest', 3], ['bear', 2], ['shock', 1]]), TEST_DB);
 
