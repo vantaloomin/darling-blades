@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { CARD_DB } from '../data/catalog';
+import { RARITY_NAMES } from '../data/glossary';
 import { createRngState } from '../engine/rng';
 import { def } from '../engine/types';
 import type { AddResult } from '../meta/Collection';
@@ -25,6 +26,9 @@ import {
   indexAtGate,
   inertiaStep,
   minimapSegments,
+  PACK_BUTTON_PANEL,
+  PACK_BUTTON_Y,
+  packRevealLayout,
   railOffsetForIndex,
   runwayOrder,
   RUNWAY_CARD_HALF_HEIGHT,
@@ -46,13 +50,19 @@ import { queueAchievementUnlockToasts } from '../ui/achievementToast';
 import { Toast } from '../ui/Toast';
 import { backButton, modalShell, panel, registerSceneBackNavigation, themedButton, type ThemedButton } from '../ui/themeWidgets';
 import { ARTHURIAN_COURT_PACK_ART, bakePackArt, CELTIC_FAE_PACK_ART, DARK_TALES_PACK_ART, DROWNED_DEEP_PACK_ART, GOTHIC_MONSTERS_PACK_ART, SANDS_OF_THE_DUAT_PACK_ART,
-  STARBORNE_PACK_ART, YOKAI_NIGHTS_PACK_ART, packPriceForSku, packSetForSku, packTextureForSku, type BoosterSku } from './ShopScene';
+  STARBORNE_PACK_ART, YOKAI_NIGHTS_PACK_ART, packPriceForSku, packSetForSku, packTextureForSku, type BoosterSku, type ShopSceneData } from './ShopScene';
 
-const GRID_Y0 = 184;
-const GRID_DY = 216;
-const SPECIAL_Y = 526;
-const SPECIAL_SCALE = 0.54;
-const BUTTON_Y = 674;
+/**
+ * The CTA rail sits on the title-safe footer line (it was at y 674, which put
+ * its buttons' lower edge 10 px outside the frame). The reveal grid is laid
+ * out by `packRevealLayout`, which keeps every card above the rail's panel.
+ */
+const BUTTON_Y = PACK_BUTTON_Y;
+
+/** Pack Opening entry data: a single pack or a batch, plus where the Shop strip stood. */
+type PackOpeningData =
+  | (PackResult & { sku?: BoosterSku; shopBoosterIndex?: number })
+  | { batch: PackResult[]; sku?: BoosterSku; shopBoosterIndex?: number };
 
 /** Face-down hint pulse + tier-tag colors for the specials row (sr/ssr/ur). */
 const HINT = {
@@ -82,9 +92,12 @@ interface SpecialEntry {
   view: CardView;
   card: AddResult;
   done: boolean;
-  /** the card's dealt-in slot x — restored after the best-card spotlight so it
-   * returns to its row position instead of staying centered (would overlap). */
+  /** the card's dealt-in slot (x, y, scale), restored after the best-card
+   * spotlight so it returns to its row position instead of staying centered
+   * (would overlap). */
   homeX: number;
+  homeY: number;
+  homeScale: number;
   /** lite-tier rarity hint (ring-sprite pulse) — destroyed on reveal */
   hint?: Phaser.GameObjects.Image;
 }
@@ -104,6 +117,8 @@ export class PackOpeningScene extends Phaser.Scene {
   private inspectShell: import('../ui/themeWidgets').ModalShell | null = null;
   private unbindInspectKeys: (() => void) | null = null;
   private sku: BoosterSku = 'base';
+  /** The Shop strip index this open came from; handed back on every return. */
+  private shopBoosterIndex: number | undefined = undefined;
   private revealed = 0;
   private specials: SpecialEntry[] = [];
   private buttons: ThemedButton[] = [];
@@ -146,21 +161,18 @@ export class PackOpeningScene extends Phaser.Scene {
   }
 
   /** The reveal draws exactly the rolled cards, single pack or batch. */
-  create(
-    data: (PackResult & { sku?: BoosterSku }) | { batch: PackResult[]; sku?: BoosterSku },
-  ): void {
+  create(data: PackOpeningData): void {
     const packs = 'batch' in data ? data.batch : [data];
     const ids = packs.flatMap((pack) => pack.cards.map((card) => card.cardId));
     gateOnArt(this, ids, () => this.build(data));
   }
-  private build(
-    data: (PackResult & { sku?: BoosterSku }) | { batch: PackResult[]; sku?: BoosterSku },
-  ): void {
+  private build(data: PackOpeningData): void {
     // A repeat opener can re-enter this scene without a fresh Scene instance.
     // Close any inspect lease and clear every create-owned reference before
     // rebuilding the reveal so destroyed objects never receive new updates.
     this.closePackInspect();
     this.sku = data.sku ?? 'base';
+    this.shopBoosterIndex = data.shopBoosterIndex;
     this.revealed = 0;
     this.specials = [];
     this.buttons = [];
@@ -220,10 +232,10 @@ export class PackOpeningScene extends Phaser.Scene {
         bg.fillRect(0, 0, width, height);
       },
     });
-    const back = backButton(this, 'Shop', () => this.scene.start('Shop'));
+    const back = backButton(this, 'Shop', () => this.returnToShop());
     // Keep the persistent escape hatch above the reveal spotlight's dim layer.
     back.setDepth(theme.depth.reveal);
-    registerSceneBackNavigation(this, () => this.scene.start('Shop'));
+    registerSceneBackNavigation(this, () => this.returnToShop());
 
     // A multi-pack buy rides the Pack Runway: every pull on one rail through
     // the reveal gate. Animations off keeps the at-a-glance summary.
@@ -283,6 +295,15 @@ export class PackOpeningScene extends Phaser.Scene {
     return key === 'cardback' || this.textures.exists(key) ? key : 'cardback';
   }
 
+  /**
+   * Every way back to the Shop (back link, Esc, the Shop CTA) lands on the
+   * Card Packs strip where the player bought from, rather than resetting it.
+   */
+  private returnToShop(): void {
+    const data: ShopSceneData = { tab: 'boosters', boosterIndex: this.shopBoosterIndex };
+    this.scene.start('Shop', data);
+  }
+
   /** F10 batch reveal: an at-a-glance summary of a multi-pack open. */
   private showBatchSummary(batch: PackResult[]): void {
     const width = 1280;
@@ -312,7 +333,7 @@ export class PackOpeningScene extends Phaser.Scene {
     const notable = [...specials].sort((a, b) => TIER_RANK[b.tier] - TIER_RANK[a.tier]).slice(0, 16);
     if (notable.length === 0) {
       this.add
-        .text(width / 2, 360, 'No rare pulls this time: all commons and uncommons.', {
+        .text(width / 2, 360, 'No Super Rare or better this time: every pull is a Common or a Rare.', {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.label}px`,
           color: theme.colors.muted,
@@ -362,17 +383,10 @@ export class PackOpeningScene extends Phaser.Scene {
     const qty = steps.find((n) => gold >= n * price) ?? 1;
     const label = qty === 1 ? `Open Another (🪙 ${price})` : `Open ×${qty} More (🪙 ${qty * price})`;
 
-    panel(this, width / 2 - 360, BUTTON_Y - 32, 720, 72, { alpha: 0.76 }).setDepth(66);
-    const mk = (x: number, text: string, cb: () => void): void => {
-      const btn = themedButton(this, x, BUTTON_Y, text, {
-        variant: 'primary',
-        minWidth: 130,
-        onTap: cb,
-      });
-      btn.container.setDepth(70);
-      this.buttons.push(btn);
-    };
-    mk(width / 2 - 200, label, () => {
+    this.addButtonRailPanel();
+    // Short of even one pack: the re-buy shows disabled with its price, as
+    // the Shop's Buy buttons do, instead of looking live and doing nothing.
+    this.addRailButton(width / 2 - 200, label, gold >= qty * price, () => {
       const save = Services.save.data;
       if (!spendGold(save, qty * price)) return;
       Sfx.play('coin');
@@ -381,15 +395,39 @@ export class PackOpeningScene extends Phaser.Scene {
       if (qty === 1) {
         const result = openPack(save, CARD_DB, rng, set);
         Services.save.flush();
-        this.scene.restart({ ...result, sku: this.sku });
+        this.scene.restart({ ...result, sku: this.sku, shopBoosterIndex: this.shopBoosterIndex });
       } else {
         const packs = openPacks(save, CARD_DB, rng, qty, set);
         Services.save.flush();
-        this.scene.restart({ batch: packs, sku: this.sku });
+        this.scene.restart({ batch: packs, sku: this.sku, shopBoosterIndex: this.shopBoosterIndex });
       }
     });
-    mk(width / 2 + 60, 'Shop', () => this.scene.start('Shop'));
-    mk(width / 2 + 200, 'Menu', () => this.scene.start('MainMenu'));
+    this.addRailButton(width / 2 + 60, 'Shop', true, () => this.returnToShop());
+    this.addRailButton(width / 2 + 200, 'Menu', true, () => this.scene.start('MainMenu'));
+  }
+
+  /** The CTA rail's backing panel, centred on the rail line. */
+  private addButtonRailPanel(): void {
+    panel(
+      this,
+      theme.design.centerX - PACK_BUTTON_PANEL.width / 2,
+      BUTTON_Y - PACK_BUTTON_PANEL.height / 2,
+      PACK_BUTTON_PANEL.width,
+      PACK_BUTTON_PANEL.height,
+      { alpha: 0.76 },
+    ).setDepth(66);
+  }
+
+  /** One CTA-rail button; a disabled one stays legible with its price and cannot fire. */
+  private addRailButton(x: number, text: string, enabled: boolean, onTap: () => void): void {
+    const btn = themedButton(this, x, BUTTON_Y, text, {
+      variant: 'primary',
+      minWidth: 130,
+      enabled,
+      onTap,
+    });
+    btn.container.setDepth(70);
+    this.buttons.push(btn);
   }
 
   /**
@@ -554,6 +592,10 @@ export class PackOpeningScene extends Phaser.Scene {
       if (p.button === 2) return;
       if (this.runway?.drag?.moved) return; // a finished scrub is not a tap
       if (view.getData('packInspectBlocked')) return;
+      // A tap on the spotlit card is "tap to continue" (the spotlight's own
+      // once-listener settles it). Opening inspect here as well let the ride
+      // resume and keep flipping cards underneath the inspect modal.
+      if (this.runway?.spotlight) return;
       this.showPackInspect(card);
     });
     return view;
@@ -743,7 +785,7 @@ export class PackOpeningScene extends Phaser.Scene {
     burst.setDepth(60);
     burst.explode(Math.max(1, Math.round(esc.particles * fxPolicy(this).particleScale)), RUNWAY_GATE_X, RUNWAY_CARD_Y);
     const hint = this.add
-      .text(width / 2, height - 38, 'tap to continue', {
+      .text(width / 2, theme.design.footerCenterY, 'tap to continue', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.label}px`,
         color: theme.colors.muted,
@@ -984,24 +1026,18 @@ export class PackOpeningScene extends Phaser.Scene {
     const gridCards = this.result.cards.filter((c) => c.tier === 'c' || c.tier === 'r');
     const specialCards = this.result.cards.filter((c) => c.tier !== 'c' && c.tier !== 'r');
 
-    // Grid math generalized to variable counts (0..boosterPackSize): 6 columns up to
-    // 12 cards (2 rows), 8 tighter columns beyond; short last row centered.
-    const cols = gridCards.length <= 12 ? 6 : 8;
-    const dx = cols === 6 ? 152 : 126;
-    const gridScale = cols === 6 ? 0.46 : 0.4;
+    // Any split of the pack (0..n specials) gets non-overlapping rows inside
+    // the title-safe frame, above the CTA rail (packRevealLayout owns it).
+    const layout = packRevealLayout(gridCards.length, specialCards.length);
     gridCards.forEach((card, i) => {
-      const row = Math.floor(i / cols);
-      const col = i - row * cols;
-      const rowLen = Math.min(cols, gridCards.length - row * cols);
-      const x = width / 2 - ((rowLen - 1) * dx) / 2 + col * dx;
-      const y = GRID_Y0 + row * GRID_DY;
+      const { x, y, scale } = layout.grid[i];
       const view = new CardView(this, width / 2, 340, { backTextureKey: this.cardBackTextureKey });
       view.setScale(0.1).setCard(null); // face down
       this.tweens.add({
         targets: view,
         x,
         y,
-        scale: gridScale,
+        scale,
         delay: i * 55,
         duration: 300,
         ease: 'Cubic.easeOut',
@@ -1019,22 +1055,21 @@ export class PackOpeningScene extends Phaser.Scene {
       this.time.delayedCall(Math.max(settle, 600), () => this.checkAllRevealed());
     }
 
-    // Specials row: variable 0..n, spacing compressed so any count fits.
+    // Specials: below the grid, one size larger, laid out by the same fitter.
     const s = specialCards.length;
-    const spacing = s > 1 ? Math.min(190, (width - 240) / (s - 1)) : 0;
     specialCards.forEach((card, i) => {
       const isBest = i === s - 1;
       const hint = HINT[card.tier as keyof typeof HINT] ?? HINT.sr;
-      const x = width / 2 - ((s - 1) * spacing) / 2 + i * spacing;
+      const { x, y, scale } = layout.specials[i];
       const view = new CardView(this, width / 2, 340, { backTextureKey: this.cardBackTextureKey });
       view.setScale(0.1).setCard(null);
-      const entry: SpecialEntry = { view, card, done: false, homeX: x };
+      const entry: SpecialEntry = { view, card, done: false, homeX: x, homeY: y, homeScale: scale };
       this.specials.push(entry);
       this.tweens.add({
         targets: view,
         x,
-        y: SPECIAL_Y,
-        scale: SPECIAL_SCALE,
+        y,
+        scale,
         delay: 700 + i * 110,
         duration: 380,
         ease: 'Back.easeOut',
@@ -1058,7 +1093,7 @@ export class PackOpeningScene extends Phaser.Scene {
             // lite/canvas: a tinted ring-sprite pulse — same read, no postFX cost
             const ring = this.add
               .image(view.x, view.y, 'frame-ring')
-              .setDisplaySize((CARD_W + 26) * SPECIAL_SCALE, (CARD_H + 26) * SPECIAL_SCALE)
+              .setDisplaySize((CARD_W + 26) * scale, (CARD_H + 26) * scale)
               .setTint(hint.glow)
               .setAlpha(0.25);
             this.children.moveBelow(ring, view);
@@ -1083,11 +1118,14 @@ export class PackOpeningScene extends Phaser.Scene {
       });
     });
 
-    // Skip button (respect the repeat opener's time)
-    this.skipBtn = themedButton(this, width - 80, 30, 'Skip ≫', {
+    // Skip button (respect the repeat opener's time), on the header line at the
+    // title-safe right edge, mirroring the back link (it sat at y 30, x 1150-1250,
+    // outside the frame). packRevealLayout keeps the cards below this row.
+    const skipMinWidth = 100;
+    this.skipBtn = themedButton(this, theme.design.safeRight - skipMinWidth / 2, theme.design.headerCenterY, 'Skip ≫', {
       variant: 'ghost',
       size: 'sm',
-      minWidth: 100,
+      minWidth: skipMinWidth,
       onTap: () => this.skipAll(),
     });
   }
@@ -1252,9 +1290,11 @@ export class PackOpeningScene extends Phaser.Scene {
     ];
     if (card.isNew) lines.push('★ New Card');
     else if (card.isNewVariant) lines.push('★ New Variant');
-    lines.push(`Rarity: ${this.rarityLabel(card.tier)}`);
+    // Tier names come from the glossary, so the inspect can never drift from
+    // the game's own vocabulary (it printed SSR as "Secret Super Rare").
+    lines.push(`Rarity: ${RARITY_NAMES[card.tier]}`);
     if (variant.frame !== 'white') lines.push(`Frame: ${this.titleCase(variant.frame)}`);
-    if (variant.holo !== 'none') lines.push(`Shiny: ${this.titleCase(variant.holo)}`);
+    if (variant.holo !== 'none') lines.push(`Holo: ${this.titleCase(variant.holo)}`);
     if (variant.fullArt) lines.push('Treatment: Full Art');
     return lines;
   }
@@ -1264,21 +1304,6 @@ export class PackOpeningScene extends Phaser.Scene {
     if (line === '★ New Card') return theme.colors.success;
     if (line === '★ New Variant') return theme.rarity.ssr;
     return theme.colors.body;
-  }
-
-  private rarityLabel(tier: AddResult['tier']): string {
-    switch (tier) {
-      case 'c':
-        return 'Common';
-      case 'r':
-        return 'Rare';
-      case 'sr':
-        return 'Super Rare';
-      case 'ssr':
-        return 'Secret Super Rare';
-      case 'ur':
-        return 'Ultra Rare';
-    }
   }
 
   private variantLabel(variant: CardVariant): string {
@@ -1419,7 +1444,7 @@ export class PackOpeningScene extends Phaser.Scene {
           // showcase early. Both the tap and the wobble's natural end route
           // through settleBest, which is one-shot guarded so they can't double.
           const skipHint = this.add
-            .text(width / 2, height - 38, 'tap to skip', {
+            .text(width / 2, theme.design.footerCenterY, 'tap to skip', {
               fontFamily: theme.fonts.ui,
               fontSize: `${theme.type.label}px`,
               color: theme.colors.muted,
@@ -1480,8 +1505,8 @@ export class PackOpeningScene extends Phaser.Scene {
       this.tweens.add({
         targets: view,
         x: entry.homeX,
-        y: SPECIAL_Y,
-        scale: SPECIAL_SCALE,
+        y: entry.homeY,
+        scale: entry.homeScale,
         angle: 0,
         duration: 300,
         onComplete: () => {
@@ -1506,28 +1531,22 @@ export class PackOpeningScene extends Phaser.Scene {
     if (this.buttons.length > 0) return;
 
     const width = 1280; // design-space width (see create())
-    panel(this, width / 2 - 360, BUTTON_Y - 32, 720, 72, { alpha: 0.76 }).setDepth(66);
-    const mk = (x: number, label: string, cb: () => void): void => {
-      const btn = themedButton(this, x, BUTTON_Y, label, {
-        variant: 'primary',
-        minWidth: 130,
-        onTap: cb,
-      });
-      btn.container.setDepth(70);
-      this.buttons.push(btn);
-    };
+    this.addButtonRailPanel();
     const openPrice = packPriceForSku(this.sku);
-    mk(width / 2 - 200, `Open Another (🪙 ${openPrice})`, () => {
+    // Short of the price: disabled with the price still readable, never a live
+    // button that silently does nothing (review 2026-09-23).
+    const canAfford = Services.save.data.gold >= openPrice;
+    this.addRailButton(width / 2 - 200, `Open Another (🪙 ${openPrice})`, canAfford, () => {
       const save = Services.save.data;
       if (!spendGold(save, openPrice)) return;
       Sfx.play('coin');
       const result = openPack(save, CARD_DB, createRngState(Date.now() & 0x7fffffff), packSetForSku(this.sku));
       Services.save.flush();
       this.tweens.timeScale = 1;
-      this.scene.restart({ ...result, sku: this.sku });
+      this.scene.restart({ ...result, sku: this.sku, shopBoosterIndex: this.shopBoosterIndex });
     });
-    mk(width / 2 + 60, 'Shop', () => this.scene.start('Shop'));
-    mk(width / 2 + 200, 'Menu', () => this.scene.start('MainMenu'));
+    this.addRailButton(width / 2 + 60, 'Shop', true, () => this.returnToShop());
+    this.addRailButton(width / 2 + 200, 'Menu', true, () => this.scene.start('MainMenu'));
   }
 
   /** Pack collection changes become visible only after the reveal has settled. */

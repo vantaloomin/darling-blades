@@ -1,6 +1,7 @@
 import { TIER_RANK, variantRank } from '../meta/variants';
 import type { FrameStyle, HoloFinish } from '../meta/variants';
 import type { AnimationLevel } from '../platform/animPolicy';
+import { theme } from './theme';
 
 /**
  * Pack Runway (Premium UX Wave C): a multi-pack open becomes ONE masked rail
@@ -157,4 +158,149 @@ export function gateProgress(revealedMax: number, total: number): number {
 /** Deterministic per-card flip pitch so rapid runs read as a riffle, not a stuck note. */
 export function flipPitchJitter(index: number): number {
   return 0.95 + ((index * 7) % 5) * 0.03;
+}
+
+// ---------------------------------------------------------------------------
+// Single-pack reveal layout
+// ---------------------------------------------------------------------------
+
+/**
+ * A single pack reveals in two groups: the Common/Rare grid, then the SR+
+ * specials, which wait face down one size larger. The July constants stacked
+ * two grid rows over a fixed specials row, so on a 9-card pack with 7+ grid
+ * cards the specials row covered row two's rules text. This fitter owns the
+ * geometry instead: every split of a pack gets rows that never overlap and stay
+ * inside the title-safe frame, between the header row and the CTA rail.
+ */
+
+/** Base scales; the fitter only ever shrinks them, never grows them. */
+export const PACK_REVEAL_GRID_SCALE = 0.46;
+export const PACK_REVEAL_SPECIAL_SCALE = 0.54;
+/** Inactive space between neighbours in a row; specials' hint rings bleed ~7 px each. */
+export const PACK_REVEAL_GRID_GAP = 14;
+export const PACK_REVEAL_SPECIAL_GAP = 24;
+/** Between two rows of one group, and between the grid and the specials. */
+export const PACK_REVEAL_ROW_GAP = 16;
+export const PACK_REVEAL_GROUP_GAP = 24;
+
+/** The reveal's CTA rail (Open Another · Shop · Menu) sits on the title-safe footer line. */
+export const PACK_BUTTON_Y = theme.design.footerCenterY;
+export const PACK_BUTTON_PANEL = { width: 720, height: 72 } as const;
+
+/**
+ * Where revealed cards may sit: the title-safe frame, below the header row
+ * (back link on the left, Skip on the right) and clear of the CTA rail's panel.
+ */
+export const PACK_REVEAL_BOUNDS = {
+  left: theme.design.safeLeft,
+  right: theme.design.safeRight,
+  top: theme.design.safeTop + theme.control.minHitHeight + theme.space(2),
+  bottom: PACK_BUTTON_Y - PACK_BUTTON_PANEL.height / 2 - theme.space(3),
+} as const;
+
+export interface PackRevealSlot {
+  x: number;
+  y: number;
+  scale: number;
+}
+
+export interface PackRevealLayout {
+  grid: PackRevealSlot[];
+  specials: PackRevealSlot[];
+}
+
+/** `count` cards in at most `rows` rows, fullest first (9 in 2 = [5, 4]). */
+function rowLengths(count: number, rows: number): number[] {
+  const perRow = Math.ceil(count / Math.max(1, rows));
+  const lengths: number[] = [];
+  for (let left = count; left > 0; left -= perRow) lengths.push(Math.min(perRow, left));
+  return lengths;
+}
+
+interface RevealGroup {
+  rows: number[];
+  width: number;
+  height: number;
+  gap: number;
+}
+
+/** Largest shrink factor (at most 1) that fits both groups' rows inside the bounds. */
+function fitFactor(grid: RevealGroup, specials: RevealGroup): number {
+  const width = PACK_REVEAL_BOUNDS.right - PACK_REVEAL_BOUNDS.left;
+  const height = PACK_REVEAL_BOUNDS.bottom - PACK_REVEAL_BOUNDS.top;
+  let factor = 1;
+  for (const group of [grid, specials]) {
+    for (const n of group.rows) {
+      factor = Math.min(factor, (width - (n - 1) * group.gap) / (n * group.width));
+    }
+  }
+  const rowCount = grid.rows.length + specials.rows.length;
+  const fixed =
+    Math.max(0, grid.rows.length - 1) * PACK_REVEAL_ROW_GAP +
+    Math.max(0, specials.rows.length - 1) * PACK_REVEAL_ROW_GAP +
+    (grid.rows.length > 0 && specials.rows.length > 0 ? PACK_REVEAL_GROUP_GAP : 0);
+  const stacked = grid.rows.length * grid.height + specials.rows.length * specials.height;
+  if (rowCount > 0) factor = Math.min(factor, (height - fixed) / stacked);
+  return factor;
+}
+
+/**
+ * Slots for a single pack's reveal: `gridCount` Common/Rare cards over
+ * `specialCount` SR+ cards. Each group may take one or two rows; the split
+ * that keeps the cards largest wins (ties go to fewer rows), both groups
+ * shrink by the same factor so the specials stay the larger size, and the
+ * stack is centred in the bounds with each row centred on the frame.
+ */
+export function packRevealLayout(gridCount: number, specialCount: number): PackRevealLayout {
+  const g = Math.max(0, Math.trunc(gridCount));
+  const s = Math.max(0, Math.trunc(specialCount));
+  const cardW = RUNWAY_CARD_DESIGN_WIDTH;
+  const cardH = RUNWAY_CARD_DESIGN_HEIGHT;
+  const group = (count: number, rows: number, scale: number, gap: number): RevealGroup => ({
+    rows: count > 0 ? rowLengths(count, rows) : [],
+    width: cardW * scale,
+    height: cardH * scale,
+    gap,
+  });
+  let best: { grid: RevealGroup; specials: RevealGroup; factor: number } | null = null;
+  for (const gridRows of [1, 2]) {
+    for (const specialRows of [1, 2]) {
+      const grid = group(g, gridRows, PACK_REVEAL_GRID_SCALE, PACK_REVEAL_GRID_GAP);
+      const specials = group(s, specialRows, PACK_REVEAL_SPECIAL_SCALE, PACK_REVEAL_SPECIAL_GAP);
+      const factor = fitFactor(grid, specials);
+      const rows = grid.rows.length + specials.rows.length;
+      const bestRows = best ? best.grid.rows.length + best.specials.rows.length : Infinity;
+      if (!best || factor > best.factor + 1e-9 || (Math.abs(factor - best.factor) <= 1e-9 && rows < bestRows)) {
+        best = { grid, specials, factor };
+      }
+    }
+  }
+  const { grid, specials, factor } = best!;
+  const centerX = (PACK_REVEAL_BOUNDS.left + PACK_REVEAL_BOUNDS.right) / 2;
+  const stackHeight =
+    grid.rows.length * grid.height * factor +
+    specials.rows.length * specials.height * factor +
+    Math.max(0, grid.rows.length - 1) * PACK_REVEAL_ROW_GAP +
+    Math.max(0, specials.rows.length - 1) * PACK_REVEAL_ROW_GAP +
+    (grid.rows.length > 0 && specials.rows.length > 0 ? PACK_REVEAL_GROUP_GAP : 0);
+  let top = PACK_REVEAL_BOUNDS.top + (PACK_REVEAL_BOUNDS.bottom - PACK_REVEAL_BOUNDS.top - stackHeight) / 2;
+  const place = (target: RevealGroup, scale: number): PackRevealSlot[] => {
+    const slots: PackRevealSlot[] = [];
+    const cardWidth = target.width * factor;
+    const cardHeight = target.height * factor;
+    target.rows.forEach((n, row) => {
+      if (row > 0) top += PACK_REVEAL_ROW_GAP;
+      const pitch = cardWidth + target.gap;
+      const y = top + cardHeight / 2;
+      for (let i = 0; i < n; i++) {
+        slots.push({ x: centerX - ((n - 1) * pitch) / 2 + i * pitch, y, scale: scale * factor });
+      }
+      top += cardHeight;
+    });
+    return slots;
+  };
+  const gridSlots = place(grid, PACK_REVEAL_GRID_SCALE);
+  if (grid.rows.length > 0 && specials.rows.length > 0) top += PACK_REVEAL_GROUP_GAP;
+  const specialSlots = place(specials, PACK_REVEAL_SPECIAL_SCALE);
+  return { grid: gridSlots, specials: specialSlots };
 }
