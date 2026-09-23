@@ -271,17 +271,20 @@ interface ChunkRun {
   logs: string[][];
 }
 
+type CliDeps = NonNullable<Parameters<typeof runCli>[1]>;
+
 /**
  * Run one craft as a chain of chunk invocations, each in its own --out and each
  * continuing from the previous one's directory, the way the workflow's chunk
- * jobs hand an artifact to the next job.
+ * jobs hand an artifact to the next job. `dependencies` is called once per
+ * chunk, so each chunk can have its own clock, as each job is its own process.
  */
 function runChunked(
   label: string,
   args: string[],
-  chunkIterations: number,
+  chunkFlags: string[],
   invocations: number,
-  dependencies: Parameters<typeof runCli>[1],
+  dependencies: () => CliDeps,
 ): ChunkRun {
   const logs: string[][] = [];
   let previous: string | undefined;
@@ -289,13 +292,34 @@ function runChunked(
     const out = temp(`${label}-c${chunk}`);
     const lines: string[] = [];
     const resume = previous === undefined ? [] : ['--resume-from', previous];
-    expect(runCli([...args, '--chunk-iterations', String(chunkIterations), ...resume, '--out', out],
-      { ...dependencies, log: (line) => lines.push(line) })).toBe(0);
+    expect(runCli([...args, ...chunkFlags, ...resume, '--out', out],
+      { ...dependencies(), log: (line) => lines.push(line) })).toBe(0);
     logs.push(lines);
     previous = out;
   }
   return { dir: previous!, logs };
 }
+
+/**
+ * A wall clock that moves only while a measurement runs, `seconds` per
+ * measurement, paired with the deck-dependent stub measure. Measuring is where
+ * a real craft spends its time, and a clock tied to it makes the point where a
+ * time budget ends a chunk exact, which the real clock never would be.
+ */
+function measuredClock(seconds: number): CliDeps {
+  let time = 1_700_000_000_000;
+  return {
+    ...quiet,
+    now: () => time,
+    measure: (deck, options) => {
+      time += seconds * 1000;
+      return deckScoreMeasure(deck, options);
+    },
+  };
+}
+
+const nextIterations = (run: ChunkRun): (string | undefined)[] =>
+  run.logs.map((lines) => lines.find((line) => line.startsWith('next-iteration=')));
 
 const craftFile = (dir: string, persona: string, round: number): string =>
   readFileSync(join(dir, singleCraftFileName(persona, round)), 'utf8');
@@ -329,8 +353,8 @@ describe('chunked crafts', { timeout: 600_000 }, () => {
     expect(whole.hillClimb.rejectedSwaps).toBeGreaterThan(0);
 
     // 3 + 3 + 1 iterations, and 4 + 3.
-    const three = runChunked('three', stubArgs, 3, 3, stubDeps);
-    const two = runChunked('two', stubArgs, 4, 2, stubDeps);
+    const three = runChunked('three', stubArgs, ['--chunk-iterations', '3'], 3, () => stubDeps);
+    const two = runChunked('two', stubArgs, ['--chunk-iterations', '4'], 2, () => stubDeps);
 
     for (const run of [three, two]) {
       expect(craftFile(run.dir, 'burn', 0)).toBe(craftFile(wholeDir, 'burn', 0));
@@ -339,8 +363,7 @@ describe('chunked crafts', { timeout: 600_000 }, () => {
       expect(run.logs.at(-1)).toContain('craft-complete=true');
       for (const lines of run.logs.slice(0, -1)) expect(lines).toContain('craft-complete=false');
     }
-    expect(three.logs.map((lines) => lines.find((line) => line.startsWith('next-iteration='))))
-      .toEqual(['next-iteration=4', 'next-iteration=7', 'next-iteration=8']);
+    expect(nextIterations(three)).toEqual(['next-iteration=4', 'next-iteration=7', 'next-iteration=8']);
   });
 
   it('writes a checkpoint and no craft or journal line when a chunk stops short', () => {
@@ -437,6 +460,76 @@ describe('chunked crafts', { timeout: 600_000 }, () => {
     expect(errors[0]).toContain('--resume');
   });
 
+  /**
+   * The workflow sizes chunks in minutes, because one persona's game costs ten
+   * times another's and the measurement may not change. A chunk that stops on
+   * its clock must still hand on exactly the climb an unchunked craft runs.
+   */
+  it('stops a chunk on its time budget, and the chain finishes byte-identical to an unchunked craft', () => {
+    const wholeDir = temp('budget-whole');
+    expect(runCli([...stubArgs, '--out', wholeDir], stubDeps)).toBe(0);
+    const whole = JSON.parse(craftFile(wholeDir, 'burn', 0)) as { hillClimb: { unproposedIterations: number } };
+    // Every iteration measures, so the clock moves once per iteration.
+    expect(whole.hillClimb.unproposedIterations).toBe(0);
+
+    // 20 seconds a measurement against a one-minute budget. Chunk 0 pays for
+    // the greedy build's measurement too, so it runs two iterations; a resumed
+    // chunk runs three; the third chunk runs the last two and finishes.
+    const run = runChunked('budget', stubArgs, ['--chunk-minutes', '1'], 3, () => measuredClock(20));
+    expect(nextIterations(run)).toEqual(['next-iteration=3', 'next-iteration=6', 'next-iteration=8']);
+    expect(run.logs.map((lines) => lines.find((line) => line.startsWith('craft-complete='))))
+      .toEqual(['craft-complete=false', 'craft-complete=false', 'craft-complete=true']);
+    expect(craftFile(run.dir, 'burn', 0)).toBe(craftFile(wholeDir, 'burn', 0));
+    expect(journalLines(run.dir)).toEqual(journalLines(wholeDir));
+    expect(existsSync(join(run.dir, checkpointFileName('burn', 0)))).toBe(false);
+  });
+
+  it('runs one iteration in a chunk that starts past its budget, so the chain still finishes', () => {
+    const wholeDir = temp('late-whole');
+    expect(runCli([...stubArgs, '--out', wholeDir], stubDeps)).toBe(0);
+
+    // 90 seconds a measurement: the greedy build's measurement alone spends
+    // chunk 0's minute before the climb begins, and every later chunk spends it
+    // on its first iteration. Seven iterations, seven chunks.
+    const run = runChunked('late', stubArgs, ['--chunk-minutes', '1'], 7, () => measuredClock(90));
+    expect(nextIterations(run)).toEqual([2, 3, 4, 5, 6, 7, 8].map((next) => `next-iteration=${next}`));
+    expect(craftFile(run.dir, 'burn', 0)).toBe(craftFile(wholeDir, 'burn', 0));
+    expect(journalLines(run.dir)).toEqual(journalLines(wholeDir));
+  });
+
+  it('ends a chunk at whichever bound comes first when both are given', () => {
+    const chunkOnce = (label: string, flags: string[]): string[] => {
+      const lines: string[] = [];
+      expect(runCli([...stubArgs, ...flags, '--out', temp(label)],
+        { ...measuredClock(20), log: (line) => lines.push(line) })).toBe(0);
+      return lines;
+    };
+    // The clock alone allows two iterations in chunk 0 (see above).
+    expect(chunkOnce('bound-iterations', ['--chunk-minutes', '1', '--chunk-iterations', '1']))
+      .toContain('next-iteration=2');
+    expect(chunkOnce('bound-minutes', ['--chunk-minutes', '1', '--chunk-iterations', '5']))
+      .toContain('next-iteration=3');
+  });
+
+  it('refuses --chunk-minutes on the in-process loop, and a budget that is not a positive integer', () => {
+    const errors: string[] = [];
+    const deps = { ...stubDeps, error: (message: string) => errors.push(message) };
+    expect(runCli([
+      '--metagame', '--personas', 'burn,weenie', '--rounds', '1', '--field', 'starters',
+      '--seeds', '1', '--iterations', '4', '--seed', '424242', '--chunk-minutes', '240',
+      '--out', temp('loop-minutes'),
+    ], deps)).toBe(1);
+    expect(errors[0]).toContain('--chunk-minutes applies to --metagame-craft only');
+
+    for (const value of ['0', '1.5', 'soon']) {
+      const out = temp(`minutes-${value}`);
+      errors.length = 0;
+      expect(runCli([...stubArgs, '--chunk-minutes', value, '--out', out], deps)).toBe(1);
+      expect(errors[0]).toBe(`--chunk-minutes must be a positive integer (got ${value})`);
+      expect(existsSync(join(out, checkpointFileName('burn', 0)))).toBe(false);
+    }
+  });
+
   it('carries a real-engine craft across chunks byte for byte', () => {
     // Tiny on purpose: five starter decks, two games each, four swaps. --no-memo
     // on both sides, so the chunked craft really re-measures under the engine
@@ -448,7 +541,7 @@ describe('chunked crafts', { timeout: 600_000 }, () => {
     ];
     const wholeDir = temp('engine-whole');
     expect(runCli([...args, '--out', wholeDir], quiet)).toBe(0);
-    const chunked = runChunked('engine', args, 3, 2, quiet);
+    const chunked = runChunked('engine', args, ['--chunk-iterations', '3'], 2, () => quiet);
     expect(craftFile(chunked.dir, 'weenie', 0)).toBe(craftFile(wholeDir, 'weenie', 0));
     expect(journalLines(chunked.dir)).toEqual(journalLines(wholeDir));
   });

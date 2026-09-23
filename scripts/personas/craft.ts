@@ -78,6 +78,15 @@ Fan-out mode (the same loop, one craft per process; see docs/metagame-sweep.md):
                              unchunked craft writes, byte for byte, and leaves
                              no checkpoint. Prints craft-complete=true|false
                              and next-iteration=<k>.
+  --chunk-minutes <m>        With --metagame-craft: the same chunked craft, but
+                             the chunk stops on a time budget. No new iteration
+                             starts once m minutes have passed since the command
+                             started (the clock covers the greedy build and its
+                             measurement); the iteration in flight finishes, and
+                             every chunk runs at least one iteration. Combinable
+                             with --chunk-iterations: whichever bound comes
+                             first ends the chunk. Where a chunk stops never
+                             changes the finished craft.
   --metagame-merge <dir> [--check-stable]
                              Replay the fanned-out crafts under <dir> through
                              the loop's own convergence policy and write the
@@ -844,12 +853,25 @@ export function createHillClimbState(options: HillClimbOptions): HillClimbState 
  * updating the state in place. Running the climb in one call or in several
  * gives the same state, because the loop body reads nothing the state does not
  * hold. Returns the same state for convenience.
+ *
+ * `stop`, when given, is asked before every iteration except the first one of
+ * this call, and a true answer ends the call there. Skipping the first check
+ * means every call makes progress, even one that starts past a time budget, so
+ * a chain of calls always finishes the climb. Where the call stops only decides
+ * which call runs an iteration, never what the iteration does.
  */
-export function advanceHillClimb(state: HillClimbState, options: HillClimbOptions, upTo: number): HillClimbState {
+export function advanceHillClimb(
+  state: HillClimbState,
+  options: HillClimbOptions,
+  upTo: number,
+  stop?: () => boolean,
+): HillClimbState {
   const proposer = options.propose ?? ((current, pool, template, rng) => proposeQuotaLegalSwap(current, pool, template, rng));
   const last = Math.min(upTo, options.iterations);
+  const first = state.nextIteration;
 
-  for (let iteration = state.nextIteration; iteration <= last; iteration++) {
+  for (let iteration = first; iteration <= last; iteration++) {
+    if (stop && iteration > first && stop()) break;
     state.nextIteration = iteration + 1;
     const proposal = proposer(state.retained, options.pool, options.template, state.rng, iteration);
     if (!proposal) {
@@ -1696,10 +1718,11 @@ function resolveSingleCraft(options: SingleCraftOptions): ResolvedSingleCraft {
 //
 // A hosted CI job is capped at 360 minutes, and a full craft at the sweep's
 // defaults can take longer than that on a four-core runner. A chunked craft
-// runs at most N hill-climb iterations, writes the climb's state to a
-// checkpoint file, and the next process continues from it. The climb itself is
-// the same `advanceHillClimb` the whole craft runs, so a craft finished in any
-// number of chunks is byte-identical to one finished in a single call.
+// runs at most N hill-climb iterations, or until a time budget is spent,
+// writes the climb's state to a checkpoint file, and the next process
+// continues from it. The climb itself is the same `advanceHillClimb` the whole
+// craft runs, so a craft finished in any number of chunks, stopped by either
+// bound, is byte-identical to one finished in a single call.
 
 export function checkpointFileName(personaId: string, round: number): string {
   return `checkpoint-${personaId}-r${round}.json`;
@@ -1792,8 +1815,13 @@ function assertCheckpointBelongs(
 }
 
 export interface SingleCraftChunkOptions extends SingleCraftOptions {
-  /** At most this many hill-climb iterations in this call. */
-  chunkIterations: number;
+  /** At most this many hill-climb iterations in this call; unbounded when absent. */
+  chunkIterations?: number;
+  /**
+   * Asked before every iteration but the first of this call; true ends the
+   * chunk there. The CLI's time budget. Either bound, or both, may be set.
+   */
+  stop?: () => boolean;
   /** A checkpoint file to continue from; a fresh climb starts when absent. */
   checkpointPath?: string;
 }
@@ -1808,8 +1836,9 @@ export type SingleCraftChunkResult =
  * that the next chunk continues from.
  */
 export function runSingleCraftChunk(options: SingleCraftChunkOptions): SingleCraftChunkResult {
-  if (!Number.isInteger(options.chunkIterations) || options.chunkIterations < 1) {
-    throw new Error(`--chunk-iterations must be a positive integer (got ${options.chunkIterations})`);
+  const { chunkIterations } = options;
+  if (chunkIterations !== undefined && (!Number.isInteger(chunkIterations) || chunkIterations < 1)) {
+    throw new Error(`--chunk-iterations must be a positive integer (got ${chunkIterations})`);
   }
   const resolved = resolveSingleCraft(options);
   const prepared = prepareMetagameCraft(resolved.template, options.round, resolved.fieldComposition, resolved.options);
@@ -1830,7 +1859,10 @@ export function runSingleCraftChunk(options: SingleCraftChunkOptions): SingleCra
     state = createHillClimbState(prepared.hillClimb);
   }
 
-  advanceHillClimb(state, prepared.hillClimb, state.nextIteration - 1 + options.chunkIterations);
+  const upTo = chunkIterations === undefined
+    ? options.config.iterations
+    : state.nextIteration - 1 + chunkIterations;
+  advanceHillClimb(state, prepared.hillClimb, upTo, options.stop);
   if (state.nextIteration > options.config.iterations) {
     const crafted = metagameRoundFrom(
       resolved.template,
@@ -1997,6 +2029,8 @@ export interface CliDependencies {
   log?: (message: string) => void;
   error?: (message: string) => void;
   today?: () => string;
+  /** Milliseconds, for --chunk-minutes; `Date.now` when absent. */
+  now?: () => number;
 }
 
 function readArtifact(path: string): PersonaArtifact {
@@ -2023,6 +2057,10 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
   const log = dependencies.log ?? console.log;
   const error = dependencies.error ?? console.error;
   const measure = dependencies.measure ?? measureDeck;
+  const now = dependencies.now ?? (() => Date.now());
+  // --chunk-minutes counts from here, before the greedy build and its
+  // measurement, so the budget covers everything the command spends measuring.
+  const started = now();
     const opt = (name: string): string | undefined => {
       const index = argv.indexOf(`--${name}`);
       return index >= 0 ? argv[index + 1] : undefined;
@@ -2051,11 +2089,13 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
       return measureDeck(deck, configured);
     };
 
-    if (has('chunk-iterations') && opt('metagame-craft') === undefined) {
-      throw new Error(
-        '--chunk-iterations applies to --metagame-craft only. The in-process --metagame loop ' +
-        'continues an interrupted run from its journal with --resume.',
-      );
+    for (const flag of ['chunk-iterations', 'chunk-minutes']) {
+      if (has(flag) && opt('metagame-craft') === undefined) {
+        throw new Error(
+          `--${flag} applies to --metagame-craft only. The in-process --metagame loop ` +
+          'continues an interrupted run from its journal with --resume.',
+        );
+      }
     }
 
     const checkPath = opt('check');
@@ -2166,11 +2206,25 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
       // Refuses an unknown persona before anything else happens.
       const template = personaTemplate(fanOutPersona!);
       const fileName = singleCraftFileName(template.id, round);
-      // Absent: the whole craft in this process, exactly as before. Present:
-      // at most this many hill-climb iterations, then a checkpoint.
+      // Both absent: the whole craft in this process, exactly as before. Either
+      // present: a chunk that ends at whichever bound comes first (at most this
+      // many hill-climb iterations, or no new iteration once the budget is
+      // spent), then a checkpoint.
       const chunkIterations = has('chunk-iterations')
         ? parsePositiveInteger(opt('chunk-iterations'), '--chunk-iterations', 0)
         : undefined;
+      const chunkMinutes = has('chunk-minutes')
+        ? parsePositiveInteger(opt('chunk-minutes'), '--chunk-minutes', 0)
+        : undefined;
+      const chunked = chunkIterations !== undefined || chunkMinutes !== undefined;
+      const elapsedMinutes = (): string => ((now() - started) / 60_000).toFixed(1);
+      let budgetSpent = false;
+      const stop = chunkMinutes === undefined
+        ? undefined
+        : (): boolean => {
+          budgetSpent = now() - started >= chunkMinutes * 60_000;
+          return budgetSpent;
+        };
       // Printed as key=value so a workflow step can read them straight into
       // GITHUB_OUTPUT, the way the merge prints done=.
       const reportChunk = (complete: boolean, nextIteration: number): void => {
@@ -2203,14 +2257,14 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
           writeJournalLine(craftedRound(file));
           log(`Resume: ${fileName} already crafted; nothing to do`);
           log(`Craft: ${target}`);
-          if (chunkIterations !== undefined) {
+          if (chunked) {
             if (existsSync(outCheckpoint)) unlinkSync(outCheckpoint);
             reportChunk(true, config.iterations + 1);
           }
           return 0;
         }
         const checkpointSource = join(resolve(resumeFrom), checkpointName);
-        if (chunkIterations !== undefined && existsSync(checkpointSource)) {
+        if (chunked && existsSync(checkpointSource)) {
           checkpointPath = checkpointSource;
           log(`Resume: continuing ${checkpointName} from ${resolve(resumeFrom)}`);
         } else {
@@ -2220,7 +2274,7 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
 
       const fieldDir = opt('field-dir') === undefined ? undefined : resolve(opt('field-dir')!);
       let crafted: MetagameRound;
-      if (chunkIterations === undefined) {
+      if (!chunked) {
         crafted = runSingleCraft({
           personaId: template.id,
           round,
@@ -2238,8 +2292,13 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
           fieldDir,
           measure: runtimeMeasure,
           chunkIterations,
+          stop,
           checkpointPath,
         });
+        if (chunkMinutes !== undefined) {
+          log(`Chunk time: ${elapsedMinutes()} of ${chunkMinutes} minutes` +
+            (budgetSpent ? '; the budget ended this chunk' : ''));
+        }
         if (!chunk.complete) {
           writeFileSync(outCheckpoint, `${JSON.stringify(chunk.checkpoint, null, 2)}\n`, 'utf8');
           log(`Checkpoint: ${template.name} (${template.id}) round ${round} stopped before iteration ` +

@@ -2,21 +2,27 @@
 #
 # Called by metagame-sweep.yml, once per round; never dispatched by hand. A
 # craft at the sweep's defaults can outrun the 360-minute cap GitHub puts on a
-# hosted job, so each persona's craft runs as up to four jobs in a row. Each
-# job runs at most `chunk_iterations` hill-climb iterations, uploads what it
-# has (a checkpoint, or the finished craft), and the next job continues from
-# that artifact. A craft finished in any number of chunks is byte-identical to
-# one run in a single process: `tests/personas/fanout.test.ts` asserts it.
+# hosted job, so each persona's craft runs as up to ten jobs in a row. Each
+# job stops starting new hill-climb iterations once `chunk_minutes` have
+# passed since its craft command started (the iteration in flight finishes,
+# and every chunk runs at least one), uploads what it has (a checkpoint, or
+# the finished craft), and the next job continues from that artifact. A craft
+# finished in any number of chunks, wherever the budget stopped them, is
+# byte-identical to one run in a single process: `tests/personas/fanout.test.ts`
+# asserts it.
 #
 # THE CHAIN, per persona:
 #   chunk-0  fresh start, or the craft copied forward from `resume_from`
 #   chunk-1  continues chunk-0's checkpoint, or copies its finished craft
 #   chunk-2  the same, from chunk-1
-#   chunk-3  the same, from chunk-2
-# The last chunk (`chunks` of them run, at most four) names the journal and
+#   ...
+#   chunk-9  the same, from chunk-8
+# The last chunk (`chunks` of them run, at most ten) names the journal and
 # uploads `craft-r<round>-<persona>`, the only artifact the check and merge
 # jobs read. Intermediate uploads are `chunk-r<round>-c<c>-<persona>`, which
-# that pattern never matches.
+# that pattern never matches. Each chunk job waits for every persona's
+# previous chunk, so a round lasts as long as its slowest craft; a persona
+# that finished early only copies its craft forward (about a minute a chunk).
 #
 # A called workflow does not see the caller's `env`, so everything it needs
 # arrives as an input.
@@ -42,12 +48,12 @@ on:
         description: A sweeps/<dir> path on sweep-data whose crafts are copied forward, or empty
         type: string
         default: ''
-      chunk_iterations:
-        description: Hill-climb iterations per chunk job
+      chunk_minutes:
+        description: Time budget of one chunk job, in minutes; no new iteration starts after it
         type: number
         required: true
       chunks:
-        description: Chunk jobs per craft (1 to 4)
+        description: Chunk jobs per craft (1 to 10)
         type: number
         required: true
 
@@ -100,11 +106,11 @@ jobs:
           PERSONA: ${{ matrix.persona }}
           ROUND: ${{ inputs.round }}
           RESUME_FROM: ${{ inputs.resume_from }}
-          CHUNK_ITERATIONS: ${{ inputs.chunk_iterations }}
+          CHUNK_MINUTES: ${{ inputs.chunk_minutes }}
           SWEEP_ARGS: ${{ inputs.sweep_args }}
         run: |
           set -euo pipefail
-          ARGS=(--metagame-craft "$PERSONA" --round "$ROUND" --out out --workers "$(nproc)" --chunk-iterations "$CHUNK_ITERATIONS")
+          ARGS=(--metagame-craft "$PERSONA" --round "$ROUND" --out out --workers "$(nproc)" --chunk-minutes "$CHUNK_MINUTES")
           if [ "$ROUND" -ge 1 ]; then ARGS+=(--field-dir field); fi
           if [ -n "$RESUME_FROM" ]; then ARGS+=(--resume-from "resume/$RESUME_FROM/crafts"); fi
           npx tsx scripts/personas/craft.ts "${ARGS[@]}" $SWEEP_ARGS | tee chunk.txt
@@ -129,7 +135,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$COMPLETE" != "true" ] || [ ! -f "out/craft-$PERSONA-r$ROUND.json" ]; then
-            echo "The craft did not finish in its last chunk. Raise CHUNKS or CHUNK_ITERATIONS in metagame-sweep.yml."
+            echo "The craft did not finish in its last chunk. Raise CHUNKS (at most 10) or CHUNK_MINUTES (below 300) in metagame-sweep.yml."
             exit 1
           fi
           mv "out/craft-journal.jsonl" "out/craft-journal-$PERSONA-r$ROUND.jsonl"
@@ -187,11 +193,11 @@ jobs:
         env:
           PERSONA: ${{ matrix.persona }}
           ROUND: ${{ inputs.round }}
-          CHUNK_ITERATIONS: ${{ inputs.chunk_iterations }}
+          CHUNK_MINUTES: ${{ inputs.chunk_minutes }}
           SWEEP_ARGS: ${{ inputs.sweep_args }}
         run: |
           set -euo pipefail
-          ARGS=(--metagame-craft "$PERSONA" --round "$ROUND" --out out --workers "$(nproc)" --chunk-iterations "$CHUNK_ITERATIONS" --resume-from state)
+          ARGS=(--metagame-craft "$PERSONA" --round "$ROUND" --out out --workers "$(nproc)" --chunk-minutes "$CHUNK_MINUTES" --resume-from state)
           if [ "$ROUND" -ge 1 ]; then ARGS+=(--field-dir field); fi
           npx tsx scripts/personas/craft.ts "${ARGS[@]}" $SWEEP_ARGS | tee chunk.txt
           # craft-complete= and next-iteration= become this step's outputs.
@@ -215,7 +221,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$COMPLETE" != "true" ] || [ ! -f "out/craft-$PERSONA-r$ROUND.json" ]; then
-            echo "The craft did not finish in its last chunk. Raise CHUNKS or CHUNK_ITERATIONS in metagame-sweep.yml."
+            echo "The craft did not finish in its last chunk. Raise CHUNKS (at most 10) or CHUNK_MINUTES (below 300) in metagame-sweep.yml."
             exit 1
           fi
           mv "out/craft-journal.jsonl" "out/craft-journal-$PERSONA-r$ROUND.jsonl"
@@ -271,11 +277,11 @@ jobs:
         env:
           PERSONA: ${{ matrix.persona }}
           ROUND: ${{ inputs.round }}
-          CHUNK_ITERATIONS: ${{ inputs.chunk_iterations }}
+          CHUNK_MINUTES: ${{ inputs.chunk_minutes }}
           SWEEP_ARGS: ${{ inputs.sweep_args }}
         run: |
           set -euo pipefail
-          ARGS=(--metagame-craft "$PERSONA" --round "$ROUND" --out out --workers "$(nproc)" --chunk-iterations "$CHUNK_ITERATIONS" --resume-from state)
+          ARGS=(--metagame-craft "$PERSONA" --round "$ROUND" --out out --workers "$(nproc)" --chunk-minutes "$CHUNK_MINUTES" --resume-from state)
           if [ "$ROUND" -ge 1 ]; then ARGS+=(--field-dir field); fi
           npx tsx scripts/personas/craft.ts "${ARGS[@]}" $SWEEP_ARGS | tee chunk.txt
           # craft-complete= and next-iteration= become this step's outputs.
@@ -299,7 +305,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$COMPLETE" != "true" ] || [ ! -f "out/craft-$PERSONA-r$ROUND.json" ]; then
-            echo "The craft did not finish in its last chunk. Raise CHUNKS or CHUNK_ITERATIONS in metagame-sweep.yml."
+            echo "The craft did not finish in its last chunk. Raise CHUNKS (at most 10) or CHUNK_MINUTES (below 300) in metagame-sweep.yml."
             exit 1
           fi
           mv "out/craft-journal.jsonl" "out/craft-journal-$PERSONA-r$ROUND.jsonl"
@@ -355,11 +361,11 @@ jobs:
         env:
           PERSONA: ${{ matrix.persona }}
           ROUND: ${{ inputs.round }}
-          CHUNK_ITERATIONS: ${{ inputs.chunk_iterations }}
+          CHUNK_MINUTES: ${{ inputs.chunk_minutes }}
           SWEEP_ARGS: ${{ inputs.sweep_args }}
         run: |
           set -euo pipefail
-          ARGS=(--metagame-craft "$PERSONA" --round "$ROUND" --out out --workers "$(nproc)" --chunk-iterations "$CHUNK_ITERATIONS" --resume-from state)
+          ARGS=(--metagame-craft "$PERSONA" --round "$ROUND" --out out --workers "$(nproc)" --chunk-minutes "$CHUNK_MINUTES" --resume-from state)
           if [ "$ROUND" -ge 1 ]; then ARGS+=(--field-dir field); fi
           npx tsx scripts/personas/craft.ts "${ARGS[@]}" $SWEEP_ARGS | tee chunk.txt
           # craft-complete= and next-iteration= become this step's outputs.
@@ -383,13 +389,517 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$COMPLETE" != "true" ] || [ ! -f "out/craft-$PERSONA-r$ROUND.json" ]; then
-            echo "The craft did not finish in its last chunk. Raise CHUNKS or CHUNK_ITERATIONS in metagame-sweep.yml."
+            echo "The craft did not finish in its last chunk. Raise CHUNKS (at most 10) or CHUNK_MINUTES (below 300) in metagame-sweep.yml."
             exit 1
           fi
           mv "out/craft-journal.jsonl" "out/craft-journal-$PERSONA-r$ROUND.jsonl"
 
       - name: Upload the finished craft
         if: inputs.chunks == 4
+        uses: actions/upload-artifact@v4
+        with:
+          name: craft-r${{ inputs.round }}-${{ matrix.persona }}
+          path: out/
+          if-no-files-found: error
+
+  chunk-4:
+    name: Chunk 4
+    needs: chunk-3
+    if: ${{ !cancelled() && inputs.chunks > 4 }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        persona: ${{ fromJSON(inputs.personas) }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+
+      - name: Plan this chunk
+        id: plan
+        env:
+          ROUND: ${{ inputs.round }}
+        run: echo "previous-round=$((ROUND - 1))" >> "$GITHUB_OUTPUT"
+
+      - name: Download the previous round
+        if: inputs.round >= 1
+        uses: actions/download-artifact@v4
+        with:
+          pattern: craft-r${{ steps.plan.outputs.previous-round }}-*
+          path: field
+          merge-multiple: true
+
+      - name: Download the previous chunk
+        uses: actions/download-artifact@v4
+        with:
+          name: chunk-r${{ inputs.round }}-c3-${{ matrix.persona }}
+          path: state
+
+      - name: Craft the next chunk
+        id: craft
+        env:
+          PERSONA: ${{ matrix.persona }}
+          ROUND: ${{ inputs.round }}
+          CHUNK_MINUTES: ${{ inputs.chunk_minutes }}
+          SWEEP_ARGS: ${{ inputs.sweep_args }}
+        run: |
+          set -euo pipefail
+          ARGS=(--metagame-craft "$PERSONA" --round "$ROUND" --out out --workers "$(nproc)" --chunk-minutes "$CHUNK_MINUTES" --resume-from state)
+          if [ "$ROUND" -ge 1 ]; then ARGS+=(--field-dir field); fi
+          npx tsx scripts/personas/craft.ts "${ARGS[@]}" $SWEEP_ARGS | tee chunk.txt
+          # craft-complete= and next-iteration= become this step's outputs.
+          grep -E '^(craft-complete|next-iteration)=' chunk.txt >> "$GITHUB_OUTPUT"
+          echo "$PERSONA round $ROUND: $(grep -E '^(craft-complete|next-iteration)=' chunk.txt | tr '\n' ' ')" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload this chunk
+        uses: actions/upload-artifact@v4
+        with:
+          name: chunk-r${{ inputs.round }}-c4-${{ matrix.persona }}
+          path: out/
+          if-no-files-found: error
+          retention-days: 5
+
+      - name: Name this craft's journal
+        if: inputs.chunks == 5
+        env:
+          PERSONA: ${{ matrix.persona }}
+          ROUND: ${{ inputs.round }}
+          COMPLETE: ${{ steps.craft.outputs.craft-complete }}
+        run: |
+          set -euo pipefail
+          if [ "$COMPLETE" != "true" ] || [ ! -f "out/craft-$PERSONA-r$ROUND.json" ]; then
+            echo "The craft did not finish in its last chunk. Raise CHUNKS (at most 10) or CHUNK_MINUTES (below 300) in metagame-sweep.yml."
+            exit 1
+          fi
+          mv "out/craft-journal.jsonl" "out/craft-journal-$PERSONA-r$ROUND.jsonl"
+
+      - name: Upload the finished craft
+        if: inputs.chunks == 5
+        uses: actions/upload-artifact@v4
+        with:
+          name: craft-r${{ inputs.round }}-${{ matrix.persona }}
+          path: out/
+          if-no-files-found: error
+
+  chunk-5:
+    name: Chunk 5
+    needs: chunk-4
+    if: ${{ !cancelled() && inputs.chunks > 5 }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        persona: ${{ fromJSON(inputs.personas) }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+
+      - name: Plan this chunk
+        id: plan
+        env:
+          ROUND: ${{ inputs.round }}
+        run: echo "previous-round=$((ROUND - 1))" >> "$GITHUB_OUTPUT"
+
+      - name: Download the previous round
+        if: inputs.round >= 1
+        uses: actions/download-artifact@v4
+        with:
+          pattern: craft-r${{ steps.plan.outputs.previous-round }}-*
+          path: field
+          merge-multiple: true
+
+      - name: Download the previous chunk
+        uses: actions/download-artifact@v4
+        with:
+          name: chunk-r${{ inputs.round }}-c4-${{ matrix.persona }}
+          path: state
+
+      - name: Craft the next chunk
+        id: craft
+        env:
+          PERSONA: ${{ matrix.persona }}
+          ROUND: ${{ inputs.round }}
+          CHUNK_MINUTES: ${{ inputs.chunk_minutes }}
+          SWEEP_ARGS: ${{ inputs.sweep_args }}
+        run: |
+          set -euo pipefail
+          ARGS=(--metagame-craft "$PERSONA" --round "$ROUND" --out out --workers "$(nproc)" --chunk-minutes "$CHUNK_MINUTES" --resume-from state)
+          if [ "$ROUND" -ge 1 ]; then ARGS+=(--field-dir field); fi
+          npx tsx scripts/personas/craft.ts "${ARGS[@]}" $SWEEP_ARGS | tee chunk.txt
+          # craft-complete= and next-iteration= become this step's outputs.
+          grep -E '^(craft-complete|next-iteration)=' chunk.txt >> "$GITHUB_OUTPUT"
+          echo "$PERSONA round $ROUND: $(grep -E '^(craft-complete|next-iteration)=' chunk.txt | tr '\n' ' ')" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload this chunk
+        uses: actions/upload-artifact@v4
+        with:
+          name: chunk-r${{ inputs.round }}-c5-${{ matrix.persona }}
+          path: out/
+          if-no-files-found: error
+          retention-days: 5
+
+      - name: Name this craft's journal
+        if: inputs.chunks == 6
+        env:
+          PERSONA: ${{ matrix.persona }}
+          ROUND: ${{ inputs.round }}
+          COMPLETE: ${{ steps.craft.outputs.craft-complete }}
+        run: |
+          set -euo pipefail
+          if [ "$COMPLETE" != "true" ] || [ ! -f "out/craft-$PERSONA-r$ROUND.json" ]; then
+            echo "The craft did not finish in its last chunk. Raise CHUNKS (at most 10) or CHUNK_MINUTES (below 300) in metagame-sweep.yml."
+            exit 1
+          fi
+          mv "out/craft-journal.jsonl" "out/craft-journal-$PERSONA-r$ROUND.jsonl"
+
+      - name: Upload the finished craft
+        if: inputs.chunks == 6
+        uses: actions/upload-artifact@v4
+        with:
+          name: craft-r${{ inputs.round }}-${{ matrix.persona }}
+          path: out/
+          if-no-files-found: error
+
+  chunk-6:
+    name: Chunk 6
+    needs: chunk-5
+    if: ${{ !cancelled() && inputs.chunks > 6 }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        persona: ${{ fromJSON(inputs.personas) }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+
+      - name: Plan this chunk
+        id: plan
+        env:
+          ROUND: ${{ inputs.round }}
+        run: echo "previous-round=$((ROUND - 1))" >> "$GITHUB_OUTPUT"
+
+      - name: Download the previous round
+        if: inputs.round >= 1
+        uses: actions/download-artifact@v4
+        with:
+          pattern: craft-r${{ steps.plan.outputs.previous-round }}-*
+          path: field
+          merge-multiple: true
+
+      - name: Download the previous chunk
+        uses: actions/download-artifact@v4
+        with:
+          name: chunk-r${{ inputs.round }}-c5-${{ matrix.persona }}
+          path: state
+
+      - name: Craft the next chunk
+        id: craft
+        env:
+          PERSONA: ${{ matrix.persona }}
+          ROUND: ${{ inputs.round }}
+          CHUNK_MINUTES: ${{ inputs.chunk_minutes }}
+          SWEEP_ARGS: ${{ inputs.sweep_args }}
+        run: |
+          set -euo pipefail
+          ARGS=(--metagame-craft "$PERSONA" --round "$ROUND" --out out --workers "$(nproc)" --chunk-minutes "$CHUNK_MINUTES" --resume-from state)
+          if [ "$ROUND" -ge 1 ]; then ARGS+=(--field-dir field); fi
+          npx tsx scripts/personas/craft.ts "${ARGS[@]}" $SWEEP_ARGS | tee chunk.txt
+          # craft-complete= and next-iteration= become this step's outputs.
+          grep -E '^(craft-complete|next-iteration)=' chunk.txt >> "$GITHUB_OUTPUT"
+          echo "$PERSONA round $ROUND: $(grep -E '^(craft-complete|next-iteration)=' chunk.txt | tr '\n' ' ')" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload this chunk
+        uses: actions/upload-artifact@v4
+        with:
+          name: chunk-r${{ inputs.round }}-c6-${{ matrix.persona }}
+          path: out/
+          if-no-files-found: error
+          retention-days: 5
+
+      - name: Name this craft's journal
+        if: inputs.chunks == 7
+        env:
+          PERSONA: ${{ matrix.persona }}
+          ROUND: ${{ inputs.round }}
+          COMPLETE: ${{ steps.craft.outputs.craft-complete }}
+        run: |
+          set -euo pipefail
+          if [ "$COMPLETE" != "true" ] || [ ! -f "out/craft-$PERSONA-r$ROUND.json" ]; then
+            echo "The craft did not finish in its last chunk. Raise CHUNKS (at most 10) or CHUNK_MINUTES (below 300) in metagame-sweep.yml."
+            exit 1
+          fi
+          mv "out/craft-journal.jsonl" "out/craft-journal-$PERSONA-r$ROUND.jsonl"
+
+      - name: Upload the finished craft
+        if: inputs.chunks == 7
+        uses: actions/upload-artifact@v4
+        with:
+          name: craft-r${{ inputs.round }}-${{ matrix.persona }}
+          path: out/
+          if-no-files-found: error
+
+  chunk-7:
+    name: Chunk 7
+    needs: chunk-6
+    if: ${{ !cancelled() && inputs.chunks > 7 }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        persona: ${{ fromJSON(inputs.personas) }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+
+      - name: Plan this chunk
+        id: plan
+        env:
+          ROUND: ${{ inputs.round }}
+        run: echo "previous-round=$((ROUND - 1))" >> "$GITHUB_OUTPUT"
+
+      - name: Download the previous round
+        if: inputs.round >= 1
+        uses: actions/download-artifact@v4
+        with:
+          pattern: craft-r${{ steps.plan.outputs.previous-round }}-*
+          path: field
+          merge-multiple: true
+
+      - name: Download the previous chunk
+        uses: actions/download-artifact@v4
+        with:
+          name: chunk-r${{ inputs.round }}-c6-${{ matrix.persona }}
+          path: state
+
+      - name: Craft the next chunk
+        id: craft
+        env:
+          PERSONA: ${{ matrix.persona }}
+          ROUND: ${{ inputs.round }}
+          CHUNK_MINUTES: ${{ inputs.chunk_minutes }}
+          SWEEP_ARGS: ${{ inputs.sweep_args }}
+        run: |
+          set -euo pipefail
+          ARGS=(--metagame-craft "$PERSONA" --round "$ROUND" --out out --workers "$(nproc)" --chunk-minutes "$CHUNK_MINUTES" --resume-from state)
+          if [ "$ROUND" -ge 1 ]; then ARGS+=(--field-dir field); fi
+          npx tsx scripts/personas/craft.ts "${ARGS[@]}" $SWEEP_ARGS | tee chunk.txt
+          # craft-complete= and next-iteration= become this step's outputs.
+          grep -E '^(craft-complete|next-iteration)=' chunk.txt >> "$GITHUB_OUTPUT"
+          echo "$PERSONA round $ROUND: $(grep -E '^(craft-complete|next-iteration)=' chunk.txt | tr '\n' ' ')" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload this chunk
+        uses: actions/upload-artifact@v4
+        with:
+          name: chunk-r${{ inputs.round }}-c7-${{ matrix.persona }}
+          path: out/
+          if-no-files-found: error
+          retention-days: 5
+
+      - name: Name this craft's journal
+        if: inputs.chunks == 8
+        env:
+          PERSONA: ${{ matrix.persona }}
+          ROUND: ${{ inputs.round }}
+          COMPLETE: ${{ steps.craft.outputs.craft-complete }}
+        run: |
+          set -euo pipefail
+          if [ "$COMPLETE" != "true" ] || [ ! -f "out/craft-$PERSONA-r$ROUND.json" ]; then
+            echo "The craft did not finish in its last chunk. Raise CHUNKS (at most 10) or CHUNK_MINUTES (below 300) in metagame-sweep.yml."
+            exit 1
+          fi
+          mv "out/craft-journal.jsonl" "out/craft-journal-$PERSONA-r$ROUND.jsonl"
+
+      - name: Upload the finished craft
+        if: inputs.chunks == 8
+        uses: actions/upload-artifact@v4
+        with:
+          name: craft-r${{ inputs.round }}-${{ matrix.persona }}
+          path: out/
+          if-no-files-found: error
+
+  chunk-8:
+    name: Chunk 8
+    needs: chunk-7
+    if: ${{ !cancelled() && inputs.chunks > 8 }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        persona: ${{ fromJSON(inputs.personas) }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+
+      - name: Plan this chunk
+        id: plan
+        env:
+          ROUND: ${{ inputs.round }}
+        run: echo "previous-round=$((ROUND - 1))" >> "$GITHUB_OUTPUT"
+
+      - name: Download the previous round
+        if: inputs.round >= 1
+        uses: actions/download-artifact@v4
+        with:
+          pattern: craft-r${{ steps.plan.outputs.previous-round }}-*
+          path: field
+          merge-multiple: true
+
+      - name: Download the previous chunk
+        uses: actions/download-artifact@v4
+        with:
+          name: chunk-r${{ inputs.round }}-c7-${{ matrix.persona }}
+          path: state
+
+      - name: Craft the next chunk
+        id: craft
+        env:
+          PERSONA: ${{ matrix.persona }}
+          ROUND: ${{ inputs.round }}
+          CHUNK_MINUTES: ${{ inputs.chunk_minutes }}
+          SWEEP_ARGS: ${{ inputs.sweep_args }}
+        run: |
+          set -euo pipefail
+          ARGS=(--metagame-craft "$PERSONA" --round "$ROUND" --out out --workers "$(nproc)" --chunk-minutes "$CHUNK_MINUTES" --resume-from state)
+          if [ "$ROUND" -ge 1 ]; then ARGS+=(--field-dir field); fi
+          npx tsx scripts/personas/craft.ts "${ARGS[@]}" $SWEEP_ARGS | tee chunk.txt
+          # craft-complete= and next-iteration= become this step's outputs.
+          grep -E '^(craft-complete|next-iteration)=' chunk.txt >> "$GITHUB_OUTPUT"
+          echo "$PERSONA round $ROUND: $(grep -E '^(craft-complete|next-iteration)=' chunk.txt | tr '\n' ' ')" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload this chunk
+        uses: actions/upload-artifact@v4
+        with:
+          name: chunk-r${{ inputs.round }}-c8-${{ matrix.persona }}
+          path: out/
+          if-no-files-found: error
+          retention-days: 5
+
+      - name: Name this craft's journal
+        if: inputs.chunks == 9
+        env:
+          PERSONA: ${{ matrix.persona }}
+          ROUND: ${{ inputs.round }}
+          COMPLETE: ${{ steps.craft.outputs.craft-complete }}
+        run: |
+          set -euo pipefail
+          if [ "$COMPLETE" != "true" ] || [ ! -f "out/craft-$PERSONA-r$ROUND.json" ]; then
+            echo "The craft did not finish in its last chunk. Raise CHUNKS (at most 10) or CHUNK_MINUTES (below 300) in metagame-sweep.yml."
+            exit 1
+          fi
+          mv "out/craft-journal.jsonl" "out/craft-journal-$PERSONA-r$ROUND.jsonl"
+
+      - name: Upload the finished craft
+        if: inputs.chunks == 9
+        uses: actions/upload-artifact@v4
+        with:
+          name: craft-r${{ inputs.round }}-${{ matrix.persona }}
+          path: out/
+          if-no-files-found: error
+
+  chunk-9:
+    name: Chunk 9
+    needs: chunk-8
+    if: ${{ !cancelled() && inputs.chunks > 9 }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        persona: ${{ fromJSON(inputs.personas) }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+
+      - name: Plan this chunk
+        id: plan
+        env:
+          ROUND: ${{ inputs.round }}
+        run: echo "previous-round=$((ROUND - 1))" >> "$GITHUB_OUTPUT"
+
+      - name: Download the previous round
+        if: inputs.round >= 1
+        uses: actions/download-artifact@v4
+        with:
+          pattern: craft-r${{ steps.plan.outputs.previous-round }}-*
+          path: field
+          merge-multiple: true
+
+      - name: Download the previous chunk
+        uses: actions/download-artifact@v4
+        with:
+          name: chunk-r${{ inputs.round }}-c8-${{ matrix.persona }}
+          path: state
+
+      - name: Craft the next chunk
+        id: craft
+        env:
+          PERSONA: ${{ matrix.persona }}
+          ROUND: ${{ inputs.round }}
+          CHUNK_MINUTES: ${{ inputs.chunk_minutes }}
+          SWEEP_ARGS: ${{ inputs.sweep_args }}
+        run: |
+          set -euo pipefail
+          ARGS=(--metagame-craft "$PERSONA" --round "$ROUND" --out out --workers "$(nproc)" --chunk-minutes "$CHUNK_MINUTES" --resume-from state)
+          if [ "$ROUND" -ge 1 ]; then ARGS+=(--field-dir field); fi
+          npx tsx scripts/personas/craft.ts "${ARGS[@]}" $SWEEP_ARGS | tee chunk.txt
+          # craft-complete= and next-iteration= become this step's outputs.
+          grep -E '^(craft-complete|next-iteration)=' chunk.txt >> "$GITHUB_OUTPUT"
+          echo "$PERSONA round $ROUND: $(grep -E '^(craft-complete|next-iteration)=' chunk.txt | tr '\n' ' ')" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload this chunk
+        uses: actions/upload-artifact@v4
+        with:
+          name: chunk-r${{ inputs.round }}-c9-${{ matrix.persona }}
+          path: out/
+          if-no-files-found: error
+          retention-days: 5
+
+      - name: Name this craft's journal
+        if: inputs.chunks == 10
+        env:
+          PERSONA: ${{ matrix.persona }}
+          ROUND: ${{ inputs.round }}
+          COMPLETE: ${{ steps.craft.outputs.craft-complete }}
+        run: |
+          set -euo pipefail
+          if [ "$COMPLETE" != "true" ] || [ ! -f "out/craft-$PERSONA-r$ROUND.json" ]; then
+            echo "The craft did not finish in its last chunk. Raise CHUNKS (at most 10) or CHUNK_MINUTES (below 300) in metagame-sweep.yml."
+            exit 1
+          fi
+          mv "out/craft-journal.jsonl" "out/craft-journal-$PERSONA-r$ROUND.jsonl"
+
+      - name: Upload the finished craft
+        if: inputs.chunks == 10
         uses: actions/upload-artifact@v4
         with:
           name: craft-r${{ inputs.round }}-${{ matrix.persona }}
