@@ -4,9 +4,11 @@ import { activatedBlockers, legalActions, validateAction } from '../../src/engin
 import { Game } from '../../src/engine/Game';
 import { solveMana } from '../../src/engine/mana';
 import type { ActivatedDef, CardDb, CardDef, GameState, TargetRef } from '../../src/engine/types';
+import { dutyChoices } from '../../src/ui/drownedDeepChoices';
 import {
   DUTY_ACTION_LABEL, DUTY_CANCEL_LABEL, DUTY_PLAYER_LABELS,
-  dutyBlockedCopy, dutyNarration, dutyTargetStep, dutyTargetsNeedPicker, type DutyAction,
+  dutyBlockedCopy, dutyNarration, dutyRowText, dutyTargetStep, dutyTargetsNeedPicker, dutyWindowReason,
+  type DutyAction,
 } from '../../src/ui/duelPresentation';
 import { makeTestState, TEST_DB } from '../helpers';
 
@@ -73,14 +75,41 @@ describe('Duty duel presentation', () => {
     expect(dutyBlockedCopy('toString')).toBe('Duty: you cannot use it right now.');
   });
 
-  it('uses the approved confirmation and narration copy without em-dashes', () => {
+  it('uses the approved confirmation copy, names whose permanent performed a Duty, and avoids em-dashes', () => {
     expect(DUTY_ACTION_LABEL).toBe('Perform Duty');
     expect(DUTY_CANCEL_LABEL).toBe('Cancel');
-    expect(dutyNarration('Clockwork Keeper')).toBe('Clockwork Keeper performs its Duty.');
     expect(DUTY_PLAYER_LABELS).toEqual(['You', 'Opponent']);
-    for (const copy of [DUTY_ACTION_LABEL, DUTY_CANCEL_LABEL, ...DUTY_PLAYER_LABELS, dutyNarration('Keeper')]) {
+    // The history line follows the Your/Enemy convention of the other permanent lines.
+    expect(dutyNarration('Clockwork Keeper', 'you')).toMatch(/^Your Clockwork Keeper /);
+    expect(dutyNarration('Clockwork Keeper', 'opponent')).toMatch(/^Enemy Clockwork Keeper /);
+    for (const copy of [DUTY_ACTION_LABEL, DUTY_CANCEL_LABEL, ...DUTY_PLAYER_LABELS,
+      dutyNarration('Keeper', 'you'), dutyNarration('Keeper', 'opponent')]) {
       expect(copy).not.toContain('\u2014');
     }
+  });
+
+  it('explains a Duty click in a response window: the stack in your own Morning, the phase otherwise', () => {
+    const state = board('free');
+    state.awaiting = { kind: 'respond', player: 0, over: { type: 'attackers' } };
+    const blocked = activatedBlockers(state, DB, 0, state.battlefield[0]);
+    expect(blocked).not.toBeNull();
+    expect(dutyBlockedCopy(dutyWindowReason(blocked, true))).toBe('Duty: wait for the stack to clear.');
+    expect(dutyBlockedCopy(dutyWindowReason(blocked, false))).toBe('Duty: only in your Morning or Afternoon.');
+    // Every other blocker keeps its own explanation.
+    expect(dutyWindowReason('Activated source is tapped', true)).toBe('Activated source is tapped');
+    expect(dutyWindowReason(null, true)).toBeNull();
+  });
+
+  it('draws multi-Duty rows tap first with the mana as pips and no literal tap token', () => {
+    // The Glass That Came Back's shape: a free tap and a mana-first paid tap.
+    const glass: CardDef = { ...DB.free, id: 'glass', activated: [
+      { cost: { tap: true }, ops: [{ op: 'foresee', n: 2 }] },
+      { cost: { tap: true, mana: { generic: 2, pips: {} } }, ops: [{ op: 'draw', n: 1 }] },
+    ] };
+    const rows = dutyChoices(glass, 1, []).map((choice) => dutyRowText(choice.line, choice.cost.mana));
+    for (const row of rows) expect(row).not.toContain('{T}');
+    expect(rows[0]).toMatch(/^: /); // [tap]: Foresee 2.
+    expect(rows[1]).toMatch(/^, \{2\}: /); // [tap], {2}: Draw a card.
   });
 
   it('uses the picker for hidden permanents and grave targets while retaining every mixed option', () => {

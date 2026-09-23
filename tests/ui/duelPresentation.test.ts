@@ -12,6 +12,9 @@ import {
   orderedGraveyardSlots,
   shouldArmLandDrop,
   presentationRectsOverlap,
+  SACRIFICE_CHOOSER_CENTER_X,
+  sacrificeCastChoices,
+  type SacrificeCastInput,
   targetArrowShaftEnd,
   targetRingTone,
 } from '../../src/ui/duelPresentation';
@@ -197,5 +200,42 @@ describe('graveyard action chips', () => {
     // One action slot per tile. Retell wins because it puts a spell on the
     // stack; Preserve is still there next time the modal opens.
     expect(graveActionChoice(true, true)).toBe('retell');
+  });
+});
+
+describe('Tithe and Rite cast chooser', () => {
+  const plainRite: SacrificeCastInput = {
+    tithe: false, empower: false, skim: false,
+    plainCast: true, empoweredCast: false, titheCast: false, fodder: 2,
+  };
+  const tithe: SacrificeCastInput = { ...plainRite, tithe: true, titheCast: true };
+  const kinds = (input: SacrificeCastInput) => sacrificeCastChoices(input)?.map((choice) => choice.kind) ?? null;
+
+  it('offers Empower only on a card that prints it', () => {
+    expect(kinds(tithe)).toEqual(['cast', 'sacrifice']);
+    expect(kinds({ ...tithe, empower: true, empoweredCast: true })).toEqual(['cast', 'empower', 'sacrifice']);
+    expect(kinds({ ...plainRite, empower: true, empoweredCast: true })).toEqual(['cast', 'empower']);
+  });
+
+  it('skips the chooser for a Rite card with no Empower and no Skim', () => {
+    expect(sacrificeCastChoices(plainRite)).toBeNull();
+    expect(kinds({ ...plainRite, skim: true })).toEqual(['cast']);
+  });
+
+  it('enables Sacrifice to cast only when a creature could be sacrificed', () => {
+    const sacrifice = (input: SacrificeCastInput) =>
+      sacrificeCastChoices(input)!.find((choice) => choice.kind === 'sacrifice')!.enabled;
+    expect(sacrifice({ ...tithe, fodder: 0 })).toBe(false);
+    expect(sacrifice({ ...tithe, fodder: 1 })).toBe(true);
+    expect(sacrifice({ ...tithe, titheCast: false })).toBe(false);
+  });
+
+  it('centres whatever buttons remain without letting 180px buttons touch', () => {
+    for (const input of [tithe, { ...tithe, empower: true }, { ...plainRite, skim: true }]) {
+      const row = sacrificeCastChoices(input)!;
+      const mean = row.reduce((sum, choice) => sum + choice.x, 0) / row.length;
+      expect(mean).toBe(SACRIFICE_CHOOSER_CENTER_X);
+      for (let i = 1; i < row.length; i++) expect(row[i].x - row[i - 1].x).toBeGreaterThan(180);
+    }
   });
 });

@@ -11,6 +11,7 @@ import {
   DUTY_CHOOSER_LAYOUT, LOOT_PICKER_LAYOUT, dutyChooserRows, lootPickerPage,
   toggleLootDiscard, type DutyChoice, type MandatorySelection,
 } from './drownedDeepChoices';
+import { dutyRowText } from './duelPresentation';
 
 /** Input is routed by DuelScene so keyboard and pointer share these callbacks. */
 export interface ChoiceOverlay {
@@ -28,6 +29,8 @@ export interface ChoiceCard {
 
 export function showLootPicker(scene: Phaser.Scene, options: {
   cards: readonly ChoiceCard[];
+  /** A touch player has no keyboard, so the keyboard hint is dropped. */
+  touch: boolean;
   selection(picked: readonly number[]): MandatorySelection<Extract<Action, { type: 'discard' }>> | null;
   submit(action: Extract<Action, { type: 'discard' }>): void;
   decorate(view: CardView, entry: ChoiceCard, toggle: () => void): void;
@@ -65,7 +68,7 @@ export function showLootPicker(scene: Phaser.Scene, options: {
       color: theme.colors.heading, resolution: 2,
     }).setOrigin(0.5));
     body.add(scene.add.text(l.width / 2, l.progressY,
-      `${model.progress} · Arrows to browse, Space to select, Enter to confirm`, {
+      options.touch ? model.progress : `${model.progress} · Arrows to browse, Space to select, Enter to confirm`, {
         fontFamily: theme.fonts.ui, fontSize: `${theme.type.body}px`,
         color: theme.colors.body, resolution: 2,
       }).setOrigin(0.5));
@@ -128,6 +131,8 @@ export function showLootPicker(scene: Phaser.Scene, options: {
 /** Same modal guard and mana-pip composition as the existing cast chooser. */
 export function showDutyPicker(scene: Phaser.Scene, options: {
   card: CardDef;
+  /** A touch player has no keyboard, so the keyboard hint is dropped. */
+  touch: boolean;
   choices(): DutyChoice[];
   choose(abilityIndex: number): void;
   cancel(): void;
@@ -135,6 +140,8 @@ export function showDutyPicker(scene: Phaser.Scene, options: {
   const l = DUTY_CHOOSER_LAYOUT;
   const container = scene.add.container(0, 0).setDepth(105);
   const dim = scene.add.rectangle(640, 360, 1280, 720, theme.graphics.dim, 0.82).setInteractive();
+  // Tapping outside cancels, as it does on every other cast chooser.
+  bindTapButton(scene, dim, pointer => { if (!pointer.rightButtonReleased()) options.cancel(); });
   container.add(dim);
   const body = scene.add.container(0, 0);
   container.add(body);
@@ -158,9 +165,11 @@ export function showDutyPicker(scene: Phaser.Scene, options: {
         .setStrokeStyle(2, colorInt(focus === row.abilityIndex ? theme.colors.gold : theme.colors.panelStroke))
         .setAlpha(alpha);
       body.add(plate);
-      const text = renderManaText(scene, body, row.left + 52, row.top + 14, choice.line.replace(/^\{T\}/, ''), {
+      // The tap is the image; the text continues it with any mana as pips
+      // (", {2}: Draw a card."), the reading order of the Duty confirmation.
+      const text = renderManaText(scene, body, row.left + 40, row.top + 14, dutyRowText(choice.line, choice.cost.mana), {
         fontFamily: theme.fonts.ui, fontSize: '18px', color: theme.colors.body,
-        wordWrap: { width: row.width - 72 }, resolution: 2,
+        wordWrap: { width: row.width - 60 }, resolution: 2,
       });
       text.text.setScale(Math.min(1, (row.height - 28) / Math.max(1, text.text.height)));
       text.reflow();
@@ -171,9 +180,11 @@ export function showDutyPicker(scene: Phaser.Scene, options: {
       body.add(zone);
       bindTapButton(scene, zone, pointer => { if (!pointer.rightButtonReleased()) choose(row.abilityIndex); });
     }
-    body.add(scene.add.text(l.x, 180, 'Arrows to choose · Enter to select', {
-      fontFamily: theme.fonts.ui, fontSize: '16px', color: theme.colors.muted,
-    }).setOrigin(0.5));
+    if (!options.touch) {
+      body.add(scene.add.text(l.x, 180, 'Arrows to choose · Enter to select', {
+        fontFamily: theme.fonts.ui, fontSize: '16px', color: theme.colors.muted,
+      }).setOrigin(0.5));
+    }
     if (sheet.pageCount > 1) {
       body.add(scene.add.text(l.x, l.footerY, `${sheet.page + 1}/${sheet.pageCount}`, {
         fontFamily: theme.fonts.ui, fontSize: '16px', color: theme.colors.muted,

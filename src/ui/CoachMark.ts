@@ -9,7 +9,8 @@ import Phaser from 'phaser';
  *    still taps the real control underneath (learning-by-doing), so there is no
  *    scaled-container hit area to trip the playbook §11 trap and no ModalGuard.
  *  - `showInfoCard(text, onDismiss)` — a centered tap-to-continue card over a
- *    dimmer, for the two pure-info beats (goal, summoning sickness).
+ *    dimmer, sized to its text, for the pure-info beats (goal, Warchest,
+ *    summoning sickness, inspect, healing, Ritual and Charm timing).
  *
  * Every tween callback checks `.active` (objects can be torn down by a duel
  * re-render mid-tween), and the whole thing self-destroys on scene SHUTDOWN so
@@ -65,29 +66,39 @@ export class CoachMark {
     this.bubble = this.buildBubble(cx, Phaser.Math.Clamp(by, 40, 680), text, 280);
   }
 
-  /** Full-screen tap-to-continue info card for a pure-info beat. */
+  /**
+   * Full-screen tap-to-continue info card for a pure-info beat. The panel is
+   * sized to its text (as `buildBubble` is): a one-line beat keeps the fixed
+   * card it always had (130px tall, text centred at y 348, hint at y 402),
+   * and every extra wrapped line grows the panel evenly about the same centre
+   * so the text never meets the border or runs under the hint.
+   */
   showInfoCard(text: string, onDismiss: () => void): void {
     this.clearInfo();
     const c = this.scene.add.container(0, 0).setDepth(DEPTH + 1);
     const dim = this.scene.add
       .rectangle(640, 360, 1280, 720, 0x0a0812, 0.66)
       .setInteractive({ useHandCursor: true });
-    const panel = this.scene.add.graphics();
-    panel.fillStyle(BUBBLE_BG, 0.98);
-    panel.lineStyle(2, BUBBLE_STROKE, 0.9);
-    panel.fillRoundedRect(430, 300, 420, 130, 14);
-    panel.strokeRoundedRect(430, 300, 420, 130, 14);
     const body = this.scene.add
-      .text(640, 348, text, {
+      .text(640, 0, text, {
         fontFamily: 'Cinzel, Georgia, serif',
         fontSize: '22px',
         color: '#f0e6ff',
         align: 'center',
         wordWrap: { width: 380 },
       })
-      .setOrigin(0.5);
+      .setOrigin(0.5, 0);
+    const lineHeight = body.height / Math.max(1, body.getWrappedText(text).length);
+    const height = 130 + (body.height - lineHeight);
+    const top = 365 - height / 2;
+    body.setY(top + 48 - lineHeight / 2); // the first line's centre sits 48px below the border
+    const panel = this.scene.add.graphics();
+    panel.fillStyle(BUBBLE_BG, 0.98);
+    panel.lineStyle(2, BUBBLE_STROKE, 0.9);
+    panel.fillRoundedRect(430, top, 420, height, 14);
+    panel.strokeRoundedRect(430, top, 420, height, 14);
     const hint = this.scene.add
-      .text(640, 402, 'tap to continue ▸', {
+      .text(640, top + height - 28, 'tap to continue ▸', {
         fontFamily: 'Inter, Arial, sans-serif',
         fontSize: '13px',
         color: '#a89cc6',
