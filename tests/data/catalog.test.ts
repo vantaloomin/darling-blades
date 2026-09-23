@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  activatedAbilitiesOf,
   manaValue,
   validateChaptersDef,
   validateEmpowerDef,
@@ -9,7 +10,7 @@ import {
   validatePreserveDef,
   validateRiteDef,
 } from '../../src/engine/types';
-import type { CardDef } from '../../src/engine/types';
+import type { CardDef, EffectOp } from '../../src/engine/types';
 import { ALL_CARDS, CARD_DB } from '../../src/data/catalog';
 import { AXES } from '../../src/data/axes';
 import { ARTIFACTS } from '../../src/data/cards/artifacts';
@@ -392,5 +393,34 @@ describe('catalog integrity', () => {
         }
       }
     }
+  });
+  it("prints a full fog only on a Charm, the one seam that can resolve in the opponent's combat", () => {
+    // preventCombat sets fogThisTurn, and cleanup clears it at the end of the
+    // turn it was set. Ritual bodies and Retell overrides, Duties (own main
+    // phase only), quest chapters, own-turn triggers and the arrival of a
+    // main-phase permanent all resolve on their controller's own turn, so a
+    // fog there can only cancel its controller's own attack. A Charm's body,
+    // its Empower rider and its graveyard casts keep Charm speed. The
+    // single-creature preventCombatTo is not covered: on your own turn it
+    // protects your attacker, a live effect. Widen this only for a seam that
+    // can resolve before the opponent's combat damage.
+    const fogIn = (ops: readonly EffectOp[] = []): boolean => ops.some((op) => op.op === 'preventCombat' ||
+      (op.op === 'ifTargetMarked' && (fogIn(op.then) || fogIn(op.else))));
+    const dead: string[] = [];
+    for (const card of ALL_CARDS) {
+      const charm = card.types.includes('charm');
+      for (const ability of card.abilities ?? []) {
+        if (fogIn(ability.ops) && !(charm && ability.when === 'spell')) dead.push(`${card.id}: ${ability.when}`);
+      }
+      activatedAbilitiesOf(card).forEach((duty, i) => {
+        if (fogIn(duty.ops)) dead.push(`${card.id}: Duty ${i + 1}`);
+      });
+      if (!charm && fogIn(card.empower?.ops)) dead.push(`${card.id}: Empower`);
+      if (!charm && fogIn(card.retell?.ops)) dead.push(`${card.id}: Retell`);
+      (card.chapters ?? []).forEach((ops, i) => {
+        if (fogIn(ops)) dead.push(`${card.id}: chapter ${i + 1}`);
+      });
+    }
+    expect(dead, 'a fog in these seams can never protect its controller').toEqual([]);
   });
 });
