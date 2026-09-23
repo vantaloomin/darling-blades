@@ -7,9 +7,10 @@ import type { ActivatedDef, CardDb, CardDef, GameState, TargetRef } from '../../
 import { dutyChoices } from '../../src/ui/drownedDeepChoices';
 import {
   DUTY_ACTION_LABEL, DUTY_CANCEL_LABEL, DUTY_PLAYER_LABELS,
-  dutyBlockedCopy, dutyNarration, dutyRowText, dutyTargetStep, dutyTargetsNeedPicker, dutyWindowReason,
+  dutyBlockedCopy, dutyNarration, dutyRowPips, dutyTargetStep, dutyTargetsNeedPicker, dutyWindowReason,
   type DutyAction,
 } from '../../src/ui/duelPresentation';
+import { segmentManaText } from '../../src/ui/ManaText';
 import { makeTestState, TEST_DB } from '../helpers';
 
 const permanent = (iid: number): TargetRef => ({ kind: 'permanent', iid });
@@ -100,16 +101,23 @@ describe('Duty duel presentation', () => {
     expect(dutyWindowReason(null, true)).toBeNull();
   });
 
-  it('draws multi-Duty rows tap first with the mana as pips and no literal tap token', () => {
-    // The Glass That Came Back's shape: a free tap and a mana-first paid tap.
+  it('draws multi-Duty rows in the card face order: mana pips, then the tap, then the effect', () => {
+    // The Glass That Came Back's shape: a free tap and a paid tap.
     const glass: CardDef = { ...DB.free, id: 'glass', activated: [
       { cost: { tap: true }, ops: [{ op: 'foresee', n: 2 }] },
       { cost: { tap: true, mana: { generic: 2, pips: {} } }, ops: [{ op: 'draw', n: 1 }] },
     ] };
-    const rows = dutyChoices(glass, 1, []).map((choice) => dutyRowText(choice.line, choice.cost.mana));
-    for (const row of rows) expect(row).not.toContain('{T}');
-    expect(rows[0]).toMatch(/^: /); // [tap]: Foresee 2.
-    expect(rows[1]).toMatch(/^, \{2\}: /); // [tap], {2}: Draw a card.
+    const pips = (raw: string) => segmentManaText(raw).flatMap((segment) => segment.kind === 'pipRun' ? segment.pips : []);
+    const [free, paid] = dutyChoices(glass, 1, []).map((choice) => dutyRowPips(choice.line));
+    for (const row of [free, paid]) {
+      // ManaText has no tap symbol: no literal token survives, one pip becomes the tap.
+      expect(row.raw).not.toContain('{T}');
+      expect(row.tapPips).toHaveLength(1);
+    }
+    // A free Duty opens on the tap.
+    expect(free.tapPips[0]).toBe(0);
+    // A paid Duty prints its mana first, as the card face does (#394).
+    expect(pips(paid.raw).slice(0, paid.tapPips[0])).toEqual([{ texture: 'pip-C', number: 2 }]);
   });
 
   it('uses the picker for hidden permanents and grave targets while retaining every mixed option', () => {

@@ -27,9 +27,21 @@ export class CoachMark {
   private info: Phaser.GameObjects.Container | null = null;
   /** Skip a rebuild when the same (target, text) is requested again — no flicker. */
   private cueKey = '';
+  /** True while a modal (the pause menu) owns the screen: the cue is kept but not drawn. */
+  private cueSuppressed = false;
 
   constructor(private readonly scene: Phaser.Scene) {
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.destroy());
+  }
+
+  /**
+   * Hide the advisory ring + bubble while a modal is open, and bring the same
+   * cue back when it closes. A cue rebuilt in between is born hidden.
+   */
+  setCueSuppressed(suppressed: boolean): void {
+    this.cueSuppressed = suppressed;
+    if (this.ring?.active) this.ring.setVisible(!suppressed);
+    if (this.bubble?.active) this.bubble.setVisible(!suppressed);
   }
 
   /** Advisory ring + bubble pointing at a live control. Idempotent per (target,text). */
@@ -64,6 +76,7 @@ export class CoachMark {
     const above = b.centerY > 360;
     const by = above ? ry - 34 : ry + rh + 34;
     this.bubble = this.buildBubble(cx, Phaser.Math.Clamp(by, 40, 680), text, 280);
+    if (this.cueSuppressed) this.setCueSuppressed(true);
   }
 
   /**

@@ -5,8 +5,8 @@
  */
 
 import type { Action } from '../engine/actions';
-import type { CardDef, ManaCost, TargetRef } from '../engine/types';
-import { manaCostText, rulesText } from './rulesText';
+import type { CardDef, TargetRef } from '../engine/types';
+import { rulesText } from './rulesText';
 
 export type DuelSide = 'you' | 'opponent';
 export type TargetRingTone = 'friendly' | 'hostile';
@@ -153,16 +153,23 @@ export function dutyNarration(cardName: string, controller: DuelSide): string {
 }
 
 /**
- * A Duty row draws the tap pip as an image, so its text must not repeat the
- * tap token (ManaText has no T symbol and prints it literally). The rules line
- * prints mana first ("{2}, {T}: Draw a card."); the row reads pip first, the
- * way the Duty confirmation does: [tap] ", {2}: Draw a card."
+ * A Duty row reads in the card face's order: the rules line prints mana first
+ * ("{2}, {T}: Draw a card.", owner ruling in #394) and a free Duty as
+ * "{T}: Foresee 2." ManaText has no tap symbol and would print "{T}"
+ * literally, so each tap becomes a colourless placeholder pip and `tapPips`
+ * names the placeholders (indices into ManaText's pips, which count every
+ * token, numerals included) to swap for the tap icon, as CardView does.
  */
-export function dutyRowText(line: string, mana: ManaCost | undefined): string {
-  const tap = line.indexOf('{T}');
-  const effect = tap >= 0 ? line.slice(tap + '{T}'.length) : `: ${line}`;
-  const price = mana ? manaCostText(mana) : '';
-  return `${price && price !== '{0}' ? `, ${price}` : ''}${effect}`;
+export function dutyRowPips(line: string): { raw: string; tapPips: number[] } {
+  const tapPips: number[] = [];
+  let pip = 0;
+  const raw = line.replace(/\{(\d+|[WUBRGCT])\}/g, (token: string, symbol: string) => {
+    const index = pip++;
+    if (symbol !== 'T') return token;
+    tapPips.push(index);
+    return '{C}';
+  });
+  return { raw, tapPips };
 }
 
 const DUTY_TIMING_REASON = 'Activated abilities can only be used during your Morning or Afternoon';

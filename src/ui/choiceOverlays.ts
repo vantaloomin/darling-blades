@@ -11,7 +11,7 @@ import {
   DUTY_CHOOSER_LAYOUT, LOOT_PICKER_LAYOUT, dutyChooserRows, lootPickerPage,
   toggleLootDiscard, type DutyChoice, type MandatorySelection,
 } from './drownedDeepChoices';
-import { dutyRowText } from './duelPresentation';
+import { dutyRowPips } from './duelPresentation';
 
 /** Input is routed by DuelScene so keyboard and pointer share these callbacks. */
 export interface ChoiceOverlay {
@@ -165,16 +165,18 @@ export function showDutyPicker(scene: Phaser.Scene, options: {
         .setStrokeStyle(2, colorInt(focus === row.abilityIndex ? theme.colors.gold : theme.colors.panelStroke))
         .setAlpha(alpha);
       body.add(plate);
-      // The tap is the image; the text continues it with any mana as pips
-      // (", {2}: Draw a card."), the reading order of the Duty confirmation.
-      const text = renderManaText(scene, body, row.left + 40, row.top + 14, dutyRowText(choice.line, choice.cost.mana), {
+      // The card face's order: mana pips, then the tap icon, then the effect
+      // ("[2], [tap]: Draw a card."; a free Duty is "[tap]: Foresee 2."). Every
+      // row opens on a pip at the same inset, so both kinds align.
+      const { raw, tapPips } = dutyRowPips(choice.line);
+      const text = renderManaText(scene, body, row.left + 20, row.top + 14, raw, {
         fontFamily: theme.fonts.ui, fontSize: '18px', color: theme.colors.body,
-        wordWrap: { width: row.width - 60 }, resolution: 2,
+        wordWrap: { width: row.width - 40 }, resolution: 2,
       });
+      for (const index of tapPips) text.pips[index]?.setTexture('pip-T');
       text.text.setScale(Math.min(1, (row.height - 28) / Math.max(1, text.text.height)));
       text.reflow();
       text.setAlpha(alpha);
-      body.add(scene.add.image(row.left + 27, row.top + 25, 'pip-T').setDisplaySize(22, 22).setAlpha(alpha));
       // Disabled rows still consume the hit, so their click cannot dismiss the dim behind them.
       const zone = scene.add.zone(row.x, row.y, row.width, row.height).setInteractive({ useHandCursor: choice.enabled });
       body.add(zone);

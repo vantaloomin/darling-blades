@@ -6631,6 +6631,8 @@ export class DuelScene extends Phaser.Scene {
     // overlay) and means Concede is always valid while the menu is open.
     if (this.animatingCombat || !this.isHumanTurnDecision()) return;
     this.concedeArmed = false;
+    // The tutorial's coach cue must not sit over the menu; Resume restores it.
+    this.coach?.setCueSuppressed(true);
     const onOff = (v: boolean): string => (v ? 'On' : 'Off');
     const s = Services.save.data.settings;
 
@@ -6764,6 +6766,7 @@ export class DuelScene extends Phaser.Scene {
     this.pauseOverlay = null;
     this.pauseGuard.close();
     this.concedeArmed = false;
+    this.coach?.setCueSuppressed(false);
     overlay.destroy();
   }
 
@@ -6773,6 +6776,7 @@ export class DuelScene extends Phaser.Scene {
     this.pauseOverlay = null;
     this.pauseGuard.close();
     this.concedeArmed = false;
+    this.coach?.setCueSuppressed(false);
     this.maybeAutoSkip(); // a pause paused a pending skip chain — resume it
     this.endTurnTick(); // …and a paused end-turn fast-forward
   }
