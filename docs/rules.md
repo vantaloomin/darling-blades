@@ -296,8 +296,15 @@ in three places, each only for a player who can actually pay a link right then:
   passed).
 
 A held trigger resolves once every eligible player has passed, and a
-state-based check runs immediately afterwards. When nobody could pay a link the
-engine takes the revision-3 path unchanged, so a game with no linkable
+state-based check runs immediately afterwards. A held trigger comes before the
+ordinary window it interrupts. When a Rite or Tithe sacrifice holds its
+fodder's dies trigger, the Hauntlink windows open first, the trigger resolves,
+and only then is the opponent offered the ordinary response window over the
+spell (skipped as usual when they hold nothing castable); the spell then
+resolves normally. The response window over declared attackers waits the same
+way when an attack trigger kills a creature whose dies trigger is held. When
+nobody could pay a link the engine takes the revision-3 path unchanged, so a
+game with no linkable
 Hauntlink is byte-identical to revision 3. The reaction the ruling names -
 moving a link off a host that a trigger or combat is about to kill - is exactly
 what the window exists for.
@@ -307,16 +314,25 @@ what the window exists for.
 A card with a `rite` block (`CardDef.rite`, 1.6) can be cast only by also
 sacrificing that many creatures its caster controls, chosen in the cast action
 itself (`castSpell.sacrifices`). The sacrifices leave the battlefield and their
-dies triggers fire, batched in battlefield order exactly like an SBA death
-batch, **before the spell reaches the stack** — the engine has no
-"whenever another creature dies" observer trigger, so Rite value lives on the
-fodder's own dies triggers by design. The sacrifice is a cost: a cancelled Rite
-spell does not refund it. The creature cap counts the slots the sacrifice
-frees, so a full board can still cast a Rite creature. Legal-action
-enumeration offers one canonical sacrifice set (first N in battlefield order);
-`validateAction` accepts any legal set of exactly the right size. Rite never
-combines with X, Retell, Skim, or Hauntlink, and v1 Rite cards carry no cast
-targets (`validateRiteDef`); Rite plus Empower is legal.
+graveyard and dies triggers fire, batched in battlefield order exactly like an
+SBA death batch, **before the spell reaches the stack**. The fodder's own dies
+triggers were Rite's only payoff until 1.8; the `allyDies` observer (see The
+Drowned Deep vocabulary below) can now watch a sacrifice as well. A
+**state-based check** then runs on the paid board before anyone is offered a
+window over the spell: a player drained to 0 by a fodder's dies trigger loses
+there, and a Hauntlink whose host was sacrificed goes to the graveyard with
+it. The sacrifice is a cost: a cancelled Rite spell does not refund it. The
+creature cap counts the slots the sacrifice frees, so a full board can still
+cast a Rite creature. Legal-action enumeration offers one canonical sacrifice
+set (first N in battlefield order); `validateAction` accepts any legal set of
+exactly the right size. Rite never combines with X, Retell, Skim, Hauntlink,
+Whispers or Tithe (`validateRiteDef` refuses each, and the Whispers and Tithe
+validators refuse Rite back). A Rite spell may carry cast targets (Drowned
+Deep's Rite of the Wreckers targets a creature, for one): they are chosen
+with the cast, before the sacrifice is paid, and the spell fizzles as any
+spell does if no chosen target is still legal when it resolves. The
+validator still refuses a Rite Aura and a target that no op uses. Rite plus
+Empower is legal.
 
 ### Nine Lives (marked return)
 
@@ -464,16 +480,20 @@ v12; the rules revision stays 4, since no existing card changes behaviour. The
 A card with a `whispers` block (`CardDef.whispers`, 1.8) can be cast from
 your graveyard for its **Whispers** cost, but only while the card is fresh:
 it must have reached the graveyard from your **hand or your deck** (a Skim, a
-discard, a cleanup discard, a grind), and the chance ends at your opponent's
-next Dawn. A card that reaches the graveyard from the battlefield or from the
-stack is never fresh, and a severed card is gone. The rules line prints
+discard, a grind), and the chance ends at your opponent's next Dawn. A card
+you discard to hand size at your own cleanup is tagged like any other hand
+discard, but your opponent's Dawn follows with no window in between, so the
+chance is over before you could take it: the cleanup discard never gives a
+Whispers cast. A card that reaches the graveyard from the battlefield or from
+the stack is never fresh, and a severed card is gone. The rules line prints
 `Whispers {N}`; the glossary teaches the mechanic under the name Whispers.
 
 **The marker.** When a card enters a graveyard from a hand or a deck, the
 engine tags the entry with `whispersUntilDawnOf`, the owner's opponent at
 that moment. At the start of that player's Dawn, beside untap, every marker
 naming them is cleared on both graveyards. A card tagged on your own turn is
-castable this Afternoon and gone at your opponent's Dawn; one tagged on their
+castable for the rest of that turn and gone at your opponent's Dawn (tagged
+at your cleanup, it is gone before any window opens); one tagged on their
 turn survives their turn and your whole next turn. The marker is public
 information (graveyards are open): the redacted view lists each side's live
 entries as `whispersLive`, graveyard indices, and the brains read it only
@@ -515,8 +535,9 @@ chosen, the discount applies to the generic part of the combined total.
 
 **Payment.** The sacrifice is paid the way Rite pays: the chosen creatures
 leave the battlefield in battlefield order before the spell reaches the
-stack, their graveyard and dies triggers batched, and a cancelled Tithe
-spell does not refund them. The creature-cap check at cast time subtracts
+stack, their graveyard and dies triggers batched, a state-based check runs
+on the paid board before any window opens, and a cancelled Tithe spell does
+not refund them. The creature-cap check at cast time subtracts
 the fodder count, the Rite rule. Tithe never appears beside X, Retell,
 Hauntlink or Rite. It may share a card with Whispers (owner ruling
 2026-09-17, for Cinderjaw, the Fire That Swims): a fresh Whispers card whose

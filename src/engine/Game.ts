@@ -935,6 +935,12 @@ export class Game {
             fireTriggers(st, this.db, emit, 'dies', perm, { observers, sacrifice: true });
           }
           if (st.winner !== null) return;
+          // The payment is a mutation batch like any other, so it gets its
+          // own state-based check before anyone is offered a window: a player
+          // drained to 0 by a fodder's dies trigger loses here, and a
+          // Hauntlink whose host was sacrificed goes with it.
+          checkStateBased(st, this.db, emit);
+          if (st.winner !== null) return;
         }
 
         const item: StackItem = {
@@ -1145,9 +1151,14 @@ export class Game {
     emit: Emit,
   ): void {
     if (this.st.pendingDecisions.some(p => p.kind === 'discard' || p.kind === 'sacrifice' ||
+      p.kind === 'resolveTrigger' ||
       p.continuations !== undefined || (p.kind === 'chooseTarget' && p.triggerWhen !== undefined))) {
       // No window has been offered yet. Complete cast/attack observers first,
       // then recalculate whether the responder still has a playable Charm.
+      // A held revision-4 trigger counts: a Rite or Tithe sacrifice can hold
+      // its fodder's dies trigger for a Hauntlink window, and that window
+      // would otherwise replace this one and leave the spell on the stack
+      // with nobody ever offered a pass (a stranded stack).
       this.st.decisionResume = { player: responder, kind: 'respond', over, offerAfterDecision: true };
       return;
     }
