@@ -1,6 +1,18 @@
-<!-- source-of-truth: docs/plan-road-to-2.0.md, docs/plan-expansion-slate.md, docs/rollout-telemetry-and-accounts.md, docs/plan-1.6.md, docs/plan-tribal-pass.md, docs/release-notes/v1.7.2.md, src/engine/types.ts, src/meta/warchest.ts, src/meta/SaveManager.ts · last-verified: 2026-09-21 · program doc — the 1.8 train proposal; re-verify when the owner rules on the open decisions or a lane lands -->
+<!-- source-of-truth: docs/plan-road-to-2.0.md, docs/plan-expansion-slate.md, docs/rollout-telemetry-and-accounts.md, docs/plan-1.6.md, docs/plan-tribal-pass.md, docs/release-notes/v1.7.2.md, src/engine/types.ts, src/meta/warchest.ts, src/meta/SaveManager.ts · last-verified: 2026-09-24 · program doc — the 1.8 train proposal; re-verify when the owner rules on the open decisions or a lane lands -->
 
 # Darling Blades 1.8 — program plan (proposal)
+
+**Status 2026-09-24: 1.8.0 CUT.** Everything on the train shipped; the
+release-candidate review of 2026-09-23 landed ten fix PRs (#423 to #432)
+including the Salt Gate and Lamp-Lit Vigil redesign (#429). Two departures
+from the plan, both owner rulings of 2026-09-23: the metagame sweep runs
+AFTER launch rather than last-before-it (it runs on GitHub-hosted runners,
+[metagame-sweep.md](metagame-sweep.md), several days of wall clock, and any
+egregious finding ships as a 1.8.x hotfix the way 1.7.1 and 1.7.2 did), and
+it runs on five personas, weenie excluded, because a weenie game costs the
+Hard brain about ten times a midrange game and no chunk of the hosted job
+fits it (a 1.9 item on the roadmap). The seventeen art regenerations of
+[plan-art-regen-2026-09-22.md](plan-art-regen-2026-09-22.md) ship in 1.8.1.
 
 **Status 2026-09-11: every owner decision D1-D10 is RULED (see the list at
 the end); the tap-ability engine core is on the train (#355); the Drowned

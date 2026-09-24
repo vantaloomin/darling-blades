@@ -65,7 +65,7 @@ export const PUBLISHED_BASE = 'https://vantaloomin.github.io/darling-blades/';
 
 /** The tokens the drafts carry and what the pages show for each until the cut fills them. */
 export const PLACEHOLDERS: Record<string, string> = {
-  '[1.8 RELEASE DATE]': 'the day version 1.8 is released',
+  '[1.8 RELEASE DATE]': 'September 24, 2026',
   '[PRIVACY URL]': `${PUBLISHED_BASE}privacy.html`,
 };
 

@@ -1,4 +1,4 @@
-<!-- source-of-truth: package.json, src/config/rules.ts, src/data/cards/*.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/scenes/, docs/rules.md, docs/ai.md, docs/roadmap.md, docs/release-notes/ · last-verified: 2026-09-22
+<!-- source-of-truth: package.json, src/config/rules.ts, src/data/cards/*.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/scenes/, docs/rules.md, docs/ai.md, docs/roadmap.md, docs/release-notes/ · last-verified: 2026-09-24
      If you change those files, update this doc or re-verify the date.
      Writing rules for this file: no em-dashes or en-dashes (use period/comma/colon/semicolon/parentheses; plain hyphens in numeric ranges), no emojis, and avoid formulaic AI prose patterns (no "X is here" openers, no anthropomorphized marketing lines, no rhetorical triads or dramatic reveal colons). Section order: What is Darling Blades, Features, the latest release, then everything else. This file is the front door, not the manual: card lists, boss rosters, exact odds and mechanic definitions belong in docs/ and docs/release-notes/, and this file links to them. -->
 
@@ -89,7 +89,7 @@ Darling Blades is TypeScript on Vite, rendered with Phaser 3 (pinned; never v4),
 
 The codebase is split into two halves. `src/engine/` is a pure, Phaser-free, deterministic rules engine: given decklists, a seed, and a sequence of actions, it produces the same game state and event stream on every machine, every time. The Phaser scenes only consume that event stream to animate, and hold no rules logic of their own. The AI plays through the same engine via the identical redacted view a human sees, which is what makes "the AI never reads hidden information" structural rather than a promise in a comment.
 
-That separation is what makes a real test suite possible: **3,825 tests across 251 files**, from engine rules and save migrations to the win-rate gates, in about fifteen minutes on the release-prep host.
+That separation is what makes a real test suite possible: **3,961 tests across 259 files**, from engine rules and save migrations to the win-rate gates, in about thirteen minutes on the release-prep host.
 
 For deeper dives: [docs/architecture.md](docs/architecture.md) (layers, the event model, determinism), [docs/rules.md](docs/rules.md) (the full ruleset as implemented), [docs/adding-cards.md](docs/adding-cards.md) (the card schema), [docs/ai.md](docs/ai.md) (how each difficulty thinks and how the bosses are measured), [docs/design-system.md](docs/design-system.md) (the visual language), [docs/art-pipeline.md](docs/art-pipeline.md) (the art pipeline), and [docs/roadmap.md](docs/roadmap.md) (current status in detail).
 
