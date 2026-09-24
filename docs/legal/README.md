@@ -46,7 +46,7 @@ Every `[BRACKETED]` token in the drafts is an owner input. The full set:
 | ~~`[CONTACT EMAIL]`~~ | **Filled 2026-09-15: `admin@bladedarlings.com`** | A dedicated inbox, not a personal one. Watch it: the policy promises a reply within 30 days |
 | ~~`[COUNTRY / STATE]`~~ | **Filled 2026-09-15: Maryland, USA** | Governing law and venue for the terms |
 | `[1.8 RELEASE DATE]` | The 1.8 ship date, the effective date of both documents | Change it on every material edit after launch. **Release-cut step:** until it is filled, the generated page prints "the day version 1.8 is released" in its place |
-| ~~`[PRIVACY URL]`~~ | **Decided 2026-09-17: `https://vantaloomin.github.io/darling-blades/privacy.html`** | The generator substitutes it, and rewrites it to the sibling `privacy.html` when it appears as a link; see "Hosting" |
+| ~~`[PRIVACY URL]`~~ | **Decided 2026-09-17, moved to the custom domain 2026-09-24: `https://bladedarlings.com/privacy.html`** | The generator substitutes it, and rewrites it to the sibling `privacy.html` when it appears as a link; see "Hosting" |
 | ~~`[THIRD-PARTY NOTICES FILE]`~~ | **Filled 2026-09-22: a link to `THIRD_PARTY_NOTICES.txt`** | Generated beside the pages by `scripts/gen-third-party-notices.ts`; see "Third-party notices" |
 
 The 2.1 staging file carries its own extra placeholders (email sender, auth
