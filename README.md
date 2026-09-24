@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://vantaloomin.github.io/darling-blades/"><b>Play Darling Blades in your browser</b></a>
+  <a href="https://bladedarlings.com/"><b>Play Darling Blades in your browser</b></a>
 </p>
 
 **Desktop:** every GitHub Release includes a Windows installer.
@@ -107,7 +107,7 @@ This is a personal, single-player project built and tuned by one developer; ther
 
 Your game lives on your device. The game sets no cookies, loads no third-party scripts, runs no ads, and never receives your save.
 
-Starting with 1.8, the game can send anonymous play stats: short summaries, rounded into broad ranges, with no name, account, identifier, deck name, or exact collection. It is on by default; every player is told once, in the game, before anything is sent, and the switch and a full list of what is sent are in Settings. The full policy is at [privacy.html](https://vantaloomin.github.io/darling-blades/privacy.html), generated from [docs/legal/privacy-policy.md](docs/legal/privacy-policy.md) at every build so the two never differ.
+Starting with 1.8, the game can send anonymous play stats: short summaries, rounded into broad ranges, with no name, account, identifier, deck name, or exact collection. It is on by default; every player is told once, in the game, before anything is sent, and the switch and a full list of what is sent are in Settings. The full policy is at [privacy.html](https://bladedarlings.com/privacy.html), generated from [docs/legal/privacy-policy.md](docs/legal/privacy-policy.md) at every build so the two never differ.
 
 ## License
 
@@ -115,4 +115,4 @@ The source code in this repository is released under the [MIT License](LICENSE).
 
 The illustrated card and scene art (everything under `public/assets/art/`) and the desktop app icons (`src-tauri/icons/`) are **not** covered by that license; all rights to those images are reserved.
 
-Three pages ship with every build and are linked from the Legal button in Settings: the [privacy policy](https://vantaloomin.github.io/darling-blades/privacy.html), the [terms of service](https://vantaloomin.github.io/darling-blades/terms.html), and the [notices](https://vantaloomin.github.io/darling-blades/notices.html), which cover trademark non-affiliation, art rights, and the third-party licenses the game redistributes.
+Three pages ship with every build and are linked from the Legal button in Settings: the [privacy policy](https://bladedarlings.com/privacy.html), the [terms of service](https://bladedarlings.com/terms.html), and the [notices](https://bladedarlings.com/notices.html), which cover trademark non-affiliation, art rights, and the third-party licenses the game redistributes.

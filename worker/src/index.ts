@@ -163,6 +163,9 @@ const SALT_KEY_PREFIX = 'salt:';
 const SALT_GRACE_SECONDS = 3600;
 
 const ALLOWED_ORIGINS = new Set([
+  // The custom domain (2026-09-24) and the github.io address it replaced,
+  // which redirects there but stays allowed for the transition.
+  'https://bladedarlings.com',
   'https://vantaloomin.github.io',
   'http://localhost:5173',
   'http://127.0.0.1:5173',

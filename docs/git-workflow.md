@@ -5,7 +5,7 @@
 The repo is public on GitHub — `vantaloomin/darling-blades` — and **`main`
 auto-deploys**: every push to `main` runs CI (the full verification ladder) and,
 if it passes, publishes the web build to GitHub Pages
-(https://vantaloomin.github.io/darling-blades/). Treat `main` as production — and
+(https://bladedarlings.com/, the custom domain; the github.io address redirects there). Treat `main` as production — and
 it is **branch-protected**, so nothing reaches it by direct push; every change
 lands through a PR whose `verify` check has passed.
 

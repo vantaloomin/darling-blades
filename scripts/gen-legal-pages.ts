@@ -61,7 +61,7 @@ export const LEGAL_DOCUMENTS: readonly LegalDocument[] = [
 ] as const;
 
 /** Where the pages are published. The in-game links stay relative; prose does not. */
-export const PUBLISHED_BASE = 'https://vantaloomin.github.io/darling-blades/';
+export const PUBLISHED_BASE = 'https://bladedarlings.com/';
 
 /** The tokens the drafts carry and what the pages show for each until the cut fills them. */
 export const PLACEHOLDERS: Record<string, string> = {
