@@ -1,171 +1,24 @@
 import type { Action } from '../engine/actions';
-import { getEffectiveStats } from '../engine/statics';
-import type { AbilityDef, CardDb, EffectOp, Permanent, PlayerId, TargetRef } from '../engine/types';
-import { def, isType, opponentOf } from '../engine/types';
+import { castTargetSpecsFor } from '../engine/resolve';
+import type { AbilityDef, CardDb, CardDef, EffectOp, Permanent, TargetRef, TargetSpec } from '../engine/types';
+import { def } from '../engine/types';
 import type { PlayerView } from '../engine/view';
-import {
-  cardValue,
-  hasMarkPayoff,
-  opImpactValue,
-  removalTargetValue,
-} from './value';
+import { boundCastEffects, spellTargetsValue, targetValueForAbility } from './value';
+
+export { targetValueForAbility } from './value';
 
 type ChooseTargetAction = Extract<Action, { type: 'chooseTarget' }>;
 
-interface TargetContext {
-  view: PlayerView;
-  db: CardDb;
-  source: Permanent;
-  ability: AbilityDef;
-}
-
-function permanentFor(ctx: TargetContext, ref: TargetRef): Permanent | undefined {
-  return ref.kind === 'permanent'
-    ? ctx.view.battlefield.find((perm) => perm.iid === ref.iid)
-    : undefined;
-}
-
-function playerFor(ctx: TargetContext, ref: TargetRef): PlayerId | undefined {
-  if (ref.kind === 'player' || ref.kind === 'grave') return ref.player;
-  if (ref.kind === 'permanent') return permanentFor(ctx, ref)?.controller;
-  return ctx.view.stack.find((item) => item.sid === ref.sid)?.controller;
-}
-
-function harmSign(ctx: TargetContext, ref: TargetRef): number {
-  const player = playerFor(ctx, ref);
-  return player === opponentOf(ctx.view.myId) ? 1 : -1;
-}
-
-function permanentRemovalValue(ctx: TargetContext, perm: Permanent): number {
-  return Math.max(0, removalTargetValue(ctx.view.battlefield, ctx.db, perm));
-}
-
-function damageTargetValue(ctx: TargetContext, op: Extract<EffectOp, { op: 'damage' }>, ref: TargetRef): number {
-  if (op.to !== 'target' || op.n === 'X') return 0;
-  const perm = permanentFor(ctx, ref);
-  if (!perm) return op.n * 0.9 * harmSign(ctx, ref);
-  const d = def(ctx.db, perm.cardId);
-  if (!isType(d, 'creature')) return 0;
-  const stats = getEffectiveStats(ctx.view.battlefield, ctx.db, perm.iid);
-  const lethal = op.n >= stats.defense - perm.damage;
-  const impact = lethal
-    ? permanentRemovalValue(ctx, perm)
-    : op.n * 0.45 + perm.plusOneCounters * 0.15;
-  return impact * harmSign(ctx, ref);
-}
-
-function boostTargetValue(
-  ctx: TargetContext,
-  op: Extract<EffectOp, { op: 'boost' }>,
-  ref: TargetRef,
-): number {
-  if (op.scope !== 'target') return 0;
-  const perm = permanentFor(ctx, ref);
-  if (!perm || !isType(def(ctx.db, perm.cardId), 'creature')) return 0;
-  const printedDelta = (op.p + op.t) / 2 + (op.keywords?.length ?? 0) * 0.5;
-  // A positive boost helps our body and hurts theirs; a negative boost has the
-  // opposite sign. The 0.75 factor keeps a one-turn trick below removal.
-  return printedDelta * (perm.controller === ctx.view.myId ? 1 : -1) * 0.75;
-}
-
-/**
- * A mark is only worth what the body carrying it survives to do. Among our
- * own creatures prefer the one that keeps the mark alive (toughness, evasion,
- * no damage on it) and, when a threshold payoff is in play or in hand, spread
- * marks over unmarked bodies: thresholds and the marked-filter lords count
- * creatures, not counters.
- */
-function markCounterValue(ctx: TargetContext, op: Extract<EffectOp, { op: 'addCounters' }>, ref: TargetRef): number {
-  if (op.to !== 'target') return 0;
-  const perm = permanentFor(ctx, ref);
-  if (!perm || !isType(def(ctx.db, perm.cardId), 'creature')) return 0;
-  if (perm.controller !== ctx.view.myId) return -op.n * 1.2;
-  const stats = getEffectiveStats(ctx.view.battlefield, ctx.db, perm.iid);
-  const toughnessAfter = stats.defense + op.n - perm.damage;
-  let value = op.n * 1.2;
-  if (toughnessAfter >= 4) value += 0.4;
-  else if (toughnessAfter <= 1) value -= 0.4;
-  if (stats.keywords.has('skyborne') || stats.keywords.has('untouchable')) value += 0.3;
-  if (perm.plusOneCounters === 0) {
-    value += 0.2;
-    if (hasMarkPayoff(ctx.view.battlefield, ctx.db, ctx.view.myId, ctx.view.you.hand)) value += 0.5;
-  }
-  return value;
-}
-
-function effectOnTarget(ctx: TargetContext, op: EffectOp, ref: TargetRef): number {
-  switch (op.op) {
-    case 'damage':
-      return damageTargetValue(ctx, op, ref);
-    case 'destroy':
-    case 'sever':
-    case 'destroyArtifactOrSeverEnchantment': {
-      const perm = permanentFor(ctx, ref);
-      if (!perm || !isType(def(ctx.db, perm.cardId), 'creature')) return 0;
-      const multiplier = op.op === 'destroy' ? 1 : op.op === 'sever' ? 0.9 : 0.85;
-      return permanentRemovalValue(ctx, perm) * multiplier * harmSign(ctx, ref);
-    }
-    case 'recall': {
-      const perm = permanentFor(ctx, ref);
-      return perm ? permanentRemovalValue(ctx, perm) * 0.65 * harmSign(ctx, ref) : 0;
-    }
-    case 'cancel': {
-      const item = ref.kind === 'stackItem'
-        ? ctx.view.stack.find((entry) => entry.sid === ref.sid)
-        : undefined;
-      return item ? cardValue(ctx.db, item.cardId) * harmSign(ctx, ref) : 0;
-    }
-    case 'boost':
-      return boostTargetValue(ctx, op, ref);
-    case 'addCounters':
-      return markCounterValue(ctx, op, ref);
-    case 'removeMarks': {
-      const perm = permanentFor(ctx, ref);
-      if (!perm || !isType(def(ctx.db, perm.cardId), 'creature')) return 0;
-      // Marks are printed power. Removing theirs is disruption; removing ours
-      // is a cost. The op-level value is deliberately reused as the floor.
-      return opImpactValue(op) * perm.plusOneCounters * harmSign(ctx, ref);
-    }
-    case 'tap': {
-      const perm = permanentFor(ctx, ref);
-      return perm ? Math.max(0.5, permanentRemovalValue(ctx, perm) * 0.3) * harmSign(ctx, ref) : 0;
-    }
-    case 'ifTargetMarked': {
-      const perm = permanentFor(ctx, ref);
-      const branch = perm &&
-        isType(def(ctx.db, perm.cardId), 'creature') &&
-        perm.plusOneCounters > 0
-        ? op.then
-        : (op.else ?? []);
-      return branch.reduce((sum, nested) => sum + effectOnTarget(ctx, nested, ref), 0);
-    }
-    case 'raise':
-    case 'reclaim': {
-      if (ref.kind !== 'grave' || ref.player !== ctx.view.myId) return 0;
-      const cards = ref.player === ctx.view.myId ? ctx.view.you.graveyard : ctx.view.opp.graveyard;
-      const cardId = cards[ref.index];
-      if (!cardId) return 0;
-      return cardValue(ctx.db, cardId) * (op.op === 'raise' ? 1 : 0.7);
-    }
-    case 'moveMark': {
-      // A move has two targets and is not a targeted-arrival shape. Keep a
-      // small neutral floor for any caller that ranks the op as a whole.
-      return opImpactValue(op);
-    }
-    default:
-      // Target-independent ops do not break a target tie. Their value is
-      // still routed through the shared op-impact machinery for future ops.
-      return 0;
-  }
-}
-
-function sourceAbility(view: PlayerView, db: CardDb): TargetContext | undefined {
+function sourceAbility(view: PlayerView, db: CardDb): { source: Permanent | undefined; ability: AbilityDef } | undefined {
   const awaiting = view.awaiting;
   if (awaiting.kind !== 'chooseTarget') return undefined;
   const source = view.battlefield.find((perm) => perm.iid === awaiting.sourceIid);
+  const pending = view.pendingDecisions?.find((decision) => decision.kind === 'chooseTarget' &&
+    decision.sourceIid === awaiting.sourceIid && decision.abilityIndex === awaiting.abilityIndex);
+  if (pending?.kind === 'chooseTarget') return { source, ability: { when: pending.triggerWhen ?? 'arrives', ops: pending.ops } };
   if (!source) return undefined;
   const ability = def(db, source.cardId).abilities?.[awaiting.abilityIndex];
-  return ability ? { view, db, source, ability } : undefined;
+  return ability ? { source, ability } : undefined;
 }
 
 /**
@@ -175,7 +28,7 @@ function sourceAbility(view: PlayerView, db: CardDb): TargetContext | undefined 
 export function targetChoiceValue(view: PlayerView, db: CardDb, ref: TargetRef): number {
   const ctx = sourceAbility(view, db);
   if (!ctx) return 0;
-  return (ctx.ability.ops ?? []).reduce((sum, op) => sum + effectOnTarget(ctx, op, ref), 0);
+  return targetValueForAbility(view, db, ctx.source, ctx.ability, ref);
 }
 
 /** Greedy target selection shared by Easy and Medium, and as Hard's fallback. */
@@ -196,4 +49,100 @@ export function chooseTargetAction(
     }
   }
   return best;
+}
+
+const NEW_TARGET_DATABASES = new WeakMap<CardDb, boolean>();
+const hasTargetQualifier = (spec: TargetSpec): boolean => spec.exactly !== undefined ||
+  spec.what === 'opponentCreature' || spec.maxCost !== undefined || spec.minAttack !== undefined;
+const hasTargetBinding = (items: readonly EffectOp[]): boolean => items.some((op) =>
+  'targetIndex' in op && op.targetIndex !== undefined || op.op === 'preventCombatTo' ||
+  op.op === 'ifTargetMarked' && (hasTargetBinding(op.then) || hasTargetBinding(op.else ?? [])));
+function databaseHasNewTargets(db: CardDb): boolean {
+  const cached = NEW_TARGET_DATABASES.get(db);
+  if (cached !== undefined) return cached;
+  const found = Object.values(db).some((card) =>
+    card.retell !== undefined && card.types.includes('creature') ||
+    (card.abilities ?? []).some((ability) => (ability.targets ?? []).some(hasTargetQualifier) || hasTargetBinding(ability.ops ?? [])) ||
+    (card.empower?.targets ?? []).some(hasTargetQualifier) || hasTargetBinding(card.empower?.ops ?? []));
+  NEW_TARGET_DATABASES.set(db, found);
+  return found;
+}
+
+/** Only new target shapes use this policy; shipped menus retain their identity. */
+export function vocabularyCastTargetValue(view: PlayerView, db: CardDb, action: Action): number | undefined {
+  if (action.type !== 'castSpell') return undefined;
+  const cardId = (action.retell || action.whispers) && action.graveIndex !== undefined
+    ? view.you.graveyard[action.graveIndex] : view.you.hand[action.handIndex];
+  const card = def(db, cardId);
+  const specs = castTargetSpecsFor(card, action.retell === true, action.hauntlinked === true, action.empowered === true);
+  const ops = action.retell && card.retell?.ops ? card.retell.ops :
+    (card.abilities ?? []).filter((ability) => ability.when === 'spell').flatMap((ability) => ability.ops ?? []);
+  const newShape = specs.some(hasTargetQualifier) || hasTargetBinding(ops) ||
+    action.retell === true && card.types.includes('creature') ||
+    ops.some((op) => op.op === 'preventCombatTo');
+  if (!newShape) return undefined;
+  return spellTargetsValue(view, db, ops, action.targets ?? [], specs.length === 1 &&
+    (specs[0].exactly !== undefined || specs[0].upTo !== undefined), action.x ?? 0) +
+    (action.empowered ? spellTargetsValue(view, db, card.empower?.ops ?? [], action.targets ?? []) : 0);
+}
+
+/** Keep the best target assignment for each new cast mode before brain priorities. */
+export function applyVocabularyTargetPolicy(view: PlayerView, db: CardDb, legal: Action[], keepTacticalTargets = false): Action[] {
+  if (!databaseHasNewTargets(db)) return legal;
+  const ranked = legal.map((action) => {
+    let tacticalKey = '';
+    // A board-only greedy tie-break must not discard the friendly rescue or
+    // the combat-specific tap target before Medium/Hard inspect the window.
+    if (keepTacticalTargets && action.type === 'castSpell') {
+      const id = (action.retell || action.whispers) && action.graveIndex !== undefined
+        ? view.you.graveyard[action.graveIndex] : view.you.hand[action.handIndex];
+      const tactical = boundCastEffects(view, db, id, action).filter(({ op }) => op.op === 'recall' || op.op === 'tap' ||
+        op.op === 'preventCombatTo' || op.op === 'moveMark' || op.op === 'removeMarks' ||
+        op.op === 'addCounters' && op.to === 'target' || op.op === 'boost' && op.scope === 'target' && op.p + op.t <= 0);
+      // Keep each tactical assignment, while still selecting the best value
+      // in independent slots (for example reclaim + a battlefield Mark).
+      if (tactical.length > 0) tacticalKey = JSON.stringify(tactical.map(({ targets }) => targets));
+    }
+    return { action, value: vocabularyCastTargetValue(view, db, action), tacticalKey };
+  });
+  if (!ranked.some((entry) => entry.value !== undefined)) return legal;
+  const keyFor = (action: Action): string => {
+    if (action.type !== 'castSpell') return '';
+    return JSON.stringify({ ...action, targets: undefined });
+  };
+  const best = new Map<string, typeof ranked[number]>();
+  for (const entry of ranked) {
+    if (entry.value === undefined) continue;
+    const key = keyFor(entry.action) + entry.tacticalKey;
+    const previous = best.get(key);
+    if (!previous || entry.value > previous.value!) best.set(key, entry);
+  }
+  return ranked.filter((entry) => entry.value === undefined || best.get(keyFor(entry.action) + entry.tacticalKey) === entry)
+    .map((entry) => entry.action);
+}
+
+const VOCABULARY_CARDS = new WeakMap<CardDef, boolean>();
+/** New vocabulary joins Hard's explicit cast candidates without widening old pools. */
+export function isVocabularyCast(view: PlayerView, db: CardDb, action: Action): boolean {
+  if (action.type !== 'castSpell') return false;
+  const cardId = (action.retell || action.whispers) && action.graveIndex !== undefined
+    ? view.you.graveyard[action.graveIndex] : view.you.hand[action.handIndex];
+  const card = def(db, cardId);
+  const cached = VOCABULARY_CARDS.get(card);
+  if (cached !== undefined) return cached;
+  const newOps = (ops: readonly EffectOp[]): boolean => ops.some((op) =>
+    ['discard', 'sacrifice', 'tapAll', 'preventCombatTo', 'reclaimSelf'].includes(op.op) ||
+    op.op === 'damage' && op.to === 'eachOpponentCreature' ||
+    op.op === 'markAll' && op.other === true ||
+    op.op === 'boost' && op.scope === 'self' ||
+    op.op === 'createToken' && op.marks !== undefined ||
+    op.op === 'raise' && op.grantKeywords !== undefined ||
+    op.op === 'ifTargetMarked' && (newOps(op.then) || newOps(op.else ?? [])) ||
+    hasTargetBinding([op]));
+  const found = card.retell !== undefined && card.types.includes('creature') ||
+    (card.abilities ?? []).some((ability) => (ability.targets ?? []).some(hasTargetQualifier) || newOps(ability.ops ?? [])) ||
+    card.empower?.ops.some((op) => op.op === 'destroy') === true ||
+    newOps(card.retell?.ops ?? []);
+  VOCABULARY_CARDS.set(card, found);
+  return found;
 }

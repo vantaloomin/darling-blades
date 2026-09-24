@@ -107,14 +107,56 @@ export function curveBars(curve: readonly number[], opts: CurveBarOptions): Curv
   }));
 }
 
+/** One colour's share of a deck's mana symbols, for a pip bead and its count. */
+export interface DeckPipCount {
+  color: Color;
+  count: number;
+}
+
 /**
- * The one-line "what is in this deck" summary under a curve: type counts, then
- * the colour pips that decide whether the Warchest can cast any of it.
+ * The colours a deck's spells ask for, in WUBRG order, with how many pips of
+ * each. The design system shows colour identity as pip beads, never letter
+ * codes, so this is data for the caller to draw, not display copy.
+ */
+export function deckPipCounts(stats: DeckStats): DeckPipCount[] {
+  return PIE_COLORS.filter((color) => stats.colorPips[color] > 0)
+    .map((color) => ({ color, count: stats.colorPips[color] }));
+}
+
+/**
+ * Where a deck's lands live, for the summary counts. A classic deck holds its
+ * lands in the list; a reserve-format deck (Standard, Darlings) keeps them in a
+ * Warchest of `size` slots, `filled` of them chosen.
+ */
+export type DeckLandSource =
+  | { kind: 'list' }
+  | { kind: 'warchest'; filled: number; size: number };
+
+/**
+ * The type-count half of the summary under a curve. In a reserve format the
+ * deck list never holds lands, so a land count would read "0 lands" forever;
+ * the line names the Warchest fill instead. Lands still sitting in a reserve
+ * deck's list (a migrated classic deck awaiting repair) are counted, because
+ * they are really there and the repair removes them.
+ */
+export function deckCountsLine(stats: DeckStats, lands: DeckLandSource): string {
+  const other = stats.nonlands - stats.typeCounts.creature;
+  const parts = [`${stats.typeCounts.creature} creatures`];
+  if (lands.kind === 'list' || stats.lands > 0) parts.push(`${stats.lands} lands`);
+  parts.push(`${other} other`);
+  if (lands.kind === 'warchest') parts.push(`Warchest ${lands.filled}/${lands.size}`);
+  return parts.join(' · ');
+}
+
+/**
+ * The one-line, text-only summary still used by the Limited builder: type
+ * counts, then the colour pips as letters. The Deck Builder draws the pips as
+ * beads instead (`deckCountsLine` + `deckPipCounts`).
  */
 export function deckShapeLine(stats: DeckStats, options: { lands: boolean }): string {
   const other = stats.nonlands - stats.typeCounts.creature;
-  const pips = PIE_COLORS.filter((c) => stats.colorPips[c] > 0)
-    .map((c) => `${c}·${stats.colorPips[c]}`)
+  const pips = deckPipCounts(stats)
+    .map(({ color, count }) => `${color}·${count}`)
     .join(' ');
   const counts = options.lands
     ? `${stats.typeCounts.creature} creatures · ${stats.lands} lands · ${other} other`

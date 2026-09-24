@@ -153,6 +153,16 @@ the outer band is cropped or obstructed. Test landscape mobile in both physical
 orientations, streamed/custom aspect ratios, window resizing, and HDTV output;
 do not assume a centered 16:9 screenshot proves safe placement.
 
+Place chrome from the frame's shared anchors, never from typed edge offsets:
+the header line (`theme.design.headerCenterY`, the back button's row), the
+footer line (`theme.design.footerCenterY`), the side edges
+(`theme.design.safeLeft` / `safeRight`), and the currency anchor
+(`HEADER_CURRENCY_ANCHOR` in `src/ui/layout.ts`: the gold badge's right edge on
+the frame's right edge, on the header line). A row of content panels spans the
+frame, not the stage. The "title-safe frame: every placed
+control" block in `tests/ui/layout.test.ts` holds every placement that lives in
+a pure layout module to this frame.
+
 #### Alignment rules
 
 - Give every region one primary alignment axis. A column of labels, values,

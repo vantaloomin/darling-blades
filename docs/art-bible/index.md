@@ -500,6 +500,172 @@ the figure; a sealed spacesuit defeats both.
 seams that breathe, chitinous or pearlescent plating, gardens growing in the
 warm parts. A Starborne ship is never a grey military box.
 
+## 4c. The Drowned Deep set register (binding)
+
+This register applies to every **Drowned Deep** art-bible entry, every
+`docs/spell-art.md` entry with a `dd-` id, and every set-scoped key visual
+that quotes this bible. The global rules above remain in force.
+
+Drowned Deep is a cold salt coast at the edge of a drowned town. Dunmarrow
+went under three hundred years ago and never finished going; its bell tower
+still breaks the surface at low water, its Deep One daughters still collect
+what they are owed, and the Lantern Watch on the Point keeps the lamps lit so
+the living know where the land stops. Five peoples share the coast: the
+Watch (white), the tide-priestesses, Mermaids and drowned scholars (blue),
+the salt-witches and the Deep's daughters (black), the reef-wardens and the
+kelp gardens (green), and the wreckers and storm-callers (red). The
+register's job is to make that beautiful, and to make three mechanics
+readable at battlefield crop: Whispers, Tithe and Duty.
+
+### Drowned gold is the Deep's voice, and its colour is reserved
+
+**Drowned gold `#d6e07c` (highlight) / `#7f8a2a` (deep) is a RESERVED hue**
+(owner-approved 2026-09-11). It is a cold phosphorescent green-gold and it
+appears only where the Deep speaks: on **Whispers** cards as the light in the
+water, and on **Horrors** as the light behind the eyes. It is always drawn
+against black water, so the read is black-and-gold. It is deliberately
+green-shifted away from the global multicolour frame gold and from the
+mono-white accent, so a gold-framed or white card cannot carry it by accident.
+
+It is forbidden on lamps, bells, jewellery, fire, sky, weapon glow and
+generic ambience. **The Watch's light is warm lamp amber and is never confused
+with it. Bells are bronze, never gold.** If something in the frame glows
+green-gold, a player must be able to read it as the Deep.
+
+Marks keep the engine's own colour. A **Mark is the same biolume cyan bloom
+`#5ff0e0` defined in section 4b**, here drawn as a coral polyp of living light
+on the body; cyan stays reserved for Marks in this set too, and the two
+reserved hues never touch the same object. Green is the only Drowned Deep
+colour that Marks, so cyan appears on green cards and almost nowhere else.
+
+### Accent palette
+
+Layer these over the card's colour-identity palette.
+
+| Accent | Hex | Required visual use |
+|---|---|---|
+| **Drowned gold** | `#d6e07c` / `#7f8a2a` | **RESERVED**: Whispers light in the water, the light behind a Horror's eyes |
+| **Biolume cyan** | `#5ff0e0` / `#aefff6` | **RESERVED**: Marks only (section 4b) |
+| **Black water** | `#0d1a22` / `#16303a` | the sea, every drowned interior, the dark half of every frame |
+| **Wet-stone grey** | `#2b3238` | the value floor: shadow, wet granite, the underside of everything |
+| **Salt white** | `#eef0ea` / `#d9dcd4` | salt crust, tide-line, linen, bone, sea foam |
+| **Granite grey** | `#7d8590` / `#a4acb5` | the Point, the Salt Stair, breakwaters, chapel walls |
+| **Bell bronze** | `#a8783c` / `#d9a95e` | bells, lamp housings, gate fittings, the Watch's metal |
+| **Lamp amber** | `#ffb35c` / `#ffd08a` | the Watch's light: lamps, lanterns, beacons, hearths |
+| **Mourning violet** | `#5a3f7a` / `#8b6fb0` | widow's silk, storm cloud, the cool rim, the bruise in a wave |
+| **Kelp green** | `#3f6b4a` / `#7fb07a` | kelp, reef growth, the Kelp Shades, marsh water |
+| **Wreck fire** | `#ff6a3d` / `#ffb35c` | red's fire only: false beacons, burning wrecks, forge light |
+
+### Value floor and lighting doctrine
+
+- The darkest visible value in the central band is **wet-stone grey
+  `#2b3238`**. Black water is a colour, not a void: it carries surface
+  detail, foam, weed, the shape of what is under it. No true black anywhere,
+  matching the global rule.
+- Every entry names **one practical key**: a lamp, a lantern, a beacon, a
+  hearth, a forge, a shaft of grey daylight through fog, or the Deep's own
+  drowned gold from below the surface. Overcast sky is not a key.
+- Exactly **one cool rim**, from mourning violet or grey daylight, separates
+  the figure from the background. No second key, no unmotivated fill.
+- **Two readings of light, never mixed on one object.** The Watch lights
+  from above and in warm amber; the Deep lights from below and in reserved
+  gold. A Warden is never lit from below. A Horror is never lit in amber.
+- A generous pool of warm or living light claims a large part of the frame.
+  Rich readable detail in every shadow; no near-black areas.
+
+The trap here is murk. Fog, night and water together collapse into one grey.
+**Every Drowned Deep background has a hard edge in it**: a granite stair, a
+bell tower, a breakwater, a chapel wall, a hull rib, a kelp cathedral column.
+Open fog is never the whole background.
+
+### NO-TEXT, and the sea variant that matters
+
+The global NO-TEXT rule applies. The sea breaks it with charts, ship names
+and bells.
+
+- **Negative, carried on every Drowned Deep prompt:** `no text, no charts
+  with names, no ship names, no lettered bells, no lettered lamps, no
+  gravestone inscriptions, no signboards, no nameplates, no numerals, no
+  writing on any surface`
+- Charts, ledgers, jars and gravestones are allowed as **shape only**: blank
+  vellum, blank labels, plain slate. A ledger may lie open; it may not show
+  a line of writing.
+- Bells carry a plain cast surface or a geometric band. Never a name, never
+  a date.
+
+### Composition by mechanic family
+
+| Family | The moment to draw |
+|---|---|
+| **Whispers** | The card's own subject half-submerged in still black water, lit from BELOW by the reserved drowned gold, the water flat as glass and the light in it the only movement. Whispers is the Deep speaking; nothing else in the frame glows green-gold. A Whispers creature stands waist-deep at the surface; a Whispers spell shows its effect rising out of the water. |
+| **Tithe (Horrors)** | A STATE: the Horror already risen, the bodies given going DOWN into the dark beneath her, drawn as figures slipping under a flat surface, never viscera, never rot. The Horror is lit from below in drowned gold behind the eyes, and the water above her is still. Count the given bodies when the card names a number. |
+| **Duty (tap)** | The act of tending, mid-work: a hand on the bell rope, the lamp being lit, the gate being wound, the net being mended, the tide-glass being turned. The permanent is caught doing its job, and the job reads at battlefield crop. Never the result, always the act. |
+| **Self-mill ("grind self")** | Pages, charts or bones settling to the bottom of black water, drawn as a slow fall, the Deep taking its due. Never fire, never shredding. |
+| **Skim** | One card lifted out of the tide with a swipe of the hand, water running off it. |
+| **Rite** | White and red only: a Warden or wrecker giving of herself, the cost paid upward into lamp light or wreck fire, beautiful, no viscera. |
+| **Retell** | The same woman one beat behind herself, a wet echo, clearly a reflection or a wake and not a second person. |
+| **Marks (green)** | Exactly as section 4b: an exact stated count of cyan coral blooms ON the body at mid-height, a state and never a transition, placement clause every time. |
+| **Mass tap** | The whole opposing line sagging under a weight of water or a bell's note, every figure caught mid-slump. |
+
+Three rules for every reserved-gold mention in every prompt:
+
+1. **Name the bearer.** "Drowned gold behind her eyes" or "drowned gold rising
+   through the water beneath her", never "gold light" loose in the scene.
+2. **Name the direction.** The Deep lights from below. Say "from below the
+   surface" every time.
+3. **Name what is NOT gold.** Any lamp, bell or fire in the same frame gets its
+   own colour word in the prompt (lamp amber, bell bronze, wreck fire) so the
+   generator does not borrow the reserved hue for it.
+
+### The three peoples and their tells
+
+Every Drowned Deep character is an adult woman, per the global rule. Titles
+are offices, not sexes: Dagon (once Father Dagon), the Deacon of the Deep and the Drowned
+Sexton are women holding old names. The coast reads through three costume
+languages and one set of species tells:
+
+**The Deep's daughters (Deep One Horrors, Mermaids, the drowned).** Three
+tells and no more, so the cast stays coherent:
+
+1. **An inner light behind the eyes** in reserved drowned gold, faint at
+   common, unmistakable at legendary.
+2. **Hair that moves as if underwater, even in air**: lifted, slow, weightless.
+3. **One drowned detail**: a tide-line across the skin, a bell chain at the
+   throat, weed woven into silk, salt crust at the hairline. One, stated.
+
+Horrors carry these three plus mass: broad shoulders, a long reach, the sense
+of something larger under the surface. **Never gore, never rot, never
+tentacle-mouths.** This set's black is patience and appetite; the Deep is
+beautiful and it is owed. Mermaids show the tail in frame (section 2, "show
+what the character IS").
+
+**The Lantern Watch (Wardens, Sisters, lamp-keepers).** None of the three
+tells, ever. Oilskin and wool over salt-stiffened linen, bronze lamp fittings
+at the belt, a bell-rope callus. Practical, layered, lit from above in amber.
+A Warden's face is the warmest thing in her frame.
+
+**The coast folk (witches, wreckers, scholars, reef-wardens).** None of the
+three tells unless the card text makes her the Deep's. Salt-witches wear jars
+and knotted cord; scholars wear ink-stained cuffs and carry blank charts;
+reef-wardens wear kelp-dyed green and coral on a thong; wreckers wear tarred
+canvas and carry the false beacon's fire. Every one of them is the coast's,
+not the Deep's, until a Whispers or Tithe line says otherwise.
+
+**Costume silhouette:** fitted bodices under layered coats and shawls that
+catch the rim light; bare forearms; wet fabric that clings where it is wet.
+**No helmets, no visors, no diving suits, no pressure suits.** The house style
+needs the face and the figure.
+
+### Water is a surface, not a filter
+
+Every Drowned Deep frame with water in it shows the water as a **surface**:
+a flat plane with reflections, foam and a visible line where it meets stone
+or skin. Underwater scenes are drawn as a dark interior seen through still
+glass, with the surface visible somewhere in frame. Never a blue colour wash
+over the whole image, never "underwater" as a filter on the figure.
+
+---
+
 ## 5. Rarity ambition ladder
 
 Match the illustration's ambition to the card's rarity. Under-deliver on a legendary
@@ -656,6 +822,57 @@ is defined **here**, once. Honor these bindings verbatim.
 
 Token design authority: the descriptions above are canon. The summoner's entry
 and the token's entry in `constructs-and-tokens.md` must both match them.
+
+- **Drowned Deep tokens** — four set tokens, shared canon between the token
+  file and every entry that mints them. **Deep-Spawn** `tok-deep-spawn` `B`
+  2/2 Deep One Horror: a young daughter of the Deep, small, wet-haired, the
+  gold already behind her eyes, one tide-line across her shoulders. **Drowned
+  Spirit** `tok-drowned-spirit` `B` 1/1 Spirit: a pale translucent drowned
+  woman in salt-white linen, hair lifted as if underwater, no gold (she is the
+  town's, not the Deep's). **Lantern Wisp** `tok-lantern-wisp` `W` 1/1 Spirit,
+  Skyborne: a small hovering lamp-flame spirit in lamp amber, a wisp with a
+  girl's face in the flame, always airborne. **Kelp Shade** `tok-kelp-shade`
+  `G` 2/2 Plant: a woman-shaped figure of woven kelp and reef growth, kelp
+  green, no face detail beyond two pale eyes, no gold.
+- **The Deep's court (Drowned Deep)** — `dd-mother-hydra` is the Deep's
+  queen: vast, serene, crowned in bell chains, her Deep-Spawn brood visible
+  around her. `dd-father-dagon` (Dagon, the Deep Itself; the Father title dropped 2026-09-14) is a woman: the Deep
+  itself given a body, the drowned bell tower of Dunmarrow always in her
+  frame. `dd-the-brood-below` and `dd-deep-one-midwife` show Deep-Spawn as
+  defined above. `dd-horror-lord` (the Deacon of the Deep) wears a drowned
+  cassock and a bell chain, and every Horror near her has the gold behind
+  the eyes.
+- **The Lantern Watch (Drowned Deep)** — `dd-lightkeeper` (Maren Holt) keeps
+  the lighthouse on the Point: oilskin, a lamp-keeper's brass, the great lamp
+  itself as her secondary element. `dd-harbourmaster` (Constance Reyne) wears
+  the harbour chain of office in bell bronze and is attended by Lantern Wisps.
+  `dd-bell-that-will-not-ring` is a bronze bell with a plain cast surface,
+  its rope slack, never lettered. `dd-the-lantern-watch` is the line of lamps
+  along the Point at dusk, every lamp amber. Wardens share the Watch
+  silhouette: oilskin, wool, bronze fittings, no species tells.
+- **The salt-witches and the drowned (Drowned Deep)** — `dd-agathe-vane`
+  (the Salt Widow) wears mourning violet and a salt-white veil and carries a
+  widow's lantern in amber; she is the coast's, not the Deep's, so she has
+  no gold. `dd-wharf-rat-queen` (Sable) holds Low Street from a wharf
+  throne, wharf rats at her hem. `dd-jar-witch` and the cellar and marsh
+  witches carry sealed jars with blank labels.
+- **The tide and the reef (Drowned Deep)** — `dd-tidewife` (Ysolt) reads the
+  tide from the Reach with the three tells; `dd-isolde-marrow` (the Drowned
+  Cartographer) carries blank vellum charts and has the three tells.
+  `dd-reef-warden` (Elowen Cray) and `dd-old-marrow` keep the Salt Marsh and
+  the reef, kelp green and coral, Kelp Shades near them, cyan Marks only when
+  the card text says so.
+- **The wreckers (Drowned Deep)** — `dd-brenna-gale` calls storms from the
+  Reach with a bronze storm-bell; `dd-wrecker-queen` lights the false beacon
+  in wreck fire; `dd-cinderjaw` is a red Deep One Horror, the only Horror
+  whose water burns: wreck fire under the surface AND drowned gold behind the
+  eyes, both stated, never confused.
+- **Places (Drowned Deep)** — Dunmarrow (the drowned town, bell tower above
+  the water at low tide), the Point (the lighthouse), the Salt Stair (granite
+  steps from the harbour to the chapel), Low Street (the wharf district), the
+  Reach (the open water), the Salt Marsh (kelp and reef), the Breakwater (the
+  wreckers' rock). Name the place in the Background field; keep the same
+  description of it across entries.
 
 ---
 

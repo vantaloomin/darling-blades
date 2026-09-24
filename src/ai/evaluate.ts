@@ -1,7 +1,10 @@
 import { getEffectiveStats } from '../engine/statics';
 import type { CardDb, GameState, PlayerId } from '../engine/types';
 import { cardIdOf, def, isType, opponentOf } from '../engine/types';
-import { dawnSelfBleed, markedBoardValue, permValue } from './value';
+import { createPermanentValuer, dawnSelfBleed, markedBoardValue, questBoardValue } from './value';
+
+/** Life below this scale is increasingly expensive on the evaluation curve. */
+export const LIFE_CURVE_KNEE = 9;
 
 /**
  * Hard's evaluation function: life differential (nonlinear), board material
@@ -19,7 +22,7 @@ export function evaluate(state: GameState, db: CardDb, me: PlayerId): number {
 
   // Life is a resource: nearly worthless at 20, precious near 0. Convex per
   // side, so chip damage at high life never outbids real board material.
-  const lifeWorth = (l: number): number => 14 * Math.tanh(l / 9);
+  const lifeWorth = (l: number): number => 14 * Math.tanh(l / LIFE_CURVE_KNEE);
   let score = lifeWorth(my.life) - lifeWorth(their.life);
 
   // Until-EOT buffs are gone by the time this position matters — a pumped
@@ -28,6 +31,7 @@ export function evaluate(state: GameState, db: CardDb, me: PlayerId): number {
     p.untilEotMods.length > 0 ? { ...p, untilEotMods: [] } : p,
   );
 
+  const valueOfPermanent = createPermanentValuer(stripped, db);
   let myPower = 0;
   let theirPower = 0;
   let myLands = 0;
@@ -40,7 +44,7 @@ export function evaluate(state: GameState, db: CardDb, me: PlayerId): number {
       else theirLands++;
       continue;
     }
-    let v = permValue(stripped, db, perm.iid);
+    let v = valueOfPermanent(perm.iid);
     if (perm.tapped) v *= 0.85;
     if (perm.enteredThisTurn) v *= 0.92;
     score += mineSide ? v : -v;
@@ -56,6 +60,7 @@ export function evaluate(state: GameState, db: CardDb, me: PlayerId): number {
   // sees only the board.
   score += markedBoardValue(stripped, db, me, my.hand.map(cardIdOf));
   score -= markedBoardValue(stripped, db, opp);
+  score += questBoardValue(stripped, db, me) - questBoardValue(stripped, db, opp);
   // Card advantage — stand-in cards count like real ones (they represent
   // real hidden cards in Hard's determinized simulations).
   score += 1.2 * (my.hand.length - their.hand.length);

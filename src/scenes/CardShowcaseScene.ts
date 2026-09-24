@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { ALL_CARDS } from '../data/catalog';
 import type { CardDef, Rarity } from '../engine/types';
 import { TIER_LABEL, type FrameStyle, type HoloFinish } from '../meta/variants';
+import { gateOnArt } from '../ui/artGate';
 import { CardView } from '../ui/CardView';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { theme } from '../ui/theme';
@@ -26,7 +27,11 @@ export class CardShowcaseScene extends Phaser.Scene {
   constructor() {
     super('Showcase');
   }
+  /** Variant QA browses the whole pool, so it waits for the whole set. */
   create(): void {
+    gateOnArt(this, null, () => this.build());
+  }
+  private build(): void {
     const width = 1280;
     const height = 720;
     this.frameChips = [];

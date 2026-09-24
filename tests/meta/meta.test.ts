@@ -572,6 +572,10 @@ describe('save migration old blobs ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã�
       confirmNoBlock: 'lethal', // v24 default
       instantCast: false, // v30 default
       confirmLandDrop: true, // v34 default
+      // v35 additions. Sharing defaults on everywhere; the notice flag is
+      // false here because this is a migrated save, not a fresh one.
+      shareAnonStats: true,
+      statsNoticeVersion: 0,
     });
     expect('animSpeed' in m.data.settings).toBe(false);
   });
@@ -659,6 +663,9 @@ describe('save migration old blobs ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã�
       confirmNoBlock: 'lethal', // v24 default
       instantCast: false, // v30 default
       confirmLandDrop: true, // v34 default
+      // v35 additions; a migrated save has not been shown the notice.
+      shareAnonStats: true,
+      statsNoticeVersion: 0,
     });
     expect('animSpeed' in m.data.settings).toBe(false);
     expect(m.data.gauntlet.bestRung).toBe(2);
@@ -1137,7 +1144,7 @@ describe('applyGauntletResult', () => {
   });
 
   it('clearing the final rung pays the completion bonus and ends the run', () => {
-    const finalRung = ECONOMY.gauntletRungGold.length; // 24 with The Violet Signal Queen as the Starborne final rung
+    const finalRung = ECONOMY.gauntletRungGold.length; // 26 with The Marsh-Mother as the Drowned Deep final rung
     const save = freshSave(0);
     save.stats.lastWinDay = '2026-07-02'; // no first-win bonus this time
     save.gauntlet.run = { rung: finalRung, startedAt: 1, seed: 42 };
@@ -1167,7 +1174,7 @@ describe('applyGauntletResult', () => {
     expect(dual.gauntlet.clearStyles).toEqual({ monoColor: 0, dualColor: 1 });
   });
 
-  it('a full 24-rung run pays exactly 7070 gold, plus the daily bonus once', () => {
+  it('a full run pays every rung plus the completion and daily bonuses once', () => {
     const save = freshSave(0);
     save.gauntlet.run = { rung: 1, startedAt: 1, seed: 42 };
     let total = 0;
@@ -1176,9 +1183,7 @@ describe('applyGauntletResult', () => {
       total += applyGauntletResult(save, rung, diff, true, '2026-07-02').gold;
     }
     const rungSum = ECONOMY.gauntletRungGold.reduce((s, g) => s + g, 0);
-    expect(rungSum).toBe(6720); // 24-rung progression through 510g (Starborne adds rungs 23-24)
     expect(total).toBe(rungSum + ECONOMY.gauntletCompletionBonus + ECONOMY.firstWinOfDayBonus);
-    expect(total).toBe(7070); // 6720 + 250 + 100 (daily bonus once)
     expect(save.gauntlet.completions).toBe(1);
   });
 

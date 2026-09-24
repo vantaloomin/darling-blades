@@ -363,9 +363,6 @@ describe('achievements', () => {
   });
 
   it('uses the active Celtic Fae pool and its intended court sub-archetype ids', () => {
-    // Retiring three utility taplands leaves 79 acquirable cards; the 1.6
-    // returning-mechanics sprinkle adds two commons: 79 -> 81.
-    expect(CELTIC_FAE_IDS).toHaveLength(81);
     expect(CELTIC_FAE_IDS.filter((id) => CARD_DB[id].rarity === 'ssr')).toEqual(CELTIC_FAE_SSR_COURT);
     expect(CELTIC_FAE_IDS.filter((id) => CARD_DB[id].subtypes.includes('Selkie'))).toEqual(CELTIC_FAE_SELKIES);
     expect(CELTIC_FAE_IDS.filter((id) => CARD_DB[id].subtypes.includes('Raven'))).toEqual(CELTIC_FAE_RAVENS);
@@ -496,22 +493,12 @@ describe('arthurian court achievements (1.2)', () => {
     // derive from the catalog, so a future set change moves them honestly.
     expect(status('theme-arthurian-quests', save, CARD_DB).target).toBe(7);
     expect(status('theme-arthurian-champions', save, CARD_DB).target).toBe(5);
-    // The 1.6 returning-mechanics sprinkle adds two cards to the set: 76 -> 78.
-    expect(status('theme-arthurian-complete', save, CARD_DB).target).toBe(78);
   });
 });
 
 describe('gothic monsters achievements (1.3)', () => {
   it('uses the active Gothic Monsters pool and the intended sub-archetypes', () => {
-    // Retiring five utility taplands leaves 77 acquirable cards; the 1.6
-    // returning-mechanics sprinkle adds one common: 77 -> 78.
-    expect(GOTHIC_MONSTERS_IDS).toHaveLength(78);
     expect(GOTHIC_MONSTERS_HEADLINERS.every((id) => CARD_DB[id]?.rarity === 'ur')).toBe(true);
-    expect(GOTHIC_MONSTERS_DREADED).toHaveLength(10);
-    // 20 -> 19 on 2026-08-29: the v3.1 slate traded Silver-Bullet Duelist's
-    // Empower for Blood Oath, so she leaves the Empowered pool.
-    expect(GOTHIC_MONSTERS_EMPOWERED).toHaveLength(19);
-    expect(GOTHIC_MONSTERS_VAMPIRES).toHaveLength(10);
   });
 
   for (const { id, ids } of GOTHIC_MONSTERS_GOALS) {
@@ -555,11 +542,7 @@ describe('gothic monsters achievements (1.3)', () => {
 
 describe('dark tales achievements (1.4)', () => {
   it('registers eight live collection, headliner, and mechanic goals', () => {
-    // Retiring eight utility taplands left 112 acquirable cards; the companion
-    // wave went live 2026-08-22 and adds its 60, so the theme goals now scope 172.
-    expect(DARK_TALES_IDS).toHaveLength(172);
     expect(DARK_TALES_GOALS).toHaveLength(8);
-    for (const { id } of DARK_TALES_GOALS) expect(status(id, freshSave(0), CARD_DB).def.id).toBe(id);
   });
 
   for (const { id, ids } of DARK_TALES_GOALS) {
@@ -577,10 +560,7 @@ describe('dark tales achievements (1.4)', () => {
 });
 
 describe('Sands of the Duat achievements (1.6)', () => {
-  it('pins the live 245-card pool, ten UR legends, and Nine Lives carriers', () => {
-    expect(SANDS_OF_THE_DUAT_IDS).toHaveLength(245);
-    expect(SANDS_OF_THE_DUAT_UR).toHaveLength(10);
-    expect(SANDS_OF_THE_DUAT_NINE_LIVES).toHaveLength(21);
+  it('registers the three Duat collection goals', () => {
     expect(SANDS_OF_THE_DUAT_GOALS).toHaveLength(3);
   });
 

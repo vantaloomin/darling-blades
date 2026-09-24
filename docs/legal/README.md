@@ -1,15 +1,20 @@
-<!-- source-of-truth: docs/plan-telemetry-and-accounts.md, docs/rollout-telemetry-and-accounts.md, src/version.ts, src/meta/SaveManager.ts, src-tauri/tauri.conf.json, src-tauri/src/lib.rs, LICENSE · last-verified: 2026-09-15 · legal drafts index — templates, NOT live, NOT legal advice; re-verify when telemetry or accounts code lands -->
+<!-- source-of-truth: docs/plan-telemetry-and-accounts.md, docs/rollout-telemetry-and-accounts.md, scripts/gen-legal-pages.ts, scripts/gen-third-party-notices.ts, src/ui/legalPresentation.ts, src/version.ts, src/meta/SaveManager.ts, src-tauri/tauri.conf.json, src-tauri/src/lib.rs, LICENSE · last-verified: 2026-09-22 · legal documents index — live at 1.8, NOT legal advice; re-verify when telemetry or accounts code lands -->
 
-# Legal documents (drafts)
+# Legal documents
 
-**Status: templates, 2026-09-10. None of these is published, linked from the
-game, or reviewed by a lawyer.** They are written **as of the 1.8 release**,
-when they launch alongside anonymous play stats (telemetry wave T2): stats are
-described as live, and nothing about cloud accounts appears. They follow the
-spec ([plan-telemetry-and-accounts.md](../plan-telemetry-and-accounts.md)) and
-what the code does today, so that the rollout's hard gate, *"the privacy page
-must be live before the first event is sent"*, has a text ready to fill in
-rather than a blank page.
+**Status: all three ship at 1.8.** `scripts/gen-legal-pages.ts` renders each of
+them into `public/` on every `npm run dev` and `npm run build`, so
+`privacy.html`, `terms.html` and `notices.html` travel in the same Pages deploy
+as the client and inside the desktop bundle. The game links all three from the
+**Legal** button in the Settings header, and the README's License section links
+them too. **None of them has been reviewed by a lawyer**, and that pass is
+still owed (see "Before any of this goes live"). They are written **as of the
+1.8 release**, when they launch alongside anonymous play stats (telemetry wave
+T2): stats are described as live, and nothing about cloud accounts appears.
+They follow the spec
+([plan-telemetry-and-accounts.md](../plan-telemetry-and-accounts.md)) and what
+the code does today, so that the rollout's hard gate, *"the privacy page must
+be live before the first event is sent"*, holds by construction.
 
 | File | Purpose | Needed by |
 | --- | --- | --- |
@@ -23,6 +28,11 @@ the GitHub update check and Pages hosting already disclose IPs with no
 policy. If that matters to you before 1.8, a cut-down policy (sections 1, 2,
 3.1, 3.2, 4 to 9, with 3.3 removed) could go up now.
 
+The generated third-party notices file, `public/THIRD_PARTY_NOTICES.txt`, is
+built beside the pages by `scripts/gen-third-party-notices.ts` and is what
+`notices.md` links. See "Third-party notices" below for what it can and cannot
+determine offline.
+
 Copy rule: these are player-facing, so the no-em-dash / no-AI-prose rule
 applies to the policy and terms bodies (this index is a dev doc).
 
@@ -35,14 +45,14 @@ Every `[BRACKETED]` token in the drafts is an owner input. The full set:
 | ~~`[OPERATOR NAME]`~~ | **Filled 2026-09-15: `Blade Darlings`** | A publishing name, not an entity (owner ruling 2026-09-15: no LLC for 1.8, non-commercial, stay pseudonymous). Policy section 1 says so. Revisit at 2.1, when accounts hold real emails |
 | ~~`[CONTACT EMAIL]`~~ | **Filled 2026-09-15: `admin@bladedarlings.com`** | A dedicated inbox, not a personal one. Watch it: the policy promises a reply within 30 days |
 | ~~`[COUNTRY / STATE]`~~ | **Filled 2026-09-15: Maryland, USA** | Governing law and venue for the terms |
-| `[1.8 RELEASE DATE]` | The 1.8 ship date, the effective date of both documents | Change it on every material edit after launch |
-| `[PRIVACY URL]` | Where the policy is hosted | See "Hosting" below |
-| `[THIRD-PARTY NOTICES FILE]` | Path or link to the generated notices file | Notices only; see the TODO at its foot |
+| `[1.8 RELEASE DATE]` | The 1.8 ship date, the effective date of both documents | Change it on every material edit after launch. **Release-cut step:** until it is filled, the generated page prints "the day version 1.8 is released" in its place |
+| ~~`[PRIVACY URL]`~~ | **Decided 2026-09-17: `https://vantaloomin.github.io/darling-blades/privacy.html`** | The generator substitutes it, and rewrites it to the sibling `privacy.html` when it appears as a link; see "Hosting" |
+| ~~`[THIRD-PARTY NOTICES FILE]`~~ | **Filled 2026-09-22: a link to `THIRD_PARTY_NOTICES.txt`** | Generated beside the pages by `scripts/gen-third-party-notices.ts`; see "Third-party notices" |
 
 The 2.1 staging file carries its own extra placeholders (email sender, auth
 log retention, and others), listed at its top.
 
-## Hosting: where the policy has to live
+## Hosting: where the documents live
 
 The rollout names three surfaces (`docs/privacy.md`, a README section, an
 in-game panel). One gap: **the Pages build does not publish `docs/`**, and a
@@ -52,8 +62,59 @@ Options, cheapest first:
 1. Link the GitHub file view (`github.com/vantaloomin/darling-blades/blob/main/docs/legal/privacy-policy.md`). Zero work; ugly; fine for a first cut.
 2. Copy it into `public/privacy.html` at build time so it ships at `<pages-origin>/privacy.html` and inside the desktop bundle (works offline). Best long-term, one small build step.
 
-Either way the in-game panel should render the same text, generated from one
-source so the three never drift.
+**Chosen 2026-09-17: option 2, built rather than copied. Extended to all three
+documents 2026-09-22.** `scripts/gen-legal-pages.ts` renders each source to its
+page on every `npm run dev` and `npm run build` (the files are gitignored,
+never hand-edited), styled with the game's own palette and fonts, so they ship
+in the same Pages deploy as the client and inside the desktop bundle:
+
+| Source | Page |
+| --- | --- |
+| `privacy-policy.md` | `public/privacy.html` |
+| `terms-of-service.md` | `public/terms.html` |
+| `notices.md` | `public/notices.html` |
+
+It refuses to build on a markdown construct it does not cover or on an
+unfilled placeholder it does not know, and it rewrites every link BETWEEN the
+documents to the sibling page, so `[notices](notices.md)` and the absolute
+`[PRIVACY URL]` both land on a page the same build wrote. Each page carries a
+footer nav to the other two and back to the game. `npx tsx
+scripts/gen-legal-pages.ts --check` fails if any page is stale.
+
+In the game, a **Legal** button in the Settings header opens a panel with one
+row per document and a Read button that opens the page beside the game
+(`src/ui/legalPresentation.ts` owns the link set, `src/ui/LegalPanel.ts` draws
+it). The "What is sent" panel renders its field list from `SIGNAL_FIELDS` with
+a test that keeps the descriptions in step, and both it and the Legal panel use
+the same guarded `openExternalPage` helper, so a webview that refuses a second
+window leaves the game as it was. `index.html` also carries a `connect-src`
+Content-Security-Policy naming the two hosts the game contacts (finding 6),
+enforced by the browser; the desktop build's policy must also allow Tauri's IPC
+origins and is set with a desktop run, not blind.
+
+## Third-party notices
+
+`scripts/gen-third-party-notices.ts` writes `public/THIRD_PARTY_NOTICES.txt`
+beside the pages, from three committed, offline sources, so every machine
+builds the same bytes:
+
+- **npm.** `package-lock.json` names the production tree; each package's own
+  `package.json` and LICENSE files supply the version, license id and text. A
+  production package missing from `node_modules` is an error, not an omission.
+- **Fonts.** The copyright line and license URL for Inter and Cinzel are read
+  from each `.woff2` file's own `name` table, so a font swapped for a different
+  cut updates the file on the next build.
+- **Rust.** `src-tauri/Cargo.lock` gives crate and version for every crate the
+  desktop installer redistributes.
+
+**Two gaps, both deliberate and both offline limits.** The full **SIL OFL 1.1
+text** is not reproduced: no copy of it ships in this repo and the generator
+never invents license text. Committing one as `docs/legal/OFL-1.1.txt` inlines
+it in the fonts section on the next build, which is the one step that closes
+the OFL's redistribution requirement properly. And the **Rust crates' license
+texts** are listed by crate and version only: `cargo about` is not installed,
+so there is no offline source for them; the file says each crate's text ships
+in its own registry source. Both are worth closing before a desktop release.
 
 ## Telemetry review, 2026-09-10
 

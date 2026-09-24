@@ -27,9 +27,17 @@ function staticConditionSatisfied(
   db: CardDb,
   controller: PlayerId,
   condition: AbilityDef['condition'] | undefined,
+  sourceIid: number,
 ): boolean {
   if (condition === undefined) return true;
   if (condition === 'questActive') return isQuestActive(battlefield, db, controller);
+  // Turn-history conditions belong to triggered abilities, not static layers.
+  if (condition === 'creatureDiedThisTurn') return false;
+  if (typeof condition === 'object' && condition.kind === 'controlsOther') {
+    return battlefield.some((perm) => perm.controller === controller &&
+      perm.iid !== sourceIid && isType(def(db, perm.cardId), 'creature') &&
+      def(db, perm.cardId).subtypes.includes(condition.subtype));
+  }
   if (condition === 'controlMarked') {
     // Keep the legacy condition name, but only marked creatures satisfy it.
     return battlefield.some((perm) =>
@@ -65,6 +73,7 @@ export function getEffectiveStats(
   let attack = d.attack ?? 0;
   let defense = d.defense ?? 0;
   const keywords = new Set<Keyword>(d.keywords ?? []);
+  for (const keyword of perm.grantedKeywords ?? []) keywords.add(keyword);
 
   // Marks are creature-only. Ignore legacy counters on noncreature snapshots
   // so an old replay cannot make a noncreature read as marked power.
@@ -92,7 +101,7 @@ export function getEffectiveStats(
       if (ab.when !== 'static' || !ab.static) continue;
       const st = ab.static;
       const condition = ab.condition ?? st.condition;
-      if (condition !== undefined && !staticConditionSatisfied(battlefield, db, src.controller, condition)) continue;
+      if (condition !== undefined && !staticConditionSatisfied(battlefield, db, src.controller, condition, src.iid)) continue;
 
       let applies: boolean;
       if (st.scope === 'self') {
@@ -107,6 +116,7 @@ export function getEffectiveStats(
             src.controller === perm.controller &&
             targetIsCreature &&
             (!filter?.other || src.iid !== iid) &&
+            (!filter?.token || perm.isToken === true || (perm.isToken === undefined && d.token === true)) &&
             (!filter?.subtype || d.subtypes.includes(filter.subtype));
         } else {
           const who = filter.who ?? 'yours';
@@ -116,6 +126,7 @@ export function getEffectiveStats(
               : opponentOf(src.controller) === perm.controller) &&
             targetIsCreature &&
             (!filter.other || src.iid !== iid) &&
+            (!filter.token || perm.isToken === true || (perm.isToken === undefined && d.token === true)) &&
             (!filter.subtype || d.subtypes.includes(filter.subtype)) &&
             (!filter.marked || perm.plusOneCounters > 0);
         }

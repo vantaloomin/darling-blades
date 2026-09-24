@@ -17,10 +17,11 @@ import {
 } from '../meta/Limited';
 import { isDualLand, LAND_RESERVE_SIZE, MAX_DUAL_LANDS } from '../meta/warchest';
 import { Services } from '../meta/services';
-import { bindTapButton, inflateHitArea } from '../platform/gestures';
+import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestures';
 import { CardView } from '../ui/CardView';
 import { computeDeckStats, curveBars, deckShapeLine } from '../ui/deckStats';
-import { LIMITED_DETAILS_PANEL } from '../ui/limitedPanePresentation';
+import { LIMITED_BUILDER_COLUMNS, LIMITED_DETAILS_PANEL, limitedListRow } from '../ui/limitedPanePresentation';
+import { gateOnArt } from '../ui/artGate';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
 import { backButton, modalShell, pager, panel, registerSceneBackNavigation, themedButton, type ModalShell } from '../ui/themeWidgets';
@@ -64,7 +65,14 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
   constructor() {
     super('LimitedDeckBuilder');
   }
+  /** The pool pane and the deck column draw only the run's own pool. */
   create(): void {
+    const run = Services.save.data.limited.activeRun;
+    gateOnArt(this, [...(run?.pool ?? []), ...(run?.deck ?? []), ...(run?.landReserve ?? [])], () =>
+      this.build(),
+    );
+  }
+  private build(): void {
     this.cardInspect = null;
     this.leavePrompt = null;
     applyBackdrop(this, 'deckbuilder', {
@@ -92,14 +100,23 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
       this.scene.start('Limited');
       return;
     }
-    backButton(this, 'Draft', () => this.leaveDraft());
     registerSceneBackNavigation(this, () => this.leaveDraft());
     this.deck = [...run.deck];
     this.selectedDuals = run.landReserve?.filter((id) => CARD_DB[id] && isDualLand(CARD_DB[id])) ?? [];
     this.draw(run);
   }
+  /**
+   * Rebuild the whole screen. The previous frame is DESTROYED first:
+   * `children.removeAll(true)` only detached it (the flag skips the remove
+   * callback, it does not destroy), so every earlier frame's rows and buttons
+   * stayed alive and tappable under the new one, and a greyed "+" could still
+   * add a card past its pool count.
+   */
   private draw(run: LimitedRun): void {
-    this.children.removeAll(true);
+    for (const child of [...this.children.list]) child.destroy();
+    // Any open modal went with the frame; forget it so it can open again.
+    this.cardInspect = null;
+    this.leavePrompt = null;
     applyBackdrop(this, 'deckbuilder', {
       dim: theme.graphics.dim,
       dimAlpha: 0.6,
@@ -115,6 +132,9 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
         g.fillRect(0, 0, 1280, 720);
       },
     });
+    // Part of every frame: a back control built once in build() was the first
+    // thing the first redraw destroyed.
+    backButton(this, 'Draft', () => this.leaveDraft());
     this.add
       .text(640, 52, 'Limited Deck Builder', {
         fontFamily: theme.fonts.display,
@@ -149,10 +169,9 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
     this.drawActions(run);
   }
   private drawPool(run: LimitedRun): void {
-    const x = 40;
-    const y = 116;
-    panel(this, x, y, 385, 500);
-    this.heading(x + 18, y + 16, 'Pool');
+    const { poolX: x, y, width, height } = LIMITED_BUILDER_COLUMNS;
+    panel(this, x, y, width, height);
+    this.heading(x + LIMITED_BUILDER_COLUMNS.inset, y + 16, 'Pool');
     const poolCounts = countCards(run.pool);
     const deckCounts = countCards(this.deck);
     const reserveCounts = countCards(this.selectedDuals);
@@ -165,7 +184,7 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
       const dual = isDualLand(CARD_DB[id]);
       const reserveUsed = reserveCounts.get(id) ?? 0;
       this.cardRow(
-        x + 18,
+        x,
         y + 56 + i * 31,
         `${dual ? reserveUsed : used}/${owned} ${cardLine(id)}`,
         id,
@@ -188,17 +207,16 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
         },
       );
     });
-    pager(this, x + 18, y + 477, this.poolPage, maxPage + 1, (page) => {
+    pager(this, x + LIMITED_BUILDER_COLUMNS.inset, y + 477, this.poolPage, maxPage + 1, (page) => {
       this.poolPage = page;
       this.draw(run);
     });
   }
   private drawDeck(run: LimitedRun): void {
-    const x = 448;
-    const y = 116;
-    panel(this, x, y, 385, 500);
+    const { deckX: x, y, width, height } = LIMITED_BUILDER_COLUMNS;
+    panel(this, x, y, width, height);
     this.heading(
-      x + 18,
+      x + LIMITED_BUILDER_COLUMNS.inset,
       y + 16,
       `Deck ${this.deck.length}/${LIMITED_DECK_SIZE}`,
       this.deck.length === LIMITED_DECK_SIZE ? theme.colors.gold : theme.colors.danger,
@@ -209,7 +227,7 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
     this.deckPage = Math.min(this.deckPage, maxPage);
     ids.slice(this.deckPage * ROWS, this.deckPage * ROWS + ROWS).forEach((id, i) =>
       this.cardRow(
-        x + 18,
+        x,
         y + 56 + i * 31,
         `${counts.get(id) ?? 0}x ${cardLine(id)}`,
         id,
@@ -222,7 +240,7 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
         },
       ),
     );
-    pager(this, x + 18, y + 477, this.deckPage, maxPage + 1, (page) => {
+    pager(this, x + LIMITED_BUILDER_COLUMNS.inset, y + 477, this.deckPage, maxPage + 1, (page) => {
       this.deckPage = page;
       this.draw(run);
     });
@@ -284,7 +302,7 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         color: errors.length ? theme.colors.danger : theme.colors.success,
-        wordWrap: { width: 340 },
+        wordWrap: { width: L.contentRight - L.contentX },
         lineSpacing: 4,
       },
     );
@@ -341,55 +359,64 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
       theme.colors.body,
     );
   }
+  /**
+   * One footer row on the shared footer line (theme.design.footerCenterY),
+   * placed from measured widths. The two resets sit at the left title-safe
+   * edge and the build actions at the right, so a slip on the way to Start
+   * Match cannot empty the deck. The row used to open with one "+ Basic"
+   * button per basic land, which could only make this format's deck illegal:
+   * Limited decks hold no lands and the Warchest is provided.
+   */
   private drawActions(run: LimitedRun): void {
-    Object.values(CARD_DB)
-      .filter((card) => isBasic(CARD_DB, card.id))
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .forEach((card, i) =>
-        themedButton(this, 110 + i * 130, 642, `+ ${card.name}`, {
-          variant: 'ghost',
-          size: 'sm',
-          minWidth: 118,
-          onTap: () => {
-            if (this.deck.length < LIMITED_DECK_SIZE) {
-              this.deck.push(card.id);
-              this.selectedId = card.id;
-              this.persistAndRedraw(run);
-            }
-          },
-        }),
-      );
-    themedButton(this, 760, 642, 'Auto Build', {
-      variant: 'ghost',
-      minWidth: 120,
-      onTap: () => {
-        this.deck = buildLimitedDeck(CARD_DB, run.pool);
-        this.selectedDuals = limitedDraftDuals(CARD_DB, run.pool).slice(0, MAX_DUAL_LANDS);
-        this.selectedId = this.deck[0] ?? null;
-        this.persistAndRedraw(run);
-      },
-    });
-    themedButton(this, 760, 680, 'Clear Warchest', {
-      variant: 'ghost',
-      minWidth: 120,
-      onTap: () => {
-        this.selectedDuals = [];
-        this.persistAndRedraw(run);
-      },
-    });
-    themedButton(this, 900, 642, 'Clear', {
-      variant: 'ghost',
-      minWidth: 100,
-      onTap: () => {
-        this.deck = [];
-    this.persistAndRedraw(run);
-      },
-    });
-    themedButton(this, 1050, 642, 'Start Match', {
-      variant: 'primary',
-      minWidth: 140,
-      onTap: () => this.startMatch(run),
-    });
+    const footerY = theme.design.footerCenterY;
+    const gap = theme.space(2);
+    const resets = [
+      themedButton(this, 0, footerY, 'Clear Deck', {
+        variant: 'ghost',
+        minWidth: 120,
+        onTap: () => {
+          this.deck = [];
+          this.persistAndRedraw(run);
+        },
+      }),
+      themedButton(this, 0, footerY, 'Clear Warchest', {
+        variant: 'ghost',
+        minWidth: 120,
+        onTap: () => {
+          this.selectedDuals = [];
+          this.persistAndRedraw(run);
+        },
+      }),
+    ];
+    let left = theme.design.safeLeft;
+    for (const button of resets) {
+      const hitWidth = button.getMeasuredSize().hit.width;
+      button.container.setX(left + hitWidth / 2);
+      left += hitWidth + gap;
+    }
+    const builds = [
+      themedButton(this, 0, footerY, 'Auto Build', {
+        variant: 'ghost',
+        minWidth: 120,
+        onTap: () => {
+          this.deck = buildLimitedDeck(CARD_DB, run.pool);
+          this.selectedDuals = limitedDraftDuals(CARD_DB, run.pool).slice(0, MAX_DUAL_LANDS);
+          this.selectedId = this.deck[0] ?? null;
+          this.persistAndRedraw(run);
+        },
+      }),
+      themedButton(this, 0, footerY, 'Start Match', {
+        variant: 'primary',
+        minWidth: 140,
+        onTap: () => this.startMatch(run),
+      }),
+    ];
+    let edge = theme.design.safeRight;
+    for (let i = builds.length - 1; i >= 0; i--) {
+      const hitWidth = builds[i].getMeasuredSize().hit.width;
+      builds[i].container.setX(edge - hitWidth / 2);
+      edge -= hitWidth + gap;
+    }
   }
 
   private leaveDraft(): void {
@@ -437,8 +464,9 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
     });
     c.add([stay.container, leave.container]);
   }
+  /** One list row inside the panel whose left edge is `panelX` (limitedListRow owns the geometry). */
   private cardRow(
-    x: number,
+    panelX: number,
     y: number,
     label: string,
     id: string,
@@ -446,15 +474,16 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
     enabled: boolean,
     onAction: () => void,
   ): void {
+    const geometry = limitedListRow(panelX);
     const row = this.add
-      .text(x, y, short(label, 39), {
+      .text(geometry.plateX, y, short(label, 39), {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         color: theme.colors.heading,
         backgroundColor: theme.colors.rowFill,
         padding: { x: 8, y: 5 },
       })
-      .setFixedSize(296, 25)
+      .setFixedSize(geometry.plateWidth, 25)
       .setInteractive({ useHandCursor: true });
     row.on('pointerover', (p: Phaser.Input.Pointer) => {
       if (!p.wasTouch) {
@@ -471,10 +500,10 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
       this.showCardInspect(id);
     });
     inflateHitArea(row, 250, 31);
-    const action = themedButton(this, x + 326, y + 12, actionLabel, {
+    const action = themedButton(this, geometry.actionX, y + 12, actionLabel, {
       variant: actionLabel === '+' ? 'emphasis' : 'danger',
       size: 'sm',
-      minWidth: 39,
+      minWidth: geometry.actionWidth,
       enabled,
       onTap: onAction,
     });
@@ -523,7 +552,9 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
     );
     c.add(
       this.add
-        .text(640, 682, 'Click anywhere to close', {
+        // The dim closes it; the panel itself does not, so "anywhere" was wrong.
+        // On the shared footer line: at y 682 it ran past the title-safe frame.
+        .text(640, theme.design.footerCenterY, `${isTouchDevice() ? 'Tap' : 'Click'} outside to close`, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.label}px`,
           color: theme.colors.muted,

@@ -190,6 +190,32 @@ const EXPECTED_IDS = [
   'sb-signal-recall', 'sb-void-lament', 'sb-hullsong', 'sb-bloomdrive-surge',
   'sb-overcharge-the-hull', 'sb-eclipse-tithe', 'sb-brood-communion',
   'sb-the-long-crossing',
+  // Drowned Deep non-creatures (97), cut-list order (docs/spell-art.md 'Drowned Deep non-creatures')
+  'dd-bell-that-will-not-ring', 'dd-tide-that-remembers', 'dd-the-lantern-watch', 'dd-wreckfire',
+  'dd-gate-of-salt', 'dd-undertow', 'dd-glass-that-came-back', 'dd-kelp-cathedral',
+  'dd-false-beacon', 'dd-storm-surge', 'dd-lightkeepers-oath', 'dd-widows-walk',
+  'dd-lamp-lit-vigil', 'dd-last-lamp', 'dd-cold-current', 'dd-salt-in-the-wound',
+  'dd-tithe-to-the-deep', 'dd-drowned-grove', 'dd-wrecker-lantern', 'dd-rite-of-the-false-beacon',
+  'dd-widows-lantern', 'dd-tide-gate', 'dd-salt-ward', 'dd-what-the-lamps-saw',
+  'dd-vigil-bell', 'dd-rite-of-the-salt-gate', 'dd-lamp-oil-bargain', 'dd-the-morning-count',
+  'dd-still-water', 'dd-charts-of-the-drowned-coast', 'dd-bell-below', 'dd-fog-that-stays',
+  'dd-drowned-ledger', 'dd-the-price', 'dd-what-the-jars-hold', 'dd-low-tide-grave',
+  'dd-salt-marsh-bargain', 'dd-black-water', 'dd-what-was-promised', 'dd-reckoning-below',
+  'dd-drowned-orchard', 'dd-net-full-of-stars', 'dd-marsh-road', 'dd-reef-bloom',
+  'dd-old-growth', 'dd-the-marsh-remembers', 'dd-salt-fire', 'dd-lightning-on-the-water',
+  'dd-rite-of-the-wreckers', 'dd-drowned-forge', 'dd-storm-front', 'dd-fire-on-the-point',
+  'dd-horror-garden', 'dd-watch-and-tide', 'dd-shore-lantern', 'dd-harbour-vigil',
+  'dd-drowned-chapel-bell', 'dd-salt-and-prayer', 'dd-lamp-relay', 'dd-rite-of-the-lamp',
+  'dd-salt-chapel', 'dd-lamp-and-ledger', 'dd-chapel-ward', 'dd-tide-glass',
+  'dd-fog-bank', 'dd-undertow-charm', 'dd-tide-that-turns', 'dd-still-harbour',
+  'dd-net-of-glass', 'dd-drowned-bell', 'dd-salt-fog', 'dd-memory-of-the-drowned',
+  'dd-cold-harbour', 'dd-cellar-jar', 'dd-salt-in-the-eyes', 'dd-the-deep-collects',
+  'dd-tithe-of-the-wharf', 'dd-cold-bargain', 'dd-what-the-sea-wants', 'dd-black-tide-rising',
+  'dd-deep-spawn-hatchery', 'dd-jar-of-eyes', 'dd-marsh-lamp-lure', 'dd-coral-graft',
+  'dd-kelp-shade-swarm', 'dd-reef-lantern', 'dd-tidepool-bloom', 'dd-reef-growth',
+  'dd-marsh-gate', 'dd-salt-fire-lesser', 'dd-forge-lamp', 'dd-drowned-fire-lesser',
+  'dd-storm-front-lesser', 'dd-fire-on-the-water', 'dd-storm-surge-lesser', 'dd-drowned-forge-fire',
+  'dd-rite-of-the-lamp-fire',
 ] as const;
 
 /**
@@ -468,7 +494,7 @@ function runRecrop(file: string, dryRun: boolean, reviewOutDir?: string): void {
         tmpPath,
         String(OUT_W),
         String(OUT_H),
-        'environment',
+        'subject',
         '--margin-scale',
         String(entry.scale),
         '--offset-y',
@@ -603,7 +629,7 @@ function generateOne(
   // resolver trust file presence).
   const post = spawnSync(
     PYTHON,
-    [smartcropPath, rawPath, tmpPath, String(OUT_W), String(OUT_H), 'environment'],
+    [smartcropPath, rawPath, tmpPath, String(OUT_W), String(OUT_H), 'subject'],
     { encoding: 'utf8' },
   );
   if (post.status !== 0) {

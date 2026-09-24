@@ -43,27 +43,31 @@ describe('deck storage', () => {
     expect(save.activeDeckId).toBe('deck-1');
   });
 
-  it('preserves land style when saving or copying an existing deck', () => {
+  it("keeps the deck's style (land styles, card back, playmat) through Save Deck and Copy", () => {
     const save = saveWithDecks();
     save.decks[0].landStyle = {
       'land-plains': 'dark-tales',
       'land-forest': 'celtic-fae',
     };
+    // Style is per deck since v33 and is edited on the saved record, so the
+    // builder's Save Deck call never passes it.
+    save.decks[0].cardBack = 'back-yokai-neon';
+    save.decks[0].playmat = 'playmat-dark-tales-storybook';
 
     saveDeck(save, { id: 'deck-1', name: 'Aggro revised', cards: ['a', 'b'] });
     const copyId = copyDeck(save, 'deck-1');
+    const saved = save.decks.find((deck) => deck.id === 'deck-1');
+    const copy = save.decks.find((deck) => deck.id === copyId);
 
-    expect(save.decks.find((deck) => deck.id === 'deck-1')?.landStyle).toEqual({
-      'land-plains': 'dark-tales',
-      'land-forest': 'celtic-fae',
-    });
-    expect(save.decks.find((deck) => deck.id === copyId)?.landStyle).toEqual({
-      'land-plains': 'dark-tales',
-      'land-forest': 'celtic-fae',
-    });
-    expect(save.decks.find((deck) => deck.id === copyId)?.landStyle).not.toBe(
-      save.decks.find((deck) => deck.id === 'deck-1')?.landStyle,
-    );
+    for (const deck of [saved, copy]) {
+      expect(deck?.landStyle).toEqual({
+        'land-plains': 'dark-tales',
+        'land-forest': 'celtic-fae',
+      });
+      expect(deck?.cardBack).toBe('back-yokai-neon');
+      expect(deck?.playmat).toBe('playmat-dark-tales-storybook');
+    }
+    expect(copy?.landStyle).not.toBe(saved?.landStyle);
   });
 
   it('generateDeckId skips existing ids', () => {

@@ -10,8 +10,9 @@ import { isReplayLog, REPLAY_CAP, type ReplayLog } from './Replay';
 import { normalizeDarlingsFields } from './darlings';
 import { parseVariantKey, PLAIN_VARIANT, variantKey } from './variants';
 import { CARD_BACKS, PLAYMATS, cosmeticById, isKnownCosmeticId } from './cosmetics';
+import { normalizeStatsNoticeVersion } from './statsNotice';
 
-export const CURRENT_SAVE_VERSION = 34 as const;
+export const CURRENT_SAVE_VERSION = 35 as const;
 const LEGACY_WARCHEST_FORMAT = 'battle' + 'box';
 
 /**
@@ -60,34 +61,21 @@ export interface AchievementState {
   pinned: string[];
 }
 
+/**
+ * Account-level cosmetic state. This used to carry `cardBack` and `playmat`
+ * too; v33 moved style onto the deck you built (`SavedDeck.cardBack` /
+ * `SavedDeck.playmat`, below) and left the account pair unreachable, and v35
+ * removed them. `normalizeCosmetics` drops the dead keys on load, so a v34 blob
+ * that still carries them comes back with `owned` alone.
+ *
+ * The two removed names were IDENTICAL to the live per-deck fields on
+ * `SavedDeck`, so anything touching this shape anchors on `CosmeticsSave`, not
+ * on the field name. The per-deck pair is the 1.6.3 Style feature and is
+ * untouched. There is no account-level fallback and never was one after v33:
+ * the single deckless surface, Pack Opening, reads the ACTIVE DECK's back and
+ * says why in `resolveCardBackTexture`.
+ */
 export interface CosmeticsSave {
-  /**
-   * SUPERSEDED in v33 and UNREACHABLE. Style became a property of the deck you
-   * built (`SavedDeck.cardBack` / `SavedDeck.playmat`) and the Profile picker
-   * moved with it, so nothing can write these any more and nothing reads them.
-   * They are still normalized against the catalogs on every load, so a save
-   * carries whatever value it held when v33 landed, frozen.
-   *
-   * NOT a fallback: the one deckless surface, Pack Opening, deliberately reads
-   * the ACTIVE DECK's back instead and says why in `resolveCardBackTexture`.
-   *
-   * Removing them is a save schema change, so it rides the next version bump
-   * that has to happen anyway rather than paying a migration on its own. When
-   * that bump comes, three things bite, in this order:
-   *
-   *   1. These two names are IDENTICAL to the live per-deck fields below. A
-   *      find/replace hits those and silently breaks the 1.6.3 Style feature.
-   *      Anchor on `CosmeticsSave`, never on the field name.
-   *   2. The shared re-walk guard enumerates versions explicitly and ends in
-   *      `|| cur.version === CURRENT_SAVE_VERSION`. The outgoing CURRENT must
-   *      be added to that list by hand or every save at it skips the block.
-   *   3. That same block rewinds a current save and re-walks the chain, so any
-   *      migration step runs on every load. Key seeding off
-   *      `beganAtCurrentVersion`.
-   */
-  cardBack: string | null;
-  /** Superseded in v33 and unreachable. See `cardBack` above. */
-  playmat: string | null;
   /** Granted non-default ids only. Default-unlock entries are always owned. */
   owned: string[];
 }
@@ -276,6 +264,32 @@ export interface SaveData {
      * addition; defaults on.
      */
     confirmLandDrop: boolean;
+    /**
+     * Whether this profile contributes anonymous aggregate play statistics.
+     * v35 addition; defaults ON for a fresh save AND for a migrated one (owner
+     * decision 1 of the telemetry rollout). The signals gate re-reads it at
+     * every send (src/net/signalsGate.ts); the Settings row and the first-run
+     * notice edit it; an import can turn it off but never on
+     * (`withDeviceStatsChoice`).
+     */
+    shareAnonStats: boolean;
+    /**
+     * The last version of the anonymous-stats notice this profile was shown.
+     * v35 addition; `0` for a fresh save AND for every migrated save, so every
+     * player is TOLD before anything is sent rather than having collection
+     * start silently. Owner ruling 2026-09-17: show the notice to all players
+     * unless we can verify they have seen it, and the only proof is this stamp.
+     * (The first draft started a fresh save already-notified on the grounds
+     * that "the first-run flow covers it"; no first-run flow mentions stats.) The
+     * client shows the notice while this is below `STATS_NOTICE_VERSION` and
+     * then stamps it, so a later change to the fields sent re-arms the notice
+     * by bumping the constant, with no further save bump. A number rather
+     * than a boolean by owner ruling 2026-09-10: the privacy policy promises
+     * that re-notification. Garbage normalizes to `0`: not-yet-notified is
+     * the safe reading, because showing the notice twice costs far less than
+     * never showing it.
+     */
+    statsNoticeVersion: number;
   };
 }
 
@@ -296,7 +310,7 @@ export function freshAchievements(): AchievementState {
 }
 
 export function freshCosmetics(): CosmeticsSave {
-  return { cardBack: null, playmat: null, owned: [] };
+  return { owned: [] };
 }
 
 export function freshSave(now: number): SaveData {
@@ -341,6 +355,11 @@ export function freshSave(now: number): SaveData {
       confirmNoBlock: 'lethal',
       instantCast: false,
       confirmLandDrop: true,
+      shareAnonStats: true,
+      // Not yet notified. A new player is told exactly as an existing one is:
+      // the only proof that anyone has seen the notice is the stamp the UI
+      // writes after showing it (owner ruling 2026-09-17).
+      statsNoticeVersion: 0,
     },
   };
 }
@@ -422,7 +441,12 @@ export class SaveManager {
    * v30 -> v31 adds `achievements.pinned` (the Trophy Hall showcase, empty
    * for older saves, explicit pins preserved on current blobs); v31 -> v32
    * adds account-level card-back and playmat choices plus the future Courts
-   * cosmetic ownership list.
+   * cosmetic ownership list; v32 -> v33 moves style onto the deck; v33 -> v34
+   * adds `settings.confirmLandDrop` (default on); v34 -> v35 adds
+   * `settings.shareAnonStats` (default ON everywhere) and
+   * `settings.statsNoticeVersion` (0 for every save until the notice has been
+   * shown, so every player is told first), and drops the two dead account-level
+   * cosmetics fields that v33 superseded.
    * An unknown/garbage version starts fresh rather than crash.
    *
    * Public and this-free by design: SaveCode (the export/import codec) routes
@@ -432,7 +456,29 @@ export class SaveManager {
    */
   migrate(old: { version?: number } & Record<string, unknown>, now: number): SaveData {
     let cur = old;
-    const beganAtCurrentVersion = cur.version === CURRENT_SAVE_VERSION;
+    /**
+     * The version the blob ARRIVED at, captured before the chain rewrites it.
+     *
+     * Several steps below SEED a one-way field — a pin, an acknowledgement, a
+     * claim, a per-deck style, a privacy preference — and each one needs to
+     * know whether this save predates that field. "Is the field absent?" is not
+     * a usable test, because normalization stamps defaults earlier in the chain
+     * and the v1 step spreads a whole fresh shell; and the shared block below
+     * rewinds an up-to-date save to v22 and re-walks everything, so each step
+     * runs on every single load.
+     *
+     * The test is therefore `arrivedAtVersion >= N`, where N is the version
+     * that introduced the field. It used to be `=== CURRENT_SAVE_VERSION`,
+     * which is the same thing only until the NEXT bump: a save one version
+     * behind also already owns every field added before it, so an `=== CURRENT`
+     * test reset all of them on upgrade. Measured on the v34 -> v35 bump before
+     * this changed: per-deck card back and playmat, collection display pins,
+     * the deck-repair acknowledgement, and both Darlings flags were all wiped,
+     * the last of which re-granted the one-time free Zhou Yu precon.
+     */
+    const arrivedAtVersion = typeof cur.version === 'number' && Number.isInteger(cur.version)
+      ? cur.version
+      : 0;
     if (cur.version === 1) {
       const base = freshSave(now);
       // Spread the v1 fields over a fresh shell, then force the v2 additions.
@@ -689,7 +735,10 @@ export class SaveManager {
         gauntlet: { ...gauntlet, run },
       };
     }
-    if (cur.version === 22 || cur.version === 23 || cur.version === 24 || cur.version === 25 || cur.version === 26 || cur.version === 27 || cur.version === 28 || cur.version === 29 || cur.version === 30 || cur.version === 31 || cur.version === 32 || cur.version === 33 || cur.version === CURRENT_SAVE_VERSION) {
+    // Every version from 22 upward is enumerated BY HAND, including the
+    // outgoing current one. A bump that forgets to add the version it is
+    // replacing makes every save sitting at it skip this whole block.
+    if (cur.version === 22 || cur.version === 23 || cur.version === 24 || cur.version === 25 || cur.version === 26 || cur.version === 27 || cur.version === 28 || cur.version === 29 || cur.version === 30 || cur.version === 31 || cur.version === 32 || cur.version === 33 || cur.version === 34 || cur.version === CURRENT_SAVE_VERSION) {
       const decks = Array.isArray(cur.decks)
         ? (cur.decks as Array<Record<string, unknown>>).map((deck) => ({
             ...deck,
@@ -755,30 +804,30 @@ export class SaveManager {
       cur = {
         ...cur,
         version: 25,
-        // A migrated v24 save did not have collection display pins. A current
-        // v25 blob takes the normalization route above, so retain its raw map
-        // for the final canonicalizer below.
-        pinnedVariants: beganAtCurrentVersion ? cur.pinnedVariants : {},
+        // A save older than v25 never had collection display pins. A blob that
+        // already had them re-walks this step on every load, so it retains its
+        // raw map for the final canonicalizer below.
+        pinnedVariants: arrivedAtVersion >= 25 ? cur.pinnedVariants : {},
       };
     }
     if (cur.version === 25) {
       cur = {
         ...cur,
         version: 26,
-        // Current v26 blobs are re-run through the shared canonicalizer above;
-        // retain their durable acknowledgement while every real v25 migration
-        // starts the new tutorial unseen.
-        darlingsTutorialSeen: beganAtCurrentVersion && cur.darlingsTutorialSeen === true,
-        darlingsFreeDeckClaimed: beganAtCurrentVersion && cur.darlingsFreeDeckClaimed === true,
+        // Blobs from v26 on are re-run through the shared canonicalizer above;
+        // retain their durable acknowledgement and claim while every real v25
+        // migration starts the new tutorial unseen and the free deck unclaimed.
+        darlingsTutorialSeen: arrivedAtVersion >= 26 && cur.darlingsTutorialSeen === true,
+        darlingsFreeDeckClaimed: arrivedAtVersion >= 26 && cur.darlingsFreeDeckClaimed === true,
       };
     }
     if (cur.version === 26) {
       cur = {
         ...cur,
         version: 27,
-        // A real v26 save has never acknowledged this warning. Current v27
-        // blobs retain their durable snapshot through the canonicalizer.
-        deckRepairNoticeAck: beganAtCurrentVersion
+        // A save older than v27 has never acknowledged this warning. One that
+        // is v27 or later retains its durable snapshot through the canonicalizer.
+        deckRepairNoticeAck: arrivedAtVersion >= 27
           ? normalizeDeckRepairNoticeAck(cur.deckRepairNoticeAck)
           : '[]',
       };
@@ -850,17 +899,17 @@ export class SaveManager {
       // inheriting the account pick, so the per-deck choice begins from a
       // known baseline (owner ruling 2026-08-24).
       //
-      // The seed must not run again on an already-current save: the shared
-      // block above rewinds one to v22 and re-walks the whole chain, so an
-      // unconditional assignment here would reset a player's per-deck style on
-      // every load. "Field absent" is not usable as the signal either, because
-      // normalizeSavedDecks has already stamped null by now, which is why the
-      // discriminator is the version the save arrived at.
+      // The seed must not run again on a save that already has per-deck style:
+      // the shared block above rewinds one to v22 and re-walks the whole chain,
+      // so an unconditional assignment here would reset a player's per-deck
+      // style on every load. "Field absent" is not usable as the signal either,
+      // because normalizeSavedDecks has already stamped null by now, which is
+      // why the discriminator is the version the save arrived at.
       const decks = Array.isArray(cur.decks)
         ? (cur.decks as Array<Record<string, unknown>>).map((deck) => ({
             ...deck,
-            cardBack: beganAtCurrentVersion ? deck.cardBack : null,
-            playmat: beganAtCurrentVersion ? deck.playmat : null,
+            cardBack: arrivedAtVersion >= 33 ? deck.cardBack : null,
+            playmat: arrivedAtVersion >= 33 ? deck.playmat : null,
           }))
         : cur.decks;
       cur = { ...cur, version: 33, decks };
@@ -874,6 +923,34 @@ export class SaveManager {
         ...cur,
         version: 34,
         settings: { ...(cur.settings as object), confirmLandDrop: s.confirmLandDrop !== false },
+      };
+    }
+    if (cur.version === 34) {
+      // Telemetry preference. Sharing defaults ON everywhere (owner decision 1),
+      // and the NOTICE version starts at 0, as it does for a fresh save: nobody
+      // has been told until the UI shows the notice and stamps it.
+      //
+      // Both are keyed off `arrivedAtVersion` for the reason documented there:
+      // the shared block above rewinds an up-to-date save to v22 and re-walks
+      // the whole chain, so this step runs on every single load. Testing for an
+      // absent field would not work either, because a v1 blob is spread over a
+      // fresh shell that already carries both defaults. Only the version the
+      // save ARRIVED at can tell a genuine v34 upgrade from a v35 reload, so a
+      // player who turned sharing off, or who has already seen the notice, is
+      // never reset by reopening the game — and, because the test is `>= 35`
+      // rather than `=== CURRENT`, not by the next schema bump either. Getting
+      // that wrong would silently re-enable collection for someone who opted
+      // out. Garbage lands on the same defaults: non-false shares, and anything
+      // that is not a non-negative integer reads as not yet notified.
+      const s = (cur.settings ?? {}) as { shareAnonStats?: unknown; statsNoticeVersion?: unknown };
+      cur = {
+        ...cur,
+        version: 35,
+        settings: {
+          ...(cur.settings as object),
+          shareAnonStats: arrivedAtVersion >= 35 ? s.shareAnonStats !== false : true,
+          statsNoticeVersion: arrivedAtVersion >= 35 ? normalizeStatsNoticeVersion(s.statsNoticeVersion) : 0,
+        },
       };
     }
     if (cur.version === CURRENT_SAVE_VERSION) {
@@ -915,6 +992,10 @@ export class SaveManager {
    * the shared in-memory object changes, and both sides are restored if either
    * part fails. Keeping `data` in place refreshes every service consumer that
    * already holds the shared SaveData reference.
+   *
+   * This is the import boundary (a save code or a save card, through
+   * `Services.replaceSave`), and the one part of the profile it does NOT take
+   * wholesale is the anonymous-stats choice: see `withDeviceStatsChoice`.
    */
   replace(next: SaveData): boolean {
     if (this.timer) {
@@ -926,7 +1007,7 @@ export class SaveManager {
     let nextBlob: string;
     try {
       previousBlob = JSON.stringify(this.data);
-      nextBlob = JSON.stringify(next);
+      nextBlob = JSON.stringify(withDeviceStatsChoice(next, this.data));
     } catch {
       return false;
     }
@@ -980,10 +1061,39 @@ export class SaveManager {
 }
 
 /**
- * One id validated against a catalog, or null. Shared by the account-level
- * cosmetics and the v33 per-deck fields so an id retired from the catalog
- * degrades to the default in both places rather than persisting as a dangling
- * reference.
+ * The imported profile, with the anonymous-stats settings reconciled against
+ * the device's own, for `SaveManager.replace`.
+ *
+ * A save code carries the whole `settings` object, so taking it wholesale
+ * would let a code made where sharing was ON switch sharing back on for a
+ * player who turned it OFF on this device, silently: the notice was already
+ * stamped here, so nothing would show. An import can therefore switch sharing
+ * off but never on (it is on only when both sides have it on), and the notice
+ * version is the higher of the two, so a player told on either device stays
+ * told and a lower imported stamp never re-arms a notice this device already
+ * showed. Every other setting travels with the save.
+ */
+export function withDeviceStatsChoice(imported: SaveData, device: SaveData): SaveData {
+  const incoming: Partial<SaveData['settings']> = imported.settings ?? {};
+  const current: Partial<SaveData['settings']> = device.settings ?? {};
+  return {
+    ...imported,
+    settings: {
+      ...imported.settings,
+      shareAnonStats: incoming.shareAnonStats === true && current.shareAnonStats === true,
+      statsNoticeVersion: Math.max(
+        normalizeStatsNoticeVersion(incoming.statsNoticeVersion),
+        normalizeStatsNoticeVersion(current.statsNoticeVersion),
+      ),
+    },
+  };
+}
+
+/**
+ * One id validated against a catalog, or null. Used by the v33 per-deck style
+ * fields so an id retired from the catalog degrades to the default rather than
+ * persisting as a dangling reference. It was shared with the account-level
+ * cosmetics until v35 removed those.
  */
 function normalizeCosmeticChoice(
   value: unknown,
@@ -992,19 +1102,18 @@ function normalizeCosmeticChoice(
   return typeof value === 'string' && catalog.some((entry) => entry.id === value) ? value : null;
 }
 
+/**
+ * Rebuilds the account cosmetics block from scratch rather than spreading it,
+ * so the `cardBack` / `playmat` keys v35 removed are dropped from any older
+ * blob that still carries them instead of riding along as junk.
+ */
 function normalizeCosmetics(value: unknown): CosmeticsSave {
   const raw = value && typeof value === 'object' ? value as Record<string, unknown> : {};
-  const cardBack = typeof raw.cardBack === 'string' && CARD_BACKS.some((entry) => entry.id === raw.cardBack)
-    ? raw.cardBack
-    : null;
-  const playmat = typeof raw.playmat === 'string' && PLAYMATS.some((entry) => entry.id === raw.playmat)
-    ? raw.playmat
-    : null;
   const owned = Array.isArray(raw.owned)
     ? [...new Set(raw.owned.filter((id): id is string =>
         typeof id === 'string' && isKnownCosmeticId(id) && cosmeticById(id)?.unlock !== 'default'))]
     : [];
-  return { cardBack, playmat, owned };
+  return { owned };
 }
 
 function normalizeDeckRepairNoticeAck(value: unknown): string {

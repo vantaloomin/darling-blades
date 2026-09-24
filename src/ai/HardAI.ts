@@ -1,10 +1,12 @@
-import type { Action } from '../engine/actions';
+import { castCost, type Action } from '../engine/actions';
 import { minimumBlockersForAttacker } from '../engine/combat/legality';
 import type { Game } from '../engine/Game';
 import type { CardDb, PlayerId } from '../engine/types';
-import { opponentOf } from '../engine/types';
+import { manaValue, opponentOf } from '../engine/types';
 import type { PlayerView } from '../engine/view';
 import type { AIPlayer } from './AIPlayer';
+import { scoredActivationCandidates } from './activatedPolicy';
+import { rankedHauntlinkWindowCandidates } from './hauntlinkPolicy';
 import { chooseAttackers, chooseBlocks } from './combatPlans';
 import { determinize, simDb } from './determinize';
 import { evaluate } from './evaluate';
@@ -13,8 +15,13 @@ import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { choosePlayDraw } from './playDraw';
 import { preserveActionValue } from './preservePolicy';
 import { applyRitePolicy, isRiteCast, riteSacrificeValue } from './ritePolicy';
-import { chooseTargetAction } from './targeting';
-import { cardValue, hauntlinkCastValue } from './value';
+import { applyTithePolicy, isTitheCast, titheManaSaved } from './tithePolicy';
+import { applyWhispersPolicy } from './whispersPolicy';
+import { applyVocabularyTargetPolicy, chooseTargetAction, isVocabularyCast } from './targeting';
+import { chooseSacrifice } from './sacrificePolicy';
+import { cardValue, empowerValue, faceDamageForCast, hauntlinkCastValue, whispersValue, type SpellMode } from './value';
+
+type CreatureCast = Extract<Action, { type: 'castSpell' | 'castDarling' }>;
 
 /**
  * Hard: Medium's heuristics as candidate generators, then honest simulation
@@ -44,7 +51,24 @@ export class HardAI implements AIPlayer {
   }
 
   chooseAction(view: PlayerView, legal: Action[]): Action {
+    legal = applyVocabularyTargetPolicy(view, this.db, legal, true);
+    legal = applyTithePolicy(view, this.db, legal, this.pers, () =>
+      view.step === 'main1' && view.activePlayer === view.myId
+        ? chooseAttackers(view.battlefield, this.db, view.myId, view.opp.life,
+          this.openManaBuff(view), view.you.life, this.pers)
+        : []);
     legal = applyRitePolicy(view, this.db, legal);
+    legal = applyWhispersPolicy(view, this.db, legal, (cast) => {
+      const id = cast.type === 'castDarling' ? view.you.darlingZone! :
+        (cast.retell || cast.whispers) && cast.graveIndex !== undefined ? view.you.graveyard[cast.graveIndex] : view.you.hand[cast.handIndex];
+      const mode: SpellMode = cast.type === 'castSpell' ? cast : {};
+      if (faceDamageForCast(view, this.db, id, mode) >= view.opp.life) return 1e6 -
+        manaValue(castCost(this.db[id], !!mode.empowered, !!mode.retell, !!mode.hauntlinked, { whispers: mode.whispers })) -
+        (cast.x ?? 0) + (cast.type === 'castSpell' ? titheManaSaved(view, this.db, cast) : 0);
+      return cardValue(this.db, id, view, mode) + (cast.type === 'castSpell' && cast.whispers
+        ? whispersValue(this.db, id, view) - cardValue(this.db, id) :
+        (cast.x ?? 0) + (cast.type === 'castSpell' && cast.empowered ? empowerValue(this.db, id) : 0));
+    });
     switch (view.awaiting.kind) {
       case 'choosePlayDraw':
         return choosePlayDraw(legal);
@@ -59,6 +83,7 @@ export class HardAI implements AIPlayer {
       case 'hauntlinkWindow':
         return this.searchResponse(view, legal);
       case 'chooseTarget':
+        if (view.awaiting.decision === 'sacrifice') return chooseSacrifice(view, this.db, legal);
         return this.searchTarget(view, legal);
       default:
         // mulligans/bottoming/discard: Medium's bands are already solid
@@ -137,7 +162,13 @@ export class HardAI implements AIPlayer {
     // mid-queue state or stalling on an unhandled awaiting kind.
     for (let guard = 0; guard < 20; guard++) {
       const a = game.awaiting;
-      if (a.kind !== 'chooseTarget' || a.player !== me) break;
+      const mayResumeNewQueue = a.kind === 'foresee' || a.kind === 'discardToHandSize' ||
+        a.kind === 'respond' || a.kind === 'endStepWindow' || a.kind === 'hauntlinkWindow';
+      const vocabularyQueue = mayResumeNewQueue && game.viewFor(me).pendingDecisions !== undefined;
+      const resolvingChoice = a.kind === 'chooseTarget' || vocabularyQueue &&
+        (a.kind === 'foresee' || a.kind === 'discardToHandSize' || a.kind === 'respond' ||
+          a.kind === 'endStepWindow' || a.kind === 'hauntlinkWindow');
+      if (!resolvingChoice || !('player' in a) || a.player !== me) break;
       try {
         game.submit(me, this.medium.chooseAction(game.viewFor(me), game.legalActions(me)));
       } catch {
@@ -179,7 +210,8 @@ export class HardAI implements AIPlayer {
           game.submit(opp, { type: 'passResponse' });
         }
       } else if (a.kind === 'discardToHandSize') {
-        game.submit(opp, {
+        game.submit(opp, a.decision === 'discard'
+          ? this.neutralMedium.chooseAction(game.viewFor(opp), game.legalActions(opp)) : {
           type: 'discard',
           handIndices: Array.from({ length: a.count }, (_, i) => i),
         });
@@ -218,25 +250,28 @@ export class HardAI implements AIPlayer {
   }
 
   // -------------------------------------------------------------------
-  /**
-   * Main phase: trust Medium's proven casting policy outright — the sim's
-   * value-add lives in combat and response decisions, where the engine's
-   * exact first-strike/trample/deathtouch math beats any heuristic.
-   */
+  /** Main phase: compare bounded alternatives, including passing, against
+   * Medium. Main search has always required a strict improvement, with no
+   * additional margin; the positive combat margins belong to those searches. */
   private searchMain(view: PlayerView, legal: Action[]): Action {
+    legal = this.medium.constrainMainMana(view, legal);
     const baseline = this.medium.chooseAction(view, legal);
     if (baseline.type === 'linkHaunt') return baseline;
-    // Keep the narrow candidate set for now. It compares Skim, Retell,
-    // Empower, Rite, and Darling casts against Medium's baseline; making passStep a candidate
-    // is future work. Skim must not be offered as a lookahead line when its
-    // draw would deck out the player.
+    const pass = legal.find((action) => action.type === 'passStep');
+    const activations = new Map(scoredActivationCandidates(view, this.db, legal)
+      .map(({ action, value }) => [action, value]));
+    // Keep the existing narrow cast set. Pass and at most one deferred
+    // creature line reserve ordinary slots below. Skim must not be offered
+    // as a lookahead line when its draw would deck out the player.
     const candidates = legal
       .filter(
         (a) =>
           (a.type === 'skim' && view.you.deckCount > 0) ||
           (a.type === 'castSpell' &&
-            (a.empowered === true || a.retell === true || isRiteCast(view, this.db, a))) ||
+            (a.empowered === true || a.retell === true || a.whispers === true ||
+              isRiteCast(view, this.db, a) || isTitheCast(view, this.db, a) || isVocabularyCast(view, this.db, a))) ||
           a.type === 'preserveCard' ||
+          (a.type === 'activate' && activations.has(a)) ||
           a.type === 'castDarling',
       )
       // evaluate() deliberately strips until-EOT mods. When positive target
@@ -249,7 +284,9 @@ export class HardAI implements AIPlayer {
           Number(this.ownPositiveTargetBoost(view, a)),
       )
       .concat(legal.filter((a) => a.type === 'castSpell' && a.hauntlinked === true));
-    if (candidates.length === 0) return baseline;
+    // If passing is already the only policy line, a duplicate simulation
+    // cannot improve it. Keep idle decisions as cheap as the old search.
+    if (candidates.length === 0 && (!pass || baseline.type === 'passStep')) return baseline;
 
     const base = this.aggregateOutcome(view, [baseline]);
     if (!base) return baseline; // own line illegal in the sim; trust Medium
@@ -259,13 +296,16 @@ export class HardAI implements AIPlayer {
       if (candidate.type === 'castDarling') {
         return view.you.darlingZone === null || view.you.darlingZone === undefined
           ? -Infinity
-          : cardValue(this.db, view.you.darlingZone);
+          : cardValue(this.db, view.you.darlingZone, view);
       }
       if (candidate.type === 'preserveCard') {
         return preserveActionValue(view, this.db, candidate);
       }
+      if (candidate.type === 'activate') {
+        return activations.get(candidate) ?? -Infinity;
+      }
       if (candidate.type !== 'castSpell') return -Infinity;
-      const cardId = candidate.retell && candidate.graveIndex !== undefined
+      const cardId = (candidate.retell || candidate.whispers) && candidate.graveIndex !== undefined
         ? view.you.graveyard[candidate.graveIndex]
         : view.you.hand[candidate.handIndex];
       if (candidate.hauntlinked) {
@@ -274,12 +314,14 @@ export class HardAI implements AIPlayer {
           ? hauntlinkCastValue(view.battlefield, this.db, cardId, host.iid)
           : -Infinity;
       }
-      return cardValue(this.db, cardId) + (candidate.empowered ? 0.01 : 0) -
+      return cardValue(this.db, cardId, view, candidate) +
+        (candidate.whispers ? whispersValue(this.db, cardId, view) - cardValue(this.db, cardId) : 0) +
+        (candidate.empowered ? 0.01 : 0) + titheManaSaved(view, this.db, candidate) -
         riteSacrificeValue(view, this.db, candidate);
     };
     // Cap the sim fanout: variants scale with target count, so rank Hauntlink
     // hosts and Preserve bodies by public value before truncating the menu.
-    // Rite stays ahead of the cap, and the single best Preserve action is
+    // Rite and Tithe stay ahead of the cap, and the single best Preserve action is
     // always searched.
     const rankedCandidates = candidates
       .map((candidate, index) => ({ candidate, index }))
@@ -298,29 +340,167 @@ export class HardAI implements AIPlayer {
       })
       .map(({ candidate }) => candidate);
     const riteCandidates = rankedCandidates.filter((candidate) =>
-      isRiteCast(view, this.db, candidate),
+      isRiteCast(view, this.db, candidate) || isTitheCast(view, this.db, candidate) || isVocabularyCast(view, this.db, candidate),
     );
     const preserveCandidates = rankedCandidates.filter(
       (candidate) => candidate.type === 'preserveCard',
     ).slice(0, 1);
+    // Keep the best target for each source/ability, then search the best two
+    // Duties. Alternate targets of one tap cannot crowd the second Duty out.
+    const seenDuties = new Set<string>();
+    const activateCandidates = rankedCandidates.filter(
+      (candidate) => candidate.type === 'activate',
+    ).sort((a, b) => candidateScore(b) - candidateScore(a)).filter((candidate) => {
+      const key = `${candidate.iid}:${candidate.abilityIndex ?? 0}`;
+      if (seenDuties.has(key)) return false;
+      seenDuties.add(key);
+      return true;
+    }).slice(0, 2);
+    const canHold = pass !== undefined && view.step === 'main1' && view.activePlayer === view.myId &&
+      [baseline, ...rankedCandidates].some((candidate) => this.isCreatureCast(view, candidate)) &&
+      chooseAttackers(view.battlefield, this.db, view.myId, view.opp.life,
+        this.openManaBuff(view), view.you.life, this.pers).length > 0;
+    // Pass must survive a large target menu. Reserve both new lines inside
+    // the existing eight ordinary slots; protected mechanic candidates keep
+    // their existing allowances above that cap.
+    const ordinarySlots = 8 - Number(pass !== undefined) - Number(canHold);
     const cappedCandidates = [
       ...riteCandidates,
       ...preserveCandidates,
+      ...activateCandidates,
+      ...(pass ? [pass] : []),
       ...rankedCandidates
         .filter(
           (candidate) =>
-            !isRiteCast(view, this.db, candidate) && candidate.type !== 'preserveCard',
+            !isRiteCast(view, this.db, candidate) && !isTitheCast(view, this.db, candidate) && !isVocabularyCast(view, this.db, candidate) &&
+            candidate.type !== 'preserveCard' &&
+            candidate.type !== 'activate',
         )
-        .slice(0, 8),
+        .slice(0, ordinarySlots),
     ];
     for (const candidate of cappedCandidates) {
       const outcome = this.aggregateOutcome(view, [candidate]);
+      // Phase A lets Hard decline a cast. Duty timing is phase B: its
+      // existing policy must not lose a free activation to the evaluator's
+      // temporary tapped-body discount. Other action baselines stay intact.
+      if (candidate.type === 'passStep' && baseline.type !== 'castSpell' &&
+        baseline.type !== 'castDarling' && baseline.type !== 'passStep') continue;
       if (outcome && outcome.score > bestScore) {
         best = candidate;
         bestScore = outcome.score;
       }
     }
+    if (canHold && pass && this.isCreatureCast(view, best)) {
+      // Compare this same creature on both sides of combat. Comparing a
+      // deferred cast plus an attack with an immediate cast's shallow score
+      // would reward the longer horizon rather than the timing decision.
+      const comparison = this.holdComparison(view, best);
+      if (comparison && comparison.held > comparison.now) return pass;
+    }
     return best;
+  }
+
+  private isCreatureCast(view: PlayerView, action: Action): action is CreatureCast {
+    if (action.type !== 'castSpell' && action.type !== 'castDarling') return false;
+    const cardId = action.type === 'castDarling' ? view.you.darlingZone :
+      (action.retell || action.whispers) && action.graveIndex !== undefined
+        ? view.you.graveyard[action.graveIndex] : view.you.hand[action.handIndex];
+    if (!cardId || !this.db[cardId]?.types.includes('creature')) return false;
+    // A creature's replacement Retell body resolves as a spell, not a body.
+    return action.type !== 'castSpell' || !action.retell || this.db[cardId].retell?.ops === undefined;
+  }
+
+  /** Average matched, same-turn horizons. No held action survives this call:
+   * the live brain will reconsider its actual legal menu in main two. */
+  private holdComparison(view: PlayerView, cast: CreatureCast): { now: number; held: number } | null {
+    let now = 0;
+    let held = 0;
+    for (const seed of HardAI.SIM_SEEDS) {
+      const immediate = this.mainTwoOutcome(view, cast, false, seed);
+      const deferred = this.mainTwoOutcome(view, cast, true, seed);
+      if (immediate === null || deferred === null) return null;
+      now += immediate;
+      held += deferred;
+    }
+    return { now: now / HardAI.SIM_SEEDS.length, held: held / HardAI.SIM_SEEDS.length };
+  }
+
+  /** Physical identity here belongs only to the determinized clone. It keeps
+   * a draw, discard, or graveyard change from silently switching held cards. */
+  private castInstance(game: Game, cast: CreatureCast): number | undefined {
+    const player = game.instanceState.players[game.instanceState.activePlayer];
+    const entry = cast.type === 'castDarling' ? player.darlingZone :
+      (cast.retell || cast.whispers) && cast.graveIndex !== undefined
+        ? player.graveyard[cast.graveIndex] : player.hand[cast.handIndex];
+    return entry && typeof entry !== 'string' ? entry.instanceId : undefined;
+  }
+
+  /** Cast before or after our policy's attack, then stop at settled main two.
+   * The 120-action guard matches the existing lookahead bound, but never
+   * crosses into an opponent turn or evaluates an unfinished combat. */
+  private mainTwoOutcome(view: PlayerView, cast: CreatureCast, deferred: boolean, seed: number): number | null {
+    if (view.step !== 'main1' || view.activePlayer !== view.myId) return null;
+    const me = view.myId;
+    let game: Game;
+    let instanceId: number | undefined;
+    try {
+      game = determinize(view, this.db, seed);
+      instanceId = this.castInstance(game, cast);
+      if (instanceId === undefined) return null;
+      game.submit(me, deferred ? { type: 'passStep' } : cast);
+    } catch {
+      return null;
+    }
+    const turn = view.turn;
+    let pendingCast = deferred;
+    for (let guard = 0; guard < 120; guard++) {
+      this.autoplayOpponent(game, me);
+      const awaiting = game.awaiting;
+      if (awaiting.kind === 'gameOver') return evaluate(game.state, this.sdb, me);
+      if (game.state.turn !== turn || game.state.activePlayer !== me ||
+        !('player' in awaiting) || awaiting.player !== me) return null;
+      let action: Action;
+      if (awaiting.kind === 'main') {
+        if (game.state.step === 'main2') {
+          if (!pendingCast) return evaluate(game.state, this.sdb, me);
+          const current = game.viewFor(me);
+          const legal = applyRitePolicy(current, this.sdb,
+            applyTithePolicy(current, this.sdb,
+              applyVocabularyTargetPolicy(current, this.sdb, game.legalActions(me), true), this.pers));
+          const refreshed = legal.find((candidate) => {
+            if (candidate.type !== cast.type ||
+              (candidate.type !== 'castSpell' && candidate.type !== 'castDarling') ||
+              this.castInstance(game, candidate) !== instanceId) return false;
+            if (JSON.stringify(candidate.targets ?? []) !== JSON.stringify(cast.targets ?? [])) return false;
+            return candidate.type !== 'castSpell' || cast.type !== 'castSpell' ||
+              (Boolean(candidate.retell) === Boolean(cast.retell) &&
+                Boolean(candidate.whispers) === Boolean(cast.whispers) &&
+                Boolean(candidate.empowered) === Boolean(cast.empowered) &&
+                Boolean(candidate.tithe) === Boolean(cast.tithe) &&
+                Boolean(candidate.hauntlinked) === Boolean(cast.hauntlinked) &&
+                (candidate.x ?? 0) === (cast.x ?? 0));
+          });
+          if (!refreshed) return null;
+          action = refreshed;
+          pendingCast = false;
+        } else if (game.state.step === 'main1') {
+          action = { type: 'passStep' };
+        } else return null;
+      } else {
+        // A creature that also permits an instant-speed cast must stay held
+        // through combat. Mandatory discards can still make the line fail.
+        const legal = game.legalActions(me).filter((candidate) => !pendingCast ||
+          (candidate.type !== 'castSpell' && candidate.type !== 'castDarling') ||
+          this.castInstance(game, candidate) !== instanceId);
+        action = this.medium.chooseAction(game.viewFor(me), legal);
+      }
+      try {
+        game.submit(me, action);
+      } catch {
+        return null;
+      }
+    }
+    return null;
   }
 
   private ownPositiveTargetBoost(view: PlayerView, action: Action): boolean {
@@ -329,7 +509,7 @@ export class HardAI implements AIPlayer {
     if (!targetRef || targetRef.kind !== 'permanent') return false;
     const target = view.battlefield.find((p) => p.iid === targetRef.iid);
     if (!target || target.controller !== view.myId) return false;
-    const cardId = action.retell && action.graveIndex !== undefined
+    const cardId = (action.retell || action.whispers) && action.graveIndex !== undefined
       ? view.you.graveyard[action.graveIndex]
       : view.you.hand[action.handIndex];
     return (this.db[cardId]?.abilities ?? []).some((ab) =>
@@ -501,8 +681,13 @@ export class HardAI implements AIPlayer {
         }
       }
       for (const b of plan) {
+        const left = plan.filter((x) => x.attacker === b.attacker).length - 1;
+        if (left > 0 && minimumBlockersForAttacker(view.battlefield, this.db, b.attacker) > left) continue;
         for (const attacker of attackers) {
           if (attacker === b.attacker) continue;
+          if (!view.battlefield.some((p) => p.iid === attacker)) continue;
+          const gang = plan.filter((x) => x.attacker === attacker).length;
+          if (gang >= 3 || gang + 1 < minimumBlockersForAttacker(view.battlefield, this.db, attacker)) continue;
           out.push(plan.map((x) => (x === b ? { blocker: b.blocker, attacker } : x))); // move
         }
       }
@@ -539,9 +724,20 @@ export class HardAI implements AIPlayer {
    * or a dodged loss clears any margin). */
   private searchResponse(view: PlayerView, legal: Action[]): Action {
     const mediumChoice = this.medium.chooseAction(view, legal);
-    const candidates = legal
-      .filter((l) => l.type === 'castSpell' || l.type === 'skim')
-      .slice(0, 10);
+    // Graveyard casts come after hand variants in the engine menu. Keep live
+    // Whispers Charms reachable even when ten hand variants fill the cap.
+    const whispered = legal.filter((action) => action.type === 'castSpell' && action.whispers);
+    const vocabulary = legal.filter((action) => action.type === 'castSpell' && !action.whispers &&
+      isVocabularyCast(view, this.db, action));
+    const candidates = [
+      ...rankedHauntlinkWindowCandidates(view, this.db, legal),
+      ...(view.awaiting.kind === 'hauntlinkWindow'
+        ? legal.filter((action) => action.type === 'passResponse') : []),
+      ...whispered,
+      ...vocabulary,
+      ...legal.filter((action) => action.type === 'skim' ||
+        (action.type === 'castSpell' && !action.whispers && !isVocabularyCast(view, this.db, action))).slice(0, 10),
+    ];
     if (candidates.length === 0) return mediumChoice;
     const base = this.aggregateOutcome(view, [mediumChoice]);
     if (!base || base.wonAll) return mediumChoice;

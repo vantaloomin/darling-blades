@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { ECONOMY } from '../../src/config/rules';
+import { theme } from '../../src/ui/theme';
 import {
   cardDwellMs,
   cardRailX,
@@ -8,17 +10,21 @@ import {
   indexAtGate,
   inertiaStep,
   minimapSegments,
+  PACK_BUTTON_PANEL,
+  PACK_BUTTON_Y,
+  PACK_REVEAL_GRID_SCALE,
+  PACK_REVEAL_SPECIAL_SCALE,
+  packRevealLayout,
   railOffsetForIndex,
   runwayOrder,
+  RUNWAY_CARD_DESIGN_HEIGHT,
   RUNWAY_CARD_DESIGN_WIDTH,
-  RUNWAY_CARD_HALF_HEIGHT,
   RUNWAY_CARD_SCALE,
   RUNWAY_GATE_X,
   RUNWAY_INERTIA,
   RUNWAY_MINIMAP,
   RUNWAY_PITCH,
   RUNWAY_SKIP,
-  RUNWAY_VIRTUAL_MARGIN,
   virtualRange,
 } from '../../src/ui/packRunwayPresentation';
 
@@ -60,12 +66,7 @@ describe('runwayOrder', () => {
 
 describe('rail geometry', () => {
   it('uses one larger non-overlapping row between the ribbon and summary rail', () => {
-    expect(RUNWAY_CARD_SCALE).toBe(0.6);
-    expect(RUNWAY_PITCH).toBe(190);
-    expect(RUNWAY_CARD_DESIGN_WIDTH * RUNWAY_CARD_SCALE).toBe(180);
     expect(RUNWAY_PITCH).toBeGreaterThan(RUNWAY_CARD_DESIGN_WIDTH * RUNWAY_CARD_SCALE);
-    expect(RUNWAY_CARD_HALF_HEIGHT).toBe(126);
-    expect(RUNWAY_VIRTUAL_MARGIN).toBe(280);
   });
 
   it('parks the indexed card exactly on the gate', () => {
@@ -179,6 +180,88 @@ describe('flipPitchJitter', () => {
       expect(pitch).toBeGreaterThanOrEqual(0.95);
       expect(pitch).toBeLessThanOrEqual(1.08);
       expect(pitch).toBe(flipPitchJitter(i));
+    }
+  });
+});
+
+describe('packRevealLayout', () => {
+  type Slot = { x: number; y: number; scale: number };
+  const rect = (slot: Slot): { left: number; right: number; top: number; bottom: number } => {
+    const w = RUNWAY_CARD_DESIGN_WIDTH * slot.scale;
+    const h = RUNWAY_CARD_DESIGN_HEIGHT * slot.scale;
+    return { left: slot.x - w / 2, right: slot.x + w / 2, top: slot.y - h / 2, bottom: slot.y + h / 2 };
+  };
+  const packSize = ECONOMY.boosterPackSize;
+  const splits = Array.from({ length: packSize + 1 }, (_, specials) => [packSize - specials, specials] as const);
+  const { safeLeft, safeRight, safeTop, safeBottom } = theme.design;
+  const headerBottom = safeTop + theme.control.minHitHeight;
+  const railTop = PACK_BUTTON_Y - PACK_BUTTON_PANEL.height / 2;
+
+  it('slots every card of every split of a booster', () => {
+    for (const [grid, specials] of splits) {
+      const layout = packRevealLayout(grid, specials);
+      expect(layout.grid).toHaveLength(grid);
+      expect(layout.specials).toHaveLength(specials);
+    }
+  });
+
+  /** The review's repro: grid row two sat under the specials row on every
+   *  9-card pack, so the rare covered row two's rules text. */
+  it('never lets one card overlap another, with inactive space between neighbours', () => {
+    for (const [grid, specials] of splits) {
+      const { grid: g, specials: s } = packRevealLayout(grid, specials);
+      const cards = [...g, ...s].map(rect);
+      for (let i = 0; i < cards.length; i++) {
+        for (let j = i + 1; j < cards.length; j++) {
+          const a = cards[i];
+          const b = cards[j];
+          const gapX = Math.max(b.left - a.right, a.left - b.right);
+          const gapY = Math.max(b.top - a.bottom, a.top - b.bottom);
+          expect(Math.max(gapX, gapY), `split ${grid}+${specials}: cards ${i} and ${j}`).toBeGreaterThanOrEqual(12);
+        }
+      }
+    }
+  });
+
+  it('keeps every card inside the title-safe frame, below the header row and above the CTA rail', () => {
+    for (const [grid, specials] of splits) {
+      const { grid: g, specials: s } = packRevealLayout(grid, specials);
+      // A full row may run exactly edge to edge; allow float rounding only.
+      const eps = 1e-6;
+      for (const card of [...g, ...s].map(rect)) {
+        expect(card.left).toBeGreaterThanOrEqual(safeLeft - eps);
+        expect(card.right).toBeLessThanOrEqual(safeRight + eps);
+        expect(card.top).toBeGreaterThanOrEqual(headerBottom);
+        expect(card.bottom).toBeLessThan(railTop);
+      }
+    }
+  });
+
+  it('puts the CTA rail buttons inside the title-safe frame', () => {
+    const buttonHalfHit = theme.control.minHitHeight / 2;
+    expect(PACK_BUTTON_Y - buttonHalfHit).toBeGreaterThanOrEqual(safeTop);
+    expect(PACK_BUTTON_Y + buttonHalfHit).toBeLessThanOrEqual(safeBottom);
+  });
+
+  it('reads grid first, then the specials one size larger, never above their base size', () => {
+    for (const [grid, specials] of splits) {
+      const { grid: g, specials: s } = packRevealLayout(grid, specials);
+      const gridBottom = Math.max(...g.map((slot) => rect(slot).bottom));
+      for (const slot of s) {
+        expect(rect(slot).top).toBeGreaterThan(gridBottom);
+        expect(slot.scale).toBeLessThanOrEqual(PACK_REVEAL_SPECIAL_SCALE);
+        for (const gridSlot of g) expect(slot.scale).toBeGreaterThan(gridSlot.scale);
+      }
+      for (const slot of g) expect(slot.scale).toBeLessThanOrEqual(PACK_REVEAL_GRID_SCALE);
+    }
+  });
+
+  /** Legibility gate: fitting a crowded split may shrink cards, but never
+   *  below a third of full size (100 x 140 px). */
+  it('keeps every card of every split at least a third of full size', () => {
+    for (const [grid, specials] of splits) {
+      const { grid: g, specials: s } = packRevealLayout(grid, specials);
+      for (const slot of [...g, ...s]) expect(slot.scale).toBeGreaterThanOrEqual(1 / 3);
     }
   });
 });

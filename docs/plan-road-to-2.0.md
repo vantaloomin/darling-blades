@@ -127,6 +127,17 @@ The release that would open next.
     during a cut because it is an untested change to a tag-triggered workflow.
   - The multiplayer correction (below).
   - ~~Remove the vestigial `cosmetics.cardBack` / `cosmetics.playmat` fields.~~
+    **DONE 2026-09-17 as the rider on save v35** (the anonymous-stats
+    preference). The third trap below turned out to be a live bug, not only a
+    trap: `beganAtCurrentVersion` is true only for a save AT the current
+    version, so a save one version behind had every earlier one-way field
+    re-seeded on upgrade. Measured on the shipped code, a v33 save arriving at
+    v34 (the 1.6.4 update) lost its per-deck card back and playmat, its
+    collection display pins and its deck-repair acknowledgement, and had both
+    Darlings flags reset, which re-offered the one-time free Zhou Yu deck. v35
+    replaces the guard with `arrivedAtVersion >= N`, N being the version that
+    introduced each field, and a test walks a v34 save carrying all of them.
+    What follows is the deferral note as written, kept for the record.
     **DEFERRED 2026-08-25 to the next save-version bump.** The two fields are
     worse than vestigial: they are UNREACHABLE. v33 moved style onto the deck
     and took the Profile picker with it, so nothing can write them and nothing

@@ -38,10 +38,13 @@ export const MECHANIC_ICON_KEY: Record<MechanicIconId, string> = {
   empower: 'mechanic-empower',
   skim: 'mechanic-skim',
   retell: 'mechanic-retell',
+  whispers: 'mechanic-whispers',
   hauntlink: 'mechanic-hauntlink',
   rite: 'mechanic-rite',
+  tithe: 'mechanic-tithe',
   nineLives: 'mechanic-nineLives',
   preserve: 'mechanic-preserve',
+  duty: 'pip-T', // Duty teaches the same tap glyph the card face uses.
   warchest: 'mechanic-warchest',
   darlings: 'mechanic-darlings',
 };
@@ -88,7 +91,7 @@ const KEYWORD_ICON_PATH: Record<Keyword, string> = {
  * Awakening already own that motif) and Rite is a chalice rather than a blade
  * or a droplet (First Blade, Deathblade and Blood Oath own those).
  */
-const MECHANIC_ICON_PATH: Record<MechanicIconId, string> = {
+const MECHANIC_ICON_PATH: Record<Exclude<MechanicIconId, 'duty'>, string> = {
   // A card parted along a clean diagonal: cut out, never coming back.
   sever: 'M6 6 L14 6 L26 38 L6 38 Z M20 6 L38 6 L38 38 L32 38 Z',
   // The top card of a deck lifted clear so you can read it.
@@ -117,12 +120,21 @@ const MECHANIC_ICON_PATH: Record<MechanicIconId, string> = {
   // quadrant the 270-degree sector leaves open, so it points along the travel
   // rather than floating across the band.
   retell: 'M22 7 A15 15 0 1 0 37 22 L31 22 A9 9 0 1 1 22 13 Z M28 22 L40 22 L34 10 Z',
+  // Ripples rise from a card in the graveyard while its casting window is open.
+  whispers:
+    'M7 30 L37 30 L37 39 L7 39 Z ' +
+    'M8 20 Q15 13 22 20 Q29 27 36 20 L36 25 Q29 32 22 25 Q15 18 8 25 Z ' +
+    'M8 8 Q15 1 22 8 Q29 15 36 8 L36 13 Q29 20 22 13 Q15 6 8 13 Z',
   // Two rings through each other: the permanent bound to its host.
   hauntlink:
     'M3 22 A11 11 0 1 0 25 22 A11 11 0 1 0 3 22 Z M8 22 A6 6 0 1 0 20 22 A6 6 0 1 0 8 22 Z ' +
     'M19 22 A11 11 0 1 0 41 22 A11 11 0 1 0 19 22 Z M24 22 A6 6 0 1 0 36 22 A6 6 0 1 0 24 22 Z',
   // A chalice and the offerings going into it.
   rite: 'M15 6 A3 3 0 1 0 21 6 A3 3 0 1 0 15 6 Z M23 6 A3 3 0 1 0 29 6 A3 3 0 1 0 23 6 Z M11 13 L33 13 L29 26 L15 26 Z M20 26 L24 26 L24 33 L20 33 Z M13 33 L31 33 L31 38 L13 38 Z',
+  // A pair of offerings above a stepped altar; Rite keeps its chalice.
+  tithe:
+    'M10 7 L20 7 L20 17 L10 17 Z M24 7 L34 7 L34 17 L24 17 Z ' +
+    'M8 22 L36 22 L36 28 L8 28 Z M13 28 L31 28 L31 33 L13 33 Z M5 33 L39 33 L39 39 L5 39 Z',
   // The cat, because the mechanic is named for it. A flatter skull, corner ears
   // and slit pupils: the first draft's round head and tall tufts read as an owl.
   nineLives:
@@ -197,6 +209,8 @@ export function bakeKeywordIcons(scene: Phaser.Scene): void {
     bakeChip(scene, KEYWORD_ICON_KEY[keyword], KEYWORD_ICON_PATH[keyword]);
   }
   for (const mechanic of Object.keys(MECHANIC_ICON_KEY) as MechanicIconId[]) {
+    // ManaSymbols owns the shared tap texture and its bake.
+    if (mechanic === 'duty') continue;
     bakeChip(scene, MECHANIC_ICON_KEY[mechanic], MECHANIC_ICON_PATH[mechanic]);
   }
   for (const phase of Object.keys(PHASE_ICON_KEY) as PhaseIconId[]) {

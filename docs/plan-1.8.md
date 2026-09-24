@@ -1,9 +1,23 @@
-<!-- source-of-truth: docs/plan-road-to-2.0.md, docs/plan-expansion-slate.md, docs/rollout-telemetry-and-accounts.md, docs/plan-1.6.md, docs/plan-tribal-pass.md, docs/release-notes/v1.7.2.md, src/engine/types.ts, src/meta/warchest.ts, src/meta/SaveManager.ts · last-verified: 2026-09-10 · program doc — the 1.8 train proposal; re-verify when the owner rules on the open decisions or a lane lands -->
+<!-- source-of-truth: docs/plan-road-to-2.0.md, docs/plan-expansion-slate.md, docs/rollout-telemetry-and-accounts.md, docs/plan-1.6.md, docs/plan-tribal-pass.md, docs/release-notes/v1.7.2.md, src/engine/types.ts, src/meta/warchest.ts, src/meta/SaveManager.ts · last-verified: 2026-09-24 · program doc — the 1.8 train proposal; re-verify when the owner rules on the open decisions or a lane lands -->
 
 # Darling Blades 1.8 — program plan (proposal)
 
-**Status 2026-09-07: DRAFT, awaiting owner rulings. Nothing here is
-implemented or authorized.** This is the "work out the plan" pass that opens a
+**Status 2026-09-24: 1.8.0 CUT.** Everything on the train shipped; the
+release-candidate review of 2026-09-23 landed ten fix PRs (#423 to #432)
+including the Salt Gate and Lamp-Lit Vigil redesign (#429). Two departures
+from the plan, both owner rulings of 2026-09-23: the metagame sweep runs
+AFTER launch rather than last-before-it (it runs on GitHub-hosted runners,
+[metagame-sweep.md](metagame-sweep.md), several days of wall clock, and any
+egregious finding ships as a 1.8.x hotfix the way 1.7.1 and 1.7.2 did), and
+it runs on five personas, weenie excluded, because a weenie game costs the
+Hard brain about ten times a midrange game and no chunk of the hosted job
+fits it (a 1.9 item on the roadmap). The seventeen art regenerations of
+[plan-art-regen-2026-09-22.md](plan-art-regen-2026-09-22.md) ship in 1.8.1.
+
+**Status 2026-09-11: every owner decision D1-D10 is RULED (see the list at
+the end); the tap-ability engine core is on the train (#355); the Drowned
+Deep engine spec is ruled and awaits implementation.** Originally drafted
+2026-09-07 as the proposal that opened the train. This is the "work out the plan" pass that opens a
 train: what the spine already committed 1.8 to, what 1.7.x left on the table,
 what the docs say each piece needs, and the decisions only the owner can make.
 It follows the "Add to the list != build it" rule: plan doc plus roadmap entry,
@@ -93,25 +107,36 @@ the DuelScene switch trap. What the spec settles:
    permanent click to Hauntlink linking. The playbook trap from 1.7.2 applies:
    any new `Awaiting` kind is not done until every DuelScene `switch` knows it.
 
-### Lane B — the set mechanics: Whispers, and Dread of the Deep if kept
+### Lane B — the set mechanics: Whispers, and Tithe if kept
+
+**The spec is drafted: [plan-drowned-deep-engine.md](plan-drowned-deep-engine.md)
+(2026-09-10, awaiting rulings DB1-DB6).** Two findings changed the shape
+described below. First, discard in this engine is per-card Skim (cycling:
+discard *this* card, draw), with no generic outlet, so a post-discard window
+would be a new `Awaiting` kind across about 120 switch sites; the spec makes
+Whispers a rider on the Skim action instead (one composite action, no
+window) and Tithe a fixed-discount sibling of Rite. Second, the
+"retro-synergy with Skim" premise holds only for a card carrying both: the
+76 shipped Skim cards gain nothing, and every v1 Whispers card is its own
+enabler, which is what the costing prices.
 
 **Whispers** (the slate's madness analog): a card with Whispers that is
 discarded from hand may be cast immediately for its Whispers cost. It closes an
 existing loop: Dark Tales shipped a discard engine (Skim) with no discard
-payoff. Engine shape: a discard event with an owner decision, so a new
-`Awaiting` kind (`whispersWindow`) with the DuelScene audit above; AI is a
-greedy cost comparison (cast if affordable now and the normal cost is not). The
-overplan's own risk list applies: a cast-versus-Whispers affordability audit
-and a deck-out guard review before card data commits.
+payoff. The original engine sketch (a discard event with an owner decision,
+a new `Awaiting` kind) is superseded by the spec; the AI is a greedy cost
+comparison either way. The overplan's own risk list applies: a
+cast-versus-Whispers affordability audit and a deck-out guard review before
+card data commits.
 
-**Dread of the Deep** (the emerge analog): sacrifice a creature as you cast a
+**Tithe** (the emerge analog): sacrifice a creature as you cast a
 Horror, reduce its cost by the sacrificed creature's cost. Rite already shipped
 the additional-sacrifice-cost plumbing, so this is an optional Rite variant
 with a discount, a small lift. The overplan marks it deliberately sparse so the
 set still works as a control set without the Horror package assembled.
 
 **Decision for the owner (D4):** the slate table says Whispers only; the
-overplan carries both. A Large set has room for two, and Dread is cheap, but
+overplan carries both. A Large set has room for two, and Tithe is cheap, but
 each is a costed mechanic, an AI heuristic, and a glossary entry.
 
 ### Lane C — the set: Drowned Deep, 250+ cards, authored fresh
@@ -193,6 +218,11 @@ leave them collectible and mark them in the binder as reserve-ineligible. Any
 option that changes the collectible pool touches drop tables, collectionPct,
 draft packs (`packPool` already excludes them), and the Assay.
 
+**BUILT 2026-09-18.** Option (b) was ruled 2026-09-11, the slate approved
+2026-09-17 with seven heavier rows, and the 27 cards transcribed the next day.
+What the build found and how the owner ruled is in
+[plan-land-economy.md](plan-land-economy.md).
+
 ### Lane E — anonymous telemetry (T0 to T3), parallel
 
 The execution plan is written: [rollout-telemetry-and-accounts.md](rollout-telemetry-and-accounts.md).
@@ -247,7 +277,8 @@ and multiplayer (cancelled).
 ### Lane G — measurement and release mechanics
 
 - Every new mechanic gets its MEP rate before card data (owner rule); the
-  Assay rescore follows the transcription; the balance matrices re-run when
+  the Assay rescore and the persona audit are SKIPPED for 1.8 (owner ruling
+  2026-09-15; the Drowned Deep rows carry their overplan balance-pass scores); the balance matrices re-run when
   the AI or decks move; **the metagame sweep runs last** against the final
   field, never as a mid-train gate.
 - The suite is at 11 minutes and the win-rate gates dominate it. Two more
@@ -256,7 +287,9 @@ and multiplayer (cancelled).
 - Release cut follows the checklist that works: three version surfaces,
   `cargo update --workspace`, `app:build` before tagging, `docs/release-notes/v1.8.0.md`
   as the release body (`check-release-notes` fails the PR without it), README
-  figures re-measured, a two-parent merge into `main`.
+  figures re-measured, the two manual balance matrices (`--floors --seeds 80`
+  and `--avatars --seeds 200`, added to the checklist on the 1.8 QC day), a
+  two-parent merge into `main`.
 
 ## Sequencing
 
@@ -266,8 +299,8 @@ worktrees, by file set.
 | Wave | Contents | Gate |
 | ---: | --- | --- |
 | **0** | Node 24 (#342 implemented), roadmap sync, telemetry 0a rename, `audit-overlap.ts` committed, `run-sweep.ps1` sync fix | ladder rungs 1-6; the next tag proves `release.yml` |
-| **1** | Specs, Fable-authored: `plan-tap-abilities.md`, the Drowned Deep engine-wave spec (Whispers, Dread), `plan-land-economy.md`, then the fresh Drowned Deep identity brief and ~320-candidate overplan once the engine specs are approved. Owner rulings D1-D8. Frame geometry decided | owner approval of each spec |
-| **2** | Engine, Codex under contract: tap abilities stage 1 (artifacts, enchantments), then stage 2 (creatures), then Whispers, then Dread. Each with rates, AI at three difficulties, converter, replay bump, DuelScene switch audit, tests. v35 save bump (0b) lands here so lane D's schema needs ride it | full ladder, win-rate gates unchanged, replay goldens |
+| **1** | Specs, Fable-authored: `plan-tap-abilities.md`, the Drowned Deep engine-wave spec (Whispers, Tithe), `plan-land-economy.md`, then the fresh Drowned Deep identity brief and ~320-candidate overplan once the engine specs are approved. Owner rulings D1-D8. Frame geometry decided | owner approval of each spec |
+| **2** | Engine, Codex under contract: tap abilities stage 1 (artifacts, enchantments), then stage 2 (creatures), then Whispers, then Tithe. Each with rates, AI at three difficulties, converter, replay bump, DuelScene switch audit, tests. v35 save bump (0b) lands here so lane D's schema needs ride it | full ladder, win-rate gates unchanged, replay goldens |
 | **3** | Set concretion: the 250+ cut locked, transcription, tokens, glossary, terms. **Art run starts the day the cut locks** and runs the length of the wave | check-art-bible green, every token minted, dup audit filed |
 | **4** | Metagame content: Lanterns Below, rungs 25-26 with Darlings decks, floors from the final band; land-economy implementation per D3; Assay rescore; balance pass | matrices, precon and boss floors, Assay fair-rate |
 | **5** | Telemetry T1-T3 (parallel from wave 2 once T0's owner prerequisites exist); Settings layout pass; privacy page live before T2 ships | probe: toggle off shows zero requests |
@@ -281,34 +314,46 @@ For scale: the 1.6 train (245 cards plus the Warchest migration) ran
 
 Numbered so rulings can cite them. Recommendations are the first option.
 
-1. **D1 Set size.** Author a fresh ~320-candidate overplan for a 250+ cut
-   (the cadence), or accept a smaller Drowned Deep and move the difference to
-   2.0. (The old overplan is retired; the question is only the target.)
-2. **D2 Tap abilities v1 shape.** Main-phase own-turn only, artifacts and
-   enchantments first, creatures in stage 2 with summoning sickness and the
-   Warcry exception; tap and tap-plus-mana costs. Charm-speed activation
-   deferred to a flag.
-3. **D3 Land economy.** Which of the three options in lane D, after the brief
-   measures the count. The recommendation leans on lane A: convert the
-   utility taplands into the tap-cost artifacts they already want to be.
-4. **D4 Dread of the Deep.** In (cheap on the Rite plumbing, gives the Horror
-   package a spine) or out (one costed mechanic fewer).
+1. **D1 Set size. RULED 2026-09-11: a Large set of 250, overplanned to
+   320.** (The old overplan is retired; the fresh one is authored after the
+   engine specs, which are now both ruled.)
+2. **D2 Tap abilities v1 shape. RULED 2026-09-07** (D2a-D2f in
+   [plan-tap-abilities.md](plan-tap-abilities.md); taught as Duty, the tap
+   icon on the card). Engine core shipped to the train as #355.
+3. **D3 Land economy. RULED 2026-09-11: convert the 27 utility taplands
+   into Duty artifacts with a tap ability.** Fable authors the conversion
+   slate (name, cost, ability per card) after the tap-ability rules text and
+   glossary land; owner approves; Codex transcribes. **Slate authored
+   2026-09-10: [plan-land-economy.md](plan-land-economy.md) (27 rows,
+   costed, awaiting approval).** Drop tables,
+   collectionPct and the Assay follow the pool change.
+4. **D4 Tithe (renamed from Dread 2026-09-11, the Dreaded collision). RULED 2026-09-11: in**, as an any-number
+   sacrifice with a discount of one generic mana per two points of combined
+   Defense, rounded down; Horror-only as a per-set data policy; a new
+   sacrifice picker that Rite gets too. With Whispers as a fresh-graveyard
+   cast (origins hand and deck, expiry at the opponent's next Dawn). Both in
+   [plan-drowned-deep-engine.md](plan-drowned-deep-engine.md) section 8.
 5. **D5 Telemetry prerequisites.** ~~Create the Cloudflare account and pick
    the Worker hostname~~ **DONE 2026-09-10: `db-signals.loominvanta.workers.dev`**
-   (placeholder Worker deployed, subdomain registered). Still open: how the
-   spike deploys (an API token with Workers edit scope in the environment, or
-   the owner runs `wrangler deploy`), and when the privacy page goes live.
+   (placeholder Worker deployed, subdomain registered). **T0 RAN 2026-09-10**
+   with an owner-issued deploy token in the user environment; finding in
+   [telemetry-t0-finding.md](telemetry-t0-finding.md), which raises three
+   decisions of its own (D-T0.1 card rows, D-T0.2 the salt, D-T0.3 where the
+   Worker lives), all three ruled 2026-09-17. **The privacy page goes live
+   alongside 1.8 (owner ruling 2026-09-17)**, inside the same Pages deploy as
+   the first client that can send.
 6. **D6 Node 24 now.** Implement #342's one-PR change before 2026-09-23 and
    before the train opens, per the doc's three choices (smallest action majors,
    `engines` as a warning, timing).
-7. **D7 Editable Limited Warchest.** 1.8 with slack, or 1.9 with the scene
-   sweeps.
-8. **D8 Frame geometry.** Take the tabled taller-window change now, before
-   250 arts are generated to the old geometry, or retire it. This is the one
-   decision whose cost doubles if it is made late.
-9. **D9 Floors.** Authorize the 200-seed re-baseline of R19/R20 and Abyssal
-   Songstress once the 1.8 pool is final, rather than absorbing flakes.
-10. **D10 Nine Lives x Propagate.** Keep the tension as designed, or rule.
+7. **D7 Editable Limited Warchest. RULED 2026-09-11: deferred to 1.9**, with
+   the other scene sweeps.
+8. **D8 Frame geometry. RULED 2026-09-11: deferred to 2.0.** The Drowned
+   Deep art run proceeds on the current geometry; the change, if it ever
+   comes, is priced with Core Set II's art run.
+9. **D9 Floors. RULED 2026-09-11: hold.** No re-baseline yet; revisit when
+   the 1.8 pool is final.
+10. **D10 Nine Lives x Propagate. RULED 2026-09-11: designed tension.
+    Closed.**
 
 ## Non-goals
 

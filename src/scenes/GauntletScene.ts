@@ -12,18 +12,36 @@ import {
   type ResolvedGauntletRoster,
 } from '../meta/gauntletSeed';
 import { Services } from '../meta/services';
-import { bindTapButton, inflateHitArea } from '../platform/gestures';
+import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestures';
 import {
+  GAUNTLET_TOWER_SCROLLBAR,
+  GAUNTLET_TOWER_VIEWPORT,
   gauntletScrollToRung,
   gauntletTowerLayout,
   scrollOffsetByDelta,
   type GauntletTowerLayout,
 } from '../ui/layout';
+import { gateOnArt } from '../ui/artGate';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { ellipsizeText } from '../ui/textFit';
 import { colorInt, theme } from '../ui/theme';
 import { Toast } from '../ui/Toast';
 import { backButton, panel, registerSceneBackNavigation, themedButton, type ThemedButton } from '../ui/themeWidgets';
+
+/** How long an armed Abandon waits for its second press, as Settings' Reset does. */
+const ABANDON_ARM_MS = 4000;
+
+/**
+ * The detail column hangs off the tower: its text column (COL_W wide) ends one
+ * gap short of the tower's left edge, and the portrait sits TEXT_OFFSET left of
+ * the text. The tower is anchored to the title-safe right edge
+ * (GAUNTLET_TOWER_VIEWPORT), so the whole composition moves with it.
+ */
+const DETAIL_COL_W = 300;
+const DETAIL_TOWER_GAP = 20;
+const DETAIL_TEXT_OFFSET = 200;
+const DETAIL_TEXT_X = GAUNTLET_TOWER_VIEWPORT.x - DETAIL_TOWER_GAP - DETAIL_COL_W;
+const DETAIL_PANEL_X = DETAIL_TEXT_X - DETAIL_TEXT_OFFSET;
 
 /**
  * The Avatar Gauntlet tower. A count-aware right-rail ladder (cleared ✓ /
@@ -49,6 +67,10 @@ export class GauntletScene extends Phaser.Scene {
   private towerDragged = false;
   private abandonArmed = false;
   private abandonBtn: ThemedButton | null = null;
+  /** The consequence line under Abandon, visible only while it is armed. */
+  private abandonWarning: Phaser.GameObjects.Text | null = null;
+  /** Abandon's left edge, shared with Fight, so a longer label grows rightward. */
+  private abandonLeft = 0;
   /** Seed the NEXT run will use (rerollable / player-settable until it begins). */
   private pendingSeed = 1;
   private seedBar: Phaser.GameObjects.Container | null = null;
@@ -59,7 +81,11 @@ export class GauntletScene extends Phaser.Scene {
     super('Gauntlet');
   }
 
+  /** The tower rail and detail pane draw all 26 avatar portrait cards. */
   create(): void {
+    gateOnArt(this, AVATARS.map((avatar) => avatar.portraitCardId), () => this.build());
+  }
+  private build(): void {
     this.rowNodes = [];
     this.towerLayout = null;
     this.towerContent = null;
@@ -69,6 +95,7 @@ export class GauntletScene extends Phaser.Scene {
     this.panel = null;
     this.abandonArmed = false;
     this.abandonBtn = null;
+    this.abandonWarning = null;
     this.seedBar = null;
 
     // Design-space constants, NOT this.scale (= game size = 1280k×720k under
@@ -136,9 +163,10 @@ export class GauntletScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------------
   private buildTower(): void {
-    const width = 1280; // design-space width (see create())
     const g = Services.save.data.gauntlet;
-    const railX = width - 250;
+    // The ladder's right edge, scrollbar included, sits on the title-safe edge.
+    const viewport = { ...GAUNTLET_TOWER_VIEWPORT };
+    const railX = viewport.x + viewport.width / 2;
     const rungs = ECONOMY.gauntletRungGold.length;
 
     this.add
@@ -159,7 +187,6 @@ export class GauntletScene extends Phaser.Scene {
     // The ladder scrolls instead of compressing. Rows keep a readable pitch at
     // any tower length, and the layout subtracts the star column from the name
     // budget so the two can never overlap (they did at 22 rungs).
-    const viewport = { x: railX - 210, y: 156, width: 420, height: 500 };
     const layout = gauntletTowerLayout(rungs, viewport);
     this.towerLayout = layout;
     const content = this.add.container(viewport.x, viewport.y);
@@ -286,8 +313,9 @@ export class GauntletScene extends Phaser.Scene {
   private redrawTowerScrollbar(): void {
     const layout = this.towerLayout;
     if (!layout || !this.towerThumb || layout.maxScroll <= 0) return;
-    const { viewport } = layout;
-    const railX = viewport.x + viewport.width + theme.space(2);
+    const { viewport, scrollbar } = layout;
+    const { railWidth, thumbWidth } = GAUNTLET_TOWER_SCROLLBAR;
+    const railX = scrollbar.x + (thumbWidth - railWidth) / 2;
     const thumbHeight = Math.max(
       theme.space(8),
       viewport.height * (viewport.height / Math.max(viewport.height, layout.contentHeight)),
@@ -296,9 +324,9 @@ export class GauntletScene extends Phaser.Scene {
     this.towerThumb
       .clear()
       .fillStyle(theme.graphics.panelStroke, theme.alpha.subtle)
-      .fillRoundedRect(railX, viewport.y, theme.space(0.5), viewport.height, theme.radius.control)
+      .fillRoundedRect(railX, viewport.y, railWidth, viewport.height, theme.radius.control)
       .fillStyle(theme.graphics.rowFillActive, theme.alpha.chrome)
-      .fillRoundedRect(railX - theme.space(0.5), thumbY, theme.space(1.5), thumbHeight, theme.radius.control);
+      .fillRoundedRect(scrollbar.x, thumbY, thumbWidth, thumbHeight, theme.radius.control);
   }
 
   private refreshTower(): void {
@@ -342,11 +370,13 @@ export class GauntletScene extends Phaser.Scene {
   private buildPanel(): void {
     this.panel?.destroy();
     this.abandonArmed = false;
+    this.abandonBtn = null;
+    this.abandonWarning = null;
     const floor = this.selectedRung;
     const av = this.avatarForFloor(floor);
     const c = this.add.container(0, 0);
 
-    const px = 300; // panel center x
+    const px = DETAIL_PANEL_X; // panel center x
     const portraitY = 300;
 
     // portrait bust (framed)
@@ -365,12 +395,11 @@ export class GauntletScene extends Phaser.Scene {
       .setOrigin(0.5);
     c.add(chip);
 
-    // name + title. The text column must end before the tower rail's left edge
-    // (rail rows are 420px wide centred at railX = width−250 = 1030 → left edge
-    // ≈ 820), so everything here is capped to COL_W and wraps/scales rather than
-    // bleeding over a rung label.
-    const textX = px + 200;
-    const COL_W = 300;
+    // name + title. The text column ends DETAIL_TOWER_GAP short of the tower's
+    // left edge, so everything here is capped to COL_W and wraps/scales rather
+    // than bleeding over a rung label.
+    const textX = DETAIL_TEXT_X;
+    const COL_W = DETAIL_COL_W;
     const nameText = this.add
       .text(textX, 150, av.name, {
           fontFamily: theme.fonts.display,
@@ -461,37 +490,67 @@ export class GauntletScene extends Phaser.Scene {
       );
     }
 
-    // Abandon Run (two-click confirm) — only while a run is in progress. Now a
+    // Abandon Run (two-press confirm) — only while a run is in progress. Now a
     // distinct destructive button (was a bare text link) set well below Fight
     // (y 556 vs 456): their inflated 90px hit rects were near-adjacent, so a
     // slip could abandon instead of fight. Kept below the fight line, not to its
-    // right — the armed "Click again to confirm" label is wide and would run
-    // under the tower rail.
+    // right — the armed label is wide and would run under the tower rail, so it
+    // grows rightward from the Fight button's left edge.
     if (Services.save.data.gauntlet.run) {
       const abandon = themedButton(this, textX + 104, 576, 'Abandon Run', {
         variant: 'danger',
         minWidth: 208,
-        onTap: () => this.onAbandon(),
+        onTap: (pointer) => this.onAbandon(pointer),
       });
       this.abandonBtn = abandon;
+      this.abandonLeft = textX;
       // Destructive: keeps its two-tap arm/confirm on top of tap classification.
       c.add(abandon.container);
+      // What the second press loses, shown only while armed.
+      this.abandonWarning = this.add
+        .text(textX, 606, 'Your climb restarts at rung 1. Gold already won is kept.', {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          color: theme.colors.danger,
+          wordWrap: { width: COL_W },
+        })
+        .setOrigin(0, 0)
+        .setVisible(false);
+      c.add(this.abandonWarning);
     }
 
     this.panel = c;
   }
 
-  private onAbandon(): void {
-    if (!this.abandonBtn) return;
+  private onAbandon(pointer?: Phaser.Input.Pointer): void {
+    const button = this.abandonBtn;
+    if (!button) return;
     // Shared destructive-confirm policy: two-tap unless the player opted out.
     if (Services.save.data.settings.confirmDestructive && !this.abandonArmed) {
       this.abandonArmed = true;
-      this.abandonBtn.setLabel('Click again to confirm');
+      const verb = (pointer?.wasTouch ?? isTouchDevice()) ? 'Tap' : 'Click';
+      this.setAbandonLabel(button, `${verb} again to abandon`);
+      this.abandonWarning?.setVisible(true);
+      // Stand down after a few seconds unanswered, as Settings' Reset does. A
+      // rebuilt panel has a new button and has already disarmed, so a timer
+      // from the old one leaves it alone.
+      this.time.delayedCall(ABANDON_ARM_MS, () => {
+        if (this.abandonBtn !== button || !button.container.active || !this.abandonArmed) return;
+        this.abandonArmed = false;
+        this.setAbandonLabel(button, 'Abandon Run');
+        if (this.abandonWarning?.active) this.abandonWarning.setVisible(false);
+      });
       return;
     }
     Services.save.data.gauntlet.run = null;
     Services.save.flush();
     this.scene.restart();
+  }
+
+  /** Relabel Abandon, keeping its left edge on the Fight button's. */
+  private setAbandonLabel(button: ThemedButton, label: string): void {
+    button.setLabel(label);
+    button.container.setX(this.abandonLeft + button.getMeasuredSize().visual.width / 2);
   }
 
   private startFight(av: Avatar, floor: number): void {
@@ -523,10 +582,12 @@ export class GauntletScene extends Phaser.Scene {
     const g = Services.save.data.gauntlet;
     const active = !!g.run;
     const seed = active ? g.run!.seed : this.pendingSeed;
-    const y = 690;
+    // On the shared footer line at the title-safe left edge. It sat at
+    // (30, 690) until the 1.8 cut (2026-09-23), outside the frame on two sides.
+    const y = theme.design.footerCenterY;
 
     const label = this.add
-      .text(30, y, `🎲 ${active ? 'Run seed' : 'Next run seed'} ${seed}`, {
+      .text(theme.design.safeLeft, y, `🎲 ${active ? 'Run seed' : 'Next run seed'} ${seed}`, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.label}px`,
         fontStyle: theme.weight.w600,

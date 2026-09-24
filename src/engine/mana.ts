@@ -19,7 +19,7 @@ export function combineManaCosts(a: ManaCost, b: ManaCost): ManaCost {
 }
 
 /** Untapped lands + untapped non-sick mana creatures controlled by `player`. */
-export function manaSources(state: GameState, db: CardDb, player: PlayerId): ManaSource[] {
+export function manaSources(state: Pick<GameState, 'battlefield'>, db: CardDb, player: PlayerId): ManaSource[] {
   const out: ManaSource[] = [];
   for (const perm of state.battlefield) {
     if (perm.controller !== player || perm.tapped) continue;
@@ -45,7 +45,7 @@ export function manaSources(state: GameState, db: CardDb, player: PlayerId): Man
  * the corner cases greedy misses (source counts are tiny).
  */
 export function solveMana(
-  state: GameState,
+  state: Pick<GameState, 'battlefield'>,
   db: CardDb,
   player: PlayerId,
   cost: ManaCost,
@@ -90,7 +90,7 @@ export function solveMana(
 
 /** Can `player` pay `cost` at all? (solveMana !== null, minus the allocation.) */
 export function canPay(
-  state: GameState,
+  state: Pick<GameState, 'battlefield'>,
   db: CardDb,
   player: PlayerId,
   cost: ManaCost,

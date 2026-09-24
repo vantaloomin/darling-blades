@@ -1,14 +1,14 @@
 {
   "name": "darling-blades",
   "private": true,
-  "version": "1.7.2",
+  "version": "1.8.0",
   "type": "module",
   "engines": {
     "node": ">=24"
   },
   "scripts": {
-    "dev": "npm run gen-art-manifest && vite",
-    "build": "npm run gen-art-manifest && tsc --noEmit && vite build",
+    "dev": "npm run gen-art-manifest && npm run gen-legal-pages && npm run gen-third-party-notices && vite",
+    "build": "npm run gen-art-manifest && npm run gen-legal-pages && npm run gen-third-party-notices && tsc --noEmit && vite build",
     "cardproof": "npm run cardproof:build && vite preview --config vite.cardproof.config.ts --host localhost --port 5175",
     "cardproof:build": "vite build --config vite.cardproof.config.ts",
     "preview": "vite preview",
@@ -29,12 +29,16 @@
     "recrop-art": "tsx scripts/recrop-art.ts",
     "play:lan": "tsx scripts/serve-lan.ts",
     "check-docs": "tsx scripts/check-docs.ts",
+    "gen-legal-pages": "tsx scripts/gen-legal-pages.ts",
+    "gen-third-party-notices": "tsx scripts/gen-third-party-notices.ts",
     "check-art-bible": "tsx scripts/check-art-bible.ts",
     "check-release-notes": "tsx scripts/check-release-notes.ts",
     "gen-docs-tables": "tsx scripts/gen-docs-tables.ts",
     "balance-matrix": "tsx scripts/balance-matrix.ts",
     "codex-dash": "node scripts/codex-dash/run.mjs",
-    "sweep-dash": "node scripts/sweep-dash/run.mjs"
+    "sweep-dash": "node scripts/sweep-dash/run.mjs",
+    "signals-rollup": "tsx scripts/signals-rollup/run.ts",
+    "signals-dash": "node scripts/signals-dash/run.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.1",

@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-09-04
+<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-09-10
      If you change those files, update this doc or re-verify the date. -->
 
 # Rules — the digital ruleset as implemented
@@ -296,8 +296,15 @@ in three places, each only for a player who can actually pay a link right then:
   passed).
 
 A held trigger resolves once every eligible player has passed, and a
-state-based check runs immediately afterwards. When nobody could pay a link the
-engine takes the revision-3 path unchanged, so a game with no linkable
+state-based check runs immediately afterwards. A held trigger comes before the
+ordinary window it interrupts. When a Rite or Tithe sacrifice holds its
+fodder's dies trigger, the Hauntlink windows open first, the trigger resolves,
+and only then is the opponent offered the ordinary response window over the
+spell (skipped as usual when they hold nothing castable); the spell then
+resolves normally. The response window over declared attackers waits the same
+way when an attack trigger kills a creature whose dies trigger is held. When
+nobody could pay a link the engine takes the revision-3 path unchanged, so a
+game with no linkable
 Hauntlink is byte-identical to revision 3. The reaction the ruling names -
 moving a link off a host that a trigger or combat is about to kill - is exactly
 what the window exists for.
@@ -307,16 +314,25 @@ what the window exists for.
 A card with a `rite` block (`CardDef.rite`, 1.6) can be cast only by also
 sacrificing that many creatures its caster controls, chosen in the cast action
 itself (`castSpell.sacrifices`). The sacrifices leave the battlefield and their
-dies triggers fire, batched in battlefield order exactly like an SBA death
-batch, **before the spell reaches the stack** — the engine has no
-"whenever another creature dies" observer trigger, so Rite value lives on the
-fodder's own dies triggers by design. The sacrifice is a cost: a cancelled Rite
-spell does not refund it. The creature cap counts the slots the sacrifice
-frees, so a full board can still cast a Rite creature. Legal-action
-enumeration offers one canonical sacrifice set (first N in battlefield order);
-`validateAction` accepts any legal set of exactly the right size. Rite never
-combines with X, Retell, Skim, or Hauntlink, and v1 Rite cards carry no cast
-targets (`validateRiteDef`); Rite plus Empower is legal.
+graveyard and dies triggers fire, batched in battlefield order exactly like an
+SBA death batch, **before the spell reaches the stack**. The fodder's own dies
+triggers were Rite's only payoff until 1.8; the `allyDies` observer (see The
+Drowned Deep vocabulary below) can now watch a sacrifice as well. A
+**state-based check** then runs on the paid board before anyone is offered a
+window over the spell: a player drained to 0 by a fodder's dies trigger loses
+there, and a Hauntlink whose host was sacrificed goes to the graveyard with
+it. The sacrifice is a cost: a cancelled Rite spell does not refund it. The
+creature cap counts the slots the sacrifice frees, so a full board can still
+cast a Rite creature. Legal-action enumeration offers one canonical sacrifice
+set (first N in battlefield order); `validateAction` accepts any legal set of
+exactly the right size. Rite never combines with X, Retell, Skim, Hauntlink,
+Whispers or Tithe (`validateRiteDef` refuses each, and the Whispers and Tithe
+validators refuse Rite back). A Rite spell may carry cast targets (Drowned
+Deep's Rite of the Wreckers targets a creature, for one): they are chosen
+with the cast, before the sacrifice is paid, and the spell fizzles as any
+spell does if no chosen target is still legal when it resolves. The
+validator still refuses a Rite Aura and a target that no op uses. Rite plus
+Empower is legal.
 
 ### Nine Lives (marked return)
 
@@ -388,6 +404,187 @@ Propagate adds no player action and writes nothing new to the replay log, so
 the log version and **the rules revision both stay unchanged** (the Preserve
 precedent above bumped the log only because it recorded a new action).
 
+### Trigger chains and once-each-turn triggers
+
+Two observers can feed each other: Saint of the Lamp Oil marks herself
+whenever you gain life, and Reef Shaman of the Shallows gains you life
+whenever you put a Mark on a creature. Two rules keep that a synergy rather
+than a hang (owner ruling 2026-09-17, after the phase D draft measurement
+froze a duel on exactly that pair):
+
+- **A trigger chain stops after eight rounds.** When a triggered ability
+  would fire as the ninth link of a chain that its own resolution started,
+  it does not fire, nothing else changes, and the game goes on. The cap is
+  `MAX_MARK_TRIGGER_DEPTH` in `src/engine/effects/EffectInterpreter.ts` and
+  it applies to the mark observers and the life-gain observer alike. Until
+  the ruling the engine threw at the cap, which the tests pinned; now the
+  tests pin the bounded outcome.
+- **"This triggers only once each turn."** A triggered ability printed with
+  that sentence (`oncePerTurn: true` on the ability in card data) fires the
+  first time its event happens in a turn and not again until the next turn
+  begins, on either player's turn. The engine tracks it per permanent, so
+  two copies each fire once, and a permanent that leaves and returns starts
+  clean. The Saint carries it; the sentence renders from the flag, general
+  to every trigger kind.
+
+### Duty (tap ability)
+
+A creature, artifact or enchantment with an `activated` block
+(`CardDef.activated`, 1.8) carries a **Duty**: a repeatable ability its
+controller pays for by tapping the permanent, plus any listed mana. The rules
+line opens with the same tap icon lands use (`pip-T`, drawn smaller), never
+the word "tap"; the glossary teaches the mechanic under the name Duty. The
+engine field, the action and the event all say `activated`.
+
+**Timing.** Duty is sorcery-speed and stack-free, like `preserveCard` and
+`linkHaunt`: the active player's own Morning or Afternoon, empty stack only.
+The `activate` action names the source permanent and, when the ability
+targets, its targets inline, chosen up front under the spell target rules and
+never deferred. Legality is `activatedBlockers` in `src/engine/actions.ts`
+(with `canActivate` beside `canAttack` in `combat/legality.ts`), and the
+legal-action list holds one `activate` per legal target choice. The blockers,
+in order: not your main phase; stack not empty; source not on the
+battlefield; not under your control; already tapped; arrived this turn without
+Warcry; mana cost unpayable; no legal target.
+
+**Resolution.** Paying the cost taps the source and the mana; the ops then run
+immediately in order with the permanent as source, off the stack, and a
+state-based check runs afterwards (the deferred-trigger lesson of 1.7.2). The
+opponent gets no response window, the rule Skim, Preserve and Hauntlink
+already follow. One deferral is allowed: a `foresee` op opens the usual
+look-and-bottom decision, and any ops after it resume under the activating
+player's context once that decision is made (`thenContext` on the pending
+decision); the validator forbids an inline target after a Foresee for exactly
+that reason.
+
+**The arrival rule.** A permanent cannot tap for its Duty the turn it arrives
+unless it has Warcry. That is one rule for every carrier, creatures and
+non-creatures alike, and it is the rule mana creatures already follow
+(`isSummoningSick` in `statics.ts` applies to every permanent). The
+controller's next untap step refreshes the Duty like any other tap.
+
+**Carriers and combinations.** Lands never carry a Duty; their tap is the mana
+ability. A Duty carrier cannot also carry `manaAbility` or `hauntlink` in this
+revision, and the validator refuses both, along with an X cost, an empty op
+list and a targeting op without a target spec (the full list is in
+[adding-cards.md](adding-cards.md)). Tapping for a Duty is a real cost on a
+creature: a tapped creature neither attacks nor blocks that turn, and the AI
+prices a creature's Duty against the attack it forgoes.
+
+**Records.** The `activate` action is a new replay entry, so the log bumped to
+v12; the rules revision stays 4, since no existing card changes behaviour. The
+`activated` game event is logged before the ops run, after `manaTapped`.
+
+### Whispers (fresh-graveyard cast)
+
+A card with a `whispers` block (`CardDef.whispers`, 1.8) can be cast from
+your graveyard for its **Whispers** cost, but only while the card is fresh:
+it must have reached the graveyard from your **hand or your deck** (a Skim, a
+discard, a grind), and the chance ends at your opponent's next Dawn. A card
+you discard to hand size at your own cleanup is tagged like any other hand
+discard, but your opponent's Dawn follows with no window in between, so the
+chance is over before you could take it: the cleanup discard never gives a
+Whispers cast. A card that reaches the graveyard from the battlefield or from
+the stack is never fresh, and a severed card is gone. The rules line prints
+`Whispers {N}`; the glossary teaches the mechanic under the name Whispers.
+
+**The marker.** When a card enters a graveyard from a hand or a deck, the
+engine tags the entry with `whispersUntilDawnOf`, the owner's opponent at
+that moment. At the start of that player's Dawn, beside untap, every marker
+naming them is cleared on both graveyards. A card tagged on your own turn is
+castable for the rest of that turn and gone at your opponent's Dawn (tagged
+at your cleanup, it is gone before any window opens); one tagged on their
+turn survives their turn and your whole next turn. The marker is public
+information (graveyards are open): the redacted view lists each side's live
+entries as `whispersLive`, graveyard indices, and the brains read it only
+there.
+
+**Timing and cost.** A Whispers cast obeys the window rules a hand cast of
+that card type obeys: a Charm at Charm speed, anything else in your own
+Morning or Afternoon with an empty stack. `castSpell` carries `whispers:
+true` and uses Retell's graveyard source model. The Whispers cost replaces
+the printed cost outright: no Empower, no X, and never on a card with
+Retell, Rite or Hauntlink (the validator refuses the combinations in both
+directions). A live Whispers Charm counts as a castable Charm for every
+window gate.
+
+**Resolution.** A whispered spell resolves as itself; a Charm or Ritual
+returns to the graveyard untagged (it arrived from the stack, not from a
+hand), and a permanent arrives with no marker, so a later death does not
+re-tag it. Graveyard triggers fire once, on entry, as today. The `whispered`
+game event is emitted when the cast is announced, for narration.
+
+### Tithe (sacrifice discount)
+
+A creature with a `tithe` block (`CardDef.tithe`, 1.8) can be cast by
+sacrificing **any number** of your creatures as an additional cost: every
+two points of combined Defense among the sacrificed creatures pays one
+generic mana of the printed cost, rounded down, and coloured pips are never
+reduced. The rules line prints the bare keyword `Tithe`; the glossary
+teaches it under that name. Drowned Deep prints Tithe only on Horrors; that
+is a per-set catalog rule, not an engine one.
+
+**Choosing the fodder.** `castSpell` carries `tithe: true` and the chosen
+creatures' battlefield iids in `sacrifices`, Rite's field; any legal subset of your own
+creatures is accepted. The legal-action list offers the cast without a
+sacrifice and one canonical cast whose fodder is your bodies sorted by
+effective Defense ascending, taken until the discount covers the generic
+part or the board runs out. Defense is read from `getEffectiveStats`, so
+marks and statics count and tokens are legal fodder. With Empower also
+chosen, the discount applies to the generic part of the combined total.
+
+**Payment.** The sacrifice is paid the way Rite pays: the chosen creatures
+leave the battlefield in battlefield order before the spell reaches the
+stack, their graveyard and dies triggers batched, a state-based check runs
+on the paid board before any window opens, and a cancelled Tithe spell does
+not refund them. The creature-cap check at cast time subtracts
+the fodder count, the Rite rule. Tithe never appears beside X, Retell,
+Hauntlink or Rite. It may share a card with Whispers (owner ruling
+2026-09-17, for Cinderjaw, the Fire That Swims): a fresh Whispers card whose
+owner controls fodder is offered the plain Whispers cast and one canonical
+Whispers-plus-Tithe cast, and the discount pays the generic part of the
+Whispers cost the same way it pays the printed one, coloured pips untouched,
+never below zero generic. Payment and the fodder's departure follow the
+Tithe rules above whichever cost is being paid.
+
+**Records.** Both riders live on the existing `castSpell` action, so the
+replay log bumped to v13; the rules revision stays 4, since no shipped card
+changes behaviour. The marker is derived state and is not recorded.
+
+### The Drowned Deep vocabulary (1.8)
+
+The cut's printed lines needed a short list of general constructs, all of
+them inert until a card uses them (no shipped card changes behaviour, so
+the rules revision stays 4):
+
+- **Observers.** A creature's `dies` trigger fires for itself; the new
+  `allyDies` observer on a permanent fires whenever a creature its
+  controller controls dies, filtered to "another" creature, a subtype, or
+  a sacrifice. `youGainLife`, `youCastCharm` and `allyAttacks` observe the
+  controller's life gains, Charm casts and attack declarations. Observers
+  fire in battlefield order after the batched deaths, the `dies` rule.
+- **Sunset triggers.** "At Sunset" fires at the controller's Sunset step;
+  "if a creature died this turn" is a per-turn condition cleared at the next
+  Dawn.
+- **Targeted attack and Dawn triggers.** Since 1.7 an arrival trigger may
+  target, its choice deferred to the controller; attack and Dawn triggers
+  now take the same path. A trigger with no legal target fizzles silently.
+- **Looting.** "Draw a card, then discard a card" draws, then the
+  controller chooses the discard (a decision, recorded in the replay log);
+  cards discarded this way came from a hand, so a Whispers card is fresh.
+- **Edicts.** "Opponent sacrifices a creature" is the opponent's choice, a
+  decision for that seat; "each player sacrifices a creature" asks the
+  caster first, then the opponent. The deaths fire triggers normally.
+- **Target qualifiers.** "with cost N or less", "with attack N or more",
+  "a creature an opponent controls" and "two target creatures" are exact:
+  the legality check enforces the cap, the controller and the pair.
+- **Multiple Duties.** A permanent may carry several Duties; activating
+  names which one, and each prints on its own line.
+
+**Records.** The loot discard, the edict sacrifice and the deferred trigger
+target are recorded as decisions, so the replay log bumped to v14, still at
+rules revision 4.
+
 ## Board caps
 
 Two per-player caps are enforced at **cast legality** (`castBlockers` in
@@ -402,7 +599,22 @@ Two per-player caps are enforced at **cast legality** (`castBlockers` in
 Token creation also respects the creature cap: `createToken` in
 `src/engine/effects/EffectInterpreter.ts` re-checks `RULES.maxCreatures` before
 each token and simply **stops** once the cap is hit (excess tokens are not
-created). Verify in the `createToken` case of `EffectInterpreter.ts`.
+created). Verify in the `createToken` case of `EffectInterpreter.ts`. The same
+check-then-stop guards every other effect that puts a creature onto the
+battlefield: `raise` returns nothing at the cap, and a Nine Lives return leaves
+the card in the graveyard.
+
+**The creature cap is a casting rule (owner ruling, 2026-09-23).** A creature
+spell is checked when it is cast, never again when it resolves. Rite and Tithe
+count their sacrifices as already gone at cast time (`castBlockers`), so a
+player at 8 can still cast them. Anything that adds a creature while the spell
+is on the stack, including a sacrificed creature's own dies trigger making a
+token or its Nine Lives return (Marsh-Mother, What the Nets Remember,
+Marsh-Wight, Reed-Wight), fills a freed slot first, and the spell then resolves
+onto a board of 8, leaving 9. That is by design: a resolution-time check would
+need a new rule for what happens to a paid-for creature, and the board lays out
+any count (`src/ui/rowPacking.ts`). No further creature can be cast, made or
+returned until the count drops below 8 again.
 
 ## State-based actions (SBAs)
 

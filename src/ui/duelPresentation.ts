@@ -4,7 +4,8 @@
  * pin without importing a scene into UI tests.
  */
 
-import type { CardDef } from '../engine/types';
+import type { Action } from '../engine/actions';
+import type { CardDef, TargetRef } from '../engine/types';
 import { rulesText } from './rulesText';
 
 export type DuelSide = 'you' | 'opponent';
@@ -142,6 +143,118 @@ export function hauntlinkActionLabel(hasLegalAction: boolean, linked: boolean): 
   return linked ? 'Relink' : 'Link';
 }
 
+export const DUTY_ACTION_LABEL = 'Perform Duty';
+export const DUTY_CANCEL_LABEL = 'Cancel';
+export const DUTY_PLAYER_LABELS = ['You', 'Opponent'] as const;
+
+/** History line, in the Your/Enemy family of the other permanent lines. */
+export function dutyNarration(cardName: string, controller: DuelSide): string {
+  return `${controller === 'you' ? 'Your' : 'Enemy'} ${cardName} performs its Duty`;
+}
+
+/**
+ * A Duty row reads in the card face's order: the rules line prints mana first
+ * ("{2}, {T}: Draw a card.", owner ruling in #394) and a free Duty as
+ * "{T}: Foresee 2." ManaText has no tap symbol and would print "{T}"
+ * literally, so each tap becomes a colourless placeholder pip and `tapPips`
+ * names the placeholders (indices into ManaText's pips, which count every
+ * token, numerals included) to swap for the tap icon, as CardView does.
+ */
+export function dutyRowPips(line: string): { raw: string; tapPips: number[] } {
+  const tapPips: number[] = [];
+  let pip = 0;
+  const raw = line.replace(/\{(\d+|[WUBRGCT])\}/g, (token: string, symbol: string) => {
+    const index = pip++;
+    if (symbol !== 'T') return token;
+    tapPips.push(index);
+    return '{C}';
+  });
+  return { raw, tapPips };
+}
+
+const DUTY_TIMING_REASON = 'Activated abilities can only be used during your Morning or Afternoon';
+const DUTY_STACK_REASON = 'Activated abilities need an empty stack';
+
+/**
+ * The engine checks the decision window before the stack, so a response
+ * window inside your own Morning or Afternoon reports the phase. There the
+ * truer reason is the stack (or trigger) still waiting to resolve.
+ */
+export function dutyWindowReason(reason: string | null, ownMainPhase: boolean): string | null {
+  return reason === DUTY_TIMING_REASON && ownMainPhase ? DUTY_STACK_REASON : reason;
+}
+
+const DUTY_BLOCKED_COPY: Readonly<Record<string, string>> = {
+  [DUTY_TIMING_REASON]: 'Duty: only in your Morning or Afternoon.',
+  [DUTY_STACK_REASON]: 'Duty: wait for the stack to clear.',
+  'Activated source is not on the battlefield': 'Duty: this permanent is not on the battlefield.',
+  'Activated source is not under your control': 'Duty: you do not control this permanent.',
+  'permanent has no activated ability': 'Duty: this permanent has no Duty.',
+  'Activated source is tapped': 'Duty: this permanent is tapped.',
+  'Activated source cannot tap the turn it arrives unless it has Warcry': 'Duty: it arrived this turn.',
+  'cannot pay cost': 'Duty: you cannot pay the cost.',
+  'no legal targets for activated ability': 'Duty: no legal target.',
+};
+
+/** Translate engine diagnostics without leaking engine terminology into notices. */
+export function dutyBlockedCopy(reason: string | null): string | null {
+  if (reason === null) return null;
+  return Object.hasOwn(DUTY_BLOCKED_COPY, reason)
+    ? DUTY_BLOCKED_COPY[reason]
+    : 'Duty: you cannot use it right now.';
+}
+
+export type DutyAction = Extract<Action, { type: 'activate' }>;
+
+/** Lands and ordinary attached Auras have no board tile, so they need a picker. */
+export function dutyTargetsNeedPicker(targets: readonly TargetRef[], visibleIids: ReadonlySet<number>): boolean {
+  return targets.some((target) => target.kind === 'grave' ||
+    (target.kind === 'permanent' && !visibleIids.has(target.iid)));
+}
+
+function sameDutyTarget(a: TargetRef, b: TargetRef): boolean {
+  if (a.kind === 'permanent' && b.kind === 'permanent') return a.iid === b.iid;
+  if (a.kind === 'player' && b.kind === 'player') return a.player === b.player;
+  if (a.kind === 'stackItem' && b.kind === 'stackItem') return a.sid === b.sid;
+  return a.kind === 'grave' && b.kind === 'grave' && a.player === b.player && a.index === b.index;
+}
+
+/**
+ * Narrow only enumerated legal actions. Ordinary multi-target specs retain
+ * their order (notably moveMark's donor and recipient); upTo targets form a
+ * set, so either member of the engine's canonical pair can be picked first.
+ * `complete` always retains the original engine action, including its plan.
+ */
+export function dutyTargetStep(
+  actions: readonly DutyAction[],
+  picked: readonly TargetRef[],
+  unordered = false,
+): { actions: DutyAction[]; targets: TargetRef[]; complete: DutyAction | null } {
+  const duplicate = unordered && picked.some((target, index) =>
+    picked.slice(0, index).some((previous) => sameDutyTarget(previous, target)),
+  );
+  const matches = duplicate ? [] : actions.filter((action) => {
+    const targets = action.targets ?? [];
+    return picked.every((target, index) => unordered
+      ? targets.some((candidate) => sameDutyTarget(candidate, target))
+      : targets[index] !== undefined && sameDutyTarget(targets[index], target));
+  });
+  const targets: TargetRef[] = [];
+  for (const action of matches) {
+    const remaining = unordered
+      ? (action.targets ?? []).filter((target) => !picked.some((chosen) => sameDutyTarget(chosen, target)))
+      : (action.targets ?? []).slice(picked.length, picked.length + 1);
+    for (const target of remaining) {
+      if (!targets.some((candidate) => sameDutyTarget(candidate, target))) targets.push(target);
+    }
+  }
+  return {
+    actions: matches,
+    targets,
+    complete: matches.find((action) => (action.targets?.length ?? 0) === picked.length) ?? null,
+  };
+}
+
 /** Controller-side rule for legal target rings, independent of spell intent. */
 export function targetRingTone(controller: DuelSide): TargetRingTone {
   return controller === 'opponent' ? 'hostile' : 'friendly';
@@ -242,6 +355,55 @@ export function graveActionChoice(
 ): 'retell' | 'preserve' | null {
   if (hasRetell) return 'retell';
   return hasPreserve ? 'preserve' : null;
+}
+
+export type SacrificeCastKind = 'cast' | 'empower' | 'sacrifice';
+
+export interface SacrificeCastChoice {
+  kind: SacrificeCastKind;
+  label: string;
+  enabled: boolean;
+  /** Button centre in design space; the row is centred however many remain. */
+  x: number;
+}
+
+export interface SacrificeCastInput {
+  /** What the card prints. */
+  tithe: boolean;
+  empower: boolean;
+  /** A Skim of this hand card is legal (it takes its own row under the chooser). */
+  skim: boolean;
+  /** Which cast variants the engine enumerated. */
+  plainCast: boolean;
+  empoweredCast: boolean;
+  titheCast: boolean;
+  /** Creatures you control that could be sacrificed. */
+  fodder: number;
+}
+
+export const SACRIFICE_CHOOSER_CENTER_X = 640;
+
+/**
+ * The payment row of the Tithe and Rite cast chooser. Empower appears only on
+ * a card that prints it, and Sacrifice only on a Tithe card, live only when a
+ * creature could be sacrificed. `null` means there is nothing to choose (a
+ * Rite card with no Empower and no Skim): the fodder picker opens directly.
+ */
+export function sacrificeCastChoices(input: SacrificeCastInput): SacrificeCastChoice[] | null {
+  if (!input.tithe && !input.empower && !input.skim) return null;
+  const row: Omit<SacrificeCastChoice, 'x'>[] = [
+    { kind: 'cast', label: 'Cast', enabled: input.plainCast },
+    ...(input.empower ? [{ kind: 'empower' as const, label: 'Empower', enabled: input.empoweredCast }] : []),
+    ...(input.tithe
+      ? [{ kind: 'sacrifice' as const, label: 'Sacrifice to cast', enabled: input.titheCast && input.fodder > 0 }]
+      : []),
+  ];
+  // The two-button spacing every other cast chooser uses; three need less.
+  const spacing = row.length >= 3 ? 260 : 340;
+  return row.map((choice, index) => ({
+    ...choice,
+    x: SACRIFICE_CHOOSER_CENTER_X + (index - (row.length - 1) / 2) * spacing,
+  }));
 }
 
 /** Armed smart-button label, in the terse family of "Confirm: no blocks". */

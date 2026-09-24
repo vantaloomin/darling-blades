@@ -1,4 +1,4 @@
-<!-- source-of-truth: package.json, eslint.config.js, .github/workflows/deploy.yml · last-verified: 2026-07-27 · process doc — re-verify when the workflow itself changes -->
+<!-- source-of-truth: package.json, eslint.config.js, .github/workflows/deploy.yml · last-verified: 2026-09-22 · process doc — re-verify when the workflow itself changes -->
 
 # Claude Orchestration Playbook
 
@@ -78,10 +78,40 @@ Every delegated prompt contains, in this order:
    yours, but…") and state hard caps as hard caps.
 6. **Verification commands the agent must run itself**, including what NOT
    to run (e.g. heavy AI suites while another agent hogs CPU).
-7. **"Your final message is a report"**: files changed, decisions, measured
+7. **The testing rules (owner, 2026-09-22), quoted verbatim into any contract
+   that writes or changes tests:**
+   - *Tautological tests considered harmful.* A test whose expectation comes
+     from the code or data it checks cannot fail when the behaviour is wrong:
+     an expected value computed by the function under test, a constant
+     asserted equal to its own definition, "is defined" or "has N keys".
+   - *Change-detector tests considered harmful.* A test that pins an
+     incidental output so that any intentional change fails it without
+     indicating a bug: pixel coordinates as literals, hashes or snapshots of
+     rendered text or copy, verbatim player copy where the copy is not the
+     point, counts of a data set, the order of a generated list where order
+     means nothing.
+   - *Do not create regression tests for bug fixes without a genuine gap in
+     behaviour testing.* A test named for a bug, PR, date or report is
+     justified only when no existing behavioural test would catch the bug;
+     first find the test that should have caught it and strengthen that.
+     Never pin the shape of the fix.
+   What is not a violation: measured gates and floors, golden compatibility
+   fixtures (save codes, share codes, replays, the Worker schema, old-version
+   migration inputs), determinism tests, data-integrity invariants, and
+   layout tests that assert a rule (inside the frame, a minimum gap, a shared
+   edge). A literal that is the correct answer to a scenario is behaviour.
+   Every new test names the behaviour or contract it guards.
+8. **"Your final message is a report"**: files changed, decisions, measured
    results with the actual numbers, what remains unverified. Honesty rules:
    never claim an unmeasured number; a documented failure or a justified
    no-change conclusion is a valid outcome.
+
+**Model policy for delegated work (owner, 2026-09-22).** Two models, no
+others: work that stays in house (a sub-agent launched with the Agent tool
+under a contract, in its own worktree) runs on **Opus 5.5** (`model: opus`);
+work handed to Codex runs on **`gpt-6-astra` at `--effort xhigh`**, passed
+explicitly on every handoff. The main session orchestrates on Fable 5 (Opus
+5.5 if Fable is unavailable) and owns git either way.
 
 **Codex handoffs (`/codex:rescue`) obey the same contract, sharpened by
 OpenAI's own prompting guidance for Codex**
@@ -90,7 +120,7 @@ the executor half of the [[orchestration-workflow]] split:
 
 - **Codex executes CODE only (owner rule, 2026-08-21).** Card text, flavor,
   names, art prompts, art-bible and spell-art entries, ideation, and design
-  docs are authored by Fable 5 (Opus 5 if Fable is unavailable); Codex
+  docs are authored by Fable 5 (Opus 5.5 if Fable is unavailable); Codex
   transcribes the approved artifact into data, scripts, and tests. Codex-
   drafted prose reads compliant but lifeless (the Duat "blank framed panel"
   signboards came from this), so a wave splits into an authoring contract and

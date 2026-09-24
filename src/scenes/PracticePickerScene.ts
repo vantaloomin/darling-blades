@@ -10,6 +10,7 @@ import { firstDuelLaunchIssue, practiceDuelLaunchData } from '../meta/duelSetup'
 import { Services } from '../meta/services';
 import { attachTouchGestures } from '../platform/gestures';
 import { TAP_SLOP_PX } from '../platform/gestureCore';
+import { gateOnArt } from '../ui/artGate';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { showDarlingsTutorial } from '../ui/DarlingsTutorial';
 import { activeVisibleSavedDeck } from '../ui/deckBuilderHelpers';
@@ -24,8 +25,15 @@ import {
   type BoosterStripLayout,
   type StripLayoutOptions,
 } from '../ui/boosterStripLayout';
+import { GAP_FLOORS } from '../ui/layout';
 import { colorInt, theme } from '../ui/theme';
-import { backButton, registerSceneBackNavigation, themedButton, type ThemedButton } from '../ui/themeWidgets';
+import {
+  backButton,
+  registerSceneBackNavigation,
+  sceneHasOpenModal,
+  themedButton,
+  type ThemedButton,
+} from '../ui/themeWidgets';
 
 /**
  * The strip scrolls COLUMNS, and each column stacks two rivals. Twenty avatars
@@ -61,6 +69,16 @@ const PICKER_STRIP_OPTIONS: StripLayoutOptions = {
 const PICKER_NAME_BAND = 40;
 const PICKER_PORTRAIT_WIDTH = 190;
 const PICKER_PORTRAIT_HEIGHT = PICKER_ROW_HEIGHT - PICKER_NAME_BAND - 10;
+/**
+ * The launch notice and its action share the footer line; the difficulty row
+ * sits one hit box and the ordinary gap above it, and the "Face <rival>" label
+ * keeps its old distance above the row. The action sat alone at y 680 until
+ * the 1.8 cut (2026-09-23), its hit box running to 702, past the title-safe
+ * frame, and there was no room under the difficulty row to bring it inside.
+ */
+const LAUNCH_NOTICE_Y = theme.design.footerCenterY;
+const DIFFICULTY_ROW_Y = LAUNCH_NOTICE_Y - theme.control.minHitHeight - GAP_FLOORS.ordinary;
+const SELECTION_LABEL_Y = DIFFICULTY_ROW_Y - 56;
 const WHEEL_STEP_THRESHOLD = 60;
 const WHEEL_STEP_COOLDOWN_MS = 250;
 
@@ -101,7 +119,11 @@ export class PracticePickerScene extends Phaser.Scene {
     super('PracticePicker');
   }
 
+  /** The picker strip draws all 26 avatar portrait cards. */
   create(): void {
+    gateOnArt(this, AVATARS.map((avatar) => avatar.portraitCardId), () => this.build());
+  }
+  private build(): void {
     this.reserveFormatsEnabled = FEATURES.reserveFormats;
     this.selectedAvatarId = AVATARS[AVATARS.length - 1]?.id ?? '';
     this.tileNodes = [];
@@ -167,6 +189,9 @@ export class PracticePickerScene extends Phaser.Scene {
     this.buildRoster();
     this.buildDifficultyActions();
 
+    backButton(this, 'Play', () => this.scene.start('Play'));
+    registerSceneBackNavigation(this, () => this.scene.start('Play'));
+
     const activeDeck = activeVisibleSavedDeck(
       Services.save.data.decks,
       Services.save.data.activeDeckId,
@@ -180,9 +205,6 @@ export class PracticePickerScene extends Phaser.Scene {
         }),
       });
     }
-
-    backButton(this, 'Play', () => this.scene.start('Play'));
-    registerSceneBackNavigation(this, () => this.scene.start('Play'));
   }
 
   /**
@@ -367,6 +389,9 @@ export class PracticePickerScene extends Phaser.Scene {
     deltaY: number,
   ): void => {
     if (!this.pickerStripLayout) return;
+    // Scene-level wheel input bypasses the modal's dim (playbook trap), so the
+    // strip behind the Darlings tutorial would scroll under it.
+    if (sceneHasOpenModal(this)) return;
     const viewport = this.pickerStripLayout.viewport;
     if (
       pointer.worldX < viewport.x ||
@@ -455,7 +480,7 @@ export class PracticePickerScene extends Phaser.Scene {
 
   private buildDifficultyActions(): void {
     this.selectionLabel = this.add
-      .text(640, 568, '', {
+      .text(640, SELECTION_LABEL_Y, '', {
         fontFamily: theme.fonts.display,
         fontSize: `${theme.type.h2}px`,
         color: theme.colors.heading,
@@ -465,7 +490,7 @@ export class PracticePickerScene extends Phaser.Scene {
     const difficulties: readonly Difficulty[] = ['easy', 'medium', 'hard'];
     difficulties.forEach((difficulty, index) => {
       const label = difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
-      themedButton(this, 476 + index * 164, 624, label, {
+      themedButton(this, 476 + index * 164, DIFFICULTY_ROW_Y, label, {
         variant: 'ghost',
         minWidth: 148,
         onTap: () => this.startPractice(difficulty),
@@ -517,28 +542,38 @@ export class PracticePickerScene extends Phaser.Scene {
   ): void {
     if (!this.launchNotice || !this.launchNotice.active) {
       this.launchNotice = this.add
-        .text(640, 592, message, {
+        .text(0, LAUNCH_NOTICE_Y, message, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           color: theme.colors.danger,
           align: 'center',
           wordWrap: { width: 900 },
         })
-        .setOrigin(0.5);
+        .setOrigin(0, 0.5);
     } else {
       this.launchNotice.setText(message);
     }
     this.launchNoticeAction?.destroy();
     this.launchNoticeAction = null;
+    // The message and its action read as one line on the footer line, the
+    // pair centred on the frame and placed from measured widths.
+    const gap = theme.space(3);
+    let actionWidth = 0;
+    let button: ThemedButton | null = null;
     if (action) {
-      const button = themedButton(this, 640, 680, action.label, {
+      button = themedButton(this, 0, LAUNCH_NOTICE_Y, action.label, {
         variant: 'ghost',
         size: 'sm',
         minWidth: 132,
         onTap: action.onTap,
       });
+      actionWidth = button.getMeasuredSize().hit.width;
       this.launchNoticeAction = button.container;
     }
+    const noticeWidth = this.launchNotice.width;
+    const left = theme.design.safeCenterX - (noticeWidth + (button ? gap + actionWidth : 0)) / 2;
+    this.launchNotice.setX(left);
+    button?.container.setX(left + noticeWidth + gap + actionWidth / 2);
   }
 
   /**

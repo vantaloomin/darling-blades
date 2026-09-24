@@ -1,0 +1,32 @@
+{
+  // The dev scripts in worker/scripts/ run on Node through `npx tsx`, not in
+  // the Workers runtime, and they import the game's real signal builders. That
+  // makes them fit neither tsconfig: not worker/tsconfig.json (Workers runtime
+  // types, no Node) and not the repo root's (which includes src, tests and the
+  // repo's own scripts/, not this directory).
+  //
+  // The spike left them typechecked by nothing, which is how its sender kept
+  // sending `constructed` and `cardsPlayed` after the schema was ruled. This
+  // config is what stops that happening again:
+  //
+  //   npm run typecheck:scripts        (from worker/)
+  //
+  // @types/node comes from the repo root's node_modules, which is already a
+  // dependency of the game; worker/ gains nothing of its own.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "types": ["node"],
+    "typeRoots": ["../node_modules/@types"]
+  },
+  "include": ["scripts"]
+}

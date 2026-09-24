@@ -4,7 +4,7 @@ import type { Emit } from './battlefield';
 import { fireTriggers } from './effects/EffectInterpreter';
 import { checkStateBased } from './sba';
 import type { CardDb, GameState, PlayerId, Step } from './types';
-import { cardIdOf, opponentOf } from './types';
+import { cardIdOf, def, isCardInstance, opponentOf } from './types';
 
 export function endGame(
   state: GameState,
@@ -54,6 +54,7 @@ export function startTurn(state: GameState, db: CardDb, emit: Emit): void {
   setStep(state, 'untap', emit);
   const untapped: number[] = [];
   for (const perm of state.battlefield) {
+    delete perm.firedThisTurn;
     if (perm.controller !== active) continue;
     if (perm.tapped) {
       perm.tapped = false;
@@ -69,6 +70,13 @@ export function startTurn(state: GameState, db: CardDb, emit: Emit): void {
   // abilities resolve first, then a Quest advances and resolves its chapter.
   // Chapter ops are trigger-safe and can queue FIFO pending decisions.
   setStep(state, 'dawn', emit);
+  delete state.creatureDiedThisTurn;
+  // Expire both graveyards before this player's Dawn triggers can add new tags.
+  for (const player of state.players) {
+    for (const card of player.graveyard) {
+      if (isCardInstance(card) && card.whispersUntilDawnOf === active) delete card.whispersUntilDawnOf;
+    }
+  }
   for (const perm of [...state.battlefield]) {
     if (perm.controller !== active) continue;
     if (!state.battlefield.some((p) => p.iid === perm.iid)) continue;
@@ -102,6 +110,27 @@ export function finishDawn(state: GameState, emit: Emit): void {
 /** Main 2 passed: end step. The non-active player gets the first instant window. */
 export function enterEndStep(state: GameState, db: CardDb, emit: Emit): void {
   setStep(state, 'end', emit);
+  // Sunset belongs to both players. All holders fire in battlefield order;
+  // deferred choices settle before the usual non-active response window.
+  if (state.battlefield.some((perm) => def(db, perm.cardId).abilities?.some((ability) => ability.when === 'sunset'))) {
+    for (const perm of [...state.battlefield]) {
+      if (!state.battlefield.some((live) => live.iid === perm.iid)) continue;
+      fireTriggers(state, db, emit, 'sunset', perm);
+      if (state.winner !== null) return;
+    }
+    checkStateBased(state, db, emit);
+    if (state.winner !== null) return;
+    if (state.pendingDecisions.length > 0) {
+      state.sunsetPendingWindow = true;
+      return;
+    }
+  }
+  resumeSunsetWindow(state, db, emit);
+}
+
+/** Continue Sunset after its pending trigger choices have settled. */
+export function resumeSunsetWindow(state: GameState, db: CardDb, emit: Emit): void {
+  delete state.sunsetPendingWindow;
   const nonActive = opponentOf(state.activePlayer);
   if (hasCastableInstant(state, db, nonActive)) {
     if ((state.rulesRev ?? 1) >= 2 && state.episode) state.episode.resolvedSinceOffer = 0;
@@ -141,6 +170,7 @@ export function finishCleanup(state: GameState, db: CardDb, emit: Emit): void {
     perm.deathtouched = false;
     perm.severBranded = false;
     perm.untilEotMods = [];
+    delete perm.combatDamagePrevented;
   }
   state.combat = null;
   state.fogThisTurn = false;

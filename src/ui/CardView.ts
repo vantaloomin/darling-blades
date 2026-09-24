@@ -10,7 +10,7 @@ import { FRAME_TREATMENTS, frameKeyFor } from './CardFrameFactory';
 import { applyHolo, type HoloHandle } from './fx/HoloEffects';
 import { fxPolicy } from './fx/FXSupport';
 import { IridescencePostFX } from './fx/IridescencePostFX';
-import { renderManaText, type ManaTextRender } from './ManaText';
+import { manaPipPadding, renderManaText, type ManaTextRender } from './ManaText';
 import { pipsFor } from './ManaSymbols';
 import { rulesText, typeLine } from './rulesText';
 
@@ -35,6 +35,8 @@ const BADGE_H = 31;
 const BOTTOM_BADGE_Y = FRAME_INNER.bottom - BADGE_H / 2; // 185.5
 const GEM_PLATE_W = 44;
 const BOTTOM_PIP_SIZE = 21;
+// Duty uses the land tap texture, reduced below the card's cost-row beads.
+const DUTY_RULES_PIP_SIZE = BOTTOM_PIP_SIZE * 0.82; // 17.22 card-local pixels
 const SET_ICON_SIZE = 24; // set symbols are leaner silhouettes than the old diamond gem
 const LAND_MANA_ROW = {
   mono: { pip: 48, gap: 10, arrowW: 24, orW: 26, arrowFont: 24, orFont: 20 },
@@ -383,14 +385,7 @@ export class CardView extends Phaser.GameObjects.Container {
     const rules = rulesText(card);
     if (/\{/.test(rules)) {
       this.plainRulesTextObj.setVisible(false);
-      this.manaRules = renderManaText(this.scene, this, TEXT_LEFT, 66, rules, {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '13px',
-        color: '#20180e',
-        resolution: 2,
-        wordWrap: { width: TEXT_WIDTH },
-        lineSpacing: 2,
-      });
+      this.manaRules = this.renderRulesWithPips(rules);
       this.rulesTextObj = this.manaRules.text;
     } else {
       this.rulesTextObj.setText(rules);
@@ -828,6 +823,54 @@ export class CardView extends Phaser.GameObjects.Container {
     } else {
       this.setAngle(target);
     }
+  }
+
+  private renderRulesWithPips(rules: string): ManaTextRender {
+    const render = (raw: string): ManaTextRender => renderManaText(this.scene, this, TEXT_LEFT, 66, raw, {
+      fontFamily: 'Inter, Arial, sans-serif',
+      fontSize: '13px',
+      color: '#20180e',
+      resolution: 2,
+      wordWrap: { width: TEXT_WIDTH },
+      lineSpacing: 2,
+    });
+    if (!rules.includes('{T}')) return render(rules);
+
+    // ManaText owns mana tokens only. Give each tap a colorless placeholder,
+    // then replace that exact image with pip-T. Count ALL tokens so a Skim
+    // line before Duty cannot have one of its cost pips mistaken for the tap.
+    const measureText = this.plainRulesTextObj;
+    measureText.style.syncFont(measureText.canvas, measureText.context);
+    const normalSize = measureText.style.getTextMetrics().fontSize + measureText.style.strokeThickness;
+    const extraSize = Math.max(0, DUTY_RULES_PIP_SIZE - normalSize);
+    const padding = manaPipPadding(1, extraSize, 0, (value) => measureText.context.measureText(value).width).padding;
+    const tapIndices: number[] = [];
+    let pipIndex = 0;
+    const raw = rules.replace(/\{(\d+|[WUBRGCT])\}/g, (token: string, symbol: string) => {
+      const index = pipIndex++;
+      if (symbol !== 'T') return token;
+      tapIndices.push(index);
+      return `{C}${padding}`;
+    });
+    const rendered = render(raw);
+    // Reserve the larger tap's height as well as width before shrink-to-fit.
+    rendered.text.setPadding(0, extraSize / 2, 0, extraSize / 2).setLineSpacing(2 + extraSize);
+    for (const index of tapIndices) rendered.pips[index].setTexture('pip-T');
+    const reflowMana = rendered.reflow;
+    rendered.reflow = (): void => {
+      reflowMana();
+      for (const index of tapIndices) {
+        const pip = rendered.pips[index];
+        // Keep the placeholder's left edge while growing into its reserved
+        // padding. Reflow resets the position, so repeated fits do not drift.
+        pip.setX(pip.x + extraSize * rendered.text.scaleX / 2).setDisplaySize(
+          DUTY_RULES_PIP_SIZE * Math.abs(rendered.text.scaleX),
+          DUTY_RULES_PIP_SIZE * Math.abs(rendered.text.scaleY),
+        );
+      }
+    };
+    rendered.reflow();
+    return rendered;
   }
 
   private clearFx(): void {

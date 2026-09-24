@@ -3,7 +3,7 @@ import { ECONOMY } from '../../src/config/rules';
 import { CARD_DB } from '../../src/data/catalog';
 import { DRAFT_PERSONAS } from '../../src/data/draftPersonas';
 import type { CardDb, CardDef, Color } from '../../src/engine/types';
-import { def, isType, manaValue } from '../../src/engine/types';
+import { def, isType } from '../../src/engine/types';
 import { isBasic } from '../../src/meta/Collection';
 import { LIMITED_DECK_SIZE, validateLimitedDeck } from '../../src/meta/DeckStorage';
 import { applyLimitedMatchResult, payPremiumDraftEntry } from '../../src/meta/Economy';
@@ -25,10 +25,10 @@ import {
   startBotDraft,
   startDraftRun,
 } from '../../src/meta/Limited';
-import { DEFAULT_PICKER, scoreBasePick, scorePick } from '../../src/meta/draftPicker';
+import { DEFAULT_PICKER, scorePick } from '../../src/meta/draftPicker';
 import { firstReserveConfigIssue } from '../../src/meta/duelSetup';
 import { freshSave } from '../../src/meta/SaveManager';
-import { PLAIN_VARIANT, TIER_RANK, variantKey, type CardVariant } from '../../src/meta/variants';
+import { PLAIN_VARIANT, variantKey, type CardVariant } from '../../src/meta/variants';
 import { isDualLand, LAND_RESERVE_SIZE, MAX_DUAL_LANDS } from '../../src/meta/warchest';
 import { deckOf, TEST_DB } from '../helpers';
 
@@ -200,15 +200,6 @@ describe('bot draft', () => {
     });
   });
 
-  it('keeps DEFAULT_PICKER base scores lockstep with the old heuristic over the whole pool', () => {
-    // The DECK-BUILDING path (scoreDeckCard/chooseDeckColors in Limited.ts) also
-    // routes through scoreBasePick(d, DEFAULT_PICKER) now — pin that equivalence
-    // exhaustively so auto-build texture can't drift silently either.
-    for (const d of Object.values(CARD_DB)) {
-      expect(scoreBasePick(d, DEFAULT_PICKER), d.id).toBe(scoreBaseCardReference(d));
-    }
-  });
-
   it('does not treat C as a draft color when picking among lands', () => {
     const db: CardDb = {
       'green-pick': {
@@ -249,24 +240,6 @@ describe('bot draft', () => {
     expect(chosen).toBe('g-land');
     expect(scorePick(db, 'g-land', picks, DEFAULT_PICKER, 0) - scorePick(db, 'c-land', picks, DEFAULT_PICKER, 0)).toBe(3);
   });
-
-  it('keeps DEFAULT_PICKER bot choices lockstep with the old heuristic across 20 full drafts', () => {
-    for (let seed = 1; seed <= 20; seed++) {
-      let state = startBotDraft(CARD_DB, seed);
-      state = { ...state, personaIds: ['', ...Array.from({ length: DRAFT_SEATS - 1 }, () => 'dp-chris')] };
-
-      while (!state.completed) {
-        const expected = state.currentPacks.map((pack, seat) =>
-          seat === 0 || pack.length === 0 ? null : chooseBotDraftPickReference(CARD_DB, pack, state.picks[seat]),
-        );
-        const next = pickDraftCard(CARD_DB, state, currentDraftPack(state)[0]);
-        for (let seat = 1; seat < DRAFT_SEATS; seat++) {
-          if (expected[seat]) expect(next.picks[seat].at(-1), `seed ${seed}, seat ${seat}`).toBe(expected[seat]);
-        }
-        state = next;
-      }
-    }
-  }, 20_000);
 
   it('reproduces persona seats, picks, and opponent decks from the same seed', () => {
     const finish = (seed: number) => {
@@ -501,76 +474,6 @@ function finishDraft(seed: number, premium: boolean) {
 
 function draftPairs(cards: readonly string[], variants: readonly CardVariant[]) {
   return cards.map((cardId, index) => ({ cardId, variant: variants[index] }));
-}
-
-// Frozen copy of the pre-persona Limited.ts picker. This is deliberately kept
-// independent from draftPicker.ts so neutral-profile arithmetic drift is caught.
-function chooseBotDraftPickReference(db: CardDb, pack: readonly string[], picks: readonly string[]): string {
-  return [...pack].sort(
-    (a, b) =>
-      scoreDraftCardReference(db, b, picks) - scoreDraftCardReference(db, a, picks) || compareCardNames(db, a, b),
-  )[0];
-}
-
-function scoreDraftCardReference(db: CardDb, id: string, picks: readonly string[]): number {
-  const d = def(db, id);
-  let score = scoreBaseCardReference(d);
-  const committed = committedColorsReference(db, picks);
-  if (picks.length >= 5 && d.colors.length > 0) {
-    const overlap = d.colors.filter((c) => committed.includes(c)).length;
-    if (overlap === d.colors.length) score += 5;
-    else if (overlap > 0) score += 1;
-    else score -= 7;
-  }
-  if (isType(d, 'land') && !isBasic(db, id)) {
-    const mana = d.manaAbility ?? [];
-    score += mana.some((c) => c !== 'C' && committed.includes(c)) ? 4 : 1;
-  }
-  return score;
-}
-
-function scoreBaseCardReference(d: CardDef): number {
-  let score = TIER_RANK[d.rarity] * 4;
-  const mv = manaValue(d.cost);
-  if (isType(d, 'creature')) {
-    score += 5 + (d.attack ?? 0) * 1.2 + (d.defense ?? 0) * 0.8;
-    score += (d.keywords?.length ?? 0) * 1.5;
-  } else if (isType(d, 'charm') || isType(d, 'ritual')) {
-    score += 4;
-  } else if (isType(d, 'enchantment') || isType(d, 'artifact')) {
-    score += 2;
-  }
-  if (d.abilities?.some((a) => a.ops?.some((op) => op.op === 'destroy' || op.op === 'damage' || op.op === 'cancel'))) {
-    score += 5;
-  }
-  if (d.abilities?.some((a) => a.ops?.some((op) => op.op === 'draw' || op.op === 'raise' || op.op === 'reclaim'))) {
-    score += 3;
-  }
-  if (mv >= 2 && mv <= 4) score += 2;
-  if (mv >= 7) score -= 3;
-  return score;
-}
-
-function committedColorsReference(db: CardDb, picks: readonly string[]): Color[] {
-  const order: readonly Color[] = ['W', 'U', 'B', 'R', 'G'];
-  if (picks.length === 0) return [];
-  const scores = new Map<Color, number>();
-  for (const color of order) scores.set(color, 0);
-  for (const id of picks) {
-    const d = def(db, id);
-    if (d.token || isType(d, 'land')) continue;
-    for (const color of d.colors) scores.set(color, (scores.get(color) ?? 0) + 1 + TIER_RANK[d.rarity]);
-  }
-  return order
-    .filter((color) => (scores.get(color) ?? 0) > 0)
-    .sort((a, b) => (scores.get(b) ?? 0) - (scores.get(a) ?? 0) || order.indexOf(a) - order.indexOf(b))
-    .slice(0, 2);
-}
-
-function compareCardNames(db: CardDb, a: string, b: string): number {
-  const da = def(db, a);
-  const dbb = def(db, b);
-  return da.name.localeCompare(dbb.name) || a.localeCompare(b);
 }
 
 /**

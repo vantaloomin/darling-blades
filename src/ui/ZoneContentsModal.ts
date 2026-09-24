@@ -8,9 +8,11 @@ import { manaCostText } from './rulesText';
 import { renderManaText } from './ManaText';
 import { colorInt, theme } from './theme';
 import { modalShell, pager, type ModalShellOptions } from './themeWidgets';
+import { WHISPERS_ZONE_LAYOUT } from './zoneContentsPresentation';
 
 export interface ZoneContentsAction {
   label: string;
+  enabled?: boolean;
   /** Omit for zero-cost actions such as playing a reserve land. */
   cost?: ManaCost;
   onSelect: () => void;
@@ -22,6 +24,9 @@ export interface ZoneContentsEntry {
   landStyle?: string;
   variant?: CardVariant;
   action?: ZoneContentsAction;
+  /** A live Whispers card can also offer Preserve. Both choices stay visible. */
+  additionalActions?: ZoneContentsAction[];
+  deadline?: string;
   /**
    * Corner-chip text, replacing the default `x{count}`. Zones that list one
    * tile per physical card (the ordered graveyard) pass a position marker here
@@ -81,9 +86,14 @@ export function showZoneContents(
     onClose: opts.onClose,
   });
   const container = shell.container;
-  const pageCount = Math.max(1, Math.ceil(opts.entries.length / PAGE_SIZE));
-  const thumbW = CARD_W * THUMB_SCALE;
-  const thumbH = CARD_H * THUMB_SCALE;
+  const expanded = opts.entries.some((entry) => entry.deadline || entry.additionalActions?.length);
+  const columns = expanded ? WHISPERS_ZONE_LAYOUT.columns : GRID_COLS;
+  const columnGap = expanded ? WHISPERS_ZONE_LAYOUT.columnGap : COL_GAP;
+  const pageSize = expanded ? columns * WHISPERS_ZONE_LAYOUT.rows : PAGE_SIZE;
+  const thumbScale = THUMB_SCALE;
+  const pageCount = Math.max(1, Math.ceil(opts.entries.length / pageSize));
+  const thumbW = CARD_W * thumbScale;
+  const thumbH = CARD_H * thumbScale;
   let page = 0;
   let pageControl: ReturnType<typeof pager> | null = null;
   let gridItems: Phaser.GameObjects.GameObject[] = [];
@@ -146,6 +156,7 @@ export function showZoneContents(
 
   const addActionChip = (x: number, y: number, action: ZoneContentsAction): void => {
     const chip = scene.add.container(x, y);
+    const enabled = action.enabled !== false;
     const cost = action.cost ? ` ${manaCostText(action.cost)}` : '';
     const rendered = renderManaText(scene, chip, 0, 0, `${action.label}${cost}`, {
       fontFamily: theme.fonts.ui,
@@ -164,14 +175,16 @@ export function showZoneContents(
       .lineStyle(1, colorInt(theme.colors.gold), theme.alpha.chrome)
       .strokeRoundedRect(-width / 2, -ACTION_H / 2, width, ACTION_H, theme.radius.control);
     chip.addAt(background, 0);
-    const zone = scene.add.zone(0, 0, width, ACTION_H).setInteractive({ useHandCursor: true });
-    chip.add(zone);
-    bindTapButton(scene, zone, (pointer) => {
-      if (pointer.rightButtonReleased()) return;
-      shell.close();
-      action.onSelect();
-    });
-    inflateHitArea(zone, Math.max(90, width), 44);
+    if (enabled) {
+      const zone = scene.add.zone(0, 0, width, ACTION_H).setInteractive({ useHandCursor: true });
+      chip.add(zone);
+      bindTapButton(scene, zone, (pointer) => {
+        if (pointer.rightButtonReleased()) return;
+        shell.close();
+        action.onSelect();
+      });
+      inflateHitArea(zone, Math.max(90, width), 44);
+    } else chip.setAlpha(0.5);
     addGridItem(chip);
   };
 
@@ -193,13 +206,13 @@ export function showZoneContents(
       return;
     }
 
-    const start = page * PAGE_SIZE;
-    for (const [i, entry] of opts.entries.slice(start, start + PAGE_SIZE).entries()) {
-      const col = i % GRID_COLS;
-      const row = Math.floor(i / GRID_COLS);
-      const x = GRID_CX - ((GRID_COLS - 1) * COL_GAP) / 2 + col * COL_GAP;
-      const y = GRID_TOP_Y + row * ROW_GAP;
-      const thumb = makeCardThumb(scene, x, y, entry.card, THUMB_SCALE, entry.landStyle, entry.variant);
+    const start = page * pageSize;
+    for (const [i, entry] of opts.entries.slice(start, start + pageSize).entries()) {
+      const col = i % columns;
+      const row = Math.floor(i / columns);
+      const x = GRID_CX - ((columns - 1) * columnGap) / 2 + col * columnGap;
+      const y = expanded ? WHISPERS_ZONE_LAYOUT.firstCenterY + row * WHISPERS_ZONE_LAYOUT.rowGap : GRID_TOP_Y + row * ROW_GAP;
+      const thumb = makeCardThumb(scene, x, y, entry.card, thumbScale, entry.landStyle, entry.variant);
       thumb.setInteractive({ useHandCursor: true });
       bindTapButton(scene, thumb, (pointer) => {
         if (pointer.rightButtonReleased()) return;
@@ -214,13 +227,20 @@ export function showZoneContents(
       addGridItem(thumb);
       const badge = entry.badge === undefined ? `x${entry.count}` : entry.badge;
       if (badge) addBadge(x, y, badge);
-      if (entry.action) addActionChip(x, y + ACTION_Y_OFFSET, entry.action);
+      if (entry.deadline) addGridItem(scene.add.text(x, y + WHISPERS_ZONE_LAYOUT.deadlineOffset, entry.deadline, {
+        fontFamily: theme.fonts.ui, fontSize: '10px', color: theme.colors.gold,
+        backgroundColor: theme.colors.btnGhostBg, padding: { x: 3, y: 2 },
+        wordWrap: { width: 112 }, align: 'center', resolution: 2,
+      }).setOrigin(0.5));
+      const actions = [...(entry.action ? [entry.action] : []), ...(entry.additionalActions ?? [])];
+      actions.forEach((action, index) => addActionChip(x,
+        y + (expanded ? WHISPERS_ZONE_LAYOUT.actionOffset + index * WHISPERS_ZONE_LAYOUT.actionGap : ACTION_Y_OFFSET), action));
     }
     pageControl?.refresh(page, pageCount);
   };
 
   if (pageCount > 1) {
-    pageControl = pager(scene, GRID_CX - 44, 632, page, pageCount, renderPage);
+    pageControl = pager(scene, GRID_CX - 44, WHISPERS_ZONE_LAYOUT.pagerY, page, pageCount, renderPage);
     container.add(pageControl.container);
   }
   renderPage(0);

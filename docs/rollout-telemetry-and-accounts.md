@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-telemetry-and-accounts.md, docs/plan-save-portability.md, docs/plan-road-to-2.0.md, docs/roadmap.md, docs/git-workflow.md, docs/claude-playbook.md, src/meta/SaveManager.ts, src/meta/balanceTelemetry.ts, src/meta/SaveCode.ts, src/scenes/SettingsScene.ts, src/platform/env.ts, src/version.ts, eslint.config.js, scripts/balance-matrix.ts · last-verified: 2026-09-10 · rollout doc — the execution plan for plan-telemetry-and-accounts.md; re-verify when a wave lands or a vendor free tier moves -->
+<!-- source-of-truth: docs/plan-telemetry-and-accounts.md, docs/plan-save-portability.md, docs/plan-road-to-2.0.md, docs/roadmap.md, docs/git-workflow.md, docs/claude-playbook.md, src/meta/SaveManager.ts, src/meta/balanceTelemetry.ts, src/meta/SaveCode.ts, src/scenes/SettingsScene.ts, src/platform/env.ts, src/version.ts, eslint.config.js, scripts/balance-matrix.ts, scripts/gen-legal-pages.ts, scripts/gen-third-party-notices.ts · last-verified: 2026-09-22 · rollout doc — the execution plan for plan-telemetry-and-accounts.md; re-verify when a wave lands or a vendor free tier moves -->
 
 # Rollout: anonymous telemetry and optional cloud accounts
 
@@ -45,10 +45,11 @@ done at least a week before that wave opens so a surprise does not stall it.
 | ~~Create a Cloudflare account~~ | T0 | **DONE 2026-09-10** (Workers Free plan). No custom domain needed — a Worker gets a free `*.workers.dev` hostname |
 | ~~Decide the Worker hostname~~ | T0 | **DECIDED 2026-09-10: `db-signals.loominvanta.workers.dev`.** A hello-world placeholder Worker named `db-signals` is deployed there to register the subdomain; the real signals Worker replaces it under the same name. It goes in the client and in the privacy page, so changing it later is a code change |
 | Cloudflare API token (Analytics read) → repo secret | T3 | Scope it to **Account Analytics: Read** only. Never a global key |
+| ~~Set the Worker's salt secret in Cloudflare~~ | T2 | **DONE 2026-09-17**: `SALT_SECRET` is set on `db-signals`. Ruled the same day (D-T0.2, see the T0 finding): the daily salt is a random value held in one Workers KV key for the UTC day and then deleted, with `SALT_SECRET` mixed in, so a past day can never be recomputed. The KV namespace is created in T2 with the deploy token; it is not an owner step |
 | Create the Supabase **prod** project, **EU region** | C0 | Region is chosen at creation and cannot be changed later |
 | Create the Supabase **dev** project | C0 | This exhausts the free plan's 2-project allowance. There is no third |
 | Register OAuth apps (Discord / Google / GitHub) | C0 | Redirect URIs must cover the Pages origin **and** the Tauri custom scheme |
-| Publish the privacy page | T2 | Must be live before the first event is ever sent, not after |
+| Publish the privacy page | T2 | Must be live before the first event is ever sent, not after. **RULED 2026-09-17: it goes live alongside 1.8.** The page ships inside the game's own Pages build, so the deploy that first carries a client able to send is the deploy that publishes the page: no build can send before its page exists. The desktop installer is tagged after that deploy |
 
 **Secret hygiene, on a public repo.** The Supabase **anon** key is designed to
 be public and belongs in the client bundle; RLS is what protects the data. The
@@ -97,6 +98,15 @@ Gate: rungs 1-4 and 6. Exit: `npx vitest run tests/meta` green, no string
 
 ### PR 0b — `feat(save): v35 — anonymous-stats preference, and the parked cosmetics removal`
 
+**BUILT 2026-09-17**, scope as written below with one correction to trap 3:
+keying the seeding off `beganAtCurrentVersion` was itself the bug. That flag is
+true only for a save AT the current version, so every bump re-seeded the
+one-way fields of a save one version behind; measured on shipped code, the
+v33 to v34 update wiped per-deck style, display pins, the deck-repair
+acknowledgement and both Darlings flags. The guard is now
+`arrivedAtVersion >= N` per field, which also means an opt-out from anonymous
+stats survives the NEXT bump, not only a reload.
+
 Branch: `claude/save-v35-stats-preference`
 
 This is the bump the codebase has been waiting for. `CosmeticsSave.cardBack` and
@@ -109,8 +119,13 @@ Adds to `SaveData.settings`:
 
 - `shareAnonStats: boolean` — **`true`** for fresh saves and for migrated saves
   (decision 1).
-- `statsNoticeVersion: number` — `0` for migrated saves, the current notice
-  version for fresh ones (a fresh save sees the first-run flow instead). The
+- `statsNoticeVersion: number` — `0` for every save, fresh or migrated, until
+  the notice has been shown. **Owner ruling 2026-09-17: show the notice to all
+  players unless we can verify they have seen it**, and the only proof is this
+  stamp. (As first written a fresh save started at the current notice version
+  because "a fresh save sees the first-run flow instead"; no first-run flow
+  mentions stats, so a new player would only have learned of them from
+  Settings or the privacy page.) The
   client compares it against a `STATS_NOTICE_VERSION` constant that lives
   beside the allowlist in `playSignals.ts` and is bumped whenever the set of
   fields sent changes; a save below it sees the notice and is stamped. This
@@ -152,8 +167,19 @@ behaviour behind it.
 
 ### T0 — Spike. Ships nothing.
 
-Branch: `claude/signals-spike` (never merged; a scratch branch and a written
-finding)
+**RAN 2026-09-10; finding in [telemetry-t0-finding.md](telemetry-t0-finding.md).**
+Write and read paths proven against `db-signals.loominvanta.workers.dev`;
+three corrections to this plan came out of it: the data-point cap (not the
+request cap) binds and card rows are 95% of it (decision D-T0.1), the
+in-memory salt is per isolate so distinct-install counts need a
+secret-derived salt (D-T0.2), and every rollup count must be
+`sum(_sample_interval)`. `scripts/measure-save-code.ts` turned out to exist
+since 1.5 (PR #141; this doc was wrong) and was extended with real-catalog
+profiles and run. The branch was merged rather than discarded because the
+Worker source is what T1/T2 start from.
+
+Branch: `claude/signals-spike` (as planned, a written finding; the code in
+`worker/` is the spike's Worker, kept)
 
 - Stand the Worker up on `db-signals.loominvanta.workers.dev` (decided
   2026-09-10; a placeholder Worker of that name already holds the hostname).
@@ -162,7 +188,8 @@ finding)
 - Project the free-tier headroom against a realistic DAU. Two digests per
   player-day against 100k requests/day is roughly 50k player-days of headroom;
   confirm the arithmetic against actual payload sizes rather than trusting it.
-- **Build `scripts/measure-save-code.ts` here.** It does not exist,
+- **Run `scripts/measure-save-code.ts` here.** (Written 2026-08-28 as "build
+  it, it does not exist"; it had existed since PR #141. Corrected 2026-09-10.)
   [plan-save-portability.md](plan-save-portability.md) proposed it, and wave C0
   needs its output to size the Supabase free tier. Doing it now means the
   accounts wave opens with the number already in hand.
@@ -176,20 +203,69 @@ carrier before any code is committed.
 
 ### T1 — The pure core
 
+**BUILT 2026-09-17** as `src/meta/playSignals.ts` with 53 tests. What the next
+wave inherits from it:
+
+- `SIGNAL_FIELDS` (frozen) is the allowlist the Worker's validator is held
+  equal to: heartbeat 14 fields, duel 10, cards 3 (`cardId`, `countBucket`,
+  `duelsBucket`), 63 tests after the owner's four schema rulings below.
+  Four compile-time assertions fail the typecheck if a field-type map and its
+  allowlist disagree in either direction, and the builders project through the
+  allowlist, so a stray key cannot reach a payload.
+- `deckArchetype` is the precon's own id when the list is an unmodified precon
+  (matched by a sorted signature against every shape a granted deck can take,
+  verified through the real grant path for all 19 products) and `custom`
+  otherwise. `DECK_INFO.archetype` was rejected: it is shop prose, not an enum.
+- An opponent id outside our 46 built-in ids becomes `unknown`; a malformed
+  result reads as `draw`, so a bug shows as an anomaly instead of inflating a
+  win rate. `collectionBucket` counts distinct cards owned, not a percentage.
+- **Three inputs have no source anywhere in `src/` today** and T2 has to add
+  them in the scene or platform layer: `formFactor` (only a touch predicate
+  exists, and no dimensions may be sent), `lang`, and `reducedMotion`.
+- Four schema additions proposed by the build, **all ruled IN by the owner the
+  same day**: `format`'s `constructed` value is renamed `warchest`; `result`
+  gains `concede`, never also a loss; every card row carries `duelsBucket`, a
+  bucketed count of the launch's duels with the card-count labels
+  (`buildSessionCards(tally, duelsPlayed)`, the count required); the heartbeat
+  gains `lossesBucket`. None has a producer yet. T2's scene layer owes: the
+  mapping of the save's `constructed` and `warchest` deck formats to the signal
+  value `warchest`; a branch on `showResults`'s `reason` for a concede; and a
+  launch-scoped duel counter beside the in-memory card tally, never persisted.
+- **v35 corrected in place, 2026-09-17.** PR 0b shipped to the train with a
+  one-shot `statsNoticeSeen: boolean`, built from a copy of this doc that
+  predated the owner ruling of 2026-09-10 (the amendment had landed on `main`
+  only). It is now `statsNoticeVersion: number`, 0 for a migrated save and
+  `STATS_NOTICE_VERSION` for a fresh one. No further save bump: v35 had not
+  shipped to any player. The constant lives in the leaf module
+  `src/meta/statsNotice.ts`, because `SaveManager` needs it and `playSignals`
+  imports `SaveManager`; `playSignals` re-exports it beside the allowlist, and
+  `tests/meta/statsNotice.test.ts` snapshots the allowlist per notice version,
+  so an allowlist edit without a bump fails the suite.
+- The two v35 preference fields are deliberately NOT signals. A consent flag
+  must not itself be reported; an opt-out rate would be a separate owner
+  decision and a separate field.
+- Standing flake risk found on the way: `tests/meta/balanceTelemetry.test.ts`
+  "does not change fixed-seed simulation outcomes when attached" timed out at
+  5 s once when two full suites overlapped; it takes 1.15 s alone.
+
 Branch: `claude/play-signals-core` · PR: `feat(meta): playSignals — the pure anonymous digest builders`
 
 - New `src/meta/playSignals.ts`. Pure. No browser API, no Phaser, no network —
   it is inside the iron-invariant fence and stays there.
 - Contents: the event types, every bucketing function, the **field allowlist as
-  an exported constant**, `buildHeartbeat(save, env)` and
-  `buildDuelDigest(result, deck, save)`.
+  an exported constant**, `buildHeartbeat(save, env)`,
+  `buildDuelDigest(result, deck, save)`, and since the 2026-09-17 ruling on
+  D-T0.1 a third pair: `tallyCardsPlayed(tally, cardIds)`, a pure reducer over
+  an in-memory tally the scene layer owns, and `buildSessionCards(tally)`, the
+  batch sent once when the session ends. The duel digest carries no cards.
 - Tests, and these are the point of the wave:
   - the outgoing key set **equals** the allowlist exactly — not "contains", equals;
   - a fixture save whose deck is named with a distinctive sentinel string
     produces a payload in which that sentinel **does not appear anywhere**,
     asserted against the serialised JSON;
   - every numeric field is bucketed — no raw counts escape;
-  - `buildDuelDigest` emits per-card rows carrying **no deck reference**;
+  - the duel digest carries **no card id at all**, and the session card rows
+    carry **no deck reference, no duel reference, no order and no timestamp**;
   - signed-in and signed-out inputs produce **byte-identical** output. This test
     is written now, before accounts exist, so C2 cannot quietly break it.
 
@@ -197,6 +273,96 @@ Gate: rungs 1-4, 6. Exit: 100% of the allowlist covered by test; zero network
 code in the diff.
 
 ### T2 — Transport, consent surfaces, and the privacy page. **This is the shippable release.**
+
+**TRANSPORT BUILT 2026-09-17** (client core and Worker, two contracts in
+parallel; the consent surfaces and the privacy page follow). Nothing is
+deployed and the Settings toggle does not exist yet, so nothing sends.
+
+- **Wire format:** `POST /v1/signals?e=heartbeat|duel|cards`, the body being
+  the pure builder's output byte for byte. No envelope, no version field, no
+  type field: the client adds NOTHING in transit, and the kind travels in the
+  query. An optional `&v=` is reserved on the Worker (absent means 1). The two
+  halves were built apart and first agreed this by message;
+  `tests/net/clientToWorker.test.ts` now runs the real client against the real
+  Worker handler, so a drift on either side fails the suite. It caught one bug
+  on its first run: `cardsPlayed` decided the row cap per CALL, so a call
+  carrying several new ids that would overflow dropped all of them.
+- **The facade** (`src/net/signals.ts`): `start`, `noticeAcknowledged`,
+  `cardsPlayed`, `duelFinished`, `sessionEnding`. The consent UI needs only
+  `noticeAcknowledged()` after it stamps `statsNoticeVersion`; the toggle needs
+  no call, because the gate re-reads the save at every send.
+- **The gate** (`src/net/signalsGate.ts`), evaluated at send time, closed by any
+  of: the toggle off, `navigator.doNotTrack === '1'`,
+  `navigator.globalPrivacyControl === true`, `?telemetry=off`, a development
+  build (`IS_DEV`, which includes the local devtools flag, so it errs toward
+  sending less), or a saved notice version below `STATS_NOTICE_VERSION`. A
+  development build logs the exact payload with the prefix
+  `[signals:dry-run]` and sends nothing. Accumulation is gated too: a session
+  played with stats off leaves nothing in memory for a later toggle-on to send.
+- **No client-side daily cap** (legal review, finding 5): one heartbeat per
+  launch, tracked in memory, and the Worker's daily hash de-duplicates.
+- **Card batch:** at most 60 rows (`SESSION_CARD_ROW_CAP`), the first 60
+  distinct cards by play order, known cards still counting past the cap. The
+  Worker REJECTS an over-cap batch (400) rather than truncating, because the
+  batch is sorted by card id and an edge truncation would quietly bias the
+  card distribution toward the start of the alphabet. 60 against the free
+  tier's 100,000 data points a day: a five-duel session costs 26 points at the
+  expected 20 cards (about 3,800 player-days a day) and 66 at the cap (about
+  1,500). The body cap rose 4 KB to 8 KB: a full batch of the 60 longest real
+  card ids measures 4,956 bytes.
+- **Results:** `concede` only when the human conceded (the winner is the AI and
+  the reason is `concede`); an AI concede is a win; a draw comes from
+  `state.winner === 'draw'`. The save's `constructed`, `warchest` and absent
+  deck formats all report `warchest`.
+- **Worker storage:** dataset `db_signals_v2`. Heartbeat and duel rows are
+  indexed by the daily hash; card rows are indexed by card id and their hash
+  column is always empty, so a duel row and the same session's cards cannot be
+  re-joined. Card rows carry no `appVersion` and no `platform` (the cards
+  allowlist has three fields), so card play cannot be split by version or by
+  web and desktop; widening it is an owner decision.
+- **The harness trap, by machine:** eslint fences `**/net/*` off
+  engine/ai/data/meta, a full headless duel makes zero network calls, no
+  balance or sweep entry point imports `src/net` or `src/scenes`, and `src/net`
+  is imported by exactly `src/gameBoot.ts` and `src/scenes/DuelScene.ts`. One
+  pinned gap: a dynamic `import()` slips past the lint rule.
+- **Privacy page, README and CSP, built 2026-09-17; widened to all three legal
+  pages 2026-09-22:** `scripts/gen-legal-pages.ts` renders the policy, the terms
+  and the notices to `public/privacy.html`, `public/terms.html` and
+  `public/notices.html` on every dev and build, and
+  `scripts/gen-third-party-notices.ts` writes `public/THIRD_PARTY_NOTICES.txt`
+  beside them (owner ruling: the page goes live alongside 1.8, and shipping it
+  inside the same Pages deploy as the client is what makes "live before the
+  first event" true by construction). A **Legal** button in the Settings header
+  opens all three from inside the game. The README gains a Privacy section, and
+  its License section links the three published pages. `index.html`
+  carries `connect-src 'self' https://api.github.com
+  https://db-signals.loominvanta.workers.dev`, connect-src only. The desktop
+  build adds `ipc: http://ipc.localhost` to that same meta policy at build
+  time (`scripts/cspForTarget.ts`, when `TAURI_ENV_PLATFORM` is set; PR #397),
+  because a policy in `tauri.conf.json` is added to the meta one and cannot
+  loosen it.
+- **DEPLOYED 2026-09-18** (owner-confirmed; replaces the T0 spike at the same
+  hostname). KV namespace `db-signals-salt` created and its id committed in
+  `worker/wrangler.toml` (an id is not a secret). The deploy token needed one
+  more permission first, Account / Workers KV Storage / Edit: the spike never
+  used KV, and without it `wrangler kv namespace list` fails with
+  authentication error 10000 while every script call still works. Verified
+  against the live Worker: `/health` answers `{"ok":true,"build":"t2"}`; all
+  three events accepted with 204 from the real client builders
+  (`worker/scripts/send-synthetic.ts`); fifteen malformed shapes refused with
+  400, oversize 413, wrong content type 415, foreign origin 403, GET 405; the
+  KV namespace holds exactly one key, `salt:<UTC date>`, expiring one hour
+  after the day ends; read back from `db_signals_v2` within a minute, where
+  all 37 card rows carry an EMPTY hash column and the heartbeat and duel rows
+  carry one 16-character hash (one machine, one day). Found and fixed on the
+  way: `worker/scripts/query.ts` discarded a positional SQL argument whenever
+  `--view` was absent and silently ran the summary instead. One thing only
+  the owner can see: the dashboard should show Workers Logs as off for
+  `db-signals`.
+- **Desktop run done (PR #397, 2026-09-19):** WebView2 153 reports
+  `doNotTrack` as null and `globalPrivacyControl` as undefined, and has
+  `sendBeacon`; the code handles all three. **Still owed before release:** the
+  k = 10 floor, which is T3's rollup and is not true of anything yet.
 
 Branch: `claude/play-signals-transport` · PR: `feat: anonymous play stats, off in one tap`
 
@@ -227,8 +393,21 @@ UI:
   addition.**
 - An in-game Privacy panel reachable from Settings, listing the exact fields
   sent. Reuse `src/ui/Modal.ts`.
-- The notice for existing players, shown when `statsNoticeVersion` is below
-  `STATS_NOTICE_VERSION`, then stamped. A `Toast`, not a blocking dialog.
+- The notice, shown to every player when `statsNoticeVersion` is below
+  `STATS_NOTICE_VERSION`, then stamped. ~~A `Toast`, not a blocking dialog.~~
+  **Re-ruled 2026-09-19: a first-run dialog, shown BEFORE the tutorial prompt,
+  carrying the sharing toggle, default on.** As a toast it waited for a clear
+  menu, which for a new player meant after the tutorial, and it was easy to
+  miss. Default on stands (legal review finding 2): the basis is the
+  audience-measurement exemption and legitimate interest, not consent, and one
+  condition of that exemption is an easy way to object, which the dialog now
+  puts in front of every player before anything is sent. A pre-set toggle is
+  only invalid AS consent, so the dialog must never read as a consent request:
+  the button is `Continue`, and a test bans agree, accept, consent, allow and
+  permission from its copy. Nothing is sent while it is open. Probed in a
+  browser on a fresh save 2026-09-19: the dialog is first on screen, the
+  toggle saves at once, Escape closes only the `What is sent` panel, Continue
+  stamps and hands on to the tutorial prompt, no console errors.
 
 Docs:
 
@@ -250,9 +429,21 @@ Docs:
 Worker (separate repo or a `worker/` directory — see the risk register):
 
 - Schema validation that drops anything malformed, a payload size cap, a
-  Cloudflare free-plan rate-limiting rule, and the rotating daily salt.
-- The salt rotates every 24h and **is never persisted**. The IP is read, hashed,
-  and discarded within the request. Neither is ever written to WAE.
+  rate limit, and the rotating daily salt. **Corrected 2026-09-17:** the rate
+  limit is the Workers rate-limit binding (`[[ratelimits]]` in
+  `worker/wrangler.toml`, `limit` per `period` of 10 or 60 seconds, keyed on
+  the same daily hash), in code, not a dashboard rule. Dashboard rate-limiting
+  rules attach to a zone, a domain the account owns, and this Worker
+  deliberately has none, only its `workers.dev` hostname. The binding is
+  permissive and per Cloudflare location by design, which suits a spam brake
+  and is not an accounting system.
+- The salt is a random value created fresh each UTC day, held in one Workers
+  KV key with an absolute expiry just past the day, and mixed with
+  `SALT_SECRET` by HMAC (re-ruled 2026-09-17, see the T0 finding; it was "never
+  persisted"). A missing secret answers 503 and writes nothing: there is no
+  unsalted fallback. The IP is read, hashed, and discarded within the request.
+  Neither it nor anything else derived from the request is ever written to WAE
+  or logged.
 
 Gate: rungs 1-6, plus a probe run confirming that with the toggle off the
 network tab shows **zero** requests to the signals host. Exit criteria include
@@ -276,6 +467,84 @@ rollup.
 
 Gate: rungs 1-6. Exit: two consecutive successful cron runs, and a manual review
 of the first committed aggregate confirming no value sits below k.
+
+**BUILT 2026-09-18** (`scripts/signals-rollup/`, `scripts/signals-dash/`,
+`.github/workflows/signals-rollup.yml`). The spec above was three bullets; these
+are the decisions that filled it, all made on the safe side of the privacy
+policy's promise.
+
+- **The totals never touch `main`.** `main` deploys to Pages on every push, so a
+  daily data commit would be a daily deploy. The workflow writes to an orphan
+  branch, `signals-data`, which shares no history with `main` and is never
+  merged. `/signals-data/` is gitignored on every other branch.
+- **The floor counts installs, not rows.** A heartbeat or duel value publishes
+  only when at least ten DISTINCT INSTALLS reported it that day (and its own
+  number is at least ten). One player with fifty duels on a rare deck is a crowd
+  of one, and a row floor would publish them. This is stricter than the
+  policy's "fewer than 10 summaries", which is the direction a promise may be
+  exceeded in. Card rows carry no hash by design, so they are counted in rows.
+  Under sampling `count(DISTINCT blob3)` undercounts, which is also the safe
+  direction.
+- **Complementary suppression.** When the merged `other` is itself below the
+  floor, the next-smallest value is folded in, again and again, until `other`
+  passes; if nothing passes the dimension is `null`. Without this, one hidden
+  value is the day total minus the published ones. Install-gated folds take
+  the MAX of their members' gates as a lower bound (install sets overlap); row
+  folds add. The `other` row of a cross carries a total and never a split.
+- **Day gates.** A section with fewer than ten installs (heartbeat), ten
+  dueling installs and ten duels (duel) or ten rows (cards) is `null` for the
+  day. A day where all three close still writes a file, so the run is
+  idempotent and the gap explains itself.
+- **One guard before every write.** `assertNoSubFloorNumber` walks the day
+  object and refuses to write if any number under the three sections is below
+  ten or fractional. `ROLLUP_K` is a constant, and a test reads
+  `docs/legal/privacy-policy.md` and fails if the policy stops saying "fewer
+  than 10".
+- **A published day is never rewritten.** Two versions of one day are a
+  differencing leak. The backfill window is seven days and only fills gaps.
+  Accepted and stated: a value present one day and absent the next tells a
+  reader it was below ten that day, which is exactly what the policy describes.
+- **No time of day anywhere in a file** (legal finding 3), keys sorted, so a
+  re-run is byte-identical.
+- **The Actions log is public.** The run logs days, paths and counts of
+  published, folded and suppressed values. Never a query result, a raw count, a
+  hash, or the name of a folded value; a test holds every log line to an
+  allowlist of eight patterns.
+- **`config.json` ships with `startDate: null`,** and a null start date means
+  the run writes nothing. **Filling it is a release-cut item**, beside the
+  privacy policy's effective date. It also keeps the deploy-day synthetic rows
+  out of every report.
+- **The dimension table is held equal to `SIGNAL_FIELDS`** in both directions,
+  with `buildSha` the one named exclusion (a build hash is a near-unique value
+  and `appVersion` answers the question), so a schema change fails the suite
+  until someone decides how the new field rolls up.
+- **`other` is a real value of `settings.renderScale` today.** It is carried as
+  `other (reported)` so it can never be read as the fold bucket, and a test
+  pins `renderScale` as the only field that has one.
+- **Verified against the live dataset by the main session** (the agent never
+  touched Cloudflare): all 36 queries for a day run clean in Analytics
+  Engine's SQL dialect and return the expected columns and types against real
+  rows; a complete day with no rows writes the all-`null` file; the viewer
+  renders a fixture day with no console errors and no external request.
+- **Owner check done 2026-09-18:** the Cloudflare dashboard shows zero
+  observability events across a window holding about 45 real requests, so
+  Workers Logs are off as configured.
+- **What cannot be verified until 1.8 is on `main`:** the Actions run itself,
+  the first-run creation of the orphan branch, the push, and the two repo
+  secrets in use. GitHub runs schedules from the default branch only, so the
+  cron starts at the cut, and the exit criterion above is met after it.
+  `workflow_dispatch` is there for the first run. GitHub also disables a
+  schedule after 60 days without repository activity.
+- **Reading it:** `npm run signals-dash` (:5186) over a local checkout of the
+  branch, `git fetch origin signals-data` then
+  `git worktree add ../DarlingBlades-signals-data signals-data`, with
+  `SIGNALS_ROLLUP_DIR` pointed at its `rollups` folder. The raw store, for the
+  90 days it exists, is `npx tsx worker/scripts/query.ts`.
+- **Two standing load flakes, both timeouts and neither a regression:**
+  `tests/ui/shopRetail.test.ts` runs a transpiled source file under a 1,000 ms
+  `runInNewContext` budget, and `tests/meta/balanceTelemetry.test.ts` has a
+  5 s default; each has failed once under a full-suite run on a busy machine
+  and passes alone.
 
 ### T4 — Read it honestly
 
@@ -405,6 +674,8 @@ Written now, because the moment to write it is not at 2 a.m.
 | Signals volume spikes implausibly | Spam against the public endpoint | Tighten the rate-limiting rule. **Discard the affected window from every rollup** and note it, rather than reasoning over poisoned data |
 | Cloud sync failing for everyone | Supabase project **paused** after 7 days of low activity | Restore from Supabase Studio. Then check why the keep-alive cron stopped |
 | Cloud sync failing for one player | Token expiry, clock skew, or a conflict they dismissed | The export code is always the fallback. Never hand-edit a row |
+| The daily rollup workflow fails or stops | A rotated or expired `CLOUDFLARE_ANALYTICS_TOKEN`, a Cloudflare API change, or GitHub disabling the schedule after 60 days of repository inactivity | Nothing is lost for seven days: the next good run backfills every missing day in its window. Past seven days, run it locally with `--day` for each gap, before the 90-day wall takes the raw rows. A run that fails writes nothing, by design |
+| A rollup file holds a number below ten | A bug past both the fold and the guard | Treat as a publication incident: fix forward, do NOT rewrite the day silently, record what was exposed and for how long |
 | A player asks to be forgotten | — | Telemetry: nothing to delete, and say so plainly rather than implying a search happened. Accounts: point them at the in-app delete, which is self-serve by design |
 
 **Kill switches, in escalation order:** the Settings toggle (per player) →

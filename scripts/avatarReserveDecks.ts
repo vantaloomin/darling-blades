@@ -27,6 +27,7 @@ import { isLiveCollectible } from '../src/data/liveness';
 import { AVATARS, type Avatar } from '../src/data/opponents';
 import { STARTER_DECKS } from '../src/data/starterDecks';
 import type { CardDb, CardDef, Color, EffectOp, TargetSpec } from '../src/engine/types';
+import { activatedAbilitiesOf } from '../src/engine/types';
 import { validateDarlingsDeck, validateWarchestDeck } from '../src/meta/darlings';
 import {
   DARLINGS_DECK_SIZE,
@@ -101,6 +102,7 @@ const NARROW_TARGETS: Record<TargetSpec['what'], boolean> = {
   any: false,
   spell: false,
   yourCreature: false,
+  opponentCreature: false,
   yourPermanent: false,
   yourGraveCreature: false,
   artifact: true,
@@ -110,16 +112,35 @@ const NARROW_TARGETS: Record<TargetSpec['what'], boolean> = {
 
 const MARKED_TARGET = 'marked';
 
-type NarrowTarget = Pick<TargetSpec, 'what' | 'marked'>;
+type NarrowTarget = Pick<TargetSpec, 'what' | 'marked' | 'maxCost' | 'minAttack' | 'exactly'>;
+
+interface SupplyCandidate {
+  card: CardDef;
+  count: number;
+  marks: number;
+}
+
+type SupplyEntry = SupplyCandidate | { alternatives: SupplyEntry[][] };
+
+// Keep the category Set's public iteration stable. Qualified target supply
+// also needs individual card facts and copy counts, which the old categories
+// alone cannot express. No live board exists in this catalog-only converter:
+// attack supply uses printed attack plus explicitly minted token Marks.
+const QUALIFIED_SUPPLY = new WeakMap<ReadonlySet<string>, readonly SupplyEntry[]>();
 
 function narrowTargetsOf(card: CardDef): NarrowTarget[] {
   // Targeted arrival abilities live in the same `abilities` array as spell
   // bodies. Walk every ability, including non-spell triggers, because a
   // mandatory arrival target can fizzle just as completely as a spell target.
-  return (card.abilities ?? [])
-    .flatMap((ability) => ability.targets ?? [])
-    .filter((target) => NARROW_TARGETS[target.what] || target.marked === true)
-    .map(({ what, marked }) => ({ what, marked }));
+  // A Duty whose only target is narrow (an artifact or a marked creature) is
+  // exactly as dead without supply as a mandatory arrival target.
+  return [
+    ...(card.abilities ?? []).flatMap((ability) => ability.targets ?? []),
+    ...activatedAbilitiesOf(card).flatMap((ability) => ability.targets ?? []),
+  ]
+    .filter((target) => NARROW_TARGETS[target.what] || target.marked === true ||
+      target.maxCost !== undefined || target.minAttack !== undefined || target.exactly !== undefined)
+    .map(({ what, marked, maxCost, minAttack, exactly }) => ({ what, marked, maxCost, minAttack, exactly }));
 }
 
 function typeSuppliedTargets(card: CardDef | undefined): string[] {
@@ -130,7 +151,7 @@ function typeSuppliedTargets(card: CardDef | undefined): string[] {
   return supplied;
 }
 
-/** Every EffectOp a card can run: abilities, quest chapters, Empower, Retell. */
+/** Every EffectOp a card can run: abilities, quest chapters, Empower, Retell, Duty. */
 function effectOpsOf(card: CardDef): EffectOp[] {
   const flatten = (ops: readonly EffectOp[]): EffectOp[] => ops.flatMap((op) => [
     op,
@@ -141,6 +162,7 @@ function effectOpsOf(card: CardDef): EffectOp[] {
     ...(card.chapters ?? []).flat(),
     ...(card.empower?.ops ?? []),
     ...(card.retell?.ops ?? []),
+    ...activatedAbilitiesOf(card).flatMap((ability) => ability.ops),
   ]);
 }
 
@@ -151,11 +173,19 @@ function canGenerateMarks(card: CardDef | undefined): boolean {
   const createsSelfMark = card.types.includes('creature') && effectOpsOf(card).some(
     (op) => op.op === 'addCounters' && op.to === 'self',
   );
+  const activatedAddsTargetMark = (op: EffectOp): boolean =>
+    (op.op === 'addCounters' && op.to === 'target') ||
+    (op.op === 'ifTargetMarked' && [...op.then, ...(op.else ?? [])].some(activatedAddsTargetMark));
   const createsTargetMark = (card.abilities ?? []).some((ability) =>
     (ability.targets ?? []).some((target) => target.what === 'creature' || target.what === 'yourCreature') &&
     (ability.ops ?? []).some((op) => op.op === 'addCounters' && op.to === 'target'),
+  ) || activatedAbilitiesOf(card).some((ability) =>
+    (ability.targets ?? []).some((target) => target.what === 'creature' || target.what === 'yourCreature' || target.what === 'opponentCreature') &&
+    ability.ops.some(activatedAddsTargetMark),
   );
-  return createsSelfMark || createsTargetMark || effectOpsOf(card).some((op) => op.op === 'markAll');
+  return createsSelfMark || createsTargetMark || effectOpsOf(card).some((op) =>
+    op.op === 'markAll' || (op.op === 'createToken' && (op.marks ?? 0) > 0),
+  );
 }
 
 /**
@@ -177,7 +207,28 @@ function suppliedTargets(card: CardDef | undefined, db: CardDb): string[] {
 /** The narrow predicates a whole card list can put on the board. */
 export function deckTargetSupply(cards: readonly string[], db: CardDb = CARD_DB): ReadonlySet<string> {
   const supply = new Set<string>();
-  for (const id of cards) for (const what of suppliedTargets(db[id], db)) supply.add(what);
+  const candidates: SupplyEntry[] = [];
+  const tokenCandidates = (ops: readonly EffectOp[]): SupplyEntry[] => ops.flatMap((op): SupplyEntry[] => {
+    if (op.op === 'createToken' && db[op.token]) {
+      return [{ card: db[op.token], count: op.count, marks: op.marks ?? 0 }];
+    }
+    if (op.op === 'ifTargetMarked') return [{ alternatives: [tokenCandidates(op.then), tokenCandidates(op.else ?? [])] }];
+    return [];
+  });
+  for (const id of cards) {
+    const card = db[id];
+    if (!card) continue;
+    for (const what of suppliedTargets(card, db)) supply.add(what);
+    candidates.push({ card, count: 1, marks: 0 });
+    candidates.push(...tokenCandidates([
+      ...(card.abilities ?? []).flatMap((ability) => ability.ops ?? []),
+      ...(card.chapters ?? []).flat(),
+      ...(card.empower?.ops ?? []),
+      ...(card.retell?.ops ?? []),
+      ...activatedAbilitiesOf(card).flatMap((ability) => ability.ops),
+    ]));
+  }
+  QUALIFIED_SUPPLY.set(supply, candidates);
   return supply;
 }
 
@@ -192,10 +243,50 @@ export function deckTargetSupply(cards: readonly string[], db: CardDb = CARD_DB)
  * not avatar-specific.
  */
 function formatTargetSupply(source: readonly string[], db: CardDb): ReadonlySet<string> {
-  return new Set([
-    ...deckTargetSupply(STARTER_DECKS.flatMap((deck) => deck.reserveCards ?? []), db),
-    ...deckTargetSupply(source, db),
-  ]);
+  return deckTargetSupply([
+    ...STARTER_DECKS.flatMap((deck) => deck.reserveCards ?? []),
+    ...source,
+  ], db);
+}
+
+function candidateMatches(target: NarrowTarget, candidate: SupplyCandidate): boolean {
+  const { card, marks } = candidate;
+  const creature = card.types.includes('creature');
+  if (target.maxCost !== undefined && cardManaValue(card) > target.maxCost) return false;
+  if (target.minAttack !== undefined && (!creature || (card.attack ?? 0) + marks < target.minAttack)) return false;
+  switch (target.what) {
+    case 'creature':
+    case 'yourCreature':
+    case 'opponentCreature':
+      return creature;
+    case 'yourGraveCreature':
+      return creature && card.token !== true;
+    case 'artifact':
+      return card.types.includes('artifact');
+    case 'enchantment':
+      return card.types.includes('enchantment');
+    case 'artifactOrEnchantment':
+      return card.types.includes('artifact') || card.types.includes('enchantment');
+    case 'yourPermanent':
+      return card.types.some((type) => type === 'creature' || type === 'artifact' || type === 'enchantment' || type === 'land');
+    case 'spell':
+      return !card.types.includes('land') && card.token !== true;
+    case 'any':
+      return creature;
+    case 'player':
+      return false;
+  }
+}
+
+function qualifiedTargetSupplied(target: NarrowTarget, supply: ReadonlySet<string>): boolean {
+  if (target.maxCost === undefined && target.minAttack === undefined && target.exactly === undefined) return true;
+  const candidates = QUALIFIED_SUPPLY.get(supply) ?? [];
+  const countMatches = (entries: readonly SupplyEntry[]): number => entries.reduce((sum, candidate) =>
+    sum + ('alternatives' in candidate
+      ? Math.max(...candidate.alternatives.map(countMatches))
+      : candidateMatches(target, candidate) ? candidate.count : 0), 0);
+  const count = countMatches(candidates);
+  return count >= (target.exactly ?? 1);
 }
 
 /**
@@ -214,7 +305,8 @@ export function hasNoLegalTargets(
   if (narrow.length === 0) return false;
   return !narrow.some((target) =>
     (!NARROW_TARGETS[target.what] || supply.has(target.what)) &&
-    (target.marked !== true || supply.has(MARKED_TARGET)),
+    (target.marked !== true || supply.has(MARKED_TARGET)) &&
+    qualifiedTargetSupplied(target, supply),
   );
 }
 

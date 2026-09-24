@@ -15,6 +15,7 @@ import { LANDS } from './cards/lands';
 import { RAGNAROK } from './cards/ragnarok';
 import { SANDS_OF_THE_DUAT } from './cards/sands-of-the-duat';
 import { STARBORNE } from './cards/starborne';
+import { DROWNED_DEEP } from './cards/drowned-deep';
 import { SORCERIES } from './cards/sorceries';
 import { TK_JIN } from './cards/tk-jin';
 import { TK_OTHER } from './cards/tk-other';
@@ -22,7 +23,7 @@ import { TK_SHU } from './cards/tk-shu';
 import { TK_WEI } from './cards/tk-wei';
 import { TK_WU } from './cards/tk-wu';
 import { TOKENS } from './cards/tokens';
-import { DUAT_SET, STARBORNE_SET } from './liveness';
+import { DUAT_SET, STARBORNE_SET, DROWNED_DEEP_SET } from './liveness';
 
 // The Hauntlink engine sibling owns the CardDef set-union expansion. Keep the
 // catalog's runtime stamp wired in this wave so the data can land independently
@@ -58,6 +59,7 @@ const SET_GROUPS: readonly { set: SetKey; cards: readonly CardDef[] }[] = [
   { set: 'yokai-nights', cards: YOKAI_NIGHTS },
   { set: DUAT_SET, cards: SANDS_OF_THE_DUAT },
   { set: STARBORNE_SET, cards: STARBORNE },
+  { set: DROWNED_DEEP_SET, cards: DROWNED_DEEP },
 ];
 
 function buildDb(): CardDb {

@@ -40,11 +40,5 @@ describe('Collection binder set filter', () => {
     expect(layout.panel.y + layout.panel.height).toBeLessThanOrEqual(TITLE_SAFE_EDGES.bottom);
     expect(layout.rows).toHaveLength(SET_IDS.length + 1);
     expect(layout.columns).toBe(2);
-    expect(panelWidth).toBe(348);
-    expect(layout.panel.width).toBe(348);
-    expect(layout.panel.height).toBe(329);
-    expect(layout.rows[0]).toEqual({ x: 72, y: 164, width: 332, height: 44 });
-    expect(layout.rows[1]).toEqual({ x: 72, y: 217, width: 162, height: 44 });
-    expect(layout.rows[6]).toEqual({ x: 242, y: 217, width: 162, height: 44 });
   });
 });

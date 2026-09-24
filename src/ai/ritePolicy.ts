@@ -7,7 +7,7 @@ import { cardValue, empowerValue, permValue } from './value';
 type SpellCast = Extract<Action, { type: 'castSpell' }>;
 
 function cardIdFor(view: PlayerView, cast: SpellCast): string {
-  return cast.retell && cast.graveIndex !== undefined
+  return (cast.retell || cast.whispers) && cast.graveIndex !== undefined
     ? view.you.graveyard[cast.graveIndex]
     : view.you.hand[cast.handIndex];
 }
@@ -47,7 +47,8 @@ export function chooseRiteSacrifices(
     candidate.value > best.value ? candidate : best,
   );
   const fodder = creatures
-    .filter(({ perm }) => perm.iid !== protectedBody.perm.iid)
+    .filter(({ perm }) => perm.iid !== protectedBody.perm.iid &&
+      !cast.targets?.some((target) => target.kind === 'permanent' && target.iid === perm.iid))
     .sort((a, b) => a.value - b.value || a.index - b.index)
     .slice(0, rite.n);
   if (fodder.length !== rite.n) return undefined;

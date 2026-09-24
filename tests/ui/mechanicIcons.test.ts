@@ -13,7 +13,7 @@ import { CARD_TYPE_DEFINITIONS } from '../../src/ui/rulesText';
 describe('mechanic and card-type icons', () => {
   it('covers every named mechanic plus the two zone terms', () => {
     for (const id of Object.keys(MECHANIC_NAMES)) {
-      expect(MECHANIC_ICON_KEY[id as keyof typeof MECHANIC_ICON_KEY]).toBe(`mechanic-${id}`);
+      expect(MECHANIC_ICON_KEY[id as keyof typeof MECHANIC_ICON_KEY]).toBe(id === 'duty' ? 'pip-T' : `mechanic-${id}`);
     }
     expect(MECHANIC_ICON_KEY.warchest).toBe('mechanic-warchest');
     expect(MECHANIC_ICON_KEY.darlings).toBe('mechanic-darlings');
@@ -23,6 +23,15 @@ describe('mechanic and card-type icons', () => {
   it('covers every card type', () => {
     expect(Object.keys(CARD_TYPE_ICON_KEY).sort()).toEqual(Object.keys(CARD_TYPE_DEFINITIONS).sort());
     for (const key of Object.values(CARD_TYPE_ICON_KEY)) expect(key).toMatch(/^cardtype-/);
+  });
+
+  it('gives Whispers and Tithe distinct mechanic textures beside Retell and Rite', () => {
+    expect(MECHANIC_ICON_KEY.whispers).toBe('mechanic-whispers');
+    expect(MECHANIC_ICON_KEY.tithe).toBe('mechanic-tithe');
+    expect(new Set([
+      MECHANIC_ICON_KEY.whispers, MECHANIC_ICON_KEY.tithe,
+      MECHANIC_ICON_KEY.retell, MECHANIC_ICON_KEY.rite,
+    ]).size).toBe(4);
   });
 
   it('gives every texture key a unique name across all three icon families', () => {

@@ -44,9 +44,9 @@ describe('persona CLI defaults', () => {
     expect(artifact.iterations).toBe(80);
     expect(artifact.seeds).toBe(150);
     expect(artifact.field).toBe('prefabs');
-    // 2026-08-29 Starborne shop-theme wave: the authored Starborne product is
-    // a new player prefab, so the approved reference field grows from 12 to 13.
-    expect(artifact.referenceField).toHaveLength(13);
+    // 2026-09-15 Drowned Deep retail wave: Lanterns Below grows the
+    // approved player-prefab reference field from 13 to 14.
+    expect(artifact.referenceField).toHaveLength(14);
   });
 
   it('requires exactly one persona selection mode', () => {

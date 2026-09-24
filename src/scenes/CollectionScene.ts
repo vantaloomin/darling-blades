@@ -54,6 +54,7 @@ import {
 } from '../ui/collectionSort';
 import { addKeywordGlossaryPanel } from '../ui/KeywordGlossaryPanel';
 import { ModalGuard } from '../ui/Modal';
+import { gateOnArt } from '../ui/artGate';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { createSearchInput } from '../ui/SearchInput';
 import {
@@ -63,6 +64,7 @@ import {
   shardHoldDuration,
   shardMoteCount,
 } from '../ui/shardRitual';
+import { HEADER_CURRENCY_ANCHOR } from '../ui/layout';
 import { colorInt, theme } from '../ui/theme';
 import { queueAchievementUnlockToasts } from '../ui/achievementToast';
 import { Toast } from '../ui/Toast';
@@ -111,12 +113,10 @@ const ATELIER_CARD = {
 //   row 1: image 397.5..602.5, face 401.3..598.7, badge strip centre 612.7
 // Everything (bleed included) tops out at ~621.7 — 98px above the 720 bound
 // (the pre-rewrite grid cropped its bottom row 19px past 720).
-// Above: chip row A centre y=84 (hit 59..109), row B centre y=136 (hit
-// 111..161) — 4.5px clear of the top pockets' hit rects at 165.5, so chips
-// and cards can never steal each other's taps.
-// Below: page label at y=655, covered by nothing.
-// Pager columns (hit 30..120 and 1160..1250) clear the outermost card faces
-// (156.5 / 1123.5) on both sides.
+// Above: the header row on the shared header line (y 58, track 36..80) and
+// the filter bar (centre y=104, hit 82..126), clear of the top pockets' hit
+// rects at 165.5, so controls and cards can never steal each other's taps.
+// Below: the pager at y=655 (hit 633..677), covered by nothing.
 // ---------------------------------------------------------------------------
 const THUMB_CARD_SCALE = 0.47;
 const FACE_W = 300 * THUMB_CARD_SCALE; // 141
@@ -162,6 +162,12 @@ export class CollectionScene extends Phaser.Scene {
   private holoMove: ((p: Phaser.Input.Pointer) => void) | null = null;
   /** Cancels a release ritual if the inspect card is closed or rebuilt mid-flight. */
   private inspectRitualCleanup: (() => void) | null = null;
+  /**
+   * A shard changed the counts but the binder beneath the overlay has not
+   * re-rendered yet. The ritual's own finish re-renders it; if the overlay
+   * closes first, closeInspect does, so a thumb never keeps a stale ×N / ✦N.
+   */
+  private binderStale = false;
   /** The DOM search <input> — hidden while the inspect overlay is open (DOM
    * elements always float above the canvas, so the dim can't cover it). */
   private searchInput: Phaser.GameObjects.DOMElement | null = null;
@@ -172,7 +178,11 @@ export class CollectionScene extends Phaser.Scene {
     super('Collection');
   }
 
+  /** The binder pages through the whole set, so it waits for the whole set. */
   create(): void {
+    gateOnArt(this, null, () => this.build());
+  }
+  private build(): void {
     this.state = { ...defaultFilterState(), ownedOnly: true };
     this.page = 0;
     this.sortSelection = DEFAULT_COLLECTION_SORT;
@@ -187,6 +197,7 @@ export class CollectionScene extends Phaser.Scene {
     this.inspectDef = null;
     this.holoMove = null;
     this.inspectRitualCleanup = null;
+    this.binderStale = false;
 
     // Backdrop first (docs/scene-art.md §3); the gradient is the fallback.
     applyBackdrop(this, 'collection', {
@@ -209,9 +220,14 @@ export class CollectionScene extends Phaser.Scene {
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('shop'); // the light browsing bed
 
-    // Header band (y 0..56, above chip row A's hit top at 59).
+    // Header row on the shared header line (theme.design.headerCenterY), the
+    // back button's line, so every header control and label sits inside the
+    // title-safe frame. The title, search, and counters sat at y 30 until the
+    // 1.8 cut (2026-09-23), their boxes starting above the frame's top edge.
+    // The filter bar's hit band begins at 82, below the header track (36-80).
+    const headerY = theme.design.headerCenterY;
     this.add
-      .text(DESIGN_W / 2, 30, 'Collection', {
+      .text(DESIGN_W / 2, headerY, 'Collection', {
         fontFamily: theme.fonts.display,
         fontSize: `${theme.type.h1}px`,
         color: theme.colors.heading,
@@ -219,16 +235,17 @@ export class CollectionScene extends Phaser.Scene {
       .setOrigin(0.5);
     // Crafting spends gold here, so keep the shared currency badge beside the
     // collection stats and refresh it with the binder view.
-    this.goldBadge = goldBadge(this, DESIGN_W - 30, 30, { flashOnChange: true });
+    this.goldBadge = goldBadge(this, HEADER_CURRENCY_ANCHOR.x, HEADER_CURRENCY_ANCHOR.y, { flashOnChange: true });
+    // The two stat lines stack on the header line, one half-pitch either side.
     this.counterText = this.add
-      .text(DESIGN_W - 200, 30, '', {
+      .text(DESIGN_W - 200, headerY - 11, '', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.label}px`,
         color: theme.colors.muted,
       })
       .setOrigin(1, 0.5);
     this.completionText = this.add
-      .text(DESIGN_W - 200, 52, '', {
+      .text(DESIGN_W - 200, headerY + 11, '', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         color: theme.colors.muted,
@@ -256,9 +273,13 @@ export class CollectionScene extends Phaser.Scene {
 
     // Card search (F8): the DOM <input> feeds state.search through the same
     // reset-page + re-render path the filter chips use.
-    this.searchInput = createSearchInput(this, 355, 30, {
+    // The old "Search name / type / trait / mechanic…" measured ~250 px of 14 px
+    // Inter against the box's 228 px content width and cut off at "mechan".
+    // This hint keeps all four search fields at ~187 px.
+    this.searchInput = createSearchInput(this, 355, headerY, {
       width: 250,
-      placeholder: 'Search name / type / trait / mechanic…',
+      placeholder: 'Name, type, trait, mechanic…',
+      accessibleName: 'Search cards by name, type, trait, or mechanic',
       onChange: (value) => {
         this.state.search = value;
         this.page = 0;
@@ -389,6 +410,7 @@ export class CollectionScene extends Phaser.Scene {
    * gating — not container hit areas — is the safety here).
    */
   private renderPage(dir = 0): void {
+    this.binderStale = false;
     const save = Services.save.data;
     const collectible = collectiblePool(ALL_CARDS);
     const pool = this.currentPool();
@@ -398,8 +420,12 @@ export class CollectionScene extends Phaser.Scene {
     const completion = collectionCompletion(ALL_CARDS, save);
     this.goldBadge.refresh(save.gold);
     this.counterText.setText(`${ownedKinds}/${collectible.length} collected`);
+    // Floor, from the integer counts: rounding showed 1,481 of 1,482 as 100%,
+    // and 100% must mean complete. Integer math also dodges 0.29 * 100 =
+    // 28.999... flooring a whole percent away.
+    const poolPercent = completion.total === 0 ? 0 : Math.floor((completion.owned * 100) / completion.total);
     this.completionText.setText(
-      `${Math.round(completion.percent * 100)}% pool  |  ${completion.variants.specialCards} special cards`,
+      `${poolPercent}% pool · ${completion.variants.specialCards} special cards`,
     );
     this.pageControl.refresh(this.page, pageCount(pool.length, SPREAD_SIZE));
     this.emptyText.setVisible(pool.length === 0);
@@ -541,17 +567,22 @@ export class CollectionScene extends Phaser.Scene {
     // That release belongs to the hold, so the dim swallows exactly one
     // pointerup when it was built under an already-held pointer.
     let swallowHeldRelease = this.input.activePointer?.isDown === true;
+    // The same applies DURING the release ritual: a completed shard hold turns
+    // its button off, so the thumb's release falls through to this dim. It
+    // used to close the view mid-dissolve and cancel the ritual's binder
+    // refresh. The ritual is under a second long; Esc still closes it.
+    let ritualInProgress = false;
     dim.on('pointerup', () => {
       if (swallowHeldRelease) {
         swallowHeldRelease = false;
         return;
       }
+      if (ritualInProgress) return;
       if (this.time.now - openedAt < INSPECT_CLOSE_LOCK_MS) return; // swallow double-click flash
       this.closeInspect();
     });
     const shown = owned > 0 ? displayVariantFor(save, d.id) : null;
     let displayedVariant: CardVariant | undefined = shown ?? undefined;
-    let ritualInProgress = false;
     let comparisonVariant: CardVariant | undefined;
     let comparisonActive = false;
     let touchScrubbing = false;
@@ -572,15 +603,17 @@ export class CollectionScene extends Phaser.Scene {
       .ellipse(ATELIER_CARD.x, 588, 350, 30, colorInt(theme.colors.gold), 0.2)
       .setBlendMode(Phaser.BlendModes.ADD)
       .setVisible(false);
+    // Hung from the title-safe frame's top edge; centred on y 38 its box
+    // began above the frame (1.8 cut, 2026-09-23).
     const galleryTitle = this.add
-      .text(ATELIER_CARD.x, 38, 'FULL ART GALLERY LIGHT', {
+      .text(ATELIER_CARD.x, theme.design.safeTop, 'FULL ART GALLERY LIGHT', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.micro}px`,
         fontStyle: theme.weight.w700,
         color: theme.colors.gold,
         letterSpacing: 1.4,
       })
-      .setOrigin(0.5)
+      .setOrigin(0.5, 0)
       .setVisible(false);
     const view = new CardView(this, ATELIER_CARD.x, ATELIER_CARD.y);
     view.setScale(ATELIER_CARD.scale).setCard(
@@ -966,6 +999,9 @@ export class CollectionScene extends Phaser.Scene {
           if (row.background.active) row.background.destroy();
           if (row.text.active) row.text.destroy();
           if (row.odds.active) row.odds.destroy();
+          // The pin is a themed button: without this the previous page's pins
+          // stayed behind (and stayed tappable) over the new page's rows.
+          if (row.pin.container.active) row.pin.container.destroy();
         }
         rows = [];
         const start = page * VARIANT_ROWS;
@@ -1246,6 +1282,7 @@ export class CollectionScene extends Phaser.Scene {
           // Keep the economy seam byte-for-byte identical and invoke it only
           // when the hold completes.
           const result = shardExcess(save, CARD_DB, d.id);
+          this.binderStale = true;
           const checkpoint = checkpointAchievements(save, CARD_DB);
           Services.save.flush();
           if (checkpoint.changed) queueAchievementUnlockToasts(checkpoint.ids);
@@ -1459,5 +1496,8 @@ export class CollectionScene extends Phaser.Scene {
     }
     this.inspectDef = null;
     this.searchInput?.setVisible(true);
+    // Closed (Esc, or a rebuild) before a shard ritual finished: its binder
+    // refresh was cancelled with it, so land the new ×N / ✦N badges here.
+    if (this.binderStale) this.renderPage();
   }
 }

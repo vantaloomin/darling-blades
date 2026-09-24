@@ -67,7 +67,10 @@ const firstAvailableProposal = (
   return incoming ? proposalWithIncoming(current, incoming) : null;
 };
 
-describe('persona metagame loop', () => {
+// 2026-09-15: every test in this block plays real crafts, and the live pool (1,482 cards) with the
+// 14-prefab field pushes several past vitest's 5 s default on CI hardware, so the whole block
+// carries the 120 s budget the long-running ones already declared.
+describe('persona metagame loop', { timeout: 120_000 }, () => {
   it('keeps round 0 byte-identical to the v1 craft through the real measure path', () => {
     const singleDir = mkdtempSync(join(tmpdir(), 'darling-persona-single-'));
     const metagameDir = mkdtempSync(join(tmpdir(), 'darling-persona-metagame-'));
@@ -140,7 +143,7 @@ describe('persona metagame loop', () => {
       templateVersion: PERSONA_TEMPLATE_VERSION,
       measured: { field: 'personas' },
     });
-  });
+  }, 120000);
 
   it('uses prior-round fields for every response in a round', () => {
     const candidateByPersona = new Map<string, string>();
@@ -310,7 +313,7 @@ describe('persona metagame loop', () => {
     ]);
     // Pure observer, exactly like onProgress: identical results either way.
     expect(JSON.stringify(withHook.artifacts)).toBe(JSON.stringify(without.artifacts));
-  });
+  }, 120000);
 
   it('carries usable rounds in a checkpoint artifact, never a finished-looking one', () => {
     const seen: Array<Record<string, unknown>> = [];
@@ -585,7 +588,7 @@ describe('persona metagame loop', () => {
     const rotated = readdirSync(dir).filter((name) => name.startsWith('craft-journal.jsonl.old-'));
     expect(rotated).toHaveLength(1);
     expect(readFileSync(join(dir, rotated[0]), 'utf8')).toBe(before);
-  });
+  }, 120000);
 
   it('uses actual persona IDs for non-roster order and resumes those entries', () => {
     const first = mkdtempSync(join(tmpdir(), 'darling-order-first-'));

@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-telemetry-and-accounts.md, docs/rollout-telemetry-and-accounts.md, src/version.ts, src/meta/SaveManager.ts, src/meta/services.ts, src-tauri/tauri.conf.json, src-tauri/src/lib.rs · last-verified: 2026-09-15 · DRAFT privacy policy as of 1.8 — not live, not legal advice; the field list must match src/meta/playSignals.ts once it exists -->
+<!-- source-of-truth: docs/plan-telemetry-and-accounts.md, docs/rollout-telemetry-and-accounts.md, src/version.ts, src/meta/SaveManager.ts, src/meta/services.ts, src-tauri/tauri.conf.json, src-tauri/src/lib.rs · last-verified: 2026-09-23 · DRAFT privacy policy as of 1.8 — not live, not legal advice; the field list must match src/meta/playSignals.ts once it exists -->
 
 <!--
 DRAFT, written as of the 1.8 release (telemetry wave T2). Not published. Not
@@ -73,15 +73,15 @@ button.
 
 If "Share anonymous play stats" is on in Settings, the game sends short
 summaries of how it is played to a service we run on Cloudflare, at
-`db-signals.loominvanta.workers.dev`. It is on by default. Players who had the
-game before version 1.8 are told about it once, the first time they open 1.8.
+`db-signals.loominvanta.workers.dev`. It is on by default. Every player is
+told about it once, in the game, before anything is sent.
 The Privacy panel in Settings shows this same list.
 
 **What we want to learn:** which formats and colours get played, how long
 duels last, how far players get, and whether players come back to the game.
 We use this only to improve the game.
 
-**What is sent.** Two kinds of summary, and nothing else:
+**What is sent.** Three kinds of summary, and nothing else:
 
 <!-- Keep this list identical to the allowlist constant in src/meta/playSignals.ts. -->
 
@@ -91,9 +91,9 @@ We use this only to improve the game.
 - device size category (phone, tablet, or computer), never your screen size
 - language, as two letters (for example `en`)
 - a few display settings (animation level, reduced motion, render scale)
-- your daily streak, achievements, wins, packs opened, and collection size,
-  each rounded into a broad range (for example "streak 7 to 13"), never an
-  exact number
+- your daily streak, achievements, wins, losses, packs opened, and
+  collection size, each rounded into a broad range (for example "streak 7 to
+  13"), never an exact number
 - whether you finished the tutorial, and your best Gauntlet rung
 
 *After each finished duel, a duel summary:*
@@ -101,23 +101,34 @@ We use this only to improve the game.
 - the format, your deck's colours, a general deck type from our own list, and
   a broad range for the deck's mana curve
 - whether the deck was a starter, a custom deck, or a draft deck
-- which built-in computer opponent you played, the difficulty, the number of
-  turns, mulligans, and the result
-- which cards were played and how often, sent as separate entries that are
-  not connected to the duel or the deck
+- which built-in computer opponent you played, the difficulty, a broad range
+  for the number of turns, mulligans, and whether you won, lost, drew, or
+  conceded
+
+*When you leave or close the game, a card summary:*
+
+- which cards you played during that session, each with a broad range for how
+  often (for example "2 to 3 times"), and a broad range for how many duels the
+  session held
+- these entries are kept only in memory while you play, are never saved on
+  your device, and are not connected to any duel or deck. If the game closes
+  unexpectedly, they are simply lost
 
 **What is never sent:** your deck names or any other text you type, save
 codes, replays, your exact collection, your IP address or location, your
 exact screen size, or your full browser identification string.
 
-**How it stays anonymous.** The game creates no identifier. The only thing it
-stores on your device for this feature is your on or off choice, inside your
-save. Our service does see your IP address when
+**How it stays anonymous.** The game creates no identifier. The only things it
+stores on your device for this feature are your on or off choice and which
+version of the play stats notice you have been shown, both inside your save.
+Our service does see your IP address when
 the summary arrives, as every internet request does. It uses the IP address
-only in memory, together with your browser type and a random value that is
-replaced every 24 hours and never saved, to count each device once per day.
-The IP address itself is never written down. Because the daily random value is
-thrown away, even we cannot connect one day's summaries to another's.
+only in memory, together with your browser type and a random value, to count
+each device once per day. The IP address itself is never written down. The
+random value is created fresh each day, kept only for that day, and then
+deleted. Because it is deleted, even we cannot connect one day's summaries to
+another's, and nobody can later work out whether a particular device sent
+one.
 
 **Legal basis (GDPR).** Our legitimate interest in understanding how the game
 is played so we can improve it (Article 6(1)(f)). We think this interest is

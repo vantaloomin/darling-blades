@@ -416,14 +416,30 @@ export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   1: { maxAvg: 0.45, cellMax: 0.65 },
   2: { maxAvg: 0.45, cellMax: 0.65 },
   3: { maxAvg: 0.45, cellMax: 0.65 },
-  4: { minAvg: 0.3, maxAvg: 0.62 },
-  5: { minAvg: 0.35, maxAvg: 0.67 },
-  6: { minAvg: 0.4, maxAvg: 0.72 },
-  7: { minAvg: 0.45 },
-  8: { minAvg: 0.55 },
-  9: { minAvg: 0.55 },
-  10: { minAvg: 0.6 },
-  11: { minAvg: 0.65 },
+  // 4-13 RE-CENTRED 2026-09-21 (owner-authorized, 1.8 QC day) on the
+  // reserve-native avatar matrix at 200 seeds, the table dated 2026-09-21 in
+  // src/data/opponents.ts. These ten minimums had carried classic-format
+  // values since 2026-07-31 (the format retired on 2026-08-10) and had never
+  // been re-measured on this harness, so a manual `--avatars` run flagged
+  // rungs 4, 6, 11, 12 and 13 against a game that no longer exists. Same
+  // method as every other band here: the 200-seed average minus the 6.5pp
+  // 40-seed noise band, rounded down to the half point. Measured: R4 28.8 ·
+  // R5 43.9 · R6 22.1 · R7 76.1 · R8 63.1 · R9 67.8 · R10 75.6 · R11 43.0 ·
+  // R12 58.6 · R13 49.9. Four go DOWN (4, 6, 11, 13) and six go UP; both
+  // directions are the same one-time re-centre, and the maxAvg ceilings on
+  // 4-6 are untouched. Superseded values, for the record: R4 .3 · R5 .35 ·
+  // R6 .4 · R7 .45 · R8 .55 · R9 .55 · R10 .6 · R11 .65 · R12 .675 · R13 .565.
+  // The shape these numbers describe (Hestia 8, Sima Yi 22, The Morrigan 43,
+  // Yohime 76 at rung 7) is recorded there as a 1.9 lower-tower pass; nothing
+  // in a list changed here.
+  4: { minAvg: 0.22, maxAvg: 0.62 },
+  5: { minAvg: 0.37, maxAvg: 0.67 },
+  6: { minAvg: 0.155, maxAvg: 0.72 },
+  7: { minAvg: 0.695 },
+  8: { minAvg: 0.565 },
+  9: { minAvg: 0.61 },
+  10: { minAvg: 0.69 },
+  11: { minAvg: 0.365 },
   // 12-20 re-centred 2026-07-31 from the W7 combined re-baseline (200
   // seeds/cell on the post-balance-pass field): each min is the 200-seed
   // average minus a 6.5pp 40-seed noise band, rounded down to the half
@@ -461,7 +477,7 @@ export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   //     cheap removal to offset four taplands she cannot change.
   // The ladder still dips at R19 (61) and R21 (57) relative to R18/R20; that
   // shape is the accepted, documented non-monotonic summit, not a regression.
-  12: { minAvg: 0.675 },
+  12: { minAvg: 0.52 },
   // 13-14 calibrated 2026-07-16 from fresh 40-seed tower measurements (66%/66%
   // after two card-buff rounds + six deck iterations; CI margin ~4pp at 40
   // seeds). The AC rungs are quest/attrition gates, not stat walls; Brunhild's
@@ -469,19 +485,34 @@ export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   // measured 76%), so a non-monotonic summit continues the accepted pattern.
   // Closing the residual 10pp vs R11/12 needs in-color W/U removal (a future
   // set) or heavier cross-set splash - recorded in opponents.ts's baseline.
-  13: { minAvg: 0.565 },
+  // (13's value is the 2026-09-21 re-centre above; 14 keeps its own.)
+  13: { minAvg: 0.43 },
   14: { minAvg: 0.565 },
   // 15-22 carry the 2026-08-23 reserve-native re-centre described above.
   // Superseded classic values, for the record: R15 .675 R16 .605 R17 .705
   // R18 .775 R19 .555 R20 .645 R21 .445 R22 .705.
-  15: { minAvg: 0.645 },
+  // SYNCED 2026-09-19 to the floors tests/ai/winrate.test.ts gates on. These
+  // bands had drifted behind the gate: rung 21 still carried its pre-ratchet
+  // .505 and rungs 23-26 had no band at all, so a manual `--avatars` run
+  // could not flag a summit boss under her own floor. The gate is the
+  // authority; when a floor ratchets there, it ratchets here in the same PR.
+  // 2026-09-19 re-baseline on the final 1.8 pool: R15 .645 -> .655,
+  // R17 .685 -> .705, R18 .795 -> .82; R16, R19 and R20 kept (candidates
+  // under the standing floor are recorded, never applied). R20 then took her
+  // tuning pass the same day and ratcheted .805 -> .815, and R19 hers,
+  // .545 -> .65.
+  15: { minAvg: 0.655 },
   16: { minAvg: 0.625 },
-  17: { minAvg: 0.685 },
-  18: { minAvg: 0.795 },
-  19: { minAvg: 0.545 },
-  20: { minAvg: 0.805 },
-  21: { minAvg: 0.505 },
+  17: { minAvg: 0.705 },
+  18: { minAvg: 0.82 },
+  19: { minAvg: 0.65 },
+  20: { minAvg: 0.815 },
+  21: { minAvg: 0.585 },
   22: { minAvg: 0.685 },
+  23: { minAvg: 0.655 },
+  24: { minAvg: 0.645 },
+  25: { minAvg: 0.595 },
+  26: { minAvg: 0.685 },
 });
 
 // ---------------------------------------------------------------------------
@@ -1664,6 +1695,51 @@ export interface FloorMatrixReport {
  * every TIER moved under 3pp. The tower has now absorbed a set launch, a
  * companion wave, a 68-card health triage and two summit tunes without a
  * downward re-centre being spent.
+ *
+ * ===========================================================================
+ * RE-MEASURED 2026-09-21 - THE 1.8 QC-DAY FLOOR READING (release tip 7ce84b2).
+ * ===========================================================================
+ * `--floors --seeds 80`, 26 floors x 5 starters = 10,400 games, 2,050s, one
+ * turn-limit draw. The first floor measurement since the 1.6 cut; neither the
+ * 1.7 cut nor any 1.8 tune re-ran it, and tests/ai/balance.test.ts is
+ * `describe.skip` (a manual tool), so nothing in CI watches these bands.
+ *   T1 floors 1-3:   14.3 / 15.8 / 16.5        avg 15.5
+ *   T2 floors 4-6:   20.5 / 20.3 / 21.3        avg 20.7
+ *   T3 floors 7-9:   39.8 / 38.5 / 40.3        avg 39.5
+ *   T4 floors 10-12: 49.5 / 50.0 / 49.3        avg 49.6
+ *   T5 floors 13-15: 51.2 / 57.5 / 51.7        avg 53.5
+ *   T6 floors 16-26: 64.8 / 64.5 / 63.0 / 65.5 / 66.1 / 67.3 / 64.3 / 63.5 /
+ *                    65.5 / 63.5 / 67.0        avg 65.0
+ * Plateau gaps +5.2 / +18.8 / +10.1 / +3.9 / +11.5. FLAGS: floors 16-22 read
+ * under the T6 band minimum of 68 (the manual test tolerates 63, and floor 18
+ * reads exactly 63.0). T4->T5 is +3.9, under the 4-point spacing this block
+ * has held itself to.
+ *
+ * WHEN IT MOVED: the same command on the v1.7.2 tag (24 floors) reads
+ *   T1 16.6 · T2 22.2 · T3 37.5 · T4 43.8 · T5 51.8 · T6 66.2
+ * with its own flags on floors 4, 13, 17, 18, 19 and 21. So T6 fell from
+ * 72.0 to 66 DURING 1.7 and nobody measured it; 1.8 moved T6 by -1.2, which
+ * is inside noise, and lifted the middle (T3 +2.0, T4 +5.8, T5 +1.7). 1.8 did
+ * not soften the tower. What 1.7 changed under this matrix: two more avatars
+ * in the rotation, the 49-card redundancy recost, and the Medium proxy in the
+ * player's seat learning marks; which of those carried the six points was not
+ * isolated on QC day.
+ *
+ * THE T6 BAND WAS RE-CENTRED THE SAME DAY (owner-authorized, the ruling the
+ * paragraph above asked for): .68 -> .585, the tier average 65.0 minus the
+ * 6.5pp noise band rounded down, and floors 23-26 got the same row, their
+ * first. A band the tower has not met for two releases guards nothing; this
+ * one guards the tower that ships. The alternative, tuning T6 back up toward
+ * 72 through src/ai/tiers.ts, was NOT taken for 1.8: it would move every duel
+ * on the top eleven floors a week before the cut, and the drop is the Medium
+ * proxy in the player's seat getting smarter, not the tower getting easier
+ * for a human. If 1.9 wants the summit harder, that is the lever, measured
+ * against a human. T1-T5 rows are untouched: all hold with margin (closest:
+ * F5 at 20.3 against .2).
+ *
+ * RUN THIS AT EVERY CUT. Nothing in CI does (the vitest wrapper is
+ * describe.skip), which is how a six-point drop went unmeasured through a
+ * whole release. docs/git-workflow.md carries it on the cut checklist now.
  */
 export const FLOOR_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   1: { maxAvg: 0.33, cellMax: 0.5 },
@@ -1686,16 +1762,16 @@ export const FLOOR_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   13: { minAvg: 0.5, maxAvg: 0.72 },
   14: { minAvg: 0.5, maxAvg: 0.72 },
   15: { minAvg: 0.5, maxAvg: 0.72 },
-  16: { minAvg: 0.68 },
+  16: { minAvg: 0.585 },
   // Measured 2026-07-24 at 80 seeds: F17 73.1 / F18 72.5 - the T6 plateau
   // holds across the Dark Tales summit floors with 4.5pp+ margin over 68.
-  17: { minAvg: 0.68 },
-  18: { minAvg: 0.68 },
+  17: { minAvg: 0.585 },
+  18: { minAvg: 0.585 },
   // Floors 19-20 were ungated until 2026-08-10 simply because the roster grew
   // to 20 after these bands were written. Reserve-native measurement at 80
   // seeds: F19 73.8 / F20 71.0, so the same T6 floor keeps 3.0pp+ margin.
-  19: { minAvg: 0.68 },
-  20: { minAvg: 0.68 },
+  19: { minAvg: 0.585 },
+  20: { minAvg: 0.585 },
   // Floors 21-22 RE-BASELINED 2026-08-23, `--floors --seeds 80` (22 floors x
   // 5 starters, 8,800 games, 917s). This retires a PROVISIONAL pair that was
   // a category error: 0.445/0.705 were carried over from ANUBIS's and
@@ -1707,8 +1783,14 @@ export const FLOOR_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   // F20 70.8 · F21 74.0 · F22 70.5. Floors 21-22 are tier 6 like 16-20, so
   // they take the same plateau band, which keeps 2.5pp of margin at the
   // weakest row against a ~2.4pp per-row SE at 80 seeds.
-  21: { minAvg: 0.68 },
-  22: { minAvg: 0.68 },
+  21: { minAvg: 0.585 },
+  22: { minAvg: 0.585 },
+  // Floors 23-26 gated for the first time 2026-09-21 (the roster reached 26
+  // on 2026-09-15 and these rows were never written). Same T6 plateau band.
+  23: { minAvg: 0.585 },
+  24: { minAvg: 0.585 },
+  25: { minAvg: 0.585 },
+  26: { minAvg: 0.585 },
 });
 
 /**

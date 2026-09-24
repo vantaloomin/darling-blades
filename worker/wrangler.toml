@@ -1,0 +1,72 @@
+# db-signals: the anonymous play-signals endpoint.
+# Spec: docs/plan-telemetry-and-accounts.md · rollout: docs/rollout-telemetry-and-accounts.md
+# Deploy: `npx wrangler deploy` from this directory with CLOUDFLARE_API_TOKEN and
+# CLOUDFLARE_ACCOUNT_ID in the environment (never in the repo).
+#
+# No secret and no token appears in this file or anywhere else in the repo.
+# `SALT_SECRET` is a Worker secret, set once with `wrangler secret put SALT_SECRET`
+# (done by the owner 2026-09-17). It is NOT a [vars] entry: [vars] is plaintext
+# in the dashboard and in `wrangler deploy` output.
+name = "db-signals"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+workers_dev = true
+# One hostname only. Version preview URLs would be extra public endpoints
+# that the privacy page does not name.
+preview_urls = false
+
+# Workers Analytics Engine. Retention is a fixed 90 days; the daily rollup
+# (T3) is what survives past it. The dataset name is versioned so a schema
+# change never mixes shapes in one table.
+#
+# v2, not the spike's v1: the column layout changed with the 2026-09-17 schema
+# rulings (three events instead of two, bucket LABELS instead of small ints,
+# `concede`, `lossesBucket`, `duelsBucket`, and card rows on their own event).
+# The layout is documented at the top of src/index.ts.
+[[analytics_engine_datasets]]
+binding = "SIGNALS"
+dataset = "db_signals_v2"
+
+# The daily de-duplication salt (D-T0.2). ONE key per UTC day, shared by every
+# isolate, deleted automatically when the day is over. See src/index.ts.
+#
+# Namespace `db-signals-salt`, created 2026-09-18 with
+#   npx wrangler kv namespace create db-signals-salt
+# The id names the namespace and is not a secret: reading or writing it still
+# needs an account token. It holds one key, today's salt, and nothing else.
+[[kv_namespaces]]
+binding = "SALT_KV"
+id = "6f5eea2102c7446880ae42212e7d1690"
+
+# Spam brake. Corrected 2026-09-17: a `workers.dev` hostname has no zone, so a
+# dashboard rate-limiting rule cannot attach to this Worker; the binding is the
+# only mechanism, and it is code rather than an owner step.
+#
+# Keyed on the same daily hash the de-duplication uses, so the limit follows an
+# install for a day and never needs an identifier of its own. Deliberately
+# permissive: a real install sends one heartbeat, a handful of duel digests and
+# one card batch per launch, so 120 requests in 60 seconds is orders of
+# magnitude above real use and still stops a flood. The binding counts per
+# Cloudflare location, which suits a brake and is not an accounting system.
+#
+# NOTE the field is `name`, not `binding`: the rate-limit binding is the one
+# Cloudflare binding that spells it differently, and `binding` fails the config
+# parse with "bindings must have a string name field".
+[[ratelimits]]
+name = "SIGNALS_RATE_LIMIT"
+# An id unique within this Worker; it is not an account-level resource, so
+# nothing has to be created before deploying.
+namespace_id = "1001"
+simple = { limit = 120, period = 60 }
+
+[vars]
+# Stamped on every data point so junk from an unknown build is filterable.
+# No longer "spike-t0": this is the real T2 Worker.
+BUILD_LABEL = "t2"
+
+# Legal review finding 4 (docs/legal/README.md): Workers Logs retain invocation
+# logs, which are request metadata, and that is "a second store of exactly the
+# data the design promises never to write". It stays off, and nothing in
+# src/index.ts logs a request.
+[observability]
+enabled = false

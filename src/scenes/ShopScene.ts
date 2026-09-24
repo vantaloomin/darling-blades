@@ -43,7 +43,10 @@ import { fxPolicy } from '../ui/fx/FXSupport';
 import { modalGuardTarget } from '../ui/Modal';
 import { createOddsModal, type BoosterSku } from '../ui/OddsModal';
 import { OverlayCoordinator } from '../ui/OverlayCoordinator';
+import { artMissing } from '../art/artLoader';
+import { awaitArt, gateOnArt } from '../ui/artGate';
 import { applyBackdrop } from '../ui/SceneBackdrop';
+import { HEADER_CURRENCY_ANCHOR } from '../ui/layout';
 import { colorInt, theme } from '../ui/theme';
 import { queueAchievementUnlockToasts } from '../ui/achievementToast';
 import { queueToast, Toast } from '../ui/Toast';
@@ -53,6 +56,7 @@ import {
   boosterStripLayout,
   boosterStripOffsetForIndex,
   boosterStripTap,
+  boosterStripTileIsFullyVisible,
   boosterStripTileIsVisible,
   boosterStripVisibility,
   clampBoosterStripOffset,
@@ -64,6 +68,14 @@ const PACK_W = 280;
 const PACK_H = 400;
 const WHEEL_STEP_THRESHOLD = 60;
 const WHEEL_STEP_COOLDOWN_MS = 250;
+/**
+ * A deck commit rebuilds the strip in place, so the bought card re-renders as
+ * Clone Deck under the pointer. The second click of a double-click then landed
+ * on that new button and cloned the deck the player had only meant to buy.
+ * Any deck commit inside this window after another is dropped (the OS
+ * double-click interval is 500 ms by default on Windows).
+ */
+const DECK_COMMIT_REPEAT_GUARD_MS = 500;
 
 export type { BoosterSku } from '../ui/OddsModal';
 
@@ -145,6 +157,15 @@ const STARBORNE_PACK_TINT: PackTint = {
   trim: '#e8ecf5',
   foil: '#e8ecf5',
   mist: '#c8d2dc',
+};
+
+const DROWNED_DEEP_PACK_TINT: PackTint = {
+  start: '#eef0ea',
+  middle: '#16303a',
+  end: '#0d1a22',
+  trim: '#a8783c',
+  foil: '#d6e07c',
+  mist: '#7d8590',
 };
 
 const packRR = (
@@ -318,6 +339,13 @@ export const STARBORNE_PACK_ART: PackArtOpts = {
   trimY: 63,
 };
 
+export const DROWNED_DEEP_PACK_ART: PackArtOpts = {
+  key: 'packart-drowned-deep',
+  sceneArtKey: 'scene-pack-art-drowned-deep',
+  tint: DROWNED_DEEP_PACK_TINT,
+  trimY: 63,
+};
+
 export function packTextureForSku(sku: BoosterSku): string {
   if (sku === 'ragnarok') return 'packart-ragnarok';
   if (sku === 'celtic-fae') return 'packart-celtic-fae';
@@ -327,6 +355,7 @@ export function packTextureForSku(sku: BoosterSku): string {
   if (sku === 'yokai-nights') return 'packart-yokai-nights';
   if (sku === 'sands-of-the-duat') return 'packart-sands-of-the-duat';
   if (sku === 'starborne') return 'packart-starborne';
+  if (sku === 'drowned-deep') return 'packart-drowned-deep';
   return 'packart';
 }
 
@@ -340,6 +369,7 @@ export function packPriceForSku(sku: BoosterSku): number {
   if (sku === 'yokai-nights') return ECONOMY.yokaiNightsPackPrice;
   if (sku === 'sands-of-the-duat') return ECONOMY.sandsOfTheDuatPackPrice;
   if (sku === 'starborne') return ECONOMY.starbornePackPrice;
+  if (sku === 'drowned-deep') return ECONOMY.drownedDeepPackPrice;
   return ECONOMY.packPrice;
 }
 
@@ -361,6 +391,7 @@ export const BOOSTER_SKUS: ReadonlyArray<{ label: string; textureKey: string; sk
   { label: SET_TITLES['yokai-nights'], textureKey: 'packart-yokai-nights', sku: 'yokai-nights' },
   { label: SET_TITLES['sands-of-the-duat'], textureKey: 'packart-sands-of-the-duat', sku: 'sands-of-the-duat' },
   { label: SET_TITLES.starborne, textureKey: 'packart-starborne', sku: 'starborne' },
+  { label: SET_TITLES['drowned-deep'], textureKey: 'packart-drowned-deep', sku: 'drowned-deep' },
 ];
 
 /**
@@ -369,13 +400,19 @@ export const BOOSTER_SKUS: ReadonlyArray<{ label: string; textureKey: string; sk
  * FEATURES.duatLive flips at the shared balance pass. Every strip consumer
  * must index into THIS list, never BOOSTER_SKUS, or the peek/layout indexes
  * disagree with the tiles.
+ *
+ * Newest first (owner-approved 1.8 polish): the strip opens at index 0, so the
+ * launch set and its New chip sit in the first slot where reading starts, and
+ * the right arrow walks back through older sets. This matches the Decks tab,
+ * which already merchandises newest set to oldest. BOOSTER_SKUS stays in
+ * release order, so a set appended there leads the strip automatically.
  */
 export function visibleBoosterSkus(): ReadonlyArray<{ label: string; textureKey: string; sku: BoosterSku }> {
-  return BOOSTER_SKUS.filter((entry) => entry.sku !== 'sands-of-the-duat' || FEATURES.duatLive);
+  return BOOSTER_SKUS.filter((entry) => entry.sku !== 'sands-of-the-duat' || FEATURES.duatLive).reverse();
 }
 
 /** Only the newest SKU gets launch emphasis. Keep this beside BOOSTER_SKUS. */
-export const NEWEST_SKU: BoosterSku = 'starborne';
+export const NEWEST_SKU: BoosterSku = 'drowned-deep';
 
 /**
  * Bake a booster-pack texture once (shared with PackOpeningScene). Real front
@@ -413,6 +450,16 @@ export function bakePackArt(scene: Phaser.Scene, opts: PackArtOpts = {}): void {
 }
 
 type ShopTab = 'boosters' | 'decks';
+
+/**
+ * Shop entry data. Pack Opening hands `boosterIndex` back so returning from a
+ * reveal lands on the Card Packs strip exactly where the player bought from;
+ * every other entry opens the strip on the newest set (index 0).
+ */
+export interface ShopSceneData {
+  tab?: ShopTab;
+  boosterIndex?: number;
+}
 
 /** Sub-tab within the Decks tab (user-directed 2026-09-01): the stacked
  * Standard + Darling sections crowded the band once both rosters grew. */
@@ -492,6 +539,8 @@ export class ShopScene extends Phaser.Scene {
   private inspect: ModalShell | null = null;
   /** Index into previewEntries shown by the open inspect; null when closed. */
   private inspectIdx: number | null = null;
+  /** Supersedes a pending inspect art wait when another row is tapped. */
+  private inspectWaitToken = 0;
   /** The open preview's distinct-card entries in visual order (creatures → spells → lands). */
   private previewEntries: PreviewEntry[] = [];
   private previewInteractiveTargets: Phaser.GameObjects.GameObject[] = [];
@@ -518,7 +567,11 @@ export class ShopScene extends Phaser.Scene {
   private deckStripContent: Phaser.GameObjects.Container | null = null;
   private deckStripLayout: BoosterStripLayout | null = null;
   private deckStripColumns: Phaser.GameObjects.Container[] = [];
+  /** Each column's commit buttons (Buy / Claim Free / Clone Deck), by column. */
+  private deckStripControls: Phaser.GameObjects.Container[][] = [];
   private deckStripSkus: DeckSku[] = [];
+  /** Scene time of the last deck buy/claim/clone; see DECK_COMMIT_REPEAT_GUARD_MS. */
+  private lastDeckCommitAt = Number.NEGATIVE_INFINITY;
   private deckStripArrows: { left: ThemedButton; right: ThemedButton } | null = null;
   private deckStripIndex = 0;
   private deckStripPointerId: number | null = null;
@@ -578,7 +631,43 @@ export class ShopScene extends Phaser.Scene {
     ];
   }
 
-  create(data: { tab?: ShopTab } = {}): void {
+  /**
+   * The art window on a deck card in the grid: a Darlings precon leads with
+   * its Darling, a standard deck with its first signature card. This is the
+   * only card art the Shop draws before a modal opens — the Packs tab is baked
+   * pack textures and set icons, both scene art PreloadScene already has.
+   */
+  private deckGridPortraitId(deck: DeckList | DarlingsPrecon): string {
+    return isDarlingsPrecon(deck)
+      ? deck.darlingId
+      : DECK_INFO[deck.id]?.featured?.[0] ?? grantedDeckBuild(deck).cards[0];
+  }
+
+  /**
+   * The create gate waits on the 19 purchasable decks' grid faces and nothing
+   * else (19 distinct art files, measured 2026-09-21). The Shop is the
+   * onboarding path — a new player claims the free starter here, right after
+   * the tutorial — so gating it on every card in every purchasable deck (427
+   * distinct files, ~4.3 s from cold at the loader's ~100 files/s) would put
+   * most of the set in front of that claim. `showDeckPreview` waits on its own
+   * deck instead: 10-22 files for a starter or theme deck, 79 for a Darlings
+   * precon (singleton lists).
+   */
+  create(data: ShopSceneData = {}): void {
+    // Entry data is one-shot. Phaser's Systems.start only replaces
+    // settings.data when a start passes some, so a plain scene.start('Shop')
+    // (the main menu's button, the navigation helpers) re-delivered the LAST
+    // entry: Pack Opening's tab and strip index outlived the trip back to the
+    // menu. Clearing it here means a plain entry gets the defaults (newest set
+    // first, the claim-aware default tab) while an explicit entry still wins.
+    // Nothing in the Shop restarts itself or reads settings.data later.
+    this.sys.settings.data = {};
+    const faces = [...STARTER_DECKS, ...THEME_DECKS, ...DARLINGS_PRECONS].map((deck) =>
+      this.deckGridPortraitId(deck),
+    );
+    gateOnArt(this, faces, () => this.build(data));
+  }
+  private build(data: ShopSceneData): void {
     // Default tab follows the free-starter claim (user-directed 2026-07-17):
     // while a Claim Free deck is actually on offer the shop opens on the precon
     // decks so a new player lands on it; otherwise it opens on card packs. An
@@ -624,6 +713,7 @@ export class ShopScene extends Phaser.Scene {
     this.deckStripContent = null;
     this.deckStripLayout = null;
     this.deckStripColumns = [];
+    this.deckStripControls = [];
     this.deckStripSkus = [];
     this.deckStripArrows = null;
     this.deckStripIndex = 0;
@@ -633,6 +723,7 @@ export class ShopScene extends Phaser.Scene {
     this.deckStripDragging = false;
     this.deckWheelAccum = 0;
     this.deckWheelLastStepAt = Number.NEGATIVE_INFINITY;
+    this.lastDeckCommitAt = Number.NEGATIVE_INFINITY;
     this.coordinator = new OverlayCoordinator();
     new Toast(this, { isBlocked: () => this.overlay !== null || this.inspect !== null || this.oddsModal !== null });
     // Deck-preview hotkeys. Keyboard bypasses the modal dims, so every handler
@@ -676,6 +767,7 @@ export class ShopScene extends Phaser.Scene {
     bakePackArt(this, YOKAI_NIGHTS_PACK_ART);
     bakePackArt(this, SANDS_OF_THE_DUAT_PACK_ART);
     bakePackArt(this, STARBORNE_PACK_ART);
+    bakePackArt(this, DROWNED_DEEP_PACK_ART);
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('shop');
 
@@ -687,13 +779,13 @@ export class ShopScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    this.goldBadge = goldBadge(this, width - 30, 30, { flashOnChange: true });
+    this.goldBadge = goldBadge(this, HEADER_CURRENCY_ANCHOR.x, HEADER_CURRENCY_ANCHOR.y, { flashOnChange: true });
     this.refreshGold();
 
     this.buildTabBar();
     this.boostersGroup = this.add.container(0, 0);
     this.decksGroup = this.add.container(0, 0);
-    this.buildBoostersGroup(this.boostersGroup);
+    this.buildBoostersGroup(this.boostersGroup, data.boosterIndex ?? 0);
     this.buildDecksGroup(this.decksGroup);
     this.setTab(this.tab); // honors the initial tab (onboarding routes to 'decks')
 
@@ -808,7 +900,7 @@ export class ShopScene extends Phaser.Scene {
 
   // --- Boosters tab ---------------------------------------------------------
 
-  private buildBoostersGroup(group: Phaser.GameObjects.Container): void {
+  private buildBoostersGroup(group: Phaser.GameObjects.Container, initialIndex = 0): void {
     group.removeAll(true);
     this.skuButtons = [];
     this.boosterStripTiles = [];
@@ -897,7 +989,9 @@ export class ShopScene extends Phaser.Scene {
     this.buildQtySelector(group);
     this.refreshQtyLabels();
     this.refreshSkuAffordability();
-    this.setBoosterStripIndex(0, false);
+    // setBoosterStripIndex clamps, so a stale index from an older strip length
+    // still lands on a legal snap.
+    this.setBoosterStripIndex(initialIndex, false);
   }
 
   /** One booster tile: identity, floating product art, and buy action. */
@@ -1012,13 +1106,18 @@ export class ShopScene extends Phaser.Scene {
     // the Decks tab, where it competed with navigation for the eye and had to
     // be shoved sideways to clear the tab. Down here it sits directly under
     // the Buy buttons it multiplies and owns its own row.
+    // The chips sit on the shared footer line (theme.design.footerCenterY);
+    // at y 664 their hit boxes ran 2px past the title-safe frame, and the
+    // status line under them sat outside it entirely (1.8 cut, 2026-09-23).
+    const chipY = theme.design.footerCenterY;
     const lbl = this.add
       .text(640, 632, 'Buy quantity', { fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px`, color: theme.colors.muted })
       .setOrigin(0.5);
     group.add(lbl);
     let x = 536;
+    let chipsRight = x;
     for (const n of [1, 5, 10]) {
-      const chip = themedButton(this, x, 664, `×${n}`, {
+      const chip = themedButton(this, x, chipY, `×${n}`, {
         variant: 'ghost',
         size: 'sm',
         minWidth: 70,
@@ -1032,17 +1131,19 @@ export class ShopScene extends Phaser.Scene {
       this.qtyChips.set(n, chip);
       this.shopInteractiveTargets.push(chip.inputZone);
       group.add(chip.container);
+      chipsRight = x + chip.getMeasuredSize().hit.width / 2;
       x += 104;
     }
     // The one surviving affordability line: it explains a whole row of faded
     // Buy buttons, which a per-tile breakdown could only repeat seven times.
+    // It reads after the chips on their line, one group gap past the last.
     const status = this.add
-      .text(640, 694, '', {
+      .text(chipsRight + theme.space(4), chipY, '', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.micro}px`,
         color: theme.colors.muted,
       })
-      .setOrigin(0.5)
+      .setOrigin(0, 0.5)
       .setVisible(false);
     this.boosterQtyStatus = status;
     group.add(status);
@@ -1222,18 +1323,20 @@ export class ShopScene extends Phaser.Scene {
     spendGold(save, unitPrice * n);
     Sfx.play('coin');
     const rng = createRngState(Date.now() & 0x7fffffff);
+    // Pack Opening carries the strip position and hands it back on return.
+    const shopBoosterIndex = this.boosterStripIndex;
     if (n === 1) {
       const result = openPack(save, CARD_DB, rng, set);
       const achievementIds = this.checkpointAchievementUnlocks();
       Services.save.flush();
       queueAchievementUnlockToasts(achievementIds);
-      this.scene.start('PackOpening', sku === 'base' ? result : { ...result, sku });
+      this.scene.start('PackOpening', { ...result, sku, shopBoosterIndex });
     } else {
       const packs = openPacks(save, CARD_DB, rng, n, set);
       const achievementIds = this.checkpointAchievementUnlocks();
       Services.save.flush();
       queueAchievementUnlockToasts(achievementIds);
-      this.scene.start('PackOpening', { batch: packs, sku });
+      this.scene.start('PackOpening', { batch: packs, sku, shopBoosterIndex });
     }
   }
 
@@ -1243,6 +1346,7 @@ export class ShopScene extends Phaser.Scene {
     group.removeAll(true); // rebuildable after a purchase or a sub-tab switch
     this.deckInteractiveTargets = [];
     this.deckStripColumns = [];
+    this.deckStripControls = [];
     this.deckStripSkus = [];
     this.deckStripArrows = null;
     this.deckStripPointerId = null;
@@ -1301,13 +1405,15 @@ export class ShopScene extends Phaser.Scene {
     // ride one container, so scrolling walks the order continuously.
     for (let column = 0; column < columns; column++) {
       const tile = this.add.container(layout.tileCenters[column] ?? 0, 0);
+      const controls: Phaser.GameObjects.Container[] = [];
       for (let row = 0; row < DECK_GRID_ROWS; row++) {
         const sku = active.skus[column * DECK_GRID_ROWS + row];
         if (!sku) break;
-        this.buildDeckCard(tile, sku, DECK_STRIP_TOP + row * (DECK_CARD_H + DECK_ROW_GAP));
+        controls.push(this.buildDeckCard(tile, sku, DECK_STRIP_TOP + row * (DECK_CARD_H + DECK_ROW_GAP)));
       }
       content.add(tile);
       this.deckStripColumns.push(tile);
+      this.deckStripControls.push(controls);
     }
 
     const arrowY = DECK_STRIP_TOP + DECK_COLUMN_H / 2;
@@ -1356,9 +1462,10 @@ export class ShopScene extends Phaser.Scene {
    * One compact deck product card at a row offset inside its column tile:
    * cover-cropped signature art, name, pips, and the one commit action.
    * Tapping the ART opens the preview (the strip tap classifier routes it);
-   * button taps guard against drag-releases.
+   * button taps guard against drag-releases. Returns the commit button's
+   * container so the strip can take it out of play while its column peeks.
    */
-  private buildDeckCard(tile: Phaser.GameObjects.Container, sku: DeckSku, rowTop: number): void {
+  private buildDeckCard(tile: Phaser.GameObjects.Container, sku: DeckSku, rowTop: number): Phaser.GameObjects.Container {
     const { deck, price, theme: isTheme } = sku;
     // Owned = in the library, OR the player already holds every card in it
     // (a complete collection grants the deck; the row offers Clone, never Buy).
@@ -1373,9 +1480,8 @@ export class ShopScene extends Phaser.Scene {
 
     // The art window: a Darlings precon leads with its Darling; a standard
     // deck leads with its first signature card (the preview's featured list).
-    const portraitId = isDarlingsPrecon(deck)
-      ? deck.darlingId
-      : DECK_INFO[deck.id]?.featured?.[0] ?? grantedDeckBuild(deck).cards[0];
+    // Same helper the create-time art gate waits on, so the two cannot drift.
+    const portraitId = this.deckGridPortraitId(deck);
     this.addDeckPortrait(portraitId, 0, rowTop + 8 + DECK_CARD_ART_H / 2, DECK_CARD_W - 20, DECK_CARD_ART_H, tile);
 
     const name = this.add
@@ -1430,6 +1536,7 @@ export class ShopScene extends Phaser.Scene {
         });
     this.deckInteractiveTargets.push(cta.inputZone);
     tile.add(cta.container);
+    return cta.container;
   }
 
   /** Cover-crop a card's art into the deck card's window (the PracticePicker
@@ -1569,8 +1676,15 @@ export class ShopScene extends Phaser.Scene {
     const clamped = clampBoosterStripOffset(this.deckStripLayout, offset);
     this.deckStripIndex = boosterStripIndexForOffset(this.deckStripLayout, clamped);
     // Visibility is per COLUMN: both cards in a column appear and hide together.
+    // A column that only peeks past the mask keeps its plate and art, but its
+    // commit buttons leave play: the mask hides pixels, not input, so a peeking
+    // column's Buy answered taps in the gutter beyond the strip (review
+    // 2026-09-23: a tap at x 1250 bought from the column centred at 1295).
+    // A hidden container takes its button's zone out of Phaser's hit test.
     for (const [column, tile] of this.deckStripColumns.entries()) {
       tile.setVisible(boosterStripTileIsVisible(this.deckStripLayout, column, clamped));
+      const inPlay = boosterStripTileIsFullyVisible(this.deckStripLayout, column, clamped);
+      for (const control of this.deckStripControls[column] ?? []) control.setVisible(inPlay);
     }
     // A disabled arrow is also hidden, so the strip never presents a dead end.
     const leftEnabled = this.deckStripIndex > 0;
@@ -1605,6 +1719,7 @@ export class ShopScene extends Phaser.Scene {
 
   /** Claim/buy a deck. Returns true only when the purchase actually happened. */
   private onBuyDeck(sku: DeckSku): boolean {
+    if (this.deckCommitTooSoon()) return false;
     const save = Services.save.data;
     const freeClaim = this.isFreeClaim(sku.deck);
     const purchased = freeClaim
@@ -1616,6 +1731,7 @@ export class ShopScene extends Phaser.Scene {
       this.insufficientFunds();
       return false;
     }
+    this.lastDeckCommitAt = this.time.now;
     Sfx.play('coin');
     const achievementIds = this.checkpointAchievementUnlocks();
     Services.save.flush();
@@ -1626,23 +1742,36 @@ export class ShopScene extends Phaser.Scene {
     return true;
   }
 
+  /** True inside the double-click window after a deck buy, claim, or clone. */
+  private deckCommitTooSoon(): boolean {
+    return this.time.now - this.lastDeckCommitAt < DECK_COMMIT_REPEAT_GUARD_MS;
+  }
+
   /**
    * Clone an owned shop deck: a fresh factory copy into the library, free. A
    * deck owned only through a complete collection is granted on its first
    * press (it lands under its own name, as a purchase would); copies follow.
+   * Feedback is a toast on the strip; the preview passes `onSaved` instead,
+   * because toasts wait behind an open preview and a silent button invited
+   * repeat taps that each saved another copy.
    */
-  private onCloneDeck(sku: DeckSku): void {
+  private onCloneDeck(sku: DeckSku, onSaved?: (granted: boolean) => void): void {
+    if (this.deckCommitTooSoon()) return;
     const id = cloneShopDeck(Services.save.data, CARD_DB, sku.deck);
     if (!id) return;
+    this.lastDeckCommitAt = this.time.now;
     Sfx.play('flip');
     Services.save.flush();
     const granted = id === sku.deck.id;
-    queueToast({
-      title: granted ? 'Deck granted' : 'Deck cloned',
-      body: granted
-        ? `You already hold every card, so ${sku.deck.name} is in your deck library.`
-        : `${sku.deck.name} copy is in your deck library.`,
-    });
+    if (onSaved) onSaved(granted);
+    else {
+      queueToast({
+        title: granted ? 'Deck granted' : 'Deck cloned',
+        body: granted
+          ? `You already hold every card, so ${sku.deck.name} is in your deck library.`
+          : `${sku.deck.name} copy is in your deck library.`,
+      });
+    }
     // The row re-renders as library-owned after a grant.
     if (granted) this.buildDecksGroup(this.decksGroup, this.deckStripIndex);
   }
@@ -1690,12 +1819,69 @@ export class ShopScene extends Phaser.Scene {
   }
 
   /**
+   * The deck preview draws the signature-card thumbs and its card inspect can
+   * open any card in the list, so it waits on this one deck's own build (10-22
+   * files, 79 for a Darlings precon) rather than the Shop's create gate
+   * waiting on all 427.
+   *
+   * It opens over a live scene, so the full-screen `gateOnArt` overlay would be
+   * wrong here: the wait shows the same loading line inside a modal of the
+   * preview's own footprint, which also blocks input the way the preview does,
+   * and `awaitArt` drops the build entirely if the scene shuts down first.
+   */
+  private showDeckPreview(sku: DeckSku): void {
+    this.closeOverlay();
+    const cards = grantedDeckBuild(sku.deck).cards;
+    if (artMissing(cards).length === 0) {
+      this.buildDeckPreview(sku);
+      return;
+    }
+    let cancelled = false;
+    const waiting = modalShell(this, {
+      width: 980,
+      height: 600,
+      dimAlpha: 0.52,
+      depth: theme.depth.modal,
+      dismissal: 'tap-only',
+      coordinator: this.coordinator,
+      registration: {
+        dismissible: true,
+        guardTargets: this.underlyingInteractiveTargets().map(modalGuardTarget),
+      },
+      onClose: () => {
+        cancelled = true;
+        if (this.overlay === waiting) this.overlay = null;
+      },
+    });
+    this.overlay = waiting;
+    const bounds = waiting.tracks.contentBounds;
+    const line = this.add
+      .text(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2, '', {
+        fontFamily: 'Georgia, serif',
+        fontSize: '22px',
+        color: theme.colors.muted,
+      })
+      .setOrigin(0.5);
+    waiting.container.add(line);
+    awaitArt(this, cards, {
+      onWait: (text) => {
+        if (line.active) line.setText(text);
+      },
+      onReady: () => {
+        if (cancelled) return;
+        waiting.close();
+        this.buildDeckPreview(sku);
+      },
+    });
+  }
+
+  /**
    * Inspect a deck before buying: identity + "how it plays", mana curve and
    * composition, what the purchase actually adds to the collection, the full
    * list as tappable rows (tap = card inspect, ←/→ steps), and a footer that
    * states the price/balance consequence before the player commits.
    */
-  private showDeckPreview(sku: DeckSku): void {
+  private buildDeckPreview(sku: DeckSku): void {
     this.closeOverlay();
     const { deck, price } = sku;
     const save = Services.save.data;
@@ -1715,7 +1901,11 @@ export class ShopScene extends Phaser.Scene {
     const creatures = entries.filter((e) => isType(e.d, 'creature')).sort(sortFn);
     const spells = entries.filter((e) => !isType(e.d, 'creature') && !isType(e.d, 'land')).sort(sortFn);
     const lands = entries.filter((e) => isType(e.d, 'land')).sort(sortFn);
-    this.previewEntries = [...creatures, ...spells, ...lands];
+    // A Darlings precon's Darling is not in its spell list (she waits in her
+    // own zone), so she leads the preview list on her own row and is the
+    // deck's signature card; before this the preview never showed her.
+    const darlingEntry: PreviewEntry | null = build.darlingId ? { d: def(CARD_DB, build.darlingId), n: 1 } : null;
+    this.previewEntries = [...(darlingEntry ? [darlingEntry] : []), ...creatures, ...spells, ...lands];
     const shell = modalShell(this, {
       width: 980,
       height: 600,
@@ -1749,8 +1939,11 @@ export class ShopScene extends Phaser.Scene {
     );
     const idY = content.y + 8;
     const darlings = isDarlingsPrecon(deck);
+    // A Darlings precon has no DECK_INFO: its identity line names the Darling
+    // and its blurb leads the how-it-plays line (it used to print twice).
+    const archetype = darlingEntry ? `Darling: ${darlingEntry.d.name}` : (info?.archetype ?? '');
     const archText = this.add
-      .text(0, idY, `${darlings ? deck.blurb : (info?.archetype ?? '')} · ${buildSizeCopy(build)}`, {
+      .text(0, idY, `${archetype} · ${buildSizeCopy(build)}`, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.label}px`,
         color: theme.colors.muted,
@@ -1767,7 +1960,8 @@ export class ShopScene extends Phaser.Scene {
     }
     archText.setPosition(px + 8, idY);
     c.add(archText);
-    const plays = info?.plays ?? (darlings ? `Your Darling begins in the command zone. ${deck.blurb}` : '');
+    // "Her own zone" is the glossary's term for where a Darling waits.
+    const plays = info?.plays ?? (darlings ? `${deck.blurb} Your Darling waits in her own zone until you call her.` : '');
     if (plays) {
       c.add(
         this.add
@@ -1796,13 +1990,17 @@ export class ShopScene extends Phaser.Scene {
         })
         .setOrigin(0, 0.5);
 
-    c.add(sectionLabel(statsX, content.y + 78, 'SIGNATURE CARDS · TAP TO INSPECT'));
+    c.add(sectionLabel(statsX, content.y + 78, darlingEntry ? 'YOUR DARLING · TAP TO INSPECT' : 'SIGNATURE CARDS · TAP TO INSPECT'));
     const featuredY = content.y + 140;
     const featuredPitch = 92;
     const featuredX0 = statsX + 38;
-    for (const [slot, id] of (info?.featured ?? []).entries()) {
-      const idx = this.previewEntries.findIndex((entry) => entry.d.id === id);
-      if (idx < 0) continue;
+    // Only cards the purchase grants can be shown (the list is the source),
+    // packed left so a missing pick never leaves a hole in the row.
+    const featuredIds = darlingEntry ? [darlingEntry.d.id] : (info?.featured ?? []);
+    const featuredIdx = featuredIds
+      .map((id) => this.previewEntries.findIndex((entry) => entry.d.id === id))
+      .filter((idx) => idx >= 0);
+    for (const [slot, idx] of featuredIdx.entries()) {
       const entry = this.previewEntries[idx];
       const x = featuredX0 + slot * featuredPitch;
       const thumb = makeCardThumb(this, x, featuredY, entry.d, FEATURED_THUMB_SCALE)
@@ -1866,9 +2064,14 @@ export class ShopScene extends Phaser.Scene {
       );
     });
     const other = stats.nonlands - stats.typeCounts.creature;
+    // Warchest and Darlings builds keep their lands in the Warchest, not the
+    // list, so "0 lands" misread every such deck as landless.
+    const landsCopy = build.landReserve
+      ? `${build.landReserve.length} Warchest lands`
+      : `${stats.lands} lands`;
     c.add(
       this.add
-        .text(statsX, content.y + 288, `${stats.typeCounts.creature} creatures · ${stats.lands} lands · ${other} other`, {
+        .text(statsX, content.y + 288, `${stats.typeCounts.creature} creatures · ${other} other · ${landsCopy}`, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           color: theme.colors.body,
@@ -1913,7 +2116,7 @@ export class ShopScene extends Phaser.Scene {
 
     // Right block: the complete, bounded list. One page is a stable pair of
     // nine-row columns; the pure shared helpers guarantee no entry is dropped.
-    type Category = 'Creatures' | 'Spells' | 'Lands';
+    type Category = 'Darling' | 'Creatures' | 'Spells' | 'Lands';
     interface CategorizedEntry {
       entry: PreviewEntry;
       index: number;
@@ -1922,9 +2125,12 @@ export class ShopScene extends Phaser.Scene {
     const categorized: CategorizedEntry[] = this.previewEntries.map((entry, index) => ({
       entry,
       index,
-      category: isType(entry.d, 'creature') ? 'Creatures' : isType(entry.d, 'land') ? 'Lands' : 'Spells',
+      category: entry === darlingEntry
+        ? 'Darling'
+        : isType(entry.d, 'creature') ? 'Creatures' : isType(entry.d, 'land') ? 'Lands' : 'Spells',
     }));
     const categoryTotals = new Map<Category, number>([
+      ['Darling', darlingEntry ? 1 : 0],
       ['Creatures', creatures.reduce((sum, entry) => sum + entry.n, 0)],
       ['Spells', spells.reduce((sum, entry) => sum + entry.n, 0)],
       ['Lands', lands.reduce((sum, entry) => sum + entry.n, 0)],
@@ -2036,7 +2242,11 @@ export class ShopScene extends Phaser.Scene {
         }
       : freeClaim
         ? {
-            text: `✦ Your one free starter. The other starters cost 🪙 ${ECONOMY.starterDeckPrice} once you claim it.`,
+            // The free Darlings deck is its own claim, independent of the
+            // starter's; the other Darlings decks always cost their price.
+            text: darlings
+              ? `✦ Your one free Darling deck. The other Darling decks cost 🪙 ${ECONOMY.darlingsPreconPrice}.`
+              : `✦ Your one free starter. The other starters cost 🪙 ${ECONOMY.starterDeckPrice} once you claim it.`,
             color: theme.colors.gold,
           }
         : affordable
@@ -2048,17 +2258,16 @@ export class ShopScene extends Phaser.Scene {
               text: `Price 🪙 ${price} · Balance 🪙 ${save.gold} · 🪙 ${price - save.gold} short`,
               color: theme.colors.danger,
             };
-    c.add(
-      this.add
-        .text(footer.x + 16, footY, footerInfo.text, {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.caption}px`,
-          color: footerInfo.color,
-          wordWrap: { width: 540 },
-          lineSpacing: 3,
-        })
-        .setOrigin(0, 0.5),
-    );
+    const footerText = this.add
+      .text(footer.x + 16, footY, footerInfo.text, {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        color: footerInfo.color,
+        wordWrap: { width: 540 },
+        lineSpacing: 3,
+      })
+      .setOrigin(0, 0.5);
+    c.add(footerText);
     if (!owned) {
       const buy = themedButton(this, footerRight - 216, footY, freeClaim ? 'Claim Free ✦' : `Buy · 🪙 ${price}`, {
         variant: 'primary',
@@ -2072,11 +2281,25 @@ export class ShopScene extends Phaser.Scene {
       this.previewInteractiveTargets.push(buy.inputZone);
     } else {
       // Owned in the preview mirrors the row: Clone Deck saves a fresh factory
-      // copy. The overlay stays open — the toast is the feedback.
+      // copy. The overlay stays open, so the footer line is the feedback (a
+      // toast would wait behind the preview) and it counts the copies, so a
+      // repeat tap reads as another save rather than a dead button.
+      let copiesSaved = 0;
       const clone = themedButton(this, footerRight - 216, footY, 'Clone Deck', {
         variant: 'primary',
         minWidth: 170,
-        onTap: () => this.onCloneDeck(sku),
+        onTap: () => this.onCloneDeck(sku, (granted) => {
+          if (!footerText.active) return;
+          if (!granted) copiesSaved++;
+          footerText.setText(
+            granted
+              ? `Saved ✓ · ${deck.name} is in your deck library. Clone Deck again for a copy.`
+              : copiesSaved === 1
+                ? `Saved ✓ · ${deck.name} copy is in your deck library.`
+                : `Saved ✓ · ${copiesSaved} copies of ${deck.name} are in your deck library.`,
+          );
+          footerText.setColor(theme.colors.success);
+        }),
       });
       c.add(clone.container);
       this.previewInteractiveTargets.push(clone.inputZone);
@@ -2090,9 +2313,42 @@ export class ShopScene extends Phaser.Scene {
     this.previewInteractiveTargets.push(close.inputZone);
   }
 
-  /** Full-card inspect layered above the deck preview; ←/→ steps the list. */
+  /**
+   * One card, blown up over the open preview. The preview's own wait already
+   * covered every card in its list, so this is a synchronous pass-through in
+   * practice; the guard is here so a missed case shows the loading line rather
+   * than the resolver's neutral stand-in. The token supersedes a stale wait
+   * when the player taps another row before the first one resolves.
+   */
   private showCardInspect(idx: number): void {
     this.closeInspect();
+    const entry = this.previewEntries[idx];
+    if (!entry) return;
+    const token = ++this.inspectWaitToken;
+    let line: Phaser.GameObjects.Text | null = null;
+    awaitArt(this, [entry.d.id], {
+      onWait: (text) => {
+        if (token !== this.inspectWaitToken) return;
+        line ??= this.add
+          .text(theme.design.centerX, theme.design.centerY, '', {
+            fontFamily: 'Georgia, serif',
+            fontSize: '22px',
+            color: theme.colors.muted,
+          })
+          .setOrigin(0.5)
+          .setDepth(theme.depth.inspect);
+        line.setText(text);
+      },
+      onReady: () => {
+        line?.destroy();
+        if (token !== this.inspectWaitToken) return;
+        this.buildCardInspect(idx);
+      },
+    });
+  }
+
+  /** Full-card inspect layered above the deck preview; ←/→ steps the list. */
+  private buildCardInspect(idx: number): void {
     const entry = this.previewEntries[idx];
     if (!entry) return;
     const shell = modalShell(this, {
@@ -2143,6 +2399,9 @@ export class ShopScene extends Phaser.Scene {
   }
 
   private closeInspect(): void {
+    // Also drops any pending inspect art wait, so a closed preview can never
+    // have an inspect open itself a beat later.
+    this.inspectWaitToken++;
     this.inspect?.close();
     this.inspect = null;
     this.inspectIdx = null;

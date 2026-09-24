@@ -71,7 +71,7 @@ with the Dark Tales pool, or a mark-based "corruption" skin over Propagate.
   whisper cost as it goes. Engine: moderate. The argument: it
   retro-synergizes with Skim — Dark Tales shipped a discard engine with no
   discard payoff, and this closes that loop across the shared pool.
-- **Dread of the Deep** (MTG emerge / tribute-discount): sacrifice a
+- **Tithe** (renamed from Dread of the Deep 2026-09-11; MTG emerge / tribute-discount): sacrifice a
   creature to discount the horror by its cost. Engine: moderate. AI: good.
 - TABLED: **Sanity track** (poison-adjacent corruption counter on the
   player) — a whole new player-level resource: engine + UI + AI valuation

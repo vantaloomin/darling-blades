@@ -85,3 +85,27 @@ tools/save-editor.html
 # (src-tauri/target and src-tauri/gen/schemas are ignored by src-tauri/.gitignore)
 scripts/codex-dash/.cache/
 .venv-art/
+
+# Cloudflare Worker (worker/): local state and secrets
+worker/.wrangler/
+worker/.dev.vars
+worker/node_modules/
+worker/worker-configuration.d.ts
+
+# Python bytecode from the art scripts (audit-art-window.py imports smartcrop)
+scripts/__pycache__/
+
+# Built from docs/legal/*.md by scripts/gen-legal-pages.ts, and from the build's own
+# dependency tree by scripts/gen-third-party-notices.ts (both run on dev and build)
+public/privacy.html
+public/terms.html
+public/notices.html
+public/THIRD_PARTY_NOTICES.txt
+
+# ── Signals rollup output ────────────────────────────────────────────────
+# The daily k-anonymised totals live on their own orphan branch, `signals-data`,
+# which .github/workflows/signals-rollup.yml checks out into this folder. It is
+# never part of a commit on main or a release branch: main auto-deploys to Pages,
+# and a data file has no business in that build. Local dry runs write here too,
+# or into balance/signals-rollups, which is already ignored.
+/signals-data/

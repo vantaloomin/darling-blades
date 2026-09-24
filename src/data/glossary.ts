@@ -1,4 +1,6 @@
+import { DROPS, ECONOMY } from '../config/rules';
 import type { CardDef, CardType, Color, EffectOp, Keyword, Rarity } from '../engine/types';
+import { activatedAbilitiesOf } from '../engine/types';
 
 /**
  * The rules vocabulary, as pure data. This lives in `src/data` — not in the
@@ -56,10 +58,13 @@ export type MechanicId =
   | 'empower'
   | 'skim'
   | 'retell'
+  | 'whispers'
   | 'hauntlink'
   | 'rite'
+  | 'tithe'
   | 'nineLives'
-  | 'preserve';
+  | 'preserve'
+  | 'duty';
 
 export const MECHANIC_NAMES: Record<MechanicId, string> = {
   sever: 'Sever',
@@ -71,13 +76,21 @@ export const MECHANIC_NAMES: Record<MechanicId, string> = {
   empower: 'Empower',
   skim: 'Skim',
   retell: 'Retell',
+  whispers: 'Whispers',
   hauntlink: 'Hauntlink',
   rite: 'Rite',
+  tithe: 'Tithe',
   nineLives: 'Nine Lives',
   preserve: 'Preserve',
+  duty: 'Duty',
 };
 
-/** One-line, player-facing definitions for non-keyword mechanics. */
+/**
+ * One-line, player-facing definitions for non-keyword mechanics. House style,
+ * shared with KEYWORD_REMINDER: a lowercase fragment, clauses joined by
+ * semicolons, no closing period (the Keyword Guide and the glossary print them
+ * after the term's name).
+ */
 export const MECHANIC_DEFINITIONS: Record<MechanicId, string> = {
   sever: 'severed from the game; severed cards never return',
   foresee: 'look at the top cards of your deck; put any of them on the bottom',
@@ -88,13 +101,16 @@ export const MECHANIC_DEFINITIONS: Record<MechanicId, string> = {
   empower: 'pay the extra cost as you cast this for the listed bonus effect',
   skim: 'pay the listed cost, discard this card, then draw a card',
   retell: 'cast this from your graveyard for the listed cost, then sever it',
+  whispers: 'if this card is put into your graveyard from your hand or your deck, you may cast it from there for its Whispers cost until your opponent\'s next Dawn',
   hauntlink: 'pay Hauntlink at Charm speed to link this permanent to one of your creatures',
   rite: 'as an additional cost to cast this, sacrifice the listed number of creatures',
+  tithe: 'you may sacrifice any number of creatures you control as you cast this; it costs one less for every two points of their combined Defense, rounded down; colored mana is still paid',
   nineLives: 'when this dies with no +1/+1 marks on it, it returns to the battlefield with a +1/+1 mark on it',
   preserve: 'pay the listed cost and Sever this card from your graveyard to create a token copy of it; only during Morning or Afternoon',
+  duty: 'tap this permanent, and pay any listed cost, during your Morning or Afternoon to perform its Duty; a permanent cannot tap the turn it arrives unless it has Warcry',
 };
 
-/** Player-facing rarity tier names, shared by the glossary and the Profile. */
+/** Player-facing rarity tier names, shared by the glossary, the Profile, and pack inspect. */
 export const RARITY_NAMES: Record<Rarity, string> = {
   c: 'Common',
   r: 'Rare',
@@ -102,6 +118,11 @@ export const RARITY_NAMES: Record<Rarity, string> = {
   ssr: 'Super Special Rare',
   ur: 'Ultra Rare',
 };
+
+/** A tier's share of booster slots, in percent, from the drop table. */
+function tierSlotPercent(tier: Rarity): number {
+  return DROPS.tier.find(([key]) => key === tier)?.[1] ?? 0;
+}
 
 /** One-line player-facing definitions for the card types. */
 export const CARD_TYPE_DEFINITIONS: Record<CardType, string> = {
@@ -146,6 +167,7 @@ function cardOps(d: CardDef): EffectOp[] {
     ...(d.chapters ?? []).flatMap((chapter) => flatten(chapter)),
     ...flatten(d.empower?.ops ?? []),
     ...flatten(d.retell?.ops ?? []),
+    ...activatedAbilitiesOf(d).flatMap((ability) => flatten(ability.ops)),
   ];
 }
 
@@ -186,10 +208,13 @@ export function cardMechanics(d: CardDef): MechanicId[] {
   if (d.empower) present.push('empower');
   if (d.skim) present.push('skim');
   if (d.retell) present.push('retell');
+  if (d.whispers) present.push('whispers');
   if (d.hauntlink) present.push('hauntlink');
   if (d.rite) present.push('rite');
+  if (d.tithe) present.push('tithe');
   if (d.nineLives) present.push('nineLives');
   if (d.preserve) present.push('preserve');
+  if (d.activated) present.push('duty');
   return present;
 }
 
@@ -289,10 +314,13 @@ const MECHANIC_ORDER: MechanicId[] = [
   'empower',
   'skim',
   'retell',
+  'whispers',
   'hauntlink',
   'rite',
+  'tithe',
   'nineLives',
   'preserve',
+  'duty',
 ];
 
 export const GLOSSARY_SECTIONS: readonly GlossarySection[] = [
@@ -355,16 +383,20 @@ export const GLOSSARY_SECTIONS: readonly GlossarySection[] = [
   {
     id: 'rarity',
     title: 'Rarity Tiers',
+    // Nothing is guaranteed: every booster slot rolls its tier on its own
+    // (PackOpener), so the tier rows state each tier's share of slots, read
+    // straight from the drop table rather than restated by hand.
+    note: `Each of a booster’s ${ECONOMY.boosterPackSize} slots rolls its own tier.`,
     compact: true,
     terms: ([
-      ['c', 'The most frequent pull.', 'C'],
-      ['r', 'One guaranteed in every pack.', 'R'],
-      ['sr', 'An uncommon pull.', 'SR'],
-      ['ssr', 'A rare pull.', 'SSR'],
-      ['ur', 'The rarest pull of all.', 'UR'],
-    ] as [Rarity, string, string][]).map(([key, description, shortLabel]) => ({
+      ['c', 'C'],
+      ['r', 'R'],
+      ['sr', 'SR'],
+      ['ssr', 'SSR'],
+      ['ur', 'UR'],
+    ] as [Rarity, string][]).map(([key, shortLabel]) => ({
       name: RARITY_NAMES[key],
-      description,
+      description: `Appears in ${tierSlotPercent(key)}% of booster slots.`,
       shortLabel,
       icon: { kind: 'rarity', key } as GlossaryIcon,
     })),

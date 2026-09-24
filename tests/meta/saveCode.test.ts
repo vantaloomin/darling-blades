@@ -3,6 +3,7 @@ import { deflateSync, strToU8 } from 'fflate';
 import { describe, expect, it } from 'vitest';
 import { decode, encode, MAX_DECODED_SAVE_BYTES, type SaveCodeDecodeResult } from '../../src/meta/SaveCode';
 import { CURRENT_SAVE_VERSION, freshSave, SaveManager, type SaveData } from '../../src/meta/SaveManager';
+import { STATS_NOTICE_VERSION } from '../../src/meta/statsNotice';
 import { parseVariantKey, variantKey } from '../../src/meta/variants';
 import { GOLDEN_FRESH_SAVE_CODE } from './saveCode.fixtures';
 
@@ -87,6 +88,13 @@ function codeForRaw(raw: Record<string, unknown>): string {
 function currentVersionFixture(version: number): Record<string, unknown> {
   const save = currentFixture() as unknown as Record<string, unknown>;
   save.version = version;
+  if (version < 35) {
+    delete (save.settings as Record<string, unknown>).shareAnonStats;
+    delete (save.settings as Record<string, unknown>).statsNoticeVersion;
+  }
+  // v32 added the account-level style pair; v33 superseded it and v35 removed
+  // it. A blob from that window still carries both keys on disk.
+  if (version >= 32 && version < 35) save.cosmetics = { cardBack: null, playmat: null, owned: [] };
   if (version < 32) delete save.cosmetics;
   if (version < 27) delete save.deckRepairNoticeAck;
   if (version < 24) delete (save.settings as Record<string, unknown>).confirmNoBlock;
@@ -205,8 +213,49 @@ describe('SaveCode', () => {
   it('keeps a literal golden code stable', () => {
     const golden = expectOk(decode(GOLDEN_FRESH_SAVE_CODE));
     const regenerated = expectOk(decode(encode(freshSave(NOW))));
+    // The golden code is a v22 blob, so it is a MIGRATED save. A migrated save
+    // and a fresh one are identical again: neither has seen the anonymous-stats
+    // notice (owner ruling 2026-09-17, every player is told). For one day the
+    // first v35 draft made them differ on that field and this test had to
+    // assert the asymmetry; it is back to a bare `toEqual`.
+    expect(regenerated.save.settings.statsNoticeVersion).toBe(0);
+    expect(golden.save.settings.statsNoticeVersion).toBe(0);
     expect(golden.save).toEqual(regenerated.save);
     expect(golden.preview).toEqual({ ...regenerated.preview, sourceSchemaVersion: 22 });
+  });
+
+  /**
+   * The gate this bump owes: a code exported by the shipped v34 build imports
+   * cleanly, arrives carrying the new preference, and leaves the two dead
+   * account-level cosmetics fields behind.
+   */
+  it('decodes a v34 code into a valid v35 save with the preference and without the dead fields', () => {
+    const raw = currentVersionFixture(34);
+    expect((raw.settings as Record<string, unknown>).shareAnonStats).toBeUndefined();
+    expect(raw.cosmetics).toEqual({ cardBack: null, playmat: null, owned: [] });
+
+    const decoded = expectOk(decode(codeForRaw(raw)));
+
+    expect(decoded.preview.sourceSchemaVersion).toBe(34);
+    expect(decoded.save.version).toBe(CURRENT_SAVE_VERSION);
+    expect(decoded.save.settings.shareAnonStats).toBe(true);
+    expect(decoded.save.settings.statsNoticeVersion).toBe(0);
+    expect(decoded.save.cosmetics).toEqual({ owned: [] });
+    expect(Object.keys(decoded.save.cosmetics)).toEqual(['owned']);
+    // The v34 payload's real content is untouched by the bump.
+    expect(decoded.save.gold).toBe(777);
+    expect(decoded.save.decks[0].landStyle).toEqual({ 'land-forest': 'dark-tales' });
+  });
+
+  it('re-exports an imported v34 code without losing the preference', () => {
+    const imported = expectOk(decode(codeForRaw(currentVersionFixture(34)))).save;
+    imported.settings.shareAnonStats = false;
+    imported.settings.statsNoticeVersion = STATS_NOTICE_VERSION;
+
+    const round = expectOk(decode(encode(imported))).save;
+
+    expect(round.settings.shareAnonStats).toBe(false);
+    expect(round.settings.statsNoticeVersion).toBe(STATS_NOTICE_VERSION);
   });
 
   it('rejects a corrupted checksum as a structured checksum error', () => {

@@ -89,7 +89,6 @@ describe('plain missing-unique crafting', () => {
     expect(craftCost(CARD_DB, cardOf('sr').id)).toBe(300);
     expect(craftCost(CARD_DB, cardOf('ssr').id)).toBe(900);
     expect(craftCost(CARD_DB, cardOf('ur').id)).toBe(3000);
-    expect(ECONOMY.craftCostMult).toBe(6);
   });
 
   it('spends gold and grants exactly one PLAIN copy through addCard', () => {

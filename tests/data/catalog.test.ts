@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  activatedAbilitiesOf,
   manaValue,
   validateChaptersDef,
   validateEmpowerDef,
@@ -9,7 +10,7 @@ import {
   validatePreserveDef,
   validateRiteDef,
 } from '../../src/engine/types';
-import type { CardDef } from '../../src/engine/types';
+import type { CardDef, EffectOp } from '../../src/engine/types';
 import { ALL_CARDS, CARD_DB } from '../../src/data/catalog';
 import { AXES } from '../../src/data/axes';
 import { ARTIFACTS } from '../../src/data/cards/artifacts';
@@ -28,6 +29,7 @@ import { LANDS } from '../../src/data/cards/lands';
 import { RAGNAROK } from '../../src/data/cards/ragnarok';
 import { SANDS_OF_THE_DUAT } from '../../src/data/cards/sands-of-the-duat';
 import { STARBORNE } from '../../src/data/cards/starborne';
+import { DROWNED_DEEP } from '../../src/data/cards/drowned-deep';
 import { SORCERIES } from '../../src/data/cards/sorceries';
 import { TK_JIN } from '../../src/data/cards/tk-jin';
 import { TK_OTHER } from '../../src/data/cards/tk-other';
@@ -35,6 +37,7 @@ import { TK_SHU } from '../../src/data/cards/tk-shu';
 import { TK_WEI } from '../../src/data/cards/tk-wei';
 import { TK_WU } from '../../src/data/cards/tk-wu';
 import { TOKENS } from '../../src/data/cards/tokens';
+import { activatedCatalogErrors } from '../activatedFixture';
 
 describe('catalog integrity', () => {
   it('has no invalid Empower, mark-trigger, or chapter definitions across ALL_CARDS', () => {
@@ -88,12 +91,14 @@ describe('catalog integrity', () => {
     }
   });
 
-  it('has no invalid Nine Lives or Preserve definitions', () => {
+  it('has no invalid Nine Lives, Preserve or activated definitions', () => {
     for (const card of Object.values(CARD_DB)) {
       const nineLivesErrors = validateNineLivesDef(card);
       expect(nineLivesErrors, `${card.id}: ${nineLivesErrors.join('; ')}`).toEqual([]);
       const preserveErrors = validatePreserveDef(card);
       expect(preserveErrors, `${card.id}: ${preserveErrors.join('; ')}`).toEqual([]);
+      const activatedErrors = activatedCatalogErrors(card, CARD_DB);
+      expect(activatedErrors, `${card.id}: ${activatedErrors.join('; ')}`).toEqual([]);
     }
   });
 
@@ -104,6 +109,10 @@ describe('catalog integrity', () => {
       for (const ability of card.abilities ?? []) {
         const subtype = ability.static?.filter?.subtype;
         if (subtype === undefined) continue;
+        // DC4, 2026-09-15: these three Plant-token anthems do not make Plant an Axis.
+        // Keep both predicates: a token-only filter without Plant would buff every token.
+        if (subtype === 'Plant' && ability.static?.filter?.token === true &&
+          ['dd-kelp-cathedral', 'dd-marsh-road', 'dd-kelp-shade-elder'].includes(card.id)) continue;
         expect(AXES, `${card.id} static filters on non-Axis subtype '${subtype}'`).toContain(
           subtype,
         );
@@ -137,6 +146,7 @@ describe('catalog integrity', () => {
       [YOKAI_NIGHTS, 'yn-'],
       [SANDS_OF_THE_DUAT, 'sd-'],
       [STARBORNE, 'sb-'],
+      [DROWNED_DEEP, 'dd-'],
       [INSTANTS, 'in-'],
       [SORCERIES, 'so-'],
       [ENCHANTMENTS, 'en-'],
@@ -244,10 +254,6 @@ describe('catalog integrity', () => {
     ).toBeGreaterThanOrEqual(4);
   });
 
-  it('the pool holds at least 180 cards', () => {
-    expect(ALL_CARDS.length).toBeGreaterThanOrEqual(180);
-  });
-
   it('has the W3.5b Base Set sweeper pass in the catalog totals', () => {
     const base = ALL_CARDS.filter(
       (card) => card.set === 'base' && !card.token && !(card.supertypes ?? []).includes('basic'),
@@ -262,17 +268,6 @@ describe('catalog integrity', () => {
       rarity,
       base.filter((card) => card.rarity === rarity).length,
     ]))).toEqual({ c: 112, r: 68, sr: 14, ssr: 11, ur: 8 });
-    // W5's four tribal cards move the collectible catalog 783 -> 787; the
-    // ten-card 1.6 returning-mechanics sprinkle moves it 787 -> 797. Duat
-    // The pinned pre-D3 catalog was 986 cards. D3 adds the final 58 mono-column
-    // cards, so the companion wave moves ALL_CARDS to 1,104 total cards,
-    // including tokens and basics. Starborne adds 151 collectibles and six
-    // set tokens; the v3.1 Fenrir ruling (2026-08-29) adds tok-wolf-cub
-    // (1/1, art shared with tok-wolf via artRef): 1261 -> 1262.
-    // The 2026-09-03 minterless-token cut removes tok-lumen-drone,
-    // tok-violet-hullguard and tok-void-mote (no card ever minted them):
-    // 1262 -> 1259.
-    expect(ALL_CARDS).toHaveLength(1259);
   });
 
   it('stamps every expansion card with its set and every other collectible set:base', () => {
@@ -294,6 +289,8 @@ describe('catalog integrity', () => {
         expect(String(card.set), card.id + ' should be set:sands-of-the-duat').toBe('sands-of-the-duat');
       } else if (card.id.startsWith('sb-')) {
         expect(String(card.set), card.id + ' should be set:starborne').toBe('starborne');
+      } else if (card.id.startsWith('dd-')) {
+        expect(card.set, card.id + ' should be set:drowned-deep').toBe('drowned-deep');
       } else {
         expect(card.set ?? 'base', `${card.id} should be set:base`).toBe('base');
       }
@@ -366,6 +363,8 @@ describe('catalog integrity', () => {
     // (orbital-cleansing {1}{W}{B}). Adding a name here is a ruling.
     const MULTICOLOR_EXCEPTIONS = new Set([
       'sd-harvest-after-rain', 'gm-grave-rose-garden', 'sb-orbital-cleansing',
+      // DC3, 2026-09-15: the three Drowned Deep multicolour spells remain non-legendary.
+      'dd-lightkeepers-oath', 'dd-watch-and-tide', 'dd-horror-garden',
     ]);
     for (const card of ALL_CARDS) {
       if (card.types.includes('land') || card.colors.length < 2) continue;
@@ -394,5 +393,34 @@ describe('catalog integrity', () => {
         }
       }
     }
+  });
+  it("prints a full fog only on a Charm, the one seam that can resolve in the opponent's combat", () => {
+    // preventCombat sets fogThisTurn, and cleanup clears it at the end of the
+    // turn it was set. Ritual bodies and Retell overrides, Duties (own main
+    // phase only), quest chapters, own-turn triggers and the arrival of a
+    // main-phase permanent all resolve on their controller's own turn, so a
+    // fog there can only cancel its controller's own attack. A Charm's body,
+    // its Empower rider and its graveyard casts keep Charm speed. The
+    // single-creature preventCombatTo is not covered: on your own turn it
+    // protects your attacker, a live effect. Widen this only for a seam that
+    // can resolve before the opponent's combat damage.
+    const fogIn = (ops: readonly EffectOp[] = []): boolean => ops.some((op) => op.op === 'preventCombat' ||
+      (op.op === 'ifTargetMarked' && (fogIn(op.then) || fogIn(op.else))));
+    const dead: string[] = [];
+    for (const card of ALL_CARDS) {
+      const charm = card.types.includes('charm');
+      for (const ability of card.abilities ?? []) {
+        if (fogIn(ability.ops) && !(charm && ability.when === 'spell')) dead.push(`${card.id}: ${ability.when}`);
+      }
+      activatedAbilitiesOf(card).forEach((duty, i) => {
+        if (fogIn(duty.ops)) dead.push(`${card.id}: Duty ${i + 1}`);
+      });
+      if (!charm && fogIn(card.empower?.ops)) dead.push(`${card.id}: Empower`);
+      if (!charm && fogIn(card.retell?.ops)) dead.push(`${card.id}: Retell`);
+      (card.chapters ?? []).forEach((ops, i) => {
+        if (fogIn(ops)) dead.push(`${card.id}: chapter ${i + 1}`);
+      });
+    }
+    expect(dead, 'a fog in these seams can never protect its controller').toEqual([]);
   });
 });

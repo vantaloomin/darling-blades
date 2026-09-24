@@ -13,7 +13,9 @@ import type { SavedDeck } from '../meta/SaveManager';
 import { bindTapButton } from '../platform/gestures';
 import { makeCardThumb } from '../ui/CardThumbCache';
 import { ModalGuard } from '../ui/Modal';
+import { gateOnArt } from '../ui/artGate';
 import { applyBackdrop } from '../ui/SceneBackdrop';
+import { HEADER_CURRENCY_ANCHOR } from '../ui/layout';
 import { colorInt, theme } from '../ui/theme';
 import { backButton, goldBadge, modalShell, pager, panel, registerSceneBackNavigation, themedButton } from '../ui/themeWidgets';
 import {
@@ -56,7 +58,18 @@ export class PlayScene extends Phaser.Scene {
     super('Play');
   }
 
+  /**
+   * The active-deck plate and the quick-select modal draw one face card per
+   * saved deck (deckFace.ts) — nothing else here is card art.
+   */
   create(data: { launchNotice?: string } = {}): void {
+    this.reserveFormatsEnabled = FEATURES.reserveFormats;
+    const faces = Services.save.data.decks
+      .map((deck) => this.deckFaceId(deck))
+      .filter((id): id is string => id !== null);
+    gateOnArt(this, faces, () => this.build(data));
+  }
+  private build(data: { launchNotice?: string }): void {
     this.reserveFormatsEnabled = FEATURES.reserveFormats;
     this.classicRetired = FEATURES.classicRetired;
     this.guard = new ModalGuard();
@@ -95,7 +108,9 @@ export class PlayScene extends Phaser.Scene {
     backButton(this, 'Menu', () => this.scene.start('MainMenu'));
     registerSceneBackNavigation(this, () => this.scene.start('MainMenu'));
 
-    goldBadge(this, width - 30, 30, { getValue: () => Services.save.data.gold });
+    // The shared currency anchor: right edge on the title-safe frame's right
+    // edge, on the header line.
+    goldBadge(this, HEADER_CURRENCY_ANCHOR.x, HEADER_CURRENCY_ANCHOR.y, { getValue: () => Services.save.data.gold });
 
     const firstY = 286;
     const pitchY = 56;
@@ -120,40 +135,52 @@ export class PlayScene extends Phaser.Scene {
 
   private startPlayEntry(scene: string, data?: object): void {
     const deck = this.activeDeck();
+    // "Open Decks" opens whichever deck is active when it is pressed, never
+    // the one that was active when the notice went up.
+    const openDecks = {
+      label: 'Open Decks',
+      onTap: () => this.scene.start('DeckBuilder', { deckId: this.activeDeck()?.id }),
+    };
     if (scene === 'PracticePicker') {
       const issue = firstDuelLaunchIssue(CARD_DB, Services.save.data, deck);
       if (issue) {
-        this.showLaunchNotice(`Cannot start Practice: ${issue}`, {
-          label: 'Open Decks',
-          onTap: () => this.scene.start('DeckBuilder', { deckId: deck?.id }),
-        });
+        this.showLaunchNotice(`Cannot start Practice: ${issue}`, openDecks);
         return;
       }
     }
     if (scene === 'Gauntlet') {
       const issue = firstDuelLaunchIssue(CARD_DB, Services.save.data, deck);
       if (issue) {
-        this.showLaunchNotice(`Cannot start Gauntlet: ${issue}`, {
-          label: 'Open Decks',
-          onTap: () => this.scene.start('DeckBuilder', { deckId: deck?.id }),
-        });
+        this.showLaunchNotice(`Cannot start Gauntlet: ${issue}`, openDecks);
         return;
       }
+      // A format the tower does not take (Darlings) used to do nothing at
+      // all on this press; say why, and offer the deck switch right here.
       const format = builderFormatForDeck(deck, this.reserveFormatsEnabled);
-      if (formatGauntletUnavailableCopy(format, this.classicRetired)) {
-        this.buildDeckPlate();
+      const unavailable = formatGauntletUnavailableCopy(format, this.classicRetired);
+      if (unavailable) {
+        this.showLaunchNotice(`Cannot start Gauntlet: ${unavailable}`, {
+          label: 'Change Deck',
+          onTap: () => this.showDeckSelect(),
+        });
         return;
       }
     }
     this.scene.start(scene, data);
   }
 
+  /** A launch notice describes the deck it was raised for; a switch retires it. */
+  private clearLaunchNotice(): void {
+    this.launchNotice?.destroy();
+    this.launchNotice = null;
+    this.menuTargets = this.menuTargets.filter((target) => target.active);
+  }
+
   private showLaunchNotice(
     message: string,
     action?: { label: string; onTap: () => void },
   ): void {
-    this.launchNotice?.destroy();
-    this.menuTargets = this.menuTargets.filter((target) => target.active);
+    this.clearLaunchNotice();
     const notice = this.add.container(0, 0);
     this.launchNotice = notice;
     notice.add(
@@ -340,6 +367,7 @@ export class PlayScene extends Phaser.Scene {
       save.activeDeckId = id;
       Services.save.flush();
       shell.close();
+      this.clearLaunchNotice();
       this.buildDeckPlate();
     };
 

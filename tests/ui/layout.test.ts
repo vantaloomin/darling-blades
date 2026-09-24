@@ -15,6 +15,8 @@ import {
 import {
   COMPACT_TOUCH_GAP_RANGE,
   GAP_FLOORS,
+  GAUNTLET_TOWER_VIEWPORT,
+  HEADER_CURRENCY_ANCHOR,
   anchoredControlBounds,
   anchoredRect,
   clampScrollOffset,
@@ -33,7 +35,13 @@ import {
   modalShellLayout,
   scrollOffsetByDelta,
   sceneHeaderFooterLayout,
+  type ControlSize,
+  type Rect,
 } from '../../src/ui/layout';
+import { CURVE_MAX } from '../../src/ui/deckStats';
+import { DECK_PANE_LAYOUT, warchestSlotPosition } from '../../src/ui/deckPanePresentation';
+import { LIMITED_BUILDER_COLUMNS, LIMITED_DETAILS_PANEL, limitedListRow } from '../../src/ui/limitedPanePresentation';
+import { MAIN_MENU_CORNER, mainMenuCornerY } from '../../src/ui/mainMenuPresentation';
 
 const pickerStripOptions: StripLayoutOptions = {
   visibleCount: 4,
@@ -692,5 +700,112 @@ describe('gauntlet tower', () => {
     const layout = gauntletTowerLayout(3, viewport);
     expect(gauntletScrollToRung(1, 3, layout)).toBe(0);
     expect(layout.contentHeight).toBeLessThan(viewport.height);
+  });
+});
+
+/**
+ * The title-safe contract (docs/design-system.md, "Safe-area model"): every
+ * persistent control and piece of header or footer chrome sits inside
+ * x 64-1216, y 36-684, so nothing a player needs is lost to overscan or a
+ * cropped edge. The 1.8 QC-day survey (PR #412) checked the top and bottom
+ * edges only; the 1.8 cut found controls past the left and right edges in the
+ * main menu, the Gauntlet, the Glossary, both deck builders, and every scene
+ * that shows the gold badge. These cover the placements that live in pure
+ * layout modules; scene-local positions are anchored to the same frame.
+ */
+describe('title-safe frame: every placed control', () => {
+  /** A themed button's final hit rectangle, centred at (x, y). */
+  const buttonHit = (x: number, y: number, size: ControlSize, minWidth: number): Rect => {
+    const { hit } = measureThemedButton(0, size, minWidth);
+    return { x: x + hit.x, y: y + hit.y, width: hit.width, height: hit.height };
+  };
+  const expectInside = (name: string, rect: Rect): void => {
+    expect(isInsideTitleSafe(rect), `${name} ${JSON.stringify(rect)}`).toBe(true);
+  };
+
+  it('hangs the gold badge inside the frame on every screen that shows it', () => {
+    // Right-origin text: the anchor is its right edge. A six-digit balance
+    // at the badge's 20px size is well under 160px wide.
+    const badge = (x: number, y: number): Rect => ({ x: x - 160, y: y - 13, width: 160, height: 26 });
+    expectInside('scene badge', badge(HEADER_CURRENCY_ANCHOR.x, HEADER_CURRENCY_ANCHOR.y));
+    expectInside('main menu badge', badge(MAIN_MENU_CORNER.badgeX, mainMenuCornerY(0)));
+  });
+
+  it('keeps both main menu corner columns inside the frame', () => {
+    for (let i = 0; i < 3; i++) {
+      expectInside(`left corner ${i}`, buttonHit(MAIN_MENU_CORNER.leftX, mainMenuCornerY(i), 'sm', MAIN_MENU_CORNER.minWidth));
+    }
+    expectInside('Settings', buttonHit(MAIN_MENU_CORNER.rightX, mainMenuCornerY(1), 'sm', MAIN_MENU_CORNER.rightMinWidth));
+  });
+
+  it('keeps the Gauntlet ladder and its scrollbar inside the frame', () => {
+    const layout = gauntletTowerLayout(ECONOMY.gauntletRungGold.length, GAUNTLET_TOWER_VIEWPORT);
+    // Rows span the viewport's width, so the viewport bounds every rung's tap target.
+    expectInside('tower viewport', layout.viewport);
+    expectInside('tower scrollbar', layout.scrollbar);
+  });
+
+  it('keeps the Glossary rail, content panel, and search inside the frame', () => {
+    const frame = glossaryFrame();
+    expectInside('rail', frame.rail);
+    expectInside('content', frame.content);
+    expectInside('search', frame.search);
+    expectInside('list', frame.list);
+  });
+
+  it('keeps the Limited deck builder panels and their rows inside the frame', () => {
+    const c = LIMITED_BUILDER_COLUMNS;
+    const panels = [c.poolX, c.deckX, c.detailsX].map((x) => ({ x, y: c.y, width: c.width, height: c.height }));
+    panels.forEach((rect, i) => expectInside(`panel ${i}`, rect));
+    for (const [i, panelX] of [c.poolX, c.deckX].entries()) {
+      const row = limitedListRow(panelX);
+      const rowY = c.y + 56;
+      expectInside(`row plate ${i}`, { x: row.plateX, y: rowY, width: row.plateWidth, height: 25 });
+      const action = buttonHit(row.actionX, rowY + 12, 'sm', row.actionWidth);
+      expectInside(`row action ${i}`, action);
+      // The action's inflated hit box stays clear of the next panel.
+      expect(action.x + action.width).toBeLessThan(panels[i + 1].x);
+    }
+    const L = LIMITED_DETAILS_PANEL;
+    expectInside('details content', { x: L.contentX, y: L.y, width: L.contentRight - L.contentX, height: L.height });
+    const lastBar = L.curve.firstX + CURVE_MAX * L.curve.pitch;
+    expectInside('details curve', {
+      x: L.curve.firstX - L.curve.barWidth / 2,
+      y: L.curve.baseY - L.curve.maxHeight,
+      width: lastBar - L.curve.firstX + L.curve.barWidth,
+      height: L.curve.maxHeight,
+    });
+  });
+
+  it('keeps the Deck Builder pane inside the frame, the bottom action row included', () => {
+    const d = DECK_PANE_LAYOUT;
+    const t = d.toggle;
+    for (const [name, x] of [['Cards', t.cardsX], ['Warchest', t.warchestX], ['Style', t.styleX]] as const) {
+      expectInside(`${name} view`, buttonHit(x, t.y, 'sm', t.minWidth));
+    }
+    const f = d.formatRow;
+    for (let i = 0; i < 2; i++) expectInside(`format tab ${i}`, buttonHit(f.tabFirstX + i * f.tabPitch, f.y, 'sm', f.tabMinWidth));
+    for (let i = 0; i < 10; i++) {
+      const slot = warchestSlotPosition(i);
+      expectInside(`Warchest slot ${i}`, buttonHit(slot.x, slot.y, 'sm', d.warchest.slotWidth));
+    }
+    const rowY = d.content.top + d.cards.rowPitch;
+    expectInside('card row', { x: d.cards.starX, y: rowY, width: d.cards.countRightX - d.cards.starX, height: d.cards.rowPitch });
+    expectInside('mana curve', {
+      x: d.curve.firstX - d.curve.barWidth / 2,
+      y: d.summary.barBaseY - d.summary.barMaxHeight,
+      width: CURVE_MAX * d.curve.pitch + d.curve.barWidth,
+      height: d.summary.barMaxHeight,
+    });
+    const cta = d.cta;
+    expectInside('Export Code', buttonHit(cta.exportX, d.summary.ctaY, 'sm', cta.sideMinWidth));
+    expectInside('Save Deck', buttonHit(cta.saveX, d.summary.ctaY, 'md', cta.saveMinWidth));
+    expectInside('Import Code', buttonHit(cta.importX, d.summary.ctaY, 'sm', cta.sideMinWidth));
+    // The pane's title row (y 32) still starts above the frame's top edge;
+    // bringing it down is a vertical pass of its own. Its right-aligned Decks
+    // button is held to the side edges here.
+    const decks = buttonHit(d.decks.x, 0, 'sm', d.decks.minWidth);
+    expect(decks.x).toBeGreaterThanOrEqual(theme.design.safeLeft);
+    expect(decks.x + decks.width).toBeLessThanOrEqual(theme.design.safeRight);
   });
 });

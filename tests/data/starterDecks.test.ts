@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { STARTER_DECKS, THEME_DECKS } from '../../src/data/starterDecks';
+import { DECK_INFO } from '../../src/data/deckInfo';
 import { CARD_DB } from '../../src/data/catalog';
 import { MediumAI } from '../../src/ai/MediumAI';
 import { Game } from '../../src/engine/Game';
@@ -19,6 +20,17 @@ import { freshSave } from '../../src/meta/SaveManager';
  */
 
 const LANDS_PER_DECK = 24;
+// 2026-09-17 land-economy conversion (docs/plan-land-economy.md): two authored
+// theme lists counted a utility tapland toward their land slot, and those
+// taplands are now Duty artifacts. The lists themselves are the owner's
+// measured decks and are NOT edited by the conversion wave, so their land
+// count drops by the converted copies they carry. No player is affected: a
+// claimed deck is built from `reserveCards` + `landReserve`
+// (grantedDeckBuild), never from this legacy 60-card column.
+const CONVERTED_LAND_COPIES: Record<string, number> = {
+  'theme-arthurian-court': 3, // ac-lowland-fort x3, now Lowland Fort Banner
+  'theme-dark-tales': 2, // dt-palace-steps x2, now Glass Slipper
+};
 const ORIGINAL_IDS = ['starter-crimson', 'starter-wild'];
 
 const countCards = (cards: string[]) =>
@@ -48,10 +60,11 @@ describe('starter roster shape', () => {
 });
 
 describe('theme roster shape', () => {
-  it('lands eight theme decks including the Starborne precon', () => {
-    expect(THEME_DECKS).toHaveLength(8);
-    expect(new Set(THEME_DECKS.map((deck) => deck.id)).size).toBe(8);
+  it('lands nine theme decks including the Drowned Deep precon', () => {
+    expect(THEME_DECKS).toHaveLength(9);
+    expect(new Set(THEME_DECKS.map((deck) => deck.id)).size).toBe(9);
     expect(THEME_DECKS.find((deck) => deck.id === 'theme-starborne')?.name).toBe('Chrome-Violet Broodship');
+    expect(THEME_DECKS.at(-1)).toMatchObject({ id: 'theme-drowned-deep', name: 'Lanterns Below' });
   });
 });
 
@@ -117,14 +130,15 @@ describe.each(STARTER_DECKS.map((d) => [d.name, d] as const))('starter deck lega
 describe.each(THEME_DECKS.map((d) => [d.name, d] as const))('theme deck legality — %s', (_name, deck) => {
   const counts = new Map<string, number>();
   for (const id of deck.cards) counts.set(id, (counts.get(id) ?? 0) + 1);
+  const expectedLands = LANDS_PER_DECK - (CONVERTED_LAND_COPIES[deck.id] ?? 0);
 
   it('is exactly 60 cards', () => {
     expect(deck.cards).toHaveLength(RULES.deckSize);
   });
 
-  it(`has exactly ${LANDS_PER_DECK} lands`, () => {
+  it(`has exactly ${LANDS_PER_DECK} land slots, ${expectedLands} of them still lands`, () => {
     const lands = deck.cards.filter((id) => CARD_DB[id]?.types.includes('land'));
-    expect(lands).toHaveLength(LANDS_PER_DECK);
+    expect(lands).toHaveLength(expectedLands);
   });
 
   it('has ≤4 copies of every non-basic (basics unlimited)', () => {
@@ -163,9 +177,13 @@ describe.each(THEME_DECKS.map((d) => [d.name, d] as const))('theme deck legality
     }
   });
 
-  it('keeps legendaries at 2-3 copies (legend-rule friendly)', () => {
+  it('keeps legendaries at 2-3 copies except the authored Mother Hydra singleton', () => {
     for (const [id, n] of counts) {
       if (CARD_DB[id]?.supertypes?.includes('legendary')) {
+        if (deck.id === 'theme-drowned-deep' && id === 'dd-mother-hydra') {
+          expect(n, `${id} x${n}`).toBe(1);
+          continue;
+        }
         expect(n, `${id} x${n}`).toBeGreaterThanOrEqual(2);
         expect(n, `${id} x${n}`).toBeLessThanOrEqual(3);
       }
@@ -353,11 +371,84 @@ describe('Chrome-Violet Broodship composition', () => {
   });
 });
 
-describe('theme deck termination smoke (vs Crimson Muster)', () => {
+describe('Lanterns Below composition', () => {
+  const deck = THEME_DECKS.find((entry) => entry.id === 'theme-drowned-deep')!;
+  // 2026-09-16 measured L1+L3+L4: 14.60% -> 31.30% reserve row.
+  // Fog Bank/Salt/Memory/Bell: 2 each -> 0; Warrior/Horror/Black Water:
+  // 0 each -> 2; Hierophant: 1 -> 3. Shared classic/reserve swaps match.
+  const expectedCounts = {
+    'land-island': 12,
+    'land-swamp': 12,
+    'dd-tide-clerk': 3,
+    'dd-drowned-child': 2,
+    'dd-deep-one-cultist': 2,
+    'dd-low-street-witch': 2,
+    'dd-low-street-looter': 2,
+    'dd-harbour-mermaid': 2,
+    'dd-deep-one-scout': 2,
+    'dd-cold-water-diver': 2,
+    'dd-deep-one-bride': 2,
+    'dd-tithe-collector': 1,
+    'dd-deep-one-hierophant': 3,
+    'dd-mother-hydra': 1,
+    'dd-deep-one-warrior': 2,
+    'dd-drowned-horror': 2,
+    'dd-the-price': 2,
+    'dd-tide-that-turns': 2,
+    'dd-tithe-to-the-deep': 1,
+    'dd-black-water': 2,
+    'dd-low-tide-grave': 1,
+  };
+
+  it('uses the exact approved U/B Drowned Deep list and 40-card reserve', () => {
+    const expectedCards = Object.entries(expectedCounts).flatMap(([id, count]) => Array<string>(count).fill(id));
+    const expectedReserveCounts = {
+      ...Object.fromEntries(Object.entries(expectedCounts).filter(([id]) => id.startsWith('dd-'))),
+      'dd-still-harbour': 2,
+      'dd-what-the-sea-wants': 2,
+    };
+    const expectedReserve = Object.entries(expectedReserveCounts).flatMap(([id, count]) => Array<string>(count).fill(id));
+
+    expect(deck).toMatchObject({ id: 'theme-drowned-deep', name: 'Lanterns Below' });
+    expect(countCards(deck.cards)).toEqual(expectedCounts);
+    expect(deck.cards).toEqual(expectedCards);
+    expect(deck.cards).toHaveLength(RULES.deckSize);
+    expect(countCards(deck.reserveCards!)).toEqual(expectedReserveCounts);
+    expect(deck.reserveCards).toEqual(expectedReserve);
+    expect(deck.reserveCards).toHaveLength(40);
+    expect(deck.landReserve).toEqual([
+      ...Array<string>(5).fill('land-island'),
+      ...Array<string>(5).fill('land-swamp'),
+    ]);
+    expect(deck.landReserve).toHaveLength(10);
+
+    for (const id of deck.reserveCards!) {
+      const card = CARD_DB[id];
+      expect(card, `${id} must exist`).toBeDefined();
+      expect(card.set, `${id} must be Drowned Deep`).toBe('drowned-deep');
+      expect(card.token, `${id} must be collectible`).toBeFalsy();
+      expect(card.types, `${id} must not be a land`).not.toContain('land');
+      expect(card.colors.every((color) => color === 'U' || color === 'B'), `${id} color identity`).toBe(true);
+    }
+  });
+
+  it('uses the verbatim approved shop identity and featured cards', () => {
+    expect(DECK_INFO['theme-drowned-deep']).toEqual({
+      colors: 'U/B',
+      archetype: 'Drowned Deep tide-and-whisper control',
+      plays:
+        'Cheap bodies hold the ground while the divers and the mermaids seed the graveyard. The looters turn dead draws into tagged Whispers, the Whispers Charms and Rituals are the value engine, Black Water resets a board that gets ahead, and a curve of Deep Ones and Horrors closes with Tithe as the tempo lever, the Hierophants draining on arrival.',
+      // Owner-ruling L3 featured card: dd-drowned-bell -> dd-black-water.
+      featured: ['dd-mother-hydra', 'dd-the-price', 'dd-black-water'],
+    });
+  });
+});
+
+describe('theme deck termination smoke (3 seeds each, vs Crimson Muster)', () => {
   const crimson = STARTER_DECKS.find((d) => d.id === 'starter-crimson')!;
   for (const deck of THEME_DECKS) {
-    it(`${deck.name} plays a game to completion`, () => {
-      const seed = 11;
+    it.each([11, 23, 47])(`${deck.name} plays a game to completion (seed %i)`, (seed) => {
+      const started = performance.now();
       const decks: [string[], string[]] = [deck.cards, crimson.cards];
       const game = new Game({ decks, seed, db: CARD_DB });
       const ais = [new MediumAI(CARD_DB), new MediumAI(CARD_DB)];
@@ -369,9 +460,19 @@ describe('theme deck termination smoke (vs Crimson Muster)', () => {
           break;
         }
         const p = a.player;
-        game.submit(p, ais[p].chooseAction(game.viewFor(p), game.legalActions(p)));
+        let action: ReturnType<MediumAI['chooseAction']> | undefined;
+        try {
+          action = ais[p].chooseAction(game.viewFor(p), game.legalActions(p));
+          game.submit(p, action);
+        } catch (error) {
+          throw new Error(`${deck.name}; seed ${seed}; P${p}; turn ${game.state.turn}; ` +
+            `awaiting ${JSON.stringify(a)}; action ${JSON.stringify(action)}; ${String(error)}`, { cause: error });
+        }
       }
       expect(terminated, `${deck.name} seed ${seed} did not terminate`).toBe(true);
+      expect([0, 1, 'draw']).toContain(game.state.winner);
+      console.log(JSON.stringify({ smoke: `Theme ${deck.name}`, brain: 'medium', seed,
+        winner: game.state.winner, turns: game.state.turn, wallMs: Math.round(performance.now() - started) }));
     }, 60_000);
   }
 });

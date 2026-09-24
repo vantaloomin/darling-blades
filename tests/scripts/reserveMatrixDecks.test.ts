@@ -24,12 +24,13 @@ describe('reserve matrix deck derivation', () => {
       'Grave Harvest Warchest',
     ]);
     // 2026-08-28: the live Starborne pool re-derives the third Darling.
+    // 2026-09-15: the live Drowned Deep pool re-derives the fifth Darling.
     expect(first.darlings.map((deck) => deck.darlingId)).toEqual([
       'gk-athena',
       'sd-anuket-who-runs-the-cataracts',
       'sb-abyssal-iris-regent',
       'gk-ares',
-      'gk-gaia',
+      'dd-reef-warden',
       'gk-aphrodite',
     ]);
 

@@ -401,7 +401,7 @@ describe('foresee continuations', () => {
     expect(kept.awaiting).toEqual({ player: 0, kind: 'foresee', cards: ['top'] });
     expect(kept.state.players[0].deck).toEqual(['bottom', 'top']);
     expect(kept.state.pendingDecisions).toEqual([
-      { kind: 'foresee', player: 0, n: 1, thenOps: [{ op: 'draw', n: 1 }] },
+      { kind: 'foresee', player: 0, n: 1, thenOps: [{ op: 'draw', n: 1 }], thenContext: { controller: 0, sourceCardId: 'foresee_draw' } },
     ]);
 
     const keepEvents = kept.submit(0, { type: 'foresee', bottomIndices: [] });
@@ -443,7 +443,7 @@ describe('foresee continuations', () => {
     expect(game.awaiting).toEqual({ player: 0, kind: 'foresee', cards: ['second'] });
     expect(game.state.players[0].hand).toEqual([]);
     expect(game.state.pendingDecisions).toEqual([
-      { kind: 'foresee', player: 0, n: 1, thenOps: [{ op: 'draw', n: 1 }] },
+      { kind: 'foresee', player: 0, n: 1, thenOps: [{ op: 'draw', n: 1 }], thenContext: { controller: 0, sourceCardId: 'chained_foresee_draw' } },
     ]);
 
     game.submit(0, { type: 'foresee', bottomIndices: [] });

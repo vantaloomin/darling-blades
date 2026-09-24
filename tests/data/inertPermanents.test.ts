@@ -4,6 +4,7 @@ import { SANDS_OF_THE_DUAT } from '../../src/data/cards/sands-of-the-duat';
 import { ALL_CARDS, CARD_DB } from '../../src/data/catalog';
 import { STARBORNE_SET } from '../../src/data/liveness';
 import { classifyPermanent } from '../../src/data/permanentClass';
+import type { CardDef } from '../../src/engine/types';
 import { collectiblePool } from '../../src/meta/collectionFilter';
 
 const isPermanent = (card: (typeof ALL_CARDS)[number]): boolean =>
@@ -18,6 +19,23 @@ const isEtbOnly = (card: (typeof ALL_CARDS)[number]): boolean => {
 };
 
 describe('ETB-only non-creature permanent health', () => {
+  it('classifies fixture Duty artifacts as ongoing battlefield effects', () => {
+    const fixture: CardDef = {
+      id: 'duty-artifact-fixture', name: 'Duty Fixture', types: ['artifact'],
+      subtypes: [], colors: [], rarity: 'c',
+      activated: { cost: { tap: true }, ops: [{ op: 'gainLife', n: 1 }] },
+    };
+    expect(classifyPermanent(fixture)).toEqual({
+      klass: 'ACTIVATED', evidence: 'Duty', riders: 'Duty (battlefield tap activation)',
+    });
+    expect(isEtbOnly(fixture)).toBe(false);
+    const withArrival: CardDef = {
+      ...fixture, abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 1 }] }],
+    };
+    expect(classifyPermanent(withArrival).klass).toBe('MIXED');
+    expect(isEtbOnly(withArrival)).toBe(false);
+  });
+
   it("Sands of the Duat keeps ETB-only non-creature permanents under the 15% ceiling (ruling 2026-08-19 §2.10)", () => {
     const permanents = SANDS_OF_THE_DUAT.filter(isPermanent);
     const etbOnly = permanents.filter(isEtbOnly);

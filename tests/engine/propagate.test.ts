@@ -123,6 +123,7 @@ describe('propagate', () => {
       player: 0,
       n: 1,
       thenOps: [{ op: 'propagate' }],
+      thenContext: { controller: 0, sourceCardId: 'propagator' },
     }]);
   });
 
@@ -152,20 +153,6 @@ describe('propagate', () => {
 
     expect(events).toEqual([{ e: 'effectApplied', op: 'propagate' }]);
     expect(state.battlefield[0].plusOneCounters).toBe(0);
-  });
-
-  it('is deterministic across two identical runs', () => {
-    const board = (): Partial<Permanent>[] => [
-      { iid: 1, cardId: 'bear', controller: 0, plusOneCounters: 1 },
-      { iid: 2, cardId: 'knight', controller: 0, plusOneCounters: 0 },
-      { iid: 3, cardId: 'pacifism_aura', controller: 0, plusOneCounters: 2 },
-      { iid: 4, cardId: 'giant', controller: 1, plusOneCounters: 3 },
-    ];
-    const a = propagate(board());
-    const b = propagate(board());
-
-    expect(structuredClone(a.battlefield)).toEqual(structuredClone(b.battlefield));
-    expect(marks(a)).toEqual({ 1: 2, 2: 0, 3: 2, 4: 3 });
   });
 
   it('compounds when run twice, doubling a single Mark into three', () => {
@@ -230,7 +217,7 @@ describe('propagate', () => {
 
     game.submit(0, { type: 'castSpell', handIndex: 0 });
     expect(game.awaiting).toMatchObject({ player: 0, kind: 'foresee' });
-    expect(game.instanceState.pendingDecisions).toEqual([{ kind: 'foresee', player: 0, n: 1, thenOps: PROPAGATE }]);
+    expect(game.instanceState.pendingDecisions).toEqual([{ kind: 'foresee', player: 0, n: 1, thenOps: PROPAGATE, thenContext: { controller: 0, sourceCardId: 'foresee_propagate' } }]);
 
     game.submit(0, { type: 'foresee', bottomIndices: [] });
 

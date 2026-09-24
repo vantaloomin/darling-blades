@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/personality.ts, src/ai/NoisyAI.ts, src/ai/tiers.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts · last-verified: 2026-09-03
+<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/ScriptAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/targeting.ts, src/ai/activatedPolicy.ts, src/ai/ritePolicy.ts, src/ai/tithePolicy.ts, src/ai/whispersPolicy.ts, src/ai/discardPolicy.ts, src/ai/sacrificePolicy.ts, src/ai/preservePolicy.ts, src/ai/hauntlinkPolicy.ts, src/ai/landPolicy.ts, src/ai/darlingPolicy.ts, src/ai/foresee.ts, src/ai/personality.ts, src/ai/NoisyAI.ts, src/ai/tiers.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts, tests/ai/rungSmokes.test.ts, tests/ai/documentedBehaviour.test.ts, docs/plan-ai-modernization.md · last-verified: 2026-09-17
      If you change those files, update this doc or re-verify the date. -->
 
 # AI
@@ -40,12 +40,22 @@ Concretely in the code:
   otherwise mulligan everything.
 - **Main:** 20% of the time picks a random non-concede action; otherwise plays a
   land, else casts the biggest affordable spell, else passes.
-- **Attack:** all-in when its untapped-creature count meets or beats the
-  opponent's untapped blockers, otherwise attacks with nothing — the signature
-  Easy weakness.
+- **Attack:** all-in when its blocker demand (a Dreaded attacker demands two
+  blockers) plus the `easyAllIn` margin meets or beats the opponent's untapped
+  blockers, otherwise attacks with nothing — the signature Easy weakness. Rage
+  bodies are compelled by the engine and attack regardless.
 - **Block:** one blocker per attacker, prefers blocks that kill or survive,
-  chump-blocks only when at life ≤ 5.
-- **Respond:** passes 85% of windows; otherwise a random Charm.
+  chump-blocks only when at life ≤ 5. Since phase C (2026-09-16) "kills" counts
+  only hits the blocker lives to make (an attacker with firstBlade or
+  twinBlades that kills it in the first sub-step gets no return hit) and
+  "survives" counts a twinBlades attacker's two hits; nothing else about
+  Easy's combat changed.
+- **Respond:** passes 85% of windows; otherwise a random useful Charm, or a
+  Skim when no Charm is castable. The Hauntlink window is a policy call, not
+  a coin flip (phase B). Empower's extra mana is charged the develop score of
+  the spell it displaces, so an affordable rider is no longer always paid.
+- **Hand-size discard:** a uniformly random legal set (the loot discard uses
+  the shared `discardPolicy` like every other brain).
 
 Easy has its own seeded RNG (`createRngState`) so its randomness is reproducible.
 
@@ -62,17 +72,32 @@ lookahead." Its rules:
   instead: keep a fresh hand with ≥ 2 spells castable by turn 3 (mana value ≤ 3),
   ≥ 1 after a mulligan; `mulliganShift` moves those thresholds the same way.
 - **Main phase priority order** (`main`):
-  1. **Lethal burn to the face** — if a face-damage spell deals ≥ the opponent's
-     life, cast it.
+  1. **Lethal to the face** — if a spell's own ops deal the opponent's life or
+     more (targeted burn, targetless face damage, life loss, drain, and their
+     combinations, at the spell's real cost including its Whispers or Retell
+     mode), cast it (phase A, 2026-09-15).
   2. **Removal on the opponent's best creature** — only when it actually kills
      the target (`removalKills`) and the target is worth it (value ≥ 0.8× the
      spell's cost and ≥ 2.5).
   3. **Burn as reach** — once the opponent is at ≤ 8 life, throw burn at the
      face.
-  4. **Develop** — cast the highest-value creature/permanent; holds instants for
-     windows; plays buff auras on its own creatures and debuff auras on enemies.
+  4. **Develop** — cast the highest-value permanent or Ritual; a spell's body
+     is valued through the same op valuator the triggers use, so Rituals are
+     ordered by what they do rather than by mana value (phase A). Creature
+     wraths and symmetric damage sweeps are removal under the asymmetry gate:
+     cast when behind on board, held when ahead. Charms are held for windows;
+     buff auras go on its own creatures and debuff auras on enemies.
 - **Combat** is delegated to the shared planners (`chooseAttackers`,
-  `chooseBlocks` in `combatPlans.ts`).
+  `chooseBlocks` in `combatPlans.ts`). Since phase C every planner decision
+  runs through one sub-step exchange model (`combatExchange`) that matches
+  the engine's damage code: firstBlade and twinBlades strike in the first
+  sub-step, twinBlades strikes again in the normal one (firstBlade plus
+  twinBlades is two hits, not three), casualties leave between sub-steps, and
+  a body killed before it strikes deals nothing. An unblocked twinBlades
+  attacker connects for twice its attack in the attack score, the lethal
+  check, the overrun spill and the defender's incoming-damage pressure. A
+  sentinel attacker is not charged the holdback penalty, because attacking
+  does not tap it.
 - **Trick-risk** (`trickBuff`) is **evidence-gated**: defenders are inflated by
   +2 only when the opponent has **≥ 2 open mana sources AND ≥ 1 card in hand
   AND has shown ≥ 1 Charm this game** (checked against the public graveyard —
@@ -90,7 +115,16 @@ lookahead." Its rules:
 - **Responses / end step:** counter a big enemy spell (mv ≥ 4), a spell hitting
   its best creature, or a `massDestroy`; remove a dangerous attacker; pump a
   creature to win or survive a fight; spend spare removal and free card-draw at
-  the opponent's end step.
+  the opponent's end step. Since phase A (2026-09-15) the ladder also reads the
+  shapes it used to leave in hand: **fog** when the incoming damage is lethal or
+  drops it under the life curve's knee, or saves a blocked body worth more than
+  the cast; **precombat taps** (offensive when the attack becomes lethal or
+  clearly profitable by the combat forecast, defensive when the blocks improve;
+  `tapAll` only for lethal); **debuffs** as removal when they kill and as a
+  fight flip otherwise; **mark placement and transfer** by survival and
+  thresholds, with enemy mark removal treated as removal; and **bounce-to-save**
+  for an owned creature under lethal targeted removal or a losing block. Every
+  rule reads the redacted view and the legal menu only.
 
 Medium **deliberately does not model face-down information** beyond "open mana
 plus a demonstrated Charm = maybe a trick," and it never knowingly holds back
@@ -154,8 +188,17 @@ surface for future pools where real decks punish attacks more often.
 Hard defers to Medium where the sim adds nothing, and searches where the
 engine's exact firstBlade/overrun/deathblade math beats any heuristic:
 
-- **Main phase:** trusts Medium's casting policy outright (`searchMain` just
-  calls Medium).
+- **Main phase** (`searchMain`): Medium's choice is the baseline; Hard then
+  simulates a whitelist of alternatives against it: Skim, Empower, Retell,
+  Whispers, Rite and Tithe casts, the vocabulary casts (qualified targets,
+  pairs, creature Retell), one Preserve, one Duty, and Darling casts, capped at
+  eight ordinary candidates beyond the always-searched Rite, Tithe and
+  vocabulary ones. Since phase A (2026-09-15) **`passStep` is a candidate**
+  (it must strictly outscore Medium's cast in the sim) and a creature cast in
+  main one is compared against holding it for main two at the same settled
+  endpoint; across the gate games the pass won 2,643 main decisions and the
+  hold 305, out of about 109,000. The ordinary candidate cap is seven plus the
+  pass slot.
 - **Attacks** (`searchAttack`): Medium's attack set is the baseline. Hard runs
   a **full-turn attack lookahead** — each candidate set plays through the
   opponent's whole counterattack turn (`lookahead`) before evaluation, so the
@@ -166,7 +209,8 @@ engine's exact firstBlade/overrun/deathblade math beats any heuristic:
 - **Blocks** (`searchBlocks`): a **greedy hill-climb from Medium's
   assignment**. Each round tries every single modification — unblock one, add
   a free blocker to any attacker (gang blocks up to 3), or move an assigned
-  blocker — and the engine plays each assignment through combat damage. Up to
+  blocker (never onto a full gang of three, never leaving a Dreaded attacker
+  singly blocked; phase C) — and the engine plays each assignment through combat damage. Up to
   4 rounds; a deviation must clear Medium's plan by **+1.5 sim score** (any
   margin if Medium's plan simulates into a loss). Blocks resolve this turn on
   public information, so this is where the sim is most trustworthy.
@@ -224,10 +268,18 @@ or in hand.
 `tests/ai/winrate.test.ts` plays hundreds of seeded AI-vs-AI games with sides
 alternated (so neither AI owns the better deck) and asserts:
 
-| Matchup            | Gate                 | Current (2026-07-02)    |
+| Matchup            | Gate                 | Current (2026-09-17)    |
 | ------------------ | -------------------- | ----------------------- |
-| Medium vs Easy     | **≥ 80%**            | ~**82.5%** (passing)    |
-| Hard vs Medium     | CI floor **≥ 0.70**  | ~**78.0%**              |
+| Medium vs Easy     | **≥ 80%**            | **81.5%** (163/200)     |
+| Hard vs Medium     | CI floor **≥ 0.70**  | **76.5%** (153/200)     |
+
+The same file gates the tower's summit across four tests so no single
+matrix blows CI's 900 s per-test budget: rungs 14-18 and rungs 19-22 hold
+per-avatar floors and ordering relations, and rungs 23-24 and 25-26 each hold
+per-avatar floors plus a termination check (five complete 40-seed cells, zero
+draws).
+Every rung from 14 to 26 has carried a real floor since the 2026-09-17
+re-baseline described under Tower rungs below.
 
 The original plan gate for Hard was **60% — met and exceeded**. The honest
 history: **53%** (full-turn attack lookahead + terminal-outcome detection only)
@@ -239,9 +291,20 @@ section). Richer hidden-card opponent models were measured and all lost win
 rate — see the Determinize section above. The floor ships at **0.70** to leave
 CI-variance margin (±3.5pp at 200 games) under the measured ~0.78.
 
-Despite the search doing more work, the whole suite is fast: the win-rate
-gates (including 200 Hard-vs-Medium games) finish in roughly **20 seconds** —
-the search rework also made Hard cheap to run.
+The win-rate file is the suite's long pole: the five gates plus the mini-fuzz
+took about **350 s** locally on 2026-09-15 and **962 s** on 2026-09-17, the
+second reading taken while another test run shared the machine, so re-measure
+idle before treating it as the new figure. Inside it the single rungs 14-22
+gate used 559 s of its 900 s per-test budget that day and **692.6 s on CI
+hardware on 2026-09-19**, and the two tuning passes that day lengthened it
+again (394 s to 507 s locally, about 800 s at CI's measured 1.57x), because a
+boss who survives her early turns plays longer games. It was split the same
+day into rungs 14-18 and rungs 19-22: same ids, same seeding, same floors, and
+the order rules divide cleanly, since all but rung 20 against rung 19 sit
+inside 14-18. **A tuning pass that makes a slow boss stronger makes her gate
+slower; check the gate's wall time, not only its result.** The next summit
+rung goes in a gate of its own. The full suite takes about 15 minutes
+(3,817 tests, 908 s measured idle on 2026-09-19); run it on an idle machine.
 
 ## Tuning surface
 
@@ -253,6 +316,16 @@ If you want to move the numbers, these are the levers:
 | `src/ai/evaluate.ts`   | Position scoring — life curve, material discounts, card/mana/clock weights.   |
 | `src/ai/combatPlans.ts`| Shared attack/block heuristics (damage weights, trick-risk, double-blocks, holdback). |
 | `src/ai/foresee.ts`    | Shared deterministic foresee (scry) policy (all brains + ScriptAI): keep lands while developing, then bottom excess lands and uncastably expensive cards. |
+| `src/ai/whispersPolicy.ts` | Whispers (1.8): keeps a whispered cast only while its graveyard index is in the public `whispersLive` list and `whispersValue` (the cast at its Whispers cost, +0.75 when the marker dies at the next Dawn, -0.25 when it survives into the owner's next turn) beats the best hand cast; every brain applies it before its cast ladder, Hard's whitelists admit whispered casts in main and response. |
+| `src/ai/tithePolicy.ts` | Tithe (1.8): rewrites the engine's canonical fodder set or drops the flag. Candidates sorted by `permValue` per point of effective Defense; pairs preferred so odd totals waste nothing; never the single best body, never a planned attacker, never the cast's own target. Since phase B (2026-09-15, owner ruling D5) a fodder-class body (a token, Defense 2 or less, or summoning-sick and unable to attack) may be sold undamaged at a fifth of its board value, but only when the generic mana saved is two or more, or the saving turns an unaffordable spell into a legal cast this turn; any other body is sold only when the mana saved beats its full board value. Applied beside `applyRitePolicy` in all three brains and the rollouts. |
+| `src/ai/discardPolicy.ts` | Loot (1.8): the shared deterministic discard choice for every brain and ScriptAI: the highest-cost spell current mana cannot pay first, then a land beyond four projected sources, then the lowest-value card; the last affordable spell is protected unless the count forces it. |
+| `src/ai/sacrificePolicy.ts` | Edicts (1.8): the shared mandatory sacrifice choice: the lowest `permValue` body, battlefield order on ties; Rite and Tithe fodder policies protect a chosen target from being sold. |
+| `src/ai/activatedPolicy.ts` | Duty (1.8): when and which tap ability to use, including `abilityIndex` on multi-Duty carriers; tap-only Duties in the Morning, paid ones in the Afternoon, never a Rage body, never a self-harming ability; targets by public impact. Since phase B Medium's `constrainMainMana` reserves development mana against a paid Afternoon Duty (develop first, the Duty runs on what remains) and `liveCharm` holds mana, colours preserved, for a Charm whose rule is live against the public board (removal, counter, fog, trick, global removal, tap, bounce); Hard searches the two best distinct Duty choices. |
+| `src/ai/ritePolicy.ts` | Rite: the fodder set (cheapest bodies, never the best body or a planned attacker or the cast's own target) and the decline rule when the fodder outvalues the cast. |
+| `src/ai/preservePolicy.ts` | Preserve: fires when mana is idle or the brain is behind on bodies; picks the bigger affordable body by public `cardValue`. |
+| `src/ai/hauntlinkPolicy.ts` | Hauntlink (rules rev 4, phase B 2026-09-15): `hauntlinkHostFit` scores what the rider grants each host (keywords it lacks, fights the stats change, marks it can use), ties to the larger body; a main-phase move must beat the link's mana cost times 0.65 plus 0.25 (no churn); `chooseHauntlinkWindow` moves the link in the combat-damage window to save a blocked attacker or blocker, and in the trigger window when the trigger about to resolve threatens the current host. Easy and Medium decline a move whose forecast meets an op it cannot project; Hard searches every legal link in the window with its response margin. |
+| `src/ai/targeting.ts` | The greedy target picker for deferred trigger targets and the vocabulary target policy (`maxCost`, `minAttack`, `exactly` pairs, `opponentCreature`, per-op `targetIndex`, creature Retell) that keeps one best assignment per cast mode. |
+| `src/ai/landPolicy.ts`, `src/ai/darlingPolicy.ts` | Reserve-format land choice (fix missing colours, keep basics when mana is idle) and the conservative Darling tax paydown. |
 
 `determinize.ts` is the opponent-modeling knob: the deck-shape priors
 (`LAND_FRACTION`, `INTERACTION_FRACTION`, `CURVE_WEIGHTS`) and the
@@ -265,8 +338,8 @@ be judged on the same 200-game gate.
 
 An **avatar/personality system** (shipped 2026-07-02) layers tunable knobs over these
 three brains — themed opponents with their own aggression/greed dials, without
-rewriting the cores. The knobs live in `src/ai/personality.ts` (frozen `DEFAULT_PERSONALITY` reproduces the base brains bit-for-bit — enforced by lockstep tests in `tests/ai/personality.test.ts`); the 22 avatars with decks and tunings live in `src/data/opponents.ts` (the base
-8 plus fourteen expansion gauntlet bosses through the Sands of the Duat summit pair).
+rewriting the cores. The knobs live in `src/ai/personality.ts` (frozen `DEFAULT_PERSONALITY` reproduces the base brains bit-for-bit — enforced by lockstep tests in `tests/ai/personality.test.ts`); the 26 avatars with decks and tunings live in `src/data/opponents.ts` (the base
+8 plus eighteen expansion gauntlet bosses through the Drowned Deep summit pair at rungs 25-26).
 
 Balance is measured, not guessed: `scripts/balance-matrix.ts`
 (`npm run balance-matrix`) runs deterministic avatar-vs-starter, starter-mirror,
@@ -275,11 +348,9 @@ green as of 2026-07-02) lives in a comment block in `src/data/opponents.ts` —
 re-measure and refresh it after any change to decks, personalities, starters,
 or brains.
 
-The Yokai Nights summit pair is now present at rungs 19-20. The final
-40-seed-per-cell avatar measurement is Queen of the Lanterned Roof 71% average
-and Kitsune Neon Tyrant 75% average, with provisional floors of 66% and 70%.
-The pressure ordering is green; the Queen remains below the R18 point estimate
-and is intentionally left for the end-of-set re-baseline.
+The Yokai Nights summit pair sits at rungs 19-20 (Queen of the Lanterned Roof,
+Kitsune Neon Tyrant); their shipped floors are the reserve-native re-centre
+below (0.545 and 0.805), not the pre-re-centre numbers.
 
 The Sands of the Duat summit pair is present at rungs 21-22: Anubis, Who Holds
 the Scale at rung 21 and Bastet, Mistress of the Ninth Return as the final rung
@@ -329,6 +400,235 @@ two that look like obvious improvements and measured as losses.
 The ladder still dips at R19 (61) and R21 (57) relative to R18 and R20. That is
 the accepted non-monotonic summit shape, not a regression.
 
+**Rungs 21-26 were re-baselined on 2026-09-17**, after the AI modernization
+(phases E, A, B, C and D) and the tuning passes that followed had all landed
+on release/1.8. One command, `--avatars --seeds 200 --only` the six summit
+ids (6,000 games, FLAGS none, zero draws in the whole run): R21 Anubis 65
+(71/79/67/61/46) · R22 Bastet 74 (54/85/61/84/85) · R23 Chrome Broodmother
+60 (42/85/55/59/63) · R24 Violet Signal Queen 71 (51/88/64/62/91) · R25
+Drowned Deacon 66 (38/72/65/83/75) · R26 Marsh-Mother 75 (64/77/66/81/87).
+Same minus-6.5pp convention, and the ratchet: Anubis rose 0.505 to 0.585 and
+the Violet Signal Queen 0.615 to 0.645; Bastet (candidate 67.5) and Chrome
+Broodmother (candidate 53.5) kept their standing floors, because a candidate
+under the current value is recorded, never applied; the Deacon and the
+Marsh-Mother took their first real floors at 0.595 and 0.685, retiring the
+tier-6 provisional termination-only gate. Rungs 14-20 were not re-measured
+in that pass; they were on 2026-09-19, below. Every new floor cleared at CI's 40 seeds the
+same day (R21 70.0 · R22 75.0 · R23 60.5 · R24 69.5 · R25 63.5 · R26 71.0).
+Two findings: Chrome Broodmother has fallen 68 to 60 since 2026-08-30, mostly
+out of Muster (46 to 42), which leaves 1.5pp between her 200-seed mean and
+her own floor, the narrowest margin on the ladder and the next deck owed a
+measured tuning pass; and Anubis is the AI pass's big winner, 57 to 61 to 65,
+with Harvest (46) still her only losing column.
+
+**Rungs 14-20 re-baselined, 2026-09-19,** on the final 1.8 pool, same harness
+and seeding as the gate, 200 seeds per cell, FLAGS none: R14 Artoria 65.6
+(27/91/66/75/71) · R15 Carmilla 72.3 (61/78/52/85/86) · R16 The Bride 68.6
+(57/73/51/79/83) · R17 Glass-Coffin Queen 77.3 (70/76/62/94/85) · R18 Abyssal
+Songstress 88.5 (88/93/73/95/95) · R19 Queen of the Lanterned Roof 58.6
+(40/75/49/59/71, one draw in 1,000 games) · R20 Kitsune Neon Tyrant 81.6
+(74/70/82/91/92). The ratchet: Carmilla 0.645 to 0.655, the Glass-Coffin Queen
+0.685 to 0.705, the Songstress 0.795 to 0.82 (her margin had shrunk to 1.5pp
+and is 6.5 again); The Bride (candidate 62.0), the Queen of the Lanterned Roof
+(52.0) and Kitsune (75.0) kept their standing floors. All seven cleared at
+CI's 40 seeds the same day (65.0 · 74.5 · 69.5 · 79.5 · 84.5 · 56.0 · 84.0),
+zero draws, every order rule holding. **The finding: Kitsune has fallen 87 to
+84 to 81.6 across the AI passes and now sits 1.1pp over her own floor, the
+narrowest margin on the ladder,** with Muster (74) and Communion (70) her soft
+columns; the Queen of the Lanterned Roof sits 4.1pp over hers. Both were
+tuned the same day, in the paragraphs that follow. The gate runs
+fixed seeds, so a thin margin is not a random failure; it is fragility to the
+next change to the engine, the AI or a card either deck runs. Kitsune is the
+next deck owed a measured tuning pass. `RUNG_BANDS` in
+`scripts/balance-matrix.ts` was synced to the gate the same day: it had kept
+rung 21's pre-ratchet value and carried no band for rungs 23-26.
+
+**The Queen of the Lanterned Roof's tuning pass, 2026-09-19,** closing the
+other thin margin. Her converter cut had no creature below three mana, and
+her three-drop (Neon-Gate Warden) has Bulwark and cannot attack, so she did
+nothing on turns one and two while Crimson Muster (40) and Burning Tides (49)
+ran her over. Four Circuit Foretelling became four Lantern Fixer, a 2/2
+Kitsune for two that her three lords make a 3/3 or better: 71.7 on the
+committed list (53/86/61/82/78, 0 draws), her floor ratchets 0.545 to 0.65, and
+CI's 40 seeds read 68.0. On the 14-deck reserve matrix: 62.5 to 74.2. Sea-Glass
+Knife and Neon-Gate Warden measured load-bearing (60.0 and 56.1 without them).
+
+**The converter-defect check, 2026-09-19, and what it was worth.** The
+converter caps expensive cards at two copies and fills the forty by inflating
+cheap packages to four. `balance/converter-audit.ts` (local) compares every
+boss's Warchest forty with her authored list; it flagged five untuned bosses
+whose namesake or core package was cut. Measured with the authored cards
+restored, on the five starters: the Queen of the Lanterned Roof 58.6 to 63.9,
+Yohime 76.1 to 80.2, Titania 58.6 to 58.3, Carmilla 72.3 to 71.9, and the
+Marsh-Mother 74.8 to 69.0, where restoring her own legend HURTS. Then the
+Queen's +5.3 went to the 14-deck matrix and read +1.0, which is noise. **So of
+five suspects, none was a real converter defect; Kitsune's four dropped
+Queenpins remain the one genuine case. A dropped namesake is a suspect, not a
+defect, and a starters-only gain is a suspect too.** The check still paid for
+itself: it put her list in front of a reader, and the missing two-drop was
+plain to see.
+
+**Kitsune's tuning pass, 2026-09-19,** closing that finding the same day. She
+had never been tuned: her list was the converter's first cut, and it had
+DROPPED the four Redline Queenpins her authored list runs (5/4 Warcry, 4
+damage on arrival) and DOUBLED her Hauntlink package to eight three-mana
+copies, the same shape of converter defect that once hobbled The Bride.
+Restoring the authored 4/2/2 (two Burning Mask and two Ember-Link Chain become
+four Queenpin) reads 88.3 on the committed list (79/84/87/97/95), her floor
+ratchets 0.805 to 0.815, and CI's 40 seeds read 90.5. Confirmed on the 14-deck
+reserve matrix first: baseline 86.8, this list 92.3. The lever is smooth (two
+Queenpin 86.9, three 88.7, four 89.0), which leaves her strength an owner dial.
+
+**What that pass measured before it cut anything, and the method worth
+keeping.** The first theory was that the brains do not use Hauntlink. It was
+stale (phase B wrote `hauntlinkPolicy.ts`) and it was also checkable, so it
+was checked: a read-only wrapper on her brain over 500 of her own matrix games
+counted, per Hauntlink card, casts, links and copies stranded in the final
+hand. Once a Hauntlink card is on the battlefield the policy uses it (Burning
+Mask linked 0.82 times per cast, Ember-Link Chain 1.21), so the brain was
+cleared. The list was the problem: each Mask and Chain she saw was cast about
+half the time (52% and 51%), because eight is more than her curve can spend.
+**A behaviour test proves a brain CAN make a play and a win-rate gate proves
+the boss wins enough; neither says how often she USES a mechanic when she
+could. Count that before tuning, or a tune can hide a policy bug by swapping
+the unused cards out.** A general per-mechanic usage audit on the balance
+telemetry is proposed for 1.9. The same count found Hauntlink Apex cast in 7%
+of her games (13% when seen), and the first version of this paragraph called
+that a card defect wanting a ruling. **It is not, and the Hauntlink recost
+proposal that followed the same day recommends NO recost.** What the
+follow-up measured:
+
+| Boss, shape | Card | Cast + link | Cast when seen | Links per cast |
+| --- | --- | --- | --- | --- |
+| Queen of the Lanterned Roof, control, about 10 turns each | Hauntlink Signal Lure | 1 + 1 | 76% | 0.96 |
+| | Sanctum of Many Masks | 3 + 4 | 70% | 1.58 |
+| Kitsune, aggro, about 7 turns each | Burning Mask of the Void | 3 + 3 | 40% | 0.84 |
+| | Ember-Link Chain | 3 + 1 | 41% | 1.32 |
+| | Hauntlink Apex | 8 + 4 | 10% | 0.75 |
+
+A four-mana link is used MORE per cast than a one-mana link where games run
+long, so dear links are not going unused. Land drops are guaranteed in this
+format, so eight mana is reliable on turn eight; Apex is dead in Kitsune's
+deck because her games end on turn seven, which is a deck-fit fact. The
+workbench agrees on the card: it rates Apex fair at eight (+0.46) and 3.7 too
+strong at four, because its Dawn draw alone is worth about five mana.
+**One real thing the exercise did find, recorded and not acted on:** the power
+formula prices a link at the face value of its rider and ignores the link's
+own cost (the one-cast floor, owner ruling 2026-08-28, binds for all sixteen
+carriers). So link cost is a balancing lever the formula cannot see, in both
+directions: Unanswered Signal reads +1.74, outside the fair band, with its
+four-mana link unpriced, and Burning Mask of the Void reads -1.83 with a
+three-mana link. Neither measured as a problem in play. If a later set leans
+on Hauntlink, the floor wants a second look with this table in hand.
+
+**Chrome Broodmother's tuning pass, 2026-09-19.** The 60 reproduced exactly
+first. The cause was structural, and it is the same lesson the combat-model
+work taught elsewhere: she fielded no Skyborne and no Warding Gaze, so she
+could not block a flier at all, and Crimson Muster fields twelve. While her
+opponents misplayed combat that hole cost little; once they stopped, it cost
+eight points. One lever closed it: two Burning Hull Runner and two Comet-Kick
+Marauder became four Ashwood Ranger (3/3 Warding Gaze that Marks itself, so
+it blocks fliers and is a Marked body for her Brawlers and Propagate). The
+committed list reads 72 (63/82/64/70/84, 0 draws), Muster 42 to 63, and her
+floor ratchets 0.585 to 0.655; CI's 40 seeds read 70.5 the same day. A second
+lever (two Lance of Two Suns to two more Red-Solar Lash) read 77.5 on the
+five starters and was NOT taken: on the independent 14-deck reserve matrix
+the three lists read 61.2, 74.8 and 75.6, so its gain was fitting the starter
+columns. **Confirm a tune on the wide matrix before stacking a second
+lever.** Two Duty artifacts from the land-economy slate were measured in her
+list and rejected: four Festival Rocket read 56.8 and two Overcanopy Trellis
+59.8, so in AI hands the repeatable two-damage Duty is too slow and the
+repeatable Mark source is not an engine on its own.
+
+The Starborne pair (Chrome Broodmother 23, The Violet Signal Queen 24; floors
+0.655 and 0.645) and the Drowned Deep pair (The Drowned Deacon 25, The
+Marsh-Mother 26, the final rung; floors 0.595 and 0.685) each carry their
+own gate with the termination check.
+Measured untuned 2026-09-15 at 200 seeds: Deacon 33% (35.5% after phase A,
+35.9% after B), Marsh-Mother 77% (77.9% after A, 74.8% after B: the Tithe
+fodder rule costs her, see the next section). The Deacon's plan is fog, tap and cheap counter
+Charms on a schedule; phase A taught the ladder those shapes and moved her
+only a little, so her deck got a measured tuning pass on 2026-09-16: three
+authored reserve surgeries (bodies for the Bells, Thing in the Cistern for
+two Cold Currents, Mother Hydra and a third Hierophant for her top) took her
+from 35.9 to 66.4 at 200 seeds with every cell up, and her 40-seed gate from
+40.0 to 63.5. The full record, every single and combination with its cells,
+is the comment above her reserve list in `src/data/opponents.ts`. The
+Marsh-Mother got the same pass the same day and kept her list: four authored
+reserve surgeries (the Mark spells out for Horrors, a bigger top, early
+pressure, drain bodies) all measured below her frozen 74.8, the Mark cut
+worst at 67.3, so the Reef Blooms are doing work on her board and the
+rejections are recorded beside her list.
+
+## What the AI provably does, and the known gaps (2026-09-15)
+
+[plan-ai-modernization.md](plan-ai-modernization.md) is the audit: legally
+every card plays; as intended, not yet. Two test files are the scoreboard:
+
+- `tests/ai/rungSmokes.test.ts` plays every gauntlet rung in both reserve
+  formats (Warchest and Darlings) with its own brain and personality, and
+  every Darlings precon, one seed each, under one 900 s file budget. No
+  crashes, no illegal actions, every game to `gameOver`.
+- `tests/ai/documentedBehaviour.test.ts` pins one test per claim in this
+  document. Thirty-seven pass (phase A flipped five and phase B three on
+  2026-09-15, phase C three on 2026-09-16); three are marked `it.fails` and
+  name the phase that owns them (D draft 3). A phase lands by flipping its own tests to `it`; a
+  fixture or legality error inside an expected failure fails the file, so the
+  marker can never hide a broken brain. Phase A's own rules are pinned in
+  `tests/ai/castLadder.test.ts`, `castLadderReview.test.ts` and
+  `hardTiming.test.ts`.
+
+Phase D (2026-09-17) closed the last gap, the draft picker, and every one of
+the forty documented behaviours now passes. Its measurement is the second
+lesson of the plan: a scorer that knows the mechanics does not draft
+stronger decks in Medium's hands. Seat-one decks drafted by the new scorer
+against decks drafted by the old one from the same seeds, Medium on both
+sides, 1,500 games per set: with the weights as first built (mechanic 2,
+buff 1) the new decks won 47.7 percent on base and 45.4 on Yokai Nights;
+with both weights at zero and only the classifier fixes kept, 49.8 and 52.9;
+with the shipped mechanic 1 and buff 0, 49.2 and 52.1, and 48.2 on Drowned Deep. The
+classifier fixes are neutral to positive; stacked weights that promote
+riders over bodies are a cost, so the shipped defaults keep the mechanics
+visible without paying for them. The same measurement found the trigger
+loop that #381 closed. Phase C (2026-09-16) closed the combat gap
+with the shared exchange model above, and its measurement is the lesson of
+the phase: modelling twinBlades on both seats moved the two twinBlades-heavy
+avatars down, not up (Bastet 69 to 62.4 at 1,000 games, Brunhild 75 to
+69.7), because their opponents had been blocking a 2/1 double-striker with
+a 2/2 that died without striking. Reverting only the defender's incoming
+damage term recovered 6.5 of Bastet's 6.6 points; her own attack math
+recovered nothing. So the model stayed and Bastet's reserve deck, an untuned
+converter cut of sixteen x/1 bodies and no removal, got the measured tuning
+pass instead: burn for the four Claw-Prow Signalers and Kesi for two of the
+four Bakhets took her 62.4 to 73.6 with every cell up, and her 40-seed gate
+reads 75.0 against the 68.5 floor, which was not moved. Brunhild, the other
+heavy twinBlades carrier (rung 10, no floor), had fallen 75 to 70 the same
+way and got the same shape of pass on 2026-09-17: burn for her four Ember
+Valkyries took her to 79 with every cell up; the three other authored
+surgeries and the pair are recorded beside her list. Phase B closed the mechanic gaps (Tithe fodder,
+Hauntlink fit, moves and windows, Duty ordering and mana holding, Empower
+cost) with the gates unchanged and rungs 15, 16, 18 and 20 up one to two
+points; Kitsune, the Hauntlink spine, moved 82.9 to 84.5. The Tithe boss
+(the Marsh-Mother) measured 77.9 to 74.8 after the fodder rule, so the fodder
+rate was the first knob the tuning pass looked at (2026-09-16): rates 0.5
+and 1.0 and an unlock-only rule all read 75.4 on her and moved nothing else,
+inside the band, so the rule stands as ruled and the movement came from the
+decks instead. That pass also caught a 1.8-only legality bug: Medium's
+respond step rewrote the first counter's stack target to the top spell
+without checking a `maxCost` target spec (Still Harbour, cost 2 or less),
+and an illegal cast from the AI hard-locks the duel. The rewrite is now
+returned only when the legal menu carries the same card and target list;
+otherwise the brain falls through. Regression in `tests/ai/aiFixes.test.ts`.
+Phase A closed the cast-ladder gap (spell bodies, wraths, lethal, the five
+Charm rules, Hard's pass and hold, Quest-gated pricing) with the two brain
+gates unchanged at 83.0 and 78.5 and every rung above its floor; rungs 17 and
+18 measure a few points lower because the neutral Medium proxy they face
+improved too. The untuned Deacon moved 33 to 35.5 and Lanterns Below 18.9 to
+20.1, so those two decks got a tuning pass of their own on 2026-09-16
+(Lanterns Below 14.6 to 31.3 on its reserve-native row, the Deacon 35.9 to
+66.4; the surgery records sit beside each list). Everything the tests
+do prove is listed beside the claim it proves, in the file.
+
 ## Tower strength tiers (the decision-noise dial)
 
 The Tower decouples AI strength from the avatar (1.3 Pillar 1): the FLOOR
@@ -357,11 +657,25 @@ of:
   curve/removal/keyword/subtype/legend weights, forced colors, big-stuff and
   bargain biases, and a `chaos` dial whose noise is a **pure hash** of
   `(draft seed, seat, pack, pick, cardId)` — no RNG state, fully deterministic.
-  The frozen `DEFAULT_PICKER` reproduces the pre-persona draft heuristic
-  **bit-for-bit** (same discipline as `DEFAULT_PERSONALITY`; lockstep specs in
-  `tests/meta/limited.test.ts` pin both the live bot-pick path across 20 full
-  drafts and the base score over every card in `CARD_DB`, which also guards the
-  shared limited auto-build path).
+  Since phase D (2026-09-17) the base scorer reads the whole card: Empower,
+  Preserve, Duty, Quest chapter and Hauntlink text feed the same removal,
+  card-advantage, token, life-gain and graveyard classifiers as plain
+  ability text; every mechanic (Empower, Retell, Whispers, Tithe, Skim at
+  half, Preserve, Duty, Quest, Hauntlink, Nine Lives; not Rite, not
+  Awakening) earns `mechanicWeight` once; Mark and boost effects earn
+  `buffWeight`; Bulwark and Rage are restrictions and earn no generic
+  keyword bonus (a persona's `keywordPrefs` still counts them); a
+  self-damage rider is not removal. The shipped defaults are
+  `mechanicWeight` 1 and `buffWeight` 0 by owner ruling after measurement
+  (see the proof section). `DEFAULT_PICKER` is therefore no longer the
+  pre-persona heuristic bit-for-bit: the lockstep specs in
+  `tests/meta/limited.test.ts` were re-baselined deliberately against an
+  independent reference of the phase-D arithmetic (525 of 1,482 collectible
+  base scores moved; 3,783 of 6,300 picks across the 20 pinned drafts),
+  and they still guard the shared limited auto-build path. Chris stays
+  exactly lockstep with the default; Cody stays chaotic; Tiffany still
+  takes the rarest card; every persona differentiation row isolates its
+  own knob.
 - a **`Personality`** spread — the persona you drafted against pilots your
   post-draft matches: `limitedDuelData` carries the seat's persona id, and
   DuelScene skins its name/portrait onto the duel and passes its Personality

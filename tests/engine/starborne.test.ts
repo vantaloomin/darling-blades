@@ -895,9 +895,12 @@ describe('Stage-4 vocabulary completion', () => {
   it('keeps the mark recursion depth guard intact through an allyCreatureArrives mark chain', () => {
     const game = gameWithHand(['allyObserver', 'recursiveMarker']);
     game.submit(0, { type: 'castSpell', handIndex: 0 });
+    // Old expectation: toThrow('Mark-trigger recursion exceeded depth 8.').
     expect(() => game.submit(0, { type: 'castSpell', handIndex: 0 }))
-      .toThrow('Mark-trigger recursion exceeded depth 8.');
-
+      .not.toThrow();
+    expect(game.state.battlefield.find(p => p.cardId === 'recursiveMarker')?.plusOneCounters).toBe(10);
+    expect(game.state.players.map(p => p.life)).toEqual([20, 20]);
+    expect(game.awaiting.kind).toBe('main');
   });
 });
 
@@ -943,7 +946,7 @@ describe('Starborne mark events and statics', () => {
     expect(all.state.battlefield.find((p) => p.iid === 3)?.plusOneCounters).toBe(0);
   });
 
-  it('rejects recursive mark-event definitions and throws at the runtime depth guard', () => {
+  it('rejects recursive mark-event definitions and terminates at the runtime depth guard', () => {
     expect(validateMarkTriggerDef(DB.recursiveMarker)).toEqual(['gainsMark abilities cannot add marks']);
     expect(validateMarkTriggerDef(card('markEventZoneOps', ['creature'], {
       abilities: [{
@@ -952,8 +955,12 @@ describe('Starborne mark events and statics', () => {
       }],
     }))).toEqual([]);
     const game = gameWithHand(['markTwice'], [permanent(1, 'recursiveMarker')]);
+    // Old expectation: toThrow('Mark-trigger recursion exceeded depth 8.').
     expect(() => game.submit(0, { type: 'castSpell', handIndex: 0, targets: [ref(1)] }))
-      .toThrow('Mark-trigger recursion exceeded depth 8.');
+      .not.toThrow();
+    expect(game.state.battlefield[0].plusOneCounters).toBe(20);
+    expect(game.state.players.map(p => p.life)).toEqual([20, 20]);
+    expect(game.awaiting.kind).toBe('main');
   });
 
   it('recomputes marked statics for both sides, including negative opponent stats and keywords', () => {

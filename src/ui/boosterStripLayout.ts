@@ -217,6 +217,22 @@ export function boosterStripTileIsVisible(
 }
 
 /**
+ * Whether a tile sits entirely inside the masked viewport. A geometry mask
+ * hides pixels but never clips input, so a tile that only peeks past the edge
+ * must not carry live controls: its hidden half would still answer taps in the
+ * gutter. Geometric rather than index-based, so it stays true mid-tween too.
+ */
+export function boosterStripTileIsFullyVisible(
+  layout: BoosterStripLayout,
+  index: number,
+  offset: number,
+): boolean {
+  const tile = boosterStripTileRect(layout, index, offset);
+  if (Number.isNaN(tile.x)) return false;
+  return tile.x >= layout.viewport.x && tile.x + tile.width <= layout.viewport.x + layout.viewport.width;
+}
+
+/**
  * Classify a strip tap. Only full tiles activate; a real edge peek moves one
  * snap toward that item. The caption row is outside tapBand by design.
  */

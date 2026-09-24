@@ -77,6 +77,7 @@ export function checkStateBased(state: GameState, db: CardDb, emit: Emit): void 
 
     // Destroy ALL of this pass's deaths (battlefield order), then fire their
     // dies triggers — stopping if one of them ends the game.
+    const observers = [...state.battlefield];
     const doomed = state.battlefield.filter((p) => doomedIids.has(p.iid));
     const fallen: Permanent[] = [];
     const graveyardEntries: { card: CardEntry; owner: 0 | 1 }[] = [];
@@ -109,7 +110,7 @@ export function checkStateBased(state: GameState, db: CardDb, emit: Emit): void 
       if (state.winner !== null) return;
       fireGraveyardTriggers(state, db, emit, entry.card, entry.owner);
     }
-    fireBatchedDies(state, db, emit, fallen);
+    fireBatchedDies(state, db, emit, fallen, 0, observers);
     if (fallen.length > 0) changed = true;
 
     if (!changed) return;

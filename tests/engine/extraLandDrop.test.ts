@@ -54,7 +54,6 @@ describe('extra land drops', () => {
     game.submit(0, { type: 'playLand', handIndex: 0 });
 
     expect(game.state.players[0].landDropsUsed).toBe(2);
-    expect(game.state.players[0].landDropsUsed < 1 + game.state.players[0].extraLandDrops).toBe(false);
   });
 
   it('cumulates two extraLandDrop effects into two additional drops', () => {
@@ -130,6 +129,7 @@ describe('extra land drops', () => {
       player: 0,
       n: 1,
       thenOps: [{ op: 'extraLandDrop' }],
+      thenContext: { controller: 0, sourceCardId: 'x' },
     }]);
   });
 

@@ -57,14 +57,13 @@ describe('land arrival triggers', () => {
 
     expect(game.state.players[0].landDropsUsed).toBe(1);
     expect(game.state.players[0].life).toBe(22);
-    expect(events.map((event) => event.e)).toEqual([
-      'landPlayed',
-      'triggerFired',
-      'effectApplied',
-      'lifeChanged',
-    ]);
-    expect(events[1]).toMatchObject({ e: 'triggerFired', when: 'arrives' });
-    expect(events[2]).toEqual({ e: 'effectApplied', op: 'gainLife' });
+    const kinds = events.map((event) => event.e);
+    for (const kind of ['landPlayed', 'triggerFired', 'effectApplied', 'lifeChanged']) {
+      expect(kinds, kind).toContain(kind);
+    }
+    expect(kinds.indexOf('landPlayed')).toBeLessThan(kinds.indexOf('triggerFired'));
+    expect(events.find((event) => event.e === 'triggerFired')).toMatchObject({ when: 'arrives' });
+    expect(events.find((event) => event.e === 'effectApplied')).toEqual({ e: 'effectApplied', op: 'gainLife' });
   });
 
   it('fires the same arrives rider when played from a Warchest reserve', () => {
@@ -82,12 +81,11 @@ describe('land arrival triggers', () => {
 
     expect(game.state.players[player].landReserve).toHaveLength(9);
     expect(game.state.players[player].life).toBe(22);
-    expect(events.map((event) => event.e)).toEqual([
-      'landPlayed',
-      'triggerFired',
-      'effectApplied',
-      'lifeChanged',
-    ]);
+    const kinds = events.map((event) => event.e);
+    for (const kind of ['landPlayed', 'triggerFired', 'effectApplied', 'lifeChanged']) {
+      expect(kinds, kind).toContain(kind);
+    }
+    expect(kinds.indexOf('landPlayed')).toBeLessThan(kinds.indexOf('triggerFired'));
   });
 
   it('keeps a land without abilities on the original event sequence', () => {

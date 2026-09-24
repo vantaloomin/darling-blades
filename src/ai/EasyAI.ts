@@ -1,29 +1,36 @@
 import type { Action } from '../engine/actions';
-import { blockOptions, minimumBlockersForAttacker } from '../engine/combat/legality';
+import { blockOptions, compelledAttackers, eligibleAttackers, minimumBlockersForAttacker } from '../engine/combat/legality';
 import { createRngState, rngFloat, rngInt, type RngState } from '../engine/rng';
 import { getEffectiveStats } from '../engine/statics';
 import type { CardDb } from '../engine/types';
 import { def, isType, manaValue, opponentOf } from '../engine/types';
 import type { PlayerView } from '../engine/view';
 import type { AIPlayer } from './AIPlayer';
+import { chooseActivate } from './activatedPolicy';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { chooseForesee } from './foresee';
+import { chooseDiscard } from './discardPolicy';
+import { chooseSacrifice } from './sacrificePolicy';
 import { chooseDarlingPaydown } from './darlingPolicy';
-import { chooseUnlinkedHauntlink } from './hauntlinkPolicy';
+import { chooseHauntlinkWindow, chooseUnlinkedHauntlink } from './hauntlinkPolicy';
 import { chooseReserveLand } from './landPolicy';
 import { choosePlayDraw } from './playDraw';
 import { choosePreserve, type MainCast } from './preservePolicy';
 import { applyRitePolicy, riteSacrificeValue } from './ritePolicy';
-import { chooseTargetAction } from './targeting';
+import { applyTithePolicy, titheManaSaved } from './tithePolicy';
+import { applyWhispersPolicy } from './whispersPolicy';
+import { applyVocabularyTargetPolicy, chooseTargetAction } from './targeting';
 import {
   conditionalAbilityValue,
   empowerValue,
+  empowerOpportunityCost,
   hauntlinkCastValue,
   nineLivesValue,
   removalKind,
   removalValueForCast,
   retellValue,
   skimValue,
+  whispersValue,
 } from './value';
 
 /**
@@ -45,7 +52,17 @@ export class EasyAI implements AIPlayer {
   }
 
   chooseAction(view: PlayerView, legal: Action[]): Action {
+    legal = applyVocabularyTargetPolicy(view, this.db, legal);
+    legal = applyTithePolicy(view, this.db, legal, this.pers, () => {
+      if (view.step !== 'main1' || view.activePlayer !== view.myId) return [];
+      const planned = this.attack(view, [
+        { type: 'declareAttackers', attackers: eligibleAttackers(view.battlefield, this.db, view.myId) },
+        { type: 'declareAttackers', attackers: compelledAttackers(view.battlefield, this.db, view.myId) },
+      ]);
+      return planned.type === 'declareAttackers' ? planned.attackers : [];
+    });
     legal = applyRitePolicy(view, this.db, legal);
+    legal = applyWhispersPolicy(view, this.db, legal, (cast) => this.castScore(view, cast));
     const a = view.awaiting;
     switch (a.kind) {
       case 'choosePlayDraw':
@@ -64,11 +81,16 @@ export class EasyAI implements AIPlayer {
         return this.block(view);
       case 'respond':
       case 'endStepWindow':
-      case 'hauntlinkWindow':
         return this.respond(view, legal);
+      case 'hauntlinkWindow':
+        // This is a mechanic policy call; the 85% random pass belongs only
+        // to ordinary response windows, where Easy keeps that weakness.
+        return chooseHauntlinkWindow(view, this.db, legal) ?? { type: 'passResponse' };
       case 'chooseTarget':
+        if (a.decision === 'sacrifice') return chooseSacrifice(view, this.db, legal);
         return chooseTargetAction(view, this.db, legal);
       case 'discardToHandSize':
+        if (a.decision === 'discard') return chooseDiscard(view, this.db);
         return legal[rngInt(this.rng, Math.max(1, legal.length - 1))]; // skip concede at end
       default:
         return legal[0];
@@ -84,7 +106,7 @@ export class EasyAI implements AIPlayer {
     cast: Extract<Action, { type: 'castSpell' | 'castDarling' }>,
   ): string {
     if (cast.type === 'castDarling') return view.you.darlingZone ?? '';
-    return cast.retell && cast.graveIndex !== undefined
+    return (cast.retell || cast.whispers) && cast.graveIndex !== undefined
       ? view.you.graveyard[cast.graveIndex]
       : view.you.hand[cast.handIndex];
   }
@@ -99,11 +121,14 @@ export class EasyAI implements AIPlayer {
         ? hauntlinkCastValue(view.battlefield, this.db, cardId, host.iid)
         : -Infinity;
     }
-    const castValue = action.retell
+    const castValue = action.whispers
+      ? whispersValue(this.db, cardId, view)
+      : action.retell
       ? retellValue(this.db, cardId) + 0.01
       : manaValue(d.cost) + nineLivesValue(d) + conditionalAbilityValue(this.db, cardId) + (action.x ?? 0) +
-          (action.empowered ? empowerValue(this.db, cardId) + 0.01 : 0);
-    return castValue - riteSacrificeValue(view, this.db, action);
+          (action.empowered ? empowerValue(this.db, cardId) + 0.01 -
+            empowerOpportunityCost(view, this.db, action, (otherView, other) => this.castScore(otherView, other)) : 0);
+    return castValue + titheManaSaved(view, this.db, action) - riteSacrificeValue(view, this.db, action);
   }
 
   /** Targeted damage should not default to a friendly permanent or player. */
@@ -158,7 +183,11 @@ export class EasyAI implements AIPlayer {
   }
 
   private main(view: PlayerView, legal: Action[]): Action {
-    const nonConcede = legal.filter((l) => l.type !== 'concede');
+    const activate = chooseActivate(view, this.db, legal);
+    // Noise may skip Duty, but cannot bypass its timing or target policy.
+    const nonConcede = legal.filter((l) =>
+      l.type !== 'concede' && (l.type !== 'activate' || l === activate),
+    );
     const paydown = chooseDarlingPaydown(view, nonConcede);
     if (paydown) return paydown;
     const reserveLand = chooseReserveLand(view, this.db, nonConcede);
@@ -180,6 +209,7 @@ export class EasyAI implements AIPlayer {
       (cast) => this.castScore(view, cast),
     );
     if (preserve) return preserve;
+    if (activate) return activate;
     if (casts.length === 0 && skimPool.length > 0) {
       return skimPool[0];
     }
@@ -264,6 +294,39 @@ export class EasyAI implements AIPlayer {
     const usedBlockers = new Set<number>();
     const blockedAttackers = new Set<number>();
 
+    type CombatStats = ReturnType<typeof getEffectiveStats>;
+    const strikesIn = (stats: CombatStats, firstStep: boolean): boolean => firstStep
+      ? stats.keywords.has('firstBlade') || stats.keywords.has('twinBlades')
+      : !stats.keywords.has('firstBlade') || stats.keywords.has('twinBlades');
+    // Keep Easy's kill-or-survive rule, but count only hits the blockers get
+    // to make. Hits in each sub-step are simultaneous; casualties leave before
+    // the next step, and Twin Blades still strikes in that normal step.
+    const blockersKill = (atk: CombatStats, blockers: CombatStats[]): boolean => {
+      const defenders = blockers.map((stats) => ({ stats, defense: stats.defense }));
+      let attackerDamage = 0;
+      for (const firstStep of [true, false]) {
+        const alive = defenders.filter((b) => b.defense > 0);
+        const striking = alive.filter((b) => strikesIn(b.stats, firstStep));
+        const damage = striking.reduce((sum, b) => sum + Math.max(0, b.stats.attack), 0);
+        const deathblade = striking.some((b) => b.stats.attack > 0 && b.stats.keywords.has('deathblade'));
+        if (strikesIn(atk, firstStep)) {
+          const lethal = (b: (typeof defenders)[number]): number => atk.keywords.has('deathblade')
+            ? 1 : b.defense;
+          let power = Math.max(0, atk.attack);
+          for (const b of [...alive].sort((a, b) => lethal(a) - lethal(b))) {
+            const assigned = Math.min(power, lethal(b));
+            if (assigned > 0) {
+              b.defense = atk.keywords.has('deathblade') ? 0 : b.defense - assigned;
+              power -= assigned;
+            }
+          }
+        }
+        attackerDamage += damage;
+        if (deathblade || attackerDamage >= atk.defense) return true;
+      }
+      return false;
+    };
+
     const attackerPower = (iid: number): number =>
       getEffectiveStats(view.battlefield, this.db, iid).attack;
     const attackers = [...view.combat.attackers]
@@ -283,8 +346,7 @@ export class EasyAI implements AIPlayer {
           const first = getEffectiveStats(view.battlefield, this.db, candidates[i].blocker);
           for (let j = i + 1; j < candidates.length; j++) {
             const second = getEffectiveStats(view.battlefield, this.db, candidates[j].blocker);
-            const kills = first.attack + second.attack >= atk.defense ||
-              first.keywords.has('deathblade') || second.keywords.has('deathblade');
+            const kills = blockersKill(atk, [first, second]);
             // Commit the pair only when it kills; otherwise chump only when
             // desperate (the single-block philosophy, pair-sized).
             if (kills || desperate) {
@@ -296,8 +358,9 @@ export class EasyAI implements AIPlayer {
       } else {
         for (const c of candidates) {
           const blk = getEffectiveStats(view.battlefield, this.db, c.blocker);
-          const kills = blk.attack >= atk.defense || blk.keywords.has('deathblade');
-          const survives = blk.defense > atk.attack && !atk.keywords.has('deathblade');
+          const kills = blockersKill(atk, [blk]);
+          const damage = atk.attack * (atk.keywords.has('twinBlades') ? 2 : 1);
+          const survives = blk.defense > damage && !atk.keywords.has('deathblade');
           if (kills || survives || (desperate && candidates.length > 0)) {
             choices = [c.blocker];
             break;

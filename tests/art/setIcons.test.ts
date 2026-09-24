@@ -1,23 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { SET_ICON_PATHS, type CardSetId } from '../../src/art/setIcons';
+import { SET_IDS } from '../../src/data/setTitles';
 
-const EXPECTED: CardSetId[] = [
-  'base',
-  'ragnarok',
-  'celtic-fae',
-  'arthurian-court',
-  'gothic-monsters',
-  'dark-tales',
-  'yokai-nights',
-  'sands-of-the-duat',
-  'starborne',
-];
+// Derived from the data layer's single source of set ids, so a new set that
+// ships without an icon (or an icon for a set that does not exist) fails here.
+const EXPECTED = SET_IDS as readonly CardSetId[];
 
 // Matches the absolute-only path contract documented by setIcons.ts.
 const PATH_DATA = /^M[MLCAZ0-9 .,-]*Z$/;
 
 describe('set icon paths', () => {
-  it('defines exactly the collectible set ids', () => {
+  it('gives every live set an icon and defines no icon without a set', () => {
     expect(Object.keys(SET_ICON_PATHS).sort()).toEqual([...EXPECTED].sort());
   });
 

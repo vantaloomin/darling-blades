@@ -69,6 +69,7 @@ export type BoardHighlight =
   | 'legalTarget'
   | 'legalTargetOpponent'
   | 'selectedAttacker'
+  | 'selectedSacrifice'
   | 'attacking'
   | 'blocking'
   | 'pendingBlocker'
@@ -79,6 +80,7 @@ const BORDER_COLORS: Record<Exclude<BoardHighlight, 'none'>, number> = {
   legalTarget: 0x6ee87d,
   legalTargetOpponent: colorInt(theme.colors.dangerArmed),
   selectedAttacker: 0xff8a6a,
+  selectedSacrifice: 0xd4a3ff,
   attacking: 0xffb09a,
   blocking: 0x7fb0ff,
   pendingBlocker: 0x5a9aff,
@@ -90,6 +92,7 @@ const ART_TINTS: Record<Exclude<BoardHighlight, 'none'>, number> = {
   legalTarget: 0xa8f0b0,
   legalTargetOpponent: colorInt(theme.colors.danger),
   selectedAttacker: 0xffb0a0,
+  selectedSacrifice: 0xe4c6ff,
   attacking: 0xffc0b0,
   blocking: 0xa0c8ff,
   pendingBlocker: 0x80b0ff,

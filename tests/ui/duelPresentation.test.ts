@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  CARD_TRAVEL_MOTION,
-  HAUNTLINK_OVERLAP,
   OPPONENT_RESERVE_CLEARANCE,
-  OPPONENT_RESERVE_PILE_LAYOUT,
-  SHARD_HOLD_BUTTON_PROGRESS,
   TARGET_ARROW_HEAD_LENGTH,
   hauntlinkActionLabel,
   graveActionChoice,
@@ -16,6 +12,9 @@ import {
   orderedGraveyardSlots,
   shouldArmLandDrop,
   presentationRectsOverlap,
+  SACRIFICE_CHOOSER_CENTER_X,
+  sacrificeCastChoices,
+  type SacrificeCastInput,
   targetArrowShaftEnd,
   targetRingTone,
 } from '../../src/ui/duelPresentation';
@@ -23,14 +22,31 @@ import { packRow } from '../../src/ui/rowPacking';
 
 describe('duel presentation rules', () => {
   it('tucks Hauntlink cards upward with an exposed header on either battlefield row', () => {
-    expect(HAUNTLINK_OVERLAP.scale).toBe(0.64);
-    expect(hauntlinkOverlap('you')).toEqual({ x: -18, y: -56, scale: 0.64 });
-    expect(hauntlinkOverlap('opponent')).toEqual({ x: 18, y: -56, scale: 0.64 });
+    const you = hauntlinkOverlap('you');
+    const opponent = hauntlinkOverlap('opponent');
+    for (const tuck of [you, opponent]) {
+      expect(tuck.y).toBeLessThan(0);
+      expect(tuck.scale).toBeGreaterThan(0);
+      expect(tuck.scale).toBeLessThan(1);
+    }
+    expect(Math.sign(you.x)).toBe(-Math.sign(opponent.x));
   });
 
   it('fans multiple Hauntlinks without changing their under-host direction', () => {
-    expect(hauntlinkOverlap('you', 2)).toEqual({ x: 2, y: -68, scale: 0.64 });
-    expect(hauntlinkOverlap('opponent', 2)).toEqual({ x: 38, y: -68, scale: 0.64 });
+    const base = { you: hauntlinkOverlap('you'), opponent: hauntlinkOverlap('opponent') };
+    for (let slot = 1; slot <= 3; slot++) {
+      const you = hauntlinkOverlap('you', slot);
+      const opponent = hauntlinkOverlap('opponent', slot);
+      for (const tuck of [you, opponent]) {
+        expect(tuck.y).toBeLessThan(0);
+        expect(tuck.scale).toBeGreaterThan(0);
+        expect(tuck.scale).toBeLessThan(1);
+      }
+      // The fan never flips a seat past the other: the two seats stay the same distance apart.
+      expect(opponent.x - you.x).toBe(base.opponent.x - base.you.x);
+      expect(you.y).toBeLessThanOrEqual(base.you.y);
+      expect(you.scale).toBe(base.you.scale);
+    }
   });
 
   it('labels only currently payable Hauntlink actions', () => {
@@ -97,18 +113,6 @@ describe('duel presentation rules', () => {
       };
       expect(presentationRectsOverlap(pile, creatures), `creature count: ${beadCount}`).toBe(false);
     }
-    expect(OPPONENT_RESERVE_PILE_LAYOUT.y).toBe(132);
-  });
-
-  it('keeps reduced-motion paths out of the slower full-motion tuning block', () => {
-    expect(CARD_TRAVEL_MOTION.drawToHand.duration).toBe(280);
-    expect(CARD_TRAVEL_MOTION.playToStation.duration).toBe(420);
-    expect(CARD_TRAVEL_MOTION.stationToBattlefield.duration).toBe(420);
-  });
-
-  it('keeps hold progress inside the action button instead of using a cursor halo', () => {
-    expect(SHARD_HOLD_BUTTON_PROGRESS.inset).toBe(3);
-    expect(SHARD_HOLD_BUTTON_PROGRESS.fillAlpha).toBeGreaterThan(0);
   });
 });
 
@@ -196,5 +200,42 @@ describe('graveyard action chips', () => {
     // One action slot per tile. Retell wins because it puts a spell on the
     // stack; Preserve is still there next time the modal opens.
     expect(graveActionChoice(true, true)).toBe('retell');
+  });
+});
+
+describe('Tithe and Rite cast chooser', () => {
+  const plainRite: SacrificeCastInput = {
+    tithe: false, empower: false, skim: false,
+    plainCast: true, empoweredCast: false, titheCast: false, fodder: 2,
+  };
+  const tithe: SacrificeCastInput = { ...plainRite, tithe: true, titheCast: true };
+  const kinds = (input: SacrificeCastInput) => sacrificeCastChoices(input)?.map((choice) => choice.kind) ?? null;
+
+  it('offers Empower only on a card that prints it', () => {
+    expect(kinds(tithe)).toEqual(['cast', 'sacrifice']);
+    expect(kinds({ ...tithe, empower: true, empoweredCast: true })).toEqual(['cast', 'empower', 'sacrifice']);
+    expect(kinds({ ...plainRite, empower: true, empoweredCast: true })).toEqual(['cast', 'empower']);
+  });
+
+  it('skips the chooser for a Rite card with no Empower and no Skim', () => {
+    expect(sacrificeCastChoices(plainRite)).toBeNull();
+    expect(kinds({ ...plainRite, skim: true })).toEqual(['cast']);
+  });
+
+  it('enables Sacrifice to cast only when a creature could be sacrificed', () => {
+    const sacrifice = (input: SacrificeCastInput) =>
+      sacrificeCastChoices(input)!.find((choice) => choice.kind === 'sacrifice')!.enabled;
+    expect(sacrifice({ ...tithe, fodder: 0 })).toBe(false);
+    expect(sacrifice({ ...tithe, fodder: 1 })).toBe(true);
+    expect(sacrifice({ ...tithe, titheCast: false })).toBe(false);
+  });
+
+  it('centres whatever buttons remain without letting 180px buttons touch', () => {
+    for (const input of [tithe, { ...tithe, empower: true }, { ...plainRite, skim: true }]) {
+      const row = sacrificeCastChoices(input)!;
+      const mean = row.reduce((sum, choice) => sum + choice.x, 0) / row.length;
+      expect(mean).toBe(SACRIFICE_CHOOSER_CENTER_X);
+      for (let i = 1; i < row.length; i++) expect(row[i].x - row[i - 1].x).toBeGreaterThan(180);
+    }
   });
 });

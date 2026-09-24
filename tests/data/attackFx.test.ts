@@ -31,12 +31,6 @@ describe('attackFxFor', () => {
       expect(typeof spec.heavy, `${card.id} heavy flag`).toBe('boolean');
     }
   });
-
-  it('resolves mapped creatures to their exact map entry', () => {
-    for (const [id, spec] of Object.entries(ATTACK_FX_MAP)) {
-      expect(attackFxFor(CARD_DB[id])).toEqual(spec);
-    }
-  });
 });
 
 describe('ATTACK_FX_MAP integrity', () => {

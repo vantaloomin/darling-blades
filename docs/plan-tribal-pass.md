@@ -65,6 +65,7 @@ than Wolf/Wolfkin, and neither carries a payoff. The Norse gods do not use
 
 Three tiers, with one governing rule that prevents this recurring:
 
+- **Drowned Deep Axes (owner rulings 2026-09-11 and DC4 2026-09-15):** **Horror** (the set's identity subtype, every Tithe carrier; one Horror lord at Rare, the Deacon of the Deep, whose static grants Dreaded rather than a fourth flat anthem) and **Warden** (the Lantern Watch, white's tribe; Captain of the Salt Stair is its lord, The Bell That Will Not Ring its enchantment payoff). Plant is NOT an Axis: the three Kelp anthems filter tokens (`filter.token`), not the subtype. Both join `src/data/axes.ts` with the set data (wave PR 3b), 22 declared Axes in all.
 - **Axis** - the only types a `filter.subtype` may name. The live list is the
   code's `AXES` export (`src/data/axes.ts`, enforced by a catalog test since
   2026-08-17): the audit table's 13 plus Wolf (Tier 0), plus the set-headline

@@ -3,7 +3,7 @@ import { runOps } from '../../src/engine/effects/EffectInterpreter';
 import { recallPermanent, severPermanent } from '../../src/engine/battlefield';
 import { Game } from '../../src/engine/Game';
 import type { GameEvent } from '../../src/engine/events';
-import type { CardDb } from '../../src/engine/types';
+import type { CardDb, CardDef } from '../../src/engine/types';
 import { cardIdOf } from '../../src/engine/types';
 import { validateAction } from '../../src/engine/actions';
 import { CARD_DB } from '../../src/data/catalog';
@@ -97,6 +97,25 @@ describe('Warchest reserve engine', () => {
       format: 'warchest',
       landReserves: [[...RESERVE.slice(0, 4), 'dual_gw', 'dual_gw', 'dual_gw', 'dual_gw', 'dual_gw', 'dual_gw'], RESERVE],
     })).toThrow('at most 5 dual lands');
+    // 2026-09-17: cf-mist-road stopped being a land when the land-economy
+    // conversion made it a Duty artifact (docs/plan-land-economy.md), so the
+    // unsupported-land branch is proved against an injected fixture tapland
+    // instead. The non-land branch is proved on the converted card itself.
+    const TAPLAND_FIXTURE: CardDef = {
+      id: 'fixture-utility-tapland', name: 'Fixture Utility Tapland', types: ['land'],
+      subtypes: [], colors: [], manaAbility: ['G'], entersTapped: true, rarity: 'c',
+    };
+    const TAPLAND_DB: CardDb = { ...CARD_DB, 'fixture-utility-tapland': TAPLAND_FIXTURE };
+    expect(() => new Game({
+      decks: [Array.from({ length: 50 }, () => 'cf-cold-iron-nail'), Array.from({ length: 50 }, () => 'cf-cold-iron-nail')],
+      seed: 1,
+      db: TAPLAND_DB,
+      format: 'warchest',
+      landReserves: [
+        [...Array.from({ length: 9 }, () => 'land-forest'), 'fixture-utility-tapland'],
+        Array.from({ length: 10 }, () => 'land-forest'),
+      ],
+    })).toThrow('unsupported land fixture-utility-tapland');
     expect(() => new Game({
       decks: [Array.from({ length: 50 }, () => 'cf-cold-iron-nail'), Array.from({ length: 50 }, () => 'cf-cold-iron-nail')],
       seed: 1,
@@ -106,7 +125,7 @@ describe('Warchest reserve engine', () => {
         [...Array.from({ length: 9 }, () => 'land-forest'), 'cf-mist-road'],
         Array.from({ length: 10 }, () => 'land-forest'),
       ],
-    })).toThrow('unsupported land cf-mist-road');
+    })).toThrow('non-land card cf-mist-road');
     expect(() => new Game({
       decks: [SPELL_DECK, SPELL_DECK],
       seed: 1,

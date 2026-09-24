@@ -11,6 +11,7 @@ import {
   deckRepairNoticeFingerprint,
   deckRepairNoticeState,
   flaggedDecks,
+  type FlaggedDeckSummary,
 } from '../meta/deckRepair';
 import {
   claimDailyQuest,
@@ -21,9 +22,22 @@ import {
   rerollDailyQuest,
 } from '../meta/Quests';
 import { Services } from '../meta/services';
+import { normalizeStatsNoticeVersion, STATS_NOTICE_VERSION } from '../meta/statsNotice';
+import { signals } from '../net/signals';
+import { readSignalsGateInput, signalsAllowed } from '../net/signalsGate';
 import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop } from '../ui/SceneBackdrop';
-import { MAIN_MENU_ITEMS, MAIN_MENU_X, mainMenuButtonY } from '../ui/mainMenuPresentation';
+import { createStatsNoticeDialog } from '../ui/StatsNoticeDialog';
+import { mainMenuButtonY, mainMenuCornerY, MAIN_MENU_CORNER, MAIN_MENU_ITEMS, MAIN_MENU_X } from '../ui/mainMenuPresentation';
+import {
+  createStatsNoticeController,
+  menuArrivalSteps,
+  statsNoticeNoteText,
+  statsNoticeOwed,
+  statsRowNoteKind,
+  statsRowNoteState,
+  type MenuArrivalStep,
+} from '../ui/statsPrivacyPresentation';
 import { colorInt, theme } from '../ui/theme';
 import { Toast } from '../ui/Toast';
 import { goldBadge, modalShell, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
@@ -35,6 +49,7 @@ const MENU_ITEMS = MAIN_MENU_ITEMS;
 export class MainMenuScene extends Phaser.Scene {
   private menuItems: Phaser.GameObjects.GameObject[] = [];
   private guard = new ModalGuard();
+  private toasts!: Toast;
 
   constructor() {
     super('MainMenu');
@@ -43,7 +58,7 @@ export class MainMenuScene extends Phaser.Scene {
   create(): void {
     this.menuItems = [];
     this.guard = new ModalGuard();
-    new Toast(this, { modalGuard: this.guard });
+    this.toasts = new Toast(this, { modalGuard: this.guard });
     // Design-space constants, NOT this.scale (= game size = 1280k×720k under
     // render scale; the camera shows the 1280×720 design window — see
     // src/platform/renderScale.ts). Identical at k=1.
@@ -92,15 +107,15 @@ export class MainMenuScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    goldBadge(this, width - 30, 30, { getValue: () => Services.save.data.gold });
+    goldBadge(this, MAIN_MENU_CORNER.badgeX, mainMenuCornerY(0), { getValue: () => Services.save.data.gold });
 
     // Settings entry: a gear under the gold counter (the 8-row menu list is
     // full). The gold text above is non-interactive, so the 90px inflated hit
     // rect has no interactive neighbor to collide with. It joins menuItems so
     // the starter-picker ModalGuard disables it too. (The old VolumeControl
     // widget is gone — SettingsScene owns all audio controls now.)
-    const gear = themedButton(this, width - 90, 82, '⚙ Settings', {
-      variant: 'ghost', size: 'sm', minWidth: 130, onTap: () => this.scene.start('Settings'),
+    const gear = themedButton(this, MAIN_MENU_CORNER.rightX, mainMenuCornerY(1), '⚙ Settings', {
+      variant: 'ghost', size: 'sm', minWidth: MAIN_MENU_CORNER.rightMinWidth, onTap: () => this.scene.start('Settings'),
     });
     this.menuItems.push(gear.inputZone);
 
@@ -110,8 +125,8 @@ export class MainMenuScene extends Phaser.Scene {
     // The three learning-corner buttons share a centre and a width so the
     // cluster reads as one column; Profile was 120 wide at x 90 against the
     // other two at 150 wide and x 100, so it sat narrower and 5px left.
-    const profile = themedButton(this, 100, 30, '👤 Profile', {
-      variant: 'ghost', size: 'sm', minWidth: 150, onTap: () => this.scene.start('Profile'),
+    const profile = themedButton(this, MAIN_MENU_CORNER.leftX, mainMenuCornerY(0), '👤 Profile', {
+      variant: 'ghost', size: 'sm', minWidth: MAIN_MENU_CORNER.minWidth, onTap: () => this.scene.start('Profile'),
     });
     this.menuItems.push(profile.inputZone);
 
@@ -119,16 +134,16 @@ export class MainMenuScene extends Phaser.Scene {
     // Profile, mirroring ⚙ Settings on the right). Makes skipping reversible
     // (docs/plan-road-to-1.0.md Feature 1). Joins menuItems so the starter
     // picker's ModalGuard deadens it too.
-    const howto = themedButton(this, 100, 82, '❔ How to Play', {
-      variant: 'ghost', size: 'sm', minWidth: 150, onTap: () => this.startTutorial(),
+    const howto = themedButton(this, MAIN_MENU_CORNER.leftX, mainMenuCornerY(1), '❔ How to Play', {
+      variant: 'ghost', size: 'sm', minWidth: MAIN_MENU_CORNER.minWidth, onTap: () => this.startTutorial(),
     });
     this.menuItems.push(howto.inputZone);
 
     // Reference glossary, kept beside the tutorial so players can learn away
     // from a live duel. It joins the guard-managed menu targets like every
     // other learning-corner control.
-    const glossary = themedButton(this, 100, 124, '📖 Glossary', {
-      variant: 'ghost', size: 'sm', minWidth: 150, onTap: () => this.scene.start('Glossary'),
+    const glossary = themedButton(this, MAIN_MENU_CORNER.leftX, mainMenuCornerY(2), '📖 Glossary', {
+      variant: 'ghost', size: 'sm', minWidth: MAIN_MENU_CORNER.minWidth, onTap: () => this.scene.start('Glossary'),
     });
     this.menuItems.push(glossary.inputZone);
 
@@ -163,10 +178,102 @@ export class MainMenuScene extends Phaser.Scene {
       color: theme.colors.muted,
     });
 
-    if (!this.showDeckRepairNotice() && !Services.save.data.tutorialDone) this.promptTutorial();
+    this.runArrival();
   }
 
-  private showDeckRepairNotice(): boolean {
+  /**
+   * Everything the menu shows on arrival, in the order `menuArrivalSteps`
+   * gives: the first-run stats notice first whenever it is owed, then the
+   * deck-repair notice, else the tutorial prompt (owner ruling 2026-09-19).
+   *
+   * The deck-repair decision is taken here, before anything opens, because it
+   * also syncs `deckRepairNoticeAck` and that sync has always run on every
+   * arrival. Only the modal itself is deferred to its turn in the chain.
+   */
+  private runArrival(): void {
+    const flagged = this.syncDeckRepairAck();
+    const steps = menuArrivalSteps({
+      noticeOwed: statsNoticeOwed({
+        // Normalised the same way the gate reads it: garbage means not yet told.
+        savedVersion: normalizeStatsNoticeVersion(Services.save.data.settings.statsNoticeVersion),
+        currentVersion: STATS_NOTICE_VERSION,
+      }),
+      deckRepairOwed: flagged !== null,
+      tutorialDone: Services.save.data.tutorialDone === true,
+    });
+    this.runArrivalStep(steps, 0, flagged);
+  }
+
+  /**
+   * Run one step and hand the rest on. Only the stats notice continues the
+   * chain (from its own close callback); the deck-repair modal and the tutorial
+   * prompt are terminal, exactly as they were before.
+   */
+  private runArrivalStep(
+    steps: readonly MenuArrivalStep[],
+    index: number,
+    flagged: readonly FlaggedDeckSummary[] | null,
+  ): void {
+    const step = steps[index];
+    if (step === undefined) return;
+    if (step === 'statsNotice') {
+      this.showStatsNotice(() => this.runArrivalStep(steps, index + 1, flagged));
+      return;
+    }
+    if (step === 'deckRepair') {
+      if (flagged) this.showDeckRepairNotice(flagged);
+      return;
+    }
+    this.promptTutorial();
+  }
+
+  /**
+   * The first-run anonymous-stats notice (privacy policy section 8: a player is
+   * told before anything new is sent). It blocks the menu and comes before the
+   * tutorial prompt, so a new player is told first and can switch sharing off
+   * in the same breath.
+   *
+   * Nothing is stamped while it is open: the gate re-reads the save at every
+   * send and refuses while the saved notice version is below the current one,
+   * so a player who leaves the scene with the dialog up is still owed it and
+   * has still sent nothing. The dialog's `Continue` is the only thing that
+   * stamps, and it stamps whether sharing was left on or turned off, because
+   * being told is not the same as opting in.
+   *
+   * `src/ui` may not import `src/net`, so the gate is evaluated here and the
+   * state-aware line is handed in as a finished string.
+   */
+  private showStatsNotice(onContinue: () => void): void {
+    const controller = createStatsNoticeController(
+      {
+        settings: Services.save.data.settings,
+        setNoticeVersion: (version) => {
+          Services.save.data.settings.statsNoticeVersion = version;
+        },
+        touch: () => Services.save.touch(),
+        acknowledge: () => signals.noticeAcknowledged(),
+      },
+      STATS_NOTICE_VERSION,
+    );
+    createStatsNoticeDialog(this, {
+      guard: this.guard,
+      guardTargets: this.menuItems,
+      controller,
+      // The gate decides, not this scene: `signalsAllowed` is handed in whole.
+      note: statsNoticeNoteText(
+        statsRowNoteKind(statsRowNoteState(readSignalsGateInput(null), signalsAllowed)),
+      ),
+      onContinue,
+    });
+  }
+
+  /**
+   * Keep `deckRepairNoticeAck` in step with the current flag set and report the
+   * decks that still need the notice, or null when none do. Unchanged from what
+   * `showDeckRepairNotice` used to do inline; split out only so the arrival
+   * chain can know its answer before the stats notice opens.
+   */
+  private syncDeckRepairAck(): readonly FlaggedDeckSummary[] | null {
     const save = Services.save.data;
     const flagged = flaggedDecks(CARD_DB, save);
     const noticeState = deckRepairNoticeState(flagged, save.deckRepairNoticeAck);
@@ -174,8 +281,11 @@ export class MainMenuScene extends Phaser.Scene {
       save.deckRepairNoticeAck = noticeState.acknowledgedFingerprint;
       Services.save.flush();
     }
-    if (!noticeState.needsNotice) return false;
+    return noticeState.needsNotice ? flagged : null;
+  }
 
+  private showDeckRepairNotice(flagged: readonly FlaggedDeckSummary[]): void {
+    const save = Services.save.data;
     let repairDeckId: string | null = null;
     const shell = modalShell(this, {
       width: 760,
@@ -251,7 +361,6 @@ export class MainMenuScene extends Phaser.Scene {
       },
     });
     content.add([fix.container, later.container, corner.container]);
-    return true;
   }
 
   /**
@@ -316,8 +425,8 @@ export class MainMenuScene extends Phaser.Scene {
       .setOrigin(1, 0);
 
     const streakText = streak.wonToday
-      ? `Streak ${streak.count} - win locked in`
-      : `Streak ${streak.count} - next win +${streak.nextGold}`;
+      ? `Streak ${streak.count} · win locked in`
+      : `Streak ${streak.count} · next win +${streak.nextGold}`;
     this.add.text(x + 24, y + 55, streakText, {
       fontFamily: theme.fonts.ui,
       fontSize: `${theme.type.label}px`,

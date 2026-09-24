@@ -26,6 +26,18 @@ export function canAttack(
   return true;
 }
 
+/** Tap-ability source eligibility, shared by main-phase activation callers. */
+export function canActivate(
+  battlefield: readonly Permanent[],
+  db: CardDb,
+  perm: Permanent,
+  player: PlayerId,
+): boolean {
+  const source = battlefield.find((candidate) => candidate.iid === perm.iid);
+  return !!source && source.controller === player && !!def(db, source.cardId).activated &&
+    !source.tapped && !isSummoningSick(battlefield, db, source);
+}
+
 export function canBlock(
   battlefield: readonly Permanent[],
   db: CardDb,

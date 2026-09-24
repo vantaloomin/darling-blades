@@ -37,13 +37,13 @@ export const DECK_INFO: Record<string, DeckInfo> = {
     archetype: 'Jin control',
     plays:
       'Trade one-for-one with removal and card draw, grind value with Jin schemers, and take over the late game. The slowest starter: you exhaust the opponent rather than race them.',
-    featured: ['tk-jin-simayi', 'tk-jin-zhangchunhua', 'in-doom-bolt'],
+    featured: ['tk-jin-simayi', 'tk-jin-zhangchunhua', 'dt-apple-of-endless-sleep'],
   },
   'starter-harvest': {
     colors: 'B/G',
     archetype: 'Underworld attrition',
     plays:
-      'Trade freely (Deathblade blockers make every exchange profitable), then Raise Dead rebuilds your board from the graveyard. Patient, grindy midrange.',
+      'Trade freely (Deathblade blockers make every exchange profitable), then Summon the Dead rebuilds your board from the graveyard. Patient, grindy midrange.',
     featured: ['gk-persephone', 'gk-hades', 'so-raise-dead'],
   },
   'theme-ragnarok': {
@@ -72,7 +72,7 @@ export const DECK_INFO: Record<string, DeckInfo> = {
     archetype: 'Vampire pressure',
     plays:
       'Start with Dreaded attackers and evasive vampires, then make every exchange hurt. Damage spells clear the path while Empower turns the late game into a velvet drain. Carmilla, Crimson Host closes the curtain when the night runs long.',
-    featured: ['gm-carmilla-crimson-host', 'gm-black-veil-matron', 'gm-dracula-ball-invite'],
+    featured: ['gm-carmilla-crimson-host', 'gm-black-veil-matron', 'gm-tattered-invitation'],
   },
   'theme-dark-tales': {
     colors: 'U/B/W',
@@ -90,7 +90,7 @@ export const DECK_INFO: Record<string, DeckInfo> = {
     // deck list's comment in starterDecks.ts.
     plays:
       'Build a W/U Kitsune and aerial pressure shell, then link a powerful rider to its best attacker. Legendary finishers and black Sever effects turn one stable attack into a close.',
-    featured: ['yn-queen-of-the-lanterned-roof', 'yn-ghost-net-archon', 'yn-hauntlink-apex'],
+    featured: ['yn-queen-of-the-lanterned-roof', 'yn-oni-underboss-of-rain', 'yn-unanswered-signal'],
   },
   // 2026-08-21: live Duat shop SKU pin.
   'theme-sands-of-the-duat': {
@@ -106,5 +106,12 @@ export const DECK_INFO: Record<string, DeckInfo> = {
     plays:
       'Efficient bodies establish one or two Marked creatures; Propagate and Broodlings turn a modest board wide. Blue filters with Foresee and answers with recall and cancel, while red finishes with damage and Overrun.',
     featured: ['sb-rootlight-broodmother', 'sb-the-long-crossing', 'sb-mycelial-star-gardener'],
+  },
+  'theme-drowned-deep': {
+    colors: 'U/B',
+    archetype: 'Drowned Deep tide-and-whisper control',
+    plays:
+      'Cheap bodies hold the ground while the divers and the mermaids seed the graveyard. The looters turn dead draws into tagged Whispers, the Whispers Charms and Rituals are the value engine, Black Water resets a board that gets ahead, and a curve of Deep Ones and Horrors closes with Tithe as the tempo lever, the Hierophants draining on arrival.',
+    featured: ['dd-mother-hydra', 'dd-the-price', 'dd-black-water'],
   },
 };

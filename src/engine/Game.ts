@@ -1,3 +1,4 @@
+import { activatedAbilitiesOf, isType, type EffectContinuation } from './types';
 import {
   CURRENT_RULES_REV,
   DARLING_PAYDOWN_COST,
@@ -9,19 +10,23 @@ import {
   usesLandReserve,
 } from '../config/rules';
 import type { Action } from './actions';
-import { darlingCastCost, legalActions, validateAction } from './actions';
+import { castCost, darlingCastCost, legalActions, validateAction } from './actions';
 import { hasCastableCharm, hasCastableInstant, hasPayableHauntlinkAction } from './actions';
 import { anyPayableHauntlink } from './hauntlinkWindow';
 import { resolveCombatDamage } from './combat/damage';
 import {
   fireGraveyardTriggers,
+  fireCreatureObservers,
+  firePlayerObservers,
+  runContinuations,
   fireMarkedAllyAttackTriggers,
   fireTriggers,
   runOps,
 } from './effects/EffectInterpreter';
 import { enumerateTargets } from './effects/targeting';
 import type { GameEvent } from './events';
-import { combineManaCosts, solveMana } from './mana';
+import { solveMana } from './mana';
+import { freshGraveyardCard } from './graveyard';
 import { attachPermanent, destroyPermanent, firesDiesForDestroy } from './battlefield';
 import { checkStateBased } from './sba';
 import { getEffectiveStats } from './statics';
@@ -33,6 +38,7 @@ import {
   finishDawn,
   finishCleanup,
   resumeCleanup,
+  resumeSunsetWindow,
   setStep,
   startTurn,
 } from './phases';
@@ -443,6 +449,10 @@ export class Game {
     this.st.stackClosed = pub.stackClosed;
     this.st.combat = structuredClone(pub.combat);
     this.st.fogThisTurn = pub.fogThisTurn;
+    for (const key of ['creatureDiedThisTurn', 'sunsetPendingWindow', 'decisionResume'] as const) {
+      if (pub[key] === undefined) delete this.st[key];
+      else Object.assign(this.st, { [key]: structuredClone(pub[key]) });
+    }
     this.st.pendingDecisions = structuredClone(pub.pendingDecisions);
     this.st.awaiting = normalizeAwaiting(pub.awaiting, this.st);
     this.st.winner = pub.winner;
@@ -457,8 +467,26 @@ export class Game {
     // inside it; only passResponse hands control back here.
     if (st.awaiting.kind === 'hauntlinkWindow') return;
     const hadPending = st.pendingDecisions.length > 0;
+    if (st.pendingDecisions.some(p => p.kind === 'discard' || p.kind === 'sacrifice' ||
+      p.continuations !== undefined || (p.kind === 'chooseTarget' && p.triggerWhen !== undefined)) &&
+      !st.stackClosed && (st.awaiting.kind === 'respond' || st.awaiting.kind === 'endStepWindow'))
+      st.decisionResume ??= structuredClone(st.awaiting);
     while (st.pendingDecisions.length > 0) {
       const next = st.pendingDecisions[0];
+      if (next.kind === 'discard' || next.kind === 'sacrifice') {
+        const count = next.kind === 'discard' ? Math.min(next.n, st.players[next.player].hand.length) :
+          st.battlefield.filter(p => p.controller === next.player && isType(def(this.db, p.cardId), 'creature')).length;
+        if (!count) {
+          st.pendingDecisions.shift();
+          this.resumeNewChoice(emit, next.continuations);
+          continue;
+        }
+        st.awaiting = next.kind === 'discard'
+          ? { kind: 'discardToHandSize', player: next.player, count, decision: 'discard' }
+          : { kind: 'chooseTarget', player: next.player, sourceIid: next.sourceIid ?? -1, abilityIndex: 0, decision: 'sacrifice',
+            targets: st.battlefield.filter(p => p.controller === next.player && isType(def(this.db, p.cardId), 'creature')).map(p => ({ kind: 'permanent', iid: p.iid })) };
+        return;
+      }
       if (next.kind === 'resolveTrigger') {
         // Offer the Hauntlink window to whoever has not had it yet and can
         // pay: the trigger's opponent first, then its controller.
@@ -472,7 +500,7 @@ export class Game {
           return;
         }
         st.pendingDecisions.shift();
-        runOps(
+        const resolveTrigger = (): void => runOps(
           st,
           this.db,
           emit,
@@ -481,17 +509,29 @@ export class Game {
             sourceCardId: next.sourceCardId,
             sourceIid: next.sourceIid,
             targets: next.targets,
+            ...(next.targetSpecs === undefined ? {} : { targetSpecs: next.targetSpecs }),
+            ...(next.newDecisionContext ? { newDecisionContext: true as const } : {}),
             ...(next.markTriggerDepth === undefined ? {} : { markTriggerDepth: next.markTriggerDepth }),
             ...(next.selfGraveExclusion === undefined ? {} : { selfGraveExclusion: next.selfGraveExclusion }),
           },
           next.ops,
         );
-        checkStateBased(st, this.db, emit);
+        if (next.newDecisionContext || next.continuations) {
+          this.resumeNewChoice(emit, next.continuations, resolveTrigger);
+        } else {
+          resolveTrigger();
+          checkStateBased(st, this.db, emit);
+        }
         if (st.winner !== null) return;
         continue;
       }
       if (next.kind === 'foresee' && this.foreseeCards(next.player, next.n).length === 0) {
         st.pendingDecisions.shift();
+        if (next.continuations) this.resumeNewChoice(emit, next.continuations, next.thenOps ? () => runOps(
+          st, this.db, emit,
+          { ...(next.thenContext ?? { controller: next.player, sourceCardId: 'foresee-continuation' }), targets: [] },
+          next.thenOps!,
+        ) : undefined);
         continue;
       }
       if (next.kind === 'chooseTarget') {
@@ -502,6 +542,7 @@ export class Game {
           // without surfacing a mandatory choice or running the ops.
           st.pendingDecisions.shift();
           emit({ e: 'triggerFizzled', iid: next.sourceIid });
+          if (next.continuations) this.resumeNewChoice(emit, next.continuations);
           continue;
         }
         st.awaiting = {
@@ -522,7 +563,8 @@ export class Game {
       // The chooseTarget awaiting was installed while draining the FIFO above.
       // Do not resume the interrupted phase until its mandatory action runs.
       return;
-    } else if (hadPending || st.awaiting.kind === 'foresee' || st.awaiting.kind === 'chooseTarget') {
+    } else if (hadPending || st.awaiting.kind === 'foresee' || st.awaiting.kind === 'chooseTarget' ||
+      (st.awaiting.kind === 'discardToHandSize' && st.awaiting.decision === 'discard')) {
       // The queue is empty: either the last queued choice just resolved (the
       // apply leaves the awaiting stale), or every queued decision whiffed in
       // the drain above (adversarial review 2026-07-16: the dawn path never
@@ -531,8 +573,29 @@ export class Game {
       // `hadPending` makes the drain itself rejoin the flush point). The
       // resume re-derives from `st.step` and is idempotent on paths that
       // already resumed, e.g. closeAndFlush.
-      this.resumeAfterFlush(emit);
+      if (st.stackClosed) this.closeAndFlush(emit);
+      else if (st.decisionResume) {
+        const resume = st.decisionResume;
+        delete st.decisionResume;
+        if (resume.kind === 'respond' && resume.offerAfterDecision) {
+          this.openResponseWindow(resume.player, resume.over, emit);
+        } else st.awaiting = resume;
+      }
+      else this.resumeAfterFlush(emit);
+      // Resuming a suspended stack/response can itself stop at another new
+      // choice. Raise that fresh queue now instead of leaving stale awaiting.
+      if (st.pendingDecisions.length > 0) this.maybeRaiseDeferredDecision(emit);
     }
+  }
+
+  private resumeNewChoice(emit: Emit, frames: readonly EffectContinuation[] = [], work?: () => void): void {
+    const later = this.st.pendingDecisions.splice(0);
+    work?.();
+    const pending = this.st.pendingDecisions.at(-1);
+    if (pending) pending.continuations = [...(pending.continuations ?? []), ...frames];
+    else runContinuations(this.st, this.db, emit, frames);
+    checkStateBased(this.st, this.db, emit);
+    this.st.pendingDecisions.push(...later);
   }
 
   /**
@@ -628,17 +691,30 @@ export class Game {
           kept: kept.map(cardIdOf),
           bottomed: bottomed.map(cardIdOf),
         });
+        if (pending.continuations) {
+          // A nested legacy Foresee may already own an inner tail. Resolve it
+          // before appending the enclosing new observer's continuation.
+          this.resumeNewChoice(emit, pending.continuations, pending.thenOps ? () => runOps(
+            st, this.db, emit,
+            { ...(pending.thenContext ?? { controller: pending.player, sourceCardId: 'foresee-continuation' }), targets: [] },
+            pending.thenOps!,
+          ) : undefined);
+          return;
+        }
         if (pending.thenOps) {
-          // The deferred entry stores only the controller. Tail ops were
-          // asserted target-free when stashed, so they cannot need cast-time
-          // targets or a source permanent while this action resumes them.
+          // The chooser can be the opponent of the effect's controller.
+          // Resume the target-free tail under its captured source context.
           runOps(
             st,
             this.db,
             emit,
-            { controller: pending.player, sourceCardId: 'foresee-continuation', targets: [] },
+            {
+              ...(pending.thenContext ?? { controller: pending.player, sourceCardId: 'foresee-continuation' }),
+              targets: [],
+            },
             pending.thenOps,
           );
+          checkStateBased(st, this.db, emit);
         }
         return;
       }
@@ -646,6 +722,17 @@ export class Game {
       case 'chooseTarget': {
         if (st.awaiting.kind !== 'chooseTarget') return;
         const pending = st.pendingDecisions[0];
+        if (pending?.kind === 'sacrifice') {
+          st.pendingDecisions.shift();
+          this.resumeNewChoice(emit, pending.continuations, () => {
+            const perm = action.target.kind === 'permanent' ? findPermanent(st, action.target.iid) : undefined;
+            if (!perm) return;
+            const observers = [...st.battlefield];
+            if (destroyPermanent(st, this.db, perm, emit, (card, owner) => fireGraveyardTriggers(st, this.db, emit, card, owner)) && firesDiesForDestroy(st, this.db, perm))
+              fireTriggers(st, this.db, emit, 'dies', perm, { observers, sacrifice: true });
+          });
+          return;
+        }
         if (
           pending?.kind !== 'chooseTarget' ||
           pending.player !== player ||
@@ -657,6 +744,8 @@ export class Game {
         // over the now-known target. Only when someone can actually pay a
         // link - otherwise the path below is byte-identical to revision 3.
         if ((st.rulesRev ?? 1) >= 4 && anyPayableHauntlink(st, this.db)) {
+          const newTrigger = pending.triggerWhen !== undefined || pending.continuations !== undefined ||
+            pending.spec.maxCost !== undefined || pending.spec.minAttack !== undefined || pending.spec.what === 'opponentCreature';
           st.pendingDecisions.unshift({
             kind: 'resolveTrigger',
             controller: pending.player,
@@ -665,7 +754,15 @@ export class Game {
             targets: [action.target],
             ops: pending.ops,
             offered: [],
+            ...(newTrigger ? { targetSpecs: [pending.spec], newDecisionContext: true as const } : {}),
+            ...(pending.continuations ? { continuations: pending.continuations } : {}),
           });
+          return;
+        }
+        if (pending.triggerWhen !== undefined || pending.continuations) {
+          this.resumeNewChoice(emit, pending.continuations, () => runOps(st, this.db, emit,
+            { controller: pending.player, sourceCardId: pending.sourceCardId, sourceIid: pending.sourceIid,
+              targets: [action.target], targetSpecs: [pending.spec] }, pending.ops));
           return;
         }
         runOps(
@@ -717,8 +814,10 @@ export class Game {
         }
         if (plan.length > 0) emit({ e: 'manaTapped', player, iids: plan });
         me.hand.splice(action.handIndex, 1);
-        me.graveyard.push(card);
-        fireGraveyardTriggers(st, this.db, emit, card, player);
+        // Hand -> graveyard (Skim): this origin enables Whispers.
+        const graveCard = freshGraveyardCard(st, this.db, card, player);
+        me.graveyard.push(graveCard);
+        fireGraveyardTriggers(st, this.db, emit, graveCard, player);
         emit({ e: 'skimmed', player, cardId });
         drawCards(st, emit, player, 1);
         return;
@@ -733,6 +832,7 @@ export class Game {
         if (plan.length > 0) emit({ e: 'manaTapped', player, iids: plan });
 
         me.graveyard.splice(action.graveIndex, 1);
+        if (isCardInstance(card)) delete card.whispersUntilDawnOf;
         me.severed.push(card);
         emit({ e: 'severed', player, cardId, from: 'graveyard' });
         emit({ e: 'preserved', player, cardId });
@@ -748,30 +848,54 @@ export class Game {
         return;
       }
 
+      case 'activate': {
+        const perm = findPermanent(st, action.iid)!;
+        const definition = def(this.db, perm.cardId);
+        const ability = activatedAbilitiesOf(definition)[action.abilityIndex ?? 0];
+        const plan = action.manaPlan ?? (ability.cost.mana
+          ? solveMana(st, this.db, player, ability.cost.mana)!
+          : []);
+        for (const iid of plan) findPermanent(st, iid)!.tapped = true;
+        if (plan.length > 0) emit({ e: 'manaTapped', player, iids: plan });
+        perm.tapped = true;
+        emit({ e: 'activated', player, iid: perm.iid, cardId: perm.cardId,
+          ...(Array.isArray(definition.activated) ? { abilityIndex: action.abilityIndex ?? 0 } : {}) });
+        const specs = ability.targets ?? [];
+        runOps(st, this.db, emit, {
+          controller: player,
+          activated: true,
+          sourceCardId: perm.cardId,
+          sourceIid: perm.iid,
+          targets: action.targets ?? [],
+          ...(specs.some(s => s.exactly || s.maxCost !== undefined || s.minAttack !== undefined) ? { targetSpecs: specs } : {}),
+          ...(specs.length === 1 && (specs[0].upTo !== undefined || specs[0].exactly !== undefined) ? { targetBatch: true } : {}),
+        }, ability.ops);
+        // Like deferred-target triggers, this off-stack path owns its SBA.
+        checkStateBased(st, this.db, emit);
+        return;
+      }
+
       case 'castSpell': {
         const isRetell = action.retell === true;
         const isHauntlinked = action.hauntlinked === true;
-        const sourceIndex = isRetell ? action.graveIndex! : action.handIndex;
-        const card = isRetell ? me.graveyard[sourceIndex] : me.hand[sourceIndex];
+        const isWhispers = action.whispers === true;
+        const fromGrave = isRetell || isWhispers;
+        const sourceIndex = fromGrave ? action.graveIndex! : action.handIndex;
+        const card = fromGrave ? me.graveyard[sourceIndex] : me.hand[sourceIndex];
         const cardId = cardIdOf(card);
         const d = def(this.db, card);
         const extra = action.x ?? 0;
-        // Retell replaces the printed cost. Empower is an additional cost on a
-        // normal cast (validateAction rejects X+empower and Retell+Empower).
-        const cost =
-          isHauntlinked
-            ? d.hauntlink!.cost
-            : isRetell
-            ? d.retell!.cost
-            : action.empowered && d.empower
-              ? combineManaCosts(d.cost!, d.empower.cost)
-              : d.cost!;
+        // Price against the pre-payment board, before any sacrificed static
+        // source leaves. Enumeration, validation and payment share this cost.
+        const cost = castCost(d, action.empowered === true, isRetell, isHauntlinked, {
+          whispers: isWhispers, tithe: action.tithe, sacrifices: action.sacrifices, state: st, db: this.db,
+        })!;
         const plan = action.manaPlan ?? solveMana(
           st,
           this.db,
           player,
           cost,
-          isRetell || isHauntlinked ? 0 : extra,
+          isRetell || isHauntlinked || isWhispers ? 0 : extra,
         )!;
         for (const iid of plan) {
           const src = findPermanent(st, iid)!;
@@ -779,14 +903,15 @@ export class Game {
         }
         if (plan.length > 0) emit({ e: 'manaTapped', player, iids: plan });
 
-        if (isRetell) me.graveyard.splice(sourceIndex, 1);
+        if (fromGrave) me.graveyard.splice(sourceIndex, 1);
         else me.hand.splice(sourceIndex, 1);
 
-        // Rite is paid before the spell reaches the stack. Snapshot in
+        // Rite and Tithe are paid before the spell reaches the stack. Snapshot in
         // battlefield order, remove every sacrifice, then fire their dies
         // triggers in that same order so no trigger observes a half-paid cost.
-        if (d.rite) {
-          const sacrificeIids = new Set(action.sacrifices!);
+        if (d.rite || action.tithe) {
+          const observers = [...st.battlefield];
+          const sacrificeIids = new Set(action.sacrifices ?? []);
           const sacrifices = st.battlefield.filter((perm) => sacrificeIids.has(perm.iid));
           const fallen: typeof sacrifices = [];
           const graveyardEntries: { card: CardEntry; owner: PlayerId }[] = [];
@@ -807,8 +932,14 @@ export class Game {
           }
           for (const perm of fallen) {
             if (st.winner !== null) return;
-            fireTriggers(st, this.db, emit, 'dies', perm);
+            fireTriggers(st, this.db, emit, 'dies', perm, { observers, sacrifice: true });
           }
+          if (st.winner !== null) return;
+          // The payment is a mutation batch like any other, so it gets its
+          // own state-based check before anyone is offered a window: a player
+          // drained to 0 by a fodder's dies trigger loses here, and a
+          // Hauntlink whose host was sacrificed goes with it.
+          checkStateBased(st, this.db, emit);
           if (st.winner !== null) return;
         }
 
@@ -822,6 +953,7 @@ export class Game {
           x: action.x,
           ...(action.empowered ? { empowered: true } : {}),
           ...(isRetell ? { retell: true } : {}),
+          ...(isWhispers ? { whispered: true } : {}),
           ...(isHauntlinked ? { hauntlinked: true } : {}),
         };
         st.stack.push(item);
@@ -833,6 +965,8 @@ export class Game {
           targets: item.targets,
           ...(isHauntlinked ? { hauntlinked: true } : {}),
         });
+        if (isType(d, 'charm')) firePlayerObservers(st, this.db, emit, 'youCastCharm', player);
+        if (isWhispers) emit({ e: 'whispered', player, cardId });
         this.openResponseWindow(opponentOf(player), { type: 'spell', sid: item.sid }, emit);
         return;
       }
@@ -931,6 +1065,7 @@ export class Game {
           if (perm) {
             fireTriggers(st, this.db, emit, 'attacks', perm);
             fireMarkedAllyAttackTriggers(st, this.db, emit, perm);
+            fireCreatureObservers(st, this.db, emit, 'allyAttacks', perm);
           }
         }
         checkStateBased(st, this.db, emit);
@@ -980,14 +1115,23 @@ export class Game {
       }
 
       case 'discard': {
-        const sorted = [...action.handIndices].sort((a, b) => b - a);
-        for (const i of sorted) {
-          const [card] = me.hand.splice(i, 1);
-          me.graveyard.push(card);
-          fireGraveyardTriggers(st, this.db, emit, card, player);
-          emit({ e: 'discarded', player, cardId: cardIdOf(card) });
+        const pending = st.awaiting.kind === 'discardToHandSize' && st.awaiting.decision === 'discard' ? st.pendingDecisions.shift() : undefined;
+        const discard = (): void => {
+          const sorted = [...action.handIndices].sort((a, b) => b - a);
+          for (const i of sorted) {
+            const [card] = me.hand.splice(i, 1);
+            // Hand -> graveyard: both cleanup and loot enable Whispers.
+            const graveCard = freshGraveyardCard(st, this.db, card, player);
+            me.graveyard.push(graveCard);
+            fireGraveyardTriggers(st, this.db, emit, graveCard, player);
+            emit({ e: 'discarded', player, cardId: cardIdOf(card) });
+          }
+        };
+        if (pending?.kind === 'discard') this.resumeNewChoice(emit, pending.continuations, discard);
+        else {
+          discard();
+          finishCleanup(st, this.db, emit);
         }
-        finishCleanup(st, this.db, emit);
         return;
       }
     }
@@ -1006,6 +1150,18 @@ export class Game {
     over: Extract<Awaiting, { kind: 'respond' }>['over'],
     emit: Emit,
   ): void {
+    if (this.st.pendingDecisions.some(p => p.kind === 'discard' || p.kind === 'sacrifice' ||
+      p.kind === 'resolveTrigger' ||
+      p.continuations !== undefined || (p.kind === 'chooseTarget' && p.triggerWhen !== undefined))) {
+      // No window has been offered yet. Complete cast/attack observers first,
+      // then recalculate whether the responder still has a playable Charm.
+      // A held revision-4 trigger counts: a Rite or Tithe sacrifice can hold
+      // its fodder's dies trigger for a Hauntlink window, and that window
+      // would otherwise replace this one and leave the spell on the stack
+      // with nobody ever offered a pass (a stranded stack).
+      this.st.decisionResume = { player: responder, kind: 'respond', over, offerAfterDecision: true };
+      return;
+    }
     if (hasCastableInstant(this.st, this.db, responder)) {
       if ((this.st.rulesRev ?? 1) >= 2 && this.st.episode) {
         this.st.episode.resolvedSinceOffer = 0;
@@ -1026,6 +1182,7 @@ export class Game {
       resolveStackItem(st, this.db, item, emit);
       if ((st.rulesRev ?? 1) >= 2 && st.episode) st.episode.resolvedSinceOffer++;
       checkStateBased(st, this.db, emit);
+      if (st.pendingDecisions.some(p => p.kind === 'discard' || p.kind === 'sacrifice' || p.continuations !== undefined || (p.kind === 'chooseTarget' && p.triggerWhen !== undefined))) return;
     }
     st.stackClosed = false;
     if (st.winner === null) this.resumeAfterFlush(emit);
@@ -1043,6 +1200,7 @@ export class Game {
         finishDawn(st, emit);
         return;
       case 'end':
+        if (st.sunsetPendingWindow && st.pendingDecisions.length === 0) { resumeSunsetWindow(st, this.db, emit); return; }
         if ((st.rulesRev ?? 1) >= 2 && st.pendingDecisions.length > 0) return;
         if (this.maybeReopenWindow(
           opponentOf(st.activePlayer),

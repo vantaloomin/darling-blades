@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CARD_DB } from '../../src/data/catalog';
 import { AVATARS } from '../../src/data/opponents';
 import { STARTER_DECKS } from '../../src/data/starterDecks';
-import type { CardDb, CardDef } from '../../src/engine/types';
+import { validateActivatedDef, type CardDb, type CardDef, type EffectOp } from '../../src/engine/types';
 import { validateDarlingsDeck, validateWarchestDeck } from '../../src/meta/darlings';
 import {
   isBasicLand,
@@ -26,6 +26,103 @@ const save = buildReserveMatrixFullOwnershipSave(CARD_DB);
 const PRE_STARBORNE_DB: CardDb = Object.fromEntries(
   Object.entries(CARD_DB).filter(([id]) => !id.startsWith('sb-')),
 ) as CardDb;
+
+describe('Duty target supply', () => {
+  const fixture = (id: string, fields: Partial<CardDef> = {}): CardDef => ({
+    id,
+    name: id,
+    types: ['creature'],
+    subtypes: [],
+    colors: [],
+    rarity: 'c',
+    ...fields,
+  });
+  const fixtureDb = (...cards: CardDef[]): CardDb => {
+    for (const card of cards) expect(validateActivatedDef(card), card.id).toEqual([]);
+    return { ...CARD_DB, ...Object.fromEntries(cards.map((card) => [card.id, card])) };
+  };
+
+  it.each(['direct', 'then', 'else'] as const)('counts artifact tokens created by Duty (%s)', (branch) => {
+    const token = fixture('synthetic-duty-artifact-token', { types: ['artifact'], token: true });
+    const createToken: EffectOp = { op: 'createToken', token: token.id, count: 1 };
+    const ops: EffectOp[] = branch === 'direct' ? [createToken] : [{
+      op: 'ifTargetMarked',
+      then: branch === 'then' ? [createToken] : [],
+      else: branch === 'else' ? [createToken] : [],
+    }];
+    const carrier = fixture('synthetic-duty-token-maker', {
+      activated: {
+        cost: { tap: true },
+        ops,
+        targets: branch === 'direct' ? undefined : [{ what: 'creature' }],
+      },
+    });
+    const db = fixtureDb(token, carrier);
+
+    expect([...deckTargetSupply([carrier.id], db)]).toEqual(['artifact', 'artifactOrEnchantment']);
+  });
+
+  it('rejects an artifact-targeting Duty until the deck supplies an artifact', () => {
+    const carrier = fixture('synthetic-duty-artifact-answer', {
+      activated: {
+        cost: { tap: true },
+        targets: [{ what: 'artifact' }],
+        ops: [{ op: 'sever', to: 'target' }],
+      },
+    });
+    const artifact = fixture('synthetic-duty-artifact', { types: ['artifact'] });
+    const db = fixtureDb(carrier, artifact);
+
+    expect(hasNoLegalTargets(carrier, deckTargetSupply([carrier.id], db))).toBe(true);
+    expect(hasNoLegalTargets(carrier, deckTargetSupply([carrier.id, artifact.id], db))).toBe(false);
+  });
+
+  it('rejects a marked-creature Duty until the deck supplies a mark generator', () => {
+    const carrier = fixture('synthetic-duty-marked-answer', {
+      activated: {
+        cost: { tap: true },
+        targets: [{ what: 'creature', marked: true }],
+        ops: [{ op: 'sever', to: 'target' }],
+      },
+    });
+    const generator = fixture('synthetic-duty-arrival-mark', {
+      abilities: [{ when: 'arrives', ops: [{ op: 'addCounters', n: 1, to: 'self' }] }],
+    });
+    const db = fixtureDb(carrier, generator);
+
+    expect(hasNoLegalTargets(carrier, deckTargetSupply([carrier.id], db))).toBe(true);
+    expect(hasNoLegalTargets(carrier, deckTargetSupply([carrier.id, generator.id], db))).toBe(false);
+  });
+
+  it.each([
+    ['creature', 'direct'],
+    ['yourCreature', 'direct'],
+    ['creature', 'else'],
+    ['yourCreature', 'else'],
+  ] as const)('a Duty that marks a %s (%s) supplies another card\'s marked target', (what, branch) => {
+    const addCounters: EffectOp = { op: 'addCounters', n: 1, to: 'target' };
+    const generator = fixture('synthetic-duty-target-mark', {
+      activated: {
+        cost: { tap: true },
+        targets: [{ what }],
+        ops: branch === 'direct' ? [addCounters] : [{ op: 'ifTargetMarked', then: [], else: [addCounters] }],
+      },
+    });
+    const answer = fixture('synthetic-duty-supported-answer', {
+      types: ['charm'],
+      abilities: [{
+        when: 'spell',
+        targets: [{ what: 'creature', marked: true }],
+        ops: [{ op: 'sever', to: 'target' }],
+      }],
+    });
+    const db = fixtureDb(generator, answer);
+
+    expect(hasNoLegalTargets(answer, deckTargetSupply([answer.id], db))).toBe(true);
+    expect(deckTargetSupply([generator.id], db).has('marked')).toBe(true);
+    expect(hasNoLegalTargets(answer, deckTargetSupply([answer.id, generator.id], db))).toBe(false);
+  });
+});
 
 describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
   for (const avatar of AVATARS) {
@@ -91,15 +188,45 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
     'hel',
     'glass-coffin-queen',
     'anubis-who-holds-the-scale',
+    // 2026-09-16 R22 B1+B5: Phase C removed defenders' twinBlades blind spot;
+    // the authored reserve tune measures 62.40% -> 73.60% over five 200-seed
+    // cells, with 0 draws. Classic/lands/personality/Darlings unchanged.
+    'bastet-mistress-of-the-ninth-return',
     'the-bride',
+    // 2026-09-17 R10 Brunhild R3: burn for the four Ember Valkyries measured
+    // 70% -> 79% mean across five 200-seed cells, 0 draws, after phase C took
+    // her twinBlades opponents' blind spot away. Classic/lands/Darlings unchanged.
+    'brunhild',
     // 2026-08-30 tuning pass: R23's fire-package surgery diverges from the
     // scripted first cut by measured intent. (R19's lantern swap landed in
     // the classic deck only; her reserve still matches the converter.)
+    // 2026-09-19 R19 Queen of the Lanterned Roof: her converter cut had no
+    // creature below three mana. Four Lantern Fixers for four Circuit
+    // Foretelling measured 58.6% -> 71.7% across five 200-seed cells, 0 draws,
+    // and 62.5% -> 74.2% on the 14-deck matrix. Reserve list only;
+    // classic/lands/Darlings unchanged.
+    'queen-of-the-lanterned-roof',
+    // 2026-09-19 R20 Kitsune: the converter had dropped her four authored
+    // Redline Queenpins and doubled her Hauntlink package; restoring the
+    // authored 4/2/2 measured 81.6% -> 89% across five 200-seed cells, 0 draws.
+    // Reserve list only; classic/lands/Darlings unchanged.
+    'kitsune-neon-tyrant',
+    // 2026-09-19 R23 re-tune: four Ashwood Rangers give her a way to block a
+    // flier, 60% -> 72.1% across five 200-seed cells, 0 draws. Reserve list
+    // only; classic/lands/Darlings unchanged.
     // 2026-08-30 R18 Songstress tuning: final Doom Bolt/Fishbone redistribution
     // intentionally diverges from the converter's reserve fill; the kept
     // 40-card list is supported by the measured 200-seed boss pass.
     'abyssal-songstress',
     'chrome-broodmother',
+    // 2026-09-16 R25 D1+D2+D5: authored reserve surgery measured 35.90% ->
+    // 66.40% mean across five 200-seed cells; classic/lands/Darlings unchanged.
+    'the-drowned-deacon',
+    // 2026-09-18 R14 Artoria: the land-economy conversion made Lowland Fort a
+    // legal artifact and the converter's new cut runs four of it. 200 seeds
+    // across the 14 player decks: the standing list 68%, the converter's 60%,
+    // lower in every column. The standing list is kept by measured intent.
+    'artoria',
   ]);
 
   /**
@@ -109,9 +236,9 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
    * covers marked-target cards when no card in the format can add a mark.
    */
   describe('retention rejects cards whose targets cannot exist in the format', () => {
-    const supplyFor = (source: readonly string[]): ReadonlySet<string> => new Set([
-      ...deckTargetSupply(STARTER_DECKS.flatMap((deck) => deck.reserveCards ?? [])),
-      ...deckTargetSupply(source),
+    const supplyFor = (source: readonly string[]): ReadonlySet<string> => deckTargetSupply([
+      ...STARTER_DECKS.flatMap((deck) => deck.reserveCards ?? []),
+      ...source,
     ]);
 
     it('the five starter columns really do supply no artifact or enchantment', () => {
@@ -247,12 +374,22 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
     });
 
     it('never rejects a card whose targets are ordinary creatures', () => {
+      // 1.8 cost caps, attack floors and exact-pair qualifiers need target supply.
       const creatureRemoval = Object.values(CARD_DB).filter((card) =>
-        (card.abilities ?? []).some((a) => (a.targets ?? []).some((t) => t.what === 'creature' && !t.marked)));
+        (card.abilities ?? []).some((a) => (a.targets ?? []).some((t) =>
+          t.what === 'creature' && !t.marked &&
+          t.maxCost === undefined && t.minAttack === undefined && t.exactly === undefined)));
       expect(creatureRemoval.length).toBeGreaterThan(0);
       for (const card of creatureRemoval) {
         expect(hasNoLegalTargets(card, new Set()), `${card.id} wrongly flagged`).toBe(false);
       }
+    });
+
+    it('requires a creature costing 2 or less in the supply for Bell-Hand', () => {
+      const bellHand = CARD_DB['dd-bell-hand'];
+      expect(hasNoLegalTargets(bellHand, new Set())).toBe(true);
+      expect(hasNoLegalTargets(bellHand, deckTargetSupply([bellHand.id], CARD_DB))).toBe(true);
+      expect(hasNoLegalTargets(bellHand, deckTargetSupply([bellHand.id, 'dd-lamp-bearer'], CARD_DB))).toBe(false);
     });
 
     it('also excludes a dead-target card from catalog refill', () => {
@@ -351,14 +488,28 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
     const sorted = (cards: readonly string[]): string[] => [...cards].sort();
     for (const avatar of AVATARS) {
       // The historical pre-Starborne fixture intentionally excludes sb-*;
-      // the new Starborne avatar must be checked against the live catalog.
-      const sourceDb = avatar.id === 'chrome-broodmother' || avatar.id === 'the-violet-signal-queen'
+      // Starborne and Drowned Deep converter surfaces use the live catalog.
+      const isDrownedDeep = avatar.id === 'the-drowned-deacon' || avatar.id === 'the-marsh-mother';
+      const sourceDb = isDrownedDeep || avatar.id === 'chrome-broodmother' || avatar.id === 'the-violet-signal-queen'
         ? CARD_DB
         : PRE_STARBORNE_DB;
       const first = convertAvatarReserveDecks(avatar, sourceDb);
       const second = convertAvatarReserveDecks(avatar, sourceDb);
       expect(first, `${avatar.id} converter is not deterministic`).toEqual(second);
       expect(sorted(first.landReserve)).toEqual(sorted(avatar.landReserve));
+      if (isDrownedDeep) {
+        // The measured Deacon reserve tune is registered above; the Marsh
+        // Mother reserve and both Darlings surfaces stay converter-owned.
+        if (HAND_TUNED_WARCHEST.has(avatar.id)) {
+          expect(sorted(first.reserveDeck), `${avatar.id} is listed as hand-tuned but matches the first cut`)
+            .not.toEqual(sorted(avatar.reserveDeck));
+        } else {
+          expect(sorted(first.reserveDeck)).toEqual(sorted(avatar.reserveDeck));
+        }
+        expect(sorted(first.darlingsDeck)).toEqual(sorted(avatar.darlingsDeck));
+        expect(first.darlingId).toEqual(avatar.darlingId);
+        continue;
+      }
       if (avatar.id === 'chrome-broodmother' || avatar.id === 'the-violet-signal-queen') {
         // Starborne's classic, reserve, and land lists are locked authored
         // contract fields. Only the Darlings surface is converter-owned here.
@@ -389,5 +540,7 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
     expect(warchest.table).toContain('reserve starters');
     const darlings = runAvatarReserveMatrix('darlings', 1, only);
     expect(darlings.rows).toHaveLength(1);
-  });
+    // 2026-09-18: nineteen real games across both modes ran 5.2 s against the
+    // default 5 s under full-suite load. An explicit budget, not a behaviour change.
+  }, 30_000);
 });

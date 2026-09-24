@@ -396,3 +396,63 @@ the militia scrappy W recruits, and the Wooden Ox one of Yueying's lacquered aut
 - **Rarity ambition:** Common token — one clear figure, one idea (the fleet's smallest running light).
 - **Prompt:** Single hand-sized firefly sprite hovering above a pearl beacon rail, sleek indigo carapace with pearl filigree at the wing roots, four fanned membrane wings, abdomen burning bright nebula violet like a lantern and throwing soft violet key light up the rail, bright proud bead eyes angled toward the viewer, pale blue fill from a deep blue-violet cloudbank behind, rich readable detail in every shadow, no near-black areas, ABSOLUTELY NO CYAN anywhere in the frame and the glow strictly violet not teal, generous open headroom above the wings, NO-TEXT, no readouts, no labels, no numerals, no open starfield as the whole background — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
+
+### Deep-Spawn — `tok-deep-spawn`
+- **Card facts:** {0} · B · 2/2 · c · holo: none
+- **Character & source:** A young daughter of the Deep, the smallest Horror in the set, minted by The Brood Below, Deep One Midwife, Deep-Spawn Tender and the Deep-Spawn Hatchery. An adult woman, slight and wet-haired, the first of the Deep's three tells already on her: a faint drowned-gold light behind the eyes.
+- **Personality / mood:** New to the air and unbothered by it. She has come up to collect and does not yet know what.
+- **Pose & composition:** Waist-up, three-quarter turn, standing in still black water to the ribs at the foot of Dunmarrow's drowned bell tower, hands loose at the surface. Eye line y 340 inside the safe band, head top well below the top third.
+- **Costume & attire:** A plain salt-white shift gone grey at the hem, one tide-line across her shoulders, no jewellery.
+- **Palette:** Black water `#0d1a22` and `#16303a`, salt white `#eef0ea`, wet-stone grey `#2b3238` at the floor, drowned gold `#d6e07c` behind the eyes only.
+- **Lighting:** Practical key: drowned gold rising from below the surface beneath her, faint. One cool rim in mourning violet `#8b6fb0` from the overcast.
+- **Expression:** Calm, wide-eyed, mouth closed, listening to something under the water.
+- **Props / weapon:** None.
+- **Background:** The bell tower of Dunmarrow breaking the surface behind her, plain cast bronze bell in its arch, unlettered; the water flat as glass.
+- **Holo interaction:** none — token.
+- **Rarity ambition:** Token. One figure, one idea: a small daughter of the Deep at the surface, readable at battlefield scale.
+- **Prompt:** EXACTLY ONE adult woman, a slight young daughter of the Deep standing waist-deep in still black water at the foot of a drowned granite bell tower, her head fully inside the middle band of the frame, clear air above it, a faint drowned-gold light #d6e07c behind her eyes, hair lifting slowly as if underwater, one tide-line across her bare shoulders, a plain salt-white shift gone grey at the hem, no jewellery, the only drowned gold in the frame rising softly from below the surface beneath her, the bell in the tower arch plain cast bell bronze #a8783c and unlit, one cool rim of mourning violet #8b6fb0 from an overcast sky, the water drawn as a flat reflective surface with a visible edge against the granite, fully rendered background, no true black, darkest visible value wet-stone grey #2b3238, no cyan anywhere in the frame, no gore, no rot, no tentacles, no helmets, no visors, no diving suits, the sky overcast grey with no sun, no sunset, no sunrise and no golden sky, no gold jewellery, no gold trim on cloth, every chain, crown and fitting bell bronze or tarnished steel, no text, no charts with names, no ship names, no lettered bells, no lettered lamps, no gravestone inscriptions, no signboards, no nameplates, no numerals, no writing on any surface — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
+### Drowned Spirit — `tok-drowned-spirit`
+- **Card facts:** {0} · B · 1/1 · c · holo: none
+- **Character & source:** One of the town's drowned, minted by What the Nets Remember and The Horror Garden. An adult woman, pale and half-translucent, salt-white linen, hair lifted as if underwater. She is Dunmarrow's, not the Deep's: no gold behind the eyes.
+- **Personality / mood:** Patient and a little lost. She remembers the street she lived on and is standing where it was.
+- **Pose & composition:** Waist-up, frontal, drifting a hand's width above a flooded Low Street cobble, arms at her sides, feet not visible. Eye line y 350, head top below the top third.
+- **Costume & attire:** Salt-white linen nightdress, wet and clinging, a plain cord at the throat.
+- **Palette:** Salt white `#eef0ea` and `#d9dcd4` over black water `#16303a`, mourning violet `#5a3f7a` in the shadow of her, wet-stone grey `#2b3238` at the floor. No gold.
+- **Lighting:** Practical key: a single lamp-amber `#ffb35c` street lantern on a post behind her, throwing warm light through her half-transparent shoulder. One cool rim in mourning violet.
+- **Expression:** Soft, unfocused, a small unsure smile.
+- **Props / weapon:** None.
+- **Background:** A flooded Low Street at night, timber shopfronts with blank hanging boards, water to the sills, the lantern post the only warmth.
+- **Holo interaction:** none — token.
+- **Rarity ambition:** Token. One figure, one idea: a pale drowned woman above flooded cobbles, readable at battlefield scale.
+- **Prompt:** EXACTLY ONE adult woman, a pale half-translucent drowned spirit in a wet salt-white linen nightdress drifting a hand's width above flooded cobbles on a timber-fronted harbour street at night, her head fully inside the middle band of the frame, clear air above it, hair lifting slowly as if underwater, no gold behind the eyes, no drowned gold anywhere in the frame, one lamp-amber #ffb35c street lantern on a post behind her as the only warm light, its glow passing through her half-transparent shoulder, one cool rim of mourning violet #8b6fb0, black water #16303a drawn as a flat reflective surface with a visible edge against the shopfront timbers, blank hanging boards on the shopfronts, fully rendered background, no true black, darkest visible value wet-stone grey #2b3238, no cyan anywhere in the frame, no gore, no rot, no exposed bone, no helmets, no visors, no diving suits, the sky overcast grey with no sun, no sunset, no sunrise and no golden sky, no gold jewellery, no gold trim on cloth, every chain, crown and fitting bell bronze or tarnished steel, no text, no charts with names, no ship names, no lettered bells, no lettered lamps, no gravestone inscriptions, no signboards, no nameplates, no numerals, no writing on any surface — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
+### Lantern Wisp — `tok-lantern-wisp`
+- **Card facts:** {0} · W · 1/1 · skyborne · c · holo: none
+- **Character & source:** A small hovering lamp-flame spirit of the Lantern Watch, minted by Constance Reyne, Watch-Sergeant Alder, Wisp-Caller and Lamp Relay. A wisp of lamp amber with a woman's face in the flame, always airborne.
+- **Personality / mood:** Eager and warm. She goes where the Watch points her and lights the way.
+- **Pose & composition:** The wisp is the figure: a flame the size of a head, hovering at the centre of the frame at y 340 above an open bronze lantern held up by a gloved Warden hand entering from the lower left, the hand only. Head of the flame below the top third.
+- **Costume & attire:** None; the flame has a woman's face and a trailing skirt of light.
+- **Palette:** Lamp amber `#ffb35c` and `#ffd08a` on granite grey `#7d8590`, bell bronze `#a8783c` lantern, salt white `#eef0ea` highlights, wet-stone grey `#2b3238` at the floor. No gold, no cyan.
+- **Lighting:** Practical key: the wisp herself, lamp amber. One cool rim in grey daylight from the fog beyond the Point.
+- **Expression:** Bright, delighted, eyes open.
+- **Props / weapon:** The open bronze lantern below her, plain cast, unlettered.
+- **Background:** The granite parapet of the Point in fog, the lighthouse a grey shape behind.
+- **Holo interaction:** none — token.
+- **Rarity ambition:** Token. One idea: a flame with a face rising from a lantern, readable at battlefield scale.
+- **Prompt:** A small hovering spirit woman made of lamp-amber #ffb35c flame, her whole body visible from her calm delighted face to a trailing skirt of light, about a third of the frame tall, airborne at the centre of the frame, fully inside the middle band with clear air above it, rising from an open plain cast bell-bronze #a8783c lantern held up by a single gloved hand entering from the lower left edge, the hand only, no other figure, the wisp the only warm light and the practical key, one cool rim of grey fog daylight, a granite parapet and a grey lighthouse shape in fog behind, fully rendered background, no true black, darkest visible value wet-stone grey #2b3238, no drowned gold anywhere in the frame, no cyan anywhere in the frame, no lens flare, no starburst, the sky overcast grey with no sun, no sunset, no sunrise and no golden sky, no gold jewellery, no gold trim on cloth, every chain, crown and fitting bell bronze or tarnished steel, no text, no charts with names, no ship names, no lettered bells, no lettered lamps, no gravestone inscriptions, no signboards, no nameplates, no numerals, no writing on any surface — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
+### Kelp Shade — `tok-kelp-shade`
+- **Card facts:** {0} · G · 2/2 · c · holo: none
+- **Character & source:** A woman-shaped figure of woven kelp and reef growth, minted by Old Marrow, Kelp Cathedral, Kelp-Shade Caller, The Drowned Orchard, Kelp-Tender, Kelp Swarm, Reed-Caller, Marsh-Wight, Net Full of Stars, Marsh-Mother and The Horror Garden. Kelp green, two pale eyes, no other face detail, no gold.
+- **Personality / mood:** Placid and rooted. She stands where she grew and turns toward whoever tends her.
+- **Pose & composition:** Waist-up, frontal, standing in marsh water to the hips among kelp fronds, arms of woven kelp half-raised. Eye line y 340, head top below the top third.
+- **Costume & attire:** Her body is the costume: strands of kelp `#3f6b4a` and `#7fb07a` woven into a woman's silhouette, coral nodes at the shoulders, wet and glossy.
+- **Palette:** Kelp green over black marsh water `#16303a`, salt white `#eef0ea` foam at the waterline, wet-stone grey `#2b3238` at the floor. No gold, no cyan.
+- **Lighting:** Practical key: grey daylight through marsh mist from the upper left. One cool rim in mourning violet.
+- **Expression:** Two pale eyes only, level and calm.
+- **Props / weapon:** None.
+- **Background:** The Salt Marsh, kelp fronds and a granite mooring post, water flat.
+- **Holo interaction:** none — token.
+- **Rarity ambition:** Token. One idea: a woman-shape of woven kelp standing in the marsh, readable at battlefield scale.
+- **Prompt:** EXACTLY ONE figure, a woman-shaped body woven entirely from glossy wet kelp strands #3f6b4a and #7fb07a with coral nodes at the shoulders and two pale level eyes and no other facial features, standing hip-deep in still black marsh water among kelp fronds, her head fully inside the middle band of the frame, clear air above it, arms of woven kelp half-raised, grey marsh daylight from the upper left as the practical key, one cool rim of mourning violet #8b6fb0, salt-white foam at the waterline, a granite mooring post behind, the water drawn as a flat reflective surface with a visible edge, fully rendered background, no true black, darkest visible value wet-stone grey #2b3238, no drowned gold anywhere in the frame, no cyan anywhere in the frame, no human skin, no helmets, no visors, the sky overcast grey with no sun, no sunset, no sunrise and no golden sky, no gold jewellery, no gold trim on cloth, every chain, crown and fitting bell bronze or tarnished steel, no text, no charts with names, no ship names, no lettered bells, no lettered lamps, no gravestone inscriptions, no signboards, no nameplates, no numerals, no writing on any surface — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait

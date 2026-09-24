@@ -52,6 +52,30 @@ const DB: CardDb = {
     abilities: [{ when: 'spell', ops: [{ op: 'gainLife', n: 1 }] }],
     rarity: 'c',
   },
+  dies_drainer: {
+    id: 'dies_drainer',
+    name: 'Dies Drainer',
+    types: ['creature'],
+    subtypes: [],
+    cost: { generic: 0, pips: {} },
+    colors: [],
+    attack: 1,
+    defense: 4,
+    rarity: 'c',
+    abilities: [{ when: 'dies', ops: [{ op: 'loseLife', n: 2, who: 'opponent' }] }],
+  },
+  tithe_horror: {
+    id: 'tithe_horror',
+    name: 'Tithe Horror',
+    types: ['creature'],
+    subtypes: [],
+    cost: { generic: 2, pips: {} },
+    colors: [],
+    attack: 3,
+    defense: 3,
+    rarity: 'c',
+    tithe: { per: 2 },
+  },
 };
 
 const HOST = 1;
@@ -182,6 +206,37 @@ describe('Hauntlink window over a dies trigger (rev 4)', () => {
     expect(onBoard(g, HOST)).toBe(false); // bear 2/3 takes 3
     expect(onBoard(g, SPARE)).toBe(true); // giant 4/4 survives
     expect(link(g)).toMatchObject({ attachedTo: SPARE });
+  });
+
+  it('when the death is a sacrifice paid to cast, the spell still gets its window and resolves', () => {
+    // Player 1 holds an unlinked, payable link, so the fodder's dies trigger
+    // is held for a Hauntlink window while the Tithe creature is on the stack.
+    const state = makeTestState({
+      battlefield: [
+        { iid: 10, cardId: 'dies_drainer', controller: 0 },
+        { iid: 20, cardId: 'free_host', controller: 1 },
+        { iid: 21, cardId: 'hauntlink_enchantment', controller: 1 },
+      ],
+      hands: [['tithe_horror'], []],
+      active: 0,
+    });
+    state.rulesRev = 4;
+    const g = Game.restore(state, DB);
+    g.submit(0, { type: 'castSpell', handIndex: 0, tithe: true, sacrifices: [10] });
+
+    expect(g.awaiting).toMatchObject({ player: 1, kind: 'hauntlinkWindow', over: { type: 'trigger', iid: 10 } });
+    expect(g.instanceState.stack.map((item) => item.cardId)).toEqual(['tithe_horror']);
+    expect(g.instanceState.players[1].life).toBe(20); // the drain is held
+
+    g.submit(1, { type: 'passResponse' });
+    // The held trigger resolves first, then the ordinary window over the spell.
+    expect(g.instanceState.players[1].life).toBe(18);
+    expect(g.awaiting).toMatchObject({ player: 1, kind: 'respond', over: { type: 'spell' } });
+
+    g.submit(1, { type: 'passResponse' });
+    expect(g.instanceState.stack).toEqual([]);
+    expect(g.instanceState.battlefield.some((p) => p.cardId === 'tithe_horror')).toBe(true);
+    expect(g.awaiting).toMatchObject({ player: 0, kind: 'main' });
   });
 });
 

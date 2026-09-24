@@ -15,6 +15,31 @@ describe('determinism', () => {
     expect(JSON.stringify(a.state)).toBe(JSON.stringify(b.state));
   });
 
+  it('two Game instances built from the same decks and seed share no state', () => {
+    const mk = (): Game =>
+      new Game({ decks: [smallGreenDeck(), smallGreenDeck()], seed: 313131, db: TEST_DB });
+    const a = mk();
+    const b = mk();
+    for (let step = 0; step < 12; step++) {
+      const awaiting = a.awaiting;
+      if (awaiting.kind === 'gameOver') break;
+      const action = botAction(a.legalActions(awaiting.player));
+      a.submit(awaiting.player, action);
+      b.submit(awaiting.player, action);
+    }
+    const aState = a.instanceState;
+    const bState = b.instanceState;
+    expect(aState).not.toBe(bState);
+    expect(JSON.stringify(aState)).toBe(JSON.stringify(bState));
+
+    // The two games must not alias: a write to one is invisible to the other.
+    const snapshot = JSON.stringify(bState);
+    aState.players[0].life -= 7;
+    aState.players[0].hand.push({ cardId: 'forest', instanceId: 9999, variantKey: null });
+    expect(JSON.stringify(aState)).not.toBe(snapshot);
+    expect(JSON.stringify(bState)).toBe(snapshot);
+  });
+
   it('keeps an absent hand-size override byte-identical to the shipped default', () => {
     const baseline = new Game({
       decks: [smallGreenDeck(), smallGreenDeck()],

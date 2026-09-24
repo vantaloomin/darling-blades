@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { EasyAI } from '../../src/ai/EasyAI';
 import { HardAI } from '../../src/ai/HardAI';
 import { MediumAI } from '../../src/ai/MediumAI';
@@ -8,6 +8,7 @@ import { chooseRiteSacrifices } from '../../src/ai/ritePolicy';
 import { cardValue, NINE_LIVES_BONUS, permValue } from '../../src/ai/value';
 import { Game } from '../../src/engine/Game';
 import type { Action } from '../../src/engine/actions';
+import type { PlayerView } from '../../src/engine/view';
 import type { GameState } from '../../src/engine/types';
 import { DUAT_DB, duatPermanent } from '../duatFixture';
 import { makeTestState } from '../helpers';
@@ -123,9 +124,17 @@ describe('Sands of the Duat Rite AI', () => {
     expect(castChoice(new MediumAI(DUAT_DB), game)).toMatchObject({
       type: 'castSpell', handIndex: 1,
     });
-    expect(castChoice(new HardAI(DUAT_DB), game)).toMatchObject({
+    const hard = new HardAI(DUAT_DB);
+    const searched = vi.spyOn(hard as unknown as {
+      aggregateOutcome(view: PlayerView, actions: Action[]): unknown;
+    }, 'aggregateOutcome');
+    // Phase A: immediate Rite cast -> pass, so the fodder attacks first.
+    // The original contract remains: ordinary Rite reaches real simulation.
+    expect(castChoice(hard, game)).toEqual({ type: 'passStep' });
+    expect(searched.mock.calls.flatMap(([, actions]) => actions)).toContainEqual({
       type: 'castSpell', handIndex: 0, sacrifices: [11],
     });
+    searched.mockRestore();
   });
 
   it('casts Rite in a seeded Medium mirror smoke game', () => {

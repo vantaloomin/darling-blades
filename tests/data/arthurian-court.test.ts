@@ -166,20 +166,18 @@ describe('Arthurian Court data integrity', () => {
     expect(CARD_DB['ac-errant-duelist'].awakening).toBeDefined();
   });
 
-  it('has the two specified duals and five common mono taplands', () => {
+  // 7 -> 2 on 2026-09-17: the land-economy conversion turned the five common
+  // mono taplands into common Duty artifacts (docs/plan-land-economy.md), so
+  // the set's only lands are its two duals and the mono count drops 5 -> 0.
+  it('has the two specified duals and no common mono taplands', () => {
     const lands = ARTHURIAN_COURT.filter((card) => card.types.includes('land'));
-    expect(lands).toHaveLength(7);
+    expect(lands).toHaveLength(2);
     expect(lands.every((card) => card.entersTapped)).toBe(true);
     expect(Object.fromEntries(lands.map((card) => [card.id, card.manaAbility]))).toEqual({
       'ac-holy-well': ['W', 'G'],
       'ac-avalon-shore': ['U', 'W'],
-      'ac-bramble-chapel': ['G'],
-      'ac-lowland-fort': ['W'],
-      'ac-red-tournament-ground': ['R'],
-      'ac-court-of-whispers': ['B'],
-      'ac-mirror-lake': ['U'],
     });
-    expect(lands.filter((card) => card.rarity === 'c' && (card.manaAbility?.length ?? 0) === 1)).toHaveLength(5);
+    expect(lands.filter((card) => card.rarity === 'c' && (card.manaAbility?.length ?? 0) === 1)).toHaveLength(0);
   });
 });
 
