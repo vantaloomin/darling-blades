@@ -1,4 +1,5 @@
 import type { CardDb, CardDef } from '../engine/types';
+import { cardMechanics } from '../data/glossary';
 import { collectionCompletion, collectiblePool, type CollectionCompletionSummary } from './collectionFilter';
 import { ownedCount, ownedVariants } from './Collection';
 import { LIMITED_MATCHES } from './Limited';
@@ -182,6 +183,8 @@ const isGothicMonsters = (card: CardDef): boolean => card.set === 'gothic-monste
 const isDarkTales = (card: CardDef): boolean => card.set === 'dark-tales';
 const isYokaiNights = (card: CardDef): boolean => (card.set as string) === 'yokai-nights';
 const isSandsOfTheDuat = (card: CardDef): boolean => (card.set as string) === 'sands-of-the-duat';
+const isStarborne = (card: CardDef): boolean => (card.set as string) === 'starborne';
+const isDrownedDeep = (card: CardDef): boolean => (card.set as string) === 'drowned-deep';
 const YOKAI_NIGHTS_UR = [
   'yn-queen-of-the-lanterned-roof',
   'yn-hauntlink-apex',
@@ -200,6 +203,30 @@ const SANDS_OF_THE_DUAT_UR = [
   'sd-queen-of-the-last-procession',
   'sd-nadira-keeper-of-the-final-toll',
   'sd-zahira-who-lights-the-prow',
+] as const;
+const STARBORNE_UR = [
+  'sb-constellation-matriarch',
+  'sb-abyssal-iris-regent',
+  'sb-solar-flare-sovereign',
+  'sb-worldgarden-leviathan',
+  'sb-prism-void-comet',
+  'sb-eclipse-red-queen',
+  'sb-halo-motherboard',
+] as const;
+const DROWNED_DEEP_UR = [
+  'dd-mother-hydra',
+  'dd-father-dagon',
+  'dd-lightkeeper',
+  'dd-isolde-marrow',
+  'dd-agathe-vane',
+  'dd-the-brood-below',
+  'dd-the-reef-that-walks',
+  'dd-old-marrow',
+  'dd-brenna-gale',
+  'dd-cinderjaw',
+  'dd-bell-that-will-not-ring',
+  'dd-tide-that-remembers',
+  'dd-the-lantern-watch',
 ] as const;
 
 export const ACHIEVEMENTS: readonly AchievementDef[] = [
@@ -628,7 +655,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     id: 'theme-gothic-monsters-headliners-special',
     bucket: 'theme',
     title: 'Velvet Regalia',
-    description: 'Own all four Gothic Monsters headliners as special variants.',
+    description: 'Own all four Nocturne Manor headliners as special variants.',
     reward: { gold: 900 },
     progress: (save, db) => themeVariantProgress(save, GOTHIC_MONSTERS_HEADLINERS, db, isSpecialVariant),
   },
@@ -654,7 +681,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     id: 'theme-gothic-monsters-vampires',
     bucket: 'theme',
     title: 'The Masquerade Bloodline',
-    description: 'Own every Gothic Monsters Vampire.',
+    description: 'Own every Nocturne Manor Vampire.',
     reward: { gold: 350 },
     progress: (save, db) =>
       themedCollectionProgress(save, db, (card) => isGothicMonsters(card) && card.subtypes.includes('Vampire')),
@@ -688,7 +715,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     id: 'theme-dark-tales-headliners',
     bucket: 'theme',
     title: 'Queens of Midnight',
-    description: 'Own all five Dark Tales headliner legends.',
+    description: 'Own all 7 Dark Tales headliner legends.',
     reward: { gold: 600 },
     progress: (save, db) => themeProgress(save, DARK_TALES_HEADLINERS, db),
   },
@@ -816,6 +843,196 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     description: 'Own every Sands of the Duat card with Nine Lives.',
     reward: { gold: 450 },
     progress: (save, db) => themedCollectionProgress(save, db, (card) => isSandsOfTheDuat(card) && card.nineLives === true),
+  },
+  // 1.8.1 brings Duat to eight goals. The two variant chases are sized to about
+  // 34 set packs on average: two URs as special variants, and three rainbow
+  // frames on any Duat card, since a rainbow frame on every UR is unreachable.
+  {
+    id: 'theme-sands-of-the-duat-ur-special',
+    bucket: 'theme',
+    title: 'Grave Goods',
+    description: 'Own 2 Duat URs as special variants.',
+    reward: { gold: 400 },
+    progress: (save, db) => ({
+      current: themeVariantCount(save, themeIds(SANDS_OF_THE_DUAT_UR, db), isSpecialVariant),
+      target: 2,
+    }),
+  },
+  {
+    id: 'theme-sands-of-the-duat-rainbow',
+    bucket: 'theme',
+    title: 'Painted Tombs',
+    description: 'Own 3 rainbow-frame Duat cards.',
+    reward: { gold: 400 },
+    progress: (save, db) => {
+      const ids = themeCards(db, isSandsOfTheDuat).map((card) => card.id);
+      return { current: themeVariantCount(save, ids, isRainbowBorder), target: 3 };
+    },
+  },
+  {
+    id: 'theme-sands-of-the-duat-rite',
+    bucket: 'theme',
+    title: 'The Price of Passage',
+    description: 'Own all Sands of the Duat Rite cards.',
+    reward: { gold: 450 },
+    progress: (save, db) => themedCollectionProgress(save, db, (card) => isSandsOfTheDuat(card) && card.rite !== undefined),
+  },
+  {
+    id: 'theme-sands-of-the-duat-preserve',
+    bucket: 'theme',
+    title: 'Wrapped and Waiting',
+    description: 'Own all Duat Preserve cards.',
+    reward: { gold: 450 },
+    progress: (save, db) =>
+      themedCollectionProgress(save, db, (card) => isSandsOfTheDuat(card) && card.preserve !== undefined),
+  },
+  {
+    id: 'theme-sands-of-the-duat-bastet',
+    bucket: 'theme',
+    title: 'The Cats of Bubastis',
+    description: 'Own every Sands of the Duat Bastet.',
+    reward: { gold: 400 },
+    progress: (save, db) =>
+      themedCollectionProgress(save, db, (card) => isSandsOfTheDuat(card) && card.subtypes.includes('Bastet')),
+  },
+  // Starborne (1.7; goals 1.8.1), schema-free and derived from the live pool.
+  // Propagate and Marks read the glossary's classifier, so a card that prints
+  // either word counts even when it only reads Marks rather than placing them.
+  {
+    id: 'theme-starborne-25',
+    bucket: 'theme',
+    title: 'Signal Received',
+    description: 'Own 25% of Starborne cards.',
+    reward: { gold: 200 },
+    progress: (save, db) => themedCollectionProgress(save, db, isStarborne, 0.25),
+  },
+  {
+    id: 'theme-starborne-50',
+    bucket: 'theme',
+    title: 'Half the Fleet',
+    description: 'Own 50% of Starborne cards.',
+    reward: { gold: 400 },
+    progress: (save, db) => themedCollectionProgress(save, db, isStarborne, 0.5),
+  },
+  {
+    id: 'theme-starborne-complete',
+    bucket: 'theme',
+    title: 'The Fleet Comes Home',
+    description: 'Own every Starborne card.',
+    reward: { gold: 1500 },
+    progress: (save, db) => themedCollectionProgress(save, db, isStarborne),
+  },
+  {
+    id: 'theme-starborne-ur',
+    bucket: 'theme',
+    title: 'The Seven Brightest',
+    description: 'Own all 7 Starborne UR cards.',
+    reward: { gold: 850 },
+    progress: (save, db) => themeProgress(save, STARBORNE_UR, db),
+  },
+  {
+    id: 'theme-starborne-propagate',
+    bucket: 'theme',
+    title: 'The Light That Spreads',
+    description: 'Own all Starborne Propagate cards.',
+    reward: { gold: 450 },
+    progress: (save, db) =>
+      themedCollectionProgress(save, db, (card) => isStarborne(card) && cardMechanics(card).includes('propagate')),
+  },
+  {
+    id: 'theme-starborne-marks',
+    bucket: 'theme',
+    title: 'Living Light',
+    description: 'Own all Starborne cards that use Marks.',
+    reward: { gold: 500 },
+    progress: (save, db) =>
+      themedCollectionProgress(save, db, (card) => isStarborne(card) && cardMechanics(card).includes('mark')),
+  },
+  {
+    id: 'theme-starborne-starships',
+    bucket: 'theme',
+    title: 'Grown, Not Built',
+    description: 'Own every Starborne Starship.',
+    reward: { gold: 350 },
+    progress: (save, db) =>
+      themedCollectionProgress(save, db, (card) => isStarborne(card) && card.subtypes.includes('Starship')),
+  },
+  {
+    id: 'theme-starborne-rainbow',
+    bucket: 'theme',
+    title: 'Three Auroras',
+    description: 'Own 3 rainbow-frame Starborne cards.',
+    reward: { gold: 400 },
+    progress: (save, db) => {
+      const ids = themeCards(db, isStarborne).map((card) => card.id);
+      return { current: themeVariantCount(save, ids, isRainbowBorder), target: 3 };
+    },
+  },
+  // Drowned Deep (1.8; goals 1.8.1), schema-free and derived from the live pool.
+  {
+    id: 'theme-drowned-deep-25',
+    bucket: 'theme',
+    title: 'First Step Down',
+    description: 'Own 25% of Drowned Deep cards.',
+    reward: { gold: 200 },
+    progress: (save, db) => themedCollectionProgress(save, db, isDrownedDeep, 0.25),
+  },
+  {
+    id: 'theme-drowned-deep-50',
+    bucket: 'theme',
+    title: 'Halfway Down the Stair',
+    description: 'Own 50% of Drowned Deep cards.',
+    reward: { gold: 400 },
+    progress: (save, db) => themedCollectionProgress(save, db, isDrownedDeep, 0.5),
+  },
+  {
+    id: 'theme-drowned-deep-complete',
+    bucket: 'theme',
+    title: 'Further Than Any Diver',
+    description: 'Own every Drowned Deep card.',
+    reward: { gold: 2500 },
+    progress: (save, db) => themedCollectionProgress(save, db, isDrownedDeep),
+  },
+  {
+    id: 'theme-drowned-deep-ur',
+    bucket: 'theme',
+    title: 'All Who Seek the Deep',
+    description: 'Own all 13 Drowned Deep UR cards.',
+    reward: { gold: 1550 },
+    progress: (save, db) => themeProgress(save, DROWNED_DEEP_UR, db),
+  },
+  {
+    id: 'theme-drowned-deep-whispers',
+    bucket: 'theme',
+    title: 'Voices of the Drowned',
+    description: 'Own all Drowned Deep Whispers cards.',
+    reward: { gold: 500 },
+    progress: (save, db) => themedCollectionProgress(save, db, (card) => isDrownedDeep(card) && card.whispers !== undefined),
+  },
+  {
+    id: 'theme-drowned-deep-tithe',
+    bucket: 'theme',
+    title: 'What the Deep Is Owed',
+    description: 'Own all Drowned Deep Tithe cards.',
+    reward: { gold: 450 },
+    progress: (save, db) => themedCollectionProgress(save, db, (card) => isDrownedDeep(card) && card.tithe !== undefined),
+  },
+  {
+    id: 'theme-drowned-deep-duty',
+    bucket: 'theme',
+    title: 'Every Post Kept',
+    description: 'Own all Drowned Deep Duty cards.',
+    reward: { gold: 500 },
+    progress: (save, db) => themedCollectionProgress(save, db, (card) => isDrownedDeep(card) && card.activated !== undefined),
+  },
+  {
+    id: 'theme-drowned-deep-wardens',
+    bucket: 'theme',
+    title: 'Never Once Dark',
+    description: 'Own every Drowned Deep Warden.',
+    reward: { gold: 400 },
+    progress: (save, db) =>
+      themedCollectionProgress(save, db, (card) => isDrownedDeep(card) && card.subtypes.includes('Warden')),
   },
   {
     id: 'first-win',
