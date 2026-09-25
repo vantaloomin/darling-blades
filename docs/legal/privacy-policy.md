@@ -77,7 +77,7 @@ summaries of how it is played to a service we run on Cloudflare, at
 told about it once, in the game, before anything is sent.
 The Privacy panel in Settings shows this same list.
 
-**What we want to learn:** which formats and colours get played, how long
+**What we want to learn:** which formats and colors get played, how long
 duels last, how far players get, and whether players come back to the game.
 We use this only to improve the game.
 
@@ -98,7 +98,7 @@ We use this only to improve the game.
 
 *After each finished duel, a duel summary:*
 
-- the format, your deck's colours, a general deck type from our own list, and
+- the format, your deck's colors, a general deck type from our own list, and
   a broad range for the deck's mana curve
 - whether the deck was a starter, a custom deck, or a draft deck
 - which built-in computer opponent you played, the difficulty, a broad range
