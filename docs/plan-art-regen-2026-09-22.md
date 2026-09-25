@@ -78,6 +78,25 @@ atmosphere above the head, not the head itself.
 ### Network Sprite — `yn-network-sprite` (creature; `gen-card-art`, bible entry amended)
 - **Pose & composition (replacement line for the yokai-nights bible entry):** airborne in a calm hover with the face at one third from the top of the canvas and the whole spectral silhouette, wings and streamers inside the middle band; the top third is clear atmosphere above the head, the figure never touches the top edge, and the face and defining anatomy read at thumbnail. Everything else in the entry stands.
 
+## What happened (1.8.1, 2026-09-25)
+
+All seventeen generated; the owner reviews every image before the PR merges.
+Three Drowned Deep close-ups (Net Full of Stars, The Marsh Remembers, What
+Was Promised) came back as close portraits with the object below the card
+window twice in a row: pinning the face at one third from the top and the
+object at the exact centre let the model satisfy both with a close-up. The
+owner approved rewriting those three; `docs/spell-art.md` now carries the
+rewrites, which ask for a wide shot with the whole figure small inside the
+middle band and the object as the brightest thing at the centre, plus "not a
+close-up, not a half-length shot", and for Net Full of Stars an unlit net
+(its first rewrite drew cyan rings, and cyan is the Mark colour). What Was
+Promised overshot upward and ships re-cropped from its raw at offsetY -256.
+Two generator gaps surfaced first: the spell roster refused six of these ids
+and the card generator had no Yokai Nights faction; both were fixed. And the
+spell generator caches raws in `%TEMP%/gen-spell-art`, not the card
+generator's folder, so a regeneration must move that raw aside or it only
+re-crops.
+
 ## After generation
 
 Run `python scripts/audit-art-window.py --only <ids>` (the detector from
