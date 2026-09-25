@@ -6,12 +6,14 @@ import {
   fromCardDef,
   toCardDef,
   type BuilderState,
+  type ForgeWarning,
 } from '../../src/forge/logic';
 import { dutiesOf, scoreCard, type ScorableCardDef } from '../../src/power/scoreCore';
 
 // The builder side of the 1.8 mechanics: Duty, Whispers and Tithe load into the
-// editors and convert back exactly, and the validator's exclusions surface as
-// warnings. The rates themselves are tested in tests/power/scoreCore.test.ts.
+// editors and convert back exactly, and the combinations the game refuses
+// surface as `illegal` warnings. The rates themselves are tested in
+// tests/power/scoreCore.test.ts.
 
 const artifact = (extra: Partial<ScorableCardDef>): ScorableCardDef => ({
   id: 'synthetic-18-artifact',
@@ -26,15 +28,16 @@ const artifact = (extra: Partial<ScorableCardDef>): ScorableCardDef => ({
 });
 
 /** Warnings `after` raises that `before` does not: the ones the change caused. */
-function addedWarnings(before: BuilderState, after: BuilderState): string[] {
-  const existing = new Set(evaluateBuilder(before).warnings);
-  return evaluateBuilder(after).warnings.filter((warning) => !existing.has(warning));
+function addedWarnings(before: BuilderState, after: BuilderState): ForgeWarning[] {
+  const existing = new Set(evaluateBuilder(before).warnings.map((warning) => warning.id));
+  return evaluateBuilder(after).warnings.filter((warning) => !existing.has(warning.id));
 }
 
-/** True when some warning names both the mechanic and what it conflicts with. */
-const names = (warnings: string[], mechanic: RegExp, other: RegExp): boolean => (
-  warnings.some((warning) => mechanic.test(warning) && other.test(warning))
-);
+/** The rule and its kind for each warning: what fired, never how it is worded. */
+const rules = (warnings: ForgeWarning[]): string[] => warnings.map((warning) => `${warning.kind}:${warning.id}`);
+
+/** The rules the game would refuse the card for. */
+const illegal = (warnings: ForgeWarning[]): string[] => rules(warnings.filter((warning) => warning.kind === 'illegal'));
 
 describe('Duty in the builder', () => {
   it('round-trips through the builder state with the same score', () => {
@@ -55,15 +58,15 @@ describe('Duty in the builder', () => {
     expect(dutiesOf(free)[0]?.cost).toEqual({ tap: true });
   });
 
-  it('warns on the validator exclusions', () => {
+  it('flags the combinations the game refuses as illegal', () => {
     const duty = createInitialBuilderState();
     duty.mechanics.activated.enabled = true;
     const withManaAbility = cloneBuilderState(duty);
     withManaAbility.mechanics.manaAbility.enabled = true;
     const withHauntlink = cloneBuilderState(duty);
     withHauntlink.mechanics.hauntlink.enabled = true;
-    expect(names(addedWarnings(duty, withManaAbility), /Duty/, /mana ability/i)).toBe(true);
-    expect(names(addedWarnings(duty, withHauntlink), /Duty/, /Hauntlink/)).toBe(true);
+    expect(illegal(addedWarnings(duty, withManaAbility))).toEqual(['illegal:duty-with-mana-ability']);
+    expect(illegal(addedWarnings(duty, withHauntlink))).toEqual(['illegal:duty-with-hauntlink']);
   });
 });
 
@@ -79,11 +82,16 @@ describe('Whispers in the builder', () => {
     const state = fromCardDef(card);
     expect(state.mechanics.whispers).toEqual({ enabled: true, cost: { generic: 0, pips: { W: 0, U: 0, B: 0, R: 1, G: 0 } } });
     expect(toCardDef(state).whispers).toEqual(card.whispers);
-    // A 1-mana Whispers on a 3-damage Charm sits well below the effect's fair cost.
-    expect(names(evaluateBuilder(state).warnings, /Whispers/, /fair/i)).toBe(true);
+    // A 1-mana Whispers on a 3-damage Charm (fair cost about 2.4) sits more
+    // than 1 below the effect's fair cost; the same card with Whispers at 2
+    // does not.
+    const fairGuard = (check: BuilderState) => rules(evaluateBuilder(check).warnings)
+      .filter((rule) => rule.includes('below-fair'));
+    expect(fairGuard(state)).toEqual(['note:whispers-below-fair']);
+    expect(fairGuard(fromCardDef(charm(2)))).toEqual([]);
     const withRetell = cloneBuilderState(state);
     withRetell.mechanics.retell.enabled = true;
-    expect(names(addedWarnings(state, withRetell), /Whispers/, /Retell/)).toBe(true);
+    expect(illegal(addedWarnings(state, withRetell))).toEqual(['illegal:whispers-with-retell']);
   });
 });
 
@@ -98,10 +106,11 @@ describe('Tithe in the builder', () => {
     expect(toCardDef(state).tithe).toEqual({ per: 2 });
     const withRite = cloneBuilderState(state);
     withRite.mechanics.rite.enabled = true;
-    expect(names(addedWarnings(state, withRite), /Tithe/, /Rite/)).toBe(true);
+    expect(illegal(addedWarnings(state, withRite))).toEqual(['illegal:tithe-with-rite']);
     // The creature carrier is the control: only the relic is told Tithe is for creatures.
     const relic = fromCardDef(artifact({ tithe: { per: 2 } }));
-    expect(names(evaluateBuilder(state).warnings, /Tithe/, /creature/i)).toBe(false);
-    expect(names(evaluateBuilder(relic).warnings, /Tithe/, /creature/i)).toBe(true);
+    const creatureOnly = (check: BuilderState) => rules(evaluateBuilder(check).warnings).filter((rule) => rule.endsWith(':tithe-noncreature'));
+    expect(creatureOnly(state)).toEqual([]);
+    expect(creatureOnly(relic)).toEqual(['illegal:tithe-noncreature']);
   });
 });

@@ -1,5 +1,5 @@
 import { ALL_CARDS } from '../data/catalog';
-import { KEYWORD_NAMES, KEYWORD_REMINDER, RARITY_NAMES } from '../data/glossary';
+import { KEYWORD_NAMES, KEYWORD_REMINDER, MECHANIC_NAMES, RARITY_NAMES } from '../data/glossary';
 import type {
   CardType,
   Color,
@@ -12,7 +12,7 @@ import {
   type ScorableEffectOp,
   type ScorableTriggerWhen,
 } from '../power/scoreCore';
-import type { CardSet } from './logic';
+import { SET_IDS, SET_TITLES, type SetId } from '../data/setTitles';
 
 export const CARD_TYPES = [
   'creature',
@@ -27,29 +27,21 @@ export const RARITIES = ['c', 'r', 'sr', 'ssr', 'ur'] as const satisfies readonl
 
 export const RARITY_LABELS = RARITY_NAMES;
 
-export const SETS = [
-  'base',
-  'ragnarok',
-  'celtic-fae',
-  'arthurian-court',
-  'gothic-monsters',
-  'dark-tales',
-  'yokai-nights',
-  'drowned-deep',
-  'starborne',
-] as const satisfies readonly CardSet[];
-
-export const SET_LABELS: Record<CardSet, string> = {
-  base: 'Base Set',
-  ragnarok: 'Ragnarök',
-  'celtic-fae': 'Celtic Fae',
-  'arthurian-court': 'Arthurian Court',
-  'gothic-monsters': 'Gothic Monsters',
-  'dark-tales': 'Dark Tales',
-  'yokai-nights': 'Yokai Nights',
-  'drowned-deep': 'Drowned Deep',
-  starborne: 'Starborne',
+/** Color names as words, for player copy (hints, the ledger). Never the letters. */
+export const COLOR_WORDS: Record<Color, string> = {
+  W: 'white', U: 'blue', B: 'black', R: 'red', G: 'green',
 };
+
+/** The Appearance selects. `default` follows the card's own look. */
+export const FRAME_CHOICES = ['default', 'white', 'blue', 'red', 'gold', 'rainbow', 'black'] as const;
+export const HOLO_CHOICES = ['default', 'none', 'shiny', 'rainbow', 'pearlescent', 'fractal', 'void'] as const;
+
+/**
+ * The game's own set list and player-facing set titles (src/data/setTitles.ts),
+ * read at runtime so a new set or a renamed title reaches the Forge unedited.
+ */
+export const SETS = SET_IDS;
+export const SET_LABELS: Readonly<Record<SetId, string>> = SET_TITLES;
 
 export const TRIGGERS = [
   'spell',
@@ -75,28 +67,38 @@ export const TRIGGERS = [
   'static',
 ] as const satisfies readonly ScorableTriggerWhen[];
 
+/**
+ * How each trigger opens on a printed card: the same words the game's card
+ * text uses (src/ui/rulesText.ts, which this headless module may not import),
+ * so the ability editor and the Power Breakdown read like the cards do. The
+ * breakdown adds a colon; `spell` and `static` have no opening on a card.
+ */
+export const TRIGGER_OPENINGS: Record<Exclude<ScorableTriggerWhen, 'spell' | 'static'>, string> = {
+  arrives: 'When this arrives',
+  dies: 'When this dies',
+  entersGraveyard: 'When this enters your graveyard',
+  dawn: 'During your Dawn',
+  combatDamageToPlayer: 'Whenever this deals combat damage to a player',
+  attacks: 'Whenever this attacks',
+  gainsMark: 'When this gets a Mark',
+  yourCreatureMarked: 'Whenever a creature you control gets a Mark',
+  yourPermanentMarked: 'Whenever a creature you control becomes Marked',
+  youAddMark: 'Whenever you add a Mark to a creature',
+  otherCreatureMarked: 'Whenever another creature gets a Mark',
+  propagated: `Whenever you ${MECHANIC_NAMES.propagate}`,
+  markedAllyAttacks: 'Whenever a Marked creature you control attacks',
+  allyCreatureArrives: 'Whenever a creature arrives under your control',
+  allyDies: 'Whenever a creature you control dies',
+  allyAttacks: 'Whenever a creature you control attacks',
+  youGainLife: 'Whenever you gain life',
+  youCastCharm: 'Whenever you cast a Charm',
+  sunset: 'At Sunset',
+};
+
 export const TRIGGER_LABELS: Record<ScorableTriggerWhen, string> = {
-  spell: 'Spell',
-  arrives: 'Arrives',
-  dies: 'Dies',
-  entersGraveyard: 'Enters Graveyard',
-  dawn: 'Dawn',
-  combatDamageToPlayer: 'Combat Damage to Player',
-  attacks: 'Attacks',
-  gainsMark: 'Host Gains Mark',
-  yourCreatureMarked: 'Your Creature Marked',
-  yourPermanentMarked: 'Your Permanent Marked',
-  youAddMark: 'You Add Mark',
-  otherCreatureMarked: 'Other Creature Marked',
-  propagated: 'Propagated',
-  markedAllyAttacks: 'Marked Ally Attacks',
-  allyCreatureArrives: 'Ally Creature Arrives',
-  allyDies: 'Ally Dies',
-  allyAttacks: 'Ally Attacks',
-  youGainLife: 'You Gain Life',
-  youCastCharm: 'You Cast a Charm',
-  sunset: 'Sunset (each end step)',
-  static: 'Static',
+  spell: 'When cast (a spell)',
+  static: 'Always (a static bonus)',
+  ...TRIGGER_OPENINGS,
 };
 
 export const TARGETS = [
@@ -119,7 +121,7 @@ export const TARGET_LABELS: Record<(typeof TARGETS)[number], string> = {
   any: 'Any target',
   spell: 'Spell',
   yourCreature: 'Your creature',
-  yourGraveCreature: 'Your grave creature',
+  yourGraveCreature: 'Creature card in your graveyard',
   artifact: 'Artifact',
   enchantment: 'Enchantment',
   artifactOrEnchantment: 'Artifact or enchantment',
@@ -193,7 +195,7 @@ export const OP_OPTIONS: readonly OpOption[] = [
   },
   { kind: 'massDestroy', label: 'Mass Destroy', description: 'Destroy a selected permanent class.' },
   { kind: 'preventCombat', label: 'Prevent Combat', description: 'Prevent combat damage this turn.' },
-  { kind: 'reclaim', label: 'Reclaim', description: 'Return a grave creature to hand.' },
+  { kind: 'reclaim', label: 'Reclaim', description: 'Return a creature card from your graveyard to your hand.' },
   { kind: 'grind', label: 'Grind', description: 'Put deck cards into a graveyard.' },
   { kind: 'foresee', label: 'Foresee', description: 'Look at and reorder the top cards.' },
   { kind: 'awaken', label: 'Awaken', description: 'Apply champion awakening.' },

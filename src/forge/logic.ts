@@ -10,17 +10,15 @@ import type {
   TargetSpec,
 } from '../engine/types';
 import { manaValue } from '../engine/types';
+import { MECHANIC_NAMES } from '../data/glossary';
+import type { SetId } from '../data/setTitles';
 import {
   CARD_FLOOR,
   MANA_STEP,
-  OFF,
-  PIE,
   PIP_PREMIUM,
   RARITY_BONUS,
-  SEC,
   dutiesOf,
   scoreCard,
-  type Part,
   type Score,
   type ScorableAbilityDef,
   type ScorableActivated,
@@ -29,10 +27,12 @@ import {
   type ScorableEffectOp,
   type ScorableTriggerWhen,
 } from '../power/scoreCore';
+import { SET_LABELS } from './vocab';
 
 export const COLOR_ORDER = ['W', 'U', 'B', 'R', 'G'] as const satisfies readonly Color[];
 
-export type CardSet = NonNullable<CardDef['set']> | 'starborne';
+/** Every set the game has, including sets newer than the engine's own union. */
+export type CardSet = NonNullable<CardDef['set']> | SetId;
 export type FrameChoice = FrameStyle | 'default';
 export type HoloChoice = HoloFinish | 'default';
 export type TargetChoice = TargetSpec['what'] | 'none';
@@ -128,12 +128,28 @@ export interface BuilderState {
 
 export type VerdictBand = 'under' | 'accurate' | 'over';
 
+/**
+ * `illegal`: the game would refuse the card. `estimate`: a rate that has not
+ * been measured in play yet. `note`: context for reading the score.
+ */
+export type WarningKind = 'illegal' | 'estimate' | 'note';
+
+export interface ForgeWarning {
+  /** Which rule raised it: a stable key for code and tests, never shown. */
+  id: string;
+  kind: WarningKind;
+  text: string;
+}
+
 export interface Evaluation {
   card: ScorableCardDef;
   score: Score;
   band: VerdictBand;
-  warnings: string[];
+  warnings: ForgeWarning[];
 }
+
+/** The art every fresh card starts with, and the fallback for an unknown donor. */
+export const DEFAULT_ART_DONOR = 'gm-manor-thrall';
 
 export function emptyCost(generic = 0): CostState {
   return { generic, pips: { W: 0, U: 0, B: 0, R: 0, G: 0 } };
@@ -153,7 +169,7 @@ export function createInitialAbility(): BuilderAbility {
 
 export function createInitialBuilderState(): BuilderState {
   return {
-    artDonorId: 'gm-manor-thrall',
+    artDonorId: DEFAULT_ART_DONOR,
     name: 'Untitled Blade',
     cardType: 'creature',
     additionalTypes: [],
@@ -484,7 +500,7 @@ export function toCardDef(state: BuilderState): ScorableCardDef {
     tithe: mechanics.tithe.enabled ? { per: 2 } : undefined,
     rarity: state.rarity,
     flavor: state.flavor.trim() || undefined,
-    set: state.set,
+    set: state.set as ScorableCardDef['set'],
   };
   return card;
 }
@@ -523,65 +539,111 @@ export function empowerTotalManaValue(state: BuilderState): number {
   return printedManaValue(state) + manaValue(toManaCost(state.mechanics.empower.cost));
 }
 
-export function warningsFor(state: BuilderState, score: Score): string[] {
-  const warnings: string[] = [];
-  if (score.isX) warnings.push('X is scored at the nominal X = 3 rate. Judge efficiency, not the point total.');
-  warnings.push(...score.unknowns.map((unknown) => `Unknown scorer vocabulary: ${unknown}`));
-  if (state.mechanics.empower.enabled && empowerTotalManaValue(state) > 9) {
-    warnings.push(`Printed MV plus Empower MV is ${empowerTotalManaValue(state)}. The ceiling is 9 and 10 is the hard cap.`);
+/**
+ * What the Forge wants the designer to know about the card: rule conflicts
+ * the game would refuse (`illegal`), provisional rates (`estimate`), and
+ * context for reading the score (`note`). Mechanic names come from the game's
+ * own glossary, so a rename there flows through here.
+ */
+export function warningsFor(state: BuilderState, score: Score): ForgeWarning[] {
+  const warnings: ForgeWarning[] = [];
+  const add = (id: string, kind: WarningKind, text: string): void => { warnings.push({ id, kind, text }); };
+  const m = state.mechanics;
+  const {
+    duty, whispers, tithe, retell, rite, hauntlink, empower, skim, preserve,
+  } = MECHANIC_NAMES;
+  const refused = 'The game won\'t allow this card.';
+
+  if (score.isX) add('x-nominal', 'note', 'X is scored as if X were 3. Judge the rate per mana rather than the total.');
+  for (const unknown of score.unknowns) {
+    add(`unknown:${unknown}`, 'note', `The Forge can't price "${plainVocabulary(unknown)}" yet, so it counts as 0.`);
+  }
+  if (m.empower.enabled) {
+    const total = empowerTotalManaValue(state);
+    // Above the Warchest's ten lands the Empower can never be paid; ten itself
+    // is the acknowledged top of the curve (tests/data/empowerCeiling.test.ts).
+    if (total > 9) {
+      add(total > 10 ? 'empower-over-cap' : 'empower-at-cap', total > 10 ? 'illegal' : 'note',
+        `Cost plus ${empower} comes to ${total}. Real cards stay at 9 or less, and 10 is the hard limit.`);
+    }
   }
   if (!builderHasType(state, 'creature') && state.keywords.length > 0) {
-    warnings.push('Printed keywords on a noncreature have no MEP effect in the scorer.');
+    add('keywords-noncreature', 'note', 'Keywords only count on creatures. On this card they print but add nothing.');
   }
   if (builderHasType(state, 'land')) {
-    warnings.push('Lands have no mana budget and are excluded from the scorer CLI ranking.');
+    add('land-no-budget', 'note', 'Lands have no mana cost, so there is no Budget to measure them against.');
   }
-  if (state.mechanics.skim.enabled || state.mechanics.preserve.enabled) {
-    warnings.push('Skim and Preserve costs render on the card but do not change their flat MEP option values.');
+  if (m.skim.enabled || m.preserve.enabled) {
+    add('skim-preserve-flat', 'note', `${skim} and ${preserve} costs print on the card, but they count a flat amount whatever the cost.`);
   }
-  const m = state.mechanics;
   if (m.activated.enabled) {
-    if (builderHasType(state, 'land')) warnings.push('Duty: lands never carry a Duty (their tap is the mana ability). The validator refuses it.');
-    if (m.manaAbility.enabled) warnings.push('Duty: cannot combine with a mana ability (D2e). The validator refuses it.');
-    if (m.hauntlink.enabled) warnings.push('Duty: cannot combine with Hauntlink (D2e). The validator refuses it.');
-    if (state.isX) warnings.push('Duty: ops cannot use X. The validator refuses it.');
-    if (m.activated.ops.length === 0) warnings.push('Duty: the op list is empty. The validator refuses it.');
-    if (m.activated.target === 'none' && m.activated.ops.some((op) => opNeedsTarget(op))) warnings.push('Duty: a targeting op needs a target choice.');
-    if (m.activated.target === 'spell') warnings.push('Duty: a spell target is not a legal Duty target kind.');
+    if (builderHasType(state, 'land')) add('duty-on-land', 'illegal', `Lands can't have a ${duty} (tapping a land is its mana ability). ${refused}`);
+    if (m.manaAbility.enabled) add('duty-with-mana-ability', 'illegal', `A ${duty} can't share a card with a mana ability. ${refused}`);
+    if (m.hauntlink.enabled) add('duty-with-hauntlink', 'illegal', `A ${duty} can't share a card with ${hauntlink}. ${refused}`);
+    if (state.isX) add('duty-with-x', 'illegal', `A ${duty}'s effects can't use X. ${refused}`);
+    if (m.activated.ops.length === 0) add('duty-no-effects', 'illegal', `This ${duty} has no effects. Add one, or the game won't allow the card.`);
+    if (m.activated.target === 'none' && m.activated.ops.some((op) => opNeedsTarget(op))) {
+      add('duty-needs-target', 'illegal', `One of the ${duty}'s effects needs a target. Pick one.`);
+    }
+    if (m.activated.target === 'spell') add('duty-spell-target', 'illegal', `A ${duty} can't target a spell.`);
     if (builderHasType(state, 'creature')) {
       const part = score.parts.find((candidate) => candidate.label.startsWith('duty'));
-      if (part && part.label.includes('NEEDS MATH band')) warnings.push('Duty: the creature top band (per-trigger value 2.0 or more) is priced at perTrigger + 1.0 and flagged NEEDS MATH (section 4q).');
-      warnings.push('Duty on a body is priced against the attack it forgoes; the Attack 2+ discount (-0.5) is documented in section 4q and not applied.');
+      if (part && part.label.includes('NEEDS MATH')) add('duty-creature-band', 'estimate', `Strong ${pluralDuty(duty)} on creatures use a provisional rate.`);
+      add('duty-creature-attack', 'note', `A ${duty} on a creature is priced against the attack it gives up. Bigger attackers lose more by tapping, and the Forge doesn't count that yet.`);
     }
-    if (activatedManaValue(state) > 0) warnings.push('Duty: the activation-mana discount D = 0.4 per mana (cap 1.5) is a midpoint flagged NEEDS MATH (section 4q).');
+    if (activatedManaValue(state) > 0) add('duty-mana-discount', 'estimate', `The discount for mana spent on a ${duty} uses a provisional rate.`);
   }
   if (m.whispers.enabled) {
-    if (m.retell.enabled) warnings.push('Whispers: cannot combine with Retell. The validator refuses it.');
-    if (m.rite.enabled) warnings.push('Whispers: cannot combine with Rite. The validator refuses it.');
-    if (m.hauntlink.enabled) warnings.push('Whispers: cannot combine with Hauntlink. The validator refuses it.');
-    if (state.isX) warnings.push('Whispers: cannot combine with an X cost. The validator refuses it.');
-    if (m.empower.enabled) warnings.push('Whispers: Empower never applies to a Whispers cast (priced as printed only).');
+    if (m.retell.enabled) add('whispers-with-retell', 'illegal', `${whispers} can't share a card with ${retell}. ${refused}`);
+    if (m.rite.enabled) add('whispers-with-rite', 'illegal', `${whispers} can't share a card with ${rite}. ${refused}`);
+    if (m.hauntlink.enabled) add('whispers-with-hauntlink', 'illegal', `${whispers} can't share a card with ${hauntlink}. ${refused}`);
+    if (state.isX) add('whispers-with-x', 'illegal', `${whispers} can't be used with an X cost. ${refused}`);
+    if (m.empower.enabled) add('whispers-empower', 'note', `${empower} never applies when you cast with ${whispers}, so it's priced as printed.`);
     const wmv = whispersManaValue(state);
-    if (wmv >= printedManaValue(state)) warnings.push('Whispers: the Whispers cost is not below the printed cost, so the option is worth nothing.');
+    if (wmv >= printedManaValue(state)) add('whispers-not-lower', 'note', `The ${whispers} cost isn't lower than the printed cost, so it adds nothing.`);
     const fair = fairManaValueFor(state, score.power - (score.parts.find((candidate) => candidate.label.startsWith('whispers'))?.v ?? 0));
-    if (wmv < fair - 2) warnings.push(`Whispers: cost ${wmv} is more than 2 below the fair cost of the effect (about ${fair.toFixed(1)}). The era guard is fair - 1, never below fair - 2 (section 4r).`);
-    else if (wmv < fair - 1) warnings.push(`Whispers: cost ${wmv} is below fair - 1 (fair about ${fair.toFixed(1)}); the era median is fair - 1 (section 4r).`);
-    if (!builderHasType(state, 'charm')) warnings.push('Whispers on a body or sorcery-speed effect earns 0 at printed (six exact vanilla twins in the era); the option is a deck-building upside, not MEP.');
-    else warnings.push('Whispers: E_FIRE = 0.5 is a placeholder flagged NEEDS MATH until the fire rate is measured on a seeded matrix (section 4r).');
-    if (m.skim.enabled) warnings.push('Skim + Whispers on one card: the combined-cast guard is NEEDS MATH (Ichor Slick, n=1).');
+    if (wmv < fair - 2) {
+      add('whispers-far-below-fair', 'note', `${whispers} cost ${wmv} is more than 2 below the fair cost of the effect (about ${fair.toFixed(1)}). Real cards keep it 1 below, never more than 2.`);
+    } else if (wmv < fair - 1) {
+      add('whispers-below-fair', 'note', `${whispers} cost ${wmv} is more than 1 below the fair cost of the effect (about ${fair.toFixed(1)}). Most real cards sit exactly 1 below.`);
+    }
+    if (!builderHasType(state, 'charm')) {
+      add('whispers-no-value', 'note', `${whispers} on a creature or a sorcery-speed card adds nothing at its printed cost. It's a deckbuilding upside the formula doesn't count.`);
+    } else {
+      add('whispers-fire-rate', 'estimate', `How often ${whispers} gets cast is still a provisional rate.`);
+    }
+    if (m.skim.enabled) add('whispers-with-skim', 'estimate', `${skim} and ${whispers} on the same card has no measured rate yet.`);
   }
   if (m.tithe.enabled) {
-    if (!builderHasType(state, 'creature')) warnings.push('Tithe: creatures only (the engine allows any creature; Drowned Deep prints it only on Horrors).');
-    else if (!splitSubtypes(state.subtypesText).includes('Horror') && (state.set as string) === 'drowned-deep') warnings.push('Tithe: Drowned Deep prints Tithe only on Horrors (per-set catalog policy).');
-    if (state.isX) warnings.push('Tithe: cannot combine with an X cost. The validator refuses it.');
-    if (m.retell.enabled) warnings.push('Tithe: cannot combine with Retell. The validator refuses it.');
-    if (m.hauntlink.enabled) warnings.push('Tithe: cannot combine with Hauntlink. The validator refuses it.');
-    if (m.whispers.enabled) warnings.push('Tithe: cannot combine with Whispers. The validator refuses it.');
-    if (m.rite.enabled) warnings.push('Tithe: cannot combine with Rite (one sacrifice mechanic per card). The validator refuses it.');
-    if (state.abilities.some((ability) => ability.ops.some((op) => op.op === 'addCounters'))) warnings.push('Tithe with a counter gain needs the Devour rate on top (section 4s); not applied.');
-    warnings.push('Tithe is a flat +0.50 option; the discount tempo is NEEDS MATH (section 4s).');
+    if (!builderHasType(state, 'creature')) add('tithe-noncreature', 'illegal', `${tithe} goes on creatures only.`);
+    else if (!splitSubtypes(state.subtypesText).includes('Horror') && (state.set as string) === 'drowned-deep') {
+      add('tithe-drowned-deep-horror', 'note', `In the ${SET_LABELS['drowned-deep']} set, only Horrors have ${tithe}.`);
+    }
+    if (state.isX) add('tithe-with-x', 'illegal', `${tithe} can't be used with an X cost. ${refused}`);
+    if (m.retell.enabled) add('tithe-with-retell', 'illegal', `${tithe} can't share a card with ${retell}. ${refused}`);
+    if (m.hauntlink.enabled) add('tithe-with-hauntlink', 'illegal', `${tithe} can't share a card with ${hauntlink}. ${refused}`);
+    if (m.whispers.enabled) add('tithe-with-whispers', 'illegal', `${tithe} can't share a card with ${whispers}. ${refused}`);
+    if (m.rite.enabled) add('tithe-with-rite', 'illegal', `${tithe} can't share a card with ${rite} (one sacrifice mechanic per card). ${refused}`);
+    if (state.abilities.some((ability) => ability.ops.some((op) => op.op === 'addCounters'))) {
+      add('tithe-mark-gain', 'note', `${tithe} with a mark gain would need an extra rate the Forge doesn't apply yet.`);
+    }
+    add('tithe-flat', 'estimate', `${tithe} counts a flat +0.50. The value of the discount itself isn't measured yet.`);
   }
   return warnings;
+}
+
+/** "Duty" to "Duties"; any other name gets a plain "s". */
+function pluralDuty(name: string): string {
+  return name.endsWith('y') ? `${name.slice(0, -1)}ies` : `${name}s`;
+}
+
+/** Scorer vocabulary ids (`op:frob`, `when:someTrigger`) as plain words. */
+function plainVocabulary(unknown: string): string {
+  return unknown
+    .replace(/^[a-zA-Z.]+:/, '')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .toLowerCase()
+    .trim();
 }
 
 function opNeedsTarget(op: ScorableEffectOp): boolean {
@@ -617,41 +679,37 @@ export function manaCostLabel(cost: CostState): string {
   return pieces.join('') || '{0}';
 }
 
+/** The Budget as its four terms, in the order the scorer adds them. */
 export function rarityBudgetLabel(state: BuilderState): string {
   const mv = printedManaValue(state);
   const pips = COLOR_ORDER.reduce((sum, color) => sum + state.cost.pips[color], 0);
-  return `${CARD_FLOOR.toFixed(2)} floor + ${MANA_STEP.toFixed(2)}×${mv - 1} mana + ${PIP_PREMIUM.toFixed(2)}×${pips - 1} pips + ${RARITY_BONUS[state.rarity].toFixed(2)} ${state.rarity.toUpperCase()}`;
+  return `${CARD_FLOOR.toFixed(2)} base + ${MANA_STEP.toFixed(2)} × ${mv - 1} mana + ${PIP_PREMIUM.toFixed(2)} × ${pips - 1} pips + ${RARITY_BONUS[state.rarity].toFixed(2)} rarity`;
 }
 
-const COLOR_NAMES: Record<Color, string> = {
-  W: 'white', U: 'blue', B: 'black', R: 'red', G: 'green',
-};
-
-/** Adds designer-facing context without changing the persisted scorer Part. */
-export function ledgerLabelForPart(card: ScorableCardDef, part: Part): string {
-  const prefix = 'off-pie: ';
-  if (!part.label.startsWith(prefix)) return part.label;
-  const effectClass = part.label.slice(prefix.length);
-  const def = PIE[effectClass];
-  if (!def) return part.label;
-  const colors = card.colors as Color[];
-  const tier = colors.length > 0
-    ? Math.min(...colors.map((color) => def.pie[color] ?? OFF))
-    : def.colorless;
-  const tierName = Math.abs(tier - SEC) < 0.0001 ? 'secondary' : 'off-pie';
-  const identity = colors.length > 0
-    ? colors.map((color) => COLOR_NAMES[color]).join('/')
-    : 'colorless';
-  const primary = (Object.entries(def.pie) as [Color, number][])
-    .filter(([, value]) => value === 0)
-    .map(([color]) => COLOR_NAMES[color])
-    .join('/');
-  // The scorer bills `tier × min(1, classWeight)`, so an incidental rider pays
-  // less than the full tier (power-formula §3b). Showing only the tier next to
-  // a smaller charge reads as a mismatch, so name both when they differ.
-  const scaled = Math.abs(part.v - tier) > 0.005;
-  const rate = scaled
-    ? `${tierName} for ${identity} +${tier.toFixed(2)} scaled to +${part.v.toFixed(2)}`
-    : `${tierName} for ${identity} +${tier.toFixed(2)}`;
-  return `${effectClass} · ${rate} · primary in ${primary || 'none'}`;
+/**
+ * The builder cannot represent a few catalog fields exactly, so a loaded card
+ * can score a little differently in the Forge than in the game. When it does,
+ * say so, with one line per metric that moved. `builderCard` is the loaded
+ * card as the builder converts it back.
+ */
+export function fidelityNotes(source: ScorableCardDef, builderCard: ScorableCardDef): ForgeWarning[] {
+  const game = scoreCard(source);
+  const here = scoreCard(builderCard);
+  const moved = ([
+    ['Power', game.power, here.power, false],
+    ['Budget', game.budget, here.budget, false],
+    ['Difference', game.delta, here.delta, true],
+  ] as const).filter(([, before, after]) => before !== after);
+  if (moved.length === 0) return [];
+  const shown = (value: number, signedValue: boolean): string => (
+    signedValue ? `${value >= 0 ? '+' : ''}${value.toFixed(2)}` : value.toFixed(2)
+  );
+  return [
+    { id: 'fidelity', kind: 'note', text: `The Forge can't edit everything on ${source.name}, so it scores a little differently here.` },
+    ...moved.map(([metric, before, after, signedValue]): ForgeWarning => ({
+      id: `fidelity:${metric}`,
+      kind: 'note',
+      text: `${metric}: ${shown(before, signedValue)} in the game, ${shown(after, signedValue)} here.`,
+    })),
+  ];
 }

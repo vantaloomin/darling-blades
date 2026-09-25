@@ -36,12 +36,25 @@ export default tseslint.config(
   },
   {
     // The Forge's headless half (docs/forge.md): the power scorer, and the
-    // builder's state, hint, store and vocabulary modules. They run in the
-    // browser page, in Vitest, and (the scorer) in the local balance CLI, so on
-    // top of the block above they take no Node built-ins and no DOM. This
-    // block's import rule replaces the one above for src/power, so it repeats
-    // that block's restrictions.
-    files: ['src/power/**', 'src/forge/logic.ts', 'src/forge/hints.ts', 'src/forge/store.ts', 'src/forge/vocab.ts'],
+    // builder's state, hint, store, vocabulary, ledger, validation, set,
+    // share-link, autosave and markup modules. They run in the browser page, in
+    // Vitest, and (the scorer) in the local balance CLI, so on top of the block
+    // above they take no Node built-ins and no DOM. This block's import rule
+    // replaces the one above for src/power, so it repeats that block's
+    // restrictions.
+    files: [
+      'src/power/**',
+      'src/forge/logic.ts',
+      'src/forge/hints.ts',
+      'src/forge/store.ts',
+      'src/forge/vocab.ts',
+      'src/forge/ledger.ts',
+      'src/forge/validate.ts',
+      'src/forge/setModel.ts',
+      'src/forge/share.ts',
+      'src/forge/storage.ts',
+      'src/forge/markup.ts',
+    ],
     rules: {
       'no-restricted-imports': [
         'error',

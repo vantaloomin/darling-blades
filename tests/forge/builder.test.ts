@@ -9,10 +9,11 @@ import {
   createInitialBuilderState,
   evaluateBuilder,
   fromCardDef,
-  ledgerLabelForPart,
   rarityBudgetLabel,
   toCardDef,
+  type ForgeWarning,
 } from '../../src/forge/logic';
+import { translatePart } from '../../src/forge/ledger';
 import {
   MANA_STEP,
   OFF,
@@ -130,11 +131,11 @@ describe('builder state conversion', () => {
     // printed keyword earns a warning and its body earns no stat hints.
     const artifactOnly = cloneBuilderState(state);
     artifactOnly.additionalTypes = [];
-    const keywordWarnings = (warnings: string[]) => warnings.filter((warning) => /keyword/i.test(warning));
+    const keywordWarnings = (warnings: ForgeWarning[]) => warnings.filter((warning) => warning.id === 'keywords-noncreature');
 
     const evaluation = evaluateBuilder(state);
     expect(evaluation.card.types).toEqual(['artifact', 'creature']);
-    expect(keywordWarnings(evaluateBuilder(artifactOnly).warnings)).not.toEqual([]);
+    expect(keywordWarnings(evaluateBuilder(artifactOnly).warnings).map((warning) => warning.kind)).toEqual(['note']);
     expect(keywordWarnings(evaluation.warnings)).toEqual([]);
     expect(candidateHints(artifactOnly).some((hint) => hint.kind === 'increase-attack')).toBe(false);
     expect(candidateHints(state).some((hint) => hint.kind === 'increase-attack')).toBe(true);
@@ -204,29 +205,24 @@ describe('color-pie premium', () => {
     return state;
   }
 
+  // The breakdown names the effect class, the tier the card's colors pay, the
+  // card's colors, and the colors the effect is usual in, and shows the rate.
   it('surfaces off-pie class, tier, identity, and primary color', () => {
     const evaluation = evaluateBuilder(damageState('G'));
     const part = evaluation.score.parts.find((candidate) => candidate.label === 'off-pie: burn');
     expect(part?.v).toBe(OFF);
-    const label = ledgerLabelForPart(evaluation.card, part!);
-    expect(label).toMatch(/burn/);
-    expect(label).toMatch(/off-pie/);
-    expect(label).not.toMatch(/secondary/);
-    expect(label).toMatch(/green/);
-    expect(label).toContain('0.85');
-    expect(label).toMatch(/red/);
+    const line = translatePart(evaluation.card, part!);
+    expect(line.offColor).toMatchObject({ effectClass: 'burn', tier: 'off', tierValue: OFF, identity: ['G'], usual: ['R'] });
+    expect(line.text).toContain(OFF.toFixed(2));
   });
 
   it('distinguishes the secondary tier', () => {
     const evaluation = evaluateBuilder(damageState('B'));
     const part = evaluation.score.parts.find((candidate) => candidate.label === 'off-pie: burn');
     expect(part?.v).toBe(SEC);
-    const label = ledgerLabelForPart(evaluation.card, part!);
-    expect(label).toMatch(/secondary/);
-    expect(label).not.toMatch(/off-pie/);
-    expect(label).toMatch(/black/);
-    expect(label).toContain('0.40');
-    expect(label).toMatch(/red/);
+    const line = translatePart(evaluation.card, part!);
+    expect(line.offColor).toMatchObject({ effectClass: 'burn', tier: 'secondary', tierValue: SEC, identity: ['B'], usual: ['R'] });
+    expect(line.text).toContain(SEC.toFixed(2));
   });
 });
 

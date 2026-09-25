@@ -60,21 +60,21 @@
   <body>
     <header class="app-header">
       <div>
-        <h1>Darling Blades Card Builder</h1>
-        <p>Local power calculator and production card renderer.</p>
+        <h1>Darling Blades Forge</h1>
+        <p>Design a card and see how its cost measures up.</p>
       </div>
-      <div class="local-status"><span aria-hidden="true"></span>Local only</div>
+      <a class="play-link" href="../">Play Darling Blades</a>
     </header>
 
     <main class="workspace-grid">
       <aside class="rail control-rail" aria-label="Card design controls">
         <section class="tool-section">
-          <h2>Identity</h2>
+          <h2>Card</h2>
           <div class="field-grid two-up">
             <label class="span-two">Name<input id="card-name" type="text" maxlength="80" /></label>
             <label>Card Type<select id="card-type"></select></label>
             <label>Rarity<select id="card-rarity"></select></label>
-            <label class="span-two">Subtypes<input id="card-subtypes" type="text" placeholder="Warrior, Spirit" /></label>
+            <label class="span-two">Subtypes<input id="card-subtypes" type="text" maxlength="120" placeholder="Warrior, Spirit" /></label>
             <label>Set<select id="card-set"></select></label>
             <label class="check-row"><input id="card-legendary" type="checkbox" /> Legendary</label>
             <label class="span-two">Flavor Text<textarea id="card-flavor" rows="2" maxlength="240"></textarea></label>
@@ -91,23 +91,23 @@
             <label>Color Identity
               <select id="color-identity-mode">
                 <option value="cost">From mana cost</option>
-                <option value="override">Override</option>
+                <option value="override">Choose colors</option>
               </select>
             </label>
             <fieldset id="color-override-controls" class="color-override-controls" hidden>
-              <legend>Identity Colors</legend>
+              <legend>Colors</legend>
             </fieldset>
           </div>
-          <p class="field-note">Color identity drives the color-pie premium.</p>
-          <label class="check-row compact"><input id="x-spell" type="checkbox" /> X spell, nominal X = 3</label>
+          <p class="field-note">Effects outside a card's colors cost a little extra.</p>
+          <label class="check-row compact"><input id="x-spell" type="checkbox" /> X spell (scored as X = 3)</label>
         </section>
 
         <section id="body-section" class="tool-section">
-          <h2>Creature Body</h2>
-          <label class="range-field">Strength
+          <h2>Body</h2>
+          <label class="range-field">Attack
             <span><input id="card-attack" type="range" min="0" max="12" step="1" /><output id="attack-value">2</output></span>
           </label>
-          <label class="range-field">Health
+          <label class="range-field">Defense
             <span><input id="card-defense" type="range" min="0" max="12" step="1" /><output id="defense-value">2</output></span>
           </label>
         </section>
@@ -115,7 +115,7 @@
         <section class="tool-section">
           <div class="section-heading"><h2>Keywords</h2><span class="section-note">Drag or click to add</span></div>
           <div id="keyword-palette" class="keyword-palette" aria-label="Keyword palette"></div>
-          <p id="keyword-score-note" class="field-note">Keywords on creatures contribute to MEP.</p>
+          <p id="keyword-score-note" class="field-note">Keywords add their value on creatures.</p>
         </section>
 
         <section class="tool-section">
@@ -124,62 +124,62 @@
         </section>
 
         <section class="tool-section">
-          <h2>Card Mechanics</h2>
-          <p class="section-note block">Every card-level field is available. Fields ignored by MEP are labeled.</p>
+          <h2>Mechanics</h2>
+          <p class="section-note block">Card-wide mechanics. A few print on the card without changing the score; their notes say so.</p>
           <div id="mechanic-toggles" class="mechanic-toggles">
-            <label><input type="checkbox" data-mechanic-toggle="empower" /> Empower</label>
-            <label><input type="checkbox" data-mechanic-toggle="rite" /> Rite</label>
-            <label><input type="checkbox" data-mechanic-toggle="nineLives" /> Nine Lives</label>
-            <label><input type="checkbox" data-mechanic-toggle="preserve" /> Preserve</label>
-            <label><input type="checkbox" data-mechanic-toggle="skim" /> Skim</label>
-            <label><input type="checkbox" data-mechanic-toggle="retell" /> Retell</label>
-            <label><input type="checkbox" data-mechanic-toggle="hauntlink" /> Hauntlink</label>
-            <label><input type="checkbox" data-mechanic-toggle="awakening" /> Awakening</label>
-            <label><input type="checkbox" data-mechanic-toggle="chapters" /> Chapters</label>
+            <label data-mechanic-id="empower"><input type="checkbox" data-mechanic-toggle="empower" /> <span data-mechanic-name="empower">Empower</span></label>
+            <label data-mechanic-id="rite"><input type="checkbox" data-mechanic-toggle="rite" /> <span data-mechanic-name="rite">Rite</span></label>
+            <label data-mechanic-id="nineLives"><input type="checkbox" data-mechanic-toggle="nineLives" /> <span data-mechanic-name="nineLives">Nine Lives</span></label>
+            <label data-mechanic-id="preserve"><input type="checkbox" data-mechanic-toggle="preserve" /> <span data-mechanic-name="preserve">Preserve</span></label>
+            <label data-mechanic-id="skim"><input type="checkbox" data-mechanic-toggle="skim" /> <span data-mechanic-name="skim">Skim</span></label>
+            <label data-mechanic-id="retell"><input type="checkbox" data-mechanic-toggle="retell" /> <span data-mechanic-name="retell">Retell</span></label>
+            <label data-mechanic-id="hauntlink"><input type="checkbox" data-mechanic-toggle="hauntlink" /> <span data-mechanic-name="hauntlink">Hauntlink</span></label>
+            <label data-mechanic-id="championAwakening"><input type="checkbox" data-mechanic-toggle="awakening" /> <span data-mechanic-name="championAwakening">Champion Awakening</span></label>
+            <label data-mechanic-id="quest"><input type="checkbox" data-mechanic-toggle="chapters" /> <span data-mechanic-name="quest">Quest</span></label>
             <label><input type="checkbox" data-mechanic-toggle="manaAbility" /> Mana Ability</label>
             <label><input type="checkbox" data-mechanic-toggle="entersTapped" /> Enters Tapped</label>
-            <label><input type="checkbox" data-mechanic-toggle="activated" /> Duty (1.8)</label>
-            <label><input type="checkbox" data-mechanic-toggle="whispers" /> Whispers (1.8)</label>
-            <label><input type="checkbox" data-mechanic-toggle="tithe" /> Tithe (1.8)</label>
+            <label data-mechanic-id="duty"><input type="checkbox" data-mechanic-toggle="activated" /> <span data-mechanic-name="duty">Duty</span></label>
+            <label data-mechanic-id="whispers"><input type="checkbox" data-mechanic-toggle="whispers" /> <span data-mechanic-name="whispers">Whispers</span></label>
+            <label data-mechanic-id="tithe"><input type="checkbox" data-mechanic-toggle="tithe" /> <span data-mechanic-name="tithe">Tithe</span></label>
           </div>
           <div id="mechanic-editors" class="editor-list"></div>
         </section>
 
         <section class="tool-section load-card-section">
-          <div class="section-heading"><h2>Load Card</h2><button id="random-card" class="small-button" type="button">Random Card</button></div>
-          <p class="field-note">Load a catalog definition into every editor.</p>
+          <div class="section-heading"><h2>Start From a Card</h2><button id="random-card" class="small-button" type="button">Random Card</button></div>
+          <p class="field-note">Open any card from the game and change it.</p>
           <div id="loaded-card-chip" class="loaded-card-chip" aria-live="polite" hidden>
             <span id="loaded-card-label"></span>
-            <button id="reset-loaded" class="small-button" type="button">Reset to loaded</button>
+            <button id="reset-loaded" class="small-button" type="button">Undo My Changes</button>
           </div>
           <div class="field-grid load-filters">
-            <label class="span-two">Search<input id="load-search" type="search" placeholder="Card name or id" /></label>
+            <label class="span-two">Search<input id="load-search" type="search" placeholder="Card name" /></label>
             <label>Set<select id="load-set-filter"></select></label>
             <label>Color<select id="load-color-filter"></select></label>
           </div>
           <div class="picker-result-heading"><span>Results</span><span id="load-result-count"></span></div>
-          <div id="load-results" class="load-results" aria-label="Catalog card picker"></div>
+          <div id="load-results" class="load-results" aria-label="Cards from the game"></div>
         </section>
 
         <section class="tool-section art-picker-section">
-          <div class="section-heading"><h2>Art Donor</h2><button id="random-art" class="small-button" type="button">Random Art</button></div>
-          <p class="field-note">The donor supplies a real catalog id and art only.</p>
+          <div class="section-heading"><h2>Art</h2><button id="random-art" class="small-button" type="button">Random Art</button></div>
+          <p class="field-note">Borrow any card's art. It changes the picture only.</p>
           <div class="field-grid art-filters">
-            <label class="span-two">Search<input id="art-search" type="search" placeholder="Card name or id" /></label>
+            <label class="span-two">Search<input id="art-search" type="search" placeholder="Card name" /></label>
             <label>Set<select id="art-set-filter"></select></label>
             <label>Color<select id="art-color-filter"></select></label>
           </div>
-          <div id="art-grid" class="art-grid" aria-label="Real card art picker"></div>
+          <div id="art-grid" class="art-grid" aria-label="Art picker"></div>
           <div class="art-pager">
             <button id="art-prev" type="button">Previous</button>
-            <span id="art-page-label">Page 1</span>
+            <span id="art-page-label"></span>
             <button id="art-next" type="button">Next</button>
           </div>
         </section>
 
         <section class="tool-section appearance-section">
           <h2>Appearance</h2>
-          <p class="field-note">Cosmetic controls never affect MEP.</p>
+          <p class="field-note">Looks only. These never change the score.</p>
           <div class="field-grid two-up">
             <label>Frame<select id="frame-style"></select></label>
             <label>Holo Finish<select id="holo-finish"></select></label>
@@ -189,6 +189,10 @@
       </aside>
 
       <section class="preview-column" aria-label="Live card preview">
+        <div id="forge-banner" class="forge-banner" role="status" hidden>
+          <p id="forge-banner-text"></p>
+          <button id="forge-banner-dismiss" class="icon-button" type="button" aria-label="Dismiss">×</button>
+        </div>
         <div class="preview-heading">
           <div>
             <h2>Live Card</h2>
@@ -197,39 +201,81 @@
           <div id="mana-preview" class="mana-preview" aria-label="Printed mana cost"></div>
         </div>
         <div id="canvas-shell">
-          <p class="loading-note">Loading real art and baking card materials...</p>
+          <p class="loading-note">Loading the card...</p>
           <div id="canvas-drop-overlay" class="canvas-drop-overlay">Drop keyword on the card</div>
         </div>
         <div id="applied-keywords" class="applied-keywords" aria-label="Applied keywords">
           <span class="empty-drop-copy">Drop keywords here</span>
         </div>
+
+        <div class="card-actions">
+          <p id="editor-status" class="editor-status" aria-live="polite">New card</p>
+          <div class="action-row">
+            <div class="action-group">
+              <button id="save-to-set" class="primary-button" type="button">Save to Set</button>
+              <button id="save-and-next" class="small-button" type="button">Save and Start Next</button>
+              <button id="new-card" class="ghost-button" type="button">New Card</button>
+            </div>
+            <div class="action-group">
+              <button id="copy-link" class="small-button" type="button">Copy Link</button>
+              <button id="save-image" class="small-button" type="button">Save Image</button>
+            </div>
+          </div>
+          <p id="action-message" class="action-message" aria-live="polite"></p>
+          <label id="share-fallback" class="share-fallback" hidden>Copy this link:<input id="share-fallback-input" type="text" readonly /></label>
+        </div>
+
+        <section class="set-panel" aria-labelledby="set-heading">
+          <div class="section-heading"><h2 id="set-heading">Your Set</h2></div>
+          <label>Set Name<input id="set-name" type="text" maxlength="60" /></label>
+          <ol id="set-list" class="set-list" aria-label="Cards in your set"></ol>
+          <p id="set-empty" class="empty-editor set-empty">No cards yet. Design one and press Save to Set.</p>
+          <div class="set-footer">
+            <span id="set-count" class="set-count">0 cards</span>
+            <button id="export-set" class="small-button" type="button">Export JSON</button>
+            <button id="import-set" class="small-button" type="button">Import JSON</button>
+            <button id="clear-set" class="ghost-button danger" type="button">Clear Set</button>
+            <input id="import-file" type="file" accept=".json,application/json" hidden />
+          </div>
+          <p id="set-message" class="action-message" aria-live="polite"></p>
+          <p id="storage-note" class="field-note">Your set is saved in this browser. Export it to keep a copy or move it to another device.</p>
+        </section>
       </section>
 
       <aside class="rail verdict-rail" aria-label="Power verdict and costing hints">
         <section class="verdict-panel">
           <div class="metric-row">
-            <div><span>PowerScore</span><strong id="metric-power">0.00</strong><small>P</small></div>
-            <div><span>Budget</span><strong id="metric-budget">0.00</strong><small id="budget-formula">B</small></div>
-            <div><span>Delta</span><strong id="metric-delta">+0.00</strong><small>P - B</small></div>
+            <div><span>Power</span><strong id="metric-power">0.00</strong><small>what it does</small></div>
+            <div><span>Budget</span><strong id="metric-budget">0.00</strong><small id="budget-formula"></small></div>
+            <div><span>Difference</span><strong id="metric-delta">+0.00</strong><small>Power minus Budget</small></div>
           </div>
           <div id="verdict-copy" class="verdict-copy">
             <h2 id="verdict-label">Accurate Value</h2>
-            <p id="verdict-subtitle">Within costing noise.</p>
+            <p id="verdict-subtitle"></p>
           </div>
-          <div class="gauge" aria-label="Power delta gauge">
+          <div class="gauge" aria-label="Difference gauge">
             <div class="gauge-zones"><span>Under Value</span><span>Accurate Value</span><span>Over Value</span></div>
             <div class="outlier-mark left"><span>-1.5</span></div>
             <div class="outlier-mark right"><span>+1.5</span></div>
             <div id="gauge-needle" class="gauge-needle"><span id="gauge-value">+0.00</span></div>
           </div>
           <div id="warning-chips" class="warning-chips"></div>
+          <details class="explainer">
+            <summary>How the math works</summary>
+            <p>Every effect on a card is worth some number of points. One point is roughly what one mana buys. Add them up and you get the card's Power.</p>
+            <p>The Budget is what the card's cost and rarity should pay for. A higher cost buys more, each colored pip after the first buys a little extra, and rarer cards get a small bonus.</p>
+            <p>The Difference is Power minus Budget. Within 0.75 either way, the card is Accurate Value. Beyond that it does more or less than its cost should buy, and past 1.5 it is well outside what the game prints.</p>
+            <p>Effects that sit outside a card's colors cost extra. The breakdown lists that as an off-color premium.</p>
+            <p>A rate tagged Estimate hasn't been measured in play yet, so treat it as a best guess.</p>
+            <p>The game's own cards are costed with this formula. It is a guide: real cards also get playtested before they ship.</p>
+          </details>
         </section>
 
         <section class="tool-section ledger-section">
-          <div class="section-heading"><h2>MEP Breakdown</h2><span id="ledger-count" class="section-note"></span></div>
-          <div class="ledger-head"><span>Component</span><span>MEP</span></div>
+          <div class="section-heading"><h2>Power Breakdown</h2><span id="ledger-count" class="section-note"></span></div>
+          <div class="ledger-head"><span>What it does</span><span>Points</span></div>
           <div id="score-ledger" class="score-ledger"></div>
-          <div class="ledger-total"><span>PowerScore</span><strong id="ledger-total">0.00</strong></div>
+          <div class="ledger-total"><span>Power</span><strong id="ledger-total">0.00</strong></div>
         </section>
 
         <section class="tool-section hint-section">

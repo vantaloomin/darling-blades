@@ -56,7 +56,7 @@ branch / commit / PR / merge flow: [docs/git-workflow.md](docs/git-workflow.md).
 
 ## Iron invariants
 
-- `src/engine|ai|data|meta|config` never import Phaser or browser APIs;
+- `src/engine|ai|data|meta|config|power` never import Phaser or browser APIs;
   tests never import Phaser. The engine is headless and seeded-deterministic.
 - AI reads only the redacted `PlayerView` — never hidden state.
 - Save schema changes bump `SaveData.version` with a real `migrate()` +

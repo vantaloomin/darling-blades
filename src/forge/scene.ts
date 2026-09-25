@@ -5,7 +5,7 @@ import { artFileUrl, artKeyFor, artTextureKey } from '../art/artLoader';
 import { CARD_DB } from '../data/catalog';
 import type { CardDef } from '../engine/types';
 import { bakeCardFrames } from '../ui/CardFrameFactory';
-import { CardView } from '../ui/CardView';
+import { CARD_H, CARD_W, CardView } from '../ui/CardView';
 import { bakeFxTextures } from '../ui/fx/HoloEffects';
 import { bakeManaSymbols } from '../ui/ManaSymbols';
 import { gameFileUrl } from './gameFiles';
@@ -14,6 +14,69 @@ import type { BuilderStore } from './store';
 
 export const CARD_BUILDER_GAME_CONFIG = { width: 520, height: 660 } as const;
 const CARD_SCALE = 1.45;
+const BACKGROUND = '#0a0812';
+
+/**
+ * Save Image renders the card at twice its canonical size: 600 x 840, the
+ * resolution the card frames are baked at (CardFrameFactory FRAME_W/FRAME_H)
+ * and the resolution CardView bakes its text at, so nothing is upscaled.
+ */
+export const CARD_IMAGE_SCALE = 2;
+/** CardView draws the legendary crown 4 px above the card's top edge. */
+const CROWN_OVERHANG = 4;
+
+export interface CardImage {
+  blob: Blob;
+  width: number;
+  height: number;
+}
+
+interface PixelRect { x: number; y: number; w: number; h: number }
+
+/** Pixels of the frame just drawn, top row first, straight (not premultiplied) alpha. */
+function readFramePixels(game: Phaser.Game, rect: PixelRect): Uint8ClampedArray {
+  const { x, y, w, h } = rect;
+  const renderer = game.renderer;
+  if (renderer.type === Phaser.WEBGL) {
+    const gl = (renderer as Phaser.Renderer.WebGL.WebGLRenderer).gl;
+    const raw = new Uint8Array(w * h * 4);
+    gl.readPixels(x, gl.drawingBufferHeight - y - h, w, h, gl.RGBA, gl.UNSIGNED_BYTE, raw);
+    const premultiplied = gl.getContextAttributes()?.premultipliedAlpha !== false;
+    const out = new Uint8ClampedArray(w * h * 4);
+    for (let row = 0; row < h; row += 1) {
+      const from = (h - 1 - row) * w * 4;
+      const to = row * w * 4;
+      for (let index = 0; index < w * 4; index += 4) {
+        const alpha = raw[from + index + 3];
+        const unmultiply = premultiplied && alpha > 0 && alpha < 255 ? 255 / alpha : 1;
+        out[to + index] = raw[from + index] * unmultiply;
+        out[to + index + 1] = raw[from + index + 1] * unmultiply;
+        out[to + index + 2] = raw[from + index + 2] * unmultiply;
+        out[to + index + 3] = alpha;
+      }
+    }
+    return out;
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('No 2D canvas for the card image');
+  context.drawImage(game.canvas, x, y, w, h, 0, 0, w, h);
+  return context.getImageData(0, 0, w, h).data;
+}
+
+async function encodePng(pixels: Uint8ClampedArray, width: number, height: number): Promise<CardImage> {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('No 2D canvas for the card image');
+  context.putImageData(new ImageData(pixels as Uint8ClampedArray<ArrayBuffer>, width, height), 0, 0);
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+  if (!blob) throw new Error('The card image could not be encoded');
+  return { blob, width, height };
+}
 
 /** Art keys with a real file on the site (the build-time manifest). */
 const REAL_ART = new Set<string>(manifest.cards);
@@ -115,7 +178,7 @@ export class CardBuilderScene extends Phaser.Scene {
   create(data: { store?: BuilderStore }): void {
     this.store = data.store ?? (this.registry.get('cardbuilder-store') as BuilderStore | null);
     if (!this.store) throw new Error('Card Builder store was not provided');
-    this.cameras.main.setBackgroundColor('#0a0812');
+    this.cameras.main.setBackgroundColor(BACKGROUND);
     document.querySelector('#canvas-shell .loading-note')?.remove();
     this.view = new CardView(
       this,
@@ -163,6 +226,58 @@ export class CardBuilderScene extends Phaser.Scene {
   private onArtLoadError(file: Phaser.Loader.File): void {
     // The card keeps the loading stand-in; the page stays usable.
     console.warn(`The Forge could not load card art: ${file.key} (${String(file.url)})`);
+  }
+
+  /**
+   * The card as displayed (frame, art, text, the current holo finish as a
+   * still) as a PNG with a transparent background, at CARD_IMAGE_SCALE. The
+   * canvas is enlarged for one frame (same aspect, so its size on the page
+   * does not change), the card is drawn at the export scale over a clear
+   * background, the pixels are read as that frame finishes, and everything is
+   * put back. The frame has to be rendered, so the game loop must be running.
+   */
+  async captureCardImage(timeoutMs = 20000): Promise<CardImage> {
+    const view = this.view;
+    if (!view) throw new Error('There is no card to capture yet');
+    const base = CARD_BUILDER_GAME_CONFIG;
+    const factor = CARD_IMAGE_SCALE / CARD_SCALE;
+    // Even sizes put the card's edges on whole pixels.
+    const width = 2 * Math.ceil((base.width * factor) / 2);
+    const height = 2 * Math.ceil((base.height * factor) / 2);
+    const overhang = view.card?.supertypes?.includes('legendary') ? CROWN_OVERHANG * CARD_IMAGE_SCALE : 0;
+    const rect: PixelRect = {
+      x: width / 2 - (CARD_W * CARD_IMAGE_SCALE) / 2,
+      y: height / 2 - (CARD_H * CARD_IMAGE_SCALE) / 2 - overhang,
+      w: CARD_W * CARD_IMAGE_SCALE,
+      h: CARD_H * CARD_IMAGE_SCALE + overhang,
+    };
+    const camera = this.cameras.main;
+    this.scale.setGameSize(width, height);
+    view.setPosition(width / 2, height / 2).setScale(CARD_IMAGE_SCALE);
+    camera.setBackgroundColor('rgba(0,0,0,0)');
+    try {
+      const pixels = await new Promise<Uint8ClampedArray>((resolve, reject) => {
+        const renderer = this.game.renderer;
+        const onFrame = (): void => {
+          window.clearTimeout(timer);
+          try {
+            resolve(readFramePixels(this.game, rect));
+          } catch (error) {
+            reject(error instanceof Error ? error : new Error(String(error)));
+          }
+        };
+        const timer = window.setTimeout(() => {
+          renderer.off(Phaser.Renderer.Events.POST_RENDER, onFrame);
+          reject(new Error('The card was not drawn in time'));
+        }, timeoutMs);
+        renderer.once(Phaser.Renderer.Events.POST_RENDER, onFrame);
+      });
+      return await encodePng(pixels, rect.w, rect.h);
+    } finally {
+      this.scale.setGameSize(base.width, base.height);
+      view.setPosition(base.width / 2, base.height / 2).setScale(CARD_SCALE);
+      camera.setBackgroundColor(BACKGROUND);
+    }
   }
 
   private feedHoloPointer(pointer: Phaser.Input.Pointer): void {

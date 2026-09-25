@@ -15,7 +15,8 @@ import {
   type BuilderState,
   type Evaluation,
 } from './logic';
-import { COLOR_PIE_KEYWORDS, RARITY_LABELS, RARITIES } from './vocab';
+import { KEYWORD_NAMES } from '../data/glossary';
+import { COLOR_PIE_KEYWORDS, COLOR_WORDS, OP_OPTIONS, RARITY_LABELS, RARITIES } from './vocab';
 
 export type HintKind =
   | 'increase-cost'
@@ -35,6 +36,7 @@ export interface CostingHint {
   kind: HintKind;
   title: string;
   detail: string;
+  /** Why the change moves the score, in plain words. */
   rateSource: string;
   movement: number;
   resultingDelta: number;
@@ -42,6 +44,8 @@ export interface CostingHint {
 }
 
 const round = (value: number): number => Math.round(value * 100) / 100;
+const signed = (value: number): string => `${value >= 0 ? '+' : ''}${value.toFixed(2)}`;
+const manaReason = `Each mana of cost adds ${MANA_STEP.toFixed(2)} to the Budget.`;
 
 function addCandidate(
   hints: CostingHint[],
@@ -91,7 +95,7 @@ function addCostCandidates(hints: CostingHint[], state: BuilderState, current: E
       'increase-cost',
       'Increase Mana Cost',
       `Raise the cost to ${manaCostLabel(next.cost)}.`,
-      `Budget changes by ${MANA_STEP.toFixed(2)} MEP per printed mana.`,
+      manaReason,
       next,
       'increase-generic',
     );
@@ -105,7 +109,7 @@ function addCostCandidates(hints: CostingHint[], state: BuilderState, current: E
       'reduce-cost',
       'Reduce Mana Cost',
       `Lower the cost to ${manaCostLabel(next.cost)}.`,
-      `Budget changes by ${MANA_STEP.toFixed(2)} MEP per printed mana.`,
+      manaReason,
       next,
       'reduce-generic',
     );
@@ -120,8 +124,8 @@ function addCostCandidates(hints: CostingHint[], state: BuilderState, current: E
       current,
       'add-pip',
       'Add a Colored Pip',
-      `Tighten the cost to ${manaCostLabel(next.cost)}.`,
-      `Budget adds ${MANA_STEP.toFixed(2)} MEP for mana and ${PIP_PREMIUM.toFixed(2)} MEP for the ${color} pip. The live Delta includes any color-pie change.`,
+      `Change the cost to ${manaCostLabel(next.cost)}.`,
+      `Adds ${MANA_STEP.toFixed(2)} for the mana and ${PIP_PREMIUM.toFixed(2)} for the ${COLOR_WORDS[color]} pip. The result includes any change to the off-color premium.`,
       next,
       `add-pip-${color}`,
     );
@@ -135,8 +139,8 @@ function addCostCandidates(hints: CostingHint[], state: BuilderState, current: E
       current,
       'reduce-cost',
       'Reduce Mana Cost',
-      `Remove one ${color} pip for ${manaCostLabel(next.cost)}.`,
-      `Budget removes ${MANA_STEP.toFixed(2)} MEP for mana and ${PIP_PREMIUM.toFixed(2)} MEP for the ${color} pip. The live Delta includes any color-pie change.`,
+      `Remove one ${COLOR_WORDS[color]} pip for ${manaCostLabel(next.cost)}.`,
+      `Removes ${MANA_STEP.toFixed(2)} for the mana and ${PIP_PREMIUM.toFixed(2)} for the ${COLOR_WORDS[color]} pip. The result includes any change to the off-color premium.`,
       next,
       `remove-pip-${color}`,
     );
@@ -146,10 +150,10 @@ function addCostCandidates(hints: CostingHint[], state: BuilderState, current: E
 function addStatCandidates(hints: CostingHint[], state: BuilderState, current: Evaluation): void {
   if (!builderHasType(state, 'creature')) return;
   const levers = [
-    ['increase-attack', 'Increase Strength', 'attack', 1],
-    ['increase-defense', 'Increase Health', 'defense', 1],
-    ['decrease-attack', 'Reduce Strength', 'attack', -1],
-    ['decrease-defense', 'Reduce Health', 'defense', -1],
+    ['increase-attack', 'Increase Attack', 'attack', 1],
+    ['increase-defense', 'Increase Defense', 'defense', 1],
+    ['decrease-attack', 'Reduce Attack', 'attack', -1],
+    ['decrease-defense', 'Reduce Defense', 'defense', -1],
   ] as const;
   for (const [kind, title, field, amount] of levers) {
     const value = state[field];
@@ -161,8 +165,8 @@ function addStatCandidates(hints: CostingHint[], state: BuilderState, current: E
       current,
       kind,
       title,
-      `Set ${field === 'attack' ? 'Strength' : 'Health'} to ${next[field]}.`,
-      `${amount > 0 ? '+' : '-'}${BODY_PER_STAT.toFixed(2)} MEP from BODY_PER_STAT.`,
+      `Set ${field === 'attack' ? 'Attack' : 'Defense'} to ${next[field]}.`,
+      `Each point of Attack or Defense is worth ${BODY_PER_STAT.toFixed(2)}.`,
       next,
       `${kind}-${next[field]}`,
     );
@@ -178,8 +182,8 @@ function addKeywordCandidates(hints: CostingHint[], state: BuilderState, current
       current,
       'remove-keyword',
       'Remove a Keyword',
-      `Remove ${keyword}.`,
-      `${keyword} is ${KEYWORD_VALUE[keyword] >= 0 ? '+' : ''}${KEYWORD_VALUE[keyword].toFixed(2)} MEP.`,
+      `Remove ${KEYWORD_NAMES[keyword]}.`,
+      `${KEYWORD_NAMES[keyword]} is worth ${signed(KEYWORD_VALUE[keyword])}.`,
       next,
       `remove-keyword-${keyword}`,
     );
@@ -192,9 +196,9 @@ function addKeywordCandidates(hints: CostingHint[], state: BuilderState, current
       hints,
       current,
       'add-keyword',
-      'Add a Color-Pie Keyword',
-      `Add ${keyword}. The color fit is a design heuristic.`,
-      `${keyword} is ${KEYWORD_VALUE[keyword] >= 0 ? '+' : ''}${KEYWORD_VALUE[keyword].toFixed(2)} MEP.`,
+      'Add a Keyword',
+      `Add ${KEYWORD_NAMES[keyword]}. It suits this card's colors.`,
+      `${KEYWORD_NAMES[keyword]} is worth ${signed(KEYWORD_VALUE[keyword])}.`,
       next,
       `add-keyword-${keyword}`,
     );
@@ -214,8 +218,8 @@ function addRarityCandidates(hints: CostingHint[], state: BuilderState, current:
       current,
       'change-rarity',
       `Change Rarity to ${RARITY_LABELS[rarity]}`,
-      `Rarity bonus changes from ${oldBonus.toFixed(2)} to ${newBonus.toFixed(2)} MEP.`,
-      `Budget changes by ${bonusDelta >= 0 ? '+' : ''}${bonusDelta.toFixed(2)} MEP, independent of MV.`,
+      `The rarity bonus goes from ${oldBonus.toFixed(2)} to ${newBonus.toFixed(2)}.`,
+      `The Budget changes by ${signed(bonusDelta)}, whatever the cost.`,
       next,
       `rarity-${rarity}`,
     );
@@ -233,8 +237,8 @@ function addDropOpCandidates(hints: CostingHint[], state: BuilderState, current:
         current,
         'drop-op',
         'Drop an Effect',
-        `Remove ${op.op} from ability ${abilityIndex + 1}.`,
-        'Movement is the exact live scorer difference after removing the op.',
+        `Remove ${OP_OPTIONS.find((option) => option.kind === op.op)?.label ?? op.op} from ability ${abilityIndex + 1}.`,
+        'The result is the card re-scored without that effect.',
         next,
         `drop-op-${abilityIndex}-${opIndex}`,
       );
