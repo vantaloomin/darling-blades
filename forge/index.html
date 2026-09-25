@@ -163,17 +163,59 @@
 
         <section class="tool-section art-picker-section">
           <div class="section-heading"><h2>Art</h2><button id="random-art" class="small-button" type="button">Random Art</button></div>
-          <p class="field-note">Borrow any card's art. It changes the picture only.</p>
-          <div class="field-grid art-filters">
-            <label class="span-two">Search<input id="art-search" type="search" placeholder="Card name" /></label>
-            <label>Set<select id="art-set-filter"></select></label>
-            <label>Color<select id="art-color-filter"></select></label>
+          <div class="art-source-switch" role="radiogroup" aria-label="Art">
+            <label><input type="radio" name="art-source" value="game" checked /> Game Art</label>
+            <label><input type="radio" name="art-source" value="custom" /> Your Image</label>
           </div>
-          <div id="art-grid" class="art-grid" aria-label="Art picker"></div>
-          <div class="art-pager">
-            <button id="art-prev" type="button">Previous</button>
-            <span id="art-page-label"></span>
-            <button id="art-next" type="button">Next</button>
+          <div id="game-art-panel">
+            <p class="field-note">Borrow any card's art. It changes the picture only.</p>
+            <div class="field-grid art-filters">
+              <label class="span-two">Search<input id="art-search" type="search" placeholder="Card name" /></label>
+              <label>Set<select id="art-set-filter"></select></label>
+              <label>Color<select id="art-color-filter"></select></label>
+            </div>
+            <div id="art-grid" class="art-grid" aria-label="Art picker"></div>
+            <div class="art-pager">
+              <button id="art-prev" type="button">Previous</button>
+              <span id="art-page-label"></span>
+              <button id="art-next" type="button">Next</button>
+            </div>
+          </div>
+          <div id="custom-art-panel" class="custom-art-panel" hidden>
+            <p class="field-note privacy-note">Your image stays on this device. Nothing is uploaded.</p>
+            <div id="custom-art-drop" class="custom-art-drop">
+              <p>Drop an image here, or choose one.</p>
+              <button id="custom-art-choose" class="small-button" type="button">Choose Image</button>
+            </div>
+            <div id="custom-art-controls" class="custom-art-controls" hidden>
+              <label class="range-field">Zoom
+                <span><input id="custom-art-zoom" type="range" min="0" max="1000" step="1" /><output id="custom-art-zoom-value">1.00×</output></span>
+              </label>
+              <label class="range-field">Left and Right
+                <span><input id="custom-art-x" type="range" min="-100" max="100" step="1" /><output id="custom-art-x-value">0</output></span>
+              </label>
+              <label class="range-field">Up and Down
+                <span><input id="custom-art-y" type="range" min="-100" max="100" step="1" /><output id="custom-art-y-value">0</output></span>
+              </label>
+              <label class="range-field">Rotate
+                <span><input id="custom-art-rotation" type="range" min="-180" max="180" step="1" /><output id="custom-art-rotation-value">0°</output></span>
+              </label>
+              <div class="custom-art-buttons">
+                <button id="custom-art-flip" class="small-button" type="button" aria-pressed="false">Flip</button>
+                <button id="custom-art-fit" class="small-button" type="button">Fit Whole Image</button>
+                <button id="custom-art-fill" class="small-button" type="button">Fill the Frame</button>
+                <button id="custom-art-reset" class="ghost-button" type="button">Reset</button>
+              </div>
+              <label id="custom-art-background-field" class="custom-art-background" hidden>Background<input id="custom-art-background" type="color" value="#000000" /></label>
+              <p class="field-note">Drag on the card to move the picture.</p>
+              <div class="custom-art-buttons">
+                <button id="custom-art-replace" class="small-button" type="button">Choose Another</button>
+                <button id="custom-art-remove" class="ghost-button danger" type="button">Remove Image</button>
+              </div>
+            </div>
+            <p class="field-note">PNG, JPEG, WebP or GIF, up to 20 MB.</p>
+            <p id="custom-art-message" class="action-message" aria-live="polite"></p>
+            <input id="custom-art-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
           </div>
         </section>
 
@@ -238,6 +280,7 @@
             <input id="import-file" type="file" accept=".json,application/json" hidden />
           </div>
           <p id="set-message" class="action-message" aria-live="polite"></p>
+          <p id="export-images-note" class="field-note" hidden>Exported sets include your images, so the file can be large.</p>
           <p id="storage-note" class="field-note">Your set is saved in this browser. Export it to keep a copy or move it to another device.</p>
         </section>
       </section>

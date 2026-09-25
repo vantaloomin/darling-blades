@@ -38,6 +38,8 @@ export interface SetRowView {
   delta: number;
   /** This row is the card in the editor. */
   editing: boolean;
+  /** The card carries the player's own image. */
+  ownArt?: boolean;
 }
 
 /** One row of the set list: open the card, see its verdict, or remove it. */
@@ -45,9 +47,10 @@ export function setRowMarkup(row: SetRowView): string {
   const id = escapeHtml(row.id);
   const name = escapeHtml(row.name);
   return `<li class="set-row${row.editing ? ' editing' : ''}">
-    <button type="button" class="set-row-open" data-open-card="${id}"${row.editing ? ' aria-current="true"' : ''}>
+    <button type="button" class="set-row-open${row.ownArt ? ' own-art' : ''}" data-open-card="${id}"${row.editing ? ' aria-current="true"' : ''}>
       <span class="set-row-cost">${row.costHtml}</span>
       <span class="set-row-text"><strong>${name}</strong><small>${escapeHtml(row.typeLine)}</small></span>
+      ${row.ownArt ? '<span class="own-art-tag">Own art</span>' : ''}
       <span class="verdict-chip ${row.band}">${VERDICT_WORD[row.band]} ${signedNumber(row.delta)}</span>
     </button>
     <button type="button" class="icon-button" data-remove-card="${id}" aria-label="Remove ${name}" title="Remove ${name}">×</button>

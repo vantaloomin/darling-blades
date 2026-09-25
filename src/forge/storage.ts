@@ -9,11 +9,15 @@
  * It never sees `localStorage` itself: the page hands it a Storage (or null
  * when the browser refuses one), so tests can hand it a fake that records
  * every call. What it stores is small text (no images), because the game
- * save shares this origin's quota of a few megabytes.
+ * save shares this origin's quota of a few megabytes. A card with its own
+ * image stores the image's id only (`art.custom.image`); the bytes are in the
+ * Forge's IndexedDB database. The write below drops any custom image that is
+ * not an id, so image bytes can never reach this key.
  *
  * Everything read back goes through the same validator as an imported file.
  * Headless: no Phaser, no DOM.
  */
+import { isImageId } from './customArt';
 import { MAX_SET_CARDS, emptySet, type ForgeSet } from './setModel';
 import { CARD_ID_PATTERN, FORGE_LIMITS, validateEntry, type ForgeEntry } from './validate';
 
@@ -50,12 +54,34 @@ export interface ForgeAutosave {
   editor: EditorSnapshot | null;
 }
 
+/** An entry as the autosave may hold it: a custom image by id only. */
+function storableEntry(entry: ForgeEntry): ForgeEntry {
+  const custom = entry.art.custom;
+  if (!custom || isImageId(custom.image)) return entry;
+  return { ...entry, art: { donor: entry.art.donor } };
+}
+
+function storableEditor(editor: EditorSnapshot | null): EditorSnapshot | null {
+  if (!editor) return null;
+  return {
+    ...editor,
+    entry: storableEntry(editor.entry),
+    baseline: editor.baseline && storableEntry(editor.baseline),
+    loadedBaseline: editor.loadedBaseline && storableEntry(editor.loadedBaseline),
+  };
+}
+
 export function serializeAutosave(save: ForgeAutosave): string {
-  return JSON.stringify({ format: AUTOSAVE_FORMAT, version: AUTOSAVE_VERSION, ...save });
+  return JSON.stringify({
+    format: AUTOSAVE_FORMAT,
+    version: AUTOSAVE_VERSION,
+    set: { ...save.set, cards: save.set.cards.map(storableEntry) },
+    editor: storableEditor(save.editor),
+  });
 }
 
 function readEntry(value: unknown): ForgeEntry | null {
-  const checked = validateEntry(value);
+  const checked = validateEntry(value, 'id');
   return checked.ok ? checked.entry : null;
 }
 

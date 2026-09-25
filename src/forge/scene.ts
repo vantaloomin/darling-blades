@@ -1,16 +1,80 @@
 import Phaser from 'phaser';
 import manifest from '../data/art-manifest.json';
-import { Art, ArtResolver, bakeArtLoadingTexture } from '../art/ArtResolver';
+import { ART_LOADING_TEXTURE, Art, ArtResolver, bakeArtLoadingTexture } from '../art/ArtResolver';
 import { artFileUrl, artKeyFor, artTextureKey } from '../art/artLoader';
 import { CARD_DB } from '../data/catalog';
-import type { CardDef } from '../engine/types';
+import type { CardDb, CardDef } from '../engine/types';
 import { bakeCardFrames } from '../ui/CardFrameFactory';
 import { CARD_H, CARD_W, CardView } from '../ui/CardView';
 import { bakeFxTextures } from '../ui/fx/HoloEffects';
 import { bakeManaSymbols } from '../ui/ManaSymbols';
+import type { CustomArt } from './customArt';
+import {
+  ART_FILE_H,
+  ART_FILE_W,
+  CARD_ART_RECTS,
+  framingTransform,
+  panFraming,
+  screenToArtDelta,
+  type ArtFrame,
+  type ArtFraming,
+} from './framing';
 import { gameFileUrl } from './gameFiles';
-import { appearanceVariant, toCardDef } from './logic';
+import type { ForgeImageLibrary } from './imageLibrary';
+import { appearanceVariant, cloneBuilderState, toCardDef, type BuilderState } from './logic';
+import { activeCustomArt, artFrameOf as frameOf } from './setModel';
 import type { BuilderStore } from './store';
+
+/** The texture the player's own image is composed into, in art-file space (640 x 800). */
+export const CUSTOM_ART_TEXTURE = 'forge-custom-art';
+
+/**
+ * The game's ArtResolver, plus one override: while the card in the editor
+ * shows the player's own image, the card's id resolves to the composed
+ * texture (or the loading stand-in while the image is read). CardView still
+ * draws the card by its real catalog id (the art donor), and everything else
+ * resolves exactly as in the game.
+ */
+export class ForgeArtResolver extends ArtResolver {
+  private override: { cardId: string; textureKey: string } | null = null;
+
+  constructor(scene: Phaser.Scene, db: CardDb) {
+    super(scene, db);
+  }
+
+  setOverride(override: { cardId: string; textureKey: string } | null): void {
+    this.override = override;
+  }
+
+  override getArt(cardId: string, landStyle?: string): { textureKey: string; frameName?: string } {
+    if (this.override && this.override.cardId === cardId) return { textureKey: this.override.textureKey };
+    return super.getArt(cardId, landStyle);
+  }
+}
+
+/**
+ * Draw the player's image into an art-file canvas: the background first, then
+ * the picture mirrored, scaled, rotated and placed by its framing.
+ */
+export function composeCustomArt(
+  context: CanvasRenderingContext2D,
+  bitmap: ImageBitmap,
+  framing: ArtFraming,
+  frame: ArtFrame,
+): void {
+  const image = { width: bitmap.width, height: bitmap.height };
+  const transform = framingTransform(image, framing, frame);
+  context.setTransform(1, 0, 0, 1, 0, 0);
+  context.fillStyle = framing.background;
+  context.fillRect(0, 0, ART_FILE_W, ART_FILE_H);
+  context.translate(transform.centerX, transform.centerY);
+  context.rotate(transform.rotation);
+  context.scale(transform.flip ? -transform.scale : transform.scale, transform.scale);
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = 'high';
+  context.drawImage(bitmap, -image.width / 2, -image.height / 2, image.width, image.height);
+  context.setTransform(1, 0, 0, 1, 0, 0);
+}
 
 export const CARD_BUILDER_GAME_CONFIG = { width: 520, height: 660 } as const;
 const CARD_SCALE = 1.45;
@@ -143,7 +207,7 @@ export class CardBuilderPreloadScene extends Phaser.Scene {
   preload(): void {
     // No card art is queued here. The card scene streams the one file it draws
     // (CardBuilderScene.requestDonorArt); the picker grid uses lazy <img>s.
-    Art.resolver = new ArtResolver(this, CARD_DB);
+    Art.resolver = new ForgeArtResolver(this, CARD_DB);
   }
 
   async create(): Promise<void> {
@@ -160,12 +224,25 @@ export class CardBuilderPreloadScene extends Phaser.Scene {
   }
 }
 
+interface PanDrag {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  start: CustomArt;
+  frame: ArtFrame;
+}
+
 export class CardBuilderScene extends Phaser.Scene {
   private store: BuilderStore | null = null;
+  private images: ForgeImageLibrary | null = null;
   private view: CardView | null = null;
   private unsubscribe: (() => void) | null = null;
+  private unsubscribeImages: (() => void) | null = null;
   /** Art keys already handed to the loader (loaded, in flight, or failed). */
   private readonly requestedArt = new Set<string>();
+  /** What the custom-art texture was last composed from, so an unchanged card skips the redraw. */
+  private composedFrom: string | null = null;
+  private drag: PanDrag | null = null;
   /** `performance.now()` when the first card was drawn (read by the ?qa=1 probe). */
   firstDrawnAt: number | null = null;
   /** The art texture the card was last drawn with (read by the ?qa=1 probe). */
@@ -178,6 +255,7 @@ export class CardBuilderScene extends Phaser.Scene {
   create(data: { store?: BuilderStore }): void {
     this.store = data.store ?? (this.registry.get('cardbuilder-store') as BuilderStore | null);
     if (!this.store) throw new Error('Card Builder store was not provided');
+    this.images = (this.registry.get('forge-images') as ForgeImageLibrary | undefined) ?? null;
     this.cameras.main.setBackgroundColor(BACKGROUND);
     document.querySelector('#canvas-shell .loading-note')?.remove();
     this.view = new CardView(
@@ -187,7 +265,16 @@ export class CardBuilderScene extends Phaser.Scene {
     ).setScale(CARD_SCALE);
     this.load.on(Phaser.Loader.Events.FILE_LOAD_ERROR, this.onArtLoadError, this);
     this.unsubscribe = this.store.subscribe(() => this.renderCard());
+    // An image finishing its read (or found missing) redraws the card.
+    this.unsubscribeImages = this.images?.onChange(() => this.renderCard()) ?? null;
+    // A pan redraws the card, and a redraw starts the holo finish afresh, so the
+    // pan runs first and the holo pointer is fed after it: the finish keeps
+    // following the pointer through a drag.
+    this.input.on('pointerdown', this.beginPan, this);
+    this.input.on('pointermove', this.movePan, this);
     this.input.on('pointermove', this.feedHoloPointer, this);
+    this.input.on('pointerup', this.endPan, this);
+    this.input.on('pointerupoutside', this.endPan, this);
     this.renderCard();
   }
 
@@ -195,7 +282,9 @@ export class CardBuilderScene extends Phaser.Scene {
     if (!this.store || !this.view) return;
     const state = this.store.getState();
     const card = toCardDef(state) as CardDef;
-    this.requestDonorArt(card.id);
+    const customTexture = this.customArtTexture(state);
+    (Art.resolver as ForgeArtResolver | null)?.setOverride(customTexture ? { cardId: card.id, textureKey: customTexture } : null);
+    if (!customTexture) this.requestDonorArt(card.id);
     this.view.setCard(card, {
       fx: 'full',
       variant: appearanceVariant(state),
@@ -203,6 +292,104 @@ export class CardBuilderScene extends Phaser.Scene {
     });
     this.renderedArtTexture = Art.resolver?.getArt(card.id).textureKey ?? null;
     if (this.firstDrawnAt === null) this.firstDrawnAt = performance.now();
+  }
+
+  /**
+   * The texture the card's own image draws with: the composed picture once it
+   * is decoded, the loading stand-in while it is read, or null to show the
+   * donor's game art (no own image, or one that is no longer stored).
+   */
+  private customArtTexture(state: BuilderState): string | null {
+    const custom = activeCustomArt(state);
+    if (!custom || !this.images) return null;
+    const status = this.images.status(custom.image);
+    if (status === 'missing') return null;
+    const bitmap = status === 'ready' ? this.images.bitmap(custom.image) : null;
+    if (!bitmap) return ART_LOADING_TEXTURE;
+    const frame = frameOf(state);
+    const signature = JSON.stringify([custom, frame]);
+    if (signature !== this.composedFrom || !this.textures.exists(CUSTOM_ART_TEXTURE)) {
+      const texture = this.textures.exists(CUSTOM_ART_TEXTURE)
+        ? this.textures.get(CUSTOM_ART_TEXTURE) as Phaser.Textures.CanvasTexture
+        : this.textures.createCanvas(CUSTOM_ART_TEXTURE, ART_FILE_W, ART_FILE_H);
+      if (!texture) return null;
+      composeCustomArt(texture.getContext(), bitmap, custom, frame);
+      texture.refresh();
+      this.composedFrom = signature;
+    }
+    return CUSTOM_ART_TEXTURE;
+  }
+
+  /** The composed own-image canvas (read by the ?qa=1 probe). */
+  customArtCanvas(): HTMLCanvasElement | null {
+    if (!this.textures.exists(CUSTOM_ART_TEXTURE)) return null;
+    return (this.textures.get(CUSTOM_ART_TEXTURE) as Phaser.Textures.CanvasTexture).getCanvas();
+  }
+
+  /**
+   * The crop CardView applied to the card's art, in art-file pixels, and its
+   * scale (read by the ?qa=1 probe to hold framing.ts to CardView's windows).
+   */
+  cardArtCrop(): { x: number; y: number; w: number; h: number; scale: number } | null {
+    const art = (this.view as unknown as { art?: Phaser.GameObjects.Image } | null)?.art;
+    const crop = (art as unknown as { _crop?: { x: number; y: number; width: number; height: number } } | undefined)?._crop;
+    if (!art || !crop) return null;
+    return { x: crop.x, y: crop.y, w: crop.width, h: crop.height, scale: art.scaleX };
+  }
+
+  /** Where the card sits on the canvas: its center and its scale (read by the ?qa=1 probe). */
+  cardPlacement(): { x: number; y: number; scale: number } | null {
+    return this.view ? { x: this.view.x, y: this.view.y, scale: this.view.scaleX } : null;
+  }
+
+  /** The art window a canvas point is over, if the card shows an own image there. */
+  private panTarget(pointer: Phaser.Input.Pointer): { custom: CustomArt; frame: ArtFrame } | null {
+    if (!this.store || !this.view || !this.images) return null;
+    const state = this.store.getState();
+    const custom = activeCustomArt(state);
+    if (!custom || this.images.status(custom.image) !== 'ready') return null;
+    const frame = frameOf(state);
+    const rect = CARD_ART_RECTS[frame];
+    const local = this.view.getLocalPoint(pointer.worldX, pointer.worldY);
+    const inside = local.x >= rect.x && local.x <= rect.x + rect.w && local.y >= rect.y && local.y <= rect.y + rect.h;
+    return inside ? { custom, frame } : null;
+  }
+
+  private setCursor(cursor: string): void {
+    this.game.canvas.style.cursor = cursor;
+  }
+
+  /** Dragging on the card's art window moves the player's own image. */
+  private beginPan(pointer: Phaser.Input.Pointer): void {
+    const target = this.panTarget(pointer);
+    if (!target) return;
+    this.drag = { pointerId: pointer.id, startX: pointer.worldX, startY: pointer.worldY, start: { ...target.custom }, frame: target.frame };
+    this.setCursor('grabbing');
+  }
+
+  private movePan(pointer: Phaser.Input.Pointer): void {
+    const drag = this.drag;
+    if (!drag || pointer.id !== drag.pointerId) {
+      this.setCursor(this.panTarget(pointer) ? 'grab' : '');
+      return;
+    }
+    const store = this.store;
+    const info = this.images?.imageInfo(drag.start.image);
+    if (!store || !info || !this.view) return;
+    const delta = screenToArtDelta(pointer.worldX - drag.startX, pointer.worldY - drag.startY, this.view.scaleX, drag.frame);
+    const framing = panFraming(info, drag.start, drag.frame, delta.dx, delta.dy);
+    store.update((state) => {
+      if (state.customArt?.image !== drag.start.image) return state;
+      const next = cloneBuilderState(state);
+      next.customArt = { ...drag.start, ...framing, image: drag.start.image };
+      return next;
+    });
+  }
+
+  private endPan(pointer: Phaser.Input.Pointer): void {
+    if (!this.drag || pointer.id !== this.drag.pointerId) return;
+    this.drag = null;
+    this.setCursor(this.panTarget(pointer) ? 'grab' : '');
   }
 
   /**
@@ -287,8 +474,14 @@ export class CardBuilderScene extends Phaser.Scene {
   shutdown(): void {
     this.load.off(Phaser.Loader.Events.FILE_LOAD_ERROR, this.onArtLoadError, this);
     this.input.off('pointermove', this.feedHoloPointer, this);
+    this.input.off('pointerdown', this.beginPan, this);
+    this.input.off('pointermove', this.movePan, this);
+    this.input.off('pointerup', this.endPan, this);
+    this.input.off('pointerupoutside', this.endPan, this);
     this.unsubscribe?.();
     this.unsubscribe = null;
+    this.unsubscribeImages?.();
+    this.unsubscribeImages = null;
     this.view?.destroy();
     this.view = null;
   }

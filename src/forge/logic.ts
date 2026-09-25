@@ -27,6 +27,7 @@ import {
   type ScorableEffectOp,
   type ScorableTriggerWhen,
 } from '../power/scoreCore';
+import type { CustomArt } from './customArt';
 import { SET_LABELS } from './vocab';
 
 export const COLOR_ORDER = ['W', 'U', 'B', 'R', 'G'] as const satisfies readonly Color[];
@@ -100,7 +101,16 @@ export interface BuilderMechanics {
 }
 
 export interface BuilderState {
+  /** The catalog card whose art the card shows, and whose id CardView draws it by. */
   artDonorId: string;
+  /** Which art the card shows: the donor's, or the player's own image. */
+  artSource: 'game' | 'custom';
+  /**
+   * The player's own image and its framing (docs/forge.md, customArt.ts), or
+   * null. Kept while the card shows game art, so switching back finds it; only
+   * saved with the card while `artSource` is 'custom'.
+   */
+  customArt: CustomArt | null;
   name: string;
   cardType: CardType;
   /** Secondary printed types retained for faithful catalog round-trips. */
@@ -170,6 +180,8 @@ export function createInitialAbility(): BuilderAbility {
 export function createInitialBuilderState(): BuilderState {
   return {
     artDonorId: DEFAULT_ART_DONOR,
+    artSource: 'game',
+    customArt: null,
     name: 'Untitled Blade',
     cardType: 'creature',
     additionalTypes: [],

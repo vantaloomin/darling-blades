@@ -8,7 +8,11 @@ import type { CardDef, Color, Keyword, ManaCost, StaticDef } from '../engine/typ
 import { setQualityTier } from '../platform/quality';
 import { frameKeyFor } from '../ui/CardFrameFactory';
 import type { ScorableCardDef, ScorableEffectOp } from '../power/scoreCore';
+import { imageIdsInText, referencedImageIds } from './customArt';
+import { CUSTOM_ART_COPY, initCustomArtPanel } from './customArtPanel';
+import { runCustomArtQa, type CustomArtQaResult } from './customArtQa';
 import { buildHints, type CostingHint } from './hints';
+import { ForgeImageLibrary } from './imageLibrary';
 import { translatePart } from './ledger';
 import {
   COLOR_ORDER,
@@ -35,14 +39,18 @@ import {
 import { escapeHtml, estimateTag, setRowMarkup, signedNumber, warningChipMarkup } from './markup';
 import {
   MAX_IMPORT_BYTES,
+  MAX_IMPORT_LABEL,
   MAX_SET_CARDS,
+  activeCustomArt,
   editingIndex,
   editorStatus,
   emptySet,
   entryFromState,
   exportFileName,
   exportSetJson,
+  hasCustomArt,
   hasUnsavedChanges,
+  importHadProblems,
   importMessage,
   importSetText,
   sameEntry,
@@ -92,6 +100,7 @@ import {
 import { createBuilderStore } from './store';
 import {
   CARD_BUILDER_GAME_CONFIG,
+  CUSTOM_ART_TEXTURE,
   CardBuilderPreloadScene,
   CardBuilderScene,
   forgeArtUrl,
@@ -146,6 +155,8 @@ function optionMarkup<T extends string>(
 }
 
 const store = createBuilderStore();
+/** The player's own images (IndexedDB, or memory when the browser refuses it; see imageStore.ts). */
+const images = await ForgeImageLibrary.open();
 
 const cardName = byId<HTMLInputElement>('card-name');
 const cardType = byId<HTMLSelectElement>('card-type');
@@ -835,6 +846,7 @@ const setCount = byId<HTMLSpanElement>('set-count');
 const clearSetButton = byId<HTMLButtonElement>('clear-set');
 const importFile = byId<HTMLInputElement>('import-file');
 const storageNote = byId<HTMLParagraphElement>('storage-note');
+const exportImagesNote = byId<HTMLParagraphElement>('export-images-note');
 
 const hasUnsaved = (): boolean => hasUnsavedChanges(forgeSet, session, store.getState());
 
@@ -856,10 +868,12 @@ function renderSetPanel(): void {
       band: score.verdict,
       delta: score.delta,
       editing: index === editing,
+      ownArt: hasCustomArt(entry),
     });
   }).join('');
   setList.hidden = forgeSet.cards.length === 0;
   setEmpty.hidden = forgeSet.cards.length > 0;
+  exportImagesNote.hidden = !forgeSet.cards.some(hasCustomArt);
   setCount.textContent = cardCount(forgeSet.cards.length);
   clearSetButton.disabled = forgeSet.cards.length === 0;
 }
@@ -989,12 +1003,68 @@ function downloadBlob(blob: Blob, filename: string): void {
   window.setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
+/** The set as Export JSON writes it, with every own image embedded as a data URL. */
+async function exportCurrentSet(): Promise<string> {
+  const embedded = new Map<string, string>();
+  for (const id of referencedImageIds(forgeSet.cards)) {
+    const dataUrl = await images.dataUrl(id);
+    if (dataUrl) embedded.set(id, dataUrl);
+  }
+  return exportSetJson(forgeSet, embedded);
+}
+
 byId<HTMLButtonElement>('export-set').addEventListener('click', () => {
-  downloadBlob(new Blob([exportSetJson(forgeSet)], { type: 'application/json' }), exportFileName(forgeSet));
+  const filename = exportFileName(forgeSet);
+  void exportCurrentSet().then((json) => {
+    downloadBlob(new Blob([json], { type: 'application/json' }), filename);
+    // A file Import JSON would refuse still downloads (it holds the player's work), with a warning.
+    const tooLarge = json.length > MAX_IMPORT_BYTES;
+    showMessage(setMessage, tooLarge
+      ? `This set's file is over ${MAX_IMPORT_LABEL}, more than Import JSON reads. Remove some images to bring it under.`
+      : '', tooLarge);
+  });
 });
 
+/**
+ * Keep the images an imported set embeds (decoded, stored, and referred to by
+ * id from then on). A card whose image doesn't decode keeps its game art and
+ * is named in the result's `imageFailures`.
+ */
+async function storeImportedImages(set: ForgeSet, failures: string[]): Promise<{ set: ForgeSet; kept: string[]; notStored: boolean }> {
+  const idFor = new Map<string, string | null>();
+  const kept: string[] = [];
+  let notStored = false;
+  const cards: ForgeEntry[] = [];
+  for (const entry of set.cards) {
+    const custom = entry.art.custom;
+    if (!custom) {
+      cards.push(entry);
+      continue;
+    }
+    let id = idFor.get(custom.image);
+    if (id === undefined) {
+      const added = await images.addDataUrl(custom.image);
+      id = added?.id ?? null;
+      if (added) {
+        kept.push(added.id);
+        notStored ||= !added.persistent;
+      }
+      idFor.set(custom.image, id);
+    }
+    if (id) {
+      cards.push({ ...entry, art: { donor: entry.art.donor, custom: { ...custom, image: id } } });
+    } else {
+      cards.push({ ...entry, art: { donor: entry.art.donor } });
+      failures.push(entry.card.name);
+    }
+  }
+  return { set: { ...set, cards }, kept, notStored };
+}
+
+let importing = false;
+
 /** Replace the set with an imported one (asking first when that loses cards). */
-function applyImport(text: string): ImportResult {
+async function applyImport(text: string): Promise<ImportResult> {
   const result = importSetText(text);
   if (!result.ok) {
     showMessage(setMessage, importMessage(result), true);
@@ -1008,25 +1078,31 @@ function applyImport(text: string): ImportResult {
       : `Replace the ${n} cards in ${name} with the imported set?`;
     if (!confirmAction(question)) return result;
   }
-  forgeSet = result.set;
+  const stored = await storeImportedImages(result.set, result.imageFailures);
+  forgeSet = stored.set;
+  for (const id of stored.kept) images.release(id);
   detachEditor();
-  showMessage(setMessage, importMessage(result), result.skipped.length > 0 || result.overCap > 0);
+  const summary = importMessage({ ...result, set: stored.set });
+  showMessage(setMessage, stored.notStored ? `${summary} ${CUSTOM_ART_COPY.notStored}` : summary, importHadProblems(result) || stored.notStored);
   renderSetPanel();
   renderEditorStatus();
   scheduleAutosave();
-  return result;
+  return { ...result, set: stored.set };
 }
 
 byId<HTMLButtonElement>('import-set').addEventListener('click', () => importFile.click());
 importFile.addEventListener('change', () => {
   const file = importFile.files?.[0];
   importFile.value = '';
-  if (!file) return;
+  if (!file || importing) return;
   if (file.size > MAX_IMPORT_BYTES) {
     showMessage(setMessage, importMessage({ ok: false, problem: 'too-large' }), true);
     return;
   }
-  file.text().then(applyImport, () => showMessage(setMessage, importMessage({ ok: false, problem: 'not-a-set' }), true));
+  importing = true;
+  file.text()
+    .then(applyImport, () => showMessage(setMessage, importMessage({ ok: false, problem: 'not-a-set' }), true))
+    .finally(() => { importing = false; });
 });
 
 // ── Autosave (darlingblades.forge.v1 only; see storage.ts) ───────────────────
@@ -1080,12 +1156,53 @@ function flushAutosave(): void {
     storageWorking = ok;
     renderStorageNote();
   }
+  // Another tab's clean-up may have deleted an image this tab still shows: put it back.
+  void images.ensureStored(imageRoots(false));
 }
 
 function scheduleAutosave(): void {
-  if (autosaveSuspended || !storage) return;
+  if (autosaveSuspended) return;
+  scheduleImageCleanup();
+  if (!storage) return;
   window.clearTimeout(autosaveTimer);
   autosaveTimer = window.setTimeout(flushAutosave, 400);
+}
+
+// ── Own images: which are still in use (imageLibrary.ts) ─────────────────────
+
+/** Images of the cards the ?qa=1 probe set aside while it runs: they must survive it. */
+let qaHeldIds = new Set<string>();
+let cleanupTimer = 0;
+
+/**
+ * Every image id something still refers to: the set, the card in the editor
+ * (its own image is kept even while it shows game art), what the editor was
+ * opened as, and, unless `includeOtherTabs` is false, whatever another tab's
+ * autosave names.
+ */
+function imageRoots(includeOtherTabs = true): Set<string> {
+  const state = store.getState();
+  const roots = referencedImageIds([
+    ...forgeSet.cards,
+    state.customArt ? { art: { custom: state.customArt } } : null,
+    session.baseline,
+  ]);
+  for (const id of qaHeldIds) roots.add(id);
+  if (includeOtherTabs && storage) {
+    try {
+      const saved = storage.getItem(FORGE_STORAGE_KEY);
+      if (saved) for (const id of imageIdsInText(saved)) roots.add(id);
+    } catch {
+      // Storage refused: this tab's own references stand.
+    }
+  }
+  return roots;
+}
+
+/** Delete the images nothing refers to any more, a moment after the last change. */
+function scheduleImageCleanup(): void {
+  window.clearTimeout(cleanupTimer);
+  cleanupTimer = window.setTimeout(() => { void images.collect(() => imageRoots()); }, 1500);
 }
 
 window.addEventListener('pagehide', flushAutosave);
@@ -1134,6 +1251,8 @@ function currentShareEntry(): ForgeEntry {
   return entryFromState(state, session.editingId ?? `forge-${slugify(state.name, 'card')}`);
 }
 
+const SHARE_IMAGE_NOTE = 'Links don\'t include your own image, so the card opens with game art instead.';
+
 async function copyShareLink(): Promise<void> {
   shareFallback.hidden = true;
   const payload = await encodeSharePayload(currentShareEntry());
@@ -1142,11 +1261,13 @@ async function copyShareLink(): Promise<void> {
     showMessage(actionMessage, 'This card is too complex for a link. Export it as JSON instead.', true);
     return;
   }
+  // The link carries the card's game art (its donor), never the player's own image.
+  const ownImage = activeCustomArt(store.getState()) !== null;
   try {
     await navigator.clipboard.writeText(url);
-    showMessage(actionMessage, 'Link copied.', false, 5000);
+    showMessage(actionMessage, ownImage ? `Link copied. ${SHARE_IMAGE_NOTE}` : 'Link copied.', false, ownImage ? 12000 : 5000);
   } catch {
-    showMessage(actionMessage, '');
+    showMessage(actionMessage, ownImage ? SHARE_IMAGE_NOTE : '');
     shareFallbackInput.value = url;
     shareFallback.hidden = false;
     shareFallbackInput.focus();
@@ -1193,6 +1314,9 @@ const manifestCards = new Set(manifest.cards);
 
 /** True once the card on the canvas has its real art (not the loading stand-in). */
 function cardArtReady(scene: CardBuilderScene): boolean {
+  const custom = activeCustomArt(store.getState());
+  // An own image draws once it is decoded; one no longer stored falls back to the game art.
+  if (custom && images.status(custom.image) !== 'missing') return scene.renderedArtTexture === CUSTOM_ART_TEXTURE;
   const artKey = artKeyFor(store.getState().artDonorId);
   return !manifestCards.has(artKey) || scene.renderedArtTexture === artTextureKey(artKey);
 }
@@ -1379,6 +1503,9 @@ byId<HTMLButtonElement>('random-art').addEventListener('click', () => {
   renderArtGrid();
 });
 
+// Your Image: the player's own picture, framed in the card's art window (customArtPanel.ts).
+const customArtPanel = initCustomArtPanel({ store, images, confirmAction });
+
 // ── The card preview, the verdict and the hints ─────────────────────────────
 
 function renderManaPreview(state: BuilderState): void {
@@ -1547,6 +1674,7 @@ const game = new Phaser.Game({
   scene: [CardBuilderPreloadScene, CardBuilderScene],
 });
 game.registry.set('cardbuilder-store', store);
+game.registry.set('forge-images', images);
 
 interface CardBuilderProbe {
   store: typeof store;
@@ -1566,7 +1694,8 @@ interface CardBuilderProbe {
   /** The set, and the editor's place in it. */
   forgeSet(): ForgeSet;
   session(): EditorSession;
-  exportJson(): string;
+  /** What Export JSON writes, own images embedded (no download). */
+  exportJson(): Promise<string>;
   /** The card as a PNG, as Save Image makes it (no download). */
   captureImage(): Promise<CardImage>;
 }
@@ -1596,7 +1725,7 @@ const probe: CardBuilderProbe = {
   fonts: forgeFontStatus,
   forgeSet: () => forgeSet,
   session: () => session,
-  exportJson: () => exportSetJson(forgeSet),
+  exportJson: exportCurrentSet,
   captureImage: captureCurrentCard,
 };
 
@@ -1619,7 +1748,10 @@ interface CardBuilderQaResult {
   set?: { savedCards: number; editingAfterSave: number; exportedChars: number; importedCards: number; roundTripSame: boolean; scoresSame: boolean };
   share?: { payloadChars: number; urlChars: number; decodedSame: boolean; openedAsNewUnsaved: boolean; setUnchanged: boolean };
   image?: { type: string; width: number; height: number; bytes: number };
+  customArt?: CustomArtQaResult;
   storage?: { keysBefore: number; changedKeys: string[]; forgeKeyWritten: boolean; forgeKeyRestored: boolean };
+  /** Images the probe made and deleted again, and any it could not. */
+  imageCleanup?: { created: number; left: string[] };
   consoleIssues: string[];
   failure?: string;
 }
@@ -1716,6 +1848,14 @@ async function runBrowserQa(): Promise<void> {
     state: cloneBuilderState(store.getState()),
     loaded: loadedSourceCard && loadedBaseline ? { source: loadedSourceCard, baseline: loadedBaseline } : null,
   };
+  // The designer's own images (their set, their editor, and whatever the Forge key names) must survive the probe.
+  qaHeldIds = referencedImageIds([
+    ...restorePoint.set.cards,
+    restorePoint.state.customArt ? { art: { custom: restorePoint.state.customArt } } : null,
+    restorePoint.session.baseline,
+  ]);
+  for (const id of imageIdsInText(restorePoint.forgeKey ?? '')) qaHeldIds.add(id);
+  const createdImages = new Set<string>();
   // Should the tab close mid-probe, the designer's own autosave still comes back.
   const restoreOnHide = (): void => { restoreAfterQa(restorePoint); };
   window.addEventListener('pagehide', restoreOnHide);
@@ -1783,7 +1923,7 @@ async function runBrowserQa(): Promise<void> {
 
     // Export, then import the file back over the set.
     const exported = exportSetJson(saved);
-    const imported = applyImport(exported);
+    const imported = await applyImport(exported);
     if (!imported.ok) throw new Error('The exported set did not import');
     const roundTripSame = forgeSet.cards.length === saved.cards.length
       && forgeSet.cards.every((entry, index) => sameEntry(entry, saved.cards[index]) && entry.card.id === saved.cards[index].card.id);
@@ -1815,6 +1955,25 @@ async function runBrowserQa(): Promise<void> {
     if (!decodedSame || !openedAsNewUnsaved || !qaResult.share.setUnchanged) throw new Error('The share link did not round-trip the card');
     banner.hidden = true;
 
+    // The player's own image: framing, the card texture, Save Image, the set file, links and storage.
+    qaResult.customArt = await runCustomArtQa({
+      store,
+      images,
+      panel: customArtPanel,
+      customTexture: CUSTOM_ART_TEXTURE,
+      scene: cardScene,
+      forgeSet: () => forgeSet,
+      exportJson: exportCurrentSet,
+      importJson: applyImport,
+      flushAutosave,
+      forgeKeyText: () => storage?.getItem(FORGE_STORAGE_KEY) ?? null,
+      shareEntry: currentShareEntry,
+      encodeShare: encodeSharePayload,
+      captureImage: captureCurrentCard,
+      collectImages: () => images.collect(() => imageRoots()),
+      created: createdImages,
+    });
+
     // Save Image, without the download.
     const image = await captureCurrentCard();
     const size = await pngSize(image.blob);
@@ -1843,6 +2002,16 @@ async function runBrowserQa(): Promise<void> {
   } finally {
     if (!restored) restoreAfterQa(restorePoint);
     window.removeEventListener('pagehide', restoreOnHide);
+    // Delete every image the probe made (unless the restored page refers to one), and prove it.
+    qaHeldIds = new Set();
+    const keep = imageRoots();
+    await images.store.delete([...createdImages].filter((id) => !keep.has(id)));
+    const stored = new Set(await images.store.ids());
+    qaResult.imageCleanup = { created: createdImages.size, left: [...createdImages].filter((id) => stored.has(id)) };
+    if (qaResult.status === 'pass' && qaResult.imageCleanup.left.length > 0) {
+      qaResult.status = 'fail';
+      qaResult.failure = 'The probe left an image in IndexedDB';
+    }
   }
   publishQaResult();
 }

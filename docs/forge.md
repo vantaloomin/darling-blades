@@ -6,10 +6,12 @@ The Forge is the public card designer: build a card in the left rail, see it
 drawn by the game's own `CardView` in the middle, and read on the right how its
 cost measures up (the page calls the scorer's PowerScore **Power**, the v3
 Budget **Budget** and their Delta **Difference**, beside the Power Breakdown and
-one-click costing hints). Under the card, a set builder collects cards into a
-named set that exports and imports as JSON; any card can be shared as a link or
-saved as a PNG; and the header links back to the game. It began as the old
-local Card Builder workbench, moved into the repo and deployed with the game.
+one-click costing hints). A card can show any game card's art or the player's
+own image, framed in the art window. Under the card, a set builder collects
+cards into a named set that exports and imports as JSON; any card can be shared
+as a link or saved as a PNG; and the header links back to the game. It began as
+the old local Card Builder workbench, moved into the repo and deployed with the
+game.
 
 ## Features
 
@@ -32,6 +34,21 @@ local Card Builder workbench, moved into the repo and deployed with the game.
   legendary card, whose crown rises above the frame), named after the card. The
   canvas renders one frame at twice the card's canonical size, the resolution
   the frames and card text are baked at, so nothing is upscaled.
+- **Your own image.** The Art section switches between **Game Art** (borrow
+  any card's art, as before) and **Your Image**: choose a PNG, JPEG, WebP or
+  GIF of up to 20 MB, or drop one on the panel or on the card, and frame it in
+  the art window with Zoom, Left and Right, Up and Down and Rotate sliders,
+  Flip, Fit Whole Image, Fill the Frame and Reset, or by dragging on the card's
+  art. Background (a color) shows only while the picture leaves part of the
+  frame empty, or has see-through pixels. It works in the standard frame and
+  in Full Art, the card redraws live, and Save Image includes it. Choose
+  Another replaces the image; Remove Image (after a confirm) takes it off the
+  card. The image never leaves the device: nothing is uploaded, and the page
+  makes no network request for it (see Storage below). Switching to Game Art
+  keeps the image in the editor so switching back finds it, but a card is
+  saved with its own image only while it shows it. Every control is a real
+  range input or button, so the framing is keyboard-usable; the drag has the
+  sliders as its keyboard equivalent.
 - **Play Darling Blades.** The header links to the game (`../`).
 - **The game's own words.** Keyword, mechanic, rarity, set and effect names are
   read from game data at runtime (the glossary, `src/data/setTitles.ts`, and the
@@ -65,11 +82,25 @@ redrawn with its real art, checks that both webfonts loaded, drives the mana
 slider, a pip, a keyword drag and a hint, then Save to Set, Save and Start Next
 and a second save, exports the set and imports the file back (the same cards
 and scores must return), encodes a share link, decodes it and opens it the way
-a link does, makes the Save Image PNG without downloading it (it must be
-`image/png` and at least 700 px tall), and finally checks storage: every
-localStorage key and value is snapshotted before the page writes anything, and
-afterwards only `darlingblades.forge.v1` may differ. It then restores that key
-(and the page's set and card) to what they were. The result is published as
+a link does. Then the own-image steps (`src/forge/customArtQa.ts`): it paints a
+four-color test picture on a canvas (nothing is fetched), chooses it through
+Your Image, checks Fill the Frame, Fit Whole Image and Reset each land on
+their defined framing, frames it with the sliders, Flip and Background, drags
+it on the card (the move must equal the drag in art pixels), checks that
+CardView crops exactly the windows `framing.ts` assumes, that the card's
+texture shows the framed picture pixel for pixel (sampled against the framing
+math), and that the Save Image PNG does too, in the standard frame and in Full
+Art. It saves the card (the row must carry the Own art tag), exports and
+re-imports the set (same framing, same image id, same bytes), checks a share
+payload carries no image, the Forge key holds the image's id and no image
+bytes and stays under 64 KB, the image is in IndexedDB, and that removing the
+card deletes it. After that it makes the Save Image PNG without downloading it
+(it must be `image/png` and at least 700 px tall), and finally checks storage:
+every localStorage key and value is snapshotted before the page writes
+anything, and afterwards only `darlingblades.forge.v1` may differ. It then
+restores that key (and the page's set and card) to what they were, deletes
+every image it made from IndexedDB (never one the restored page refers to),
+and fails if any is left. The result is published as
 `document.documentElement.dataset.qaStatus` (`pass` or `fail`) and
 `window.__cardBuilderQa` (the details, including every console error or warning
 seen). A `?qa=1` load ignores any `#card=` fragment. In a hidden browser pane Phaser's loop does not run on
@@ -84,8 +115,8 @@ game's own output does not change because the Forge exists (checked
 byte-identical against the pre-Forge commit on 2026-09-25). The config's root
 is the repository, so the page sits at `/forge/` in dev exactly as in
 production. Output: `dist/forge/index.html` plus its JS and CSS under
-`dist/forge/assets/`, three files and 1,919,233 bytes (measured 2026-09-25,
-after the set builder, share link and Save Image landed).
+`dist/forge/assets/`, three files and 1,960,158 bytes (measured 2026-09-25,
+after the own-image wave landed).
 `public/` is not copied (it is hundreds of megabytes of art that the game
 build already deploys).
 
@@ -136,8 +167,27 @@ where the server serves the page at `/forge/` and `public/` at `/`.
   `markup.ts` (escaped HTML for player-controlled text). ESLint keeps them free
   of Phaser, the DOM and Node, which is what lets the tests import them. The
   rest is browser-side: `main.ts` (the controls, the set panel and the QA
-  probe), `scene.ts` (the Phaser scenes, art streaming, font wait, Save Image),
-  `gameFiles.ts`, `fxSupportStub.ts` and `style.css`.
+  probe), `scene.ts` (the Phaser scenes, art streaming, font wait, Save Image,
+  and the own image: the composed texture, the `ForgeArtResolver` and the drag
+  on the card), `gameFiles.ts`, `fxSupportStub.ts` and `style.css`.
+- **The player's own image.** Headless: `framing.ts` (the framing model and
+  its math: cover, contain, the zoom floor, pan room, Fit, Fill, Reset, the
+  drag conversion, and whether the frame shows empty) and `customArt.ts` (the
+  `art.custom` shape and its validation, image data URLs, the image-header
+  check, image ids, and which stored images are still referenced).
+  Browser-side: `imageStore.ts` (IndexedDB, with the in-memory fallback),
+  `imageIntake.ts` (decode, downscale, re-encode), `imageLibrary.ts` (decoded
+  images, and the clean-up), `customArtPanel.ts` (the Your Image controls) and
+  `customArtQa.ts` (the probe's own-image steps).
+- **How the card shows it.** No production file changes. The picture is
+  composed with its framing into a 640 x 800 canvas, the art-file space a real
+  card art file fills, and registered as a Phaser canvas texture
+  (`forge-custom-art`). The forge's `ForgeArtResolver` (a subclass of the
+  game's `ArtResolver`, set as `Art.resolver`) returns that texture for the
+  card's id while it shows its own image, and the loading stand-in while the
+  image is read. `CardView` still draws the card by its real catalog id (the
+  art donor, which stays set underneath) and cover-crops the texture exactly as
+  it crops real art, so what the card shows is the composition, in both frames.
 - **`forge/index.html`**: the page, its head tags and the `@font-face` block.
 
 ## Storage and network isolation
@@ -161,9 +211,28 @@ reach. The rules:
   pre-bundling Phaser only, because Vite 8's dev client assigns top-level
   defines onto `window` and `window.localStorage` is read-only.
 - **Small.** The autosave is text only: the set's card entries (no scores) and
-  the card in the editor, capped at 2 MB of JSON, because the game save shares
-  this origin's quota of a few megabytes. Images never go to localStorage (the
-  planned custom-art wave keeps them in IndexedDB).
+  the card in the editor, capped at 2 MB of JSON, because the game save
+  shares this origin's quota of a few megabytes. A card with its own
+  image stores only the image's id there; the write drops any custom image
+  that is not an id, so image bytes cannot reach this key.
+- **Images live in IndexedDB.** The Forge's own database,
+  `darlingblades-forge`, store `images`, keyed by the image id (the SHA-256 of
+  its bytes, so an image used on several cards is stored once). Each record
+  holds the bytes, their type, the picture's size and whether it has
+  see-through pixels. Why not localStorage: one image is hundreds of
+  kilobytes, and filling the shared quota would make the game's own saves fail.
+  A record read back is checked (field types, an accepted image header, bytes
+  that hash to its id) and decoded before it is drawn. If the browser refuses
+  IndexedDB (blocked, private, or out of room), images are kept in memory for
+  as long as the tab stays open and the page says so ("This browser couldn't
+  store the image...").
+- **Clean-up.** An image is kept while anything refers to it: a card in the
+  set, the card in the editor (even while it shows game art), what the editor
+  was opened as, an image in the middle of being added, and any image id
+  another tab's autosave names. Everything else is deleted, a moment after
+  each change, so Clear Set, Remove, New Card, Remove Image and Choose Another
+  leave nothing behind and the database cannot grow past what is in use. A
+  tab puts back an image it still uses if another tab's clean-up removed it.
 - **Untrusted on the way back.** What the autosave reads back goes through the
   same validator as an imported file. If the browser refuses storage (blocked,
   private, or full), the page says so under the set list and keeps working.
@@ -188,7 +257,14 @@ Export JSON writes, and Import JSON reads:
   "cards": [
     {
       "card": { "id": "forge-<name slug>-<n>", "name": "...", "types": ["creature"], "...": "the CardDef the Forge builds" },
-      "art": { "donor": "<catalog card id supplying the art>" },
+      "art": {
+        "donor": "<catalog card id supplying the art>",
+        "custom": {
+          "image": "data:image/webp;base64,...",
+          "zoom": 0.75, "x": -0.2, "y": 0.4, "rotation": 15, "flip": false,
+          "background": "#1a1426"
+        }
+      },
       "appearance": { "frame": "default", "holo": "default", "fullArt": false },
       "score": { "power": 2.1, "budget": 1.5, "delta": 0.6, "verdict": "accurate" }
     }
@@ -199,10 +275,21 @@ Export JSON writes, and Import JSON reads:
 - **`card`** is the `CardDef` the builder produces (`toCardDef`), with `id`
   replaced by a per-set id, `forge-<slug of the name at first save>-<n>`, that
   never changes while the card is in the set.
-- **`art`** is an object so a later version can add fields without a format
-  change: the planned custom player image goes in `art.custom`. Import reads
-  `donor` only and ignores everything else in `art`. An unknown donor falls
-  back to the default donor.
+- **`art`** holds the `donor` (the catalog card whose art the card borrows)
+  and, for a card with its own image, `custom`. An unknown donor falls back to
+  the default donor; any other field in `art` is ignored.
+- **`art.custom`** is optional and additive: a file without it imports exactly
+  as before, and the format stays version 1. `image` is the image as a data
+  URL (PNG, JPEG, WebP or GIF, base64); the rest is its framing, in art-file
+  space (the 640 x 800 canvas CardView cover-crops into the art window):
+  `zoom` (1 = the picture exactly covers the art file; the floor lets the whole
+  picture fit either frame at any angle; the ceiling is 5), `x` and `y` (-1 to
+  1: the share of the room the picture has to move in the frame, positive
+  right and down), `rotation` (degrees, -180 to 180, clockwise), `flip`
+  (mirrored left to right, before it is turned) and `background` (`#rrggbb`).
+  The donor stays set under a custom image: it is what a share link shows. In
+  the page and in the autosave, `image` is the image's id instead (64 hex
+  digits), and the bytes are in IndexedDB; only the file embeds them.
 - **`appearance`** is cosmetic; an unreadable one falls back to the default
   look.
 - **`score`** is written for people reading the file. Import ignores it and
@@ -210,7 +297,8 @@ Export JSON writes, and Import JSON reads:
 - The file name is a slug of the set name plus `.json`.
 
 **Import is hostile-input handling** (`src/forge/validate.ts`): a file over
-2 MB is refused before it is read; a file whose `format`, `version` or `cards`
+100 MB is refused before it is read (a set that embeds its images runs to a
+few hundred kilobytes per image; a set of text alone is a few megabytes); a file whose `format`, `version` or `cards`
 is wrong is refused whole ("That file isn't a Forge set."); otherwise every
 card is checked on its own and a bad one is skipped with a reason while the
 rest import. The validator never passes an input object through: it reads each
@@ -223,11 +311,37 @@ checked values. The accepted card is then passed through the builder
 (`fromCardDef`, then `toCardDef`), so a set only ever holds cards the Forge can
 build and edit. The editors clamp to the same limits (`FORGE_LIMITS`,
 `OP_RULES`), so everything the Forge can build passes. Ids are kept when well
-formed and unique, otherwise replaced. At most 500 cards import.
+formed and unique, otherwise replaced. At most 500 cards import. A card's
+`art.custom` is checked structurally (`src/forge/customArt.ts`): the known
+fields only, a data URL of an accepted image type within the per-image cap of
+3 MB of image bytes, and every framing number in range. The page then decodes
+it (the image's own header must match its type and claim at most 100
+megapixels, and the browser must decode it) and stores it: the exact bytes
+when they already fit (so an export and its import match byte for byte), or
+re-encoded when the picture is over 1600 px or a GIF. A card whose image fails
+any of this imports with its game art and is named in the import message; it
+is not dropped. Export JSON embeds each image as a data URL, and the set panel
+says so ("Exported sets include your images, so the file can be large.") while
+any card has one; an export over the 100 MB import cap still downloads, with a
+warning.
+
+**Own images coming in** (`src/forge/imageIntake.ts`): a chosen or dropped
+file over 20 MB is refused before it is read; its header must be PNG, JPEG,
+WebP or GIF and claim at most 100 megapixels (so SVG, HTML and decompression
+bombs never reach the decoder); it must decode with `createImageBitmap`
+(bytes become a Blob, never a URL: the page's CSP is `connect-src 'self'`
+and a `data:` or `blob:` fetch would fall under it). It is then downscaled so
+its long side is at most 1600 px and re-encoded as WebP at quality 0.85, which
+keeps transparency; where the browser cannot encode WebP, as PNG when it has
+see-through pixels and JPEG at 0.85 otherwise. An encoding over 3 MB is redone
+at 80% of the size until it fits.
 
 **Round-trip contract:** for every card the Forge can build, importing its
-export reproduces the same `CardDef`, art and look, and an identical score.
-`tests/forge/setFormat.test.ts` checks this over every collectible catalog card.
+export reproduces the same `CardDef`, art and look, and an identical score, and
+for a card with its own image, the same framing and the same image bytes.
+`tests/forge/setFormat.test.ts` checks this over every collectible catalog card
+(and the own-image part on the file's side); the `?qa=1` probe checks the bytes
+through the real store.
 
 ## The share-link format (version 1)
 
@@ -240,6 +354,11 @@ reaches a server.
 - **Copy Link** writes the link with `navigator.clipboard.writeText`; when the
   browser refuses, a field labelled "Copy this link:" shows it selected. A link
   over 8,000 characters is refused (use Export JSON instead).
+- **A link never carries the player's own image.** The encoder writes the art
+  donor alone, and the decoder drops any `art.custom` a payload brings, so a
+  shared card opens with its game art. After Copy Link on a card with its own
+  image, the page says so ("Links don't include your own image, so the card
+  opens with game art instead.").
 - **Opening a link**: the payload is decoded and checked by the same validator
   as an imported file, opened in the editor as a new unsaved card (asking first
   if the editor has unsaved changes), and the fragment is removed with
@@ -270,14 +389,30 @@ reaches a server.
   warnings; tests assert a warning's kind and rule, never its wording).
 - `tests/forge/setFormat.test.ts`: the **export/import round trip** over every
   collectible catalog card, the validator refusing malformed and hostile cards
-  while importing the good ones, the size and card caps, ids, and the editor
-  session (save adds then updates, unsaved changes, the 500-card cap).
+  while importing the good ones, the size and card caps, ids, the editor
+  session (save adds then updates, unsaved changes, the 500-card cap), and the
+  own image in the file (embedded on export, the same framing and bytes on
+  import, an unreadable image leaving the card in with its game art, and a
+  card saved with its image only while it shows it).
 - `tests/forge/share.test.ts`: the golden version 1 share payload, encode and
-  decode round trips, hostile payloads (bad prefix, bad base64, not deflate,
-  a decompression bomb, an unknown effect).
+  decode round trips, a link never carrying a card's own image, hostile
+  payloads (bad prefix, bad base64, not deflate, a decompression bomb, an
+  unknown effect).
+- `tests/forge/framing.test.ts`: the framing model for wide, tall and square
+  pictures: zoom 1 covers the art file exactly, the zoom floor fits the whole
+  picture in either frame at any angle, Fit Whole Image, Fill the Frame and
+  Reset land on their defined states, the background shows exactly while the
+  frame has an empty part, clamping, the drag conversion (the picture moves
+  by the drag in art pixels, stops at the frame's edge, and stays put on an
+  axis with no room), and the art windows as CardView crops them.
+- `tests/forge/customArt.test.ts`: the image-header check (the four accepted
+  formats read, anything else and pixel bombs refused), image ids (SHA-256,
+  the plain-code fallback matching `crypto.subtle`), data URLs (exact bytes,
+  other types and the per-image cap refused), the `art.custom` validator, and
+  which stored images are still referenced.
 - `tests/forge/storage.test.ts`: the autosave touches only its own key (a
-  recording Storage fake), round-trips, and survives corrupt or blocked
-  storage.
+  recording Storage fake), round-trips, keeps an own image by id and never
+  writes image bytes, and survives corrupt or blocked storage.
 - `tests/forge/markup.test.ts`: a hostile card name is escaped in text and in
   attributes of the set row and warning chips.
 - `tests/forge/ledger.test.ts` and `ledgerNames.test.ts`: every breakdown label

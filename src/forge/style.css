@@ -252,6 +252,27 @@ button.keyword-chip { cursor: grab; }
 .art-pager { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; }
 .art-pager span { color: var(--muted); font-size: 10px; }
 
+/* Art: Game Art / Your Image, and the framing controls for the player's own image. */
+.art-source-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 10px; padding: 3px; border: 1px solid var(--stroke-soft); border-radius: 7px; background: #120f20; }
+.art-source-switch label { position: relative; display: flex; align-items: center; justify-content: center; min-height: 30px; border-radius: 5px; color: var(--body); font-size: 11px; letter-spacing: 0.02em; text-transform: none; cursor: pointer; }
+.art-source-switch input { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; margin: 0; opacity: 0; cursor: pointer; }
+.art-source-switch label:has(input:checked) { background: var(--emphasis); color: var(--gold); box-shadow: inset 0 0 0 1px #8d743c; }
+.art-source-switch label:has(input:focus-visible) { outline: 2px solid var(--gold-hover); outline-offset: 1px; }
+.custom-art-panel { display: grid; gap: 4px; border-radius: 7px; }
+.custom-art-panel[aria-busy='true'] { opacity: 0.6; pointer-events: none; }
+.custom-art-panel .privacy-note { margin-top: 0; color: var(--success); }
+.custom-art-drop { display: grid; justify-items: center; gap: 8px; margin-top: 6px; padding: 18px 12px; border: 1px dashed var(--stroke); border-radius: 7px; background: rgba(20, 16, 34, 0.6); text-align: center; }
+.custom-art-drop p { margin: 0; color: var(--body); font-size: 11px; }
+.custom-art-panel.file-over .custom-art-drop, .custom-art-panel.file-over .custom-art-controls { border-color: var(--gold); background: rgba(90, 69, 30, 0.2); }
+.custom-art-controls { display: grid; gap: 2px; padding: 4px 10px 10px; border: 1px solid var(--stroke-soft); border-radius: 7px; background: rgba(20, 16, 34, 0.6); }
+.custom-art-controls .range-field > span { grid-template-columns: 1fr 46px; }
+.custom-art-buttons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.custom-art-buttons .ghost-button { min-height: 30px; }
+.custom-art-buttons [aria-pressed='true'] { background: var(--emphasis); border-color: var(--gold-hover); }
+.custom-art-background { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.custom-art-background input { width: 52px; min-height: 30px; padding: 2px; }
+#canvas-shell.file-over { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(255, 216, 138, 0.35), 0 24px 52px rgba(0, 0, 0, 0.4); }
+
 .preview-column {
   min-width: 0;
   overflow: auto;
@@ -376,6 +397,8 @@ button.keyword-chip { cursor: grab; }
 .set-row-text strong, .set-row-text small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .set-row-text strong { color: var(--heading); font-size: 11px; }
 .set-row-text small { color: var(--muted); font-size: 9px; }
+.set-row-open.own-art { grid-template-columns: auto minmax(0, 1fr) auto auto; }
+.own-art-tag { border: 1px solid #5a9a72; border-radius: 5px; padding: 2px 5px; color: var(--success); font-size: 8px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
 .verdict-chip { flex: 0 0 auto; border: 1px solid; border-radius: 5px; padding: 2px 6px; font-size: 9px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .verdict-chip.under { border-color: var(--under); color: #c8a8ed; }
 .verdict-chip.accurate { border-color: var(--accurate); color: var(--gold); }

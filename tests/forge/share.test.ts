@@ -1,4 +1,4 @@
-import { deflateRawSync } from 'node:zlib';
+import { deflateRawSync, inflateRawSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import { ALL_CARDS } from '../../src/data/catalog';
 import { fromCardDef } from '../../src/forge/logic';
@@ -56,6 +56,22 @@ describe('share links', () => {
       const decoded = await decodeSharePayload(await encodeSharePayload(entry));
       expect(decoded, card.id).toEqual({ ok: true, entry });
     }
+  });
+
+  it('never carries a card\'s own image: the link opens with the card\'s game art', async () => {
+    const state = fromCardDef(ALL_CARDS.find((card) => !card.token)!);
+    state.artSource = 'custom';
+    state.customArt = { image: 'c'.repeat(64), zoom: 1.2, x: 0, y: 0, rotation: 0, flip: false, background: '#000000' };
+    const entry = entryFromState(state, 'forge-own-art-1');
+    expect(entry.art.custom).toBeDefined();
+    const payload = await encodeSharePayload(entry);
+    const json = inflateRawSync(Buffer.from(payload.slice(SHARE_VERSION_PREFIX.length), 'base64url')).toString('utf8');
+    expect(json).not.toContain('custom');
+    expect(await decodeSharePayload(payload)).toEqual({ ok: true, entry: { ...entry, art: { donor: entry.art.donor } } });
+    // A payload that brings one anyway (made by hand) opens without it.
+    const crafted = payloadOf(JSON.stringify({ ...entry, art: { donor: entry.art.donor, custom: { ...entry.art.custom, image: 'data:image/png;base64,AAAA' } } }));
+    const decoded = await decodeSharePayload(crafted);
+    expect(decoded.ok && decoded.entry.art).toEqual({ donor: entry.art.donor });
   });
 
   it('carries the payload in the fragment, never the query', () => {

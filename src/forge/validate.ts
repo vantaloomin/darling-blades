@@ -34,6 +34,7 @@ import {
   type FrameChoice,
   type HoloChoice,
 } from './logic';
+import { readCustomArt, type CustomArt, type CustomImageForm } from './customArt';
 import {
   CARD_TYPES,
   FRAME_CHOICES,
@@ -489,11 +490,12 @@ export interface ForgeAppearance {
 export interface ForgeEntry {
   card: ScorableCardDef;
   /**
-   * The card's art. An object so a later version can add fields (a custom
-   * image is planned as `art.custom`) without a format change; any field but
-   * `donor` is ignored on import.
+   * The card's art: the catalog card whose art it borrows (`donor`), and the
+   * player's own image when it has one (`custom`, see customArt.ts). The donor
+   * stays set under a custom image: it is what a share link opens with. Any
+   * other field in `art` is ignored on import.
    */
-  art: { donor: string };
+  art: { donor: string; custom?: CustomArt };
   appearance: ForgeAppearance;
 }
 
@@ -515,8 +517,16 @@ function readAppearance(value: unknown): ForgeAppearance {
 }
 
 export type EntryCheck =
-  | { ok: true; entry: ForgeEntry }
+  /** `imageProblem`: the card's own image was unreadable, so it keeps its game art. */
+  | { ok: true; entry: ForgeEntry; imageProblem?: true }
   | { ok: false; reason: SkipReason; name: string | null };
+
+/**
+ * What a card's own image may be where the entry comes from: an image id (the
+ * autosave), an image data URL (a set file), or nothing at all (a share link,
+ * which never carries one: any `art.custom` in it is dropped).
+ */
+export type CustomImageSource = CustomImageForm | 'none';
 
 /** A readable name for a refused card, if it has one. */
 function claimedName(value: unknown): string | null {
@@ -529,21 +539,24 @@ function claimedName(value: unknown): string | null {
  * Validate one set entry (`{ card, art, appearance }`, plus an optional
  * `score` that is ignored: scores are always recomputed). The card must pass;
  * an unknown art donor falls back to the default donor, an unreadable look
- * to the default look.
+ * to the default look, and an unreadable own image (`art.custom`) is left off,
+ * so the card keeps its game art and says so (`imageProblem`).
  */
-export function validateEntry(value: unknown): EntryCheck {
+export function validateEntry(value: unknown, customImage: CustomImageSource = 'none'): EntryCheck {
   if (!isPlainObject(value)) return { ok: false, reason: 'shape', name: null };
   for (const key of Object.keys(value)) {
     if (!['card', 'art', 'appearance', 'score'].includes(key)) return { ok: false, reason: 'field', name: claimedName(value) };
   }
   const checked = validateCard(value.card);
   if (!checked.ok) return { ok: false, reason: checked.reason, name: claimedName(value) };
-  return {
-    ok: true,
-    entry: {
-      card: checked.card,
-      art: { donor: artDonorOrDefault(isPlainObject(value.art) ? value.art.donor : undefined) },
-      appearance: readAppearance(value.appearance),
-    },
-  };
+  const rawArt = isPlainObject(value.art) ? value.art : {};
+  const art: ForgeEntry['art'] = { donor: artDonorOrDefault(rawArt.donor) };
+  let imageProblem = false;
+  if (customImage !== 'none' && rawArt.custom !== undefined) {
+    const custom = readCustomArt(rawArt.custom, customImage);
+    if (custom) art.custom = custom;
+    else imageProblem = true;
+  }
+  const entry: ForgeEntry = { card: checked.card, art, appearance: readAppearance(value.appearance) };
+  return imageProblem ? { ok: true, entry, imageProblem: true } : { ok: true, entry };
 }

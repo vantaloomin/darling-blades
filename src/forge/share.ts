@@ -7,6 +7,10 @@
  * per-card shape as the set file without its `score`. A decoded payload goes
  * through the same validator as an imported file (validate.ts).
  *
+ * A link never carries the player's own image (`art.custom`): the encoder
+ * writes the art donor alone, and the decoder drops any `art.custom` a payload
+ * brings, so a shared card opens with its game art.
+ *
  * A payload is hostile until validated, so decoding caps the payload length
  * and the decompressed size (a few bytes of deflate can expand to gigabytes).
  * Headless: CompressionStream, TextEncoder and btoa are platform globals in
@@ -81,7 +85,7 @@ async function transform(bytes: Uint8Array, stream: CompressionStream | Decompre
   return readCapped(stream.readable, limit);
 }
 
-/** The share payload for one entry. */
+/** The share payload for one entry: the card, its art donor and its look (never its own image). */
 export async function encodeSharePayload(entry: ForgeEntry): Promise<string> {
   const json = JSON.stringify({ card: entry.card, art: { donor: entry.art.donor }, appearance: entry.appearance });
   const compressed = await transform(new TextEncoder().encode(json), new CompressionStream('deflate-raw'), Number.POSITIVE_INFINITY);
@@ -128,5 +132,5 @@ export async function decodeSharePayload(payload: string): Promise<ShareDecode> 
   } catch {
     return unreadable;
   }
-  return validateEntry(value);
+  return validateEntry(value, 'none');
 }

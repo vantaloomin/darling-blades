@@ -7,14 +7,22 @@
  *
  *   { "format": "darling-blades-forge-set", "version": 1, "name": "<set name>",
  *     "cards": [ { "card": <CardDef, id = a stable per-set id>,
- *                  "art": { "donor": "<catalog card id>" },
+ *                  "art": { "donor": "<catalog card id>",
+ *                           "custom"?: { "image": "<data URL>", zoom, x, y,
+ *                                        rotation, flip, background } },
  *                  "appearance": { "frame", "holo", "fullArt" },
  *                  "score": { "power", "budget", "delta", "verdict" } } ] }
+ *
+ * `art.custom` (the player's own image, customArt.ts) is optional and
+ * additive: a file without it imports exactly as before. In the page a custom
+ * image is referred to by its id; only the file embeds the bytes.
  *
  * `score` is written for people reading the file; on import it is ignored and
  * recomputed. Headless: no Phaser, no DOM.
  */
 import { scoreCard, type ScorableCardDef } from '../power/scoreCore';
+import type { CustomArt } from './customArt';
+import type { ArtFrame } from './framing';
 import { bandForDelta, toCardDef, fromCardDef, type BuilderState, type VerdictBand } from './logic';
 import {
   CARD_ID_PATTERN,
@@ -29,7 +37,13 @@ import {
 export const FORGE_SET_FORMAT = 'darling-blades-forge-set';
 export const FORGE_SET_VERSION = 1;
 export const MAX_SET_CARDS = 500;
-export const MAX_IMPORT_BYTES = 2 * 1024 * 1024;
+/**
+ * The largest set file Import JSON reads. A set that embeds its images runs to
+ * a few hundred kilobytes per image, so the cap sits far past a full set of
+ * text (a few megabytes) while staying a size a browser parses comfortably.
+ */
+export const MAX_IMPORT_BYTES = 100 * 1024 * 1024;
+export const MAX_IMPORT_LABEL = '100 MB';
 export const DEFAULT_SET_NAME = 'My Set';
 
 export interface ForgeSet {
@@ -82,11 +96,22 @@ export function newCardId(set: ForgeSet, name: string): string {
   return `forge-${slug}-${n}`;
 }
 
-/** The card in the editor as a set entry with `id`. */
+/** Which art window the card is drawn with. */
+export function artFrameOf(state: BuilderState): ArtFrame {
+  return state.appearance.fullArt ? 'fullArt' : 'standard';
+}
+
+/** The own image the card shows, if it shows one. */
+export function activeCustomArt(state: BuilderState): CustomArt | null {
+  return state.artSource === 'custom' ? state.customArt : null;
+}
+
+/** The card in the editor as a set entry with `id`. Its own image goes in only while it shows it. */
 export function entryFromState(state: BuilderState, id: string): ForgeEntry {
+  const custom = activeCustomArt(state);
   return jsonClone({
     card: { ...toCardDef(state), id },
-    art: { donor: state.artDonorId },
+    art: custom ? { donor: state.artDonorId, custom: { ...custom } } : { donor: state.artDonorId },
     appearance: { ...state.appearance },
   });
 }
@@ -95,8 +120,15 @@ export function entryFromState(state: BuilderState, id: string): ForgeEntry {
 export function stateFromEntry(entry: ForgeEntry): BuilderState {
   const state = fromCardDef(entry.card);
   state.artDonorId = entry.art.donor;
+  state.artSource = entry.art.custom ? 'custom' : 'game';
+  state.customArt = entry.art.custom ? { ...entry.art.custom } : null;
   state.appearance = { ...entry.appearance };
   return state;
+}
+
+/** True when the card carries the player's own image. */
+export function hasCustomArt(entry: ForgeEntry): boolean {
+  return entry.art.custom !== undefined;
 }
 
 /** Key-sorted JSON, so two equal entries always compare equal. */
@@ -171,22 +203,33 @@ export function saveToSet(set: ForgeSet, session: EditorSession, state: BuilderS
 
 // ── The file format ─────────────────────────────────────────────────────────
 
-export function exportSetDocument(set: ForgeSet): unknown {
+/**
+ * A card's art as the file writes it: the donor, and the own image embedded
+ * as a data URL. `images` maps an image id to its data URL; a card whose
+ * image is not in it is written with its game art alone.
+ */
+function exportArt(entry: ForgeEntry, images: ReadonlyMap<string, string>): ForgeEntry['art'] {
+  const custom = entry.art.custom;
+  const dataUrl = custom ? images.get(custom.image) : undefined;
+  return custom && dataUrl ? { donor: entry.art.donor, custom: { ...custom, image: dataUrl } } : { donor: entry.art.donor };
+}
+
+export function exportSetDocument(set: ForgeSet, images: ReadonlyMap<string, string> = new Map()): unknown {
   return {
     format: FORGE_SET_FORMAT,
     version: FORGE_SET_VERSION,
     name: setDisplayName(set),
     cards: set.cards.map((entry) => ({
       card: entry.card,
-      art: { donor: entry.art.donor },
+      art: exportArt(entry, images),
       appearance: entry.appearance,
       score: scoreSummary(entry.card),
     })),
   };
 }
 
-export function exportSetJson(set: ForgeSet): string {
-  return `${JSON.stringify(exportSetDocument(set), null, 2)}\n`;
+export function exportSetJson(set: ForgeSet, images: ReadonlyMap<string, string> = new Map()): string {
+  return `${JSON.stringify(exportSetDocument(set, images), null, 2)}\n`;
 }
 
 export function exportFileName(set: ForgeSet): string {
@@ -201,12 +244,22 @@ export interface SkippedCard {
 
 export type ImportResult =
   | { ok: false; problem: 'not-a-set' | 'too-large' }
-  | { ok: true; set: ForgeSet; total: number; skipped: SkippedCard[]; overCap: number };
+  | {
+    ok: true;
+    /** Cards with their own image hold it as a data URL here; the page stores it and swaps in its id. */
+    set: ForgeSet;
+    total: number;
+    skipped: SkippedCard[];
+    overCap: number;
+    /** Cards whose own image could not be read: they import with their game art. */
+    imageFailures: string[];
+  };
 
 /**
  * Read a set file. Every card is validated on its own: a bad one is skipped
  * with a reason and the rest still import. Ids are kept when they are well
- * formed and unique, otherwise the card gets a new one.
+ * formed and unique, otherwise the card gets a new one. A card whose own image
+ * is unreadable imports with its game art and is named in `imageFailures`.
  */
 export function importSetText(text: string): ImportResult {
   if (text.length > MAX_IMPORT_BYTES) return { ok: false, problem: 'too-large' };
@@ -230,39 +283,48 @@ export function importSetText(text: string): ImportResult {
     : DEFAULT_SET_NAME;
   const set: ForgeSet = { name, cards: [] };
   const skipped: SkippedCard[] = [];
+  const imageFailures: string[] = [];
   const considered = raw.cards.slice(0, MAX_SET_CARDS);
   considered.forEach((value, index) => {
-    const checked = validateEntry(value);
+    const checked = validateEntry(value, 'dataUrl');
     if (!checked.ok) {
       skipped.push({ name: checked.name ?? `card ${index + 1}`, reason: checked.reason });
       return;
     }
     const entry = checked.entry;
+    if (checked.imageProblem) imageFailures.push(entry.card.name);
     const id = entry.card.id;
     const unique = CARD_ID_PATTERN.test(id) && id !== 'forge-card' && !set.cards.some((other) => other.card.id === id);
     if (!unique) entry.card = { ...entry.card, id: newCardId(set, entry.card.name) };
     set.cards.push(entry);
   });
-  return { ok: true, set, total: raw.cards.length, skipped, overCap: raw.cards.length - considered.length };
+  return { ok: true, set, total: raw.cards.length, skipped, overCap: raw.cards.length - considered.length, imageFailures };
 }
 
 /** The player-facing summary of an import. */
 export function importMessage(result: ImportResult): string {
   if (!result.ok) {
     return result.problem === 'too-large'
-      ? 'That file is too large (the limit is 2 MB).'
+      ? `That file is too large (the limit is ${MAX_IMPORT_LABEL}).`
       : 'That file isn\'t a Forge set.';
   }
   const imported = result.set.cards.length;
-  if (result.skipped.length === 0 && result.overCap === 0) {
-    return imported === 1 ? 'Imported 1 card.' : `Imported ${imported} cards.`;
-  }
-  const parts = [`Imported ${imported} of ${result.total} cards.`];
+  const parts = result.skipped.length === 0 && result.overCap === 0
+    ? [imported === 1 ? 'Imported 1 card.' : `Imported ${imported} cards.`]
+    : [`Imported ${imported} of ${result.total} cards.`];
   const shown = result.skipped.slice(0, 3);
   for (const skip of shown) parts.push(`Skipped ${skip.name}: ${SKIP_REASON_TEXT[skip.reason]}.`);
   const more = result.skipped.length - shown.length;
   if (more > 0) parts.push(more === 1 ? 'Skipped 1 more.' : `Skipped ${more} more.`);
   if (result.overCap > 0) parts.push(`A set holds up to ${MAX_SET_CARDS} cards.`);
+  const failures = result.imageFailures;
+  if (failures.length === 1) parts.push(`${failures[0]} uses game art: its image couldn't be read.`);
+  else if (failures.length > 1) parts.push(`${failures.length} cards use game art: their images couldn't be read.`);
   return parts.join(' ');
+}
+
+/** True when an import should read as a problem (anything skipped, or left without its image). */
+export function importHadProblems(result: ImportResult): boolean {
+  return !result.ok || result.skipped.length > 0 || result.overCap > 0 || result.imageFailures.length > 0;
 }
 

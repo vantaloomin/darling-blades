@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ALL_CARDS } from '../../src/data/catalog';
+import { MAX_IMAGE_BYTES, base64ToBytes, bytesToDataUrl, parseImageDataUrl } from '../../src/forge/customArt';
 import {
   DEFAULT_ART_DONOR,
   createInitialBuilderState,
@@ -146,11 +147,14 @@ describe('importing a hostile or broken file', () => {
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
   });
 
-  it('falls back to the default art for an unknown donor and ignores a custom-art field', () => {
+  it('falls back to the default art for an unknown donor, and keeps a card whose own image is unreadable with its game art', () => {
     const entry = good();
     entry.art = { donor: 'no-such-card', custom: { image: 'forge-image-1', zoom: 1.5 } };
     const result = importSetText(fileWith([entry]));
-    expect(result.ok && result.set.cards[0].art).toEqual({ donor: DEFAULT_ART_DONOR });
+    if (!result.ok) throw new Error(result.problem);
+    expect(result.set.cards).toHaveLength(1);
+    expect(result.set.cards[0].art).toEqual({ donor: DEFAULT_ART_DONOR });
+    expect(result.imageFailures).toEqual([result.set.cards[0].card.name]);
   });
 
   it('keeps well-formed unique ids and replaces duplicate or malformed ones', () => {
@@ -170,6 +174,80 @@ describe('importing a hostile or broken file', () => {
     const result = importSetText(fileWith(cards));
     expect(result.ok && result.set.cards.length).toBe(MAX_SET_CARDS);
     expect(result.ok && result.overCap).toBe(3);
+  });
+});
+
+describe('a card\'s own image in the set file', () => {
+  const ID = '0123456789abcdef'.repeat(4);
+  /** Stand-in image bytes: the file format carries them opaquely (the page decodes them). */
+  const IMAGE_BYTES = new Uint8Array(5000).map((_value, index) => (index * 13) & 255);
+  const DATA_URL = bytesToDataUrl('image/webp', IMAGE_BYTES);
+  const FRAMING = { zoom: 0.73, x: -0.35, y: 0.6, rotation: -42, flip: true, background: '#20c0c0' };
+
+  function customEntry(index: number): ForgeEntry {
+    const entry = builtEntry(index);
+    return { ...entry, art: { ...entry.art, custom: { image: ID, ...FRAMING } } };
+  }
+
+  it('round-trips: the export embeds the image, and the import gives back the same framing and bytes', () => {
+    const set: ForgeSet = { name: 'Own Art', cards: [customEntry(0), builtEntry(1), customEntry(2)] };
+    const text = exportSetJson(set, new Map([[ID, DATA_URL]]));
+    const result = importSetText(text);
+    if (!result.ok) throw new Error(result.problem);
+    expect(result.imageFailures).toEqual([]);
+    result.set.cards.forEach((imported, index) => {
+      const exported = set.cards[index];
+      expect(imported.card).toEqual(exported.card);
+      expect(imported.art.donor).toBe(exported.art.donor);
+      if (!exported.art.custom) {
+        expect(imported.art).toEqual(exported.art);
+        return;
+      }
+      // Imported, the image is the file's data URL (the page stores it and swaps in its id).
+      expect({ ...imported.art.custom, image: ID }).toEqual(exported.art.custom);
+      expect(base64ToBytes(parseImageDataUrl(imported.art.custom?.image)!.base64)).toEqual(IMAGE_BYTES);
+    });
+  });
+
+  it('writes a card whose image this browser no longer has with its game art alone', () => {
+    const set: ForgeSet = { name: 'Own Art', cards: [customEntry(0)] };
+    const exported = JSON.parse(exportSetJson(set)) as { cards: ForgeEntry[] };
+    expect(exported.cards[0].art).toEqual({ donor: set.cards[0].art.donor });
+  });
+
+  it('imports a card whose image is unreadable with its game art, and names it', () => {
+    const broken: [string, unknown][] = [
+      ['a page, not an image', { image: 'data:text/html;base64,PHNjcmlwdD4=', ...FRAMING }],
+      ['an image over the cap', { image: bytesToDataUrl('image/png', new Uint8Array(MAX_IMAGE_BYTES + 1)), ...FRAMING }],
+      ['an id instead of the bytes', { image: ID, ...FRAMING }],
+      ['framing out of range', { image: DATA_URL, ...FRAMING, zoom: 40 }],
+    ];
+    const cards = broken.map(([label, custom], index) => {
+      const entry = JSON.parse(JSON.stringify(builtEntry(index))) as Record<string, unknown> & { card: { name: string } };
+      entry.card.name = label;
+      entry.art = { donor: DEFAULT_ART_DONOR, custom };
+      return entry;
+    });
+    const result = importSetText(fileWith(cards));
+    if (!result.ok) throw new Error(result.problem);
+    expect(result.set.cards).toHaveLength(broken.length);
+    expect(result.set.cards.map((entry) => entry.art)).toEqual(broken.map(() => ({ donor: DEFAULT_ART_DONOR })));
+    expect(result.imageFailures).toEqual(broken.map(([label]) => label));
+  });
+
+  it('saves a card\'s own image only while the card shows it, and counts a framing change as unsaved', () => {
+    const state = createInitialBuilderState();
+    state.customArt = { image: ID, ...FRAMING };
+    expect(entryFromState(state, '').art).toEqual({ donor: DEFAULT_ART_DONOR });
+    state.artSource = 'custom';
+    const entry = entryFromState(state, '');
+    expect(entry.art).toEqual({ donor: DEFAULT_ART_DONOR, custom: { image: ID, ...FRAMING } });
+    const reopened = stateFromEntry(entry);
+    expect([reopened.artSource, reopened.customArt]).toEqual(['custom', { image: ID, ...FRAMING }]);
+    const session = { editingId: null, baseline: entry };
+    expect(hasUnsavedChanges(emptySet(), session, state)).toBe(false);
+    state.customArt = { ...state.customArt, rotation: 10 };
+    expect(hasUnsavedChanges(emptySet(), session, state)).toBe(true);
   });
 });
 

@@ -54,6 +54,8 @@ export default tseslint.config(
       'src/forge/share.ts',
       'src/forge/storage.ts',
       'src/forge/markup.ts',
+      'src/forge/framing.ts',
+      'src/forge/customArt.ts',
     ],
     rules: {
       'no-restricted-imports': [
