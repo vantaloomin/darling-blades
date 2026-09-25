@@ -34,7 +34,6 @@ import type { Rect } from '../ui/layout';
 import {
   PROFILE_CONFIRM_MODAL,
   PROFILE_EXPORT_MODAL,
-  PROFILE_HEADER,
   PROFILE_IMPORT_MODAL,
   PROFILE_PANELS,
   PROFILE_RECORD,
@@ -64,6 +63,7 @@ import {
 } from '../ui/profilePresentation';
 import { canvasPngBytes, composeSaveCardCanvas, downloadPngBytes, pickPngFile } from '../ui/saveCard';
 import { ellipsizeText } from '../ui/textFit';
+import { sceneTitle } from '../ui/sceneTitle';
 import { colorInt, theme } from '../ui/theme';
 import {
   backButton,
@@ -149,14 +149,8 @@ export class ProfileScene extends Phaser.Scene {
 
     const p = computeProfile(Services.save.data);
 
-    // Header line: the back link (added last, below) and the title.
-    this.add
-      .text(PROFILE_HEADER.titleX, PROFILE_HEADER.y, 'Profile', {
-        fontFamily: theme.fonts.display,
-        fontSize: `${theme.type.display}px`,
-        color: theme.colors.heading,
-      })
-      .setOrigin(0.5);
+    // Header line: the back link (added last, below) and the shared title.
+    sceneTitle(this, 'Profile');
 
     // Record row: the win record centred, the save actions at the frame's
     // right edge on the same line, the showcase at its left edge.

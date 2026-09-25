@@ -1,4 +1,4 @@
-import { GAP_FLOORS, type Rect } from './layout';
+import { GAP_FLOORS, SCENE_TITLE, type Rect } from './layout';
 import { theme } from './theme';
 
 /**
@@ -100,13 +100,13 @@ export function packCentered(widths: readonly number[], centerX: number, gaps: n
 // ---------------------------------------------------------------------------
 
 export const PROFILE_HEADER = {
-  y: theme.design.headerCenterY, // 58, the back button's row
-  titleX: theme.design.centerX,
+  y: SCENE_TITLE.y, // 58, the back button's row (the shared sceneTitle)
+  titleX: SCENE_TITLE.x,
   /**
    * The title's width is font-fallback dependent, so neighbours clear an
-   * allowance rather than a measurement: six display-size glyphs either side.
+   * allowance rather than a measurement: six title-size glyphs either side.
    */
-  titleHalfWidth: theme.type.display * 3,
+  titleHalfWidth: SCENE_TITLE.fontSize * 3,
   bottom: theme.design.safeTop + HIT_HEIGHT, // 80
 } as const;
 
