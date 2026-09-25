@@ -26,6 +26,7 @@ import {
   type StripLayoutOptions,
 } from '../ui/boosterStripLayout';
 import { GAP_FLOORS } from '../ui/layout';
+import { sceneSubtitle, sceneTitle } from '../ui/sceneTitle';
 import { colorInt, theme } from '../ui/theme';
 import {
   backButton,
@@ -171,20 +172,8 @@ export class PracticePickerScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.onShutdown, this);
     Music.setMood('menu');
 
-    this.add
-      .text(width / 2, 48, 'Practice', {
-        fontFamily: theme.fonts.display,
-        fontSize: `${theme.type.display}px`,
-        color: theme.colors.heading,
-      })
-      .setOrigin(0.5);
-    this.add
-      .text(width / 2, 86, 'Choose a rival, then choose how hard they fight.', {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.label}px`,
-        color: theme.colors.muted,
-      })
-      .setOrigin(0.5);
+    sceneTitle(this, 'Practice');
+    sceneSubtitle(this, 'Choose a rival, then choose how hard they fight.', { fontSize: theme.type.label });
 
     this.buildRoster();
     this.buildDifficultyActions();
@@ -430,7 +419,9 @@ export class PracticePickerScene extends Phaser.Scene {
       tile.name.setVisible(fullTile);
     }
     // A disabled arrow is also hidden, so the strip never presents a dead end
-    // control. Arrows move a full page; drag and peek taps move one tile.
+    // control. Arrows move a full page; drag and the wheel move one column.
+    // The 59px edge peeks are a hint only: under the 90px tap floor, they take
+    // no taps (boosterStripLayout's peekTappable).
     const leftEnabled = this.pickerStripIndex > 0;
     const rightEnabled = this.pickerStripIndex < this.pickerStripLayout.maxIndex;
     this.pickerArrows?.left.container.setVisible(leftEnabled);

@@ -4,9 +4,10 @@ import {
   curveBars,
   CURVE_MAX,
   deckCountsLine,
+  deckPipBeads,
   deckPipCounts,
-  deckShapeLine,
 } from '../../src/ui/deckStats';
+import type { CardDb } from '../../src/engine/types';
 import { deckOf, TEST_DB } from '../helpers';
 
 /** The deck-builder stats panel renders this aggregation; pin the math. */
@@ -125,38 +126,58 @@ describe('deck summary counts and pips', () => {
     expect(deckPipCounts(computeDeckStats(deckOf([['forest', 2]]), TEST_DB))).toEqual([]);
   });
 
+  it('names no lands and no Warchest fill when the format provides the Warchest on its own line', () => {
+    // Limited: the deck list holds spells only and the Warchest line sits below.
+    const line = deckCountsLine(spellsOnly, { kind: 'provided' });
+    expect(line).toContain('2 creatures');
+    expect(line).not.toContain('lands');
+    expect(line).not.toContain('Warchest');
+  });
+
   it('keeps player-facing copy free of em-dashes', () => {
-    for (const lands of [{ kind: 'list' as const }, { kind: 'warchest' as const, filled: 10, size: 10 }]) {
-      expect(deckCountsLine(withLands, lands)).not.toContain('—');
+    const sources = [
+      { kind: 'list' as const },
+      { kind: 'warchest' as const, filled: 10, size: 10 },
+      { kind: 'provided' as const },
+    ];
+    for (const lands of sources) {
+      expect(deckCountsLine(withLands, lands)).not.toContain('\u2014');
     }
   });
 });
 
-/** The text-only form the Limited builder still prints. */
-describe('deck shape line', () => {
-  const stats = computeDeckStats(deckOf([['forest', 3], ['bear', 2], ['shock', 1]]), TEST_DB);
+/**
+ * The colour run every deck summary draws as mana-pip beads (the design
+ * system's convention; the Limited builder printed letter codes until 1.8.1).
+ */
+describe('deck pip beads', () => {
+  const RELIC_DB: CardDb = {
+    ...TEST_DB,
+    relic: {
+      id: 'relic',
+      name: 'Relic',
+      types: ['artifact'],
+      subtypes: [],
+      cost: { generic: 2, pips: {} },
+      colors: [],
+      rarity: 'c',
+    },
+  };
 
-  it('names lands for constructed and omits them for a reserve format', () => {
-    expect(deckShapeLine(stats, { lands: true })).toContain('3 lands');
-    expect(deckShapeLine(stats, { lands: false })).not.toContain('lands');
-    // Both report the same creature count; only the land clause differs.
-    expect(deckShapeLine(stats, { lands: false })).toContain('2 creatures');
-    expect(deckShapeLine(stats, { lands: true })).toContain('2 creatures');
+  it('draws one counted bead per colour the spells ask for, in WUBRG order', () => {
+    const stats = computeDeckStats(deckOf([['forest', 3], ['bear', 2], ['shock', 1]]), TEST_DB);
+    expect(deckPipBeads(stats)).toEqual([
+      { color: 'R', count: 1 },
+      { color: 'G', count: 2 },
+    ]);
   });
 
-  it('lists only the colours actually present, in WUBRG order', () => {
-    expect(deckShapeLine(stats, { lands: true })).toContain('R\u00b71 G\u00b72');
-    expect(deckShapeLine(stats, { lands: true })).not.toContain('W\u00b7');
+  it('draws the colorless bead, uncounted, for a deck of colorless spells', () => {
+    expect(deckPipBeads(computeDeckStats(deckOf([['relic', 2]]), RELIC_DB))).toEqual([{ color: 'C', count: null }]);
   });
 
-  it('says colorless rather than printing an empty pip run', () => {
-    const lands = computeDeckStats(deckOf([['forest', 2]]), TEST_DB);
-    expect(deckShapeLine(lands, { lands: true })).toContain('colorless');
-  });
-
-  it('keeps player-facing copy free of em-dashes', () => {
-    for (const lands of [true, false]) {
-      expect(deckShapeLine(stats, { lands })).not.toContain('\u2014');
-    }
+  it('draws nothing for a deck with no spells', () => {
+    expect(deckPipBeads(computeDeckStats([], TEST_DB))).toEqual([]);
+    expect(deckPipBeads(computeDeckStats(deckOf([['forest', 2]]), TEST_DB))).toEqual([]);
   });
 });

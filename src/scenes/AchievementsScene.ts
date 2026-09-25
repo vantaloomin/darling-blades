@@ -10,6 +10,7 @@ import {
   type AchievementStatus,
 } from '../meta/Achievements';
 import { collectionCompletion } from '../meta/collectionFilter';
+import { progressPercentLabel } from '../ui/progressPercent';
 import { ellipsizeText } from '../ui/textFit';
 import { Services } from '../meta/services';
 import { def } from '../engine/types';
@@ -54,11 +55,24 @@ const ROW_W = (CONTENT_W - COLUMN_GAP) / 2;
 const ROW_Y = 196;
 const ROW_H = 50;
 const ROW_PITCH = 56;
-const COPY_MAX_W = 286;
-const GAUGE_CENTER = 326;
-const PROGRESS_LEFT = 350;
-const REWARD_RIGHT = 538;
-const CLAIM_CENTER = 396;
+/**
+ * One list row, left to right: the copy block, the gauge, and the progress
+ * column (the readout, or Claim). The copy block's first line carries the
+ * title, its wing and the reward; the second line is the goal alone, so a
+ * description gets the block's full width. Until 1.8.1 (2026-09-25) the goal
+ * shared its line with the wing name inside a 286px block and 26 of 87 goals
+ * ended in an ellipsis. Measured in Inter (2026-09-25): the widest goal is
+ * 350px at caption size, the widest title 192px, the widest wing name 60px,
+ * the widest reward 70px, and the widest readout ("1482/1482 · 100%") 106px.
+ */
+const ROW_PAD = 14;
+const COPY_RIGHT = 384;
+const GAUGE_CENTER = 410;
+const PROGRESS_LEFT = 432;
+const CLAIM_MIN_W = 90;
+const CLAIM_CENTER = PROGRESS_LEFT + CLAIM_MIN_W / 2;
+/** Between the title and its wing name, and before the reward. */
+const TITLE_LINE_GAP = theme.space(2);
 const CLAIM_SEAL_W = 84;
 const CLAIM_SEAL_H = 30;
 
@@ -100,10 +114,6 @@ const FILTERS: readonly { key: AchievementFilter; label: string }[] = [
   { key: 'in-progress', label: 'In Progress' },
   { key: 'claimed', label: 'Claimed' },
 ];
-
-function pct(n: number): string {
-  return `${Math.round(n * 100)}%`;
-}
 
 function filterStatuses(statuses: AchievementStatus[], filter: AchievementFilter): AchievementStatus[] {
   if (filter === 'ready') return statuses.filter((status) => status.unlocked && !status.claimed);
@@ -311,7 +321,7 @@ export class AchievementsScene extends Phaser.Scene {
     this.drawKpi(
       CONTENT_X + 16,
       SUMMARY_Y + SUMMARY_H / 2,
-      `Pool ${completion.owned}/${completion.total} · ${pct(completion.percent)}`,
+      `Pool ${completion.owned}/${completion.total} · ${progressPercentLabel(completion.percent)}`,
       0,
     );
     this.drawKpi(
@@ -475,7 +485,7 @@ export class AchievementsScene extends Phaser.Scene {
       }
     }
     this.add
-      .text(x, y, `${Math.round(wing.percent * 100)}%`, {
+      .text(x, y, progressPercentLabel(wing.percent), {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.micro}px`,
         fontStyle: theme.weight.w700,
@@ -543,44 +553,49 @@ export class AchievementsScene extends Phaser.Scene {
     if (claimed) this.drawPinToggle(status.def.id, x + GAUGE_CENTER, centerY);
     else this.drawProgressGauge(status, x + GAUGE_CENTER, centerY);
 
-    const title = this.add
-      .text(x + 14, y + 14, '', {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.label}px`,
-        fontStyle: theme.weight.w700,
-        color: claimed ? theme.colors.success : status.unlocked ? theme.colors.heading : theme.colors.muted,
-      })
-      .setOrigin(0, 0.5);
-    ellipsizeText(title, COPY_MAX_W, `${claimed ? '✓ ' : ''}${status.def.title}`);
-
-    const bucket = this.add
-      .text(x + 14, y + 35, `${BUCKET_LABEL[status.def.bucket]} ·`, {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.caption}px`,
-        fontStyle: theme.weight.w600,
-        color: theme.colors.muted,
-      })
-      .setOrigin(0, 0.5);
-    const goal = this.add
-      .text(bucket.x + bucket.width + 5, y + 35, '', {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.caption}px`,
-        color: claimed ? theme.colors.muted : theme.colors.body,
-      })
-      .setOrigin(0, 0.5);
-    ellipsizeText(goal, Math.max(0, COPY_MAX_W - bucket.width - 5), status.def.description);
-
-    this.add
-      .text(x + REWARD_RIGHT, centerY, `+${status.def.reward.gold} Gold`, {
+    // First line: the title, its wing, and the reward on the copy block's
+    // right edge. The title yields first if the line is ever too long.
+    const titleY = y + 14;
+    const reward = this.add
+      .text(x + COPY_RIGHT, titleY, `+${status.def.reward.gold} Gold`, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         fontStyle: theme.weight.w600,
         color: claimable ? theme.colors.gold : claimed ? theme.colors.muted : theme.colors.body,
       })
       .setOrigin(1, 0.5);
+    const bucket = this.add
+      .text(0, titleY, BUCKET_LABEL[status.def.bucket], {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        fontStyle: theme.weight.w600,
+        color: theme.colors.muted,
+      })
+      .setOrigin(0, 0.5);
+    const title = this.add
+      .text(x + ROW_PAD, titleY, '', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.label}px`,
+        fontStyle: theme.weight.w700,
+        color: claimed ? theme.colors.success : status.unlocked ? theme.colors.heading : theme.colors.muted,
+      })
+      .setOrigin(0, 0.5);
+    const titleBudget = COPY_RIGHT - ROW_PAD - reward.width - bucket.width - 2 * TITLE_LINE_GAP;
+    ellipsizeText(title, Math.max(0, titleBudget), `${claimed ? '✓ ' : ''}${status.def.title}`);
+    bucket.setX(title.x + title.width + TITLE_LINE_GAP);
+
+    // Second line: the goal, across the whole copy block.
+    const goal = this.add
+      .text(x + ROW_PAD, y + 35, '', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        color: claimed ? theme.colors.muted : theme.colors.body,
+      })
+      .setOrigin(0, 0.5);
+    ellipsizeText(goal, COPY_RIGHT - ROW_PAD, status.def.description);
 
     if (!claimable) {
-      const progress = `${Math.min(status.current, status.target)}/${status.target} · ${pct(status.percent)}`;
+      const progress = `${Math.min(status.current, status.target)}/${status.target} · ${progressPercentLabel(status.percent)}`;
       this.add
         .text(x + PROGRESS_LEFT, centerY, progress, {
           fontFamily: theme.fonts.ui,
@@ -593,7 +608,7 @@ export class AchievementsScene extends Phaser.Scene {
       const claimButton = themedButton(this, x + CLAIM_CENTER, centerY, 'Claim', {
         variant: 'emphasis',
         size: 'sm',
-        minWidth: 90,
+        minWidth: CLAIM_MIN_W,
         onTap: () => {
           disableClaimControls();
           const result = claimAchievement(Services.save.data, status.def.id);

@@ -19,14 +19,27 @@ import { isDualLand, LAND_RESERVE_SIZE, MAX_DUAL_LANDS } from '../meta/warchest'
 import { Services } from '../meta/services';
 import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestures';
 import { CardView } from '../ui/CardView';
-import { computeDeckStats, curveBars, deckShapeLine } from '../ui/deckStats';
-import { LIMITED_BUILDER_COLUMNS, LIMITED_DETAILS_PANEL, limitedListRow } from '../ui/limitedPanePresentation';
+import { computeDeckStats, curveBars, deckCountsLine, deckPipBeads } from '../ui/deckStats';
+import { leaveDraftPrompt } from '../ui/leaveDraftPrompt';
+import {
+  LIMITED_BUILDER_COLUMNS,
+  LIMITED_BUILDER_HEADER,
+  LIMITED_DETAILS_PANEL,
+  limitedListRow,
+} from '../ui/limitedPanePresentation';
 import { gateOnArt } from '../ui/artGate';
+import { SCENE_TITLE } from '../ui/layout';
+import { bakeManaSymbols } from '../ui/ManaSymbols';
+import { drawPipBeadRow } from '../ui/pipBeadRow';
 import { applyBackdrop } from '../ui/SceneBackdrop';
+import { sceneSubtitle, sceneTitle } from '../ui/sceneTitle';
+import { ellipsizeText } from '../ui/textFit';
 import { colorInt, theme } from '../ui/theme';
 import { backButton, modalShell, pager, panel, registerSceneBackNavigation, themedButton, type ModalShell } from '../ui/themeWidgets';
 
 const ROWS = 13;
+/** Half the caption line's rendered height: the shape line's centre, below its top. */
+const SHAPE_LINE_HALF_HEIGHT = 8;
 /**
  * Spell out the whole Warchest, not just the duals.
  *
@@ -101,6 +114,9 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
       return;
     }
     registerSceneBackNavigation(this, () => this.leaveDraft());
+    // The Details panel's colour run draws pip beads; baking is a no-op once
+    // boot has done it.
+    bakeManaSymbols(this);
     this.deck = [...run.deck];
     this.selectedDuals = run.landReserve?.filter((id) => CARD_DB[id] && isDualLand(CARD_DB[id])) ?? [];
     this.draw(run);
@@ -135,33 +151,20 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
     // Part of every frame: a back control built once in build() was the first
     // thing the first redraw destroyed.
     backButton(this, 'Draft', () => this.leaveDraft());
-    this.add
-      .text(640, 52, 'Limited Deck Builder', {
-        fontFamily: theme.fonts.display,
-        fontSize: `${theme.type.display}px`,
-        color: theme.colors.heading,
-      })
-      .setOrigin(0.5);
-    this.add
-      .text(
-        640,
-        76,
-        `Exactly ${LIMITED_DECK_SIZE} spells, no lands · Warchest provided · pool ${run.pool.length} · record ${run.wins}-${run.losses}`,
-        {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.label}px`,
-          color: theme.colors.muted,
-        },
-      )
-      .setOrigin(0.5);
+    sceneTitle(this, 'Limited Deck Builder');
+    sceneSubtitle(
+      this,
+      `Exactly ${LIMITED_DECK_SIZE} spells, no lands · Warchest provided · pool ${run.pool.length} · record ${run.wins}-${run.losses}`,
+      { fontSize: theme.type.label },
+    );
     if (run.premium) {
       this.add
-        .text(640, 99, 'Your 45 drafted cards were added to your collection.', {
+        .text(SCENE_TITLE.x, LIMITED_BUILDER_HEADER.premiumNoteTop, 'Your 45 drafted cards were added to your collection.', {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           color: theme.colors.gold,
         })
-        .setOrigin(0.5);
+        .setOrigin(0.5, 0);
     }
     this.drawPool(run);
     this.drawDeck(run);
@@ -348,16 +351,21 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
         })
         .setOrigin(0.5);
     }
-    // Reserve-native Limited holds no lands in the deck list, so the shape line
-    // names the granted Warchest instead of a land count that reads zero
-    // forever.
-    this.text(
-      L.contentX,
-      L.shapeLineY,
-      `${deckShapeLine(stats, { lands: false })}   Warchest provided`,
-      theme.type.caption,
-      theme.colors.body,
-    );
+    // The shape line: type counts on the left, the colour run on the right as
+    // pip beads, the way the Deck Builder and every other summary show color
+    // (it printed letter codes, "U·56 R·36", until 1.8.1). Reserve-native
+    // Limited holds no lands in the deck list and the Warchest has its own
+    // line below, so the counts name no lands.
+    const lineY = L.shapeLineY + SHAPE_LINE_HALF_HEIGHT;
+    const beads = drawPipBeadRow(this, L.contentRight, lineY, deckPipBeads(stats));
+    const counts = this.add
+      .text(L.contentX, lineY, '', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        color: theme.colors.body,
+      })
+      .setOrigin(0, 0.5);
+    ellipsizeText(counts, beads.left - theme.space(3) - L.contentX, deckCountsLine(stats, { kind: 'provided' }));
   }
   /**
    * One footer row on the shared footer line (theme.design.footerCenterY),
@@ -426,43 +434,14 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
       return;
     }
     if (this.leavePrompt) return;
-    const shell = modalShell(this, {
-      width: 620,
-      height: 250,
-      dimAlpha: 0.84,
-      dismissal: 'dismissible',
+    const shell = leaveDraftPrompt(this, {
+      stayLabel: 'Keep Building',
+      onLeave: () => this.scene.start('Limited'),
       onClose: () => {
         if (this.leavePrompt === shell) this.leavePrompt = null;
       },
     });
     this.leavePrompt = shell;
-    const c = shell.container;
-    c.add(this.add.text(640, 260, 'Leave Draft?', {
-      fontFamily: theme.fonts.display,
-      fontSize: `${theme.type.h1}px`,
-      color: theme.colors.heading,
-    }).setOrigin(0.5));
-    c.add(this.add.text(640, 312, 'Your draft run is saved and can be resumed from the Draft hub. Leave now?', {
-      fontFamily: theme.fonts.ui,
-      fontSize: `${theme.type.body}px`,
-      color: theme.colors.body,
-      align: 'center',
-      wordWrap: { width: 520 },
-    }).setOrigin(0.5));
-    const stay = themedButton(this, 460, 398, 'Keep Building', {
-      variant: 'ghost',
-      minWidth: 160,
-      onTap: shell.close,
-    });
-    const leave = themedButton(this, 820, 398, 'Leave Draft', {
-      variant: 'primary',
-      minWidth: 160,
-      onTap: () => {
-        shell.close();
-        this.scene.start('Limited');
-      },
-    });
-    c.add([stay.container, leave.container]);
   }
   /** One list row inside the panel whose left edge is `panelX` (limitedListRow owns the geometry). */
   private cardRow(

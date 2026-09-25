@@ -71,7 +71,9 @@ export const STATS_PANEL_INTRO =
 export const STATS_PANEL_HEADINGS = {
   heartbeat: 'When you open the game',
   duel: 'After each finished duel',
-  cards: 'When you leave or close the game',
+  // Privacy policy 3.3 (owner rewrite, 2026-09-25): the card summary goes each
+  // time the game is left or closed, not once at the end of a session.
+  cards: 'Each time you leave or close the game',
 } as const;
 
 /**
@@ -99,7 +101,8 @@ export const STATS_HEARTBEAT_FIELD_LINES: Record<HeartbeatField, string> = {
 /** One line per duel-digest field, in allowlist order. */
 export const STATS_DUEL_FIELD_LINES: Record<DuelField, string> = {
   format: 'Format',
-  deckColours: "Your deck's colours",
+  // The key is the wire field's name and stays; the copy is US spelling.
+  deckColours: "Your deck's colors",
   deckArchetype: 'Which starter deck it is, or "custom"',
   curveBucket: 'Mana curve, as a range',
   deckSource: 'Starter, custom or draft deck',
@@ -110,11 +113,18 @@ export const STATS_DUEL_FIELD_LINES: Record<DuelField, string> = {
   mulligans: 'Mulligans, up to three',
 };
 
-/** One line per session-card-row field, in allowlist order. */
+/**
+ * One line per session-card-row field, in allowlist order, in the privacy
+ * policy's words (3.3): each summary carries only the cards no earlier summary
+ * this session sent, so a card goes once per session, and the duel count is
+ * the session's so far. The card line wraps to a second line in the panel
+ * (429px against a 327px column, measured in Inter 2026-09-25); the panel
+ * word-wraps field lines and never truncates them.
+ */
 export const STATS_CARDS_FIELD_LINES: Record<CardsField, string> = {
-  cardId: 'Each card you played',
+  cardId: 'Each card you played that an earlier summary this session did not include',
   countBucket: 'How often, as a range',
-  duelsBucket: 'How many duels the session held, as a range',
+  duelsBucket: 'How many duels the session has held so far, as a range',
 };
 
 /** The extra line under the third heading, after its field lines. */

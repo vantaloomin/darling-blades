@@ -19,6 +19,7 @@ import { Services } from '../meta/services';
 import { isTouchDevice } from '../platform/gestures';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { HEADER_CURRENCY_ANCHOR } from '../ui/layout';
+import { sceneSubtitle, sceneTitle } from '../ui/sceneTitle';
 import { theme } from '../ui/theme';
 import { Toast } from '../ui/Toast';
 import { backButton, goldBadge, panel, registerSceneBackNavigation, themedButton, type ThemedButton } from '../ui/themeWidgets';
@@ -75,20 +76,12 @@ export class LimitedScene extends Phaser.Scene {
       save.limited.activeRun = completeDraftRun(CARD_DB, save.limited.activeRun);
       Services.save.flush();
     }
-    this.add
-      .text(640, 52, 'Draft', {
-        fontFamily: theme.fonts.display,
-        fontSize: `${theme.type.display}px`,
-        color: theme.colors.heading,
-      })
-      .setOrigin(0.5);
-    this.add
-      .text(640, 90, `Draft from packs against seven rivals, build exactly ${LIMITED_DECK_SIZE} spells, then play three matches. Your Warchest of 10 lands is provided.`, {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.body}px`,
-        color: theme.colors.muted,
-      })
-      .setOrigin(0.5);
+    sceneTitle(this, 'Draft');
+    sceneSubtitle(
+      this,
+      `Draft from packs against seven rivals, build exactly ${LIMITED_DECK_SIZE} spells, then play three matches. Your Warchest of 10 lands is provided.`,
+      { fontSize: theme.type.body },
+    );
     backButton(this, 'Play', () => this.scene.start('Play'));
     registerSceneBackNavigation(this, () => this.scene.start('Play'));
     // Gold is spendable here (the Premium Draft entry), so show the balance in
