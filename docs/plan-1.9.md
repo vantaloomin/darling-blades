@@ -33,6 +33,7 @@ as agreed 2026-08-24, and as it stands after the owner's rulings:
 | R10 | **Sweep improvements** (levers 2 and 3 of the sweep plan) | Lane F |
 | R11 | **Every 1.8 review finding still open is implemented**, in 1.8.1 (second ruling) | Lane 0 |
 | R12 | **The 1.8.x items**, grouped with R11 as 1.8.1 (second ruling) | Lane 0 |
+| R13 | **Flavor text is removed entirely** (third ruling, same day): "an MTG-clone holdover". Off every card face, the enlarged view and the collection detail included, and out of the card data and the authoring pipeline; the art takes the room | Lane C, card face |
 
 ## Where 1.9 starts from
 
@@ -120,7 +121,7 @@ G8 was found by reading only and starts with a failing test.
 | G10 | Cards drawn with the loading stand-in never redraw | The `art-file` event is emitted and nothing listens; `CardThumbCache` keeps a thumb baked from the stand-in | M | art |
 | G11 | The half-resolution tier is not built for Pages | `deploy.yml` runs only the manifest step; the half-res script needs Python | S | art |
 | **Menus and meta** | | | | |
-| G12 | Starborne and Drowned Deep have no set achievements | Sands of the Duat has 3; Silver Veil, Dark Tales and Yokai Nights have 8 each | S-M; 15 names approved as written on 2026-09-25 and the Drowned Deep UR goal renamed "All Who Seek Madness"; Sands of the Duat brought up to 8 in the same PR (five rows, names to approve); three stale descriptions fixed alongside | menus and meta |
+| G12 | Starborne and Drowned Deep have no set achievements | Sands of the Duat has 3; Silver Veil, Dark Tales and Yokai Nights have 8 each | S-M; 15 names approved as written on 2026-09-25 and the Drowned Deep UR goal renamed "All Who Seek the Deep"; Sands of the Duat brought up to 8 in the same PR (five rows, names to approve); three stale descriptions fixed alongside | menus and meta |
 | G13 | Achievements round 99.5% up to "100%" | `Math.round` in `AchievementsScene.ts` | XS | menus and meta |
 | G14 | The Premium draft inspector counts every treatment as "plain" | "You own N/4 plain" adds copies across treatments; only plain copies melt | XS | menus and meta |
 | G15 | Letter codes ("U·56 R·36") in the Limited Deck Builder | `deckStats.ts` via `LimitedDeckBuilderScene.ts`; "0 lands" is fixed | XS-S | menus and meta |
@@ -241,7 +242,7 @@ lane A: Provoked loops, Hunt efficiency, and marks-plus-Dawn engines that
 wait several turns.
 
 The authoring order is the one Starborne and Drowned Deep used. The rows
-cannot start until lane A's rates exist:
+cannot start until lane A's rates exist, and they carry no flavor text (R13):
 
 1. **Identity brief**, approved by the owner before any rows: setting, the
    colour pie, what each colour does with Provoked, Hunt and Duty, enabler
@@ -331,6 +332,52 @@ Three consequences of the rulings:
 
 Gates: the plan's scale-and-contrast fixture matrix, a human colour-vision
 and clipping review, and no gameplay re-measure unless duel dispatch changes.
+
+#### Card face: no flavor text, a taller art window (R13)
+
+**Owner ruling 2026-09-25: remove flavor entirely.** It came from Magic and
+does no work here. The owner's aim is larger art, and the freed room goes to
+it. It sits in this lane because it is also a legibility change: the rules
+text stops sharing its box.
+
+What changes:
+
+- **The card face.** `CardView` loses the flavor block and its hairline, and
+  the rules text keeps the whole box. The art window grows from 264x192 into
+  the freed room, and the type line and text box move down with it. The
+  frame is drawn in code (`CardFrameFactory`), so this is a geometry change,
+  not new frame art. Full-art variants already drop flavor and do not change.
+- **The card data.** `flavor` leaves `CardDef` (`src/engine/types.ts`) and
+  every row that carries it: 1,486 of 1,487 cards, tokens included. Its other
+  readers go with it: the Limited pane (`limitedPanePresentation`,
+  `LimitedDeckBuilderScene`), the card-layout and set data tests, the
+  art-bible generator scripts, the [adding-cards.md](adding-cards.md)
+  template, and the card anatomy in [design-system.md](design-system.md).
+  The replay db stamp hashes whole definitions, so it changes. Lane A's new
+  cards change it anyway.
+- **The art band.** A card shows the middle band of each 640x800 image, rows
+  21% to 79% today. At 216 px it would show 17% to 83%: more room above every
+  head across the catalog, with no regeneration. The art bible's window band
+  and its head-top rule (§3, head top at or below y 208) move with it, and so
+  does `audit-art-window.py`. The newly visible top and bottom strips get one
+  automated pass for artifacts and seams, plus a spot check. That is not a
+  catalog audit, which the owner ruled out on 2026-09-25.
+- **Lane B.** First Dawn rows carry no flavor. Its art briefs compose for the
+  new window, so the height must lock before the art run starts.
+- **Mobile (2.0).** The Version C canvas dropped flavor on the owner's
+  direction (version 3). One renderer serves both platforms, and the phone
+  layouts inherit this work.
+
+The first step is a mock, and the owner picks the height from it: before and
+after captures at 216 and 228 px, on the densest rules text and the images
+whose heads sit near the crop. A rough estimate from text length, to be
+confirmed in the renderer: about 133 cards shrink their rules text today to
+make room for flavor. With no flavor, about 45 would shrink at a 76 px box
+(art at 216) and about 132 at a 64 px box (art at 228).
+
+Gate: the owner approves the mock; the renderer counts cards shrunk below
+13 px at the chosen height; `check-art-bible` and `check-docs` are green; and
+no `flavor` reader is left (`git grep` clean outside history docs).
 
 ### Lane D — card art streaming: load on demand, unload under a budget
 
@@ -457,8 +504,8 @@ separate worktrees, by file set.
 | Wave | Contents | Gate |
 | ---: | --- | --- |
 | **0** | The 1.8.1 train (lane 0) on `release/1.8.1`, cut when the sweep reads; this plan and the roadmap and spine sync; `release/1.9` cut from `main` after 1.8.1; the main checkout fast-forwarded on the owner's word (uncommitted `.gitignore` and `run-sweep.ps1` edits sit there); the duplicate comparator learns Duty, Tithe and Whispers | 1.8.1 on the cut checklist, its floors re-measured |
-| **1** | Specs and briefs: `plan-first-dawn-engine.md` and the First Dawn identity brief (Opus 5.5); the accessibility plan re-verified; usage audit waves 0-1; weenie profiling; the art streaming design, after itch.io's HTML5 hosting limits are checked (approved 2026-09-25: 2.0 ships there, so the streaming design must fit its file count and size rules) | owner approval of each spec |
-| **2** | Engine: Provoked and Hunt with rates, AI at three difficulties, converter, replay bump, glossary. Accessibility wave 1 with the v36 bump. Art streaming built. Sweep levers 2-3 and their one-persona comparison | full ladder, win-rate gates unchanged, replay goldens, the no-change test |
+| **1** | Specs and briefs: `plan-first-dawn-engine.md` and the First Dawn identity brief (Opus 5.5); the accessibility plan re-verified; usage audit waves 0-1; weenie profiling; the card-face mock, where the owner picks the art window height (R13); the art streaming design, after itch.io's HTML5 hosting limits are checked (approved 2026-09-25: 2.0 ships there, so the streaming design must fit its file count and size rules) | owner approval of each spec |
+| **2** | Engine: Provoked and Hunt with rates, AI at three difficulties, converter, replay bump, glossary. Accessibility wave 1 with the v36 bump. Flavor removed and the taller art window built (R13), before the art run. Art streaming built. Sweep levers 2-3 and their one-persona comparison | full ladder, win-rate gates unchanged, replay goldens, the no-change test |
 | **3** | Set: the ~200 overplan, the owner's cut, concretion, transcription. The art pilot, then the art run from the day the cut locks. Accessibility wave 2 (core scenes) | check-art-bible green, every token minted, duplicate audit filed |
 | **4** | Metagame content: the theme deck, rungs 27-28 with Darlings decks, floors from the final band. The usage audit's full read (wave 2) and its fixes (wave 3). Accessibility wave 3 (long tail). The balance items of D7 | matrices, precon and boss floors, fixture matrix |
 | **5** | QC day, the sweep last on six personas, release notes, the 1.9.0 cut | the cut checklist |

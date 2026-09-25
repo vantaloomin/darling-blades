@@ -1679,7 +1679,8 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   retired), on **Provoked** and **Hunt**, both approved; **accessibility**;
   **card art streaming** (load on demand, unload under a budget); the
   **mechanic usage audit**; **weenie's cost** in the Hard brain and the two
-  remaining **sweep levers**. First comes **1.8.1**: the 1.8.x items and
+  remaining **sweep levers**; and **flavor text removed entirely** (R13,
+  ruled 2026-09-25), with the art window growing into the room it frees. First comes **1.8.1**: the 1.8.x items and
   every open 1.8 review finding, grouped by the owner the same day. Out: the
   **mobile overhaul** (to 2.0), **AI suggested decks** and the **editable
   Limited Warchest** (both past 2.0). Ruled 2026-09-25: D1 the keyword is
