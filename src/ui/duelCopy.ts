@@ -8,6 +8,15 @@ export interface CombatForecastCopyInput {
   lethal: boolean;
 }
 
+/**
+ * The armed Concede label: names what the second press does, with the verb
+ * for the input that pressed it (never "Click" to a touch player). Short
+ * enough for the opening overlays' 220px button pitch at their 22px type.
+ */
+export function concedeConfirmLabel(touch: boolean): string {
+  return `${touch ? 'Tap' : 'Click'} to concede`;
+}
+
 /** Thin live combat ledger, compact enough to stay in the battlefield gap. */
 export function combatForecastCopy(input: CombatForecastCopyInput): string {
   const parts = [

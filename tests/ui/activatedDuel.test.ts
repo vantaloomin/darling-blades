@@ -7,8 +7,8 @@ import type { ActivatedDef, CardDb, CardDef, GameState, TargetRef } from '../../
 import { dutyChoices } from '../../src/ui/drownedDeepChoices';
 import {
   DUTY_ACTION_LABEL, DUTY_CANCEL_LABEL, DUTY_PLAYER_LABELS,
-  dutyBlockedCopy, dutyNarration, dutyRowPips, dutyTargetStep, dutyTargetsNeedPicker, dutyWindowReason,
-  type DutyAction,
+  dutyBlockedCopy, dutyEffectText, dutyNarration, dutyRowPips, dutyTargetStep, dutyTargetsNeedPicker, dutyWindowReason,
+  type DutyAction, permanentActionLabel,
 } from '../../src/ui/duelPresentation';
 import { segmentManaText } from '../../src/ui/ManaText';
 import { makeTestState, TEST_DB } from '../helpers';
@@ -87,6 +87,37 @@ describe('Duty duel presentation', () => {
       dutyNarration('Keeper', 'you'), dutyNarration('Keeper', 'opponent')]) {
       expect(copy).not.toContain('\u2014');
     }
+  });
+
+  it('says in the history what the Duty did, for either side, without its cost', () => {
+    // Two Duties on one permanent, the shape of The Glass That Came Back.
+    const lamp: CardDef = {
+      id: 'lamp', name: 'Two-Duty Lamp', types: ['artifact'], subtypes: [], colors: ['U'], rarity: 'r',
+      activated: [
+        { cost: { tap: true }, ops: [{ op: 'foresee', n: 2 }] },
+        { cost: { tap: true, mana: { generic: 2, pips: {} } }, ops: [{ op: 'draw', n: 1 }] },
+      ],
+    };
+    const first = dutyEffectText(lamp, 0);
+    const second = dutyEffectText(lamp, 1);
+    expect(first).toMatch(/foresee 2/i);
+    expect(second).toMatch(/draw a card/i);
+    for (const effect of [first, second]) expect(effect).not.toMatch(/\{T\}|\{2\}|\n/);
+    const yours = dutyNarration('[Two-Duty Lamp]', 'you', second);
+    const theirs = dutyNarration('[Two-Duty Lamp]', 'opponent', second);
+    expect(yours).toMatch(/^Your \[Two-Duty Lamp\] /);
+    expect(theirs).toMatch(/^Enemy \[Two-Duty Lamp\] /);
+    for (const line of [yours, theirs]) {
+      expect(line).toContain(second);
+      expect(line).not.toMatch(/\n|\u2014/);
+    }
+  });
+
+  it('chips a usable Duty so it reads apart from an attacker, which has no chip', () => {
+    expect(permanentActionLabel(null, false)).toBeNull();
+    expect(permanentActionLabel(null, true)).toBe('Duty');
+    // One chip per tile: a legal Hauntlink move names itself first.
+    expect(permanentActionLabel('Link', true)).toBe('Link');
   });
 
   it('explains a Duty click in a response window: the stack in your own Morning, the phase otherwise', () => {

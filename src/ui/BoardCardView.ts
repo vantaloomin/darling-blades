@@ -356,10 +356,19 @@ export class BoardCardView extends Phaser.GameObjects.Container {
     return this;
   }
 
-  /** Small top-edge action label, used by battlefield activated abilities. */
-  setActionLabel(label: string | null): this {
+  /**
+   * Small top-edge action chip ("Link", "Relink", "Duty"): what a tap on this
+   * permanent does right now. `tileScale` is the scale the tile is displayed
+   * at; the chip counter-scales so it keeps its 10px type on shrunken tiles
+   * (the 0.55 permanent band, where Duty artifacts live, and tucked links),
+   * where it would otherwise print at 5-6px.
+   */
+  setActionLabel(label: string | null, tileScale = 1): this {
     this.actionBadge.setVisible(label !== null);
-    if (label !== null) this.actionBadge.setText(label);
+    if (label !== null) {
+      this.actionBadge.setText(label);
+      this.actionBadge.setScale(tileScale > 0 ? Math.max(1, 1 / tileScale) : 1);
+    }
     return this;
   }
 

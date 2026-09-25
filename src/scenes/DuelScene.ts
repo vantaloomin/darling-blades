@@ -103,21 +103,29 @@ import { addKeywordGlossaryPanel } from '../ui/KeywordGlossaryPanel';
 import { queueAchievementUnlockToasts } from '../ui/achievementToast';
 import { Toast } from '../ui/Toast';
 import { VersusBumper } from '../ui/VersusBumper';
-import { combatForecastCopy, defeatReasonCopy, resultReasonCopy } from '../ui/duelCopy';
+import { combatForecastCopy, concedeConfirmLabel, defeatReasonCopy, resultReasonCopy } from '../ui/duelCopy';
 import {
+  attackButtonLabel,
+  attackDeclaration,
   CARD_TRAVEL_MOTION,
+  CONCEDE_ARM_MS,
   DUTY_ACTION_LABEL,
   DUTY_CANCEL_LABEL,
   DUTY_PLAYER_LABELS,
   dutyBlockedCopy,
+  dutyEffectText,
   dutyNarration,
   dutyTargetsNeedPicker,
   dutyWindowReason,
   type DutyAction,
+  forcedAttackNotice,
+  permanentActionLabel,
+  rageMustAttackNotice,
+  refusedMoveLine,
   sacrificeCastChoices,
   type SacrificeCastChoice,
-  OPPONENT_RESERVE_PILE_LAYOUT,
   TARGET_ARROW_HEAD_LENGTH,
+  undoBlockedReason,
   hauntlinkActionLabel,
   graveActionChoice,
   hauntlinkOverlap,
@@ -131,7 +139,9 @@ import {
   targetPromptTitle,
   type LandDropGuardInput,
   targetRingTone,
+  toggleAttacker,
 } from '../ui/duelPresentation';
+import { DUEL_LAYOUT, LIFE_BADGE_SIZE, LIFE_TARGET_RING, SEVERED_PILE_HIT } from '../ui/duelLayout';
 import { shouldPlayVersusBumper, versusLeitmotifPitch } from '../ui/versusBumperPresentation';
 import { activeVisibleSavedDeck } from '../ui/deckBuilderHelpers';
 import { ModalGuard } from '../ui/Modal';
@@ -222,71 +232,11 @@ let contextMenuDisabled = false;
 const AUTOSKIP_INPUT_LOCK_MS = 280;
 
 /**
- * "Immersive fan" layout (wireframe 1a, 2026-07-04), 1280×720 design res:
- * a mirrored opponent play mat on top (portrait, life, icon piles,
- * mana and a full zone plate), two inset battlefield zone plates (each
- * holding its land row at the outer edge and its creature row at the inner
- * edge, Arena-style), a sparse left control rail, and a bottom stage: commander
- * portrait (bottom-left), arced hand fan (center), smart-button cluster +
- * piles (right). The backdrop art shows through around the plates.
+ * "Immersive fan" layout (wireframe 1a, 2026-07-04): the board and HUD
+ * geometry lives in the Phaser-free src/ui/duelLayout.ts so its title-safe
+ * contract can be rule-tested.
  */
-const LAYOUT = {
-  /** Opponent's mirrored zone, narrowed for the top-right commander frame. */
-  oppZone: { x0: 108, x1: 1046, y0: 16, y1: 292 },
-  /** Foe mana strip takes the old land-stack anchor and steps leftward. */
-  oppManaStrip: { cy: 56, x0: 1006, step: 44, pipSize: 18 },
-  /** Non-creature permanent band shares the old top land lane, opposite mana. */
-  oppPermanentBand: { cy: 63, x0: 120, usable: 380 },
-  /** The opponent row stays at its audited y but centers in its narrower plate. */
-  oppCreatures: { cy: 200, x: 577, usable: 860 },
-  /** Between the zone plates: skip toast + stack readout float here. */
-  gap: { cy: 298, stackX: 400, stackY: 283 },
-  /** Player zone now matches the opponent plate's right edge for the sidebar. */
-  myZone: { x0: 108, x1: 1046, y0: 312, y1: 532 },
-  myCreatures: { cy: 404, x: 577, usable: 860 },
-  /** Your mana strip takes the old land-stack anchor and steps rightward. */
-  myManaStrip: { cy: 500, x0: 210, step: 54, pipSize: 22 },
-  /** Reserve piles sit immediately outside their mirrored mana strips. */
-  reservePiles: {
-    human: { x: 170, y: 500, cardScale: 0.12 },
-    opponent: OPPONENT_RESERVE_PILE_LAYOUT,
-  },
-  /** Non-creature permanent band shares the lower lane, opposite mana. */
-  myPermanentBand: { cy: 500, x1: 1006, usable: 380 },
-  // restY is computed in syncHand to anchor the fan's bottom near y=714 for
-  // the active scale; the hover lift is computed per card so the raised
-  // zone's bottom edge matches the resting zone's (no orphaned-pointer
-  // flicker band — adversarial review 2026-07-04).
-  /** Commander portrait frame (top-left anchored, rises from screen bottom). */
-  portrait: { x: 14, y: 540, w: 200, h: 180 },
-  /** Your targetable life badge: inside the portrait's upper-left corner. */
-  myLife: { x: 40, y: 566 },
-  /** Mirrored commander frame and its targetable life badge. */
-  oppPortrait: { x: 1056, y: 8, w: 200, h: 180 },
-  /** Foe targetable life badge: upper-right, clear of the portrait name plate. */
-  oppLife: { x: 1230, y: 42 },
-  /** Command-zone cards sit in the portrait's board-facing gap, with attached controls. */
-  darlingZone: {
-    human: {
-      x: 114, y: 476, labelX: 114, labelY: 420, taxX: 152, taxY: 422,
-      castX: 114, castY: 528, payDownX: 200, payDownY: 452,
-    },
-    opponent: {
-      x: 1156, y: 242, labelX: 1156, labelY: 194, taxX: 1220, taxY: 194,
-      castX: 1156, castY: 0, payDownX: 0, payDownY: 0,
-    },
-  },
-  /** Turn chip atop the phase track — all turn info lives in one column. */
-  turnPill: { x: 1113, y: 292 },
-  /** Display-only phase track in the right sidebar above End Turn. */
-  phaseTrack: { x: 1113, firstRowY: 326, rowStep: 34 },
-  /** Right-side control cluster: smart button · ⏭ End Turn chip (top→bottom). */
-  cluster: { x: 1108, passY: 536, endTurnY: 639, passR: 46 },
-  /** Opponent hand/grave/deck icon stack in the left pile column. */
-  oppPiles: { x: 38, handY: 40, graveY: 110, deckY: 180, severedY: 250 },
-  /** Your deck/grave icon stack, with a hidden severed slot reserved above deck. */
-  piles: { x: 1242, severedY: 482, deckY: 552, graveY: 622 },
-} as const;
+const LAYOUT = DUEL_LAYOUT;
 
 const SEVER_ENABLED = true;
 const BOARD_CENTER_X = 640;
@@ -300,7 +250,6 @@ const CARRY_HAND_TOP_Y = 560;
 const STACK_X = 1085;
 const STACK_Y = 372;
 const STACK_DROP: StackRect = { x: STACK_X, y: STACK_Y, halfW: 95, halfH: 125 };
-const LIFE_BADGE_SIZE = 40;
 const COLOR_SORT: readonly ManaColor[] = ['W', 'U', 'B', 'R', 'G', 'C'];
 const ROW_GUTTER = 6;
 const PERMANENT_BAND_SCALE = 0.55;
@@ -358,6 +307,12 @@ export class DuelScene extends Phaser.Scene {
   private duel!: Game;
   /** One-deep pre-action snapshot for local Undo; null when undo is unavailable. */
   private undoSnapshot: Game | null = null;
+  /**
+   * Why Undo is off after your last action: it showed you a card that was
+   * hidden before it (undoBlockedReason). Null whenever that action could be
+   * taken back, and cleared wherever the snapshot itself dies.
+   */
+  private undoBlocked: string | null = null;
   /** Replay recording for this duel (src/meta/Replay.ts); null = not recorded (tutorial). */
   private replayDraft: ReplayDraft | null = null;
   /** Read-only playback state. A replay never shares the recorder draft. */
@@ -800,6 +755,7 @@ export class DuelScene extends Phaser.Scene {
     this.blockAssignments = [];
     this.pendingBlocker = null;
     this.undoSnapshot = null;
+    this.undoBlocked = null;
     this.replayDraft = null;
     // Scene instances are REUSED on restart: a stale aiTimer reference from an
     // abandoned duel (left mid-AI-decision) points at the dead clock and its
@@ -1617,8 +1573,8 @@ export class DuelScene extends Phaser.Scene {
   ): void {
     ring.clear();
     if (!targetable) return;
-    const half = LIFE_BADGE_SIZE / 2 + 3;
-    ring.lineStyle(3, colorInt(color), 0.98);
+    const half = LIFE_BADGE_SIZE / 2 + LIFE_TARGET_RING.inset;
+    ring.lineStyle(LIFE_TARGET_RING.stroke, colorInt(color), 0.98);
     ring.strokeRoundedRect(pos.x - half, pos.y - half, half * 2, half * 2, theme.radius.control + 2);
   }
 
@@ -1646,7 +1602,13 @@ export class DuelScene extends Phaser.Scene {
         if (!p.rightButtonReleased()) this.showZoneModal(AI, 'severed');
       },
     }).setVisible(SEVER_ENABLED);
-    if (this.oppSeveredPile.inputZone) inflateHitArea(this.oppSeveredPile.inputZone, 90, 90);
+    // Both severed piles sit on the frame line; their wide touch target leans
+    // outward so it never reaches over the battlefield plate or the smart button.
+    if (this.oppSeveredPile.inputZone) {
+      inflateHitArea(this.oppSeveredPile.inputZone, SEVERED_PILE_HIT.size, SEVERED_PILE_HIT.size, {
+        biasX: -SEVERED_PILE_HIT.outwardBias,
+      });
+    }
     this.oppReservePile = new PileView(
       this,
       LAYOUT.reservePiles.opponent.x,
@@ -1661,7 +1623,11 @@ export class DuelScene extends Phaser.Scene {
         if (!p.rightButtonReleased()) this.showZoneModal(HUMAN, 'severed');
       },
     }).setVisible(SEVER_ENABLED);
-    if (this.mySeveredPile.inputZone) inflateHitArea(this.mySeveredPile.inputZone, 90, 90);
+    if (this.mySeveredPile.inputZone) {
+      inflateHitArea(this.mySeveredPile.inputZone, SEVERED_PILE_HIT.size, SEVERED_PILE_HIT.size, {
+        biasX: SEVERED_PILE_HIT.outwardBias,
+      });
+    }
     this.myDeckPile = new PileView(this, LAYOUT.piles.x, LAYOUT.piles.deckY, 'deck', {
       onTap: (p) => {
         if (!p.rightButtonReleased()) this.showZoneModal(HUMAN, 'deck');
@@ -1857,14 +1823,16 @@ export class DuelScene extends Phaser.Scene {
     // one tap deeper in the menu, decluttering the board HUD (playtest
     // feedback). Same inboard corner spot (audited off the edge-gesture zone).
     this.menuBtn = this.add
-      .text(1206, 688, '⚙ Menu', { fontFamily: 'Inter, Arial, sans-serif', fontSize: '12px', color: '#c9bde0' })
+      .text(LAYOUT.menu.x, LAYOUT.menu.y, '⚙ Menu', { fontFamily: 'Inter, Arial, sans-serif', fontSize: '12px', color: '#c9bde0' })
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
     bindTapButton(this, this.menuBtn, (p) => {
       if (p.rightButtonReleased()) return; // right-click is inspect/cancel
       this.showPauseMenu();
     });
-    inflateHitArea(this.menuBtn, 90, 90);
+    // The 90px target leans 20px down (toward the screen edge) so its top
+    // stays clear of your grave pile directly above it.
+    inflateHitArea(this.menuBtn, 90, 90, { biasY: 20 });
 
     // Auto-skip notice: floats in the gap between the two zone plates.
     // Strictly NON-interactive — never setInteractive'd, so there is no Text
@@ -1910,11 +1878,13 @@ export class DuelScene extends Phaser.Scene {
     });
     inflateHitArea(this.endTurnBtn, 90, 90);
 
-    // Undo (F11): take back your last committed action while it's still your
+    // Undo: take back your last committed action while it's still your
     // decision — before priority passes to the AI or combat animates. It is
-    // the left rail's only control besides the turn pill.
+    // the left rail's only control besides the turn pill. After an action
+    // that showed you a hidden card it stays in place, dimmed, and a tap (or
+    // a mouse hover) says why; alpha only, so the Text hit area never resets.
     this.undoBtn = this.add
-      .text(52, 410, '↶ Undo', {
+      .text(LAYOUT.undo.x, LAYOUT.undo.y, '↶ Undo', {
         fontFamily: 'Cinzel, Georgia, serif',
         fontSize: '14px',
         color: '#e8def7',
@@ -1927,7 +1897,14 @@ export class DuelScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     bindTapButton(this, this.undoBtn, (p) => {
       if (p.rightButtonReleased()) return;
+      if (this.undoBlocked) {
+        this.showTransientNotice(this.undoBlocked);
+        return;
+      }
       this.undoLastAction();
+    });
+    this.undoBtn.on('pointerover', (p: Phaser.Input.Pointer) => {
+      if (!p.wasTouch && this.undoBlocked && this.undoBtn.visible) this.showTransientNotice(this.undoBlocked);
     });
     inflateHitArea(this.undoBtn, 90, 90);
 
@@ -2073,6 +2050,7 @@ export class DuelScene extends Phaser.Scene {
       const events = this.duel.submit(step.p, step.a);
       this.rememberRetellAction(step.a, events);
       this.undoSnapshot = null;
+      this.undoBlocked = null;
       this.selectedAttackers.clear();
       this.blockAssignments = [];
       this.pendingBlocker = null;
@@ -2172,6 +2150,11 @@ export class DuelScene extends Phaser.Scene {
   // Action submission + AI loop
   // ---------------------------------------------------------------------
 
+  /** Your able attackers that Rage compels right now; empty without Rage. */
+  private rageAttackers(): number[] {
+    return compelledAttackers(this.duel.state.battlefield, CARD_DB, HUMAN);
+  }
+
   private isHumanTurnDecision(): boolean {
     const a = this.duel.awaiting;
     return 'player' in a && a.player === HUMAN;
@@ -2180,6 +2163,7 @@ export class DuelScene extends Phaser.Scene {
   private act(action: Action): void {
     if (this.versusBumperActive || this.replayMode || this.ended) return;
     if (this.animatingCombat) return; // swallow input while a combat sequence plays
+    let submitted = false;
     try {
       const playedCardId = this.actionCardId(action);
       const playedSource = this.actionOrigin(action);
@@ -2195,6 +2179,7 @@ export class DuelScene extends Phaser.Scene {
         if (types.includes('charm')) this.tutCharmCast = true;
       }
       const events = this.duel.submit(HUMAN, action);
+      submitted = true;
       // Anonymous card tally (src/net/signals.ts), after the submit so a
       // rejected action never counts. Only real plays: `skim` discards the card
       // rather than playing it, and the tutorial's scripted line would bias the
@@ -2205,7 +2190,18 @@ export class DuelScene extends Phaser.Scene {
       if (this.tutorial && action.type === 'declareBlockers' && action.blocks.length > 0) {
         this.tutBlocked = true;
       }
-      this.undoSnapshot = snapshot;
+      // An action that showed you a card hidden before it (a draw, a look at
+      // your deck, a card leaving a deck or the foe's hand) cannot be taken
+      // back: Undo would replay the decision knowing that card.
+      const awaiting = this.duel.awaiting;
+      this.undoBlocked = undoBlockedReason({
+        events,
+        player: HUMAN,
+        deckBefore: snapshot.state.players[HUMAN].deck.length,
+        deckAfter: this.duel.state.players[HUMAN].deck.length,
+        lookingAtHiddenCards: awaiting.kind === 'foresee' && awaiting.player === HUMAN,
+      });
+      this.undoSnapshot = this.undoBlocked ? null : snapshot;
       this.selectedAttackers.clear();
       this.blockAssignments = [];
       this.pendingBlocker = null;
@@ -2214,7 +2210,18 @@ export class DuelScene extends Phaser.Scene {
       this.processEvents(events);
       this.afterEvents();
     } catch (err) {
-      this.log(String((err as Error).message));
+      // The engine's message ("Illegal action … by P0: …") is a diagnostic:
+      // it goes to the console, in dev and prod, never into History. A move
+      // the rules refused (the engine validates before it mutates anything)
+      // gets one plain line there instead. Any other failure is a fault, not
+      // the player's move: a console error only, nothing in History.
+      const raw = String((err as Error).message);
+      if (!submitted && validateAction(this.duel.instanceState, CARD_DB, HUMAN, action) !== null) {
+        console.warn(`[duel] move refused: ${raw}`);
+        this.log(refusedMoveLine(this.duel.state, CARD_DB, HUMAN, action));
+      } else {
+        console.error(`[duel] ${submitted ? 'after an accepted move' : 'while submitting a move'}: ${raw}`, err);
+      }
     }
   }
 
@@ -2508,11 +2515,16 @@ export class DuelScene extends Phaser.Scene {
     this.sync();
   }
 
-  /** Undo is offered only while the snapshot is valid and it is your decision. */
+  /**
+   * Undo is offered only while the snapshot is valid and it is your decision.
+   * When your last action revealed a card, the button keeps its place, dimmed
+   * like any disabled control, so its absence never reads as a glitch.
+   */
   private syncUndoButton(): void {
-    this.undoBtn.setVisible(
-      !this.ended && !this.animatingCombat && !this.isMandatoryChoice() && this.undoSnapshot !== null && this.isHumanTurnDecision(),
-    );
+    const decision = !this.ended && !this.animatingCombat && !this.isMandatoryChoice() && this.isHumanTurnDecision();
+    this.undoBtn
+      .setVisible(decision && (this.undoSnapshot !== null || this.undoBlocked !== null))
+      .setAlpha(this.undoBlocked ? theme.alpha.subtle : 1);
   }
 
   /** Live combat ledger while you assign blocks (you are defending). */
@@ -2726,6 +2738,7 @@ export class DuelScene extends Phaser.Scene {
     // choice. Normal AI pacing resumes at the first mulligan decision.
     if (a.kind === 'choosePlayDraw') return;
     this.undoSnapshot = null; // priority has left you — the local Undo is no longer valid
+    this.undoBlocked = null;
     if (this.aiTimer) return;
     this.aiTimer = this.time.delayedCall(400, () => {
       this.aiTimer = null;
@@ -2792,7 +2805,7 @@ export class DuelScene extends Phaser.Scene {
       case 'passStep':
         return 'Action phase skipped (no playable cards)';
       case 'declareAttackers':
-        return 'Combat skipped (no able attackers)';
+        return forcedAttackNotice(forced.attackers.length);
       case 'declareBlockers':
         return 'No blockers available';
       default:
@@ -3001,7 +3014,11 @@ export class DuelScene extends Phaser.Scene {
         break;
       }
       case 'activated': {
-        this.log(dutyNarration(this.cardRef(e.cardId), e.player === HUMAN ? 'you' : 'opponent'), e.cardId);
+        this.log(dutyNarration(
+          this.cardRef(e.cardId),
+          e.player === HUMAN ? 'you' : 'opponent',
+          dutyEffectText(def(CARD_DB, e.cardId), e.abilityIndex),
+        ), e.cardId);
         const view = this.views.get(e.iid);
         if (e.player !== HUMAN) {
           // The gold 'eligible' ring means "you can act with this", which reads
@@ -3254,6 +3271,7 @@ export class DuelScene extends Phaser.Scene {
 
     this.animatingCombat = true;
     this.undoSnapshot = null; // combat is resolving — no take-backs mid-sequence
+    this.undoBlocked = null;
     const dir: -1 | 1 = this.duel.state.activePlayer === HUMAN ? -1 : 1;
     for (const step of plan.steps) {
       this.combatTimers.push(
@@ -3810,6 +3828,13 @@ export class DuelScene extends Phaser.Scene {
     const view = this.duel.viewFor(HUMAN);
     this.refreshDutyActions();
     this.boardTargets.clear();
+    // Rage: the creatures that must attack enter your declaration already
+    // chosen (ring and lift), so the button never offers a skip the engine
+    // would refuse. The engine's compelled list is empty without Rage.
+    const decision = this.duel.awaiting;
+    if (!this.replayMode && decision.kind === 'declareAttackers' && decision.player === HUMAN) {
+      this.selectedAttackers = new Set(attackDeclaration(this.selectedAttackers, this.rageAttackers()));
+    }
 
     // HUD numbers
     this.hud.myLife.setText(`${st.players[HUMAN].life}`);
@@ -4008,8 +4033,14 @@ export class DuelScene extends Phaser.Scene {
       }
       view.setKeywords(stats.keywords);
       view.setAuraCount(perm.attachments.length);
+      // The gold "eligible" ring alone reads the same for an attacker, a
+      // Hauntlink move and a Duty; the chip names which (legal Duties are
+      // enumerated for your own permanents only).
       const linkActions = this.hauntlinkActionsFor(perm.iid);
-      view.setActionLabel(hauntlinkActionLabel(linkActions.length > 0, perm.attachedTo !== undefined));
+      view.setActionLabel(permanentActionLabel(
+        hauntlinkActionLabel(linkActions.length > 0, perm.attachedTo !== undefined),
+        this.activateActionsFor(perm.iid).length > 0,
+      ), scale);
       view.setHighlight(this.highlightFor(perm));
       // Summoning-sickness affordance (engine is source of truth: entered
       // this turn + no haste). Only creatures can be sick; the call resets
@@ -4091,7 +4122,10 @@ export class DuelScene extends Phaser.Scene {
         }
         view.setHauntlinkBroken(this.brokenHauntlinks.has(link.iid));
         const linkActions = this.hauntlinkActionsFor(link.iid);
-        view.setActionLabel(hauntlinkActionLabel(linkActions.length > 0, true));
+        view.setActionLabel(permanentActionLabel(
+          hauntlinkActionLabel(linkActions.length > 0, true),
+          this.activateActionsFor(link.iid).length > 0,
+        ), scale);
         view.setHighlight(this.highlightFor(link));
       });
     }
@@ -4463,7 +4497,7 @@ export class DuelScene extends Phaser.Scene {
           color: theme.colors.gold,
           backgroundColor: theme.colors.panelFill,
           padding: { x: 5, y: 2 },
-        }).setOrigin(0.5).setDepth(10);
+        }).setOrigin(layout.taxOriginX, 0.5).setDepth(10);
         this.darlingZoneDecor.push(chip);
       }
       if (player !== HUMAN) continue;
@@ -5145,7 +5179,7 @@ export class DuelScene extends Phaser.Scene {
         break;
       }
       case 'declareAttackers':
-        showButton(this.selectedAttackers.size > 0 ? `Attack (${this.selectedAttackers.size})` : 'Skip Combat');
+        showButton(attackButtonLabel(attackDeclaration(this.selectedAttackers, this.rageAttackers())));
         break;
       case 'declareBlockers': {
         if (this.blockAssignments.length > 0) {
@@ -5390,7 +5424,7 @@ export class DuelScene extends Phaser.Scene {
         break;
       }
       case 'declareAttackers':
-        this.act({ type: 'declareAttackers', attackers: [...this.selectedAttackers] });
+        this.act({ type: 'declareAttackers', attackers: attackDeclaration(this.selectedAttackers, this.rageAttackers()) });
         break;
       case 'declareBlockers': {
         // A lone blocker on a Dreaded attacker is a partial assignment the
@@ -6075,8 +6109,9 @@ export class DuelScene extends Phaser.Scene {
 
     if (a.kind === 'declareAttackers') {
       if (!eligibleAttackers(st.battlefield, CARD_DB, HUMAN).includes(iid)) return;
-      if (this.selectedAttackers.has(iid)) this.selectedAttackers.delete(iid);
-      else this.selectedAttackers.add(iid);
+      const toggle = toggleAttacker(this.selectedAttackers, iid, this.rageAttackers());
+      this.selectedAttackers = toggle.selected;
+      if (toggle.refused) this.showTransientNotice(rageMustAttackNotice(def(CARD_DB, perm.cardId).name));
       this.sync();
       return;
     }
@@ -6743,10 +6778,18 @@ export class DuelScene extends Phaser.Scene {
           concede.setLabel('Not your turn to concede');
           return;
         }
-        // Two-tap (a gauntlet loss ends the run) unless opted out.
+        // Two-tap (a gauntlet loss ends the run) unless opted out. The armed
+        // state stands down after a few seconds unanswered, as Gauntlet's
+        // Abandon and Limited's Retire do; a closed menu's timer finds its
+        // button gone and leaves the next menu alone.
         if (Services.save.data.settings.confirmDestructive && !this.concedeArmed) {
           this.concedeArmed = true;
-          concede.setLabel('Tap to confirm');
+          concede.setLabel(concedeConfirmLabel(p.wasTouch));
+          this.time.delayedCall(CONCEDE_ARM_MS, () => {
+            if (!concede.container.active || !this.concedeArmed) return;
+            this.concedeArmed = false;
+            concede.setLabel('Concede');
+          });
           return;
         }
         this.tearDownPauseMenu();
@@ -6757,6 +6800,23 @@ export class DuelScene extends Phaser.Scene {
 
     this.pauseOverlay = c;
     this.pauseGuard.open(this.overlayGuardTargets());
+  }
+
+  /**
+   * First press on an opening-overlay Concede (plain Text buttons, rebuilt
+   * with each overlay): name the consequence in the armed red, then stand down
+   * after CONCEDE_ARM_MS unanswered. A rebuilt overlay has destroyed `btn`,
+   * so its timer does nothing. Relabelling resets a Text hit area; regrow it.
+   */
+  private armOverlayConcede(btn: Phaser.GameObjects.Text, touch: boolean, disarm: () => void): void {
+    btn.setText(concedeConfirmLabel(touch)).setColor(theme.colors.dangerArmed);
+    inflateHitArea(btn, 90, 90);
+    this.time.delayedCall(CONCEDE_ARM_MS, () => {
+      if (!btn.active) return;
+      disarm();
+      btn.setText('Concede').setColor('#e0a0a0');
+      inflateHitArea(btn, 90, 90);
+    });
   }
 
   /** Destroy the pause overlay + restore board input (no play-resume side effects). */
@@ -7733,15 +7793,14 @@ export class DuelScene extends Phaser.Scene {
         })
         .setOrigin(0.5)
         .setInteractive({ useHandCursor: true });
-      bindTapButton(this, btn, () => {
+      bindTapButton(this, btn, (p) => {
         if (shuffling) return;
         if (concede) {
           // Escape hatch (e.g. an unkeepable hand at the mulligan cap). Shares
           // the confirmDestructive two-tap policy with the corner Concede.
           if (Services.save.data.settings.confirmDestructive && !overlayConcedeArmed) {
             overlayConcedeArmed = true;
-            btn.setText('Tap to confirm').setColor('#f08a8a');
-            inflateHitArea(btn, 90, 90); // relabeled — regrow the custom hit area
+            this.armOverlayConcede(btn, p.wasTouch, () => { overlayConcedeArmed = false; });
             return;
           }
           this.act({ type: 'concede' });
@@ -8020,13 +8079,12 @@ export class DuelScene extends Phaser.Scene {
         })
         .setOrigin(0.5)
         .setInteractive({ useHandCursor: true });
-      bindTapButton(this, btn, () => {
+      bindTapButton(this, btn, (p) => {
         if (concede) {
           // Shares the confirmDestructive two-tap policy with the corner Concede.
           if (Services.save.data.settings.confirmDestructive && !overlayConcedeArmed) {
             overlayConcedeArmed = true;
-            btn.setText('Tap to confirm').setColor('#f08a8a');
-            inflateHitArea(btn, 90, 90);
+            this.armOverlayConcede(btn, p.wasTouch, () => { overlayConcedeArmed = false; });
             return;
           }
           this.act({ type: 'concede' });

@@ -1,11 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import {
   combatForecastCopy,
+  concedeConfirmLabel,
   defeatReasonCopy,
   resultReasonCopy,
 } from '../../src/ui/duelCopy';
 
 describe('Duel player-facing copy', () => {
+  it('asks a touch player to tap and a mouse player to click to confirm Concede', () => {
+    expect(concedeConfirmLabel(true)).toMatch(/^Tap /);
+    expect(concedeConfirmLabel(true)).not.toMatch(/click/i);
+    expect(concedeConfirmLabel(false)).toMatch(/^Click /);
+    for (const touch of [true, false]) expect(concedeConfirmLabel(touch)).toMatch(/concede/);
+  });
+
   it.each([
     [{ attackers: 1, damage: 0, lifeBefore: 8, lifeAfter: 8, lethal: false }, '⚔ 1 attacker · Incoming 0 · Life 8 → 8'],
     [{ attackers: 2, damage: 3, lifeBefore: 8, lifeAfter: 5, lethal: false }, '⚔ 2 attackers · Incoming 3 · Life 8 → 5'],
