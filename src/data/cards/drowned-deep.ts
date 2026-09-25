@@ -232,7 +232,8 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     flavor: 'She married the tide. The tide has been very attentive.',
     set: 'drowned-deep',
   },
-  // Duty: draw a card, then discard a card.
+  // Duty: draw 2 cards, then discard 2 cards.
+  // Owner pick 2026-09-24, same-set duplicate pass: four blue {2}{U} looters printed one text.
   {
     id: 'dd-drowned-scholar',
     name: 'Drowned Scholar of the Reach',
@@ -242,7 +243,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['U'],
     attack: 1,
     defense: 4,
-    activated: { cost: { tap: true }, ops: [{ op: 'draw', n: 1 }, { op: 'discard', n: 1, who: 'self' }] },
+    activated: { cost: { tap: true }, ops: [{ op: 'draw', n: 2 }, { op: 'discard', n: 2, who: 'self' }] },
     rarity: 'ssr',
     flavor: 'Everything she knows she read underwater, and it has not stopped being true.',
     set: 'drowned-deep',
@@ -380,7 +381,8 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     flavor: 'She reads the tide the way the town reads scripture, and with the same results.',
     set: 'drowned-deep',
   },
-  // Duty: draw a card, then discard a card.
+  // Duty: Foresee 1, then draw a card, then discard a card.
+  // Owner pick 2026-09-24, same-set duplicate pass: was Salvage Diver's exact twin.
   {
     id: 'dd-net-mender',
     name: 'Net-Mender of Low Street',
@@ -390,7 +392,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['U'],
     attack: 1,
     defense: 3,
-    activated: { cost: { tap: true }, ops: [{ op: 'draw', n: 1 }, { op: 'discard', n: 1, who: 'self' }] },
+    activated: { cost: { tap: true }, ops: [{ op: 'foresee', n: 1 }, { op: 'draw', n: 1 }, { op: 'discard', n: 1, who: 'self' }] },
     rarity: 'sr',
     flavor: 'She mends the nets with what the nets bring in, and the nets have started bringing in thread.',
     set: 'drowned-deep',
@@ -667,7 +669,8 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     flavor: 'The tide tables are printed a year ahead and she corrects them by hand.',
     set: 'drowned-deep',
   },
-  // Duty: draw a card, then discard a card.
+  // Duty: grind 2, then draw a card, then discard a card.
+  // Owner pick 2026-09-24, same-set duplicate pass: was Net-Mender's exact twin; the list line is Wreck-Diver's.
   {
     id: 'dd-harbour-looter',
     name: 'Salvage Diver',
@@ -677,9 +680,9 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['U'],
     attack: 1,
     defense: 3,
-    activated: { cost: { tap: true }, ops: [{ op: 'draw', n: 1 }, { op: 'discard', n: 1, who: 'self' }] },
+    activated: { cost: { tap: true }, ops: [{ op: 'grind', n: 2, who: 'self' }, { op: 'draw', n: 1 }, { op: 'discard', n: 1, who: 'self' }] },
     rarity: 'r',
-    flavor: 'Everything down there belonged to someone, and she keeps a list.',
+    flavor: 'For every cup the harbour gives back, it keeps two. She has stopped haggling.',
     set: 'drowned-deep',
   },
   // Skyborne. Arrives: grind self 2.
@@ -810,7 +813,8 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     flavor: 'The church still holds services. The congregation has changed.',
     set: 'drowned-deep',
   },
-  // Duty: draw a card, then discard a card.
+  // Deathblade. Duty: draw a card, then discard a card.
+  // Owner pick 2026-09-24, same-set duplicate pass: was Low Street Looter in black.
   {
     id: 'dd-cellar-witch',
     name: 'Cellar-Witch of Low Street',
@@ -820,9 +824,10 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['B'],
     attack: 1,
     defense: 2,
+    keywords: ['deathblade'],
     activated: { cost: { tap: true }, ops: [{ op: 'draw', n: 1 }, { op: 'discard', n: 1, who: 'self' }] },
     rarity: 'r',
-    flavor: 'Her cellar is dry, which on Low Street is its own kind of witchcraft.',
+    flavor: 'The salt line keeps the damp out. The jars are for whoever steps over it.',
     set: 'drowned-deep',
   },
   // Tithe. Dies: opponent loses 2 life.
@@ -921,7 +926,8 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     flavor: 'Coral grows a finger\'s width a year, unless she asks.',
     set: 'drowned-deep',
   },
-  // Arrives: create a 2/2 green Kelp Shade token.
+  // Sentinel. Arrives: create a 2/2 green Kelp Shade token.
+  // Owner pick 2026-09-24, same-set duplicate pass: was Kelp-Tender with +1 Attack.
   {
     id: 'dd-kelp-shade-warden',
     name: 'Kelp-Shade Warden',
@@ -931,6 +937,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['G'],
     attack: 2,
     defense: 3,
+    keywords: ['sentinel'],
     abilities: [{ when: 'arrives', ops: [{ op: 'createToken', token: 'tok-kelp-shade', count: 1 }] }],
     rarity: 'r',
     flavor: 'The marsh keeps its own watch, and she is its liaison.',
@@ -2037,7 +2044,8 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     flavor: 'She talks to the reeds and the reeds talk back, at length.',
     set: 'drowned-deep',
   },
-  // Tithe. Overrun.
+  // Tithe. Overrun. Warding Gaze.
+  // Owner pick 2026-09-24, same-set duplicate pass: was Tidepool Colossus at one mana more.
   {
     id: 'dd-old-growth-horror',
     name: 'Old-Growth Horror',
@@ -2048,7 +2056,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     attack: 6,
     defense: 7,
     tithe: { per: 2 },
-    keywords: ['overrun'],
+    keywords: ['overrun', 'wardingGaze'],
     rarity: 'c',
     flavor: 'The forest that was here before the town, and it has a grudge.',
     set: 'drowned-deep',
@@ -2147,7 +2155,8 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     flavor: 'The garden flooded. The garden thrived.',
     set: 'drowned-deep',
   },
-  // Duty, {2}{G}: create a 2/2 green Kelp Shade token.
+  // Warding Gaze. Duty, {2}{G}: create a 2/2 green Kelp Shade token.
+  // Owner pick 2026-09-24, same-set duplicate pass: was Kelp-Shade Caller at dearer costs.
   {
     id: 'dd-reed-caller',
     name: 'Reed-Caller',
@@ -2157,6 +2166,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['G'],
     attack: 1,
     defense: 4,
+    keywords: ['wardingGaze'],
     activated: { cost: { tap: true, mana: cost(2, 'G') }, ops: [{ op: 'createToken', token: 'tok-kelp-shade', count: 1 }] },
     rarity: 'c',
     flavor: 'She whistles and the reeds come running.',
@@ -2375,7 +2385,8 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     flavor: 'Thirty years of brawls, and she has never once lost one on the breakwater.',
     set: 'drowned-deep',
   },
-  // Duty, {1}: draw a card, then discard a card.
+  // Warcry. Duty, {1}: draw a card, then discard a card.
+  // Owner pick 2026-09-24, same-set duplicate pass: was Low Street Witch in red.
   {
     id: 'dd-wreck-diver',
     name: 'Wreck-Diver',
@@ -2385,6 +2396,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['R'],
     attack: 1,
     defense: 1,
+    keywords: ['warcry'],
     activated: { cost: { tap: true, mana: cost(1) }, ops: [{ op: 'draw', n: 1 }, { op: 'discard', n: 1, who: 'self' }] },
     rarity: 'c',
     flavor: 'Everything down there is hers, and she keeps a list.',
@@ -2708,7 +2720,8 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     flavor: 'The trees went under a century ago and kept growing. Nobody has told them.',
     set: 'drowned-deep',
   },
-  // Duty, {1}{R}: damage target creature 1.
+  // Duty, {1}{R}: damage any target 1.
+  // Owner pick 2026-09-24, same-set duplicate pass: was Forge-Lamp's exact twin.
   {
     id: 'dd-wrecker-lantern',
     name: 'Wrecker\'s Lantern',
@@ -2716,7 +2729,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     subtypes: [],
     cost: cost(2),
     colors: ['R'],
-    activated: { cost: { tap: true, mana: cost(1, 'R') }, targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 1, to: 'target' }] },
+    activated: { cost: { tap: true, mana: cost(1, 'R') }, targets: [{ what: 'any' }], ops: [{ op: 'damage', n: 1, to: 'target' }] },
     rarity: 'sr',
     flavor: 'Hang it on the wrong rock, wait, and the sea does the rest.',
     set: 'drowned-deep',
@@ -3095,7 +3108,8 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     flavor: 'Green flame on wet wood. It should not burn. It does.',
     set: 'drowned-deep',
   },
-  // Damage target creature 4. Damage opponent 2. Whispers {R}{R}.
+  // Damage target creature 4. Foresee 2. Whispers {R}{R}.
+  // Owner pick 2026-09-24, same-set duplicate pass: was Storm Surge with a dearer Whispers.
   {
     id: 'dd-lightning-on-the-water',
     name: 'Lightning on the Water',
@@ -3104,7 +3118,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     cost: cost(1, 'RR'),
     colors: ['R'],
     whispers: { cost: cost(0, 'RR') },
-    abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 4, to: 'target' }, { op: 'damage', n: 2, to: 'opponent' }] }],
+    abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 4, to: 'target' }, { op: 'foresee', n: 2 }] }],
     rarity: 'r',
     flavor: 'The whole harbour lit up at once, and for a second everyone saw what was under it.',
     set: 'drowned-deep',
