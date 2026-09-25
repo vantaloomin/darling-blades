@@ -4,7 +4,7 @@ import { MediumAI } from '../../src/ai/MediumAI';
 import { HardAI } from '../../src/ai/HardAI';
 import * as combatPlans from '../../src/ai/combatPlans';
 import { makePersonality } from '../../src/ai/personality';
-import { cardValue, permValue } from '../../src/ai/value';
+import { activateActionValue, cardValue, permValue } from '../../src/ai/value';
 import { validateAction, type Action } from '../../src/engine/actions';
 import { Game } from '../../src/engine/Game';
 import type { PlayerView } from '../../src/engine/view';
@@ -483,6 +483,39 @@ describe('intended mechanics and draft behaviour', () => {
     requireLegal(board(), { type: 'castSpell', handIndex: 0, targets: [ref(21)] });
     requireLegal(board(), tapBlocker);
     for (const brain of [medium(), hard()]) expect(act(board(), brain)).toEqual(tapBlocker);
+  });
+
+  // docs/ai.md, Duty timing: every target that can reach the fight is screened for lethal, not only the best by impact.
+  it('Medium and Hard take a lethal pre-combat Duty on its lower-value target', () => {
+    // At 1 life their bear is the removal target by impact, but killing it
+    // leaves the 0/4 wall to absorb our 4/4 Overrun rhino; killing the wall
+    // lets the bear's block spill two through.
+    const board = () => fixture([], [...lands(2), body(10, 'rhino'), body(20, 'bear', 1), body(21, 'wall', 1),
+      body(30, 'kill_duty')], (state) => { state.players[1].life = 1; });
+    const killBear: Action = { type: 'activate', iid: 30, targets: [ref(20)] };
+    const killWall: Action = { type: 'activate', iid: 30, targets: [ref(21)] };
+    requireLegal(board(), killWall);
+    checked(() => {
+      const view = board().viewFor(0);
+      expect(activateActionValue(view, DB, killBear)).toBeGreaterThan(activateActionValue(view, DB, killWall));
+    });
+    for (const brain of [medium(), hard()]) expect(act(board(), brain)).toEqual(killWall);
+  });
+
+  // docs/ai.md, Duty timing: a lethal Duty comes before Preserve and a Hauntlink link, which spend its mana too.
+  it('Medium and Hard take a lethal pre-combat Duty with an empty hand, ahead of Preserve and a Hauntlink link', () => {
+    // Opponent at 4, one untapped blocker. The empty hand used to leave the
+    // ladder no cast step, so Preserve (and, on the second board, the link
+    // step that runs first) spent the Duty's mana.
+    const preserve = () => fixture([], [...lands(2), body(10, 'giant'), body(20, 'giant', 1), body(30, 'tap_duty')],
+      (state) => { state.players[1].life = 4; state.players[0].graveyard = ['preserve_bear']; });
+    const link = () => fixture([], [...lands(3), body(10, 'giant'), body(20, 'giant', 1), body(30, 'tap_duty'),
+      body(31, 'cost_link')], (state) => { state.players[1].life = 4; });
+    requireLegal(preserve(), { type: 'preserveCard', graveIndex: 0 });
+    requireLegal(link(), { type: 'linkHaunt', iid: 31, hostIid: 10 });
+    for (const board of [preserve, link]) {
+      for (const brain of [medium(), hard()]) expect(act(board(), brain)).toEqual(tapBlocker);
+    }
   });
 
   // docs/ai.md, Duty timing: damage main two deals just as well is no reason to spend a spell's mana now.

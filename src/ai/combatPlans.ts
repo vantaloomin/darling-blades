@@ -130,6 +130,53 @@ export function attackWeightInputs(
   };
 }
 
+/** What these attackers can deal (twinBlades twice): all of them unblocked,
+ * the biggest one alone, and the Overrun ones together (the most a changed
+ * block can add as spill). */
+export function attackReach(
+  bf: readonly Permanent[], db: CardDb, attackers: readonly number[],
+): { total: number; biggest: number; overrun: number } {
+  let total = 0;
+  let biggest = 0;
+  let overrun = 0;
+  for (const iid of attackers) {
+    const c = combatant(bf, db, iid);
+    const damage = fullDamage(c);
+    total += damage;
+    biggest = Math.max(biggest, damage);
+    if (c.trample) overrun += damage;
+  }
+  return { total, biggest, overrun };
+}
+
+/**
+ * Damage through an all-in attack against a cautious defender rather than
+ * the greedy block model: attackers are answered biggest first, each by an
+ * untapped creature that can still block it (the toughest against Overrun,
+ * the weakest otherwise, so a chump costs least), and only unblocked damage
+ * and Overrun spill over the blocker's toughness gets through. Dreaded is
+ * treated as blockable by one, which only makes the defender stronger.
+ */
+export function cautiousThrough(
+  bf: readonly Permanent[], db: CardDb, attackers: readonly number[], defender: PlayerId,
+): number {
+  const ordered = attackers.map((iid) => combatant(bf, db, iid)).filter((c) => c.attack > 0)
+    .sort((a, b) => fullDamage(b) - fullDamage(a));
+  const free = untappedBlockers(bf, db, defender).map((p) => combatant(bf, db, p.iid));
+  let through = 0;
+  for (const a of ordered) {
+    const able = free.filter((b) => canBlock(bf, db, defender, b.iid, a.iid));
+    if (able.length === 0) {
+      through += fullDamage(a);
+      continue;
+    }
+    const blocker = able.reduce((x, y) => a.trample ? (y.defense > x.defense ? y : x) : (y.defense < x.defense ? y : x));
+    free.splice(free.indexOf(blocker), 1);
+    if (a.trample) through += Math.max(0, fullDamage(a) - Math.max(0, blocker.defense));
+  }
+  return through;
+}
+
 /**
  * Choose attackers: unblockable and un-profitably-blockable creatures always
  * attack; contested ones attack when the expected gain (damage upside vs the

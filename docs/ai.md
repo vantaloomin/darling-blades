@@ -131,8 +131,9 @@ lookahead." Its rules:
   rule reads the redacted view and the legal menu only.
 - **Duty:** a tap-only Duty in main one unless its body wants to attack; a
   paid Duty in main one only when it buys the attack something (a lethal one
-  right after the lethal-spell check, ahead of removal), otherwise in main
-  two after developing (1.8.1, Duty timing below).
+  ahead of a Hauntlink link, Preserve and every cast unless a spell in hand
+  wins on its own), otherwise in main two after developing (1.8.1, Duty
+  timing below).
 
 Medium **deliberately does not model face-down information** beyond "open mana
 plus a demonstrated Charm = maybe a trick," and it never knowingly holds back
@@ -288,8 +289,8 @@ it exists to enable (review finding G9). The rule now:
   its Medium's through `morningContext`, so both brains price a Duty alike).
   `precombatDutyEdge` performs the Duty with the real engine on a
   determinized copy of the public position, so taps, lethal damage, pumps,
-  Marks, a mana creature spent on the payment and life loss land exactly as
-  they will; then the brain's own attack planner and the defender's block
+  Marks, a mana creature the action's payment taps and life loss land
+  exactly as they will; then the brain's own attack planner and the defender's block
   model price the attack on both boards. The Duty goes before combat when the
   attack becomes lethal only with it, or when its attack score rises by more
   than `PRECOMBAT_DUTY_MARGIN` (0.75 in `scoreAttack` units: two damage
@@ -306,27 +307,50 @@ it exists to enable (review finding G9). The rule now:
   board before the Duty (the optional `weightBoard` of `scoreAttack` and
   `chooseAttackers`); the new life totals answer only whether the real plan
   is now lethal.
-- **Cost.** One forecast per source and ability, on its best target by
-  impact among the targets that reach the fight (a blocker for one of our
-  attackers, one of those attackers, or a player); its other targets wait
-  for main two. None at all for a Duty whose ops cannot touch a fight (draw,
-  life gain, Foresee, tokens), when no creature of ours can attack, or while
-  `main` would first play a land, a reserve land or a Darling paydown. Hard's
+- **Cost.** One full forecast per source and ability, on its best target
+  by impact among the targets that reach the fight (a blocker for one of our
+  attackers, one of those attackers, or a player). Its other targets are
+  only screened for lethal, so a kill of their 0/4 wall that lets our
+  Overrun rhino spill for the game is found even when their bear is the
+  bigger removal target: first two bounds (every attacker unblocked, and the
+  all-in forecast before the Duty plus the biggest attacker, Overrun spill
+  and the Duty's own damage or pump) must reach the opponent's life; then
+  the Duty is performed on the copy and every eligible attacker is sent,
+  and the damage must reach their life against the greedy block model and
+  against a cautious defender (`cautiousThrough`: biggest attackers answered
+  first, a chump where one exists, only unblocked damage and Overrun spill
+  through). Only then does the full forecast run, and decide. The cautious
+  bar is what keeps the search honest: these are the targets a greedy
+  defender mishandles. On the review's 1,500 removal-in-hand boards played
+  against Hard's blocks, the greedy test alone changed 28 of Medium's
+  choices for 4 better and 23 worse games (13 new losses, 1 new win); with
+  the cautious bar it changes 2 (1 new win, no new losses). On 3,000 random
+  low-life boards it rejects 49 targets that are lethal only against the
+  greedy model, 47 of which do not win against Hard's blocks when forced,
+  and of the reviewer's eight hidden targets that do, both brains now find
+  and win seven. None of
+  this runs for a Duty whose ops cannot touch a fight (draw, life gain,
+  Foresee, tokens), when no creature of ours can attack, or while `main`
+  would first play a land, a reserve land or a Darling paydown. Hard's
   simulated opponent (`morningDuties: false`) keeps paid Duties in its main
   two, so the attack search's lookahead never forecasts. Results are cached
-  per view and keyed without the mana plan, so the reserves, the ladder and
-  Hard's candidate map share one forecast. What remains is two attack plans
-  when a paid combat Duty is live, which scales with board width like the
-  planner itself (the table below).
+  per view and keyed on the mana creatures a payment taps (lands do not
+  matter), so the reserves, the ladder and Hard's candidate map share one
+  forecast and a payment rewritten onto an attacker is forecast afresh. What
+  remains is two attack plans when a paid combat Duty is live, which scales
+  with board width like the planner itself (the table below).
 - **The mana, and the ladder.** `MediumAI.constrainMainMana` already reserved
   the best develop cast's mana against a paid Duty in main two, and a live
   Charm's mana in every step. In main one a qualifying Duty is compared with
   that develop cast: when its worth (impact plus gain) beats the cast's
   `castScore` it spends first, otherwise it may use only mana the cast does
   not need. A lethal Duty is exempt from both reserves, and Medium's ladder
-  takes it right after the lethal-spell check, ahead of removal, burn, taps,
-  Preserve and develop (with the opponent at 4, tapping the only blocker
-  wins; removal on their bigger tapped creature does not).
+  takes it right after the land, reserve-land and paydown steps, ahead of a
+  Hauntlink link, Preserve and every cast, unless a spell in hand is lethal
+  on its own (face damage cannot be blocked). With the opponent at 4,
+  tapping the only blocker wins; removal on their bigger tapped creature, a
+  Preserve with an empty hand and linking an unlinked carrier all spent the
+  same mana first until the review caught them.
 - **Hard** takes a lethal Morning Duty from Medium's baseline before any
   search. Otherwise it searches the qualifying Duty as a main-one candidate;
   its shallow sim stops before combat, so when the chosen action is a paid
@@ -352,6 +376,12 @@ it exists to enable (review finding G9). The rule now:
   main two a paid tap or until-end-of-turn pump still fires on leftover mana:
   it achieves nothing after combat, but it spends only mana nothing else
   wanted, and `tests/data/landEconomy.test.ts` pins that Afternoon use.
+- **Known limits, logged for 1.9.** A kill of a creature that would die in
+  combat anyway (a chump blocker) reads as worth nothing before combat, as
+  it did in 1.8.0. Lethal on the best target is judged against the greedy
+  block model, not the defender's best blocks (only the screened targets
+  must also beat the cautious defender). Medium's replacement pick after
+  Hard vetoes a Duty is Medium's alone and skips Hard's search.
 
 **Cost, 2026-09-25.** The 1.8.1 review's probe (bears and giants N a side,
 four lands each, one Duty artifact; mean ms per decision on a shared
@@ -360,17 +390,21 @@ machine, so read the scale rather than the digits):
 | Decision | N | Pre-G9 | First G9 cut | Now |
 | --- | --- | --- | --- | --- |
 | Medium main one, our tapper | 8 | 0.2 | 26 | 6-7 |
-| | 12 | 0.3 | 132 | 20-21 |
+| | 12 | 0.3 | 132 | 20-23 |
 | | 16 | 0.6 | 664 | 55-86 |
-| Hard attack, their tapper | 12 | 118 | 868 | 81-85 |
-| | 16 | 606 | 2,925 | 465-528 |
+| Hard attack, their tapper | 12 | 118 | 868 | 81-86 |
+| | 16 | 606 | 2,925 | 465-576 |
 | Medium main one, land in hand, our tapper | 12 | 1.5 | 129 | 0.6 |
 
-Hard's attack with their tapper is back to its no-Duty cost, and the no-Duty
-rows did not move. Medium's main one with our tapper still pays the two
-attack plans. On a synthetic Warchest list (Crimson Muster with four
+"Now" spans the runs after the review fixes, with and without the lethal
+screen; on this probe the bounds skip every screen. Hard's attack with their
+tapper is back to its no-Duty cost (507-589 ms at N=16 in the same runs), and
+the no-Duty rows did not move. Medium's main one with our tapper still pays
+the two attack plans. On a synthetic Warchest list (Crimson Muster with four
 Tide-Gate, four Festival Rocket and two Nebula Beacon), ten games, back to
-back twice: Medium 33-34 to 47 ms a game, Hard 146-147 to 170-184.
+back twice, where low-life boards do run screens: Medium 33-34 ms a game
+before G9, 46-47 without the screen, 57-61 with it; Hard 146-147, 165-173
+and 184-193.
 
 **Exposure, 2026-09-25 (usage counts, not win rates).** No starter reserve
 build and no gauntlet `reserveDeck` carries a paid Duty or any tapper Duty,
@@ -382,7 +416,7 @@ the Reach (rung 5), Ember-Lane Flare (rung 23), Deepfield Array (rungs 24 and
 25) and Cellar Jar (rungs 24 to 26). Ten Darlings games each for rungs 5 and
 23-26 used the new branch zero times. On the synthetic list above, over ten
 games, Medium used 14 paid Duties in main one and 12 in main two (0 and 15
-before G9), Hard 9 and 5 (0 and 9).
+before G9), Hard 6 and 4 (0 and 9).
 
 ## Win-rate gates
 
@@ -708,13 +742,14 @@ every card plays; as intended, not yet. Two test files are the scoreboard:
   `hardTiming.test.ts`.
 
 Phase D (2026-09-17) closed the last gap, the draft picker, and every one of
-the forty documented behaviours now passes (1.8.1 added eleven more, the
+the forty documented behaviours now passes (1.8.1 added thirteen more, the
 Duty timing entries: Medium's pre-combat tap and its attack, the Duty left
 for main two when the attack needs no help, the better spell keeping the
-mana, the lethal Duty outranking it and outranking removal, a ping and a
-kill that change nothing in the fight left for main two, Hard's kept and
-declined taps and the cast a declined tap frees, and Easy's unchanged
-timing; fifty-one pass). Its measurement is the second
+mana, the lethal Duty outranking it and outranking removal, a lethal Duty
+on its lower-value target, a lethal Duty with an empty hand ahead of
+Preserve and a Hauntlink link, a ping and a kill that change nothing in the
+fight left for main two, Hard's kept and declined taps and the cast a
+declined tap frees, and Easy's unchanged timing; fifty-three pass). Its measurement is the second
 lesson of the plan: a scorer that knows the mechanics does not draft
 stronger decks in Medium's hands. Seat-one decks drafted by the new scorer
 against decks drafted by the old one from the same seeds, Medium on both

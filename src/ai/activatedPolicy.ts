@@ -4,7 +4,7 @@ import { getEffectiveStats } from '../engine/statics';
 import type { ActivatedDef, CardDb, EffectOp, Permanent, PlayerId } from '../engine/types';
 import { activatedAbilitiesOf, def, isType, manaValue, opponentOf } from '../engine/types';
 import type { PlayerView } from '../engine/view';
-import { attackWeightInputs, chooseAttackers, chooseBlocks, combatForecast, scoreAttack } from './combatPlans';
+import { attackReach, attackWeightInputs, cautiousThrough, chooseAttackers, chooseBlocks, combatForecast, scoreAttack } from './combatPlans';
 import { determinize, simDb } from './determinize';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { activateActionValue } from './value';
@@ -80,7 +80,7 @@ function attackForecast(
  * then the database and the planner inputs, and die with the view.
  */
 const EDGE_CACHE = new WeakMap<PlayerView, WeakMap<CardDb, Map<string, {
-  before?: AttackForecast; edges: Map<string, Edge>;
+  before?: AttackForecast; allIn?: number; edges: Map<string, Edge>; screens: Map<string, boolean>;
 }>>>();
 
 function edgeCacheFor(view: PlayerView, db: CardDb, context: PrecombatContext) {
@@ -90,8 +90,22 @@ function edgeCacheFor(view: PlayerView, db: CardDb, context: PrecombatContext) {
   if (!byContext) byDb.set(db, byContext = new Map());
   const key = `${context.trickBuff}|${JSON.stringify(context.pers)}`;
   let entry = byContext.get(key);
-  if (!entry) byContext.set(key, entry = { edges: new Map() });
+  if (!entry) byContext.set(key, entry = { edges: new Map(), screens: new Map() });
   return entry;
+}
+
+/**
+ * One Duty action's cache key. The mana plan matters only through the mana
+ * creatures it taps (such a creature cannot attack after paying), so the key
+ * carries those and ignores which lands pay: the reserves may rewrite a land
+ * payment between two asks in one decision without changing the forecast.
+ */
+function dutyKey(view: PlayerView, sdb: CardDb, action: ActivateAction): string {
+  const creatures = (action.manaPlan ?? []).filter((iid) => {
+    const perm = view.battlefield.find((p) => p.iid === iid);
+    return perm !== undefined && isType(def(sdb, perm.cardId), 'creature');
+  }).sort((a, b) => a - b);
+  return JSON.stringify([action.iid, action.abilityIndex ?? 0, action.targets ?? [], creatures]);
 }
 
 /**
@@ -142,9 +156,7 @@ export function precombatDutyEdge(
   const sdb = simDb(db);
   if (!reachesFight(view, sdb, action, ability, eligibleAttackers(view.battlefield, sdb, me))) return null;
   const cache = edgeCacheFor(view, sdb, context);
-  // Keyed without the mana plan: the reserves may rewrite which sources pay
-  // between two asks in one decision, and the first payment seen stands in.
-  const key = JSON.stringify([action.iid, action.abilityIndex ?? 0, action.targets ?? []]);
+  const key = dutyKey(view, sdb, action);
   if (cache.edges.has(key)) return cache.edges.get(key)!;
   let edge: Edge;
   try {
@@ -171,6 +183,94 @@ export function precombatDutyEdge(
   return edge;
 }
 
+/**
+ * The most damage a Duty's own ops add directly: face damage and life loss,
+ * and twice the power a single-target pump or Mark gives (a twinBlades body
+ * hits twice). A board-wide pump or a board-scaled loss is unbounded here, so
+ * the screen below always runs for it.
+ */
+function dutyReach(ops: readonly EffectOp[]): number {
+  let reach = 0;
+  for (const op of ops) {
+    switch (op.op) {
+      case 'damage':
+        if (op.to === 'controller' || op.to === 'eachCreature' || op.to === 'eachOpponentCreature') break;
+        reach += typeof op.n === 'number' ? op.n : Infinity;
+        break;
+      case 'loseLife':
+        reach += op.n;
+        break;
+      case 'boost':
+        reach += op.scope === 'target' || op.scope === 'self' ? 2 * Math.max(0, op.p) : Infinity;
+        break;
+      case 'addCounters':
+        reach += 2 * Math.max(0, op.n);
+        break;
+      case 'moveMark':
+        reach += 2;
+        break;
+      case 'markAll': case 'propagate': case 'loseLifePerTheirMarked':
+        return Infinity;
+      case 'ifTargetMarked':
+        reach += Math.max(dutyReach(op.then), dutyReach(op.else ?? []));
+        break;
+      default:
+        break;
+    }
+  }
+  return reach;
+}
+
+/**
+ * Every eligible attacker sent, the defender blocking with its model: the
+ * forecast damage on the board before any Duty. Cached per view.
+ */
+function allInDamage(view: PlayerView, sdb: CardDb, context: PrecombatContext, attackers: number[]): number {
+  const cache = edgeCacheFor(view, sdb, context);
+  if (cache.allIn !== undefined) return cache.allIn;
+  const combat = { attackers, blocks: [], phase: 'attackersDeclared' as const, damagePrevented: false };
+  const blocks = chooseBlocks(view.battlefield, sdb, opponentOf(view.myId), view.opp.life, combat, 0, DEFAULT_PERSONALITY);
+  return cache.allIn = combatForecast(view.battlefield, sdb, { ...combat, blocks, phase: 'blockersDeclared' }).damage;
+}
+
+/**
+ * The lethal test for the targets the full forecast skips: perform the Duty
+ * on a determinized copy and send every eligible attacker. The damage must
+ * reach the opponent's life against the greedy block model (the model the
+ * full forecast then confirms with the real plan) and against a cautious
+ * defender (`cautiousThrough`) too. The second bar is what keeps this search
+ * honest: these targets are the ones a greedy defender mishandles, and on
+ * 1,500 review boards against Hard's blocks, taking them on the greedy test
+ * alone traded 23 worse games for 4 better (13 new losses, 1 new win).
+ */
+function lethalScreen(view: PlayerView, sdb: CardDb, action: ActivateAction, context: PrecombatContext): boolean {
+  const cache = edgeCacheFor(view, sdb, context);
+  const key = dutyKey(view, sdb, action);
+  const known = cache.screens.get(key);
+  if (known !== undefined) return known;
+  const me = view.myId;
+  let lethal: boolean;
+  try {
+    const game = determinize(view, sdb);
+    game.submit(me, action);
+    if (game.state.winner === me) {
+      lethal = true;
+    } else {
+      const after = game.viewFor(me);
+      const attackers = eligibleAttackers(after.battlefield, sdb, me);
+      const combat = { attackers, blocks: [], phase: 'attackersDeclared' as const, damagePrevented: false };
+      const blocks = chooseBlocks(after.battlefield, sdb, opponentOf(me), after.opp.life, combat, 0, DEFAULT_PERSONALITY);
+      lethal = attackers.length > 0 &&
+        combatForecast(after.battlefield, sdb, { ...combat, blocks, phase: 'blockersDeclared' }).damage >= after.opp.life &&
+        cautiousThrough(after.battlefield, sdb, attackers, opponentOf(me)) >= after.opp.life;
+    }
+  } catch {
+    lethal = false;
+  }
+  cache.screens.set(key, lethal);
+  return lethal;
+}
+
 export interface ScoredActivation {
   action: ActivateAction;
   value: number;
@@ -187,8 +287,12 @@ export interface ScoredActivation {
  * or improves it by more than PRECOMBAT_DUTY_MARGIN; such a Duty is ranked by
  * its impact plus that gain (or the lethal bonus). Only the best target of
  * each paid source and ability, by impact among the targets that reach the
- * fight, is forecast; its other targets wait for the Afternoon. Whether the
- * mana belongs to a better spell is MediumAI.constrainMainMana's call.
+ * fight, is forecast for its gain. The other targets are screened for lethal
+ * only (a cheap all-in forecast, and only when every eligible attacker
+ * unblocked plus the Duty's own damage could reach the opponent's life); a
+ * target that passes gets the full forecast, and a lethal one is ranked like
+ * any lethal Duty. Whether the mana belongs to a better spell is
+ * MediumAI.constrainMainMana's call.
  * Legality and target lists come exclusively from the caller's legal menu.
  */
 export function scoredActivationCandidates(
@@ -200,7 +304,7 @@ export function scoredActivationCandidates(
   if (view.awaiting.kind !== 'main' || view.awaiting.player !== view.myId ||
     view.activePlayer !== view.myId || (view.step !== 'main1' && view.step !== 'main2')) return [];
   const rows: (ScoredActivation & { index: number })[] = [];
-  const morning = new Map<string, { index: number; action: ActivateAction; value: number }>();
+  const morning = new Map<string, { ops: readonly EffectOp[]; targets: { index: number; action: ActivateAction; value: number }[] }>();
   let eligible: number[] | undefined;
   legal.forEach((action, index) => {
     if (action.type !== 'activate') return;
@@ -226,13 +330,34 @@ export function scoredActivationCandidates(
       return;
     }
     const key = `${action.iid}:${action.abilityIndex ?? 0}`;
-    const best = morning.get(key);
-    if (!best || value > best.value) morning.set(key, { index, action, value });
+    const entry = morning.get(key) ?? { ops: ability.ops, targets: [] };
+    entry.targets.push({ index, action, value });
+    morning.set(key, entry);
   });
-  for (const { index, action, value } of morning.values()) {
-    const edge = precombatDutyEdge(view, db, action, precombat!);
-    if (!edge || !edge.lethal && !(edge.gain > PRECOMBAT_DUTY_MARGIN)) continue;
-    rows.push({ index, action, value: value + (edge.lethal ? PRECOMBAT_LETHAL : edge.gain), lethal: edge.lethal });
+  let reach: ReturnType<typeof attackReach> | undefined;
+  for (const { ops, targets } of morning.values()) {
+    // The best target by impact, the first in legal order on a tie.
+    const best = targets.reduce((a, b) => b.value > a.value ? b : a);
+    const edge = precombatDutyEdge(view, db, best.action, precombat!);
+    if (edge && (edge.lethal || edge.gain > PRECOMBAT_DUTY_MARGIN)) {
+      rows.push({ ...best, value: best.value + (edge.lethal ? PRECOMBAT_LETHAL : edge.gain), lethal: edge.lethal });
+    }
+    if (edge?.lethal || targets.length === 1) continue;
+    // Two cheap bounds before any target is screened. Every attacker
+    // unblocked cannot reach their life; or, from the all-in forecast before
+    // the Duty, one target changing (a blocker gone or tapped, an attacker
+    // pumped) frees at most one attacker's damage, plus Overrun spill and
+    // the Duty's own reach, under the greedy block model's one-blocker swaps.
+    reach ??= attackReach(view.battlefield, simDb(db), eligible!);
+    const added = dutyReach(ops);
+    if (reach.total + added < view.opp.life) continue;
+    if (allInDamage(view, simDb(db), precombat!, eligible!) + reach.biggest + reach.overrun + added < view.opp.life) continue;
+    for (const other of targets) {
+      if (other === best || !lethalScreen(view, simDb(db), other.action, precombat!)) continue;
+      if (!precombatDutyEdge(view, db, other.action, precombat!)?.lethal) continue;
+      rows.push({ ...other, value: other.value + PRECOMBAT_LETHAL, lethal: true });
+      break;
+    }
   }
   return rows.sort((a, b) => a.index - b.index).map(({ action, value, lethal }) => ({ action, value, lethal }));
 }

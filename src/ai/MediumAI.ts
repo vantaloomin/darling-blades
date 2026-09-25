@@ -719,10 +719,17 @@ export class MediumAI implements AIPlayer {
     if (reserveLand) return reserveLand;
     const land = legal.find((l) => l.type === 'playLand');
     if (land) return land;
+    const casts = legal.filter((l): l is Cast => l.type === 'castSpell' || l.type === 'castDarling');
+    // Land, reserve land and paydown already returned, so the Morning
+    // forecast runs here only when a Duty can actually be chosen. A Duty
+    // whose forecast attack is lethal goes before anything that can spend
+    // its mana (a Hauntlink link, Preserve, every cast), unless a spell in
+    // hand wins on its own: that face damage cannot be blocked.
+    const duty = bestActivation(view, this.db, legal, this.precombat(view));
+    if (duty?.lethal && !casts.some((c) => this.faceDamage(view, c) >= view.opp.life)) return duty.action;
     const link = chooseUnlinkedHauntlink(view, this.db, legal);
     if (link) return link;
 
-    const casts = legal.filter((l): l is Cast => l.type === 'castSpell' || l.type === 'castDarling');
     const skims = legal.filter((l) => l.type === 'skim');
     const preserve = choosePreserve(
       view,
@@ -731,9 +738,6 @@ export class MediumAI implements AIPlayer {
       (cast) => this.castScore(view, cast),
     );
     if (casts.length === 0 && preserve) return preserve;
-    // Land, reserve land and paydown already returned, so the Morning
-    // forecast runs here only when a Duty can actually be chosen.
-    const duty = bestActivation(view, this.db, legal, this.precombat(view));
     const activate = duty?.action ?? null;
     if (casts.length === 0 && activate) return activate;
     // Smoothing gate: only spend a Skim when no cast line, including Retell,
@@ -753,9 +757,6 @@ export class MediumAI implements AIPlayer {
       const lethal = casts.filter((c) => this.faceDamage(view, c) >= view.opp.life)
         .sort((a, b) => this.manaForCast(view, a) - this.manaForCast(view, b))[0];
       if (lethal) return lethal;
-      // 1b. A Morning Duty whose forecast attack is lethal, before any
-      //     removal, burn or develop cast can spend its mana.
-      if (duty?.lethal) return duty.action;
 
       // 2. Removal on the opponent's best creature when it's worth the card
       const removals = casts.filter((c) => {
