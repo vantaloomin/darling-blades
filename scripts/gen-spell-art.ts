@@ -1,11 +1,13 @@
 /**
- * Generates real card art for the 266 non-creature SPELL/ARTIFACT/LAND prompt
+ * Generates real card art for the 369 non-creature SPELL/ARTIFACT/LAND prompt
  * entries: the 85 primary entries (18 instants, 16 sorceries, 10 enchantments,
  * 1 artifact, + 9 Ragnarök spells/runes, + 31 Gothic Monsters
  * charms/rituals/enchantments/artifacts), plus eight removal-answer records,
  * seven 1.6 returning-mechanics sprinkle spells, five Duat lands, two Wave B
  * support spells, seven Wave C spells, 26 Wave D1 non-creatures, and 24 Wave D2
- * non-creatures. Prompts
+ * non-creatures, 20 Wave D3 non-creatures, 20 Dark Tales companion spells,
+ * 62 Starborne non-creatures, 97 Drowned Deep non-creatures, and six regeneration
+ * entries. Prompts
  * live in docs/spell-art.md; the
  * chatgpt-imagegen CLI is backed by the user's ChatGPT
  * subscription — see the `anthropic-skills:chatgpt-imagegen` skill), then
@@ -67,7 +69,7 @@ const GEN_SIZE = '1024x1536';
 const GEN_TIMEOUT_S = 300;
 
 /**
- * The 266 spell ids docs/spell-art.md must cover, in the authored order (instants
+ * The 369 spell ids docs/spell-art.md must cover, in the authored order (instants
  * → sorceries → enchantments → the Jade Seal → Ragnarök → Gothic Monsters →
  * the removal answer cycle).
  * Parsing cross-checks against this
@@ -216,6 +218,9 @@ const EXPECTED_IDS = [
   'dd-marsh-gate', 'dd-salt-fire-lesser', 'dd-forge-lamp', 'dd-drowned-fire-lesser',
   'dd-storm-front-lesser', 'dd-fire-on-the-water', 'dd-storm-surge-lesser', 'dd-drowned-forge-fire',
   'dd-rite-of-the-lamp-fire',
+  // Regenerations 2026-09-22, authored order in docs/spell-art.md.
+  'ac-mirror-of-avalon', 'ac-secret-of-avalon', 'ac-treasonous-glance',
+  'cf-badb-cathas-warning', 'dt-glass-slipper-at-midnight', 'yn-hauntlink-apex',
 ] as const;
 
 /**

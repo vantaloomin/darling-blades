@@ -61,6 +61,7 @@ const FACTIONS = [
   'arthurian-court',
   'gothic-monsters',
   'dark-tales',
+  'yokai-nights',
   'sands-of-the-duat',
   'starborne',
   'drowned-deep',
