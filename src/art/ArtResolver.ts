@@ -10,6 +10,18 @@ import { drawPlaceholderArt } from './PlaceholderArtGenerator';
 /** Manifest key convention for a styled basic-land file. */
 export const landStyleArtKey = (artKey: string, landStyle: string): string => `${artKey}--${landStyle}`;
 
+/**
+ * What `ArtResolver.getArt` answers: the texture (and atlas frame, for a
+ * generated placeholder) to draw now. `pending` is set only while a real art
+ * file has not landed yet: it is the texture key that will replace the
+ * stand-in in `textureKey`, for a consumer that redraws on its arrival.
+ */
+export interface ArtRef {
+  textureKey: string;
+  frameName?: string;
+  pending?: string;
+}
+
 /** Neutral stand-in for a real art file that has not streamed in yet. */
 export const ART_LOADING_TEXTURE = 'art-loading';
 /** Source size of a real card art file; the stand-in matches it so the
@@ -75,29 +87,36 @@ export class ArtResolver {
     }
   }
 
-  getArt(cardId: string, landStyle?: string): { textureKey: string; frameName?: string } {
+  getArt(cardId: string, landStyle?: string): ArtRef {
     const d = this.db[cardId];
     const artKey = d?.artRef ?? cardId;
     const styledKey = landStyle && d && isBasic(this.db, cardId) ? landStyleArtKey(artKey, landStyle) : null;
-    if (styledKey && this.real.has(styledKey)) return { textureKey: this.realTextureKey(styledKey) };
-    if (this.real.has(artKey)) return { textureKey: this.realTextureKey(artKey) };
+    if (styledKey && this.real.has(styledKey)) return this.realArt(styledKey);
+    if (this.real.has(artKey)) return this.realArt(artKey);
     const slot = this.atlas.get(artKey);
     if (!slot) throw new Error(`ArtResolver: no art generated for ${artKey}`);
     return slot;
   }
 
   /**
-   * The real file's texture key, or the neutral stand-in while it is still in
-   * the loader queue. This is the BACKSTOP for a consumer that `src/ui/artGate.ts`
-   * missed, not the mechanism: a gated scene never sees it. Without it Phaser
-   * would draw its green missing-texture square.
+   * The real file's texture, or the neutral stand-in while it is still in the
+   * loader queue. The stand-in is the BACKSTOP for a consumer that
+   * `src/ui/artGate.ts` missed, not the mechanism: a gated scene never sees it.
+   * Without it Phaser would draw its green missing-texture square.
+   *
+   * Whenever the real texture is absent the answer carries it as `pending`, so
+   * the consumer can redraw when it lands (`src/art/artWatch.ts`); CardView,
+   * BoardCardView and the thumbnail cache all do.
    */
-  private realTextureKey(artKey: string): string {
+  private realArt(artKey: string): ArtRef {
     const key = artTextureKey(artKey);
     // No scene in the prototype-built test resolver: treat the texture as present.
     const textures = (this.scene as Phaser.Scene | undefined)?.textures;
-    if (!textures || textures.exists(key)) return key;
-    return textures.exists(ART_LOADING_TEXTURE) ? ART_LOADING_TEXTURE : key;
+    if (!textures || textures.exists(key)) return { textureKey: key };
+    return {
+      textureKey: textures.exists(ART_LOADING_TEXTURE) ? ART_LOADING_TEXTURE : key,
+      pending: key,
+    };
   }
 }
 
