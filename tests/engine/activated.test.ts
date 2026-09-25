@@ -796,15 +796,22 @@ describe('shared Foresee continuation context', () => {
       .toThrow('A target-dependent op cannot follow foresee: damage.');
   });
 
-  it('refuses to silently merge a victim tail and caster tail with different contexts', () => {
+  it('keeps a victim tail and a caster tail in their own contexts behind one Foresee', () => {
     const mixedVictim: CardDef = {
       ...victim, abilities: [{ when: 'dies', ops: [{ op: 'foresee', n: 1 }, { op: 'gainLife', n: 3 }] }],
     };
     const state = board('tap_creature', [{ iid: TARGET, cardId: victim.id, controller: 1 }]);
     state.players[0].hand = [spell.id];
     const game = Game.restore(state, { ...db, [victim.id]: mixedVictim });
-    expect(() => game.submit(0, { type: 'castSpell', handIndex: 0, targets: [permanent(TARGET)] }))
-      .toThrow('Cannot combine Foresee tails with different source contexts.');
+    game.submit(0, { type: 'castSpell', handIndex: 0, targets: [permanent(TARGET)] });
+    expect(game.awaiting).toMatchObject({ kind: 'foresee', player: 1 });
+    expect(game.instanceState.players.map((player) => player.life)).toEqual([20, 20]);
+
+    game.submit(1, { type: 'foresee', bottomIndices: [] });
+    // The victim's controller gains its 3 and the caster its 5: neither tail
+    // runs in the other's context.
+    expect(game.instanceState.players.map((player) => player.life)).toEqual([25, 23]);
+    expect(game.instanceState.pendingDecisions).toEqual([]);
   });
 });
 

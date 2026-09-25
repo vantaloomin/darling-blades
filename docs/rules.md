@@ -310,42 +310,111 @@ moving a link off a host that a trigger or combat is about to kill - is exactly
 what the window exists for.
 
 **Where a held trigger resolves (1.8.1).** A held trigger resolves at the
-point where, with no payable link, it would have resolved inline; the window
-in front of it is the only thing revision 4 adds. Outside the Hauntlink
-window, triggers in this engine resolve the moment they fire, in the middle of
-whatever caused them, and the held trigger keeps that place:
+point where, with no payable link, it would have resolved inline: the game
+with no payable link is the reference order, and the window in front of the
+trigger is what revision 4 adds. Outside the Hauntlink window, triggers in
+this engine resolve the moment they fire, in the middle of whatever caused
+them, and the held trigger keeps that place:
 
 1. **In the middle of an effect.** When a spell, a Duty or another trigger
    destroys a creature and still has ops left (destroy target creature, then
    draw a card), the effect pauses at the death. The Hauntlink windows open,
    the held trigger resolves, and then the effect's remaining ops run,
-   followed by a state-based check. The ops the effect had already run stand,
-   and the state-based check after them runs before the window opens, so the
-   window shows the board as it stands. Several deaths in one op (a sweep)
-   hold their triggers in battlefield order, and the effect resumes after the
-   last of them.
+   followed by a state-based check. The ops the effect had already run stand.
+   If the trigger raises a choice of its own (a creature it returns Foresees,
+   or targets as it arrives), the rest of the effect waits behind that
+   choice, as it does with no link. Several deaths in one op (a sweep) hold
+   their triggers in battlefield order, and the effect resumes after the last
+   of them, behind the newest choice any of the sweep's triggers raised, held
+   or not: Black Water's damage and grind come after the Foresee of a Signal
+   Kitsune that Sitra's trigger returned.
 2. **On the stack.** A trigger held while the stack resolves, whether the
    death came from an item's effect or from the state-based check after it,
    resolves before the next item on the stack. The flush pauses, the windows
-   and the trigger run, and the flush carries on.
-3. **Everywhere else** (combat damage, a Rite or Tithe payment, an attack or
+   and the trigger run, and the flush carries on before any plain choice
+   raised along the way is offered: a Foresee, or the target of an arriving
+   creature, waits for the rest of the stack exactly as it does with no link.
+   Doom Bolt on Barrow-Jarl, cast in response to a removal spell, lets that
+   removal resolve before the creature Jarl's trigger returns chooses its
+   target.
+3. **Ahead of choices already queued.** A held trigger resolves before any
+   choice that was queued before it was held and has not been offered yet;
+   with no link it would have resolved before that choice came up. Hotwire
+   Retort's own Foresee is offered after the toll of the Tomb-Toll Taker its
+   damage killed. What the held trigger raises still queues behind those
+   choices.
+4. **Everywhere else** (combat damage, a Rite or Tithe payment, an attack or
    Dawn trigger) the held trigger resolves before anyone acts again: before
    the ordinary window it interrupts (above), before the Dawn draw, and after
-   combat damage before the Afternoon's first action.
+   combat damage before the Afternoon's first action. Once a trigger held
+   by a payment or an attack has resolved, the window over the spell or the
+   attack is offered as it would have been with no link: when the opponent
+   holds no Charm, a spell resolves at once, before any plain choice the
+   trigger raised is offered.
 
-So a board with a payable link runs an effect's ops and its triggers in the
-same order as a board without one; what it adds is the window, the
-state-based check before it, and whatever links move in it. Magic orders this
-differently: the spell finishes resolving and the trigger then goes on the
-stack. This engine never had that stack for triggers, and a held trigger that
-waited for the end of the spell would make the outcome depend on whether any
-Hauntlink happened to be payable: Verdict Under Resin (destroy target
-creature, then sever the top two cards of your opponent's graveyard) on an
-opposing Drowned Bride (dies: return it to its owner's hand) would sever the
-Bride only when a link was payable. A paused spell's Empower rider and its move to the graveyard do not
-wait for the resumed ops; they happen when the spell pauses, as they do for a
-spell paused on any choice (a loot's discard, an edict). Before 1.8.1 an
-effect paused this way lost its remaining ops, and a Duty threw instead.
+**What matches the no-link game, and what does not.** With every window
+passed, a board with a payable link resolves the same ops and triggers as a
+board without one, and orders each held trigger the same way against the
+effect that caused it, the rest of the stack and the choices queued around
+it. These differ:
+
+- **The window, and the links moved in it.** That is the point of revision 4.
+- **The state-based check runs before the window**, so the window shows the
+  board as it stands: a Hauntlink or Aura on the destroyed creature goes to
+  its graveyard, and a creature the effect has already dealt lethal damage
+  dies (its own dies trigger held), before the held trigger resolves. With no
+  link that check runs after the whole effect, so Verdict Under Resin on a
+  linked creature with a dies trigger severs the link card only when a link
+  was payable.
+- **The paused spell's card and its Empower rider** go when the spell
+  pauses, as they do for a spell paused on any choice (a loot's discard, an
+  edict). The card reaches its graveyard before the held trigger resolves,
+  so graveyard order can differ: a later "sever the top cards" or "most
+  recently buried" reads that order.
+- **Ally-dies observers and Nine Lives returns run at the death**, before the
+  dying creature's held trigger resolves, and so do the returning
+  creature's arrival triggers; with no link the dies trigger resolves first.
+  A creature returned this way also enters ahead of anything the held
+  trigger puts onto the battlefield, and a later "most recently buried"
+  return no longer finds it in the graveyard. Shipped ally-dies observers
+  only change life totals or add a counter to their own source.
+- **Dawn, Sunset and attack triggers run as one pass** in battlefield order.
+  When one of them kills a creature, the next permanent's trigger runs before
+  the held dies trigger resolves; with no link it resolves inside the trigger
+  that caused it.
+
+Magic orders all of this differently: the spell finishes resolving and the
+trigger then goes on the stack. This engine never had that stack for
+triggers, and a held trigger that waited for the end of the spell would make
+the outcome depend on whether any Hauntlink happened to be payable: Verdict
+Under Resin (destroy target creature, then sever the top two cards of your
+opponent's graveyard) on an opposing Drowned Bride (dies: return it to its
+owner's hand) would sever the Bride only when a link was payable. Before
+1.8.1 an effect paused this way lost its remaining ops and a Duty threw
+instead; a trigger held while the stack resolved waited for the whole stack,
+a held trigger could come after a choice queued ahead of it, and a sweep's
+remaining ops could run ahead of a choice its own triggers had raised.
+
+**A choice raised inside an effect (1.8.1, link or no link).** When a trigger
+inside an effect raises a choice and the effect still has ops left (a
+creature returned by Barrow-Jarl or Sitra that targets as it arrives, or that
+Foresees and then draws), the effect pauses behind that choice: the choice is
+made, the arriving creature's ability (or the Foresee and what follows it)
+resolves, and then the rest of the effect runs in its own context. Before
+1.8.1 the engine threw here: Reaper's Due, Verdict Under Resin, Black Water,
+Night-Market Price or White-Veil Collapse killing Barrow-Jarl or Sitra when
+the creature returned was Thing in the Cistern, Drowned Bell Choir, Drowned
+Nurse or another targeted arrival, or Signal Kitsune or another arrival that
+Foresees and then acts.
+
+**Records.** None of this adds an action, so the replay log stays v14 and the
+rules revision stays 4. It does change what a revision-4 game does whenever
+a trigger is held, including a hold that paused nothing: in 1.8.0 a trigger
+held during a stack flush waited for the whole stack. A 1.8.0 action log that
+passes through such a hold can therefore fail to replay on 1.8.1 (an action it
+recorded is no longer legal there). No such log reaches 1.8.1 in practice:
+1.8.1's card-text changes moved the card-data stamp, so every 1.8.0 replay is
+already refused as recorded on an older version.
 
 ### Rite (additional sacrifice cost)
 
@@ -359,7 +428,11 @@ Drowned Deep vocabulary below) can now watch a sacrifice as well. A
 **state-based check** then runs on the paid board before anyone is offered a
 window over the spell: a player drained to 0 by a fodder's dies trigger loses
 there, and a Hauntlink whose host was sacrificed goes to the graveyard with
-it. The sacrifice is a cost: a cancelled Rite spell does not refund it. The
+it. A choice the payment raises (a fodder's dies trigger returning a
+creature that targets or Foresees as it arrives) is made before that window,
+and the window is then offered as usual (1.8.1; before, the choice replaced
+the window whenever the opponent held a Charm, and the spell stayed on the
+stack unresolved). The sacrifice is a cost: a cancelled Rite spell does not refund it. The
 creature cap counts the slots the sacrifice frees, so a full board can still
 cast a Rite creature. Legal-action enumeration offers one canonical sacrifice
 set (first N in battlefield order); `validateAction` accepts any legal set of
@@ -502,10 +575,11 @@ resolving spell uses (1.8.1; before that anything but a Foresee threw):
   pauses a spell (Hauntlink, "Where a held trigger resolves"): the window
   over the trigger, the trigger, then the rest of the Duty.
 - a targeted arrival (a token or a returned creature that targets as it
-  arrives) asks for its target once the Duty has finished, as after a spell.
-  No op list may continue past such an arrival (the Starborne rule: the
-  engine refuses rather than run the rest in the arrival's context), and the
-  catalog gate keeps Duties from creating targeted-arrival permanents at all.
+  arrives) asks for its target once the Duty has finished, as after a spell;
+  if the Duty still has ops left, it pauses behind that choice and runs them
+  afterwards in its own context ("A choice raised inside an effect", under
+  Hauntlink). The catalog gate still keeps Duties from creating
+  targeted-arrival permanents themselves.
 
 **The arrival rule.** A permanent cannot tap for its Duty the turn it arrives
 unless it has Warcry. That is one rule for every carrier, creatures and

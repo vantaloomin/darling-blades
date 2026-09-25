@@ -15,6 +15,7 @@ import { hasCastableCharm, hasCastableInstant, hasPayableHauntlinkAction } from 
 import { anyPayableHauntlink } from './hauntlinkWindow';
 import { resolveCombatDamage } from './combat/damage';
 import {
+  deferRemainingOps,
   fireGraveyardTriggers,
   fireCreatureObservers,
   firePlayerObservers,
@@ -53,12 +54,34 @@ import type {
   GameState,
   LegacyAwaiting,
   LegacyGameState,
+  PendingDecision,
   PlayerId,
   StackItem,
 } from './types';
 import { cardIdOf, def, findPermanent, isCardInstance, opponentOf, variantKeyOf } from './types';
 import type { PlayerView } from './view';
 import { viewFor } from './view';
+
+type HeldTrigger = Extract<PendingDecision, { kind: 'resolveTrigger' }>;
+
+/**
+ * A queued decision that stops the stack flush until it is settled. Anything
+ * else (a plain Foresee, a plain targeted arrival) waits for the flush to end.
+ */
+function holdsFlush(p: PendingDecision): boolean {
+  return p.kind === 'discard' || p.kind === 'sacrifice' || p.kind === 'resolveTrigger' ||
+    p.continuations !== undefined || (p.kind === 'chooseTarget' && p.triggerWhen !== undefined);
+}
+
+/**
+ * A held dies trigger, as opposed to a targeted trigger held after its target
+ * was chosen (which always carries that target). With no payable link the
+ * former would have resolved inline, where it fired; the latter would have
+ * resolved when its choice was answered.
+ */
+function isHeldDiesTrigger(p: HeldTrigger): boolean {
+  return p.targets.length === 0;
+}
 
 export interface GameConfig {
   decks: [CardEntry[], CardEntry[]];
@@ -472,6 +495,16 @@ export class Game {
       !st.stackClosed && (st.awaiting.kind === 'respond' || st.awaiting.kind === 'endStepWindow'))
       st.decisionResume ??= structuredClone(st.awaiting);
     while (st.pendingDecisions.length > 0) {
+      // A held trigger goes first. With no payable link it would have resolved
+      // inline before any queued choice was offered, so it is moved to the
+      // head (its window reads the head) and what it raises still queues
+      // behind the choices it overtook.
+      const heldAt = st.pendingDecisions.findIndex((p) => p.kind === 'resolveTrigger');
+      if (heldAt > 0) {
+        const [held] = st.pendingDecisions.splice(heldAt, 1) as [HeldTrigger];
+        held.movedAhead = (held.movedAhead ?? 0) + heldAt;
+        st.pendingDecisions.unshift(held);
+      }
       const next = st.pendingDecisions[0];
       if (next.kind === 'discard' || next.kind === 'sacrifice') {
         const count = next.kind === 'discard' ? Math.min(next.n, st.players[next.player].hand.length) :
@@ -516,13 +549,32 @@ export class Game {
           },
           next.ops,
         );
-        if (next.newDecisionContext || next.continuations) {
+        if (isHeldDiesTrigger(next)) {
+          this.resolveHeldDiesTrigger(next, resolveTrigger, emit);
+        } else if (next.newDecisionContext || next.continuations) {
           this.resumeNewChoice(emit, next.continuations, resolveTrigger);
         } else {
           resolveTrigger();
           checkStateBased(st, this.db, emit);
         }
         if (st.winner !== null) return;
+        // Held mid-step, the trigger resolved where it would have inline.
+        // With nothing else holding the step, it carries on before any plain
+        // choice raised along the way is offered (a Foresee, a targeted
+        // arrival), exactly as it does with no payable link: the stack flush
+        // resumes, or the response window over the spell or attack is offered
+        // (or skipped into the flush, when the responder holds no Charm). An
+        // empty queue is left to the end of this drain, which resumes the
+        // step once; resuming here too would resume it twice.
+        if (next.heldMidStep && st.pendingDecisions.length > 0 && !st.pendingDecisions.some(holdsFlush)) {
+          const resume = st.decisionResume;
+          if (st.stackClosed) this.closeAndFlush(emit);
+          else if (resume?.kind === 'respond' && resume.offerAfterDecision) {
+            delete st.decisionResume;
+            this.openResponseWindow(resume.player, resume.over, emit);
+          }
+          if (st.winner !== null) return;
+        }
         continue;
       }
       if (next.kind === 'foresee' && this.foreseeCards(next.player, next.n).length === 0) {
@@ -586,6 +638,60 @@ export class Game {
       // choice. Raise that fresh queue now instead of leaving stale awaiting.
       if (st.pendingDecisions.length > 0) this.maybeRaiseDeferredDecision(emit);
     }
+  }
+
+  /**
+   * Resolve a held dies trigger as it would have resolved inline with no
+   * payable link (rules.md, Hauntlink). What it raises takes its place in the
+   * queue: behind the choices it overtook, ahead of the ones queued after it.
+   * The rest of the effect it paused carries on as that effect would have:
+   * behind the newest choice the paused op raised (one this trigger just
+   * raised, or one the op had queued ahead of it), or at once. A state-based
+   * check follows, as after the item or batch the trigger was part of.
+   */
+  private resolveHeldDiesTrigger(held: HeldTrigger, resolveTrigger: () => void, emit: Emit): void {
+    const st = this.st;
+    const ahead = st.pendingDecisions.splice(0, held.movedAhead ?? 0);
+    const later = st.pendingDecisions.splice(0);
+    resolveTrigger();
+    let aheadQueued = false;
+    const [first, ...rest] = held.continuations ?? [];
+    if (first?.heldTail) {
+      const inFront = Math.min(first.regionAhead ?? 0, ahead.length);
+      if (st.pendingDecisions.length > 0 || inFront > 0) {
+        // The op's own earlier choices sit at the end of `ahead`.
+        const raisedFrom = ahead.length - inFront;
+        st.pendingDecisions.unshift(...ahead);
+        aheadQueued = true;
+        deferRemainingOps(st, first.context, first.ops, raisedFrom);
+      } else {
+        runOps(st, this.db, emit, first.context, first.ops);
+      }
+      // Frames queued behind the paused effect (a choice's own continuation)
+      // follow it, as in resumeNewChoice.
+      if (rest.length > 0) {
+        const pending = st.pendingDecisions.at(-1);
+        if (pending) pending.continuations = [...(pending.continuations ?? []), ...rest];
+        else runContinuations(st, this.db, emit, rest);
+      }
+    } else if (held.continuations) {
+      const pending = st.pendingDecisions.at(-1);
+      if (pending) pending.continuations = [...(pending.continuations ?? []), ...held.continuations];
+      else runContinuations(st, this.db, emit, held.continuations);
+    }
+    checkStateBased(st, this.db, emit);
+    if (held.heldMidStep) {
+      for (const p of st.pendingDecisions) if (p.kind === 'resolveTrigger') p.heldMidStep = true;
+    }
+    // This trigger's one queue entry became `placed` entries. A held tail
+    // further back whose op's earlier choices include this trigger counts them.
+    const placed = st.pendingDecisions.length - (aheadQueued ? ahead.length : 0);
+    later.forEach((p, index) => {
+      const tail = p.kind === 'resolveTrigger' ? p.continuations?.[0] : undefined;
+      if (tail?.heldTail && (tail.regionAhead ?? 0) > index) tail.regionAhead = (tail.regionAhead ?? 0) + placed - 1;
+    });
+    if (!aheadQueued) st.pendingDecisions.unshift(...ahead);
+    st.pendingDecisions.push(...later);
   }
 
   private resumeNewChoice(emit: Emit, frames: readonly EffectContinuation[] = [], work?: () => void): void {
@@ -1152,9 +1258,12 @@ export class Game {
     over: Extract<Awaiting, { kind: 'respond' }>['over'],
     emit: Emit,
   ): void {
-    if (this.st.pendingDecisions.some(p => p.kind === 'discard' || p.kind === 'sacrifice' ||
-      p.kind === 'resolveTrigger' ||
-      p.continuations !== undefined || (p.kind === 'chooseTarget' && p.triggerWhen !== undefined))) {
+    // A plain choice the cast raised (a Rite or Tithe fodder whose dies trigger
+    // returns a creature that targets or Foresees as it arrives) would replace
+    // a window offered now, stranding the spell on the stack (1.8.1); it too
+    // is settled first whenever a window would open.
+    if (this.st.pendingDecisions.some(holdsFlush) ||
+      (this.st.pendingDecisions.length > 0 && hasCastableInstant(this.st, this.db, responder))) {
       // No window has been offered yet. Complete cast/attack observers first,
       // then recalculate whether the responder still has a playable Charm.
       // A held revision-4 trigger counts: a Rite or Tithe sacrifice can hold
@@ -1162,6 +1271,7 @@ export class Game {
       // would otherwise replace this one and leave the spell on the stack
       // with nobody ever offered a pass (a stranded stack).
       this.st.decisionResume = { player: responder, kind: 'respond', over, offerAfterDecision: true };
+      for (const p of this.st.pendingDecisions) if (p.kind === 'resolveTrigger') p.heldMidStep = true;
       return;
     }
     if (hasCastableInstant(this.st, this.db, responder)) {
@@ -1187,8 +1297,10 @@ export class Game {
       // A held revision-4 trigger (raised by this item or by the check after
       // it) resolves before the next item, as it would have inline with no
       // payable link; the drain in submit() re-enters this flush afterwards.
-      if (st.pendingDecisions.some(p => p.kind === 'discard' || p.kind === 'sacrifice' || p.kind === 'resolveTrigger' ||
-        p.continuations !== undefined || (p.kind === 'chooseTarget' && p.triggerWhen !== undefined))) return;
+      if (st.pendingDecisions.some(holdsFlush)) {
+        for (const p of st.pendingDecisions) if (p.kind === 'resolveTrigger') p.heldMidStep = true;
+        return;
+      }
     }
     st.stackClosed = false;
     if (st.winner === null) this.resumeAfterFlush(emit);

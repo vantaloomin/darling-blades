@@ -45,6 +45,31 @@ describe('public held triggers during Hauntlink windows', () => {
     }
   });
 
+  it('shows a held trigger and the paused flush to both seats whatever choice is open', () => {
+    // A held dies trigger queued behind a plain arrival choice while a spell
+    // still waits on the stack: public information, window or not.
+    const state = makeTestState({ active: 1, hands: [[], []], battlefield: [
+      { iid: 10, cardId: 'bear', controller: 0 },
+      { iid: 12, cardId: 'targeted_arrival', controller: 1 },
+    ] });
+    state.rulesRev = 4;
+    state.stack = [{ sid: 1, cardId: 'bear', controller: 1, targets: [] }];
+    state.stackClosed = true;
+    state.pendingDecisions = [
+      { kind: 'chooseTarget', player: 1, sourceIid: 12, sourceCardId: 'targeted_arrival', abilityIndex: 0,
+        spec: { what: 'opponentCreature' }, ops: [{ op: 'destroy', to: 'target' }] },
+      { kind: 'resolveTrigger', controller: 1, sourceIid: 13, sourceCardId: 'giant', targets: [],
+        ops: [{ op: 'loseLife', n: 2, who: 'opponent' }], offered: [], heldMidStep: true },
+    ];
+    state.awaiting = { player: 1, kind: 'chooseTarget', sourceIid: 12, abilityIndex: 0, targets: [{ kind: 'permanent', iid: 10 }] };
+    const game = Game.restore(state, DB);
+    for (const seat of [0, 1] as const) {
+      const view = game.viewFor(seat);
+      expect(view.pendingDecisions?.map((decision) => decision.kind)).toEqual(['chooseTarget', 'resolveTrigger']);
+      expect(view.stackClosed).toBe(true);
+    }
+  });
+
   it('makes different chosen targets distinguishable in both views with the same Hauntlink menu', () => {
     const first = heldTrigger(10);
     const second = heldTrigger(11);

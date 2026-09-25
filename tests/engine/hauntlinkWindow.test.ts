@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { CARD_DB } from '../../src/data/catalog';
 import type { Action } from '../../src/engine/actions';
 import { Game } from '../../src/engine/Game';
-import type { CardDb, GameState } from '../../src/engine/types';
+import type { CardDb, GameState, Permanent } from '../../src/engine/types';
 import { makeTestState, TEST_DB } from '../helpers';
 import { HAUNTLINK_DB } from '../hauntlinkFixture';
 
@@ -97,7 +98,53 @@ const DB: CardDb = {
     abilities: [{ when: 'spell', ops: [{ op: 'gainLife', n: 3 }] }],
     rarity: 'c',
   },
+  // A Charm whose Foresee follows a death, and a Ritual that changes the top
+  // of its caster's opponent's deck: the order between them is visible.
+  kill_then_foresee: {
+    id: 'kill_then_foresee',
+    name: 'Kill Then Foresee',
+    types: ['charm'],
+    subtypes: [],
+    cost: { generic: 0, pips: {} },
+    colors: [],
+    abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'destroy', to: 'target' }, { op: 'foresee', n: 1 }] }],
+    rarity: 'c',
+  },
+  mill_opponent: {
+    id: 'mill_opponent',
+    name: 'Mill Opponent',
+    types: ['ritual'],
+    subtypes: [],
+    cost: { generic: 0, pips: {} },
+    colors: [],
+    abilities: [{ when: 'spell', ops: [{ op: 'grind', n: 1, who: 'opponent' }] }],
+    rarity: 'c',
+  },
+  // A sweep of fliers with a draw after it, over two fliers whose dies
+  // triggers are held: the first Foresees, the second drains.
+  fly_foreseer: {
+    id: 'fly_foreseer', name: 'Fly Foreseer', types: ['creature'], subtypes: [], colors: [], rarity: 'c',
+    cost: { generic: 0, pips: {} }, attack: 1, defense: 1, keywords: ['skyborne'],
+    abilities: [{ when: 'dies', ops: [{ op: 'foresee', n: 1 }] }],
+  },
+  fly_drainer: {
+    id: 'fly_drainer', name: 'Fly Drainer', types: ['creature'], subtypes: [], colors: [], rarity: 'c',
+    cost: { generic: 0, pips: {} }, attack: 1, defense: 1, keywords: ['skyborne'],
+    abilities: [{ when: 'dies', ops: [{ op: 'loseLife', n: 2, who: 'opponent' }] }],
+  },
+  dies_foreseer: {
+    id: 'dies_foreseer', name: 'Dies Foreseer', types: ['creature'], subtypes: [], colors: [], rarity: 'c',
+    cost: { generic: 0, pips: {} }, attack: 1, defense: 4, // pays a Tithe Horror's {2} in full
+    abilities: [{ when: 'dies', ops: [{ op: 'foresee', n: 1 }] }],
+  },
+  flier_sweep_then_draw: {
+    id: 'flier_sweep_then_draw', name: 'Flier Sweep Then Draw', types: ['ritual'], subtypes: [], colors: [], rarity: 'c',
+    cost: { generic: 0, pips: {} },
+    abilities: [{ when: 'spell', ops: [{ op: 'massDestroy', filter: 'allFliers' }, { op: 'draw', n: 1 }] }],
+  },
 };
+/** Shipped cards alongside the fixtures above; no id overlaps. */
+const SHIPPED_DB: CardDb = { ...CARD_DB, ...DB };
 
 const HOST = 1;
 const LINK = 2;
@@ -328,6 +375,253 @@ describe('Hauntlink window over a dies trigger (rev 4)', () => {
     expect(g.instanceState.players[1].life).toBe(23);
     expect(g.instanceState.stack).toEqual([]);
     expect(g.awaiting).toMatchObject({ player: 1, kind: 'main' });
+  });
+});
+
+/**
+ * rules.md, Hauntlink: a held trigger resolves where it would have resolved
+ * inline with no payable link, so passing every window must leave the same
+ * game as a board without the link. Each case builds that pair: player 0 has
+ * a linked host and a spare (the link is movable, so dies triggers are held)
+ * or the same host and spare with no link.
+ */
+describe('a held trigger keeps the no-link order (rev 4)', () => {
+  function boardPair(o: {
+    bf: Partial<Permanent>[]; hands: [string[], string[]]; active: 0 | 1;
+    decks: [string[], string[]]; graves?: [string[], string[]];
+  }): { linked: Game; reference: Game } {
+    const build = (withLink: boolean): Game => {
+      const state = makeTestState({
+        battlefield: [
+          { iid: HOST, cardId: 'bear', controller: 0, attachments: withLink ? [LINK] : [] },
+          ...(withLink ? [{ iid: LINK, cardId: 'hauntlink_enchantment', controller: 0 as const, attachedTo: HOST }] : []),
+          { iid: SPARE, cardId: 'giant', controller: 0 },
+          ...o.bf,
+        ],
+        hands: o.hands,
+        active: o.active,
+      });
+      state.rulesRev = 4;
+      state.players[0].deck = [...o.decks[0]];
+      state.players[1].deck = [...o.decks[1]];
+      if (o.graves) {
+        state.players[0].graveyard = [...o.graves[0]];
+        state.players[1].graveyard = [...o.graves[1]];
+      }
+      return Game.restore(state, SHIPPED_DB);
+    };
+    return { linked: build(true), reference: build(false) };
+  }
+  /** Pass every window until another decision (or the next main phase) is reached. */
+  const passWindows = (g: Game): Game['awaiting'] => {
+    for (let i = 0; i < 20; i++) {
+      const aw = g.awaiting;
+      if (aw.kind !== 'respond' && aw.kind !== 'hauntlinkWindow' && aw.kind !== 'endStepWindow') return aw;
+      g.submit(aw.player, { type: 'passResponse' });
+    }
+    throw new Error('windows did not end');
+  };
+  const cast = (g: Game, p: 0 | 1, cardId: string, targetIid?: number): void => {
+    const action = g.legalActions(p).find((a) => a.type === 'castSpell' && g.state.players[p].hand[a.handIndex] === cardId &&
+      (targetIid === undefined || (a.targets?.[0]?.kind === 'permanent' && a.targets[0].iid === targetIid)));
+    expect(action).toBeDefined();
+    g.submit(p, action!);
+  };
+  const outcome = (g: Game) => ({
+    life: g.instanceState.players.map((p) => p.life),
+    hands: g.state.players.map((p) => p.hand),
+    graves: g.state.players.map((p) => p.graveyard),
+    battlefield: g.instanceState.battlefield.filter((p) => p.iid !== LINK).map((p) => [p.iid, p.cardId, p.controller, p.tapped]),
+    stack: g.instanceState.stack.map((item) => item.cardId),
+  });
+
+  it('offers a paused spell\'s Foresee after the rest of the stack has resolved', () => {
+    const { linked, reference } = boardPair({
+      bf: [{ iid: 9, cardId: 'dies_drainer', controller: 1 }],
+      hands: [['kill_then_foresee'], ['mill_opponent']], active: 1,
+      decks: [['forest', 'giant', 'elf'], ['bear']],
+    });
+    for (const g of [linked, reference]) {
+      cast(g, 1, 'mill_opponent');
+      cast(g, 0, 'kill_then_foresee', 9);
+    }
+    expect(linked.awaiting).toMatchObject({ player: 0, kind: 'hauntlinkWindow', over: { type: 'trigger', iid: 9 } });
+
+    // The drain resolved, then the mill below took 'elf', then the Foresee.
+    for (const g of [linked, reference]) {
+      expect(passWindows(g)).toEqual({ player: 0, kind: 'foresee', cards: ['giant'] });
+      expect(g.instanceState.players[0].life).toBe(18);
+      expect(g.instanceState.stack).toEqual([]);
+    }
+    expect(outcome(linked)).toEqual(outcome(reference));
+  });
+
+  it('resolves a held trigger before a choice already queued ahead of it (Hotwire Retort)', () => {
+    // The Retort's damage kills Tomb-Toll Taker at the state-based check after
+    // the spell, when the spell's own Foresee is already queued.
+    const { linked, reference } = boardPair({
+      bf: [
+        { iid: 9, cardId: 'sd-tomb-toll-taker', controller: 1 },
+        { iid: 20, cardId: 'land-mountain', controller: 0 }, { iid: 21, cardId: 'land-mountain', controller: 0 },
+      ],
+      hands: [['yn-hotwire-retort'], []], active: 0,
+      decks: [['forest', 'giant', 'elf'], ['bear']],
+    });
+    for (const g of [linked, reference]) cast(g, 0, 'yn-hotwire-retort', 9);
+    expect(linked.awaiting).toMatchObject({ player: 0, kind: 'hauntlinkWindow', over: { type: 'trigger', iid: 9 } });
+
+    for (const g of [linked, reference]) {
+      expect(passWindows(g)).toEqual({ player: 0, kind: 'foresee', cards: ['elf', 'giant'] });
+      expect(g.instanceState.players[0].life).toBe(19); // the Taker's toll came first
+    }
+    expect(outcome(linked)).toEqual(outcome(reference));
+  });
+
+  it('lets the rest of the stack resolve before a targeted arrival the held trigger raised (Barrow-Jarl)', () => {
+    // Player 1 removes player 0's knight; player 0 answers with Doom Bolt on
+    // Barrow-Jarl, whose dies trigger raises Thing in the Cistern. The knight
+    // is gone before Thing chooses what to recall.
+    const { linked, reference } = boardPair({
+      bf: [
+        { iid: 5, cardId: 'knight', controller: 0 },
+        { iid: 9, cardId: 'rg-draugr-jarl', controller: 1 },
+        ...[20, 21, 22].map((iid) => ({ iid, cardId: 'land-swamp', controller: 0 as const })),
+      ],
+      hands: [['in-doom-bolt'], ['destroy_creature']], active: 1,
+      decks: [['forest'], ['forest']], graves: [[], ['dd-thing-in-the-cistern']],
+    });
+    for (const g of [linked, reference]) {
+      cast(g, 1, 'destroy_creature', 5);
+      cast(g, 0, 'in-doom-bolt', 9);
+    }
+    for (const g of [linked, reference]) {
+      const awaiting = passWindows(g);
+      const thing = g.instanceState.battlefield.find((p) => p.cardId === 'dd-thing-in-the-cistern');
+      expect(awaiting).toEqual({ player: 1, kind: 'chooseTarget', sourceIid: thing?.iid, abilityIndex: 0,
+        targets: [{ kind: 'permanent', iid: HOST }, { kind: 'permanent', iid: SPARE }] });
+      expect(g.instanceState.stack).toEqual([]);
+    }
+    expect(outcome(linked)).toEqual(outcome(reference));
+  });
+
+  it('lets a Tithe spell resolve before a choice its fodder\'s held trigger raised, when no Charm answers it', () => {
+    // With no Charm to answer, the spell skips its window and resolves at
+    // once; the fodder's Foresee is offered afterwards, link or no link.
+    const { linked, reference } = boardPair({
+      bf: [{ iid: 9, cardId: 'dies_foreseer', controller: 0 }],
+      hands: [['tithe_horror'], []], active: 0,
+      decks: [['forest', 'giant', 'elf'], ['bear']],
+    });
+    for (const g of [linked, reference]) g.submit(0, { type: 'castSpell', handIndex: 0, tithe: true, sacrifices: [9] });
+    expect(linked.awaiting).toMatchObject({ player: 0, kind: 'hauntlinkWindow', over: { type: 'trigger', iid: 9 } });
+
+    for (const g of [linked, reference]) {
+      expect(passWindows(g)).toEqual({ player: 0, kind: 'foresee', cards: ['elf'] });
+      expect(g.instanceState.stack).toEqual([]);
+      expect(g.instanceState.battlefield.some((p) => p.cardId === 'tithe_horror')).toBe(true);
+    }
+    expect(outcome(linked)).toEqual(outcome(reference));
+  });
+
+  it('runs a sweep\'s remaining ops behind a choice an earlier held trigger raised', () => {
+    const { linked, reference } = boardPair({
+      bf: [{ iid: 9, cardId: 'fly_foreseer', controller: 0 }, { iid: 10, cardId: 'fly_drainer', controller: 0 }],
+      hands: [['flier_sweep_then_draw'], []], active: 0,
+      decks: [['forest', 'giant', 'elf'], ['bear']],
+    });
+    cast(linked, 0, 'flier_sweep_then_draw');
+    cast(reference, 0, 'flier_sweep_then_draw');
+    expect(linked.awaiting).toMatchObject({ player: 0, kind: 'hauntlinkWindow', over: { type: 'trigger', iid: 9 } });
+    for (const g of [linked, reference]) {
+      // The Foresee sees the top card before the sweep draws; bottoming it
+      // leaves the next card for the draw.
+      expect(passWindows(g)).toEqual({ player: 0, kind: 'foresee', cards: ['elf'] });
+      g.submit(0, { type: 'foresee', bottomIndices: [0] });
+      expect(passWindows(g)).toEqual({ player: 0, kind: 'main' });
+      expect(g.state.players[0].hand).toEqual(['giant']);
+      expect(g.instanceState.players[1].life).toBe(18);
+    }
+    expect(outcome(linked)).toEqual(outcome(reference));
+  });
+
+  it('runs a sweep\'s remaining ops behind a choice raised before the hold (Night-Market Price)', () => {
+    // Night-Market Price destroys every creature, then deals 2 to its caster.
+    // Barrow-Jarl dies first with no host on the board, so its trigger
+    // resolves at once and returns Drowned Nurse, whose arrival chooses a
+    // card to reclaim. The Nurse is a host for the unattached link, so the
+    // Glass-Eyed Drowned's dies trigger, next in the sweep, is held.
+    const build = (withLink: boolean): Game => {
+      const state = makeTestState({
+        battlefield: [
+          ...(withLink ? [{ iid: 2, cardId: 'hauntlink_enchantment', controller: 0 as const }] : []),
+          { iid: 9, cardId: 'rg-draugr-jarl', controller: 0 },
+          { iid: 10, cardId: 'dd-glass-eyed-drowned', controller: 1 },
+          ...[20, 21, 22].map((iid) => ({ iid, cardId: 'land-swamp', controller: 0 as const })),
+        ],
+        hands: [['yn-night-market-price'], []], active: 0,
+      });
+      state.rulesRev = 4;
+      state.players[0].deck = ['forest'];
+      state.players[1].deck = ['forest', 'forest'];
+      state.players[0].graveyard = ['bear', 'dd-drowned-nurse'];
+      return Game.restore(state, SHIPPED_DB);
+    };
+    const linked = build(true);
+    const reference = build(false);
+    cast(linked, 0, 'yn-night-market-price');
+    cast(reference, 0, 'yn-night-market-price');
+    expect(linked.awaiting).toMatchObject({ player: 0, kind: 'hauntlinkWindow', over: { type: 'trigger', iid: 10 } });
+    for (const g of [linked, reference]) {
+      expect(passWindows(g)).toMatchObject({ player: 0, kind: 'chooseTarget' });
+      expect(g.instanceState.players[0].life).toBe(20); // the 2 damage waits behind the choice
+      expect(g.state.players[1].hand).toEqual(['forest']); // the Glass-Eyed draw has resolved
+      g.submit(0, { type: 'chooseTarget', target: { kind: 'grave', player: 0, index: 0 } });
+      expect(passWindows(g)).toEqual({ player: 0, kind: 'main' });
+      expect(g.state.players[0].hand).toEqual(['bear']);
+      expect(g.instanceState.players[0].life).toBe(18);
+    }
+  });
+
+  // Reaper's Due is "destroy target creature, then its controller loses 2
+  // life". Before 1.8.1 its second half threw whenever Barrow-Jarl's raise
+  // brought back a creature whose arrival makes a choice, link or no link.
+  const reapersDue = (raised: string) => boardPair({
+    bf: [
+      { iid: 5, cardId: 'knight', controller: 0 },
+      { iid: 9, cardId: 'rg-draugr-jarl', controller: 1 },
+      ...[20, 21, 22].map((iid) => ({ iid, cardId: 'land-swamp', controller: 0 as const })),
+    ],
+    hands: [['in-reapers-due'], []], active: 0,
+    decks: [['forest'], ['forest', 'giant', 'elf']], graves: [[], [raised]],
+  });
+
+  it('finishes Reaper\'s Due after the targeted arrival that Barrow-Jarl raised (Thing in the Cistern)', () => {
+    const { linked, reference } = reapersDue('dd-thing-in-the-cistern');
+    for (const g of [linked, reference]) {
+      cast(g, 0, 'in-reapers-due', 9);
+      expect(passWindows(g)).toMatchObject({ player: 1, kind: 'chooseTarget' });
+      expect(g.instanceState.players[1].life).toBe(20); // the spell waits behind the choice
+      g.submit(1, { type: 'chooseTarget', target: { kind: 'permanent', iid: 5 } });
+      expect(passWindows(g)).toEqual({ player: 0, kind: 'main' });
+      expect(g.state.players[0].hand).toEqual(['knight']); // recalled
+      expect(g.instanceState.players[1].life).toBe(18); // then the rest of the spell
+      expect(g.instanceState.pendingDecisions).toEqual([]);
+    }
+    expect(outcome(linked)).toEqual(outcome(reference));
+  });
+
+  it('finishes Reaper\'s Due after the Foresee and draw of the creature Barrow-Jarl raised (Signal Kitsune)', () => {
+    const { linked, reference } = reapersDue('yn-signal-kitsune');
+    for (const g of [linked, reference]) {
+      cast(g, 0, 'in-reapers-due', 9);
+      expect(passWindows(g)).toEqual({ player: 1, kind: 'foresee', cards: ['elf'] });
+      expect(g.instanceState.players[1].life).toBe(20);
+      g.submit(1, { type: 'foresee', bottomIndices: [] });
+      expect(passWindows(g)).toEqual({ player: 0, kind: 'main' });
+      expect(g.state.players[1].hand).toEqual(['elf']); // the Kitsune's draw
+      expect(g.instanceState.players[1].life).toBe(18); // then the rest of the spell
+    }
+    expect(outcome(linked)).toEqual(outcome(reference));
   });
 });
 

@@ -777,6 +777,19 @@ export interface PlayerState {
 /** Resolution-time choices deferred until the current synchronous batch ends. */
 export interface EffectContinuation {
   ops: EffectOp[];
+  /**
+   * The rest of an effect that a held dies trigger paused (rules.md,
+   * Hauntlink). It carries on as the effect would have carried on had the
+   * trigger resolved inline: behind whatever the trigger raised, or at once.
+   */
+  heldTail?: true;
+  /**
+   * With `heldTail`: how many choices the paused op had already queued ahead
+   * of the held trigger carrying this tail (kept current as held triggers
+   * among them resolve in place). With no link the tail waits behind the
+   * newest of them when the held trigger raises nothing itself.
+   */
+  regionAhead?: number;
   context: {
     controller: PlayerId; sourceCardId: string; sourceIid?: number; newDecisionContext?: true;
     targets: TargetRef[]; targetBatch?: boolean; targetSpecs?: readonly TargetSpec[];
@@ -830,6 +843,20 @@ export type PendingDecision =
       continuations?: EffectContinuation[];
       markTriggerDepth?: number;
       selfGraveExclusion?: { instanceId?: number; cardId: string; owner?: PlayerId };
+      /**
+       * Queued choices this held dies trigger was moved ahead of. With no
+       * payable link it would have resolved before any of them was offered;
+       * what it raises still queues behind them.
+       */
+      movedAhead?: number;
+      /**
+       * Held in the middle of a step that carries on after it: a stack flush,
+       * or the offer of the response window over a spell or an attack. Once
+       * it and every trigger it causes have resolved, that step carries on
+       * before any plain choice they raised is offered, as it would have with
+       * no payable link.
+       */
+      heldMidStep?: true;
     };
 
 export interface GameState {

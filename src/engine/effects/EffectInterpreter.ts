@@ -877,60 +877,84 @@ export function runOps(
     }
     runOp(state, db, emit, bound, op);
     if (state.pendingDecisions.length === pendingCount) continue;
-
-    const thenOps = ops.slice(index + 1);
-    const pending = state.pendingDecisions[state.pendingDecisions.length - 1];
-    if (ctx.newDecisionContext) {
-      for (const decision of state.pendingDecisions.slice(pendingCount)) decision.continuations ??= [];
-    }
-    // A held revision-4 trigger pauses the effect at the point where, with no
-    // payable link, the trigger would have resolved inline: its Hauntlink
-    // windows open, it resolves, then the remaining ops run (rules.md,
-    // Hauntlink). A tail-less hold needs no frame; the flush waits for it.
-    if (pending && (pending.kind === 'discard' || pending.kind === 'sacrifice' || pending.continuations !== undefined ||
-      (pending.kind === 'chooseTarget' && pending.triggerWhen !== undefined) ||
-      (pending.kind === 'resolveTrigger' && thenOps.length > 0))) {
-      pending.continuations ??= [];
-      if (thenOps.length) pending.continuations.push({ context: structuredClone(ctx), ops: [...thenOps] });
-      return;
-    }
-    // A Duty defers what its ops raise exactly as a spell does: the Duty's own
-    // targets are chosen up front, and a Foresee, a targeted trigger or a held
-    // trigger it raises resolves through the same queue.
-    if (pending?.kind === 'foresee') {
-      if (thenOps.length > 0) {
-        for (const thenOp of thenOps) assertTargetFreeForeseeContinuation(thenOp);
-        if (containsSelfReclaim(thenOps)) {
-          pending.continuations ??= [];
-          pending.continuations.push({ context: structuredClone(ctx), ops: [...thenOps] });
-          return;
-        }
-        const thenContext = {
-          controller: ctx.controller,
-          sourceCardId: ctx.sourceCardId,
-          ...(ctx.sourceIid === undefined ? {} : { sourceIid: ctx.sourceIid }),
-        };
-        const prior = pending.thenContext;
-        if (pending.thenOps?.length && prior && (
-          prior.controller !== thenContext.controller || prior.sourceCardId !== thenContext.sourceCardId ||
-          prior.sourceIid !== thenContext.sourceIid
-        )) throw new Error('Cannot combine Foresee tails with different source contexts.');
-        pending.thenContext = thenContext;
-        pending.thenOps = [...(pending.thenOps ?? []), ...thenOps];
-        // Preserve the legacy target-free tail validation above. A new choice
-        // later in that tail still needs public continuation/resume plumbing.
-        if (containsNewPlayerChoice(pending.thenOps)) pending.continuations ??= [];
-      }
-    } else if (pending?.kind === 'chooseTarget' && thenOps.length > 0) {
-      if (pending.sourceCardId !== ctx.sourceCardId || pending.sourceIid !== ctx.sourceIid) {
-        throw new Error(
-          `Cannot append deferred target-trigger tail from ${ctx.sourceCardId} to ${pending.sourceCardId}; ` +
-          'the continuation has a different source context.',
-        );
-      }
-      pending.ops = [...pending.ops, ...thenOps];
-    }
+    deferRemainingOps(state, ctx, ops.slice(index + 1), pendingCount);
     return;
+  }
+}
+
+/**
+ * Once an op has queued a decision, the rest of its op list waits behind the
+ * newest decision (`raisedFrom` is the queue length before the op ran). Also
+ * used when a held dies trigger resolves late and raises a decision: the rest
+ * of the effect it paused then waits exactly where it would have waited had
+ * the trigger resolved inline.
+ */
+export function deferRemainingOps(
+  state: GameState,
+  ctx: EffectContext,
+  thenOps: readonly EffectOp[],
+  raisedFrom: number,
+): void {
+  const pending = state.pendingDecisions[state.pendingDecisions.length - 1];
+  const frame = (): EffectContinuation => ({ context: structuredClone(ctx), ops: [...thenOps] });
+  if (ctx.newDecisionContext) {
+    for (const decision of state.pendingDecisions.slice(raisedFrom)) decision.continuations ??= [];
+  }
+  // A held revision-4 trigger pauses the effect at the point where, with no
+  // payable link, the trigger would have resolved inline: its Hauntlink
+  // windows open, it resolves, then the remaining ops run (rules.md,
+  // Hauntlink). A tail-less hold needs no frame; the flush waits for it.
+  if (pending && (pending.kind === 'discard' || pending.kind === 'sacrifice' || pending.continuations !== undefined ||
+    (pending.kind === 'chooseTarget' && pending.triggerWhen !== undefined) ||
+    (pending.kind === 'resolveTrigger' && thenOps.length > 0))) {
+    pending.continuations ??= [];
+    if (thenOps.length && pending.kind === 'resolveTrigger') {
+      const regionAhead = state.pendingDecisions.length - 1 - raisedFrom;
+      pending.continuations.push({ ...frame(), heldTail: true, ...(regionAhead > 0 ? { regionAhead } : {}) });
+    } else if (thenOps.length) pending.continuations.push(frame());
+    return;
+  }
+  // A Duty defers what its ops raise exactly as a spell does: the Duty's own
+  // targets are chosen up front, and a Foresee, a targeted trigger or a held
+  // trigger it raises resolves through the same queue.
+  if (pending?.kind === 'foresee') {
+    if (thenOps.length > 0) {
+      for (const thenOp of thenOps) assertTargetFreeForeseeContinuation(thenOp);
+      const thenContext = {
+        controller: ctx.controller,
+        sourceCardId: ctx.sourceCardId,
+        ...(ctx.sourceIid === undefined ? {} : { sourceIid: ctx.sourceIid }),
+      };
+      const prior = pending.thenContext;
+      // A Foresee raised by a trigger inside the effect (a creature raised by
+      // a dies trigger, arriving with "Foresee, then draw") already owns that
+      // trigger's tail. The effect's own tail then resumes after it in its own
+      // context, as a continuation, rather than being merged into a context
+      // it does not belong to.
+      if (containsSelfReclaim(thenOps) || (pending.thenOps?.length && prior && (
+        prior.controller !== thenContext.controller || prior.sourceCardId !== thenContext.sourceCardId ||
+        prior.sourceIid !== thenContext.sourceIid
+      ))) {
+        pending.continuations ??= [];
+        pending.continuations.push(frame());
+        return;
+      }
+      pending.thenContext = thenContext;
+      pending.thenOps = [...(pending.thenOps ?? []), ...thenOps];
+      // Preserve the legacy target-free tail validation above. A new choice
+      // later in that tail still needs public continuation/resume plumbing.
+      if (containsNewPlayerChoice(pending.thenOps)) pending.continuations ??= [];
+    }
+  } else if (pending?.kind === 'chooseTarget' && thenOps.length > 0) {
+    if (pending.sourceCardId === ctx.sourceCardId && pending.sourceIid === ctx.sourceIid) {
+      pending.ops = [...pending.ops, ...thenOps];
+    } else {
+      // A targeted arrival raised inside the effect (a token it creates, or a
+      // creature a dies trigger raises) pauses the effect like any new
+      // choice: the target is chosen, the arrival resolves, then the rest of
+      // the effect runs in the effect's own context.
+      (pending.continuations ??= []).push(frame());
+    }
   }
 }
 
