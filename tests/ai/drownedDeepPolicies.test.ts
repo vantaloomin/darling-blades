@@ -134,8 +134,9 @@ describe('Drowned Deep multiple Duty and independent target policy', () => {
     const game = gameWith(['bound'], [body(10, 'bear'), body(11, 'giant')]);
     game.state.players[0].graveyard = ['bear', 'giant'];
     const menu = applyVocabularyTargetPolicy(game.viewFor(0), DB, game.legalActions(0));
+    const giant = game.viewFor(0).you.graveyardInstances?.[1];
     expect(menu.filter((action) => action.type === 'castSpell')).toEqual([{ type: 'castSpell', handIndex: 0,
-      targets: [{ kind: 'grave', player: 0, index: 1 }, ref(11)] }]);
+      targets: [{ kind: 'grave', player: 0, index: 1, instanceId: giant }, ref(11)] }]);
   });
   it('ranks a mandatory two-target spell by both targets and avoids harming friendly bodies', () => {
     const game = gameWith(['pair'], [body(10, 'giant'), body(11, 'bear', 1), body(12, 'giant', 1)]);
@@ -157,8 +158,9 @@ describe('Drowned Deep multiple Duty and independent target policy', () => {
       expect(brain(name, seed).chooseAction(pair.viewFor(0), pair.legalActions(0))).toEqual({ type: 'castSpell', handIndex: 0, targets: [ref(11), ref(12)] });
       const bound = gameWith(['bound'], [body(10, 'bear'), body(11, 'giant')]);
       bound.state.players[0].graveyard = ['bear', 'giant'];
+      const giant = bound.viewFor(0).you.graveyardInstances?.[1];
       expect(brain(name, seed).chooseAction(bound.viewFor(0), bound.legalActions(0))).toEqual({ type: 'castSpell', handIndex: 0,
-        targets: [{ kind: 'grave', player: 0, index: 1 }, ref(11)] });
+        targets: [{ kind: 'grave', player: 0, index: 1, instanceId: giant }, ref(11)] });
     }
   });
   it.each(difficulties)('%s uses the targeted creature Retell override with its chosen legal target', (name) => {

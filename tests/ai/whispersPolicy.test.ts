@@ -147,7 +147,9 @@ describe('Whispers AI policy', () => {
     const first = response();
     const second = response();
     const action = brain(difficulty, 41).chooseAction(first.viewFor(0), first.legalActions(0));
-    expect(action).toEqual({ type: 'castSpell', handIndex: 0, graveIndex: 0, whispers: true });
+    expect(action).toEqual({
+      type: 'castSpell', handIndex: 0, graveIndex: 0, graveInstanceId: first.viewFor(0).you.graveyardInstances?.[0], whispers: true,
+    });
     expect(brain(difficulty, 41).chooseAction(second.viewFor(0), second.legalActions(0))).toEqual(action);
   });
 });

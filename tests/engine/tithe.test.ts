@@ -571,7 +571,7 @@ describe('Tithe replay and determinism', () => {
 
   it('round-trips a naturally terminal game with Tithe iids and explicit mana plans byte for byte', () => {
     const recorded = recordTitheFixture();
-    expect(recorded.log.v).toBe(14);
+    expect(recorded.log.v).toBe(15);
     expect(recorded.game.awaiting.kind).toBe('gameOver');
     const sacrifices = recorded.log.actions.filter((step) => step.a.type === 'castSpell' && step.a.tithe);
     expect(sacrifices.length).toBeGreaterThan(0);

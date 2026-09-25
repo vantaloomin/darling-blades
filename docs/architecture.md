@@ -156,10 +156,18 @@ The full `GameEvent` union (`src/engine/events.ts`):
 ### Replay discipline and rules revisions
 
 `ReplayLog.v` selects observable engine behavior as well as validating the log
-shape. New v10 logs run under current rules revision 3. Version 8 remains
-replayable under revision 3, version 7 under revision 2 with the former
-Hauntlink cast mode, and version 6 under revision 1 with the classic
-single-window path. A current-version log containing the explicit legacy
+shape. New v15 logs (1.8.1) run under current rules revision 4, as do versions
+11 through 14; versions 8 through 10 run under revision 3, version 7 under
+revision 2 with the former Hauntlink cast mode, and version 6 under revision 1
+with the classic single-window path. From v15 an action names a graveyard card
+by its instance id as well as its position; an older log names the position
+only, and `Game.submit` binds it to the card there when the action is
+submitted. That is the card the recorded game chose except where 1.8.0 read a
+shifted position (a Retell cast whose target sat above its own source, or a
+response that moved the graveyard before the spell resolved): there the
+replay returns the card the position named at submission. 1.8.0 logs are
+refused anyway, since the 1.8.1 card-text changes moved the card-data stamp.
+A current-version log containing the explicit legacy
 Hauntlink cast marker selects revision 2 as well. These paths are preserved
 behind `GameConfig.rulesRev`; legacy `GameState` JSON omits both `rulesRev` and
 revision-2 episode bookkeeping. A gated behavior change may keep an older
@@ -178,7 +186,11 @@ Redaction:
 - **The opponent's hand and deck become counts** (`OpponentView.handCount`,
   `deckCount`).
 - **Battlefield, stack, combat, and both graveyards are public** and cloned into
-  the view (`structuredClone`), so an AI can mutate its view freely.
+  the view (`structuredClone`), so an AI can mutate its view freely. Public
+  cards keep their physical identity: permanents and stack items carry
+  `instanceId`, and each graveyard's identities are listed index-aligned in
+  `graveyardInstances` (always, since 1.8.1), which is what lets graveyard
+  targets and determinized simulations name the same card the real game does.
 
 This is the single choke point for hidden information: if it's not in the view,
 no AI can see it.

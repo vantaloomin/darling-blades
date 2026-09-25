@@ -699,7 +699,16 @@ export type TargetRef =
   | { kind: 'permanent'; iid: number }
   | { kind: 'player'; player: PlayerId }
   | { kind: 'stackItem'; sid: number }
-  | { kind: 'grave'; player: PlayerId; index: number };
+  /**
+   * A card in `player`'s graveyard. `instanceId` is its identity: legal
+   * actions carry it, submission binds it when a hand-built ref omits it, and
+   * everything after submission (the stack, held triggers, the effect itself)
+   * finds the card by it, so a graveyard that changes order cannot redirect
+   * the effect to another card (1.8.1). `index` is where the card sat when
+   * the ref was made: the chooser's locator, checked against `instanceId` at
+   * submission and never read by the engine afterwards.
+   */
+  | { kind: 'grave'; player: PlayerId; index: number; instanceId?: number };
 
 export interface CombatState {
   attackers: number[]; // iids

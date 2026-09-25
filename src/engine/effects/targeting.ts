@@ -1,3 +1,4 @@
+import { graveRefCard } from '../graveyard';
 import { getEffectiveStats } from '../statics';
 import type {
   CardDb,
@@ -6,7 +7,7 @@ import type {
   TargetRef,
   TargetSpec,
 } from '../types';
-import { cardIdOf, def, isType, manaValue, opponentOf } from '../types';
+import { cardIdOf, def, isCardInstance, isType, manaValue, opponentOf } from '../types';
 
 /**
  * Target legality — one place. Untouchable applies only to creature-targeting
@@ -122,7 +123,7 @@ export function isLegalTarget(
       break;
     case 'yourGraveCreature': {
       if (ref.kind !== 'grave' || ref.player !== caster) return false;
-      const cardId = state.players[caster].graveyard[ref.index];
+      const cardId = graveRefCard(state, ref);
       legal = cardId !== undefined && isType(def(db, cardId), 'creature');
       break;
     }
@@ -140,7 +141,7 @@ export function isLegalTarget(
   if (spec.maxCost !== undefined || spec.minAttack !== undefined) {
     const card = ref.kind === 'permanent' ? state.battlefield.find(p => p.iid === ref.iid)?.cardId
       : ref.kind === 'stackItem' ? state.stack.find(p => p.sid === ref.sid)?.cardId
-      : ref.kind === 'grave' ? state.players[ref.player].graveyard[ref.index] : undefined;
+      : ref.kind === 'grave' ? graveRefCard(state, ref) : undefined;
     if (card === undefined) return false;
     const d = def(db, card);
     // X has its chosen value on the stack and zero in other zones. Alternate
@@ -200,7 +201,8 @@ export function enumerateTargets(
         if (seen.has(cardId)) return;
         if (isType(def(db, cardId), 'creature')) {
           seen.add(cardId);
-          out.push({ kind: 'grave', player: caster, index });
+          out.push({ kind: 'grave', player: caster, index,
+            ...(isCardInstance(card) ? { instanceId: card.instanceId } : {}) });
         }
       });
       break;

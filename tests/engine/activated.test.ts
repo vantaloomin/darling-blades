@@ -548,7 +548,7 @@ function activationReplayFixture() {
 describe('activation replay and deterministic compatibility', () => {
   it('records inline targets and explicit payment in a naturally terminal game and replays every byte', () => {
     const recorded = activationReplayFixture();
-    expect(recorded.log.v).toBe(14);
+    expect(recorded.log.v).toBe(15);
     expect(recorded.game.awaiting.kind).toBe('gameOver');
     expect(recorded.game.instanceState.winReason).toBe('life');
     const uses = recorded.log.actions.filter((step) => step.a.type === 'activate');

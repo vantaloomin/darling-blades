@@ -200,8 +200,9 @@ describe('Sands of the Duat Preserve AI', () => {
       battlefield: [duatPermanent(1, 'forest')],
     });
     for (const brain of brains()) {
-      expect(castChoice(brain, createGame())).toEqual({
-        type: 'preserveCard', graveIndex: 0,
+      const game = createGame();
+      expect(castChoice(brain, game)).toEqual({
+        type: 'preserveCard', graveIndex: 0, graveInstanceId: game.viewFor(0).you.graveyardInstances?.[0],
       });
     }
   });
@@ -215,8 +216,9 @@ describe('Sands of the Duat Preserve AI', () => {
       battlefield: [duatPermanent(1, 'forest'), duatPermanent(2, 'forest')],
     });
     for (const brain of brains()) {
-      expect(castChoice(brain, createGame())).toEqual({
-        type: 'preserveCard', graveIndex: 1,
+      const game = createGame();
+      expect(castChoice(brain, game)).toEqual({
+        type: 'preserveCard', graveIndex: 1, graveInstanceId: game.viewFor(0).you.graveyardInstances?.[1],
       });
     }
   });

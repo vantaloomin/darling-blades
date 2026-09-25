@@ -9,7 +9,7 @@ import {
 } from '../battlefield';
 import { anyPayableHauntlink } from '../hauntlinkWindow';
 import { drawCards } from '../phases';
-import { freshGraveyardCard } from '../graveyard';
+import { freshGraveyardCard, graveRefIndex } from '../graveyard';
 import { rngInt } from '../rng';
 import { getEffectiveStats, isQuestActive } from '../statics';
 import { enumerateTargets, isLegalTarget } from './targeting';
@@ -736,16 +736,16 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       return;
     case 'reclaim': {
       const grave = state.players[ctx.controller].graveyard;
-      for (const ref of [...targetRefsForOp(ctx)].sort((a, b) => {
-        if (a.kind !== 'grave' || b.kind !== 'grave') return 0;
-        return b.index - a.index;
-      })) {
-        if (ref.kind !== 'grave' || ref.player !== ctx.controller) continue;
-        if (ref.index < grave.length) {
-          const [card] = grave.splice(ref.index, 1);
-          if (isCardInstance(card)) delete card.whispersUntilDawnOf;
-          state.players[ctx.controller].hand.push(card);
-        }
+      // Find each chosen card where it sits now, then take them from the
+      // highest position down so one splice never shifts another.
+      const indexes = targetRefsForOp(ctx)
+        .flatMap((ref) => ref.kind === 'grave' && ref.player === ctx.controller ? [graveRefIndex(state, ref)] : [])
+        .filter((index) => index >= 0)
+        .sort((a, b) => b - a);
+      for (const index of indexes) {
+        const [card] = grave.splice(index, 1);
+        if (isCardInstance(card)) delete card.whispersUntilDawnOf;
+        state.players[ctx.controller].hand.push(card);
       }
       return;
     }
@@ -809,10 +809,10 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         index = -1;
         for (const ref of targetRefsForOp(ctx)) {
           if (ref.kind !== 'grave' || ref.player !== ctx.controller) continue;
-          if (ref.index < 0 || ref.index >= grave.length) continue;
-          if (ref.index === excludedIndex) continue;
-          if (!isType(def(db, grave[ref.index]), 'creature')) continue;
-          index = ref.index;
+          const current = graveRefIndex(state, ref);
+          if (current < 0 || current === excludedIndex) continue;
+          if (!isType(def(db, grave[current]), 'creature')) continue;
+          index = current;
           break;
         }
         if (index < 0) return;

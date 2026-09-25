@@ -156,6 +156,28 @@ Revision 1 preserves the classic behavior verbatim: no post-flush reopen in
 Combat or at Sunset. The Sunset window is handled slightly separately in both
 revisions: passing it calls `enterCleanup` rather than flushing an empty stack.
 
+**Graveyard cards are named by identity (1.8.1).** A target in a graveyard
+(`yourGraveCreature`, for reclaim and raise) carries the card's instance id
+beside its position, and so does the source of a Retell, Whispers or Preserve
+action (`graveInstanceId` beside `graveIndex`). Legal actions carry both. The
+engine refuses an action whose position no longer holds that card, and it
+binds a ref that names only a position (a hand-built action, or a replay log
+older than v15) to the card at that position when the action is submitted.
+From then on the stack, a held trigger and a paused effect find the card by
+identity (`graveRefIndex` in `src/engine/graveyard.ts`): a spell that targets
+the third card of your graveyard returns that card even if a response takes
+the first card before it resolves, and it fizzles only if that card itself
+has left. Before 1.8.1 the spell read whatever sat at the old position, so
+the same response made it return the fourth card. The redacted view lists
+each graveyard's identities (`graveyardInstances`), the same public identity
+the battlefield and the stack already carry; hands and decks stay counts.
+The replay log bumped to v15, still at rules revision 4; v6-v14 logs still
+replay, binding each recorded position to the card there at submission. That
+differs from what 1.8.0 did only where 1.8.0 read a shifted position: a
+Retell cast whose target sat above its own source returned the next card
+down on every such cast, response or not. 1.8.0 logs are refused anyway,
+since the 1.8.1 card-text changes moved the card-data stamp.
+
 ## Combat
 
 Combat is declared and resolved through `Game.apply` (declaration),
@@ -421,8 +443,9 @@ the creature returned was Thing in the Cistern, Drowned Bell Choir, Drowned
 Nurse or another targeted arrival, or Signal Kitsune or another arrival that
 Foresees and then acts.
 
-**Records.** None of this adds an action, so the replay log stays v14 and the
-rules revision stays 4. It does change what a revision-4 game does whenever
+**Records.** None of this adds an action, so it needs no replay bump of its
+own (the log is v15 for graveyard identities, above) and the rules revision
+stays 4. It does change what a revision-4 game does whenever
 a trigger is held, including a hold that paused nothing: in 1.8.0 a trigger
 held during a stack flush waited for the whole stack. A 1.8.0 action log that
 passes through such a hold can therefore fail to replay on 1.8.1 (an action it

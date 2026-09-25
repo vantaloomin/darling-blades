@@ -206,6 +206,19 @@ function permanentFor(ctx: TargetContext, ref: TargetRef): Permanent | undefined
     : undefined;
 }
 
+/**
+ * The card a graveyard ref names, read from the public view: by its identity
+ * when the ref and the view carry one (1.8.1), else by the chooser's index.
+ */
+export function graveRefCardId(view: PlayerView, ref: Extract<TargetRef, { kind: 'grave' }>): string | undefined {
+  const side = ref.player === view.myId ? view.you : view.opp;
+  if (ref.instanceId !== undefined && side.graveyardInstances) {
+    const index = side.graveyardInstances.indexOf(ref.instanceId);
+    return index < 0 ? undefined : side.graveyard[index];
+  }
+  return side.graveyard[ref.index];
+}
+
 function playerFor(ctx: TargetContext, ref: TargetRef): PlayerId | undefined {
   if (ref.kind === 'player' || ref.kind === 'grave') return ref.player;
   if (ref.kind === 'permanent') return permanentFor(ctx, ref)?.controller;
@@ -329,8 +342,7 @@ function effectOnTarget(ctx: TargetContext, op: EffectOp, ref: TargetRef): numbe
     case 'raise':
     case 'reclaim': {
       if (ref.kind !== 'grave' || ref.player !== ctx.view.myId) return 0;
-      const cards = ref.player === ctx.view.myId ? ctx.view.you.graveyard : ctx.view.opp.graveyard;
-      const cardId = cards[ref.index];
+      const cardId = graveRefCardId(ctx.view, ref);
       if (!cardId) return 0;
       return cardValue(ctx.db, cardId) * (op.op === 'raise' ? 1 : 0.7);
     }

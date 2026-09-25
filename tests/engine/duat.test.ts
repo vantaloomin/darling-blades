@@ -376,7 +376,8 @@ describe('Sands of the Duat Preserve engine', () => {
       battlefield: [duatPermanent(1, 'forest')],
     });
     const action = preserveAction(game);
-    expect(action).toEqual({ type: 'preserveCard', graveIndex: 0 });
+    // The action names the physical card, not only its slot.
+    expect(action).toEqual({ type: 'preserveCard', graveIndex: 0, graveInstanceId: original.instanceId });
 
     const events = game.submit(0, { ...action, manaPlan: [1] });
     const state = mutableState(game);

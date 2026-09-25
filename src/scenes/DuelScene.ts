@@ -72,6 +72,7 @@ import { ensureSplitPip } from '../ui/ManaSymbols';
 import { getEffectiveStats, isSummoningSick } from '../engine/statics';
 import type { CardDef, Color, ManaColor, PlayerId, Permanent, TargetRef } from '../engine/types';
 import { activatedAbilitiesOf, cardIdOf, def, isType, manaValue } from '../engine/types';
+import { graveRefCard, sameGraveCard } from '../engine/graveyard';
 import {
   attachTouchGestures,
   bindTapButton,
@@ -2337,7 +2338,13 @@ export class DuelScene extends Phaser.Scene {
     if (a.kind === 'permanent' && b.kind === 'permanent') return a.iid === b.iid;
     if (a.kind === 'player' && b.kind === 'player') return a.player === b.player;
     if (a.kind === 'stackItem' && b.kind === 'stackItem') return a.sid === b.sid;
-    return a.kind === 'grave' && b.kind === 'grave' && a.player === b.player && a.index === b.index;
+    return a.kind === 'grave' && b.kind === 'grave' && sameGraveCard(a, b);
+  }
+
+  /** A graveyard target's card, found by its identity when the ref carries one. */
+  private graveTargetCardId(ref: Extract<TargetRef, { kind: 'grave' }>): string | undefined {
+    const card = graveRefCard(this.duel.instanceState, ref);
+    return card === undefined ? undefined : cardIdOf(card);
   }
 
   private targetChoiceOrigin(): { x: number; y: number; scale: number; angle: number } | undefined {
@@ -5565,7 +5572,7 @@ export class DuelScene extends Phaser.Scene {
     this.keyboardTarget = refs[this.targetFocus];
     const ref = this.keyboardTarget;
     const cardId = ref.kind === 'permanent' ? this.duel.state.battlefield.find(p => p.iid === ref.iid)?.cardId
-      : ref.kind === 'grave' ? this.duel.state.players[ref.player].graveyard[ref.index]
+      : ref.kind === 'grave' ? this.graveTargetCardId(ref)
         : ref.kind === 'stackItem' ? this.duel.state.stack.find(item => item.sid === ref.sid)?.cardId : undefined;
     this.showTransientNotice(cardId ? `Target: ${def(CARD_DB, cardId).name}` : ref.kind === 'player' ? DUTY_PLAYER_LABELS[ref.player] : 'Choose a target');
     for (const perm of this.duel.state.battlefield) this.views.get(perm.iid)?.setHighlight(this.highlightFor(perm));
@@ -6900,7 +6907,7 @@ export class DuelScene extends Phaser.Scene {
         return;
       }
       const cardId = ref.kind === 'grave'
-        ? this.duel.state.players[ref.player].graveyard[ref.index]
+        ? this.graveTargetCardId(ref)
         : ref.kind === 'permanent'
           ? this.duel.state.battlefield.find((perm) => perm.iid === ref.iid)?.cardId
           : ref.kind === 'stackItem' ? this.duel.state.stack.find(item => item.sid === ref.sid)?.cardId : undefined;
