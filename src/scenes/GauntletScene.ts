@@ -23,6 +23,7 @@ import {
 } from '../ui/layout';
 import { gateOnArt } from '../ui/artGate';
 import { applyBackdrop } from '../ui/SceneBackdrop';
+import { sceneSubtitle, sceneTitle } from '../ui/sceneTitle';
 import { ellipsizeText } from '../ui/textFit';
 import { colorInt, theme } from '../ui/theme';
 import { Toast } from '../ui/Toast';
@@ -138,20 +139,12 @@ export class GauntletScene extends Phaser.Scene {
     Music.setMood('gauntlet');
     new Toast(this);
 
-    this.add
-      .text(width / 2, 46, 'Avatar Gauntlet', {
-        fontFamily: theme.fonts.display,
-        fontSize: `${theme.type.display}px`,
-        color: theme.colors.heading,
-      })
-      .setOrigin(0.5);
-    this.add
-      .text(width / 2, 84, `Climb ${ECONOMY.gauntletRungGold.length} rungs. A loss ends the run: the tower resets, your collection does not.`, {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.label}px`,
-        color: theme.colors.muted,
-      })
-      .setOrigin(0.5);
+    sceneTitle(this, 'Avatar Gauntlet');
+    sceneSubtitle(
+      this,
+      `Climb ${ECONOMY.gauntletRungGold.length} rungs. A loss ends the run: the tower resets, your collection does not.`,
+      { fontSize: theme.type.label },
+    );
 
     this.buildTower();
     this.buildPanel();
@@ -169,10 +162,13 @@ export class GauntletScene extends Phaser.Scene {
     const railX = viewport.x + viewport.width / 2;
     const rungs = ECONOMY.gauntletRungGold.length;
 
+    // Two caption lines centred between the scene subtitle (which ends near
+    // y 101) and the tower viewport (156); centred at 122 until 1.8.1 the block
+    // began 5px under the subtitle once it hung below the header track.
     this.add
       .text(
         railX,
-        122,
+        126,
         `Best: ${g.bestRung > 0 ? `Rung ${g.bestRung}` : 'None'}   ·   Clears: ${g.completions}\n${this.rosterHeading(!!g.run)}`,
         {
           fontFamily: theme.fonts.ui,

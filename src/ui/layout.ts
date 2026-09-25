@@ -583,6 +583,23 @@ export const HEADER_CURRENCY_ANCHOR: Readonly<Point> = {
   y: theme.design.headerCenterY,
 };
 
+/**
+ * A screen's title and the one line under it. The title is centred on the
+ * frame, on the shared header line (the back button's row), in the recipe the
+ * shared scene header uses (display face, h1, bold); at that size its box fits
+ * the 44px header track. The subtitle hangs one grid step below the track, so
+ * it never shares a band with the back button or the gold badge. Seven menus
+ * set a 44px title centred at y 44-52 until 1.8.1 (2026-09-25), which started
+ * its box above the frame's top edge (y 36).
+ */
+export const SCENE_TITLE = {
+  x: theme.design.safeCenterX,
+  y: theme.design.headerCenterY,
+  fontSize: theme.type.h1,
+  /** Top edge of the line under the title (text origin 0.5, 0). */
+  subtitleTop: theme.design.safeTop + theme.control.minHitHeight + theme.space(1),
+} as const;
+
 export interface HeaderFooterLayoutOptions {
   backVisual: RectSize;
   titleVisual: RectSize;

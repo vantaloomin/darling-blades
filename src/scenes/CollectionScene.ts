@@ -65,6 +65,7 @@ import {
   shardMoteCount,
 } from '../ui/shardRitual';
 import { HEADER_CURRENCY_ANCHOR } from '../ui/layout';
+import { sceneTitle } from '../ui/sceneTitle';
 import { colorInt, theme } from '../ui/theme';
 import { queueAchievementUnlockToasts } from '../ui/achievementToast';
 import { Toast } from '../ui/Toast';
@@ -91,6 +92,9 @@ const DESIGN_H = 720;
 // instantly. Ignore dim closes for this long after opening so a double-click
 // doesn't flash the card open-and-shut; a deliberate click a beat later closes.
 const INSPECT_CLOSE_LOCK_MS = 300;
+
+/** How long an armed Craft waits for its second press, as Gauntlet's Abandon does. */
+const CRAFT_ARM_MS = 4000;
 
 const ATELIER_CARD = {
   x: 450,
@@ -226,13 +230,7 @@ export class CollectionScene extends Phaser.Scene {
     // 1.8 cut (2026-09-23), their boxes starting above the frame's top edge.
     // The filter bar's hit band begins at 82, below the header track (36-80).
     const headerY = theme.design.headerCenterY;
-    this.add
-      .text(DESIGN_W / 2, headerY, 'Collection', {
-        fontFamily: theme.fonts.display,
-        fontSize: `${theme.type.h1}px`,
-        color: theme.colors.heading,
-      })
-      .setOrigin(0.5);
+    sceneTitle(this, 'Collection');
     // Crafting spends gold here, so keep the shared currency badge beside the
     // collection stats and refresh it with the binder view.
     this.goldBadge = goldBadge(this, HEADER_CURRENCY_ANCHOR.x, HEADER_CURRENCY_ANCHOR.y, { flashOnChange: true });
@@ -1082,15 +1080,22 @@ export class CollectionScene extends Phaser.Scene {
       suspendAtelierForRitual,
     );
 
+    // The dismissal hint takes the corner a close button would hold: the
+    // reserved close track's right edge, on the shared header line. It sat at
+    // (640, 688) until 1.8.1 (2026-09-25), below the title-safe frame's 684
+    // and under the odds plate, and the bottom band has no room left (plate,
+    // Hero or Craft, Shard). The header line stays clear of the cleared-pin
+    // note under it (y 84).
+    const closeTrack = shell.tracks.closeTrack;
     c.add(
       this.add
         .text(
-          DESIGN_W / 2,
-          DESIGN_H - 32,
-          isTouchDevice() ? 'Tap anywhere to close' : 'Click anywhere to close',
+          closeTrack.x + closeTrack.width,
+          theme.design.headerCenterY,
+          touchProfile ? 'Tap anywhere to close' : 'Click anywhere to close',
           { fontFamily: theme.fonts.ui, fontSize: `${theme.type.label}px`, color: theme.colors.muted },
         )
-        .setOrigin(0.5),
+        .setOrigin(1, 0.5),
     );
 
     this.guard.open([...this.cells, ...this.guardTargets]);
@@ -1105,7 +1110,7 @@ export class CollectionScene extends Phaser.Scene {
     y: number,
     label: string,
     variant: 'primary' | 'emphasis' = 'emphasis',
-    onTap: () => void,
+    onTap: (pointer: Phaser.Input.Pointer) => void,
   ): ThemedButton {
     const t = themedButton(this, x + 150, y, label, { variant, minWidth: 300, onTap });
     c.add(t.container);
@@ -1126,21 +1131,26 @@ export class CollectionScene extends Phaser.Scene {
     startRitual: () => void,
   ): void {
     const panelX = 740;
-    // Action chips inflate to a 52px-tall tap area, so their row centres must
-    // be ≥ 52px apart or the later-added chip steals the seam. Hero or Craft
-    // uses 620; Shard uses 684 (64px pitch), clear of variant rows above.
+    // Action chips are 40px tall with a 44px tap area, so their row centres
+    // must be at least 52px apart to keep 8px between the tap areas. Hero or
+    // Craft sits at 584 (hit 562..606); Shard at 648 (hit 626..670), inside
+    // the title-safe frame's 684 and clear of the variant pager above (522).
     const save = Services.save.data;
     if (ownedCount(save, d.id) > 0) {
+      // Name the input the player has: never "tap" to a mouse, never "click"
+      // to a finger. The last press decides once there has been one.
+      let heroVerb = isTouchDevice() ? 'tap' : 'click';
       const heroLabel = (): string =>
-        save.heroCardId === d.id ? '★ Default hero (tap to clear)' : '☆ Set default hero';
+        save.heroCardId === d.id ? `★ Default hero (${heroVerb} to clear)` : '☆ Set default hero';
       const heroBtn = this.overlayChip(
         c,
         panelX,
         584,
         heroLabel(),
         save.heroCardId === d.id ? 'primary' : 'emphasis',
-        () => {
+        (pointer) => {
           if (isRitualInProgress()) return;
+          heroVerb = pointer.wasTouch ? 'tap' : 'click';
           save.heroCardId = save.heroCardId === d.id ? null : d.id;
           Services.save.flush();
           Sfx.play('shimmer');
@@ -1155,17 +1165,36 @@ export class CollectionScene extends Phaser.Scene {
       const cost = craftCost(CARD_DB, d.id);
       const costLabel = `-${cost.toLocaleString('en-US')}g`;
       let armed = false;
-      const label = (): string => (armed ? `Craft: confirm (${costLabel})` : `Craft (${costLabel})`);
-      const craftBtn = this.overlayChip(c, panelX, 584, label(), 'emphasis', () => {
+      let armedVerb = 'Click';
+      let disarmTimer: Phaser.Time.TimerEvent | null = null;
+      const label = (): string =>
+        armed ? `${armedVerb} again to craft (${costLabel})` : `Craft (${costLabel})`;
+      // Stand down after a few seconds unanswered. A closed or rebuilt overlay
+      // destroys this button, so a late timer leaves the new one alone.
+      const disarm = (): void => {
+        disarmTimer = null;
+        armed = false;
+        if (!craftBtn.container.active) return;
+        craftBtn.setLabel(label());
+        craftBtn.setVariant('emphasis');
+      };
+      const craftBtn = this.overlayChip(c, panelX, 584, label(), 'emphasis', (pointer) => {
         if (isRitualInProgress()) return;
-        // Shared destructive-confirm policy (matches the Shard chip): two-tap
-        // unless the player opted out in Settings.
+        // Shared destructive-confirm policy (Gauntlet's Abandon, Limited's
+        // Retire): two presses unless the player opted out in Settings, the
+        // armed label names the input the player used, and it disarms after
+        // four seconds.
         if (save.settings.confirmDestructive && !armed) {
           armed = true;
+          armedVerb = pointer.wasTouch ? 'Tap' : 'Click';
           craftBtn.setLabel(label());
           craftBtn.setVariant('primary');
+          disarmTimer?.remove(false);
+          disarmTimer = this.time.delayedCall(CRAFT_ARM_MS, disarm);
           return;
         }
+        disarmTimer?.remove(false);
+        disarmTimer = null;
         const result = craftCard(save, CARD_DB, d.id);
         if (!result.ok) return;
         const checkpoint = checkpointAchievements(save, CARD_DB);
