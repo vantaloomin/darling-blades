@@ -50,7 +50,6 @@ import {
 /** Every limit the editors enforce, in one place. */
 export const FORGE_LIMITS = {
   nameLength: 80,
-  flavorLength: 240,
   subtypeLength: 120,
   subtypes: 64,
   /** The short subtype fields (ability conditions and filters). */
@@ -388,14 +387,23 @@ function readStatBlock(value: unknown, keywordField: 'grantKeywords' | 'keywords
 const CARD_FIELDS = [
   'id', 'name', 'types', 'subtypes', 'supertypes', 'cost', 'colors', 'attack', 'defense', 'keywords', 'x',
   'abilities', 'empower', 'rite', 'nineLives', 'preserve', 'skim', 'retell', 'hauntlink', 'awakening',
-  'chapters', 'manaAbility', 'entersTapped', 'activated', 'whispers', 'tithe', 'rarity', 'flavor', 'set',
+  'chapters', 'manaAbility', 'entersTapped', 'activated', 'whispers', 'tithe', 'rarity', 'set',
 ] as const satisfies readonly (keyof ScorableCardDef)[];
+
+/**
+ * Fields a card may bring that the Forge reads past and never keeps. Flavor
+ * text is removed from the whole game (owner ruling R13, 2026-09-25,
+ * docs/plan-1.9.md), so no Forge card, export or link carries it; a card
+ * copied from game data that still has some imports without it rather than
+ * being refused.
+ */
+const DISCARDED_CARD_FIELDS = ['flavor'] as const;
 
 /** A per-set card id: lowercase letters, digits and hyphens. */
 export const CARD_ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,119}$/;
 
 function readCard(value: unknown): ScorableCardDef {
-  const raw = object(value, CARD_FIELDS);
+  const raw = object(value, [...CARD_FIELDS, ...DISCARDED_CARD_FIELDS]);
   const types = distinct(raw.types, CARD_TYPES, 'type', FORGE_LIMITS.types);
   if (types.length === 0) fail('type');
   const card: ScorableCardDef = {
@@ -448,7 +456,6 @@ function readCard(value: unknown): ScorableCardDef {
   }
   if (raw.whispers !== undefined) card.whispers = { cost: readCost(object(raw.whispers, ['cost']).cost) };
   if (raw.tithe !== undefined) card.tithe = { per: oneOf(object(raw.tithe, ['per']).per, [2] as const) };
-  if (raw.flavor !== undefined) card.flavor = text(raw.flavor, 0, FORGE_LIMITS.flavorLength);
   return card;
 }
 

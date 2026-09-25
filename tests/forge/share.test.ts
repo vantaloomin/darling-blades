@@ -17,8 +17,10 @@ import {
  * Golden compatibility fixture: a version 1 share link made on 2026-09-25.
  * Links already shared must keep opening, so this payload must always decode
  * to exactly this card. If it stops decoding, the change broke old links.
+ * (Re-minted once, before the Forge first shipped, when flavor text left the
+ * game: owner ruling R13. No link with flavor was ever published.)
  */
-const GOLDEN_PAYLOAD = '1.PZHBasMwEER_xcxZLqS96dZCfyAUcig5rK21LSJLYqUkmOB_L6u0PQmeZnZGqwdGEgf7gHewmJLM3PM6sPR3EsexP8Ag0sqw-FTenRqHQd0yF9hvjMJUr8I4G5Tr8M9PJOKTKB5TqZoyc2TxI-yrQfa5KDvCHvZdNSFJMx7VQrXSeIF9M3A8cSzcXBfe7klc001eSv0I5Fo0DT746lv2A_eFIyy0wo2L1iWZuf5dUtXLuGE_G6T8xCnDwtFKM-urYQ8GNcH-erGfVS0kvm6wEBhMgW5JYPG1cNf6dCWTXDpfurpwlyLruXXCa9vrCwwKa_pAhbEbkLTVuBTboHntV4pJ-roIhdAUOTMJxZFVOMnzO4QdDJYUtGFZfNy0zzWEdx04USi87z8';
+const GOLDEN_PAYLOAD = '1.PZCxbsMwDER_pbhZHtJu2lqgP5AlQ5GBtmhbiCwJlNzACPTvBZW26-Mdj8cHJhIH-4B3sJiTLDzwNrIMdxLHcTjBINLGsPhU_nLpHAb1yFxgvzAJU92FcTUo-_jPLyTikyieUqmasnBk8RPsq0H2uSg7w55aU01I0o1ntVCtNN1g3wwczxwLd9eNj3sS13Wzl1I_ArkeTaMPvvqe_cB95QgLPeGbi55LsnD9G1LVYTzQrgYpP3HKsHC00cLaGvZkUBPsrxftqmoh8fWAhcCgsC4aqTCaAUlv6VJMAotlGzaKSYa6CoXQFTkzCcWJVTjL87PCDgZrChpWVh8PGMx7CO-6cKZQuLUf';
 const GOLDEN_ENTRY = {
   card: {
     id: 'forge-ember-warden-1',
@@ -32,7 +34,6 @@ const GOLDEN_ENTRY = {
     keywords: ['firstBlade'],
     abilities: [{ when: 'arrives', targets: [{ what: 'any' }], ops: [{ op: 'damage', n: 1, to: 'target' }] }],
     rarity: 'r',
-    flavor: 'The first spark is the one they remember.',
     set: 'base',
   },
   art: { donor: 'gm-manor-thrall' },

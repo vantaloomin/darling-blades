@@ -127,7 +127,7 @@ describe('importing a hostile or broken file', () => {
       ['number out of range', withCard((card) => { card.abilities = [{ when: 'spell', ops: [{ op: 'draw', n: 99 }] }]; }), 'number'],
       ['fractional number', withCard((card) => { card.attack = 2.5; }), 'number'],
       ['overlong name', withCard((card) => { card.name = 'x'.repeat(FORGE_LIMITS.nameLength + 1); }), 'name'],
-      ['overlong flavor', withCard((card) => { card.flavor = 'x'.repeat(FORGE_LIMITS.flavorLength + 1); }), 'text'],
+      ['overlong subtype', withCard((card) => { card.subtypes = ['x'.repeat(FORGE_LIMITS.subtypeLength + 1)]; }), 'text'],
       ['unknown card field', withCard((card) => { card.onLoad = 'alert(1)'; }), 'field'],
       ['prototype key', JSON.stringify(good()).replace('"name":', '"__proto__":{"polluted":true},"name":'), 'field'],
       ['unknown keyword', withCard((card) => { card.keywords = ['flying']; }), 'keyword'],
@@ -145,6 +145,22 @@ describe('importing a hostile or broken file', () => {
     expect(result.set.cards).toHaveLength(2);
     expect(result.skipped.map((skip) => skip.reason)).toEqual(hostile.map(([, , reason]) => reason));
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+  });
+
+  // Owner ruling R13 (docs/plan-1.9.md): flavor text is gone from the game, so
+  // no Forge card carries it, even one copied from game data that still has it.
+  it('starts from a game card that still prints flavor without it, so the preview and saved image show none', () => {
+    // Synthetic, so the test outlives 1.9 taking flavor out of the card data.
+    const card = { ...COLLECTIBLE[0], flavor: 'An old line of flavor.' } as (typeof COLLECTIBLE)[number];
+    expect(evaluateBuilder(fromCardDef(card)).card).not.toHaveProperty('flavor');
+  });
+
+  it('imports a card that brings flavor text without it', () => {
+    const result = importSetText(fileWith([withCard((card) => { card.flavor = 'An old line of flavor.'; })]));
+    if (!result.ok) throw new Error(result.problem);
+    expect(result.skipped).toEqual([]);
+    expect(result.set.cards).toHaveLength(1);
+    expect(result.set.cards[0].card).not.toHaveProperty('flavor');
   });
 
   it('falls back to the default art for an unknown donor, and keeps a card whose own image is unreadable with its game art', () => {

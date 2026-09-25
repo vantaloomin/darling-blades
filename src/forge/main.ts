@@ -164,7 +164,6 @@ const cardRarity = byId<HTMLSelectElement>('card-rarity');
 const cardSubtypes = byId<HTMLInputElement>('card-subtypes');
 const cardSet = byId<HTMLSelectElement>('card-set');
 const cardLegendary = byId<HTMLInputElement>('card-legendary');
-const cardFlavor = byId<HTMLTextAreaElement>('card-flavor');
 const manaSection = byId<HTMLElement>('mana-section');
 const genericMana = byId<HTMLInputElement>('generic-mana');
 const genericValue = byId<HTMLOutputElement>('generic-value');
@@ -265,7 +264,6 @@ function setTextInputHandler(
 
 setTextInputHandler(cardName, (next, value) => { next.name = value.slice(0, FORGE_LIMITS.nameLength); });
 setTextInputHandler(cardSubtypes, (next, value) => { next.subtypesText = value; });
-setTextInputHandler(cardFlavor, (next, value) => { next.flavor = value.slice(0, FORGE_LIMITS.flavorLength); });
 cardType.addEventListener('change', () => mutate((next) => {
   next.cardType = cardType.value as BuilderState['cardType'];
   next.additionalTypes = [];
@@ -1520,7 +1518,6 @@ function renderManaPreview(state: BuilderState): void {
 function syncBasicControls(state: BuilderState): void {
   if (document.activeElement !== cardName) cardName.value = state.name;
   if (document.activeElement !== cardSubtypes) cardSubtypes.value = state.subtypesText;
-  if (document.activeElement !== cardFlavor) cardFlavor.value = state.flavor;
   cardType.value = state.cardType;
   cardRarity.value = state.rarity;
   cardSet.value = state.set;

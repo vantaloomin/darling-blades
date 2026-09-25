@@ -119,7 +119,6 @@ export interface BuilderState {
   rarity: Rarity;
   legendary: boolean;
   set: CardSet;
-  flavor: string;
   cost: CostState;
   /** Null follows the printed mana pips; an array is an explicit identity. */
   colorOverride: Color[] | null;
@@ -189,7 +188,6 @@ export function createInitialBuilderState(): BuilderState {
     rarity: 'c',
     legendary: false,
     set: 'base',
-    flavor: '',
     cost: { generic: 1, pips: { W: 0, U: 0, B: 0, R: 0, G: 1 } },
     colorOverride: null,
     isX: false,
@@ -360,7 +358,8 @@ export function fromCardDef(card: ScorableCardDef): BuilderState {
   state.rarity = card.rarity;
   state.legendary = card.supertypes?.includes('legendary') ?? false;
   state.set = card.set ?? 'base';
-  state.flavor = card.flavor ?? '';
+  // No flavor, even from a game card that still prints some: owner ruling R13
+  // (2026-09-25, docs/plan-1.9.md) removes flavor text from the whole game.
   state.cost = fromManaCost(card.cost);
   const costColors = colorsForCost(state.cost);
   state.colorOverride = card.colors.length === costColors.length
@@ -511,7 +510,8 @@ export function toCardDef(state: BuilderState): ScorableCardDef {
     whispers: mechanics.whispers.enabled ? { cost: toManaCost(mechanics.whispers.cost) } : undefined,
     tithe: mechanics.tithe.enabled ? { per: 2 } : undefined,
     rarity: state.rarity,
-    flavor: state.flavor.trim() || undefined,
+    // Never `flavor` (R13): this def is what CardView draws, what Save Image
+    // captures, and what export and share links carry.
     set: state.set as ScorableCardDef['set'],
   };
   return card;

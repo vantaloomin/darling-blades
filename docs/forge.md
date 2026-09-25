@@ -304,10 +304,14 @@ card is checked on its own and a bad one is skipped with a reason while the
 rest import. The validator never passes an input object through: it reads each
 known field, checks its type, its vocabulary (card types, rarities, sets,
 colors, keywords, effect kinds, triggers, targets, tokens) and the number
-ranges the editors allow, caps string lengths (name 80, flavor 240, set name
+ranges the editors allow, caps string lengths (name 80, subtype 120, set name
 60), list sizes (12 abilities, 12 effects per list, 9 chapters) and branch
 nesting (4 deep), refuses any unknown field, and builds a fresh object from the
-checked values. The accepted card is then passed through the builder
+checked values. One field is read past and dropped rather than refused:
+`flavor`. Flavor text is removed from the whole game (owner ruling R13,
+2026-09-25, in `docs/plan-1.9.md`), so the Forge has no flavor editor, never
+carries flavor in an export, share link or autosave, and never hands it to
+`CardView`, even for a game card that still prints some before 1.9 lands. The accepted card is then passed through the builder
 (`fromCardDef`, then `toCardDef`), so a set only ever holds cards the Forge can
 build and edit. The editors clamp to the same limits (`FORGE_LIMITS`,
 `OP_RULES`), so everything the Forge can build passes. Ids are kept when well
