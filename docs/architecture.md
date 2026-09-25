@@ -58,6 +58,19 @@ completion thousands of times and must never be able to emit. The only
 importers are `src/gameBoot.ts` and `src/scenes/DuelScene.ts`, and a test pins
 that list.
 
+### The Forge: a second page on the same core (`src/power`, `src/forge`)
+
+The Forge ([forge.md](forge.md)), the card designer at `/forge/`, is a second
+Vite page built by its own config (`vite.forge.config.ts`) after the game's.
+It reuses the production `CardView` to draw the card and scores it with
+`src/power/scoreCore.ts`, the power scorer, which is headless like the engine
+(the ESLint purity block covers `src/power/**`) and is also what the local
+balance CLI runs. `src/forge/` splits the same way: its state, hint, store and
+vocabulary modules are Phaser-free and DOM-free and are what the tests import;
+`main.ts` and `scene.ts` are the browser side. The page shares the game's
+origin, so it never touches browser storage (the game save lives there), and
+its bundle swaps the save-reading `FXSupport` for a stub.
+
 ## The `Game` facade
 
 `src/engine/Game.ts` is the only public entry point to the engine. Its contract

@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0a0812" />
+    <!-- The Forge is public but unlinked: nothing in the game points here, and
+         search engines are asked to stay out. Not secret (the repo is public),
+         just not advertised, which is also why robots.txt does not name it:
+         robots.txt is public and would advertise the path. -->
+    <meta name="robots" content="noindex, nofollow" />
+    <!-- The Forge makes no network calls beyond same-origin files (the card art,
+         fonts and favicons the game build deploys at the site root, fetched
+         through ../): no telemetry, no update check. 'self' also covers the dev
+         server's own HMR socket under CSP level 3. -->
+    <meta http-equiv="Content-Security-Policy" content="connect-src 'self'" />
+    <!-- The game's favicon set, one folder up (see src/forge/gameFiles.ts). -->
+    <link rel="icon" href="../favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="../favicon-16.png" />
+    <link rel="apple-touch-icon" href="../apple-touch-icon.png" />
+    <title>Darling Blades Forge</title>
+    <!-- Link previews: the game's own share image (1200x630). Image and URL are
+         absolute because link-preview crawlers need them to be. -->
+    <meta name="description" content="Design your own Darling Blades card and see how its cost measures up." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Darling Blades" />
+    <meta property="og:title" content="Darling Blades Forge" />
+    <meta property="og:description" content="Design your own Darling Blades card and see how its cost measures up." />
+    <meta property="og:url" content="https://bladedarlings.com/forge/" />
+    <meta property="og:image" content="https://bladedarlings.com/share.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Zhuge Liang, Zeus and the Kitsune Matriarch, three of the game's cards, above the title Darling Blades." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Darling Blades Forge" />
+    <meta name="twitter:description" content="Design your own Darling Blades card and see how its cost measures up." />
+    <meta name="twitter:image" content="https://bladedarlings.com/share.jpg" />
+    <style>
+      /* The game's self-hosted webfonts (the same two files and descriptors as
+         the game's index.html), reached one folder up. CardView bakes its card
+         text with these faces; src/forge/scene.ts waits for them before the
+         first card is drawn and reports a face that failed to load. */
+      @font-face {
+        font-family: 'Cinzel';
+        font-style: normal;
+        font-weight: 400 900;
+        font-display: swap;
+        src: url('../assets/fonts/cinzel-latin-var.woff2') format('woff2');
+      }
+      @font-face {
+        font-family: 'Inter';
+        font-style: normal;
+        font-weight: 100 900;
+        font-display: swap;
+        src: url('../assets/fonts/inter-latin-var.woff2') format('woff2');
+      }
+    </style>
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <h1>Darling Blades Card Builder</h1>
+        <p>Local power calculator and production card renderer.</p>
+      </div>
+      <div class="local-status"><span aria-hidden="true"></span>Local only</div>
+    </header>
+
+    <main class="workspace-grid">
+      <aside class="rail control-rail" aria-label="Card design controls">
+        <section class="tool-section">
+          <h2>Identity</h2>
+          <div class="field-grid two-up">
+            <label class="span-two">Name<input id="card-name" type="text" maxlength="80" /></label>
+            <label>Card Type<select id="card-type"></select></label>
+            <label>Rarity<select id="card-rarity"></select></label>
+            <label class="span-two">Subtypes<input id="card-subtypes" type="text" placeholder="Warrior, Spirit" /></label>
+            <label>Set<select id="card-set"></select></label>
+            <label class="check-row"><input id="card-legendary" type="checkbox" /> Legendary</label>
+            <label class="span-two">Flavor Text<textarea id="card-flavor" rows="2" maxlength="240"></textarea></label>
+          </div>
+        </section>
+
+        <section id="mana-section" class="tool-section">
+          <div class="section-heading"><h2>Mana Cost</h2><output id="mana-value">MV 2</output></div>
+          <label class="range-field">Generic Mana
+            <span><input id="generic-mana" type="range" min="0" max="9" step="1" /><output id="generic-value">1</output></span>
+          </label>
+          <div id="pip-controls" class="pip-controls" aria-label="Colored mana pips"></div>
+          <div class="color-identity-editor">
+            <label>Color Identity
+              <select id="color-identity-mode">
+                <option value="cost">From mana cost</option>
+                <option value="override">Override</option>
+              </select>
+            </label>
+            <fieldset id="color-override-controls" class="color-override-controls" hidden>
+              <legend>Identity Colors</legend>
+            </fieldset>
+          </div>
+          <p class="field-note">Color identity drives the color-pie premium.</p>
+          <label class="check-row compact"><input id="x-spell" type="checkbox" /> X spell, nominal X = 3</label>
+        </section>
+
+        <section id="body-section" class="tool-section">
+          <h2>Creature Body</h2>
+          <label class="range-field">Strength
+            <span><input id="card-attack" type="range" min="0" max="12" step="1" /><output id="attack-value">2</output></span>
+          </label>
+          <label class="range-field">Health
+            <span><input id="card-defense" type="range" min="0" max="12" step="1" /><output id="defense-value">2</output></span>
+          </label>
+        </section>
+
+        <section class="tool-section">
+          <div class="section-heading"><h2>Keywords</h2><span class="section-note">Drag or click to add</span></div>
+          <div id="keyword-palette" class="keyword-palette" aria-label="Keyword palette"></div>
+          <p id="keyword-score-note" class="field-note">Keywords on creatures contribute to MEP.</p>
+        </section>
+
+        <section class="tool-section">
+          <div class="section-heading"><h2>Abilities</h2><button id="add-ability" class="small-button" type="button">Add Ability</button></div>
+          <div id="ability-list" class="editor-list"></div>
+        </section>
+
+        <section class="tool-section">
+          <h2>Card Mechanics</h2>
+          <p class="section-note block">Every card-level field is available. Fields ignored by MEP are labeled.</p>
+          <div id="mechanic-toggles" class="mechanic-toggles">
+            <label><input type="checkbox" data-mechanic-toggle="empower" /> Empower</label>
+            <label><input type="checkbox" data-mechanic-toggle="rite" /> Rite</label>
+            <label><input type="checkbox" data-mechanic-toggle="nineLives" /> Nine Lives</label>
+            <label><input type="checkbox" data-mechanic-toggle="preserve" /> Preserve</label>
+            <label><input type="checkbox" data-mechanic-toggle="skim" /> Skim</label>
+            <label><input type="checkbox" data-mechanic-toggle="retell" /> Retell</label>
+            <label><input type="checkbox" data-mechanic-toggle="hauntlink" /> Hauntlink</label>
+            <label><input type="checkbox" data-mechanic-toggle="awakening" /> Awakening</label>
+            <label><input type="checkbox" data-mechanic-toggle="chapters" /> Chapters</label>
+            <label><input type="checkbox" data-mechanic-toggle="manaAbility" /> Mana Ability</label>
+            <label><input type="checkbox" data-mechanic-toggle="entersTapped" /> Enters Tapped</label>
+            <label><input type="checkbox" data-mechanic-toggle="activated" /> Duty (1.8)</label>
+            <label><input type="checkbox" data-mechanic-toggle="whispers" /> Whispers (1.8)</label>
+            <label><input type="checkbox" data-mechanic-toggle="tithe" /> Tithe (1.8)</label>
+          </div>
+          <div id="mechanic-editors" class="editor-list"></div>
+        </section>
+
+        <section class="tool-section load-card-section">
+          <div class="section-heading"><h2>Load Card</h2><button id="random-card" class="small-button" type="button">Random Card</button></div>
+          <p class="field-note">Load a catalog definition into every editor.</p>
+          <div id="loaded-card-chip" class="loaded-card-chip" aria-live="polite" hidden>
+            <span id="loaded-card-label"></span>
+            <button id="reset-loaded" class="small-button" type="button">Reset to loaded</button>
+          </div>
+          <div class="field-grid load-filters">
+            <label class="span-two">Search<input id="load-search" type="search" placeholder="Card name or id" /></label>
+            <label>Set<select id="load-set-filter"></select></label>
+            <label>Color<select id="load-color-filter"></select></label>
+          </div>
+          <div class="picker-result-heading"><span>Results</span><span id="load-result-count"></span></div>
+          <div id="load-results" class="load-results" aria-label="Catalog card picker"></div>
+        </section>
+
+        <section class="tool-section art-picker-section">
+          <div class="section-heading"><h2>Art Donor</h2><button id="random-art" class="small-button" type="button">Random Art</button></div>
+          <p class="field-note">The donor supplies a real catalog id and art only.</p>
+          <div class="field-grid art-filters">
+            <label class="span-two">Search<input id="art-search" type="search" placeholder="Card name or id" /></label>
+            <label>Set<select id="art-set-filter"></select></label>
+            <label>Color<select id="art-color-filter"></select></label>
+          </div>
+          <div id="art-grid" class="art-grid" aria-label="Real card art picker"></div>
+          <div class="art-pager">
+            <button id="art-prev" type="button">Previous</button>
+            <span id="art-page-label">Page 1</span>
+            <button id="art-next" type="button">Next</button>
+          </div>
+        </section>
+
+        <section class="tool-section appearance-section">
+          <h2>Appearance</h2>
+          <p class="field-note">Cosmetic controls never affect MEP.</p>
+          <div class="field-grid two-up">
+            <label>Frame<select id="frame-style"></select></label>
+            <label>Holo Finish<select id="holo-finish"></select></label>
+            <label class="check-row span-two"><input id="full-art" type="checkbox" /> Full Art</label>
+          </div>
+        </section>
+      </aside>
+
+      <section class="preview-column" aria-label="Live card preview">
+        <div class="preview-heading">
+          <div>
+            <h2>Live Card</h2>
+            <p id="card-type-summary">Creature · Common</p>
+          </div>
+          <div id="mana-preview" class="mana-preview" aria-label="Printed mana cost"></div>
+        </div>
+        <div id="canvas-shell">
+          <p class="loading-note">Loading real art and baking card materials...</p>
+          <div id="canvas-drop-overlay" class="canvas-drop-overlay">Drop keyword on the card</div>
+        </div>
+        <div id="applied-keywords" class="applied-keywords" aria-label="Applied keywords">
+          <span class="empty-drop-copy">Drop keywords here</span>
+        </div>
+      </section>
+
+      <aside class="rail verdict-rail" aria-label="Power verdict and costing hints">
+        <section class="verdict-panel">
+          <div class="metric-row">
+            <div><span>PowerScore</span><strong id="metric-power">0.00</strong><small>P</small></div>
+            <div><span>Budget</span><strong id="metric-budget">0.00</strong><small id="budget-formula">B</small></div>
+            <div><span>Delta</span><strong id="metric-delta">+0.00</strong><small>P - B</small></div>
+          </div>
+          <div id="verdict-copy" class="verdict-copy">
+            <h2 id="verdict-label">Accurate Value</h2>
+            <p id="verdict-subtitle">Within costing noise.</p>
+          </div>
+          <div class="gauge" aria-label="Power delta gauge">
+            <div class="gauge-zones"><span>Under Value</span><span>Accurate Value</span><span>Over Value</span></div>
+            <div class="outlier-mark left"><span>-1.5</span></div>
+            <div class="outlier-mark right"><span>+1.5</span></div>
+            <div id="gauge-needle" class="gauge-needle"><span id="gauge-value">+0.00</span></div>
+          </div>
+          <div id="warning-chips" class="warning-chips"></div>
+        </section>
+
+        <section class="tool-section ledger-section">
+          <div class="section-heading"><h2>MEP Breakdown</h2><span id="ledger-count" class="section-note"></span></div>
+          <div class="ledger-head"><span>Component</span><span>MEP</span></div>
+          <div id="score-ledger" class="score-ledger"></div>
+          <div class="ledger-total"><span>PowerScore</span><strong id="ledger-total">0.00</strong></div>
+        </section>
+
+        <section class="tool-section hint-section">
+          <div class="section-heading"><h2>Costing Hints</h2><span class="section-note">Closest first</span></div>
+          <div id="hint-list" class="hint-list"></div>
+        </section>
+      </aside>
+    </main>
+
+    <script type="module" src="/src/forge/main.ts"></script>
+  </body>
+</html>
