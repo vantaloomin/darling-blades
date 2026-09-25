@@ -465,11 +465,14 @@ const DB: CardDb = {
       ops: [{ op: 'gainLife', n: 1 }],
     }],
   }),
+  // The tail is target-dependent, so the context it resumes in is visible:
+  // the spell's creature, never the token's chosen player.
   tailSpell: card('tailSpell', ['charm'], {
     cost: ZERO,
     abilities: [{
       when: 'spell',
-      ops: [{ op: 'createToken', token: 'tailToken', count: 1 }, { op: 'gainLife', n: 1 }],
+      targets: [{ what: 'creature' }],
+      ops: [{ op: 'createToken', token: 'tailToken', count: 1 }, { op: 'damage', n: 1, to: 'target' }],
     }],
   }),
   recursiveMarker: card('recursiveMarker', ['creature'], {
@@ -666,11 +669,19 @@ describe('Starborne targeted arrival and spell targets', () => {
     expect(rulesText(DB.tappedTarget)).toBe('Sever target tapped creature.');
   });
 
-  it('rejects a spell tail grafted onto a different targeted-arrival source context', () => {
-    const game = gameWithHand(['tailSpell']);
-    expect(() => game.submit(0, { type: 'castSpell', handIndex: 0 })).toThrow(
-      /deferred target-trigger tail from tailSpell to tailToken/,
-    );
+  it('resumes a spell tail after the targeted arrival it created, in the spell\'s own context', () => {
+    const game = gameWithHand(['tailSpell'], [permanent(1, 'bear', 1)]);
+    cast(game, 0, [ref(1)]);
+
+    // The token's choice pauses the spell: its damage has not happened yet.
+    expect(game.awaiting).toMatchObject({ player: 0, kind: 'chooseTarget' });
+    expect(game.state.battlefield.find((perm) => perm.iid === 1)?.damage).toBe(0);
+
+    game.submit(0, { type: 'chooseTarget', target: { kind: 'player', player: 1 } });
+    expect(game.state.players.map((player) => player.life)).toEqual([21, 20]); // the token's gain
+    expect(game.state.battlefield.find((perm) => perm.iid === 1)?.damage).toBe(1); // the spell's own target
+    expect(game.instanceState.pendingDecisions).toEqual([]);
+    expect(game.awaiting).toEqual({ player: 0, kind: 'main' });
   });
 });
 

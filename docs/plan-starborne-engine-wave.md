@@ -348,7 +348,10 @@ silent - all now binding:
 - **A spell op list may not defer a tail through a targeted-arrival pending**:
   the engine throws loudly rather than running the tail in the trigger's
   context. Revisit only if a future card creates a targeted-arrival token
-  mid-spell.
+  mid-spell. *Superseded in 1.8.1:* shipped cards reached it (a dies trigger
+  that raises a creature with a targeted arrival, mid-spell), so the tail now
+  resumes as a continuation frame on the target choice, in its own context
+  (`deferRemainingOps`, EffectInterpreter.ts).
 - **moveMark fires mark-event triggers on the destination** (a move IS a
   becoming-marked); the source firing nothing on loss matches the absence of
   any mark-removed event in this vocabulary.
