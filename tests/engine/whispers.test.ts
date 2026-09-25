@@ -16,7 +16,7 @@ import {
 } from '../../src/engine/types';
 import {
   canReplay, finishReplay, isReplayLog, recordReplayAction,
-  replayDbStamp, replayGame, startReplayDraft,
+  replayDbStamp, replayGame, startReplayDraft, type ReplayLog,
 } from '../../src/meta/Replay';
 import { botAction, makeTestState, TEST_DB } from '../helpers';
 
@@ -603,7 +603,9 @@ describe('Whispers resolution, events and response gates', () => {
   it('retains Preserve as an alternative to using the live Whispers cast', () => {
     const game = Game.restore(graveBoard('wh_preserve'), DB);
     expect(whisperAction(game).whispers).toBe(true);
-    expect(game.legalActions(0)).toContainEqual({ type: 'preserveCard', graveIndex: 0 });
+    const graveInstanceId = game.viewFor(0).you.graveyardInstances?.[0];
+    expect(graveInstanceId).toEqual(expect.any(Number));
+    expect(game.legalActions(0)).toContainEqual({ type: 'preserveCard', graveIndex: 0, graveInstanceId });
     game.submit(0, { type: 'preserveCard', graveIndex: 0 });
     expect(game.instanceState.players[0].severed.map(cardIdOf)).toEqual(['wh_preserve']);
     expect(game.instanceState.battlefield.find((perm) => perm.cardId === 'wh_preserve')).toMatchObject({ isToken: true });
@@ -688,16 +690,36 @@ function replayFixture() {
 describe('Whispers replay and determinism', () => {
   it('round-trips a naturally terminal v13 log through a whispered cast with byte-identical state and events', () => {
     const recorded = replayFixture();
-    expect(recorded.log.v).toBe(14);
+    expect(recorded.log.v).toBe(15);
     expect(recorded.game.instanceState.winReason).toBe('life');
     const casts = recorded.log.actions.filter((step) => step.a.type === 'castSpell' && step.a.whispers);
     expect(casts.length).toBeGreaterThan(0);
-    for (const cast of casts) expect(cast.a).toMatchObject({ whispers: true, graveIndex: expect.any(Number), handIndex: expect.any(Number) });
+    for (const cast of casts) {
+      expect(cast.a).toMatchObject({
+        whispers: true, graveIndex: expect.any(Number), graveInstanceId: expect.any(Number), handIndex: expect.any(Number),
+      });
+    }
     expect(JSON.stringify(recorded.log)).not.toContain('whispersUntilDawnOf');
     const revived = JSON.parse(JSON.stringify(recorded.log));
     expect(isReplayLog(revived)).toBe(true);
     expect(canReplay(revived, DB)).toBe(true);
     const replayed = replayGame(revived, DB);
+    expect(JSON.stringify(replayed.game.instanceState)).toBe(JSON.stringify(recorded.game.instanceState));
+    expect(JSON.stringify(replayed.eventLog)).toBe(JSON.stringify(recorded.events));
+  });
+
+  it('replays the same game from a v14 copy whose graveyard casts name positions only', () => {
+    // Logs before v15 carry no graveyard identities; submission binds each
+    // position to the card that sits there, which is the card the recorded
+    // game cast, so the replay is byte-identical.
+    const recorded = replayFixture();
+    const legacy = JSON.parse(JSON.stringify(recorded.log)) as ReplayLog;
+    legacy.v = 14;
+    for (const step of legacy.actions) if (step.a.type === 'castSpell') delete step.a.graveInstanceId;
+    expect(JSON.stringify(legacy)).not.toContain('graveInstanceId');
+    expect(isReplayLog(legacy)).toBe(true);
+    expect(canReplay(legacy, DB)).toBe(true);
+    const replayed = replayGame(legacy, DB);
     expect(JSON.stringify(replayed.game.instanceState)).toBe(JSON.stringify(recorded.game.instanceState));
     expect(JSON.stringify(replayed.eventLog)).toBe(JSON.stringify(recorded.events));
   });

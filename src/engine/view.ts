@@ -21,6 +21,13 @@ export interface SelfView {
   hand: string[];
   deckCount: number;
   graveyard: string[];
+  /**
+   * Each graveyard entry's physical identity, index-aligned with `graveyard`
+   * (null for a legacy entry that has none). Graveyards are public, and this
+   * is the same identity the battlefield and the stack already show; graveyard
+   * targets and Retell, Whispers and Preserve actions name cards by it.
+   * Always present since 1.8.1 (earlier only while a choice queue was public).
+   */
   graveyardInstances?: (number | null)[];
   /** Graveyard indices whose Whispers marker lasts until the owner's opponent's Dawn. */
   whispersLive: number[];
@@ -41,6 +48,7 @@ export interface OpponentView {
   handCount: number;
   deckCount: number;
   graveyard: string[];
+  /** Public graveyard identities, as on SelfView. */
   graveyardInstances?: (number | null)[];
   /** Public live Whispers indices into this side's graveyard. */
   whispersLive: number[];
@@ -108,7 +116,7 @@ export function viewFor(
       hand: me.hand.map(cardIdOf),
       deckCount: me.deck.length,
       graveyard: me.graveyard.map(cardIdOf),
-      ...(publicQueue ? { graveyardInstances: me.graveyard.map(c => isCardInstance(c) ? c.instanceId : null) } : {}),
+      graveyardInstances: me.graveyard.map(c => isCardInstance(c) ? c.instanceId : null),
       whispersLive: me.graveyard.flatMap((card, index) =>
         isCardInstance(card) && card.whispersUntilDawnOf === opponentOf(player) ? [index] : [],
       ),
@@ -130,7 +138,7 @@ export function viewFor(
       handCount: them.hand.length,
       deckCount: them.deck.length,
       graveyard: them.graveyard.map(cardIdOf),
-      ...(publicQueue ? { graveyardInstances: them.graveyard.map(c => isCardInstance(c) ? c.instanceId : null) } : {}),
+      graveyardInstances: them.graveyard.map(c => isCardInstance(c) ? c.instanceId : null),
       whispersLive: them.graveyard.flatMap((card, index) =>
         isCardInstance(card) && card.whispersUntilDawnOf === player ? [index] : [],
       ),

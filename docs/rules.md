@@ -156,6 +156,25 @@ Revision 1 preserves the classic behavior verbatim: no post-flush reopen in
 Combat or at Sunset. The Sunset window is handled slightly separately in both
 revisions: passing it calls `enterCleanup` rather than flushing an empty stack.
 
+**Graveyard cards are named by identity (1.8.1).** A target in a graveyard
+(`yourGraveCreature`, for reclaim and raise) carries the card's instance id
+beside its position, and so does the source of a Retell, Whispers or Preserve
+action (`graveInstanceId` beside `graveIndex`). Legal actions carry both. The
+engine refuses an action whose position no longer holds that card, and it
+binds a ref that names only a position (a hand-built action, or a replay log
+older than v15) to the card at that position when the action is submitted.
+From then on the stack, a held trigger and a paused effect find the card by
+identity (`graveRefIndex` in `src/engine/graveyard.ts`): a spell that targets
+the third card of your graveyard returns that card even if a response takes
+the first card before it resolves, and it fizzles only if that card itself
+has left. Before 1.8.1 the spell read whatever sat at the old position, so
+the same response made it return the fourth card. The redacted view lists
+each graveyard's identities (`graveyardInstances`), the same public identity
+the battlefield and the stack already carry; hands and decks stay counts.
+The replay log bumped to v15, still at rules revision 4; v6-v14 logs still
+replay, because binding a recorded position picks the card the recorded game
+chose.
+
 ## Combat
 
 Combat is declared and resolved through `Game.apply` (declaration),

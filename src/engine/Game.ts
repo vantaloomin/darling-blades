@@ -27,7 +27,7 @@ import {
 import { enumerateTargets } from './effects/targeting';
 import type { GameEvent } from './events';
 import { solveMana } from './mana';
-import { freshGraveyardCard } from './graveyard';
+import { bindGraveRef, freshGraveyardCard } from './graveyard';
 import { attachPermanent, destroyPermanent, firesDiesForDestroy } from './battlefield';
 import { checkStateBased } from './sba';
 import { getEffectiveStats } from './statics';
@@ -57,6 +57,7 @@ import type {
   PendingDecision,
   PlayerId,
   StackItem,
+  TargetRef,
 } from './types';
 import { cardIdOf, def, findPermanent, isCardInstance, opponentOf, variantKeyOf } from './types';
 import type { PlayerView } from './view';
@@ -396,7 +397,7 @@ export class Game {
       this.buf.push(e);
       this.eventObserver?.(e, this.st);
     };
-    this.apply(player, action, emit);
+    this.apply(player, bindActionGraveRefs(this.st, action), emit);
     this.maybeRaiseDeferredDecision(emit);
     this.publicState = legacyState(this.st);
     return this.buf;
@@ -1425,6 +1426,28 @@ export class Game {
       st.activePlayer = st.startingPlayer;
       startTurn(st, this.db, emit);
     }
+  }
+}
+
+/**
+ * Bind every graveyard ref in a validated action to the card it names now
+ * (1.8.1). Legal actions arrive bound already; this covers hand-built refs
+ * and replay logs older than v15, which name a graveyard card by position
+ * only. After this point the stack, held triggers and paused effects carry
+ * the card's identity, so a later reordering cannot redirect them.
+ */
+function bindActionGraveRefs(state: GameState, action: Action): Action {
+  const bind = (refs: TargetRef[] | undefined): TargetRef[] | undefined =>
+    refs?.map((ref) => ref.kind === 'grave' ? bindGraveRef(state, ref) : ref);
+  switch (action.type) {
+    case 'castSpell':
+    case 'castDarling':
+    case 'activate':
+      return action.targets ? { ...action, targets: bind(action.targets) } : action;
+    case 'chooseTarget':
+      return action.target.kind === 'grave' ? { ...action, target: bindGraveRef(state, action.target) } : action;
+    default:
+      return action;
   }
 }
 

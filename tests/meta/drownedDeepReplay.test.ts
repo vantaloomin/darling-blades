@@ -40,9 +40,9 @@ function record(seed: number, legacy = false) {
   const log = finishReplay(draft, game.instanceState.winner === 0 ? 'win' : 'loss', 0, game.instanceState.turn);
   return { game, log, events, choices, pool };
 }
-describe('Drowned Deep replay v14 / rules revision 4', () => {
+describe('Drowned Deep replay (choices recorded since v14) / rules revision 4', () => {
   it.each([17, 29, 43])('records every new choice at seed %i and round-trips JSON bytes', seed => {
-    const recorded = record(seed); expect(CURRENT_RULES_REV).toBe(4); expect(recorded.log.v).toBe(14);
+    const recorded = record(seed); expect(CURRENT_RULES_REV).toBe(4); expect(recorded.log.v).toBe(15);
     expect(new Set(recorded.choices)).toEqual(new Set(['discard', 'sacrifice', 'trigger']));
     expect(recorded.log.actions.some(s => s.a.type === 'activate' && s.a.abilityIndex === 1)).toBe(true);
     const log = JSON.parse(JSON.stringify(recorded.log)); expect(isReplayLog(log)).toBe(true); expect(canReplay(log, recorded.pool)).toBe(true);

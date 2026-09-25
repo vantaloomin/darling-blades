@@ -10,6 +10,7 @@ import {
   validateBlocks,
 } from './combat/legality';
 import { enumerateTargets, isLegalTarget } from './effects/targeting';
+import { graveInstanceAt, graveRefMoved, sameGraveCard } from './graveyard';
 import { canPay, combineManaCosts, manaSources, maxPayableX, solveMana } from './mana';
 import { castTargetSpecs } from './resolve';
 import { getEffectiveStats } from './statics';
@@ -59,8 +60,14 @@ export type Action =
   | {
       type: 'castSpell';
       handIndex: number;
-      /** Retell and Whispers use graveIndex as their authoritative source index. */
+      /** Retell and Whispers: where the source card sits in your graveyard. */
       graveIndex?: number;
+      /**
+       * Retell and Whispers: the source card's identity (1.8.1). Legal actions
+       * carry it; when present it must be the card at `graveIndex`, so an
+       * action built against another graveyard is refused, not redirected.
+       */
+      graveInstanceId?: number;
       targets?: TargetRef[];
       /** Battlefield iids sacrificed as a Rite or Tithe cost. */
       sacrifices?: number[];
@@ -80,7 +87,7 @@ export type Action =
   /** Revision-3 Charm-speed action: pay Hauntlink to link or move a permanent. */
   | { type: 'linkHaunt'; iid: number; hostIid: number; manaPlan?: number[] }
   /** Main-phase graveyard action: pay Preserve, sever the card, and create a token copy. */
-  | { type: 'preserveCard'; graveIndex: number; manaPlan?: number[] }
+  | { type: 'preserveCard'; graveIndex: number; /** The card's identity; see castSpell. */ graveInstanceId?: number; manaPlan?: number[] }
   /** Main-phase tap-cost ability; targets are chosen inline, off-stack. */
   | { type: 'activate'; iid: number; abilityIndex?: number; targets?: TargetRef[]; manaPlan?: number[] }
   /** Normal creature-timing cast from a public Darling zone. */
@@ -203,16 +210,19 @@ function pushCastActions(
     const payableXs = xs.filter((x) =>
       canPay(state, db, player, cost, d.x && !empowered && !retell ? x ?? 0 : 0),
     );
+    const graveInstanceId = retell || mode.whispers ? graveInstanceAt(state, player, sourceIndex) : undefined;
+    const graveSource = graveInstanceId === undefined ? {} : { graveInstanceId };
     for (const targets of targetLists) {
       for (const x of payableXs) {
         out.push({
           type: 'castSpell',
           // The legacy handIndex mirrors the source number until the later
           // graveyard UI workstream can consume graveIndex directly. The
-          // engine treats graveIndex as authoritative for Retell.
+          // engine reads the graveyard source from graveIndex, checked
+          // against graveInstanceId.
           handIndex: sourceIndex,
-          ...(retell ? { graveIndex: sourceIndex, retell: true } : {}),
-          ...(mode.whispers ? { graveIndex: sourceIndex, whispers: true } : {}),
+          ...(retell ? { graveIndex: sourceIndex, ...graveSource, retell: true } : {}),
+          ...(mode.whispers ? { graveIndex: sourceIndex, ...graveSource, whispers: true } : {}),
           ...(mode.tithe ? { tithe: true } : {}),
           ...(hauntlinked ? { hauntlinked: true } : {}),
           ...(targets ? { targets } : {}),
@@ -424,8 +434,24 @@ function sameTarget(a: TargetRef | undefined, b: TargetRef | undefined): boolean
   if (a.kind === 'permanent' && b.kind === 'permanent') return a.iid === b.iid;
   if (a.kind === 'player' && b.kind === 'player') return a.player === b.player;
   if (a.kind === 'stackItem' && b.kind === 'stackItem') return a.sid === b.sid;
-  if (a.kind === 'grave' && b.kind === 'grave') return a.player === b.player && a.index === b.index;
+  if (a.kind === 'grave' && b.kind === 'grave') return sameGraveCard(a, b);
   return false;
+}
+
+/**
+ * A submitted graveyard ref must still point where its chooser saw its card.
+ * A bound ref whose index now holds another card was built from a different
+ * graveyard; it is refused rather than resolved against the wrong card.
+ */
+function movedGraveTarget(state: GameState, targets: readonly TargetRef[]): string | null {
+  return targets.some((ref) => ref.kind === 'grave' && graveRefMoved(state, ref))
+    ? 'graveyard target is no longer where it was chosen' : null;
+}
+
+/** The same check for a Retell, Whispers or Preserve source card. */
+function movedGraveSource(state: GameState, player: PlayerId, graveIndex: number, graveInstanceId?: number): string | null {
+  return graveInstanceId !== undefined && graveInstanceAt(state, player, graveIndex) !== graveInstanceId
+    ? 'graveyard card is no longer where it was chosen' : null;
 }
 
 function validateTargetList(
@@ -442,6 +468,8 @@ function validateTargetList(
   if (specs.some(spec => spec.exactly !== undefined && (specs.length !== 1 || spec.upTo !== undefined))) {
     return 'exactly requires one target spec and cannot combine with upTo';
   }
+  const moved = movedGraveTarget(state, targets);
+  if (moved) return moved;
   if (specs.length === 1 && (specs[0].upTo !== undefined || specs[0].exactly !== undefined)) {
     if (specs[0].exactly && targets.length !== specs[0].exactly) return 'wrong number of targets';
     if (targets.length > (specs[0].upTo ?? specs[0].exactly ?? 0)) return 'too many targets';
@@ -780,7 +808,8 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
           pushCastActions(out, state, db, player, graveIndex, d, true);
         }
         if (state.activePlayer === player && preserveBlockers(state, db, player, d) === null) {
-          out.push({ type: 'preserveCard', graveIndex });
+          const graveInstanceId = graveInstanceAt(state, player, graveIndex);
+          out.push({ type: 'preserveCard', graveIndex, ...(graveInstanceId === undefined ? {} : { graveInstanceId }) });
         }
       });
       if (state.activePlayer === player && state.stack.length === 0) {
@@ -966,6 +995,8 @@ export function validateAction(
         return pending.player === player && perm?.controller === player && isType(def(db, perm.cardId), 'creature') ? null : 'illegal sacrifice';
       }
       if (pending?.kind !== 'chooseTarget' || pending.player !== player) return 'no target decision is pending';
+      const moved = movedGraveTarget(state, [action.target]);
+      if (moved) return moved;
       if (!a.targets.some((target) => sameTarget(target, action.target))) return 'illegal target';
       return isLegalTarget(state, db, player, pending.spec, action.target, pending.sourceIid)
         ? null
@@ -1010,6 +1041,8 @@ export function validateAction(
       if (!Number.isInteger(action.graveIndex)) return 'bad graveyard index';
       const card = me.graveyard[action.graveIndex];
       if (card === undefined) return 'bad graveyard index';
+      const moved = movedGraveSource(state, player, action.graveIndex, action.graveInstanceId);
+      if (moved) return moved;
       const d = def(db, card);
       const blocked = preserveBlockers(state, db, player, d);
       if (blocked) return blocked;
@@ -1050,9 +1083,14 @@ export function validateAction(
       if (isRetell && action.graveIndex === undefined) return 'Retell needs a graveyard index';
       if (isWhispers && !Number.isInteger(action.graveIndex)) return 'Whispers needs a graveyard index';
       if (!fromGrave && action.graveIndex !== undefined) return 'graveyard index requires Retell or Whispers';
+      if (!fromGrave && action.graveInstanceId !== undefined) return 'graveyard card requires Retell or Whispers';
       const sourceIndex = fromGrave ? action.graveIndex! : action.handIndex;
       const cardId = fromGrave ? me.graveyard[sourceIndex] : me.hand[sourceIndex];
       if (cardId === undefined) return 'bad hand index';
+      if (fromGrave) {
+        const moved = movedGraveSource(state, player, sourceIndex, action.graveInstanceId);
+        if (moved) return moved;
+      }
       const d = def(db, cardId);
       if (usesActivatedHauntlink(state) && isHauntlinked) {
         return 'Hauntlink is activated from the battlefield in this rules revision';
@@ -1188,6 +1226,8 @@ export function validateAction(
       const specs = castTargetSpecs(d);
       const targets = action.targets ?? [];
       if (targets.length !== specs.length) return 'wrong number of targets';
+      const moved = movedGraveTarget(state, targets);
+      if (moved) return moved;
       for (let i = 0; i < specs.length; i++) {
         if (!isLegalTarget(state, db, player, specs[i], targets[i])) return 'illegal target';
       }
