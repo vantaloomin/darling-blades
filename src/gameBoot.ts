@@ -148,10 +148,12 @@ const game = new Phaser.Game({
 // an app switch would otherwise be lost (mobile-lan-plan §1.5). The listener
 // lives here in the browser layer — src/meta stays free of browser APIs.
 // The same two moments carry the anonymous card batch off the device
-// (src/net/signals.ts). visibilitychange is the reliable one on mobile, where
-// a backgrounded tab is often discarded without a pagehide; whichever fires
-// first sends, and the other finds the batch already gone. Both calls are
-// gated, silent when the gate is closed, and cannot throw into the handler.
+// (src/net/signals.ts), at EVERY hide rather than only the first, so play after
+// a tab switch is counted too. Each call sends only the cards no earlier batch
+// this launch carried. visibilitychange is the reliable one on mobile, where
+// a backgrounded tab is often discarded without a pagehide; when both fire,
+// the first sends and the second finds nothing new. Both calls are gated,
+// silent when the gate is closed, and cannot throw into the handler.
 window.addEventListener('pagehide', () => {
   Services.save.flush();
   signals.sessionEnding();
