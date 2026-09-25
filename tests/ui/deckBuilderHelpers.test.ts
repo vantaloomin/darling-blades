@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest';
 import type { CardDb, CardDef } from '../../src/engine/types';
 import { switchDeckFormat } from '../../src/meta/DeckStorage';
 import { validateDarlingsDeck, validateWarchestDeck } from '../../src/meta/darlings';
-import { deckRepairNoticeState } from '../../src/meta/deckRepair';
+import { deckHealth, deckRepairNoticeState } from '../../src/meta/deckRepair';
 import { freshSave, type SavedDeck } from '../../src/meta/SaveManager';
 import { DARLINGS_DECK_SIZE, WARCHEST_DECK_SIZE } from '../../src/meta/warchest';
 import { backLabelFor } from '../../src/ui/navigation';
 import {
   acknowledgeDeckRepairNotice,
+  deckBlockKind,
+  deckBlockLabel,
   activeVisibleSavedDeck,
   deckSaveCta,
   unsavedChangesCopy,
@@ -277,6 +279,70 @@ describe('deck builder save CTA', () => {
         }
       }
     }
+  });
+});
+
+/**
+ * One wording per reason a saved deck cannot be played: a deck still being
+ * built reads "Not playable yet", and only a finished deck a rules change
+ * broke reads "Needs repair". The real validators (deckHealth) decide whether
+ * a deck is blocked at all.
+ */
+describe('deck block wording', () => {
+  const SPELL_IDS = Array.from({ length: DARLINGS_DECK_SIZE }, (_, i) => `spell-${i}`);
+  const FOREST = 'forest';
+  const spell = (id: string): CardDef => ({
+    id,
+    name: id,
+    types: ['creature'],
+    subtypes: [],
+    colors: ['G'],
+    cost: { generic: 1, pips: { G: 1 } },
+    attack: 2,
+    defense: 2,
+    rarity: 'c',
+  });
+  const DB: CardDb = {
+    ...Object.fromEntries(SPELL_IDS.map((id) => [id, spell(id)])),
+    [FOREST]: { ...spell(FOREST), types: ['land'], supertypes: ['basic'], cost: undefined, attack: undefined, defense: undefined, manaAbility: ['G'] },
+  };
+  const save = freshSave(0);
+  for (const id of SPELL_IDS) save.collection[id] = 4;
+  const playsets = (n: number): string[] => SPELL_IDS.slice(0, n / 4).flatMap((id) => [id, id, id, id]);
+  const forests = (n: number): string[] => new Array(n).fill(FOREST);
+  const deck = (over: Partial<SavedDeck>): SavedDeck => ({
+    id: 'deck-1',
+    name: 'Deck 1',
+    cards: playsets(WARCHEST_DECK_SIZE),
+    heroCardId: null,
+    landStyle: null,
+    format: 'warchest',
+    darlingId: null,
+    landReserve: forests(10),
+    variantPins: [],
+    ...over,
+  });
+  const kindOf = (d: SavedDeck, classicRetired = true) =>
+    deckBlockKind(d, deckHealth(DB, save, d, classicRetired).blocked, classicRetired);
+
+  it('reads a playable deck as neither', () => {
+    expect(kindOf(deck({}))).toBeNull();
+  });
+
+  it('reads a deck still being built as not playable yet', () => {
+    expect(kindOf(deck({ cards: playsets(24) }))).toBe('unfinished');
+    expect(kindOf(deck({ landReserve: forests(4) }))).toBe('unfinished');
+    expect(kindOf(deck({ format: 'darlings', cards: [...SPELL_IDS], darlingId: null }))).toBe('unfinished');
+    expect(deckBlockLabel('unfinished')).toBe('Not playable yet');
+  });
+
+  it('keeps Needs repair for a finished deck a rules change broke', () => {
+    // A full Warchest holding a card that is no longer a land it can take.
+    expect(kindOf(deck({ landReserve: [...forests(9), 'spell-0'] }))).toBe('repair');
+    // Classic retirement blocks a complete 60-card Constructed deck.
+    expect(kindOf(deck({ format: 'constructed', cards: playsets(60), landReserve: null }))).toBe('repair');
+    expect(kindOf(deck({ format: 'constructed', cards: playsets(60), landReserve: null }), false)).toBeNull();
+    expect(deckBlockLabel('repair')).toBe('Needs repair');
   });
 });
 

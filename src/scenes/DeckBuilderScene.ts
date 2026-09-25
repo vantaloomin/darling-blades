@@ -105,6 +105,8 @@ import {
   builderFormatForDeck,
   collapseDeckRows,
   deckBaseline,
+  deckBlockKind,
+  deckBlockLabel,
   deckCodeImportBlockers,
   deckSaveCta,
   formatDeckSize,
@@ -1778,9 +1780,10 @@ export class DeckBuilderScene extends Phaser.Scene {
         .setOrigin(0, 0.5);
       this.fitTextToWidth(title, 200);
       parent.add(title);
+      const blockKind = deckBlockKind(deck, repair.blocked, this.classicRetired);
       parent.add(
         this.add
-          .text(left + 18, top + 47, repair.blocked ? `${formatLabel(deckFormat)} · Needs repair` : formatLabel(deckFormat), {
+          .text(left + 18, top + 47, blockKind ? `${formatLabel(deckFormat)} · ${deckBlockLabel(blockKind)}` : formatLabel(deckFormat), {
             fontFamily: theme.fonts.ui,
             fontSize: theme.type.micro + 'px',
             fontStyle: theme.weight.w700,
@@ -1844,8 +1847,8 @@ export class DeckBuilderScene extends Phaser.Scene {
       parent.add(renameBtn.container);
       // Two-press Delete, the pattern Settings' Reset, the Gauntlet's Abandon
       // and Limited's Retire share: the first press arms it, names the press
-      // that confirms (Tap or Click, never Click to a touch player) and what is
-      // kept, and it stands down after DELETE_ARM_MS unanswered. The armed
+      // that confirms (Tap or Click, by the pointer that pressed it) and what
+      // is kept, and it stands down after DELETE_ARM_MS unanswered. The armed
       // label needs the whole action column, so Rename steps aside meanwhile.
       const deleteRestX = actionX1 - actionW / 2;
       const actionColumnX = (actionX0 + actionX1) / 2;
@@ -1875,7 +1878,7 @@ export class DeckBuilderScene extends Phaser.Scene {
         minWidth: actionW,
         onTap: (pointer) => {
         if (save.settings.confirmDestructive && !delArmed) {
-          setDeleteArmed(true, pointer.wasTouch || this.touch);
+          setDeleteArmed(true, pointer.wasTouch);
           // A re-rendered grid has new buttons and has already disarmed, so
           // a timer from this one leaves them alone.
           this.time.delayedCall(DELETE_ARM_MS, () => {
@@ -2520,9 +2523,23 @@ export class DeckBuilderScene extends Phaser.Scene {
     });
     const modal = shell.container;
     const top = 360 - height / 2;
+    // Named as the deck lists name it: a deck still being built is not
+    // playable yet; only one a rules change broke asks for a repair. The list
+    // below is the builder's working deck, which is the saved one while this
+    // modal can open (Save Deck takes the slot whenever anything is unsaved).
+    const kind = deckBlockKind(
+      {
+        format: this.activeFormat(),
+        cards: this.deck,
+        landReserve: this.landReserve,
+        darlingId: this.activeSavedDeck()?.darlingId ?? null,
+      },
+      true,
+      this.classicRetired,
+    );
     modal.add(
       this.add
-        .text(640, top + 42, 'Repair Deck', {
+        .text(640, top + 42, kind === 'unfinished' ? deckBlockLabel(kind) : 'Repair Deck', {
           fontFamily: theme.fonts.display,
           fontSize: `${theme.type.h2}px`,
           color: theme.colors.heading,

@@ -1,6 +1,6 @@
 import type { DeckIssue } from '../meta/DeckStorage';
 import { deckRepairNoticeFingerprint } from '../meta/deckRepair';
-import { DARLINGS_DECK_SIZE, WARCHEST_DECK_SIZE } from '../meta/warchest';
+import { DARLINGS_DECK_SIZE, LAND_RESERVE_SIZE, WARCHEST_DECK_SIZE } from '../meta/warchest';
 import type { SavedDeck } from '../meta/SaveManager';
 
 export type BuilderFormat = NonNullable<SavedDeck['format']>;
@@ -148,6 +148,37 @@ export function formatRulesCopy(format: BuilderFormat): string | null {
   if (format === 'darlings') return DARLINGS_RULES_COPY;
   if (format === 'warchest') return WARCHEST_RULES_COPY;
   return null;
+}
+
+/**
+ * Why a saved deck that cannot be played can't be. Since an unfinished deck
+ * can be saved (owner ruling D10), `deckHealth` blocks decks the player is
+ * still building as well as decks a rules change broke, and its issues carry
+ * only messages. The deck's own counts tell the two apart: a deck off its
+ * format's card count, with a Warchest still being filled, or a Darlings deck
+ * with no Darling is unfinished. A blocked deck complete by those counts, or a
+ * retired Constructed deck, needs repair.
+ */
+export type DeckBlockKind = 'unfinished' | 'repair';
+
+export function deckBlockKind(
+  deck: Pick<SavedDeck, 'format' | 'cards' | 'landReserve' | 'darlingId'>,
+  blocked: boolean,
+  classicRetired: boolean,
+): DeckBlockKind | null {
+  if (!blocked) return null;
+  const format: BuilderFormat = isReserveFormat(deck.format) ? deck.format : 'constructed';
+  if (format === 'constructed' && classicRetired) return 'repair';
+  const warchestShort = format !== 'constructed' && (deck.landReserve?.length ?? 0) < LAND_RESERVE_SIZE;
+  const unfinished = deck.cards.length !== formatDeckSize(format)
+    || warchestShort
+    || (format === 'darlings' && !deck.darlingId);
+  return unfinished ? 'unfinished' : 'repair';
+}
+
+/** The one row label every deck list shows for a deck that cannot be played. */
+export function deckBlockLabel(kind: DeckBlockKind): string {
+  return kind === 'unfinished' ? 'Not playable yet' : 'Needs repair';
 }
 
 /**
