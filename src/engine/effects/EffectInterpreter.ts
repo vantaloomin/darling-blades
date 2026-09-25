@@ -780,12 +780,25 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       // A dies-triggered raise may never return its own source: see
       // EffectContext.selfGraveExclusion.
       const excludedIndex = selfGraveIndex(grave, ctx.selfGraveExclusion);
+      // A dies-triggered raise also passes over a legendary card that shares
+      // a name with a legend its controller controls: it would only die to
+      // the legend rule, and with three copies of one legend (Sitra) the
+      // return and the death looped forever (owner ruling 2026-09-25).
+      const passedOver = (card: CardEntry): boolean => {
+        if (ctx.selfGraveExclusion === undefined) return false;
+        const d = def(db, card);
+        return (d.supertypes?.includes('legendary') ?? false) && state.battlefield.some((perm) => {
+          if (perm.controller !== ctx.controller) return false;
+          const onBoard = def(db, perm.cardId);
+          return (onBoard.supertypes?.includes('legendary') ?? false) && onBoard.name === d.name;
+        });
+      };
       let index: number;
       if (op.to === 'top') {
         // most-recently-buried creature (trigger-safe: no target decision)
         index = -1;
         for (let i = grave.length - 1; i >= 0; i--) {
-          if (i === excludedIndex) continue;
+          if (i === excludedIndex || passedOver(grave[i])) continue;
           if (isType(def(db, grave[i]), 'creature')) {
             index = i;
             break;

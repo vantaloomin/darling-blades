@@ -171,7 +171,10 @@ Combat is declared and resolved through `Game.apply` (declaration),
 - Attacking **taps** the creature — unless it has **sentinel**, which lets it
   attack untapped.
 - Each declared attacker fires its `attacks` triggers immediately.
-- Then the **defender gets a response window** over the attackers.
+- Then the **defender gets a response window** over the attackers, after any
+  choice those triggers raised (Wild Hunt Matriarch, Morrigan and Aine
+  Foresee as they attack). Before 1.8.1 a defender holding a castable Charm
+  lost that window to the Foresee.
 
 ### Declaring blockers
 
@@ -327,7 +330,11 @@ them, and the held trigger keeps that place:
    their triggers in battlefield order, and the effect resumes after the last
    of them, behind the newest choice any of the sweep's triggers raised, held
    or not: Black Water's damage and grind come after the Foresee of a Signal
-   Kitsune that Sitra's trigger returned.
+   Kitsune that Sitra's trigger returned. The check for a player at 0 life
+   waits for the whole batch, as it does with no link: at 1 life, White-Veil
+   Collapse's own life gain still saves its caster from the two Tomb-Toll
+   Takers it destroyed. The windows over the batch's remaining held triggers
+   still open meanwhile, and creatures still die at each check.
 2. **On the stack.** A trigger held while the stack resolves, whether the
    death came from an item's effect or from the state-based check after it,
    resolves before the next item on the stack. The flush pauses, the windows
@@ -346,11 +353,13 @@ them, and the held trigger keeps that place:
 4. **Everywhere else** (combat damage, a Rite or Tithe payment, an attack or
    Dawn trigger) the held trigger resolves before anyone acts again: before
    the ordinary window it interrupts (above), before the Dawn draw, and after
-   combat damage before the Afternoon's first action. Once a trigger held
-   by a payment or an attack has resolved, the window over the spell or the
-   attack is offered as it would have been with no link: when the opponent
-   holds no Charm, a spell resolves at once, before any plain choice the
-   trigger raised is offered.
+   combat damage before the Afternoon's first action. Around a Rite or Tithe
+   payment or an attack the order is fixed, link or no link, whatever the
+   opponent holds (owner ruling 2026-09-25, as in Magic): every choice the
+   payment or the attack raised is made first (held triggers and all), then
+   the opponent's window over the spell or the attackers opens if they hold
+   a castable Charm, then the spell resolves. Holding a Charm changes only
+   what the opponent may do in that window.
 
 **What matches the no-link game, and what does not.** With every window
 passed, a board with a payable link resolves the same ops and triggers as a
@@ -377,7 +386,12 @@ it. These differ:
   A creature returned this way also enters ahead of anything the held
   trigger puts onto the battlefield, and a later "most recently buried"
   return no longer finds it in the graveyard. Shipped ally-dies observers
-  only change life totals or add a counter to their own source.
+  only change life totals or add a counter to their own source, but a life
+  change is enough to decide the game: the check before the window runs
+  after them and before the held trigger. A sweep that kills Madame Macabre
+  beside an opponent's Low-Tide Grave can drain her controller to 0 and end
+  the game before Madame's own trigger gains her controller 1 life; with no link
+  that player survives.
 - **Dawn, Sunset and attack triggers run as one pass** in battlefield order.
   When one of them kills a creature, the next permanent's trigger runs before
   the held dies trigger resolves; with no link it resolves inside the trigger
@@ -412,7 +426,10 @@ rules revision stays 4. It does change what a revision-4 game does whenever
 a trigger is held, including a hold that paused nothing: in 1.8.0 a trigger
 held during a stack flush waited for the whole stack. A 1.8.0 action log that
 passes through such a hold can therefore fail to replay on 1.8.1 (an action it
-recorded is no longer legal there). No such log reaches 1.8.1 in practice:
+recorded is no longer legal there). The same holds, link or no link, for a
+Rite or Tithe payment that raised a choice and for an attack trigger's
+choice with the defender holding a Charm (Rite, and Declaring attackers,
+above). No such log reaches 1.8.1 in practice:
 1.8.1's card-text changes moved the card-data stamp, so every 1.8.0 replay is
 already refused as recorded on an older version.
 
@@ -429,10 +446,12 @@ Drowned Deep vocabulary below) can now watch a sacrifice as well. A
 window over the spell: a player drained to 0 by a fodder's dies trigger loses
 there, and a Hauntlink whose host was sacrificed goes to the graveyard with
 it. A choice the payment raises (a fodder's dies trigger returning a
-creature that targets or Foresees as it arrives) is made before that window,
-and the window is then offered as usual (1.8.1; before, the choice replaced
-the window whenever the opponent held a Charm, and the spell stayed on the
-stack unresolved). The sacrifice is a cost: a cancelled Rite spell does not refund it. The
+creature that targets or Foresees as it arrives) is always made before that
+window, whatever the opponent holds; the window is then offered as usual,
+and the spell resolves after it (owner ruling 2026-09-25, as in Magic). In
+1.8.0 the order depended on the opponent's hand: with no castable Charm the
+spell resolved first and the choice came after it, and with one the choice
+replaced the window and the spell stayed on the stack unresolved. The sacrifice is a cost: a cancelled Rite spell does not refund it. The
 creature cap counts the slots the sacrifice frees, so a full board can still
 cast a Rite creature. Legal-action enumeration offers one canonical sacrifice
 set (first N in battlefield order); `validateAction` accepts any legal set of
@@ -761,7 +780,12 @@ order:
 4. **The legend rule.** Among same-name legendaries **you** control, the **oldest
    survives** (battlefield order is entry order; duplicates are destroyed). The
    legend rule **is implemented** — it is a simple per-controller, per-name form,
-   keyed on `${controller}:${name}`.
+   keyed on `${controller}:${name}`. A dies trigger that returns a creature
+   card from its controller's graveyard (Sitra, Barrow-Jarl) passes over a
+   legendary card that shares a name with a legend that player controls, and
+   returns the next creature card instead (owner ruling 2026-09-25). The
+   returned copy would only die to this rule, and with three copies of one
+   legend the return and the death repeated without end.
 
 (Effective defense/attack for these checks is always computed on read by
 `getEffectiveStats` in `src/engine/statics.ts` — base stats + `+1/+1` marks (engine field: counters) +

@@ -46,6 +46,33 @@ describe('a dies-triggered raise never returns its own source', () => {
     expect(state.battlefield[0].iid).toBe(201);
   });
 
+  // Owner ruling 2026-09-25. With a third copy on top of the yard, the
+  // duplicate's return brought back a Sitra that died to the legend rule and
+  // returned the other, forever.
+  it('passes over a copy of a legend its controller still controls, and not otherwise', () => {
+    const state = makeTestState({
+      battlefield: [
+        { iid: 401, cardId: SITRA, controller: 0, owner: 0 },
+        { iid: 402, cardId: SITRA, controller: 0, owner: 0 },
+      ],
+    });
+    state.players[0].graveyard.push('bk-harpy-skirmisher', SITRA);
+    const sitrasInYard = () => state.players[0].graveyard.filter((card) =>
+      (typeof card === 'string' ? card : card.cardId) === SITRA).length;
+
+    expect(() => checkStateBased(state, CARD_DB, () => {})).not.toThrow();
+    // The duplicate died; its return passed over the third Sitra for the Harpy.
+    expect(state.battlefield.map((p) => p.cardId)).toEqual([SITRA, 'bk-harpy-skirmisher']);
+    expect(sitrasInYard()).toBe(2);
+
+    // With no Sitra left on the battlefield, the next Sitra's death may
+    // return another.
+    state.battlefield.find((p) => p.iid === 401)!.damage = 99;
+    checkStateBased(state, CARD_DB, () => {});
+    expect(state.battlefield.map((p) => p.cardId).sort()).toEqual(['bk-harpy-skirmisher', SITRA].sort());
+    expect(sitrasInYard()).toBe(2);
+  });
+
   it('still raises a DIFFERENT creature buried under the source', () => {
     const state = makeTestState({
       battlefield: [{ iid: 301, cardId: SITRA, controller: 0, owner: 0, damage: 99 }],

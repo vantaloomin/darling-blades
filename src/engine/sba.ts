@@ -12,14 +12,18 @@ export { destroyPermanent };
  * State-based actions, run after every mutation batch and between damage
  * sub-steps. Loops until stable: a death can orphan an aura, fire a dies
  * trigger that drains life, change lord math, etc.
+ *
+ * `deferPlayerLoss` skips only the life check. It is for a check run between
+ * held dies triggers of one batch: with no payable link those triggers run
+ * back to back and the life check follows them all (rules.md, Hauntlink).
  */
-export function checkStateBased(state: GameState, db: CardDb, emit: Emit): void {
+export function checkStateBased(state: GameState, db: CardDb, emit: Emit, options: { deferPlayerLoss?: boolean } = {}): void {
   for (let pass = 0; pass < 30; pass++) {
     if (state.winner !== null) return;
     let changed = false;
 
     // Players at 0 or less life lose.
-    const dead = ([0, 1] as const).filter((p) => state.players[p].life <= 0);
+    const dead = options.deferPlayerLoss ? [] : ([0, 1] as const).filter((p) => state.players[p].life <= 0);
     if (dead.length === 2) {
       endGame(state, emit, 'draw', 'life');
       return;

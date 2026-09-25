@@ -142,6 +142,23 @@ const DB: CardDb = {
     cost: { generic: 0, pips: {} },
     abilities: [{ when: 'spell', ops: [{ op: 'massDestroy', filter: 'allFliers' }, { op: 'draw', n: 1 }] }],
   },
+  // Nested holds: the first flier's death returns a flier that Foresees as
+  // it arrives; the second's death sweeps fliers again, killing it.
+  raise_flier: {
+    id: 'raise_flier', name: 'Raise Flier', types: ['creature'], subtypes: [], colors: [], rarity: 'c',
+    cost: { generic: 0, pips: {} }, attack: 1, defense: 1, keywords: ['skyborne'],
+    abilities: [{ when: 'dies', ops: [{ op: 'raise', to: 'top' }] }],
+  },
+  arrival_foreseer: {
+    id: 'arrival_foreseer', name: 'Arrival Foreseer', types: ['creature'], subtypes: [], colors: [], rarity: 'c',
+    cost: { generic: 0, pips: {} }, attack: 1, defense: 1, keywords: ['skyborne'],
+    abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }, { when: 'dies', ops: [{ op: 'loseLife', n: 2, who: 'opponent' }] }],
+  },
+  resweep_flier: {
+    id: 'resweep_flier', name: 'Resweep Flier', types: ['creature'], subtypes: [], colors: [], rarity: 'c',
+    cost: { generic: 0, pips: {} }, attack: 1, defense: 1, keywords: ['skyborne'],
+    abilities: [{ when: 'dies', ops: [{ op: 'massDestroy', filter: 'allFliers' }, { op: 'loseLife', n: 1, who: 'opponent' }] }],
+  },
 };
 /** Shipped cards alongside the fixtures above; no id overlaps. */
 const SHIPPED_DB: CardDb = { ...CARD_DB, ...DB };
@@ -504,23 +521,38 @@ describe('a held trigger keeps the no-link order (rev 4)', () => {
     expect(outcome(linked)).toEqual(outcome(reference));
   });
 
-  it('lets a Tithe spell resolve before a choice its fodder\'s held trigger raised, when no Charm answers it', () => {
-    // With no Charm to answer, the spell skips its window and resolves at
-    // once; the fodder's Foresee is offered afterwards, link or no link.
-    const { linked, reference } = boardPair({
-      bf: [{ iid: 9, cardId: 'dies_foreseer', controller: 0 }],
-      hands: [['tithe_horror'], []], active: 0,
-      decks: [['forest', 'giant', 'elf'], ['bear']],
-    });
-    for (const g of [linked, reference]) g.submit(0, { type: 'castSpell', handIndex: 0, tithe: true, sacrifices: [9] });
-    expect(linked.awaiting).toMatchObject({ player: 0, kind: 'hauntlinkWindow', over: { type: 'trigger', iid: 9 } });
+  // Owner ruling 2026-09-25: a choice the Tithe payment raised is settled
+  // first, then the opponent's window, then the spell resolves, whatever the
+  // opponent holds. The caster, making that choice, sees the same game either
+  // way, so the order gives nothing away about the opponent's hand.
+  it('settles a choice the Tithe fodder raised before the window over the spell, whatever the opponent holds', () => {
+    const casterViews: ReturnType<Game['viewFor']>[] = [];
+    for (const opponentHand of [['free_charm'], ['bear']]) {
+      const { linked, reference } = boardPair({
+        bf: [{ iid: 9, cardId: 'dies_foreseer', controller: 0 }],
+        hands: [['tithe_horror'], opponentHand], active: 0,
+        decks: [['forest', 'giant', 'elf'], ['bear']],
+      });
+      for (const g of [linked, reference]) g.submit(0, { type: 'castSpell', handIndex: 0, tithe: true, sacrifices: [9] });
+      expect(linked.awaiting).toMatchObject({ player: 0, kind: 'hauntlinkWindow', over: { type: 'trigger', iid: 9 } });
 
-    for (const g of [linked, reference]) {
-      expect(passWindows(g)).toEqual({ player: 0, kind: 'foresee', cards: ['elf'] });
-      expect(g.instanceState.stack).toEqual([]);
-      expect(g.instanceState.battlefield.some((p) => p.cardId === 'tithe_horror')).toBe(true);
+      for (const g of [linked, reference]) {
+        expect(passWindows(g)).toEqual({ player: 0, kind: 'foresee', cards: ['elf'] });
+        expect(g.instanceState.stack.map((item) => item.cardId)).toEqual(['tithe_horror']);
+        if (g === reference) casterViews.push(g.viewFor(0));
+        g.submit(0, { type: 'foresee', bottomIndices: [] });
+        // Only now does the opponent's hand matter: a Charm earns a window.
+        if (opponentHand[0] === 'free_charm') {
+          expect(g.awaiting).toMatchObject({ player: 1, kind: 'respond', over: { type: 'spell' } });
+          g.submit(1, { type: 'passResponse' });
+        }
+        expect(g.instanceState.stack).toEqual([]);
+        expect(g.instanceState.battlefield.some((p) => p.cardId === 'tithe_horror')).toBe(true);
+        expect(g.awaiting).toEqual({ player: 0, kind: 'main' });
+      }
+      expect(outcome(linked)).toEqual(outcome(reference));
     }
-    expect(outcome(linked)).toEqual(outcome(reference));
+    expect(casterViews[0]).toEqual(casterViews[1]);
   });
 
   it('runs a sweep\'s remaining ops behind a choice an earlier held trigger raised', () => {
@@ -542,6 +574,68 @@ describe('a held trigger keeps the no-link order (rev 4)', () => {
       expect(g.instanceState.players[1].life).toBe(18);
     }
     expect(outcome(linked)).toEqual(outcome(reference));
+  });
+
+  it('runs a sweep\'s remaining ops behind its own choice when held triggers nest', () => {
+    // The sweep kills both fliers. The first returns the Arrival Foreseer
+    // (its Foresee queues); the second sweeps it away, and its death is held
+    // inside the second's own effect. The sweep's draw still waits behind the
+    // Foresee.
+    const { linked, reference } = boardPair({
+      bf: [{ iid: 10, cardId: 'raise_flier', controller: 0 }, { iid: 11, cardId: 'resweep_flier', controller: 1 }],
+      hands: [['flier_sweep_then_draw'], []], active: 0,
+      decks: [['forest', 'elf', 'giant', 'bear'], ['forest', 'forest']],
+      graves: [['arrival_foreseer'], []],
+    });
+    cast(linked, 0, 'flier_sweep_then_draw');
+    cast(reference, 0, 'flier_sweep_then_draw');
+    expect(linked.awaiting).toMatchObject({ player: 0, kind: 'hauntlinkWindow', over: { type: 'trigger', iid: 10 } });
+    for (const g of [linked, reference]) {
+      expect(passWindows(g)).toEqual({ player: 0, kind: 'foresee', cards: ['bear'] });
+      expect(g.state.players[0].hand).toEqual([]);
+      g.submit(0, { type: 'foresee', bottomIndices: [0] });
+      expect(passWindows(g)).toEqual({ player: 0, kind: 'main' });
+      expect(g.state.players[0].hand).toEqual(['giant']);
+      expect(g.state.players[0].deck).toEqual(['bear', 'forest', 'elf']);
+      expect(g.instanceState.players.map((p) => p.life)).toEqual([19, 18]);
+    }
+    // The paused spell reached its graveyard at the pause (rules.md), so only
+    // graveyard order may differ from the game with no link.
+    const sorted = (g: Game) => g.state.players.map((p) => [...p.graveyard].sort());
+    expect(sorted(linked)).toEqual(sorted(reference));
+  });
+
+  it('lets a sweep\'s own life gain save its caster from the held triggers it raised (White-Veil Collapse)', () => {
+    // At 1 life, the caster destroys every creature, then gains 4. The Fourth
+    // Weighing's Scarabs give the unattached link a host, so both Tomb-Toll
+    // Takers' tolls are held; the life check waits for the whole batch.
+    const build = (withLink: boolean): Game => {
+      const state = makeTestState({
+        battlefield: [
+          { iid: 5, cardId: 'sd-fourth-weighing', controller: 0 },
+          ...(withLink ? [{ iid: 6, cardId: 'hauntlink_enchantment', controller: 0 as const }] : []),
+          { iid: 7, cardId: 'sd-tomb-toll-taker', controller: 1 },
+          { iid: 8, cardId: 'sd-tomb-toll-taker', controller: 1 },
+          ...[40, 41, 42, 43].map((iid) => ({ iid, cardId: 'land-plains', controller: 0 as const })),
+        ],
+        hands: [['yn-white-veil-collapse'], []], active: 0,
+      });
+      state.rulesRev = 4;
+      state.players[0].life = 1;
+      state.players[0].deck = ['forest'];
+      state.players[1].deck = ['forest'];
+      return Game.restore(state, SHIPPED_DB);
+    };
+    const linked = build(true);
+    const reference = build(false);
+    cast(linked, 0, 'yn-white-veil-collapse');
+    cast(reference, 0, 'yn-white-veil-collapse');
+    expect(linked.awaiting).toMatchObject({ player: 0, kind: 'hauntlinkWindow', over: { type: 'trigger', iid: 7 } });
+    for (const g of [linked, reference]) {
+      expect(passWindows(g)).toEqual({ player: 0, kind: 'main' });
+      expect(g.instanceState.players[0].life).toBe(3);
+      expect(g.instanceState.winner).toBeNull();
+    }
   });
 
   it('runs a sweep\'s remaining ops behind a choice raised before the hold (Night-Market Price)', () => {

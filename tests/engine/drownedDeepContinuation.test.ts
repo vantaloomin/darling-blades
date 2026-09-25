@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest';
+import { CARD_DB } from '../../src/data/catalog';
 import { Game } from '../../src/engine/Game';
 import { conditionSatisfied, fireTriggers, runOps } from '../../src/engine/effects/EffectInterpreter';
 import { destroyPermanent } from '../../src/engine/battlefield';
 import { cardIdOf } from '../../src/engine/types';
 import { board, card, dbOf, ref, spell } from '../drownedDeepFixture';
+import { makeTestState, TEST_DB } from '../helpers';
+
+/** Shipped cards beside the plain test lands and creatures. */
+const SHIPPED_DB = { ...CARD_DB, ...TEST_DB };
 
 const db = dbOf(
   card('bell', { abilities: [{ when: 'youCastCharm', ops: [{ op: 'foresee', n: 1 }] }] }),
@@ -188,5 +193,38 @@ describe('Drowned Deep: decision continuation and response order', () => {
     expect(game.instanceState.players[1].hand).toMatchObject([{ instanceId: 101, cardId: 'bride' }]);
     expect(game.instanceState.players[1].graveyard).toMatchObject([{ instanceId: 100, cardId: 'bride' }]);
     expect(game.instanceState.players[0].hand).toEqual([]);
+  });
+
+  // Wild Hunt Matriarch Foresees as it attacks. Until 1.8.1 a defender
+  // holding a castable Charm lost its window over the attackers to that
+  // Foresee. The Foresee now comes first and the window after it; and the
+  // attacker, choosing, sees the same game whatever the defender holds.
+  it('offers the defender its window over the attackers after an attack trigger\'s Foresee', () => {
+    const attackerViews: ReturnType<Game['viewFor']>[] = [];
+    for (const defenderHand of [['dt-dream-prick'], ['bear']]) {
+      const state = makeTestState({
+        battlefield: [
+          { iid: 10, cardId: 'cf-wild-hunt-matriarch', controller: 0 },
+          { iid: 20, cardId: 'land-island', controller: 1 },
+        ],
+        hands: [[], defenderHand],
+        active: 0,
+      });
+      state.players[0].deck = ['forest', 'elf', 'giant'];
+      state.players[1].deck = ['forest', 'forest'];
+      const game = Game.restore(state, SHIPPED_DB);
+      game.submit(0, { type: 'passStep' });
+      game.submit(0, { type: 'declareAttackers', attackers: [10] });
+      expect(game.awaiting).toEqual({ player: 0, kind: 'foresee', cards: ['giant'] });
+      attackerViews.push(game.viewFor(0));
+
+      game.submit(0, { type: 'foresee', bottomIndices: [] });
+      if (defenderHand[0] === 'dt-dream-prick') {
+        expect(game.awaiting).toEqual({ player: 1, kind: 'respond', over: { type: 'attackers' } });
+        game.submit(1, { type: 'passResponse' });
+      }
+      expect(game.awaiting).toEqual({ player: 1, kind: 'declareBlockers' });
+    }
+    expect(attackerViews[0]).toEqual(attackerViews[1]);
   });
 });

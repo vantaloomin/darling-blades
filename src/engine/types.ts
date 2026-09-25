@@ -850,11 +850,11 @@ export type PendingDecision =
        */
       movedAhead?: number;
       /**
-       * Held in the middle of a step that carries on after it: a stack flush,
-       * or the offer of the response window over a spell or an attack. Once
-       * it and every trigger it causes have resolved, that step carries on
-       * before any plain choice they raised is offered, as it would have with
-       * no payable link.
+       * Held in the middle of a stack flush. Once it and every trigger it
+       * causes have resolved, the flush carries on before any plain choice
+       * they raised is offered, as it would have with no payable link. (A
+       * response window over a spell or an attack always waits for every
+       * queued choice, so it needs no such mark.)
        */
       heldMidStep?: true;
     };

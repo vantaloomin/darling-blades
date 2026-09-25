@@ -558,21 +558,15 @@ export class Game {
           checkStateBased(st, this.db, emit);
         }
         if (st.winner !== null) return;
-        // Held mid-step, the trigger resolved where it would have inline.
-        // With nothing else holding the step, it carries on before any plain
-        // choice raised along the way is offered (a Foresee, a targeted
-        // arrival), exactly as it does with no payable link: the stack flush
-        // resumes, or the response window over the spell or attack is offered
-        // (or skipped into the flush, when the responder holds no Charm). An
-        // empty queue is left to the end of this drain, which resumes the
-        // step once; resuming here too would resume it twice.
-        if (next.heldMidStep && st.pendingDecisions.length > 0 && !st.pendingDecisions.some(holdsFlush)) {
-          const resume = st.decisionResume;
-          if (st.stackClosed) this.closeAndFlush(emit);
-          else if (resume?.kind === 'respond' && resume.offerAfterDecision) {
-            delete st.decisionResume;
-            this.openResponseWindow(resume.player, resume.over, emit);
-          }
+        // Held mid-flush, the trigger resolved where it would have inline.
+        // With nothing else holding the flush, the flush carries on before
+        // any plain choice raised along the way is offered (a Foresee, a
+        // targeted arrival), exactly as it does with no payable link. An
+        // empty queue is left to the end of this drain, which re-enters the
+        // flush once; resuming here too would resume it twice.
+        if (next.heldMidStep && st.stackClosed && st.pendingDecisions.length > 0 &&
+          !st.pendingDecisions.some(holdsFlush)) {
+          this.closeAndFlush(emit);
           if (st.winner !== null) return;
         }
         continue;
@@ -670,6 +664,13 @@ export class Game {
       // Frames queued behind the paused effect (a choice's own continuation)
       // follow it, as in resumeNewChoice.
       if (rest.length > 0) {
+        // One of them may be an enclosing effect's paused ops (this trigger
+        // was held inside a trigger held inside that effect). They too wait
+        // behind the choices their own op queued ahead of this trigger.
+        if (!aheadQueued && rest.some((frame) => frame.heldTail && (frame.regionAhead ?? 0) > 0)) {
+          st.pendingDecisions.unshift(...ahead);
+          aheadQueued = true;
+        }
         const pending = st.pendingDecisions.at(-1);
         if (pending) pending.continuations = [...(pending.continuations ?? []), ...rest];
         else runContinuations(st, this.db, emit, rest);
@@ -679,16 +680,24 @@ export class Game {
       if (pending) pending.continuations = [...(pending.continuations ?? []), ...held.continuations];
       else runContinuations(st, this.db, emit, held.continuations);
     }
-    checkStateBased(st, this.db, emit);
+    // With no payable link, the other held dies triggers of this batch would
+    // have resolved back to back with this one, and the life check after them
+    // all: a sweep's own life gain can still save its caster. Creatures still
+    // die here, so the next window shows the board as it stands.
+    const isHeldDies = (p: PendingDecision): boolean => p.kind === 'resolveTrigger' && isHeldDiesTrigger(p);
+    const moreHeld = st.pendingDecisions.some(isHeldDies) || later.some(isHeldDies) || (!aheadQueued && ahead.some(isHeldDies));
+    checkStateBased(st, this.db, emit, { deferPlayerLoss: moreHeld });
     if (held.heldMidStep) {
       for (const p of st.pendingDecisions) if (p.kind === 'resolveTrigger') p.heldMidStep = true;
     }
     // This trigger's one queue entry became `placed` entries. A held tail
-    // further back whose op's earlier choices include this trigger counts them.
+    // further back whose op's earlier choices include this trigger counts
+    // them, whichever frame it rides in.
     const placed = st.pendingDecisions.length - (aheadQueued ? ahead.length : 0);
     later.forEach((p, index) => {
-      const tail = p.kind === 'resolveTrigger' ? p.continuations?.[0] : undefined;
-      if (tail?.heldTail && (tail.regionAhead ?? 0) > index) tail.regionAhead = (tail.regionAhead ?? 0) + placed - 1;
+      for (const tail of p.kind === 'resolveTrigger' ? p.continuations ?? [] : []) {
+        if (tail.heldTail && (tail.regionAhead ?? 0) > index) tail.regionAhead = (tail.regionAhead ?? 0) + placed - 1;
+      }
     });
     if (!aheadQueued) st.pendingDecisions.unshift(...ahead);
     st.pendingDecisions.push(...later);
@@ -1258,20 +1267,18 @@ export class Game {
     over: Extract<Awaiting, { kind: 'respond' }>['over'],
     emit: Emit,
   ): void {
-    // A plain choice the cast raised (a Rite or Tithe fodder whose dies trigger
-    // returns a creature that targets or Foresees as it arrives) would replace
-    // a window offered now, stranding the spell on the stack (1.8.1); it too
-    // is settled first whenever a window would open.
-    if (this.st.pendingDecisions.some(holdsFlush) ||
-      (this.st.pendingDecisions.length > 0 && hasCastableInstant(this.st, this.db, responder))) {
+    // Any choice the cast or the attack raised is settled first, whatever the
+    // responder holds (owner ruling 2026-09-25, as in Magic): a Rite or Tithe
+    // fodder whose dies trigger returns a creature that targets or Foresees,
+    // an attack trigger's Foresee. The order never depends on the responder's
+    // hand, and a window offered now would have been replaced by the choice,
+    // stranding the spell on the stack.
+    if (this.st.pendingDecisions.length > 0) {
       // No window has been offered yet. Complete cast/attack observers first,
       // then recalculate whether the responder still has a playable Charm.
       // A held revision-4 trigger counts: a Rite or Tithe sacrifice can hold
-      // its fodder's dies trigger for a Hauntlink window, and that window
-      // would otherwise replace this one and leave the spell on the stack
-      // with nobody ever offered a pass (a stranded stack).
+      // its fodder's dies trigger for a Hauntlink window first.
       this.st.decisionResume = { player: responder, kind: 'respond', over, offerAfterDecision: true };
-      for (const p of this.st.pendingDecisions) if (p.kind === 'resolveTrigger') p.heldMidStep = true;
       return;
     }
     if (hasCastableInstant(this.st, this.db, responder)) {
