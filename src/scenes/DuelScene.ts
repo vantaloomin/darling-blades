@@ -3008,6 +3008,16 @@ export class DuelScene extends Phaser.Scene {
         } else if (v) this.log(`${who} ${this.cardRef(e.cardId)} died`, e.cardId);
         break;
       }
+      case 'recalled': {
+        // A return to hand is not a death: no death sound, and the line says
+        // where the card went (a token ceases to exist instead).
+        const who = e.owner === HUMAN ? 'Your' : 'Enemy';
+        this.log(
+          e.token ? `${who} ${this.cardRef(e.cardId)} left play` : `${who} ${this.cardRef(e.cardId)} returned to its owner's hand`,
+          e.cardId,
+        );
+        break;
+      }
       case 'discarded':
         this.log(`${e.player === HUMAN ? 'You discard' : 'Opponent discards'} ${this.cardRef(e.cardId)}.`, e.cardId);
         break;
@@ -3376,7 +3386,8 @@ export class DuelScene extends Phaser.Scene {
         const cardId =
           this.duel.state.battlefield.find((p) => p.iid === t.iid)?.cardId ??
           batch.find(
-            (ev): ev is Extract<GameEvent, { e: 'died' }> => ev.e === 'died' && ev.iid === t.iid,
+            (ev): ev is Extract<GameEvent, { e: 'died' | 'recalled' }> =>
+              (ev.e === 'died' || ev.e === 'recalled') && ev.iid === t.iid,
           )?.cardId;
         if (cardId !== undefined) parts.push(this.cardRef(cardId));
       }

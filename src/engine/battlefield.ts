@@ -225,7 +225,7 @@ export function recallPermanent(
     emit({ e: 'cardsBottomed', player: perm.owner, count: 0 }); // no dedicated event; UI resyncs
   }
   if (!basicToReserve && !darlingToZone) {
-    emit({ e: 'died', iid: perm.iid, cardId: perm.cardId, owner: perm.owner });
+    emit({ e: 'recalled', iid: perm.iid, cardId: perm.cardId, owner: perm.owner, ...(isToken ? { token: true as const } : {}) });
   }
   return true;
 }
