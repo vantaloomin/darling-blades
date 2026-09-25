@@ -5,7 +5,7 @@ import type { CardDb, PlayerId } from '../engine/types';
 import { manaValue, opponentOf } from '../engine/types';
 import type { PlayerView } from '../engine/view';
 import type { AIPlayer } from './AIPlayer';
-import { scoredActivationCandidates } from './activatedPolicy';
+import { precombatDutyEdge, scoredActivationCandidates, type ActivateAction } from './activatedPolicy';
 import { rankedHauntlinkWindowCandidates } from './hauntlinkPolicy';
 import { chooseAttackers, chooseBlocks } from './combatPlans';
 import { determinize, simDb } from './determinize';
@@ -19,7 +19,7 @@ import { applyTithePolicy, isTitheCast, titheManaSaved } from './tithePolicy';
 import { applyWhispersPolicy } from './whispersPolicy';
 import { applyVocabularyTargetPolicy, chooseTargetAction, isVocabularyCast } from './targeting';
 import { chooseSacrifice } from './sacrificePolicy';
-import { cardValue, empowerValue, faceDamageForCast, hauntlinkCastValue, whispersValue, type SpellMode } from './value';
+import { actionManaCost, cardValue, empowerValue, faceDamageForCast, hauntlinkCastValue, whispersValue, type SpellMode } from './value';
 
 type CreatureCast = Extract<Action, { type: 'castSpell' | 'castDarling' }>;
 
@@ -47,7 +47,11 @@ export class HardAI implements AIPlayer {
     // strict superset of db, so real-view decisions are unaffected.
     this.sdb = simDb(db);
     this.medium = new MediumAI(this.sdb, pers);
-    this.neutralMedium = new MediumAI(this.sdb, DEFAULT_PERSONALITY);
+    // The simulated opponent keeps paid Duties in its Afternoon: a Morning
+    // forecast in every simulated turn multiplied the attack search's cost
+    // on wide boards (1.8.1 review), and the neutral model is already a
+    // simplification of the real opponent.
+    this.neutralMedium = new MediumAI(this.sdb, DEFAULT_PERSONALITY, { morningDuties: false });
   }
 
   chooseAction(view: PlayerView, legal: Action[]): Action {
@@ -257,8 +261,16 @@ export class HardAI implements AIPlayer {
     legal = this.medium.constrainMainMana(view, legal);
     const baseline = this.medium.chooseAction(view, legal);
     if (baseline.type === 'linkHaunt') return baseline;
+    // Medium's own planner inputs, so both brains price a Morning Duty alike.
+    const morning = legal.some((action) => action.type === 'activate')
+      ? this.medium.morningContext(view, legal) : undefined;
+    // A Morning Duty whose forecast attack is lethal is taken before any
+    // search: the shallow sim stops short of the combat that wins.
+    if (baseline.type === 'activate' && morning && precombatDutyEdge(view, this.db, baseline, morning)?.lethal) {
+      return baseline;
+    }
     const pass = legal.find((action) => action.type === 'passStep');
-    const activations = new Map(scoredActivationCandidates(view, this.db, legal)
+    const activations = new Map(scoredActivationCandidates(view, this.db, legal, morning)
       .map(({ action, value }) => [action, value]));
     // Keep the existing narrow cast set. Pass and at most one deferred
     // creature line reserve ordinary slots below. Skim must not be offered
@@ -396,6 +408,27 @@ export class HardAI implements AIPlayer {
       // would reward the longer horizon rather than the timing decision.
       const comparison = this.holdComparison(view, best);
       if (comparison && comparison.held > comparison.now) return pass;
+    }
+    // A paid Duty reaches the Morning only because the attack forecast says it
+    // buys something, and the shallow sim stops before combat. So the attack
+    // search's referee checks the claim: this Duty now against a pass to
+    // combat (Medium then uses it in the Afternoon if it still pays), each
+    // played through the opponent's counterattack. When holding wins by the
+    // attack search's +0.75 the Duty is struck from the menu and Medium picks
+    // again, so whatever it was crowding out (a develop cast, another Duty)
+    // still happens; a second Morning Duty gets the same check.
+    const morningDuty = (action: Action): action is ActivateAction => action.type === 'activate' &&
+      view.step === 'main1' && view.activePlayer === view.myId &&
+      manaValue(actionManaCost(view, this.db, action) ?? { generic: 0, pips: {} }) > 0;
+    const dutyKey = (action: ActivateAction): string => `${action.iid}:${action.abilityIndex ?? 0}`;
+    const struck = new Set<string>();
+    let held: number | undefined;
+    while (pass && morningDuty(best) && !struck.has(dutyKey(best))) {
+      held ??= this.lookahead(view, pass);
+      if (!(held > this.lookahead(view, best) + 0.75)) break;
+      struck.add(dutyKey(best));
+      best = this.medium.chooseAction(view, legal.filter((action) =>
+        action.type !== 'activate' || !struck.has(dutyKey(action))));
     }
     return best;
   }

@@ -383,8 +383,11 @@ interface ActivatedImpactContext {
   source: Permanent;
   targets: readonly TargetRef[];
   targetBatch: boolean;
-  /** Board-only potential has no supplied deck count. Action scoring does. */
-  trackDeck: boolean;
+  /** Scoring an action on the live board (true) tracks the deck and sees a
+   * target's current tap state. Board-only potential (false) has no deck
+   * count, and prices a tap as if its target has untapped by the next use:
+   * a creature that attacked is tapped only until its controller's untap. */
+  live: boolean;
 }
 
 export function opImpactValue(op: EffectOp, activated?: ActivatedImpactContext): number {
@@ -486,7 +489,7 @@ function activatedTargetImpact(op: EffectOp, ctx: ActivatedImpactContext, ref: T
     getEffectiveStats(view.battlefield, db, target.iid).defense + op.t <= target.damage) {
     return removalTargetValue(view.battlefield, db, target, false) * (target.controller === view.myId ? -1 : 1);
   }
-  if (op.op === 'tap' && target?.tapped) return 0;
+  if (op.op === 'tap' && target?.tapped && ctx.live) return 0;
   if (op.op === 'foresee' && op.who === 'targetOwner') {
     const owner = target?.owner ?? (ref.kind === 'player' || ref.kind === 'grave' ? ref.player : undefined);
     return owner === undefined ? 0 : op.n * 0.5 * (owner === view.myId ? 1 : -1);
@@ -524,14 +527,14 @@ function activatedOpImpact(op: EffectOp, ctx: ActivatedImpactContext): number {
     return activatedTargetImpact(mark, ctx, { kind: 'permanent', iid: to.iid }) -
       activatedTargetImpact(mark, ctx, { kind: 'permanent', iid: from.iid });
   }
-  if (op.op === 'draw' && ctx.trackDeck && op.n > view.you.deckCount) return -Infinity;
+  if (op.op === 'draw' && ctx.live && op.n > view.you.deckCount) return -Infinity;
   if (op.op === 'damage') {
     if (op.to === 'controller') return op.n === 'X' ? 0 : -op.n * 0.9;
     if (op.to === 'eachCreature') return symmetricCreatureSweepValue(view.battlefield, db, view.myId, op, false);
     if (op.to === 'eachOpponentCreature') return creatures.filter((perm) => perm.controller !== view.myId)
       .reduce((sum, perm) => sum + activatedTargetImpact({ ...op, to: 'target' }, ctx, { kind: 'permanent', iid: perm.iid }), 0);
   }
-  if (op.op === 'tapAll') return creatures.filter((perm) => perm.controller !== view.myId && !perm.tapped)
+  if (op.op === 'tapAll') return creatures.filter((perm) => perm.controller !== view.myId && (!perm.tapped || !ctx.live))
     .reduce((sum, perm) => sum + activatedTargetImpact({ op: 'tap', to: 'target' }, ctx, { kind: 'permanent', iid: perm.iid }), 0);
   if (op.op === 'sacrifice') {
     const cheapest = (mine: boolean): number => {
@@ -576,7 +579,7 @@ function activatedOpsImpact(ops: readonly EffectOp[], ctx: ActivatedImpactContex
   for (const op of ops) {
     value += opImpactValue(op, ctx);
     if (!Number.isFinite(value)) return value;
-    if (op.op === 'draw' && ctx.trackDeck) ctx.view.you.deckCount -= op.n;
+    if (op.op === 'draw' && ctx.live) ctx.view.you.deckCount -= op.n;
     if (op.op !== 'removeMarks' && op.op !== 'addCounters' && op.op !== 'markAll' &&
       op.op !== 'propagate' && op.op !== 'moveMark') continue;
     const creatures = ctx.view.battlefield.filter((p) => isType(def(ctx.db, p.cardId), 'creature'));
@@ -626,7 +629,7 @@ function activatedActionImpact(
   view: PlayerView,
   db: CardDb,
   action: Extract<Action, { type: 'activate' }>,
-  trackDeck: boolean,
+  live: boolean,
 ): number {
   const source = view.battlefield.find((p) => p.iid === action.iid);
   const ability = source && activatedAbilitiesOf(def(db, source.cardId))[action.abilityIndex ?? 0];
@@ -637,7 +640,7 @@ function activatedActionImpact(
       battlefield: activatedWritesMarks(ability.ops)
         ? view.battlefield.map((perm) => ({ ...perm })) : view.battlefield,
     },
-    db, source, trackDeck,
+    db, source, live,
     targets: action.targets ?? [],
     targetBatch: ability.targets?.length === 1 && (ability.targets[0].upTo !== undefined || ability.targets[0].exactly !== undefined),
   };
