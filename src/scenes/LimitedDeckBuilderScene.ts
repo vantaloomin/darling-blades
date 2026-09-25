@@ -21,6 +21,7 @@ import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestur
 import { CardView } from '../ui/CardView';
 import { computeDeckStats, curveBars, deckCountsLine, deckPipBeads } from '../ui/deckStats';
 import { leaveDraftPrompt } from '../ui/leaveDraftPrompt';
+import { premiumGrantNote, type LimitedBuilderEntry, type PremiumGrantSummary } from '../ui/limitedDraftPresentation';
 import {
   LIMITED_BUILDER_COLUMNS,
   LIMITED_BUILDER_HEADER,
@@ -75,11 +76,18 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
   private selectedId: string | null = null;
   private cardInspect: Phaser.GameObjects.Container | null = null;
   private leavePrompt: ModalShell | null = null;
+  /**
+   * What the Premium grant did, handed over by the screen that completed the
+   * draft. The run does not store it, so a later visit arrives without it and
+   * the note is not drawn: it can only say what happened with real numbers.
+   */
+  private premiumGrant: PremiumGrantSummary | null = null;
   constructor() {
     super('LimitedDeckBuilder');
   }
   /** The pool pane and the deck column draw only the run's own pool. */
-  create(): void {
+  create(data: LimitedBuilderEntry = {}): void {
+    this.premiumGrant = data.premiumGrant ?? null;
     const run = Services.save.data.limited.activeRun;
     gateOnArt(this, [...(run?.pool ?? []), ...(run?.deck ?? []), ...(run?.landReserve ?? [])], () =>
       this.build(),
@@ -157,9 +165,11 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
       `Exactly ${LIMITED_DECK_SIZE} spells, no lands · Warchest provided · pool ${run.pool.length} · record ${run.wins}-${run.losses}`,
       { fontSize: theme.type.label },
     );
-    if (run.premium) {
+    // One line even in the worst case: every pick melted at the top tier
+    // measures 708px (Inter caption, 2026-09-25) against the 1152px frame.
+    if (run.premium && this.premiumGrant) {
       this.add
-        .text(SCENE_TITLE.x, LIMITED_BUILDER_HEADER.premiumNoteTop, 'Your 45 drafted cards were added to your collection.', {
+        .text(SCENE_TITLE.x, LIMITED_BUILDER_HEADER.premiumNoteTop, premiumGrantNote(this.premiumGrant), {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           color: theme.colors.gold,

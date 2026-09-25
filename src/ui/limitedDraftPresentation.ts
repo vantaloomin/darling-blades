@@ -1,4 +1,4 @@
-import { ownedVariants, PLAYSET } from '../meta/Collection';
+import { ownedVariants, PLAYSET, type AddResult } from '../meta/Collection';
 import type { DraftState } from '../meta/Limited';
 import type { SaveData } from '../meta/SaveManager';
 import { isPlainVariant, PLAIN_VARIANT, variantKey, type CardVariant } from '../meta/variants';
@@ -47,4 +47,62 @@ export function premiumOwnershipLine(
   if (offered && !isPlainVariant(offered)) return `${base}. Special prints never melt.`;
   if (held >= PLAYSET) return `${base}. This plain copy melts to gold when the draft ends.`;
   return `${base}. Plain copies past ${PLAYSET} melt to gold.`;
+}
+
+/**
+ * What a Premium draft's grant did, read from the add results it returned:
+ * every pick is added through the collection's add rule, and a result with
+ * `dupeGold` above zero is a plain copy past the plain playset that melted.
+ */
+export interface PremiumGrantSummary {
+  /** Picks granted: the whole Premium pool. */
+  drafted: number;
+  /** Copies the collection kept. */
+  added: number;
+  /** Plain copies past the playset, converted to gold instead. */
+  converted: number;
+  /** The gold those conversions paid. */
+  gold: number;
+}
+
+export function premiumGrantSummary(results: readonly Pick<AddResult, 'dupeGold'>[]): PremiumGrantSummary {
+  let converted = 0;
+  let gold = 0;
+  for (const result of results) {
+    if (result.dupeGold <= 0) continue;
+    converted++;
+    gold += result.dupeGold;
+  }
+  return { drafted: results.length, added: results.length - converted, converted, gold };
+}
+
+/**
+ * The Limited deck builder's note after a Premium draft, in the owner's words
+ * (approved 2026-09-25). It replaced "Your 45 drafted cards were added to your
+ * collection", which was not true once a plain copy had melted.
+ */
+export function premiumGrantNote(summary: PremiumGrantSummary): string {
+  const { drafted, added, converted, gold } = summary;
+  const lead = `You drafted ${drafted} ${drafted === 1 ? 'card' : 'cards'}.`;
+  if (converted === 0) {
+    return added === 1
+      ? `${lead} 1 has been added to your collection.`
+      : `${lead} All ${added} have been added to your collection.`;
+  }
+  const kept = added === 0
+    ? 'None have been added to your collection'
+    : `${added} ${added === 1 ? 'has' : 'have'} been added to your collection`;
+  const melted = converted === 1
+    ? '1 was a duplicate that was converted'
+    : `${converted} were duplicates that were converted`;
+  return `${lead} ${kept}, and ${melted} to ${gold.toLocaleString('en-US')} gold.`;
+}
+
+/**
+ * What the Limited deck builder is opened with. The grant's result exists only
+ * at the moment the draft completes (the run does not store it), so the screen
+ * that completes the draft hands it over; a later visit arrives without it.
+ */
+export interface LimitedBuilderEntry {
+  premiumGrant?: PremiumGrantSummary;
 }

@@ -34,7 +34,12 @@ import { CardView } from '../ui/CardView';
 import { computeDeckStats, CURVE_MAX, PIE_COLORS } from '../ui/deckStats';
 import { addKeywordGlossaryPanel } from '../ui/KeywordGlossaryPanel';
 import { leaveDraftPrompt } from '../ui/leaveDraftPrompt';
-import { premiumOwnershipLine } from '../ui/limitedDraftPresentation';
+import {
+  premiumGrantSummary,
+  premiumOwnershipLine,
+  type LimitedBuilderEntry,
+  type PremiumGrantSummary,
+} from '../ui/limitedDraftPresentation';
 import { bakeManaSymbols } from '../ui/ManaSymbols';
 import { ModalGuard } from '../ui/Modal';
 import { gateOnArt } from '../ui/artGate';
@@ -185,11 +190,11 @@ export class LimitedDraftScene extends Phaser.Scene {
     registerSceneBackNavigation(this, () => this.leaveDraft());
     if (run.draft.completed) {
       // Interrupted-save path (confirmPick normally records before this).
-      grantPremiumDraftPool(Services.save.data, CARD_DB, run);
+      const grant = premiumGrantSummary(grantPremiumDraftPool(Services.save.data, CARD_DB, run));
       recordDraftEncounters(Services.save.data.limited, run);
       Services.save.data.limited.activeRun = completeDraftRun(CARD_DB, run);
       Services.save.flush();
-      this.scene.start('LimitedDeckBuilder');
+      this.openBuilder(grant);
       return;
     }
 
@@ -906,6 +911,16 @@ export class LimitedDraftScene extends Phaser.Scene {
     this.inspectHint = null;
   }
 
+  /**
+   * On to the deck builder with what the grant did: the run does not store it,
+   * so this hand-off is the only way its note can name real numbers. A free
+   * draft grants nothing (drafted 0) and the builder shows no note.
+   */
+  private openBuilder(grant: PremiumGrantSummary): void {
+    const entry: LimitedBuilderEntry = grant.drafted > 0 ? { premiumGrant: grant } : {};
+    this.scene.start('LimitedDeckBuilder', entry);
+  }
+
   private confirmPick(run: LimitedRun): void {
     if (this.passing || !this.selectedId || !run.draft) return;
     const prevPackIndex = run.draft.packIndex;
@@ -913,18 +928,19 @@ export class LimitedDraftScene extends Phaser.Scene {
       ...run,
       draft: pickDraftCard(CARD_DB, run.draft, this.selectedId, this.selectedCell),
     };
+    let grant: PremiumGrantSummary | null = null;
     if (updated.draft?.completed) {
       // A finished draft (all 45 picks) is what teaches you the table —
       // familiarity advances exactly once per completed draft per persona.
-      grantPremiumDraftPool(Services.save.data, CARD_DB, updated);
+      grant = premiumGrantSummary(grantPremiumDraftPool(Services.save.data, CARD_DB, updated));
       recordDraftEncounters(Services.save.data.limited, updated);
     }
     Services.save.data.limited.activeRun = updated.draft?.completed
       ? completeDraftRun(CARD_DB, updated)
       : updated;
     Services.save.flush();
-    if (updated.draft?.completed) {
-      this.scene.start('LimitedDeckBuilder');
+    if (grant) {
+      this.openBuilder(grant);
       return;
     }
     // Within a pack, sell the table illusion: every seat's pack visibly slides
