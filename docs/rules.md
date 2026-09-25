@@ -179,7 +179,7 @@ Combat is declared and resolved through `Game.apply` (declaration),
   (`declareBlockers`).
 - **Skyborne** attackers can only be blocked by creatures with **skyborne or
   wardingGaze** (`canBlock`). Summoning sickness does **not** restrict blocking.
-- **At most 3 blockers per attacker** (`RULES.maxBlockersPerAttacker`).
+- **At most 4 blockers per attacker** (`RULES.maxBlockersPerAttacker`).
 - Then the **attacker gets a response window** over the blocks.
 
 ### Combat dissolves mid-window
