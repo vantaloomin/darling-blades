@@ -32,9 +32,9 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "UR",
     "color": "U",
     "type": "Artifact",
-    "cost": "{7}{U}",
+    "cost": "{3}{U}",
     "stats": "-",
-    "mechanics": "At dawn: draw 1. Hauntlink {3}{U}. Linked: The linked creature gets +3/+3, Skyborne, and Untouchable. (AI-risk survivor.)",
+    "mechanics": "At dawn: Foresee 1. Hauntlink {3}{U}. Linked: The linked creature gets +3/+3, Skyborne, and Untouchable. (AI-risk survivor.)",
     "flavor": "The perfect possession is a partnership until one voice stops answering."
   },
   {
