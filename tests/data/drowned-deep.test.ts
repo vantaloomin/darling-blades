@@ -225,8 +225,16 @@ describe('Drowned Deep transcription', () => {
   it('preserves loot choices, edicts and the sacrifice-only death observer', () => {
     const looters = DROWNED_DEEP.filter((d) => opsOf(d).some((op) => op.op === 'discard'));
     expect(looters).toHaveLength(8);
+    // A loot draws before it discards and throws away no more than it drew. The
+    // engine has no discard-as-cost, so a discard-first loot draws for free from
+    // an empty hand.
     for (const d of looters) {
-      expect(opsOf(d), d.id).toEqual([{ op: 'draw', n: 1 }, { op: 'discard', who: 'self', n: 1 }]);
+      const ops = opsOf(d);
+      const discardAt = ops.findIndex((op) => op.op === 'discard');
+      const drawn = ops.slice(0, discardAt).reduce((n, op) => n + (op.op === 'draw' ? op.n : 0), 0);
+      expect(ops[discardAt], d.id).toMatchObject({ op: 'discard', who: 'self' });
+      expect(drawn, d.id).toBeGreaterThan(0);
+      expect((ops[discardAt] as Extract<EffectOp, { op: 'discard' }>).n, d.id).toBeLessThanOrEqual(drawn);
     }
     for (const id of ['dd-tithe-to-the-deep', 'dd-marsh-lamp-lure']) {
       expect(opsOf(card(id)), id).toContainEqual({ op: 'sacrifice', who: 'opponent', n: 1 });

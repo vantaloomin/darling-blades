@@ -128,6 +128,33 @@ describe('catalog integrity', () => {
     }
   });
 
+  // One printing per set (owner rule, 2026-08-31): two names on one rules box
+  // play identically, so inside a set every printing must differ in some rules
+  // field. Only presentation may repeat. Ability and keyword order carry no
+  // rules meaning, so they are compared as sets.
+  it('no set prints the same card twice under two names', () => {
+    const PRESENTATION = new Set(['id', 'name', 'flavor', 'rarity', 'artRef', 'displayTypeLine', 'set', 'token']);
+    const canon = (value: unknown): unknown => {
+      if (Array.isArray(value)) return value.map(canon);
+      if (value === null || typeof value !== 'object') return value;
+      return Object.fromEntries(Object.keys(value).sort()
+        .filter((key) => (value as Record<string, unknown>)[key] !== undefined)
+        .map((key) => [key, canon((value as Record<string, unknown>)[key])]));
+    };
+    const rulesKey = (card: CardDef): string => JSON.stringify(canon(Object.fromEntries(
+      Object.entries(card).filter(([key]) => !PRESENTATION.has(key)).map(([key, value]) => [key,
+        key === 'abilities' ? (value as unknown[]).map((a) => JSON.stringify(canon(a))).sort()
+          : ['types', 'subtypes', 'supertypes', 'keywords'].includes(key) ? [...(value as string[])].sort() : value]),
+    )));
+    const seen = new Map<string, string>();
+    for (const card of ALL_CARDS) {
+      if (card.token || card.supertypes?.includes('basic')) continue;
+      const key = `${card.set ?? 'base'}|${rulesKey(card)}`;
+      expect(seen.get(key), `${card.name} reprints ${seen.get(key)} in ${card.set ?? 'base'}`).toBeUndefined();
+      seen.set(key, card.name);
+    }
+  });
+
   it('ids follow the per-set prefix conventions', () => {
     const conventions: [readonly { id: string }[], string][] = [
       [TK_WEI, 'tk-wei-'],
