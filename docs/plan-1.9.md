@@ -89,7 +89,7 @@ nothing deploys ahead of the patch.
 | The seventeen art regenerations | Briefs authored and merged: [plan-art-regen-2026-09-22.md](plan-art-regen-2026-09-22.md) | Codex runs the pipeline on one lane; the owner's eyes on every image |
 | Drowned Deep duplicate split | **PR #436 open**, green: ten cards reworded with ids, costs, rarities, stats and art unchanged, plus a catalog guard against rules-identical printings in one set | Retargets to the train |
 | Anything egregious the post-release sweep finds | Sweep running | A fix only if egregious, the standing 1.8 ruling |
-| Hauntlink Apex (D7) | Effectively 8 mana since rules revision 4; cast in 7% of games | A slate of options authored by the design model; the owner picks; then transcription |
+| Hauntlink Apex (D7) | **Option A ruled 2026-09-25**: {3}{U}, "During your Dawn, Foresee 1", the {3}{U} link and its +3/+3 Skyborne Untouchable rider unchanged (workbench +0.46 to -0.01) | Only live carrier: the Kitsune boss (2 in her reserve list, 1 in her Darlings list); re-measure her rows and the Hauntlink usage count after integration |
 
 **The 1.8 review carry-over (R11).** Sources: the release-candidate review
 of 2026-09-23 (its unruled items and its 1.9 notes), the follow-ups reported
@@ -113,14 +113,14 @@ G8 was found by reading only and starts with a failing test.
 | **Engine and replay** | | | | |
 | G6 | Graveyard targets are stored by position | `{ kind: 'grave'; player; index }` and `graveIndex` on cast and Preserve actions, though graveyard entries carry an `instanceId` | M; the replay log bump to v15 | engine |
 | G7 | "An activation cannot defer" throw, latent | `EffectInterpreter.ts` throws when a Duty raises anything but Foresee; the validator only catches a target after Foresee, and a test card passes the catalog check and still throws. No shipped Duty reaches it (census 2026-09-25: no Duty destroys or sacrifices) | S-M; fixed before First Dawn prints any Duty that removes a creature | engine |
-| G8 | A held dies trigger ends a spell early | With a Hauntlink payable, a dies trigger raised mid-spell is held, and the op loop then returns without carrying the spell's remaining ops. Read in `EffectInterpreter.ts` (the rev-4 hold and the loop's pending branches); no test pins it | M; a failing test first; if it confirms, a live rules bug | engine |
+| G8 | A held dies trigger ends a spell early | With a Hauntlink payable, a dies trigger raised mid-spell is held, and the op loop then returns without carrying the spell's remaining ops. Read in `EffectInterpreter.ts` (the rev-4 hold and the loop's pending branches); no test pins it | M; **confirmed 2026-09-25 by a failing test: seven shipped spells lost their remaining ops whenever a link was payable.** Fixed so a held trigger resolves where it would have resolved inline; rules.md records the rule | engine |
 | **AI** | | | | |
 | G9 | Paid Duties never used in main phase 1 | `activatedPolicy.ts` drops any Duty that costs mana in main 1, by design at the time | S, plus a floor re-measure (a brain change) | AI |
 | **Art** | | | | |
 | G10 | Cards drawn with the loading stand-in never redraw | The `art-file` event is emitted and nothing listens; `CardThumbCache` keeps a thumb baked from the stand-in | M | art |
 | G11 | The half-resolution tier is not built for Pages | `deploy.yml` runs only the manifest step; the half-res script needs Python | S | art |
 | **Menus and meta** | | | | |
-| G12 | Starborne and Drowned Deep have no set achievements | Sands of the Duat has 3; Silver Veil, Dark Tales and Yokai Nights have 8 each | S-M; names and text authored by the design model, not Codex, before the code | menus and meta |
+| G12 | Starborne and Drowned Deep have no set achievements | Sands of the Duat has 3; Silver Veil, Dark Tales and Yokai Nights have 8 each | S-M; 15 names approved as written on 2026-09-25 and the Drowned Deep UR goal renamed "All Who Seek Madness"; Sands of the Duat brought up to 8 in the same PR (five rows, names to approve); three stale descriptions fixed alongside | menus and meta |
 | G13 | Achievements round 99.5% up to "100%" | `Math.round` in `AchievementsScene.ts` | XS | menus and meta |
 | G14 | The Premium draft inspector counts every treatment as "plain" | "You own N/4 plain" adds copies across treatments; only plain copies melt | XS | menus and meta |
 | G15 | Letter codes ("U·56 R·36") in the Limited Deck Builder | `deckStats.ts` via `LimitedDeckBuilderScene.ts`; "0 lands" is fixed | XS-S | menus and meta |
@@ -132,6 +132,7 @@ G8 was found by reading only and starts with a failing test.
 | G20 | Title-safe misses left after #431 (the frame is x 64-1216, y 36-684) | Titles above y 36 in eight scenes (Gauntlet, Glossary, Limited, Practice, Shop, Limited Deck Builder, Limited Draft, the Deck Builder's Decks view); the Deck Builder title row at y 32 and its pool pager at y 688; the Duel HUD (portraits, life, piles and Undo at the edges); the Practice peek tile, inside the frame but 59 px wide against the 90 px tap floor | M; the Duel HUD part is layout-sensitive, so before-and-after screenshots go to the owner | duel; decks; menus and meta |
 | **Telemetry** | | | | |
 | G21 | The play-stats card batch covers only play before the first tab-hide (review E6) | The copy was fixed in #428; the behaviour is unchanged, and the ruling in [plan-telemetry-and-accounts.md](plan-telemetry-and-accounts.md) reads "once when the session ends" | M; D11 ruled | telemetry |
+| G22 | The Keyword Guide and binder search miss Mark and Propagate on 29 cards | Found 2026-09-25 while designing G12: 27 Starborne and 2 Drowned Deep cards print "Marked", "gets a Mark" or "Whenever you Propagate", but `cardMechanics` does not report the mechanic, so the inspect panel does not explain the word and binder search misses them | S; every consumer of `cardMechanics` checked, the draft picker included | glossary |
 
 **The 1.8.1 PRs, by file set.** Parallel agents never share a file; where two
 groups touch one file, the second rebases onto the first.
@@ -147,7 +148,8 @@ groups touch one file, the second rebases onto the first.
 | AI | G9 | `activatedPolicy.ts`, `tests/ai` | the two manual matrices; floors only ratchet up |
 | telemetry | G21 | `signals.ts`, `gameBoot.ts`, `playSignals.ts`, the telemetry plan's line | a card counts once per launch (D11) |
 | regens | the seventeen images | art files, `docs/spell-art.md` | the owner's eyes |
-| Apex | Hauntlink Apex (D7) | `src/data/cards/yokai-nights.ts`, the Yokai art-bible card facts | the owner's pick from the slate |
+| Apex | Hauntlink Apex, option A | `src/data/cards/yokai-nights.ts`, a dated note in `src/data/opponents.ts` | Kitsune's matrix rows and the usage count |
+| glossary | G22 | `src/data/glossary.ts` | every consumer of `cardMechanics` checked, the draft picker included |
 
 Two constraints hold the patch to patch size. **No save schema change:** G1
 is designed without a new deck field (legality is already computed), and if
@@ -352,6 +354,13 @@ Collection open at once. Known traps from the 1.8 build:
 - A texture destroyed while a game object still references it is a crash,
   or Phaser's green square. Pack opening needs its art before the flip; a
   duel preloads both decks.
+- **The itch.io build caps the design (researched 2026-09-25).** itch hosts an
+  HTML5 game as at most 1,000 files (500 MB total, 200 MB a file); the web
+  build holds about 3,100 today, about 1,600 without the half tier, so card
+  art ships in a few pack files plus an offset index. itch's CDN serves byte
+  ranges, so a card can still be fetched on demand, but packs need an
+  extension itch does not pre-gzip (not `.js`, `.css`, `.pck`) and a content
+  hash in the name, since its caching varies. The same packs serve Pages.
 - The half-resolution tier reaches the Pages deploy in 1.8.1 (G11); this
   lane's budget counts on it for the phone tier. Half-resolution art on
   desktop was rejected in 1.8,
@@ -434,7 +443,7 @@ last before the cut, the standing rule the 1.8 ruling suspended (D9).
 
 | Item | New slot | What that means |
 | --- | --- | --- |
-| **Mobile overhaul** ([plan](plan-mobile-overhaul.md)) | **2.0**, the itch.io launch (D4, ruled 2026-09-25) | The 2026-09-23 competitive research and the eleven mockups wait for it, with the four mobile decisions (portrait duel, the portrait art viewer, menu orientation, recording the verdict). The two cheap proposals (stop blocking upright tablets, art on the rotate screen) park with it. The standing Tier 1 real-device pass is unchanged |
+| **Mobile overhaul** ([plan](plan-mobile-overhaul.md)) | **2.0**, the itch.io launch (D4, ruled 2026-09-25) | **Duel layout decided 2026-09-25: Version C, "Command column (hand-first)"**; the research session mocks every scene and Duel state on it next. The two cheap proposals (stop blocking upright tablets, art on the rotate screen) park with it. The standing Tier 1 real-device pass is unchanged |
 | **AI suggested decks** ([plan](plan-suggested-decks.md)) | **After 2.0** | Tutor v1 and the replay coach stay on one arc. A browser tutor needs a cheap evaluator; lane F's Medium screen is the nearest thing to one |
 | **Editable Limited Warchest** | **After 2.0** | The pip-demand-weighted automatic fill from #279 stays the only build |
 | Live spectating ([plan-player-replays.md](plan-player-replays.md) wave 4) | Cancelled | It rode multiplayer, cancelled 2026-08-24 |
