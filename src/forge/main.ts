@@ -103,7 +103,7 @@ import {
   CUSTOM_ART_TEXTURE,
   CardBuilderPreloadScene,
   CardBuilderScene,
-  forgeArtUrl,
+  forgeThumbUrl,
   forgeFontStatus,
   forgeFontsLoaded,
   type CardImage,
@@ -1473,7 +1473,7 @@ function renderArtGrid(): void {
   artGrid.innerHTML = visible.map((card) => {
     const artKey = card.artRef ?? card.id;
     return `<button type="button" class="art-thumb ${card.id === selected ? 'selected' : ''}" data-art-id="${escapeHtml(card.id)}" title="${escapeHtml(card.name)}">
-      <img src="${escapeHtml(forgeArtUrl(artKey))}" alt="" loading="lazy" decoding="async" />
+      <img src="${escapeHtml(forgeThumbUrl(artKey))}" alt="" loading="lazy" decoding="async" />
       <span>${escapeHtml(card.name)}</span>
     </button>`;
   }).join('') || '<p class="empty-editor">No pictures match these filters.</p>';

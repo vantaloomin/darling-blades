@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import manifest from '../data/art-manifest.json';
-import { ART_LOADING_TEXTURE, Art, ArtResolver, bakeArtLoadingTexture } from '../art/ArtResolver';
+import { ART_LOADING_TEXTURE, Art, ArtResolver, bakeArtLoadingTexture, type ArtRef } from '../art/ArtResolver';
 import { artFileUrl, artKeyFor, artTextureKey } from '../art/artLoader';
 import { CARD_DB } from '../data/catalog';
 import type { CardDb, CardDef } from '../engine/types';
@@ -46,7 +46,12 @@ export class ForgeArtResolver extends ArtResolver {
     this.override = override;
   }
 
-  override getArt(cardId: string, landStyle?: string): { textureKey: string; frameName?: string } {
+  /**
+   * The composed texture carries no `pending`: the Forge redraws the card
+   * itself when the player's image is ready, so no CardView waits on it, and
+   * a donor file that lands later redraws through here and keeps the image.
+   */
+  override getArt(cardId: string, landStyle?: string): ArtRef {
     if (this.override && this.override.cardId === cardId) return { textureKey: this.override.textureKey };
     return super.getArt(cardId, landStyle);
   }
@@ -148,6 +153,15 @@ const REAL_ART = new Set<string>(manifest.cards);
 /** The URL of one card-art file, as the Forge page reaches it (see gameFiles.ts). */
 export function forgeArtUrl(artKey: string): string {
   return gameFileUrl(artFileUrl(artKey, 'full'));
+}
+
+/**
+ * The URL of an art-picker thumbnail: the half-resolution 320x400 file where
+ * the build has one (the Pages build makes the whole set since 1.8.1), the
+ * full file otherwise. The card itself always draws from the full file.
+ */
+export function forgeThumbUrl(artKey: string): string {
+  return gameFileUrl(artFileUrl(artKey, 'lite'));
 }
 
 /**

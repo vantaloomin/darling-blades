@@ -443,6 +443,8 @@ not exist, and a deliberate rate change would fail it every time.
    a number: diff the two files, and treat it as a rate change (priced,
    documented in `balance/power-formula.md`, and reviewed) or undo it.
 
-The move of the scorer into `src/power/` passed this check on 2026-09-25
-(SHA-256 `49152a4be1b33f0a98b3efb86eb1bbb716cff422d8d9e60f2485ecdc74cf3562`
-before and after).
+The SHA depends on the card data as much as on the scorer, so it is never a
+standing baseline: record it fresh in step 1, on the same commit's data. For
+the record, the move of the scorer into `src/power/` passed this check on
+2026-09-25 against that day's `main` (a1c8f91): byte-identical before and
+after.
