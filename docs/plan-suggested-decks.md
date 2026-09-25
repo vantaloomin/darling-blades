@@ -2,6 +2,10 @@
 
 # Suggested decks and replay coach arc
 
+> **Slot: after 2.0** (owner ruling 2026-09-25, [plan-1.9.md](plan-1.9.md)).
+> The spine had placed Tutor v1 at 1.9. The release numbers in the goal below
+> are the plan's original 2026-07 slots, kept as written.
+
 ## Goal
 
 Release 1.6 ships Tutor v1: deterministic, collection-aware deck suggestions powered by the same greedy seed plus hill-climb engine currently exercised by `scripts/personas/craft.ts`. Release 2.0 extends that shared evaluation core into Coach v2, which annotates a completed replay with legal, redacted alternatives and concise reasons. Both features produce advice, never hidden-information advantages, and both must be fast enough for their actual client surface before being promised.
