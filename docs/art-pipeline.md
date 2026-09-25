@@ -93,7 +93,12 @@ To replace a card's placeholder with a real illustration:
 Current inventory (verified 2026-07-31): `public/assets/art/cards/` has **807
 WebP files**, `public/assets/art/scenes/` has **17**, and the manifest reports
 807 card entries and 17 scene entries (half-res entries appear after a
-`gen-art-halfres` run; a fresh checkout reports 0). The full-res card
+`gen-art-halfres` run; a fresh local checkout reports 0). Since 1.8.1 the Pages
+build makes the half tier on every run (`gen-art-halfres --jobs 4`, Python and
+Pillow in the workflow) and the manifest step fails without it
+(`gen-art-manifest --require-half`). A local `npm run build` or `app:build`
+still uses whatever `cards-half/` holds: rerun `gen-art-halfres` after
+regenerating any card art, or the half tier ships the old image. The full-res card
 and scene tiers are encoded at q90; `cards-half/` is derived at 320x400, q85.
 The converter also covers the standalone hero and coin-face UI art, leaving no
 PNG under `public/assets/art`.

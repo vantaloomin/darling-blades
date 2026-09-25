@@ -18,9 +18,17 @@
  * After a changing run it re-runs gen-art-manifest so the game's manifest
  * lists the new halves.
  *
- * Usage: npx tsx scripts/gen-art-halfres.ts [--force] [--dry-run]
+ * The Pages deploy (.github/workflows/deploy.yml) runs this on every build,
+ * because the half set is derived and gitignored: phones on the live site load
+ * it. A CI checkout has no halves, so it builds the whole set, and passes
+ * --jobs to use the runner's cores.
+ *
+ * Usage: npx tsx scripts/gen-art-halfres.ts [--force] [--dry-run] [--jobs N]
  *   --force    rebuild every half even if up to date
  *   --dry-run  report what would happen, touch nothing
+ *   --jobs N   resize N files at a time (default 1; Pillow releases the GIL
+ *              while it decodes, resamples and encodes, so threads scale).
+ *              Mind the machine's CPU budget before raising it locally.
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs';
@@ -44,11 +52,12 @@ const PYTHON = process.env.PYTHON ?? (process.platform === 'win32' ? 'python' : 
  */
 const RESIZE_PY = `
 import json, os, sys
+from concurrent.futures import ThreadPoolExecutor
 from PIL import Image
-w, h, q = int(sys.argv[1]), int(sys.argv[2]), int(sys.argv[3])
+w, h, q, workers = int(sys.argv[1]), int(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4])
 jobs = json.load(sys.stdin)
-ok = 0
-for src, dst in jobs:
+def one(job):
+    src, dst = job
     try:
         im = Image.open(src).convert('RGB')
         scale = max(w / im.width, h / im.height)
@@ -57,9 +66,12 @@ for src, dst in jobs:
         tmp = dst + '.tmp'
         im.crop((left, top, left + cw, top + ch)).resize((w, h), Image.LANCZOS).save(tmp, 'WEBP', quality=q, method=6)
         os.replace(tmp, dst)
-        ok += 1
+        return True
     except Exception as e:
         print(f'FAIL {os.path.basename(src)}: {e}', file=sys.stderr)
+        return False
+with ThreadPoolExecutor(max_workers=workers) as pool:
+    ok = sum(1 for built in pool.map(one, jobs) if built)
 print(f'done {ok}')
 `;
 
@@ -72,7 +84,15 @@ function main(): void {
   const argv = process.argv.slice(2);
   const force = argv.includes('--force');
   const dryRun = argv.includes('--dry-run');
-  const unknown = argv.filter((a) => a !== '--force' && a !== '--dry-run');
+  const jobsAt = argv.indexOf('--jobs');
+  const jobsArg = jobsAt >= 0 ? argv[jobsAt + 1] : undefined;
+  if (jobsAt >= 0 && (jobsArg === undefined || !/^[1-9]\d*$/.test(jobsArg))) {
+    fail('--jobs needs a whole number of at least 1');
+  }
+  const workers = jobsArg === undefined ? 1 : Number(jobsArg);
+  const unknown = argv.filter(
+    (a, i) => a !== '--force' && a !== '--dry-run' && a !== '--jobs' && (jobsAt < 0 || i !== jobsAt + 1),
+  );
   if (unknown.length > 0) fail(`unknown argument(s): ${unknown.join(' ')}`);
 
   let sources: string[] = [];
@@ -118,7 +138,7 @@ function main(): void {
     if (pil.status !== 0) fail('Pillow is required — `pip install pillow` and rerun');
 
     const jobs = todo.map((f) => [join(srcDir, f), join(outDir, f)]);
-    const res = spawnSync(PYTHON, ['-c', RESIZE_PY, String(OUT_W), String(OUT_H), String(QUALITY)], {
+    const res = spawnSync(PYTHON, ['-c', RESIZE_PY, String(OUT_W), String(OUT_H), String(QUALITY), String(workers)], {
       input: JSON.stringify(jobs),
       encoding: 'utf8',
       maxBuffer: 64 * 1024 * 1024,
@@ -128,7 +148,10 @@ function main(): void {
     if (errors) console.error(errors);
     const done = /done (\d+)/.exec(res.stdout ?? '');
     built = done ? Number(done[1]) : 0;
-    console.log(`gen-art-halfres: built ${built}/${todo.length} at ${OUT_W}×${OUT_H}, q${QUALITY}`);
+    console.log(
+      `gen-art-halfres: built ${built}/${todo.length} at ${OUT_W}×${OUT_H}, q${QUALITY}` +
+        (workers > 1 ? `, ${workers} at a time` : ''),
+    );
     if (res.status !== 0 || built !== todo.length) {
       process.exitCode = 1;
     }
