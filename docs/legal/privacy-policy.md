@@ -53,10 +53,13 @@ cases.
 
 ### 3.1 Loading the web version
 
-The web version is hosted on GitHub Pages, run by GitHub, Inc. When your
-browser loads the game, GitHub receives your IP address and standard browser
-information, as it does for any website, and may keep this in its server logs
-for security purposes. See [GitHub's privacy statement](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement).
+The web version is hosted on GitHub Pages, run by GitHub, Inc., and served to
+you through Cloudflare, Inc., which handles every request to bladedarlings.com.
+When your browser loads the game, Cloudflare and GitHub receive your IP address
+and standard browser information, as they do for any website, and may keep
+this in their server logs for security purposes. See
+[Cloudflare's privacy policy](https://www.cloudflare.com/privacypolicy/) and
+[GitHub's privacy statement](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement).
 The desktop app does not load the game from the internet. It runs on
 Microsoft Edge WebView2, a Windows component whose own diagnostic settings
 are controlled by Windows and described in Microsoft's privacy statement, not
