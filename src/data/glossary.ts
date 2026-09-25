@@ -1,5 +1,15 @@
 import { DROPS, ECONOMY } from '../config/rules';
-import type { CardDef, CardType, Color, EffectOp, Keyword, Rarity } from '../engine/types';
+import type {
+  AbilityDef,
+  CardDef,
+  CardType,
+  Color,
+  EffectOp,
+  Keyword,
+  Rarity,
+  TargetSpec,
+  TriggerWhen,
+} from '../engine/types';
 import { activatedAbilitiesOf } from '../engine/types';
 
 /**
@@ -152,7 +162,10 @@ function opImpliesSever(op: EffectOp): boolean {
     op.op === 'sever' ||
     op.op === 'severGrave' ||
     op.op === 'severTop' ||
-    op.op === 'destroyArtifactOrSeverEnchantment'
+    op.op === 'severSelf' ||
+    op.op === 'destroyArtifactOrSeverEnchantment' ||
+    // "a creature damaged this way that would die this turn is severed instead"
+    (op.op === 'damage' && 'severOnDeath' in op && op.severOnDeath === true)
   );
 }
 
@@ -169,6 +182,79 @@ function cardOps(d: CardDef): EffectOp[] {
     ...flatten(d.retell?.ops ?? []),
     ...activatedAbilitiesOf(d).flatMap((ability) => flatten(ability.ops)),
   ];
+}
+
+/** Every target a card's face can name: abilities, Duties, Empower, Retell. */
+function cardTargetSpecs(d: CardDef): TargetSpec[] {
+  return [
+    ...(d.abilities ?? []).flatMap((ab) => ab.targets ?? []),
+    ...activatedAbilitiesOf(d).flatMap((ability) => ability.targets ?? []),
+    ...(d.empower?.targets ?? []),
+    ...(d.retell?.targets ?? []),
+  ];
+}
+
+/**
+ * The mechanic a trigger's printed opener names ("When this gets a Mark",
+ * "Whenever you Propagate"). Total over TriggerWhen on purpose: Starborne's
+ * mark-event triggers shipped without teaching Mark because nothing forced the
+ * question, so a new trigger now fails the typecheck until it is answered.
+ */
+const TRIGGER_MECHANIC: Record<TriggerWhen, 'mark' | 'propagate' | null> = {
+  spell: null,
+  arrives: null,
+  dies: null,
+  entersGraveyard: null,
+  dawn: null,
+  combatDamageToPlayer: null,
+  attacks: null,
+  allyCreatureArrives: null,
+  gainsMark: 'mark',
+  yourCreatureMarked: 'mark',
+  yourPermanentMarked: 'mark',
+  youAddMark: 'mark',
+  otherCreatureMarked: 'mark',
+  propagated: 'propagate',
+  markedAllyAttacks: 'mark',
+  allyDies: null,
+  youGainLife: null,
+  youCastCharm: null,
+  allyAttacks: null,
+  sunset: null,
+  static: null,
+};
+
+/** An op whose printed wording puts, moves, removes, counts or tests for a Mark. */
+function opNamesMark(op: EffectOp): boolean {
+  switch (op.op) {
+    case 'addCounters':
+    case 'propagate':
+    case 'moveMark':
+    case 'removeMarks':
+    case 'markAll':
+    case 'loseLifePerTheirMarked':
+    case 'ifTargetMarked':
+      return true;
+    case 'boost':
+      return op.scope === 'yourMarked' || op.scope === 'theirMarked';
+    case 'createToken':
+      return (op.marks ?? 0) > 0;
+    case 'raise':
+      return op.to === 'top' && op.withMarks !== undefined;
+    default:
+      return false;
+  }
+}
+
+/** An ability whose trigger, condition or static filter reads Marks. */
+function abilityNamesMark(ab: AbilityDef): boolean {
+  const condition = ab.condition;
+  return (
+    TRIGGER_MECHANIC[ab.when] === 'mark' ||
+    condition === 'controlMarked' ||
+    (typeof condition === 'object' && condition.kind === 'markedThreshold') ||
+    ab.static?.filter?.marked === true
+  );
 }
 
 /**
@@ -188,22 +274,34 @@ export function cardMechanics(d: CardDef): MechanicId[] {
   // Retell and Preserve both sever the card as part of their cost, so they
   // teach Sever even when no op on the face says so.
   if (ops.some(opImpliesSever) || d.retell !== undefined || d.preserve !== undefined) present.push('sever');
+  // A card teaches Mark when its face puts, moves, removes or counts Marks, or
+  // only reads them: a Marked target, a Marked-creature static, a Marked
+  // condition, or a trigger on a creature getting one ("Other Marked creatures
+  // you control get +1/+1" prints no Mark op but still names the word). A card
+  // can likewise name Propagate as a trigger without performing it.
   // Nine Lives returns the creature WITH a +1/+1 mark, so it teaches Mark too.
   // Propagate is defined entirely in terms of marks, so it teaches Mark as well
-  // as itself — a Propagate card that taught only Propagate would leave the
+  // as itself: a Propagate card that taught only Propagate would leave the
   // player looking up a word its own definition depends on.
-  if (ops.some((op) =>
-    op.op === 'addCounters' ||
-    op.op === 'propagate' ||
-    op.op === 'moveMark' ||
-    op.op === 'removeMarks' ||
-    op.op === 'markAll' ||
-    op.op === 'loseLifePerTheirMarked',
-  ) || d.nineLives) {
+  const abilities = d.abilities ?? [];
+  const teachesPropagate =
+    ops.some((op) => op.op === 'propagate') ||
+    abilities.some((ab) => TRIGGER_MECHANIC[ab.when] === 'propagate');
+  if (
+    teachesPropagate ||
+    d.nineLives ||
+    ops.some(opNamesMark) ||
+    cardTargetSpecs(d).some((spec) => spec.marked === true) ||
+    abilities.some(abilityNamesMark)
+  ) {
     present.push('mark');
   }
-  if (ops.some((op) => op.op === 'propagate')) present.push('propagate');
-  if (d.chapters) present.push('quest');
+  if (teachesPropagate) present.push('propagate');
+  // A Quest payoff ("While a Quest is active") names the word as surely as a
+  // Quest's own chapters do.
+  if (d.chapters || abilities.some((ab) => (ab.condition ?? ab.static?.condition) === 'questActive')) {
+    present.push('quest');
+  }
   if (d.awakening || ops.some((op) => op.op === 'awaken')) present.push('championAwakening');
   if (d.empower) present.push('empower');
   if (d.skim) present.push('skim');
