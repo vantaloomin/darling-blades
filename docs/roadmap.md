@@ -1679,12 +1679,15 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   retired), on **Provoked** and **Hunt**, both approved; **accessibility**;
   **card art streaming** (load on demand, unload under a budget); the
   **mechanic usage audit**; **weenie's cost** in the Hard brain and the two
-  remaining **sweep levers**; every open **1.8 review finding**; and the
-  **1.8.x** items as a 1.8.1 patch first. Out: the **mobile overhaul**
-  (to 2.0), **AI suggested decks** and the **editable Limited Warchest**
-  (both past 2.0). Nine decisions D1-D9 are open in the plan, among them
-  the keyword's form, the overdue localization decision, and whether Mobile
-  sits at 2.0 or the spine's 2.1 valve.
+  remaining **sweep levers**. First comes **1.8.1**: the 1.8.x items and
+  every open 1.8 review finding, grouped by the owner the same day. Out: the
+  **mobile overhaul** (to 2.0), **AI suggested decks** and the **editable
+  Limited Warchest** (both past 2.0). Ruled 2026-09-25: D1 the keyword is
+  **Provoked**, D2 the set is **150-165 cards**, D3 **English only** (no
+  localization scaffold), D5 the usage audit's recommended answers, D6 1.8.1
+  cuts when the post-release sweep reads. Open: D4 (Mobile at 2.0 or the
+  spine's 2.1 valve), D7-D9, and two 1.8.1 design questions (D10 unfinished
+  decks, D11 the play-stats batch).
 - **A metagame sweep that fits in a night (2026-09-22; levers 1 and 4
   shipped in 1.8).** [plan-sweep-speed.md](plan-sweep-speed.md). Fan-out
   across GitHub-hosted runners shipped (#418, #421, #422; the owner's machine
@@ -1698,11 +1701,14 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   Profile the combat evaluation on wide boards, fix without changing
   decisions where possible, re-admit weenie to the sweep. Any brain change
   re-baselines the floors.
-- **The seventeen art regenerations of 2026-09-22 (1.8.1).**
-  [plan-art-regen-2026-09-22.md](plan-art-regen-2026-09-22.md): five
-  close-ups and twelve hidden faces, prompts authored, to run through the
-  art pipeline and the owner's eyes. Lane 0 of [plan-1.9.md](plan-1.9.md)
-  with the Drowned Deep duplicate split (#436).
+- **The 1.8.1 patch (grouped by the owner 2026-09-25).** Lane 0 of
+  [plan-1.9.md](plan-1.9.md): the seventeen art regenerations of
+  [plan-art-regen-2026-09-22.md](plan-art-regen-2026-09-22.md) (five
+  close-ups and twelve hidden faces, prompts authored), the Drowned Deep
+  duplicate split (#436), anything egregious the post-release sweep finds,
+  and the 21 open 1.8 review findings G1-G21, re-checked against `main` the
+  same day, in nine PRs by file set on a `release/1.8.1` train. Cut when the
+  sweep reads. No save schema change; the replay log goes to v15.
 
 > **The release spine from 1.7 to 2.0 lives in
 > [plan-road-to-2.0.md](plan-road-to-2.0.md)** (2026-08-24): the Large/Small
@@ -1729,8 +1735,9 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   uses per cast. Done by hand three times on 2026-09-19, it cleared a
   suspected Hauntlink policy, pointed two tuning passes at the real cause,
   and stopped a card recost. No engine change, no AI change, no player
-  telemetry, no CI gate at first. **U1 RULED 2026-09-25: on the 1.9 list**
-  ([plan-1.9.md](plan-1.9.md) lane E); U2 to U5 remain open in the doc.
+  telemetry, no CI gate at first. **All five RULED 2026-09-25**: on the 1.9
+  list ([plan-1.9.md](plan-1.9.md) lane E), with the doc's recommended
+  answers to U2-U5.
 - **AI brain modernization (audit, 2026-09-15). ✅ COMPLETE 2026-09-17.**
   All five phases (proof, cast ladder, 1.7 and 1.8 mechanics, combat
   keywords, draft picker) are merged on release/1.8 and 40 of 40 documented

@@ -65,7 +65,8 @@ This is the strongest single argument for a debt-first 1.7.
 deadline driver: Story Mode multiplies authored text, and i18n turns shipped
 keys into compatibility contracts. Shipping Story Mode first means retrofitting
 keys across a campaign's worth of prose. Accessibility lands 1.9, Story Mode
-2.0.
+2.0. (The owner ruled English only on 2026-09-25, so the key half of this
+reason is moot; the text-size half still orders the two.)
 
 **3. Tap-abilities ship before the set that leans hardest on them.** Steampunk's
 Union rigs and contraptions are the mechanics most dependent on activated
@@ -251,7 +252,7 @@ Every Road-to-2.0 feature, and where it lands.
 | Save codes | **Shipped** (`src/meta/SaveCode.ts`) | — |
 | Save cards (PNG) | **Shipped 1.7** (codec `src/meta/SaveImage.ts` plus the Profile export/import UI) | — |
 | Share replay codes | Spec'd, no code | 1.7 |
-| Accessibility / i18n | Partial (settings ship); approved 2026-09-25; the localization decision is still open | 1.9 |
+| Accessibility / i18n | Partial (settings ship); approved 2026-09-25; localization RULED English only 2026-09-25 | 1.9 |
 | Mobile rebuild | Spec'd; competitive research and mockups done 2026-09-23 | 2.0 (ruled 2026-09-25; D4 in plan-1.9 asks to confirm vs the 2.1 valve) |
 | AI suggested decks | Spec'd, no code | After 2.0 (ruled 2026-09-25) |
 | Story Mode | Spec'd, no code | 2.0 |

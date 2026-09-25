@@ -2,9 +2,9 @@
 
 # Mechanic usage audit: how often the brains use what they can (proposal, 2026-09-19)
 
-Status: **ON THE 1.9 LIST** (U1 ruled yes 2026-09-25; lane E of
-[plan-1.9.md](plan-1.9.md)). U2 to U5 are still open at the end; plan-1.9's D5
-recommends this doc's own answers. It changes nothing that ships in 1.8.
+Status: **ON THE 1.9 LIST, ALL FIVE DECISIONS RULED 2026-09-25** (lane E of
+[plan-1.9.md](plan-1.9.md)): U1 yes, and U2-U5 as recommended at the end. It
+changes nothing that ships in 1.8.
 
 The owner's question, 2026-09-19: "How do we get the brains to use all the
 mechanics appropriately?" This is the measurement half of the answer. The
@@ -196,19 +196,19 @@ the audit runs once per set before the tuning passes start.
 
 ## 9. Decisions for the owner
 
-- **U1. Does this go on the 1.9 list at all?** Recommended: yes. It is small,
+- **U1. Does this go on the 1.9 list at all?** **RULED 2026-09-25: yes.** Recommended: yes. It is small,
   it changes no shipped behaviour, and 1.9 brings a new set whose mechanics
   will otherwise be judged by win rate alone.
-- **U2. Where does the code live?** Recommended: `scripts/`, beside the
+- **U2. Where does the code live?** **RULED 2026-09-25 as recommended.** Recommended: `scripts/`, beside the
   matrices. It is a harness tool, it never ships to players, and keeping it
   out of `src/` means layer purity is not in question.
-- **U3. Passive mechanics too?** Recommended: not in waves 0 to 2. They have
+- **U3. Passive mechanics too?** **RULED 2026-09-25 as recommended.** Recommended: not in waves 0 to 2. They have
   no usage rate, and `balanceTelemetry` already counts the ones a deck has
   been built on.
-- **U4. Any usage gate in CI?** Recommended: none until a full audit shows
+- **U4. Any usage gate in CI?** **RULED 2026-09-25 as recommended.** Recommended: none until a full audit shows
   what normal is. A floor set by guess would either never fire or fail on
   correct play.
-- **U5. Medium and Easy as well as Hard?** Recommended: Hard first, because
+- **U5. Medium and Easy as well as Hard?** **RULED 2026-09-25 as recommended.** Recommended: Hard first, because
   the bosses that gate are Hard. Medium pilots the starter columns in every
   matrix, so a second pass on Medium is cheap and would show whether the
   player-side decks are being flown properly, which affects every number the
