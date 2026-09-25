@@ -121,6 +121,7 @@ import {
   forcedAttackNotice,
   permanentActionLabel,
   rageMustAttackNotice,
+  refusedMoveLine,
   sacrificeCastChoices,
   type SacrificeCastChoice,
   TARGET_ARROW_HEAD_LENGTH,
@@ -2162,6 +2163,7 @@ export class DuelScene extends Phaser.Scene {
   private act(action: Action): void {
     if (this.versusBumperActive || this.replayMode || this.ended) return;
     if (this.animatingCombat) return; // swallow input while a combat sequence plays
+    let submitted = false;
     try {
       const playedCardId = this.actionCardId(action);
       const playedSource = this.actionOrigin(action);
@@ -2177,6 +2179,7 @@ export class DuelScene extends Phaser.Scene {
         if (types.includes('charm')) this.tutCharmCast = true;
       }
       const events = this.duel.submit(HUMAN, action);
+      submitted = true;
       // Anonymous card tally (src/net/signals.ts), after the submit so a
       // rejected action never counts. Only real plays: `skim` discards the card
       // rather than playing it, and the tutorial's scripted line would bias the
@@ -2207,7 +2210,18 @@ export class DuelScene extends Phaser.Scene {
       this.processEvents(events);
       this.afterEvents();
     } catch (err) {
-      this.log(String((err as Error).message));
+      // The engine's message ("Illegal action … by P0: …") is a diagnostic:
+      // it goes to the console, in dev and prod, never into History. A move
+      // the rules refused (the engine validates before it mutates anything)
+      // gets one plain line there instead. Any other failure is a fault, not
+      // the player's move: a console error only, nothing in History.
+      const raw = String((err as Error).message);
+      if (!submitted && validateAction(this.duel.instanceState, CARD_DB, HUMAN, action) !== null) {
+        console.warn(`[duel] move refused: ${raw}`);
+        this.log(refusedMoveLine(this.duel.state, CARD_DB, HUMAN, action));
+      } else {
+        console.error(`[duel] ${submitted ? 'after an accepted move' : 'while submitting a move'}: ${raw}`, err);
+      }
     }
   }
 

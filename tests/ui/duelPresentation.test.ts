@@ -12,6 +12,8 @@ import {
   forcedAttackNotice,
   hauntlinkActionLabel,
   rageMustAttackNotice,
+  REFUSED_MOVE_LINE,
+  refusedMoveLine,
   toggleAttacker,
   undoBlockedReason,
   type UndoRevealInput,
@@ -375,7 +377,7 @@ describe('Rage at the attack declaration', () => {
     expect(toggleAttacker(picked.selected, 8, compelled).selected.has(8)).toBe(false);
     const notice = rageMustAttackNotice(rager.name);
     expect(notice).toContain(rager.name);
-    expect(notice).not.toMatch(/attacker \d|—/);
+    expect(notice).not.toMatch(/attacker \d|\u2014/);
   });
 
   it('is unchanged without Rage: your picks exactly, and Skip Combat when there are none', () => {
@@ -387,5 +389,64 @@ describe('Rage at the attack declaration', () => {
   it('does not call an all-Rage forced attack a skipped combat', () => {
     expect(forcedAttackNotice(0)).toMatch(/skipped/i);
     for (const count of [1, 2]) expect(forcedAttackNotice(count)).not.toMatch(/skip/i);
+  });
+});
+
+describe('A refused move in History', () => {
+  const tapDuty: CardDef = {
+    id: 'refuse_duty', name: 'Refusal Lamp', types: ['artifact'], subtypes: [], colors: [], rarity: 'c',
+    cost: { generic: 0, pips: {} }, activated: { cost: { tap: true }, ops: [{ op: 'gainLife', n: 1 }] },
+  };
+  const rager: CardDef = {
+    id: 'refuse_rager', name: 'Refusal Wolf', types: ['creature'], subtypes: [], colors: ['R'], rarity: 'c',
+    cost: { generic: 1, pips: {} }, attack: 2, defense: 2, keywords: ['rage'],
+  };
+  const db: CardDb = { ...TEST_DB, refuse_duty: tapDuty, refuse_rager: rager };
+
+  /** Submit a move the engine refuses; return its raw diagnostic and the line History shows. */
+  const refuse = (state: ReturnType<typeof makeTestState>, action: Action) => {
+    const game = Game.restore(state, db);
+    let raw = '';
+    try {
+      game.submit(0, action);
+    } catch (err) {
+      raw = String((err as Error).message);
+    }
+    expect(raw, `${action.type} should be refused`).not.toBe('');
+    return { raw, line: refusedMoveLine(game.instanceState, db, 0, action) };
+  };
+  const expectPlain = (line: string, raw: string) => {
+    expect(line).not.toBe(raw);
+    expect(line).not.toMatch(/Illegal action|\bP[01]\b|\u2014/);
+  };
+
+  it('explains a land with no drop left in the hand explanation, not the engine diagnostic', () => {
+    const state = makeTestState({ hands: [['forest'], []] });
+    state.players[0].landDropsUsed = 1;
+    const { raw, line } = refuse(state, { type: 'playLand', handIndex: 0 });
+    expectPlain(line, raw);
+    expect(line).toMatch(/land drop/i);
+  });
+
+  it('explains a tapped Duty in the Duty notice', () => {
+    const state = makeTestState({ battlefield: [{ iid: 10, cardId: 'refuse_duty', controller: 0, tapped: true }] });
+    const { raw, line } = refuse(state, { type: 'activate', iid: 10 });
+    expectPlain(line, raw);
+    expect(line).toMatch(/^Duty: .*tapped/);
+  });
+
+  it('names the Rage creature a declaration left out', () => {
+    const state = makeTestState({ battlefield: [{ iid: 7, cardId: 'refuse_rager', controller: 0 }] });
+    state.awaiting = { kind: 'declareAttackers', player: 0 };
+    state.step = 'combat';
+    const { raw, line } = refuse(state, { type: 'declareAttackers', attackers: [] });
+    expectPlain(line, raw);
+    expect(line).toContain(rager.name);
+  });
+
+  it('falls back to one plain line when no specific reason applies', () => {
+    const { raw, line } = refuse(makeTestState({}), { type: 'passResponse' });
+    expectPlain(line, raw);
+    expect(line).toBe(REFUSED_MOVE_LINE);
   });
 });

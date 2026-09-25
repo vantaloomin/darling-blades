@@ -4,10 +4,11 @@
  * pin without importing a scene into UI tests.
  */
 
-import type { Action } from '../engine/actions';
+import { activatedBlockers, reasonUncastable, type Action } from '../engine/actions';
+import { compelledAttackers } from '../engine/combat/legality';
 import type { GameEvent } from '../engine/events';
-import type { CardDef, PlayerId, TargetRef } from '../engine/types';
-import { activatedAbilitiesOf } from '../engine/types';
+import type { CardDb, CardDef, GameState, PlayerId, TargetRef } from '../engine/types';
+import { activatedAbilitiesOf, def } from '../engine/types';
 import { activatedText, rulesText } from './rulesText';
 
 export type DuelSide = 'you' | 'opponent';
@@ -490,6 +491,49 @@ export function rageMustAttackNotice(cardName: string): string {
 export function forcedAttackNotice(attackers: number): string {
   if (attackers === 0) return 'Combat skipped (no able attackers)';
   return attackers === 1 ? 'Your Rage creature attacks' : `Your ${attackers} Rage creatures attack`;
+}
+
+/** History line for a move the rules refused when no more specific reason applies. */
+export const REFUSED_MOVE_LINE = "That move isn't allowed right now. Nothing changed.";
+
+/**
+ * The one History line for a move the engine refused. The engine's own
+ * message ("Illegal action castSpell by P0: ...") is a diagnostic and never
+ * reaches the player. Where the game already has player-facing words for why
+ * a move is blocked, use them: the hand explanation for lands, casts from
+ * hand and Skims, the Duty notices, and the Rage requirement. Call it on the
+ * state the refusal left untouched (the engine validates before it mutates).
+ */
+export function refusedMoveLine(state: GameState, db: CardDb, player: PlayerId, action: Action): string {
+  return refusalReason(state, db, player, action) ?? REFUSED_MOVE_LINE;
+}
+
+function refusalReason(state: GameState, db: CardDb, player: PlayerId, action: Action): string | null {
+  switch (action.type) {
+    case 'playLand':
+      // A Warchest play carries no hand card to explain.
+      return action.reserveIndex === undefined ? reasonUncastable(state, db, player, action.handIndex) : null;
+    case 'skim':
+      return reasonUncastable(state, db, player, action.handIndex);
+    case 'castSpell':
+      // Retell and Whispers cast from the graveyard, which the hand explanation does not read.
+      return action.retell || action.whispers ? null : reasonUncastable(state, db, player, action.handIndex);
+    case 'activate': {
+      const source = state.battlefield.find((perm) => perm.iid === action.iid);
+      const ownMainPhase = state.activePlayer === player && (state.step === 'main1' || state.step === 'main2');
+      return dutyBlockedCopy(dutyWindowReason(
+        activatedBlockers(state, db, player, source, action.abilityIndex ?? 0),
+        ownMainPhase,
+      ));
+    }
+    case 'declareAttackers': {
+      const missing = compelledAttackers(state.battlefield, db, player).find((iid) => !action.attackers.includes(iid));
+      const perm = state.battlefield.find((candidate) => candidate.iid === missing);
+      return perm ? rageMustAttackNotice(def(db, perm.cardId).name) : null;
+    }
+    default:
+      return null;
+  }
 }
 
 /** Armed smart-button label, in the terse family of "Confirm: no blocks". */
