@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ECONOMY } from '../../src/config/rules';
 import { CARD_DB } from '../../src/data/catalog';
+import { destroyPermanent, recallPermanent } from '../../src/engine/battlefield';
 import type { GameEvent } from '../../src/engine/events';
 import type { CardDef, EffectOp } from '../../src/engine/types';
 import {
@@ -17,7 +18,7 @@ import {
   rollDailyQuestIds,
 } from '../../src/meta/Quests';
 import { freshSave, type DailyQuestSave } from '../../src/meta/SaveManager';
-import { TEST_DB } from '../helpers';
+import { makeTestState, TEST_DB } from '../helpers';
 
 function hasOp(card: CardDef, predicate: (op: EffectOp) => boolean): boolean {
   return card.abilities?.some((ability) => ability.ops?.some(predicate)) ?? false;
@@ -41,6 +42,30 @@ function setDailyQuests(ids: string[]): ReturnType<typeof freshSave> {
 }
 
 describe('daily quests', () => {
+  it('counts a creature that dies, and not one returned to its hand', () => {
+    const board = () => makeTestState({
+      battlefield: [
+        { iid: 1, cardId: 'bear', controller: 1 },
+        { iid: 2, cardId: 'bear', controller: 0 },
+      ],
+    });
+    const recalled = board();
+    const recallEvents: GameEvent[] = [];
+    for (const perm of [...recalled.battlefield]) recallPermanent(recalled, TEST_DB, perm, (event) => recallEvents.push(event));
+    const destroyed = board();
+    const destroyEvents: GameEvent[] = [];
+    for (const perm of [...destroyed.battlefield]) destroyPermanent(destroyed, TEST_DB, perm, (event) => destroyEvents.push(event));
+
+    const afterRecall = setDailyQuests(['enemy-dies-3', 'your-dies-3']);
+    applyDailyQuestProgress(afterRecall, TEST_DB, recallEvents, '2026-07-08');
+    const progress = (save: typeof afterRecall, id: string) => save.daily.quests.find((quest) => quest.id === id)?.progress;
+    expect([progress(afterRecall, 'enemy-dies-3'), progress(afterRecall, 'your-dies-3')]).toEqual([0, 0]);
+
+    const afterDestroy = setDailyQuests(['enemy-dies-3', 'your-dies-3']);
+    applyDailyQuestProgress(afterDestroy, TEST_DB, destroyEvents, '2026-07-08');
+    expect([progress(afterDestroy, 'enemy-dies-3'), progress(afterDestroy, 'your-dies-3')]).toEqual([1, 1]);
+  });
+
   it('has a 25-objective bank and rolls three deterministic unique quests', () => {
     expect(DAILY_QUESTS).toHaveLength(25);
     expect(new Set(DAILY_QUESTS.map((q) => q.id)).size).toBe(25);

@@ -239,14 +239,16 @@ describe('Warchest reserve engine', () => {
       expect(state.players[0].hand).toEqual([]);
       expect(state.players[0].graveyard).toEqual([]);
       expect(events.some((event) => event.e === 'cardsBottomed')).toBe(true);
-      expect(events.filter((event) => event.e === 'died')).toHaveLength(cardId === 'forest' ? 0 : 1);
+      expect(events.some((event) => event.e === 'died')).toBe(false);
+      expect(events.filter((event) => event.e === 'recalled')).toHaveLength(cardId === 'forest' ? 0 : 1);
     }
 
     const classic = makeTestState({ battlefield: [{ iid: 1, cardId: 'forest', controller: 0 }] });
     const classicEvents: GameEvent[] = [];
     recallPermanent(classic, TEST_DB, classic.battlefield[0], (event) => classicEvents.push(event));
     expect(classic.players[0].hand).toEqual(['forest']);
-    expect(classicEvents.filter((event) => event.e === 'died')).toHaveLength(1);
+    expect(classicEvents.some((event) => event.e === 'died')).toBe(false);
+    expect(classicEvents.filter((event) => event.e === 'recalled')).toHaveLength(1);
   });
 
   it('handles a mixed mass-destroy batch without counting a returning basic as a death', () => {

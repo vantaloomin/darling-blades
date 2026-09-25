@@ -60,6 +60,9 @@ export type GameEvent =
   | { e: 'damageMarked'; iid: number; amount: number }
   | { e: 'lifeChanged'; player: PlayerId; delta: number; now: number }
   | { e: 'died'; iid: number; cardId: string; owner: PlayerId }
+  /** Battlefield to its owner's hand (a token ceases to exist instead). Not a
+   *  death: no dies trigger fires and nothing counts it as one. */
+  | { e: 'recalled'; iid: number; cardId: string; owner: PlayerId; token?: true }
   | { e: 'nineLivesReturned'; player: PlayerId; iid: number; cardId: string }
   | { e: 'discarded'; player: PlayerId; cardId: string }
   | { e: 'milled'; player: PlayerId; cardId: string }
