@@ -130,8 +130,9 @@ lookahead." Its rules:
   for an owned creature under lethal targeted removal or a losing block. Every
   rule reads the redacted view and the legal menu only.
 - **Duty:** a tap-only Duty in main one unless its body wants to attack; a
-  paid Duty in main one only when it buys the attack something, otherwise in
-  main two after developing (1.8.1, Duty timing below).
+  paid Duty in main one only when it buys the attack something (a lethal one
+  right after the lethal-spell check, ahead of removal), otherwise in main
+  two after developing (1.8.1, Duty timing below).
 
 Medium **deliberately does not model face-down information** beyond "open mana
 plus a demonstrated Charm = maybe a trick," and it never knowingly holds back
@@ -205,10 +206,12 @@ engine's exact firstBlade/overrun/deathblade math beats any heuristic:
   main one is compared against holding it for main two at the same settled
   endpoint; across the gate games the pass won 2,643 main decisions and the
   hold 305, out of about 109,000. The ordinary candidate cap is seven plus the
-  pass slot. Since 1.8.1 a paid Duty chosen in main one is checked the same
-  way the attack search checks an attack: the Duty now against a pass to
-  combat, each played through the opponent's counterattack, and Hard passes
-  only when holding wins by +0.75 (Duty timing below).
+  pass slot. Since 1.8.1 a Morning Duty whose forecast attack is lethal is
+  taken before the search, and any other paid Duty chosen in main one is
+  checked the way the attack search checks an attack: the Duty now against a
+  pass to combat, each played through the opponent's counterattack; when
+  holding wins by +0.75 the Duty is struck and Medium picks again (Duty
+  timing below).
 - **Attacks** (`searchAttack`): Medium's attack set is the baseline. Hard runs
   a **full-turn attack lookahead** — each candidate set plays through the
   opponent's whole counterattack turn (`lookahead`) before evaluation, so the
@@ -281,39 +284,62 @@ blocker, damages a creature or pumps an attacker was spent after the attack
 it exists to enable (review finding G9). The rule now:
 
 - **When a paid Duty moves into main one.** Medium and Hard pass the policy a
-  `PrecombatContext` (their trick buff and personality). For each paid Duty
-  on the legal menu, `precombatDutyEdge` performs it with the real engine on
-  a determinized copy of the public position, so taps, lethal damage, pumps,
+  `PrecombatContext` (Medium's trick buff and the personality; Hard takes
+  its Medium's through `morningContext`, so both brains price a Duty alike).
+  `precombatDutyEdge` performs the Duty with the real engine on a
+  determinized copy of the public position, so taps, lethal damage, pumps,
   Marks, a mana creature spent on the payment and life loss land exactly as
   they will; then the brain's own attack planner and the defender's block
   model price the attack on both boards. The Duty goes before combat when the
   attack becomes lethal only with it, or when its attack score rises by more
   than `PRECOMBAT_DUTY_MARGIN` (0.75 in `scoreAttack` units: two damage
   through at high life, one at twelve or below). It is ranked by its impact
-  plus that gain, or plus the 100 that `scoreAttack` pays a lethal
-  connection. Anything else waits for main two as before. Cheap exits keep
-  the forecast off the hot path: it never runs for a Duty whose ops cannot
-  touch a fight (draw, life gain, Foresee, tokens), when no creature of ours
-  can attack, or for a targeted Duty whose targets are neither a blocker for
-  one of our attackers, nor one of those attackers, nor a player. Results are
-  cached per view, so the mana reserve, the ladder and Hard's candidate map
-  share one forecast.
-- **The mana.** `MediumAI.constrainMainMana` already reserved the best
-  develop cast's mana against a paid Duty in main two, and a live Charm's
-  mana in every step. In main one a qualifying Duty is compared with that
-  develop cast: when its worth (impact plus gain) beats the cast's
+  plus that gain, or plus `PRECOMBAT_LETHAL` (100, what `scoreAttack` pays a
+  lethal connection). Anything else waits for main two as before.
+- **The gain is the fight's, not the weights'.** `scoreAttack` weighs damage
+  0.45 a point above twelve life and 0.9 at or below, 0.2 more with two
+  creatures to spare, and its holdback reads the defender's power. A ping
+  that crosses twelve, or a kill of a creature that would never block, moves
+  those weights with the combat unchanged, and the first version read that as
+  gain (a ping at 13 life beat casting a bear). Both boards are now planned
+  and scored at the life totals, creature counts and opposing power of the
+  board before the Duty (the optional `weightBoard` of `scoreAttack` and
+  `chooseAttackers`); the new life totals answer only whether the real plan
+  is now lethal.
+- **Cost.** One forecast per source and ability, on its best target by
+  impact among the targets that reach the fight (a blocker for one of our
+  attackers, one of those attackers, or a player); its other targets wait
+  for main two. None at all for a Duty whose ops cannot touch a fight (draw,
+  life gain, Foresee, tokens), when no creature of ours can attack, or while
+  `main` would first play a land, a reserve land or a Darling paydown. Hard's
+  simulated opponent (`morningDuties: false`) keeps paid Duties in its main
+  two, so the attack search's lookahead never forecasts. Results are cached
+  per view and keyed without the mana plan, so the reserves, the ladder and
+  Hard's candidate map share one forecast. What remains is two attack plans
+  when a paid combat Duty is live, which scales with board width like the
+  planner itself (the table below).
+- **The mana, and the ladder.** `MediumAI.constrainMainMana` already reserved
+  the best develop cast's mana against a paid Duty in main two, and a live
+  Charm's mana in every step. In main one a qualifying Duty is compared with
+  that develop cast: when its worth (impact plus gain) beats the cast's
   `castScore` it spends first, otherwise it may use only mana the cast does
-  not need. A lethal Duty always spends first. The Charm reserve is
-  unchanged.
-- **Hard** searches the qualifying Duty as a main-one candidate. Its shallow
-  sim stops before combat, so when the chosen action is a paid Duty in main
-  one Hard checks the forecast with the attack search's referee: `lookahead`
-  from the Duty against `lookahead` from a pass to combat (where Medium uses
-  the Duty in main two if it still pays), each played through the opponent's
-  counterattack. Hard passes only when holding wins by the attack search's
-  +0.75. The documented pair: a tap that lets our giant race is kept; at 8
-  life, with their second giant waiting to swing back, the same tap is
-  declined because the backswing is lethal.
+  not need. A lethal Duty is exempt from both reserves, and Medium's ladder
+  takes it right after the lethal-spell check, ahead of removal, burn, taps,
+  Preserve and develop (with the opponent at 4, tapping the only blocker
+  wins; removal on their bigger tapped creature does not).
+- **Hard** takes a lethal Morning Duty from Medium's baseline before any
+  search. Otherwise it searches the qualifying Duty as a main-one candidate;
+  its shallow sim stops before combat, so when the chosen action is a paid
+  Duty in main one Hard checks the forecast with the attack search's
+  referee: `lookahead` from the Duty against `lookahead` from a pass to
+  combat (where Medium uses the Duty in main two if it still pays), each
+  played through the opponent's counterattack. When holding wins by the
+  attack search's +0.75 the Duty is struck from the menu and Medium picks
+  again, so a develop cast the Duty was crowding out still happens (a second
+  Morning Duty gets the same check). The documented pair: a tap that lets our
+  giant race is kept; at 8 life, with their second giant waiting to swing
+  back, the same tap is declined because the backswing is lethal, and a bear
+  in hand is cast instead.
 - **The evaluation fix it needed.** A tapper's board value
   (`activatedAbilityValue`, part of `permValue`) priced a tap on a currently
   tapped target at zero, so a lookahead that ended after the opponent
@@ -327,6 +353,25 @@ it exists to enable (review finding G9). The rule now:
   it achieves nothing after combat, but it spends only mana nothing else
   wanted, and `tests/data/landEconomy.test.ts` pins that Afternoon use.
 
+**Cost, 2026-09-25.** The 1.8.1 review's probe (bears and giants N a side,
+four lands each, one Duty artifact; mean ms per decision on a shared
+machine, so read the scale rather than the digits):
+
+| Decision | N | Pre-G9 | First G9 cut | Now |
+| --- | --- | --- | --- | --- |
+| Medium main one, our tapper | 8 | 0.2 | 26 | 6-7 |
+| | 12 | 0.3 | 132 | 20-21 |
+| | 16 | 0.6 | 664 | 55-86 |
+| Hard attack, their tapper | 12 | 118 | 868 | 81-85 |
+| | 16 | 606 | 2,925 | 465-528 |
+| Medium main one, land in hand, our tapper | 12 | 1.5 | 129 | 0.6 |
+
+Hard's attack with their tapper is back to its no-Duty cost, and the no-Duty
+rows did not move. Medium's main one with our tapper still pays the two
+attack plans. On a synthetic Warchest list (Crimson Muster with four
+Tide-Gate, four Festival Rocket and two Nebula Beacon), ten games, back to
+back twice: Medium 33-34 to 47 ms a game, Hard 146-147 to 170-184.
+
 **Exposure, 2026-09-25 (usage counts, not win rates).** No starter reserve
 build and no gauntlet `reserveDeck` carries a paid Duty or any tapper Duty,
 and the two brain gates play the TEST_DB decks, so every gate in
@@ -335,12 +380,9 @@ confirms it. The Darlings lists carry one to three singleton paid Duties,
 mostly life gain, tokens and Foresee; the combat-relevant ones are Wrecker of
 the Reach (rung 5), Ember-Lane Flare (rung 23), Deepfield Array (rungs 24 and
 25) and Cellar Jar (rungs 24 to 26). Ten Darlings games each for rungs 5 and
-23-26 used the new branch zero times. On a synthetic Warchest list (Crimson
-Muster with four Tide-Gate, four Festival Rocket and two Nebula Beacon) over
-ten games, Medium used 13 paid Duties in main one and 3 in main two (0 and 15
-before), Hard 6 and 6 (0 and 9 before). The forecast costs wall time on such
-a list, about 1.5 times: measured back to back twice on a shared machine,
-Medium 30-34 to 48-51 ms a game and Hard 141-154 to 218-243 ms.
+23-26 used the new branch zero times. On the synthetic list above, over ten
+games, Medium used 14 paid Duties in main one and 12 in main two (0 and 15
+before G9), Hard 9 and 5 (0 and 9).
 
 ## Win-rate gates
 
@@ -399,7 +441,7 @@ If you want to move the numbers, these are the levers:
 | `src/ai/tithePolicy.ts` | Tithe (1.8): rewrites the engine's canonical fodder set or drops the flag. Candidates sorted by `permValue` per point of effective Defense; pairs preferred so odd totals waste nothing; never the single best body, never a planned attacker, never the cast's own target. Since phase B (2026-09-15, owner ruling D5) a fodder-class body (a token, Defense 2 or less, or summoning-sick and unable to attack) may be sold undamaged at a fifth of its board value, but only when the generic mana saved is two or more, or the saving turns an unaffordable spell into a legal cast this turn; any other body is sold only when the mana saved beats its full board value. Applied beside `applyRitePolicy` in all three brains and the rollouts. |
 | `src/ai/discardPolicy.ts` | Loot (1.8): the shared deterministic discard choice for every brain and ScriptAI: the highest-cost spell current mana cannot pay first, then a land beyond four projected sources, then the lowest-value card; the last affordable spell is protected unless the count forces it. |
 | `src/ai/sacrificePolicy.ts` | Edicts (1.8): the shared mandatory sacrifice choice: the lowest `permValue` body, battlefield order on ties; Rite and Tithe fodder policies protect a chosen target from being sold. |
-| `src/ai/activatedPolicy.ts` | Duty (1.8): when and which tap ability to use, including `abilityIndex` on multi-Duty carriers; tap-only Duties in the Morning, paid ones in the Afternoon unless the brain passes a `PrecombatContext` and `precombatDutyEdge` says the Duty makes the attack lethal or improves it by more than `PRECOMBAT_DUTY_MARGIN` (1.8.1, Medium and Hard only; see Duty timing), never a Rage body, never a self-harming ability; targets by public impact. Since phase B Medium's `constrainMainMana` reserves development mana against a paid Afternoon Duty (develop first, the Duty runs on what remains) and `liveCharm` holds mana, colours preserved, for a Charm whose rule is live against the public board (removal, counter, fog, trick, global removal, tap, bounce); Hard searches the two best distinct Duty choices. |
+| `src/ai/activatedPolicy.ts` | Duty (1.8): when and which tap ability to use, including `abilityIndex` on multi-Duty carriers; tap-only Duties in the Morning, paid ones in the Afternoon unless the brain passes a `PrecombatContext` and `precombatDutyEdge` says the Duty makes the attack lethal or improves it, at fixed attack weights, by more than `PRECOMBAT_DUTY_MARGIN` (1.8.1, Medium and Hard only, one forecast per source on its best target; see Duty timing), never a Rage body, never a self-harming ability; targets by public impact. Since phase B Medium's `constrainMainMana` reserves development mana against a paid Afternoon Duty (develop first, the Duty runs on what remains) and `liveCharm` holds mana, colours preserved, for a Charm whose rule is live against the public board (removal, counter, fog, trick, global removal, tap, bounce); Hard searches the two best distinct Duty choices. |
 | `src/ai/ritePolicy.ts` | Rite: the fodder set (cheapest bodies, never the best body or a planned attacker or the cast's own target) and the decline rule when the fodder outvalues the cast. |
 | `src/ai/preservePolicy.ts` | Preserve: fires when mana is idle or the brain is behind on bodies; picks the bigger affordable body by public `cardValue`. |
 | `src/ai/hauntlinkPolicy.ts` | Hauntlink (rules rev 4, phase B 2026-09-15): `hauntlinkHostFit` scores what the rider grants each host (keywords it lacks, fights the stats change, marks it can use), ties to the larger body; a main-phase move must beat the link's mana cost times 0.65 plus 0.25 (no churn); `chooseHauntlinkWindow` moves the link in the combat-damage window to save a blocked attacker or blocker, and in the trigger window when the trigger about to resolve threatens the current host. Easy and Medium decline a move whose forecast meets an op it cannot project; Hard searches every legal link in the window with its response margin. |
@@ -573,9 +615,13 @@ could. Count that before tuning, or a tune can hide a policy bug by swapping
 the unused cards out.** A general per-mechanic usage audit on the balance
 telemetry is proposed for 1.9. The same count found Hauntlink Apex cast in 7%
 of her games (13% when seen), and the first version of this paragraph called
-that a card defect wanting a ruling. **It is not, and the Hauntlink recost
-proposal that followed the same day recommends NO recost.** What the
-follow-up measured:
+that a card defect wanting a ruling. The Hauntlink recost proposal that
+followed the same day recommended no recost; **the owner ruled a recost for
+1.8.1 anyway (D7, option A, on its own branch): Apex costs {3}{U} and its
+Dawn draw becomes "During your Dawn, Foresee 1", with the {3}{U} link and
+its +3/+3 Skyborne Untouchable rider unchanged.** The Kitsune rows and the
+Apex usage count are re-measured once that patch integrates. What the
+follow-up measured, on the old card:
 
 | Boss, shape | Card | Cast + link | Cast when seen | Links per cast |
 | --- | --- | --- | --- | --- |
@@ -583,14 +629,16 @@ follow-up measured:
 | | Sanctum of Many Masks | 3 + 4 | 70% | 1.58 |
 | Kitsune, aggro, about 7 turns each | Burning Mask of the Void | 3 + 3 | 40% | 0.84 |
 | | Ember-Link Chain | 3 + 1 | 41% | 1.32 |
-| | Hauntlink Apex | 8 + 4 | 10% | 0.75 |
+| | Hauntlink Apex (before the 1.8.1 recost) | 8 + 4 | 10% | 0.75 |
 
 A four-mana link is used MORE per cast than a one-mana link where games run
 long, so dear links are not going unused. Land drops are guaranteed in this
-format, so eight mana is reliable on turn eight; Apex is dead in Kitsune's
-deck because her games end on turn seven, which is a deck-fit fact. The
-workbench agrees on the card: it rates Apex fair at eight (+0.46) and 3.7 too
-strong at four, because its Dawn draw alone is worth about five mana.
+format, so eight mana is reliable on turn eight; the eight-mana Apex was dead
+in Kitsune's deck because her games end on turn seven, a deck-fit fact. The
+workbench rated that card fair at eight (+0.46) and 3.7 too strong at four,
+because its Dawn draw alone was worth about five mana; the 1.8.1 recost
+trades the draw for Foresee 1 so the card is fair at four (the workbench
+reads it -0.01).
 **One real thing the exercise did find, recorded and not acted on:** the power
 formula prices a link at the face value of its rider and ignores the link's
 own cost (the one-cast floor, owner ruling 2026-08-28, binds for all sixteen
@@ -617,7 +665,9 @@ columns. **Confirm a tune on the wide matrix before stacking a second
 lever.** Two Duty artifacts from the land-economy slate were measured in her
 list and rejected: four Festival Rocket read 56.8 and two Overcanopy Trellis
 59.8, so in AI hands the repeatable two-damage Duty is too slow and the
-repeatable Mark source is not an engine on its own.
+repeatable Mark source is not an engine on its own. Both were measured
+before 1.8.1 let Medium and Hard spend a paid Duty before combat (Duty
+timing), when a Rocket could only fire after the attack.
 
 The Starborne pair (Chrome Broodmother 23, The Violet Signal Queen 24; floors
 0.655 and 0.645) and the Drowned Deep pair (The Drowned Deacon 25, The
@@ -658,11 +708,13 @@ every card plays; as intended, not yet. Two test files are the scoreboard:
   `hardTiming.test.ts`.
 
 Phase D (2026-09-17) closed the last gap, the draft picker, and every one of
-the forty documented behaviours now passes (1.8.1 added seven more, the Duty
-timing entries: Medium's pre-combat tap and its attack, the Duty left for
-main two when the attack needs no help, the better spell keeping the mana,
-the lethal Duty outranking it, Hard's kept and declined taps, and Easy's
-unchanged timing; forty-seven pass). Its measurement is the second
+the forty documented behaviours now passes (1.8.1 added eleven more, the
+Duty timing entries: Medium's pre-combat tap and its attack, the Duty left
+for main two when the attack needs no help, the better spell keeping the
+mana, the lethal Duty outranking it and outranking removal, a ping and a
+kill that change nothing in the fight left for main two, Hard's kept and
+declined taps and the cast a declined tap frees, and Easy's unchanged
+timing; fifty-one pass). Its measurement is the second
 lesson of the plan: a scorer that knows the mechanics does not draft
 stronger decks in Medium's hands. Seat-one decks drafted by the new scorer
 against decks drafted by the old one from the same seeds, Medium on both

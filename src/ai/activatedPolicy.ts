@@ -1,10 +1,10 @@
 import type { Action } from '../engine/actions';
 import { canAttack, canBlock, eligibleAttackers } from '../engine/combat/legality';
 import { getEffectiveStats } from '../engine/statics';
-import type { CardDb, EffectOp, Permanent, PlayerId } from '../engine/types';
+import type { ActivatedDef, CardDb, EffectOp, Permanent, PlayerId } from '../engine/types';
 import { activatedAbilitiesOf, def, isType, manaValue, opponentOf } from '../engine/types';
 import type { PlayerView } from '../engine/view';
-import { chooseAttackers, chooseBlocks, combatForecast, scoreAttack } from './combatPlans';
+import { attackWeightInputs, chooseAttackers, chooseBlocks, combatForecast, scoreAttack } from './combatPlans';
 import { determinize, simDb } from './determinize';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { activateActionValue } from './value';
@@ -32,7 +32,7 @@ export interface PrecombatContext {
 export const PRECOMBAT_DUTY_MARGIN = 0.75;
 
 /** The same bonus `scoreAttack` pays a lethal connection. */
-const PRECOMBAT_LETHAL = 100;
+export const PRECOMBAT_LETHAL = 100;
 
 /** Ops that can change this turn's attack when they resolve before it. */
 function shapesCombat(ops: readonly EffectOp[]): boolean {
@@ -56,17 +56,20 @@ function shapesCombat(ops: readonly EffectOp[]): boolean {
 type Edge = { lethal: boolean; gain: number } | null;
 type AttackForecast = { lethal: boolean; score: number };
 
-/** The brain's attack plan on a board, priced by the defender's block model. */
+/** The brain's attack plan on a board, priced by the defender's block model.
+ * `weightBoard` fixes the creature counts and opposing power the planner
+ * weighs damage and holdback by (see `scoreAttack`). */
 function attackForecast(
-  battlefield: Permanent[], db: CardDb, me: PlayerId, oppLife: number, myLife: number, context: PrecombatContext,
+  battlefield: Permanent[], db: CardDb, me: PlayerId, oppLife: number, myLife: number,
+  context: PrecombatContext, weightBoard: readonly Permanent[] = battlefield,
 ): AttackForecast {
-  const attackers = chooseAttackers(battlefield, db, me, oppLife, context.trickBuff, myLife, context.pers);
+  const attackers = chooseAttackers(battlefield, db, me, oppLife, context.trickBuff, myLife, context.pers, weightBoard);
   const combat = { attackers, blocks: [], phase: 'attackersDeclared' as const, damagePrevented: false };
   const blocks = chooseBlocks(battlefield, db, opponentOf(me), oppLife, combat, 0, DEFAULT_PERSONALITY);
   const forecast = combatForecast(battlefield, db, { ...combat, blocks, phase: 'blockersDeclared' });
   return {
     lethal: attackers.length > 0 && forecast.damage >= oppLife,
-    score: scoreAttack(battlefield, db, me, oppLife, context.trickBuff, attackers, myLife, context.pers),
+    score: scoreAttack(battlefield, db, me, oppLife, context.trickBuff, attackers, myLife, context.pers, weightBoard),
   };
 }
 
@@ -92,15 +95,36 @@ function edgeCacheFor(view: PlayerView, db: CardDb, context: PrecombatContext) {
 }
 
 /**
+ * Can this Duty reach this turn's fight at all? It needs a creature of ours
+ * able to attack (no Duty op makes a body able to), and when it is targeted,
+ * a target that is a player, one of those attackers, or a blocker for one of
+ * them. Cheap, and it runs before any value or forecast is computed.
+ */
+function reachesFight(
+  view: PlayerView, sdb: CardDb, action: ActivateAction, ability: ActivatedDef, eligible: readonly number[],
+): boolean {
+  if (eligible.length === 0 || !shapesCombat(ability.ops)) return false;
+  const targets = action.targets ?? [];
+  return targets.length === 0 || targets.some((ref) => ref.kind === 'player' || ref.kind === 'permanent' &&
+    (eligible.includes(ref.iid) || eligible.some((attacker) =>
+      canBlock(view.battlefield, sdb, opponentOf(view.myId), ref.iid, attacker))));
+}
+
+/**
  * What using this Duty before combat does to this turn's attack. The engine
  * performs the Duty on a determinized copy of the public position (so taps,
  * lethal damage, pumps, Marks, a mana creature spent on the payment and life
  * loss all land exactly as they will), then the brain's own attack planner
- * and the defender's block model price both boards. `lethal` is a forecast
- * that turns lethal only with the Duty; `gain` is the attack-score change.
- * Null outside our own pre-combat Morning, for a Duty that cannot touch the
- * fight, or when no creature of ours can attack this turn at all. Reads only
- * the redacted view.
+ * and the defender's block model price both boards.
+ *
+ * `gain` prices only what the Duty does to the fight: both boards are planned
+ * and scored at the life totals, creature counts and opposing power of the
+ * board before it, because `scoreAttack` weighs damage by those (0.45 a point
+ * above twelve life, 0.9 at or below, more with two extra creatures) and a
+ * ping or a kill does the same in main two. `lethal` is the one question the
+ * new life totals answer: the real plan on the new board kills, and the old
+ * one did not. Null outside our own pre-combat Morning or for a Duty that
+ * cannot reach the fight. Reads only the redacted view.
  */
 export function precombatDutyEdge(
   view: PlayerView,
@@ -111,24 +135,16 @@ export function precombatDutyEdge(
   if (view.step !== 'main1' || view.activePlayer !== view.myId || view.combat) return null;
   const source = view.battlefield.find((perm) => perm.iid === action.iid);
   const ability = source && activatedAbilitiesOf(def(db, source.cardId))[action.abilityIndex ?? 0];
-  if (!ability || !shapesCombat(ability.ops)) return null;
+  if (!ability) return null;
   const me = view.myId;
   // One database for every caller, so a brain and its search share results
   // (the stand-in superset reads real cards exactly as the raw one does).
   const sdb = simDb(db);
-  // No Duty op makes a body able to attack, so with no eligible attacker
-  // there is no attack for it to change.
-  const eligible = eligibleAttackers(view.battlefield, sdb, me);
-  if (eligible.length === 0) return null;
-  // A targeted Duty reaches this fight only through a body in it (a blocker
-  // for one of our attackers, or one of those attackers) or through a
-  // player's life.
-  const targets = action.targets ?? [];
-  if (targets.length > 0 && !targets.some((ref) => ref.kind === 'player' || ref.kind === 'permanent' &&
-    (eligible.includes(ref.iid) || eligible.some((attacker) =>
-      canBlock(view.battlefield, sdb, opponentOf(me), ref.iid, attacker))))) return null;
+  if (!reachesFight(view, sdb, action, ability, eligibleAttackers(view.battlefield, sdb, me))) return null;
   const cache = edgeCacheFor(view, sdb, context);
-  const key = JSON.stringify([action.iid, action.abilityIndex ?? 0, targets, action.manaPlan ?? null]);
+  // Keyed without the mana plan: the reserves may rewrite which sources pay
+  // between two asks in one decision, and the first payment seen stands in.
+  const key = JSON.stringify([action.iid, action.abilityIndex ?? 0, action.targets ?? []]);
   if (cache.edges.has(key)) return cache.edges.get(key)!;
   let edge: Edge;
   try {
@@ -139,14 +155,27 @@ export function precombatDutyEdge(
     } else {
       const after = game.viewFor(me);
       const before = cache.before ??= attackForecast(view.battlefield, sdb, me, view.opp.life, view.you.life, context);
-      const projected = attackForecast(after.battlefield, sdb, me, after.opp.life, after.you.life, context);
-      edge = { lethal: projected.lethal && !before.lethal, gain: projected.score - before.score };
+      const fixed = attackForecast(after.battlefield, sdb, me, view.opp.life, view.you.life, context, view.battlefield);
+      // When the Duty moved none of the weights, the fixed plan is the real one.
+      const weightsBefore = attackWeightInputs(view.battlefield, sdb, me);
+      const weightsAfter = attackWeightInputs(after.battlefield, sdb, me);
+      const unmoved = after.opp.life === view.opp.life && after.you.life === view.you.life &&
+        weightsAfter.pressing === weightsBefore.pressing && weightsAfter.oppPower === weightsBefore.oppPower;
+      const live = unmoved ? fixed : attackForecast(after.battlefield, sdb, me, after.opp.life, after.you.life, context);
+      edge = { lethal: live.lethal && !before.lethal, gain: fixed.score - before.score };
     }
   } catch {
     edge = null;
   }
   cache.edges.set(key, edge);
   return edge;
+}
+
+export interface ScoredActivation {
+  action: ActivateAction;
+  value: number;
+  /** A Morning Duty whose forecast attack is lethal only with it. */
+  lethal: boolean;
 }
 
 /**
@@ -156,8 +185,10 @@ export function precombatDutyEdge(
  * else is used in the Morning. A paid Duty waits for the Afternoon unless the
  * caller supplies a PrecombatContext and using it now makes the attack lethal
  * or improves it by more than PRECOMBAT_DUTY_MARGIN; such a Duty is ranked by
- * its impact plus that gain (or the lethal bonus). Whether the mana belongs
- * to a better spell is MediumAI.constrainMainMana's call, made before this.
+ * its impact plus that gain (or the lethal bonus). Only the best target of
+ * each paid source and ability, by impact among the targets that reach the
+ * fight, is forecast; its other targets wait for the Afternoon. Whether the
+ * mana belongs to a better spell is MediumAI.constrainMainMana's call.
  * Legality and target lists come exclusively from the caller's legal menu.
  */
 export function scoredActivationCandidates(
@@ -165,37 +196,45 @@ export function scoredActivationCandidates(
   db: CardDb,
   legal: readonly Action[],
   precombat?: PrecombatContext,
-): { action: ActivateAction; value: number }[] {
+): ScoredActivation[] {
   if (view.awaiting.kind !== 'main' || view.awaiting.player !== view.myId ||
     view.activePlayer !== view.myId || (view.step !== 'main1' && view.step !== 'main2')) return [];
-  const scored: { action: ActivateAction; value: number }[] = [];
-  for (const action of legal) {
-    if (action.type !== 'activate') continue;
+  const rows: (ScoredActivation & { index: number })[] = [];
+  const morning = new Map<string, { index: number; action: ActivateAction; value: number }>();
+  let eligible: number[] | undefined;
+  legal.forEach((action, index) => {
+    if (action.type !== 'activate') return;
     const source = view.battlefield.find((perm) => perm.iid === action.iid);
-    if (!source || source.controller !== view.myId) continue;
+    if (!source || source.controller !== view.myId) return;
     const d = def(db, source.cardId);
     const ability = activatedAbilitiesOf(d)[action.abilityIndex ?? 0];
-    if (!ability) continue;
+    if (!ability) return;
     if (view.step === 'main1' && isType(d, 'creature')) {
       const stats = getEffectiveStats(view.battlefield, db, source.iid);
       // Even a zero-power or Bulwark Rage body never uses the Morning trick.
-      if (stats.keywords.has('rage')) continue;
-      if (stats.attack > 0 && canAttack(view.battlefield, db, view.myId, source.iid)) continue;
+      if (stats.keywords.has('rage')) return;
+      if (stats.attack > 0 && canAttack(view.battlefield, db, view.myId, source.iid)) return;
     }
     const paidMorning = view.step === 'main1' && manaValue(ability.cost.mana) > 0;
-    if (paidMorning && !precombat) continue;
+    if (paidMorning && (!precombat || !reachesFight(view, simDb(db), action, ability,
+      eligible ??= eligibleAttackers(view.battlefield, simDb(db), view.myId)))) return;
     // Never a self-harming ability, whatever the attack would gain.
     const value = activateActionValue(view, db, action);
-    if (!(value > 0)) continue;
-    let timing = 0;
-    if (paidMorning && precombat) {
-      const edge = precombatDutyEdge(view, db, action, precombat);
-      if (!edge || !edge.lethal && !(edge.gain > PRECOMBAT_DUTY_MARGIN)) continue;
-      timing = edge.lethal ? PRECOMBAT_LETHAL : edge.gain;
+    if (!(value > 0)) return;
+    if (!paidMorning) {
+      rows.push({ index, action, value, lethal: false });
+      return;
     }
-    scored.push({ action, value: value + timing });
+    const key = `${action.iid}:${action.abilityIndex ?? 0}`;
+    const best = morning.get(key);
+    if (!best || value > best.value) morning.set(key, { index, action, value });
+  });
+  for (const { index, action, value } of morning.values()) {
+    const edge = precombatDutyEdge(view, db, action, precombat!);
+    if (!edge || !edge.lethal && !(edge.gain > PRECOMBAT_DUTY_MARGIN)) continue;
+    rows.push({ index, action, value: value + (edge.lethal ? PRECOMBAT_LETHAL : edge.gain), lethal: edge.lethal });
   }
-  return scored;
+  return rows.sort((a, b) => a.index - b.index).map(({ action, value, lethal }) => ({ action, value, lethal }));
 }
 
 export function activationCandidates(
@@ -208,19 +247,24 @@ export function activationCandidates(
 }
 
 /** Highest positive per-use impact; legal enumeration order breaks ties. */
+export function bestActivation(
+  view: PlayerView,
+  db: CardDb,
+  legal: readonly Action[],
+  precombat?: PrecombatContext,
+): ScoredActivation | null {
+  let best: ScoredActivation | null = null;
+  for (const row of scoredActivationCandidates(view, db, legal, precombat)) {
+    if (row.value > (best?.value ?? 0)) best = row;
+  }
+  return best;
+}
+
 export function chooseActivate(
   view: PlayerView,
   db: CardDb,
   legal: readonly Action[],
   precombat?: PrecombatContext,
 ): ActivateAction | null {
-  let best: ActivateAction | null = null;
-  let bestValue = 0;
-  for (const { action, value } of scoredActivationCandidates(view, db, legal, precombat)) {
-    if (value > bestValue) {
-      best = action;
-      bestValue = value;
-    }
-  }
-  return best;
+  return bestActivation(view, db, legal, precombat)?.action ?? null;
 }
