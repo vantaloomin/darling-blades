@@ -39,6 +39,12 @@
       "port": 5175
     },
     {
+      "name": "forge",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "forge"],
+      "port": 5176
+    },
+    {
       "name": "darlingblades-lan",
       "runtimeExecutable": "npx",
       "runtimeArgs": ["tsx", "scripts/serve-lan.ts", "--port", "4173"],

@@ -171,8 +171,8 @@ of ad-hoc status relays.
 
 ## 5. Iron invariants (quote these into prompts)
 
-- **Purity**: `src/engine`, `src/ai`, `src/data`, `src/meta`, `src/config`
-  never import Phaser or browser APIs; tests never import Phaser (ESLint
+- **Purity**: `src/engine`, `src/ai`, `src/data`, `src/meta`, `src/config`,
+  `src/power` (the Forge's power scorer) never import Phaser or browser APIs; tests never import Phaser (ESLint
   enforces, but agents must know *why*: headless engine + determinism).
 - **AI honesty**: AI code consumes only the redacted `PlayerView`
   (`src/engine/view.ts`). Never hidden state, at any difficulty.
