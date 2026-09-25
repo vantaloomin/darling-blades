@@ -365,12 +365,30 @@ What changes:
 - **Lane B.** First Dawn rows carry no flavor. Its art briefs compose for the
   new window, so the height must lock before the art run starts.
 - **Mobile (2.0).** The Version C canvas dropped flavor on the owner's
-  direction (version 3). One renderer serves both platforms, and the phone
-  layouts inherit this work.
+  direction (version 3). The no-flavor renderer carries over. **The art band
+  does not**, measured by the mobile research session on 2026-09-25 in
+  headless Edge. A 240 pt phone face (the largest the phone's content height
+  allows) shows 46% of the art height today, and it clips at 7 lines of
+  rules. At desktop's 58% band it holds 3 lines of rules. At 65% (the 216 px
+  pick) and 69% (the 228 px pick) it holds 1, and 0 or 1 at 130% text. A
+  phone face cannot show the desktop band and also carry the rules. The
+  options, for a 2.0 ruling, with the research session's recommendation
+  first:
+  - **(a) An art-first phone face.** The face shows the name, the art at the
+    desktop band, the cost, P/T and a keyword row. The full rules live in the
+    panel Version C already puts beside every enlarged face. Grids keep a
+    tap-to-inspect.
+  - **(b) The rules stay on the phone face** at a narrower band, about 46%.
+    The art grows on desktop only.
+  - **(c) The rules box sizes to its content,** so the art grows only on
+    short-rules cards and the crop varies from card to card.
+
+  The desktop work does not wait on this ruling.
 
 The first step is a mock, and the owner picks the height from it: before and
 after captures at 216 and 228 px, on the densest rules text and the images
-whose heads sit near the crop. A rough estimate from text length, to be
+whose heads sit near the crop. Beside them sits one phone face in option (a),
+so the owner can see the mobile trade-off at the same sitting. A rough estimate from text length, to be
 confirmed in the renderer: about 133 cards shrink their rules text today to
 make room for flavor. With no flavor, about 45 would shrink at a 76 px box
 (art at 216) and about 132 at a 64 px box (art at 228).
