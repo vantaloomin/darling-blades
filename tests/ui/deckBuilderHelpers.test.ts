@@ -2,11 +2,17 @@ import { describe, expect, it } from 'vitest';
 import type { CardDb, CardDef } from '../../src/engine/types';
 import { switchDeckFormat } from '../../src/meta/DeckStorage';
 import { validateDarlingsDeck, validateWarchestDeck } from '../../src/meta/darlings';
+import { deckHealth, deckRepairNoticeState } from '../../src/meta/deckRepair';
 import { freshSave, type SavedDeck } from '../../src/meta/SaveManager';
 import { DARLINGS_DECK_SIZE, WARCHEST_DECK_SIZE } from '../../src/meta/warchest';
 import { backLabelFor } from '../../src/ui/navigation';
 import {
+  acknowledgeDeckRepairNotice,
+  deckBlockKind,
+  deckBlockLabel,
   activeVisibleSavedDeck,
+  deckSaveCta,
+  unsavedChangesCopy,
   WARCHEST_RULES_COPY,
   DARLINGS_RULES_COPY,
   builderFormatForDeck,
@@ -240,6 +246,127 @@ describe('deck builder baseline', () => {
     // A baseline whose deck is gone writes nothing, even named as the working deck.
     expect(restoreDeckBaseline(decks, staleBaseline, 'deck-a')).toBe(false);
     expect(deckB).toEqual(before);
+  });
+});
+
+/**
+ * Save Deck always works (owner ruling D10, 2026-09-25): an unfinished deck
+ * saves as it stands. The centre CTA offers Save whenever there is something
+ * to save, and the repair list only where Save would have nothing to do.
+ */
+describe('deck builder save CTA', () => {
+  it('offers Save for any unsaved change, however unfinished the deck', () => {
+    expect(deckSaveCta({ hasSavedRecord: true, dirty: true, blockingCount: 3 })).toBe('save');
+    expect(deckSaveCta({ hasSavedRecord: false, dirty: true, blockingCount: 1 })).toBe('save');
+    expect(deckSaveCta({ hasSavedRecord: true, dirty: true, blockingCount: 0 })).toBe('save');
+  });
+
+  it('offers the repair list only for a saved, unplayable deck with nothing to save', () => {
+    expect(deckSaveCta({ hasSavedRecord: true, dirty: false, blockingCount: 2 })).toBe('repair');
+    expect(deckSaveCta({ hasSavedRecord: true, dirty: false, blockingCount: 0 })).toBe('save');
+    // A deckless draft has no record to repair.
+    expect(deckSaveCta({ hasSavedRecord: false, dirty: false, blockingCount: 2 })).toBe('save');
+  });
+
+  it('writes the unsaved-changes prompt in the house copy rules', () => {
+    for (const path of ['leave', 'decks', 'format', 'darling'] as const) {
+      for (const blocked of [false, true]) {
+        const copy = unsavedChangesCopy(path, blocked);
+        for (const text of [copy.body, copy.discardLabel]) {
+          expect(text).not.toContain('—');
+          // Touch parity: the prompt never names a mouse-only action.
+          expect(text).not.toMatch(/click/i);
+        }
+      }
+    }
+  });
+});
+
+/**
+ * One wording per reason a saved deck cannot be played: a deck still being
+ * built reads "Not playable yet", and only a finished deck a rules change
+ * broke reads "Needs repair". The real validators (deckHealth) decide whether
+ * a deck is blocked at all.
+ */
+describe('deck block wording', () => {
+  const SPELL_IDS = Array.from({ length: DARLINGS_DECK_SIZE }, (_, i) => `spell-${i}`);
+  const FOREST = 'forest';
+  const spell = (id: string): CardDef => ({
+    id,
+    name: id,
+    types: ['creature'],
+    subtypes: [],
+    colors: ['G'],
+    cost: { generic: 1, pips: { G: 1 } },
+    attack: 2,
+    defense: 2,
+    rarity: 'c',
+  });
+  const DB: CardDb = {
+    ...Object.fromEntries(SPELL_IDS.map((id) => [id, spell(id)])),
+    [FOREST]: { ...spell(FOREST), types: ['land'], supertypes: ['basic'], cost: undefined, attack: undefined, defense: undefined, manaAbility: ['G'] },
+  };
+  const save = freshSave(0);
+  for (const id of SPELL_IDS) save.collection[id] = 4;
+  const playsets = (n: number): string[] => SPELL_IDS.slice(0, n / 4).flatMap((id) => [id, id, id, id]);
+  const forests = (n: number): string[] => new Array(n).fill(FOREST);
+  const deck = (over: Partial<SavedDeck>): SavedDeck => ({
+    id: 'deck-1',
+    name: 'Deck 1',
+    cards: playsets(WARCHEST_DECK_SIZE),
+    heroCardId: null,
+    landStyle: null,
+    format: 'warchest',
+    darlingId: null,
+    landReserve: forests(10),
+    variantPins: [],
+    ...over,
+  });
+  const kindOf = (d: SavedDeck, classicRetired = true) =>
+    deckBlockKind(d, deckHealth(DB, save, d, classicRetired).blocked, classicRetired);
+
+  it('reads a playable deck as neither', () => {
+    expect(kindOf(deck({}))).toBeNull();
+  });
+
+  it('reads a deck still being built as not playable yet', () => {
+    expect(kindOf(deck({ cards: playsets(24) }))).toBe('unfinished');
+    expect(kindOf(deck({ landReserve: forests(4) }))).toBe('unfinished');
+    expect(kindOf(deck({ format: 'darlings', cards: [...SPELL_IDS], darlingId: null }))).toBe('unfinished');
+    expect(deckBlockLabel('unfinished')).toBe('Not playable yet');
+  });
+
+  it('keeps Needs repair for a finished deck a rules change broke', () => {
+    // A full Warchest holding a card that is no longer a land it can take.
+    expect(kindOf(deck({ landReserve: [...forests(9), 'spell-0'] }))).toBe('repair');
+    // Classic retirement blocks a complete 60-card Constructed deck.
+    expect(kindOf(deck({ format: 'constructed', cards: playsets(60), landReserve: null }))).toBe('repair');
+    expect(kindOf(deck({ format: 'constructed', cards: playsets(60), landReserve: null }), false)).toBeNull();
+    expect(deckBlockLabel('repair')).toBe('Needs repair');
+  });
+});
+
+/**
+ * The Main Menu's deck-repair notice says the rules changed with an update, so
+ * a deck the builder writes unfinished is acknowledged for it; the menu's own
+ * notice state (deckRepair.ts) is the judge.
+ */
+describe('deck repair notice acknowledgement', () => {
+  it('silences the notice for the acknowledged deck only', () => {
+    const flagged = [{ deckId: 'deck-3' }];
+    expect(deckRepairNoticeState(flagged, '[]').needsNotice).toBe(true);
+    const ack = acknowledgeDeckRepairNotice('[]', 'deck-3');
+    expect(deckRepairNoticeState(flagged, ack).needsNotice).toBe(false);
+    // A deck flagged by anything else still gets the notice.
+    expect(deckRepairNoticeState([...flagged, { deckId: 'deck-7' }], ack).needsNotice).toBe(true);
+  });
+
+  it('keeps earlier acknowledgements and survives a malformed one', () => {
+    const earlier = acknowledgeDeckRepairNotice('[]', 'deck-1');
+    const both = acknowledgeDeckRepairNotice(earlier, 'deck-2');
+    expect(deckRepairNoticeState([{ deckId: 'deck-1' }, { deckId: 'deck-2' }], both).needsNotice).toBe(false);
+    const recovered = acknowledgeDeckRepairNotice('not json', 'deck-4');
+    expect(deckRepairNoticeState([{ deckId: 'deck-4' }], recovered).needsNotice).toBe(false);
   });
 });
 

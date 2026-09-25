@@ -21,6 +21,8 @@ import { backButton, goldBadge, modalShell, pager, panel, registerSceneBackNavig
 import {
   activeVisibleSavedDeck,
   builderFormatForDeck,
+  deckBlockKind,
+  deckBlockLabel,
   formatDeckSize,
   formatGauntletUnavailableCopy,
   formatLabel,
@@ -278,6 +280,9 @@ export class PlayScene extends Phaser.Scene {
     const deckFormat = builderFormatForDeck(deck, this.reserveFormatsEnabled);
     const unavailable = formatGauntletUnavailableCopy(deckFormat, this.classicRetired);
     const repair = deckHealth(CARD_DB, save, deck);
+    // An unfinished deck reads "Not playable yet"; only a finished deck a rules
+    // change broke reads "Needs repair" (deckBlockKind).
+    const blockKind = deckBlockKind(deck, repair.blocked, this.classicRetired);
     let textLeft = left + 24;
     if (faceId) {
       // 300x420 card at 0.18 = 54x76, comfortably inside the 96px plate.
@@ -306,7 +311,7 @@ export class PlayScene extends Phaser.Scene {
     c.add(name);
     c.add(
       this.add
-        .text(textLeft, cy + 25, repair.blocked ? 'Needs repair' : unavailable ?? (deck.cards.length + '/' + formatDeckSize(deckFormat) + ' cards'), {
+        .text(textLeft, cy + 25, blockKind ? deckBlockLabel(blockKind) : unavailable ?? (deck.cards.length + '/' + formatDeckSize(deckFormat) + ' cards'), {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           color: repair.blocked || unavailable ? theme.colors.danger : deck.cards.length === formatDeckSize(deckFormat) ? theme.colors.success : theme.colors.danger,
@@ -403,6 +408,7 @@ export class PlayScene extends Phaser.Scene {
         const deckFormat = builderFormatForDeck(deck, this.reserveFormatsEnabled);
         const unavailable = formatGauntletUnavailableCopy(deckFormat, this.classicRetired);
         const repair = deckHealth(CARD_DB, save, deck);
+        const blockKind = deckBlockKind(deck, repair.blocked, this.classicRetired);
         const name = this.add
           .text(rowX + 16, y - 7, deck.name, {
             fontFamily: theme.fonts.display,
@@ -412,7 +418,7 @@ export class PlayScene extends Phaser.Scene {
           .setOrigin(0, 0.5);
         if (name.width > rowW - 200) name.setScale((rowW - 200) / name.width);
         const badge = this.add
-          .text(rowX + 16, y + 12, repair.blocked ? `${formatLabel(deckFormat)} · Needs repair` : formatLabel(deckFormat), {
+          .text(rowX + 16, y + 12, blockKind ? `${formatLabel(deckFormat)} · ${deckBlockLabel(blockKind)}` : formatLabel(deckFormat), {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.micro}px`,
             color: repair.blocked || unavailable ? theme.colors.danger : theme.colors.muted,

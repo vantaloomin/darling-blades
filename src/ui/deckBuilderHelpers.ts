@@ -1,5 +1,6 @@
 import type { DeckIssue } from '../meta/DeckStorage';
-import { DARLINGS_DECK_SIZE, WARCHEST_DECK_SIZE } from '../meta/warchest';
+import { deckRepairNoticeFingerprint } from '../meta/deckRepair';
+import { DARLINGS_DECK_SIZE, LAND_RESERVE_SIZE, WARCHEST_DECK_SIZE } from '../meta/warchest';
 import type { SavedDeck } from '../meta/SaveManager';
 
 export type BuilderFormat = NonNullable<SavedDeck['format']>;
@@ -150,6 +151,37 @@ export function formatRulesCopy(format: BuilderFormat): string | null {
 }
 
 /**
+ * Why a saved deck that cannot be played can't be. Since an unfinished deck
+ * can be saved (owner ruling D10), `deckHealth` blocks decks the player is
+ * still building as well as decks a rules change broke, and its issues carry
+ * only messages. The deck's own counts tell the two apart: a deck off its
+ * format's card count, with a Warchest still being filled, or a Darlings deck
+ * with no Darling is unfinished. A blocked deck complete by those counts, or a
+ * retired Constructed deck, needs repair.
+ */
+export type DeckBlockKind = 'unfinished' | 'repair';
+
+export function deckBlockKind(
+  deck: Pick<SavedDeck, 'format' | 'cards' | 'landReserve' | 'darlingId'>,
+  blocked: boolean,
+  classicRetired: boolean,
+): DeckBlockKind | null {
+  if (!blocked) return null;
+  const format: BuilderFormat = isReserveFormat(deck.format) ? deck.format : 'constructed';
+  if (format === 'constructed' && classicRetired) return 'repair';
+  const warchestShort = format !== 'constructed' && (deck.landReserve?.length ?? 0) < LAND_RESERVE_SIZE;
+  const unfinished = deck.cards.length !== formatDeckSize(format)
+    || warchestShort
+    || (format === 'darlings' && !deck.darlingId);
+  return unfinished ? 'unfinished' : 'repair';
+}
+
+/** The one row label every deck list shows for a deck that cannot be played. */
+export function deckBlockLabel(kind: DeckBlockKind): string {
+  return kind === 'unfinished' ? 'Not playable yet' : 'Needs repair';
+}
+
+/**
  * Which formats the Tower accepts. Before classic retirement the Gauntlet was
  * classic-only and both reserve formats were Practice-only. Retirement makes
  * Warchest the Tower's format (every avatar fields a validated `reserveDeck`);
@@ -235,6 +267,68 @@ export function isDeckBuilderDirty(
     || working.heroCardId !== (saved.heroCardId ?? null)
     || (working.darlingId ?? null) !== (saved.darlingId ?? null)
     || (working.format ?? 'constructed') !== (saved.format ?? 'constructed');
+}
+
+/**
+ * What the builder's centre CTA offers. Save Deck always works (owner ruling
+ * D10, 2026-09-25): an unfinished deck saves as it stands and shows as
+ * unplayable wherever decks are picked. So Save is offered whenever there is
+ * something to save. Only a saved deck with nothing unsaved and something
+ * blocking it swaps Save for the repair list, where Save would have nothing
+ * to do.
+ */
+export type DeckSaveCta = 'save' | 'repair';
+
+export function deckSaveCta(state: { hasSavedRecord: boolean; dirty: boolean; blockingCount: number }): DeckSaveCta {
+  return state.hasSavedRecord && !state.dirty && state.blockingCount > 0 ? 'repair' : 'save';
+}
+
+/**
+ * Every builder path that would drop unsaved work asks first (D10): leaving,
+ * the Decks menu, a format switch, and the Darling pick.
+ */
+export type UnsavedChangesPath = 'leave' | 'decks' | 'format' | 'darling';
+
+export interface UnsavedChangesCopy {
+  body: string;
+  discardLabel: string;
+}
+
+/** The unsaved-changes prompt's copy for one path, and for a deck that cannot be played yet. */
+export function unsavedChangesCopy(path: UnsavedChangesPath, blocked: boolean): UnsavedChangesCopy {
+  const next: Record<UnsavedChangesPath, string | null> = {
+    leave: null,
+    decks: 'Save or discard them to open your decks.',
+    format: 'Save or discard them to switch formats.',
+    darling: 'Save or discard them to choose your Darling.',
+  };
+  const lines = [
+    'Your deck has changes since the last Save Deck.',
+    next[path],
+    blocked ? "Save Deck keeps it as it stands. It can't be played until its issues are fixed." : null,
+  ];
+  return {
+    body: lines.filter((line): line is string => line !== null).join(' '),
+    discardLabel: path === 'leave' ? 'Leave Without Saving' : 'Discard Changes',
+  };
+}
+
+/**
+ * Add one deck to the Main Menu's deck-repair acknowledgement. That notice
+ * says the rules changed with an update, so it must not fire for a deck the
+ * player just saved unfinished in the builder: they know it cannot be played
+ * yet. Any other newly flagged deck still gets the notice, and the menu drops
+ * this id again as soon as the deck stops being flagged.
+ */
+export function acknowledgeDeckRepairNotice(rawAcknowledgement: string, deckId: string): string {
+  let acknowledged: string[] = [];
+  try {
+    const parsed: unknown = JSON.parse(rawAcknowledgement);
+    if (Array.isArray(parsed)) acknowledged = parsed.filter((id): id is string => typeof id === 'string');
+  } catch {
+    // A malformed acknowledgement is treated as empty, as the menu treats it.
+  }
+  return deckRepairNoticeFingerprint([...acknowledged, deckId].map((id) => ({ deckId: id })));
 }
 
 /**
