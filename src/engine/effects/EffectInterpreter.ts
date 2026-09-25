@@ -32,8 +32,6 @@ export interface EffectContext {
   controller: PlayerId;
   /** New observer choices suspend their triggering action before its response window. */
   newDecisionContext?: true;
-  /** Reject unexpected targeted decisions or response windows from an activation. */
-  activated?: true;
   sourceCardId: string;
   sourceIid?: number; // set for permanents' triggered abilities
   targets: TargetRef[];
@@ -885,21 +883,20 @@ export function runOps(
     if (ctx.newDecisionContext) {
       for (const decision of state.pendingDecisions.slice(pendingCount)) decision.continuations ??= [];
     }
+    // A held revision-4 trigger pauses the effect at the point where, with no
+    // payable link, the trigger would have resolved inline: its Hauntlink
+    // windows open, it resolves, then the remaining ops run (rules.md,
+    // Hauntlink). A tail-less hold needs no frame; the flush waits for it.
     if (pending && (pending.kind === 'discard' || pending.kind === 'sacrifice' || pending.continuations !== undefined ||
-      (pending.kind === 'chooseTarget' && pending.triggerWhen !== undefined))) {
+      (pending.kind === 'chooseTarget' && pending.triggerWhen !== undefined) ||
+      (pending.kind === 'resolveTrigger' && thenOps.length > 0))) {
       pending.continuations ??= [];
       if (thenOps.length) pending.continuations.push({ context: structuredClone(ctx), ops: [...thenOps] });
       return;
     }
-    if (ctx.activated) {
-      for (const decision of state.pendingDecisions.slice(pendingCount)) {
-        if (decision.kind !== 'foresee') {
-          throw new Error('An activation cannot defer a targeted decision or response window.');
-        }
-        // A nested trigger may own the tail; preserve its context and the guard.
-        if (decision.thenContext) decision.thenContext.activated = true;
-      }
-    }
+    // A Duty defers what its ops raise exactly as a spell does: the Duty's own
+    // targets are chosen up front, and a Foresee, a targeted trigger or a held
+    // trigger it raises resolves through the same queue.
     if (pending?.kind === 'foresee') {
       if (thenOps.length > 0) {
         for (const thenOp of thenOps) assertTargetFreeForeseeContinuation(thenOp);
@@ -912,12 +909,11 @@ export function runOps(
           controller: ctx.controller,
           sourceCardId: ctx.sourceCardId,
           ...(ctx.sourceIid === undefined ? {} : { sourceIid: ctx.sourceIid }),
-          ...(ctx.activated ? { activated: true as const } : {}),
         };
         const prior = pending.thenContext;
         if (pending.thenOps?.length && prior && (
           prior.controller !== thenContext.controller || prior.sourceCardId !== thenContext.sourceCardId ||
-          prior.sourceIid !== thenContext.sourceIid || prior.activated !== thenContext.activated
+          prior.sourceIid !== thenContext.sourceIid
         )) throw new Error('Cannot combine Foresee tails with different source contexts.');
         pending.thenContext = thenContext;
         pending.thenOps = [...(pending.thenOps ?? []), ...thenOps];

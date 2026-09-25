@@ -863,7 +863,6 @@ export class Game {
         const specs = ability.targets ?? [];
         runOps(st, this.db, emit, {
           controller: player,
-          activated: true,
           sourceCardId: perm.cardId,
           sourceIid: perm.iid,
           targets: action.targets ?? [],
@@ -871,6 +870,9 @@ export class Game {
           ...(specs.length === 1 && (specs[0].upTo !== undefined || specs[0].exactly !== undefined) ? { targetBatch: true } : {}),
         }, ability.ops);
         // Like deferred-target triggers, this off-stack path owns its SBA.
+        // Whatever the ops queued (a Foresee, a targeted trigger, a held dies
+        // trigger and the rest of the Duty behind it) is raised by the drain
+        // in submit(), the queue a resolving spell uses.
         checkStateBased(st, this.db, emit);
         return;
       }
@@ -1182,7 +1184,11 @@ export class Game {
       resolveStackItem(st, this.db, item, emit);
       if ((st.rulesRev ?? 1) >= 2 && st.episode) st.episode.resolvedSinceOffer++;
       checkStateBased(st, this.db, emit);
-      if (st.pendingDecisions.some(p => p.kind === 'discard' || p.kind === 'sacrifice' || p.continuations !== undefined || (p.kind === 'chooseTarget' && p.triggerWhen !== undefined))) return;
+      // A held revision-4 trigger (raised by this item or by the check after
+      // it) resolves before the next item, as it would have inline with no
+      // payable link; the drain in submit() re-enters this flush afterwards.
+      if (st.pendingDecisions.some(p => p.kind === 'discard' || p.kind === 'sacrifice' || p.kind === 'resolveTrigger' ||
+        p.continuations !== undefined || (p.kind === 'chooseTarget' && p.triggerWhen !== undefined))) return;
     }
     st.stackClosed = false;
     if (st.winner === null) this.resumeAfterFlush(emit);

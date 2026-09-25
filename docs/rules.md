@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-09-10
+<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-09-25
      If you change those files, update this doc or re-verify the date. -->
 
 # Rules — the digital ruleset as implemented
@@ -309,6 +309,44 @@ Hauntlink is byte-identical to revision 3. The reaction the ruling names -
 moving a link off a host that a trigger or combat is about to kill - is exactly
 what the window exists for.
 
+**Where a held trigger resolves (1.8.1).** A held trigger resolves at the
+point where, with no payable link, it would have resolved inline; the window
+in front of it is the only thing revision 4 adds. Outside the Hauntlink
+window, triggers in this engine resolve the moment they fire, in the middle of
+whatever caused them, and the held trigger keeps that place:
+
+1. **In the middle of an effect.** When a spell, a Duty or another trigger
+   destroys a creature and still has ops left (destroy target creature, then
+   draw a card), the effect pauses at the death. The Hauntlink windows open,
+   the held trigger resolves, and then the effect's remaining ops run,
+   followed by a state-based check. The ops the effect had already run stand,
+   and the state-based check after them runs before the window opens, so the
+   window shows the board as it stands. Several deaths in one op (a sweep)
+   hold their triggers in battlefield order, and the effect resumes after the
+   last of them.
+2. **On the stack.** A trigger held while the stack resolves, whether the
+   death came from an item's effect or from the state-based check after it,
+   resolves before the next item on the stack. The flush pauses, the windows
+   and the trigger run, and the flush carries on.
+3. **Everywhere else** (combat damage, a Rite or Tithe payment, an attack or
+   Dawn trigger) the held trigger resolves before anyone acts again: before
+   the ordinary window it interrupts (above), before the Dawn draw, and after
+   combat damage before the Afternoon's first action.
+
+So a board with a payable link runs an effect's ops and its triggers in the
+same order as a board without one; what it adds is the window, the
+state-based check before it, and whatever links move in it. Magic orders this
+differently: the spell finishes resolving and the trigger then goes on the
+stack. This engine never had that stack for triggers, and a held trigger that
+waited for the end of the spell would make the outcome depend on whether any
+Hauntlink happened to be payable: Verdict Under Resin (destroy target
+creature, then sever the top two cards of your opponent's graveyard) on an
+opposing Drowned Bride (dies: return it to its owner's hand) would sever the
+Bride only when a link was payable. A paused spell's Empower rider and its move to the graveyard do not
+wait for the resumed ops; they happen when the spell pauses, as they do for a
+spell paused on any choice (a loot's discard, an edict). Before 1.8.1 an
+effect paused this way lost its remaining ops, and a Duty threw instead.
+
 ### Rite (additional sacrifice cost)
 
 A card with a `rite` block (`CardDef.rite`, 1.6) can be cast only by also
@@ -450,12 +488,24 @@ Warcry; mana cost unpayable; no legal target.
 **Resolution.** Paying the cost taps the source and the mana; the ops then run
 immediately in order with the permanent as source, off the stack, and a
 state-based check runs afterwards (the deferred-trigger lesson of 1.7.2). The
-opponent gets no response window, the rule Skim, Preserve and Hauntlink
-already follow. One deferral is allowed: a `foresee` op opens the usual
-look-and-bottom decision, and any ops after it resume under the activating
-player's context once that decision is made (`thenContext` on the pending
-decision); the validator forbids an inline target after a Foresee for exactly
-that reason.
+opponent gets no response window over the Duty, the rule Skim, Preserve and
+Hauntlink already follow. The Duty's own targets are chosen up front and
+never deferred; anything its ops raise is deferred through the same queue a
+resolving spell uses (1.8.1; before that anything but a Foresee threw):
+
+- a `foresee` op opens the usual look-and-bottom decision, and any ops after
+  it resume under the activating player's context once that decision is made
+  (`thenContext` on the pending decision). The validator forbids an inline
+  target after a Foresee for exactly that reason: the resumed ops no longer
+  carry the Duty's targets.
+- a dies trigger held for a Hauntlink window pauses the Duty exactly as it
+  pauses a spell (Hauntlink, "Where a held trigger resolves"): the window
+  over the trigger, the trigger, then the rest of the Duty.
+- a targeted arrival (a token or a returned creature that targets as it
+  arrives) asks for its target once the Duty has finished, as after a spell.
+  No op list may continue past such an arrival (the Starborne rule: the
+  engine refuses rather than run the rest in the arrival's context), and the
+  catalog gate keeps Duties from creating targeted-arrival permanents at all.
 
 **The arrival rule.** A permanent cannot tap for its Duty the turn it arrives
 unless it has Warcry. That is one rule for every carrier, creatures and

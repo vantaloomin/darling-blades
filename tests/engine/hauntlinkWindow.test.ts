@@ -76,6 +76,27 @@ const DB: CardDb = {
     rarity: 'c',
     tithe: { per: 2 },
   },
+  // A death that is not the spell's last effect: the draw must still happen.
+  kill_then_draw: {
+    id: 'kill_then_draw',
+    name: 'Kill Then Draw',
+    types: ['ritual'],
+    subtypes: [],
+    cost: { generic: 0, pips: {} },
+    colors: [],
+    abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'destroy', to: 'target' }, { op: 'draw', n: 1 }] }],
+    rarity: 'c',
+  },
+  life_ritual: {
+    id: 'life_ritual',
+    name: 'Life Ritual',
+    types: ['ritual'],
+    subtypes: [],
+    cost: { generic: 0, pips: {} },
+    colors: [],
+    abilities: [{ when: 'spell', ops: [{ op: 'gainLife', n: 3 }] }],
+    rarity: 'c',
+  },
 };
 
 const HOST = 1;
@@ -237,6 +258,76 @@ describe('Hauntlink window over a dies trigger (rev 4)', () => {
     expect(g.instanceState.stack).toEqual([]);
     expect(g.instanceState.battlefield.some((p) => p.cardId === 'tithe_horror')).toBe(true);
     expect(g.awaiting).toMatchObject({ player: 0, kind: 'main' });
+  });
+
+  // A held trigger resolves where the death happened, as it would on a board
+  // with no payable link; only the window comes first. The spell that caused
+  // the death pauses there and finishes afterwards (rules.md, revision 4).
+  function killThenDraw(withLink: boolean): Game {
+    const g = linkedBoard([{ iid: 9, cardId: 'dies_drainer', controller: 1 }], [[], ['kill_then_draw']], 1);
+    const st = structuredClone(g.instanceState) as GameState;
+    st.players[1].deck = ['forest', 'forest'];
+    if (!withLink) {
+      st.battlefield = st.battlefield.filter((p) => p.iid !== LINK);
+      st.battlefield.find((p) => p.iid === HOST)!.attachments = [];
+    }
+    const game = Game.restore(st, DB);
+    game.submit(1, { type: 'castSpell', handIndex: 0, targets: [{ kind: 'permanent', iid: 9 }] });
+    passIf(game, 0, 'respond'); // a movable link earns the ordinary window over the spell
+    return game;
+  }
+
+  it('pauses a spell whose death is not its last effect, then finishes it after the held trigger', () => {
+    const g = killThenDraw(true);
+
+    // The creature has died; its trigger waits behind the window, and so does
+    // the rest of the spell.
+    expect(onBoard(g, 9)).toBe(false);
+    expect(g.awaiting).toMatchObject({ player: 0, kind: 'hauntlinkWindow', over: { type: 'trigger', iid: 9 } });
+    expect(g.instanceState.players[0].life).toBe(20);
+    expect(g.instanceState.players[1].hand).toEqual([]);
+
+    g.submit(0, { type: 'passResponse' });
+    expect(g.instanceState.players[0].life).toBe(18); // the held trigger resolved
+    expect(g.instanceState.players[1].hand).toHaveLength(1); // and then the spell drew
+    expect(g.instanceState.players[1].deck).toHaveLength(1);
+    expect(g.instanceState.stack).toEqual([]);
+    expect(g.instanceState.pendingDecisions).toEqual([]);
+    expect(g.awaiting).toMatchObject({ player: 1, kind: 'main' });
+  });
+
+  it('ends a paused spell in the same state as on a board with no payable link', () => {
+    const held = killThenDraw(true);
+    held.submit(0, { type: 'passResponse' });
+    const unheld = killThenDraw(false);
+    expect(unheld.awaiting).toMatchObject({ player: 1, kind: 'main' });
+
+    const outcome = (g: Game) => ({
+      life: g.instanceState.players.map((p) => p.life),
+      hands: g.instanceState.players.map((p) => p.hand.length),
+      graves: g.instanceState.players.map((p) => p.graveyard.length),
+      awaiting: g.awaiting,
+    });
+    expect(outcome(held)).toEqual(outcome(unheld));
+  });
+
+  it('resolves a held trigger before the next item on the stack', () => {
+    const g = linkedBoard([{ iid: 9, cardId: 'dies_drainer', controller: 1 }], [['destroy_creature'], ['life_ritual']], 1);
+    g.submit(1, { type: 'castSpell', handIndex: 0 });
+    expect(g.awaiting).toMatchObject({ player: 0, kind: 'respond' });
+    g.submit(0, { type: 'castSpell', handIndex: 0, targets: [{ kind: 'permanent', iid: 9 }] });
+
+    // The removal on top resolved and its death is held; the ritual below waits.
+    expect(onBoard(g, 9)).toBe(false);
+    expect(g.awaiting).toMatchObject({ player: 0, kind: 'hauntlinkWindow', over: { type: 'trigger', iid: 9 } });
+    expect(g.instanceState.stack.map((item) => item.cardId)).toEqual(['life_ritual']);
+    expect(g.instanceState.players[1].life).toBe(20);
+
+    g.submit(0, { type: 'passResponse' });
+    expect(g.instanceState.players[0].life).toBe(18);
+    expect(g.instanceState.players[1].life).toBe(23);
+    expect(g.instanceState.stack).toEqual([]);
+    expect(g.awaiting).toMatchObject({ player: 1, kind: 'main' });
   });
 });
 

@@ -13,6 +13,7 @@ import {
 } from '../../src/meta/Replay';
 import { botAction, makeTestState, smallGreenDeck, TEST_DB } from '../helpers';
 import { activatedCatalogErrors } from '../activatedFixture';
+import { HAUNTLINK_DB } from '../hauntlinkFixture';
 
 /**
  * Tap-ability core contract (plan-tap-abilities sections 2 and 3): own-turn
@@ -625,17 +626,29 @@ describe('activation catalog arrival gate', () => {
     expect(activatedCatalogErrors(unsafe([{ op: 'createToken', token: 'bear', count: 1 }]), TEST_DB)).toEqual([]);
   });
 
-  it('throws loudly even for a final targeted-arrival op if an invalid fixture bypasses the catalog', () => {
+  /** The token's arrival deals 1 to the chosen creature; the Duty's source is 2/4. */
+  function chooseSourceForArrival(game: Game): void {
+    expect(game.awaiting).toMatchObject({ player: 0, kind: 'chooseTarget' });
+    const pick = game.legalActions(0).find((action) => action.type === 'chooseTarget' &&
+      action.target.kind === 'permanent' && action.target.iid === SOURCE);
+    expect(pick).toBeDefined();
+    game.submit(0, pick!);
+  }
+
+  it('defers a targeted arrival the Duty creates, as a spell would, when a fixture bypasses the catalog', () => {
     const d = unsafe([{ op: 'createToken', token: targetedToken.id, count: 1 }]);
     const state = board(d.id);
     state.players[0].graveyard = ['bear'];
     const game = Game.restore(state, { ...db, [d.id]: d });
-    expect(() => game.submit(0, { type: 'activate', iid: SOURCE, targets: [{ kind: 'grave', player: 0, index: 0 }] }))
-      .toThrow('An activation cannot defer a targeted decision or response window.');
-    expect(game.awaiting.kind).toBe('main');
+    game.submit(0, { type: 'activate', iid: SOURCE, targets: [{ kind: 'grave', player: 0, index: 0 }] });
+    expect(source(game.instanceState).tapped).toBe(true);
+    chooseSourceForArrival(game);
+    expect(source(game.instanceState).damage).toBe(1);
+    expect(game.instanceState.pendingDecisions).toEqual([]);
+    expect(game.awaiting).toEqual({ player: 0, kind: 'main' });
   });
 
-  it('retains the activation guard when a nested trigger owns the Foresee tail', () => {
+  it('resumes a nested trigger\'s Foresee tail into its targeted arrival after the Duty', () => {
     const d = carrier('marked_foreseer', ['creature'], {
       activated: { cost: { tap: true }, ops: [{ op: 'addCounters', n: 1, to: 'self' }] },
       abilities: [{ when: 'gainsMark', ops: [
@@ -648,11 +661,57 @@ describe('activation catalog arrival gate', () => {
     game.submit(0, { type: 'activate', iid: SOURCE });
     expect(game.awaiting.kind).toBe('foresee');
     expect(game.instanceState.pendingDecisions[0]).toMatchObject({
-      thenContext: { controller: 0, sourceCardId: d.id, sourceIid: SOURCE, activated: true },
+      thenContext: { controller: 0, sourceCardId: d.id, sourceIid: SOURCE },
     });
-    expect(() => game.submit(0, { type: 'foresee', bottomIndices: [] }))
-      .toThrow('An activation cannot defer a targeted decision or response window.');
-    expect(game.awaiting.kind).toBe('foresee');
+    game.submit(0, { type: 'foresee', bottomIndices: [] });
+    chooseSourceForArrival(game);
+    expect(source(game.instanceState)).toMatchObject({ tapped: true, plusOneCounters: 1, damage: 1 });
+    expect(game.instanceState.battlefield.filter((perm) => perm.cardId === targetedToken.id)).toHaveLength(1);
+    expect(game.awaiting).toEqual({ player: 0, kind: 'main' });
+  });
+});
+
+describe('a Duty that kills a creature whose dies trigger is held (rev 4)', () => {
+  // Player 1 holds an unlinked Hauntlink they can pay, so the victim's dies
+  // trigger is held for their window. The Duty's own targets were chosen up
+  // front; nothing about it is deferred except what the death triggers.
+  const victim: CardDef = {
+    ...TEST_DB.bear, id: 'dies_drainer',
+    abilities: [{ when: 'dies', ops: [{ op: 'loseLife', n: 2, who: 'opponent' }] }],
+  };
+  const duties: Record<string, EffectOp[]> = {
+    'destroy target creature': [{ op: 'destroy', to: 'target' }],
+    'destroy target creature, then gain 3 life': [{ op: 'destroy', to: 'target' }, { op: 'gainLife', n: 3 }],
+  };
+  const heldBoard = (ops: EffectOp[]) => {
+    const d = carrier('tap_kill', ['artifact'], {
+      activated: { cost: { tap: true }, targets: [{ what: 'creature' }], ops },
+    });
+    const fixtureDb: CardDb = {
+      ...DB, [d.id]: d, [victim.id]: victim,
+      free_host: HAUNTLINK_DB.free_host, hauntlink_enchantment: HAUNTLINK_DB.hauntlink_enchantment,
+    };
+    expect(activatedCatalogErrors(d, fixtureDb)).toEqual([]);
+    const game = Game.restore(board(d.id, [
+      { iid: TARGET, cardId: victim.id, controller: 1 },
+      { iid: 30, cardId: 'free_host', controller: 1 },
+      { iid: 31, cardId: 'hauntlink_enchantment', controller: 1 },
+    ]), fixtureDb);
+    game.submit(0, { type: 'activate', iid: SOURCE, targets: [permanent(TARGET)] });
+    return game;
+  };
+
+  it.each(Object.keys(duties))('%s: the window opens over the held trigger before the rest of the Duty', (name) => {
+    const game = heldBoard(duties[name]);
+    expect(source(game.instanceState).tapped).toBe(true);
+    expect(game.instanceState.battlefield.some((perm) => perm.iid === TARGET)).toBe(false);
+    expect(game.awaiting).toMatchObject({ player: 1, kind: 'hauntlinkWindow', over: { type: 'trigger', iid: TARGET } });
+    expect(game.instanceState.players[0].life).toBe(20); // neither the drain nor the gain yet
+
+    game.submit(1, { type: 'passResponse' });
+    expect(game.instanceState.players[0].life).toBe(name.includes('gain') ? 21 : 18);
+    expect(game.instanceState.pendingDecisions).toEqual([]);
+    expect(game.awaiting).toEqual({ player: 0, kind: 'main' });
   });
 });
 

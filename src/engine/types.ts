@@ -778,7 +778,7 @@ export interface PlayerState {
 export interface EffectContinuation {
   ops: EffectOp[];
   context: {
-    controller: PlayerId; sourceCardId: string; sourceIid?: number; activated?: true; newDecisionContext?: true;
+    controller: PlayerId; sourceCardId: string; sourceIid?: number; newDecisionContext?: true;
     targets: TargetRef[]; targetBatch?: boolean; targetSpecs?: readonly TargetSpec[];
     originalTargets?: TargetRef[]; originalTargetSpecs?: readonly TargetSpec[];
     originalTargetOwners?: (PlayerId | undefined)[];
@@ -801,8 +801,6 @@ export type PendingDecision =
         controller: PlayerId;
         sourceCardId: string;
         sourceIid?: number;
-        /** Retain the runtime guard against activation response windows. */
-        activated?: true;
       };
     }
   | {

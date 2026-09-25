@@ -93,7 +93,7 @@ describe('Drowned Deep: decision continuation and response order', () => {
 
   it('keeps the legacy prohibition against targeted ops after a Duty Foresee', () => {
     const state = board([[], []], [{ iid: 1, cardId: 'looter' }]);
-    expect(() => runOps(state, db, () => {}, { controller: 0, sourceCardId: 'looter', sourceIid: 1, activated: true,
+    expect(() => runOps(state, db, () => {}, { controller: 0, sourceCardId: 'looter', sourceIid: 1,
       targets: [{ kind: 'permanent', iid: 1 }] }, [{ op: 'foresee', n: 1 }, { op: 'addCounters', n: 1, to: 'target' }])).toThrow('target-dependent');
   });
 
