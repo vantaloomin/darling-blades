@@ -13,6 +13,7 @@ import { createLegalPanel } from '../ui/LegalPanel';
 import { LEGAL_BUTTON_LABEL } from '../ui/legalPresentation';
 import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop } from '../ui/SceneBackdrop';
+import { sceneTitle } from '../ui/sceneTitle';
 import { createStatsPrivacyPanel } from '../ui/StatsPrivacyPanel';
 import {
   ANIM_CHIP_WIDTH,
@@ -112,13 +113,9 @@ export class SettingsScene extends Phaser.Scene {
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('menu');
 
-    this.add
-      .text(640, 72, 'Settings', {
-        fontFamily: theme.fonts.display,
-        fontSize: `${theme.type.display}px`,
-        color: theme.colors.heading,
-      })
-      .setOrigin(0.5);
+    // The menus' shared title recipe on the header line (it was a 44px title
+    // centred at y 72 until 1.8.1).
+    sceneTitle(this, 'Settings');
     this.trackObject(backButton(this, 'Menu', () => this.scene.start('MainMenu')));
     registerSceneBackNavigation(this, () => this.scene.start('MainMenu'));
 

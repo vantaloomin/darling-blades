@@ -862,9 +862,11 @@ describe('title-safe frame: every placed control', () => {
     expectInside('Export Code', buttonHit(cta.exportX, d.summary.ctaY, 'sm', cta.sideMinWidth));
     expectInside('Save Deck', buttonHit(cta.saveX, d.summary.ctaY, 'md', cta.saveMinWidth));
     expectInside('Import Code', buttonHit(cta.importX, d.summary.ctaY, 'sm', cta.sideMinWidth));
-    // The pane's title row (y 32) still starts above the frame's top edge;
-    // bringing it down is a vertical pass of its own. Its right-aligned Decks
-    // button is held to the side edges here.
+    // The pane's title row sits on the shared header line since 1.8.1, and
+    // tests/ui/deckPanePresentation.test.ts holds that row, the Decks button's
+    // tap band included, to the frame's top edge. This check is horizontal:
+    // the right-aligned Decks button's tap area stays between the frame's side
+    // edges (the row's y does not enter it).
     const decks = buttonHit(d.decks.x, 0, 'sm', d.decks.minWidth);
     expect(decks.x).toBeGreaterThanOrEqual(theme.design.safeLeft);
     expect(decks.x + decks.width).toBeLessThanOrEqual(theme.design.safeRight);

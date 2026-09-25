@@ -1080,15 +1080,22 @@ export class CollectionScene extends Phaser.Scene {
       suspendAtelierForRitual,
     );
 
+    // The dismissal hint takes the corner a close button would hold: the
+    // reserved close track's right edge, on the shared header line. It sat at
+    // (640, 688) until 1.8.1 (2026-09-25), below the title-safe frame's 684
+    // and under the odds plate, and the bottom band has no room left (plate,
+    // Hero or Craft, Shard). The header line stays clear of the cleared-pin
+    // note under it (y 84).
+    const closeTrack = shell.tracks.closeTrack;
     c.add(
       this.add
         .text(
-          DESIGN_W / 2,
-          DESIGN_H - 32,
-          isTouchDevice() ? 'Tap anywhere to close' : 'Click anywhere to close',
+          closeTrack.x + closeTrack.width,
+          theme.design.headerCenterY,
+          touchProfile ? 'Tap anywhere to close' : 'Click anywhere to close',
           { fontFamily: theme.fonts.ui, fontSize: `${theme.type.label}px`, color: theme.colors.muted },
         )
-        .setOrigin(0.5),
+        .setOrigin(1, 0.5),
     );
 
     this.guard.open([...this.cells, ...this.guardTargets]);
@@ -1124,21 +1131,26 @@ export class CollectionScene extends Phaser.Scene {
     startRitual: () => void,
   ): void {
     const panelX = 740;
-    // Action chips inflate to a 52px-tall tap area, so their row centres must
-    // be ≥ 52px apart or the later-added chip steals the seam. Hero or Craft
-    // uses 620; Shard uses 684 (64px pitch), clear of variant rows above.
+    // Action chips are 40px tall with a 44px tap area, so their row centres
+    // must be at least 52px apart to keep 8px between the tap areas. Hero or
+    // Craft sits at 584 (hit 562..606); Shard at 648 (hit 626..670), inside
+    // the title-safe frame's 684 and clear of the variant pager above (522).
     const save = Services.save.data;
     if (ownedCount(save, d.id) > 0) {
+      // Name the input the player has: never "tap" to a mouse, never "click"
+      // to a finger. The last press decides once there has been one.
+      let heroVerb = isTouchDevice() ? 'tap' : 'click';
       const heroLabel = (): string =>
-        save.heroCardId === d.id ? '★ Default hero (tap to clear)' : '☆ Set default hero';
+        save.heroCardId === d.id ? `★ Default hero (${heroVerb} to clear)` : '☆ Set default hero';
       const heroBtn = this.overlayChip(
         c,
         panelX,
         584,
         heroLabel(),
         save.heroCardId === d.id ? 'primary' : 'emphasis',
-        () => {
+        (pointer) => {
           if (isRitualInProgress()) return;
+          heroVerb = pointer.wasTouch ? 'tap' : 'click';
           save.heroCardId = save.heroCardId === d.id ? null : d.id;
           Services.save.flush();
           Sfx.play('shimmer');

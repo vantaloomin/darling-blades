@@ -194,9 +194,10 @@ export const SETTINGS_RESET_BLOCK = {
  */
 export const SETTINGS_HEADER_ACTION = {
   right: SETTINGS_GAMEPLAY_PANEL.right,
-  y: 72,
+  /** On the shared header line with the back button and the scene title. */
+  y: theme.design.headerCenterY,
   /** The status line under it, right-aligned to the same edge. */
-  statusY: 72 + HIT_HALF + theme.space(2) + CAPTION / 2, // 109
+  statusY: theme.design.headerCenterY + HIT_HALF + theme.space(2) + CAPTION / 2,
   minWidth: 150,
 } as const;
 
