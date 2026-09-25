@@ -29,7 +29,7 @@ Expansions alternate **Large / Small / Large**, with **Large on even patches**:
 | **1.7** | **Starborne** (sci-fi) · Small ~150 | Propagate | none | Debt and measurement |
 | **1.8** | **Drowned Deep** (cosmic horror) · Large 250+ | Whispers | **Activated abilities with tap costs** | Land economy treatment |
 | **1.9** | **First Dawn** (prehistoric) · Small ~150 | Provoked, Hunt | none | Accessibility (Mobile moved to 2.0, ruled 2026-09-25) |
-| **2.0** | **Core Set II** (RoTK / Greek / Beastkin) · Large 250+ | The Mandate | Shared game state | Story Mode + Mobile (ruled 2026-09-25) |
+| **2.0** | **Core Set II** (RoTK / Greek / Beastkin) · Large 250+ | The Mandate | Shared game state | Story Mode + Mobile; the itch.io launch (ruled 2026-09-25) |
 | **2.1+** | **Brass Court** (steampunk) · Large | Salvage, Contraption thresholds, Union rigs | — | Cloud saves, UGC, replay coaching |
 
 Five remaining concepts, four slots to 2.0. The slate already anticipated this
@@ -101,9 +101,11 @@ Art lead time for Drowned Deep starts from this decision.
 > the editable Limited Warchest move past 2.0, and 1.9 carries First Dawn,
 > Accessibility, card art streaming and the measurement work. 2.0 now holds
 > Core Set II, The Mandate, shared game state, Story Mode and Mobile, which
-> is against the Large-release cadence rule above; decision D4 in plan-1.9
-> asks the owner to confirm 2.0 or the 2.1 valve. The text below is the
-> 2026-08-24 reasoning, kept as written.
+> is against the Large-release cadence rule above. **The owner confirmed 2.0
+> on 2026-09-25 (D4)**: 2.0 is the largest update yet, posted on itch.io and
+> advertised, so the phone experience ships with it. If 2.0 needs relief,
+> Story Mode stays the separable piece. The text below is the 2026-08-24
+> reasoning, kept as written.
 
 **1.9 is the heaviest release here**: a set plus two full-scene UI passes.
 Accessibility and Mobile are paired deliberately — both sweep every scene for
@@ -253,7 +255,8 @@ Every Road-to-2.0 feature, and where it lands.
 | Save cards (PNG) | **Shipped 1.7** (codec `src/meta/SaveImage.ts` plus the Profile export/import UI) | — |
 | Share replay codes | Spec'd, no code | 1.7 |
 | Accessibility / i18n | Partial (settings ship); approved 2026-09-25; localization RULED English only 2026-09-25 | 1.9 |
-| Mobile rebuild | Spec'd; competitive research and mockups done 2026-09-23 | 2.0 (ruled 2026-09-25; D4 in plan-1.9 asks to confirm vs the 2.1 valve) |
+| Mobile rebuild | Spec'd; competitive research and mockups done 2026-09-23 | 2.0 (ruled and confirmed 2026-09-25) |
+| itch.io launch and advertising | Owner ruling 2026-09-25; no plan yet | 2.0 |
 | AI suggested decks | Spec'd, no code | After 2.0 (ruled 2026-09-25) |
 | Story Mode | Spec'd, no code | 2.0 |
 | AI replay coaching | Spec'd, no code | 2.1 |

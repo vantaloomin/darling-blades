@@ -5,7 +5,7 @@
 **Status 2026-09-25: scope RULED, build not started.** The owner ruled the
 1.9 scope on 2026-09-25 (the table below), then the same day grouped the 1.8.x
 items with every open 1.8 review finding as the 1.8.1 patch (lane 0) and ruled
-D1, D2, D3, D5 and D6. This document turns those rulings into lanes, waves and
+D1-D6, D8, D10 and D11. D7 and D9 remain open. This document turns those rulings into lanes, waves and
 the decisions that are still open. Build starts wave by wave on the owner's
 word; each open decision gates only the lane that names it.
 
@@ -24,7 +24,7 @@ as agreed 2026-08-24, and as it stands after the owner's rulings:
 | R1 | The two new mechanics, **Provoked** and **Hunt**, are approved | Lane A; the form Provoked is D1, ruled |
 | R2 | **First Dawn is a fresh set**, drafted by an Opus 5.5 agent. The July overplan is retired | Lane B |
 | R3 | **Accessibility is approved** | Lane C |
-| R4 | **The mobile overhaul moves to 2.0** | Moved out; see D4 |
+| R4 | **The mobile overhaul moves to 2.0**, the itch.io launch (D4, ruled) | Moved out |
 | R5 | **AI suggested decks move to after 2.0** | Moved out |
 | R6 | **The editable Limited Warchest moves to after 2.0** | Moved out |
 | R7 | **Dynamic card art loading and unloading is approved** | Lane D |
@@ -103,7 +103,7 @@ G8 was found by reading only and starts with a failing test.
 | # | Finding | State on `main`, 2026-09-25 | Size | 1.8.1 PR |
 | --- | --- | --- | --- | --- |
 | **Decks** | | | | |
-| G1 | An unfinished deck cannot be saved, so leaving discards it (review T6) | Save refuses while any error stands; "Leave Without Saving" restores the last saved list; the Decks menu writes the working deck with no check, as do the format switch and the Darling pick; a never-saved deck is dropped without a prompt when another is opened. `DeckBuilderScene.ts`, `DeckStorage.ts` | M; design question D10 | decks |
+| G1 | An unfinished deck cannot be saved, so leaving discards it (review T6) | Save refuses while any error stands; "Leave Without Saving" restores the last saved list; the Decks menu writes the working deck with no check, as do the format switch and the Darling pick; a never-saved deck is dropped without a prompt when another is opened. `DeckBuilderScene.ts`, `DeckStorage.ts` | M; D10 ruled | decks |
 | **Duel** | | | | |
 | G2 | Undo can reveal hidden cards | Undo keeps the pre-action snapshot after a Skim or a draw Duty; nothing checks for a draw or Skim event. `DuelScene.ts` | XS-S | duel |
 | G3 | No Duty badge | A usable Duty shares the attackers' gold ring; `BoardCardView.setActionLabel` exists and only Hauntlink uses it | S | duel |
@@ -130,7 +130,7 @@ G8 was found by reading only and starts with a failing test.
 | G19 | ProfileScene is all literal coordinates | About 30 calls, no presentation module; Settings got one in #411 | M | profile |
 | G20 | Title-safe misses left after #431 (the frame is x 64-1216, y 36-684) | Titles above y 36 in eight scenes (Gauntlet, Glossary, Limited, Practice, Shop, Limited Deck Builder, Limited Draft, the Deck Builder's Decks view); the Deck Builder title row at y 32 and its pool pager at y 688; the Duel HUD (portraits, life, piles and Undo at the edges); the Practice peek tile, inside the frame but 59 px wide against the 90 px tap floor | M; the Duel HUD part is layout-sensitive, so before-and-after screenshots go to the owner | duel; decks; menus and meta |
 | **Telemetry** | | | | |
-| G21 | The play-stats card batch covers only play before the first tab-hide (review E6) | The copy was fixed in #428; the behaviour is unchanged, and the ruling in [plan-telemetry-and-accounts.md](plan-telemetry-and-accounts.md) reads "once when the session ends" | M; design question D11 | telemetry |
+| G21 | The play-stats card batch covers only play before the first tab-hide (review E6) | The copy was fixed in #428; the behaviour is unchanged, and the ruling in [plan-telemetry-and-accounts.md](plan-telemetry-and-accounts.md) reads "once when the session ends" | M; D11 ruled | telemetry |
 
 **The 1.8.1 PRs, by file set.** Parallel agents never share a file; where two
 groups touch one file, the second rebases onto the first.
@@ -139,12 +139,12 @@ groups touch one file, the second rebases onto the first.
 | --- | --- | --- | --- |
 | engine | G8, G7, G6 | `EffectInterpreter.ts`, `types.ts`, `actions.ts`, `Game.ts`, `view.ts`, `Replay.ts`, the AI's graveyard targeting | replay goldens; `REPLAY_LOG_VERSION` 15 |
 | duel | G2-G5, G20's Duel HUD | `DuelScene.ts` (rebased on the engine PR's targeting change), `BoardCardView.ts`, `duelPresentation.ts` | before-and-after HUD screenshots to the owner |
-| decks | G1, G17's delete confirm, G20's Deck Builder rows | `DeckBuilderScene.ts`, `DeckStorage.ts`, `deckBuilderHelpers.ts` | D10 ruled first |
+| decks | G1, G17's delete confirm, G20's Deck Builder rows | `DeckBuilderScene.ts`, `DeckStorage.ts`, `deckBuilderHelpers.ts` | every discard path prompts (D10) |
 | menus and meta | G12-G16, G17's craft confirm, G18, G20's other seven scenes and the Practice peek tile | `Achievements.ts`, `AchievementsScene.ts`, the two Limited scenes, `deckStats.ts`, `CollectionScene.ts`, `statsPrivacyPresentation.ts`, the scene title rows | G12's names and text authored first |
 | profile | G19 | `ProfileScene.ts`, a new `profilePresentation.ts` | screenshots |
 | art | G10, G11 | `ArtLoaderScene.ts`, `CardThumbCache.ts`, `CardView.ts`, `ArtResolver.ts`, `deploy.yml` (`BoardCardView.ts` after the duel PR) | no stand-in left on screen, a Pages build with the half tier |
 | AI | G9 | `activatedPolicy.ts`, `tests/ai` | the two manual matrices; floors only ratchet up |
-| telemetry | G21 | `signals.ts`, `gameBoot.ts`, `playSignals.ts`, the privacy copy | D11 ruled first |
+| telemetry | G21 | `signals.ts`, `gameBoot.ts`, `playSignals.ts`, the telemetry plan's line | a card counts once per launch (D11) |
 | regens | the seventeen images | art files, `docs/spell-art.md` | the owner's eyes |
 
 Two constraints hold the patch to patch size. **No save schema change:** G1
@@ -432,10 +432,11 @@ last before the cut, the standing rule the 1.8 ruling suspended (D9).
 
 | Item | New slot | What that means |
 | --- | --- | --- |
-| **Mobile overhaul** ([plan](plan-mobile-overhaul.md)) | **2.0** (ruled 2026-09-25; D4 asks to confirm against the spine's 2.1 valve) | The 2026-09-23 competitive research and the eleven mockups wait for it, with the four mobile decisions (portrait duel, the portrait art viewer, menu orientation, recording the verdict). The two cheap proposals (stop blocking upright tablets, art on the rotate screen) park with it. The standing Tier 1 real-device pass is unchanged |
+| **Mobile overhaul** ([plan](plan-mobile-overhaul.md)) | **2.0**, the itch.io launch (D4, ruled 2026-09-25) | The 2026-09-23 competitive research and the eleven mockups wait for it, with the four mobile decisions (portrait duel, the portrait art viewer, menu orientation, recording the verdict). The two cheap proposals (stop blocking upright tablets, art on the rotate screen) park with it. The standing Tier 1 real-device pass is unchanged |
 | **AI suggested decks** ([plan](plan-suggested-decks.md)) | **After 2.0** | Tutor v1 and the replay coach stay on one arc. A browser tutor needs a cheap evaluator; lane F's Medium screen is the nearest thing to one |
 | **Editable Limited Warchest** | **After 2.0** | The pip-demand-weighted automatic fill from #279 stays the only build |
 | Live spectating ([plan-player-replays.md](plan-player-replays.md) wave 4) | Cancelled | It rode multiplayer, cancelled 2026-08-24 |
+| **Older-set near-duplicates** (D8) | **1.9.x** | A whole-pool review and resolution plan once the comparator is fixed (wave 0); the owner approves the rule and the slate; fixes ship in a 1.9.x patch |
 
 ## Sequencing
 
@@ -462,74 +463,85 @@ Numbered so rulings can cite them. Recommendations are the first option.
 **Ruled 2026-09-25:**
 
 - **D1 The keyword's form. RULED: Provoked.** It reads as a trigger
-   ("Provoked: draw a card") and keeps clear of Magic's own Provoke (Legions,
-   2003), an unrelated forced-block keyword the blades-db translation would
-   otherwise mis-map.
+  ("Provoked: draw a card") and keeps clear of Magic's own Provoke (Legions,
+  2003), an unrelated forced-block keyword the blades-db translation would
+  otherwise mis-map.
 - **D2 Set size. RULED: 150-165**, overplanned to about 200-215. The exact
-   count and its rarity histogram lock at the cut. Starborne's shares give
-   75 C / 45 R / 14 SR / 10 SSR / 7 UR at 151 and 82 / 49 / 15 / 11 / 8 at
-   165; the brief proposes the histogram with the count.
+  count and its rarity histogram lock at the cut. Starborne's shares give
+  75 C / 45 R / 14 SR / 10 SSR / 7 UR at 151 and 82 / 49 / 15 / 11 / 8 at
+  165; the brief proposes the histogram with the count.
 - **D3 Localization. RULED: English only** (option A). No locale field, no
-   string catalog, no pseudo-locale; 2.0 carries no localization promise.
-   Accessibility still precedes Story Mode, for text size.
+  string catalog, no pseudo-locale; 2.0 carries no localization promise.
+  Accessibility still precedes Story Mode, for text size.
+- **D4 Mobile. RULED: 2.0.** The owner's framing: 2.0 is the largest update
+  the game has had, the release that goes to itch.io and is advertised, so
+  the phone experience ships with it. This sets aside, for 2.0 only and by
+  design, the cadence rule that a Large release carries little besides its
+  set and engine feature. If 2.0 needs relief, Story Mode stays the spine's
+  separable piece. The itch.io launch has no plan yet; one is owed when 2.0
+  opens (see the roadmap entry).
 - **D5 Usage audit U2-U5. RULED: the audit plan's own answers.** Code in
-   `scripts/`; no passive mechanics in waves 0-2; no usage gate in CI until a
-   full audit shows what normal is; Hard first, then one Medium pass for the
-   player-side starter columns.
+  `scripts/`; no passive mechanics in waves 0-2; no usage gate in CI until a
+  full audit shows what normal is; Hard first, then one Medium pass for the
+  player-side starter columns.
 - **D6 1.8.1 timing. RULED: cut 1.8.1 when the post-release sweep's reading
-   is in**, carrying lane 0 (now the 1.8.x items and the review carry-over);
-   `release/1.9` is cut from `main` after it.
+  is in**, carrying lane 0 (the 1.8.x items and the review carry-over);
+  `release/1.9` is cut from `main` after it.
+- **D8 The older-set near-duplicates. RULED: a review and a resolution plan,
+  resolved in a 1.9.x patch.** Known today, from the 2026-09-24 review: six
+  same-tribe stat ladders (Ragnarök and Duat twice each, Starborne twice),
+  and two pairs that differ only by a rider's cost (Duat's The Debt Is Called
+  against Two Jars, One Heart, Retell {2}{B} against {3}{B}; Dark Tales'
+  Ocean Wayfinder against Tide-Reader of the Far Reef, Skim {2} against
+  {1}). The review covers the whole pool, not only these rows, and can run
+  any time after wave 0 teaches the comparator Duty, Tithe and Whispers. It
+  writes the rule (which kinds of sameness are acceptable) and a slate, the
+  owner approves both, and the fixes ship in 1.9.x.
+- **D10 An unfinished deck (G1). RULED as recommended:** save always works;
+  an incomplete deck saves as it stands and shows as unplayable where decks
+  are picked; every path that would drop unsaved work asks first (the Decks
+  menu, opening another deck, the format switch, the Darling pick). Legality
+  is already computed, so no save field is needed.
+- **D11 The play-stats card batch (G21). RULED as recommended:** send at
+  every hide, but only the cards not yet sent this launch, so a card still
+  counts once per session and the rollup's k=10 floor keeps its meaning. The
+  privacy copy since #428 ("when you leave or close the game") already reads
+  that way; the telemetry plan's "once when the session ends" line is updated
+  to match in the same PR.
 
 **Open:**
 
-- **D4 Mobile in 2.0 or 2.1.** 2.0 already carries a Large set (Core Set II),
-   The Mandate, the shared-game-state engine feature and Story Mode, and the
-   cadence rule says a Large release carries the set, the engine feature and
-   little else. The spine's own valve for mobile was 2.1. Recommendation:
-   **2.1**, unless mobile is wanted before Story Mode. If it stays at 2.0,
-   Story Mode is the spine's named separable piece.
-- **D7 The balance items found in 1.8 but not on the ruled list.**
-   Hauntlink Apex effectively costs 8 mana since rules revision 4 made the
-   link an ability paid after casting, and it is cast in 7% of games (AI
-   audit, 2026-09-19). The tower's top tier T6 read 64.9% with its band
-   re-centred to .585 on QC day, and its tune-up was left for 1.9. The Queen
-   of the Lanterned Roof (rung 19) is the one converter defect measured
-   (58.6 to 63.9 with her authored cards) and the thinnest untuned boss.
-   Reanimator is the weakest sweep persona. The collection-dilution revisit
-   was waiting on a finished sweep. Recommendation: **one balance pass in
-   wave 4, after the usage audit's first read**, so each fix aims at a
-   measured cause. The Apex fix is a card slate, authored by the design
-   model and picked by the owner.
-- **D8 The older-set near-duplicates** from the 2026-09-24 review: six
-   same-tribe stat ladders (Ragnarök and Duat twice each, Starborne twice),
-   and two pairs that differ only by a rider's cost (Duat's The Debt Is
-   Called against Two Jars, One Heart, Retell {2}{B} against {3}{B}; Dark
-   Tales' Ocean Wayfinder against Tide-Reader of the Far Reef, Skim {2}
-   against {1}). Recommendation: **leave the stat ladders** (a curve of
-   bodies is ordinary Magic practice) **and split the two rider-cost pairs**,
-   with a slate the owner approves, mana-neutral as in #317. The split could
-   ride 1.8.1 with the other duplicate work if ruled in time.
-- **D9 Where the sweep runs.** Recommendation: **back to last before the
-   cut**, the standing rule, once lane F brings a six-persona sweep under a
-   night. If it still takes days, the owner rules as for 1.8.
-- **D10 An unfinished deck (G1), gates the 1.8.1 decks PR.** Recommendation:
-    **Save always works; an incomplete deck saves as it stands, shows as
-    unplayable where decks are picked, and every path that would drop
-    unsaved work asks first** (the Decks menu, opening another deck, the
-    format switch, the Darling pick). Legality is already computed, so no
-    save field is needed. The alternative, a "Keep draft" prompt on exit
-    only, leaves the silent Decks-menu write in place.
-- **D11 The play-stats card batch (G21), gates the 1.8.1 telemetry PR.**
-    Today the batch goes once per launch at the first tab-hide, so later play
-    is never counted; the ruling in
-    [plan-telemetry-and-accounts.md](plan-telemetry-and-accounts.md) reads
-    "once when the session ends", and the privacy copy since #428 says "when
-    you leave or close the game". Recommendation: **send at every hide, but
-    only the cards not yet sent this launch**, so a card still counts once
-    per session and the rollup's k=10 floor keeps its meaning (a plain re-arm
-    would let one tab-switcher lift a rare card over it). The alternative is
-    to keep today's behaviour, which errs on the side of privacy and
-    undercounts long sessions.
+- **D7 The balance items found in 1.8 but not on the ruled list.** Five
+  items, one recommendation each:
+  - **Hauntlink Apex.** Since rules revision 4 made a link an ability paid
+    after casting, it effectively costs 8 mana in a ten-land format, and it
+    is cast in 7% of games (AI audit, 2026-09-19). The cause is already
+    measured, so waiting for the audit adds nothing: **a small card slate,
+    authored by the design model and picked by the owner, riding 1.8.1**.
+  - **The tower's top tier (T6)** read 64.9% on QC day, down from 72.0%
+    during 1.7; its band was re-centred to .585 and the tune-up left for
+    1.9. **Tune in wave 4**, after 1.8.1's paid-Duty fix and lane F's weenie
+    work have moved the brains, so it is tuned once, not twice.
+  - **The Queen of the Lanterned Roof (rung 19)**, the one converter defect
+    measured (58.6 to 63.9 with her authored cards restored) and the
+    thinnest untuned boss. **Tune in wave 4** with the same pass: restore her
+    list, confirm on the wide matrix, raise her floor toward .57.
+  - **Reanimator**, the weakest sweep persona. **No direct change**; the
+    full sweep reading and the First Dawn brief decide whether the pool
+    needs graveyard tools.
+  - **Collection dilution**, deferred until a finished sweep. **Revisit in
+    wave 4**, once First Dawn's count is final, because every set dilutes
+    the pool further.
+- **D9 Where the sweep runs.** The standing rule is that the metagame sweep
+  runs last before a cut, so the balance numbers describe the field players
+  get. 1.8 set it aside because a sweep took days; it ran after launch with
+  five personas. Recommendation: **back to last before the 1.9.0 cut, all six
+  personas**, once lane F's weenie fix and the two levers are in. The test is
+  a measured one: if a full six-persona sweep finishes in about a night on
+  the hosted runners, it runs before the cut and a degenerate deck is caught
+  before players see it. If it still takes days, the 1.8 arrangement repeats
+  (after launch, a hotfix only if egregious). It runs on GitHub-hosted
+  runners either way, so the owner's machine is free.
 
 ## Non-goals
 

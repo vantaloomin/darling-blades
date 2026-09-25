@@ -1684,10 +1684,22 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   **mobile overhaul** (to 2.0), **AI suggested decks** and the **editable
   Limited Warchest** (both past 2.0). Ruled 2026-09-25: D1 the keyword is
   **Provoked**, D2 the set is **150-165 cards**, D3 **English only** (no
-  localization scaffold), D5 the usage audit's recommended answers, D6 1.8.1
-  cuts when the post-release sweep reads. Open: D4 (Mobile at 2.0 or the
-  spine's 2.1 valve), D7-D9, and two 1.8.1 design questions (D10 unfinished
-  decks, D11 the play-stats batch).
+  localization scaffold), D4 Mobile at **2.0**, D5 the usage audit's
+  recommended answers, D6 1.8.1 cuts when the post-release sweep reads, D8
+  the older-set near-duplicates get a review and plan resolved in a
+  **1.9.x**, D10 and D11 the two 1.8.1 design questions as recommended.
+  Open: D7 (the 1.8 balance items) and D9 (where the sweep runs).
+- **2.0 is the itch.io launch (owner ruling 2026-09-25).** The largest update
+  the game has had, with the mobile overhaul, Core Set II and Story Mode, and
+  the release that is posted on itch.io and advertised. No plan exists yet;
+  one is owed when 2.0 opens. Questions it has to answer, none of them
+  checked yet: itch serves HTML5 games from its own origin, so saves do not
+  carry over from bladedarlings.com (save codes and save cards are the
+  bridge); itch's upload limits against about 1,500 card images; the
+  play-stats Worker's allowed origins and the privacy page's list of hosts;
+  the update check, which asks GitHub; whether the Windows installer ships
+  there too and how updates reach it; and the store page (the local trailer,
+  screenshots, the link-preview image from #435, a press kit).
 - **A metagame sweep that fits in a night (2026-09-22; levers 1 and 4
   shipped in 1.8).** [plan-sweep-speed.md](plan-sweep-speed.md). Fan-out
   across GitHub-hosted runners shipped (#418, #421, #422; the owner's machine

@@ -2,11 +2,12 @@
 
 # Complete mobile UX overhaul implementation plan
 
-> **Release slot moved to 2.0** (owner ruling 2026-09-25, in
-> [plan-1.9.md](plan-1.9.md); its decision D4 asks to confirm 2.0 against the
-> 2.1 valve below, since 2.0 is a Large release that already carries Story
-> Mode). Accessibility ships alone in 1.9, so the shared layout primitives it
-> builds are what this pass reuses. The 2026-08-24 note follows as written.
+> **Release slot moved to 2.0** (owner ruling 2026-09-25, confirmed as D4 in
+> [plan-1.9.md](plan-1.9.md)): 2.0 is the itch.io launch, the largest update
+> yet and the one that is advertised, so this pass is launch-critical rather
+> than a valve. Accessibility ships alone in 1.9, so the shared layout
+> primitives it builds are what this pass reuses. The 2026-08-24 note follows
+> as written.
 >
 > **Release slot moved to 1.9** (2026-08-24). This plan was written against a
 > 1.8 scope; 1.8 is now a Large expansion plus the activated-tap-ability engine
