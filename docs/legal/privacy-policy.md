@@ -105,11 +105,11 @@ We use this only to improve the game.
   for the number of turns, mulligans, and whether you won, lost, drew, or
   conceded
 
-*When you leave or close the game, a card summary:*
+*Each time you leave or close the game, a card summary:*
 
-- which cards you played during that session, each with a broad range for how
-  often (for example "2 to 3 times"), and a broad range for how many duels the
-  session held
+- the cards you played that an earlier summary this session did not include,
+  each with a broad range for how often (for example "2 to 3 times"), as well
+  as a broad range for how many duels the session has held so far
 - these entries are kept only in memory while you play, are never saved on
   your device, and are not connected to any duel or deck. If the game closes
   unexpectedly, they are simply lost
