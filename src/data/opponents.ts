@@ -3612,6 +3612,12 @@ export const AVATARS: readonly Avatar[] = [
     // The lever is smooth, for a later owner call on her strength: two
     // Queenpin (one Mask, one Chain out) read 86.9, her 2026-08-23 strength;
     // three read 88.7; four read 89.0.
+    // 2026-09-25, 1.8.1 (owner ruling D7, Option A): the "No recost is
+    // proposed" paragraph above is superseded. yn-hauntlink-apex is recosted
+    // from {7}{U} with a Dawn draw to {3}{U} with Dawn Foresee 1 (link {3}{U}
+    // and the +3/+3 Skyborne Untouchable rider unchanged; workbench +0.46 ->
+    // -0.01). Cast on turn 4, link on turn 5. Her lists and floors are
+    // unchanged here; they are re-measured after the patch lands.
     reserveDeck: expand([
       ['yn-kitsune-neon-tyrant', 4],
       ['yn-redline-queenpin', 4],
