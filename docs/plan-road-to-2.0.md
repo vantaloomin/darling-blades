@@ -28,8 +28,8 @@ Expansions alternate **Large / Small / Large**, with **Large on even patches**:
 | --- | --- | --- | --- | --- |
 | **1.7** | **Starborne** (sci-fi) · Small ~150 | Propagate | none | Debt and measurement |
 | **1.8** | **Drowned Deep** (cosmic horror) · Large 250+ | Whispers | **Activated abilities with tap costs** | Land economy treatment |
-| **1.9** | **First Dawn** (prehistoric) · Small ~150 | Provoked, Hunt | none | Accessibility + Mobile |
-| **2.0** | **Core Set II** (RoTK / Greek / Beastkin) · Large 250+ | The Mandate | Shared game state | Story Mode |
+| **1.9** | **First Dawn** (prehistoric) · Small ~150 | Provoked, Hunt | none | Accessibility (Mobile moved to 2.0, ruled 2026-09-25) |
+| **2.0** | **Core Set II** (RoTK / Greek / Beastkin) · Large 250+ | The Mandate | Shared game state | Story Mode + Mobile (ruled 2026-09-25) |
 | **2.1+** | **Brass Court** (steampunk) · Large | Salvage, Contraption thresholds, Union rigs | — | Cloud saves, UGC, replay coaching |
 
 Five remaining concepts, four slots to 2.0. The slate already anticipated this
@@ -45,6 +45,10 @@ and it predated the Warchest reserve and the 1.7 rulings, so 1.8's set is
 authored fresh (see [plan-1.8.md](plan-1.8.md)). The remaining draft overplans
 share that provenance (one commit, 2026-07-26) and are candidate pools, not
 specs. A Small set is a cut-down from ~200 to ~150, not a blank page.
+**The First Dawn overplan was retired the same way on 2026-09-25** (owner
+ruling: a fresh set, drafted by an Opus 5.5 agent; see
+[plan-1.9.md](plan-1.9.md)), which leaves the Brass Court and Core Set II
+pools as the two from that commit still ahead of their sets.
 
 ## Why this order
 
@@ -90,6 +94,15 @@ against a shipped feature rather than co-developed with one.
 Art lead time for Drowned Deep starts from this decision.
 
 ## Load risk
+
+> **Superseded in part 2026-09-25.** The owner ruled 1.9's scope
+> ([plan-1.9.md](plan-1.9.md)): Mobile moves to 2.0, AI suggested decks and
+> the editable Limited Warchest move past 2.0, and 1.9 carries First Dawn,
+> Accessibility, card art streaming and the measurement work. 2.0 now holds
+> Core Set II, The Mandate, shared game state, Story Mode and Mobile, which
+> is against the Large-release cadence rule above; decision D4 in plan-1.9
+> asks the owner to confirm 2.0 or the 2.1 valve. The text below is the
+> 2026-08-24 reasoning, kept as written.
 
 **1.9 is the heaviest release here**: a set plus two full-scene UI passes.
 Accessibility and Mobile are paired deliberately — both sweep every scene for
@@ -232,19 +245,19 @@ Every Road-to-2.0 feature, and where it lands.
 
 | Feature | Status | Placement |
 | --- | --- | --- |
-| Expansions | 2 of 7 shipped (Yokai Nights, Sands of the Duat) | 1.7, 1.8, 1.9, 2.0, 2.1 |
+| Expansions | 4 of 7 shipped (Yokai Nights, Sands of the Duat, Starborne 1.7, Drowned Deep 1.8) | 1.9, 2.0, 2.1 |
 | Darling Mode | **Shipped 1.5.5** | — |
 | Variant decks | **Shipped** (`SavedDeck.variantPins`) | — |
 | Save codes | **Shipped** (`src/meta/SaveCode.ts`) | — |
-| Save cards (PNG) | Codec on main (`src/meta/SaveImage.ts`, 16 tests), UI not | 1.7 |
+| Save cards (PNG) | **Shipped 1.7** (codec `src/meta/SaveImage.ts` plus the Profile export/import UI) | — |
 | Share replay codes | Spec'd, no code | 1.7 |
-| Accessibility / i18n | Partial (settings ship) | 1.9 |
-| Mobile rebuild | Spec'd | 1.9 (valve: 2.1) |
-| AI suggested decks | Spec'd, no code | 1.9 |
+| Accessibility / i18n | Partial (settings ship); approved 2026-09-25; the localization decision is still open | 1.9 |
+| Mobile rebuild | Spec'd; competitive research and mockups done 2026-09-23 | 2.0 (ruled 2026-09-25; D4 in plan-1.9 asks to confirm vs the 2.1 valve) |
+| AI suggested decks | Spec'd, no code | After 2.0 (ruled 2026-09-25) |
 | Story Mode | Spec'd, no code | 2.0 |
 | AI replay coaching | Spec'd, no code | 2.1 |
 | Cloud saves / accounts | **Spec'd + decisions ruled 2026-08-28** ([spec](plan-telemetry-and-accounts.md), [rollout](rollout-telemetry-and-accounts.md)), no code | 2.1 |
-| Anonymous telemetry | **Spec'd + decisions ruled 2026-08-28** (same pair), no code | 1.8 |
+| Anonymous telemetry | **Shipped 1.8** (save v35, `playSignals`, the Worker, the first-run notice) | — |
 | UGC / mods | Spec'd, no code | 2.1 |
 | Multiplayer | **CANCELLED** | — |
 

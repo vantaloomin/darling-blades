@@ -1673,12 +1673,25 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
 
 ## Planned
 
+- **The 1.9 train (scope ruled 2026-09-25, build not started).**
+  [plan-1.9.md](plan-1.9.md) is the program plan. In: **First Dawn**, a
+  fresh ~150-card set drafted by an Opus 5.5 agent (the July overplan is
+  retired), on **Provoked** and **Hunt**, both approved; **accessibility**;
+  **card art streaming** (load on demand, unload under a budget); the
+  **mechanic usage audit**; **weenie's cost** in the Hard brain and the two
+  remaining **sweep levers**; every open **1.8 review finding**; and the
+  **1.8.x** items as a 1.8.1 patch first. Out: the **mobile overhaul**
+  (to 2.0), **AI suggested decks** and the **editable Limited Warchest**
+  (both past 2.0). Nine decisions D1-D9 are open in the plan, among them
+  the keyword's form, the overdue localization decision, and whether Mobile
+  sits at 2.0 or the spine's 2.1 valve.
 - **A metagame sweep that fits in a night (2026-09-22; levers 1 and 4
   shipped in 1.8).** [plan-sweep-speed.md](plan-sweep-speed.md). Fan-out
   across GitHub-hosted runners shipped (#418, #421, #422; the owner's machine
-  idle). Still planned for 1.9 behind flags: racing swaps with early stopping
-  and a Medium screen before the Hard measurement.
-- **Weenie's game cost in the Hard brain (1.9).** Measured 2026-09-23 on the
+  idle). **Levers 2 and 3 APPROVED for 1.9 (2026-09-25)**, behind flags:
+  racing swaps with early stopping and a Medium screen before the Hard
+  measurement ([plan-1.9.md](plan-1.9.md) lane F).
+- **Weenie's game cost in the Hard brain (1.9, APPROVED 2026-09-25).** Measured 2026-09-23 on the
   hosted sweep: a weenie game costs the Hard brain about ten times a midrange
   game (long go-wide boards), near twenty minutes per 150-seed measurement
   and 27 hours per craft, which is why the 1.8 sweep excluded the persona.
@@ -1688,7 +1701,8 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
 - **The seventeen art regenerations of 2026-09-22 (1.8.1).**
   [plan-art-regen-2026-09-22.md](plan-art-regen-2026-09-22.md): five
   close-ups and twelve hidden faces, prompts authored, to run through the
-  art pipeline and the owner's eyes.
+  art pipeline and the owner's eyes. Lane 0 of [plan-1.9.md](plan-1.9.md)
+  with the Drowned Deep duplicate split (#436).
 
 > **The release spine from 1.7 to 2.0 lives in
 > [plan-road-to-2.0.md](plan-road-to-2.0.md)** (2026-08-24): the Large/Small
@@ -1704,7 +1718,7 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
 > (investigation, 2026-08-28); it stays parked at 2.1 until its open decisions
 > are ruled, and still has no code.
 
-- **Mechanic usage audit (proposal, 2026-09-19, for 1.9).**
+- **Mechanic usage audit (proposal 2026-09-19; ON THE 1.9 LIST 2026-09-25).**
   [plan-mechanic-usage-audit.md](plan-mechanic-usage-audit.md) proposes the
   missing fourth layer of AI measurement. A policy proves the brain has a
   rule, the documented-behaviour suite proves it CAN make a play, and the
@@ -1715,8 +1729,8 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   uses per cast. Done by hand three times on 2026-09-19, it cleared a
   suspected Hauntlink policy, pointed two tuning passes at the real cause,
   and stopped a card recost. No engine change, no AI change, no player
-  telemetry, no CI gate at first. **NOTHING AUTHORIZED**; owner decisions U1
-  to U5 in the doc.
+  telemetry, no CI gate at first. **U1 RULED 2026-09-25: on the 1.9 list**
+  ([plan-1.9.md](plan-1.9.md) lane E); U2 to U5 remain open in the doc.
 - **AI brain modernization (audit, 2026-09-15). ✅ COMPLETE 2026-09-17.**
   All five phases (proof, cast ladder, 1.7 and 1.8 mechanics, combat
   keywords, draft picker) are merged on release/1.8 and 40 of 40 documented
@@ -2022,7 +2036,7 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   merge of the 151-card transcription (`feat/starborne-cards`, 65 UNMAPPED
   entries are the acceptance list) and therefore the set going live.
 - **Editable Limited Warchest, after automatic filling (ruled 2026-08-19,
-  reconfirmed 2026-08-28).** The
+  reconfirmed 2026-08-28; MOVED PAST 2.0 on 2026-09-25).** The
   [2026-08-19 ruling §2.1](plan-1.6-rulings-2026-08-19.md) stands: the Limited
   build screen exposes the 10 reserve slots so the player sets the basic split
   and chooses which drafted duals ride, with the automatic build as the
@@ -2031,7 +2045,8 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   It is the better default underneath this UI, not a replacement for it; do
   not read that PR as closing this item. Engine plumbing already exists
   (`selectedDuals` on `completeDraftRun`, `run.landReserve`); the work is the
-  build-step UI plus persistence. Not scoped to a release.
+  build-step UI plus persistence. Owner ruling 2026-09-25: after 2.0
+  (it had been deferred to 1.9 by the 1.8 ruling D7).
 - **Design plans authored 2026-07-05.** Four senior-level design docs, each
   grounded in the current code and respecting the iron invariants —
   **Commander mode and MOD/UGC were greenlit into the 1.1 program

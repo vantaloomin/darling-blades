@@ -2,8 +2,9 @@
 
 # Mechanic usage audit: how often the brains use what they can (proposal, 2026-09-19)
 
-Status: **PROPOSAL. NOTHING AUTHORIZED.** Owner decisions U1 to U5 are at the
-end. Proposed for the 1.9 train. It changes nothing that ships in 1.8.
+Status: **ON THE 1.9 LIST** (U1 ruled yes 2026-09-25; lane E of
+[plan-1.9.md](plan-1.9.md)). U2 to U5 are still open at the end; plan-1.9's D5
+recommends this doc's own answers. It changes nothing that ships in 1.8.
 
 The owner's question, 2026-09-19: "How do we get the brains to use all the
 mechanics appropriately?" This is the measurement half of the answer. The
