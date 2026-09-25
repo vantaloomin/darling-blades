@@ -187,11 +187,10 @@ describe('the command line and the config file', () => {
     expect(() => parseConfig('{"startDate":null}')).toThrow();
   });
 
-  it('ships with the start date the legal pages name as the 1.8 effective date', () => {
-    // Both are filled at the cut, together: the rollup must not count the
-    // deploy-day synthetic rows, and the privacy policy tells players the day
-    // the stats began. A null start date is the pre-cut state and writes
-    // nothing; once filled, the two surfaces have to agree.
+  it('ships with the start date the legal pages name as the 1.8 release date', () => {
+    // The day anonymous play stats began: the rollup must not count the
+    // deploy-day synthetic rows before it. It stays the 1.8 date when the
+    // privacy policy's own effective date moves ([PRIVACY EFFECTIVE DATE]).
     const shipped = parseConfig(
       readFileSync(new URL('../../scripts/signals-rollup/config.json', import.meta.url), 'utf8'),
     );

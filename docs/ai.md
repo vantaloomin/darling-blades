@@ -653,17 +653,26 @@ that a card defect wanting a ruling. The Hauntlink recost proposal that
 followed the same day recommended no recost; **the owner ruled a recost for
 1.8.1 anyway (D7, option A, on its own branch): Apex costs {3}{U} and its
 Dawn draw becomes "During your Dawn, Foresee 1", with the {3}{U} link and
-its +3/+3 Skyborne Untouchable rider unchanged.** The Kitsune rows and the
-Apex usage count are re-measured once that patch integrates. What the
-follow-up measured, on the old card:
+its +3/+3 Skyborne Untouchable rider unchanged.** The "7% of her games" was
+her pre-tune list; on the tuned list a same-code control reads 5%. What the
+follow-up measured, with the 1.8.1 re-measure beside Kitsune's rows (same
+probe, 500 of her games on the release tip; the control with the old Apex
+swapped back in reproduces the old figures exactly, so the change is the
+recost alone):
 
 | Boss, shape | Card | Cast + link | Cast when seen | Links per cast |
 | --- | --- | --- | --- | --- |
 | Queen of the Lanterned Roof, control, about 10 turns each | Hauntlink Signal Lure | 1 + 1 | 76% | 0.96 |
 | | Sanctum of Many Masks | 3 + 4 | 70% | 1.58 |
-| Kitsune, aggro, about 7 turns each | Burning Mask of the Void | 3 + 3 | 40% | 0.84 |
-| | Ember-Link Chain | 3 + 1 | 41% | 1.32 |
-| | Hauntlink Apex (before the 1.8.1 recost) | 8 + 4 | 10% | 0.75 |
+| Kitsune, aggro, about 7 turns each | Burning Mask of the Void | 3 + 3 | 40% → 33% | 0.84 → 0.79 |
+| | Ember-Link Chain | 3 + 1 | 41% → 33% | 1.32 → 1.20 |
+| | Hauntlink Apex (recost in 1.8.1) | 8 + 4 → 4 + 4 | 10% → 37% | 0.75 → 0.93 |
+
+After the recost Apex is a live card: cast in 20% of her games (5% before),
+110 casts and 102 links over the 500 against 28 and 21. It takes curve slots
+from the other two, whose casts fall from 111 and 109 to 90 and 86. Kitsune's
+record did not move (445 of 500 against 449, inside the noise, and not a gate
+measurement).
 
 A four-mana link is used MORE per cast than a one-mana link where games run
 long, so dear links are not going unused. Land drops are guaranteed in this
