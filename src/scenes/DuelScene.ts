@@ -105,6 +105,8 @@ import { Toast } from '../ui/Toast';
 import { VersusBumper } from '../ui/VersusBumper';
 import { combatForecastCopy, concedeConfirmLabel, defeatReasonCopy, resultReasonCopy } from '../ui/duelCopy';
 import {
+  attackButtonLabel,
+  attackDeclaration,
   CARD_TRAVEL_MOTION,
   CONCEDE_ARM_MS,
   DUTY_ACTION_LABEL,
@@ -116,7 +118,9 @@ import {
   dutyTargetsNeedPicker,
   dutyWindowReason,
   type DutyAction,
+  forcedAttackNotice,
   permanentActionLabel,
+  rageMustAttackNotice,
   sacrificeCastChoices,
   type SacrificeCastChoice,
   TARGET_ARROW_HEAD_LENGTH,
@@ -134,6 +138,7 @@ import {
   targetPromptTitle,
   type LandDropGuardInput,
   targetRingTone,
+  toggleAttacker,
 } from '../ui/duelPresentation';
 import { DUEL_LAYOUT, LIFE_BADGE_SIZE, LIFE_TARGET_RING, SEVERED_PILE_HIT } from '../ui/duelLayout';
 import { shouldPlayVersusBumper, versusLeitmotifPitch } from '../ui/versusBumperPresentation';
@@ -2144,6 +2149,11 @@ export class DuelScene extends Phaser.Scene {
   // Action submission + AI loop
   // ---------------------------------------------------------------------
 
+  /** Your able attackers that Rage compels right now; empty without Rage. */
+  private rageAttackers(): number[] {
+    return compelledAttackers(this.duel.state.battlefield, CARD_DB, HUMAN);
+  }
+
   private isHumanTurnDecision(): boolean {
     const a = this.duel.awaiting;
     return 'player' in a && a.player === HUMAN;
@@ -2781,7 +2791,7 @@ export class DuelScene extends Phaser.Scene {
       case 'passStep':
         return 'Action phase skipped (no playable cards)';
       case 'declareAttackers':
-        return 'Combat skipped (no able attackers)';
+        return forcedAttackNotice(forced.attackers.length);
       case 'declareBlockers':
         return 'No blockers available';
       default:
@@ -3804,6 +3814,13 @@ export class DuelScene extends Phaser.Scene {
     const view = this.duel.viewFor(HUMAN);
     this.refreshDutyActions();
     this.boardTargets.clear();
+    // Rage: the creatures that must attack enter your declaration already
+    // chosen (ring and lift), so the button never offers a skip the engine
+    // would refuse. The engine's compelled list is empty without Rage.
+    const decision = this.duel.awaiting;
+    if (!this.replayMode && decision.kind === 'declareAttackers' && decision.player === HUMAN) {
+      this.selectedAttackers = new Set(attackDeclaration(this.selectedAttackers, this.rageAttackers()));
+    }
 
     // HUD numbers
     this.hud.myLife.setText(`${st.players[HUMAN].life}`);
@@ -5148,7 +5165,7 @@ export class DuelScene extends Phaser.Scene {
         break;
       }
       case 'declareAttackers':
-        showButton(this.selectedAttackers.size > 0 ? `Attack (${this.selectedAttackers.size})` : 'Skip Combat');
+        showButton(attackButtonLabel(attackDeclaration(this.selectedAttackers, this.rageAttackers())));
         break;
       case 'declareBlockers': {
         if (this.blockAssignments.length > 0) {
@@ -5393,7 +5410,7 @@ export class DuelScene extends Phaser.Scene {
         break;
       }
       case 'declareAttackers':
-        this.act({ type: 'declareAttackers', attackers: [...this.selectedAttackers] });
+        this.act({ type: 'declareAttackers', attackers: attackDeclaration(this.selectedAttackers, this.rageAttackers()) });
         break;
       case 'declareBlockers': {
         // A lone blocker on a Dreaded attacker is a partial assignment the
@@ -6078,8 +6095,9 @@ export class DuelScene extends Phaser.Scene {
 
     if (a.kind === 'declareAttackers') {
       if (!eligibleAttackers(st.battlefield, CARD_DB, HUMAN).includes(iid)) return;
-      if (this.selectedAttackers.has(iid)) this.selectedAttackers.delete(iid);
-      else this.selectedAttackers.add(iid);
+      const toggle = toggleAttacker(this.selectedAttackers, iid, this.rageAttackers());
+      this.selectedAttackers = toggle.selected;
+      if (toggle.refused) this.showTransientNotice(rageMustAttackNotice(def(CARD_DB, perm.cardId).name));
       this.sync();
       return;
     }

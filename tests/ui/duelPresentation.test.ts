@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import type { Action } from '../../src/engine/actions';
 import type { GameEvent } from '../../src/engine/events';
+import { compelledAttackers, validateAttackers } from '../../src/engine/combat/legality';
 import { Game } from '../../src/engine/Game';
 import type { CardDb, CardDef, EffectOp } from '../../src/engine/types';
 import {
   OPPONENT_RESERVE_CLEARANCE,
   TARGET_ARROW_HEAD_LENGTH,
+  attackButtonLabel,
+  attackDeclaration,
+  forcedAttackNotice,
   hauntlinkActionLabel,
+  rageMustAttackNotice,
+  toggleAttacker,
   undoBlockedReason,
   type UndoRevealInput,
   graveActionChoice,
@@ -329,5 +335,57 @@ describe('Undo after a reveal', () => {
       ]],
     ];
     for (const [what, events] of quietActions) expect(after(events), what).toBeNull();
+  });
+});
+
+describe('Rage at the attack declaration', () => {
+  const rager: CardDef = {
+    id: 'rager', name: 'Raging Test Wolf', types: ['creature'], subtypes: [], colors: ['R'], rarity: 'c',
+    cost: { generic: 1, pips: {} }, attack: 2, defense: 2, keywords: ['rage'],
+  };
+  const db: CardDb = { ...TEST_DB, rager };
+  // One Rage creature (7) and one ordinary creature (8), both able to attack.
+  const board = makeTestState({
+    battlefield: [
+      { iid: 7, cardId: 'rager', controller: 0 },
+      { iid: 8, cardId: 'bear', controller: 0 },
+    ],
+  }).battlefield;
+  const compelled = compelledAttackers(board, db, 0);
+
+  it('never submits a declaration the engine refuses, with nothing picked or with picks', () => {
+    // The old button sent exactly your picks: nothing picked meant the empty
+    // "Skip Combat" declaration, which Rage makes illegal.
+    expect(validateAttackers(board, db, 0, [])).not.toBeNull();
+    for (const picked of [[], [8]]) {
+      const declared = attackDeclaration(picked, compelled);
+      expect(validateAttackers(board, db, 0, declared), JSON.stringify(picked)).toBeNull();
+      expect(attackButtonLabel(declared)).toBe(`Attack (${declared.length})`);
+    }
+  });
+
+  it('keeps a Rage creature in when tapped, says why, and still toggles the rest', () => {
+    const start = new Set(attackDeclaration([], compelled));
+    const refused = toggleAttacker(start, 7, compelled);
+    expect(refused.refused).toBe(true);
+    expect(refused.selected.has(7)).toBe(true);
+    const picked = toggleAttacker(start, 8, compelled);
+    expect(picked.refused).toBe(false);
+    expect(picked.selected.has(8)).toBe(true);
+    expect(toggleAttacker(picked.selected, 8, compelled).selected.has(8)).toBe(false);
+    const notice = rageMustAttackNotice(rager.name);
+    expect(notice).toContain(rager.name);
+    expect(notice).not.toMatch(/attacker \d|—/);
+  });
+
+  it('is unchanged without Rage: your picks exactly, and Skip Combat when there are none', () => {
+    expect(attackDeclaration([8, 3], [])).toEqual([8, 3]);
+    expect(attackButtonLabel(attackDeclaration([], []))).toBe('Skip Combat');
+    expect(toggleAttacker(new Set([8]), 8, []).selected.has(8)).toBe(false);
+  });
+
+  it('does not call an all-Rage forced attack a skipped combat', () => {
+    expect(forcedAttackNotice(0)).toMatch(/skipped/i);
+    for (const count of [1, 2]) expect(forcedAttackNotice(count)).not.toMatch(/skip/i);
   });
 });

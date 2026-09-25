@@ -438,6 +438,60 @@ export function sacrificeCastChoices(input: SacrificeCastInput): SacrificeCastCh
   }));
 }
 
+/**
+ * The attack declaration the smart button submits: your picks plus every
+ * creature Rage compels (`compelledAttackers`, the engine's own list).
+ * "Attacks each turn if able" is a requirement, so the engine rejects any
+ * declaration that leaves one out; the empty "Skip Combat" declaration first
+ * of all. Your picks keep their order; compelled creatures you did not pick
+ * follow them.
+ */
+export function attackDeclaration(selected: Iterable<number>, compelled: readonly number[]): number[] {
+  const declared = [...new Set(selected)];
+  for (const iid of compelled) if (!declared.includes(iid)) declared.push(iid);
+  return declared;
+}
+
+/** Smart-button label at the attack declaration. Skip Combat only when nobody attacks. */
+export function attackButtonLabel(declared: readonly number[]): string {
+  return declared.length > 0 ? `Attack (${declared.length})` : 'Skip Combat';
+}
+
+/**
+ * A tap on one of your able attackers: in or out of the declaration, except
+ * a creature Rage compels, which stays in (`refused`) so the scene can say
+ * why instead of letting the engine reject the declaration later.
+ */
+export function toggleAttacker(
+  selected: ReadonlySet<number>,
+  iid: number,
+  compelled: readonly number[],
+): { selected: Set<number>; refused: boolean } {
+  const next = new Set(selected);
+  if (compelled.includes(iid)) {
+    next.add(iid);
+    return { selected: next, refused: true };
+  }
+  if (next.has(iid)) next.delete(iid);
+  else next.add(iid);
+  return { selected: next, refused: false };
+}
+
+/** Why a Rage creature will not leave the declaration, by name, in the glossary's terms. */
+export function rageMustAttackNotice(cardName: string): string {
+  return `${cardName} has Rage: it attacks whenever it is able to.`;
+}
+
+/**
+ * Auto-skip line for a forced attack declaration. Forced means either nobody
+ * can attack, or everybody who can has Rage; the second is an attack, not a
+ * skipped combat.
+ */
+export function forcedAttackNotice(attackers: number): string {
+  if (attackers === 0) return 'Combat skipped (no able attackers)';
+  return attackers === 1 ? 'Your Rage creature attacks' : `Your ${attackers} Rage creatures attack`;
+}
+
 /** Armed smart-button label, in the terse family of "Confirm: no blocks". */
 export const LAND_DROP_CONFIRM_LABEL = 'Confirm: skip land';
 /** Toast for the End Turn path, which has no label of its own to change. */
