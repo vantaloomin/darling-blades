@@ -65,9 +65,11 @@ import { showDarlingsTutorial } from '../ui/DarlingsTutorial';
 import { computeDeckStats, curveBars, deckCountsLine, deckPipCounts, PIE_COLORS } from '../ui/deckStats';
 import {
   DECK_PANE_LAYOUT,
+  DECK_PICKER_LAYOUT,
   constructedBasicsRowY,
   constructedListTop,
   deckPaneOffsetY,
+  deckPickerTilePosition,
   deckPaneToggleState,
   deckRowCenterY,
   deckStatusTone,
@@ -1714,7 +1716,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       // The title-safe frame's full width: at 1200 the panel's border ran
       // 24px past the frame on both sides (1.8 cut, 2026-09-23).
       width: theme.design.safeWidth,
-      height: 640,
+      height: DECK_PICKER_LAYOUT.panelHeight,
       dimAlpha: 0.52,
       depth: theme.depth.modal,
       dismissal: 'esc-only',
@@ -1739,21 +1741,16 @@ export class DeckBuilderScene extends Phaser.Scene {
     };
     overlay.add(
       this.add
-        .text(640, 72, 'Your Decks', { fontFamily: theme.fonts.display, fontSize: `${theme.type.h1}px`, color: theme.colors.heading })
+        .text(theme.design.centerX, DECK_PICKER_LAYOUT.titleY, 'Your Decks', { fontFamily: theme.fonts.display, fontSize: `${theme.type.h1}px`, color: theme.colors.heading })
         .setOrigin(0.5),
     );
 
     const gridLayer = this.add.container(0, 0);
     overlay.add(gridLayer);
-    const tileW = 340;
-    const tileH = 250;
-    const gapX = 28;
-    const gapY = 18;
-    const cols = 3;
-    const rows = 2;
-    const pageSize = cols * rows;
-    const gridLeft = 640 - (cols * tileW + (cols - 1) * gapX) / 2;
-    const gridTop = 106;
+    // Tile grid and footer line: deckPanePresentation.ts (DECK_PICKER_LAYOUT).
+    const tileW = DECK_PICKER_LAYOUT.tile.width;
+    const tileH = DECK_PICKER_LAYOUT.tile.height;
+    const pageSize = DECK_PICKER_LAYOUT.tile.cols * DECK_PICKER_LAYOUT.tile.rows;
     const actionW = 66;
     const actionGap = 16;
     let pickerPage = 0;
@@ -1974,15 +1971,12 @@ export class DeckBuilderScene extends Phaser.Scene {
       const pages = Math.max(1, Math.ceil(tiles.length / pageSize));
       pickerPage = Phaser.Math.Clamp(pickerPage, 0, pages - 1);
       tiles.slice(pickerPage * pageSize, (pickerPage + 1) * pageSize).forEach((tile, i) => {
-        const col = i % cols;
-        const row = Math.floor(i / cols);
-        const x = gridLeft + tileW / 2 + col * (tileW + gapX);
-        const y = gridTop + tileH / 2 + row * (tileH + gapY);
+        const { x, y } = deckPickerTilePosition(i);
         if (tile.kind === 'deck') renderDeckTile(gridLayer, tile.deck, x, y);
         else renderNewTile(gridLayer, x, y);
       });
       if (pages > 1) {
-        const pickerPager = pager(this, 590, 638, pickerPage, pages, (page) => {
+        const pickerPager = pager(this, DECK_PICKER_LAYOUT.pagerX, DECK_PICKER_LAYOUT.footerY, pickerPage, pages, (page) => {
           pickerPage = page;
           renderGrid();
         });
@@ -1991,9 +1985,9 @@ export class DeckBuilderScene extends Phaser.Scene {
     };
     renderGrid();
 
-    const closeBtn = themedButton(this, 640, 678, 'Close', {
+    const closeBtn = themedButton(this, DECK_PICKER_LAYOUT.closeX, DECK_PICKER_LAYOUT.footerY, 'Close', {
       variant: 'ghost',
-      minWidth: 100,
+      minWidth: DECK_PICKER_LAYOUT.closeMinWidth,
       onTap: closeOverlay,
     });
     overlay.add(closeBtn.container);

@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   DECK_PANE_LAYOUT,
+  DECK_PICKER_LAYOUT,
   DECK_STATUS_LINE_HEIGHT,
+  PAGER_HIT_REACH,
   constructedBasicsRowY,
   deckPaneOffsetY,
+  deckPickerTilePosition,
   deckPaneToggleState,
   deckRowCenterY,
   deckStatusTone,
@@ -170,6 +173,42 @@ describe('deck pane presentation', () => {
     expect(new Set(slots.map(({ y }) => y)).size).toBe(5);
     expect(warchestSlotLabel(0, 'Red Cliffs Anchorage')).toBe('1. Red Cliffs Anchorage');
     expect(warchestSlotLabel(0, 'Red Cliffs Anchorage')).not.toContain('…');
+  });
+});
+
+/**
+ * The ☰ Decks picker inside the title-safe frame: Close sat on y 678 (drawn
+ * 658-698) across the panel's bottom edge, and the pager's hit band ran 8px
+ * into the second tile row, until 1.8.1. Close is a md button (40 drawn, 44
+ * hit); the pager's reach comes from the shared pager's own geometry.
+ */
+describe('deck picker footer', () => {
+  const picker = DECK_PICKER_LAYOUT;
+  const hitHalf = theme.control.minHitHeight / 2;
+  const panelTop = theme.design.centerY - picker.panelHeight / 2;
+  const panelBottom = theme.design.centerY + picker.panelHeight / 2;
+  const lastTile = deckPickerTilePosition(picker.tile.cols * picker.tile.rows - 1);
+  const gridBottom = lastTile.y + picker.tile.height / 2;
+
+  it('keeps the panel, the tiles and the footer inside the frame', () => {
+    expect(panelTop).toBeGreaterThanOrEqual(theme.design.safeTop);
+    expect(panelBottom).toBeLessThanOrEqual(theme.design.safeBottom);
+    expect(picker.footerY + hitHalf).toBeLessThanOrEqual(theme.design.safeBottom);
+    // Close is drawn inside the panel with a margin, not across its edge.
+    expect(picker.footerY + theme.control.heightMd / 2).toBeLessThanOrEqual(panelBottom - 8);
+    expect(picker.gridLeft).toBeGreaterThanOrEqual(theme.design.safeLeft);
+    expect(lastTile.x + picker.tile.width / 2).toBeLessThanOrEqual(theme.design.safeRight);
+    expect(picker.gridTop).toBeGreaterThan(picker.titleY);
+  });
+
+  it('puts the footer below the second tile row and the pager clear of Close', () => {
+    // The footer's hit bands (pager and Close share its line) start below the tiles.
+    expect(picker.footerY - hitHalf).toBeGreaterThan(gridBottom);
+    const pagerLeft = picker.pagerX - PAGER_HIT_REACH.left;
+    const pagerRight = picker.pagerX + PAGER_HIT_REACH.right;
+    const closeLeft = picker.closeX - Math.max(picker.closeMinWidth, theme.control.minHitWidth) / 2;
+    expect(pagerLeft).toBeGreaterThanOrEqual(picker.gridLeft);
+    expect(pagerRight).toBeLessThan(closeLeft);
   });
 });
 

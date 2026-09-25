@@ -1,4 +1,4 @@
-/** Phaser-free state and geometry for the Deck Builder's right-pane views. */
+/** Phaser-free state and geometry for the Deck Builder's right-pane views and its ☰ Decks picker. */
 
 import { theme } from './theme';
 
@@ -276,6 +276,54 @@ export function constructedBasicsRowY(index: number, touch: boolean): number {
 /** Where the Constructed deck list starts: one small gap below the basics block's last hit band. */
 export function constructedListTop(touch: boolean): number {
   return constructedBasicsRowY(DECK_PANE_LAYOUT.basics.count - 1, touch) + theme.control.minHitHeight / 2 + theme.space(2);
+}
+
+const PICKER_TILE = { width: 340, height: 250, gapX: 28, gapY: 18, cols: 3, rows: 2 } as const;
+const PICKER_GRID_LEFT =
+  theme.design.centerX - (PICKER_TILE.cols * PICKER_TILE.width + (PICKER_TILE.cols - 1) * PICKER_TILE.gapX) / 2;
+
+/**
+ * The ☰ Decks picker: a modal as wide as the title-safe frame, the title, two
+ * rows of three deck tiles, and one footer line under them holding Close
+ * (centred) and, when the decks fill more than one page, the pager (at the
+ * grid's left edge, clear of Close).
+ *
+ * Until 1.8.1 Close sat on y 678 (drawn 658-698), past the frame and across
+ * the panel's bottom edge, and the pager sat on y 638, its hit band 8px into
+ * the second tile row. The tiles did not move.
+ */
+export const DECK_PICKER_LAYOUT = {
+  panelHeight: 640,
+  titleY: 72,
+  tile: PICKER_TILE,
+  gridLeft: PICKER_GRID_LEFT,
+  gridTop: 106,
+  footerY: 652,
+  closeX: theme.design.centerX,
+  closeMinWidth: 100,
+  /** The pager's left chevron sits at pagerX; its hit band starts on the grid's left edge. */
+  pagerX: PICKER_GRID_LEFT + theme.control.minHitHeight / 2,
+} as const;
+
+/**
+ * How far the shared pager's hit bands reach either side of its x: the left
+ * chevron's 44px band centres on a glyph drawn from x, and the right chevron
+ * is drawn from x + 88. A chevron glyph is under 20px wide.
+ */
+export const PAGER_HIT_REACH = {
+  left: theme.control.minHitHeight / 2,
+  right: 88 + 10 + theme.control.minHitHeight / 2,
+} as const;
+
+/** Centre of picker tile `index` on a page (row-major). */
+export function deckPickerTilePosition(index: number): { x: number; y: number } {
+  const { tile, gridLeft, gridTop } = DECK_PICKER_LAYOUT;
+  const col = index % tile.cols;
+  const row = Math.floor(index / tile.cols);
+  return {
+    x: gridLeft + tile.width / 2 + col * (tile.width + tile.gapX),
+    y: gridTop + tile.height / 2 + row * (tile.height + tile.gapY),
+  };
 }
 
 export type DeckStatusTone = 'success' | 'danger';
