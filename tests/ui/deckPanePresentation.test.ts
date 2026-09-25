@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   DECK_PANE_LAYOUT,
   DECK_STATUS_LINE_HEIGHT,
+  constructedBasicsRowY,
   deckPaneOffsetY,
   deckPaneToggleState,
+  deckRowCenterY,
   deckStatusTone,
   defaultDeckPaneMode,
   resolveDeckPaneMode,
@@ -12,6 +14,59 @@ import {
   warchestSlotPosition,
 } from '../../src/ui/deckPanePresentation';
 import { theme } from '../../src/ui/theme';
+
+/**
+ * The pane's header rows inside the title-safe frame (y 36-684). The title row
+ * sat on y 32 until 1.8.1, its text and its Decks button above the frame. Hit
+ * bands are 44px tall; a control's visual is its sm height (30).
+ */
+describe('deck pane header rows', () => {
+  const layout = DECK_PANE_LAYOUT;
+  const hitHalf = theme.control.minHitHeight / 2;
+  const frameTop = theme.design.safeTop;
+
+  it('keeps the title row, text and controls alike, inside the frame', () => {
+    const title = layout.title;
+    expect(title.y - title.halfHeight).toBeGreaterThanOrEqual(frameTop);
+    expect(layout.decks.y - hitHalf).toBeGreaterThanOrEqual(frameTop);
+    expect(title.y - title.portraitHitHeight / 2).toBeGreaterThanOrEqual(frameTop);
+    const portraitHalfHeight = (420 * title.portraitScale) / 2;
+    expect(title.y - portraitHalfHeight).toBeGreaterThanOrEqual(frameTop);
+  });
+
+  it('stacks the Format and View rows below the title row without overlap', () => {
+    const title = layout.title;
+    const f = layout.formatRow;
+    // The tabs share the title text's columns, so their buttons start below it.
+    expect(f.y - theme.control.heightSm / 2).toBeGreaterThanOrEqual(title.y + title.halfHeight + 4);
+    // The Darling portrait sits above the Format label (micro type, ~14px box).
+    expect(f.y - 7).toBeGreaterThanOrEqual(title.y + (420 * title.portraitScale) / 2 + 4);
+    // Title-row controls may run level with the tabs only in columns no tab reaches.
+    const firstTabHitLeft = f.tabFirstX - theme.control.minHitWidth / 2;
+    expect(title.portraitX + title.portraitHitWidth / 2).toBeLessThan(firstTabHitLeft);
+    expect(layout.decks.x - layout.decks.minWidth / 2).toBeGreaterThanOrEqual(f.decksHitLeft);
+    // The View row shares every column with the tabs, and Style shares Decks'.
+    expect(layout.toggle.y - hitHalf).toBeGreaterThanOrEqual(f.y + hitHalf);
+    expect(layout.toggle.y - hitHalf).toBeGreaterThanOrEqual(layout.decks.y + hitHalf);
+  });
+
+  it('starts the pane content below the View row', () => {
+    // The first card row's hit band starts where the View row's ends.
+    const firstRowY = deckRowCenterY(layout.content.top + layout.content.listInset, 0, layout.cards.rowPitch);
+    expect(firstRowY - layout.cards.rowPitch / 2).toBeGreaterThanOrEqual(layout.toggle.y + hitHalf);
+    // The Warchest panel's edge clears the View buttons, and its heading sits inside it.
+    expect(layout.content.top).toBeGreaterThan(layout.toggle.y + theme.control.heightSm / 2);
+    expect(layout.warchest.headingY - 10).toBeGreaterThan(layout.content.top);
+  });
+
+  it('starts the Constructed basics block below the Format tabs', () => {
+    for (const touch of [false, true]) {
+      expect(constructedBasicsRowY(0, touch) - hitHalf).toBeGreaterThanOrEqual(layout.formatRow.y + hitHalf);
+    }
+    // Desktop rows' 44px controls never share a hit band with a neighbour's.
+    expect(layout.basics.desktopPitch).toBeGreaterThanOrEqual(theme.control.minHitHeight);
+  });
+});
 
 describe('deck pane presentation', () => {
   it('opens on Cards and toggles between the two reserve-deck views', () => {
@@ -79,10 +134,12 @@ describe('deck pane presentation', () => {
   it('lifts the View row into the hidden format switch band and never above it', () => {
     // With the switch visible the toggle keeps its own band below it.
     expect(deckPaneOffsetY(true)).toBe(0);
-    // Without it, the toggle inherits the switch's y 64 exactly: no dead band
-    // above the View row, and no collision with the y 32 title row.
-    expect(DECK_PANE_LAYOUT.toggle.y - deckPaneOffsetY(false)).toBe(64);
-    expect(DECK_PANE_LAYOUT.toggle.y - deckPaneOffsetY(false)).toBeGreaterThan(32 + 16);
+    // Without it, the toggle inherits the switch's band exactly: no dead band
+    // above the View row, and its buttons still clear the title text.
+    const liftedY = DECK_PANE_LAYOUT.toggle.y - deckPaneOffsetY(false);
+    expect(liftedY).toBe(DECK_PANE_LAYOUT.formatRow.y);
+    const title = DECK_PANE_LAYOUT.title;
+    expect(liftedY - theme.control.heightSm / 2).toBeGreaterThanOrEqual(title.y + title.halfHeight);
   });
 
   it('propagates reserve warnings to the Warchest toggle', () => {

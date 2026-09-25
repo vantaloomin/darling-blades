@@ -65,8 +65,11 @@ import { showDarlingsTutorial } from '../ui/DarlingsTutorial';
 import { computeDeckStats, curveBars, deckCountsLine, deckPipCounts, PIE_COLORS } from '../ui/deckStats';
 import {
   DECK_PANE_LAYOUT,
+  constructedBasicsRowY,
+  constructedListTop,
   deckPaneOffsetY,
   deckPaneToggleState,
+  deckRowCenterY,
   deckStatusTone,
   defaultDeckPaneMode,
   resolveDeckPaneMode,
@@ -75,6 +78,7 @@ import {
   type DeckPaneMode,
   type DeckStatusMessage,
 } from '../ui/deckPanePresentation';
+import { DECK_POOL_LAYOUT, poolCellPosition } from '../ui/deckPoolLayout';
 import { Dropdown, type DropdownOption } from '../ui/Dropdown';
 import { gateOnArt } from '../ui/artGate';
 import { applyBackdrop } from '../ui/SceneBackdrop';
@@ -94,11 +98,13 @@ import { colorInt, theme } from '../ui/theme';
 import { backButton, modalShell, pager, panel as themedPanel, registerSceneBackNavigation, sceneHasOpenModal, themedButton, type ModalShell, type Pager, type ThemedButton } from '../ui/themeWidgets';
 import {
   DARLINGS_RULES_COPY,
+  acknowledgeDeckRepairNotice,
   activeVisibleSavedDeck,
   builderFormatForDeck,
   collapseDeckRows,
   deckBaseline,
   deckCodeImportBlockers,
+  deckSaveCta,
   formatDeckSize,
   formatLabel,
   formatPageCount,
@@ -109,22 +115,16 @@ import {
   newDeckFormat,
   offeredBuilderFormats,
   restoreDeckBaseline,
+  unsavedChangesCopy,
   type BuilderFormat,
   type DeckBaseline,
+  type UnsavedChangesPath,
   visibleBuilderFormatTabs,
   visibleSavedDecks,
 } from '../ui/deckBuilderHelpers';
 
-const GRID_COLS = 4;
-const GRID_ROWS = 3;
-const GRID_SIZE = GRID_COLS * GRID_ROWS;
+const GRID_SIZE = DECK_POOL_LAYOUT.cols * DECK_POOL_LAYOUT.rows;
 const DECK_CODE_CARD_IDS = ALL_CARDS.map((card) => card.id);
-const POOL_CARD_SCALE = 0.43;
-const POOL_X0 = 190;
-const POOL_Y0 = 176;
-const POOL_PITCH_X = 170;
-const POOL_PITCH_Y = 202;
-const POOL_BADGE_OFFSET_Y = -84;
 /** Touch profile: deck-list rows per page and their pitch (plan §1.4). */
 const TOUCH_DECK_ROWS = 5;
 const TOUCH_DECK_PITCH = 44;
@@ -132,13 +132,10 @@ const TOUCH_DECK_PITCH = 44;
 const DESKTOP_DECK_ROWS = 6;
 const DESKTOP_DECK_PITCH = DECK_PANE_LAYOUT.cards.rowPitch;
 /**
- * Inline basics end at y=296; their 44px hit target ends at 318. The list
- * starts at 326, preserving the 8px group gap. renderDeckRows then fits rows
- * geometrically inside DECK_ROW_TRACK_BOTTOM (or the pager band when the list
- * pages), so the 24px summary lift on 2026-08-25 cost this retired-format
- * column its sixth unpaged row rather than overrunning the stats block.
+ * How long an armed deck Delete waits for its second press, as Settings'
+ * Reset and the Gauntlet's Abandon do.
  */
-const DESKTOP_DECK_Y0 = 336;
+const DELETE_ARM_MS = 4000;
 /** Deck-list pager row + the stats block below it (F13), both cleared by the shorter list. */
 const DECK_PAGER_Y = DECK_PANE_LAYOUT.summary.pagerY;
 const DECK_STATS_Y = DECK_PANE_LAYOUT.summary.statsHeadingY;
@@ -213,7 +210,7 @@ export class DeckBuilderScene extends Phaser.Scene {
   /** UI working deck. A hidden active deck remains untouched in the save. */
   private workingDeckId: string | null = null;
   private savedDeckSnapshot: DeckBaseline | null = null;
-  private exitPrompt: ModalShell | null = null;
+  private unsavedPrompt: ModalShell | null = null;
 
   constructor() {
     super('DeckBuilder');
@@ -254,7 +251,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.filterPanel = null;
     this.filterDropdowns = [];
     this.filterDropdownRefreshers = [];
-    this.exitPrompt = null;
+    this.unsavedPrompt = null;
 
     const save = Services.save.data;
     const requested = typeof data.deckId === 'string'
@@ -283,8 +280,11 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('shop'); // the light browsing bed
 
+    // The pool header shares the back button's line (deckPoolLayout.ts), so
+    // the title, search and Filters all sit inside the title-safe frame.
+    const poolHeaderY = DECK_POOL_LAYOUT.headerY;
     this.add
-      .text(340, 40, 'Decks', {
+      .text(DECK_POOL_LAYOUT.titleX, poolHeaderY, 'Decks', {
         fontFamily: theme.fonts.display,
         fontSize: `${theme.type.h1}px`,
         color: theme.colors.heading,
@@ -292,7 +292,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     // Card search (F8): part of the same Collection-style filter state as the panel facets.
-    this.searchInput = createSearchInput(this, POOL_SEARCH_X, 40, {
+    this.searchInput = createSearchInput(this, POOL_SEARCH_X, poolHeaderY, {
       width: POOL_SEARCH_WIDTH,
       placeholder: 'Search your pool…',
       onChange: (value) => {
@@ -301,7 +301,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       },
     });
 
-    const filter = themedButton(this, FILTER_BUTTON_X, 40, 'Filters', {
+    const filter = themedButton(this, FILTER_BUTTON_X, poolHeaderY, 'Filters', {
       variant: 'ghost',
       size: 'sm',
       minWidth: FILTER_BUTTON_WIDTH,
@@ -312,9 +312,10 @@ export class DeckBuilderScene extends Phaser.Scene {
     backButton(this, 'Menu', () => this.leaveDeckBuilder());
     registerSceneBackNavigation(this, () => this.leaveDeckBuilder());
 
-    // pool pager (‹ › audited at ~2.1mm wide — inflate to the 90px minimum;
-    // their columns are clear of the pool grid at x 118+/628–)
-    this.poolPager = pager(this, 350, height - 32, this.page, 1, (page) => {
+    // Pool pager on the shared footer line, below the grid's last row
+    // (deckPoolLayout.ts). It sat at y 688, past the title-safe frame, until
+    // 1.8.1.
+    this.poolPager = pager(this, DECK_POOL_LAYOUT.pagerX, DECK_POOL_LAYOUT.pagerY, this.page, 1, (page) => {
       this.page = page;
       this.renderPool();
     });
@@ -406,17 +407,6 @@ export class DeckBuilderScene extends Phaser.Scene {
 
   private copyLimit(): number {
     return this.activeFormat() === 'darlings' ? 1 : RULES.maxCopies;
-  }
-
-  private syncDraftToActiveDeck(): SavedDeck | null {
-    const active = this.activeSavedDeck();
-    if (!active) return null;
-    const slots = cloneDeckSlots(this.deck, this.variantPins);
-    active.cards = slots.cards;
-    active.variantPins = slots.variantPins;
-    active.landReserve = this.isReserveFormat() ? [...this.landReserve] : null;
-    if (active.heroCardId && !active.cards.includes(active.heroCardId)) active.heroCardId = null;
-    return active;
   }
 
   private currentIssues(cards: readonly string[] = this.deck): ReturnType<typeof validateDeck> {
@@ -666,8 +656,9 @@ export class DeckBuilderScene extends Phaser.Scene {
 
     if (pool.length === 0) {
       const emptyCopy = this.activePoolFilterCount() > 0 ? 'No owned cards match these filters.' : 'No cards in this set yet.';
+      const grid = DECK_POOL_LAYOUT;
       const empty = this.add
-        .text(POOL_X0 + 1.5 * POOL_PITCH_X, POOL_Y0 + POOL_PITCH_Y, emptyCopy, {
+        .text(grid.x0 + ((grid.cols - 1) / 2) * grid.pitchX, grid.y0 + ((grid.rows - 1) / 2) * grid.pitchY, emptyCopy, {
           fontFamily: theme.fonts.ui,
           fontSize: theme.type.body + 'px',
           color: theme.colors.muted,
@@ -679,14 +670,12 @@ export class DeckBuilderScene extends Phaser.Scene {
       return;
     }
 
+    const grid = DECK_POOL_LAYOUT;
     pool.slice(this.page * GRID_SIZE, (this.page + 1) * GRID_SIZE).forEach((d, i) => {
-      const col = i % GRID_COLS;
-      const row = Math.floor(i / GRID_COLS);
-      const x = POOL_X0 + col * POOL_PITCH_X;
-      const y = POOL_Y0 + row * POOL_PITCH_Y;
+      const { x, y } = poolCellPosition(i);
       // Cached-thumbnail Image instead of a live CardView — cheap to churn per page.
       const variant = this.ownedVariantFor(d.id);
-      const thumb = makeCardThumb(this, x, y, d, POOL_CARD_SCALE, undefined, variant);
+      const thumb = makeCardThumb(this, x, y, d, grid.cardScale, undefined, variant);
       thumb.setInteractive({ useHandCursor: true });
       this.zoom.attach(thumb, d, variant);
       // Tap-classified on touch so a drag across the grid can't add cards.
@@ -694,7 +683,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       this.cells.push(thumb);
       const inDeck = this.countIn(this.deck, d.id);
       const badge = this.add
-        .text(x + 60, y + POOL_BADGE_OFFSET_Y, inDeck + '/' + Math.min(this.copyLimit(), ownedCount(save, d.id)), {
+        .text(x + grid.badgeOffsetX, y + grid.badgeOffsetY, inDeck + '/' + Math.min(this.copyLimit(), ownedCount(save, d.id)), {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           fontStyle: '700',
@@ -709,7 +698,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       const addable = Math.min(this.copyLimit(), ownedCount(save, d.id)) - inDeck;
       if (addable > 1) {
         const addAll = this.add
-          .text(x - 58, y + POOL_BADGE_OFFSET_Y, `+${addable}`, {
+          .text(x + grid.chipOffsetX, y + grid.badgeOffsetY, `+${addable}`, {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.caption}px`,
             fontStyle: '700',
@@ -720,7 +709,7 @@ export class DeckBuilderScene extends Phaser.Scene {
           .setOrigin(0.5)
           .setInteractive({ useHandCursor: true });
         bindTapButton(this, addAll, () => this.addPlayset(d.id));
-        inflateHitArea(addAll, 52, 44);
+        inflateHitArea(addAll, grid.chipHitWidth, grid.chipHitHeight);
         this.cells.push(addAll);
       }
     });
@@ -797,10 +786,11 @@ export class DeckBuilderScene extends Phaser.Scene {
   /**
    * Point the builder at a deck, or at none. The unsaved-changes baseline
    * follows the deck: reloading the deck already being edited keeps its
-   * baseline (the saved record may hold this session's synced draft), and any
-   * other deck, including the one a delete falls back to, starts from its own
-   * saved record. Every path that changes the working deck comes through here,
-   * so the baseline can never belong to a different deck.
+   * baseline (the saved record can hold an unsaved hero pick, which only the
+   * baseline can undo), and any other deck, including the one a delete falls
+   * back to, starts from its own saved record. Every path that changes the
+   * working deck comes through here, so the baseline can never belong to a
+   * different deck.
    */
   private loadWorkingDeck(deck: SavedDeck | null): void {
     this.workingDeckId = deck?.id ?? null;
@@ -827,13 +817,13 @@ export class DeckBuilderScene extends Phaser.Scene {
     );
   }
 
-  private saveWorkingDeck(): boolean {
-    const issues = this.currentIssues();
-    const blocking = issues.find((issue) => issue.kind === 'error');
-    if (blocking) {
-      this.statusMessage = { text: `Save blocked: ${blocking.message}`, tone: 'danger' };
-      return false;
-    }
+  /**
+   * Write the working deck to its saved record. This always succeeds (owner
+   * ruling D10, 2026-09-25): an unfinished deck saves as it stands, and every
+   * place that picks or starts a deck judges it for itself (deckHealth), so a
+   * saved deck that cannot be played is shown as such and never seated.
+   */
+  private saveWorkingDeck(): void {
     const save = Services.save.data;
     const active = this.activeSavedDeck();
     const format = this.activeFormat();
@@ -858,81 +848,128 @@ export class DeckBuilderScene extends Phaser.Scene {
     });
     save.activeDeckId = id;
     this.workingDeckId = id;
-    this.savedDeckSnapshot = deckBaseline(save.decks.find((d) => d.id === id) ?? null);
+    const saved = save.decks.find((d) => d.id === id) ?? null;
+    this.savedDeckSnapshot = deckBaseline(saved);
+    if (saved) this.acknowledgeUnplayableDeck(saved);
     Services.save.flush();
-    this.statusMessage = null;
-    return true;
+    // The status band's issue line under this says what still stands between
+    // the deck and a duel.
+    this.statusMessage = this.currentIssues().some((issue) => issue.kind === 'error')
+      ? { text: 'Saved. Not playable yet:', tone: 'danger' }
+      : null;
+  }
+
+  /**
+   * Save a deck-level change made straight on the saved record: a format
+   * switch or a Darling pick. Both run only once nothing is unsaved (they ask
+   * first), so the record is the working deck and the change is saved on the
+   * spot; the baseline moves with it.
+   */
+  private commitSavedRecord(deck: SavedDeck): void {
+    this.savedDeckSnapshot = deckBaseline(deck);
+    this.acknowledgeUnplayableDeck(deck);
+    Services.save.flush();
+  }
+
+  /**
+   * The Main Menu's deck-repair notice says the rules changed with an update.
+   * A deck the builder writes while it cannot be played is one the player is
+   * looking at, so the notice leaves it alone; any other flagged deck still
+   * gets it, and the menu forgets this one once it can be played.
+   */
+  private acknowledgeUnplayableDeck(deck: SavedDeck): void {
+    const save = Services.save.data;
+    if (!deckHealth(CARD_DB, save, deck).blocked) return;
+    save.deckRepairNoticeAck = acknowledgeDeckRepairNotice(save.deckRepairNoticeAck, deck.id);
   }
 
   private leaveDeckBuilder(): void {
+    this.confirmUnsavedChanges('leave', () => this.scene.start('MainMenu'));
+  }
+
+  /**
+   * Run `proceed`, asking first whenever it would drop unsaved work (owner
+   * ruling D10): leaving, the Decks menu, a format switch, the Darling pick.
+   * Save Deck saves (it always can) and carries on; the discard button puts the
+   * deck back to its last save and carries on; Keep Editing does neither.
+   */
+  private confirmUnsavedChanges(path: UnsavedChangesPath, proceed: () => void): void {
     if (!this.hasUnsavedDeckEdits()) {
-      this.scene.start('MainMenu');
+      proceed();
       return;
     }
-    if (this.exitPrompt) return;
+    if (this.unsavedPrompt) return;
+    this.closeFilterPanel();
+    // The search box is a DOM element above the canvas, so the dim cannot cover it.
+    this.setSearchInputVisible(false);
+    const copy = unsavedChangesCopy(path, this.currentIssues().some((issue) => issue.kind === 'error'));
+    const staying = path !== 'leave';
     const shell = modalShell(this, {
       width: 620,
-      height: 280,
+      height: 300,
       dimAlpha: 0.82,
       dismissal: 'dismissible',
       onClose: () => {
-        if (this.exitPrompt === shell) this.exitPrompt = null;
+        if (this.unsavedPrompt === shell) this.unsavedPrompt = null;
+        this.setSearchInputVisible(true);
       },
     });
-    this.exitPrompt = shell;
+    this.unsavedPrompt = shell;
     const c = shell.container;
-    c.add(this.add.text(640, 250, 'Unsaved changes', {
+    const { titleTrack, contentBounds, footerTrack } = shell.tracks;
+    c.add(this.add.text(640, titleTrack.y + titleTrack.height / 2, 'Unsaved changes', {
       fontFamily: theme.fonts.display,
       fontSize: `${theme.type.h1}px`,
       color: theme.colors.heading,
     }).setOrigin(0.5));
-    c.add(this.add.text(640, 300, 'Your deck has changes since the last Save Deck.', {
+    c.add(this.add.text(640, contentBounds.y + contentBounds.height / 2, copy.body, {
       fontFamily: theme.fonts.ui,
       fontSize: `${theme.type.body}px`,
       color: theme.colors.body,
       align: 'center',
-      wordWrap: { width: 520 },
+      wordWrap: { width: 540 },
+      lineSpacing: 4,
     }).setOrigin(0.5));
-    const status = this.add.text(640, 348, '', {
-      fontFamily: theme.fonts.ui,
-      fontSize: `${theme.type.caption}px`,
-      color: theme.colors.danger,
-      align: 'center',
-      wordWrap: { width: 520 },
-    }).setOrigin(0.5);
-    c.add(status);
     // Three buttons (150 + 190 + 150) with 36px gaps span 562px, centred in
     // the 620px shell: 359..921 against panel edges at 330 and 950. The prior
     // 420/640/880 spacing pushed Keep Editing to 955 and off the panel.
-    const save = themedButton(this, 434, 410, 'Save Deck', {
+    const footerY = footerTrack.y + footerTrack.height / 2;
+    const save = themedButton(this, 434, footerY, 'Save Deck', {
       variant: 'primary',
       minWidth: 150,
-      enabled: this.currentIssues().every((issue) => issue.kind !== 'error'),
       onTap: () => {
-        if (!this.saveWorkingDeck()) {
-          status.setText(this.statusMessage?.text ?? '');
-          return;
-        }
         shell.close();
-        this.scene.start('MainMenu');
+        this.saveWorkingDeck();
+        if (staying) {
+          this.renderPool();
+          this.renderDeck();
+        }
+        proceed();
       },
     });
-    const leave = themedButton(this, 640, 410, 'Leave Without Saving', {
+    const discard = themedButton(this, 640, footerY, copy.discardLabel, {
       variant: 'danger',
       minWidth: 190,
       onTap: () => {
         shell.close();
         restoreDeckBaseline(Services.save.data.decks, this.savedDeckSnapshot, this.workingDeckId);
         Services.save.flush();
-        this.scene.start('MainMenu');
+        if (staying) {
+          // Same deck, so its baseline stays; the working copy returns to it.
+          this.loadWorkingDeck(this.activeSavedDeck());
+          this.deckPage = 0;
+          this.renderPool();
+          this.renderDeck();
+        }
+        proceed();
       },
     });
-    const cancel = themedButton(this, 846, 410, 'Keep Editing', {
+    const cancel = themedButton(this, 846, footerY, 'Keep Editing', {
       variant: 'ghost',
       minWidth: 150,
       onTap: shell.close,
     });
-    c.add([save.container, leave.container, cancel.container]);
+    c.add([save.container, discard.container, cancel.container]);
   }
 
   private deckHeroId(): string | null {
@@ -1099,8 +1136,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     // rather than trusting the buttons: after classic retirement this is also
     // what stops a deck from being switched BACK to constructed.
     if (!offeredBuilderFormats(this.reserveFormatsEnabled, this.classicRetired).includes(format)) return;
-    const active = this.syncDraftToActiveDeck();
-    if (!active) {
+    if (!this.activeSavedDeck()) {
       // No saved deck yet: formats live on the saved record, so tell the
       // player instead of silently ignoring the tap. The draft already sits in
       // the new-deck format, so its own (lit) tab needs no answer.
@@ -1114,12 +1150,20 @@ export class DeckBuilderScene extends Phaser.Scene {
       if (format === 'darlings') this.openDarlingsFormat();
       return;
     }
-    // The switch writes the saved record at once (the format lives there), but
-    // it stays an unsaved change: the baseline carries the format, so Leave
-    // Without Saving puts the old format back with the old cards.
+    this.confirmUnsavedChanges('format', () => this.switchFormat(format));
+  }
+
+  /**
+   * The format lives on the saved record, so a switch is written and saved on
+   * the spot. It only ever runs on a deck with nothing unsaved (selectFormat
+   * asks first), so it can never write an unsaved draft along with it.
+   */
+  private switchFormat(format: BuilderFormat): void {
+    const active = this.activeSavedDeck();
+    if (!active || this.activeFormat() === format) return;
     this.landReserve = switchDeckFormat(active, format);
+    this.commitSavedRecord(active);
     this.statusMessage = null;
-    Services.save.flush();
     this.deckPage = 0;
     this.deckPaneMode = defaultDeckPaneMode();
     this.renderPool();
@@ -1127,7 +1171,17 @@ export class DeckBuilderScene extends Phaser.Scene {
     if (format === 'darlings') this.openDarlingsFormat();
   }
 
+  /**
+   * The Darlings tutorial (first time) and then her chooser. Picking a Darling
+   * is saved on the spot (she lives on the saved record and leaves the list),
+   * so the chooser opens only once nothing is unsaved: asking here also covers
+   * the tutorial's Read More, which leaves the builder.
+   */
   private openDarlingsFormat(): void {
+    this.confirmUnsavedChanges('darling', () => this.openDarlingsTutorialOrPicker());
+  }
+
+  private openDarlingsTutorialOrPicker(): void {
     const tutorial = showDarlingsTutorial(this, {
       onDismiss: () => this.showDarlingPicker(),
       onReadMore: () => this.scene.start('Glossary', {
@@ -1183,7 +1237,10 @@ export class DeckBuilderScene extends Phaser.Scene {
       items = [];
     };
     const choose = (id: string): void => {
-      const active = this.syncDraftToActiveDeck();
+      // The chooser only opens with nothing unsaved (openDarlingsFormat asks
+      // first), so the working deck is the saved one and the pick is saved
+      // with it: she leaves the list, and the record takes both.
+      const active = this.activeSavedDeck();
       if (!active || active.format !== 'darlings') return;
       const withoutPrevious = active.darlingId
         ? removeAllDeckSlots({ cards: this.deck, variantPins: this.variantPins }, active.darlingId)
@@ -1195,7 +1252,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       active.cards = [...this.deck];
       active.variantPins = [...this.variantPins];
       active.landReserve = [...this.landReserve];
-      Services.save.flush();
+      this.commitSavedRecord(active);
       this.statusMessage = null;
       this.renderPool();
       this.renderDeck();
@@ -1264,11 +1321,10 @@ export class DeckBuilderScene extends Phaser.Scene {
     // end appends, so holes (nulls) can never reach the saved deck.
     if (cardId) next[Math.min(index, next.length)] = cardId;
     else next.splice(index, 1);
+    // An ordinary unsaved edit, like a card: Save Deck writes it. This used to
+    // copy the whole working deck into the saved record and write it to disk.
     this.landReserve = next.slice(0, LAND_RESERVE_SIZE);
-    const active = this.syncDraftToActiveDeck();
-    if (active) active.landReserve = [...this.landReserve];
     this.statusMessage = null;
-    Services.save.flush();
     this.renderDeck();
   }
 
@@ -1640,14 +1696,20 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.rightPane.push(deckPager.container);
   }
 
-  /** F15: modal deck picker — select / new / copy / rename / delete. */
+  /**
+   * F15: modal deck picker — select / new / copy / rename / delete. It opens
+   * only once nothing is unsaved (D10): it used to copy the working deck into
+   * the saved record unasked, and to throw a never-saved deck away when
+   * another deck was opened.
+   */
   private showDeckPicker(): void {
+    this.confirmUnsavedChanges('decks', () => this.openDeckPicker());
+  }
+
+  private openDeckPicker(): void {
     const save = Services.save.data;
     this.closeFilterPanel();
     this.setSearchInputVisible(false);
-    // Preserve in-progress edits: sync this.deck into the active deck before any
-    // switch/new/copy so unsaved changes aren't lost on the scene restart.
-    this.syncDraftToActiveDeck();
     const deckPickerShell = modalShell(this, {
       // The title-safe frame's full width: at 1200 the panel's border ran
       // 24px past the frame on both sides (1.8 cut, 2026-09-23).
@@ -1760,12 +1822,14 @@ export class DeckBuilderScene extends Phaser.Scene {
         size: 'sm',
         minWidth: actionW,
         onTap: () => {
-         const id = copyDeck(save, deck.id);
-         if (!id) return;
-         const index = visibleSavedDecks(save.decks, this.reserveFormatsEnabled).findIndex((d) => d.id === id);
-        if (index >= 0) pickerPage = Math.floor(index / pageSize);
-        Services.save.flush();
-        renderGrid();
+          const id = copyDeck(save, deck.id);
+          if (!id) return;
+          const copy = save.decks.find((d) => d.id === id);
+          if (copy) this.acknowledgeUnplayableDeck(copy);
+          const index = visibleSavedDecks(save.decks, this.reserveFormatsEnabled).findIndex((d) => d.id === id);
+          if (index >= 0) pickerPage = Math.floor(index / pageSize);
+          Services.save.flush();
+          renderGrid();
         },
       });
       parent.add(copyBtn.container);
@@ -1781,16 +1845,45 @@ export class DeckBuilderScene extends Phaser.Scene {
         },
       });
       parent.add(renameBtn.container);
+      // Two-press Delete, the pattern Settings' Reset, the Gauntlet's Abandon
+      // and Limited's Retire share: the first press arms it, names the press
+      // that confirms (Tap or Click, never Click to a touch player) and what is
+      // kept, and it stands down after DELETE_ARM_MS unanswered. The armed
+      // label needs the whole action column, so Rename steps aside meanwhile.
+      const deleteRestX = actionX1 - actionW / 2;
+      const actionColumnX = (actionX0 + actionX1) / 2;
+      const delNote = this.add
+        .text(actionColumnX, actionY1 + 30, 'Its cards stay in your collection.', {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.micro}px`,
+          color: theme.colors.danger,
+          align: 'center',
+          wordWrap: { width: actionX1 - actionX0 },
+        })
+        .setOrigin(0.5, 0)
+        .setVisible(false);
+      parent.add(delNote);
       let delArmed = false;
-      const delBtn = themedButton(this, actionX1 - actionW / 2, actionY1, 'Delete', {
+      const setDeleteArmed = (armed: boolean, touch = false): void => {
+        delArmed = armed;
+        delBtn.setLabel(armed ? `${touch ? 'Tap' : 'Click'} again to delete` : 'Delete');
+        delBtn.container.setX(armed ? actionColumnX : deleteRestX);
+        renameBtn.container.setVisible(!armed);
+        renameBtn.setEnabled(!armed);
+        delNote.setVisible(armed);
+      };
+      const delBtn = themedButton(this, deleteRestX, actionY1, 'Delete', {
         variant: 'danger',
         size: 'sm',
         minWidth: actionW,
-        onTap: () => {
+        onTap: (pointer) => {
         if (save.settings.confirmDestructive && !delArmed) {
-          delArmed = true;
-          delBtn.setLabel('Delete?');
-          delBtn.setVariant('primary');
+          setDeleteArmed(true, pointer.wasTouch || this.touch);
+          // A re-rendered grid has new buttons and has already disarmed, so
+          // a timer from this one leaves them alone.
+          this.time.delayedCall(DELETE_ARM_MS, () => {
+            if (delBtn.container.active && delArmed) setDeleteArmed(false);
+          });
           return;
         }
         deleteDeck(save, deck.id);
@@ -1824,6 +1917,10 @@ export class DeckBuilderScene extends Phaser.Scene {
           darlingId: null,
           landReserve: format === 'constructed' ? null : [],
         });
+        // An empty deck cannot be played; the player just made it, so the
+        // menu's "the rules changed" repair notice must not call it broken.
+        const created = save.decks.find((d) => d.id === id);
+        if (created) this.acknowledgeUnplayableDeck(created);
         pickerPage = Math.floor(index / pageSize);
         setActiveDeck(id);
         closeOverlay();
@@ -2318,7 +2415,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       const d = CARD_DB[entry.cardId];
       // All row elements center on one line (design-system alignment rule:
       // icons align to the optical center of the adjacent text).
-      const cy = listY0 + i * rowPitch + Math.round(rowPitch / 2) - 7;
+      const cy = deckRowCenterY(listY0, i, rowPitch);
       const starGlyph = !d ? '!' : !heroEditable ? '' : heroId === entry.cardId ? '★' : '☆';
       const star = this.add
         .text(x0, cy, starGlyph, {
@@ -2409,8 +2506,8 @@ export class DeckBuilderScene extends Phaser.Scene {
    * the mana curve and color balance off screen for any deck one card short of
    * legal, i.e. for most of the time you spend building one (player report
    * 2026-08-25). The blocking issues are status-band lines now, and this modal
-   * (reached from the CTA row, in the slot the dead Save button occupied)
-   * carries the full list plus the bulk action a migration repair needs.
+   * (reached from the CTA row, in Save Deck's slot while there is nothing to
+   * save) carries the full list plus the bulk action a migration repair needs.
    */
   private showRepairModal(blocking: ReturnType<typeof validateDeck>): void {
     if (blocking.length === 0) return;
@@ -2523,13 +2620,16 @@ export class DeckBuilderScene extends Phaser.Scene {
       : [];
     const issues = this.currentIssues();
     const blocking = issues.filter((issue) => issue.kind === 'error');
-    // A SAVED deck that can no longer be saved back is a repair; a deck still
-    // being built from scratch is just incomplete, and gets the ordinary
-    // (disabled) Save button rather than an alarm.
-    const repairingSavedDeck = active !== null && blocking.length > 0;
+    const saveCta = deckSaveCta({
+      hasSavedRecord: active !== null,
+      dirty: this.hasUnsavedDeckEdits(),
+      blockingCount: blocking.length,
+    });
+    // The title row sits on the shared header line (deckPanePresentation.ts).
+    const titleLayout = DECK_PANE_LAYOUT.title;
     const deckTitleX = format === 'darlings' && active?.darlingId ? x0 + 46 : x0;
     const title = this.add
-      .text(deckTitleX, 32, (active?.name ?? 'Custom Deck') + ' · ' + this.deck.length + '/' + formatDeckSize(format), {
+      .text(deckTitleX, titleLayout.y, (active?.name ?? 'Custom Deck') + ' · ' + this.deck.length + '/' + formatDeckSize(format), {
         fontFamily: theme.fonts.display,
         fontSize: theme.type.h2 + 'px',
         color: this.deck.length === formatDeckSize(format) ? theme.colors.success : theme.colors.gold,
@@ -2544,15 +2644,15 @@ export class DeckBuilderScene extends Phaser.Scene {
       // (owner finding 2026-08-18) and said nothing the tab does not.
       const portrait = makeCardThumb(
         this,
-        x0 + 20,
-        32,
+        titleLayout.portraitX,
+        titleLayout.y,
         CARD_DB[active.darlingId],
-        0.09,
+        titleLayout.portraitScale,
         undefined,
         this.ownedVariantFor(active.darlingId),
       );
       const portraitHit = this.add
-        .zone(x0 + 20, 32, 34, 46)
+        .zone(titleLayout.portraitX, titleLayout.y, titleLayout.portraitHitWidth, titleLayout.portraitHitHeight)
         .setInteractive({ useHandCursor: true });
       bindTapButton(this, portraitHit, () => this.openDarlingsFormat());
       this.rightPane.push(portrait, portraitHit);
@@ -2565,7 +2665,10 @@ export class DeckBuilderScene extends Phaser.Scene {
     const paneLift = hasWarchest ? deckPaneOffsetY(formatSwitchVisible) : 0;
     if (hasWarchest) this.renderDeckPaneToggle(reserveIssues.length, paneLift);
     if (format === 'constructed' && this.touch) {
-      const landStylesBtn = themedButton(this, x0 + 200, 32, 'Land styles', {
+      // Touch only, on the retired Constructed format. Its hit band runs 11px
+      // into the second Format tab's, as it ran 12px into it on the old y 32
+      // row: nothing else in the title row has room for a 110px button.
+      const landStylesBtn = themedButton(this, x0 + 200, titleLayout.y, 'Land styles', {
         variant: 'emphasis',
         size: 'sm',
         minWidth: 110,
@@ -2574,7 +2677,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       this.rightPane.push(landStylesBtn.container);
     }
     // F15: deck picker (switch / new / copy / rename / delete).
-    const decksBtn = themedButton(this, DECK_PANE_LAYOUT.decks.x, 32, '☰ Decks', {
+    const decksBtn = themedButton(this, DECK_PANE_LAYOUT.decks.x, DECK_PANE_LAYOUT.decks.y, '☰ Decks', {
       variant: 'emphasis',
       size: 'sm',
       minWidth: DECK_PANE_LAYOUT.decks.minWidth,
@@ -2582,19 +2685,18 @@ export class DeckBuilderScene extends Phaser.Scene {
     });
     this.rightPane.push(decksBtn.container);
 
-    let deckListY0 = this.touch ? 270 : DESKTOP_DECK_Y0;
+    // Constructed: the list starts below the basics block (deckPanePresentation.ts).
+    let deckListY0 = constructedListTop(this.touch);
     if (hasWarchest) {
-      deckListY0 = DECK_PANE_LAYOUT.content.top + 8 - paneLift;
+      deckListY0 = DECK_PANE_LAYOUT.content.top + DECK_PANE_LAYOUT.content.listInset - paneLift;
       if (this.deckPaneMode === 'warchest') this.renderReservePanel(format, paneLift);
     } else {
-      // Touch restores the pre-feature five-row block. Desktop keeps the inline
-      // preview and selector at a 52px pitch, leaving 8px between 44px targets.
-      const basicsPitch = this.touch ? 40 : 52;
+      // Touch keeps the pre-feature five-row block. Desktop carries an inline
+      // preview and selector on each row. Both start where the Format tabs'
+      // hit band ends (touch rows started at y 78, under the tabs, before 1.8.1).
       BASIC_LAND_IDS.forEach((id, i) => {
       const d = byId(id);
-      // Desktop rows start clear of the format tabs (sm buttons centered at
-      // y=64): the row preview thumb tops at y-20, so 102 keeps daylight.
-      const y = (this.touch ? 78 : 102) + i * basicsPitch;
+      const y = constructedBasicsRowY(i, this.touch);
       const n = this.countIn(this.deck, id);
       const landStyle = active?.landStyle?.[id] ?? null;
       const row = this.add
@@ -2661,7 +2763,6 @@ export class DeckBuilderScene extends Phaser.Scene {
       deckStatusTone(message, blocking.length > 0) === 'success' ? theme.colors.success : theme.colors.danger,
     );
     this.status.setText(statusLines.join('\n'));
-    const canSave = issues.every((i) => i.kind !== 'error');
     // Bottom action row: Export left-aligned to the x0 gutter, Import
     // right-aligned to the panel gutter (the old x0+334 center clipped it
     // off-screen), Save centered between them on the same baseline.
@@ -2678,16 +2779,18 @@ export class DeckBuilderScene extends Phaser.Scene {
       minWidth: cta.sideMinWidth,
       onTap: () => this.importDeckCode(),
     });
-    // A saved deck that has gone illegal cannot be saved back, so its centre
-    // CTA stops being a dead Save button and becomes the way into the repair
-    // list instead.
-    const saveBtn = !repairingSavedDeck
+    // Save Deck always works, so it is offered whenever there is something to
+    // save. A saved deck with nothing unsaved that still cannot be played gets
+    // the repair list in its place (deckSaveCta).
+    const saveBtn = saveCta === 'save'
       ? themedButton(this, cta.saveX, DECK_PANE_LAYOUT.summary.ctaY, 'Save Deck', {
         variant: 'primary',
         minWidth: cta.saveMinWidth,
-        enabled: canSave,
         onTap: () => {
-          if (!this.saveWorkingDeck()) {
+          this.saveWorkingDeck();
+          if (this.statusMessage) {
+            // Saved, but not playable yet: the band says so, and the CTA
+            // becomes the repair list.
             this.renderDeck();
             return;
           }

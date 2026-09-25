@@ -2,11 +2,15 @@ import { describe, expect, it } from 'vitest';
 import type { CardDb, CardDef } from '../../src/engine/types';
 import { switchDeckFormat } from '../../src/meta/DeckStorage';
 import { validateDarlingsDeck, validateWarchestDeck } from '../../src/meta/darlings';
+import { deckRepairNoticeState } from '../../src/meta/deckRepair';
 import { freshSave, type SavedDeck } from '../../src/meta/SaveManager';
 import { DARLINGS_DECK_SIZE, WARCHEST_DECK_SIZE } from '../../src/meta/warchest';
 import { backLabelFor } from '../../src/ui/navigation';
 import {
+  acknowledgeDeckRepairNotice,
   activeVisibleSavedDeck,
+  deckSaveCta,
+  unsavedChangesCopy,
   WARCHEST_RULES_COPY,
   DARLINGS_RULES_COPY,
   builderFormatForDeck,
@@ -240,6 +244,63 @@ describe('deck builder baseline', () => {
     // A baseline whose deck is gone writes nothing, even named as the working deck.
     expect(restoreDeckBaseline(decks, staleBaseline, 'deck-a')).toBe(false);
     expect(deckB).toEqual(before);
+  });
+});
+
+/**
+ * Save Deck always works (owner ruling D10, 2026-09-25): an unfinished deck
+ * saves as it stands. The centre CTA offers Save whenever there is something
+ * to save, and the repair list only where Save would have nothing to do.
+ */
+describe('deck builder save CTA', () => {
+  it('offers Save for any unsaved change, however unfinished the deck', () => {
+    expect(deckSaveCta({ hasSavedRecord: true, dirty: true, blockingCount: 3 })).toBe('save');
+    expect(deckSaveCta({ hasSavedRecord: false, dirty: true, blockingCount: 1 })).toBe('save');
+    expect(deckSaveCta({ hasSavedRecord: true, dirty: true, blockingCount: 0 })).toBe('save');
+  });
+
+  it('offers the repair list only for a saved, unplayable deck with nothing to save', () => {
+    expect(deckSaveCta({ hasSavedRecord: true, dirty: false, blockingCount: 2 })).toBe('repair');
+    expect(deckSaveCta({ hasSavedRecord: true, dirty: false, blockingCount: 0 })).toBe('save');
+    // A deckless draft has no record to repair.
+    expect(deckSaveCta({ hasSavedRecord: false, dirty: false, blockingCount: 2 })).toBe('save');
+  });
+
+  it('writes the unsaved-changes prompt in the house copy rules', () => {
+    for (const path of ['leave', 'decks', 'format', 'darling'] as const) {
+      for (const blocked of [false, true]) {
+        const copy = unsavedChangesCopy(path, blocked);
+        for (const text of [copy.body, copy.discardLabel]) {
+          expect(text).not.toContain('—');
+          // Touch parity: the prompt never names a mouse-only action.
+          expect(text).not.toMatch(/click/i);
+        }
+      }
+    }
+  });
+});
+
+/**
+ * The Main Menu's deck-repair notice says the rules changed with an update, so
+ * a deck the builder writes unfinished is acknowledged for it; the menu's own
+ * notice state (deckRepair.ts) is the judge.
+ */
+describe('deck repair notice acknowledgement', () => {
+  it('silences the notice for the acknowledged deck only', () => {
+    const flagged = [{ deckId: 'deck-3' }];
+    expect(deckRepairNoticeState(flagged, '[]').needsNotice).toBe(true);
+    const ack = acknowledgeDeckRepairNotice('[]', 'deck-3');
+    expect(deckRepairNoticeState(flagged, ack).needsNotice).toBe(false);
+    // A deck flagged by anything else still gets the notice.
+    expect(deckRepairNoticeState([...flagged, { deckId: 'deck-7' }], ack).needsNotice).toBe(true);
+  });
+
+  it('keeps earlier acknowledgements and survives a malformed one', () => {
+    const earlier = acknowledgeDeckRepairNotice('[]', 'deck-1');
+    const both = acknowledgeDeckRepairNotice(earlier, 'deck-2');
+    expect(deckRepairNoticeState([{ deckId: 'deck-1' }, { deckId: 'deck-2' }], both).needsNotice).toBe(false);
+    const recovered = acknowledgeDeckRepairNotice('not json', 'deck-4');
+    expect(deckRepairNoticeState([{ deckId: 'deck-4' }], recovered).needsNotice).toBe(false);
   });
 });
 
