@@ -5,8 +5,10 @@
  */
 
 import type { Action } from '../engine/actions';
-import type { CardDef, TargetRef } from '../engine/types';
-import { rulesText } from './rulesText';
+import type { GameEvent } from '../engine/events';
+import type { CardDef, PlayerId, TargetRef } from '../engine/types';
+import { activatedAbilitiesOf } from '../engine/types';
+import { activatedText, rulesText } from './rulesText';
 
 export type DuelSide = 'you' | 'opponent';
 export type TargetRingTone = 'friendly' | 'hostile';
@@ -146,10 +148,40 @@ export function hauntlinkActionLabel(hasLegalAction: boolean, linked: boolean): 
 export const DUTY_ACTION_LABEL = 'Perform Duty';
 export const DUTY_CANCEL_LABEL = 'Cancel';
 export const DUTY_PLAYER_LABELS = ['You', 'Opponent'] as const;
+/** Tile chip for a permanent whose Duty you can perform now, beside Hauntlink's Link/Relink. */
+export const DUTY_BADGE_LABEL = 'Duty';
 
-/** History line, in the Your/Enemy family of the other permanent lines. */
-export function dutyNarration(cardName: string, controller: DuelSide): string {
-  return `${controller === 'you' ? 'Your' : 'Enemy'} ${cardName} performs its Duty`;
+/**
+ * The action chip a battlefield tile carries. The shared gold ring means "you
+ * can act with this" whether the permanent can attack, move a Hauntlink or
+ * perform a Duty; the chip says which of the last two it is (an attacker has
+ * no chip). A legal Hauntlink move names itself first.
+ */
+export function permanentActionLabel(link: 'Link' | 'Relink' | null, dutyUsable: boolean): string | null {
+  return link ?? (dutyUsable ? DUTY_BADGE_LABEL : null);
+}
+
+/**
+ * What one Duty does, in the card's own words: the canonical rules line for
+ * that ability ("{2}, {T}: Draw a card.") minus its cost. Empty when the
+ * card has no such ability.
+ */
+export function dutyEffectText(card: CardDef, abilityIndex = 0): string {
+  const ability = activatedAbilitiesOf(card)[abilityIndex];
+  if (!ability) return '';
+  const line = activatedText({ ...card, activated: ability }) ?? '';
+  // Every Duty cost ends on the tap symbol, so the effect is what follows it.
+  return line.replace(/^.*?\{T\}:\s*/, '').replace(/\s*\n\s*/g, ' ').trim();
+}
+
+/**
+ * History line, in the Your/Enemy family of the other permanent lines. The
+ * effect is quoted because it is card text: its "you" is the Duty's
+ * controller, which for the foe's Duty is not the reader.
+ */
+export function dutyNarration(cardName: string, controller: DuelSide, effect = ''): string {
+  const line = `${controller === 'you' ? 'Your' : 'Enemy'} ${cardName} performs its Duty`;
+  return effect ? `${line}: “${effect}”` : line;
 }
 
 /**
@@ -410,3 +442,61 @@ export function sacrificeCastChoices(input: SacrificeCastInput): SacrificeCastCh
 export const LAND_DROP_CONFIRM_LABEL = 'Confirm: skip land';
 /** Toast for the End Turn path, which has no label of its own to change. */
 export const LAND_DROP_NOTICE = 'You still have a land drop this turn.';
+
+/**
+ * An armed Concede stands down after this long unanswered: the window
+ * Gauntlet's Abandon and Limited's Retire use (#426).
+ */
+export const CONCEDE_ARM_MS = 4000;
+
+/** Plain reasons, consequence first, in the terse family of the Duty notices. */
+const UNDO_BLOCKED_COPY = {
+  drew: 'Undo is off: you drew a card.',
+  looked: 'Undo is off: you saw the top of your deck.',
+  ownDeck: 'Undo is off: a card left your deck.',
+  foe: "Undo is off: that showed one of your opponent's cards.",
+} as const;
+
+export interface UndoRevealInput {
+  /** Everything the action emitted, the engine's own record of what moved. */
+  events: readonly GameEvent[];
+  /** The seat whose Undo this is. */
+  player: PlayerId;
+  /** Cards in that seat's deck just before and just after the action. */
+  deckBefore: number;
+  deckAfter: number;
+  /** The action left that seat looking at its own hidden cards (an open Foresee). */
+  lookingAtHiddenCards: boolean;
+}
+
+/**
+ * Why Undo is unavailable after an action, or null when it may be taken back.
+ *
+ * Undo replays a decision from the pre-action snapshot, so any action that
+ * showed the player a card that was hidden before it would let them decide
+ * again knowing that card. What counts:
+ * - `drew` for the player: every draw, including Skim's, a draw Duty, looting,
+ *   and the draw step reached by passing out of the foe's end step;
+ * - an open Foresee: the top of your deck is on screen until you answer it;
+ * - a card leaving the player's deck any other way: `milled`, a `severed`
+ *   from the deck, or any search the events do not name, caught by the deck
+ *   getting smaller;
+ * - a card of the foe's that was hidden: their deck (`milled`, `severed` from
+ *   it) or their hand (`discarded`, a random discard among them).
+ * What does not: `foresaw` (the answer to a look the player already had open,
+ * and undoing it reopens the same cards), the player's own discards and Skims
+ * (cards already in their hand), and the foe's draws (their identity never
+ * reaches the player).
+ */
+export function undoBlockedReason(input: UndoRevealInput): string | null {
+  const { events, player } = input;
+  const own = (e: GameEvent): boolean => 'player' in e && e.player === player;
+  const fromDeck = (e: GameEvent): boolean => e.e === 'milled' || (e.e === 'severed' && e.from === 'deck');
+  if (events.some((e) => e.e === 'drew' && own(e))) return UNDO_BLOCKED_COPY.drew;
+  if (input.lookingAtHiddenCards) return UNDO_BLOCKED_COPY.looked;
+  if (events.some((e) => fromDeck(e) && own(e)) || input.deckAfter < input.deckBefore) {
+    return UNDO_BLOCKED_COPY.ownDeck;
+  }
+  if (events.some((e) => (fromDeck(e) || e.e === 'discarded') && !own(e))) return UNDO_BLOCKED_COPY.foe;
+  return null;
+}

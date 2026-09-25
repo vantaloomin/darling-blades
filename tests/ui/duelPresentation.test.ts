@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest';
+import type { Action } from '../../src/engine/actions';
+import type { GameEvent } from '../../src/engine/events';
+import { Game } from '../../src/engine/Game';
+import type { CardDb, CardDef, EffectOp } from '../../src/engine/types';
 import {
   OPPONENT_RESERVE_CLEARANCE,
   TARGET_ARROW_HEAD_LENGTH,
   hauntlinkActionLabel,
+  undoBlockedReason,
+  type UndoRevealInput,
   graveActionChoice,
   hauntlinkOverlap,
   landDropGuardApplies,
@@ -19,6 +25,7 @@ import {
   targetRingTone,
 } from '../../src/ui/duelPresentation';
 import { packRow } from '../../src/ui/rowPacking';
+import { makeTestState, TEST_DB } from '../helpers';
 
 describe('duel presentation rules', () => {
   it('tucks Hauntlink cards upward with an exposed header on either battlefield row', () => {
@@ -237,5 +244,90 @@ describe('Tithe and Rite cast chooser', () => {
       expect(mean).toBe(SACRIFICE_CHOOSER_CENTER_X);
       for (let i = 1; i < row.length; i++) expect(row[i].x - row[i - 1].x).toBeGreaterThan(180);
     }
+  });
+});
+
+describe('Undo after a reveal', () => {
+  const quiet: UndoRevealInput = {
+    events: [],
+    player: 0,
+    deckBefore: 30,
+    deckAfter: 30,
+    lookingAtHiddenCards: false,
+  };
+  const after = (events: GameEvent[], extra: Partial<UndoRevealInput> = {}) =>
+    undoBlockedReason({ ...quiet, events, ...extra });
+
+  it('turns Undo off after any action that showed you a card hidden before it', () => {
+    const reveals: [string, string | null][] = [
+      ['a draw', after([{ e: 'drew', player: 0, cardId: 'x' }], { deckAfter: 29 })],
+      ['a Skim', after([
+        { e: 'skimmed', player: 0, cardId: 'x' },
+        { e: 'drew', player: 0, cardId: 'y' },
+      ], { deckAfter: 29 })],
+      ['an open Foresee', after([{ e: 'activated', player: 0, iid: 7, cardId: 'x' }], { lookingAtHiddenCards: true })],
+      ['your top card to the graveyard', after([{ e: 'milled', player: 0, cardId: 'x' }], { deckAfter: 29 })],
+      ['your top card severed', after([{ e: 'severed', player: 0, cardId: 'x', from: 'deck' }], { deckAfter: 29 })],
+      ['a search no event names', after([{ e: 'effectApplied', op: 'fetchLand' }], { deckAfter: 29 })],
+      ["the foe's top card to the graveyard", after([{ e: 'milled', player: 1, cardId: 'x' }])],
+      ["the foe's top card severed", after([{ e: 'severed', player: 1, cardId: 'x', from: 'deck' }])],
+      ["a card from the foe's hand", after([{ e: 'discarded', player: 1, cardId: 'x' }])],
+    ];
+    for (const [what, reason] of reveals) {
+      expect(reason, what).not.toBeNull();
+      expect(reason!, what).toMatch(/^Undo is off: /);
+      expect(reason!, what).not.toContain('\u2014');
+    }
+  });
+
+  it('reads the real engine the way the scene does: a draw, a Skim or a look turns Undo off', () => {
+    const duty = (ops: EffectOp[]): CardDef => ({
+      id: 'undo_duty', name: 'Undo Duty', types: ['artifact'], subtypes: [], colors: [], rarity: 'c',
+      cost: { generic: 0, pips: {} }, activated: { cost: { tap: true }, ops },
+    });
+    const skimmer: CardDef = {
+      id: 'undo_skim', name: 'Undo Skim', types: ['ritual'], subtypes: [], colors: [], rarity: 'c',
+      cost: { generic: 9, pips: {} }, abilities: [{ when: 'spell', ops: [{ op: 'gainLife', n: 1 }] }],
+      skim: { cost: { generic: 0, pips: {} } },
+    };
+    // Submit one of your actions, then judge it exactly as DuelScene.act does.
+    const judge = (ops: EffectOp[], pick: (legal: Action[]) => Action | undefined) => {
+      const db: CardDb = { ...TEST_DB, undo_duty: duty(ops), undo_skim: skimmer };
+      const state = makeTestState({ battlefield: [{ iid: 10, cardId: 'undo_duty', controller: 0 }], hands: [['undo_skim'], []] });
+      state.players[0].deck = Array.from({ length: 12 }, () => 'forest');
+      state.players[1].deck = Array.from({ length: 12 }, () => 'forest');
+      const game = Game.restore(state, db);
+      const action = pick(game.legalActions(0));
+      if (!action) throw new Error('fixture action is not legal');
+      const deckBefore = game.instanceState.players[0].deck.length;
+      const events = game.submit(0, action);
+      const awaiting = game.awaiting;
+      return undoBlockedReason({
+        events, player: 0, deckBefore, deckAfter: game.instanceState.players[0].deck.length,
+        lookingAtHiddenCards: awaiting.kind === 'foresee' && awaiting.player === 0,
+      });
+    };
+    const activate = (legal: Action[]) => legal.find((a) => a.type === 'activate');
+    const skim = (legal: Action[]) => legal.find((a) => a.type === 'skim');
+    expect(judge([{ op: 'draw', n: 1 }], activate), 'draw Duty').not.toBeNull();
+    expect(judge([{ op: 'foresee', n: 2 }], activate), 'Foresee Duty').not.toBeNull();
+    expect(judge([{ op: 'grind', n: 1, who: 'self' }], activate), 'mill-yourself Duty').not.toBeNull();
+    expect(judge([{ op: 'gainLife', n: 1 }], skim), 'Skim').not.toBeNull();
+    expect(judge([{ op: 'gainLife', n: 1 }], activate), 'life-gain Duty').toBeNull();
+  });
+
+  it('keeps Undo for actions that showed nothing new', () => {
+    const quietActions: [string, GameEvent[]][] = [
+      ['nothing at all', []],
+      ["the foe's draw", [{ e: 'drew', player: 1, cardId: 'x' }]],
+      ['your own discard', [{ e: 'discarded', player: 0, cardId: 'x' }]],
+      ['answering a Foresee you already see', [{ e: 'foresaw', player: 0, kept: ['x'], bottomed: ['y'] }]],
+      ['a card severed from a graveyard', [{ e: 'severed', player: 1, cardId: 'x', from: 'graveyard' }]],
+      ['a spell cast and paid', [
+        { e: 'manaTapped', player: 0, iids: [1, 2] },
+        { e: 'spellCast', sid: 1, cardId: 'x', controller: 0, targets: [] },
+      ]],
+    ];
+    for (const [what, events] of quietActions) expect(after(events), what).toBeNull();
   });
 });
