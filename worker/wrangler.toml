@@ -45,7 +45,8 @@ id = "6f5eea2102c7446880ae42212e7d1690"
 # Keyed on the same daily hash the de-duplication uses, so the limit follows an
 # install for a day and never needs an identifier of its own. Deliberately
 # permissive: a real install sends one heartbeat, a handful of duel digests and
-# one card batch per launch, so 120 requests in 60 seconds is orders of
+# a card batch per hide (each card at most once per launch), so 120 requests in
+# 60 seconds is orders of
 # magnitude above real use and still stops a flood. The binding counts per
 # Cloudflare location, which suits a brake and is not an accounting system.
 #
