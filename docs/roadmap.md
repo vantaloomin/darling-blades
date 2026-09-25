@@ -1673,7 +1673,7 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
 
 ## Planned
 
-- **The 1.9 train (scope ruled 2026-09-25, build not started).**
+- **The 1.9 train (every decision ruled 2026-09-25; the 1.8.1 train is open).**
   [plan-1.9.md](plan-1.9.md) is the program plan. In: **First Dawn**, a
   fresh ~150-card set drafted by an Opus 5.5 agent (the July overplan is
   retired), on **Provoked** and **Hunt**, both approved; **accessibility**;
@@ -1688,7 +1688,10 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   recommended answers, D6 1.8.1 cuts when the post-release sweep reads, D8
   the older-set near-duplicates get a review and plan resolved in a
   **1.9.x**, D10 and D11 the two 1.8.1 design questions as recommended.
-  Open: D7 (the 1.8 balance items) and D9 (where the sweep runs).
+  D7 the 1.8 balance items (the Hauntlink Apex slate rides 1.8.1; the top
+  tier, rung 19 and collection dilution in wave 4); D9 the 1.9 sweep runs
+  last before the cut on six personas if it fits in a night. Every decision
+  is ruled; the 1.8.1 train is open.
 - **2.0 is the itch.io launch (owner ruling 2026-09-25).** The largest update
   the game has had, with the mobile overhaul, Core Set II and Story Mode, and
   the release that is posted on itch.io and advertised. No plan exists yet;

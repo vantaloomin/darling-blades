@@ -2,12 +2,12 @@
 
 # Darling Blades 1.9 — program plan
 
-**Status 2026-09-25: scope RULED, build not started.** The owner ruled the
-1.9 scope on 2026-09-25 (the table below), then the same day grouped the 1.8.x
-items with every open 1.8 review finding as the 1.8.1 patch (lane 0) and ruled
-D1-D6, D8, D10 and D11. D7 and D9 remain open. This document turns those rulings into lanes, waves and
-the decisions that are still open. Build starts wave by wave on the owner's
-word; each open decision gates only the lane that names it.
+**Status 2026-09-25: every decision RULED; the 1.8.1 train (lane 0) is
+open.** The owner ruled the 1.9 scope on 2026-09-25 (the table below), then
+the same day grouped the 1.8.x items with every open 1.8 review finding as the
+1.8.1 patch, ruled D1-D11, and said go on 1.8.1. This document turns those
+rulings into lanes and waves. The 1.9 lanes start on the owner's word once
+1.8.1 is cut.
 
 The release spine is [plan-road-to-2.0.md](plan-road-to-2.0.md). Its 1.9 row,
 as agreed 2026-08-24, and as it stands after the owner's rulings:
@@ -89,6 +89,7 @@ nothing deploys ahead of the patch.
 | The seventeen art regenerations | Briefs authored and merged: [plan-art-regen-2026-09-22.md](plan-art-regen-2026-09-22.md) | Codex runs the pipeline on one lane; the owner's eyes on every image |
 | Drowned Deep duplicate split | **PR #436 open**, green: ten cards reworded with ids, costs, rarities, stats and art unchanged, plus a catalog guard against rules-identical printings in one set | Retargets to the train |
 | Anything egregious the post-release sweep finds | Sweep running | A fix only if egregious, the standing 1.8 ruling |
+| Hauntlink Apex (D7) | Effectively 8 mana since rules revision 4; cast in 7% of games | A slate of options authored by the design model; the owner picks; then transcription |
 
 **The 1.8 review carry-over (R11).** Sources: the release-candidate review
 of 2026-09-23 (its unruled items and its 1.9 notes), the follow-ups reported
@@ -146,6 +147,7 @@ groups touch one file, the second rebases onto the first.
 | AI | G9 | `activatedPolicy.ts`, `tests/ai` | the two manual matrices; floors only ratchet up |
 | telemetry | G21 | `signals.ts`, `gameBoot.ts`, `playSignals.ts`, the telemetry plan's line | a card counts once per launch (D11) |
 | regens | the seventeen images | art files, `docs/spell-art.md` | the owner's eyes |
+| Apex | Hauntlink Apex (D7) | `src/data/cards/yokai-nights.ts`, the Yokai art-bible card facts | the owner's pick from the slate |
 
 Two constraints hold the patch to patch size. **No save schema change:** G1
 is designed without a new deck field (legality is already computed), and if
@@ -446,7 +448,7 @@ separate worktrees, by file set.
 | Wave | Contents | Gate |
 | ---: | --- | --- |
 | **0** | The 1.8.1 train (lane 0) on `release/1.8.1`, cut when the sweep reads; this plan and the roadmap and spine sync; `release/1.9` cut from `main` after 1.8.1; the main checkout fast-forwarded on the owner's word (uncommitted `.gitignore` and `run-sweep.ps1` edits sit there); the duplicate comparator learns Duty, Tithe and Whispers | 1.8.1 on the cut checklist, its floors re-measured |
-| **1** | Specs and briefs: `plan-first-dawn-engine.md` and the First Dawn identity brief (Opus 5.5); the accessibility plan re-verified; usage audit waves 0-1; weenie profiling; the art streaming design | owner approval of each spec |
+| **1** | Specs and briefs: `plan-first-dawn-engine.md` and the First Dawn identity brief (Opus 5.5); the accessibility plan re-verified; usage audit waves 0-1; weenie profiling; the art streaming design, after itch.io's HTML5 hosting limits are checked (approved 2026-09-25: 2.0 ships there, so the streaming design must fit its file count and size rules) | owner approval of each spec |
 | **2** | Engine: Provoked and Hunt with rates, AI at three difficulties, converter, replay bump, glossary. Accessibility wave 1 with the v36 bump. Art streaming built. Sweep levers 2-3 and their one-persona comparison | full ladder, win-rate gates unchanged, replay goldens, the no-change test |
 | **3** | Set: the ~200 overplan, the owner's cut, concretion, transcription. The art pilot, then the art run from the day the cut locks. Accessibility wave 2 (core scenes) | check-art-bible green, every token minted, duplicate audit filed |
 | **4** | Metagame content: the theme deck, rungs 27-28 with Darlings decks, floors from the final band. The usage audit's full read (wave 2) and its fixes (wave 3). Accessibility wave 3 (long tail). The balance items of D7 | matrices, precon and boss floors, fixture matrix |
@@ -509,10 +511,10 @@ Numbered so rulings can cite them. Recommendations are the first option.
   that way; the telemetry plan's "once when the session ends" line is updated
   to match in the same PR.
 
-**Open:**
+**Ruled 2026-09-25, the last two:**
 
-- **D7 The balance items found in 1.8 but not on the ruled list.** Five
-  items, one recommendation each:
+- **D7 The balance items found in 1.8 but not on the ruled list. RULED as
+  recommended**, item by item:
   - **Hauntlink Apex.** Since rules revision 4 made a link an ability paid
     after casting, it effectively costs 8 mana in a ten-land format, and it
     is cast in 7% of games (AI audit, 2026-09-19). The cause is already
@@ -532,7 +534,7 @@ Numbered so rulings can cite them. Recommendations are the first option.
   - **Collection dilution**, deferred until a finished sweep. **Revisit in
     wave 4**, once First Dawn's count is final, because every set dilutes
     the pool further.
-- **D9 Where the sweep runs.** The standing rule is that the metagame sweep
+- **D9 Where the sweep runs. RULED as recommended.** The standing rule is that the metagame sweep
   runs last before a cut, so the balance numbers describe the field players
   get. 1.8 set it aside because a sweep took days; it ran after launch with
   five personas. Recommendation: **back to last before the 1.9.0 cut, all six
