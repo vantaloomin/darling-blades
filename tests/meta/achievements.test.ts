@@ -11,7 +11,8 @@ import {
 } from '../../src/meta/Achievements';
 import { CARD_BACKS } from '../../src/meta/cosmetics';
 import { collectiblePool } from '../../src/meta/collectionFilter';
-import { DUAT_SET } from '../../src/data/liveness';
+import { cardMechanics } from '../../src/data/glossary';
+import { DROWNED_DEEP_SET, DUAT_SET, STARBORNE_SET } from '../../src/data/liveness';
 import { freshSave } from '../../src/meta/SaveManager';
 import { variantKey } from '../../src/meta/variants';
 
@@ -178,7 +179,41 @@ const SANDS_OF_THE_DUAT_GOALS = [
   { id: 'theme-sands-of-the-duat-complete', ids: SANDS_OF_THE_DUAT_IDS },
   { id: 'theme-sands-of-the-duat-ur', ids: SANDS_OF_THE_DUAT_UR },
   { id: 'theme-sands-of-the-duat-nine-lives', ids: SANDS_OF_THE_DUAT_NINE_LIVES },
+  { id: 'theme-sands-of-the-duat-rite', ids: SANDS_OF_THE_DUAT_IDS.filter((id) => CARD_DB[id].rite !== undefined) },
+  { id: 'theme-sands-of-the-duat-preserve', ids: SANDS_OF_THE_DUAT_IDS.filter((id) => CARD_DB[id].preserve !== undefined) },
+  { id: 'theme-sands-of-the-duat-bastet', ids: SANDS_OF_THE_DUAT_IDS.filter((id) => CARD_DB[id].subtypes.includes('Bastet')) },
 ] as const;
+// Starborne and Drowned Deep goals (1.8.1). Every list is derived from the live
+// card data, the UR lists from rarity, so a hand-typed list in the catalog that
+// drifts from the cards fails here.
+function liveSetIds(set: string): string[] {
+  return Object.values(CARD_DB)
+    .filter((entry) => collectiblePool([entry]).length > 0)
+    .filter((entry) => (entry.set as string) === set)
+    .map((entry) => entry.id);
+}
+const STARBORNE_IDS = liveSetIds(STARBORNE_SET);
+const STARBORNE_GOALS = [
+  { id: 'theme-starborne-25', ids: STARBORNE_IDS.slice(0, Math.ceil(STARBORNE_IDS.length * 0.25)) },
+  { id: 'theme-starborne-50', ids: STARBORNE_IDS.slice(0, Math.ceil(STARBORNE_IDS.length * 0.5)) },
+  { id: 'theme-starborne-complete', ids: STARBORNE_IDS },
+  { id: 'theme-starborne-ur', ids: STARBORNE_IDS.filter((id) => CARD_DB[id].rarity === 'ur') },
+  { id: 'theme-starborne-propagate', ids: STARBORNE_IDS.filter((id) => cardMechanics(CARD_DB[id]).includes('propagate')) },
+  { id: 'theme-starborne-marks', ids: STARBORNE_IDS.filter((id) => cardMechanics(CARD_DB[id]).includes('mark')) },
+  { id: 'theme-starborne-starships', ids: STARBORNE_IDS.filter((id) => CARD_DB[id].subtypes.includes('Starship')) },
+] as const;
+const DROWNED_DEEP_IDS = liveSetIds(DROWNED_DEEP_SET);
+const DROWNED_DEEP_GOALS = [
+  { id: 'theme-drowned-deep-25', ids: DROWNED_DEEP_IDS.slice(0, Math.ceil(DROWNED_DEEP_IDS.length * 0.25)) },
+  { id: 'theme-drowned-deep-50', ids: DROWNED_DEEP_IDS.slice(0, Math.ceil(DROWNED_DEEP_IDS.length * 0.5)) },
+  { id: 'theme-drowned-deep-complete', ids: DROWNED_DEEP_IDS },
+  { id: 'theme-drowned-deep-ur', ids: DROWNED_DEEP_IDS.filter((id) => CARD_DB[id].rarity === 'ur') },
+  { id: 'theme-drowned-deep-whispers', ids: DROWNED_DEEP_IDS.filter((id) => CARD_DB[id].whispers !== undefined) },
+  { id: 'theme-drowned-deep-tithe', ids: DROWNED_DEEP_IDS.filter((id) => CARD_DB[id].tithe !== undefined) },
+  { id: 'theme-drowned-deep-duty', ids: DROWNED_DEEP_IDS.filter((id) => CARD_DB[id].activated !== undefined) },
+  { id: 'theme-drowned-deep-wardens', ids: DROWNED_DEEP_IDS.filter((id) => CARD_DB[id].subtypes.includes('Warden')) },
+] as const;
+const RAINBOW_FRAME = variantKey({ frame: 'rainbow', holo: 'none', fullArt: false });
 
 const THEME_DB: CardDb = Object.freeze({
   ...DB,
@@ -559,11 +594,7 @@ describe('dark tales achievements (1.4)', () => {
   }
 });
 
-describe('Sands of the Duat achievements (1.6)', () => {
-  it('registers the three Duat collection goals', () => {
-    expect(SANDS_OF_THE_DUAT_GOALS).toHaveLength(3);
-  });
-
+describe('Sands of the Duat achievements (1.6, eight goals from 1.8.1)', () => {
   for (const { id, ids } of SANDS_OF_THE_DUAT_GOALS) {
     it(`unlocks ${id} with exactly its qualifying Duat collection`, () => {
       const complete = freshSave(0);
@@ -574,6 +605,82 @@ describe('Sands of the Duat achievements (1.6)', () => {
       const oneShort = freshSave(0);
       oneShort.collection = Object.fromEntries(ids.slice(0, -1).map((cardId) => [cardId, 1]));
       expect(status(id, oneShort, CARD_DB)).toMatchObject({ current: ids.length - 1, target: ids.length, unlocked: false });
+    });
+  }
+
+  it('counts special variants of two distinct Duat URs for Grave Goods, and nothing else', () => {
+    const [first, second] = SANDS_OF_THE_DUAT_UR;
+    const notUr = SANDS_OF_THE_DUAT_IDS.find((id) => CARD_DB[id].rarity !== 'ur')!;
+    const save = freshSave(0);
+    save.collection = { [first]: 2, [second]: 1, [notUr]: 1 };
+    save.collectionVariants = {
+      // Two special copies of one UR count once.
+      [first]: {
+        [variantKey({ frame: 'gold', holo: 'none', fullArt: false })]: 1,
+        [variantKey({ frame: 'white', holo: 'shiny', fullArt: false })]: 1,
+      },
+      // A plain copy of a second UR is not a special variant.
+      [second]: { [variantKey({ frame: 'white', holo: 'none', fullArt: false })]: 1 },
+      // A special variant of a card below UR is outside the goal.
+      [notUr]: { [variantKey({ frame: 'gold', holo: 'none', fullArt: false })]: 1 },
+    };
+    expect(status('theme-sands-of-the-duat-ur-special', save, CARD_DB)).toMatchObject({
+      current: 1,
+      target: 2,
+      unlocked: false,
+    });
+
+    // Full Art alone makes a variant special.
+    save.collectionVariants[second] = { [variantKey({ frame: 'white', holo: 'none', fullArt: true })]: 1 };
+    expect(status('theme-sands-of-the-duat-ur-special', save, CARD_DB)).toMatchObject({
+      current: 2,
+      target: 2,
+      unlocked: true,
+    });
+    expect(syncAchievements(save, CARD_DB)).toContain('theme-sands-of-the-duat-ur-special');
+  });
+});
+
+describe('Starborne and Drowned Deep achievements (1.8.1)', () => {
+  for (const { id, ids } of [...STARBORNE_GOALS, ...DROWNED_DEEP_GOALS]) {
+    it(`unlocks ${id} with exactly its qualifying collection and locks one card short`, () => {
+      const complete = freshSave(0);
+      complete.collection = Object.fromEntries(ids.map((cardId) => [cardId, 1]));
+      expect(status(id, complete, CARD_DB)).toMatchObject({ current: ids.length, target: ids.length, unlocked: true });
+      expect(syncAchievements(complete, CARD_DB)).toContain(id);
+
+      const oneShort = freshSave(0);
+      oneShort.collection = Object.fromEntries(ids.slice(0, -1).map((cardId) => [cardId, 1]));
+      expect(status(id, oneShort, CARD_DB)).toMatchObject({ current: ids.length - 1, target: ids.length, unlocked: false });
+    });
+  }
+});
+
+describe('rainbow-frame set chases (1.8.1)', () => {
+  const chases = [
+    { id: 'theme-starborne-rainbow', setIds: STARBORNE_IDS, otherSetId: SANDS_OF_THE_DUAT_IDS[0] },
+    { id: 'theme-sands-of-the-duat-rainbow', setIds: SANDS_OF_THE_DUAT_IDS, otherSetId: STARBORNE_IDS[0] },
+  ];
+
+  for (const { id, setIds, otherSetId } of chases) {
+    it(`unlocks ${id} with rainbow frames on three distinct cards of its set`, () => {
+      const [a, b, c] = setIds;
+      const save = freshSave(0);
+      save.collection = { [a]: 1, [b]: 2, [c]: 1, [otherSetId]: 1 };
+      save.collectionVariants = {
+        [a]: { [RAINBOW_FRAME]: 1 },
+        // Two rainbow copies of one card count once.
+        [b]: { [RAINBOW_FRAME]: 2 },
+        // A rainbow holo on a white frame is not a rainbow frame.
+        [c]: { [variantKey({ frame: 'white', holo: 'rainbow', fullArt: false })]: 1 },
+        // A rainbow frame from another set does not count toward this one.
+        [otherSetId]: { [RAINBOW_FRAME]: 1 },
+      };
+      expect(status(id, save, CARD_DB)).toMatchObject({ current: 2, target: 3, unlocked: false });
+
+      save.collectionVariants[c] = { [RAINBOW_FRAME]: 1 };
+      expect(status(id, save, CARD_DB)).toMatchObject({ current: 3, target: 3, unlocked: true });
+      expect(syncAchievements(save, CARD_DB)).toContain(id);
     });
   }
 });
