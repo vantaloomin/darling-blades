@@ -9,7 +9,7 @@ import { def, isType, manaValue, opponentOf } from '../engine/types';
 import { getEffectiveStats } from '../engine/statics';
 import type { PlayerView } from '../engine/view';
 import type { AIPlayer } from './AIPlayer';
-import { chooseActivate } from './activatedPolicy';
+import { chooseActivate, scoredActivationCandidates, type PrecombatContext } from './activatedPolicy';
 import { chooseAttackers, chooseBlocks, combatForecast, scoreAttack } from './combatPlans';
 import { LIFE_CURVE_KNEE } from './evaluate';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
@@ -544,7 +544,16 @@ export class MediumAI implements AIPlayer {
       const payable = keep(action, held.cost);
       return payable ? [payable] : [];
     }) : legal;
-    if (!paidDuty || view.step !== 'main2') return heldMenu;
+    if (!paidDuty || view.step !== 'main1' && view.step !== 'main2') return heldMenu;
+    // Morning: only a paid Duty the policy would move before combat competes
+    // for mana now (the rest wait for the Afternoon). Its worth is its impact
+    // plus the attack it buys, or the lethal bonus.
+    const morning = view.step === 'main1'
+      ? new Map<Action, number>(scoredActivationCandidates(view, this.db, heldMenu, this.precombat(view))
+        .filter(({ action }) => manaValue(actionManaCost(view, this.db, action)) > 0)
+        .map(({ action, value }) => [action, value]))
+      : undefined;
+    if (morning?.size === 0) return heldMenu;
     const develop = heldMenu.filter((a): a is Cast =>
       (a.type === 'castSpell' || a.type === 'castDarling') && this.isDevelopable(view, a))
       .sort((a, b) => this.castScore(view, b) - this.castScore(view, a))[0];
@@ -554,13 +563,25 @@ export class MediumAI implements AIPlayer {
     const developIsHeld = held && develop.type === 'castSpell' && !develop.retell && !develop.whispers &&
       develop.handIndex === held.handIndex;
     const reserved = held && !developIsHeld ? combineManaCosts(cost, held.cost) : cost;
+    const developScore = morning ? this.castScore(view, develop) : 0;
     // A tap-only Duty retains its old place. Paid Duties use only mana the
-    // best develop cast does not need; the live menu is reconsidered next action.
+    // best develop cast does not need, except that a Morning Duty worth more
+    // than that cast (a lethal one always is) spends first; the live menu is
+    // reconsidered next action.
     return heldMenu.flatMap((action) => {
       if (action.type !== 'activate' || manaValue(actionManaCost(view, this.db, action)) === 0) return [action];
+      if (morning) {
+        const value = morning.get(action);
+        if (value === undefined || value > developScore) return [action];
+      }
       const payable = keep(action, reserved);
       return payable ? [payable] : [];
     });
+  }
+
+  /** The attack planner inputs a Morning Duty is priced against. */
+  private precombat(view: PlayerView): PrecombatContext {
+    return { trickBuff: this.trickBuff(view), pers: this.pers };
   }
 
   /** A reserve requires a rule that can use the opponent's public position.
@@ -693,7 +714,7 @@ export class MediumAI implements AIPlayer {
       (cast) => this.castScore(view, cast),
     );
     if (casts.length === 0 && preserve) return preserve;
-    const activate = chooseActivate(view, this.db, legal);
+    const activate = chooseActivate(view, this.db, legal, this.precombat(view));
     if (casts.length === 0 && activate) return activate;
     // Smoothing gate: only spend a Skim when no cast line, including Retell,
     // exists.

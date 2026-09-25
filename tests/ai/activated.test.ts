@@ -36,6 +36,10 @@ const DB: CardDb = {
   duty_paid: carrier('duty_paid', ['artifact'], {
     activated: { ...free, cost: { tap: true, mana: { generic: 1, pips: { G: 1 } } } },
   }),
+  duty_paid_tapper: carrier('duty_paid_tapper', ['artifact'], {
+    activated: { cost: { tap: true, mana: { generic: 2, pips: {} } }, targets: [{ what: 'opponentCreature' }],
+      ops: [{ op: 'tap', to: 'target' }] },
+  }),
   duty_harm: carrier('duty_harm', ['artifact'], {
     activated: { cost: { tap: true }, ops: [{ op: 'damage', n: 3, to: 'controller' }] },
   }),
@@ -130,8 +134,9 @@ describe('Duty AI policy on fixture cards', () => {
     }
   });
 
-  it('Medium permits only tap-alone Duty in the Morning, with or without a spell, and paid Duty in the Afternoon', () => {
+  it('Medium keeps a paid Duty that cannot change the attack for the Afternoon, with or without a spell', () => {
     const lands = [{ iid: 11, cardId: 'forest' }, { iid: 12, cardId: 'forest' }];
+    const precombat = { trickBuff: 0, pers: makePersonality({}) };
     const morning = board('duty_paid', 'main1', lands, ['bear']);
     expect(morning.legalActions(0)).toContainEqual({ type: 'activate', iid: SOURCE });
     expect(choose(brain('medium'), morning)).toMatchObject({ type: 'castSpell', handIndex: 0 });
@@ -140,6 +145,8 @@ describe('Duty AI policy on fixture cards', () => {
     expect(emptyHand.legalActions(0)).toContainEqual({ type: 'activate', iid: SOURCE });
     expect(choose(brain('medium'), emptyHand).type).toBe('passStep');
     expect(chooseActivate(emptyHand.viewFor(0), DB, emptyHand.legalActions(0))).toBeNull();
+    // Two face damage with no attack on either side buys nothing before combat.
+    expect(chooseActivate(emptyHand.viewFor(0), DB, emptyHand.legalActions(0), precombat)).toBeNull();
     const afternoon = board('duty_paid', 'main2', lands);
     const action = choose(brain('medium'), afternoon);
     expect(action).toEqual({ type: 'activate', iid: SOURCE });
@@ -252,10 +259,16 @@ describe('Duty AI policy on fixture cards', () => {
   });
 
   it.each(difficulties)('%s is deterministic for the same seed and board', (difficulty) => {
+    // The paid tapper board runs the Morning forecast (and Hard's lookahead).
+    const tapper = () => board('duty_paid_tapper', 'main1', [
+      { iid: 11, cardId: 'forest', controller: 0 }, { iid: 12, cardId: 'forest', controller: 0 },
+      { iid: 20, cardId: 'giant', controller: 0 }, { iid: 21, cardId: 'giant', controller: 1 },
+    ]);
     for (let seed = 0; seed < 12; seed++) {
       const a = board('duty_target');
       const b = board('duty_target');
       expect(choose(brain(difficulty, seed), a)).toEqual(choose(brain(difficulty, seed), b));
+      expect(choose(brain(difficulty, seed), tapper())).toEqual(choose(brain(difficulty, seed), tapper()));
     }
   });
 
@@ -380,6 +393,22 @@ describe('Duty battlefield value', () => {
       permValue(view.battlefield, bareDb, SOURCE) + activateActionValue(view, DB, action) * 3,
     );
     expect(Number.isFinite(permValue(view.battlefield, DB, 21))).toBe(true);
+  });
+
+  it('keeps a tapper Duty\'s potential while its only target is tapped, and scores that tap now at zero', () => {
+    // A creature that attacked stays tapped only until its controller's
+    // untap, so the tapper's board value must not collapse meanwhile.
+    const tapperOn = (tapped: boolean) => board('duty_paid_tapper', 'main2', [
+      { iid: 11, cardId: 'forest', controller: 0 }, { iid: 12, cardId: 'forest', controller: 0 },
+      { iid: 21, cardId: 'giant', controller: 1, tapped },
+    ]).viewFor(0);
+    const bareDb = { ...DB, duty_paid_tapper: { ...DB.duty_paid_tapper, activated: undefined } };
+    const premium = (view: PlayerView) => permValue(view.battlefield, DB, SOURCE) - permValue(view.battlefield, bareDb, SOURCE);
+    expect(premium(tapperOn(false))).toBeGreaterThan(0);
+    expect(premium(tapperOn(true))).toBeCloseTo(premium(tapperOn(false)));
+    const tapGiant: Action = { type: 'activate', iid: SOURCE, targets: [{ kind: 'permanent', iid: 21 }] };
+    expect(activateActionValue(tapperOn(false), DB, tapGiant)).toBeGreaterThan(0);
+    expect(activateActionValue(tapperOn(true), DB, tapGiant)).toBe(0);
   });
 });
 

@@ -432,6 +432,69 @@ describe('intended mechanics and draft behaviour', () => {
     expect(act(game)).toEqual({ type: 'castSpell', handIndex: 0 });
   });
 
+  // A paid tapper Duty beside our giant, facing their untapped giant: the
+  // planner keeps the attack home (an even trade) unless the blocker is tapped.
+  function blockedGiant(hand: string[] = [], mana = 2, oppLife = 20, enemy = 'giant'): Game {
+    return fixture(hand, [...lands(mana), body(10, 'giant'), body(20, enemy, 1), body(30, 'tap_duty')],
+      (state) => { state.players[1].life = oppLife; });
+  }
+  const tapBlocker: Action = { type: 'activate', iid: 30, targets: [ref(20)] };
+
+  // docs/ai.md, Duty timing: a paid Duty moves into main one when it changes the attack.
+  it('Medium taps a blocker with a paid Duty in main one, then attacks through it', () => {
+    const game = blockedGiant();
+    checked(() => expect(combatPlans.chooseAttackers(game.viewFor(0).battlefield, DB, 0, 20, 0)).toEqual([]));
+    requireLegal(game, tapBlocker);
+    expect(act(game)).toEqual(tapBlocker);
+    expect(act(game)).toEqual({ type: 'passStep' });
+    expect(act(game)).toEqual({ type: 'declareAttackers', attackers: [10] });
+  });
+
+  // docs/ai.md, Duty timing: an attack that already works leaves the paid Duty for main two.
+  it('Medium keeps a paid Duty for main two when the attack goes through without it', () => {
+    const game = blockedGiant([], 2, 20, 'bear');
+    requireLegal(game, tapBlocker);
+    checked(() => expect(combatPlans.chooseAttackers(game.viewFor(0).battlefield, DB, 0, 20, 0)).toEqual([10]));
+    expect(act(game)).toEqual({ type: 'passStep' });
+  });
+
+  // docs/ai.md, Duty timing: a better spell this turn keeps the mana the Duty would spend.
+  it('Medium casts the better spell rather than spend its mana on a pre-combat Duty', () => {
+    const game = blockedGiant(['giant'], 4);
+    requireLegal(game, tapBlocker);
+    requireLegal(game, { type: 'castSpell', handIndex: 0 });
+    expect(act(game)).toEqual({ type: 'castSpell', handIndex: 0 });
+  });
+
+  // docs/ai.md, Duty timing: a Duty that makes the attack lethal outranks any spell.
+  it('Medium spends the mana on a pre-combat Duty that makes the attack lethal', () => {
+    const game = blockedGiant(['giant'], 4, 4);
+    requireLegal(game, { type: 'castSpell', handIndex: 0 });
+    expect(act(game)).toEqual(tapBlocker);
+  });
+
+  // docs/ai.md, Duty timing: Hard plays the pre-combat Duty through the counterattack and keeps it.
+  it('Hard keeps a pre-combat tap whose attack wins the race', () => {
+    expect(act(blockedGiant([], 2, 8), hard())).toEqual(tapBlocker);
+  });
+
+  // docs/ai.md, Duty timing: the same check vetoes a tap whose attack loses the counterattack.
+  it('Hard declines a pre-combat tap when the attack it enables loses the race', () => {
+    // At 8 life, with their second giant tapped from last turn, tapping the
+    // blocker and swinging leaves our giant tapped for their 8-power reply.
+    const race = () => fixture([], [...lands(2), body(10, 'giant'), body(20, 'giant', 1),
+      body(21, 'giant', 1, { tapped: true }), body(30, 'tap_duty')], (state) => { state.players[0].life = 8; });
+    checked(() => expect(act(race())).toEqual(tapBlocker));
+    expect(act(race(), hard())).toEqual({ type: 'passStep' });
+  });
+
+  // docs/ai.md, Easy: its paid Duties keep the simple Afternoon timing.
+  it('Easy leaves a paid Duty for main two even when it would clear a blocker', () => {
+    const game = blockedGiant();
+    requireLegal(game, tapBlocker);
+    expect(act(game, new EasyAI(DB, 41, makePersonality({ easyNoise: 0 })))).toEqual({ type: 'passStep' });
+  });
+
   const score = (id: string) => checked(() => scorePick(DB, id, [], DEFAULT_PICKER, pickNoise(41, 1, 0, 0, id)));
 
   // docs/ai.md:359-369. Phase D draft: a useful Duty rider has positive pick value.

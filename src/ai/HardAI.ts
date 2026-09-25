@@ -19,7 +19,7 @@ import { applyTithePolicy, isTitheCast, titheManaSaved } from './tithePolicy';
 import { applyWhispersPolicy } from './whispersPolicy';
 import { applyVocabularyTargetPolicy, chooseTargetAction, isVocabularyCast } from './targeting';
 import { chooseSacrifice } from './sacrificePolicy';
-import { cardValue, empowerValue, faceDamageForCast, hauntlinkCastValue, whispersValue, type SpellMode } from './value';
+import { actionManaCost, cardValue, empowerValue, faceDamageForCast, hauntlinkCastValue, whispersValue, type SpellMode } from './value';
 
 type CreatureCast = Extract<Action, { type: 'castSpell' | 'castDarling' }>;
 
@@ -258,7 +258,8 @@ export class HardAI implements AIPlayer {
     const baseline = this.medium.chooseAction(view, legal);
     if (baseline.type === 'linkHaunt') return baseline;
     const pass = legal.find((action) => action.type === 'passStep');
-    const activations = new Map(scoredActivationCandidates(view, this.db, legal)
+    const activations = new Map(scoredActivationCandidates(view, this.db, legal,
+      { trickBuff: this.openManaBuff(view), pers: this.pers })
       .map(({ action, value }) => [action, value]));
     // Keep the existing narrow cast set. Pass and at most one deferred
     // creature line reserve ordinary slots below. Skim must not be offered
@@ -396,6 +397,16 @@ export class HardAI implements AIPlayer {
       // would reward the longer horizon rather than the timing decision.
       const comparison = this.holdComparison(view, best);
       if (comparison && comparison.held > comparison.now) return pass;
+    }
+    if (pass && best.type === 'activate' && view.step === 'main1' && view.activePlayer === view.myId &&
+      manaValue(actionManaCost(view, this.db, best) ?? { generic: 0, pips: {} }) > 0) {
+      // A paid Duty reaches the Morning only because the attack forecast says
+      // it buys something, and the shallow sim stops before combat. So the
+      // attack search's referee checks the claim: this Duty now against a
+      // pass to combat (Medium then uses it in the Afternoon if it still
+      // pays), each played through the opponent's counterattack. Holding
+      // must win by the attack search's +0.75 margin.
+      if (this.lookahead(view, pass) > this.lookahead(view, best) + 0.75) return pass;
     }
     return best;
   }
