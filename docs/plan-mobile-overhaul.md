@@ -2,6 +2,19 @@
 
 # Complete mobile UX overhaul implementation plan
 
+> **Duel layout DECIDED 2026-09-25: Version C, "Command column (hand-first)".**
+> The owner picked it from the 2026-09-23 competitive research and mockups
+> (three phone-landscape options were drawn at the worst-case board of 9 against
+> 8 creatures plus the permanent rows). In Version C the portraits, life, mana
+> and pile counts sit in a narrow left column; the battlefield is the centre,
+> two halves of circular medallions with a "Board full" chip when a side is at
+> its cap and the turn and phase line between them; and the hand is a list of
+> named rows with their cost pips in a right-hand column, with End turn and To
+> combat beneath it. Phone play stays landscape. Next: the research session
+> mocks every scene and every Duel state on Version C, including the 130% text
+> size from the 1.9 accessibility pass and the itch.io embed; that set, and the
+> decisions it forces, feed this plan's rewrite when 2.0 opens.
+>
 > **Release slot moved to 2.0** (owner ruling 2026-09-25, confirmed as D4 in
 > [plan-1.9.md](plan-1.9.md)): 2.0 is the itch.io launch, the largest update
 > yet and the one that is advertised, so this pass is launch-critical rather

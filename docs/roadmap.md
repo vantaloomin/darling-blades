@@ -1679,7 +1679,8 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   retired), on **Provoked** and **Hunt**, both approved; **accessibility**;
   **card art streaming** (load on demand, unload under a budget); the
   **mechanic usage audit**; **weenie's cost** in the Hard brain and the two
-  remaining **sweep levers**. First comes **1.8.1**: the 1.8.x items and
+  remaining **sweep levers**; and **flavor text removed entirely** (R13,
+  ruled 2026-09-25), with the art window growing into the room it frees. First comes **1.8.1**: the 1.8.x items and
   every open 1.8 review finding, grouped by the owner the same day. Out: the
   **mobile overhaul** (to 2.0), **AI suggested decks** and the **editable
   Limited Warchest** (both past 2.0). Ruled 2026-09-25: D1 the keyword is
@@ -1695,14 +1696,18 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
 - **2.0 is the itch.io launch (owner ruling 2026-09-25).** The largest update
   the game has had, with the mobile overhaul, Core Set II and Story Mode, and
   the release that is posted on itch.io and advertised. No plan exists yet;
-  one is owed when 2.0 opens. Questions it has to answer, none of them
-  checked yet: itch serves HTML5 games from its own origin, so saves do not
-  carry over from bladedarlings.com (save codes and save cards are the
-  bridge); itch's upload limits against about 1,500 card images; the
-  play-stats Worker's allowed origins and the privacy page's list of hosts;
-  the update check, which asks GitHub; whether the Windows installer ships
-  there too and how updates reach it; and the store page (the local trailer,
-  screenshots, the link-preview image from #435, a press kit).
+  one is owed when 2.0 opens. Researched 2026-09-25: itch caps an HTML5
+  game at 1,000 files, so card art ships in range-readable packs (1.9 lane D
+  designs for it); every itch game shares one origin and one small, easily
+  cleared storage, so saves do not carry over from bladedarlings.com and the
+  save-code export matters more (never tick itch's SharedArrayBuffer option,
+  which moves the game to a new origin); the play-stats Worker must allow
+  itch's origin and the itch build's CSP must allow itch's own beacon; the
+  Windows build goes up as the portable app folder with itch's `butler`
+  tool, which the itch app updates, rather than the installer; itch asks for
+  an AI-content tag (Graphics at least) and hides adult content from browse
+  and search. **Mobile duel layout decided the same day: Version C,
+  "Command column (hand-first)"** ([plan-mobile-overhaul.md](plan-mobile-overhaul.md)).
 - **A metagame sweep that fits in a night (2026-09-22; levers 1 and 4
   shipped in 1.8).** [plan-sweep-speed.md](plan-sweep-speed.md). Fan-out
   across GitHub-hosted runners shipped (#418, #421, #422; the owner's machine
