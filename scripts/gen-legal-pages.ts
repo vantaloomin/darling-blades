@@ -69,7 +69,7 @@ export const PLACEHOLDERS: Record<string, string> = {
   // The privacy policy's own date moves on every material edit; filled with
   // the release day at the cut (1.8.1 named Cloudflare and changed when the
   // card summary goes). The terms keep the 1.8 date.
-  '[PRIVACY EFFECTIVE DATE]': 'the day version 1.8.1 is released',
+  '[PRIVACY EFFECTIVE DATE]': 'September 25, 2026',
   '[PRIVACY URL]': `${PUBLISHED_BASE}privacy.html`,
 };
 
