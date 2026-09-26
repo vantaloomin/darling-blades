@@ -2,6 +2,10 @@
 
 # Player replay sharing and spectating hooks
 
+> **Wave 4 (live spectating, 1.9) is cancelled**: it rode multiplayer, which
+> the owner cancelled 2026-08-24 ([plan-road-to-2.0.md](plan-road-to-2.0.md)).
+> The 1.6 rewatch and share half stands as written.
+
 ## Goal
 
 Release 1.6 turns the already-shipped deterministic replay viewer into a player-facing rewatch and share flow: browse the capped local replay list, watch with current controls, export a bounded replay code, and import a compatible code safely. Release 1.9 builds the redacted event and view contracts required for live spectating without treating a full reconstruction log as a safe network stream.

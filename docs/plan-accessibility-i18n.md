@@ -2,6 +2,14 @@
 
 # Accessibility wave and localization decision brief
 
+> **Approved for 1.9** (owner ruling 2026-09-25, [plan-1.9.md](plan-1.9.md)
+> lane C). Written for 1.7 and not yet started; re-verify against the code
+> before wave 1. **Localization RULED 2026-09-25: option A, English only**
+> (D3 in plan-1.9). No `settings.locale`, no catalog, no pseudo-locale; wave 4
+> closes by recording that, and 2.0 carries no localization promise. The
+> pseudo-long English strings stay in the wave 3 fixtures. Mobile no longer
+> ships beside it (moved to 2.0).
+
 ## Goal
 
 Release 1.7 ships accessibility wave 1: redundant mana and rarity cues that do not rely on color alone, player-selectable text scaling, a high-contrast presentation option, and a verified interaction/readability audit across core scenes. The same milestone makes an explicit localization decision no later than 2026-08-15, or before Story Mode script production starts, whichever comes first, so 1.8 either builds the chosen scaffold or deliberately remains English-only.

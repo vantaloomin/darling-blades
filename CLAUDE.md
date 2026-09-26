@@ -45,7 +45,7 @@ branch / commit / PR / merge flow: [docs/git-workflow.md](docs/git-workflow.md).
 | --- | --- |
 | `npm run dev` / `npm run build` | dev server (:5173) / typecheck + production build |
 | `npm run forge` | the Forge card designer's dev server (:5176, page at `/forge/`); `npm run build` builds it into `dist/forge/` (web only). See [docs/forge.md](docs/forge.md) |
-| `npx vitest run` | full suite (~13 min at 3,961 tests, measured 2026-09-24; win-rate gates included; run on an idle machine, not during sweeps) |
+| `npx vitest run` | full suite (~14 min at 4,218 tests, measured 2026-09-25; win-rate gates included; run on an idle machine, not during sweeps) |
 | `npm run lint` | ESLint over src, tests, scripts (enforces layer purity) |
 | `npm run check-docs` / `check-art-bible` / `gen-docs-tables -- --check` | doc anti-rot checkers (must be green, zero warnings) |
 | `npx tsx scripts/balance-matrix.ts --avatars --seeds 40` | balance matrices (call tsx directly — PowerShell eats `--` via npm run) |

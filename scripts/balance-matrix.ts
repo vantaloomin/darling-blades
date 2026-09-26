@@ -1787,6 +1787,11 @@ export const FLOOR_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   22: { minAvg: 0.585 },
   // Floors 23-26 gated for the first time 2026-09-21 (the roster reached 26
   // on 2026-09-15 and these rows were never written). Same T6 plateau band.
+  // Re-measured 2026-09-25 on the 1.8.1 release tip (the paid-Duty AI, the
+  // G8 engine fixes), `--floors --seeds 80`, 10,400 games, 2,558s, no flags:
+  // T1-T3 14.5-40.5, T4 49.3-49.7, T5 51.5-57.5, and the T6 plateau F16 64.3
+  // · F17 64.8 · F18 63.0 · F19 65.8 · F20 66.1 · F21 67.3 · F22 64.3 · F23
+  // 63.7 · F24 65.5 · F25 63.5 · F26 67.0, all above 0.585.
   23: { minAvg: 0.585 },
   24: { minAvg: 0.585 },
   25: { minAvg: 0.585 },

@@ -11,7 +11,7 @@ reviewed by a lawyer.
 
 # Darling Blades Privacy Policy
 
-**Effective date:** [1.8 RELEASE DATE]
+**Effective date:** [PRIVACY EFFECTIVE DATE]
 
 Darling Blades is a single-player card game made by Blade Darlings ("we",
 "us"). You can play it in a web browser or as a desktop app. This policy

@@ -2,7 +2,11 @@
 
 # Making the metagame sweep fit in a night
 
-**Status: proposal, 2026-09-22. Nothing here is authorized.** Owner ask:
+**Status 2026-09-25: levers 1 and 4 shipped in 1.8 (fan-out on
+GitHub-hosted runners, #418, #421, #422); levers 2 and 3 APPROVED for 1.9**
+(owner ruling 2026-09-25, lane F of [plan-1.9.md](plan-1.9.md)), with the
+one-persona comparison below as their acceptance gate. Originally:
+**proposal, 2026-09-22. Nothing here is authorized.** Owner ask:
 the sweep takes three to five days on a 9950X3D, which is too long for the
 one step that has to run last before every cut. This is the measured
 account of where the days go and four levers, in the order I would pull
