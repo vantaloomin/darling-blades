@@ -1743,8 +1743,13 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   staged tip: 4,218 tests; the floors matrix with no flags; the avatar and
   Darlings matrices identical to their baselines within a point or two, with
   one older finding carried to 1.9 (the Darlings summit, R23-R26 at 10-28%).
-  Release notes: [release-notes/v1.8.1.md](release-notes/v1.8.1.md). Waits
-  for the sweep and the owner's word to merge into `main`.
+  Release notes: [release-notes/v1.8.1.md](release-notes/v1.8.1.md).
+  **SHIPPED 2026-09-25** on the owner's word ("cut now, we can always patch
+  again"), ahead of D6: main carried a live crash, and the post-release sweep
+  measures 1.8.0, not 1.8.1. Its round 0 read clean on 2026-09-24; a lost
+  runner stopped round 1 and the watcher resumed it (run 36196954110). A
+  later round's finding lands in a 1.8.x patch or in 1.9. The Darlings
+  summit tune waits for 1.9 (owner, same day).
 
 > **The release spine from 1.7 to 2.0 lives in
 > [plan-road-to-2.0.md](plan-road-to-2.0.md)** (2026-08-24): the Large/Small

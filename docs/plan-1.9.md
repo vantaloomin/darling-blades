@@ -161,6 +161,15 @@ way. G9 changes the brain, so the patch re-measures the floors, and the
 release notes say the sweep measured the pre-fix brain. The notes follow the
 shape accepted for 1.8.0.
 
+**Shipped 2026-09-25** as v1.8.1, cut on the owner's word before the sweep's
+later rounds (main carried a live crash; the sweep measures 1.8.0). Found at
+the cut and carried here, with D7 in wave 4 (owner: "we can tune bosses
+later"): **the Darlings summit.** In the Darlings format, R23 Chrome
+Broodmother wins 21%, R24 The Violet Signal Queen 17%, R25 The Drowned Deacon
+10% and R26 The Marsh-Mother 28%, against 62-77% for R19-R22. No gate covers
+the Darlings rows, so tune those four lists and gate the Darlings rows (the
+measurement is dated in `src/data/opponents.ts`).
+
 ### Lane A — the mechanics: Provoked and Hunt
 
 **The spec comes first:** `plan-first-dawn-engine.md`, authored by an Opus
