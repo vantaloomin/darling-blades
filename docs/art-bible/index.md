@@ -100,7 +100,9 @@ these at AUTHORING time so future expansions don't need a correction pass:
   budget is spent by the FULL silhouette above the face — tall topknots,
   piled hair, and towering headdresses eat headroom no matter how much sky
   the image has; when a character needs one, bind the hair low or state a
-  low-profile version, or accept the documented crown-graze.
+  low-profile version, or accept the documented crown-graze. The measurable
+  version of this rule, for creatures AND spell art, is the headroom rule in
+  §3 (owner, 2026-09-25).
 - **Frame wide enough to show what the character IS.** Species-defining
   anatomy (a mermaid's tail, a satyr's goat legs, a spiderkin's spider body),
   signature physique, and the full held prop belong IN frame. Waist-up is the
@@ -183,6 +185,30 @@ image height**, centered.
    →│32│←   critical silhouette     →│32│←
             stays inside margins
 ```
+
+**Headroom rule (owner, 2026-09-25; binding for every future creature, spell and
+regeneration prompt).** The top of the head (crown, hair, hood or headdress) sits
+at or below **y ≈ 208** of the deliverable: about 40 px, a twelfth of the visible
+band, of open background between the band top (167) and the head. Raised hands,
+weapons and effects may break into the bleed; a head never touches the band edge.
+
+- **Say it in the prompt, measurably.** "Face at one third from the top of the
+  canvas" on its own let the model put the crown on the band edge in 9 of the 17
+  regenerations of 2026-09-25 (the owner caught it as "crops too low, no isolation
+  space above the heads"). Pair every face-placement clause with **"the top of
+  her head no higher than one quarter of the way down the canvas with open space
+  above it"**.
+- **When the card's object must share the frame with a figure**, ask for distance,
+  not a crop: **"seen from a few steps back", "her figure from head to knees inside
+  the middle band", "not a close-up, not a half-length shot"**, with the object
+  named as "the brightest thing at the exact centre". Pinning the face high and
+  the object at the centre in one prompt produces a close portrait with the object
+  below the band (Net Full of Stars, The Marsh Remembers, What Was Promised).
+- **Check before review.** `scripts/audit-art-window.py` flags HEAD CLIPPED rows
+  (a head top above the band plus margin); treat each as a candidate for a human
+  look. A re-crop can only add headroom when the default crop starts below the
+  raw's top row (`offsetY` negative, reported as achieved); when it already starts
+  at row 0 the raw has no room above the head, and the fix is a regeneration.
 
 **Scale check:** the art window renders at 264×192 on a 300×420 card; battlefield
 cards are scaled 0.45, so the art shows at roughly **119×86 px**. Commons must read

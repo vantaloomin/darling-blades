@@ -58,6 +58,12 @@ const DB: CardDb = {
   fodder_drain: creature('fodder_drain', 2, {
     abilities: [{ when: 'dies', ops: [{ op: 'loseLife', n: 2, who: 'opponent' }] }],
   }),
+  fodder_raiser: creature('fodder_raiser', 2, {
+    abilities: [{ when: 'dies', ops: [{ op: 'raise', to: 'top' }] }],
+  }),
+  arrival_tapper: creature('arrival_tapper', 2, {
+    abilities: [{ when: 'arrives', targets: [{ what: 'creature' }], ops: [{ op: 'tap', to: 'target' }] }],
+  }),
   link_relic: {
     id: 'link_relic', name: 'link_relic', types: ['artifact'], subtypes: [], colors: [], rarity: 'c',
     cost: { generic: 0, pips: {} }, hauntlink: { cost: { generic: 0, pips: {} }, linked: { p: 1 } },
@@ -453,6 +459,27 @@ describe('Tithe payment and resolution', () => {
     expect(game.awaiting.kind).toBe('gameOver');
   });
 
+  // The fodder's dies trigger returns a creature that targets as it arrives.
+  // That choice comes first, and the opponent, who holds a Charm, still gets
+  // the window over the spell; the spell then resolves.
+  it('offers the window over the spell after a choice the paid fodder raised', () => {
+    const state = board('tithe_small', [...forests(1), body(10, 'fodder_raiser'), body(20, 'fodder_four', 1)], ['mend']);
+    state.players[0].graveyard = ['arrival_tapper'];
+    const game = Game.restore(state, DB);
+    game.submit(0, titheAction([10], { manaPlan: [100] }));
+    expect(game.awaiting).toMatchObject({ player: 0, kind: 'chooseTarget' });
+    expect(game.instanceState.stack.map((item) => item.cardId)).toEqual(['tithe_small']);
+
+    game.submit(0, { type: 'chooseTarget', target: { kind: 'permanent', iid: 20 } });
+    expect(game.instanceState.battlefield.find((perm) => perm.iid === 20)?.tapped).toBe(true);
+    expect(game.awaiting).toMatchObject({ player: 1, kind: 'respond', over: { type: 'spell' } });
+
+    game.submit(1, { type: 'passResponse' });
+    expect(game.instanceState.stack).toEqual([]);
+    expect(game.instanceState.battlefield.some((perm) => perm.cardId === 'tithe_small')).toBe(true);
+    expect(game.awaiting).toEqual({ player: 0, kind: 'main' });
+  });
+
   it('sends a linked Hauntlink to the graveyard with its sacrificed host before the window', () => {
     const game = Game.restore(board('tithe_small', [
       ...forests(1),
@@ -544,7 +571,7 @@ describe('Tithe replay and determinism', () => {
 
   it('round-trips a naturally terminal game with Tithe iids and explicit mana plans byte for byte', () => {
     const recorded = recordTitheFixture();
-    expect(recorded.log.v).toBe(14);
+    expect(recorded.log.v).toBe(15);
     expect(recorded.game.awaiting.kind).toBe('gameOver');
     const sacrifices = recorded.log.actions.filter((step) => step.a.type === 'castSpell' && step.a.tithe);
     expect(sacrifices.length).toBeGreaterThan(0);

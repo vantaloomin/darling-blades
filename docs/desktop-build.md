@@ -8,8 +8,10 @@ webview (WebView2 on Windows), so the installer is a few MB of native code plus
 the game's own assets — no bundled Chromium the way Electron does it.
 
 **The web frontend is almost entirely Tauri-agnostic.** The desktop app loads the
-exact same `dist/` that `npm run build` produces and that `npm run play:lan`
-serves to phones. The only code that talks to Tauri is
+same `dist/` that `npm run build` produces and that `npm run play:lan`
+serves to phones, minus one folder: the web-only Forge (`dist/forge/`, see
+[forge.md](forge.md)), which `scripts/build-forge.ts` skips when Tauri runs the
+build with `TAURI_ENV_PLATFORM` set. The only code that talks to Tauri is
 `src/platform/desktopWindow.ts`: when the render-resolution setting changes, it
 resizes the OS window to match — the chosen resolution lives in the webview's
 `localStorage`, so only the frontend can drive the resize. It is a guarded no-op

@@ -56,7 +56,10 @@ describe('Drowned Deep 1: loot', () => {
     game.submit(0, { type: 'activate', iid: 1 });
     game.submit(0, { type: 'discard', handIndices: [0] });
     expect(game.viewFor(0).you.whispersLive).toEqual([0]);
-    expect(game.legalActions(0)).toContainEqual({ type: 'castSpell', handIndex: 0, graveIndex: 0, whispers: true });
+    const discarded = game.viewFor(0).you.graveyardInstances?.[0];
+    expect(game.legalActions(0)).toContainEqual({
+      type: 'castSpell', handIndex: 0, graveIndex: 0, graveInstanceId: discarded, whispers: true,
+    });
   });
 
 });

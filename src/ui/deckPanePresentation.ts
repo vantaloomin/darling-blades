@@ -1,4 +1,4 @@
-/** Phaser-free state and geometry for the Deck Builder's right-pane views. */
+/** Phaser-free state and geometry for the Deck Builder's right-pane views and its ☰ Decks picker. */
 
 import { theme } from './theme';
 
@@ -65,28 +65,79 @@ const SUMMARY = {
 /** One status-band line, for the band's height budget. */
 export const DECK_STATUS_LINE_HEIGHT = 16;
 
+/**
+ * The pane's three header rows, top to bottom: the title row (deck name,
+ * Darling portrait, the Decks button), the Format row, and the View row.
+ *
+ * The title row sits on the shared header line (theme.design.headerCenterY),
+ * the back button's line, so its 44px hit bands start on the title-safe
+ * frame's top edge. It was centred on y 32 until 1.8.1, its text and its
+ * Decks button starting above the frame. The rows below moved down with it:
+ * the Format tabs clear the title text by one small gap (they share its
+ * columns), and the View row's hit band starts where the Format row's ends.
+ * Decks and the Darling portrait are the only title-row controls, and each
+ * owns a column no Format tab reaches, so their hit bands may run level with
+ * the tabs' (pinned by test).
+ */
+const HEADER = {
+  titleY: theme.design.headerCenterY,
+  /** Half the title Text's box (h2 display type), for the gap below it. */
+  titleHalfHeight: 14,
+  formatY: 91,
+  toggleY: 135,
+} as const;
+
 export const DECK_PANE_LAYOUT = {
   /** The side panel's fill: one 20px gutter left of the content, to the screen edge. */
   panelX: PANE_LEFT - 20,
   left: PANE_LEFT,
   right: PANE_RIGHT,
+  /** The deck's name and count, the Darling portrait, and the Decks button. */
+  title: {
+    y: HEADER.titleY,
+    halfHeight: HEADER.titleHalfHeight,
+    /** The Darling portrait beside the title, and its tap target (reopens the chooser). */
+    portraitX: PANE_LEFT + 20,
+    portraitScale: 0.09,
+    portraitHitWidth: 34,
+    portraitHitHeight: theme.control.minHitHeight,
+  },
   toggle: {
     labelX: PANE_LEFT,
     /** Three views share the row since v33; 84px slots keep them inside the pane. */
     cardsX: PANE_LEFT + 100,
     warchestX: PANE_LEFT + 192,
     styleX: PANE_LEFT + 284,
-    y: 112,
+    y: HEADER.toggleY,
     minWidth: 84,
   },
   content: {
-    top: 148,
+    /**
+     * Below the View row: a first card row's hit band starts where the View
+     * row's ends, and the Warchest panel's edge clears the View buttons.
+     */
+    top: 156,
+    /** The Cards view's list starts this far below `top`. */
+    listInset: 8,
     /** The Warchest panel ends one gap above the status band's top line. */
     bottom: SUMMARY.statusBottomY - DECK_STATUS_LINE_HEIGHT * SUMMARY.statusMaxLines - theme.space(3),
   },
+  /**
+   * The retired Constructed format's inline basics block (the only format
+   * without a View row). Its first row's hit band starts where the Format
+   * row's ends, and the deck list starts one small gap below the last row's
+   * hit band. Desktop rows carry a 40px land preview and 44px controls, so the
+   * 46px pitch still leaves daylight between neighbours' hit bands.
+   */
+  basics: {
+    firstY: HEADER.formatY + theme.control.minHitHeight,
+    desktopPitch: 46,
+    touchPitch: 40,
+    count: 5,
+  },
   warchest: {
-    headingY: 170,
-    countY: 194,
+    headingY: 174,
+    countY: 196,
     validationY: 218,
     slotFirstX: PANE_LEFT + 92,
     slotFirstY: 266,
@@ -118,22 +169,22 @@ export const DECK_PANE_LAYOUT = {
   },
   /**
    * The Format conversion row (Warchest / Darlings). Tabs sit left of the
-   * Decks CTA's column: Decks is right-aligned to the pane on the y 32 row,
-   * and its inflated hit band reaches down toward y 54, so nothing
-   * interactive may share both its column and the adjacent band - the tab
+   * Decks CTA's column: Decks is right-aligned to the pane on the title row,
+   * and its inflated hit band reaches down level with the tabs' own, so
+   * nothing interactive may share both its column and that band - the tab
    * row keeps every tab's right edge clear of Decks' hit column (pinned by
    * test).
    */
   formatRow: {
     labelX: PANE_LEFT,
-    y: 64,
+    y: HEADER.formatY,
     tabFirstX: PANE_LEFT + 90,
     tabPitch: 90,
     tabMinWidth: 78,
     decksHitLeft: PANE_RIGHT - 100,
   },
   /** The deck picker's '☰ Decks' button, right-aligned to the pane on the title row. */
-  decks: { x: PANE_RIGHT - 45, minWidth: 90 },
+  decks: { x: PANE_RIGHT - 45, y: HEADER.titleY, minWidth: 90 },
   /**
    * The bottom action row: Export left-aligned to the pane's left edge, Import
    * right-aligned to its right edge, Save centred between them, all on
@@ -156,12 +207,12 @@ export const DECK_PANE_LAYOUT = {
 } as const;
 
 /**
- * The View row inherits the format switch's band (y 64) when that switch is
- * hidden (single-format decks render no dead tab), and everything below rides
- * the same shift so the pane has no empty band above the toggle.
+ * The View row inherits the format switch's band when that switch is hidden
+ * (single-format decks render no dead tab), and everything below rides the
+ * same shift so the pane has no empty band above the toggle.
  */
 export function deckPaneOffsetY(formatSwitchVisible: boolean): number {
-  return formatSwitchVisible ? 0 : DECK_PANE_LAYOUT.toggle.y - 64;
+  return formatSwitchVisible ? 0 : DECK_PANE_LAYOUT.toggle.y - DECK_PANE_LAYOUT.formatRow.y;
 }
 
 export function defaultDeckPaneMode(): DeckPaneMode {
@@ -206,6 +257,73 @@ export function warchestSlotPosition(index: number): { x: number; y: number } {
 
 export function warchestSlotLabel(index: number, name: string): string {
   return `${index + 1}. ${name}`;
+}
+
+/**
+ * The centre line of card row `index` in a list whose top is `listY0`. Every
+ * element of a row (hero star, pin, name, count) centres on it.
+ */
+export function deckRowCenterY(listY0: number, index: number, rowPitch: number): number {
+  return listY0 + index * rowPitch + Math.round(rowPitch / 2) - 7;
+}
+
+/** The centre line of the Constructed basics block's row `index`. */
+export function constructedBasicsRowY(index: number, touch: boolean): number {
+  const basics = DECK_PANE_LAYOUT.basics;
+  return basics.firstY + index * (touch ? basics.touchPitch : basics.desktopPitch);
+}
+
+/** Where the Constructed deck list starts: one small gap below the basics block's last hit band. */
+export function constructedListTop(touch: boolean): number {
+  return constructedBasicsRowY(DECK_PANE_LAYOUT.basics.count - 1, touch) + theme.control.minHitHeight / 2 + theme.space(2);
+}
+
+const PICKER_TILE = { width: 340, height: 250, gapX: 28, gapY: 18, cols: 3, rows: 2 } as const;
+const PICKER_GRID_LEFT =
+  theme.design.centerX - (PICKER_TILE.cols * PICKER_TILE.width + (PICKER_TILE.cols - 1) * PICKER_TILE.gapX) / 2;
+
+/**
+ * The ☰ Decks picker: a modal as wide as the title-safe frame, the title, two
+ * rows of three deck tiles, and one footer line under them holding Close
+ * (centred) and, when the decks fill more than one page, the pager (at the
+ * grid's left edge, clear of Close).
+ *
+ * Until 1.8.1 Close sat on y 678 (drawn 658-698), past the frame and across
+ * the panel's bottom edge, and the pager sat on y 638, its hit band 8px into
+ * the second tile row. The tiles did not move.
+ */
+export const DECK_PICKER_LAYOUT = {
+  panelHeight: 640,
+  titleY: 72,
+  tile: PICKER_TILE,
+  gridLeft: PICKER_GRID_LEFT,
+  gridTop: 106,
+  footerY: 652,
+  closeX: theme.design.centerX,
+  closeMinWidth: 100,
+  /** The pager's left chevron sits at pagerX; its hit band starts on the grid's left edge. */
+  pagerX: PICKER_GRID_LEFT + theme.control.minHitHeight / 2,
+} as const;
+
+/**
+ * How far the shared pager's hit bands reach either side of its x: the left
+ * chevron's 44px band centres on a glyph drawn from x, and the right chevron
+ * is drawn from x + 88. A chevron glyph is under 20px wide.
+ */
+export const PAGER_HIT_REACH = {
+  left: theme.control.minHitHeight / 2,
+  right: 88 + 10 + theme.control.minHitHeight / 2,
+} as const;
+
+/** Centre of picker tile `index` on a page (row-major). */
+export function deckPickerTilePosition(index: number): { x: number; y: number } {
+  const { tile, gridLeft, gridTop } = DECK_PICKER_LAYOUT;
+  const col = index % tile.cols;
+  const row = Math.floor(index / tile.cols);
+  return {
+    x: gridLeft + tile.width / 2 + col * (tile.width + tile.gapX),
+    y: gridTop + tile.height / 2 + row * (tile.height + tile.gapY),
+  };
 }
 
 export type DeckStatusTone = 'success' | 'danger';

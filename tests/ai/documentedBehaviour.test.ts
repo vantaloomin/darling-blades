@@ -4,7 +4,7 @@ import { MediumAI } from '../../src/ai/MediumAI';
 import { HardAI } from '../../src/ai/HardAI';
 import * as combatPlans from '../../src/ai/combatPlans';
 import { makePersonality } from '../../src/ai/personality';
-import { cardValue, permValue } from '../../src/ai/value';
+import { activateActionValue, cardValue, permValue } from '../../src/ai/value';
 import { validateAction, type Action } from '../../src/engine/actions';
 import { Game } from '../../src/engine/Game';
 import type { PlayerView } from '../../src/engine/view';
@@ -430,6 +430,145 @@ describe('intended mechanics and draft behaviour', () => {
     requireLegal(game, { type: 'castSpell', handIndex: 0 });
     requireLegal(game, { type: 'activate', iid: 10 });
     expect(act(game)).toEqual({ type: 'castSpell', handIndex: 0 });
+  });
+
+  // A paid tapper Duty beside our giant, facing their untapped giant: the
+  // planner keeps the attack home (an even trade) unless the blocker is tapped.
+  function blockedGiant(hand: string[] = [], mana = 2, oppLife = 20, enemy = 'giant'): Game {
+    return fixture(hand, [...lands(mana), body(10, 'giant'), body(20, enemy, 1), body(30, 'tap_duty')],
+      (state) => { state.players[1].life = oppLife; });
+  }
+  const tapBlocker: Action = { type: 'activate', iid: 30, targets: [ref(20)] };
+
+  // docs/ai.md, Duty timing: a paid Duty moves into main one when it changes the attack.
+  it('Medium taps a blocker with a paid Duty in main one, then attacks through it', () => {
+    const game = blockedGiant();
+    checked(() => expect(combatPlans.chooseAttackers(game.viewFor(0).battlefield, DB, 0, 20, 0)).toEqual([]));
+    requireLegal(game, tapBlocker);
+    expect(act(game)).toEqual(tapBlocker);
+    expect(act(game)).toEqual({ type: 'passStep' });
+    expect(act(game)).toEqual({ type: 'declareAttackers', attackers: [10] });
+  });
+
+  // docs/ai.md, Duty timing: an attack that already works leaves the paid Duty for main two.
+  it('Medium keeps a paid Duty for main two when the attack goes through without it', () => {
+    const game = blockedGiant([], 2, 20, 'bear');
+    requireLegal(game, tapBlocker);
+    checked(() => expect(combatPlans.chooseAttackers(game.viewFor(0).battlefield, DB, 0, 20, 0)).toEqual([10]));
+    expect(act(game)).toEqual({ type: 'passStep' });
+  });
+
+  // docs/ai.md, Duty timing: a better spell this turn keeps the mana the Duty would spend.
+  it('Medium casts the better spell rather than spend its mana on a pre-combat Duty', () => {
+    const game = blockedGiant(['giant'], 4);
+    requireLegal(game, tapBlocker);
+    requireLegal(game, { type: 'castSpell', handIndex: 0 });
+    expect(act(game)).toEqual({ type: 'castSpell', handIndex: 0 });
+  });
+
+  // docs/ai.md, Duty timing: a Duty that makes the attack lethal outranks any spell.
+  it('Medium spends the mana on a pre-combat Duty that makes the attack lethal', () => {
+    const game = blockedGiant(['giant'], 4, 4);
+    requireLegal(game, { type: 'castSpell', handIndex: 0 });
+    expect(act(game)).toEqual(tapBlocker);
+  });
+
+  // docs/ai.md, Duty timing: the lethal Duty sits right after the lethal-spell check, ahead of removal.
+  it('Medium and Hard take a lethal pre-combat Duty ahead of removal on a bigger target', () => {
+    // At 4 life, tapping the only untapped blocker lets our giant connect for
+    // the game; the removal would rather kill their bigger, tapped creature,
+    // and both together cost more than the four lands.
+    const board = () => fixture(['remove_three'], [...lands(4), body(10, 'giant'), body(20, 'giant', 1),
+      body(21, 'cap_attacker', 1, { tapped: true }), body(30, 'tap_duty')], (state) => { state.players[1].life = 4; });
+    requireLegal(board(), { type: 'castSpell', handIndex: 0, targets: [ref(21)] });
+    requireLegal(board(), tapBlocker);
+    for (const brain of [medium(), hard()]) expect(act(board(), brain)).toEqual(tapBlocker);
+  });
+
+  // docs/ai.md, Duty timing: every target that can reach the fight is screened for lethal, not only the best by impact.
+  it('Medium and Hard take a lethal pre-combat Duty on its lower-value target', () => {
+    // At 1 life their bear is the removal target by impact, but killing it
+    // leaves the 0/4 wall to absorb our 4/4 Overrun rhino; killing the wall
+    // lets the bear's block spill two through.
+    const board = () => fixture([], [...lands(2), body(10, 'rhino'), body(20, 'bear', 1), body(21, 'wall', 1),
+      body(30, 'kill_duty')], (state) => { state.players[1].life = 1; });
+    const killBear: Action = { type: 'activate', iid: 30, targets: [ref(20)] };
+    const killWall: Action = { type: 'activate', iid: 30, targets: [ref(21)] };
+    requireLegal(board(), killWall);
+    checked(() => {
+      const view = board().viewFor(0);
+      expect(activateActionValue(view, DB, killBear)).toBeGreaterThan(activateActionValue(view, DB, killWall));
+    });
+    for (const brain of [medium(), hard()]) expect(act(board(), brain)).toEqual(killWall);
+  });
+
+  // docs/ai.md, Duty timing: a lethal Duty comes before Preserve and a Hauntlink link, which spend its mana too.
+  it('Medium and Hard take a lethal pre-combat Duty with an empty hand, ahead of Preserve and a Hauntlink link', () => {
+    // Opponent at 4, one untapped blocker. The empty hand used to leave the
+    // ladder no cast step, so Preserve (and, on the second board, the link
+    // step that runs first) spent the Duty's mana.
+    const preserve = () => fixture([], [...lands(2), body(10, 'giant'), body(20, 'giant', 1), body(30, 'tap_duty')],
+      (state) => { state.players[1].life = 4; state.players[0].graveyard = ['preserve_bear']; });
+    const link = () => fixture([], [...lands(3), body(10, 'giant'), body(20, 'giant', 1), body(30, 'tap_duty'),
+      body(31, 'cost_link')], (state) => { state.players[1].life = 4; });
+    requireLegal(preserve(), { type: 'preserveCard', graveIndex: 0 });
+    requireLegal(link(), { type: 'linkHaunt', iid: 31, hostIid: 10 });
+    for (const board of [preserve, link]) {
+      for (const brain of [medium(), hard()]) expect(act(board(), brain)).toEqual(tapBlocker);
+    }
+  });
+
+  // docs/ai.md, Duty timing: damage main two deals just as well is no reason to spend a spell's mana now.
+  it('Medium develops rather than ping the face before combat, on either side of the twelve-life knee', () => {
+    // The ping does the same point in main two; two giants swing into an
+    // empty board either way. The knee in the attack weights must not read
+    // the thirteenth point as combat value.
+    for (const life of [20, 13]) {
+      const game = fixture(['bear'], [...lands(2), body(10, 'giant'), body(11, 'giant'), body(30, 'ping_duty')],
+        (state) => { state.players[1].life = life; });
+      requireLegal(game, { type: 'activate', iid: 30 });
+      expect(act(game)).toEqual({ type: 'castSpell', handIndex: 0 });
+    }
+  });
+
+  // docs/ai.md, Duty timing: a kill that changes nothing in the fight is no reason either.
+  it('Medium develops rather than kill a creature before combat that would not block', () => {
+    // Their 1/1 will not block two giants at 20 life, so killing it first
+    // changes only the creature count the attack weights read.
+    const game = fixture(['small_guard'], [...lands(2), body(10, 'giant'), body(11, 'giant'),
+      body(20, 'small_guard', 1), body(30, 'zap_duty')]);
+    requireLegal(game, { type: 'activate', iid: 30, targets: [ref(20)] });
+    checked(() => expect(combatPlans.chooseAttackers(game.viewFor(0).battlefield, DB, 0, 20, 0)).toEqual([10, 11]));
+    expect(act(game)).toEqual({ type: 'castSpell', handIndex: 0 });
+  });
+
+  // docs/ai.md, Duty timing: Hard plays the pre-combat Duty through the counterattack and keeps it.
+  it('Hard keeps a pre-combat tap whose attack wins the race', () => {
+    expect(act(blockedGiant([], 2, 8), hard())).toEqual(tapBlocker);
+  });
+
+  // At 8 life, with their second giant tapped from last turn, tapping the
+  // blocker and swinging leaves our giant tapped for their 8-power reply.
+  const race = (hand: string[] = [], mana = 2) => fixture(hand, [...lands(mana), body(10, 'giant'), body(20, 'giant', 1),
+    body(21, 'giant', 1, { tapped: true }), body(30, 'tap_duty')], (state) => { state.players[0].life = 8; });
+
+  // docs/ai.md, Duty timing: the same check vetoes a tap whose attack loses the counterattack.
+  it('Hard declines a pre-combat tap when the attack it enables loses the race', () => {
+    checked(() => expect(act(race())).toEqual(tapBlocker));
+    expect(act(race(), hard())).toEqual({ type: 'passStep' });
+  });
+
+  // docs/ai.md, Duty timing: a declined Duty leaves its mana to Medium's next choice, not to a pass.
+  it('Hard casts what a declined pre-combat Duty was crowding out', () => {
+    checked(() => expect(act(race(['bear'], 4))).toEqual(tapBlocker));
+    expect(act(race(['bear'], 4), hard())).toEqual({ type: 'castSpell', handIndex: 0 });
+  });
+
+  // docs/ai.md, Easy: its paid Duties keep the simple Afternoon timing.
+  it('Easy leaves a paid Duty for main two even when it would clear a blocker', () => {
+    const game = blockedGiant();
+    requireLegal(game, tapBlocker);
+    expect(act(game, new EasyAI(DB, 41, makePersonality({ easyNoise: 0 })))).toEqual({ type: 'passStep' });
   });
 
   const score = (id: string) => checked(() => scorePick(DB, id, [], DEFAULT_PICKER, pickNoise(41, 1, 0, 0, id)));

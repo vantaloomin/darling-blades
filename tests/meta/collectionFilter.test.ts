@@ -183,6 +183,20 @@ describe('search facet (F8)', () => {
     expect(matchesSearch(relic, 'Nine Lives')).toBe(false);
   });
 
+  it('finds a card that only reads Marks by Mark, and a Propagate payoff by Propagate', () => {
+    const anthem = card('anthem', {
+      name: 'Star Matriarch',
+      abilities: [{ when: 'static', static: { scope: 'filter', filter: { other: true, marked: true }, p: 1, t: 1 } }],
+    });
+    const payoff = card('payoff', {
+      name: 'Void Comet',
+      abilities: [{ when: 'propagated', ops: [{ op: 'draw', n: 1 }] }],
+    });
+    expect(matchesSearch(anthem, 'Mark')).toBe(true);
+    expect(matchesSearch(payoff, 'Propagate')).toBe(true);
+    expect(matchesSearch(anthem, 'Propagate')).toBe(false);
+  });
+
   it('matches keywords a card only grants', () => {
     const anthem = card('anthem', {
       name: 'Sky Standard',

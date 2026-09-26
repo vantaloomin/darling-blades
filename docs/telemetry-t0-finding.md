@@ -226,7 +226,9 @@ from a live save rather than this matrix.
 
 - **D-T0.1: card rows are tallied per session, in memory.** A variant of (b)
   that the spike did not list. Played cards are counted in memory across one
-  launch and sent as one batch when the session ends, one row per distinct
+  launch and sent as one batch when the session ends (1.8.1 amends this: a
+  batch at every hide, each card still sent once per launch, owner ruling D11
+  of 2026-09-25), one row per distinct
   card with a bucketed count, carrying no duel and no deck reference. Chosen
   over the per-day aggregate because a daily tally would have to live in the
   save, and "nothing is stored on the device for telemetry" is the sentence

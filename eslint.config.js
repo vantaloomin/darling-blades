@@ -7,7 +7,7 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   {
     // Hard boundary: the headless core must never touch Phaser or presentation code.
-    files: ['src/engine/**', 'src/ai/**', 'src/data/**', 'src/meta/**'],
+    files: ['src/engine/**', 'src/ai/**', 'src/data/**', 'src/meta/**', 'src/power/**'],
     rules: {
       'no-restricted-imports': [
         'error',
@@ -31,6 +31,58 @@ export default tseslint.config(
             },
           ],
         },
+      ],
+    },
+  },
+  {
+    // The Forge's headless half (docs/forge.md): the power scorer, and the
+    // builder's state, hint, store, vocabulary, ledger, validation, set,
+    // share-link, autosave and markup modules. They run in the browser page, in
+    // Vitest, and (the scorer) in the local balance CLI, so on top of the block
+    // above they take no Node built-ins and no DOM. This block's import rule
+    // replaces the one above for src/power, so it repeats that block's
+    // restrictions.
+    files: [
+      'src/power/**',
+      'src/forge/logic.ts',
+      'src/forge/hints.ts',
+      'src/forge/store.ts',
+      'src/forge/vocab.ts',
+      'src/forge/ledger.ts',
+      'src/forge/validate.ts',
+      'src/forge/setModel.ts',
+      'src/forge/share.ts',
+      'src/forge/storage.ts',
+      'src/forge/markup.ts',
+      'src/forge/framing.ts',
+      'src/forge/customArt.ts',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            { name: 'phaser', message: 'The scorer and the Forge logic must stay Phaser-free (headless in Vitest).' },
+          ],
+          patterns: [
+            {
+              group: ['**/scenes/*', '**/duel/*', '**/ui/*', '**/art/*', '**/audio/*', '**/net/*', './scene', './main'],
+              message: 'The scorer and the Forge logic must not depend on presentation or network code.',
+            },
+            {
+              group: ['node:*'],
+              message: 'The scorer and the Forge logic also run in the browser: no Node built-ins.',
+            },
+          ],
+        },
+      ],
+      'no-restricted-globals': [
+        'error',
+        { name: 'window', message: 'Headless module: no DOM.' },
+        { name: 'document', message: 'Headless module: no DOM.' },
+        { name: 'navigator', message: 'Headless module: no DOM.' },
+        { name: 'localStorage', message: 'Headless module, and the Forge never touches storage.' },
+        { name: 'sessionStorage', message: 'Headless module, and the Forge never touches storage.' },
       ],
     },
   },

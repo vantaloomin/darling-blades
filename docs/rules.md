@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-09-10
+<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-09-25
      If you change those files, update this doc or re-verify the date. -->
 
 # Rules — the digital ruleset as implemented
@@ -156,6 +156,28 @@ Revision 1 preserves the classic behavior verbatim: no post-flush reopen in
 Combat or at Sunset. The Sunset window is handled slightly separately in both
 revisions: passing it calls `enterCleanup` rather than flushing an empty stack.
 
+**Graveyard cards are named by identity (1.8.1).** A target in a graveyard
+(`yourGraveCreature`, for reclaim and raise) carries the card's instance id
+beside its position, and so does the source of a Retell, Whispers or Preserve
+action (`graveInstanceId` beside `graveIndex`). Legal actions carry both. The
+engine refuses an action whose position no longer holds that card, and it
+binds a ref that names only a position (a hand-built action, or a replay log
+older than v15) to the card at that position when the action is submitted.
+From then on the stack, a held trigger and a paused effect find the card by
+identity (`graveRefIndex` in `src/engine/graveyard.ts`): a spell that targets
+the third card of your graveyard returns that card even if a response takes
+the first card before it resolves, and it fizzles only if that card itself
+has left. Before 1.8.1 the spell read whatever sat at the old position, so
+the same response made it return the fourth card. The redacted view lists
+each graveyard's identities (`graveyardInstances`), the same public identity
+the battlefield and the stack already carry; hands and decks stay counts.
+The replay log bumped to v15, still at rules revision 4; v6-v14 logs still
+replay, binding each recorded position to the card there at submission. That
+differs from what 1.8.0 did only where 1.8.0 read a shifted position: a
+Retell cast whose target sat above its own source returned the next card
+down on every such cast, response or not. 1.8.0 logs are refused anyway,
+since the 1.8.1 card-text changes moved the card-data stamp.
+
 ## Combat
 
 Combat is declared and resolved through `Game.apply` (declaration),
@@ -171,7 +193,10 @@ Combat is declared and resolved through `Game.apply` (declaration),
 - Attacking **taps** the creature — unless it has **sentinel**, which lets it
   attack untapped.
 - Each declared attacker fires its `attacks` triggers immediately.
-- Then the **defender gets a response window** over the attackers.
+- Then the **defender gets a response window** over the attackers, after any
+  choice those triggers raised (Wild Hunt Matriarch, Morrigan and Aine
+  Foresee as they attack). Before 1.8.1 a defender holding a castable Charm
+  lost that window to the Foresee.
 
 ### Declaring blockers
 
@@ -179,7 +204,7 @@ Combat is declared and resolved through `Game.apply` (declaration),
   (`declareBlockers`).
 - **Skyborne** attackers can only be blocked by creatures with **skyborne or
   wardingGaze** (`canBlock`). Summoning sickness does **not** restrict blocking.
-- **At most 3 blockers per attacker** (`RULES.maxBlockersPerAttacker`).
+- **At most 4 blockers per attacker** (`RULES.maxBlockersPerAttacker`).
 - Then the **attacker gets a response window** over the blocks.
 
 ### Combat dissolves mid-window
@@ -309,6 +334,128 @@ Hauntlink is byte-identical to revision 3. The reaction the ruling names -
 moving a link off a host that a trigger or combat is about to kill - is exactly
 what the window exists for.
 
+**Where a held trigger resolves (1.8.1).** A held trigger resolves at the
+point where, with no payable link, it would have resolved inline: the game
+with no payable link is the reference order, and the window in front of the
+trigger is what revision 4 adds. Outside the Hauntlink window, triggers in
+this engine resolve the moment they fire, in the middle of whatever caused
+them, and the held trigger keeps that place:
+
+1. **In the middle of an effect.** When a spell, a Duty or another trigger
+   destroys a creature and still has ops left (destroy target creature, then
+   draw a card), the effect pauses at the death. The Hauntlink windows open,
+   the held trigger resolves, and then the effect's remaining ops run,
+   followed by a state-based check. The ops the effect had already run stand.
+   If the trigger raises a choice of its own (a creature it returns Foresees,
+   or targets as it arrives), the rest of the effect waits behind that
+   choice, as it does with no link. Several deaths in one op (a sweep) hold
+   their triggers in battlefield order, and the effect resumes after the last
+   of them, behind the newest choice any of the sweep's triggers raised, held
+   or not: Black Water's damage and grind come after the Foresee of a Signal
+   Kitsune that Sitra's trigger returned. The check for a player at 0 life
+   waits for the whole batch, as it does with no link: at 1 life, White-Veil
+   Collapse's own life gain still saves its caster from the two Tomb-Toll
+   Takers it destroyed. The windows over the batch's remaining held triggers
+   still open meanwhile, and creatures still die at each check.
+2. **On the stack.** A trigger held while the stack resolves, whether the
+   death came from an item's effect or from the state-based check after it,
+   resolves before the next item on the stack. The flush pauses, the windows
+   and the trigger run, and the flush carries on before any plain choice
+   raised along the way is offered: a Foresee, or the target of an arriving
+   creature, waits for the rest of the stack exactly as it does with no link.
+   Doom Bolt on Barrow-Jarl, cast in response to a removal spell, lets that
+   removal resolve before the creature Jarl's trigger returns chooses its
+   target.
+3. **Ahead of choices already queued.** A held trigger resolves before any
+   choice that was queued before it was held and has not been offered yet;
+   with no link it would have resolved before that choice came up. Hotwire
+   Retort's own Foresee is offered after the toll of the Tomb-Toll Taker its
+   damage killed. What the held trigger raises still queues behind those
+   choices.
+4. **Everywhere else** (combat damage, a Rite or Tithe payment, an attack or
+   Dawn trigger) the held trigger resolves before anyone acts again: before
+   the ordinary window it interrupts (above), before the Dawn draw, and after
+   combat damage before the Afternoon's first action. Around a Rite or Tithe
+   payment or an attack the order is fixed, link or no link, whatever the
+   opponent holds (owner ruling 2026-09-25, as in Magic): every choice the
+   payment or the attack raised is made first (held triggers and all), then
+   the opponent's window over the spell or the attackers opens if they hold
+   a castable Charm, then the spell resolves. Holding a Charm changes only
+   what the opponent may do in that window.
+
+**What matches the no-link game, and what does not.** With every window
+passed, a board with a payable link resolves the same ops and triggers as a
+board without one, and orders each held trigger the same way against the
+effect that caused it, the rest of the stack and the choices queued around
+it. These differ:
+
+- **The window, and the links moved in it.** That is the point of revision 4.
+- **The state-based check runs before the window**, so the window shows the
+  board as it stands: a Hauntlink or Aura on the destroyed creature goes to
+  its graveyard, and a creature the effect has already dealt lethal damage
+  dies (its own dies trigger held), before the held trigger resolves. With no
+  link that check runs after the whole effect, so Verdict Under Resin on a
+  linked creature with a dies trigger severs the link card only when a link
+  was payable.
+- **The paused spell's card and its Empower rider** go when the spell
+  pauses, as they do for a spell paused on any choice (a loot's discard, an
+  edict). The card reaches its graveyard before the held trigger resolves,
+  so graveyard order can differ: a later "sever the top cards" or "most
+  recently buried" reads that order.
+- **Ally-dies observers and Nine Lives returns run at the death**, before the
+  dying creature's held trigger resolves, and so do the returning
+  creature's arrival triggers; with no link the dies trigger resolves first.
+  A creature returned this way also enters ahead of anything the held
+  trigger puts onto the battlefield, and a later "most recently buried"
+  return no longer finds it in the graveyard. Shipped ally-dies observers
+  only change life totals or add a counter to their own source, but a life
+  change is enough to decide the game: the check before the window runs
+  after them and before the held trigger. A sweep that kills Madame Macabre
+  beside an opponent's Low-Tide Grave can drain her controller to 0 and end
+  the game before Madame's own trigger gains her controller 1 life; with no link
+  that player survives.
+- **Dawn, Sunset and attack triggers run as one pass** in battlefield order.
+  When one of them kills a creature, the next permanent's trigger runs before
+  the held dies trigger resolves; with no link it resolves inside the trigger
+  that caused it.
+
+Magic orders all of this differently: the spell finishes resolving and the
+trigger then goes on the stack. This engine never had that stack for
+triggers, and a held trigger that waited for the end of the spell would make
+the outcome depend on whether any Hauntlink happened to be payable: Verdict
+Under Resin (destroy target creature, then sever the top two cards of your
+opponent's graveyard) on an opposing Drowned Bride (dies: return it to its
+owner's hand) would sever the Bride only when a link was payable. Before
+1.8.1 an effect paused this way lost its remaining ops and a Duty threw
+instead; a trigger held while the stack resolved waited for the whole stack,
+a held trigger could come after a choice queued ahead of it, and a sweep's
+remaining ops could run ahead of a choice its own triggers had raised.
+
+**A choice raised inside an effect (1.8.1, link or no link).** When a trigger
+inside an effect raises a choice and the effect still has ops left (a
+creature returned by Barrow-Jarl or Sitra that targets as it arrives, or that
+Foresees and then draws), the effect pauses behind that choice: the choice is
+made, the arriving creature's ability (or the Foresee and what follows it)
+resolves, and then the rest of the effect runs in its own context. Before
+1.8.1 the engine threw here: Reaper's Due, Verdict Under Resin, Black Water,
+Night-Market Price or White-Veil Collapse killing Barrow-Jarl or Sitra when
+the creature returned was Thing in the Cistern, Drowned Bell Choir, Drowned
+Nurse or another targeted arrival, or Signal Kitsune or another arrival that
+Foresees and then acts.
+
+**Records.** None of this adds an action, so it needs no replay bump of its
+own (the log is v15 for graveyard identities, above) and the rules revision
+stays 4. It does change what a revision-4 game does whenever
+a trigger is held, including a hold that paused nothing: in 1.8.0 a trigger
+held during a stack flush waited for the whole stack. A 1.8.0 action log that
+passes through such a hold can therefore fail to replay on 1.8.1 (an action it
+recorded is no longer legal there). The same holds, link or no link, for a
+Rite or Tithe payment that raised a choice and for an attack trigger's
+choice with the defender holding a Charm (Rite, and Declaring attackers,
+above). No such log reaches 1.8.1 in practice:
+1.8.1's card-text changes moved the card-data stamp, so every 1.8.0 replay is
+already refused as recorded on an older version.
+
 ### Rite (additional sacrifice cost)
 
 A card with a `rite` block (`CardDef.rite`, 1.6) can be cast only by also
@@ -321,7 +468,13 @@ Drowned Deep vocabulary below) can now watch a sacrifice as well. A
 **state-based check** then runs on the paid board before anyone is offered a
 window over the spell: a player drained to 0 by a fodder's dies trigger loses
 there, and a Hauntlink whose host was sacrificed goes to the graveyard with
-it. The sacrifice is a cost: a cancelled Rite spell does not refund it. The
+it. A choice the payment raises (a fodder's dies trigger returning a
+creature that targets or Foresees as it arrives) is always made before that
+window, whatever the opponent holds; the window is then offered as usual,
+and the spell resolves after it (owner ruling 2026-09-25, as in Magic). In
+1.8.0 the order depended on the opponent's hand: with no castable Charm the
+spell resolved first and the choice came after it, and with one the choice
+replaced the window and the spell stayed on the stack unresolved. The sacrifice is a cost: a cancelled Rite spell does not refund it. The
 creature cap counts the slots the sacrifice frees, so a full board can still
 cast a Rite creature. Legal-action enumeration offers one canonical sacrifice
 set (first N in battlefield order); `validateAction` accepts any legal set of
@@ -450,12 +603,25 @@ Warcry; mana cost unpayable; no legal target.
 **Resolution.** Paying the cost taps the source and the mana; the ops then run
 immediately in order with the permanent as source, off the stack, and a
 state-based check runs afterwards (the deferred-trigger lesson of 1.7.2). The
-opponent gets no response window, the rule Skim, Preserve and Hauntlink
-already follow. One deferral is allowed: a `foresee` op opens the usual
-look-and-bottom decision, and any ops after it resume under the activating
-player's context once that decision is made (`thenContext` on the pending
-decision); the validator forbids an inline target after a Foresee for exactly
-that reason.
+opponent gets no response window over the Duty, the rule Skim, Preserve and
+Hauntlink already follow. The Duty's own targets are chosen up front and
+never deferred; anything its ops raise is deferred through the same queue a
+resolving spell uses (1.8.1; before that anything but a Foresee threw):
+
+- a `foresee` op opens the usual look-and-bottom decision, and any ops after
+  it resume under the activating player's context once that decision is made
+  (`thenContext` on the pending decision). The validator forbids an inline
+  target after a Foresee for exactly that reason: the resumed ops no longer
+  carry the Duty's targets.
+- a dies trigger held for a Hauntlink window pauses the Duty exactly as it
+  pauses a spell (Hauntlink, "Where a held trigger resolves"): the window
+  over the trigger, the trigger, then the rest of the Duty.
+- a targeted arrival (a token or a returned creature that targets as it
+  arrives) asks for its target once the Duty has finished, as after a spell;
+  if the Duty still has ops left, it pauses behind that choice and runs them
+  afterwards in its own context ("A choice raised inside an effect", under
+  Hauntlink). The catalog gate still keeps Duties from creating
+  targeted-arrival permanents themselves.
 
 **The arrival rule.** A permanent cannot tap for its Duty the turn it arrives
 unless it has Warcry. That is one rule for every carrier, creatures and
@@ -637,7 +803,12 @@ order:
 4. **The legend rule.** Among same-name legendaries **you** control, the **oldest
    survives** (battlefield order is entry order; duplicates are destroyed). The
    legend rule **is implemented** — it is a simple per-controller, per-name form,
-   keyed on `${controller}:${name}`.
+   keyed on `${controller}:${name}`. A dies trigger that returns a creature
+   card from its controller's graveyard (Sitra, Barrow-Jarl) passes over a
+   legendary card that shares a name with a legend that player controls, and
+   returns the next creature card instead (owner ruling 2026-09-25). The
+   returned copy would only die to this rule, and with three copies of one
+   legend the return and the death repeated without end.
 
 (Effective defense/attack for these checks is always computed on read by
 `getEffectiveStats` in `src/engine/statics.ts` — base stats + `+1/+1` marks (engine field: counters) +

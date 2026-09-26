@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { Art } from '../art/ArtResolver';
+import { redrawWhenArtLands } from '../art/artWatch';
 import { CARD_DB } from '../data/catalog';
 import type { CardDef } from '../engine/types';
 import { isType } from '../engine/types';
@@ -23,6 +24,7 @@ const ART_RECT = { x: -132, y: -164, w: 264, h: 192 };
 // leaves the card's rounded metal border visible on every edge.
 const FULL_ART_RECT = { x: -141, y: -201, w: 282, h: 402 };
 const FACE_RECT = { x: -150, y: -210, w: 300, h: 420 };
+type ArtWindow = typeof ART_RECT;
 const TEXT_LEFT = -126;
 const TEXT_WIDTH = 252;
 // Badge-row geometry (user spec 2026-07-13): the cost tray's bottom-left
@@ -147,6 +149,9 @@ export class CardView extends Phaser.GameObjects.Container {
   private shineFx: Phaser.FX.Shine | null = null;
   private ringTween: Phaser.Tweens.Tween | null = null;
   private zone: Phaser.GameObjects.Zone | null = null;
+  /** The real art texture this face drew the loading stand-in for, if any. */
+  private artPendingKey: string | null = null;
+  private cancelArtWait: (() => void) | null = null;
 
   card: CardDef | null = null;
 
@@ -303,6 +308,7 @@ export class CardView extends Phaser.GameObjects.Container {
     } = {},
   ): this {
     this.clearFx();
+    this.stopArtWait();
     this.art.clearTint().setAlpha(1);
     this.card = card;
 
@@ -336,30 +342,7 @@ export class CardView extends Phaser.GameObjects.Container {
 
     // Frame + art
     this.frame.setTexture(frameKeyFor(card.colors, card.types)).setDisplaySize(CARD_W, CARD_H);
-    const artRef = Art.resolver!.getArt(
-      card.id,
-      isBasic(CARD_DB, card.id) ? opts.landStyle : undefined,
-    );
-    if (artRef.frameName) this.art.setTexture(artRef.textureKey, artRef.frameName);
-    else this.art.setTexture(artRef.textureKey);
-    // Cover the selected window: the standard window crops vertically; full art
-    // uses the taller frame interior and therefore crops a centered horizontal
-    // band from the same 4:5 source. Explicitly reposition after setCrop — crop
-    // does not recenter an Image whose source crop is offset.
-    const srcW = this.art.frame.width;
-    const srcH = this.art.frame.height;
-    const scale = Math.max(artRect.w / srcW, artRect.h / srcH);
-    const cropW = artRect.w / scale;
-    const cropH = artRect.h / scale;
-    const cropX = (srcW - cropW) / 2;
-    const cropY = (srcH - cropH) / 2;
-    this.art
-      .setCrop(cropX, cropY, cropW, cropH)
-      .setScale(scale)
-      .setPosition(
-        artRect.x + artRect.w / 2 + scale * (srcW / 2 - cropX - cropW / 2),
-        artRect.y + artRect.h / 2 + scale * (srcH / 2 - cropY - cropH / 2),
-      );
+    this.applyArt(card, isBasic(CARD_DB, card.id) ? opts.landStyle : undefined, artRect);
 
     // Texts. With the cost moved to the bottom-left, the name owns the FULL top
     // band — auto-fit to 244px (was 215, when it had to dodge the top-right
@@ -676,6 +659,64 @@ export class CardView extends Phaser.GameObjects.Container {
     return this;
   }
 
+  /**
+   * The real art texture this face is still waiting for (it drew the loading
+   * stand-in), or null. The thumbnail cache reads it to know a bake is
+   * provisional.
+   */
+  get awaitingArt(): string | null {
+    return this.artPendingKey;
+  }
+
+  /**
+   * Draw the card's art into the window. If the file has not streamed in yet
+   * the resolver answers with the loading stand-in, and this face redraws
+   * itself when the file lands (only the art: tint, alpha, holo and every
+   * other layer are left as they are). A new setCard, or destroy, ends the
+   * wait.
+   */
+  private applyArt(card: CardDef, landStyle: string | undefined, artRect: ArtWindow): void {
+    const artRef = Art.resolver!.getArt(card.id, landStyle);
+    if (artRef.frameName) this.art.setTexture(artRef.textureKey, artRef.frameName);
+    else this.art.setTexture(artRef.textureKey);
+    // Cover the selected window: the standard window crops vertically; full art
+    // uses the taller frame interior and therefore crops a centered horizontal
+    // band from the same 4:5 source. Explicitly reposition after setCrop — crop
+    // does not recenter an Image whose source crop is offset. The source size
+    // is read back from the texture: the stand-in, the full file and the
+    // half-resolution file are all 4:5 but not all the same size.
+    const srcW = this.art.frame.width;
+    const srcH = this.art.frame.height;
+    const scale = Math.max(artRect.w / srcW, artRect.h / srcH);
+    const cropW = artRect.w / scale;
+    const cropH = artRect.h / scale;
+    const cropX = (srcW - cropW) / 2;
+    const cropY = (srcH - cropH) / 2;
+    this.art
+      .setCrop(cropX, cropY, cropW, cropH)
+      .setScale(scale)
+      .setPosition(
+        artRect.x + artRect.w / 2 + scale * (srcW / 2 - cropX - cropW / 2),
+        artRect.y + artRect.h / 2 + scale * (srcH / 2 - cropY - cropH / 2),
+      );
+
+    this.stopArtWait();
+    if (artRef.pending === undefined) return;
+    this.artPendingKey = artRef.pending;
+    this.cancelArtWait = redrawWhenArtLands(this, artRef.pending, () => {
+      this.cancelArtWait = null;
+      this.artPendingKey = null;
+      if (!this.art.active || this.card !== card) return;
+      this.applyArt(card, landStyle, artRect);
+    });
+  }
+
+  private stopArtWait(): void {
+    this.cancelArtWait?.();
+    this.cancelArtWait = null;
+    this.artPendingKey = null;
+  }
+
   /** Bring the readable chrome above full-frame holo overlays, in draw order. */
   private raiseFullArtChrome(): void {
     const chrome: Phaser.GameObjects.GameObject[] = [
@@ -900,6 +941,7 @@ export class CardView extends Phaser.GameObjects.Container {
 
   destroy(fromScene?: boolean): void {
     this.clearFx();
+    this.stopArtWait();
     this.zone = null; // Container.destroy destroys the child zone itself
     super.destroy(fromScene);
   }

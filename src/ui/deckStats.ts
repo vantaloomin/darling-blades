@@ -123,14 +123,33 @@ export function deckPipCounts(stats: DeckStats): DeckPipCount[] {
     .map((color) => ({ color, count: stats.colorPips[color] }));
 }
 
+/** One bead in a summary's colour run; the colorless bead carries no count. */
+export interface DeckPipBead {
+  color: Color | 'C';
+  count: number | null;
+}
+
+/**
+ * The beads a deck summary draws: one per colour its spells ask for, with the
+ * pip count, or the single colorless bead for a deck of colorless spells (as
+ * its picker tile shows it). An empty deck draws none.
+ */
+export function deckPipBeads(stats: DeckStats): DeckPipBead[] {
+  const pips = deckPipCounts(stats);
+  if (pips.length > 0) return pips;
+  return stats.nonlands > 0 ? [{ color: 'C', count: null }] : [];
+}
+
 /**
  * Where a deck's lands live, for the summary counts. A classic deck holds its
  * lands in the list; a reserve-format deck (Standard, Darlings) keeps them in a
- * Warchest of `size` slots, `filled` of them chosen.
+ * Warchest of `size` slots, `filled` of them chosen; a Limited deck's Warchest
+ * is provided whole and has its own line, so the counts name no lands at all.
  */
 export type DeckLandSource =
   | { kind: 'list' }
-  | { kind: 'warchest'; filled: number; size: number };
+  | { kind: 'warchest'; filled: number; size: number }
+  | { kind: 'provided' };
 
 /**
  * The type-count half of the summary under a curve. In a reserve format the
@@ -146,20 +165,4 @@ export function deckCountsLine(stats: DeckStats, lands: DeckLandSource): string 
   parts.push(`${other} other`);
   if (lands.kind === 'warchest') parts.push(`Warchest ${lands.filled}/${lands.size}`);
   return parts.join(' · ');
-}
-
-/**
- * The one-line, text-only summary still used by the Limited builder: type
- * counts, then the colour pips as letters. The Deck Builder draws the pips as
- * beads instead (`deckCountsLine` + `deckPipCounts`).
- */
-export function deckShapeLine(stats: DeckStats, options: { lands: boolean }): string {
-  const other = stats.nonlands - stats.typeCounts.creature;
-  const pips = deckPipCounts(stats)
-    .map(({ color, count }) => `${color}·${count}`)
-    .join(' ');
-  const counts = options.lands
-    ? `${stats.typeCounts.creature} creatures · ${stats.lands} lands · ${other} other`
-    : `${stats.typeCounts.creature} creatures · ${other} other`;
-  return `${counts}   ${pips || 'colorless'}`;
 }

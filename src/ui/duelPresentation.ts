@@ -4,9 +4,12 @@
  * pin without importing a scene into UI tests.
  */
 
-import type { Action } from '../engine/actions';
-import type { CardDef, TargetRef } from '../engine/types';
-import { rulesText } from './rulesText';
+import { activatedBlockers, reasonUncastable, type Action } from '../engine/actions';
+import { compelledAttackers } from '../engine/combat/legality';
+import type { GameEvent } from '../engine/events';
+import type { CardDb, CardDef, GameState, PlayerId, TargetRef } from '../engine/types';
+import { activatedAbilitiesOf, def } from '../engine/types';
+import { activatedText, rulesText } from './rulesText';
 
 export type DuelSide = 'you' | 'opponent';
 export type TargetRingTone = 'friendly' | 'hostile';
@@ -146,10 +149,40 @@ export function hauntlinkActionLabel(hasLegalAction: boolean, linked: boolean): 
 export const DUTY_ACTION_LABEL = 'Perform Duty';
 export const DUTY_CANCEL_LABEL = 'Cancel';
 export const DUTY_PLAYER_LABELS = ['You', 'Opponent'] as const;
+/** Tile chip for a permanent whose Duty you can perform now, beside Hauntlink's Link/Relink. */
+export const DUTY_BADGE_LABEL = 'Duty';
 
-/** History line, in the Your/Enemy family of the other permanent lines. */
-export function dutyNarration(cardName: string, controller: DuelSide): string {
-  return `${controller === 'you' ? 'Your' : 'Enemy'} ${cardName} performs its Duty`;
+/**
+ * The action chip a battlefield tile carries. The shared gold ring means "you
+ * can act with this" whether the permanent can attack, move a Hauntlink or
+ * perform a Duty; the chip says which of the last two it is (an attacker has
+ * no chip). A legal Hauntlink move names itself first.
+ */
+export function permanentActionLabel(link: 'Link' | 'Relink' | null, dutyUsable: boolean): string | null {
+  return link ?? (dutyUsable ? DUTY_BADGE_LABEL : null);
+}
+
+/**
+ * What one Duty does, in the card's own words: the canonical rules line for
+ * that ability ("{2}, {T}: Draw a card.") minus its cost. Empty when the
+ * card has no such ability.
+ */
+export function dutyEffectText(card: CardDef, abilityIndex = 0): string {
+  const ability = activatedAbilitiesOf(card)[abilityIndex];
+  if (!ability) return '';
+  const line = activatedText({ ...card, activated: ability }) ?? '';
+  // Every Duty cost ends on the tap symbol, so the effect is what follows it.
+  return line.replace(/^.*?\{T\}:\s*/, '').replace(/\s*\n\s*/g, ' ').trim();
+}
+
+/**
+ * History line, in the Your/Enemy family of the other permanent lines. The
+ * effect is quoted because it is card text: its "you" is the Duty's
+ * controller, which for the foe's Duty is not the reader.
+ */
+export function dutyNarration(cardName: string, controller: DuelSide, effect = ''): string {
+  const line = `${controller === 'you' ? 'Your' : 'Enemy'} ${cardName} performs its Duty`;
+  return effect ? `${line}: “${effect}”` : line;
 }
 
 /**
@@ -406,7 +439,162 @@ export function sacrificeCastChoices(input: SacrificeCastInput): SacrificeCastCh
   }));
 }
 
+/**
+ * The attack declaration the smart button submits: your picks plus every
+ * creature Rage compels (`compelledAttackers`, the engine's own list).
+ * "Attacks each turn if able" is a requirement, so the engine rejects any
+ * declaration that leaves one out; the empty "Skip Combat" declaration first
+ * of all. Your picks keep their order; compelled creatures you did not pick
+ * follow them.
+ */
+export function attackDeclaration(selected: Iterable<number>, compelled: readonly number[]): number[] {
+  const declared = [...new Set(selected)];
+  for (const iid of compelled) if (!declared.includes(iid)) declared.push(iid);
+  return declared;
+}
+
+/** Smart-button label at the attack declaration. Skip Combat only when nobody attacks. */
+export function attackButtonLabel(declared: readonly number[]): string {
+  return declared.length > 0 ? `Attack (${declared.length})` : 'Skip Combat';
+}
+
+/**
+ * A tap on one of your able attackers: in or out of the declaration, except
+ * a creature Rage compels, which stays in (`refused`) so the scene can say
+ * why instead of letting the engine reject the declaration later.
+ */
+export function toggleAttacker(
+  selected: ReadonlySet<number>,
+  iid: number,
+  compelled: readonly number[],
+): { selected: Set<number>; refused: boolean } {
+  const next = new Set(selected);
+  if (compelled.includes(iid)) {
+    next.add(iid);
+    return { selected: next, refused: true };
+  }
+  if (next.has(iid)) next.delete(iid);
+  else next.add(iid);
+  return { selected: next, refused: false };
+}
+
+/** Why a Rage creature will not leave the declaration, by name, in the glossary's terms. */
+export function rageMustAttackNotice(cardName: string): string {
+  return `${cardName} has Rage: it attacks whenever it is able to.`;
+}
+
+/**
+ * Auto-skip line for a forced attack declaration. Forced means either nobody
+ * can attack, or everybody who can has Rage; the second is an attack, not a
+ * skipped combat.
+ */
+export function forcedAttackNotice(attackers: number): string {
+  if (attackers === 0) return 'Combat skipped (no able attackers)';
+  return attackers === 1 ? 'Your Rage creature attacks' : `Your ${attackers} Rage creatures attack`;
+}
+
+/** History line for a move the rules refused when no more specific reason applies. */
+export const REFUSED_MOVE_LINE = "That move isn't allowed right now. Nothing changed.";
+
+/**
+ * The one History line for a move the engine refused. The engine's own
+ * message ("Illegal action castSpell by P0: ...") is a diagnostic and never
+ * reaches the player. Where the game already has player-facing words for why
+ * a move is blocked, use them: the hand explanation for lands, casts from
+ * hand and Skims, the Duty notices, and the Rage requirement. Call it on the
+ * state the refusal left untouched (the engine validates before it mutates).
+ */
+export function refusedMoveLine(state: GameState, db: CardDb, player: PlayerId, action: Action): string {
+  return refusalReason(state, db, player, action) ?? REFUSED_MOVE_LINE;
+}
+
+function refusalReason(state: GameState, db: CardDb, player: PlayerId, action: Action): string | null {
+  switch (action.type) {
+    case 'playLand':
+      // A Warchest play carries no hand card to explain.
+      return action.reserveIndex === undefined ? reasonUncastable(state, db, player, action.handIndex) : null;
+    case 'skim':
+      return reasonUncastable(state, db, player, action.handIndex);
+    case 'castSpell':
+      // Retell and Whispers cast from the graveyard, which the hand explanation does not read.
+      return action.retell || action.whispers ? null : reasonUncastable(state, db, player, action.handIndex);
+    case 'activate': {
+      const source = state.battlefield.find((perm) => perm.iid === action.iid);
+      const ownMainPhase = state.activePlayer === player && (state.step === 'main1' || state.step === 'main2');
+      return dutyBlockedCopy(dutyWindowReason(
+        activatedBlockers(state, db, player, source, action.abilityIndex ?? 0),
+        ownMainPhase,
+      ));
+    }
+    case 'declareAttackers': {
+      const missing = compelledAttackers(state.battlefield, db, player).find((iid) => !action.attackers.includes(iid));
+      const perm = state.battlefield.find((candidate) => candidate.iid === missing);
+      return perm ? rageMustAttackNotice(def(db, perm.cardId).name) : null;
+    }
+    default:
+      return null;
+  }
+}
+
 /** Armed smart-button label, in the terse family of "Confirm: no blocks". */
 export const LAND_DROP_CONFIRM_LABEL = 'Confirm: skip land';
 /** Toast for the End Turn path, which has no label of its own to change. */
 export const LAND_DROP_NOTICE = 'You still have a land drop this turn.';
+
+/**
+ * An armed Concede stands down after this long unanswered: the window
+ * Gauntlet's Abandon and Limited's Retire use (#426).
+ */
+export const CONCEDE_ARM_MS = 4000;
+
+/** Plain reasons, consequence first, in the terse family of the Duty notices. */
+const UNDO_BLOCKED_COPY = {
+  drew: 'Undo is off: you drew a card.',
+  looked: 'Undo is off: you saw the top of your deck.',
+  ownDeck: 'Undo is off: a card left your deck.',
+  foe: "Undo is off: that showed one of your opponent's cards.",
+} as const;
+
+export interface UndoRevealInput {
+  /** Everything the action emitted, the engine's own record of what moved. */
+  events: readonly GameEvent[];
+  /** The seat whose Undo this is. */
+  player: PlayerId;
+  /** Cards in that seat's deck just before and just after the action. */
+  deckBefore: number;
+  deckAfter: number;
+  /** The action left that seat looking at its own hidden cards (an open Foresee). */
+  lookingAtHiddenCards: boolean;
+}
+
+/**
+ * Why Undo is unavailable after an action, or null when it may be taken back.
+ *
+ * Undo replays a decision from the pre-action snapshot, so any action that
+ * showed the player a card that was hidden before it would let them decide
+ * again knowing that card. What counts:
+ * - `drew` for the player: every draw, including Skim's, a draw Duty, looting,
+ *   and the draw step reached by passing out of the foe's end step;
+ * - an open Foresee: the top of your deck is on screen until you answer it;
+ * - a card leaving the player's deck any other way: `milled`, a `severed`
+ *   from the deck, or any search the events do not name, caught by the deck
+ *   getting smaller;
+ * - a card of the foe's that was hidden: their deck (`milled`, `severed` from
+ *   it) or their hand (`discarded`, a random discard among them).
+ * What does not: `foresaw` (the answer to a look the player already had open,
+ * and undoing it reopens the same cards), the player's own discards and Skims
+ * (cards already in their hand), and the foe's draws (their identity never
+ * reaches the player).
+ */
+export function undoBlockedReason(input: UndoRevealInput): string | null {
+  const { events, player } = input;
+  const own = (e: GameEvent): boolean => 'player' in e && e.player === player;
+  const fromDeck = (e: GameEvent): boolean => e.e === 'milled' || (e.e === 'severed' && e.from === 'deck');
+  if (events.some((e) => e.e === 'drew' && own(e))) return UNDO_BLOCKED_COPY.drew;
+  if (input.lookingAtHiddenCards) return UNDO_BLOCKED_COPY.looked;
+  if (events.some((e) => fromDeck(e) && own(e)) || input.deckAfter < input.deckBefore) {
+    return UNDO_BLOCKED_COPY.ownDeck;
+  }
+  if (events.some((e) => (fromDeck(e) || e.e === 'discarded') && !own(e))) return UNDO_BLOCKED_COPY.foe;
+  return null;
+}

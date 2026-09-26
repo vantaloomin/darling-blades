@@ -15,7 +15,7 @@ import {
 } from '../../src/data/glossary';
 import { CARD_DB } from '../../src/data/catalog';
 import { classifyPermanent } from '../../src/data/permanentClass';
-import { cardGlossaryEntries } from '../../src/ui/rulesText';
+import { cardGlossaryEntries, rulesText } from '../../src/ui/rulesText';
 import type { CardDef, Keyword } from '../../src/engine/types';
 
 const collectible = (Object.values(CARD_DB) as CardDef[]).filter((d) => !d.token);
@@ -177,6 +177,47 @@ describe('cardMechanics', () => {
     expect(cardMechanics(retell)).toContain('sever');
     const preserve = collectible.find((d) => d.preserve)!;
     expect(cardMechanics(preserve)).toContain('sever');
+  });
+
+  it('teaches Mark to a card that reads Marks without putting one', () => {
+    // "Other Marked creatures you control get +1/+1": no Mark op, but the word
+    // is on the face, so the guide has to define it.
+    const markedAnthem: CardDef = {
+      ...mechanicFixture,
+      abilities: [{ when: 'static', static: { scope: 'filter', filter: { other: true, marked: true }, p: 1, t: 1 } }],
+    };
+    expect(cardMechanics(markedAnthem)).toEqual(['mark']);
+    expect(cardGlossaryEntries(markedAnthem)).toContainEqual({ name: 'Mark', reminder: MECHANIC_DEFINITIONS.mark });
+  });
+
+  it('teaches Propagate, and the Mark it is defined by, to a card that triggers on it', () => {
+    // "Whenever you Propagate, draw a card" never performs a Propagate itself.
+    const propagatePayoff: CardDef = {
+      ...mechanicFixture,
+      abilities: [{ when: 'propagated', ops: [{ op: 'draw', n: 1 }] }],
+    };
+    expect(cardMechanics(propagatePayoff)).toEqual(['mark', 'propagate']);
+    const guide = cardGlossaryEntries(propagatePayoff).map((entry) => entry.name);
+    expect(guide).toEqual(expect.arrayContaining(['Mark', 'Propagate']));
+  });
+
+  it('defines in the Keyword Guide every named mechanic a card prints', () => {
+    // A card should not leave the player looking up a word its text depends
+    // on. The rendered face is the independent witness: cardMechanics reads
+    // the data, rulesText prints it, so a printed shape the detector does not
+    // know (Marked statics and mark triggers once shipped that way) fails here.
+    const missing: string[] = [];
+    for (const card of Object.values(CARD_DB) as CardDef[]) {
+      const text = rulesText(card);
+      const guide = new Set(cardGlossaryEntries(card).map((entry) => entry.name));
+      for (const id of Object.keys(MECHANIC_NAMES) as MechanicId[]) {
+        const name = MECHANIC_NAMES[id];
+        if (new RegExp(`\\b${name}(s|d|ed)?\\b`, 'i').test(text) && !guide.has(name)) {
+          missing.push(`${card.id} prints ${name}`);
+        }
+      }
+    }
+    expect(missing).toEqual([]);
   });
 
   it('agrees with the card-inspect Keyword Guide on every collectible card', () => {

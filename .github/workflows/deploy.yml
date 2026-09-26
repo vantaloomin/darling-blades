@@ -27,12 +27,32 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      # The half-resolution card art (320x400, about 51 MiB for 1,537 files) is
+      # what phones load: the lite quality tier (src/platform/quality.ts) asks
+      # for it wherever the manifest lists it. It is derived from the committed
+      # full-res set and gitignored, so every build makes it here, before the
+      # manifest step below lists it. Pillow is the art toolchain's resizer
+      # (scripts/gen-art-halfres.ts), pinned so a deploy never ships output from
+      # an encoder nobody chose. Runs on pull requests too, so a PR proves the
+      # same dist that main deploys.
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Build half-resolution card art
+        env:
+          PYTHON: python
+        run: |
+          python -m pip install --disable-pip-version-check --no-cache-dir pillow==12.3.0
+          npx tsx scripts/gen-art-halfres.ts --jobs 4
       # art-manifest.json is generated and gitignored, but tsc/lint/build all
       # import it — so it must exist before Typecheck (a clean CI checkout won't
-      # have it). gen-art-manifest scans the committed card/scene PNGs; a missing
-      # cards-half/ just yields half:[] (runtime falls back to full-res).
+      # have it). gen-art-manifest scans the committed card/scene art and the
+      # half set built above; --require-half fails the run if any card lacks
+      # its half, so a deploy can never quietly send phones the full-size set.
+      # (A local build without cards-half/ still works: it writes half:[] and
+      # the runtime falls back to full-res.)
       - name: Generate art manifest
-        run: npm run gen-art-manifest
+        run: npx tsx scripts/gen-art-manifest.ts --require-half
       - name: Typecheck
         run: npx tsc --noEmit
       - name: Lint

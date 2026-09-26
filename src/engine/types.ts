@@ -699,7 +699,16 @@ export type TargetRef =
   | { kind: 'permanent'; iid: number }
   | { kind: 'player'; player: PlayerId }
   | { kind: 'stackItem'; sid: number }
-  | { kind: 'grave'; player: PlayerId; index: number };
+  /**
+   * A card in `player`'s graveyard. `instanceId` is its identity: legal
+   * actions carry it, submission binds it when a hand-built ref omits it, and
+   * everything after submission (the stack, held triggers, the effect itself)
+   * finds the card by it, so a graveyard that changes order cannot redirect
+   * the effect to another card (1.8.1). `index` is where the card sat when
+   * the ref was made: the chooser's locator, checked against `instanceId` at
+   * submission and never read by the engine afterwards.
+   */
+  | { kind: 'grave'; player: PlayerId; index: number; instanceId?: number };
 
 export interface CombatState {
   attackers: number[]; // iids
@@ -777,8 +786,21 @@ export interface PlayerState {
 /** Resolution-time choices deferred until the current synchronous batch ends. */
 export interface EffectContinuation {
   ops: EffectOp[];
+  /**
+   * The rest of an effect that a held dies trigger paused (rules.md,
+   * Hauntlink). It carries on as the effect would have carried on had the
+   * trigger resolved inline: behind whatever the trigger raised, or at once.
+   */
+  heldTail?: true;
+  /**
+   * With `heldTail`: how many choices the paused op had already queued ahead
+   * of the held trigger carrying this tail (kept current as held triggers
+   * among them resolve in place). With no link the tail waits behind the
+   * newest of them when the held trigger raises nothing itself.
+   */
+  regionAhead?: number;
   context: {
-    controller: PlayerId; sourceCardId: string; sourceIid?: number; activated?: true; newDecisionContext?: true;
+    controller: PlayerId; sourceCardId: string; sourceIid?: number; newDecisionContext?: true;
     targets: TargetRef[]; targetBatch?: boolean; targetSpecs?: readonly TargetSpec[];
     originalTargets?: TargetRef[]; originalTargetSpecs?: readonly TargetSpec[];
     originalTargetOwners?: (PlayerId | undefined)[];
@@ -801,8 +823,6 @@ export type PendingDecision =
         controller: PlayerId;
         sourceCardId: string;
         sourceIid?: number;
-        /** Retain the runtime guard against activation response windows. */
-        activated?: true;
       };
     }
   | {
@@ -832,6 +852,20 @@ export type PendingDecision =
       continuations?: EffectContinuation[];
       markTriggerDepth?: number;
       selfGraveExclusion?: { instanceId?: number; cardId: string; owner?: PlayerId };
+      /**
+       * Queued choices this held dies trigger was moved ahead of. With no
+       * payable link it would have resolved before any of them was offered;
+       * what it raises still queues behind them.
+       */
+      movedAhead?: number;
+      /**
+       * Held in the middle of a stack flush. Once it and every trigger it
+       * causes have resolved, the flush carries on before any plain choice
+       * they raised is offered, as it would have with no payable link. (A
+       * response window over a spell or an attack always waits for every
+       * queued choice, so it needs no such mark.)
+       */
+      heldMidStep?: true;
     };
 
 export interface GameState {

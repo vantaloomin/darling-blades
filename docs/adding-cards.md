@@ -402,7 +402,11 @@ all pick it up with no further edit. It also needs an icon in `KEYWORD_ICON_KEY`
 A new non-keyword mechanic needs its `MechanicId` union member plus
 `MECHANIC_NAMES`, `MECHANIC_DEFINITIONS`, and `MECHANIC_ORDER` in the same file,
 a glyph in `MECHANIC_ICON_KEY` / `MECHANIC_ICON_PATH`, and a branch in
-`cardMechanics()` that detects it from the card's structured fields. `cardMechanics` is the single detector: the glossary, the inspect guide,
+`cardMechanics()` that detects it from the card's structured fields. A new
+`TriggerWhen` also needs its row in `TRIGGER_MECHANIC` (same file), naming the
+mechanic its wording prints, or `null`; the typecheck refuses a trigger without
+one, and the catalog test in `tests/data/glossary.test.ts` fails any card that
+prints a mechanic its Keyword Guide does not explain (1.8.1, G22). `cardMechanics` is the single detector: the glossary, the inspect guide,
 and search all read it, so a mechanic can never be on a card yet unfindable.
 `tests/data/glossary.test.ts` pins that every keyword and every mechanic has a
 row, a definition, and no em-dash in its copy;

@@ -29,7 +29,41 @@ import { artMissing } from '../art/artLoader';
 import { ART_WAIT_TEXT_STYLE, awaitArt } from '../ui/artGate';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { makeCardThumb } from '../ui/CardThumbCache';
+import { CARD_H, CARD_W } from '../ui/CardView';
+import type { Rect } from '../ui/layout';
+import {
+  PROFILE_CONFIRM_MODAL,
+  PROFILE_EXPORT_MODAL,
+  PROFILE_IMPORT_MODAL,
+  PROFILE_PANELS,
+  PROFILE_RECORD,
+  PROFILE_REPLAYS,
+  PROFILE_REPLAY_ROW,
+  PROFILE_SAVE_ACTIONS,
+  PROFILE_SAVE_CARD_PICKER,
+  PROFILE_SHOWCASE,
+  PROFILE_STAT_ROWS,
+  PROFILE_STAT_TABS,
+  PROFILE_TAB_STRIP,
+  PROFILE_WIDE_MODAL,
+  profileConfirmFooterXs,
+  profileConfirmLayout,
+  profileExportFooterXs,
+  profileExportLayout,
+  profileImportFooterXs,
+  profileImportLayout,
+  profilePickerLayout,
+  profileReplayCell,
+  profileReplayNameWidth,
+  profileSaveActionCenters,
+  profileStatNoteTop,
+  profileStatRowY,
+  profileWatchX,
+  type ProfileStatTab,
+} from '../ui/profilePresentation';
 import { canvasPngBytes, composeSaveCardCanvas, downloadPngBytes, pickPngFile } from '../ui/saveCard';
+import { ellipsizeText } from '../ui/textFit';
+import { sceneTitle } from '../ui/sceneTitle';
 import { colorInt, theme } from '../ui/theme';
 import {
   backButton,
@@ -42,29 +76,23 @@ import {
 } from '../ui/themeWidgets';
 import { bindTapButton } from '../platform/gestures';
 
+export type { ProfileStatTab } from '../ui/profilePresentation';
+
 const DIFFICULTY_LABEL: Record<Difficulty, string> = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
 
-/**
- * Shared geometry for the left-column list rows. The text insets exist because
- * the row fill and the row text were both hardcoded to the panel's own edges
- * (104 and 540), so every label and value sat flush against the border with no
- * isolation space. Derive both from these instead of repeating the numbers.
- */
-const ROW_X = 104;
-const ROW_W = 436;
-const ROW_INSET = theme.space(3);
-const ROW_TEXT_LEFT = ROW_X + ROW_INSET;
-const ROW_TEXT_RIGHT = ROW_X + ROW_W - ROW_INSET;
-
+/** Hit width of a built button: what measure-then-place packs by. */
+const hitWidth = (button: ThemedButton): number => button.getMeasuredSize().hit.width;
 
 /**
  * Read-only career-record screen (Profile button on MainMenu). Surfaces the
  * stats the engine already tracks and the persisted deterministic replay reel.
  * Nothing rendered here mutates the save.
+ *
+ * Every position comes from `src/ui/profilePresentation.ts` (derived from the
+ * design-system tokens and the title-safe frame); this file carries no
+ * coordinates of its own. Buttons whose label width is font-dependent are
+ * built first and then placed from their measured hit width.
  */
-/** Left-panel stat tabs (1.6.3). */
-export type ProfileStatTab = 'practice' | 'gauntlet' | 'draft' | 'collection';
-
 export class ProfileScene extends Phaser.Scene {
   private statTab: ProfileStatTab = 'practice';
   /** Everything the active tab drew, cleared on each tab switch. */
@@ -121,16 +149,13 @@ export class ProfileScene extends Phaser.Scene {
 
     const p = computeProfile(Services.save.data);
 
-    this.add
-      .text(640, 64, 'Profile', {
-        fontFamily: theme.fonts.display,
-        fontSize: `${theme.type.display}px`,
-        color: theme.colors.heading,
-      })
-      .setOrigin(0.5);
+    // Header line: the back link (added last, below) and the shared title.
+    sceneTitle(this, 'Profile');
 
+    // Record row: the win record centred, the save actions at the frame's
+    // right edge on the same line, the showcase at its left edge.
     this.add
-      .text(640, 112, `${p.wins} W  /  ${p.losses} L`, {
+      .text(PROFILE_RECORD.x, PROFILE_RECORD.y, `${p.wins} W  /  ${p.losses} L`, {
         fontFamily: theme.fonts.display,
         fontSize: `${theme.type.h1}px`,
         color: theme.colors.gold,
@@ -138,44 +163,49 @@ export class ProfileScene extends Phaser.Scene {
       .setOrigin(0.5);
     this.add
       .text(
-        640,
-        146,
+        PROFILE_RECORD.x,
+        PROFILE_RECORD.rateY,
         p.games > 0 ? `${formatRate(p.winRate)} win rate over ${p.games} duels` : 'No duels played yet',
         { fontFamily: theme.fonts.ui, fontSize: `${theme.type.body}px`, color: theme.colors.muted },
       )
       .setOrigin(0.5);
 
-    const exportButton = themedButton(this, 900, 112, 'Export save', {
+    const exportButton = themedButton(this, 0, PROFILE_SAVE_ACTIONS.y, 'Export save', {
       variant: 'primary',
-      minWidth: 160,
+      minWidth: PROFILE_SAVE_ACTIONS.minWidth,
       onTap: () => this.openExportModal(),
     });
-    const importButton = themedButton(this, 1080, 112, 'Import save', {
+    const importButton = themedButton(this, 0, PROFILE_SAVE_ACTIONS.y, 'Import save', {
       variant: 'emphasis',
-      minWidth: 160,
+      minWidth: PROFILE_SAVE_ACTIONS.minWidth,
       onTap: () => this.openImportModal(),
     });
+    const { exportX, importX } = profileSaveActionCenters(hitWidth(exportButton), hitWidth(importButton));
+    exportButton.container.setX(exportX);
+    importButton.container.setX(importX);
     this.profileInteractiveTargets.push(exportButton.inputZone, importButton.inputZone);
 
     if (data.notice) {
+      // The import's result, as the save actions' status line.
       this.add
-        .text(640, 174, data.notice, {
+        .text(PROFILE_SAVE_ACTIONS.right, PROFILE_SAVE_ACTIONS.noticeY, data.notice, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.label}px`,
           color: theme.colors.success,
         })
-        .setOrigin(0.5);
+        .setOrigin(1, 0.5);
     }
 
     this.drawShowcase();
 
-    panel(this, 72, 190, 500, 450);
-    panel(this, 600, 190, 608, 450);
+    const P = PROFILE_PANELS;
+    panel(this, P.left.x, P.top, P.left.width, P.bottom - P.top);
+    panel(this, P.right.x, P.top, P.right.width, P.bottom - P.top);
 
     this.renderStatTabs();
 
     this.add
-      .text(632, 224, 'Replays', {
+      .text(PROFILE_REPLAYS.headingX, PROFILE_REPLAYS.headingY, 'Replays', {
         fontFamily: theme.fonts.display,
         fontSize: `${theme.type.h2}px`,
         color: theme.colors.gold,
@@ -183,22 +213,18 @@ export class ProfileScene extends Phaser.Scene {
       .setOrigin(0, 0.5);
     const replays = Services.save.data.replays
       .filter((log) => isReplayVisible(log, this.reserveFormatsEnabled))
-      .slice(0, 10);
+      .slice(0, PROFILE_REPLAYS.capacity);
     if (replays.length === 0) {
       this.add
-        .text(632, 290, 'No replays yet. Finish a duel and it will appear here.', {
+        .text(PROFILE_REPLAYS.left, PROFILE_REPLAYS.emptyY, 'No replays yet. Finish a duel and it will appear here.', {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.body}px`,
           color: theme.colors.muted,
-          wordWrap: { width: 520 },
+          wordWrap: { width: PROFILE_REPLAYS.emptyWrap },
         })
         .setOrigin(0, 0.5);
     } else {
-      replays.forEach((log, index) => {
-        const column = index < 5 ? 0 : 1;
-        const row = index % 5;
-        this.replayRow(log, 620 + column * 298, 252 + row * 76, 280);
-      });
+      replays.forEach((log, index) => this.replayRow(log, profileReplayCell(index)));
     }
 
     this.profileInteractiveTargets.push(backButton(this, 'Menu', () => this.scene.start('MainMenu')));
@@ -228,8 +254,11 @@ export class ProfileScene extends Phaser.Scene {
    * catches those taps; slotted at index 2 (above dim and chrome, below the
    * close button and every control added later) so nothing else changes.
    */
-  private addPanelTapBlocker(shell: ModalShell, width: number, height: number): void {
-    const blocker = this.add.zone(640, 360, width, height).setInteractive();
+  private addPanelTapBlocker(shell: ModalShell, size: { width: number; height: number }): void {
+    // modalShell centres its panel on the design centre by default.
+    const blocker = this.add
+      .zone(theme.design.centerX, theme.design.centerY, size.width, size.height)
+      .setInteractive();
     shell.container.addAt(blocker, 2);
   }
 
@@ -253,8 +282,8 @@ export class ProfileScene extends Phaser.Scene {
     let includeReplays = false;
     let code = this.tryEncode(false) ?? '';
     const shell = modalShell(this, {
-      width: 1120,
-      height: 620,
+      width: PROFILE_WIDE_MODAL.width,
+      height: PROFILE_WIDE_MODAL.height,
       dimAlpha: 0.86,
       depth: theme.depth.modal,
       dismissal: 'dismissible',
@@ -273,11 +302,13 @@ export class ProfileScene extends Phaser.Scene {
       },
     });
     this.exportShell = shell;
-    this.addPanelTapBlocker(shell, 1120, 620);
+    this.addPanelTapBlocker(shell, PROFILE_WIDE_MODAL);
     const c = shell.container;
+    const L = profileExportLayout(shell.tracks);
+    const M = PROFILE_EXPORT_MODAL;
     c.add(
       this.add
-        .text(640, 88, 'Export save', {
+        .text(L.x, L.titleY, 'Export save', {
           fontFamily: theme.fonts.display,
           fontSize: `${theme.type.h1}px`,
           color: theme.colors.gold,
@@ -290,26 +321,26 @@ export class ProfileScene extends Phaser.Scene {
     // so the copy says so plainly — sharing it should be a deliberate act.
     c.add(
       this.add
-        .text(640, 132, 'Save it as an image: pick card art you own and download a save card. The PNG carries this entire save inside it.', {
+        .text(L.x, L.cardCopyY, 'Save it as an image: pick card art you own and download a save card. The PNG carries this entire save inside it.', {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.label}px`,
           color: theme.colors.body,
-          wordWrap: { width: 900 },
+          wordWrap: { width: M.copyWrap },
           align: 'center',
         })
         .setOrigin(0.5),
     );
-    const cardButton = themedButton(this, 640, 178, 'Create save card ✦', {
+    const cardButton = themedButton(this, L.x, L.cardButtonY, 'Create save card ✦', {
       variant: 'primary',
-      minWidth: 220,
+      minWidth: M.cardButtonMinWidth,
       enabled: code !== '',
       onTap: () => this.openSaveCardPicker(() => code),
     });
     c.add(cardButton.container);
 
-    const input = createMultilineInput(this, 640, 330, {
-      width: 930,
-      height: 200,
+    const input = createMultilineInput(this, L.x, L.inputY, {
+      width: M.input.width,
+      height: M.input.height,
       accessibleName: 'Save export code',
       readOnly: true,
     });
@@ -317,7 +348,7 @@ export class ProfileScene extends Phaser.Scene {
     input.setValue(code);
 
     const status = this.add
-      .text(640, 455, 'Replays are excluded by default.', {
+      .text(L.x, L.statusY, 'Replays are excluded by default.', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.label}px`,
         color: theme.colors.muted,
@@ -330,19 +361,26 @@ export class ProfileScene extends Phaser.Scene {
     }
     c.add(
       this.add
-        .text(640, 505, 'Keep the code and the save card private. Both contain your collection, decks, progress, settings, and match record.', {
+        .text(L.x, L.privacyY, 'Keep the code and the save card private. Both contain your collection, decks, progress, settings, and match record.', {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.label}px`,
           color: theme.colors.body,
-          wordWrap: { width: 900 },
+          wordWrap: { width: M.copyWrap },
           align: 'center',
         })
         .setOrigin(0.5),
     );
 
-    const includeButton = themedButton(this, 420, 600, 'Include replays: Off', {
+    // Footer cluster, placed from measured widths (and again if the toggle's
+    // label ever outgrows its minimum width).
+    const placeFooter = (): void => {
+      const [includeX, copyX] = profileExportFooterXs(shell.tracks, hitWidth(includeButton), hitWidth(copyButton));
+      includeButton.container.setX(includeX);
+      copyButton.container.setX(copyX);
+    };
+    const includeButton = themedButton(this, 0, L.footerY, 'Include replays: Off', {
       variant: 'ghost',
-      minWidth: 210,
+      minWidth: M.includeMinWidth,
       onTap: () => {
         const next = this.tryEncode(!includeReplays);
         if (next === null) {
@@ -353,14 +391,16 @@ export class ProfileScene extends Phaser.Scene {
         code = next;
         input.setValue(code);
         includeButton.setLabel(`Include replays: ${includeReplays ? 'On' : 'Off'}`);
+        placeFooter();
         status.setColor(theme.colors.muted).setText(includeReplays ? 'Replays are included in this export.' : 'Replays are excluded from this export.');
       },
     });
-    const copyButton = themedButton(this, 860, 600, 'Copy', {
+    const copyButton = themedButton(this, 0, L.footerY, 'Copy', {
       variant: 'primary',
-      minWidth: 120,
+      minWidth: M.copyMinWidth,
       onTap: () => void this.copyExportCode(input, code, status),
     });
+    placeFooter();
     c.add([includeButton.container, copyButton.container]);
     this.exportInteractiveTargets = [
       ...shell.interactiveChildren,
@@ -412,8 +452,8 @@ export class ProfileScene extends Phaser.Scene {
     // opens the picker later.
     let cancelled = false;
     const waiting = modalShell(this, {
-      width: 1120,
-      height: 640,
+      width: PROFILE_WIDE_MODAL.width,
+      height: PROFILE_WIDE_MODAL.height,
       dimAlpha: 0.88,
       depth: theme.depth.results,
       dismissal: 'dismissible',
@@ -429,7 +469,7 @@ export class ProfileScene extends Phaser.Scene {
       },
     });
     this.pickerShell = waiting;
-    this.addPanelTapBlocker(waiting, 1120, 640);
+    this.addPanelTapBlocker(waiting, PROFILE_WIDE_MODAL);
     const bounds = waiting.tracks.contentBounds;
     const line = this.add
       .text(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2, '', ART_WAIT_TEXT_STYLE)
@@ -450,8 +490,8 @@ export class ProfileScene extends Phaser.Scene {
   private buildSaveCardPicker(getCode: () => string): void {
     this.pickerShell?.close();
     const shell = modalShell(this, {
-      width: 1120,
-      height: 640,
+      width: PROFILE_WIDE_MODAL.width,
+      height: PROFILE_WIDE_MODAL.height,
       dimAlpha: 0.88,
       depth: theme.depth.results,
       dismissal: 'dismissible',
@@ -469,11 +509,12 @@ export class ProfileScene extends Phaser.Scene {
       },
     });
     this.pickerShell = shell;
-    this.addPanelTapBlocker(shell, 1120, 640);
+    this.addPanelTapBlocker(shell, PROFILE_WIDE_MODAL);
     const c = shell.container;
+    const L = profilePickerLayout(shell.tracks, { width: CARD_W, height: CARD_H });
     c.add(
       this.add
-        .text(640, 82, 'Choose your save card art', {
+        .text(L.x, L.titleY, 'Choose your save card art', {
           fontFamily: theme.fonts.display,
           fontSize: `${theme.type.h1}px`,
           color: theme.colors.gold,
@@ -482,7 +523,7 @@ export class ProfileScene extends Phaser.Scene {
     );
     c.add(
       this.add
-        .text(640, 118, 'Cards you own. Tap one to download the save card.', {
+        .text(L.x, L.subtitleY, 'Cards you own. Tap one to download the save card.', {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.label}px`,
           color: theme.colors.muted,
@@ -499,10 +540,8 @@ export class ProfileScene extends Phaser.Scene {
     // 24 cached thumbs is cheap next to keeping partial state honest.
     const gridC = this.add.container(0, 0);
     c.add(gridC);
-    const COLS = 8;
-    const ROWS = 3;
-    const PAGE_SIZE = COLS * ROWS;
-    const THUMB_SCALE = 0.34;
+    const COLS = PROFILE_SAVE_CARD_PICKER.columns;
+    const PAGE_SIZE = COLS * PROFILE_SAVE_CARD_PICKER.rows;
     let query = '';
     let page = 0;
     const renderGrid = (): void => {
@@ -513,7 +552,7 @@ export class ProfileScene extends Phaser.Scene {
       if (filtered.length === 0) {
         gridC.add(
           this.add
-            .text(640, 390, 'No owned cards match that search.', {
+            .text(L.x, L.emptyY, 'No owned cards match that search.', {
               fontFamily: theme.fonts.ui,
               fontSize: `${theme.type.body}px`,
               color: theme.colors.muted,
@@ -524,22 +563,24 @@ export class ProfileScene extends Phaser.Scene {
       }
       const visible = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
       visible.forEach((card, i) => {
-        const x = 199 + (i % COLS) * 126;
-        const y = 240 + Math.floor(i / COLS) * 152;
-        const thumb = makeCardThumb(this, x, y, card, THUMB_SCALE).setInteractive({ useHandCursor: true });
+        const x = L.columnXs[i % COLS];
+        const y = L.rowYs[Math.floor(i / COLS)];
+        const thumb = makeCardThumb(this, x, y, card, L.thumbScale).setInteractive({ useHandCursor: true });
         bindTapButton(this, thumb, () => void this.exportSaveCard(card.id, getCode()));
         gridC.add(thumb);
       });
       if (pages > 1) {
-        const control = pager(this, 596, 632, page, pages, (next) => {
+        const control = pager(this, 0, L.footerY, page, pages, (next) => {
           page = next;
           renderGrid();
         });
+        // The pager's label sits between its chevrons: centre the label.
+        control.container.setX(L.x - control.label.x);
         gridC.add(control.container);
       }
     };
-    const search = createSearchInput(this, 640, 158, {
-      width: 360,
+    const search = createSearchInput(this, L.x, L.searchY, {
+      width: PROFILE_SAVE_CARD_PICKER.searchWidth,
       placeholder: 'Search cards…',
       accessibleName: 'Search save card art',
       onChange: (value) => {
@@ -587,8 +628,8 @@ export class ProfileScene extends Phaser.Scene {
     let previewText: Phaser.GameObjects.Text | null = null;
     let previewButton: ThemedButton | null = null;
     const shell = modalShell(this, {
-      width: 1120,
-      height: 640,
+      width: PROFILE_WIDE_MODAL.width,
+      height: PROFILE_WIDE_MODAL.height,
       dimAlpha: 0.86,
       depth: theme.depth.modal,
       dismissal: 'dismissible',
@@ -606,11 +647,13 @@ export class ProfileScene extends Phaser.Scene {
       },
     });
     this.importShell = shell;
-    this.addPanelTapBlocker(shell, 1120, 640);
+    this.addPanelTapBlocker(shell, PROFILE_WIDE_MODAL);
     const c = shell.container;
+    const L = profileImportLayout(shell.tracks);
+    const M = PROFILE_IMPORT_MODAL;
     c.add(
       this.add
-        .text(640, 78, 'Import save', {
+        .text(L.x, L.titleY, 'Import save', {
           fontFamily: theme.fonts.display,
           fontSize: `${theme.type.h1}px`,
           color: theme.colors.gold,
@@ -618,7 +661,7 @@ export class ProfileScene extends Phaser.Scene {
         .setOrigin(0.5),
     );
     const status = this.add
-      .text(640, 444, 'Paste a save code or choose a save card, then Preview save.', {
+      .text(L.x, L.statusY, 'Paste a save code or choose a save card, then Preview save.', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.label}px`,
         color: theme.colors.muted,
@@ -627,9 +670,9 @@ export class ProfileScene extends Phaser.Scene {
     c.add(status); // scene-level before: it outlived the shell as a stray line
     this.importStatus = status;
 
-    const input = createMultilineInput(this, 640, 270, {
-      width: 930,
-      height: 220,
+    const input = createMultilineInput(this, L.x, L.inputY, {
+      width: M.input.width,
+      height: M.input.height,
       accessibleName: 'Save import code',
       placeholder: 'DBS1-...',
       onChange: () => {
@@ -657,11 +700,11 @@ export class ProfileScene extends Phaser.Scene {
       decodedSave = result.save;
       previewText?.destroy();
       previewText = this.add
-        .text(105, 468, this.formatSavePreview(result.preview), {
+        .text(L.previewX, L.previewTop, this.formatSavePreview(result.preview), {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           color: theme.colors.body,
-          lineSpacing: 3,
+          lineSpacing: M.previewLineSpacing,
         })
         .setOrigin(0, 0);
       c.add(previewText);
@@ -669,14 +712,14 @@ export class ProfileScene extends Phaser.Scene {
       status.setColor(theme.colors.success).setText('Save code is valid. Review the profile before replacing it.');
     };
 
-    const validateButton = themedButton(this, 350, 590, 'Preview save', {
+    const validateButton = themedButton(this, 0, L.footerY, 'Preview save', {
       variant: 'primary',
-      minWidth: 170,
+      minWidth: M.previewMinWidth,
       onTap: runPreview,
     });
-    const cardImportButton = themedButton(this, 610, 590, 'From save card…', {
+    const cardImportButton = themedButton(this, 0, L.footerY, 'From save card…', {
       variant: 'ghost',
-      minWidth: 190,
+      minWidth: M.cardMinWidth,
       onTap: () => {
         void pickPngFile().then((picked) => {
           if (!picked || !this.importShell) return;
@@ -690,14 +733,23 @@ export class ProfileScene extends Phaser.Scene {
         });
       },
     });
-    previewButton = themedButton(this, 880, 590, 'Replace save', {
+    previewButton = themedButton(this, 0, L.footerY, 'Replace save', {
       variant: 'danger',
-      minWidth: 180,
+      minWidth: M.replaceMinWidth,
       enabled: false,
       onTap: () => {
         if (decodedSave) this.openImportConfirmation(decodedSave);
       },
     });
+    const footerXs = profileImportFooterXs(
+      shell.tracks,
+      hitWidth(validateButton),
+      hitWidth(cardImportButton),
+      hitWidth(previewButton),
+    );
+    validateButton.container.setX(footerXs[0]);
+    cardImportButton.container.setX(footerXs[1]);
+    previewButton.container.setX(footerXs[2]);
     c.add([validateButton.container, cardImportButton.container, previewButton.container]);
     this.importInteractiveTargets = [
       ...shell.interactiveChildren,
@@ -711,8 +763,8 @@ export class ProfileScene extends Phaser.Scene {
   private openImportConfirmation(save: SaveData): void {
     this.confirmationShell?.close();
     const shell = modalShell(this, {
-      width: 820,
-      height: 300,
+      width: PROFILE_CONFIRM_MODAL.width,
+      height: PROFILE_CONFIRM_MODAL.height,
       dimAlpha: 0.9,
       depth: theme.depth.results,
       dismissal: 'esc-and-close',
@@ -728,26 +780,28 @@ export class ProfileScene extends Phaser.Scene {
     });
     this.confirmationShell = shell;
     const c = shell.container;
+    const L = profileConfirmLayout(shell.tracks);
+    const M = PROFILE_CONFIRM_MODAL;
     c.add(
       this.add
-        .text(640, 120, "Replace this device's save? Your current profile will be overwritten. Export it first if you may want it back.", {
+        .text(L.messageX, L.messageY, "Replace this device's save? Your current profile will be overwritten. Export it first if you may want it back.", {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.body}px`,
           color: theme.colors.body,
-          wordWrap: { width: 650 },
+          wordWrap: { width: M.messageWrap },
           align: 'center',
-          lineSpacing: 5,
+          lineSpacing: M.messageLineSpacing,
         })
         .setOrigin(0.5),
     );
-    const cancelButton = themedButton(this, 490, 245, 'Cancel', {
+    const cancelButton = themedButton(this, 0, L.footerY, 'Cancel', {
       variant: 'ghost',
-      minWidth: 120,
+      minWidth: M.cancelMinWidth,
       onTap: () => shell.close(),
     });
-    const confirmButton = themedButton(this, 790, 245, 'Replace save', {
+    const confirmButton = themedButton(this, 0, L.footerY, 'Replace save', {
       variant: 'danger',
-      minWidth: 170,
+      minWidth: M.confirmMinWidth,
       onTap: () => {
         if (!Services.replaceSave(save)) {
           shell.close();
@@ -761,6 +815,9 @@ export class ProfileScene extends Phaser.Scene {
         this.scene.restart({ notice: 'Save imported' });
       },
     });
+    const [cancelX, confirmX] = profileConfirmFooterXs(shell.tracks, hitWidth(cancelButton), hitWidth(confirmButton));
+    cancelButton.container.setX(cancelX);
+    confirmButton.container.setX(confirmX);
     c.add([cancelButton.container, confirmButton.container]);
   }
 
@@ -778,49 +835,51 @@ export class ProfileScene extends Phaser.Scene {
 
   /**
    * Trophy Hall showcase: up to three pinned, claimed achievements as tilted
-   * seal plaques in the header's left void. Renders nothing when nothing is
-   * pinned, so the header stays clean for new players.
+   * seal plaques in the header's left void, from the frame's left edge.
+   * Renders nothing when nothing is pinned, so the header stays clean for new
+   * players; the space is reserved either way, so nothing below it moves.
    */
   private drawShowcase(): void {
+    const S = PROFILE_SHOWCASE;
     const achievements = Services.save.data.achievements;
     const pins = achievements.pinned
       .map((id) => ACHIEVEMENTS.find((achievement) => achievement.id === id))
       .filter((achievement): achievement is AchievementDef =>
         !!achievement && achievements.claimed.includes(achievement.id),
       )
-      .slice(0, 3);
+      .slice(0, S.maxPins);
     if (pins.length === 0) return;
     this.add
-      .text(100, 78, 'Showcase', {
+      .text(S.left, S.labelY, 'Showcase', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.micro}px`,
         fontStyle: theme.weight.w700,
         color: theme.colors.muted,
       })
       .setOrigin(0, 0.5);
+    const w = S.sealWidth;
+    const h = S.sealHeight;
+    const inset = S.innerInset;
     pins.forEach((achievement, index) => {
-      const seal = this.add.container(172 + index * 160, 120).setAngle(-3);
+      const seal = this.add.container(S.xs[index], S.sealY).setAngle(S.angle);
       const plate = this.add.graphics();
       plate.fillStyle(theme.graphics.panelFill, 0.96);
-      plate.fillRoundedRect(-74, -24, 148, 48, theme.radius.control);
+      plate.fillRoundedRect(-w / 2, -h / 2, w, h, theme.radius.control);
       plate.lineStyle(2, colorInt(theme.colors.success), 0.95);
-      plate.strokeRoundedRect(-74, -24, 148, 48, theme.radius.control);
+      plate.strokeRoundedRect(-w / 2, -h / 2, w, h, theme.radius.control);
       plate.lineStyle(1, colorInt(theme.colors.gold), theme.alpha.chrome);
-      plate.strokeRoundedRect(-70, -20, 140, 40, theme.radius.control - 2);
+      plate.strokeRoundedRect(-w / 2 + inset, -h / 2 + inset, w - 2 * inset, h - 2 * inset, theme.radius.control - 2);
       const title = this.add
-        .text(0, -8, '', {
+        .text(0, S.titleY, '', {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           fontStyle: theme.weight.w700,
           color: theme.colors.heading,
         })
         .setOrigin(0.5);
-      title.setText(achievement.title);
-      while (title.width > 132 && title.text.length > 1) {
-        title.setText(`${title.text.slice(0, -2).trimEnd()}…`);
-      }
+      ellipsizeText(title, S.titleMaxWidth, achievement.title);
       const label = this.add
-        .text(0, 12, 'CLAIMED', {
+        .text(0, S.claimedY, 'CLAIMED', {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.micro}px`,
           fontStyle: theme.weight.w700,
@@ -835,7 +894,7 @@ export class ProfileScene extends Phaser.Scene {
    * The left panel is tabbed (1.6.3). It used to stack Practice, Gauntlet and
    * Style in one fixed column, which had no room for the Draft record and
    * nowhere to put Collection at all. Tabs went on the LEFT rather than the
-   * right so Replays keep their full 608x450 instead of being halved.
+   * right so Replays keep the whole right panel instead of being halved.
    *
    * Style is gone from this screen entirely: card back and playmat became
    * properties of the deck in save v33 and are edited in the Deck Builder.
@@ -844,19 +903,13 @@ export class ProfileScene extends Phaser.Scene {
     for (const node of this.statTabNodes) node.destroy();
     this.statTabNodes = [];
 
-    const tabs: { key: ProfileStatTab; label: string }[] = [
-      { key: 'practice', label: 'Practice' },
-      { key: 'gauntlet', label: 'Gauntlet' },
-      { key: 'draft', label: 'Draft' },
-      { key: 'collection', label: 'Collection' },
-    ];
-    const first = 132;
-    const pitch = 112;
-    tabs.forEach((tab, index) => {
-      const button = themedButton(this, first + index * pitch, 224, tab.label, {
+    // The strip spans exactly the stat-row column under it (it used to sit
+    // 22px left of the rows it switches).
+    PROFILE_STAT_TABS.forEach((tab, index) => {
+      const button = themedButton(this, PROFILE_TAB_STRIP.xs[index], PROFILE_TAB_STRIP.y, tab.label, {
         variant: this.statTab === tab.key ? 'primary' : 'ghost',
         size: 'sm',
-        minWidth: 100,
+        minWidth: PROFILE_TAB_STRIP.width,
         onTap: () => {
           if (this.statTab === tab.key) return;
           this.statTab = tab.key;
@@ -873,20 +926,20 @@ export class ProfileScene extends Phaser.Scene {
     else this.renderCollectionTab();
   }
 
-  /** Rows start below the tab strip; every tab shares this rhythm. */
+  /** Rows start below the tab strip; every tab shares this rhythm (profilePresentation.ts). */
   private statTabRow(index: number, label: string, value: string, valueColor?: string): void {
-    const y = 276 + index * 36;
+    const y = profileStatRowY(index);
     this.statTabNodes.push(this.rowPanel(y));
     this.statTabNodes.push(
       this.add
-        .text(ROW_TEXT_LEFT, y, label, {
+        .text(PROFILE_STAT_ROWS.textLeft, y, label, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.label}px`,
           color: theme.colors.body,
         })
         .setOrigin(0, 0.5),
       this.add
-        .text(ROW_TEXT_RIGHT, y, value, {
+        .text(PROFILE_STAT_ROWS.textRight, y, value, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.label}px`,
           color: valueColor ?? theme.colors.heading,
@@ -895,17 +948,18 @@ export class ProfileScene extends Phaser.Scene {
     );
   }
 
-  private statTabNote(index: number, text: string): void {
+  /** The tab's footnote under its `rowsAbove` rows; top-anchored so a wrap grows downward. */
+  private statTabNote(rowsAbove: number, text: string): void {
     this.statTabNodes.push(
       this.add
-        .text(ROW_TEXT_LEFT, 276 + index * 36, text, {
+        .text(PROFILE_STAT_ROWS.textLeft, profileStatNoteTop(rowsAbove), text, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.micro}px`,
           color: theme.colors.muted,
-          wordWrap: { width: ROW_W - 32 },
-          lineSpacing: 2,
+          wordWrap: { width: PROFILE_STAT_ROWS.noteWrap },
+          lineSpacing: PROFILE_STAT_ROWS.noteLineSpacing,
         })
-        .setOrigin(0, 0.5),
+        .setOrigin(0, 0),
     );
   }
 
@@ -974,84 +1028,75 @@ export class ProfileScene extends Phaser.Scene {
     this.statTabNote(8, 'A card counts as owned once you hold any treatment of it.');
   }
 
-  private sectionLabel(y: number, text: string): void {
-    this.add
-      .text(104, y, text, {
-        fontFamily: theme.fonts.display,
-        fontSize: `${theme.type.h2}px`,
-        color: theme.colors.gold,
-      })
-      .setOrigin(0, 0.5);
-  }
-
-  private statRow(y: number, label: string, value: string): void {
-    this.rowPanel(y);
-    this.add
-      .text(ROW_TEXT_LEFT, y, label, { fontFamily: theme.fonts.ui, fontSize: `${theme.type.h2}px`, color: theme.colors.body })
-      .setOrigin(0, 0.5);
-    this.add
-      .text(ROW_TEXT_RIGHT, y, value, { fontFamily: theme.fonts.ui, fontSize: `${theme.type.h2}px`, color: theme.colors.heading })
-      .setOrigin(1, 0.5);
-  }
-
-  /** Shared list-row treatment: row fill with the standard panel outline. */
+  /** Shared list-row treatment: row fill with the standard panel outline, centred on `y`. */
   private rowPanel(y: number): Phaser.GameObjects.Graphics {
+    const R = PROFILE_STAT_ROWS;
+    const top = y - R.height / 2;
     return this.add
       .graphics()
       .fillStyle(theme.graphics.rowFill, theme.alpha.subtle)
-      .fillRoundedRect(ROW_X, y - 15, ROW_W, 30, theme.radius.control)
+      .fillRoundedRect(R.x, top, R.width, R.height, theme.radius.control)
       .lineStyle(1, theme.graphics.panelStroke, theme.alpha.chrome)
-      .strokeRoundedRect(ROW_X, y - 15, ROW_W, 30, theme.radius.control);
+      .strokeRoundedRect(R.x, top, R.width, R.height, theme.radius.control);
   }
 
-  private replayRow(log: ReplayLog, x: number, y: number, width: number): void {
+  /**
+   * One replay cell. Line 1 is the Watch button's track (the opponent's name
+   * shares its centre and is ellipsized short of the button, where it used to
+   * wrap onto the line below); the mode/result line sits under it, and a
+   * replay recorded on an older version gets its note in place of the button.
+   */
+  private replayRow(log: ReplayLog, cell: Rect): void {
+    const R = PROFILE_REPLAY_ROW;
     const replayable = canReplay(log, CARD_DB);
     const row = this.add.container(0, 0).setAlpha(replayable ? 1 : theme.alpha.subtle);
-    row.add(panel(this, x, y, width, 68, { alpha: theme.alpha.subtle, radius: theme.radius.control }));
+    row.add(panel(this, cell.x, cell.y, cell.width, cell.height, { alpha: theme.alpha.subtle, radius: theme.radius.control }));
     const mode = log.context.mode[0].toUpperCase() + log.context.mode.slice(1);
     const result = log.result === 'win' ? 'Victory' : 'Defeat';
     const date = todayString(new Date(log.endedAt));
+    const name = this.add
+      .text(cell.x + R.textX, cell.y + R.titleY, '', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.label}px`,
+        color: theme.colors.body,
+      })
+      .setOrigin(0, 0.5);
+    row.add(name);
     row.add(
       this.add
-        .text(x + 10, y + 15, log.context.opponentName, {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.label}px`,
-          color: theme.colors.body,
-          wordWrap: { width: width - 108 },
-        })
-        .setOrigin(0, 0.5),
-    );
-    row.add(
-      this.add
-        .text(x + 10, y + 38, `${mode} · ${result} · ${log.turns === 1 ? '1 turn' : `${log.turns} turns`} · ${date}`, {
+        .text(cell.x + R.textX, cell.y + R.metaY, `${mode} · ${result} · ${log.turns === 1 ? '1 turn' : `${log.turns} turns`} · ${date}`, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           color: replayable ? theme.colors.muted : theme.colors.danger,
-          wordWrap: { width: width - 20 },
+          wordWrap: { width: R.textWidth },
         })
         .setOrigin(0, 0.5),
     );
+    let watchWidth = 0;
     if (replayable) {
-      const watch = themedButton(this, x + width - 48, y + 15, 'Watch', {
+      const watch = themedButton(this, 0, cell.y + R.titleY, 'Watch', {
         variant: 'primary',
         size: 'sm',
-        minWidth: 78,
+        minWidth: R.watchMinWidth,
         onTap: (p) => {
           if (!p.rightButtonReleased()) this.scene.start('Duel', { replay: log });
         },
       });
+      watchWidth = watch.getMeasuredSize().visual.width;
+      watch.container.setX(cell.x + profileWatchX(watchWidth));
       row.add(watch.container);
       this.profileInteractiveTargets.push(watch.inputZone);
     } else {
       row.add(
         this.add
-          .text(x + 10, y + 57, 'This replay was recorded on an older version.', {
+          .text(cell.x + R.textX, cell.y + R.noteY, 'This replay was recorded on an older version.', {
             fontFamily: theme.fonts.ui,
-            fontSize: `${theme.type.caption - 1}px`,
+            fontSize: `${theme.type.micro}px`,
             color: theme.colors.muted,
           })
           .setOrigin(0, 0.5),
       );
     }
+    ellipsizeText(name, profileReplayNameWidth(watchWidth), log.context.opponentName);
   }
 }

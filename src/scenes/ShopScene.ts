@@ -47,6 +47,7 @@ import { artMissing } from '../art/artLoader';
 import { awaitArt, gateOnArt } from '../ui/artGate';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { HEADER_CURRENCY_ANCHOR } from '../ui/layout';
+import { sceneTitle } from '../ui/sceneTitle';
 import { colorInt, theme } from '../ui/theme';
 import { queueAchievementUnlockToasts } from '../ui/achievementToast';
 import { queueToast, Toast } from '../ui/Toast';
@@ -771,13 +772,7 @@ export class ShopScene extends Phaser.Scene {
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('shop');
 
-    this.add
-      .text(width / 2, 44, 'Shop', {
-        fontFamily: theme.fonts.display,
-        fontSize: `${theme.type.display}px`,
-        color: theme.colors.heading,
-      })
-      .setOrigin(0.5);
+    sceneTitle(this, 'Shop');
 
     this.goldBadge = goldBadge(this, HEADER_CURRENCY_ANCHOR.x, HEADER_CURRENCY_ANCHOR.y, { flashOnChange: true });
     this.refreshGold();

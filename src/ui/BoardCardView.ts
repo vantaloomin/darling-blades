@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { Art } from '../art/ArtResolver';
+import { redrawWhenArtLands } from '../art/artWatch';
 import type { CardDef, Keyword, Rarity } from '../engine/types';
 import { isType } from '../engine/types';
 import type { CardVariant } from '../meta/variants';
@@ -176,6 +177,7 @@ export class BoardCardView extends Phaser.GameObjects.Container {
   private sick = false;
   private zone: Phaser.GameObjects.Zone | null = null;
   private tappedState = false;
+  private cancelArtWait: (() => void) | null = null;
 
   constructor(scene: Phaser.Scene, x: number, y: number, card: CardDef) {
     super(scene, x, y);
@@ -186,26 +188,10 @@ export class BoardCardView extends Phaser.GameObjects.Container {
       .rectangle(0, 0, TILE_W, TILE_H, 0x0d0b16, 1)
       .setStrokeStyle(2, RARITY_BORDER[card.rarity], 0.95);
 
-    // Art: cover-crop the 4:5 source into the tall window, biased slightly
-    // upward so faces (composition-locked near vertical center) stay in frame.
-    // The window is portrait-tall, so the crop keeps ~88% of the source height.
-    const artRef = Art.resolver!.getArt(card.id);
-    this.art = artRef.frameName
-      ? scene.add.image(0, ART_CY, artRef.textureKey, artRef.frameName)
-      : scene.add.image(0, ART_CY, artRef.textureKey);
-    const srcW = this.art.frame.width;
-    const srcH = this.art.frame.height;
-    const scale = Math.max(ART_W / srcW, ART_H / srcH);
-    const cropW = ART_W / scale;
-    const cropH = ART_H / scale;
-    const cropY = (srcH - cropH) * 0.3;
-    this.art.setCrop((srcW - cropW) / 2, cropY, cropW, cropH);
-    this.art.setScale(scale);
-    // setCrop shows the crop where it falls within the full-texture footprint —
-    // it does NOT re-center. Shift the image so the cropped band lands centered
-    // in the art window (without this the art rides high: it bleeds over the
-    // top frame and leaves a dark band inside the bottom one).
-    this.art.setY(ART_CY + scale * (srcH / 2 - cropY - cropH / 2));
+    // Art: cover-cropped into the tall window by applyArt, which also redraws
+    // it if the file was still streaming in when this tile was built.
+    this.art = scene.add.image(0, ART_CY, '__WHITE');
+    this.applyArt();
 
     // Thin inner border drawn ON TOP of the art, so the frame reads even where
     // the illustration is bright and the art window never bleeds over the tile.
@@ -356,10 +342,19 @@ export class BoardCardView extends Phaser.GameObjects.Container {
     return this;
   }
 
-  /** Small top-edge action label, used by battlefield activated abilities. */
-  setActionLabel(label: string | null): this {
+  /**
+   * Small top-edge action chip ("Link", "Relink", "Duty"): what a tap on this
+   * permanent does right now. `tileScale` is the scale the tile is displayed
+   * at; the chip counter-scales so it keeps its 10px type on shrunken tiles
+   * (the 0.55 permanent band, where Duty artifacts live, and tucked links),
+   * where it would otherwise print at 5-6px.
+   */
+  setActionLabel(label: string | null, tileScale = 1): this {
     this.actionBadge.setVisible(label !== null);
-    if (label !== null) this.actionBadge.setText(label);
+    if (label !== null) {
+      this.actionBadge.setText(label);
+      this.actionBadge.setScale(tileScale > 0 ? Math.max(1, 1 / tileScale) : 1);
+    }
     return this;
   }
 
@@ -482,6 +477,43 @@ export class BoardCardView extends Phaser.GameObjects.Container {
   }
 
   /**
+   * Cover-crop the card's 4:5 art into the tall window, biased slightly upward
+   * so faces (composition-locked near vertical center) stay in frame. The
+   * window is portrait-tall, so the crop keeps ~88% of the source height. If
+   * the file has not streamed in yet the resolver answers with the loading
+   * stand-in and the tile redraws its art when the file lands; tint, alpha
+   * and holo carry over untouched.
+   */
+  private applyArt(): void {
+    const artRef = Art.resolver!.getArt(this.card.id);
+    if (artRef.frameName) this.art.setTexture(artRef.textureKey, artRef.frameName);
+    else this.art.setTexture(artRef.textureKey);
+    // Read back from the texture: the stand-in, the full file and the
+    // half-resolution file are all 4:5 but not all the same size.
+    const srcW = this.art.frame.width;
+    const srcH = this.art.frame.height;
+    const scale = Math.max(ART_W / srcW, ART_H / srcH);
+    const cropW = ART_W / scale;
+    const cropH = ART_H / scale;
+    const cropY = (srcH - cropH) * 0.3;
+    this.art.setCrop((srcW - cropW) / 2, cropY, cropW, cropH);
+    this.art.setScale(scale);
+    // setCrop shows the crop where it falls within the full-texture footprint —
+    // it does NOT re-center. Shift the image so the cropped band lands centered
+    // in the art window (without this the art rides high: it bleeds over the
+    // top frame and leaves a dark band inside the bottom one).
+    this.art.setY(ART_CY + scale * (srcH / 2 - cropY - cropH / 2));
+
+    this.cancelArtWait?.();
+    this.cancelArtWait = null;
+    if (artRef.pending === undefined) return;
+    this.cancelArtWait = redrawWhenArtLands(this, artRef.pending, () => {
+      this.cancelArtWait = null;
+      if (this.art.active) this.applyArt();
+    });
+  }
+
+  /**
    * Clickable via an invisible Zone child (full world transform, so the hit
    * rect tracks the container's scale). Pointer events re-emit on this view
    * with the Pointer threaded through — consumers can check mouse buttons.
@@ -519,6 +551,8 @@ export class BoardCardView extends Phaser.GameObjects.Container {
   }
 
   destroy(fromScene?: boolean): void {
+    this.cancelArtWait?.();
+    this.cancelArtWait = null;
     this.holo?.destroy();
     this.holo = null;
     this.zone = null; // Container.destroy destroys the child zone itself

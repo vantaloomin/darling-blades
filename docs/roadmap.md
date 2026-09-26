@@ -1729,6 +1729,27 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   and the 21 open 1.8 review findings G1-G21, re-checked against `main` the
   same day, in nine PRs by file set on a `release/1.8.1` train. Cut when the
   sweep reads. No save schema change; the replay log goes to v15.
+  **BUILT AND STAGED 2026-09-25** on `release/1.8.1` (#439-#455 plus the cut
+  staging PR): all G1-G23 findings closed, with G22 (glossary keywords)
+  and G23 (Rage never skips combat) found during the build. Two adversarial
+  engine reviews also closed two crashes and two freezes (one crash and the
+  Tithe soft-lock were live in 1.8.0), with two owner rulings the same day
+  (a dies-triggered raise passes over a legend you control; a Rite or Tithe
+  fodder's choice always comes before the response window). Also in the
+  release: the Hauntlink Apex recost (D7-A),
+  21 achievements, the privacy policy naming Cloudflare, a bounce no longer
+  counting as a death, and **the Forge** (the Card Builder sub-site at
+  `/forge/`, announced in the notes by the owner's ruling). Measured on the
+  staged tip: 4,218 tests; the floors matrix with no flags; the avatar and
+  Darlings matrices identical to their baselines within a point or two, with
+  one older finding carried to 1.9 (the Darlings summit, R23-R26 at 10-28%).
+  Release notes: [release-notes/v1.8.1.md](release-notes/v1.8.1.md).
+  **SHIPPED 2026-09-25** on the owner's word ("cut now, we can always patch
+  again"), ahead of D6: main carried a live crash, and the post-release sweep
+  measures 1.8.0, not 1.8.1. Its round 0 read clean on 2026-09-24; a lost
+  runner stopped round 1 and the watcher resumed it (run 36196954110). A
+  later round's finding lands in a 1.8.x patch or in 1.9. The Darlings
+  summit tune waits for 1.9 (owner, same day).
 
 > **The release spine from 1.7 to 2.0 lives in
 > [plan-road-to-2.0.md](plan-road-to-2.0.md)** (2026-08-24): the Large/Small

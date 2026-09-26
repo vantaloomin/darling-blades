@@ -18,12 +18,15 @@
  *                   client (that would need a date stored on the device); the
  *                   Worker's rotating daily hash counts each device once a day;
  *   - `duel`      — one digest per completed duel, carrying NO card ids;
- *   - `cards`     — one batch at session end, tallied only in memory across a
- *                   single launch, one row per distinct card, carrying no duel
- *                   reference, no deck reference, no order and no time. Every
- *                   row repeats one bucketed count of the duels the launch
- *                   contained, which is a denominator rather than a reference:
- *                   it names no duel and orders nothing.
+ *   - `cards`     — a batch each time the game is hidden or closed, tallied
+ *                   only in memory across a single launch, carrying only the
+ *                   cards no earlier batch of that launch carried, so each card
+ *                   is reported once per launch. One row per distinct card,
+ *                   carrying no duel reference, no deck reference, no order and
+ *                   no time. Every row of a batch repeats one bucketed count of
+ *                   the duels the launch had completed when the batch left,
+ *                   which is a denominator rather than a reference: it names no
+ *                   duel and orders nothing.
  *
  * `SIGNAL_FIELDS` is the field allowlist and the single source of truth. Every
  * builder constructs its output by projecting through the allowlist, so an
@@ -225,7 +228,10 @@ interface DuelFieldTypes {
 interface CardsFieldTypes {
   cardId: string;
   countBucket: CardCountBucket;
-  /** Duels in this launch, the same on every row of one batch. A denominator, not a reference. */
+  /**
+   * Duels this launch had completed when the batch left, the same on every row
+   * of one batch. A denominator, not a reference.
+   */
   duelsBucket: CardCountBucket;
 }
 
@@ -350,15 +356,19 @@ export function curveBucket(raw: unknown): CurveBucket {
   return bandOf(CURVE_BANDS, raw);
 }
 
-/** Times one card was played across a launch. Anything below 2 reads as `1`. */
+/**
+ * Times one card was played in a launch, up to the batch that reported it.
+ * Anything below 2 reads as `1`.
+ */
 export function cardCountBucket(raw: unknown): CardCountBucket {
   return bandOf(CARD_COUNT_BANDS, raw);
 }
 
 /**
- * Duels completed in one launch. Deliberately the same bands and labels as the
- * card count, so the batch reads as one vocabulary. Zero, negative, NaN and
- * absent all read as `1`, since a batch only exists because a launch happened.
+ * Duels completed in one launch, up to the batch that carries the count.
+ * Deliberately the same bands and labels as the card count, so the batch reads
+ * as one vocabulary. Zero, negative, NaN and absent all read as `1`, since a
+ * batch only exists because a launch happened.
  */
 export function duelsBucket(raw: unknown): CardCountBucket {
   return bandOf(CARD_COUNT_BANDS, raw);
@@ -782,8 +792,8 @@ export function buildDuelDigest(
 
 /**
  * An in-memory tally of cards played across ONE launch. The caller owns it,
- * nothing about it is stored on the device, and it is discarded when the
- * session ends. Order of play is never recorded.
+ * nothing about it is stored on the device, and it is cleared each time a
+ * batch carries it off. Order of play is never recorded.
  */
 export type CardTally = Readonly<Record<string, number>>;
 
@@ -822,10 +832,12 @@ export function tallyCardsPlayed(
  * nowhere to put any of them.
  *
  * `duelsPlayed` is the denominator the batch would otherwise lack: how many
- * duels this launch contained, bucketed with the card-count labels and repeated
- * identically on every row. It is REQUIRED rather than optional so a caller
- * cannot forget it and quietly ship a batch that cannot be read. It is a count
- * and nothing else: it names no duel, references no duel, and orders nothing.
+ * duels this launch had completed when the batch left (the launch's running
+ * total, not a count since an earlier batch), bucketed with the card-count
+ * labels and repeated identically on every row. It is REQUIRED rather than
+ * optional so a caller cannot forget it and quietly ship a batch that cannot be
+ * read. It is a count and nothing else: it names no duel, references no duel,
+ * and orders nothing.
  */
 export function buildSessionCards(tally: CardTally, duelsPlayed: number): SessionCardSignal[] {
   const duels = duelsBucket(duelsPlayed);

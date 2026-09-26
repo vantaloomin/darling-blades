@@ -93,7 +93,12 @@ To replace a card's placeholder with a real illustration:
 Current inventory (verified 2026-07-31): `public/assets/art/cards/` has **807
 WebP files**, `public/assets/art/scenes/` has **17**, and the manifest reports
 807 card entries and 17 scene entries (half-res entries appear after a
-`gen-art-halfres` run; a fresh checkout reports 0). The full-res card
+`gen-art-halfres` run; a fresh local checkout reports 0). Since 1.8.1 the Pages
+build makes the half tier on every run (`gen-art-halfres --jobs 4`, Python and
+Pillow in the workflow) and the manifest step fails without it
+(`gen-art-manifest --require-half`). A local `npm run build` or `app:build`
+still uses whatever `cards-half/` holds: rerun `gen-art-halfres` after
+regenerating any card art, or the half tier ships the old image. The full-res card
 and scene tiers are encoded at q90; `cards-half/` is derived at 320x400, q85.
 The converter also covers the standalone hero and coin-face UI art, leaving no
 PNG under `public/assets/art`.
@@ -273,8 +278,10 @@ procedural placeholder.
 
 ### Spell art: `scripts/gen-spell-art.ts`
 
-The 91 **non-creature spell cards covered by the spell-art generator** (43
-base, 9 Ragnarök, 31 Gothic Monsters, and 8 removal-cycle spells) likewise sit
+The 369 **non-creature entries covered by the spell-art generator** (45
+base, 9 Ragnarök, 31 Gothic Monsters, 8 removal-cycle spells, 7 returning-mechanics
+spells, 84 Sands of the Duat entries, 20 Dark Tales companion spells, 62 Starborne
+entries, 97 Drowned Deep entries, and 6 regeneration entries) likewise sit
 outside the creature art bible and get their own program. Direction lives in
 `docs/spell-art.md` and the driver is
 `npm run gen-spell-art` (`scripts/gen-spell-art.ts`), a sibling of the card and
@@ -300,13 +307,13 @@ outside the doc-driven pipeline during the Celtic Fae expansion) — when adding
 a record after the fact, note that the roster contracts are rigid:
 `check-art-bible` enforces creatures-only faction files with exact
 count/order, and `gen-spell-art.ts` **hard-fails on any id outside its fixed
-91-id roster**. Worse, the drivers' entry parsers treat any top-level
+369-id roster**. Worse, the drivers' entry parsers treat any top-level
 `- **Prompt:**` line as the current entry's prompt, so a casually appended
 block **silently overwrites the previous entry's prompt**. The safe pattern is
 the parser-proof addendum convention at the end of `docs/spell-art.md`
 ("Celtic Fae non-creature addendum"): `####` headings + indented field
 bullets, invisible to the parsers, verified with `--dry-run` after editing. The
-current non-creature generator rosters are 91 spell entries and 22 land entries;
+current non-creature generator rosters are 369 spell entries and 22 land entries;
 the live catalog and manifest inventory is recorded above.
 
 **Historical base-set run status (2026-07-03): COMPLETE — 152/152 on disk**

@@ -9,7 +9,7 @@ import {
 } from '../battlefield';
 import { anyPayableHauntlink } from '../hauntlinkWindow';
 import { drawCards } from '../phases';
-import { freshGraveyardCard } from '../graveyard';
+import { freshGraveyardCard, graveRefIndex } from '../graveyard';
 import { rngInt } from '../rng';
 import { getEffectiveStats, isQuestActive } from '../statics';
 import { enumerateTargets, isLegalTarget } from './targeting';
@@ -32,8 +32,6 @@ export interface EffectContext {
   controller: PlayerId;
   /** New observer choices suspend their triggering action before its response window. */
   newDecisionContext?: true;
-  /** Reject unexpected targeted decisions or response windows from an activation. */
-  activated?: true;
   sourceCardId: string;
   sourceIid?: number; // set for permanents' triggered abilities
   targets: TargetRef[];
@@ -738,16 +736,16 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       return;
     case 'reclaim': {
       const grave = state.players[ctx.controller].graveyard;
-      for (const ref of [...targetRefsForOp(ctx)].sort((a, b) => {
-        if (a.kind !== 'grave' || b.kind !== 'grave') return 0;
-        return b.index - a.index;
-      })) {
-        if (ref.kind !== 'grave' || ref.player !== ctx.controller) continue;
-        if (ref.index < grave.length) {
-          const [card] = grave.splice(ref.index, 1);
-          if (isCardInstance(card)) delete card.whispersUntilDawnOf;
-          state.players[ctx.controller].hand.push(card);
-        }
+      // Find each chosen card where it sits now, then take them from the
+      // highest position down so one splice never shifts another.
+      const indexes = targetRefsForOp(ctx)
+        .flatMap((ref) => ref.kind === 'grave' && ref.player === ctx.controller ? [graveRefIndex(state, ref)] : [])
+        .filter((index) => index >= 0)
+        .sort((a, b) => b - a);
+      for (const index of indexes) {
+        const [card] = grave.splice(index, 1);
+        if (isCardInstance(card)) delete card.whispersUntilDawnOf;
+        state.players[ctx.controller].hand.push(card);
       }
       return;
     }
@@ -782,12 +780,25 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       // A dies-triggered raise may never return its own source: see
       // EffectContext.selfGraveExclusion.
       const excludedIndex = selfGraveIndex(grave, ctx.selfGraveExclusion);
+      // A dies-triggered raise also passes over a legendary card that shares
+      // a name with a legend its controller controls: it would only die to
+      // the legend rule, and with three copies of one legend (Sitra) the
+      // return and the death looped forever (owner ruling 2026-09-25).
+      const passedOver = (card: CardEntry): boolean => {
+        if (ctx.selfGraveExclusion === undefined) return false;
+        const d = def(db, card);
+        return (d.supertypes?.includes('legendary') ?? false) && state.battlefield.some((perm) => {
+          if (perm.controller !== ctx.controller) return false;
+          const onBoard = def(db, perm.cardId);
+          return (onBoard.supertypes?.includes('legendary') ?? false) && onBoard.name === d.name;
+        });
+      };
       let index: number;
       if (op.to === 'top') {
         // most-recently-buried creature (trigger-safe: no target decision)
         index = -1;
         for (let i = grave.length - 1; i >= 0; i--) {
-          if (i === excludedIndex) continue;
+          if (i === excludedIndex || passedOver(grave[i])) continue;
           if (isType(def(db, grave[i]), 'creature')) {
             index = i;
             break;
@@ -798,10 +809,10 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         index = -1;
         for (const ref of targetRefsForOp(ctx)) {
           if (ref.kind !== 'grave' || ref.player !== ctx.controller) continue;
-          if (ref.index < 0 || ref.index >= grave.length) continue;
-          if (ref.index === excludedIndex) continue;
-          if (!isType(def(db, grave[ref.index]), 'creature')) continue;
-          index = ref.index;
+          const current = graveRefIndex(state, ref);
+          if (current < 0 || current === excludedIndex) continue;
+          if (!isType(def(db, grave[current]), 'creature')) continue;
+          index = current;
           break;
         }
         if (index < 0) return;
@@ -879,62 +890,84 @@ export function runOps(
     }
     runOp(state, db, emit, bound, op);
     if (state.pendingDecisions.length === pendingCount) continue;
-
-    const thenOps = ops.slice(index + 1);
-    const pending = state.pendingDecisions[state.pendingDecisions.length - 1];
-    if (ctx.newDecisionContext) {
-      for (const decision of state.pendingDecisions.slice(pendingCount)) decision.continuations ??= [];
-    }
-    if (pending && (pending.kind === 'discard' || pending.kind === 'sacrifice' || pending.continuations !== undefined ||
-      (pending.kind === 'chooseTarget' && pending.triggerWhen !== undefined))) {
-      pending.continuations ??= [];
-      if (thenOps.length) pending.continuations.push({ context: structuredClone(ctx), ops: [...thenOps] });
-      return;
-    }
-    if (ctx.activated) {
-      for (const decision of state.pendingDecisions.slice(pendingCount)) {
-        if (decision.kind !== 'foresee') {
-          throw new Error('An activation cannot defer a targeted decision or response window.');
-        }
-        // A nested trigger may own the tail; preserve its context and the guard.
-        if (decision.thenContext) decision.thenContext.activated = true;
-      }
-    }
-    if (pending?.kind === 'foresee') {
-      if (thenOps.length > 0) {
-        for (const thenOp of thenOps) assertTargetFreeForeseeContinuation(thenOp);
-        if (containsSelfReclaim(thenOps)) {
-          pending.continuations ??= [];
-          pending.continuations.push({ context: structuredClone(ctx), ops: [...thenOps] });
-          return;
-        }
-        const thenContext = {
-          controller: ctx.controller,
-          sourceCardId: ctx.sourceCardId,
-          ...(ctx.sourceIid === undefined ? {} : { sourceIid: ctx.sourceIid }),
-          ...(ctx.activated ? { activated: true as const } : {}),
-        };
-        const prior = pending.thenContext;
-        if (pending.thenOps?.length && prior && (
-          prior.controller !== thenContext.controller || prior.sourceCardId !== thenContext.sourceCardId ||
-          prior.sourceIid !== thenContext.sourceIid || prior.activated !== thenContext.activated
-        )) throw new Error('Cannot combine Foresee tails with different source contexts.');
-        pending.thenContext = thenContext;
-        pending.thenOps = [...(pending.thenOps ?? []), ...thenOps];
-        // Preserve the legacy target-free tail validation above. A new choice
-        // later in that tail still needs public continuation/resume plumbing.
-        if (containsNewPlayerChoice(pending.thenOps)) pending.continuations ??= [];
-      }
-    } else if (pending?.kind === 'chooseTarget' && thenOps.length > 0) {
-      if (pending.sourceCardId !== ctx.sourceCardId || pending.sourceIid !== ctx.sourceIid) {
-        throw new Error(
-          `Cannot append deferred target-trigger tail from ${ctx.sourceCardId} to ${pending.sourceCardId}; ` +
-          'the continuation has a different source context.',
-        );
-      }
-      pending.ops = [...pending.ops, ...thenOps];
-    }
+    deferRemainingOps(state, ctx, ops.slice(index + 1), pendingCount);
     return;
+  }
+}
+
+/**
+ * Once an op has queued a decision, the rest of its op list waits behind the
+ * newest decision (`raisedFrom` is the queue length before the op ran). Also
+ * used when a held dies trigger resolves late and raises a decision: the rest
+ * of the effect it paused then waits exactly where it would have waited had
+ * the trigger resolved inline.
+ */
+export function deferRemainingOps(
+  state: GameState,
+  ctx: EffectContext,
+  thenOps: readonly EffectOp[],
+  raisedFrom: number,
+): void {
+  const pending = state.pendingDecisions[state.pendingDecisions.length - 1];
+  const frame = (): EffectContinuation => ({ context: structuredClone(ctx), ops: [...thenOps] });
+  if (ctx.newDecisionContext) {
+    for (const decision of state.pendingDecisions.slice(raisedFrom)) decision.continuations ??= [];
+  }
+  // A held revision-4 trigger pauses the effect at the point where, with no
+  // payable link, the trigger would have resolved inline: its Hauntlink
+  // windows open, it resolves, then the remaining ops run (rules.md,
+  // Hauntlink). A tail-less hold needs no frame; the flush waits for it.
+  if (pending && (pending.kind === 'discard' || pending.kind === 'sacrifice' || pending.continuations !== undefined ||
+    (pending.kind === 'chooseTarget' && pending.triggerWhen !== undefined) ||
+    (pending.kind === 'resolveTrigger' && thenOps.length > 0))) {
+    pending.continuations ??= [];
+    if (thenOps.length && pending.kind === 'resolveTrigger') {
+      const regionAhead = state.pendingDecisions.length - 1 - raisedFrom;
+      pending.continuations.push({ ...frame(), heldTail: true, ...(regionAhead > 0 ? { regionAhead } : {}) });
+    } else if (thenOps.length) pending.continuations.push(frame());
+    return;
+  }
+  // A Duty defers what its ops raise exactly as a spell does: the Duty's own
+  // targets are chosen up front, and a Foresee, a targeted trigger or a held
+  // trigger it raises resolves through the same queue.
+  if (pending?.kind === 'foresee') {
+    if (thenOps.length > 0) {
+      for (const thenOp of thenOps) assertTargetFreeForeseeContinuation(thenOp);
+      const thenContext = {
+        controller: ctx.controller,
+        sourceCardId: ctx.sourceCardId,
+        ...(ctx.sourceIid === undefined ? {} : { sourceIid: ctx.sourceIid }),
+      };
+      const prior = pending.thenContext;
+      // A Foresee raised by a trigger inside the effect (a creature raised by
+      // a dies trigger, arriving with "Foresee, then draw") already owns that
+      // trigger's tail. The effect's own tail then resumes after it in its own
+      // context, as a continuation, rather than being merged into a context
+      // it does not belong to.
+      if (containsSelfReclaim(thenOps) || (pending.thenOps?.length && prior && (
+        prior.controller !== thenContext.controller || prior.sourceCardId !== thenContext.sourceCardId ||
+        prior.sourceIid !== thenContext.sourceIid
+      ))) {
+        pending.continuations ??= [];
+        pending.continuations.push(frame());
+        return;
+      }
+      pending.thenContext = thenContext;
+      pending.thenOps = [...(pending.thenOps ?? []), ...thenOps];
+      // Preserve the legacy target-free tail validation above. A new choice
+      // later in that tail still needs public continuation/resume plumbing.
+      if (containsNewPlayerChoice(pending.thenOps)) pending.continuations ??= [];
+    }
+  } else if (pending?.kind === 'chooseTarget' && thenOps.length > 0) {
+    if (pending.sourceCardId === ctx.sourceCardId && pending.sourceIid === ctx.sourceIid) {
+      pending.ops = [...pending.ops, ...thenOps];
+    } else {
+      // A targeted arrival raised inside the effect (a token it creates, or a
+      // creature a dies trigger raises) pauses the effect like any new
+      // choice: the target is chosen, the arrival resolves, then the rest of
+      // the effect runs in the effect's own context.
+      (pending.continuations ??= []).push(frame());
+    }
   }
 }
 

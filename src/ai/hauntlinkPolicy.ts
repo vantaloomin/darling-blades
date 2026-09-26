@@ -110,6 +110,10 @@ function removeDoomed(battlefield: Permanent[], db: CardDb): Permanent[] {
  * supplies the engine target validator's typed context only: its hidden-zone
  * stand-ins are never evaluated or executed by this policy. */
 function projectTrigger(view: PlayerView, db: CardDb, battlefield: Permanent[], trigger: HeldTrigger): Permanent[] | undefined {
+  // A trigger held in the middle of an effect carries the rest of that effect
+  // (and any choice resuming behind it). Those ops resolve straight after the
+  // trigger and are not modelled here, so the forecast is unknown.
+  if (trigger.continuations?.some((frame) => frame.ops.length > 0)) return undefined;
   const context = { ...determinize(view, db).instanceState, battlefield: structuredClone(battlefield) };
   const creature = (perm: Permanent): boolean => isType(def(db, perm.cardId), 'creature');
   const visit = (ops: readonly EffectOp[], branchSlot?: number): boolean => {

@@ -257,7 +257,9 @@ Branch: `claude/play-signals-core` · PR: `feat(meta): playSignals — the pure 
   `buildDuelDigest(result, deck, save)`, and since the 2026-09-17 ruling on
   D-T0.1 a third pair: `tallyCardsPlayed(tally, cardIds)`, a pure reducer over
   an in-memory tally the scene layer owns, and `buildSessionCards(tally)`, the
-  batch sent once when the session ends. The duel digest carries no cards.
+  batch sent once when the session ends (since 1.8.1, owner ruling D11 of
+  2026-09-25, a batch goes at every hide, each carrying only the cards no
+  earlier batch that launch carried). The duel digest carries no cards.
 - Tests, and these are the point of the wave:
   - the outgoing key set **equals** the allowlist exactly — not "contains", equals;
   - a fixture save whose deck is named with a distinctive sentinel string

@@ -1,4 +1,5 @@
-import type Phaser from 'phaser';
+import Phaser from 'phaser';
+import { whenTextureArrives } from '../art/artWatch';
 import type { CardDef } from '../engine/types';
 import { variantKey, type CardVariant } from '../meta/variants';
 import { activeRenderScale } from '../platform/renderScale';
@@ -20,6 +21,13 @@ import { cardThumbKey } from './cardThumbKey';
  * Being plain Images (not Containers), thumbs can be setInteractive()'d
  * directly — Phaser scales Image hit areas correctly, so the CardView
  * Zone-child workaround is not needed here.
+ *
+ * Card art streams in behind the running scenes (1.8), so a thumb can be baked
+ * before its card's file has landed, over the loading stand-in. Such a bake is
+ * provisional (1.8.1): the moment the file lands the thumb is re-baked IN
+ * PLACE, into the same texture, so every Image already showing it (in any
+ * scene) turns into the real card on the next frame, and the stand-in bake is
+ * never handed out again.
  */
 
 // Bake at half card size (150×210) — grids display at ~0.47–0.48 card scale,
@@ -28,6 +36,21 @@ const THUMB_SCALE = 0.5;
 // The legendary crown overhangs the 300×420 card rect by 4px at the top
 // (Containers don't clip, but a texture does) — bleed the bake vertically.
 const BLEED_Y = 8;
+
+/** A thumb baked over the loading stand-in, and what its re-bake needs. */
+interface ProvisionalThumb {
+  card: CardDef;
+  landStyle?: string;
+  variant?: CardVariant;
+  /** The real art texture the bake drew the stand-in for. */
+  pending: string;
+  /** The scene that baked it: the preferred host for the re-bake while it runs. */
+  scene: Phaser.Scene;
+  cancel: () => void;
+}
+
+/** Game-global, like the thumb textures themselves. Keyed by thumb key. */
+const provisional = new Map<string, ProvisionalThumb>();
 
 /**
  * The bake resolution is multiplied by the active render scale k: live
@@ -54,23 +77,71 @@ export function ensureCardThumb(
   variant?: CardVariant,
 ): string {
   const key = cardThumbKey(card.id, landStyle, variant ? variantKey(variant) : undefined);
-  if (scene.textures.exists(key)) return key;
+  if (scene.textures.exists(key)) {
+    // Backstop for a provisional thumb whose art landed while no scene was
+    // running to host the re-bake: re-bake before handing it out again.
+    const stale = provisional.get(key);
+    if (stale !== undefined && scene.textures.exists(stale.pending)) bakeThumb(scene, key, stale);
+    return key;
+  }
+  bakeThumb(scene, key, { card, landStyle, variant });
+  return key;
+}
 
-  // Render one throwaway CardView into the texture. Created and destroyed
-  // synchronously, it never survives to a screen render pass. Works on both
-  // WebGL and canvas renderers (DynamicTexture handles either path), and
-  // fx:'none' matches what the grids rendered live before caching. Built
-  // fully before the texture is registered, so a failed bake caches nothing.
-  const bakeScale = THUMB_SCALE * activeRenderScale();
+/**
+ * Render one throwaway CardView into the thumb's texture, creating it on the
+ * first bake and redrawing it in place on a re-bake. The view is created and
+ * destroyed synchronously, so it never survives to a screen render pass. Works
+ * on both WebGL and canvas renderers (DynamicTexture handles either path), and
+ * fx:'none' matches what the grids rendered live before caching. The view is
+ * built fully before a new texture is registered, so a failed first bake
+ * caches nothing.
+ */
+function bakeThumb(
+  scene: Phaser.Scene,
+  key: string,
+  face: { card: CardDef; landStyle?: string; variant?: CardVariant },
+): void {
+  const { card, landStyle, variant } = face;
+  const existing = scene.textures.exists(key) ? scene.textures.get(key) : null;
+  const redraw = existing instanceof Phaser.Textures.DynamicTexture ? existing : null;
+  // A re-bake keeps the texture's own size, i.e. the render scale of the first
+  // bake, so every Image already showing it keeps its on-screen size.
+  const bakeScale = redraw !== null ? redraw.width / CARD_W : THUMB_SCALE * activeRenderScale();
   const w = CARD_W * bakeScale;
   const h = (CARD_H + 2 * BLEED_Y) * bakeScale;
   const view = new CardView(scene, 0, 0);
   view.setCard(card, { fx: 'none', landStyle, ...(variant ? { variant, fullArt: variant.fullArt } : {}) });
   view.setScale(bakeScale);
-  const dt = scene.textures.addDynamicTexture(key, w, h);
-  if (dt) dt.draw(view, w / 2, h / 2);
+  const pending = view.awaitingArt;
+  const dt = redraw ?? scene.textures.addDynamicTexture(key, w, h);
+  if (dt) dt.clear().draw(view, w / 2, h / 2);
   view.destroy();
-  return key;
+
+  provisional.get(key)?.cancel();
+  provisional.delete(key);
+  if (dt === null || pending === null) return;
+  const record: ProvisionalThumb = { card, landStyle, variant, pending, scene, cancel: () => {} };
+  record.cancel = whenTextureArrives(scene.textures, pending, () => rebakeOnArrival(key, record));
+  provisional.set(key, record);
+}
+
+/**
+ * The art a provisional thumb was waiting for has landed: re-bake it now, in
+ * the scene that baked it if that scene is still running, otherwise in any
+ * running scene (the bake is a throwaway view; the texture is game-global).
+ * With no running scene at all the record stays, and `ensureCardThumb`
+ * re-bakes before the thumb is next handed out.
+ */
+function rebakeOnArrival(key: string, record: ProvisionalThumb): void {
+  if (provisional.get(key) !== record) return;
+  const host = record.scene.sys.isActive() ? record.scene : record.scene.game.scene.getScenes(true)[0];
+  if (host === undefined) return;
+  if (!host.textures.exists(key)) {
+    provisional.delete(key);
+    return;
+  }
+  bakeThumb(host, key, record);
 }
 
 /**

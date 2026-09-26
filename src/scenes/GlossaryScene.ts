@@ -21,6 +21,7 @@ import {
 } from '../ui/layout';
 import { bakeManaSymbols } from '../ui/ManaSymbols';
 import { applyBackdrop } from '../ui/SceneBackdrop';
+import { sceneSubtitle, sceneTitle } from '../ui/sceneTitle';
 import { createSearchInput, type SearchInputHandle } from '../ui/SearchInput';
 import { colorInt, theme } from '../ui/theme';
 import { backButton, panel, registerSceneBackNavigation } from '../ui/themeWidgets';
@@ -119,20 +120,8 @@ export class GlossaryScene extends Phaser.Scene {
     bakeManaSymbols(this);
     bakeCardFrames(this);
 
-    this.add
-      .text(theme.design.centerX, 48, 'Glossary of Terms', {
-        fontFamily: theme.fonts.display,
-        fontSize: `${theme.type.display}px`,
-        color: theme.colors.heading,
-      })
-      .setOrigin(0.5);
-    this.add
-      .text(theme.design.centerX, 84, 'A field guide for every duel.', {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.body}px`,
-        color: theme.colors.muted,
-      })
-      .setOrigin(0.5);
+    sceneTitle(this, 'Glossary of Terms');
+    sceneSubtitle(this, 'A field guide for every duel.', { fontSize: theme.type.body });
 
     const goBack = (): void => {
       this.scene.start(this.returnTo.scene, this.returnTo.data);

@@ -629,6 +629,34 @@ export interface Avatar {
  * the moment to re-centre RUNG_BANDS 1-13 on this table (an owner call: a
  * re-centre moves some bands DOWN, and only he authorizes that).
  *
+ * 2026-09-25 - THE 1.8.1 CUT RE-MEASURE (release tip 7a18fff: the paid-Duty
+ * AI, the G8 engine fixes, the Hauntlink Apex recost). `--avatars --seeds 200`,
+ * 26,000 games, 6,030s. Against the QC-day table above, same seeds: rungs
+ * 1-19 and 21-24 are identical to the cell. Three rows moved. R20 Kitsune
+ * Neon Tyrant 88.3 -> 88.0 (the Apex recost; her own usage count, in
+ * docs/ai.md, shows Apex now cast and linked). R25 The Drowned Deacon 66.3
+ * -> 64.0 and R26 The Marsh-Mother 74.8 -> 75.4 (the paid-Duty AI, which
+ * uses Deepfield Array and Cellar Jar in their lists). The manual run prints
+ * six ladder-inversion flags (R2/R1, R6/R5, R8/R7, R11/R10, R19/R18,
+ * R21/R20); every one is on the QC-day table too, so they are the known
+ * lower-tower and summit shape carried to 1.9 (plan-1.9 D7), not a 1.8.1
+ * regression. The CI win-rate gates for rungs 14 and up passed on every
+ * 1.8.1 PR.
+ *
+ * DARLINGS ROWS, same day: `--avatars-darlings --seeds 200` on the 13 rows
+ * whose Darlings lists carry a paid Duty or a Hauntlink (R2, R4, R5, R8,
+ * R10, R14, R19, R20, R22-R26), run on the 1.8.1 tip AND on its base
+ * 68417f0, 13,000 games each: every row within a point of its base, 0 engine
+ * exceptions, no flags. So G9 and the recost are neutral in this format. A
+ * FINDING THE BASE SHARES, first measured here and not a 1.8.1 change: the
+ * four newest summit bosses are pushovers in Darlings. R23 Chrome Broodmother
+ * 21, R24 The Violet Signal Queen 17, R25 The Drowned Deacon 10 and R26 The
+ * Marsh-Mother 28, against R19-R22 at 62-77 and their own Warchest rows at
+ * 64-75. No gate covers Darlings rows (tests/ai/winrate.test.ts gates the
+ * Warchest rows), which is how it went unmeasured. Carried to 1.9 with the
+ * D7 balance items: tune those four Darlings lists, then gate the Darlings
+ * rows so it cannot recur unseen.
+ *
  * 2026-07-31 - RESERVE FORMAT BASELINES (1.5.5 reveal gate; the two
  * matrices the 1.5.0 release split left TO MEASURE). SUPERSEDED 2026-08-09
  * by the dated table above; retained as history. STALE 2026-08-06:
@@ -750,7 +778,7 @@ export const AVATARS: readonly Avatar[] = [
       'dd-drowned-druid',
       'dd-marsh-wight',
       'dd-the-marsh-remembers',
-      'rg-alpha-of-the-hunt',
+      'dd-kelp-shade-warden',
       'in-skysweeper-gale',
       'yn-rootcode-monk',
       'sd-the-offering-table',
@@ -2197,7 +2225,7 @@ export const AVATARS: readonly Avatar[] = [
       'ar-training-dummy',
       'dt-briar-hedge-matriarch',
       'gk-artemis',
-      'yn-greenline-bruiser',
+      'dd-cellar-witch',
       'dd-reef-crab',
       'dd-wharf-rat',
       'tk-other-dongbai',
@@ -3612,6 +3640,12 @@ export const AVATARS: readonly Avatar[] = [
     // The lever is smooth, for a later owner call on her strength: two
     // Queenpin (one Mask, one Chain out) read 86.9, her 2026-08-23 strength;
     // three read 88.7; four read 89.0.
+    // 2026-09-25, 1.8.1 (owner ruling D7, Option A): the "No recost is
+    // proposed" paragraph above is superseded. yn-hauntlink-apex is recosted
+    // from {7}{U} with a Dawn draw to {3}{U} with Dawn Foresee 1 (link {3}{U}
+    // and the +3/+3 Skyborne Untouchable rider unchanged; workbench +0.46 ->
+    // -0.01). Cast on turn 4, link on turn 5. Her lists and floors are
+    // unchanged here; they are re-measured after the patch lands.
     reserveDeck: expand([
       ['yn-kitsune-neon-tyrant', 4],
       ['yn-redline-queenpin', 4],

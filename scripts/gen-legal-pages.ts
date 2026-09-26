@@ -66,6 +66,10 @@ export const PUBLISHED_BASE = 'https://bladedarlings.com/';
 /** The tokens the drafts carry and what the pages show for each until the cut fills them. */
 export const PLACEHOLDERS: Record<string, string> = {
   '[1.8 RELEASE DATE]': 'September 24, 2026',
+  // The privacy policy's own date moves on every material edit; filled with
+  // the release day at the cut (1.8.1 named Cloudflare and changed when the
+  // card summary goes). The terms keep the 1.8 date.
+  '[PRIVACY EFFECTIVE DATE]': 'September 25, 2026',
   '[PRIVACY URL]': `${PUBLISHED_BASE}privacy.html`,
 };
 

@@ -7,6 +7,7 @@ import {
   buildSessionCards,
   SIGNAL_FIELDS,
   tallyCardsPlayed,
+  type SessionCardSignal,
 } from '../../src/meta/playSignals';
 import { Services } from '../../src/meta/services';
 import { STATS_NOTICE_VERSION } from '../../src/meta/statsNotice';
@@ -85,6 +86,18 @@ function rawBodies(): string[] {
 
 function urls(): string[] {
   return fetchSpy.mock.calls.map((call) => String(call[0]));
+}
+
+/** The card batches the spy saw, in send order, parsed. */
+function cardBatches(): SessionCardSignal[][] {
+  return fetchSpy.mock.calls
+    .filter((call) => String(call[0]).endsWith('?e=cards'))
+    .map((call) => JSON.parse((call[1] as RequestInit).body as string) as SessionCardSignal[]);
+}
+
+/** The card ids of one batch, in the batch's own order. */
+function idsOf(batch: SessionCardSignal[] | undefined): string[] {
+  return (batch ?? []).map((row) => row.cardId);
 }
 
 beforeEach(() => {
@@ -304,7 +317,7 @@ describe('failures never reach the game', () => {
 // ---------------------------------------------------------------------------
 
 describe('session end', () => {
-  it('sends once even if pagehide and visibilitychange both fire', () => {
+  it('a hide with nothing new since the last batch sends nothing, so a pagehide and visibilitychange pair costs one batch', () => {
     signals.duelFinished(duelInput());
     signals.cardsPlayed([PLAYED[0]]);
     const before = fetchSpy.mock.calls.length;
@@ -344,16 +357,6 @@ describe('session end', () => {
     expect(Object.keys(signalsLaunchStateForTest().tally).length).toBe(SESSION_CARD_ROW_CAP);
   });
 
-  it('leaves the tally and the duel counter empty', () => {
-    signals.duelFinished(duelInput());
-    signals.cardsPlayed([PLAYED[0]]);
-    expect(Object.keys(signalsLaunchStateForTest().tally).length).toBeGreaterThan(0);
-    expect(signalsLaunchStateForTest().duels).toBe(1);
-    signals.sessionEnding();
-    expect(signalsLaunchStateForTest().tally).toEqual({});
-    expect(signalsLaunchStateForTest().duels).toBe(0);
-  });
-
   it('falls back to sendBeacon only when fetch keepalive is unavailable', () => {
     class NoKeepaliveRequest {}
     vi.stubGlobal('Request', NoKeepaliveRequest);
@@ -365,6 +368,93 @@ describe('session end', () => {
     expect(beaconSpy).toHaveBeenCalledTimes(1);
     expect(fetchSpy.mock.calls.length).toBe(fetchCalls); // the duel digest still went by fetch
     expect(String(beaconSpy.mock.calls[0][0])).toBe(`${TEST_ENDPOINT}?e=cards`);
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+/**
+ * Owner ruling D11 (2026-09-25): a batch goes at EVERY hide, carrying only the
+ * cards no earlier batch this launch carried. One row per card per launch is
+ * what keeps the rollup's k = 10 row floor meaning ten launches, so a player
+ * switching tabs repeatedly cannot lift a rare card over it.
+ */
+describe('every hide in a launch', () => {
+  const [A, B, C, D] = reportableCardIds();
+
+  it('sends each card once, however many hides follow and however often it is played again', () => {
+    signals.cardsPlayed([A, B]);
+    signals.sessionEnding();
+    signals.cardsPlayed([A, B, A, C]);
+    signals.sessionEnding();
+    signals.cardsPlayed([A, B, C]);
+    signals.sessionEnding();
+
+    const batches = cardBatches();
+    expect(batches.map(idsOf)).toEqual([[A, B].sort(), [C]]);
+    const sent = batches.flatMap(idsOf);
+    expect(new Set(sent).size).toBe(sent.length);
+  });
+
+  it('a card first played after the first hide goes at the next hide, with every play it had', () => {
+    signals.cardsPlayed([A]);
+    signals.sessionEnding();
+    expect(cardBatches()).toHaveLength(1);
+
+    signals.cardsPlayed([D, D, D]);
+    expect(cardBatches()).toHaveLength(1); // nothing leaves between hides
+    signals.sessionEnding();
+
+    const late = cardBatches()[1];
+    expect(idsOf(late)).toEqual([D]);
+    expect(late[0].countBucket).toBe('2-3');
+  });
+
+  it('every batch carries the launch running duel count, so a row play count and duel count cover the same span', () => {
+    // Two duels, then a hide; two more, then a hide. The later batch says four
+    // (`4-7`), the launch so far, and not two (`2-3`), the duels since the last
+    // batch: its card was played zero times in the first two duels, and a
+    // since-last-batch count would drop them from the denominator.
+    signals.duelFinished(duelInput());
+    signals.duelFinished(duelInput());
+    signals.cardsPlayed([A]);
+    signals.sessionEnding();
+    signals.duelFinished(duelInput());
+    signals.duelFinished(duelInput());
+    signals.cardsPlayed([C]);
+    signals.sessionEnding();
+
+    const [first, second] = cardBatches();
+    expect(first.map((row) => row.duelsBucket)).toEqual(['2-3']);
+    expect(second.map((row) => row.duelsBucket)).toEqual(['4-7']);
+  });
+
+  it('a closed gate at a later hide sends nothing', () => {
+    signals.cardsPlayed([A]);
+    signals.sessionEnding();
+    const before = fetchSpy.mock.calls.length;
+
+    signals.cardsPlayed([C]);
+    Services.save.data.settings.shareAnonStats = false;
+    signals.sessionEnding();
+    signals.cardsPlayed([D]);
+    signals.sessionEnding();
+
+    expect(fetchSpy.mock.calls.length).toBe(before);
+    expect(beaconSpy).toHaveBeenCalledTimes(0);
+  });
+
+  it('the distinct-card cap counts the whole launch, so its batches together stay inside the data-point budget', () => {
+    const many = reportableCardIds().slice(0, 80);
+    for (const cardId of many.slice(0, 40)) signals.cardsPlayed([cardId]);
+    signals.sessionEnding();
+    for (const cardId of many.slice(40)) signals.cardsPlayed([cardId]);
+    signals.sessionEnding();
+
+    const batches = cardBatches();
+    expect(batches.map((batch) => batch.length)).toEqual([40, SESSION_CARD_ROW_CAP - 40]);
+    // First come, first reported: the second batch holds the next cards in play order.
+    expect(idsOf(batches[1])).toEqual(many.slice(40, SESSION_CARD_ROW_CAP).sort());
   });
 });
 

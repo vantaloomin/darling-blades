@@ -15,6 +15,7 @@ import { hasCastableCharm, hasCastableInstant, hasPayableHauntlinkAction } from 
 import { anyPayableHauntlink } from './hauntlinkWindow';
 import { resolveCombatDamage } from './combat/damage';
 import {
+  deferRemainingOps,
   fireGraveyardTriggers,
   fireCreatureObservers,
   firePlayerObservers,
@@ -26,7 +27,7 @@ import {
 import { enumerateTargets } from './effects/targeting';
 import type { GameEvent } from './events';
 import { solveMana } from './mana';
-import { freshGraveyardCard } from './graveyard';
+import { bindGraveRef, freshGraveyardCard } from './graveyard';
 import { attachPermanent, destroyPermanent, firesDiesForDestroy } from './battlefield';
 import { checkStateBased } from './sba';
 import { getEffectiveStats } from './statics';
@@ -53,12 +54,35 @@ import type {
   GameState,
   LegacyAwaiting,
   LegacyGameState,
+  PendingDecision,
   PlayerId,
   StackItem,
+  TargetRef,
 } from './types';
 import { cardIdOf, def, findPermanent, isCardInstance, opponentOf, variantKeyOf } from './types';
 import type { PlayerView } from './view';
 import { viewFor } from './view';
+
+type HeldTrigger = Extract<PendingDecision, { kind: 'resolveTrigger' }>;
+
+/**
+ * A queued decision that stops the stack flush until it is settled. Anything
+ * else (a plain Foresee, a plain targeted arrival) waits for the flush to end.
+ */
+function holdsFlush(p: PendingDecision): boolean {
+  return p.kind === 'discard' || p.kind === 'sacrifice' || p.kind === 'resolveTrigger' ||
+    p.continuations !== undefined || (p.kind === 'chooseTarget' && p.triggerWhen !== undefined);
+}
+
+/**
+ * A held dies trigger, as opposed to a targeted trigger held after its target
+ * was chosen (which always carries that target). With no payable link the
+ * former would have resolved inline, where it fired; the latter would have
+ * resolved when its choice was answered.
+ */
+function isHeldDiesTrigger(p: HeldTrigger): boolean {
+  return p.targets.length === 0;
+}
 
 export interface GameConfig {
   decks: [CardEntry[], CardEntry[]];
@@ -373,7 +397,7 @@ export class Game {
       this.buf.push(e);
       this.eventObserver?.(e, this.st);
     };
-    this.apply(player, action, emit);
+    this.apply(player, bindActionGraveRefs(this.st, action), emit);
     this.maybeRaiseDeferredDecision(emit);
     this.publicState = legacyState(this.st);
     return this.buf;
@@ -472,6 +496,16 @@ export class Game {
       !st.stackClosed && (st.awaiting.kind === 'respond' || st.awaiting.kind === 'endStepWindow'))
       st.decisionResume ??= structuredClone(st.awaiting);
     while (st.pendingDecisions.length > 0) {
+      // A held trigger goes first. With no payable link it would have resolved
+      // inline before any queued choice was offered, so it is moved to the
+      // head (its window reads the head) and what it raises still queues
+      // behind the choices it overtook.
+      const heldAt = st.pendingDecisions.findIndex((p) => p.kind === 'resolveTrigger');
+      if (heldAt > 0) {
+        const [held] = st.pendingDecisions.splice(heldAt, 1) as [HeldTrigger];
+        held.movedAhead = (held.movedAhead ?? 0) + heldAt;
+        st.pendingDecisions.unshift(held);
+      }
       const next = st.pendingDecisions[0];
       if (next.kind === 'discard' || next.kind === 'sacrifice') {
         const count = next.kind === 'discard' ? Math.min(next.n, st.players[next.player].hand.length) :
@@ -516,13 +550,26 @@ export class Game {
           },
           next.ops,
         );
-        if (next.newDecisionContext || next.continuations) {
+        if (isHeldDiesTrigger(next)) {
+          this.resolveHeldDiesTrigger(next, resolveTrigger, emit);
+        } else if (next.newDecisionContext || next.continuations) {
           this.resumeNewChoice(emit, next.continuations, resolveTrigger);
         } else {
           resolveTrigger();
           checkStateBased(st, this.db, emit);
         }
         if (st.winner !== null) return;
+        // Held mid-flush, the trigger resolved where it would have inline.
+        // With nothing else holding the flush, the flush carries on before
+        // any plain choice raised along the way is offered (a Foresee, a
+        // targeted arrival), exactly as it does with no payable link. An
+        // empty queue is left to the end of this drain, which re-enters the
+        // flush once; resuming here too would resume it twice.
+        if (next.heldMidStep && st.stackClosed && st.pendingDecisions.length > 0 &&
+          !st.pendingDecisions.some(holdsFlush)) {
+          this.closeAndFlush(emit);
+          if (st.winner !== null) return;
+        }
         continue;
       }
       if (next.kind === 'foresee' && this.foreseeCards(next.player, next.n).length === 0) {
@@ -586,6 +633,75 @@ export class Game {
       // choice. Raise that fresh queue now instead of leaving stale awaiting.
       if (st.pendingDecisions.length > 0) this.maybeRaiseDeferredDecision(emit);
     }
+  }
+
+  /**
+   * Resolve a held dies trigger as it would have resolved inline with no
+   * payable link (rules.md, Hauntlink). What it raises takes its place in the
+   * queue: behind the choices it overtook, ahead of the ones queued after it.
+   * The rest of the effect it paused carries on as that effect would have:
+   * behind the newest choice the paused op raised (one this trigger just
+   * raised, or one the op had queued ahead of it), or at once. A state-based
+   * check follows, as after the item or batch the trigger was part of.
+   */
+  private resolveHeldDiesTrigger(held: HeldTrigger, resolveTrigger: () => void, emit: Emit): void {
+    const st = this.st;
+    const ahead = st.pendingDecisions.splice(0, held.movedAhead ?? 0);
+    const later = st.pendingDecisions.splice(0);
+    resolveTrigger();
+    let aheadQueued = false;
+    const [first, ...rest] = held.continuations ?? [];
+    if (first?.heldTail) {
+      const inFront = Math.min(first.regionAhead ?? 0, ahead.length);
+      if (st.pendingDecisions.length > 0 || inFront > 0) {
+        // The op's own earlier choices sit at the end of `ahead`.
+        const raisedFrom = ahead.length - inFront;
+        st.pendingDecisions.unshift(...ahead);
+        aheadQueued = true;
+        deferRemainingOps(st, first.context, first.ops, raisedFrom);
+      } else {
+        runOps(st, this.db, emit, first.context, first.ops);
+      }
+      // Frames queued behind the paused effect (a choice's own continuation)
+      // follow it, as in resumeNewChoice.
+      if (rest.length > 0) {
+        // One of them may be an enclosing effect's paused ops (this trigger
+        // was held inside a trigger held inside that effect). They too wait
+        // behind the choices their own op queued ahead of this trigger.
+        if (!aheadQueued && rest.some((frame) => frame.heldTail && (frame.regionAhead ?? 0) > 0)) {
+          st.pendingDecisions.unshift(...ahead);
+          aheadQueued = true;
+        }
+        const pending = st.pendingDecisions.at(-1);
+        if (pending) pending.continuations = [...(pending.continuations ?? []), ...rest];
+        else runContinuations(st, this.db, emit, rest);
+      }
+    } else if (held.continuations) {
+      const pending = st.pendingDecisions.at(-1);
+      if (pending) pending.continuations = [...(pending.continuations ?? []), ...held.continuations];
+      else runContinuations(st, this.db, emit, held.continuations);
+    }
+    // With no payable link, the other held dies triggers of this batch would
+    // have resolved back to back with this one, and the life check after them
+    // all: a sweep's own life gain can still save its caster. Creatures still
+    // die here, so the next window shows the board as it stands.
+    const isHeldDies = (p: PendingDecision): boolean => p.kind === 'resolveTrigger' && isHeldDiesTrigger(p);
+    const moreHeld = st.pendingDecisions.some(isHeldDies) || later.some(isHeldDies) || (!aheadQueued && ahead.some(isHeldDies));
+    checkStateBased(st, this.db, emit, { deferPlayerLoss: moreHeld });
+    if (held.heldMidStep) {
+      for (const p of st.pendingDecisions) if (p.kind === 'resolveTrigger') p.heldMidStep = true;
+    }
+    // This trigger's one queue entry became `placed` entries. A held tail
+    // further back whose op's earlier choices include this trigger counts
+    // them, whichever frame it rides in.
+    const placed = st.pendingDecisions.length - (aheadQueued ? ahead.length : 0);
+    later.forEach((p, index) => {
+      for (const tail of p.kind === 'resolveTrigger' ? p.continuations ?? [] : []) {
+        if (tail.heldTail && (tail.regionAhead ?? 0) > index) tail.regionAhead = (tail.regionAhead ?? 0) + placed - 1;
+      }
+    });
+    if (!aheadQueued) st.pendingDecisions.unshift(...ahead);
+    st.pendingDecisions.push(...later);
   }
 
   private resumeNewChoice(emit: Emit, frames: readonly EffectContinuation[] = [], work?: () => void): void {
@@ -863,7 +979,6 @@ export class Game {
         const specs = ability.targets ?? [];
         runOps(st, this.db, emit, {
           controller: player,
-          activated: true,
           sourceCardId: perm.cardId,
           sourceIid: perm.iid,
           targets: action.targets ?? [],
@@ -871,6 +986,9 @@ export class Game {
           ...(specs.length === 1 && (specs[0].upTo !== undefined || specs[0].exactly !== undefined) ? { targetBatch: true } : {}),
         }, ability.ops);
         // Like deferred-target triggers, this off-stack path owns its SBA.
+        // Whatever the ops queued (a Foresee, a targeted trigger, a held dies
+        // trigger and the rest of the Duty behind it) is raised by the drain
+        // in submit(), the queue a resolving spell uses.
         checkStateBased(st, this.db, emit);
         return;
       }
@@ -1150,15 +1268,17 @@ export class Game {
     over: Extract<Awaiting, { kind: 'respond' }>['over'],
     emit: Emit,
   ): void {
-    if (this.st.pendingDecisions.some(p => p.kind === 'discard' || p.kind === 'sacrifice' ||
-      p.kind === 'resolveTrigger' ||
-      p.continuations !== undefined || (p.kind === 'chooseTarget' && p.triggerWhen !== undefined))) {
+    // Any choice the cast or the attack raised is settled first, whatever the
+    // responder holds (owner ruling 2026-09-25, as in Magic): a Rite or Tithe
+    // fodder whose dies trigger returns a creature that targets or Foresees,
+    // an attack trigger's Foresee. The order never depends on the responder's
+    // hand, and a window offered now would have been replaced by the choice,
+    // stranding the spell on the stack.
+    if (this.st.pendingDecisions.length > 0) {
       // No window has been offered yet. Complete cast/attack observers first,
       // then recalculate whether the responder still has a playable Charm.
       // A held revision-4 trigger counts: a Rite or Tithe sacrifice can hold
-      // its fodder's dies trigger for a Hauntlink window, and that window
-      // would otherwise replace this one and leave the spell on the stack
-      // with nobody ever offered a pass (a stranded stack).
+      // its fodder's dies trigger for a Hauntlink window first.
       this.st.decisionResume = { player: responder, kind: 'respond', over, offerAfterDecision: true };
       return;
     }
@@ -1182,7 +1302,13 @@ export class Game {
       resolveStackItem(st, this.db, item, emit);
       if ((st.rulesRev ?? 1) >= 2 && st.episode) st.episode.resolvedSinceOffer++;
       checkStateBased(st, this.db, emit);
-      if (st.pendingDecisions.some(p => p.kind === 'discard' || p.kind === 'sacrifice' || p.continuations !== undefined || (p.kind === 'chooseTarget' && p.triggerWhen !== undefined))) return;
+      // A held revision-4 trigger (raised by this item or by the check after
+      // it) resolves before the next item, as it would have inline with no
+      // payable link; the drain in submit() re-enters this flush afterwards.
+      if (st.pendingDecisions.some(holdsFlush)) {
+        for (const p of st.pendingDecisions) if (p.kind === 'resolveTrigger') p.heldMidStep = true;
+        return;
+      }
     }
     st.stackClosed = false;
     if (st.winner === null) this.resumeAfterFlush(emit);
@@ -1300,6 +1426,28 @@ export class Game {
       st.activePlayer = st.startingPlayer;
       startTurn(st, this.db, emit);
     }
+  }
+}
+
+/**
+ * Bind every graveyard ref in a validated action to the card it names now
+ * (1.8.1). Legal actions arrive bound already; this covers hand-built refs
+ * and replay logs older than v15, which name a graveyard card by position
+ * only. After this point the stack, held triggers and paused effects carry
+ * the card's identity, so a later reordering cannot redirect them.
+ */
+function bindActionGraveRefs(state: GameState, action: Action): Action {
+  const bind = (refs: TargetRef[] | undefined): TargetRef[] | undefined =>
+    refs?.map((ref) => ref.kind === 'grave' ? bindGraveRef(state, ref) : ref);
+  switch (action.type) {
+    case 'castSpell':
+    case 'castDarling':
+    case 'activate':
+      return action.targets ? { ...action, targets: bind(action.targets) } : action;
+    case 'chooseTarget':
+      return action.target.kind === 'grave' ? { ...action, target: bindGraveRef(state, action.target) } : action;
+    default:
+      return action;
   }
 }
 

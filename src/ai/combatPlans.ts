@@ -113,16 +113,87 @@ export function openMana(bf: readonly Permanent[], db: CardDb, player: PlayerId)
 }
 
 /**
+ * The board inputs `scoreAttack` weighs by, besides the life totals: whether
+ * we have two or more creatures than the defender (pressing an advantage)
+ * and the defender's total combat damage (the holdback threat).
+ */
+export function attackWeightInputs(
+  bf: readonly Permanent[], db: CardDb, me: PlayerId,
+): { pressing: boolean; oppPower: number } {
+  const opp = opponentOf(me);
+  const creatures = bf.filter((p) => isType(def(db, p.cardId), 'creature'));
+  const mine = creatures.filter((p) => p.controller === me).length;
+  const theirs = creatures.filter((p) => p.controller === opp);
+  return {
+    pressing: mine - theirs.length >= 2,
+    oppPower: theirs.reduce((sum, p) => sum + fullDamage(combatant(bf, db, p.iid)), 0),
+  };
+}
+
+/** What these attackers can deal (twinBlades twice): all of them unblocked,
+ * the biggest one alone, and the Overrun ones together (the most a changed
+ * block can add as spill). */
+export function attackReach(
+  bf: readonly Permanent[], db: CardDb, attackers: readonly number[],
+): { total: number; biggest: number; overrun: number } {
+  let total = 0;
+  let biggest = 0;
+  let overrun = 0;
+  for (const iid of attackers) {
+    const c = combatant(bf, db, iid);
+    const damage = fullDamage(c);
+    total += damage;
+    biggest = Math.max(biggest, damage);
+    if (c.trample) overrun += damage;
+  }
+  return { total, biggest, overrun };
+}
+
+/**
+ * Damage through an all-in attack against a cautious defender rather than
+ * the greedy block model: attackers are answered biggest first, each by an
+ * untapped creature that can still block it (the toughest against Overrun,
+ * the weakest otherwise, so a chump costs least), and only unblocked damage
+ * and Overrun spill over the blocker's toughness gets through. Dreaded is
+ * treated as blockable by one, which only makes the defender stronger.
+ */
+export function cautiousThrough(
+  bf: readonly Permanent[], db: CardDb, attackers: readonly number[], defender: PlayerId,
+): number {
+  const ordered = attackers.map((iid) => combatant(bf, db, iid)).filter((c) => c.attack > 0)
+    .sort((a, b) => fullDamage(b) - fullDamage(a));
+  const free = untappedBlockers(bf, db, defender).map((p) => combatant(bf, db, p.iid));
+  let through = 0;
+  for (const a of ordered) {
+    const able = free.filter((b) => canBlock(bf, db, defender, b.iid, a.iid));
+    if (able.length === 0) {
+      through += fullDamage(a);
+      continue;
+    }
+    const blocker = able.reduce((x, y) => a.trample ? (y.defense > x.defense ? y : x) : (y.defense < x.defense ? y : x));
+    free.splice(free.indexOf(blocker), 1);
+    if (a.trample) through += Math.max(0, fullDamage(a) - Math.max(0, blocker.defense));
+  }
+  return through;
+}
+
+/**
  * Choose attackers: unblockable and un-profitably-blockable creatures always
  * attack; contested ones attack when the expected gain (damage upside vs the
  * defender's best block) is positive. `trickBuff` inflates defenders when a
  * combat trick is plausible (caller decides — open mana AND cards in hand).
+ * `weightBoard` passes through to every `scoreAttack` call (see there).
  */
 /**
  * Score an attack set by simulating the defender's best response with OUR
  * own block heuristic (self-play model), then valuing damage-through plus
  * the trade swings. Blocker exhaustion falls out naturally: 7 attackers vs
  * 4 blockers means 3 connect no matter what.
+ *
+ * `weightBoard` is the board whose creature counts and opposing power set the
+ * damage weight and the holdback penalty; it defaults to `bf`. The pre-combat
+ * Duty forecast pins it (with the life totals) to the board before the Duty,
+ * so a kill or a ping prices only what it changes in the fight itself.
  */
 export function scoreAttack(
   bf: readonly Permanent[],
@@ -133,6 +204,7 @@ export function scoreAttack(
   attackers: number[],
   myLife = 20,
   pers: Personality = DEFAULT_PERSONALITY,
+  weightBoard: readonly Permanent[] = bf,
 ): number {
   if (attackers.length === 0) return 0;
   const opp = opponentOf(me);
@@ -145,21 +217,13 @@ export function scoreAttack(
   // The opponent model stays NEUTRAL: we don't know their personality, so we
   // simulate their blocks with the default heuristic.
   const blocks = chooseBlocks(bf, db, opp, oppLife, virtualCombat, trickBuff, DEFAULT_PERSONALITY);
-  const myCreatures = bf.filter(
-    (p) => p.controller === me && isType(def(db, p.cardId), 'creature'),
-  ).length;
-  const oppCreatures = bf.filter(
-    (p) => p.controller === opp && isType(def(db, p.cardId), 'creature'),
-  ).length;
+  const { pressing, oppPower } = attackWeightInputs(weightBoard, db, me);
   let dmgWeight = oppLife <= 12 ? 0.9 : 0.45;
-  if (myCreatures - oppCreatures >= 2) dmgWeight += 0.2; // press an advantage
+  if (pressing) dmgWeight += 0.2; // press an advantage
   dmgWeight *= pers.aggression;
 
   // Defensive holdback: when we're the one in danger, tapping would-be
   // blockers has a real cost.
-  const oppPower = bf
-    .filter((p) => p.controller === opp && isType(def(db, p.cardId), 'creature'))
-    .reduce((s, p) => s + fullDamage(combatant(bf, db, p.iid)), 0);
   const holdbackPenalty =
     (myLife <= 10 && oppPower >= myLife * 0.6 ? 0.4 : myLife <= 14 && oppPower >= myLife ? 0.25 : 0) *
     pers.holdback;
@@ -217,6 +281,7 @@ export function chooseAttackers(
   trickBuff: number,
   myLife = 20,
   pers: Personality = DEFAULT_PERSONALITY,
+  weightBoard: readonly Permanent[] = bf,
 ): number[] {
   const opp = opponentOf(me);
   // Rage removes the choice, so the planner is not allowed to score these away.
@@ -252,13 +317,13 @@ export function chooseAttackers(
   // improves the simulated outcome, until no single drop helps. A compelled
   // attacker is never a drop candidate.
   let current = [...eligible];
-  let best = scoreAttack(bf, db, me, oppLife, trickBuff, current, myLife, pers);
+  let best = scoreAttack(bf, db, me, oppLife, trickBuff, current, myLife, pers, weightBoard);
   for (let iter = 0; iter < eligible.length; iter++) {
     let improved = false;
     for (const drop of [...current]) {
       if (compelled.includes(drop)) continue;
       const candidate = current.filter((iid) => iid !== drop);
-      const score = scoreAttack(bf, db, me, oppLife, trickBuff, candidate, myLife, pers);
+      const score = scoreAttack(bf, db, me, oppLife, trickBuff, candidate, myLife, pers, weightBoard);
       if (score > best + 0.01) {
         best = score;
         current = candidate;
@@ -282,13 +347,13 @@ export function chooseAttackers(
     if (bleed > 0 && myLife <= bleed * 4) {
       const desperate: Personality = { ...pers, holdback: 0, aggression: Math.max(pers.aggression, 1.2) };
       let set = [...eligible];
-      let setScore = scoreAttack(bf, db, me, oppLife, trickBuff, set, myLife, desperate);
+      let setScore = scoreAttack(bf, db, me, oppLife, trickBuff, set, myLife, desperate, weightBoard);
       for (let iter = 0; iter < eligible.length && set.length > 1; iter++) {
         let improved = false;
         for (const drop of [...set]) {
           if (compelled.includes(drop)) continue;
           const candidate = set.filter((iid) => iid !== drop);
-          const score = scoreAttack(bf, db, me, oppLife, trickBuff, candidate, myLife, desperate);
+          const score = scoreAttack(bf, db, me, oppLife, trickBuff, candidate, myLife, desperate, weightBoard);
           if (score > setScore + 0.01) {
             setScore = score;
             set = candidate;

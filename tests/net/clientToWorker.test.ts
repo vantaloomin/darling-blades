@@ -175,6 +175,29 @@ describe('the real client against the real Worker', () => {
     for (const id of played) expect(JSON.stringify(duelRow)).not.toContain(id);
   });
 
+  it('a launch hidden several times: every batch is accepted and the Worker stores one row per distinct card', async () => {
+    const [first, later] = [reportableCardIds().slice(0, 5), reportableCardIds().slice(5, 8)];
+    signals.start();
+    signals.cardsPlayed(first);
+    signals.duelFinished(duelInput());
+    signals.sessionEnding(); // the player switches tabs
+    signals.cardsPlayed([...first, ...later]); // comes back and keeps playing
+    signals.duelFinished(duelInput());
+    signals.sessionEnding(); // closes the game: visibilitychange ...
+    signals.sessionEnding(); // ... and pagehide
+
+    expect(await statuses()).toEqual([204, 204, 204, 204, 204]);
+    expect(requests.map((request) => new URL(request.url).search)).toEqual([
+      '?e=heartbeat',
+      '?e=duel',
+      '?e=cards',
+      '?e=duel',
+      '?e=cards',
+    ]);
+    const stored = sink.points.filter((point) => point.blobs?.[0] === 'card').map((point) => point.blobs?.[3]);
+    expect([...stored].sort()).toEqual([...first, ...later].sort());
+  });
+
   it('a session that plays more distinct cards than the cap still sends a batch the Worker accepts', async () => {
     const many = reportableCardIds().slice(0, SESSION_CARD_ROW_CAP + 25);
     signals.start();

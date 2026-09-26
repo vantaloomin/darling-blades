@@ -11,7 +11,7 @@ reviewed by a lawyer.
 
 # Darling Blades Privacy Policy
 
-**Effective date:** [1.8 RELEASE DATE]
+**Effective date:** [PRIVACY EFFECTIVE DATE]
 
 Darling Blades is a single-player card game made by Blade Darlings ("we",
 "us"). You can play it in a web browser or as a desktop app. This policy
@@ -53,10 +53,13 @@ cases.
 
 ### 3.1 Loading the web version
 
-The web version is hosted on GitHub Pages, run by GitHub, Inc. When your
-browser loads the game, GitHub receives your IP address and standard browser
-information, as it does for any website, and may keep this in its server logs
-for security purposes. See [GitHub's privacy statement](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement).
+The web version is hosted on GitHub Pages, run by GitHub, Inc., and served to
+you through Cloudflare, Inc., which handles every request to bladedarlings.com.
+When your browser loads the game, Cloudflare and GitHub receive your IP address
+and standard browser information, as they do for any website, and may keep
+this in their server logs for security purposes. See
+[Cloudflare's privacy policy](https://www.cloudflare.com/privacypolicy/) and
+[GitHub's privacy statement](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement).
 The desktop app does not load the game from the internet. It runs on
 Microsoft Edge WebView2, a Windows component whose own diagnostic settings
 are controlled by Windows and described in Microsoft's privacy statement, not
@@ -77,7 +80,7 @@ summaries of how it is played to a service we run on Cloudflare, at
 told about it once, in the game, before anything is sent.
 The Privacy panel in Settings shows this same list.
 
-**What we want to learn:** which formats and colours get played, how long
+**What we want to learn:** which formats and colors get played, how long
 duels last, how far players get, and whether players come back to the game.
 We use this only to improve the game.
 
@@ -98,18 +101,18 @@ We use this only to improve the game.
 
 *After each finished duel, a duel summary:*
 
-- the format, your deck's colours, a general deck type from our own list, and
+- the format, your deck's colors, a general deck type from our own list, and
   a broad range for the deck's mana curve
 - whether the deck was a starter, a custom deck, or a draft deck
 - which built-in computer opponent you played, the difficulty, a broad range
   for the number of turns, mulligans, and whether you won, lost, drew, or
   conceded
 
-*When you leave or close the game, a card summary:*
+*Each time you leave or close the game, a card summary:*
 
-- which cards you played during that session, each with a broad range for how
-  often (for example "2 to 3 times"), and a broad range for how many duels the
-  session held
+- the cards you played that an earlier summary this session did not include,
+  each with a broad range for how often (for example "2 to 3 times"), as well
+  as a broad range for how many duels the session has held so far
 - these entries are kept only in memory while you play, are never saved on
   your device, and are not connected to any duel or deck. If the game closes
   unexpectedly, they are simply lost

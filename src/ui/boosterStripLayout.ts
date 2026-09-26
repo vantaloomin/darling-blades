@@ -37,6 +37,12 @@ export interface StripLayout {
   tapBand: BoosterStripRect;
   leftPeek: BoosterStripRect;
   rightPeek: BoosterStripRect;
+  /**
+   * Whether a tap on an edge peek scrolls toward it. Only when the peek's
+   * visible band meets the tap floor (90px); a narrower sliver is a hint that
+   * more lies past the edge, and the arrows, drag and wheel do the scrolling.
+   */
+  peekTappable: boolean;
   arrowCenters: { left: number; right: number };
   arrowHitWidth: number;
 }
@@ -137,6 +143,7 @@ export function boosterStripLayout(
     tapBand,
     leftPeek,
     rightPeek,
+    peekTappable: peekWidth >= theme.control.minHitWidth,
     arrowCenters: {
       left: viewport.x + arrowHitWidth / 2 + 1,
       right: viewport.x + viewport.width - arrowHitWidth / 2 - 1,
@@ -234,7 +241,8 @@ export function boosterStripTileIsFullyVisible(
 
 /**
  * Classify a strip tap. Only full tiles activate; a real edge peek moves one
- * snap toward that item. The caption row is outside tapBand by design.
+ * snap toward that item when it is wide enough to be a tap target
+ * (`peekTappable`). The caption row is outside tapBand by design.
  */
 export function boosterStripTap(
   layout: BoosterStripLayout,
@@ -254,6 +262,9 @@ export function boosterStripTap(
   if (index >= visibility.firstFullIndex && index <= visibility.lastFullIndex) {
     return { kind: 'buy', index };
   }
+  // Every strip's peek measured 36-81px wide at 1.8.1 (2026-09-25), under the
+  // 90px floor, and the page arrows sit across the same column.
+  if (!layout.peekTappable) return { kind: 'none' };
   if (index === visibility.leftPeekIndex) {
     return { kind: 'scroll', targetIndex: visibility.firstFullIndex - 1 };
   }

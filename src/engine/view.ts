@@ -21,6 +21,13 @@ export interface SelfView {
   hand: string[];
   deckCount: number;
   graveyard: string[];
+  /**
+   * Each graveyard entry's physical identity, index-aligned with `graveyard`
+   * (null for a legacy entry that has none). Graveyards are public, and this
+   * is the same identity the battlefield and the stack already show; graveyard
+   * targets and Retell, Whispers and Preserve actions name cards by it.
+   * Always present since 1.8.1 (earlier only while a choice queue was public).
+   */
   graveyardInstances?: (number | null)[];
   /** Graveyard indices whose Whispers marker lasts until the owner's opponent's Dawn. */
   whispersLive: number[];
@@ -41,6 +48,7 @@ export interface OpponentView {
   handCount: number;
   deckCount: number;
   graveyard: string[];
+  /** Public graveyard identities, as on SelfView. */
   graveyardInstances?: (number | null)[];
   /** Public live Whispers indices into this side's graveyard. */
   whispersLive: number[];
@@ -87,7 +95,9 @@ export function viewFor(
 ): PlayerView {
   const me = state.players[player];
   const them = state.players[opponentOf(player)];
-  const publicQueue = state.awaiting.kind === 'hauntlinkWindow' || state.pendingDecisions.some(p => p.kind === 'discard' || p.kind === 'sacrifice' || p.continuations !== undefined || (p.kind === 'chooseTarget' && p.triggerWhen !== undefined) || (p.kind === 'resolveTrigger' && (p.newDecisionContext || p.ops.some(op => op.op === 'reclaimSelf'))));
+  // A held trigger is public, like the trigger that fired it: whenever one
+  // waits, both seats see the queue and the flush state it is holding.
+  const publicQueue = state.awaiting.kind === 'hauntlinkWindow' || state.pendingDecisions.some(p => p.kind === 'discard' || p.kind === 'sacrifice' || p.kind === 'resolveTrigger' || p.continuations !== undefined || (p.kind === 'chooseTarget' && p.triggerWhen !== undefined));
   const awaiting =
     state.awaiting.kind === 'foresee' && state.awaiting.player !== player
       ? { ...state.awaiting, cards: [] }
@@ -106,7 +116,7 @@ export function viewFor(
       hand: me.hand.map(cardIdOf),
       deckCount: me.deck.length,
       graveyard: me.graveyard.map(cardIdOf),
-      ...(publicQueue ? { graveyardInstances: me.graveyard.map(c => isCardInstance(c) ? c.instanceId : null) } : {}),
+      graveyardInstances: me.graveyard.map(c => isCardInstance(c) ? c.instanceId : null),
       whispersLive: me.graveyard.flatMap((card, index) =>
         isCardInstance(card) && card.whispersUntilDawnOf === opponentOf(player) ? [index] : [],
       ),
@@ -128,7 +138,7 @@ export function viewFor(
       handCount: them.hand.length,
       deckCount: them.deck.length,
       graveyard: them.graveyard.map(cardIdOf),
-      ...(publicQueue ? { graveyardInstances: them.graveyard.map(c => isCardInstance(c) ? c.instanceId : null) } : {}),
+      graveyardInstances: them.graveyard.map(c => isCardInstance(c) ? c.instanceId : null),
       whispersLive: them.graveyard.flatMap((card, index) =>
         isCardInstance(card) && card.whispersUntilDawnOf === player ? [index] : [],
       ),

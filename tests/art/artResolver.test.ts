@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ArtResolver, landStyleArtKey } from '../../src/art/ArtResolver';
+import { ART_LOADING_TEXTURE, ArtResolver, landStyleArtKey } from '../../src/art/ArtResolver';
 import { ALL_CARDS, CARD_DB } from '../../src/data/catalog';
 import { isBasic } from '../../src/meta/Collection';
 import { BASIC_LAND_IDS, LAND_STYLE_IDS } from '../../src/meta/SaveManager';
@@ -48,5 +48,36 @@ describe('ArtResolver land styles', () => {
     expect(resolver.getArt(nonbasic.id, 'celtic-fae')).toEqual({
       textureKey: `artfile-${nonbasicArtKey}`,
     });
+  });
+});
+
+describe('ArtResolver while card art is still streaming in', () => {
+  const card = ALL_CARDS.find((c) => !isBasic(CARD_DB, c.id))!;
+  const artKey = card.artRef ?? card.id;
+  const fileTexture = `artfile-${artKey}`;
+
+  /** A resolver over a texture manager that holds exactly `present`. */
+  function resolverWithTextures(present: Set<string>): ArtResolver {
+    return Object.assign(Object.create(ArtResolver.prototype), {
+      db: CARD_DB,
+      real: new Set([artKey]),
+      atlas: { get: () => undefined },
+      scene: { textures: { exists: (key: string) => present.has(key) } },
+    }) as ArtResolver;
+  }
+
+  it('hands out the stand-in and names the texture that will replace it', () => {
+    const resolver = resolverWithTextures(new Set([ART_LOADING_TEXTURE]));
+    expect(resolver.getArt(card.id)).toStrictEqual({ textureKey: ART_LOADING_TEXTURE, pending: fileTexture });
+  });
+
+  it('still names the awaited texture when there is no stand-in to draw', () => {
+    const resolver = resolverWithTextures(new Set());
+    expect(resolver.getArt(card.id)).toStrictEqual({ textureKey: fileTexture, pending: fileTexture });
+  });
+
+  it('hands out the real texture with nothing pending once the file has landed', () => {
+    const resolver = resolverWithTextures(new Set([ART_LOADING_TEXTURE, fileTexture]));
+    expect(resolver.getArt(card.id)).toStrictEqual({ textureKey: fileTexture });
   });
 });

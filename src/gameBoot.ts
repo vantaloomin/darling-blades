@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { CARD_DB } from './data/catalog';
+import { syncAchievements } from './meta/Achievements';
 import { Services } from './meta/services';
 import { signals } from './net/signals';
 import { applyDesktopWindowSize } from './platform/desktopWindow';
@@ -148,10 +150,12 @@ const game = new Phaser.Game({
 // an app switch would otherwise be lost (mobile-lan-plan §1.5). The listener
 // lives here in the browser layer — src/meta stays free of browser APIs.
 // The same two moments carry the anonymous card batch off the device
-// (src/net/signals.ts). visibilitychange is the reliable one on mobile, where
-// a backgrounded tab is often discarded without a pagehide; whichever fires
-// first sends, and the other finds the batch already gone. Both calls are
-// gated, silent when the gate is closed, and cannot throw into the handler.
+// (src/net/signals.ts), at EVERY hide rather than only the first, so play after
+// a tab switch is counted too. Each call sends only the cards no earlier batch
+// this launch carried. visibilitychange is the reliable one on mobile, where
+// a backgrounded tab is often discarded without a pagehide; when both fire,
+// the first sends and the second finds nothing new. Both calls are gated,
+// silent when the gate is closed, and cannot throw into the handler.
 window.addEventListener('pagehide', () => {
   Services.save.flush();
   signals.sessionEnding();
@@ -166,6 +170,11 @@ document.addEventListener('visibilitychange', () => {
 // Anonymous play stats: one heartbeat per launch, if every suppressor in
 // src/net/signalsGate.ts lets it through. A save that has not seen the current
 // notice sends nothing here and sends on signals.noticeAcknowledged() instead.
+// Latch achievements first: a release can add some that a returning save has
+// already earned (1.8.1 added 21), and the heartbeat reports the unlocked share,
+// so without this the first launch after an update reports less than the player
+// sees a moment later. Same recovery sync the main menu runs; no toast here.
+if (syncAchievements(Services.save.data, CARD_DB).length > 0) Services.save.flush();
 signals.start();
 
 // Dev-tool access (scene jumps, state inspection from the console).

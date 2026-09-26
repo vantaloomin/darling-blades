@@ -19,6 +19,8 @@ import { Services } from '../meta/services';
 import { isTouchDevice } from '../platform/gestures';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { HEADER_CURRENCY_ANCHOR } from '../ui/layout';
+import { premiumGrantSummary, type LimitedBuilderEntry, type PremiumGrantSummary } from '../ui/limitedDraftPresentation';
+import { sceneSubtitle, sceneTitle } from '../ui/sceneTitle';
 import { theme } from '../ui/theme';
 import { Toast } from '../ui/Toast';
 import { backButton, goldBadge, panel, registerSceneBackNavigation, themedButton, type ThemedButton } from '../ui/themeWidgets';
@@ -43,6 +45,11 @@ export class LimitedScene extends Phaser.Scene {
   private runPoolLine: Phaser.GameObjects.Text | null = null;
   private retireWarning: Phaser.GameObjects.Text | null = null;
   private retireDisarm: Phaser.Time.TimerEvent | null = null;
+  /**
+   * A Premium grant this visit completed (the interrupted-save path below),
+   * handed to the deck builder on Resume so its note names real numbers.
+   */
+  private premiumGrant: PremiumGrantSummary | null = null;
   constructor() {
     super('Limited');
   }
@@ -52,6 +59,7 @@ export class LimitedScene extends Phaser.Scene {
     this.runPoolLine = null;
     this.retireWarning = null;
     this.retireDisarm = null;
+    this.premiumGrant = null;
     applyBackdrop(this, 'gauntlet', {
       dim: theme.graphics.dim,
       dimAlpha: 0.52,
@@ -70,25 +78,18 @@ export class LimitedScene extends Phaser.Scene {
     ) {
       // Interrupted-save path: the draft finished but completeDraftRun never
       // ran, so the familiarity tick from confirmPick never fired either.
-      grantPremiumDraftPool(save, CARD_DB, save.limited.activeRun);
+      const grant = premiumGrantSummary(grantPremiumDraftPool(save, CARD_DB, save.limited.activeRun));
+      if (grant.drafted > 0) this.premiumGrant = grant;
       recordDraftEncounters(save.limited, save.limited.activeRun);
       save.limited.activeRun = completeDraftRun(CARD_DB, save.limited.activeRun);
       Services.save.flush();
     }
-    this.add
-      .text(640, 52, 'Draft', {
-        fontFamily: theme.fonts.display,
-        fontSize: `${theme.type.display}px`,
-        color: theme.colors.heading,
-      })
-      .setOrigin(0.5);
-    this.add
-      .text(640, 90, `Draft from packs against seven rivals, build exactly ${LIMITED_DECK_SIZE} spells, then play three matches. Your Warchest of 10 lands is provided.`, {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.body}px`,
-        color: theme.colors.muted,
-      })
-      .setOrigin(0.5);
+    sceneTitle(this, 'Draft');
+    sceneSubtitle(
+      this,
+      `Draft from packs against seven rivals, build exactly ${LIMITED_DECK_SIZE} spells, then play three matches. Your Warchest of 10 lands is provided.`,
+      { fontSize: theme.type.body },
+    );
     backButton(this, 'Play', () => this.scene.start('Play'));
     registerSceneBackNavigation(this, () => this.scene.start('Play'));
     // Gold is spendable here (the Premium Draft entry), so show the balance in
@@ -273,7 +274,10 @@ export class LimitedScene extends Phaser.Scene {
   }
   private continueRun(run: LimitedRun): void {
     if (run.status === 'draft') this.scene.start('LimitedDraft');
-    else if (run.status === 'build') this.scene.start('LimitedDeckBuilder');
+    else if (run.status === 'build') {
+      const entry: LimitedBuilderEntry = this.premiumGrant ? { premiumGrant: this.premiumGrant } : {};
+      this.scene.start('LimitedDeckBuilder', entry);
+    }
     else this.scene.start('Duel', limitedDuelData(run));
   }
   private retireRun(pointer?: Phaser.Input.Pointer): void {

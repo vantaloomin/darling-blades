@@ -58,6 +58,19 @@ completion thousands of times and must never be able to emit. The only
 importers are `src/gameBoot.ts` and `src/scenes/DuelScene.ts`, and a test pins
 that list.
 
+### The Forge: a second page on the same core (`src/power`, `src/forge`)
+
+The Forge ([forge.md](forge.md)), the card designer at `/forge/`, is a second
+Vite page built by its own config (`vite.forge.config.ts`) after the game's.
+It reuses the production `CardView` to draw the card and scores it with
+`src/power/scoreCore.ts`, the power scorer, which is headless like the engine
+(the ESLint purity block covers `src/power/**`) and is also what the local
+balance CLI runs. `src/forge/` splits the same way: its state, hint, store and
+vocabulary modules are Phaser-free and DOM-free and are what the tests import;
+`main.ts` and `scene.ts` are the browser side. The page shares the game's
+origin, so it never touches browser storage (the game save lives there), and
+its bundle swaps the save-reading `FXSupport` for a stub.
+
 ## The `Game` facade
 
 `src/engine/Game.ts` is the only public entry point to the engine. Its contract
@@ -135,7 +148,8 @@ The full `GameEvent` union (`src/engine/events.ts`):
 | `combatDamage`          | `hits[{source, target, amount}]`, `firstStrike` | A batch of simultaneous combat damage was computed.                                                                                                                                                                   |
 | `damageMarked`          | `iid`, `amount`                                 | Damage was marked on a permanent.                                                                                                                                                                                     |
 | `lifeChanged`           | `player`, `delta`, `now`                        | A player's life total changed.                                                                                                                                                                                        |
-| `died`                  | `iid`, `cardId`, `owner`                        | A permanent left the battlefield to the graveyard (also used by `recall`).                                                                                                                                            |
+| `died`                  | `iid`, `cardId`, `owner`                        | A permanent left the battlefield to the graveyard.                                                                                                                                                                    |
+| `recalled`              | `iid`, `cardId`, `owner`, `token?`              | A permanent returned to its owner's hand (a token ceased to exist). Not a death: no dies trigger, and quests and telemetry do not count it                                                                            |
 | `nineLivesReturned`     | `player`, `iid`, `cardId`                       | A Nine Lives creature died markless and returned to the battlefield with its +1/+1 mark (telemetry counts these returns)                                                                                              |
 | `discarded`             | `player`, `cardId`                              | A card went from hand to graveyard.                                                                                                                                                                                   |
 | `milled`                | `player`, `cardId`                              | A card went from the top of a deck to the graveyard (the `grind` op).                                                                                                                                                 |
@@ -156,10 +170,18 @@ The full `GameEvent` union (`src/engine/events.ts`):
 ### Replay discipline and rules revisions
 
 `ReplayLog.v` selects observable engine behavior as well as validating the log
-shape. New v10 logs run under current rules revision 3. Version 8 remains
-replayable under revision 3, version 7 under revision 2 with the former
-Hauntlink cast mode, and version 6 under revision 1 with the classic
-single-window path. A current-version log containing the explicit legacy
+shape. New v15 logs (1.8.1) run under current rules revision 4, as do versions
+11 through 14; versions 8 through 10 run under revision 3, version 7 under
+revision 2 with the former Hauntlink cast mode, and version 6 under revision 1
+with the classic single-window path. From v15 an action names a graveyard card
+by its instance id as well as its position; an older log names the position
+only, and `Game.submit` binds it to the card there when the action is
+submitted. That is the card the recorded game chose except where 1.8.0 read a
+shifted position (a Retell cast whose target sat above its own source, or a
+response that moved the graveyard before the spell resolved): there the
+replay returns the card the position named at submission. 1.8.0 logs are
+refused anyway, since the 1.8.1 card-text changes moved the card-data stamp.
+A current-version log containing the explicit legacy
 Hauntlink cast marker selects revision 2 as well. These paths are preserved
 behind `GameConfig.rulesRev`; legacy `GameState` JSON omits both `rulesRev` and
 revision-2 episode bookkeeping. A gated behavior change may keep an older
@@ -178,7 +200,11 @@ Redaction:
 - **The opponent's hand and deck become counts** (`OpponentView.handCount`,
   `deckCount`).
 - **Battlefield, stack, combat, and both graveyards are public** and cloned into
-  the view (`structuredClone`), so an AI can mutate its view freely.
+  the view (`structuredClone`), so an AI can mutate its view freely. Public
+  cards keep their physical identity: permanents and stack items carry
+  `instanceId`, and each graveyard's identities are listed index-aligned in
+  `graveyardInstances` (always, since 1.8.1), which is what lets graveyard
+  targets and determinized simulations name the same card the real game does.
 
 This is the single choke point for hidden information: if it's not in the view,
 no AI can see it.

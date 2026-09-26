@@ -17,6 +17,7 @@ import {
   GAP_FLOORS,
   GAUNTLET_TOWER_VIEWPORT,
   HEADER_CURRENCY_ANCHOR,
+  SCENE_TITLE,
   anchoredControlBounds,
   anchoredRect,
   clampScrollOffset,
@@ -40,7 +41,12 @@ import {
 } from '../../src/ui/layout';
 import { CURVE_MAX } from '../../src/ui/deckStats';
 import { DECK_PANE_LAYOUT, warchestSlotPosition } from '../../src/ui/deckPanePresentation';
-import { LIMITED_BUILDER_COLUMNS, LIMITED_DETAILS_PANEL, limitedListRow } from '../../src/ui/limitedPanePresentation';
+import {
+  LIMITED_BUILDER_COLUMNS,
+  LIMITED_BUILDER_HEADER,
+  LIMITED_DETAILS_PANEL,
+  limitedListRow,
+} from '../../src/ui/limitedPanePresentation';
 import { MAIN_MENU_CORNER, mainMenuCornerY } from '../../src/ui/mainMenuPresentation';
 
 const pickerStripOptions: StripLayoutOptions = {
@@ -116,7 +122,8 @@ describe('layout geometry', () => {
       rightPeekIndex: 4,
     });
     expect(boosterStripTap(layout, 0, 280, 380)).toEqual({ kind: 'buy', index: 0 });
-    expect(boosterStripTap(layout, 0, 1200, 380)).toEqual({ kind: 'scroll', targetIndex: 1 });
+    // The booster peek is 81px wide, under the tap floor: a view, not a control.
+    expect(boosterStripTap(layout, 0, 1200, 380)).toEqual({ kind: 'none' });
     // The caption, New chip, and blurb row is intentionally outside the buy band.
     expect(boosterStripTap(layout, 0, 280, 226)).toEqual({ kind: 'none' });
 
@@ -132,10 +139,7 @@ describe('layout geometry', () => {
     });
     // Last snap keeps the last product in the fourth full slot.
     expect(boosterStripTileRect(layout, count - 1, lastOffset)).toEqual(layout.fullTileRects[3]);
-    expect(boosterStripTap(layout, lastOffset, 80, 380)).toEqual({
-      kind: 'scroll',
-      targetIndex: layout.maxIndex - 1,
-    });
+    expect(boosterStripTap(layout, lastOffset, 80, 380)).toEqual({ kind: 'none' });
     expect(boosterStripTap(layout, lastOffset, 1000, 380)).toEqual({
       kind: 'buy',
       index: count - 1,
@@ -187,9 +191,9 @@ describe('layout geometry', () => {
     const tileY = layout.tapBand.y + layout.tapBand.height / 2;
     const firstTileCenter = layout.fullTileRects[0].x + layout.tileWidth / 2;
     expect(boosterStripTap(layout, 0, firstTileCenter, tileY)).toEqual({ kind: 'buy', index: 0 });
+    // The picker's 59px peek is under the tap floor, so it answers nothing.
     expect(boosterStripTap(layout, 0, layout.rightPeek.x + layout.rightPeek.width - 1, tileY)).toEqual({
-      kind: 'scroll',
-      targetIndex: 1,
+      kind: 'none',
     });
     const gapX = layout.fullTileRects[0].x + layout.tileWidth + layout.tileHitGap / 2;
     expect(boosterStripTap(layout, 0, gapX, tileY)).toEqual({ kind: 'none' });
@@ -205,10 +209,7 @@ describe('layout geometry', () => {
       rightPeekIndex: null,
     });
     expect(boosterStripTileRect(layout, count - 1, lastOffset)).toEqual(layout.fullTileRects[3]);
-    expect(boosterStripTap(layout, lastOffset, layout.leftPeek.x + 1, tileY)).toEqual({
-      kind: 'scroll',
-      targetIndex: layout.maxIndex - 1,
-    });
+    expect(boosterStripTap(layout, lastOffset, layout.leftPeek.x + 1, tileY)).toEqual({ kind: 'none' });
     expect(boosterStripTap(layout, lastOffset, layout.fullTileRects[3].x + layout.tileWidth / 2, tileY)).toEqual({
       kind: 'buy',
       index: count - 1,
@@ -225,6 +226,66 @@ describe('layout geometry', () => {
       rightPeekIndex: null,
     });
     expect(boosterStripTileRect(layout, 19, 0)).toEqual(layout.fullTileRects[3]);
+  });
+
+  /**
+   * The tap floor (docs/design-system.md: core hit regions are at least
+   * 90 x 44) holds for a strip's edge peeks too: a sliver of the next tile
+   * answers a tap only when it is at least that wide, and then it moves one
+   * snap toward itself. The 1.8.1 review measured the Practice peek at 59px.
+   */
+  it('lets an edge peek answer a tap only when it meets the tap floor', () => {
+    const scenarios: { name: string; count: number; options?: StripLayoutOptions }[] = [
+      { name: 'booster strip', count: 10 },
+      { name: 'practice picker', count: 13, options: pickerStripOptions },
+      {
+        name: 'shop deck columns',
+        count: 8,
+        options: {
+          visibleCount: 4,
+          tileWidth: 230,
+          tileHeight: 500,
+          tileStride: 262,
+          viewport: { x: 64, y: 166, width: 1152, height: 516 },
+          verticalBand: { y: 174, height: 500 },
+          tapBand: { y: 174, height: 500 },
+        },
+      },
+      {
+        name: 'a strip with a wide peek',
+        count: 8,
+        options: {
+          visibleCount: 4,
+          tileWidth: 200,
+          tileStride: 210,
+          viewport: { x: 64, y: 126, width: 1152, height: 404 },
+          verticalBand: { y: 130, height: 360 },
+          tapBand: { y: 130, height: 360 },
+        },
+      },
+    ];
+    let scrolled = 0;
+    for (const { name, count, options } of scenarios) {
+      const layout = boosterStripLayout(count, 0, options);
+      const y = layout.tapBand.y + layout.tapBand.height / 2;
+      for (const offset of [0, boosterStripOffsetForIndex(layout, layout.maxIndex)]) {
+        const band = boosterStripVisibility(layout, offset);
+        for (let x = layout.tapBand.x; x <= layout.tapBand.x + layout.tapBand.width; x += 2) {
+          const tap = boosterStripTap(layout, offset, x, y);
+          if (tap.kind !== 'scroll') continue;
+          scrolled++;
+          const peek = x < theme.design.centerX ? layout.leftPeek : layout.rightPeek;
+          expect(peek.width, `${name} scrolled from a ${peek.width}px peek`).toBeGreaterThanOrEqual(
+            theme.control.minHitWidth,
+          );
+          expect(x).toBeGreaterThanOrEqual(peek.x);
+          expect(x).toBeLessThanOrEqual(peek.x + peek.width);
+          expect(tap.targetIndex).toBe(x < theme.design.centerX ? band.firstFullIndex - 1 : band.firstFullIndex + 1);
+        }
+      }
+    }
+    // The wide peek is a real target, so the rule is not met by never scrolling.
+    expect(scrolled).toBeGreaterThan(0);
   });
 
   it('anchors rectangles to safe edges, corners, and centerlines', () => {
@@ -801,11 +862,60 @@ describe('title-safe frame: every placed control', () => {
     expectInside('Export Code', buttonHit(cta.exportX, d.summary.ctaY, 'sm', cta.sideMinWidth));
     expectInside('Save Deck', buttonHit(cta.saveX, d.summary.ctaY, 'md', cta.saveMinWidth));
     expectInside('Import Code', buttonHit(cta.importX, d.summary.ctaY, 'sm', cta.sideMinWidth));
-    // The pane's title row (y 32) still starts above the frame's top edge;
-    // bringing it down is a vertical pass of its own. Its right-aligned Decks
-    // button is held to the side edges here.
+    // The pane's title row sits on the shared header line since 1.8.1, and
+    // tests/ui/deckPanePresentation.test.ts holds that row, the Decks button's
+    // tap band included, to the frame's top edge. This check is horizontal:
+    // the right-aligned Decks button's tap area stays between the frame's side
+    // edges (the row's y does not enter it).
     const decks = buttonHit(d.decks.x, 0, 'sm', d.decks.minWidth);
     expect(decks.x).toBeGreaterThanOrEqual(theme.design.safeLeft);
     expect(decks.x + decks.width).toBeLessThanOrEqual(theme.design.safeRight);
+  });
+});
+
+/**
+ * Menu titles belong to the title-safe frame too (docs/design-system.md,
+ * "Safe-area model", and the h1 "Page or modal title" role). Seven menus set
+ * a 44px display title centred at y 44-52 until 1.8.1 (2026-09-25); its box
+ * began 19-27px from the top, above the frame. Titles now share the header
+ * line, and the line under a title hangs below the header track.
+ */
+describe('title-safe frame: scene titles', () => {
+  /**
+   * Phaser sizes a Text from the ink extents of "|MÉqs". Measured from the
+   * shipped fonts at these sizes (2026-09-25): Cinzel 700 at h1, Inter 400 at
+   * label and body, Inter 400 at caption.
+   */
+  const BOX = { title: 33, label: 18, body: 20, caption: 15 } as const;
+  /** The widest title a menu sets: "Limited Deck Builder" at h1 bold. */
+  const WIDEST_TITLE = 326;
+  const headerTrackBottom = theme.design.safeTop + theme.control.minHitHeight;
+
+  it('keeps the widest title inside the frame and inside the header track', () => {
+    const title = {
+      x: SCENE_TITLE.x - WIDEST_TITLE / 2,
+      y: SCENE_TITLE.y - BOX.title / 2,
+      width: WIDEST_TITLE,
+      height: BOX.title,
+    };
+    expect(isInsideTitleSafe(title), JSON.stringify(title)).toBe(true);
+    expect(title.y + title.height).toBeLessThanOrEqual(headerTrackBottom);
+    // Clear of the back control on the same line, whatever its label.
+    const back = anchoredControlBounds('top-left', 0, BOX.label);
+    expect(title.x).toBeGreaterThanOrEqual(back.hit.x + back.hit.width + GAP_FLOORS.ordinary);
+  });
+
+  it('hangs the line under a title below the header track and the title box', () => {
+    expect(SCENE_TITLE.subtitleTop).toBeGreaterThanOrEqual(headerTrackBottom);
+    expect(SCENE_TITLE.subtitleTop).toBeGreaterThanOrEqual(SCENE_TITLE.y + BOX.title / 2);
+  });
+
+  it('stacks the Limited deck builder header lines above its panels, and the panels above the footer', () => {
+    const H = LIMITED_BUILDER_HEADER;
+    const c = LIMITED_BUILDER_COLUMNS;
+    expect(H.premiumNoteTop).toBeGreaterThanOrEqual(H.rulesTop + BOX.label);
+    expect(c.y).toBeGreaterThanOrEqual(H.premiumNoteTop + BOX.caption + GAP_FLOORS.ordinary);
+    // The footer row's buttons fill the footer track; the panels end above it.
+    expect(c.y + c.height).toBeLessThanOrEqual(theme.design.safeBottom - theme.control.minHitHeight);
   });
 });

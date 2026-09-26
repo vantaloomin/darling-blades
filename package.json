@@ -1,14 +1,16 @@
 {
   "name": "darling-blades",
   "private": true,
-  "version": "1.8.0",
+  "version": "1.8.1",
   "type": "module",
   "engines": {
     "node": ">=24"
   },
   "scripts": {
     "dev": "npm run gen-art-manifest && npm run gen-legal-pages && npm run gen-third-party-notices && vite",
-    "build": "npm run gen-art-manifest && npm run gen-legal-pages && npm run gen-third-party-notices && tsc --noEmit && vite build",
+    "build": "npm run gen-art-manifest && npm run gen-legal-pages && npm run gen-third-party-notices && tsc --noEmit && vite build && npm run forge:build",
+    "forge": "npm run gen-art-manifest && vite --config vite.forge.config.ts",
+    "forge:build": "tsx scripts/build-forge.ts",
     "cardproof": "npm run cardproof:build && vite preview --config vite.cardproof.config.ts --host localhost --port 5175",
     "cardproof:build": "vite build --config vite.cardproof.config.ts",
     "preview": "vite preview",
