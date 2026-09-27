@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/power/scoreCore.ts, src/data/cards/, src/data/opponents.ts, src/ai/value.ts, scripts/balance-matrix.ts, docs/plan-1.9.md · last-verified: 2026-09-26 · program doc: the 1.8.5 scaling rebalance; every decision ruled and the slate approved 2026-09-26; the build is under way on release/1.8.5 -->
+<!-- source-of-truth: src/power/scoreCore.ts, src/data/cards/, src/data/opponents.ts, src/ai/value.ts, scripts/balance-matrix.ts, docs/plan-1.9.md · last-verified: 2026-09-27 · program doc: the 1.8.5 scaling rebalance; every decision ruled, the slate approved 2026-09-26 and narrowed to 83 cards 2026-09-27 (D11-D13); the build is under way on release/1.8.5 -->
 
 # Darling Blades 1.8.5: the scaling rebalance (proposal)
 
@@ -420,6 +420,33 @@ The owner went through all 132 cards on the review page:
   with before and after rules text per card. The picks are in
   `owner-picks.json`.
 
+**Owner re-review, 2026-09-27: only the nerfs that play backs ship (D11).**
+The owner looked at the built slate and pushed back: "A lot of stone-cold
+unplayable cards are getting nerfed". The two examples were Granary of Rising
+Years and Chart the Reef Road, both late ramp the scorer overprices (D12).
+
+The test is the metagame sweep. Four sweeps (2026-09-22 to 09-25, 47 crafted
+decks) hill-climb five archetype decks by win rate, so a card the optimizer
+keeps is one that wins games. Of the 75 nerfs:
+- **27 are picked by the optimizer.** Examples: Lu Bu in 18 of 47 decks, Abyssal
+  Iris Regent in 13, Ysolt in 11, and Storm Surge, The Price and Reaper's Due.
+  These ship.
+- **33 sat in an optimizer's colours and were never picked.**
+- **15 were never in any optimizer's colours.** Green, and red-white, have no
+  persona; both ramp examples are here.
+
+Those 48 are **reverted**: they stay exactly as in 1.8.1 and join a
+measure-later list. The Forge will read some of them as Over Value until
+they are measured; that is a disagreement between the scorer and play,
+recorded rather than forced. All 56 buffs ship (D13), so the slate is **83
+cards: 27 down, 56 up**. The 131-card version is kept as
+`final-slate-v1-131.json`.
+
+Knock-ons:
+- Bastet's retune comes out: her four changed cards are all among the 48.
+- The Drowned Deacon's and the Marsh-Mother's retunes stay, because The Price
+  is one of the 27.
+
 The big moves stay flagged for lane 5's per-card in-engine check before
 release. The largest are Starborne Apotheosis ({6}{W} to {1}{W} with bigger
 effects), Brood Communion ({G}, Rite dropped) and Black Tide Rising ({B}{B},
@@ -430,11 +457,15 @@ The face-damage intercept wrongly applied to Duty activations is already fixed
 in the prototype.
 
 **Art that no longer matches its card** (found transcribing the slate). The
-owner ruled 2026-09-26: "Queue for regen in the 1.9". Freya (lost Skyborne,
-drawn flying), Swan-Lake Sovereign (lost Sentinel, a wing-wall pose) and
-Siege Juggernaut (lost Overrun) keep their current art in 1.8.5 and are
-regenerated in the 1.9 art run (`docs/plan-1.9.md`, lane B). **Signal Drown** is a dead card in the Violet Signal Queen's
-deck, which has no Mark sources.
+owner ruled 2026-09-26: "Queue for regen in the 1.9".
+- **Swan-Lake Sovereign** (lost Sentinel, a wing-wall pose) keeps its current
+  art in 1.8.5 and is regenerated in the 1.9 art run (`docs/plan-1.9.md`,
+  lane B).
+- **Freya** and **Siege Juggernaut** were queued too, but D11 reverted both
+  cards, so they keep their keywords and their art.
+
+**Signal Drown** is a dead card in the Violet Signal Queen's deck, which has
+no Mark sources.
 
 **How cards get fixed.** The slate balances three levers across the whole
 list:
@@ -511,6 +542,14 @@ pushes below its floor gets its deck retuned, never a lower floor.
 | # | Decision | Ruling |
 | --- | --- | --- |
 | D10 | Should the scorer price an anthem by tribe size (lane 2's 0.14 per matching creature), or keep a flat multiplier? | **Flat: x2.0 for creature lords, x2.8 for non-creature anthems.** The owner's reason: "otherwise it'd always have to be adjusted as we add more to some sets and not others". A density-aware rate would move every anthem each time a set grows its tribe |
+
+## D11-D13 (ruled 2026-09-27)
+
+| # | Decision | Ruling |
+| --- | --- | --- |
+| D11 | Which nerfs ship, now that the sweep shows 48 of 75 were never picked by the optimizer? | **Keep the 27 the sweep backs; revert the other 48** to their 1.8.1 form and measure them later |
+| D12 | The scorer prices an extra land drop the same at every mana cost, ignoring the 10-land reserve. Fix inside 1.8.5? | **Fix in 1.8.5.** Measure ramp by cast turn in the engine and price it by the turns left before the cap (lane `lane/185-ramp`) |
+| D13 | Four buffs go to cards the optimizer already picks (Nadira, The Storm-Crowned Bride, Rite of the Lamp-Fire, Moon-Doll Orchestra). Hold them? | **Keep all 56 buffs** |
 
 ## Non-goals
 
