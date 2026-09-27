@@ -71,6 +71,7 @@ import type {
   TriggerWhen,
 } from '../engine/types';
 import { manaValue } from '../engine/types';
+import { LAND_RESERVE_SIZE } from '../config/rules';
 
 /** v3 vocabulary is newer than this isolated worktree's engine unions. Keep
  * the browser workbench type-safe without widening production `src/`. */
@@ -714,6 +715,77 @@ export const COND_CONTROLS_OTHER = 0.6;
 // tap mode at ~35%, Blightspeaker (PLC) and the Invasion Apprentices at ~0.
 export const DUTY_SHARED_TAP_SHARE = 0.2;
 
+// ── §4v EXTRA LAND DROPS (1.8.5 ramp lane, in-engine) ────────────────────────
+// Warchest gives each player exactly LAND_RESERVE_SIZE (10) lands and one land
+// a turn, so an extra land drop only pulls the land count forward toward a cap
+// both players reach anyway, and a drop beyond the first each turn enters
+// tapped. What the op buys is extra untapped mana on the turns before the cap,
+// counted from the turn it is cast on (its mana value).
+//
+// MEASURED in-engine (1.8.5 ramp lab, 2026-09-27, 85k games in the fitted
+// frame): colourless ramp probes in the hole of three green decks (Wild
+// Communion, Valhalla's Muster, Meng Huo) against the 14 Warchest columns,
+// each probe against a blank card of the same cost and type cast at the same
+// time. The shape below fits the eight one-shot arms (one, two and three drops
+// at mana value 1 to 6; chi2 5.2 on 5), and with one scalar it fits the shape
+// of the five Dawn arms (chi2 2.1 on 4). The flat reading, every extra mana
+// before the cap worth the same, is rejected (chi2 68 on 12).
+//   RAMP_TURN_DECAY 0.89 [0.81, 1.00]: an extra mana a turn later is worth
+//     0.89 of one now.
+//   RAMP_STACK 0.58 [0.38, 0.76]: a second extra mana on the same turn is
+//     worth 0.58 of the first, a third 0.58 squared (likely because the
+//     hand runs out of things to cast; not measured directly).
+//   RAMP_DAWN_SHARE 0.62 [0.50, 0.74]: a Dawn engine realizes 0.62 of its
+//     capped schedule against a one-shot's rate; its extra land arrives late
+//     and needs the game to last, and it realized about 0.7 as much of its
+//     scheduled mana in the lab.
+// The level stays on the §4p anchor (the one-shot at mana value 2 is 1.9). The
+// lab reads that probe at 1.2 [0.95, 1.6] +1/+1 when cast on curve, and at 0.3
+// as MediumAI casts it (it values the op at 0 and casts ramp late): an owner
+// call, not changed here. See balance/study/lab/ramp-findings.md.
+export const RAMP_ANCHOR = 1.9; // §4p: one extra land drop at mana value 2 (Rampant Growth)
+export const RAMP_TURN_DECAY = 0.89;
+export const RAMP_STACK = 0.58;
+export const RAMP_DAWN_SHARE = 0.62;
+
+/** Extra untapped mana on each of your own turns 1..LAND_RESERVE_SIZE, given
+ * `drops(turn)` extra land drops on that turn, against one land a turn. The
+ * normal drop comes in untapped; each extra drop enters tapped, so it pays from
+ * your next turn; the reserve caps lands in play. */
+export function extraManaByTurn(drops: (turn: number) => number): number[] {
+  const out: number[] = [];
+  let lands = 0;
+  for (let turn = 1; turn <= LAND_RESERVE_SIZE; turn++) {
+    if (lands < LAND_RESERVE_SIZE) lands++;
+    out.push(lands - Math.min(turn, LAND_RESERVE_SIZE));
+    lands = Math.min(LAND_RESERVE_SIZE, lands + drops(turn));
+  }
+  return out;
+}
+
+/** The land drops granted by an ability cast on `castTurn`: once, or at every
+ * Dawn after it. */
+function rampMana(castTurn: number, n: number, everyDawn: boolean): number[] {
+  return extraManaByTurn((turn) => (everyDawn ? (turn > castTurn ? n : 0) : (turn === castTurn ? n : 0)));
+}
+/** A turn's lead of `extra` mana: the first counts 1, each more RAMP_STACK of the last. */
+const leadValue = (extra: number): number => (1 - RAMP_STACK ** extra) / (1 - RAMP_STACK);
+const weighted = (mana: number[]): number => mana.reduce((s, m, i) => s + RAMP_TURN_DECAY ** i * leadValue(m), 0);
+const RAMP_PER_WEIGHTED_MANA = RAMP_ANCHOR / weighted(rampMana(2, 1, false));
+
+/** §4v: what `n` extra land drops are worth when cast on your own turn
+ * `castTurn` (the mana paid for them), once or at every Dawn after it. A
+ * one-shot at 2 is the anchor. */
+export function extraLandValue(castTurn: number, n: number, everyDawn: boolean): number {
+  const value = RAMP_PER_WEIGHTED_MANA * weighted(rampMana(Math.max(1, castTurn), n, everyDawn));
+  return everyDawn ? RAMP_DAWN_SHARE * value : value;
+}
+
+/** Own turns on which the drops give extra mana, for the breakdown label. */
+function rampTurns(castTurn: number, n: number, everyDawn: boolean): number {
+  return rampMana(Math.max(1, castTurn), n, everyDawn).filter((m) => m > 0).length;
+}
+
 // ── Effect valuation ─────────────────────────────────────────────────────────
 
 export interface Part {
@@ -781,7 +853,10 @@ function valueAwaken(op: Extract<ScorableEffectOp, { op: 'awaken' }>, card: Scor
   return { label: `awaken(allYours${nominalTag})`, v: 0.6 * mag * TEAM_FACTOR };
 }
 
-/** Value one EffectOp. `canFace` = the owning ability can target a player. */
+/** Value one EffectOp. `canFace` = the owning ability can target a player.
+ * `castMana` = the mana the effect is cast for when that is not the card's own
+ * mana value (an Empower rider, a Retell, a later Quest chapter); only the
+ * extra land drop reads it (§4v). */
 export function valueOp(
   op: ScorableEffectOp,
   canFace: boolean,
@@ -789,6 +864,7 @@ export function valueOp(
   when: ScorableTriggerWhen = 'spell',
   targetWhat?: string,
   unknowns: UnknownCollector = new Set<string>(),
+  castMana: number = manaValue(card.cost),
 ): Part {
   switch (op.op) {
     case 'damage': {
@@ -1094,8 +1170,25 @@ export function valueOp(
       // the fair band, because one mana step (0.82) is narrower than the
       // outlier band (1.5). The turn-2 curve is what makes {G} ramp
       // format-warping, and that is a FLOOR rule (see §4p), not a rate.
+      // v4 (§4v, 1.8.5 ramp lane, in-engine): no longer flat. The value is
+      // the extra untapped mana the drops give on your turns before the
+      // 10-land reserve runs out, cast on the turn equal to the mana paid (see
+      // extraLandValue), with the one-shot at mana value 2 kept at the 1.9
+      // anchor; a {G} ramp ritual now reads Over on the rate alone (the floor
+      // rule stays). A Dawn trigger grants a drop at every Dawn until the cap,
+      // so it is priced as that capped total, not per trigger: the part below
+      // is the total divided by the non-creature Dawn multiplier, which the
+      // trigger's own multiplier restores (a creature carrier keeps its
+      // 2.0 / 3.0 survival discount). A drop granted at Sunset comes after the
+      // last main phase, so it can never be used.
       const n = op.n ?? 1;
-      return { label: n > 1 ? `extra land drop ×${n}` : 'extra land drop', v: 1.9 * n };
+      const drops = n > 1 ? ` ×${n}` : '';
+      if (when === 'sunset') return { label: `extra land drop${drops} (too late in the turn to use)`, v: 0 };
+      const everyDawn = when === 'dawn';
+      const turn = Math.max(1, castMana);
+      const label = `extra land drop${drops} (cast at ${turn}, ${rampTurns(turn, n, everyDawn)} turns before cap ${LAND_RESERVE_SIZE})`;
+      const value = extraLandValue(turn, n, everyDawn);
+      return { label, v: everyDawn ? value / DAWN_MULT_NONCREATURE : value };
     }
     case 'createToken':
       // Each token is its body (keywords priced on the token's own Attack)
@@ -1312,7 +1405,8 @@ function valueDuty(ability: ScorableActivated, card: ScorableCardDef, unknowns: 
   const fan = targetFan(ability.targets);
   let perTrigger = 0;
   for (const op of ability.ops) {
-    const p = valueOp(op, face, card, 'spell', targetWhat, unknowns);
+    // §4v: a Duty's extra land drop repeats once a turn, the Dawn engine's shape.
+    const p = valueOp(op, face, card, op.op === 'extraLandDrop' ? 'dawn' : 'spell', targetWhat, unknowns);
     perTrigger += (op.op === 'tap' ? 1.0 : p.v) * (isPerTargetOp(op) ? fan : 1);
   }
   const creatureCarrier = card.types.includes('creature');
@@ -1357,6 +1451,9 @@ export function scoreCard(card: ScorableCardDef): Score {
   }
 
   let spellEffect = 0;
+  // §4v: the extra land drops inside `spellEffect`, so a Retell that re-casts
+  // the printed spell can re-price them at the Retell's own mana.
+  const rampInSpell: { op: ScorableEffectOp; when: ScorableTriggerWhen; mult: number }[] = [];
   for (const ab of card.abilities ?? []) {
     let mult = triggerMult(ab.when, card, unknowns);
     // §4n (2026-08-29): a GATED ability is not an unconditional one — the
@@ -1420,6 +1517,7 @@ export function scoreCard(card: ScorableCardDef): Score {
       const v = p.v * mult * perTarget;
       parts.push({ label: `${ab.when}:${p.label}${fanLabel(perTarget)}`, v });
       if (!isCreature) spellEffect += v;
+      if (!isCreature && op.op === 'extraLandDrop') rampInSpell.push({ op, when: ab.when, mult: mult * perTarget });
     }
   }
 
@@ -1465,9 +1563,13 @@ export function scoreCard(card: ScorableCardDef): Score {
     // accumulated above — pre charm-premium, which is correct: the printed
     // ops are what get re-cast, not the instant-speed flexibility bonus).
     mechanics.push('retell');
+    // §4v: an extra land drop in the re-cast is priced at the Retell's mana,
+    // not the printed card's.
+    const retellMana = manaValue(card.retell.cost);
     const effectValue = card.retell.ops
-      ? card.retell.ops.reduce((s, op) => s + valueOp(op, false, card, 'spell', undefined, unknowns).v, 0)
-      : spellEffect;
+      ? card.retell.ops.reduce((s, op) => s + valueOp(op, false, card, 'spell', undefined, unknowns, retellMana).v, 0)
+      : spellEffect + rampInSpell.reduce((s, r) => s + r.mult * (
+        valueOp(r.op, false, card, r.when, undefined, unknowns, retellMana).v - valueOp(r.op, false, card, r.when, undefined, unknowns).v), 0);
     parts.push({ label: 'retell option', v: 0.4 * effectValue });
   }
 
@@ -1475,7 +1577,10 @@ export function scoreCard(card: ScorableCardDef): Score {
     // Empower (≈Kicker): 0.5x the rider's op value. Additive cost, paid on
     // top of the printed cost, so never priced at full rate.
     mechanics.push('empower');
-    const riderValue = card.empower.ops.reduce((s, op) => s + valueOp(op, false, card, 'spell', undefined, unknowns).v, 0);
+    // §4v: an extra land drop in the rider is cast for the printed cost plus
+    // the Empower cost.
+    const empoweredMana = manaValue(card.cost) + manaValue(card.empower.cost);
+    const riderValue = card.empower.ops.reduce((s, op) => s + valueOp(op, false, card, 'spell', undefined, unknowns, empoweredMana).v, 0);
     // v4 (rate-card audit row 3, Magic through 2020, n=23): kicker is nearly
     // free upside, 0.15 of the rider (from 0.5). The level leans on 2015-20
     // cards (Dominaria kicker), so it carries the creep caveat.
@@ -1644,7 +1749,10 @@ export function scoreCard(card: ScorableCardDef): Score {
     // target-free (EffectInterpreter comment), so canFace is always false.
     mechanics.push('chapters');
     card.chapters.forEach((chapterOps, i) => {
-      const chapterTotal = chapterOps.reduce((s, op) => s + valueOp(op, false, card, 'spell', undefined, unknowns).v, 0);
+      // §4v: Chapter I resolves on arrival, each later chapter one Dawn after
+      // the last, so an extra land drop in chapter i+1 is priced i turns later.
+      const chapterMana = manaValue(card.cost) + i;
+      const chapterTotal = chapterOps.reduce((s, op) => s + valueOp(op, false, card, 'spell', undefined, unknowns, chapterMana).v, 0);
       parts.push({ label: `chapter ${i + 1}`, v: 0.75 * chapterTotal });
     });
   }

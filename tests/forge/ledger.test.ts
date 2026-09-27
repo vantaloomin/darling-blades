@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { LAND_RESERVE_SIZE } from '../../src/config/rules';
 import { ALL_CARDS } from '../../src/data/catalog';
+import { manaValue } from '../../src/engine/types';
 import { translateLabel, translatePart } from '../../src/forge/ledger';
 import { TRIGGERS } from '../../src/forge/vocab';
 import { scoreCard } from '../../src/power/scoreCore';
@@ -70,6 +72,23 @@ describe('Power Breakdown labels', () => {
       for (const text of lines) {
         expect(text, card.name).not.toMatch(/[+-]0\/[+-]0/);
         expect(text, card.name).toMatch(/ (gain|has) /);
+      }
+    }
+  });
+
+  // §4v prices an extra land drop by the mana it is cast for and the land
+  // reserve cap, so its row has to say both, or the price reads arbitrary.
+  it('names the mana an extra land drop is cast for and the land reserve cap', () => {
+    const ramp = COLLECTIBLE.filter((card) => (card.abilities ?? []).some((ability) => (
+      ability.ops ?? []).some((op) => op.op === 'extraLandDrop')));
+    expect(ramp.length).toBeGreaterThan(0);
+    for (const card of ramp) {
+      const rows = scoreCard(card).parts.filter((part) => part.label.includes('extra land drop'));
+      expect(rows.length, card.name).toBeGreaterThan(0);
+      for (const part of rows) {
+        const text = translatePart(card, part).text;
+        expect(text, card.name).toContain(`cast at ${manaValue(card.cost)} mana`);
+        expect(text, card.name).toContain(`${LAND_RESERVE_SIZE}-land cap`);
       }
     }
   });

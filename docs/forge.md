@@ -1,4 +1,4 @@
-<!-- source-of-truth: forge/index.html, src/forge, src/power/scoreCore.ts, vite.forge.config.ts, scripts/build-forge.ts, tests/forge, tests/power · last-verified: 2026-09-26 -->
+<!-- source-of-truth: forge/index.html, src/forge, src/power/scoreCore.ts, vite.forge.config.ts, scripts/build-forge.ts, tests/forge, tests/power · last-verified: 2026-09-27 -->
 
 # The Forge
 
@@ -61,6 +61,14 @@ game.
   describe the body (Attack 0.55 a point, Defense 0.45, a little less past a
   2/2). The wording comes from the scorer's own constants
   (`src/forge/vocab.ts`), so a rate change reaches the copy with no edit.
+- **Extra land drops priced by when they are cast.** Since 1.8.5 the scorer
+  prices an extra land drop by the extra mana it gives before the 10-land
+  reserve runs out, counted from the turn it is cast on (the card's mana
+  value, or the mana an Empower or Retell is cast for), so the same text is
+  worth much less on an expensive card, and a Dawn engine is worth its capped
+  total rather than a flat rate per Dawn. The Power Breakdown row says why:
+  "Extra land drop (cast at 5 mana, 4 turns of extra mana before the 10-land
+  cap)".
 - **Two targets.** A spell's target can reach one creature, up to two, or
   exactly two (the ability editor's How Many); an effect on two targets is
   priced once per target.
@@ -399,7 +407,11 @@ reaches a server.
   (Duty, Whispers, Tithe) and the v4 behaviours: Twin Blades and Skyborne
   worth more on more Attack, an anthem's granted keyword priced flat, a
   symmetric -X/-X priced as the matching sweeper, and an effect on two
-  targets priced once per target.
+  targets priced once per target; and extra land drops priced by the turn
+  they are cast on (the mana-value-2 anchor kept, later drops worth less and
+  nothing at the reserve cap, several drops at once and a Dawn engine bounded
+  by the cap, Empower and Retell priced at their own mana, a Sunset drop worth
+  nothing).
 - `tests/forge/builder.test.ts`: the **load round trip** (every collectible
   catalog card, loaded into builder state and converted back, scores exactly
   as the card itself: PowerScore, Budget and Delta), conversion, the budget,
