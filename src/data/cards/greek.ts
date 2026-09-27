@@ -102,7 +102,7 @@ export const GREEK = [
     types: ['creature'],
     subtypes: ['Olympian', 'God'],
     supertypes: ['legendary'],
-    cost: cost(1, 'RRWW'),
+    cost: cost(0, 'RRWW'),
     colors: ['R', 'W'],
     attack: 5,
     defense: 5,

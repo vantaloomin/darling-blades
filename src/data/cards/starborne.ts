@@ -383,7 +383,7 @@ export const STARBORNE = [
     flavor: 'She holds the front until the stars behind her have moved.',
   }),
   creature('sb-chrome-choir-envoy', 'Chrome Choir Envoy', ['Alien', 'Diplomat'], {
-    cost: cost(2, 'W'), colors: W, attack: 1, defense: 2, keywords: ['skyborne'], rarity: 'r',
+    cost: cost(2, 'W'), colors: W, attack: 2, defense: 3, keywords: ['skyborne'], rarity: 'r',
     abilities: [{ when: 'static', static: { scope: 'filter', filter: { marked: true, other: true }, p: 1, t: 0 } }],
     flavor: 'She sings harmony into engines that were designed for war.',
   }),
@@ -581,7 +581,7 @@ export const STARBORNE = [
     flavor: "She wears the ship's living crown and listens through every wall.",
   }),
   creature('sb-astral-reef-singer', 'Astral Reef Singer', ['Alien', 'Singer'], {
-    supertypes: ['legendary'], cost: cost(7, 'U'), colors: U, attack: 3, defense: 5, keywords: ['skyborne'], abilities: [dawn([{ op: 'draw', n: 1 }])], rarity: 'ssr',
+    supertypes: ['legendary'], cost: cost(7, 'U'), colors: U, attack: 4, defense: 5, keywords: ['skyborne'], abilities: [dawn([{ op: 'draw', n: 1 }])], rarity: 'ssr',
     flavor: 'Her song makes reefs bloom in the vacuum between systems.',
   }),
   creature('sb-hellion-of-the-redshift', 'Hellion of the Redshift', ['Alien', 'Beast'], {
@@ -632,7 +632,7 @@ export const STARBORNE = [
     flavor: 'The detonation is visible from three systems and remembered in four.',
   }),
   creature('sb-constellation-matriarch', 'Constellation Matriarch', ['Alien', 'Matriarch'], {
-    supertypes: ['legendary'], cost: cost(6, 'W'), colors: W, attack: 5, defense: 5, keywords: ['skyborne'], rarity: 'ur',
+    supertypes: ['legendary'], cost: cost(6, 'W'), colors: W, attack: 5, defense: 6, keywords: ['skyborne', 'sentinel'], rarity: 'ur',
     abilities: [{ when: 'static', static: { scope: 'filter', filter: { marked: true, other: true }, p: 1, t: 1 } }],
     flavor: 'She wears a living constellation as a crown and calls it family.',
   }),
@@ -717,7 +717,7 @@ export const STARBORNE = [
     flavor: 'The gate remembers what the light did to it.',
   }),
   creature('sb-lance-of-two-suns', 'Lance of Two Suns', ['Alien', 'Duelist'], {
-    cost: cost(2, 'R'), colors: R, attack: 1, defense: 2, keywords: ['twinBlades'], rarity: 'c',
+    cost: cost(2, 'R'), colors: R, attack: 2, defense: 1, keywords: ['twinBlades'], rarity: 'c',
     abilities: [arrivesTargeted({ what: 'creature', other: true }, [{ op: 'addCounters', n: 1, to: 'target' }])],
     flavor: 'Two stars rose over her homeworld. She fights like both of them.',
   }),
@@ -726,7 +726,7 @@ export const STARBORNE = [
     flavor: 'Her reflection guards the door she is not standing at.',
   }),
   creature('sb-splitlight-corsair', 'Splitlight Corsair', ['Alien', 'Corsair'], {
-    cost: cost(4, 'G'), colors: G, attack: 2, defense: 4, keywords: ['twinBlades'], rarity: 'r',
+    cost: cost(4, 'G'), colors: G, attack: 3, defense: 4, keywords: ['twinBlades'], rarity: 'r',
     abilities: [arrivesTargeted({ what: 'creature', other: true }, [{ op: 'addCounters', n: 1, to: 'target' }])],
     flavor: 'The prism split her once and neither half agreed to stop.',
   }),

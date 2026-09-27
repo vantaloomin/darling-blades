@@ -767,7 +767,7 @@ export const AVATARS: readonly Avatar[] = [
       'dt-storybook-of-ashes',
       'tk-shu-guanyinping',
       'cf-thornmaze-patrol',
-      'cf-apple-of-emain',
+      'cf-blackthorn-duelist',
       'gm-glasshouse-monster',
       'ac-grail-hermit',
       'dt-wind-painted-scout',
@@ -805,7 +805,7 @@ export const AVATARS: readonly Avatar[] = [
       'dt-thorn-castle-warden',
       'sd-floodwall-matriarch',
       'so-rampant-growth',
-      'dd-kelp-wall',
+      'tk-shu-sword-dancer',
       'ac-questing-beast-maiden',
       'rg-jotun-earthshaker',
       'yn-jade-root-yokai',
@@ -827,7 +827,7 @@ export const AVATARS: readonly Avatar[] = [
       'gm-grave-gardener',
       'tk-shu-baosanniang',
       'dd-the-reef-that-walks',
-      'sd-furrow-water-tender',
+      'ar-siege-juggernaut',
       'cf-green-knoll-champion',
       'dd-tidepool-colossus',
       'ac-bramble-chapel',
@@ -1036,8 +1036,8 @@ export const AVATARS: readonly Avatar[] = [
       'dd-storm-tide-horror',
       'cf-thornmaze-patrol',
       'dd-salt-fire-witch',
+      'cf-blackthorn-duelist',
       'sd-flood-mark-shaman',
-      'dt-wind-painted-scout',
       'dd-gale-rider',
       'ac-grail-hermit',
       'dt-chart-the-reef-road',
@@ -1046,15 +1046,15 @@ export const AVATARS: readonly Avatar[] = [
       'dd-reach-fire-witch',
       'sd-noon-judgment',
       'in-skysweeper-gale',
+      'bk-rhinokin-charger',
       'rg-jotun-earthshaker',
-      'dd-false-lamp-bearer',
       'bk-harpy-skirmisher',
       'bk-boarkin-rioter',
       'tk-wei-xiahouyuan',
       'bk-wolfkin-raider',
       'bk-bearkin-guardian',
       'tk-other-huaxiong',
-      'dt-briar-hedge-matriarch',
+      'dd-false-lamp-bearer',
       'sd-flood-fed-colossus',
       'dt-wolf-at-the-door',
       'sd-ashwake-twinblade',
@@ -1062,7 +1062,7 @@ export const AVATARS: readonly Avatar[] = [
       'dd-tidepool-wall',
       'sd-serpent-wake-raider',
       'tk-wei-xiahoudun',
-      'gk-artemis',
+      'dt-briar-hedge-matriarch',
       'sd-deep-flood-behemoth',
       'bk-deerkin-grovekeeper',
       'dt-thorn-castle-warden',
@@ -1070,7 +1070,7 @@ export const AVATARS: readonly Avatar[] = [
       'bk-sheepkin-dreamherd',
       'bk-turtlekin-bulwark',
       'sd-floodwall-matriarch',
-      'tk-wu-sunjian',
+      'tk-shu-sword-dancer',
       'bk-packmother',
       'tk-wu-sunce',
       'tk-wu-handang',
@@ -1212,7 +1212,7 @@ export const AVATARS: readonly Avatar[] = [
       'bk-spiderkin-weaver',
       'gm-batcloak-cutthroat',
       'en-vow-of-peace',
-      'gm-widow-of-the-west-wing',
+      'yn-oni-bounty-agent',
       'ac-keep-watchwoman',
       'bk-batkin-duskwing',
       'cf-sidhe-page',
@@ -1459,22 +1459,22 @@ export const AVATARS: readonly Avatar[] = [
       'tk-jin-simashi',
       'tk-jin-jiachong',
       'bk-lamia-nightblade',
-      'gm-black-veil-matron',
+      'ar-siege-juggernaut',
       'tk-wei-jiaxu',
       'yn-network-sprite',
       'tk-jin-yang-huiyu',
       'dd-drowned-scholar',
-      'ar-siege-juggernaut',
+      'sd-navigator-of-the-last-channel',
       'ac-oathbroken-knight',
       'dd-thing-in-the-cistern',
       'tk-jin-xinxianying',
       'gk-hermes',
-      'gm-blood-opera-soloist',
+      'tk-other-zuoci',
       'ar-training-dummy',
       'gm-screaming-staircase',
       'sd-chart-keeper-of-the-two-ways',
       'tk-wei-dianwei',
-      'tk-other-zuoci',
+      'sd-the-heavier-offering',
       'gm-batcloak-cutthroat',
       'tk-jin-simazhao',
       'tk-jin-xiahouhui',
@@ -1609,7 +1609,7 @@ export const AVATARS: readonly Avatar[] = [
       'rg-jotun-earthshaker',
       'yn-jade-root-yokai',
       'bk-packmother',
-      'tk-jin-zhonghui',
+      'sd-silt-field-champion',
       'dd-drowned-scholar',
       'tk-jin-dengai',
       'tk-other-zuoci',
@@ -1743,7 +1743,7 @@ export const AVATARS: readonly Avatar[] = [
       'gk-hoplite',
       'dd-bell-ringer-abbess',
       'sd-the-heavier-offering',
-      'gm-blood-opera-soloist',
+      'yn-oni-bounty-agent',
       'cf-cold-moon-archer',
       'ac-keep-watchwoman',
       'tk-other-chengong',
@@ -2148,7 +2148,7 @@ export const AVATARS: readonly Avatar[] = [
       ['cf-barrow-whisper', 2],
     ]),
     reserveDeck: expand([
-      ['cf-morrigan-black-wing', 2],
+      ['cf-morrigan-black-wing', 3],
       ['cf-bean-sidhe-keening', 4],
       ['cf-raven-torc-envoy', 4],
       ['cf-crowbone-prophet', 3],
@@ -2156,7 +2156,7 @@ export const AVATARS: readonly Avatar[] = [
       ['cf-bog-banshee', 4],
       ['cf-black-dog-of-lane', 4],
       ['cf-hounds-of-annwn', 3],
-      ['cf-blackthorn-duelist', 3],
+      ['cf-blackthorn-duelist', 2],
       ['cf-bitter-geas', 4],
       ['cf-gold-ring-bargain', 2],
       ['cf-barrow-whisper', 4],
@@ -2216,11 +2216,11 @@ export const AVATARS: readonly Avatar[] = [
       'dd-jar-witch',
       'cf-heatherblade-scout',
       'sd-floodwall-matriarch',
-      'dt-sugar-cottage-witch',
+      'yn-greenline-bruiser',
       'rg-jotun-earthshaker',
       'yn-jade-root-yokai',
       'cf-hazelwand-mystic',
-      'yn-greenline-bruiser',
+      'sd-silt-field-champion',
       'ac-oathbroken-knight',
       'cf-bitter-geas',
       'ar-training-dummy',
@@ -2312,10 +2312,10 @@ export const AVATARS: readonly Avatar[] = [
       'cf-thornmaze-patrol',
       'cf-dance-under-mound',
       'cf-hounds-of-annwn',
-      'gm-moon-doll-orchestra',
+      'cf-blackthorn-duelist',
       'cf-willow-wisp-guide',
       'cf-cauldron-of-dagda',
-      'yn-blue-ghost-broadcaster',
+      'gm-moon-doll-orchestra',
       'cf-fae-court-tokenmaker',
       'ac-ashwood-ranger',
       'dd-marsh-grave-risen',
@@ -2351,7 +2351,7 @@ export const AVATARS: readonly Avatar[] = [
       'cf-mistwing-pixie',
       'sd-flood-fed-colossus',
       'cf-mushroom-ring-guard',
-      'sd-silt-field-champion',
+      'dd-the-reef-that-walks',
       'dd-tidepool-wall',
       'sd-deep-flood-behemoth',
       'dt-thorn-castle-warden',
@@ -2365,7 +2365,7 @@ export const AVATARS: readonly Avatar[] = [
       'yn-jade-root-yokai',
       'cf-hazelwand-mystic',
       'dd-drowned-scholar',
-      'tk-other-zuoci',
+      'sd-silt-field-champion',
       'ac-root-chapel-warden',
       'gk-hermes',
       'ar-training-dummy',
@@ -2729,21 +2729,21 @@ export const AVATARS: readonly Avatar[] = [
       ['gm-carmilla-crimson-host', 4],
       ['gm-elizabeth-blood-mirror', 4],
       ['gm-ravenloft-heiress', 4],
-      ['gm-blood-opera-soloist', 4],
+      ['gm-black-veil-matron', 4],
+      ['gm-blood-opera-soloist', 2],
       ['gm-batcloak-cutthroat', 4],
       ['gm-manor-thrall', 4],
       ['gm-midnight-bite', 4],
+      ['sd-nadira-keeper-of-the-final-toll', 1],
       ['sd-two-for-the-ferrywoman', 1],
       ['cf-badb-cathas-warning', 1],
       ['cf-bean-sidhe-keening', 1],
       ['gm-madame-macabre', 1],
       ['gm-dracula-ball-invite', 1],
       ['dd-tithe-to-the-deep', 1],
-      ['gm-moonlit-werewolf', 2],
-      ['sd-nadira-keeper-of-the-final-toll', 1],
-      ['dt-wolf-at-the-door', 1],
       ['tk-wu-sunce', 1],
       ['sd-sun-rope-hauler', 1],
+      ['ac-black-chapel-curse', 1],
     ]),
     landReserve: expand([
       ['ld-burning-luoyang', 4],
@@ -2797,8 +2797,8 @@ export const AVATARS: readonly Avatar[] = [
       'ar-siege-juggernaut',
       'gm-widow-of-the-west-wing',
       'gm-wolfbitten-hunter',
-      'bk-dragonmaid',
       'dd-wrecker',
+      'dd-storm-choir',
       'tk-wu-sunce',
       'sd-sun-rope-hauler',
       'gm-blood-drop-initiate',
@@ -3972,43 +3972,6 @@ export const AVATARS: readonly Avatar[] = [
       ['sd-twinblade-at-the-prow', 2],
       ['sd-claw-prow-signaler', 2],
     ]),
-    // RETUNED 2026-09-27 for 1.8.5 (plan-1.8.5 lane 5). The card slate changed
-    // four cards in this list (Bastet herself {3}{W}{R} -> {4}{W}{R} without
-    // Warcry, Kesi 4/4 -> 3/4 with Rage, Twinblade at the Prow 3/3 -> 3/2
-    // with Rage, War Priestess {2}{W}{R} -> {3}{W}{R}). The 1.8.5 AI, which
-    // values keywords by attack, left the unchanged list at 74; with the
-    // slate the 2026-09-16 list fell from 73.60% to 63.60% mean (636/1000
-    // decided, 0 draws); cells
-    // 39.00/72.00/48.00/73.50/85.50%; the rung-22 gate read 67.0 at 40 seeds.
-    // Target: back to the 2026-09-16 level, not past it. Same 1,000 seeded
-    // games per variant and the same keep rules as below; trials ran in
-    // memory with the added cards at the end of the list.
-    // Singles on 63.60: KEPT -4 Lion-Gate Sentry; +2 Burn the Rope, +2 Break
-    // the Coil (both 2 -> 4): 68.90% (+5.30pp, no cell down); cells
-    // 43.50/78.50/56.00/78.50/88.00%. Burn that reaches the player is the
-    // lever; creature-only removal lost ground. REJECTED: Prow -> Blade-Dancer
-    // 65.20; War Priestess -> Blade-Dancer 63.30; Kesi -> Barge-Fire Warcaller
-    // 59.30; War Priestess -> Merya 61.50; -4 Sentry +2 Noon Judgment +2 Flame
-    // Beneath the Pan 61.00; -2 Sentry +2 Noon Judgment 60.20; Gate Chorus ->
-    // Fire Along the Barge 63.90; -4 Claw-Thread Lancer +2 Noon Judgment +2
-    // Break the Coil 65.40; -4 Dune-Pawed Outrider +4 Emberwake Runner 63.70.
-    // Singles on 68.90: KEPT -4 Claw-Thread Lancer; +4 Djetra, Who Counts the
-    // Ninth Step: 74.30% (+5.40pp, no cell down); cells
-    // 47.00/84.50/64.50/85.00/90.50%. Also qualifying: -2 Lancer +2 Djetra
-    // 72.80; Prow -> Tiaa 72.60; Prow -> Nebet 72.60. REJECTED: Prow ->
-    // Prowfire Volley 69.70; -2 Lancer +2 Noon Serpent Judgment 68.40; Gate
-    // Chorus -> Fire Along the Barge 69.00; Prow -> Light the Wake 69.40;
-    // Kesi -> Bakhet 64.70; War Priestess -> Bakhet 66.70; Prow -> Sahira
-    // 68.60. More Nine Lives bodies is the second lever.
-    // Combinations: Prow -> Tiaa with two Djetra 76.10 and Prow -> Nebet with
-    // two Djetra 75.20 (neither beats the four-Djetra single by 3pp); Prow ->
-    // Tiaa with four Djetra 80.00 (+5.70pp over it). NOT ADOPTED: the rule
-    // below would take the 80.00 list, but this pass undoes the patch's
-    // knock-on, and 80 leaves her about 6pp harder than before the patch. That
-    // list is the dial if she should be harder.
-    // COMMITTED list, measured in this file's order: 73.60% mean (736/1000
-    // decided, 0 draws); cells 47.50/84.00/61.50/87.50/87.50%. The rung-22
-    // gate reads 76.0 at 40 seeds.
     // MEASURED 2026-09-16: owner-ruling B1+B5, hard AI, 200 seeds/cell,
     // reserve-native avatar matrix; 73.60% mean (736/1000 decided, 0 draws).
     // Cells in Muster/Communion/Tides/Mandate/Harvest order:
@@ -4060,7 +4023,8 @@ export const AVATARS: readonly Avatar[] = [
     // is registered in HAND_TUNED_WARCHEST.
     reserveDeck: expand([
       ['sd-barge-pawed-spearwoman', 4],
-      ['sd-djetra-who-counts-the-ninth-step', 4],
+      ['sd-lion-gate-sentry', 4],
+      ['sd-claw-thread-lancer', 4],
       ['sd-pridewall-runner', 4],
       ['sd-dune-pawed-outrider', 4],
       ['sd-bakhet-gate-warden-of-the-lower-city', 2],
@@ -4070,8 +4034,8 @@ export const AVATARS: readonly Avatar[] = [
       ['sd-bastet-gate-chorus', 2],
       ['sd-bastet-mistress-of-the-ninth-return', 2],
       ['sd-twinblade-at-the-prow', 2],
-      ['sd-burn-the-rope', 4],
-      ['sd-break-the-coil', 4],
+      ['sd-burn-the-rope', 2],
+      ['sd-break-the-coil', 2],
     ]),
     landReserve: expand([
       ['sd-land-noon-barge-landing', 4],
@@ -4511,9 +4475,9 @@ export const AVATARS: readonly Avatar[] = [
       'in-grave-chill',
       'in-undertow',
       'rg-rune-of-hunger',
-      'dd-bell-below',
+      'rg-rune-of-insight',
       'sb-blue-echo-array',
-      'sb-null-orbit-array',
+      'dd-bell-below',
       'sb-eclipse-tithe',
       'ac-court-of-whispers',
       'ac-mirror-lake',
@@ -4731,9 +4695,9 @@ export const AVATARS: readonly Avatar[] = [
       'in-grave-chill',
       'in-undertow',
       'rg-rune-of-hunger',
-      'dd-bell-below',
+      'rg-rune-of-insight',
       'sb-blue-echo-array',
-      'sb-eclipse-tithe',
+      'dd-bell-below',
       'ac-court-of-whispers',
       'ac-mirror-lake',
       'cf-mist-road',

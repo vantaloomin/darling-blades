@@ -614,8 +614,8 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     subtypes: ['Human', 'Warden'],
     cost: cost(3, 'WW'),
     colors: ['W'],
-    attack: 2,
-    defense: 2,
+    attack: 3,
+    defense: 3,
     keywords: ['warcry'],
     activated: { cost: { tap: true, mana: cost(2) }, ops: [{ op: 'createToken', token: 'tok-lantern-wisp', count: 1 }] },
     rarity: 'r',
@@ -3069,7 +3069,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     flavor: 'One night a year the reef flowers, and the whole coast holds its breath.',
     set: 'drowned-deep',
   },
-  // Your creatures with Marks get +1/+0. Your creatures with Marks have Overrun.
+  // Your creatures with Marks get +1/+1. Your creatures with Marks have Overrun.
   {
     id: 'dd-old-growth',
     name: 'Old Growth',
@@ -3077,7 +3077,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     subtypes: [],
     cost: cost(0, 'GG'),
     colors: ['G'],
-    abilities: [{ when: 'static', static: { scope: 'filter', filter: { marked: true }, p: 1, t: 0 } }, { when: 'static', static: { scope: 'filter', filter: { marked: true }, grantKeywords: ['overrun'] } }],
+    abilities: [{ when: 'static', static: { scope: 'filter', filter: { marked: true }, p: 1, t: 1 } }, { when: 'static', static: { scope: 'filter', filter: { marked: true }, grantKeywords: ['overrun'] } }],
     rarity: 'r',
     flavor: 'The forest that was here before the town is still here, underneath.',
     set: 'drowned-deep',

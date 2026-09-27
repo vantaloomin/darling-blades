@@ -104,7 +104,7 @@ over each card's color-identity anchor and never replace it.
 - **Prompt:** Spartan shieldmaiden seen from further back in a three-quarter-body stance braced beside a large lambda-blazoned round shield with leveled spear, a bronze breastplate cropped above her bare sculpted midriff showing hard defined abs, transverse-crested Corinthian helm, crimson cloak, dusty plain with implied shield-line, grim disciplined warrior, the top of her crested helm well below the upper edge of the frame with generous open sky above it, hard daylight key with cool bronze rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Zeus, Thunder Empress — `gk-zeus`
-- **Card facts:** {1}{R}{R}{W}{W} · R/W (gold frame) · 5/5 · skyborne · ur, legendary · holo: galaxy (explicit)
+- **Card facts:** {R}{R}{W}{W} · R/W (gold frame) · 5/5 · skyborne · ur, legendary · holo: galaxy (explicit)
 - **Character & source:** Genderbent Zeus, sovereign of Olympus; her ETB burns the opponent for 3, so the art must catch the bolt already loosed. Kit-faithful: the thunderbolt is her signature.
 - **Personality / mood:** "The forecast is her mood. Pack accordingly." Imperious, electric, casually catastrophic.
 - **Pose & composition:** High-hovering three-quarter, one arm hurling a forked thunderbolt down and across the frame, wings and storm-cloak thrown wide, face ≈ y 300 gazing down at the viewer; the bolt deliberately breaks the top-right of the band. Aloft, above the storm.

@@ -83,7 +83,7 @@ the militia scrappy W recruits, and the Wooden Ox one of Yueying's lacquered aut
 ---
 
 ### Siege Juggernaut — `ar-siege-juggernaut`
-- **Card facts:** {6} · C · 6/7 · sr · holo: sheen (explicit)
+- **Card facts:** {6} · C · 7/7 · overrun · sr · holo: sheen (explicit)
 - **Character & source:** Original colorless Construct — a self-propelled siege engine in a warrior-woman's form, a 7/7 trampler. Its doctrine: aim, release, flatten.
 - **Personality / mood:** "The manual is one page: point it at the wall you like least." Blunt, unstoppable, gleefully simple; a battering ram that grins.
 - **Pose & composition:** The rare "moment" — mid-charge at the split second of impact: shoulder and ram-prow driving lower-left → upper-right, debris exploding past the frame edge (trample made literal). Face ≈ y 340, teeth set; the ram-head deliberately breaks the band's edge as it hits.

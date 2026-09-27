@@ -62,7 +62,7 @@ export const GOTHIC_MONSTERS = [
     rarity: 'ssr', flavor: 'Mirrors show her no flaws, only appointments.',
   }),
   creature('gm-white-chapel-witch', 'White-Chapel Witch', ['Witch'], {
-    supertypes: ['legendary'], cost: cost(3, 'WB'), colors: ['W', 'B'], attack: 4, defense: 5,
+    supertypes: ['legendary'], cost: cost(3, 'WB'), colors: ['W', 'B'], attack: 5, defense: 5,
     keywords: ['bloodoath'], abilities: [{ when: 'arrives', ops: [{ op: 'severGrave', n: 2, who: 'opponent' }] }],
     empower: { cost: cost(1, 'W'), ops: [{ op: 'gainLife', n: 3 }] },
     rarity: 'ssr', flavor: 'Holy water in one hand, a very firm opinion in the other.',
@@ -110,7 +110,7 @@ export const GOTHIC_MONSTERS = [
     rarity: 'sr', flavor: 'Immaculate posture, one hairline fracture, absolute rule.',
   },
   creature('gm-black-veil-matron', 'Black-Veil Matron', ['Vampire', 'Matron'], {
-    cost: cost(4, 'B'), colors: ['B'], attack: 4, defense: 3, keywords: ['skyborne', 'dreaded'],
+    cost: cost(3, 'B'), colors: ['B'], attack: 4, defense: 3, keywords: ['skyborne', 'dreaded'],
     rarity: 'sr', flavor: 'Only a worthy room ever sees beneath the veil.',
   }),
   {
@@ -218,7 +218,7 @@ export const GOTHIC_MONSTERS = [
     rarity: 'r', flavor: 'The ink is black, the lace is lovely, and the fine print bites.',
   },
   creature('gm-chapel-exorcist', 'Chapel Exorcist', ['Hunter', 'Cleric'], {
-    cost: cost(2, 'W'), colors: ['W'], attack: 2, defense: 3, keywords: ['bloodoath'],
+    cost: cost(2, 'W'), colors: ['W'], attack: 3, defense: 3, keywords: ['bloodoath'],
     abilities: [{ when: 'arrives', ops: [{ op: 'severGrave', n: 2, who: 'opponent' }] }],
     rarity: 'r', flavor: 'Spirits evicted promptly. Postage billed to the chapel.',
   }),
@@ -246,7 +246,7 @@ export const GOTHIC_MONSTERS = [
     rarity: 'r', flavor: 'The moon rises red, and everyone suddenly has plans.',
   },
   creature('gm-choir-of-the-dead', 'Choir of the Dead', ['Revenant', 'Spirit'], {
-    cost: cost(3, 'W'), colors: ['W'], attack: 2, defense: 3, keywords: ['skyborne', 'bloodoath'],
+    cost: cost(3, 'W'), colors: ['W'], attack: 3, defense: 3, keywords: ['skyborne', 'bloodoath'],
     rarity: 'r', flavor: 'Admission is free; the harmony comes straight from the grave.',
   }),
   {

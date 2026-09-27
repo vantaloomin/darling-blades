@@ -99,11 +99,7 @@ describe('draft persona differentiation', () => {
     { id: 'tiffany', pack: ['rg-freya', 'tk-wu-huanggai'], expected: 'rg-freya', defaultExpected: 'tk-wu-huanggai', picks: redPicks },
     { id: 'brandon', pack: ['rg-angrboda', 'tk-other-lubu'], expected: 'rg-angrboda', defaultExpected: 'tk-other-lubu' },
     { id: 'megan', pack: ['tk-shu-zhangfei', 'gk-zeus'], expected: 'tk-shu-zhangfei', defaultExpected: 'gk-zeus' },
-    // 1.8.5 slate, 2026-09-26: Freya lost Skyborne, so the old pack (rg-freya
-    // vs tk-other-lubu) no longer isolated his knob. New pack: a Skyborne body
-    // the textbook passes by 6.4 for Lu Bu and his skyborne keywordWeight 14
-    // takes by 6.1.
-    { id: 'kyle', pack: ['sb-chrome-violet-archon', 'tk-other-lubu'], expected: 'sb-chrome-violet-archon', defaultExpected: 'tk-other-lubu' },
+    { id: 'kyle', pack: ['rg-freya', 'tk-other-lubu'], expected: 'rg-freya', defaultExpected: 'tk-other-lubu' },
     // Phase D, 2026-09-17: the old pack (rg-berserker-chieftain vs gk-gaia)
     // stopped isolating her knob once the Chieftain's self-damage lost its
     // false removal credit (51.7 -> 22.7), so the textbook drafter agreed with

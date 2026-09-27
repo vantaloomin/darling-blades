@@ -287,11 +287,6 @@ describe('AI win-rate gates', () => {
     // under the current value is recorded, not applied. Her 2026-09-16 tuning
     // pass measured 73.60 on this harness; 74 here is the same number inside
     // the table's whole-percent rounding.
-    // RETUNED 2026-09-27 for 1.8.5: the card slate took her list to 63.60
-    // (gate 67.0); the attack-aware AI alone left it at 74. The retuned list
-    // (her opponents.ts entry has the pass) measures 73.60 at 200
-    // seeds/cell, 0 draws; 73.6 - 6.5 = 67.1, below the standing floor, so
-    // it is KEPT at 0.685. The gate reads 76.0.
     expect(r22.avg, 'Bastet floor').toBeGreaterThanOrEqual(0.685);
     expect(r20.avg, 'rung 20 must measure at or above rung 19').toBeGreaterThanOrEqual(r19.avg);
     for (const cell of [...r19.cells, ...r20.cells, ...r21.cells, ...r22.cells]) {

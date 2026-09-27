@@ -69,7 +69,7 @@ export const YOKAI_SPEC_ROWS = [
     "color": "G",
     "type": "Legendary Creature (Spirit Sovereign)",
     "cost": "{4}{G}{G}",
-    "stats": "5/5",
+    "stats": "6/6",
     "mechanics": "Sentinel, Blood Oath. Arrives: gain 3 life, then Foresee 1.",
     "flavor": "The old forest wears the city as jewelry and grows stronger under every light."
   },
@@ -112,7 +112,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "SSR",
     "color": "U",
     "type": "Enchantment",
-    "cost": "{4}{U}{U}",
+    "cost": "{3}{U}",
     "stats": "-",
     "mechanics": "At dawn: draw 1. Hauntlink {3}{U}. Linked: The linked creature gets Skyborne and Untouchable.",
     "flavor": "The signal keeps calling after the sender has become myth."
@@ -135,8 +135,8 @@ export const YOKAI_SPEC_ROWS = [
     "color": "R",
     "type": "Legendary Creature (Kitsune Queenpin)",
     "cost": "{4}{R}",
-    "stats": "5/3",
-    "mechanics": "Warcry, Rage. Arrives: deal 4 damage to opponent.",
+    "stats": "5/4",
+    "mechanics": "Warcry. Arrives: deal 4 damage to opponent.",
     "flavor": "She controls the fastest route through the city and charges by the second."
   },
   {
@@ -377,7 +377,7 @@ export const YOKAI_SPEC_ROWS = [
     "color": "U",
     "type": "Creature (Yokai)",
     "cost": "{3}{U}",
-    "stats": "2/3",
+    "stats": "3/3",
     "mechanics": "Skyborne, Untouchable.",
     "flavor": "It swims through holograms as if the towers were deep water."
   },
@@ -409,7 +409,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "R",
     "color": "U",
     "type": "Creature (Kitsune Ronin)",
-    "cost": "{4}{U}",
+    "cost": "{3}{U}",
     "stats": "3/3",
     "mechanics": "Skyborne, First Blade.",
     "flavor": "Her blade writes a clean line through every false identity."
@@ -554,7 +554,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Human Duelist)",
     "cost": "{3}{R}",
     "stats": "4/3",
-    "mechanics": "First Blade.",
+    "mechanics": "First Blade, Warcry.",
     "flavor": "Her opening blow is visible only as the rain splitting around it."
   },
   {
@@ -563,7 +563,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "R",
     "color": "R",
     "type": "Creature (Oni Enforcer)",
-    "cost": "{4}{R}",
+    "cost": "{3}{R}",
     "stats": "4/3",
     "mechanics": "Warcry. When this attacks: opponent loses 1 life.",
     "flavor": "Her patrol car is a shrine on wheels and a warning in chrome."
@@ -1354,7 +1354,6 @@ const KEYWORDS: Readonly<Record<string, Keyword>> = {
   'Blood Oath': 'bloodoath',
   Untouchable: 'untouchable',
   Dreaded: 'dreaded',
-  Rage: 'rage',
 };
 
 const CLEAN_SPECIES = new Set(['Kitsune', 'Oni', 'Yokai', 'Tanuki', 'Kappa', 'Dryad', 'Spirit', 'Human']);

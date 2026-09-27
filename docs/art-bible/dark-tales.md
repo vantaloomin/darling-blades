@@ -26,7 +26,7 @@ prop, directional-effect, and no-text prompt guards.
 - **Prompt:** Glass-Coffin Queen, an adult-coded Dark Tales figure representing Glass-Coffin Queen, based on the pre-acceptance Subject draft "Snow-white adjacent queen/princess"; framed in a readable three-quarter pose with the face centered; glamorous, watchful, and touched by a dangerous bargain; a single motif prop from the Subject column, kept blank of lettering; a moonlit gothic fairy-tale setting with black roses, glass, satin, and candlelit depth; reserve the entire top third as clear empty moonlit air above the head and silhouette; no readable letters, runes, labels, logos, or watermarks anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Abyssal Songstress — `dt-abyssal-songstress`
-- **Card facts:** {3}{U}{B} · U/B (gold frame) · 4/4 · skyborne · ur, legendary
+- **Card facts:** {3}{U}{B} · U/B (gold frame) · 4/5 · skyborne · ur, legendary
 - **Character & source:** Pre-acceptance draft from the Dark Tales Subject column: Mermaid bargain singer. an adult-coded Dark Tales figure representing Abyssal Songstress; the final art pass must preserve the set's adult gothic glamour.
 - **Personality / mood:** glamorous, watchful, and touched by a dangerous bargain.
 - **Pose & composition:** airborne in a readable three-quarter pose with the face centered. Keep the face and the main silhouette in the central band, with crop-safe headroom above.
