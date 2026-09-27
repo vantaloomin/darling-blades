@@ -116,7 +116,8 @@ const STARBORNE_ROWS: Row[] = [
     // renders that restriction, so the shipped line says "a creature you
     // control". Recorded in the transcription report, 2026-09-17.
     id: 'sb-deepfield-lands', name: 'Deepfield Array', generic: 0, pips: 'U', colors: ['U'],
-    text: '{1}, {T}: Move a Mark from a creature you control to another creature you control.',
+    // 1.8.5 slate (2026-09-26): the Duty dropped its {1} and moves two Marks.
+    text: '{T}: Move a Mark from a creature you control to another creature you control, then move a Mark from a creature you control to another creature you control.',
   },
   {
     id: 'sb-darkside-landing', name: 'Violet Landing Light', generic: 1, pips: 'B', colors: ['B'],
@@ -352,7 +353,7 @@ describe('land economy: every Duty shape resolves', () => {
     expect([after.attack, after.defense]).toEqual([base.attack, base.defense]);
   });
 
-  it('moveMark (Deepfield Array) moves one Mark between two creatures you control', () => {
+  it('moveMark (Deepfield Array) moves a Mark per op between two creatures you control', () => {
     const game = board('sb-deepfield-lands', {
       lands: 1,
       extra: [
@@ -364,8 +365,9 @@ describe('land economy: every Duty shape resolves', () => {
       type: 'activate', iid: SOURCE,
       targets: [{ kind: 'permanent', iid: 20 }, { kind: 'permanent', iid: 21 }],
     });
-    expect(perm(game, 20).plusOneCounters).toBe(1);
-    expect(perm(game, 21).plusOneCounters).toBe(1);
+    // Two moveMark ops since the 1.8.5 slate: both Marks cross, one per op.
+    expect(perm(game, 20).plusOneCounters).toBe(0);
+    expect(perm(game, 21).plusOneCounters).toBe(2);
   });
 
   it('removeMarks (Violet Landing Light) strips every Mark from a Marked creature', () => {

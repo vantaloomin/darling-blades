@@ -95,7 +95,7 @@ describe('2026-08-30 rules text templates', () => {
   it('puts Skim first as a keyword-cost line, then keywords, body, Empower, and Retell', () => {
     expect(rulesText(CARD_DB['sb-redshift-corsair'])).toBe('Skim {1}\nWarcry');
     expect(rulesText(CARD_DB['sb-bloomdrive-surge'])).toBe('Mark target creature.\nEmpower {2}{G}: Propagate.');
-    expect(rulesText(CARD_DB['sb-lumen-refit'])).toBe('Bulwark\nEmpower {2}{W}: Arrives with one +1/+1 Mark.');
+    expect(rulesText(CARD_DB['sb-lumen-refit'])).toBe('Bulwark, First Blade\nEmpower {2}{W}: Arrives with one +1/+1 Mark.');
     expect(rulesText(CARD_DB['sb-relay-bloom'])).toBe(
       'Mark target creature.\nRetell {2}{G}: You may cast this from your graveyard, then sever it.',
     );
@@ -121,11 +121,11 @@ describe('2026-08-30 rules text templates', () => {
   });
 
   it('uses Propagate as a bare effect word and Mark as the mark verb', () => {
-    expect(rulesText(CARD_DB['sb-green-propagation-chorus'])).toBe('Propagate, then you gain 2 life.');
+    expect(rulesText(CARD_DB['sb-green-propagation-chorus'])).toBe('Propagate, then you gain 3 life.');
     expect(rulesText(CARD_DB['sb-orbitroot-matriarch'])).toContain('When this arrives, Propagate.');
     expect(rulesText(CARD_DB['sb-propagation-engine'])).toBe('During your Dawn, Propagate.');
     expect(rulesText(CARD_DB['sb-starborne-apotheosis'])).toBe(
-      'Propagate, then you gain 5 life, then your Marked creatures get +1/+1 until Sunset.',
+      'Propagate, then you gain 8 life, then your Marked creatures get +2/+2 until Sunset.',
     );
     expect(rulesText(CARD_DB['sb-the-long-crossing'])).toContain('Chapter III: Propagate.');
     expect(rulesText(CARD_DB['sb-chrome-violet-archon'])).toBe(

@@ -20,7 +20,7 @@ export const CELTIC_FAE = [
   // ULTRA RARE (4)
   // =========================================================================
   fae('cf-morrigan-black-wing', 'Morrigan, Black-Wing Omen', 'Goddess', {
-    supertypes: ['legendary'], cost: cost(3, 'BG'), colors: ['B', 'G'], attack: 5, defense: 5,
+    supertypes: ['legendary'], cost: cost(4, 'BG'), colors: ['B', 'G'], attack: 5, defense: 5,
     keywords: ['skyborne'],
     abilities: [{ when: 'arrives', ops: [{ op: 'severGrave', n: 3, who: 'opponent' }] }, { when: 'attacks', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'ur', flavor: 'A raven lands on the treaty. The treaty loses its nerve.',
@@ -125,7 +125,7 @@ export const CELTIC_FAE = [
     rarity: 'r', flavor: 'She asks where you are going. The wrong answer is any answer.',
   }),
   fae('cf-blackthorn-duelist', 'Blackthorn Duelist', 'Sidhe', {
-    cost: cost(2, 'G'), colors: ['G'], attack: 3, defense: 2, keywords: ['firstBlade'],
+    cost: cost(2, 'G'), colors: ['G'], attack: 3, defense: 2,
     abilities: [{ when: 'combatDamageToPlayer', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'r', flavor: 'She offers first blood. She has already decided whose.',
   }),
@@ -157,7 +157,7 @@ export const CELTIC_FAE = [
     rarity: 'r', flavor: 'A warm hand on the blade. A warmer debt at dawn.',
   },
   fae('cf-sidhe-silver-lancer', 'Sidhe Silver-Lancer', 'Knight', {
-    cost: cost(2, 'W'), colors: ['W'], attack: 3, defense: 3, keywords: ['sentinel', 'firstBlade'],
+    cost: cost(1, 'WW'), colors: ['W'], attack: 3, defense: 3, keywords: ['firstBlade'],
     rarity: 'r', flavor: 'Her lance arrives before the invitation does.',
   }),
   {
@@ -265,7 +265,7 @@ export const CELTIC_FAE = [
     rarity: 'c', flavor: 'She starts the fight early so the rules cannot catch up.',
   }),
   fae('cf-bog-banshee', 'Bog Banshee', 'Banshee', {
-    cost: cost(2, 'B'), colors: ['B'], attack: 3, defense: 1, keywords: ['deathblade', 'skyborne'],
+    cost: cost(1, 'BB'), colors: ['B'], attack: 2, defense: 1, keywords: ['deathblade', 'skyborne'],
     rarity: 'c', flavor: 'Her wail is a warning. Her silence is worse.',
   }),
   fae('cf-sidhe-page', 'Sidhe Page', 'Sidhe', {
@@ -383,7 +383,7 @@ export const CELTIC_FAE = [
     rarity: 'c', flavor: 'The vendor smiles. The coin purse screams.',
   },
   fae('cf-laughing-pooka', 'Laughing Pooka', 'Pooka', {
-    cost: cost(0, 'RR'), colors: ['R'], attack: 4, defense: 1, keywords: ['warcry'],
+    cost: cost(0, 'RR'), colors: ['R'], attack: 4, defense: 1,
     rarity: 'c', flavor: 'It turns into a horse, a goat, and your worst alibi.',
   }),
   fae('cf-hazelwand-mystic', 'Hazelwand Mystic', 'Druid', {
@@ -448,7 +448,7 @@ export const CELTIC_FAE = [
   // neither shipped card is dominated; the mechanic is the payoff.
   {
     id: 'cf-tithe-of-seasons', name: 'Tithe of Seasons', types: ['ritual'], subtypes: [],
-    cost: cost(2, 'G'), colors: ['G'],
+    cost: cost(1, 'G'), colors: ['G'],
     abilities: [{ when: 'spell', targets: [{ what: 'yourCreature' }], ops: [{ op: 'addCounters', n: 2, to: 'target' }] }],
     empower: { cost: cost(2, 'G'), ops: [{ op: 'createToken', token: 'tok-bloom', count: 2 }] },
     rarity: 'c', flavor: 'The court advances spring twice, then bills the orchard for both.',

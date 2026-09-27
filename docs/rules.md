@@ -283,7 +283,7 @@ makes its total the one number that can print a card no board can cast. The
 Warchest holds `LAND_RESERVE_SIZE` (10) lands, so 10 is the hard ceiling from
 lands alone and reaching it means every land untapped on one turn. Owner ruling
 2026-08-24 sets the design ceiling at **printed cost + Empower ≤ 9**, with the
-two cards printed at 10 held on an explicit allowlist.
+card printed at 10 (Silt-Fat Behemoth) held on an explicit allowlist.
 `tests/data/empowerCeiling.test.ts` gates both numbers. Silt-Crowned Harvester
 (was 11) and Ra, Helm of the Night Barge (was 12) were recosted to 9 under this
 ruling.

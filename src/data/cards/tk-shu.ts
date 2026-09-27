@@ -165,7 +165,7 @@ export const TK_SHU = [
     name: 'Twin-Willow Sword Dancer',
     types: ['creature'],
     subtypes: ['Shu', 'Warrior'],
-    cost: cost(2, 'G'),
+    cost: cost(3, 'G'),
     colors: ['G'],
     attack: 2,
     defense: 3,

@@ -262,7 +262,7 @@ export const STARBORNE = [
   }),
   artifact('sb-deepfield-lands', 'Deepfield Array', {
     cost: cost(0, 'U'), colors: U,
-    activated: { cost: { tap: true, mana: cost(1) }, targets: [{ what: 'yourCreature' }, { what: 'yourCreature' }], ops: [{ op: 'moveMark' }] }, rarity: 'c',
+    activated: { cost: { tap: true, mana: cost(0) }, targets: [{ what: 'yourCreature' }, { what: 'yourCreature' }], ops: [{ op: 'moveMark' }, { op: 'moveMark' }] }, rarity: 'c',
     flavor: 'The deep field is quiet because everything there is listening.',
   }),
   charm('sb-night-market-bargain', 'Night-Market Bargain', {
@@ -299,7 +299,7 @@ export const STARBORNE = [
     flavor: 'The shot curves around the hull to make a point.',
   }),
   enchantment('sb-ignition-hymn', 'Ignition Hymn', {
-    cost: cost(3, 'R'), colors: R,
+    cost: cost(1, 'R'), colors: R,
     abilities: [{ when: 'markedAllyAttacks', ops: [{ op: 'boost', p: 1, t: 0, scope: 'yourMarked' }] }], rarity: 'c',
     flavor: 'The crew sings in perfect rhythm with the reactor alarms.',
   }),
@@ -326,7 +326,7 @@ export const STARBORNE = [
     flavor: 'The roots drink starlight and return it as courage.',
   }),
   ritual('sb-gravitic-bloom', 'Gravitic Bloom', {
-    cost: cost(3, 'G'), colors: G,
+    cost: cost(0, 'G'), colors: G,
     abilities: [{
       when: 'spell',
       targets: [{ what: 'creature', upTo: 2 }],
@@ -335,7 +335,7 @@ export const STARBORNE = [
     flavor: 'The flowers open toward the heaviest thing in the room.',
   }),
   enchantment('sb-orbital-graft', 'Orbital Graft', {
-    cost: cost(2, 'G'), colors: G,
+    cost: cost(1, 'G'), colors: G,
     abilities: [{ when: 'allyCreatureArrives', ops: [{ op: 'addCounters', n: 1, to: 'target' }] }], rarity: 'c',
     flavor: 'The garden does not distinguish between crew and crop.',
   }),
@@ -383,7 +383,7 @@ export const STARBORNE = [
     flavor: 'She holds the front until the stars behind her have moved.',
   }),
   creature('sb-chrome-choir-envoy', 'Chrome Choir Envoy', ['Alien', 'Diplomat'], {
-    cost: cost(2, 'W'), colors: W, attack: 2, defense: 3, keywords: ['skyborne'], rarity: 'r',
+    cost: cost(2, 'W'), colors: W, attack: 1, defense: 2, keywords: ['skyborne'], rarity: 'r',
     abilities: [{ when: 'static', static: { scope: 'filter', filter: { marked: true, other: true }, p: 1, t: 0 } }],
     flavor: 'She sings harmony into engines that were designed for war.',
   }),
@@ -415,7 +415,7 @@ export const STARBORNE = [
     flavor: 'Her last note is always the first note of something worse.',
   }),
   creature('sb-eclipse-garden-devourer', 'Eclipse Garden Devourer', ['Alien', 'Beast'], {
-    cost: cost(3, 'B'), colors: B, attack: 4, defense: 4, keywords: ['bloodoath'], rarity: 'r',
+    cost: cost(3, 'B'), colors: B, attack: 3, defense: 4, keywords: ['bloodoath'], rarity: 'r',
     flavor: 'It blooms under a dead sun and feeds on anything that applauds.',
   }),
   creature('sb-severance-priestess', 'Severance Priestess', ['Priestess'], {
@@ -464,7 +464,7 @@ export const STARBORNE = [
     flavor: 'She fixes broken chrome with moss that remembers its shape.',
   }),
   creature('sb-chrome-aurora-commandant', 'Chrome-Aurora Commandant', ['Alien', 'Commander'], {
-    supertypes: ['legendary'], cost: cost(2, 'WWU'), colors: ['W', 'U'], attack: 3, defense: 4, keywords: ['skyborne'], rarity: 'r',
+    supertypes: ['legendary'], cost: cost(2, 'WWU'), colors: ['W', 'U'], attack: 2, defense: 4, keywords: ['skyborne'], rarity: 'r',
     abilities: [{ when: 'static', static: { scope: 'filter', filter: { marked: true }, p: 1, t: 1 } }],
     flavor: 'She commands in two colors of light and never repeats an order.',
   }),
@@ -479,7 +479,7 @@ export const STARBORNE = [
   }),
   enchantment('sb-white-signal-bastion', 'White-Signal Bastion', {
     cost: cost(3, 'W'), colors: W,
-    abilities: [{ when: 'static', static: { scope: 'filter', filter: { marked: true }, p: 0, t: 2 } }], rarity: 'r',
+    abilities: [{ when: 'static', static: { scope: 'filter', filter: { marked: true }, p: 0, t: 3 } }], rarity: 'r',
     flavor: 'The bastion is grown from a single pearl of hull tissue.',
   }),
   ritual('sb-blue-echo-array', 'Blue-Echo Array', {
@@ -487,7 +487,7 @@ export const STARBORNE = [
     flavor: 'It remembers every route the ship almost took.',
   }),
   ritual('sb-black-starving-orbit', 'Black-Starving Orbit', {
-    cost: cost(3, 'B'), colors: B, abilities: [{
+    cost: cost(2, 'B'), colors: B, abilities: [{
       when: 'spell',
       targets: [{ what: 'creature', marked: true }],
       ops: [{ op: 'sever', to: 'target' }],
@@ -499,7 +499,7 @@ export const STARBORNE = [
     flavor: 'The lash leaves a red line across the darkness and nothing else.',
   }),
   ritual('sb-green-propagation-chorus', 'Green Propagation Chorus', {
-    cost: cost(4, 'G'), colors: G, abilities: [spell([{ op: 'propagate' }, { op: 'gainLife', n: 2 }])], rarity: 'r',
+    cost: cost(0, 'G'), colors: G, abilities: [spell([{ op: 'propagate' }, { op: 'gainLife', n: 3 }])], rarity: 'r',
     flavor: 'The chorus begins with one throat and ends with the whole garden.',
   }),
   artifact('sb-chromelight-lattice', 'Chromelight Lattice', {
@@ -546,13 +546,13 @@ export const STARBORNE = [
     flavor: 'Her arrival is always announced by the sound of something breaking.',
   }),
   creature('sb-ringworld-bloomkeeper', 'Ringworld Bloomkeeper', ['Alien', 'Druid'], {
-    cost: cost(4, 'G'), colors: G, attack: 3, defense: 4, keywords: ['wardingGaze'],
+    cost: cost(4, 'G'), colors: G, attack: 4, defense: 5, keywords: ['wardingGaze'],
     abilities: [{ when: 'otherCreatureMarked', ops: [{ op: 'gainLife', n: 1 }] }], rarity: 'sr',
     flavor: 'She tends a garden that encircles a world and still wants more room.',
   }),
   creature('sb-chrome-veil-admiral', 'Chrome-Veil Admiral', ['Alien', 'Commander'], {
-    supertypes: ['legendary'], cost: cost(4, 'WU'), colors: ['W', 'U'], attack: 4, defense: 4, keywords: ['skyborne'],
-    abilities: [{ when: 'static', static: { scope: 'filter', filter: { marked: true }, p: 1, t: 1 } }], rarity: 'sr',
+    supertypes: ['legendary'], cost: cost(4, 'WU'), colors: ['W', 'U'], attack: 3, defense: 4, keywords: ['skyborne'],
+    abilities: [{ when: 'static', static: { scope: 'filter', filter: { marked: true, other: true }, p: 1, t: 1 } }], rarity: 'sr',
     flavor: 'Her veil is a tactical display that looks like a storm of glass.',
   }),
   creature('sb-violet-eclipse-weaver', 'Violet-Eclipse Weaver', ['Alien', 'Weaver'], {
@@ -561,7 +561,7 @@ export const STARBORNE = [
     flavor: 'She weaves the last light from a dying sun into a weapon.',
   }),
   enchantment('sb-propagation-engine', 'Propagation Engine', {
-    cost: cost(5), colors: C, abilities: [dawn([{ op: 'propagate' }])], rarity: 'sr',
+    cost: cost(3), colors: C, abilities: [dawn([{ op: 'propagate' }])], rarity: 'sr',
     flavor: 'The machine has no guide because the whole ship is its nervous system.',
   }),
   ritual('sb-deep-space-severance', 'Deep-Space Severance', {
@@ -581,7 +581,7 @@ export const STARBORNE = [
     flavor: "She wears the ship's living crown and listens through every wall.",
   }),
   creature('sb-astral-reef-singer', 'Astral Reef Singer', ['Alien', 'Singer'], {
-    supertypes: ['legendary'], cost: cost(7, 'U'), colors: U, attack: 4, defense: 5, keywords: ['skyborne'], abilities: [dawn([{ op: 'draw', n: 1 }])], rarity: 'ssr',
+    supertypes: ['legendary'], cost: cost(7, 'U'), colors: U, attack: 3, defense: 5, keywords: ['skyborne'], abilities: [dawn([{ op: 'draw', n: 1 }])], rarity: 'ssr',
     flavor: 'Her song makes reefs bloom in the vacuum between systems.',
   }),
   creature('sb-hellion-of-the-redshift', 'Hellion of the Redshift', ['Alien', 'Beast'], {
@@ -589,7 +589,7 @@ export const STARBORNE = [
     flavor: 'It is a living engine with a temper and no reverse gear.',
   }),
   creature('sb-worldroot-shipmind', 'Worldroot Shipmind', ['Starship'], {
-    supertypes: ['legendary'], cost: cost(7, 'G'), colors: G, attack: 5, defense: 6, abilities: [arrives([{ op: 'propagate' }, { op: 'createToken', token: 'tok-broodling', count: 2 }])], rarity: 'ssr',
+    supertypes: ['legendary'], cost: cost(7, 'G'), colors: G, attack: 6, defense: 7, abilities: [arrives([{ op: 'propagate' }, { op: 'createToken', token: 'tok-broodling', count: 2 }])], rarity: 'ssr',
     flavor: 'The ship grew a mind so large that the crew became its weather.',
   }),
   creature('sb-chrome-violet-archon', 'Chrome-Violet Archon', ['Alien', 'Archon'], {
@@ -598,7 +598,7 @@ export const STARBORNE = [
     flavor: 'She was born in a flash of chrome and immediately issued a safety protocol.',
   }),
   creature('sb-voidflare-empress', 'Voidflare Empress', ['Alien', 'Empress'], {
-    supertypes: ['legendary'], cost: cost(5, 'BR'), colors: ['B', 'R'], attack: 5, defense: 4, keywords: ['dreaded', 'warcry'], rarity: 'ssr',
+    supertypes: ['legendary'], cost: cost(3, 'BR'), colors: ['B', 'R'], attack: 5, defense: 4, keywords: ['dreaded', 'warcry'], rarity: 'ssr',
     abilities: [{ when: 'yourCreatureMarked', ops: [{ op: 'loseLife', n: 1, who: 'opponent' }] }],
     flavor: 'Her court follows wherever the signal becomes dangerous.',
   }),
@@ -615,15 +615,15 @@ export const STARBORNE = [
     flavor: 'The cathedral is a receiver built for a god that may be the ship.',
   }),
   enchantment('sb-propagation-choir', 'Propagation Choir', {
-    cost: cost(4, 'G'), colors: G,
+    cost: cost(2, 'G'), colors: G,
     abilities: [{ when: 'youAddMark', ops: [{ op: 'gainLife', n: 1 }, { op: 'createToken', token: 'tok-broodling', count: 1 }] }], rarity: 'ssr',
     flavor: 'The first singer starts the chorus. The hull supplies the harmony.',
   }),
   ritual('sb-starborne-apotheosis', 'Starborne Apotheosis', {
-    cost: cost(6, 'W'), colors: W, abilities: [spell([
+    cost: cost(1, 'W'), colors: W, abilities: [spell([
       { op: 'propagate' },
-      { op: 'gainLife', n: 5 },
-      { op: 'boost', p: 1, t: 1, scope: 'yourMarked' },
+      { op: 'gainLife', n: 8 },
+      { op: 'boost', p: 2, t: 2, scope: 'yourMarked' },
     ])], rarity: 'ssr',
     flavor: 'The crew does not ascend. The whole ship rises with them.',
   }),
@@ -632,12 +632,12 @@ export const STARBORNE = [
     flavor: 'The detonation is visible from three systems and remembered in four.',
   }),
   creature('sb-constellation-matriarch', 'Constellation Matriarch', ['Alien', 'Matriarch'], {
-    supertypes: ['legendary'], cost: cost(6, 'W'), colors: W, attack: 5, defense: 6, keywords: ['skyborne', 'sentinel'], rarity: 'ur',
+    supertypes: ['legendary'], cost: cost(6, 'W'), colors: W, attack: 5, defense: 5, keywords: ['skyborne'], rarity: 'ur',
     abilities: [{ when: 'static', static: { scope: 'filter', filter: { marked: true, other: true }, p: 1, t: 1 } }],
     flavor: 'She wears a living constellation as a crown and calls it family.',
   }),
   creature('sb-abyssal-iris-regent', 'Abyssal Iris Regent', ['Alien', 'Regent'], {
-    supertypes: ['legendary'], cost: cost(4, 'B'), colors: B, attack: 6, defense: 5, keywords: ['deathblade', 'bloodoath'],
+    supertypes: ['legendary'], cost: cost(4, 'B'), colors: B, attack: 5, defense: 5, keywords: ['deathblade', 'bloodoath'],
     abilities: [{ when: 'dies', ops: [{ op: 'severGrave', n: 3, who: 'opponent' }] }], rarity: 'ur',
     flavor: 'Her irises are windows into a night that wants to come closer.',
   }),
@@ -647,7 +647,7 @@ export const STARBORNE = [
     flavor: 'She does not enter combat. Combat enters her orbit.',
   }),
   creature('sb-worldgarden-leviathan', 'Worldgarden Leviathan', ['Alien', 'Beast'], {
-    supertypes: ['legendary'], cost: cost(7, 'G'), colors: G, attack: 7, defense: 7, keywords: ['overrun'],
+    supertypes: ['legendary'], cost: cost(7, 'G'), colors: G, attack: 8, defense: 7, keywords: ['overrun', 'sentinel'],
     abilities: [arrives([{ op: 'propagate' }, { op: 'createToken', token: 'tok-chrome-husk', count: 1 }])], rarity: 'ur',
     flavor: 'It carries a garden on its back and a moon in its shadow.',
   }),
@@ -657,7 +657,7 @@ export const STARBORNE = [
     flavor: 'It is a living starship, a woman, and a promise moving too fast to catch.',
   }),
   creature('sb-eclipse-red-queen', 'Eclipse-Red Queen', ['Alien', 'Queen'], {
-    supertypes: ['legendary'], cost: cost(6, 'BR'), colors: ['B', 'R'], attack: 7, defense: 5, keywords: ['dreaded', 'warcry'], rarity: 'ur',
+    supertypes: ['legendary'], cost: cost(6, 'BR'), colors: ['B', 'R'], attack: 7, defense: 6, keywords: ['dreaded', 'warcry', 'bloodoath'], rarity: 'ur',
     abilities: [{ when: 'markedAllyAttacks', ops: [{ op: 'damage', n: 1, to: 'opponent' }] }],
     flavor: 'Her red court arrives after the eclipse and leaves before the mourning.',
   }),
@@ -665,7 +665,7 @@ export const STARBORNE = [
     supertypes: ['legendary'], cost: cost(6), colors: C,
     abilities: [
       arrives([{ op: 'propagate' }]),
-      { when: 'static', static: { scope: 'filter', filter: { marked: true }, p: 1, t: 1 } },
+      { when: 'static', static: { scope: 'filter', filter: { marked: true }, p: 2, t: 2 } },
       dawn([{ op: 'foresee', n: 1 }]),
     ], rarity: 'ur',
     flavor: 'It is the first machine the fleet built that can dream in plural.',
@@ -707,7 +707,7 @@ export const STARBORNE = [
     flavor: 'She feeds the garden first and the guns second.',
   }),
   creature('sb-static-reef', 'Static Reef', ['Alien', 'Reef'], {
-    cost: cost(3, 'U'), colors: U, attack: 2, defense: 6, keywords: ['bulwark'], rarity: 'r',
+    cost: cost(3, 'U'), colors: U, attack: 2, defense: 8, keywords: ['bulwark'], rarity: 'r',
     abilities: [{ when: 'yourCreatureMarked', ops: [{ op: 'foresee', n: 1 }] }],
     flavor: 'The reef hears every new signal before its crew does.',
   }),
@@ -717,7 +717,7 @@ export const STARBORNE = [
     flavor: 'The gate remembers what the light did to it.',
   }),
   creature('sb-lance-of-two-suns', 'Lance of Two Suns', ['Alien', 'Duelist'], {
-    cost: cost(2, 'R'), colors: R, attack: 2, defense: 1, keywords: ['twinBlades'], rarity: 'c',
+    cost: cost(2, 'R'), colors: R, attack: 1, defense: 2, keywords: ['twinBlades'], rarity: 'c',
     abilities: [arrivesTargeted({ what: 'creature', other: true }, [{ op: 'addCounters', n: 1, to: 'target' }])],
     flavor: 'Two stars rose over her homeworld. She fights like both of them.',
   }),
@@ -726,7 +726,7 @@ export const STARBORNE = [
     flavor: 'Her reflection guards the door she is not standing at.',
   }),
   creature('sb-splitlight-corsair', 'Splitlight Corsair', ['Alien', 'Corsair'], {
-    cost: cost(4, 'G'), colors: G, attack: 3, defense: 4, keywords: ['twinBlades'], rarity: 'r',
+    cost: cost(4, 'G'), colors: G, attack: 2, defense: 4, keywords: ['twinBlades'], rarity: 'r',
     abilities: [arrivesTargeted({ what: 'creature', other: true }, [{ op: 'addCounters', n: 1, to: 'target' }])],
     flavor: 'The prism split her once and neither half agreed to stop.',
   }),
@@ -761,7 +761,7 @@ export const STARBORNE = [
     flavor: 'The ship hums, and the watch does not sleep.',
   }),
   ritual('sb-bloomdrive-surge', 'Bloomdrive Surge', {
-    cost: cost(2, 'G'), colors: G,
+    cost: cost(0, 'G'), colors: G,
     abilities: [{
       when: 'spell',
       targets: [{ what: 'creature', upTo: 2 }],
@@ -777,12 +777,12 @@ export const STARBORNE = [
     flavor: 'The reactor was never rated for her temper.',
   }),
   creature('sb-lumen-refit', 'Lumen Refit', ['Starship'], {
-    cost: cost(2, 'W'), colors: W, attack: 3, defense: 3, keywords: ['bulwark'],
+    cost: cost(2, 'W'), colors: W, attack: 3, defense: 3, keywords: ['bulwark', 'firstBlade'],
     empower: { cost: cost(2, 'W'), ops: [{ op: 'addCounters', n: 1, to: 'self' }] }, rarity: 'r',
     flavor: 'Refit in the light of a dying sun, and better for it.',
   }),
   creature('sb-tidewalk-analyst', 'Tidewalk Analyst', ['Alien', 'Analyst'], {
-    cost: cost(3, 'U'), colors: U, attack: 2, defense: 4, rarity: 'r',
+    cost: cost(3, 'U'), colors: U, attack: 2, defense: 5, keywords: ['untouchable'], rarity: 'r',
     empower: {
       cost: cost(3, 'U'),
       targets: [{ what: 'yourCreature' }, { what: 'yourCreature' }],
@@ -791,9 +791,9 @@ export const STARBORNE = [
     flavor: 'She reads the tide as a filing problem.',
   }),
   charm('sb-eclipse-tithe', 'Eclipse Tithe', {
-    cost: cost(2, 'B'), colors: B,
+    cost: cost(0, 'B'), colors: B,
     abilities: [spell([{ op: 'removeMarks', to: 'target' }], 'creature')],
-    empower: { cost: cost(2, 'B'), ops: [{ op: 'loseLife', n: 2, who: 'opponent' }] }, rarity: 'r',
+    empower: { cost: cost(2, 'B'), ops: [{ op: 'loseLife', n: 4, who: 'opponent' }] }, rarity: 'r',
     flavor: 'Everything the light gave, the eclipse counts back.',
   }),
   creature('sb-appetite-of-the-void', 'Appetite of the Void', ['Alien', 'Devourer'], {
@@ -804,17 +804,18 @@ export const STARBORNE = [
   }),
   creature('sb-gullet-of-the-hive', 'Gullet of the Hive', ['Starship'], {
     cost: cost(4, 'B'), colors: B, attack: 5, defense: 5,
+    keywords: ['bloodoath'],
     abilities: [arrives([{ op: 'loseLifePerTheirMarked', who: 'opponent' }])],
     rite: { n: 1 }, rarity: 'r',
     flavor: 'The hold is warm, and it is not supposed to be warm.',
   }),
   ritual('sb-brood-communion', 'Brood Communion', {
-    cost: cost(1, 'G'), colors: G, abilities: [{ when: 'spell', ops: [{ op: 'markAll', scope: 'yourCreatures' }] }], rite: { n: 1 }, rarity: 'r',
+    cost: cost(0, 'G'), colors: G, abilities: [{ when: 'spell', ops: [{ op: 'markAll', scope: 'yourCreatures' }] }], rarity: 'r',
     flavor: 'The swarm agrees, in the way a swarm agrees, and one of them does not come back.',
   }),
   ritual('sb-the-long-crossing', 'The Long Crossing', {
-    cost: cost(2, 'G'), colors: G, displayTypeLine: 'Quest', chapters: [
-      [{ op: 'createToken', token: 'tok-broodling', count: 1 }],
+    cost: cost(1, 'G'), colors: G, displayTypeLine: 'Quest', chapters: [
+      [{ op: 'createToken', token: 'tok-broodling', count: 2 }],
       [{ op: 'markAll', scope: 'yourCreatures' }],
       [{ op: 'propagate' }],
     ], rarity: 'sr',

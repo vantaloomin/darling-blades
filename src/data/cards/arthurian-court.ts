@@ -52,7 +52,7 @@ export const ARTHURIAN_COURT = [
   // SUPER-SUPER RARE (5)
   // =========================================================================
   creature('ac-lancelot-moonlit-shame', 'Lancelot, Moonlit Shame', ['Knight', 'Champion'], {
-    supertypes: ['legendary'], cost: cost(3, 'WR'), colors: ['W', 'R'], attack: 5, defense: 4,
+    supertypes: ['legendary'], cost: cost(3, 'WR'), colors: ['W', 'R'], attack: 4, defense: 4,
     keywords: ['firstBlade'], awakening: { p: 2, t: 1, keywords: ['twinBlades'] },
     rarity: 'ssr', flavor: 'She rides beneath the moon, carrying a shame no banner can hide.',
   }),
@@ -117,10 +117,10 @@ export const ARTHURIAN_COURT = [
   }),
   {
     id: 'ac-excalibur-from-lake', name: 'Excalibur From the Lake', types: ['artifact'], subtypes: [],
-    supertypes: ['legendary'], cost: cost(3), colors: [],
+    supertypes: ['legendary'], cost: cost(4), colors: [],
     abilities: [{
       when: 'static',
-      static: { scope: 'filter', filter: { subtype: 'Knight' }, p: 2, t: 1, grantKeywords: ['firstBlade'] },
+      static: { scope: 'filter', filter: { subtype: 'Knight' }, p: 1, t: 1, grantKeywords: ['firstBlade'] },
     }],
     rarity: 'sr', flavor: 'The hand that draws it inherits the lake, the oath, and the ending.',
   },
@@ -209,7 +209,7 @@ export const ARTHURIAN_COURT = [
   },
   {
     id: 'ac-sword-test-stone', name: 'The Sword in the Stone', types: ['artifact'], subtypes: [],
-    cost: cost(4), colors: [],
+    cost: cost(5), colors: [],
     abilities: [{ when: 'dawn', condition: 'questActive', ops: [{ op: 'awaken', scope: 'allYours' }] }],
     rarity: 'r', flavor: 'Stone asks no question twice; the sword gives no second chance.',
   },
@@ -310,7 +310,7 @@ export const ARTHURIAN_COURT = [
   // Returning-mechanics sprinkle (1.6): twinBlades visits the court. Band
   // per the shipped Ragnarök carriers: attack stays at printed mv minus one.
   creature('ac-paired-blade-errant', 'Paired-Blade Errant', ['Knight', 'Errant'], {
-    cost: cost(3, 'W'), colors: ['W'], attack: 3, defense: 3, keywords: ['twinBlades'],
+    cost: cost(3, 'W'), colors: ['W'], attack: 2, defense: 3, keywords: ['twinBlades'],
     rarity: 'r', flavor: 'One blade for the vow, one for the road home.',
   }),
 

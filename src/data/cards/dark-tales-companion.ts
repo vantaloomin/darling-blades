@@ -53,13 +53,13 @@ function enchantment(id: string, name: string, subtypes: string[], data: Compani
 
 const UR: CardDef[] = [
   creature('dt-swan-lake-sovereign', 'Swan-Lake Sovereign', ['Human', 'Swan'], {
-    supertypes: ['legendary'], cost: cost(3, 'UW'), colors: ['U', 'W'], attack: 4, defense: 5,
-    keywords: ['skyborne', 'sentinel'], nineLives: true,
+    supertypes: ['legendary'], cost: cost(2, 'UUW'), colors: ['U', 'W'], attack: 4, defense: 5,
+    keywords: ['skyborne'], nineLives: true,
     abilities: [dawn([{ op: 'foresee', n: 1 }])],
     rarity: 'ur', flavor: 'Each dawn returns her feathers, her crown, and a look at tomorrow.',
   }),
   creature('dt-sea-witch-of-the-drowned-bargain', 'Sea Witch of the Drowned Bargain', ['Human', 'Witch'], {
-    supertypes: ['legendary'], cost: cost(5, 'UB'), colors: ['U', 'B'], attack: 5, defense: 5,
+    supertypes: ['legendary'], cost: cost(5, 'UB'), colors: ['U', 'B'], attack: 5, defense: 7,
     keywords: ['deathblade'], abilities: [arrives([{ op: 'draw', n: 2 }, { op: 'grind', n: 2, who: 'self' }])],
     rarity: 'ur', flavor: 'Two pages read, two pages drowned, and your voice was never the point.',
   }),
@@ -193,7 +193,7 @@ const R: CardDef[] = [
     preserve: { cost: cost(3, 'G') }, rarity: 'r', flavor: 'Cut her down in autumn and she is back, thornier, by spring.',
   }),
   ritual('dt-chart-the-reef-road', 'Chart the Reef Road', {
-    cost: cost(5, 'G'), colors: ['G'], abilities: [spell([{ op: 'extraLandDrop' }, { op: 'foresee', n: 2 }, { op: 'draw', n: 1 }])],
+    cost: cost(4, 'GG'), colors: ['G'], abilities: [spell([{ op: 'extraLandDrop' }, { op: 'foresee', n: 1 }, { op: 'draw', n: 1 }])],
     retell: { cost: cost(4, 'G') }, rarity: 'r', flavor: 'The chart shows one safe passage and two she will check later.',
   }),
   artifactCreature('dt-clockwork-coachwoman', 'Clockwork Coachwoman', ['Construct', 'Coachwoman'], {
@@ -287,7 +287,7 @@ const C: CardDef[] = [
     flavor: "She brought the queen a pig's heart and kept her own.",
   }),
   ritual('dt-apple-half-exchange', 'Apple-Half Exchange', {
-    cost: cost(1, 'B'), colors: ['B'], abilities: [spell([{ op: 'loseLife', n: 2, who: 'opponent' }, { op: 'gainLife', n: 2 }])],
+    cost: cost(1, 'B'), colors: ['B'], abilities: [spell([{ op: 'loseLife', n: 1, who: 'opponent' }, { op: 'gainLife', n: 2 }])],
     retell: { cost: cost(3, 'B') }, rarity: 'c', flavor: 'She takes the sweet half, you take the other, and everyone calls it sharing.',
   }),
   ritual('dt-shadow-miners-dirge', "Shadow-Miner's Dirge", {

@@ -123,7 +123,7 @@ export const ENCHANTMENTS = [
     cost: cost(2, 'WW'),
     colors: ['W'],
     abilities: [
-      { when: 'static', static: { scope: 'filter', filter: { subtype: 'Olympian' }, p: 2, t: 2 } },
+      { when: 'static', static: { scope: 'filter', filter: { subtype: 'Olympian' }, p: 2, t: 1 } },
     ],
     rarity: 'sr',
     flavor: 'The mountain remembers being a throne.',

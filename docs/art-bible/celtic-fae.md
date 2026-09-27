@@ -14,7 +14,7 @@ empty top third above the subject’s head and crown, preserving headroom for
 smart-crop and preventing clipped silhouettes in the card window.
 
 ### Morrigan, Black-Wing Omen — `cf-morrigan-black-wing`
-- **Card facts:** {3}{B}{G} · B/G (gold frame) · 5/5 · skyborne · ur, legendary · holo: otherworldly aurora
+- **Card facts:** {4}{B}{G} · B/G (gold frame) · 5/5 · skyborne · ur, legendary · holo: otherworldly aurora
 - **Character & source:** Morrigan, an adult fae war goddess in a raven-aspected court form; mechanically an airborne omen and evasive threat, a reader and arranger of fate, a keeper of the veil between worlds.
 - **Personality / mood:** “A raven lands on the treaty. The treaty loses its nerve.” — regal, pitiless, and almost amused by the bargain already broken.
 - **Pose & composition:** descending from a slow wingbeat, spear angled down while the cloak describes a raven silhouette; face ≈ y 320 and eye-line ≈ y 300–360. The entire top third stays clear empty sky or mist above the head, crown, antlers, and hair for crop-safe headroom.
@@ -179,7 +179,7 @@ smart-crop and preventing clipped silhouettes in the card window.
 - **Prompt:** Hollow-Hill Gatekeeper, an adult fae gatekeeper, a court sentinel whose welcome is a test, wearing a columnar blue-silver cloak, thorn crown, bark-lamellar armor, and an engraved-looking but textless torc; front-facing and planted, spear vertical at one side while the shield catches the visible band; formally courteous, immovable, and impossible to hurry; against the threshold of a hollow hill, mist spilling over a moonlit stone stair; cool interior hill-light as key; moonlit silver rim on the spear and crown; reserve the entire top third as clear, empty moonlit mist or sky above the head, thorn crown, and antlers so no crown clips; no readable ogham, runes, letters, banners, cards, mirrors, or text anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Blackthorn Duelist — `cf-blackthorn-duelist`
-- **Card facts:** {2}{G} · G · 3/2 · firstBlade · r · holo: shiny
+- **Card facts:** {2}{G} · G · 3/2 · r · holo: shiny
 - **Character & source:** an adult Sidhe blade dancer of the silver court; mechanically a first-strike duelist, a reader and arranger of fate.
 - **Personality / mood:** “She offers first blood. She has already decided whose.” — precise, proud, and too polite to call the first strike a threat.
 - **Pose & composition:** three-quarter lunge, blade leading across the middle band while the cloak counter-sweeps behind; face ≈ y 320 and eye-line ≈ y 300–360. The entire top third stays clear empty sky or mist above the head, crown, antlers, and hair for crop-safe headroom.
@@ -239,7 +239,7 @@ smart-crop and preventing clipped silhouettes in the card window.
 - **Prompt:** Hounds of Annwn, a regal Otherworld hound, lean and ancient rather than cute, with moonlit eyes and a fae-court bearing, wearing a narrow pale-gold collar, blackthorn charms, and mossy spectral fur that integrates with the surrounding roots; low and forward in a fast three-quarter run, head and eyes held squarely in the central band; silent, inexorable, and already on the scent of a broken promise; against a mist road passing between standing stones and the open mouth of a hollow hill; cold moon key on the muzzle and shoulders; sickly green hill-light rim along the fur; reserve the entire top third as clear, empty moonlit mist or sky above the head, thorn crown, and antlers so no crown clips; no readable ogham, runes, letters, banners, cards, mirrors, or text anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Sidhe Silver-Lancer — `cf-sidhe-silver-lancer`
-- **Card facts:** {2}{W} · W · 3/3 · sentinel, firstBlade · r · holo: shiny
+- **Card facts:** {1}{W}{W} · W · 3/3 · firstBlade · r · holo: shiny
 - **Character & source:** an adult fae knight whose armor has grown from hedge, bark, and silver; mechanically a first-strike duelist, a steadfast boundary keeper.
 - **Personality / mood:** “Her lance arrives before the invitation does.” — chivalric, reserved, and wholly committed to a vow that predates the visitor.
 - **Pose & composition:** standing in a ready guard with the weapon held diagonally through the visible band; face ≈ y 320 and eye-line ≈ y 300–360. The entire top third stays clear empty sky or mist above the head, crown, antlers, and hair for crop-safe headroom.
@@ -419,7 +419,7 @@ smart-crop and preventing clipped silhouettes in the card window.
 - **Prompt:** Redcap Skirmisher, an adult redcap skirmisher with deep dusky-brown skin, long clearly pointed fae ears sticking out visibly through her hair, short-statured, squat and stocky in build — compact, regal, and very pleased with the violence, wearing a crimson cap over a thorn crownlet, short blackthorn cloak, layered peat-black armor, and silver rings; caught at the first violent step of a sprint, her small frame hunched low to the ground, sickle low and shoulders driving forward; reckless, courtly in the worst possible way, and laughing through clenched teeth; against a blackthorn lane under a bruised moon, red mushrooms and wet stone flashing past; warm foxfire key across the cap and weapon; hard violet moon rim on the moving silhouette; reserve the entire top third as clear, empty moonlit mist or sky above the head, thorn crown, and antlers so no crown clips; no readable ogham, runes, letters, banners, cards, mirrors, or text anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Bog Banshee — `cf-bog-banshee`
-- **Card facts:** {2}{B} · B · 3/1 · deathblade, skyborne · c · holo: none
+- **Card facts:** {1}{B}{B} · B · 2/1 · deathblade, skyborne · c · holo: none
 - **Character & source:** an adult banshee of the old courts, beautiful and ruinously composed; mechanically lethal at a single precise touch.
 - **Personality / mood:** “Her wail is a warning. Her silence is worse.” — funereal, intimate, and mercilessly patient.
 - **Pose & composition:** floating forward with one hand near her throat, cloak and hair rising in the note she has not yet released; face ≈ y 320 and eye-line ≈ y 300–360. The entire top third stays clear empty sky or mist above the head, crown, antlers, and hair for crop-safe headroom.
@@ -584,7 +584,7 @@ smart-crop and preventing clipped silhouettes in the card window.
 - **Prompt:** Torclight Envoy, an adult fae diplomat whose hospitality is a precise form of power, wearing a pearl-white elongated cloak, restrained thorn crown, silver jewelry, and smooth oak-leaf armor; front three-quarter, camera pulled back slightly to a true waist-up view with her whole torso in frame, lantern held just below the face while the other hand offers passage; kindly, measuring, and impossible to read as harmless; against a moonlit court bridge over a glassy pool, blackthorn arches fading into mist; warm torc-lantern key across the hands; clean silver moon rim on the cloak; the very top of her head and thorn crown sits clearly below the top-third line — the entire top third is nothing but clear empty moonlit mist, generous open space above the crown so nothing clips; no readable ogham, runes, letters, banners, cards, mirrors, or text anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Laughing Pooka — `cf-laughing-pooka`
-- **Card facts:** {R}{R} · R · 4/1 · warcry · c · holo: none
+- **Card facts:** {R}{R} · R · 4/1 · c · holo: none
 - **Character & source:** an adult pooka trickster caught between elegant court form and a wild horse-shadow; mechanically an aggressive hunt leader.
 - **Personality / mood:** “It turns into a horse, a goat, and your worst alibi.” — laughing, insolent, and visibly one step ahead of the explanation.
 - **Pose & composition:** springing sideways in a dancer’s feint, cloak and shadow suggesting transformation without obscuring the face; face ≈ y 320 and eye-line ≈ y 300–360. The entire top third stays clear empty sky or mist above the head, crown, antlers, and hair for crop-safe headroom.

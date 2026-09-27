@@ -170,7 +170,7 @@ Shu is the faction of oaths kept past all reason: sworn siblings, volunteers, an
 - **Prompt:** Genderbent Wei Yan mid-charge in dark green brigandine with ivory bone-plate shoulders and torn jade sash, glaive lowered to gore through a splintering palisade, snarling forward grin, low warm dust key with cool glaive rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Twin-Willow Sword Dancer — `tk-shu-sword-dancer`
-- **Card facts:** {2}{G} · G · 2/3 · twinBlades · r · holo: auto:sheen
+- **Card facts:** {3}{G} · G · 2/3 · twinBlades · r · holo: auto:sheen
 - **Character & source:** An original Shu sword dancer drilled in the paired-willow form; mechanically a twin-strike duelist who lands the second cut before the guard resets.
 - **Personality / mood:** "Two willow blades, one lesson: the second cut arrives unannounced." Composed, precise, faintly amused.
 - **Pose & composition:** Mid-turn between the first cut and the second, both slim blades visible on one flowing arc; face ≈ y 320, eye-line ≈ y 300–360. One environmental element: willow fronds tracing the same arc as the blades.

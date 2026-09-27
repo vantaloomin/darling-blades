@@ -85,7 +85,7 @@ const UR: CardDef[] = [
     rarity: 'ur', flavor: 'The coffin was transparent so the court could watch her return.',
   }),
   creature('dt-abyssal-songstress', 'Abyssal Songstress', ['Mermaid', 'Songstress'], {
-    supertypes: ['legendary'], cost: cost(3, 'UB'), colors: ['U', 'B'], attack: 4, defense: 5,
+    supertypes: ['legendary'], cost: cost(3, 'UB'), colors: ['U', 'B'], attack: 4, defense: 4,
     keywords: ['skyborne'], abilities: [dawn([{ op: 'foresee', n: 1 }, { op: 'loseLife', n: 1, who: 'opponent' }])],
     rarity: 'ur', flavor: 'Every bargain sounds kinder when sung below the tide line.',
   }),
@@ -101,7 +101,7 @@ const UR: CardDef[] = [
     rarity: 'ur', flavor: 'The last chime is a deadline, not a suggestion.',
   }),
   creature('dt-ice-crown-sovereign', 'Ice-Crown Sovereign', ['Human', 'Queen'], {
-    supertypes: ['legendary'], cost: cost(3, 'UW'), colors: ['U', 'W'], attack: 4, defense: 5,
+    supertypes: ['legendary'], cost: cost(3, 'UW'), colors: ['U', 'W'], attack: 4, defense: 4,
     keywords: ['skyborne'], abilities: [arrives([{ op: 'massDestroy', filter: 'allEnchantments' }])],
     rarity: 'ur', flavor: 'The coronation froze the room, the vows, and every exit.',
   }),

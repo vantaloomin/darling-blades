@@ -146,7 +146,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Prompt:** Lamia serpent beast-girl coiled upright, dark scaled bodice and shadow-silk cloak, long serpent lower body, extending a single needle claw-blade toward viewer, slit-pupil calm smile, dim ruined background, cold underlight with violet rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Dragonmaid Ember — `bk-dragonmaid`
-- **Card facts:** {2}{R}{R} · R · 4/4 · skyborne · sr · holo: auto:galaxy
+- **Card facts:** {2}{R}{R} · R · 4/4 · skyborne, rage · sr · holo: auto:galaxy
 - **Character & source:** Original Beastkin draconic housemaid — a five-drop `flying` 4/4 whose domestic composure hides a furnace.
 - **Personality / mood:** "She dusts, she polishes, she incinerates." Prim, immaculate, one raised eyebrow from arson.
 - **Pose & composition:** The rare "moment": hovering mid-air on spread wings, one hand tipping a feather-duster while the other cups a curl of ignition flame — the split-second before the room becomes a problem. Face ≈ y 320; wings sweep into the top bleed, scaled tail curls down the right band edge.

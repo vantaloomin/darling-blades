@@ -102,7 +102,7 @@ export const BEASTKIN = [
     colors: ['R'],
     attack: 4,
     defense: 4,
-    keywords: ['skyborne'],
+    keywords: ['skyborne', 'rage'],
     rarity: 'sr',
     flavor: 'She dusts, she polishes, she incinerates.',
   },
