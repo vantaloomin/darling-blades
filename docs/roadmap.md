@@ -1673,6 +1673,23 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
 
 ## Planned
 
+- **1.8.5, the scaling rebalance (APPROVED 2026-09-26; building on `release/1.8.5`).**
+  [plan-1.8.5.md](plan-1.8.5.md). The scorer priced every creature keyword as
+  a flat constant, so a Forge-built 10/1 Twin Blades flier read Under Value.
+  Magic through 2020, 624,640 games in our own engine, and an audit of every
+  other rate agree on the fix: Twin Blades, Skyborne, Blood Oath and First
+  Blade scale with attack, Bulwark's penalty grows with it, Deathblade shrinks
+  with it, and the body is priced power over toughness with a gentle taper.
+  The proposed v4 moves 148 cards across a band (98 Over, 82 Under). Ruled:
+  Skyborne takes our engine's slope, lords are measured before any change (the
+  measurement is running), 1.8.5 ships before 1.9 wave 0, the AI's card
+  valuation moves to the v4 shapes inside 1.8.5, the four level flags are
+  measured now with the mark family added, the calibration anchors never
+  adjust, and cards more than 1.0 off get fixed (0.75-1.0 only for a scaled
+  keyword or Empower): 99 cards on the prototype, plus 20 mark cards held for
+  their measurement. The owner reviews the
+  full slate for its mix of cost, body and keyword changes. The owner approved
+  131 card changes card by card (one card held) and gave the build its go.
 - **The 1.9 train (every decision ruled 2026-09-25; the 1.8.1 train is open).**
   [plan-1.9.md](plan-1.9.md) is the program plan. In: **First Dawn**, a
   fresh ~150-card set drafted by an Opus 5.5 agent (the July overplan is
