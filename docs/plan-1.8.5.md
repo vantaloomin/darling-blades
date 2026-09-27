@@ -427,7 +427,13 @@ effects), Brood Communion ({G}, Rite dropped) and Black Tide Rising ({B}{B},
 on the corrected sweeper rate it is about fair.
 
 The face-damage intercept wrongly applied to Duty activations is already fixed
-in the prototype. **Signal Drown** is a dead card in the Violet Signal Queen's
+in the prototype.
+
+**Art that no longer matches its card** (found transcribing the slate). The
+owner ruled 2026-09-26: "Queue for regen in the 1.9". Freya (lost Skyborne,
+drawn flying), Swan-Lake Sovereign (lost Sentinel, a wing-wall pose) and
+Siege Juggernaut (lost Overrun) keep their current art in 1.8.5 and are
+regenerated in the 1.9 art run (`docs/plan-1.9.md`, lane B). **Signal Drown** is a dead card in the Violet Signal Queen's
 deck, which has no Mark sources.
 
 **How cards get fixed.** The slate balances three levers across the whole
