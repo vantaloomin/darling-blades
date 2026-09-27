@@ -141,9 +141,36 @@ const KEYWORD_BONUS: Record<Keyword, number> = {
   rage: -0.25,
 };
 
-function keywordScore(keywords: Iterable<Keyword>): number {
+/**
+ * Attack-scaled keyword shapes from the v4 power scorer, measured by the
+ * in-engine keyword lab (624k games; docs/plan-1.8.5.md lane 4, D9). A flat
+ * bonus valued a 5/5 flier's evasion like a 1/1's. KEYWORD_BONUS stays each
+ * keyword's value at the reference attack, so a 3-attack creature is valued
+ * exactly as before; bigger and smaller bodies move along the measured shape.
+ * Bulwark's shape is its magnitude (KEYWORD_BONUS carries the sign), and
+ * Deathblade shrinks as attack grows. Every other keyword stays flat.
+ */
+const KEYWORD_REFERENCE_ATTACK = 3;
+const KEYWORD_ATTACK_SHAPE: Partial<Record<Keyword, (attack: number) => number>> = {
+  skyborne: (a) => 0.5 + 0.27 * a,
+  twinBlades: (a) => 0.75 + 0.4 * a,
+  firstBlade: (a) => 0.2 + 0.22 * a,
+  bloodoath: (a) => 0.2 + 0.25 * a,
+  warcry: (a) => 0.15 + 0.1 * a,
+  bulwark: (a) => 0.5 + 0.2 * a,
+  deathblade: (a) => Math.max(0.2, 1 - 0.15 * a),
+};
+
+function keywordBonus(keyword: Keyword, attack: number): number {
+  const shape = KEYWORD_ATTACK_SHAPE[keyword];
+  if (!shape) return KEYWORD_BONUS[keyword];
+  return KEYWORD_BONUS[keyword] * shape(Math.max(0, attack)) / shape(KEYWORD_REFERENCE_ATTACK);
+}
+
+/** `attack` is the attack of the creature carrying the keywords. */
+function keywordScore(keywords: Iterable<Keyword>, attack: number): number {
   let s = 0;
-  for (const k of keywords) s += KEYWORD_BONUS[k];
+  for (const k of keywords) s += keywordBonus(k, attack);
   return s;
 }
 
@@ -169,10 +196,12 @@ function hasTriggeredAbility(db: CardDb, cardId: string): boolean {
   );
 }
 
-function awakeningValue(d: ReturnType<typeof def>): number {
+/** `attack` is the creature's attack before the rider; its keywords are
+ * valued at the attack the rider leaves it with. */
+function awakeningValue(d: ReturnType<typeof def>, attack: number): number {
   return (
     ((d.awakening?.p ?? 0) + (d.awakening?.t ?? 0)) / 2 +
-    keywordScore(d.awakening?.keywords ?? [])
+    keywordScore(d.awakening?.keywords ?? [], attack + (d.awakening?.p ?? 0))
   );
 }
 
@@ -464,7 +493,10 @@ export function opImpactValue(op: EffectOp, activated?: ActivatedImpactContext):
       // This is a sacrifice-like cost, not a benefit of the trigger.
       return -1.5;
     case 'raise':
-      return (op.to === 'top' ? 2.5 + (op.withMarks ?? 0) * 0.65 : 2) + keywordScore(op.grantKeywords ?? []);
+      // Card-shaped: the raised creature is unknown, so a granted keyword is
+      // valued at the reference attack.
+      return (op.to === 'top' ? 2.5 + (op.withMarks ?? 0) * 0.65 : 2) +
+        keywordScore(op.grantKeywords ?? [], KEYWORD_REFERENCE_ATTACK);
     case 'ifTargetMarked': {
       const thenValue = op.then.reduce((sum, nested) => sum + opImpactValue(nested), 0);
       const elseValue = (op.else ?? []).reduce((sum, nested) => sum + opImpactValue(nested), 0);
@@ -1044,7 +1076,7 @@ export function cardValue(db: CardDb, cardId: string, view?: PlayerView, mode: S
   let v = manaValue(d.cost);
   if (isType(d, 'creature')) {
     v += ((d.attack ?? 0) + (d.defense ?? 0)) / 2;
-    v += keywordScore(d.keywords ?? []);
+    v += keywordScore(d.keywords ?? [], d.attack ?? 0);
     v += nineLivesValue(d);
   }
   if (isLordOrLegendary(db, cardId)) v += 1;
@@ -1069,7 +1101,7 @@ export function cardValue(db: CardDb, cardId: string, view?: PlayerView, mode: S
     }
   }
   if (d.chapters) v += d.chapters.length * 0.75;
-  if (isType(d, 'creature') && d.awakening) v += 0.5 + awakeningValue(d);
+  if (isType(d, 'creature') && d.awakening) v += 0.5 + awakeningValue(d, d.attack ?? 0);
   return v;
 }
 
@@ -1193,8 +1225,9 @@ export function linkedRiderValue(
   if (!rider || !host) return 0;
   const current = getEffectiveStats(battlefield, db, hostIid);
   let value = ((rider.p ?? 0) + (rider.t ?? 0)) / 2;
+  const linkedAttack = current.attack + (rider.p ?? 0);
   for (const keyword of rider.grantKeywords ?? []) {
-    if (!current.keywords.has(keyword)) value += KEYWORD_BONUS[keyword];
+    if (!current.keywords.has(keyword)) value += keywordBonus(keyword, linkedAttack);
   }
   return value;
 }
@@ -1430,10 +1463,10 @@ export function permValue(
   if (!perm) return 0;
   const d = def(db, perm.cardId);
   let v = manaValue(d.cost);
-  if (isType(d, 'creature')) {
-    const stats = getEffectiveStats(battlefield, db, iid);
+  const stats = isType(d, 'creature') ? getEffectiveStats(battlefield, db, iid) : undefined;
+  if (stats) {
     v += (stats.attack + Math.max(0, stats.defense - perm.damage)) / 2;
-    v += keywordScore(stats.keywords);
+    v += keywordScore(stats.keywords, stats.attack);
     v += nineLivesValue(d, perm.plusOneCounters);
     v += markedBodyValue(perm.plusOneCounters);
   }
@@ -1442,8 +1475,8 @@ export function permValue(
     const completed = perm.chapter ?? 0;
     v += Math.max(0, d.chapters.length - completed) * 0.75;
   }
-  if (isType(d, 'creature') && d.awakening && !perm.awakened) {
-    v += 0.5 + awakeningValue(d);
+  if (stats && d.awakening && !perm.awakened) {
+    v += 0.5 + awakeningValue(d, stats.attack);
   }
   // Duty uses the same expected-use shape as a Dawn rider: two uses on a
   // creature and three on a non-creature. Readiness does not erase potential.
