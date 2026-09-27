@@ -78,10 +78,11 @@ describe('Hauntlink AI valuation from PlayerView', () => {
   });
 
   it('does not spend mana swapping an existing link for equal rider fit', () => {
+    // The sentinel is a bigger body with the bear's attack, so Skyborne fits both equally.
     const game = currentGame([
       { iid: 1, cardId: 'bear', controller: 0, attachments: [2] },
       { iid: 2, cardId: 'hauntlink_artifact', controller: 0, attachedTo: 1 },
-      { iid: 3, cardId: 'giant', controller: 0 },
+      { iid: 3, cardId: 'sentinel', controller: 0 },
     ]);
     expect(game.legalActions(0)).toContainEqual({ type: 'linkHaunt', iid: 2, hostIid: 3 });
     const brains = [
@@ -93,6 +94,16 @@ describe('Hauntlink AI valuation from PlayerView', () => {
       expect(brain.chooseAction(game.viewFor(0), game.legalActions(0)).type).not.toBe('linkHaunt');
     }
     expect(getEffectiveStats(game.viewFor(0).battlefield, HAUNTLINK_DB, 1).keywords.has('skyborne')).toBe(true);
+  });
+
+  it('moves a free Skyborne link to a host that hits harder in the air', () => {
+    const game = currentGame([
+      { iid: 1, cardId: 'bear', controller: 0, attachments: [2] },
+      { iid: 2, cardId: 'hauntlink_artifact', controller: 0, attachedTo: 1 },
+      { iid: 3, cardId: 'giant', controller: 0 },
+    ]);
+    expect(chooseUnlinkedHauntlink(game.viewFor(0), HAUNTLINK_DB, game.legalActions(0)))
+      .toEqual({ type: 'linkHaunt', iid: 2, hostIid: 3 });
   });
 
   it('keeps host selection deterministic and chooses the stronger public host', () => {

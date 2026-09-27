@@ -263,7 +263,12 @@ noisy — deviations must earn their keep.
 - **Terminal states dominate** — win `+1e6`, loss `−1e6`, draw `−500`.
 
 `permValue`/`cardValue` (`value.ts`) score a card by mana value + (P+T)/2 +
-keyword bonuses + a lord/legendary and triggered-ability premium. On the
+keyword bonuses + a lord/legendary and triggered-ability premium. Since 1.8.5
+the combat keywords with a measured attack shape (Skyborne, Twin Blades, First
+Blade, Blood Oath, Warcry, Bulwark, Deathblade) scale with the carrier's
+attack: printed on a hand card, effective on the battlefield, after the rider
+for an awakening or Hauntlink grant. A 3-attack creature keeps its old value;
+Deathblade shrinks as attack grows (plan-1.8.5 lane 4). On the
 battlefield a marked creature carries a further **0.5 premium plus 0.15 per
 extra mark** (`markedBodyValue`): a mark is what Propagate compounds and what
 thresholds count, so it tips even trades in combat and block math without
