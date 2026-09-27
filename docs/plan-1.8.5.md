@@ -197,8 +197,8 @@ Marks: see the D6 table (markAll 1.0, Propagate 0.3 / 0.1 a Dawn, observers meas
 A granted keyword (aura, pump, Hauntlink link, anthem, awakening) is priced on
 a nominal host of attack 3 plus the grant's own power bonus.
 
-Budget = 1.15 + 0.81 x (MV - 1) + 0.27 x (pips - 1) + rarity
-         rarity: C 0 · R 0.38 · SR 0.66 · SSR 1.14 · UR 2.05
+Budget = 1.14 + 0.81 x (MV - 1) + 0.27 x (pips - 1) + rarity
+         rarity: C 0 · R 0.37 · SR 0.65 · SSR 1.12 · UR 1.98
 ```
 
 - **The body.** Every stat point past a 2/2 is worth 7% less, which makes the
@@ -208,12 +208,12 @@ Budget = 1.15 + 0.81 x (MV - 1) + 0.27 x (pips - 1) + rarity
 - **The budget is refitted, not invented.** Same method as v3 (median
   regression on the shipped pool, the assumption being that shipped design
   intent is collectively right), re-run after the new rates. The rarity steps
-  barely move; the pip premium drops from 0.40 to 0.24.
+  barely move; the pip premium drops from 0.40 to 0.27.
 - **The nominal host of 3** is what Magic's grant prices imply: flying 2.4 to
   3.2, first strike 2.2 to 2.6, double strike about 4.
 
-**The Forge's example under v4:** Power 9.86 against a Budget of 4.96, **Over
-Value by +4.90** (body 5.46, Twin Blades 4.75, Skyborne 3.20, Untouchable 0.60,
+**The Forge's example under v4:** Power 9.86 against a Budget of 5.01, **Over
+Value by +4.85** (body 5.46, Twin Blades 4.75, Skyborne 3.20, Untouchable 0.60,
 Rage -0.15, stack -0.40, Sunset damage -3.60). The Sunset drawback is still
 over-credited on a card that wins before it matters; recurring self-damage is
 on the NEEDS MATH list.
@@ -427,7 +427,13 @@ effects), Brood Communion ({G}, Rite dropped) and Black Tide Rising ({B}{B},
 on the corrected sweeper rate it is about fair.
 
 The face-damage intercept wrongly applied to Duty activations is already fixed
-in the prototype. **Signal Drown** is a dead card in the Violet Signal Queen's
+in the prototype.
+
+**Art that no longer matches its card** (found transcribing the slate). The
+owner ruled 2026-09-26: "Queue for regen in the 1.9". Freya (lost Skyborne,
+drawn flying), Swan-Lake Sovereign (lost Sentinel, a wing-wall pose) and
+Siege Juggernaut (lost Overrun) keep their current art in 1.8.5 and are
+regenerated in the 1.9 art run (`docs/plan-1.9.md`, lane B). **Signal Drown** is a dead card in the Violet Signal Queen's
 deck, which has no Mark sources.
 
 **How cards get fixed.** The slate balances three levers across the whole

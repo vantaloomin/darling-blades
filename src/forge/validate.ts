@@ -298,11 +298,14 @@ function readCost(value: unknown): ManaCost {
 
 function readTargets(value: unknown): TargetSpec[] {
   return array(value, 2).map((item) => {
-    const raw = object(item, ['what', 'other', 'upTo']);
+    const raw = object(item, ['what', 'other', 'upTo', 'exactly']);
+    // The game refuses a spec that is both "up to two" and "exactly two".
+    if (raw.upTo !== undefined && raw.exactly !== undefined) fail('target');
     return {
       what: oneOf(raw.what, TARGET_WHATS, 'target'),
       ...(raw.other !== undefined ? { other: oneOf(raw.other, [true] as const) } : {}),
       ...(raw.upTo !== undefined ? { upTo: oneOf(raw.upTo, [2] as const) } : {}),
+      ...(raw.exactly !== undefined ? { exactly: oneOf(raw.exactly, [2] as const) } : {}),
     };
   });
 }

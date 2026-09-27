@@ -1,10 +1,15 @@
 import type { Color, Keyword, Rarity } from '../engine/types';
 import {
-  BODY_PER_STAT,
-  KEYWORD_VALUE,
+  BODY_PER_ATTACK,
+  BODY_PER_DEFENSE,
+  BODY_TAPER,
+  BODY_TAPER_FROM,
+  KEYWORD_STACK_DISCOUNT,
   MANA_STEP,
   PIP_PREMIUM,
   RARITY_BONUS,
+  keywordScales,
+  keywordStackDiscount,
 } from '../power/scoreCore';
 import {
   builderHasType,
@@ -16,7 +21,14 @@ import {
   type Evaluation,
 } from './logic';
 import { KEYWORD_NAMES } from '../data/glossary';
-import { COLOR_PIE_KEYWORDS, COLOR_WORDS, OP_OPTIONS, RARITY_LABELS, RARITIES } from './vocab';
+import {
+  COLOR_PIE_KEYWORDS,
+  COLOR_WORDS,
+  OP_OPTIONS,
+  RARITY_LABELS,
+  RARITIES,
+  keywordWorthSentence,
+} from './vocab';
 
 export type HintKind =
   | 'increase-cost'
@@ -46,6 +58,31 @@ export interface CostingHint {
 const round = (value: number): number => Math.round(value * 100) / 100;
 const signed = (value: number): string => `${value >= 0 ? '+' : ''}${value.toFixed(2)}`;
 const manaReason = `Each mana of cost adds ${MANA_STEP.toFixed(2)} to the Budget.`;
+const taperSide = BODY_TAPER_FROM / 2;
+const bodyReason = `Attack is worth ${BODY_PER_ATTACK.toFixed(2)} a point and Defense ${BODY_PER_DEFENSE.toFixed(2)}, `
+  + `with each point past a ${taperSide}/${taperSide} worth ${BODY_TAPER.toFixed(2)} less.`;
+
+/** "A and B", for player copy. */
+function andList(names: readonly string[]): string {
+  return names.length <= 1 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
+
+/** An Attack hint also moves every keyword on the card that is priced on Attack. */
+function attackReason(state: BuilderState): string {
+  const scaled = state.keywords.filter(keywordScales).map((keyword) => KEYWORD_NAMES[keyword]);
+  if (scaled.length === 0) return bodyReason;
+  return `${bodyReason} ${andList(scaled)} ${scaled.length === 1 ? 'is' : 'are'} also priced on this card's Attack.`;
+}
+
+/** The stacking discount's side of adding or removing a keyword, or ''. */
+function stackReason(before: readonly Keyword[], after: readonly Keyword[]): string {
+  const was = keywordStackDiscount(before) !== 0;
+  const now = keywordStackDiscount(after) !== 0;
+  const size = Math.abs(KEYWORD_STACK_DISCOUNT).toFixed(2);
+  if (!was && now) return ` Three or more keywords on one creature also take a ${size} stacking discount.`;
+  if (was && !now) return ` It also lifts the ${size} discount for three or more keywords.`;
+  return '';
+}
 
 function addCandidate(
   hints: CostingHint[],
@@ -166,7 +203,7 @@ function addStatCandidates(hints: CostingHint[], state: BuilderState, current: E
       kind,
       title,
       `Set ${field === 'attack' ? 'Attack' : 'Defense'} to ${next[field]}.`,
-      `Each point of Attack or Defense is worth ${BODY_PER_STAT.toFixed(2)}.`,
+      field === 'attack' ? attackReason(state) : bodyReason,
       next,
       `${kind}-${next[field]}`,
     );
@@ -183,7 +220,7 @@ function addKeywordCandidates(hints: CostingHint[], state: BuilderState, current
       'remove-keyword',
       'Remove a Keyword',
       `Remove ${KEYWORD_NAMES[keyword]}.`,
-      `${KEYWORD_NAMES[keyword]} is worth ${signed(KEYWORD_VALUE[keyword])}.`,
+      keywordWorthSentence(keyword, state.attack, state.keywords) + stackReason(state.keywords, next.keywords),
       next,
       `remove-keyword-${keyword}`,
     );
@@ -198,7 +235,7 @@ function addKeywordCandidates(hints: CostingHint[], state: BuilderState, current
       'add-keyword',
       'Add a Keyword',
       `Add ${KEYWORD_NAMES[keyword]}. It suits this card's colors.`,
-      `${KEYWORD_NAMES[keyword]} is worth ${signed(KEYWORD_VALUE[keyword])}.`,
+      keywordWorthSentence(keyword, next.attack, next.keywords) + stackReason(state.keywords, next.keywords),
       next,
       `add-keyword-${keyword}`,
     );

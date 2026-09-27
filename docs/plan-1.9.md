@@ -306,6 +306,16 @@ What the set carries besides cards:
   through the owner's eyes before the full run. The art run starts the day
   the cut locks. Frame geometry stays deferred to 2.0 (D8 of 1.8), so First
   Dawn's art is cropped to today's frame.
+- **Three 1.8.5 regenerations ride the same art run** (owner, 2026-09-26:
+  "Queue for regen in the 1.9"). The 1.8.5 rebalance removed a keyword that
+  their current art still shows, so each gets a new brief and a new image,
+  and its art-bible entry is rewritten to match:
+  - **Freya:** lost Skyborne; the art is winged and flying.
+  - **Swan-Lake Sovereign:** lost Sentinel; the pose is a wall of wings.
+  - **Siege Juggernaut:** lost Overrun; the art-bible prose describes
+    trampling.
+
+  Until then, the cards ship with their current art.
 
 ### Lane C — accessibility
 
