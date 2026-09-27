@@ -359,17 +359,19 @@ describe('AI win-rate gates', () => {
     // RETUNED 2026-09-27 for 1.8.5: the slate's dearer The Price took her
     // list to 60.00 (gate 59.0); the attack-aware AI alone left it at 64. The
     // retuned list (two more Things in the Cistern for the Tide Readers; her
-    // opponents.ts entry has the pass) measures 66.30 at 200 seeds/cell,
-    // 0 draws; 66.3 - 6.5 = 59.8, which rounds down to the same 59.5, so the
-    // floor is KEPT. The gate reads 67.0.
-    expect(r25.avg, 'Drowned Deacon floor').toBeGreaterThanOrEqual(0.595);
+    // opponents.ts entry has the pass) measures 66.60 at 200 seeds/cell,
+    // 0 draws, on the final 83-card slate; 66.6 - 6.5 = 60.1, rounded down to
+    // the half point, so the floor RATCHETS UP 0.595 -> 0.60. The gate reads
+    // 67.5.
+    expect(r25.avg, 'Drowned Deacon floor').toBeGreaterThanOrEqual(0.6);
     // R26 The Marsh-Mother: 75 - 6.5 = 68.5, on the converter-owned list that
     // #379 measured four surgeries against and kept unchanged.
     // RETUNED 2026-09-27 for 1.8.5: the slate's dearer The Price took that
     // list to 64.70 (gate 62.5), on either AI (65.40 on the 1.8.1 one). The
-    // hand-tuned list (her opponents.ts entry has the pass) measures 74.00 at
-    // 200 seeds/cell, 0 draws, and 73.40 at 400; 74.0 - 6.5 = 67.5, below the
-    // standing floor, so it is KEPT at 0.685. The gate reads 71.5.
+    // hand-tuned list (her opponents.ts entry has the pass) measures 74.10 at
+    // 200 seeds/cell, 0 draws, on the final 83-card slate (73.40 at 400 on the
+    // wider one); 74.1 - 6.5 = 67.6, below the standing floor, so it is KEPT
+    // at 0.685. The gate reads 72.0.
     expect(r26.avg, 'Marsh-Mother floor').toBeGreaterThanOrEqual(0.685);
     for (const cell of [...r25.cells, ...r26.cells]) {
       expect(cell.games, 'new boss cell must field all 40 seeded games').toBe(40);

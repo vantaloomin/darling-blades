@@ -4550,8 +4550,10 @@ export const AVATARS: readonly Avatar[] = [
     // 62.00. Other removal in The Price's slot buys nothing back; another
     // tempo body does.
     // COMMITTED list, measured in this file's order: 66.30% mean (663/1000
-    // decided, 0 draws); cells 39.50/67.00/64.00/84.50/76.50%. The rung-25
-    // gate reads 67.0 at 40 seeds.
+    // decided, 0 draws); cells 39.50/67.00/64.00/84.50/76.50%.
+    // FINAL, re-measured the same day on the narrowed 83-card slate (D11
+    // reverted 48 nerfs): 66.60% mean (666/1000 decided, 0 draws); cells
+    // 41.00/67.00/64.00/84.50/76.50%. The rung-25 gate reads 67.5 at 40 seeds.
     // MEASURED 2026-09-16: owner-ruling D1+D2+D5, hard AI, 200 seeds/cell,
     // reserve-native avatar matrix; 66.40% mean (664/1000 decided, 0 draws).
     // Cells in Muster/Communion/Tides/Mandate/Harvest order:
@@ -4786,7 +4788,10 @@ export const AVATARS: readonly Avatar[] = [
     // before keeping: base 62.84, the Salt list 68.75, this list 73.40. Over
     // seeds 200-399 alone it still leads the Salt list by about 4.6pp.
     // COMMITTED list: 74.00% mean at 200 seeds/cell (740/1000 decided,
-    // 0 draws); 73.40% at 400. The rung-26 gate reads 71.5 at 40 seeds.
+    // 0 draws); 73.40% at 400.
+    // FINAL, re-measured the same day on the narrowed 83-card slate (D11
+    // reverted 48 nerfs): 74.10% mean (741/1000 decided, 0 draws); cells
+    // 57.00/79.50/72.00/77.00/85.00%. The rung-26 gate reads 72.0 at 40 seeds.
     // Classic deck, landReserve and Darlings stay unchanged.
     // MEASURED 2026-09-16: frozen V0 KEPT, hard AI, 200 seeds/cell,
     // reserve-native avatar matrix; 74.80% mean (748/1000 decided, 0 draws).
