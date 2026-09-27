@@ -15,6 +15,7 @@ import {
 } from '../../src/forge/logic';
 import { translatePart } from '../../src/forge/ledger';
 import {
+  CARD_FLOOR,
   MANA_STEP,
   OFF,
   PIP_PREMIUM,
@@ -168,15 +169,19 @@ describe('builder state conversion', () => {
   });
 });
 
-describe('v3 budget', () => {
+describe('budget', () => {
   it('uses the four-term decomposition and renders every term', () => {
     const state = createInitialBuilderState();
     state.cost = { generic: 2, pips: { W: 1, U: 0, B: 0, R: 2, G: 0 } };
     state.rarity = 'r';
-    // {2}{W}{R}{R} rare: 1.10 floor + 0.82 x 4 + 0.40 x 2 + 0.35 = 5.53.
-    expect(evaluateBuilder(state).score.budget).toBe(5.53);
+    // {2}{W}{R}{R} rare: the floor, four mana steps past the first, two pips
+    // past the first, and the rare bonus.
+    expect(evaluateBuilder(state).score.budget)
+      .toBeCloseTo(CARD_FLOOR + MANA_STEP * 4 + PIP_PREMIUM * 2 + RARITY_BONUS.r, 2);
     const shown = rarityBudgetLabel(state).match(/\d+(?:\.\d+)?/g) ?? [];
-    expect(shown).toEqual(expect.arrayContaining(['1.10', '0.82', '4', '0.40', '2', '0.35']));
+    expect(shown).toEqual(expect.arrayContaining([
+      CARD_FLOOR.toFixed(2), MANA_STEP.toFixed(2), '4', PIP_PREMIUM.toFixed(2), '2', RARITY_BONUS.r.toFixed(2),
+    ]));
   });
 
   it('keeps the rarity lever additive and independent of MV', () => {
@@ -186,7 +191,7 @@ describe('v3 budget', () => {
       const mythic = cloneBuilderState(common);
       mythic.rarity = 'ur';
       expect(evaluateBuilder(mythic).score.budget - evaluateBuilder(common).score.budget)
-        .toBe(RARITY_BONUS.ur - RARITY_BONUS.c);
+        .toBeCloseTo(RARITY_BONUS.ur - RARITY_BONUS.c, 6);
     }
   });
 });
@@ -223,6 +228,39 @@ describe('color-pie premium', () => {
     const line = translatePart(evaluation.card, part!);
     expect(line.offColor).toMatchObject({ effectClass: 'burn', tier: 'secondary', tierValue: SEC, identity: ['B'], usual: ['R'] });
     expect(line.text).toContain(SEC.toFixed(2));
+  });
+});
+
+describe('keywords priced on the card being built', () => {
+  /** A 10/1 with Twin Blades, Skyborne, Untouchable and Rage at {1}{R}{R} that
+   * deals 3 damage to its controller at Sunset (built in the Forge from Lu Bu). */
+  function tenOneStack() {
+    const state = createInitialBuilderState();
+    state.cost = { generic: 1, pips: { W: 0, U: 0, B: 0, R: 2, G: 0 } };
+    state.rarity = 'ur';
+    state.attack = 10;
+    state.defense = 1;
+    state.keywords = ['twinBlades', 'skyborne', 'untouchable', 'rage'];
+    const sunset = createInitialAbility();
+    sunset.when = 'sunset';
+    sunset.ops = [{ op: 'damage', n: 3, to: 'controller' }];
+    state.abilities = [sunset];
+    return state;
+  }
+
+  // It deals 20 flying damage on turn four and cannot be targeted.
+  it('reads a three-mana 10/1 double-striking flier as Over Value, even at the top rarity', () => {
+    expect(evaluateBuilder(tenOneStack()).band).toBe('over');
+  });
+
+  it('names the Attack a scaled keyword was priced at, and its hint quotes that same value', () => {
+    const state = tenOneStack();
+    const evaluation = evaluateBuilder(state);
+    const part = evaluation.score.parts.find((candidate) => candidate.label.startsWith('twinBlades'));
+    expect(part).toBeDefined();
+    expect(translatePart(evaluation.card, part!).text).toContain('Attack 10');
+    const hint = candidateHints(state).find((candidate) => candidate.id === 'remove-keyword-twinBlades');
+    expect(hint?.rateSource).toContain(`+${part!.v.toFixed(2)}`);
   });
 });
 

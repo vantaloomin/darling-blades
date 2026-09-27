@@ -37,6 +37,8 @@ export type CardSet = NonNullable<CardDef['set']> | SetId;
 export type FrameChoice = FrameStyle | 'default';
 export type HoloChoice = HoloFinish | 'default';
 export type TargetChoice = TargetSpec['what'] | 'none';
+/** A spell's one target spec reaching two targets: up to two, or exactly two. */
+export type TargetCount = 'upTo' | 'exactly';
 /** Mana a source can produce. Derived from `CardDef` so this compiles against
  * both the older `Color[]` engine union and the newer one that adds 'C'. */
 export type ManaAbilityColor = NonNullable<CardDef['manaAbility']>[number];
@@ -63,6 +65,8 @@ export interface BuilderAbility {
   /** Fires at most once on each player's turn. */
   oncePerTurn?: boolean;
   target: TargetChoice;
+  /** Spell abilities only: the target spec reaches two targets. Absent = one. */
+  targetCount?: TargetCount;
   ops: ScorableEffectOp[];
   static: StaticDef;
 }
@@ -292,11 +296,18 @@ function abilityToDef(ability: BuilderAbility): ScorableAbilityDef {
   return {
     when: ability.when,
     condition,
-    targets: ability.target === 'none' ? undefined : [{ what: ability.target }],
+    targets: ability.target === 'none' ? undefined : [{ what: ability.target, ...twoTargets(ability) }],
     ops: ability.ops,
     ...(filter ? { filter } : {}),
     ...(ability.oncePerTurn ? { oncePerTurn: true as const } : {}),
   };
+}
+
+/** The two-target part of a spell's target spec. The game fans only a spell's
+ * targets this way (a trigger always picks one), so any other trigger drops it. */
+function twoTargets(ability: BuilderAbility): Pick<TargetSpec, 'upTo' | 'exactly'> {
+  if (ability.when !== 'spell' || !ability.targetCount) return {};
+  return ability.targetCount === 'upTo' ? { upTo: 2 } : { exactly: 2 };
 }
 
 /** Drops unset keys so an untouched filter exports as no filter at all. */
@@ -333,6 +344,7 @@ function abilityFromDef(ability: ScorableAbilityDef): BuilderAbility {
     when: ability.when,
     ...condition,
     target: ability.targets?.[0]?.what ?? 'none',
+    ...(ability.targets?.[0]?.upTo ? { targetCount: 'upTo' as const } : ability.targets?.[0]?.exactly ? { targetCount: 'exactly' as const } : {}),
     ops: structuredClone(ability.ops ?? []),
     ...(ability.filter ? { filter: structuredClone(ability.filter) } : {}),
     ...(ability.oncePerTurn ? { oncePerTurn: true } : {}),

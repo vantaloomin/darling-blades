@@ -96,6 +96,62 @@ describe('Whispers scoring, section 4r', () => {
   });
 });
 
+// v4 (docs/plan-1.8.5.md, "The v4 formula"): keywords priced on their host.
+const creature = (extra: Partial<ScorableCardDef>): ScorableCardDef => artifact({
+  types: ['creature'], colors: ['R'], cost: { generic: 2, pips: { R: 1 } }, attack: 1, defense: 3, ...extra,
+});
+const partFor = (card: ScorableCardDef, prefix: string) => scoreCard(card).parts.find((part) => part.label.startsWith(prefix));
+
+describe('keywords priced on their host, v4', () => {
+  it('prices Twin Blades and Skyborne higher on a creature with more Attack, and Untouchable the same', () => {
+    for (const keyword of ['twinBlades', 'skyborne'] as const) {
+      const small = partFor(creature({ attack: 1, keywords: [keyword] }), keyword)!.v;
+      const big = partFor(creature({ attack: 5, keywords: [keyword] }), keyword)!.v;
+      expect(big, keyword).toBeGreaterThan(small);
+    }
+    const flat = (attack: number) => partFor(creature({ attack, keywords: ['untouchable'] }), 'untouchable')!.v;
+    expect(flat(5)).toBe(flat(1));
+  });
+
+  // Lane 2 measured the anthem factors with each granted keyword at its flat
+  // value, so an anthem's keyword must not also scale with the Attack the
+  // anthem adds. An aura's grant does scale: it lands on one known host.
+  it('prices an anthem\'s granted keyword flat, whatever power the anthem adds, unlike an aura\'s', () => {
+    const keywordShare = (scope: 'filter' | 'attached', p: number) => {
+      const withGrant = { scope, p, t: 0, grantKeywords: ['skyborne' as const] };
+      const without = { scope, p, t: 0 };
+      const types: ScorableCardDef['types'] = scope === 'filter' ? ['creature'] : ['enchantment'];
+      const value = (st: typeof without) => scoreCard(creature({ types, abilities: [{ when: 'static', static: st }] }))
+        .parts.find((part) => /^(anthem|aura) /.test(part.label))!.v;
+      return value(withGrant) - value(without);
+    };
+    expect(keywordShare('filter', 2)).toBeCloseTo(keywordShare('filter', 0), 6);
+    expect(keywordShare('attached', 2)).toBeGreaterThan(keywordShare('attached', 0));
+  });
+});
+
+describe('effects the slate found mispriced, v4', () => {
+  const ritual = (abilities: ScorableCardDef['abilities']): ScorableCardDef => artifact({
+    types: ['ritual'], colors: ['B'], cost: { generic: 2, pips: { B: 1 } }, abilities,
+  });
+
+  it('prices a symmetric -X/-X as the sweeper dealing X damage to each creature', () => {
+    for (const x of [1, 2, 3, 4]) {
+      const shrink = partFor(ritual([{ when: 'spell', ops: [{ op: 'boost', p: -x, t: -x, scope: 'all' }] }]), 'spell:')!.v;
+      const burn = partFor(ritual([{ when: 'spell', ops: [{ op: 'damage', n: x, to: 'eachCreature' }] }]), 'spell:')!.v;
+      expect(shrink, `-${x}/-${x}`).toBe(burn);
+    }
+  });
+
+  it('prices an effect on two targets once per target', () => {
+    const counters = (spec: { upTo?: 2; exactly?: 2 }) => partFor(ritual([{
+      when: 'spell', targets: [{ what: 'creature', ...spec }], ops: [{ op: 'addCounters', n: 1, to: 'target' }],
+    }]), 'spell:')!.v;
+    expect(counters({ upTo: 2 })).toBeCloseTo(2 * counters({}), 6);
+    expect(counters({ exactly: 2 })).toBeCloseTo(2 * counters({}), 6);
+  });
+});
+
 describe('Tithe scoring, section 4s', () => {
   it('is a flat +0.5 option', () => {
     const horror = artifact({
