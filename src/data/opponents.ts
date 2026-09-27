@@ -3972,6 +3972,43 @@ export const AVATARS: readonly Avatar[] = [
       ['sd-twinblade-at-the-prow', 2],
       ['sd-claw-prow-signaler', 2],
     ]),
+    // RETUNED 2026-09-27 for 1.8.5 (plan-1.8.5 lane 5). The card slate changed
+    // four cards in this list (Bastet herself {3}{W}{R} -> {4}{W}{R} without
+    // Warcry, Kesi 4/4 -> 3/4 with Rage, Twinblade at the Prow 3/3 -> 3/2
+    // with Rage, War Priestess {2}{W}{R} -> {3}{W}{R}). The 1.8.5 AI, which
+    // values keywords by attack, left the unchanged list at 74; with the
+    // slate the 2026-09-16 list fell from 73.60% to 63.60% mean (636/1000
+    // decided, 0 draws); cells
+    // 39.00/72.00/48.00/73.50/85.50%; the rung-22 gate read 67.0 at 40 seeds.
+    // Target: back to the 2026-09-16 level, not past it. Same 1,000 seeded
+    // games per variant and the same keep rules as below; trials ran in
+    // memory with the added cards at the end of the list.
+    // Singles on 63.60: KEPT -4 Lion-Gate Sentry; +2 Burn the Rope, +2 Break
+    // the Coil (both 2 -> 4): 68.90% (+5.30pp, no cell down); cells
+    // 43.50/78.50/56.00/78.50/88.00%. Burn that reaches the player is the
+    // lever; creature-only removal lost ground. REJECTED: Prow -> Blade-Dancer
+    // 65.20; War Priestess -> Blade-Dancer 63.30; Kesi -> Barge-Fire Warcaller
+    // 59.30; War Priestess -> Merya 61.50; -4 Sentry +2 Noon Judgment +2 Flame
+    // Beneath the Pan 61.00; -2 Sentry +2 Noon Judgment 60.20; Gate Chorus ->
+    // Fire Along the Barge 63.90; -4 Claw-Thread Lancer +2 Noon Judgment +2
+    // Break the Coil 65.40; -4 Dune-Pawed Outrider +4 Emberwake Runner 63.70.
+    // Singles on 68.90: KEPT -4 Claw-Thread Lancer; +4 Djetra, Who Counts the
+    // Ninth Step: 74.30% (+5.40pp, no cell down); cells
+    // 47.00/84.50/64.50/85.00/90.50%. Also qualifying: -2 Lancer +2 Djetra
+    // 72.80; Prow -> Tiaa 72.60; Prow -> Nebet 72.60. REJECTED: Prow ->
+    // Prowfire Volley 69.70; -2 Lancer +2 Noon Serpent Judgment 68.40; Gate
+    // Chorus -> Fire Along the Barge 69.00; Prow -> Light the Wake 69.40;
+    // Kesi -> Bakhet 64.70; War Priestess -> Bakhet 66.70; Prow -> Sahira
+    // 68.60. More Nine Lives bodies is the second lever.
+    // Combinations: Prow -> Tiaa with two Djetra 76.10 and Prow -> Nebet with
+    // two Djetra 75.20 (neither beats the four-Djetra single by 3pp); Prow ->
+    // Tiaa with four Djetra 80.00 (+5.70pp over it). NOT ADOPTED: the rule
+    // below would take the 80.00 list, but this pass undoes the patch's
+    // knock-on, and 80 leaves her about 6pp harder than before the patch. That
+    // list is the dial if she should be harder.
+    // COMMITTED list, measured in this file's order: 73.60% mean (736/1000
+    // decided, 0 draws); cells 47.50/84.00/61.50/87.50/87.50%. The rung-22
+    // gate reads 76.0 at 40 seeds.
     // MEASURED 2026-09-16: owner-ruling B1+B5, hard AI, 200 seeds/cell,
     // reserve-native avatar matrix; 73.60% mean (736/1000 decided, 0 draws).
     // Cells in Muster/Communion/Tides/Mandate/Harvest order:
@@ -4023,8 +4060,7 @@ export const AVATARS: readonly Avatar[] = [
     // is registered in HAND_TUNED_WARCHEST.
     reserveDeck: expand([
       ['sd-barge-pawed-spearwoman', 4],
-      ['sd-lion-gate-sentry', 4],
-      ['sd-claw-thread-lancer', 4],
+      ['sd-djetra-who-counts-the-ninth-step', 4],
       ['sd-pridewall-runner', 4],
       ['sd-dune-pawed-outrider', 4],
       ['sd-bakhet-gate-warden-of-the-lower-city', 2],
@@ -4034,8 +4070,8 @@ export const AVATARS: readonly Avatar[] = [
       ['sd-bastet-gate-chorus', 2],
       ['sd-bastet-mistress-of-the-ninth-return', 2],
       ['sd-twinblade-at-the-prow', 2],
-      ['sd-burn-the-rope', 2],
-      ['sd-break-the-coil', 2],
+      ['sd-burn-the-rope', 4],
+      ['sd-break-the-coil', 4],
     ]),
     landReserve: expand([
       ['sd-land-noon-barge-landing', 4],
@@ -4533,6 +4569,25 @@ export const AVATARS: readonly Avatar[] = [
       ['dd-drowned-bell', 2],
       ['dd-tide-that-remembers', 1],
     ]),
+    // RETUNED 2026-09-27 for 1.8.5 (plan-1.8.5 lane 5). The card slate raised
+    // The Price from {1}{B} to {2}{B} (Whispers {B} -> {1}{B}), four copies
+    // here. The 1.8.5 AI, which values keywords by attack, left the unchanged
+    // list at 64; with the slate the 2026-09-16 list fell from 66.40% to
+    // 60.00% mean (600/1000 decided,
+    // 0 draws); cells 30.50/64.00/57.00/79.50/69.00%; the rung-25 gate read
+    // 59.0 at 40 seeds against its 59.5 floor. Target: back to the 2026-09-16
+    // level. Same 1,000 seeded games per variant and the same keep rules as
+    // below; trials ran in memory with the added cards at the end of the list.
+    // KEPT -2 Tide Reader; +2 Thing in the Cistern (2 -> 4): 68.60% (+8.60pp,
+    // no cell down); cells 46.00/71.00/68.00/86.00/72.00%. REJECTED: The
+    // Price -> Salt in the Wound 59.50; The Price -> Tithe to the Deep 59.10;
+    // -4 The Price +2 of each 59.70; The Price -> Deep One Bride 58.40; Still
+    // Water -> Deep One Bride 60.00; Memory of the Drowned -> Tide Priestess
+    // 62.00. Other removal in The Price's slot buys nothing back; another
+    // tempo body does.
+    // COMMITTED list, measured in this file's order: 66.30% mean (663/1000
+    // decided, 0 draws); cells 39.50/67.00/64.00/84.50/76.50%. The rung-25
+    // gate reads 67.0 at 40 seeds.
     // MEASURED 2026-09-16: owner-ruling D1+D2+D5, hard AI, 200 seeds/cell,
     // reserve-native avatar matrix; 66.40% mean (664/1000 decided, 0 draws).
     // Cells in Muster/Communion/Tides/Mandate/Harvest order:
@@ -4588,7 +4643,6 @@ export const AVATARS: readonly Avatar[] = [
     reserveDeck: expand([
       ['dd-tide-clerk', 4],
       ['dd-current-caller', 2],
-      ['dd-tide-reader', 2],
       ['dd-harbour-looter', 2],
       ['dd-drowned-bell-choir', 2],
       ['dd-drowned-lighthouse-keeper', 2],
@@ -4596,7 +4650,7 @@ export const AVATARS: readonly Avatar[] = [
       ['dd-deep-one-hierophant', 3],
       ['dd-father-dagon', 1],
       ['dd-cold-current', 2],
-      ['dd-thing-in-the-cistern', 2],
+      ['dd-thing-in-the-cistern', 4],
       ['dd-still-water', 2],
       ['dd-the-price', 4],
       ['dd-undertow', 2],
@@ -4735,6 +4789,41 @@ export const AVATARS: readonly Avatar[] = [
       ['dd-the-price', 2],
       ['dd-salt-marsh-bargain', 2],
     ]),
+    // RETUNED 2026-09-27 for 1.8.5 (plan-1.8.5 lane 5); the reserve is now
+    // hand-tuned and registered in HAND_TUNED_WARCHEST. The card slate raised
+    // The Price from {1}{B} to {2}{B} (Whispers {B} -> {1}{B}), four copies
+    // here, and gave Coral-Mother 5/5 and Sentinel. The converter list fell
+    // from 74.80% to 64.70% mean (647/1000 decided, 0 draws); cells
+    // 48.00/61.00/60.00/77.00/77.50%; the rung-26 gate read 62.5 at 40 seeds
+    // against its 68.5 floor. The 1.8.5 AI is not the cause: the same list
+    // on the 1.8.1 AI reads 65.40 (48.00/63.00/60.00/76.00/80.00).
+    // Target: back to the 2026-09-16 level. Same 1,000 seeded games per
+    // variant and the same keep rules as below; existing rows keep their
+    // order and new IDs are appended, exactly as the trials ran.
+    // Singles on 64.70: KEPT -4 The Price; +4 Salt in the Wound: 69.30%
+    // (+4.60pp, no cell down); cells 52.50/74.00/62.50/78.50/79.00%.
+    // REJECTED: -2 The Price +2 Salt in the Wound 66.60; The Price -> Something
+    // Under the Wharf 64.60; The Price -> Deep One Bride 62.40; -4 The Price
+    // +2 of those two 63.00; The Price -> Reef Horror 66.70. Cheap removal is
+    // the lever, as the 2026-09-16 pass predicted; bodies are not.
+    // On 69.30, singles: Swarm -> Reef Growth 69.30; Wight -> Reef Growth
+    // 68.90; Swarm -> Old Growth 69.00; Wight -> Wharf Rat 70.50; Swarm ->
+    // Salt in the Eyes 71.20; two Kelp Shades -> Tidepool Warden 68.30; two
+    // Kelp Shades -> Wharf Rat 70.80; Swarm -> What the Sea Wants 66.70.
+    // None qualifies; the Mark payoffs add nothing on her.
+    // Also REJECTED on 64.70, keeping two The Price: -2 The Price, -2 Swarm;
+    // +4 Salt in the Wound 68.40. -2 The Price, -2 Wight; +4 Salt in the
+    // Wound 65.87 (1 draw). -2 The Price, -2 Swarm, -2 Wight; +4 Salt in the
+    // Wound, +2 Salt in the Eyes 68.50.
+    // KEPT as one surgery on 69.30: -2 Kelp Shade Swarm, -2 Marsh-Wight
+    // Lesser; +2 Salt in the Eyes, +2 Wharf Rat: 74.00% (+4.70pp; worst cell
+    // Mandate -1.50pp); cells 56.50/79.50/72.00/77.00/85.00%. It pairs the two
+    // best non-qualifying singles, so it was re-measured at 400 seeds/cell
+    // before keeping: base 62.84, the Salt list 68.75, this list 73.40. Over
+    // seeds 200-399 alone it still leads the Salt list by about 4.6pp.
+    // COMMITTED list: 74.00% mean at 200 seeds/cell (740/1000 decided,
+    // 0 draws); 73.40% at 400. The rung-26 gate reads 71.5 at 40 seeds.
+    // Classic deck, landReserve and Darlings stay unchanged.
     // MEASURED 2026-09-16: frozen V0 KEPT, hard AI, 200 seeds/cell,
     // reserve-native avatar matrix; 74.80% mean (748/1000 decided, 0 draws).
     // Cells in Muster/Communion/Tides/Mandate/Harvest order:
@@ -4780,7 +4869,6 @@ export const AVATARS: readonly Avatar[] = [
     reserveDeck: expand([
       ['dd-kelp-shade', 3],
       ['dd-kelp-shade-warden', 2],
-      ['dd-marsh-wight-lesser', 2],
       ['dd-horror-in-the-crib', 4],
       ['dd-deep-one-bride', 2],
       ['dd-something-under-the-wharf', 1],
@@ -4788,11 +4876,12 @@ export const AVATARS: readonly Avatar[] = [
       ['dd-coral-mother', 1],
       ['dd-marsh-mother-horror', 1],
       ['dd-net-full-of-stars', 4],
-      ['dd-kelp-shade-swarm', 2],
       ['dd-reef-bloom', 4],
       ['dd-tithe-to-the-deep', 4],
-      ['dd-the-price', 4],
       ['dd-salt-marsh-bargain', 4],
+      ['dd-salt-in-the-wound', 4],
+      ['dd-salt-in-the-eyes', 2],
+      ['dd-wharf-rat', 2],
     ]),
     landReserve: expand([
       ['land-swamp', 5],

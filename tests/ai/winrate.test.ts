@@ -287,6 +287,11 @@ describe('AI win-rate gates', () => {
     // under the current value is recorded, not applied. Her 2026-09-16 tuning
     // pass measured 73.60 on this harness; 74 here is the same number inside
     // the table's whole-percent rounding.
+    // RETUNED 2026-09-27 for 1.8.5: the card slate took her list to 63.60
+    // (gate 67.0); the attack-aware AI alone left it at 74. The retuned list
+    // (her opponents.ts entry has the pass) measures 73.60 at 200
+    // seeds/cell, 0 draws; 73.6 - 6.5 = 67.1, below the standing floor, so
+    // it is KEPT at 0.685. The gate reads 76.0.
     expect(r22.avg, 'Bastet floor').toBeGreaterThanOrEqual(0.685);
     expect(r20.avg, 'rung 20 must measure at or above rung 19').toBeGreaterThanOrEqual(r19.avg);
     for (const cell of [...r19.cells, ...r20.cells, ...r21.cells, ...r22.cells]) {
@@ -356,9 +361,20 @@ describe('AI win-rate gates', () => {
     expect(r26.cells).toHaveLength(5);
     // R25 The Drowned Deacon: 66 - 6.5 = 59.5. Muster (38) is the column the
     // tuning pass could not fully buy back.
+    // RETUNED 2026-09-27 for 1.8.5: the slate's dearer The Price took her
+    // list to 60.00 (gate 59.0); the attack-aware AI alone left it at 64. The
+    // retuned list (two more Things in the Cistern for the Tide Readers; her
+    // opponents.ts entry has the pass) measures 66.30 at 200 seeds/cell,
+    // 0 draws; 66.3 - 6.5 = 59.8, which rounds down to the same 59.5, so the
+    // floor is KEPT. The gate reads 67.0.
     expect(r25.avg, 'Drowned Deacon floor').toBeGreaterThanOrEqual(0.595);
     // R26 The Marsh-Mother: 75 - 6.5 = 68.5, on the converter-owned list that
     // #379 measured four surgeries against and kept unchanged.
+    // RETUNED 2026-09-27 for 1.8.5: the slate's dearer The Price took that
+    // list to 64.70 (gate 62.5), on either AI (65.40 on the 1.8.1 one). The
+    // hand-tuned list (her opponents.ts entry has the pass) measures 74.00 at
+    // 200 seeds/cell, 0 draws, and 73.40 at 400; 74.0 - 6.5 = 67.5, below the
+    // standing floor, so it is KEPT at 0.685. The gate reads 71.5.
     expect(r26.avg, 'Marsh-Mother floor').toBeGreaterThanOrEqual(0.685);
     for (const cell of [...r25.cells, ...r26.cells]) {
       expect(cell.games, 'new boss cell must field all 40 seeded games').toBe(40);
