@@ -1764,7 +1764,13 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   D7 the 1.8 balance items (the Hauntlink Apex slate rides 1.8.1; the top
   tier, rung 19 and collection dilution in wave 4); D9 the 1.9 sweep runs
   last before the cut on six personas if it fits in a night. Every decision
-  is ruled. Wave 0 cuts `release/1.9` from `main` (v1.8.5, ed1cb26).
+  is ruled. **Wave 0 began 2026-09-28** with four more rulings: the waves
+  re-ordered around the First Dawn critical path (D15: lane A split into A1
+  and A2, the art pilot before the cut, the first usage audit in wave 2),
+  the follow-ups logged at the 1.8.1 cut placed early as lane I (D14), the
+  sweep gaining personas in First Dawn's colours (D12), and the AI fixes
+  1.8.5 handed on approved (D13). Wave 0 fixes the duplicate comparator and
+  a Foresee-on-an-empty-deck rules bug, then cuts `release/1.9` from `main`.
 - **2.0 is the itch.io launch (owner ruling 2026-09-25).** The largest update
   the game has had, with the mobile overhaul, Core Set II and Story Mode, and
   the release that is posted on itch.io and advertised. No plan exists yet;
