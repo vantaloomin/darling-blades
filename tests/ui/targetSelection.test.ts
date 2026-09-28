@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { legalActions, validateAction } from '../../src/engine/actions';
 import { Game } from '../../src/engine/Game';
-import { cardIdOf, type TargetRef } from '../../src/engine/types';
+import { cardIdOf, type CardInstance, type TargetRef } from '../../src/engine/types';
 import {
-  confirmedTargetSelection, removeLastTargetSelection, targetSelectionStep, toggleTargetSelection,
+  confirmedTargetSelection, removeLastTargetSelection, sameTargetRef, targetSelectionStep, toggleTargetSelection,
   type TargetSelectionAction,
 } from '../../src/ui/targetSelection';
 import { board, card, dbOf, ref, spell } from '../drownedDeepFixture';
@@ -24,6 +24,7 @@ const db = dbOf(
 );
 
 const creatures = [1, 2, 3].map((iid) => ({ iid, cardId: 'body' }));
+const graveCard = (instanceId: number, cardId: string): CardInstance => ({ instanceId, cardId, variantKey: null });
 
 describe('exact-count target selection', () => {
   it('offers every member first and counts a canonical pair selected in reverse order', () => {
@@ -117,6 +118,35 @@ describe('ordered target slots', () => {
     expect(game.instanceState.battlefield.map((permanent) => permanent.plusOneCounters)).toEqual([0, 1, 0, 0]);
   });
 
+  it('keeps a graveyard pick on its card when the graveyard shifts before the actions are rebuilt', () => {
+    const state = board([['split'], []], creatures);
+    state.players[0].graveyard = [graveCard(501, 'bear'), graveCard(502, 'giant'), graveCard(503, 'bear')];
+    const before = legalActions(state, db, 0).filter((action) => action.type === 'castSpell');
+    const giant: TargetRef = { kind: 'grave', player: 0, index: 1, instanceId: 502 };
+    const picked = toggleTargetSelection(before, [], giant);
+    expect(picked).toEqual([giant]);
+
+    // The card under the giant leaves, so the giant now sits where the second bear did.
+    state.players[0].graveyard.splice(0, 1);
+    const after = legalActions(state, db, 0).filter((action) => action.type === 'castSpell');
+    const complete = confirmedTargetSelection(state, db, 0, after, toggleTargetSelection(after, picked, ref(2)));
+    expect(complete?.targets?.[0]).toEqual({ kind: 'grave', player: 0, index: 0, instanceId: 502 });
+    const game = Game.restore(state, db);
+    game.submit(0, complete!);
+    expect(game.instanceState.players[0].hand.map(cardIdOf)).toEqual(['giant']);
+  });
+
+  it('still matches a position-only graveyard pick against actions that carry identities', () => {
+    const state = board([['split'], []], creatures);
+    state.players[0].graveyard = [graveCard(501, 'bear'), graveCard(502, 'giant')];
+    const actions = legalActions(state, db, 0).filter((action) => action.type === 'castSpell');
+    const positionOnly: TargetRef = { kind: 'grave', player: 0, index: 1 };
+    const picked = toggleTargetSelection(actions, [positionOnly], ref(2));
+    expect(picked).toEqual([positionOnly, ref(2)]);
+    expect(confirmedTargetSelection(state, db, 0, actions, picked)?.targets)
+      .toEqual([{ kind: 'grave', player: 0, index: 1, instanceId: 502 }, ref(2)]);
+  });
+
   it('can repeat a legal ref for independent slots and undo the last slot separately', () => {
     const state = board([['shared'], []], creatures);
     const actions = legalActions(state, db, 0).filter((action) => action.type === 'castSpell');
@@ -178,5 +208,17 @@ describe('canonical target action confirmation', () => {
     for (const [index, target] of refs.entries()) {
       expect(targetSelectionStep(actions, [target]).complete).toBe(actions[index]);
     }
+  });
+});
+
+describe('graveyard target identity', () => {
+  it('compares by identity when both refs carry one and by position when either does not', () => {
+    const at = (index: number, instanceId?: number): TargetRef =>
+      ({ kind: 'grave', player: 0, index, ...(instanceId === undefined ? {} : { instanceId }) });
+    expect(sameTargetRef(at(1, 502), at(0, 502))).toBe(true);
+    expect(sameTargetRef(at(0, 501), at(0, 502))).toBe(false);
+    expect(sameTargetRef(at(1), at(1, 502))).toBe(true);
+    expect(sameTargetRef(at(1, 502), at(0))).toBe(false);
+    expect(sameTargetRef(at(1, 502), { kind: 'grave', player: 1, index: 1, instanceId: 502 })).toBe(false);
   });
 });

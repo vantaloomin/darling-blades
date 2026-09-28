@@ -10,6 +10,7 @@ import type { GameEvent } from '../engine/events';
 import type { CardDb, CardDef, GameState, PlayerId, TargetRef } from '../engine/types';
 import { activatedAbilitiesOf, def } from '../engine/types';
 import { activatedText, rulesText } from './rulesText';
+import { sameTargetRef } from './targetSelection';
 
 export type DuelSide = 'you' | 'opponent';
 export type TargetRingTone = 'friendly' | 'hostile';
@@ -245,13 +246,6 @@ export function dutyTargetsNeedPicker(targets: readonly TargetRef[], visibleIids
     (target.kind === 'permanent' && !visibleIids.has(target.iid)));
 }
 
-function sameDutyTarget(a: TargetRef, b: TargetRef): boolean {
-  if (a.kind === 'permanent' && b.kind === 'permanent') return a.iid === b.iid;
-  if (a.kind === 'player' && b.kind === 'player') return a.player === b.player;
-  if (a.kind === 'stackItem' && b.kind === 'stackItem') return a.sid === b.sid;
-  return a.kind === 'grave' && b.kind === 'grave' && a.player === b.player && a.index === b.index;
-}
-
 /**
  * Narrow only enumerated legal actions. Ordinary multi-target specs retain
  * their order (notably moveMark's donor and recipient); upTo targets form a
@@ -264,21 +258,21 @@ export function dutyTargetStep(
   unordered = false,
 ): { actions: DutyAction[]; targets: TargetRef[]; complete: DutyAction | null } {
   const duplicate = unordered && picked.some((target, index) =>
-    picked.slice(0, index).some((previous) => sameDutyTarget(previous, target)),
+    picked.slice(0, index).some((previous) => sameTargetRef(previous, target)),
   );
   const matches = duplicate ? [] : actions.filter((action) => {
     const targets = action.targets ?? [];
     return picked.every((target, index) => unordered
-      ? targets.some((candidate) => sameDutyTarget(candidate, target))
-      : targets[index] !== undefined && sameDutyTarget(targets[index], target));
+      ? targets.some((candidate) => sameTargetRef(candidate, target))
+      : targets[index] !== undefined && sameTargetRef(targets[index], target));
   });
   const targets: TargetRef[] = [];
   for (const action of matches) {
     const remaining = unordered
-      ? (action.targets ?? []).filter((target) => !picked.some((chosen) => sameDutyTarget(chosen, target)))
+      ? (action.targets ?? []).filter((target) => !picked.some((chosen) => sameTargetRef(chosen, target)))
       : (action.targets ?? []).slice(picked.length, picked.length + 1);
     for (const target of remaining) {
-      if (!targets.some((candidate) => sameDutyTarget(candidate, target))) targets.push(target);
+      if (!targets.some((candidate) => sameTargetRef(candidate, target))) targets.push(target);
     }
   }
   return {
