@@ -370,6 +370,10 @@ export function determinize(view: PlayerView, db: CardDb, seed = 1): Game {
     awaiting.cards = count > 0 ? library.slice(-count).reverse() : [];
   }
 
+  // The public zones go in as the view holds them: Game.restore deep-copies
+  // its whole input (normalizeState) before anything touches it, so the
+  // restored game shares no object with the view, and a second copy here only
+  // cost time on every simulated line (1.9 lane F).
   const state: GameState = {
     ...((view.rulesRev ?? 1) >= 2
       ? { rulesRev: view.rulesRev, episode: { resolvedSinceOffer: 0, reopensThisStep: 0 } }
@@ -380,15 +384,15 @@ export function determinize(view: PlayerView, db: CardDb, seed = 1): Game {
     activePlayer: view.activePlayer,
     step: view.step,
     players,
-    battlefield: structuredClone(view.battlefield),
-    stack: structuredClone(view.stack),
+    battlefield: view.battlefield,
+    stack: view.stack,
     stackClosed: view.stackClosed ?? false,
-    combat: structuredClone(view.combat),
+    combat: view.combat,
     fogThisTurn: view.fogThisTurn,
     awaiting,
     ...(view.creatureDiedThisTurn ? { creatureDiedThisTurn: true } : {}),
     ...(view.sunsetPendingWindow ? { sunsetPendingWindow: true } : {}),
-    ...(view.decisionResume ? { decisionResume: structuredClone(view.decisionResume) } : {}),
+    ...(view.decisionResume ? { decisionResume: view.decisionResume } : {}),
     // No fetch can be mid-flight at a Hard entry point, and stand-in lands
     // aren't `basic`, so this stays empty in sims — but it must exist so the
     // engine's pendingDecisions reads never hit undefined.

@@ -671,8 +671,19 @@ export class HardAI implements AIPlayer {
       this.openManaBuff(view),
       this.pers,
     );
-    const outcomeOf = (blocks: { blocker: number; attacker: number }[]) =>
-      this.aggregateOutcome(view, [{ type: 'declareBlockers', blocks }]);
+    // The climb revisits plans (undoing the last add rebuilds the plan it came
+    // from), and a simulation is a pure function of the view and the action,
+    // so each distinct assignment, order included, is simulated once.
+    const outcomes = new Map<string, ReturnType<HardAI['aggregateOutcome']>>();
+    const outcomeOf = (blocks: { blocker: number; attacker: number }[]) => {
+      const key = JSON.stringify(blocks);
+      let out = outcomes.get(key);
+      if (out === undefined) {
+        out = this.aggregateOutcome(view, [{ type: 'declareBlockers', blocks }]);
+        outcomes.set(key, out);
+      }
+      return out;
+    };
     const base = outcomeOf(mediumBlocks);
     if (!base) return { type: 'declareBlockers', blocks: mediumBlocks };
 
