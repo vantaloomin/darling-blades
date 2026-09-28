@@ -187,7 +187,7 @@ export const INSTANTS = [
     name: 'Stand as One',
     types: ['charm'],
     subtypes: [],
-    cost: cost(1, 'W'),
+    cost: cost(0, 'W'),
     colors: ['W'],
     abilities: [{ when: 'spell', ops: [{ op: 'boost', p: 1, t: 1, scope: 'allYours' }] }],
     rarity: 'r',
@@ -245,7 +245,7 @@ export const INSTANTS = [
     name: 'Reaper’s Due',
     types: ['charm'],
     subtypes: [],
-    cost: cost(2, 'B'),
+    cost: cost(3, 'B'),
     colors: ['B'],
     abilities: [
       {
@@ -253,7 +253,7 @@ export const INSTANTS = [
         targets: [{ what: 'creature' }],
         ops: [
           { op: 'destroy', to: 'target' },
-          { op: 'loseLife', n: 2, who: 'opponent' },
+          { op: 'loseLife', n: 1, who: 'opponent' },
         ],
       },
     ],

@@ -140,7 +140,12 @@ function cardLevelText(label: string, card: ScorableCardDef | undefined): string
   let match: RegExpExecArray | null;
   if ((match = /^body (-?\d+)\/(-?\d+)$/.exec(label))) return `Body ${match[1]}/${match[2]}`;
   if (Object.hasOwn(KEYWORD_NAMES, label)) return KEYWORD_NAMES[label as Keyword];
+  // A keyword priced on the creature's Attack names the Attack it used.
+  if ((match = /^(\w+) \(attack (-?\d+)\)$/.exec(label)) && Object.hasOwn(KEYWORD_NAMES, match[1])) {
+    return `${KEYWORD_NAMES[match[1] as Keyword]} (Attack ${match[2]})`;
+  }
   if (label.startsWith('rage on an attacker')) return `${KEYWORD_NAMES.rage} on an attacker`;
+  if (label === '3+ keyword stack') return 'Three or more keywords (stacking discount)';
   if (label.startsWith('awakening rider')) return `${MECHANIC_NAMES.championAwakening} (needs a way to awaken)`;
   if ((match = /^mana source(?: \((\d+) colou?rs\))?$/.exec(label))) return match[1] ? `Mana source (${match[1]} colors)` : 'Mana source';
   if (label === 'instant premium') return 'Charm speed';
@@ -210,6 +215,20 @@ function staticText(subject: string, statVerb: string, keywordVerb: string, p: s
   return `${subject} ${clauses.join(' and ')}`;
 }
 
+/**
+ * Why an extra land drop is worth what it is (§4v): the scorer prices the
+ * extra mana it gives on the turns before the land reserve runs out, from the
+ * turn the drop is cast on. `cast at 5, 4 turns before cap 10` reads "cast at
+ * 5 mana, 4 turns of extra mana before the 10-land cap".
+ */
+function rampDetail(detail: string): string {
+  const match = /^cast at (\d+), (\d+) turns before cap (\d+)$/.exec(detail);
+  if (!match) return plainWords(detail).toLowerCase();
+  const turns = Number(match[2]);
+  const extra = turns === 0 ? 'no extra mana' : `${plural(turns, 'turn', 'turns')} of extra mana`;
+  return `cast at ${match[1]} mana, ${extra} before the ${match[3]}-land cap`;
+}
+
 /** One effect (the part after a trigger prefix, or a bare spell effect). */
 function effectText(effect: string): string | null {
   let match: RegExpExecArray | null;
@@ -231,6 +250,10 @@ function effectText(effect: string): string | null {
   if ((match = /^\+1\/\+1 ×(\d+)$/.exec(effect))) {
     const mark = MECHANIC_NAMES.mark.toLowerCase();
     return `${match[1]} +1/+1 ${n(match[1]) === 1 ? mark : `${mark}s`}`;
+  }
+  if ((match = /^enters with \+1\/\+1 ×(\d+) \(body\)$/.exec(effect))) {
+    const mark = MECHANIC_NAMES.mark.toLowerCase();
+    return `${match[1]} +1/+1 ${n(match[1]) === 1 ? mark : `${mark}s`} on itself, priced as body`;
   }
   const pump = /^(pump|team pump|self pump|marked-team pump|symmetric pump|debuff) \+?(-?\d+)\/\+?(-?\d+)$/.exec(effect);
   if (pump) {
@@ -274,8 +297,9 @@ function effectText(effect: string): string | null {
   if ((match = /^each player sacrifices (\d+)$/.exec(effect))) {
     return n(match[1]) === 1 ? 'Each player sacrifices a creature' : `Each player sacrifices ${match[1]} creatures`;
   }
-  if ((match = /^extra land drop(?: ×(\d+))?$/.exec(effect))) {
-    return match[1] ? `${match[1]} extra land drops` : sentenceCase(opLabel('extraLandDrop'));
+  if ((match = /^extra land drop(?: ×(\d+))?(?: \((.+)\))?$/.exec(effect))) {
+    const drops = match[1] ? `${match[1]} extra land drops` : sentenceCase(opLabel('extraLandDrop'));
+    return match[2] ? `${drops} (${rampDetail(match[2])})` : drops;
   }
   if (effect.startsWith('propagate')) return MECHANIC_NAMES.propagate;
   if (effect === 'mark all your creatures') return `${MECHANIC_NAMES.mark} each creature you control`;
@@ -349,6 +373,13 @@ function stripMarkers(label: string): string {
 
 /** Translate one scorer label. `card` refines a few card-dependent phrasings. */
 export function translateLabel(label: string, card?: ScorableCardDef): LedgerLine {
+  // An effect that hits two chosen targets is priced once per target; the
+  // scorer says so with a `(2 targets)` suffix.
+  const fanned = /^(.*) \((\d+) targets\)$/.exec(label);
+  if (fanned) {
+    const inner = translateLabel(fanned[1], card);
+    return { ...inner, text: `${inner.text}, on each of ${fanned[2]} targets` };
+  }
   const estimate = NEEDS_MATH.test(label);
   const clean = stripMarkers(label);
   const cardLevel = cardLevelText(clean, card);

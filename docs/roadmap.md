@@ -1,4 +1,4 @@
-<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/scenes/LimitedDraftScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, tests/meta/draftPersonas.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-09-24 · review monthly -->
+<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/scenes/LimitedDraftScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, tests/meta/draftPersonas.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-09-28 · review monthly -->
 
 # Roadmap
 
@@ -1673,6 +1673,28 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
 
 ## Planned
 
+- **1.8.5, the scaling rebalance (BUILT AND STAGED 2026-09-28 on
+  `release/1.8.5`).** [plan-1.8.5.md](plan-1.8.5.md). The scorer priced every
+  creature keyword as a flat constant, so a Forge-built 10/1 Twin Blades flier
+  read Under Value.
+  - **The v4 scorer (#459).** Magic through 2020, 624,640 games in our own
+    engine and an audit of every other rate agree: Twin Blades, Skyborne, Blood
+    Oath, First Blade and Warcry scale with attack, Bulwark's penalty grows
+    with it, Deathblade shrinks with it, and the body is priced power over
+    toughness with a gentle taper. The lords and the level flags were measured
+    in-engine before any rate changed (D4, D6, D10).
+  - **The attack-aware AI (#461).**
+  - **A card slate that play backs (#460).** 131 changes were approved card by
+    card. The owner then kept only the 27 nerfs the metagame sweep backs with
+    play and reverted the other 48 (D11-D13).
+  - **Ramp priced by cast turn against the 10-land reserve (#462, D12).** Six
+    late-ramp buffs followed (#463, D14).
+  - **Lane 5 validation (#464).** Stand as One went to {W}, and seven summit
+    floors ratcheted up (D15-D17). The Drowned Deacon and the Marsh-Mother
+    were retuned back to their 2026-09-16 levels.
+
+  The result is 90 cards changed: 27 down, 63 up. Release notes:
+  [release-notes/v1.8.5.md](release-notes/v1.8.5.md).
 - **The 1.9 train (every decision ruled 2026-09-25; the 1.8.1 train is open).**
   [plan-1.9.md](plan-1.9.md) is the program plan. In: **First Dawn**, a
   fresh ~150-card set drafted by an Opus 5.5 agent (the July overplan is

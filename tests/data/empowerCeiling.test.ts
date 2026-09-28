@@ -29,9 +29,10 @@ const DESIGN_CEILING = 9;
 /** Cards knowingly printed at the hard cap. Adding a name here is a ruling. */
 // Renenutet left the allowlist 2026-08-29: the assay recost her to {4}{G} with
 // Empower {2}{G} (total 8, later reverted to {5}{G} printed = total 9, still
-// under). Silt-Crowned Harvester JOINED 2026-08-29: the owner's v3.1 ruling
-// put her at {5}{G}{G} + Empower {2}{G} = total 10, at the hard cap.
-const TOP_OF_CURVE = ['Silt-Fat Behemoth', 'Silt-Crowned Harvester'];
+// under). Silt-Crowned Harvester joined 2026-08-29 at {5}{G}{G} + Empower
+// {2}{G} = total 10 (the owner's v3.1 ruling) and left 2026-09-26: the 1.8.5
+// slate cut her Empower to {1}{G}, total 9.
+const TOP_OF_CURVE = ['Silt-Fat Behemoth'];
 
 interface EmpowerRow {
   name: string;
@@ -70,11 +71,12 @@ describe('Empower cost ceiling', () => {
   });
 
   it('pins the two cards the ruling recosted', () => {
-    // Harvester pin superseded by the owner's v3.1 ruling 2026-08-29:
-    // {5}{G}{G} (MV 7) + Empower {2}{G} (3) = total 10, allowlisted above.
+    // Harvester pin superseded by the owner's v3.1 ruling 2026-08-29 ({5}{G}{G}
+    // + Empower {2}{G} = 10), then by the 1.8.5 slate 2026-09-26:
+    // {5}{G}{G} (MV 7) + Empower {1}{G} (2) = total 9, at the design ceiling.
     const harvester = CARD_DB['sd-silt-crowned-harvester'];
     expect(manaValue(harvester.cost)).toBe(7);
-    expect(manaValue(harvester.empower!.cost)).toBe(3);
+    expect(manaValue(harvester.empower!.cost)).toBe(2);
 
     // Ra pin superseded by the same batch: {3}{W}{W}{R} keeps MV 6.
     const ra = CARD_DB['sd-ra-helm-of-the-night-barge'];

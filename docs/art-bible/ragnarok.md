@@ -61,7 +61,7 @@ patterned, never lettered.
 - **Prompt:** Fenrir, a towering Jotun giant-woman of the elemental wilds, in rough hide and rime-crusted plate, primal bone-and-gold jewelry; looming from a low angle, one stride that is itself an earthquake, the top of her head and hair well below the upper edge of the frame with generous empty storm-sky above her, against a shattered mountain pass under a bruised, wind-torn sky; slow, immovable, and entirely certain; a stark high key with a long cold rim down one flank — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Zhao Yun, the Deathless Dragon — `rg-zhaoyun`
-- **Card facts:** {4}{W}{W} · W · 4/4 · twinBlades · ur, legendary · holo: void
+- **Card facts:** {5}{W}{W} · W · 3/4 · twinBlades · ur, legendary · holo: void
 - **Character & source:** a genderbent Three Kingdoms Shu officer, returned deathless; mechanically an elite duelist who strikes twice, she calls the fallen back to the field.
 - **Personality / mood:** "Through a hundred thousand troops, and back — with the fallen carried out alive." — righteous and unfaltering — the oath outlived everyone who swore it.
 - **Pose & composition:** a single-combat lunge, spear driving through the guard; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -166,7 +166,7 @@ patterned, never lettered.
 - **Prompt:** Barrow-Jarl of the Deep Howe, a Draugr, a barrow-dead warrior risen from the howe, in rusted grave-mail and torn burial finery, cold grave-fire burning in the eye-sockets; hauling upright out of the grave-earth, blade first, against a cracked-open barrow mound spilling blue grave-light over black earth; hateful and patient, robbed of everything but the grudge; a cold blue grave-fire key, near-black fill — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Hilda, Berserker Chieftain — `rg-berserker-chieftain`
-- **Card facts:** {3}{R} · R · 4/3 · twinBlades · sr, legendary · holo: radiant foil
+- **Card facts:** {4}{R} · R · 4/3 · twinBlades, rage · sr, legendary · holo: radiant foil
 - **Character & source:** an Einherjar, an honored dead warrior of the feast-hall; mechanically an elite duelist who strikes twice.
 - **Personality / mood:** "The bite on the shield is hers. So is the one on the enemy." — grim and elated at once — dies every night, wins every morning.
 - **Pose & composition:** mid-stride into the charge, weapon already committed; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -241,7 +241,7 @@ patterned, never lettered.
 - **Prompt:** Valkyrie Vanguard, a winged Valkyrie, a chooser of the slain, in gold-chased scale mail over a great feathered cloak, a winged helm; descending mid-flight with wings flared, one boot about to touch the field, against a storm-lit battlefield seen from above the clouds, an aurora banding the sky; serene and judging, already deciding who the day remembers; a cold aurora key with a warm rune-gold rim off the mail — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Chooser of the Slain — `rg-chooser-of-the-slain`
-- **Card facts:** {4}{W} · W · 2/3 · skyborne · r · holo: shiny
+- **Card facts:** {4}{W} · W · 1/3 · skyborne · r · holo: shiny
 - **Character & source:** a winged Valkyrie, a chooser of the slain; mechanically an airborne threat, she brings a host with her.
 - **Personality / mood:** "Every fallen hero is a recruitment opportunity." — serene and judging, already deciding who the day remembers.
 - **Pose & composition:** descending mid-flight with wings flared, one boot about to touch the field; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.

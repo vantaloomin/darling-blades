@@ -239,7 +239,7 @@ smart-crop and preventing clipped silhouettes in the card window.
 - **Prompt:** Hounds of Annwn, a regal Otherworld hound, lean and ancient rather than cute, with moonlit eyes and a fae-court bearing, wearing a narrow pale-gold collar, blackthorn charms, and mossy spectral fur that integrates with the surrounding roots; low and forward in a fast three-quarter run, head and eyes held squarely in the central band; silent, inexorable, and already on the scent of a broken promise; against a mist road passing between standing stones and the open mouth of a hollow hill; cold moon key on the muzzle and shoulders; sickly green hill-light rim along the fur; reserve the entire top third as clear, empty moonlit mist or sky above the head, thorn crown, and antlers so no crown clips; no readable ogham, runes, letters, banners, cards, mirrors, or text anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Sidhe Silver-Lancer — `cf-sidhe-silver-lancer`
-- **Card facts:** {2}{W} · W · 3/3 · sentinel, firstBlade · r · holo: shiny
+- **Card facts:** {1}{W}{W} · W · 3/3 · firstBlade · r · holo: shiny
 - **Character & source:** an adult fae knight whose armor has grown from hedge, bark, and silver; mechanically a first-strike duelist, a steadfast boundary keeper.
 - **Personality / mood:** “Her lance arrives before the invitation does.” — chivalric, reserved, and wholly committed to a vow that predates the visitor.
 - **Pose & composition:** standing in a ready guard with the weapon held diagonally through the visible band; face ≈ y 320 and eye-line ≈ y 300–360. The entire top third stays clear empty sky or mist above the head, crown, antlers, and hair for crop-safe headroom.
@@ -584,7 +584,7 @@ smart-crop and preventing clipped silhouettes in the card window.
 - **Prompt:** Torclight Envoy, an adult fae diplomat whose hospitality is a precise form of power, wearing a pearl-white elongated cloak, restrained thorn crown, silver jewelry, and smooth oak-leaf armor; front three-quarter, camera pulled back slightly to a true waist-up view with her whole torso in frame, lantern held just below the face while the other hand offers passage; kindly, measuring, and impossible to read as harmless; against a moonlit court bridge over a glassy pool, blackthorn arches fading into mist; warm torc-lantern key across the hands; clean silver moon rim on the cloak; the very top of her head and thorn crown sits clearly below the top-third line — the entire top third is nothing but clear empty moonlit mist, generous open space above the crown so nothing clips; no readable ogham, runes, letters, banners, cards, mirrors, or text anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Laughing Pooka — `cf-laughing-pooka`
-- **Card facts:** {R}{R} · R · 4/1 · warcry · c · holo: none
+- **Card facts:** {R}{R} · R · 4/1 · c · holo: none
 - **Character & source:** an adult pooka trickster caught between elegant court form and a wild horse-shadow; mechanically an aggressive hunt leader.
 - **Personality / mood:** “It turns into a horse, a goat, and your worst alibi.” — laughing, insolent, and visibly one step ahead of the explanation.
 - **Pose & composition:** springing sideways in a dancer’s feint, cloak and shadow suggesting transformation without obscuring the face; face ≈ y 320 and eye-line ≈ y 300–360. The entire top third stays clear empty sky or mist above the head, crown, antlers, and hair for crop-safe headroom.

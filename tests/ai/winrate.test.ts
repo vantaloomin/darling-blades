@@ -225,9 +225,15 @@ describe('AI win-rate gates', () => {
     // list runs, and left her a reanimator with nothing worth reanimating
     // (4x Stormtower Resurrection raising a 3/2). She had fallen BELOW rung
     // 14 on the reserve field; she no longer does.
-    expect(r16.avg, 'The Bride floor').toBeGreaterThanOrEqual(0.625);
-    expect(r17.avg, 'Glass-Coffin Queen floor').toBeGreaterThanOrEqual(0.705);
-    expect(r18.avg, 'Abyssal Songstress floor').toBeGreaterThanOrEqual(0.82);
+    // 1.8.5 RE-BASELINE 2026-09-28 (final build, `--avatars --seeds 200`,
+    // FLAGS none): 71 - 6.5 = 64.5, so the floor RATCHETS UP 0.625 -> 0.645.
+    expect(r16.avg, 'The Bride floor').toBeGreaterThanOrEqual(0.645);
+    // 1.8.5 RE-BASELINE 2026-09-28 (final build, `--avatars --seeds 200`,
+    // FLAGS none): 78 - 6.5 = 71.5, so the floor RATCHETS UP 0.705 -> 0.715.
+    expect(r17.avg, 'Glass-Coffin Queen floor').toBeGreaterThanOrEqual(0.715);
+    // 1.8.5 RE-BASELINE 2026-09-28 (final build, `--avatars --seeds 200`,
+    // FLAGS none): 89 - 6.5 = 82.5, so the floor RATCHETS UP 0.82 -> 0.825.
+    expect(r18.avg, 'Abyssal Songstress floor').toBeGreaterThanOrEqual(0.825);
     expect(r15.avg, 'rung 15 must clear rung 14').toBeGreaterThan(r14.avg);
     // Restored 2026-08-23 as a genuine ordering check: R16 measures 69% to
     // R14's 63%, so the tolerance gate below is doing real work again rather
@@ -258,8 +264,12 @@ describe('AI win-rate gates', () => {
     expect(r21).toBeDefined();
     expect(r22).toBeDefined();
     if (!r19 || !r20 || !r21 || !r22) return;
-    expect(r19.avg, 'Queen of the Lanterned Roof floor').toBeGreaterThanOrEqual(0.65);
-    expect(r20.avg, 'Kitsune Neon Tyrant floor').toBeGreaterThanOrEqual(0.815);
+    // 1.8.5 RE-BASELINE 2026-09-28 (final build, `--avatars --seeds 200`,
+    // FLAGS none): 74 - 6.5 = 67.5, so the floor RATCHETS UP 0.65 -> 0.675.
+    expect(r19.avg, 'Queen of the Lanterned Roof floor').toBeGreaterThanOrEqual(0.675);
+    // 1.8.5 RE-BASELINE 2026-09-28 (final build, `--avatars --seeds 200`,
+    // FLAGS none): 90 - 6.5 = 83.5, so the floor RATCHETS UP 0.815 -> 0.835.
+    expect(r20.avg, 'Kitsune Neon Tyrant floor').toBeGreaterThanOrEqual(0.835);
     // R21 Anubis HAND-TUNED 33% -> 57%. Her converter build retained four
     // cards targeting artifactOrEnchantment into a format whose starter
     // columns hold none, so a tenth of her deck was blank in every game. The
@@ -322,7 +332,9 @@ describe('AI win-rate gates', () => {
     // she read 60, 1.5pp above 0.585 against a 6.5pp 40-seed band, the
     // narrowest margin on the ladder; the 2026-09-19 tuning pass found the
     // cause (no way to block a flier) and closed it.
-    expect(r23.avg, 'Chrome Broodmother floor').toBeGreaterThanOrEqual(0.655);
+    // 1.8.5 RE-BASELINE 2026-09-28 (final build, `--avatars --seeds 200`,
+    // FLAGS none): 74 - 6.5 = 67.5, so the floor RATCHETS UP 0.655 -> 0.675.
+    expect(r23.avg, 'Chrome Broodmother floor').toBeGreaterThanOrEqual(0.675);
     // R24 Violet Signal Queen: 71 - 6.5 = 64.5, so the floor RATCHETS UP
     // 0.615 -> 0.645. Same minus-6.5pp convention, rounded down to the half
     // point.
@@ -356,9 +368,24 @@ describe('AI win-rate gates', () => {
     expect(r26.cells).toHaveLength(5);
     // R25 The Drowned Deacon: 66 - 6.5 = 59.5. Muster (38) is the column the
     // tuning pass could not fully buy back.
-    expect(r25.avg, 'Drowned Deacon floor').toBeGreaterThanOrEqual(0.595);
+    // RETUNED 2026-09-27 for 1.8.5: the slate's dearer The Price took her
+    // list to 60.00 (gate 59.0); the attack-aware AI alone left it at 64. The
+    // retuned list (two more Things in the Cistern for the Tide Readers; her
+    // opponents.ts entry has the pass) measures 66.60 at 200 seeds/cell,
+    // 0 draws, on the final 83-card slate; 66.6 - 6.5 = 60.1, rounded down to
+    // the half point, so the floor RATCHETS UP 0.595 -> 0.60. The gate reads
+    // 67.5.
+    // 1.8.5 RE-BASELINE 2026-09-28 (final build, `--avatars --seeds 200`,
+    // FLAGS none): 67 - 6.5 = 60.5, so the floor RATCHETS UP 0.60 -> 0.605.
+    expect(r25.avg, 'Drowned Deacon floor').toBeGreaterThanOrEqual(0.605);
     // R26 The Marsh-Mother: 75 - 6.5 = 68.5, on the converter-owned list that
     // #379 measured four surgeries against and kept unchanged.
+    // RETUNED 2026-09-27 for 1.8.5: the slate's dearer The Price took that
+    // list to 64.70 (gate 62.5), on either AI (65.40 on the 1.8.1 one). The
+    // hand-tuned list (her opponents.ts entry has the pass) measures 74.10 at
+    // 200 seeds/cell, 0 draws, on the final 83-card slate (73.40 at 400 on the
+    // wider one); 74.1 - 6.5 = 67.6, below the standing floor, so it is KEPT
+    // at 0.685. The gate reads 72.0.
     expect(r26.avg, 'Marsh-Mother floor').toBeGreaterThanOrEqual(0.685);
     for (const cell of [...r25.cells, ...r26.cells]) {
       expect(cell.games, 'new boss cell must field all 40 seeded games').toBe(40);

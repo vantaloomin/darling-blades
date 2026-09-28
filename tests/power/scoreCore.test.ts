@@ -96,6 +96,130 @@ describe('Whispers scoring, section 4r', () => {
   });
 });
 
+// v4 (docs/plan-1.8.5.md, "The v4 formula"): keywords priced on their host.
+const creature = (extra: Partial<ScorableCardDef>): ScorableCardDef => artifact({
+  types: ['creature'], colors: ['R'], cost: { generic: 2, pips: { R: 1 } }, attack: 1, defense: 3, ...extra,
+});
+const partFor = (card: ScorableCardDef, prefix: string) => scoreCard(card).parts.find((part) => part.label.startsWith(prefix));
+
+describe('keywords priced on their host, v4', () => {
+  it('prices Twin Blades and Skyborne higher on a creature with more Attack, and Untouchable the same', () => {
+    for (const keyword of ['twinBlades', 'skyborne'] as const) {
+      const small = partFor(creature({ attack: 1, keywords: [keyword] }), keyword)!.v;
+      const big = partFor(creature({ attack: 5, keywords: [keyword] }), keyword)!.v;
+      expect(big, keyword).toBeGreaterThan(small);
+    }
+    const flat = (attack: number) => partFor(creature({ attack, keywords: ['untouchable'] }), 'untouchable')!.v;
+    expect(flat(5)).toBe(flat(1));
+  });
+
+  // Lane 2 measured the anthem factors with each granted keyword at its flat
+  // value, so an anthem's keyword must not also scale with the Attack the
+  // anthem adds. An aura's grant does scale: it lands on one known host.
+  it('prices an anthem\'s granted keyword flat, whatever power the anthem adds, unlike an aura\'s', () => {
+    const keywordShare = (scope: 'filter' | 'attached', p: number) => {
+      const withGrant = { scope, p, t: 0, grantKeywords: ['skyborne' as const] };
+      const without = { scope, p, t: 0 };
+      const types: ScorableCardDef['types'] = scope === 'filter' ? ['creature'] : ['enchantment'];
+      const value = (st: typeof without) => scoreCard(creature({ types, abilities: [{ when: 'static', static: st }] }))
+        .parts.find((part) => /^(anthem|aura) /.test(part.label))!.v;
+      return value(withGrant) - value(without);
+    };
+    expect(keywordShare('filter', 2)).toBeCloseTo(keywordShare('filter', 0), 6);
+    expect(keywordShare('attached', 2)).toBeGreaterThan(keywordShare('attached', 0));
+  });
+});
+
+describe('effects the slate found mispriced, v4', () => {
+  const ritual = (abilities: ScorableCardDef['abilities']): ScorableCardDef => artifact({
+    types: ['ritual'], colors: ['B'], cost: { generic: 2, pips: { B: 1 } }, abilities,
+  });
+
+  it('prices a symmetric -X/-X as the sweeper dealing X damage to each creature', () => {
+    for (const x of [1, 2, 3, 4]) {
+      const shrink = partFor(ritual([{ when: 'spell', ops: [{ op: 'boost', p: -x, t: -x, scope: 'all' }] }]), 'spell:')!.v;
+      const burn = partFor(ritual([{ when: 'spell', ops: [{ op: 'damage', n: x, to: 'eachCreature' }] }]), 'spell:')!.v;
+      expect(shrink, `-${x}/-${x}`).toBe(burn);
+    }
+  });
+
+  it('prices an effect on two targets once per target', () => {
+    const counters = (spec: { upTo?: 2; exactly?: 2 }) => partFor(ritual([{
+      when: 'spell', targets: [{ what: 'creature', ...spec }], ops: [{ op: 'addCounters', n: 1, to: 'target' }],
+    }]), 'spell:')!.v;
+    expect(counters({ upTo: 2 })).toBeCloseTo(2 * counters({}), 6);
+    expect(counters({ exactly: 2 })).toBeCloseTo(2 * counters({}), 6);
+  });
+});
+
+// §4v (1.8.5 ramp lane): an extra land drop is worth the extra untapped mana it
+// gives before the Warchest land reserve runs out, from the turn it is cast on.
+describe('extra land drops priced by the turn they are cast on, section 4v', () => {
+  const rampRitual = (mv: number, n = 1, extra: Partial<ScorableCardDef> = {}): ScorableCardDef => artifact({
+    types: ['ritual'], colors: ['G'], cost: { generic: mv - 1, pips: { G: 1 } },
+    abilities: [{ when: 'spell', ops: [{ op: 'extraLandDrop', ...(n > 1 ? { n } : {}) }] }], ...extra,
+  });
+  const dawnEngine = (mv: number, n = 1, types: ScorableCardDef['types'] = ['enchantment']): ScorableCardDef => artifact({
+    types, colors: ['G'], cost: { generic: mv - 1, pips: { G: 1 } },
+    ...(types.includes('creature') ? { attack: 2, defense: 2 } : {}),
+    abilities: [{ when: 'dawn', ops: [{ op: 'extraLandDrop', ...(n > 1 ? { n } : {}) }] }],
+  });
+  const ramp = (card: ScorableCardDef) => scoreCard(card).parts
+    .filter((part) => part.label.includes('extra land drop')).reduce((s, part) => s + part.v, 0);
+  const option = (card: ScorableCardDef, label: string) => scoreCard(card).parts.find((part) => part.label === label)!.v;
+
+  it('keeps the Rampant Growth anchor: one extra land drop at mana value 2 is 1.9, and 0.75 of it on arrival', () => {
+    expect(ramp(rampRitual(2))).toBeCloseTo(1.9, 2);
+    const seer = artifact({ types: ['creature'], attack: 1, defense: 1, colors: ['G'], cost: { generic: 1, pips: { G: 1 } },
+      abilities: [{ when: 'arrives', ops: [{ op: 'extraLandDrop' }] }] });
+    expect(ramp(seer)).toBeCloseTo(1.9 * 0.75, 2);
+  });
+
+  it('prices a later-cast extra land drop lower, down to nothing once the reserve cap is reached', () => {
+    // Warchest: 10 lands in the reserve, one a turn, and an extra drop enters
+    // tapped. Cast at 9 mana, the extra land pays nothing before both players
+    // sit at 10 lands.
+    const values = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((mv) => ramp(rampRitual(mv)));
+    for (let i = 1; i < values.length - 1; i++) expect(values[i], `mana value ${i + 1}`).toBeLessThan(values[i - 1]);
+    expect(values[8]).toBe(0);
+  });
+
+  it('prices several drops at once below that many single drops: the reserve runs out sooner', () => {
+    for (const mv of [3, 4, 5]) {
+      expect(ramp(rampRitual(mv, 3)), `mana value ${mv}`).toBeLessThan(3 * ramp(rampRitual(mv)));
+      expect(ramp(rampRitual(mv, 2))).toBeGreaterThan(ramp(rampRitual(mv)));
+    }
+  });
+
+  it('bounds a Dawn engine by the cap: later engines are worth less, and two drops a Dawn less than twice one', () => {
+    const dawn = [2, 3, 4, 5, 6, 7].map((mv) => ramp(dawnEngine(mv)));
+    for (let i = 1; i < dawn.length; i++) expect(dawn[i], `mana value ${i + 2}`).toBeLessThan(dawn[i - 1]);
+    // At every Dawn, the extra land still cannot beat filling the reserve on the turn it is cast.
+    for (const mv of [2, 4, 6]) expect(ramp(dawnEngine(mv))).toBeLessThan(ramp(rampRitual(mv, 10)));
+    expect(ramp(dawnEngine(5, 2))).toBeLessThan(2 * ramp(dawnEngine(5)));
+  });
+
+  it('discounts a creature carrying a Dawn engine against a non-creature, as for any Dawn trigger', () => {
+    expect(ramp(dawnEngine(4, 1, ['creature']))).toBeLessThan(ramp(dawnEngine(4)));
+  });
+
+  it('prices Empower and Retell ramp at the mana they are cast for', () => {
+    const empowered = (empowerMv: number) => artifact({
+      types: ['creature'], attack: 3, defense: 4, colors: ['G'], cost: { generic: 3, pips: { G: 1 } },
+      empower: { cost: { generic: empowerMv, pips: {} }, ops: [{ op: 'extraLandDrop' }] },
+    });
+    expect(option(empowered(1), 'empower option')).toBeGreaterThan(option(empowered(3), 'empower option'));
+    const retold = (retellMv: number) => rampRitual(4, 1, { retell: { cost: { generic: retellMv - 1, pips: { G: 1 } } } });
+    expect(option(retold(3), 'retell option')).toBeGreaterThan(option(retold(6), 'retell option'));
+  });
+
+  it('prices a drop granted at Sunset at nothing: no land can be played after it', () => {
+    const sunset = artifact({ types: ['enchantment'], colors: ['G'], cost: { generic: 1, pips: { G: 1 } },
+      abilities: [{ when: 'sunset', ops: [{ op: 'extraLandDrop' }] }] });
+    expect(ramp(sunset)).toBe(0);
+  });
+});
+
 describe('Tithe scoring, section 4s', () => {
   it('is a flat +0.5 option', () => {
     const horror = artifact({

@@ -263,7 +263,12 @@ noisy — deviations must earn their keep.
 - **Terminal states dominate** — win `+1e6`, loss `−1e6`, draw `−500`.
 
 `permValue`/`cardValue` (`value.ts`) score a card by mana value + (P+T)/2 +
-keyword bonuses + a lord/legendary and triggered-ability premium. On the
+keyword bonuses + a lord/legendary and triggered-ability premium. Since 1.8.5
+the combat keywords with a measured attack shape (Skyborne, Twin Blades, First
+Blade, Blood Oath, Warcry, Bulwark, Deathblade) scale with the carrier's
+attack: printed on a hand card, effective on the battlefield, after the rider
+for an awakening or Hauntlink grant. A 3-attack creature keeps its old value;
+Deathblade shrinks as attack grows (plan-1.8.5 lane 4). On the
 battlefield a marked creature carries a further **0.5 premium plus 0.15 per
 extra mark** (`markedBodyValue`): a mark is what Propagate compounds and what
 thresholds count, so it tips even trades in combat and block math without
@@ -412,8 +417,9 @@ and the two brain gates play the TEST_DB decks, so every gate in
 `tests/ai/winrate.test.ts` should read exactly as before; the next gate run
 confirms it. The Darlings lists carry one to three singleton paid Duties,
 mostly life gain, tokens and Foresee; the combat-relevant ones are Wrecker of
-the Reach (rung 5), Ember-Lane Flare (rung 23), Deepfield Array (rungs 24 and
-25) and Cellar Jar (rungs 24 to 26). Ten Darlings games each for rungs 5 and
+the Reach (rung 5), Ember-Lane Flare (rung 23) and Cellar Jar (rungs 24 to
+26). Deepfield Array (rungs 24 and 25) also appears there, but its Duty costs
+only the tap, so it is not a paid Duty. Ten Darlings games each for rungs 5 and
 23-26 used the new branch zero times. On the synthetic list above, over ten
 games, Medium used 14 paid Duties in main one and 12 in main two (0 and 15
 before G9), Hard 6 and 4 (0 and 9).

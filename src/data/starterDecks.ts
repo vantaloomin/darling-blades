@@ -61,9 +61,11 @@ export const STARTER_DECKS: DeckList[] = [
       ['gk-hoplite', 4],
       ['bk-dragonmaid', 4],
       ['gk-ares', 4],
-      ['tk-other-lubu', 4],
+      ['tk-other-lubu', 2],
       ['gk-nike', 4],
       ['gk-hestia', 4],
+      ['tk-shu-guanyu', 1],
+      ['sd-ra-helm-of-the-night-barge', 1],
     ]),
     landReserve: expand([
       ['land-mountain', 6],

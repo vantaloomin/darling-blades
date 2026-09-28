@@ -657,6 +657,35 @@ export interface Avatar {
  * D7 balance items: tune those four Darlings lists, then gate the Darlings
  * rows so it cannot recur unseen.
  *
+ * 2026-09-28 - THE 1.8.5 RE-MEASURE (release tip b29c31d: the v4 scorer, the
+ * attack-aware AI, the 89-card slate and the §4v ramp pricing; see
+ * docs/plan-1.8.5.md). `--avatars --seeds 200` in four shards, 26,000 games,
+ * FLAGS none. Against the AI-only build (lane 4, same seeds) the summit rungs
+ * 21-26 sit within 3 points; the retunes held (Deacon 67, Marsh-Mother 74,
+ * Bastet 75 on her release list). Rows that moved more than 3 points:
+ * R6 Sima Yi 25 -> 43 (his converter reserve now carries the buffed Nadira and
+ * Two for the Ferrywoman; his Communion cell 16 -> 77; this closes the R6/R5
+ * inversion, ruled accepted), R10 Brunhild 78 -> 72 and R13 Morgan 51 -> 47
+ * (both inside their bands). Across the ladder the bosses gain 2.1 points on
+ * Crimson Muster (Lu Bu's nerf) and within 1.3 on the other four starters.
+ * Seven summit floors ratchet up on this table (tests/ai/winrate.test.ts).
+ * Stand as One went to {W} after this run (Hera's reserve now runs four, for
+ * one Nike and one Iris), so R4 was re-measured separately: 31 -> 27
+ * (16/39/26/30/24), inside her 22-62 band; her Darlings row 53 -> 54.
+ *
+ * FLOORS, same build: `--floors --seeds 80`, every floor within 3.7 points of
+ * the AI-only build. One flag: F15 (T5) reads 50.0 against its 50 band
+ * minimum (52.0 on 1.8.1, 53.5 AI-only), a noise-level dip, recorded.
+ *
+ * DARLINGS ROWS, same build: `--avatars-darlings --seeds 200` on all 26 rows,
+ * run on 1.8.5 AND on 1.8.1 (b4973a9), 26,000 games each, FLAGS none. The
+ * five precon columns move 2.5 points at most on average. Rows that moved 4
+ * or more: R4 Hera 41 -> 53 (her converter list gained the buffed Gatekeeper
+ * Judge; ruled accepted), R16 The Storm-Crowned Bride 51 -> 58 (the Bride
+ * herself gained Skyborne), R15 Carmilla 66 -> 62, R26 Marsh-Mother 28 -> 32.
+ * The four newest summit bosses are still pushovers in this format (R23-R26
+ * at 11-32), carried to 1.9 as recorded above.
+ *
  * 2026-07-31 - RESERVE FORMAT BASELINES (1.5.5 reveal gate; the two
  * matrices the 1.5.0 release split left TO MEASURE). SUPERSEDED 2026-08-09
  * by the dated table above; retained as history. STALE 2026-08-06:
@@ -775,7 +804,7 @@ export const AVATARS: readonly Avatar[] = [
       'sd-flood-mark-shaman',
       'dt-chart-the-reef-road',
       'bk-boarkin-rootbreaker',
-      'dd-drowned-druid',
+      'sd-deeper-flood-channel',
       'dd-marsh-wight',
       'dd-the-marsh-remembers',
       'dd-kelp-shade-warden',
@@ -829,7 +858,7 @@ export const AVATARS: readonly Avatar[] = [
       'dd-the-reef-that-walks',
       'ar-siege-juggernaut',
       'cf-green-knoll-champion',
-      'dd-tidepool-colossus',
+      'dd-kelp-wall',
       'ac-bramble-chapel',
       'cf-mossy-ring',
       'dt-wolf-path',
@@ -907,7 +936,7 @@ export const AVATARS: readonly Avatar[] = [
       'yn-quiet-the-street',
       'so-judgment-of-heaven',
       'dt-twelve-dancing-heiresses',
-      'ar-imperial-jade-seal',
+      'in-stand-as-one',
       'dd-rite-of-the-salt-gate',
       'dd-bell-hand',
       'cf-briar-veil-banishing',
@@ -938,7 +967,7 @@ export const AVATARS: readonly Avatar[] = [
       'gm-choir-of-the-dead',
       'ar-training-dummy',
       'dd-bell-ringer-abbess',
-      'tk-shu-guanping',
+      'rg-valkyrie-vanguard',
       'ac-keep-watchwoman',
       'bk-mousekin-pantry-guard',
       'tk-shu-guansuo',
@@ -955,7 +984,7 @@ export const AVATARS: readonly Avatar[] = [
       'ac-lance-of-dawn',
       'dd-salt-ward',
       'dd-widows-lantern',
-      'dt-gilded-cage',
+      'sd-alabaster-usher',
       'ar-siege-juggernaut',
       'sd-keeper-of-the-salt-room',
     ],
@@ -1037,7 +1066,7 @@ export const AVATARS: readonly Avatar[] = [
       'cf-thornmaze-patrol',
       'dd-salt-fire-witch',
       'cf-blackthorn-duelist',
-      'gm-glasshouse-monster',
+      'sd-flood-mark-shaman',
       'dd-gale-rider',
       'ac-grail-hermit',
       'dt-chart-the-reef-road',
@@ -1047,14 +1076,14 @@ export const AVATARS: readonly Avatar[] = [
       'sd-noon-judgment',
       'in-skysweeper-gale',
       'bk-rhinokin-charger',
-      'bk-dragonmaid',
+      'rg-jotun-earthshaker',
       'bk-harpy-skirmisher',
       'bk-boarkin-rioter',
       'tk-wei-xiahouyuan',
       'bk-wolfkin-raider',
       'bk-bearkin-guardian',
       'tk-other-huaxiong',
-      'gm-moonlit-werewolf',
+      'dd-false-lamp-bearer',
       'sd-flood-fed-colossus',
       'dt-wolf-at-the-door',
       'sd-ashwake-twinblade',
@@ -1062,7 +1091,7 @@ export const AVATARS: readonly Avatar[] = [
       'dd-tidepool-wall',
       'sd-serpent-wake-raider',
       'tk-wei-xiahoudun',
-      'tk-shu-weiyan',
+      'dt-briar-hedge-matriarch',
       'sd-deep-flood-behemoth',
       'bk-deerkin-grovekeeper',
       'dt-thorn-castle-warden',
@@ -1130,9 +1159,9 @@ export const AVATARS: readonly Avatar[] = [
     reserveDeck: expand([
       ['gk-hera', 3],
       ['bk-bunny-vanguard', 4],
-      ['gk-nike', 4],
-      ['gk-iris', 4],
-      ['in-stand-as-one', 2],
+      ['gk-nike', 3],
+      ['gk-iris', 3],
+      ['in-stand-as-one', 4],
       ['gk-thanatos', 3],
       ['gk-apollo', 3],
       ['gk-eos', 2],
@@ -1148,7 +1177,7 @@ export const AVATARS: readonly Avatar[] = [
     ]),
     darlingsDeck: [
       'sd-two-for-the-ferrywoman',
-      'cf-badb-cathas-warning',
+      'sd-gatekeeper-judge',
       'in-stand-as-one',
       'sd-crown-bearer-of-the-last-hall',
       'ac-quest-for-the-grail',
@@ -1215,7 +1244,7 @@ export const AVATARS: readonly Avatar[] = [
       'yn-oni-bounty-agent',
       'ac-keep-watchwoman',
       'bk-batkin-duskwing',
-      'dd-breakwater-warden',
+      'cf-sidhe-page',
       'dd-wharf-rat',
       'tk-other-dongbai',
       'ac-novice-squire',
@@ -1225,7 +1254,7 @@ export const AVATARS: readonly Avatar[] = [
       'ac-lance-of-dawn',
       'dd-salt-ward',
       'dd-widows-lantern',
-      'dt-gilded-cage',
+      'dd-wharf-watch',
     ],
     darlingId: 'gk-hera',
   },
@@ -1336,7 +1365,7 @@ export const AVATARS: readonly Avatar[] = [
       'tk-other-lulingqi',
       'tk-wei-xiahouyuan',
       'tk-wu-sunshangxiang',
-      'cf-laughing-pooka',
+      'tk-jin-guanqiujian',
       'sd-sun-rope-charger',
       'sd-barge-deck-raider',
       'tk-wu-chengpu',
@@ -1350,8 +1379,8 @@ export const AVATARS: readonly Avatar[] = [
       'dt-desert-rooftop',
       'sd-barge-fire-warcaller',
       'sd-twinblade-at-the-prow',
-      'gm-moonlit-werewolf',
-      'yn-rainflash-duelist',
+      'sd-sandwake-dasher',
+      'sd-ash-coil-prowler',
     ],
     darlingId: 'gk-ares',
   },
@@ -1401,9 +1430,10 @@ export const AVATARS: readonly Avatar[] = [
       ['tk-wei-chenqun', 4],
       ['tk-jin-zhonghui', 1],
       ['in-doom-bolt', 4],
-      ['in-reapers-due', 2],
       ['so-night-extortion', 4],
       ['so-dirge-of-loss', 4],
+      ['sd-nadira-keeper-of-the-final-toll', 1],
+      ['sd-two-for-the-ferrywoman', 1],
     ]),
     landReserve: expand([
       ['ld-moonlit-marsh', 4],
@@ -1414,7 +1444,7 @@ export const AVATARS: readonly Avatar[] = [
       'in-reapers-due',
       'so-night-extortion',
       'sd-two-for-the-ferrywoman',
-      'cf-badb-cathas-warning',
+      'sd-gatekeeper-judge',
       'in-doom-bolt',
       'sd-copy-kept-in-resin',
       'gm-nocturne-manor',
@@ -1427,7 +1457,7 @@ export const AVATARS: readonly Avatar[] = [
       'sd-fourth-weighing',
       'cf-hollow-hill-gatekeeper',
       'sd-keeper-of-the-fifth-channel',
-      'yn-blue-ghost-broadcaster',
+      'gm-stitchwork-guardian',
       'tk-shu-yueying',
       'tk-wu-luxun',
       'en-persephones-return',
@@ -1458,7 +1488,7 @@ export const AVATARS: readonly Avatar[] = [
       'tk-jin-simashi',
       'tk-jin-jiachong',
       'bk-lamia-nightblade',
-      'gm-black-veil-matron',
+      'ar-siege-juggernaut',
       'tk-wei-jiaxu',
       'yn-network-sprite',
       'tk-jin-yang-huiyu',
@@ -1468,7 +1498,7 @@ export const AVATARS: readonly Avatar[] = [
       'dd-thing-in-the-cistern',
       'tk-jin-xinxianying',
       'gk-hermes',
-      'gm-blood-opera-soloist',
+      'tk-other-zuoci',
       'ar-training-dummy',
       'gm-screaming-staircase',
       'sd-chart-keeper-of-the-two-ways',
@@ -1477,7 +1507,7 @@ export const AVATARS: readonly Avatar[] = [
       'gm-batcloak-cutthroat',
       'tk-jin-simazhao',
       'tk-jin-xiahouhui',
-      'dd-drowned-lighthouse-keeper',
+      'tk-wei-wangyi',
       'tk-wu-lumeng',
       'bk-batkin-duskwing',
       'bk-kitsune-illusionist',
@@ -1559,7 +1589,7 @@ export const AVATARS: readonly Avatar[] = [
       'yn-azure-oni-broker',
       'sd-heart-scale-reliquary',
       'sd-fourth-weighing',
-      'cf-hollow-hill-gatekeeper',
+      'gm-stitchwork-guardian',
       'ac-green-knight-challenge',
       'bk-boarkin-rootbreaker',
       'sd-silt-crowned-harvester',
@@ -1608,10 +1638,10 @@ export const AVATARS: readonly Avatar[] = [
       'rg-jotun-earthshaker',
       'yn-jade-root-yokai',
       'bk-packmother',
-      'tk-jin-zhonghui',
+      'sd-silt-field-champion',
       'dd-drowned-scholar',
       'tk-jin-dengai',
-      'sd-navigator-of-the-last-channel',
+      'tk-other-zuoci',
       'bk-bearkin-guardian',
       'bk-squirrelkin-hoarder',
       'ar-training-dummy',
@@ -1682,7 +1712,7 @@ export const AVATARS: readonly Avatar[] = [
     darlingsDeck: [
       'tk-wei-zhangliao',
       'sd-two-for-the-ferrywoman',
-      'cf-badb-cathas-warning',
+      'sd-gatekeeper-judge',
       'sd-crown-bearer-of-the-last-hall',
       'ac-quest-for-the-grail',
       'in-doom-bolt',
@@ -1743,7 +1773,7 @@ export const AVATARS: readonly Avatar[] = [
       'dd-bell-ringer-abbess',
       'sd-the-heavier-offering',
       'yn-oni-bounty-agent',
-      'gk-nyx',
+      'cf-cold-moon-archer',
       'ac-keep-watchwoman',
       'tk-other-chengong',
       'tk-shu-fazheng',
@@ -2215,7 +2245,7 @@ export const AVATARS: readonly Avatar[] = [
       'dd-jar-witch',
       'cf-heatherblade-scout',
       'sd-floodwall-matriarch',
-      'dt-sugar-cottage-witch',
+      'yn-greenline-bruiser',
       'rg-jotun-earthshaker',
       'yn-jade-root-yokai',
       'cf-hazelwand-mystic',
@@ -2314,7 +2344,7 @@ export const AVATARS: readonly Avatar[] = [
       'cf-blackthorn-duelist',
       'cf-willow-wisp-guide',
       'cf-cauldron-of-dagda',
-      'yn-blue-ghost-broadcaster',
+      'gm-moon-doll-orchestra',
       'cf-fae-court-tokenmaker',
       'ac-ashwood-ranger',
       'dd-marsh-grave-risen',
@@ -2364,7 +2394,7 @@ export const AVATARS: readonly Avatar[] = [
       'yn-jade-root-yokai',
       'cf-hazelwand-mystic',
       'dd-drowned-scholar',
-      'sd-navigator-of-the-last-channel',
+      'sd-silt-field-champion',
       'ac-root-chapel-warden',
       'gk-hermes',
       'ar-training-dummy',
@@ -2733,16 +2763,16 @@ export const AVATARS: readonly Avatar[] = [
       ['gm-batcloak-cutthroat', 4],
       ['gm-manor-thrall', 4],
       ['gm-midnight-bite', 4],
-      ['tk-other-lubu', 1],
-      ['sd-ammit-under-the-scale', 1],
+      ['sd-nadira-keeper-of-the-final-toll', 1],
       ['sd-two-for-the-ferrywoman', 1],
       ['cf-badb-cathas-warning', 1],
       ['cf-bean-sidhe-keening', 1],
       ['gm-madame-macabre', 1],
       ['gm-dracula-ball-invite', 1],
-      ['dd-storm-surge', 1],
       ['dd-tithe-to-the-deep', 1],
-      ['rg-ragnarok', 1],
+      ['tk-wu-sunce', 1],
+      ['sd-sun-rope-hauler', 1],
+      ['ac-black-chapel-curse', 1],
     ]),
     landReserve: expand([
       ['ld-burning-luoyang', 4],
@@ -2753,7 +2783,7 @@ export const AVATARS: readonly Avatar[] = [
       'gm-ravenloft-heiress',
       'sd-two-for-the-ferrywoman',
       'gm-nocturne-manor',
-      'cf-badb-cathas-warning',
+      'sd-gatekeeper-judge',
       'gm-midnight-bite',
       'ac-fall-of-camelot',
       'dd-wreckfire',
@@ -2774,7 +2804,7 @@ export const AVATARS: readonly Avatar[] = [
       'dd-salt-fire-witch',
       'en-persephones-return',
       'dd-gale-rider',
-      'rg-warband-leader',
+      'yn-burning-mask-of-the-void',
       'cf-crowbone-prophet',
       'dt-sea-witch-contract',
       'dt-sandstorm-carpet-rider',
@@ -2796,7 +2826,7 @@ export const AVATARS: readonly Avatar[] = [
       'ar-siege-juggernaut',
       'gm-widow-of-the-west-wing',
       'gm-wolfbitten-hunter',
-      'bk-dragonmaid',
+      'dd-wrecker',
       'dd-storm-choir',
       'tk-wu-sunce',
       'sd-sun-rope-hauler',
@@ -2804,7 +2834,7 @@ export const AVATARS: readonly Avatar[] = [
       'ac-oathbroken-knight',
       'ac-tournament-favorite',
       'dd-false-lamp-bearer',
-      'sd-ashwake-twinblade',
+      'dt-woodcutters-daughter',
       'yn-redline-kitsune',
       'ar-training-dummy',
       'dd-wreck-runner',
@@ -2815,7 +2845,7 @@ export const AVATARS: readonly Avatar[] = [
       'tk-wei-jiaxu',
       'yn-bloodline-tollkeeper',
       'bk-wolfkin-raider',
-      'cf-laughing-pooka',
+      'tk-other-lulingqi',
       'gm-stitched-hound',
       'tk-wu-handang',
       'tk-other-warband-captain',
@@ -4324,10 +4354,10 @@ export const AVATARS: readonly Avatar[] = [
       'yn-ghostwood-growth',
       'yn-riot-lantern',
       'yn-rootwall-charm',
-      'ac-castle-under-siege',
-      'ac-court-archer',
-      'ac-moonlit-joust',
-      'ac-woodland-errand',
+      'dd-rite-of-the-lamp-fire',
+      'sb-bloomdrive-surge',
+      'sb-gravitic-bloom',
+      'sb-green-propagation-chorus',
       'ac-bramble-chapel',
       'ac-red-tournament-ground',
       'cf-mossy-ring',
@@ -4476,8 +4506,8 @@ export const AVATARS: readonly Avatar[] = [
       'rg-rune-of-hunger',
       'rg-rune-of-insight',
       'sb-blue-echo-array',
-      'sb-null-orbit-array',
-      'sb-signal-inversion',
+      'dd-bell-below',
+      'sb-eclipse-tithe',
       'ac-court-of-whispers',
       'ac-mirror-lake',
       'cf-mist-road',
@@ -4532,6 +4562,27 @@ export const AVATARS: readonly Avatar[] = [
       ['dd-drowned-bell', 2],
       ['dd-tide-that-remembers', 1],
     ]),
+    // RETUNED 2026-09-27 for 1.8.5 (plan-1.8.5 lane 5). The card slate raised
+    // The Price from {1}{B} to {2}{B} (Whispers {B} -> {1}{B}), four copies
+    // here. The 1.8.5 AI, which values keywords by attack, left the unchanged
+    // list at 64; with the slate the 2026-09-16 list fell from 66.40% to
+    // 60.00% mean (600/1000 decided,
+    // 0 draws); cells 30.50/64.00/57.00/79.50/69.00%; the rung-25 gate read
+    // 59.0 at 40 seeds against its 59.5 floor. Target: back to the 2026-09-16
+    // level. Same 1,000 seeded games per variant and the same keep rules as
+    // below; trials ran in memory with the added cards at the end of the list.
+    // KEPT -2 Tide Reader; +2 Thing in the Cistern (2 -> 4): 68.60% (+8.60pp,
+    // no cell down); cells 46.00/71.00/68.00/86.00/72.00%. REJECTED: The
+    // Price -> Salt in the Wound 59.50; The Price -> Tithe to the Deep 59.10;
+    // -4 The Price +2 of each 59.70; The Price -> Deep One Bride 58.40; Still
+    // Water -> Deep One Bride 60.00; Memory of the Drowned -> Tide Priestess
+    // 62.00. Other removal in The Price's slot buys nothing back; another
+    // tempo body does.
+    // COMMITTED list, measured in this file's order: 66.30% mean (663/1000
+    // decided, 0 draws); cells 39.50/67.00/64.00/84.50/76.50%.
+    // FINAL, re-measured the same day on the narrowed 83-card slate (D11
+    // reverted 48 nerfs): 66.60% mean (666/1000 decided, 0 draws); cells
+    // 41.00/67.00/64.00/84.50/76.50%. The rung-25 gate reads 67.5 at 40 seeds.
     // MEASURED 2026-09-16: owner-ruling D1+D2+D5, hard AI, 200 seeds/cell,
     // reserve-native avatar matrix; 66.40% mean (664/1000 decided, 0 draws).
     // Cells in Muster/Communion/Tides/Mandate/Harvest order:
@@ -4587,7 +4638,6 @@ export const AVATARS: readonly Avatar[] = [
     reserveDeck: expand([
       ['dd-tide-clerk', 4],
       ['dd-current-caller', 2],
-      ['dd-tide-reader', 2],
       ['dd-harbour-looter', 2],
       ['dd-drowned-bell-choir', 2],
       ['dd-drowned-lighthouse-keeper', 2],
@@ -4595,7 +4645,7 @@ export const AVATARS: readonly Avatar[] = [
       ['dd-deep-one-hierophant', 3],
       ['dd-father-dagon', 1],
       ['dd-cold-current', 2],
-      ['dd-thing-in-the-cistern', 2],
+      ['dd-thing-in-the-cistern', 4],
       ['dd-still-water', 2],
       ['dd-the-price', 4],
       ['dd-undertow', 2],
@@ -4678,7 +4728,7 @@ export const AVATARS: readonly Avatar[] = [
       'rg-rune-of-hunger',
       'rg-rune-of-insight',
       'sb-blue-echo-array',
-      'sb-null-orbit-array',
+      'dd-bell-below',
       'ac-court-of-whispers',
       'ac-mirror-lake',
       'cf-mist-road',
@@ -4734,6 +4784,44 @@ export const AVATARS: readonly Avatar[] = [
       ['dd-the-price', 2],
       ['dd-salt-marsh-bargain', 2],
     ]),
+    // RETUNED 2026-09-27 for 1.8.5 (plan-1.8.5 lane 5); the reserve is now
+    // hand-tuned and registered in HAND_TUNED_WARCHEST. The card slate raised
+    // The Price from {1}{B} to {2}{B} (Whispers {B} -> {1}{B}), four copies
+    // here, and gave Coral-Mother 5/5 and Sentinel. The converter list fell
+    // from 74.80% to 64.70% mean (647/1000 decided, 0 draws); cells
+    // 48.00/61.00/60.00/77.00/77.50%; the rung-26 gate read 62.5 at 40 seeds
+    // against its 68.5 floor. The 1.8.5 AI is not the cause: the same list
+    // on the 1.8.1 AI reads 65.40 (48.00/63.00/60.00/76.00/80.00).
+    // Target: back to the 2026-09-16 level. Same 1,000 seeded games per
+    // variant and the same keep rules as below; existing rows keep their
+    // order and new IDs are appended, exactly as the trials ran.
+    // Singles on 64.70: KEPT -4 The Price; +4 Salt in the Wound: 69.30%
+    // (+4.60pp, no cell down); cells 52.50/74.00/62.50/78.50/79.00%.
+    // REJECTED: -2 The Price +2 Salt in the Wound 66.60; The Price -> Something
+    // Under the Wharf 64.60; The Price -> Deep One Bride 62.40; -4 The Price
+    // +2 of those two 63.00; The Price -> Reef Horror 66.70. Cheap removal is
+    // the lever, as the 2026-09-16 pass predicted; bodies are not.
+    // On 69.30, singles: Swarm -> Reef Growth 69.30; Wight -> Reef Growth
+    // 68.90; Swarm -> Old Growth 69.00; Wight -> Wharf Rat 70.50; Swarm ->
+    // Salt in the Eyes 71.20; two Kelp Shades -> Tidepool Warden 68.30; two
+    // Kelp Shades -> Wharf Rat 70.80; Swarm -> What the Sea Wants 66.70.
+    // None qualifies; the Mark payoffs add nothing on her.
+    // Also REJECTED on 64.70, keeping two The Price: -2 The Price, -2 Swarm;
+    // +4 Salt in the Wound 68.40. -2 The Price, -2 Wight; +4 Salt in the
+    // Wound 65.87 (1 draw). -2 The Price, -2 Swarm, -2 Wight; +4 Salt in the
+    // Wound, +2 Salt in the Eyes 68.50.
+    // KEPT as one surgery on 69.30: -2 Kelp Shade Swarm, -2 Marsh-Wight
+    // Lesser; +2 Salt in the Eyes, +2 Wharf Rat: 74.00% (+4.70pp; worst cell
+    // Mandate -1.50pp); cells 56.50/79.50/72.00/77.00/85.00%. It pairs the two
+    // best non-qualifying singles, so it was re-measured at 400 seeds/cell
+    // before keeping: base 62.84, the Salt list 68.75, this list 73.40. Over
+    // seeds 200-399 alone it still leads the Salt list by about 4.6pp.
+    // COMMITTED list: 74.00% mean at 200 seeds/cell (740/1000 decided,
+    // 0 draws); 73.40% at 400.
+    // FINAL, re-measured the same day on the narrowed 83-card slate (D11
+    // reverted 48 nerfs): 74.10% mean (741/1000 decided, 0 draws); cells
+    // 57.00/79.50/72.00/77.00/85.00%. The rung-26 gate reads 72.0 at 40 seeds.
+    // Classic deck, landReserve and Darlings stay unchanged.
     // MEASURED 2026-09-16: frozen V0 KEPT, hard AI, 200 seeds/cell,
     // reserve-native avatar matrix; 74.80% mean (748/1000 decided, 0 draws).
     // Cells in Muster/Communion/Tides/Mandate/Harvest order:
@@ -4779,7 +4867,6 @@ export const AVATARS: readonly Avatar[] = [
     reserveDeck: expand([
       ['dd-kelp-shade', 3],
       ['dd-kelp-shade-warden', 2],
-      ['dd-marsh-wight-lesser', 2],
       ['dd-horror-in-the-crib', 4],
       ['dd-deep-one-bride', 2],
       ['dd-something-under-the-wharf', 1],
@@ -4787,11 +4874,12 @@ export const AVATARS: readonly Avatar[] = [
       ['dd-coral-mother', 1],
       ['dd-marsh-mother-horror', 1],
       ['dd-net-full-of-stars', 4],
-      ['dd-kelp-shade-swarm', 2],
       ['dd-reef-bloom', 4],
       ['dd-tithe-to-the-deep', 4],
-      ['dd-the-price', 4],
       ['dd-salt-marsh-bargain', 4],
+      ['dd-salt-in-the-wound', 4],
+      ['dd-salt-in-the-eyes', 2],
+      ['dd-wharf-rat', 2],
     ]),
     landReserve: expand([
       ['land-swamp', 5],
@@ -4865,11 +4953,11 @@ export const AVATARS: readonly Avatar[] = [
       'sd-lapis-funerary-mask',
       'sd-pay-before-the-asking',
       'sd-reed-bound-canopic',
-      'sd-resin-archive',
-      'sd-root-through-the-ruin',
-      'sd-second-wrapping',
-      'sd-the-debt-is-called',
-      'sd-tomb-seal',
+      'sb-bloomdrive-surge',
+      'sb-brood-communion',
+      'sb-eclipse-tithe',
+      'sb-gravitic-bloom',
+      'sb-green-propagation-chorus',
       'ac-bramble-chapel',
       'ac-court-of-whispers',
       'cf-mossy-ring',

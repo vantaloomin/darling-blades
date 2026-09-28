@@ -119,7 +119,7 @@ over each card's color-identity anchor and never replace it.
 - **Prompt:** Genderbent Zeus hovering above a dark storm, white-and-gold imperial chiton with storm-grey himation and gilt eagle pauldron, hurling a forked thunderbolt down across frame, dark wings spread, black thunderheads and star-torn void, imperious storm-lit empress, blue-white bolt key with warm gilt rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Hera, Queen of Olympus — `gk-hera`
-- **Card facts:** {2}{W}{B}{B} · W/B (gold frame) · 3/4 · sentinel · ssr, legendary · holo: foil (explicit)
+- **Card facts:** {2}{W}{B}{B} · W/B (gold frame) · 3/4 · sentinel, bloodoath · ssr, legendary · holo: foil (explicit)
 - **Character & source:** Hera as-is, Queen of Olympus; her ETB creates two Peacock tokens whose design **this art canonizes** (`tok-peacock` — see registry).
 - **Personality / mood:** "Her peacocks have a hundred eyes each, and every eye is on Zeus." Absolute sovereignty with a surveillance budget.
 - **Pose & composition:** Enthroned three-quarter seated, slightly above camera, chin high, face ≈ y 300; two peacocks flank her — one perched on the throne back, its tail cascading down the right edge of the band; feather eye-spots scattered through the midground; the crown may rise into the top bleed.

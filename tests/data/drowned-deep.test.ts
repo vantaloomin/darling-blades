@@ -257,7 +257,7 @@ describe('Drowned Deep transcription', () => {
     }]);
     // Old: youGainLife -> addCounters(1, self), unlimited. New: same ops, oncePerTurn: true.
     expect(card('dd-lamp-oil-saint').abilities).toEqual([{ when: 'youGainLife', oncePerTurn: true, ops: [{ op: 'addCounters', n: 1, to: 'self' }] }]);
-    expect(card('dd-bell-below').abilities).toContainEqual({ when: 'youCastCharm', ops: [{ op: 'foresee', n: 1 }] });
+    expect(card('dd-bell-below').abilities).toContainEqual({ when: 'youCastCharm', ops: [{ op: 'foresee', n: 2 }] });
     expect(card('dd-storm-front-lesser').abilities).toEqual([{ when: 'allyAttacks', ops: [{ op: 'damage', n: 1, to: 'opponent' }] }]);
   });
 

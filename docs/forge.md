@@ -1,10 +1,10 @@
-<!-- source-of-truth: forge/index.html, src/forge, src/power/scoreCore.ts, vite.forge.config.ts, scripts/build-forge.ts, tests/forge, tests/power · last-verified: 2026-09-25 -->
+<!-- source-of-truth: forge/index.html, src/forge, src/power/scoreCore.ts, vite.forge.config.ts, scripts/build-forge.ts, tests/forge, tests/power · last-verified: 2026-09-27 -->
 
 # The Forge
 
 The Forge is the public card designer: build a card in the left rail, see it
 drawn by the game's own `CardView` in the middle, and read on the right how its
-cost measures up (the page calls the scorer's PowerScore **Power**, the v3
+cost measures up (the page calls the scorer's PowerScore **Power**, its
 Budget **Budget** and their Delta **Difference**, beside the Power Breakdown and
 one-click costing hints). A card can show any game card's art or the player's
 own image, framed in the art window. Under the card, a set builder collects
@@ -50,6 +50,28 @@ game.
   range input or button, so the framing is keyboard-usable; the drag has the
   sliders as its keyboard equivalent.
 - **Play Darling Blades.** The header links to the game (`../`).
+- **Keywords priced on the card being built.** Since 1.8.5 the scorer prices
+  the keywords that lean on Attack (Skyborne, Twin Blades and the rest of the
+  v4 rate card in `docs/plan-1.8.5.md`) on the creature's own Attack, so the
+  Forge shows what a keyword is worth on this card, not a flat rate. Each
+  keyword chip shows its value here, and its tooltip and the keyword hints say
+  how it scales ("Skyborne is worth +1.31 here (0.50 + 0.27 per point of
+  Attack)"); the Power Breakdown row of a scaled keyword names the Attack it
+  was priced at ("Twin Blades (Attack 10)"); and the Attack and Defense hints
+  describe the body (Attack 0.55 a point, Defense 0.45, a little less past a
+  2/2). The wording comes from the scorer's own constants
+  (`src/forge/vocab.ts`), so a rate change reaches the copy with no edit.
+- **Extra land drops priced by when they are cast.** Since 1.8.5 the scorer
+  prices an extra land drop by the extra mana it gives before the 10-land
+  reserve runs out, counted from the turn it is cast on (the card's mana
+  value, or the mana an Empower or Retell is cast for), so the same text is
+  worth much less on an expensive card, and a Dawn engine is worth its capped
+  total rather than a flat rate per Dawn. The Power Breakdown row says why:
+  "Extra land drop (cast at 5 mana, 4 turns of extra mana before the 10-land
+  cap)".
+- **Two targets.** A spell's target can reach one creature, up to two, or
+  exactly two (the ability editor's How Many); an effect on two targets is
+  priced once per target.
 - **The game's own words.** Keyword, mechanic, rarity, set and effect names are
   read from game data at runtime (the glossary, `src/data/setTitles.ts`, and the
   builder's effect menu), so a rename in the game reaches the Forge with no
@@ -382,12 +404,21 @@ reaches a server.
   of the rule that every mechanic is priced; the local CLI refuses to run on
   unknown vocabulary, and this catches a new mechanic reaching the catalog
   before the scorer, and so the Forge, has a rate for it), plus the 1.8 rates
-  (Duty, Whispers, Tithe).
+  (Duty, Whispers, Tithe) and the v4 behaviours: Twin Blades and Skyborne
+  worth more on more Attack, an anthem's granted keyword priced flat, a
+  symmetric -X/-X priced as the matching sweeper, and an effect on two
+  targets priced once per target; and extra land drops priced by the turn
+  they are cast on (the mana-value-2 anchor kept, later drops worth less and
+  nothing at the reserve cap, several drops at once and a Dawn engine bounded
+  by the cap, Empower and Retell priced at their own mana, a Sunset drop worth
+  nothing).
 - `tests/forge/builder.test.ts`: the **load round trip** (every collectible
   catalog card, loaded into builder state and converted back, scores exactly
-  as the card itself: PowerScore, Budget and Delta), conversion, the v3 budget,
-  the colour-pie facts in the breakdown, the verdict bands, and hint
-  truthfulness.
+  as the card itself: PowerScore, Budget and Delta), conversion, the budget,
+  the colour-pie facts in the breakdown, the verdict bands, hint
+  truthfulness, and keywords priced on the card (the 10/1 Twin Blades flier
+  at three mana reads Over Value, its breakdown names the Attack, and its hint
+  quotes the same value).
 - `tests/forge/mechanics18.test.ts`: Duty, Whispers and Tithe in the builder
   (round trips, and the combinations the game refuses surfacing as `illegal`
   warnings; tests assert a warning's kind and rule, never its wording).

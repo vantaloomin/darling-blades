@@ -121,7 +121,7 @@ export const GREEK = [
     colors: ['W', 'B'],
     attack: 3,
     defense: 4,
-    keywords: ['sentinel'],
+    keywords: ['sentinel', 'bloodoath'],
     abilities: [{ when: 'arrives', ops: [{ op: 'createToken', token: 'tok-peacock', count: 1 }] }],
     rarity: 'ssr',
     flavor: 'Her peacocks have a hundred eyes each, and every eye is on Zeus.',

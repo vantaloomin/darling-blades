@@ -8,7 +8,11 @@ import type {
   TargetSpec,
 } from '../engine/types';
 import {
-  KEYWORD_VALUE,
+  KEYWORD_RATE,
+  RAGE_ATTACK_KEYWORDS,
+  RAGE_REBATE,
+  keywordValue,
+  rageRebate,
   type ScorableEffectOp,
   type ScorableTriggerWhen,
 } from '../power/scoreCore';
@@ -133,8 +137,47 @@ export const KEYWORD_OPTIONS = KEYWORDS.map((keyword) => ({
   keyword,
   name: KEYWORD_NAMES[keyword],
   reminder: KEYWORD_REMINDER[keyword],
-  value: KEYWORD_VALUE[keyword],
 }));
+
+const fixed2 = (value: number): string => value.toFixed(2);
+const signedValue = (value: number): string => `${value >= 0 ? '+' : ''}${value.toFixed(2)}`;
+
+/** "A, B or C", for player copy. */
+function nameList(names: readonly string[]): string {
+  return names.length <= 1 ? names.join('') : `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}`;
+}
+
+/**
+ * What `keyword` is worth on a creature with `attack` Attack that carries
+ * `keywords` (the keyword itself included), exactly as the scorer prices it:
+ * the keyword's own rate on that Attack, plus Rage's rebate beside an
+ * attacking keyword. The stacking discount for three or more keywords is a
+ * separate line of the breakdown, so it is not folded in here.
+ */
+export function keywordWorth(keyword: Keyword, attack: number, keywords: readonly Keyword[]): number {
+  return keywordValue(keyword, attack) + (keyword === 'rage' ? rageRebate(keywords) : 0);
+}
+
+/**
+ * How a keyword's value moves with Attack, in plain words:
+ * "0.50 + 0.27 per point of Attack", or "the same on any creature".
+ */
+export function keywordRateText(keyword: Keyword): string {
+  const { base, perAttack, floor } = KEYWORD_RATE[keyword];
+  if (perAttack === 0) {
+    if (keyword !== 'rage') return 'the same on any creature';
+    const partners = nameList(RAGE_ATTACK_KEYWORDS.map((partner) => KEYWORD_NAMES[partner]));
+    return `${fixed2(RAGE_REBATE)} less of a drawback beside ${partners}`;
+  }
+  const start = base < 0 ? `-${fixed2(-base)}` : fixed2(base);
+  const text = `${start} ${perAttack > 0 ? '+' : 'minus'} ${fixed2(Math.abs(perAttack))} per point of Attack`;
+  return floor === undefined ? text : `${text}, never below ${fixed2(floor)}`;
+}
+
+/** "Skyborne is worth +1.31 here (0.50 + 0.27 per point of Attack)." */
+export function keywordWorthSentence(keyword: Keyword, attack: number, keywords: readonly Keyword[]): string {
+  return `${KEYWORD_NAMES[keyword]} is worth ${signedValue(keywordWorth(keyword, attack, keywords))} here (${keywordRateText(keyword)}).`;
+}
 
 /** Suggestion heuristic only. The scorer itself is color agnostic. */
 export const COLOR_PIE_KEYWORDS: Record<Color, readonly Keyword[]> = {

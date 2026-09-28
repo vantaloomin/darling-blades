@@ -306,6 +306,18 @@ What the set carries besides cards:
   through the owner's eyes before the full run. The art run starts the day
   the cut locks. Frame geometry stays deferred to 2.0 (D8 of 1.8), so First
   Dawn's art is cropped to today's frame.
+- **Two 1.8.5 regenerations ride the same art run** (owner, 2026-09-26:
+  "Queue for regen in the 1.9"). Each gets a new brief and a new image, and
+  its art entry is rewritten to match. Until then both ship with their
+  current art.
+  - **Swan-Lake Sovereign** lost Sentinel in the 1.8.5 rebalance, but its
+    art still shows the pose, a wall of wings. Its art-bible entry changes.
+  - **Brood Communion** dropped its Rite, but its spell art in
+    `docs/spell-art.md` still depicts the sacrifice. It was added in 1.8.5's
+    lane 5 (2026-09-28).
+
+  Freya and Siege Juggernaut were queued too, but 1.8.5's D11 (2026-09-27)
+  reverted both cards, so their art still matches.
 
 ### Lane C — accessibility
 

@@ -34,6 +34,7 @@ import {
   type ForgeWarning,
   type ManaAbilityColor,
   type MarkedThresholdSubject,
+  type TargetCount,
   type VerdictBand,
 } from './logic';
 import { escapeHtml, estimateTag, setRowMarkup, signedNumber, warningChipMarkup } from './markup';
@@ -95,6 +96,8 @@ import {
   TRIGGERS,
   TRIGGER_LABELS,
   defaultOp,
+  keywordWorth,
+  keywordWorthSentence,
   type OpKind,
 } from './vocab';
 import { createBuilderStore } from './store';
@@ -301,11 +304,27 @@ pipControls.addEventListener('click', (event) => {
   mutate((next) => { next.cost.pips[color] = clampInt(next.cost.pips[color] + step, 0, FORGE_LIMITS.pip); });
 });
 
+/** The card's keywords with `keyword` among them (a palette chip prices it as if added). */
+function keywordsWith(state: BuilderState, keyword: Keyword): Keyword[] {
+  return state.keywords.includes(keyword) ? state.keywords : [...state.keywords, keyword];
+}
+
+/** A keyword's value on the card being built (its Attack, its other keywords). */
+function keywordValueOnCard(state: BuilderState, keyword: Keyword): number {
+  return keywordWorth(keyword, state.attack, keywordsWith(state, keyword));
+}
+
+/** The chip's tooltip: the reminder text, then what the keyword is worth here and how it scales. */
+function keywordChipTitle(state: BuilderState, reminder: string, keyword: Keyword): string {
+  return `${reminder} ${keywordWorthSentence(keyword, state.attack, keywordsWith(state, keyword))}`;
+}
+
 function renderKeywordPalette(state: BuilderState): void {
-  keywordPalette.innerHTML = KEYWORD_OPTIONS.map(({ keyword, name, reminder, value }) => {
+  keywordPalette.innerHTML = KEYWORD_OPTIONS.map(({ keyword, name, reminder }) => {
     const selected = state.keywords.includes(keyword);
+    const value = keywordValueOnCard(state, keyword);
     return `<button type="button" class="keyword-chip palette-chip ${selected ? 'selected' : ''} ${value < 0 ? 'negative' : ''}"
-      draggable="true" data-keyword="${keyword}" title="${escapeHtml(reminder)}">
+      draggable="true" data-keyword="${keyword}" title="${escapeHtml(keywordChipTitle(state, reminder, keyword))}">
       <span>${escapeHtml(name)}</span><strong>${signed(value)}</strong>
     </button>`;
   }).join('');
@@ -385,12 +404,17 @@ function renderAppliedKeywords(state: BuilderState): void {
   }
   appliedKeywords.innerHTML = state.keywords.map((keyword) => {
     const option = KEYWORD_OPTIONS.find((candidate) => candidate.keyword === keyword)!;
-    return `<span class="keyword-chip applied-chip ${option.value < 0 ? 'negative' : ''}" draggable="true" data-keyword="${keyword}" title="${escapeHtml(option.reminder)}">
-      ${escapeHtml(option.name)} <strong>${signed(option.value)}</strong>
+    const value = keywordValueOnCard(state, keyword);
+    return `<span class="keyword-chip applied-chip ${value < 0 ? 'negative' : ''}" draggable="true" data-keyword="${keyword}" title="${escapeHtml(keywordChipTitle(state, option.reminder, keyword))}">
+      ${escapeHtml(option.name)} <strong>${signed(value)}</strong>
       <button type="button" data-remove-keyword="${keyword}" aria-label="Remove ${escapeHtml(option.name)}">×</button>
     </span>`;
   }).join('');
 }
+
+/** How many targets a spell's one target spec reaches (the game fans a spell's effects across both). */
+const TARGET_COUNTS = ['one', 'upTo', 'exactly'] as const;
+const TARGET_COUNT_LABELS: Record<(typeof TARGET_COUNTS)[number], string> = { one: 'One', upTo: 'Up to two', exactly: 'Exactly two' };
 
 /** How deep an effect list sits inside "If the target is marked" branches (1 = top level). */
 function contextDepth(context: string): number {
@@ -509,6 +533,7 @@ function renderAbilities(): void {
         <div class="field-grid three-up">
           <label>Trigger<select data-ability-index="${abilityIndex}" data-ability-field="when">${optionMarkup(TRIGGERS, ability.when, TRIGGER_LABELS)}</select></label>
           ${ability.when !== 'static' ? `<label>Target<select data-ability-index="${abilityIndex}" data-ability-field="target">${optionMarkup(TARGETS, ability.target, TARGET_LABELS)}</select></label>` : ''}
+          ${ability.when === 'spell' && ability.target !== 'none' ? `<label>How Many<select data-ability-index="${abilityIndex}" data-ability-field="target-count">${optionMarkup(TARGET_COUNTS, ability.targetCount ?? 'one', TARGET_COUNT_LABELS)}</select></label>` : ''}
           <label>Condition<select data-ability-index="${abilityIndex}" data-ability-field="condition">${optionMarkup(CONDITIONS, ability.condition, CONDITION_LABELS)}</select></label>
           ${ability.condition === 'markedThreshold' ? `
             <label>Threshold Count<input type="number" min="1" max="${FORGE_LIMITS.thresholdCount}" step="1" value="${ability.conditionN}" data-ability-index="${abilityIndex}" data-ability-field="condition-n" /></label>
@@ -693,6 +718,7 @@ document.addEventListener('input', (event) => {
       const ability = next.abilities[index];
       if (abilityField === 'when') ability.when = input.value as typeof ability.when;
       else if (abilityField === 'target') ability.target = input.value as typeof ability.target;
+      else if (abilityField === 'target-count') ability.targetCount = input.value === 'one' ? undefined : input.value as TargetCount;
       else if (abilityField === 'condition') ability.condition = input.value as BuilderConditionKind;
       else if (abilityField === 'condition-n') ability.conditionN = clampInt(Number(input.value), 1, FORGE_LIMITS.thresholdCount);
       else if (abilityField === 'condition-subject') ability.conditionSubject = input.value
@@ -709,7 +735,7 @@ document.addEventListener('input', (event) => {
       else if (abilityField === 'static-filter-subtype') ability.static.filter = { ...ability.static.filter, subtype };
       else if (abilityField === 'static-filter-other') ability.static.filter = { ...ability.static.filter, other: (input as HTMLInputElement).checked };
     });
-    if (abilityField === 'when' || abilityField === 'condition' || abilityField === 'static-scope') renderAbilities();
+    if (abilityField === 'when' || abilityField === 'target' || abilityField === 'condition' || abilityField === 'static-scope') renderAbilities();
     return;
   }
   const mechanicNumber = input.dataset.mechanicNumber;
@@ -1889,7 +1915,8 @@ async function runBrowserQa(): Promise<void> {
     dropTarget.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: transfer }));
     dropTarget.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: transfer }));
     dragSource.dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer: transfer }));
-    qaResult.draggedKeywordPart = probe.evaluate().score.parts.find((part) => part.label === 'skyborne');
+    qaResult.draggedKeywordPart = probe.evaluate().score.parts.find((part) => part.label.startsWith('skyborne'));
+    const skyborneHere = Math.round(keywordWorth('skyborne', store.getState().attack, store.getState().keywords) * 100) / 100;
 
     document.querySelector<HTMLButtonElement>('[data-keyword="sentinel"]')?.click();
     const firstHint = buildHints(store.getState(), 1)[0];
@@ -1901,7 +1928,7 @@ async function runBrowserQa(): Promise<void> {
 
     if (qaResult.initialFrame === qaResult.frameAfterWhitePip) throw new Error('Frame did not respond to the added white pip');
     if (qaResult.initialDelta === qaResult.deltaAfterManaSlider) throw new Error('Difference did not respond to the mana slider');
-    if (qaResult.draggedKeywordPart?.v !== 0.75) throw new Error('Skyborne was not worth +0.75 points in the breakdown');
+    if (qaResult.draggedKeywordPart?.v !== skyborneHere) throw new Error(`Skyborne was not worth ${signed(skyborneHere)} points in the breakdown`);
     if (qaResult.hintPromisedDelta !== qaResult.deltaAfterHint) throw new Error('Applied hint did not land on the difference it promised');
 
     // Set builder: Save to Set, Save and Start Next, then a second card.

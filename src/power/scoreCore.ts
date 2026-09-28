@@ -12,10 +12,11 @@
  *
  * Assigns every collectible card a PowerScore in "mana-equivalent points" (MEP)
  * — the fair MTG mana cost of everything the card does — and compares it to
- * the v3 additive Budget (2026-08-29; see the v3 BUDGET block below):
+ * the additive Budget (v3 shape 2026-08-29, refit for v4 2026-09-26; see the
+ * BUDGET block below):
  *
  *   Budget = CARD_FLOOR + MANA_STEP × (MV − 1) + PIP_PREMIUM × (pips − 1) + RARITY_BONUS
- *          = 1.10 + 0.82 × (MV − 1) + 0.40 × (pips − 1) + { c 0, r 0.35, sr 0.60, ssr 1.00, ur 2.00 }
+ *          = 1.14 + 0.81 × (MV − 1) + 0.27 × (pips − 1) + { c 0, r 0.37, sr 0.65, ssr 1.12, ur 1.98 }
  *
  * It replaced the v1/v2 multiplicative `manaValue × rarityMult` budget;
  * `RARITY_MULT` below is that budget's rarity table, no longer read by the
@@ -43,6 +44,18 @@
  * self-discard, edicts, tap-all, the ally/sunset/charm/lifegain observers
  * and their gates) is priced in §4t; additions only, every earlier rate and
  * every §6 anchor unchanged.
+ *
+ * v4 (2026-09-26, owner-approved for 1.8.5, §4u): rates that scale with the
+ * body. The body tapers past a 2/2 and weights Attack over Defense; the
+ * attack-multiplying keywords are priced on the attack of the creature that
+ * carries them (a nominal 3/3.2 host for a grant to an unknown creature);
+ * three or more keywords on one body take a stacking discount; and the
+ * rate-card audit, the in-engine anthem measurement and the D6 level-flag and
+ * mark measurements replace the rows they re-measured. Evidence hierarchy
+ * (ruling D1): the in-engine lab sets a slope where it measures cleanly, Magic
+ * printed through 2020 sets the rest. The full tables, rulings and evidence are
+ * in `docs/plan-1.8.5.md` ("The v4 formula"); the per-rate provenance is
+ * cited beside each rate below.
  */
 import { ALL_CARDS } from '../data/catalog';
 import type {
@@ -54,9 +67,11 @@ import type {
   ManaCost,
   Rarity,
   StaticDef,
+  TargetSpec,
   TriggerWhen,
 } from '../engine/types';
 import { manaValue } from '../engine/types';
+import { LAND_RESERVE_SIZE } from '../config/rules';
 
 /** v3 vocabulary is newer than this isolated worktree's engine unions. Keep
  * the browser workbench type-safe without widening production `src/`. */
@@ -149,7 +164,7 @@ export type UnknownCollector = Set<string>;
 
 export const RARITY_MULT: Record<Rarity, number> = { c: 1.0, r: 1.06, sr: 1.15, ssr: 1.25, ur: 1.4 };
 
-// ── v3 BUDGET (2026-08-29) ───────────────────────────────────────────────────
+// ── BUDGET (v3 shape 2026-08-29, v4 refit 2026-09-26) ─────────────────────────
 // Replaces `MV × rarityMult`, which had three measured defects: it ignored
 // colour commitment ({2}{W}{W} scored as {3}{W}), it was linear in mana so
 // expensive cards drew ever more headroom, and the rarity premium multiplied
@@ -162,10 +177,16 @@ export const RARITY_MULT: Record<Rarity, number> = { c: 1.0, r: 1.06, sr: 1.15, 
 // Fitted by robust (median) regression on the 1,024 SHIPPED non-X cards — six
 // released sets that have already passed win-rate gates — then smoothed to
 // round constants. See power-formula.md §3a.
-export const CARD_FLOOR = 1.10;   // what merely being a castable 1-mana card buys
-export const MANA_STEP = 0.82;    // each mana after the first; sub-linear on purpose
-export const PIP_PREMIUM = 0.40;  // per coloured symbol beyond the first (0 pips pays −0.40)
-export const RARITY_BONUS: Record<Rarity, number> = { c: 0.0, r: 0.35, sr: 0.6, ssr: 1.0, ur: 2.0 };
+//
+// v4 REFIT (2026-09-26, §4u): same shape, same method (median regression on
+// the 1,444 collectible non-X, non-land cards, re-run after the v4 rates),
+// rounded to two places. The rarity steps barely move; the pip premium drops
+// from 0.40 to 0.27, because the v4 rates now carry some of what the pip
+// premium used to absorb. docs/plan-1.8.5.md, "The v4 formula".
+export const CARD_FLOOR = 1.14;   // what merely being a castable 1-mana card buys
+export const MANA_STEP = 0.81;    // each mana after the first; sub-linear on purpose
+export const PIP_PREMIUM = 0.27;  // per coloured symbol beyond the first (0 pips pays −0.27)
+export const RARITY_BONUS: Record<Rarity, number> = { c: 0.0, r: 0.37, sr: 0.65, ssr: 1.12, ur: 1.98 };
 
 export function v3Budget(mv: number, pips: number, rarity: Rarity): number {
   return CARD_FLOOR + MANA_STEP * (mv - 1) + PIP_PREMIUM * (pips - 1) + RARITY_BONUS[rarity];
@@ -200,6 +221,9 @@ const envNum = (key: string, fallback: number): number => {
 };
 export const OFF = envNum('PIE_OFF', 0.85);
 export const SELF_DMG_RATE = envNum('SELF_DMG', 0.3);
+// v4 (rate-card audit, Magic through 2020): a one-shot self-damage payment
+// (on cast, arrival or death) is settled at 0.15 a point; see valueOp.
+export const SELF_DMG_ONE_SHOT_RATE = 0.15;
 export const SEC = 0.4;
 // Missing colour = OFF. Listed = primary (0) or secondary (SEC).
 export const PIE: Record<string, { pie: Pie; colorless: number }> = {
@@ -259,20 +283,20 @@ export function pieClassOf(op: PieEffectOp, targetWhat?: string): string | null 
  * of class weight, proportional below (so a 0.4-MEP rider pays 0.4x). */
 function piePremiums(card: ScorableCardDef, unknowns: UnknownCollector): Part[] {
   const weight = new Map<string, number>();
-  const scan = (ops?: ScorableEffectOp[], targetWhat?: string) => {
+  const scan = (ops?: ScorableEffectOp[], targetWhat?: string, fan = 1) => {
     for (const o of ops ?? []) {
       const k = pieClassOf(o, targetWhat);
       if (!k) continue;
-      const raw = valueOp(o, false, card, 'spell', targetWhat, unknowns).v;
+      const raw = valueOp(o, false, card, 'spell', targetWhat, unknowns).v * (isPerTargetOp(o) ? fan : 1);
       // Self-discard is the one signed entry: it subtracts from the draw
       // class (see pieClassOf). A negative class total pays no premium.
       const v = o.op === 'discard' && o.who === 'self' ? raw : Math.max(0, raw);
       weight.set(k, (weight.get(k) ?? 0) + v);
     }
   };
-  for (const ab of card.abilities ?? []) scan(ab.ops, ab.targets?.[0]?.what);
+  for (const ab of card.abilities ?? []) scan(ab.ops, ab.targets?.[0]?.what, targetFan(ab.targets));
   scan(card.empower?.ops);
-  for (const duty of dutiesOf(card)) scan(duty.ops, duty.targets?.[0]?.what);
+  for (const duty of dutiesOf(card)) scan(duty.ops, duty.targets?.[0]?.what, targetFan(duty.targets));
   for (const ch of card.chapters ?? []) scan(ch);
   if (card.manaAbility?.length && !card.types.includes('land')) weight.set('ramp', 1.3);
   const out: Part[] = [];
@@ -292,14 +316,35 @@ function piePremiums(card: ScorableCardDef, unknowns: UnknownCollector): Part[] 
 // Instant (charm) flexibility premium applied to the spell-effect total.
 export const CHARM_MULT = 1.12;
 
-// Creature body: 0.5×(A+D) puts a vanilla 2/2@2, 3/3@3 at Δ≈0 (Grizzly/Hill Giant).
+// ── v4 BODY (2026-09-26, §4u, ruling D5) ─────────────────────────────────────
+// Body = 0.55 × Attack + 0.45 × Defense − 0.07 × max(0, Attack + Defense − 4).
+// The Attack/Defense split is Magic's through 2020 (power prices about 1.28×
+// toughness, pre-2010 and through 2020 alike, 737 french-vanilla creatures).
+// The 7% taper past a 2/2 is the in-engine lab's: a vanilla N/N at mana value N
+// plays fair from 1/1 to 7/7, which the v3 linear 0.5 × (A + D) could not
+// reproduce (it read a vanilla 8/8 for 8 at +1.16). Magic's own concave fit is
+// steeper at the top but rests on 25 cards. Replaces v3's flat 0.5 a stat.
+export const BODY_PER_ATTACK = 0.55;
+export const BODY_PER_DEFENSE = 0.45;
+export const BODY_TAPER = 0.07;
+/** The taper starts past a 2/2 (Attack + Defense above 4). */
+export const BODY_TAPER_FROM = 4;
+export function bodyValue(attack: number, defense: number): number {
+  return BODY_PER_ATTACK * attack + BODY_PER_DEFENSE * defense - BODY_TAPER * Math.max(0, attack + defense - BODY_TAPER_FROM);
+}
+
+// The v3 flat body rate (0.5 a stat). No longer the body (bodyValue above); it
+// is kept as the per-creature unit of a team anthem, because lane 2 measured
+// the anthem factors in these units (see the `filter` static in valueStatic).
 export const BODY_PER_STAT = 0.5;
 
-// Evergreen keyword premiums on a creature (flat v1; real value scales w/ body).
-// v2 adds `dreaded` (Menace) — the Keyword union already carried it, but v1's
-// map omitted it, so every dreaded card scored `KEYWORD_VALUE[k]` as
-// `undefined` and poisoned its PowerScore to NaN. That is the crash the v2
-// task brief refers to.
+// The v3 FLAT keyword values. v4 prices a keyword on its host (KEYWORD_RATE
+// below); this table stays because a team anthem's granted keyword is priced
+// at its flat value, the unit lane 2 measured the anthem factors in (a scaled
+// keyword on an anthem would otherwise be counted twice). It is also the
+// vocabulary check: a keyword missing here is reported as unknown.
+// v2 added `dreaded` (Menace): v1's map omitted it and every dreaded card
+// scored NaN.
 export const KEYWORD_VALUE: Record<Keyword, number> = {
   skyborne: 0.75, // flying
   wardingGaze: 0.2, // reach
@@ -316,25 +361,116 @@ export const KEYWORD_VALUE: Record<Keyword, number> = {
   rage: -0.45, // attacks every turn if able (drawback) — power-formula §4o
 };
 
+// ── v4 KEYWORDS (2026-09-26, §4u) ────────────────────────────────────────────
+// A keyword's value on a host of attack A is `base + perAttack × A` (A below 0
+// counts as 0), never below `floor` where one is set. The attack-multiplying
+// keywords scale; the rest stay flat. Slopes come from the in-engine lab
+// (624,640 paired games, synthetic A/A creatures at attack 1 to 5 in the five
+// starter decks against a 14-deck field, MediumAI with a HardAI check); levels
+// come from Magic through 2020 where the lab reads the AI's targeting or
+// blocking more than the keyword (ruling D1).
+export interface KeywordRate {
+  base: number;
+  perAttack: number;
+  floor?: number;
+}
+export const KEYWORD_RATE: Record<Keyword, KeywordRate> = {
+  // D2: the lab's slope (0.81 / 1.50 / 1.83 at A1 / A3 / A5). Magic's is
+  // shallower (0.46 + 0.11A, post-2010 design); the owner ruled the engine's.
+  skyborne: { base: 0.5, perAttack: 0.27 },
+  // D3: lab 0.82 / 2.17 / 2.20; Magic's upper bound (at most 0.32 a point)
+  // agrees, and both refute the "second hit of power" slope.
+  twinBlades: { base: 0.75, perAttack: 0.4 },
+  // Lab 0.37 / 0.77 / 1.46; Magic 0.38 + 0.15A.
+  firstBlade: { base: 0.2, perAttack: 0.22 },
+  // Lab 0.62 / 0.80 / 2.05; Magic 0.20 + 0.13A leans the same way.
+  bloodoath: { base: 0.2, perAttack: 0.25 },
+  // Lab 0.23 / 0.30 / 0.73: scales gently. Magic reads it flat at 0.35.
+  warcry: { base: 0.15, perAttack: 0.1 },
+  // Lab -0.43 / -0.45 / -1.61 and free on a 0/4; Magic -0.62 - 0.16A.
+  bulwark: { base: -0.5, perAttack: -0.2 },
+  // Shrinks with attack: lab 0.96 / 0.73 / 0.21, Magic flat to falling (0.6).
+  deathblade: { base: 1.0, perAttack: -0.15, floor: 0.2 },
+  // Flat. Magic sets these levels: the lab reads the AI's blocking and
+  // targeting (Sentinel and Untouchable about 0) more than the keyword.
+  wardingGaze: { base: 0.2, perAttack: 0 }, // Magic 0.2-0.3, lab 0.20 / 0.29 / 0.48
+  overrun: { base: 0.3, perAttack: 0 }, // Magic falls to nearly free on big bodies; lab noisy
+  sentinel: { base: 0.3, perAttack: 0 }, // Magic flat 0.32
+  untouchable: { base: 0.6, perAttack: 0 }, // Magic flat 0.61
+  dreaded: { base: 0.5, perAttack: 0 }, // Magic flat 0.58, lab flat 0.48
+  rage: { base: -0.45, perAttack: 0 }, // lab flat -0.48 to -0.29; §4o, kept with its rebate
+};
+
+/** The value of keyword `k` on a creature with `attack` Attack (§4u). */
+export function keywordValue(k: Keyword, attack: number): number {
+  const rate = KEYWORD_RATE[k];
+  const v = rate.base + rate.perAttack * Math.max(0, attack);
+  return rate.floor === undefined ? v : Math.max(rate.floor, v);
+}
+
+/** True for a keyword whose value moves with its host's Attack. */
+export function keywordScales(k: Keyword): boolean {
+  return (KEYWORD_RATE[k]?.perAttack ?? 0) !== 0;
+}
+
+// Three or more keywords on one creature (Rage excluded) cost 0.40 less than
+// their parts: Magic through 2020, n = 12-18, CI clear of zero. Pairs add up
+// normally.
+export const KEYWORD_STACK_DISCOUNT = -0.4;
+export function keywordStackDiscount(keywords: readonly Keyword[] | undefined): number {
+  return (keywords ?? []).filter((k) => k !== 'rage').length >= 3 ? KEYWORD_STACK_DISCOUNT : 0;
+}
+
 /**
  * §4o: Rage costs -0.45 alone, but only -0.15 on a creature that already
  * carries an attack-oriented keyword — a card that was attacking anyway barely
  * feels the compulsion. Applied as a rebate on top of the flat rate above.
+ * v4 keeps it: the lab measured Rage flat.
  */
-const RAGE_ATTACK_KEYWORDS: Keyword[] = ['twinBlades', 'warcry', 'overrun', 'firstBlade'];
+export const RAGE_ATTACK_KEYWORDS: readonly Keyword[] = ['twinBlades', 'warcry', 'overrun', 'firstBlade'];
+export const RAGE_REBATE = 0.3;
 export function rageRebate(keywords: readonly Keyword[] | undefined): number {
   if (!keywords?.includes('rage')) return 0;
-  return keywords.some((k) => RAGE_ATTACK_KEYWORDS.includes(k)) ? 0.3 : 0;
+  return keywords.some((k) => RAGE_ATTACK_KEYWORDS.includes(k)) ? RAGE_REBATE : 0;
 }
 
-/** Defensive keyword lookup: flags anything missing instead of NaN-poisoning a card. */
-function kwValue(k: Keyword, unknowns: UnknownCollector): number {
+// ── Hosts ───────────────────────────────────────────────────────────────────
+// A host is the creature a keyword or a stat change sits on. It is known for a
+// creature's printed keywords, its tokens and its self statics (the card's own
+// Attack and Defense). A grant to an unknown creature (an aura, a pump target,
+// a Hauntlink link) is priced on the NOMINAL host plus the grant's own stat
+// change: attack 3 is what Magic's grant prices imply (flying 2.4-3.2, first
+// strike 2.2-2.6, double strike about 4). Defense 3.2 goes with it; defense
+// only moves a body change, never a keyword's value.
+interface Host { a: number; d: number }
+export const NOMINAL_HOST = { attack: 3, defense: 3.2 } as const;
+const nominalHost = (dp = 0, dt = 0): Host => ({ a: NOMINAL_HOST.attack + dp, d: NOMINAL_HOST.defense + dt });
+const hostOf = (card: ScorableCardDef): Host => ({ a: card.attack ?? 0, d: card.defense ?? 0 });
+
+/** Defensive keyword lookup on a host (nominal when omitted): flags anything
+ * missing instead of NaN-poisoning a card. */
+function kwValue(k: Keyword, unknowns: UnknownCollector, host: Host = nominalHost()): number {
+  if (KEYWORD_VALUE[k] === undefined || KEYWORD_RATE[k] === undefined) {
+    unknowns.add(`keyword:${k}`);
+    return 0;
+  }
+  return keywordValue(k, host.a);
+}
+
+/** A keyword's flat v3 value (the anthem unit), with the same unknown check. */
+function flatKwValue(k: Keyword, unknowns: UnknownCollector): number {
   const v = KEYWORD_VALUE[k];
   if (v === undefined) {
     unknowns.add(`keyword:${k}`);
     return 0;
   }
   return v;
+}
+
+/** The breakdown label of a creature's printed keyword: a scaled keyword names
+ * the Attack it was priced at, so the Forge can say so. */
+function keywordLabel(k: Keyword, attack: number): string {
+  return keywordScales(k) ? `${k} (attack ${attack})` : k;
 }
 
 // How much a triggered ability is worth relative to the same effect on a spell.
@@ -372,21 +508,28 @@ export const TRIGGER_MULT: Record<Exclude<ScorableTriggerWhen, CarrierTriggerWhe
   // pre-2018 MTG precedent — it is a modern consolidation that never existed
   // at our target power level — so this family is anchored on our own
   // dawn calibration (itself MTG-derived) rather than directly on a printing.
-  gainsMark: 1.4,
-  yourCreatureMarked: 1.9,
-  yourPermanentMarked: 2.0,
-  youAddMark: 2.0,
-  otherCreatureMarked: 2.1,
+  //
+  // v4 (D6, 2026-09-26): MEASURED in-engine. Each payoff card was played in
+  // the Starborne precon against a stripped twin on paired seeds (261,184
+  // games in the D6 run), which replaced the §4m estimates (1.2 to 2.5).
+  // These are MediumAI and avatar-brain values in a pool with one mark deck;
+  // a mark-aware AI or more mark decks would raise them. gainsMark and
+  // yourPermanentMarked have no carrier in any deck, so they are set by the
+  // ordering rule above against the measured observers: NEEDS MATH.
+  gainsMark: 0.3,
+  yourCreatureMarked: 0.45,
+  yourPermanentMarked: 0.6,
+  youAddMark: 1.0,
+  otherCreatureMarked: 2.5,
   // Once per resolved `propagate`, NOT once per permanent it marks, and it
-  // needs a propagate source in play: the narrowest of the observers.
-  propagated: 1.2,
+  // needs a propagate source in play: the narrowest of the observers. D6
+  // measured it at nearly nothing (0.05).
+  propagated: 0.05,
   // Fires once per MARKED ATTACKER inside a single Declare Attackers, so a
-  // three-attacker swing fires it three times. MTG prices the ally-wide
-  // version of an attack trigger about two mana above the self-only version
-  // (Hellrider {2}{R}{R} rare vs Falkenrath Perforator {1}{R} common, same "1
-  // damage per attack"), against our self-only `attacks` = 0.8. This rate is
-  // deliberately conservative relative to that premium.
-  markedAllyAttacks: 2.5,
+  // three-attacker swing fires it three times. §4m priced it off Hellrider
+  // (2.5); D6 measured 0.35, since boards rarely hold more than one or two
+  // Marked creatures.
+  markedAllyAttacks: 0.35,
   // Impact Tremors class: "whenever another creature you control enters".
   // MTG absorbs the SMALL version of this (gain 1 / deal 1) into the body at
   // no extra mana across a large common cluster (Impassioned Orator,
@@ -493,9 +636,23 @@ export function triggerMult(w: ScorableTriggerWhen, card: ScorableCardDef, unkno
 // Assume this many of your creatures benefit from a team/anthem effect. 2.0 is a
 // just-cast lord/anthem's realistic board (calibrated against Codex: TEAM_FACTOR
 // 2.5 over-credited 2/2 lords like Lu Meng / Beastkin Packmother).
+// v4 (lane 2, rulings D4 and D10, 2026-09-26): MEASURED in-engine, 151,104
+// games, each lord's own deck as-is against the same deck with the lord
+// stripped to a vanilla twin. Creature lords come out at x1.5 to x2.5, so a
+// creature lord STAYS at x2.0; this is also the one-shot team pump's factor.
+// Magic's x0.6 for a tribal lord is wrong for our game. Value really rides on
+// how many creatures the anthem hits (about 0.14 per matching creature in the
+// 40), but the owner ruled the rate flat (D10) so it never needs re-tuning as
+// sets grow.
 export const TEAM_FACTOR = 2.0;
+// A NON-creature anthem (an enchantment or artifact): measured at about 1.4
+// times a lord (x2.1 to x3.4), because it survives the format's scarce
+// non-creature removal and has no body of its own priced beside it. Flat (D10).
+export const TEAM_ANTHEM_NONCREATURE = 2.8;
 // §4m — a marked-only board-wide effect reaches most, not all, of your board.
-export const MARKED_TEAM_FACTOR = 1.4;
+// v4 (D6, in-engine): x0.7, down from §4m's x1.4; boards rarely hold more than
+// one or two Marked creatures.
+export const MARKED_TEAM_FACTOR = 0.7;
 // §4m — nominal count of MARKED creatures on an engaged opponent's board.
 // Zero against every deck that does not generate marks; the anti-mark package
 // is authored to come alive against the Starborne AI decks. Metagame-dependent
@@ -514,6 +671,13 @@ export const NOMINAL_X = 3;
 // awakening riders in the pool (Twice-Chosen Shieldmaiden +2/+1 = 1.5 MEP;
 // Thorn-Palace Heiress +2/+2/overrun = 2.35 MEP) → ~2.0. See §7 addendum.
 export const NOMINAL_AWAKEN_DELTA = 2.0;
+
+// v4 rates re-measured for 1.8.5 (§4u); each is sourced where it is used.
+export const TOKEN_FLOOR = 0.15; // per token, on top of its body (rate-card audit row 7)
+export const EMPOWER_SHARE = 0.15; // of the rider's value (rate-card audit row 3)
+export const RITE_PER_SACRIFICE = -1.5; // D6, in-engine
+export const IF_MARKED_WEIGHT = 0.09; // D6, in-engine: weight of the marked branch
+export const ARRIVAL_MARK_BODY = 1.0; // D6, in-engine: a Mark a creature enters with
 
 // §4t Drowned Deep op rates (2026-09-24); each is sourced where it is used in
 // valueOp below and tabulated in power-formula.md §4t.
@@ -551,6 +715,77 @@ export const COND_CONTROLS_OTHER = 0.6;
 // tap mode at ~35%, Blightspeaker (PLC) and the Invasion Apprentices at ~0.
 export const DUTY_SHARED_TAP_SHARE = 0.2;
 
+// ── §4v EXTRA LAND DROPS (1.8.5 ramp lane, in-engine) ────────────────────────
+// Warchest gives each player exactly LAND_RESERVE_SIZE (10) lands and one land
+// a turn, so an extra land drop only pulls the land count forward toward a cap
+// both players reach anyway, and a drop beyond the first each turn enters
+// tapped. What the op buys is extra untapped mana on the turns before the cap,
+// counted from the turn it is cast on (its mana value).
+//
+// MEASURED in-engine (1.8.5 ramp lab, 2026-09-27, 85k games in the fitted
+// frame): colourless ramp probes in the hole of three green decks (Wild
+// Communion, Valhalla's Muster, Meng Huo) against the 14 Warchest columns,
+// each probe against a blank card of the same cost and type cast at the same
+// time. The shape below fits the eight one-shot arms (one, two and three drops
+// at mana value 1 to 6; chi2 5.2 on 5), and with one scalar it fits the shape
+// of the five Dawn arms (chi2 2.1 on 4). The flat reading, every extra mana
+// before the cap worth the same, is rejected (chi2 68 on 12).
+//   RAMP_TURN_DECAY 0.89 [0.81, 1.00]: an extra mana a turn later is worth
+//     0.89 of one now.
+//   RAMP_STACK 0.58 [0.38, 0.76]: a second extra mana on the same turn is
+//     worth 0.58 of the first, a third 0.58 squared (likely because the
+//     hand runs out of things to cast; not measured directly).
+//   RAMP_DAWN_SHARE 0.62 [0.50, 0.74]: a Dawn engine realizes 0.62 of its
+//     capped schedule against a one-shot's rate; its extra land arrives late
+//     and needs the game to last, and it realized about 0.7 as much of its
+//     scheduled mana in the lab.
+// The level stays on the §4p anchor (the one-shot at mana value 2 is 1.9). The
+// lab reads that probe at 1.2 [0.95, 1.6] +1/+1 when cast on curve, and at 0.3
+// as MediumAI casts it (it values the op at 0 and casts ramp late): an owner
+// call, not changed here. See balance/study/lab/ramp-findings.md.
+export const RAMP_ANCHOR = 1.9; // §4p: one extra land drop at mana value 2 (Rampant Growth)
+export const RAMP_TURN_DECAY = 0.89;
+export const RAMP_STACK = 0.58;
+export const RAMP_DAWN_SHARE = 0.62;
+
+/** Extra untapped mana on each of your own turns 1..LAND_RESERVE_SIZE, given
+ * `drops(turn)` extra land drops on that turn, against one land a turn. The
+ * normal drop comes in untapped; each extra drop enters tapped, so it pays from
+ * your next turn; the reserve caps lands in play. */
+export function extraManaByTurn(drops: (turn: number) => number): number[] {
+  const out: number[] = [];
+  let lands = 0;
+  for (let turn = 1; turn <= LAND_RESERVE_SIZE; turn++) {
+    if (lands < LAND_RESERVE_SIZE) lands++;
+    out.push(lands - Math.min(turn, LAND_RESERVE_SIZE));
+    lands = Math.min(LAND_RESERVE_SIZE, lands + drops(turn));
+  }
+  return out;
+}
+
+/** The land drops granted by an ability cast on `castTurn`: once, or at every
+ * Dawn after it. */
+function rampMana(castTurn: number, n: number, everyDawn: boolean): number[] {
+  return extraManaByTurn((turn) => (everyDawn ? (turn > castTurn ? n : 0) : (turn === castTurn ? n : 0)));
+}
+/** A turn's lead of `extra` mana: the first counts 1, each more RAMP_STACK of the last. */
+const leadValue = (extra: number): number => (1 - RAMP_STACK ** extra) / (1 - RAMP_STACK);
+const weighted = (mana: number[]): number => mana.reduce((s, m, i) => s + RAMP_TURN_DECAY ** i * leadValue(m), 0);
+const RAMP_PER_WEIGHTED_MANA = RAMP_ANCHOR / weighted(rampMana(2, 1, false));
+
+/** §4v: what `n` extra land drops are worth when cast on your own turn
+ * `castTurn` (the mana paid for them), once or at every Dawn after it. A
+ * one-shot at 2 is the anchor. */
+export function extraLandValue(castTurn: number, n: number, everyDawn: boolean): number {
+  const value = RAMP_PER_WEIGHTED_MANA * weighted(rampMana(Math.max(1, castTurn), n, everyDawn));
+  return everyDawn ? RAMP_DAWN_SHARE * value : value;
+}
+
+/** Own turns on which the drops give extra mana, for the breakdown label. */
+function rampTurns(castTurn: number, n: number, everyDawn: boolean): number {
+  return rampMana(Math.max(1, castTurn), n, everyDawn).filter((m) => m > 0).length;
+}
+
 // ── Effect valuation ─────────────────────────────────────────────────────────
 
 export interface Part {
@@ -558,9 +793,40 @@ export interface Part {
   v: number;
 }
 
-/** Magnitude of a stat/keyword delta, in the same units the body/aura use. */
-function statKwMagnitude(p: number | undefined, t: number | undefined, keywords: Keyword[] | undefined, unknowns: UnknownCollector): number {
-  return 0.5 * ((p ?? 0) + (t ?? 0)) + (keywords ?? []).reduce((s, k) => s + kwValue(k, unknowns), 0);
+/** Magnitude of a stat/keyword delta, in the same units the body/aura use.
+ * v4 (§4u): the stat delta is priced as the body's change on its host, and
+ * each granted keyword on the host AFTER the delta (a +2/+0 Skyborne grant on
+ * a 3/3 is Skyborne at attack 5). `base` omitted = the nominal unknown host. */
+function statKwMagnitude(p: number | undefined, t: number | undefined, keywords: Keyword[] | undefined, unknowns: UnknownCollector, base: Host = nominalHost()): number {
+  const after: Host = { a: base.a + (p ?? 0), d: base.d + (t ?? 0) };
+  return (bodyValue(after.a, after.d) - bodyValue(base.a, base.d)) + (keywords ?? []).reduce((s, k) => s + kwValue(k, unknowns, after), 0);
+}
+
+// D6 (in-engine, 2026-09-26): the face-damage and drain intercept belongs to a
+// Charm or Ritual's own effect only, never to a permanent's trigger or Duty
+// activation (valueDuty scores its ops as 'spell').
+const isPermanentCard = (card: ScorableCardDef): boolean => !card.types.includes('charm') && !card.types.includes('ritual');
+
+/** Face damage and drain (D6, in-engine): 0.7 + 0.5 a point as a Charm or
+ * Ritual's own effect, 0.5 a point as a rider. A 2-mana spell for 2.6 to the
+ * face ties a 2/2 in the lab; Magic reads about 0.8 a point. */
+function faceRate(n: number, when: ScorableTriggerWhen, card: ScorableCardDef): number {
+  return (when === 'spell' && !isPermanentCard(card) ? 0.7 : 0) + 0.5 * n;
+}
+
+/** Skim's option value by the card's mana value (§4u): 0.35 at 4 and below,
+ * 0.8 at 6 and up, and linear between. */
+export function skimValue(mv: number): number {
+  return 0.35 + 0.45 * Math.min(1, Math.max(0, (mv - 4) / 2));
+}
+
+/** The symmetric sweeper's rate for n damage to each creature (rate-card
+ * audit row 10, Magic through 2020): v2's 0.9 + 0.55 n up to 1 damage, then
+ * 2.0 at 2 damage and 0.9 a point past it, capped at a wrath (4.0). Magic reads
+ * n=2 at 1.9-2.7 (Whipflare, Fiery Cannonade), n=3 at 3.1 (Anger of the Gods,
+ * Slagstorm) and n=4 at 4.0 (Storm's Wrath), against a wrath's 4.0. */
+export function sweepRate(n: number): number {
+  return n >= 2 ? Math.min(4.0, 2.0 + 0.9 * (n - 2)) : 0.9 + 0.55 * n;
 }
 
 /** v2 — awaken op valuation. Needs the source CardDef for its own `awakening` rider. */
@@ -572,7 +838,7 @@ function valueAwaken(op: Extract<ScorableEffectOp, { op: 'awaken' }>, card: Scor
       // "unknown" — a genuinely inert ability, scored at 0.
       return { label: 'awaken(self, no rider — inert)', v: 0 };
     }
-    const mag = statKwMagnitude(card.awakening.p, card.awakening.t, card.awakening.keywords, unknowns);
+    const mag = statKwMagnitude(card.awakening.p, card.awakening.t, card.awakening.keywords, unknowns, hostOf(card));
     return { label: 'awaken(self)', v: 0.6 * mag };
   }
   // scope 'allYours': every creature you control with its OWN awakening rider
@@ -581,13 +847,16 @@ function valueAwaken(op: Extract<ScorableEffectOp, { op: 'awaken' }>, card: Scor
   // a creature carrying `awakening`, it is at least one guaranteed beneficiary;
   // otherwise this is a pure payoff card and we fall back to the nominal rate.
   const mag = card.awakening
-    ? statKwMagnitude(card.awakening.p, card.awakening.t, card.awakening.keywords, unknowns)
+    ? statKwMagnitude(card.awakening.p, card.awakening.t, card.awakening.keywords, unknowns, hostOf(card))
     : NOMINAL_AWAKEN_DELTA;
   const nominalTag = card.awakening ? '' : ', nominal';
   return { label: `awaken(allYours${nominalTag})`, v: 0.6 * mag * TEAM_FACTOR };
 }
 
-/** Value one EffectOp. `canFace` = the owning ability can target a player. */
+/** Value one EffectOp. `canFace` = the owning ability can target a player.
+ * `castMana` = the mana the effect is cast for when that is not the card's own
+ * mana value (an Empower rider, a Retell, a later Quest chapter); only the
+ * extra land drop reads it (§4v). */
 export function valueOp(
   op: ScorableEffectOp,
   canFace: boolean,
@@ -595,16 +864,26 @@ export function valueOp(
   when: ScorableTriggerWhen = 'spell',
   targetWhat?: string,
   unknowns: UnknownCollector = new Set<string>(),
+  castMana: number = manaValue(card.cost),
 ): Part {
   switch (op.op) {
     case 'damage': {
       const n = op.n === 'X' ? NOMINAL_X : op.n;
       const damageTarget = op.to;
       switch (damageTarget) {
-        case 'controller':
-          return { label: `self-dmg ${n}`, v: -SELF_DMG_RATE * n };
+        case 'controller': {
+          // v4 (rate-card audit, Magic through 2020): a ONE-SHOT payment is
+          // settled at 0.15 a point (Ancient Craving, Ambition's Cost, Succumb
+          // to Temptation, Anguished Unmaking: 0.10-0.15). A recurring
+          // drawback keeps SELF_DMG_RATE: Magic's creatures read 0.58 a fire,
+          // Phyrexian Arena 0.3-0.6, so the recurring rate is NEEDS MATH.
+          const oneShot = when === 'spell' || when === 'arrives' || when === 'dies' || when === 'entersGraveyard';
+          const rate = oneShot ? SELF_DMG_ONE_SHOT_RATE : SELF_DMG_RATE;
+          return { label: `self-dmg ${n}`, v: -rate * n };
+        }
         case 'opponent':
-          return { label: `face dmg ${n}`, v: 0.15 + 0.3 * n };
+          // v4 (D6, in-engine): replaces §4k's owner-ruled 0.15 + 0.3 n.
+          return { label: `face dmg ${n}`, v: faceRate(n, when, card) };
         case 'eachCreature': {
           // v2 — Pyroclasm-class symmetric sweeper (EffectInterpreter hits
           // every creature on the battlefield, both controllers). No any-
@@ -617,7 +896,7 @@ export function valueOp(
           const sever = (op as { severOnDeath?: boolean }).severOnDeath ? 0.7 : 0;
           return {
             label: sever ? `sweep ${n} + sever-on-death` : `sweep ${n}`,
-            v: 0.9 + 0.55 * n + sever,
+            v: sweepRate(n) + sever,
           };
         }
         case 'eachOpponentCreature': {
@@ -629,7 +908,7 @@ export function valueOp(
           const sever = (op as { severOnDeath?: boolean }).severOnDeath ? 0.7 : 0;
           return {
             label: sever ? `one-sided sweep ${n} + sever-on-death` : `one-sided sweep ${n}`,
-            v: ONE_SIDED_SWEEP_MULT * (0.9 + 0.55 * n + sever),
+            v: ONE_SIDED_SWEEP_MULT * (sweepRate(n) + sever),
           };
         }
         case 'target':
@@ -642,9 +921,13 @@ export function valueOp(
           // produced cost-cut proposals that would have printed "5 damage to
           // any target" at MV2. The max() leaves every n<=2 value — and so
           // every §6 anchor — byte-identical, correcting only the extrapolation.
+          // v4 (rate-card audit row 6, Magic through 2020): creature-only burn
+          // gets the same fix at a gentler slope, 0.5 a point past 2, capped
+          // at destroy (2.7). Magic reads n=3 at 1.7, n=4 at 2.2 (n=10: Flame
+          // Slash, Bathe in Dragonfire) and n=5 past a kill spell.
           return canFace
             ? { label: `burn any ${n}`, v: Math.max(0.6 + 0.35 * n, 1.3 + 1.0 * (n - 2)) }
-            : { label: `burn creature ${n}`, v: 0.5 + 0.35 * n };
+            : { label: `burn creature ${n}`, v: Math.max(0.5 + 0.35 * n, Math.min(2.7, 1.2 + 0.5 * (n - 2))) };
         default: {
           const _exhaustive: never = damageTarget;
           unknowns.add(`damage.to:${String(_exhaustive)}`);
@@ -653,11 +936,16 @@ export function valueOp(
       }
     }
     case 'gainLife':
+      // The v4 audit's proposed intercept was noise on the wider window
+      // (0.05-0.10); the 0.2 slope is confirmed. Unchanged.
       return { label: `gain ${op.n}`, v: 0.2 * op.n };
     case 'loseLife':
-      return { label: `drain ${op.n}`, v: 0.5 * op.n };
+      // v4 (D6, in-engine): drain rides the face-damage curve.
+      return { label: `drain ${op.n}`, v: faceRate(op.n, when, card) };
     case 'draw':
-      return { label: `draw ${op.n}`, v: 0.3 + 1.35 * op.n };
+      // v4 (rate-card audit row 12, Magic through 2020): past draw 2 each card
+      // adds 1.0, not 1.35 (draw 3 at 3.96, draw 4 at 4.89 in Magic).
+      return { label: `draw ${op.n}`, v: op.n > 2 ? 3.0 + 1.0 * (op.n - 2) : 0.3 + 1.35 * op.n };
     case 'discard':
       // §4t — self-discard (the loot's second half), the controller's choice.
       // Backed out of the creature loot family on the v3 budget against
@@ -669,6 +957,7 @@ export function valueOp(
       // of a bigger selection; every shipped carrier draws 1.
       return { label: `discard ${op.n} (self)`, v: -SELF_DISCARD_RATE * op.n };
     case 'discardRandom':
+      // D6 (in-engine) measured 0.78 [0.62, 0.93] a card: 0.9 stays.
       return { label: `discard ${op.n}`, v: 0.9 * op.n };
     case 'destroy':
       // v3.1 owner-caught (Recant the Vow): destroy/sever aimed at an
@@ -701,8 +990,13 @@ export function valueOp(
     case 'cancel':
       return { label: 'counter', v: 2.7 };
     case 'boost': {
-      const stats = 0.2 * (op.p + op.t);
-      const kw = (op.keywords ?? []).reduce((s, k) => s + 0.5 * kwValue(k, unknowns), 0);
+      // v4 (rate-card audit row 8, Magic through 2020, n=55): a targeted pump
+      // weights power over toughness, 0.3 a point of power and 0.1 of
+      // toughness (Magic 0.73 + 0.33p + 0.03t); a +1/+1 is unchanged at 0.4.
+      // Every other scope keeps 0.2 a stat. A granted keyword counts half,
+      // priced on the nominal host plus the pump's own stats.
+      const stats = op.scope === 'target' && op.p >= 0 && op.t >= 0 ? 0.3 * op.p + 0.1 * op.t : 0.2 * (op.p + op.t);
+      const kw = (op.keywords ?? []).reduce((s, k) => s + 0.5 * kwValue(k, unknowns, nominalHost(op.p, op.t)), 0);
       const base = stats + kw + 0.3;
       const boostScope = op.scope;
       switch (boostScope) {
@@ -723,9 +1017,15 @@ export function valueOp(
           // pump-spell rate. On the six era anchors it centres Δ at -0.37
           // (Wei Ambush Force -0.12, Hollow Dogs 9ED -0.58, Charging Paladin
           // +0.46) where the spell rate sits at -0.77.
-          return { label: `self pump ${sign(op.p)}/${sign(op.t)}`, v: statKwMagnitude(op.p, op.t, op.keywords, unknowns) };
+          return { label: `self pump ${sign(op.p)}/${sign(op.t)}`, v: statKwMagnitude(op.p, op.t, op.keywords, unknowns, hostOf(card)) };
         case 'allYours':
-          return { label: `team pump +${op.p}/+${op.t}`, v: base * TEAM_FACTOR };
+          // v4 (a slate finding, 2026-09-26): on a charm or ritual's own team
+          // pump the +0.3 "being a spell" floor counts once, outside the team
+          // factor; only the per-creature stats and keywords are multiplied.
+          // A recurring, triggered or Duty pump keeps the old form, because the
+          // §4i Dawn fit (and §4q's Duty rate on it) was backed out with that
+          // intercept inside.
+          return { label: `team pump +${op.p}/+${op.t}`, v: when === 'spell' && !isPermanentCard(card) ? 0.3 + (stats + kw) * TEAM_FACTOR : base * TEAM_FACTOR };
         case 'all': {
           // v2 — symmetric (helps BOTH players' creatures per
           // EffectInterpreter). Valued on raw |stats|+|keywords| magnitude
@@ -735,14 +1035,21 @@ export function valueOp(
           // Crippling Fear-class) is weak, narrow, situational removal —
           // matches so-creeping-malaise landing clearly cold below.
           const magKw = (op.keywords ?? []).reduce((s, k) => s + Math.abs(kwValue(k, unknowns)), 0);
+          const label = `symmetric pump ${op.p >= 0 ? '+' : ''}${op.p}/${op.t >= 0 ? '+' : ''}${op.t}`;
+          // v4 (a slate finding, 2026-09-26): a symmetric -X/-X kills what
+          // X damage to each creature kills, so it is priced as that sweeper
+          // on the sweep curve (sweepRate), not as a pump. The slate found it
+          // on Black Tide Rising's -3/-3.
+          if (op.p < 0 && op.p === op.t) return { label, v: sweepRate(-op.p) + magKw };
           const mag = Math.abs(stats) + magKw;
-          return { label: `symmetric pump ${op.p >= 0 ? '+' : ''}${op.p}/${op.t >= 0 ? '+' : ''}${op.t}`, v: mag * 1.2 };
+          return { label, v: mag * 1.2 };
         }
         // §4m — board-wide but restricted to MARKED creatures, no target choice.
         // `yourMarked` is a narrowed allYours: in a mark deck most of your
         // board is marked, but not all of it, so it sits below TEAM_FACTOR.
         case 'yourMarked':
-          return { label: `marked-team pump +${op.p}/+${op.t}`, v: base * MARKED_TEAM_FACTOR };
+          // Same rule as `allYours`: a charm or ritual's floor sits outside the factor.
+          return { label: `marked-team pump +${op.p}/+${op.t}`, v: when === 'spell' && !isPermanentCard(card) ? 0.3 + (stats + kw) * MARKED_TEAM_FACTOR : base * MARKED_TEAM_FACTOR };
         // `theirMarked` only ever carries DEBUFFS in the shipped set, and is
         // live only against an opponent who generates marks. Valued by
         // magnitude against the nominal engaged-opponent board (§4m, §7).
@@ -759,6 +1066,12 @@ export function valueOp(
       }
     }
     case 'addCounters':
+      // D6 (in-engine) measured a Mark at 0.74 [0.60, 0.87] in-deck: 0.7
+      // stays (Magic reads about 1.0). A creature ENTERING with Marks on
+      // itself is body, not a trigger: 1.0 a Mark with no arrival haircut
+      // (Ashwood Ranger measured 1.6 for its Mark), so the 0.75 arrival
+      // multiplier the caller applies is divided back out here.
+      if (op.to === 'self' && when === 'arrives') return { label: `enters with +1/+1 ×${op.n} (body)`, v: (ARRIVAL_MARK_BODY * op.n) / TRIGGER_MULT.arrives };
       return { label: `+1/+1 ×${op.n}`, v: 0.7 * op.n };
     // ── §4m Starborne mark vocabulary (2026-08-29) ──────────────────────────
     case 'fetchLand':
@@ -772,13 +1085,15 @@ export function valueOp(
       // Basri's Solidarity {1}{W} is textless "+1/+1 counter on each creature
       // you control" at 2 mana. Priced just under a whole fair 2-mana card,
       // since our version rides other text rather than being the whole card.
-      return { label: 'mark all your creatures', v: 1.8 };
+      // v4 (D6, in-engine): measured at 1.0, down from 1.8.
+      return { label: 'mark all your creatures', v: 1.0 };
     case 'moveMark':
       // Bioshift {G/U} moves ANY NUMBER of +1/+1 counters for one mana at
       // common. Ours moves exactly ONE and both ends must be your own
       // permanents (a controller check in runOp on top of the target spec), so
       // net board stats never change. Strictly weaker than the anchor.
-      return { label: 'move 1 mark (own side)', v: 0.5 };
+      // v4 (D6, in-engine): measured at about 0, priced 0.1 (from 0.5).
+      return { label: 'move 1 mark (own side)', v: 0.1 };
     case 'removeMarks':
       // NEEDS MATH (§9): Magic has essentially NO precedent for stripping an
       // opponent's +1/+1 counters — the colour pie answers big creatures with
@@ -805,12 +1120,14 @@ export function valueOp(
       // an unmarked one. Both shipped users are debuff charms whose `then`
       // branch is stronger. The marked branch is live only against a
       // mark-generating opponent (see loseLifePerTheirMarked above), so this
-      // is an even blend of the two branches rather than the optimistic read.
+      // is a blend of the two branches rather than the optimistic read.
+      // v4 (D6, in-engine): the marked branch is weighted 0.09, not §4m's
+      // even 0.5; in the measured pool the target is rarely marked.
       const gate = op as Extract<ScorableEffectOp, { op: 'ifTargetMarked' }>;
       const sum = (ops: ScorableEffectOp[]) => ops.reduce((s, o) => s + valueOp(o, canFace, card, when, targetWhat, unknowns).v, 0);
       const thenV = sum(gate.then ?? []);
       const elseV = sum(gate.else ?? []);
-      return { label: 'if-marked (blended branches)', v: 0.5 * thenV + 0.5 * elseV };
+      return { label: 'if-marked (blended branches)', v: IF_MARKED_WEIGHT * thenV + (1 - IF_MARKED_WEIGHT) * elseV };
     }
     case 'tap':
       return { label: 'tap', v: 0.4 };
@@ -828,8 +1145,11 @@ export function valueOp(
       // into the priced expected-total-value part, e.g. 1.65 × 3.0 = 4.95.
       // Parasitic floor stays: worth 0 on a blank board (mark-synergy blind
       // spot).
-      if (when === 'dawn') return { label: 'propagate (repeatable, per-trigger)', v: 1.65 };
-      return { label: 'propagate (one-shot)', v: 0.7 };
+      // v4 (D6, in-engine): one-shot 0.3 (from 0.7) and 0.1 a Dawn trigger
+      // (from 1.65, so 0.3 in all on the non-creature carrier instead of
+      // 4.95): boards rarely hold more than one or two Marked creatures.
+      if (when === 'dawn') return { label: 'propagate (repeatable, per-trigger)', v: 0.1 };
+      return { label: 'propagate (one-shot)', v: 0.3 };
     }
     case 'extraLandDrop': {
       // v2 (≈Explore-class ramp/land-drop enabler). Flat per use; op.n is
@@ -850,11 +1170,34 @@ export function valueOp(
       // the fair band, because one mana step (0.82) is narrower than the
       // outlier band (1.5). The turn-2 curve is what makes {G} ramp
       // format-warping, and that is a FLOOR rule (see §4p), not a rate.
+      // v4 (§4v, 1.8.5 ramp lane, in-engine): no longer flat. The value is
+      // the extra untapped mana the drops give on your turns before the
+      // 10-land reserve runs out, cast on the turn equal to the mana paid (see
+      // extraLandValue), with the one-shot at mana value 2 kept at the 1.9
+      // anchor; a {G} ramp ritual now reads Over on the rate alone (the floor
+      // rule stays). A Dawn trigger grants a drop at every Dawn until the cap,
+      // so it is priced as that capped total, not per trigger: the part below
+      // is the total divided by the non-creature Dawn multiplier, which the
+      // trigger's own multiplier restores (a creature carrier keeps its
+      // 2.0 / 3.0 survival discount). A drop granted at Sunset comes after the
+      // last main phase, so it can never be used.
       const n = op.n ?? 1;
-      return { label: n > 1 ? `extra land drop ×${n}` : 'extra land drop', v: 1.9 * n };
+      const drops = n > 1 ? ` ×${n}` : '';
+      if (when === 'sunset') return { label: `extra land drop${drops} (too late in the turn to use)`, v: 0 };
+      const everyDawn = when === 'dawn';
+      const turn = Math.max(1, castMana);
+      const label = `extra land drop${drops} (cast at ${turn}, ${rampTurns(turn, n, everyDawn)} turns before cap ${LAND_RESERVE_SIZE})`;
+      const value = extraLandValue(turn, n, everyDawn);
+      return { label, v: everyDawn ? value / DAWN_MULT_NONCREATURE : value };
     }
     case 'createToken':
-      return { label: `token ×${op.count}`, v: op.count * (tokenBody(op.token, unknowns) + 0.3) };
+      // Each token is its body (keywords priced on the token's own Attack)
+      // plus a per-token floor. v4 (rate-card audit row 7, Magic through
+      // 2020, n=14): the floor drops from 0.3 to 0.15, since Magic reads a
+      // 1/1 token at 1.12 (Hordeling Outburst, Captain's Call, Krenko's
+      // Command). A token's starting Marks were unpriced; D6 prices them like
+      // a counter, 0.7 each (Net Full of Stars' one Mark measured +0.47).
+      return { label: `token ×${op.count}`, v: op.count * (tokenBody(op.token, unknowns) + TOKEN_FLOOR + 0.7 * (op.marks ?? 0)) };
     case 'destroyNewestOpponentArtifactOrEnchantment':
       // v2 — trigger-safe sibling of `destroyArtifactOrSeverEnchantment`: no
       // target choice (always the newest), so priced below the targeted
@@ -939,8 +1282,18 @@ export function valueStatic(st: StaticDef, _self: ScorableCardDef, unknowns: Unk
       // An aura is a useful CARD whether it buffs your creature (+P/+T, keywords)
       // or debuffs an enemy's (−P/−T = pseudo-removal / Pacifism). Value it by the
       // MAGNITUDE of its impact, then a 0.3 haircut for aura card-disadvantage risk.
-      const mag = Math.abs(0.5 * ((st.p ?? 0) + (st.t ?? 0)))
-        + (st.grantKeywords ?? []).reduce((s, k) => s + Math.abs(kwValue(k, unknowns)), 0);
+      // v4 (rate-card audit row 11, Magic through 2020, n=38): a buff weights
+      // power over toughness, 0.7 a point of power and 0.3 of toughness
+      // (Magic 0.50 + 0.59p + 0.25t); a debuff is the body change it makes on
+      // the nominal host. A granted keyword is priced on the nominal host plus
+      // the aura's own stats.
+      const onHost = nominalHost(st.p ?? 0, st.t ?? 0);
+      const ap = st.p ?? 0, at = st.t ?? 0;
+      const statMag = ap >= 0 && at >= 0
+        ? 0.7 * ap + 0.3 * at
+        : Math.abs(bodyValue(onHost.a, onHost.d) - bodyValue(NOMINAL_HOST.attack, NOMINAL_HOST.defense));
+      const mag = statMag
+        + (st.grantKeywords ?? []).reduce((s, k) => s + Math.abs(kwValue(k, unknowns, onHost)), 0);
       return { label: `aura ${sign(st.p)}/${sign(st.t)}`, v: Math.max(0, mag - 0.3) };
     }
     case 'self': {
@@ -949,22 +1302,33 @@ export function valueStatic(st: StaticDef, _self: ScorableCardDef, unknowns: Unk
       // keyword/stat printed directly on the body: no team multiplier, no
       // aura haircut (it can't fall off — it dies with its own permanent
       // the same way a printed keyword would).
-      const mag = statKwMagnitude(st.p, st.t, st.grantKeywords, unknowns);
+      const mag = statKwMagnitude(st.p, st.t, st.grantKeywords, unknowns, hostOf(_self));
       return { label: `self ${sign(st.p)}/${sign(st.t)}`, v: mag };
     }
     case 'filter': {
       // Anthem/lord: applies to the team (excluding self if `other`), recurring.
-      const stats = 0.5 * ((st.p ?? 0) + (st.t ?? 0));
-      const kw = (st.grantKeywords ?? []).reduce((s, k) => s + kwValue(k, unknowns), 0);
       if (st.filter?.who === 'opponent') {
         // 2026-09-11 (found scoring the Drowned Deep overplan): a static that
         // DEBUFFS the opponent's team is worth the magnitude of the debuff
         // (a reverse anthem, Night of Souls' Betrayal / Engineered Plague
         // shape), not a negative number. A keyword granted to the enemy team
-        // is a drawback and stays negative.
+        // is a drawback and stays negative. v4: both are priced on the nominal
+        // host (the body change the debuff makes, each keyword on the host
+        // after it); lane 2 measured only your own anthems.
+        const onF = nominalHost(st.p ?? 0, st.t ?? 0);
+        const stats = bodyValue(onF.a, onF.d) - bodyValue(NOMINAL_HOST.attack, NOMINAL_HOST.defense);
+        const kw = (st.grantKeywords ?? []).reduce((s, k) => s + kwValue(k, unknowns, onF), 0);
         return { label: `enemy anthem ${sign(st.p)}/${sign(st.t)}`, v: (Math.abs(stats) - kw) * TEAM_FACTOR };
       }
-      return { label: `anthem ${sign(st.p)}/${sign(st.t)}`, v: (stats + kw) * TEAM_FACTOR };
+      // v4 (lane 2, in-engine, D4 and D10): a creature lord x2.0 (TEAM_FACTOR),
+      // a non-creature anthem x2.8, on a per-creature magnitude in the units
+      // the factors were measured in: 0.5 a stat (BODY_PER_STAT) and each
+      // granted keyword at its FLAT value (KEYWORD_VALUE), so an anthem's
+      // scaled keyword is not counted twice.
+      const flatKw = (st.grantKeywords ?? []).reduce((sum, k) => sum + flatKwValue(k, unknowns), 0);
+      const mag = BODY_PER_STAT * ((st.p ?? 0) + (st.t ?? 0)) + flatKw;
+      const factor = _self.types.includes('creature') ? TEAM_FACTOR : TEAM_ANTHEM_NONCREATURE;
+      return { label: `anthem ${sign(st.p)}/${sign(st.t)}`, v: mag * factor };
     }
     default: {
       const _exhaustive: never = st.scope;
@@ -982,17 +1346,39 @@ const sign = (v: number | undefined): string => ((v ?? 0) >= 0 ? `+${v ?? 0}` : 
 // and valuing only raw stats under-credited all 16 generator cards. Found by
 // the dawn-recalibration batch hand-checking Nocturne Manor's Bat rider.
 const TOKEN_DEFS = new Map(ALL_CARDS.filter((card) => card.token).map((card) => [card.id, card]));
+// v4: the token's body, and its keywords on its own Attack (§4u).
 function tokenBody(id: string, unknowns: UnknownCollector): number {
   const card = TOKEN_DEFS.get(id);
   if (!card) return 1.0;
-  const body = BODY_PER_STAT * ((card.attack ?? 0) + (card.defense ?? 0));
-  const kw = (card.keywords ?? []).reduce((sum, keyword) => sum + kwValue(keyword, unknowns), 0) + rageRebate(card.keywords);
-  return body + kw;
+  const host = hostOf(card);
+  const kw = (card.keywords ?? []).reduce((sum, keyword) => sum + kwValue(keyword, unknowns, host), 0) + rageRebate(card.keywords);
+  return bodyValue(host.a, host.d) + kw;
 }
 
 // ── Card scoring ─────────────────────────────────────────────────────────────
 
 const canFaceOf = (ab: ScorableAbilityDef): boolean => (ab.targets ?? []).some((t) => t.what === 'any');
+
+/** How many targets an ability's targeted ops hit. A sole `upTo: 2` or
+ * `exactly: 2` spec fans those ops across two independently chosen targets
+ * (the engine's target batch, src/engine/resolve.ts), so each is priced once
+ * per target. v4 (a slate finding, 2026-09-26): "up to two target creatures"
+ * used to price as one. */
+function targetFan(targets: readonly TargetSpec[] | undefined): number {
+  if (targets?.length !== 1) return 1;
+  return Math.max(1, targets[0].upTo ?? targets[0].exactly ?? 1);
+}
+
+/** An op that acts on the ability's target, and so runs once per target. */
+function isPerTargetOp(op: ScorableEffectOp): boolean {
+  if (op.op === 'boost') return op.scope === 'target';
+  if (op.op === 'ifTargetMarked' || op.op === 'reclaim') return true;
+  if (op.op === 'foresee') return op.who === 'targetOwner';
+  return (op as { to?: string }).to === 'target';
+}
+
+/** The label suffix naming a fanned op's target count. */
+const fanLabel = (fan: number): string => (fan > 1 ? ` (${fan} targets)` : '');
 
 export interface Score {
   id: string;
@@ -1016,15 +1402,20 @@ export interface Score {
 function valueDuty(ability: ScorableActivated, card: ScorableCardDef, unknowns: UnknownCollector): Part {
   const face = (ability.targets ?? []).some((t) => t.what === 'any');
   const targetWhat = ability.targets?.[0]?.what;
+  const fan = targetFan(ability.targets);
   let perTrigger = 0;
   for (const op of ability.ops) {
-    const p = valueOp(op, face, card, 'spell', targetWhat, unknowns);
-    perTrigger += op.op === 'tap' ? 1.0 : p.v;
+    // §4v: a Duty's extra land drop repeats once a turn, the Dawn engine's shape.
+    const p = valueOp(op, face, card, op.op === 'extraLandDrop' ? 'dawn' : 'spell', targetWhat, unknowns);
+    perTrigger += (op.op === 'tap' ? 1.0 : p.v) * (isPerTargetOp(op) ? fan : 1);
   }
   const creatureCarrier = card.types.includes('creature');
   const topBand = creatureCarrier && perTrigger >= 2.0;
   const expected = topBand ? perTrigger + 1.0 : dawnMult(card) * perTrigger;
   const activationMana = manaValue(ability.cost.mana);
+  // The rate-card audit settled the discount's SHAPE (proportional to the
+  // ability's value, no cap) but not its size, so today's discount stays
+  // until the Duty coefficient is measured (NEEDS MATH, docs/plan-1.8.5.md).
   const discount = Math.min(1.5, 0.4 * activationMana);
   const value = Math.max(0, expected - discount);
   const carrier = creatureCarrier ? 'creature' : 'non-creature';
@@ -1040,11 +1431,13 @@ export function scoreCard(card: ScorableCardDef): Score {
   const isCharm = card.types.includes('charm');
 
   if (isCreature) {
-    const body = BODY_PER_STAT * ((card.attack ?? 0) + (card.defense ?? 0));
-    parts.push({ label: `body ${card.attack ?? 0}/${card.defense ?? 0}`, v: body });
-    for (const k of card.keywords ?? []) parts.push({ label: k, v: kwValue(k, unknowns) });
+    const host = hostOf(card);
+    parts.push({ label: `body ${host.a}/${host.d}`, v: bodyValue(host.a, host.d) });
+    for (const k of card.keywords ?? []) parts.push({ label: keywordLabel(k, host.a), v: kwValue(k, unknowns, host) });
     const rebate = rageRebate(card.keywords);
     if (rebate) parts.push({ label: 'rage on an attacker (§4o)', v: rebate });
+    const stack = keywordStackDiscount(card.keywords);
+    if (stack) parts.push({ label: '3+ keyword stack', v: stack });
     // v2.1 — carrying an `awakening` rider is worth something even when the
     // card cannot awaken itself (Quest/enabler decks turn it on). Half the
     // 0.6 awaken(self) rate for the external-enabler dependency. Self-awaken
@@ -1052,12 +1445,15 @@ export function scoreCard(card: ScorableCardDef): Score {
     const selfAwakens = (card.abilities ?? []).some((ab) =>
       (ab.ops ?? []).some((o) => o.op === 'awaken' && (o.scope === 'self' || o.scope === undefined)));
     if (card.awakening && !selfAwakens) {
-      const mag = statKwMagnitude(card.awakening.p, card.awakening.t, card.awakening.keywords, unknowns);
+      const mag = statKwMagnitude(card.awakening.p, card.awakening.t, card.awakening.keywords, unknowns, hostOf(card));
       parts.push({ label: 'awakening rider (needs enabler)', v: round(0.3 * mag) });
     }
   }
 
   let spellEffect = 0;
+  // §4v: the extra land drops inside `spellEffect`, so a Retell that re-casts
+  // the printed spell can re-price them at the Retell's own mana.
+  const rampInSpell: { op: ScorableEffectOp; when: ScorableTriggerWhen; mult: number }[] = [];
   for (const ab of card.abilities ?? []) {
     let mult = triggerMult(ab.when, card, unknowns);
     // §4n (2026-08-29): a GATED ability is not an unconditional one — the
@@ -1114,11 +1510,14 @@ export function scoreCard(card: ScorableCardDef): Score {
       continue;
     }
     const face = canFaceOf(ab);
+    const fan = targetFan(ab.targets);
     for (const op of ab.ops ?? []) {
       const p = valueOp(op, face, card, ab.when, ab.targets?.[0]?.what, unknowns);
-      const v = p.v * mult;
-      parts.push({ label: `${ab.when}:${p.label}`, v });
+      const perTarget = isPerTargetOp(op) ? fan : 1;
+      const v = p.v * mult * perTarget;
+      parts.push({ label: `${ab.when}:${p.label}${fanLabel(perTarget)}`, v });
       if (!isCreature) spellEffect += v;
+      if (!isCreature && op.op === 'extraLandDrop') rampInSpell.push({ op, when: ab.when, mult: mult * perTarget });
     }
   }
 
@@ -1129,7 +1528,11 @@ export function scoreCard(card: ScorableCardDef): Score {
   // Chromatic Lantern / Coalition Relic sit a full tier above Mind Stone.
   if (card.manaAbility?.length && !card.types.includes('land')) {
     const colours = new Set(card.manaAbility).size;
-    const p = { label: colours > 1 ? `mana source (${colours} colours)` : 'mana source', v: 1.3 + 0.15 * (colours - 1) };
+    // v4 (rate-card audit row 9, Magic through 2020, n=35): on a creature the
+    // ability is worth 0.5 (Magic 0.55), since the body is priced beside it;
+    // a mana rock keeps 1.3.
+    const baseMana = isCreature ? 0.5 : 1.3;
+    const p = { label: colours > 1 ? `mana source (${colours} colours)` : 'mana source', v: baseMana + 0.15 * (colours - 1) };
     parts.push(p);
     if (!isCreature) spellEffect += p.v;
   }
@@ -1146,7 +1549,11 @@ export function scoreCard(card: ScorableCardDef): Score {
     // "being a flexible option" as a flat add rather than a cost-indexed one
     // (see the aura -0.3 haircut, the +0.3 spell floor).
     mechanics.push('skim');
-    parts.push({ label: 'skim option', v: 0.35 });
+    // v4 (rate-card audit, cycling on otherwise-vanilla creatures, Magic
+    // through 2020): 0.8 at mana value 6 and up (n=14), 0.35 at 4 and below.
+    // Continuous between (0.575 at mana value 5), so adding a mana to a Skim
+    // card never reads worse (a slate finding: a step made it).
+    parts.push({ label: 'skim option', v: skimValue(manaValue(card.cost)) });
   }
 
   if (card.retell) {
@@ -1156,9 +1563,13 @@ export function scoreCard(card: ScorableCardDef): Score {
     // accumulated above — pre charm-premium, which is correct: the printed
     // ops are what get re-cast, not the instant-speed flexibility bonus).
     mechanics.push('retell');
+    // §4v: an extra land drop in the re-cast is priced at the Retell's mana,
+    // not the printed card's.
+    const retellMana = manaValue(card.retell.cost);
     const effectValue = card.retell.ops
-      ? card.retell.ops.reduce((s, op) => s + valueOp(op, false, card, 'spell', undefined, unknowns).v, 0)
-      : spellEffect;
+      ? card.retell.ops.reduce((s, op) => s + valueOp(op, false, card, 'spell', undefined, unknowns, retellMana).v, 0)
+      : spellEffect + rampInSpell.reduce((s, r) => s + r.mult * (
+        valueOp(r.op, false, card, r.when, undefined, unknowns, retellMana).v - valueOp(r.op, false, card, r.when, undefined, unknowns).v), 0);
     parts.push({ label: 'retell option', v: 0.4 * effectValue });
   }
 
@@ -1166,20 +1577,31 @@ export function scoreCard(card: ScorableCardDef): Score {
     // Empower (≈Kicker): 0.5x the rider's op value. Additive cost, paid on
     // top of the printed cost, so never priced at full rate.
     mechanics.push('empower');
-    const riderValue = card.empower.ops.reduce((s, op) => s + valueOp(op, false, card, 'spell', undefined, unknowns).v, 0);
-    parts.push({ label: 'empower option', v: 0.5 * riderValue });
+    // §4v: an extra land drop in the rider is cast for the printed cost plus
+    // the Empower cost.
+    const empoweredMana = manaValue(card.cost) + manaValue(card.empower.cost);
+    const riderValue = card.empower.ops.reduce((s, op) => s + valueOp(op, false, card, 'spell', undefined, unknowns, empoweredMana).v, 0);
+    // v4 (rate-card audit row 3, Magic through 2020, n=23): kicker is nearly
+    // free upside, 0.15 of the rider (from 0.5). The level leans on 2015-20
+    // cards (Dominaria kicker), so it carries the creep caveat.
+    parts.push({ label: 'empower option', v: EMPOWER_SHARE * riderValue });
   }
 
   if (card.rite) {
     // Rite N: additional sacrifice cost paid while casting — a real
     // drawback (you need N creatures already in play), priced negative.
     mechanics.push('rite');
-    parts.push({ label: `rite ${card.rite.n}`, v: -0.7 * card.rite.n });
+    // v4 (D6, in-engine): -1.5 a sacrifice (-1.4 to -1.6), from -0.7; Magic
+    // through 2020 reads -1.1 on spells. The AI casts Rite cards less often
+    // than vanillas, so this is partly how our AI plays them.
+    parts.push({ label: `rite ${card.rite.n}`, v: RITE_PER_SACRIFICE * card.rite.n });
   }
 
   if (card.nineLives) {
     // Nine Lives (≈Undying): flat +0.9, one guaranteed extra body (marked,
     // so it cannot loop) after the first death.
+    // v4: unchanged. Undying and Persist do not track body size on Magic
+    // through 2020 (the pre-2010 reading that they did was overturned).
     mechanics.push('nineLives');
     parts.push({ label: 'nine lives', v: 0.9 });
   }
@@ -1190,7 +1612,10 @@ export function scoreCard(card: ScorableCardDef): Score {
     // priced as if it "replaces itself" once via the ETB-fires-twice rule
     // (docs/rules.md), so this is the pure recursion-option premium.
     mechanics.push('preserve');
-    parts.push({ label: 'preserve option', v: 0.5 });
+    // v4 (rate-card audit, Embalm, Magic through 2020, n=8): flat 0.3 (from
+    // 0.5); the option value does not track the body. All 2017 cards, so the
+    // level carries the creep caveat.
+    parts.push({ label: 'preserve option', v: 0.3 });
   }
 
   if (card.hauntlink) {
@@ -1202,6 +1627,8 @@ export function scoreCard(card: ScorableCardDef): Score {
     // §4g for the full derivation and era-filtered MTG anchors.
     mechanics.push('hauntlink');
     const linked = card.hauntlink.linked;
+    // v4: the link's host is unknown, so the rider is priced on the nominal
+    // host (§4u). The link's own cost is still unpriced (#403, NEEDS MATH).
     const mag = statKwMagnitude(linked.p, linked.t, linked.grantKeywords, unknowns);
     const hauntMV = manaValue(card.hauntlink.cost);
     // 1. Reusable-across-hosts value: the permanent survives its OWN host
@@ -1322,7 +1749,10 @@ export function scoreCard(card: ScorableCardDef): Score {
     // target-free (EffectInterpreter comment), so canFace is always false.
     mechanics.push('chapters');
     card.chapters.forEach((chapterOps, i) => {
-      const chapterTotal = chapterOps.reduce((s, op) => s + valueOp(op, false, card, 'spell', undefined, unknowns).v, 0);
+      // §4v: Chapter I resolves on arrival, each later chapter one Dawn after
+      // the last, so an extra land drop in chapter i+1 is priced i turns later.
+      const chapterMana = manaValue(card.cost) + i;
+      const chapterTotal = chapterOps.reduce((s, op) => s + valueOp(op, false, card, 'spell', undefined, unknowns, chapterMana).v, 0);
       parts.push({ label: `chapter ${i + 1}`, v: 0.75 * chapterTotal });
     });
   }
