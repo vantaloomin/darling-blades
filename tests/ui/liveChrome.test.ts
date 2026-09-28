@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { setAccessibility, TEXT_SCALES } from '../../src/ui/accessibility';
+import { setAccessibility } from '../../src/ui/accessibility';
 import {
   controlFontSize,
   controlStrokeWidth,
@@ -17,6 +17,7 @@ import {
 } from '../../src/ui/layout';
 import { textBlockHeight } from '../../src/ui/profilePresentation';
 import { theme } from '../../src/ui/theme';
+import { forEachA11yCell } from './a11yCells';
 
 /**
  * The shared chrome reads its tokens when it draws, not at import (1.9 lane C,
@@ -114,26 +115,23 @@ describe('the rounded trigger\'s selected mark', () => {
   }
 
   it("sits on the trigger's bottom edge, at least 1px clear of the label box, at every text size and contrast", () => {
-    for (const textScale of TEXT_SCALES) {
-      for (const highContrast of [false, true]) {
-        setAccessibility({ textScale, highContrast });
-        for (const { size, labelWidth, minWidth } of cases()) {
-          const at = `${size} ${labelWidth}/${minWidth} at ${textScale}${highContrast ? ' high contrast' : ''}`;
-          const padding = controlPadding(size);
-          const { visual } = measureThemedButton(labelWidth, size, minWidth, padding);
-          const mark = triggerSelectedMark({ visual, labelWidth, padding });
-          // Inside the trigger's padded box (so it never moves or resizes it), on its bottom edge.
-          const padded: Rect = { x: visual.x + padding, y: visual.y, width: visual.width - 2 * padding, height: visual.height };
-          expect(isRectContained(mark, padded), at).toBe(true);
-          expect(bottom(mark), at).toBe(bottom(visual));
-          // The label's line box, as the layout modules size a line of text, centred on the trigger.
-          const labelBottom = visual.y + visual.height / 2 + textBlockHeight(controlFontSize(size), 1) / 2;
-          expect(mark.y - labelBottom, at).toBeGreaterThanOrEqual(1);
-          expect(mark.x + mark.width / 2, at).toBeCloseTo(visual.x + visual.width / 2, 9);
-          expect(mark.height, at).toBeGreaterThanOrEqual(2);
-        }
+    forEachA11yCell((cell) => {
+      for (const { size, labelWidth, minWidth } of cases()) {
+        const at = `${size} ${labelWidth}/${minWidth}, ${cell.name}`;
+        const padding = controlPadding(size);
+        const { visual } = measureThemedButton(labelWidth, size, minWidth, padding);
+        const mark = triggerSelectedMark({ visual, labelWidth, padding });
+        // Inside the trigger's padded box (so it never moves or resizes it), on its bottom edge.
+        const padded: Rect = { x: visual.x + padding, y: visual.y, width: visual.width - 2 * padding, height: visual.height };
+        expect(isRectContained(mark, padded), at).toBe(true);
+        expect(bottom(mark), at).toBe(bottom(visual));
+        // The label's line box, as the layout modules size a line of text, centred on the trigger.
+        const labelBottom = visual.y + visual.height / 2 + textBlockHeight(controlFontSize(size), 1) / 2;
+        expect(mark.y - labelBottom, at).toBeGreaterThanOrEqual(1);
+        expect(mark.x + mark.width / 2, at).toBeCloseTo(visual.x + visual.width / 2, 9);
+        expect(mark.height, at).toBeGreaterThanOrEqual(2);
       }
-    }
+    });
   });
 
   it('is a short mark under the label, not a stripe across the trigger', () => {

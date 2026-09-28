@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { FEATURES } from '../../src/config/features';
-import { currentAccessibility, setAccessibility, TEXT_SCALES } from '../../src/ui/accessibility';
+import { currentAccessibility, setAccessibility } from '../../src/ui/accessibility';
 import {
   ALL_ACCESSIBILITY_CONTROLS,
   ANIM_CHIP_WIDTH,
@@ -49,6 +49,7 @@ import {
 } from '../../src/ui/settingsPresentation';
 import { STATS_SETTINGS_ROW, statsPanelButtonCenterX } from '../../src/ui/statsPrivacyPresentation';
 import { theme } from '../../src/ui/theme';
+import { forEachA11yCell } from './a11yCells';
 
 const HIT_HALF = theme.control.minHitHeight / 2;
 /** docs/design-system.md, "Spacing and grouping": within a group, 8-12px. */
@@ -128,13 +129,9 @@ function columnExtents(layout: SettingsTabLayout): Extent[][] {
   });
 }
 
+/** Every cell of the fixture matrix (tests/ui/a11yCells.ts), with its settings in force. */
 function forEveryCell(fn: (at: string, scale: number) => void): void {
-  for (const scale of TEXT_SCALES) {
-    for (const highContrast of [false, true]) {
-      setAccessibility({ textScale: scale, highContrast });
-      fn(`${Math.round(scale * 100)}%${highContrast ? ', high contrast' : ''}`, scale);
-    }
-  }
+  forEachA11yCell((cell) => fn(cell.name, cell.textScale));
 }
 
 describe('the rhythm follows the text size', () => {

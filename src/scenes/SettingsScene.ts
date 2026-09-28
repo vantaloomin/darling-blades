@@ -669,7 +669,9 @@ export class SettingsScene extends Phaser.Scene {
         fontSize: `${theme.type.caption}px`,
         color: theme.colors.muted,
       })
-      .setOrigin(0, 0.5);
+      .setOrigin(0, 0.5)
+      // Expendable corner text: sits outside the title-safe frame on purpose (design system).
+      .setData('a11yExpendable', true);
     const status = this.add
       .text(SETTINGS_HEADER_ACTION.right, SETTINGS_HEADER_ACTION.statusY, '', {
         fontFamily: theme.fonts.ui,

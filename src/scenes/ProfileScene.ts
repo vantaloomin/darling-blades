@@ -124,7 +124,7 @@ export class ProfileScene extends Phaser.Scene {
     super('Profile');
   }
 
-  create(data: { notice?: string } = {}): void {
+  create(data: { notice?: string; replays?: readonly ReplayLog[] } = {}): void {
     // The notice is one-shot: Phaser keeps a start's data for the next start
     // that passes none (Systems.start only replaces it when given some), so a
     // later plain visit would show "Save imported" again.
@@ -223,7 +223,7 @@ export class ProfileScene extends Phaser.Scene {
         color: theme.colors.gold,
       })
       .setOrigin(0, 0.5);
-    const replays = Services.save.data.replays
+    const replays = (data.replays ?? Services.save.data.replays) // data.replays: dev probe fixtures (src/dev/a11yProbe.ts)
       .filter((log) => isReplayVisible(log, this.reserveFormatsEnabled))
       .slice(0, PROFILE_REPLAYS.capacity);
     if (replays.length === 0) {
