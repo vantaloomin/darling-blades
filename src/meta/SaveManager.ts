@@ -11,8 +11,9 @@ import { normalizeDarlingsFields } from './darlings';
 import { parseVariantKey, PLAIN_VARIANT, variantKey } from './variants';
 import { CARD_BACKS, PLAYMATS, cosmeticById, isKnownCosmeticId } from './cosmetics';
 import { normalizeStatsNoticeVersion } from './statsNotice';
+import { DEFAULT_TEXT_SCALE, normalizeHighContrast, normalizeTextScale } from './accessibilitySettings';
 
-export const CURRENT_SAVE_VERSION = 35 as const;
+export const CURRENT_SAVE_VERSION = 36 as const;
 const LEGACY_WARCHEST_FORMAT = 'battle' + 'box';
 
 /**
@@ -147,6 +148,40 @@ export interface PremiumWeekState {
   entries: number;
 }
 
+/**
+ * What a Premium draft's grant did, kept so the Limited deck builder can show
+ * its note ("You drafted 45 cards. N have been added to your collection, and M
+ * were duplicates that were converted to G gold.") on every Deck Builder
+ * visit during the run's Build step, not only the one that follows the draft. The grant's per-card result exists only at
+ * the moment the draft completes, and the conversions depend on what the
+ * collection held then, so it cannot be recomputed later. v36 addition (plan
+ * 1.9 I7).
+ *
+ * Belongs to one run: it is kept only while the active run is the Premium run
+ * `runId` names, and dropped on the first load after that run ends. The four
+ * counts mirror the UI's `PremiumGrantSummary` field for field, so a stored
+ * value can be handed straight to `premiumGrantNote`.
+ *
+ * In memory the field outlives its run until the next load (retiring or
+ * finishing a run does not clear it), so readers never use
+ * `limited.premiumGrant` directly: they call `storedPremiumGrant`, which
+ * applies the same rule as the migration.
+ */
+export interface PremiumDraftGrant {
+  /** The `LimitedRun.id` of the Premium run whose draft this grant paid out. */
+  runId: string;
+  /** Cards the player drafted, `added + converted`. */
+  drafted: number;
+  /** Copies the collection kept. */
+  added: number;
+  /** Plain copies past the playset, converted to gold instead. */
+  converted: number;
+  /** The gold those conversions paid. */
+  gold: number;
+}
+
+export { DEFAULT_TEXT_SCALE, TEXT_SCALES, normalizeHighContrast, normalizeTextScale } from './accessibilitySettings';
+
 export interface SaveData {
   version: typeof CURRENT_SAVE_VERSION;
   createdAt: number;
@@ -207,9 +242,11 @@ export interface SaveData {
    * Road-to-1.0 Limited mode. Free-run cards are ephemeral; Premium Draft's 45
    * human picks enter the collection on draft completion. Active run state,
    * compact history, and best records persist. v14 addition; Premium fields
-   * v18, weekly allowance v19.
+   * v18, weekly allowance v19, the stored Premium grant note v36.
+   * `premiumGrant` is present only while a Premium run's note can be shown
+   * (see `PremiumDraftGrant`); absent means no note.
    */
-  limited: LimitedState & { premiumWeek: PremiumWeekState };
+  limited: LimitedState & { premiumWeek: PremiumWeekState; premiumGrant?: PremiumDraftGrant };
   /**
    * Deterministic replays: the last few completed duels as recorded input
    * logs (seed + decks + action stream — src/meta/Replay.ts), newest first,
@@ -290,6 +327,15 @@ export interface SaveData {
      * never showing it.
      */
     statsNoticeVersion: number;
+    /**
+     * Text size, as a multiple of the base type scale. v36 addition; defaults
+     * to 1. Stored as a number rather than a union so the allowed sizes
+     * (`TEXT_SCALES`) can change without a save bump: every load snaps the
+     * stored value onto the list with `normalizeTextScale`.
+     */
+    textScale: number;
+    /** High-contrast palette. v36 addition; defaults off. */
+    highContrast: boolean;
   };
 }
 
@@ -360,6 +406,8 @@ export function freshSave(now: number): SaveData {
       // the only proof that anyone has seen the notice is the stamp the UI
       // writes after showing it (owner ruling 2026-09-17).
       statsNoticeVersion: 0,
+      textScale: DEFAULT_TEXT_SCALE,
+      highContrast: false,
     },
   };
 }
@@ -446,7 +494,10 @@ export class SaveManager {
    * `settings.shareAnonStats` (default ON everywhere) and
    * `settings.statsNoticeVersion` (0 for every save until the notice has been
    * shown, so every player is told first), and drops the two dead account-level
-   * cosmetics fields that v33 superseded.
+   * cosmetics fields that v33 superseded; v35 -> v36 adds `settings.textScale`
+   * (default 1, snapped onto `TEXT_SCALES`), `settings.highContrast` (default
+   * off) and `limited.premiumGrant` (the stored Premium draft note, absent
+   * unless the active Premium run has one).
    * An unknown/garbage version starts fresh rather than crash.
    *
    * Public and this-free by design: SaveCode (the export/import codec) routes
@@ -738,7 +789,7 @@ export class SaveManager {
     // Every version from 22 upward is enumerated BY HAND, including the
     // outgoing current one. A bump that forgets to add the version it is
     // replacing makes every save sitting at it skip this whole block.
-    if (cur.version === 22 || cur.version === 23 || cur.version === 24 || cur.version === 25 || cur.version === 26 || cur.version === 27 || cur.version === 28 || cur.version === 29 || cur.version === 30 || cur.version === 31 || cur.version === 32 || cur.version === 33 || cur.version === 34 || cur.version === CURRENT_SAVE_VERSION) {
+    if (cur.version === 22 || cur.version === 23 || cur.version === 24 || cur.version === 25 || cur.version === 26 || cur.version === 27 || cur.version === 28 || cur.version === 29 || cur.version === 30 || cur.version === 31 || cur.version === 32 || cur.version === 33 || cur.version === 34 || cur.version === 35 || cur.version === CURRENT_SAVE_VERSION) {
       const decks = Array.isArray(cur.decks)
         ? (cur.decks as Array<Record<string, unknown>>).map((deck) => ({
             ...deck,
@@ -953,6 +1004,34 @@ export class SaveManager {
         },
       };
     }
+    if (cur.version === 35) {
+      // Accessibility settings and the stored Premium grant note.
+      //
+      // The shared block above rewinds an up-to-date save to v22 and re-walks
+      // the chain, so this step runs on every load, not once. It therefore
+      // NORMALIZES the value present and never resets it: a player's 1.3 and
+      // high contrast come through every reload, and only an absent or garbage
+      // value takes the default. No `arrivedAtVersion` test is needed because
+      // a save older than v36 has no value to keep, and the defaults the v1
+      // step spreads from a fresh shell are the same defaults.
+      const s = (cur.settings ?? {}) as { textScale?: unknown; highContrast?: unknown };
+      // The Premium note is present only while there is one to show, so a
+      // save without one keeps exactly the Limited block it had.
+      const { premiumGrant: storedGrant, ...limited } = (cur.limited ?? freshLimitedState()) as LimitedState & {
+        premiumGrant?: unknown;
+      };
+      const premiumGrant = normalizePremiumDraftGrant(storedGrant, limited.activeRun);
+      cur = {
+        ...cur,
+        version: 36,
+        settings: {
+          ...(cur.settings as object),
+          textScale: normalizeTextScale(s.textScale),
+          highContrast: normalizeHighContrast(s.highContrast),
+        },
+        limited: premiumGrant ? { ...limited, premiumGrant } : limited,
+      };
+    }
     if (cur.version === CURRENT_SAVE_VERSION) {
       const legacyHero = typeof cur.heroCardId === 'string' ? cur.heroCardId : null;
       return {
@@ -1114,6 +1193,40 @@ function normalizeCosmetics(value: unknown): CosmeticsSave {
         typeof id === 'string' && isKnownCosmeticId(id) && cosmeticById(id)?.unlock !== 'default'))]
     : [];
   return { owned };
+}
+
+/**
+ * A stored Premium grant, kept only while it can still be shown: the active
+ * run must be the Premium run it names, and the counts must be whole,
+ * non-negative and add up (`added + converted === drafted`, at least one card
+ * drafted). Anything else, including a grant left over from a run that has
+ * ended, reads as none. Rebuilt field by field so stray keys never ride along.
+ */
+/**
+ * The stored Premium draft note for the run in progress, or null. The one
+ * reader of `limited.premiumGrant`: a grant naming any other run (one retired
+ * or finished earlier this session) reads as absent.
+ */
+export function storedPremiumGrant(limited: Pick<SaveData['limited'], 'activeRun' | 'premiumGrant'>): PremiumDraftGrant | null {
+  return normalizePremiumDraftGrant(limited.premiumGrant, limited.activeRun);
+}
+
+function normalizePremiumDraftGrant(value: unknown, activeRun: unknown): PremiumDraftGrant | null {
+  if (!isRecord(value) || !isRecord(activeRun)) return null;
+  if (activeRun.premium !== true || typeof value.runId !== 'string' || value.runId !== activeRun.id) return null;
+  const { drafted, added, converted, gold } = value;
+  if (![drafted, added, converted, gold].every((n) => typeof n === 'number' && Number.isInteger(n) && n >= 0)) {
+    return null;
+  }
+  const grant: PremiumDraftGrant = {
+    runId: value.runId,
+    drafted: drafted as number,
+    added: added as number,
+    converted: converted as number,
+    gold: gold as number,
+  };
+  if (grant.drafted === 0 || grant.added + grant.converted !== grant.drafted) return null;
+  return grant;
 }
 
 function normalizeDeckRepairNoticeAck(value: unknown): string {
