@@ -2,6 +2,7 @@ import type Phaser from 'phaser';
 import type { FrameStyle } from '../meta/variants';
 import { CARD_BACKS, DEFAULT_CARD_BACK_ID, cardBackTextureKey } from '../meta/cosmetics';
 import { SET_ICON_PATHS, type CardSetId } from '../art/setIcons';
+import { cardFaceGeometry, frameKeySuffix, LEGACY_ART_H, type ArtWindowHeight } from './cardFaceGeometry';
 
 /**
  * Bakes card frame textures once at boot, drawn at 2× (600×840) so frames
@@ -276,9 +277,18 @@ function bakeRealCardBack(scene: Phaser.Scene, ctx: CanvasRenderingContext2D, ar
   ctx.restore();
 }
 
-export function bakeCardFrames(scene: Phaser.Scene): void {
+/**
+ * Bake the colour frames and the variant wash for one art-window height
+ * (cardFaceGeometry). Today's 192 face keeps its historic keys (`frame-W`,
+ * `frame-tint`); other heights bake under a suffix (`frame-W-a216`) on first
+ * use, so a page that never asks for them never pays for them.
+ */
+export function ensureCardFrames(scene: Phaser.Scene, artH: ArtWindowHeight = LEGACY_ART_H): void {
+  const geo = cardFaceGeometry(artH);
+  const suffix = frameKeySuffix(artH);
+  const { art, typeBand, textBox } = geo.bake;
   for (const [key, pal] of Object.entries(FRAME_PALETTES)) {
-    const texKey = `frame-${key}`;
+    const texKey = `frame-${key}${suffix}`;
     if (scene.textures.exists(texKey)) continue;
     const tex = scene.textures.createCanvas(texKey, FRAME_W, FRAME_H)!;
     const ctx = tex.getContext();
@@ -311,7 +321,7 @@ export function bakeCardFrames(scene: Phaser.Scene): void {
     ctx.stroke();
 
     // Art window (near-black backing; art renders on top)
-    rr(ctx, 36, 92, FRAME_W - 72, 384, 10);
+    rr(ctx, art.x, art.y, art.w, art.h, 10);
     ctx.fillStyle = '#0a090d';
     ctx.fill();
     ctx.lineWidth = 4;
@@ -319,7 +329,7 @@ export function bakeCardFrames(scene: Phaser.Scene): void {
     ctx.stroke();
 
     // Type band
-    rr(ctx, 32, 488, FRAME_W - 64, 44, 12);
+    rr(ctx, typeBand.x, typeBand.y, typeBand.w, typeBand.h, 12);
     ctx.fillStyle = pal.panel;
     ctx.fill();
     ctx.lineWidth = 3;
@@ -327,7 +337,7 @@ export function bakeCardFrames(scene: Phaser.Scene): void {
     ctx.stroke();
 
     // Text box
-    rr(ctx, 32, 544, FRAME_W - 64, 260, 12);
+    rr(ctx, textBox.x, textBox.y, textBox.w, textBox.h, 12);
     ctx.fillStyle = pal.text;
     ctx.fill();
     ctx.lineWidth = 3;
@@ -336,6 +346,29 @@ export function bakeCardFrames(scene: Phaser.Scene): void {
 
     tex.refresh();
   }
+
+  // Variant frame wash — a WHITE card-shaped overlay with the art window cut
+  // out, tinted+alpha'd per frame style at the Image level (one parameterized
+  // bake instead of one bake per FrameStyle). Covers the face and panels but
+  // never the art; texts sit above it in CardView's child order.
+  const tintKey = `frame-tint${suffix}`;
+  if (!scene.textures.exists(tintKey)) {
+    const tex = scene.textures.createCanvas(tintKey, FRAME_W, FRAME_H)!;
+    const ctx = tex.getContext();
+    rr(ctx, 6, 6, FRAME_W - 12, FRAME_H - 12, 30);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    // cut the art window out (same rect the frame bake uses)
+    ctx.globalCompositeOperation = 'destination-out';
+    rr(ctx, art.x, art.y, art.w, art.h, 10);
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+    tex.refresh();
+  }
+}
+
+export function bakeCardFrames(scene: Phaser.Scene): void {
+  ensureCardFrames(scene, LEGACY_ART_H);
 
   // P/T plate (only shown on creatures)
   if (!scene.textures.exists('pt-plate')) {
@@ -361,24 +394,6 @@ export function bakeCardFrames(scene: Phaser.Scene): void {
     ctx.lineWidth = 13;
     ctx.strokeStyle = '#ffffff';
     ctx.stroke();
-    tex.refresh();
-  }
-
-  // Variant frame wash — a WHITE card-shaped overlay with the art window cut
-  // out, tinted+alpha'd per frame style at the Image level (one parameterized
-  // bake instead of one bake per FrameStyle). Covers the face and panels but
-  // never the art; texts sit above it in CardView's child order.
-  if (!scene.textures.exists('frame-tint')) {
-    const tex = scene.textures.createCanvas('frame-tint', FRAME_W, FRAME_H)!;
-    const ctx = tex.getContext();
-    rr(ctx, 6, 6, FRAME_W - 12, FRAME_H - 12, 30);
-    ctx.fillStyle = '#ffffff';
-    ctx.fill();
-    // cut the art window out (same rect the frame bake uses)
-    ctx.globalCompositeOperation = 'destination-out';
-    rr(ctx, 36, 92, FRAME_W - 72, 384, 10);
-    ctx.fill();
-    ctx.globalCompositeOperation = 'source-over';
     tex.refresh();
   }
 
@@ -495,9 +510,14 @@ export const FRAME_TREATMENTS: Record<FrameStyle, FrameTreatment> = {
   black: { ring: 0x17171c, wash: 0x000000, washAlpha: 0.28, luster: false, rainbow: false },
 };
 
-export function frameKeyFor(colors: readonly string[], types: readonly string[]): string {
-  if (types.includes('land')) return 'frame-land';
-  if (colors.length >= 2) return 'frame-gold';
-  if (colors.length === 0) return 'frame-C';
-  return `frame-${colors[0]}`;
+export function frameKeyFor(
+  colors: readonly string[],
+  types: readonly string[],
+  artH: ArtWindowHeight = LEGACY_ART_H,
+): string {
+  const suffix = frameKeySuffix(artH);
+  if (types.includes('land')) return `frame-land${suffix}`;
+  if (colors.length >= 2) return `frame-gold${suffix}`;
+  if (colors.length === 0) return `frame-C${suffix}`;
+  return `frame-${colors[0]}${suffix}`;
 }

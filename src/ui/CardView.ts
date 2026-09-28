@@ -7,7 +7,14 @@ import { isType } from '../engine/types';
 import { isBasic } from '../meta/Collection';
 import { bakeRetellTombstone, RETELL_ICON_KEY } from './pileIcons';
 import type { CardVariant, FrameStyle } from '../meta/variants';
-import { FRAME_TREATMENTS, frameKeyFor } from './CardFrameFactory';
+import { ensureCardFrames, FRAME_TREATMENTS, frameKeyFor } from './CardFrameFactory';
+import {
+  cardFaceGeometry,
+  defaultArtWindowHeight,
+  frameKeySuffix,
+  LEGACY_ART_H,
+  type ArtWindowHeight,
+} from './cardFaceGeometry';
 import { applyHolo, type HoloHandle } from './fx/HoloEffects';
 import { fxPolicy } from './fx/FXSupport';
 import { IridescencePostFX } from './fx/IridescencePostFX';
@@ -18,8 +25,9 @@ import { rulesText, typeLine } from './rulesText';
 export const CARD_W = 300;
 export const CARD_H = 420;
 
-// Art window in card-local (center-origin) coordinates.
-const ART_RECT = { x: -132, y: -164, w: 264, h: 192 };
+// Art window in card-local (center-origin) coordinates: today's 192 face.
+// The face actually drawn comes from cardFaceGeometry(artH) in setCard.
+const ART_RECT = cardFaceGeometry(LEGACY_ART_H).art;
 // Full-art window follows the baked frame face: the 18px (2x texture) inset
 // leaves the card's rounded metal border visible on every edge.
 const FULL_ART_RECT = { x: -141, y: -201, w: 282, h: 402 };
@@ -152,6 +160,11 @@ export class CardView extends Phaser.GameObjects.Container {
   /** The real art texture this face drew the loading stand-in for, if any. */
   private artPendingKey: string | null = null;
   private cancelArtWait: (() => void) | null = null;
+  /**
+   * Art window height for this face (R13 mock). Defaults to the page-level
+   * prototype switch (`?artH=`); the mock scene sets it per card.
+   */
+  private artH: ArtWindowHeight = defaultArtWindowHeight();
 
   card: CardDef | null = null;
 
@@ -292,6 +305,12 @@ export class CardView extends Phaser.GameObjects.Container {
     scene.add.existing(this);
   }
 
+  /** R13 mock: pick this face's art window height; call setCard after. */
+  setArtWindowHeight(artH: ArtWindowHeight): this {
+    this.artH = artH;
+    return this;
+  }
+
   setCard(
     card: CardDef | null,
     opts: {
@@ -338,10 +357,15 @@ export class CardView extends Phaser.GameObjects.Container {
 
     const fx: CardFxLevel = opts.fx ?? 'static';
     const fullArt = opts.fullArt === true || opts.variant?.fullArt === true;
-    const artRect = fullArt ? FULL_ART_RECT : ART_RECT;
+    const geo = cardFaceGeometry(this.artH);
+    // How far the art window grew past today's 192 face; the type line, the
+    // text box and the land mana row ride down by it.
+    const grow = geo.textTop - cardFaceGeometry(LEGACY_ART_H).textTop;
+    const artRect = fullArt ? FULL_ART_RECT : geo.art;
 
     // Frame + art
-    this.frame.setTexture(frameKeyFor(card.colors, card.types)).setDisplaySize(CARD_W, CARD_H);
+    ensureCardFrames(this.scene, this.artH);
+    this.frame.setTexture(frameKeyFor(card.colors, card.types, this.artH)).setDisplaySize(CARD_W, CARD_H);
     this.applyArt(card, isBasic(CARD_DB, card.id) ? opts.landStyle : undefined, artRect);
 
     // Texts. With the cost moved to the bottom-left, the name owns the FULL top
@@ -380,7 +404,7 @@ export class CardView extends Phaser.GameObjects.Container {
     // row, MTG-style; the layout budgets one line there, so land rules text
     // must stay a single short line.
     const hasLandRules = manaRow.length > 0 && rules.length > 0;
-    const textTop = manaRow.length > 0 && !hasLandRules ? 132 : 66;
+    const textTop = manaRow.length > 0 && !hasLandRules ? geo.textTop + 66 : geo.textTop;
     // Non-land mana abilities compose an icon line ([T]: Add [pip]) at the
     // top of the rules box (replacing the old "Tap: add G." text line); the
     // text block starts below it.
@@ -391,13 +415,14 @@ export class CardView extends Phaser.GameObjects.Container {
     // is anchored to that bottom edge, directly above cost/stat badges; rules
     // text keeps the top of the box and shrinks if the two blocks would collide.
     const pipSpecs = pipsFor(card.cost ?? { generic: 0, pips: {} });
-    const BOX_BOTTOM = 166;
+    const BOX_BOTTOM = geo.boxBottom;
     const BOX_H = BOX_BOTTOM - textTop - MANA_LINE_H;
     const DIVIDER_GAP = 8; // space between rules block and the hairline
     const AFTER_DIVIDER = 6; // hairline to flavor text
     // Full art drops the lore line entirely (user spec 2026-07-13) — the
-    // rules field stays operational-only and the art owns the mood.
-    const hasFlavor = !!card.flavor && !fullArt;
+    // rules field stays operational-only and the art owns the mood. R13
+    // removes it from every face: only today's 192 face still draws it.
+    const hasFlavor = geo.flavor && !!card.flavor && !fullArt;
 
     // Measure the flavor block first (height is needed to size the rules box).
     // Windows font-fallback trap: measure height only AFTER setText.
@@ -439,8 +464,8 @@ export class CardView extends Phaser.GameObjects.Container {
     // type band rides down to sit directly on the text block, so the whole
     // operational assembly gathers at the card's foot.
     let fieldTop = textTop;
-    this.typePlate.setPosition(0, 45);
-    this.typeText.setY(45);
+    this.typePlate.setPosition(0, geo.typeY);
+    this.typeText.setY(geo.typeY);
     if (fullArt) {
       this.namePlate.setVisible(true);
       this.typePlate.setVisible(true);
@@ -528,7 +553,16 @@ export class CardView extends Phaser.GameObjects.Container {
       const SEP = GAP + OR_W + GAP; // one constant shared by width, label x, and advance
       // Centered in the free box when bare; nudged down past the rules line
       // (one line ending ~81) when the land prints one, e.g. taplands.
-      const rowY = hasLandRules ? 108 : hasFlavor ? 100 : 128;
+      // A taller art window pushes the row down with the box (a tapland's
+      // rules line moves by the full growth, the bare row by half, staying
+      // centred in the smaller box). The row never comes closer than 2px to
+      // the badge row's top edge (BOX_BOTTOM + 4).
+      const rowMaxY = BOX_BOTTOM + 2 - PIP / 2;
+      const rowY = hasLandRules
+        ? Math.min(108 + grow, rowMaxY)
+        : hasFlavor
+          ? 100
+          : Math.min(128 + grow / 2, rowMaxY);
       const rowW = PIP + GAP + ARROW_W + GAP + manaRow.length * PIP + (manaRow.length - 1) * SEP;
       let ix = -rowW / 2 + PIP / 2;
       const tap = this.scene.add.image(ix, rowY, 'pip-T').setDisplaySize(PIP, PIP);
@@ -756,7 +790,12 @@ export class CardView extends Phaser.GameObjects.Container {
   private applyFrameStyle(frame: Exclude<FrameStyle, 'white'>, fx: CardFxLevel, maskSafe = false): void {
     const t = FRAME_TREATMENTS[frame];
     if (t.wash !== null) {
-      this.frameTint.setVisible(true).setTint(t.wash).setAlpha(t.washAlpha);
+      this.frameTint
+        .setTexture(`frame-tint${frameKeySuffix(this.artH)}`)
+        .setDisplaySize(CARD_W, CARD_H)
+        .setVisible(true)
+        .setTint(t.wash)
+        .setAlpha(t.washAlpha);
     }
     this.ring.setVisible(true).setAlpha(1);
     if (t.rainbow) {
