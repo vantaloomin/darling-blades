@@ -215,6 +215,20 @@ function staticText(subject: string, statVerb: string, keywordVerb: string, p: s
   return `${subject} ${clauses.join(' and ')}`;
 }
 
+/**
+ * Why an extra land drop is worth what it is (§4v): the scorer prices the
+ * extra mana it gives on the turns before the land reserve runs out, from the
+ * turn the drop is cast on. `cast at 5, 4 turns before cap 10` reads "cast at
+ * 5 mana, 4 turns of extra mana before the 10-land cap".
+ */
+function rampDetail(detail: string): string {
+  const match = /^cast at (\d+), (\d+) turns before cap (\d+)$/.exec(detail);
+  if (!match) return plainWords(detail).toLowerCase();
+  const turns = Number(match[2]);
+  const extra = turns === 0 ? 'no extra mana' : `${plural(turns, 'turn', 'turns')} of extra mana`;
+  return `cast at ${match[1]} mana, ${extra} before the ${match[3]}-land cap`;
+}
+
 /** One effect (the part after a trigger prefix, or a bare spell effect). */
 function effectText(effect: string): string | null {
   let match: RegExpExecArray | null;
@@ -283,8 +297,9 @@ function effectText(effect: string): string | null {
   if ((match = /^each player sacrifices (\d+)$/.exec(effect))) {
     return n(match[1]) === 1 ? 'Each player sacrifices a creature' : `Each player sacrifices ${match[1]} creatures`;
   }
-  if ((match = /^extra land drop(?: ×(\d+))?$/.exec(effect))) {
-    return match[1] ? `${match[1]} extra land drops` : sentenceCase(opLabel('extraLandDrop'));
+  if ((match = /^extra land drop(?: ×(\d+))?(?: \((.+)\))?$/.exec(effect))) {
+    const drops = match[1] ? `${match[1]} extra land drops` : sentenceCase(opLabel('extraLandDrop'));
+    return match[2] ? `${drops} (${rampDetail(match[2])})` : drops;
   }
   if (effect.startsWith('propagate')) return MECHANIC_NAMES.propagate;
   if (effect === 'mark all your creatures') return `${MECHANIC_NAMES.mark} each creature you control`;

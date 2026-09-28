@@ -172,9 +172,52 @@ the observer and Propagate numbers. The flat-rate principle (D10) applies
 here too.
 
 Still NEEDS MATH: `controlMarked`, `markedThreshold`, recurring self-damage
-(Blood Candle, the Lu Bu drawback), repeatable extra land drops, Whispers'
-fire rate, the X-spell tax, and the Duty coefficient. The audit settled the
-Duty discount's shape but not its size, so today's discount stays.
+(Blood Candle, the Lu Bu drawback), Whispers' fire rate, the X-spell tax, and
+the Duty coefficient. The audit settled the Duty discount's shape but not its
+size, so today's discount stays. Repeatable extra land drops were measured in
+the ramp lane (D12, below).
+
+### Extra land drops (D12, measured 2026-09-27)
+
+The scorer priced an extra land drop flat, 1.9 each, however late it was
+cast. In Warchest each player has exactly 10 lands in the reserve and plays
+one a turn, so an extra drop only pulls the count forward toward a cap both
+players reach anyway.
+
+**The ramp lab** (177k games) put colourless ramp probes in the hole of three
+green decks (Wild Communion, Valhalla's Muster, Meng Huo) against the 14
+Warchest columns. Each probe was paired with a blank card of the same cost
+cast at the same time. Cast on curve, one extra drop is worth, in +1/+1
+units:
+
+| Mana value | 1 | 2 | 3 | 4 | 5 | 6 |
+| --- | --- | --- | --- | --- | --- | --- |
+| One drop | 1.88 | 1.22 | 0.93 | 0.77 | 0.63 | 0.57 |
+| A drop at every Dawn | | 1.07 | 0.74 | 0.44 | 0.36 | 0.11 |
+
+**The fitted model (§4v)** counts the extra untapped mana on each of your
+turns before the cap:
+- a turn later is worth 0.89 of the turn before;
+- a second extra mana on the same turn is worth 0.58 of the first;
+- a Dawn engine realizes 0.62 of its capped schedule.
+
+It fits all eight one-shot arms and the five Dawn arms. Pricing every extra
+mana the same is rejected: it overprices stacked drops and Dawn engines 1.3 to
+3.2 times.
+
+**The level stays on the §4p anchor.** One drop at mana value 2 is still 1.9;
+the lab reads it at 1.22 [0.95, 1.60]. That is an owner call, listed below.
+
+**Effect on the pool:** 21 ramp cards move, and nothing else. The five at mana
+value 2 are unchanged. Late ramp now reads Under:
+- Granary of Rising Years: +1.35 to -3.88
+- Flood-Measure Vessel: +0.95 to -4.28
+- Flood Before Noon: +1.32 to -2.91
+
+These are buff candidates for a later patch; 1.8.5's card slate is fixed.
+
+**AI blind spot found by the lab:** MediumAI values the op at 0, so it casts
+a 2-mana ramp spell on average on its turn 6.9.
 
 ## The v4 formula
 
@@ -548,7 +591,7 @@ pushes below its floor gets its deck retuned, never a lower floor.
 | # | Decision | Ruling |
 | --- | --- | --- |
 | D11 | Which nerfs ship, now that the sweep shows 48 of 75 were never picked by the optimizer? | **Keep the 27 the sweep backs; revert the other 48** to their 1.8.1 form and measure them later |
-| D12 | The scorer prices an extra land drop the same at every mana cost, ignoring the 10-land reserve. Fix inside 1.8.5? | **Fix in 1.8.5.** Measure ramp by cast turn in the engine and price it by the turns left before the cap (lane `lane/185-ramp`) |
+| D12 | The scorer prices an extra land drop the same at every mana cost, ignoring the 10-land reserve. Fix inside 1.8.5? | **Fix in 1.8.5.** Measure ramp by cast turn in the engine and price it by the turns left before the cap (lane `lane/185-ramp`). Done: §4v, measured over 177k games; see "Extra land drops" above |
 | D13 | Four buffs go to cards the optimizer already picks (Nadira, The Storm-Crowned Bride, Rite of the Lamp-Fire, Moon-Doll Orchestra). Hold them? | **Keep all 56 buffs** |
 
 ## Non-goals
