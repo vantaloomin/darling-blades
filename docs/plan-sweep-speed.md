@@ -41,7 +41,8 @@ answer.
 ## Where the time goes, measured
 
 The sweep (`scripts/personas/craft.ts`, run by `scripts/run-sweep.ps1`)
-crafts a deck for each of six personas against a reference field, then
+crafts a deck for each persona (six when this was measured; eight since
+ruling D12 added stompy and warband) against a reference field, then
 re-crafts each against the field the others produced, for up to four
 rounds. One craft is a hill climb: 80 proposed card swaps, each measured
 by playing the candidate list against every deck in the field.
@@ -105,10 +106,10 @@ trusting it.
 
 ### 4. Fan out across machines (the wall-clock lever)
 
-The six personas in a round are independent; only rounds are sequential.
+The personas in a round are independent; only rounds are sequential.
 The repository is public, and public repositories get GitHub-hosted Linux
 runners at no cost. A `workflow_dispatch` workflow with one job per persona
-per round (six jobs in parallel, each `craft.ts --persona <id> --round n`
+per round (one job per persona in parallel, each `craft.ts --persona <id> --round n`
 against the previous round's uploaded artifacts, with the journal as an
 artifact between rounds and `--resume` for a rerun) runs a whole round in
 the time of the slowest craft on a 4-vCPU runner, and the owner's machine

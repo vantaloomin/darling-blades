@@ -306,7 +306,11 @@ export interface ProposedSwap {
 export interface PersonaArtifact {
   schemaVersion: 1;
   mode?: 'single-round' | 'metagame-loop';
-  persona: { id: string; name: string };
+  /**
+   * The persona's identity, plus its colour floor when the template sets one
+   * (absent otherwise, so an artifact of a floorless persona is unchanged).
+   */
+  persona: { id: string; name: string; minColorShare?: PersonaTemplate['minColorShare'] };
   pool: string;
   field: MeasuredFieldId;
   seed: number;
@@ -498,6 +502,61 @@ function cardAllowedByColors(card: CardDef, colors: readonly Color[]): boolean {
   return card.colors.every((color) => colors.includes(color));
 }
 
+/** The order the greedy build fills a deck's spell roles in; also what counts as a spell slot. */
+const GREEDY_ROLE_ORDER: readonly SpellRole[] = ['finishers', 'draw', 'removal', 'interaction', 'threats'];
+
+/**
+ * A template's colour floor (`minColorShare`) as spell counts: each floored
+ * colour and how many of the deck's spells must include it, rounded up.
+ * Empty when the template sets no floor, and every use below is then a no-op,
+ * so a template without a floor builds and climbs byte for byte as before.
+ *
+ * Throws on a malformed floor up front (a best-two persona, a colour outside
+ * the fixed identity, a share outside (0, 1]) rather than failing late with a
+ * misleading "cannot meet". The build forces a colour only when it must, with
+ * no look-ahead, so two floors that together ask for more than every spell
+ * (a gold card counts toward both) can still fail at the last slots.
+ */
+export function colorFloorCounts(template: PersonaTemplate): [Color, number][] {
+  const floor = template.minColorShare;
+  if (!floor) return [];
+  if (template.colorPolicy !== 'fixed') {
+    throw new Error(`${template.id}: minColorShare needs a fixed colour identity (colorPolicy is ${template.colorPolicy})`);
+  }
+  const spells = GREEDY_ROLE_ORDER.reduce((sum, role) => sum + template.quotas[role], 0);
+  return Object.entries(floor).map(([color, share]) => {
+    if (!template.colorIdentity.includes(color as Color)) {
+      throw new Error(`${template.id}: minColorShare names ${color}, outside its colours ${template.colorIdentity.join('/')}`);
+    }
+    if (typeof share !== 'number' || !(share > 0 && share <= 1)) {
+      throw new Error(`${template.id}: minColorShare.${color} must be in (0, 1] (got ${share})`);
+    }
+    // The epsilon keeps a share written as count/spells from rounding up past it.
+    return [color as Color, Math.ceil(share * spells - 1e-9)];
+  });
+}
+
+const spellsWithColor = (deck: readonly string[], color: Color): number =>
+  deck.filter((id) => CARD_DB[id].colors.includes(color)).length;
+
+/**
+ * The colours the card filling one slot must include to keep the floor: those
+ * the rest of the deck (`others`) cannot reach even if every one of the
+ * `openAfter` slots still unfilled after this one goes to that colour.
+ */
+function colorsRequiredByFloor(
+  floors: readonly (readonly [Color, number])[],
+  others: readonly string[],
+  openAfter: number,
+): Color[] {
+  return floors
+    .filter(([color, need]) => need - spellsWithColor(others, color) > openAfter)
+    .map(([color]) => color);
+}
+
+const includesColors = (card: CardDef, required: readonly Color[]): boolean =>
+  required.every((color) => card.colors.includes(color));
+
 export function cardsForPool(pool: string): CardDef[] {
   const knownSets = new Set(ALL_CARDS.map((card) => card.set).filter((set): set is NonNullable<CardDef['set']> => Boolean(set)));
   if (pool !== 'all' && !knownSets.has(pool as NonNullable<CardDef['set']>)) {
@@ -578,19 +637,36 @@ export function buildGreedyDeck(template: PersonaTemplate, pool: readonly CardDe
   for (const card of candidates) tieRanks.set(card.id, rngNext(rng));
   const counts = new Map<string, number>();
   const assigned: AssignedCard[] = [];
-  const roleOrder: readonly SpellRole[] = ['finishers', 'draw', 'removal', 'interaction', 'threats'];
+  const roleOrder = GREEDY_ROLE_ORDER;
+  // The colour floor binds a slot only once the slots left could no longer
+  // reach it otherwise ("forced when needed"), so every other slot is ranked
+  // exactly as without a floor: the earlier roles keep their best cards in
+  // either colour (a red-green deck keeps red burn as removal), and the
+  // floored colour fills the last slots it must, which are the threats.
+  const floors = colorFloorCounts(template);
+  const spellSlots = roleOrder.reduce((sum, role) => sum + template.quotas[role], 0);
 
   for (const role of roleOrder) {
     for (let slot = 0; slot < template.quotas[role]; slot++) {
       const state = stateFor(template, assigned, selectedColors);
+      const required = colorsRequiredByFloor(
+        floors,
+        assigned.map((entry) => entry.cardId),
+        spellSlots - assigned.length - 1,
+      );
       const legal = candidates.filter((card) =>
         (counts.get(card.id) ?? 0) < 4 &&
         manaValue(card.cost) <= template.curve.maxManaValue &&
-        cardRoles(card).includes(role));
+        cardRoles(card).includes(role) &&
+        includesColors(card, required));
       let chosen = rankedCandidate(legal, template, state, role, tieRanks);
       if (!chosen) {
-        const fallback = candidates.filter((card) => (counts.get(card.id) ?? 0) < 4);
+        const fallback = candidates.filter((card) =>
+          (counts.get(card.id) ?? 0) < 4 && includesColors(card, required));
         chosen = rankedCandidate(fallback, template, state, role, tieRanks);
+      }
+      if (!chosen && required.length > 0) {
+        throw new Error(`Pool cannot meet ${template.id}'s colour floor (${required.join(', ')}) from here, with ${spellSlots - assigned.length} slots left`);
       }
       if (!chosen) throw new Error(`Pool cannot supply ${60 - assigned.length} remaining deck slots for ${template.id}`);
       assigned.push({ cardId: chosen.id, role });
@@ -975,9 +1051,20 @@ export function proposeQuotaLegalSwap(
 ): ProposedSwap | null {
   if (current.assigned.length === 0) return null;
   const counts = cardCounts(current.deck);
+  // The colour floor filters the incoming card, so a swap that would break it
+  // is never proposed. Refusing it after measuring instead would spend a full
+  // measurement on a deck the persona may not play. Without a floor the
+  // filter passes every card, so the candidate list and the rng draws are
+  // unchanged.
+  const floors = colorFloorCounts(template);
   for (let attempt = 0; attempt < current.assigned.length * 3; attempt++) {
     const index = rngInt(rng, current.assigned.length);
     const outgoing = current.assigned[index];
+    const required = floors.length === 0 ? [] : colorsRequiredByFloor(
+      floors,
+      current.deck.filter((_, deckIndex) => deckIndex !== index),
+      0,
+    );
     const candidates = pool.filter((card) =>
       !card.types.includes('land') &&
       !card.token &&
@@ -985,7 +1072,8 @@ export function proposeQuotaLegalSwap(
       cardAllowedByColors(card, current.selectedColors) &&
       manaValue(card.cost) <= template.curve.maxManaValue &&
       cardRoles(card).includes(outgoing.role) &&
-      (counts.get(card.id) ?? 0) < 4);
+      (counts.get(card.id) ?? 0) < 4 &&
+      includesColors(card, required));
     if (candidates.length === 0) continue;
     candidates.sort((a, b) => a.id.localeCompare(b.id));
     const incoming = candidates[rngInt(rng, candidates.length)];
@@ -1467,7 +1555,7 @@ function buildMetagameArtifacts(
     return {
       schemaVersion: 1 as const,
       mode: 'metagame-loop' as const,
-      persona: { id: template.id, name: template.name },
+      persona: personaIdentity(template),
       pool: options.poolId,
       field: finalRound.measured.field,
       seed: options.seed,
@@ -1531,7 +1619,7 @@ export function recordSeedRound(state: MetagameLoopState, personaId: string, rou
  *
  * This is the ONE implementation of the policy. The in-process loop calls it
  * after crafting a round; the fan-out merge calls it after reading a round's
- * six craft files off disk. Both therefore stop in the same place for the same
+ * craft files (one per persona) off disk. Both therefore stop in the same place for the same
  * reason, which is what lets a fanned-out sweep claim to be the same
  * measurement as a local one.
  */
@@ -1711,6 +1799,13 @@ export function runMetagameLoop(options: MetagameOptions): MetagameResult {
   };
 }
 
+/** An artifact's persona block: the floor rides along only when the template sets one. */
+function personaIdentity(template: PersonaTemplate): PersonaArtifact['persona'] {
+  return template.minColorShare
+    ? { id: template.id, name: template.name, minColorShare: { ...template.minColorShare } }
+    : { id: template.id, name: template.name };
+}
+
 export function makeArtifact(
   template: PersonaTemplate,
   pool: string,
@@ -1721,7 +1816,7 @@ export function makeArtifact(
   return {
     schemaVersion: 1,
     mode: 'single-round',
-    persona: { id: template.id, name: template.name },
+    persona: personaIdentity(template),
     pool,
     field: options.field,
     seed: options.seed,

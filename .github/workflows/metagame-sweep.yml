@@ -3,16 +3,20 @@
 # The sweep crafts a deck for each persona against a reference field, then
 # re-crafts each against the field the others produced, for up to four rounds.
 # Every craft inside a round is independent and its seed derives from the run
-# seed, the round and the persona id, so the crafts of one round can run on six
-# machines at once and still be the crafts the in-process loop would have made.
-# Only the rounds are sequential. What comes back is byte-identical to a local
-# `npx tsx scripts/personas/craft.ts --metagame --all` at the same seed:
-# `tests/personas/fanout.test.ts` asserts that file for file.
+# seed, the round and the persona id, so the crafts of one round can run on
+# one machine per persona at once and still be the crafts the in-process loop
+# would have made. Only the rounds are sequential. What comes back is
+# byte-identical to a local `npx tsx scripts/personas/craft.ts --metagame --all`
+# at the same seed: `tests/personas/fanout.test.ts` asserts that file for file,
+# and `tests/personas/templates.test.ts` that the default persona list below is
+# every persona `--all` crafts.
 #
 # TO RUN IT. Actions tab, "Metagame sweep", Run workflow. The defaults are the
 # real sweep (seed 13003, four rounds, the prefab field, 150 seeds per matchup,
-# 80 hill-climb iterations, all six personas). For a dry run, dispatch with
-# seeds 10, iterations 5, rounds 1. Each round is a call to
+# 80 hill-climb iterations, every persona in scripts/personas/templates.ts:
+# the original six plus stompy (R/G) and warband (R/W), the colour-gap
+# personas of ruling D12). For a dry run, dispatch with seeds 10, iterations
+# 5, rounds 1. Each round is a call to
 # metagame-sweep-round.yml: every persona's craft runs as a chain of up to
 # CHUNKS jobs (ten), each of which stops starting new iterations once
 # CHUNK_MINUTES (240) have passed (see WHY CHUNKS). A dry run at iterations 5
@@ -23,8 +27,8 @@
 # WHAT TO EXPECT. A round lasts as long as its slowest craft, because each
 # chunk job waits for every persona's previous chunk. While weenie is the
 # slowest persona, that is about 27 hours of chain per round (see WHY CHUNKS),
-# a little more for each chunk's setup, and a later round measures against 19
-# decks (the reference field plus the other five personas) instead of 14. So
+# a little more for each chunk's setup, and a later round measures against 21
+# decks (the reference field plus the other seven personas) instead of 14. So
 # the whole sweep is several days of wall clock on GitHub, with the owner's
 # machine idle throughout. This workflow cannot shorten that. The lever that
 # would is the cost of a weenie game in the Hard brain, which is a 1.9 item.
@@ -121,7 +125,7 @@ on:
         default: '80'
       personas:
         description: Personas to craft, comma separated
-        default: burn,draw-go,attrition,reanimator,weenie,midrange
+        default: burn,draw-go,attrition,reanimator,weenie,midrange,stompy,warband
       resume_from:
         description: 'Optional: a sweeps/<dir> path on the sweep-data branch to resume'
         default: ''

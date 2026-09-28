@@ -1,18 +1,88 @@
-<!-- source-of-truth: scripts/personas/craft.ts, scripts/personas/lever.ts, scripts/personas/compare-crafts.ts, scripts/run-sweep.ps1, .github/workflows/metagame-sweep.yml, .github/workflows/metagame-sweep-round.yml, tests/personas/fanout.test.ts, tests/personas/lever.test.ts · last-verified: 2026-09-28 -->
+<!-- source-of-truth: scripts/personas/craft.ts, scripts/personas/templates.ts, scripts/personas/lever.ts, scripts/personas/compare-crafts.ts, scripts/run-sweep.ps1, .github/workflows/metagame-sweep.yml, .github/workflows/metagame-sweep-round.yml, tests/personas/fanout.test.ts, tests/personas/lever.test.ts · last-verified: 2026-09-28 -->
 
 # The persona metagame sweep
 
 The sweep is the last measurement before a cut: it asks whether the card pool
-lets any deck run away from the field. It crafts a deck for each of six
-personas against a reference field, then re-crafts each persona against the
-field the other five produced, for up to four best-response rounds, and reports
+lets any deck run away from the field. It crafts a deck for each of eight
+personas (below) against a reference field, then re-crafts each persona against
+the field the other seven produced, for up to four best-response rounds, and reports
 whether the decks settle, oscillate, or are still moving when the rounds run
 out.
 
 One craft is a hill climb: a greedy build, then up to 80 proposed card swaps,
 each measured by playing the candidate list against every deck in the field at
 150 seeds per matchup, Hard brain on both seats. That is 170,100 games in the
-worst case, per craft, and 30 crafts in a four-round sweep.
+worst case, per round-0 craft, and 40 crafts in a four-round sweep.
+
+## The personas
+
+`scripts/personas/templates.ts` defines each persona: fixed colours (or, for
+midrange, the best two), a curve cap, role quotas for the 40-card Warchest
+deck, the subtypes, keywords and effects its greedy build prefers, and,
+optionally, a colour floor (`minColorShare`, below).
+
+| Persona | Colours | Plan | Curve cap |
+| --- | --- | --- | --- |
+| burn | R/B | face aggro | 4 |
+| draw-go | W/U | counter control | 7 |
+| attrition | B/W | removal grind | 6 |
+| reanimator | U/B | graveyard combo | 8 |
+| weenie | W/G | go-wide aggro | 5 |
+| midrange | best two | goodstuff | 7 |
+| stompy | R/G | big bodies backed by burn; at least half its spells green | 6 |
+| warband | R/W | warcry aggro with pump and self-damage | 5 |
+
+**The colour-gap personas (ruling D12, 2026-09-28).** Stompy and warband
+joined in 1.9. Before them no persona played red-green or red-white, and
+weenie's green-white ran on the first hosted day only, so the sweep could not
+pick a red-green or red-white card: 15 of the 48 nerfs 1.8.5 reverted sat in
+that gap. R/G is First Dawn's core pair (Hunt, Provoked); R/W is the gap the
+ruling names and holds the self-damage sources. Of the 15, warband reaches all
+five R/W gold cards. Stompy reaches six mono-green ones, but four of those
+(Flood Before Noon, Splitlight Corsair, Blackthorn Duelist, Twin-Willow
+Sword Dancer) were already within weenie's reach whenever weenie runs, so stompy newly adds
+two, Rain-Circuit Sovereign and Chart the Reef Road, at mana value 6. The
+other four no persona can pick: two green enchantments with no deck role
+under `cardRoles` (Granary of Rising Years, Old Growth; the climb only
+proposes a card that fills the outgoing slot's role), and two gold cards in
+pairs no persona plays (Skadi, U/G; Morrigan, B/G). Stompy's subtypes include
+Dinokin, First Dawn's R/G tribe, which matches nothing until those cards land
+and needs no edit when they do. A B/G third persona (Hunt plus fossils) waits
+on the sweep's measured night budget.
+
+**The shared red core, and the colour floor.** The greedy build ranks cards by
+`rateCard` times five plus small role, synergy and curve terms, so a colour
+whose top cards out-rate the other's wins nearly every slot, and no synergy
+tag closes a gap that size. At the sweep seed (13003) every persona that
+touches red opens on the same four red cards (Lu Bu, Barge-Fire Brazier,
+Ember-Lane Flare and Wreck-Runner), 15 or 16 copies in each of burn, midrange
+(which picks B/R), stompy and warband; the four personas without red share
+none of them. Left to the rate, stompy built 29 red spells
+to 11 green, a red deck with a splash. So a template may set `minColorShare`,
+the minimum fraction of its spells that must include a colour. The greedy
+build honours it only in the slots that must (once the slots left could not
+reach the floor otherwise), so earlier roles keep their best cards in either
+colour; the hill climb never proposes a swap that would break it. It is
+opt-in: a template without it builds and climbs byte for byte as before,
+proven on the greedy decks of the other seven at three seeds and on a raced
+midrange and warband craft. Stompy sets `G: 0.5`; its greedy build at 13003
+is 20 red, 16 green and 4 red-green, curve 20 early, 12 mid, 8 late. Warband
+sets none and builds 23 red, 8 white, 8 red-white and 1 colourless. The floor
+rides into the artifact's `persona` block. The floor holds the pair, not the
+curve: in a ten-iteration craft stompy's climb kept 21 green spells but
+traded three of its four Gaias for cheaper green cards (curve 21 early, 14
+mid, 5 late), from 67.3% to 77.0% against the prefab field.
+
+Measured 2026-09-28 (6 workers, the prefab field, round 0, a shared
+machine), with `--seeds 60 --iterations 10 --race --screen medium`: midrange
+202 s, stompy with its floor 188 s, warband 161 s, about the same games each
+(an earlier run of the same three crafts, stompy then without its floor,
+took 284, 272 and 261 s: the machine's load moves the totals by a third). A 150-seed greedy measurement took 69 s
+for midrange, 61 s for stompy (before the floor) and 59 s for warband. Per
+game, both cost at most midrange's, far below weenie. In round 0 they run
+beside the others, so they add runner time but no wall clock; in a later round
+every craft measures against 21 decks instead of 19, about a tenth more on the
+slowest chain.
 
 Two ways to run it. They measure the same thing.
 
@@ -38,14 +108,14 @@ step, never a mid-train gate.
 ## Running the sweep on GitHub
 
 `.github/workflows/metagame-sweep.yml` runs the same sweep on GitHub-hosted
-runners, six crafts at a time, and the owner's machine does nothing. The crafts
+runners, one craft per persona at a time, and the owner's machine does nothing. The crafts
 inside a round are independent and every craft's seed derives from the run seed,
 the round and the persona id, so a craft is the same craft wherever it runs.
 Only the rounds are sequential.
 
 **What to dispatch.** Actions tab, "Metagame sweep", Run workflow. The inputs
 default to the real sweep: seed 13003, four rounds, the `prefabs` field, 150
-seeds per matchup, 80 hill-climb iterations, all six personas. For a dry run,
+seeds per matchup, 80 hill-climb iterations, all eight personas. For a dry run,
 set seeds 10, iterations 5, rounds 1.
 
 **What runs.** Round 0, then, for each later round, a check job and the round.
@@ -54,7 +124,7 @@ runs each persona's craft as a chain of chunk jobs (below). The check job merges
 the crafts that exist and asks the loop's own convergence policy whether the
 sweep is already over; if the decks were stable at the previous round, the next
 round skips, exactly as the in-process loop would have stopped. Each chunk job
-gets 350 minutes, and one persona's failure does not cancel the other five.
+gets 350 minutes, and one persona's failure does not cancel the others.
 
 **Why a craft is split into chunks.** GitHub stops a hosted job at 360 minutes,
 and a whole craft at the defaults does not fit on the 4-core `ubuntu-latest`
@@ -132,8 +202,8 @@ engine.
 **What to expect on the wall clock.** Each chunk job waits for every persona's
 previous chunk, so a round lasts as long as its slowest craft. While weenie is
 the slowest persona, a round is about 27 hours of chain, a little more for each
-chunk's setup, and a later round measures against 19 decks (the reference field
-plus the other five personas) instead of 14. The whole sweep is therefore
+chunk's setup, and a later round measures against 21 decks (the reference field
+plus the other seven personas) instead of 14. The whole sweep is therefore
 several days of wall clock on GitHub, with the owner's machine idle throughout.
 The workflow cannot shorten that; the lever that would is the cost of a weenie
 game in the Hard brain, which is a 1.9 item.
@@ -163,6 +233,18 @@ pick up mid-craft is a non-goal; the chunk artifacts live only inside one run. A
 partial sweep still merges: the merge reports
 which personas are missing from an incomplete round, merges the rounds that are
 complete, and fails only when round 0 never finished for every persona.
+
+**Resuming a sweep from before stompy and warband.** A sweep dispatched before
+the colour-gap personas joined (1.9, ruling D12) crafted six personas, and the
+persona list is part of every craft's run configuration. To resume one, set
+`personas` to `burn,draw-go,attrition,reanimator,weenie,midrange` with its
+other original inputs: the default now names eight, and the configuration
+check refuses the mismatch rather than mixing the two sweeps. The same holds on
+the owner's machine: `run-sweep.ps1` crafts `--all`, so its `-Resume` over a
+six-persona journal is refused. Finish such a sweep by calling `craft.ts
+--metagame --personas burn,draw-go,attrition,reanimator,weenie,midrange
+--resume --out balance/sweep-current` directly with its original flags, or
+start a fresh one.
 
 **The result is the same measurement.** The merged per-persona artifacts and the
 merged journal are byte-identical to a local `npx tsx scripts/personas/craft.ts
@@ -343,7 +425,7 @@ by hand when a sweep needs unpicking.
 # round reads the previous round's crafts, one file per persona, from --field-dir.
 npx tsx scripts/personas/craft.ts --metagame-craft burn --round 1 \
   --field-dir field --out out --workers 4 \
-  --personas burn,draw-go,attrition,reanimator,weenie,midrange \
+  --personas burn,draw-go,attrition,reanimator,weenie,midrange,stompy,warband \
   --rounds 4 --field prefabs --pool all --seeds 150 --iterations 80 --seed 13003
 
 # The same craft in chunks of 240 minutes, as the workflow runs it. Each call
