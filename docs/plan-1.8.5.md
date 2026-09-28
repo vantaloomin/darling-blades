@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/power/scoreCore.ts, src/data/cards/, src/data/opponents.ts, src/ai/value.ts, scripts/balance-matrix.ts, docs/plan-1.9.md · last-verified: 2026-09-27 · program doc: the 1.8.5 scaling rebalance; every decision ruled, the slate approved 2026-09-26 and narrowed to 83 cards 2026-09-27 (D11-D13); the build is under way on release/1.8.5 -->
+<!-- source-of-truth: src/power/scoreCore.ts, src/data/cards/, src/data/opponents.ts, src/ai/value.ts, scripts/balance-matrix.ts, docs/plan-1.9.md · last-verified: 2026-09-27 · program doc: the 1.8.5 scaling rebalance; every decision ruled, the slate approved 2026-09-26 and narrowed to 83 cards 2026-09-27 (D11-D13), plus six late-ramp buffs (D14) for 89; the build is under way on release/1.8.5 -->
 
 # Darling Blades 1.8.5: the scaling rebalance (proposal)
 
@@ -214,7 +214,23 @@ value 2 are unchanged. Late ramp now reads Under:
 - Flood-Measure Vessel: +0.95 to -4.28
 - Flood Before Noon: +1.32 to -2.91
 
-These are buff candidates for a later patch; 1.8.5's card slate is fixed.
+**The owner ruled they ship buffed in 1.8.5** (2026-09-27: "we should buff the
+land drop cards before 1.8.5"). The six ramp cards beyond -1.0 on the new
+pricing are picked per card:
+
+| Card | Change | Reads |
+| --- | --- | --- |
+| Flood-Measure Vessel | {4}{G} to {1}{G}, and each Dawn also Foresee 1 | +0.63 |
+| Granary of Rising Years | {4}{G} to {2}{G}, and gain 1 to 3 life each Dawn | -0.33 |
+| Flood Before Noon | 3 extra lands, then also draw 2 cards | +0.49 |
+| Two Harvests | {3}{G} to {2}{G} | -0.46 |
+| Deeper Flood Channel | 2 lands, Foresee 2, then also gain 2 life | -0.59 |
+| Maret, Keeper of the High Flood | on arrival, 2 extra lands (from 1), then draw a card | +0.28 |
+
+The three rituals were picked as one checked package, so no two of them clone
+or strictly dominate each other. None of the six is in a boss, starter or
+precon list. The deck generator now puts Deeper Flood Channel (and Kelp Wall)
+in Meng Huo's Darlings list, replacing Drowned Druid and Tidepool Colossus.
 
 **AI blind spot found by the lab:** MediumAI values the op at 0, so it casts
 a 2-mana ramp spell on average on its turn 6.9.
@@ -483,7 +499,9 @@ measure-later list. The Forge will read some of them as Over Value until
 they are measured; that is a disagreement between the scorer and play,
 recorded rather than forced. All 56 buffs ship (D13), so the slate is **83
 cards: 27 down, 56 up**. The 131-card version is kept as
-`final-slate-v1-131.json`.
+`final-slate-v1-131.json`. The six late-ramp buffs that followed D12 bring it
+to **89 cards: 27 down, 62 up** (see "Extra land drops"; the 83-card version
+is `final-slate-v2-83.json`).
 
 Knock-ons:
 - Bastet's retune comes out: her four changed cards are all among the 48.
@@ -586,13 +604,14 @@ pushes below its floor gets its deck retuned, never a lower floor.
 | --- | --- | --- |
 | D10 | Should the scorer price an anthem by tribe size (lane 2's 0.14 per matching creature), or keep a flat multiplier? | **Flat: x2.0 for creature lords, x2.8 for non-creature anthems.** The owner's reason: "otherwise it'd always have to be adjusted as we add more to some sets and not others". A density-aware rate would move every anthem each time a set grows its tribe |
 
-## D11-D13 (ruled 2026-09-27)
+## D11-D14 (ruled 2026-09-27)
 
 | # | Decision | Ruling |
 | --- | --- | --- |
 | D11 | Which nerfs ship, now that the sweep shows 48 of 75 were never picked by the optimizer? | **Keep the 27 the sweep backs; revert the other 48** to their 1.8.1 form and measure them later |
 | D12 | The scorer prices an extra land drop the same at every mana cost, ignoring the 10-land reserve. Fix inside 1.8.5? | **Fix in 1.8.5.** Measure ramp by cast turn in the engine and price it by the turns left before the cap (lane `lane/185-ramp`). Done: §4v, measured over 177k games; see "Extra land drops" above |
 | D13 | Four buffs go to cards the optimizer already picks (Nadira, The Storm-Crowned Bride, Rite of the Lamp-Fire, Moon-Doll Orchestra). Hold them? | **Keep all 56 buffs** |
+| D14 | Late ramp reads Under on the measured pricing. Buff it now or in a later patch? | **Now, in 1.8.5.** Six cards, picked per card; see "Extra land drops" |
 
 ## Non-goals
 
