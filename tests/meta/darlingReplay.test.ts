@@ -88,6 +88,18 @@ describe('Darlings replay v8', () => {
     expect(JSON.stringify(replayed.eventLog)).toBe(original.events);
   });
 
+  it('keeps a log from the previous replay version valid and replays it byte-identically', () => {
+    const original = recordDarlings(9804);
+    const previous: ReplayLog = JSON.parse(JSON.stringify(original.log));
+    previous.v = REPLAY_LOG_VERSION - 1;
+    expect(isReplayLog(previous)).toBe(true);
+    expect(canReplay(previous, REPLAY_DB)).toBe(true);
+
+    const replayed = replayGame(previous, REPLAY_DB);
+    expect(JSON.stringify(replayed.game.instanceState)).toBe(original.state);
+    expect(JSON.stringify(replayed.eventLog)).toBe(original.events);
+  });
+
   it('preserves the v5 Darlings shape but refuses it through the v8 execution gate', () => {
     const { log } = recordDarlings(9802);
     const legacy: ReplayLog = {

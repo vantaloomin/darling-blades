@@ -76,6 +76,12 @@ const DB: CardDb = {
     name: 'Dawn Marker',
     abilities: [{ when: 'dawn', ops: [{ op: 'damage', n: 1, to: 'controller' }] }],
   },
+  dawn_foresee_drain: {
+    ...TEST_DB.bear,
+    id: 'dawn_foresee_drain',
+    name: 'Dawn Foresee Drainer',
+    abilities: [{ when: 'dawn', ops: [{ op: 'foresee', n: 1 }, { op: 'loseLife', n: 1, who: 'opponent' }] }],
+  },
   dawn_grind: {
     ...TEST_DB.bear,
     id: 'dawn_grind',
@@ -240,16 +246,17 @@ describe('quests', () => {
     expect(events.filter((event) => event.e === 'triggerFired' && event.when === 'dies')).toHaveLength(1);
   });
 
-  it('resumes the dawn when every queued dawn foresee whiffs on an emptied deck', () => {
+  it('resolves the rest of the effect and resumes the dawn when a queued dawn foresee whiffs on an emptied deck', () => {
     // Adversarial finding 2026-07-16: a dawn foresee queues while the deck
     // still has cards; a later dawn ability then empties the deck, so the
-    // queued decision whiffs in maybeRaiseDeferredDecision's drain. The drain
+    // queued decision whiffs in maybeRaiseDeferredDecision's drain. The ops
+    // after the Foresee still resolve (rules.md, Foresee), and the drain
     // itself must resume through finishDawn (whose turn draw then decks the
     // player out) instead of stranding the turn in 'dawn' forever.
     const state = makeTestState({
       active: 1,
       battlefield: [
-        { iid: 1, cardId: 'dawn_foresee', controller: 0 },
+        { iid: 1, cardId: 'dawn_foresee_drain', controller: 0 },
         { iid: 2, cardId: 'dawn_grind', controller: 0 },
       ],
     });
@@ -259,9 +266,11 @@ describe('quests', () => {
     const game = Game.restore(state, DB);
     game.submit(1, { type: 'passStep' });
 
+    expect(game.state.players[1].life).toBe(19);
     expect(game.state.step).not.toBe('dawn');
     expect(game.awaiting.kind).toBe('gameOver');
     expect(game.state.winner).toBe(1);
+    expect(game.state.winReason).toBe('deck');
   });
 
   it('queues a chapter Foresee behind another dawn Foresee and resumes through finishDawn', () => {

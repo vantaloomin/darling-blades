@@ -23,9 +23,12 @@ import type { GameFormat, ReserveFormat } from '../config/rules';
 // a Retell, Whispers or Preserve action names by its instance id as well as its
 // position, and marks the 1.8.1 engine fixes (held triggers, Duties). A v6-v14
 // log still replays: Game binds its position-only refs to the card at that
-// position on submit, which is the card the original game chose. v11 through
-// v15 all map to rules revision 4.
-export const REPLAY_LOG_VERSION = 15 as const;
+// position on submit, which is the card the original game chose. v16 (1.9)
+// marks the 1.9 engine: a Foresee that finds an empty deck when it is offered
+// still resolves the ops after it (rules.md, Foresee). A v15 log still replays,
+// identically except through such a Foresee, where the recorded game dropped
+// those ops. v11 through v16 all map to rules revision 4.
+export const REPLAY_LOG_VERSION = 16 as const;
 /** Newest-first FIFO cap for SaveData.replays (mirrors limited.history's 20). */
 export const REPLAY_CAP = 10;
 const LEGACY_WARCHEST_FORMATS = new Set(['battle' + 'box', 'battle' + 'Box']);
@@ -42,7 +45,7 @@ export interface ReplayContext {
 }
 
 export interface ReplayLog {
-  /** Numeric for legacy save fixtures; v6-v15 retain executable paths. */
+  /** Numeric for legacy save fixtures; v6-v16 retain executable paths. */
   v: number;
   /** Card-db drift stamp (replayDbStamp) — replays refuse a different db. */
   dbStamp: string;
@@ -240,11 +243,14 @@ export function isReplayLog(value: unknown): value is ReplayLog {
         : false;
   const legacyPayloadShape = (rawFormat === undefined && log.landReserves === undefined && log.darlings === undefined) ||
     (format !== undefined && reserveShape && log.darlings === undefined);
-  const payloadShape = log.v === REPLAY_LOG_VERSION || log.v === 14 || log.v === 13 || log.v === 12 || log.v === 11 || log.v === 10 || log.v === 9 || log.v === 8 || log.v === 7 || log.v === 6 || log.v === 5
+  // Every whole version from 2 to the current one is a known log; from v5 on
+  // they share the current payload shape.
+  const version = typeof log.v === 'number' && Number.isInteger(log.v) ? log.v : 0;
+  const payloadShape = version >= 5 && version <= REPLAY_LOG_VERSION
     ? currentPayloadShape
     : legacyPayloadShape;
   const valid =
-    (log.v === REPLAY_LOG_VERSION || log.v === 14 || log.v === 13 || log.v === 12 || log.v === 11 || log.v === 10 || log.v === 9 || log.v === 8 || log.v === 7 || log.v === 6 || log.v === 5 || log.v === 4 || log.v === 3 || log.v === 2) &&
+    version >= 2 && version <= REPLAY_LOG_VERSION &&
     typeof log.dbStamp === 'string' &&
     typeof log.seed === 'number' &&
     startingHandSizeShape &&

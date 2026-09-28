@@ -120,8 +120,9 @@ one response window for the opponent, and the first pass still resolves the
 whole stack in one uninterrupted flush. Current games use **rules revision 4**;
 an absent `GameState.rulesRev` means revision 1 for legacy states and v6 replays.
 Version 7 replays select revision 2, versions 8 through 10 select revision 3,
-and version 11 selects revision 4. Revision 4 adds only the Hauntlink windows
-described under Hauntlink below; every other rule is revision 3 unchanged.
+and versions 11 through 16 select revision 4. Revision 4 adds only the
+Hauntlink windows described under Hauntlink below; every other rule is
+revision 3 unchanged.
 
 Walking through `castSpell` → `openResponseWindow` → `closeAndFlush` →
 `resumeAfterFlush` in `src/engine/Game.ts`:
@@ -579,6 +580,45 @@ froze a duel on exactly that pair):
   two copies each fire once, and a permanent that leaves and returns starts
   clean. The Saint carries it; the sentence renders from the flag, general
   to every trigger kind.
+
+### Foresee (look at the top of a deck)
+
+"Foresee N" shows its player the top N cards of their deck, or every card
+left when there are fewer. They put any of them on the bottom and the rest
+back on top, each group in its original order. The choice is queued like any
+other (`kind: 'foresee'` in `pendingDecisions`) and the rest of the effect
+waits behind it: Signal Kitsune's "Foresee 1, then draw 1" draws after the
+choice, so it draws the card kept on top, or the next one. The ops after a
+Foresee resume without the effect's targets, so they must be target-free
+(`assertTargetFreeForeseeContinuation`).
+
+A Foresee is offered when the stack flush or the choices queued ahead of it
+are done (Hauntlink, "Where a held trigger resolves"), so the deck can shrink
+in the meantime, and the player sees what is left. **With nothing left, no
+choice is offered, and the rest of the effect still resolves in order**,
+exactly as when the deck is already empty as the Foresee begins: the
+Kitsune's draw finds the empty deck and its controller loses (Endings).
+`resumeAfterForesee` in `src/engine/Game.ts` carries on after a Foresee on
+both paths. Before 1.9 a Foresee that found an empty deck when its turn came
+dropped every op after it: Prism Current (Foresee 2, then draw 1) cast in
+response to Azure Oni Broker, whose arrival grinds the Current's caster's
+last two cards, never drew, and its caster played on. At Dawn, Abyssal
+Songstress's "Foresee 1, then each opponent loses 1 life", queued behind a
+Broken Mirror whose grind took the last card, never drained.
+
+A queued choice that settles without being offered (no card to discard, no
+creature to sacrifice, nothing to Foresee, a targeted trigger with no target
+left) still lets the rest of the effect it paused run, and that can end the
+game. Once it has, nothing more is offered or resumed.
+
+**Records.** This adds no action. The replay log bumps to v16 to mark the
+1.9 engine, still at rules revision 4, and a v15 log still replays. It
+replays identically except through a Foresee with ops after it that found an
+empty deck when offered: the recorded game went on without those ops, so
+from there the replay shows a different game or stops at an action that is
+no longer legal. Such a log reaches 1.9 only while the card-data stamp still
+matches; any card-definition change refuses it first, as 1.8.1's did for
+1.8.0 logs.
 
 ### Duty (tap ability)
 
