@@ -676,14 +676,15 @@ describe('a held trigger keeps the no-link order (rev 4)', () => {
     }
   });
 
-  // Reaper's Due is "destroy target creature, then its controller loses 2
-  // life". Before 1.8.1 its second half threw whenever Barrow-Jarl's raise
-  // brought back a creature whose arrival makes a choice, link or no link.
+  // Reaper's Due is "destroy target creature, then its controller loses 1
+  // life" ({3}{B} since the 1.8.5 slate). Before 1.8.1 its second half threw
+  // whenever Barrow-Jarl's raise brought back a creature whose arrival makes a
+  // choice, link or no link.
   const reapersDue = (raised: string) => boardPair({
     bf: [
       { iid: 5, cardId: 'knight', controller: 0 },
       { iid: 9, cardId: 'rg-draugr-jarl', controller: 1 },
-      ...[20, 21, 22].map((iid) => ({ iid, cardId: 'land-swamp', controller: 0 as const })),
+      ...[20, 21, 22, 23].map((iid) => ({ iid, cardId: 'land-swamp', controller: 0 as const })),
     ],
     hands: [['in-reapers-due'], []], active: 0,
     decks: [['forest'], ['forest', 'giant', 'elf']], graves: [[], [raised]],
@@ -698,7 +699,7 @@ describe('a held trigger keeps the no-link order (rev 4)', () => {
       g.submit(1, { type: 'chooseTarget', target: { kind: 'permanent', iid: 5 } });
       expect(passWindows(g)).toEqual({ player: 0, kind: 'main' });
       expect(g.state.players[0].hand).toEqual(['knight']); // recalled
-      expect(g.instanceState.players[1].life).toBe(18); // then the rest of the spell
+      expect(g.instanceState.players[1].life).toBe(19); // then the rest of the spell
       expect(g.instanceState.pendingDecisions).toEqual([]);
     }
     expect(outcome(linked)).toEqual(outcome(reference));
@@ -713,7 +714,7 @@ describe('a held trigger keeps the no-link order (rev 4)', () => {
       g.submit(1, { type: 'foresee', bottomIndices: [] });
       expect(passWindows(g)).toEqual({ player: 0, kind: 'main' });
       expect(g.state.players[1].hand).toEqual(['elf']); // the Kitsune's draw
-      expect(g.instanceState.players[1].life).toBe(18); // then the rest of the spell
+      expect(g.instanceState.players[1].life).toBe(19); // then the rest of the spell
     }
     expect(outcome(linked)).toEqual(outcome(reference));
   });

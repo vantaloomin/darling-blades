@@ -203,7 +203,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     name: 'Saint of the Lamp Oil',
     types: ['creature'],
     subtypes: ['Human', 'Warden'],
-    cost: cost(3, 'W'),
+    cost: cost(2, 'W'),
     colors: ['W'],
     attack: 2,
     defense: 4,
@@ -223,7 +223,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     supertypes: ['legendary'],
     cost: cost(4, 'UU'),
     colors: ['U'],
-    attack: 4,
+    attack: 3,
     defense: 4,
     keywords: ['skyborne'],
     abilities: [{ when: 'arrives', ops: [{ op: 'grind', n: 3, who: 'self' }] }],
@@ -974,7 +974,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     flavor: 'It grows a foot a year and has not stopped since the town was founded.',
     set: 'drowned-deep',
   },
-  // Duty: put a Mark on each creature you control with a Mark.
+  // Sentinel. Duty: put a Mark on each creature you control with a Mark.
   {
     id: 'dd-coral-mother',
     name: 'Coral-Mother',
@@ -982,8 +982,9 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     subtypes: ['Human', 'Witch'],
     cost: cost(4, 'GG'),
     colors: ['G'],
-    attack: 4,
+    attack: 5,
     defense: 5,
+    keywords: ['sentinel'],
     activated: { cost: { tap: true }, ops: [{ op: 'propagate' }] },
     rarity: 'r',
     flavor: 'What she grows, keeps growing.',
@@ -1101,7 +1102,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     flavor: 'Every argument on the breakwater has been settled the same way for a century.',
     set: 'drowned-deep',
   },
-  // Warcry. Skyborne. Skim {R}.
+  // Skyborne. Rage. Skim {R}.
   {
     id: 'dd-gale-rider',
     name: 'Gale-Rider',
@@ -1111,7 +1112,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['R'],
     attack: 4,
     defense: 3,
-    keywords: ['warcry', 'skyborne'],
+    keywords: ['skyborne', 'rage'],
     skim: { cost: cost(0, 'R') },
     rarity: 'r',
     flavor: 'She rides the storm in on a sail she cut from a shroud.',
@@ -2318,7 +2319,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     subtypes: ['Human'],
     cost: cost(2, 'R'),
     colors: ['R'],
-    attack: 3,
+    attack: 2,
     defense: 1,
     keywords: ['skyborne', 'warcry'],
     rarity: 'c',
@@ -2480,7 +2481,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     flavor: 'It was cast to warn the town. It has decided the town should not know.',
     set: 'drowned-deep',
   },
-  // Draw 4, then grind self 3. Whispers {2}{U}{U}.
+  // Draw 5, then grind self 3. Whispers {2}{U}{U}.
   {
     id: 'dd-tide-that-remembers',
     name: 'The Tide That Remembers',
@@ -2489,7 +2490,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     cost: cost(3, 'UU'),
     colors: ['U'],
     whispers: { cost: cost(2, 'UU') },
-    abilities: [{ when: 'spell', ops: [{ op: 'draw', n: 4 }, { op: 'grind', n: 3, who: 'self' }] }],
+    abilities: [{ when: 'spell', ops: [{ op: 'draw', n: 5 }, { op: 'grind', n: 3, who: 'self' }] }],
     rarity: 'ur',
     flavor: 'The water keeps every name it was ever given, and returns them in the wrong order.',
     set: 'drowned-deep',
@@ -2531,7 +2532,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     name: 'The Salt Gate',
     types: ['artifact'],
     subtypes: [],
-    cost: cost(2, 'W'),
+    cost: cost(1, 'W'),
     colors: ['W'],
     abilities: [{ when: 'dawn', ops: [{ op: 'gainLife', n: 1 }] }],
     activated: { cost: { tap: true }, targets: [{ what: 'yourCreature' }], ops: [{ op: 'boost', p: 0, t: 3, keywords: ['sentinel'], scope: 'target' }] },
@@ -2594,30 +2595,30 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     flavor: 'A lamp on the wrong rock is a murder that looks like weather.',
     set: 'drowned-deep',
   },
-  // Damage target creature 4. Damage opponent 2. Whispers {R}.
+  // Damage target creature 4. Damage opponent 2. Whispers {R}{R}.
   {
     id: 'dd-storm-surge',
     name: 'Storm Surge',
     types: ['charm'],
     subtypes: [],
-    cost: cost(1, 'RR'),
+    cost: cost(2, 'RR'),
     colors: ['R'],
-    whispers: { cost: cost(0, 'R') },
+    whispers: { cost: cost(0, 'RR') },
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 4, to: 'target' }, { op: 'damage', n: 2, to: 'opponent' }] }],
     rarity: 'ssr',
     flavor: 'The surge takes the wharf, the boats, and the argument about whose fault it was.',
     set: 'drowned-deep',
   },
-  // Tap all creatures an opponent controls. Foresee 2. Whispers {1}{W}{U}.
+  // Tap all creatures an opponent controls. Foresee 3. Whispers {W}{U}.
   {
     id: 'dd-lightkeepers-oath',
     name: 'The Lightkeeper\'s Oath',
     types: ['ritual'],
     subtypes: [],
-    cost: cost(2, 'WU'),
+    cost: cost(1, 'WU'),
     colors: ['W', 'U'],
-    whispers: { cost: cost(1, 'WU') },
-    abilities: [{ when: 'spell', ops: [{ op: 'tapAll', who: 'opponent' }, { op: 'foresee', n: 2 }] }],
+    whispers: { cost: cost(0, 'WU') },
+    abilities: [{ when: 'spell', ops: [{ op: 'tapAll', who: 'opponent' }, { op: 'foresee', n: 3 }] }],
     rarity: 'ssr',
     flavor: 'She swore to keep the light. She did not swear to keep it for the living.',
     set: 'drowned-deep',
@@ -2881,15 +2882,15 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     flavor: 'Accurate to the inch. The inches are underwater.',
     set: 'drowned-deep',
   },
-  // During your Dawn: grind self 1. Whenever you cast a Charm, Foresee 1.
+  // During your Dawn: grind self 1. Whenever you cast a Charm, Foresee 2.
   {
     id: 'dd-bell-below',
     name: 'The Bell Below',
     types: ['enchantment'],
     subtypes: [],
-    cost: cost(1, 'U'),
+    cost: cost(0, 'U'),
     colors: ['U'],
-    abilities: [{ when: 'dawn', ops: [{ op: 'grind', n: 1, who: 'self' }] }, { when: 'youCastCharm', ops: [{ op: 'foresee', n: 1 }] }],
+    abilities: [{ when: 'dawn', ops: [{ op: 'grind', n: 1, who: 'self' }] }, { when: 'youCastCharm', ops: [{ op: 'foresee', n: 2 }] }],
     rarity: 'r',
     flavor: 'One bell in the harbour rings from below the water. It is never wrong about the weather.',
     set: 'drowned-deep',
@@ -2921,15 +2922,15 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     flavor: 'The harbourmaster\'s ledger went into the water in 1811 and has been updated since.',
     set: 'drowned-deep',
   },
-  // Destroy target creature with cost 3 or less. Whispers {B}.
+  // Destroy target creature with cost 3 or less. Whispers {1}{B}.
   {
     id: 'dd-the-price',
     name: 'The Price',
     types: ['charm'],
     subtypes: [],
-    cost: cost(1, 'B'),
+    cost: cost(2, 'B'),
     colors: ['B'],
-    whispers: { cost: cost(0, 'B') },
+    whispers: { cost: cost(1, 'B') },
     abilities: [{ when: 'spell', targets: [{ what: 'creature', maxCost: 3 }], ops: [{ op: 'destroy', to: 'target' }] }],
     rarity: 'r',
     flavor: 'Reasonable. Fair. Final.',
@@ -3270,7 +3271,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     flavor: 'Lamp to lamp along the coast, and the message arrives before the tide.',
     set: 'drowned-deep',
   },
-  // Rite 1. Gain 4 life and Foresee 2.
+  // Rite 1. Gain 8 life and Foresee 2.
   {
     id: 'dd-rite-of-the-lamp',
     name: 'Rite of the Lamp',
@@ -3279,7 +3280,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     cost: cost(0, 'W'),
     colors: ['W'],
     rite: { n: 1 },
-    abilities: [{ when: 'spell', ops: [{ op: 'gainLife', n: 4 }, { op: 'foresee', n: 2 }] }],
+    abilities: [{ when: 'spell', ops: [{ op: 'gainLife', n: 8 }, { op: 'foresee', n: 2 }] }],
     rarity: 'c',
     flavor: 'One into the lamp room. The light is brighter for it.',
     set: 'drowned-deep',
@@ -3537,15 +3538,15 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     flavor: 'It asked nicely. Once.',
     set: 'drowned-deep',
   },
-  // Each creature gets -2/-2 until end of turn.
+  // Each creature gets -3/-3 until end of turn.
   {
     id: 'dd-black-tide-rising',
     name: 'Black Tide Rising',
     types: ['ritual'],
     subtypes: [],
-    cost: cost(1, 'BB'),
+    cost: cost(0, 'BB'),
     colors: ['B'],
-    abilities: [{ when: 'spell', ops: [{ op: 'boost', p: -2, t: -2, scope: 'all' }] }],
+    abilities: [{ when: 'spell', ops: [{ op: 'boost', p: -3, t: -3, scope: 'all' }] }],
     rarity: 'c',
     flavor: 'The water came up black and everything in it went quiet.',
     set: 'drowned-deep',
@@ -3714,7 +3715,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     name: 'Squall Line',
     types: ['enchantment'],
     subtypes: [],
-    cost: cost(1, 'R'),
+    cost: cost(2, 'R'),
     colors: ['R'],
     abilities: [{ when: 'allyAttacks', ops: [{ op: 'damage', n: 1, to: 'opponent' }] }],
     rarity: 'c',
@@ -3762,16 +3763,16 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     flavor: 'The heat was not drowned. It was stored.',
     set: 'drowned-deep',
   },
-  // Rite 1. Damage target creature 4.
+  // Rite 1. Damage target creature 5.
   {
     id: 'dd-rite-of-the-lamp-fire',
     name: 'Rite of the Lamp-Fire',
     types: ['ritual'],
     subtypes: [],
-    cost: cost(1, 'R'),
+    cost: cost(0, 'R'),
     colors: ['R'],
     rite: { n: 1 },
-    abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 4, to: 'target' }] }],
+    abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 5, to: 'target' }] }],
     rarity: 'c',
     flavor: 'The lamp needs oil and is not particular.',
     set: 'drowned-deep',

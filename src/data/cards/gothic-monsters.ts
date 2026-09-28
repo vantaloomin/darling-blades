@@ -17,14 +17,14 @@ export const GOTHIC_MONSTERS = [
   // =========================================================================
   creature('gm-carmilla-crimson-host', 'Carmilla, Crimson Host', ['Vampire', 'Countess'], {
     supertypes: ['legendary'], cost: cost(3, 'BR'), colors: ['B', 'R'], attack: 5, defense: 5,
-    keywords: ['skyborne', 'dreaded'], empower: {
+    keywords: ['skyborne', 'dreaded', 'rage'], empower: {
       cost: cost(1, 'BR'), ops: [{ op: 'loseLife', n: 3, who: 'opponent' }, { op: 'gainLife', n: 3 }],
     },
     rarity: 'ur', flavor: 'She hosts the feast, then invoices the moon for every drop.',
   }),
   creature('gm-bride-storm-crowned', 'The Storm-Crowned Bride', ['Construct', 'Bride'], {
     supertypes: ['legendary'], cost: cost(3, 'UB'), colors: ['U', 'B'], attack: 4, defense: 5,
-    keywords: ['deathblade'], abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 2 }] }],
+    keywords: ['deathblade', 'skyborne'], abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 2 }] }],
     empower: { cost: cost(2, 'B'), ops: [{ op: 'raise', to: 'top' }] },
     rarity: 'ur', flavor: 'She married the storm and kept the lightning as a dowry.',
   }),
@@ -34,7 +34,7 @@ export const GOTHIC_MONSTERS = [
     rarity: 'ur', flavor: 'Moonrise summons the pack; morning delivers the bill.',
   }),
   creature('gm-lenore-velvet-saint', 'Lenore, Velvet Saint', ['Revenant', 'Saint'], {
-    supertypes: ['legendary'], cost: cost(3, 'WBB'), colors: ['W', 'B'], attack: 6, defense: 8,
+    supertypes: ['legendary'], cost: cost(3, 'WBB'), colors: ['W', 'B'], attack: 5, defense: 8,
     keywords: ['bloodoath', 'dreaded'],
     abilities: [{ when: 'arrives', ops: [{ op: 'severGrave', n: 3, who: 'opponent' }] }],
     rarity: 'ur', flavor: 'She blesses the velvet, curses the grave, and never spills either.',
@@ -46,12 +46,12 @@ export const GOTHIC_MONSTERS = [
   {
     id: 'gm-nocturne-manor', name: 'Nocturne Manor', types: ['enchantment'], subtypes: ['Manor'],
     supertypes: ['legendary'], cost: cost(2, 'BB'), colors: ['B'],
-    abilities: [{ when: 'dawn', ops: [{ op: 'loseLife', n: 1, who: 'opponent' }, { op: 'gainLife', n: 1 }] }],
+    abilities: [{ when: 'dawn', ops: [{ op: 'loseLife', n: 2, who: 'opponent' }, { op: 'gainLife', n: 2 }] }],
     empower: { cost: cost(3, 'B'), ops: [{ op: 'createToken', token: 'tok-bat', count: 2 }] },
     rarity: 'ssr', flavor: 'The house keeps excellent hours and terrible guests.',
   },
   creature('gm-victorine-lightning-heir', 'Victorine, Lightning Heir', ['Scientist', 'Heir'], {
-    supertypes: ['legendary'], cost: cost(3, 'UR'), colors: ['U', 'R'], attack: 4, defense: 4,
+    supertypes: ['legendary'], cost: cost(2, 'UR'), colors: ['U', 'R'], attack: 4, defense: 4,
     keywords: ['warcry'], abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     empower: { cost: cost(2, 'R'), ops: [{ op: 'damage', n: 2, to: 'opponent' }, { op: 'draw', n: 1 }] },
     rarity: 'ssr', flavor: 'The will left her a tower. The weather she fixed herself.',
@@ -69,7 +69,7 @@ export const GOTHIC_MONSTERS = [
   }),
   {
     id: 'gm-moon-doll-orchestra', name: 'Moon-Doll Orchestra', types: ['artifact', 'creature'],
-    subtypes: ['Doll', 'Construct'], cost: cost(5, 'U'), colors: ['U'], attack: 3, defense: 5,
+    subtypes: ['Doll', 'Construct'], cost: cost(5, 'U'), colors: ['U'], attack: 5, defense: 7,
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 2 }] }],
     empower: { cost: cost(2, 'U'), ops: [{ op: 'createToken', token: 'tok-doll', count: 2 }] },
     rarity: 'ssr', flavor: 'The encore is compulsory and somehow always in tune.',
@@ -140,8 +140,8 @@ export const GOTHIC_MONSTERS = [
   }),
   {
     id: 'gm-stitchwork-guardian', name: 'Stitchwork Guardian', types: ['artifact', 'creature'],
-    subtypes: ['Construct'], cost: cost(3, 'U'), colors: ['U'], attack: 2, defense: 5,
-    keywords: ['bulwark'], empower: { cost: cost(2, 'U'), ops: [{ op: 'draw', n: 1 }] },
+    subtypes: ['Construct'], cost: cost(3, 'U'), colors: ['U'], attack: 2, defense: 7,
+    keywords: ['bulwark', 'untouchable'], empower: { cost: cost(2, 'U'), ops: [{ op: 'draw', n: 1 }] },
     rarity: 'r', flavor: 'Every seam is reinforced. Every objection is ignored.',
   },
   {

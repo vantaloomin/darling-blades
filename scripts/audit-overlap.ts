@@ -511,7 +511,7 @@ function printOdd() {
   const say = (tag: string, d: CardDef, why: string) => console.log(`  [${tag}] ${label(d)}  ${why}`);
 
   // The sanctioned over-cap Empower cards, per tests/data/empowerCeiling.test.ts.
-  const TOP_OF_CURVE = new Set(['Silt-Fat Behemoth', 'Silt-Crowned Harvester']);
+  const TOP_OF_CURVE = new Set(['Silt-Fat Behemoth']);
   const ATTACK_KEYWORDS = ['warcry', 'firstBlade', 'twinBlades', 'overrun', 'deathblade', 'rage'] as const;
 
   for (const d of cards) {

@@ -245,7 +245,7 @@ export const INSTANTS = [
     name: 'Reaper’s Due',
     types: ['charm'],
     subtypes: [],
-    cost: cost(2, 'B'),
+    cost: cost(3, 'B'),
     colors: ['B'],
     abilities: [
       {
@@ -253,7 +253,7 @@ export const INSTANTS = [
         targets: [{ what: 'creature' }],
         ops: [
           { op: 'destroy', to: 'target' },
-          { op: 'loseLife', n: 2, who: 'opponent' },
+          { op: 'loseLife', n: 1, who: 'opponent' },
         ],
       },
     ],

@@ -101,7 +101,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "SSR",
     "color": "U",
     "type": "Legendary Creature (Spirit Archon)",
-    "cost": "{5}{U}",
+    "cost": "{6}{U}",
     "stats": "5/5",
     "mechanics": "Skyborne, Untouchable. Arrives: Foresee 3.",
     "flavor": "It rules a private cloud where every dead password still sings."
@@ -145,9 +145,9 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "SSR",
     "color": "R",
     "type": "Artifact",
-    "cost": "{2}{R}",
+    "cost": "{1}{R}",
     "stats": "-",
-    "mechanics": "Arrives: deal 2 damage to opponent. Hauntlink {2}{R}. Linked: The linked creature gets +2/+0 and Overrun.",
+    "mechanics": "Arrives: deal 4 damage to opponent. Hauntlink {2}{R}. Linked: The linked creature gets +2/+0 and Overrun.",
     "flavor": "The mask burns without consuming the face beneath it."
   },
   {
@@ -235,7 +235,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Artifact",
     "cost": "{2}{B}",
     "stats": "-",
-    "mechanics": "Arrives: grind self 2. Hauntlink {1}{B}. Linked: The linked creature gets +2/+0 and Deathblade.",
+    "mechanics": "Arrives: grind self 2. Hauntlink {1}{B}. Linked: The linked creature gets +3/+3 and Deathblade.",
     "flavor": "Its spirit only wakes when the wearer agrees to betray someone."
   },
   {
@@ -332,9 +332,9 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "R",
     "color": "W",
     "type": "Artifact",
-    "cost": "{2}{W}",
+    "cost": "{1}{W}",
     "stats": "-",
-    "mechanics": "Arrives: gain 2 life. Hauntlink {1}{W}. Linked: The linked creature gets +1/+2 and Sentinel.",
+    "mechanics": "Arrives: gain 3 life. Hauntlink {1}{W}. Linked: The linked creature gets +1/+2 and Sentinel.",
     "flavor": "The lantern's ghost chooses defenders who do not run."
   },
   {
@@ -1279,7 +1279,7 @@ export const YOKAI_SPEC_ROWS = [
     "color": "G",
     "type": "Creature (Dryad Guardian)",
     "cost": "{5}{G}",
-    "stats": "3/7",
+    "stats": "3/9",
     "mechanics": "Bulwark. At dawn: gain 2 life.",
     "flavor": "The oldest tree in the district has a better firewall than city hall."
   },
