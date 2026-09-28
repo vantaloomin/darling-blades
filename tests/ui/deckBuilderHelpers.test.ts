@@ -269,7 +269,7 @@ describe('deck builder save CTA', () => {
   });
 
   it('writes the unsaved-changes prompt in the house copy rules', () => {
-    for (const path of ['leave', 'decks', 'format', 'darling'] as const) {
+    for (const path of ['leave', 'decks', 'format', 'darling', 'import'] as const) {
       for (const blocked of [false, true]) {
         const copy = unsavedChangesCopy(path, blocked);
         for (const text of [copy.body, copy.discardLabel]) {

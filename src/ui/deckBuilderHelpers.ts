@@ -1,5 +1,6 @@
+import type { DeckCodeContents, DeckCodeDeck } from '../meta/DeckCode';
 import type { DeckIssue } from '../meta/DeckStorage';
-import { deckRepairNoticeFingerprint } from '../meta/deckRepair';
+import { CLASSIC_RETIRED_ISSUE, deckRepairNoticeFingerprint } from '../meta/deckRepair';
 import { DARLINGS_DECK_SIZE, LAND_RESERVE_SIZE, WARCHEST_DECK_SIZE } from '../meta/warchest';
 import type { SavedDeck } from '../meta/SaveManager';
 
@@ -285,9 +286,10 @@ export function deckSaveCta(state: { hasSavedRecord: boolean; dirty: boolean; bl
 
 /**
  * Every builder path that would drop unsaved work asks first (D10): leaving,
- * the Decks menu, a format switch, and the Darling pick.
+ * the Decks menu, a format switch, the Darling pick, and a deck code import
+ * (which replaces the open deck).
  */
-export type UnsavedChangesPath = 'leave' | 'decks' | 'format' | 'darling';
+export type UnsavedChangesPath = 'leave' | 'decks' | 'format' | 'darling' | 'import';
 
 export interface UnsavedChangesCopy {
   body: string;
@@ -301,6 +303,7 @@ export function unsavedChangesCopy(path: UnsavedChangesPath, blocked: boolean): 
     decks: 'Save or discard them to open your decks.',
     format: 'Save or discard them to switch formats.',
     darling: 'Save or discard them to choose your Darling.',
+    import: 'Save or discard them to import a deck code.',
   };
   const lines = [
     'Your deck has changes since the last Save Deck.',
@@ -332,8 +335,9 @@ export function acknowledgeDeckRepairNotice(rawAcknowledgement: string, deckId: 
 }
 
 /**
- * The issues that block importing a deck code. A code carries only a card
- * list, so an import is judged only on what that list causes. Anything else
+ * The issues that block importing a card-list-only deck code (every code
+ * before 1.9; planDeckCodeImport judges the rest). Such a code carries only a
+ * card list, so an import is judged only on what that list causes. Anything else
  * (an unfinished Warchest, a Darling not yet chosen) reports the same issue
  * whatever the list holds, so validating an empty list finds
  * exactly those, and they stay in the status band instead of blocking the
@@ -348,6 +352,96 @@ export function deckCodeImportBlockers(
   // non-empty list can tell card-independent issues apart.
   const unrelated = new Set(imported.length > 0 ? validate([]).map((issue) => issue.message) : []);
   return validate(imported).filter((issue) => issue.kind === 'error' && !unrelated.has(issue.message));
+}
+
+/** The deck-level parts an import writes besides the card list. */
+export interface DeckCodeImportTarget {
+  format: BuilderFormat;
+  darlingId: string | null;
+  landReserve: readonly string[];
+}
+
+/** What an export writes for the open deck: a Standard or Darlings deck carries its Warchest, and a Darlings deck its Darling. */
+export function deckCodeDeckFor(deck: DeckCodeImportTarget & { cards: readonly string[] }): DeckCodeDeck {
+  if (deck.format === 'constructed') return { cards: deck.cards };
+  return {
+    cards: deck.cards,
+    format: deck.format,
+    darlingId: deck.format === 'darlings' ? deck.darlingId : null,
+    landReserve: deck.landReserve,
+  };
+}
+
+export type DeckCodeImportPlan =
+  | { ok: true; cards: string[]; target: DeckCodeImportTarget }
+  | { ok: false; reason: string };
+
+/**
+ * The builder's working deck after an accepted import: list, Warchest, format
+ * and Darling, all of it working state. It takes no saved record, so it cannot
+ * write one. The format and the Darling are saved on the deck record, but the
+ * whole save is flushed on a tab switch or a land-style change, so an unsaved
+ * import on that record would be written half-done (a Darlings format over a
+ * Standard list, or a saved Darling lost). Save Deck writes it; restoring the
+ * baseline drops it.
+ */
+export function importedWorkingState(
+  plan: { cards: readonly string[]; target: DeckCodeImportTarget },
+): Omit<DeckBuilderWorkingState, 'heroCardId'> & { format: BuilderFormat; darlingId: string | null } {
+  return {
+    cards: [...plan.cards],
+    variantPins: plan.cards.map(() => null),
+    landReserve: [...plan.target.landReserve],
+    format: plan.target.format,
+    darlingId: plan.target.darlingId,
+  };
+}
+
+/**
+ * What importing a decoded code does to the open deck.
+ *
+ * A card-list-only code (every code before 1.9) fills the list and leaves the
+ * deck's format, Warchest and Darling as they are, judged only on what the list
+ * causes (deckCodeImportBlockers), exactly as before.
+ *
+ * A code that names its format rebuilds the whole deck: format, Darling,
+ * Warchest and list. It carries every one of them, so all of them are judged,
+ * and any error rejects it (a Darling or a dual land the importer does not
+ * own, say). The format and the Darling live on the saved record, so a deck
+ * that has none yet can take a code only in its own draft format.
+ */
+export function planDeckCodeImport(
+  code: DeckCodeContents,
+  open: DeckCodeImportTarget & { hasSavedRecord: boolean },
+  rules: { offered: readonly BuilderFormat[]; classicRetired: boolean },
+  validate: (target: DeckCodeImportTarget, cards: readonly string[]) => readonly DeckIssue[],
+): DeckCodeImportPlan {
+  if (code.format === null) {
+    // A retired classic deck takes no list until it changes format, and
+    // saying so beats judging the list against the 60-card rules.
+    if (rules.classicRetired && open.format === 'constructed') return { ok: false, reason: CLASSIC_RETIRED_ISSUE };
+    const target: DeckCodeImportTarget = {
+      format: open.format,
+      darlingId: open.darlingId,
+      landReserve: [...open.landReserve],
+    };
+    const blocking = deckCodeImportBlockers((cards) => validate(target, cards), code.cards);
+    return blocking.length > 0 ? { ok: false, reason: blocking[0].message } : { ok: true, cards: [...code.cards], target };
+  }
+
+  const label = formatLabel(code.format);
+  if (!rules.offered.includes(code.format)) return { ok: false, reason: `${label} decks are not available in this build.` };
+  if (code.format === 'darlings' && !code.darlingId) return { ok: false, reason: 'That Darlings code names no Darling.' };
+  const target: DeckCodeImportTarget = {
+    format: code.format,
+    darlingId: code.format === 'darlings' ? code.darlingId : null,
+    landReserve: [...(code.landReserve ?? [])],
+  };
+  if (!open.hasSavedRecord && (target.format !== open.format || target.darlingId !== open.darlingId)) {
+    return { ok: false, reason: `Save your deck first, then import a ${label} code.` };
+  }
+  const blocking = validate(target, code.cards).filter((issue) => issue.kind === 'error');
+  return blocking.length > 0 ? { ok: false, reason: blocking[0].message } : { ok: true, cards: [...code.cards], target };
 }
 
 function sameArray(left: readonly unknown[], right: readonly unknown[]): boolean {
