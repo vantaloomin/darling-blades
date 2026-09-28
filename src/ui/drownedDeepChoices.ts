@@ -7,6 +7,7 @@ import {
 import { sacrificeCandidates, toggleSacrifice } from './castSacrifice';
 import { targetAbilityText, targetPromptTitle, type DutyAction } from './duelPresentation';
 import { activatedText } from './rulesText';
+import { sameTargetRef } from './targetSelection';
 
 export type DiscardAction = Extract<Action, { type: 'discard' }>;
 export type ChooseTargetAction = Extract<Action, { type: 'chooseTarget' }>;
@@ -91,17 +92,10 @@ function pendingTarget(state: GameState, player: PlayerId) {
     pending.sourceIid === awaiting.sourceIid && pending.abilityIndex === awaiting.abilityIndex ? pending : null;
 }
 
-function sameTarget(a: TargetRef, b: TargetRef): boolean {
-  if (a.kind === 'permanent' && b.kind === 'permanent') return a.iid === b.iid;
-  if (a.kind === 'player' && b.kind === 'player') return a.player === b.player;
-  if (a.kind === 'stackItem' && b.kind === 'stackItem') return a.sid === b.sid;
-  return a.kind === 'grave' && b.kind === 'grave' && a.player === b.player && a.index === b.index;
-}
-
 /** One validation path for keyboard and pointer, including stale source/target guards. */
 export function confirmDeferredTarget(state: GameState, db: CardDb, player: PlayerId, target: TargetRef): ChooseTargetAction | null {
   if (!pendingTarget(state, player) || state.awaiting.kind !== 'chooseTarget') return null;
-  const offered = state.awaiting.targets.find((candidate) => sameTarget(candidate, target));
+  const offered = state.awaiting.targets.find((candidate) => sameTargetRef(candidate, target));
   if (!offered) return null;
   const action: ChooseTargetAction = { type: 'chooseTarget', target: offered };
   return validateAction(state, db, player, action) === null ? action : null;

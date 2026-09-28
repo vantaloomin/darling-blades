@@ -1,5 +1,6 @@
 /** Pure cast and Duty target selection over the engine's enumerated actions. */
 import { validateAction, type Action } from '../engine/actions';
+import { sameGraveCard } from '../engine/graveyard';
 import type { CardDb, GameState, PlayerId, TargetRef } from '../engine/types';
 
 export type TargetSelectionAction = Extract<Action, { type: 'castSpell' | 'castDarling' | 'activate' }>;
@@ -13,11 +14,18 @@ export interface TargetSelectionStep<T extends TargetSelectionAction = TargetSel
   countText: string;
 }
 
-function sameTarget(a: TargetRef, b: TargetRef): boolean {
+/**
+ * Two refs name the same target. A graveyard ref is compared by its card's
+ * identity when both refs carry one, so a pick made before the graveyard
+ * changed order still names the card it was made on; a position-only ref (a
+ * hand-built one, or one read from a v6-v14 replay log) falls back to where
+ * the card sat, as the engine does. Every UI target comparison uses this one.
+ */
+export function sameTargetRef(a: TargetRef, b: TargetRef): boolean {
   if (a.kind === 'permanent' && b.kind === 'permanent') return a.iid === b.iid;
   if (a.kind === 'player' && b.kind === 'player') return a.player === b.player;
   if (a.kind === 'stackItem' && b.kind === 'stackItem') return a.sid === b.sid;
-  return a.kind === 'grave' && b.kind === 'grave' && a.player === b.player && a.index === b.index;
+  return a.kind === 'grave' && b.kind === 'grave' && sameGraveCard(a, b);
 }
 
 function chosenX(action: TargetSelectionAction): number {
@@ -36,21 +44,21 @@ export function targetSelectionStep<T extends TargetSelectionAction>(
   unordered = false,
 ): TargetSelectionStep<T> {
   const duplicate = unordered && picked.some((target, index) =>
-    picked.slice(0, index).some((previous) => sameTarget(previous, target)),
+    picked.slice(0, index).some((previous) => sameTargetRef(previous, target)),
   );
   const matches = duplicate ? [] : actions.filter((action) => {
     const targets = action.targets ?? [];
     return picked.every((target, index) => unordered
-      ? targets.some((candidate) => sameTarget(candidate, target))
-      : targets[index] !== undefined && sameTarget(targets[index], target));
+      ? targets.some((candidate) => sameTargetRef(candidate, target))
+      : targets[index] !== undefined && sameTargetRef(targets[index], target));
   });
   const targets: TargetRef[] = [];
   for (const action of matches) {
     const remaining = unordered
-      ? (action.targets ?? []).filter((target) => !picked.some((chosen) => sameTarget(chosen, target)))
+      ? (action.targets ?? []).filter((target) => !picked.some((chosen) => sameTargetRef(chosen, target)))
       : (action.targets ?? []).slice(picked.length, picked.length + 1);
     for (const target of remaining) {
-      if (!targets.some((candidate) => sameTarget(candidate, target))) targets.push(target);
+      if (!targets.some((candidate) => sameTargetRef(candidate, target))) targets.push(target);
     }
   }
   const complete = matches.reduce<T | null>((best, action) => {
@@ -68,11 +76,11 @@ export function toggleTargetSelection<T extends TargetSelectionAction>(
   target: TargetRef,
   unordered = false,
 ): TargetRef[] {
-  if (unordered && picked.some((selected) => sameTarget(selected, target))) {
-    return picked.filter((selected) => !sameTarget(selected, target));
+  if (unordered && picked.some((selected) => sameTargetRef(selected, target))) {
+    return picked.filter((selected) => !sameTargetRef(selected, target));
   }
   const next = targetSelectionStep(actions, picked, unordered).targets;
-  return next.some((candidate) => sameTarget(candidate, target)) ? [...picked, target] : [...picked];
+  return next.some((candidate) => sameTargetRef(candidate, target)) ? [...picked, target] : [...picked];
 }
 
 /** A separate undo preserves the ability to choose one ref for two slots. */

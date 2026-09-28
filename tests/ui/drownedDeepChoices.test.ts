@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { legalActions, validateAction } from '../../src/engine/actions';
 import { Game } from '../../src/engine/Game';
-import { cardIdOf, type GameState } from '../../src/engine/types';
+import { cardIdOf, type CardInstance, type GameState, type TargetRef } from '../../src/engine/types';
 import { toggleSacrifice } from '../../src/ui/castSacrifice';
 import {
   confirmDeferredTarget, deferredTargetPrompt, DUTY_CHOOSER_LAYOUT, dutyChoices, dutyChooserRows,
@@ -26,7 +26,13 @@ const DB = dbOf(
   card('queen', { name: 'Wrecker Queen', abilities: [{ when: 'attacks', targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 1, to: 'target' }] }] }),
   card('gate', { name: 'Marsh Gate', abilities: [{ when: 'dawn', targets: [{ what: 'yourCreature' }], ops: [{ op: 'addCounters', n: 1, to: 'target' }] }] }),
   card('arrival', { abilities: [{ when: 'arrives', targets: [{ what: 'opponentCreature', maxCost: 2 }], ops: [{ op: 'damage', n: 1, to: 'target' }] }] }),
+  card('digger', { types: ['artifact'], activated: { cost: { tap: true }, targets: [{ what: 'yourGraveCreature' }], ops: [{ op: 'reclaim', targetIndex: 0 }] } }),
+  card('raiser', { abilities: [{ when: 'arrives', targets: [{ what: 'yourGraveCreature' }], ops: [{ op: 'reclaim', targetIndex: 0 }] }] }),
 );
+
+const graveCard = (instanceId: number, cardId: string): CardInstance => ({ instanceId, cardId, variantKey: null });
+/** The giant as a chooser saw it before the card under it left: one slot higher than it sits now. */
+const giantBeforeShift: TargetRef = { kind: 'grave', player: 0, index: 1, instanceId: 502 };
 
 function lootGame(): Game {
   const game = Game.restore(board([['bear', 'bear'], []], [{ iid: 1, cardId: 'looter' }]), DB);
@@ -183,6 +189,19 @@ describe('Duty ability selector state', () => {
     expect(dutyChoices(DB.glass, 1, game.legalActions(0)).every((choice) => !choice.enabled)).toBe(true);
   });
 
+  it('keeps a Duty graveyard pick on its card after the graveyard shifts, and still reads a position-only pick', () => {
+    const state = board([[], []], [{ iid: 1, cardId: 'digger' }]);
+    state.players[0].graveyard = [graveCard(502, 'giant'), graveCard(503, 'bear')];
+    const game = Game.restore(state, DB);
+    const actions = dutyChoices(DB.digger, 1, game.legalActions(0))[0].actions;
+    expect(dutyTargetStep(actions, [{ kind: 'grave', player: 0, index: 1 }]).complete?.targets)
+      .toEqual([{ kind: 'grave', player: 0, index: 1, instanceId: 503 }]);
+    const complete = dutyTargetStep(actions, [giantBeforeShift]).complete;
+    expect(complete?.targets).toEqual([{ kind: 'grave', player: 0, index: 0, instanceId: 502 }]);
+    game.submit(0, complete!);
+    expect(game.instanceState.players[0].hand.map(cardIdOf)).toEqual(['giant']);
+  });
+
   it('retains the single-Duty legacy action shape and excludes another permanent actions', () => {
     const game = Game.restore(board([[], []], [{ iid: 1, cardId: 'single' }, { iid: 2, cardId: 'single' }]), DB);
     const choices = dutyChoices(DB.single, 2, game.legalActions(0));
@@ -246,6 +265,19 @@ describe('deferred trigger target presentation', () => {
     pending.abilityIndex = 9;
     expect(deferredTargetPrompt(state, DB, 0)).toBeNull();
     expect(confirmDeferredTarget(state, DB, 0, ref(2))).toBeNull();
+  });
+
+  it('confirms a graveyard pick by its card after the graveyard shifts, and still reads a position-only pick', () => {
+    const state = board([['raiser'], []]);
+    state.players[0].graveyard = [graveCard(502, 'giant'), graveCard(503, 'bear')];
+    const game = Game.restore(state, DB);
+    game.submit(0, { type: 'castSpell', handIndex: 0 });
+    expect(confirmDeferredTarget(game.instanceState, DB, 0, { kind: 'grave', player: 0, index: 1 }))
+      .toEqual({ type: 'chooseTarget', target: { kind: 'grave', player: 0, index: 1, instanceId: 503 } });
+    const action = confirmDeferredTarget(game.instanceState, DB, 0, giantBeforeShift);
+    expect(action).toEqual({ type: 'chooseTarget', target: { kind: 'grave', player: 0, index: 0, instanceId: 502 } });
+    game.submit(0, action!);
+    expect(game.instanceState.players[0].hand.map(cardIdOf)).toEqual(['giant']);
   });
 
   it('never treats an edict as a deferred targeted ability', () => {
