@@ -76,9 +76,21 @@
 # for weenie's 27 with a margin; a craft that still has not finished in its
 # tenth chunk fails there, naming CHUNKS and CHUNK_MINUTES.
 #
-# WHAT THIS DOES NOT CHANGE. The same seeds, the same games per matchup, the
-# same Hard brain on both seats, the same acceptance rule, the same artifact
-# schema. Worker count does not enter the result: a game's seed is derived from
+# LEVERS. Two inputs, both off by default (plus `screen_seeds`, blank by
+# default, which sets --screen-seeds under screen medium): `race` adds --race (measure each
+# proposed swap in 30-seed batches and stop it once it trails the incumbent,
+# game for game, past a group sequential boundary; a close or better swap runs
+# the full seeds, so an accepted swap keeps its full measurement) and `screen`
+# adds --screen medium (drop a swap Medium scores more than five points worse
+# before Hard measures it; only Hard accepts). Both enter every craft's run
+# configuration, so a raced sweep never merges or resumes with an unraced one:
+# resume a raced sweep with the same two inputs. Their settings are the
+# craft.ts defaults; see docs/metagame-sweep.md.
+#
+# WHAT THIS DOES NOT CHANGE. The same seeds, the same games per matchup (with
+# the LEVERS off; a raced swap may stop early, a screened one plays Medium
+# first), the same Hard brain on both seats, the same acceptance rule, the
+# same artifact schema. Worker count does not enter the result: a game's seed is derived from
 # its matchup and its index, not from which worker ran it (measured 2026-09-22,
 # crafts at one, two and four workers were byte-identical), so a four-core
 # runner and the owner's eight-worker local run produce the same numbers. Chunk
@@ -113,6 +125,20 @@ on:
       resume_from:
         description: 'Optional: a sweeps/<dir> path on the sweep-data branch to resume'
         default: ''
+      # Levers 2 and 3 (docs/plan-sweep-speed.md), off by default until the
+      # one-persona acceptance run passes. See LEVERS in the header.
+      race:
+        description: 'Race each proposed swap (--race: 30-seed batches, alpha 0.01)'
+        type: boolean
+        default: false
+      screen:
+        description: 'Screen each proposed swap under Medium first (--screen medium: 5 points)'
+        type: choice
+        options: ['none', 'medium']
+        default: 'none'
+      screen_seeds:
+        description: 'Optional, with screen medium: Medium seeds per matchup (--screen-seeds; blank = the seeds input)'
+        default: ''
 
 # The merge job commits to `sweep-data`. Nothing else is needed.
 permissions:
@@ -137,6 +163,9 @@ env:
     --seeds ${{ inputs.seeds }}
     --iterations ${{ inputs.iterations }}
     --seed ${{ inputs.seed }}
+    ${{ inputs.race && '--race' || '' }}
+    ${{ inputs.screen == 'medium' && '--screen medium' || '' }}
+    ${{ inputs.screen_seeds != '' && format('--screen-seeds {0}', inputs.screen_seeds) || '' }}
   # The time budget of one chunk job, in minutes, and chunk jobs per craft (at
   # most 10, the jobs metagame-sweep-round.yml defines). See WHY CHUNKS above.
   CHUNK_MINUTES: '240'
@@ -159,11 +188,19 @@ jobs:
       - name: Check the inputs and the chunk settings
         env:
           ITERATIONS: ${{ inputs.iterations }}
+          SCREEN: ${{ inputs.screen }}
+          SCREEN_SEEDS: ${{ inputs.screen_seeds }}
         run: |
           set -euo pipefail
           if ! [[ "$ITERATIONS" =~ ^[0-9]+$ ]]; then
             echo "iterations must be a whole number (got $ITERATIONS)."
             exit 1
+          fi
+          if [ -n "$SCREEN_SEEDS" ]; then
+            if ! [[ "$SCREEN_SEEDS" =~ ^[1-9][0-9]*$ ]] || [ "$SCREEN" != "medium" ]; then
+              echo "screen_seeds must be a positive whole number, with screen medium (got '$SCREEN_SEEDS', screen $SCREEN)."
+              exit 1
+            fi
           fi
           if ! [[ "$CHUNK_MINUTES" =~ ^[1-9][0-9]*$ ]] || [ "$CHUNK_MINUTES" -ge 300 ]; then
             echo "CHUNK_MINUTES must be a positive whole number below 300 (got $CHUNK_MINUTES)."
@@ -176,12 +213,15 @@ jobs:
           echo "Each craft runs in up to $CHUNKS chunks of $CHUNK_MINUTES minutes."
 
       # The persona list becomes the matrix, and the output directory is fixed
-      # here so every job agrees on it even across a UTC midnight.
+      # here so every job agrees on it even across a UTC midnight. A raced or
+      # screened sweep gets its own directory (-race, -screen, -s<screen seeds>), so it never
+      # lands on top of an unraced sweep of the same seed and day.
       - name: Read the persona list
         id: plan
         env:
           PERSONAS: ${{ inputs.personas }}
           SEED: ${{ inputs.seed }}
+          LEVERS: ${{ inputs.race && '-race' || '' }}${{ inputs.screen == 'medium' && '-screen' || '' }}${{ inputs.screen_seeds != '' && format('-s{0}', inputs.screen_seeds) || '' }}
         run: |
           set -euo pipefail
           LIST=$(printf '%s' "$PERSONAS" | jq -Rc 'split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0))')
@@ -189,7 +229,7 @@ jobs:
             *$'\n'*) echo "The dispatch inputs may not contain line breaks."; exit 1 ;;
           esac
           echo "personas=$LIST" >> "$GITHUB_OUTPUT"
-          echo "sweep-dir=sweeps/$(date -u +%Y-%m-%d)-$SEED" >> "$GITHUB_OUTPUT"
+          echo "sweep-dir=sweeps/$(date -u +%Y-%m-%d)-$SEED$LEVERS" >> "$GITHUB_OUTPUT"
           printf 'sweep-args=%s\n' "$SWEEP_ARGS" >> "$GITHUB_OUTPUT"
           echo "chunk-minutes=$CHUNK_MINUTES" >> "$GITHUB_OUTPUT"
           echo "chunks=$CHUNKS" >> "$GITHUB_OUTPUT"
