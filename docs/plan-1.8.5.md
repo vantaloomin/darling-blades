@@ -215,7 +215,7 @@ mana the same is rejected: it overprices stacked drops and Dawn engines 1.3 to
 3.2 times.
 
 **The level stays on the §4p anchor.** One drop at mana value 2 is still 1.9;
-the lab reads it at 1.22 [0.95, 1.60]. That is an owner call, listed below.
+the lab reads it at 1.22 [0.95, 1.60]. The owner ruled on 2026-09-28 to keep 1.9.
 
 **Effect on the pool:** 21 ramp cards move, and nothing else. The five at mana
 value 2 are unchanged. Late ramp now reads Under:

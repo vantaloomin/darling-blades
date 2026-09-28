@@ -1748,7 +1748,7 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
     levers**.
   - **Flavor text removed entirely** (R13, ruled 2026-09-25), with the art
     window growing into the room it frees.
-  - **What 1.8.5 carried over**: the AI's ramp valuation, the ramp anchor,
+  - **What 1.8.5 carried over**: the AI's ramp valuation (the ramp anchor stays 1.9, ruled 2026-09-28),
     the 48 reverted nerfs to measure, Starborne Apotheosis, and two art
     regenerations.
 
