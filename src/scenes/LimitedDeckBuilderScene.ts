@@ -16,6 +16,7 @@ import {
   type LimitedRun,
 } from '../meta/Limited';
 import { isDualLand, LAND_RESERVE_SIZE, MAX_DUAL_LANDS } from '../meta/warchest';
+import { storedPremiumGrant } from '../meta/SaveManager';
 import { Services } from '../meta/services';
 import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestures';
 import { CardView } from '../ui/CardView';
@@ -78,8 +79,9 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
   private leavePrompt: ModalShell | null = null;
   /**
    * What the Premium grant did, handed over by the screen that completed the
-   * draft. The run does not store it, so a later visit arrives without it and
-   * the note is not drawn: it can only say what happened with real numbers.
+   * draft. A later visit arrives without it and reads the copy the grant
+   * stored on the save (`storedPremiumGrant`), so the note shows on every
+   * visit during the run's Build step, reloads included.
    */
   private premiumGrant: PremiumGrantSummary | null = null;
   constructor() {
@@ -167,9 +169,10 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
     );
     // One line even in the worst case: every pick melted at the top tier
     // measures 708px (Inter caption, 2026-09-25) against the 1152px frame.
-    if (run.premium && this.premiumGrant) {
+    const premiumGrant = this.premiumGrant ?? storedPremiumGrant(Services.save.data.limited);
+    if (run.premium && premiumGrant) {
       this.add
-        .text(SCENE_TITLE.x, LIMITED_BUILDER_HEADER.premiumNoteTop, premiumGrantNote(this.premiumGrant), {
+        .text(SCENE_TITLE.x, LIMITED_BUILDER_HEADER.premiumNoteTop, premiumGrantNote(premiumGrant), {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           color: theme.colors.gold,

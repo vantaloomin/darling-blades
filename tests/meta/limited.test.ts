@@ -24,10 +24,11 @@ import {
   rollLimitedPack,
   startBotDraft,
   startDraftRun,
+  type LimitedRun,
 } from '../../src/meta/Limited';
 import { DEFAULT_PICKER, scorePick } from '../../src/meta/draftPicker';
 import { firstReserveConfigIssue } from '../../src/meta/duelSetup';
-import { freshSave } from '../../src/meta/SaveManager';
+import { freshSave, SaveManager, storedPremiumGrant } from '../../src/meta/SaveManager';
 import { PLAIN_VARIANT, variantKey, type CardVariant } from '../../src/meta/variants';
 import { isDualLand, LAND_RESERVE_SIZE, MAX_DUAL_LANDS } from '../../src/meta/warchest';
 import { deckOf, TEST_DB } from '../helpers';
@@ -358,10 +359,14 @@ describe('limited rewards', () => {
     const collectionAfterFirstGrant = structuredClone(save.collection);
     const variantsAfterFirstGrant = structuredClone(save.collectionVariants);
     const goldAfterFirstGrant = save.gold;
+    const noteAfterFirstGrant = structuredClone(save.limited.premiumGrant);
+    expect(noteAfterFirstGrant).toBeTruthy();
     expect(grantPremiumDraftPool(save, CARD_DB, completed)).toEqual([]);
     expect(save.collection).toEqual(collectionAfterFirstGrant);
     expect(save.collectionVariants).toEqual(variantsAfterFirstGrant);
     expect(save.gold).toBe(goldAfterFirstGrant);
+    // A second payment (LimitedScene.create after the draft scene paid) keeps the note.
+    expect(save.limited.premiumGrant).toEqual(noteAfterFirstGrant);
   });
 
   it('melts plain premium picks past the playset exactly like pack opening', () => {
@@ -458,6 +463,93 @@ describe('limited rewards', () => {
     expect(save.stats.wins).toBe(2);
     expect(save.stats.losses).toBe(1);
     expect(save.collection).toEqual({});
+  });
+});
+
+/**
+ * The Premium draft note (plan 1.9 I7): the grant's per-card result exists only
+ * when the draft completes, so the grant stores its summary with the run and
+ * the Deck Builder reads it back on every visit of the run's Build step,
+ * reloads included, through `storedPremiumGrant`.
+ */
+describe('the Premium draft note is stored by the grant', () => {
+  function memoryStorage() {
+    const raw = new Map<string, string>();
+    return {
+      getItem: (key: string) => raw.get(key) ?? null,
+      setItem: (key: string, value: string) => void raw.set(key, value),
+      removeItem: (key: string) => void raw.delete(key),
+    };
+  }
+
+  /** What the draft screen does on the last pick: grant, complete, one flush. */
+  function completeDraft(manager: SaveManager, run: LimitedRun): void {
+    grantPremiumDraftPool(manager.data, CARD_DB, run);
+    manager.data.limited.activeRun = completeDraftRun(CARD_DB, run);
+    manager.flush();
+  }
+
+  /** A Premium draft of 45 plain copies of one card: 4 kept, 41 melted. */
+  function meltingPremiumDraft(seed: number): { run: LimitedRun; cardId: string } {
+    const run = finishDraft(seed, true);
+    const cardId = run.draft!.picks[0][0];
+    run.draft!.picks[0] = Array.from({ length: 45 }, () => cardId);
+    run.draft!.pickVariants = Array.from({ length: 45 }, () => ({ ...PLAIN_VARIANT }));
+    return { run, cardId };
+  }
+
+  it('stores the counts and run id of a completed Premium draft, and keeps them across a reload in Build', () => {
+    const storage = memoryStorage();
+    const manager = new SaveManager(storage, 1000);
+    const { run, cardId } = meltingPremiumDraft(9191);
+    const dupeGold = ECONOMY.dupeGold[def(CARD_DB, cardId).rarity];
+
+    completeDraft(manager, run);
+
+    const expected = { runId: run.id, drafted: 45, added: 4, converted: 41, gold: 41 * dupeGold };
+    expect(storedPremiumGrant(manager.data.limited)).toEqual(expected);
+
+    const reloaded = new SaveManager(storage, 2000);
+    expect(reloaded.data.limited.activeRun?.status).toBe('build');
+    expect(storedPremiumGrant(reloaded.data.limited)).toEqual(expected);
+  });
+
+  it('reads as no note once the run is retired or a new run starts', () => {
+    const storage = memoryStorage();
+    const manager = new SaveManager(storage, 1000);
+    completeDraft(manager, finishDraft(9292, true));
+    expect(storedPremiumGrant(manager.data.limited)).not.toBeNull();
+
+    manager.data.limited.activeRun = null;
+    expect(storedPremiumGrant(manager.data.limited)).toBeNull();
+    manager.flush();
+    expect(storedPremiumGrant(new SaveManager(storage, 2000).data.limited)).toBeNull();
+
+    const next = new SaveManager(memoryStorage(), 1000);
+    completeDraft(next, finishDraft(9393, true));
+    expect(storedPremiumGrant(next.data.limited)).not.toBeNull();
+    next.data.limited.activeRun = startDraftRun(CARD_DB, 9494, 3000, { premium: true });
+    expect(storedPremiumGrant(next.data.limited)).toBeNull();
+  });
+
+  it('stores no note for a Free draft', () => {
+    const manager = new SaveManager(memoryStorage(), 1000);
+    completeDraft(manager, finishDraft(9595, false));
+
+    expect(storedPremiumGrant(manager.data.limited)).toBeNull();
+    expect(manager.data.limited).not.toHaveProperty('premiumGrant');
+  });
+
+  it('stores no note when no card was drafted', () => {
+    const manager = new SaveManager(memoryStorage(), 1000);
+    const run = finishDraft(9696, true);
+    run.draft!.picks[0] = [];
+    run.draft!.pickVariants = [];
+
+    completeDraft(manager, run);
+
+    expect(storedPremiumGrant(manager.data.limited)).toBeNull();
+    expect(manager.data.limited).not.toHaveProperty('premiumGrant');
   });
 });
 

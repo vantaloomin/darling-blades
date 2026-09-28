@@ -324,12 +324,49 @@ export function pickDraftCard(db: CardDb, state: DraftState, cardId: string, car
   };
 }
 
-/** Grant the 45 human-picked premium cards exactly while the draft->build once-guard is open. */
+/**
+ * What a Premium draft's grant did, read from the add results it returned:
+ * every pick is added through the collection's add rule, and a result with
+ * `dupeGold` above zero is a plain copy past the plain playset that melted.
+ */
+export interface PremiumGrantSummary {
+  /** Picks granted: the whole Premium pool. */
+  drafted: number;
+  /** Copies the collection kept. */
+  added: number;
+  /** Plain copies past the playset, converted to gold instead. */
+  converted: number;
+  /** The gold those conversions paid. */
+  gold: number;
+}
+
+export function premiumGrantSummary(results: readonly Pick<AddResult, 'dupeGold'>[]): PremiumGrantSummary {
+  let converted = 0;
+  let gold = 0;
+  for (const result of results) {
+    if (result.dupeGold <= 0) continue;
+    converted++;
+    gold += result.dupeGold;
+  }
+  return { drafted: results.length, added: results.length - converted, converted, gold };
+}
+
+/**
+ * Grant the 45 human-picked premium cards exactly while the draft->build
+ * once-guard is open, and store what the grant did as the run's Deck Builder
+ * note (`limited.premiumGrant`, read back through `storedPremiumGrant`). The
+ * per-card result exists only now, so it is kept on the save for every later
+ * visit during the run's Build step; the caller's flush persists it together
+ * with the completed run. Nothing drafted stores no note.
+ */
 export function grantPremiumDraftPool(save: SaveData, db: CardDb, run: LimitedRun): AddResult[] {
   if (!run.premium || run.status !== 'draft' || !run.draft?.completed) return [];
-  return run.draft.picks[0].map((id, index) =>
+  const results = run.draft.picks[0].map((id, index) =>
     addCard(save, db, id, run.draft!.pickVariants?.[index] ?? PLAIN_VARIANT),
   );
+  const summary = premiumGrantSummary(results);
+  if (summary.drafted > 0) save.limited.premiumGrant = { runId: run.id, ...summary };
+  return results;
 }
 
 export function completeDraftRun(db: CardDb, run: LimitedRun): LimitedRun {

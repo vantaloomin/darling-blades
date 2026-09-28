@@ -159,7 +159,7 @@ export interface PremiumWeekState {
  *
  * Belongs to one run: it is kept only while the active run is the Premium run
  * `runId` names, and dropped on the first load after that run ends. The four
- * counts mirror the UI's `PremiumGrantSummary` field for field, so a stored
+ * counts mirror `PremiumGrantSummary` (src/meta/Limited.ts) field for field, so a stored
  * value can be handed straight to `premiumGrantNote`.
  *
  * In memory the field outlives its run until the next load (retiring or
