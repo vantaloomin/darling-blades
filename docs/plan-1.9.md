@@ -12,7 +12,9 @@ costed on the new scorer from its first card. On 2026-09-28 the owner ruled
 D12-D15: the waves are re-ordered around the critical path (see Sequencing),
 the follow-ups logged at the 1.8.1 cut become lane I and land early, the
 sweep gains personas in First Dawn's colours, and the AI fixes 1.8.5 handed
-on are approved. This document turns the rulings into lanes and waves. Each
+on are approved. Later that day, after wave 0 closed, D16 put the cards
+before the engine spec: a design-first overplan and its concretion audit
+decide what the engine builds. This document turns the rulings into lanes and waves. Each
 wave starts on the owner's word.
 
 The release spine is [plan-road-to-2.0.md](plan-road-to-2.0.md). Its 1.9 row,
@@ -245,10 +247,18 @@ measurement is dated in `src/data/opponents.ts`).
 
 ### Lane A — the mechanics: Provoked and Hunt
 
-**The spec comes first:** `plan-first-dawn-engine.md`, authored by an Opus
-5.5 agent (design documents are never Codex's), with the owner ruling its
-questions before any card row is written. The questions it has to settle,
-from the slate, the retired overplan's own risk list, and today's code:
+**The cards come first, then the spec (D16, ruled 2026-09-28).** The spec,
+`plan-first-dawn-engine.md`, is authored by an Opus 5.5 agent (design
+documents are never Codex's) after the design-first overplan and its
+concretion audit (lane B, steps 2-3), so it covers what the cards actually
+need: Provoked, Hunt and every gap the concretion finds, with the fine print
+answered from real cards. Starborne (64 of 151 cards the engine could not
+express, found at transcription) and Drowned Deep (an extra effect-vocabulary
+PR found at concretion) both showed that most of a set's engine work is what
+its cards ask for, not its headline mechanics. The identity brief states
+working assumptions for the questions below so the overplan can be designed
+against them; the spec rules them. The questions, from the slate, the retired
+overplan's own risk list, and today's code:
 
 **Provoked** (the slate's Magic analog is enrage): *"Provoked: [effect]"
 triggers when this creature survives damage.*
@@ -288,13 +298,16 @@ damage equal to their Attack to the other.*
 **Both mechanics** carry the full blast radius the Starborne and Drowned
 Deep waves paid:
 
-- **Costing before rows** (the owner's rule): an MEP rate in the power
-  formula for each, anchored to Magic precedent. Both Magic analogs postdate
-  the 8th-10th-edition era the costing normally anchors to (fight became a
-  keyword action in 2011, enrage appeared in 2017), so the derivation must
-  say how it handles the era filter, per the MTG-db playbook, or cite older
-  fight-shaped printings. No rate is quoted here; none exists until it is
-  scored.
+- **Costing before cards ship** (the owner's rule, 2026-08-28): an MEP rate
+  in the power formula for each, anchored to Magic precedent. Both Magic
+  analogs postdate the 8th-10th-edition era the costing normally anchors to
+  (fight became a keyword action in 2011, enrage appeared in 2017), so the
+  derivation must say how it handles the era filter, per the MTG-db
+  playbook, or cite older fight-shaped printings. Under D16 the overplan's
+  Provoked and Hunt rows carry a provisional rate from that precedent,
+  flagged NEEDS MATH as the rule requires, and the in-engine measurement
+  replaces it before the owner's cut. No rate is quoted here; none exists
+  until it is scored.
 - **The AI at all three difficulties.** Hunt picks a target the hunter is
   favoured to survive. Provoked adds a survival bonus to block and attack
   evaluation. Each gets documented-behaviour entries and draft-picker
@@ -309,19 +322,22 @@ Deep waves paid:
 - **A usage row from the first day** (lane E), so the new mechanics are not
   judged by win rate alone.
 
-**The build splits in two (D15, ruled 2026-09-28).** Only part of the list
-above stands between the spec and the first card row, so the lane lands in
-two halves:
+**The build splits in two (D15, amended by D16, ruled 2026-09-28).** Only
+part of the list above stands between the spec and the owner's cut, so the
+lane lands in two halves:
 
-- **A1, on the critical path:** the Provoked trigger and the Hunt op (on
-  the v16 replay version I1 takes in wave 0), and the Hard brain's Hunt
-  targeting and Provoked survival reads. The Hard reads belong here because
-  the rates are measured in-engine by games the AI plays, and a naive target
-  policy would price Hunt low. They read only the new trigger and op, which
-  no shipped card carries, so they must leave the current pool's games
-  unchanged; A1 proves that with the identical-action-log harness lane F
-  builds in wave 1, rather than asserting it. Then the lab runs that
-  produce both MEP rates. The harnesses (`balance/study/lab/`) are
+- **A1, on the critical path, after the spec is ruled:** the Provoked
+  trigger and the Hunt op (on the v16 replay version I1 took in wave 0),
+  every other vocabulary gap the concretion audit found and the spec kept,
+  and the Hard brain's Hunt targeting and Provoked survival reads. The Hard
+  reads belong here because the rates are measured in-engine by games the AI
+  plays, and a naive target policy would price Hunt low. They read only the
+  new trigger and op, which no shipped card carries, so they must leave the
+  current pool's games unchanged; A1 proves that with the identical-action-log
+  harness lane F builds in wave 1, rather than asserting it. Then the lab
+  runs that produce both MEP rates, on the overplan's real card shapes (a
+  Provoked 2/4 that draws, a Hunt on a five-Attack body), and the overplan's
+  mechanic rows are rescored on them. The harnesses (`balance/study/lab/`) are
   gitignored and absent from a fresh worktree, so the lab runs from the main
   checkout or the harness is copied in, as `cheats.local.ts` is. A1 also owns
   entering the rates in the scorer: Provoked is a trigger and Hunt an op, so
@@ -347,28 +363,41 @@ dinosaurs), and the two mechanics. Its three design risks are carried into
 lane A: Provoked loops, Hunt efficiency, and marks-plus-Dawn engines that
 wait several turns.
 
-The authoring order is the one Starborne and Drowned Deep used. The rows
-cannot start until lane A's rates exist, and they carry no flavor text (R13):
+The authoring order is design first (D16, ruled 2026-09-28): the cards are
+designed before the engine spec, so the engine builds what they need. The
+rows carry no flavor text (R13):
 
 1. **Identity brief**, approved by the owner before any rows: setting, the
    colour pie, what each colour does with Provoked, Hunt and Duty, enabler
    density per colour (the Drowned Deep cut failed it in white and red),
    the precon's plan, and the metagame it lands in. An attack-forward set
    meets a field where go-wide trails and reanimator is the weakest persona;
-   the brief should say which of those it means to move.
+   the brief should say which of those it means to move. It also states
+   **working assumptions** for the Provoked and Hunt fine print (lane A's
+   questions), a **vocabulary discipline** rule (prefer the engine's
+   existing vocabulary; each new trigger, op, static or condition must be
+   justified by the cards that need it), and the colour pairs the new sweep
+   personas play (D12).
 2. **Overplan of about 200-215 candidates** for a cut of 150-165 (D2,
-   ruled), every row
-   scored by the power formula at authoring time and run through the
-   duplicate comparator against the live pool. **The comparator learns Duty,
-   Tithe and Whispers first** (a small tooling fix, wave 0), and the #436
-   catalog guard (no rules-identical printings in one set) applies from the
-   first row.
-3. **Cut**, with the owner's review of the upper rarities first (the
-   Drowned Deep cut board worked this way), a protect list, enabler density
-   as a cut constraint, and the AI-watch family named.
-4. **Concretion** to the engine's vocabulary. The approved artifact is then
-   transcribed into data, by Codex or an Opus agent under contract; Codex
-   never authors the prose.
+   ruled), designed against the brief. Every ordinary row is scored by the
+   power formula at authoring time; Provoked and Hunt rows carry provisional
+   rates flagged NEEDS MATH. Every row runs through the duplicate comparator
+   against the live pool (it learned Duty, Tithe and Whispers in wave 0,
+   #469), and the #436 catalog guard (no rules-identical printings in one
+   set) applies from the first row.
+3. **Concretion audit.** Every row is mapped to the engine's vocabulary; the
+   output is the gap list, with the number of cards that need each gap, so
+   the owner can drop expensive vocabulary by cutting the few cards that
+   need it.
+4. **The engine spec** (lane A) covers Provoked, Hunt and every kept gap;
+   the owner rules it, A1 builds it, the lab measures the two rates on the
+   overplan's shapes, and the mechanic rows are rescored.
+5. **Cut**, on fully scored rows, with the owner's review of the upper
+   rarities first (the Drowned Deep cut board worked this way), a protect
+   list, enabler density as a cut constraint, and the AI-watch family named.
+6. **Transcription.** The approved artifact is transcribed into data, by
+   Codex or an Opus agent under contract; Codex never authors the prose. A2
+   lands before it.
 
 The rules the rows are written against, all postdating the old list: the
 reserve takes only basics and duals, so the set prints no taplands and no
@@ -764,11 +793,12 @@ Rocket x4 re-measure ([ai.md](ai.md)) join D7's wave-4 pass.
 Waves are dependency-ordered. Within a wave, lanes run in parallel in
 separate worktrees, by file set.
 
-**What sets the pace (D15, re-ordered 2026-09-28).** The critical path runs
-through First Dawn: the comparator fix, then the engine spec and the
-identity brief, the owner's rulings, A1 and the rates, the overplan, the
-owner's cut, the art bible, the art run, transcription, the tower content,
-the wave-4 tune, the sweep and the cut. Machine time on that path is short:
+**What sets the pace (D15, re-ordered 2026-09-28; D16 the same day).** The
+critical path runs through First Dawn: the comparator fix, then the identity
+brief and the owner's approval, the design-first overplan and its concretion
+audit, the engine spec and the owner's rulings, A1 and the measured rates,
+the rescore, the owner's cut, the art bible, the art run, transcription, the
+tower content, the wave-4 tune, the sweep and the cut. Machine time on that path is short:
 Drowned Deep's engine core took Codex about 40 minutes once its questions
 were answered, and its 256 images about five hours. What took days was
 spec, ruling, brief, cut and art review. So the waves put everything the
@@ -778,9 +808,9 @@ and run lanes C, D, E, F and I underneath those waits.
 | Wave | Critical path | Alongside | Gate |
 | ---: | --- | --- | --- |
 | **0** | 1.8.1 and 1.8.5 shipped; this plan synced (2026-09-28, a PR into `main` with the workbench-skill chore); then `release/1.9` cut from `main`; then, into `release/1.9`, the duplicate comparator learning Duty, Tithe and Whispers | I1 (Foresee on an empty deck, failing test first, v16) into `release/1.9`. Nothing in wave 0 but docs and the chore reaches `main` | the ladder on each PR |
-| **1** | `plan-first-dawn-engine.md` and the First Dawn identity brief (Opus 5.5; the brief names the rung 27-28 bosses and the colour pie); the card-face mock at 216 and 228 px with one phone face (R13) | Usage audit waves 0-1 (gate: a fresh hand count on the tip); weenie profiling and the identical-action-log harness; sweep levers 2-3 built; the accessibility plan re-verified; the art streaming design within itch.io's limits; lane I's wave-1 PRs | **one owner sitting** for the specs, the brief, the art window height and the streaming design |
-| **2** | A1: the trigger and op, the Hard reads (after the weenie fix, proven identical on the current pool), the lab rates entered in the scorer. In series beside it: R13 built, then the two 1.8.5 regenerations on the new window, then the art pilot with the boss portraits | The weenie fix; the first full usage audit and its findings note; the colour-gap personas (after the brief) and the levers' one-persona acceptance run; accessibility wave 1 with the v36 bump (and I7); art streaming built; the D8 whole-pool near-duplicate review (its fixes ship in 1.9.x) | full ladder, win-rate gates unchanged, replay goldens, the no-change tests, the owner's eyes on the pilot |
-| **3** | The ~200 overplan, the owner's cut, concretion and the art bible, the art run, transcription (carrying the converter regen of the boss lists) | A2 (before transcription); the usage audit's fixes (D13); accessibility wave 2 (core scenes) | check-art-bible green, every token minted, duplicate audit filed, standing floors cleared |
+| **1** | The First Dawn identity brief (Opus 5.5; it names the rung 27-28 bosses, the colour pie, the colour pairs for the new sweep personas, and the working assumptions for Provoked and Hunt); the card-face mock at 216 and 228 px with one phone face (R13) | Usage audit waves 0-1 (gate: a fresh hand count on the tip); weenie profiling and the identical-action-log harness; sweep levers 2-3 built; the accessibility plan re-verified; the art streaming design within itch.io's limits; lane I's wave-1 PRs | **one owner sitting** for the brief, the art window height, the accessibility plan and the streaming design |
+| **2** | The design-first overplan (provisional NEEDS MATH rates on the mechanic rows), its concretion audit and gap list, then `plan-first-dawn-engine.md` (Provoked, Hunt and the kept gaps) and **a second owner sitting** to rule it; then A1: the vocabulary, the Hard reads (after the weenie fix, proven identical on the current pool), the lab rates on the overplan's shapes entered in the scorer, and the mechanic rows rescored. In series beside it: R13 built, then the two 1.8.5 regenerations on the new window, then the art pilot with the boss portraits | The weenie fix; the first full usage audit and its findings note; the colour-gap personas (after the brief) and the levers' one-persona acceptance run; accessibility wave 1 with the v36 bump (and I7); art streaming built; the D8 whole-pool near-duplicate review, with a stat-ladder pass added to the comparator first (its fixes ship in 1.9.x) | full ladder, win-rate gates unchanged, replay goldens, the no-change tests, the owner's eyes on the pilot |
+| **3** | The owner's cut on fully scored rows, the art bible, the art run, transcription (carrying the converter regen of the boss lists) | A2 (before transcription); the usage audit's fixes (D13); accessibility wave 2 (core scenes) | check-art-bible green, every token minted, duplicate audit filed, standing floors cleared |
 | **4** | In order: the balance card edits (the 1.8.5 items and D7's), one converter regen, rungs 27-28 and the theme deck, the targeted usage read, the tunes (the top tier, rung 19, the Darlings summit R23-R26, the ladder inversions, Festival Rocket, the RUNG_BANDS 1-13 re-centre), one measurement, then the floors ratchet once and the new gates land (rungs 27-28, the summit's Darlings rows) | Accessibility wave 3 (long tail) | matrices, precon and boss floors, fixture matrix |
 | **5** | QC day, the sweep last (six personas plus the colour-gap personas), release notes, the 1.9.0 cut | | the cut checklist |
 
@@ -929,6 +959,26 @@ Numbered so rulings can cite them. Recommendations are the first option.
   recommended:** lane A splits into A1 and A2; the art pilot runs before the
   cut; the first full usage audit moves to wave 2; the shared-file order in
   Sequencing holds. Lane D is the lane to defer if 1.9 runs long.
+
+**Ruled 2026-09-28, after wave 0 closed:**
+
+- **D16 The cards before the engine spec. RULED:** the owner asked whether
+  the cards should come first so the engine builds what they need, and
+  approved the order that follows: the identity brief (with working
+  assumptions for the fine print and a vocabulary discipline rule), a
+  design-first overplan with provisional NEEDS MATH rates on the mechanic
+  rows, a concretion audit listing the vocabulary gaps with card counts, the
+  engine spec covering Provoked, Hunt and the kept gaps, A1 and the lab on
+  the overplan's real shapes, the rescore, then the cut. It costs the owner
+  one more review sitting and removes the risk of an unplanned engine wave
+  at transcription, which Starborne paid. It amends D15's A1 placement.
+- **The comparator follow-ups (#469), as recommended:** the #436 catalog
+  guard keeps its own rule (every subtype counts), separate from the
+  comparator's paid-off-tribe rule; a stat-ladder pass (same text and cost,
+  different stats) joins the comparator ahead of the D8 review in wave 2.
+- **The `research/` ignore rule** from the owner's local `.gitignore` is
+  committed, so third-party research material never reaches the public
+  repo.
 
 ## Non-goals
 
