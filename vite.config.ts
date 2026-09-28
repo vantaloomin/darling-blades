@@ -1,8 +1,10 @@
 /// <reference types="vitest/config" />
 import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { defineConfig } from 'vite';
+import { join, resolve } from 'node:path';
+import { defineConfig, type Plugin } from 'vite';
 import { cspForTarget, isDesktopBuild } from './scripts/cspForTarget';
+import { copyPacksInto } from './scripts/pack-art';
 
 // Build identity stamped into the client (src/version.ts): the package version
 // and the commit SHA's first seven characters. Always seven, never `--short`:
@@ -23,6 +25,42 @@ const gitSha = ((): string => {
     return 'dev';
   }
 })();
+
+/**
+ * Card-art packs (docs/plan-art-streaming.md section 5). A web production
+ * build reads card art from the packs `scripts/pack-art.ts` staged (npm run
+ * build runs it), so this copies them into `dist/assets/art/packs/` and sets
+ * `__ART_SOURCE__` to 'packs'. The loose files in `dist/assets/art/cards/`
+ * and `cards-half/` stay beside them through 1.9 (the Forge, older tabs, the
+ * 404 fallback).
+ *
+ * The desktop build gets neither: Tauri's asset protocol ignores `Range` and
+ * would send a whole pack for every card (docs/desktop-build.md), so the app
+ * keeps reading loose files. A plain `vite build` with no index (pack-art
+ * never ran) copies nothing and the source falls back to loose files.
+ */
+function artPacks(): Plugin {
+  const desktop = isDesktopBuild(process.env);
+  let outDir = 'dist';
+  return {
+    name: 'art-packs',
+    apply: 'build',
+    config: () => ({ define: { __ART_SOURCE__: JSON.stringify(desktop ? 'loose' : 'packs') } }),
+    configResolved(config) {
+      outDir = resolve(config.root, config.build.outDir);
+    },
+    closeBundle() {
+      if (desktop) return;
+      const copied = copyPacksInto(outDir);
+      if (copied === null) {
+        this.warn('no art pack index (src/data/art-packs.json); this build reads loose card art');
+        return;
+      }
+      const mib = (copied.bytes / 1024 / 1024).toFixed(1);
+      this.info(`copied ${copied.files} art pack(s), ${mib} MiB, into ${join(outDir, 'assets', 'art', 'packs')}`);
+    },
+  };
+}
 
 export default defineConfig({
   plugins: [
@@ -47,10 +85,15 @@ export default defineConfig({
         });
       },
     },
+    artPacks(),
   ],
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __GIT_SHA__: JSON.stringify(gitSha),
+    // Where card-art bytes come from (src/art/artSource.ts): loose files for
+    // the dev server and tests; the art-packs plugin (above) makes it 'packs'
+    // for a web production build.
+    __ART_SOURCE__: JSON.stringify('loose'),
   },
   // Relative base so the built app works both when served (LAN/web) and when
   // loaded from Tauri's custom protocol in the desktop bundle.

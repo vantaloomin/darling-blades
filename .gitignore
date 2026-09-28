@@ -20,6 +20,11 @@ src/data/art-manifest.json
 # ── Derived half-res mobile art (rebuilt by `npm run gen-art-halfres`) ────
 public/assets/art/cards-half/
 
+# ── Card-art packs and their offset index (rebuilt by scripts/pack-art.ts,
+# which `npm run build` runs; the vite plugin copies the packs into dist/) ──
+.art-packs/
+src/data/art-packs.json
+
 # ── Local-only balance workbench (card reference + power analysis; never committed) ─
 balance/
 scripts/card-reference.ts

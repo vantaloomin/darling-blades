@@ -513,10 +513,10 @@ that ignores ranges.
 | --- | --- | --- |
 | 206, `Content-Range` starts at the offset, body length matches, starts `RIFF....WEBP` | good | decode |
 | 200 with the whole pack | the host ignores `Range` (`serve-lan.ts` before its fix, a proxy) | whole-pack mode for that pack: keep the bytes (at most two packs held, least recently used dropped) and slice from them; no more range reads to it this session; one console warning |
-| any `Content-Encoding` on the response, or a 206 whose body fails to read (a decoding error from `fetch`) | the host compressed the pack (the itch trap), so ranges address compressed bytes; a compressed partial body cannot be decoded, which is how the second form shows up | treat as 200: whole-pack mode (`fetch` decompresses a full body transparently); one warning. Not retried as a transient failure |
+| any `Content-Encoding` on the response (including a 206 whose body then fails to read) | the host compressed the pack (the itch trap), so ranges address compressed bytes; a compressed partial body cannot be decoded | treat as 200: whole-pack mode (`fetch` decompresses a full body transparently); one warning. Not retried as a transient failure |
 | 416, wrong length or wrong magic | index and pack disagree (should be impossible with hashed names) | fail the key for the session; one error |
 | 404 on the pack | a tab older than the deploy | try the loose URL (present on Pages in 1.9); otherwise fail the pack's keys |
-| network error before any response, 5xx, timeout | transient | the retry in section 1 |
+| network error before any response or mid-body (a 206 with no `Content-Encoding` whose body fails to read), 408, 429, 5xx, an idle timeout | transient | the retry in section 1; the pack's mode is unchanged. Reads waiting on a pack's first read fail with it, and the store re-sends them |
 
 Observed 2026-09-28: `bladedarlings.com` (Cloudflare in front of Pages)
 answers a range request on a card `.webp` with `206` and
@@ -760,4 +760,5 @@ Each opens with the recommendation.
    residency, bounded by what the player actually visits). It is the
    answer to a crash report after release that the gates did not catch,
    without a hotfix. The alternative is no switch, relying on the gates
-   and a hotfix.
+   and a hotfix. As built (S1), the flag applies on every tier, not only
+   desktop: it is explicit, and a phone under it behaves as today.
