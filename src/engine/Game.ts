@@ -495,7 +495,10 @@ export class Game {
       p.continuations !== undefined || (p.kind === 'chooseTarget' && p.triggerWhen !== undefined)) &&
       !st.stackClosed && (st.awaiting.kind === 'respond' || st.awaiting.kind === 'endStepWindow'))
       st.decisionResume ??= structuredClone(st.awaiting);
-    while (st.pendingDecisions.length > 0) {
+    // A choice settled below without being offered (nothing to discard, sacrifice,
+    // target or look at) still resolves the rest of its effect, and that can
+    // end the game. Once it has, nothing more is offered or resumed.
+    while (st.pendingDecisions.length > 0 && st.winner === null) {
       // A held trigger goes first. With no payable link it would have resolved
       // inline before any queued choice was offered, so it is moved to the
       // head (its window reads the head) and what it raises still queues
@@ -573,12 +576,10 @@ export class Game {
         continue;
       }
       if (next.kind === 'foresee' && this.foreseeCards(next.player, next.n).length === 0) {
+        // The deck ran out while the Foresee waited: nothing to look at, so
+        // no choice, but the rest of its effect still resolves.
         st.pendingDecisions.shift();
-        if (next.continuations) this.resumeNewChoice(emit, next.continuations, next.thenOps ? () => runOps(
-          st, this.db, emit,
-          { ...(next.thenContext ?? { controller: next.player, sourceCardId: 'foresee-continuation' }), targets: [] },
-          next.thenOps!,
-        ) : undefined);
+        this.resumeAfterForesee(next, emit);
         continue;
       }
       if (next.kind === 'chooseTarget') {
@@ -603,6 +604,7 @@ export class Game {
       }
       break;
     }
+    if (st.winner !== null) return;
     const next = st.pendingDecisions[0];
     if (next?.kind === 'foresee') {
       st.awaiting = { player: next.player, kind: 'foresee', cards: this.foreseeCards(next.player, next.n) };
@@ -715,6 +717,31 @@ export class Game {
   }
 
   /**
+   * Carry on with the effect a settled Foresee paused: its target-free tail
+   * in the effect's own context (the chooser can be the opponent of the
+   * effect's controller), then any frames queued behind it. One path whether
+   * the player chose or the deck held nothing to look at (rules.md, Foresee),
+   * so a short deck never removes the ops that follow a Foresee.
+   */
+  private resumeAfterForesee(pending: Extract<PendingDecision, { kind: 'foresee' }>, emit: Emit): void {
+    const st = this.st;
+    const tail = pending.thenOps;
+    const runTail = tail ? (): void => runOps(
+      st, this.db, emit,
+      { ...(pending.thenContext ?? { controller: pending.player, sourceCardId: 'foresee-continuation' }), targets: [] },
+      tail,
+    ) : undefined;
+    if (pending.continuations) {
+      // A nested legacy Foresee may already own an inner tail. Resolve it
+      // before appending the enclosing new observer's continuation.
+      this.resumeNewChoice(emit, pending.continuations, runTail);
+    } else if (runTail) {
+      runTail();
+      checkStateBased(st, this.db, emit);
+    }
+  }
+
+  /**
    * Awaiting Foresee cards are top-first, matching the player-facing order.
    * A Foresee continuation suspends before its trailing ops mutate this deck.
    */
@@ -807,31 +834,7 @@ export class Game {
           kept: kept.map(cardIdOf),
           bottomed: bottomed.map(cardIdOf),
         });
-        if (pending.continuations) {
-          // A nested legacy Foresee may already own an inner tail. Resolve it
-          // before appending the enclosing new observer's continuation.
-          this.resumeNewChoice(emit, pending.continuations, pending.thenOps ? () => runOps(
-            st, this.db, emit,
-            { ...(pending.thenContext ?? { controller: pending.player, sourceCardId: 'foresee-continuation' }), targets: [] },
-            pending.thenOps!,
-          ) : undefined);
-          return;
-        }
-        if (pending.thenOps) {
-          // The chooser can be the opponent of the effect's controller.
-          // Resume the target-free tail under its captured source context.
-          runOps(
-            st,
-            this.db,
-            emit,
-            {
-              ...(pending.thenContext ?? { controller: pending.player, sourceCardId: 'foresee-continuation' }),
-              targets: [],
-            },
-            pending.thenOps,
-          );
-          checkStateBased(st, this.db, emit);
-        }
+        this.resumeAfterForesee(pending, emit);
         return;
       }
 

@@ -3,7 +3,7 @@ import { Game } from '../../src/engine/Game';
 import { CURRENT_RULES_REV } from '../../src/config/rules';
 import type { Action } from '../../src/engine/actions';
 import type { GameEvent } from '../../src/engine/events';
-import { finishReplay, startReplayDraft, replayDbStamp, recordReplayAction, replayGame, isReplayLog, canReplay } from '../../src/meta/Replay';
+import { finishReplay, startReplayDraft, replayDbStamp, recordReplayAction, replayGame, isReplayLog, canReplay, REPLAY_LOG_VERSION } from '../../src/meta/Replay';
 import { botAction, smallGreenDeck, TEST_DB } from '../helpers';
 import { card, dbOf, spell } from '../drownedDeepFixture';
 const db = dbOf(card('looter', { abilities: [{ when: 'arrives', ops: [{ op: 'draw', n: 1 }, { op: 'discard', n: 1, who: 'self' }] }],
@@ -42,7 +42,7 @@ function record(seed: number, legacy = false) {
 }
 describe('Drowned Deep replay (choices recorded since v14) / rules revision 4', () => {
   it.each([17, 29, 43])('records every new choice at seed %i and round-trips JSON bytes', seed => {
-    const recorded = record(seed); expect(CURRENT_RULES_REV).toBe(4); expect(recorded.log.v).toBe(15);
+    const recorded = record(seed); expect(CURRENT_RULES_REV).toBe(4); expect(recorded.log.v).toBe(REPLAY_LOG_VERSION);
     expect(new Set(recorded.choices)).toEqual(new Set(['discard', 'sacrifice', 'trigger']));
     expect(recorded.log.actions.some(s => s.a.type === 'activate' && s.a.abilityIndex === 1)).toBe(true);
     const log = JSON.parse(JSON.stringify(recorded.log)); expect(isReplayLog(log)).toBe(true); expect(canReplay(log, recorded.pool)).toBe(true);

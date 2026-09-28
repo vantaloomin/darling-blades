@@ -170,8 +170,8 @@ The full `GameEvent` union (`src/engine/events.ts`):
 ### Replay discipline and rules revisions
 
 `ReplayLog.v` selects observable engine behavior as well as validating the log
-shape. New v15 logs (1.8.1) run under current rules revision 4, as do versions
-11 through 14; versions 8 through 10 run under revision 3, version 7 under
+shape. New v16 logs (1.9) run under current rules revision 4, as do versions
+11 through 15; versions 8 through 10 run under revision 3, version 7 under
 revision 2 with the former Hauntlink cast mode, and version 6 under revision 1
 with the classic single-window path. From v15 an action names a graveyard card
 by its instance id as well as its position; an older log names the position
@@ -181,16 +181,26 @@ shifted position (a Retell cast whose target sat above its own source, or a
 response that moved the graveyard before the spell resolved): there the
 replay returns the card the position named at submission. 1.8.0 logs are
 refused anyway, since the 1.8.1 card-text changes moved the card-data stamp.
-1.8.5 changed card data only, so the log version stays 15. Its 90 card
+1.8.5 changed card data only, so the log version stayed 15. Its 90 card
 changes moved the stamp again, and 1.8.1 logs are refused under it: the stamp,
-not a version bump, is what retires a replay when cards change.
+not a version bump, is what retires a replay when cards change. v16 (1.9)
+marks an ungated engine fix: a Foresee that finds an empty deck when it is
+offered still resolves the ops after it, where earlier builds dropped them
+(rules.md, Foresee). An older log still replays identically except through
+such a Foresee. Until 1.9's first card-data change moves the stamp, a 1.8.5
+log is still accepted and would replay differently only on that path; the
+1.9.0 release carries card changes (R13, First Dawn), so no pre-1.9 log
+reaches it on a release build. No client code replays a log today:
+`ProfileScene` reads `canReplay` for its badge only.
 A current-version log containing the explicit legacy
 Hauntlink cast marker selects revision 2 as well. These paths are preserved
 behind `GameConfig.rulesRev`; legacy `GameState` JSON omits both `rulesRev` and
 revision-2 episode bookkeeping. A gated behavior change may keep an older
 replay version executable only while its complete old path remains intact.
-Ungated observable changes still bump `REPLAY_LOG_VERSION` and fail closed, and
-database-stamp drift always fails closed.
+An ungated observable change bumps `REPLAY_LOG_VERSION`. Older versions stay
+executable only where their recorded games replay the same, or where the
+card-data stamp already refuses every log the change could affect (G6 in
+1.8.1, the Foresee fix in 1.9). Database-stamp drift always fails closed.
 
 ## Hidden information: `viewFor` redaction
 
