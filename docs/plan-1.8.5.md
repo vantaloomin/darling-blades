@@ -1,12 +1,16 @@
-<!-- source-of-truth: src/power/scoreCore.ts, src/data/cards/, src/data/opponents.ts, src/ai/value.ts, scripts/balance-matrix.ts, docs/plan-1.9.md · last-verified: 2026-09-28 · program doc: the 1.8.5 scaling rebalance; every decision ruled, the slate approved 2026-09-26 and narrowed to 83 cards 2026-09-27 (D11-D13), plus six late-ramp buffs (D14) for 89; the build is under way on release/1.8.5 -->
+<!-- source-of-truth: src/power/scoreCore.ts, src/data/cards/, src/data/opponents.ts, src/ai/value.ts, scripts/balance-matrix.ts, docs/plan-1.9.md · last-verified: 2026-09-28 · program doc: the 1.8.5 scaling rebalance; every decision ruled, the slate approved 2026-09-26 and narrowed to 83 cards 2026-09-27 (D11-D13), plus six late-ramp buffs (D14) for 89; Stand as One (D15) for 90; BUILT AND STAGED 2026-09-28 on release/1.8.5 -->
 
-# Darling Blades 1.8.5: the scaling rebalance (proposal)
+# Darling Blades 1.8.5: the scaling rebalance
 
-**Status 2026-09-26: APPROVED, and the build is under way.** Every decision
-is ruled, both measurements (D4 lords and anthems, D6 the level flags and the
-mark family) have landed, and the owner approved the slate card by card. The
-owner then gave the build its go: "Approved, proceed." The train runs on
-`release/1.8.5`. The owner asked for a full card rebalance as a 1.8.5
+**Status 2026-09-28: BUILT AND STAGED on `release/1.8.5`** (#459-#464 plus
+the cut staging PR). The slate is 90 cards (27 down, 63 up) after D11-D17;
+lane 5's validation is below. What remains is the owner's word, then the
+two-parent merge into `main` and the tag.
+
+**History.** Every decision was ruled, both measurements (D4 lords and
+anthems, D6 the level flags and the mark family) landed, and the owner
+approved the slate card by card on 2026-09-26. The owner then gave the build
+its go: "Approved, proceed." The owner asked for a full card rebalance as a 1.8.5
 patch: "discovering that MTG has SCALING COSTS for card bodies drastically
 changes our core math", and asked which keywords should scale, with "a new
 math solution for any keyword, card cost, body, etc." The evidence window was
