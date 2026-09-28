@@ -11,7 +11,18 @@ review). The classifier is `scripts/mechanicUsage.ts`, the wrapper and the
 per-boss table are `scripts/mechanicUsageCollector.ts`, and `--usage` rides
 `--avatars`, `--avatars-reserve` and `--avatars-darlings`. The no-change test
 and the classifier tests are `tests/scripts/mechanicUsage.test.ts`. The
-re-based wave-1 gate (plan-1.9 D15) passed: see section 8. Wave 2 is next.
+re-based wave-1 gate (plan-1.9 D15) passed: see section 8.
+
+**Wave 2 READ 2026-09-28** (branch `docs/19-usage-audit-read`, awaiting owner
+review): the first full audit of rungs 1-26 on 4290e37, 47,840 boss games
+over the three avatar matrices plus a Medium pass on the player-side columns,
+read into [usage-audit-2026-09.md](usage-audit-2026-09.md) (authored by
+Opus, reviewed by Fable). It finds five policy problems with replayable
+positions (Medium's team-pump Charms, do-nothing Mark casts, main-two enemy
+taps, Easy's Darling called only on the noise roll, the unpriced main-two
+Duty blocker). Of the D13 fixes it backs ramp and the Brood Communion half of
+the Mark item; Starborne Apotheosis and granted keywords are invisible to it.
+It proposes the wave-3 list. Nothing in the game changed.
 
 The owner's question, 2026-09-19: "How do we get the brains to use all the
 mechanics appropriately?" This is the measurement half of the answer. The
@@ -235,7 +246,7 @@ minutes with the rows in parallel on this machine under the 65% CPU cap.
 | --- | --- | --- |
 | **0** | The pure classifier (`scripts/mechanicUsage.ts`: an action plus the card it names gives a mechanic), the wrapper, and the no-change test | the identical-win-counts test; ladder rungs 1 to 6 |
 | **1** | `--usage` on `--avatars` and `--avatars-reserve`, the per-boss table, the JSON rows | a run over Kitsune and the Queen of the Lanterned Roof reproduces the hand counts in [ai.md](ai.md) |
-| **2** | The first full audit, rungs 1 to 26, read by Fable into a findings note: each low rate classified as correct, a list problem, or a policy problem | owner review of the findings; nothing is changed in this wave |
+| **2** | The first full audit, rungs 1 to 26, read by Fable into a findings note: each low rate classified as correct, a list problem, or a policy problem ([usage-audit-2026-09.md](usage-audit-2026-09.md), read 2026-09-28) | owner review of the findings; nothing is changed in this wave |
 | **3** | Whatever wave 2 justifies: policy fixes and new documented-behaviour entries, each behind the existing win-rate gates | the gates, unchanged |
 
 Waves 0 and 1 are one agent contract, code only. Wave 2 is reading and
