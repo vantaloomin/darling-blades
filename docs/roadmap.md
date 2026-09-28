@@ -1771,7 +1771,11 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   sweep gaining personas in First Dawn's colours (D12), and the AI fixes
   1.8.5 handed on approved (D13). Wave 0 cuts `release/1.9` from `main`,
   then lands the duplicate-comparator fix and a Foresee-on-an-empty-deck
-  rules fix on the train, where nothing deploys until the 1.9.0 cut.
+  rules fix on the train, where nothing deploys until the 1.9.0 cut. **Wave 0
+  closed the same day** (#469, #470 on `release/1.9`). Then **D16**: the
+  First Dawn cards are designed before the engine spec (brief, design-first
+  overplan, concretion audit, spec, engine and measured rates, rescore,
+  cut), so the engine builds what the cards need.
 - **2.0 is the itch.io launch (owner ruling 2026-09-25).** The largest update
   the game has had, with the mobile overhaul, Core Set II and Story Mode, and
   the release that is posted on itch.io and advertised. No plan exists yet;

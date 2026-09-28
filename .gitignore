@@ -109,3 +109,8 @@ public/THIRD_PARTY_NOTICES.txt
 # and a data file has no business in that build. Local dry runs write here too,
 # or into balance/signals-rollups, which is already ignored.
 /signals-data/
+
+# ── Local-only competitive research (never committed) ─────────────────────
+# Third-party screenshots, video stills and quoted player feedback gathered for
+# internal design research. Not ours to redistribute, and the repo is public.
+research/
