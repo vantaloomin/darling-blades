@@ -43,6 +43,7 @@ import {
 import { bakeManaSymbols } from '../ui/ManaSymbols';
 import { ModalGuard } from '../ui/Modal';
 import { gateOnArt } from '../ui/artGate';
+import { addPortraitArt } from '../ui/portraitArt';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { sceneTitle } from '../ui/sceneTitle';
 import { colorInt, theme } from '../ui/theme';
@@ -880,13 +881,12 @@ export class LimitedDraftScene extends Phaser.Scene {
     try {
       const ref = Art.resolver?.getArt(cardId);
       if (!ref) return;
-      const image = this.add.image(x, y, ref.textureKey, ref.frameName);
-      // Overscan must cover the face-bias shift below: (1.16-1)/2 = 0.08 per
-      // side >= the 0.08*targetH upward shift, or the mask bottom shows bare
-      // panel behind height-bound fits (all card art is 320x400).
-      const scale = Math.max(targetW / image.width, targetH / image.height) * 1.16;
-      image.setScale(scale);
-      image.y = y - targetH * 0.08;
+      // Overscan must cover the face-bias shift: (1.16-1)/2 = 0.08 per side >=
+      // the 0.08*targetH upward shift, or the mask bottom shows bare panel
+      // behind height-bound fits (all card art is 4:5).
+      const image = addPortraitArt(this, x, y - targetH * 0.08, ref, (art) => {
+        art.setScale(Math.max(targetW / art.width, targetH / art.height) * 1.16);
+      });
       const maskShape = circular
         ? this.add.circle(x, y, Math.min(targetW, targetH) / 2, theme.graphics.dim).setVisible(false)
         : this.add.rectangle(x, y, targetW, targetH, theme.graphics.dim).setVisible(false);

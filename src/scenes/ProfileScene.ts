@@ -61,7 +61,13 @@ import {
   profileWatchX,
   type ProfileStatTab,
 } from '../ui/profilePresentation';
-import { canvasPngBytes, composeSaveCardCanvas, downloadPngBytes, pickPngFile } from '../ui/saveCard';
+import {
+  canvasPngBytes,
+  composeSaveCardCanvas,
+  downloadPngBytes,
+  pickPngFile,
+  saveCardArtStillLoading,
+} from '../ui/saveCard';
 import { ellipsizeText } from '../ui/textFit';
 import { sceneTitle } from '../ui/sceneTitle';
 import { colorInt, theme } from '../ui/theme';
@@ -604,7 +610,13 @@ export class ProfileScene extends Phaser.Scene {
       date: `Exported ${todayString()}`,
     });
     if (!canvas) {
-      this.exportStatus?.setColor(theme.colors.danger).setText("That card's art is unavailable. Pick another card.");
+      // A file still streaming in can be waited out; one the loader gave up on
+      // cannot, so that one asks for another card.
+      if (saveCardArtStillLoading(cardId)) {
+        this.exportStatus?.setColor(theme.colors.muted).setText("That card's art is still loading. Try again in a moment.");
+      } else {
+        this.exportStatus?.setColor(theme.colors.danger).setText("That card's art is unavailable. Pick another card.");
+      }
       return;
     }
     try {

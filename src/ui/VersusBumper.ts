@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { Art } from '../art/ArtResolver';
 import type { AnimationLevel } from '../platform/animPolicy';
+import { addPortraitArt } from './portraitArt';
 import { colorInt, theme } from './theme';
 import {
   VERSUS_BUMPER_LAYOUT,
@@ -204,21 +205,24 @@ export class VersusBumper {
     mask: Phaser.Display.Masks.GeometryMask,
     mirror: boolean,
   ): Phaser.GameObjects.Image | null {
+    const fit = (image: Phaser.GameObjects.Image): void => {
+      const scale = Math.max(PORTRAIT_COVER_W / image.frame.width, HEIGHT / image.frame.height) * 1.06;
+      image.setScale(mirror ? -scale : scale, scale);
+    };
     try {
       let image: Phaser.GameObjects.Image;
       if (identity.textureKey && this.scene.textures.exists(identity.textureKey)) {
         image = this.scene.add.image(x, HEIGHT / 2 - 38, identity.textureKey);
+        fit(image);
       } else if (identity.cardId) {
         const ref = Art.resolver?.getArt(identity.cardId);
         if (!ref) return null;
-        image = ref.frameName
-          ? this.scene.add.image(x, HEIGHT / 2 - 38, ref.textureKey, ref.frameName)
-          : this.scene.add.image(x, HEIGHT / 2 - 38, ref.textureKey);
+        // Card art still streaming in is swapped for the real file when it lands.
+        image = addPortraitArt(this.scene, x, HEIGHT / 2 - 38, ref, fit);
       } else {
         return null;
       }
-      const scale = Math.max(PORTRAIT_COVER_W / image.frame.width, HEIGHT / image.frame.height) * 1.06;
-      image.setScale(mirror ? -scale : scale, scale).setMask(mask);
+      image.setMask(mask);
       return image;
     } catch {
       return null;

@@ -11,6 +11,7 @@ import { Services } from '../meta/services';
 import { attachTouchGestures } from '../platform/gestures';
 import { TAP_SLOP_PX } from '../platform/gestureCore';
 import { gateOnArt } from '../ui/artGate';
+import { addPortraitArt } from '../ui/portraitArt';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { showDarlingsTutorial } from '../ui/DarlingsTutorial';
 import { activeVisibleSavedDeck } from '../ui/deckBuilderHelpers';
@@ -587,22 +588,23 @@ export class PracticePickerScene extends Phaser.Scene {
     try {
       const ref = Art.resolver?.getArt(cardId);
       if (!ref) return null;
-      const img = this.add.image(x, y, ref.textureKey, ref.frameName);
-      const scale = Math.max(targetW / img.width, targetH / img.height) * 1.1;
-      img.setScale(scale);
-      const cropW = Math.min(img.width, targetW / scale);
-      const cropH = Math.min(img.height, targetH / scale);
-      const cropX = (img.width - cropW) / 2;
-      // Bias the window upward so faces sit in frame, the same 7% the masked
-      // version applied by nudging the image instead of the crop.
-      const cropY = Math.max(
-        0,
-        Math.min(img.height - cropH, (img.height - cropH) / 2 - (targetH * 0.07) / scale),
-      );
-      img.setCrop(cropX, cropY, cropW, cropH);
-      // A crop renders where it sits inside the frame, so re-centre the
-      // cropped window on the tile.
-      img.y = y - (cropY + cropH / 2 - img.height / 2) * scale;
+      const img = addPortraitArt(this, x, y, ref, (art) => {
+        const scale = Math.max(targetW / art.width, targetH / art.height) * 1.1;
+        art.setScale(scale);
+        const cropW = Math.min(art.width, targetW / scale);
+        const cropH = Math.min(art.height, targetH / scale);
+        const cropX = (art.width - cropW) / 2;
+        // Bias the window upward so faces sit in frame, the same 7% the masked
+        // version applied by nudging the image instead of the crop.
+        const cropY = Math.max(
+          0,
+          Math.min(art.height - cropH, (art.height - cropH) / 2 - (targetH * 0.07) / scale),
+        );
+        art.setCrop(cropX, cropY, cropW, cropH);
+        // A crop renders where it sits inside the frame, so re-centre the
+        // cropped window on the tile.
+        art.y = y - (cropY + cropH / 2 - art.height / 2) * scale;
+      });
       parent.add(img);
       return img;
     } catch {

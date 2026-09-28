@@ -43,6 +43,17 @@ export const TUTORIAL_AI_DECK: readonly string[] = [
 ];
 
 /**
+ * The card whose art fronts the teaching opponent's portrait. Her deck is all
+ * Mousekin, so the deck-face rule (`faceCardFor`) would show the Mousekin: the
+ * same face as the player's own tutorial deck, on both sides of the board.
+ * Any creature card with real art works here, so changing the pick is this one
+ * line; it is the owner's taste call (1.9, lane I, I6). Watch-Sergeant Alder:
+ * a white officer who "hands out lamps like orders", no Tower avatar or draft
+ * persona wears her, and she is not in either tutorial deck.
+ */
+export const TUTORIAL_OPPONENT_PORTRAIT = 'dd-watch-sergeant';
+
+/**
  * Both Warchests are ten Plains. The reserve payload is validated like any
  * other duel (`firstReserveConfigIssue`: exactly LAND_RESERVE_SIZE lands, at
  * most MAX_DUAL_LANDS duals), and all-basic keeps the teaching duel free of

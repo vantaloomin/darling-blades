@@ -45,6 +45,7 @@ import { createOddsModal, type BoosterSku } from '../ui/OddsModal';
 import { OverlayCoordinator } from '../ui/OverlayCoordinator';
 import { artMissing } from '../art/artLoader';
 import { awaitArt, gateOnArt } from '../ui/artGate';
+import { addPortraitArt } from '../ui/portraitArt';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { HEADER_CURRENCY_ANCHOR } from '../ui/layout';
 import { sceneTitle } from '../ui/sceneTitle';
@@ -1547,20 +1548,21 @@ export class ShopScene extends Phaser.Scene {
     try {
       const ref = Art.resolver?.getArt(cardId);
       if (!ref) return null;
-      const img = this.add.image(x, y, ref.textureKey, ref.frameName);
-      const scale = Math.max(targetW / img.width, targetH / img.height) * 1.05;
-      img.setScale(scale);
-      const cropW = Math.min(img.width, targetW / scale);
-      const cropH = Math.min(img.height, targetH / scale);
-      const cropX = (img.width - cropW) / 2;
-      // Bias the window upward so faces sit in frame.
-      const cropY = Math.max(
-        0,
-        Math.min(img.height - cropH, (img.height - cropH) / 2 - (targetH * 0.07) / scale),
-      );
-      img.setCrop(cropX, cropY, cropW, cropH);
-      img.x = x - (cropX + cropW / 2 - img.width / 2) * scale;
-      img.y = y - (cropY + cropH / 2 - img.height / 2) * scale;
+      const img = addPortraitArt(this, x, y, ref, (art) => {
+        const scale = Math.max(targetW / art.width, targetH / art.height) * 1.05;
+        art.setScale(scale);
+        const cropW = Math.min(art.width, targetW / scale);
+        const cropH = Math.min(art.height, targetH / scale);
+        const cropX = (art.width - cropW) / 2;
+        // Bias the window upward so faces sit in frame.
+        const cropY = Math.max(
+          0,
+          Math.min(art.height - cropH, (art.height - cropH) / 2 - (targetH * 0.07) / scale),
+        );
+        art.setCrop(cropX, cropY, cropW, cropH);
+        art.x = x - (cropX + cropW / 2 - art.width / 2) * scale;
+        art.y = y - (cropY + cropH / 2 - art.height / 2) * scale;
+      });
       parent.add(img);
       return img;
     } catch {

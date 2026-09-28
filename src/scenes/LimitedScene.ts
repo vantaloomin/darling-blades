@@ -197,25 +197,27 @@ export class LimitedScene extends Phaser.Scene {
       },
       premiumDisabled,
     );
-    // Premium-only descriptor, anchored under the Premium column so it can't
-    // read as applying to the free entry.
-    // Caption geometry: the panel bottoms out at y+180, so the allowance line
+    // Each entry's terms sit under its own column so neither can read as
+    // applying to the other: what the run pays, then whether the picks stay.
+    // Caption geometry: the panel bottoms out at y+180, so the first line
     // starts at y+112 (a two-line wrap ends ~y+142) and the keep-line at y+152
     // is kept short enough to stay single-line inside CTA_W.
+    this.ctaCaption(x + CTA_COL_LEFT, y + 112, freeDraftPayoutCopy(), runActive);
+    this.ctaCaption(x + CTA_COL_LEFT, y + 152, 'Picks are not kept.', runActive);
+    this.ctaCaption(
+      x + CTA_COL_RIGHT,
+      y + 112,
+      premiumAllowanceCopy(premiumStatus, runActive, premiumUnaffordable),
+      premiumDisabled,
+    );
+    this.ctaCaption(x + CTA_COL_RIGHT, y + 152, 'Every pick is yours to keep.', premiumDisabled);
+  }
+  private ctaCaption(x: number, y: number, text: string, muted: boolean): void {
     this.add
-      .text(x + CTA_COL_RIGHT, y + 112, premiumAllowanceCopy(premiumStatus, runActive, premiumUnaffordable), {
+      .text(x, y, text, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
-        color: premiumDisabled ? theme.colors.muted : theme.colors.body,
-        align: 'center',
-        wordWrap: { width: CTA_W },
-      })
-      .setOrigin(0.5, 0);
-    this.add
-      .text(x + CTA_COL_RIGHT, y + 152, 'Every pick is yours to keep.', {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.caption}px`,
-        color: premiumDisabled ? theme.colors.muted : theme.colors.body,
+        color: muted ? theme.colors.muted : theme.colors.body,
         align: 'center',
         wordWrap: { width: CTA_W },
       })
@@ -348,7 +350,7 @@ export class LimitedScene extends Phaser.Scene {
  * collection yet (grantPremiumDraftPool runs at completion), so they go too.
  */
 function retireConsequence(run: LimitedRun): string {
-  if (!run.premium) return 'Retiring discards this run: its pool, deck, and record.';
+  if (!run.premium) return 'Retiring discards this run (pool, deck, record) and its gold payout.';
   const fee = `${ECONOMY.premiumDraftEntry.toLocaleString('en-US')}g`;
   return run.status === 'draft'
     ? `Retiring forfeits the ${fee} entry fee and your picks so far.`
@@ -357,6 +359,17 @@ function retireConsequence(run: LimitedRun): string {
 /** Draft runs roll a hidden seed at start — the run stays reproducible internally, but seed sharing is a gauntlet-only affordance. */
 function freshRunSeed(): number {
   return clampLimitedSeed(Math.floor(Math.random() * 2 ** 31));
+}
+
+/**
+ * What a Free Draft pays, from the table itself: `limitedRunGold[wins]`, paid
+ * once, after the third match (`applyLimitedMatchResult`). A Premium Draft
+ * pays none of it; its entry fee buys the picks instead.
+ */
+function freeDraftPayoutCopy(): string {
+  const table = ECONOMY.limitedRunGold;
+  const best = table.length - 1;
+  return `Pays ${table[0]}g, up to ${table[best]}g for ${best} wins.`;
 }
 
 function draftModeLabel(run: { premium?: boolean }): string {

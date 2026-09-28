@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { Art } from '../art/ArtResolver';
 import { faceTargetSurfaceState } from './faceTargetPresentation';
+import { addPortraitArt } from './portraitArt';
 import { colorInt } from './theme';
 
 /**
@@ -159,23 +160,23 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
    * placeholders — always pass textureKey AND frameName so both work) into
    * the window with the GauntletScene addPortrait recipe: ~12% overscan and
    * an upward bias so the face band reads. Missing art must degrade to
-   * frame + label, never crash the duel.
+   * frame + label, never crash the duel. Art still streaming in draws the
+   * loading stand-in and is swapped for the real file when it lands.
    */
   private buildArt(cardId: string, cx: number, cy: number, artW: number, artH: number): void {
     try {
       const ref = Art.resolver?.getArt(cardId);
       if (!ref) return;
-      const img = ref.frameName
-        ? this.scene.add.image(cx, cy, ref.textureKey, ref.frameName)
-        : this.scene.add.image(cx, cy, ref.textureKey);
-      const srcW = img.frame.width;
-      const srcH = img.frame.height;
-      const scale = Math.max(artW / srcW, artH / srcH) * 1.12;
-      img.setScale(scale);
-      // Clamp the bias to the vertical overscan so the art always covers the
-      // window bottom (an unclamped fixed bias leaves a gap on wide windows).
-      const overflow = Math.max(0, (srcH * scale - artH) / 2);
-      img.y = cy - Math.min(artH * 0.08, overflow);
+      const img = addPortraitArt(this.scene, cx, cy, ref, (art) => {
+        const srcW = art.frame.width;
+        const srcH = art.frame.height;
+        const scale = Math.max(artW / srcW, artH / srcH) * 1.12;
+        art.setScale(scale);
+        // Clamp the bias to the vertical overscan so the art always covers the
+        // window bottom (an unclamped fixed bias leaves a gap on wide windows).
+        const overflow = Math.max(0, (srcH * scale - artH) / 2);
+        art.y = cy - Math.min(artH * 0.08, overflow);
+      });
       if (this.geoMask) img.setMask(this.geoMask);
       this.art = img;
       this.artBaseX = cx;
