@@ -74,9 +74,19 @@ as agreed 2026-08-24, and as it stands after the owner's rulings:
   Each is new vocabulary with the Starborne wave's blast radius, which is
   still well short of a Large release's engine feature.
 - `scripts/audit-overlap.ts`, the duplicate comparator every set is run
-  through, is blind to Duty, Tithe and Whispers: its `bodyKey` has no
-  `activated`, `tithe` or `whispers` field. That is how three same-cost
-  duplicates reached the shipped Drowned Deep (the 2026-09-24 review, #436).
+  through, was blind to Duty, Tithe and Whispers: its `bodyKey` listed the
+  fields it compared and had no `activated`, `tithe` or `whispers`. That is
+  how three same-cost duplicates reached the shipped Drowned Deep (the
+  2026-09-24 review, #436). Wave 0 fixed it: the body key now keeps every
+  field except presentation, printed cost and colours, so a mechanic added
+  later is compared without a code change; subtypes count only where a rule
+  reads them (Aura, or a tribe some card pays off; a token-only lord does
+  not count), and `legendary` counts. The domination pass now ranks the same
+  Duty or rider at a cheaper price as better (it finds The Debt Is Called
+  over Two Jars, One Heart). No cluster pass groups cards whose stat lines
+  differ, so D8's stat ladders, and Ocean
+  Wayfinder against Tide-Reader of the Far Reef (Attack and Skim both
+  differ), stay a manual read.
 
 ## Carried from 1.8.5 (2026-09-28)
 
