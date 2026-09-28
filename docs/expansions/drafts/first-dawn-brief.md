@@ -4,8 +4,10 @@
 
 Lane B, step 1 of the 1.9 train ([plan-1.9.md](../../plan-1.9.md)). This
 brief fixes what the set *is* so that the overplan of about 210 candidates
-can be written against it. **Owner approval of this brief is the gate; no
-card rows are written before it.**
+can be written against it. **Approved by the owner 2026-09-28**, with three
+changes folded in: dinosaurs are a tribe with lords (Dinokin, section 2),
+Hunt may target your own creatures (H1), and Hunt damage counts for every
+damage keyword and trigger (H4). The rulings are listed in section 12.
 
 The order is new for this set (owner ruling D16, 2026-09-28): **the cards
 come before the engine spec.** The overplan is designed first, a concretion
@@ -34,7 +36,8 @@ chiefs, hunters, trackers, fire-keepers, seers, elders. They are this world's
 protagonists, never its captives. Hide, fur, woven grass, bone, shell and
 stone; flint spears, atlatls, bolas, stone axes. No metal, no wheel, no
 writing. **The beasts** are dinosaurs first (raptor packs, horned herds,
-long-necks, armoured walls, tyrants), with pterosaurs, sea-lizards,
+long-necks, armoured walls, tyrants; on the card face, the Dinokin tribe),
+with pterosaurs, sea-lizards,
 mammoths, sabre-cats and cave bears beside them: genre pastiche in the
 *One Million Years B.C.* tradition, not paleontology.
 
@@ -77,6 +80,62 @@ lesson, 2026-08-25).
   stay out.
 - **No card carries First Blade and Provoked** (First Blade avoids the
   damage Provoked needs).
+
+### The Dinokin tribe (owner ruling 2026-09-28: dinosaurs are an Axis with lords)
+
+**The name.** *Dinokin*, on the Beastkin pattern: a creature type that is an
+Axis (`src/data/axes.ts`, recorded in `docs/plan-tribal-pass.md` when the set
+lands), with a species flavour subtype beside it as Beastkin cards carry
+Wolfkin or Deerkin (Raptor, Hornback, Longneck, Armourback, Tyrant, Skywing;
+inert). *Recommended*: **Dinokin replaces "dinosaur-kin" and the separate
+Dinosaur subtype everywhere**, so one word means "a dinosaur body" and the
+lords read on every card that looks like one. It goes on the dinosaur
+monster-girls and on the dinosaur tokens (the Fox Spirit precedent: an animal
+token typed Beastkin). A rider stays typed after the woman (Human Hunter),
+because her card is a woman who rides, not a dinosaur; riders are SR and
+above and few. Tar-Bones is a Skeleton, not Dinokin: the fossil is dead, the
+tribe is the living herd.
+
+**The size.** The tribal pass puts a real tribal deck at about ten distinct
+in-pair cards; Drowned Deep's Horror Axis printed 33 of 252 (9 C / 12 R / 4 SR
+/ 3 SSR / 5 UR across B, U and G) with one lord at R. Dinosaurs are this
+set's headline, so **about 40 of 165 collectible cards are Dinokin**: G 14,
+R 11, W 7, U 3 (the pterosaur-kin), B 2, multicolour 3; by rarity about 18 C /
+13 R / 4 SR / 3 SSR / 2 UR. That puts about 27 in R/G and 22 in G/W, well
+past the floor, before tokens.
+
+**The lords: three, plus three other payoffs.** The tribal pass found 19 of
+23 shipped lords are flat anthems, so each lord carries texture:
+
+| Card (shape) | Rarity | Colour | Static | Why |
+| --- | --- | --- | --- | --- |
+| The herd-caller lord | R | G | Your other Dinokin have Overrun | the draftable lord; no stat change, so Hunt is untouched |
+| The long-neck matriarch | SR | W | Your other Dinokin get +0/+1 and have Sentinel | Defense is a Provoked shield: the herd survives the blow and is provoked |
+| The Tyrant Queen's card | UR | R/G, legendary | Your other Dinokin get +1/+1 | the one Attack lord, R28's portrait and finisher |
+
+The other payoffs use existing vocabulary: an arrival Hunt conditioned on
+"if you control another Dinokin" (`controlsOther`), a "whenever another
+Dinokin you control attacks" observer (`allyAttacks` with a subtype filter),
+and one "whenever another Dinokin you control dies" (`allyDies`). Lords are
+costed on the 1.8.5 scorer's flat creature-lord factor (x2.0, measured
+in-engine in 1.8.5's lane 2 and ruled flat, D10); observer filters take its
+subtype multiplier.
+
+**With Provoked and Hunt.** Lords grant keywords and Defense, not Attack,
+except the UR, because every point of Attack a lord adds is a point of
+removal on every Dinokin hunter (the H5 cap reads printed Attack; the lab
+measures Hunt with each lord on the board). Defense lords feed Provoked by
+keeping the damaged alive. No lord grants Provoked (P5).
+
+**Density the tribe needs at the cut**: at least ten Dinokin in each of R/G
+and G/W at C and R, at least eight Dinokin commons in green, five in red and
+three in white, and all three lords.
+
+**Tooling.** The duplicate comparator counts a subtype only when some card
+pays it off. Once the Dinokin lords exist, the type splits otherwise
+identical cards, so a Dinokin body and a non-Dinokin body with the same line
+are no longer flagged. The overplan must not use the type to launder a
+duplicate; that pair is a manual read.
 
 ## 3. Budget and enabler density
 
@@ -126,7 +185,8 @@ Skyborne against 9 Warding Gaze.
 What First Dawn moves:
 
 1. **Go-wide, directly**: the G/W herd (Hatchling makers, a stampede turn of
-   +1/+0 and Overrun, Provoked walls). No new mass sweeper, and at most three
+   +1/+0 and Overrun, Provoked walls, and the Dinokin lords on a board of
+   Dinokin Hatchlings). No new mass sweeper, and at most three
    sweeps of 1 (R and above), since each kills Hatchlings.
 2. **Big bodies**: Hunt is green's removal and answers the 1/3 Deathblade
    blockers that punish fatties, at the hunter's cost (Deathblade applies to
@@ -150,8 +210,8 @@ unmeasured.
 
 ## 5. Theme deck and summit pair
 
-**The tenth theme deck: R/G, "the Stampede"** (working name): hunters and
-horned herds on a steady curve, Hunt and burn as six to eight removal slots,
+**The tenth theme deck: R/G, "the Stampede"** (working name): a Dinokin
+deck, hunters and horned herds on a steady curve with the green Overrun lord, Hunt and burn as six to eight removal slots,
 red's sources to provoke on its own terms, one or two tyrants on top. It
 avoids what sank the two folding decks: two colours, not three; every
 creature an honest body without its trigger; no multi-turn engine to
@@ -162,12 +222,14 @@ prefab of the latest reading is reworked before it ships.
 (B/G). Working names.
 
 - **R27, The Shepherdess of Thunder (G/W, the herd).** She goes wide with
-  Hatchlings and long-neck walls whose Provoked gains life, Marks the herd
-  or makes a Hatchling; a stampede turn finishes. Attacking into her feeds
+  Dinokin Hatchlings and long-neck walls whose Provoked gains life, Marks
+  the herd or makes a Hatchling; the long-neck matriarch lord keeps the herd
+  alive and Sentinel, and a stampede turn finishes. Attacking into her feeds
   her; not attacking lets her grow. The tower has never fielded green-white.
 - **R28, The Tyrant Queen (R/G, the final rung).** Hunt removal on big
-  bodies, red sources that provoke her own tyrants, Provoked payoffs that
-  grow and burn, the legendary tyrant-rider UR as finisher and portrait.
+  bodies, red sources and self-Hunts that provoke her own tyrants, Provoked
+  payoffs that grow and burn, and her own UR, the +1/+1 Dinokin lord, as
+  finisher and portrait.
 
 With these, four of the top six rungs play green (23, 26, 27, 28), and R28
 repeats R23's pair. Defended: a summit pair shows off its set, and First
@@ -183,10 +245,10 @@ Each with at least two minters in the cut, checked by test.
 
 | Token | Body | Minters (shapes) |
 | --- | --- | --- |
-| **Hatchling** | G 1/1 Dinosaur | green nest commons (arrival), white's Herd-Horn Duty artifact, a Provoked wall ("Provoked: create a Hatchling"), R27's herd cards |
-| **Pack Raptor** | R 2/1 Dinosaur, Warcry | red pack-callers (arrival), a Ritual that calls two, one red Provoked rare |
-| **Tar-Bones** | B 2/2 Dinosaur Skeleton, a fossil from the tar | black tar Rituals, a black dies-trigger body, the B/G fossil rare |
-| **Glider** | U 1/1 Dinosaur, Skyborne (a pterosaur) | blue Cliff Nest commons, the W/U sky rider; the flex token, cut first |
+| **Hatchling** | G 1/1 Dinokin | green nest commons (arrival), white's Herd-Horn Duty artifact, a Provoked wall ("Provoked: create a Hatchling"), R27's herd cards |
+| **Pack Raptor** | R 2/1 Dinokin, Warcry | red pack-callers (arrival), a Ritual that calls two, one red Provoked rare |
+| **Tar-Bones** | B 2/2 Skeleton, a fossil from the tar (not Dinokin) | black tar Rituals, a black dies-trigger body, the B/G fossil rare |
+| **Glider** | U 1/1 Dinokin, Skyborne (a pterosaur) | blue Cliff Nest commons, the W/U sky rider; the flex token, cut first |
 
 ## 7. Rarity histogram
 
@@ -253,13 +315,19 @@ the confirmed ones into rules, checked against the overplan's cards.
 
 ### Hunt (your creature and target creature each deal damage equal to their Attack to the other)
 
-- **H1. Shapes.** One op, two forms: the **spell** ("Target creature you
-  control hunts target creature an opponent controls", one target per side)
-  and the **source-bound** form ("this hunts target creature an opponent
-  controls") on an arrival trigger, an attack trigger or a Duty.
-  *Recommended: the prey is always an opponent's creature*, which closes the
-  self-provoke combo, keeps the AI's choice one-sided, and leaves
-  self-provoking to red's costed sources.
+- **H1. Shapes and prey (owner ruling 2026-09-28: you can hunt your own
+  creatures).** One op, two forms: the **spell** ("Target creature you
+  control hunts another target creature") and the **source-bound** form
+  ("this hunts another target creature") on an arrival trigger, an attack
+  trigger or a Duty. **The prey may be any other creature, yours included;
+  a creature cannot hunt itself** (the source-bound form uses `other`; the
+  spell's two targets must be different creatures, a detail for the spec).
+  This opens the **self-provoke line**: hunt your own Provoked creature to
+  provoke it, and the hunter too if both survive. P2 bounds it (each
+  creature is provoked at most once a turn), so a self-Hunt is at most two
+  Provoked triggers for one card. A self-Hunt can also kill your own
+  creature, which makes it a sacrifice outlet for dies triggers; the lab
+  watches that use.
 - **H2. Fizzle.** If either creature is gone or no longer a legal target,
   neither deals damage.
 - **H3. The numbers.** Each deals damage equal to its effective Attack at
@@ -278,13 +346,17 @@ the confirmed ones into rules, checked against the overplan's cards.
   would otherwise open (Bulwark's penalty grows with Attack, so a Bulwark
   hunter would take the full cannot-attack discount and then spend that
   Attack as removal).
-- **H4. Keywords.** Hunt damage is not combat damage: First Blade, Twin
-  Blades and Overrun do not apply; **Deathblade and Blood Oath do**;
-  Untouchable keeps the opponent's creature from being the prey. A
-  surviving hunter or prey is provoked, on either side. **Engine note**:
-  today Deathblade and Blood Oath apply only to combat damage (the `damage`
-  op sets neither). *Recommended: the Hunt op carries both itself*;
-  extending them to all ability damage would change shipped cards.
+- **H4. Keywords (owner ruling 2026-09-28: Hunt damage can trigger other
+  keywords).** **Hunt damage counts for every keyword and trigger that reads
+  damage dealt or taken**: Deathblade, Blood Oath, Provoked, and any "is
+  dealt damage" or "deals damage" trigger, carried by the Hunt op itself.
+  Untouchable keeps an opponent's creature from being the prey (your own is
+  still a legal prey). *The main session's reading of the ruling, for the
+  owner to confirm*: keywords defined by combat itself (First Blade, Twin
+  Blades, Overrun) do not apply, because Hunt is not combat. **Engine
+  note**: today Deathblade and Blood Oath apply only to combat damage (the
+  `damage` op sets neither), so the Hunt op carries them; other ability
+  damage stays as it is, since extending it would change shipped cards.
 - **H5. Keeping Hunt from being unconditional removal.**
   - Source-bound hunters below SR print Attack 4 or less (our bodies run
     bigger than the era's, so era anchors underprice a big hunter).
@@ -298,10 +370,17 @@ the confirmed ones into rules, checked against the overplan's cards.
   - Hunt and Provoked on one card multiply (the hunter survives to be
     provoked): compare those rows against shipped cards at the same mana
     value; the lab measures Hunt with an Attack slope.
+  - **The self-Hunt is a source and is costed as one.** A Hunt card counts
+    toward the source minimums already; the lab's paired measurement covers
+    the self-Hunt shape explicitly (hunter and prey both yours, both
+    Provoked, one card), and Hunt spells at common are costed on the better
+    of their two uses, removal or self-provoke.
 
 **For the spec, not the overplan (lane A):** Hard's Hunt picks the prey the
 hunter kills and survives, then one it kills, and declines a Hunt that only
-provokes the prey; Provoked adds a survival bonus to attacks and blocks and
+provokes the prey; **Easy never hunts its own creature; Medium and Hard may,
+when it wins value** (a self-provoke that pays more than the damage costs),
+Hard's read in A1 and Medium's and Easy's in A2; Provoked adds a survival bonus to attacks and blocks and
 a reason to aim a friendly source at your own creature; the converter's
 target walk needs the two-sided dead-target case.
 
@@ -346,6 +425,7 @@ critical path between the cut and transcription.
 | --- | ---: | --- | --- |
 | **Provoked** trigger | ~30 | the mechanic | ruled |
 | **Hunt** op, both forms | ~22 | the mechanic | ruled |
+| **Dinokin** Axis | ~40 carriers, 6 payoffs | the tribe | ruled; no new construct (an `axes.ts` entry; lords and payoffs use `filter.subtype`, `controlsOther`, `allyAttacks` and `allyDies`) |
 | "Damage each creature you control N" | 2-3 | red's war-drum sources | admit if three survive |
 | Size condition, "if you control a creature with Attack 4 or more" | 3-6 | the apex payoffs | admit if three survive; else reword to Hunt |
 | Empower may Hunt (the validator's allowlist) | 1-3 | the optional arrival Hunt | validator-only; admit with the Hunt op |
@@ -369,8 +449,8 @@ brown, never true black), sandstone, dawn peach, sky blue, lava orange,
 glacier white-blue, bone ivory, amber resin.
 
 **How the beasts appear**, under the rule that every card subject is a woman:
-(1) **dinosaur-kin** in the Beastkin monster-girl idiom, at most three
-stated species tells each, typed `Dinosaur`, the bulk at C and R; (2) **a
+(1) **Dinokin** in the Beastkin monster-girl idiom, at most three stated
+species tells each, the bulk at C and R; (2) **a
 woman with her dinosaur**, the beast as mount or partner, riders from SR and
 big-beast pairings from R, typed after the woman; (3) **the beast alone** on
 tokens and spell art only.
@@ -381,10 +461,10 @@ head top; a sauropod reads huge by distance, never by shrinking the woman;
 tails state count, root and tip; mount and rider never fuse; Hatchlings read
 young, and no human child appears.
 
-**For 216 or 228 px**: compose to today's rules, which hold at either
-height (the story inside y 167-633 of the 640x800 deliverable, every head
-top, human or dinosaur, at or below y 208); the taller window only adds
-headroom and ground.
+**The 216 px window (R13, ruled 2026-09-28).** A card shows image rows
+17.3% to 82.7%: y 138 to 662 of the 640x800 deliverable. The story sits
+inside that band, and the head-top rule moves to about y 179: every head
+top, human or dinosaur, at or below it. The pilot composes for this band.
 
 **Costume and banned motifs.** Coverage rule, checkable in a prompt: the fur
 or hide two-piece is allowed as the genre costume, with chest and hips fully
@@ -401,46 +481,60 @@ only, never pictograph rows; no tally marks; no carved symbols.
 **The pilot, ten hard cases** (wave 2, with the rung 27-28 portraits and the
 two 1.8.5 regenerations): (1) a raptor rider at a sprint; (2) a shepherdess
 beside a sauropod (scale); (3) a hunter facing a tyrant (two creatures, no
-gore); (4) a horned-kin warrior (frill against headroom); (5) a raptor-kin
-(tail root and tip); (6) a pterosaur rider airborne; (7) a Hatchling token
+gore); (4) a horned Dinokin warrior (frill against headroom); (5) a raptor
+Dinokin (tail root and tip); (6) a pterosaur rider airborne; (7) a Hatchling token
 (a dinosaur alone, visibly young); (8) a fossil rising from the tar; (9) the
 Painted Cave (cave art, no text, no tally); (10) a pack-caller with exactly
 three raptors at her side (several beasts in one frame: count control and
 no fused bodies, which the Pack Raptor minters need).
 
-## 12. Questions for the owner
+## 12. Rulings and questions
 
-Each leads with the recommendation.
+**Ruled 2026-09-28** (the owner approved the brief):
 
-1. **Dinosaur-only creature cards: no.** Dinosaurs appear as dinosaur-kin,
-   as a woman's mount or partner, or alone on tokens and spell art.
-2. **Dinosaur as an Axis: no**, a flavour subtype with no lord (riders typed
-   after the woman would sit outside any lord). The alternative is Horror's
-   precedent: an Axis with one Overrun lord at Rare.
-3. **Count: 165** (82 / 49 / 15 / 11 / 8); 151 is the fallback.
-4. **Provoked at most once each turn per creature (P2): yes.**
-5. **Hunt's prey always an opponent's creature (H1): yes.**
-6. **Deathblade and Blood Oath on Hunt damage only (H4): yes.**
-7. **A hunter provoked by its own Hunt damage: yes, intended.** It is the
-   multiplication every Hunt-plus-Provoked card is built on, so H5's guards
-   and the lab's paired measurement carry it.
-8. **The fossil line for reanimator: yes**, four to six cards, modest.
-9. **New sweep personas: R/G and R/W**, B/G third if lane F's budget
-   allows.
-10. **Vocabulary threshold: three rows in the cut**, or the owner's ruling
-    on one card (a departure from DC2, section 10).
+- B1: no dinosaur-only creature cards; dinosaurs appear as Dinokin, as a
+  woman's mount or partner, or alone on tokens and spell art.
+- B2 (reversed): dinosaurs are a tribe with lords, the Dinokin Axis (section
+  2).
+- B3: 165 cards (82 / 49 / 15 / 11 / 8).
+- B4: Provoked at most once each turn per creature (P2).
+- B5 (reversed): Hunt may target your own creatures; a creature cannot hunt
+  itself (H1).
+- B6 (broadened): Hunt damage counts for every damage keyword and trigger
+  (H4); that combat-defined keywords do not apply is the main session's
+  reading, to confirm.
+- B7: a hunter provoked by its own Hunt damage is intended.
+- B8: the fossil line for reanimator, four to six cards.
+- B9: new sweep personas R/G and R/W, B/G third if lane F's budget allows.
+- B10: the vocabulary threshold, three rows in the cut or a ruling on one
+  card.
+- Bulwark prevents Hunt at any rarity (H3a); a Bulwark creature can never be
+  the hunter, only the prey.
+- No reserved Provoked art tell; Provoked cards are recognised by their rules
+  text only.
+- The art window is 216 px (R13); the art composes for the 216 band.
 
-**Ruled since the first draft**: Bulwark prevents Hunt at any rarity (owner,
-2026-09-28; H3a); a Bulwark creature can never be the hunter, only the prey.
-No reserved Provoked art tell (owner, 2026-09-28); Provoked cards are
-recognised by their rules text only.
+**Open questions**, each leading with the recommendation:
+
+1. **Dinokin replaces the Dinosaur subtype everywhere: yes** (section 2).
+   The alternative keeps a separate Dinosaur subtype for tokens and mounts,
+   which the lords would then miss.
+2. **Riders are not Dinokin: yes**, typed after the woman, so the lords skip
+   the few SR+ rider cards. The alternative types them Dinokin too, which
+   stretches the word past "a dinosaur body".
+3. **Dinokin is not also Beastkin: yes.** Every shipped -kin type is
+   co-tagged Beastkin, but forty new Beastkin bodies would push the base
+   set's two Beastkin anthems (Beastkin Packmother and the enchantment) and
+   the decks that run them far past what they were costed and measured at.
+4. **Combat-defined keywords do not apply to Hunt damage** (H4): confirm the
+   main session's reading.
 
 **FYI, no ruling needed now**: megafauna sit beside the dinosaurs (about
 two in five of the beasts); the Starborne and Silver Veil theme decks want a
 deck-list pass, a wave-4 item outside this set; every name here is a working
 name until the cut.
 
-With approval, the next deliverable is the overplan of about 210
+The next deliverable is the overplan of about 210
 candidates: every row scored and overlap-checked, VOCAB rows marked, Provoked
 and Hunt rows carrying provisional rates flagged NEEDS MATH, with
 protect-first and cut-priority columns.
