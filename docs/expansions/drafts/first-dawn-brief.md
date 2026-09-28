@@ -36,9 +36,9 @@ chiefs, hunters, trackers, fire-keepers, seers, elders. They are this world's
 protagonists, never its captives. Hide, fur, woven grass, bone, shell and
 stone; flint spears, atlatls, bolas, stone axes. No metal, no wheel, no
 writing. **The beasts** are dinosaurs first (raptor packs, horned herds,
-long-necks, armoured walls, tyrants; on the card face, the Dinokin tribe),
-with pterosaurs, sea-lizards,
-mammoths, sabre-cats and cave bears beside them: genre pastiche in the
+long-necks, armoured walls, tyrants), on the card face as Dinokin
+monster-girls and as plain Dinosaurs, with pterosaurs, sea-lizards and the
+megafauna (mammoths, sabre-cats, cave bears, a few as Beastkin) beside them: genre pastiche in the
 *One Million Years B.C.* tradition, not paleontology.
 
 **The mechanics are the valley's two laws.** *Provoked*: what is struck and
@@ -81,28 +81,37 @@ lesson, 2026-08-25).
 - **No card carries First Blade and Provoked** (First Blade avoids the
   damage Provoked needs).
 
-### The Dinokin tribe (owner ruling 2026-09-28: dinosaurs are an Axis with lords)
+### The Dinokin tribe, plain Dinosaurs, and a few Beastkin (owner rulings 2026-09-28)
 
-**The name.** *Dinokin*, on the Beastkin pattern: a creature type that is an
-Axis (`src/data/axes.ts`, recorded in `docs/plan-tribal-pass.md` when the set
-lands), with a species flavour subtype beside it as Beastkin cards carry
-Wolfkin or Deerkin (Raptor, Hornback, Longneck, Armourback, Tyrant, Skywing;
-inert). *Recommended*: **Dinokin replaces "dinosaur-kin" and the separate
-Dinosaur subtype everywhere**, so one word means "a dinosaur body" and the
-lords read on every card that looks like one. It goes on the dinosaur
-monster-girls and on the dinosaur tokens (the Fox Spirit precedent: an animal
-token typed Beastkin). A rider stays typed after the woman (Human Hunter),
-because her card is a woman who rides, not a dinosaur; riders are SR and
-above and few. Tar-Bones is a Skeleton, not Dinokin: the fossil is dead, the
-tribe is the living herd.
+**Two dinosaur types (D1).** **Dinokin** are the dinosaur monster-girls: a
+creature type that is an Axis with lords, on the Beastkin pattern
+(`src/data/axes.ts`, recorded in `docs/plan-tribal-pass.md` when the set
+lands), with an inert species subtype beside it as Beastkin cards carry
+Wolfkin (Raptor, Hornback, Longneck, Armourback, Tyrant, Skywing).
+**Dinosaur** is the plain beast: the tokens, and creature cards where the
+design wants the animal itself. Riders are typed after the woman, not
+Dinokin (D2). Dinokin and Beastkin are separate types (D3). Tar-Bones is a
+Skeleton: the fossil is dead.
 
-**The size.** The tribal pass puts a real tribal deck at about ten distinct
-in-pair cards; Drowned Deep's Horror Axis printed 33 of 252 (9 C / 12 R / 4 SR
-/ 3 SSR / 5 UR across B, U and G) with one lord at R. Dinosaurs are this
-set's headline, so **about 40 of 165 collectible cards are Dinokin**: G 14,
-R 11, W 7, U 3 (the pterosaur-kin), B 2, multicolour 3; by rarity about 18 C /
-13 R / 4 SR / 3 SSR / 2 UR. That puts about 27 in R/G and 22 in G/W, well
-past the floor, before tokens.
+**The counts at 165:**
+
+| Type | Cards | Colours | Rarity | Notes |
+| --- | ---: | --- | --- | --- |
+| **Dinokin** | 38 | G 13, R 11, W 7, U 2, B 2, multicolour 3 | about 17 C / 12 R / 4 SR / 3 SSR / 2 UR | about 26 in R/G and 21 in G/W, past the tribal pass's floor of about ten in-pair cards (Drowned Deep's Horror Axis: 33 of 252, one lord at R) |
+| **Dinosaur** creatures | 8 | G 4, R 2, W 1, U 1 | 2 C / 3 R / 2 SR / 1 SSR | the beast as the whole card: a wild tyrant, a long-neck herd, an armoured wall, a sea-lizard; mostly R and above, where the rarity ladder wants spectacle |
+| **Dinosaur** tokens | 3 | G, R, U | tokens | Hatchling, Pack Raptor, Glider (section 6) |
+| **Beastkin** | 4 | G 2, B 1, W 1 | 1 C / 3 R | megafauna monster-girls: a Woolly Mammoth girl (G, R), a Cave Bear girl (G, C), a Sabertooth girl (B, R, the Tar clan's cave cats), a Woolly Rhino girl (W, R). None is a lord or a tribal payoff |
+
+**The Beastkin check.** The base set's two Beastkin lords are Beastkin
+Packmother ({1}{G}{G} 2/2, other Beastkin +1/+1, R) and Call of the Wilds
+({1}{G} enchantment, Beastkin +1/+1, R). Packmother runs in the Wild
+Communion starter and in three boss lists (R1 Meng Huo, R3 Lupa, R7
+Yohime); Call of the Wilds runs in no authored deck. Four new Beastkin join
+about 30 in the live pool (about +13%), one of them at common. The scorer prices a
+lord flat (x2.0, ruled flat in 1.8.5, D10), so the costing does not move;
+what can move is a converter-owned boss list that picks the new bodies at
+the First Dawn regeneration, which the wave-4 drift read covers. Keep the
+count at four or fewer, and give none of them a Beastkin payoff.
 
 **The lords: three, plus three other payoffs.** The tribal pass found 19 of
 23 shipped lords are flat anthems, so each lord carries texture:
@@ -110,7 +119,7 @@ past the floor, before tokens.
 | Card (shape) | Rarity | Colour | Static | Why |
 | --- | --- | --- | --- | --- |
 | The herd-caller lord | R | G | Your other Dinokin have Overrun | the draftable lord; no stat change, so Hunt is untouched |
-| The long-neck matriarch | SR | W | Your other Dinokin get +0/+1 and have Sentinel | Defense is a Provoked shield: the herd survives the blow and is provoked |
+| The long-neck matriarch | SR | W | Your other Dinokin get +0/+1 and have Sentinel; *recommended*: the same for your Dinosaurs | Defense is a Provoked shield: the herd survives the blow and is provoked; the one lord that reaches the plain beasts (open question 1) |
 | The Tyrant Queen's card | UR | R/G, legendary | Your other Dinokin get +1/+1 | the one Attack lord, R28's portrait and finisher |
 
 The other payoffs use existing vocabulary: an arrival Hunt conditioned on
@@ -121,6 +130,15 @@ costed on the 1.8.5 scorer's flat creature-lord factor (x2.0, measured
 in-engine in 1.8.5's lane 2 and ruled flat, D10); observer filters take its
 subtype multiplier.
 
+**Lords and Dinosaurs (open question 1).** *Recommended*: only the white
+matriarch also reaches Dinosaurs, as a second static on the same card
+(one subtype per static, so no new construct; it makes Dinosaur an Axis too).
+Her grant is Defense and Sentinel, which keeps the herd, Hatchlings
+included, alive and provoked without multiplying a token swarm's damage.
+The Overrun lord and the +1/+1 UR stay Dinokin-only: Attack and Overrun on
+a board of tokens is the anthem-on-swarm trap (card-building-guide §3), and
+it keeps "Dinokin lord" meaning the monster-girls.
+
 **With Provoked and Hunt.** Lords grant keywords and Defense, not Attack,
 except the UR, because every point of Attack a lord adds is a point of
 removal on every Dinokin hunter (the H5 cap reads printed Attack; the lab
@@ -128,13 +146,15 @@ measures Hunt with each lord on the board). Defense lords feed Provoked by
 keeping the damaged alive. No lord grants Provoked (P5).
 
 **Density the tribe needs at the cut**: at least ten Dinokin in each of R/G
-and G/W at C and R, at least eight Dinokin commons in green, five in red and
-three in white, and all three lords.
+and G/W at C and R (tokens and plain Dinosaurs do not count toward it), at
+least eight Dinokin commons in green, five in red and three in white, and all
+three lords; at most eight Dinosaur creatures and four Beastkin.
 
 **Tooling.** The duplicate comparator counts a subtype only when some card
 pays it off. Once the Dinokin lords exist, the type splits otherwise
 identical cards, so a Dinokin body and a non-Dinokin body with the same line
-are no longer flagged. The overplan must not use the type to launder a
+are no longer flagged (and Dinosaur does the same if the matriarch reads it,
+and Beastkin already does). The overplan must not use the type to launder a
 duplicate; that pair is a manual read.
 
 ## 3. Budget and enabler density
@@ -156,6 +176,9 @@ duplicate; that pair is a manual read.
 | **Other sources** | 15 | R 7, W 4, B 2, G 1, colourless 1 |
 | **Duty** | 18 | 7 artifacts and enchantments (W 3, U 1, R 1, B 1, colourless 1), 11 creatures |
 | **Token minters** | 12 | section 6 |
+| **Dinokin** | 38 | the Axis; section 2 |
+| **Dinosaur** creatures | 8 | plus 3 Dinosaur tokens |
+| **Beastkin** | 4 | megafauna; no payoffs |
 | Vanilla and french-vanilla commons | at most 30% of commons | the Starborne line |
 
 **Minimums the cut must hold** (a cut constraint, as for Starborne):
@@ -185,8 +208,9 @@ Skyborne against 9 Warding Gaze.
 What First Dawn moves:
 
 1. **Go-wide, directly**: the G/W herd (Hatchling makers, a stampede turn of
-   +1/+0 and Overrun, Provoked walls, and the Dinokin lords on a board of
-   Dinokin Hatchlings). No new mass sweeper, and at most three
+   +1/+0 and Overrun, Provoked walls, the Dinokin lords, and the white
+   matriarch reaching the Dinosaur Hatchlings if question 1 goes as
+   recommended). No new mass sweeper, and at most three
    sweeps of 1 (R and above), since each kills Hatchlings.
 2. **Big bodies**: Hunt is green's removal and answers the 1/3 Deathblade
    blockers that punish fatties, at the hunter's cost (Deathblade applies to
@@ -211,7 +235,8 @@ unmeasured.
 ## 5. Theme deck and summit pair
 
 **The tenth theme deck: R/G, "the Stampede"** (working name): a Dinokin
-deck, hunters and horned herds on a steady curve with the green Overrun lord, Hunt and burn as six to eight removal slots,
+deck (Pack Raptors are Dinosaurs, so the Overrun lord skips them), hunters
+and horned herds on a steady curve with the green Overrun lord, Hunt and burn as six to eight removal slots,
 red's sources to provoke on its own terms, one or two tyrants on top. It
 avoids what sank the two folding decks: two colours, not three; every
 creature an honest body without its trigger; no multi-turn engine to
@@ -222,9 +247,11 @@ prefab of the latest reading is reworked before it ships.
 (B/G). Working names.
 
 - **R27, The Shepherdess of Thunder (G/W, the herd).** She goes wide with
-  Dinokin Hatchlings and long-neck walls whose Provoked gains life, Marks
-  the herd or makes a Hatchling; the long-neck matriarch lord keeps the herd
-  alive and Sentinel, and a stampede turn finishes. Attacking into her feeds
+  Dinosaur Hatchlings, Dinokin and plain Dinosaur long-necks, walls whose
+  Provoked gains life, Marks the herd or makes a Hatchling; the matriarch
+  lord keeps the herd alive and Sentinel (Hatchlings included only if
+  question 1 goes as recommended; otherwise the stampede turn carries the
+  tokens), and a stampede turn finishes. Attacking into her feeds
   her; not attacking lets her grow. The tower has never fielded green-white.
 - **R28, The Tyrant Queen (R/G, the final rung).** Hunt removal on big
   bodies, red sources and self-Hunts that provoke her own tyrants, Provoked
@@ -245,10 +272,10 @@ Each with at least two minters in the cut, checked by test.
 
 | Token | Body | Minters (shapes) |
 | --- | --- | --- |
-| **Hatchling** | G 1/1 Dinokin | green nest commons (arrival), white's Herd-Horn Duty artifact, a Provoked wall ("Provoked: create a Hatchling"), R27's herd cards |
-| **Pack Raptor** | R 2/1 Dinokin, Warcry | red pack-callers (arrival), a Ritual that calls two, one red Provoked rare |
-| **Tar-Bones** | B 2/2 Skeleton, a fossil from the tar (not Dinokin) | black tar Rituals, a black dies-trigger body, the B/G fossil rare |
-| **Glider** | U 1/1 Dinokin, Skyborne (a pterosaur) | blue Cliff Nest commons, the W/U sky rider; the flex token, cut first |
+| **Hatchling** | G 1/1 Dinosaur | green nest commons (arrival), white's Herd-Horn Duty artifact, a Provoked wall ("Provoked: create a Hatchling"), R27's herd cards |
+| **Pack Raptor** | R 2/1 Dinosaur, Warcry | red pack-callers (arrival), a Ritual that calls two, one red Provoked rare |
+| **Tar-Bones** | B 2/2 Skeleton, a fossil from the tar | black tar Rituals, a black dies-trigger body, the B/G fossil rare |
+| **Glider** | U 1/1 Dinosaur, Skyborne (a pterosaur) | blue Cliff Nest commons, the W/U sky rider; the flex token, cut first |
 
 ## 7. Rarity histogram
 
@@ -433,7 +460,8 @@ critical path between the cut and transcription.
 | --- | ---: | --- | --- |
 | **Provoked** trigger | ~30 | the mechanic | ruled |
 | **Hunt** op, both forms | ~22 | the mechanic | ruled |
-| **Dinokin** Axis | ~40 carriers, 6 payoffs | the tribe | ruled; no new construct (an `axes.ts` entry; lords and payoffs use `filter.subtype`, `controlsOther`, `allyAttacks` and `allyDies`) |
+| **Dinokin** Axis | ~38 carriers, 6 payoffs | the tribe | ruled; no new construct (an `axes.ts` entry; lords and payoffs use `filter.subtype`, `controlsOther`, `allyAttacks` and `allyDies`) |
+| **Dinosaur** as an Axis | 11 carriers, 1 payoff | the matriarch's second static | only if question 1 goes as recommended; an `axes.ts` entry, no new construct |
 | "Damage each creature you control N" | 2-3 | red's war-drum sources | admit if three survive |
 | Size condition, "if you control a creature with Attack 4 or more" | 3-6 | the apex payoffs | admit if three survive; else reword to Hunt |
 | Empower may Hunt (the validator's allowlist) | 1-3 | the optional arrival Hunt | validator-only; admit with the Hunt op |
@@ -460,8 +488,10 @@ glacier white-blue, bone ivory, amber resin.
 (1) **Dinokin** in the Beastkin monster-girl idiom, at most three stated
 species tells each, the bulk at C and R; (2) **a
 woman with her dinosaur**, the beast as mount or partner, riders from SR and
-big-beast pairings from R, typed after the woman; (3) **the beast alone** on
-tokens and spell art only.
+big-beast pairings from R, typed after the woman; (3) **the beast alone**: the
+Dinosaur creatures (about eight, mostly R and above), the tokens and spell
+art, under the rules below; (4) **Beastkin** megafauna girls (mammoth,
+cave bear, sabertooth, woolly rhino) in the same monster-girl idiom.
 
 **Large non-humanoid subjects**: the dinosaur's head is a head (inside the
 band, never cropped); horns, frills, crests and headwear count toward the
@@ -490,8 +520,10 @@ only, never pictograph rows; no tally marks; no carved symbols.
 two 1.8.5 regenerations): (1) a raptor rider at a sprint; (2) a shepherdess
 beside a sauropod (scale); (3) a hunter facing a tyrant (two creatures, no
 gore); (4) a horned Dinokin warrior (frill against headroom); (5) a raptor
-Dinokin (tail root and tip); (6) a pterosaur rider airborne; (7) a Hatchling token
-(a dinosaur alone, visibly young); (8) a fossil rising from the tar; (9) the
+Dinokin (tail root and tip); (6) a pterosaur rider airborne; (7) a plain
+Dinosaur alone at two ages, as two images: an adult horned beast (a creature
+card, with no woman in frame for scale) and a Hatchling token (visibly
+young); (8) a fossil rising from the tar; (9) the
 Painted Cave (cave art, no text, no tally); (10) a pack-caller with exactly
 three raptors at her side (several beasts in one frame: count control and
 no fused bodies, which the Pack Raptor minters need).
@@ -500,8 +532,9 @@ no fused bodies, which the Pack Raptor minters need).
 
 **Ruled 2026-09-28** (the owner approved the brief):
 
-- B1: no dinosaur-only creature cards; dinosaurs appear as Dinokin, as a
-  woman's mount or partner, or alone on tokens and spell art.
+- B1 (partly reversed by D1): plain Dinosaur creature cards are allowed
+  (about eight); dinosaurs otherwise appear as Dinokin, as a woman's mount
+  or partner, or alone on tokens and spell art.
 - B2 (reversed): dinosaurs are a tribe with lords, the Dinokin Axis (section
   2).
 - B3: 165 cards (82 / 49 / 15 / 11 / 8).
@@ -521,22 +554,27 @@ no fused bodies, which the Pack Raptor minters need).
 - No reserved Provoked art tell; Provoked cards are recognised by their rules
   text only.
 - The art window is 216 px (R13); the art composes for the 216 band.
+- D1 (reversed): two types, **Dinokin** (the monster-girls, the Axis with
+  lords) and **Dinosaur** (plain beasts: tokens, and creatures where the
+  design wants them).
+- D2: riders are not Dinokin; they are typed after the woman.
+- D3: Dinokin and Beastkin are separate types, and the set carries a few
+  Beastkin megafauna girls (four proposed, section 2).
 
 **Open questions**, each leading with the recommendation:
 
-1. **Dinokin replaces the Dinosaur subtype everywhere: yes** (section 2).
-   The alternative keeps a separate Dinosaur subtype for tokens and mounts,
-   which the lords would then miss.
-2. **Riders are not Dinokin: yes**, typed after the woman, so the lords skip
-   the few SR+ rider cards. The alternative types them Dinokin too, which
-   stretches the word past "a dinosaur body".
-3. **Dinokin is not also Beastkin: yes.** Every shipped -kin type is
-   co-tagged Beastkin, but forty new Beastkin bodies would push the base
-   set's two Beastkin anthems (Beastkin Packmother and the enchantment) and
-   the decks that run them far past what they were costed and measured at.
+1. **Dinokin lords and Dinosaurs: one lord reaches both.** Only the white
+   matriarch (+0/+1 and Sentinel) also covers your Dinosaurs, as a second
+   static on the card, which makes Dinosaur an Axis too. The Overrun lord and
+   the +1/+1 UR stay Dinokin-only, because Attack and Overrun on a token
+   swarm multiply (card-building-guide §3). The alternatives: no lord reaches
+   Dinosaurs (Dinosaur stays flavour, and R27's Hatchlings lean on the
+   stampede turn alone), or every lord does (the swarm trap on the UR).
+2. **Four Beastkin, none of them a payoff: yes** (section 2); a count the
+   base set's Packmother and Call of the Wilds absorb without re-costing.
 
-**FYI, no ruling needed now**: megafauna sit beside the dinosaurs (about
-two in five of the beasts); the Starborne and Silver Veil theme decks want a
+**FYI, no ruling needed now**: megafauna sit beside the dinosaurs, four of
+them as Beastkin girls and the rest in art and spell scenes; the Starborne and Silver Veil theme decks want a
 deck-list pass, a wave-4 item outside this set; every name here is a working
 name until the cut.
 

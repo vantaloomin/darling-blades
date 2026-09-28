@@ -1024,7 +1024,10 @@ Numbered so rulings can cite them. Recommendations are the first option.
   - **The First Dawn brief is APPROVED**
     ([first-dawn-brief.md](expansions/drafts/first-dawn-brief.md)), with
     three reversals it now carries: dinosaur-kin are the **Dinokin** Axis
-    with lords (B2), Hunt may target your own creatures, which Easy AI
+    with lords (B2; with D1-D3 the set has two types, Dinokin for the
+    monster-girls and Dinosaur for plain dinosaurs on tokens and a few
+    creature cards, riders are not Dinokin, and a few Beastkin megafauna
+    girls sit beside them), Hunt may target your own creatures, which Easy AI
     never does (B5), and Hunt damage counts for every damage-reading keyword
     and trigger (B6), evergreen: any such keyword the game adds later
     applies to Hunt with no Hunt-specific code, while combat-defined
