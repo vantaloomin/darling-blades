@@ -1,76 +1,257 @@
+import { FEATURES } from '../config/features';
+import { DEFAULT_TEXT_SCALE, TEXT_SCALES, type TextScale } from '../meta/accessibilitySettings';
 import type { ConfirmNoBlockSetting } from '../meta/SaveManager';
+import { setAccessibility, type AccessibilityInput, type AccessibilitySettings } from './accessibility';
 import { theme } from './theme';
 
 /**
- * The Settings scene's layout, derived once from the design-system tokens
+ * The Settings scene's layout, derived from the design-system tokens
  * (docs/design-system.md, "Alignment and isolation space") instead of being
- * pinned row by row. Two columns of equal panels; every row inside a column
- * comes from the same rhythm, so the isolation space between a caption and
- * the next control, or between one section and the next, is the same number
- * everywhere.
+ * pinned row by row. Every row inside a column comes from the same rhythm, so
+ * the isolation space between a caption and the next control, or between one
+ * section and the next, is the same number everywhere.
  *
  * The scene had grown three coordinate systems by 1.8 (a row generator, two
  * hand-pinned constant blocks, and literal numbers), and the crowding the
  * owner flagged on the 1.8 QC day (2026-09-21) was the sum of them: the
  * Privacy heading ran into the caption above it, the Reset block sat on the
  * Gameplay panel's border, and the update control hung outside every panel.
+ *
+ * 1.9 (lane C, C4): three tabs (Game, Audio, Accessibility; plan Q1), and the
+ * rhythm is computed when the scene builds, never at import, with every
+ * vertical term that depends on a type size read through the accessibility
+ * resolver, so the layout follows the player's text size. A row whose
+ * controls no longer fit beside its label stacks the controls under the
+ * label, and captions are laid out from their measured line counts: the scene
+ * measures, this module places.
  */
 
+// ---------------------------------------------------------------------------
+// The rhythm
+// ---------------------------------------------------------------------------
+
+/** Half the 44px hit floor: a control row's half-height. Not a type term. */
 const HIT_HALF = theme.control.minHitHeight / 2; // 22
-const HEADING_HALF = theme.type.h2 / 2; // 10
-const CAPTION = theme.type.caption; // 14
 /** Within one group: between a control's hit box and its neighbour. */
 const GAP_WITHIN = theme.space(3); // 12
 /** Between distinct groups, on top of the heading that names the next one. */
 const GAP_BETWEEN = theme.space(6); // 24
-/** A caption's centre sits this far under its row's centre. */
-const CAPTION_OFFSET = theme.space(6) + 2; // 26
-/** One caption line's box: the caption size plus its line spacing. */
-const CAPTION_LINE = CAPTION + 4;
+/** Clear space between a `sm` control's visual box and the caption under it (or a stacked label over it). */
+const CAPTION_CLEAR = 3;
 
-/** The two panels, mirrored: a 40px text inset on both sides of each. */
+/** A line box for text of `size`: the size plus a third of it as leading (12 -> 16). */
+export function settingsLineBox(size: number): number {
+  return size + Math.round(size / 3);
+}
+
+/**
+ * The rhythm's type-dependent terms at the text size in force. A function,
+ * not a constant: it is read when a scene builds, so a text-size change
+ * reaches it on the next build.
+ */
+export interface SettingsRhythm {
+  /** Half a section heading's size. */
+  headingHalf: number;
+  /** One caption line's box (the caption size plus its leading; 16 at 100%). */
+  captionLine: number;
+  /** A caption's first-line centre sits this far under its row's centre (26 at 100%). */
+  captionOffset: number;
+  /** Half a row label's line box, for a row whose controls stack under it. */
+  labelHalf: number;
+}
+
+export function settingsRhythm(): SettingsRhythm {
+  const captionLine = settingsLineBox(theme.type.caption);
+  return {
+    headingHalf: theme.type.h2 / 2,
+    captionLine,
+    captionOffset: theme.control.heightSm / 2 + CAPTION_CLEAR + captionLine / 2,
+    labelHalf: settingsLineBox(theme.type.body) / 2,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Frame: the tab row and the panels
+// ---------------------------------------------------------------------------
+
+/** The tab row sits on the band under the 72px title row, above the panels. */
+const TAB_ROW_TOP = 124;
+const PANEL_WIDTH = 540;
+const PANEL_INSET = theme.space(10); // 40
+
+export const SETTINGS_TAB_ROW = {
+  top: TAB_ROW_TOP,
+  /** Centre of the tab controls' 44px hit boxes. */
+  y: TAB_ROW_TOP + HIT_HALF, // 146
+  bottom: TAB_ROW_TOP + theme.control.minHitHeight, // 168
+} as const;
+
+/** The panels: under the tab row by the within-group gap, down to the title-safe bottom. */
 export const SETTINGS_PANELS = {
-  top: 124, // under the 72px title row
+  top: SETTINGS_TAB_ROW.bottom + GAP_WITHIN, // 180
   bottom: theme.design.safeBottom, // 684
-  inset: theme.space(10), // 40
-  left: { x: 70, width: 540 },
-  right: { x: 670, width: 540 },
+  inset: PANEL_INSET,
+  /** The Game tab's two mirrored panels. */
+  left: { x: 70, width: PANEL_WIDTH },
+  right: { x: 670, width: PANEL_WIDTH },
+  /** The single panel of a one-column tab (Audio, Accessibility), centred. */
+  center: { x: theme.design.centerX - PANEL_WIDTH / 2, width: PANEL_WIDTH },
 } as const;
 
-export const SETTINGS_GAMEPLAY_PANEL = {
-  left: SETTINGS_PANELS.right.x,
-  right: SETTINGS_PANELS.right.x + SETTINGS_PANELS.right.width,
-} as const;
-/** Both columns share one vertical band. */
+/** Every panel shares one vertical band. */
 export const SETTINGS_PANEL_BAND = { top: SETTINGS_PANELS.top, bottom: SETTINGS_PANELS.bottom } as const;
+export const SETTINGS_LEFT_PANEL_BAND = SETTINGS_PANEL_BAND;
 export const SETTINGS_LEFT_PANEL = {
   x: SETTINGS_PANELS.left.x,
   y: SETTINGS_PANELS.top,
   width: SETTINGS_PANELS.left.width,
   height: SETTINGS_PANELS.bottom - SETTINGS_PANELS.top,
 } as const;
-export const SETTINGS_LEFT_PANEL_BAND = SETTINGS_PANEL_BAND;
+export const SETTINGS_GAMEPLAY_PANEL = {
+  left: SETTINGS_PANELS.right.x,
+  right: SETTINGS_PANELS.right.x + SETTINGS_PANELS.right.width,
+} as const;
 
-/** Text columns: labels at the inset, controls on the column's control axis. */
+/** A panel's text column: labels at the inset, controls on its control axis or at its right edge. */
+export interface SettingsColumnFrame {
+  panelX: number;
+  panelWidth: number;
+  labelX: number;
+  /** The toggle axis of a left-style column; the volume stepper straddles it. */
+  controlX: number;
+  /** The right text inset: right-aligned controls end here. */
+  controlRight: number;
+}
+
+function columnFrame(panel: { x: number; width: number }): SettingsColumnFrame {
+  return {
+    panelX: panel.x,
+    panelWidth: panel.width,
+    labelX: panel.x + PANEL_INSET,
+    controlX: panel.x + 350,
+    controlRight: panel.x + panel.width - PANEL_INSET,
+  };
+}
+
+export const SETTINGS_FRAMES = {
+  left: columnFrame(SETTINGS_PANELS.left), // labels 110, toggles on 420, right edge 570
+  right: columnFrame(SETTINGS_PANELS.right), // labels 710, right edge 1170
+  center: columnFrame(SETTINGS_PANELS.center), // labels 410, toggles on 720, right edge 870
+} as const;
+
+/** The Game tab's text columns, by their long-standing names. */
 export const SETTINGS_COLUMNS = {
   left: {
-    labelX: SETTINGS_PANELS.left.x + SETTINGS_PANELS.inset, // 110
-    /** The toggle axis; the volume stepper and the privacy pair straddle it. */
-    controlX: 420,
-    controlRight: SETTINGS_PANELS.left.x + SETTINGS_PANELS.left.width - SETTINGS_PANELS.inset, // 570
+    labelX: SETTINGS_FRAMES.left.labelX,
+    controlX: SETTINGS_FRAMES.left.controlX,
+    controlRight: SETTINGS_FRAMES.left.controlRight,
   },
   right: {
-    labelX: SETTINGS_PANELS.right.x + SETTINGS_PANELS.inset, // 710
-    /** Every control in this column shares one right edge, the text inset. */
-    controlRight: SETTINGS_PANELS.right.x + SETTINGS_PANELS.right.width - SETTINGS_PANELS.inset, // 1170
+    labelX: SETTINGS_FRAMES.right.labelX,
+    controlRight: SETTINGS_FRAMES.right.controlRight,
   },
 } as const;
 
+/** A caption wraps inside its column's text track. */
+export function captionWrapWidth(frame: SettingsColumnFrame): number {
+  return frame.controlRight - frame.labelX;
+}
+
+// ---------------------------------------------------------------------------
+// The ship gates for the two new controls
+// ---------------------------------------------------------------------------
+
+/**
+ * Which of the two new Accessibility controls this build shows. The saved
+ * fields exist either way; a hidden control leaves its field at the default
+ * and the rows below it close up (plan, "The ship gate").
+ */
+export interface AccessibilityControlsShown {
+  readonly textSize: boolean;
+  readonly highContrast: boolean;
+}
+
+export const ALL_ACCESSIBILITY_CONTROLS: AccessibilityControlsShown = { textSize: true, highContrast: true };
+export const NO_ACCESSIBILITY_CONTROLS: AccessibilityControlsShown = { textSize: false, highContrast: false };
+
+/**
+ * The two ship gates, independently: a dev build shows both controls; a
+ * production build shows each only once its own switch is live
+ * (`FEATURES.textSizeLive`, `FEATURES.highContrastLive`).
+ */
+export function accessibilityControlsShown(
+  devBuild: boolean,
+  features: { readonly textSizeLive: boolean; readonly highContrastLive: boolean } = FEATURES,
+): AccessibilityControlsShown {
+  return { textSize: devBuild || features.textSizeLive, highContrast: devBuild || features.highContrastLive };
+}
+
+/**
+ * The settings to put in force: the saved value for each shown control, the
+ * default for a hidden one. A save carrying 130% into a build that hides the
+ * control (an imported dev save, say) must not leave the player in a size
+ * they have no control to undo.
+ */
+export function accessibilityInForce(
+  saved: AccessibilityInput,
+  shown: AccessibilityControlsShown,
+): AccessibilityInput {
+  return {
+    textScale: shown.textSize ? saved.textScale : DEFAULT_TEXT_SCALE,
+    highContrast: shown.highContrast ? saved.highContrast : false,
+  };
+}
+
+/**
+ * The one hook that boot, a replaced save and the Settings controls share:
+ * put the saved accessibility settings in force (through the ship gates) so
+ * every scene built after it reads them. Returns the settings now in force.
+ */
+export function applySavedAccessibility(saved: AccessibilityInput, devBuild: boolean): AccessibilitySettings {
+  return setAccessibility(accessibilityInForce(saved, accessibilityControlsShown(devBuild)));
+}
+
+// ---------------------------------------------------------------------------
+// Tabs and their sections
+// ---------------------------------------------------------------------------
+
+export type SettingsTab = 'game' | 'audio' | 'accessibility';
+
+export const SETTINGS_TABS: readonly { key: SettingsTab; label: string }[] = [
+  { key: 'game', label: 'Game' },
+  { key: 'audio', label: 'Audio' },
+  { key: 'accessibility', label: 'Accessibility' },
+];
+
+export const DEFAULT_SETTINGS_TAB: SettingsTab = 'game';
+
+/** Anything that is not a tab's key opens the default tab. */
+export function normalizeSettingsTab(value: unknown): SettingsTab {
+  return SETTINGS_TABS.some((tab) => tab.key === value) ? (value as SettingsTab) : DEFAULT_SETTINGS_TAB;
+}
+
+export type SettingsRowKey =
+  | 'sfx'
+  | 'volume'
+  | 'music'
+  | 'instantCast'
+  | 'landDrop'
+  | 'stats'
+  | 'autoSkip'
+  | 'confirmDestructive'
+  | 'keywordReminders'
+  | 'noBlock'
+  | 'reset'
+  | 'textSize'
+  | 'highContrast'
+  | 'animations'
+  | 'renderSize';
+
 export interface SettingsRowSpec {
-  key: string;
+  key: SettingsRowKey;
   /** The row carries a caption under it. */
   caption?: boolean;
-  /** Extra caption lines beyond the first (the Privacy caption wraps to two). */
+  /** Extra caption lines beyond the first, before measurement (the Privacy caption wraps to two). */
   captionLines?: number;
 }
 export interface SettingsSectionSpec {
@@ -78,15 +259,94 @@ export interface SettingsSectionSpec {
   title: string;
   rows: readonly SettingsRowSpec[];
 }
+export interface SettingsColumnSpec {
+  frame: SettingsColumnFrame;
+  sections: readonly SettingsSectionSpec[];
+}
+
+/** The Game tab's left column. */
+export const SETTINGS_LEFT_SECTIONS: readonly SettingsSectionSpec[] = [
+  {
+    key: 'yourTurn',
+    title: 'Your turn',
+    rows: [
+      { key: 'instantCast', caption: true },
+      { key: 'landDrop', caption: true },
+    ],
+  },
+  { key: 'privacy', title: 'Privacy', rows: [{ key: 'stats', caption: true, captionLines: 1 }] },
+];
+
+/** The Game tab's right column. */
+export const SETTINGS_RIGHT_SECTIONS: readonly SettingsSectionSpec[] = [
+  {
+    key: 'gameplay',
+    title: 'Gameplay',
+    rows: [{ key: 'autoSkip' }, { key: 'confirmDestructive' }, { key: 'keywordReminders' }, { key: 'noBlock' }],
+  },
+  { key: 'saveData', title: 'Save data', rows: [{ key: 'reset', caption: true }] },
+];
+
+export const SETTINGS_AUDIO_SECTIONS: readonly SettingsSectionSpec[] = [
+  { key: 'audio', title: 'Audio', rows: [{ key: 'sfx' }, { key: 'volume', caption: true }, { key: 'music' }] },
+];
+
+/** The Accessibility tab's one section; a hidden control's row is simply absent. */
+export function settingsAccessibilitySections(shown: AccessibilityControlsShown): readonly SettingsSectionSpec[] {
+  const rows: SettingsRowSpec[] = [];
+  if (shown.textSize) rows.push({ key: 'textSize', caption: true });
+  if (shown.highContrast) rows.push({ key: 'highContrast', caption: true });
+  rows.push({ key: 'animations', caption: true }, { key: 'renderSize', caption: true });
+  return [{ key: 'display', title: 'Display', rows }];
+}
+
+/** Every tab's columns, left to right. */
+export function settingsTabColumns(
+  tab: SettingsTab,
+  shown: AccessibilityControlsShown,
+): readonly SettingsColumnSpec[] {
+  switch (tab) {
+    case 'game':
+      return [
+        { frame: SETTINGS_FRAMES.left, sections: SETTINGS_LEFT_SECTIONS },
+        { frame: SETTINGS_FRAMES.right, sections: SETTINGS_RIGHT_SECTIONS },
+      ];
+    case 'audio':
+      return [{ frame: SETTINGS_FRAMES.center, sections: SETTINGS_AUDIO_SECTIONS }];
+    case 'accessibility':
+      return [{ frame: SETTINGS_FRAMES.center, sections: settingsAccessibilitySections(shown) }];
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Column layout
+// ---------------------------------------------------------------------------
+
+/** What the scene measured for one row. Absent: the spec's caption lines, not stacked. */
+export interface SettingsRowMeasure {
+  /** The caption's rendered line count at the column's wrap width. */
+  captionLines?: number;
+  /** The controls do not fit beside the label, so they sit on a line under it. */
+  stacked?: boolean;
+}
+export type SettingsMeasured = Partial<Record<SettingsRowKey, SettingsRowMeasure>>;
+
 export interface SettingsRowY {
-  /** The row's label and control centre. */
+  /** The row's control centre (and label centre, unless the row is stacked). */
   row: number;
-  /** Centre of a one-line caption. */
+  /** The row label's centre: `row`, or a line above it when the controls stack. */
+  label: number;
+  /** Centre of the caption's first line. */
   note: number;
-  /** Top of the caption box, for a wrapped caption drawn with origin (0, 0). */
+  /** Top of the caption box, for a caption drawn with origin (0, 0). */
   noteTop: number;
+  /** Highest design-space y anything in this row reaches. */
+  top: number;
   /** Lowest design-space y anything in this row reaches. */
   bottom: number;
+  /** Caption lines laid out (0 when the row has no caption). */
+  captionLines: number;
+  stacked: boolean;
 }
 export interface SettingsColumnLayout {
   headings: Readonly<Record<string, number>>;
@@ -99,72 +359,123 @@ export interface SettingsColumnLayout {
  * Lay a column out top to bottom. Every gap is one of the two named gaps, and
  * the next thing's top is always measured from the lowest extent of the thing
  * above it, so a captioned row and a plain row give their neighbours the same
- * isolation space.
+ * isolation space. `lastHeadingAt` pushes the last section's heading down to
+ * a shared line (a two-column tab ends level).
  */
 export function layoutSettingsColumn(
   sections: readonly SettingsSectionSpec[],
   panelTop: number = SETTINGS_PANELS.top,
+  measured: SettingsMeasured = {},
+  lastHeadingAt?: number,
 ): SettingsColumnLayout {
+  const r = settingsRhythm();
   const headings: Record<string, number> = {};
   const rows: Record<string, SettingsRowY> = {};
   let extent = panelTop;
-  for (const section of sections) {
-    const headingY = extent + GAP_BETWEEN + HEADING_HALF;
+  sections.forEach((section, index) => {
+    let headingY = extent + GAP_BETWEEN + r.headingHalf;
+    if (index === sections.length - 1 && lastHeadingAt !== undefined) headingY = Math.max(headingY, lastHeadingAt);
     headings[section.key] = headingY;
-    extent = headingY + HEADING_HALF;
+    extent = headingY + r.headingHalf;
     for (const spec of section.rows) {
-      const row = extent + GAP_WITHIN + HIT_HALF;
-      const note = row + CAPTION_OFFSET;
-      const noteTop = note - CAPTION_LINE / 2;
-      const lines = spec.caption ? 1 + (spec.captionLines ?? 0) : 0;
-      const bottom = Math.max(row + HIT_HALF, lines > 0 ? noteTop + lines * CAPTION_LINE : 0);
-      rows[spec.key] = { row, note, noteTop, bottom };
+      const m = measured[spec.key] ?? {};
+      const stacked = m.stacked === true;
+      const label = stacked ? extent + GAP_WITHIN + r.labelHalf : extent + GAP_WITHIN + HIT_HALF;
+      // A stacked row's controls sit under the label line the way its caption
+      // sits under them: the visual box one clear step away. The 44px hit box
+      // reaches up over the label, which is not a target.
+      const row = stacked ? label + r.labelHalf + CAPTION_CLEAR + theme.control.heightSm / 2 : label;
+      const top = stacked ? label - r.labelHalf : row - HIT_HALF;
+      const note = row + r.captionOffset;
+      const noteTop = note - r.captionLine / 2;
+      const lines = spec.caption ? Math.max(1, m.captionLines ?? 1 + (spec.captionLines ?? 0)) : 0;
+      const bottom = Math.max(row + HIT_HALF, lines > 0 ? noteTop + lines * r.captionLine : 0);
+      rows[spec.key] = { row, label, note, noteTop, top, bottom, captionLines: lines, stacked };
       extent = bottom;
     }
-  }
+  });
   return { headings, rows, contentBottom: extent };
 }
 
-export const SETTINGS_LEFT_SECTIONS: readonly SettingsSectionSpec[] = [
-  { key: 'audio', title: 'Audio', rows: [{ key: 'sfx' }, { key: 'volume', caption: true }, { key: 'music' }] },
-  {
-    key: 'yourTurn',
-    title: 'Your turn',
-    rows: [
-      { key: 'instantCast', caption: true },
-      { key: 'landDrop', caption: true },
-    ],
-  },
-  { key: 'privacy', title: 'Privacy', rows: [{ key: 'stats', caption: true, captionLines: 1 }] },
-];
+export interface SettingsTabLayout {
+  tab: SettingsTab;
+  columns: readonly (SettingsColumnSpec & { layout: SettingsColumnLayout })[];
+}
 
-export const SETTINGS_RIGHT_SECTIONS: readonly SettingsSectionSpec[] = [
-  {
-    key: 'gameplay',
-    title: 'Gameplay',
-    rows: [
-      { key: 'animations', caption: true },
-      { key: 'renderSize', caption: true },
-      { key: 'autoSkip' },
-      { key: 'confirmDestructive' },
-      { key: 'keywordReminders' },
-      { key: 'noBlock' },
-    ],
-  },
-  { key: 'saveData', title: 'Save data', rows: [{ key: 'reset', caption: true }] },
-];
+/** The lowest y content may reach: the panel bottom less the 16px inset. */
+export const SETTINGS_CONTENT_LIMIT = SETTINGS_PANELS.bottom - theme.space(4); // 668
 
-export const SETTINGS_LEFT = layoutSettingsColumn(SETTINGS_LEFT_SECTIONS);
-export const SETTINGS_RIGHT = layoutSettingsColumn(SETTINGS_RIGHT_SECTIONS);
+/**
+ * One tab's layout at the text size in force. A two-column tab ends level
+ * when it fits: the columns' last sections (Privacy and Save data on the
+ * Game tab) share a heading line, whichever column runs longer, unless
+ * pushing the shorter column down would take it past the content limit, in
+ * which case every column keeps its own natural height.
+ */
+export function layoutSettingsTab(
+  tab: SettingsTab,
+  shown: AccessibilityControlsShown = ALL_ACCESSIBILITY_CONTROLS,
+  measured: SettingsMeasured = {},
+): SettingsTabLayout {
+  const specs = settingsTabColumns(tab, shown);
+  let layouts = specs.map((spec) => layoutSettingsColumn(spec.sections, SETTINGS_PANELS.top, measured));
+  if (specs.length > 1) {
+    const level = Math.max(
+      ...specs.map((spec, i) => layouts[i].headings[spec.sections[spec.sections.length - 1].key]),
+    );
+    const levelled = specs.map((spec) => layoutSettingsColumn(spec.sections, SETTINGS_PANELS.top, measured, level));
+    if (levelled.every((layout) => layout.contentBottom <= SETTINGS_CONTENT_LIMIT)) layouts = levelled;
+  }
+  return { tab, columns: specs.map((spec, i) => ({ ...spec, layout: layouts[i] })) };
+}
+
+/**
+ * The Game tab's columns at the text size in force, by their long-standing
+ * names. Getters, so a read follows the current text size (the Privacy row in
+ * statsPrivacyPresentation.ts and its tests read these).
+ */
+function gameColumn(index: 0 | 1): SettingsColumnLayout {
+  return layoutSettingsTab('game').columns[index].layout;
+}
+export const SETTINGS_LEFT: SettingsColumnLayout = {
+  get headings() {
+    return gameColumn(0).headings;
+  },
+  get rows() {
+    return gameColumn(0).rows;
+  },
+  get contentBottom() {
+    return gameColumn(0).contentBottom;
+  },
+};
+export const SETTINGS_RIGHT: SettingsColumnLayout = {
+  get headings() {
+    return gameColumn(1).headings;
+  },
+  get rows() {
+    return gameColumn(1).rows;
+  },
+  get contentBottom() {
+    return gameColumn(1).contentBottom;
+  },
+};
 
 /** The "Your turn" section by index, for the modules and tests that read it that way. */
 export const YOUR_TURN_SECTION = {
-  headingY: SETTINGS_LEFT.headings.yourTurn,
-  firstRowY: SETTINGS_LEFT.rows.instantCast.row,
-  rowPitch: SETTINGS_LEFT.rows.landDrop.row - SETTINGS_LEFT.rows.instantCast.row,
-  noteOffset: CAPTION_OFFSET,
+  get headingY(): number {
+    return SETTINGS_LEFT.headings.yourTurn;
+  },
+  get firstRowY(): number {
+    return SETTINGS_LEFT.rows.instantCast.row;
+  },
+  get rowPitch(): number {
+    return SETTINGS_LEFT.rows.landDrop.row - SETTINGS_LEFT.rows.instantCast.row;
+  },
+  get noteOffset(): number {
+    return settingsRhythm().captionOffset;
+  },
   rowCount: 2,
-} as const;
+};
 
 /** Y of row `index` in the "Your turn" section, and of its caption. */
 export function yourTurnRowY(index: number): { row: number; note: number } {
@@ -173,17 +484,25 @@ export function yourTurnRowY(index: number): { row: number; note: number } {
 }
 
 /**
- * The Reset save row: the right column's last section, with the warning as
- * its caption. The button is a `md` danger control (it arms to a longer
- * label), right-aligned like every other control in the column.
+ * The Reset save row: the Game tab's right column's last section, with the
+ * warning as its caption. The button is a `md` danger control (it arms to a
+ * longer label), right-aligned like every other control in the column.
  */
 export const SETTINGS_RESET_BLOCK = {
   labelX: SETTINGS_COLUMNS.right.labelX,
   buttonRight: SETTINGS_COLUMNS.right.controlRight,
-  rowY: SETTINGS_RIGHT.rows.reset.row,
-  captionY: SETTINGS_RIGHT.rows.reset.note,
+  get rowY(): number {
+    return SETTINGS_RIGHT.rows.reset.row;
+  },
+  get captionY(): number {
+    return SETTINGS_RIGHT.rows.reset.note;
+  },
   buttonMinWidth: 170,
-} as const;
+};
+
+// ---------------------------------------------------------------------------
+// The header
+// ---------------------------------------------------------------------------
 
 /**
  * The header's right-hand controls, mirroring the back button at the left.
@@ -196,10 +515,12 @@ export const SETTINGS_HEADER_ACTION = {
   right: SETTINGS_GAMEPLAY_PANEL.right,
   /** On the shared header line with the back button and the scene title. */
   y: theme.design.headerCenterY,
-  /** The status line under it, right-aligned to the same edge. */
-  statusY: theme.design.headerCenterY + HIT_HALF + theme.space(2) + CAPTION / 2,
+  /** The status line under it, right-aligned to the same edge (a caption; follows the text size). */
+  get statusY(): number {
+    return theme.design.headerCenterY + HIT_HALF + theme.space(2) + theme.type.caption / 2;
+  },
   minWidth: 150,
-} as const;
+};
 
 /** The second header control, left of the update check and on its row. */
 export const SETTINGS_HEADER_LEGAL = {
@@ -214,58 +535,151 @@ export const SETTINGS_HEADER_LEGAL = {
  */
 export const SETTINGS_TITLE_TRACK = {
   centerX: theme.design.centerX,
-  halfWidth: theme.type.display * 4,
-} as const;
+  get halfWidth(): number {
+    return theme.type.display * 4;
+  },
+};
 
 // ---------------------------------------------------------------------------
-// Chip groups in the right column: fixed widths, right-aligned as a group to
-// the column's control edge, one gap between siblings.
+// Control groups: measure, then place
 // ---------------------------------------------------------------------------
 
-export interface SettingsChipLayout {
-  value: ConfirmNoBlockSetting;
-  label: string;
-  minWidth: number;
-  x: number;
-}
+/** The gap every control group leaves between sibling hit boxes. */
 const CHIP_GAP = theme.space(2); // 8
+export const SETTINGS_CONTROL_GAP = CHIP_GAP;
+/** Between a row's label and the nearest hit edge of its controls. */
+export const SETTINGS_LABEL_GAP = GAP_WITHIN;
 
-/** Centres for chips of the given widths, right-aligned as a group to `right`. */
+/** Centres for controls of the given widths, right-aligned as a group to `right`. */
 export function rightAlignedChipCenters(
   widths: readonly number[],
   right: number = SETTINGS_COLUMNS.right.controlRight,
+  gap: number = CHIP_GAP,
 ): number[] {
   const centers: number[] = [];
   let edge = right;
   for (let i = widths.length - 1; i >= 0; i--) {
     centers[i] = edge - widths[i] / 2;
-    edge -= widths[i] + CHIP_GAP;
+    edge -= widths[i] + gap;
   }
   return centers;
 }
 
-export const NO_BLOCK_LABEL_TRACK = { left: SETTINGS_COLUMNS.right.labelX, right: 850 } as const;
-
-const NO_BLOCK_WIDTHS = [80, 120, 70] as const;
-const NO_BLOCK_X = rightAlignedChipCenters(NO_BLOCK_WIDTHS);
-/** Fixed widths do not change when the selected chip swaps visual variant. */
-export const NO_BLOCK_CHIPS: readonly SettingsChipLayout[] = [
-  { value: 'always', label: 'Always', minWidth: NO_BLOCK_WIDTHS[0], x: NO_BLOCK_X[0] },
-  { value: 'lethal', label: 'Only when lethal', minWidth: NO_BLOCK_WIDTHS[1], x: NO_BLOCK_X[1] },
-  { value: 'off', label: 'Off', minWidth: NO_BLOCK_WIDTHS[2], x: NO_BLOCK_X[2] },
-] as const;
-
-export function settingsChipBounds(chip: SettingsChipLayout): { left: number; right: number } {
-  return { left: chip.x - chip.minWidth / 2, right: chip.x + chip.minWidth / 2 };
+/** A built control's measured widths (a themed button's visual box and its inflated hit box). */
+export interface MeasuredControl {
+  visualWidth: number;
+  hitWidth: number;
 }
 
-/** The other two chip groups, same rule. */
+/**
+ * Centres for a right-aligned control group from measured widths: the last
+ * control's visual edge on `right` (the column's shared control edge), each
+ * earlier one packed so sibling hit boxes keep the within-group gap. Chips
+ * narrower than the 90px hit floor therefore sit a little further apart
+ * than their visual widths suggest; their hit boxes never overlap.
+ */
+export function rightAlignedControlCenters(controls: readonly MeasuredControl[], right: number): number[] {
+  const centers: number[] = [];
+  const last = controls.length - 1;
+  if (last < 0) return centers;
+  centers[last] = right - controls[last].visualWidth / 2;
+  for (let i = last - 1; i >= 0; i--) {
+    centers[i] = centers[i + 1] - controls[i + 1].hitWidth / 2 - CHIP_GAP - controls[i].hitWidth / 2;
+  }
+  return centers;
+}
+
+/** Centres for controls of the given widths, centred as a group on `centerX`. */
+export function centeredGroupCenters(widths: readonly number[], centerX: number, gap: number = CHIP_GAP): number[] {
+  const total = widths.reduce((sum, w) => sum + w, 0) + gap * Math.max(0, widths.length - 1);
+  return rightAlignedChipCenters(widths, centerX + total / 2, gap);
+}
+
+/** A chip's minimum visual width at the text size in force: its 100% width, scaled with the chip font. */
+export function scaledChipWidth(baseWidth: number): number {
+  return Math.round((baseWidth * theme.type.caption) / theme.typeBase.caption);
+}
+
+export interface SettingsChipSpec<V> {
+  value: V;
+  label: string;
+  /** Minimum visual width at 100%; scaled with the chip font by `scaledChipWidth`. */
+  baseWidth: number;
+}
+
+export const NO_BLOCK_CHIPS: readonly SettingsChipSpec<ConfirmNoBlockSetting>[] = [
+  { value: 'always', label: 'Always', baseWidth: 80 },
+  { value: 'lethal', label: 'Only when lethal', baseWidth: 120 },
+  { value: 'off', label: 'Off', baseWidth: 70 },
+];
+/** Animations, render size and text size: three equal chips at 100%. */
 export const ANIM_CHIP_WIDTH = 82;
-export const ANIM_CHIP_X = rightAlignedChipCenters([ANIM_CHIP_WIDTH, ANIM_CHIP_WIDTH, ANIM_CHIP_WIDTH]);
 export const RENDER_CHIP_WIDTH = 84;
-export const RENDER_CHIP_X = rightAlignedChipCenters([RENDER_CHIP_WIDTH, RENDER_CHIP_WIDTH, RENDER_CHIP_WIDTH]);
-/** A toggle at the 90px hit floor, right-aligned to the control edge. */
-export const RIGHT_TOGGLE_X = SETTINGS_COLUMNS.right.controlRight - theme.control.minHitWidth / 2; // 1125
+export const TEXT_SIZE_CHIP_WIDTH = 82;
+/** A toggle sits at the 90px hit floor. */
+export const TOGGLE_WIDTH = theme.control.minHitWidth;
+
+const TEXT_SIZE_LABELS: Readonly<Record<TextScale, string>> = { 1: 'Standard', 1.15: 'Large', 1.3: 'Largest' };
+
+/** The text-size chips (plan Q2), one per allowed size. */
+export const TEXT_SIZE_CHIPS: readonly { value: TextScale; label: string }[] = TEXT_SCALES.map((value) => ({
+  value,
+  label: TEXT_SIZE_LABELS[value],
+}));
+
+/**
+ * Whether a row's controls stack under its label: they do when the label's
+ * right edge plus the label gap reaches the controls' leftmost visual edge.
+ * (Visual, not hit: a control's hit box is inflated to the 44 x 90 floor
+ * over empty space, and the label is not a target.)
+ */
+export function settingsRowStacks(labelX: number, labelWidth: number, controlsVisualLeft: number): boolean {
+  return labelX + labelWidth + SETTINGS_LABEL_GAP > controlsVisualLeft;
+}
+
+/**
+ * Keep a placed group inside its column: when any control's visual right edge
+ * passes `right`, the whole group shifts left by the overrun, so the gaps the
+ * group was placed with survive (the Privacy pair, whose "What is sent" button
+ * is pushed right of the toggle, can otherwise pass the inset at a large text
+ * size).
+ */
+export function shiftGroupInside(
+  centers: readonly number[],
+  controls: readonly MeasuredControl[],
+  right: number,
+): number[] {
+  const overrun = Math.max(0, ...centers.map((c, i) => c + controls[i].visualWidth / 2 - right));
+  return centers.map((c) => c - overrun);
+}
+
+export interface VolumeStepperXs {
+  minusX: number;
+  barLeft: number;
+  plusX: number;
+}
+
+/**
+ * The volume stepper: the measured bar centred on the column's control axis,
+ * a button either side of it one within-group gap from the bar's ends
+ * (visual edges; the bar is text, not a target). Should the group pass the
+ * column's control edge (a wide bar at a large text size), it shifts left as
+ * a whole.
+ */
+export function volumeStepperXs(
+  barWidth: number,
+  buttonVisualWidth: number,
+  frame: Pick<SettingsColumnFrame, 'controlX' | 'controlRight'>,
+): VolumeStepperXs {
+  const centred = frame.controlX - barWidth / 2;
+  const overrun = Math.max(0, centred + barWidth + GAP_WITHIN + buttonVisualWidth - frame.controlRight);
+  const barLeft = centred - overrun;
+  return {
+    minusX: barLeft - GAP_WITHIN - buttonVisualWidth / 2,
+    barLeft,
+    plusX: barLeft + barWidth + GAP_WITHIN + buttonVisualWidth / 2,
+  };
+}
 
 export interface SettingsHeaderCenters {
   legalX: number;
@@ -276,8 +690,8 @@ export interface SettingsHeaderCenters {
  * Where the header pair goes once both hit widths are measured: the update
  * check right-aligned to the header edge, "Legal" one isolation gap to its
  * left. Measure-then-place, and the same right-aligned-group rule the chip
- * rows in the right column already use, so the gap between the two hit boxes
- * is the design system's within-group space wherever the labels land.
+ * rows use, so the gap between the two hit boxes is the design system's
+ * within-group space wherever the labels land.
  */
 export function settingsHeaderCenters(
   legalHitWidth: number,
@@ -290,5 +704,14 @@ export function settingsHeaderCenters(
   return { legalX, updateX };
 }
 
-/** The gap the header pair, like every chip group, leaves between hit boxes. */
-export const SETTINGS_CONTROL_GAP = CHIP_GAP;
+/**
+ * The tab row: the Profile scene's tab-strip recipe (`sm` buttons, the
+ * selected one primary, a 100px floor, the within-group gap between them),
+ * placed from measured hit widths and centred as a group on the frame's
+ * centre line.
+ */
+export const SETTINGS_TAB_BASE_WIDTH = 100;
+export const SETTINGS_TAB_GAP = GAP_WITHIN;
+export function settingsTabCenters(hitWidths: readonly number[]): number[] {
+  return centeredGroupCenters(hitWidths, theme.design.centerX, SETTINGS_TAB_GAP);
+}

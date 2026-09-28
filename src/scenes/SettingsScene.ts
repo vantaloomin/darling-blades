@@ -1,10 +1,12 @@
 import Phaser from 'phaser';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
+import { normalizeTextScale } from '../meta/accessibilitySettings';
 import type { ConfirmNoBlockSetting } from '../meta/SaveManager';
 import { Services } from '../meta/services';
 import { readSignalsGateInput, signalsAllowed } from '../net/signalsGate';
 import { isTauri } from '../platform/desktopWindow';
+import { IS_DEV } from '../platform/env';
 import { isTouchDevice } from '../platform/gestures';
 import { qualityTier } from '../platform/quality';
 import type { AnimationLevel } from '../platform/animPolicy';
@@ -17,22 +19,39 @@ import { sceneTitle } from '../ui/sceneTitle';
 import { createStatsPrivacyPanel } from '../ui/StatsPrivacyPanel';
 import {
   ANIM_CHIP_WIDTH,
-  ANIM_CHIP_X,
   NO_BLOCK_CHIPS,
   RENDER_CHIP_WIDTH,
-  RENDER_CHIP_X,
-  RIGHT_TOGGLE_X,
-  SETTINGS_COLUMNS,
   SETTINGS_HEADER_ACTION,
   SETTINGS_HEADER_LEGAL,
-  SETTINGS_LEFT,
-  SETTINGS_LEFT_PANEL,
-  SETTINGS_LEFT_SECTIONS,
   SETTINGS_PANELS,
   SETTINGS_RESET_BLOCK,
-  SETTINGS_RIGHT,
-  SETTINGS_RIGHT_SECTIONS,
+  SETTINGS_TAB_BASE_WIDTH,
+  SETTINGS_TAB_ROW,
+  SETTINGS_TABS,
+  TEXT_SIZE_CHIPS,
+  TEXT_SIZE_CHIP_WIDTH,
+  TOGGLE_WIDTH,
+  accessibilityControlsShown,
+  applySavedAccessibility,
+  captionWrapWidth,
+  layoutSettingsTab,
+  normalizeSettingsTab,
+  rightAlignedControlCenters,
+  scaledChipWidth,
   settingsHeaderCenters,
+  settingsRhythm,
+  settingsRowStacks,
+  settingsTabCenters,
+  settingsTabColumns,
+  shiftGroupInside,
+  volumeStepperXs,
+  type AccessibilityControlsShown,
+  type MeasuredControl,
+  type SettingsColumnFrame,
+  type SettingsMeasured,
+  type SettingsRowKey,
+  type SettingsRowY,
+  type SettingsTab,
 } from '../ui/settingsPresentation';
 import {
   STATS_PANEL_BUTTON_LABEL,
@@ -51,14 +70,6 @@ import { VERSION_LABEL, checkForUpdate } from '../version';
 
 const SEGMENTS = 10;
 const STEP = 0.1;
-// Every position below comes from src/ui/settingsPresentation.ts: one rhythm
-// for both columns, derived from the design-system tokens. Nothing in this
-// file carries a coordinate of its own any more.
-const LEFT_LABEL_X = SETTINGS_COLUMNS.left.labelX;
-const LEFT_CONTROL_X = SETTINGS_COLUMNS.left.controlX;
-const RIGHT_LABEL_X = SETTINGS_COLUMNS.right.labelX;
-const L = SETTINGS_LEFT;
-const R = SETTINGS_RIGHT;
 
 const ANIM_CHIPS: { value: AnimationLevel; label: string }[] = [
   { value: 'full', label: 'Full' },
@@ -70,21 +81,47 @@ const RENDER_CHIPS: { value: RenderScaleSetting; label: string; heavy: boolean }
   { value: 1.5, label: '1920×1080', heavy: true },
   { value: 2, label: '2560×1440', heavy: true },
 ];
-/** Settings are split into audio and gameplay columns to retain touch-safe row pitch. */
+
+function measuredControl(button: ThemedButton): MeasuredControl {
+  const size = button.getMeasuredSize();
+  return { visualWidth: size.visual.width, hitWidth: size.hit.width };
+}
+
+/** What the scene is started with: the tab to open (Game when absent). */
+export interface SettingsSceneData {
+  tab?: SettingsTab;
+}
+
+/**
+ * A row built at its x positions and measured, waiting for its y. The layout
+ * (settingsPresentation.ts) decides the y from what was measured here: whether
+ * the controls fit beside the label, and how many lines the caption wrapped to.
+ */
+interface BuiltRow {
+  stacked: boolean;
+  captionLines?: number;
+  place(y: SettingsRowY): void;
+}
+
+/** A group of chips of which one is selected. */
+interface ChipGroup {
+  buttons: Map<unknown, ThemedButton>;
+  selected: () => unknown;
+}
+
+/**
+ * Settings, on three tabs (Game, Audio, Accessibility). Every position comes
+ * from src/ui/settingsPresentation.ts: one rhythm for every column, computed
+ * when the scene builds from the text size in force and from what this scene
+ * measured. Nothing in this file carries a coordinate of its own.
+ */
 export class SettingsScene extends Phaser.Scene {
-  private sfxToggle!: ThemedButton;
-  private musicToggle!: ThemedButton;
-  private skipToggle!: ThemedButton;
-  private confirmToggle!: ThemedButton;
-  private keywordToggle!: ThemedButton;
-  private instantToggle!: ThemedButton;
-  private landDropToggle!: ThemedButton;
-  private statsToggle!: ThemedButton;
-  private volumeBar!: Phaser.GameObjects.Text;
-  private animChips = new Map<AnimationLevel, ThemedButton>();
-  private renderChips = new Map<RenderScaleSetting, ThemedButton>();
-  private noBlockChips = new Map<ConfirmNoBlockSetting, ThemedButton>();
-  /** Every control the "What is sent" panel deadens while it is open. */
+  private tab: SettingsTab = 'game';
+  private shown: AccessibilityControlsShown = accessibilityControlsShown(IS_DEV);
+  private toggles: { button: ThemedButton; on: () => boolean }[] = [];
+  private chipGroups: ChipGroup[] = [];
+  private volumeBar: Phaser.GameObjects.Text | null = null;
+  /** Every control the "What is sent" and Legal panels deaden while open. */
   private guardTargets: Phaser.GameObjects.GameObject[] = [];
   private guard = new ModalGuard();
   private statsPanel: ModalShell | null = null;
@@ -94,14 +131,25 @@ export class SettingsScene extends Phaser.Scene {
     super('Settings');
   }
 
+  init(data?: SettingsSceneData): void {
+    // The tab lives for the scene's life: a tab switch or a live preview
+    // restarts the scene with it; arriving from the menu opens Game. The data
+    // is consumed here because Phaser keeps a start's data for the next
+    // start that passes none (Systems.start only replaces it when given
+    // some), which would reopen the last tab on the next visit.
+    this.tab = normalizeSettingsTab(data?.tab);
+    this.sys.settings.data = {};
+  }
+
   create(): void {
-    this.animChips.clear();
-    this.renderChips.clear();
-    this.noBlockChips.clear();
+    this.toggles = [];
+    this.chipGroups = [];
+    this.volumeBar = null;
     this.guardTargets = [];
     this.guard = new ModalGuard();
     this.statsPanel = null;
     this.legalPanel = null;
+    this.shown = accessibilityControlsShown(IS_DEV);
     applyBackdrop(this, 'mainmenu', {
       dim: theme.graphics.dim,
       dimAlpha: 0.62,
@@ -113,184 +161,453 @@ export class SettingsScene extends Phaser.Scene {
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('menu');
 
-    // The menus' shared title recipe on the header line (it was a 44px title
-    // centred at y 72 until 1.8.1).
     sceneTitle(this, 'Settings');
     this.trackObject(backButton(this, 'Menu', () => this.scene.start('MainMenu')));
     registerSceneBackNavigation(this, () => this.scene.start('MainMenu'));
 
-    // Two equal panels to the title-safe bottom; every heading and row in each
-    // comes from the shared rhythm (settingsPresentation.ts), which is what
-    // keeps the isolation space between sections the same on both sides.
-    panel(this, SETTINGS_LEFT_PANEL.x, SETTINGS_LEFT_PANEL.y, SETTINGS_LEFT_PANEL.width, SETTINGS_LEFT_PANEL.height);
-    panel(this, SETTINGS_PANELS.right.x, SETTINGS_PANELS.top, SETTINGS_PANELS.right.width, SETTINGS_PANELS.bottom - SETTINGS_PANELS.top);
-    for (const section of SETTINGS_LEFT_SECTIONS) {
-      if (section.key !== 'privacy') this.sectionTitle(LEFT_LABEL_X, L.headings[section.key], section.title);
-    }
-    for (const section of SETTINGS_RIGHT_SECTIONS) {
-      this.sectionTitle(RIGHT_LABEL_X, R.headings[section.key], section.title);
-    }
-
-    this.rowLabel(LEFT_LABEL_X, L.rows.sfx.row, 'Sound effects');
-    this.sfxToggle = this.toggle(LEFT_CONTROL_X, L.rows.sfx.row, () => {
-      const settings = Services.save.data.settings;
-      settings.sfxOn = !settings.sfxOn;
-      Services.save.touch();
-      this.refreshToggles();
-      if (settings.sfxOn) Sfx.play('click');
-    });
-
-    this.rowLabel(LEFT_LABEL_X, L.rows.volume.row, 'Master volume');
-    this.track(
-      themedButton(this, LEFT_CONTROL_X - 108, L.rows.volume.row, '−', {
-        variant: 'ghost',
-        size: 'sm',
-        minWidth: 44,
-        onTap: () => this.stepVolume(-STEP),
-      }),
-    );
-    this.volumeBar = this.add
-      .text(LEFT_CONTROL_X - 70, L.rows.volume.row, '', {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.label}px`,
-        color: theme.colors.body,
-      })
-      .setOrigin(0, 0.5);
-    this.track(
-      themedButton(this, LEFT_CONTROL_X + 108, L.rows.volume.row, '+', {
-        variant: 'ghost',
-        size: 'sm',
-        minWidth: 44,
-        onTap: () => this.stepVolume(STEP),
-      }),
-    );
-    this.note(LEFT_LABEL_X, L.rows.volume.note, 'Volume is the master level; music follows it too.');
-
-    this.rowLabel(LEFT_LABEL_X, L.rows.music.row, 'Music');
-    this.musicToggle = this.toggle(LEFT_CONTROL_X, L.rows.music.row, () => {
-      Music.setEnabled(!Music.enabled);
-      this.refreshToggles();
-    });
-
-    // Both rows here decide how a turn's actions get committed, which is why
-    // the section is "Your turn" rather than the older Casting-only heading.
-    const instant = L.rows.instantCast;
-    this.rowLabel(LEFT_LABEL_X, instant.row, 'Instant cast');
-    this.instantToggle = this.toggle(LEFT_CONTROL_X, instant.row, () => {
-      const settings = Services.save.data.settings;
-      settings.instantCast = !settings.instantCast;
-      Services.save.touch();
-      this.refreshToggles();
-    });
-    this.note(
-      LEFT_LABEL_X,
-      instant.note,
-      `Casts spells on a single ${isTouchDevice() ? 'tap' : 'click'} instead of picking the card up.`,
-    );
-
-    const landDrop = L.rows.landDrop;
-    this.rowLabel(LEFT_LABEL_X, landDrop.row, 'Confirm land drop');
-    this.landDropToggle = this.toggle(LEFT_CONTROL_X, landDrop.row, () => {
-      const settings = Services.save.data.settings;
-      settings.confirmLandDrop = !settings.confirmLandDrop;
-      Services.save.touch();
-      this.refreshToggles();
-    });
-    this.note(
-      LEFT_LABEL_X,
-      landDrop.note,
-      'Ending your turn with a land still unplayed takes a second press.',
-    );
-
-    this.rowLabel(RIGHT_LABEL_X, R.rows.animations.row, 'Animations');
-    ANIM_CHIPS.forEach(({ value, label }, i) => {
-      const button = this.track(
-        themedButton(this, ANIM_CHIP_X[i], R.rows.animations.row, label, {
-          variant: 'ghost',
-          size: 'sm',
-          minWidth: ANIM_CHIP_WIDTH,
-          onTap: () => {
-            Services.save.data.settings.animations = value;
-            Services.save.touch();
-            this.refreshChipGroups();
-          },
-        }),
-      );
-      this.animChips.set(value, button);
-    });
-    this.note(RIGHT_LABEL_X, R.rows.animations.note, 'Effect changes apply when you next change screens.');
-
-    const lite = qualityTier() === 'lite';
-    this.rowLabel(RIGHT_LABEL_X, R.rows.renderSize.row, 'Render size');
-    RENDER_CHIPS.forEach(({ value, label, heavy }, i) => {
-      const button = this.track(
-        themedButton(this, RENDER_CHIP_X[i], R.rows.renderSize.row, label, {
-          variant: 'ghost',
-          size: 'sm',
-          minWidth: RENDER_CHIP_WIDTH,
-          enabled: !(lite && heavy),
-          onTap: () => this.pickRenderScale(value),
-        }),
-      );
-      this.renderChips.set(value, button);
-    });
-    // Only the desktop app can resize its window; in a browser the size is a
-    // rendering resolution scaled to fit the page (src/platform/renderScale.ts).
-    this.note(
-      RIGHT_LABEL_X,
-      R.rows.renderSize.note,
-      lite
-        ? 'High resolutions are disabled on this device.'
-        : isTauri()
-          ? 'Resizes the desktop window and reloads to apply.'
-          : 'Higher sizes render sharper in the browser. Reloads to apply.',
-    );
-
-    this.rowLabel(RIGHT_LABEL_X, R.rows.autoSkip.row, 'Auto-skip forced turns');
-    this.skipToggle = this.toggle(RIGHT_TOGGLE_X, R.rows.autoSkip.row, () => {
-      const settings = Services.save.data.settings;
-      settings.autoSkip = !settings.autoSkip;
-      Services.save.touch();
-      this.refreshToggles();
-    });
-    this.rowLabel(RIGHT_LABEL_X, R.rows.confirmDestructive.row, 'Confirm destructive actions');
-    this.confirmToggle = this.toggle(RIGHT_TOGGLE_X, R.rows.confirmDestructive.row, () => {
-      const settings = Services.save.data.settings;
-      settings.confirmDestructive = !settings.confirmDestructive;
-      Services.save.touch();
-      this.refreshToggles();
-    });
-    this.rowLabel(RIGHT_LABEL_X, R.rows.keywordReminders.row, 'Keyword reminders');
-    this.keywordToggle = this.toggle(RIGHT_TOGGLE_X, R.rows.keywordReminders.row, () => {
-      const settings = Services.save.data.settings;
-      settings.keywordReminders = !settings.keywordReminders;
-      Services.save.touch();
-      this.refreshToggles();
-    });
-    this.rowLabel(RIGHT_LABEL_X, R.rows.noBlock.row, 'Confirm no-block');
-    for (const { value, label, minWidth, x } of NO_BLOCK_CHIPS) {
-      const button = this.track(
-        themedButton(this, x, R.rows.noBlock.row, label, {
-          variant: 'ghost',
-          size: 'sm',
-          minWidth,
-          onTap: () => {
-            Services.save.data.settings.confirmNoBlock = value;
-            Services.save.touch();
-            this.refreshChipGroups();
-          },
-        }),
-      );
-      this.noBlockChips.set(value, button);
-    }
-
-    this.buildPrivacy();
-    this.buildReset();
+    this.buildTabs();
+    this.buildTabContent();
     this.buildVersionFooter();
     this.refreshToggles();
     this.refreshChipGroups();
     this.refreshVolume();
   }
+
+  // -------------------------------------------------------------------------
+  // Tabs
+  // -------------------------------------------------------------------------
+
+  /** The Profile scene's tab-strip recipe, centred on the frame above the panels. */
+  private buildTabs(): void {
+    const buttons = SETTINGS_TABS.map(({ key, label }) =>
+      this.track(
+        themedButton(this, 0, SETTINGS_TAB_ROW.y, label, {
+          variant: key === this.tab ? 'primary' : 'ghost',
+          size: 'sm',
+          minWidth: scaledChipWidth(SETTINGS_TAB_BASE_WIDTH),
+          onTap: () => {
+            if (key !== this.tab) this.scene.restart({ tab: key } satisfies SettingsSceneData);
+          },
+        }),
+      ),
+    );
+    const centers = settingsTabCenters(buttons.map((b) => b.getMeasuredSize().hit.width));
+    buttons.forEach((b, i) => b.container.setX(centers[i]));
+  }
+
+  /** Build the open tab's rows at their x, measure them, lay the tab out, then place them. */
+  private buildTabContent(): void {
+    const columns = settingsTabColumns(this.tab, this.shown);
+    const built = new Map<SettingsRowKey, BuiltRow>();
+    for (const column of columns) {
+      panel(this, column.frame.panelX, SETTINGS_PANELS.top, column.frame.panelWidth, SETTINGS_PANELS.bottom - SETTINGS_PANELS.top);
+      for (const section of column.sections) {
+        for (const row of section.rows) built.set(row.key, this.buildRow(row.key, column.frame));
+      }
+    }
+    const measured: SettingsMeasured = {};
+    for (const [key, row] of built) measured[key] = { stacked: row.stacked, captionLines: row.captionLines };
+    const layout = layoutSettingsTab(this.tab, this.shown, measured);
+    for (const column of layout.columns) {
+      for (const section of column.sections) {
+        const title = section.key === 'privacy' ? STATS_SECTION_TITLE : section.title;
+        this.sectionTitle(column.frame.labelX, column.layout.headings[section.key], title);
+        for (const row of section.rows) built.get(row.key)?.place(column.layout.rows[row.key]);
+      }
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Rows
+  // -------------------------------------------------------------------------
+
+  private buildRow(key: SettingsRowKey, frame: SettingsColumnFrame): BuiltRow {
+    // Read per use, never kept: a replaced save swaps the settings object's contents.
+    const settings = (): typeof Services.save.data.settings => Services.save.data.settings;
+    switch (key) {
+      case 'sfx':
+        return this.toggleRow(frame, 'Sound effects', frame.controlX, () => settings().sfxOn, () => {
+          settings().sfxOn = !settings().sfxOn;
+          Services.save.touch();
+          this.refreshToggles();
+          if (settings().sfxOn) Sfx.play('click');
+        });
+      case 'volume':
+        return this.volumeRow(frame);
+      case 'music':
+        return this.toggleRow(frame, 'Music', frame.controlX, () => settings().musicOn, () => {
+          Music.setEnabled(!Music.enabled);
+          this.refreshToggles();
+        });
+      // Both "Your turn" rows decide how a turn's actions get committed.
+      case 'instantCast':
+        return this.toggleRow(
+          frame,
+          'Instant cast',
+          frame.controlX,
+          () => settings().instantCast,
+          () => {
+            settings().instantCast = !settings().instantCast;
+            Services.save.touch();
+            this.refreshToggles();
+          },
+          `Casts spells on a single ${isTouchDevice() ? 'tap' : 'click'} instead of picking the card up.`,
+        );
+      case 'landDrop':
+        return this.toggleRow(
+          frame,
+          'Confirm land drop',
+          frame.controlX,
+          () => settings().confirmLandDrop,
+          () => {
+            settings().confirmLandDrop = !settings().confirmLandDrop;
+            Services.save.touch();
+            this.refreshToggles();
+          },
+          'Ending your turn with a land still unplayed takes a second press.',
+        );
+      case 'stats':
+        return this.privacyRow(frame);
+      case 'autoSkip':
+        return this.rightToggleRow(frame, 'Auto-skip forced turns', () => settings().autoSkip, () => {
+          settings().autoSkip = !settings().autoSkip;
+          Services.save.touch();
+          this.refreshToggles();
+        });
+      case 'confirmDestructive':
+        return this.rightToggleRow(frame, 'Confirm destructive actions', () => settings().confirmDestructive, () => {
+          settings().confirmDestructive = !settings().confirmDestructive;
+          Services.save.touch();
+          this.refreshToggles();
+        });
+      case 'keywordReminders':
+        return this.rightToggleRow(frame, 'Keyword reminders', () => settings().keywordReminders, () => {
+          settings().keywordReminders = !settings().keywordReminders;
+          Services.save.touch();
+          this.refreshToggles();
+        });
+      case 'noBlock':
+        return this.chipRow(
+          frame,
+          'Confirm no-block',
+          NO_BLOCK_CHIPS.map(({ value, label, baseWidth }) => ({ value, label, baseWidth })),
+          () => settings().confirmNoBlock,
+          (value: ConfirmNoBlockSetting) => {
+            settings().confirmNoBlock = value;
+            Services.save.touch();
+            this.refreshChipGroups();
+          },
+        );
+      case 'reset':
+        return this.resetRow(frame);
+      case 'textSize':
+        return this.chipRow(
+          frame,
+          'Text size',
+          TEXT_SIZE_CHIPS.map(({ value, label }) => ({ value, label, baseWidth: TEXT_SIZE_CHIP_WIDTH })),
+          () => normalizeTextScale(settings().textScale),
+          (value) => {
+            if (normalizeTextScale(settings().textScale) === value) return;
+            settings().textScale = value;
+            this.previewAccessibility();
+          },
+          // Chosen the way the Instant cast caption picks tap or click.
+          isTouchDevice()
+            ? 'Makes menus and help text larger. Hold a card to read it up close.'
+            : 'Makes menus and help text larger. Hover over a card to read it up close.',
+        );
+      case 'highContrast':
+        return this.rightToggleRow(
+          frame,
+          'High contrast',
+          () => settings().highContrast,
+          () => {
+            settings().highContrast = !settings().highContrast;
+            this.previewAccessibility();
+          },
+          'Brighter text and solid panels. Card art is unchanged.',
+        );
+      case 'animations':
+        return this.chipRow(
+          frame,
+          'Animations',
+          ANIM_CHIPS.map(({ value, label }) => ({ value, label, baseWidth: ANIM_CHIP_WIDTH })),
+          () => settings().animations,
+          (value) => {
+            settings().animations = value;
+            Services.save.touch();
+            this.refreshChipGroups();
+          },
+          'Effect changes apply when you next change screens.',
+        );
+      case 'renderSize': {
+        const lite = qualityTier() === 'lite';
+        // Only the desktop app can resize its window; in a browser the size is a
+        // rendering resolution scaled to fit the page (src/platform/renderScale.ts).
+        return this.chipRow(
+          frame,
+          'Render size',
+          RENDER_CHIPS.map(({ value, label, heavy }) => ({
+            value,
+            label,
+            baseWidth: RENDER_CHIP_WIDTH,
+            enabled: !(lite && heavy),
+          })),
+          () => (lite ? 1 : settings().renderScale),
+          (value) => this.pickRenderScale(value),
+          lite
+            ? 'High resolutions are disabled on this device.'
+            : isTauri()
+              ? 'Resizes the desktop window and reloads to apply.'
+              : 'Higher sizes render sharper in the browser. Reloads to apply.',
+        );
+      }
+    }
+  }
+
+  /**
+   * Put a text-size or contrast change in force and show it: persist it like
+   * every other setting, apply it, then rebuild this scene under the new
+   * values, back on the Accessibility tab. Every other scene reads the new
+   * values the next time it builds.
+   */
+  private previewAccessibility(): void {
+    Services.save.touch();
+    applySavedAccessibility(Services.save.data.settings, IS_DEV);
+    this.scene.restart({ tab: 'accessibility' } satisfies SettingsSceneData);
+  }
+
+  /**
+   * The shared row recipe: the label at the column's text inset, the controls
+   * already at their x, and an optional caption wrapped to the column. Returns
+   * what the layout needs to know and a `place` that moves everything onto
+   * the y the layout picks.
+   */
+  private rowParts(
+    frame: SettingsColumnFrame,
+    labelText: string,
+    controls: readonly ThemedButton[],
+    captionText: string | undefined,
+    extras: readonly Phaser.GameObjects.Text[] = [],
+  ): BuiltRow {
+    const label = this.add
+      .text(frame.labelX, 0, labelText, {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.body}px`,
+        color: theme.colors.body,
+      })
+      .setOrigin(0, 0.5);
+    const controlsLeft = Math.min(
+      ...controls.map((c) => c.container.x - c.getMeasuredSize().visual.width / 2),
+    );
+    const stacked = settingsRowStacks(frame.labelX, label.width, controlsLeft);
+    const caption = captionText === undefined ? null : this.caption(frame, captionText);
+    return {
+      stacked,
+      captionLines: caption?.lines,
+      place: (y) => {
+        label.setY(y.label);
+        for (const control of controls) control.container.setY(y.row);
+        for (const extra of extras) extra.setY(y.row);
+        caption?.place(y.noteTop);
+      },
+    };
+  }
+
+  /**
+   * A caption wrapped to its column, measured: its line count, and a line
+   * spacing that makes its line pitch the rhythm's caption line, so the
+   * layout's caption box and the drawn text agree at every text size.
+   */
+  private caption(frame: SettingsColumnFrame, text: string): { lines: number; place: (noteTop: number) => void } {
+    const rhythm = settingsRhythm();
+    const note = this.add
+      .text(frame.labelX, 0, text, {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        color: theme.colors.muted,
+        wordWrap: { width: captionWrapWidth(frame) },
+      })
+      .setOrigin(0, 0);
+    const lines = Math.max(1, note.getWrappedText().length);
+    const lineHeight = note.height / lines;
+    note.setLineSpacing(rhythm.captionLine - lineHeight);
+    return {
+      lines,
+      // Centre each drawn line in its caption-line box.
+      place: (noteTop) => note.setY(noteTop + (rhythm.captionLine - lineHeight) / 2),
+    };
+  }
+
+  /** A left-style toggle row: the toggle on the column's control axis. */
+  private toggleRow(
+    frame: SettingsColumnFrame,
+    label: string,
+    x: number,
+    on: () => boolean,
+    onTap: () => void,
+    caption?: string,
+  ): BuiltRow {
+    const button = this.toggle(x, onTap, on);
+    return this.rowParts(frame, label, [button], caption);
+  }
+
+  /** A right-style toggle row: the toggle's edge on the column's control edge. */
+  private rightToggleRow(
+    frame: SettingsColumnFrame,
+    label: string,
+    on: () => boolean,
+    onTap: () => void,
+    caption?: string,
+  ): BuiltRow {
+    const button = this.toggle(frame.controlRight - TOGGLE_WIDTH / 2, onTap, on);
+    return this.rowParts(frame, label, [button], caption);
+  }
+
+  /**
+   * A chip group, measure-then-place: each chip is built at its scaled floor
+   * width, measured, and the group right-aligned to the column's control edge
+   * from the measured widths (settingsPresentation.rightAlignedControlCenters).
+   */
+  private chipRow<V>(
+    frame: SettingsColumnFrame,
+    label: string,
+    chips: readonly { value: V; label: string; baseWidth: number; enabled?: boolean }[],
+    selected: () => V,
+    onPick: (value: V) => void,
+    caption?: string,
+  ): BuiltRow {
+    const buttons = new Map<unknown, ThemedButton>();
+    const built = chips.map((chip) => {
+      const button = this.track(
+        themedButton(this, 0, 0, chip.label, {
+          variant: 'ghost',
+          size: 'sm',
+          minWidth: scaledChipWidth(chip.baseWidth),
+          enabled: chip.enabled ?? true,
+          onTap: () => onPick(chip.value),
+        }),
+      );
+      buttons.set(chip.value, button);
+      return button;
+    });
+    const centers = rightAlignedControlCenters(built.map(measuredControl), frame.controlRight);
+    built.forEach((b, i) => b.container.setX(centers[i]));
+    this.chipGroups.push({ buttons, selected });
+    return this.rowParts(frame, label, built, caption);
+  }
+
+  /** Master volume: the measured bar centred on the control axis, a step button either side. */
+  private volumeRow(frame: SettingsColumnFrame): BuiltRow {
+    const minus = this.track(
+      themedButton(this, 0, 0, '−', { variant: 'ghost', size: 'sm', minWidth: 44, onTap: () => this.stepVolume(-STEP) }),
+    );
+    const plus = this.track(
+      themedButton(this, 0, 0, '+', { variant: 'ghost', size: 'sm', minWidth: 44, onTap: () => this.stepVolume(STEP) }),
+    );
+    const bar = this.add
+      .text(0, 0, '▰'.repeat(SEGMENTS), {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.label}px`,
+        color: theme.colors.body,
+      })
+      .setOrigin(0, 0.5);
+    const xs = volumeStepperXs(bar.width, minus.getMeasuredSize().visual.width, frame);
+    minus.container.setX(xs.minusX);
+    bar.setX(xs.barLeft);
+    plus.container.setX(xs.plusX);
+    this.volumeBar = bar;
+    return this.rowParts(frame, 'Master volume', [minus, plus], 'Volume is the master level; music follows it too.', [bar]);
+  }
+
+  /**
+   * The Privacy section: the saved sharing choice, what it means, and the panel
+   * that lists every field. The row's caption explains why nothing is being
+   * sent when something OTHER than this toggle is the reason, and the toggle
+   * itself always shows and edits the saved choice either way, so a player
+   * whose browser is refusing on their behalf can still see what they chose.
+   * Its x positions are statsPrivacyPresentation's; its y, the shared rhythm's.
+   */
+  private privacyRow(frame: SettingsColumnFrame): BuiltRow {
+    const settings = (): typeof Services.save.data.settings => Services.save.data.settings;
+    const toggle = this.toggle(
+      STATS_SETTINGS_ROW.toggleX,
+      () => {
+        toggleShareAnonStats(settings());
+        Services.save.touch();
+        this.refreshToggles();
+      },
+      // Always the SAVED choice, even when a browser signal or a dev build is
+      // what is actually stopping the sends. The caption explains that.
+      () => settings().shareAnonStats,
+    );
+    // Measure-then-place: the label's rendered width is font-fallback dependent
+    // on Windows, so the button is built and then asked where it fits.
+    const panelButton = this.track(
+      themedButton(this, STATS_SETTINGS_ROW.buttonRightX, 0, STATS_PANEL_BUTTON_LABEL, {
+        variant: 'ghost',
+        size: 'sm',
+        minWidth: STATS_SETTINGS_ROW.buttonMinWidth,
+        onTap: () => this.openStatsPanel(),
+      }),
+    );
+    // Then the pair as a whole is kept inside the column's control edge.
+    const pair = [toggle, panelButton];
+    const centers = shiftGroupInside(
+      [STATS_SETTINGS_ROW.toggleX, statsPanelButtonCenterX(panelButton.getMeasuredSize().hit.width)],
+      pair.map(measuredControl),
+      frame.controlRight,
+    );
+    pair.forEach((button, i) => button.container.setX(centers[i]));
+    // The gate decides, not this scene: `signalsAllowed` is handed in whole.
+    const note = statsRowNoteText(statsRowNoteKind(statsRowNoteState(readSignalsGateInput(null), signalsAllowed)));
+    return this.rowParts(frame, STATS_ROW_LABEL, [toggle, panelButton], note);
+  }
+
+  /**
+   * The Game tab's right column's last row, under its own "Save data" heading.
+   * The row label names the setting and the button names the action, the way
+   * every other row here reads; the armed state still spells out the
+   * consequence. Right-aligned to the column's control edge like the toggles
+   * above it, measure-then-place because the armed label is wider.
+   */
+  private resetRow(frame: SettingsColumnFrame): BuiltRow {
+    const right = frame.controlRight;
+    let armed = false;
+    const reset = this.track(
+      themedButton(this, right, 0, 'Reset', {
+        variant: 'danger',
+        minWidth: SETTINGS_RESET_BLOCK.buttonMinWidth,
+        onTap: (pointer) => {
+          if (!armed) {
+            armed = true;
+            // The verb follows the press that armed it: Tap on touch, Click with a mouse.
+            reset.setLabel(`${pointer.wasTouch ? 'Tap' : 'Click'} again to erase everything`);
+            reset.setVariant('danger');
+            reset.container.setX(right - reset.getMeasuredSize().hit.width / 2);
+            this.time.delayedCall(4000, () => {
+              if (reset.container.active && armed) {
+                armed = false;
+                reset.setLabel('Reset');
+                reset.container.setX(right - reset.getMeasuredSize().hit.width / 2);
+              }
+            });
+            return;
+          }
+          // The reload boots again, which puts the fresh save's accessibility
+          // defaults in force (gameBoot.ts).
+          Services.save.reset();
+          window.location.reload();
+        },
+      }),
+    );
+    reset.container.setX(right - reset.getMeasuredSize().hit.width / 2);
+    return this.rowParts(frame, 'Reset save', [reset], 'Erases your collection, decks, gold, and progress. Cannot be undone.');
+  }
+
+  // -------------------------------------------------------------------------
+  // Pieces
+  // -------------------------------------------------------------------------
 
   private sectionTitle(x: number, y: number, text: string): void {
     this.add
@@ -301,26 +618,12 @@ export class SettingsScene extends Phaser.Scene {
       })
       .setOrigin(0, 0.5);
   }
-  private rowLabel(x: number, y: number, text: string): void {
-    this.add
-      .text(x, y, text, {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.body}px`,
-        color: theme.colors.body,
-      })
-      .setOrigin(0, 0.5);
-  }
-  private note(x: number, y: number, text: string): void {
-    this.add
-      .text(x, y, text, {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.caption}px`,
-        color: theme.colors.muted,
-      })
-      .setOrigin(0, 0.5);
-  }
-  private toggle(x: number, y: number, onTap: () => void): ThemedButton {
-    return this.track(themedButton(this, x, y, 'Off', { variant: 'ghost', size: 'sm', minWidth: 90, onTap }));
+  private toggle(x: number, onTap: () => void, on: () => boolean): ThemedButton {
+    const button = this.track(
+      themedButton(this, x, 0, 'Off', { variant: 'ghost', size: 'sm', minWidth: TOGGLE_WIDTH, onTap }),
+    );
+    this.toggles.push({ button, on });
+    return button;
   }
   /** Remember a control so the "What is sent" panel can deaden it. */
   private track(button: ThemedButton): ThemedButton {
@@ -330,46 +633,6 @@ export class SettingsScene extends Phaser.Scene {
   private trackObject<T extends Phaser.GameObjects.GameObject>(object: T): T {
     this.guardTargets.push(object);
     return object;
-  }
-
-  /**
-   * The Privacy section: the saved sharing choice, what it means, and the panel
-   * that lists every field. The row's caption explains why nothing is being
-   * sent when something OTHER than this toggle is the reason, and the toggle
-   * itself always shows and edits the saved choice either way, so a player
-   * whose browser is refusing on their behalf can still see what they chose.
-   */
-  private buildPrivacy(): void {
-    this.sectionTitle(LEFT_LABEL_X, STATS_SETTINGS_ROW.sectionTitleY, STATS_SECTION_TITLE);
-    this.rowLabel(STATS_SETTINGS_ROW.labelX, STATS_SETTINGS_ROW.rowY, STATS_ROW_LABEL);
-    this.statsToggle = this.toggle(STATS_SETTINGS_ROW.toggleX, STATS_SETTINGS_ROW.rowY, () => {
-      toggleShareAnonStats(Services.save.data.settings);
-      Services.save.touch();
-      this.refreshToggles();
-    });
-    // Measure-then-place: the label's rendered width is font-fallback dependent
-    // on Windows, so the button is built and then asked where it fits.
-    const panelButton = this.track(
-      themedButton(this, STATS_SETTINGS_ROW.buttonRightX, STATS_SETTINGS_ROW.rowY, STATS_PANEL_BUTTON_LABEL, {
-        variant: 'ghost',
-        size: 'sm',
-        minWidth: STATS_SETTINGS_ROW.buttonMinWidth,
-        onTap: () => this.openStatsPanel(),
-      }),
-    );
-    panelButton.container.setX(statsPanelButtonCenterX(panelButton.getMeasuredSize().hit.width));
-
-    // The gate decides, not this scene: `signalsAllowed` is handed in whole.
-    const note = statsRowNoteText(statsRowNoteKind(statsRowNoteState(readSignalsGateInput(null), signalsAllowed)));
-    this.add
-      .text(STATS_SETTINGS_ROW.labelX, STATS_SETTINGS_ROW.noteTopY, note, {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.caption}px`,
-        color: theme.colors.muted,
-        wordWrap: { width: STATS_SETTINGS_ROW.noteWrapWidth },
-        lineSpacing: 2,
-      })
-      .setOrigin(0, 0);
   }
 
   private openStatsPanel(): void {
@@ -390,48 +653,6 @@ export class SettingsScene extends Phaser.Scene {
     });
   }
 
-  /**
-   * The right column's last row, under its own "Save data" heading. The row
-   * label names the setting and the button names the action, the way every
-   * other row here reads; the armed state still spells out the consequence.
-   * Right-aligned to the column's control edge like the toggles above it,
-   * measure-then-place because the armed label is wider than the resting one.
-   */
-  private buildReset(): void {
-    this.rowLabel(SETTINGS_RESET_BLOCK.labelX, SETTINGS_RESET_BLOCK.rowY, 'Reset save');
-    let armed = false;
-    const reset = this.track(
-      themedButton(this, SETTINGS_RESET_BLOCK.buttonRight, SETTINGS_RESET_BLOCK.rowY, 'Reset', {
-        variant: 'danger',
-        minWidth: SETTINGS_RESET_BLOCK.buttonMinWidth,
-        onTap: (pointer) => {
-          if (!armed) {
-            armed = true;
-            // The verb follows the press that armed it: Tap on touch, Click with a mouse.
-            reset.setLabel(`${pointer.wasTouch ? 'Tap' : 'Click'} again to erase everything`);
-            reset.setVariant('danger');
-            reset.container.setX(SETTINGS_RESET_BLOCK.buttonRight - reset.getMeasuredSize().hit.width / 2);
-            this.time.delayedCall(4000, () => {
-              if (reset.container.active && armed) {
-                armed = false;
-                reset.setLabel('Reset');
-                reset.container.setX(SETTINGS_RESET_BLOCK.buttonRight - reset.getMeasuredSize().hit.width / 2);
-              }
-            });
-            return;
-          }
-          Services.save.reset();
-          window.location.reload();
-        },
-      }),
-    );
-    reset.container.setX(SETTINGS_RESET_BLOCK.buttonRight - reset.getMeasuredSize().hit.width / 2);
-    this.note(
-      SETTINGS_RESET_BLOCK.labelX,
-      SETTINGS_RESET_BLOCK.captionY,
-      'Erases your collection, decks, gold, and progress. Cannot be undone.',
-    );
-  }
   /**
    * The version stays in the corner outside the title-safe frame (expendable
    * by the design system's rule); the update check is a control, so it sits
@@ -497,39 +718,24 @@ export class SettingsScene extends Phaser.Scene {
     Sfx.play('click');
   }
   private refreshVolume(): void {
+    if (!this.volumeBar) return;
     const filled = Math.round(Sfx.volume * SEGMENTS);
     this.volumeBar
       .setText('▰'.repeat(filled) + '▱'.repeat(SEGMENTS - filled))
       .setColor(filled <= 0 ? theme.colors.muted : theme.colors.body);
   }
   private refreshToggles(): void {
-    const settings = Services.save.data.settings;
-    for (const [button, on] of [
-      [this.sfxToggle, settings.sfxOn],
-      [this.musicToggle, settings.musicOn],
-      [this.skipToggle, settings.autoSkip],
-      [this.confirmToggle, settings.confirmDestructive],
-      [this.keywordToggle, settings.keywordReminders],
-      [this.instantToggle, settings.instantCast],
-      [this.landDropToggle, settings.confirmLandDrop],
-      // Always the SAVED choice, even when a browser signal or a dev build is
-      // what is actually stopping the sends. The caption explains that; the
-      // toggle stays the player's own answer.
-      [this.statsToggle, settings.shareAnonStats],
-    ] as const) {
-      button.setLabel(on ? 'On' : 'Off');
-      button.setVariant(on ? 'primary' : 'ghost');
+    for (const { button, on } of this.toggles) {
+      const value = on();
+      button.setLabel(value ? 'On' : 'Off');
+      button.setVariant(value ? 'primary' : 'ghost');
     }
   }
   private refreshChipGroups(): void {
-    const settings = Services.save.data.settings;
-    for (const [value, button] of this.animChips)
-      button.setVariant(value === settings.animations ? 'primary' : 'ghost');
-    const effectiveRender = qualityTier() === 'lite' ? 1 : settings.renderScale;
-    for (const [value, button] of this.renderChips)
-      button.setVariant(value === effectiveRender ? 'primary' : 'ghost');
-    for (const [value, button] of this.noBlockChips)
-      button.setVariant(value === settings.confirmNoBlock ? 'primary' : 'ghost');
+    for (const { buttons, selected } of this.chipGroups) {
+      const current = selected();
+      for (const [value, button] of buttons) button.setVariant(value === current ? 'primary' : 'ghost');
+    }
   }
   private pickRenderScale(value: RenderScaleSetting): void {
     if (Services.save.data.settings.renderScale === value) return;

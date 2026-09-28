@@ -18,4 +18,16 @@ export const FEATURES = {
    * `reserveFormats`; the two are never independently false/true.
    */
   classicRetired: true,
+  // --- 1.9 lane C: the Accessibility controls' ship gates (C4) ---
+  /**
+   * One switch per Settings control (docs/plan-accessibility-i18n.md, "The
+   * ship gate"). While a switch is false its control is hidden in production
+   * builds (dev builds always show it) and a saved value is not applied, so
+   * no player lands in a half-built state they have no control to undo. Each
+   * flips when every player-facing scene clears the rendered probe in the
+   * cells its control opens; high contrast may ship before 130% text.
+   */
+  textSizeLive: false,
+  highContrastLive: false,
+  // --- end lane C ship gates ---
 };

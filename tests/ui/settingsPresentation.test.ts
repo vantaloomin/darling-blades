@@ -1,170 +1,555 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { FEATURES } from '../../src/config/features';
+import { currentAccessibility, setAccessibility, TEXT_SCALES } from '../../src/ui/accessibility';
 import {
+  ALL_ACCESSIBILITY_CONTROLS,
   ANIM_CHIP_WIDTH,
-  ANIM_CHIP_X,
+  NO_ACCESSIBILITY_CONTROLS,
   NO_BLOCK_CHIPS,
-  NO_BLOCK_LABEL_TRACK,
   RENDER_CHIP_WIDTH,
-  RENDER_CHIP_X,
-  RIGHT_TOGGLE_X,
-  SETTINGS_COLUMNS,
-  SETTINGS_GAMEPLAY_PANEL,
+  SETTINGS_CONTENT_LIMIT,
+  SETTINGS_CONTROL_GAP,
+  SETTINGS_FRAMES,
   SETTINGS_HEADER_ACTION,
   SETTINGS_HEADER_LEGAL,
+  SETTINGS_LABEL_GAP,
   SETTINGS_LEFT,
-  SETTINGS_LEFT_SECTIONS,
   SETTINGS_PANELS,
   SETTINGS_PANEL_BAND,
-  SETTINGS_RESET_BLOCK,
   SETTINGS_RIGHT,
-  SETTINGS_RIGHT_SECTIONS,
+  SETTINGS_TAB_BASE_WIDTH,
+  SETTINGS_TAB_GAP,
+  SETTINGS_TAB_ROW,
+  SETTINGS_TABS,
   SETTINGS_TITLE_TRACK,
+  TEXT_SIZE_CHIP_WIDTH,
+  TOGGLE_WIDTH,
   YOUR_TURN_SECTION,
+  accessibilityControlsShown,
+  accessibilityInForce,
+  applySavedAccessibility,
   layoutSettingsColumn,
-  rightAlignedChipCenters,
-  settingsChipBounds,
+  layoutSettingsTab,
+  normalizeSettingsTab,
+  rightAlignedControlCenters,
+  scaledChipWidth,
   settingsHeaderCenters,
+  settingsRhythm,
+  settingsRowStacks,
+  settingsTabCenters,
+  settingsTabColumns,
+  shiftGroupInside,
+  volumeStepperXs,
   yourTurnRowY,
-  type SettingsColumnLayout,
-  type SettingsSectionSpec,
+  type AccessibilityControlsShown,
+  type MeasuredControl,
+  type SettingsMeasured,
+  type SettingsTab,
+  type SettingsTabLayout,
 } from '../../src/ui/settingsPresentation';
+import { STATS_SETTINGS_ROW, statsPanelButtonCenterX } from '../../src/ui/statsPrivacyPresentation';
 import { theme } from '../../src/ui/theme';
 
 const HIT_HALF = theme.control.minHitHeight / 2;
-const HEADING_HALF = theme.type.h2 / 2;
 /** docs/design-system.md, "Spacing and grouping": within a group, 8-12px. */
 const MIN_GAP_WITHIN = 8;
 /** Between distinct groups: 16-24px, plus the heading that names the next one. */
 const MIN_GAP_BETWEEN = 16;
 /** Content keeps at least this much clear of its panel's bottom edge. */
 const MIN_PANEL_INSET = 16;
+/** Positions compare at a hundredth of a pixel, so float noise never reads as an overlap. */
+const EPS = 0.01;
+/**
+ * Inter's rendered line height, as a multiple of the font size, measured in
+ * Phaser in headless Edge (2026-09-28): 15, 18, 20px at 12, 14, 16px and 20,
+ * 23, 26px at 16, 18, 21px. A line box smaller than this clips the glyphs.
+ */
+const INTER_LINE_HEIGHT = 1.28;
 
-/** Every drawn thing in a column, top to bottom, as [top, bottom, what]. */
-function extents(sections: readonly SettingsSectionSpec[], col: SettingsColumnLayout): [number, number, string][] {
-  const out: [number, number, string][] = [];
-  for (const section of sections) {
-    const h = col.headings[section.key];
-    out.push([h - HEADING_HALF, h + HEADING_HALF, `heading ${section.key}`]);
-    for (const row of section.rows) {
-      const r = col.rows[row.key];
-      out.push([r.row - HIT_HALF, r.bottom, `row ${row.key}`]);
-    }
-  }
-  return out;
+const TABS: readonly SettingsTab[] = SETTINGS_TABS.map((tab) => tab.key);
+const SHOWN: readonly [string, AccessibilityControlsShown][] = [
+  ['controls shown', ALL_ACCESSIBILITY_CONTROLS],
+  ['controls hidden', NO_ACCESSIBILITY_CONTROLS],
+  ['text size only', { textSize: true, highContrast: false }],
+  ['high contrast only', { textSize: false, highContrast: true }],
+];
+
+/**
+ * What the scene measured in the rendered check (Inter, headless Edge,
+ * 2026-09-28), as the layout's inputs: which rows stacked their controls
+ * under the label, and how many lines each caption wrapped to. The layout
+ * rules must hold for these, for the spec's defaults (nothing measured), and
+ * for the 130% measurement applied at every size (a wider fallback font).
+ */
+const MEASURED_BY_SCALE: Readonly<Record<number, SettingsMeasured>> = {
+  1: { stats: { captionLines: 2 } },
+  1.15: { noBlock: { stacked: true }, stats: { captionLines: 2 }, textSize: { captionLines: 2 } },
+  1.3: {
+    noBlock: { stacked: true },
+    stats: { stacked: true, captionLines: 2 },
+    animations: { stacked: true },
+    renderSize: { stacked: true, captionLines: 2 },
+    textSize: { captionLines: 2 },
+    landDrop: { captionLines: 2 },
+    reset: { captionLines: 2 },
+  },
+};
+const scenarios = (scale: number): [string, SettingsMeasured][] => [
+  ['spec', {}],
+  ['as rendered', MEASURED_BY_SCALE[scale]],
+  ['as rendered at 130%', MEASURED_BY_SCALE[1.3]],
+];
+
+afterEach(() => {
+  setAccessibility({ textScale: 1, highContrast: false });
+});
+
+interface Extent {
+  top: number;
+  bottom: number;
+  what: string;
+  heading: boolean;
 }
 
-describe.each([
-  ['left', SETTINGS_LEFT_SECTIONS, SETTINGS_LEFT],
-  ['right', SETTINGS_RIGHT_SECTIONS, SETTINGS_RIGHT],
-])('the %s settings column', (_name, sections, col) => {
-  const items = extents(sections, col);
-
-  it('keeps everything inside the panel band with an inset at the bottom', () => {
-    for (const [top, bottom, what] of items) {
-      expect(top, what).toBeGreaterThanOrEqual(SETTINGS_PANEL_BAND.top + MIN_GAP_BETWEEN);
-      expect(bottom, what).toBeLessThanOrEqual(SETTINGS_PANEL_BAND.bottom - MIN_PANEL_INSET);
-    }
-    expect(col.contentBottom).toBeLessThanOrEqual(SETTINGS_PANEL_BAND.bottom - MIN_PANEL_INSET);
-    expect(SETTINGS_PANEL_BAND.bottom).toBeLessThanOrEqual(theme.design.safeBottom);
-  });
-
-  it('never overlaps, and separates groups by more than it separates rows', () => {
-    for (let i = 1; i < items.length; i++) {
-      const gap = items[i][0] - items[i - 1][1];
-      const startsGroup = items[i][2].startsWith('heading');
-      expect(gap, `${items[i - 1][2]} -> ${items[i][2]}`).toBeGreaterThanOrEqual(
-        startsGroup ? MIN_GAP_BETWEEN : MIN_GAP_WITHIN,
-      );
-    }
-  });
-
-  it('gives every row the same caption offset and keeps a caption under its own row', () => {
-    const firstRow = col.rows[sections[0].rows[0].key];
-    for (const section of sections) {
+/** Every drawn thing in each column, top to bottom. */
+function columnExtents(layout: SettingsTabLayout): Extent[][] {
+  const r = settingsRhythm();
+  return layout.columns.map((column) => {
+    const out: Extent[] = [];
+    for (const section of column.sections) {
+      const h = column.layout.headings[section.key];
+      out.push({ top: h - r.headingHalf, bottom: h + r.headingHalf, what: `heading ${section.key}`, heading: true });
       for (const row of section.rows) {
-        const r = col.rows[row.key];
-        expect(r.note - r.row).toBe(firstRow.note - firstRow.row);
-        expect(r.noteTop).toBeGreaterThanOrEqual(r.row + theme.control.heightSm / 2);
-        if (!row.caption) expect(r.bottom).toBe(r.row + HIT_HALF);
+        const y = column.layout.rows[row.key];
+        out.push({ top: y.top, bottom: y.bottom, what: `row ${row.key}`, heading: false });
       }
     }
+    return out;
+  });
+}
+
+function forEveryCell(fn: (at: string, scale: number) => void): void {
+  for (const scale of TEXT_SCALES) {
+    for (const highContrast of [false, true]) {
+      setAccessibility({ textScale: scale, highContrast });
+      fn(`${Math.round(scale * 100)}%${highContrast ? ', high contrast' : ''}`, scale);
+    }
+  }
+}
+
+describe('the rhythm follows the text size', () => {
+  it('gives captions, labels and headings line boxes that hold their rendered text at every size', () => {
+    forEveryCell((at) => {
+      const r = settingsRhythm();
+      expect(r.captionLine, at).toBeGreaterThanOrEqual(Math.ceil(theme.type.caption * INTER_LINE_HEIGHT));
+      expect(2 * r.labelHalf, at).toBeGreaterThanOrEqual(Math.ceil(theme.type.body * INTER_LINE_HEIGHT));
+      expect(2 * r.headingHalf, at).toBeGreaterThanOrEqual(theme.type.h2);
+    });
+  });
+
+  it('is read at build time: the exported Game columns follow a text-size change', () => {
+    const before = SETTINGS_LEFT.rows.landDrop.row - SETTINGS_LEFT.rows.instantCast.row;
+    setAccessibility({ textScale: 1.3, highContrast: false });
+    const after = SETTINGS_LEFT.rows.landDrop.row - SETTINGS_LEFT.rows.instantCast.row;
+    expect(after).toBeGreaterThan(before);
+    expect(YOUR_TURN_SECTION.rowPitch).toBe(after);
   });
 });
 
-describe('the two columns', () => {
-  it('share one panel band, the same heading position, and mirrored insets', () => {
-    expect(SETTINGS_LEFT.headings.audio).toBe(SETTINGS_RIGHT.headings.gameplay);
-    expect(SETTINGS_PANELS.left.width).toBe(SETTINGS_PANELS.right.width);
-    expect(SETTINGS_PANELS.left.x + SETTINGS_PANELS.left.width).toBeLessThan(SETTINGS_PANELS.right.x);
-    expect(SETTINGS_COLUMNS.left.labelX - SETTINGS_PANELS.left.x).toBe(SETTINGS_PANELS.inset);
-    expect(SETTINGS_COLUMNS.right.labelX - SETTINGS_PANELS.right.x).toBe(SETTINGS_PANELS.inset);
-    expect(SETTINGS_PANELS.right.x + SETTINGS_PANELS.right.width - SETTINGS_COLUMNS.right.controlRight).toBe(
-      SETTINGS_PANELS.inset,
-    );
-  });
+describe.each(TABS)('the %s tab', (tab) => {
+  for (const [shownName, shown] of SHOWN) {
+    it(`keeps every column inside the panel band with the bottom inset (${shownName}, every size and contrast)`, () => {
+      forEveryCell((cell, scale) => {
+        for (const [scenario, measured] of scenarios(scale)) {
+          const layout = layoutSettingsTab(tab, shown, measured);
+          columnExtents(layout).forEach((items, c) => {
+            for (const item of items) {
+              const at = `${cell}, ${scenario}, column ${c}, ${item.what}`;
+              expect(item.top, at).toBeGreaterThanOrEqual(SETTINGS_PANEL_BAND.top + MIN_GAP_BETWEEN - EPS);
+              expect(item.bottom, at).toBeLessThanOrEqual(SETTINGS_PANEL_BAND.bottom - MIN_PANEL_INSET + EPS);
+            }
+            expect(layout.columns[c].layout.contentBottom).toBeLessThanOrEqual(
+              SETTINGS_PANEL_BAND.bottom - MIN_PANEL_INSET + EPS,
+            );
+          });
+        }
+      });
+    });
 
-  it('end level: both last rows share a y', () => {
+    it(`never overlaps, and separates groups by more than rows (${shownName}, every size and contrast)`, () => {
+      forEveryCell((cell, scale) => {
+        for (const [scenario, measured] of scenarios(scale)) {
+          for (const items of columnExtents(layoutSettingsTab(tab, shown, measured))) {
+            for (let i = 1; i < items.length; i++) {
+              const gap = items[i].top - items[i - 1].bottom;
+              expect(gap, `${cell}, ${scenario}: ${items[i - 1].what} -> ${items[i].what}`).toBeGreaterThanOrEqual(
+                (items[i].heading ? MIN_GAP_BETWEEN : MIN_GAP_WITHIN) - EPS,
+              );
+            }
+          }
+        }
+      });
+    });
+
+    it(`keeps each caption under its own controls and a stacked label above them (${shownName})`, () => {
+      forEveryCell((cell, scale) => {
+        const r = settingsRhythm();
+        for (const [scenario, measured] of scenarios(scale)) {
+          const layout = layoutSettingsTab(tab, shown, measured);
+          for (const column of layout.columns) {
+            for (const section of column.sections) {
+              for (const spec of section.rows) {
+                const y = column.layout.rows[spec.key];
+                const at = `${cell}, ${scenario}, ${spec.key}`;
+                if (spec.caption) {
+                  expect(y.noteTop, at).toBeGreaterThanOrEqual(y.row + theme.control.heightSm / 2 - EPS);
+                  expect(y.bottom, at).toBeGreaterThanOrEqual(y.noteTop + y.captionLines * r.captionLine - EPS);
+                } else {
+                  expect(y.bottom, at).toBe(y.row + HIT_HALF);
+                }
+                if (measured[spec.key]?.stacked) {
+                  expect(y.label + r.labelHalf, at).toBeLessThanOrEqual(y.row - theme.control.heightSm / 2 + EPS);
+                } else {
+                  expect(y.label, at).toBe(y.row);
+                }
+              }
+            }
+          }
+        }
+      });
+    });
+  }
+});
+
+describe('the overflow budget', () => {
+  /**
+   * Room for the unmeasured: at every size, every tab still fits (inside the
+   * band, above the 16px inset) when each column gets one caption wrapping one
+   * line more and one more row stacking than the rendered check measured,
+   * over every choice of which caption and which row.
+   */
+  it('fits one more caption wrap and one more stacked row per column than rendered, on every tab at every size', () => {
+    forEveryCell((cell, scale) => {
+      const base = MEASURED_BY_SCALE[scale];
+      for (const tab of TABS) {
+        for (const [shownName, shown] of SHOWN) {
+          const columns = settingsTabColumns(tab, shown);
+          const options = columns.map((column) => {
+            const rows = column.sections.flatMap((section) => section.rows);
+            const wraps = rows.filter((row) => row.caption);
+            const stacks = rows.filter((row) => !base[row.key]?.stacked);
+            const out: SettingsMeasured[] = [];
+            for (const wrap of wraps.length ? wraps : [undefined]) {
+              for (const stack of stacks.length ? stacks : [undefined]) {
+                const extra: SettingsMeasured = {};
+                if (wrap) {
+                  const lines = base[wrap.key]?.captionLines ?? 1 + (wrap.captionLines ?? 0);
+                  extra[wrap.key] = { ...base[wrap.key], captionLines: lines + 1 };
+                }
+                if (stack) extra[stack.key] = { ...base[stack.key], ...extra[stack.key], stacked: true };
+                out.push(extra);
+              }
+            }
+            return out;
+          });
+          const combine = (i: number, acc: SettingsMeasured): void => {
+            if (i === options.length) {
+              const layout = layoutSettingsTab(tab, shown, acc);
+              layout.columns.forEach((column, c) => {
+                expect(column.layout.contentBottom, `${cell}, ${tab}, ${shownName}, column ${c}, ${JSON.stringify(acc)}`)
+                  .toBeLessThanOrEqual(SETTINGS_CONTENT_LIMIT + EPS);
+              });
+              return;
+            }
+            for (const extra of options[i]) combine(i + 1, { ...acc, ...extra });
+          };
+          combine(0, { ...base });
+        }
+      }
+    });
+  });
+});
+
+describe('the Game tab', () => {
+  it('ends level when it fits: the two last sections share a heading line unless the push would overflow', () => {
+    forEveryCell((cell, scale) => {
+      for (const [scenario, measured] of scenarios(scale)) {
+        const [left, right] = layoutSettingsTab('game', ALL_ACCESSIBILITY_CONTROLS, measured).columns;
+        const at = `${cell}, ${scenario}`;
+        const level = Math.max(left.layout.headings.privacy, right.layout.headings.saveData);
+        const pushedFits = [left, right].every(
+          (column) => layoutSettingsColumn(column.sections, SETTINGS_PANELS.top, measured, level).contentBottom <=
+            SETTINGS_CONTENT_LIMIT,
+        );
+        if (pushedFits) expect(left.layout.headings.privacy, at).toBe(right.layout.headings.saveData);
+        else {
+          // Not levelled: each column keeps its natural height.
+          for (const column of [left, right]) {
+            expect(column.layout.contentBottom, at).toBe(
+              layoutSettingsColumn(column.sections, SETTINGS_PANELS.top, measured).contentBottom,
+            );
+          }
+        }
+      }
+    });
+    // The skip branch is reachable: a long right column and a Privacy caption
+    // that wraps further make a push that would overflow while each column fits.
+    setAccessibility({ textScale: 1.3, highContrast: false });
+    let skipped = 0;
+    for (let lines = 2; lines <= 8; lines++) {
+      const measured: SettingsMeasured = {
+        autoSkip: { stacked: true },
+        confirmDestructive: { stacked: true },
+        keywordReminders: { stacked: true },
+        noBlock: { stacked: true },
+        stats: { stacked: true, captionLines: lines },
+      };
+      const [left, right] = layoutSettingsTab('game', ALL_ACCESSIBILITY_CONTROLS, measured).columns;
+      const natural = layoutSettingsColumn(left.sections, SETTINGS_PANELS.top, measured);
+      const pushed = layoutSettingsColumn(left.sections, SETTINGS_PANELS.top, measured, right.layout.headings.saveData);
+      if (natural.contentBottom <= SETTINGS_CONTENT_LIMIT && pushed.contentBottom > SETTINGS_CONTENT_LIMIT) {
+        skipped++;
+        expect(left.layout.contentBottom, `${lines} lines`).toBe(natural.contentBottom);
+        expect(left.layout.headings.privacy, `${lines} lines`).toBeLessThan(right.layout.headings.saveData);
+      }
+    }
+    expect(skipped).toBeGreaterThan(0);
+    // With nothing stacked the last rows share a y too (the Privacy and Reset rows).
     expect(SETTINGS_LEFT.rows.stats.row).toBe(SETTINGS_RIGHT.rows.reset.row);
   });
 
-  it('is a pure function of the rhythm, and both columns are full', () => {
-    // Documents the headroom, as the old test did: one more plain row in either
-    // column breaks the bottom inset, so a new setting is a layout decision
-    // (a third column, a shorter caption, or a row that moves), never a free one.
-    for (const sections of [SETTINGS_LEFT_SECTIONS, SETTINGS_RIGHT_SECTIONS]) {
-      const last = sections[sections.length - 1];
-      const grown = layoutSettingsColumn([
-        ...sections.slice(0, -1),
-        { ...last, rows: [...last.rows, { key: 'extra' }] },
-      ]);
-      expect(grown.contentBottom).toBeGreaterThan(SETTINGS_PANEL_BAND.bottom - MIN_PANEL_INSET);
-    }
-  });
-});
-
-describe('the "Your turn" section', () => {
-  it('reads the shared rhythm', () => {
+  it('keeps the Your turn section on the shared rhythm', () => {
     expect(YOUR_TURN_SECTION.headingY).toBe(SETTINGS_LEFT.headings.yourTurn);
     expect(yourTurnRowY(0).row).toBe(SETTINGS_LEFT.rows.instantCast.row);
     expect(yourTurnRowY(1).row).toBe(SETTINGS_LEFT.rows.landDrop.row);
     expect(yourTurnRowY(1).note).toBe(SETTINGS_LEFT.rows.landDrop.note);
   });
+
+  it('mirrors its two panels, with the same text inset on both sides of each', () => {
+    const { left, right } = SETTINGS_FRAMES;
+    expect(left.panelWidth).toBe(right.panelWidth);
+    expect(left.panelX + left.panelWidth).toBeLessThan(right.panelX);
+    for (const frame of [left, right]) {
+      expect(frame.labelX - frame.panelX).toBe(SETTINGS_PANELS.inset);
+      expect(frame.panelX + frame.panelWidth - frame.controlRight).toBe(SETTINGS_PANELS.inset);
+    }
+  });
 });
 
-describe('the right column controls', () => {
-  it('share one right edge: toggles, all three chip groups, and the reset button', () => {
-    const right = SETTINGS_COLUMNS.right.controlRight;
-    expect(RIGHT_TOGGLE_X + theme.control.minHitWidth / 2).toBe(right);
-    expect(ANIM_CHIP_X[2] + ANIM_CHIP_WIDTH / 2).toBe(right);
-    expect(RENDER_CHIP_X[2] + RENDER_CHIP_WIDTH / 2).toBe(right);
-    expect(settingsChipBounds(NO_BLOCK_CHIPS[2]).right).toBe(right);
-    expect(SETTINGS_RESET_BLOCK.buttonRight).toBe(right);
+describe('the Accessibility tab and its ship gates', () => {
+  it('holds Text size, High contrast, Animations and Render size, and only Animations and Render size when both are hidden', () => {
+    const keys = (shown: AccessibilityControlsShown): string[] =>
+      settingsTabColumns('accessibility', shown).flatMap((c) => c.sections.flatMap((s) => s.rows.map((r) => r.key)));
+    expect(keys(ALL_ACCESSIBILITY_CONTROLS)).toEqual(['textSize', 'highContrast', 'animations', 'renderSize']);
+    expect(keys(NO_ACCESSIBILITY_CONTROLS)).toEqual(['animations', 'renderSize']);
+    expect(keys({ textSize: false, highContrast: true })).toEqual(['highContrast', 'animations', 'renderSize']);
+    // And nowhere else: the Game tab no longer carries the display rows.
+    const game = settingsTabColumns('game', ALL_ACCESSIBILITY_CONTROLS).flatMap((c) =>
+      c.sections.flatMap((s) => s.rows.map((r) => r.key)),
+    );
+    expect(game).not.toContain('animations');
+    expect(game).not.toContain('renderSize');
   });
 
-  it('keeps every chip inside the panel inset and clear of its label', () => {
-    for (const chip of NO_BLOCK_CHIPS) {
-      const b = settingsChipBounds(chip);
-      expect(b.left, chip.value).toBeGreaterThanOrEqual(NO_BLOCK_LABEL_TRACK.right);
-      expect(b.right, chip.value).toBeLessThanOrEqual(SETTINGS_GAMEPLAY_PANEL.right - SETTINGS_PANELS.inset);
-    }
-    for (const x of [...ANIM_CHIP_X, ...RENDER_CHIP_X]) {
-      expect(x - RENDER_CHIP_WIDTH / 2).toBeGreaterThan(SETTINGS_COLUMNS.right.labelX + 130);
-    }
+  it('leaves no gap where a hidden row would be: the first row follows the heading as the first row does when shown', () => {
+    forEveryCell((cell) => {
+      const r = settingsRhythm();
+      const firstGap = (shown: AccessibilityControlsShown): number => {
+        const { layout, sections } = layoutSettingsTab('accessibility', shown).columns[0];
+        const first = sections[0].rows[0].key;
+        return layout.rows[first].top - (layout.headings[sections[0].key] + r.headingHalf);
+      };
+      expect(firstGap(NO_ACCESSIBILITY_CONTROLS), cell).toBe(firstGap(ALL_ACCESSIBILITY_CONTROLS));
+      const hidden = layoutSettingsTab('accessibility', NO_ACCESSIBILITY_CONTROLS).columns[0].layout;
+      const shown = layoutSettingsTab('accessibility', ALL_ACCESSIBILITY_CONTROLS).columns[0].layout;
+      expect(hidden.rows.renderSize.bottom - hidden.rows.animations.top, cell).toBe(
+        shown.rows.renderSize.bottom - shown.rows.animations.top,
+      );
+    });
   });
 
-  it('keeps sibling chips disjoint with the within-group gap', () => {
-    const b = NO_BLOCK_CHIPS.map(settingsChipBounds);
-    for (let i = 1; i < b.length; i++) expect(b[i].left - b[i - 1].right).toBeGreaterThanOrEqual(MIN_GAP_WITHIN);
-    expect(rightAlignedChipCenters([10, 20, 30], 100)).toEqual([100 - 30 - 8 - 20 - 8 - 5, 100 - 30 - 8 - 10, 85]);
+  it('shows both controls in a dev build and each by its own switch in production', () => {
+    const off = { textSizeLive: false, highContrastLive: false };
+    expect(accessibilityControlsShown(true, off)).toEqual({ textSize: true, highContrast: true });
+    expect(accessibilityControlsShown(false, off)).toEqual({ textSize: false, highContrast: false });
+    expect(accessibilityControlsShown(false, { textSizeLive: false, highContrastLive: true })).toEqual({
+      textSize: false,
+      highContrast: true,
+    });
+    expect(accessibilityControlsShown(false, { textSizeLive: true, highContrastLive: false })).toEqual({
+      textSize: true,
+      highContrast: false,
+    });
+  });
+
+  it('puts a hidden control at its default and a shown one at the saved value', () => {
+    const saved = { textScale: 1.3, highContrast: true };
+    expect(accessibilityInForce(saved, NO_ACCESSIBILITY_CONTROLS)).toEqual({ textScale: 1, highContrast: false });
+    expect(accessibilityInForce(saved, ALL_ACCESSIBILITY_CONTROLS)).toEqual(saved);
+    expect(accessibilityInForce(saved, { textSize: false, highContrast: true })).toEqual({
+      textScale: 1,
+      highContrast: true,
+    });
+  });
+
+  it('applies, in a production build, exactly the saved values whose switch is live', () => {
+    applySavedAccessibility({ textScale: 1.3, highContrast: true }, false);
+    expect(currentAccessibility()).toEqual({
+      textScale: FEATURES.textSizeLive ? 1.3 : 1,
+      highContrast: FEATURES.highContrastLive,
+    });
+  });
+
+  it('applies a saved size and contrast in a dev build (the boot and import hook)', () => {
+    applySavedAccessibility({ textScale: 1.15, highContrast: true }, true);
+    expect(currentAccessibility()).toEqual({ textScale: 1.15, highContrast: true });
+    expect(theme.type.body).toBeGreaterThan(theme.typeBase.body);
+  });
+
+});
+
+describe('the tab row', () => {
+  it('opens Game unless a known tab is asked for', () => {
+    expect(normalizeSettingsTab(undefined)).toBe('game');
+    expect(normalizeSettingsTab('nonsense')).toBe('game');
+    expect(normalizeSettingsTab('accessibility')).toBe('accessibility');
+  });
+
+  it('sits between the header and the panels, and the header status line clears it at every size', () => {
+    forEveryCell((at) => {
+      expect(SETTINGS_TAB_ROW.top, at).toBeGreaterThan(SETTINGS_HEADER_ACTION.y + HIT_HALF);
+      expect(SETTINGS_HEADER_ACTION.statusY + settingsRhythm().captionLine / 2, at).toBeLessThanOrEqual(
+        SETTINGS_TAB_ROW.top,
+      );
+      expect(SETTINGS_TAB_ROW.bottom + MIN_GAP_WITHIN, at).toBeLessThanOrEqual(SETTINGS_PANELS.top);
+    });
+  });
+
+  it('keeps the three tabs centred, disjoint by the gap, and inside the frame at every plausible width', () => {
+    forEveryCell((at) => {
+      const floor = scaledChipWidth(SETTINGS_TAB_BASE_WIDTH);
+      for (let wide = floor; wide <= floor + 120; wide += 8) {
+        const widths = [floor, floor, wide];
+        const centers = settingsTabCenters(widths);
+        const boxes = centers.map((c, i) => ({ left: c - widths[i] / 2, right: c + widths[i] / 2 }));
+        expect((boxes[0].left + boxes[2].right) / 2, at).toBeCloseTo(theme.design.centerX, 6);
+        for (let i = 1; i < boxes.length; i++) {
+          expect(boxes[i].left - boxes[i - 1].right, at).toBeGreaterThanOrEqual(SETTINGS_TAB_GAP - EPS);
+        }
+        expect(boxes[0].left, at).toBeGreaterThanOrEqual(theme.design.safeLeft);
+        expect(boxes[2].right, at).toBeLessThanOrEqual(theme.design.safeRight);
+      }
+    });
+  });
+});
+
+/** A themed button's widths for a label: the visual box and the 90px hit floor. */
+function control(visualWidth: number): MeasuredControl {
+  return { visualWidth, hitWidth: Math.max(visualWidth, theme.control.minHitWidth) };
+}
+
+describe('the chip groups, placed from measured widths', () => {
+  const groups: [string, number[]][] = [
+    ['no-block', NO_BLOCK_CHIPS.map((chip) => chip.baseWidth)],
+    ['animations', [ANIM_CHIP_WIDTH, ANIM_CHIP_WIDTH, ANIM_CHIP_WIDTH]],
+    ['render size', [RENDER_CHIP_WIDTH, RENDER_CHIP_WIDTH, RENDER_CHIP_WIDTH]],
+    ['text size', [TEXT_SIZE_CHIP_WIDTH, TEXT_SIZE_CHIP_WIDTH, TEXT_SIZE_CHIP_WIDTH]],
+  ];
+
+  /**
+   * Measure-then-place: the rule has to hold for label widths other fonts can
+   * produce, not only the ones this machine rendered. In Inter every chip
+   * label fits its scaled floor at every size (rendered check, 2026-09-28),
+   * so each chip's measured width sweeps from its floor to 20% past it.
+   */
+  it.each(groups)('keeps the %s chips on the control edge, hit boxes disjoint, inside the column, at every size', (_name, bases) => {
+    forEveryCell((at) => {
+      for (const frame of [SETTINGS_FRAMES.right, SETTINGS_FRAMES.center]) {
+        for (let grow = 1; grow <= 1.2 + EPS; grow += 0.05) {
+          const controls = bases.map((base) => control(Math.round(scaledChipWidth(base) * grow)));
+          const centers = rightAlignedControlCenters(controls, frame.controlRight);
+          const last = controls.length - 1;
+          expect(centers[last] + controls[last].visualWidth / 2, at).toBeCloseTo(frame.controlRight, 6);
+          for (let i = 1; i < controls.length; i++) {
+            const gap = centers[i] - controls[i].hitWidth / 2 - (centers[i - 1] + controls[i - 1].hitWidth / 2);
+            expect(gap, `${at}, x${grow.toFixed(1)}`).toBeGreaterThanOrEqual(SETTINGS_CONTROL_GAP - EPS);
+          }
+          // The group always fits the column's text track, stacked under its label if need be.
+          expect(centers[0] - controls[0].visualWidth / 2, `${at}, x${grow.toFixed(1)}`).toBeGreaterThanOrEqual(
+            frame.labelX,
+          );
+          expect(centers[last] + controls[last].hitWidth / 2, at).toBeLessThanOrEqual(frame.panelX + frame.panelWidth);
+        }
+      }
+    });
+  });
+
+  it('stacks a row exactly when its label would come within the label gap of its controls', () => {
+    const labelX = SETTINGS_FRAMES.right.labelX;
+    const controlsLeft = 900;
+    const fits = controlsLeft - SETTINGS_LABEL_GAP - labelX;
+    expect(settingsRowStacks(labelX, fits, controlsLeft)).toBe(false);
+    expect(settingsRowStacks(labelX, fits + 1, controlsLeft)).toBe(true);
+  });
+});
+
+describe('the Privacy pair and the volume stepper', () => {
+  it('keeps the Privacy pair inside the column and clear of each other at every plausible button width', () => {
+    const toggle = control(TOGGLE_WIDTH);
+    for (let visual = STATS_SETTINGS_ROW.buttonMinWidth; visual <= 180; visual += 2) {
+      const button = control(visual);
+      const centers = shiftGroupInside(
+        [STATS_SETTINGS_ROW.toggleX, statsPanelButtonCenterX(button.hitWidth)],
+        [toggle, button],
+        SETTINGS_FRAMES.left.controlRight,
+      );
+      const at = `button ${visual}`;
+      expect(centers[1] + button.visualWidth / 2, at).toBeLessThanOrEqual(SETTINGS_FRAMES.left.controlRight + EPS);
+      expect(centers[1] - button.hitWidth / 2 - (centers[0] + toggle.hitWidth / 2), at).toBeGreaterThanOrEqual(
+        STATS_SETTINGS_ROW.minControlGap - EPS,
+      );
+      expect(centers[0] - toggle.visualWidth / 2, at).toBeGreaterThanOrEqual(SETTINGS_FRAMES.left.labelX);
+    }
+    // With room to spare, nothing moves: the toggle stays on the column's toggle axis.
+    const narrow = control(STATS_SETTINGS_ROW.buttonMinWidth);
+    expect(
+      shiftGroupInside(
+        [STATS_SETTINGS_ROW.toggleX, statsPanelButtonCenterX(narrow.hitWidth)],
+        [toggle, narrow],
+        SETTINGS_FRAMES.left.controlRight,
+      )[0],
+    ).toBe(SETTINGS_FRAMES.left.controlX);
+  });
+
+  /** The bar measured 136px at 14px (rendered check); 18px at 130% makes it about 175. */
+  it('centres the measured volume bar on the control axis, buttons clear of it, the group inside the column', () => {
+    const frame = SETTINGS_FRAMES.center;
+    for (let bar = 100; bar <= 220; bar += 4) {
+      const button = control(44);
+      const xs = volumeStepperXs(bar, button.visualWidth, frame);
+      const at = `bar ${bar}`;
+      // Centred on the axis, unless it had to shift left to stay inside the edge.
+      const atEdge = Math.abs(xs.plusX + button.visualWidth / 2 - frame.controlRight) <= EPS;
+      if (!atEdge) expect(xs.barLeft + bar / 2, at).toBeCloseTo(frame.controlX, 6);
+      expect(xs.barLeft + bar / 2, at).toBeLessThanOrEqual(frame.controlX + EPS);
+      expect(xs.barLeft - (xs.minusX + button.visualWidth / 2), at).toBeGreaterThanOrEqual(MIN_GAP_WITHIN);
+      expect(xs.plusX - button.visualWidth / 2 - (xs.barLeft + bar), at).toBeGreaterThanOrEqual(MIN_GAP_WITHIN);
+      expect(xs.plusX - button.hitWidth / 2 - (xs.minusX + button.hitWidth / 2), at).toBeGreaterThanOrEqual(
+        SETTINGS_CONTROL_GAP,
+      );
+      expect(xs.minusX - button.visualWidth / 2, at).toBeGreaterThanOrEqual(frame.labelX);
+      expect(xs.plusX + button.visualWidth / 2, at).toBeLessThanOrEqual(frame.controlRight + EPS);
+    }
   });
 });
 
 describe('the header actions', () => {
-  it('sits on the title row, inside the title-safe frame, above the panels', () => {
-    expect(SETTINGS_HEADER_ACTION.right).toBeLessThanOrEqual(theme.design.safeRight);
-    expect(SETTINGS_HEADER_ACTION.y - HIT_HALF).toBeGreaterThanOrEqual(theme.design.safeTop);
-    expect(SETTINGS_HEADER_ACTION.statusY + theme.type.caption / 2).toBeLessThan(SETTINGS_PANELS.top);
-    expect(SETTINGS_HEADER_LEGAL.y).toBe(SETTINGS_HEADER_ACTION.y);
+  it('sits on the title row, inside the title-safe frame, above the tab row', () => {
+    forEveryCell((at) => {
+      expect(SETTINGS_HEADER_ACTION.right, at).toBeLessThanOrEqual(theme.design.safeRight);
+      expect(SETTINGS_HEADER_ACTION.y - HIT_HALF, at).toBeGreaterThanOrEqual(theme.design.safeTop);
+      expect(SETTINGS_HEADER_LEGAL.y, at).toBe(SETTINGS_HEADER_ACTION.y);
+    });
   });
 
   /**

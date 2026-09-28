@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-1.9.md, docs/roadmap.md, docs/design-system.md, src/meta/SaveManager.ts, src/scenes/SettingsScene.ts, src/ui/settingsPresentation.ts, src/ui/theme.ts, src/ui/themeWidgets.ts, src/ui/layout.ts, src/ui/sceneTitle.ts, src/ui/profilePresentation.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/ManaSymbols.ts, src/ui/CardFrameFactory.ts, src/scenes/DuelScene.ts, src/gameBoot.ts · last-verified: 2026-09-28 · design/plan doc: 1.9 lane C, re-verified against release/1.9 at 15ffe70; re-verify when the referenced code changes or a wave lands -->
+<!-- source-of-truth: docs/plan-1.9.md, docs/roadmap.md, docs/design-system.md, src/meta/SaveManager.ts, src/scenes/SettingsScene.ts, src/ui/settingsPresentation.ts, src/ui/theme.ts, src/ui/themeWidgets.ts, src/ui/layout.ts, src/ui/sceneTitle.ts, src/ui/profilePresentation.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/ManaSymbols.ts, src/ui/CardFrameFactory.ts, src/scenes/DuelScene.ts, src/gameBoot.ts, src/config/features.ts · last-verified: 2026-09-28 · design/plan doc: 1.9 lane C, re-verified against release/1.9 at 15ffe70, C4 lines (ship gate, C4 row, Settings geometry) re-verified against the C4 branch 2026-09-28; re-verify when the referenced code changes or a wave lands -->
 
 # Accessibility (1.9 lane C) and the localization record
 
@@ -126,8 +126,9 @@ runtime scale or palette change would never reach:
 | `src/ui/layout.ts` (`SCENE_TITLE.fontSize`) | 1 | 0 | yes |
 | `src/ui/artGate.ts` | 0 | 1 | |
 
-Geometry derived from these at import (for example `SETTINGS_LEFT`,
-`SCENE_TITLE`, `LIMITED_BUILDER_HEADER`) is frozen with them.
+Geometry derived from these at import (for example `SCENE_TITLE`,
+`LIMITED_BUILDER_HEADER`) is frozen with them. `SETTINGS_LEFT` was one until
+C4, which computes the Settings rhythm when the scene builds.
 
 The other token groups: `theme.graphics` has 164 reads and `theme.alpha` 98,
 **all inside functions** (live-able), but `theme.graphics` is itself built at
@@ -240,12 +241,16 @@ built. Where the group goes is Q1 (recommended: three tabs).
 offer 115%, 130% and high contrast while no scene has been reflowed. So:
 
 - The two Settings controls are **hidden in production builds** (shown in dev
-  builds only, behind the existing `IS_DEV` split in `gameBoot.ts` or a
-  dedicated flag) until every player-facing scene clears the rendered probe
-  in the cells that control opens. Each control has its own gate: high
-  contrast can ship when its three cells clear even if 130% text has not.
+  builds, `IS_DEV`) until every player-facing scene clears the rendered probe
+  in the cells that control opens. Each control has its own switch
+  (`FEATURES.textSizeLive`, `FEATURES.highContrastLive` in
+  `src/config/features.ts`): high contrast can ship when its three cells
+  clear even if 130% text has not.
 - The v36 fields land in wave 1 regardless, with their defaults; a hidden
-  control leaves them at Standard and off.
+  control leaves them at Standard and off. A stored non-default value is not
+  applied while its control is hidden, and never rewritten; when a switch
+  flips in a later release, a player carrying a stored value gets it applied
+  on that update (a release-note line).
 - If any scene misses the 1.9.0 cut, that control does not ship; the schema
   still does, and the control appears in the patch that clears the last
   scene.
@@ -468,7 +473,7 @@ Five PRs. File sets are disjoint, so parallel agents never share a file.
 | **C1** Save v36 | The `settings` interface, `freshSave` defaults, the shared block's version list, the v35 to v36 step with both fields and normalization; the tests above | `src/meta/SaveManager.ts`, `tests/meta/saveMigrations.test.ts` | First in program wave 2; I7's owner then adds I7's field to the same step in one follow-up PR (same two files, so it runs after C1, never beside it) |
 | **C2** Resolver | `accessibility.ts` (allowed scales, `normalizeTextScale`, role policy, palettes, setter); `theme.type`, `theme.colors`, `theme.graphics` (no longer computed once at import) and `theme.alpha` become live reads over `theme.typeBase` and the two palettes; `theme.rarity` untouched | NEW `src/ui/accessibility.ts`, `src/ui/theme.ts`, `tests/ui/theme.test.ts`, NEW `tests/ui/accessibility.test.ts` | Beside C1 |
 | **C3** Live chrome | The module-scope reads made lazy with their export shapes kept; `BUTTON_STYLE` per draw; the `roundedTrigger` selected cue; the three `themeWidgets` literals and `MultilineInput`'s `font:14px` to tokens | `src/ui/themeWidgets.ts`, `src/ui/layout.ts`, `src/ui/profilePresentation.ts`, `src/ui/artGate.ts`, `src/ui/MultilineInput.ts`, `tests/ui/profilePresentation.test.ts` | Beside C1; merges after C2 |
-| **C4** Settings | The Accessibility controls in the owner's chosen layout (Q1), hidden in production builds until the ship gate clears; the rhythm computed at build with every vertical term (including the caption line's fixed 4 px) on the resolver; every chip group measure-then-place or width-scaled; live preview by rebuilding the scene; the boot hook that applies the saved values | `src/scenes/SettingsScene.ts`, `src/ui/settingsPresentation.ts`, `tests/ui/settingsPresentation.test.ts`, `src/gameBoot.ts` | After C1, C2 and Q1; copy approved by the owner |
+| **C4** Settings | The Accessibility controls in the owner's chosen layout (Q1), hidden in production builds until the ship gate clears; the rhythm computed at build with every vertical term (including the caption line's fixed 4 px) on the resolver; every chip group measure-then-place or width-scaled; live preview by rebuilding the scene; the boot hook that applies the saved values | `src/scenes/SettingsScene.ts`, `src/ui/settingsPresentation.ts`, `tests/ui/settingsPresentation.test.ts`, `src/gameBoot.ts`, `src/config/features.ts` (the two switches), `src/scenes/ProfileScene.ts` (the import hook), `src/ui/statsPrivacyPresentation.ts` and its test (the Privacy row's y moves to the rhythm) | After C1, C2 and Q1; copy approved by the owner |
 | **C5** The gate harness | The headless half of the fixture matrix (below), enrolling only the wave-1 modules (Settings after C4, `layout.ts` headers, Profile); `boardCuePresentation.ts`; the rendered probe; design-system.md's text-scale, high-contrast and selection-cue sections | NEW `tests/ui/accessibilityLayout.test.ts`, NEW `src/ui/boardCuePresentation.ts`, NEW `tests/ui/boardCuePresentation.test.ts`, NEW `tests/ui/colourVision.ts` (the CIEDE2000 and CVD helper), NEW `src/dev/a11yProbe.ts`, `docs/design-system.md` | Last, after C2-C4 |
 
 `ShopScene`'s 41 module-scope colour reads wait for the Shop pass in wave 2.
