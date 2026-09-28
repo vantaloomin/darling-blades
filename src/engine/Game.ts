@@ -357,9 +357,14 @@ export class Game {
 
   viewFor(player: PlayerId): PlayerView {
     this.syncLegacyMutations();
-    const castable = [0, 1].map((seat) =>
-      legalActions(this.st, this.db, seat as PlayerId).some((action) => action.type === 'castDarling'),
-    ) as [boolean, boolean];
+    // legalActions offers castDarling only to a seat whose Darling zone holds
+    // a card, so a seat without one reads false without enumerating its whole
+    // menu (every Warchest seat, and every simulated step Hard takes).
+    const castable = [0, 1].map((seat) => {
+      const zone = this.st.players[seat].darlingZone;
+      return zone !== undefined && zone !== null &&
+        legalActions(this.st, this.db, seat as PlayerId).some((action) => action.type === 'castDarling');
+    }) as [boolean, boolean];
     return viewFor(this.st, player, castable);
   }
 
@@ -1470,9 +1475,27 @@ function normalizeAwaiting(awaiting: LegacyAwaiting, state: GameState): Awaiting
   };
 }
 
+/** The top-level fields `legacyState` rebuilds (or drops) itself. */
+const LEGACY_REBUILT: ReadonlySet<string> = new Set(['players', 'battlefield', 'stack', 'awaiting', 'nextInstanceId']);
+
 function legacyState(state: GameState): LegacyGameState {
-  const rest = structuredClone(state) as LegacyGameState;
-  delete rest.nextInstanceId;
+  // Deep-copy only the fields the projection keeps, in one structuredClone so
+  // any sharing between them is kept exactly as a whole-state copy kept it.
+  // This used to copy the whole state (both decks and hands as instances, the
+  // battlefield and stack twice) and throw the rebuilt fields' copies away:
+  // about 30% of a wide-board Hard game (1.9 lane F). The keys are laid out in
+  // the state's own order, as the whole-state copy laid them out, so anything
+  // that serialises the result sees the same text.
+  const source = state as unknown as Record<string, unknown>;
+  const kept: Record<string, unknown> = {};
+  for (const key of Object.keys(source)) {
+    if (!LEGACY_REBUILT.has(key)) kept[key] = source[key];
+  }
+  const copied = structuredClone(kept);
+  const rest: Record<string, unknown> = {};
+  for (const key of Object.keys(source)) {
+    if (key !== 'nextInstanceId') rest[key] = LEGACY_REBUILT.has(key) ? undefined : copied[key];
+  }
   const players = state.players.map((player) => {
     const legacy = {
       ...player,
@@ -1490,7 +1513,7 @@ function legacyState(state: GameState): LegacyGameState {
     return legacy;
   }) as [LegacyGameState['players'][0], LegacyGameState['players'][1]];
   return {
-    ...rest,
+    ...(rest as unknown as LegacyGameState),
     players,
     // Battlefield and stack are public zones, so their physical identity is
     // retained in the compatibility projection. Hidden player zones below
