@@ -40,7 +40,7 @@ const OUT_H = 800;
 const CARD_W = 300;
 const CARD_H = 420;
 const CARD_ART_W = 264;
-const CARD_ART_H = 192;
+const CARD_ART_H = 216;
 const BOARD_TILE_W = 132;
 const BOARD_TILE_H = 146;
 const BOARD_FRAME_MARGIN = 4;
@@ -452,7 +452,7 @@ function writeReview(rows: ReviewRow[], outDir: string): string {
     .art-window > img { position: absolute; left: var(--image-x); top: var(--image-y); width: var(--image-w); height: var(--image-h); max-width: none; object-fit: fill; }
     .card-art-window { box-shadow: inset 0 0 0 1px #06050a; }
     .card-type { height: 22px; display: flex; align-items: center; padding: 0 7px; overflow: hidden; border: 1px solid #bca260; background: #e9d9a9; color: #2a2018; font-size: 10px; font-weight: 700; white-space: nowrap; text-overflow: ellipsis; }
-    .card-textbox { box-sizing: border-box; height: 113px; margin-top: 8px; padding: 9px; border: 1px solid #bca260; border-radius: 3px; background: #eadcb6; color: #786a4e; font-size: 10px; }
+    .card-textbox { box-sizing: border-box; height: 89px; margin-top: 8px; padding: 9px; border: 1px solid #bca260; border-radius: 3px; background: #eadcb6; color: #786a4e; font-size: 10px; }
     .card-textbox span { opacity: 0.6; }
     .card-footer { padding-top: 5px; color: #eadcb6; font-size: 9px; text-align: right; }
     .tile-context { width: ${BOARD_TILE_W}px; }

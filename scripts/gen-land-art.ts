@@ -70,11 +70,11 @@ const GEN_TIMEOUT_S = 300;
  * would decapitate a landscape by demanding a figure that isn't there.
  *
  * The central-band clause is load-bearing and shares the card driver's cause:
- * CardView cover-crops the 640×800 source into a 264×192 window showing only
- * the middle 58.2 % vertical band (docs/art-bible/index.md §3), so the land's
- * iconic terrain element must sit in that central band or the card window crops
- * the readable subject away. Same safe-zone discipline as creatures — just
- * scenery instead of a figure.
+ * CardView cover-crops the 640×800 source into a 264×216 window showing only
+ * the middle 65.5 % vertical band, y 138 to 662 (264×192 and 58.2 % before 1.9;
+ * docs/art-bible/index.md §3), so the land's iconic terrain element must sit
+ * in that central band or the card window crops the readable subject away.
+ * Same safe-zone discipline as creatures — just scenery instead of a figure.
  */
 const PREAMBLE =
   // Composition: environment-first, iconic terrain in the central band (measured — see above).

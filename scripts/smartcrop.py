@@ -2,7 +2,8 @@
 """Subject-aware cover crop for Darling Blades card art.
 
 Character mode uses dghs-imgutils detection when available and places the
-detected head/face focal point 40% down the 4:5 deliverable. Environment mode
+detected head/face focal point 153 px (of 800) under the card window's top
+edge, about 36% down the 4:5 deliverable. Environment mode
 and the character center fallback intentionally preserve the old Pillow center
 cover-crop byte-for-byte.
 
@@ -29,43 +30,59 @@ from typing import Any
 
 from PIL import Image
 
-FOCAL_FRAC = 0.40
+# The card frame's art window, as fractions of the 4:5 deliverable's height.
+# CardView cover-fits the 640x800 file into a 264x216 window
+# (src/config/cardFaceGeometry.ts, CARD_FACE.art; 216 since 1.9, when flavor
+# text left the card, R13/D18), so width drives the scale and the window shows
+# the middle 216 / (264 * 800 / 640) = 65.5% of the rows: 17.3% to 82.7%
+# (y 138 to 662 of 800). docs/art-pipeline.md owns the derivation; if the
+# frame's art window ever changes, these two numbers change with it, and every
+# vertical target below moves with them.
+CARD_WINDOW_TOP_FRAC = (1 - (216 / 264) * (640 / 800)) / 2
+CARD_WINDOW_BOTTOM_FRAC = 1 - CARD_WINDOW_TOP_FRAC
+# Every vertical target below is an offset from the window's top edge, in
+# pixels of the 800-row deliverable. Through 1.8 the window was 264x192 (top
+# edge 20.9%, y 167) and the targets were plain fractions (0.40, 0.25, 0.28,
+# 0.32); the owner approved every crop as it showed through that window, so
+# the offsets keep what he saw below the window edge and the extra 58 rows the
+# 216 window shows land at the bottom (more body, more prop), not as more empty
+# sky above the head.
+#
+# Character focal line: the detected head/face point sits 153 px below the
+# window's top edge (y 291; it was 0.40 = y 320 under the 192 window).
+FOCAL_FRAC = CARD_WINDOW_TOP_FRAC + 153 / 800
 MIN_DET_FRAC = 0.06
 # Keep the subject's head-top at or below this fraction of the crop when the
-# raw allows it: CardView's visible band starts at 20.9% of the deliverable,
-# so 0.25 leaves ~4% of visible margin between the window edge and the head.
-# Raws whose subject sits higher than this can offer at best a crop at the
-# image ceiling (top=0) — those keep max headroom and the crown clips at the
-# window edge (accepted 2026-07-09, user-directed: no synthesized padding).
-HEADROOM_FRAC = 0.25
+# raw allows it: the art bible's headroom rule (docs/art-bible/index.md §3,
+# owner 2026-09-25) puts the top of the head at or below y 179, 41 px of open
+# background under the window's top edge. (Under the 192 window this was
+# 0.25 = y 200, 33 px under that edge.) Raws whose subject sits higher than
+# this can offer at best a crop at the image ceiling (top=0); those keep max
+# headroom and the crown clips at the window edge (accepted 2026-07-09,
+# user-directed: no synthesized padding).
+HEADROOM_FRAC = CARD_WINDOW_TOP_FRAC + 41 / 800
 # Zoom fallback (2026-07-16, for full-body/wide raws that predate the waist-up
 # preamble): when the ceiling-clamped full-width crop would leave the detected
-# focal ABOVE this fraction, the face sits at or above CardView's visible band
-# (window edge 20.9%) — i.e. hidden, the Frost-Jotun class. Instead of shipping
-# a hidden face, shrink the crop window (zoom in) until the focal reaches
-# FOCAL_FRAC. Mild ceiling grazes (focal between 0.28 and 0.40) keep the
-# accepted crown-clip behavior unchanged, so previously-approved crops do not
-# drift. Quality bound: never zoom past MAX_UPSCALE (deliverables display at
-# <=282px wide, so a 2x upscale of the source crop still downsamples on card).
-ZOOM_TRIGGER_FRAC = 0.28
+# focal ABOVE this fraction (57 px under the window's top edge, y 195; it was
+# 0.28 under the 192 window), the face sits at or near the edge of the visible
+# band, i.e. hidden, the Frost-Jotun class. Instead of shipping a hidden face,
+# shrink the crop window (zoom in) until the focal reaches FOCAL_FRAC. Mild
+# ceiling grazes (focal between this trigger and FOCAL_FRAC) keep the accepted
+# crown-clip behavior. Quality bound: never zoom past MAX_UPSCALE
+# (deliverables display at <=282px wide, so a 2x upscale of the source crop
+# still downsamples on card).
+ZOOM_TRIGGER_FRAC = CARD_WINDOW_TOP_FRAC + 57 / 800
 MAX_UPSCALE = 2.0
-# The card frame's art window, as fractions of the 4:5 deliverable's height.
-# CardView cover-fits the 640x800 file into a 264x192 window (the same opening
-# CardFrameFactory bakes at 2x: 528x384), so width drives the scale and the
-# window shows the middle 192 / (264 * 800 / 640) = 58.2% of the rows:
-# 20.9% to 79.1%. docs/art-pipeline.md owns the derivation; if the frame's
-# art window ever changes, these two numbers change with it.
-CARD_WINDOW_TOP_FRAC = (1 - (192 / 264) * (640 / 800)) / 2
-CARD_WINDOW_BOTTOM_FRAC = 1 - CARD_WINDOW_TOP_FRAC
 MODES = ("character", "environment", "subject")
 # Subject mode aims the head higher in the frame than a creature portrait
 # does. A spell's art is about the object or the effect as much as the woman
 # holding it, so the crop moves and zooms only as far as it takes to bring her
-# face inside the window: 0.32 puts the face centre 11% of the deliverable
-# below the window's top edge (20.9%), against 19% for a creature at 0.40.
-# Measured on the 26 Drowned Deep raws of 2026-09-17: at 0.40 the zoom
-# fallback cut the jar, the wave and the net out of their own cards.
-SUBJECT_FOCAL_FRAC = 0.32
+# face inside the window: the face centre sits 89 px under the window's top
+# edge (y 227), against 153 px for a creature. Measured on the 26 Drowned Deep
+# raws of 2026-09-17 (then 0.32 against 0.40 under the 192 window): at the
+# creature target the zoom fallback cut the jar, the wave and the net out of
+# their own cards.
+SUBJECT_FOCAL_FRAC = CARD_WINDOW_TOP_FRAC + 89 / 800
 
 RESAMPLE_LANCZOS = Image.Resampling.LANCZOS if hasattr(Image, "Resampling") else Image.LANCZOS
 
@@ -515,39 +532,49 @@ def run_self_test() -> None:
     # 1024x1536 -> 640x800 has a 1024x1280 cover crop box.
     assert_equal(focal_crop_box(1024, 1536, 640, 800, 512, 250), CropBox(0, 0, 1024, 1280), "top clamp")
     assert_equal(focal_crop_box(1024, 1536, 640, 800, 512, 1300), CropBox(0, 256, 1024, 1280), "bottom clamp")
-    assert_equal(focal_crop_box(1024, 1536, 640, 800, 512, 768), CropBox(0, 256, 1024, 1280), "focal line")
-    # Headroom rule: subject_top must sit >= HEADROOM_FRAC into the crop when
-    # the raw allows it; the crop slides up (top shrinks) to honor it.
-    # focal top would be 700-512=188; headroom demands 500-320=180.
+    # Focal line: the focal lands 153 px (of 800) under the 216 window's top
+    # edge, 0.364 of the crop: 600 - 0.364 * 1280 = 134.
+    assert_equal(focal_crop_box(1024, 1536, 640, 800, 512, 600), CropBox(0, 134, 1024, 1280), "focal line")
+    # Headroom rule: subject_top must sit >= HEADROOM_FRAC (y 179 of 800, the
+    # art bible's rule) into the crop when the raw allows it; the crop slides
+    # up (top shrinks) to honor it.
+    # focal top would be 700-466=234; headroom demands 500-287=213.
     assert_equal(
-        focal_crop_box(1024, 1536, 640, 800, 512, 700, 500), CropBox(0, 180, 1024, 1280), "headroom slide-up"
+        focal_crop_box(1024, 1536, 640, 800, 512, 700, 500), CropBox(0, 213, 1024, 1280), "headroom slide-up"
     )
     # Subject higher than the raw can absorb: clamps to the ceiling (top=0).
     assert_equal(
         focal_crop_box(1024, 1536, 640, 800, 512, 400, 54), CropBox(0, 0, 1024, 1280), "headroom ceiling"
     )
-    # A generous raw: headroom already satisfied, focal placement wins.
+    # A generous raw: the focal top 134 already satisfies the headroom limit
+    # (450-287=163), so focal placement wins.
     assert_equal(
-        focal_crop_box(1024, 1536, 640, 800, 512, 768, 700), CropBox(0, 256, 1024, 1280), "headroom inactive"
+        focal_crop_box(1024, 1536, 640, 800, 512, 600, 450), CropBox(0, 134, 1024, 1280), "headroom inactive"
     )
     assert_equal(center_crop_box(1024, 1536, 640, 800), CropBox(0, 128, 1024, 1280), "center fallback")
     assert_equal(offset_crop_box(CropBox(0, 128, 1024, 1280), 1536, -64), (CropBox(0, 64, 1024, 1280), -64), "offset up")
     assert_equal(offset_crop_box(CropBox(0, 128, 1024, 1280), 1536, -999), (CropBox(0, 0, 1024, 1280), -128), "offset ceiling")
     assert_equal(offset_crop_box(CropBox(0, 128, 1024, 1280), 1536, 999), (CropBox(0, 256, 1024, 1280), 128), "offset floor")
     # Zoom fallback: focal 170/1280 = 0.13 would hide the face above the
-    # window band — zoom in until the focal reaches 0.40 (crop_h 170/0.4=425).
+    # window band; zoom in until the focal reaches 0.364 (crop_h 170/0.364=467).
     assert_equal(
-        focal_crop_box(1024, 1536, 640, 800, 539, 170, 42), CropBox(369, 0, 340, 425), "zoom rescue"
+        focal_crop_box(1024, 1536, 640, 800, 539, 170, 42), CropBox(352, 0, 374, 467), "zoom rescue"
     )
-    # Zoom quality floor: focal 100 wants crop_h 250, clamped to out_h/2=400
+    # Zoom quality floor: focal 100 wants crop_h 275, clamped to out_h/2=400
     # (max 2x upscale); the face lands at the best achievable 0.25.
     assert_equal(
         focal_crop_box(1024, 1536, 640, 800, 512, 100, 30), CropBox(352, 0, 320, 400), "zoom quality floor"
     )
-    # Mild ceiling graze (focal 400/1280 = 0.31 >= 0.28): no zoom — the
-    # accepted crown-clip behavior is unchanged (same box as headroom ceiling).
+    # Mild ceiling graze (focal 400/1280 = 0.31 >= the 0.244 trigger): no zoom;
+    # the accepted crown-clip behavior is unchanged (same box as headroom ceiling).
     assert_equal(
         focal_crop_box(1024, 1536, 640, 800, 512, 400, 54), CropBox(0, 0, 1024, 1280), "zoom not triggered"
+    )
+    # A face at 0.26 of the crop (y 208) was zoomed under the 192 window (41 px
+    # under its edge, inside the 57 px trigger); it is 70 px inside the 216
+    # window, so it keeps the full-width crop.
+    assert_equal(
+        focal_crop_box(1024, 1536, 640, 800, 512, 333, 150), CropBox(0, 0, 1024, 1280), "graze inside 216 window"
     )
     # No detection metadata (subject_top None): zoom never fires even for a
     # very high focal — the pre-zoom behavior is preserved byte-for-byte.
@@ -556,7 +583,7 @@ def run_self_test() -> None:
     )
     assert_equal(
         focal_crop_box(1024, 1536, 640, 800, 539, 170, 42, FOCAL_FRAC, 1.3),
-        CropBox(318, 0, 442, 552),
+        CropBox(296, 0, 486, 607),
         "margin widening",
     )
     assert_equal(
@@ -587,9 +614,9 @@ def run_self_test() -> None:
         assert_equal(result["bbox"], None, "environment bbox")
         assert_equal(result["window"], None, "environment window")
 
-    # The frame window is the middle 58.2% of the deliverable.
-    assert_equal(round(CARD_WINDOW_TOP_FRAC, 3), 0.209, "window top")
-    assert_equal(round(CARD_WINDOW_BOTTOM_FRAC, 3), 0.791, "window bottom")
+    # The frame window is the middle 65.5% of the deliverable (264x216).
+    assert_equal(round(CARD_WINDOW_TOP_FRAC, 3), 0.173, "window top")
+    assert_equal(round(CARD_WINDOW_BOTTOM_FRAC, 3), 0.827, "window bottom")
     # A head whose box sits at 25%..45% of a 1280-row crop is fully visible;
     # the same head against a crop that starts 200 rows lower is hidden.
     head = Detection("head", (400.0, 320.0, 620.0, 576.0), 0.9)

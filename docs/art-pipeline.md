@@ -1,4 +1,4 @@
-<!-- source-of-truth: package.json, src/art/ArtResolver.ts, src/art/PlaceholderArtGenerator.ts, src/art/ArtAtlas.ts, src/art/SeededRandom.ts, src/art/TribeEmblems.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/fx/HoloEffects.ts, src/ui/fx/IridescencePostFX.ts, src/ui/fx/FXSupport.ts, scripts/gen-art-manifest.ts, scripts/convert-art-webp.ts, scripts/gen-art-halfres.ts, scripts/gen-card-art.ts, scripts/gen-land-art.ts, scripts/gen-spell-art.ts, scripts/gen-scene-art.ts, scripts/smartcrop.py, scripts/audit-art-window.py, scripts/recrop-art.ts, scripts/requirements.txt, src/data/art-manifest.json · last-verified: 2026-09-17
+<!-- source-of-truth: package.json, src/art/ArtResolver.ts, src/art/PlaceholderArtGenerator.ts, src/art/ArtAtlas.ts, src/art/SeededRandom.ts, src/art/TribeEmblems.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/fx/HoloEffects.ts, src/ui/fx/IridescencePostFX.ts, src/ui/fx/FXSupport.ts, scripts/gen-art-manifest.ts, scripts/convert-art-webp.ts, scripts/gen-art-halfres.ts, scripts/gen-card-art.ts, scripts/gen-land-art.ts, scripts/gen-spell-art.ts, scripts/gen-scene-art.ts, scripts/smartcrop.py, scripts/audit-art-window.py, scripts/recrop-art.ts, scripts/requirements.txt, src/data/art-manifest.json · last-verified: 2026-09-28
      If you change those files, update this doc or re-verify the date. -->
 
 # Art pipeline
@@ -117,9 +117,10 @@ The cropper has three modes:
 
 - `character` (used by `scripts/gen-card-art.ts`) runs dghs-imgutils detector
   APIs when available, preferring head detections, then face detections, then a
-  person box, then the old center crop. Its focal line is
-  `FOCAL_FRAC = 0.40`, so the selected head/face point lands around y=320 in the
-  800px output.
+  person box, then the old center crop. Its focal line is `FOCAL_FRAC`, 153 px
+  under the card window's top edge, so the selected head/face point lands
+  around y=291 in the 800px output (0.40, y=320, under the 192 window; see
+  "The 216 window" below).
 - `environment` (used by `scripts/gen-land-art.ts`) never runs detection and
   preserves the old Pillow center cover-crop byte-for-byte, so land output
   stays unchanged.
@@ -128,24 +129,62 @@ The cropper has three modes:
   but may still show a person. It runs the head and face detectors only, never
   the loose person box, which fires on distant figures in a landscape. With a
   head or face it crops like character mode at a gentler focal line,
-  `SUBJECT_FOCAL_FRAC = 0.32`; with neither it is the environment center crop
+  `SUBJECT_FOCAL_FRAC`, 89 px under the window's top edge (y=227; 0.32 under
+  the 192 window); with neither it is the environment center crop
   byte-for-byte, so an effect-only spell is unchanged. Why it exists: spell,
   artifact and enchantment art went through the blind center crop, and when
   the image model drew the woman's head in the top fifth of the raw despite
   the preamble, the card window cut her face off. The owner's Drowned Deep
-  hand-audit found 26 such cards in one set. Why 0.32 and not 0.40: a spell's
+  hand-audit found 26 such cards in one set. Why the gentler line (then 0.32
+  against 0.40): a spell's
   art is about the object or the effect as much as the woman holding it, and
   at the creature target the zoom fallback cut the jar, the wave and the net
   out of their own cards.
 
 Every crop result also carries a `window` block: where the detected subject's
 top, focal point and bottom land as fractions of the deliverable, the card
-window's own edges (`CARD_WINDOW_TOP_FRAC` 0.209 and `CARD_WINDOW_BOTTOM_FRAC`
-0.791, derived in the cropper from the 264x192 art window this doc owns
+window's own edges (`CARD_WINDOW_TOP_FRAC` 0.173 and `CARD_WINDOW_BOTTOM_FRAC`
+0.827, derived in the cropper from the 264x216 art window this doc owns
 below), and `focal_visible` / `fully_visible`. The crop is decided against the
 frame it will sit in, and a crop that hides a face shows up in the tooling
 rather than only on the card. If the frame's art window ever changes, those
-two constants change with it.
+two constants change with it, and so do the vertical targets, which the
+cropper defines as offsets from the window's top edge.
+
+**The 216 window (1.9).** R13 took flavor text off the card and D18 gave the
+room to the art: the window grew from 264x192 (rows 20.9% to 79.1%, y 167 to
+633) to 264x216 (rows 17.3% to 82.7%, y 138 to 662). Through 1.8 the cropper's
+targets were plain fractions tuned against the 192 window, so in the taller
+window a new crop would have put the face 29 px further under the window's
+edge than the approved crops sat, and the headroom floor (0.25, y 200) 21 px
+under the art bible's rule (head top at or below y 179, 41 px under the band
+top; `docs/art-bible/index.md` §3). Since 1.9 each target is the window's top
+edge plus a fixed offset in deliverable pixels: the focal line 153 px (y 291),
+the headroom floor 41 px (y 179, the rule itself; it was 0.25, y 200), the zoom
+trigger 57 px (y 195) and the subject focal line 89 px (y 227). The offsets
+keep what the owner approved through the old window at the same distance under
+its edge; the 58 extra rows the 216 window shows land at the bottom of the crop
+(more body, more prop) rather than as empty sky above the head. Shipped art
+keeps its old crop (heads about 60 to 70 px under the new band top instead of
+41) until it is re-cropped or regenerated, so a mixed catalogue is expected; a
+catalogue re-crop from the cached raws is a separate, owner-gated pass. A
+stored `offsetY` in a re-crop list is relative to the new default crop. Measured 2026-09-28 over 60 cached creature
+raws (head detections): the median head top moves from y 200 to y 179, no crop
+zooms, and the four raws whose head sits too high for any crop stay where they
+were (the ceiling crop, top = 0).
+
+**Draft sets and beast-alone entries (1.9).** A set with no card data yet (the
+First Dawn pilot) is generated from its draft bible with
+`npx tsx scripts/gen-card-art.ts --bible <file> --out-dir <scratch>` and
+`npx tsx scripts/gen-spell-art.ts --spec <file> --out-dir <scratch>` (the
+spec form skips the 369-id roster check). A draft file requires `--out-dir`,
+any `--out-dir` must lie outside `public/`, and a run with `--out-dir` never
+calls `gen-art-manifest`, so no draft id can reach the game. Draft files are
+never added to `FACTIONS`. In `gen-card-art.ts`, an entry whose Prompt starts
+with "NO woman" (a beast-alone frame, art bible §4d) gets `BEAST_PREAMBLE`
+instead of the waist-up portrait preamble, whose "her head" and "She reads
+as powerful" turned a beast-only token into a monster-girl (`tok-wolf`);
+every other entry's prompt is byte-identical to before.
 
 What a crop cannot fix: every shipped crop already spans the full raw width,
 so "zoom out" is impossible, and a head drawn at the very top edge of the raw
@@ -358,12 +397,13 @@ top = clamp(min(round(focalY - FOCAL_FRAC * ch),
                 round(subjectTop - HEADROOM_FRAC * ch)), 0, H_s - ch)
 ```
 
-`FOCAL_FRAC = 0.40`. In character mode, `focalX` is the selected detection's
-horizontal center. `focalY` is the face center for face boxes, `top + 0.55*h`
-for head boxes, and `top + 0.18*h` for person boxes. `subjectTop` is the
-detection's top edge, and `HEADROOM_FRAC = 0.25` keeps it at least 25% into
-the crop when the raw has the sky for it — CardView's visible band starts at
-20.9%, so the head-top clears the window edge by ~4% of the deliverable.
+`FOCAL_FRAC = 0.364` (153 px under the window's top edge). In character mode,
+`focalX` is the selected detection's horizontal center. `focalY` is the face
+center for face boxes, `top + 0.55*h` for head boxes, and `top + 0.18*h` for
+person boxes. `subjectTop` is the detection's top edge, and
+`HEADROOM_FRAC = 0.224` keeps it at least 22.4% into the crop (y 179) when the
+raw has the sky for it: CardView's visible band starts at 17.3% (y 138), so
+the head-top clears the window edge by the art bible's 41 px.
 Raws whose subject sits higher than the ceiling crop can absorb keep max
 headroom and accept a crown-clip at the window edge (user-directed
 2026-07-09; measured over the 215-raw pool: 103 such raws, avg 6.7% of sky
@@ -371,13 +411,13 @@ short). **Zoom fallback (2026-07-16):** a mild crown graze is accepted, but a
 full-body/wide raw can leave the face itself hidden above the window band
 (the Frost-Jotun class — the Arthurian Court vault, generated before the
 waist-up preamble hardening, had ~20/36 such creatures). When the
-ceiling-clamped crop leaves the focal above `ZOOM_TRIGGER_FRAC = 0.28`,
-character mode now shrinks the crop window until the focal reaches
-`FOCAL_FRAC`, bounded at `MAX_UPSCALE = 2.0` (deliverables display at
-≤282px wide, so a 2× upscale still downsamples on card). Grazes between
-0.28 and 0.40 keep the old behavior byte-for-byte, so approved crops never
-drift; measured over the 36 Arthurian creature raws the hidden-face count
-went 20 → 0. Multiple detections are
+ceiling-clamped crop leaves the focal above `ZOOM_TRIGGER_FRAC = 0.244`
+(57 px under the window's top edge; 0.28 under the 192 window), character mode
+shrinks the crop window until the focal reaches `FOCAL_FRAC`, bounded at
+`MAX_UPSCALE = 2.0` (deliverables display at ≤282px wide, so a 2× upscale
+still downsamples on card). Grazes between the trigger and `FOCAL_FRAC` keep
+the full-width ceiling crop; measured over the 36 Arthurian creature raws (at
+the 192 window's 0.28 / 0.40) the hidden-face count went 20 → 0. Multiple detections are
 ranked by `score * area * horizontal_centrality`, with tiny detections filtered
 out at `MIN_DET_FRAC = 0.06` of the image min dimension. If no usable detection
 exists, the cropper falls back to the old center crop.
@@ -391,16 +431,19 @@ top  = (H_s - ch) // 2
 ```
 
 `CardView` (`src/ui/CardView.ts`) draws art into a fixed window
-`ART_RECT = { x: -132, y: -164, w: 264, h: 192 }` — a **264×192** rectangle in
-card-local (center-origin) coordinates.
+`CARD_FACE.art = { x: -132, y: -164, w: 264, h: 216 }` from
+`src/config/cardFaceGeometry.ts` — a **264×216** rectangle in card-local
+(center-origin) coordinates (264×192 before 1.9; flavor text left the card,
+R13, and the art took the room, D18). `artBand()` in the same module computes
+the visible band below.
 
 The art is **cover-fit with a vertical center crop** (`setCard`): the image is
 scaled up to fill the window on both axes, and the vertical overflow is cropped
 symmetrically top and bottom:
 
 ```
-scale = max(ART_RECT.w / srcW, ART_RECT.h / srcH)
-cropH = ART_RECT.h / scale               // source-space height that fits the window
+scale = max(art.w / srcW, art.h / srcH)
+cropH = art.h / scale                    // source-space height that fits the window
 crop  = (0, (srcH - cropH)/2, srcW, cropH)   // center vertical band
 ```
 
@@ -410,31 +453,33 @@ drives the scale and the **top and bottom of the source are cropped away**.
 ### Visible fraction (4:5 source)
 
 - `scale = 264 / (4·k) = 66/k` where the source is `4k × 5k`.
-- The horizontal scale (`264/4k`) exceeds the vertical (`192/5k`), so it wins.
-- `cropH = 192 / scale = 192·k/66 ≈ 2.909·k`.
-- Visible height fraction = `cropH / (5k) = 2.909/5 ≈ **0.582`** → **the middle
-  58.2% of the source height is visible.**
+- The horizontal scale (`264/4k`) exceeds the vertical (`216/5k`), so it wins.
+- `cropH = 216 / scale = 216·k/66 ≈ 3.273·k`.
+- Visible height fraction = `cropH / (5k) = 3.273/5 ≈ **0.655`** → **the middle
+  65.5% of the source height is visible** (rows 17.3% to 82.7%).
 
 ### Worked example at 640×800
 
-- `scale = max(264/640, 192/800) = max(0.4125, 0.24) = 0.4125`.
-- `cropH = 192 / 0.4125 ≈ 465.5` px of source height.
-- Cropped margin = `(800 − 465.5)/2 ≈ 167` px top and bottom.
-- **Visible vertical band: y ≈ 167 → 633** in the 800-px source.
+- `scale = max(264/640, 216/800) = max(0.4125, 0.27) = 0.4125`.
+- `cropH = 216 / 0.4125 ≈ 523.6` px of source height.
+- Cropped margin = `(800 − 523.6)/2 ≈ 138` px top and bottom.
+- **Visible vertical band: y ≈ 138 → 662** in the 800-px source (y ≈ 167 → 633
+  under the 192 window).
 
-**Keep faces and focal detail in that middle ~58% band** — anything above
-y≈167 or below y≈633 (at 640×800) will be cropped off.
+**Keep faces and focal detail in that middle ~65% band** — anything above
+y≈138 or below y≈662 (at 640×800) will be cropped off. The top of a head sits
+at or below y≈179 (the art bible's headroom rule, §3).
 
 ### Display sizes at each card scale
 
-The window is 264×192 at full card scale; multiply by the consumer's scale:
+The window is 264×216 at full card scale; multiply by the consumer's scale:
 
 | Context             | Card scale  | Art on screen (px)      |
 | ------------------- | ----------- | ----------------------- |
-| Inspect overlays    | 1.35        | ~356 × 259              |
-| Hover zoom (duel)   | 1.3         | ~343 × 250              |
-| Pack reveal (rest)  | 0.62        | ~164 × 119              |
-| Duel hand (fan)     | 0.4–0.46    | ~106 × 77 – ~121 × 88   |
+| Inspect overlays    | 1.35        | ~356 × 292              |
+| Hover zoom (duel)   | 1.3         | ~343 × 281              |
+| Pack reveal (rest)  | 0.62        | ~164 × 134              |
+| Duel hand (fan)     | 0.4–0.46    | ~106 × 86 – ~121 × 99   |
 
 **Battlefield permanents don't use `CardView`** (2026-07-03 board redesign) —
 they render as compact `BoardCardView` tiles (`src/ui/BoardCardView.ts`, a
@@ -443,7 +488,8 @@ a **near-square 124×138** window (`ART_W`×`ART_H`). The tile cover-crops the
 source with the crop band biased slightly *upward* — the top offset is
 `(srcH − cropH) · 0.3` instead of centered — so for a 640×800 source the tile
 shows roughly the **y ≈ 26 → 738** band (~89% of the source height), keeping
-the smart-cropped focal line (around y=320) in frame at tile size.
+the smart-cropped focal line (around y=291; y=320 for art cropped before 1.9)
+in frame at tile size.
 
 ## Holo finishes & per-finish shaders
 

@@ -16,8 +16,14 @@
  *   npm run gen-card-art -- [--faction <stem>] [--only id1,id2] [--limit N]
  *                           [--dry-run] [--show-prompt] [--force] [--cli <path>]
  *   npm run gen-card-art -- --recrop <file> [--out-dir <path>]
+ *   npx tsx scripts/gen-card-art.ts --bible <file> --out-dir <path> [--only ...]
  *
  *   --faction greek   only entries from docs/art-bible/greek.md
+ *   --bible <file>    read entries from this draft bible file instead of the
+ *                     faction files (a set with no card data yet, such as the
+ *                     First Dawn pilot); requires --out-dir
+ *   --out-dir <path>  write the WebPs here instead of public/assets/art/cards
+ *                     and skip gen-art-manifest; must lie outside public/
  *   --only a,b        only these card ids
  *   --limit N         generate at most N images this run (skips don't count)
  *   --dry-run         list what would generate, touch nothing
@@ -36,7 +42,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { convertPngToWebp } from './convert-art-webp';
 
@@ -89,8 +95,10 @@ const GEN_TIMEOUT_S = 300;
  * card window's visible band (docs/art-bible/index.md §3), i.e. the frame
  * decapitates the character. A soft "keep detail in the middle band" hint was
  * NOT enough; the prefix must demand waist-up framing and explicitly reserve
- * the top of the canvas as background. Face at vertical center of the
- * deliverable ≈ eye line y 340–400, inside the bible's face zone (200–560).
+ * the top of the canvas as background. The face at the vertical center of the
+ * raw canvas buys headroom; smartcrop then places it (the focal line, y ≈ 291
+ * of the deliverable since the 216 window of 1.9; docs/art-pipeline.md),
+ * inside the bible's face zone (200–560).
  *
  * Recalibrated for the cel-gacha pivot (same day): under the new style,
  * SEATED/ENTHRONED poses rendered more body and pushed eyes to y≈140–175
@@ -131,6 +139,38 @@ const PREAMBLE =
   'text-free. ';
 
 /**
+ * The preamble for a beast-alone entry: an animal is the whole subject and no
+ * person is in frame (docs/art-bible/index.md §4d, "the beast alone"). The
+ * default preamble above says "her head", "a conventionally beautiful anime
+ * face" and "She reads as powerful" on every prompt, and a beast-only entry
+ * under it came out as a monster-girl (tok-wolf, a wolf-girl). The same
+ * headroom HARD RULE applies to the animal's head, horns, frill and crest
+ * included; the cel-shading sentence keeps the house style and drops every
+ * her/she/face clause.
+ *
+ * Selected deterministically by the entry itself: a Prompt line that starts
+ * with "NO woman" (the §4d beast-alone opening) gets this preamble; every other
+ * entry keeps PREAMBLE byte for byte. No new bible field.
+ */
+const BEAST_PREAMBLE =
+  'Composition: one animal is the whole subject, and there is no woman, no man, no person ' +
+  'and no human figure anywhere in the frame; the animal is fully an animal, with no human ' +
+  'face, no human body, no human hair and no clothing. Its whole head, including horns, ' +
+  'frill, crest or skull, sits inside the middle band of the canvas. HARD RULE: the very top ' +
+  'of its head — horns, frill and crest included — sits clearly BELOW the top-third boundary ' +
+  'line and never touches it; open sky or empty background fills the top of the canvas ' +
+  'above it. ' +
+  'Style: crisp cel-shaded gacha anime splash art — clean confident inked linework with ' +
+  'line-weight variation, hard-edged cel shading in two to three tone steps, bright anime ' +
+  'specular highlights, saturated readable colors. The animal reads powerful and alive, with ' +
+  'a crisp rim light separating it from the background. The background is a fully rendered ' +
+  'anime key-visual environment with real depth and story, slightly softer and more ' +
+  'atmospheric than the animal. The illustration is completely text-free. ';
+
+/** The opening that marks a beast-alone entry (see BEAST_PREAMBLE). */
+const BEAST_ENTRY_OPENING = 'NO woman';
+
+/**
  * Negative block appended after the entry prompt: the NO-TEXT hard rule plus
  * the anatomy/style negatives from index.md §2. Backends habitually stamp
  * gacha nameplates and garbled CJK title-text onto Three Kingdoms art, so the
@@ -147,7 +187,9 @@ const NEGATIVES =
 
 // The entry Prompt line ends unpunctuated ("… 640×800 portrait"), so close the
 // sentence before the negatives block.
-const assemblePrompt = (entry: Entry): string => PREAMBLE + entry.prompt + '.' + NEGATIVES;
+const preambleFor = (entry: Entry): string =>
+  entry.prompt.startsWith(BEAST_ENTRY_OPENING) ? BEAST_PREAMBLE : PREAMBLE;
+const assemblePrompt = (entry: Entry): string => preambleFor(entry) + entry.prompt + '.' + NEGATIVES;
 
 /**
  * Prefer the repo's dedicated art venv over whatever `python` happens to be on
@@ -180,6 +222,7 @@ const PYTHON = process.env.PYTHON
 
 interface Args {
   faction?: string;
+  bible?: string;
   only?: string[];
   limit?: number;
   recrop?: string;
@@ -200,6 +243,7 @@ function parseArgs(argv: string[]): Args {
       return v;
     };
     if (a === '--faction') args.faction = next(a);
+    else if (a === '--bible') args.bible = next(a);
     else if (a === '--only') args.only = next(a).split(',').map((s) => s.trim()).filter(Boolean);
     else if (a === '--recrop') args.recrop = next(a);
     else if (a === '--out-dir') {
@@ -226,6 +270,17 @@ function parseArgs(argv: string[]): Args {
 function fail(msg: string): never {
   console.error(`gen-card-art: ${msg}`);
   process.exit(1);
+}
+
+/** Whether `child` is `parent` or lies under it (case-insensitive on Windows). */
+function isSameOrInside(child: string, parent: string): boolean {
+  const norm = (value: string) => {
+    const n = normalize(resolve(value));
+    return process.platform === 'win32' ? n.toLowerCase() : n;
+  };
+  const c = norm(child);
+  const p = norm(parent);
+  return c === p || c.startsWith(p.endsWith(sep) ? p : `${p}${sep}`);
 }
 
 // --- art-bible parsing -----------------------------------------------------------
@@ -257,7 +312,12 @@ interface SmartcropResult {
 
 /** (card-id → prompt) pairs from one faction file, in file order. */
 function parseFaction(faction: string): Entry[] {
-  const content = readFileSync(join(bibleDir, `${faction}.md`), 'utf8');
+  return parseBibleFile(join(bibleDir, `${faction}.md`), faction);
+}
+
+/** Entries from one bible file; `faction` labels them (the file stem). */
+function parseBibleFile(path: string, faction: string): Entry[] {
+  const content = readFileSync(path, 'utf8');
   const entries: Entry[] = [];
   let open: Entry | null = null;
   for (const line of content.split(/\r?\n/)) {
@@ -485,9 +545,10 @@ function generateOne(
   cliArgv: string[],
   entry: Entry,
   force: boolean,
+  targetDir: string,
 ): { ok: boolean; error?: string; reusedRaw?: boolean } {
   const rawPath = join(rawDir, `${entry.id}.raw.png`);
-  const outPath = join(outDir, `${entry.id}.webp`);
+  const outPath = join(targetDir, `${entry.id}.webp`);
   const tmpPath = `${outPath}.tmp.png`;
   const prompt = assemblePrompt(entry);
 
@@ -548,21 +609,35 @@ function generateOne(
 function main(): void {
   const args = parseArgs(process.argv.slice(2));
   if (args.recrop) {
-    if (args.faction || args.only || args.limit !== undefined || args.showPrompt || args.force || args.cli) {
+    if (args.faction || args.bible || args.only || args.limit !== undefined || args.showPrompt || args.force || args.cli) {
       fail('--recrop cannot be combined with generation filters or --force/--cli');
     }
     runRecrop(args.recrop, args.dryRun, args.outDir);
     return;
   }
-  if (args.outDir !== undefined) fail('--out-dir is only valid with --recrop');
+  // --out-dir in generation mode writes somewhere the game never reads and
+  // skips the manifest, so a draft set's ids can never ship by accident. A
+  // draft --bible must use it; the target may not lie anywhere under public/.
+  const targetDir = args.outDir === undefined ? outDir : resolve(root, args.outDir);
+  if (args.outDir !== undefined && isSameOrInside(targetDir, join(root, 'public'))) {
+    fail('--out-dir must lie outside public/ (the game serves everything under it)');
+  }
+  if (args.bible !== undefined) {
+    if (args.faction) fail('--bible cannot be combined with --faction');
+    if (args.outDir === undefined) fail('--bible requires --out-dir (a draft bible never writes shipped art)');
+  }
 
+  const bibleFile = args.bible === undefined ? undefined : resolve(root, args.bible);
+  if (bibleFile !== undefined && !existsSync(bibleFile)) fail(`bible file not found: ${bibleFile}`);
   const factions = args.faction ? [args.faction] : [...FACTIONS];
-  let entries = factions.flatMap(parseFaction);
+  let entries = bibleFile !== undefined
+    ? parseBibleFile(bibleFile, basename(bibleFile, '.md'))
+    : factions.flatMap(parseFaction);
 
   if (args.only) {
     const known = new Set(entries.map((e) => e.id));
     const unknown = args.only.filter((id) => !known.has(id));
-    if (unknown.length > 0) fail(`--only ids not in the selected faction file(s): ${unknown.join(', ')}`);
+    if (unknown.length > 0) fail(`--only ids not in the selected bible file(s): ${unknown.join(', ')}`);
     const wanted = new Set(args.only);
     entries = entries.filter((e) => wanted.has(e.id));
   }
@@ -578,15 +653,18 @@ function main(): void {
     return;
   }
 
-  const exists = (e: Entry) => existsSync(join(outDir, `${e.id}.webp`));
+  const exists = (e: Entry) => existsSync(join(targetDir, `${e.id}.webp`));
   const skipped = args.force ? [] : entries.filter(exists);
   let todo = args.force ? entries : entries.filter((e) => !exists(e));
   if (args.limit !== undefined) todo = todo.slice(0, args.limit);
 
+  const source = bibleFile !== undefined
+    ? bibleFile
+    : `${factions.length} faction file${factions.length === 1 ? '' : 's'}`;
   console.log(
     `gen-card-art: ${entries.length} entr${entries.length === 1 ? 'y' : 'ies'} matched ` +
-      `(${factions.length} faction file${factions.length === 1 ? '' : 's'}) — ` +
-      `${todo.length} to generate, ${skipped.length} already on disk`,
+      `(${source}) — ${todo.length} to generate, ${skipped.length} already on disk in ${targetDir}` +
+      (args.outDir !== undefined ? ' (out-dir: gen-art-manifest will not run)' : ''),
   );
 
   if (args.dryRun) {
@@ -602,7 +680,7 @@ function main(): void {
     return;
   }
 
-  mkdirSync(outDir, { recursive: true });
+  mkdirSync(targetDir, { recursive: true });
   mkdirSync(rawDir, { recursive: true });
   const cliArgv = resolveCli(args.cli);
 
@@ -623,7 +701,7 @@ function main(): void {
     const entry = todo[i];
     const t0 = Date.now();
     process.stdout.write(`[${i + 1}/${todo.length}] ${entry.id} … `);
-    const res = generateOne(cliArgv, entry, args.force);
+    const res = generateOne(cliArgv, entry, args.force, targetDir);
     const secs = ((Date.now() - t0) / 1000).toFixed(1);
     if (res.ok) {
       generated++;
@@ -651,7 +729,7 @@ function main(): void {
   );
   for (const f of failures) console.error(`  FAIL ${f.id}: ${f.error}`);
 
-  if (generated > 0) {
+  if (generated > 0 && args.outDir === undefined) {
     const manifest = spawnSync('npm run gen-art-manifest', { shell: true, stdio: 'inherit' });
     if (manifest.status !== 0) fail('gen-art-manifest failed — run `npm run gen-art-manifest` manually');
   }
