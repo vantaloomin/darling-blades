@@ -5,9 +5,12 @@ import {
   clusters,
   dominates,
   fullKey,
+  ladderKey,
   riderCosts,
   shapeKey,
+  statLadders,
   typalSubtypes,
+  worseTwins,
 } from '../../scripts/audit-overlap';
 import type { ActivatedDef, CardDef, Keyword, ManaCost } from '../../src/engine/types';
 
@@ -209,5 +212,147 @@ describe('audit-overlap speed pass compares whole cards', () => {
   it('does not let a bare Charm outclass a Ritual carrying a rider the Charm lacks', () => {
     expect(charmOutclasses(charm('c'), ritual('r', { skim: { cost: cost(1) } }), NO_TRIBES)).toBeNull();
     expect(charmOutclasses(charm('c'), ritual('r', { whispers: { cost: cost(0, { R: 1 }) } }), NO_TRIBES)).toBeNull();
+  });
+});
+
+describe('audit-overlap stat ladder groups the same text at different numbers', () => {
+  const flier = (id: string, generic: number, attack: number, defense: number, extra: Partial<CardDef> = {}) =>
+    creature(id, { keywords: ['skyborne'], cost: cost(generic, { U: 1 }), attack, defense, ...extra });
+  const ids = (cards: readonly CardDef[]) => cards.map((d) => d.id).sort();
+
+  it('groups one text at three sizes up the curve, and ranks no rung that costs more for more', () => {
+    const groups = statLadders([flier('small', 1, 2, 2), flier('mid', 2, 3, 3), flier('big', 3, 4, 4)], NO_TRIBES);
+    expect(groups.map((g) => ids(g.cards))).toEqual([['big', 'mid', 'small']]);
+    expect(groups[0].differs).toEqual(expect.arrayContaining(['stats', 'cost']));
+    expect(groups[0].pairs.every((p) => p.winner === null)).toBe(true);
+  });
+
+  it('flags the rung a card of the same cost and set beats on stats', () => {
+    const [group] = statLadders([flier('lesser', 2, 2, 2), flier('greater', 2, 3, 3)], NO_TRIBES);
+    expect(group.pairs).toHaveLength(1);
+    expect(group.pairs[0]).toMatchObject({ winner: 'greater', sameSet: true, sameCost: true, sameIdentity: true });
+  });
+
+  it('keeps a same-cost pair across sets apart from a same-set pair', () => {
+    const [group] = statLadders([flier('here', 2, 2, 2), flier('there', 2, 3, 3, { set: 'drowned-deep' })], NO_TRIBES);
+    expect(group.pairs[0]).toMatchObject({ sameSet: false, sameCost: true, winner: 'there' });
+    expect(group.sameSet).toEqual([]);
+  });
+
+  it('groups a pair that differs only in a rider price and ranks the cheaper rider higher', () => {
+    const cheap = ritual('cheap', { retell: { cost: cost(2, { R: 1 }) } });
+    const dear = ritual('dear', { retell: { cost: cost(3, { R: 1 }) } });
+    const [group] = statLadders([dear, cheap], NO_TRIBES);
+    expect(group.differs).toEqual(['rider']);
+    expect(group.pairs[0].winner).toBe('cheap');
+  });
+
+  it('groups a bigger body against a cheaper Skim without ranking either', () => {
+    const skimCheap = creature('skim-cheap', { attack: 2, defense: 4, skim: { cost: cost(1) } });
+    const bodyBig = creature('body-big', { attack: 3, defense: 4, skim: { cost: cost(2) } });
+    const [group] = statLadders([skimCheap, bodyBig], NO_TRIBES);
+    expect(group.differs).toEqual(expect.arrayContaining(['stats', 'rider']));
+    expect(group.pairs[0].winner).toBeNull();
+  });
+
+  it('groups Foresee 1 against Foresee 3 as an effect-size ladder', () => {
+    const foresee = (id: string, n: number) => ritual(id, { abilities: [{ when: 'spell', ops: [{ op: 'foresee', n }] }] });
+    const [group] = statLadders([foresee('one', 1), foresee('three', 3)], NO_TRIBES);
+    expect(group.differs).toEqual(['effect']);
+    expect(group.pairs[0].winner).toBe('three');
+  });
+
+  it('does not group cards whose rules text differs', () => {
+    const arrives = (id: string, op: 'foresee' | 'draw') => creature(id, { abilities: [{ when: 'arrives', ops: [{ op, n: 1 }] }] });
+    expect(statLadders([arrives('sees', 'foresee'), { ...arrives('draws', 'draw'), attack: 2 }], NO_TRIBES)).toEqual([]);
+    expect(statLadders([flier('flies', 2, 2, 2), creature('guards', { keywords: ['sentinel'], attack: 3, defense: 3 })], NO_TRIBES)).toEqual([]);
+  });
+
+  it('leaves a pair alike in every number to REDESKIN and SAME TEXT', () => {
+    expect(statLadders([flier('two', 2, 2, 2), flier('three', 3, 2, 2)], NO_TRIBES)).toEqual([]);
+    expect(statLadders([flier('blue', 2, 2, 2), flier('black', 2, 2, 2, { cost: cost(2, { B: 1 }), colors: ['B'] })], NO_TRIBES)).toEqual([]);
+  });
+
+  it('does not split a group on a tribe or the legend rule, but says whether one tells a pair apart', () => {
+    const lord = creature('lord', { abilities: [{ when: 'static', static: { scope: 'filter', filter: { subtype: 'Wolf', other: true }, p: 1, t: 0 } }] });
+    const tribes = typalSubtypes([lord]);
+    const [tribal] = statLadders([flier('wolf', 2, 2, 2, { subtypes: ['Wolf'] }), flier('plain', 2, 3, 3)], tribes);
+    expect(tribal.pairs[0]).toMatchObject({ sameIdentity: false, winner: 'plain' });
+    const [legend] = statLadders([flier('legend', 2, 2, 2, { supertypes: ['legendary'] }), flier('plain', 2, 3, 3)], NO_TRIBES);
+    expect(legend.pairs[0].sameIdentity).toBe(false);
+  });
+
+  it('marks a keyword-only text, where the stat line is all the card has', () => {
+    expect(statLadders([flier('a', 2, 2, 2), flier('b', 2, 3, 1)], NO_TRIBES)[0].keywordOnly).toBe(true);
+    const seer = (id: string, attack: number) => flier(id, 2, attack, 2, { abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }] });
+    expect(statLadders([seer('a', 2), seer('b', 3)], NO_TRIBES)[0].keywordOnly).toBe(false);
+  });
+});
+
+describe('audit-overlap strictly-worse twins', () => {
+  it('finds the heavier-pip printing at the same mana value, whichever order the pool lists them in', () => {
+    const heavy = creature('heavy', { cost: cost(2, { R: 2 }), colors: ['R'], attack: 4, defense: 3, keywords: ['warcry'] });
+    const light = { ...heavy, id: 'light', cost: cost(3, { R: 1 }) };
+    for (const pool of [[heavy, light], [light, heavy]])
+      expect(worseTwins(pool, NO_TRIBES).map((r) => [r.dead.id, r.best.id])).toEqual([['heavy', 'light']]);
+  });
+});
+
+describe('audit-overlap ladder key and domination read signs, caps, order and colours', () => {
+  const pump = (id: string, p: number, t: number, extra: Partial<CardDef> = {}) =>
+    ritual(id, {
+      cost: cost(0, { G: 1 }),
+      colors: ['G'],
+      abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'boost', p, t, scope: 'target' }] }],
+      ...extra,
+    });
+  const removal = (id: string, maxCost: number) =>
+    ritual(id, {
+      types: ['charm'],
+      cost: cost(2, { B: 1 }),
+      colors: ['B'],
+      whispers: { cost: cost(1, { B: 1 }) },
+      abilities: [{ when: 'spell', targets: [{ what: 'creature', maxCost }], ops: [{ op: 'destroy', to: 'target' }] }],
+    });
+
+  it('never groups a shrink with a pump of the same size', () => {
+    expect(ladderKey(pump('shrink', -2, -2))).not.toBe(ladderKey(pump('grow', 2, 2)));
+    expect(statLadders([pump('shrink', -2, -2), pump('grow', 2, 2)], NO_TRIBES)).toEqual([]);
+    expect(ladderKey(pump('small', 1, 3))).toBe(ladderKey(pump('big', 3, 3)));
+  });
+
+  it('ranks a looser target cap above a tighter one, all else equal', () => {
+    expect(dominates(removal('three', 3), removal('two', 2))).not.toBeNull();
+    expect(dominates(removal('two', 2), removal('three', 3))).toBeNull();
+    const [group] = statLadders([removal('two', 2), removal('three', 3)], NO_TRIBES);
+    expect(group.pairs[0].winner).toBe('three');
+  });
+
+  it('compares a run of mill, discard and life ops as a set, but keeps Foresee-then-draw in order', () => {
+    const spell = (id: string, ops: CardDef['abilities']) => ritual(id, { abilities: ops });
+    const millFirst = spell('mill-first', [{ when: 'spell', ops: [{ op: 'grind', n: 2, who: 'self' }, { op: 'discardRandom', n: 1, who: 'opponent' }] }]);
+    const discardFirst = spell('discard-first', [{ when: 'spell', ops: [{ op: 'discardRandom', n: 1, who: 'opponent' }, { op: 'grind', n: 2, who: 'self' }] }]);
+    expect(ladderKey(millFirst)).toBe(ladderKey(discardFirst));
+    const seeThenDraw = spell('see-draw', [{ when: 'spell', ops: [{ op: 'foresee', n: 1 }, { op: 'draw', n: 1 }] }]);
+    const drawThenSee = spell('draw-see', [{ when: 'spell', ops: [{ op: 'draw', n: 1 }, { op: 'foresee', n: 1 }] }]);
+    expect(ladderKey(seeThenDraw)).not.toBe(ladderKey(drawThenSee));
+  });
+
+  it("names a winner only when its colours fit inside the loser's", () => {
+    const blue = creature('blue', { keywords: ['skyborne'], attack: 3, defense: 3, cost: cost(2) });
+    const colourless = { ...blue, id: 'colourless', colors: [], attack: 2, defense: 2 } as CardDef;
+    // The bigger blue card is no upgrade for a deck that cannot play blue.
+    expect(statLadders([blue, colourless], NO_TRIBES)[0].pairs[0]).toMatchObject({ sameColours: false, winner: null });
+    // The bigger colourless card is an upgrade for every deck that plays the blue one.
+    const bigColourless = { ...colourless, id: 'big-colourless', attack: 3, defense: 3 } as CardDef;
+    const smallBlue = { ...blue, id: 'small-blue', attack: 2, defense: 2 } as CardDef;
+    expect(statLadders([bigColourless, smallBlue], NO_TRIBES)[0].pairs[0]).toMatchObject({ winner: 'big-colourless' });
+  });
+
+  it('keeps a condition threshold and a Rite count out of the effect numbers it strips', () => {
+    const gated = (id: string, n: number) =>
+      creature(id, { abilities: [{ when: 'arrives', condition: { kind: 'markedThreshold', n, subject: 'creatures' }, ops: [{ op: 'draw', n: 1 }] }] });
+    expect(ladderKey(gated('two', 2))).not.toBe(ladderKey(gated('five', 5)));
+    expect(ladderKey(creature('rite-one', { rite: { n: 1 } }))).not.toBe(ladderKey(creature('rite-three', { rite: { n: 3 } })));
   });
 });
