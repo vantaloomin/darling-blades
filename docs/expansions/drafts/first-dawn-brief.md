@@ -351,12 +351,20 @@ the confirmed ones into rules, checked against the overplan's cards.
   damage dealt or taken**: Deathblade, Blood Oath, Provoked, and any "is
   dealt damage" or "deals damage" trigger, carried by the Hunt op itself.
   Untouchable keeps an opponent's creature from being the prey (your own is
-  still a legal prey). *The main session's reading of the ruling, for the
-  owner to confirm*: keywords defined by combat itself (First Blade, Twin
-  Blades, Overrun) do not apply, because Hunt is not combat. **Engine
-  note**: today Deathblade and Blood Oath apply only to combat damage (the
-  `damage` op sets neither), so the Hunt op carries them; other ability
-  damage stays as it is, since extending it would change shipped cards.
+  still a legal prey). Keywords defined by combat itself (First Blade, Twin
+  Blades, Overrun) do not apply, because Hunt is not combat (confirmed by
+  the owner, 2026-09-28). **The rule is evergreen** (owner, same day): it
+  covers every damage-reading keyword the game ever adds, such as a future
+  Corruption, Poison or Radiation, not a list of today's. So the engine
+  spec must not hard-code the list: Hunt damage goes through the same
+  source-creature damage path that combat uses, where a keyword that reads
+  damage is applied once for every kind of creature damage that path
+  serves, and a new keyword that hooks that path works for Hunt with no
+  Hunt-specific code. **Engine note**: today Deathblade and Blood Oath apply
+  only in combat (`combat/damage.ts`; the `damage` op sets neither).
+  Whether other ability damage from a creature (an arrival "deals 2 damage")
+  should join that path is a separate question for the spec; it would
+  change shipped cards, so the recommendation is not in 1.9.
 - **H5. Keeping Hunt from being unconditional removal.**
   - Source-bound hunters below SR print Attack 4 or less (our bodies run
     bigger than the era's, so era anchors underprice a big hunter).
@@ -500,9 +508,9 @@ no fused bodies, which the Pack Raptor minters need).
 - B4: Provoked at most once each turn per creature (P2).
 - B5 (reversed): Hunt may target your own creatures; a creature cannot hunt
   itself (H1).
-- B6 (broadened): Hunt damage counts for every damage keyword and trigger
-  (H4); that combat-defined keywords do not apply is the main session's
-  reading, to confirm.
+- B6 (broadened, evergreen): Hunt damage counts for every damage keyword and
+  trigger, present and future (H4); combat-defined keywords do not apply
+  (confirmed).
 - B7: a hunter provoked by its own Hunt damage is intended.
 - B8: the fossil line for reanimator, four to six cards.
 - B9: new sweep personas R/G and R/W, B/G third if lane F's budget allows.
@@ -526,8 +534,6 @@ no fused bodies, which the Pack Raptor minters need).
    co-tagged Beastkin, but forty new Beastkin bodies would push the base
    set's two Beastkin anthems (Beastkin Packmother and the enchantment) and
    the decks that run them far past what they were costed and measured at.
-4. **Combat-defined keywords do not apply to Hunt damage** (H4): confirm the
-   main session's reading.
 
 **FYI, no ruling needed now**: megafauna sit beside the dinosaurs (about
 two in five of the beasts); the Starborne and Silver Veil theme decks want a

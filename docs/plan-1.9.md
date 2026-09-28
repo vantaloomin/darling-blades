@@ -347,6 +347,13 @@ lane lands in two halves:
   they are new terms in `src/power/scoreCore.ts` (not `KEYWORD_RATE` rows)
   and new sections in the local power formula, and the Forge reads them from
   the same code.
+- **The damage path is evergreen (owner, 2026-09-28).** Hunt damage goes
+  through the same source-creature damage path combat uses, so every
+  damage-reading keyword and trigger, present or future, applies to it
+  with no Hunt-specific code; combat-defined keywords (First Blade, Twin
+  Blades, Overrun) do not. A1 builds that shared path; whether other ability
+  damage from a creature joins it is a spec question (it would change
+  shipped cards).
 - **A2, beside the set work:** Medium and Easy, draft-picker weights, the
   DuelScene two-target flow and its `switch` audit, the converter's target
   walk, rules-text templates, glossary entries and icons, and the blades-db
@@ -1019,7 +1026,9 @@ Numbered so rulings can cite them. Recommendations are the first option.
     three reversals it now carries: dinosaur-kin are the **Dinokin** Axis
     with lords (B2), Hunt may target your own creatures, which Easy AI
     never does (B5), and Hunt damage counts for every damage-reading keyword
-    and trigger (B6). Also ruled: Bulwark prevents Hunt at any rarity (a
+    and trigger (B6), evergreen: any such keyword the game adds later
+    applies to Hunt with no Hunt-specific code, while combat-defined
+    keywords (First Blade, Twin Blades, Overrun) do not. Also ruled: Bulwark prevents Hunt at any rarity (a
     Bulwark creature can be prey, never the hunter); no reserved Provoked
     art tell; 165 cards; Provoked at most once per turn per creature; the
     red-green and red-white sweep personas (D12); the three-row vocabulary
@@ -1030,12 +1039,16 @@ Numbered so rulings can cite them. Recommendations are the first option.
     its engine work, accessibility, and bug fixes; nothing is deferred in
     advance.
   - **D18 the art window is 216 px** (lane C, card face).
-  - **Lane I picks:** the tutorial opponent's portrait and name come from
-    the owner's pick (open: a Draft persona or Watch-Sergeant Alder); the
+  - **Lane I picks:** the tutorial opponent is Watch-Sergeant Alder,
+    portrait and name ("Alder" on her plate instead of "easy AI"); the
     Free Draft caption reads "Pays 40g to 300g after three matches, by
     wins." with Premium gaining a no-gold caption; the retire warning, the
     deck-import strings and the save-card line are approved as written; a
     new-format code may convert a retired Constructed deck.
+  - **Card text:** Umbral Antenna drops its arrival line (its first mill
+    is then at the controller's next Dawn; rescored), and the rules-text
+    template reads "Marked creatures" instead of "creatures with Marks"
+    on every card that uses it.
 - **The `research/` ignore rule** from the owner's local `.gitignore` is
   committed, so third-party research material never reaches the public
   repo.
