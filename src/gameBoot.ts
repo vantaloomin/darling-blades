@@ -31,6 +31,7 @@ import { ProfileScene } from './scenes/ProfileScene';
 import { MainMenuScene } from './scenes/MainMenuScene';
 import { SettingsScene } from './scenes/SettingsScene';
 import { ShopScene } from './scenes/ShopScene';
+import { applySavedAccessibility } from './ui/settingsPresentation';
 
 declare global {
   interface Window {
@@ -88,6 +89,12 @@ if (k > 1) {
     return out;
   };
 }
+
+// Accessibility (settings.textScale, settings.highContrast): the loaded save's
+// text size and contrast go in force before the first scene builds, through
+// the controls' ship gates (src/ui/settingsPresentation.ts). A reset reloads
+// the page, so it comes back through here with the defaults.
+applySavedAccessibility(Services.save.data.settings, IS_DEV);
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,

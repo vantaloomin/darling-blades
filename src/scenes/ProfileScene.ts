@@ -70,6 +70,7 @@ import {
 } from '../ui/saveCard';
 import { ellipsizeText } from '../ui/textFit';
 import { sceneTitle } from '../ui/sceneTitle';
+import { applySavedAccessibility } from '../ui/settingsPresentation';
 import { colorInt, theme } from '../ui/theme';
 import {
   backButton,
@@ -80,6 +81,7 @@ import {
   type ModalShell,
   type ThemedButton,
 } from '../ui/themeWidgets';
+import { IS_DEV } from '../platform/env';
 import { bindTapButton } from '../platform/gestures';
 
 export type { ProfileStatTab } from '../ui/profilePresentation';
@@ -123,6 +125,10 @@ export class ProfileScene extends Phaser.Scene {
   }
 
   create(data: { notice?: string } = {}): void {
+    // The notice is one-shot: Phaser keeps a start's data for the next start
+    // that passes none (Systems.start only replaces it when given some), so a
+    // later plain visit would show "Save imported" again.
+    this.sys.settings.data = {};
     this.reserveFormatsEnabled = FEATURES.reserveFormats;
     this.coordinator = new OverlayCoordinator();
     this.profileInteractiveTargets = [];
@@ -822,6 +828,9 @@ export class ProfileScene extends Phaser.Scene {
             .setText('Save import failed. Your current profile was restored because storage failed.');
           return;
         }
+        // The imported save's text size and contrast travel with it (plan Q7):
+        // in force before the restart rebuilds this scene.
+        applySavedAccessibility(Services.save.data.settings, IS_DEV);
         shell.close();
         this.importShell?.close();
         this.scene.restart({ notice: 'Save imported' });

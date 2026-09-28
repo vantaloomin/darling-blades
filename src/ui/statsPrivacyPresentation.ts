@@ -29,7 +29,6 @@
 import type { CardsField, DuelField, HeartbeatField } from '../meta/playSignals';
 import { modalShellLayout } from './layout';
 import { theme } from './theme';
-import { SETTINGS_LEFT } from './settingsPresentation';
 
 // ---------------------------------------------------------------------------
 // Settings row
@@ -603,21 +602,12 @@ export function statsNoticeFooterCenters(
 // ---------------------------------------------------------------------------
 
 /**
- * The Privacy section in the Settings scene's LEFT column. Its vertical
- * positions come from the scene's shared rhythm (`SETTINGS_LEFT` in
- * settingsPresentation.ts), so it sits under "Your turn" with the same
- * isolation space every other section gets.
+ * The Privacy row's controls in the Settings scene's Game tab, left column.
+ * Only its x positions live here: its y, its label and its caption follow
+ * the scene's shared rhythm at build time (settingsPresentation.ts), so the
+ * row reads the text size in force like every other row.
  */
 export const STATS_SETTINGS_ROW = {
-  /** Section heading baseline (origin 0, 0.5). */
-  sectionTitleY: SETTINGS_LEFT.headings.privacy,
-  /** The row's label and controls (origin 0, 0.5 / centred). */
-  rowY: SETTINGS_LEFT.rows.stats.row,
-  /** TOP of the caption, which wraps to two lines. */
-  noteTopY: SETTINGS_LEFT.rows.stats.noteTop,
-  /** Wrap width for the caption, from `labelX` to `buttonRightX`. */
-  noteWrapWidth: 460,
-  labelX: 110,
   /** The left column's shared control track, shared with every other toggle. */
   toggleX: 420,
   /** Half of `theme.control.minHitWidth`; the toggle is at the 90px floor. */
