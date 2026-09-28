@@ -368,13 +368,6 @@ Palette: fern green, basalt grey as the value floor (tar is glossy dark
 brown, never true black), sandstone, dawn peach, sky blue, lava orange,
 glacier white-blue, bone ivory, amber resin.
 
-**Provoked's reserved motif: the ochre hand**, a red-ochre handprint that
-appears only on Provoked cards, and only on hide garments, shields, spear
-hafts, a beast's flank or a dinosaur-kin's scaled hide away from her face.
-**Never on a face or over a mouth**: a red hand there is the symbol of the
-Missing and Murdered Indigenous Women movement. Ochre is browner than the
-red frame palette and reads at 119x86.
-
 **How the beasts appear**, under the rule that every card subject is a woman:
 (1) **dinosaur-kin** in the Beastkin monster-girl idiom, at most three
 stated species tells each, typed `Dinosaur`, the bulk at C and R; (2) **a
@@ -411,8 +404,9 @@ beside a sauropod (scale); (3) a hunter facing a tyrant (two creatures, no
 gore); (4) a horned-kin warrior (frill against headroom); (5) a raptor-kin
 (tail root and tip); (6) a pterosaur rider airborne; (7) a Hatchling token
 (a dinosaur alone, visibly young); (8) a fossil rising from the tar; (9) the
-Painted Cave (cave art, no text, no tally); (10) a Provoked armour-kin wall
-with the ochre hand on her shield (the motif at battlefield crop).
+Painted Cave (cave art, no text, no tally); (10) a pack-caller with exactly
+three raptors at her side (several beasts in one frame: count control and
+no fused bodies, which the Pack Raptor minters need).
 
 ## 12. Questions for the owner
 
@@ -430,16 +424,16 @@ Each leads with the recommendation.
 7. **A hunter provoked by its own Hunt damage: yes, intended.** It is the
    multiplication every Hunt-plus-Provoked card is built on, so H5's guards
    and the lab's paired measurement carry it.
-8. **The ochre hand: keep it, but never on human skin**, only on hide,
-   shields, hafts, a beast's flank or a dinosaur-kin's scaled hide.
-9. **The fossil line for reanimator: yes**, four to six cards, modest.
-10. **New sweep personas: R/G and R/W**, B/G third if lane F's budget
-    allows.
-11. **Vocabulary threshold: three rows in the cut**, or the owner's ruling
+8. **The fossil line for reanimator: yes**, four to six cards, modest.
+9. **New sweep personas: R/G and R/W**, B/G third if lane F's budget
+   allows.
+10. **Vocabulary threshold: three rows in the cut**, or the owner's ruling
     on one card (a departure from DC2, section 10).
 
 **Ruled since the first draft**: Bulwark prevents Hunt at any rarity (owner,
-2026-09-28; H3a). A Bulwark creature can never be the hunter, only the prey.
+2026-09-28; H3a); a Bulwark creature can never be the hunter, only the prey.
+No reserved Provoked art tell (owner, 2026-09-28); Provoked cards are
+recognised by their rules text only.
 
 **FYI, no ruling needed now**: megafauna sit beside the dinosaurs (about
 two in five of the beasts); the Starborne and Silver Veil theme decks want a
