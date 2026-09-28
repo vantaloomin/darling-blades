@@ -1,5 +1,6 @@
 import type { CardDb, CardDef } from '../engine/types';
 import { cardMechanics } from '../data/glossary';
+import { livenessStamp } from '../data/liveness';
 import { collectionCompletion, collectiblePool, type CollectionCompletionSummary } from './collectionFilter';
 import { ownedCount, ownedVariants } from './Collection';
 import { LIMITED_MATCHES } from './Limited';
@@ -125,8 +126,48 @@ function themeIds(ids: readonly string[], db: CardDb): string[] {
   return ids.filter((id) => Boolean(db[id]));
 }
 
-function themeCards(db: CardDb, predicate: (card: CardDef) => boolean): CardDef[] {
-  return collectiblePool(Object.values(db)).filter(predicate);
+/*
+ * What a goal counts is split in two. The pool it counts over (which cards are
+ * collectible, and which of those belong to a theme) comes from the card
+ * database and the release flags that decide which cards are live, so it is
+ * built once per database and liveness state and kept. What the player owns
+ * comes from the save and is read fresh on every call, so opening a pack or
+ * crafting a card shows at once. A CardDb is never changed after it is built
+ * (CARD_DB is frozen), and each kept pool records the liveness stamp it was
+ * built under: a different database object gets its own pools, and a flipped
+ * flag (a dev cheat, a test) rebuilds them on the next call.
+ */
+interface Stamped<T> {
+  stamp: string;
+  value: T;
+}
+
+function stamped<T>(cache: WeakMap<CardDb, Stamped<T>>, db: CardDb, build: () => T): T {
+  const stamp = livenessStamp();
+  const hit = cache.get(db);
+  if (hit && hit.stamp === stamp) return hit.value;
+  const value = build();
+  cache.set(db, { stamp, value });
+  return value;
+}
+
+const COLLECTIBLE_CARDS = new WeakMap<CardDb, Stamped<readonly CardDef[]>>();
+
+function collectibleCards(db: CardDb): readonly CardDef[] {
+  return stamped(COLLECTIBLE_CARDS, db, () => collectiblePool(Object.values(db)));
+}
+
+const THEME_POOLS = new Map<(card: CardDef) => boolean, (db: CardDb) => readonly string[]>();
+
+/** The ids of the collectible cards matching `predicate`, built once per card database and liveness state. */
+function themePool(predicate: (card: CardDef) => boolean): (db: CardDb) => readonly string[] {
+  let pool = THEME_POOLS.get(predicate);
+  if (!pool) {
+    const byDb = new WeakMap<CardDb, Stamped<readonly string[]>>();
+    pool = (db) => stamped(byDb, db, () => collectibleCards(db).filter(predicate).map((card) => card.id));
+    THEME_POOLS.set(predicate, pool);
+  }
+  return pool;
 }
 
 function ownedThemeCount(save: SaveData, ids: readonly string[]): number {
@@ -161,16 +202,15 @@ function themeVariantProgress(
   return { current: themeVariantCount(save, scoped, predicate), target: Math.max(1, scoped.length) };
 }
 
-function themedCollectionProgress(
-  save: SaveData,
-  db: CardDb,
-  predicate: (card: CardDef) => boolean,
-  fraction = 1,
-): AchievementProgress {
-  const ids = themeCards(db, predicate).map((card) => card.id);
-  return {
-    current: ownedThemeCount(save, ids),
-    target: Math.max(1, Math.ceil(ids.length * fraction)),
+/** Own `fraction` of the collectible cards matching `predicate`. */
+function themedCollection(predicate: (card: CardDef) => boolean, fraction = 1): AchievementDef['progress'] {
+  const pool = themePool(predicate);
+  return (save, db) => {
+    const ids = pool(db);
+    return {
+      current: ownedThemeCount(save, ids),
+      target: Math.max(1, Math.ceil(ids.length * fraction)),
+    };
   };
 }
 
@@ -412,7 +452,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Twilight Beachhead',
     description: 'Own 25% of Ragnarök cards.',
     reward: { gold: 200 },
-    progress: (save, db) => themedCollectionProgress(save, db, isRagnarok, 0.25),
+    progress: themedCollection(isRagnarok, 0.25),
   },
   {
     id: 'theme-ragnarok-50',
@@ -420,7 +460,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Edda Binder',
     description: 'Own 50% of Ragnarök cards.',
     reward: { gold: 400 },
-    progress: (save, db) => themedCollectionProgress(save, db, isRagnarok, 0.5),
+    progress: themedCollection(isRagnarok, 0.5),
   },
   {
     id: 'theme-ragnarok-complete',
@@ -428,7 +468,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Twilight Complete',
     description: 'Own every Ragnarök card.',
     reward: { gold: 1200 },
-    progress: (save, db) => themedCollectionProgress(save, db, isRagnarok),
+    progress: themedCollection(isRagnarok),
   },
   {
     id: 'theme-ragnarok-twilight-court',
@@ -460,7 +500,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Valkyrie Flight',
     description: 'Own every Ragnarök Valkyrie.',
     reward: { gold: 350 },
-    progress: (save, db) => themedCollectionProgress(save, db, (card) => isRagnarok(card) && card.subtypes.includes('Valkyrie')),
+    progress: themedCollection((card) => isRagnarok(card) && card.subtypes.includes('Valkyrie')),
   },
   {
     id: 'theme-ragnarok-draugr',
@@ -468,7 +508,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Deathless Legion',
     description: 'Own every Ragnarök Draugr.',
     reward: { gold: 350 },
-    progress: (save, db) => themedCollectionProgress(save, db, (card) => isRagnarok(card) && card.subtypes.includes('Draugr')),
+    progress: themedCollection((card) => isRagnarok(card) && card.subtypes.includes('Draugr')),
   },
   {
     id: 'theme-ragnarok-jotun-wolves',
@@ -476,12 +516,9 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Nine-World Hunt',
     description: 'Own every Ragnarök Jotun or Wolf.',
     reward: { gold: 450 },
-    progress: (save, db) =>
-      themedCollectionProgress(
-        save,
-        db,
-        (card) => isRagnarok(card) && (card.subtypes.includes('Jotun') || card.subtypes.includes('Wolf')),
-      ),
+    progress: themedCollection(
+      (card) => isRagnarok(card) && (card.subtypes.includes('Jotun') || card.subtypes.includes('Wolf')),
+    ),
   },
   {
     id: 'theme-celtic-fae-25',
@@ -489,7 +526,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Veil Beachhead',
     description: 'Own 25% of Silver Veil cards.',
     reward: { gold: 200 },
-    progress: (save, db) => themedCollectionProgress(save, db, isCelticFae, 0.25),
+    progress: themedCollection(isCelticFae, 0.25),
   },
   {
     id: 'theme-celtic-fae-50',
@@ -497,7 +534,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Silver Binder',
     description: 'Own 50% of Silver Veil cards.',
     reward: { gold: 400 },
-    progress: (save, db) => themedCollectionProgress(save, db, isCelticFae, 0.5),
+    progress: themedCollection(isCelticFae, 0.5),
   },
   {
     id: 'theme-celtic-fae-complete',
@@ -505,7 +542,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Silver Veil Complete',
     description: 'Own every Silver Veil card.',
     reward: { gold: 1200 },
-    progress: (save, db) => themedCollectionProgress(save, db, isCelticFae),
+    progress: themedCollection(isCelticFae),
   },
   {
     id: 'theme-celtic-fae-court-sovereigns',
@@ -521,7 +558,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Inner Court',
     description: 'Own every Silver Veil SSR court card.',
     reward: { gold: 500 },
-    progress: (save, db) => themedCollectionProgress(save, db, (card) => isCelticFae(card) && card.rarity === 'ssr'),
+    progress: themedCollection((card) => isCelticFae(card) && card.rarity === 'ssr'),
   },
   {
     id: 'theme-celtic-fae-selkies',
@@ -529,8 +566,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Tidebound Court',
     description: 'Own every Silver Veil Selkie.',
     reward: { gold: 350 },
-    progress: (save, db) =>
-      themedCollectionProgress(save, db, (card) => isCelticFae(card) && card.subtypes.includes('Selkie')),
+    progress: themedCollection((card) => isCelticFae(card) && card.subtypes.includes('Selkie')),
   },
   {
     id: 'theme-celtic-fae-ravens',
@@ -538,8 +574,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Omen Wing',
     description: 'Own every Silver Veil Raven.',
     reward: { gold: 350 },
-    progress: (save, db) =>
-      themedCollectionProgress(save, db, (card) => isCelticFae(card) && card.subtypes.includes('Raven')),
+    progress: themedCollection((card) => isCelticFae(card) && card.subtypes.includes('Raven')),
   },
   {
     id: 'theme-celtic-fae-redcaps',
@@ -547,8 +582,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Redcap Warband',
     description: 'Own every Silver Veil Redcap.',
     reward: { gold: 350 },
-    progress: (save, db) =>
-      themedCollectionProgress(save, db, (card) => isCelticFae(card) && card.subtypes.includes('Redcap')),
+    progress: themedCollection((card) => isCelticFae(card) && card.subtypes.includes('Redcap')),
   },
   // Arthurian Court (1.2) — schema-free, mirroring the Celtic Fae pass.
   {
@@ -557,7 +591,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: "Squire's Oath",
     description: 'Own 25% of Grail Oath cards.',
     reward: { gold: 200 },
-    progress: (save, db) => themedCollectionProgress(save, db, isArthurianCourt, 0.25),
+    progress: themedCollection(isArthurianCourt, 0.25),
   },
   {
     id: 'theme-arthurian-50',
@@ -565,7 +599,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Half the Table',
     description: 'Own 50% of Grail Oath cards.',
     reward: { gold: 400 },
-    progress: (save, db) => themedCollectionProgress(save, db, isArthurianCourt, 0.5),
+    progress: themedCollection(isArthurianCourt, 0.5),
   },
   {
     id: 'theme-arthurian-complete',
@@ -573,7 +607,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Grail Oath Complete',
     description: 'Own every Grail Oath card.',
     reward: { gold: 1200 },
-    progress: (save, db) => themedCollectionProgress(save, db, isArthurianCourt),
+    progress: themedCollection(isArthurianCourt),
   },
   {
     id: 'theme-arthurian-round-table',
@@ -597,8 +631,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Full Muster',
     description: 'Own every Grail Oath Knight.',
     reward: { gold: 400 },
-    progress: (save, db) =>
-      themedCollectionProgress(save, db, (card) => isArthurianCourt(card) && card.subtypes.includes('Knight')),
+    progress: themedCollection((card) => isArthurianCourt(card) && card.subtypes.includes('Knight')),
   },
   {
     id: 'theme-arthurian-quests',
@@ -606,8 +639,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Seven Vows',
     description: 'Own every Grail Oath Quest.',
     reward: { gold: 350 },
-    progress: (save, db) =>
-      themedCollectionProgress(save, db, (card) => isArthurianCourt(card) && card.subtypes.includes('Quest')),
+    progress: themedCollection((card) => isArthurianCourt(card) && card.subtypes.includes('Quest')),
   },
   {
     id: 'theme-arthurian-champions',
@@ -615,8 +647,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Champions in Waiting',
     description: 'Own every Grail Oath card with Champion Awakening.',
     reward: { gold: 350 },
-    progress: (save, db) =>
-      themedCollectionProgress(save, db, (card) => isArthurianCourt(card) && card.awakening !== undefined),
+    progress: themedCollection((card) => isArthurianCourt(card) && card.awakening !== undefined),
   },
   // Gothic Monsters (1.3), schema-free and derived from the live 80-card pool.
   {
@@ -625,7 +656,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'First Candle',
     description: 'Own 25% of Nocturne Manor cards.',
     reward: { gold: 200 },
-    progress: (save, db) => themedCollectionProgress(save, db, isGothicMonsters, 0.25),
+    progress: themedCollection(isGothicMonsters, 0.25),
   },
   {
     id: 'theme-gothic-monsters-50',
@@ -633,7 +664,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Half the Manor',
     description: 'Own 50% of Nocturne Manor cards.',
     reward: { gold: 400 },
-    progress: (save, db) => themedCollectionProgress(save, db, isGothicMonsters, 0.5),
+    progress: themedCollection(isGothicMonsters, 0.5),
   },
   {
     id: 'theme-gothic-monsters-complete',
@@ -641,7 +672,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Manor Without End',
     description: 'Own every Nocturne Manor card.',
     reward: { gold: 1200 },
-    progress: (save, db) => themedCollectionProgress(save, db, isGothicMonsters),
+    progress: themedCollection(isGothicMonsters),
   },
   {
     id: 'theme-gothic-monsters-headliners',
@@ -665,8 +696,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'No Single Blocker',
     description: 'Own every Nocturne Manor card with Dreaded.',
     reward: { gold: 400 },
-    progress: (save, db) =>
-      themedCollectionProgress(save, db, (card) => isGothicMonsters(card) && card.keywords?.includes('dreaded') === true),
+    progress: themedCollection((card) => isGothicMonsters(card) && card.keywords?.includes('dreaded') === true),
   },
   {
     id: 'theme-gothic-monsters-empowered',
@@ -674,8 +704,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Paid in Blood',
     description: 'Own every Nocturne Manor card with Empower.',
     reward: { gold: 450 },
-    progress: (save, db) =>
-      themedCollectionProgress(save, db, (card) => isGothicMonsters(card) && card.empower !== undefined),
+    progress: themedCollection((card) => isGothicMonsters(card) && card.empower !== undefined),
   },
   {
     id: 'theme-gothic-monsters-vampires',
@@ -683,8 +712,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'The Masquerade Bloodline',
     description: 'Own every Nocturne Manor Vampire.',
     reward: { gold: 350 },
-    progress: (save, db) =>
-      themedCollectionProgress(save, db, (card) => isGothicMonsters(card) && card.subtypes.includes('Vampire')),
+    progress: themedCollection((card) => isGothicMonsters(card) && card.subtypes.includes('Vampire')),
   },
   // Dark Tales (1.4), schema-free and derived from the live 120-card pool.
   {
@@ -693,7 +721,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'First Midnight Page',
     description: 'Own 25% of Dark Tales cards.',
     reward: { gold: 200 },
-    progress: (save, db) => themedCollectionProgress(save, db, isDarkTales, 0.25),
+    progress: themedCollection(isDarkTales, 0.25),
   },
   {
     id: 'theme-dark-tales-50',
@@ -701,7 +729,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Half the Storybook',
     description: 'Own 50% of Dark Tales cards.',
     reward: { gold: 400 },
-    progress: (save, db) => themedCollectionProgress(save, db, isDarkTales, 0.5),
+    progress: themedCollection(isDarkTales, 0.5),
   },
   {
     id: 'theme-dark-tales-complete',
@@ -709,7 +737,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'The Last Page',
     description: 'Own every Dark Tales card.',
     reward: { gold: 1200 },
-    progress: (save, db) => themedCollectionProgress(save, db, isDarkTales),
+    progress: themedCollection(isDarkTales),
   },
   {
     id: 'theme-dark-tales-headliners',
@@ -725,7 +753,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Keep the Thread',
     description: 'Own every Dark Tales card with Skim.',
     reward: { gold: 400 },
-    progress: (save, db) => themedCollectionProgress(save, db, (card) => isDarkTales(card) && card.skim !== undefined),
+    progress: themedCollection((card) => isDarkTales(card) && card.skim !== undefined),
   },
   {
     id: 'theme-dark-tales-retell',
@@ -733,7 +761,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Tell It Again',
     description: 'Own every Dark Tales card with Retell.',
     reward: { gold: 450 },
-    progress: (save, db) => themedCollectionProgress(save, db, (card) => isDarkTales(card) && card.retell !== undefined),
+    progress: themedCollection((card) => isDarkTales(card) && card.retell !== undefined),
   },
   {
     id: 'theme-dark-tales-mermaids',
@@ -741,7 +769,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Tidebound Chorus',
     description: 'Own every Dark Tales Mermaid.',
     reward: { gold: 350 },
-    progress: (save, db) => themedCollectionProgress(save, db, (card) => isDarkTales(card) && card.subtypes.includes('Mermaid')),
+    progress: themedCollection((card) => isDarkTales(card) && card.subtypes.includes('Mermaid')),
   },
   {
     id: 'theme-dark-tales-bloodoath',
@@ -749,7 +777,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Bargains in Blood',
     description: 'Own every Dark Tales card with Blood Oath.',
     reward: { gold: 400 },
-    progress: (save, db) => themedCollectionProgress(save, db, (card) => isDarkTales(card) && card.keywords?.includes('bloodoath') === true),
+    progress: themedCollection((card) => isDarkTales(card) && card.keywords?.includes('bloodoath') === true),
   },
   // Yokai Nights (1.5), schema-free and derived from the live 120-card pool.
   {
@@ -758,7 +786,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'First Contact',
     description: 'Own 1 Yokai Nights card.',
     reward: { gold: 100 },
-    progress: (save, db) => themedCollectionProgress(save, db, isYokaiNights, 1 / 120),
+    progress: themedCollection(isYokaiNights, 1 / 120),
   },
   {
     id: 'theme-yokai-nights-30',
@@ -766,7 +794,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Neon Regular',
     description: 'Own 30 unique Yokai Nights cards.',
     reward: { gold: 200 },
-    progress: (save, db) => themedCollectionProgress(save, db, isYokaiNights, 0.25),
+    progress: themedCollection(isYokaiNights, 0.25),
   },
   {
     id: 'theme-yokai-nights-60',
@@ -774,7 +802,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Night Market Insider',
     description: 'Own 60 unique Yokai Nights cards.',
     reward: { gold: 400 },
-    progress: (save, db) => themedCollectionProgress(save, db, isYokaiNights, 0.5),
+    progress: themedCollection(isYokaiNights, 0.5),
   },
   {
     id: 'theme-yokai-nights-complete',
@@ -782,7 +810,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'City Possessed',
     description: 'Own all 120 unique Yokai Nights cards.',
     reward: { gold: 1200 },
-    progress: (save, db) => themedCollectionProgress(save, db, isYokaiNights),
+    progress: themedCollection(isYokaiNights),
   },
   {
     id: 'theme-yokai-nights-hauntlink',
@@ -790,7 +818,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Thirteen Voices',
     description: 'Own all 13 Hauntlink cards in the set.',
     reward: { gold: 450 },
-    progress: (save, db) => themedCollectionProgress(save, db, (card) => isYokaiNights(card) && card.hauntlink !== undefined),
+    progress: themedCollection((card) => isYokaiNights(card) && card.hauntlink !== undefined),
   },
   {
     id: 'theme-yokai-nights-ur',
@@ -807,7 +835,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     description: 'Own 10 unique Yokai Nights cards with a rainbow frame.',
     reward: { gold: 500 },
     progress: (save, db) => {
-      const ids = themeCards(db, isYokaiNights).map((card) => card.id);
+      const ids = themePool(isYokaiNights)(db);
       return { current: themeVariantCount(save, ids, isRainbowBorder), target: 10 };
     },
   },
@@ -826,7 +854,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Duat Complete',
     description: 'Own all 245 unique Sands of the Duat cards.',
     reward: { gold: 2450 },
-    progress: (save, db) => themedCollectionProgress(save, db, isSandsOfTheDuat),
+    progress: themedCollection(isSandsOfTheDuat),
   },
   {
     id: 'theme-sands-of-the-duat-ur',
@@ -842,7 +870,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Nine Lives Returned',
     description: 'Own every Sands of the Duat card with Nine Lives.',
     reward: { gold: 450 },
-    progress: (save, db) => themedCollectionProgress(save, db, (card) => isSandsOfTheDuat(card) && card.nineLives === true),
+    progress: themedCollection((card) => isSandsOfTheDuat(card) && card.nineLives === true),
   },
   // 1.8.1 brings Duat to eight goals. The two variant chases are sized to about
   // 34 set packs on average: two URs as special variants, and three rainbow
@@ -865,7 +893,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     description: 'Own 3 rainbow-frame Duat cards.',
     reward: { gold: 400 },
     progress: (save, db) => {
-      const ids = themeCards(db, isSandsOfTheDuat).map((card) => card.id);
+      const ids = themePool(isSandsOfTheDuat)(db);
       return { current: themeVariantCount(save, ids, isRainbowBorder), target: 3 };
     },
   },
@@ -875,7 +903,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'The Price of Passage',
     description: 'Own all Sands of the Duat Rite cards.',
     reward: { gold: 450 },
-    progress: (save, db) => themedCollectionProgress(save, db, (card) => isSandsOfTheDuat(card) && card.rite !== undefined),
+    progress: themedCollection((card) => isSandsOfTheDuat(card) && card.rite !== undefined),
   },
   {
     id: 'theme-sands-of-the-duat-preserve',
@@ -883,8 +911,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Wrapped and Waiting',
     description: 'Own all Duat Preserve cards.',
     reward: { gold: 450 },
-    progress: (save, db) =>
-      themedCollectionProgress(save, db, (card) => isSandsOfTheDuat(card) && card.preserve !== undefined),
+    progress: themedCollection((card) => isSandsOfTheDuat(card) && card.preserve !== undefined),
   },
   {
     id: 'theme-sands-of-the-duat-bastet',
@@ -892,8 +919,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'The Cats of Bubastis',
     description: 'Own every Sands of the Duat Bastet.',
     reward: { gold: 400 },
-    progress: (save, db) =>
-      themedCollectionProgress(save, db, (card) => isSandsOfTheDuat(card) && card.subtypes.includes('Bastet')),
+    progress: themedCollection((card) => isSandsOfTheDuat(card) && card.subtypes.includes('Bastet')),
   },
   // Starborne (1.7; goals 1.8.1), schema-free and derived from the live pool.
   // Propagate and Marks read the glossary's classifier, so a card that prints
@@ -904,7 +930,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Signal Received',
     description: 'Own 25% of Starborne cards.',
     reward: { gold: 200 },
-    progress: (save, db) => themedCollectionProgress(save, db, isStarborne, 0.25),
+    progress: themedCollection(isStarborne, 0.25),
   },
   {
     id: 'theme-starborne-50',
@@ -912,7 +938,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Half the Fleet',
     description: 'Own 50% of Starborne cards.',
     reward: { gold: 400 },
-    progress: (save, db) => themedCollectionProgress(save, db, isStarborne, 0.5),
+    progress: themedCollection(isStarborne, 0.5),
   },
   {
     id: 'theme-starborne-complete',
@@ -920,7 +946,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'The Fleet Comes Home',
     description: 'Own every Starborne card.',
     reward: { gold: 1500 },
-    progress: (save, db) => themedCollectionProgress(save, db, isStarborne),
+    progress: themedCollection(isStarborne),
   },
   {
     id: 'theme-starborne-ur',
@@ -936,8 +962,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'The Light That Spreads',
     description: 'Own all Starborne Propagate cards.',
     reward: { gold: 450 },
-    progress: (save, db) =>
-      themedCollectionProgress(save, db, (card) => isStarborne(card) && cardMechanics(card).includes('propagate')),
+    progress: themedCollection((card) => isStarborne(card) && cardMechanics(card).includes('propagate')),
   },
   {
     id: 'theme-starborne-marks',
@@ -945,8 +970,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Living Light',
     description: 'Own all Starborne cards that use Marks.',
     reward: { gold: 500 },
-    progress: (save, db) =>
-      themedCollectionProgress(save, db, (card) => isStarborne(card) && cardMechanics(card).includes('mark')),
+    progress: themedCollection((card) => isStarborne(card) && cardMechanics(card).includes('mark')),
   },
   {
     id: 'theme-starborne-starships',
@@ -954,8 +978,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Grown, Not Built',
     description: 'Own every Starborne Starship.',
     reward: { gold: 350 },
-    progress: (save, db) =>
-      themedCollectionProgress(save, db, (card) => isStarborne(card) && card.subtypes.includes('Starship')),
+    progress: themedCollection((card) => isStarborne(card) && card.subtypes.includes('Starship')),
   },
   {
     id: 'theme-starborne-rainbow',
@@ -964,7 +987,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     description: 'Own 3 rainbow-frame Starborne cards.',
     reward: { gold: 400 },
     progress: (save, db) => {
-      const ids = themeCards(db, isStarborne).map((card) => card.id);
+      const ids = themePool(isStarborne)(db);
       return { current: themeVariantCount(save, ids, isRainbowBorder), target: 3 };
     },
   },
@@ -975,7 +998,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'First Step Down',
     description: 'Own 25% of Drowned Deep cards.',
     reward: { gold: 200 },
-    progress: (save, db) => themedCollectionProgress(save, db, isDrownedDeep, 0.25),
+    progress: themedCollection(isDrownedDeep, 0.25),
   },
   {
     id: 'theme-drowned-deep-50',
@@ -983,7 +1006,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Halfway Down the Stair',
     description: 'Own 50% of Drowned Deep cards.',
     reward: { gold: 400 },
-    progress: (save, db) => themedCollectionProgress(save, db, isDrownedDeep, 0.5),
+    progress: themedCollection(isDrownedDeep, 0.5),
   },
   {
     id: 'theme-drowned-deep-complete',
@@ -991,7 +1014,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Further Than Any Diver',
     description: 'Own every Drowned Deep card.',
     reward: { gold: 2500 },
-    progress: (save, db) => themedCollectionProgress(save, db, isDrownedDeep),
+    progress: themedCollection(isDrownedDeep),
   },
   {
     id: 'theme-drowned-deep-ur',
@@ -1007,7 +1030,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Voices of the Drowned',
     description: 'Own all Drowned Deep Whispers cards.',
     reward: { gold: 500 },
-    progress: (save, db) => themedCollectionProgress(save, db, (card) => isDrownedDeep(card) && card.whispers !== undefined),
+    progress: themedCollection((card) => isDrownedDeep(card) && card.whispers !== undefined),
   },
   {
     id: 'theme-drowned-deep-tithe',
@@ -1015,7 +1038,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'What the Deep Is Owed',
     description: 'Own all Drowned Deep Tithe cards.',
     reward: { gold: 450 },
-    progress: (save, db) => themedCollectionProgress(save, db, (card) => isDrownedDeep(card) && card.tithe !== undefined),
+    progress: themedCollection((card) => isDrownedDeep(card) && card.tithe !== undefined),
   },
   {
     id: 'theme-drowned-deep-duty',
@@ -1023,7 +1046,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Every Post Kept',
     description: 'Own all Drowned Deep Duty cards.',
     reward: { gold: 500 },
-    progress: (save, db) => themedCollectionProgress(save, db, (card) => isDrownedDeep(card) && card.activated !== undefined),
+    progress: themedCollection((card) => isDrownedDeep(card) && card.activated !== undefined),
   },
   {
     id: 'theme-drowned-deep-wardens',
@@ -1031,8 +1054,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Never Once Dark',
     description: 'Own every Drowned Deep Warden.',
     reward: { gold: 400 },
-    progress: (save, db) =>
-      themedCollectionProgress(save, db, (card) => isDrownedDeep(card) && card.subtypes.includes('Warden')),
+    progress: themedCollection((card) => isDrownedDeep(card) && card.subtypes.includes('Warden')),
   },
   {
     id: 'first-win',
@@ -1165,7 +1187,7 @@ function uniqueKnown(ids: readonly string[]): string[] {
 }
 
 export function evaluateAchievements(save: SaveData, db: CardDb): AchievementStatus[] {
-  const completion = collectionCompletion(Object.values(db), save);
+  const completion = collectionCompletion(collectibleCards(db), save);
   const unlocked = new Set(save.achievements.unlocked);
   const claimed = new Set(save.achievements.claimed);
   return ACHIEVEMENTS.map((def) => {

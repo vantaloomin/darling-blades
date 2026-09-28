@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CARD_DB } from '../../src/data/catalog';
+import { FEATURES } from '../../src/config/features';
 import type { CardDb, CardDef } from '../../src/engine/types';
 import {
   claimAchievement,
@@ -9,6 +10,7 @@ import {
   syncAchievements,
   type AchievementDef,
 } from '../../src/meta/Achievements';
+import { addCard, craftCard } from '../../src/meta/Collection';
 import { CARD_BACKS } from '../../src/meta/cosmetics';
 import { collectiblePool } from '../../src/meta/collectionFilter';
 import { cardMechanics } from '../../src/data/glossary';
@@ -654,6 +656,56 @@ describe('Starborne and Drowned Deep achievements (1.8.1)', () => {
       expect(status(id, oneShort, CARD_DB)).toMatchObject({ current: ids.length - 1, target: ids.length, unlocked: false });
     });
   }
+});
+
+describe('achievement progress across collection changes', () => {
+  it('counts a pack pull and a craft on the next evaluation of the same save and card database', () => {
+    const [pulled, crafted] = STARBORNE_GOALS.find((goal) => goal.id === 'theme-starborne-propagate')!.ids;
+    const save = freshSave(0);
+    save.gold = 100_000;
+    const target = status('theme-starborne-propagate', save, CARD_DB).target;
+    expect(status('theme-starborne-propagate', save, CARD_DB).current).toBe(0);
+    expect(status('collection-25', save, CARD_DB).current).toBe(0);
+
+    addCard(save, CARD_DB, pulled);
+    expect(status('theme-starborne-propagate', save, CARD_DB)).toMatchObject({ current: 1, target });
+    expect(status('collection-25', save, CARD_DB).current).toBe(1);
+
+    expect(craftCard(save, CARD_DB, crafted)).toEqual({ ok: true });
+    expect(status('theme-starborne-propagate', save, CARD_DB)).toMatchObject({ current: 2, target });
+    expect(status('collection-25', save, CARD_DB).current).toBe(2);
+  });
+
+  it('sizes set goals from the live pool as a release flag flips, in step with collection goals', () => {
+    const previous = FEATURES.duatLive;
+    const save = freshSave(0);
+    try {
+      FEATURES.duatLive = true;
+      const live = status('theme-sands-of-the-duat-complete', save, CARD_DB).target;
+      const liveTotal = status('collection-100', save, CARD_DB).target;
+      expect(live).toBe(SANDS_OF_THE_DUAT_IDS.length);
+
+      FEATURES.duatLive = false;
+      expect(status('theme-sands-of-the-duat-complete', save, CARD_DB).target).toBe(1);
+      expect(status('collection-100', save, CARD_DB).target).toBe(liveTotal - live);
+
+      FEATURES.duatLive = true;
+      expect(status('theme-sands-of-the-duat-complete', save, CARD_DB).target).toBe(live);
+      expect(status('collection-100', save, CARD_DB).target).toBe(liveTotal);
+    } finally {
+      FEATURES.duatLive = previous;
+    }
+  });
+
+  it('sizes each goal from the card database it is given, not one evaluated earlier', () => {
+    const goal = STARBORNE_GOALS.find((entry) => entry.id === 'theme-starborne-propagate')!;
+    const save = freshSave(0);
+    save.collection = { [goal.ids[0]]: 1 };
+    expect(status(goal.id, save, CARD_DB)).toMatchObject({ current: 1, target: goal.ids.length });
+    const oneCardDb: CardDb = Object.freeze({ [goal.ids[0]]: CARD_DB[goal.ids[0]] });
+    expect(status(goal.id, save, oneCardDb)).toMatchObject({ current: 1, target: 1, unlocked: true });
+    expect(status(goal.id, save, CARD_DB)).toMatchObject({ current: 1, target: goal.ids.length, unlocked: false });
+  });
 });
 
 describe('rainbow-frame set chases (1.8.1)', () => {

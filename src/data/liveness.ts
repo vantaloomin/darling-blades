@@ -20,6 +20,16 @@ export function isLiveCollectible(card: CardDef): boolean {
 }
 
 /**
+ * Every runtime flag `isLiveCollectible` reads, folded into one value. A cache
+ * of anything built from the live pool is valid only while this is unchanged:
+ * FEATURES is mutable (dev cheats and tests flip it). A flag added to the gate
+ * above must be added here too.
+ */
+export function livenessStamp(): string {
+  return `${FEATURES.duatLive ? 1 : 0}${FEATURES.dtCompanionLive ? 1 : 0}`;
+}
+
+/**
  * Set-level twin of the card gate, for surfaces that list sets rather than
  * cards (binder/deck-builder set filters, shop strip). An unreleased set must
  * not appear as an empty filter option before its flip.
