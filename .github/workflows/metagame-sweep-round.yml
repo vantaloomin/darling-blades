@@ -63,7 +63,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 350
     strategy:
-      # One persona's failure must not cancel the other five: the merge reports
+      # One persona's failure must not cancel the others: the merge reports
       # a missing craft and a resume re-runs only that one.
       fail-fast: false
       matrix:
@@ -151,7 +151,7 @@ jobs:
   chunk-1:
     name: Chunk 1
     needs: chunk-0
-    # Runs even when a persona failed chunk 0, so the other five continue. The
+    # Runs even when a persona failed chunk 0, so the others continue. The
     # failed persona's chunk fails at the download below, cheaply.
     if: ${{ !cancelled() && inputs.chunks > 1 }}
     runs-on: ubuntu-latest

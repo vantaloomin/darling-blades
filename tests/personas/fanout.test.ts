@@ -70,9 +70,10 @@ function fanOut(
 }
 
 /**
- * The fan-out's whole claim is that a sweep run on six machines is the SAME
- * measurement as one run in one process. Anything less than byte identity would
- * leave that claim to inspection, so this compares the files themselves.
+ * The fan-out's whole claim is that a sweep run on one machine per persona is
+ * the SAME measurement as one run in one process. Anything less than byte
+ * identity would leave that claim to inspection, so this compares the files
+ * themselves.
  */
 describe('metagame fan-out', { timeout: 600_000 }, () => {
   it('merges fanned-out crafts into the in-process loop byte for byte', () => {

@@ -764,7 +764,14 @@ the in-process loop.
    identity brief sets (green and red-white at least). They are built in
    wave 2, once the owner has approved the brief, beside the levers'
    acceptance run. The 1.9 sweep then backs or clears those nerfs with play,
-   and measures the new set.
+   and measures the new set. **Built 2026-09-28:** `stompy` (R/G, with an
+   opt-in floor of half green, since every red persona otherwise opens on the
+   same red core) and `warband` (R/W) join the hosted default list; each game
+   costs about 0.9x a midrange game. B/G waits for wave 4, once the
+   eight-persona sweep is shown to fit a night. Of the 15 gap nerfs, 11 are
+   now pickable; Granary of Rising Years and Old Growth have no deck role and
+   Skadi (U/G) and Morrigan (B/G) no persona, so those four need per-card
+   in-engine checks.
 
 The levers (`scripts/personas/craft.ts`), the personas
 (`scripts/personas/templates.ts`) and the hosted workflow's inputs and
@@ -988,7 +995,7 @@ Numbered so rulings can cite them. Recommendations are the first option.
   get. 1.8 set it aside because a sweep took days; it ran after launch with
   five personas. Recommendation: **back to last before the 1.9.0 cut, all six
   personas**, once lane F's weenie fix and the two levers are in. The test is
-  a measured one: if a full six-persona sweep finishes in about a night on
+  a measured one: if a full eight-persona sweep finishes in about a night on
   the hosted runners, it runs before the cut and a degenerate deck is caught
   before players see it. If it still takes days, the 1.8 arrangement repeats
   (after launch, a hotfix only if egregious). It runs on GitHub-hosted
