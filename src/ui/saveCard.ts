@@ -1,5 +1,6 @@
 import type Phaser from 'phaser';
-import { Art } from '../art/ArtResolver';
+import { Art, type ArtRef } from '../art/ArtResolver';
+import { isArtLoaded } from '../art/artLoader';
 import { theme } from './theme';
 
 /**
@@ -27,21 +28,29 @@ export interface SaveCardLines {
 /**
  * Composite the titled cover: the chosen card's art cover-cropped to 640×800
  * with the bottom plate over it. Returns null when the art is unavailable
- * (missing texture, headless context) so the caller can fall back to a plain
- * message instead of exporting a blank card.
+ * (missing texture, headless context, or a file still streaming in) so the
+ * caller can fall back to a plain message instead of exporting a blank card.
+ *
+ * Unlike the on-screen portraits this is a one-shot bake into a file, so there
+ * is nothing to redraw when the art lands: a `pending` answer means the
+ * resolver handed back the flat loading stand-in, which must never ship inside
+ * a save card. The Profile's picker waits for the owned art before it opens
+ * (`awaitArt`), so this is the backstop: a file that failed its load twice
+ * settles without its art (`ArtLoaderScene.loadBatch`), and art streaming can
+ * later evict a texture the picker saw loaded.
  */
 export function composeSaveCardCanvas(
   scene: Phaser.Scene,
   cardId: string,
   lines: SaveCardLines,
 ): HTMLCanvasElement | null {
-  let ref: { textureKey: string; frameName?: string } | undefined;
+  let ref: ArtRef | undefined;
   try {
     ref = Art.resolver?.getArt(cardId);
   } catch {
     return null; // no art generated for this id — the caller reports it
   }
-  if (!ref) return null;
+  if (!ref || ref.pending !== undefined) return null;
   const texture = scene.textures.get(ref.textureKey);
   if (!texture || texture.key === '__MISSING') return null;
   const frame = texture.get(ref.frameName);
@@ -85,6 +94,22 @@ export function composeSaveCardCanvas(
   ctx.font = `14px ${theme.fonts.ui}`;
   ctx.fillText(lines.date, SAVE_CARD_W / 2, plateTop + 118);
   return canvas;
+}
+
+/**
+ * Why `composeSaveCardCanvas` returned null, when the reason is one the player
+ * can wait out: the card's art file is still in the loader's queue. False for
+ * every other reason, including a file the loader gave up on (it settles
+ * without its art, so the stand-in would stay), which is "pick another card".
+ */
+export function saveCardArtStillLoading(cardId: string): boolean {
+  let ref: ArtRef | undefined;
+  try {
+    ref = Art.resolver?.getArt(cardId);
+  } catch {
+    return false;
+  }
+  return ref?.pending !== undefined && !isArtLoaded(cardId);
 }
 
 /** PNG-encode a canvas. Rejects only when the browser refuses to encode. */

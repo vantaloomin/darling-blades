@@ -22,6 +22,7 @@ import {
   type GauntletTowerLayout,
 } from '../ui/layout';
 import { gateOnArt } from '../ui/artGate';
+import { addPortraitArt } from '../ui/portraitArt';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { sceneSubtitle, sceneTitle } from '../ui/sceneTitle';
 import { ellipsizeText } from '../ui/textFit';
@@ -646,14 +647,13 @@ export class GauntletScene extends Phaser.Scene {
     try {
       const ref = Art.resolver?.getArt(cardId);
       if (!ref) return;
-      const img = this.add.image(x, y, ref.textureKey, ref.frameName);
-      // Cover-fit the 320×400 art into the 260×328 window, biased to the top so
-      // the face reads. A geometry mask crops the overflow to the frame.
+      // Cover-fit the art into the 260×328 window, biased to the top so the
+      // face reads. A geometry mask crops the overflow to the frame.
       const targetW = 260;
       const targetH = 328;
-      const scale = Math.max(targetW / img.width, targetH / img.height) * 1.12;
-      img.setScale(scale);
-      img.y = y - 26; // bias upward toward the face
+      const img = addPortraitArt(this, x, y - 26, ref, (image) => {
+        image.setScale(Math.max(targetW / image.width, targetH / image.height) * 1.12);
+      });
       const maskShape = this.add
         .rectangle(x, y, targetW, targetH, colorInt(theme.colors.heading))
         .setVisible(false);

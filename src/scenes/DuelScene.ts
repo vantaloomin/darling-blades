@@ -8,7 +8,7 @@ import { buildAI } from '../ai/personality';
 import { ECONOMY, RULES, type ReserveFormat } from '../config/rules';
 import { FEATURES } from '../config/features';
 import { CARD_DB } from '../data/catalog';
-import { tutorialCue, type TutorialCueInput, type TutorialCueKind } from '../data/tutorial';
+import { TUTORIAL_OPPONENT_PORTRAIT, tutorialCue, type TutorialCueInput, type TutorialCueKind } from '../data/tutorial';
 import { avatarById, avatarForRung, AVATARS, type Avatar } from '../data/opponents';
 import { draftPersonaById, type DraftPersona } from '../data/draftPersonas';
 import { heroById } from '../data/heroes';
@@ -97,6 +97,7 @@ import {
   type CoinFlipSide,
 } from '../ui/coinFlipLayout';
 import { CommanderPortrait } from '../ui/CommanderPortrait';
+import { addPortraitArt } from '../ui/portraitArt';
 import { fanLayout } from '../ui/handFan';
 import { handDisplayOrder } from '../ui/handSort';
 import { HistoryPanel } from '../ui/HistoryPanel';
@@ -647,6 +648,7 @@ export class DuelScene extends Phaser.Scene {
       ? draftPersonaById(data.limited.opponentPersonaId)
       : null;
     if (persona) ids.push(persona.portraitCardId);
+    if (data.tutorial) ids.push(TUTORIAL_OPPONENT_PORTRAIT);
 
     // Styled basic-land art files are their own manifest keys, not card ids.
     const landStyle = !replay && data.deckOverride === undefined ? myDeckEntry?.landStyle : null;
@@ -967,7 +969,9 @@ export class DuelScene extends Phaser.Scene {
     this.arrows = this.add.graphics().setDepth(50);
     // Duel identities, the opponents.ts "portraits cost zero new art" idiom:
     // your commander portrait is your deck's face card; the opponent's strip
-    // avatar is their curated portraitCardId (gauntlet) or their deck's face.
+    // avatar is their curated portraitCardId (gauntlet), the draft persona's,
+    // the tutorial's own pick (its deck's face is the player's face too), or
+    // their deck's face.
     this.myDeckName = this.replayMode
       ? 'Replay Deck'
       : this.limited
@@ -989,7 +993,10 @@ export class DuelScene extends Phaser.Scene {
     this.myHeroTextureKey = deckHero ? null : this.resolveHeroPortrait(save);
     this.myFaceCardId = deckHero ?? defaultHero ?? faceCardFor(myDeck, CARD_DB);
     this.oppFaceCardId =
-      this.opponent?.portraitCardId ?? this.limitedPersona?.portraitCardId ?? faceCardFor(aiDeck, CARD_DB);
+      this.opponent?.portraitCardId ??
+      this.limitedPersona?.portraitCardId ??
+      (this.tutorial ? TUTORIAL_OPPONENT_PORTRAIT : null) ??
+      faceCardFor(aiDeck, CARD_DB);
     // Warchest deals a 5-card opener (2026-08-07 ratification); classic and
     // Darlings keep 7. Replays always defer to their recorded value, so
     // pre-flip logs (absent field) reconstruct their original 7-card deals.
@@ -8653,9 +8660,10 @@ export class DuelScene extends Phaser.Scene {
 
     const art = Art.resolver?.getArt(avatar.portraitCardId);
     if (art) {
-      const img = this.add.image(x, y - 6, art.textureKey, art.frameName).setOrigin(0.5);
-      const scale = Math.max((w - 12) / Math.max(1, img.width), (h - 26) / Math.max(1, img.height));
-      img.setScale(scale).setAlpha(state === 'unreached' ? 0.22 : state === 'cleared' ? 0.56 : 0.95);
+      const img = addPortraitArt(this, x, y - 6, art, (image) => {
+        image.setScale(Math.max((w - 12) / Math.max(1, image.width), (h - 26) / Math.max(1, image.height)));
+      });
+      img.setAlpha(state === 'unreached' ? 0.22 : state === 'cleared' ? 0.56 : 0.95);
       const maskShape = this.add.rectangle(x, y - 6, w - 12, h - 26, 0xffffff).setVisible(false);
       img.setMask(maskShape.createGeometryMask());
       parent.add(maskShape);

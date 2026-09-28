@@ -1,5 +1,6 @@
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
+import artLookupHandlesLateArt from './eslint-rules/art-lookup-handles-late-art.js';
 
 export default tseslint.config(
   { ignores: ['dist/**', 'node_modules/**'] },
@@ -84,6 +85,18 @@ export default tseslint.config(
         { name: 'localStorage', message: 'Headless module, and the Forge never touches storage.' },
         { name: 'sessionStorage', message: 'Headless module, and the Forge never touches storage.' },
       ],
+    },
+  },
+  {
+    // Card art streams in late (1.8): every getArt lookup where the game draws
+    // must redraw, or refuse the stand-in, when the real file lands (1.9, I9).
+    // The resolver and the loader (src/art, ArtLoaderScene) produce the
+    // stand-in rather than draw from it, so they are outside the rule.
+    files: ['src/scenes/**', 'src/ui/**'],
+    ignores: ['src/scenes/ArtLoaderScene.ts'],
+    plugins: { darling: { rules: { 'art-lookup-handles-late-art': artLookupHandlesLateArt } } },
+    rules: {
+      'darling/art-lookup-handles-late-art': 'error',
     },
   },
 );
