@@ -1012,8 +1012,8 @@ describe('Starborne mark events and statics', () => {
     markedArtifact.submit(0, { type: 'castSpell', handIndex: 0 });
     expect(markedArtifact.state.players[0].life).toBe(20);
 
-    expect(rulesText(DB.threshold)).toContain('If you control five or more creatures with Marks, ');
-    expect(rulesText(DB.thresholdCreatures)).toContain('If you control four or more creatures with Marks, ');
+    expect(rulesText(DB.threshold)).toContain('If you control five or more Marked creatures, ');
+    expect(rulesText(DB.thresholdCreatures)).toContain('If you control four or more Marked creatures, ');
 
     const permanentThreshold = makeTestState({ battlefield: [
       ...Array.from({ length: 4 }, (_, i) => permanent(i + 1, 'bear', 0, 1)),

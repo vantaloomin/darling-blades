@@ -8,7 +8,7 @@ import { buildAI } from '../ai/personality';
 import { ECONOMY, RULES, type ReserveFormat } from '../config/rules';
 import { FEATURES } from '../config/features';
 import { CARD_DB } from '../data/catalog';
-import { TUTORIAL_OPPONENT_PORTRAIT, tutorialCue, type TutorialCueInput, type TutorialCueKind } from '../data/tutorial';
+import { TUTORIAL_OPPONENT_NAME, TUTORIAL_OPPONENT_PORTRAIT, tutorialCue, type TutorialCueInput, type TutorialCueKind } from '../data/tutorial';
 import { avatarById, avatarForRung, AVATARS, type Avatar } from '../data/opponents';
 import { draftPersonaById, type DraftPersona } from '../data/draftPersonas';
 import { heroById } from '../data/heroes';
@@ -1096,7 +1096,7 @@ export class DuelScene extends Phaser.Scene {
       internalRestart,
     });
     if (showVersusBumper) {
-      const opponentName = this.opponent?.name ?? this.limitedPersona?.name ?? `${this.difficulty} AI`;
+      const opponentName = this.opponentName() ?? `${this.difficulty} AI`;
       this.versusBumperActive = true;
       Sfx.play('versus', {
         pitch: versusLeitmotifPitch(this.opponent?.id ?? this.oppFaceCardId ?? opponentName),
@@ -1520,6 +1520,15 @@ export class DuelScene extends Phaser.Scene {
     return this.textures.exists(h.textureKey) ? h.textureKey : null;
   }
 
+  /**
+   * The opponent's display name when she has one: the gauntlet or Tower
+   * opponent, the draft persona, or the tutorial's Alder. Undefined for an
+   * unnamed practice AI, whose callers pick their own fallback.
+   */
+  private opponentName(): string | undefined {
+    return this.opponent?.name ?? this.limitedPersona?.name ?? (this.tutorial ? TUTORIAL_OPPONENT_NAME : undefined);
+  }
+
   private matchupLabel(): string {
     if (this.tutorial) return 'Tutorial';
     if (this.replayMode && this.replayLog) {
@@ -1671,7 +1680,7 @@ export class DuelScene extends Phaser.Scene {
       height: LAYOUT.oppPortrait.h,
       edge: 'top',
       cardId: this.oppFaceCardId,
-      label: this.replayLog?.context.opponentName ?? this.opponent?.name ?? this.limitedPersona?.name ?? `${this.difficulty} AI`,
+      label: this.replayLog?.context.opponentName ?? this.opponentName() ?? `${this.difficulty} AI`,
     });
     this.addLifeBadgePlate(LAYOUT.myLife.x, LAYOUT.myLife.y);
     this.addLifeBadgePlate(LAYOUT.oppLife.x, LAYOUT.oppLife.y);
@@ -3703,7 +3712,7 @@ export class DuelScene extends Phaser.Scene {
       this.tweens.killTweensOf(this.turnBanner);
       this.turnBanner.destroy();
     }
-    const who = isYou ? 'Your Turn' : `${this.opponent?.name ?? this.limitedPersona?.name ?? 'Opponent'}'s Turn`;
+    const who = isYou ? 'Your Turn' : `${this.opponentName() ?? 'Opponent'}'s Turn`;
     const accent = isYou ? theme.colors.gold : theme.colors.body;
     const bannerY = 74;
     const banner = this.add.container(BOARD_CENTER_X, bannerY).setDepth(theme.depth.banner).setAlpha(0);

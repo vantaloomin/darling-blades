@@ -201,7 +201,9 @@ export class LimitedScene extends Phaser.Scene {
     // applying to the other: what the run pays, then whether the picks stay.
     // Caption geometry: the panel bottoms out at y+180, so the first line
     // starts at y+112 (a two-line wrap ends ~y+142) and the keep-line at y+152
-    // is kept short enough to stay single-line inside CTA_W.
+    // is kept short enough to stay single-line inside CTA_W. The Premium
+    // column's weekly-allowance line is single-line, so its pay line fits
+    // between it and the keep-line at y+132.
     this.ctaCaption(x + CTA_COL_LEFT, y + 112, freeDraftPayoutCopy(), runActive);
     this.ctaCaption(x + CTA_COL_LEFT, y + 152, 'Picks are not kept.', runActive);
     this.ctaCaption(
@@ -210,6 +212,7 @@ export class LimitedScene extends Phaser.Scene {
       premiumAllowanceCopy(premiumStatus, runActive, premiumUnaffordable),
       premiumDisabled,
     );
+    this.ctaCaption(x + CTA_COL_RIGHT, y + 132, 'Pays no gold.', premiumDisabled);
     this.ctaCaption(x + CTA_COL_RIGHT, y + 152, 'Every pick is yours to keep.', premiumDisabled);
   }
   private ctaCaption(x: number, y: number, text: string, muted: boolean): void {
@@ -368,8 +371,7 @@ function freshRunSeed(): number {
  */
 function freeDraftPayoutCopy(): string {
   const table = ECONOMY.limitedRunGold;
-  const best = table.length - 1;
-  return `Pays ${table[0]}g, up to ${table[best]}g for ${best} wins.`;
+  return `Pays ${table[0]}g to ${table[table.length - 1]}g after three matches, by wins.`;
 }
 
 function draftModeLabel(run: { premium?: boolean }): string {
