@@ -12,10 +12,11 @@
  * the nearest entry on the next load. Changing the list is therefore never a
  * save bump.
  */
-export const TEXT_SCALES: readonly number[] = [1, 1.15, 1.3];
+export const TEXT_SCALES = [1, 1.15, 1.3] as const;
+export type TextScale = (typeof TEXT_SCALES)[number];
 
 /** A fresh save's text size, and the answer for any stored value that is not a finite number. */
-export const DEFAULT_TEXT_SCALE = 1;
+export const DEFAULT_TEXT_SCALE: TextScale = 1;
 
 /** Two distances closer than this count as a tie (decimal midpoints such as 1.225 are not exact in binary). */
 const TIE_EPSILON = 1e-9;
@@ -26,9 +27,9 @@ const TIE_EPSILON = 1e-9;
  * value, and a tie takes the smaller one (the list is ascending and only a
  * strictly nearer entry, by more than the tie epsilon, replaces the pick).
  */
-export function normalizeTextScale(value: unknown): number {
+export function normalizeTextScale(value: unknown): TextScale {
   if (typeof value !== 'number' || !Number.isFinite(value)) return DEFAULT_TEXT_SCALE;
-  let nearest = TEXT_SCALES[0];
+  let nearest: TextScale = TEXT_SCALES[0];
   for (const scale of TEXT_SCALES) {
     if (Math.abs(value - scale) < Math.abs(value - nearest) - TIE_EPSILON) nearest = scale;
   }
