@@ -32,12 +32,15 @@ const LOADING_LABEL = 'Unsheathing Blades…';
 /**
  * How the loading line looks: the boot loader's own face and size, so every
  * wait in the game reads as the same wait. Exported for the modal waits that
- * draw the line in their own chrome (`awaitArt` callers).
+ * draw the line in their own chrome (`awaitArt` callers). The colour is read
+ * live, so a wait drawn after a contrast change takes the palette in force.
  */
 export const ART_WAIT_TEXT_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
   fontFamily: 'Georgia, serif',
   fontSize: '22px',
-  color: theme.colors.muted,
+  get color(): string {
+    return theme.colors.muted;
+  },
 };
 
 /** The loading line as a percentage of THIS wait's set, not of the manifest. */
