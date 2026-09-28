@@ -18,7 +18,6 @@ export const INSTANTS = [
       { when: 'spell', targets: [{ what: 'any' }], ops: [{ op: 'damage', n: 2, to: 'target' }] },
     ],
     rarity: 'c',
-    flavor: 'Standard-issue solution to nonstandard problems.',
   },
   {
     id: 'in-wild-surge',
@@ -35,7 +34,6 @@ export const INSTANTS = [
       },
     ],
     rarity: 'c',
-    flavor: 'The forest votes yes. All of it. At once.',
   },
   {
     id: 'in-read-the-ruse',
@@ -48,7 +46,6 @@ export const INSTANTS = [
       { when: 'spell', targets: [{ what: 'spell' }], ops: [{ op: 'cancel', to: 'target' }] },
     ],
     rarity: 'c',
-    flavor: '“I read it in your posture,” she says, insufferably.',
   },
   {
     id: 'in-shieldwall',
@@ -65,7 +62,6 @@ export const INSTANTS = [
       },
     ],
     rarity: 'c',
-    flavor: 'Feet planted, spear first, questions never.',
   },
   {
     id: 'in-valley-mist',
@@ -76,7 +72,6 @@ export const INSTANTS = [
     colors: ['G'],
     abilities: [{ when: 'spell', ops: [{ op: 'preventCombat' }] }],
     rarity: 'c',
-    flavor: 'The armies met. The valley disagreed.',
   },
   {
     id: 'in-undertow',
@@ -89,7 +84,6 @@ export const INSTANTS = [
       { when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'recall', to: 'target' }] },
     ],
     rarity: 'c',
-    flavor: 'The tide files no charges. It just takes you home.',
   },
   {
     id: 'in-blessed-respite',
@@ -100,7 +94,6 @@ export const INSTANTS = [
     colors: ['W'],
     abilities: [{ when: 'spell', ops: [{ op: 'gainLife', n: 4 }] }],
     rarity: 'c',
-    flavor: 'Tea, bandages, and five whole minutes of quiet.',
   },
   {
     id: 'in-grave-chill',
@@ -117,7 +110,6 @@ export const INSTANTS = [
       },
     ],
     rarity: 'c',
-    flavor: 'A cold shoulder from the underworld itself.',
   },
   {
     id: 'in-boar-rush',
@@ -134,7 +126,6 @@ export const INSTANTS = [
       },
     ],
     rarity: 'c',
-    flavor: 'Subtlety is for people with brakes.',
   },
   {
     id: 'in-tidal-slip',
@@ -154,7 +145,6 @@ export const INSTANTS = [
       },
     ],
     rarity: 'c',
-    flavor: 'Oops. Was that your footing?',
   },
   {
     id: 'in-doom-bolt',
@@ -167,7 +157,6 @@ export const INSTANTS = [
       { when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'destroy', to: 'target' }] },
     ],
     rarity: 'r',
-    flavor: 'One dark syllable, one vacancy.',
   },
   {
     id: 'in-char',
@@ -180,7 +169,6 @@ export const INSTANTS = [
       { when: 'spell', targets: [{ what: 'any' }], ops: [{ op: 'damage', n: 3, to: 'target' }] },
     ],
     rarity: 'r',
-    flavor: 'Well done. Medium rare was not on offer.',
   },
   {
     id: 'in-stand-as-one',
@@ -191,7 +179,6 @@ export const INSTANTS = [
     colors: ['W'],
     abilities: [{ when: 'spell', ops: [{ op: 'boost', p: 1, t: 1, scope: 'allYours' }] }],
     rarity: 'r',
-    flavor: 'One banner, many hands, zero hesitation.',
   },
   {
     id: 'in-sudden-insight',
@@ -213,7 +200,6 @@ export const INSTANTS = [
     colors: ['U'],
     abilities: [{ when: 'spell', ops: [{ op: 'draw', n: 2 }] }],
     rarity: 'r',
-    flavor: 'The answer arrives mid-argument, rude and correct.',
   },
   {
     id: 'in-skysweeper-gale',
@@ -224,7 +210,6 @@ export const INSTANTS = [
     colors: ['G'],
     abilities: [{ when: 'spell', ops: [{ op: 'massDestroy', filter: 'allFliers' }] }],
     rarity: 'r',
-    flavor: 'The canopy accepts no overflights.',
   },
   {
     id: 'in-comet-blast',
@@ -238,7 +223,6 @@ export const INSTANTS = [
       { when: 'spell', targets: [{ what: 'any' }], ops: [{ op: 'damage', n: 'X', to: 'target' }] },
     ],
     rarity: 'sr',
-    flavor: 'Aim, invoice the heavens, release.',
   },
   {
     id: 'in-reapers-due',
@@ -258,7 +242,6 @@ export const INSTANTS = [
       },
     ],
     rarity: 'sr',
-    flavor: 'Payment collected in full, plus processing fees.',
   },
   {
     id: 'in-dream-fracture',
@@ -278,7 +261,6 @@ export const INSTANTS = [
       },
     ],
     rarity: 'sr',
-    flavor: 'Your idea was lovely. It is hers now.',
   },
   {
     id: 'in-cleanse-the-shrine',
@@ -289,7 +271,6 @@ export const INSTANTS = [
     colors: ['W'],
     abilities: [{ when: 'spell', targets: [{ what: 'artifactOrEnchantment' }], ops: [{ op: 'sever', to: 'target' }] }],
     rarity: 'c',
-    flavor: 'Even Olympus has a cleaning fee, and she collects it in advance.',
   },
   {
     id: 'in-ram-the-gates',
@@ -301,7 +282,6 @@ export const INSTANTS = [
     abilities: [{ when: 'spell', targets: [{ what: 'artifact' }], ops: [{ op: 'destroy', to: 'target' }] }],
     empower: { cost: cost(1, 'R'), ops: [{ op: 'damage', n: 2, to: 'opponent' }] },
     rarity: 'c',
-    flavor: 'The gate was fortified. She was not impressed.',
   },
   {
     id: 'in-empty-fort-stratagem',
@@ -312,6 +292,5 @@ export const INSTANTS = [
     colors: ['U'],
     abilities: [{ when: 'spell', targets: [{ what: 'artifactOrEnchantment' }], ops: [{ op: 'recall', to: 'target' }] }],
     rarity: 'c',
-    flavor: 'She left the fort empty, the enemy confused, and the valuables elsewhere.',
   },
 ] as const satisfies readonly CardDef[];

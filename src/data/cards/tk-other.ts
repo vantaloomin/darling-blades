@@ -21,7 +21,6 @@ export const TK_OTHER = [
     keywords: ['twinBlades', 'rage'],
     abilities: [{ when: 'dawn', ops: [{ op: 'damage', n: 1, to: 'controller' }] }],
     rarity: 'ur',
-    flavor: 'Among warriors, Lu Bu. Among steeds, Red Hare. Among tempers… run.',
   },
   {
     id: 'tk-other-diaochan',
@@ -35,7 +34,6 @@ export const TK_OTHER = [
     defense: 3,
     abilities: [{ when: 'arrives', ops: [{ op: 'discardRandom', n: 1, who: 'opponent' }] }],
     rarity: 'sr',
-    flavor: 'Two warlords, one dance, zero survivors.',
   },
   {
     id: 'tk-other-dongzhuo',
@@ -49,7 +47,6 @@ export const TK_OTHER = [
     defense: 2,
     abilities: [{ when: 'dies', ops: [{ op: 'loseLife', n: 2, who: 'opponent' }] }],
     rarity: 'r',
-    flavor: 'Even her downfall was expensive.',
   },
   {
     id: 'tk-other-zhangjiao',
@@ -62,7 +59,6 @@ export const TK_OTHER = [
     defense: 1,
     abilities: [{ when: 'arrives', ops: [{ op: 'grind', n: 1, who: 'self' }, { op: 'foresee', n: 1 }] }],
     rarity: 'r',
-    flavor: 'The Han sky has fallen; the yellow sky rises with her word.',
   },
   {
     id: 'tk-other-huaxiong',
@@ -74,7 +70,6 @@ export const TK_OTHER = [
     attack: 3,
     defense: 1,
     rarity: 'c',
-    flavor: 'Famously brave, briefly.',
   },
   {
     id: 'tk-other-lulingqi',
@@ -87,7 +82,6 @@ export const TK_OTHER = [
     defense: 2,
     keywords: ['firstBlade'],
     rarity: 'c',
-    flavor: 'Her father’s halberd, her own legend.',
   },
   {
     id: 'tk-other-yuanshao',
@@ -99,7 +93,6 @@ export const TK_OTHER = [
     attack: 4,
     defense: 5,
     rarity: 'c',
-    flavor: 'Four generations of Excellencies. Zero decisions made on time.',
   },
   {
     id: 'tk-other-menghuo',
@@ -112,7 +105,6 @@ export const TK_OTHER = [
     defense: 4,
     keywords: ['overrun', 'warcry'],
     rarity: 'r',
-    flavor: 'Captured seven times, released seven times, undefeated in her own retelling.',
   },
   {
     id: 'tk-other-zhurong',
@@ -125,7 +117,6 @@ export const TK_OTHER = [
     defense: 3,
     keywords: ['firstBlade'],
     rarity: 'r',
-    flavor: 'Descended from the fire god, married to a seven-time loser, unbeaten at home.',
   },
   {
     id: 'tk-other-zuoci',
@@ -138,7 +129,6 @@ export const TK_OTHER = [
     defense: 3,
     keywords: ['untouchable'],
     rarity: 'r',
-    flavor: 'Arrest her twice and you will be holding three of her.',
   },
   {
     id: 'tk-other-chengong',
@@ -150,7 +140,6 @@ export const TK_OTHER = [
     attack: 2,
     defense: 2,
     rarity: 'c',
-    flavor: 'Left Cao Cao on principle. Chose Lu Bu, on principle, somehow.',
   },
   {
     id: 'tk-other-dongbai',
@@ -163,7 +152,6 @@ export const TK_OTHER = [
     defense: 1,
     keywords: ['deathblade'],
     rarity: 'c',
-    flavor: 'Granted a fief before losing her baby teeth. Kept the teeth.',
   },
   {
     id: 'tk-other-warband-captain',
@@ -176,6 +164,5 @@ export const TK_OTHER = [
     defense: 2,
     abilities: [{ when: 'static', static: { scope: 'filter', filter: { subtype: 'Warrior', other: true }, grantKeywords: ['warcry'] } }],
     rarity: 'sr',
-    flavor: 'She does not call the charge. Her warband is already moving.',
   },
 ] as const satisfies readonly CardDef[];

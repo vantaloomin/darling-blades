@@ -100,7 +100,6 @@ describe('audit-overlap body key: cards share a body only if they play identical
       name: 'Another Name',
       rarity: 'sr',
       set: 'drowned-deep',
-      flavor: 'Different words.',
       artRef: 'other-art',
       displayTypeLine: 'Creature — Other',
       keywords: ['skyborne', 'sentinel'],

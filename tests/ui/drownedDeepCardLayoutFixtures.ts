@@ -6,8 +6,8 @@ import type { CardDef } from '../../src/engine/types';
  */
 export const DROWNED_DEEP_CARD_LAYOUT_FIXTURES: readonly CardDef[] = [
   {
-    // Approved Tidewife row in drowned-deep-overplan.md, including its flavor
-    // budget: a cost-capped Duty shares the face with two other rules lines.
+    // Approved Tidewife row in drowned-deep-overplan.md: a cost-capped Duty
+    // shares the face with two other rules lines.
     id: 'dd-layout-tidewife',
     name: 'Ysolt the Tidewife',
     types: ['creature'],
@@ -19,7 +19,6 @@ export const DROWNED_DEEP_CARD_LAYOUT_FIXTURES: readonly CardDef[] = [
     defense: 4,
     keywords: ['skyborne'],
     rarity: 'ssr',
-    flavor: 'She married the tide. The tide has been very attentive.',
     abilities: [{ when: 'arrives', ops: [{ op: 'grind', n: 3, who: 'self' }] }],
     activated: {
       cost: { tap: true },

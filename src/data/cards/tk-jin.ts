@@ -23,7 +23,6 @@ export const TK_JIN = [
       },
     ],
     rarity: 'ssr',
-    flavor: 'She outwaited three emperors. You are not more stubborn than three emperors.',
   },
   {
     id: 'tk-jin-wangyuanji',
@@ -38,7 +37,6 @@ export const TK_JIN = [
     keywords: ['deathblade'],
     abilities: [{ when: 'arrives', ops: [{ op: 'draw', n: 1 }] }],
     rarity: 'sr',
-    flavor: 'She says little. She has already said everything that mattered.',
   },
   {
     id: 'tk-jin-zhangchunhua',
@@ -61,7 +59,6 @@ export const TK_JIN = [
       },
     ],
     rarity: 'sr',
-    flavor: 'Sima Yi outwaited emperors. She cannot outwait her wife.',
   },
   {
     id: 'tk-jin-simashi',
@@ -74,7 +71,6 @@ export const TK_JIN = [
     defense: 3,
     keywords: ['firstBlade'],
     rarity: 'r',
-    flavor: 'Her plans survive contact with everything except her sister’s jokes.',
   },
   {
     id: 'tk-jin-simazhao',
@@ -86,7 +82,6 @@ export const TK_JIN = [
     attack: 3,
     defense: 2,
     rarity: 'c',
-    flavor: 'Even the street children know what Sima Zhao wants.',
   },
   {
     id: 'tk-jin-zhonghui',
@@ -99,7 +94,6 @@ export const TK_JIN = [
     defense: 3,
     keywords: ['skyborne'],
     rarity: 'r',
-    flavor: 'Collects victories, calligraphy, and grudges. Alphabetized.',
   },
   {
     id: 'tk-jin-dengai',
@@ -112,7 +106,6 @@ export const TK_JIN = [
     defense: 3,
     abilities: [{ when: 'arrives', ops: [{ op: 'extraLandDrop' }] }],
     rarity: 'r',
-    flavor: 'Farms in peacetime, farms in wartime. Mountains are just taller fields.',
   },
   {
     id: 'tk-jin-wenyang',
@@ -124,7 +117,6 @@ export const TK_JIN = [
     attack: 4,
     defense: 3,
     rarity: 'c',
-    flavor: 'Chased by hundreds, she turned to fight seven times. They stopped at seven.',
   },
   {
     id: 'tk-jin-xinxianying',
@@ -136,7 +128,6 @@ export const TK_JIN = [
     attack: 1,
     defense: 3,
     rarity: 'c',
-    flavor: 'Ask her for advice and you get a forecast. The forecasts land.',
   },
   {
     id: 'tk-jin-jiachong',
@@ -148,7 +139,6 @@ export const TK_JIN = [
     attack: 2,
     defense: 3,
     rarity: 'c',
-    flavor: 'Somebody has to do it. She is famously somebody.',
   },
   {
     id: 'tk-jin-zhugedan',
@@ -160,7 +150,6 @@ export const TK_JIN = [
     attack: 3,
     defense: 4,
     rarity: 'c',
-    flavor: 'Of the three Zhuges: one dragon, one tiger, one very stubborn dog.',
   },
   {
     id: 'tk-jin-guanqiujian',
@@ -172,7 +161,6 @@ export const TK_JIN = [
     attack: 2,
     defense: 2,
     rarity: 'c',
-    flavor: 'Loyal to a dynasty that kept changing hands. Someone had to say no.',
   },
   {
     id: 'tk-jin-xiahouhui',
@@ -184,7 +172,6 @@ export const TK_JIN = [
     attack: 2,
     defense: 3,
     rarity: 'c',
-    flavor: 'Married into the Simas. Tastes her own soup first.',
   },
   {
     id: 'tk-jin-yang-huiyu',
@@ -197,6 +184,5 @@ export const TK_JIN = [
     defense: 2,
     abilities: [{ when: 'static', static: { scope: 'filter', filter: { subtype: 'Jin', other: true }, p: 1, t: 1 } }],
     rarity: 'r',
-    flavor: 'She keeps every promise in a ledger. Her enemies keep forgetting the ink.',
   },
 ] as const satisfies readonly CardDef[];

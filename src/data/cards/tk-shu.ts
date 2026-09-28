@@ -16,7 +16,6 @@ export const TK_SHU = [
     keywords: ['bloodoath'],
     abilities: [{ when: 'arrives', ops: [{ op: 'createToken', token: 'tok-militia', count: 2 }] }],
     rarity: 'ur',
-    flavor: 'She wept, and ten thousand volunteers signed up to carry her tears.',
   },
   {
     id: 'tk-shu-guanyu',
@@ -30,7 +29,6 @@ export const TK_SHU = [
     defense: 4,
     keywords: ['firstBlade', 'sentinel'],
     rarity: 'ur',
-    flavor: 'The magnificent beard is now magnificent hair. The moon blade did not change.',
   },
   {
     id: 'tk-shu-zhangfei',
@@ -45,7 +43,6 @@ export const TK_SHU = [
     keywords: ['overrun'],
     abilities: [{ when: 'arrives', ops: [{ op: 'damage', n: 2, to: 'opponent' }] }],
     rarity: 'ssr',
-    flavor: 'She yelled at a bridge. The bridge lost.',
   },
   {
     id: 'tk-shu-zhaoyun',
@@ -59,7 +56,6 @@ export const TK_SHU = [
     defense: 4,
     keywords: ['sentinel', 'untouchable'],
     rarity: 'ssr',
-    flavor: 'Through a million spears with a baby on her back. Not one hair out of place.',
   },
   {
     id: 'tk-shu-zhugeliang',
@@ -73,7 +69,6 @@ export const TK_SHU = [
     defense: 4,
     abilities: [{ when: 'arrives', ops: [{ op: 'draw', n: 2 }] }],
     rarity: 'ssr',
-    flavor: 'Borrowed arrows, borrowed wind, borrowed time, all returned with interest.',
   },
   {
     id: 'tk-shu-guanping',
@@ -91,7 +86,6 @@ export const TK_SHU = [
       },
     ],
     rarity: 'r',
-    flavor: 'Raised on oaths and drills; she shares both freely.',
   },
   {
     id: 'tk-shu-xingcai',
@@ -104,7 +98,6 @@ export const TK_SHU = [
     defense: 3,
     keywords: ['firstBlade', 'untouchable'],
     rarity: 'r',
-    flavor: 'Zhang Fei’s daughter, somehow the calm one.',
   },
   {
     id: 'tk-shu-pangtong',
@@ -117,7 +110,6 @@ export const TK_SHU = [
     defense: 3,
     abilities: [{ when: 'arrives', ops: [{ op: 'draw', n: 1 }] }],
     rarity: 'r',
-    flavor: 'Underestimated at every interview, hired after every war.',
   },
   {
     id: 'tk-shu-yueying',
@@ -130,7 +122,6 @@ export const TK_SHU = [
     defense: 3,
     abilities: [{ when: 'arrives', ops: [{ op: 'createToken', token: 'tok-wooden-ox', count: 1 }] }],
     rarity: 'r',
-    flavor: 'Her wooden oxen need no fodder and file no complaints.',
   },
   {
     id: 'tk-shu-guanyinping',
@@ -143,7 +134,6 @@ export const TK_SHU = [
     defense: 3,
     abilities: [{ when: 'attacks', ops: [{ op: 'addCounters', n: 1, to: 'self' }] }],
     rarity: 'r',
-    flavor: 'Mother’s blade weighs forty jin. She calls it her light one.',
   },
   {
     id: 'tk-shu-weiyan',
@@ -156,7 +146,6 @@ export const TK_SHU = [
     defense: 3,
     keywords: ['overrun'],
     rarity: 'r',
-    flavor: 'Her plans are always “attack.” Her backup plans are louder.',
   },
   // Returning-mechanics sprinkle (1.6): twinBlades comes home to the Three
   // Kingdoms. Attack held to printed mv minus one per the Ragnarök band.
@@ -171,7 +160,6 @@ export const TK_SHU = [
     defense: 3,
     keywords: ['twinBlades'],
     rarity: 'r',
-    flavor: 'Two willow blades, one lesson: the second cut arrives unannounced.',
   },
   {
     id: 'tk-shu-machao',
@@ -183,7 +171,6 @@ export const TK_SHU = [
     attack: 4,
     defense: 3,
     rarity: 'c',
-    flavor: 'Justice at full gallop, receipts nailed to the gate.',
   },
   {
     id: 'tk-shu-huangzhong',
@@ -196,7 +183,6 @@ export const TK_SHU = [
     defense: 2,
     keywords: ['wardingGaze'],
     rarity: 'c',
-    flavor: 'Age is a number. Hers is a bullseye count.',
   },
   {
     id: 'tk-shu-jiangwei',
@@ -208,7 +194,6 @@ export const TK_SHU = [
     attack: 3,
     defense: 3,
     rarity: 'c',
-    flavor: 'Nine campaigns north, one unshakable to-do list.',
   },
   {
     id: 'tk-shu-madai',
@@ -220,7 +205,6 @@ export const TK_SHU = [
     attack: 2,
     defense: 2,
     rarity: 'c',
-    flavor: 'Always exactly where the plan needs her. Ask Wei Yan.',
   },
   {
     id: 'tk-shu-baosanniang',
@@ -232,7 +216,6 @@ export const TK_SHU = [
     attack: 2,
     defense: 1,
     rarity: 'c',
-    flavor: 'Won her own wedding by duel. The cats came with her.',
   },
   {
     id: 'tk-shu-zhangbao',
@@ -244,7 +227,6 @@ export const TK_SHU = [
     attack: 3,
     defense: 3,
     rarity: 'c',
-    flavor: 'Louder than her mother? The jury went deaf before ruling.',
   },
   {
     id: 'tk-shu-guansuo',
@@ -256,7 +238,6 @@ export const TK_SHU = [
     attack: 2,
     defense: 2,
     rarity: 'c',
-    flavor: 'Too pretty for the front line, says everyone the front line lost to.',
   },
   {
     id: 'tk-shu-liushan',
@@ -269,7 +250,6 @@ export const TK_SHU = [
     defense: 8,
     keywords: ['bulwark'],
     rarity: 'c',
-    flavor: '“I quite enjoy it here,” says Liu Shan. Of every here.',
   },
   {
     id: 'tk-shu-wangping',
@@ -281,7 +261,6 @@ export const TK_SHU = [
     attack: 2,
     defense: 3,
     rarity: 'c',
-    flavor: 'Can’t read a scroll. Reads terrain like scripture.',
   },
   {
     id: 'tk-shu-masu',
@@ -293,7 +272,6 @@ export const TK_SHU = [
     attack: 2,
     defense: 1,
     rarity: 'c',
-    flavor: 'Camp on the hilltop, she said. What stream, she said.',
   },
   {
     id: 'tk-shu-fazheng',
@@ -305,6 +283,5 @@ export const TK_SHU = [
     attack: 2,
     defense: 2,
     rarity: 'c',
-    flavor: 'One meal repaid, one grudge repaid. Her ledgers balance.',
   },
 ] as const satisfies readonly CardDef[];

@@ -11,7 +11,6 @@ export interface YokaiSpecRow {
   cost: string;
   stats: string;
   mechanics: string;
-  flavor: string;
 }
 
 export const YOKAI_SPEC_ROWS = [
@@ -23,8 +22,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Legendary Creature (Kitsune Queen)",
     "cost": "{5}{W}",
     "stats": "3/6",
-    "mechanics": "Skyborne, Sentinel. Your other Kitsune get +1/+1.",
-    "flavor": "She rules from a rooftop palace where every lantern is a sworn witness."
+    "mechanics": "Skyborne, Sentinel. Your other Kitsune get +1/+1."
   },
   {
     "id": "yn-hauntlink-apex",
@@ -34,8 +32,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Artifact",
     "cost": "{3}{U}",
     "stats": "-",
-    "mechanics": "At dawn: Foresee 1. Hauntlink {3}{U}. Linked: The linked creature gets +3/+3, Skyborne, and Untouchable. (AI-risk survivor.)",
-    "flavor": "The perfect possession is a partnership until one voice stops answering."
+    "mechanics": "At dawn: Foresee 1. Hauntlink {3}{U}. Linked: The linked creature gets +3/+3, Skyborne, and Untouchable. (AI-risk survivor.)"
   },
   {
     "id": "yn-oni-of-the-last-exit",
@@ -45,8 +42,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Legendary Creature (Oni Avatar)",
     "cost": "{6}{B}",
     "stats": "6/6",
-    "mechanics": "Dreaded, Deathblade. Dies: opponent loses 4 life.",
-    "flavor": "Every road out of the city passes beneath her shadow."
+    "mechanics": "Dreaded, Deathblade. Dies: opponent loses 4 life."
   },
   {
     "id": "yn-kitsune-neon-tyrant",
@@ -56,8 +52,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Legendary Creature (Kitsune Boss)",
     "cost": "{4}{R}",
     "stats": "6/5",
-    "mechanics": "Warcry, Overrun. When this attacks: deal 2 damage to opponent, then deal 1 damage to you.",
-    "flavor": "Her tailfire turns the skyline into a personal victory lap."
+    "mechanics": "Warcry, Overrun. When this attacks: deal 2 damage to opponent, then deal 1 damage to you."
   },
   // Slate cut to {5}{G} REVERTED 2026-08-29: formula v3 flags that cut as
   // direction-reversed (already hot at {6}{G}), and it displaced gk-gaia
@@ -70,8 +65,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Legendary Creature (Spirit Sovereign)",
     "cost": "{4}{G}{G}",
     "stats": "6/6",
-    "mechanics": "Sentinel, Blood Oath. Arrives: gain 3 life, then Foresee 1.",
-    "flavor": "The old forest wears the city as jewelry and grows stronger under every light."
+    "mechanics": "Sentinel, Blood Oath. Arrives: gain 3 life, then Foresee 1."
   },
   {
     "id": "yn-lantern-court-regent",
@@ -81,8 +75,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Legendary Creature (Kitsune Regent)",
     "cost": "{4}{W}",
     "stats": "4/5",
-    "mechanics": "Sentinel. Your other Kitsune get +1/+1.",
-    "flavor": "The court follows her because every other route ends in rain."
+    "mechanics": "Sentinel. Your other Kitsune get +1/+1."
   },
   {
     "id": "yn-white-veil-collapse",
@@ -92,8 +85,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Ritual",
     "cost": "{2}{W}{W}",
     "stats": "-",
-    "mechanics": "Destroy all creatures; gain 4 life. [ANSWER: creature swarm and anthem-backed wide boards.]",
-    "flavor": "Her veil falls, and the armies beneath it leave no shadow."
+    "mechanics": "Destroy all creatures; gain 4 life. [ANSWER: creature swarm and anthem-backed wide boards.]"
   },
   {
     "id": "yn-ghost-net-archon",
@@ -103,8 +95,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Legendary Creature (Spirit Archon)",
     "cost": "{6}{U}",
     "stats": "5/5",
-    "mechanics": "Skyborne, Untouchable. Arrives: Foresee 3.",
-    "flavor": "It rules a private cloud where every dead password still sings."
+    "mechanics": "Skyborne, Untouchable. Arrives: Foresee 3."
   },
   {
     "id": "yn-unanswered-signal",
@@ -114,8 +105,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Enchantment",
     "cost": "{3}{U}",
     "stats": "-",
-    "mechanics": "At dawn: draw 1. Hauntlink {3}{U}. Linked: The linked creature gets Skyborne and Untouchable.",
-    "flavor": "The signal keeps calling after the sender has become myth."
+    "mechanics": "At dawn: draw 1. Hauntlink {3}{U}. Linked: The linked creature gets Skyborne and Untouchable."
   },
   {
     "id": "yn-oni-underboss-of-rain",
@@ -125,8 +115,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Legendary Creature (Oni Underboss)",
     "cost": "{3}{B}{B}",
     "stats": "5/4",
-    "mechanics": "Dreaded, Deathblade. Arrives: opponent loses 3 life, then deal 2 damage to you.",
-    "flavor": "She steps from the rain wearing a suit tailored for the end of negotiations."
+    "mechanics": "Dreaded, Deathblade. Arrives: opponent loses 3 life, then deal 2 damage to you."
   },
   {
     "id": "yn-redline-queenpin",
@@ -136,8 +125,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Legendary Creature (Kitsune Queenpin)",
     "cost": "{4}{R}",
     "stats": "5/4",
-    "mechanics": "Warcry. Arrives: deal 4 damage to opponent.",
-    "flavor": "She controls the fastest route through the city and charges by the second."
+    "mechanics": "Warcry. Arrives: deal 4 damage to opponent."
   },
   {
     "id": "yn-burning-mask-of-the-void",
@@ -147,8 +135,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Artifact",
     "cost": "{1}{R}",
     "stats": "-",
-    "mechanics": "Arrives: deal 4 damage to opponent. Hauntlink {2}{R}. Linked: The linked creature gets +2/+0 and Overrun.",
-    "flavor": "The mask burns without consuming the face beneath it."
+    "mechanics": "Arrives: deal 4 damage to opponent. Hauntlink {2}{R}. Linked: The linked creature gets +2/+0 and Overrun."
   },
   {
     "id": "yn-jade-crown-elder",
@@ -158,8 +145,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Legendary Creature (Yokai Elder)",
     "cost": "{4}{G}{G}",
     "stats": "6/4",
-    "mechanics": "Overrun. Your other Yokai get +1/+0 and gain Overrun.",
-    "flavor": "She remembers when the city was a forest and expects it to return."
+    "mechanics": "Overrun. Your other Yokai get +1/+0 and gain Overrun."
   },
   {
     "id": "yn-white-lantern-vanguard",
@@ -169,8 +155,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Kitsune Paladin)",
     "cost": "{3}{W}",
     "stats": "3/3",
-    "mechanics": "Sentinel. Your other Kitsune get +1/+0.",
-    "flavor": "She leads every procession as if the city were already hers."
+    "mechanics": "Sentinel. Your other Kitsune get +1/+0."
   },
   {
     "id": "yn-sanctum-of-many-masks",
@@ -180,8 +165,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Enchantment",
     "cost": "{2}{W}",
     "stats": "-",
-    "mechanics": "At dawn: gain 2 life. Hauntlink {3}{W}. Linked: The linked creature gets +2/+2 and Sentinel.",
-    "flavor": "Every mask in the sanctum remembers a different patron."
+    "mechanics": "At dawn: gain 2 life. Hauntlink {3}{W}. Linked: The linked creature gets +2/+2 and Sentinel."
   },
   {
     "id": "yn-blue-ghost-broadcaster",
@@ -191,8 +175,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Spirit Hacker)",
     "cost": "{5}{U}",
     "stats": "3/4",
-    "mechanics": "Warding Gaze. Arrives: Foresee 2, then draw 1.",
-    "flavor": "Her broadcast reaches ghosts, gods, and the occasional bored commuter."
+    "mechanics": "Warding Gaze. Arrives: Foresee 2, then draw 1."
   },
   {
     "id": "yn-hauntlink-signal-lure",
@@ -202,8 +185,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Artifact",
     "cost": "{U}",
     "stats": "-",
-    "mechanics": "Arrives: Foresee 2. Hauntlink {U}. Linked: The linked creature gets Untouchable.",
-    "flavor": "The lure calls one spirit by its childhood name."
+    "mechanics": "Arrives: Foresee 2. Hauntlink {U}. Linked: The linked creature gets Untouchable."
   },
   {
     "id": "yn-azure-oni-broker",
@@ -213,8 +195,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Oni Broker)",
     "cost": "{4}{U}",
     "stats": "4/3",
-    "mechanics": "Untouchable. Arrives: draw 1, then grind opponent 2.",
-    "flavor": "Her blue horns glow whenever a secret changes hands."
+    "mechanics": "Untouchable. Arrives: draw 1, then grind opponent 2."
   },
   {
     "id": "yn-black-kitsune-broker",
@@ -224,8 +205,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Kitsune Broker)",
     "cost": "{3}{B}",
     "stats": "3/3",
-    "mechanics": "Deathblade. Arrives: opponent loses 2 life; gain 2 life.",
-    "flavor": "She charges twice, once for the favor and once for the silence afterward."
+    "mechanics": "Deathblade. Arrives: opponent loses 2 life; gain 2 life."
   },
   {
     "id": "yn-cold-boot-mask",
@@ -235,8 +215,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Artifact",
     "cost": "{2}{B}",
     "stats": "-",
-    "mechanics": "Arrives: grind self 2. Hauntlink {1}{B}. Linked: The linked creature gets +3/+3 and Deathblade.",
-    "flavor": "Its spirit only wakes when the wearer agrees to betray someone."
+    "mechanics": "Arrives: grind self 2. Hauntlink {1}{B}. Linked: The linked creature gets +3/+3 and Deathblade."
   },
   {
     "id": "yn-redline-oni-queen",
@@ -246,8 +225,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Legendary Creature (Oni Boss)",
     "cost": "{4}{R}",
     "stats": "5/4",
-    "mechanics": "Warcry, Overrun.",
-    "flavor": "She owns the loudest club in the city and the road outside it."
+    "mechanics": "Warcry, Overrun."
   },
   {
     "id": "yn-ember-link-chain",
@@ -257,8 +235,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Enchantment",
     "cost": "{2}{R}",
     "stats": "-",
-    "mechanics": "At dawn: deal 1 damage to opponent. Hauntlink {R}. Linked: The linked creature gets +1/+0 and Warcry.",
-    "flavor": "The chain is a nightclub accessory until its owner starts moving wrong."
+    "mechanics": "At dawn: deal 1 damage to opponent. Hauntlink {R}. Linked: The linked creature gets +1/+0 and Warcry."
   },
   {
     "id": "yn-jade-root-yokai",
@@ -268,8 +245,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Yokai Guardian)",
     "cost": "{4}{G}",
     "stats": "5/5",
-    "mechanics": "Sentinel.",
-    "flavor": "Its roots split the road and make room for an older kind of traffic."
+    "mechanics": "Sentinel."
   },
   {
     "id": "yn-thorncode-matriarch",
@@ -279,8 +255,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Kitsune Druid)",
     "cost": "{3}{G}",
     "stats": "3/4",
-    "mechanics": "Warding Gaze. Arrives: Foresee 2.",
-    "flavor": "She wears living circuitry braided from vines and stolen fiber."
+    "mechanics": "Warding Gaze. Arrives: Foresee 2."
   },
   {
     "id": "yn-lantern-fixer",
@@ -290,8 +265,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Kitsune Fixer)",
     "cost": "{1}{W}",
     "stats": "2/2",
-    "mechanics": "Arrives: Foresee 1.",
-    "flavor": "She can find a safe room in any neighborhood and a buyer in every safe room."
+    "mechanics": "Arrives: Foresee 1."
   },
   {
     "id": "yn-oni-precinct-captain",
@@ -301,8 +275,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Oni Enforcer)",
     "cost": "{4}{W}",
     "stats": "4/4",
-    "mechanics": "Sentinel. At dawn: gain 1 life.",
-    "flavor": "Her precinct is spotless because every stain has been given a name."
+    "mechanics": "Sentinel. At dawn: gain 1 life."
   },
   {
     "id": "yn-silver-moon-duelist",
@@ -312,8 +285,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Human Ronin)",
     "cost": "{2}{W}",
     "stats": "2/2",
-    "mechanics": "Twin Blades.",
-    "flavor": "Her sword catches moonlight even under a roof of smog."
+    "mechanics": "Twin Blades."
   },
   {
     "id": "yn-halo-wire-priestess",
@@ -323,8 +295,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Human Cleric)",
     "cost": "{3}{W}",
     "stats": "3/4",
-    "mechanics": "Arrives: gain 3 life.",
-    "flavor": "She cuts the district's violence with a halo made of live cable."
+    "mechanics": "Arrives: gain 3 life."
   },
   {
     "id": "yn-bastion-lantern",
@@ -334,8 +305,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Artifact",
     "cost": "{1}{W}",
     "stats": "-",
-    "mechanics": "Arrives: gain 3 life. Hauntlink {1}{W}. Linked: The linked creature gets +1/+2 and Sentinel.",
-    "flavor": "The lantern's ghost chooses defenders who do not run."
+    "mechanics": "Arrives: gain 3 life. Hauntlink {1}{W}. Linked: The linked creature gets +1/+2 and Sentinel."
   },
   {
     "id": "yn-quiet-the-street",
@@ -345,8 +315,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Charm",
     "cost": "{W}",
     "stats": "-",
-    "mechanics": "Prevent all combat damage this turn. [ANSWER: one go-wide alpha attack.]",
-    "flavor": "A single command silences engines, drones, and angry spirits."
+    "mechanics": "Prevent all combat damage this turn. [ANSWER: one go-wide alpha attack.]"
   },
   {
     "id": "yn-sanctuary-sweep",
@@ -356,8 +325,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Ritual",
     "cost": "{2}{W}{W}",
     "stats": "-",
-    "mechanics": "Destroy all creatures. [ANSWER: low-curve creature swarms and token boards.]",
-    "flavor": "Shrine bells ring once, and the crowded street falls silent."
+    "mechanics": "Destroy all creatures. [ANSWER: low-curve creature swarms and token boards.]"
   },
   {
     "id": "yn-echo-fox-informant",
@@ -367,8 +335,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Kitsune Spy)",
     "cost": "{1}{U}",
     "stats": "2/1",
-    "mechanics": "Arrives: Foresee 2.",
-    "flavor": "She records secrets in the echo between two notification chimes."
+    "mechanics": "Arrives: Foresee 2."
   },
   {
     "id": "yn-skyline-yokai",
@@ -378,8 +345,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Yokai)",
     "cost": "{3}{U}",
     "stats": "3/3",
-    "mechanics": "Skyborne, Untouchable.",
-    "flavor": "It swims through holograms as if the towers were deep water."
+    "mechanics": "Skyborne, Untouchable."
   },
   {
     "id": "yn-subway-oracle",
@@ -389,8 +355,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Kappa Oracle)",
     "cost": "{4}{U}",
     "stats": "3/4",
-    "mechanics": "Untouchable. At dawn: Foresee 1.",
-    "flavor": "She knows which train will arrive and who will be waiting on it."
+    "mechanics": "Untouchable. At dawn: Foresee 1."
   },
   {
     "id": "yn-bluewire-illusionist",
@@ -400,8 +365,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Kitsune Illusionist)",
     "cost": "{3}{U}",
     "stats": "3/3",
-    "mechanics": "Arrives: Foresee 2.",
-    "flavor": "Her decoys all look more trustworthy than the original."
+    "mechanics": "Arrives: Foresee 2."
   },
   {
     "id": "yn-moonlit-data-duelist",
@@ -411,8 +375,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Kitsune Ronin)",
     "cost": "{3}{U}",
     "stats": "3/3",
-    "mechanics": "Skyborne, First Blade.",
-    "flavor": "Her blade writes a clean line through every false identity."
+    "mechanics": "Skyborne, First Blade."
   },
   {
     "id": "yn-foresee-the-fall",
@@ -422,8 +385,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Charm",
     "cost": "{U}",
     "stats": "-",
-    "mechanics": "Foresee 3.",
-    "flavor": "The city warns you three seconds before disaster and charges for the privilege."
+    "mechanics": "Foresee 3."
   },
   {
     "id": "yn-null-route",
@@ -433,8 +395,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Charm",
     "cost": "{2}{U}",
     "stats": "-",
-    "mechanics": "Cancel target spell, then Foresee 1.",
-    "flavor": "The message vanishes before the network can decide whether it was sent."
+    "mechanics": "Cancel target spell, then Foresee 1."
   },
   {
     "id": "yn-black-market-oni",
@@ -444,8 +405,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Oni Broker)",
     "cost": "{1}{B}",
     "stats": "2/1",
-    "mechanics": "Arrives: opponent loses 1 life; gain 1 life.",
-    "flavor": "She sells counterfeit blessings from a booth behind the shrine."
+    "mechanics": "Arrives: opponent loses 1 life; gain 1 life."
   },
   {
     "id": "yn-gravewire-kitsune",
@@ -455,8 +415,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Kitsune Hacker)",
     "cost": "{2}{B}",
     "stats": "2/2",
-    "mechanics": "Deathblade. Arrives: grind self 1.",
-    "flavor": "Her foxfire burns violet when it finds a dead account still open."
+    "mechanics": "Deathblade. Arrives: grind self 1."
   },
   {
     "id": "yn-oni-bounty-agent",
@@ -466,8 +425,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Oni Hunter)",
     "cost": "{4}{B}",
     "stats": "4/3",
-    "mechanics": "Dreaded. Arrives: opponent discards at random 1.",
-    "flavor": "She finds fugitives by asking their ghosts where they sleep."
+    "mechanics": "Dreaded. Arrives: opponent discards at random 1."
   },
   {
     "id": "yn-bloodline-tollkeeper",
@@ -477,8 +435,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Oni Collector)",
     "cost": "{2}{B}",
     "stats": "2/3",
-    "mechanics": "Blood Oath.",
-    "flavor": "She keeps the family ledger in a chain of old train tokens."
+    "mechanics": "Blood Oath."
   },
   {
     "id": "yn-underpass-reclaimer",
@@ -488,8 +445,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Spirit Salvager)",
     "cost": "{5}{B}",
     "stats": "3/3",
-    "mechanics": "Dreaded. Arrives: raise the top creature card from your graveyard.",
-    "flavor": "She retrieves lost memories from puddles beneath the train line."
+    "mechanics": "Dreaded. Arrives: raise the top creature card from your graveyard."
   },
   {
     "id": "yn-night-market-price",
@@ -499,8 +455,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Ritual",
     "cost": "{2}{B}",
     "stats": "-",
-    "mechanics": "Destroy all creatures; deal 2 damage to you. [ANSWER: low-curve creature swarms outside white.]",
-    "flavor": "Every bargain in the night market has a pulse underneath it."
+    "mechanics": "Destroy all creatures; deal 2 damage to you. [ANSWER: low-curve creature swarms outside white.]"
   },
   {
     "id": "yn-sever-the-signal",
@@ -510,8 +465,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Charm",
     "cost": "{3}{B}",
     "stats": "-",
-    "mechanics": "Destroy target artifact or sever target enchantment; opponent loses 1 life. [ANSWER: static creature anthems and value Enchantments.]",
-    "flavor": "A severed broadcast leaves the target alone with its own fear."
+    "mechanics": "Destroy target artifact or sever target enchantment; opponent loses 1 life. [ANSWER: static creature anthems and value Enchantments.]"
   },
   {
     "id": "yn-redline-kitsune",
@@ -521,8 +475,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Kitsune Runner)",
     "cost": "{1}{R}",
     "stats": "2/1",
-    "mechanics": "Warcry, First Blade.",
-    "flavor": "She rides the rail between stations faster than the cameras can focus."
+    "mechanics": "Warcry, First Blade."
   },
   {
     "id": "yn-neon-oni-brawler",
@@ -532,8 +485,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Oni Brawler)",
     "cost": "{2}{R}",
     "stats": "3/2",
-    "mechanics": "Arrives: deal 1 damage to opponent.",
-    "flavor": "The crowd chants her name because it is easier than saying run."
+    "mechanics": "Arrives: deal 1 damage to opponent."
   },
   {
     "id": "yn-motorbike-ronin",
@@ -543,8 +495,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Human Ronin)",
     "cost": "{3}{R}",
     "stats": "3/3",
-    "mechanics": "First Blade.",
-    "flavor": "Her motorcycle carries a shrine bell that rings before every duel."
+    "mechanics": "First Blade."
   },
   {
     "id": "yn-rainflash-duelist",
@@ -554,8 +505,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Human Duelist)",
     "cost": "{3}{R}",
     "stats": "4/3",
-    "mechanics": "First Blade, Warcry.",
-    "flavor": "Her opening blow is visible only as the rain splitting around it."
+    "mechanics": "First Blade, Warcry."
   },
   {
     "id": "yn-oni-neon-marshal",
@@ -565,8 +515,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Oni Enforcer)",
     "cost": "{3}{R}",
     "stats": "4/3",
-    "mechanics": "Warcry. When this attacks: opponent loses 1 life.",
-    "flavor": "Her patrol car is a shrine on wheels and a warning in chrome."
+    "mechanics": "Warcry. When this attacks: opponent loses 1 life."
   },
   {
     "id": "yn-burn-the-billboard",
@@ -576,8 +525,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Ritual",
     "cost": "{2}{R}",
     "stats": "-",
-    "mechanics": "Deal 4 damage to target creature or player.",
-    "flavor": "A corporate message becomes a fireball with excellent timing."
+    "mechanics": "Deal 4 damage to target creature or player."
   },
   {
     "id": "yn-hotwire-retort",
@@ -587,8 +535,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Charm",
     "cost": "{1}{R}",
     "stats": "-",
-    "mechanics": "Deal 2 damage to target creature or player, then Foresee 2.",
-    "flavor": "The reply is short, bright, and usually delivered through a fuse."
+    "mechanics": "Deal 2 damage to target creature or player, then Foresee 2."
   },
   {
     "id": "yn-jade-kitsune-forager",
@@ -598,8 +545,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Kitsune Forager)",
     "cost": "{1}{G}",
     "stats": "2/2",
-    "mechanics": "Warding Gaze. Arrives: gain 1 life.",
-    "flavor": "She grows edible moss on dead vending machines."
+    "mechanics": "Warding Gaze. Arrives: gain 1 life."
   },
   {
     "id": "yn-moss-oni-guardian",
@@ -609,8 +555,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Oni Guardian)",
     "cost": "{3}{G}",
     "stats": "3/5",
-    "mechanics": "Sentinel.",
-    "flavor": "Moss softens the horns, but not the temper."
+    "mechanics": "Sentinel."
   },
   {
     "id": "yn-canopy-spirit",
@@ -620,8 +565,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Spirit)",
     "cost": "{4}{G}",
     "stats": "4/4",
-    "mechanics": "Skyborne.",
-    "flavor": "It glides from a rooftop garden on wings of leaves and blue light."
+    "mechanics": "Skyborne."
   },
   {
     "id": "yn-greenline-bruiser",
@@ -631,8 +575,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Yokai Brawler)",
     "cost": "{2}{G}",
     "stats": "3/3",
-    "mechanics": "Overrun.",
-    "flavor": "The last thing a drone sees is a grin between two leaves."
+    "mechanics": "Overrun."
   },
   {
     "id": "yn-rootcode-ranger",
@@ -642,8 +585,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Human Ranger)",
     "cost": "{2}{G}",
     "stats": "2/2",
-    "mechanics": "Warding Gaze. Arrives: Foresee 1.",
-    "flavor": "She maps forgotten parks by following roots under the asphalt."
+    "mechanics": "Warding Gaze. Arrives: Foresee 1."
   },
   {
     "id": "yn-vineyard-exorcist",
@@ -653,8 +595,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Dryad Hunter)",
     "cost": "{4}{G}",
     "stats": "4/5",
-    "mechanics": "Arrives: sever the top card of opponent's graveyard.",
-    "flavor": "She tends a vineyard watered by the city reservoir and old grudges."
+    "mechanics": "Arrives: sever the top card of opponent's graveyard."
   },
   {
     "id": "yn-grow-the-grove",
@@ -664,8 +605,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Ritual",
     "cost": "{1}{G}",
     "stats": "-",
-    "mechanics": "Target creature gets +3/+3 until end of turn; gain 2 life.",
-    "flavor": "A street tree becomes a cathedral before the cameras can refocus."
+    "mechanics": "Target creature gets +3/+3 until end of turn; gain 2 life."
   },
   {
     "id": "yn-rootwall-charm",
@@ -675,8 +615,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Charm",
     "cost": "{G}",
     "stats": "-",
-    "mechanics": "Target creature gets +0/+4 and Warding Gaze until end of turn.",
-    "flavor": "Roots rise like a wall around the person who refused to run."
+    "mechanics": "Target creature gets +0/+4 and Warding Gaze until end of turn."
   },
   {
     "id": "yn-lantern-court-usher",
@@ -686,8 +625,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Human Fixer)",
     "cost": "{1}{W}",
     "stats": "2/2",
-    "mechanics": "Arrives: gain 1 life.",
-    "flavor": "She checks the guest list with a smile that never reaches her eyes."
+    "mechanics": "Arrives: gain 1 life."
   },
   {
     "id": "yn-shrine-circuit-medic",
@@ -697,8 +635,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Human Mystic)",
     "cost": "{2}{W}",
     "stats": "2/3",
-    "mechanics": "Arrives: gain 2 life.",
-    "flavor": "Her healing kiosk is open beneath three broken neon torii."
+    "mechanics": "Arrives: gain 2 life."
   },
   {
     "id": "yn-paper-mask-sentinel",
@@ -708,8 +645,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Yokai Guardian)",
     "cost": "{2}{W}",
     "stats": "2/3",
-    "mechanics": "Sentinel.",
-    "flavor": "The mask is cheap paper, but the stare behind it is not."
+    "mechanics": "Sentinel."
   },
   {
     "id": "yn-silk-rope-enforcer",
@@ -719,8 +655,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Oni Enforcer)",
     "cost": "{3}{W}",
     "stats": "3/4",
-    "mechanics": "Sentinel.",
-    "flavor": "She knots a charging cable around her wrist before every collection run."
+    "mechanics": "Sentinel."
   },
   {
     "id": "yn-holo-lantern-adept",
@@ -730,8 +665,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Kitsune Adept)",
     "cost": "{1}{W}",
     "stats": "2/1",
-    "mechanics": "Arrives: Foresee 1.",
-    "flavor": "Her foxfire advertisements always know what you wanted yesterday."
+    "mechanics": "Arrives: Foresee 1."
   },
   {
     "id": "yn-white-noise-exorcist",
@@ -741,8 +675,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Spirit Hunter)",
     "cost": "{2}{W}",
     "stats": "3/2",
-    "mechanics": "Deathblade.",
-    "flavor": "Static from her prayer beads makes counterfeit ghosts blink out."
+    "mechanics": "Deathblade."
   },
   {
     "id": "yn-wardlight-broker",
@@ -752,8 +685,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Human Broker)",
     "cost": "{3}{W}",
     "stats": "3/3",
-    "mechanics": "Arrives: your creatures get +0/+1 until end of turn.",
-    "flavor": "She sells protection in measured doses and keeps the best dose for herself."
+    "mechanics": "Arrives: your creatures get +0/+1 until end of turn."
   },
   {
     "id": "yn-neon-gate-warden",
@@ -763,8 +695,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Oni Guardian)",
     "cost": "{2}{W}",
     "stats": "4/4",
-    "mechanics": "Bulwark, Warding Gaze.",
-    "flavor": "Nothing enters the shrine district unless it can survive being seen."
+    "mechanics": "Bulwark, Warding Gaze."
   },
   {
     "id": "yn-street-shrine-compact",
@@ -774,8 +705,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Ritual",
     "cost": "{W}",
     "stats": "-",
-    "mechanics": "Target creature gets +2/+2 until end of turn; Foresee 1.",
-    "flavor": "A paper contract glows once, then seals itself in rain."
+    "mechanics": "Target creature gets +2/+2 until end of turn; Foresee 1."
   },
   {
     "id": "yn-paper-ward-signal",
@@ -785,8 +715,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Charm",
     "cost": "{1}{W}",
     "stats": "-",
-    "mechanics": "Destroy target artifact or sever target enchantment. [ANSWER: static creature anthems.]",
-    "flavor": "One folded ward can silence the loudest relic on the block."
+    "mechanics": "Destroy target artifact or sever target enchantment. [ANSWER: static creature anthems.]"
   },
   {
     "id": "yn-ghostwire-charm",
@@ -796,8 +725,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Artifact",
     "cost": "{1}{W}",
     "stats": "-",
-    "mechanics": "Arrives: gain 1 life. Hauntlink {W}. Linked: The linked creature gets +0/+2 and Sentinel.",
-    "flavor": "The charm is warm when the spirit inside approves of its wearer."
+    "mechanics": "Arrives: gain 1 life. Hauntlink {W}. Linked: The linked creature gets +0/+2 and Sentinel."
   },
   {
     "id": "yn-lantern-canal-junction",
@@ -807,8 +735,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Land",
     "cost": "none",
     "stats": "-",
-    "mechanics": "Arrives tapped. Tap: add W or U.",
-    "flavor": "The shrine's reflection files a flight plan in the flooded street."
+    "mechanics": "Arrives tapped. Tap: add W or U."
   },
   {
     "id": "yn-ghostline-diviner",
@@ -818,8 +745,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Spirit Seer)",
     "cost": "{1}{U}",
     "stats": "2/1",
-    "mechanics": "Arrives: Foresee 1.",
-    "flavor": "She reads train delays as prophecies and is rarely wrong."
+    "mechanics": "Arrives: Foresee 1."
   },
   {
     "id": "yn-signal-kitsune",
@@ -829,8 +755,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Kitsune Hacker)",
     "cost": "{2}{U}",
     "stats": "2/2",
-    "mechanics": "Arrives: Foresee 1, then draw 1.",
-    "flavor": "Her tailtips glow blue whenever a secret packet crosses the grid."
+    "mechanics": "Arrives: Foresee 1, then draw 1."
   },
   {
     "id": "yn-data-river-stalker",
@@ -840,8 +765,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Kappa Scout)",
     "cost": "{2}{U}",
     "stats": "2/3",
-    "mechanics": "Skyborne.",
-    "flavor": "It swims through cloud backups and leaves wet footprints on server glass."
+    "mechanics": "Skyborne."
   },
   {
     "id": "yn-raincode-savant",
@@ -851,8 +775,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Human Hacker)",
     "cost": "{3}{U}",
     "stats": "3/3",
-    "mechanics": "Arrives: draw 1.",
-    "flavor": "She can predict a blackout by listening to the city's vending machines."
+    "mechanics": "Arrives: draw 1."
   },
   {
     "id": "yn-network-sprite",
@@ -862,8 +785,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Spirit)",
     "cost": "{U}",
     "stats": "1/2",
-    "mechanics": "Skyborne, Bulwark.",
-    "flavor": "A pinprick of blue foxfire slips between towers before dawn."
+    "mechanics": "Skyborne, Bulwark."
   },
   {
     "id": "yn-tidepool-seer",
@@ -873,8 +795,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Kappa Mystic)",
     "cost": "{2}{U}",
     "stats": "2/2",
-    "mechanics": "At dawn: Foresee 1.",
-    "flavor": "She keeps a tide chart for rainwater running down a parking garage."
+    "mechanics": "At dawn: Foresee 1."
   },
   {
     "id": "yn-alleywave-tactician",
@@ -884,8 +805,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Human Tactician)",
     "cost": "{4}{U}",
     "stats": "4/4",
-    "mechanics": "Arrives: Foresee 2.",
-    "flavor": "She wins street fights by making the street disappear under her opponent."
+    "mechanics": "Arrives: Foresee 2."
   },
   {
     "id": "yn-circuit-foretelling",
@@ -895,8 +815,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Ritual",
     "cost": "{U}",
     "stats": "-",
-    "mechanics": "Foresee 2.",
-    "flavor": "The city tells the future in buffering icons and canceled trains."
+    "mechanics": "Foresee 2."
   },
   {
     "id": "yn-backdoor-recall",
@@ -906,8 +825,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Charm",
     "cost": "{U}",
     "stats": "-",
-    "mechanics": "Recall target creature.",
-    "flavor": "Every locked door has a network address if you know the right spirit."
+    "mechanics": "Recall target creature."
   },
   {
     "id": "yn-signal-bridge",
@@ -917,8 +835,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Charm",
     "cost": "{2}{U}",
     "stats": "-",
-    "mechanics": "Cancel target spell.",
-    "flavor": "The bridge holds while every camera in the city looks elsewhere."
+    "mechanics": "Cancel target spell."
   },
   {
     "id": "yn-moonwire-mask",
@@ -928,8 +845,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Artifact",
     "cost": "{1}{U}",
     "stats": "-",
-    "mechanics": "Arrives: Foresee 1. Hauntlink {U}. Linked: The linked creature gets Skyborne.",
-    "flavor": "Its silver fox face only appears in reflections."
+    "mechanics": "Arrives: Foresee 1. Hauntlink {U}. Linked: The linked creature gets Skyborne."
   },
   {
     "id": "yn-midnight-data-market",
@@ -939,8 +855,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Land",
     "cost": "none",
     "stats": "-",
-    "mechanics": "Arrives tapped. Tap: add U or B.",
-    "flavor": "Everything is for sale here except the exit."
+    "mechanics": "Arrives tapped. Tap: add U or B."
   },
   {
     "id": "yn-alley-oni-collector",
@@ -950,8 +865,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Oni Debt Collector)",
     "cost": "{1}{B}",
     "stats": "2/1",
-    "mechanics": "Arrives: opponent loses 1 life.",
-    "flavor": "She invoices the living and lets the dead handle late fees."
+    "mechanics": "Arrives: opponent loses 1 life."
   },
   {
     "id": "yn-black-lantern-cutpurse",
@@ -961,8 +875,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Human Thief)",
     "cost": "{2}{B}",
     "stats": "3/2",
-    "mechanics": "Arrives: opponent discards at random 1.",
-    "flavor": "Her lantern goes dark just before every wallet opens."
+    "mechanics": "Arrives: opponent discards at random 1."
   },
   {
     "id": "yn-shrine-debt-enforcer",
@@ -972,8 +885,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Oni Enforcer)",
     "cost": "{3}{B}",
     "stats": "2/3",
-    "mechanics": "Deathblade.",
-    "flavor": "She collects favors with a blade that remembers every name."
+    "mechanics": "Deathblade."
   },
   {
     "id": "yn-ghost-market-bruiser",
@@ -983,8 +895,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Yokai Brawler)",
     "cost": "{3}{B}",
     "stats": "3/3",
-    "mechanics": "Blood Oath.",
-    "flavor": "The market pays her in blood because nobody has anything better."
+    "mechanics": "Blood Oath."
   },
   {
     "id": "yn-kitsune-night-fixer",
@@ -994,8 +905,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Kitsune Broker)",
     "cost": "{2}{B}",
     "stats": "2/2",
-    "mechanics": "Arrives: opponent loses 1 life; gain 1 life.",
-    "flavor": "She solves problems after midnight and creates better ones before breakfast."
+    "mechanics": "Arrives: opponent loses 1 life; gain 1 life."
   },
   {
     "id": "yn-neon-bloodhound",
@@ -1005,8 +915,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Yokai Hound)",
     "cost": "{2}{B}",
     "stats": "2/2",
-    "mechanics": "Deathblade.",
-    "flavor": "Its nose follows stolen identities through rain and concrete."
+    "mechanics": "Deathblade."
   },
   {
     "id": "yn-oni-tollboss",
@@ -1016,8 +925,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Oni Enforcer)",
     "cost": "{4}{B}",
     "stats": "4/4",
-    "mechanics": "Arrives: opponent loses 1 life.",
-    "flavor": "The toll is one coin, one secret, or one apology that sounds sincere."
+    "mechanics": "Arrives: opponent loses 1 life."
   },
   {
     "id": "yn-dead-channel-ransom",
@@ -1027,8 +935,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Ritual",
     "cost": "{B}",
     "stats": "-",
-    "mechanics": "Opponent discards at random 1.",
-    "flavor": "The ransom note arrives from a number that died years ago."
+    "mechanics": "Opponent discards at random 1."
   },
   {
     "id": "yn-alleyway-sever",
@@ -1038,8 +945,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Charm",
     "cost": "{3}{B}",
     "stats": "-",
-    "mechanics": "Sever target creature.",
-    "flavor": "A red sigil flares under the target and the rain washes away the outline."
+    "mechanics": "Sever target creature."
   },
   {
     "id": "yn-blackout-vigil",
@@ -1049,8 +955,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Enchantment",
     "cost": "{2}{B}",
     "stats": "-",
-    "mechanics": "At dawn: opponent loses 1 life; gain 1 life.",
-    "flavor": "The district's lights fail only after the spirits have finished feeding."
+    "mechanics": "At dawn: opponent loses 1 life; gain 1 life."
   },
   {
     "id": "yn-parasite-mask",
@@ -1060,8 +965,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Artifact",
     "cost": "{1}{B}",
     "stats": "-",
-    "mechanics": "Arrives: grind self 1. Hauntlink {B}. Linked: The linked creature gets +1/+0 and Deathblade.",
-    "flavor": "The mask smiles whenever its wearer's pulse becomes someone else's."
+    "mechanics": "Arrives: grind self 1. Hauntlink {B}. Linked: The linked creature gets +1/+0 and Deathblade."
   },
   {
     "id": "yn-burning-toll-bridge",
@@ -1071,8 +975,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Land",
     "cost": "none",
     "stats": "-",
-    "mechanics": "Arrives tapped. Tap: add B or R.",
-    "flavor": "The toll doubles when the river starts to glow."
+    "mechanics": "Arrives tapped. Tap: add B or R."
   },
   {
     "id": "yn-street-oni-scrapper",
@@ -1082,8 +985,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Oni Brawler)",
     "cost": "{1}{R}",
     "stats": "2/1",
-    "mechanics": "Warcry.",
-    "flavor": "She fights for the joy of being recognized by the right crowd."
+    "mechanics": "Warcry."
   },
   {
     "id": "yn-magenta-kitsune-runner",
@@ -1093,8 +995,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Kitsune Courier)",
     "cost": "{2}{R}",
     "stats": "3/2",
-    "mechanics": "Warcry.",
-    "flavor": "Her deliveries arrive hot, loud, and addressed to the city's worst decisions."
+    "mechanics": "Warcry."
   },
   {
     "id": "yn-rain-soaked-ronin",
@@ -1104,8 +1005,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Human Ronin)",
     "cost": "{2}{R}",
     "stats": "2/2",
-    "mechanics": "First Blade.",
-    "flavor": "Her sword is dry because the rain knows better than to touch it."
+    "mechanics": "First Blade."
   },
   {
     "id": "yn-tunnel-fire-dancer",
@@ -1115,8 +1015,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Kitsune Dancer)",
     "cost": "{2}{R}",
     "stats": "2/1",
-    "mechanics": "Dreaded, Deathblade.",
-    "flavor": "Her flames make the subway look glamorous right before they make it dangerous."
+    "mechanics": "Dreaded, Deathblade."
   },
   {
     "id": "yn-chrome-tailed-raider",
@@ -1126,8 +1025,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Kitsune Raider)",
     "cost": "{3}{R}",
     "stats": "4/3",
-    "mechanics": "Overrun.",
-    "flavor": "The chrome tail is a stolen antenna that still picks up war songs."
+    "mechanics": "Overrun."
   },
   {
     "id": "yn-signal-smuggler",
@@ -1137,8 +1035,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Human Smuggler)",
     "cost": "{3}{R}",
     "stats": "3/3",
-    "mechanics": "Arrives: deal 1 damage to opponent.",
-    "flavor": "She moves contraband prayers through the city in insulated cases."
+    "mechanics": "Arrives: deal 1 damage to opponent."
   },
   {
     "id": "yn-glitchhorn-enforcer",
@@ -1148,8 +1045,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Yokai Enforcer)",
     "cost": "{5}{R}",
     "stats": "5/5",
-    "mechanics": "Warcry, Overrun.",
-    "flavor": "Its horns broadcast a siren that makes traffic forget which way is forward."
+    "mechanics": "Warcry, Overrun."
   },
   {
     "id": "yn-street-rush",
@@ -1159,8 +1055,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Ritual",
     "cost": "{1}{R}",
     "stats": "-",
-    "mechanics": "Deal 3 damage to target creature or player; Deal 1 damage to you.",
-    "flavor": "A red flare turns a routine crossing into a public execution of bad luck."
+    "mechanics": "Deal 3 damage to target creature or player; Deal 1 damage to you."
   },
   {
     "id": "yn-riot-lantern",
@@ -1170,8 +1065,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Charm",
     "cost": "{R}",
     "stats": "-",
-    "mechanics": "Target creature gets +2/+0 and Warcry until end of turn.",
-    "flavor": "The lantern's red glow means the night has chosen a side."
+    "mechanics": "Target creature gets +2/+0 and Warcry until end of turn."
   },
   {
     "id": "yn-sirens-and-sparks",
@@ -1181,8 +1075,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Charm",
     "cost": "{1}{R}",
     "stats": "-",
-    "mechanics": "Deal 3 damage to target creature or player.",
-    "flavor": "The city's emergency tones become music when the right yokai conducts them."
+    "mechanics": "Deal 3 damage to target creature or player."
   },
   {
     "id": "yn-ember-mask",
@@ -1192,8 +1085,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Artifact",
     "cost": "{R}",
     "stats": "-",
-    "mechanics": "Hauntlink {1}{R}. Linked: The linked creature gets +1/+0 and Warcry.",
-    "flavor": "It smells like hot metal and the last thought of a bad enemy."
+    "mechanics": "Hauntlink {1}{R}. Linked: The linked creature gets +1/+0 and Warcry."
   },
   {
     "id": "yn-overgrown-speedway",
@@ -1203,8 +1095,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Land",
     "cost": "none",
     "stats": "-",
-    "mechanics": "Arrives tapped. Tap: add R or G.",
-    "flavor": "The vines learned to love the sound of engines."
+    "mechanics": "Arrives tapped. Tap: add R or G."
   },
   {
     "id": "yn-mosswire-kitsune",
@@ -1214,8 +1105,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Kitsune Forager)",
     "cost": "{1}{G}",
     "stats": "2/2",
-    "mechanics": "Arrives: gain 1 life.",
-    "flavor": "Her green fur catches rainwater that tastes faintly of cedar."
+    "mechanics": "Arrives: gain 1 life."
   },
   {
     "id": "yn-rain-garden-tender",
@@ -1225,8 +1115,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Human Gardener)",
     "cost": "{2}{G}",
     "stats": "2/3",
-    "mechanics": "Arrives: Foresee 1.",
-    "flavor": "She grows medicinal vines over concrete and refuses to apologize for the roots."
+    "mechanics": "Arrives: Foresee 1."
   },
   {
     "id": "yn-concrete-forest-stalker",
@@ -1236,8 +1125,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Yokai Hunter)",
     "cost": "{2}{G}",
     "stats": "3/2",
-    "mechanics": "Warding Gaze.",
-    "flavor": "It hunts between towers where sunlight has never reached the pavement."
+    "mechanics": "Warding Gaze."
   },
   {
     "id": "yn-shrine-vine-warden",
@@ -1247,8 +1135,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Dryad Guardian)",
     "cost": "{3}{G}",
     "stats": "3/4",
-    "mechanics": "Sentinel.",
-    "flavor": "The vines move first whenever a stranger raises a weapon."
+    "mechanics": "Sentinel."
   },
   {
     "id": "yn-jade-rain-brawler",
@@ -1258,8 +1145,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Yokai Brawler)",
     "cost": "{4}{G}",
     "stats": "4/4",
-    "mechanics": "Overrun.",
-    "flavor": "Its footsteps leave jade mushrooms growing through asphalt."
+    "mechanics": "Overrun."
   },
   {
     "id": "yn-rootcode-monk",
@@ -1269,8 +1155,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Human Monk)",
     "cost": "{3}{G}",
     "stats": "3/3",
-    "mechanics": "Arrives: destroy the newest artifact or enchantment an opponent controls. [ANSWER: static creature anthems.]",
-    "flavor": "She meditates beneath a server rack until the rack begins to dream."
+    "mechanics": "Arrives: destroy the newest artifact or enchantment an opponent controls. [ANSWER: static creature anthems.]"
   },
   {
     "id": "yn-old-growth-gridkeeper",
@@ -1280,8 +1165,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Dryad Guardian)",
     "cost": "{5}{G}",
     "stats": "3/9",
-    "mechanics": "Bulwark. At dawn: gain 2 life.",
-    "flavor": "The oldest tree in the district has a better firewall than city hall."
+    "mechanics": "Bulwark. At dawn: gain 2 life."
   },
   {
     "id": "yn-vineglass-guardian",
@@ -1291,8 +1175,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Yokai Guardian)",
     "cost": "{3}{G}",
     "stats": "4/5",
-    "mechanics": "Bulwark, Warding Gaze.",
-    "flavor": "Its transparent bark catches hostile drones before they find the shrine."
+    "mechanics": "Bulwark, Warding Gaze."
   },
   {
     "id": "yn-ghostwood-growth",
@@ -1302,8 +1185,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Charm",
     "cost": "{G}",
     "stats": "-",
-    "mechanics": "Target creature gets +3/+3 until end of turn.",
-    "flavor": "A ghostwood branch punches through the street to answer a threat."
+    "mechanics": "Target creature gets +3/+3 until end of turn."
   },
   {
     "id": "yn-canal-root-surge",
@@ -1313,8 +1195,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Charm",
     "cost": "{1}{G}",
     "stats": "-",
-    "mechanics": "Target creature gets +2/+2 until end of turn; Foresee 1.",
-    "flavor": "The canal wall blooms around the person who needs it most."
+    "mechanics": "Target creature gets +2/+2 until end of turn; Foresee 1."
   },
   {
     "id": "yn-thorn-spirit-mask",
@@ -1324,8 +1205,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Artifact",
     "cost": "{1}{G}",
     "stats": "-",
-    "mechanics": "Hauntlink {G}. Linked: The linked creature gets +1/+1 and Warding Gaze.",
-    "flavor": "The mask grows a new thorn whenever its wearer tells the truth."
+    "mechanics": "Hauntlink {G}. Linked: The linked creature gets +1/+1 and Warding Gaze."
   },
   {
     "id": "yn-rooftop-shrine-garden",
@@ -1335,8 +1215,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Land",
     "cost": "none",
     "stats": "-",
-    "mechanics": "Arrives tapped. Tap: add G or W.",
-    "flavor": "The oldest tree in the city grows through the newest temple."
+    "mechanics": "Arrives tapped. Tap: add G or W."
   }
 ] as const satisfies readonly YokaiSpecRow[];
 
@@ -1622,7 +1501,6 @@ function parseCard(row: YokaiSpecRow): CardDef {
     ...(hauntlink ? { hauntlink } : {}),
     ...(isLand ? { entersTapped: true, manaAbility: row.color.split('/') as Color[] } : {}),
     rarity: row.rarity.toLowerCase() as CardDef['rarity'],
-    flavor: row.flavor,
   };
   return { ...card, set: 'yokai-nights' };
 }

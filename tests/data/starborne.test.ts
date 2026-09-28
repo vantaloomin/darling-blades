@@ -168,9 +168,9 @@ describe('Starborne transcription', () => {
 
   it('defines the three shipped Starborne tokens with their locked identities', () => {
     const expected = {
-      'tok-broodling': { name: 'Broodling', types: ['creature'], subtypes: ['Brood'], colors: ['G'], attack: 1, defense: 1, flavor: 'A translucent young swarm member that grows around warm machinery.' },
-      'tok-chrome-husk': { name: 'Chrome Husk', types: ['artifact', 'creature'], subtypes: ['Husk'], colors: [], attack: 2, defense: 2, keywords: ['bulwark'], flavor: 'A discarded shell that keeps standing after its owner leaves.' },
-      'tok-nebula-firefly': { name: 'Nebula Firefly', types: ['creature'], subtypes: ['Insect'], colors: ['U'], attack: 1, defense: 1, keywords: ['skyborne'], flavor: 'A tiny violet beacon that follows living ships between worlds.' },
+      'tok-broodling': { name: 'Broodling', types: ['creature'], subtypes: ['Brood'], colors: ['G'], attack: 1, defense: 1 },
+      'tok-chrome-husk': { name: 'Chrome Husk', types: ['artifact', 'creature'], subtypes: ['Husk'], colors: [], attack: 2, defense: 2, keywords: ['bulwark'] },
+      'tok-nebula-firefly': { name: 'Nebula Firefly', types: ['creature'], subtypes: ['Insect'], colors: ['U'], attack: 1, defense: 1, keywords: ['skyborne'] },
     } as const;
     for (const [id, shape] of Object.entries(expected)) {
       const token = TOKENS.find((card) => card.id === id);
@@ -221,10 +221,6 @@ describe('Starborne transcription', () => {
     const result = openPack(freshSave(0), CARD_DB, createRngState(20260828), STARBORNE_PACK_SET);
     expect(result.cards).toHaveLength(ECONOMY.boosterPackSize);
     expect(result.cards.every((card) => CARD_DB[card.cardId].set === STARBORNE_PACK_SET)).toBe(true);
-  });
-
-  it('does not introduce em dashes into locked flavor text', () => {
-    expect(STARBORNE.every((card) => !card.flavor?.includes('—'))).toBe(true);
   });
 
   it('adds exactly 151 collectibles and three tokens to the global catalog', () => {

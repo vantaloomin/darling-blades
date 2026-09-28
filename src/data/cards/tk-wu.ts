@@ -21,7 +21,6 @@ export const TK_WU = [
       },
     ],
     rarity: 'ur',
-    flavor: 'Her sister conquers, her admirals argue, she rules.',
   },
   {
     id: 'tk-wu-zhouyu',
@@ -35,7 +34,6 @@ export const TK_WU = [
     defense: 3,
     abilities: [{ when: 'arrives', ops: [{ op: 'damage', n: 2, to: 'opponent' }] }],
     rarity: 'sr',
-    flavor: 'One southeast wind, one borrowed fleet, one very bright night.',
   },
   {
     id: 'tk-wu-sunjian',
@@ -48,7 +46,6 @@ export const TK_WU = [
     defense: 3,
     keywords: ['warcry'],
     rarity: 'r',
-    flavor: 'She found the Imperial Seal in a well. Finders keepers.',
   },
   {
     id: 'tk-wu-sunce',
@@ -61,7 +58,6 @@ export const TK_WU = [
     defense: 2,
     keywords: ['warcry'],
     rarity: 'r',
-    flavor: 'Six counties in six years, grinning the whole way.',
   },
   {
     id: 'tk-wu-ganning',
@@ -74,7 +70,6 @@ export const TK_WU = [
     defense: 2,
     abilities: [{ when: 'attacks', ops: [{ op: 'damage', n: 1, to: 'opponent' }] }],
     rarity: 'r',
-    flavor: 'You’ll hear her bells. Then you’ll hear nothing.',
   },
   {
     id: 'tk-wu-taishici',
@@ -87,7 +82,6 @@ export const TK_WU = [
     defense: 3,
     keywords: ['sentinel'],
     rarity: 'r',
-    flavor: 'She fought Sun Ce to a draw, then booked a rematch. She keeps appointments.',
   },
   {
     id: 'tk-wu-luxun',
@@ -100,7 +94,6 @@ export const TK_WU = [
     defense: 3,
     abilities: [{ when: 'attacks', ops: [{ op: 'boost', p: 1, t: 0, scope: 'allYours' }] }],
     rarity: 'r',
-    flavor: 'Quiet scholar. Loud results.',
   },
   {
     id: 'tk-wu-lumeng',
@@ -118,7 +111,6 @@ export const TK_WU = [
       },
     ],
     rarity: 'r',
-    flavor: 'Three days apart, and you must look at her with new eyes. Everyone must.',
   },
   {
     id: 'tk-wu-lianshi',
@@ -131,7 +123,6 @@ export const TK_WU = [
     defense: 4,
     keywords: ['wardingGaze'],
     rarity: 'c',
-    flavor: 'The crossbow is for threats. The glare is for everyone else.',
   },
   {
     id: 'tk-wu-huanggai',
@@ -144,7 +135,6 @@ export const TK_WU = [
     defense: 2,
     abilities: [{ when: 'dies', ops: [{ op: 'damage', n: 2, to: 'opponent' }] }],
     rarity: 'c',
-    flavor: 'The beating was staged. The fire was extremely real.',
   },
   {
     id: 'tk-wu-zhoutai',
@@ -157,7 +147,6 @@ export const TK_WU = [
     defense: 3,
     keywords: ['sentinel'],
     rarity: 'c',
-    flavor: 'Twelve scars, one job: be in the way, on purpose.',
   },
   {
     id: 'tk-wu-lingtong',
@@ -169,7 +158,6 @@ export const TK_WU = [
     attack: 2,
     defense: 2,
     rarity: 'c',
-    flavor: 'She forgave Gan Ning. The nunchaku hasn’t.',
   },
   {
     id: 'tk-wu-xusheng',
@@ -181,7 +169,6 @@ export const TK_WU = [
     attack: 3,
     defense: 4,
     rarity: 'c',
-    flavor: 'Build the fort first. Argue about it never.',
   },
   {
     id: 'tk-wu-sunshangxiang',
@@ -194,7 +181,6 @@ export const TK_WU = [
     defense: 2,
     keywords: ['wardingGaze'],
     rarity: 'c',
-    flavor: 'Her dowry was a hundred armed handmaidens. The marriage was brief.',
   },
   {
     id: 'tk-wu-daqiao',
@@ -207,7 +193,6 @@ export const TK_WU = [
     defense: 3,
     keywords: ['skyborne'],
     rarity: 'c',
-    flavor: 'The elder Qiao. The quiet one, relatively.',
   },
   {
     id: 'tk-wu-xiaoqiao',
@@ -220,7 +205,6 @@ export const TK_WU = [
     defense: 1,
     keywords: ['skyborne'],
     rarity: 'c',
-    flavor: 'The younger Qiao. Zhou Yu’s temper has exactly one weakness.',
   },
   {
     id: 'tk-wu-lusu',
@@ -232,7 +216,6 @@ export const TK_WU = [
     attack: 2,
     defense: 3,
     rarity: 'c',
-    flavor: 'She once gave away half her granary. She’d do it again, strategically.',
   },
   {
     id: 'tk-wu-chengpu',
@@ -244,7 +227,6 @@ export const TK_WU = [
     attack: 3,
     defense: 3,
     rarity: 'c',
-    flavor: 'Served three Sun rulers; outlasted all complaints.',
   },
   {
     id: 'tk-wu-handang',
@@ -256,7 +238,6 @@ export const TK_WU = [
     attack: 2,
     defense: 1,
     rarity: 'c',
-    flavor: 'First across, every crossing.',
   },
   {
     id: 'tk-wu-dingfeng',
@@ -268,7 +249,6 @@ export const TK_WU = [
     attack: 4,
     defense: 3,
     rarity: 'c',
-    flavor: 'Short spears, deep snow, and no complaints on record from survivors.',
   },
   {
     id: 'tk-wu-zhuran',
@@ -281,7 +261,6 @@ export const TK_WU = [
     defense: 2,
     keywords: ['warcry'],
     rarity: 'c',
-    flavor: 'Fifty days besieged, zero days impressed.',
   },
   {
     id: 'tk-wu-quancong',
@@ -293,7 +272,6 @@ export const TK_WU = [
     attack: 2,
     defense: 1,
     rarity: 'c',
-    flavor: 'Married the princess, kept the paperwork.',
   },
   {
     id: 'tk-wu-zhugeke',
@@ -306,6 +284,5 @@ export const TK_WU = [
     defense: 4,
     keywords: ['skyborne'],
     rarity: 'c',
-    flavor: 'Smarter than you, and worse: she knows it.',
   },
 ] as const satisfies readonly CardDef[];

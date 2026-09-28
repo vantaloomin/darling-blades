@@ -28,7 +28,6 @@ export const GREEK = [
       },
     ],
     rarity: 'ur',
-    flavor: 'Wisdom is knowing which wars not to fight. Strategy is winning those anyway.',
   },
   {
     id: 'gk-ares',
@@ -42,7 +41,6 @@ export const GREEK = [
     defense: 3,
     keywords: ['warcry'],
     rarity: 'sr',
-    flavor: 'She arrives uninvited and leaves nothing standing to complain.',
   },
   {
     id: 'gk-artemis',
@@ -55,7 +53,6 @@ export const GREEK = [
     defense: 3,
     keywords: ['wardingGaze'],
     rarity: 'r',
-    flavor: 'Nothing on wings escapes her notice. Little on legs does either.',
   },
   {
     id: 'gk-hestia',
@@ -68,7 +65,6 @@ export const GREEK = [
     defense: 3,
     keywords: ['bloodoath'],
     rarity: 'c',
-    flavor: 'Every fire in every camp is a little bit hers.',
   },
   {
     id: 'gk-nike',
@@ -81,7 +77,6 @@ export const GREEK = [
     defense: 1,
     keywords: ['skyborne'],
     rarity: 'c',
-    flavor: 'Victory has wings and a very smug smile.',
   },
   {
     id: 'gk-hoplite',
@@ -94,7 +89,6 @@ export const GREEK = [
     defense: 2,
     keywords: ['firstBlade'],
     rarity: 'c',
-    flavor: 'Come back with your shield. She always does.',
   },
   {
     id: 'gk-zeus',
@@ -109,7 +103,6 @@ export const GREEK = [
     keywords: ['skyborne'],
     abilities: [{ when: 'arrives', ops: [{ op: 'damage', n: 3, to: 'opponent' }] }],
     rarity: 'ur',
-    flavor: 'The forecast is her mood. Pack accordingly.',
   },
   {
     id: 'gk-hera',
@@ -124,7 +117,6 @@ export const GREEK = [
     keywords: ['sentinel', 'bloodoath'],
     abilities: [{ when: 'arrives', ops: [{ op: 'createToken', token: 'tok-peacock', count: 1 }] }],
     rarity: 'ssr',
-    flavor: 'Her peacocks have a hundred eyes each, and every eye is on Zeus.',
   },
   {
     id: 'gk-aphrodite',
@@ -139,7 +131,6 @@ export const GREEK = [
     keywords: ['bloodoath'],
     abilities: [{ when: 'dawn', ops: [{ op: 'gainLife', n: 1 }] }],
     rarity: 'ssr',
-    flavor: 'Wars have started over less. Specifically, over her.',
   },
   {
     id: 'gk-persephone',
@@ -154,7 +145,6 @@ export const GREEK = [
     keywords: ['deathblade'],
     abilities: [{ when: 'dies', ops: [{ op: 'createToken', token: 'tok-bloom', count: 2 }] }],
     rarity: 'ssr',
-    flavor: 'Six months of paperwork below, six months of gardening above.',
   },
   {
     id: 'gk-hades',
@@ -169,7 +159,6 @@ export const GREEK = [
     keywords: ['deathblade', 'untouchable'],
     abilities: [{ when: 'arrives', ops: [{ op: 'loseLife', n: 3, who: 'opponent' }] }],
     rarity: 'ssr',
-    flavor: 'Everyone arrives eventually. She just moves up appointments.',
   },
   {
     id: 'gk-poseidon',
@@ -183,7 +172,6 @@ export const GREEK = [
     defense: 5,
     abilities: [{ when: 'arrives', ops: [{ op: 'draw', n: 1 }] }],
     rarity: 'ssr',
-    flavor: 'The sea remembers every slight. So does she. It is the same list.',
   },
   {
     id: 'gk-apollo',
@@ -201,7 +189,6 @@ export const GREEK = [
       },
     ],
     rarity: 'r',
-    flavor: 'Her lyre tunes the whole pantheon half a step brighter.',
   },
   {
     id: 'gk-hermes',
@@ -214,7 +201,6 @@ export const GREEK = [
     defense: 1,
     keywords: ['skyborne', 'warcry'],
     rarity: 'r',
-    flavor: 'Delivered your defeat notice yesterday. You’ll receive it tomorrow.',
   },
   {
     id: 'gk-demeter',
@@ -227,7 +213,6 @@ export const GREEK = [
     defense: 3,
     abilities: [{ when: 'arrives', ops: [{ op: 'extraLandDrop' }] }],
     rarity: 'r',
-    flavor: 'Cross her and see what grows in your fields: nothing.',
   },
   {
     id: 'gk-hecate',
@@ -240,7 +225,6 @@ export const GREEK = [
     defense: 3,
     abilities: [{ when: 'arrives', ops: [{ op: 'discardRandom', n: 1, who: 'opponent' }] }],
     rarity: 'r',
-    flavor: 'Three faces, three roads, and all of them toll roads.',
   },
   {
     id: 'gk-nyx',
@@ -253,7 +237,6 @@ export const GREEK = [
     defense: 4,
     keywords: ['skyborne'],
     rarity: 'r',
-    flavor: 'Even Zeus lowers her voice after dark. It’s only polite.',
   },
   {
     id: 'gk-selene',
@@ -266,7 +249,6 @@ export const GREEK = [
     defense: 3,
     keywords: ['skyborne'],
     rarity: 'c',
-    flavor: 'Drives the moon across the sky nightly. Parking it is the hard part.',
   },
   {
     id: 'gk-iris',
@@ -279,7 +261,6 @@ export const GREEK = [
     defense: 2,
     keywords: ['skyborne'],
     rarity: 'c',
-    flavor: 'Message for you: you’re losing. Lovely colors, though.',
   },
   {
     id: 'gk-gaia',
@@ -294,7 +275,6 @@ export const GREEK = [
     keywords: ['overrun'],
     abilities: [{ when: 'dawn', ops: [{ op: 'addCounters', n: 1, to: 'self' }] }],
     rarity: 'ur',
-    flavor: 'Older than the gods, patient as bedrock, done being quiet.',
   },
   {
     id: 'gk-thanatos',
@@ -307,7 +287,6 @@ export const GREEK = [
     defense: 2,
     keywords: ['deathblade'],
     rarity: 'c',
-    flavor: 'Not cruel, never late, terribly good at goodbyes.',
   },
   {
     id: 'gk-pan',
@@ -319,7 +298,6 @@ export const GREEK = [
     attack: 3,
     defense: 3,
     rarity: 'c',
-    flavor: 'Her flute solo cleared three valleys. Critics called it “panic.”',
   },
   {
     id: 'gk-eos',
@@ -332,6 +310,5 @@ export const GREEK = [
     defense: 2,
     keywords: ['skyborne', 'sentinel'],
     rarity: 'c',
-    flavor: 'Up before everyone, judging accordingly.',
   },
 ] as const satisfies readonly CardDef[];

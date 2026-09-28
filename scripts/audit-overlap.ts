@@ -79,7 +79,7 @@ const costStr = (c?: ManaCost) => {
  * CardDef fields that name or dress a card but never change how it plays.
  * `token` marks a non-collectible card, and tokens are never audited.
  */
-const PRESENTATION: ReadonlySet<string> = new Set(['id', 'name', 'displayTypeLine', 'rarity', 'flavor', 'artRef', 'set', 'token']);
+const PRESENTATION: ReadonlySet<string> = new Set(['id', 'name', 'displayTypeLine', 'rarity', 'artRef', 'set', 'token']);
 /**
  * Compared by `fullKey`, not `bodyKey`, so REDESKIN can group a card with its
  * re-costs and colour shifts. The engine never reads `colors` (it is deck

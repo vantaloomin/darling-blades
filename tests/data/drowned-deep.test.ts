@@ -59,7 +59,7 @@ describe('Drowned Deep transcription', () => {
   it.each(DROWNED_DEEP.map((d) => [d.id, d] as const))('%s preserves its approved row identity and keyword/cost lines', (id, d) => {
     const row = rows.get(id)!;
     expect(row, id).toBeDefined();
-    const [, name, rarity, colors, type, cost, stats, printed, flavor] = row;
+    const [, name, rarity, colors, type, cost, stats, printed] = row;
     const typeParts = type.split(', ');
     const subtypes = typeParts[1] && typeParts[1] !== 'legendary'
       ? typeParts[1].match(/Deep One|[A-Za-z]+/g) ?? [] : [];
@@ -73,7 +73,6 @@ describe('Drowned Deep transcription', () => {
     expect(d.supertypes ?? []).toEqual(legendary ? ['legendary'] : []);
     expect(manaCostText(d.cost!)).toBe(cost);
     expect(d.types.includes('creature') ? d.attack + '/' + d.defense : 'none').toBe(stats);
-    expect(d.flavor).toBe(flavor);
     expect(d.set).toBe('drowned-deep');
     const clauses = printed.replace(/\.$/, '').split('. ');
     expect((d.keywords ?? []).map((keyword) => KEYWORD_NAMES[keyword])).toEqual(
@@ -138,10 +137,9 @@ describe('Drowned Deep transcription', () => {
     expect(nearVanilla.length / commons.length).toBeLessThanOrEqual(0.3);
   });
 
-  it('renders non-empty rules for every collectible and preserves flavor without em dashes', () => {
+  it('renders non-empty rules for every collectible', () => {
     for (const d of DROWNED_DEEP) {
       expect(rulesText(d).trim(), d.id).not.toBe('');
-      expect(d.flavor, d.id).not.toContain('\u2014');
     }
   });
 
@@ -180,7 +178,7 @@ describe('Drowned Deep transcription', () => {
     expect(AXES).not.toContain('Plant');
   });
 
-  it('pins four zero-cost token identities with no flavor', () => {
+  it('pins four zero-cost token identities', () => {
     const expected = [
       { id: 'tok-deep-spawn', name: 'Deep-Spawn', subtypes: ['Deep One', 'Horror'], colors: ['B'], attack: 2, defense: 2, keywords: [] },
       { id: 'tok-drowned-spirit', name: 'Drowned Spirit', subtypes: ['Spirit'], colors: ['B'], attack: 1, defense: 1, keywords: [] },
@@ -192,7 +190,6 @@ describe('Drowned Deep transcription', () => {
       expect(d).toBeDefined();
       expect({ ...d, keywords: d?.keywords ?? [] }).toMatchObject(shape);
       expect(d).toMatchObject({ types: ['creature'], token: true, cost: { generic: 0, pips: {} }, rarity: 'c', set: 'drowned-deep' });
-      expect(d?.flavor).toBeUndefined();
       expect(d?.abilities).toBeUndefined();
       expect(d?.tithe).toBeUndefined();
     }

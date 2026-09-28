@@ -133,7 +133,7 @@ describe('catalog integrity', () => {
   // field. Only presentation may repeat. Ability and keyword order carry no
   // rules meaning, so they are compared as sets.
   it('no set prints the same card twice under two names', () => {
-    const PRESENTATION = new Set(['id', 'name', 'flavor', 'rarity', 'artRef', 'displayTypeLine', 'set', 'token']);
+    const PRESENTATION = new Set(['id', 'name', 'rarity', 'artRef', 'displayTypeLine', 'set', 'token']);
     const canon = (value: unknown): unknown => {
       if (Array.isArray(value)) return value.map(canon);
       if (value === null || typeof value !== 'object') return value;
