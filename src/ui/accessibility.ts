@@ -11,35 +11,15 @@
  * are not here and never change with these settings.
  */
 
+import { normalizeHighContrast, normalizeTextScale, type TextScale } from '../meta/accessibilitySettings';
+
 // ---------------------------------------------------------------------------
 // Text size
 // ---------------------------------------------------------------------------
 
-/** The allowed text sizes: Standard, Large, Largest (plan Q2). */
-export const TEXT_SCALES = [1, 1.15, 1.3] as const;
-export type TextScale = (typeof TEXT_SCALES)[number];
-
-/** Distances closer than this count as a tie (float noise, not a real gap). */
-const TIE_EPSILON = 1e-9;
-
-/**
- * The storage rule for `settings.textScale`: a value that is not a finite
- * number reads as 1; anything else snaps to the nearest allowed size, and a
- * tie takes the smaller. Changing `TEXT_SCALES` only changes this rule.
- */
-export function normalizeTextScale(value: unknown): TextScale {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return 1;
-  let best: TextScale = TEXT_SCALES[0];
-  let bestDistance = Math.abs(value - best);
-  for (const scale of TEXT_SCALES) {
-    const distance = Math.abs(value - scale);
-    if (distance < bestDistance - TIE_EPSILON) {
-      best = scale;
-      bestDistance = distance;
-    }
-  }
-  return best;
-}
+// The allowed sizes (Standard, Large, Largest; plan Q2) and the snapping rule
+// live with the save, so a stored value and the resolver can never disagree.
+export { DEFAULT_TEXT_SCALE, TEXT_SCALES, normalizeTextScale, type TextScale } from '../meta/accessibilitySettings';
 
 /** The base type ramp (100%). Card-internal geometry reads these, never the scaled roles. */
 export const TYPE_BASE = Object.freeze({
@@ -288,7 +268,7 @@ export const DEFAULT_ACCESSIBILITY: AccessibilitySettings = Object.freeze({ text
 export function normalizeAccessibility(input: AccessibilityInput | null | undefined): AccessibilitySettings {
   return Object.freeze({
     textScale: normalizeTextScale(input?.textScale),
-    highContrast: input?.highContrast === true,
+    highContrast: normalizeHighContrast(input?.highContrast),
   });
 }
 
