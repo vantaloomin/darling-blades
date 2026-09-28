@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { ART_EVENT_PROGRESS, artMissing, ensureArt } from '../art/artLoader';
+import { ART_EVENT_PROGRESS, artMissing, ensureArt, liveArtStore, manifestArtKeys } from '../art/artLoader';
+import type { ArtLease, ArtPriority, ArtTier } from '../art/artStore';
 import { backLabelFor } from './navigation';
 import { applySceneSettings } from './SceneBackdrop';
 import { theme } from './theme';
@@ -71,6 +72,45 @@ export function awaitArt(
   ids: Iterable<string> | null,
   handlers: ArtWaitHandlers,
 ): void {
+  waitForArt(scene, ids, handlers, () => ensureArt(ids));
+}
+
+/**
+ * A lease on `ids` (`null` = the whole manifest) for as long as `scene` runs:
+ * taken now, released when the scene shuts down (docs/plan-art-streaming.md
+ * section 1). `DuelScene`'s restart between rungs keeps its shared set,
+ * because the old scene's shutdown and the new one's create run in the same
+ * scene-manager step, before the loader scene's next eviction pass.
+ *
+ * Null, and nothing held, while art streams through the 1.8 queue (the art
+ * store is off), where nothing is ever unloaded.
+ */
+export function sceneArtLease(
+  scene: Phaser.Scene,
+  ids: Iterable<string> | null,
+  priority: ArtPriority = 'now',
+  tier: ArtTier = 'primary',
+): ArtLease | null {
+  const store = liveArtStore();
+  if (store === null) return null;
+  const lease = store.lease(`scene:${scene.sys.settings.key}`, ids ?? manifestArtKeys(), { priority, tier });
+  const release = (): void => {
+    lease.release();
+    scene.events.off(Phaser.Scenes.Events.SHUTDOWN, release);
+    scene.events.off(Phaser.Scenes.Events.DESTROY, release);
+  };
+  scene.events.once(Phaser.Scenes.Events.SHUTDOWN, release);
+  scene.events.once(Phaser.Scenes.Events.DESTROY, release);
+  return lease;
+}
+
+/** `awaitArt`'s wait, with what "ready" means supplied by the caller. */
+function waitForArt(
+  scene: Phaser.Scene,
+  ids: Iterable<string> | null,
+  handlers: ArtWaitHandlers,
+  whenReady: () => Promise<void>,
+): void {
   const total = artMissing(ids).length;
   if (total === 0) {
     handlers.onReady();
@@ -93,7 +133,7 @@ export function awaitArt(
   };
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, onShutdown);
 
-  void ensureArt(ids).then(() => {
+  void whenReady().then(() => {
     if (settled || !scene.sys.isActive()) return;
     settled = true;
     scene.events.off(Phaser.Scenes.Events.SHUTDOWN, onShutdown);
@@ -114,12 +154,20 @@ export function awaitArt(
  * main menu. Leaving shuts the scene down, and `awaitArt` then drops the build.
  * Collection and Decks gate on the whole card set, so early in a session this
  * wait can be the longest one in the game.
+ *
+ * While art streams through the art store (1.9 lane D), the gate also holds
+ * `ids` for the scene's life (`sceneArtLease`, at `now`), whether or not it had
+ * to wait, so nothing the build draws is evicted under it. With `null` that
+ * lease pins the whole manifest, which is why the store stays off until
+ * Collection, the Deck Builder and the Showcase gate on what they show (S5a).
  */
 export function gateOnArt(
   scene: Phaser.Scene,
   ids: Iterable<string> | null,
   build: () => void,
 ): void {
+  const list = ids === null ? null : [...ids];
+  const lease = sceneArtLease(scene, list, 'now');
   let shade: Phaser.GameObjects.Graphics | null = null;
   let label: Phaser.GameObjects.Text | null = null;
   let back: Phaser.GameObjects.Text | null = null;
@@ -136,7 +184,7 @@ export function gateOnArt(
     keyboard?.off('keydown-ESC', onEsc);
   };
 
-  awaitArt(scene, ids, {
+  const handlers: ArtWaitHandlers = {
     onWait: (line) => {
       if (label === null) {
         // create() has not run yet, so no backdrop has applied the
@@ -169,5 +217,9 @@ export function gateOnArt(
       back?.destroy();
       build();
     },
-  });
+  };
+  // Through the store the scene's own lease is the wait; through the queue,
+  // exactly the wait `awaitArt` has always made.
+  if (lease !== null) waitForArt(scene, list, handlers, () => lease.ready);
+  else awaitArt(scene, list, handlers);
 }

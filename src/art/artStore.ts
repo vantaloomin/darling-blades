@@ -811,11 +811,19 @@ export class ArtStore {
     }
   }
 
+  /**
+   * Hand a decoded image to the sink and settle its slot. The slot keeps its
+   * job until the books are done: the sink's add (Phaser's ADD event) and
+   * `onResident` can run code that takes or releases a lease on this very key
+   * (a view redrawn by the arrival holds it again), and a pump reached from
+   * there must not find an idle slot with holders and fetch it a second time.
+   * `onResident` goes out last, once the key is resident, settled and unqueued.
+   */
   private upload(slot: Slot, job: Job, image: ArtImage): void {
-    if (slot.job === job) slot.job = null;
     const now = this.now();
     const bytes = textureBytes(image.width, image.height);
     const sink = this.opts.sink;
+    let added = false;
     if (sink.exists(slot.textureKey)) {
       // An arrival that raced another request for the same key: the texture
       // is there already. Adding would be refused with a null texture, so
@@ -829,10 +837,11 @@ export class ArtStore {
       if (sink.keepsSource) slot.kept = image;
       else image.close();
       this.book.setResident(slot.textureKey, bytes, now);
-      this.opts.onResident?.(slot.textureKey);
+      added = true;
     } else {
       // The manager refused it: deterministic, so no retry this session.
       image.close();
+      if (slot.job === job) slot.job = null;
       this.failed(slot, true);
       return;
     }
@@ -841,8 +850,10 @@ export class ArtStore {
     slot.failed = null;
     slot.pass = 1;
     this.dirty = true;
+    if (slot.job === job) slot.job = null;
     this.settleWaiters(slot);
     this.checkPinsOverBudget();
+    if (added) this.opts.onResident?.(slot.textureKey);
   }
 
   private maybeEvict(): void {
