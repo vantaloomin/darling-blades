@@ -582,10 +582,17 @@ anywhere:
   the first-win-only streak bonus. `DuelScene.processEvents()` forwards public
   `GameEvent[]` batches for progress; the result path records streaks only when
   the human wins. `MainMenuScene` renders the Daily Blades panel.
-- **Deck codes** (`DeckCode.ts`) — a pure versioned `DBD2-...` decklist codec
-  for exact-order export/import, with backward-compatible `DBD1-...` import.
-  `DeckBuilderScene` owns the styled copy/paste UI and validates decoded imports
-  through `DeckStorage.validateDeck`.
+- **Deck codes** (`DeckCode.ts`) — a pure versioned deck codec for exact-order
+  export/import. Since 1.9 it writes `DBD3-...`: a format header, then a
+  Darlings deck's Darling and a Standard or Darlings deck's Warchest Reserves,
+  then the list, so a shared code rebuilds the whole deck. It still reads
+  `DBD2-...` and `DBD1-...` codes, which carry only a list (golden fixtures for
+  every shape in `tests/meta/deckCode.test.ts`). `DeckBuilderScene` owns the
+  styled copy/paste UI; `planDeckCodeImport` (`src/ui/deckBuilderHelpers.ts`)
+  decides what an import writes and judges it with the open format's
+  validators. A list-only code fills the open deck's list and keeps its format,
+  Darling and Warchest; a full code replaces all four as unsaved edits. Import
+  asks first when the open deck has unsaved changes.
 - **`variants`** (`variants.ts`) — the multi-axis drop system: `FrameStyle` /
   `HoloFinish` / `CardVariant` (`variantKey` = `frame|holo`), the specialness
   ranking (frame primary, holo tiebreak), and the seeded cumulative-weight

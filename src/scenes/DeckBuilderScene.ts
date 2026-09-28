@@ -107,7 +107,7 @@ import {
   deckBaseline,
   deckBlockKind,
   deckBlockLabel,
-  deckCodeImportBlockers,
+  deckCodeDeckFor,
   deckSaveCta,
   formatDeckSize,
   formatLabel,
@@ -118,10 +118,13 @@ import {
   isDeckBuilderDirty,
   newDeckFormat,
   offeredBuilderFormats,
+  importedWorkingState,
+  planDeckCodeImport,
   restoreDeckBaseline,
   unsavedChangesCopy,
   type BuilderFormat,
   type DeckBaseline,
+  type DeckCodeImportTarget,
   type UnsavedChangesPath,
   visibleBuilderFormatTabs,
   visibleSavedDecks,
@@ -214,6 +217,16 @@ export class DeckBuilderScene extends Phaser.Scene {
   /** UI working deck. A hidden active deck remains untouched in the save. */
   private workingDeckId: string | null = null;
   private savedDeckSnapshot: DeckBaseline | null = null;
+  /**
+   * The working deck's format and Darling. They are saved on the deck record,
+   * but the builder edits them here, beside the list and the Warchest, so an
+   * unsaved change to them (a deck code import) never sits on the shared save
+   * record where any flush (a tab switch, a land style) would write it.
+   * Only Save Deck, a format switch and a Darling pick, each of which saves the
+   * record whole, write them there.
+   */
+  private workingFormat: SavedDeck['format'] = undefined;
+  private workingDarlingId: string | null = null;
   private unsavedPrompt: ModalShell | null = null;
 
   constructor() {
@@ -397,12 +410,16 @@ export class DeckBuilderScene extends Phaser.Scene {
   }
 
   private activeFormat(): BuilderFormat {
-    const deck = this.activeSavedDeck();
     // With no saved deck (every deck deleted) the draft is a new deck, so it
     // sits in the format New Deck would give it, never a retired one.
-    return deck
-      ? builderFormatForDeck(deck, this.reserveFormatsEnabled)
+    return this.activeSavedDeck()
+      ? builderFormatForDeck({ format: this.workingFormat }, this.reserveFormatsEnabled)
       : newDeckFormat(this.reserveFormatsEnabled, this.classicRetired);
+  }
+
+  /** The working deck's Darling, while it is a Darlings deck. */
+  private activeDarlingId(): string | null {
+    return this.activeFormat() === 'darlings' ? this.workingDarlingId : null;
   }
 
   private isReserveFormat(): boolean {
@@ -414,18 +431,25 @@ export class DeckBuilderScene extends Phaser.Scene {
   }
 
   private currentIssues(cards: readonly string[] = this.deck): ReturnType<typeof validateDeck> {
-    const format = this.activeFormat();
+    return this.issuesFor(this.openDeckTarget(), cards);
+  }
+
+  /** The open deck's format, Darling and Warchest: what a deck code carries besides its list. */
+  private openDeckTarget(): DeckCodeImportTarget {
+    return {
+      format: this.activeFormat(),
+      darlingId: this.activeDarlingId(),
+      landReserve: this.landReserve,
+    };
+  }
+
+  private issuesFor(target: DeckCodeImportTarget, cards: readonly string[]): ReturnType<typeof validateDeck> {
+    const { format, darlingId, landReserve } = target;
     if (format === 'darlings') {
-      return validateDarlingsDeck(
-        CARD_DB,
-        Services.save.data,
-        cards,
-        this.activeSavedDeck()?.darlingId ?? null,
-        this.landReserve,
-      );
+      return validateDarlingsDeck(CARD_DB, Services.save.data, cards, darlingId, landReserve);
     }
     if (format === 'warchest') {
-      return validateWarchestDeck(CARD_DB, Services.save.data, cards, this.landReserve);
+      return validateWarchestDeck(CARD_DB, Services.save.data, cards, landReserve);
     }
     // A classic deck opened after retirement is blocked by its FORMAT, not by
     // its card count. Reporting the 60-card check first told the player to add
@@ -802,6 +826,8 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.deck = slots.cards;
     this.variantPins = slots.variantPins;
     this.landReserve = deck?.landReserve ? [...deck.landReserve] : [];
+    this.workingFormat = deck?.format;
+    this.workingDarlingId = deck?.darlingId ?? null;
     if (this.savedDeckSnapshot?.id !== this.workingDeckId) this.savedDeckSnapshot = deckBaseline(deck);
     this.statusMessage = null;
   }
@@ -814,8 +840,8 @@ export class DeckBuilderScene extends Phaser.Scene {
         variantPins: this.variantPins,
         landReserve: this.landReserve,
         heroCardId: active?.heroCardId ?? null,
-        darlingId: active?.darlingId ?? null,
-        format: active?.format,
+        darlingId: this.workingDarlingId,
+        format: this.workingFormat,
       },
       this.savedDeckSnapshot,
     );
@@ -829,7 +855,6 @@ export class DeckBuilderScene extends Phaser.Scene {
    */
   private saveWorkingDeck(): void {
     const save = Services.save.data;
-    const active = this.activeSavedDeck();
     const format = this.activeFormat();
     // The working deck, never save.activeDeckId: when a hidden reserve deck is
     // still the save's active deck, writing to that id would overwrite the very
@@ -846,13 +871,15 @@ export class DeckBuilderScene extends Phaser.Scene {
       cards: [...this.deck],
       heroCardId,
       format,
-      darlingId: format === 'darlings' ? active?.darlingId ?? null : null,
+      darlingId: format === 'darlings' ? this.workingDarlingId : null,
       landReserve: format === 'constructed' ? null : [...this.landReserve],
       variantPins: [...this.variantPins],
     });
     save.activeDeckId = id;
     this.workingDeckId = id;
     const saved = save.decks.find((d) => d.id === id) ?? null;
+    this.workingFormat = saved?.format;
+    this.workingDarlingId = saved?.darlingId ?? null;
     this.savedDeckSnapshot = deckBaseline(saved);
     if (saved) this.acknowledgeUnplayableDeck(saved);
     Services.save.flush();
@@ -893,7 +920,8 @@ export class DeckBuilderScene extends Phaser.Scene {
 
   /**
    * Run `proceed`, asking first whenever it would drop unsaved work (owner
-   * ruling D10): leaving, the Decks menu, a format switch, the Darling pick.
+   * ruling D10): leaving, the Decks menu, a format switch, the Darling pick,
+   * a deck code import.
    * Save Deck saves (it always can) and carries on; the discard button puts the
    * deck back to its last save and carries on; Keep Editing does neither.
    */
@@ -978,8 +1006,8 @@ export class DeckBuilderScene extends Phaser.Scene {
 
   private deckHeroId(): string | null {
     const active = this.activeSavedDeck();
-    if (active?.format === 'darlings') {
-      return darlingFaceCardFor({ cards: this.deck, format: active.format, darlingId: active.darlingId }, CARD_DB);
+    if (active && this.activeFormat() === 'darlings') {
+      return darlingFaceCardFor({ cards: this.deck, format: 'darlings', darlingId: this.workingDarlingId }, CARD_DB);
     }
     const hero = active?.heroCardId ?? null;
     return hero && CARD_DB[hero] && this.deck.includes(hero) ? hero : null;
@@ -987,7 +1015,7 @@ export class DeckBuilderScene extends Phaser.Scene {
 
   private toggleDeckHero(id: string): void {
     const deck = this.activeSavedDeck();
-    if (!deck || deck.format === 'darlings' || !this.deck.includes(id)) return;
+    if (!deck || this.activeFormat() === 'darlings' || !this.deck.includes(id)) return;
     const next = deck.heroCardId === id ? null : id;
     deck.heroCardId = next;
     this.statusMessage = {
@@ -1154,7 +1182,13 @@ export class DeckBuilderScene extends Phaser.Scene {
       if (format === 'darlings') this.openDarlingsFormat();
       return;
     }
-    this.confirmUnsavedChanges('format', () => this.switchFormat(format));
+    // Discard can put the deck back on the tapped format (an unsaved import
+    // had moved it off), so the tap is judged again once the prompt resolves:
+    // the lit Darlings tab opens her chooser, as it does above.
+    this.confirmUnsavedChanges('format', () => {
+      if (this.activeFormat() !== format) this.switchFormat(format);
+      else if (format === 'darlings') this.openDarlingsFormat();
+    });
   }
 
   /**
@@ -1166,6 +1200,8 @@ export class DeckBuilderScene extends Phaser.Scene {
     const active = this.activeSavedDeck();
     if (!active || this.activeFormat() === format) return;
     this.landReserve = switchDeckFormat(active, format);
+    this.workingFormat = active.format;
+    this.workingDarlingId = active.darlingId ?? null;
     this.commitSavedRecord(active);
     this.statusMessage = null;
     this.deckPage = 0;
@@ -1245,14 +1281,15 @@ export class DeckBuilderScene extends Phaser.Scene {
       // first), so the working deck is the saved one and the pick is saved
       // with it: she leaves the list, and the record takes both.
       const active = this.activeSavedDeck();
-      if (!active || active.format !== 'darlings') return;
-      const withoutPrevious = active.darlingId
-        ? removeAllDeckSlots({ cards: this.deck, variantPins: this.variantPins }, active.darlingId)
+      if (!active || this.activeFormat() !== 'darlings') return;
+      const withoutPrevious = this.workingDarlingId
+        ? removeAllDeckSlots({ cards: this.deck, variantPins: this.variantPins }, this.workingDarlingId)
         : { cards: this.deck, variantPins: this.variantPins };
       const next = removeAllDeckSlots(withoutPrevious, id);
       this.deck = next.cards;
       this.variantPins = next.variantPins;
       active.darlingId = id;
+      this.workingDarlingId = id;
       active.cards = [...this.deck];
       active.variantPins = [...this.variantPins];
       active.landReserve = [...this.landReserve];
@@ -1304,7 +1341,7 @@ export class DeckBuilderScene extends Phaser.Scene {
   }
 
   private reserveLandChoices(): CardDef[] {
-    const darlingId = this.activeFormat() === 'darlings' ? this.activeSavedDeck()?.darlingId ?? null : null;
+    const darlingId = this.activeDarlingId();
     return Object.values(CARD_DB)
       .filter((card) => isBasicLand(card) || (isDualLand(card) && ownedCount(Services.save.data, card.id) > 0))
       .filter((card) => !darlingId || darlingsCardError(CARD_DB, darlingId, card.id) === null)
@@ -1589,6 +1626,40 @@ export class DeckBuilderScene extends Phaser.Scene {
       onTap: () => this.openDeckStylePicker('playmat'),
     });
     this.rightPane.push(matBtn.container);
+
+    // Land styles row. The basics block that carries them inline (desktop) or
+    // behind a title-row button (touch) exists only on the retired Constructed
+    // format, so a Standard or Darlings deck had no way to them. Here a style
+    // dresses the basic lands of this deck's Warchest; dual lands keep their
+    // own art.
+    y += 56;
+    const styled = BASIC_LAND_IDS.filter((id) => active.landStyle?.[id]);
+    const sampleId = styled[0] ?? BASIC_LAND_IDS[0];
+    this.rightPane.push(
+      this.add
+        .text(x0, y, 'Land styles', {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.label}px`,
+          color: theme.colors.body,
+        })
+        .setOrigin(0, 0.5),
+      makeCardThumb(this, x0 + 96, y, byId(sampleId), 0.095, active.landStyle?.[sampleId] ?? undefined, this.ownedVariantFor(sampleId)),
+      this.add
+        .text(x0 + 118, y, styled.length === 0 ? 'Default art' : `${styled.length} of ${BASIC_LAND_IDS.length} basics styled`, {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          color: theme.colors.heading,
+          wordWrap: { width: 118 },
+        })
+        .setOrigin(0, 0.5),
+    );
+    const landBtn = themedButton(this, x0 + 302, y, 'Change', {
+      variant: 'ghost',
+      size: 'sm',
+      minWidth: 90,
+      onTap: () => this.showLandStylesModal(),
+    });
+    this.rightPane.push(landBtn.container);
 
     y += 56;
     this.rightPane.push(
@@ -2532,7 +2603,7 @@ export class DeckBuilderScene extends Phaser.Scene {
         format: this.activeFormat(),
         cards: this.deck,
         landReserve: this.landReserve,
-        darlingId: this.activeSavedDeck()?.darlingId ?? null,
+        darlingId: this.activeDarlingId(),
       },
       true,
       this.classicRetired,
@@ -2638,7 +2709,8 @@ export class DeckBuilderScene extends Phaser.Scene {
     });
     // The title row sits on the shared header line (deckPanePresentation.ts).
     const titleLayout = DECK_PANE_LAYOUT.title;
-    const deckTitleX = format === 'darlings' && active?.darlingId ? x0 + 46 : x0;
+    const darlingId = this.activeDarlingId();
+    const deckTitleX = format === 'darlings' && active && darlingId ? x0 + 46 : x0;
     const title = this.add
       .text(deckTitleX, titleLayout.y, (active?.name ?? 'Custom Deck') + ' · ' + this.deck.length + '/' + formatDeckSize(format), {
         fontFamily: theme.fonts.display,
@@ -2648,7 +2720,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       .setOrigin(0, 0.5);
     this.fitTextToWidth(title, this.touch ? 130 : format === 'constructed' ? 250 : 190);
     this.rightPane.push(title);
-    if (format === 'darlings' && active?.darlingId && CARD_DB[active.darlingId]) {
+    if (format === 'darlings' && active && darlingId && CARD_DB[darlingId]) {
       // The portrait beside the title IS the Darling indicator, and tapping
       // it (or the active Darlings tab) reopens the chooser. The old
       // 'Darling' text label under the title collided with the Format row
@@ -2657,10 +2729,10 @@ export class DeckBuilderScene extends Phaser.Scene {
         this,
         titleLayout.portraitX,
         titleLayout.y,
-        CARD_DB[active.darlingId],
+        CARD_DB[darlingId],
         titleLayout.portraitScale,
         undefined,
-        this.ownedVariantFor(active.darlingId),
+        this.ownedVariantFor(darlingId),
       );
       const portraitHit = this.add
         .zone(titleLayout.portraitX, titleLayout.y, titleLayout.portraitHitWidth, titleLayout.portraitHitHeight)
@@ -2827,12 +2899,19 @@ export class DeckBuilderScene extends Phaser.Scene {
       return;
     }
 
-    const code = encodeDeck(this.deck);
+    // A Standard or Darlings code carries the Warchest, and a Darlings code
+    // her Darling, so the code rebuilds the whole deck.
+    const code = encodeDeck(deckCodeDeckFor({ ...this.openDeckTarget(), cards: this.deck }));
     this.showDeckCodeOverlay('export', code);
   }
 
+  /**
+   * An import replaces the open deck, so it asks first whenever that would
+   * drop unsaved work (D10), before the code box opens: the box is a DOM
+   * element, which no canvas prompt can sit above.
+   */
   private importDeckCode(): void {
-    this.showDeckCodeOverlay('import');
+    this.confirmUnsavedChanges('import', () => this.showDeckCodeOverlay('import'));
   }
 
   private applyDeckCodeImport(input: string, renderOnFailure = true): boolean {
@@ -2843,34 +2922,36 @@ export class DeckBuilderScene extends Phaser.Scene {
       return false;
     }
 
-    // A retired classic deck takes no list until it changes format, and
-    // saying so beats judging a Standard code against the 60-card rules.
-    if (this.classicRetired && this.activeFormat() === 'constructed') {
-      this.statusMessage = { text: `Import rejected: ${CLASSIC_RETIRED_ISSUE}`, tone: 'danger' };
-      if (renderOnFailure) this.renderDeck();
-      return false;
-    }
-
-    // Judged only on what the code carries: an unfinished Warchest or an
-    // unchosen Darling stays a status-band issue after the import, and no
-    // longer rejects a legal code for every new deck.
-    let blocking: ReturnType<typeof validateDeck>;
+    let plan: ReturnType<typeof planDeckCodeImport>;
     try {
-      blocking = deckCodeImportBlockers((cards) => this.currentIssues(cards), decoded.cards);
+      plan = planDeckCodeImport(
+        decoded,
+        { ...this.openDeckTarget(), hasSavedRecord: this.activeSavedDeck() !== null },
+        { offered: offeredBuilderFormats(this.reserveFormatsEnabled, this.classicRetired), classicRetired: this.classicRetired },
+        (target, cards) => this.issuesFor(target, cards),
+      );
     } catch {
       this.statusMessage = { text: 'Import failed: that code contains an unknown card.', tone: 'danger' };
       if (renderOnFailure) this.renderDeck();
       return false;
     }
-    if (blocking.length > 0) {
-      this.statusMessage = { text: `Import rejected: ${blocking[0].message}`, tone: 'danger' };
+    if (!plan.ok) {
+      this.statusMessage = { text: `Import rejected: ${plan.reason}`, tone: 'danger' };
       if (renderOnFailure) this.renderDeck();
       return false;
     }
 
-    const slots = cloneDeckSlots(decoded.cards);
-    this.deck = slots.cards;
-    this.variantPins = slots.variantPins;
+    // Everything the import writes is working state: the list, the Warchest,
+    // and the format and Darling beside them. The saved record is never
+    // touched, so no flush can write half an import (a tab switch flushes the
+    // whole save), Save Deck keeps it, and Discard Changes or leaving without
+    // saving drops it.
+    const working = importedWorkingState(plan);
+    this.workingFormat = working.format;
+    this.workingDarlingId = working.darlingId;
+    this.landReserve = [...working.landReserve];
+    this.deck = [...working.cards];
+    this.variantPins = [...working.variantPins];
     this.deckPage = 0;
     this.statusMessage = { text: 'Deck code imported. Save Deck to keep it.', tone: 'success' };
     this.renderPool();
