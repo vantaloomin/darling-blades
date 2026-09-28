@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/power/scoreCore.ts, src/data/cards/, src/data/opponents.ts, src/ai/value.ts, scripts/balance-matrix.ts, docs/plan-1.9.md · last-verified: 2026-09-27 · program doc: the 1.8.5 scaling rebalance; every decision ruled, the slate approved 2026-09-26 and narrowed to 83 cards 2026-09-27 (D11-D13), plus six late-ramp buffs (D14) for 89; the build is under way on release/1.8.5 -->
+<!-- source-of-truth: src/power/scoreCore.ts, src/data/cards/, src/data/opponents.ts, src/ai/value.ts, scripts/balance-matrix.ts, docs/plan-1.9.md · last-verified: 2026-09-28 · program doc: the 1.8.5 scaling rebalance; every decision ruled, the slate approved 2026-09-26 and narrowed to 83 cards 2026-09-27 (D11-D13), plus six late-ramp buffs (D14) for 89; the build is under way on release/1.8.5 -->
 
 # Darling Blades 1.8.5: the scaling rebalance (proposal)
 
@@ -578,6 +578,37 @@ Darlings rows. Every boss and avatar deck that carries a changed card is
 re-measured. **Test gate floors only ratchet upward**: a boss that a nerf
 pushes below its floor gets its deck retuned, never a lower floor.
 
+**Lane 5 results (2026-09-28, the final build b29c31d).** The dated tables
+are in `src/data/opponents.ts` (the 1.8.5 re-measure).
+
+- **The boss ladder** (`--avatars --seeds 200`) raised no flags. The summit
+  rungs 21-26 sit within 3 points of the AI-only build. Three rows moved more
+  than 3 points:
+  - Sima Yi 25 -> 43: his converter list gained the buffed Nadira and Two for
+    the Ferrywoman. This closes the R6/R5 inversion; accepted (D17).
+  - Brunhild 78 -> 72, inside her band.
+  - Morgan 51 -> 47, inside her band.
+- **Seven summit floors ratchet up** (D16): The Bride 0.645, Glass-Coffin
+  Queen 0.715, Songstress 0.825, Lanterned Roof 0.675, Kitsune 0.835, Chrome
+  Broodmother 0.675 and the Deacon 0.605.
+- **The floors** (`--floors --seeds 80`) are all within 3.7 points. One flag:
+  F15 reads 50.0 against its 50 minimum, a noise-level dip that is recorded.
+- **The Darlings rows** (`--avatars-darlings --seeds 200`, 1.8.5 against
+  1.8.1) raised no flags. Hera rose 41 -> 53 (Gatekeeper Judge; accepted,
+  D17) and The Storm-Crowned Bride 51 -> 58.
+- **The big-moves lab** (109k games) measured each card against its budget:
+  - Brood Communion is fair.
+  - Starborne Apotheosis is still under (-1.6); the AI casts it as "gain 8"
+    before it has Marked creatures.
+  - Black Tide Rising is fair in Shadow Mandate and over-tuned in Midnight
+    Storybook (+1.22). It ships as approved (D15).
+- **Stand as One** goes to {W} (D15). The converter now gives Hera's reserve
+  four copies. Re-measured, she reads 31 -> 27, inside her band, and her
+  Darlings row goes 53 -> 54.
+- Brood Communion's spell art still depicts its removed Rite, so it is queued
+  for the 1.9 art run with Swan-Lake Sovereign.
+- `docs/ai.md` no longer lists Deepfield Array as a paid Duty.
+
 **Lane 6: release.**
 - The notes list every changed card.
 - The replay log bumps, since replays are refused whenever card data changes.
@@ -612,6 +643,14 @@ pushes below its floor gets its deck retuned, never a lower floor.
 | D12 | The scorer prices an extra land drop the same at every mana cost, ignoring the 10-land reserve. Fix inside 1.8.5? | **Fix in 1.8.5.** Measure ramp by cast turn in the engine and price it by the turns left before the cap (lane `lane/185-ramp`). Done: §4v, measured over 177k games; see "Extra land drops" above |
 | D13 | Four buffs go to cards the optimizer already picks (Nadira, The Storm-Crowned Bride, Rite of the Lamp-Fire, Moon-Doll Orchestra). Hold them? | **Keep all 56 buffs** |
 | D14 | Late ramp reads Under on the measured pricing. Buff it now or in a later patch? | **Now, in 1.8.5.** Six cards, picked per card; see "Extra land drops" |
+
+## D15-D17 (ruled 2026-09-28, lane 5)
+
+| # | Decision | Ruling |
+| --- | --- | --- |
+| D15 | Stand as One reads -1.09; Black Tide Rising is over-tuned in one of two lab decks | **Stand as One goes to {W}** (-0.28). **Black Tide Rising ships as approved** ({B}{B}, -3/-3) |
+| D16 | Raise the seven summit floors the fresh ladder supports? | **Raise all seven** |
+| D17 | Sima Yi (+18) and Hera's Darlings row (+12) rose on buffed cards in their converter lists | **Accept both** |
 
 ## Non-goals
 

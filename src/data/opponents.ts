@@ -657,6 +657,35 @@ export interface Avatar {
  * D7 balance items: tune those four Darlings lists, then gate the Darlings
  * rows so it cannot recur unseen.
  *
+ * 2026-09-28 - THE 1.8.5 RE-MEASURE (release tip b29c31d: the v4 scorer, the
+ * attack-aware AI, the 89-card slate and the §4v ramp pricing; see
+ * docs/plan-1.8.5.md). `--avatars --seeds 200` in four shards, 26,000 games,
+ * FLAGS none. Against the AI-only build (lane 4, same seeds) the summit rungs
+ * 21-26 sit within 3 points; the retunes held (Deacon 67, Marsh-Mother 74,
+ * Bastet 75 on her release list). Rows that moved more than 3 points:
+ * R6 Sima Yi 25 -> 43 (his converter reserve now carries the buffed Nadira and
+ * Two for the Ferrywoman; his Communion cell 16 -> 77; this closes the R6/R5
+ * inversion, ruled accepted), R10 Brunhild 78 -> 72 and R13 Morgan 51 -> 47
+ * (both inside their bands). Across the ladder the bosses gain 2.1 points on
+ * Crimson Muster (Lu Bu's nerf) and within 1.3 on the other four starters.
+ * Seven summit floors ratchet up on this table (tests/ai/winrate.test.ts).
+ * Stand as One went to {W} after this run (Hera's reserve now runs four, for
+ * one Nike and one Iris), so R4 was re-measured separately: 31 -> 27
+ * (16/39/26/30/24), inside her 22-62 band; her Darlings row 53 -> 54.
+ *
+ * FLOORS, same build: `--floors --seeds 80`, every floor within 3.7 points of
+ * the AI-only build. One flag: F15 (T5) reads 50.0 against its 50 band
+ * minimum (52.0 on 1.8.1, 53.5 AI-only), a noise-level dip, recorded.
+ *
+ * DARLINGS ROWS, same build: `--avatars-darlings --seeds 200` on all 26 rows,
+ * run on 1.8.5 AND on 1.8.1 (b4973a9), 26,000 games each, FLAGS none. The
+ * five precon columns move 2.5 points at most on average. Rows that moved 4
+ * or more: R4 Hera 41 -> 53 (her converter list gained the buffed Gatekeeper
+ * Judge; ruled accepted), R16 The Storm-Crowned Bride 51 -> 58 (the Bride
+ * herself gained Skyborne), R15 Carmilla 66 -> 62, R26 Marsh-Mother 28 -> 32.
+ * The four newest summit bosses are still pushovers in this format (R23-R26
+ * at 11-32), carried to 1.9 as recorded above.
+ *
  * 2026-07-31 - RESERVE FORMAT BASELINES (1.5.5 reveal gate; the two
  * matrices the 1.5.0 release split left TO MEASURE). SUPERSEDED 2026-08-09
  * by the dated table above; retained as history. STALE 2026-08-06:
@@ -907,7 +936,7 @@ export const AVATARS: readonly Avatar[] = [
       'yn-quiet-the-street',
       'so-judgment-of-heaven',
       'dt-twelve-dancing-heiresses',
-      'ar-imperial-jade-seal',
+      'in-stand-as-one',
       'dd-rite-of-the-salt-gate',
       'dd-bell-hand',
       'cf-briar-veil-banishing',
@@ -955,7 +984,7 @@ export const AVATARS: readonly Avatar[] = [
       'ac-lance-of-dawn',
       'dd-salt-ward',
       'dd-widows-lantern',
-      'dt-gilded-cage',
+      'sd-alabaster-usher',
       'ar-siege-juggernaut',
       'sd-keeper-of-the-salt-room',
     ],
@@ -1130,9 +1159,9 @@ export const AVATARS: readonly Avatar[] = [
     reserveDeck: expand([
       ['gk-hera', 3],
       ['bk-bunny-vanguard', 4],
-      ['gk-nike', 4],
-      ['gk-iris', 4],
-      ['in-stand-as-one', 2],
+      ['gk-nike', 3],
+      ['gk-iris', 3],
+      ['in-stand-as-one', 4],
       ['gk-thanatos', 3],
       ['gk-apollo', 3],
       ['gk-eos', 2],
@@ -1225,7 +1254,7 @@ export const AVATARS: readonly Avatar[] = [
       'ac-lance-of-dawn',
       'dd-salt-ward',
       'dd-widows-lantern',
-      'dt-gilded-cage',
+      'dd-wharf-watch',
     ],
     darlingId: 'gk-hera',
   },
