@@ -5,9 +5,10 @@ import { AVATARS } from '../../src/data/opponents';
 /**
  * Every card subject and avatar boss in Darling Blades is a woman, so their own
  * authored prose must never misgender them with a masculine pronoun. This gate
- * scans the prose surfaces — card `flavor` and avatar `title`/`blurb` — for the
- * pronouns he / him / his / himself (word-boundary, case-insensitive, so "the",
- * "she", "History" are not false positives, while "he's"/"he'll" are caught).
+ * scans the one prose surface left, avatar `title`/`blurb` (cards carry no
+ * prose since flavor text left the game, owner ruling R13), for the pronouns
+ * he / him / his / himself (word-boundary, case-insensitive, so "the", "she",
+ * "History" are not false positives, while "he's"/"he'll" are caught).
  *
  * Scope (locked with the user 2026-07-05): PRONOUNS ONLY. Male THIRD PARTIES are
  * legitimate lore — a heroine can have a father, a husband, a male foe, or duel
@@ -34,9 +35,6 @@ interface Prose {
 /** The authored prose surfaces the gate scans (names are intentionally excluded). */
 function proseSurfaces(): Prose[] {
   const out: Prose[] = [];
-  for (const card of ALL_CARDS) {
-    if (card.flavor) out.push({ id: card.id, field: 'flavor', text: card.flavor });
-  }
   for (const a of AVATARS) {
     out.push({ id: a.id, field: 'title', text: a.title });
     out.push({ id: a.id, field: 'blurb', text: a.blurb });

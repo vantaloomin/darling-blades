@@ -115,9 +115,6 @@ export const LIMITED_DETAILS_PANEL = {
   selected: {
     nameY: DETAILS_TOP + 220,
     detailY: DETAILS_TOP + 276,
-    flavorY: DETAILS_TOP + 334,
-    /** Flavor is decorative and yields its space to the issue list below. */
-    flavorMaxLines: 2,
   },
   issuesY: DETAILS_TOP + 384,
 } as const;

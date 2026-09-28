@@ -718,7 +718,6 @@ function shortName(name: string): string {
 
 function entry(card: CardDef): string {
   const art = artFor(card);
-  const flavor = (card.flavor ?? '').replace(/"/g, '”');
   const promptSubject = art.kind.startsWith(shortName(card.name)) ? art.kind : `${shortName(card.name)}, ${art.kind}`;
   const prompt =
     `${promptSubject}, wearing ${art.costume}; ${art.pose}; ${art.mood}; against ${art.background}; ${art.lighting}; ` +
@@ -728,7 +727,7 @@ function entry(card: CardDef): string {
     `### ${card.name} — \`${card.id}\``,
     `- **Card facts:** ${factsLine(card)}`,
     `- **Character & source:** ${art.kind}; mechanically ${mechanicalNote(card)}. Approved-art audit: ${AUDIT_NOTES[card.id] ?? 'Approved raw reviewed for adult-coded subject, clear kit, and crop-safe silhouette.'}`,
-    `- **Personality / mood:** ${flavor ? `“${flavor}” — ` : ''}${art.mood}.`,
+    `- **Personality / mood:** ${art.mood}.`,
     `- **Pose & composition:** ${art.pose}; face ≈ y 320 and eye-line ≈ y 300–360 where humanoid, with the full species anatomy and defining prop in frame. The entire top third stays clear above the head, crown, mane, or wings for crop-safe headroom.`,
     `- **Costume & attire:** ${art.costume}.`,
     `- **Palette:** ${paletteOf(card)}; Arthurian accents — polished steel, white-gold sunlight, chapel ivory, crimson pennants, moonlit lake blue, thorn black, and grail radiance — reinforce the card color without becoming Celtic Fae mist/thorn.` ,

@@ -14,7 +14,6 @@ export const TOKENS = [
     defense: 1,
     token: true,
     rarity: 'c',
-    flavor: 'She carries the offering through the heat and does not look back.',
   },
   {
     id: 'tok-bastet-kit',
@@ -27,7 +26,6 @@ export const TOKENS = [
     defense: 1,
     token: true,
     rarity: 'c',
-    flavor: 'She follows the pawprints and finds the fight.',
   },
   {
     id: 'tok-militia',
@@ -40,7 +38,6 @@ export const TOKENS = [
     defense: 1,
     token: true,
     rarity: 'c',
-    flavor: 'Signed up yesterday. Marching today.',
   },
   {
     id: 'tok-fox-spirit',
@@ -53,7 +50,6 @@ export const TOKENS = [
     defense: 1,
     token: true,
     rarity: 'c',
-    flavor: 'Possibly real. Aggressively cute either way.',
   },
   {
     id: 'tok-peacock',
@@ -67,7 +63,6 @@ export const TOKENS = [
     keywords: ['skyborne'],
     token: true,
     rarity: 'c',
-    flavor: 'A hundred eyes, all judging.',
   },
   {
     id: 'tok-bloom',
@@ -83,7 +78,6 @@ export const TOKENS = [
     defense: 1,
     token: true,
     rarity: 'c',
-    flavor: 'Spring, in miniature and on the march.',
   },
   {
     id: 'tok-wooden-ox',
@@ -97,7 +91,6 @@ export const TOKENS = [
     keywords: ['bulwark'],
     token: true,
     rarity: 'c',
-    flavor: 'Needs no fodder, files no complaints, carries everything.',
   },
   {
     id: 'tok-valkyrie',
@@ -111,7 +104,6 @@ export const TOKENS = [
     keywords: ['skyborne'],
     token: true,
     rarity: 'c',
-    flavor: 'She decides who the day remembers.',
   },
   {
     id: 'tok-draugr',
@@ -124,7 +116,6 @@ export const TOKENS = [
     defense: 2,
     token: true,
     rarity: 'c',
-    flavor: 'Dead, and disagreeable about it.',
   },
   {
     id: 'tok-wolf',
@@ -137,7 +128,6 @@ export const TOKENS = [
     defense: 2,
     token: true,
     rarity: 'c',
-    flavor: 'Fenrir’s brood runs the long night.',
   },
   {
     // Fenrir's own litter (v3.1 ruling 2026-08-29): 1/1s so the unchaining
@@ -154,7 +144,6 @@ export const TOKENS = [
     token: true,
     rarity: 'c',
     artRef: 'tok-wolf',
-    flavor: 'Small now. So was she.',
   },
   {
     id: 'tok-squire',
@@ -167,7 +156,6 @@ export const TOKENS = [
     defense: 1,
     token: true,
     rarity: 'c',
-    flavor: 'She carries the shield until the shield is ready for her.',
   },
   {
     id: 'tok-bat',
@@ -181,7 +169,6 @@ export const TOKENS = [
     keywords: ['skyborne'],
     token: true,
     rarity: 'c',
-    flavor: 'Out of the belfry before the sermon gets interesting.',
   },
   {
     id: 'tok-rat',
@@ -194,7 +181,6 @@ export const TOKENS = [
     defense: 1,
     token: true,
     rarity: 'c',
-    flavor: 'No pantry keeps a secret from her.',
   },
   {
     id: 'tok-doll',
@@ -208,7 +194,6 @@ export const TOKENS = [
     keywords: ['sentinel'],
     token: true,
     rarity: 'c',
-    flavor: 'Perfectly polite, right up until someone turns away.',
   },
   {
     id: 'tok-grave-rose',
@@ -222,7 +207,6 @@ export const TOKENS = [
     keywords: ['deathblade'],
     token: true,
     rarity: 'c',
-    flavor: 'Rich soil, quiet neighbors, thorns on retainer.',
   },
   {
     id: 'tok-revenant',
@@ -235,7 +219,6 @@ export const TOKENS = [
     defense: 2,
     token: true,
     rarity: 'c',
-    flavor: 'Back for the encore, unimpressed by the reviews.',
   },
   {
     id: 'tok-shadow-miner',
@@ -248,7 +231,6 @@ export const TOKENS = [
     defense: 1,
     token: true,
     rarity: 'c',
-    flavor: 'The vein is dark, the lantern darker, and the shift never ends.',
   },
   {
     id: 'tok-firefly',
@@ -262,7 +244,6 @@ export const TOKENS = [
     keywords: ['skyborne'],
     token: true,
     rarity: 'c',
-    flavor: 'A small light with no interest in staying where it was put.',
   },
   {
     id: 'tok-masked-guest',
@@ -275,7 +256,6 @@ export const TOKENS = [
     defense: 1,
     token: true,
     rarity: 'c',
-    flavor: 'The invitation was vague. The entrance was not.',
   },
   {
     id: 'tok-hearth-spirit',
@@ -289,7 +269,6 @@ export const TOKENS = [
     keywords: ['sentinel'],
     token: true,
     rarity: 'c',
-    flavor: 'The house remembers who kept the fire lit.',
   },
   {
     id: 'tok-broodling',
@@ -302,7 +281,6 @@ export const TOKENS = [
     defense: 1,
     token: true,
     rarity: 'c',
-    flavor: 'A translucent young swarm member that grows around warm machinery.',
   },
   {
     id: 'tok-chrome-husk',
@@ -316,7 +294,6 @@ export const TOKENS = [
     keywords: ['bulwark'],
     token: true,
     rarity: 'c',
-    flavor: 'A discarded shell that keeps standing after its owner leaves.',
   },
   {
     id: 'tok-nebula-firefly',
@@ -330,7 +307,6 @@ export const TOKENS = [
     keywords: ['skyborne'],
     token: true,
     rarity: 'c',
-    flavor: 'A tiny violet beacon that follows living ships between worlds.',
   },
   {
     id: 'tok-deep-spawn',

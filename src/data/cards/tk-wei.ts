@@ -21,7 +21,6 @@ export const TK_WEI = [
       },
     ],
     rarity: 'ur',
-    flavor: 'Better she betray the world than the world betray her. She keeps receipts for both.',
   },
   {
     id: 'tk-wei-xiahoudun',
@@ -34,7 +33,6 @@ export const TK_WEI = [
     defense: 2,
     keywords: ['firstBlade'],
     rarity: 'r',
-    flavor: 'The arrow took her eye. She took everything else.',
   },
   {
     id: 'tk-wei-xiahouyuan',
@@ -47,7 +45,6 @@ export const TK_WEI = [
     defense: 2,
     keywords: ['warcry'],
     rarity: 'c',
-    flavor: 'Three days of road in one. Naps are for the besieged.',
   },
   {
     id: 'tk-wei-zhangliao',
@@ -60,7 +57,6 @@ export const TK_WEI = [
     defense: 3,
     abilities: [{ when: 'attacks', ops: [{ op: 'loseLife', n: 1, who: 'opponent' }] }],
     rarity: 'r',
-    flavor: 'Wu parents still hush crying children with her name.',
   },
   {
     id: 'tk-wei-dianwei',
@@ -73,7 +69,6 @@ export const TK_WEI = [
     defense: 3,
     keywords: ['sentinel'],
     rarity: 'c',
-    flavor: 'She guards the door. The door is wherever Cao Cao is.',
   },
   {
     id: 'tk-wei-xuchu',
@@ -85,7 +80,6 @@ export const TK_WEI = [
     attack: 3,
     defense: 5,
     rarity: 'c',
-    flavor: 'A gentle giantess, until someone touches her lady’s cape.',
   },
   {
     id: 'tk-wei-zhanghe',
@@ -98,7 +92,6 @@ export const TK_WEI = [
     defense: 1,
     keywords: ['skyborne'],
     rarity: 'c',
-    flavor: 'Every battlefield is a stage, and every stage is hers.',
   },
   {
     id: 'tk-wei-xuhuang',
@@ -110,7 +103,6 @@ export const TK_WEI = [
     attack: 3,
     defense: 3,
     rarity: 'c',
-    flavor: 'Discipline first. The axe is just discipline with an edge.',
   },
   {
     id: 'tk-wei-caoren',
@@ -123,7 +115,6 @@ export const TK_WEI = [
     defense: 5,
     keywords: ['sentinel'],
     rarity: 'r',
-    flavor: 'Besieging her is a hobby. Taking her wall is a fantasy.',
   },
   {
     id: 'tk-wei-caopi',
@@ -137,7 +128,6 @@ export const TK_WEI = [
     keywords: ['sentinel'],
     abilities: [{ when: 'arrives', ops: [{ op: 'draw', n: 1 }] }],
     rarity: 'r',
-    flavor: 'Mother built the empire. She files the paperwork that makes it real.',
   },
   {
     id: 'tk-wei-guojia',
@@ -150,7 +140,6 @@ export const TK_WEI = [
     defense: 2,
     abilities: [{ when: 'arrives', ops: [{ op: 'draw', n: 1 }] }],
     rarity: 'r',
-    flavor: 'Ten wins, ten reasons, one smug grin.',
   },
   {
     id: 'tk-wei-jiaxu',
@@ -164,7 +153,6 @@ export const TK_WEI = [
     keywords: ['deathblade'],
     abilities: [{ when: 'arrives', ops: [{ op: 'discardRandom', n: 1, who: 'opponent' }] }],
     rarity: 'r',
-    flavor: 'Her advice is always right. That is the terrifying part.',
   },
   {
     id: 'tk-wei-xunyu',
@@ -182,7 +170,6 @@ export const TK_WEI = [
       },
     ],
     rarity: 'r',
-    flavor: 'Wherever she has sat, the incense lingers, and morale climbs.',
   },
   {
     id: 'tk-wei-yuejin',
@@ -195,7 +182,6 @@ export const TK_WEI = [
     defense: 1,
     keywords: ['firstBlade'],
     rarity: 'c',
-    flavor: 'Short, fearless, and already inside your gate.',
   },
   {
     id: 'tk-wei-lidian',
@@ -207,7 +193,6 @@ export const TK_WEI = [
     attack: 2,
     defense: 2,
     rarity: 'c',
-    flavor: 'She reads on the march. The book is about you.',
   },
   {
     id: 'tk-wei-yujin',
@@ -219,7 +204,6 @@ export const TK_WEI = [
     attack: 2,
     defense: 2,
     rarity: 'c',
-    flavor: 'Thirty years of perfect discipline, one very bad day at a flooded fort.',
   },
   {
     id: 'tk-wei-chengyu',
@@ -231,7 +215,6 @@ export const TK_WEI = [
     attack: 3,
     defense: 2,
     rarity: 'c',
-    flavor: 'Do not ask what is in the rations.',
   },
   {
     id: 'tk-wei-manchong',
@@ -243,7 +226,6 @@ export const TK_WEI = [
     attack: 2,
     defense: 4,
     rarity: 'c',
-    flavor: 'She reads arson confessions the way others read poetry.',
   },
   {
     id: 'tk-wei-chenqun',
@@ -256,7 +238,6 @@ export const TK_WEI = [
     defense: 3,
     keywords: ['bulwark'],
     rarity: 'c',
-    flavor: 'She ranked every officer in the empire. You are a six.',
   },
   {
     id: 'tk-wei-wanglang',
@@ -268,7 +249,6 @@ export const TK_WEI = [
     attack: 3,
     defense: 5,
     rarity: 'c',
-    flavor: 'Undefeated in debate, provided Zhuge Liang is out of earshot.',
   },
   {
     id: 'tk-wei-zhenji',
@@ -281,7 +261,6 @@ export const TK_WEI = [
     defense: 3,
     keywords: ['skyborne'],
     rarity: 'c',
-    flavor: 'Her poems outlived three emperors and one very jealous husband.',
   },
   {
     id: 'tk-wei-caiwenji',
@@ -294,7 +273,6 @@ export const TK_WEI = [
     defense: 3,
     keywords: ['bloodoath'],
     rarity: 'c',
-    flavor: 'Eighteen songs for a homeland, each one worth a ransom.',
   },
   {
     id: 'tk-wei-wangyi',
@@ -307,7 +285,6 @@ export const TK_WEI = [
     defense: 1,
     keywords: ['deathblade'],
     rarity: 'c',
-    flavor: 'Forgiveness died at Jicheng. She did not.',
   },
   {
     id: 'tk-wei-pangde',
@@ -320,6 +297,5 @@ export const TK_WEI = [
     defense: 4,
     keywords: ['sentinel'],
     rarity: 'c',
-    flavor: 'She brings her own coffin to every battle. Hasn’t needed it yet.',
   },
 ] as const satisfies readonly CardDef[];

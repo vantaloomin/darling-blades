@@ -12,7 +12,6 @@ interface SpecRow {
   cost: string;
   stats: string;
   mechanics: string;
-  flavor: string;
 }
 
 const root = process.cwd();
@@ -23,8 +22,9 @@ const specRows = fs
   .map((line) => {
     const fields = line.slice(1, -1).split('|').map((field) => field.trim());
     if (fields.length !== 9) throw new Error(`Bad row shape: ${line}`);
-    const [id, name, rarity, color, type, cost, stats, mechanics, flavor] = fields;
-    return { id, name, rarity, color, type, cost, stats, mechanics, flavor } satisfies SpecRow;
+    // The ninth column is retired (R13, 2026-09-25) and is not read.
+    const [id, name, rarity, color, type, cost, stats, mechanics] = fields;
+    return { id, name, rarity, color, type, cost, stats, mechanics } satisfies SpecRow;
   });
 
 const failures: string[] = [];
@@ -71,7 +71,6 @@ for (const row of specRows) {
   check(actualStats(card) === row.stats, `${row.id} stats drift`);
   check(actualColor(card) === row.color, `${row.id} color drift`);
   check(actualType(card) === row.type, `${row.id} type/subtype drift: ${actualType(card)} vs ${row.type}`);
-  check(card.flavor === row.flavor, `${row.id} flavor drift`);
 }
 
 const yokai = ALL_CARDS.filter((card) => String(card.set) === 'yokai-nights');

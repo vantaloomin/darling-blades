@@ -11,7 +11,6 @@ export const DUALS = [
     manaAbility: ['W', 'U'],
     entersTapped: true,
     rarity: 'r',
-    flavor: 'Court intrigue with a river view.',
   },
   {
     id: 'ld-shadowed-court',
@@ -22,7 +21,6 @@ export const DUALS = [
     manaAbility: ['W', 'B'],
     entersTapped: true,
     rarity: 'r',
-    flavor: 'Every throne casts one.',
   },
   {
     id: 'ld-beacon-ridge',
@@ -33,7 +31,6 @@ export const DUALS = [
     manaAbility: ['W', 'R'],
     entersTapped: true,
     rarity: 'r',
-    flavor: 'One fire for warning, two for glory.',
   },
   {
     id: 'ld-peach-garden-orchard',
@@ -44,7 +41,6 @@ export const DUALS = [
     manaAbility: ['W', 'G'],
     entersTapped: true,
     rarity: 'r',
-    flavor: 'Oaths sworn here tend to outlive the swearers.',
   },
   {
     id: 'ld-moonlit-marsh',
@@ -55,7 +51,6 @@ export const DUALS = [
     manaAbility: ['U', 'B'],
     entersTapped: true,
     rarity: 'r',
-    flavor: 'The frogs know secrets. The frogs sell secrets.',
   },
   {
     id: 'ld-red-cliffs-anchorage',
@@ -66,7 +61,6 @@ export const DUALS = [
     manaAbility: ['U', 'R'],
     entersTapped: true,
     rarity: 'r',
-    flavor: 'Excellent harbor. Historically flammable.',
   },
   {
     id: 'ld-foxglade-springs',
@@ -77,7 +71,6 @@ export const DUALS = [
     manaAbility: ['U', 'G'],
     entersTapped: true,
     rarity: 'r',
-    flavor: 'The water shows nine reflections. Trust none.',
   },
   {
     id: 'ld-burning-luoyang',
@@ -88,7 +81,6 @@ export const DUALS = [
     manaAbility: ['B', 'R'],
     entersTapped: true,
     rarity: 'r',
-    flavor: 'The capital moved. The smoke stayed.',
   },
   {
     id: 'ld-asphodel-meadow',
@@ -99,7 +91,6 @@ export const DUALS = [
     manaAbility: ['B', 'G'],
     entersTapped: true,
     rarity: 'r',
-    flavor: 'Half the flowers bloom down. It’s a commute thing.',
   },
   {
     id: 'ld-wolfpack-highlands',
@@ -110,6 +101,5 @@ export const DUALS = [
     manaAbility: ['R', 'G'],
     entersTapped: true,
     rarity: 'r',
-    flavor: 'The howling is a land acknowledgment.',
   },
 ] as const satisfies readonly CardDef[];

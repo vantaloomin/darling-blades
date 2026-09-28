@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/instants.ts, src/data/cards/sorceries.ts, src/data/cards/enchantments.ts, src/data/cards/artifacts.ts, src/data/cards/ragnarok.ts, src/data/cards/celtic-fae.ts, src/data/cards/arthurian-court.ts, src/data/cards/gothic-monsters.ts, src/ui/CardView.ts · last-verified: 2026-08-28 -->
+<!-- source-of-truth: src/data/cards/instants.ts, src/data/cards/sorceries.ts, src/data/cards/enchantments.ts, src/data/cards/artifacts.ts, src/data/cards/ragnarok.ts, src/data/cards/celtic-fae.ts, src/data/cards/arthurian-court.ts, src/data/cards/gothic-monsters.ts, src/ui/CardView.ts · last-verified: 2026-09-28 -->
 
 # Darling Blades Art Bible — Spells (Charms · Rituals · Enchantments · the Jade Seal)
 
@@ -224,20 +224,22 @@ focal magic. Dynasty-Warriors key-art energy held inside MTG framing discipline.
 
 ## 2. Composition — the ART_RECT central band (load-bearing)
 
-Verified against `src/ui/CardView.ts`:
-`ART_RECT = { x: -132, y: -164, w: 264, h: 192 }`, cover-crop
-`scale = max(264/srcW, 192/srcH)`. For a 4:5 (640×800) source the scale is
+Verified against `src/config/cardFaceGeometry.ts` (since 1.9, R13):
+`CARD_FACE.art = { x: -132, y: -164, w: 264, h: 216 }`, cover-crop
+`scale = max(264/srcW, 216/srcH)`. For a 4:5 (640×800) source the scale is
 width-driven (264/640), the full width shows, and the vertical overflow is cropped
-symmetrically — the card frame displays only the **middle 58.2 % vertical band:
-y ≈ 167 → 633** of the 640×800 deliverable.
+symmetrically: the card frame displays only the **middle 65.5 % vertical band:
+y ≈ 138 → 662** of the 640×800 deliverable. (Before 1.9 the window was 264×192
+and the band y ≈ 167 → 633; the prompts below that name that band were written
+for it, and it sits inside the new one.)
 
 - **The spell's dramatic focal action MUST sit in the central vertical band**
-  (≈ y 167–633; ideal focal center ≈ y 320–420). Everything above/below is bleed —
+  (≈ y 138–662; ideal focal center ≈ y 320–420). Everything above/below is bleed —
   paint it coherently (effects and energy may deliberately break the band, which
   reads as power, not error) but tell **no readable story** there.
 - **Horizontal: the full 640 px width is visible.** Keep the identifying core of the
   effect at least **32 px** off the left/right edges.
-- **Read at thumbnail.** Battlefield cards scale to ≈ 119×86 px. Commons must
+- **Read at thumbnail.** Battlefield cards scale to ≈ 119×97 px. Commons must
   communicate their single idea at that size: one clear effect, two dominant values.
   Uncommons add one motion/story element; rares get a full dramatic "moment."
 
@@ -259,7 +261,7 @@ them as tonal anchors (dominant mid, deep shadow, highlight/accent), not gradien
 | **C** (colorless) | `#a9adb5` | `#4e535c` | `#dfe3ea` | stone, jade, numinous relic (the Seal) |
 
 Faction accents (lapis+bronze Wei, jade+ivory Shu, marble+Aegean+gilt Greek, etc.)
-layer over the color anchor where a card's flavor names a faction — but the
+layer over the color anchor where a card's name or subtype names a faction — but the
 color-identity anchor always dominates.
 
 ---

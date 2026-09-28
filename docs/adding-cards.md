@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/config/rules.ts, src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/resolve.ts, src/data/glossary.ts, src/ui/rulesText.ts, src/ui/fx/HoloEffects.ts, src/ui/CardView.ts, src/meta/PackOpener.ts, src/meta/Achievements.ts, tests/data/catalog.test.ts, tests/data/gender.test.ts · last-verified: 2026-09-10
+<!-- source-of-truth: src/config/rules.ts, src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/resolve.ts, src/data/glossary.ts, src/ui/rulesText.ts, src/ui/fx/HoloEffects.ts, src/ui/CardView.ts, src/meta/PackOpener.ts, src/meta/Achievements.ts, tests/data/catalog.test.ts, tests/data/gender.test.ts · last-verified: 2026-09-28
      If you change those files, update this doc or re-verify the date. -->
 
 # Adding cards
@@ -75,7 +75,6 @@ From `CardDef` in `src/engine/types.ts` (re-exported through
 | `manaAbility` | `(Color \| 'C')[]?`             | Lands and mana creatures. `C` pays generic cost only.                  |
 | `entersTapped`| `boolean?`                             | Taplands enter tapped; either/or duals print "Arrives tapped."       |
 | `rarity`      | `Rarity`                               | `c`/`r`/`sr`/`ssr`/`ur` (displayed as C / R / SR / SSR / UR; best-first sort order `ur < ssr < sr < r < c`). |
-| `flavor`      | `string?`                              | Flavor text (may be suppressed on busy cards — see below).            |
 | `artRef`      | `string?`                              | Share another card's art key (both placeholder and real art).         |
 | `token`       | `boolean?`                             | Non-collectible; evaporates on leaving the battlefield.               |
 | `chapters`    | `EffectOp[][]?`                        | Quest chapters — the source of truth for Quest identity and activation. Arrival enters Chapter I; each later controller dawn advances. |
@@ -153,7 +152,7 @@ cost(0, 'W')   // {W}
 cost(3)        // {3}  (colorless artifacts)
 ```
 
-## Rarity, holo, and flavor conventions
+## Rarity, holo, and card-text conventions
 
 ### Holo finishes are per-copy, not per-card
 
@@ -179,13 +178,13 @@ alone mark its tier (duels and the deck builder render variant-less cards). The
 animated iridescent ring is reserved for the `rainbow` frame. Nothing to author per
 card.
 
-### Flavor suppression
+### No flavor text
 
-`CardView.setCard` (`src/ui/CardView.ts`) shows flavor text **only when the
-generated rules text is under ~160 characters** — busy cards drop their flavor to
-keep the text box legible. Verify in `setCard`:
-`card.flavor && rules.length < 160`. Nothing to author here; just know your
-flavor may not display on a wordy card.
+Cards carry **no flavor text** (owner ruling R13, 2026-09-25): `CardDef` has no
+`flavor` field, and the rules text owns the whole text box under the 264 × 216
+art window. The box holds about four lines at the full 13 px; longer rules text
+shrinks to fit, so write rules text short. A card's mood lives in its name, its
+subtypes and its art.
 
 ### Every card subject (and avatar boss) is a woman
 
@@ -195,8 +194,8 @@ referring to the subject is a bug — write `she` / `her`. Male **third parties*
 are fine (a heroine can have a father, a husband, a male foe, or duel a male
 god); this is a pronouns-only rule, not a purge of every masculine noun.
 
-`tests/data/gender.test.ts` enforces it: it scans every card `flavor` and every
-avatar `title`/`blurb` for those pronouns and fails the suite (a CI gate) on any
+`tests/data/gender.test.ts` enforces it: it scans every avatar `title`/`blurb`
+for those pronouns and fails the suite (a CI gate) on any
 hit. Names are not scanned (real surnames like *Zhang He* collide with the
 pronoun list). If a card ever needs a masculine pronoun for a genuine male third
 party ("She dared *him* to try."), register its id in that test's `ALLOW` map
@@ -442,7 +441,6 @@ them together before calling a glyph done.
   attack: 2,
   defense: 2,
   rarity: 'c',
-  flavor: 'Hibernates professionally. Fights recreationally.',
 },
 ```
 
@@ -461,7 +459,6 @@ them together before calling a glyph done.
   defense: 2,
   keywords: ['flying'],
   rarity: 'r',
-  flavor: 'Her opinions arrive at terminal velocity.',
 },
 ```
 
@@ -479,7 +476,6 @@ them together before calling a glyph done.
   defense: 2,
   abilities: [{ when: 'arrives', ops: [{ op: 'extraLandDrop' }] }],
   rarity: 'r',
-  flavor: 'The forest follows her home and stays.',
 },
 ```
 
@@ -503,7 +499,6 @@ them together before calling a glyph done.
     },
   ],
   rarity: 'r',
-  flavor: 'The pack eats first. She insists.',
 },
 ```
 
@@ -523,7 +518,6 @@ them together before calling a glyph done.
   defense: 2,
   abilities: [{ when: 'dies', ops: [{ op: 'loseLife', n: 2, who: 'opponent' }] }],
   rarity: 'r',
-  flavor: 'Even her downfall was expensive.',
 },
 ```
 
@@ -541,7 +535,6 @@ them together before calling a glyph done.
     { when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'destroy', to: 'target' }] },
   ],
   rarity: 'r',
-  flavor: 'One dark syllable, one vacancy.',
 },
 ```
 
@@ -560,7 +553,6 @@ them together before calling a glyph done.
     { when: 'spell', targets: [{ what: 'any' }], ops: [{ op: 'damage', n: 'X', to: 'target' }] },
   ],
   rarity: 'sr',
-  flavor: 'Aim, invoice the heavens, release.',
 },
 ```
 
@@ -579,7 +571,6 @@ target (`en-wings-of-dawn`, `enchantments.ts`):
     { when: 'static', static: { scope: 'attached', p: 1, t: 1, grantKeywords: ['skyborne'] } },
   ],
   rarity: 'r',
-  flavor: 'Standard-issue miracle, size medium.',
 },
 ```
 
@@ -596,7 +587,6 @@ target (`en-wings-of-dawn`, `enchantments.ts`):
   colors: ['W'],
   abilities: [{ when: 'spell', ops: [{ op: 'createToken', token: 'tok-militia', count: 2 }] }],
   rarity: 'c',
-  flavor: 'Farm tools count. Enthusiasm counts double.',
 },
 ```
 

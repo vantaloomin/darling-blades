@@ -3,7 +3,9 @@
 
 For every shipped 640x800 deliverable this loads the head and face detectors
 ONCE, finds a head or a face, and asks one question: is it inside the window
-the card frame actually shows (rows 20.9% to 79.1%, see smartcrop.py)?
+the card frame actually shows? Since 1.9 that is the 264x216 window
+(src/config/cardFaceGeometry.ts; flavor text left the card, R13, and the art took
+the room, D18), which shows rows 17.3% to 82.7% of the file.
 
 It reads the shipped files themselves, not a model of how they were cropped,
 so hand re-crops count as what they are and sets whose raws are gone are
@@ -33,6 +35,13 @@ from PIL import Image
 import smartcrop as sc
 
 OUT_W, OUT_H = 640, 800
+# The card face's art window (src/config/cardFaceGeometry.ts, CARD_FACE.art). The
+# card cover-crops a 4:5 file, so the width fills the window and the window
+# shows the middle ART_H / (ART_W * OUT_H / OUT_W) of the rows. This audit
+# judges against these numbers, not smartcrop's own window constants.
+CARD_ART_W, CARD_ART_H = 264, 216
+WINDOW_TOP = (1 - (CARD_ART_H / CARD_ART_W) * (OUT_W / OUT_H)) / 2
+WINDOW_BOTTOM = 1 - WINDOW_TOP
 ROOT = Path(__file__).resolve().parent.parent
 SHIPPED = ROOT / "public" / "assets" / "art" / "cards"
 RAW_DIRS = ("gen-card-art", "gen-spell-art", "gen-land-art")
@@ -58,6 +67,18 @@ def recrop_zoom(raw: Path) -> float | None:
     )
     full_w, _ = sc.cover_crop_size(im.width, im.height, OUT_W, OUT_H)
     return round(full_w / fixed.width, 2)
+
+
+def against_card_window(seen: dict[str, object]) -> dict[str, object]:
+    """Re-judge smartcrop's subject fractions against the card's window."""
+    top, focal, bottom = float(seen["top"]), float(seen["focal"]), float(seen["bottom"])  # type: ignore[arg-type]
+    return {
+        **seen,
+        "window_top": round(WINDOW_TOP, 4),
+        "window_bottom": round(WINDOW_BOTTOM, 4),
+        "focal_visible": WINDOW_TOP <= focal <= WINDOW_BOTTOM,
+        "fully_visible": top >= WINDOW_TOP and bottom <= WINDOW_BOTTOM,
+    }
 
 
 def main(argv: list[str]) -> int:
@@ -87,6 +108,7 @@ def main(argv: list[str]) -> int:
         seen = sc.subject_window(det, sc.CropBox(0, 0, im.width, im.height))
         if seen is None:
             continue
+        seen = against_card_window(seen)
         rows.append({"id": path.stem, "source": det.source, **seen})
         print(f"[{index}/{len(files)}] {path.stem} focal={seen['focal']}", file=sys.stderr)
 

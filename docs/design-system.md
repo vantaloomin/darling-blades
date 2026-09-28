@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ui/theme.ts, src/ui/themeWidgets.ts, src/ui/modalDismissPresentation.ts, src/ui/navigation.ts, src/ui/SceneBackdrop.ts, src/ui/Dropdown.ts, src/ui/SearchInput.ts, src/ui/binder/FilterBar.ts, src/platform/gestures.ts, src/platform/animPolicy.ts, src/ui/CardFrameFactory.ts, docs/art-bible/index.md, docs/scene-art.md, docs/plan-ui-ux-refresh.md · last-verified: 2026-08-22 · core UI and visual-language contract -->
+<!-- source-of-truth: src/ui/theme.ts, src/ui/themeWidgets.ts, src/ui/modalDismissPresentation.ts, src/ui/navigation.ts, src/ui/SceneBackdrop.ts, src/ui/Dropdown.ts, src/ui/SearchInput.ts, src/ui/binder/FilterBar.ts, src/platform/gestures.ts, src/platform/animPolicy.ts, src/ui/CardFrameFactory.ts, src/config/cardFaceGeometry.ts, docs/art-bible/index.md, docs/scene-art.md, docs/plan-ui-ux-refresh.md · last-verified: 2026-09-28 · core UI and visual-language contract -->
 
 # Darling Blades core design system
 
@@ -449,6 +449,13 @@ not merely particle count.
 
 Frames use identity-colored metal, pale name/type bands, a parchment rules
 field, a set-shaped rarity symbol, and optional cosmetic frame/holo treatments.
+A standard face reads top to bottom: the name band, the 264 × 216 art window,
+the type band, then the rules field, which the rules text owns alone and
+shrinks to fit (cards carry no flavor text since 1.9, owner ruling R13), with
+the cost, set-symbol and P/T badges along the foot. The numbers live in
+`src/config/cardFaceGeometry.ts`, which `CardView` lays out from and the frame bake
+draws, so the two cannot drift. Full-art faces put the same chrome on plates
+over art that fills the frame.
 Material golds, WUBRG colors, foil spectra, and impact colors are domain values,
 not substitutions for interface action/status colors.
 

@@ -295,15 +295,6 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
         wordWrap: { width: L.wrapWidth },
       });
       this.text(L.contentX, L.selected.detailY, detailLine(card), theme.type.label, theme.colors.muted);
-      this.add
-        .text(L.contentX, L.selected.flavorY, card.flavor ?? '', {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.label}px`,
-          fontStyle: 'italic',
-          color: theme.colors.muted,
-          wordWrap: { width: L.wrapWidth },
-        })
-        .setMaxLines(L.selected.flavorMaxLines);
     }
     this.add.text(
       L.contentX,
@@ -527,16 +518,6 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
         fontSize: `${theme.type.body}px`,
         color: theme.colors.heading,
         wordWrap: { width: 380 },
-      }),
-    );
-    c.add(
-      this.add.text(730, 274, card.flavor ?? '', {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.label}px`,
-        fontStyle: 'italic',
-        color: theme.colors.muted,
-        wordWrap: { width: 380 },
-        lineSpacing: 5,
       }),
     );
     c.add(

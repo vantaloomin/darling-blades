@@ -399,7 +399,6 @@ export interface CardDef {
   manaAbility?: (Color | 'C')[]; // lands & mana creatures
   entersTapped?: boolean; // dual taplands
   rarity: Rarity;
-  flavor?: string;
   artRef?: string;
   token?: boolean; // non-collectible
   set?: 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales' | 'yokai-nights' | 'drowned-deep'; // expansion grouping; absent ⇒ 'base' (stamped in catalog.buildDb)

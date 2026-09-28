@@ -415,7 +415,6 @@ function shortName(name: string): string {
 
 function entry(card: CardDef): string {
   const art = artFor(card);
-  const flavor = (card.flavor ?? '').replace(/"/g, '”');
   const promptSubject = art.kind.startsWith(shortName(card.name))
     ? art.kind
     : `${shortName(card.name)}, ${art.kind}`;
@@ -427,7 +426,7 @@ function entry(card: CardDef): string {
     `### ${card.name} — \`${card.id}\``,
     `- **Card facts:** ${factsLine(card)}`,
     `- **Character & source:** ${art.kind}; mechanically ${mechanicalNote(card)}.`,
-    `- **Personality / mood:** ${flavor ? `“${flavor}” — ` : ''}${art.mood}.`,
+    `- **Personality / mood:** ${art.mood}.`,
     `- **Pose & composition:** ${art.pose}; face ≈ y 320 and eye-line ≈ y 300–360. The entire top third stays clear empty sky or mist above the head, crown, antlers, and hair for crop-safe headroom.`,
     `- **Costume & attire:** ${art.costume}.`,
     `- **Palette:** ${paletteOf(card)}; Celtic Fae accents — silver moonlight, moss green, blackthorn, raven black, glassy water, and pale gold torcs — layer over the color anchor without replacing it.`,

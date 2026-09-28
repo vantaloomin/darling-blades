@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/*.ts, src/art/PlaceholderArtGenerator.ts, src/ui/CardView.ts, src/ui/fx/HoloEffects.ts, docs/plan-duat-creative.md, docs/land-art.md · last-verified: 2026-08-28 -->
+<!-- source-of-truth: src/data/cards/*.ts, src/art/PlaceholderArtGenerator.ts, src/ui/CardView.ts, src/config/cardFaceGeometry.ts, src/ui/fx/HoloEffects.ts, docs/plan-duat-creative.md, docs/land-art.md · last-verified: 2026-09-28 -->
 
 # Darling Blades Art Bible — Index (The Contract)
 
@@ -149,16 +149,21 @@ these at AUTHORING time so future expansions don't need a correction pass:
 
 ## 3. Canvas & safe zone (load-bearing — read twice)
 
-Verified against `src/ui/CardView.ts`:
-`ART_RECT = { x: -132, y: -164, w: 264, h: 192 }` with cover-crop
-`scale = max(264/srcW, 192/srcH)`; for a 4:5 source the scale is width-driven
-(264/320 = 0.825), the full width shows, and the vertical overflow is cropped
-symmetrically: `cropH = 192/0.825 = 232.7` of 400 source px = **58.2 % of the
-image height**, centered.
+Verified against `src/config/cardFaceGeometry.ts` (the geometry `CardView` lays out
+from and the frame bake draws): the art window is
+`CARD_FACE.art = { x: -132, y: -164, w: 264, h: 216 }` (264×216 since 1.9: flavor
+text left the card, owner ruling R13, and the art took the room at 216 px, ruling
+D18). `CardView` cover-crops with `scale = max(264/srcW, 216/srcH)`; for a 4:5
+source the scale is width-driven (264/320 = 0.825), the full width shows, and the
+vertical overflow is cropped symmetrically: `cropH = 216/0.825 = 261.8` of 400
+source px = **65.5 % of the image height**, centered (rows 17.3 % to 82.7 %;
+`artBand()` in the same module computes it).
 
 **On the 640×800 deliverable:**
 
-- The card frame displays only the **middle 58.2 % vertical band: y ≈ 167 → 633**.
+- The card frame displays only the **middle 65.5 % vertical band: y ≈ 138 → 662**
+  (before 1.9 it was the middle 58.2 %, y ≈ 167 → 633; art composed for that band
+  still sits inside this one, with more room showing above every head).
   Everything above/below is bleed — paint it (it must extend coherently; the full
   image may appear in future full-art contexts), but tell **no story** there.
 - **Face fully inside y 200–560.** Ideal **eye line ≈ y 300–380**.
@@ -172,14 +177,14 @@ image height**, centered.
         640 × 800 deliverable                    y (px)
    ┌───────────────────────────────────┐           0
    │ / / / / /  TOP BLEED  / / / / / / │               cropped by card frame
-   ├───────────────────────────────────┤  ◄──  167     VISIBLE BAND TOP
+   ├───────────────────────────────────┤  ◄──  138     VISIBLE BAND TOP
    │                                   │
    │     ┌─ ─ ─ face zone ─ ─ ─┐       │  ◄──  200
    │     │   eye line ideal    │       │  ◄──  300–380
    │     │                     │       │
    │     └─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─┘       │  ◄──  560
    │                                   │
-   ├───────────────────────────────────┤  ◄──  633     VISIBLE BAND BOTTOM
+   ├───────────────────────────────────┤  ◄──  662     VISIBLE BAND BOTTOM
    │ / / / /  BOTTOM BLEED  / / / / /  │               cropped by card frame
    └───────────────────────────────────┘         800
    →│32│←   critical silhouette     →│32│←
@@ -188,9 +193,17 @@ image height**, centered.
 
 **Headroom rule (owner, 2026-09-25; binding for every future creature, spell and
 regeneration prompt).** The top of the head (crown, hair, hood or headdress) sits
-at or below **y ≈ 208** of the deliverable: about 40 px, a twelfth of the visible
-band, of open background between the band top (167) and the head. Raised hands,
-weapons and effects may break into the bleed; a head never touches the band edge.
+at or below **y ≈ 179** of the deliverable: about 41 px of open background between
+the band top (138) and the head. Raised hands, weapons and effects may break into
+the bleed; a head never touches the band edge.
+
+- **How 179 was derived.** The rule was written against the 264×192 window as
+  y ≈ 208, which is about 41 px (40.7) under that window's band top: y 167.3
+  (800 × 20.91 %, where 20.91 % = (1 − 192/264 × 640/800) / 2). When the window
+  grew to 216 (1.9) the band top moved up to y 138.2 (800 × 17.27 %), and the rule
+  moved with it, keeping the same 41 px margin: 138.2 + 41 ≈ 179. The margin is
+  the owner's measure of isolation space above a head; it did not grow with the
+  band. Art that met the old rule (head top at or below 208) meets the new one.
 
 - **Say it in the prompt, measurably.** "Face at one third from the top of the
   canvas" on its own let the model put the crown on the band edge in 9 of the 17
@@ -210,9 +223,9 @@ weapons and effects may break into the bleed; a head never touches the band edge
   raw's top row (`offsetY` negative, reported as achieved); when it already starts
   at row 0 the raw has no room above the head, and the fix is a regeneration.
 
-**Scale check:** the art window renders at 264×192 on a 300×420 card; battlefield
-cards are scaled 0.45, so the art shows at roughly **119×86 px**. Commons must read
-at that size. (Hand ≈ 145×106, inspect ≈ 396×288.)
+**Scale check:** the art window renders at 264×216 on a 300×420 card; a card
+scaled 0.45 shows the art at roughly **119×97 px**. Commons must read at that size.
+(Hand ≈ 145×119, inspect ≈ 396×324.)
 
 ---
 
@@ -911,7 +924,7 @@ order:
 ### <Card Name> — `<card-id>`
 - **Card facts:** {cost} · {colors} · {P/T} · {keywords} · {rarity}{, legendary?} · holo: {explicit | auto:<computed>}
 - **Character & source:** …
-- **Personality / mood:** … (seed from the card's flavor text — it is the character voice)
+- **Personality / mood:** … (seed from the card's name, subtypes and set identity; cards carry no flavor text since R13)
 - **Pose & composition:** … (state where the face sits in the safe band)
 - **Costume & attire:** …
 - **Palette:** … (name the hexes + accents)
@@ -992,8 +1005,9 @@ These three are part of the contract. Match their density and specificity.
    `.ts` file). No skips, no additions, no reordering.
 2. **All 13 fields, exact labels, exact order** (section 8). **180–250 words per
    entry** plus the prompt line.
-3. **The card data drives the art.** Use flavor text (it *is* the character
-   voice), cost, stats, keywords, and abilities to pick the pose and moment:
+3. **The card data drives the art.** Use the name, subtypes, cost, stats,
+   keywords, and abilities to pick the pose and moment (cards carry no flavor
+   text since R13, 2026-09-25; entries written before it quote the old lines):
    a 0/4 `defender` does not lunge; `haste` lunges; `deathblade` gets one quiet
    lethal implement; an ETB token-maker shows or foreshadows its tokens; a
    `bloodoath` healer glows warm. High cost = high spectacle.

@@ -14,7 +14,6 @@ interface SpecRow {
   cost: string;
   stats: string;
   mechanics: string;
-  flavor: string;
 }
 
 function readRows(): SpecRow[] {
@@ -25,8 +24,9 @@ function readRows(): SpecRow[] {
     .map((line) => {
       const fields = line.slice(1, -1).split('|').map((field) => field.trim());
       if (fields.length !== 9) throw new Error(`Expected 9 fields in ${line}`);
-      const [id, name, rarity, color, type, cost, stats, mechanics, flavor] = fields;
-      return { id, name, rarity, color, type, cost, stats, mechanics, flavor };
+      // The ninth column is retired (R13, 2026-09-25) and is not read.
+      const [id, name, rarity, color, type, cost, stats, mechanics] = fields;
+      return { id, name, rarity, color, type, cost, stats, mechanics };
     });
   if (rows.length !== 120) throw new Error(`Expected 120 rows, found ${rows.length}`);
   return rows;
@@ -45,7 +45,6 @@ export interface YokaiSpecRow {
   cost: string;
   stats: string;
   mechanics: string;
-  flavor: string;
 }
 
 `;
@@ -278,7 +277,6 @@ function parseCard(row: YokaiSpecRow): CardDef {
     ...(hauntlink ? { hauntlink } : {}),
     ...(isLand ? { entersTapped: true, manaAbility: row.color.split('/') as Color[] } : {}),
     rarity: row.rarity.toLowerCase() as CardDef['rarity'],
-    flavor: row.flavor,
   };
   return { ...card, set: 'yokai-nights' } as unknown as CardDef;
 }

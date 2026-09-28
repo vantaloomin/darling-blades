@@ -14,7 +14,6 @@ export const ARTIFACTS = [
     defense: 3,
     keywords: ['bulwark'],
     rarity: 'c',
-    flavor: 'Undefeated in defense. Technically.',
   },
   {
     id: 'ar-terracotta-soldier',
@@ -26,7 +25,6 @@ export const ARTIFACTS = [
     attack: 2,
     defense: 2,
     rarity: 'c',
-    flavor: 'Fired once in a kiln, ready to be fired upon forever.',
   },
   {
     id: 'ar-terracotta-guardian',
@@ -38,7 +36,6 @@ export const ARTIFACTS = [
     attack: 3,
     defense: 4,
     rarity: 'c',
-    flavor: 'Two thousand years on duty and not one complaint filed.',
   },
   {
     id: 'ar-imperial-jade-seal',
@@ -56,7 +53,6 @@ export const ARTIFACTS = [
       },
     ],
     rarity: 'r',
-    flavor: 'Whoever holds it rules the realm, or at least the argument.',
   },
   {
     id: 'ar-bronze-colossus',
@@ -68,7 +64,6 @@ export const ARTIFACTS = [
     attack: 6,
     defense: 6,
     rarity: 'r',
-    flavor: 'Melted down twelve rebellions to cast her. Poetic, really.',
   },
   {
     id: 'ar-siege-juggernaut',
@@ -81,6 +76,5 @@ export const ARTIFACTS = [
     defense: 7,
     keywords: ['overrun'],
     rarity: 'sr',
-    flavor: 'The manual is one page: point it at the wall you like least.',
   },
 ] as const satisfies readonly CardDef[];

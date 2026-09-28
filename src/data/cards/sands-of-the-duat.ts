@@ -16,7 +16,6 @@ export const SANDS_OF_THE_DUAT = [
     keywords: ['twinBlades', 'warcry'],
     nineLives: true,
     rarity: 'ur',
-    flavor: 'She has died eight times. She remembers what each one cost.',
   },
   {
     id: 'sd-anubis-who-holds-the-scale',
@@ -32,7 +31,6 @@ export const SANDS_OF_THE_DUAT = [
     abilities: [{ when: 'arrives', ops: [{ op: 'severGrave', n: 2, who: 'opponent' }] }],
     preserve: { cost: cost(3, 'WB') },
     rarity: 'ur',
-    flavor: 'The scale is honest. Nothing else in the hall is.',
   },
   {
     id: 'sd-osiris-green-after-burial',
@@ -48,7 +46,6 @@ export const SANDS_OF_THE_DUAT = [
     nineLives: true,
     preserve: { cost: cost(6, 'BG') },
     rarity: 'ur',
-    flavor: 'She returned through silt and took the field with her.',
   },
   {
     id: 'sd-ammit-under-the-scale',
@@ -64,7 +61,6 @@ export const SANDS_OF_THE_DUAT = [
     abilities: [{ when: 'arrives', ops: [{ op: 'damage', n: 3, to: 'opponent' }] }],
     rite: { n: 2 },
     rarity: 'ur',
-    flavor: 'She is not the punishment. She is what is left after it.',
   },
   {
     id: 'sd-neith-who-weaves-the-shroud',
@@ -79,7 +75,6 @@ export const SANDS_OF_THE_DUAT = [
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     preserve: { cost: cost(4, 'UW') },
     rarity: 'ssr',
-    flavor: 'She weaves every route twice. The second crossing is never the easier one.',
   },
   {
     id: 'sd-ra-helm-of-the-night-barge',
@@ -103,7 +98,6 @@ export const SANDS_OF_THE_DUAT = [
       ],
     },
     rarity: 'ssr',
-    flavor: 'Twelve hours down the dark water. One serpent. Every night.',
   },
   {
     id: 'sd-renenutet-who-measures-the-flood',
@@ -118,7 +112,6 @@ export const SANDS_OF_THE_DUAT = [
     keywords: ['wardingGaze', 'overrun'],
     empower: { cost: cost(2, 'G'), targets: [{ what: 'yourGraveCreature' }], ops: [{ op: 'reclaim' }, { op: 'gainLife', n: 3 }] },
     rarity: 'ssr',
-    flavor: 'The flood is generous. It has never been generous to anyone in particular.',
   },
   {
     id: 'sd-nebet-nine-times-risen',
@@ -132,7 +125,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 3,
     nineLives: true,
     rarity: 'ssr',
-    flavor: 'Killing her is the easy part.',
   },
   {
     id: 'sd-kesi-of-the-paired-knives',
@@ -147,7 +139,6 @@ export const SANDS_OF_THE_DUAT = [
     keywords: ['twinBlades'],
     nineLives: true,
     rarity: 'ssr',
-    flavor: 'Two knives, one motion. The guard falls before she does.',
   },
   {
     id: 'sd-bakhet-gate-warden-of-the-lower-city',
@@ -166,7 +157,6 @@ export const SANDS_OF_THE_DUAT = [
       },
     ],
     rarity: 'sr',
-    flavor: 'She has held the last gate for two hundred years. It still stands.',
   },
   {
     id: 'sd-khenut-who-pays-before-the-asking',
@@ -182,7 +172,6 @@ export const SANDS_OF_THE_DUAT = [
     abilities: [{ when: 'arrives', ops: [{ op: 'severGrave', n: 2, who: 'opponent' }] }],
     rite: { n: 2 },
     rarity: 'sr',
-    flavor: 'She lays the offering down before the dark can ask.',
   },
   // Design note (main-session review 2026-08-19): the creative doc casts all
   // thirteen legends as creature faces, and Retell is spell-shaped by
@@ -204,7 +193,6 @@ export const SANDS_OF_THE_DUAT = [
       { when: 'dies', ops: [{ op: 'raise', to: 'top' }] },
     ],
     rarity: 'sr',
-    flavor: 'Two rivers, one crossing, and a passage the far bank has never paid for.',
   },
   {
     id: 'sd-anuket-who-runs-the-cataracts',
@@ -222,7 +210,6 @@ export const SANDS_OF_THE_DUAT = [
       { when: 'combatDamageToPlayer', ops: [{ op: 'draw', n: 1 }] },
     ],
     rarity: 'ur',
-    flavor: 'She remembers every channel. The Book records only two ways.',
   },
   {
     id: 'sd-land-the-weighing-hall',
@@ -233,7 +220,6 @@ export const SANDS_OF_THE_DUAT = [
     manaAbility: ['W', 'B'],
     entersTapped: true,
     rarity: 'c',
-    flavor: 'Everything that walks in is weighed. Not everything walks out.',
   },
   {
     id: 'sd-land-emberwake-channel',
@@ -244,7 +230,6 @@ export const SANDS_OF_THE_DUAT = [
     manaAbility: ['U', 'R'],
     entersTapped: true,
     rarity: 'c',
-    flavor: 'The wake burns bright. The water keeps the heat.',
   },
   {
     id: 'sd-land-silt-tomb-terrace',
@@ -255,7 +240,6 @@ export const SANDS_OF_THE_DUAT = [
     manaAbility: ['B', 'G'],
     entersTapped: true,
     rarity: 'c',
-    flavor: 'The flood took the stairs. The green shoots kept climbing.',
   },
   {
     id: 'sd-land-noon-barge-landing',
@@ -266,7 +250,6 @@ export const SANDS_OF_THE_DUAT = [
     manaAbility: ['R', 'W'],
     entersTapped: true,
     rarity: 'c',
-    flavor: 'The prow touches stone. Noon leaves nowhere for shadow.',
   },
   {
     id: 'sd-land-reedway-delta',
@@ -277,7 +260,6 @@ export const SANDS_OF_THE_DUAT = [
     manaAbility: ['G', 'U'],
     entersTapped: true,
     rarity: 'c',
-    flavor: 'Five channels leave the bank. Only one carries the skiff home.',
   },
   {
     id: 'sd-whisker-count-scout',
@@ -289,7 +271,6 @@ export const SANDS_OF_THE_DUAT = [
     attack: 1,
     defense: 1,
     rarity: 'c',
-    flavor: 'She counts the guards, then counts the ways past them.',
   },
   {
     id: 'sd-lion-gate-sentry',
@@ -302,7 +283,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 1,
     keywords: ['sentinel'],
     rarity: 'c',
-    flavor: 'She watches the gate. The gate has learned to watch back.',
   },
   {
     id: 'sd-sand-pawed-guard',
@@ -315,7 +295,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 1,
     nineLives: true,
     rarity: 'c',
-    flavor: 'The sand takes her down. It has not kept her there.',
   },
   {
     id: 'sd-claw-thread-lancer',
@@ -328,7 +307,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 1,
     keywords: ['twinBlades'],
     rarity: 'c',
-    flavor: 'She keeps both blades low until the guard makes a mistake.',
   },
   {
     id: 'sd-collar-bound-warden',
@@ -340,7 +318,6 @@ export const SANDS_OF_THE_DUAT = [
     attack: 2,
     defense: 3,
     rarity: 'c',
-    flavor: 'Her collar marks the house. Her claws mark the boundary.',
   },
   {
     id: 'sd-pridewall-runner',
@@ -353,7 +330,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 2,
     keywords: ['warcry'],
     rarity: 'c',
-    flavor: 'She reaches the wall first. The wall is not impressed.',
   },
   {
     id: 'sd-lintel-paw-warden',
@@ -366,7 +342,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 3,
     abilities: [{ when: 'arrives', ops: [{ op: 'createToken', token: 'tok-bastet-kit', count: 1 }] }],
     rarity: 'r',
-    flavor: 'She brings one small guard. The gate has room for both.',
   },
   {
     id: 'sd-natron-claw-keeper',
@@ -379,7 +354,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 3,
     nineLives: true,
     rarity: 'r',
-    flavor: 'She keeps the salt dry and the dead inconveniently mobile.',
   },
   {
     id: 'sd-nefru-keeper-of-the-white-gate',
@@ -393,7 +367,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 4,
     keywords: ['sentinel'],
     rarity: 'sr',
-    flavor: 'She has held the white gate through three dynasties of weather.',
   },
   {
     id: 'sd-tiaa-who-holds-the-lintel',
@@ -407,7 +380,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 4,
     nineLives: true,
     rarity: 'ssr',
-    flavor: 'She has held the lintel through nine floods. It remains hers.',
   },
   {
     id: 'sd-dune-pawed-outrider',
@@ -420,7 +392,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 1,
     keywords: ['warcry'],
     rarity: 'c',
-    flavor: 'She crosses the dune before the warning finishes traveling.',
   },
   {
     id: 'sd-ember-maned-lioness',
@@ -432,7 +403,6 @@ export const SANDS_OF_THE_DUAT = [
     attack: 3,
     defense: 2,
     rarity: 'c',
-    flavor: 'Her mane catches the barge fire. The fire is pleased.',
   },
   {
     id: 'sd-barge-pawed-spearwoman',
@@ -445,7 +415,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 2,
     keywords: ['warcry'],
     rarity: 'c',
-    flavor: 'She throws from the prow and lets the current choose the angle.',
   },
   {
     id: 'sd-lion-sand-vanguard',
@@ -458,7 +427,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 2,
     nineLives: true,
     rarity: 'c',
-    flavor: 'She charges through the storm. The storm keeps the receipt.',
   },
   {
     id: 'sd-claw-prow-signaler',
@@ -471,7 +439,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 1,
     abilities: [{ when: 'arrives', ops: [{ op: 'createToken', token: 'tok-bastet-kit', count: 1 }] }],
     rarity: 'c',
-    flavor: 'She lights one signal. The smaller paws answer first.',
   },
   {
     id: 'sd-prideclaw-skirmisher',
@@ -484,7 +451,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 1,
     nineLives: true,
     rarity: 'c',
-    flavor: 'She falls forward, which is still forward.',
   },
   {
     id: 'sd-whisker-watch-archer',
@@ -498,7 +464,6 @@ export const SANDS_OF_THE_DUAT = [
     keywords: ['warcry'],
     skim: { cost: cost(1) },
     rarity: 'c',
-    flavor: 'She watches the target. The target watches the exits.',
   },
   {
     id: 'sd-blade-dancer',
@@ -511,7 +476,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 2,
     keywords: ['twinBlades'],
     rarity: 'r',
-    flavor: 'She turns once. The guard spends the rest of the fight finding her.',
   },
   {
     id: 'sd-merya-red-gate-spearwoman',
@@ -525,7 +489,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 2,
     keywords: ['warcry'],
     rarity: 'r',
-    flavor: 'She keeps the red gate open until everyone has crossed it.',
   },
   {
     id: 'sd-djetra-who-counts-the-ninth-step',
@@ -539,7 +502,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 2,
     nineLives: true,
     rarity: 'sr',
-    flavor: 'She counts the steps aloud. The ninth is never the last.',
   },
   {
     id: 'sd-whisker-field-reaper',
@@ -551,7 +513,6 @@ export const SANDS_OF_THE_DUAT = [
     attack: 3,
     defense: 2,
     rarity: 'c',
-    flavor: 'She harvests the field before the flood can change its mind.',
   },
   {
     id: 'sd-lion-flood-surveyor',
@@ -564,7 +525,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 3,
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'c',
-    flavor: 'She marks the waterline. The waterline moves politely.',
   },
   {
     id: 'sd-collar-field-herder',
@@ -577,7 +537,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 3,
     abilities: [{ when: 'arrives', ops: [{ op: 'createToken', token: 'tok-bastet-kit', count: 1 }] }],
     rarity: 'c',
-    flavor: 'She brings the kits home before the reeds disappear.',
   },
   {
     id: 'sd-pride-root-warden',
@@ -590,7 +549,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 3,
     nineLives: true,
     rarity: 'r',
-    flavor: 'She stands where the roots hold. They have held longer than kings.',
   },
   {
     id: 'sd-paw-toll-taker',
@@ -603,7 +561,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 1,
     nineLives: true,
     rarity: 'c',
-    flavor: 'She takes the toll once. The road makes her take it twice.',
   },
   {
     id: 'sd-claw-handed-embalmer',
@@ -616,7 +573,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 2,
     abilities: [{ when: 'entersGraveyard', ops: [{ op: 'loseLife', n: 1, who: 'opponent' }] }],
     rarity: 'c',
-    flavor: 'She closes the jar. Something inside objects.',
   },
   {
     id: 'sd-heart-jar-attendant',
@@ -630,7 +586,6 @@ export const SANDS_OF_THE_DUAT = [
     nineLives: true,
     abilities: [{ when: 'dies', ops: [{ op: 'loseLife', n: 1, who: 'opponent' }] }],
     rarity: 'r',
-    flavor: 'She carries the jar carefully. Her second death is less careful.',
   },
   {
     id: 'sd-paw-path-ferrywoman',
@@ -643,7 +598,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 1,
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'c',
-    flavor: 'She knows the short crossing. She charges for the long one.',
   },
   {
     id: 'sd-chart-keeper-of-the-two-ways',
@@ -656,7 +610,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 4,
     keywords: ['skyborne'],
     rarity: 'r',
-    flavor: 'She keeps two charts. Neither agrees with the river.',
   },
   {
     id: 'sd-standard-bearer',
@@ -674,7 +627,6 @@ export const SANDS_OF_THE_DUAT = [
       },
     ],
     rarity: 'r',
-    flavor: 'She raises the standard. The line understands.',
   },
   {
     id: 'sd-war-priestess',
@@ -694,7 +646,6 @@ export const SANDS_OF_THE_DUAT = [
       },
     ],
     rarity: 'ssr',
-    flavor: 'She carries the banner into the first cut. Everyone follows.',
   },
   {
     id: 'sd-pridehall-drillmaster',
@@ -716,7 +667,6 @@ export const SANDS_OF_THE_DUAT = [
       },
     ],
     rarity: 'r',
-    flavor: 'She calls the first charge. The second one happens on its own.',
   },
   {
     id: 'sd-bastet-gate-chorus',
@@ -735,7 +685,6 @@ export const SANDS_OF_THE_DUAT = [
       },
     ],
     rarity: 'c',
-    flavor: 'The gates open together. The kits take that personally.',
   },
   // Wave C: mechanic families. The 28 cards below stay inside the shipped
   // CardDef vocabulary. Rite fodder is always a token, never a real-card
@@ -752,7 +701,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 1,
     abilities: [{ when: 'arrives', ops: [{ op: 'createToken', token: 'tok-duat-scarab', count: 1 }] }],
     rarity: 'c',
-    flavor: 'She sets the first jar down. Small legs carry the rest.',
   },
   {
     id: 'sd-priestess-of-the-emptied-jar',
@@ -765,7 +713,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 2,
     abilities: [{ when: 'entersGraveyard', ops: [{ op: 'createToken', token: 'tok-duat-scarab', count: 1 }] }],
     rarity: 'c',
-    flavor: 'She empties the jar once. The scarab makes that decision permanent.',
   },
   {
     id: 'sd-devourers-retainer',
@@ -778,7 +725,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 5,
     rite: { n: 1 },
     rarity: 'c',
-    flavor: 'She holds the offering steady and lets the gate decide its worth.',
   },
   {
     id: 'sd-sun-rope-hauler',
@@ -792,7 +738,6 @@ export const SANDS_OF_THE_DUAT = [
     keywords: ['warcry'],
     rite: { n: 1 },
     rarity: 'r',
-    flavor: 'She hauls the rope once. The barge answers with a charge.',
   },
   {
     id: 'sd-the-heavier-offering',
@@ -807,7 +752,6 @@ export const SANDS_OF_THE_DUAT = [
     rarity: 'r',
     // Rite 2 was the contract's extrapolation band, so this was a balance-pass
     // watch card; the 1.8.5 slate (2026-09-26) cut it to Rite 1.
-    flavor: 'She brings two jars. The gate keeps the heavier one.',
   },
   {
     id: 'sd-gatekeeper-judge',
@@ -822,7 +766,6 @@ export const SANDS_OF_THE_DUAT = [
     abilities: [{ when: 'arrives', ops: [{ op: 'severGrave', n: 2, who: 'opponent' }] }],
     rite: { n: 2 },
     rarity: 'sr',
-    flavor: 'She opens the gate and two names vanish from the River bank.',
   },
   {
     id: 'sd-ninth-step-duelist',
@@ -835,7 +778,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 1,
     nineLives: true,
     rarity: 'c',
-    flavor: 'She misses the first step. The second landing is deliberate.',
   },
   {
     id: 'sd-twice-buried-lancer',
@@ -848,7 +790,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 1,
     nineLives: true,
     rarity: 'c',
-    flavor: "She has learned the ground's argument. It has not learned hers.",
   },
   {
     id: 'sd-sand-pawed-skirmisher',
@@ -862,7 +803,6 @@ export const SANDS_OF_THE_DUAT = [
     keywords: ['warcry'],
     nineLives: true,
     rarity: 'c',
-    flavor: 'She hits the sand running. The sand keeps trying.',
   },
   {
     id: 'sd-tomb-toll-veteran',
@@ -876,7 +816,6 @@ export const SANDS_OF_THE_DUAT = [
     nineLives: true,
     abilities: [{ when: 'dies', ops: [{ op: 'loseLife', n: 1, who: 'opponent' }] }],
     rarity: 'r',
-    flavor: 'She collects the toll twice. The road is paid once.',
   },
   {
     id: 'sd-flood-line-survivor',
@@ -889,7 +828,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 3,
     nineLives: true,
     rarity: 'r',
-    flavor: 'She stands at the waterline. The waterline moves around her.',
   },
   {
     id: 'sd-keeper-of-the-last-mark',
@@ -904,7 +842,6 @@ export const SANDS_OF_THE_DUAT = [
     keywords: ['bloodoath'],
     nineLives: true,
     rarity: 'sr',
-    flavor: 'She keeps one mark in sight and every other wound out of mind.',
   },
   {
     id: 'sd-archivist-of-the-fourth-hall',
@@ -918,7 +855,6 @@ export const SANDS_OF_THE_DUAT = [
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     preserve: { cost: cost(2, 'U') },
     rarity: 'c',
-    flavor: 'She reads the top page twice. The second reading changes the route.',
   },
   {
     id: 'sd-salt-room-attendant',
@@ -932,7 +868,6 @@ export const SANDS_OF_THE_DUAT = [
     abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 2 }] }],
     preserve: { cost: cost(3, 'W') },
     rarity: 'c',
-    flavor: 'She keeps the linen dry. The copy remembers why.',
   },
   {
     id: 'sd-keeper-of-the-long-debt',
@@ -946,7 +881,6 @@ export const SANDS_OF_THE_DUAT = [
     abilities: [{ when: 'arrives', ops: [{ op: 'grind', n: 2, who: 'self' }] }],
     preserve: { cost: cost(4, 'B') },
     rarity: 'c',
-    flavor: 'She counts what remains, then leaves room for more.',
   },
   {
     id: 'sd-the-copy-kept-in-linen',
@@ -960,7 +894,6 @@ export const SANDS_OF_THE_DUAT = [
     abilities: [{ when: 'arrives', ops: [{ op: 'grind', n: 3, who: 'self' }] }],
     preserve: { cost: cost(2, 'B') },
     rarity: 'r',
-    flavor: 'She stands where the first shape fell. The linen is still warm.',
   },
   {
     id: 'sd-waterclock-watcher',
@@ -974,7 +907,6 @@ export const SANDS_OF_THE_DUAT = [
     keywords: ['skyborne'],
     preserve: { cost: cost(3, 'U') },
     rarity: 'r',
-    flavor: 'She watches the waterclock from above. The grave keeps better time.',
   },
   {
     id: 'sd-keeper-of-the-salt-room',
@@ -989,7 +921,6 @@ export const SANDS_OF_THE_DUAT = [
     abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 3 }] }],
     preserve: { cost: cost(4, 'W') },
     rarity: 'sr',
-    flavor: 'She guards the salt room. Nothing wrapped there is finished.',
   },
   {
     id: 'sd-flood-fed-colossus',
@@ -1005,7 +936,6 @@ export const SANDS_OF_THE_DUAT = [
     // matching the single flagged precedent in the costing band.
     preserve: { cost: cost(3, 'G') },
     rarity: 'ur',
-    flavor: 'She rises with the flood. The field has nowhere else to go.',
   },
   {
     id: 'sd-salt-and-linen',
@@ -1023,7 +953,6 @@ export const SANDS_OF_THE_DUAT = [
     ],
     retell: { cost: cost(2, 'W') },
     rarity: 'c',
-    flavor: 'The first binding holds. The second one holds better.',
   },
   {
     id: 'sd-the-debt-is-called',
@@ -1043,7 +972,6 @@ export const SANDS_OF_THE_DUAT = [
     ],
     retell: { cost: cost(2, 'B') },
     rarity: 'c',
-    flavor: 'She names the debt aloud. The River hears it twice.',
   },
   {
     id: 'sd-noon-judgment',
@@ -1061,7 +989,6 @@ export const SANDS_OF_THE_DUAT = [
     ],
     retell: { cost: cost(3, 'R') },
     rarity: 'r',
-    flavor: 'Noon shows every mark. Judgment needs no other light.',
   },
   {
     id: 'sd-furrow-water-tender',
@@ -1077,7 +1004,6 @@ export const SANDS_OF_THE_DUAT = [
     keywords: ['bulwark'],
     abilities: [{ when: 'arrives', ops: [{ op: 'extraLandDrop', n: 1 }] }],
     rarity: 'c',
-    flavor: 'She opens one furrow. The River fills it before dusk.',
   },
   {
     id: 'sd-two-harvests',
@@ -1088,7 +1014,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['G'],
     abilities: [{ when: 'spell', ops: [{ op: 'extraLandDrop', n: 2 }] }],
     rarity: 'c',
-    flavor: 'She plants once and makes room for the second harvest.',
   },
   {
     id: 'sd-flood-mark-shaman',
@@ -1104,7 +1029,6 @@ export const SANDS_OF_THE_DUAT = [
     // Nine Lives card. Any mark turns that mechanic off on the returned body.
     empower: { cost: cost(2, 'G'), ops: [{ op: 'addCounters', n: 2, to: 'self' }] },
     rarity: 'r',
-    flavor: 'She marks the flood line higher. The next season answers.',
   },
   {
     id: 'sd-hollow-the-chest',
@@ -1121,7 +1045,6 @@ export const SANDS_OF_THE_DUAT = [
       },
     ],
     rarity: 'c',
-    flavor: 'The strength leaves first. The rest follows.',
   },
   {
     id: 'sd-sealed-doorway',
@@ -1138,7 +1061,6 @@ export const SANDS_OF_THE_DUAT = [
       },
     ],
     rarity: 'c',
-    flavor: 'The door closes on the body and the road behind it.',
   },
   {
     id: 'sd-empty-every-jar',
@@ -1149,7 +1071,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['B'],
     abilities: [{ when: 'spell', ops: [{ op: 'massDestroy', filter: 'allCreatures' }] }],
     rarity: 'r',
-    flavor: 'Nothing in the hall is hidden when every jar is empty.',
   },
   // Wave D1 appends the full artifact family, the nine-card multicolor
   // remainder, and the complete white mono fill. The 79 shipped cards stay
@@ -1173,7 +1094,6 @@ export const SANDS_OF_THE_DUAT = [
       ],
     }],
     rarity: 'c',
-    flavor: 'She sets the offering down. The small legs carry it onward.',
   },
   {
     id: 'sd-altar-of-the-fourth-hall',
@@ -1187,7 +1107,6 @@ export const SANDS_OF_THE_DUAT = [
       { when: 'dies', ops: [{ op: 'createToken', token: 'tok-duat-scarab', count: 1 }] },
     ],
     rarity: 'c',
-    flavor: 'She leaves one scarab for the hall and one for the road back.',
   },
   {
     id: 'sd-resin-archive',
@@ -1198,7 +1117,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: [],
     abilities: [{ when: 'dawn', ops: [{ op: 'grind', n: 1, who: 'self' }] }],
     rarity: 'c',
-    flavor: 'She seals the record in resin. The grave keeps the duplicate.',
   },
   {
     id: 'sd-natron-vault',
@@ -1209,7 +1127,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: [],
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 2 }] }, { when: 'dawn', ops: [{ op: 'grind', n: 1, who: 'self' }] }],
     rarity: 'c',
-    flavor: 'She keeps the salt dry. What was saved keeps its shape.',
   },
   {
     id: 'sd-scale-weight',
@@ -1220,7 +1137,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: [],
     abilities: [{ when: 'dawn', ops: [{ op: 'createToken', token: 'tok-duat-scarab', count: 1 }] }],
     rarity: 'c',
-    flavor: 'She adds one small weight. The scale stops arguing.',
   },
   {
     id: 'sd-reed-bound-canopic',
@@ -1231,7 +1147,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: [],
     abilities: [{ when: 'entersGraveyard', ops: [{ op: 'createToken', token: 'tok-duat-scarab', count: 1 }] }],
     rarity: 'c',
-    flavor: 'She ties the lid twice. The second knot opens when the jar breaks.',
   },
   {
     id: 'sd-empty-heart-jar',
@@ -1242,7 +1157,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: [],
     abilities: [{ when: 'dawn', ops: [{ op: 'severTop', n: 1, who: 'self' }] }],
     rarity: 'c',
-    flavor: 'She leaves the jar open. The old story finds its way inside.',
   },
   {
     id: 'sd-barge-oar-fitting',
@@ -1256,7 +1170,6 @@ export const SANDS_OF_THE_DUAT = [
     keywords: ['bulwark'],
     manaAbility: ['R'],
     rarity: 'c',
-    flavor: 'She holds the oar true and lets the barge choose the current.',
   },
   {
     id: 'sd-tomb-seal',
@@ -1267,7 +1180,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: [],
     abilities: [{ when: 'entersGraveyard', ops: [{ op: 'severGrave', n: 1, who: 'opponent' }] }],
     rarity: 'c',
-    flavor: 'She closes the seal once. The next hand finds only dust.',
   },
   {
     id: 'sd-lapis-funerary-mask',
@@ -1279,7 +1191,6 @@ export const SANDS_OF_THE_DUAT = [
     abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 1 }] }],
     skim: { cost: cost(1) },
     rarity: 'c',
-    flavor: 'She looks ahead through blue stone, then leaves the mask behind.',
   },
   {
     id: 'sd-censer-of-the-last-gate',
@@ -1290,7 +1201,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['W'],
     abilities: [{ when: 'spell', ops: [{ op: 'gainLife', n: 3 }] }],
     rarity: 'c',
-    flavor: 'She burns one pinch of resin. The gate admits her quietly.',
   },
   {
     id: 'sd-resin-wrapped-beetle',
@@ -1303,7 +1213,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 2,
     abilities: [{ when: 'dies', ops: [{ op: 'createToken', token: 'tok-duat-scarab', count: 1 }] }],
     rarity: 'c',
-    flavor: 'She wraps the beetle once. It leaves a smaller worker behind.',
   },
   {
     id: 'sd-lion-gate-standard',
@@ -1314,7 +1223,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: [],
     abilities: [{ when: 'static', static: { scope: 'filter', filter: { subtype: 'Bastet' }, p: 1, t: 0 } }],
     rarity: 'r',
-    flavor: 'She raises the standard. Every paw finds its place in the line.',
   },
   {
     id: 'sd-tollgate-of-the-fourth-hall',
@@ -1325,7 +1233,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: [],
     abilities: [{ when: 'dawn', ops: [{ op: 'severGrave', n: 1, who: 'opponent' }, { op: 'gainLife', n: 1 }] }],
     rarity: 'r',
-    flavor: 'She takes one old debt at dawn. The River does not ask why.',
   },
   {
     id: 'sd-canopic-cartouche',
@@ -1336,7 +1243,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: [],
     manaAbility: ['W', 'U', 'B', 'R', 'G'],
     rarity: 'r',
-    flavor: 'She carries every color of the hall, and none of its names.',
   },
   {
     id: 'sd-barge-fire-brazier',
@@ -1347,7 +1253,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['R'],
     abilities: [{ when: 'dawn', ops: [{ op: 'damage', n: 2, to: 'opponent' }, { op: 'damage', n: 1, to: 'controller' }] }],
     rarity: 'r',
-    flavor: 'She lights the brazier. The far bank sees the warning first.',
   },
   {
     id: 'sd-flood-measure-vessel',
@@ -1358,7 +1263,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['G'],
     abilities: [{ when: 'dawn', ops: [{ op: 'extraLandDrop', n: 1 }, { op: 'foresee', n: 1 }] }],
     rarity: 'r',
-    flavor: 'She marks the flood once. The field has room for one more furrow.',
   },
   {
     id: 'sd-fourth-weighing',
@@ -1375,7 +1279,6 @@ export const SANDS_OF_THE_DUAT = [
       { when: 'dies', ops: [{ op: 'createToken', token: 'tok-duat-scarab', count: 2 }] },
     ],
     rarity: 'sr',
-    flavor: 'She takes the scale herself. Two small witnesses remain.',
   },
   {
     id: 'sd-natron-crowned-canopic',
@@ -1389,7 +1292,6 @@ export const SANDS_OF_THE_DUAT = [
       { when: 'dawn', ops: [{ op: 'gainLife', n: 2 }] },
     ],
     rarity: 'ssr',
-    flavor: 'She crowns the jar with salt. The procession stands taller.',
   },
   {
     id: 'sd-heart-scale-reliquary',
@@ -1410,7 +1312,6 @@ export const SANDS_OF_THE_DUAT = [
       { when: 'dies', ops: [{ op: 'severGrave', n: 8, who: 'opponent' }] },
     ],
     rarity: 'ur',
-    flavor: 'She keeps the heart on the scale. The scale keeps the rest.',
   },
   {
     id: 'sd-nine-marked-vanguard',
@@ -1425,7 +1326,6 @@ export const SANDS_OF_THE_DUAT = [
     keywords: ['sentinel'],
     nineLives: true,
     rarity: 'r',
-    flavor: 'She carries nine marks and still reaches the front first.',
   },
   {
     id: 'sd-still-standing-at-dusk',
@@ -1440,7 +1340,6 @@ export const SANDS_OF_THE_DUAT = [
     nineLives: true,
     abilities: [{ when: 'dies', ops: [{ op: 'gainLife', n: 2 }] }],
     rarity: 'r',
-    flavor: 'She has outlasted the heat, the flood, and the argument about both.',
   },
   {
     id: 'sd-barge-sail-ascendant',
@@ -1461,7 +1360,6 @@ export const SANDS_OF_THE_DUAT = [
       ],
     },
     rarity: 'r',
-    flavor: 'She climbs the sail line. The sun and the current make room.',
   },
   {
     id: 'sd-hena-who-rows-against-the-hour',
@@ -1474,7 +1372,6 @@ export const SANDS_OF_THE_DUAT = [
     abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 2 }, { op: 'draw', n: 1 }] }],
     retell: { cost: cost(4, 'U') },
     rarity: 'r',
-    flavor: 'She rows the long way once. The second telling cuts across the dark.',
   },
   {
     id: 'sd-deeper-than-last-year',
@@ -1489,7 +1386,6 @@ export const SANDS_OF_THE_DUAT = [
     keywords: ['wardingGaze'],
     empower: { cost: cost(2, 'G'), ops: [{ op: 'extraLandDrop', n: 1 }] },
     rarity: 'r',
-    flavor: "She measures below last year's line. The river accepts the correction.",
   },
   {
     id: 'sd-silt-pool-reader',
@@ -1504,7 +1400,6 @@ export const SANDS_OF_THE_DUAT = [
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 2 }] }],
     preserve: { cost: cost(3, 'UG') },
     rarity: 'r',
-    flavor: 'She reads the silt twice. The copy remembers the deeper channel.',
   },
   {
     id: 'sd-silt-fat-behemoth',
@@ -1519,7 +1414,6 @@ export const SANDS_OF_THE_DUAT = [
     keywords: ['overrun'],
     empower: { cost: cost(3, 'G'), ops: [{ op: 'addCounters', n: 2, to: 'self' }] },
     rarity: 'r',
-    flavor: 'She rises from the silt with more river than the field can hold.',
   },
   {
     id: 'sd-bring-two-leave-one',
@@ -1535,7 +1429,6 @@ export const SANDS_OF_THE_DUAT = [
     abilities: [{ when: 'attacks', ops: [{ op: 'damage', n: 2, to: 'opponent' }] }],
     rite: { n: 1 },
     rarity: 'r',
-    flavor: 'She brings two offerings. The gate keeps the one with better posture.',
   },
   {
     id: 'sd-twice-wrapped-champion',
@@ -1551,7 +1444,6 @@ export const SANDS_OF_THE_DUAT = [
     abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 3 }] }],
     preserve: { cost: cost(4, 'WB') },
     rarity: 'ssr',
-    flavor: 'She is wrapped twice. The second shape arrives knowing the first.',
   },
   {
     id: 'sd-alabaster-usher',
@@ -1564,7 +1456,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 3,
     keywords: ['sentinel'],
     rarity: 'c',
-    flavor: 'She knows every place in the procession and who may stand there.',
   },
   {
     id: 'sd-censer-bearer-of-the-low-hall',
@@ -1577,7 +1468,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 3,
     abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 2 }] }],
     rarity: 'c',
-    flavor: 'She carries the smoke low so the names remain easy to hear.',
   },
   {
     id: 'sd-scribe-of-the-second-gate',
@@ -1590,7 +1480,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 2,
     abilities: [{ when: 'static', static: { scope: 'filter', filter: { subtype: 'Bastet' }, grantKeywords: ['sentinel'] } }],
     rarity: 'c',
-    flavor: 'She writes the boundary down. The wardens remember it.',
   },
   {
     id: 'sd-linen-processioner',
@@ -1603,7 +1492,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 3,
     abilities: [{ when: 'arrives', ops: [{ op: 'createToken', token: 'tok-bastet-kit', count: 1 }] }],
     rarity: 'c',
-    flavor: 'She starts the procession. One small pair of feet joins her.',
   },
   {
     id: 'sd-white-crown-sentinel',
@@ -1616,7 +1504,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 4,
     keywords: ['sentinel'],
     rarity: 'c',
-    flavor: 'She stands beneath the crown and lets the heat pass around her.',
   },
   {
     id: 'sd-natron-kit-caller',
@@ -1629,7 +1516,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 2,
     abilities: [{ when: 'arrives', ops: [{ op: 'createToken', token: 'tok-bastet-kit', count: 1 }] }],
     rarity: 'c',
-    flavor: 'She calls once from the salt room. The little guard answers.',
   },
   {
     id: 'sd-name-the-gate',
@@ -1640,7 +1526,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['W'],
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'boost', p: 1, t: 3, keywords: ['sentinel'], scope: 'target' }] }],
     rarity: 'c',
-    flavor: 'She speaks the gate aloud. The blow lands somewhere else.',
   },
   {
     id: 'sd-procession-halt',
@@ -1651,7 +1536,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['W'],
     abilities: [{ when: 'spell', ops: [{ op: 'preventCombat' }] }],
     rarity: 'c',
-    flavor: 'She raises one hand. The whole hall stops moving.',
   },
   {
     id: 'sd-weigh-the-room',
@@ -1662,7 +1546,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['W'],
     abilities: [{ when: 'spell', ops: [{ op: 'boost', p: 1, t: 1, scope: 'allYours' }, { op: 'gainLife', n: 2 }] }],
     rarity: 'c',
-    flavor: 'She sets every shoulder to the same honest height.',
   },
   {
     id: 'sd-strike-the-lintel',
@@ -1673,7 +1556,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['W'],
     abilities: [{ when: 'spell', targets: [{ what: 'artifactOrEnchantment' }], ops: [{ op: 'destroyArtifactOrSeverEnchantment', to: 'target' }] }],
     rarity: 'c',
-    flavor: 'She touches the lintel. The false thing below it comes apart.',
   },
   {
     id: 'sd-warden-of-the-kept',
@@ -1686,7 +1568,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 4,
     abilities: [{ when: 'static', static: { scope: 'filter', filter: { subtype: 'Bastet' }, p: 1, t: 1 } }],
     rarity: 'r',
-    flavor: 'She guards what was saved. The second shape stands ready behind her.',
   },
   {
     id: 'sd-almoner-of-the-white-crown',
@@ -1699,7 +1580,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 4,
     abilities: [{ when: 'dawn', ops: [{ op: 'gainLife', n: 2 }] }],
     rarity: 'r',
-    flavor: 'She gives the living one measure and the dead one more day.',
   },
   {
     id: 'sd-white-crown-marshal',
@@ -1713,7 +1593,6 @@ export const SANDS_OF_THE_DUAT = [
     keywords: ['sentinel'],
     abilities: [{ when: 'dawn', ops: [{ op: 'createToken', token: 'tok-bastet-kit', count: 1 }] }],
     rarity: 'r',
-    flavor: 'She calls the line at dawn. One more guard takes the post.',
   },
   {
     id: 'sd-natron-censer-bearer',
@@ -1727,7 +1606,6 @@ export const SANDS_OF_THE_DUAT = [
     abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 1 }] }],
     skim: { cost: cost(1) },
     rarity: 'r',
-    flavor: 'She carries enough salt for the road and knows when to leave it.',
   },
   {
     id: 'sd-hall-usher-captain',
@@ -1740,7 +1618,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 3,
     abilities: [{ when: 'static', static: { scope: 'filter', filter: { subtype: 'Bastet' }, t: 1 } }],
     rarity: 'r',
-    flavor: 'She places every warden by the lintel. The hall grows harder to enter.',
   },
   {
     id: 'sd-stop-the-procession',
@@ -1751,7 +1628,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['W'],
     abilities: [{ when: 'spell', ops: [{ op: 'preventCombat' }, { op: 'gainLife', n: 3 }] }],
     rarity: 'r',
-    flavor: 'She stops the march and lets the wounded breathe.',
   },
   {
     id: 'sd-marked-at-the-gate',
@@ -1762,7 +1638,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['W'],
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'boost', p: 2, t: 2, keywords: ['sentinel'], scope: 'target' }] }],
     rarity: 'r',
-    flavor: 'She marks one defender. The attack finds the wrong door.',
   },
   {
     id: 'sd-the-hall-clears',
@@ -1773,7 +1648,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['W'],
     abilities: [{ when: 'spell', ops: [{ op: 'massDestroy', filter: 'allCreatures' }] }],
     rarity: 'r',
-    flavor: 'She opens the doors. Every creature leaves by the same route.',
   },
   {
     id: 'sd-the-gate-is-closed',
@@ -1784,7 +1658,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['W'],
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'sever', to: 'target' }, { op: 'gainLife', n: 2 }] }],
     rarity: 'r',
-    flavor: 'She closes the gate on one body and gives the hall back its breath.',
   },
   {
     id: 'sd-white-gate-adjudicator',
@@ -1798,7 +1671,6 @@ export const SANDS_OF_THE_DUAT = [
     keywords: ['sentinel'],
     abilities: [{ when: 'dawn', ops: [{ op: 'createToken', token: 'tok-bastet-kit', count: 1 }] }],
     rarity: 'sr',
-    flavor: 'She reads the ruling once. The procession grows by one small guard.',
   },
   {
     id: 'sd-crown-bearer-of-the-last-hall',
@@ -1812,7 +1684,6 @@ export const SANDS_OF_THE_DUAT = [
     keywords: ['sentinel'],
     abilities: [{ when: 'dawn', ops: [{ op: 'boost', p: 0, t: 1, scope: 'allYours' }, { op: 'gainLife', n: 2 }] }],
     rarity: 'ssr',
-    flavor: 'She lifts the crown at dawn. Every shoulder in the hall rises with it.',
   },
   {
     id: 'sd-queen-of-the-last-procession',
@@ -1832,7 +1703,6 @@ export const SANDS_OF_THE_DUAT = [
     keywords: ['sentinel', 'untouchable'],
     abilities: [{ when: 'dawn', ops: [{ op: 'createToken', token: 'tok-bastet-kit', count: 1 }, { op: 'gainLife', n: 3 }] }],
     rarity: 'ur',
-    flavor: 'She walks last. Every living soul knows when to follow.',
   },
   // Wave D2 fills the mono-U and mono-B columns to the 40-card frame lines.
   // U adds river/chart glue, skyborne bodies, recall/cancel answers, two Skim
@@ -1850,7 +1720,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 1,
     abilities: [{ when: 'combatDamageToPlayer', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'c',
-    flavor: 'She knows the short crossing. The chart pays her in time.',
   },
   {
     id: 'sd-waterclock-diviner',
@@ -1863,7 +1732,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 2,
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'c',
-    flavor: 'She reads the falling water. The next channel opens first.',
   },
   {
     id: 'sd-bend-of-the-river-pilot',
@@ -1876,7 +1744,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 3,
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'c',
-    flavor: 'She takes the bend wide. The barge clears the waiting stones.',
   },
   {
     id: 'sd-drowned-cartographer',
@@ -1889,7 +1756,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 4,
     keywords: ['skyborne'],
     rarity: 'c',
-    flavor: 'She lost the map below the water. The water kept the route.',
   },
   {
     id: 'sd-current-bend-navigator',
@@ -1902,7 +1768,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 3,
     keywords: ['skyborne'],
     rarity: 'c',
-    flavor: 'She follows the current upward. The river allows it once.',
   },
   {
     id: 'sd-reedway-surveyor',
@@ -1915,7 +1780,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 2,
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }, { op: 'grind', n: 1, who: 'self' }] }],
     rarity: 'c',
-    flavor: 'She marks the reeds. The river moves the marks by morning.',
   },
   {
     id: 'sd-channel-watch-diver',
@@ -1928,7 +1792,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 2,
     keywords: ['skyborne'],
     rarity: 'c',
-    flavor: 'She watches from below and rises before the warning does.',
   },
   {
     id: 'sd-lapis-route-seer',
@@ -1942,7 +1805,6 @@ export const SANDS_OF_THE_DUAT = [
     keywords: ['skyborne'],
     abilities: [{ when: 'combatDamageToPlayer', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'c',
-    flavor: 'She sees the blue road clearly. The bank still chooses the toll.',
   },
   {
     id: 'sd-crossing-memory-keeper',
@@ -1955,7 +1817,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 3,
     preserve: { cost: cost(4, 'U') },
     rarity: 'c',
-    flavor: 'She keeps one crossing. The copy remembers the other.',
   },
   {
     id: 'sd-silt-bank-pilot',
@@ -1968,7 +1829,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 3,
     skim: { cost: cost(1) },
     rarity: 'c',
-    flavor: 'She leaves the bank when the water turns. The chart can wait.',
   },
   {
     id: 'sd-river-sky-reader',
@@ -1981,7 +1841,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 4,
     keywords: ['skyborne'],
     rarity: 'c',
-    flavor: 'She reads the water from the sky. Both answers are blue.',
   },
   {
     id: 'sd-bookside-ferrywoman',
@@ -1994,7 +1853,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 4,
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'c',
-    flavor: 'She docks beside the Book. The pages turn toward her.',
   },
   {
     id: 'sd-charted-crossing-guide',
@@ -2007,7 +1865,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 3,
     preserve: { cost: cost(3, 'U') },
     rarity: 'c',
-    flavor: 'She leaves the route in ink. The copy follows the water.',
   },
   {
     id: 'sd-read-the-two-ways',
@@ -2018,7 +1875,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['U'],
     abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 3 }, { op: 'draw', n: 1 }] }],
     rarity: 'c',
-    flavor: 'She reads both routes. Only one page gets wet.',
   },
   {
     id: 'sd-take-the-slow-channel',
@@ -2029,7 +1885,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['U'],
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'recall', to: 'target' }] }],
     rarity: 'c',
-    flavor: 'She points to the quiet water. The problem leaves by itself.',
   },
   {
     id: 'sd-hold-the-crossing',
@@ -2040,7 +1895,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['U'],
     abilities: [{ when: 'spell', targets: [{ what: 'spell' }], ops: [{ op: 'cancel', to: 'target' }] }],
     rarity: 'c',
-    flavor: 'She holds the crossing. The spell waits on the far bank.',
   },
   {
     id: 'sd-silt-reading',
@@ -2051,7 +1905,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['U'],
     abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 2 }] }],
     rarity: 'c',
-    flavor: 'She reads what settled. The answer was beneath the shine.',
   },
   {
     id: 'sd-row-against-the-hour',
@@ -2062,7 +1915,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['U'],
     abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 1 }, { op: 'draw', n: 1 }] }],
     rarity: 'c',
-    flavor: 'She rows against the current. The next page arrives early.',
   },
   {
     id: 'sd-channel-turns-back',
@@ -2079,7 +1931,6 @@ export const SANDS_OF_THE_DUAT = [
       },
     ],
     rarity: 'c',
-    flavor: 'She turns the channel back. The crossing starts with better weather.',
   },
   {
     id: 'sd-book-of-the-two-ways',
@@ -2091,7 +1942,6 @@ export const SANDS_OF_THE_DUAT = [
     abilities: [{ when: 'dawn', ops: [{ op: 'foresee', n: 2 }] }],
     skim: { cost: cost(2) },
     rarity: 'r',
-    flavor: 'She opens the Book at dawn. The river has already chosen a page.',
   },
   {
     id: 'sd-wrong-door',
@@ -2102,7 +1952,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['U'],
     abilities: [{ when: 'spell', targets: [{ what: 'spell' }], ops: [{ op: 'cancel', to: 'target' }, { op: 'grind', n: 2, who: 'self' }] }],
     rarity: 'r',
-    flavor: 'She names the wrong door. The spell finds no room behind it.',
   },
   {
     id: 'sd-sand-through-the-grate',
@@ -2119,7 +1968,6 @@ export const SANDS_OF_THE_DUAT = [
       },
     ],
     rarity: 'r',
-    flavor: 'She opens the grate. The body leaves and the sand stays.',
   },
   {
     id: 'sd-the-book-opens-twice',
@@ -2131,7 +1979,6 @@ export const SANDS_OF_THE_DUAT = [
     abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 3 }, { op: 'draw', n: 1 }] }],
     retell: { cost: cost(3, 'U') },
     rarity: 'r',
-    flavor: 'She opens the Book once. The second reading keeps the route.',
   },
   {
     id: 'sd-read-the-sky-over-the-barge',
@@ -2142,7 +1989,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['U'],
     abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 3 }, { op: 'draw', n: 2 }] }],
     rarity: 'r',
-    flavor: 'She reads the sky. The barge takes the route beneath it.',
   },
   {
     id: 'sd-bend-of-the-river-seer',
@@ -2156,7 +2002,6 @@ export const SANDS_OF_THE_DUAT = [
     keywords: ['skyborne'],
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 2 }] }],
     rarity: 'r',
-    flavor: 'She sees around the bend. The river cannot hide the next mile.',
   },
   {
     id: 'sd-waterclock-pilot',
@@ -2170,7 +2015,6 @@ export const SANDS_OF_THE_DUAT = [
     keywords: ['skyborne'],
     abilities: [{ when: 'combatDamageToPlayer', ops: [{ op: 'draw', n: 1 }] }],
     rarity: 'r',
-    flavor: 'She lands when the waterclock turns. The next card is waiting.',
   },
   {
     id: 'sd-channel-archive-keeper',
@@ -2184,7 +2028,6 @@ export const SANDS_OF_THE_DUAT = [
     abilities: [{ when: 'arrives', ops: [{ op: 'grind', n: 1, who: 'self' }] }],
     preserve: { cost: cost(3, 'U') },
     rarity: 'r',
-    flavor: 'She files the route in the grave. The copy can find it later.',
   },
   {
     id: 'sd-skyline-ferrywoman',
@@ -2198,7 +2041,6 @@ export const SANDS_OF_THE_DUAT = [
     keywords: ['skyborne'],
     abilities: [{ when: 'combatDamageToPlayer', ops: [{ op: 'foresee', n: 2 }] }],
     rarity: 'r',
-    flavor: 'She crosses above the river. The river still knows her name.',
   },
   {
     id: 'sd-keeper-of-the-fifth-channel',
@@ -2212,7 +2054,6 @@ export const SANDS_OF_THE_DUAT = [
     keywords: ['skyborne'],
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 3 }] }],
     rarity: 'sr',
-    flavor: 'She keeps the fifth channel open. Four others close behind her.',
   },
   {
     id: 'sd-the-map-argues-back',
@@ -2223,7 +2064,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['U'],
     abilities: [{ when: 'spell', targets: [{ what: 'spell' }], ops: [{ op: 'cancel', to: 'target' }, { op: 'draw', n: 1 }] }],
     rarity: 'sr',
-    flavor: 'She reads the route aloud. The spell loses the argument.',
   },
   {
     id: 'sd-river-returns-the-answer',
@@ -2240,7 +2080,6 @@ export const SANDS_OF_THE_DUAT = [
       },
     ],
     rarity: 'sr',
-    flavor: 'She sends the body back. The river returns one answer with it.',
   },
   {
     id: 'sd-navigator-of-the-last-channel',
@@ -2254,7 +2093,6 @@ export const SANDS_OF_THE_DUAT = [
     keywords: ['skyborne'],
     preserve: { cost: cost(4, 'U') },
     rarity: 'sr',
-    flavor: 'She takes the last channel. The first shore is already behind her.',
   },
   {
     id: 'sd-sahra-keeper-of-the-last-channel',
@@ -2272,7 +2110,6 @@ export const SANDS_OF_THE_DUAT = [
       { when: 'combatDamageToPlayer', ops: [{ op: 'draw', n: 1 }] },
     ],
     rarity: 'ssr',
-    flavor: 'She knows the final channel. The Book leaves it blank for her.',
   },
   {
     id: 'sd-the-last-chart-of-the-duat',
@@ -2283,7 +2120,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['U'],
     abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 4 }, { op: 'draw', n: 2 }] }],
     rarity: 'ssr',
-    flavor: 'She draws the last chart. The river has nowhere else to go.',
   },
   {
     id: 'sd-give-it-the-better-one',
@@ -2296,7 +2132,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 1,
     abilities: [{ when: 'arrives', ops: [{ op: 'createToken', token: 'tok-duat-scarab', count: 1 }, { op: 'grind', n: 1, who: 'self' }] }],
     rarity: 'c',
-    flavor: 'She gives the gate one jar. The scarab keeps the other busy.',
   },
   {
     id: 'sd-hollow-jar-attendant',
@@ -2309,7 +2144,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 2,
     abilities: [{ when: 'entersGraveyard', ops: [{ op: 'createToken', token: 'tok-duat-scarab', count: 1 }] }],
     rarity: 'c',
-    flavor: 'She empties the jar. Something small objects from inside.',
   },
   {
     id: 'sd-resin-handed-embalmer',
@@ -2323,7 +2157,6 @@ export const SANDS_OF_THE_DUAT = [
     abilities: [{ when: 'arrives', ops: [{ op: 'grind', n: 1, who: 'self' }] }],
     preserve: { cost: cost(3, 'B') },
     rarity: 'c',
-    flavor: 'She seals the first wrapping. The grave receives the spare thread.',
   },
   {
     id: 'sd-debt-beetle-swarm',
@@ -2336,7 +2169,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 1,
     abilities: [{ when: 'dies', ops: [{ op: 'loseLife', n: 1, who: 'opponent' }] }],
     rarity: 'c',
-    flavor: 'She lifts the lid. The beetles collect what remains.',
   },
   {
     id: 'sd-tomb-toll-taker',
@@ -2349,7 +2181,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 1,
     abilities: [{ when: 'dies', ops: [{ op: 'loseLife', n: 1, who: 'opponent' }] }],
     rarity: 'c',
-    flavor: 'She takes the toll once. The gate asks again when she falls.',
   },
   {
     id: 'sd-rite-fed-jackal',
@@ -2362,7 +2193,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 3,
     abilities: [{ when: 'arrives', ops: [{ op: 'createToken', token: 'tok-duat-scarab', count: 1 }] }],
     rarity: 'c',
-    flavor: 'She sets down the offering. The small feet finish the rite.',
   },
   {
     id: 'sd-keeper-of-the-sealed-jar',
@@ -2376,7 +2206,6 @@ export const SANDS_OF_THE_DUAT = [
     abilities: [{ when: 'arrives', ops: [{ op: 'grind', n: 1, who: 'self' }] }],
     preserve: { cost: cost(4, 'B') },
     rarity: 'c',
-    flavor: 'She seals the jar twice. The second seal knows the road back.',
   },
   {
     id: 'sd-pay-before-the-asking',
@@ -2387,7 +2216,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['B'],
     abilities: [{ when: 'spell', ops: [{ op: 'loseLife', n: 2, who: 'opponent' }] }],
     rarity: 'c',
-    flavor: 'She pays before the asking. The hall still weighs her.',
   },
   {
     id: 'sd-cut-the-wrappings',
@@ -2398,7 +2226,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['B'],
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'boost', p: -3, t: -3, scope: 'target' }] }],
     rarity: 'c',
-    flavor: 'She cuts the linen. The body underneath cannot hold its shape.',
   },
   {
     id: 'sd-two-jars-one-heart',
@@ -2410,7 +2237,6 @@ export const SANDS_OF_THE_DUAT = [
     abilities: [{ when: 'spell', ops: [{ op: 'grind', n: 2, who: 'self' }, { op: 'loseLife', n: 1, who: 'opponent' }] }],
     retell: { cost: cost(3, 'B') },
     rarity: 'c',
-    flavor: 'She fills two jars. The grave keeps one answer for later.',
   },
   {
     id: 'sd-wrapped-against-the-season',
@@ -2421,7 +2247,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['B'],
     abilities: [{ when: 'spell', targets: [{ what: 'yourGraveCreature' }], ops: [{ op: 'reclaim' }] }],
     rarity: 'c',
-    flavor: 'She wraps the old shape. The grave gives it back to her hand.',
   },
   {
     id: 'sd-one-clean-cut',
@@ -2432,7 +2257,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['B'],
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'destroy', to: 'target' }] }],
     rarity: 'r',
-    flavor: 'She cuts once. The vacancy is exact.',
   },
   {
     id: 'sd-second-wrapping',
@@ -2444,7 +2268,6 @@ export const SANDS_OF_THE_DUAT = [
     abilities: [{ when: 'spell', targets: [{ what: 'yourGraveCreature' }], ops: [{ op: 'reclaim' }] }],
     retell: { cost: cost(3, 'B') },
     rarity: 'r',
-    flavor: 'She wraps what the first linen could not keep.',
   },
   {
     id: 'sd-canopic-grave-warden',
@@ -2458,7 +2281,6 @@ export const SANDS_OF_THE_DUAT = [
     abilities: [{ when: 'arrives', ops: [{ op: 'grind', n: 3, who: 'self' }] }],
     preserve: { cost: cost(3, 'B') },
     rarity: 'r',
-    flavor: 'She guards the canopic room. The grave fills at her command.',
   },
   {
     id: 'sd-toll-of-the-heavier-jar',
@@ -2473,7 +2295,6 @@ export const SANDS_OF_THE_DUAT = [
     rite: { n: 1 },
     abilities: [{ when: 'arrives', ops: [{ op: 'loseLife', n: 2, who: 'opponent' }] }],
     rarity: 'r',
-    flavor: 'She carries the heavier jar. The hall charges her twice.',
   },
   {
     id: 'sd-silence-after-the-verdict',
@@ -2485,7 +2306,6 @@ export const SANDS_OF_THE_DUAT = [
     abilities: [{ when: 'spell', ops: [{ op: 'loseLife', n: 2, who: 'opponent' }, { op: 'foresee', n: 1 }] }],
     retell: { cost: cost(2, 'B') },
     rarity: 'r',
-    flavor: 'She speaks the verdict once. The silence says it again.',
   },
   {
     id: 'sd-verdict-under-resin',
@@ -2502,7 +2322,6 @@ export const SANDS_OF_THE_DUAT = [
       },
     ],
     rarity: 'r',
-    flavor: 'She seals the verdict. The dead lose two more names.',
   },
   {
     id: 'sd-the-long-drying',
@@ -2513,7 +2332,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['B'],
     abilities: [{ when: 'spell', ops: [{ op: 'grind', n: 4, who: 'self' }, { op: 'draw', n: 1 }] }],
     rarity: 'r',
-    flavor: 'She waits through the drying. The useful memory remains.',
   },
   {
     id: 'sd-warden-of-the-heavy-jar',
@@ -2527,7 +2345,6 @@ export const SANDS_OF_THE_DUAT = [
     rite: { n: 1 },
     abilities: [{ when: 'arrives', ops: [{ op: 'severGrave', n: 3, who: 'opponent' }, { op: 'loseLife', n: 2, who: 'opponent' }] }],
     rarity: 'sr',
-    flavor: 'She lifts the heavy jar. Three old debts leave with the smoke.',
   },
   {
     id: 'sd-the-weight-owed-in-full',
@@ -2538,7 +2355,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['B'],
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'sever', to: 'target' }, { op: 'loseLife', n: 2, who: 'opponent' }] }],
     rarity: 'sr',
-    flavor: 'She weighs the body once. The verdict takes the rest.',
   },
   {
     id: 'sd-two-for-the-ferrywoman',
@@ -2553,7 +2369,6 @@ export const SANDS_OF_THE_DUAT = [
     rite: { n: 2 },
     abilities: [{ when: 'arrives', ops: [{ op: 'loseLife', n: 2, who: 'opponent' }] }],
     rarity: 'ssr',
-    flavor: 'She brings two offerings. The ferrywoman takes both.',
   },
   {
     id: 'sd-copy-kept-in-resin',
@@ -2570,7 +2385,6 @@ export const SANDS_OF_THE_DUAT = [
     ],
     preserve: { cost: cost(6, 'BB') },
     rarity: 'ssr',
-    flavor: 'She stands inside the resin. The second shape knows the price.',
   },
   {
     id: 'sd-nadira-keeper-of-the-final-toll',
@@ -2586,7 +2400,6 @@ export const SANDS_OF_THE_DUAT = [
     rite: { n: 3 },
     abilities: [{ when: 'arrives', ops: [{ op: 'severGrave', n: 3, who: 'opponent' }, { op: 'loseLife', n: 3, who: 'opponent' }] }],
     rarity: 'ur',
-    flavor: 'She takes the final toll. The River has no change.',
   },
   // Wave D3 is the final mono-column fill. Colored artifacts stay in the
   // artifact family, so the append is R25, G30, U2, and B1. The two existing
@@ -2604,7 +2417,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 2,
     keywords: ['warcry'],
     rarity: 'c',
-    flavor: 'She leaves the prow before the signal finishes burning.',
   },
   {
     id: 'sd-sun-rope-charger',
@@ -2617,7 +2429,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 1,
     keywords: ['warcry'],
     rarity: 'c',
-    flavor: 'She pulls once. The barge moves before anyone can object.',
   },
   {
     id: 'sd-ash-coil-prowler',
@@ -2629,7 +2440,6 @@ export const SANDS_OF_THE_DUAT = [
     attack: 3,
     defense: 2,
     rarity: 'c',
-    flavor: 'She watches the serpent coil and chooses the open side.',
   },
   {
     id: 'sd-barge-deck-raider',
@@ -2641,7 +2451,6 @@ export const SANDS_OF_THE_DUAT = [
     attack: 3,
     defense: 3,
     rarity: 'c',
-    flavor: 'She boards at noon. The deck has nowhere else to go.',
   },
   {
     id: 'sd-prow-fire-lioness',
@@ -2653,7 +2462,6 @@ export const SANDS_OF_THE_DUAT = [
     attack: 4,
     defense: 3,
     rarity: 'c',
-    flavor: 'She stands where the fire starts and calls it a good place.',
   },
   {
     id: 'sd-sandwake-dasher',
@@ -2666,7 +2474,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 2,
     keywords: ['skyborne'],
     rarity: 'c',
-    flavor: 'She runs over the wake because the deck is slower.',
   },
   {
     id: 'sd-ember-spear-caller',
@@ -2679,7 +2486,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 2,
     abilities: [{ when: 'arrives', ops: [{ op: 'damage', n: 1, to: 'opponent' }] }],
     rarity: 'c',
-    flavor: 'She raises the spear. The first answer is always fire.',
   },
   {
     id: 'sd-fire-toll-runner',
@@ -2692,7 +2498,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 1,
     abilities: [{ when: 'attacks', ops: [{ op: 'damage', n: 1, to: 'opponent' }] }],
     rarity: 'c',
-    flavor: 'She collects the toll while the gate is still deciding.',
   },
   {
     id: 'sd-burn-the-rope',
@@ -2703,7 +2508,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['R'],
     abilities: [{ when: 'spell', targets: [{ what: 'any' }], ops: [{ op: 'damage', n: 2, to: 'target' }] }],
     rarity: 'c',
-    flavor: 'She cuts the shortcut. The long way is on fire too.',
   },
   {
     id: 'sd-flame-beneath-the-pan',
@@ -2714,7 +2518,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['R'],
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 3, to: 'target' }, { op: 'severGrave', n: 1, who: 'opponent' }] }],
     rarity: 'c',
-    flavor: 'The weight settles. The fire answers first.',
   },
   {
     id: 'sd-light-the-wake',
@@ -2725,7 +2528,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['R'],
     abilities: [{ when: 'spell', ops: [{ op: 'damage', n: 3, to: 'opponent' }] }],
     rarity: 'c',
-    flavor: 'She lights the water behind the barge. The dark keeps pace.',
   },
   {
     id: 'sd-prowfire-volley',
@@ -2737,7 +2539,6 @@ export const SANDS_OF_THE_DUAT = [
     abilities: [{ when: 'spell', targets: [{ what: 'any' }], ops: [{ op: 'damage', n: 3, to: 'target' }] }],
     skim: { cost: cost(1) },
     rarity: 'c',
-    flavor: 'She fires once. The smoke makes the second shot unnecessary.',
   },
   {
     id: 'sd-warcry-at-noon',
@@ -2748,7 +2549,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['R'],
     abilities: [{ when: 'spell', ops: [{ op: 'boost', p: 1, t: 1, keywords: ['warcry'], scope: 'allYours' }] }],
     rarity: 'c',
-    flavor: 'She gives the order once. The deck supplies the echo.',
   },
   {
     id: 'sd-twinblade-at-the-prow',
@@ -2761,7 +2561,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 3,
     keywords: ['twinBlades'],
     rarity: 'r',
-    flavor: 'She carries two knives and leaves room for both to work.',
   },
   {
     id: 'sd-sunfire-warcaller',
@@ -2774,7 +2573,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 3,
     keywords: ['warcry'],
     rarity: 'r',
-    flavor: 'She names the first target. The rest of the deck agrees.',
   },
   {
     id: 'sd-serpent-wake-raider',
@@ -2787,7 +2585,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 2,
     keywords: ['warcry'],
     rarity: 'r',
-    flavor: 'She raids the wake and leaves the serpent the empty water.',
   },
   {
     id: 'sd-break-the-coil',
@@ -2798,7 +2595,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['R'],
     abilities: [{ when: 'spell', targets: [{ what: 'any' }], ops: [{ op: 'damage', n: 3, to: 'target' }] }],
     rarity: 'r',
-    flavor: 'She breaks the coil. The pieces still know where to bite.',
   },
   {
     id: 'sd-ember-signal',
@@ -2809,7 +2605,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['R'],
     abilities: [{ when: 'spell', ops: [{ op: 'damage', n: 1, to: 'opponent' }, { op: 'draw', n: 1 }] }],
     rarity: 'r',
-    flavor: 'She sends one ember ahead. The answer arrives smoking.',
   },
   {
     id: 'sd-fire-along-the-barge',
@@ -2820,7 +2615,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['R'],
     abilities: [{ when: 'spell', targets: [{ what: 'any' }], ops: [{ op: 'damage', n: 5, to: 'target' }] }],
     rarity: 'r',
-    flavor: 'The whole deck becomes a fuse when she gives the word.',
   },
   {
     id: 'sd-run-the-deck',
@@ -2831,7 +2625,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['R'],
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'boost', p: 3, t: 2, keywords: ['warcry'], scope: 'target' }] }],
     rarity: 'r',
-    flavor: 'She points forward. The deck is suddenly much smaller.',
   },
   {
     id: 'sd-ashwake-twinblade',
@@ -2844,7 +2637,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 4,
     keywords: ['twinBlades'],
     rarity: 'sr',
-    flavor: 'She turns through the ash and keeps both edges moving.',
   },
   {
     id: 'sd-barge-fire-warcaller',
@@ -2857,7 +2649,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 3,
     keywords: ['warcry'],
     rarity: 'sr',
-    flavor: 'She calls the charge from the burning prow. No one asks for a map.',
   },
   {
     id: 'sd-noon-serpent-judgment',
@@ -2868,7 +2659,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['R'],
     abilities: [{ when: 'spell', ops: [{ op: 'damage', n: 4, to: 'opponent' }] }],
     rarity: 'sr',
-    flavor: 'She opens the gate at noon. The serpent makes the ruling.',
   },
   {
     id: 'sd-sahira-helm-of-the-fire-wake',
@@ -2883,7 +2673,6 @@ export const SANDS_OF_THE_DUAT = [
     keywords: ['warcry'],
     abilities: [{ when: 'arrives', ops: [{ op: 'damage', n: 2, to: 'opponent' }] }],
     rarity: 'ssr',
-    flavor: 'She knows the fire by its sound and the river by what it hides.',
   },
   {
     id: 'sd-zahira-who-lights-the-prow',
@@ -2898,7 +2687,6 @@ export const SANDS_OF_THE_DUAT = [
     keywords: ['warcry'],
     abilities: [{ when: 'attacks', ops: [{ op: 'damage', n: 2, to: 'opponent' }] }],
     rarity: 'ur',
-    flavor: 'She lights the prow once. The night road opens for her.',
   },
   // G identity is flood and harvest ramp, fair large bodies, and wardingGaze.
   // Ramp dominance check: the new 3G 3/2 and 4G 4/4 bodies trade attack,
@@ -2916,7 +2704,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 2,
     abilities: [{ when: 'arrives', ops: [{ op: 'extraLandDrop' }] }],
     rarity: 'c',
-    flavor: 'She reads the waterline and runs before it changes.',
   },
   {
     id: 'sd-siltfield-forager',
@@ -2928,7 +2715,6 @@ export const SANDS_OF_THE_DUAT = [
     attack: 2,
     defense: 2,
     rarity: 'c',
-    flavor: 'She finds the harvest where the flood left it.',
   },
   {
     id: 'sd-granary-sentinel',
@@ -2941,7 +2727,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 3,
     keywords: ['wardingGaze'],
     rarity: 'c',
-    flavor: 'She watches the grain. The grain stays where it is put.',
   },
   {
     id: 'sd-levee-foot-scout',
@@ -2953,7 +2738,6 @@ export const SANDS_OF_THE_DUAT = [
     attack: 3,
     defense: 2,
     rarity: 'c',
-    flavor: 'She walks the levee before deciding where to break it.',
   },
   {
     id: 'sd-palm-root-warden',
@@ -2966,7 +2750,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 4,
     keywords: ['wardingGaze'],
     rarity: 'c',
-    flavor: 'She holds the roots down when the field begins to float.',
   },
   {
     id: 'sd-harvest-cobra',
@@ -2979,7 +2762,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 4,
     keywords: ['wardingGaze'],
     rarity: 'c',
-    flavor: 'She guards the furrow. The furrow grows teeth.',
   },
   {
     id: 'sd-delta-bull',
@@ -2992,7 +2774,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 4,
     keywords: ['overrun'],
     rarity: 'c',
-    flavor: 'She crosses the field once. The furrows remember the impact.',
   },
   {
     id: 'sd-furrow-scale-bearer',
@@ -3004,7 +2785,6 @@ export const SANDS_OF_THE_DUAT = [
     attack: 6,
     defense: 7,
     rarity: 'c',
-    flavor: 'She carries the measure from field to field without hurrying.',
   },
   {
     id: 'sd-river-silt-giant',
@@ -3017,7 +2797,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 5,
     keywords: ['sentinel'],
     rarity: 'c',
-    flavor: 'She rises when the river needs a wall and settles when it does not.',
   },
   {
     id: 'sd-silt-crown-guardian',
@@ -3030,7 +2809,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 4,
     keywords: ['sentinel'],
     rarity: 'c',
-    flavor: 'She wears the field on her brow and refuses to yield it.',
   },
   {
     id: 'sd-give-the-field-its-due',
@@ -3041,7 +2819,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['G'],
     abilities: [{ when: 'spell', ops: [{ op: 'extraLandDrop' }] }],
     rarity: 'c',
-    flavor: 'She gives the field one more chance to answer.',
   },
   {
     id: 'sd-measure-the-silt',
@@ -3052,7 +2829,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['G'],
     abilities: [{ when: 'spell', ops: [{ op: 'extraLandDrop' }, { op: 'gainLife', n: 2 }] }],
     rarity: 'c',
-    flavor: 'She measures what the water left and plants accordingly.',
   },
   {
     id: 'sd-root-through-the-ruin',
@@ -3063,7 +2839,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['G'],
     abilities: [{ when: 'spell', targets: [{ what: 'yourCreature' }], ops: [{ op: 'boost', p: 2, t: 2, keywords: ['wardingGaze'], scope: 'target' }] }],
     rarity: 'c',
-    flavor: 'She finds a root in the ruin. It was waiting for her hand.',
   },
   {
     id: 'sd-ward-the-floodgate',
@@ -3074,7 +2849,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['G'],
     abilities: [{ when: 'spell', targets: [{ what: 'yourCreature' }], ops: [{ op: 'boost', p: 1, t: 3, keywords: ['wardingGaze'], scope: 'target' }] }],
     rarity: 'c',
-    flavor: 'She braces the gate. The flood finds another argument.',
   },
   {
     id: 'sd-harvest-after-rain',
@@ -3087,7 +2861,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['G', 'U'],
     abilities: [{ when: 'spell', ops: [{ op: 'draw', n: 1 }, { op: 'extraLandDrop', n: 1 }, { op: 'gainLife', n: 1 }] }],
     rarity: 'c',
-    flavor: 'She waits for the rain to stop. The useful thing is still growing.',
   },
   {
     id: 'sd-flood-before-noon',
@@ -3098,7 +2871,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['G'],
     abilities: [{ when: 'spell', ops: [{ op: 'extraLandDrop', n: 3 }, { op: 'draw', n: 2 }] }],
     rarity: 'c',
-    flavor: 'She opens every channel before the sun reaches its height.',
   },
   {
     id: 'sd-high-water-cultivator',
@@ -3111,7 +2883,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 4,
     abilities: [{ when: 'arrives', ops: [{ op: 'extraLandDrop' }] }],
     rarity: 'r',
-    flavor: 'She plants above the old line and waits for the river to notice.',
   },
   {
     id: 'sd-floodgate-warden',
@@ -3124,7 +2895,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 5,
     keywords: ['wardingGaze'],
     rarity: 'r',
-    flavor: 'She closes the gate when the field has had enough.',
   },
   {
     id: 'sd-silt-field-champion',
@@ -3137,7 +2907,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 4,
     keywords: ['overrun', 'sentinel'],
     rarity: 'r',
-    flavor: 'She takes the first furrow and leaves the rest to follow.',
   },
   {
     id: 'sd-harvest-tide-keeper',
@@ -3151,7 +2920,6 @@ export const SANDS_OF_THE_DUAT = [
     keywords: ['sentinel'],
     abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 3 }] }],
     rarity: 'r',
-    flavor: 'She keeps the harvest at the waterline and the waterline honest.',
   },
   {
     id: 'sd-granary-backbreaker',
@@ -3164,7 +2932,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 7,
     keywords: ['overrun'],
     rarity: 'r',
-    flavor: 'She lifts the granary door. The field gets a wider entrance.',
   },
   {
     id: 'sd-harvest-line-shaman',
@@ -3178,7 +2945,6 @@ export const SANDS_OF_THE_DUAT = [
     keywords: ['wardingGaze'],
     empower: { cost: cost(2, 'G'), ops: [{ op: 'addCounters', n: 2, to: 'self' }] },
     rarity: 'r',
-    flavor: 'She reads the flood line and grows to meet it.',
   },
   {
     id: 'sd-riverbank-overseer',
@@ -3191,7 +2957,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 5,
     keywords: ['wardingGaze'],
     rarity: 'r',
-    flavor: 'She watches both banks. Neither one moves without permission.',
   },
   {
     id: 'sd-warding-of-the-first-furrow',
@@ -3202,7 +2967,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['G'],
     abilities: [{ when: 'spell', targets: [{ what: 'yourCreature' }], ops: [{ op: 'boost', p: 3, t: 3, keywords: ['wardingGaze'], scope: 'target' }] }],
     rarity: 'r',
-    flavor: 'She marks the first furrow. The rest of the field takes the hint.',
   },
   {
     id: 'sd-deeper-flood-channel',
@@ -3213,7 +2977,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['G'],
     abilities: [{ when: 'spell', ops: [{ op: 'extraLandDrop', n: 2 }, { op: 'foresee', n: 2 }, { op: 'gainLife', n: 2 }] }],
     rarity: 'r',
-    flavor: 'She digs below the old bed. The river brings more than asked.',
   },
   {
     id: 'sd-deep-flood-behemoth',
@@ -3226,7 +2989,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 6,
     keywords: ['overrun'],
     rarity: 'sr',
-    flavor: 'She rises with the deep flood and makes the banks look temporary.',
   },
   {
     id: 'sd-granary-of-rising-years',
@@ -3237,7 +2999,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['G'],
     abilities: [{ when: 'dawn', ops: [{ op: 'extraLandDrop' }, { op: 'gainLife', n: 3 }] }],
     rarity: 'sr',
-    flavor: 'She fills the granary once. The next dawn makes room.',
   },
   {
     id: 'sd-silt-crowned-harvester',
@@ -3260,7 +3021,6 @@ export const SANDS_OF_THE_DUAT = [
     keywords: ['overrun'],
     empower: { cost: cost(1, 'G'), ops: [{ op: 'boost', p: 2, t: 2, scope: 'allYours' }] },
     rarity: 'sr',
-    flavor: 'She wears the flood as a crown and the field as a road.',
   },
   {
     id: 'sd-floodwall-matriarch',
@@ -3273,7 +3033,6 @@ export const SANDS_OF_THE_DUAT = [
     defense: 6,
     keywords: ['wardingGaze'],
     rarity: 'sr',
-    flavor: 'She stands in the breach until the water remembers its manners.',
   },
   {
     id: 'sd-maret-keeper-of-the-high-flood',
@@ -3288,7 +3047,6 @@ export const SANDS_OF_THE_DUAT = [
     keywords: ['wardingGaze'],
     abilities: [{ when: 'arrives', ops: [{ op: 'extraLandDrop', n: 2 }, { op: 'draw', n: 1 }] }],
     rarity: 'ssr',
-    flavor: 'She sets the flood high and tells the granaries to prepare.',
   },
   {
     id: 'sd-deep-channel-cartographer',
@@ -3302,7 +3060,6 @@ export const SANDS_OF_THE_DUAT = [
     keywords: ['skyborne'],
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 2 }] }],
     rarity: 'r',
-    flavor: 'She charts the deep channel. The shallow one closes behind her.',
   },
   {
     id: 'sd-route-beyond-the-gate',
@@ -3313,7 +3070,6 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['U'],
     abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 3 }] }],
     rarity: 'r',
-    flavor: 'She reads past the gate. The next route was waiting.',
   },
   {
     id: 'sd-heart-jar-sentinel',
@@ -3327,6 +3083,5 @@ export const SANDS_OF_THE_DUAT = [
     keywords: ['sentinel'],
     abilities: [{ when: 'entersGraveyard', ops: [{ op: 'loseLife', n: 1, who: 'opponent' }] }],
     rarity: 'c',
-    flavor: 'She guards the heart jar. The debt remains when she does not.',
   },
 ] as const satisfies readonly CardDef[];

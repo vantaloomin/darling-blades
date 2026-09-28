@@ -8,6 +8,16 @@ import { isBasic } from '../meta/Collection';
 import { bakeRetellTombstone, RETELL_ICON_KEY } from './pileIcons';
 import type { CardVariant, FrameStyle } from '../meta/variants';
 import { FRAME_TREATMENTS, frameKeyFor } from './CardFrameFactory';
+import {
+  BADGE_H,
+  CARD_FACE,
+  CARD_FACE_H,
+  CARD_FACE_W,
+  FRAME_INNER,
+  FULL_ART_FACE,
+  LAND_MANA_ROW,
+  type Rect,
+} from '../config/cardFaceGeometry';
 import { applyHolo, type HoloHandle } from './fx/HoloEffects';
 import { fxPolicy } from './fx/FXSupport';
 import { IridescencePostFX } from './fx/IridescencePostFX';
@@ -15,35 +25,26 @@ import { manaPipPadding, renderManaText, type ManaTextRender } from './ManaText'
 import { pipsFor } from './ManaSymbols';
 import { rulesText, typeLine } from './rulesText';
 
-export const CARD_W = 300;
-export const CARD_H = 420;
+export const CARD_W = CARD_FACE_W;
+export const CARD_H = CARD_FACE_H;
 
-// Art window in card-local (center-origin) coordinates.
-const ART_RECT = { x: -132, y: -164, w: 264, h: 192 };
-// Full-art window follows the baked frame face: the 18px (2x texture) inset
-// leaves the card's rounded metal border visible on every edge.
-const FULL_ART_RECT = { x: -141, y: -201, w: 282, h: 402 };
-const FACE_RECT = { x: -150, y: -210, w: 300, h: 420 };
-type ArtWindow = typeof ART_RECT;
+// Art windows in card-local (center-origin) coordinates come from the shared
+// card-face geometry (the frame bake reads the same numbers): CARD_FACE.art
+// for the standard 264x216 window, FULL_ART_FACE.art for full art.
+const FACE_RECT = { x: -CARD_W / 2, y: -CARD_H / 2, w: CARD_W, h: CARD_H };
 const TEXT_LEFT = -126;
 const TEXT_WIDTH = 252;
 // Badge-row geometry (user spec 2026-07-13): the cost tray's bottom-left
 // corner and the P/T plate's bottom-right corner sit exactly on the frame's
-// INNER bottom corners (the 9px frame-face inset — same derivation as
-// FULL_ART_RECT), both growing TOWARD center; the set symbol rides its own
-// centered plate so the row reads symmetric regardless of cost/stat widths.
-const FRAME_INNER = { left: -141, right: 141, bottom: 201 } as const;
-const BADGE_H = 31;
+// INNER bottom corners (the 9px frame-face inset, FRAME_INNER), both growing
+// TOWARD center; the set symbol rides its own centered plate so the row
+// reads symmetric regardless of cost/stat widths.
 const BOTTOM_BADGE_Y = FRAME_INNER.bottom - BADGE_H / 2; // 185.5
 const GEM_PLATE_W = 44;
 const BOTTOM_PIP_SIZE = 21;
 // Duty uses the land tap texture, reduced below the card's cost-row beads.
 const DUTY_RULES_PIP_SIZE = BOTTOM_PIP_SIZE * 0.82; // 17.22 card-local pixels
 const SET_ICON_SIZE = 24; // set symbols are leaner silhouettes than the old diamond gem
-const LAND_MANA_ROW = {
-  mono: { pip: 48, gap: 10, arrowW: 24, orW: 26, arrowFont: 24, orFont: 20 },
-  multi: { pip: 36, gap: 8, arrowW: 20, orW: 20, arrowFont: 20, orFont: 16 },
-} as const;
 
 /**
  * Shrink-to-fit with RE-WRAP: when a text block must scale down by s to fit
@@ -134,8 +135,6 @@ export class CardView extends Phaser.GameObjects.Container {
   private rulesTextObj: Phaser.GameObjects.Text;
   private plainRulesTextObj: Phaser.GameObjects.Text;
   private manaRules: ManaTextRender | null = null;
-  private flavorTextObj: Phaser.GameObjects.Text;
-  private flavorRule: Phaser.GameObjects.Rectangle;
   private ptPlate: Phaser.GameObjects.Image;
   private gemPlate: Phaser.GameObjects.Image;
   private ptText: Phaser.GameObjects.Text;
@@ -163,7 +162,7 @@ export class CardView extends Phaser.GameObjects.Container {
       .image(0, 0, 'frame-tint')
       .setDisplaySize(CARD_W, CARD_H)
       .setVisible(false);
-    this.art = scene.add.image(0, ART_RECT.y + ART_RECT.h / 2, '__WHITE');
+    this.art = scene.add.image(0, CARD_FACE.art.y + CARD_FACE.art.h / 2, '__WHITE');
     this.ring = scene.add.image(0, 0, 'frame-ring').setDisplaySize(CARD_W, CARD_H).setVisible(false);
     // Plate alphas are the WCAG floor-holding values — see the full-art fade
     // note in setCard before lowering them further.
@@ -172,7 +171,7 @@ export class CardView extends Phaser.GameObjects.Container {
       .setStrokeStyle(1.5, 0x6b5a3e, 0.4)
       .setVisible(false);
     this.typePlate = scene.add
-      .rectangle(0, 45, 268, 22, 0xf7f1dc, 0.7)
+      .rectangle(0, CARD_FACE.typeY, 268, 22, 0xf7f1dc, 0.7)
       .setStrokeStyle(1.5, 0x6b5a3e, 0.4)
       .setVisible(false);
     this.textPlate = scene.add
@@ -191,7 +190,7 @@ export class CardView extends Phaser.GameObjects.Container {
       .setOrigin(0, 0.5);
 
     this.typeText = scene.add
-      .text(TEXT_LEFT, 45, '', {
+      .text(TEXT_LEFT, CARD_FACE.typeY, '', {
         fontFamily: 'Inter, Arial, sans-serif',
         fontSize: '12px',
         fontStyle: '600',
@@ -201,7 +200,7 @@ export class CardView extends Phaser.GameObjects.Container {
       .setOrigin(0, 0.5);
 
     this.rulesTextObj = scene.add
-      .text(TEXT_LEFT, 66, '', {
+      .text(TEXT_LEFT, CARD_FACE.textTop, '', {
         fontFamily: 'Inter, Arial, sans-serif',
         fontSize: '13px',
         color: '#20180e',
@@ -211,26 +210,6 @@ export class CardView extends Phaser.GameObjects.Container {
       })
       .setOrigin(0, 0);
     this.plainRulesTextObj = this.rulesTextObj;
-
-    // Flavor renders as its own italic block at the bottom of the text area,
-    // in a warm muted sepia to separate it from the rules text above. A faint
-    // hairline divider sits above it. Both positioned/sized in setCard.
-    this.flavorRule = scene.add
-      .rectangle(TEXT_LEFT, 66, TEXT_WIDTH, 1, 0x6b5a3e, 0.35)
-      .setOrigin(0, 0.5)
-      .setVisible(false);
-    this.flavorTextObj = scene.add
-      .text(TEXT_LEFT, 66, '', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '12px',
-        fontStyle: 'italic',
-        color: '#6b5a3e',
-        resolution: 2,
-        wordWrap: { width: TEXT_WIDTH },
-        lineSpacing: 2,
-      })
-      .setOrigin(0, 0)
-      .setVisible(false);
 
     // Right-anchored: the plate's bottom-right corner sits on the frame's
     // inner bottom-right corner; wider P/T text grows the plate leftward.
@@ -278,8 +257,6 @@ export class CardView extends Phaser.GameObjects.Container {
       this.retellIcon,
       this.typeText,
       this.rulesTextObj,
-      this.flavorRule,
-      this.flavorTextObj,
       this.ptPlate,
       this.ptText,
       this.costPlate,
@@ -330,15 +307,12 @@ export class CardView extends Phaser.GameObjects.Container {
     this.ptText.setVisible(false);
     this.costPlate.setVisible(false);
     this.crown.setVisible(false);
-    // Flavor is opt-in per card; hidden by default and shown below only when
-    // the card actually has flavor text (and is face-up).
-    this.flavorTextObj.setVisible(false);
-    this.flavorRule.setVisible(false);
     if (!card) return this;
 
     const fx: CardFxLevel = opts.fx ?? 'static';
     const fullArt = opts.fullArt === true || opts.variant?.fullArt === true;
-    const artRect = fullArt ? FULL_ART_RECT : ART_RECT;
+    const face = fullArt ? FULL_ART_FACE : CARD_FACE;
+    const artRect = face.art;
 
     // Frame + art
     this.frame.setTexture(frameKeyFor(card.colors, card.types)).setDisplaySize(CARD_W, CARD_H);
@@ -374,53 +348,26 @@ export class CardView extends Phaser.GameObjects.Container {
       this.rulesTextObj.setText(rules);
     }
     // Land faces get a composed mana-iconography row ([T] → [pip]) centered
-    // in the otherwise-empty textbox; flavor (if any) drops below the row.
+    // in the otherwise-empty textbox.
     const manaRow = isType(card, 'land') ? (card.manaAbility ?? []) : [];
     // Taplands print their rules line ("Enters play tapped.") above the mana
     // row, MTG-style; the layout budgets one line there, so land rules text
     // must stay a single short line.
     const hasLandRules = manaRow.length > 0 && rules.length > 0;
-    const textTop = manaRow.length > 0 && !hasLandRules ? 132 : 66;
+    const textTop = face.textTop;
     // Non-land mana abilities compose an icon line ([T]: Add [pip]) at the
     // top of the rules box (replacing the old "Tap: add G." text line); the
     // text block starts below it.
     const abilityMana = !isType(card, 'land') ? (card.manaAbility ?? []) : [];
     const MANA_LINE_H = abilityMana.length > 0 ? 24 : 0;
     this.rulesTextObj.setPosition(TEXT_LEFT, textTop + MANA_LINE_H);
-    // The textbox spans from textTop down to the safe bottom edge. Flavor text
-    // is anchored to that bottom edge, directly above cost/stat badges; rules
-    // text keeps the top of the box and shrinks if the two blocks would collide.
+    // The rules text owns the whole box, from textTop down to the safe bottom
+    // edge above the cost/stat badges, and shrinks to fit it. The card
+    // carries no flavor text (owner ruling R13, 2026-09-25).
     const pipSpecs = pipsFor(card.cost ?? { generic: 0, pips: {} });
-    const BOX_BOTTOM = 166;
-    const BOX_H = BOX_BOTTOM - textTop - MANA_LINE_H;
-    const DIVIDER_GAP = 8; // space between rules block and the hairline
-    const AFTER_DIVIDER = 6; // hairline to flavor text
-    // Full art drops the lore line entirely (user spec 2026-07-13) — the
-    // rules field stays operational-only and the art owns the mood.
-    const hasFlavor = !!card.flavor && !fullArt;
-
-    // Measure the flavor block first (height is needed to size the rules box).
-    // Windows font-fallback trap: measure height only AFTER setText.
-    // Cap flavor to the lower slice of the box, then place it bottom-up.
-    const maxFlavorH = Math.max(1, Math.min(BOX_H * 0.6, BOX_H - DIVIDER_GAP - 1 - AFTER_DIVIDER));
-    if (hasFlavor) {
-      this.flavorTextObj.setText(card.flavor!);
-      fitWrappedText(this.flavorTextObj, maxFlavorH);
-    }
-    const scaledFlavorH = hasFlavor ? this.flavorTextObj.height * this.flavorTextObj.scaleY : 0;
-    const flavorBlock = hasFlavor ? DIVIDER_GAP + 1 + AFTER_DIVIDER + scaledFlavorH : 0;
-    const RULES_BOX_H = Math.max(1, BOX_H - flavorBlock);
-    fitWrappedText(this.rulesTextObj, RULES_BOX_H);
-
-    // Position the flavor block from the bottom upward, independent of how
-    // sparse the rules text is. Bare cards therefore read like printed cards:
-    // empty rules area above, flavor resting near the lower edge.
-    if (hasFlavor) {
-      const flavorTop = BOX_BOTTOM - scaledFlavorH;
-      const dividerY = flavorTop - AFTER_DIVIDER;
-      this.flavorRule.setPosition(TEXT_LEFT, dividerY).setVisible(true);
-      this.flavorTextObj.setPosition(TEXT_LEFT, flavorTop).setVisible(true);
-    }
+    const BOX_BOTTOM = face.boxBottom;
+    const BOX_H = Math.max(1, BOX_BOTTOM - textTop - MANA_LINE_H);
+    fitWrappedText(this.rulesTextObj, BOX_H);
     // Full-art fade: plates and text drop opacity but hold WCAG AA. Worst
     // case is pure-black art behind the plate: effective background
     // luminance = plateAlpha × plateLum (≈0.83), effective text luminance =
@@ -439,8 +386,8 @@ export class CardView extends Phaser.GameObjects.Container {
     // type band rides down to sit directly on the text block, so the whole
     // operational assembly gathers at the card's foot.
     let fieldTop = textTop;
-    this.typePlate.setPosition(0, 45);
-    this.typeText.setY(45);
+    this.typePlate.setPosition(0, face.typeY);
+    this.typeText.setY(face.typeY);
     if (fullArt) {
       this.namePlate.setVisible(true);
       this.typePlate.setVisible(true);
@@ -527,8 +474,10 @@ export class CardView extends Phaser.GameObjects.Container {
       const OR_W = size.orW; // the "or" separator between adjacent color pips
       const SEP = GAP + OR_W + GAP; // one constant shared by width, label x, and advance
       // Centered in the free box when bare; nudged down past the rules line
-      // (one line ending ~81) when the land prints one, e.g. taplands.
-      const rowY = hasLandRules ? 108 : hasFlavor ? 100 : 128;
+      // when the land prints one, e.g. taplands. Never closer than 2px to the
+      // badge row's top edge.
+      const rowMaxY = BOX_BOTTOM + 2 - PIP / 2;
+      const rowY = Math.min(hasLandRules ? face.landRowY.belowRules : face.landRowY.bare, rowMaxY);
       const rowW = PIP + GAP + ARROW_W + GAP + manaRow.length * PIP + (manaRow.length - 1) * SEP;
       let ix = -rowW / 2 + PIP / 2;
       const tap = this.scene.add.image(ix, rowY, 'pip-T').setDisplaySize(PIP, PIP);
@@ -675,7 +624,7 @@ export class CardView extends Phaser.GameObjects.Container {
    * other layer are left as they are). A new setCard, or destroy, ends the
    * wait.
    */
-  private applyArt(card: CardDef, landStyle: string | undefined, artRect: ArtWindow): void {
+  private applyArt(card: CardDef, landStyle: string | undefined, artRect: Rect): void {
     const artRef = Art.resolver!.getArt(card.id, landStyle);
     if (artRef.frameName) this.art.setTexture(artRef.textureKey, artRef.frameName);
     else this.art.setTexture(artRef.textureKey);
@@ -729,8 +678,6 @@ export class CardView extends Phaser.GameObjects.Container {
       this.rulesTextObj,
       ...(this.manaRules?.pips ?? []),
       ...(this.manaRules?.numbers ?? []),
-      this.flavorRule,
-      this.flavorTextObj,
       this.costPlate,
       ...this.pips,
       this.ptPlate,
@@ -867,7 +814,7 @@ export class CardView extends Phaser.GameObjects.Container {
   }
 
   private renderRulesWithPips(rules: string): ManaTextRender {
-    const render = (raw: string): ManaTextRender => renderManaText(this.scene, this, TEXT_LEFT, 66, raw, {
+    const render = (raw: string): ManaTextRender => renderManaText(this.scene, this, TEXT_LEFT, CARD_FACE.textTop, raw, {
       fontFamily: 'Inter, Arial, sans-serif',
       fontSize: '13px',
       color: '#20180e',
@@ -933,8 +880,6 @@ export class CardView extends Phaser.GameObjects.Container {
     this.namePlate.setVisible(false);
     this.typePlate.setVisible(false);
     this.textPlate.setVisible(false);
-    this.flavorTextObj.setScale(1).setVisible(false);
-    this.flavorRule.setVisible(false);
     for (const p of this.pips) p.destroy();
     this.pips = [];
   }

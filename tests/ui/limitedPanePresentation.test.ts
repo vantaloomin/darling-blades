@@ -39,14 +39,11 @@ describe('Limited details panel', () => {
     expect(L.selected.nameY).toBeGreaterThanOrEqual(L.dualsY + H.caption);
   });
 
-  it('budgets two lines for a long card name and caps the flavor', () => {
+  it('budgets two lines for a long card name and keeps the readout above the issue list', () => {
     // Names wrap at h2 over 330px, so the detail line must clear two of them.
     expect(L.selected.detailY - L.selected.nameY).toBeGreaterThanOrEqual(2 * H.h2);
-    expect(L.selected.flavorY).toBeGreaterThanOrEqual(L.selected.detailY + H.label);
-    // Flavor is capped so it can never push the issue list off the panel.
-    expect(L.selected.flavorMaxLines).toBeLessThanOrEqual(2);
-    const flavorBottom = L.selected.flavorY + L.selected.flavorMaxLines * H.label;
-    expect(L.issuesY).toBeGreaterThanOrEqual(flavorBottom);
+    // The one-line detail readout ends above the issue list.
+    expect(L.issuesY).toBeGreaterThanOrEqual(L.selected.detailY + H.label);
   });
 
   it('leaves the issue list room for four lines inside the panel', () => {
