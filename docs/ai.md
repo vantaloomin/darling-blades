@@ -236,6 +236,26 @@ engine's exact firstBlade/overrun/deathblade math beats any heuristic:
 The margins exist because the inert opponent model makes small eval deltas
 noisy — deviations must earn their keep.
 
+**Cost (1.9 lane F, 2026-09-28).** A go-wide game cost the Hard brain about
+ten times a midrange one, which kept the weenie persona out of the 1.8
+sweep. A CPU profile of greedy weenie against the prefab field put 54% of
+the time in the attack lookahead, 22% in block simulations and 9% in the
+main search; underneath, 42% was the engine deep-copying the whole legacy
+state on every submit, and 17% the combat planner recomputing each
+creature's effective stats for every blocker and attacker pair. Two
+decision-preserving changes cut it: a per-call board memo in
+`combatPlans.ts` (stats, `permValue`, `canBlock` and duel results, keyed by
+instance id in nested maps) plus a per-decision cache of simulated block
+plans in `searchBlocks`, and an engine `legacyState` that copies only the
+fields it keeps. Weenie games went from 1,441 to 681 ms (2.1x) and midrange
+from 177 to 100 ms (1.8x). The proof that no decision changed is
+`scripts/action-log.ts`: seeded games recorded action for action and
+compared, with 0 divergences over the warchest, Darlings and classic sets
+(about 25,000 actions each) and an old-versus-new engine differential over
+11,000 games; lane A reuses the same harness for its Hard reads. Capping
+the attack search (8 candidates: 1.8% of attack choices change for about
+12% of weenie time) was measured and not taken, because it changes play.
+
 ### The evaluation function
 
 `src/ai/evaluate.ts` scores a position for the player to move. Inputs:

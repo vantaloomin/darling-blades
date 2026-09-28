@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { RULES } from '../../src/config/rules';
+import type { Action } from '../../src/engine/actions';
 import { Game } from '../../src/engine/Game';
 import { botAction, deckOf, runBotGame, smallGreenDeck, TEST_DB } from '../helpers';
 
@@ -38,6 +39,31 @@ describe('determinism', () => {
     aState.players[0].hand.push({ cardId: 'forest', instanceId: 9999, variantKey: null });
     expect(JSON.stringify(aState)).not.toBe(snapshot);
     expect(JSON.stringify(bState)).toBe(snapshot);
+  });
+
+  it('a public state or view handed out earlier is a snapshot that later play never writes through', () => {
+    // game.state and viewFor are projections of the live state, which the
+    // engine mutates in place. Any object a projection shared with the live
+    // state would change under a caller still holding the earlier projection.
+    const g = new Game({ decks: [smallGreenDeck(), smallGreenDeck()], seed: 777, db: TEST_DB });
+    const held: { projections: unknown[]; json: string }[] = [];
+    let mulliganed = false;
+    for (let step = 0; step < 20_000; step++) {
+      const awaiting = g.awaiting;
+      if (awaiting.kind === 'gameOver') break;
+      const projections = [g.state, g.viewFor(0), g.viewFor(1)];
+      held.push({ projections, json: JSON.stringify(projections) });
+      const legal = g.legalActions(awaiting.player);
+      // One mulligan reshuffles through the rng in place, so the earlier
+      // projections' copy of the rng is checked too, not only the zones.
+      const mulligan: Action | undefined = mulliganed ? undefined : legal.find((action) => action.type === 'mulligan');
+      mulliganed ||= mulligan !== undefined;
+      g.submit(awaiting.player, mulligan ?? botAction(legal));
+    }
+    expect(mulliganed).toBe(true);
+    expect(g.state.winner).not.toBeNull();
+    expect(held.length).toBeGreaterThan(100);
+    expect(held.findIndex((h) => JSON.stringify(h.projections) !== h.json)).toBe(-1);
   });
 
   it('keeps an absent hand-size override byte-identical to the shipped default', () => {
