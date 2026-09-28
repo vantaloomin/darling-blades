@@ -187,7 +187,7 @@ export const INSTANTS = [
     name: 'Stand as One',
     types: ['charm'],
     subtypes: [],
-    cost: cost(1, 'W'),
+    cost: cost(0, 'W'),
     colors: ['W'],
     abilities: [{ when: 'spell', ops: [{ op: 'boost', p: 1, t: 1, scope: 'allYours' }] }],
     rarity: 'r',
