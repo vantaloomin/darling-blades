@@ -54,6 +54,13 @@ export const TUTORIAL_AI_DECK: readonly string[] = [
 export const TUTORIAL_OPPONENT_PORTRAIT = 'dd-watch-sergeant';
 
 /**
+ * The teaching opponent's name on her portrait plate and turn banner, in place
+ * of the unnamed-practice fallback. The owner's ruling (1.9): "use only Alder,
+ * as Alder", matching the Watch-Sergeant Alder portrait above.
+ */
+export const TUTORIAL_OPPONENT_NAME = 'Alder';
+
+/**
  * Both Warchests are ten Plains. The reserve payload is validated like any
  * other duel (`firstReserveConfigIssue`: exactly LAND_RESERVE_SIZE lands, at
  * most MAX_DUAL_LANDS duals), and all-basic keeps the teaching duel free of

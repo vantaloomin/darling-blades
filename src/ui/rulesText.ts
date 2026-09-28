@@ -415,7 +415,7 @@ function conditionPhrase(ab: AbilityDef, additionalDawn = false): string | undef
     return `If you ${also}control a Marked creature`;
   }
   if (condition.kind === 'controlsOther') return `If you ${also}control another ${condition.subtype}`;
-  return `If you ${also}control ${countWord(condition.n)} or more creatures with Marks`;
+  return `If you ${also}control ${countWord(condition.n)} or more Marked creatures`;
 }
 
 function abilityText(ab: AbilityDef, d: CardDef, additionalDawn = false): string {

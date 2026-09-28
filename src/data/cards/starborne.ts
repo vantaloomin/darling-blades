@@ -272,7 +272,6 @@ export const STARBORNE = [
   artifact('sb-umbral-antenna', 'Umbral Antenna', {
     cost: cost(4), colors: B,
     abilities: [
-      arrives([{ op: 'grind', n: 1, who: 'self' }]),
       dawn([{ op: 'foresee', n: 1 }, { op: 'grind', n: 1, who: 'self' }]),
       {
         when: 'dawn',

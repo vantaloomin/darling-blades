@@ -108,7 +108,7 @@ describe('2026-08-30 rules text templates', () => {
     expect(rulesText(CARD_DB['sb-starborne-relay'])).toBe([
       'When this arrives, draw a card.',
       'During your Dawn, Foresee 1.',
-      'If you also control four or more creatures with Marks, draw an extra card.',
+      'If you also control four or more Marked creatures, draw an extra card.',
     ].join('\n'));
     expect(rulesText(CARD_DB['sb-violet-wake-beacon'])).toBe([
       'When this arrives, create one 1/1 Nebula Firefly token with Skyborne.',
@@ -116,7 +116,7 @@ describe('2026-08-30 rules text templates', () => {
     ].join('\n'));
     expect(rulesText(CARD_DB['sb-signal-cathedral'])).toBe([
       'During your Dawn, Foresee 2.',
-      'If you also control five or more creatures with Marks, draw an extra card.',
+      'If you also control five or more Marked creatures, draw an extra card.',
     ].join('\n'));
   });
 
