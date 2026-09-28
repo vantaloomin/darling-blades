@@ -591,11 +591,16 @@ export const HEADER_CURRENCY_ANCHOR: Readonly<Point> = {
  * it never shares a band with the back button or the gold badge. Seven menus
  * set a 44px title centred at y 44-52 until 1.8.1 (2026-09-25), which started
  * its box above the frame's top edge (y 36).
+ *
+ * `fontSize` is read live (the h1 role at the text size in force: 28, 30, 32),
+ * so a title built after a text-size change takes it.
  */
 export const SCENE_TITLE = {
   x: theme.design.safeCenterX,
   y: theme.design.headerCenterY,
-  fontSize: theme.type.h1,
+  get fontSize(): number {
+    return theme.type.h1;
+  },
   /** Top edge of the line under the title (text origin 0.5, 0). */
   subtitleTop: theme.design.safeTop + theme.control.minHitHeight + theme.space(1),
 } as const;

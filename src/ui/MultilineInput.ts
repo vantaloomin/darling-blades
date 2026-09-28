@@ -57,7 +57,7 @@ export function createMultilineInput(
       `height:${opts.height}px`,
       'box-sizing:border-box',
       'padding:12px',
-      `font:14px ${opts.readOnly ? 'monospace' : theme.fonts.ui}`,
+      `font:${theme.type.label}px ${opts.readOnly ? 'monospace' : theme.fonts.ui}`,
       'line-height:1.45',
       `color:${theme.colors.body}`,
       `background:${theme.colors.btnGhostBg}`,

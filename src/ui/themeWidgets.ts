@@ -2,6 +2,14 @@ import Phaser from 'phaser';
 import { bindTapButton, inflateHitArea } from '../platform/gestures';
 import { colorInt, theme } from './theme';
 import {
+  controlFontSize,
+  controlStrokeWidth,
+  themedButtonColors,
+  triggerSelectedMark,
+  type ThemedButtonColors,
+  type ThemedButtonVariant,
+} from './controlStyle';
+import {
   anchoredControlBounds,
   controlPadding,
   DROPDOWN_GEOMETRY,
@@ -29,7 +37,7 @@ import {
 } from './OverlayCoordinator';
 import type { BackLabel } from './navigation';
 
-export type ButtonVariant = 'primary' | 'emphasis' | 'ghost' | 'danger';
+export type ButtonVariant = ThemedButtonVariant;
 export type ButtonSize = ControlSize;
 
 export interface ThemedButtonOptions {
@@ -59,13 +67,6 @@ export interface ThemedButton {
   setEnabled(enabled: boolean): void;
 }
 
-const BUTTON_STYLE: Record<ButtonVariant, { bg: string; fg: string; stroke: string; hoverStroke: string }> = {
-  primary: { bg: theme.colors.btnPrimaryBg, fg: theme.colors.onGold, stroke: theme.colors.goldHover, hoverStroke: theme.colors.heading },
-  emphasis: { bg: theme.colors.btnEmphasisBg, fg: theme.colors.gold, stroke: theme.colors.panelStroke, hoverStroke: theme.colors.goldHover },
-  ghost: { bg: theme.colors.btnGhostBg, fg: theme.colors.body, stroke: theme.colors.panelStroke, hoverStroke: theme.colors.goldHover },
-  danger: { bg: theme.colors.dangerBg, fg: theme.colors.danger, stroke: theme.colors.dangerArmed, hoverStroke: theme.colors.danger },
-};
-
 /** Rounded button chrome with an explicit Zone input target (never the container). */
 export function themedButton(
   scene: Phaser.Scene,
@@ -74,11 +75,10 @@ export function themedButton(
   initialLabel: string,
   opts: ThemedButtonOptions = {},
 ): ThemedButton {
-  const variant = opts.variant ?? 'ghost';
+  let variant = opts.variant ?? 'ghost';
   const size = opts.size ?? 'md';
-  let style = BUTTON_STYLE[variant];
   const height = size === 'sm' ? theme.control.heightSm : theme.control.heightMd;
-  const fontSize = size === 'sm' ? theme.type.caption : theme.type.label;
+  const fontSize = controlFontSize(size);
   const container = scene.add.container(x, y);
   const background = scene.add.graphics();
   const label = scene.add
@@ -86,7 +86,7 @@ export function themedButton(
       fontFamily: theme.fonts.ui,
       fontSize: `${fontSize}px`,
       fontStyle: theme.weight.w600,
-      color: style.fg,
+      color: themedButtonColors(variant).fg,
     })
     .setOrigin(0.5);
   const inputZone = scene.add.zone(0, 0, 1, height).setInteractive({ useHandCursor: true });
@@ -97,6 +97,7 @@ export function themedButton(
   let measurement = measureThemedButton(label.width, size, opts.minWidth ?? 0, opts.padding);
   const redraw = (): void => {
     measurement = measureThemedButton(label.width, size, opts.minWidth ?? 0, opts.padding);
+    const style = themedButtonColors(variant);
     background.clear();
     background.fillStyle(colorInt(style.bg), 1);
     background.fillRoundedRect(
@@ -107,7 +108,7 @@ export function themedButton(
       theme.radius.control,
     );
     background.lineStyle(
-      theme.control.borderWidth,
+      controlStrokeWidth(hovered),
       colorInt(hovered ? style.hoverStroke : style.stroke),
       hovered ? 1 : theme.alpha.chrome,
     );
@@ -140,8 +141,8 @@ export function themedButton(
     redraw();
   };
   const setVariant = (next: ButtonVariant): void => {
-    style = BUTTON_STYLE[next];
-    label.setColor(style.fg);
+    variant = next;
+    label.setColor(themedButtonColors(variant).fg);
     redraw();
   };
 
@@ -244,9 +245,8 @@ export function roundedTrigger(
   let hovered = false;
   let pressed = false;
   let open = false;
-  let style = BUTTON_STYLE[variant];
   const height = size === 'sm' ? theme.control.heightSm : theme.control.heightMd;
-  const fontSize = size === 'sm' ? theme.type.caption : theme.type.label;
+  const fontSize = controlFontSize(size);
   const padding = opts.padding ?? controlPadding(size);
   const parts = opts.parts;
   const container = scene.add.container(0, 0);
@@ -256,7 +256,7 @@ export function roundedTrigger(
       fontFamily: theme.fonts.ui,
       fontSize: `${fontSize}px`,
       fontStyle: theme.weight.w600,
-      color: parts ? theme.colors.muted : style.fg,
+      color: parts ? theme.colors.muted : themedButtonColors(variant).fg,
     })
     .setOrigin(parts ? 0 : 0.5, 0.5);
   const value = parts
@@ -296,8 +296,8 @@ export function roundedTrigger(
       )
     : null;
   let measurement = fixedMeasurement ?? measureThemedButton(label.width, size, opts.minWidth ?? 0, padding);
-  const activeStyle = (): { bg: string; fg: string; stroke: string; hoverStroke: string } =>
-    selected && variant === 'ghost' ? BUTTON_STYLE.emphasis : style;
+  const activeStyle = (): ThemedButtonColors =>
+    themedButtonColors(selected && variant === 'ghost' ? 'emphasis' : variant);
   let placed = false;
   const redraw = (): void => {
     // Keep the trigger's visual left edge fixed when a hover/selection redraw
@@ -316,7 +316,7 @@ export function roundedTrigger(
       theme.radius.control,
     );
     background.lineStyle(
-      theme.control.borderWidth,
+      controlStrokeWidth(hovered || pressed),
       colorInt(hovered || pressed ? stateStyle.hoverStroke : stateStyle.stroke),
       hovered || pressed ? 1 : theme.alpha.chrome,
     );
@@ -327,6 +327,14 @@ export function roundedTrigger(
       measurement.visual.height,
       theme.radius.control,
     );
+    // The selected mark: a short gold bar on the bottom edge, over the
+    // border, so a selected tab or chip does not differ by colour alone. A
+    // select (`parts`) is excluded: its open state flips the chevron.
+    if (selected && !parts) {
+      const mark = triggerSelectedMark({ visual: measurement.visual, labelWidth: label.width, padding });
+      background.fillStyle(colorInt(theme.colors.gold), 1);
+      background.fillRect(mark.x, mark.y, mark.width, mark.height);
+    }
     if (parts && value && chevron) {
       const textX = measurement.visual.x + padding;
       label.setColor(theme.colors.muted);
@@ -379,7 +387,6 @@ export function roundedTrigger(
   };
   const setVariant = (next: Extract<ButtonVariant, 'emphasis' | 'ghost'>): void => {
     variant = next;
-    style = BUTTON_STYLE[next];
     redraw();
   };
   const setSelected = (next: boolean): void => {
@@ -854,7 +861,7 @@ export function goldBadge(
   const text = scene.add
     .text(x, y, '🪙 0', {
       fontFamily: theme.fonts.ui,
-      fontSize: '20px',
+      fontSize: `${theme.type.h2}px`,
       fontStyle: theme.weight.w600,
       color: theme.colors.gold,
     })
@@ -911,9 +918,12 @@ export function pager(
   // below the middle-anchored label), and the label centers BETWEEN the
   // chevrons so "1 / 1" and "10 / 12" both sit symmetric (user-reported
   // 2026-07-12).
-  const previous = scene.add.text(x, y, '‹', { fontFamily: theme.fonts.display, fontSize: '24px', color: theme.colors.gold }).setOrigin(0, 0.5);
+  // The chevrons are the h2 role plus one grid step: 24px at the standard
+  // text size (their size before 1.9), following h2 as text grows.
+  const chevronSize = `${theme.type.h2 + theme.space(1)}px`;
+  const previous = scene.add.text(x, y, '‹', { fontFamily: theme.fonts.display, fontSize: chevronSize, color: theme.colors.gold }).setOrigin(0, 0.5);
   const label = scene.add.text(x + 51, y, '', { fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px`, color: theme.colors.body }).setOrigin(0.5);
-  const next = scene.add.text(x + 88, y, '›', { fontFamily: theme.fonts.display, fontSize: '24px', color: theme.colors.gold }).setOrigin(0, 0.5);
+  const next = scene.add.text(x + 88, y, '›', { fontFamily: theme.fonts.display, fontSize: chevronSize, color: theme.colors.gold }).setOrigin(0, 0.5);
   const container = scene.add.container(0, 0, [previous, label, next]);
   let current = page;
   let total = pageCount;
