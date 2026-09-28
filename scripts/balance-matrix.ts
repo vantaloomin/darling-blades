@@ -47,6 +47,13 @@
  *   --seeds <n>          Games per cell (default 20).
  *   --telemetry          Collect read-only per-game Warchest diagnostic data.
  *   --telemetry-out <p>  Also write full per-deck/per-cell telemetry JSON.
+ *   --usage              Mechanic usage audit on --avatars, --avatars-reserve
+ *                        and --avatars-darlings: a read-only wrapper on the
+ *                        row AI counts, per boss, the turns each mechanic
+ *                        was a chance and was taken, cast when seen, and
+ *                        uses per cast (docs/plan-mechanic-usage-audit.md).
+ *                        With --telemetry-out the rows join the JSON as
+ *                        `usage`. Off by default; no number moves either way.
  *   --only <id,id,...>   Avatar-matrix row filter for fast tuning iteration
  *                        (e.g. --only simayi,menghuo). Cell seeds are keyed by
  *                        (rung, starter) so filtered runs reproduce the exact
@@ -96,6 +103,7 @@ import {
   type ReserveMatrixDeck,
   type WarchestTuningField,
 } from './reserveMatrixDecks';
+import { MechanicUsageCollector, type UsageBossInfo } from './mechanicUsageCollector';
 
 // ---------------------------------------------------------------------------
 // Core sim
@@ -202,6 +210,15 @@ function cellTelemetry(
   colDeck: string,
 ): CellTelemetryOptions | undefined {
   return collector ? { collector, matrix, rowDeck, colDeck } : undefined;
+}
+
+/** `--usage`: wrap a row-AI factory in the read-only usage recorder, or pass it through. */
+function usageRowAI<A extends unknown[]>(
+  usage: MechanicUsageCollector | undefined,
+  info: UsageBossInfo,
+  factory: (...args: A) => AIPlayer,
+): (...args: A) => AIPlayer {
+  return usage ? usage.wrapFactory(info, factory) : factory;
 }
 
 export interface CellSpec {
@@ -590,6 +607,7 @@ export function runAvatarMatrix(
   seedsPerCell: number,
   onlyIds?: string[],
   telemetry?: BalanceTelemetryCollector,
+  usage?: MechanicUsageCollector,
 ): AvatarMatrixReport {
   const columns = STARTER_DECKS.map((starter) => {
     if (!starter.reserveCards || !starter.landReserve) {
@@ -604,7 +622,11 @@ export function runAvatarMatrix(
     const cells = columns.map((starter, sIdx) =>
       runCell(
         {
-          rowAI: (seed) => buildAI(av.difficulty, CARD_DB, seed, av.personality),
+          rowAI: usageRowAI(
+            usage,
+            { matrix: 'avatars', id: av.id, name: av.name, tier: av.tier, list: { deck: av.reserveDeck } },
+            (seed: number) => buildAI(av.difficulty, CARD_DB, seed, av.personality),
+          ),
           colAI: () => new MediumAI(CARD_DB),
           decks: () => [av.reserveDeck, starter.cards],
           format: 'warchest',
@@ -690,6 +712,7 @@ export function runAvatarReserveMatrix(
   seedsPerCell: number,
   onlyIds?: string[],
   telemetry?: BalanceTelemetryCollector,
+  usage?: MechanicUsageCollector,
 ): AvatarReserveMatrixReport {
   const columns: readonly ReserveColumn[] =
     format === 'warchest'
@@ -714,7 +737,17 @@ export function runAvatarReserveMatrix(
     const cells = columns.map((proxy, cIdx) =>
       runCell(
         {
-          rowAI: (seed) => buildAI(av.difficulty, CARD_DB, seed, av.personality),
+          rowAI: usageRowAI(
+            usage,
+            {
+              matrix: `avatars-${format}`,
+              id: av.id,
+              name: av.name,
+              tier: av.tier,
+              list: { deck: avatarDeck, darlingId: format === 'darlings' ? av.darlingId : null },
+            },
+            (seed: number) => buildAI(av.difficulty, CARD_DB, seed, av.personality),
+          ),
           colAI: () => new MediumAI(CARD_DB),
           decks: () => [avatarDeck, proxy.cards],
           format,
@@ -1910,6 +1943,7 @@ function main(): void {
   }
   const wantTelemetry = flag('telemetry') || telemetryOut !== undefined;
   const telemetry = wantTelemetry ? new BalanceTelemetryCollector() : undefined;
+  const usage = flag('usage') ? new MechanicUsageCollector(CARD_DB) : undefined;
   const wantStarters = flag('starters');
   const wantDifficulty = flag('difficulty');
   const wantTiers = flag('tiers');
@@ -2010,9 +2044,9 @@ function main(): void {
 
   const t0 = Date.now();
   const reports: { table: string; flags?: string[] }[] = [];
-  if (wantAvatars) reports.push(runAvatarMatrix(seeds, only, telemetry));
-  if (wantAvatarsReserve) reports.push(runAvatarReserveMatrix('warchest', seeds, only, telemetry));
-  if (wantAvatarsDarlings) reports.push(runAvatarReserveMatrix('darlings', seeds, only, telemetry));
+  if (wantAvatars) reports.push(runAvatarMatrix(seeds, only, telemetry, usage));
+  if (wantAvatarsReserve) reports.push(runAvatarReserveMatrix('warchest', seeds, only, telemetry, usage));
+  if (wantAvatarsDarlings) reports.push(runAvatarReserveMatrix('darlings', seeds, only, telemetry, usage));
   if (wantStarters) reports.push(runStarterMatrix(seeds, telemetry));
   if (wantDifficulty) reports.push(runDifficultyMatrix(seeds, telemetry));
   if (wantTiers) reports.push(runTierMatrix(seeds, telemetry));
@@ -2036,10 +2070,13 @@ function main(): void {
     }
   }
   if (telemetry) console.log('\n' + telemetry.render());
+  if (usage) console.log('\n' + usage.render());
   if (telemetry && telemetryOut) {
     const outputPath = resolve(telemetryOut);
     mkdirSync(dirname(outputPath), { recursive: true });
-    writeFileSync(outputPath, JSON.stringify(telemetry.toJSON(), null, 2) + '\n', 'utf8');
+    // The usage key joins the JSON only under --usage, so a plain run writes the same bytes.
+    const json = usage ? { ...telemetry.toJSON(), usage: usage.toJSON() } : telemetry.toJSON();
+    writeFileSync(outputPath, JSON.stringify(json, null, 2) + '\n', 'utf8');
     console.log(`Telemetry JSON: ${outputPath}`);
   }
   console.log(`\n(${((Date.now() - t0) / 1000).toFixed(1)}s)`);

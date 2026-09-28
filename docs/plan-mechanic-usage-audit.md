@@ -1,10 +1,17 @@
-<!-- source-of-truth: src/ai/AIPlayer.ts, src/engine/actions.ts, src/engine/events.ts, src/meta/balanceTelemetry.ts, scripts/balance-matrix.ts, src/data/glossary.ts, tests/ai/documentedBehaviour.test.ts, tests/ai/winrate.test.ts, docs/ai.md · last-verified: 2026-09-19 · proposal for 1.9; NOTHING AUTHORIZED; re-verify when the owner rules on U1-U5 or a wave lands -->
+<!-- source-of-truth: src/ai/AIPlayer.ts, src/engine/actions.ts, src/engine/events.ts, src/meta/balanceTelemetry.ts, scripts/balance-matrix.ts, scripts/mechanicUsage.ts, scripts/mechanicUsageCollector.ts, tests/scripts/mechanicUsage.test.ts, src/data/glossary.ts, tests/ai/documentedBehaviour.test.ts, tests/ai/winrate.test.ts, docs/ai.md · last-verified: 2026-09-28 · waves 0-1 built on feat/19-usage-audit; re-verify when wave 2 lands -->
 
 # Mechanic usage audit: how often the brains use what they can (proposal, 2026-09-19)
 
 Status: **ON THE 1.9 LIST, ALL FIVE DECISIONS RULED 2026-09-25** (lane E of
 [plan-1.9.md](plan-1.9.md)): U1 yes, and U2-U5 as recommended at the end. It
 changes nothing that ships in 1.8.
+
+**Waves 0 and 1 BUILT 2026-09-28** (branch `feat/19-usage-audit`, awaiting
+review). The classifier is `scripts/mechanicUsage.ts`, the wrapper and the
+per-boss table are `scripts/mechanicUsageCollector.ts`, and `--usage` rides
+`--avatars`, `--avatars-reserve` and `--avatars-darlings`. The no-change test
+and the classifier tests are `tests/scripts/mechanicUsage.test.ts`. The
+re-based wave-1 gate (plan-1.9 D15) passed: see section 8. Wave 2 is next.
 
 The owner's question, 2026-09-19: "How do we get the brains to use all the
 mechanics appropriately?" This is the measurement half of the answer. The
@@ -74,7 +81,7 @@ can already count where it matters.
 | Retell | cast from the graveyard | `castSpell` with `retell` |
 | Whispers | cast from the graveyard at the Whispers cost | `castSpell` with `whispers` |
 | Tithe | sacrifice to discount | `castSpell` with `tithe` |
-| Rite | cast a card whose cost includes a sacrifice, and which creatures to give up | `castSpell` of a Rite card, with its `sacrifices` |
+| Rite | cast a card whose cost includes a sacrifice (the engine offers one canonical sacrifice set, so there is no "which creatures" choice to count; the same holds for Tithe) | `castSpell` of a Rite card |
 | Hauntlink | link, and move a link | `linkHaunt`, and whether the Hauntlink window was acted in |
 | Duty | activate the tap ability | `activate` |
 | Preserve | keep a card at cleanup | `preserveCard` |
@@ -99,8 +106,8 @@ because the wrapper reads only what the brain was given.
 **It rides the existing matrices.** `runCell` builds the row AI through a
 factory, so the wrapper drops in exactly where `--telemetry` does today. A
 new `--usage` flag on `scripts/balance-matrix.ts` turns it on for
-`--avatars` and `--avatars-reserve`. Off by default, so every current number
-stays byte-identical.
+`--avatars`, `--avatars-reserve` and `--avatars-darlings`. Off by default, so
+every current number stays byte-identical.
 
 **Three counts per mechanic, per boss, and the unit matters.**
 
@@ -119,7 +126,42 @@ stays byte-identical.
    card never arrives".
 
 Plus one context line per boss: mean turns per game, because a rate means
-different things at seven turns and at ten.
+different things at seven turns and at ten. (As built, a "turn" is the
+engine's turn counter, which counts both players' turns: Kitsune's "about
+seven turns each" reads 13.2, the Queen's "about ten" reads 21.4. A game's
+turns are the turn of her last decision in it.)
+
+**Definitions as built.**
+- "Seen" is hand arrivals net of her own removals, not draws. An opponent's
+  discard plus a redraw of the same card nets to zero; a card bounced to her
+  hand counts as seen again.
+- A Darling call counts as a cast of the Darling. Her "seen" stays 0 because
+  she starts in the command zone, and tax paydowns read per call.
+- Some actions count under two rows by design:
+  - a `linkHaunt` in a window is a Hauntlink move (or link) and a
+    Charm-speed play;
+  - a Whispers cast with Tithe counts under both;
+  - a Skim in a window is also a Charm-speed play.
+- A concession is never a Charm-speed chance. It is always legal.
+
+**Cheap meaningful-chance tests, as built.** A Hauntlink move counts a
+meaningful chance only when some legal host beats the current one by the
+policy's own public host fit, by more than the policy's own move margin
+(0.65 per link mana plus 0.25). It does not re-check the policy's other
+condition, that no friendly creature dies from the move, and it cannot see a
+window move's combat gain. A Hauntlink link is meaningful whenever legal,
+because a legal link implies an unlinked carrier. Every other chance is
+legal-only, and the table says so. Five checks run on the TAKEN action:
+- a ramp (extra land drop) cast, with her own turn of the cast and a flag
+  when no land is left in the reserve;
+- a Mark payoff (Propagate, a boost to her Marked) cast with no Marked
+  creature;
+- a Mark-all cast with no creature of her own (this over-states waste for a
+  card with another effect, such as Flareburst's damage);
+- a creature Duty in main phase 2 while the opponent has a creature with
+  Attack above 0 (coarse: a tapped, Bulwark or otherwise non-attacking enemy
+  still counts);
+- a main-phase Hauntlink move when the link already sat on the best host.
 
 **The output** is one table per boss in the matrix report, and the same rows
 in the `--telemetry-out` JSON:
@@ -160,6 +202,15 @@ mechanic once a full run has shown what normal looks like (U4).
 - **A game boundary is a fresh call to the AI factory.** That is the only
   reliable per-game hook the wrapper has.
 - **The hand is `view.you.hand`, a list of card ids.**
+- **A Retell or Whispers cast carries a `handIndex` too** (met in the build,
+  2026-09-28). It mirrors the graveyard index, so a classifier that reads
+  the hand by `handIndex` names the wrong card. Read the graveyard whenever
+  `graveIndex` is present.
+- **A wrapper sees the hand only at her own decisions** (measured 2026-09-28).
+  A card drawn after her last decision of a game, or drawn and gone again
+  between two decisions, never shows, so "seen" reads up to 0.5% under an
+  engine-side count. Stranded must be the hand her last action leaves, not
+  the hand she was shown.
 - **The wrapper must prove it changes nothing.** One test: the same seeded
   cell with and without the wrapper produces identical win counts, action for
   action.
@@ -189,6 +240,39 @@ minutes with the rows in parallel on this machine under the 65% CPU cap.
 
 Waves 0 and 1 are one agent contract, code only. Wave 2 is reading and
 writing, which is Fable's. Wave 3 cannot be scoped until wave 2 exists.
+
+**Waves 0 and 1, as landed (2026-09-28).** Wave 0's gate held. The no-change
+test replays two seeded Kitsune games action for action with and without the
+wrapper, and one seeded cell result, and it fails when the wrapper alters a
+choice. `--avatars --seeds 40` printed byte-identical win tables with and
+without `--usage` on rungs 1-6 (1,200 games), on the Bride and the Drowned
+Deacon (400 games) and, at 100 seeds, on the Queen of the Lanterned Roof.
+`--avatars-reserve` and `--avatars-darlings` tables were identical too, and
+the `--telemetry-out` JSON was identical apart from the added `usage` key.
+The cost was 1% on the Bride and Deacon run and 7% on the Queen's, whose
+Hauntlink move checks are the heaviest path; both runs shared the machine.
+
+Wave 1's gate was re-based by plan-1.9 D15 to a fresh count on the current
+tip. An independent probe counted from the engine event stream (`drew`,
+`spellCast`, `hauntlinkFormed`, the final hand), not from the brain's view,
+over the same 500 games per boss (`--avatars --seeds 100`; the probe's cell
+records matched the matrix's). Casts and links matched exactly for all five
+cards. Seen and stranded matched to within the wrapper-blindness trap in
+section 6:
+
+| Boss | Card | Seen (probe / wrapper) | Cast | Links | Stranded | Cast when seen | Links per cast |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Queen of the Lanterned Roof, 21.4 engine turns | Hauntlink Signal Lure | 790 / 789 | 561 | 546 | 175 / 175 | 71% | 0.97 |
+| | Sanctum of Many Masks | 803 / 799 | 529 | 842 | 209 / 209 | 66% | 1.59 |
+| Kitsune, 13.2 engine turns | Burning Mask of the Void | 282 / 282 | 115 | 87 | 162 / 162 | 41% | 0.76 |
+| | Ember-Link Chain | 274 / 273 | 91 | 101 | 172 / 172 | 33% | 1.11 |
+| | Hauntlink Apex | 308 / 308 | 101 | 85 | 187 / 188 | 33% | 0.84 |
+
+Beside the 2026-09-19 table in [ai.md](ai.md), the Queen's cards read a
+little lower cast-when-seen (76% and 70% then) with the same links per cast.
+Kitsune's Mask and Chain read 41% and 33% (33% and 33% after the Apex
+recost), and Apex reads 33% cast when seen with 0.84 links per cast (37% and
+0.93 then). Apex is cast in 18.6% of her games (20% then).
 
 **The standing habit after that:** every new mechanic ships with its usage
 row, the same way it ships with a formula rate and an AI policy today, and
