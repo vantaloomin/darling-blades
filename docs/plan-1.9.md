@@ -88,10 +88,14 @@ as agreed 2026-08-24, and as it stands after the owner's rulings:
   reads them (Aura, or a tribe some card pays off; a token-only lord does
   not count), and `legendary` counts. The domination pass now ranks the same
   Duty or rider at a cheaper price as better (it finds The Debt Is Called
-  over Two Jars, One Heart). No cluster pass groups cards whose stat lines
-  differ, so D8's stat ladders, and Ocean
-  Wayfinder against Tide-Reader of the Far Reef (Attack and Skim both
-  differ), stay a manual read.
+  over Two Jars, One Heart), and a looser target cap as better (cost 3 or
+  less over cost 2 or less). Wave 2 added the LADDER pass: it groups cards
+  whose data matches once stats, prices and effect sizes are set aside
+  (signs kept, commuting ops compared as a set), and reports each pair's
+  set, cost, tribe and legendary status and any winner, whose colours must
+  fit inside the loser's. The STRICTLY-WORSE TWIN pass now compares every
+  printing, not only the cheapest. The D8 review reads both:
+  [d8-near-duplicate-review.md](d8-near-duplicate-review.md).
 
 ## Carried from 1.8.5 (2026-09-28)
 
@@ -940,7 +944,10 @@ Numbered so rulings can cite them. Recommendations are the first option.
   {1}). The review covers the whole pool, not only these rows, and can run
   any time after wave 0 teaches the comparator Duty, Tithe and Whispers. It
   writes the rule (which kinds of sameness are acceptable) and a slate, the
-  owner approves both, and the fixes ship in 1.9.x.
+  owner approves both, and the fixes ship in 1.9.x. Review and slate
+  PROPOSED 2026-09-28 in
+  [d8-near-duplicate-review.md](d8-near-duplicate-review.md): 51 pairs, 41
+  cards; awaiting the owner's rulings.
 - **D10 An unfinished deck (G1). RULED as recommended:** save always works;
   an incomplete deck saves as it stands and shows as unplayable where decks
   are picked; every path that would drop unsaved work asks first (the Decks
