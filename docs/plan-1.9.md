@@ -14,7 +14,10 @@ the follow-ups logged at the 1.8.1 cut become lane I and land early, the
 sweep gains personas in First Dawn's colours, and the AI fixes 1.8.5 handed
 on are approved. Later that day, after wave 0 closed, D16 put the cards
 before the engine spec: a design-first overplan and its concretion audit
-decide what the engine builds. This document turns the rulings into lanes and waves. Each
+decide what the engine builds. **Wave 1 closed at the owner's sitting the
+same evening:** the First Dawn brief, the accessibility plan and the art
+streaming design were approved, the art window set at 216 px (D18), and
+1.9's minimum scope named (D17). This document turns the rulings into lanes and waves. Each
 wave starts on the owner's word.
 
 The release spine is [plan-road-to-2.0.md](plan-road-to-2.0.md). Its 1.9 row,
@@ -461,10 +464,17 @@ What the set carries besides cards:
 
 **Approved 2026-09-25.** The spec is
 [plan-accessibility-i18n.md](plan-accessibility-i18n.md), written for 1.7 and
-never started. It needs a re-verification pass against today's code before
+never started. It needed a re-verification pass against today's code before
 wave 1: since it was written, Settings gained one layout rhythm (#411), every
 menu control moved inside the title-safe frame (#412, #431), and
-[design-system.md](design-system.md) became the token reference.
+[design-system.md](design-system.md) became the token reference. **Re-verified
+in wave 1 and approved by the owner on 2026-09-28**, every question as
+recommended: three Settings tabs (Game, Audio, Accessibility), 100/115/130%,
+scaling by text role, high contrast on chrome at 7:1, always-on cues, a
+lighter `muted`, settings travel with an imported save, no telemetry fields.
+Its measured inventory, the five disjoint C-workstreams, the per-control
+ship gate (controls hidden until every scene passes) and the contrast gate
+are in the plan itself.
 
 Scope, per the plan: always-on cues that do not rely on colour (mana pip
 shape, rarity, legal targets, selection, warnings); text size at Standard,
@@ -562,6 +572,25 @@ Gate: the owner approves the mock; the renderer counts cards shrunk below
 13 px at the chosen height; `check-art-bible` and `check-docs` are green; and
 no `flavor` reader is left (`git grep` clean outside history docs).
 
+**RULED 2026-09-28: the art window is 216 px** (D18). The wave-1 mock
+(prototype branch `proto/19-r13-mock`, not merged; its
+`src/ui/cardFaceGeometry.ts` is the reusable part) measured it in the
+renderer over all 1,482 collectible cards:
+
+| Art window | Image rows shown | Rules text shrunk below 13 px |
+| --- | --- | --- |
+| 192, today, with flavor | 20.9% to 79.1% | 157 |
+| **216** | 17.3% to 82.7% (y 138-662) | **50** |
+| 228 | 15.5% to 84.5% | 141 |
+
+At 216 the rules box holds four lines at 13 px; at 228 it holds three. The
+art bible's head-top rule moves with the band to about y 179 of 640x800. The
+wave-2 build also points the Forge's own copy of the art rect
+(`src/forge/framing.ts`, `CARD_ART_RECTS.standard`) at the shared geometry.
+One card, Umbral Antenna, has no flavor to give up and shrinks to about 8 px
+at 216; its text is shortened in a wave-2 design pass (the owner's call on
+what to cut is open).
+
 ### Lane D — card art streaming: load on demand, unload under a budget
 
 **Approved 2026-09-25**, the named follow-up to the 1.8 boot work (#410,
@@ -603,11 +632,19 @@ Gates: GPU residency and time-to-Collection measured before and after on the
 desktop and phone tiers; no stand-in left on screen after arrival across
 every scene at two sizes; a desktop app run.
 
-**If 1.9 runs long, this is the lane to defer.** Its hard deadline is 2.0:
-itch.io's 1,000-file cap and phone memory. On 1.9's desktop build it buys a
-faster Collection and lower memory, which players will like but were never
-promised. Accessibility is the release's headline and First Dawn its set, so
-neither gives way first.
+**The design is [plan-art-streaming.md](plan-art-streaming.md)**, approved
+by the owner on 2026-09-28 with its questions answered as recommended (S-Q5,
+a persistent art cache, not in 1.9). It measured the "before" state:
+Collection waits 16 s locally and 44 s at 50 Mbps, with 3,002 MiB of card
+textures resident on desktop and 750 MiB on the phone tier. The design caps
+texture memory at about 832 MiB on desktop and 208 MiB on phones, and ships
+as PRs S1-S6.
+
+**Scope (D17, ruled 2026-09-28).** 1.9 has no fixed date. Its minimum is the
+expansion with its engine work, accessibility, and bug fixes. This lane sits
+outside that minimum, and nothing in it is deferred in advance; if 1.9 runs
+long, the design names S2 (the packs) and the long tail of S5a as the parts
+that can move to 2.0 without making the itch build harder.
 
 ### Lane E — measurement: the mechanic usage audit
 
@@ -976,6 +1013,29 @@ Numbered so rulings can cite them. Recommendations are the first option.
   guard keeps its own rule (every subtype counts), separate from the
   comparator's paid-off-tribe rule; a stat-ladder pass (same text and cost,
   different stats) joins the comparator ahead of the D8 review in wave 2.
+- **The wave-1 sitting (the owner, 2026-09-28).**
+  - **The First Dawn brief is APPROVED**
+    ([first-dawn-brief.md](expansions/drafts/first-dawn-brief.md)), with
+    three reversals it now carries: dinosaur-kin are the **Dinokin** Axis
+    with lords (B2), Hunt may target your own creatures, which Easy AI
+    never does (B5), and Hunt damage counts for every damage-reading keyword
+    and trigger (B6). Also ruled: Bulwark prevents Hunt at any rarity (a
+    Bulwark creature can be prey, never the hunter); no reserved Provoked
+    art tell; 165 cards; Provoked at most once per turn per creature; the
+    red-green and red-white sweep personas (D12); the three-row vocabulary
+    threshold.
+  - **The accessibility plan and the art streaming design are APPROVED**
+    as recommended (lanes C and D above).
+  - **D17 1.9's scope.** No fixed date. The minimum is the expansion with
+    its engine work, accessibility, and bug fixes; nothing is deferred in
+    advance.
+  - **D18 the art window is 216 px** (lane C, card face).
+  - **Lane I picks:** the tutorial opponent's portrait and name come from
+    the owner's pick (open: a Draft persona or Watch-Sergeant Alder); the
+    Free Draft caption reads "Pays 40g to 300g after three matches, by
+    wins." with Premium gaining a no-gold caption; the retire warning, the
+    deck-import strings and the save-card line are approved as written; a
+    new-format code may convert a retired Constructed deck.
 - **The `research/` ignore rule** from the owner's local `.gitignore` is
   committed, so third-party research material never reaches the public
   repo.
