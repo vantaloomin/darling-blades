@@ -3,7 +3,8 @@ import manifest from '../data/art-manifest.json';
 import type { CardDb } from '../engine/types';
 import { isBasic } from '../meta/Collection';
 import { theme } from '../ui/theme';
-import { artFileUrl, artTextureKey } from './artLoader';
+import { artFileUrl, artTextureKey, liveArtStore } from './artLoader';
+import type { ArtTier } from './artStore';
 import { ArtAtlas } from './ArtAtlas';
 import { drawPlaceholderArt } from './PlaceholderArtGenerator';
 
@@ -87,36 +88,67 @@ export class ArtResolver {
     }
   }
 
-  getArt(cardId: string, landStyle?: string): ArtRef {
+  /**
+   * The art to draw for `cardId` now. `tier` is what the caller needs
+   * (docs/plan-art-streaming.md section 1, "Keys and tiers"): `primary` for a
+   * live card (full on desktop, half on `lite`), `half` for a thumbnail bake,
+   * whose largest art window has no more pixels than the 320x400 file.
+   */
+  getArt(cardId: string, landStyle?: string, tier: ArtTier = 'primary'): ArtRef {
     const d = this.db[cardId];
     const artKey = d?.artRef ?? cardId;
     const styledKey = landStyle && d && isBasic(this.db, cardId) ? landStyleArtKey(artKey, landStyle) : null;
-    if (styledKey && this.real.has(styledKey)) return this.realArt(styledKey);
-    if (this.real.has(artKey)) return this.realArt(artKey);
+    if (styledKey && this.real.has(styledKey)) return this.realArt(styledKey, tier);
+    if (this.real.has(artKey)) return this.realArt(artKey, tier);
     const slot = this.atlas.get(artKey);
     if (!slot) throw new Error(`ArtResolver: no art generated for ${artKey}`);
     return slot;
   }
 
   /**
-   * The real file's texture, or the neutral stand-in while it is still in the
-   * loader queue. The stand-in is the BACKSTOP for a consumer that
-   * `src/ui/artGate.ts` missed, not the mechanism: a gated scene never sees it.
-   * Without it Phaser would draw its green missing-texture square.
+   * The best resident texture for a real file (section 4, "The progressive
+   * stand-in"), or the neutral stand-in while nothing is resident. The
+   * stand-in is the BACKSTOP for a consumer that `src/ui/artGate.ts` missed,
+   * not the mechanism: a gated scene never sees it. Without it Phaser would
+   * draw its green missing-texture square.
    *
-   * Whenever the real texture is absent the answer carries it as `pending`, so
-   * the consumer can redraw when it lands (`src/art/artWatch.ts`); CardView,
-   * BoardCardView and the thumbnail cache all do.
+   * - `primary`: the full texture if resident; else, on desktop while art
+   *   streams through the store, the resident half texture; else the
+   *   stand-in. `pending` names the full texture whenever it is not the one
+   *   drawn, so the consumer redraws when it lands (`src/art/artWatch.ts`).
+   * - `half`: the cheapest adequate source (section 3, `CardThumbCache`): the
+   *   primary texture if it is resident, else the half texture, else the
+   *   stand-in with the half texture `pending`.
+   *
+   * With the 1.8 queue (no store) there is no half texture on desktop, so both
+   * tiers answer exactly as `primary` always did.
    */
-  private realArt(artKey: string): ArtRef {
+  private realArt(artKey: string, tier: ArtTier): ArtRef {
     const key = artTextureKey(artKey);
     // No scene in the prototype-built test resolver: treat the texture as present.
     const textures = (this.scene as Phaser.Scene | undefined)?.textures;
     if (!textures || textures.exists(key)) return { textureKey: key };
+    const half = this.halfTextureKey(artKey);
+    if (half !== null && textures.exists(half)) {
+      return tier === 'half' ? { textureKey: half } : { textureKey: half, pending: key };
+    }
+    const wanted = tier === 'half' && half !== null ? half : key;
     return {
-      textureKey: textures.exists(ART_LOADING_TEXTURE) ? ART_LOADING_TEXTURE : key,
-      pending: key,
+      textureKey: textures.exists(ART_LOADING_TEXTURE) ? ART_LOADING_TEXTURE : wanted,
+      pending: wanted,
     };
+  }
+
+  /**
+   * The desktop tier's half-resolution texture key for `artKey`, or null when
+   * there is none to draw: no store (the 1.8 queue loads one tier), `lite`
+   * (the primary texture already is the half file), or no half file on disk.
+   * The store owns the key rule (`textureKeyFor`), so a bake and a lease
+   * always name the same texture.
+   */
+  private halfTextureKey(artKey: string): string | null {
+    const half = liveArtStore()?.textureKeyFor(artKey, 'half') ?? null;
+    return half === null || half === artTextureKey(artKey) ? null : half;
   }
 }
 

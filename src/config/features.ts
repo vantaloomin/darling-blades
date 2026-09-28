@@ -30,4 +30,25 @@ export const FEATURES = {
   textSizeLive: false,
   highContrastLive: false,
   // --- end lane C ship gates ---
+  /**
+   * 1.9 lane D (docs/plan-art-streaming.md): card art loads on demand through
+   * the art store and is evicted under a memory budget. Off is the 1.8
+   * whole-manifest stream, unchanged. It stays off until S5a moves Collection,
+   * the Deck Builder and the Showcase off their whole-manifest gates: before
+   * that, switching it on pins all 1,537 files there (about 3 GB on desktop).
+   * `?artStream=on` / `?artStream=off` override it for one page load.
+   */
+  artStream: false,
 };
+
+/**
+ * Whether this page load streams card art through the art store. The
+ * `?artStream=on|off` URL switch (developer and probe use; no player copy)
+ * wins over the flag; anything else leaves the flag's answer.
+ */
+export function artStreamEnabled(search: string, flag: boolean = FEATURES.artStream): boolean {
+  const value = new URLSearchParams(search).get('artStream');
+  if (value === 'on') return true;
+  if (value === 'off') return false;
+  return flag;
+}

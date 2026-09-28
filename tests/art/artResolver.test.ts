@@ -1,8 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { ART_LOADING_TEXTURE, ArtResolver, landStyleArtKey } from '../../src/art/ArtResolver';
+import { setArtStore } from '../../src/art/artLoader';
 import { ALL_CARDS, CARD_DB } from '../../src/data/catalog';
 import { isBasic } from '../../src/meta/Collection';
 import { BASIC_LAND_IDS, LAND_STYLE_IDS } from '../../src/meta/SaveManager';
+import { makeStore } from './artStoreFakes';
 
 function resolverWithManifest(keys: readonly string[]): ArtResolver {
   return Object.assign(Object.create(ArtResolver.prototype), {
@@ -79,5 +81,71 @@ describe('ArtResolver while card art is still streaming in', () => {
   it('hands out the real texture with nothing pending once the file has landed', () => {
     const resolver = resolverWithTextures(new Set([ART_LOADING_TEXTURE, fileTexture]));
     expect(resolver.getArt(card.id)).toStrictEqual({ textureKey: fileTexture });
+  });
+});
+
+describe('ArtResolver: the best resident texture while art streams through the store', () => {
+  const card = ALL_CARDS.find((c) => !isBasic(CARD_DB, c.id) && c.artRef === undefined)!;
+  const full = `artfile-${card.id}`;
+  const half = `arthalf-${card.id}`;
+
+  function resolverWithTextures(present: Set<string>): ArtResolver {
+    return Object.assign(Object.create(ArtResolver.prototype), {
+      db: CARD_DB,
+      real: new Set([card.id]),
+      atlas: { get: () => undefined },
+      scene: { textures: { exists: (key: string) => present.has(key) } },
+    }) as ArtResolver;
+  }
+
+  function withStore(quality: 'full' | 'lite', hasHalf = true): void {
+    setArtStore(makeStore({ quality, hasHalf: () => hasHalf, keyFor: (id) => id }, [card.id]).store);
+  }
+
+  afterEach(() => setArtStore(null));
+
+  it('draws the full texture once it is resident, whatever else is', () => {
+    withStore('full');
+    const resolver = resolverWithTextures(new Set([ART_LOADING_TEXTURE, half, full]));
+    expect(resolver.getArt(card.id)).toStrictEqual({ textureKey: full });
+    expect(resolver.getArt(card.id, undefined, 'half')).toStrictEqual({ textureKey: full });
+  });
+
+  it('draws the resident half texture on desktop while the full one is on its way', () => {
+    withStore('full');
+    const resolver = resolverWithTextures(new Set([ART_LOADING_TEXTURE, half]));
+    expect(resolver.getArt(card.id)).toStrictEqual({ textureKey: half, pending: full });
+  });
+
+  it('gives a thumbnail bake the half texture as final, not as a stand-in', () => {
+    withStore('full');
+    const resolver = resolverWithTextures(new Set([ART_LOADING_TEXTURE, half]));
+    expect(resolver.getArt(card.id, undefined, 'half')).toStrictEqual({ textureKey: half });
+  });
+
+  it('waits for the texture each tier asks for when nothing is resident', () => {
+    withStore('full');
+    const resolver = resolverWithTextures(new Set([ART_LOADING_TEXTURE]));
+    expect(resolver.getArt(card.id)).toStrictEqual({ textureKey: ART_LOADING_TEXTURE, pending: full });
+    expect(resolver.getArt(card.id, undefined, 'half')).toStrictEqual({ textureKey: ART_LOADING_TEXTURE, pending: half });
+  });
+
+  it('waits for the full file on both tiers for a key with no half file', () => {
+    withStore('full', false);
+    const resolver = resolverWithTextures(new Set([ART_LOADING_TEXTURE]));
+    expect(resolver.getArt(card.id, undefined, 'half')).toStrictEqual({ textureKey: ART_LOADING_TEXTURE, pending: full });
+  });
+
+  it('never names a separate half texture on lite, where the primary texture is the half file', () => {
+    withStore('lite');
+    const resolver = resolverWithTextures(new Set([ART_LOADING_TEXTURE, half]));
+    expect(resolver.getArt(card.id)).toStrictEqual({ textureKey: ART_LOADING_TEXTURE, pending: full });
+    expect(resolver.getArt(card.id, undefined, 'half')).toStrictEqual({ textureKey: ART_LOADING_TEXTURE, pending: full });
+  });
+
+  it('answers both tiers as the primary one with the 1.8 queue (no store)', () => {
+    const resolver = resolverWithTextures(new Set([ART_LOADING_TEXTURE, half]));
+    expect(resolver.getArt(card.id)).toStrictEqual({ textureKey: ART_LOADING_TEXTURE, pending: full });
+    expect(resolver.getArt(card.id, undefined, 'half')).toStrictEqual({ textureKey: ART_LOADING_TEXTURE, pending: full });
   });
 });

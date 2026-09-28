@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { FULL_BYTES, HALF_BYTES, flush, loadAll, makeStore } from './artStoreFakes';
+import type { ArtLease } from '../../src/art/artStore';
+import { FakeSink, FULL_BYTES, HALF_BYTES, flush, loadAll, makeStore, type Harness } from './artStoreFakes';
 
 /**
  * The art store (docs/plan-art-streaming.md, sections 1 and 3): leases pin,
@@ -611,5 +612,63 @@ describe('artStore: accounting', () => {
     expect(h.store.stats().pinnedBytes).toBe(FULL_BYTES);
     lease.release();
     expect(h.store.stats().pinnedBytes).toBe(0);
+  });
+});
+
+describe('artStore: leases taken while an arrival is announced', () => {
+  /**
+   * The sink's add (Phaser fires its ADD event inside `addImage`) and
+   * `onResident` both run code that can hold the arriving key again: a view
+   * redrawn by the arrival releases its old hold and takes a new one. That
+   * must not fetch the key a second time.
+   */
+  async function settle(h: Harness): Promise<void> {
+    for (let i = 0; i < 10; i++) {
+      for (const read of h.source.open) read.resolve();
+      await h.tick();
+    }
+  }
+
+  it('fetches once when a view releases and re-holds the key from onResident, beside a scene lease', async () => {
+    let hold: ArtLease | null = null;
+    const h: Harness = makeStore({
+      onResident: () => {
+        hold?.release();
+        hold = h.store.lease('holdArt', ['a'], { priority: 'visible' });
+      },
+    });
+    const scene = h.store.lease('scene', ['a'], { priority: 'now' });
+    hold = h.store.lease('holdArt', ['a'], { priority: 'visible' });
+    await settle(h);
+    expect(h.source.keys).toEqual(['a']);
+    expect(h.store.isResident('a')).toBe(true);
+    scene.release();
+  });
+
+  it('fetches once when a prefetched key is leased from onResident', async () => {
+    const h: Harness = makeStore({
+      onResident: () => {
+        h.store.lease('late', ['a'], { priority: 'visible' });
+      },
+    });
+    h.store.prefetch(['a'], { priority: 'now' });
+    await settle(h);
+    expect(h.source.keys).toEqual(['a']);
+  });
+
+  it('fetches once when the key is leased from inside the sink add, and that lease settles', async () => {
+    const sink = new FakeSink();
+    let late: ArtLease | null = null;
+    const h: Harness = makeStore({ sink });
+    const add = sink.add.bind(sink);
+    sink.add = (textureKey, image) => {
+      const ok = add(textureKey, image);
+      late = h.store.lease('late', ['a'], { priority: 'visible' });
+      return ok;
+    };
+    h.store.prefetch(['a'], { priority: 'now' });
+    await settle(h);
+    expect(h.source.keys).toEqual(['a']);
+    await expect(Promise.race([late!.ready.then(() => 'ready'), flush().then(() => 'hung')])).resolves.toBe('ready');
   });
 });
