@@ -1,4 +1,4 @@
-<!-- source-of-truth: scripts/personas/craft.ts, scripts/run-sweep.ps1, .github/workflows/metagame-sweep.yml, .github/workflows/metagame-sweep-round.yml, tests/personas/fanout.test.ts · last-verified: 2026-09-23 -->
+<!-- source-of-truth: scripts/personas/craft.ts, scripts/personas/lever.ts, scripts/personas/compare-crafts.ts, scripts/run-sweep.ps1, .github/workflows/metagame-sweep.yml, .github/workflows/metagame-sweep-round.yml, tests/personas/fanout.test.ts, tests/personas/lever.test.ts · last-verified: 2026-09-28 -->
 
 # The persona metagame sweep
 
@@ -174,6 +174,164 @@ seed is derived from its matchup and its index in the matchup, not from which
 worker ran it (measured 2026-09-22: the same craft at one, two and four workers
 produced byte-identical files), so a four-core runner and a sixteen-worker local
 run agree.
+
+## Racing and screening the swaps (levers 2 and 3)
+
+Two flags make a craft cheaper without changing what accepts a swap. Both are
+**off by default**, and stay off until the one-persona acceptance run in
+[plan-sweep-speed.md](plan-sweep-speed.md) passes (lane F of
+[plan-1.9.md](plan-1.9.md)). Built 2026-09-28; the statistics live in
+`scripts/personas/lever.ts`, the hill-climb step in `craft.ts`.
+
+**`--race`** (lever 2). A proposed swap is measured in batches of
+`--race-batch` seeds per matchup (default 30, so 420 games against the
+14-deck prefab field) and stopped at an interim look once it clearly trails
+the incumbent. The comparison is paired: a game's seed derives from its matchup
+and its index, never from the deck, so the candidate's game j and the
+incumbent's game j share a shuffle seed, an opponent and a seat. The statistic
+is the standardised mean of the per-game differences (win 1, draw 1/2,
+loss 0) over every matchup. Stopping at any of several looks inflates false
+stops, so the boundary is not the one-look critical value: it is the constant
+group sequential (Pocock-type) boundary that holds the chance of stopping an
+exactly-equal swap, across all the interim looks together, to `--race-alpha`
+(default 0.01). At 150 seeds and batch 30 the looks are 30, 60, 90 and 120
+seeds and the boundary is z = -2.705 (one look alone would need -2.326).
+The final look is not a test: a swap that survives the interim looks, or that
+is ahead, runs the full `--seeds` and meets the hill climb's ordinary rule
+(accept when its score beats the incumbent's). **An accepted swap therefore
+always carries its full-precision measurement**, and when the race stops
+nothing that the full measurement would have accepted, a raced craft's
+decks and measurements are the unraced craft's exactly.
+
+**`--screen medium`** (lever 3). Before any Hard game, the swap and the
+incumbent are measured Medium-vs-Medium on `--screen-seeds` per matchup
+(default `--seeds`), and a swap Medium scores worse than the incumbent by more
+than `--screen-threshold` points (default 5) is dropped. This is the plan's
+threshold rule, not a test. A swap that passes goes on to the Hard measurement
+(raced, if `--race` is on), and only the Hard measurement accepts. The
+incumbent's Medium score is measured once, for the greedy build; an accepted
+swap's own Medium score becomes the next incumbent's.
+
+**What a raced craft records.** The flags enter the run configuration
+(`config.race`, `config.screen`), so a raced craft never merges, resumes or
+continues a checkpoint alongside an unraced one: the merge and the resume
+refuse it as a different sweep. An unraced, unscreened craft has no such keys
+and is byte-identical to what it was before the levers existed. The hill-climb
+log of a raced or screened craft gains `lever`: the race plan (batch, alpha,
+looks, boundary), the screen settings, and one record per proposed swap:
+
+| Field | Meaning |
+| --- | --- |
+| `stop` | `screened-out`, `raced-out`, or `full` (measured at the full seeds) |
+| `accepted` | only ever true for `full` |
+| `hardGames`, `screenGames` | the games this swap's decision played |
+| `screenDelta` | candidate minus incumbent Medium score, in points |
+| `racedAt`, `z` | raced out: the look (seeds per matchup) and the statistic there |
+
+Each craft prints its accounting: swaps proposed, screened out, raced out,
+measured in full, accepted, and the Hard and Medium games played against the
+Hard games the same proposals cost unraced (every one a full measurement).
+It prints game counts only, with no Hard-equivalent: the Medium/Hard speed
+ratio depends on the machine and its load (measured 2026-09-28,
+single-threaded, a greedy deck against the 14-deck prefab field: 5.9x to 6.0x
+on the owner's machine, about 3.4x in the review's run), so wall clock on the
+runner is the real measure of the saving.
+
+**Determinism, chunks and resume.** A raced craft's stops are a pure function
+of the games, and the games are a pure function of the seeds, so a raced craft
+is reproducible from its seed at any worker count, and a chunked raced craft
+is byte-identical to one run in a single process (the checkpoint carries the
+incumbent's per-game outcomes, its Medium record and the lever log). The
+in-process loop's `--resume` and the fan-out's `--resume-from` work unchanged;
+give the same lever flags on every call. `tests/personas/lever.test.ts`
+covers the boundary against Pocock's published constants, the false-stop rate
+over repeated looks, constructed win-rate sequences whose right decision is
+known, the chunked byte identity, and a real-engine craft whose race and
+screen never stop anything reproducing the unraced craft byte for byte.
+
+```bash
+# One persona, round 0, raced and screened, as the hosted workflow runs it.
+npx tsx scripts/personas/craft.ts --metagame-craft burn --round 0 \
+  --out out --workers 4 --race --screen medium <same flags as above>
+# The knobs, with their defaults.
+  --race --race-batch 30 --race-alpha 0.01
+  --screen medium --screen-threshold 5 --screen-seeds <--seeds>
+```
+
+On GitHub, the "Metagame sweep" dispatch has three inputs for them: `race`
+(a checkbox) and `screen` (`none` or `medium`), both off by default, and
+`screen_seeds` (blank by default; with `screen` medium, it sets
+`--screen-seeds`). They add the flags with the defaults above to every craft.
+A raced or screened sweep publishes to its own directory,
+`sweeps/<run-date>-<seed>` plus `-race`, `-screen` and `-s<screen seeds>` as
+they apply, so it never overwrites an unraced sweep of the same seed and day.
+Resume it with the same inputs.
+
+### The acceptance run
+
+The flags become the default only if raced crafts accept what unraced crafts
+accept (plan-sweep-speed.md, owner decision 3). The run is one persona, the
+same seed, in separate arms. The Medium screen is not assumed to pay: at the
+reviewer's measured 3.4x, a full-seeds screen costs about 0.29 of a full Hard
+measurement on EVERY proposal, while the swaps it drops (more than five points
+worse under Medium) are ones the race already stops at its first look, about
+0.2 of a full measurement. So race alone is its own arm, and a cheaper screen
+is a fourth:
+
+| Arm | Inputs | Publishes to |
+| --- | --- | --- |
+| plain | none | `sweeps/<date>-13003` |
+| race | `race=true` | `sweeps/<date>-13003-race` |
+| race + screen | `race=true screen=medium` | `sweeps/<date>-13003-race-screen` |
+| race + cheap screen (optional) | `race=true screen=medium screen_seeds=50` | `sweeps/<date>-13003-race-screen-s50` |
+
+```bash
+REF=release/1.9   # any ref holding this workflow and craft.ts
+gh workflow run metagame-sweep.yml --ref $REF -f personas=midrange -f rounds=1
+gh workflow run metagame-sweep.yml --ref $REF -f personas=midrange -f rounds=1 -f race=true
+gh workflow run metagame-sweep.yml --ref $REF -f personas=midrange -f rounds=1 -f race=true -f screen=medium
+gh workflow run metagame-sweep.yml --ref $REF -f personas=midrange -f rounds=1 -f race=true -f screen=medium -f screen_seeds=50
+```
+
+- **Dispatch one arm at a time, each after the previous run finishes.** The
+  workflow's concurrency group holds one running and one pending run, and a
+  newer pending dispatch cancels the older pending one.
+- **Two crafts per arm.** With one persona and `rounds=1`, each run crafts
+  round 0 and round 1. Round 1 answers the same 14 reference decks (there are
+  no other personas) under a different craft seed and different game seeds, so
+  it is a second, independent comparison, not wasted work. The seed is the
+  default 13003 in every arm.
+- **Wall clock** is each run's craft chunk jobs in the Actions tab. The
+  printed `Levers:` lines give the game counts.
+- **Compare** each round's crafts side by side. From `sweep-data`:
+
+```bash
+git fetch origin sweep-data
+for arm in "" -race -race-screen -race-screen-s50; do
+  mkdir -p "acceptance/arm$arm"
+  for r in 0 1; do
+    git show "origin/sweep-data:sweeps/<date>-13003$arm/crafts/craft-midrange-r$r.json" \
+      > "acceptance/arm$arm/craft-midrange-r$r.json"
+  done
+done
+npx tsx scripts/personas/compare-crafts.ts acceptance/arm/craft-midrange-r0.json \
+  acceptance/arm-race/craft-midrange-r0.json acceptance/arm-race-screen/craft-midrange-r0.json \
+  acceptance/arm-race-screen-s50/craft-midrange-r0.json
+# and the same for r1
+```
+
+`scripts/personas/compare-crafts.ts` takes two to four craft files of the same
+persona and round, the unraced one first. It prints the accepted swaps
+iteration by iteration, each arm's final deck against the first arm's, the
+final scores, each arm's games (proposed, screened out, raced out, in full,
+accepted, Hard games as a share of unraced, Medium games), and whether each arm
+is the first arm exactly once `config.race`, `config.screen` and
+`hillClimb.lever` are stripped. The gate's reading: an arm passes when its
+final win rates sit within the noise of the plain arm's (at 2,100 games a
+score's standard error is about 1.1 points, so a gap of about 3 points or
+more is not noise) in both rounds, and its wall clock is materially shorter.
+Identical accepted lists are the best case, not the requirement: one differing
+decision sends the rest of the climb down another path.
 
 ## The command shapes behind both
 

@@ -14,6 +14,11 @@ export interface MeasureGameJob {
   /** Ten-land reserves, same row/column order as the decks. */
   rowReserve: readonly string[];
   colReserve: readonly string[];
+  /**
+   * The brain on both seats. Absent means Hard, the sweep's measurement; the
+   * Medium screen (`--screen medium`) sets 'medium'.
+   */
+  difficulty?: 'hard' | 'medium';
 }
 
 interface WorkerBatchMessage {
@@ -29,29 +34,40 @@ function resultCode(winner: 0 | 1 | 'draw'): number {
   return winner === 'draw' ? DRAW_RESULT : winner;
 }
 
+/**
+ * Play one measurement game and return its result code (0 or 1 for the seat
+ * that won, 2 for a draw). The worker threads run exactly this, and so does a
+ * one-worker measurement in the main thread, so worker count never enters a
+ * result.
+ */
+export function playMeasureGame(job: MeasureGameJob): number {
+  const difficulty = job.difficulty ?? 'hard';
+  const row = buildAI(difficulty, CARD_DB, job.gameSeed * 7 + 1);
+  const col = buildAI(difficulty, CARD_DB, job.gameSeed * 13 + 5);
+  // Warchest, explicitly. playOut falls back to the CLASSIC constructor when
+  // format and landReserves are both omitted, which is how this harness
+  // measured a retired format until 2026-08-25 - so both are always passed.
+  const winner = playOut(
+    job.gameSeed,
+    job.rowIsP0 ? row : col,
+    job.rowIsP0 ? col : row,
+    job.rowIsP0
+      ? [[...job.rowDeck], [...job.colDeck]]
+      : [[...job.colDeck], [...job.rowDeck]],
+    'warchest',
+    job.rowIsP0
+      ? [[...job.rowReserve], [...job.colReserve]]
+      : [[...job.colReserve], [...job.rowReserve]],
+  );
+  return resultCode(winner);
+}
+
 function runBatch(message: WorkerBatchMessage): void {
   const results = new Int32Array(message.resultBuffer);
   const control = new Int32Array(message.controlBuffer);
   for (const job of message.jobs) {
     try {
-      const row = buildAI('hard', CARD_DB, job.gameSeed * 7 + 1);
-      const col = buildAI('hard', CARD_DB, job.gameSeed * 13 + 5);
-      // Warchest, explicitly. playOut falls back to the CLASSIC constructor when
-      // format and landReserves are both omitted, which is how this harness
-      // measured a retired format until 2026-08-25 - so both are always passed.
-      const winner = playOut(
-        job.gameSeed,
-        job.rowIsP0 ? row : col,
-        job.rowIsP0 ? col : row,
-        job.rowIsP0
-          ? [[...job.rowDeck], [...job.colDeck]]
-          : [[...job.colDeck], [...job.rowDeck]],
-        'warchest',
-        job.rowIsP0
-          ? [[...job.rowReserve], [...job.colReserve]]
-          : [[...job.colReserve], [...job.rowReserve]],
-      );
-      results[job.resultIndex] = resultCode(winner);
+      results[job.resultIndex] = playMeasureGame(job);
     } catch {
       // The main thread cannot receive an ordinary message while it is
       // synchronously waiting on the shared counter. Preserve the failure in
