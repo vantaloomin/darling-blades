@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-expansion-slate.md, docs/roadmap.md, docs/plan-1.6.md, docs/plan-mobile-overhaul.md, docs/plan-accessibility-i18n.md, docs/plan-story-mode.md, docs/plan-save-cards.md, src/engine/types.ts · last-verified: 2026-08-28 · program doc — the release spine from 1.7 to 2.0; re-verify when a release closes or the slate moves -->
+<!-- source-of-truth: docs/plan-expansion-slate.md, docs/roadmap.md, docs/plan-1.6.md, docs/plan-mobile-overhaul.md, docs/plan-accessibility-i18n.md, docs/plan-story-mode.md, docs/plan-save-cards.md, docs/plan-1.9.md, docs/plan-1.8.5.md, src/engine/types.ts · last-verified: 2026-09-28 · program doc — the release spine from 1.7 to 2.0; re-verify when a release closes or the slate moves -->
 
 # Road to 2.0
 
@@ -31,6 +31,18 @@ Expansions alternate **Large / Small / Large**, with **Large on even patches**:
 | **1.9** | **First Dawn** (prehistoric) · Small ~150 | Provoked, Hunt | none | Accessibility (Mobile moved to 2.0, ruled 2026-09-25) |
 | **2.0** | **Core Set II** (RoTK / Greek / Beastkin) · Large 250+ | The Mandate | Shared game state | Story Mode + Mobile; the itch.io launch (ruled 2026-09-25) |
 | **2.1+** | **Brass Court** (steampunk) · Large | Salvage, Contraption thresholds, Union rigs | — | Cloud saves, UGC, replay coaching |
+
+**Patches between 1.8 and 1.9 (no set, no new mechanic):**
+- **1.8.1** (2026-09-25) closed the 1.8 review findings and opened the Forge
+  ([plan-1.9.md](plan-1.9.md), lane 0).
+- **1.8.5** (2026-09-28), the scaling rebalance
+  ([plan-1.8.5.md](plan-1.8.5.md)):
+  - the v4 power scorer, with keywords priced by the Attack of the creature
+    carrying them and ramp priced by its cast turn;
+  - the AI valuing keywords the same way;
+  - 90 card changes.
+
+1.8.5 went ahead of 1.9 wave 0, so First Dawn is costed on the new scorer.
 
 Five remaining concepts, four slots to 2.0. The slate already anticipated this
 ("five concepts, four slots — one falls past 2.0") and nominated steampunk;
