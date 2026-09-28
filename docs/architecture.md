@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/meta/SaveManager.ts, src/meta/cosmetics.ts, src/meta/Achievements.ts, src/scenes/DuelScene.ts, src/scenes/ProfileScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/PreloadScene.ts, src/scenes/ArtLoaderScene.ts, src/art/artLoader.ts, src/ui/artGate.ts, src/ui/CardFrameFactory.ts, src/ui/CardView.ts, docs/design-system.md · last-verified: 2026-09-21 -->
+<!-- source-of-truth: src/meta/SaveManager.ts, src/meta/cosmetics.ts, src/meta/Achievements.ts, src/scenes/DuelScene.ts, src/scenes/ProfileScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/PreloadScene.ts, src/scenes/ArtLoaderScene.ts, src/art/artLoader.ts, src/ui/artGate.ts, src/ui/CardFrameFactory.ts, src/ui/CardView.ts, docs/design-system.md · last-verified: 2026-09-28 -->
      If you change those files, update this doc or re-verify the date. -->
 
 # Architecture
@@ -181,6 +181,9 @@ shifted position (a Retell cast whose target sat above its own source, or a
 response that moved the graveyard before the spell resolved): there the
 replay returns the card the position named at submission. 1.8.0 logs are
 refused anyway, since the 1.8.1 card-text changes moved the card-data stamp.
+1.8.5 changed card data only, so the log version stays 15. Its 90 card
+changes moved the stamp again, and 1.8.1 logs are refused under it: the stamp,
+not a version bump, is what retires a replay when cards change.
 A current-version log containing the explicit legacy
 Hauntlink cast marker selects revision 2 as well. These paths are preserved
 behind `GameConfig.rulesRev`; legacy `GameState` JSON omits both `rulesRev` and

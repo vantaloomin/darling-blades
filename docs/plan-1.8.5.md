@@ -1,11 +1,16 @@
-<!-- source-of-truth: src/power/scoreCore.ts, src/data/cards/, src/data/opponents.ts, src/ai/value.ts, scripts/balance-matrix.ts, docs/plan-1.9.md · last-verified: 2026-09-28 · program doc: the 1.8.5 scaling rebalance; every decision ruled, the slate approved 2026-09-26 and narrowed to 83 cards 2026-09-27 (D11-D13), plus six late-ramp buffs (D14) for 89; Stand as One (D15) for 90; BUILT AND STAGED 2026-09-28 on release/1.8.5 -->
+<!-- source-of-truth: src/power/scoreCore.ts, src/data/cards/, src/data/opponents.ts, src/ai/value.ts, scripts/balance-matrix.ts, docs/plan-1.9.md · last-verified: 2026-09-28 · program doc: the 1.8.5 scaling rebalance; every decision ruled, the slate approved 2026-09-26 and narrowed to 83 cards 2026-09-27 (D11-D13), plus six late-ramp buffs (D14) for 89; Stand as One (D15) for 90; SHIPPED 2026-09-28 as v1.8.5 (main ed1cb26) -->
 
 # Darling Blades 1.8.5: the scaling rebalance
 
-**Status 2026-09-28: BUILT AND STAGED on `release/1.8.5`** (#459-#464 plus
-the cut staging PR). The slate is 90 cards (27 down, 63 up) after D11-D17;
-lane 5's validation is below. What remains is the owner's word, then the
-two-parent merge into `main` and the tag.
+**Status 2026-09-28: SHIPPED as v1.8.5.**
+- On `main`: the two-parent merge `ed1cb26` (#466) of `release/1.8.5`
+  (#459-#465), tag `v1.8.5`.
+- The slate is 90 cards (27 down, 63 up) after D11-D17; lane 5's validation
+  is below.
+- The live site and the Forge passed their smoke test the same day, and the
+  GitHub Release carries the notes and the installer.
+- What it hands on to 1.9 is in [plan-1.9.md](plan-1.9.md) ("Carried from
+  1.8.5").
 
 **History.** Every decision was ruled, both measurements (D4 lords and
 anthems, D6 the level flags and the mark family) landed, and the owner
@@ -615,9 +620,18 @@ are in `src/data/opponents.ts` (the 1.8.5 re-measure).
 
 **Lane 6: release.**
 - The notes list every changed card.
-- The replay log bumps, since replays are refused whenever card data changes.
+- Old replays: `REPLAY_LOG_VERSION` stays 15. A log's card-db stamp already
+  refuses a 1.8.1 replay under 1.8.5 card data, so no bump is needed. The
+  notes tell players.
 - There is no save schema change: card ids do not move.
 - The Forge takes v4 in this same release (D8).
+- **Done 2026-09-28:**
+  - the cut staging (#465: versions, notes, README, roadmap)
+  - the release PR (#466), merged as a two-parent merge, `ed1cb26`
+  - the tag `v1.8.5`
+  - the live smoke test (`version.json` 1.8.5, the game boots, the Forge
+    prices on the new math)
+  - the Release page, carrying the notes and a 236.7 MB installer
 
 ## Decisions (all ruled 2026-09-26)
 

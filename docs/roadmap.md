@@ -2,7 +2,7 @@
 
 # Roadmap
 
-_Dated 2026-09-24, at the 1.8.0 cut. Review monthly._
+_Dated 2026-09-28, at the 1.8.5 cut. Review monthly._
 
 ## Status snapshot
 
@@ -22,15 +22,15 @@ _Dated 2026-09-24, at the 1.8.0 cut. Review monthly._
   1,482-card collectible pool spans ten sets; every card carries finished art,
   Drowned Deep at 252/252 plus four tokens. The remaining eyes-on work is the
   standing real-device pass and the by-ear/by-eye polish listed under Planned.
-- **3,961 tests green** (+4 skipped balance-tool assertions; count
-  refreshed 2026-09-24 at the 1.8.0 cut) across 259 files, from engine
+- **4,238 tests green** (+4 skipped balance-tool assertions; count
+  refreshed 2026-09-28 at the 1.8.5 cut) across 278 files, from engine
   rules, keywords, mana, RNG and determinism through catalog integrity, save
   migrations, the meta layer, audio recipes, platform gestures, layout rules,
   AI behaviours and the win-rate gates. The suite was audited 2026-09-22
   against three rules (no tautological tests, no change-detector tests, no
   bug-named regression tests without a behavioural gap;
   [test-audit-2026-09-22.md](test-audit-2026-09-22.md)). It runs in about
-  fifteen minutes on the release-prep Windows host.
+  thirteen minutes on the release-prep Windows host.
 - **1,482 collectible cards across ten sets** (`CARD_DB`): the Base Set,
   Ragnarök, Silver Veil, Grail Oath, Nocturne Manor, Dark Tales, Yokai Nights
   (Hauntlink), Sands of the Duat (Rite, Nine Lives, Preserve), Starborne
@@ -60,6 +60,68 @@ _Dated 2026-09-24, at the 1.8.0 cut. Review monthly._
   (`settings.shareAnonStats`, `settings.statsNoticeVersion`) with the two dead
   account-level cosmetics fields removed — see
   Recently shipped and the Full Art entry under Planned). By-ear tuning remains open (see Planned).
+
+## Recently shipped (2026-09-25 and 2026-09-28 · 1.8.1 and 1.8.5)
+
+- **1.8.5, the scaling rebalance (SHIPPED 2026-09-28 as v1.8.5; `main`
+  ed1cb26, a two-parent merge of `release/1.8.5`).**
+  [plan-1.8.5.md](plan-1.8.5.md). The scorer priced every creature keyword as
+  a flat constant, so a Forge-built 10/1 Twin Blades flier read Under Value.
+  It shipped ahead of 1.9 wave 0 (D8), so First Dawn is costed on the new math
+  from its first card.
+  - **The v4 scorer (#459).** Magic through 2020, 624,640 games in our own
+    engine and an audit of every other rate agree: Twin Blades, Skyborne, Blood
+    Oath, First Blade and Warcry scale with attack, Bulwark's penalty grows
+    with it, Deathblade shrinks with it, and the body is priced power over
+    toughness with a gentle taper. The lords and the level flags were measured
+    in-engine before any rate changed (D4, D6, D10).
+  - **The attack-aware AI (#461).**
+  - **A card slate that play backs (#460).** 131 changes were approved card by
+    card. The owner then kept only the 27 nerfs the metagame sweep backs with
+    play and reverted the other 48 (D11-D13).
+  - **Ramp priced by cast turn against the 10-land reserve (#462, D12).** Six
+    late-ramp buffs followed (#463, D14).
+  - **Lane 5 validation (#464).** Stand as One went to {W}, and seven summit
+    floors ratcheted up (D15-D17). The Drowned Deacon and the Marsh-Mother
+    were retuned back to their 2026-09-16 levels.
+
+  The result is 90 cards changed: 27 down, 63 up. Release notes:
+  [release-notes/v1.8.5.md](release-notes/v1.8.5.md).
+
+  Measured on the release: 4,238 tests. The boss ladder, the floors and the
+  Darlings rows raised no flags, apart from F15 sitting on its band minimum, a
+  recorded noise-level dip. About 1.3 million simulated games went into the
+  new rates. What it hands to 1.9 is listed in
+  [plan-1.9.md](plan-1.9.md) ("Carried from 1.8.5").
+- **The 1.8.1 patch (grouped by the owner 2026-09-25).** Lane 0 of
+  [plan-1.9.md](plan-1.9.md): the seventeen art regenerations of
+  [plan-art-regen-2026-09-22.md](plan-art-regen-2026-09-22.md) (five
+  close-ups and twelve hidden faces, prompts authored), the Drowned Deep
+  duplicate split (#436), anything egregious the post-release sweep finds,
+  and the 21 open 1.8 review findings G1-G21, re-checked against `main` the
+  same day, in nine PRs by file set on a `release/1.8.1` train. Cut when the
+  sweep reads. No save schema change; the replay log goes to v15.
+  **BUILT AND STAGED 2026-09-25** on `release/1.8.1` (#439-#455 plus the cut
+  staging PR): all G1-G23 findings closed, with G22 (glossary keywords)
+  and G23 (Rage never skips combat) found during the build. Two adversarial
+  engine reviews also closed two crashes and two freezes (one crash and the
+  Tithe soft-lock were live in 1.8.0), with two owner rulings the same day
+  (a dies-triggered raise passes over a legend you control; a Rite or Tithe
+  fodder's choice always comes before the response window). Also in the
+  release: the Hauntlink Apex recost (D7-A),
+  21 achievements, the privacy policy naming Cloudflare, a bounce no longer
+  counting as a death, and **the Forge** (the Card Builder sub-site at
+  `/forge/`, announced in the notes by the owner's ruling). Measured on the
+  staged tip: 4,218 tests; the floors matrix with no flags; the avatar and
+  Darlings matrices identical to their baselines within a point or two, with
+  one older finding carried to 1.9 (the Darlings summit, R23-R26 at 10-28%).
+  Release notes: [release-notes/v1.8.1.md](release-notes/v1.8.1.md).
+  **SHIPPED 2026-09-25** on the owner's word ("cut now, we can always patch
+  again"), ahead of D6: main carried a live crash, and the post-release sweep
+  measures 1.8.0, not 1.8.1. Its round 0 read clean on 2026-09-24; a lost
+  runner stopped round 1 and the watcher resumed it (run 36196954110). A
+  later round's finding lands in a 1.8.x patch or in 1.9. The Darlings
+  summit tune waits for 1.9 (owner, same day).
 
 ## Recently shipped (2026-09-24 · 1.8.0)
 
@@ -1673,37 +1735,25 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
 
 ## Planned
 
-- **1.8.5, the scaling rebalance (BUILT AND STAGED 2026-09-28 on
-  `release/1.8.5`).** [plan-1.8.5.md](plan-1.8.5.md). The scorer priced every
-  creature keyword as a flat constant, so a Forge-built 10/1 Twin Blades flier
-  read Under Value.
-  - **The v4 scorer (#459).** Magic through 2020, 624,640 games in our own
-    engine and an audit of every other rate agree: Twin Blades, Skyborne, Blood
-    Oath, First Blade and Warcry scale with attack, Bulwark's penalty grows
-    with it, Deathblade shrinks with it, and the body is priced power over
-    toughness with a gentle taper. The lords and the level flags were measured
-    in-engine before any rate changed (D4, D6, D10).
-  - **The attack-aware AI (#461).**
-  - **A card slate that play backs (#460).** 131 changes were approved card by
-    card. The owner then kept only the 27 nerfs the metagame sweep backs with
-    play and reverted the other 48 (D11-D13).
-  - **Ramp priced by cast turn against the 10-land reserve (#462, D12).** Six
-    late-ramp buffs followed (#463, D14).
-  - **Lane 5 validation (#464).** Stand as One went to {W}, and seven summit
-    floors ratcheted up (D15-D17). The Drowned Deacon and the Marsh-Mother
-    were retuned back to their 2026-09-16 levels.
+- **The 1.9 train (every decision ruled 2026-09-25; 1.8.1 and 1.8.5 have
+  shipped; wave 0 is next).** [plan-1.9.md](plan-1.9.md) is the program plan.
+  In:
+  - **First Dawn**, a fresh ~150-card set drafted by an Opus 5.5 agent (the
+    July overplan is retired), on **Provoked** and **Hunt**, both approved.
+    It is costed on the 1.8.5 scorer (§4u keyword scaling, §4v ramp).
+  - **Accessibility.**
+  - **Card art streaming** (load on demand, unload under a budget).
+  - The **mechanic usage audit**.
+  - **Weenie's cost** in the Hard brain and the two remaining **sweep
+    levers**.
+  - **Flavor text removed entirely** (R13, ruled 2026-09-25), with the art
+    window growing into the room it frees.
+  - **What 1.8.5 carried over**: the AI's ramp valuation, the ramp anchor,
+    the 48 reverted nerfs to measure, Starborne Apotheosis, and two art
+    regenerations.
 
-  The result is 90 cards changed: 27 down, 63 up. Release notes:
-  [release-notes/v1.8.5.md](release-notes/v1.8.5.md).
-- **The 1.9 train (every decision ruled 2026-09-25; the 1.8.1 train is open).**
-  [plan-1.9.md](plan-1.9.md) is the program plan. In: **First Dawn**, a
-  fresh ~150-card set drafted by an Opus 5.5 agent (the July overplan is
-  retired), on **Provoked** and **Hunt**, both approved; **accessibility**;
-  **card art streaming** (load on demand, unload under a budget); the
-  **mechanic usage audit**; **weenie's cost** in the Hard brain and the two
-  remaining **sweep levers**; and **flavor text removed entirely** (R13,
-  ruled 2026-09-25), with the art window growing into the room it frees. First comes **1.8.1**: the 1.8.x items and
-  every open 1.8 review finding, grouped by the owner the same day. Out: the
+  **1.8.1** (the 1.8.x items and every open 1.8 review finding) and
+  **1.8.5** (the scaling rebalance) shipped first. Out: the
   **mobile overhaul** (to 2.0), **AI suggested decks** and the **editable
   Limited Warchest** (both past 2.0). Ruled 2026-09-25: D1 the keyword is
   **Provoked**, D2 the set is **150-165 cards**, D3 **English only** (no
@@ -1714,7 +1764,7 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   D7 the 1.8 balance items (the Hauntlink Apex slate rides 1.8.1; the top
   tier, rung 19 and collection dilution in wave 4); D9 the 1.9 sweep runs
   last before the cut on six personas if it fits in a night. Every decision
-  is ruled; the 1.8.1 train is open.
+  is ruled. Wave 0 cuts `release/1.9` from `main` (v1.8.5, ed1cb26).
 - **2.0 is the itch.io launch (owner ruling 2026-09-25).** The largest update
   the game has had, with the mobile overhaul, Core Set II and Story Mode, and
   the release that is posted on itch.io and advertised. No plan exists yet;
@@ -1743,35 +1793,6 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   Profile the combat evaluation on wide boards, fix without changing
   decisions where possible, re-admit weenie to the sweep. Any brain change
   re-baselines the floors.
-- **The 1.8.1 patch (grouped by the owner 2026-09-25).** Lane 0 of
-  [plan-1.9.md](plan-1.9.md): the seventeen art regenerations of
-  [plan-art-regen-2026-09-22.md](plan-art-regen-2026-09-22.md) (five
-  close-ups and twelve hidden faces, prompts authored), the Drowned Deep
-  duplicate split (#436), anything egregious the post-release sweep finds,
-  and the 21 open 1.8 review findings G1-G21, re-checked against `main` the
-  same day, in nine PRs by file set on a `release/1.8.1` train. Cut when the
-  sweep reads. No save schema change; the replay log goes to v15.
-  **BUILT AND STAGED 2026-09-25** on `release/1.8.1` (#439-#455 plus the cut
-  staging PR): all G1-G23 findings closed, with G22 (glossary keywords)
-  and G23 (Rage never skips combat) found during the build. Two adversarial
-  engine reviews also closed two crashes and two freezes (one crash and the
-  Tithe soft-lock were live in 1.8.0), with two owner rulings the same day
-  (a dies-triggered raise passes over a legend you control; a Rite or Tithe
-  fodder's choice always comes before the response window). Also in the
-  release: the Hauntlink Apex recost (D7-A),
-  21 achievements, the privacy policy naming Cloudflare, a bounce no longer
-  counting as a death, and **the Forge** (the Card Builder sub-site at
-  `/forge/`, announced in the notes by the owner's ruling). Measured on the
-  staged tip: 4,218 tests; the floors matrix with no flags; the avatar and
-  Darlings matrices identical to their baselines within a point or two, with
-  one older finding carried to 1.9 (the Darlings summit, R23-R26 at 10-28%).
-  Release notes: [release-notes/v1.8.1.md](release-notes/v1.8.1.md).
-  **SHIPPED 2026-09-25** on the owner's word ("cut now, we can always patch
-  again"), ahead of D6: main carried a live crash, and the post-release sweep
-  measures 1.8.0, not 1.8.1. Its round 0 read clean on 2026-09-24; a lost
-  runner stopped round 1 and the watcher resumed it (run 36196954110). A
-  later round's finding lands in a 1.8.x patch or in 1.9. The Darlings
-  summit tune waits for 1.9 (owner, same day).
 
 > **The release spine from 1.7 to 2.0 lives in
 > [plan-road-to-2.0.md](plan-road-to-2.0.md)** (2026-08-24): the Large/Small

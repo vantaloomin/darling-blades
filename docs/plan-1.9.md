@@ -1,13 +1,15 @@
-<!-- source-of-truth: docs/plan-road-to-2.0.md, docs/plan-expansion-slate.md, docs/plan-accessibility-i18n.md, docs/plan-mechanic-usage-audit.md, docs/plan-sweep-speed.md, docs/plan-art-regen-2026-09-22.md, docs/metagame-sweep.md, src/engine/types.ts, src/art/artLoader.ts, src/art/ArtResolver.ts, src/ui/CardThumbCache.ts, src/ai/activatedPolicy.ts, src/meta/SaveManager.ts, src/meta/Replay.ts, scripts/audit-overlap.ts, scripts/personas/craft.ts · last-verified: 2026-09-25 · program doc — the 1.9 train, opened on the owner's scope rulings of 2026-09-25; re-verify when the owner rules on the open decisions or a lane lands -->
+<!-- source-of-truth: docs/plan-road-to-2.0.md, docs/plan-expansion-slate.md, docs/plan-accessibility-i18n.md, docs/plan-mechanic-usage-audit.md, docs/plan-sweep-speed.md, docs/plan-art-regen-2026-09-22.md, docs/plan-1.8.5.md, docs/metagame-sweep.md, src/engine/types.ts, src/art/artLoader.ts, src/art/ArtResolver.ts, src/ui/CardThumbCache.ts, src/ai/activatedPolicy.ts, src/meta/SaveManager.ts, src/meta/Replay.ts, scripts/audit-overlap.ts, scripts/personas/craft.ts · last-verified: 2026-09-28 · program doc — the 1.9 train, opened on the owner's scope rulings of 2026-09-25; re-verify when the owner rules on the open decisions or a lane lands -->
 
 # Darling Blades 1.9 — program plan
 
-**Status 2026-09-25: every decision RULED; the 1.8.1 train (lane 0) is
-open.** The owner ruled the 1.9 scope on 2026-09-25 (the table below), then
+**Status 2026-09-28: every decision RULED. 1.8.1 (lane 0) shipped
+2026-09-25 and 1.8.5, the scaling rebalance, shipped 2026-09-28. Wave 0 is
+next.** The owner ruled the 1.9 scope on 2026-09-25 (the table below), then
 the same day grouped the 1.8.x items with every open 1.8 review finding as the
-1.8.1 patch, ruled D1-D11, and said go on 1.8.1. This document turns those
-rulings into lanes and waves. The 1.9 lanes start on the owner's word once
-1.8.1 is cut.
+1.8.1 patch, ruled D1-D11, and said go on 1.8.1. 1.8.5 was inserted before
+wave 0 on 2026-09-26 (its D8), so First Dawn is costed on the new scorer from
+its first card. This document turns the rulings into lanes and waves. The 1.9
+lanes start on the owner's word.
 
 The release spine is [plan-road-to-2.0.md](plan-road-to-2.0.md). Its 1.9 row,
 as agreed 2026-08-24, and as it stands after the owner's rulings:
@@ -37,21 +39,30 @@ as agreed 2026-08-24, and as it stands after the owner's rulings:
 
 ## Where 1.9 starts from
 
-- `main` is `a1c8f91`: v1.8.0 (the two-parent merge `fd29724`, tag `v1.8.0`,
-  2026-09-24) plus the custom domain and link preview (#435). One PR is
-  open: #436, the Drowned Deep duplicate split, green, into `main`, merge on
-  the owner's word.
+- `main` is `ed1cb26`: v1.8.5, the two-parent merge of `release/1.8.5`
+  (tag `v1.8.5`, 2026-09-28), on top of v1.8.1 (`b4973a9`, 2026-09-25).
+  No PR is open.
 - Pool: 1,482 collectible cards across ten sets, a 26-rung tower, 5 starter
   precons, 9 theme decks and 5 Darlings precons, 82 Duty carriers.
-  `SaveData` is v35, `REPLAY_LOG_VERSION` is 14. The suite at the cut: 3,961
-  tests plus 4 skipped across 259 files, about 13 minutes on an idle machine.
-- **The post-release metagame sweep is still running**: run 36017324764 on
-  `main` at `fd29724`, five personas (weenie excluded for cost), started
-  2026-09-24 15:03 UTC. The pre-release round 0 (run 35858624583 at
-  `69d9d22`, the same field) read nothing egregious. Reanimator was the
-  weakest persona (63.3% against the prefab field), and the Starborne and
-  Silver Veil shop decks conceded 95-97% of games, the same as the 1.7
-  reading. Both readings feed the First Dawn identity brief (lane B).
+  - `SaveData` is v35; neither 1.8.1 nor 1.8.5 bumped it.
+  - `REPLAY_LOG_VERSION` is 15, since 1.8.1's G6. 1.8.5 changed card data
+    only, so its card-db stamp alone refuses older replays.
+  - The suite at the 1.8.5 cut: 4,238 tests plus 4 skipped across 278 files,
+    about 13 minutes on an idle machine.
+- **The post-release metagame sweep has ended.**
+  - Run 36017324764 on `main` at `fd29724` lost a runner in round 1. The
+    watcher resumed it as run 36196954110 at `3bc6d2b`.
+  - Both runs finished as "failure" from lost chunks. The rounds that did
+    finish, 0 to 2, are published on `sweep-data`: `sweeps/2026-09-22`
+    through `2026-09-25-13003`, 47 crafted decks.
+  - They measured the 1.8.0 pool. 1.8.5 used those crafts as its play
+    evidence (its D11).
+  - The pre-release round 0 read nothing egregious. Reanimator was the
+    weakest persona (63.3% against the prefab field), and the Starborne and
+    Silver Veil shop decks conceded 95-97% of games, the same as the 1.7
+    reading. Both readings feed the First Dawn identity brief (lane B).
+  - **Coverage gap:** no persona plays green or red-white, so the sweep says
+    nothing about those cards (see "Carried from 1.8.5").
 - The two expansion mechanics have **no engine vocabulary yet**, measured
   2026-09-25: `TriggerWhen` in `src/engine/types.ts` has no damage-received
   event (only `combatDamageToPlayer`), and `EffectOp` has no mutual-damage
@@ -62,6 +73,53 @@ as agreed 2026-08-24, and as it stands after the owner's rulings:
   through, is blind to Duty, Tithe and Whispers: its `bodyKey` has no
   `activated`, `tithe` or `whispers` field. That is how three same-cost
   duplicates reached the shipped Drowned Deep (the 2026-09-24 review, #436).
+
+## Carried from 1.8.5 (2026-09-28)
+
+1.8.5 rebuilt the power scorer and re-priced the pool
+([plan-1.8.5.md](plan-1.8.5.md), rulings D1-D17). What that changes for 1.9,
+and what it hands on:
+
+**How cards are costed from now on (lanes A and B).**
+
+- Keywords are priced on the creature carrying them (§4u of the local power
+  formula):
+  - Twin Blades 0.75 + 0.40 per point of Attack
+  - Skyborne 0.50 + 0.27
+  - First Blade 0.20 + 0.22
+  - Blood Oath 0.20 + 0.25
+  - Warcry 0.15 + 0.10
+  - Bulwark's penalty grows with Attack
+  - Deathblade shrinks with it
+- The body is priced 0.55 per Attack and 0.45 per Defense, with a taper.
+- Extra land drops are priced by the turn they are cast, against the 10-land
+  reserve (§4v).
+- **Every First Dawn card, and the rates for Provoked and Hunt, are costed on
+  this scorer.** The Forge uses the same code, so a card the Forge calls
+  Accurate is Accurate in the game's own numbers.
+- A new combat keyword that hits harder on a bigger body gets an attack slope,
+  measured the way 1.8.5 measured its keywords. The in-engine lab harnesses
+  sit in the local `balance/study/lab/`. The standing rule is that no mechanic
+  ships unweighed.
+
+**Balance items handed on** (they join D7's wave 4 unless a lane owns them):
+
+| Item | What 1.8.5 found | Where it lands |
+| --- | --- | --- |
+| **The AI values ramp at 0** | `opImpactValue` has no `extraLandDrop` case, so Medium casts a two-mana ramp spell on its own turn 6.9 on average, and a Dawn ramp engine earns only the triggered-ability premium. A flat case would reintroduce the scorer's old defect; the target is the §4v cast-turn shape. It changes play, so it re-measures the gates | Lane E (the usage audit); needs the owner's go as an AI change |
+| **The ramp anchor** | One extra land at mana value 2 stays at the Rampant Growth anchor, 1.9; the ramp lab measured it at 1.22 [0.95, 1.60]. Lowering it would make every ramp card read cheaper in the Forge | **Open owner decision** (1.8.5's recommendation: keep 1.9) |
+| **48 reverted nerfs** | 1.8.5 shipped only the 27 nerfs the sweep backs with play. 48 cards the new scorer calls over budget were never picked by the sweep's optimizer, 15 of them because no persona plays their colours (green, red-white). They stay as in 1.8.1, and the Forge reads some as Over Value | A measure-later pass: per-card in-engine checks, or the sweep with green and red-white personas (lane F); the list is `balance/study/slate/reverted-48.json` |
+| **Starborne Apotheosis still under** | Measured about 1.6 below its budget after its buff. The AI casts it as "gain 8 life" with no Marked creature on the board in 72% of casts | AI mark-awareness first (lane E), then re-measure |
+| **Brood Communion on empty boards** | Fair as a card, but cast with no creature of its own in 32-39% of casts | Lane E |
+| **Black Tide Rising** | Shipped at {B}{B}, -3/-3 (D15). Fair in Shadow Mandate, over-tuned in Midnight Storybook (+1.22; the precon goes 61.5% to 71.2% with four copies) | Watch in the 1.9 sweep and the player stats |
+| **Granted keywords the AI still prices flat** | Boost ops and non-creature static grants were outside 1.8.5's attack-scaling pass | Lane E |
+| **The lower-tower bands** | Sima Yi rose 25 to 43 on buffed cards in his converter list (owner-accepted; it closes the R6/R5 inversion). Floor 15 sits on its band minimum (50.0) | The RUNG_BANDS 1-13 re-centre already recorded for 1.9 (an owner call) |
+| **Scorer rates still NEEDS MATH** | controlMarked, markedThreshold, recurring self-damage, Whispers' fire rate, the X-spell tax, the Duty coefficient, the cost limit on a removal spell's target, and the Hauntlink link cost (#403) | Costed when a First Dawn card or a balance item needs one |
+| **Still Harbour and Signal Drown** | Still Harbour was flagged by the new pricing and held. Signal Drown is a dead card in the Violet Signal Queen's deck, which has no Mark sources | Wave 4 balance pass |
+
+**Art.** Swan-Lake Sovereign and Brood Communion no longer match their
+art, and both are queued in lane B's art run (below). Freya and Siege
+Juggernaut were reverted, so their art still matches.
 
 ## Lanes
 
@@ -478,6 +536,16 @@ finding already known, paid Duties unused in main phase 1, is fixed in 1.8.1
 (G9), so the first audit measures the fixed brain. Any brain change
 re-baselines the floors it moves.
 
+**Carried from 1.8.5**, three findings from the 1.8.5 labs the first audit
+should count. Each fix is a wave-3 AI change behind the gates.
+- **Ramp** is valued at 0 and cast late.
+- **Starborne Apotheosis** is cast with no Marked creature, and Brood
+  Communion on empty boards.
+- Some **granted keywords** are still priced flat.
+
+The details are in [ai.md](ai.md) ("Gaps the 1.8.5 labs found") and in
+"Carried from 1.8.5" above.
+
 ### Lane F — the sweep: weenie's cost, racing, and the Medium screen
 
 Where it stands: the sweep runs on GitHub-hosted runners
@@ -510,9 +578,18 @@ the in-process loop.
 The target is a sweep that fits in a night again, so the 1.9 sweep can run
 last before the cut, the standing rule the 1.8 ruling suspended (D9).
 
+**Proposed from 1.8.5, not ruled: close the sweep's colour gap.** The
+personas play black-white, red-black, white-blue, black-red and blue-black.
+Weenie's green-white ran on the first day only. So the sweep has nothing to
+say about green or red-white cards, and 15 of the 48 nerfs 1.8.5 reverted sit
+in that gap. The proposal is to add a green persona and a red-white one, or
+rotate a persona's colours, once racing and the Medium screen make the room.
+Then the 1.9 sweep can back or clear those nerfs with play. This is an owner
+call.
+
 ### Lane H — measurement and release mechanics
 
-- **One save bump** (v36, lane C); 1.8.1 carries none. **Replay log bumps**:
+- **One save bump** (v36, lane C); 1.8.1 and 1.8.5 carry none. **Replay log bumps**:
   v15 in 1.8.1 (G6) and v16 with lane A, the two new mechanics.
 - Every new mechanic gets its rate before card data. The balance matrices
   re-run when the AI or decks move; floors only ratchet up.
@@ -542,7 +619,7 @@ separate worktrees, by file set.
 
 | Wave | Contents | Gate |
 | ---: | --- | --- |
-| **0** | The 1.8.1 train (lane 0) on `release/1.8.1`, cut when the sweep reads; this plan and the roadmap and spine sync; `release/1.9` cut from `main` after 1.8.1; the main checkout fast-forwarded on the owner's word (uncommitted `.gitignore` and `run-sweep.ps1` edits sit there); the duplicate comparator learns Duty, Tithe and Whispers | 1.8.1 on the cut checklist, its floors re-measured |
+| **0** | 1.8.1 (lane 0) SHIPPED 2026-09-25 and 1.8.5 (the scaling rebalance) SHIPPED 2026-09-28; this plan, the roadmap and the spine synced to both (2026-09-28); `release/1.9` cut from `main` at v1.8.5 (`ed1cb26`); the main checkout fast-forwarded on the owner's word (uncommitted `.gitignore` and `run-sweep.ps1` edits sit there); the duplicate comparator learns Duty, Tithe and Whispers | Both patches on the cut checklist, their floors re-measured (done) |
 | **1** | Specs and briefs: `plan-first-dawn-engine.md` and the First Dawn identity brief (Opus 5.5); the accessibility plan re-verified; usage audit waves 0-1; weenie profiling; the card-face mock, where the owner picks the art window height (R13); the art streaming design, after itch.io's HTML5 hosting limits are checked (approved 2026-09-25: 2.0 ships there, so the streaming design must fit its file count and size rules) | owner approval of each spec |
 | **2** | Engine: Provoked and Hunt with rates, AI at three difficulties, converter, replay bump, glossary. Accessibility wave 1 with the v36 bump. Flavor removed and the taller art window built (R13), before the art run. Art streaming built. Sweep levers 2-3 and their one-persona comparison | full ladder, win-rate gates unchanged, replay goldens, the no-change test |
 | **3** | Set: the ~200 overplan, the owner's cut, concretion, transcription. The art pilot, then the art run from the day the cut locks. Accessibility wave 2 (core scenes) | check-art-bible green, every token minted, duplicate audit filed |
@@ -583,7 +660,10 @@ Numbered so rulings can cite them. Recommendations are the first option.
   player-side starter columns.
 - **D6 1.8.1 timing. RULED: cut 1.8.1 when the post-release sweep's reading
   is in**, carrying lane 0 (the 1.8.x items and the review carry-over);
-  `release/1.9` is cut from `main` after it.
+  `release/1.9` is cut from `main` after it. **Superseded in part:** 1.8.1
+  was cut on 2026-09-25 ahead of the sweep, on the owner's word. 1.8.5 was
+  then inserted before wave 0 (plan-1.8.5 D8), so `release/1.9` is cut after
+  1.8.5.
 - **D8 The older-set near-duplicates. RULED: a review and a resolution plan,
   resolved in a 1.9.x patch.** Known today, from the 2026-09-24 review: six
   same-tribe stat ladders (Ragnarök and Duat twice each, Starborne twice),

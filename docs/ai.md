@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/ScriptAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/targeting.ts, src/ai/activatedPolicy.ts, src/ai/ritePolicy.ts, src/ai/tithePolicy.ts, src/ai/whispersPolicy.ts, src/ai/discardPolicy.ts, src/ai/sacrificePolicy.ts, src/ai/preservePolicy.ts, src/ai/hauntlinkPolicy.ts, src/ai/landPolicy.ts, src/ai/darlingPolicy.ts, src/ai/foresee.ts, src/ai/personality.ts, src/ai/NoisyAI.ts, src/ai/tiers.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts, tests/ai/rungSmokes.test.ts, tests/ai/documentedBehaviour.test.ts, docs/plan-ai-modernization.md · last-verified: 2026-09-25
+<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/ScriptAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/targeting.ts, src/ai/activatedPolicy.ts, src/ai/ritePolicy.ts, src/ai/tithePolicy.ts, src/ai/whispersPolicy.ts, src/ai/discardPolicy.ts, src/ai/sacrificePolicy.ts, src/ai/preservePolicy.ts, src/ai/hauntlinkPolicy.ts, src/ai/landPolicy.ts, src/ai/darlingPolicy.ts, src/ai/foresee.ts, src/ai/personality.ts, src/ai/NoisyAI.ts, src/ai/tiers.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts, tests/ai/rungSmokes.test.ts, tests/ai/documentedBehaviour.test.ts, docs/plan-ai-modernization.md · last-verified: 2026-09-28
      If you change those files, update this doc or re-verify the date. -->
 
 # AI
@@ -813,6 +813,23 @@ improved too. The untuned Deacon moved 33 to 35.5 and Lanterns Below 18.9 to
 (Lanterns Below 14.6 to 31.3 on its reserve-native row, the Deacon 35.9 to
 66.4; the surgery records sit beside each list). Everything the tests
 do prove is listed beside the claim it proves, in the file.
+
+**Gaps the 1.8.5 labs found, logged for 1.9** (`docs/plan-1.8.5.md`; the lab
+write-ups sit in the local `balance/study/lab/`):
+
+- **Ramp is valued at 0.** `opImpactValue` has no `extraLandDrop` case, and
+  `empowerValue` scores it 0 too. So Medium casts a two-mana ramp spell at a
+  blank card's priority, on its own turn 6.9 on average, and a Dawn ramp
+  engine gets only the flat triggered-ability premium. A one-line flat case
+  would bring back the scorer's old defect. The target is the scorer's §4v
+  shape: extra untapped mana before the 10-land reserve runs out, from the
+  land count the view already carries. It changes play, so it needs the gates.
+- **Starborne Apotheosis is cast as "gain 8 life".** 72% of casts come with
+  no Marked creature on the board, so Propagate and the +2/+2 do nothing.
+- **Brood Communion is often cast on an empty board**: 32-39% of casts.
+- **Some granted keywords are still priced flat.** Keywords granted by boost
+  ops and by non-creature static grants were outside lane 4's attack-scaling
+  pass.
 
 ## Tower strength tiers (the decision-noise dial)
 
