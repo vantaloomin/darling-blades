@@ -1764,7 +1764,14 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   D7 the 1.8 balance items (the Hauntlink Apex slate rides 1.8.1; the top
   tier, rung 19 and collection dilution in wave 4); D9 the 1.9 sweep runs
   last before the cut on six personas if it fits in a night. Every decision
-  is ruled. Wave 0 cuts `release/1.9` from `main` (v1.8.5, ed1cb26).
+  is ruled. **Wave 0 began 2026-09-28** with four more rulings: the waves
+  re-ordered around the First Dawn critical path (D15: lane A split into A1
+  and A2, the art pilot before the cut, the first usage audit in wave 2),
+  the follow-ups logged at the 1.8.1 cut placed early as lane I (D14), the
+  sweep gaining personas in First Dawn's colours (D12), and the AI fixes
+  1.8.5 handed on approved (D13). Wave 0 cuts `release/1.9` from `main`,
+  then lands the duplicate-comparator fix and a Foresee-on-an-empty-deck
+  rules fix on the train, where nothing deploys until the 1.9.0 cut.
 - **2.0 is the itch.io launch (owner ruling 2026-09-25).** The largest update
   the game has had, with the mobile overhaul, Core Set II and Story Mode, and
   the release that is posted on itch.io and advertised. No plan exists yet;
@@ -1792,7 +1799,8 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   and 27 hours per craft, which is why the 1.8 sweep excluded the persona.
   Profile the combat evaluation on wide boards, fix without changing
   decisions where possible, re-admit weenie to the sweep. Any brain change
-  re-baselines the floors.
+  is measured against the floors; in 1.9 they ratchet once, at the end of
+  wave 4 ([plan-1.9.md](plan-1.9.md), Sequencing).
 
 > **The release spine from 1.7 to 2.0 lives in
 > [plan-road-to-2.0.md](plan-road-to-2.0.md)** (2026-08-24): the Large/Small

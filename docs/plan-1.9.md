@@ -4,12 +4,16 @@
 
 **Status 2026-09-28: every decision RULED. 1.8.1 (lane 0) shipped
 2026-09-25 and 1.8.5, the scaling rebalance, shipped 2026-09-28. Wave 0 is
-next.** The owner ruled the 1.9 scope on 2026-09-25 (the table below), then
-the same day grouped the 1.8.x items with every open 1.8 review finding as the
-1.8.1 patch, ruled D1-D11, and said go on 1.8.1. 1.8.5 was inserted before
-wave 0 on 2026-09-26 (its D8), so First Dawn is costed on the new scorer from
-its first card. This document turns the rulings into lanes and waves. The 1.9
-lanes start on the owner's word.
+under way (owner, 2026-09-28).** The owner ruled the 1.9 scope on 2026-09-25
+(the table below), then the same day grouped the 1.8.x items with every open
+1.8 review finding as the 1.8.1 patch, ruled D1-D11, and said go on 1.8.1.
+1.8.5 was inserted before wave 0 on 2026-09-26 (its D8), so First Dawn is
+costed on the new scorer from its first card. On 2026-09-28 the owner ruled
+D12-D15: the waves are re-ordered around the critical path (see Sequencing),
+the follow-ups logged at the 1.8.1 cut become lane I and land early, the
+sweep gains personas in First Dawn's colours, and the AI fixes 1.8.5 handed
+on are approved. This document turns the rulings into lanes and waves. Each
+wave starts on the owner's word.
 
 The release spine is [plan-road-to-2.0.md](plan-road-to-2.0.md). Its 1.9 row,
 as agreed 2026-08-24, and as it stands after the owner's rulings:
@@ -106,9 +110,9 @@ and what it hands on:
 
 | Item | What 1.8.5 found | Where it lands |
 | --- | --- | --- |
-| **The AI values ramp at 0** | `opImpactValue` has no `extraLandDrop` case, so Medium casts a two-mana ramp spell on its own turn 6.9 on average, and a Dawn ramp engine earns only the triggered-ability premium. A flat case would reintroduce the scorer's old defect; the target is the §4v cast-turn shape. It changes play, so it re-measures the gates | Lane E (the usage audit); needs the owner's go as an AI change |
+| **The AI values ramp at 0** | `opImpactValue` has no `extraLandDrop` case, so Medium casts a two-mana ramp spell on its own turn 6.9 on average, and a Dawn ramp engine earns only the triggered-ability premium. A flat case would reintroduce the scorer's old defect; the target is the §4v cast-turn shape. It changes play, so it re-measures the gates | Lane E (the usage audit); **the AI change is approved (D13, 2026-09-28)** |
 | **The ramp anchor** | One extra land at mana value 2 stays at the Rampant Growth anchor, 1.9; the ramp lab measured it at 1.22 [0.95, 1.60]. Lowering it would make every ramp card read cheaper in the Forge | **RULED 2026-09-28: keep 1.9.** The anchor does not move; the lab reading is recorded in §4v |
-| **48 reverted nerfs** | 1.8.5 shipped only the 27 nerfs the sweep backs with play. 48 cards the new scorer calls over budget were never picked by the sweep's optimizer, 15 of them because no persona plays their colours (green, red-white). They stay as in 1.8.1, and the Forge reads some as Over Value | A measure-later pass: per-card in-engine checks, or the sweep with green and red-white personas (lane F); the list is `balance/study/slate/reverted-48.json` |
+| **48 reverted nerfs** | 1.8.5 shipped only the 27 nerfs the sweep backs with play. 48 cards the new scorer calls over budget were never picked by the sweep's optimizer, 15 of them because no persona plays their colours (green, red-white). They stay as in 1.8.1, and the Forge reads some as Over Value | A measure-later pass: per-card in-engine checks, or the sweep with green and red-white personas (lane F, ruled D12); the list is `balance/study/slate/reverted-48.json` |
 | **Starborne Apotheosis still under** | Measured about 1.6 below its budget after its buff. The AI casts it as "gain 8 life" with no Marked creature on the board in 72% of casts | AI mark-awareness first (lane E), then re-measure |
 | **Brood Communion on empty boards** | Fair as a card, but cast with no creature of its own in 32-39% of casts | Lane E |
 | **Black Tide Rising** | Shipped at {B}{B}, -3/-3 (D15). Fair in Shadow Mandate, over-tuned in Midnight Storybook (+1.22; the precon goes 61.5% to 71.2% with four copies) | Watch in the 1.9 sweep and the player stats |
@@ -127,7 +131,8 @@ Lanes are ordered by dependency, not by size. Lane 0 is the 1.8.1 patch and
 ships first; the review carry-over rides in it, and its items keep their G
 numbers. A is the engine and rules work that must exist before card data. B
 is the set. C, D, E and F are independent of the set and run beside it. H is
-measurement and release mechanics.
+measurement and release mechanics. I is the follow-ups logged at the 1.8.1
+cut, placed as early as their file sets allow (D14).
 
 ### Lane 0 — the 1.8.1 patch: the 1.8.x items and the 1.8 review carry-over
 
@@ -294,6 +299,30 @@ Deep waves paid:
 - **A usage row from the first day** (lane E), so the new mechanics are not
   judged by win rate alone.
 
+**The build splits in two (D15, ruled 2026-09-28).** Only part of the list
+above stands between the spec and the first card row, so the lane lands in
+two halves:
+
+- **A1, on the critical path:** the Provoked trigger and the Hunt op (on
+  the v16 replay version I1 takes in wave 0), and the Hard brain's Hunt
+  targeting and Provoked survival reads. The Hard reads belong here because
+  the rates are measured in-engine by games the AI plays, and a naive target
+  policy would price Hunt low. They read only the new trigger and op, which
+  no shipped card carries, so they must leave the current pool's games
+  unchanged; A1 proves that with the identical-action-log harness lane F
+  builds in wave 1, rather than asserting it. Then the lab runs that
+  produce both MEP rates. The harnesses (`balance/study/lab/`) are
+  gitignored and absent from a fresh worktree, so the lab runs from the main
+  checkout or the harness is copied in, as `cheats.local.ts` is. A1 also owns
+  entering the rates in the scorer: Provoked is a trigger and Hunt an op, so
+  they are new terms in `src/power/scoreCore.ts` (not `KEYWORD_RATE` rows)
+  and new sections in the local power formula, and the Forge reads them from
+  the same code.
+- **A2, beside the set work:** Medium and Easy, draft-picker weights, the
+  DuelScene two-target flow and its `switch` audit, the converter's target
+  walk, rules-text templates, glossary entries and icons, and the blades-db
+  rows. A2 lands before transcription (wave 3), not before the overplan.
+
 ### Lane B — the set: First Dawn, 150-165 cards, authored fresh
 
 **Owner ruling 2026-09-25: a fresh set, drafted by an Opus 5.5 agent.** The
@@ -351,8 +380,13 @@ What the set carries besides cards:
 - **A summit pair at rungs 27-28**, with converter-owned Darlings decks
   regenerated on every pool change (generate, then sync), and floors set from
   the final band. The win-rate gates are split to fit CI's 900-second
-  per-test budget; a 28-avatar tower needs its gate shape decided before the
-  rungs land.
+  per-test budget. **Gate shape, decided 2026-09-28:** rungs 27-28 get their
+  own test, the one-test-per-pair pattern `tests/ai/winrate.test.ts` already
+  uses for rungs 23-24 and 25-26. The Darlings rows gain a gate in the same
+  wave (the summit finding carried from 1.8.1, lane 0 above), scoped to the
+  summit, rungs 23-28: at about 77 seconds a rung at 40 seeds (measured on
+  rungs 14-22), the whole 28-rung tower would take about 2,150 seconds
+  against the 900-second budget, and the summit about 460.
 - **Set achievements.** Starborne and Drowned Deep get theirs in 1.8.1
   (G12); First Dawn ships with its own.
 - An art-bible section, set icon, booster blurb, land style, the
@@ -361,10 +395,17 @@ What the set carries besides cards:
   portraits. Prompts are authored by the Opus agent, and Codex runs the
   pipeline on one lane. Large non-humanoid subjects (dinosaurs) are new
   territory for the prompt recipes, so a pilot batch of about ten goes
-  through the owner's eyes before the full run. The art run starts the day
-  the cut locks. Frame geometry stays deferred to 2.0 (D8 of 1.8), so First
-  Dawn's art is cropped to today's frame.
-- **Two 1.8.5 regenerations ride the same art run** (owner, 2026-09-26:
+  through the owner's eyes before the full run. **The pilot runs before the
+  cut (D15):** it tests the recipe, which needs subjects from the approved
+  identity brief, not final rows. It runs in wave 2, once the art window
+  height is picked (R13), together with the two rung 27-28 boss portraits.
+  The two 1.8.5 regenerations below shake the pipeline down on the new
+  window first. The full run then starts the day the cut locks. For scale,
+  Drowned Deep's 256 images generated in about five hours on one lane
+  (2026-09-14); the owner's review rounds, not generation, set the pace.
+  Frame geometry stays deferred to 2.0 (D8 of 1.8), so First Dawn's art is
+  cropped to today's frame.
+- **Two 1.8.5 regenerations ride the art pilot** (owner, 2026-09-26:
   "Queue for regen in the 1.9"). Each gets a new brief and a new image, and
   its art entry is rewritten to match. Until then both ship with their
   current art.
@@ -407,7 +448,13 @@ Three consequences of the rulings:
   1.8.1, so this lane starts from a clean frame.
 - **One save bump.** v35 to v36 adds `settings.textScale` and
   `settings.highContrast`, with a real `migrate()` and a test. Anything else in 1.9 that wants a schema
-  change rides it, and it lands once.
+  change rides it, and it lands once. The one rider known today is I7, the
+  stored Premium draft note (lane I). The bump lands in wave 2, before the
+  fixtures of accessibility waves 2-3 have proven that 130% reflows, and the
+  accessibility plan wants the scale values adjustable until then. So
+  `textScale` is stored as a number and the allowed set (100, 115 and 130%
+  today) is a normalization rule: changing the set later snaps old values
+  to the nearest allowed one and is not a schema change.
 
 Gates: the plan's scale-and-contrast fixture matrix, a human colour-vision
 and clipping review, and no gameplay re-measure unless duel dispatch changes.
@@ -494,7 +541,8 @@ Collection open at once. Known traps from the 1.8 build:
   already bakes a dim thumb for the session.
 - Cards first drawn with the loading stand-in never redraw when the real
   art arrives. The redraw on arrival lands in 1.8.1 (G10); streaming makes
-  it the normal case, so this lane builds on it.
+  it the normal case, so this lane builds on it. Portraits did not get it
+  (I9, lane I); that fix lands in wave 1, before this lane.
 - A texture destroyed while a game object still references it is a crash,
   or Phaser's green square. Pack opening needs its art before the flip; a
   duel preloads both decks.
@@ -516,6 +564,12 @@ Gates: GPU residency and time-to-Collection measured before and after on the
 desktop and phone tiers; no stand-in left on screen after arrival across
 every scene at two sizes; a desktop app run.
 
+**If 1.9 runs long, this is the lane to defer.** Its hard deadline is 2.0:
+itch.io's 1,000-file cap and phone memory. On 1.9's desktop build it buys a
+faster Collection and lower memory, which players will like but were never
+promised. Accessibility is the release's headline and First Dawn its set, so
+neither gives way first.
+
 ### Lane E — measurement: the mechanic usage audit
 
 **On the list by the owner's ruling (U1, 2026-09-25).** The spec is
@@ -528,16 +582,36 @@ ruled 2026-09-25 as the plan recommended (D5): the code lives in `scripts/`,
 passive mechanics stay out of waves 0-2, there is no usage gate in CI until a
 full audit shows what normal is, and Hard goes first, then one Medium pass.
 
-Sequencing: its waves 0-1 (the classifier, the wrapper, `--usage`) land
-before lane A's AI work, so Provoked and Hunt ship with their usage rows. Its
-wave 2, the first full audit of rungs 1-26, is read into a findings note.
-Wave 3 fixes what that note justifies, behind the unchanged gates. The one
-finding already known, paid Duties unused in main phase 1, is fixed in 1.8.1
-(G9), so the first audit measures the fixed brain. Any brain change
-re-baselines the floors it moves.
+Sequencing (D15, re-ordered 2026-09-28): its waves 0-1 (the classifier, the
+wrapper, `--usage`) are scripts only, so they start the day `release/1.9` is
+cut and land before lane A's AI work, so Provoked and Hunt ship with their
+usage rows. Its wave 2, the first full audit of rungs 1-26, runs in the
+program's wave 2, not wave 4, and is read into a findings note. Its wave 3
+fixes what that note justifies, behind the unchanged gates, in the program's
+wave 3. The tower is then tuned once, in wave 4, on a brain that has stopped
+moving (D7's intent). The one finding already known, paid Duties unused in
+main phase 1, is fixed in 1.8.1 (G9), so the first audit measures the fixed
+brain.
+
+- **The wave-1 gate is re-based.** The audit plan's wave-1 gate reproduces
+  the hand counts in [ai.md](ai.md) for Kitsune and the Queen of the
+  Lanterned Roof, but those were taken on 2026-09-19. G9, Apex option A and
+  1.8.5 have moved them since. The gate is a fresh hand count on the
+  current tip, taken the same way, that the wrapper must match.
+- **A second, targeted read opens wave 4.** The first audit predates First
+  Dawn's rows and rungs 27-28, and the audit plan says it runs once per set
+  before the tuning passes. So wave 4 opens with a read of rungs 27-28 and
+  of every boss whose regenerated list gained First Dawn cards, about ten
+  minutes, before any tune. Provoked and Hunt are then judged by use as
+  well as by win rate.
+- **Brain changes and floors** follow the rule in Sequencing: each wave-2
+  and wave-3 change is measured and must clear the standing floors, and the
+  floors ratchet once, at the end of wave 4.
 
 **Carried from 1.8.5**, three findings from the 1.8.5 labs the first audit
-should count. Each fix is a wave-3 AI change behind the gates.
+should count. Each fix is a wave-3 AI change behind the gates. **Approved by
+the owner 2026-09-28 (D13)**, so they need no further go once the audit's
+note backs each one:
 - **Ramp** is valued at 0 and cast late.
 - **Starborne Apotheosis** is cast with no Marked creature, and Brood
   Communion on empty boards.
@@ -545,6 +619,17 @@ should count. Each fix is a wave-3 AI change behind the gates.
 
 The details are in [ai.md](ai.md) ("Gaps the 1.8.5 labs found") and in
 "Carried from 1.8.5" above.
+
+**Carried from the 1.8.1 cut**, for the first audit to count. None is
+approved as a change yet; each needs the audit's evidence first. The first
+three are recorded as known limits in [ai.md](ai.md); the fourth was logged
+by the 1.8.1 AI review and is recorded here:
+
+- A chump block that kills nothing reads as worthless before combat.
+- Lethal is judged against greedy blocks.
+- Medium's re-pick after a Hard veto skips Hard's search.
+- A Duty used in main phase 2 leaves its creature tapped through the
+  opponent's turn, and nothing counts that cost.
 
 ### Lane F — the sweep: weenie's cost, racing, and the Medium screen
 
@@ -560,9 +645,13 @@ the in-process loop.
    351-minute job timeout. The work: profile the Hard brain's combat
    evaluation on wide boards, and fix it without changing decisions where
    possible. The proof is identical action logs on a seeded set of weenie
-   games before and after. A fix that must change decisions is a brain
-   change: it re-baselines the floors and needs the owner's word. Then weenie
-   rejoins the sweep, six personas again.
+   games before and after. The harness that proves it (seeded games, action
+   logs compared line by line) is built in wave 1 with the profiling, because
+   A1 needs the same proof in wave 2. A fix that must change decisions is a
+   brain change: it needs the owner's word, and it is measured against the
+   standing floors like every other mid-train brain change. Then weenie
+   rejoins the sweep, six personas again; its return is proven by the wave-5
+   sweep, not by a mid-train one.
 2. **Racing the swaps** (lever 2 of [plan-sweep-speed.md](plan-sweep-speed.md)),
    behind `--race`: measure a candidate swap in batches and stop once it is
    outside the incumbent by more than the noise at that sample size. The
@@ -573,34 +662,82 @@ the in-process loop.
 4. **Acceptance**, per that plan's third decision: one persona, the same
    seed, raced and screened against unraced, with the accepted lists and
    their final win rates side by side. If they agree within noise, the flags
-   become the default and the hosted workflow gains the inputs.
+   become the default and the hosted workflow gains the inputs. This is two
+   crafts of one persona, not a sweep, so it does not break the "no
+   mid-train sweep" rule.
+5. **Close the sweep's colour gap (D12, ruled 2026-09-28).** The personas
+   play black-white, red-black, white-blue, black-red and blue-black.
+   Weenie's green-white ran on the first day only. So the sweep has nothing
+   to say about green or red-white cards, and 15 of the 48 nerfs 1.8.5
+   reverted sit in that gap. First Dawn will likely lean the same way: Hunt
+   is Magic's fight, a green mechanic, and Provoked is its enrage, red and
+   green. A sweep blind to those colours cannot catch a degenerate First
+   Dawn deck, which is the whole reason it runs last. So the sweep gains
+   personas that play First Dawn's colours, matched to the colour pie the
+   identity brief sets (green and red-white at least). They are built in
+   wave 2, once the owner has approved the brief, beside the levers'
+   acceptance run. The 1.9 sweep then backs or clears those nerfs with play,
+   and measures the new set.
+
+The levers (`scripts/personas/craft.ts`), the personas
+(`scripts/personas/templates.ts`) and the hosted workflow's inputs and
+default persona list (`.github/workflows/metagame-sweep.yml`) share files, so
+one agent owns lane F's files at a time.
 
 The target is a sweep that fits in a night again, so the 1.9 sweep can run
 last before the cut, the standing rule the 1.8 ruling suspended (D9).
 
-**Proposed from 1.8.5, not ruled: close the sweep's colour gap.** The
-personas play black-white, red-black, white-blue, black-red and blue-black.
-Weenie's green-white ran on the first day only. So the sweep has nothing to
-say about green or red-white cards, and 15 of the 48 nerfs 1.8.5 reverted sit
-in that gap. The proposal is to add a green persona and a red-white one, or
-rotate a persona's colours, once racing and the Medium screen make the room.
-Then the 1.9 sweep can back or clear those nerfs with play. This is an owner
-call.
-
 ### Lane H — measurement and release mechanics
 
-- **One save bump** (v36, lane C); 1.8.1 and 1.8.5 carry none. **Replay log bumps**:
-  v15 in 1.8.1 (G6) and v16 with lane A, the two new mechanics.
+- **One save bump** (v36, lane C, carrying I7); 1.8.1 and 1.8.5 carry none.
+  **Replay log bumps**: v15 in 1.8.1 (G6), and one bump to v16 in 1.9.
+  `src/meta/Replay.ts` bumps the version for any observable engine change,
+  and I1's fix is observable (a draw and a deck-out loss that were skipped
+  now happen), so I1 takes v16 in wave 0, on `release/1.9`, and lane A's
+  mechanics ride it. No player loses a replay early: `release/1.9` deploys
+  only at the cut, and R13 and First Dawn change the card-database stamp at
+  the same cut anyway. The bump must add v15 to the literal version lists
+  in `payloadShape` and `valid`, or v15 logs fall to the legacy shape.
 - Every new mechanic gets its rate before card data. The balance matrices
   re-run when the AI or decks move; floors only ratchet up.
-- **The tower at 28 rungs**: the win-rate gate shape for 27-28 is decided
-  before the rungs land (lane B).
-- **The sweep runs last** against the final field, on six personas (D9).
+- **The tower at 28 rungs**: rungs 27-28 get their own gate test, and the
+  summit's Darlings rows (23-28) gain one (lane B, decided 2026-09-28).
+- **The sweep runs last** against the final field, on six personas plus
+  the colour-gap personas (D9, D12).
 - The cut follows the checklist that works: three version surfaces plus
   `Cargo.lock`, `app:build` before tagging, `docs/release-notes/v1.9.0.md`
   in the shape the owner accepted for 1.8.0 as the release body, README
   figures re-measured, the two manual matrices, a two-parent merge into
   `main`.
+
+### Lane I — the follow-ups logged at the 1.8.1 cut
+
+**Owner ruling 2026-09-28 (D14): place them where they make sense, earlier
+is better.** The 1.8.1 build and its reviews logged these for 1.9 on
+2026-09-25; until now they were in the session notes only. Each is
+re-checked against the code when it is picked up. The wave is the earliest
+one whose file set does not collide with work already running.
+
+| # | Finding | Where | Wave | Why then |
+| --- | --- | --- | --- | --- |
+| I1 | A queued Foresee whose deck empties before it is offered drops the rest of its effect, so a draw is lost and the deck-out loss is skipped | `src/engine` (the foresee op in `EffectInterpreter.ts`, the offer in `Game.ts` ~575) | **0**, into `release/1.9` | A rules bug, and lane A builds on this machinery. Failing test first. Takes the v16 replay bump (lane H) |
+| I2 | Three UI helpers still compare graveyard targets by position (`sameDutyTarget` in `duelPresentation.ts`, `drownedDeepChoices.ts`, `targetSelection.ts`). They compare by `instanceId` when present and fall back to position, as DuelScene's `sameGraveCard` already does. The engine's `TargetRef.instanceId` stays optional, because v6-v14 replay logs carry position-only references | Duel UI helpers | 1 | Before A2's two-target flow touches targeting |
+| I3 | Deck codes carry neither the Warchest nor the Darling, and importing one replaces the open deck without asking | `DeckCode.ts`, the Deck Builder's import | 1 | A share-code format change: new codes carry both, old codes still import (golden fixtures) |
+| I4 | Land styles cannot be reached for Standard and Darlings decks | Deck Builder | 1 | Same file set as I3 |
+| I5 | The Free Draft payout copy | The Limited scenes | 1 | Copy; the wording goes to the owner, no em-dashes |
+| I6 | The tutorial opponent shares the Mousekin portrait | Where the tutorial opponent's portrait is picked (not `src/data/tutorial.ts`, which holds only the two fixed decks; likely DuelScene's tutorial branch), found at pickup | 1 | If an existing unused portrait fits; a new one rides the wave-2 art pilot |
+| I7 | The Premium draft note shows on the first Deck Builder visit only; keeping it needs its summary stored | The Limited scenes, `SaveManager.ts` | 2 | A save change, so it rides the one v36 bump (lane C) |
+| I8 | Achievement evaluation rebuilds the goal pool on every call (about 20 ms more on the menu since the catalog grew to 108) | `src/meta/Achievements.ts` | 1 | Independent |
+| I9 | Portrait art never redraws when it arrives; 1.8.1 gave cards `redrawWhenArtLands` (G10) but not the portrait call sites | Eight sites: `DuelScene.ts`, `GauntletScene.ts`, `LimitedDraftScene.ts`, `PracticePickerScene.ts`, `ShopScene.ts`, `CommanderPortrait.ts`, `saveCard.ts`, `VersusBumper.ts` | 1 | Before lane D makes late arrival the normal case |
+
+The wave-1 items go out as PRs by file set: I6 with I9 (both touch the
+portrait sites, `DuelScene.ts` among them), then I5 after them (it shares
+`LimitedDraftScene.ts` with I9); I3 with I4 (the Deck Builder); I2 (the duel
+helpers); I8 (achievements). Everything but I5 can run at once.
+
+Two more carried items join existing lanes: the four AI limits above go to
+lane E's first audit, and the six avatar ladder inversions and the Festival
+Rocket x4 re-measure ([ai.md](ai.md)) join D7's wave-4 pass.
 
 ## Moved out of 1.9
 
@@ -617,18 +754,64 @@ call.
 Waves are dependency-ordered. Within a wave, lanes run in parallel in
 separate worktrees, by file set.
 
-| Wave | Contents | Gate |
-| ---: | --- | --- |
-| **0** | 1.8.1 (lane 0) SHIPPED 2026-09-25 and 1.8.5 (the scaling rebalance) SHIPPED 2026-09-28; this plan, the roadmap and the spine synced to both (2026-09-28); `release/1.9` cut from `main` at v1.8.5 (`ed1cb26`); the main checkout fast-forwarded on the owner's word (uncommitted `.gitignore` and `run-sweep.ps1` edits sit there); the duplicate comparator learns Duty, Tithe and Whispers | Both patches on the cut checklist, their floors re-measured (done) |
-| **1** | Specs and briefs: `plan-first-dawn-engine.md` and the First Dawn identity brief (Opus 5.5); the accessibility plan re-verified; usage audit waves 0-1; weenie profiling; the card-face mock, where the owner picks the art window height (R13); the art streaming design, after itch.io's HTML5 hosting limits are checked (approved 2026-09-25: 2.0 ships there, so the streaming design must fit its file count and size rules) | owner approval of each spec |
-| **2** | Engine: Provoked and Hunt with rates, AI at three difficulties, converter, replay bump, glossary. Accessibility wave 1 with the v36 bump. Flavor removed and the taller art window built (R13), before the art run. Art streaming built. Sweep levers 2-3 and their one-persona comparison | full ladder, win-rate gates unchanged, replay goldens, the no-change test |
-| **3** | Set: the ~200 overplan, the owner's cut, concretion, transcription. The art pilot, then the art run from the day the cut locks. Accessibility wave 2 (core scenes) | check-art-bible green, every token minted, duplicate audit filed |
-| **4** | Metagame content: the theme deck, rungs 27-28 with Darlings decks, floors from the final band. The usage audit's full read (wave 2) and its fixes (wave 3). Accessibility wave 3 (long tail). The balance items of D7 | matrices, precon and boss floors, fixture matrix |
-| **5** | QC day, the sweep last on six personas, release notes, the 1.9.0 cut | the cut checklist |
+**What sets the pace (D15, re-ordered 2026-09-28).** The critical path runs
+through First Dawn: the comparator fix, then the engine spec and the
+identity brief, the owner's rulings, A1 and the rates, the overplan, the
+owner's cut, the art bible, the art run, transcription, the tower content,
+the wave-4 tune, the sweep and the cut. Machine time on that path is short:
+Drowned Deep's engine core took Codex about 40 minutes once its questions
+were answered, and its 256 images about five hours. What took days was
+spec, ruling, brief, cut and art review. So the waves put everything the
+owner reviews in front of the owner early, in as few sittings as possible,
+and run lanes C, D, E, F and I underneath those waits.
+
+| Wave | Critical path | Alongside | Gate |
+| ---: | --- | --- | --- |
+| **0** | 1.8.1 and 1.8.5 shipped; this plan synced (2026-09-28, a PR into `main` with the workbench-skill chore); then `release/1.9` cut from `main`; then, into `release/1.9`, the duplicate comparator learning Duty, Tithe and Whispers | I1 (Foresee on an empty deck, failing test first, v16) into `release/1.9`. Nothing in wave 0 but docs and the chore reaches `main` | the ladder on each PR |
+| **1** | `plan-first-dawn-engine.md` and the First Dawn identity brief (Opus 5.5; the brief names the rung 27-28 bosses and the colour pie); the card-face mock at 216 and 228 px with one phone face (R13) | Usage audit waves 0-1 (gate: a fresh hand count on the tip); weenie profiling and the identical-action-log harness; sweep levers 2-3 built; the accessibility plan re-verified; the art streaming design within itch.io's limits; lane I's wave-1 PRs | **one owner sitting** for the specs, the brief, the art window height and the streaming design |
+| **2** | A1: the trigger and op, the Hard reads (after the weenie fix, proven identical on the current pool), the lab rates entered in the scorer. In series beside it: R13 built, then the two 1.8.5 regenerations on the new window, then the art pilot with the boss portraits | The weenie fix; the first full usage audit and its findings note; the colour-gap personas (after the brief) and the levers' one-persona acceptance run; accessibility wave 1 with the v36 bump (and I7); art streaming built; the D8 whole-pool near-duplicate review (its fixes ship in 1.9.x) | full ladder, win-rate gates unchanged, replay goldens, the no-change tests, the owner's eyes on the pilot |
+| **3** | The ~200 overplan, the owner's cut, concretion and the art bible, the art run, transcription (carrying the converter regen of the boss lists) | A2 (before transcription); the usage audit's fixes (D13); accessibility wave 2 (core scenes) | check-art-bible green, every token minted, duplicate audit filed, standing floors cleared |
+| **4** | In order: the balance card edits (the 1.8.5 items and D7's), one converter regen, rungs 27-28 and the theme deck, the targeted usage read, the tunes (the top tier, rung 19, the Darlings summit R23-R26, the ladder inversions, Festival Rocket, the RUNG_BANDS 1-13 re-centre), one measurement, then the floors ratchet once and the new gates land (rungs 27-28, the summit's Darlings rows) | Accessibility wave 3 (long tail) | matrices, precon and boss floors, fixture matrix |
+| **5** | QC day, the sweep last (six personas plus the colour-gap personas), release notes, the 1.9.0 cut | | the cut checklist |
+
+**Shared files, in order.** Parallel agents never share a file; where two
+lanes touch one, the order is fixed here:
+
+- `src/ui/CardView.ts`: R13 first, then lane D's redraw and eviction hooks,
+  then accessibility's card surfaces.
+- `src/engine/types.ts`: A1's new trigger and op first (the critical path),
+  then R13's removal of `flavor`, which rebases as a one-line change.
+- The card data files under `src/data/cards/`: R13's flavor strip touches
+  every set file, so it lands before any wave-4 balance edit and before
+  First Dawn is transcribed.
+- `src/ai` (`combatPlans.ts`, `HardAI.ts`, `evaluate.ts`, `targeting.ts`,
+  `value.ts`): the weenie speed fix, then A1's Hard reads, then A2, then the
+  usage audit's fixes. The weenie fix goes first because its proof
+  (identical action logs before and after) needs a brain nobody else is
+  changing, and A1's reads then prove the same against it.
+- `src/scenes/DuelScene.ts`: I6 and I9 (wave 1), then lane D's duel preload
+  (wave 2), then A2's two-target flow, then accessibility's Duel pass (both
+  wave 3).
+- `src/data/opponents.ts`, `tests/ai/winrate.test.ts` and
+  `scripts/balance-matrix.ts`: one agent at a time, in wave 4's order. The
+  converter rewrites the untuned boss lists in `opponents.ts` in place, and
+  `tests/data/avatarReserveDecks.test.ts` pins them to its output, so a
+  regeneration and a hand edit cannot run side by side.
+
+**Brain changes and floors.** Floors only ratchet up, and the tower is tuned
+once. So every brain change before wave 4 (the weenie fix if it must change
+decisions, A1's Hard reads, which must not, A2, and the usage audit's fixes)
+is measured on the matrices and must clear the standing floors; none of them
+raises a floor. If one drops a boss below her floor, the change is reverted
+or her list tune is pulled forward, never the floor lowered. First Dawn's
+transcription regenerates the converter-owned boss lists, so it carries that
+regeneration, and the drift it causes is read in wave 4. The floors ratchet
+once, at the end of wave 4, on the measurement that follows the tunes.
 
 For scale: the 1.7 train (151 cards plus an engine wave) ran 2026-08-24 to
-09-03. 1.9 is that shape plus accessibility, art streaming and the
-measurement work.
+09-03, and 1.8 (252 cards, Duty and telemetry) ran 2026-09-07 to 09-24. 1.9
+is the 1.7 shape plus accessibility, art streaming and the measurement work;
+the owner's review turnaround decides most of the calendar.
 
 ## Decisions for the owner
 
@@ -719,6 +902,23 @@ Numbered so rulings can cite them. Recommendations are the first option.
   before players see it. If it still takes days, the 1.8 arrangement repeats
   (after launch, a hotfix only if egregious). It runs on GitHub-hosted
   runners either way, so the owner's machine is free.
+
+**Ruled 2026-09-28, at the start of wave 0:**
+
+- **D12 The sweep's colour gap. RULED: close it.** The sweep gains personas
+  in First Dawn's colours (green and red-white at least, matched to the
+  identity brief's colour pie), built in lane F in wave 2. See lane F item 5.
+- **D13 The AI fixes 1.8.5 handed on. APPROVED:** ramp valued by cast turn
+  instead of 0, Starborne Apotheosis and Brood Communion cast only when they
+  do something, and granted keywords priced by the body. Each lands as a
+  lane E wave-3 change behind the unchanged gates, once the first audit's
+  note backs it.
+- **D14 The follow-ups logged at the 1.8.1 cut. RULED:** placed where they
+  make sense, earlier being better. They are lane I; I1 runs in wave 0.
+- **D15 The waves re-ordered around the critical path. RULED as
+  recommended:** lane A splits into A1 and A2; the art pilot runs before the
+  cut; the first full usage audit moves to wave 2; the shared-file order in
+  Sequencing holds. Lane D is the lane to defer if 1.9 runs long.
 
 ## Non-goals
 
