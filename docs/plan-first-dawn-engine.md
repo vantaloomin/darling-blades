@@ -803,6 +803,64 @@ wave 4 anyway); the Hunt animation (a plain damage flash stands in). The
 spent Provoked state, the rules text and glossary, and the converter's walk
 do not slip: transcription needs them.
 
+## As built (A1.1)
+
+A1.1 built Parts 1-3 on `feat/19-a1-engine` with the owner's rulings of
+2026-09-29 (E1-E10). Where the build differs from the text above:
+
+- **E6 changed the forced Hunts.** The seven mandatory arrival and attack
+  Hunts do not narrow to "a creature an opponent controls" (the Q6
+  recommendation). They carry a data-driven target rule, `opponentIfAble` on a
+  `creature` spec (`types.ts`, `effects/targeting.ts`): while any creature an
+  opponent controls is a legal target (Untouchable and every qualifier
+  applied), only those are legal; only when none is are the caster's own
+  creatures legal, and never the source itself (the rule implies "another",
+  whether or not the spec also carries `other`). `enumerateTargets` and
+  `isLegalTarget` apply it, so the trigger's no-target check, the queued
+  choice, the AI and the Duel UI all read the same set. Spells, Duties and
+  Empower keep free choice.
+- **A targeted Provoked choice with a Hauntlink payable.** It fires and queues
+  as a plain `chooseTarget` (never a target-less `resolveTrigger`, so
+  `isHeldDiesTrigger` never sees it). Once its target is chosen it gets the
+  revision-4 window every targeted trigger gets, as a `resolveTrigger` that
+  carries its target and a `provoked` mark, and it re-checks survival when it
+  resolves. This is no new exception: revision 4 opens a window over every
+  targeted trigger, and the owner's E1 exception covers untargeted Provoked
+  effects only (ruled keep, 2026-09-29). It re-checks survival at two more points: before its choice is
+  raised (a creature killed or recalled first makes it fizzle without a
+  choice) and when the choice is answered.
+- **Hunt's own rules reach the Duty too.** A hunting Duty never offers its own
+  source as prey (the Duty's rule, not only `other` on the spec), and
+  `activatedBlockers` refuses it on a creature with Bulwark, printed or
+  granted.
+- **A fourth `targetSpecs` site.** Besides the spell body, the Empower rider
+  and the Duty, the revision-4 hold over an answered targeted trigger
+  (`Game.ts`, the `chooseTarget` apply) passes the spec when the ops Hunt or
+  the spec is `opponentIfAble`, so a prey that gains Untouchable in the window
+  is not hunted.
+- **E5 reaches three shipped cards, not one.** Every empowered permanent with
+  Empower targets now resolves when those targets are gone: The Drowned
+  Saint, Renenutet, Who Measures the Flood, and Tidewalk Analyst. Only the
+  rider is lost. The broad preset never reaches that corner (0 action and 0
+  digest divergences). The v16 version note in `src/meta/Replay.ts` records
+  it beside the Foresee divergence; no rules-revision bump (ruled
+  2026-09-29).
+- **The validators exist but are not wired into the catalog test.**
+  `validateProvokedDef` and `validateHuntDef` (types.ts) cover P5, P3's "no
+  Provoked effect Hunts", "no Bulwark creature prints a source-bound Hunt",
+  the carrier shapes and `opponentIfAble` on creature specs only.
+  Lane B's transcription PR wires them into `tests/data/catalog.test.ts`
+  (ruled 2026-09-29).
+- **Scorer stubs.** `TRIGGER_MULT` is a total record, so it holds
+  `provoked: 0`, which nothing reads: `triggerMult('provoked')` reports
+  NEEDS MATH as an unknown and prices the effect at 0, as the `hunt` op and
+  the `eachYourCreature` recipient do. The Forge validates `hunt` and
+  `eachYourCreature` ops but does not offer them, or Provoked, in its editor
+  yet (A1.4 and A2.c).
+- **Small shapes.** The `hunted` event carries both amounts; `fireTriggers`
+  returns whether anything fired (the state-based check's "changed"); the Hunt
+  spell form is recognised inside an `ifTargetMarked` branch as well.
+
 ## What this spec corrects
 
 In the **overplan** (lane B should update it; this spec does not edit it;

@@ -323,6 +323,7 @@ export function isUpside(op: EffectOp): boolean {
     case 'severSelf':
     case 'massDestroy': // symmetric
     case 'preventCombat': // symmetric
+    case 'hunt': // a trade: the hunter takes the prey's Attack and can die
       return false;
     case 'boost':
       return op.scope === 'target' || op.scope === 'allYours' || op.scope === 'yourMarked';

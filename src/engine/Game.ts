@@ -29,7 +29,7 @@ import type { GameEvent } from './events';
 import { solveMana } from './mana';
 import { bindGraveRef, freshGraveyardCard } from './graveyard';
 import { attachPermanent, destroyPermanent, firesDiesForDestroy } from './battlefield';
-import { checkStateBased } from './sba';
+import { checkStateBased, survivesOnBattlefield } from './sba';
 import { getEffectiveStats } from './statics';
 import {
   drawCards,
@@ -45,7 +45,7 @@ import {
 } from './phases';
 import { createRngState, rngInt, rngShuffle } from './rng';
 import type { Emit } from './resolve';
-import { enterBattlefield, resolveStackItem } from './resolve';
+import { enterBattlefield, resolveStackItem, usesHunt } from './resolve';
 import type {
   Awaiting,
   CardEntry,
@@ -542,7 +542,9 @@ export class Game {
           return;
         }
         st.pendingDecisions.shift();
-        const resolveTrigger = (): void => runOps(
+        const resolveTrigger = (): void => next.provoked && !survivesOnBattlefield(st, this.db, next.sourceIid)
+          ? emit({ e: 'triggerFizzled', iid: next.sourceIid })
+          : runOps(
           st,
           this.db,
           emit,
@@ -588,7 +590,10 @@ export class Game {
         continue;
       }
       if (next.kind === 'chooseTarget') {
-        const targets = enumerateTargets(this.st, this.db, next.player, next.spec, next.sourceIid);
+        // A targeted Provoked effect needs its creature still on the
+        // battlefield and still not lethally damaged when its choice comes.
+        const provokedGone = next.triggerWhen === 'provoked' && !survivesOnBattlefield(st, this.db, next.sourceIid);
+        const targets = provokedGone ? [] : enumerateTargets(this.st, this.db, next.player, next.spec, next.sourceIid);
         if (targets.length === 0) {
           // The target was legal when the trigger was queued, but an earlier
           // queued trigger may have moved or removed every target. Fizzle
@@ -864,12 +869,21 @@ export class Game {
           pending.abilityIndex !== st.awaiting.abilityIndex
         ) return;
         st.pendingDecisions.shift();
+        const provoked = pending.triggerWhen === 'provoked';
+        if (provoked && !survivesOnBattlefield(st, this.db, pending.sourceIid)) {
+          // Its creature was killed or recalled before the choice was
+          // answered: the Provoked effect does nothing.
+          emit({ e: 'triggerFizzled', iid: pending.sourceIid });
+          this.resumeNewChoice(emit, pending.continuations);
+          return;
+        }
         // Revision 4: hold the ops back so Hauntlink windows can be offered
         // over the now-known target. Only when someone can actually pay a
         // link - otherwise the path below is byte-identical to revision 3.
         if ((st.rulesRev ?? 1) >= 4 && anyPayableHauntlink(st, this.db)) {
           const newTrigger = pending.triggerWhen !== undefined || pending.continuations !== undefined ||
-            pending.spec.maxCost !== undefined || pending.spec.minAttack !== undefined || pending.spec.what === 'opponentCreature';
+            pending.spec.maxCost !== undefined || pending.spec.minAttack !== undefined || pending.spec.what === 'opponentCreature' ||
+            pending.spec.opponentIfAble === true || usesHunt(pending.ops);
           st.pendingDecisions.unshift({
             kind: 'resolveTrigger',
             controller: pending.player,
@@ -880,6 +894,7 @@ export class Game {
             offered: [],
             ...(newTrigger ? { targetSpecs: [pending.spec], newDecisionContext: true as const } : {}),
             ...(pending.continuations ? { continuations: pending.continuations } : {}),
+            ...(provoked ? { provoked: true as const } : {}),
           });
           return;
         }
@@ -990,7 +1005,7 @@ export class Game {
           sourceCardId: perm.cardId,
           sourceIid: perm.iid,
           targets: action.targets ?? [],
-          ...(specs.some(s => s.exactly || s.maxCost !== undefined || s.minAttack !== undefined) ? { targetSpecs: specs } : {}),
+          ...(usesHunt(ability.ops) || specs.some(s => s.exactly || s.maxCost !== undefined || s.minAttack !== undefined) ? { targetSpecs: specs } : {}),
           ...(specs.length === 1 && (specs[0].upTo !== undefined || specs[0].exactly !== undefined) ? { targetBatch: true } : {}),
         }, ability.ops);
         // Like deferred-target triggers, this off-stack path owns its SBA.

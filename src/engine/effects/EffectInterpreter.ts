@@ -7,6 +7,7 @@ import {
   recallPermanent,
   severPermanent,
 } from '../battlefield';
+import { applyCreatureDamage, markStruck, type CreatureDamageHit } from '../creatureDamage';
 import { anyPayableHauntlink } from '../hauntlinkWindow';
 import { drawCards } from '../phases';
 import { freshGraveyardCard, graveRefIndex } from '../graveyard';
@@ -97,9 +98,12 @@ function targetRefsForOp(ctx: EffectContext): TargetRef[] {
 type MarkEvent = 'mark' | 'propagated';
 const MAX_MARK_TRIGGER_DEPTH = 8;
 
-/** Spend the allowance before executing or queuing a trigger, including recursive effects. */
+/**
+ * Spend the allowance before executing or queuing a trigger, including
+ * recursive effects. Provoked is once each turn by rule, with no printed flag.
+ */
 function claimTrigger(perm: Permanent, ability: AbilityDef, abilityIndex: number): boolean {
-  if (!ability.oncePerTurn) return true;
+  if (!ability.oncePerTurn && ability.when !== 'provoked') return true;
   if (perm.firedThisTurn?.includes(abilityIndex)) return false;
   (perm.firedThisTurn ??= []).push(abilityIndex);
   return true;
@@ -328,6 +332,15 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
           if (!isType(def(db, perm.cardId), 'creature') || n <= 0 || (op.to === 'eachOpponentCreature' && perm.controller === ctx.controller)) continue;
           perm.damage += n;
           if (op.severOnDeath) perm.severBranded = true;
+          markStruck(db, perm, n);
+          emit({ e: 'damageMarked', iid: perm.iid, amount: n });
+        }
+      } else if (op.to === 'eachYourCreature') {
+        for (const perm of state.battlefield) {
+          if (!isType(def(db, perm.cardId), 'creature') || n <= 0 || perm.controller !== ctx.controller ||
+            (op.other && perm.iid === ctx.sourceIid)) continue;
+          perm.damage += n;
+          markStruck(db, perm, n);
           emit({ e: 'damageMarked', iid: perm.iid, amount: n });
         }
       } else if (op.to === 'controller') {
@@ -341,6 +354,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
             const perm = targetPermanent(state, ref);
             if (perm && n > 0) {
               perm.damage += n;
+              markStruck(db, perm, n);
               emit({ e: 'damageMarked', iid: perm.iid, amount: n });
             }
           }
@@ -577,6 +591,35 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         markEventAbilities,
         ctx.markTriggerDepth ?? 0,
       );
+      return;
+    }
+    case 'hunt': {
+      // Hunt's own rules live here, on the moveMark precedent: two different
+      // creatures, and a hunter without Bulwark (a granted one included).
+      // Either one gone or illegal: nothing is dealt.
+      const hunter = op.hunter === 'self'
+        ? state.battlefield.find((perm) => perm.iid === ctx.sourceIid)
+        : targetPermanent(state, ctx.targets[0]);
+      const prey = op.hunter === 'self'
+        ? targetPermanent(state, targetRefsForOp(ctx)[0])
+        : targetPermanent(state, ctx.targets[1]);
+      if (
+        !hunter || !prey || hunter.iid === prey.iid ||
+        !isType(def(db, hunter.cardId), 'creature') || !isType(def(db, prey.cardId), 'creature')
+      ) return;
+      const hunterStats = getEffectiveStats(state.battlefield, db, hunter.iid);
+      if (hunterStats.keywords.has('bulwark')) return;
+      // Both amounts are read before either is dealt: the exchange is simultaneous.
+      const preyAttack = getEffectiveStats(state.battlefield, db, prey.iid).attack;
+      const hits: CreatureDamageHit[] = [];
+      if (hunterStats.attack > 0) {
+        hits.push({ source: hunter.iid, sourceController: hunter.controller, target: { kind: 'permanent', iid: prey.iid }, amount: hunterStats.attack });
+      }
+      if (preyAttack > 0) {
+        hits.push({ source: prey.iid, sourceController: prey.controller, target: { kind: 'permanent', iid: hunter.iid }, amount: preyAttack });
+      }
+      emit({ e: 'hunted', hunter: hunter.iid, prey: prey.iid, hunterDamage: Math.max(0, hunterStats.attack), preyDamage: Math.max(0, preyAttack) });
+      if (hits.length > 0) applyCreatureDamage(state, db, emit, hits);
       return;
     }
     case 'removeMarks': {
@@ -877,8 +920,10 @@ export function runOps(
       });
       // A multi-slot spell's implicit target remains slot zero. Filtering the
       // whole list would silently redirect it to the next surviving slot.
+      // A two-target op (moveMark's from and to, a Hunt spell's hunter and
+      // prey) needs every slot legal, or it gets none.
       const selected = ctx.targetBatch ? legalIndexes
-        : op.op === 'moveMark' ? legalIndexes.length === ctx.targets.length ? legalIndexes : []
+        : op.op === 'moveMark' || op.op === 'hunt' ? legalIndexes.length === ctx.targets.length ? legalIndexes : []
         : legalIndexes.includes(0) ? [0] : [];
       bound = { ...ctx,
         originalTargets: ctx.originalTargets ?? ctx.targets,
@@ -1072,8 +1117,9 @@ export function fireTriggers(
   when: Exclude<TriggerWhen, 'spell' | 'static'>,
   perm: Permanent,
   options: { deferPostDies?: boolean; markTriggerDepth?: number; observers?: readonly Permanent[]; sacrifice?: boolean; deferObservers?: boolean } = {},
-): void {
+): boolean {
   const d = def(db, perm.cardId);
+  let fired = false;
   for (let abilityIndex = 0; abilityIndex < (d.abilities ?? []).length; abilityIndex++) {
     const ab = d.abilities![abilityIndex];
     if (ab.when !== when || !ab.ops) continue;
@@ -1085,6 +1131,7 @@ export function fireTriggers(
       const spec = ab.targets[0];
       if (enumerateTargets(state, db, perm.controller, spec, perm.iid).length === 0) continue;
       if (!claimTrigger(perm, ab, abilityIndex)) continue;
+      fired = true;
       emit({ e: 'triggerFired', iid: perm.iid, when });
       state.pendingDecisions.push({
         kind: 'chooseTarget',
@@ -1099,6 +1146,7 @@ export function fireTriggers(
       continue;
     }
     if (!claimTrigger(perm, ab, abilityIndex)) continue;
+    fired = true;
     emit({ e: 'triggerFired', iid: perm.iid, when });
     const selfGraveExclusion =
       when === 'dies'
@@ -1157,6 +1205,7 @@ export function fireTriggers(
   if (when === 'dies' && !options.deferPostDies && state.winner === null) {
     returnWithNineLives(state, db, emit, perm, options.markTriggerDepth);
   }
+  return fired;
 }
 
 /**

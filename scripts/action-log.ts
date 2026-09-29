@@ -14,6 +14,14 @@
  *   npx tsx scripts/action-log.ts record --preset broad --out after.jsonl
  *   npx tsx scripts/action-log.ts compare before.jsonl after.jsonl
  *
+ * Each game also carries a digest of its whole event stream (every event the
+ * engine emitted, in order, hashed as it was emitted). `compare` reports the
+ * games whose digests differ beside the action divergences: an engine
+ * refactor that reorders events without changing any decision (combat's
+ * damage moved onto a shared path, lane A) is invisible to the actions and
+ * visible to the digest. Files recorded before the digest existed compare
+ * actions only.
+ *
  * Any deck pair, any brain:
  *
  *   npx tsx scripts/action-log.ts record \
@@ -75,6 +83,7 @@ import { personaTemplate } from './personas/templates';
 import { STARTER_DECKS, THEME_DECKS } from '../src/data/starterDecks';
 import { Game } from '../src/engine/Game';
 import type { Action } from '../src/engine/actions';
+import type { GameEvent } from '../src/engine/events';
 import type { PlayerId } from '../src/engine/types';
 import type { Difficulty } from '../src/meta/Economy';
 
@@ -264,6 +273,10 @@ export interface GameLog {
   winner: 0 | 1 | 'draw' | 'unfinished';
   turns: number;
   hash: string;
+  /** A hash of every event the game emitted, in emission order, and how many
+   * there were. Absent in files recorded before the digest existed. */
+  eventDigest?: string;
+  events?: number;
   actions: LoggedAction[];
 }
 
@@ -288,14 +301,25 @@ export function playLogged(job: GameJob, difficulty: Difficulty, timing?: Decisi
     buildAI(s1.difficulty, CARD_DB, job.seed * 13 + 5, s1.personality),
   ];
   const decks: [string[], string[]] = [[...s0.deck], [...s1.deck]];
+  // The event digest reads each event as it is emitted (a later mutation of a
+  // permanent it carries cannot leak in). Clones the AI simulates on carry no
+  // observer, so only the real game's stream is hashed.
+  const digest = createHash('sha256');
+  let events = 0;
+  const eventObserver = (e: Readonly<GameEvent>): void => {
+    digest.update(JSON.stringify(e));
+    digest.update('\n');
+    events++;
+  };
   // Classic is the engine's default constructor; the reserve formats pass
   // their reserves (and Darlings its command-zone pair) as the matrices do.
   const game = job.format === 'classic'
-    ? new Game({ decks, seed: job.seed, db: CARD_DB })
+    ? new Game({ decks, seed: job.seed, db: CARD_DB, eventObserver })
     : new Game({
       decks,
       seed: job.seed,
       db: CARD_DB,
+      eventObserver,
       format: job.format,
       landReserves: [[...s0.landReserve], [...s1.landReserve]],
       ...(job.format === 'darlings' ? { darlings: [s0.darlingId, s1.darlingId] as [string | null, string | null] } : {}),
@@ -334,6 +358,8 @@ export function playLogged(job: GameJob, difficulty: Difficulty, timing?: Decisi
     winner,
     turns: game.state.turn,
     hash: createHash('sha256').update(body).digest('hex').slice(0, 16),
+    eventDigest: digest.digest('hex').slice(0, 16),
+    events,
     actions,
   };
 }
@@ -475,6 +501,33 @@ export function compareLogs(before: readonly GameLog[], after: readonly GameLog[
   return { identical, divergences, missing, extra };
 }
 
+export interface DigestDivergence {
+  index: number;
+  seed: number;
+  p0: string;
+  p1: string;
+  /** Event counts before and after: equal counts mean a reorder or a changed event. */
+  eventsBefore: number;
+  eventsAfter: number;
+}
+
+/** The games, present in both files with a digest in both, whose event
+ * streams differ. Games recorded without a digest are skipped. */
+export function compareDigests(before: readonly GameLog[], after: readonly GameLog[]): { compared: number; divergences: DigestDivergence[] } {
+  const afterByIndex = new Map(after.map((log) => [log.index, log]));
+  const divergences: DigestDivergence[] = [];
+  let compared = 0;
+  for (const b of before) {
+    const a = afterByIndex.get(b.index);
+    if (!a || b.eventDigest === undefined || a.eventDigest === undefined) continue;
+    compared++;
+    if (a.eventDigest !== b.eventDigest) {
+      divergences.push({ index: b.index, seed: b.seed, p0: b.p0, p1: b.p1, eventsBefore: b.events ?? 0, eventsAfter: a.events ?? 0 });
+    }
+  }
+  return { compared, divergences };
+}
+
 function compare(beforePath: string, afterPath: string): number {
   const before = readLogs(beforePath);
   const after = readLogs(afterPath);
@@ -488,7 +541,13 @@ function compare(beforePath: string, afterPath: string): number {
     console.log(`    after:  ${JSON.stringify(d.after)}`);
   }
   if (divergences.length > 20) console.log(`  ... ${divergences.length - 20} more`);
-  return divergences.length === 0 && missing === 0 && extra === 0 ? 0 : 1;
+  const digests = compareDigests(before, after);
+  console.log(`event digests compared: ${digests.compared}; games whose event stream differs: ${digests.divergences.length}`);
+  for (const d of digests.divergences.slice(0, 20)) {
+    console.log(`  game ${d.index} seed ${d.seed} (${d.p0} vs ${d.p1}): ${d.eventsBefore} events before, ${d.eventsAfter} after`);
+  }
+  if (digests.divergences.length > 20) console.log(`  ... ${digests.divergences.length - 20} more`);
+  return divergences.length === 0 && digests.divergences.length === 0 && missing === 0 && extra === 0 ? 0 : 1;
 }
 
 // ---------------------------------------------------------------------------

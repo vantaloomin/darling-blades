@@ -60,6 +60,7 @@ const OP_VALUE: Readonly<Record<EffectOp['op'], number>> = {
   foresee: 0.7,
   awaken: 1.2,
   raise: 2.2,
+  hunt: 0, // NEEDS MATH: Hunt is unpriced until the A1.3 lab measures it; 0 adds nothing rather than invent a rate.
 };
 
 type BoostScope = Extract<EffectOp, { op: 'boost' }>['scope'];

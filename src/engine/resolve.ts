@@ -42,6 +42,24 @@ function usesExplicitTargetSlot(ops: readonly EffectOp[]): boolean {
     (op.op === 'ifTargetMarked' && (usesExplicitTargetSlot(op.then) || usesExplicitTargetSlot(op.else ?? []))));
 }
 
+/**
+ * Does this op list include a Hunt? A Hunt re-checks both its creatures
+ * against their specs at resolution, so its callers pass `targetSpecs`.
+ */
+export function usesHunt(ops: readonly EffectOp[]): boolean {
+  return ops.some(op => op.op === 'hunt' ||
+    (op.op === 'ifTargetMarked' && (usesHunt(op.then) || usesHunt(op.else ?? []))));
+}
+
+function isPermanentSpell(d: CardDef, item: StackItem): boolean {
+  return !(item.retell && d.retell?.ops) && (
+    isType(d, 'creature') ||
+    isType(d, 'artifact') ||
+    isType(d, 'enchantment') ||
+    (isType(d, 'ritual') && d.chapters !== undefined)
+  );
+}
+
 function moveSpellOnExit(state: GameState, db: CardDb, item: StackItem, emit: Emit): void {
   const card = stackCard(state, item);
   if (item.retell) {
@@ -74,7 +92,12 @@ export function resolveStackItem(
     item.hauntlinked === true,
     item.empowered === true,
   );
-  if (specs.length > 0) {
+  // An empowered permanent never fizzles on its Empower targets: it resolves,
+  // and only the rider finds nothing to act on (the owner's E5 ruling,
+  // 2026-09-29; Magic's kicker behaves this way).
+  const riderTargetsOnly = item.empowered === true && d.empower?.targets !== undefined &&
+    item.hauntlinked !== true && !isAura(d) && isPermanentSpell(d, item);
+  if (specs.length > 0 && !riderTargetsOnly) {
     const optionalTargets = specs.length === 1 && specs[0].upTo !== undefined;
     const batchTargets = optionalTargets || (specs.length === 1 && specs[0].exactly !== undefined);
     const anyLegal =
@@ -92,12 +115,7 @@ export function resolveStackItem(
 
   emit({ e: 'spellResolved', sid: item.sid });
 
-  if (!(item.retell && d.retell?.ops) && (
-    isType(d, 'creature') ||
-    isType(d, 'artifact') ||
-    isType(d, 'enchantment') ||
-    (isType(d, 'ritual') && d.chapters !== undefined)
-  )) {
+  if (isPermanentSpell(d, item)) {
     const attachedTo =
       (isAura(d) || item.hauntlinked === true) && item.targets[0]?.kind === 'permanent'
         ? item.targets[0].iid
@@ -144,7 +162,7 @@ export function resolveStackItem(
               controller: item.controller,
               sourceCardId: item.cardId,
               targets: item.targets,
-              ...(usesExplicitTargetSlot(ab.ops) || specs.some(s => s.maxCost !== undefined || s.minAttack !== undefined || s.exactly) ? { targetSpecs: specs } : {}),
+              ...(usesExplicitTargetSlot(ab.ops) || usesHunt(ab.ops) || specs.some(s => s.maxCost !== undefined || s.minAttack !== undefined || s.exactly) ? { targetSpecs: specs } : {}),
               ...(specs.length === 1 && (specs[0].upTo !== undefined || specs[0].exactly !== undefined) ? { targetBatch: true } : {}),
               x: item.x,
             },
@@ -181,7 +199,7 @@ function runEmpowerRider(
       sourceCardId: item.cardId,
       ...(sourceIid === undefined ? {} : { sourceIid }),
       targets: item.targets,
-      ...(usesExplicitTargetSlot(d.empower.ops) || specs.some(spec => spec.maxCost !== undefined || spec.minAttack !== undefined || spec.exactly) ? { targetSpecs: specs } : {}),
+      ...(usesExplicitTargetSlot(d.empower.ops) || usesHunt(d.empower.ops) || specs.some(spec => spec.maxCost !== undefined || spec.minAttack !== undefined || spec.exactly) ? { targetSpecs: specs } : {}),
       ...(specs.length === 1 && (specs[0].upTo !== undefined || specs[0].exactly !== undefined) ? { targetBatch: true } : {}),
     },
     d.empower.ops,

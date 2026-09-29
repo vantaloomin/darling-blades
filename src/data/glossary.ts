@@ -202,6 +202,8 @@ function cardTargetSpecs(d: CardDef): TargetSpec[] {
  */
 const TRIGGER_MECHANIC: Record<TriggerWhen, 'mark' | 'propagate' | null> = {
   spell: null,
+  // Stub (1.9 A1.1): Provoked becomes its own MechanicId in A2.c.
+  provoked: null,
   arrives: null,
   dies: null,
   entersGraveyard: null,
