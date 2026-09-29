@@ -262,7 +262,7 @@ carries neither the creature's Deathblade nor its Blood Oath.
 
 ## Keywords
 
-All twelve keywords and their exact implemented semantics (`Keyword` in
+All thirteen keywords and their exact implemented semantics (`Keyword` in
 `src/engine/types.ts`; effects across `statics.ts`, `combat/legality.ts`,
 `combat/damage.ts`, `effects/targeting.ts`):
 
@@ -846,7 +846,8 @@ rules revision 4.
 "Provoked: [effect]." is a creature's triggered ability (`when: 'provoked'`,
 1.9): **when this creature is dealt damage and survives, it does the listed
 effect, once each turn.** It is printed on creatures only, at most one per
-card, and no static grants it (`validateProvokedDef`).
+card (`validateProvokedDef`). Nothing can grant it: statics grant keywords
+and stats only, never a triggered ability.
 
 - **Dealt damage and survives.** Any damage over 0 counts, from anything:
   combat, a spell, an ability, a Hunt, its own controller's source. Damage

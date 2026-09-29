@@ -1083,6 +1083,7 @@ and wrote the rules into `docs/rules.md` and `docs/keyword-map.md`.
   style and every other definition to the fragment.
 - **Icons.** Hunt is three claw marks; Provoked is the anger mark (four
   veins around a pinched cross). Neither is a hand, a weapon pair or an eye.
+  Both APPROVED by the owner 2026-09-29.
 - **Docs.** `rules.md` gains Provoked and Hunt sections, a line under the
   state-based actions, the shared damage path under Combat's Damage, the
   Empower correction (four target shapes, the E5 no-fizzle rule, the rider's

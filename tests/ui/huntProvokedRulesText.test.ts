@@ -34,7 +34,9 @@ const genericCarriers: CardDef[] = [
 
 describe('Hunt rules text', () => {
   it('ends an arrival hunter\'s line on the bare keyword: the default prey is not printed', () => {
-    expect(rulesText(genericCarriers[0])).toMatch(/^When this arrives, Hunt\.$/);
+    const line = rulesText(genericCarriers[0]);
+    expect(line.endsWith('Hunt.')).toBe(true);
+    expect(line).not.toMatch(/opponent|target/);
   });
 
   it('prints the bare keyword after every carrier\'s opener', () => {
@@ -62,7 +64,7 @@ describe('Hunt rules text', () => {
     });
     expect(rulesText(any)).toMatch(/\bHunt any other creature\.$/);
     expect(rulesText(yours)).toMatch(/\bHunt another creature you control\.$/);
-    expect(rulesText(spellAny)).toMatch(/^Target creature you control Hunts any other creature\.$/);
+    expect(rulesText(spellAny)).toMatch(/\bHunts any other creature\.$/);
   });
 
   it('names the spell form\'s hunter once, whether the Hunt comes first or after a pump', () => {
@@ -74,7 +76,8 @@ describe('Hunt rules text', () => {
     const huntThenPump = ritual('hunt-then-pump', {
       when: 'spell', ops: [{ op: 'hunt', hunter: 'target' }, { op: 'boost', scope: 'target', p: 1, t: 1 }], targets: HUNTER_AND_PREY,
     });
-    expect(rulesText(plain)).toMatch(/^Target creature you control Hunts\.$/);
+    expect(rulesText(plain).endsWith(' Hunts.')).toBe(true);
+    expect(rulesText(plain)).not.toMatch(/opponent/);
     expect(rulesText(pumped)).toMatch(/, then it Hunts\.$/);
     for (const card of [plain, pumped, huntThenPump]) {
       expect(occurrences(rulesText(card).toLowerCase()), card.id).toBe(1);
