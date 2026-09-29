@@ -275,6 +275,7 @@ Every Road-to-2.0 feature, and where it lands.
 | Cloud saves / accounts | **Spec'd + decisions ruled 2026-08-28** ([spec](plan-telemetry-and-accounts.md), [rollout](rollout-telemetry-and-accounts.md)), no code | 2.1 |
 | Anonymous telemetry | **Shipped 1.8** (save v35, `playSignals`, the Worker, the first-run notice) | — |
 | UGC / mods | Spec'd, no code | 2.1 |
+| Async PvP (challenge codes, Hard AI pilot) | Proposal 2026-09-29, no code ([plan](plan-async-pvp.md)) | 2.1+ (not scheduled) |
 | Multiplayer | **CANCELLED** | — |
 
 Cloud saves **was** the only item with neither a plan doc nor code, and it is
@@ -296,6 +297,10 @@ worth.
 Owner decision 2026-08-24. [plan-multiplayer.md](plan-multiplayer.md) is
 retained as a design record and marked cancelled at its head; nothing should be
 planned against it.
+
+Async PvP ([plan-async-pvp.md](plan-async-pvp.md), a post-2.0 proposal of
+2026-09-29) is consistent with this ruling: the opponent is a local Hard AI
+playing a shared deck code, with no network, server or P2P connection.
 
 The README promised LAN multiplayer in two places and has been corrected. That
 mattered: a promise in shipped copy that will not be kept is the same failure

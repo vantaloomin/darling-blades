@@ -2150,6 +2150,14 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   (`selectedDuals` on `completeDraftRun`, `run.landReserve`); the work is the
   build-step UI plus persistence. Owner ruling 2026-09-25: after 2.0
   (it had been deferred to 1.9 by the 1.8 ruling D7).
+- **Async PvP: challenge codes piloted by the Hard AI (proposal,
+  2026-09-29; past 2.0, not scheduled).** The owner's request: share a deck
+  code, and a Hard AI pilots that deck against whoever pastes it, "a
+  semblance of PvP without making any P2P connections". No network, server
+  or accounts, so it stands with the ruling that multiplayer is cancelled.
+  It builds on `DBD3-` deck codes, the Hard brain and the duel's
+  opponent-deck override. Plan and open questions:
+  [plan-async-pvp.md](plan-async-pvp.md). Nothing is built.
 - **Design plans authored 2026-07-05.** Four senior-level design docs, each
   grounded in the current code and respecting the iron invariants —
   **Commander mode and MOD/UGC were greenlit into the 1.1 program

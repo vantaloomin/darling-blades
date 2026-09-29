@@ -404,6 +404,7 @@ creature an opponent controls, with no fallback, and a card may declare
   (A1.3) drops the forced-self-hunt arm; the self-Hunt arm, through an `any`
   card, is live.
 - **A1.2** (Hard's reads, 2026-09-29) values Hunt and Provoked in the shared AI layer, arrival hunters cast at their best prey, with 0 divergences on the weenie and broad presets ([As built (A1.2)](plan-first-dawn-engine.md#as-built-a12-hards-reads)).
+- **A1.5** (the owner's Vyra ruling, 2026-09-29; see lane B): a non-tap, mana-only ability, repeatable, at Charm speed (after blockers too), one action paying for N activations (the Duel UI's +/- ticker is A2.a's); the scorer carries it as NEEDS MATH at 0 until the lab prices it.
 - **A2.b** Easy never hunts its own creature *by choice*: its filter matters
   again, on the cards that declare `any` (the owner's B5).
 - **A2.d** The converter's target walk treats every generic Hunt as dead
@@ -488,6 +489,19 @@ red-green. F8: Long-Neck Matriarch reaches Dinokin only. The rulings changed
 row text in two places only (the Hunt template, now the ruled bare keyword
 on every Hunt row, and Scar-Knife Witch's "another"); no row is re-costed or
 trimmed before the cut.
+
+**A ninth Ultra Rare (owner, 2026-09-29).** The owner added the set's
+Shivan Dragon: **Vyra, Ember-Sky Rider** (a working name), {4}{R}{R} 5/5,
+Legendary Creature: Human Rider, Skyborne, "{R}: This gets +1/+0 until
+Sunset." She is the set's only red Skyborne card (a pie exception at Ultra
+Rare; the brief gives the sky to W/U), an Ember-clan woman on a plain
+pterosaur, and she is protected. **The cut's histogram becomes 82 / 49 / 15
+/ 11 / 9 = 166** (B3 ruled 8 Ultra Rares and 165; the owner changed it
+deliberately, one card over D2's 150-165). Her pump is a new construct,
+built as **A1.5** (lane A); on the v4 scorer without it she reads 6.43
+against a budget of 7.44 (Δ -1.01), and the pump is NEEDS MATH, valued 0
+until the lab. The overplan carries her row (overlap not yet run) and the
+art bible her entry, whose prompt Fable reviews before the art run.
 
 The rules the rows are written against, all postdating the old list: the
 reserve takes only basics and duals, so the set prints no taplands and no
@@ -1300,6 +1314,19 @@ Numbered so rulings can cite them. Recommendations are the first option.
     design, one Pack Raptor, and **P16 went the other way:** the shipped
     catalogue is re-cropped to the y 179 head line now, wherever the raw
     is cached. See lane B.
+- **Vyra, the ninth Ultra Rare (the owner, 2026-09-29).** Three rulings on
+  one card, Vyra, Ember-Sky Rider (a working name), {4}{R}{R} 5/5, Human
+  Rider, Skyborne, "{R}: This gets +1/+0 until Sunset.":
+  - **The sky.** She is the set's sole red Skyborne card, a pie exception at
+    Ultra Rare: a Human Rider (not Dinokin, D2) on a plain pterosaur.
+  - **The pump.** A non-tap, mana-only ability, repeatable, at Charm speed
+    (after blockers too); the Duel UI gives it a +/- ticker so one action
+    pays for N activations. Built as A1.5; priced at 0 (NEEDS MATH) until
+    the lab.
+  - **The count.** Ultra Rare rises from 8 to 9: 82 / 49 / 15 / 11 / 9 =
+    166, a deliberate change to the B3 histogram, and one card over D2's
+    150-165 range (the wave-1 sitting's "165 cards" is superseded). See
+    lane B.
 - **The `research/` ignore rule** from the owner's local `.gitignore` is
   committed, so third-party research material never reaches the public
   repo.

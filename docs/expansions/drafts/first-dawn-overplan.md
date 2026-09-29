@@ -1,9 +1,10 @@
-<!-- source-of-truth: docs/plan-1.9.md, docs/expansions/drafts/first-dawn-brief.md, docs/expansions/drafts/drowned-deep-overplan.md, docs/keyword-map.md, docs/card-building-guide.md, src/engine/types.ts, src/data/axes.ts, src/power/scoreCore.ts, scripts/audit-overlap.ts, docs/plan-first-dawn-engine.md · last-verified: 2026-09-28 · concept draft: the 210-candidate First Dawn overplan for the 165-card cut (lane B step 2, D16: cards before the engine spec); every row scored on the v4 scorer with provisional Provoked and Hunt rates (NEEDS MATH) and run through the duplicate comparator; its questions and the engine spec ruled at the owner's second sitting 2026-09-28; awaiting A1, the lab's rates, the rescore and the owner's cut; nothing here is implemented -->
+<!-- source-of-truth: docs/plan-1.9.md, docs/expansions/drafts/first-dawn-brief.md, docs/expansions/drafts/drowned-deep-overplan.md, docs/keyword-map.md, docs/card-building-guide.md, src/engine/types.ts, src/data/axes.ts, src/power/scoreCore.ts, scripts/audit-overlap.ts, docs/plan-first-dawn-engine.md · last-verified: 2026-09-29 · concept draft: the 211-candidate First Dawn overplan for the 166-card cut (lane B step 2, D16: cards before the engine spec; 210 for 165 as authored, and the owner added a ninth Ultra Rare, Vyra, on 2026-09-29); every row scored on the v4 scorer with provisional Provoked and Hunt rates (NEEDS MATH) and run through the duplicate comparator; its questions and the engine spec ruled at the owner's second sitting 2026-09-28; awaiting A1, the lab's rates, the rescore and the owner's cut; nothing here is implemented -->
 
 # First Dawn: overplan (2026-09-28)
 
-The 210-candidate pool for the 165-card cut, authored against the approved
-identity brief (`docs/expansions/drafts/first-dawn-brief.md`, approved
+The 211-candidate pool for the 166-card cut (authored as 210 for 165; the
+owner added a ninth Ultra Rare on 2026-09-29, see below), written against
+the approved identity brief (`docs/expansions/drafts/first-dawn-brief.md`, approved
 2026-09-28) and the owner's rulings through 2026-09-28. Under D16 the cards
 come before the engine spec: this document is lane B step 2. What follows it
 is the concretion audit (step 3: every row mapped to engine vocabulary, the
@@ -23,6 +24,18 @@ control" (E9). No row is re-costed, re-rated or trimmed here: the cut does that 
 the lab. The projected cut moves by one swap (F6: the Great Drum in,
 Fern-Crown Tyrant out).
 
+**Status 2026-09-29: the owner added a red Ultra Rare, the set's Shivan
+Dragon.** **Vyra, Ember-Sky Rider** (a working name), {4}{R}{R} 5/5, a
+legendary Human Rider with Skyborne and "{R}: This gets +1/+0 until
+Sunset." She is protected, so the cut's Ultra Rare count rises from 8 to 9
+and the histogram becomes **82 / 49 / 15 / 11 / 9 = 166**: a deliberate
+change to the ruled B3 histogram, and one card over D2's 150-165 range.
+Her repeatable pump is a new engine construct (A1.5), valued at 0 until the
+lab prices it. Every count below that she changes is updated; where a number
+is quoted as history (the B3 histogram, the F6 swap, the balance pass as
+run), it says so. Her row is in the Ultra Rare table, and the rulings are
+under "Questions for the owner".
+
 Every row here is scored on the committed v4 scorer
 (`src/power/scoreCore.ts`, the Forge's own code) with provisional rates for
 the two new mechanics, and run through the duplicate comparator
@@ -40,28 +53,31 @@ proposal.
 
 ## Rarity and colour targets
 
-Cut: **82 C / 49 R / 15 SR / 11 SSR / 8 UR = 165** (ruled, B3). Overplan:
-104 / 62 / 19 / 14 / 11 = 210. Colour split at 165 (brief section 4): G 34,
-R 32, W 29, U 25, B 25, multicolour 12, colourless 8. Multicolour only at R
-and above.
+Cut: **82 C / 49 R / 15 SR / 11 SSR / 9 UR = 166** (B3 ruled 8 UR and
+165; the owner raised Ultra Rare to 9 for Vyra on 2026-09-29). Overplan:
+104 / 62 / 19 / 14 / 12 = 211. Colour split at 165 (brief section 4): G 34,
+R 32, W 29, U 25, B 25, multicolour 12, colourless 8; at 166 red is 33, the
+added card being Vyra. Multicolour only at R and above.
 
 Counts are overplan with the projected cut in brackets:
 
 | Rarity | Overplan | W | U | B | R | G | Multi | Colourless | Projected cut | Target |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| UR | 11 | 2 (1) | 1 (1) | 1 (1) | 2 (1) | 2 (2) | 3 (2) | 0 (0) | 8 | 8 |
+| UR | 12 | 2 (1) | 1 (1) | 1 (1) | 3 (2) | 2 (2) | 3 (2) | 0 (0) | 9 | 9 |
 | SSR | 14 | 2 (2) | 2 (1) | 2 (2) | 3 (2) | 3 (2) | 2 (2) | 0 (0) | 11 | 11 |
 | SR | 19 | 3 (3) | 3 (2) | 3 (2) | 4 (3) | 4 (3) | 1 (1) | 1 (1) | 15 | 15 |
 | R | 62 | 10 (8) | 9 (7) | 9 (7) | 11 (8) | 12 (9) | 9 (8) | 2 (2) | 49 | 49 |
 | C | 104 | 21 (16) | 17 (14) | 17 (13) | 21 (18) | 24 (17) | 0 (0) | 4 (4) | 82 | 82 |
-| **Total** | **210** | **38 (30)** | **32 (25)** | **32 (25)** | **41 (32)** | **45 (33)** | **15 (13)** | **7 (7)** | **165** | **165** |
+| **Total** | **211** | **38 (30)** | **32 (25)** | **32 (25)** | **42 (33)** | **45 (33)** | **15 (13)** | **7 (7)** | **166** | **166** |
 
 The projected cut lands on the histogram exactly and on the brief's colour
 split within one card (white 30 for 29, green 33 for 34, multicolour 13 for
 12, colourless 7 for 8: every colourless row that survived the overlap audit
-is kept). The bracketed counts include the owner's F6 swap (2026-09-28): the
-Great Drum (W, SSR) in, Fern-Crown Tyrant (G, SSR) out. The self-audit
-tables below still show the board before it; their deltas are listed there.
+is kept; red 33 for 32, the one card being Vyra). The bracketed counts
+include the owner's F6 swap (2026-09-28): the Great Drum (W, SSR) in,
+Fern-Crown Tyrant (G, SSR) out; and Vyra (R, UR, 2026-09-29) in. The
+self-audit tables below still show the board before the F6 swap (Vyra is
+folded into their Rows column); the swap's deltas are listed there.
 
 ## How to read a row
 
@@ -229,6 +245,10 @@ and lab-priced:** their cost is set by design and by pool precedent, never
 by their delta, and the audit script pins their cost, stats and sketch to a
 baseline so that no delta-driven lever can move them unnoticed (the review
 of 2026-09-28 reverted four cuts that had been made on that reading).
+**Vyra (2026-09-29) is lab-priced for a different reason:** her repeatable
+pump has no rate yet and is valued at 0 (NEEDS MATH, A1.5), so her delta is
+not evidence either. Her cost is the owner's; the script's pinned baseline
+predates her row.
 
 ## The split lord (owner ruling 2026-09-28)
 
@@ -255,7 +275,7 @@ Dinokin get +1/+1. Your Dinosaurs have Dreaded.*
   Dinokin), Overrun (near-blank on 1/1s). **Ruled 2026-09-28 (F2):
   Dreaded**, and the matriarch stays Dinokin only (F8).
 
-## Ultra Rare (11; cut keeps 8)
+## Ultra Rare (12; cut keeps 9)
 
 | ID | Name | Colour | Type | Cost | Stats | Mechanics sketch | Flags | Δ | Overlap | Cut | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | ---: | --- | --- | --- |
@@ -270,6 +290,7 @@ Dinokin get +1/+1. Your Dinosaurs have Dreaded.*
 | `fd-oru-tyrant-queen` | Oru, the Tyrant Queen | R/G | Creature, Dinokin Tyrant, legendary | {4}{R}{G} | 5/5 | Overrun. Your other Dinokin get +1/+1. Your Dinosaurs have Dreaded. | NEEDS MATH: lord x2.0 (flat, D10) | +0.34 | clear | core, protect | THE SPLIT LORD (owner ruling 2026-09-28), in the Tyrant Queen's slot: R28's portrait and Darling, the one Attack lord. Dinokin get +1/+1; plain Dinosaurs (Pack Raptors, Hatchlings, Gliders, the beast cards) get Dreaded instead, which makes a token swarm hard to block without adding Attack to it (the anthem-on-swarm trap stays closed). Makes Dinosaur an Axis. |
 | `fd-tahla-shepherdess` | Tahla, Shepherdess of Thunder | G/W | Creature, Human Shepherd, legendary | {2}{G}{W} | 3/4 | Sentinel. During your Dawn: create a Hatchling token. Whenever a creature arrives under your control, gain 1 life. |  | +0.32 | clear | core, protect | R27's portrait and Darling (the G/W herd): a Hatchling every Dawn and life for every body. Hatchling minter. |
 | `fd-venna-red-hand` | Venna Red-Hand, War-Chief | R/W | Creature, Human Chief, legendary | {2}{R}{W} | 3/3 | Your other creatures get +1/+0 and have Sentinel. Duty, {1}{R}: damage target creature 1. |  | -0.26 | clear | flex, **cut** | The R/W warband's chief (the sweep persona D12 names): an anthem for the war-party and a paid ping that provokes her own walls or finishes theirs. Not a Dinokin lord (no subtype). |
+| `fd-vyra-ember-sky-rider` | Vyra, Ember-Sky Rider | R | Creature, Human Rider, legendary | {4}{R}{R} | 5/5 | Skyborne. {R}: this gets +1/+0 until Sunset (no tap; any number of times, at Charm speed). | NEEDS MATH: repeatable mana pump (A1.5) | -1.01 | not yet run | core, protect (owner, 2026-09-29) | The owner's addition (2026-09-29), the set's Shivan Dragon, the 8th-10th edition anchor ({4}{R}{R} 5/5 flying, firebreathing). The set's only red Skyborne card, a pie exception at Ultra Rare (the brief gives the sky to W/U). A Human Rider on a plain pterosaur (D2: riders are not Dinokin; the mount is a plain Dinosaur beast, not a second card). Scored without the pump: power 6.43 against a budget of 7.44 (body 5/5 +4.58, Skyborne at Attack 5 +1.85); the pump is valued 0 until the lab, so the row is lab-priced and its delta is not evidence, and the priced pump fills the gap. The pump is a new construct (A1.5): one action pays for N activations, which the Duel UI shows as a +/- ticker. Carries no Provoked, no Hunt, no source, no Duty and no token. Working name. |
 
 ## Double Super Rare (14; cut keeps 11)
 
@@ -733,19 +754,20 @@ pass ran under apply unchanged (owner, 2026-09-11):
    card does something its sibling does not.
 
 **Result: all 192 delta-priced rows sit inside the band.** The
-18 lab-priced rows are listed apart; four of them read cold, by
-construction.
+19 lab-priced rows are listed apart; five of them read cold, by
+construction. The nineteenth, Vyra, joined on 2026-09-29, after the pass:
+her pump is valued at 0 until the lab, and no lever was pulled on her.
 
 | Rarity | Rows | Delta-priced | Fair (±0.75) | Hot | Cold | Median Δ | Widest | Lab-priced (of which cold) |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |
-| UR | 11 | 10 | 10 | 0 | 0 | +0.32 | `fd-korru-eldest-tracker` +0.63 | 1 (0) |
+| UR | 12 | 10 | 10 | 0 | 0 | +0.32 | `fd-korru-eldest-tracker` +0.63 | 2 (1) |
 | SSR | 14 | 13 | 13 | 0 | 0 | +0.15 | `fd-grave-fern-stalker` +0.64 | 1 (1) |
 | SR | 19 | 17 | 17 | 0 | 0 | +0.19 | `fd-long-neck-matriarch` +0.72 | 2 (1) |
 | R | 62 | 57 | 57 | 0 | 0 | +0.05 | `fd-thaw-old-bones` -0.72 | 5 (2) |
 | C | 104 | 95 | 95 | 0 | 0 | +0.10 | `fd-bone-picker` +0.75 | 9 (0) |
-| **All** | **210** | **192** | **192** | **0** | **0** | | | **18 (4)** |
+| **All** | **211** | **192** | **192** | **0** | **0** | | | **19 (5)** |
 
-The lab-priced rows, with their deltas: Sefa, Keeper of the First Fire -0.08; Uzza the War-Painter -1.05; The Fire-Pit -0.03; The Standing Stone -1.31; War Drums of the Ember Clan -0.57; Scar-Rite Elder +0.20; Trial by Ember -1.32; Warband Drummer +0.28; Blaze-Horn Charge -2.02; Drum-Beater of the Ember Clan +0.37; Firebrand Initiate +0.00; Ember-Tongue -0.13; Hearth-Tender -0.46; Test of the Hearth -0.13; Scar-Singer of the Hearth +0.10; Bitter-Blood Brute +0.42; Scar-Knife Witch -0.02; Ember-Pot +0.43.
+The lab-priced rows, with their deltas: Sefa, Keeper of the First Fire -0.08; Uzza the War-Painter -1.05; The Fire-Pit -0.03; The Standing Stone -1.31; War Drums of the Ember Clan -0.57; Scar-Rite Elder +0.20; Trial by Ember -1.32; Warband Drummer +0.28; Blaze-Horn Charge -2.02; Drum-Beater of the Ember Clan +0.37; Firebrand Initiate +0.00; Ember-Tongue -0.13; Hearth-Tender -0.46; Test of the Hearth -0.13; Scar-Singer of the Hearth +0.10; Bitter-Blood Brute +0.42; Scar-Knife Witch -0.02; Ember-Pot +0.43; Vyra, Ember-Sky Rider -1.01 (added 2026-09-29, the pump at 0).
 
 **The rows the pass moved** (first score, then the lever; the row tables hold
 the final numbers):
@@ -820,7 +842,9 @@ no row dominated by another row of the set.** The #436 guard (no
 rules-identical printings in one set) holds. The Dinokin type launders no
 duplicate: the comparator's "same text told apart by a tribe" list is empty
 for this set, after two rows that were (a 1/3 Sentinel Dinokin and a 3/5
-Warding Gaze Beastkin) gained real text.
+Warding Gaze Beastkin) gained real text. **Vyra (added 2026-09-29) has not
+been run:** her row reads `not yet run` until the comparator learns the A1.5
+pump, and the name collision check against the pool is owed with it.
 
 The first overlap run found 48 rows with findings. The fixes, by kind:
 
@@ -877,11 +901,11 @@ read:
 | White | 38 (29) | 9 (8) | 0 (0) | 7 (7) | 10 (7): 5 / 5 | 10 (9) | 10 (8); C 7 | 1 (1) | 1 (1) |
 | Blue | 32 (25) | 0 (0) | 0 (0) | 0 (0) | 9 (6): 8 / 1 | 7 (7) | 5 (3); C 2 | 2 (1) | 0 (0) |
 | Black | 32 (25) | 3 (3) | 1 (1) | 3 (3) | 4 (3): 3 / 1 | 10 (9) | 2 (2); C 1 | 0 (0) | 1 (1) |
-| Red | 41 (32) | 10 (9) | 7 (6) | 19 (16) | 4 (4): 3 / 1 | 8 (5) | 16 (12); C 9 | 2 (2) | 0 (0) |
+| Red | 42 (33) | 10 (9) | 7 (6) | 19 (16) | 4 (4): 3 / 1 | 8 (5) | 16 (12); C 9 | 2 (2) | 0 (0) |
 | Green | 45 (34) | 13 (10) | 14 (13) | 14 (13) | 4 (3): 4 / 0 | 7 (5) | 20 (14); C 13 | 4 (4) | 2 (2) |
 | Multicolour | 15 (13) | 3 (3) | 3 (3) | 5 (4) | 4 (2): 4 / 0 | 6 (6) | 4 (4); C 0 | 0 (0) | 0 (0) |
 | Colourless | 7 (7) | 0 (0) | 0 (0) | 2 (2) | 5 (5): 0 / 5 | 0 (0) | 0 (0); C 0 | 0 (0) | 0 (0) |
-| **Pool** | **210 (165)** | **38 (33)** | **25 (23)** | **50 (45)** | **40 (30)** | **48 (41)** | **57 (43)** | **9 (8)** | **4 (4)** |
+| **Pool** | **211 (166)** | **38 (33)** | **25 (23)** | **50 (45)** | **40 (30)** | **48 (41)** | **57 (43)** | **9 (8)** | **4 (4)** |
 
 Against the brief's budget at 165: Provoked 38 rows in the
 overplan and 33 in the projected cut (budget 26); Hunt
@@ -889,7 +913,10 @@ overplan and 33 in the projected cut (budget 26); Hunt
 (budget 18). The cut keeps more of each than the budget: the rarity histogram
 and the colour split bind first, and the owner's cut can trim toward the
 budget (question 6 below). Other sources, Dinokin, Dinosaur creatures,
-Beastkin and token minters sit at or above their budgets.
+Beastkin and token minters sit at or above their budgets. **Vyra
+(2026-09-29) is folded into the Rows column only** (red 41 to 42, 32 to 33
+in the cut; the pool 210 to 211, 165 to 166): she carries none of the
+counted mechanics, so no other column and no density table below moves.
 
 **The F6 swap (owner, 2026-09-28), not yet folded into the tables in this
 self-audit.** The Great Drum (W, SSR: an artifact with two Duties, a
@@ -949,7 +976,7 @@ Brute).
 | Dinosaur creatures | 9 | 8 | at most 8 |
 | Beastkin | 4 | 4 | at most 4 |
 | Vanilla and french-vanilla commons | 6 of 104 | 5 of 82 | at most 30% |
-| Multicolour (all at R and above) | 15 of 210 | 13 of 165 | under 10% |
+| Multicolour (all at R and above) | 15 of 211 | 13 of 166 | under 10% |
 
 ### Rule checks
 
@@ -1005,6 +1032,7 @@ come first; the rest is every construct a row needs that
 | `keywordTarget` | a target qualified by a keyword, with or without it (the hunter of a Hunt spell is "target creature you control without Bulwark", H3a; "target creature with Skyborne"); TargetSpec has maxCost, minAttack, marked and tapped only, and the AI target enumeration would offer a Bulwark hunter | 9 (`fd-fang-and-horn`, `fd-ambush-at-the-river`, `fd-grip-of-the-old-beast`, `fd-duel-on-the-ridge`, `fd-blaze-horn-charge`, `fd-spear-and-fang`, `fd-stalk-the-ferns`, `fd-bone-snap`, `fd-challenge-the-beast`) | 8 | yes | Admit (reversed from the first draft): every Hunt spell's hunter must be "target creature you control without Bulwark" (H3a), a keyword-qualified target the engine lacks and the AI's target enumeration would violate, so the construct clears the threshold on the eight Hunt spells alone. A creature that gains Bulwark after targeting must also be refused at resolution (an H3a check in the Hunt op). Bone-Snap Ambush ("with Skyborne") then rides it at no extra engine cost; it stays a stretch row. **Corrected by the engine spec** (item 4), ruled 2026-09-28 (E2): not built. The Bulwark rule lives in the Hunt op, so the general qualifier would serve 0 cut rows (only Bone-Snap Ambush, which stays cut) |
 | `distinctSpellTargets` | the two creature targets of a spell must be different creatures; `other` excludes only the source permanent of an ability, and a spell has none (targeting.ts:156) | 8 (`fd-fang-and-horn`, `fd-ambush-at-the-river`, `fd-grip-of-the-old-beast`, `fd-duel-on-the-ridge`, `fd-blaze-horn-charge`, `fd-spear-and-fang`, `fd-stalk-the-ferns`, `fd-challenge-the-beast`) | 8 | yes | Admit with the Hunt op: a spell's hunter and prey must be two different creatures (H1), and `other` excludes only the source permanent of an ability, which a spell does not have (targeting.ts, around line 156). **Corrected by the engine spec** (items 4 and 6), ruled 2026-09-28 (E2): distinctness is the Hunt op's own rule, not a construct; the spell's prey spec still carries `other: true`, which excludes nothing on a spell and stays in the data only because it prints "another target" |
 | `damageEachYours` | "damage each creature you control N" (no op; the damage op reaches eachCreature or eachOpponentCreature only) | 4 (`fd-uzza-war-painter`, `fd-war-drums`, `fd-trial-by-ember`, `fd-drum-beater`) | 3 | yes | Admit: red's war-drum and white's scarring rite, the source shape the brief expected (2-3 rows). A new `damage` target, `eachYourCreature` (with an optional `other`), beside `eachCreature` and `eachOpponentCreature`. Drum-Beater of the Ember Clan is the only common on it and teaches board-wide self-damage: your own Pack Raptors and Hatchlings die to it. **Ruled 2026-09-28 (E3): keep** (built in A1 as the `eachYourCreature` recipient); if the cut drops one of the three rows, it falls below the threshold and the question returns |
+| `manaPump` (A1.5) | a non-tap, mana-only activated ability, repeatable, at Charm speed (after blockers too): `ActivatedDef`'s cost is `{ tap: true; mana? }` in `src/engine/types.ts`, so every activation today is a Duty and taps | 1 (`fd-vyra-ember-sky-rider`) | 1 | no, one row | **Ruled by the owner 2026-09-29, below the threshold on purpose:** built as A1.5 for Vyra alone, narrow (an untargeted effect on the creature itself, creatures only); one action pays for N activations, which the Duel UI shows as a +/- ticker (A2.a). The scorer carries it as NEEDS MATH at 0 until the lab prices it |
 | `empowerHunt` | Empower may Hunt (the Empower validator allowlist is moveMark, reclaim, destroy) | 3 (`fd-thorn-hide-armourback`, `fd-tall-grass-tracker`, `fd-ridge-raptor`) | 3 | yes | Admit with the Hunt op, but it is not an allowlist-only change: Empower riders are contractually trigger-safe (types.ts, EmpowerDef; resolve.ts), and a Hunt can kill and so raise a dies trigger or a deferred choice. P4's state-based placement of Provoked keeps the Hunt's own Provoked out of the rider; the dies triggers still need the rider to allow a deferred choice. Rows: fd-thorn-hide-armourback, fd-tall-grass-tracker, fd-ridge-raptor. **Corrected by the engine spec** (item 3), ruled 2026-09-28 (E4): it is an allowlist-only validator change; Hunt damage only marks damage, and the deaths come in the state-based check after the rider. Also ruled (E5): an empowered creature whose prey leaves still resolves and loses only the rider |
 
 **Not needed after all** (the brief's section 10 estimates): the size
@@ -1068,12 +1096,15 @@ bullets below are the draft's reading, kept as written.
 7. **Hearth-Shield Maiden**: white's common block-shaped payoff.
 8. **Tar-Rite** and **Cliff-Nest Rider**: the common minters for Tar-Bones
    and Glider.
+9. **Vyra, Ember-Sky Rider**: the owner's ninth Ultra Rare, the set's
+   Shivan Dragon (2026-09-29).
 
 ## The cut, in order
 
 1. Every `stretch` row.
 2. `flex` rows by the histogram, colour by colour, until 82 / 49 / 15 / 11 /
-   8, holding enabler density (the minimums above, and sources at least three
+   9 (8 Ultra Rares as B3 ruled; 9 since the owner's Vyra ruling,
+   2026-09-29), holding enabler density (the minimums above, and sources at least three
    quarters of payoffs in every Provoked colour), the token-minter floor (two
    per token), the tribe's floors, at most eight Dinosaur creatures and four
    Beastkin.
@@ -1089,7 +1120,7 @@ the token-minter floor and the construct thresholds above (the war-drum
 self-sweep keeps three rows, Empower-Hunt three, the Hunt spell targets
 eight).
 
-**UR, cut 3:** Rakka, Queen of the Red Pack (R, flex); The Painted Cave (W, flex); Venna Red-Hand, War-Chief (R/W, flex).
+**UR, cut 3:** Rakka, Queen of the Red Pack (R, flex); The Painted Cave (W, flex); Venna Red-Hand, War-Chief (R/W, flex). Vyra, Ember-Sky Rider (R, core, protect) was added on 2026-09-29 and is kept, so 12 Ultra Rares become 9, and the 45 rows out leave 166.
 
 **SSR, cut 3:** Uzza the War-Painter (R, flex); Kree of the Wind-Crest (U, flex); Fern-Crown Tyrant (G, core). *As ruled 2026-09-28 (F6): the proposal cut The Great Drum of the Hearth (W, flex) here; the owner kept it and dropped Fern-Crown Tyrant instead.*
 
@@ -1232,6 +1263,30 @@ E3, E4, E2, E7 and E1). Each answer leads its question below.
     and the targeted Provoked rows; listed under "G7 and P4"). Recommended:
     rule P4 as written before the spec, and schedule G7 ahead of A1; if
     either slips, those rows are the ones to reword or cut.
+
+**Ruled 2026-09-29 (the owner): Vyra, the ninth Ultra Rare.** Three
+rulings, the score, and what is still owed:
+
+- **The card, and the sky.** Vyra, Ember-Sky Rider (a working name),
+  {4}{R}{R} 5/5, Legendary Creature: Human Rider, Skyborne, "{R}: This gets
+  +1/+0 until Sunset." She is the set's only red Skyborne card, a pie
+  exception at Ultra Rare (the brief gives the sky to W/U): an Ember-clan
+  woman on a plain pterosaur. Riders are Human, not Dinokin (D2), and the
+  mount is a plain Dinosaur beast. Core, protected.
+- **The pump.** A non-tap, mana-only ability, repeatable, at Charm speed
+  (after blockers too), built now as A1.5. The Duel UI gives it a +/-
+  ticker, so one action pays for N activations.
+- **The count.** Ultra Rare rises from 8 to 9, so the histogram is 82 / 49
+  / 15 / 11 / 9 = 166, a deliberate change to B3, and one card over D2's
+  150-165 range.
+- **The score.** On the v4 scorer without the pump: power 6.43 against a
+  budget of 7.44, Δ -1.01 (body 5/5 +4.58, Skyborne at Attack 5 +1.85). The
+  pump is NEEDS MATH, valued 0 until the lab; priced, it fills the gap.
+  Shivan Dragon is the 8th-10th edition anchor.
+- **Owed on her row:** the overlap comparator and the name check (`not yet
+  run`), and the rescore once the lab prices the pump. Her art entry is in
+  `docs/art-bible/first-dawn.md`, with a draft prompt that Fable reviews
+  before any image is generated.
 
 **For the engine spec (lane A), not the owner** (superseded: the engine
 spec answered each point, and corrected the G7, P4 and Empower-Hunt readings
