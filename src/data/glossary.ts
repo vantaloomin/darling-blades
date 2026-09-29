@@ -348,6 +348,8 @@ export function cardTermNames(d: CardDef): string[] {
   for (const k of d.keywords ?? []) names.add(KEYWORD_NAMES[k]);
   for (const op of cardOps(d)) {
     if (op.op === 'boost') for (const k of op.keywords ?? []) names.add(KEYWORD_NAMES[k]);
+    // A raise that grants a keyword prints it ("... to the battlefield. It has Dreaded").
+    if (op.op === 'raise') for (const k of op.grantKeywords ?? []) names.add(KEYWORD_NAMES[k]);
   }
   for (const ab of d.abilities ?? []) {
     for (const k of ab.static?.grantKeywords ?? []) names.add(KEYWORD_NAMES[k]);
