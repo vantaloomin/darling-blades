@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/art/artLoader.ts, src/art/ArtResolver.ts, src/art/artWatch.ts, src/art/artArrivals.ts, src/art/artRetry.ts, src/ui/CardThumbCache.ts, src/ui/artGate.ts, src/art/pagedRequests.ts, src/ui/displayWalk.ts, src/scenes/ArtLoaderScene.ts, scripts/gen-art-manifest.ts, scripts/gen-art-halfres.ts, scripts/serve-lan.ts, .github/workflows/deploy.yml, src-tauri/tauri.conf.json · last-verified: 2026-09-28 · design doc, re-verify when the art loader, the thumbnail cache, the card-face geometry (R13) or the deploy pipeline changes -->
+<!-- source-of-truth: src/art/artLoader.ts, src/art/ArtResolver.ts, src/art/artWatch.ts, src/art/artArrivals.ts, src/art/artRetry.ts, src/ui/CardThumbCache.ts, src/ui/artGate.ts, src/ui/duelArt.ts, src/art/pagedRequests.ts, src/ui/displayWalk.ts, src/scenes/ArtLoaderScene.ts, scripts/gen-art-manifest.ts, scripts/gen-art-halfres.ts, scripts/serve-lan.ts, .github/workflows/deploy.yml, src-tauri/tauri.conf.json · last-verified: 2026-09-28 · design doc, re-verify when the art loader, the thumbnail cache, the card-face geometry (R13) or the deploy pipeline changes -->
 
 # Card art streaming: load on demand, unload under a budget (1.9 lane D)
 
@@ -194,7 +194,7 @@ as thin wrappers while the scenes migrate, then go.
 | --- | --- | --- |
 | `now` | a gated build (duel, the current pack's reveal, the draft's pick pack, a modal's wait), the zoom preview, the save-card export | first in, first out |
 | `visible` | anything drawn with a stand-in right now: every `holdArt` on a missing key asks at this level | newest first, so fast paging serves the page on screen |
-| `soon` | the next and previous binder spread, the selected opponent's duel set on the Gauntlet, Practice and Play screens, later packs in a batch | newest first |
+| `soon` | the next and previous binder spread, the chosen opponent's duel set (the Tower screen's rung, Practice's selection, the Tower reward's Next Foe), later packs in a batch | newest first |
 | `idle` | the boot warm set (below); on desktop, the full textures of the spread on screen, so a hover zooms at once | first in, first out |
 
 - **A window, not batches.** Six fetches in flight on the web and eight on
@@ -276,7 +276,7 @@ failed file is never asked for again.
 | Zoom preview (`CardZoomPreview`, any scene) | a live CardView at 1.3, up to 733x1045 px at 1440p | the hovered card | `now` | the preview's view | full, with half drawn meanwhile / half |
 | Deck Builder | the 12-card pool page, the deck pane's thumbs (the Darling portrait, the basics previews, the style sample), the Darling and land-style pickers; the deck-list rows are text and draw no art | the page, the pane's thumbs, the open picker page; the open deck-list page's cards | `visible`; the pages either side `soon`; the deck-list cards prefetched at `soon`, not leased, since the rows draw no art (the row's hover zoom then opens on the half texture) | thumbs | half / half |
 | Pack opening | the rolled cards as live CardViews | the first pack, gated, before the flip; later packs in a batch leased at `soon`, each gated at its own reveal | `now` | the scene | full / half |
-| Duel | both decks, reserves, tokens, Darlings, portraits (115-137 keys) | the set, gated at `create` as today; prefetched at `soon` as soon as an opponent is chosen on Gauntlet, Practice or Play | `now` | the scene, through restarts between rungs (see Traps) | full / half |
+| Duel | both decks, reserves, tokens, Darlings, portraits (115-137 keys; in the Tower also the 26 rung portraits the run recap draws) | the set (`src/ui/duelArt.ts`), gated at `create` as today; prefetched at `soon` once the opponent is chosen: the Tower screen's rung, Practice's selection, the Tower reward's Next Foe. Play has no prefetch: nothing is chosen there | `now` | the scene, through restarts between rungs (see Traps) | full / half |
 | Limited draft | the pick pack (up to 15 thumbs), the picks | the pack, gated; the picks | `now`; `visible` | scene and thumbs | half thumbs / half |
 | Limited Deck Builder | the pool and deck; a 1.35 CardView inspect | the pool, gated as today, then per page | `now` | scene | full for the inspect / half |
 | Shop | 19 grid faces, featured thumbs, the deck preview and atelier modals | the faces, gated; each modal's cards through `awaitArt` | `now` | scene; each modal's lease, released when the modal is destroyed | full / half |
@@ -686,9 +686,12 @@ benefit. The store is built so the source is a seam.
 - **`DuelScene` restarts between rungs.** The duel lease is taken in
   `create` and released at `SHUTDOWN`. Ordering keeps the shared set: both
   run in one scene-manager step, and eviction runs only from the loader
-  scene's update, after it. Nothing subscribes twice across restarts (the
-  playbook trap); the store's `REMOVE` and `RESTORE_WEBGL` listeners are
-  game-global and registered once.
+  scene's update, after it. Confirmed in S5b by reading the Phaser 3.90
+  source (`ScenePlugin.restart` queues the stop and the start;
+  `SceneManager.update` runs `processQueue` before any scene steps); the
+  store half is tested in `tests/art/duelRungCarry.test.ts`. Nothing
+  subscribes twice across restarts (the playbook trap); the store's `REMOVE`
+  and `RESTORE_WEBGL` listeners are game-global and registered once.
 - **Destroyed-texture crashes.** A missed lease stops the game loop
   (section 3). Only the loader scene evicts, only between frames, only after
   the safety scan, and the removal belt re-points every holder at once.

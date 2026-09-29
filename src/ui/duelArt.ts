@@ -209,7 +209,11 @@ export class NextDuelArt {
 /** The game's one next-duel prefetch. */
 export const nextDuelArt = new NextDuelArt();
 
-/** Phaser's event names (`Scenes.Events.SHUTDOWN`, `Core.Events.POST_STEP`). */
+/**
+ * Phaser's event names: equal to `Phaser.Scenes.Events.SHUTDOWN` (the constant
+ * `artGate.ts` uses) and `Phaser.Core.Events.POST_STEP`, kept as literals so
+ * this module imports nothing from Phaser at runtime.
+ */
 const SCENE_SHUTDOWN = 'shutdown';
 const GAME_POST_STEP = 'poststep';
 

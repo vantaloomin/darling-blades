@@ -181,8 +181,10 @@ function abortedKeys(h: Harness): string[] {
 describe('NextDuelArt: the prefetch until the duel takes over', () => {
   it('asks at soon, so art a view shows now is fetched ahead of it', async () => {
     const h = makeStore({ maxInFlight: 1 });
-    new NextDuelArt().choose(h.store, ['a', 'b'], new FakeChooser());
-    const view = h.store.lease('view', ['c'], { priority: 'visible' });
+    // A view asks first; the prefetch comes later, so at the view's own level
+    // (newest first) it would jump ahead of the view's second key.
+    const view = h.store.lease('view', ['a', 'c'], { priority: 'visible' });
+    new NextDuelArt().choose(h.store, ['b'], new FakeChooser());
     h.source.finish('a');
     await h.tick();
 
