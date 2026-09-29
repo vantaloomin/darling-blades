@@ -1050,6 +1050,7 @@ Rocket x4 re-measure ([ai.md](ai.md)) join D7's wave-4 pass.
 | **Editable Limited Warchest** | **After 2.0** | The pip-demand-weighted automatic fill from #279 stays the only build |
 | Live spectating ([plan-player-replays.md](plan-player-replays.md) wave 4) | Cancelled | It rode multiplayer, cancelled 2026-08-24 |
 | **Older-set near-duplicates** (D8) | **1.9.x** | A whole-pool review and resolution plan once the comparator is fixed (wave 0); the owner approves the rule and the slate; fixes ship in a 1.9.x patch. **Rule and slate RULED 2026-09-28** (41 cards; [d8-near-duplicate-review.md](d8-near-duplicate-review.md)) |
+| **Keyword backfill of the shipped sets** (the owner approved it 2026-09-29; see the decisions record) | **1.9.x** (proposed, beside D8) | Each shipped set gains the evergreen keywords it lacks, as a handful of extra cards or as keywords added to underpowered cards that fit. The gaps: Base (Dreaded); Ragnarok (Bulwark, Untouchable, Dreaded); Celtic Fae (Twin Blades, Dreaded, Rage); Arthurian Court (Untouchable, Dreaded, Rage); Gothic Monsters (Twin Blades); Dark Tales (Twin Blades, Rage); Yokai Nights (Rage); Sands of the Duat (First Blade, Deathblade, Rage); Starborne (Rage); Drowned Deep (Twin Blades, Blood Oath). A backfilled set leaves the data check's grandfather list |
 
 ## Sequencing
 
@@ -1350,6 +1351,29 @@ Numbered so rulings can cite them. Recommendations are the first option.
   aimed a 5-10 increase in starting life at 2.0, with Core Set II
   ([plan-road-to-2.0.md](plan-road-to-2.0.md#starting-life-a-20-direction)).
   First Dawn's costs, the A1.4 rates and every 1.9 gate are measured at 20.
+- **Keyword coverage in every set (the owner, 2026-09-29).** "My goal is for
+  every keyword to have SOME representation in all sets; but we've been bad
+  about it. Maybe we pick a handful of missing "Set Keywords" to incorporate
+  as onsies-twosies in "small" sets, and we look to have the full gambit in
+  "Large" sets?"
+  - **First Dawn** (a Small set) carries all 13 keywords. Today it lacks
+    First Blade, Twin Blades and Blood Oath.
+  - It also takes a handful of returning set mechanics as one- or two-card
+    cameos, the owner's pick from a proposal (in progress). This supersedes,
+    in part, the brief's "Nine Lives, Hauntlink, Whispers, Tithe, Rite,
+    Preserve and Quest stay out".
+  - **Large sets** (2.0's Core Set II) carry every keyword and named
+    mechanic.
+  - **Backfill of the shipped sets: approved** (the owner: "either a handful
+    of extra cards, or adding keywords to underpowered cards that fit
+    thematically"). None of the ten shipped sets carries all 13 keywords.
+    - Extra cards change a shipped set's rarity histogram, which the owner
+      had locked. This approval covers that.
+    - The session proposes the 1.9.x patch, beside the D8 near-duplicate
+      fixes. See the table under "Moved out of 1.9".
+  - **A data check (the owner):** every new set must carry all 13 keywords,
+    starting with First Dawn. The shipped sets are grandfathered until their
+    backfill lands, then leave the list.
 - **The `research/` ignore rule** from the owner's local `.gitignore` is
   committed, so third-party research material never reaches the public
   repo.

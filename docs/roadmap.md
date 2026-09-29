@@ -2167,6 +2167,19 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   floor and boss tune is measured at 20, so it lands with a full
   re-measure, and 1.9 (First Dawn included) stays at 20. Details:
   [plan-road-to-2.0.md](plan-road-to-2.0.md#starting-life-a-20-direction).
+- **Every keyword in every set (owner, 2026-09-29).**
+  - Each set carries all 13 evergreen keywords. Small sets add a handful of
+    returning set mechanics as one- or two-card cameos; Large sets (2.0's Core
+    Set II) carry every named mechanic too.
+  - **First Dawn** fills its gaps before the cut: First Blade, Twin Blades and
+    Blood Oath.
+  - **The ten shipped sets** get a backfill (approved; proposed for 1.9.x
+    beside D8), either as extra cards or as keywords added to underpowered
+    cards that fit.
+  - **A data check** makes every new set carry all 13, starting with First
+    Dawn.
+  - Details: [plan-1.9.md](plan-1.9.md), the decisions record and "Moved out of
+    1.9".
 - **Design plans authored 2026-07-05.** Four senior-level design docs, each
   grounded in the current code and respecting the iron invariants —
   **Commander mode and MOD/UGC were greenlit into the 1.1 program
