@@ -10,7 +10,13 @@
  * Usage:
  *   npx tsx scripts/recrop-art.ts [--only id1,id2] [--limit N] [--dry-run]
  *                                 [--force] [--all] [--out <dir>] [--apply]
- *                                 [--sheet-only]
+ *                                 [--sheet-only] [--apply-ids <file>]
+ *
+ * --apply-ids <file> applies only the listed ids (one per line) from an
+ * existing staging run (<out>/results.json and <out>/cards/<id>.png), then
+ * rebuilds the half set and the manifest. It stages nothing and reruns no
+ * detector: the review picks the set, and --apply (which copies every row of
+ * the current run) never has to be trusted with it.
  */
 import { spawnSync } from 'node:child_process';
 import {
@@ -61,6 +67,7 @@ interface Args {
   outDir: string;
   apply: boolean;
   sheetOnly: boolean;
+  applyIds?: string;
 }
 
 interface RawJob {
@@ -129,6 +136,7 @@ function parseArgs(argv: string[]): Args {
       args.outDir = isAbsolute(out) ? resolve(out) : resolve(root, out);
     } else if (a === '--apply') args.apply = true;
     else if (a === '--sheet-only') args.sheetOnly = true;
+    else if (a === '--apply-ids') args.applyIds = next(a);
     else fail(`unknown argument: ${a}`);
   }
   return args;
@@ -499,6 +507,26 @@ function applyStaged(rows: ReviewRow[]): void {
 function main(): void {
   const args = parseArgs(process.argv.slice(2));
   assertSafeOutDir(args.outDir);
+  if (args.applyIds !== undefined) {
+    if (args.apply || args.sheetOnly || args.dryRun || args.all || args.only || args.limit !== undefined) {
+      fail('--apply-ids takes only --out; it applies an existing staging run');
+    }
+    const ids = readFileSync(args.applyIds, 'utf8')
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const wanted = new Set(ids);
+    if (wanted.size !== ids.length) fail(`--apply-ids lists an id twice: ${args.applyIds}`);
+    const rows = readResults(args.outDir).filter((row) => wanted.has(row.job.id));
+    const found = new Set(rows.map((row) => row.job.id));
+    const unknown = ids.filter((id) => !found.has(id));
+    if (unknown.length > 0) fail(`--apply-ids ids not in ${join(args.outDir, 'results.json')}: ${unknown.join(', ')}`);
+    const missing = rows.filter((row) => !existsSync(row.newPath)).map((row) => row.job.id);
+    if (missing.length > 0) fail(`--apply-ids ids with no staged PNG: ${missing.join(', ')}`);
+    applyStaged(rows);
+    console.log(`recrop-art: applied ${rows.length} listed staged crop(s) to shipped art`);
+    return;
+  }
   if (args.sheetOnly) {
     if (args.apply) fail('--sheet-only cannot be combined with --apply');
     const rows = readResults(args.outDir);
