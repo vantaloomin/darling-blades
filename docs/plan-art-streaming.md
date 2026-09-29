@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/art/artLoader.ts, src/art/ArtResolver.ts, src/art/artWatch.ts, src/art/artArrivals.ts, src/art/artRetry.ts, src/ui/CardThumbCache.ts, src/ui/artGate.ts, src/scenes/ArtLoaderScene.ts, scripts/gen-art-manifest.ts, scripts/gen-art-halfres.ts, scripts/serve-lan.ts, .github/workflows/deploy.yml, src-tauri/tauri.conf.json · last-verified: 2026-09-28 · design doc, re-verify when the art loader, the thumbnail cache, the card-face geometry (R13) or the deploy pipeline changes -->
+<!-- source-of-truth: src/art/artLoader.ts, src/art/ArtResolver.ts, src/art/artWatch.ts, src/art/artArrivals.ts, src/art/artRetry.ts, src/ui/CardThumbCache.ts, src/ui/artGate.ts, src/art/pagedRequests.ts, src/ui/displayWalk.ts, src/scenes/ArtLoaderScene.ts, scripts/gen-art-manifest.ts, scripts/gen-art-halfres.ts, scripts/serve-lan.ts, .github/workflows/deploy.yml, src-tauri/tauri.conf.json · last-verified: 2026-09-28 · design doc, re-verify when the art loader, the thumbnail cache, the card-face geometry (R13) or the deploy pipeline changes -->
 
 # Card art streaming: load on demand, unload under a budget (1.9 lane D)
 
@@ -274,7 +274,7 @@ failed file is never asked for again.
 | --- | --- | --- | --- | --- | --- |
 | Collection binder | 12 thumbs per spread, variant rows | the spread on show; the next and previous spread | `visible`; `soon` | the thumb Images (thumb textures); sources are not pinned once baked | half / half |
 | Zoom preview (`CardZoomPreview`, any scene) | a live CardView at 1.3, up to 733x1045 px at 1440p | the hovered card | `now` | the preview's view | full, with half drawn meanwhile / half |
-| Deck Builder | the 12-card pool page, the deck list rows (0.095), the Darling and land-style pickers | the page, the deck list, the open picker page | `visible`; next page `soon` | thumbs | half / half |
+| Deck Builder | the 12-card pool page, the deck pane's thumbs (the Darling portrait, the basics previews, the style sample), the Darling and land-style pickers; the deck-list rows are text and draw no art | the page, the pane's thumbs, the open picker page; the open deck-list page's cards | `visible`; the pages either side `soon`; the deck-list cards prefetched at `soon`, not leased, since the rows draw no art (the row's hover zoom then opens on the half texture) | thumbs | half / half |
 | Pack opening | the rolled cards as live CardViews | the first pack, gated, before the flip; later packs in a batch leased at `soon`, each gated at its own reveal | `now` | the scene | full / half |
 | Duel | both decks, reserves, tokens, Darlings, portraits (115-137 keys) | the set, gated at `create` as today; prefetched at `soon` as soon as an opponent is chosen on Gauntlet, Practice or Play | `now` | the scene, through restarts between rungs (see Traps) | full / half |
 | Limited draft | the pick pack (up to 15 thumbs), the picks | the pack, gated; the picks | `now`; `visible` | scene and thumbs | half thumbs / half |
@@ -288,8 +288,15 @@ failed file is never asked for again.
 | Showcase (dev only) | every card, paged | the page | `visible` | thumbs | full / half |
 
 Collection, the Deck Builder and the Showcase stop gating on the whole
-manifest: they build on their first frame. How a spread shows its first
-frame is owner question 3.
+manifest: they build on their first frame (as built in S5a, `gateOnPagedArt`
+and `PagedArt` in `src/ui/artGate.ts` over `src/art/pagedRequests.ts`). A
+page's lease covers the whole page while any of it is missing, and is
+released once its art is in and the page has drawn. How a spread shows its
+first frame is owner question 3, ruled as recommended: a turn starts at once
+and the new spread waits up to `PAGE_ART_HOLD_MS` (150 ms) for its art, then
+draws over stand-ins, which fill in. The Deck Builder's pool takes the same
+hold on page turns and redraws at once on deck edits; the pickers and the
+deck pane draw at once.
 
 ## 3. Unload: the budget, eviction and pinning
 

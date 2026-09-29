@@ -406,6 +406,10 @@ export function thumbArtWanted(
 ): { key: string; tier: ArtTier } | null {
   const key = cardThumbKey(card.id, landStyle, variant ? variantKey(variant) : undefined);
   if (scene.textures.exists(key) && !provisional.has(key) && !blank.has(key)) return null;
+  // Also called for the cards of neighbouring pages, which are never drawn
+  // here. `getArt` throws for a card with neither a manifest file nor an
+  // atlas slot; `ArtResolver.generatePlaceholders` gives every card in the
+  // database a slot at boot, so no card reaches that throw.
   const pending = Art.resolver?.getArt(card.id, landStyle, 'half').pending;
   return pending === undefined ? null : artTextureTier(pending);
 }

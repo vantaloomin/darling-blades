@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { ART_EVENT_PROGRESS, artMissing, ensureArt, liveArtStore, manifestArtKeys } from '../art/artLoader';
 import type { ArtLease, ArtPriority, ArtTier } from '../art/artStore';
+import { PagedRequests } from '../art/pagedRequests';
 import { backLabelFor } from './navigation';
 import { applySceneSettings } from './SceneBackdrop';
 import { theme } from './theme';
@@ -254,113 +255,42 @@ export interface PagedArtOptions {
   owner?: Phaser.GameObjects.GameObject;
 }
 
-const NO_CANCEL = (): void => {};
-
 /**
- * The art requests of one paged surface (docs/plan-art-streaming.md section
- * 2): a binder, a pool grid, a picker. Each `show` names what the page on
- * screen still needs and what a turn would need next; it leases the first at
- * `visible` (while any of it is missing) and prefetches the second at `soon`
- * without a pin, and it replaces the previous page's requests, so fast paging
- * drops what nobody is looking at any more. Everything ends when the scene
- * shuts down or the owner is destroyed.
- *
- * Callers pass only what is still missing a draw of real art (for thumbnails,
- * `thumbArtWanted`): a thumb is a snapshot, so a page baked on an earlier
- * visit asks for nothing, and its sources stay unpinned.
- *
- * With the 1.8 queue (no store) nothing is asked for and `draw` runs at once,
- * as the grids always drew.
+ * The art requests of one paged surface, bound to a scene: the rule is
+ * `PagedRequests` (`src/art/pagedRequests.ts`, Phaser-free and tested); this
+ * adds the lifetime (the scene's shutdown or destruction, or a modal owner's
+ * destruction, ends everything) and the timer. The hold is wall-clock, not
+ * the scene clock: the scene clock smooths over the long first frames of a
+ * build, which stretched a 150 ms hold past 250 ms in the probe.
  */
 export class PagedArt {
-  private readonly tier: ArtTier;
-  private lease: ArtLease | null = null;
-  private cancelSoon: () => void = NO_CANCEL;
-  /** Bumped by every `show` and by `release`: a held draw from an older page never runs. */
-  private generation = 0;
-  /**
-   * The held draw's deadline. Wall-clock, not the scene clock: the scene
-   * clock smooths over the long first frames of a build, which stretched a
-   * 150 ms hold past 250 ms in the probe.
-   */
-  private holdTimer: ReturnType<typeof setTimeout> | null = null;
-  private released = false;
+  private readonly requests: PagedRequests;
 
   constructor(
     private readonly scene: Phaser.Scene,
-    private readonly label: string,
+    label: string,
     options: PagedArtOptions = {},
   ) {
-    this.tier = options.tier ?? 'half';
+    this.requests = new PagedRequests(label, options.tier ?? 'half', {
+      store: () => liveArtStore(),
+      schedule: (fn, ms) => {
+        const timer = setTimeout(fn, ms);
+        return () => clearTimeout(timer);
+      },
+    });
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, this.release, this);
     scene.events.once(Phaser.Scenes.Events.DESTROY, this.release, this);
     options.owner?.once(Phaser.GameObjects.Events.DESTROY, () => this.release());
   }
 
-  /**
-   * Ask for a new page: when any of `shown` is missing, lease all of it at
-   * `visible` (so its resident part is not evicted while the rest loads);
-   * prefetch `soon` at `soon`; and let go of the last page's requests (after
-   * taking the new ones, so art both pages share is never unheld in between).
-   *
-   * `draw`, when given, draws the page. It runs at once when nothing in
-   * `shown` is missing, with no store, or when `holdMs` is 0; otherwise it
-   * runs when the art is in or after `holdMs`, whichever comes first, unless
-   * another `show` or the end of the surface overtook it. Returns true when
-   * the draw is being held.
-   */
-  show(shown: Iterable<string>, soon: Iterable<string> = [], draw?: () => void, holdMs = 0): boolean {
-    const generation = ++this.generation;
-    this.clearHold();
-    const store = this.released ? null : liveArtStore();
-    const previousLease = this.lease;
-    const previousSoon = this.cancelSoon;
-    this.lease = null;
-    this.cancelSoon = NO_CANCEL;
-    if (store !== null) {
-      // Nothing missing: the page draws now, over resident art, and needs no
-      // pin. Otherwise the lease pins the whole page, the resident part too,
-      // so nothing it will draw is evicted while the rest is on its way.
-      const ids = [...shown];
-      if (store.missing(ids, this.tier).length > 0) {
-        this.lease = store.lease(`page:${this.label}`, ids, { priority: 'visible', tier: this.tier });
-      }
-      this.cancelSoon = store.prefetch(soon, { priority: 'soon', tier: this.tier });
-    }
-    previousLease?.release();
-    previousSoon();
-    if (draw === undefined) return false;
-    const lease = this.lease;
-    if (lease === null || holdMs <= 0) {
-      draw();
-      return false;
-    }
-    const land = (): void => {
-      if (generation !== this.generation || this.released || !this.scene.sys.isActive()) return;
-      this.generation++;
-      this.clearHold();
-      draw();
-    };
-    this.holdTimer = setTimeout(land, holdMs);
-    void lease.ready.then(land);
-    return true;
-  }
-
-  private clearHold(): void {
-    if (this.holdTimer !== null) clearTimeout(this.holdTimer);
-    this.holdTimer = null;
+  /** See `PagedRequests.show`. */
+  show(shown: Iterable<string>, soon: Iterable<string> = [], draw?: (afterHold: boolean) => void, holdMs = 0): boolean {
+    return this.requests.show(shown, soon, draw, holdMs);
   }
 
   /** End every request, and any held draw. Safe to call twice. */
   release(): void {
-    if (this.released) return;
-    this.released = true;
-    this.generation++;
-    this.clearHold();
-    this.lease?.release();
-    this.lease = null;
-    this.cancelSoon();
-    this.cancelSoon = NO_CANCEL;
+    this.requests.release();
     this.scene.events.off(Phaser.Scenes.Events.SHUTDOWN, this.release, this);
     this.scene.events.off(Phaser.Scenes.Events.DESTROY, this.release, this);
   }

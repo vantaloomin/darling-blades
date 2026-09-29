@@ -83,7 +83,7 @@ import {
 } from '../ui/deckPanePresentation';
 import { DECK_POOL_LAYOUT, poolCellPosition } from '../ui/deckPoolLayout';
 import { Dropdown, type DropdownOption } from '../ui/Dropdown';
-import { gateOnPagedArt, PagedArt } from '../ui/artGate';
+import { gateOnPagedArt, PAGE_ART_HOLD_MS, PagedArt } from '../ui/artGate';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { createSearchInput } from '../ui/SearchInput';
 import {
@@ -349,7 +349,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     // 1.8.1.
     this.poolPager = pager(this, DECK_POOL_LAYOUT.pagerX, DECK_POOL_LAYOUT.pagerY, this.page, 1, (page) => {
       this.page = page;
-      this.renderPool();
+      this.renderPool(PAGE_ART_HOLD_MS);
     });
     this.poolPager.container.setVisible(false);
 
@@ -490,7 +490,7 @@ export class DeckBuilderScene extends Phaser.Scene {
   private turnPage(dir: number): void {
     const pages = Math.max(1, Math.ceil(this.pool().length / GRID_SIZE));
     this.page = Phaser.Math.Clamp(this.page + dir, 0, pages - 1);
-    this.renderPool();
+    this.renderPool(PAGE_ART_HOLD_MS);
   }
 
   private countIn(deck: readonly string[], id: string): number {
@@ -705,7 +705,13 @@ export class DeckBuilderScene extends Phaser.Scene {
     return thumb;
   }
 
-  private renderPool(): void {
+  /**
+   * Draw the pool grid. `holdMs` is set only by a page turn: the grid clears at
+   * once and the new page waits up to that long for its art before drawing
+   * over stand-ins (owner question 3, as the binder does). A deck edit redraws
+   * the same page at once.
+   */
+  private renderPool(holdMs = 0): void {
     for (const c of this.cells) c.destroy();
     this.cells = [];
     // A Land facet chosen on a classic deck cannot survive a switch to a
@@ -716,18 +722,24 @@ export class DeckBuilderScene extends Phaser.Scene {
       for (const refresh of this.filterDropdownRefreshers) refresh();
       this.syncFilterButton();
     }
-    const save = Services.save.data;
     const pool = this.pool();
     const pages = Math.max(1, Math.ceil(pool.length / GRID_SIZE));
     this.page = Phaser.Math.Clamp(this.page, 0, pages - 1);
     this.syncPoolPager(pages);
     // The page on show is leased at `visible` and the pages either side are
-    // prefetched at `soon` (docs/plan-art-streaming.md section 2). The grid
-    // draws at once: a thumb whose art is still on its way bakes over the
-    // stand-in and re-bakes in place when it lands.
+    // prefetched at `soon` (docs/plan-art-streaming.md section 2). A thumb
+    // whose art is still on its way bakes over the stand-in and re-bakes in
+    // place when it lands.
     const around = pageNeighbourhood(pool, this.page, GRID_SIZE);
-    this.poolArt?.show(this.thumbArtFor(around.shown), this.thumbArtFor(around.near));
+    const page = this.page;
+    const draw = (): void => this.drawPoolPage(pool, page);
+    if (this.poolArt === null) draw();
+    else this.poolArt.show(this.thumbArtFor(around.shown), this.thumbArtFor(around.near), draw, holdMs);
+  }
 
+  /** The pool grid's cells for `page` of `pool`. */
+  private drawPoolPage(pool: CardDef[], page: number): void {
+    const save = Services.save.data;
     if (pool.length === 0) {
       const emptyCopy = this.activePoolFilterCount() > 0 ? 'No owned cards match these filters.' : 'No cards in this set yet.';
       const grid = DECK_POOL_LAYOUT;
@@ -745,7 +757,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     }
 
     const grid = DECK_POOL_LAYOUT;
-    pool.slice(this.page * GRID_SIZE, (this.page + 1) * GRID_SIZE).forEach((d, i) => {
+    pool.slice(page * GRID_SIZE, (page + 1) * GRID_SIZE).forEach((d, i) => {
       const { x, y } = poolCellPosition(i);
       // Cached-thumbnail Image instead of a live CardView — cheap to churn per page.
       const variant = this.ownedVariantFor(d.id);

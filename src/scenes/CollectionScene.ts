@@ -156,6 +156,8 @@ export class CollectionScene extends Phaser.Scene {
   private outgoing: Phaser.GameObjects.Container[] = [];
   /** The binder's art requests: the spread on show and the spreads either side of it. */
   private spreadArt: PagedArt | null = null;
+  /** The cards of the spread last asked for, so a refresh of the same spread (new badges) swaps at once. */
+  private spreadCards = '';
   private turning = false;
   private pageControl!: Pager;
   private goldBadge!: GoldBadge;
@@ -204,6 +206,7 @@ export class CollectionScene extends Phaser.Scene {
     this.pageContainer = null;
     this.outgoing = [];
     this.spreadArt = new PagedArt(this, 'collection');
+    this.spreadCards = '';
     this.turning = false;
     this.inspect = null;
     this.inspectDef = null;
@@ -441,13 +444,21 @@ export class CollectionScene extends Phaser.Scene {
     // starts at once, and the new spread waits up to PAGE_ART_HOLD_MS for its
     // art, then draws; a thumb whose art is still on its way bakes over the
     // stand-in and re-bakes in place when it lands (owner question 3). Under
-    // the inspect overlay the spread is hidden, so it swaps at once.
+    // the inspect overlay the spread is hidden, and a refresh of the same
+    // spread (new badges) changes no art, so both swap at once.
     const { shown, near } = pageNeighbourhood(pool, this.page, SPREAD_SIZE);
+    const cards = shown.map((d) => d.id).join('|');
+    const sameSpread = cards === this.spreadCards;
+    this.spreadCards = cards;
     const animate = dir !== 0 && (this.pageContainer !== null || this.outgoing.length > 0);
     const turn = animate ? dir : 0;
-    const holdMs = this.inspect === null ? PAGE_ART_HOLD_MS : 0;
-    let held = false;
-    held = this.spreadArt!.show(this.spreadArtFor(shown), this.spreadArtFor(near), () => this.placeSpread(pool, turn, held), holdMs);
+    const holdMs = this.inspect === null && !sameSpread ? PAGE_ART_HOLD_MS : 0;
+    const held = this.spreadArt!.show(
+      this.spreadArtFor(shown),
+      this.spreadArtFor(near),
+      (afterHold) => this.placeSpread(pool, turn, afterHold),
+      holdMs,
+    );
     if (!held) return;
     // Held: the old spread leaves now (or, for an instant swap, stays with its
     // taps gated) while the new one waits for its art.
