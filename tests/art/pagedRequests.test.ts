@@ -37,7 +37,7 @@ async function arrive(h: Harness, keys: string[]): Promise<void> {
   for (let i = 0; i < 4; i++) await h.tick();
 }
 
-const pageLeases = (h: Harness): { label: string; keys: number }[] =>
+const pageLeases = (h: Harness) =>
   h.store.leaseReport().filter((lease) => lease.label.startsWith('page:'));
 
 describe('pagedRequests: what a page leases', () => {
@@ -83,12 +83,14 @@ describe('pagedRequests: what a page leases', () => {
 });
 
 describe('pagedRequests: when a page draws', () => {
-  it('draws at once with no store, and with no hold, even over missing art', () => {
+  it('draws at once with no store, even over missing art', () => {
     const none = paged(null);
     const noStore: boolean[] = [];
     expect(none.requests.show(['c'], [], (afterHold) => noStore.push(afterHold), 150)).toBe(false);
     expect(noStore).toEqual([false]);
+  });
 
+  it('draws at once with no hold, even over missing art', () => {
     const h = makeStore();
     const { requests } = paged(h);
     const noHold: boolean[] = [];
@@ -146,7 +148,7 @@ describe('pagedRequests: when a page draws', () => {
     expect(drawn).toEqual(['two']);
   });
 
-  it('never draws a held page after release, and draws nothing shown after release', async () => {
+  it('never draws a held page after release', async () => {
     const h = makeStore();
     const { requests, timers } = paged(h);
     const drawn: string[] = [];
@@ -158,8 +160,16 @@ describe('pagedRequests: when a page draws', () => {
     await h.tick();
     await flush();
     expect(drawn).toEqual([]);
+  });
 
-    expect(requests.show([], [], () => drawn.push('after'), 0)).toBe(false);
+  it('draws nothing shown after release, and leases nothing for it', async () => {
+    const h = makeStore();
+    const { requests } = paged(h);
+    const drawn: string[] = [];
+    requests.release();
+
+    expect(requests.show(['c'], [], () => drawn.push('after'), 0)).toBe(false);
+    await h.tick();
     expect(drawn).toEqual([]);
     expect(pageLeases(h)).toEqual([]);
   });

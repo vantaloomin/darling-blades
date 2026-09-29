@@ -48,7 +48,7 @@ export class PagedRequests {
     private readonly host: PagedRequestsHost,
   ) {}
 
-  /** The page lease still held (the probe and the tests read it). */
+  /** The page lease still held (read by the tests). */
   get holding(): boolean {
     return this.lease !== null;
   }

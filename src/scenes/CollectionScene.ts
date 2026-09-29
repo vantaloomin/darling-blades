@@ -448,6 +448,8 @@ export class CollectionScene extends Phaser.Scene {
     // spread (new badges) changes no art, so both swap at once.
     const { shown, near } = pageNeighbourhood(pool, this.page, SPREAD_SIZE);
     const cards = shown.map((d) => d.id).join('|');
+    // Card ids only: a display-variant change re-bakes a thumb under a new
+    // key, but its art key is the same card's, so it is almost always resident.
     const sameSpread = cards === this.spreadCards;
     this.spreadCards = cards;
     const animate = dir !== 0 && (this.pageContainer !== null || this.outgoing.length > 0);
