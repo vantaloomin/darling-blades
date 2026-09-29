@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/expansions/drafts/first-dawn-brief.md, docs/art-bible/index.md · last-verified: 2026-09-28 · art bible draft — the First Dawn art pilot (lane B, wave 2): thirteen entries written before the cut; card facts are transcribed from the First Dawn overplan rows (add docs/expansions/drafts/first-dawn-overplan.md to this header once it is merged) and change when the cut locks; check-art-bible does not read this file until src/data/cards/first-dawn.ts exists -->
+<!-- source-of-truth: docs/expansions/drafts/first-dawn-brief.md, docs/expansions/drafts/first-dawn-overplan.md, docs/art-bible/index.md · last-verified: 2026-09-28 · art bible draft — the First Dawn art pilot (lane B, wave 2): thirteen entries written before the cut, with the owner's pilot rulings P11-P15 applied; card facts are transcribed from the First Dawn overplan rows and change when the cut locks; check-art-bible does not read this file until src/data/cards/first-dawn.ts exists -->
 
 # First Dawn Art Bible: the pilot
 
@@ -15,8 +15,8 @@ places in section 7 are canon here, and the global style contract in section
 2 remains in force above it.
 
 **Card facts are transcribed from overplan rows** (the First Dawn overplan,
-docs/expansions/drafts/first-dawn-overplan.md, 2026-09-28, not yet merged),
-not from card data: the set has none yet, and every fact line here is
+[first-dawn-overplan.md](../expansions/drafts/first-dawn-overplan.md),
+2026-09-28), not from card data: the set has none yet, and every fact line here is
 re-checked at the cut. Holo follows the Drowned Deep convention (common none,
 rare and super rare sheen, double super rare shiny, ultra rare prism).
 
@@ -35,13 +35,32 @@ breaks them first:
 
 - **Every head top at or below y ≈ 179, human or dinosaur**, with horns,
   frills and crests counted (section 3's headroom rule on the 216 window,
-  y 138 to 662).
+  y 138 to 662), **and nothing climbs above that line**: tail tips, skulls,
+  raised weapons and wings stay under it too (index.md section 4d, the
+  pilot's lesson).
 - **Scale by distance, never by shrinking the woman**; mount and rider never
   fuse; every tail states its count, root and tip.
 - **The costume coverage rule**: chest and hips fully covered, visible ties,
   one more named layer, never string-minimal or slipping.
 - **NO-TEXT, the stone-age variant**: cave paintings show animals and hunts
   only, no pictograph rows, no tally marks, no carved symbols.
+
+**The Mark bead stays cyan** (owner ruling P12, 2026-09-28), as in Starborne
+and Drowned Deep: a Mark is the section 4d bead, one small bead of biolume
+cyan `#5ff0e0` in the skin or hide, one per Mark, countable, at mid-height.
+
+- **Where it appears:** on the bearer, when an entry's art shows a creature
+  carrying a Mark as a state (the creature a Mark card has marked, drawn
+  close enough for a bead to read), with the stated count and section 4b's placement
+  clause. That entry drops "no cyan glow, no cyan light" for "cyan only in
+  the [N] beads on [the bearer], nowhere else in the frame".
+- **Where it does not:** the sky, the Ice Wall, water, fire, eyes, body paint
+  and cave paintings (section 4d); any token's canon art, since a Mark is a
+  game state a token may or may not carry; a card whose Mark lands on
+  something the frame shows only at a distance (Great-Horn Herder's sauropod,
+  below), where a bead would not read; and The Painted Cave, whose Dawn Mark
+  is not painted. None of the thirteen pilot entries depicts a Mark, so all
+  of them keep "no cyan glow, no cyan light".
 
 ## The pilot
 
@@ -57,7 +76,7 @@ breaks them first:
 | 7b | Hatchling | the Hatchling token, `tok-hatchling` | token | the same beast newborn: visibly young, no human child |
 | 8 | Tar-Bones | the Tar-Bones token, `tok-tar-bones` | token | a fossil rising from the tar: clean stone-coloured bone, no gore |
 | 9 | The Painted Cave | `fd-painted-cave` (UR, W; flex, cut in the projected cut) | ur | cave art: animals and hunts only, no text, no tally marks |
-| 10 | Pack-Caller of the Red Cliffs | `fd-pack-caller` (C, R) | c | exactly three raptors at her side: count control, no fused bodies |
+| 10 | Pack-Caller of the Red Cliffs | `fd-pack-caller` (C, R) | c | exactly one raptor at her side, the one the card makes: count control, no fused bodies (the pilot drew three as a count test) |
 | R27 | Tahla, Shepherdess of Thunder | `fd-tahla-shepherdess` (UR, G/W) | ur | the rung 27 tower portrait: count control, scale by distance |
 | R28 | Oru, the Tyrant Queen | `fd-oru-tyrant-queen` (UR, R/G) | ur | the rung 28 tower portrait: the costume rule, tail root and tip |
 
@@ -65,17 +84,45 @@ Every entry name, id and fact is a working one until the cut. The two
 portrait entries are the Darlings of the summit pair; their art is the tower
 portrait, so the face is the brightest, most central thing in frame.
 
-**Case 2 lives on a woman's card.** The brief's case (a shepherdess beside a
-sauropod, typed after the woman, D2) sits on Great-Horn Herder, a Human
-Shepherd whose Duty marks a creature with Attack 4 or more: the herder of the
-big beasts, and the brief's "big-beast pairings from R". Her Duty's Mark is
-not depicted in the pilot: at scale by distance a bead on the sauropod would
-not read. The shipping entry decides whether it moves closer.
+**The pilot's verdict** (owner rulings P10-P15, 2026-09-28). The recipe
+reads as First Dawn (P11: "Mostly, yes. I think it's a good look overall.").
+The thirteen pilot images are kept locally and gitignored, in the main
+checkout's research folder (`research/first-dawn-art-pilot/`), with the
+contact sheet `pilot-sheet.png` and the assembled prompts; their retained
+raws are in `%TEMP%/gen-card-art/`. They are **candidates for the art run,
+not shipped art**: each is re-checked against its entry when the cut locks
+the facts. (The sheet's other two images, Swan-Lake Sovereign and Brood
+Communion, were approved to replace the shipped art, P10, and are committed.)
+Two are redone at the art run, from the tightened entries below, and one is
+re-cropped:
 
-**For the cut, not the pilot.** The Walking Mountain (`fd-walking-mountain`,
-SSR, a Dinosaur Longneck) is beast-alone when its entry is written: no woman,
-scale by distance (fern trees, a river, pterosaurs), and its Provoked
-Hatchlings shown as exactly two hatchlings or two eggs at its feet.
+- **Tar-Bones (re-cropped, no regeneration):** the pilot crop put the skull
+  above the card window (its top at about y 48), because the person detector
+  boxed the tail of bones. Cropping the retained raw from its top row
+  (offset -239) puts the skull top at about y 197, inside the window, with
+  the tar still in band. The candidate in the research folder is that
+  re-crop; the tightened entry below stands if it is ever regenerated.
+- **Scorch-Tail Raptor:** the tail tip rises above the card window (about
+  y 70).
+- **Pack-Caller of the Red Cliffs:** the pilot drew three raptors as a count
+  test; the card makes one Pack Raptor, so the art shows one (P15).
+
+**Case 2 lives on a woman's card** (confirmed, P13). The brief's case (a
+shepherdess beside a sauropod, typed after the woman, D2) sits on Great-Horn
+Herder, a Human Shepherd whose Duty marks a creature with Attack 4 or more:
+the herder of the big beasts, and the brief's "big-beast pairings from R".
+Her Duty's Mark is not depicted in the pilot: at scale by distance a bead on
+the sauropod would not read. The shipping entry decides whether it moves
+closer.
+
+**For the cut, not the pilot: The Walking Mountain is beast-only** (P13). The
+Walking Mountain (`fd-walking-mountain`, SSR, a Dinosaur Longneck) gets a
+beast-only image at the cut: its Prompt opens "NO woman", it reads huge by
+distance (fern trees, a river, pterosaurs below its head), its whole
+body and raised head sit inside the band with the head top at or below
+y 179, and its Provoked Hatchlings are foreshadowed as exactly two hatchlings
+of the one Hatchling design (the horned calf, below), or two eggs, at its
+feet.
 
 ## Entries
 
@@ -83,7 +130,7 @@ Hatchlings shown as exactly two hatchlings or two eggs at its feet.
 - **Card facts:** {2}{R} · R · 3/2 · warcry · ssr · holo: shiny
 - **Character & source:** Kesh, an Ember-clan woman in her late twenties; a Human Rider (D2), so her mount is the plain Pack Raptor design (section 7). Lean and long-legged, warm brown skin, one low black braid, ochre cheek stripes.
 - **Personality / mood:** Warcry and the attack Hunt: she charges first and picks her fight at full speed.
-- **Pose & composition:** Three-quarter front, sprinting toward the lower-left camera, the raptor's head low at the left third (y 400). Kesh upright in the saddle behind its shoulders, spear levelled forward at prey off-frame left. Head top at or below y 179, eye line y 290; tail root and tip in frame, upper right.
+- **Pose & composition:** Three-quarter front, sprinting toward the lower-left camera, the raptor's head low at the left third (y 400). Kesh upright in the saddle behind its shoulders, spear levelled forward at prey off-frame left. Head top at or below y 179, eye line y 290; tail root and tip in frame at the right, the tip lower than her head.
 - **Costume & attire:** Scorched-leather two-piece, chest and hips covered, sinew ties, a shoulder pelt, leg wraps.
 - **Palette:** R `#d95436` / `#5e0f0f`, accent `#f7b267`; lava orange `#ff7a2e` paint and crest; sandstone `#d9b98c` dust.
 - **Lighting:** Low sun from the right, dawn-peach key, long shadows; sky-blue `#8cc4ec` rim on the left edges.
@@ -92,7 +139,7 @@ Hatchlings shown as exactly two hatchlings or two eggs at its feet.
 - **Background:** The Long Grass at dawn, ferns splitting around the sprint, a steaming river.
 - **Holo interaction:** Shiny: the sweep catches the flint and crest; her face stays clean.
 - **Rarity ambition:** Double super rare moment: the instant before the Hunt lands.
-- **Prompt:** EXACTLY ONE adult woman riding EXACTLY ONE plain raptor, nothing else alive in the frame, three-quarter front view of the pair sprinting diagonally toward the lower-left camera through tall ferns and thrown dust, the raptor foreshortened with its head low and forward at the left third inside the middle band, the woman upright in a hide saddle strapped behind the raptor's shoulders, one leg on each side of its body, her left hand on braided hide reins, her body and the raptor's two separate shapes with a visible line between them, the raptor's head its own and well ahead of her, mount and rider never fused, the raptor with two legs and two small clawed forelimbs, one curved sickle claw on each foot, rust-red feathers along its back, a low crest, and exactly one long stiff tail emerging from the base of its spine at the hips, never from its side, ending in exactly one tip fan of dark feathers, the tail streaming back to the upper right with root and tip both inside the frame, she is a lean long-legged woman in her late twenties with warm brown skin, black hair in one low braid, ochre stripes across her cheekbones, a fierce open grin, levelling a long flint-headed spear forward past the raptor's head toward prey off the left edge, a scorched-leather two-piece with chest and hips fully covered and visible sinew ties plus a dark red-brown shoulder pelt and leather leg wraps, never string-minimal, never slipping, the top of every head, hers and the raptor's crest included, no higher than one quarter of the way down the canvas with open sky above it, the edge of a fern plain at dawn with steam off a warm river and a ring of smoking mountains on the horizon, lit by a low morning sun as the one warm dawn-peach key from the right with long shadows, one cool sky-blue rim, clear air, a sunlit surface brighter than 70 percent luminance inside the middle band, no night, no overcast sky, no noon sun, no true black, darkest visible value basalt grey #34383b, no metal anywhere, ornaments of bone, shell, stone, amber and teeth only, no cyan glow, no cyan light, no men, no male figures, no children, no feathered war bonnets, no Plains headdresses, no Arctic peoples' dress, no dot-painting, no gore, no blood, no wounds, no captive or bound women, no franchise creature designs, no film dinosaur designs, no hybrid monsters, no text, no letters, no numerals, no pictograph rows, no tally marks, no carved symbols, no runes, no glyphs, no hand stencils, no writing or symbols on any surface — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+- **Prompt:** EXACTLY ONE adult woman riding EXACTLY ONE plain raptor, nothing else alive in the frame, three-quarter front view of the pair sprinting diagonally toward the lower-left camera through tall ferns and thrown dust, the raptor foreshortened with its head low and forward at the left third inside the middle band, the woman upright in a hide saddle strapped behind the raptor's shoulders, one leg on each side of its body, her left hand on braided hide reins, her body and the raptor's two separate shapes with a visible line between them, the raptor's head its own and well ahead of her, mount and rider never fused, the raptor with two legs and two small clawed forelimbs, one curved sickle claw on each foot, rust-red feathers along its back, a low crest, and exactly one long stiff tail emerging from the base of its spine at the hips, never from its side, ending in exactly one tip fan of dark feathers, the tail streaming back to the right with root and tip both inside the frame and its tip lower than her head, she is a lean long-legged woman in her late twenties with warm brown skin, black hair in one low braid, ochre stripes across her cheekbones, a fierce open grin, levelling a long flint-headed spear forward past the raptor's head toward prey off the left edge, a scorched-leather two-piece with chest and hips fully covered and visible sinew ties plus a dark red-brown shoulder pelt and leather leg wraps, never string-minimal, never slipping, the top of every head, hers and the raptor's crest included, no higher than one quarter of the way down the canvas with open sky above it, the edge of a fern plain at dawn with steam off a warm river and a ring of smoking mountains on the horizon, lit by a low morning sun as the one warm dawn-peach key from the right with long shadows, one cool sky-blue rim, clear air, a sunlit surface brighter than 70 percent luminance inside the middle band, no night, no overcast sky, no noon sun, no true black, darkest visible value basalt grey #34383b, no metal anywhere, ornaments of bone, shell, stone, amber and teeth only, no cyan glow, no cyan light, no men, no male figures, no children, no feathered war bonnets, no Plains headdresses, no Arctic peoples' dress, no dot-painting, no gore, no blood, no wounds, no captive or bound women, no franchise creature designs, no film dinosaur designs, no hybrid monsters, no text, no letters, no numerals, no pictograph rows, no tally marks, no carved symbols, no runes, no glyphs, no hand stencils, no writing or symbols on any surface — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Great-Horn Herder — `fd-great-horn-herder`
 - **Card facts:** {1}{G} · G · 1/2 · r · holo: sheen
@@ -143,7 +190,7 @@ Hatchlings shown as exactly two hatchlings or two eggs at its feet.
 - **Card facts:** {2}{R} · R · 2/3 · c · holo: none
 - **Character & source:** An Ember-clan Dinokin Raptor (case 5) with the three Raptor tells: one long stiff feathered tail, a low feather crest along crown and nape, a sickle claw on each foot. Wiry, tan skin, cropped rust-red hair. The smouldering tail tip is her name, not a mechanic tell.
 - **Personality / mood:** The name and Provoked: hit her once and she answers with sparks.
-- **Pose & composition:** Side three-quarter, landing low from a spin on a basalt ridge, weight coming forward, dust falling. The tail sweeps behind and up in one S-curve, root at her tailbone and smouldering tip both inside the band; embers flick from the tip, upper right. Head top at or below y 179 (crest flat), eye line y 300.
+- **Pose & composition:** Side three-quarter, landing low from a spin on a basalt ridge, weight coming forward, dust falling. The tail sweeps out behind her to the right in one low, shallow curve between hip and shoulder height, root at her tailbone and smouldering tip both inside the band, the tip lower than her head; embers drift sideways from the tip, not up. Her head top is the figure's highest point, at or below y 179 (crest flat), eye line y 300. (The pilot's tail curled up in an S and its tip rose above the card window: redo at the art run.)
 - **Costume & attire:** Scorched-leather two-piece, chest and hips covered, sinew ties, knee-high leg wraps, bare clawed feet.
 - **Palette:** R `#d95436` / `#5e0f0f`, accent `#f7b267`; lava orange `#ff7a2e` / `#ffb057` tail tip; basalt grey `#5b6166`.
 - **Lighting:** Low sun from the left, dawn-peach key; sky-blue rim on her back and tail.
@@ -152,7 +199,7 @@ Hatchlings shown as exactly two hatchlings or two eggs at its feet.
 - **Background:** A bare basalt ridge, one steaming vent, two values.
 - **Holo interaction:** None: common.
 - **Rarity ambition:** Common: one figure, one idea (the tail), readable at 119×97.
-- **Prompt:** EXACTLY ONE adult woman, a raptor monster-girl with exactly three species features and no others: exactly one long stiff tail emerging from the base of her spine at the tailbone, never from her hip, side or waist, covered in rust-red feathers and ending in exactly one tip fan of feathers that smoulder lava orange like a coal, a low crest of short feathers along her crown and nape lying flat, and one curved sickle claw on each bare foot, wiry compact build, tan skin, cropped rust-red hair, human ears, no fur, side three-quarter view landing low from a spin on a basalt ridge, weight coming forward, dust still falling around her, her tail sweeping behind and up in one S-curve with its root at her tailbone and its smouldering tip both fully inside the middle band, a small spray of embers flicking from the tail tip toward the upper right, a snarling grin, the top of her head no higher than one quarter of the way down the canvas with open sky above it, she wears a scorched-leather two-piece with chest and hips fully covered and visible sinew ties plus leather leg wraps to the knee, never string-minimal, never slipping, a bare basalt ridge at dawn with one steaming vent, simple two-value background, lit by a low morning sun as the one warm dawn-peach key from the left with long shadows, one cool sky-blue rim on her back and tail, clear air, a sunlit surface brighter than 70 percent luminance inside the middle band, no night, no overcast sky, no noon sun, no true black, darkest visible value basalt grey #34383b, no metal anywhere, no cyan glow, no cyan light, no men, no male figures, no children, no feathered war bonnets, no Plains headdresses, no Arctic peoples' dress, no dot-painting, no gore, no blood, no wounds, no franchise creature designs, no film dinosaur designs, no text, no letters, no numerals, no pictograph rows, no tally marks, no carved symbols, no runes, no glyphs, no hand stencils, no writing or symbols on any surface — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+- **Prompt:** EXACTLY ONE adult woman, a raptor monster-girl with exactly three species features and no others: exactly one long stiff tail emerging from the base of her spine at the tailbone, never from her hip, side or waist, covered in rust-red feathers and ending in exactly one tip fan of feathers that smoulder lava orange like a coal, a low crest of short feathers along her crown and nape lying flat, and one curved sickle claw on each bare foot, wiry compact build, tan skin, cropped rust-red hair, human ears, no fur, side three-quarter view landing low from a spin on a basalt ridge, weight coming forward, dust still falling around her, her tail sweeping out behind her to the right in one low shallow curve between her hips and her shoulders, never curling upward, never raised above her shoulders, its root at her tailbone and its smouldering tip both fully inside the middle band, the tail tip lower than the top of her head, a small spray of embers drifting sideways from the tail tip, a snarling grin, the top of her head the highest point of the whole figure, tail and crest included, and no higher than one quarter of the way down the canvas with open sky above it, she wears a scorched-leather two-piece with chest and hips fully covered and visible sinew ties plus leather leg wraps to the knee, never string-minimal, never slipping, a bare basalt ridge at dawn with one steaming vent, simple two-value background, lit by a low morning sun as the one warm dawn-peach key from the left with long shadows, one cool sky-blue rim on her back and tail, clear air, a sunlit surface brighter than 70 percent luminance inside the middle band, no night, no overcast sky, no noon sun, no true black, darkest visible value basalt grey #34383b, no metal anywhere, no cyan glow, no cyan light, no men, no male figures, no children, no feathered war bonnets, no Plains headdresses, no Arctic peoples' dress, no dot-painting, no gore, no blood, no wounds, no franchise creature designs, no film dinosaur designs, no text, no letters, no numerals, no pictograph rows, no tally marks, no carved symbols, no runes, no glyphs, no hand stencils, no writing or symbols on any surface — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Asha and Shree, Sky-Riders — `fd-sky-riders-pact`
 - **Card facts:** {4}{W}{U} · W/U (gold frame) · 3/3 · skyborne · ssr · holo: shiny
@@ -186,7 +233,7 @@ Hatchlings shown as exactly two hatchlings or two eggs at its feet.
 
 ### Hatchling — `tok-hatchling`
 - **Card facts:** {0} · G · 1/1 · c · holo: none
-- **Character & source:** The Hatchling token (G 1/1 Dinosaur) in its one canon design (section 7), for every minter: nest commons, the Herd-Horn, the Provoked walls, R27's herd. Case 7, the young: The Horned Herd's beast, newborn. No woman, no adult beast, no human child.
+- **Character & source:** The Hatchling token (G 1/1 Dinosaur) in its one canon design (section 7), the horned calf, for every minter (owner ruling P14): nest commons, the Herd-Horn, the Provoked walls, R27's herd, and the long-neck makers too, by name The Walking Mountain, Mother of the Long-Necks, The Long-Neck Herd, Herd-Guardian Longneck, Nest-Guard Longneck and Hatchling-Mother (flex, cut in the projected cut). A long-neck's calf is this horned calf: there is no long-necked hatchling and no second design. Case 7, the young: The Horned Herd's beast, newborn. No woman, no adult beast, no human child.
 - **Personality / mood:** Brand new and already curious; wobbly, bright-eyed, unbothered.
 - **Pose & composition:** Low camera at its eye level, the hatchling centred in the lower two thirds of the band, three-quarter left, one front foot on a broken shell. Nub horns and tiny frill are its head top, at or below y 179, fern fronds arching above; eye y 360. Stub tail root and tip in frame.
 - **Costume & attire:** None: soft pale-olive skin, faint sandstone mottling.
@@ -203,7 +250,7 @@ Hatchlings shown as exactly two hatchlings or two eggs at its feet.
 - **Card facts:** {0} · B · 2/2 · c · holo: none
 - **Character & source:** The Tar-Bones token (B 2/2 Skeleton) in its canon design (section 7), minted by the Tar clan's rituals and bone-callers (case 8). The fossil is dead: clean stone-coloured bone, raptor-sized, no flesh, no glow in the sockets. No woman in frame.
 - **Personality / mood:** Old bones standing up out of the tar, slow and patient.
-- **Pose & composition:** Front three-quarter, centred, rising upright out of a glossy tar pool to the hips, forelimbs lifted, tar sliding off in strands. The skull is its head top, at or below y 179; sockets y 300; tar surface y 560. One tail of bones curls out at the right, root and tip visible.
+- **Pose & composition:** Front three-quarter, centred, seen from a few steps back, risen out of a glossy tar pool to the hips, forelimbs lifted, tar sliding off in strands. The neck curves forward and the skull is held low at the front, never reared up: the skull top is the skeleton's highest point, at y 200 to 240, below the y 179 line; tar surface y 560. One tail of bones curls out low along the tar at the right, root and tip visible, the tip below the skull. (The pilot's skull reared up above the card window: redo at the art run.)
 - **Costume & attire:** None: bone and tar.
 - **Palette:** B `#5a3a70` / `#140d1c`, accent `#9b6fc4` in the ash haze; tar brown `#3d2a1a` / `#8a6a48`; basalt grey `#34383b`.
 - **Lighting:** Low sun from the left glinting on the wet tar, dawn-peach key; sky-blue `#8cc4ec` rim (§4d's one cool rim).
@@ -212,7 +259,7 @@ Hatchlings shown as exactly two hatchlings or two eggs at its feet.
 - **Background:** The Tar Flats: bubbling tar, basalt boulders, steam, a smoking cone under ash haze.
 - **Holo interaction:** None: token.
 - **Rarity ambition:** Token: one idea (the rise), readable at hand size.
-- **Prompt:** NO woman, no person, no human figure anywhere in the frame: EXACTLY ONE fossil skeleton of a raptor-sized dinosaur, alone, the only figure in the frame, rising upright out of a glossy tar pool to its hips at the centre of the frame, front three-quarter view, forelimbs lifted, the bones clean and stone-coloured like weathered grey-tan limestone, no flesh, no skin, no blood, no gore, no rot, empty eye sockets with no glow, jaw closed, glossy dark-brown tar sliding off the bones in long strands with the sky reflected in it, exactly one tail of bones curling up out of the tar at the right with its root at the hips and exactly one tip, both visible, the skull fully inside the middle band, the top of the skull no higher than one quarter of the way down the canvas with open sky above it, the tar surface low in the middle band, the Tar Flats at dawn with bubbling tar pools, basalt boulders, steam and a smoking volcanic cone under a faint violet ash haze, lit by a low morning sun as the one warm dawn-peach key from the left glinting on the wet tar, one cool sky-blue rim from the clear sky, clear air, a sunlit surface brighter than 70 percent luminance inside the middle band, tar glossy dark brown #3d2a1a with highlights #8a6a48, never black, no true black, darkest visible value basalt grey #34383b, no cyan glow, no cyan light, no people, no women, no men, no children, no flesh, no wounds, no butchery, no carcasses, no franchise creature designs, no film dinosaur designs, no text, no letters, no numerals, no pictograph rows, no tally marks, no carved symbols, no runes, no glyphs, no writing or symbols on any surface — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+- **Prompt:** NO woman, no person, no human figure anywhere in the frame: EXACTLY ONE fossil skeleton of a raptor-sized dinosaur, alone, the only figure in the frame, risen out of a glossy tar pool to its hips at the centre of the frame, front three-quarter view seen from a few steps back, the whole skeleton from skull to tar surface inside the middle band, forelimbs lifted, its neck curving forward and down so the skull is held low at the front at the height of its shoulders, never reared up, never raised high, the bones clean and stone-coloured like weathered grey-tan limestone, no flesh, no skin, no blood, no gore, no rot, empty eye sockets with no glow, jaw closed, glossy dark-brown tar sliding off the bones in long strands with the sky reflected in it, exactly one tail of bones curling out low along the tar at the right with its root at the hips and exactly one tip, both visible, the tail tip lower than the skull, the skull the highest point of the whole skeleton and fully inside the middle band, the top of the skull well below one quarter of the way down the canvas with a wide stretch of open sky above it, the tar surface low in the middle band, the Tar Flats at dawn with bubbling tar pools, basalt boulders, steam and a smoking volcanic cone under a faint violet ash haze, lit by a low morning sun as the one warm dawn-peach key from the left glinting on the wet tar, one cool sky-blue rim from the clear sky, clear air, a sunlit surface brighter than 70 percent luminance inside the middle band, tar glossy dark brown #3d2a1a with highlights #8a6a48, never black, no true black, darkest visible value basalt grey #34383b, no cyan glow, no cyan light, no people, no women, no men, no children, no flesh, no wounds, no butchery, no carcasses, no franchise creature designs, no film dinosaur designs, no text, no letters, no numerals, no pictograph rows, no tally marks, no carved symbols, no runes, no glyphs, no writing or symbols on any surface — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### The Painted Cave — `fd-painted-cave`
 - **Card facts:** {1}{W}{W} · W · none · ur, legendary · holo: prism
@@ -231,18 +278,18 @@ Hatchlings shown as exactly two hatchlings or two eggs at its feet.
 
 ### Pack-Caller of the Red Cliffs — `fd-pack-caller`
 - **Card facts:** {2}{R} · R · 1/1 · c · holo: none
-- **Character & source:** An Ember-clan Human Shepherd of the raptor packs (case 10): twenties, small and quick, dark brown skin, curly black hair tied back. The pilot draws three Pack Raptors (section 7) as the count test; the card mints one, so the shipping prompt states exactly one unless the owner relaxes the token-count rule for pack art.
-- **Personality / mood:** She whistles and the pack comes, every time.
-- **Pose & composition:** Centred on a red sandstone ledge, front three-quarter, a bone whistle at her lips, one hand raised. Three raptors: two at her left, one at her right, a pace apart with ground between, every head whole and turned to her at y 430 to 470. Her head top at or below y 179, eye line y 300.
+- **Character & source:** An Ember-clan Human Shepherd of the raptor packs (case 10): twenties, small and quick, dark brown skin, curly black hair tied back. The card makes one Pack Raptor (section 7), so the art shows exactly one (owner ruling P15: the art matches what the card makes). The pilot drew three as a count test only; this entry is the shipping prompt.
+- **Personality / mood:** She whistles and the raptor comes, every time.
+- **Pose & composition:** Centred on a red sandstone ledge, front three-quarter, a bone whistle at her lips, one hand raised. One raptor at her left, a full pace off with ground between them, its whole head turned to her at y 430 to 470, its tail tip below her head. Her head top at or below y 179, eye line y 300.
 - **Costume & attire:** Scorched-leather two-piece, chest and hips covered, sinew ties, a hide wrap skirt, leg wraps.
-- **Palette:** R `#d95436` / `#5e0f0f`, accent `#f7b267`; sandstone `#b08a5a`; the raptors rust-red.
+- **Palette:** R `#d95436` / `#5e0f0f`, accent `#f7b267`; sandstone `#b08a5a`; the raptor rust-red.
 - **Lighting:** Low sun from the right, dawn-peach key; sky-blue `#8cc4ec` rim.
 - **Expression:** Eyes smiling over the whistle.
 - **Props / weapon:** Bone whistle on a thong.
 - **Background:** Red sandstone cliffs, two values.
 - **Holo interaction:** None: common.
 - **Rarity ambition:** Common: one idea (the call), readable at 119×97.
-- **Prompt:** EXACTLY ONE adult woman and EXACTLY THREE plain raptors, no more and no fewer, nothing else alive in the frame, the woman standing at the centre on a red sandstone ledge in front three-quarter view, a bone whistle at her lips and one hand raised, small and quick, in her twenties, dark brown skin, a mane of curly black hair tied back low, ochre stripes on her forearms, eyes smiling over the whistle, the three raptors at her side, TWO at her left and ONE at her right, each a full pace apart with open ground showing between every two bodies, no raptor overlapping another or overlapping her, every raptor with its own whole head turned toward her inside the middle band below her head, each with two legs and two small clawed forelimbs, rust-red feathers along its back, a low crest, and exactly one long stiff tail from its hips ending in exactly one tip fan of dark feathers, no tails crossing, no fused bodies, the top of her head no higher than one quarter of the way down the canvas with open sky above it, she wears a scorched-leather two-piece with chest and hips fully covered and visible sinew ties plus a hide wrap skirt and leather leg wraps, never string-minimal, never slipping, red sandstone cliffs at dawn, simple two-value background, lit by a low morning sun as the one warm dawn-peach key from the right with long shadows, one cool sky-blue rim on the left edges, clear air, a sunlit surface brighter than 70 percent luminance inside the middle band, no night, no overcast sky, no noon sun, no true black, darkest visible value basalt grey #34383b, no metal anywhere, no cyan glow, no cyan light, no men, no male figures, no children, no feathered war bonnets, no Plains headdresses, no Arctic peoples' dress, no dot-painting, no gore, no blood, no wounds, no captive or bound women, no franchise creature designs, no film dinosaur designs, no hybrid monsters, no text, no letters, no numerals, no pictograph rows, no tally marks, no carved symbols, no runes, no glyphs, no hand stencils, no writing or symbols on any surface — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+- **Prompt:** EXACTLY ONE adult woman and EXACTLY ONE plain raptor, no more and no fewer, nothing else alive in the frame, no second raptor, no pack behind them, the woman standing at the centre on a red sandstone ledge in front three-quarter view, a bone whistle at her lips and one hand raised, small and quick, in her twenties, dark brown skin, a mane of curly black hair tied back low, ochre stripes on her forearms, eyes smiling over the whistle, the one raptor at her left side, a full pace away with open ground showing between their two bodies, not overlapping her, its own whole head turned toward her inside the middle band below her head, two legs and two small clawed forelimbs, rust-red feathers along its back, a low crest, and exactly one long stiff tail from its hips ending in exactly one tip fan of dark feathers, the tail tip lower than her head, no fused bodies, the top of her head no higher than one quarter of the way down the canvas with open sky above it, she wears a scorched-leather two-piece with chest and hips fully covered and visible sinew ties plus a hide wrap skirt and leather leg wraps, never string-minimal, never slipping, red sandstone cliffs at dawn, simple two-value background, lit by a low morning sun as the one warm dawn-peach key from the right with long shadows, one cool sky-blue rim on the left edges, clear air, a sunlit surface brighter than 70 percent luminance inside the middle band, no night, no overcast sky, no noon sun, no true black, darkest visible value basalt grey #34383b, no metal anywhere, no cyan glow, no cyan light, no men, no male figures, no children, no feathered war bonnets, no Plains headdresses, no Arctic peoples' dress, no dot-painting, no gore, no blood, no wounds, no captive or bound women, no franchise creature designs, no film dinosaur designs, no hybrid monsters, no text, no letters, no numerals, no pictograph rows, no tally marks, no carved symbols, no runes, no glyphs, no hand stencils, no writing or symbols on any surface — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Tahla, Shepherdess of Thunder — `fd-tahla-shepherdess`
 - **Card facts:** {2}{G}{W} · G/W (gold frame) · 3/4 · sentinel · ur, legendary · holo: prism

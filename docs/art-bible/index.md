@@ -746,7 +746,10 @@ Layer these over the card's colour-identity palette.
 **Marks keep the engine's own colour.** A Mark is the biolume cyan bloom
 `#5ff0e0` defined in section 4b, drawn in this set as one small bead of
 living cyan light set in the skin or hide, like a drop of glowing resin, one
-per Mark, countable, on the body at mid-height. Cyan appears nowhere else in
+per Mark, countable, on the body at mid-height (kept after the art pilot,
+owner 2026-09-28, as Starborne and Drowned Deep keep it; where the bead
+appears and where it does not is set out in [first-dawn.md](first-dawn.md)).
+Cyan appears nowhere else in
 a First Dawn frame: not in the sky, not on the Ice Wall, not in water. The
 three 4b rules for a mark mention (a stated count on a named bearer, a state
 never a transition, the placement clause) apply to every Mark prompt.
@@ -882,6 +885,35 @@ prompt clause and a QA check:
   headwear count toward the head top. In the prompt: "the top of every head,
   horns, frill and crest included, no higher than one quarter of the way
   down the canvas with open sky above it".
+- **Nothing climbs above the head line** (owner, art pilot review
+  2026-09-28). Anything that can rise above a head stays at or below
+  y ≈ 179 too: **tail tips, skull crests, horns, raised weapons and wings**.
+  In this set that narrows section 3's allowance for weapons and effects
+  breaking into the bleed. The pilot's two misses were Tar-Bones, whose
+  skull reared above the card window, and Scorch-Tail Raptor, whose tail
+  curled up until its tip did the same. The crop places the detected head
+  at y 179 and cuts whatever stands above it. In the prompt, name the part
+  and pin it under the head: "[her tail tip / the spear point / the wing
+  tips] lower than the top of her head", and "the top of her head the
+  highest point of the whole figure"; for a beast alone, "its skull [crest,
+  horns] the highest point of the whole animal".
+- **The check is by eye, with the lines drawn; the detectors do not see
+  it** (measured 2026-09-28 on the pilot's retained raws). `scripts/smartcrop.py`
+  and `scripts/audit-art-window.py` look for anime heads and faces; neither
+  measures a tail, a wing or a skull. On Scorch-Tail the head detector found
+  her head, the crop put its top at y 179 exactly, and the audit passed it
+  while the tail tip sat at about y 70. On Tar-Bones the head and face
+  detectors found nothing, so the audit skipped the card, and the crop fell
+  through to the loose person detector, which boxed the tail of bones at the
+  right and set the crop 111 raw rows lower than a centre crop, leaving the
+  skull top at about y 48. So the check is the contact sheet with the band
+  (y 138 and 662) and the head line (y 179) drawn on every image, read for
+  anything above the line, plus smartcrop's per-card detection source: a
+  beast-alone frame that reports `person` or `head` had its crop anchored on
+  whatever the detector boxed, so look at where the box sits. When the crop
+  starts below the raw's top row, a zero-quota `gen-card-art --recrop` with a
+  negative `offsetY` lowers everything (docs/art-pipeline.md); when it
+  already starts at row 0, the fix is a regeneration.
 - **Scale by distance, never by shrinking the woman.** A sauropod reads huge
   because it stands far back and still towers; the woman in the foreground
   stays at true human size. Its whole body, raised head included, fits
@@ -1113,8 +1145,9 @@ and the token's entry in `constructs-and-tokens.md` must both match them.
 - **First Dawn tokens** — four set tokens, shared canon between the token
   entries and every entry that mints or foreshadows them (working ids until
   the cut). **Hatchling** `tok-hatchling` `G` 1/1 Dinosaur: ONE design for
-  every minter, the long-neck and herd cards included: a newborn horned
-  plant-eater with an oversized head and big round eyes, three tiny nub horns,
+  every minter, the long-neck and herd cards included (owner, 2026-09-28): a
+  long-neck's calf is this horned calf, never a long-necked hatchling. It is
+  a newborn horned plant-eater with an oversized head and big round eyes, three tiny nub horns,
   a small soft frill, four stubby legs, one short stub tail with a rounded
   tip, soft pale-olive skin with faint sandstone mottling; it reads young, and
   no human child ever stands in for it. **Pack Raptor** `tok-pack-raptor` `R`
