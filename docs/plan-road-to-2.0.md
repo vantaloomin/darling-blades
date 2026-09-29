@@ -340,7 +340,7 @@ two turns:
   - game length and how games end;
   - each archetype's win-rate shift;
   - the lands in play at the end, and how often cards of each cost get cast.
-- It is 2.0 input, run when the machine is free of 1.9's queue.
+- It is 2.0 input and runs after 1.9 ships (owner, 2026-09-29).
 - Nothing is built.
 
 ## Multiplayer is cancelled
