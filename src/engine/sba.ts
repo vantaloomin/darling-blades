@@ -180,6 +180,7 @@ export function checkStateBased(state: GameState, db: CardDb, emit: Emit, option
           controller: p.controller,
           damage: p.damage,
           plusOneCounters: p.plusOneCounters,
+          overcharge: p.overcharge,
           attachedTo: p.attachedTo,
           def: getEffectiveStats(state.battlefield, db, p.iid).defense,
         })),

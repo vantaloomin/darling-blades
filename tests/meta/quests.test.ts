@@ -19,6 +19,9 @@ import {
 } from '../../src/meta/Quests';
 import { freshSave, type DailyQuestSave } from '../../src/meta/SaveManager';
 import { makeTestState, TEST_DB } from '../helpers';
+import { runOps } from '../../src/engine/effects/EffectInterpreter';
+import { RULES } from '../../src/config/rules';
+import { board, card, dbOf } from '../drownedDeepFixture';
 
 function hasOp(card: CardDef, predicate: (op: EffectOp) => boolean): boolean {
   return card.abilities?.some((ability) => ability.ops?.some(predicate)) ?? false;
@@ -106,6 +109,29 @@ describe('daily quests', () => {
 
     applyDailyQuestProgress(save, TEST_DB, [{ e: 'lifeChanged', player: 1, delta: -50, now: 13 }], '2026-07-08');
     expect(save.daily.quests[1].progress).toBe(20);
+  });
+
+  it('counts a token refused at the cap that overcharges its namesake toward the token daily, yours only', () => {
+    // Each side is at the creature cap with one Hatchling token; each makes two
+    // more Hatchlings, so both are refused and overcharge instead.
+    const db = dbOf(card('tok-hatch', { name: 'Hatchling', token: true, attack: 1, defense: 1 }), card('body'));
+    const state = board([[], []], [0, 1].flatMap((side) => [
+      { iid: 10 * (side + 1), cardId: 'tok-hatch', controller: side as 0 | 1 },
+      ...Array.from({ length: RULES.maxCreatures - 1 }, (_, i) => ({ iid: 10 * (side + 1) + 1 + i, cardId: 'body', controller: side as 0 | 1 })),
+    ]));
+    for (const perm of state.battlefield) if (perm.cardId === 'tok-hatch') perm.isToken = true;
+    const events: GameEvent[] = [];
+    for (const controller of [0, 1] as const) {
+      runOps(state, db, (e) => events.push(e), { controller, sourceCardId: 'body', targets: [] }, [
+        { op: 'createToken', token: 'tok-hatch', count: 2 },
+      ]);
+    }
+    expect(events.filter((e) => e.e === 'overcharged')).toHaveLength(4);
+    expect(events.some((e) => e.e === 'tokenCreated')).toBe(false);
+
+    const save = setDailyQuests(['tokens-4']);
+    applyDailyQuestProgress(save, db, events, '2026-07-08');
+    expect(save.daily.quests[0].progress).toBe(2);
   });
 
   it('counts normal player draws for the draw daily', () => {

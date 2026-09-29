@@ -429,6 +429,8 @@ export const CUE_MIN_SCREEN_PX = {
   statGlyph: 11,
   /** Mark badge type size (its plus glyph matches it). */
   markBadge: 11,
+  /** Overcharge badge type size (1.9 A1.7; its cell glyph draws at 14). Built now, not in the Duel pass. */
+  overchargeBadge: 11,
 } as const;
 
 export type ScaledCue = keyof typeof CUE_MIN_SCREEN_PX;
@@ -457,6 +459,8 @@ export function cueScreenSize(cue: ScaledCue, tileScale: number): number {
  * half outside the tile, clear of the keyword column (top left), the
  * summoning-sickness swirl (top right) and the name (under the top edge).
  * `outsideCorners` is outside the tile's rim, so brackets never cover a badge.
+ * `rightEdge` hugs the right edge at mid-height, below the swirl and above
+ * the P/T plate's glyphs.
  */
 export type TileAnchor =
   | 'rim'
@@ -468,7 +472,8 @@ export type TileAnchor =
   | 'bottomLeft'
   | 'bottomCenter'
   | 'bottomRight'
-  | 'abovePtPlate';
+  | 'abovePtPlate'
+  | 'rightEdge';
 
 /** What a tile can show, the cues above plus the ones it already draws. */
 export type TileFeature =
@@ -482,7 +487,8 @@ export type TileFeature =
   | 'markBadge'
   | 'ptPlate'
   | 'ptGlyphs'
-  | 'chapterBadge';
+  | 'chapterBadge'
+  | 'overchargeBadge';
 
 /**
  * Anchors, and which kinds of permanent carry each feature. Features on the
@@ -503,6 +509,9 @@ export const TILE_FEATURES: Readonly<Record<TileFeature, { anchor: TileAnchor; o
   ptPlate: { anchor: 'bottomRight', on: 'creature' },
   ptGlyphs: { anchor: 'abovePtPlate', on: 'creature' },
   chapterBadge: { anchor: 'bottomRight', on: 'quest' },
+  // Overcharge (1.9 A1.7) is not a Mark, so it never shares the Mark badge's
+  // spot: it sits on the right edge, between the swirl and the P/T plate.
+  overchargeBadge: { anchor: 'rightEdge', on: 'creature' },
 };
 
 /** Whether two features can be on one tile at once. */

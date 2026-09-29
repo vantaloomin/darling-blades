@@ -339,7 +339,7 @@ Warchest). This is the known curve problem, already under D7.
   and Hard bosses pay down in 0-4% of their chance turns; the Easy bosses,
   whose Darlings sit in the command zone far longer (P4), in 21-38%.
   Nothing here is broken.
-- **Empower declines.** Chrome-Violet Broodship's Overcharge the Hull pays
+- **Empower declines.** Chrome-Violet Broodship's Vent the Reactor (then named Overcharge the Hull) pays
   its Empower (3 more mana for 2 face damage) in 8 of 611 casts. That is
   correct under the ruled policy; not measured against paying it more often.
 - **Neon Afterimage's Alleyway Sever** (a removal Charm): never in a window

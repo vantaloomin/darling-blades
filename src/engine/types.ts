@@ -963,6 +963,12 @@ export interface Permanent {
   attachments: number[]; // aura/Hauntlink iids attached to me
   attachedTo?: number; // set if I am an attached aura or Hauntlink permanent
   plusOneCounters: number;
+  /**
+   * Overcharges (1.9 A1.7): +1/+1 each, from same-name tokens refused at the
+   * creature cap. NOT a Mark: no Mark rule reads or writes it. Absent means 0.
+   * Public state; it leaves with the permanent and is never copied.
+   */
+  overcharge?: number;
   untilEotMods: UntilEotMod[];
   /** Current chapter number. Arrival enters I; each later controller dawn increments it. */
   chapter?: number;

@@ -5,7 +5,8 @@ import type { CardDef, Keyword, Rarity } from '../engine/types';
 import { isType } from '../engine/types';
 import type { CardVariant } from '../meta/variants';
 import { applyHolo, type HoloHandle } from './fx/HoloEffects';
-import { KEYWORD_ICON_KEY } from './KeywordIcons';
+import { CUE_MIN_SCREEN_PX, cueCounterScale } from './boardCuePresentation';
+import { KEYWORD_ICON_KEY, MECHANIC_ICON_KEY } from './KeywordIcons';
 import { colorInt, theme } from './theme';
 
 /** Chapter numerals for the Quest badge (chapters ship 2-3 deep; 5 is headroom). */
@@ -50,6 +51,13 @@ const PT_CY = TILE_H / 2 - FRAME_M - PT_H / 2;
 const TRAIT_SIZE = 16;
 const TRAIT_GAP = 2;
 const TRAIT_INSET = 4;
+// Overcharge badge (1.9 A1.7): the right edge at mid-height (TILE_FEATURES'
+// `rightEdge`), clear of the swirl above and the P/T plate below. Its parts
+// are in badge-local design pixels; the badge counter-scales as a whole.
+const OVERCHARGE_ICON = 14;
+const OVERCHARGE_PAD_X = 3;
+const OVERCHARGE_PAD_Y = 2;
+const OVERCHARGE_GAP = 2;
 
 /**
  * Tile border per RARITY tier (echoes the CardView RARITY_RING / gem palette):
@@ -168,6 +176,11 @@ export class BoardCardView extends Phaser.GameObjects.Container {
   private keywordOverflow: Phaser.GameObjects.Text | null = null;
   private sickIcon: Phaser.GameObjects.Image;
   private chapterBadge: Phaser.GameObjects.Text;
+  private overchargeBadge: Phaser.GameObjects.Container;
+  private overchargePlate: Phaser.GameObjects.Graphics;
+  private overchargeIcon: Phaser.GameObjects.Image;
+  private overchargeText: Phaser.GameObjects.Text;
+  private overchargeCount = 0;
   private awakenedRect: Phaser.GameObjects.Rectangle;
   private hauntlinkBrokenMark: Phaser.GameObjects.Graphics;
   private chapterLabel: string | null = null;
@@ -291,6 +304,26 @@ export class BoardCardView extends Phaser.GameObjects.Container {
       .setOrigin(1, 1)
       .setVisible(false);
 
+    // Overcharge badge: the cell glyph and a count on one plate, gold-rimmed
+    // so it never reads as a keyword chip. Not the Mark badge: Overcharge is
+    // not a Mark. Hidden until setOvercharge gives it a count.
+    this.overchargePlate = scene.add.graphics();
+    this.overchargeIcon = scene.add
+      .image(0, 0, MECHANIC_ICON_KEY.overcharge)
+      .setDisplaySize(OVERCHARGE_ICON, OVERCHARGE_ICON);
+    this.overchargeText = scene.add
+      .text(-OVERCHARGE_PAD_X, 0, '', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${CUE_MIN_SCREEN_PX.overchargeBadge}px`,
+        fontStyle: theme.weight.w700,
+        color: theme.colors.gold,
+        resolution: 2,
+      })
+      .setOrigin(1, 0.5);
+    this.overchargeBadge = scene.add
+      .container(TILE_W / 2 - FRAME_M, 0, [this.overchargePlate, this.overchargeIcon, this.overchargeText])
+      .setVisible(false);
+
     // Champion Awakening: a persistent gold ring once the flip happens. Its
     // own rectangle (not the highlight) so targeting highlights, which clear
     // the art tint every sync, cannot wipe the awakened state's cue.
@@ -322,6 +355,7 @@ export class BoardCardView extends Phaser.GameObjects.Container {
       this.auraBadge,
       this.actionBadge,
       this.chapterBadge,
+      this.overchargeBadge,
       this.sickIcon,
       this.awakenedRect,
       this.hauntlinkBrokenMark,
@@ -358,6 +392,31 @@ export class BoardCardView extends Phaser.GameObjects.Container {
       this.actionBadge.setText(label);
       this.actionBadge.setScale(tileScale > 0 ? Math.max(1, 1 / tileScale) : 1);
     }
+    return this;
+  }
+
+  /**
+   * Show the Overcharge badge with its count (0 hides it). Creatures only.
+   * Like the action chip it counter-scales on a shrunken tile (the board's
+   * `scale`), so the count keeps its 11px type on screen.
+   */
+  setOvercharge(count: number, tileScale: number): this {
+    const n = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
+    const show = n > 0 && this.ptText.visible;
+    this.overchargeBadge.setVisible(show);
+    if (!show) return this;
+    this.overchargeBadge.setScale(cueCounterScale(tileScale));
+    if (n === this.overchargeCount) return this;
+    this.overchargeCount = n;
+    this.overchargeText.setText(String(n));
+    const h = Math.max(OVERCHARGE_ICON, this.overchargeText.height) + OVERCHARGE_PAD_Y * 2;
+    const w = OVERCHARGE_PAD_X * 2 + OVERCHARGE_ICON + OVERCHARGE_GAP + this.overchargeText.width;
+    this.overchargeIcon.setPosition(-w + OVERCHARGE_PAD_X + OVERCHARGE_ICON / 2, 0);
+    this.overchargePlate.clear();
+    this.overchargePlate.fillStyle(colorInt(theme.colors.rowFill), 0.92);
+    this.overchargePlate.fillRoundedRect(-w, -h / 2, w, h, 4);
+    this.overchargePlate.lineStyle(1, colorInt(theme.colors.gold), 0.9);
+    this.overchargePlate.strokeRoundedRect(-w, -h / 2, w, h, 4);
     return this;
   }
 

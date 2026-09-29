@@ -1775,7 +1775,12 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   closed the same day** (#469, #470 on `release/1.9`). Then **D16**: the
   First Dawn cards are designed before the engine spec (brief, design-first
   overplan, concretion audit, spec, engine and measured rates, rescore,
-  cut), so the engine builds what the cards need.
+  cut), so the engine builds what the cards need. **Overcharge (A1.7, ruled
+  2026-09-29):** a token refused at the 8-creature cap gives a same-name token
+  its controller controls +1/+1 instead (never another creature; at most
+  `RULES.overchargeLimit` on one, 3, measured; not a Mark), after a
+  28,224-game board-cap study found it recovers First Dawn's go-wide deck where
+  a wider cap does not ([rules.md](rules.md), "Board caps").
 - **2.0 is the itch.io launch (owner ruling 2026-09-25).** The largest update
   the game has had, with the mobile overhaul, Core Set II and Story Mode, and
   the release that is posted on itch.io and advertised. No plan exists yet;

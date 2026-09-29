@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/creatureDamage.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-09-29
+<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/creatureDamage.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts, src/engine/overcharge.ts · last-verified: 2026-09-29
      If you change those files, update this doc or re-verify the date. -->
 
 # Rules — the digital ruleset as implemented
@@ -27,6 +27,7 @@ explicitly in the appendix. All the numbers below come from `RULES` in
 | Turn limit (draw)         | 100       | `RULES.turnLimit`                |
 | Max mulligans per player  | 3         | `RULES.maxMulligans`             |
 | Max window reopens/step   | 8         | `RULES.maxWindowReopensPerStep`  |
+| Max Overcharges/creature  | 3         | `RULES.overchargeLimit`          |
 
 <!-- END GENERATED -->
 
@@ -1083,11 +1084,48 @@ Two per-player caps are enforced at **cast legality** (`castBlockers` in
 
 Token creation also respects the creature cap: `createToken` in
 `src/engine/effects/EffectInterpreter.ts` re-checks `RULES.maxCreatures` before
-each token and simply **stops** once the cap is hit (excess tokens are not
-created). Verify in the `createToken` case of `EffectInterpreter.ts`. The same
-check-then-stop guards every other effect that puts a creature onto the
-battlefield: `raise` returns nothing at the cap, and a Nine Lives return leaves
-the card in the graveyard.
+each token. A token that would be created at the cap is **not created**; it
+**Overcharges** its namesake instead (below), and the op goes on to its next
+token, which may be made (if a slot has come free) or refused in turn. Every
+other effect that puts a creature onto the battlefield keeps the plain
+check-then-stop: `raise` returns nothing at the cap, and a Nine Lives return
+leaves the card in the graveyard. Preserve never makes a token at the cap: its
+action is refused at legality (`preserveBlockers`), like a creature spell.
+
+**Overcharge (1.9 A1.7; the owner's rulings, 2026-09-29).** A game rule, not a
+card keyword: it applies in every set and format. Player copy (approved by the
+owner, 2026-09-29):
+
+> If a token would be created while you control 8 creatures, it isn't.
+> Instead, a token you control with the same name gets an Overcharge: +1/+1,
+> up to 3 on one creature. With no such token, nothing happens. Overcharge
+> isn't a Mark.
+
+- **Namesake only.** The recipient is a creature **token** the refused token's
+  controller controls whose name is the refused token's name. Never any other
+  creature, never a non-token card of that name, never the opponent's token,
+  and no fallback: with no eligible namesake the token is simply not created.
+- **Tokens only.** Creature spells, `raise` and Nine Lives returns at the cap
+  behave as before.
+- **The limit.** Each Overcharge is +1/+1; one creature holds at most
+  `RULES.overchargeLimit` (3, measured and approved 2026-09-29). A namesake at
+  the limit is not eligible; with every namesake at it, the token is refused.
+- **The pick** (a design default, no prompt and no AI decision): the eligible
+  namesake with the fewest Overcharges, ties to the oldest (lowest iid). It
+  spreads the bonus, and it is deterministic.
+- **Not a Mark.** `Permanent.overcharge` is its own optional field (absent = 0),
+  read by `getEffectiveStats` after the Marks. No Mark rule reads or writes it:
+  `removeMarks`, `moveMark`, Propagate, `markAll`, a "marked" boost, target
+  spec, static filter or condition (`controlMarked`, the marked threshold),
+  `ifTargetMarked`, `loseLifePerTheirMarked`, "whenever a marked creature you
+  control attacks", and Nine Lives' "no +1/+1 marks" check. Gaining one fires no
+  Mark trigger and no arrival trigger (nothing entered).
+- **It belongs to the one permanent.** It leaves with it, and a later token
+  copy of the same card (Preserve) starts with none.
+- **Records.** The `overcharged` event names the recipient, the refused token
+  and the new total; the duel log prints a line and the tile draws a badge.
+  The field is public: `viewFor` carries it, so Hard's determinized worlds run
+  the rule. Replays are action logs, so no replay format stores a permanent.
 
 **The creature cap is a casting rule (owner ruling, 2026-09-23).** A creature
 spell is checked when it is cast, never again when it resolves. Rite and Tithe
@@ -1116,7 +1154,7 @@ order:
    Deaths within a pass are **batched**: every condemned creature leaves the
    battlefield first, *then* their `dies` triggers fire in battlefield order —
    so simultaneous deaths free their board slots before any dies-trigger
-   `createToken` checks the creature cap.
+   `createToken` checks the creature cap (and, at the cap, Overcharges).
 3. **Orphaned auras die.** An aura whose `attachedTo` permanent is gone is put
    into the graveyard.
 4. **The legend rule.** Among same-name legendaries **you** control, the **oldest
@@ -1137,7 +1175,7 @@ Provoked creatures on the battlefield, read each pass.
 
 (Effective defense/attack for these checks is always computed on read by
 `getEffectiveStats` in `src/engine/statics.ts` — base stats + `+1/+1` marks (engine field: counters) +
-until-EOT mods + static layers; nothing is cached.)
+Overcharges (`overcharge`, not a Mark) + until-EOT mods + static layers; nothing is cached.)
 
 ## Endings
 

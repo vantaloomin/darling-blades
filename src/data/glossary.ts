@@ -1,4 +1,4 @@
-import { DROPS, ECONOMY } from '../config/rules';
+import { DROPS, ECONOMY, RULES } from '../config/rules';
 import type {
   AbilityDef,
   CardDef,
@@ -368,10 +368,11 @@ export type GlossarySectionId = 'combat' | 'mechanics' | 'phases' | 'types' | 'm
 
 /**
  * Everything the icon bake draws a mechanic chip for: the named mechanics plus
- * the two zone terms, which have no card field behind them but still need a
- * glyph so the Mechanics tab has no ragged gutter.
+ * the two zone terms and the Overcharge rule, which have no card field behind
+ * them but still need a glyph so the Mechanics tab has no ragged gutter (the
+ * duel tile's Overcharge badge draws the same glyph).
  */
-export type MechanicIconId = MechanicId | 'warchest' | 'darlings';
+export type MechanicIconId = MechanicId | 'warchest' | 'darlings' | 'overcharge';
 
 /** One shared day-cycle glyph for the phase glossary rows. */
 export type PhaseIconId = 'dayCycle';
@@ -424,6 +425,22 @@ const ZONE_TERMS: GlossaryTerm[] = [
   },
 ];
 
+/**
+ * Game rules every card lives under, with no card field behind them. Overcharge
+ * (1.9 A1.7) is where the creature cap is taught: a refused token powers up its
+ * namesake. The numbers are read from `RULES`, so a retune updates the copy.
+ */
+const RULE_TERMS: GlossaryTerm[] = [
+  {
+    name: 'Overcharge',
+    description:
+      `If a token would be created while you control ${RULES.maxCreatures} creatures, it isn't. ` +
+      `Instead, a token you control with the same name gets an Overcharge: +1/+1, up to ${RULES.overchargeLimit} on one creature. ` +
+      "With no such token, nothing happens. Overcharge isn't a Mark.",
+    icon: { kind: 'mechanic', key: 'overcharge' },
+  },
+];
+
 /** Reading order for the Mechanics tab: shared vocabulary first, then riders. */
 const MECHANIC_ORDER: MechanicId[] = [
   'sever',
@@ -468,6 +485,7 @@ export const GLOSSARY_SECTIONS: readonly GlossarySection[] = [
         icon: { kind: 'mechanic', key: mechanic } as GlossaryIcon,
       })),
       ...ZONE_TERMS,
+      ...RULE_TERMS,
     ],
   },
   {

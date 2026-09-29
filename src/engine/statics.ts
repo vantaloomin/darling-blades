@@ -55,7 +55,7 @@ function staticConditionSatisfied(
 
 /**
  * Effective P/T and keywords are ALWAYS computed on read — base printed stats
- * + +1/+1 counters + until-EOT mods + static layers (auras attached to the
+ * + +1/+1 counters (Marks, then Overcharges) + until-EOT mods + static layers (auras attached to the
  * creature, and battlefield-wide lord filters). Nothing is ever cached, so
  * statics can never desync. Operates on the battlefield array (public
  * information), so AI code can call it on a redacted view too.
@@ -80,6 +80,9 @@ export function getEffectiveStats(
   if (targetIsCreature) {
     attack += perm.plusOneCounters;
     defense += perm.plusOneCounters;
+    // Overcharge is its own +1/+1 each, never a Mark (A1.7).
+    attack += perm.overcharge ?? 0;
+    defense += perm.overcharge ?? 0;
   }
 
   if (perm.awakened && d.awakening) {

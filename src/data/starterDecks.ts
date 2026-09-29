@@ -1112,7 +1112,7 @@ export const THEME_DECKS: DeckList[] = [
     // 38/19/43/52/52/27%. Adding the fourth Ion copy at the expense of the
     // setup spell did not improve the row and was reverted.
     // 2026-08-30 owner-ruling surgery 8 KEPT as the next-test base: -2
-    // Signal Inversion, +2 Overcharge the Hull (reserve mirrored) measured
+    // Signal Inversion, +2 Overcharge the Hull (now Vent the Reactor; reserve mirrored) measured
     // 39.8% (1016/2550) in the 17-cell prefab row, with full field cells
     // 24/45/37/34/41/33/46/40/33/57/53/34/40/18/51/61/33%. Doubling the
     // cheap fire removal raised every priority starter cell and kept the

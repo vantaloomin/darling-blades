@@ -9,6 +9,7 @@ import {
 } from '../battlefield';
 import { applyCreatureDamage, markStruck, type CreatureDamageHit } from '../creatureDamage';
 import { anyPayableHauntlink } from '../hauntlinkWindow';
+import { refuseTokenAtCap } from '../overcharge';
 import { drawCards } from '../phases';
 import { freshGraveyardCard, graveRefIndex } from '../graveyard';
 import { rngInt } from '../rng';
@@ -750,7 +751,12 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         const count = state.battlefield.filter(
           (p) => p.controller === ctx.controller && isType(def(db, p.cardId), 'creature'),
         ).length;
-        if (count >= RULES.maxCreatures) return; // cap: excess tokens are not created
+        // At the cap a token is not created. Each refused token in turn gives
+        // a same-name token an Overcharge instead, if one is eligible (A1.7).
+        if (count >= RULES.maxCreatures) {
+          refuseTokenAtCap(state, db, emit, ctx.controller, op.token);
+          continue;
+        }
         const perm = enterBattlefield(state, db, op.token, ctx.controller, emit, {
           asToken: true,
           ...(op.marks === undefined ? {} : { plusOneCounters: op.marks }),

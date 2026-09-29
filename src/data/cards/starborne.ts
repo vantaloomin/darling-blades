@@ -631,7 +631,7 @@ export const STARBORNE = [
     }],
     empower: { cost: cost(2, 'G'), ops: [{ op: 'propagate' }] }, rarity: 'r',
   }),
-  charm('sb-overcharge-the-hull', 'Overcharge the Hull', {
+  charm('sb-overcharge-the-hull', 'Vent the Reactor', {
     cost: cost(1, 'R'), colors: R,
     abilities: [spell([{ op: 'damage', n: 3, to: 'target' }], 'creature')],
     empower: { cost: cost(2, 'R'), ops: [{ op: 'damage', n: 2, to: 'opponent' }] }, rarity: 'c',
