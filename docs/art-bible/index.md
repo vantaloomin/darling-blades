@@ -938,6 +938,14 @@ prompt clause and a QA check:
   the frame (y 662), and anything lower is cropped; calibration round 1 of
   2026-09-29 lost Herd-Guardian's nest, River-Snapper's bones and Vessa's tail
   tip below it. Spells hold their principal figures to the same rule.
+- **Tall women stay small in the frame** (calibration round 4, 2026-09-29): a
+  Longneck's "great height" is shown against the Hatchling, the ferns or the
+  people around her, and she is "small enough in the frame that open sky fills
+  the top third"; never ask for her to be big in the frame.
+- **Riders: the mount's body at the vertical centre** (round 4): "the mount's
+  body at the vertical centre of the canvas, the whole mount a little over
+  half the frame width, the top of her head one third of the way down the
+  canvas with open sky above it".
 - **The check is by eye, with the lines drawn; the detectors do not see
   it** (measured 2026-09-28 on the pilot's retained raws). `scripts/smartcrop.py`
   and `scripts/audit-art-window.py` look for anime heads and faces; neither

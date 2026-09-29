@@ -261,6 +261,19 @@ figure preamble works; those three need entry wording that keeps her small in
 the frame (the Longneck's height tell, the rider on a big mount), not a bigger
 ask.
 
+Round 4 (five images, that wording: a Longneck's height shown against what
+stands beside her and "small enough in the frame that open sky fills the top
+third"; a rider's mount with its body at the vertical centre; zero refusals).
+The two fresh proofs moved: Plated Longneck's head top at 21.7% of the raw sat
+on y 179, and Vyra's at 20.6% (from 14.1%) did too. Cliff-Top Scout landed at
+17.4% (y 167) and Herd-Guardian at 15.8% (y 152, from 13.4%), both inside the
+window but short of the head line. Nest-Guard came back from the image backend
+at 1122x1402, a 4:5 raw instead of the requested 1024x1536 (Walking Mountain did
+the same in round 1), which leaves the cover crop no rows to slide; its head top
+at 10.6% put the crown 45 px above the window. A crown gate over the
+deliverables (head top above y 138, and separately above y 179) catches each of
+these, so the bulk run regenerates by measurement rather than by eye.
+
 What a crop cannot fix: every shipped crop already spans the full raw width,
 so "zoom out" is impossible, and a head drawn at the very top edge of the raw
 can only be brought into the window by zooming in until the rest of the scene
