@@ -231,6 +231,7 @@ export const OP_RULES: Record<OpKind, Record<string, OpFieldRule>> = {
   severSelf: {},
   loseLifePerTheirMarked: { who: ENUM(['opponent'], true) },
   ifTargetMarked: { then: { kind: 'ops' }, else: { kind: 'ops', optional: true }, targetIndex: TARGET_INDEX },
+  ifTargetSurvives: { then: { kind: 'ops' }, else: { kind: 'ops', optional: true }, targetIndex: TARGET_INDEX },
   tap: TO_TARGET,
   propagate: {},
   extraLandDrop: { n: COUNT(1, 9, true) },

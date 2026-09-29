@@ -1,4 +1,4 @@
-import { activatedAbilitiesOf } from './types';
+import { activatedAbilitiesOf, isTargetBranchOp } from './types';
 import { DARLING_PAYDOWN_COST, DARLING_PAYDOWN_REDUCTION, RULES } from '../config/rules';
 import {
   blockOptions,
@@ -46,7 +46,7 @@ function cardHasMoveMark(d: CardDef, empowered: boolean): boolean {
 }
 
 function opsInclude(ops: readonly EffectOp[], match: (op: EffectOp) => boolean): boolean {
-  return ops.some((op) => match(op) || (op.op === 'ifTargetMarked' &&
+  return ops.some((op) => match(op) || (isTargetBranchOp(op) &&
     (opsInclude(op.then, match) || opsInclude(op.else ?? [], match))));
 }
 

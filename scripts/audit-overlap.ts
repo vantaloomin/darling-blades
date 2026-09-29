@@ -328,6 +328,7 @@ export function isUpside(op: EffectOp): boolean {
     case 'boost':
       return op.scope === 'target' || op.scope === 'allYours' || op.scope === 'yourMarked';
     case 'ifTargetMarked':
+    case 'ifTargetSurvives':
       return !op.else && (op.then ?? []).every(isUpside);
     case 'gainLife':
     case 'draw':

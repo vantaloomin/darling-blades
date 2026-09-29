@@ -27,7 +27,7 @@ import { isLiveCollectible } from '../src/data/liveness';
 import { AVATARS, type Avatar } from '../src/data/opponents';
 import { STARTER_DECKS } from '../src/data/starterDecks';
 import type { CardDb, CardDef, Color, EffectOp, TargetSpec } from '../src/engine/types';
-import { activatedAbilitiesOf } from '../src/engine/types';
+import { activatedAbilitiesOf, isTargetBranchOp } from '../src/engine/types';
 import { validateDarlingsDeck, validateWarchestDeck } from '../src/meta/darlings';
 import {
   DARLINGS_DECK_SIZE,
@@ -155,7 +155,7 @@ function typeSuppliedTargets(card: CardDef | undefined): string[] {
 function effectOpsOf(card: CardDef): EffectOp[] {
   const flatten = (ops: readonly EffectOp[]): EffectOp[] => ops.flatMap((op) => [
     op,
-    ...(op.op === 'ifTargetMarked' ? flatten([...op.then, ...(op.else ?? [])]) : []),
+    ...(isTargetBranchOp(op) ? flatten([...op.then, ...(op.else ?? [])]) : []),
   ]);
   return flatten([
     ...(card.abilities ?? []).flatMap((ability) => ability.ops ?? []),
@@ -175,7 +175,7 @@ function canGenerateMarks(card: CardDef | undefined): boolean {
   );
   const activatedAddsTargetMark = (op: EffectOp): boolean =>
     (op.op === 'addCounters' && op.to === 'target') ||
-    (op.op === 'ifTargetMarked' && [...op.then, ...(op.else ?? [])].some(activatedAddsTargetMark));
+    (isTargetBranchOp(op) && [...op.then, ...(op.else ?? [])].some(activatedAddsTargetMark));
   const createsTargetMark = (card.abilities ?? []).some((ability) =>
     (ability.targets ?? []).some((target) => target.what === 'creature' || target.what === 'yourCreature') &&
     (ability.ops ?? []).some((op) => op.op === 'addCounters' && op.to === 'target'),
@@ -212,7 +212,7 @@ export function deckTargetSupply(cards: readonly string[], db: CardDb = CARD_DB)
     if (op.op === 'createToken' && db[op.token]) {
       return [{ card: db[op.token], count: op.count, marks: op.marks ?? 0 }];
     }
-    if (op.op === 'ifTargetMarked') return [{ alternatives: [tokenCandidates(op.then), tokenCandidates(op.else ?? [])] }];
+    if (isTargetBranchOp(op)) return [{ alternatives: [tokenCandidates(op.then), tokenCandidates(op.else ?? [])] }];
     return [];
   });
   for (const id of cards) {

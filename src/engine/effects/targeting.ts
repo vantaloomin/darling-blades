@@ -61,7 +61,7 @@ function satisfiesPermanentQualifiers(
   spec: TargetSpec,
   ref: TargetRef,
 ): boolean {
-  if (!spec.marked && !spec.tapped) return true;
+  if (!spec.marked && !spec.tapped && !spec.attacking) return true;
   if (ref.kind !== 'permanent') return false;
   const perm = state.battlefield.find((candidate) => candidate.iid === ref.iid);
   if (!perm) return false;
@@ -71,6 +71,10 @@ function satisfiesPermanentQualifiers(
   if (spec.marked && !isType(def(db, perm.cardId), 'creature')) return false;
   if (spec.marked && perm.plusOneCounters <= 0) return false;
   if (spec.tapped && !perm.tapped) return false;
+  // Attacking: declared as an attacker in this combat. A creature that left
+  // the battlefield is gone from combat (a returned one has a new iid), and
+  // outside combat nothing is attacking.
+  if (spec.attacking && !(state.combat?.attackers.includes(perm.iid) ?? false)) return false;
   return true;
 }
 
@@ -151,7 +155,7 @@ export function isLegalTarget(
     if (spec.minAttack !== undefined && (!isType(d, 'creature') ||
       (ref.kind === 'permanent' ? getEffectiveStats(state.battlefield, db, ref.iid).attack : d.attack ?? 0) < spec.minAttack)) return false;
   }
-  if (!spec.marked && !spec.tapped && !spec.other) return true;
+  if (!spec.marked && !spec.tapped && !spec.attacking && !spec.other) return true;
   if (!satisfiesPermanentQualifiers(state, db, spec, ref)) return false;
   return !spec.other || sourceIid === undefined || ref.kind !== 'permanent' || ref.iid !== sourceIid;
 }

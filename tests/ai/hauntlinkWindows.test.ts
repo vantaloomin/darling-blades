@@ -230,3 +230,12 @@ describe('revision-4 Hauntlink windows from the documented behaviour fixture', (
     expect(game.viewFor(0).battlefield.some((perm) => perm.iid === 11)).toBe(false);
   });
 });
+
+describe('a held trigger with an If-it-survived gate (A1.6)', () => {
+  it('forecasts the branch the survival read picks: it moves off a host the survived branch destroys, and not off one the other branch would', () => {
+    const doomed = triggerWindow([{ op: 'ifTargetSurvives', then: [{ op: 'destroy', to: 'target' }] }]);
+    expect(act(doomed)).toEqual({ type: 'linkHaunt', iid: 30, hostIid: 10 });
+    const spared = triggerWindow([{ op: 'ifTargetSurvives', then: [], else: [{ op: 'destroy', to: 'target' }] }]);
+    expect(act(spared)).toEqual({ type: 'passResponse' });
+  });
+});

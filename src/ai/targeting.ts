@@ -1,7 +1,7 @@
 import type { Action } from '../engine/actions';
 import { castTargetSpecsFor } from '../engine/resolve';
 import type { AbilityDef, CardDb, CardDef, EffectOp, Permanent, TargetRef, TargetSpec } from '../engine/types';
-import { def } from '../engine/types';
+import { def, isTargetBranchOp } from '../engine/types';
 import type { PlayerView } from '../engine/view';
 import { arrivalHuntIndex } from '../engine/effects/EffectInterpreter';
 import { arrivalHuntCastValue, boundCastEffects, cardHasHunt, spellTargetsValue, targetValueForAbility } from './value';
@@ -53,11 +53,14 @@ export function chooseTargetAction(
 }
 
 const NEW_TARGET_DATABASES = new WeakMap<CardDb, boolean>();
+// `attacking` (A1.6) is left out on purpose: an attacking-only Charm keeps the
+// legacy menu, where Medium's removal-on-an-attacker rule (removalWorth) picks
+// the attacker and Hard searches the variants from there.
 const hasTargetQualifier = (spec: TargetSpec): boolean => spec.exactly !== undefined ||
   spec.what === 'opponentCreature' || spec.maxCost !== undefined || spec.minAttack !== undefined;
 const hasTargetBinding = (items: readonly EffectOp[]): boolean => items.some((op) =>
   'targetIndex' in op && op.targetIndex !== undefined || op.op === 'preventCombatTo' ||
-  op.op === 'ifTargetMarked' && (hasTargetBinding(op.then) || hasTargetBinding(op.else ?? [])));
+  isTargetBranchOp(op) && (hasTargetBinding(op.then) || hasTargetBinding(op.else ?? [])));
 function databaseHasNewTargets(db: CardDb): boolean {
   const cached = NEW_TARGET_DATABASES.get(db);
   if (cached !== undefined) return cached;
@@ -148,7 +151,7 @@ export function isVocabularyCast(view: PlayerView, db: CardDb, action: Action): 
     op.op === 'boost' && op.scope === 'self' ||
     op.op === 'createToken' && op.marks !== undefined ||
     op.op === 'raise' && op.grantKeywords !== undefined ||
-    op.op === 'ifTargetMarked' && (newOps(op.then) || newOps(op.else ?? [])) ||
+    isTargetBranchOp(op) && (newOps(op.then) || newOps(op.else ?? [])) ||
     hasTargetBinding([op]));
   const found = card.retell !== undefined && card.types.includes('creature') ||
     (card.abilities ?? []).some((ability) => (ability.targets ?? []).some(hasTargetQualifier) || newOps(ability.ops ?? [])) ||

@@ -215,6 +215,22 @@ battlefield, combat has no attackers to resolve. `resumeAfterFlush` detects the
 now-null combat and cleanly falls through to Afternoon (see the `combat` case in
 `resumeAfterFlush`).
 
+### Attacking-only targets (1.9)
+
+"Target attacking creature" (`TargetSpec.attacking`, A1.6) is legal only on a
+creature declared as an attacker in the current combat and still on the
+battlefield. Outside combat nothing is attacking, so such a Charm can be cast
+only after attackers are declared: the defender in its window over the
+attackers, either player in a later combat window. A creature that leaves the
+battlefield is out of combat (if it returns, it is a new permanent and not
+attacking), and the Charm fizzles when its attacker has left or combat has
+ended, as any spell does when its target is gone. It composes with the other
+target words ("target attacking creature with attack 4 or more"). The window
+rule is unchanged: a Charm with no legal target keeps no window open, so a
+defender holding one gets its window over the attackers only when there is an
+attacker it can hit. Only creature specs carry the word, and never a Duty's
+(a Duty is used in a main phase).
+
 ### Damage
 
 `resolveCombatDamage` computes damage against the pre-damage board and applies it
@@ -1036,6 +1052,23 @@ form (hunter in target slot 0, prey in slot 1).
 targets, an arrival hunter's prey rides the cast's `targets`, and a Hunt
 Duty is an ordinary activation. The v16 replay log covers it at rules
 revision 4.
+
+### If it survived (1.9)
+
+"If it survived, draw a card." (`{ op: 'ifTargetSurvives', then, else?,
+targetIndex? }`, A1.6) reads its target creature at the moment it resolves:
+it survived if it is still on the battlefield and would not die in the next
+state-based check, the test Provoked uses (not lethally damaged, no damage
+from a Deathblade source, Defense above 0). Effects resolve in order, so a
+Hunt earlier in the same spell has already dealt its damage. Damage that was
+prevented was never dealt, so it does not count; Hunt damage is not combat
+damage, so no combat prevention applies to it. A creature that left the
+battlefield, or is no longer a legal target, did not survive. The optional
+`else` branch runs when it did not ("; otherwise, ..."). On the card the gate
+opens its own sentence after the effect it reads: "Target creature you
+control gets +1/+1 until Sunset, then it Hunts. If it survived, draw a card."
+Its target is a creature spec, it never sits in a chapter, and a Hunt never
+sits inside it.
 
 ## Board caps
 

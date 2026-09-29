@@ -93,6 +93,15 @@ export interface TargetSpec {
   marked?: true;
   /** Restricts legal targets to tapped permanents. */
   tapped?: true;
+  /**
+   * Restricts legal targets to creatures declared as attackers in the current
+   * combat and still on the battlefield (1.9, A1.6: "target attacking
+   * creature"). Outside combat nothing is attacking, so a spell with such a
+   * target is castable only after attackers are declared. A creature that
+   * leaves the battlefield is removed from combat: if it returns, it is a new
+   * permanent and not attacking.
+   */
+  attacking?: true;
 }
 
 /**
@@ -137,6 +146,14 @@ export type EffectOp =
   | { op: 'loseLifePerTheirMarked'; who: 'opponent' }
   | { op: 'fetchLand' }
   | { op: 'ifTargetMarked'; then: EffectOp[]; else?: EffectOp[]; targetIndex?: number }
+  /**
+   * "If it survived, ..." (1.9, A1.6): runs `then` when the target creature is
+   * still on the battlefield and would not die in the next state-based check
+   * (the test Provoked uses: not lethally damaged, no Deathblade damage, Defense
+   * above 0), otherwise the optional `else`. It reads the board as the op
+   * resolves, so damage an earlier op of the same effect dealt (a Hunt) counts.
+   */
+  | { op: 'ifTargetSurvives'; then: EffectOp[]; else?: EffectOp[]; targetIndex?: number }
   | { op: 'severSelf' }
   | { op: 'tap'; to: 'target'; targetIndex?: number }
   | { op: 'extraLandDrop'; n?: number } // grant the controller extra land drops this turn
@@ -298,6 +315,7 @@ export function effectOpUsesTarget(op: EffectOp): boolean {
     case 'raise':
       return op.to !== 'top';
     case 'ifTargetMarked':
+    case 'ifTargetSurvives':
       return true;
     case 'foresee':
       return op.who === 'targetOwner';
@@ -320,7 +338,7 @@ function effectOpAddsMark(op: EffectOp): boolean {
   if (op.op === 'addCounters' || op.op === 'markAll' || op.op === 'propagate' || op.op === 'moveMark') {
     return true;
   }
-  if (op.op !== 'ifTargetMarked') return false;
+  if (op.op !== 'ifTargetMarked' && op.op !== 'ifTargetSurvives') return false;
   return op.then.some(effectOpAddsMark) || (op.else ?? []).some(effectOpAddsMark);
 }
 
@@ -422,9 +440,14 @@ export function validateProvokedDef(d: CardDef): string[] {
   return errors;
 }
 
-/** Every op, the ops inside an If-marked branch included. */
+/** Is this op a conditional branch on its target ("If it is Marked", "If it survived")? */
+export function isTargetBranchOp(op: EffectOp): op is Extract<EffectOp, { op: 'ifTargetMarked' | 'ifTargetSurvives' }> {
+  return op.op === 'ifTargetMarked' || op.op === 'ifTargetSurvives';
+}
+
+/** Every op, the ops inside a target branch (If-marked, If-it-survived) included. */
 export function flatOps(list: readonly EffectOp[]): EffectOp[] {
-  return list.flatMap((op) => op.op === 'ifTargetMarked' ? [op, ...flatOps(op.then), ...flatOps(op.else ?? [])] : [op]);
+  return list.flatMap((op) => isTargetBranchOp(op) ? [op, ...flatOps(op.then), ...flatOps(op.else ?? [])] : [op]);
 }
 
 /**
@@ -492,12 +515,13 @@ export function validateHuntDef(d: CardDef): string[] {
   };
   // A branch re-runs its ops against its one bound target, so a Hunt inside
   // one would never see its prey (or, spell-form, its second slot).
-  const huntInBranch = (ops: readonly EffectOp[] | undefined): boolean => flatOps(ops ?? []).some((op) =>
-    op.op === 'ifTargetMarked' && [...flatOps(op.then), ...flatOps(op.else ?? [])].some((inner) => inner.op === 'hunt'));
-  if ((d.abilities ?? []).some((ability) => huntInBranch(ability.ops)) ||
-    activatedAbilitiesOf(d).some((activation) => huntInBranch(activation.ops)) || huntInBranch(d.empower?.ops)) {
-    errors.push('A Hunt cannot sit inside an If-marked branch');
-  }
+  const huntInBranch = (ops: readonly EffectOp[] | undefined, gate: 'ifTargetMarked' | 'ifTargetSurvives'): boolean => flatOps(ops ?? []).some((op) =>
+    op.op === gate && [...flatOps(op.then), ...flatOps(op.else ?? [])].some((inner) => inner.op === 'hunt'));
+  const huntInGate = (gate: 'ifTargetMarked' | 'ifTargetSurvives'): boolean =>
+    (d.abilities ?? []).some((ability) => huntInBranch(ability.ops, gate)) ||
+    activatedAbilitiesOf(d).some((activation) => huntInBranch(activation.ops, gate)) || huntInBranch(d.empower?.ops, gate);
+  if (huntInGate('ifTargetMarked')) errors.push('A Hunt cannot sit inside an If-marked branch');
+  if (huntInGate('ifTargetSurvives')) errors.push('A Hunt cannot sit inside an If-it-survived branch');
   // A creature's arrival Hunt names its prey as the cast target, so the card
   // has one: never two arrival Hunts, never beside Empower targets.
   const arrivalHunts = (d.abilities ?? []).filter(isArrivalHunt);
@@ -529,6 +553,47 @@ export function validateHuntDef(d: CardDef): string[] {
   // than left unchecked (Fable's review, 2026-09-29). No First Dawn row has one.
   if (d.retell?.ops && flatOps(d.retell.ops).some((op) => op.op === 'hunt')) {
     errors.push('A Retell body never hunts');
+  }
+  return errors;
+}
+
+const CREATURE_SPEC_KINDS: readonly TargetSpec['what'][] = ['creature', 'yourCreature', 'opponentCreature'];
+
+/**
+ * Catalog-facing validation for the A1.6 constructs.
+ *   - `attacking` qualifies a creature spec only (creature, yourCreature,
+ *     opponentCreature), and never a Duty's: a Duty is used in its
+ *     controller's main phase, where nothing is attacking.
+ *   - `ifTargetSurvives` reads a creature: its carrier names a creature spec
+ *     at the gate's slot (`targetIndex`, default 0). A chapter is target-free,
+ *     so it never carries one.
+ */
+export function validateA16Def(d: CardDef): string[] {
+  const errors: string[] = [];
+  const carriers: { ops: readonly EffectOp[]; targets: readonly TargetSpec[]; duty: boolean }[] = [
+    ...(d.abilities ?? []).map((ability) => ({ ops: ability.ops ?? [], targets: ability.targets ?? [], duty: false })),
+    ...activatedAbilitiesOf(d).map((ability) => ({ ops: ability.ops, targets: ability.targets ?? [], duty: true })),
+    ...(d.empower ? [{ ops: d.empower.ops, targets: d.empower.targets ?? [], duty: false }] : []),
+    ...(d.retell?.ops ? [{ ops: d.retell.ops, targets: d.retell.targets ?? [], duty: false }] : []),
+  ];
+  for (const { ops, targets, duty } of carriers) {
+    for (const spec of targets) {
+      if (!spec.attacking) continue;
+      if (!CREATURE_SPEC_KINDS.includes(spec.what)) errors.push('An attacking target is a creature spec');
+      if (duty) errors.push('A Duty cannot target an attacking creature (it is used in a main phase)');
+    }
+    for (const op of flatOps(ops)) {
+      if (op.op !== 'ifTargetSurvives') continue;
+      const spec = targets[op.targetIndex ?? 0];
+      if (!spec || !CREATURE_SPEC_KINDS.includes(spec.what)) {
+        errors.push('If-it-survived reads a creature target: its slot needs a creature spec');
+      } else if (spec.upTo !== undefined || spec.exactly !== undefined) {
+        errors.push('If-it-survived reads one creature: its slot is a single-target spec');
+      }
+    }
+  }
+  if ((d.chapters ?? []).some((chapter) => flatOps(chapter).some((op) => op.op === 'ifTargetSurvives'))) {
+    errors.push('A chapter is target-free: it cannot carry If-it-survived');
   }
   return errors;
 }
@@ -783,7 +848,7 @@ export function validateActivatedDef(d: CardDef): string[] {
           if (targets.length === 0) errors.push('Activated target ops need target specs');
           if (deferred) errors.push('Activated ops after Foresee cannot need an inline target');
         }
-        if (op.op === 'ifTargetMarked') {
+        if (isTargetBranchOp(op)) {
           const thenDefers = inspect(op.then, deferred);
           const elseDefers = inspect(op.else ?? [], deferred);
           deferred = thenDefers || elseDefers;

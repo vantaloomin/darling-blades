@@ -10,7 +10,7 @@ import type {
   TargetSpec,
   TriggerWhen,
 } from '../engine/types';
-import { activatedAbilitiesOf } from '../engine/types';
+import { activatedAbilitiesOf, isTargetBranchOp } from '../engine/types';
 
 /**
  * The rules vocabulary, as pure data. This lives in `src/data` — not in the
@@ -185,7 +185,7 @@ function opImpliesSever(op: EffectOp): boolean {
 
 function cardOps(d: CardDef): EffectOp[] {
   const flatten = (ops: readonly EffectOp[]): EffectOp[] => ops.flatMap((op) =>
-    op.op === 'ifTargetMarked'
+    isTargetBranchOp(op)
       ? [op, ...flatten(op.then), ...flatten(op.else ?? [])]
       : [op],
   );

@@ -108,7 +108,7 @@ function targetChoiceNoun(spec: TargetSpec): string {
     yourPermanent: 'permanent you control', yourGraveCreature: 'creature card from your graveyard',
     artifact: 'artifact', enchantment: 'enchantment', artifactOrEnchantment: 'artifact or enchantment',
   };
-  const adjectives = [spec.marked ? 'Marked' : '', spec.tapped ? 'tapped' : ''].filter(Boolean);
+  const adjectives = [spec.marked ? 'Marked' : '', spec.tapped ? 'tapped' : '', spec.attacking ? 'attacking' : ''].filter(Boolean);
   const restrictions = [
     spec.maxCost === undefined ? '' : `cost ${spec.maxCost} or less`,
     spec.minAttack === undefined ? '' : `attack ${spec.minAttack} or more`,

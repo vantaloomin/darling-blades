@@ -28,7 +28,8 @@ import type {
   TargetSpec,
   TriggerWhen,
 } from '../types';
-import { cardIdOf, def, effectOpUsesTarget, isArrivalHunt, isCardInstance, isType, opponentOf } from '../types';
+import { cardIdOf, def, effectOpUsesTarget, isArrivalHunt, isCardInstance, isTargetBranchOp, isType, opponentOf } from '../types';
+import { survivesOnBattlefield } from '../sba';
 
 export interface EffectContext {
   controller: PlayerId;
@@ -699,6 +700,41 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       }
       return;
     }
+    case 'ifTargetSurvives': {
+      // "If it survived" (A1.6): the target creature is still on the
+      // battlefield and would not die in the next state-based check, the test
+      // Provoked uses (sba.ts). Damage an earlier op of this effect dealt (a
+      // Hunt) is already marked, since ops resolve in order; Deathblade damage
+      // is fatal; damage that was prevented was never marked. A target that
+      // left the battlefield, or is no longer a legal target, did not survive.
+      const refs = targetRefsForOp(ctx);
+      const branchFor = (ref: TargetRef | undefined): EffectOp[] => {
+        const target = targetPermanent(state, ref);
+        return target && isType(def(db, target.cardId), 'creature') && survivesOnBattlefield(state, db, target.iid)
+          ? op.then : (op.else ?? []);
+      };
+      if (refs.length === 0) {
+        runOps(state, db, emit, { ...ctx, targets: [], targetBatch: false, targetOwners: [] }, op.else ?? []);
+        return;
+      }
+      for (let index = 0; index < refs.length; index++) {
+        const ref = refs[index];
+        runOps(
+          state,
+          db,
+          emit,
+          {
+            ...ctx,
+            targets: [ref],
+            targetBatch: false,
+            ...(ctx.targetSpecs ? { targetSpecs: [ctx.targetSpecs[ctx.targetBatch ? 0 : index]] } : {}),
+            targetOwners: [ctx.targetOwners?.[index]],
+          },
+          branchFor(ref),
+        );
+      }
+      return;
+    }
     case 'tap': {
       for (const ref of targetRefsForOp(ctx)) {
         const perm = targetPermanent(state, ref);
@@ -881,12 +917,12 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
 
 function containsNewPlayerChoice(ops: readonly EffectOp[]): boolean {
   return ops.some(op => op.op === 'discard' || op.op === 'sacrifice' ||
-    (op.op === 'ifTargetMarked' && (containsNewPlayerChoice(op.then) || containsNewPlayerChoice(op.else ?? []))));
+    (isTargetBranchOp(op) && (containsNewPlayerChoice(op.then) || containsNewPlayerChoice(op.else ?? []))));
 }
 
 function containsSelfReclaim(ops: readonly EffectOp[]): boolean {
   return ops.some(op => op.op === 'reclaimSelf' ||
-    (op.op === 'ifTargetMarked' && (containsSelfReclaim(op.then) || containsSelfReclaim(op.else ?? []))));
+    (isTargetBranchOp(op) && (containsSelfReclaim(op.then) || containsSelfReclaim(op.else ?? []))));
 }
 
 export function runOps(

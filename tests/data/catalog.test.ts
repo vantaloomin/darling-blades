@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   activatedAbilitiesOf,
   manaValue,
+  validateA16Def,
   validateChaptersDef,
   validateEmpowerDef,
   validateHauntlinkDef,
@@ -43,7 +44,7 @@ import { TOKENS } from '../../src/data/cards/tokens';
 import { activatedCatalogErrors } from '../activatedFixture';
 
 describe('catalog integrity', () => {
-  it('has no invalid Empower, mark-trigger, chapter, Provoked or Hunt definitions across ALL_CARDS', () => {
+  it('has no invalid Empower, mark-trigger, chapter, Provoked, Hunt, attacking-target or If-it-survived definitions across ALL_CARDS', () => {
     for (const card of ALL_CARDS) {
       const errors = [
         ...validateEmpowerDef(card),
@@ -51,6 +52,7 @@ describe('catalog integrity', () => {
         ...validateChaptersDef(card),
         ...validateProvokedDef(card),
         ...validateHuntDef(card),
+        ...validateA16Def(card),
       ];
       expect(errors, `${card.id} has invalid Starborne definition: ${errors.join('; ')}`).toEqual([]);
     }

@@ -1,4 +1,4 @@
-import { activatedAbilitiesOf, manaValue, type AbilityDef, type CardDef, type EffectOp, type Keyword, type TriggerWhen } from '../../src/engine/types';
+import { activatedAbilitiesOf, isTargetBranchOp, manaValue, type AbilityDef, type CardDef, type EffectOp, type Keyword, type TriggerWhen } from '../../src/engine/types';
 import type { CurveBand, DeckRole, PersonaTemplate, SpellRole } from './templates';
 
 export interface PersonaDeckState {
@@ -44,6 +44,7 @@ const OP_VALUE: Readonly<Record<EffectOp['op'], number>> = {
   loseLifePerTheirMarked: 1.1, // NEEDS MATH: §4 per-marked-drain comparative pending.
   fetchLand: 0.9, // NEEDS MATH: §4 does not yet rule a persona-scale ramp mapping.
   ifTargetMarked: 0.6, // NEEDS MATH: §4 leaves conditional branch value judgment-based.
+  ifTargetSurvives: 0.6, // NEEDS MATH (A1.6): the ifTargetMarked anchor until A1.4 prices the gate.
   severSelf: 0.8, // NEEDS MATH: §4 does not yet rule this self-sever mapping.
   tap: 0.7,
   tapAll: 0.7, // NEEDS MATH: compatibility anchor from tap; mass-tap pricing belongs to the Assay.
@@ -98,7 +99,7 @@ function appendEffectEntries(
 ): void {
   for (const op of ops) {
     out.push({ op, ...context });
-    if (op.op === 'ifTargetMarked') appendEffectEntries(out, [...op.then, ...(op.else ?? [])], context);
+    if (isTargetBranchOp(op)) appendEffectEntries(out, [...op.then, ...(op.else ?? [])], context);
   }
 }
 

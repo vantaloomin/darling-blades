@@ -6,7 +6,7 @@ import { combineManaCosts, solveMana } from '../engine/mana';
 import { castTargetSpecsFor } from '../engine/resolve';
 import { getEffectiveStats, isQuestActive } from '../engine/statics';
 import type { AbilityDef, ActivatedDef, CardDb, EffectOp, Keyword, ManaCost, Permanent, PlayerId, TargetRef, TargetSpec } from '../engine/types';
-import { activatedAbilitiesOf, def, effectOpUsesTarget, isType, manaValue, opponentOf } from '../engine/types';
+import { activatedAbilitiesOf, def, effectOpUsesTarget, isTargetBranchOp, isType, manaValue, opponentOf } from '../engine/types';
 import type { PlayerView } from '../engine/view';
 import { determinize } from './determinize';
 
@@ -607,6 +607,12 @@ function effectOnTarget(ctx: TargetContext, op: EffectOp, ref: TargetRef): numbe
         : (op.else ?? []);
       return branch.reduce((sum, nested) => sum + effectOnTarget(ctx, nested, ref), 0);
     }
+    case 'ifTargetSurvives': {
+      // A trigger's gate reads the board as it stands (A1.6).
+      const perm = permanentFor(ctx, ref);
+      const branch = perm && survivesOnBoard(ctx.view.battlefield, ctx.db, perm) ? op.then : (op.else ?? []);
+      return branch.reduce((sum, nested) => sum + effectOnTarget(ctx, nested, ref), 0);
+    }
     case 'raise':
     case 'reclaim': {
       if (ref.kind !== 'grave' || ref.player !== ctx.view.myId) return 0;
@@ -656,8 +662,19 @@ export function spellTargetsValue(
 ): number {
   let value = 0;
   const pumps = ops.some((op) => op.op === 'hunt') ? new Map<number, { p: number; t: number; keywords: Keyword[] }>() : undefined;
-  for (const op of ops) {
+  for (const [index, op] of ops.entries()) {
     if (!effectOpUsesTarget(op)) continue;
+    if (op.op === 'ifTargetSurvives') {
+      // "If it survived" (A1.6): only the branch the survival read expects
+      // counts, target-free effects in it included (the card a hunter that
+      // lives draws), so a prey that would kill the hunter loses the draw.
+      const ref = targets[op.targetIndex ?? 0];
+      const branch = expectsTargetSurvives(view, db, ops.slice(0, index), op, targets, x) ? op.then : op.else ?? [];
+      value += branch.reduce((sum, nested) => sum + (effectOpUsesTarget(nested)
+        ? ref ? targetValueForAbility(view, db, undefined, { ops: [nested] }, ref) : 0
+        : opImpactValue(nested)), 0);
+      continue;
+    }
     if (op.op === 'hunt') {
       value += op.hunter === 'target'
         ? spellHuntValue(view, db, targets[0], targets[1], pumps)
@@ -676,6 +693,87 @@ export function spellTargetsValue(
     }
   }
   return value;
+}
+
+/** The state-based test on a public board: lethal damage, Deathblade damage, or Defense 0. */
+function survivesOnBoard(battlefield: readonly Permanent[], db: CardDb, perm: Permanent): boolean {
+  if (!battlefield.some((p) => p.iid === perm.iid) || !isType(def(db, perm.cardId), 'creature')) return false;
+  const defense = getEffectiveStats(battlefield, db, perm.iid).defense;
+  return defense > 0 && perm.damage < defense && !(perm.deathtouched && perm.damage > 0);
+}
+
+/**
+ * The AI's survival read for "If it survived" (A1.6), kept simple: will the
+ * gate's target creature pass the state-based check once the ops before the
+ * gate in the same effect have run? It plays those ops on the public board in
+ * order: a pump or damage to a target slot, removal of the gate's creature (it
+ * did not survive), and a spell-form Hunt (each deals its Attack after the
+ * pumps to the other; a Bulwark hunter deals and takes nothing; Deathblade
+ * makes any damage lethal). Every other op is ignored, and so is anything the
+ * opponent might do in response. A target not on the battlefield does not
+ * survive.
+ */
+export function expectsTargetSurvives(
+  view: PlayerView, db: CardDb, prior: readonly EffectOp[],
+  gate: Extract<EffectOp, { op: 'ifTargetSurvives' }>, targets: readonly TargetRef[], x = 0,
+): boolean {
+  const slotIid = (slot: number): number | undefined => {
+    const ref = targets[slot];
+    return ref?.kind === 'permanent' ? ref.iid : undefined;
+  };
+  const iid = slotIid(gate.targetIndex ?? 0);
+  const perm = view.battlefield.find((p) => p.iid === iid);
+  if (!perm || !isType(def(db, perm.cardId), 'creature')) return false;
+  const mods = new Map<number, { p: number; t: number; keywords: Keyword[] }>();
+  const dealt = new Map<number, { damage: number; deathblade: boolean }>();
+  const statsOf = (id: number) => {
+    const stats = getEffectiveStats(view.battlefield, db, id);
+    const mod = mods.get(id);
+    return {
+      attack: Math.max(0, stats.attack + (mod?.p ?? 0)), defense: stats.defense + (mod?.t ?? 0),
+      keywords: new Set<Keyword>([...stats.keywords, ...(mod?.keywords ?? [])]),
+    };
+  };
+  const deal = (id: number, damage: number, deathblade: boolean): void => {
+    if (damage <= 0) return;
+    const hit = dealt.get(id) ?? { damage: 0, deathblade: false };
+    dealt.set(id, { damage: hit.damage + damage, deathblade: hit.deathblade || deathblade });
+  };
+  for (const op of prior) {
+    const target = slotIid(('targetIndex' in op ? op.targetIndex : undefined) ?? 0);
+    if (op.op === 'boost' && op.scope === 'target' && target !== undefined) {
+      const mod = mods.get(target) ?? { p: 0, t: 0, keywords: [] };
+      mods.set(target, { p: mod.p + op.p, t: mod.t + op.t, keywords: [...mod.keywords, ...(op.keywords ?? [])] });
+    } else if (op.op === 'damage' && op.to === 'target' && target !== undefined) {
+      deal(target, op.n === 'X' ? x : op.n, false);
+    } else if ((op.op === 'destroy' || op.op === 'sever' || op.op === 'recall') && target === perm.iid) {
+      return false;
+    } else if (op.op === 'hunt' && op.hunter === 'target') {
+      const hunter = view.battlefield.find((p) => p.iid === slotIid(0));
+      const prey = view.battlefield.find((p) => p.iid === slotIid(1));
+      if (!hunter || !prey || hunter.iid === prey.iid ||
+        !isType(def(db, hunter.cardId), 'creature') || !isType(def(db, prey.cardId), 'creature')) continue;
+      const h = statsOf(hunter.iid);
+      if (h.keywords.has('bulwark')) continue;
+      const p = statsOf(prey.iid);
+      deal(prey.iid, h.attack, h.keywords.has('deathblade'));
+      deal(hunter.iid, p.attack, p.keywords.has('deathblade'));
+    }
+  }
+  const hit = dealt.get(perm.iid) ?? { damage: 0, deathblade: false };
+  const defense = statsOf(perm.iid).defense;
+  const damage = perm.damage + hit.damage;
+  return defense > 0 && damage < defense && !((perm.deathtouched || hit.deathblade) && damage > 0);
+}
+
+/** The card-shaped weight of "If it survived"'s `then` branch when there is no board to read (A1.6; the scorer's placeholder). */
+const IF_SURVIVES_CARD_WEIGHT = 0.86;
+
+/** A gate's card-shaped value: the survival read when there is one, else the placeholder blend. */
+function survivalGateImpact(op: Extract<EffectOp, { op: 'ifTargetSurvives' }>, survives?: boolean): number {
+  const weight = survives === undefined ? IF_SURVIVES_CARD_WEIGHT : survives ? 1 : 0;
+  const sum = (ops: readonly EffectOp[]): number => ops.reduce((total, nested) => total + opImpactValue(nested), 0);
+  return weight * sum(op.then) + (1 - weight) * sum(op.else ?? []);
 }
 
 /** A spell-form Hunt: the creature in slot 0 hunts the one in slot 1. */
@@ -773,6 +871,8 @@ export function opImpactValue(op: EffectOp, activated?: ActivatedImpactContext):
       // only a conservative portion of the better branch's upside.
       return Math.min(thenValue, elseValue) * 0.4 + Math.max(thenValue, elseValue) * 0.6;
     }
+    case 'ifTargetSurvives':
+      return survivalGateImpact(op);
     case 'severGrave':
       return op.who === 'opponent' ? op.n * 0.6 : 0;
     case 'foresee':
@@ -821,11 +921,13 @@ function activatedOpImpact(op: EffectOp, ctx: ActivatedImpactContext): number {
   const refs = 'targetIndex' in op && op.targetIndex !== undefined ? ctx.targets.slice(op.targetIndex, op.targetIndex + 1) :
     ctx.targetBatch ? ctx.targets : ctx.targets.slice(0, 1);
   const material = (perm: Permanent): number => removalTargetValue(view.battlefield, db, perm, false);
-  if (op.op === 'ifTargetMarked') {
+  if (isTargetBranchOp(op)) {
     return refs.reduce((sum, ref) => {
       const target = ref.kind === 'permanent' ? view.battlefield.find((p) =>
         p.iid === ref.iid && isType(def(db, p.cardId), 'creature')) : undefined;
-      const branch = target && target.plusOneCounters > 0 ? op.then : (op.else ?? []);
+      const taken = op.op === 'ifTargetMarked' ? target !== undefined && target.plusOneCounters > 0
+        : target !== undefined && survivesOnBoard(view.battlefield, db, target);
+      const branch = taken ? op.then : (op.else ?? []);
       return sum + activatedOpsImpact(branch, {
         ...ctx, targets: [ref], targetBatch: false,
       });
@@ -940,7 +1042,7 @@ export function activateActionValue(
 function activatedWritesMarks(ops: readonly EffectOp[]): boolean {
   return ops.some((op) => op.op === 'addCounters' || op.op === 'removeMarks' ||
     op.op === 'markAll' || op.op === 'propagate' || op.op === 'moveMark' ||
-    (op.op === 'ifTargetMarked' &&
+    (isTargetBranchOp(op) &&
       (activatedWritesMarks(op.then) || activatedWritesMarks(op.else ?? []))));
 }
 
@@ -1115,11 +1217,17 @@ export function boundCastEffects(view: PlayerView, db: CardDb, cardId: string, m
   const effects: { op: EffectOp; targets: readonly TargetRef[] }[] = [];
   const marks = new Map(view.battlefield.map((p) => [p.iid, p.plusOneCounters]));
   const visit = (ops: readonly EffectOp[], branchTarget?: TargetRef): void => {
-    for (const op of ops) {
+    for (const [index, op] of ops.entries()) {
       const refs = branchTarget && !('targetIndex' in op && op.targetIndex !== undefined)
         ? [branchTarget] : spellOpTargets(db, cardId, mode, op);
       if (op.op === 'ifTargetMarked') {
         for (const ref of refs) visit(ref.kind === 'permanent' && (marks.get(ref.iid) ?? 0) > 0 ? op.then : op.else ?? [], ref);
+        continue;
+      }
+      if (op.op === 'ifTargetSurvives') {
+        // The branch the survival read expects (A1.6).
+        const survives = expectsTargetSurvives(view, db, ops.slice(0, index), op, mode.targets ?? [], mode.x ?? 0);
+        visit(survives ? op.then : op.else ?? [], refs[0]);
         continue;
       }
       effects.push({ op, targets: refs });
@@ -1214,7 +1322,7 @@ function symmetricCreatureSweepValue(
 /** Classify only cast-time spell bodies. Arrival/dawn removal riders stay ETB value. */
 export function removalKind(db: CardDb, cardId: string, mode?: SpellMode): RemovalKind | null {
   const d = def(db, cardId);
-  const flatten = (ops: readonly EffectOp[]): EffectOp[] => ops.flatMap((op) => op.op === 'ifTargetMarked'
+  const flatten = (ops: readonly EffectOp[]): EffectOp[] => ops.flatMap((op) => isTargetBranchOp(op)
     ? [op, ...flatten(op.then), ...flatten(op.else ?? [])] : [op]);
   // A mixed targeted/mark body must not bypass the sweeper asymmetry gate.
   if (mode !== undefined && flatten(castSpellOps(db, cardId, mode)).some((op) =>
@@ -1378,7 +1486,10 @@ export function cardValue(db: CardDb, cardId: string, view?: PlayerView, mode: S
       ? [{ when: 'spell' as const, ops: d.retell.ops }] : d.abilities ?? [];
     for (const ab of abilities) {
       if (ab.when !== 'spell') continue;
-      v += (ab.ops ?? []).reduce((sum, op) => sum + opImpactValue(op), 0) *
+      // "If it survived" reads the cast's own targets when it has them (A1.6).
+      v += (ab.ops ?? []).reduce((sum, op, index) => sum + (op.op === 'ifTargetSurvives' && mode.targets
+        ? survivalGateImpact(op, expectsTargetSurvives(view, db, (ab.ops ?? []).slice(0, index), op, mode.targets, mode.x ?? 0))
+        : opImpactValue(op)), 0) *
         abilityConditionMultiplier(ab.condition, isQuestActive(view.battlefield, db, view.myId));
       // Damage to each of your own creatures: a cost, less every unspent
       // Provoked it sets off on a survivor (a friendly source, Part 4 item 2).
@@ -1459,6 +1570,9 @@ export function empowerValue(db: CardDb, cardId: string): number {
       case 'ifTargetMarked':
         return op.then.reduce((sum, nested) => sum + opValue(nested), 0) * 0.6 +
           (op.else ?? []).reduce((sum, nested) => sum + opValue(nested), 0) * 0.4;
+      case 'ifTargetSurvives':
+        return op.then.reduce((sum, nested) => sum + opValue(nested), 0) * IF_SURVIVES_CARD_WEIGHT +
+          (op.else ?? []).reduce((sum, nested) => sum + opValue(nested), 0) * (1 - IF_SURVIVES_CARD_WEIGHT);
       default:
         return 0;
     }
@@ -1718,7 +1832,7 @@ function activatedUsesSource(ops: readonly EffectOp[]): boolean {
     (op.op === 'awaken' && op.scope === 'self') ||
     (op.op === 'boost' && op.scope === 'self') ||
     (op.op === 'markAll' && op.other === true) ||
-    (op.op === 'ifTargetMarked' &&
+    (isTargetBranchOp(op) &&
       (activatedUsesSource(op.then) || activatedUsesSource(op.else ?? []))));
 }
 
