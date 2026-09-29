@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { Art } from '../art/ArtResolver';
-import { redrawWhenArtLands } from '../art/artWatch';
+import { holdArt } from '../art/artWatch';
 import type { CardDef, Keyword, Rarity } from '../engine/types';
 import { isType } from '../engine/types';
 import type { CardVariant } from '../meta/variants';
@@ -177,7 +177,10 @@ export class BoardCardView extends Phaser.GameObjects.Container {
   private sick = false;
   private zone: Phaser.GameObjects.Zone | null = null;
   private tappedState = false;
+  /** Ends the tile's hold on its art (`holdArt`): the lease, the arrival wait and the removal belt. */
   private cancelArtWait: (() => void) | null = null;
+  /** The better art texture this tile drew a stand-in (or the half texture) for, if any. */
+  private artPendingKey: string | null = null;
 
   constructor(scene: Phaser.Scene, x: number, y: number, card: CardDef) {
     super(scene, x, y);
@@ -408,7 +411,7 @@ export class BoardCardView extends Phaser.GameObjects.Container {
       this.keywordOverflow = this.scene.add
         .text(-TILE_W / 2 + TRAIT_INSET, y0 + 3 * (TRAIT_SIZE + TRAIT_GAP), `+${traits.length - 3}`, {
           fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.micro}px`,
+          fontSize: `${theme.typeBase.micro}px`,
           fontStyle: theme.weight.w700,
           color: theme.colors.gold,
           backgroundColor: theme.colors.rowFill,
@@ -480,9 +483,12 @@ export class BoardCardView extends Phaser.GameObjects.Container {
    * Cover-crop the card's 4:5 art into the tall window, biased slightly upward
    * so faces (composition-locked near vertical center) stay in frame. The
    * window is portrait-tall, so the crop keeps ~88% of the source height. If
-   * the file has not streamed in yet the resolver answers with the loading
-   * stand-in and the tile redraws its art when the file lands; tint, alpha
-   * and holo carry over untouched.
+   * the file has not streamed in yet the resolver answers with the best
+   * resident texture (the half file on desktop while art streams through the
+   * store) or the loading stand-in, and the tile redraws its art when the file
+   * lands; tint, alpha and holo carry over untouched. The tile holds what it
+   * draws (`holdArt`): a lease while art streams through the store, and a
+   * redraw in the same tick if the drawn texture is removed.
    */
   private applyArt(): void {
     const artRef = Art.resolver!.getArt(this.card.id);
@@ -505,12 +511,21 @@ export class BoardCardView extends Phaser.GameObjects.Container {
     this.art.setY(ART_CY + scale * (srcH / 2 - cropY - cropH / 2));
 
     this.cancelArtWait?.();
-    this.cancelArtWait = null;
-    if (artRef.pending === undefined) return;
-    this.cancelArtWait = redrawWhenArtLands(this, artRef.pending, () => {
+    this.artPendingKey = artRef.pending ?? null;
+    this.cancelArtWait = holdArt(this, artRef, () => {
       this.cancelArtWait = null;
+      this.artPendingKey = null;
       if (this.art.active) this.applyArt();
     });
+  }
+
+  /**
+   * The better art texture this tile is still waiting for, or null: what the
+   * art probe's stand-in count reads (`window.__art.standIns()`), as it does
+   * CardView's.
+   */
+  get awaitingArt(): string | null {
+    return this.artPendingKey;
   }
 
   /**

@@ -1,5 +1,4 @@
 import Phaser from 'phaser';
-import { Art } from '../art/ArtResolver';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { FEATURES } from '../config/features';
@@ -1546,9 +1545,7 @@ export class ShopScene extends Phaser.Scene {
     parent: Phaser.GameObjects.Container,
   ): Phaser.GameObjects.Image | null {
     try {
-      const ref = Art.resolver?.getArt(cardId);
-      if (!ref) return null;
-      const img = addPortraitArt(this, x, y, ref, (art) => {
+      const img = addPortraitArt(this, x, y, cardId, (art) => {
         const scale = Math.max(targetW / art.width, targetH / art.height) * 1.05;
         art.setScale(scale);
         const cropW = Math.min(art.width, targetW / scale);
@@ -1563,6 +1560,7 @@ export class ShopScene extends Phaser.Scene {
         art.x = x - (cropX + cropW / 2 - art.width / 2) * scale;
         art.y = y - (cropY + cropH / 2 - art.height / 2) * scale;
       });
+      if (!img) return null;
       parent.add(img);
       return img;
     } catch {

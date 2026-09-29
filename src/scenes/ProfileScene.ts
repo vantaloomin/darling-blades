@@ -63,7 +63,7 @@ import {
 } from '../ui/profilePresentation';
 import {
   canvasPngBytes,
-  composeSaveCardCanvas,
+  composeSaveCardCanvasAsync,
   downloadPngBytes,
   pickPngFile,
   saveCardArtStillLoading,
@@ -110,6 +110,8 @@ export class ProfileScene extends Phaser.Scene {
   private exportShell: ModalShell | null = null;
   private exportInput: MultilineInputHandle | null = null;
   private exportStatus: Phaser.GameObjects.Text | null = null;
+  /** A save-card export is under way (the art read can be async): further taps wait for it. */
+  private exportingSaveCard = false;
   private exportInteractiveTargets: Phaser.GameObjects.GameObject[] = [];
   private pickerShell: ModalShell | null = null;
   private pickerSearch: SearchInputHandle | null = null;
@@ -605,13 +607,24 @@ export class ProfileScene extends Phaser.Scene {
     renderGrid();
   }
 
-  /** Composite the cover, embed the code, and hand the PNG to the browser. */
+  /** One save-card export at a time: a second tap during one would download twice. */
   private async exportSaveCard(cardId: string, code: string): Promise<void> {
+    if (this.exportingSaveCard) return;
+    this.exportingSaveCard = true;
+    try {
+      await this.composeAndDownloadSaveCard(cardId, code);
+    } finally {
+      this.exportingSaveCard = false;
+    }
+  }
+
+  /** Composite the cover, embed the code, and hand the PNG to the browser. */
+  private async composeAndDownloadSaveCard(cardId: string, code: string): Promise<void> {
     const completion = collectionCompletion(ALL_CARDS, Services.save.data);
     const bestRung = Services.save.data.gauntlet.bestRung;
     const identity =
       `${formatRate(completion.percent)} collection` + (bestRung > 0 ? ` · Tower rung ${bestRung}` : '');
-    const canvas = composeSaveCardCanvas(this, cardId, {
+    const canvas = await composeSaveCardCanvasAsync(this, cardId, {
       identity,
       date: `Exported ${todayString()}`,
     });

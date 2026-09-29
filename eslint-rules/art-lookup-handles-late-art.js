@@ -8,6 +8,9 @@
  * the cards, and 1.9 (I9) found eight portraits that still did not.
  *
  * The rule: a method or named function that calls `getArt` must also do one of
+ * - hold what it draws with `holdArt` (a view that redraws itself when better
+ *   art lands or its texture is removed; 1.9 lane D), or `fitAndHoldArt`, the
+ *   portrait rule over it,
  * - draw through `addPortraitArt` (a single cover-fitted image),
  * - wait with `redrawWhenArtLands` or `whenTextureArrives` (a view that
  *   redraws itself, a baked thumbnail),
@@ -21,7 +24,7 @@
  * read.
  */
 
-const HANDLERS = new Set(['addPortraitArt', 'redrawWhenArtLands', 'whenTextureArrives']);
+const HANDLERS = new Set(['holdArt', 'fitAndHoldArt', 'addPortraitArt', 'redrawWhenArtLands', 'whenTextureArrives']);
 
 function propertyName(member) {
   if (member.type !== 'MemberExpression') return null;
@@ -71,8 +74,8 @@ export default {
     messages: {
       unhandled:
         'getArt() can answer with the loading stand-in while the art file streams in. ' +
-        'Draw through addPortraitArt (src/ui/portraitArt.ts), wait with redrawWhenArtLands or ' +
-        'whenTextureArrives (src/art/artWatch.ts), or check the answer\'s .pending here, ' +
+        'Hold what you draw with holdArt (src/art/artWatch.ts), draw through addPortraitArt ' +
+        '(src/ui/portraitArt.ts), wait with redrawWhenArtLands or whenTextureArrives, or check the answer\'s .pending here, ' +
         'or the stand-in stays on screen for the rest of the session.',
     },
   },

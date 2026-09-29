@@ -398,6 +398,8 @@ try {
   for (let i = 0; i < 60 && !faced; i++) {
     faced = await page(hasFace);
     if (!faced && i % 3 === 0) await clickText('Duel', '^Heads$');
+    // A won toss asks the player to choose: play first.
+    if (!faced) await clickText('Duel', '^Play First$');
     if (!faced) await sleep(500);
   }
   if (!faced) console.warn('warning: no card face appeared in the duel within 30 s');

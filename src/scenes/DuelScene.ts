@@ -81,7 +81,7 @@ import {
   setStickyHost,
 } from '../platform/gestures';
 import { darlingFaceCardFor, faceCardFor } from '../meta/deckFace';
-import { Art, landStyleArtKey } from '../art/ArtResolver';
+import { landStyleArtKey } from '../art/ArtResolver';
 import { BoardCardView, TILE_W, TILE_H, type BoardHighlight } from '../ui/BoardCardView';
 import { CardZoomPreview } from '../ui/CardZoomPreview';
 import { CardView, CARD_W, CARD_H } from '../ui/CardView';
@@ -8667,11 +8667,10 @@ export class DuelScene extends Phaser.Scene {
         .setStrokeStyle(state === 'failed' ? 3 : 1, border, state === 'unreached' ? 0.7 : 1),
     );
 
-    const art = Art.resolver?.getArt(avatar.portraitCardId);
-    if (art) {
-      const img = addPortraitArt(this, x, y - 6, art, (image) => {
-        image.setScale(Math.max((w - 12) / Math.max(1, image.width), (h - 26) / Math.max(1, image.height)));
-      });
+    const img = addPortraitArt(this, x, y - 6, avatar.portraitCardId, (image) => {
+      image.setScale(Math.max((w - 12) / Math.max(1, image.width), (h - 26) / Math.max(1, image.height)));
+    });
+    if (img) {
       img.setAlpha(state === 'unreached' ? 0.22 : state === 'cleared' ? 0.56 : 0.95);
       const maskShape = this.add.rectangle(x, y - 6, w - 12, h - 26, 0xffffff).setVisible(false);
       img.setMask(maskShape.createGeometryMask());

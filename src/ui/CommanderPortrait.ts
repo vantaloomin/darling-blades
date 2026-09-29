@@ -1,5 +1,4 @@
 import Phaser from 'phaser';
-import { Art } from '../art/ArtResolver';
 import { faceTargetSurfaceState } from './faceTargetPresentation';
 import { addPortraitArt } from './portraitArt';
 import { colorInt } from './theme';
@@ -165,9 +164,7 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
    */
   private buildArt(cardId: string, cx: number, cy: number, artW: number, artH: number): void {
     try {
-      const ref = Art.resolver?.getArt(cardId);
-      if (!ref) return;
-      const img = addPortraitArt(this.scene, cx, cy, ref, (art) => {
+      const img = addPortraitArt(this.scene, cx, cy, cardId, (art) => {
         const srcW = art.frame.width;
         const srcH = art.frame.height;
         const scale = Math.max(artW / srcW, artH / srcH) * 1.12;
@@ -177,6 +174,7 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
         const overflow = Math.max(0, (srcH * scale - artH) / 2);
         art.y = cy - Math.min(artH * 0.08, overflow);
       });
+      if (!img) return;
       if (this.geoMask) img.setMask(this.geoMask);
       this.art = img;
       this.artBaseX = cx;
