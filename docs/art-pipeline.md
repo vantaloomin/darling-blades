@@ -1,4 +1,4 @@
-<!-- source-of-truth: package.json, src/art/ArtResolver.ts, src/art/PlaceholderArtGenerator.ts, src/art/ArtAtlas.ts, src/art/SeededRandom.ts, src/art/TribeEmblems.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/fx/HoloEffects.ts, src/ui/fx/IridescencePostFX.ts, src/ui/fx/FXSupport.ts, scripts/gen-art-manifest.ts, scripts/convert-art-webp.ts, scripts/gen-art-halfres.ts, scripts/gen-card-art.ts, scripts/gen-land-art.ts, scripts/gen-spell-art.ts, scripts/gen-scene-art.ts, scripts/smartcrop.py, scripts/audit-art-window.py, scripts/recrop-art.ts, scripts/requirements.txt, src/data/art-manifest.json · last-verified: 2026-09-28
+<!-- source-of-truth: package.json, src/art/ArtResolver.ts, src/art/PlaceholderArtGenerator.ts, src/art/ArtAtlas.ts, src/art/SeededRandom.ts, src/art/TribeEmblems.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/fx/HoloEffects.ts, src/ui/fx/IridescencePostFX.ts, src/ui/fx/FXSupport.ts, scripts/gen-art-manifest.ts, scripts/convert-art-webp.ts, scripts/gen-art-halfres.ts, scripts/gen-card-art.ts, scripts/gen-land-art.ts, scripts/gen-spell-art.ts, scripts/gen-scene-art.ts, scripts/smartcrop.py, scripts/audit-art-window.py, scripts/art-contact-sheet.py, scripts/recrop-art.ts, scripts/requirements.txt, src/data/art-manifest.json · last-verified: 2026-09-28
      If you change those files, update this doc or re-verify the date. -->
 
 # Art pipeline
@@ -214,7 +214,10 @@ fires on some non-human subjects (measured 2026-09-17: a plush rabbit in Dark
 Tales, a row of slimes and a lizard in Starborne), so the list is a set of
 candidates for a human look. Never bulk-apply re-crops from it, and look at
 the generator's per-card detection source when a spell with no figure in its
-brief reports `head`.
+brief reports `head`. For that look, `python scripts/art-contact-sheet.py`
+draws 640x800 images (or shipped/staged pairs from a `--tiles` JSON list) on
+one PNG with the card window (y 138, 662) and the head-top line (y 179) on
+each: the check for anything the detectors cannot see (art bible section 4d).
 
 The batch review tool is `npm run recrop-art` (`scripts/recrop-art.ts`). It
 reads retained raws from `%TEMP%/gen-card-art`, `%TEMP%/gen-land-art`, and
@@ -224,7 +227,42 @@ a face/head/person/center detection breakdown. By default it processes
 character-mode raws only; use `--all` to include lands and spells. The `--apply`
 flag copies staged crops to `public/assets/art/cards/` and rebuilds half-res
 art plus the manifest, but human review should happen first. The staged PNG is
-encoded to WebP before it reaches the shipped directory.
+encoded to WebP before it reaches the shipped directory. `--apply-ids <file>`
+applies only the listed ids from an existing staging run (its `results.json`
+and staged PNGs), for a set chosen by review; `--apply` copies every row of
+the current run. Point `PYTHON` at the `.venv-art` interpreter (from a worktree,
+the main checkout's): the default `python` has no detector.
+
+**The 1.9 catalogue re-crop (2026-09-28, owner ruling P16).** Shipped art was
+re-cropped so its heads sit on the y 179 line like new art. Of 755 cached raws,
+13 had no shipped file (the First Dawn pilot) and 742 were staged and measured:
+each shipped WebP registered back into its raw, and the head top compared in
+both crops, in pixels of 800. **324 were re-cropped** (the head rises more than
+8 px, the threshold chosen from the measured gap: 11 cards moved 2 to 8 px, 35
+moved 8 to 16). The 418 held keep their crop:
+
+| Held | Reason |
+| ---: | --- |
+| 170 | no head or face detected (the centre crop, unchanged) |
+| 80 | the head moves 8 px or less |
+| 55 | a spell whose shipped crop is the plain centre crop, from before subject mode |
+| 37 | a head box with no face inside it (a mask, a turned head, a non-human) |
+| 23 | held by eye: a held prop above the head would leave the window |
+| 19 | the zoom would change from the shipped crop |
+| 14 | her figure (a raised arm, a weapon, a top-knot) reaches the rows that leave the window |
+| 7 | the head top would sit above the window |
+| 7 | a hand-tuned shipped crop |
+| 3 | another head would leave the window |
+| 2 | a person box only |
+| 1 | a zoom above 1.8x |
+
+The other 795 shipped card files have no cached raw and keep their crop. One
+side effect found on the way: since the smartcrop moved to the 216 window, the
+zoom fallback fires less for a head at the raw's top edge (its trigger is now
+57 px under the window's top), so a crown clip is accepted there; subject-mode
+spells whose 1.8 crop had zoomed would lose that zoom, which is why those 19
+are held. New First Dawn prompts keep every head at or below y 179 with sky
+above it, so new art should not reach that case.
 
 ### WebP conversion and regeneration contract
 
