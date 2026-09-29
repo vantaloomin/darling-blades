@@ -74,31 +74,6 @@ function satisfiesPermanentQualifiers(
   return true;
 }
 
-/**
- * The E6 target rule ("an opponent's creature if able, else another of
- * yours"): an opponent's creature passes; one of the caster's own passes only
- * when no creature an opponent controls is a legal target of the same spec
- * (Untouchable and every qualifier applied), and never the source itself.
- */
-function opponentIfAbleAllows(
-  state: GameState,
-  db: CardDb,
-  caster: PlayerId,
-  spec: TargetSpec,
-  ref: TargetRef,
-  sourceIid: number | undefined,
-): boolean {
-  if (ref.kind !== 'permanent') return false;
-  const perm = state.battlefield.find((p) => p.iid === ref.iid);
-  if (!perm) return false;
-  if (perm.controller !== caster) return true;
-  if (perm.iid === sourceIid) return false;
-  const plain: TargetSpec = { ...spec };
-  delete plain.opponentIfAble;
-  return !state.battlefield.some((other) => other.controller !== caster &&
-    isLegalTarget(state, db, caster, plain, { kind: 'permanent', iid: other.iid }, sourceIid));
-}
-
 export function isLegalTarget(
   state: GameState,
   db: CardDb,
@@ -163,7 +138,6 @@ export function isLegalTarget(
       break;
   }
   if (!legal) return false;
-  if (spec.opponentIfAble && !opponentIfAbleAllows(state, db, caster, spec, ref, sourceIid)) return false;
   if (spec.maxCost !== undefined || spec.minAttack !== undefined) {
     const card = ref.kind === 'permanent' ? state.battlefield.find(p => p.iid === ref.iid)?.cardId
       : ref.kind === 'stackItem' ? state.stack.find(p => p.sid === ref.sid)?.cardId

@@ -1,6 +1,7 @@
 import type { Emit } from './battlefield';
 import { enterBattlefield } from './battlefield';
 import {
+  arrivalHuntIndex,
   conditionSatisfied,
   fireGraveyardTriggers,
   fireTriggers,
@@ -18,9 +19,15 @@ export function isAura(d: CardDef): boolean {
   return d.subtypes.includes('Aura');
 }
 
-/** Cast-time target specs: auras and Hauntlink casts target a creature. */
+/**
+ * Cast-time target specs: auras and Hauntlink casts target a creature, and a
+ * creature with an arrival Hunt names its prey (the owner's ruling,
+ * 2026-09-28: it can't be cast unless it has prey).
+ */
 export function castTargetSpecs(d: CardDef): readonly TargetSpec[] {
   if (isAura(d)) return [{ what: 'creature' }];
+  const hunt = arrivalHuntIndex(d);
+  if (hunt >= 0) return d.abilities![hunt].targets!;
   return targetSpecsOf(d.abilities);
 }
 
@@ -97,7 +104,14 @@ export function resolveStackItem(
   // 2026-09-29; Magic's kicker behaves this way).
   const riderTargetsOnly = item.empowered === true && d.empower?.targets !== undefined &&
     item.hauntlinked !== true && !isAura(d) && isPermanentSpell(d, item);
-  if (specs.length > 0 && !riderTargetsOnly) {
+  // Nor does a creature on its arrival Hunt's prey (the same ruling): it
+  // arrives, and hunts only if the prey is still there and still legal. The
+  // hauntlinked and Retell-override guards cannot fire for a creature (a
+  // Hauntlink carrier is never one, validateHauntlinkDef); they only keep the
+  // condition honest about which casts use the body's targets.
+  const huntPreyCast = !riderTargetsOnly && item.hauntlinked !== true && !(item.retell && d.retell?.ops) &&
+    isPermanentSpell(d, item) && arrivalHuntIndex(d) >= 0;
+  if (specs.length > 0 && !riderTargetsOnly && !huntPreyCast) {
     const optionalTargets = specs.length === 1 && specs[0].upTo !== undefined;
     const batchTargets = optionalTargets || (specs.length === 1 && specs[0].exactly !== undefined);
     const anyLegal =
@@ -130,7 +144,7 @@ export function resolveStackItem(
         controller: perm.controller,
       });
     }
-    fireTriggers(state, db, emit, 'arrives', perm);
+    fireTriggers(state, db, emit, 'arrives', perm, huntPreyCast ? { castHuntTargets: item.targets } : {});
     runEmpowerRider(state, db, item, d, emit, perm.iid, specs);
     return;
   }

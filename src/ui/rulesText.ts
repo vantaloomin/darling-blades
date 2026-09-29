@@ -297,11 +297,17 @@ function opText(
     case 'awaken':
       return op.scope === 'self' ? 'Awaken this' : 'Awaken all creatures you control';
     case 'hunt':
+    {
       // Stubs (1.9 A1.1) for the ruled bare keyword (2026-09-28): the opener,
       // then "Hunt."; the spell form "Target creature you control Hunts."
-      // The prey rule lives in the glossary. A2.c owns the words.
-      if (op.hunter === 'target') return targetAlreadyNamed ? 'it Hunts' : 'target creature you control Hunts';
-      return 'Hunt';
+      // The default prey rule lives in the glossary. A card's own prey (an
+      // override) is named after it; those words are PROPOSED, not approved.
+      // A2.c owns all of them.
+      const prey = op.prey === 'any' ? ' any other creature'
+        : op.prey === 'yours' ? ' another creature you control' : '';
+      if (op.hunter === 'target') return `${targetAlreadyNamed ? 'it' : 'target creature you control'} Hunts${prey}`;
+      return `Hunt${prey}`;
+    }
     case 'raise': {
       // The graveyard is an ordered pile and `raise top` takes the
       // most-recently-buried creature, so the face must say WHICH card it

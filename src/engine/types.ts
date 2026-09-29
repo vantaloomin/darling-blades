@@ -93,15 +93,6 @@ export interface TargetSpec {
   marked?: true;
   /** Restricts legal targets to tapped permanents. */
   tapped?: true;
-  /**
-   * `creature` specs only: "a creature an opponent controls if able, else
-   * another creature you control". While any creature an opponent controls is
-   * a legal target (Untouchable and every other qualifier applied), only those
-   * are legal; only when none is are the caster's own creatures, never the
-   * source itself. The target rule of a mandatory source-bound Hunt trigger
-   * (the owner's E6 ruling, 2026-09-29).
-   */
-  opponentIfAble?: true;
 }
 
 /**
@@ -110,7 +101,8 @@ export interface TargetSpec {
  * source permanent hunts the bound target (an arrival or attack trigger, a
  * Duty, an Empower rider). `target`: target slot 0 hunts target slot 1 (a
  * spell). The op's own rules: the two are different creatures and the hunter
- * has no Bulwark; otherwise nothing is dealt.
+ * has no Bulwark; otherwise nothing is dealt. `prey` declares a card's own
+ * prey rule (HuntPrey); absent, it is the one default rule.
  */
 export type EffectOp =
   | { op: 'damage'; n: number | 'X'; to: 'target' | 'opponent' | 'controller'; targetIndex?: number }
@@ -158,7 +150,7 @@ export type EffectOp =
   | { op: 'awaken'; scope: 'self' | 'allYours' } // one-way champion upgrade; trigger-safe
   | { op: 'raise'; to?: 'target'; grantKeywords?: Keyword[]; targetIndex?: number }
   | { op: 'raise'; to: 'top'; withMarks?: number; grantKeywords?: Keyword[] }
-  | { op: 'hunt'; hunter: 'self' | 'target' }; // see the Hunt note above the union
+  | { op: 'hunt'; hunter: 'self' | 'target'; prey?: HuntPrey }; // see the Hunt note above the union
 
 export interface StaticDef {
   /** `questActive` reads the source controller's public battlefield. */
@@ -403,12 +395,34 @@ function flatOps(list: readonly EffectOp[]): EffectOp[] {
 }
 
 /**
- * Every Hunt's prey, in every carrier, is a creature an opponent controls if a
- * legal one exists, otherwise another creature you control (the owner's
- * bare-keyword ruling, 2026-09-28). Card data cannot express a free-choice
- * Hunt; the engine's spec stays general for tests.
+ * A Hunt's prey. The bare keyword's prey is a creature an opponent controls,
+ * legal-target rules applied, with no fallback (the owner's ruling,
+ * 2026-09-28): the `opponentCreature` spec. Card text overrides it only when
+ * the op declares one:
+ *   - `any`: any other creature, the controller's choice (`creature`);
+ *   - `yours`: another creature you control (`yourCreature`).
+ * A source-bound override's spec carries `other`, so the hunter is never
+ * offered as its own prey. The target spec carries the rule the engine
+ * enforces; `validateHuntDef` checks it matches the declaration, so an
+ * override is always deliberate.
  */
-const PREY_RULE = "A Hunt's prey spec must carry opponentIfAble (an opponent's creature if able, else another of yours)";
+export type HuntPrey = 'any' | 'yours';
+
+function preyRuleError(declared: HuntPrey | undefined, spec: TargetSpec | undefined, sourceBound: boolean): string | null {
+  const other = !sourceBound || spec?.other === true;
+  const ok = declared === undefined ? spec?.what === 'opponentCreature'
+    : declared === 'any' ? spec?.what === 'creature' && other
+    : spec?.what === 'yourCreature' && other;
+  if (ok) return null;
+  return declared === undefined
+    ? "A Hunt's prey is a creature an opponent controls (an opponentCreature spec), unless the op declares its prey"
+    : `A Hunt that declares prey '${declared}' needs the matching prey spec`;
+}
+
+/** Is this ability an arrival Hunt ("When this arrives, Hunt.")? One test for the engine and the validator. */
+export function isArrivalHunt(ability: AbilityDef): boolean {
+  return ability.when === 'arrives' && (ability.ops ?? []).some((op) => op.op === 'hunt' && op.hunter === 'self');
+}
 
 /**
  * Catalog-facing validation for the Hunt op's carriers. The spell form
@@ -416,8 +430,7 @@ const PREY_RULE = "A Hunt's prey spec must carry opponentIfAble (an opponent's c
  * creature specs, hunter first. The source-bound form (`hunter: 'self'`) is a
  * creature's triggered ability, Duty or Empower rider with one single-target
  * spec, never on a creature that prints Bulwark, and never a Provoked effect.
- * Every Hunt's prey spec carries `opponentIfAble`, which belongs on a
- * `creature` spec only.
+ * Every Hunt's prey spec matches its prey rule (HuntPrey).
  */
 export function validateHuntDef(d: CardDef): string[] {
   const errors: string[] = [];
@@ -430,7 +443,8 @@ export function validateHuntDef(d: CardDef): string[] {
           spec.what === 'spell' || spec.what === 'player' || spec.what === 'yourGraveCreature')) {
           errors.push('A spell-form Hunt needs exactly two single creature target specs (hunter, prey)');
         }
-        if (targets?.[1]?.opponentIfAble !== true) errors.push(PREY_RULE);
+        const preyError = preyRuleError(op.prey, targets?.[1], false);
+        if (preyError) errors.push(preyError);
       } else {
         if (!isType(d, 'creature')) errors.push('A source-bound Hunt belongs on a creature');
         if (where === 'spell') errors.push('A spell cannot hunt with itself');
@@ -438,7 +452,8 @@ export function validateHuntDef(d: CardDef): string[] {
         if (!targets || targets.length !== 1 || targets[0].upTo !== undefined || targets[0].exactly !== undefined) {
           errors.push('A source-bound Hunt needs one single-target spec');
         }
-        if (targets?.[0]?.opponentIfAble !== true) errors.push(PREY_RULE);
+        const preyError = preyRuleError(op.prey, targets?.[0], true);
+        if (preyError) errors.push(preyError);
       }
     }
   };
@@ -450,6 +465,11 @@ export function validateHuntDef(d: CardDef): string[] {
     activatedAbilitiesOf(d).some((activation) => huntInBranch(activation.ops)) || huntInBranch(d.empower?.ops)) {
     errors.push('A Hunt cannot sit inside an If-marked branch');
   }
+  // A creature's arrival Hunt names its prey as the cast target, so the card
+  // has one: never two arrival Hunts, never beside Empower targets.
+  const arrivalHunts = (d.abilities ?? []).filter(isArrivalHunt);
+  if (arrivalHunts.length > 1) errors.push('A creature has at most one arrival Hunt');
+  if (arrivalHunts.length > 0 && d.empower?.targets) errors.push('An arrival Hunt cannot share a card with Empower targets');
   // An empowered cast brings the Empower targets instead of the body's, so a
   // body Hunt would run on them.
   if (d.empower?.targets && (d.abilities ?? []).some((ability) => ability.when === 'spell' &&
@@ -465,14 +485,6 @@ export function validateHuntDef(d: CardDef): string[] {
   }
   for (const activation of activatedAbilitiesOf(d)) check(activation.ops, activation.targets, 'bound');
   if (d.empower) check(d.empower.ops, d.empower.targets, 'bound');
-  const specs = [
-    ...(d.abilities ?? []).flatMap((ability) => ability.targets ?? []),
-    ...activatedAbilitiesOf(d).flatMap((activation) => activation.targets ?? []),
-    ...(d.empower?.targets ?? []),
-  ];
-  if (specs.some((spec) => spec.opponentIfAble && spec.what !== 'creature')) {
-    errors.push('opponentIfAble belongs on a creature target spec only');
-  }
   return errors;
 }
 

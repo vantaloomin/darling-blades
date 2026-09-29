@@ -885,7 +885,7 @@ export class Game {
         if ((st.rulesRev ?? 1) >= 4 && anyPayableHauntlink(st, this.db)) {
           const newTrigger = pending.triggerWhen !== undefined || pending.continuations !== undefined ||
             pending.spec.maxCost !== undefined || pending.spec.minAttack !== undefined || pending.spec.what === 'opponentCreature' ||
-            pending.spec.opponentIfAble === true || usesHunt(pending.ops);
+            usesHunt(pending.ops);
           st.pendingDecisions.unshift({
             kind: 'resolveTrigger',
             controller: pending.player,

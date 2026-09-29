@@ -12,6 +12,7 @@ import {
 import { enumerateTargets, isLegalTarget } from './effects/targeting';
 import { graveInstanceAt, graveRefMoved, sameGraveCard } from './graveyard';
 import { canPay, combineManaCosts, manaSources, maxPayableX, solveMana } from './mana';
+import { arrivalHuntIndex } from './effects/EffectInterpreter';
 import { castTargetSpecs } from './resolve';
 import { getEffectiveStats } from './statics';
 import type { ActivatedDef, CardDb, CardDef, EffectOp, GameState, ManaCost, Permanent, PlayerId, TargetRef, TargetSpec } from './types';
@@ -1466,6 +1467,8 @@ export function reasonUncastable(
   if (hasCastableVariant(state, db, player, d)) return null;
   const specs = castTargetSpecs(d);
   if (specs.length > 0 && enumerateTargets(state, db, player, specs[0]).length === 0) {
+    // Stub, PROPOSED player copy pending the owner (A2.c may replace it).
+    if (arrivalHuntIndex(d) >= 0) return "It can't be cast: it has no prey to hunt.";
     return 'There are no legal targets for this spell.';
   }
 
