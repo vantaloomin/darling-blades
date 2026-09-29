@@ -3162,7 +3162,7 @@ export class DuelScene extends Phaser.Scene {
         // A token refused at the creature cap powered up its namesake (1.9
         // A1.7). Said aloud, or the missing token reads as a bug, the lesson
         // of the silent blocker cap (src/config/rules.ts).
-        const whose = e.player === HUMAN ? 'your' : 'enemy';
+        const whose = e.player === HUMAN ? 'your' : "the opponent's";
         this.log(
           `Board full: ${whose} ${this.cardRef(e.cardId)} gains an Overcharge in place of a new one (+1/+1, ${e.total} of ${RULES.overchargeLimit})`,
           e.cardId,

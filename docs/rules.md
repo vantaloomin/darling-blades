@@ -1093,7 +1093,8 @@ leaves the card in the graveyard. Preserve never makes a token at the cap: its
 action is refused at legality (`preserveBlockers`), like a creature spell.
 
 **Overcharge (1.9 A1.7; the owner's rulings, 2026-09-29).** A game rule, not a
-card keyword: it applies in every set and format. Player copy (PROPOSED):
+card keyword: it applies in every set and format. Player copy (approved by the
+owner, 2026-09-29):
 
 > If a token would be created while you control 8 creatures, it isn't.
 > Instead, a token you control with the same name gets an Overcharge: +1/+1,

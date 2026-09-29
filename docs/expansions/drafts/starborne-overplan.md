@@ -370,7 +370,7 @@ Every entry respects the printed-plus-Empower ceiling of 9.
 | ID | Name | Rarity | Color(s) | Type | Cost | Stats | Mechanics sketch | Identity / flavor hook | Cut priority |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | sb-bloomdrive-surge | Bloomdrive Surge | R | G | Ritual | {2}{G} | None | add a mark to up to two target creatures; Empower {2}{G}: Propagate | Feed the drive enough light and the whole garden answers. | core |
-| sb-overcharge-the-hull | Overcharge the Hull | C | R | Charm | {1}{R} | None | deal 3 damage to target creature; Empower {2}{R}: this deals 2 damage to your opponent | The reactor was never rated for her temper. | core |
+| sb-overcharge-the-hull | Vent the Reactor | C | R | Charm | {1}{R} | None | deal 3 damage to target creature; Empower {2}{R}: this deals 2 damage to your opponent | The reactor was never rated for her temper. | core |
 | sb-lumen-refit | Lumen Refit | R | W | Creature, Starship | {2}{W} | 3/3 | Bulwark; Empower {2}{W}: add a mark to this | Refit in the light of a dying sun, and better for it. | flex |
 | sb-tidewalk-analyst | Tidewalk Analyst | R | U | Creature, Alien Analyst | {3}{U} | 2/4 | Empower {3}{U}: move a Mark from a creature you control to another creature you control | She reads the tide as a filing problem. | flex |
 | sb-eclipse-tithe | Eclipse Tithe | R | B | Charm | {2}{B} | None | remove all marks from target creature; Empower {2}{B}: your opponent loses 2 life | Everything the light gave, the eclipse counts back. | core |

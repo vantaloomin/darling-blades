@@ -429,7 +429,7 @@ export const CUE_MIN_SCREEN_PX = {
   statGlyph: 11,
   /** Mark badge type size (its plus glyph matches it). */
   markBadge: 11,
-  /** Overcharge badge type size (1.9 A1.7; its cell glyph draws at 16). Built now, not in the Duel pass. */
+  /** Overcharge badge type size (1.9 A1.7; its cell glyph draws at 14). Built now, not in the Duel pass. */
   overchargeBadge: 11,
 } as const;
 

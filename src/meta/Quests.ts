@@ -99,8 +99,15 @@ function countLifeDelta(events: readonly GameEvent[], player: 0 | 1, sign: 'gain
   return total;
 }
 
+/**
+ * Tokens you make. A token refused at the creature cap that Overcharges its
+ * namesake instead counts too (owner, 2026-09-29): the card made its token,
+ * and the board cap should not stall the quest.
+ */
 function countTokens(events: readonly GameEvent[]): number {
-  return events.filter((e) => e.e === 'tokenCreated' && e.perm.controller === HUMAN).length;
+  return events.filter((e) =>
+    (e.e === 'tokenCreated' && e.perm.controller === HUMAN) ||
+    (e.e === 'overcharged' && e.player === HUMAN)).length;
 }
 
 function countDiscarded(events: readonly GameEvent[], player: 0 | 1): number {

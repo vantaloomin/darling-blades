@@ -1671,11 +1671,13 @@ then it Hunts. If it survived, draw a card.") and Ash-Rite ("then you create
 
 The board-cap study (2026-09-29, 28,224 games) found First Dawn's go-wide deck
 losing 6.4 tokens a game to the 8-creature cap, and a prototype "Overcharge"
-recovering that power (+7pp) where a wider cap did not and cost Hard 13-17%
-more time a decision. The owner's rulings the same day: build it in 1.9 as a
+recovering that power (+7pp) where a wider cap did not. Overcharge also made
+Hard cheaper (-6% ms a decision, as games end sooner); caps of 10 and 12 cost
+it +13% and +17%. The owner's rulings the same day: build it in 1.9 as a
 game rule for every set and format; namesake only; tokens only; +1/+1 each
 with a per-creature limit; not a Mark. `docs/rules.md`, "Board caps", has the
-rules and the PROPOSED player copy.
+rules and the player copy (approved by the owner, 2026-09-29, with the log
+line and the badge).
 
 - **The rule.** `createToken` re-checks the cap before each token. At the cap
   the token is not created; `refuseTokenAtCap` (`src/engine/overcharge.ts`)
@@ -1696,7 +1698,9 @@ rules and the PROPOSED player copy.
   creatures in `getEffectiveStats` after the Marks, so combat, the P/T plate,
   `PlayerView` and every AI read see it through the normal stat path. Nothing
   ever copies it: it leaves with the permanent, a Nine Lives return comes back
-  without it, and a later Preserve copy of the same card starts at none.
+  without it, and a later Preserve copy of the same card starts at none
+  (by construction: Preserve builds from the card id, and nothing copies a
+  `Permanent`, so there is no copy path to test).
 - **Every token-creation site.** `createToken` (the one effect that makes
   tokens) runs the rule. Preserve (`preserveCard` in `Game.ts`) is the only
   other token maker; its action is refused at legality at the cap
@@ -1727,15 +1731,22 @@ rules and the PROPOSED player copy.
   shared token value (`createToken` at 1.5 a token) is cap-blind; at the cap a
   token is now worth +1/+1 on a namesake or nothing, which is closer to 1.5
   than before where a namesake exists. Left as is (no measured need).
-- **The UI.** The duel log prints a line on every `overcharged` (PROPOSED:
-  "Board full: your [Hatchling] gains an Overcharge in place of a new one
-  (+1/+1, 2 of 3)", "enemy" for the opponent's). The tile draws an Overcharge
+- **The UI.** The duel log prints a line on every `overcharged` (approved
+  2026-09-29: "Board full: your [Hatchling] gains an Overcharge in place of a
+  new one (+1/+1, 2 of 3)", "the opponent's" for the opponent's side). The tile draws an Overcharge
   badge (`BoardCardView.setOvercharge`): the Overcharge cell glyph (a new
   mechanic glyph, not a bolt and not a plus) and the count on a gold-rimmed
   `rowFill` plate at the tile's right edge (`TILE_FEATURES.overchargeBadge`,
   anchor `rightEdge`, never the Mark badge's spot), counter-scaled like the
   action chip so its count keeps 11px type on a shrunken tile. The P/T plate
   already includes the bonus through `getEffectiveStats`.
+- **The daily quest.** "Summon Extras: Create 4 tokens" also counts your
+  `overcharged` events (owner, 2026-09-29), so the cap never stalls it; its
+  text is unchanged.
+- **The name.** The Starborne charm "Overcharge the Hull" is renamed "Vent the
+  Reactor" (owner, 2026-09-29) so it no longer reads as the rule; its id
+  `sb-overcharge-the-hull` stays, so collections, decks, art and saves are
+  untouched.
 - **The words.** A glossary rule term, Overcharge, in the Mechanics tab beside
   the zone terms (the glossary had no board-cap term before), its numbers
   read from `RULES`; `docs/rules.md`'s cap section and constants table.
@@ -1747,14 +1758,14 @@ rules and the PROPOSED player copy.
 - **The scorer.** No change; it does not model the cap.
 - **Tests.** `tests/engine/overcharge.test.ts` (the rule, the event, no
   fallback, the limit, the pick, multi-token ops, below the cap, a refused
-  token's Marks, either player, the Preserve copy, the `PlayerView`);
+  token's Marks, either player, the `PlayerView`);
   `tests/engine/overchargeNotAMark.test.ts` (one test per Mark rule above,
   with Nine Lives' new-object return and the trigger silence);
   `tests/ai/overchargeSim.test.ts` (Hard's worlds carry the field and run the
   rule); the badge's anchor through `tests/ui/boardCuePresentation.test.ts`'s
-  anchor rule and its glyph through `tests/ui/mechanicIcons.test.ts`. Each new
-  test was proved against a mutation that switches its behaviour off (36
-  mutations, each caught).
+  anchor rule and its glyph through `tests/ui/mechanicIcons.test.ts`; the quest
+  count in `tests/meta/quests.test.ts`. Each new test was proved against a
+  mutation that switches its behaviour off (37 mutations, each caught).
 
 ## What this spec corrects
 

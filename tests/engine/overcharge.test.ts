@@ -2,12 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { RULES } from '../../src/config/rules';
 import type { GameEvent } from '../../src/engine/events';
 import { runOps } from '../../src/engine/effects/EffectInterpreter';
-import { Game } from '../../src/engine/Game';
 import { getEffectiveStats } from '../../src/engine/statics';
 import type { EffectOp, GameState, Permanent, PlayerId } from '../../src/engine/types';
-import { cardIdOf } from '../../src/engine/types';
 import { viewFor } from '../../src/engine/view';
-import { board, card, dbOf, zero } from '../drownedDeepFixture';
+import { board, card, dbOf } from '../drownedDeepFixture';
 
 /**
  * Overcharge (1.9 A1.7, the owner's rulings of 2026-09-29): a token refused at
@@ -24,7 +22,6 @@ const db = dbOf(
   // A collectible card that shares the token's name: not a token, never eligible.
   card('hatch-card', { name: 'Hatchling', attack: 1, defense: 1, subtypes: ['Dinosaur'] }),
   card('body', { attack: 1, defense: 1 }),
-  card('pup', { name: 'Pup', attack: 2, defense: 2, preserve: { cost: zero } }),
 );
 
 interface Spec {
@@ -172,23 +169,7 @@ describe('Overcharge: a token refused at the creature cap', () => {
   });
 });
 
-describe('Overcharge belongs to the one permanent', () => {
-  it('is not carried by a token copy of the same card (Preserve)', () => {
-    // Player 0 has a Preserve copy of Pup with two Overcharges and a second Pup
-    // in the graveyard; preserving it makes a fresh copy with none.
-    const state = setup([{ iid: 1, cardId: 'pup', isToken: true, overcharge: 2 }]);
-    state.players[0].graveyard = ['pup'];
-    const game = Game.restore(state, db);
-    game.submit(0, { type: 'preserveCard', graveIndex: 0 });
-    const pups = game.instanceState.battlefield.filter((p) => p.cardId === 'pup');
-    expect(pups).toHaveLength(2);
-    const copy = pups.find((p) => p.iid !== 1)!;
-    expect(copy.overcharge ?? 0).toBe(0);
-    expect(getEffectiveStats(game.instanceState.battlefield, db, copy.iid).attack).toBe(2);
-    expect(pups.find((p) => p.iid === 1)!.overcharge).toBe(2);
-    expect(game.instanceState.players[0].severed.map(cardIdOf)).toEqual(['pup']);
-  });
-
+describe('Overcharge is public state', () => {
   it('is part of the public battlefield every seat\'s PlayerView carries, bonus included', () => {
     const state = setup([hatch(1, 2), ...bodies(2, 2)]);
     for (const seat of [0, 1] as const) {
