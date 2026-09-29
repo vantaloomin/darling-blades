@@ -10,7 +10,7 @@ import {
   usesLandReserve,
 } from '../config/rules';
 import type { Action } from './actions';
-import { castCost, darlingCastCost, legalActions, validateAction } from './actions';
+import { castCost, darlingCastCost, legalActions, manaActivationsOf, repeatedManaCost, validateAction } from './actions';
 import { hasCastableCharm, hasCastableInstant, hasPayableHauntlinkAction } from './actions';
 import { anyPayableHauntlink } from './hauntlinkWindow';
 import { resolveCombatDamage } from './combat/damage';
@@ -1015,6 +1015,31 @@ export class Game {
         // trigger and the rest of the Duty behind it) is raised by the drain
         // in submit(), the queue a resolving spell uses.
         checkStateBased(st, this.db, emit);
+        return;
+      }
+
+      case 'activateMana': {
+        // Charm speed and off the stack, like a Hauntlink link: the cost is
+        // paid for every activation at once, the ops run that many times, and
+        // the same player keeps the decision (a window stays open for them
+        // until they pass; no response window opens over the pump itself).
+        const perm = findPermanent(st, action.iid)!;
+        const ability = manaActivationsOf(def(this.db, perm.cardId))[action.abilityIndex];
+        const plan = action.manaPlan ?? solveMana(st, this.db, player, repeatedManaCost(ability.cost, action.times))!;
+        for (const iid of plan) findPermanent(st, iid)!.tapped = true;
+        if (plan.length > 0) emit({ e: 'manaTapped', player, iids: plan });
+        emit({ e: 'manaActivated', player, iid: perm.iid, cardId: perm.cardId, abilityIndex: action.abilityIndex, times: action.times });
+        for (let i = 0; i < action.times && st.winner === null; i++) {
+          runOps(st, this.db, emit, { controller: player, sourceCardId: perm.cardId, sourceIid: perm.iid, targets: [] }, ability.ops);
+        }
+        checkStateBased(st, this.db, emit);
+        // Used "as a Charm" (the owner's ruling): the attacker's pump in a
+        // combat window earns the defender one reply once the attacker passes,
+        // as a resolved Charm does (the revision-2 reopen, capped per step).
+        // Reopens are only ever offered to the defender, so the defender's own
+        // pump earns nothing, and each pump costs mana, so this cannot loop.
+        if (st.step === 'combat' && st.awaiting.kind === 'respond' && player === st.activePlayer &&
+          (st.rulesRev ?? 1) >= 2 && st.episode) st.episode.resolvedSinceOffer++;
         return;
       }
 

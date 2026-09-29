@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-1.9.md, docs/expansions/drafts/first-dawn-brief.md, docs/expansions/drafts/first-dawn-overplan.md, docs/rules.md, src/engine/types.ts, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/sba.ts, src/engine/combat/damage.ts, src/engine/Game.ts, src/engine/actions.ts, src/engine/resolve.ts, src/ai/value.ts, src/ai/targeting.ts, src/ai/activatedPolicy.ts, src/ai/combatPlans.ts, src/power/scoreCore.ts, src/data/glossary.ts, src/ui/rulesText.ts, scripts/action-log.ts, scripts/avatarReserveDecks.ts, scripts/mechanicUsage.ts · last-verified: 2026-09-29 · engine spec, RULED at the owner's second 1.9 sitting 2026-09-28 (lane A, and lane B step 3, the concretion audit); re-verify when the overplan's cut changes or when A1 lands -->
+<!-- source-of-truth: docs/plan-1.9.md, docs/expansions/drafts/first-dawn-brief.md, docs/expansions/drafts/first-dawn-overplan.md, docs/rules.md, src/engine/types.ts, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/sba.ts, src/engine/combat/damage.ts, src/engine/Game.ts, src/engine/actions.ts, src/engine/resolve.ts, src/ai/value.ts, src/ai/targeting.ts, src/ai/activatedPolicy.ts, src/ai/combatPlans.ts, src/ai/pumpPolicy.ts, src/power/scoreCore.ts, src/data/glossary.ts, src/ui/rulesText.ts, scripts/action-log.ts, scripts/avatarReserveDecks.ts, scripts/mechanicUsage.ts · last-verified: 2026-09-29 · engine spec, RULED at the owner's second 1.9 sitting 2026-09-28 (lane A, and lane B step 3, the concretion audit); re-verify when the overplan's cut changes or when A1 lands -->
 
 # First Dawn engine spec: Provoked, Hunt, and what the cards need (1.9 lane A)
 
@@ -1155,6 +1155,131 @@ and wrote the rules into `docs/rules.md` and `docs/keyword-map.md`.
 - **Not enforced:** "no Provoked effect damages its controller's own
   creatures" (P3's damage half) is a design rule with no validator or
   catalog test; `validateHuntDef` covers only its "never Hunts" half.
+
+## As built (A1.5): the repeatable mana pump
+
+The owner's ruling (2026-09-29): a new red Ultra Rare for First Dawn, the
+set's Shivan Dragon and its only red Skyborne card (working text: "Vyra,
+Ember-Sky Rider", {4}{R}{R}, 5/5, Legendary Creature: Human Rider, Skyborne,
+"{R}: This gets +1/+0 until Sunset."). Its ability is a new construct: a
+non-tap, mana-only activated ability, used any number of times at Charm speed,
+including after blockers are declared. The Duel UI shows a small +/- ticker so
+the player picks a count and commits once, so the engine action carries the
+count. `docs/rules.md`, "Repeatable mana abilities", has the rules.
+
+- **The shape.** `CardDef.manaActivated?: ManaActivatedDef[]`, each
+  `{ cost: ManaCost; ops: EffectOp[] }`, beside and apart from `ActivatedDef`
+  (a Duty taps; that type is unchanged) and `manaAbility` (what a permanent
+  taps for). `validateManaActivatedDef` keeps it narrow (B10): creatures only;
+  a mana cost of at least one and nothing else (a tap cost is refused, and a
+  free cost would let it run without end); no `targets`; every op a `boost`
+  with `scope: 'self'` and no keywords (+N/+M only, Fable's review). The engine offers an ability only while its card
+  passes (`manaActivationsOf`, cached per card), and the catalog test runs
+  the validator over every card.
+- **The action.** `{ type: 'activateMana'; iid; abilityIndex; times;
+  manaPlan? }`. Offered in its controller's own main phase and in every
+  response window they hold (`respond`, `endStepWindow`; not the
+  Hauntlink-only window), while the creature is on the battlefield under their
+  control and one activation is payable. Legal actions list one entry per
+  ability carrying the most the player can pay (`maxManaActivations`); the
+  validator accepts any whole count from 1 to that. The payment is one
+  `solveMana` over the cost times the count (`repeatedManaCost`), or the
+  action's `manaPlan` for the whole count. The count's probes are bounded by
+  the untapped sources over the cost's mana value, and `solveMana` now checks
+  Hall's condition over the pip colours before its backtracking search, so a
+  payment that cannot be made is refused by counting (Fable's review measured
+  the old search at 11 s a call with eleven red sources and a forest, and
+  about two minutes with twelve; the test pins twelve). It resolves at once, off the stack,
+  like a Hauntlink link: the cost is tapped (`manaTapped`), one
+  `manaActivated` event carries the count, the ops run `times` times, and a
+  state-based check follows. No window opens over the pump itself; the same
+  player keeps the decision, so a response window stays open for them until
+  they pass it.
+- **The defender's reply** (Fable's review, under the owner's "as a Charm"
+  ruling). The attacker's pump in a combat response window counts toward the
+  revision-2 reopen (`resolvedSinceOffer`), so once the attacker passes, the
+  defender is offered one reopened window over the blocks if they hold a
+  castable Charm or a payable pump in the fight, within
+  `maxWindowReopensPerStep`. Reopens only go to the defender, so the
+  defender's own pump earns nothing and passing the reply goes to damage;
+  each pump costs mana, so it cannot loop. Without it the attacker's pump was
+  unanswerable, and a defender could only pump blind before blocks. The
+  attacker gets no answer to the defender's reply pump; the owner agreed
+  (2026-09-29), to keep the exchange from chaining.
+- **The auto-pass rule** (`hasCombatManaActivation`, read by
+  `hasCastableInstant` and `hasCastableCharm`). A payable pump keeps a window
+  open for its controller only during combat and only on a creature still in
+  the fight: an attacker, a blocker, or, while the attackers are declared and
+  unblocked, a creature of the defender's that can block one of them. That
+  opens the attacker's window over the blocks and the defender's window over
+  the attackers (and a window over a spell cast in combat) when either side
+  could pump. A spell cast in a main phase, Sunset and every other window
+  auto-pass as before.
+- **The AI** (`src/ai/pumpPolicy.ts`; every read returns nothing unless an
+  `activateMana` is legal, so no current game changes). Hard, in a combat
+  response window: first lethal (the fewest pumps that make this combat's
+  damage kill, spending any mana); then a fight's trade (the fewest pumps
+  giving a blocked attacker's or a blocker's fight its best creature trade,
+  priced with `permValue`; this is also the defender's read in its reply
+  window after the attacker's pump, where it pumps a blocker to kill the
+  attacker or to survive it); then, as the defender before blocks, the fewest
+  pumps after which a creature kills an attacker it can block alone, when
+  that lone block's trade favours Hard (the block search then sees the bigger
+  blocker); then the race (the fewest pumps of an unblocked attacker that
+  take a turn off Hard's clock on the opponent). All but lethal spend only
+  spare mana: what is left while the dearest card Hard could cast next stays
+  payable (on its own turn any card, for main two; on the opponent's turn a
+  Charm), and the pump then carries a `manaPlan` that keeps it. Otherwise Hard
+  passes, and Medium's rule never decides for it (`withoutPumps`). Medium and
+  Easy share one rule in their own window over the blocks: an unblocked
+  attacker pumps with all the mana there is; a blocked one pumps the fewest
+  times that kill every blocker, when fewer do not. Easy's random pass does
+  not apply to it (a mechanic policy call, as its Hauntlink window is), and
+  its main-phase noise never picks a pump. `NoisyAI` never picks a pump as
+  noise either (its legal entry carries the full count); the brain it wraps
+  still uses its own pump rule.
+  - **Known mistakes.** Hard reads one pump at a time; its clock ignores the
+    opponent's blockers next turn; its pre-block defence assumes a lone
+    block, which the block search may still decline. The simple rule spends
+    mana a main-two cast wanted and ignores whether the attacker survives.
+    No brain pumps in a main phase or at Sunset. Medium and Easy do nothing
+    on defence. Hard's rollouts (`simulateOutcome`, `lookahead`) play its
+    own side with Medium, so a simulated Hard pumps by Medium's rule (all
+    mana into an unblocked attacker); left as is and recorded here, since the
+    real decision is always Hard's own read and the rollouts only rank other
+    candidates (Fable's review, SHOULD-FIX 4: documented, not rerouted).
+  - `docs/ai.md` should gain a short "Mana pump" entry saying the above (not
+    edited here).
+- **Rules text.** `manaActivatedText` in `src/ui/rulesText.ts`: the Duty
+  line's template with the mana cost alone in front and no tap symbol, "{R}:
+  This gets +1/+0 until Sunset.", printed right after the Duty line (above the
+  keyword line). No glossary entry: it is not a keyword.
+- **The scorer.** `scoreCard` reports `manaActivated (NEEDS MATH: repeatable
+  mana pump, unpriced until the A1.4 lab)` as unknown, with a part worth 0.
+- **Records.** The new action and event round-trip through the replay log
+  (tested); v16 is unreleased, so no version bump. `docs/architecture.md`'s
+  generated event table has the `manaActivated` row.
+- **Also in this change (Fable's review, 2026-09-29).** `validateHuntDef`
+  refuses a Hunt in a Retell body ("A Retell body never hunts"): no carrier
+  check covered it. No First Dawn row has one.
+- **Hand-offs.**
+  - **A2.a (Duel UI):** the +/- ticker. The legal action's `times` is the
+    ticker's maximum; the submitted action carries the chosen count (and a
+    `manaPlan` for the whole count, if the UI plans mana). The `manaActivated`
+    event needs a log line and an animation (DuelScene ignores it today), and
+    the human now gets a combat response window whenever they could pump.
+  - **A1.4 (the lab):** the rate, from an arm on the working card; the
+    scorer's NEEDS MATH term is where it goes.
+  - **Lane B (transcription):** the card row, with the name and text the
+    owner approves.
+  - **Not updated:** `scripts/mechanicUsage.ts` (its switch has a default,
+    so `activateMana` is not yet counted as a Charm-speed play: lane E) and
+    the Forge (`src/forge/validate.ts` rejects a `manaActivated` key as unknown,
+    so the Forge cannot build the shape).
+- **Tests.** `tests/engine/manaActivated.test.ts` (the engine, the timing and
+  auto-pass rule, the validator, the text, the scorer, replay) and
+  `tests/ai/pumpPolicy.test.ts` (each brain's rule), each shown to fail with
+  its behaviour switched off.
 
 ## What this spec corrects
 

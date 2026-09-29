@@ -1716,6 +1716,18 @@ export function scoreCard(card: ScorableCardDef): Score {
     });
   }
 
+  if (card.manaActivated?.length) {
+    // Repeatable mana pump (1.9, A1.5; First Dawn's Shivan Dragon analog,
+    // "{R}: This gets +1/+0 until Sunset."). NEEDS MATH: a Charm-speed ability
+    // used any number of times is worth what the controller's spare mana buys
+    // in the fights it changes, which no static rate captures. The A1.4 lab
+    // prices it from an arm; until then it is reported as unknown at 0, never
+    // a made-up rate.
+    mechanics.push('manaActivated');
+    unknowns.add('manaActivated (NEEDS MATH: repeatable mana pump, unpriced until the A1.4 lab)');
+    parts.push({ label: 'repeatable mana pump (NEEDS MATH)', v: 0 });
+  }
+
   if (card.whispers) {
     // Whispers (≈ Madness, era Torment 2002 / Time Spiral 2006-07, n=22) —
     // §4r. The era rule from twelve clean comparables: bodies, cantrips and

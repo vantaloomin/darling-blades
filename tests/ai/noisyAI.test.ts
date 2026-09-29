@@ -93,6 +93,14 @@ describe('NoisyAI', () => {
     expect(inner.calls).toBe(200);
   });
 
+  it('never picks a mana pump as noise, though the inner brain may use it', () => {
+    const pump: Action = { type: 'activateMana', iid: 1, abilityIndex: 0, times: 5 };
+    const noisy = new NoisyAI(new FixedAI({ type: 'passStep' }), 90210, 1);
+    const legal: Action[] = [{ type: 'passStep' }, pump, { type: 'concede' }];
+    for (let i = 0; i < 200; i++) expect(noisy.chooseAction(UNUSED_VIEW, legal)).toEqual({ type: 'passStep' });
+    expect(new NoisyAI(new FixedAI(pump), 7, 0).chooseAction(UNUSED_VIEW, legal)).toEqual(pump);
+  });
+
   it('keeps the inner choice when concede is the only legal action', () => {
     const inner = new FixedAI({ type: 'concede' });
     const ai = new NoisyAI(inner, 7, 1);

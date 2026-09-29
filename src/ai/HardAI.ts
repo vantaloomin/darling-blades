@@ -14,6 +14,7 @@ import { MediumAI } from './MediumAI';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { choosePlayDraw } from './playDraw';
 import { preserveActionValue } from './preservePolicy';
+import { chooseHardPump, withoutPumps } from './pumpPolicy';
 import { applyRitePolicy, isRiteCast, riteSacrificeValue } from './ritePolicy';
 import { applyTithePolicy, isTitheCast, titheManaSaved } from './tithePolicy';
 import { applyWhispersPolicy } from './whispersPolicy';
@@ -767,6 +768,10 @@ export class HardAI implements AIPlayer {
    * clearly better position (terminal discoveries included for free — a win
    * or a dodged loss clears any margin). */
   private searchResponse(view: PlayerView, legal: Action[]): Action {
+    // The mana pump is Hard's own read; Medium's simpler rule never decides it.
+    const pump = chooseHardPump(view, this.db, legal);
+    if (pump) return pump;
+    legal = withoutPumps(legal);
     const mediumChoice = this.medium.chooseAction(view, legal);
     // Graveyard casts come after hand variants in the engine menu. Keep live
     // Whispers Charms reachable even when ten hand variants fill the cap.

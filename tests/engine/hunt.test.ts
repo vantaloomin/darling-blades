@@ -7,7 +7,7 @@ import { enumerateTargets } from '../../src/engine/effects/targeting';
 import { fireTriggers, runOps } from '../../src/engine/effects/EffectInterpreter';
 import { resolveStackItem } from '../../src/engine/resolve';
 import { checkStateBased } from '../../src/engine/sba';
-import type { AbilityDef, CardDb, CardDef, GameState, HuntPrey, Keyword, Permanent, TargetRef, TargetSpec } from '../../src/engine/types';
+import type { AbilityDef, CardDb, CardDef, EffectOp, GameState, HuntPrey, Keyword, Permanent, TargetRef, TargetSpec } from '../../src/engine/types';
 import { validateEmpowerDef, validateHuntDef } from '../../src/engine/types';
 import { board, card, dbOf, ref, spell } from '../drownedDeepFixture';
 
@@ -358,6 +358,13 @@ describe('Hunt: whose prey (the default, ruled 2026-09-28)', () => {
   it('refuses a spell-form Hunt on a card whose Empower brings its own targets', () => {
     const empowered: CardDef = { ...stalk, empower: { cost: { generic: 1, pips: {} }, targets: [{ what: 'creature' }], ops: [{ op: 'draw', n: 1 }] } };
     expect(validateHuntDef(empowered).length).toBeGreaterThan(0);
+  });
+
+  it('refuses a Hunt in a Retell body, which no other carrier check covers', () => {
+    const retold = (ops: EffectOp[]): CardDef => ({ ...spell('retold', [{ op: 'draw', n: 1 }]),
+      retell: { cost: { generic: 3, pips: {} }, targets: HUNT_SPELL_TARGETS, ops } });
+    expect(validateHuntDef(retold([{ op: 'hunt', hunter: 'target' }]))).toContain('A Retell body never hunts');
+    expect(validateHuntDef(retold([{ op: 'damage', n: 2, to: 'target' }]))).toEqual([]);
   });
 });
 

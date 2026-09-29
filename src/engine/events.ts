@@ -84,6 +84,8 @@ export type GameEvent =
     }
   | { e: 'preserved'; player: PlayerId; cardId: string }
   | { e: 'activated'; player: PlayerId; iid: number; cardId: string; abilityIndex?: number }
+  /** A repeatable mana ability used several times as one action (A1.5), and the events of its ops follow. */
+  | { e: 'manaActivated'; player: PlayerId; iid: number; cardId: string; abilityIndex: number; times: number }
   | {
       // Foresee resolution summary. Redaction mechanism (deliberate): per the
       // contract above, the event carries FULL identities and the presenter

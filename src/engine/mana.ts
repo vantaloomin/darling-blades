@@ -172,6 +172,19 @@ function assignPips(pips: Color[], sources: ManaSource[]): number[] | null {
   }
   if (ok) return greedy;
 
+  // Hall's condition before the search: every set of pip colours needs at
+  // least as many sources able to make one of them as it has pips. Without it
+  // an impossible payment with many pips (a repeatable ability's count, A1.5)
+  // walked every ordering of the producers, factorial in their number. At most
+  // 31 colour sets; it refuses only what the search below would refuse.
+  const colors = [...new Set(pips)];
+  for (let mask = 1; mask < 1 << colors.length; mask++) {
+    const set = colors.filter((_, i) => mask & (1 << i));
+    const need = pips.filter((pip) => set.includes(pip)).length;
+    const have = sources.filter((s) => s.colors.some((c) => c !== 'C' && set.includes(c))).length;
+    if (have < need) return null;
+  }
+
   // Backtracking fallback — exhaustive but tiny (≤ ~15 sources, ≤ ~5 pips).
   const result: number[] = [];
   const used = new Set<number>();
