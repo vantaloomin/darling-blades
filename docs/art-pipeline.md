@@ -229,7 +229,7 @@ each head top sat on y 179, showing that much more of the lower story (Ashka's
 and Ice-Cave Diver's raws have no sky for it, and their crops stay at the
 ceiling, heads at y 168 to 171, as before). Proof that
 nothing else moved: `--show-prompt` and `--dry-run` for all 17 other factions
-(937 prompts) are byte-identical before and after, and `--dry-run` names the
+(931 prompts) are byte-identical before and after, and `--dry-run` names the
 figure preamble and crop on each of First Dawn's 109 woman entries (its 13
 beast-alone entries are unchanged). `--recrop` batches carry no faction and
 keep the default crop.

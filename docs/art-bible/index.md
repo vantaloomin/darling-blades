@@ -227,6 +227,11 @@ the bleed; a head never touches the band edge.
   named as "the brightest thing at the exact centre". Pinning the face high and
   the object at the centre in one prompt produces a close portrait with the object
   below the band (Net Full of Stars, The Marsh Remembers, What Was Promised).
+- **First Dawn uses the figure preamble.** Its woman entries are generated with
+  `gen-card-art.ts`'s `FIGURE_PREAMBLE` and figure crop, not the waist-up
+  portrait preamble: head top a third of the way down the raw, head to knees
+  in frame, the story beside her, the head top placed on y 179
+  (docs/art-pipeline.md).
 - **Check before review.** `scripts/audit-art-window.py` flags HEAD CLIPPED rows
   (a head top above the band plus margin); treat each as a candidate for a human
   look. A re-crop can only add headroom when the default crop starts below the
