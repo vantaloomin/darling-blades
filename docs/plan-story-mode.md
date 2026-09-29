@@ -18,7 +18,7 @@ Voice is **not** a non-goal. It is TBD (R7) and listed under open decisions.
 
 ## Owner rulings, 2026-09-29
 
-All eight were given in the Story Mode planning conversation on 2026-09-29 and are quoted verbatim. The owner framed Story Mode as 2.0's "major marquee feature", the patch "where we will start advertising the game and get it on itchio, advertises on reddit". The options the owner raised were a "Story Lite" roguelite ("a fancy Draft Mode, where you get to keep a certain number of cards", "re-using things like the Avatar Gauntlet as levels") and a "true Story Mode" visual novel with "ElevenLabs or other TTS".
+All ten were given in the Story Mode planning conversation on 2026-09-29 and are quoted verbatim; R9 and R10 came later that day and closed two open decisions. The owner framed Story Mode as 2.0's "major marquee feature", the patch "where we will start advertising the game and get it on itchio, advertises on reddit". The options the owner raised were a "Story Lite" roguelite ("a fancy Draft Mode, where you get to keep a certain number of cards", "re-using things like the Avatar Gauntlet as levels") and a "true Story Mode" visual novel with "ElevenLabs or other TTS".
 
 - **R1. Direction.** Question: the roguelite, the visual novel, or the planning session's recommended roguelite with a story spine?
   > "Rogue-lite with a story spine makes sense to me."
@@ -46,7 +46,7 @@ All eight were given in the Story Mode planning conversation on 2026-09-29 and a
   - (a) Question: what counts as a run for R4's "3 runs"? The planning session proposed "count a run only when it ends in a win or a loss; abandoned runs don't count."
     > "Agreed, maybe at least 3 "fights" counts as a run."
 
-    The agreement is ruled. **The three-fight minimum is the owner's tentative threshold ("maybe"), not a ruling**; it is an open decision below.
+    The three-fight minimum was tentative here ("maybe"). **R9 settles it** and replaces the "abandoned runs don't count" half of this answer.
   - (b) Question: does the permanent buy cost run gold or meta gold?
     > "Run gold, yes."
 
@@ -55,10 +55,18 @@ All eight were given in the Story Mode planning conversation on 2026-09-29 and a
     > "Option 3 sounds good."
 
     This supersedes R3's Choice 3, and R4's chain applies to that slot. Blue and an anthem were part of the option-3 description the owner accepted; the colour pair, tribe and name are open. What happens if Core Set II slips was not addressed.
+- **R9. Run counting.** Question: (a) abandoned runs never count, and a run also needs at least 3 fights; (b) any run with at least 3 fights counts, even if abandoned after that; or (c) something else?
+  > "1 - B"
+
+  A run counts toward an unlock once it has had at least three fights, whether it then ends in a win, a loss or an abandon. This supersedes R8(a)'s "abandoned runs don't count" and its "maybe".
+- **R10. Whose runs count.** Question: to unlock Persephone, do you need 3 runs as Guan Yu, or any 3 runs?
+  > "2 - Runs with the previous character sequentially."
+
+  Each unlock counts only runs with the character just before it in the chain: Persephone needs 3 counted Guan Yu runs, and the Beastkin legend 3 counted Persephone runs.
 
 ## Player-facing spec
 
-**Character select (R2, R3, R4, R8).** Three characters: Guan Yu, Saint of War (Three Kingdoms), Persephone, Queen of Two Courts (Olympian), and a new Core Set II Beastkin legend. Guan Yu is open at the start. Persephone unlocks on a Guan Yu win or 3 counted runs; the Beastkin legend unlocks on a Persephone win or 3 counted runs. A run counts when it ends in a win or a loss (R8a); whether an abandoned run of at least three fights also counts is open. For scale, today's cards: Guan Yu is {W}{R}{R}, a 5/4 with First Blade and Sentinel (UR); Persephone is {2}{B}{G}, a 3/3 with Deathblade that leaves two Bloom tokens when she dies (SSR).
+**Character select (R2, R3, R4, R8, R9, R10).** Three characters: Guan Yu, Saint of War (Three Kingdoms), Persephone, Queen of Two Courts (Olympian), and a new Core Set II Beastkin legend. Guan Yu is open at the start. Persephone unlocks on a Guan Yu win or 3 counted Guan Yu runs; the Beastkin legend unlocks on a Persephone win or 3 counted Persephone runs (R10). A run counts once it has had at least three fights, however it then ends: win, loss or abandon (R9). For scale, today's cards: Guan Yu is {W}{R}{R}, a 5/4 with First Blade and Sentinel (UR); Persephone is {2}{B}{G}, a 3/3 with Deathblade that leaves two Bloom tokens when she dies (SSR).
 
 **Opening boon (R5).** After picking a character the player chooses one of three small boons. Player copy calls it an opening boon; Slay the Spire's "Neow" is a design reference only and never appears in the game.
 
@@ -126,7 +134,7 @@ story: {
   contentVersion: 1;
   activeRun: StoryRun | null;           // seed, character, boon, act, node, run deck, run gold, fights played
   unlockedCharacterIds: string[];       // starts with Guan Yu's story character
-  countedRuns: Record<string, number>;  // per character: runs that ended in a win or a loss (R8a)
+  countedRuns: Record<string, number>;  // per character: runs that reached 3 fights, counted once each (R9); an unlock reads only its predecessor's count (R10)
   wins: Record<string, number>;         // per character
   claimedRewardKeys: string[];          // exactly-once keeps and buys
   seenSceneIds: string[];
@@ -177,15 +185,12 @@ Editorial, accessibility, spoiler and full playthrough passes on every character
 From the planning session's handoff:
 
 - **Voice (R7, TBD).** The planning session recommends no AI voice at launch (see Recommended).
-- **The "3 fights" run threshold.** Tentative: "maybe at least 3 "fights" counts as a run" (R8a). Two readings: a run needs three fights before a win or loss counts it, or a run of three fights counts even if abandoned. Confirm one, or drop the minimum.
 - **The new Beastkin legend:** colour pair, tribe (continue Kitsune or a new one), name. Also the fallback if Core Set II slips, which the owner has not addressed (the planning session recommends Yohime as-is).
 - **Story premise.** Open; one idea floated is the Tower as the place and the avatars as its floors.
 - **Permanent-buy price and limits.** See Recommended for the planning session's proposal.
 - **Other unlock routes.** Whether characters 2 and 3 can be unlocked any other way. Not discussed.
 
-Raised by this rewrite:
-
-- **Whose runs count toward "3 runs" (R4)?** Runs with the previous character, or with any character? The planning session's notes read it as the previous character's runs. The save shape above supports either.
+Closed 2026-09-29: the run-count threshold (R9) and whose runs count (R10).
 
 ## Risks and dependencies
 
@@ -201,7 +206,7 @@ Raised by this rewrite:
 - Every generated map and authored graph passes the validator across a large seed sample; content has no executable code.
 - The same run seed and the same choices give the same run and the same replays.
 - Keeps and permanent buys apply at most once across reload, retry, replay, import and crash-recovery tests.
-- Unlocks follow R4 and R8a exactly, with the run-count threshold as finally ruled.
+- Unlocks follow R4, R9 and R10 exactly: an abandoned run counts once it has had three fights, and each unlock reads only its predecessor's runs.
 - Every story duel uses the ordinary `Game` and the redacted `PlayerView`.
 - Old saves migrate with only the first character unlocked and no change to existing economy or records.
 - Story matrix and progression `TO MEASURE` values are replaced with dated results before release.
