@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import { artStoreConfig, textureBytes } from '../art/artBudget';
 import { liveArtStore } from '../art/artLoader';
-import type { ArtStore } from '../art/artStore';
+import { Art } from '../art/ArtResolver';
+import type { ArtStore, ArtTier } from '../art/artStore';
 import { artTextureTier, onArtContextRestored, whenTextureArrives } from '../art/artWatch';
 import type { CardDef } from '../engine/types';
 import { variantKey, type CardVariant } from '../meta/variants';
@@ -11,6 +12,7 @@ import { qualityTier } from '../platform/quality';
 import { activeRenderScale } from '../platform/renderScale';
 import { CARD_H, CARD_W, CardView } from './CardView';
 import { cardThumbKey } from './cardThumbKey';
+import { forEachDrawn } from './displayWalk';
 import { ThumbBook } from './thumbBudget';
 
 /**
@@ -184,28 +186,16 @@ function queuePass(r: ThumbResidency): void {
 
 /**
  * The safety scan for thumbs: of `keys`, the ones some object in a live scene
- * still draws (walking into Containers, Layers and bitmap masks).
+ * still draws (the walk the card-art scan uses, `src/ui/displayWalk.ts`).
  */
 function thumbsDrawn(game: Phaser.Game, keys: readonly string[]): ReadonlySet<string> {
   const wanted = new Set(keys);
   const hits = new Set<string>();
   if (wanted.size === 0) return hits;
-  const seen = new Set<unknown>();
-  type Drawn = { texture?: { key: string }; list?: unknown; mask?: { bitmapMask?: unknown } | null };
-  const walk = (value: unknown): void => {
-    if (value === null || typeof value !== 'object' || seen.has(value)) return;
-    seen.add(value);
-    const obj = value as Drawn;
+  forEachDrawn(game, (obj) => {
     const key = obj.texture?.key;
     if (key !== undefined && wanted.has(key)) hits.add(key);
-    if (Array.isArray(obj.list)) for (const child of obj.list) walk(child);
-    if (obj.mask?.bitmapMask) walk(obj.mask.bitmapMask);
-  };
-  for (const scene of game.scene.scenes) {
-    const status = scene.sys.settings.status;
-    if (status < Phaser.Scenes.CREATING || status >= Phaser.Scenes.SHUTDOWN || scene.sys.displayList === undefined) continue;
-    for (const obj of scene.sys.displayList.list) walk(obj);
-  }
+  });
   return hits;
 }
 
@@ -396,4 +386,69 @@ export function makeCardThumb(
     });
   }
   return image;
+}
+
+/**
+ * The art a thumb still needs before it can bake over real art, as an art key
+ * and the store tier to ask for (`half`: a bake reads the cheapest adequate
+ * source, section 3), or null when it needs none: the thumb is already baked
+ * over real art (its source may since have been evicted; a thumb is a
+ * snapshot), the art is resident, or the card has no art file. A paged grid
+ * asks for exactly this before it draws a page (`PagedArt` in
+ * `src/ui/artGate.ts`), so a page of thumbs baked on an earlier visit costs
+ * no requests.
+ */
+export function thumbArtWanted(
+  scene: Phaser.Scene,
+  card: CardDef,
+  landStyle?: string,
+  variant?: CardVariant,
+): { key: string; tier: ArtTier } | null {
+  const key = cardThumbKey(card.id, landStyle, variant ? variantKey(variant) : undefined);
+  if (scene.textures.exists(key) && !provisional.has(key) && !blank.has(key)) return null;
+  // Also called for the cards of neighbouring pages, which are never drawn
+  // here. `getArt` throws for a card with neither a manifest file nor an
+  // atlas slot; `ArtResolver.generatePlaceholders` gives every card in the
+  // database a slot at boot, so no card reaches that throw.
+  const pending = Art.resolver?.getArt(card.id, landStyle, 'half').pending;
+  return pending === undefined ? null : artTextureTier(pending);
+}
+
+/**
+ * The art texture a thumb was baked over a stand-in for, or null when
+ * `thumbKey` is not a provisional thumb (the probe hook, `window.__art`).
+ */
+export function provisionalThumbPending(thumbKey: string): string | null {
+  return provisional.get(thumbKey)?.pending ?? null;
+}
+
+/**
+ * The cache's numbers for `window.__art.stats()` (under a `thumb` prefix):
+ * what is baked, what is provisional, and, while art streams through the
+ * store, the budget's books. `provisionalResident` counts provisional thumbs
+ * whose art is resident (a re-bake that has not happened; 0 once idle).
+ */
+export function thumbStats(textures: Phaser.Textures.TextureManager): Record<string, number> {
+  let provisionalResident = 0;
+  for (const record of provisional.values()) if (textures.exists(record.pending)) provisionalResident++;
+  const base = { baked: faces.size, provisional: provisional.size, provisionalResident, blank: blank.size };
+  const r = residency !== null && liveArtStore() === residency.store ? residency : null;
+  if (r === null) {
+    let residentBytes = 0;
+    for (const key of faces.keys()) {
+      if (!textures.exists(key)) continue;
+      for (const source of textures.get(key).source) residentBytes += textureBytes(source.width, source.height);
+    }
+    return { ...base, residentBytes };
+  }
+  const book = r.book.stats();
+  return {
+    ...base,
+    resident: book.resident,
+    residentBytes: book.residentBytes,
+    pinnedBytes: book.pinnedBytes,
+    budget: book.budget,
+    evictions: book.evictions,
+    missedHolds: book.missedHolds,
+  };
 }

@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { ART_EVENT_PROGRESS, artMissing, ensureArt, liveArtStore, manifestArtKeys } from '../art/artLoader';
 import type { ArtLease, ArtPriority, ArtTier } from '../art/artStore';
+import { PagedRequests } from '../art/pagedRequests';
 import { backLabelFor } from './navigation';
 import { applySceneSettings } from './SceneBackdrop';
 import { theme } from './theme';
@@ -152,14 +153,16 @@ function waitForArt(
  * built by `build`, which has not run yet, so the wait screen carries its own:
  * the shared back affordance (at the touch-target floor) and Esc, both to the
  * main menu. Leaving shuts the scene down, and `awaitArt` then drops the build.
- * Collection and Decks gate on the whole card set, so early in a session this
- * wait can be the longest one in the game.
+ * With the 1.8 queue, Collection and Decks gate on the whole card set
+ * (`gateOnPagedArt`), so early in a session this wait can be the longest one
+ * in the game.
  *
  * While art streams through the art store (1.9 lane D), the gate also holds
  * `ids` for the scene's life (`sceneArtLease`, at `now`), whether or not it had
  * to wait, so nothing the build draws is evicted under it. With `null` that
- * lease pins the whole manifest, which is why the store stays off until
- * Collection, the Deck Builder and the Showcase gate on what they show (S5a).
+ * lease pins the whole manifest, which is why the scenes that page through the
+ * whole set build at once under the store and ask for art page by page
+ * (`gateOnPagedArt`, `PagedArt`).
  */
 export function gateOnArt(
   scene: Phaser.Scene,
@@ -222,4 +225,73 @@ export function gateOnArt(
   // exactly the wait `awaitArt` has always made.
   if (lease !== null) waitForArt(scene, list, handlers, () => lease.ready);
   else awaitArt(scene, list, handlers);
+}
+
+/**
+ * How long a binder page turn holds its new spread for the spread's art
+ * before drawing stand-ins, which fill in as the art lands
+ * (docs/plan-art-streaming.md, owner question 3, ruled 2026-09-28: the turn
+ * starts at once; the art waits up to about 150 ms).
+ */
+export const PAGE_ART_HOLD_MS = 150;
+
+/**
+ * Build a scene that pages through the whole card set and asks for its art
+ * page by page (`PagedArt`): Collection, the Deck Builder and the Showcase
+ * (1.9 lane D, S5a). While art streams through the store it builds at once,
+ * on its first frame, since the whole-set gate there would be a `now` lease
+ * on every file. With the 1.8 queue (the store off) it is exactly the
+ * whole-set `gateOnArt` these scenes always had.
+ */
+export function gateOnPagedArt(scene: Phaser.Scene, build: () => void): void {
+  if (liveArtStore() === null) gateOnArt(scene, null, build);
+  else build();
+}
+
+export interface PagedArtOptions {
+  /** The store tier to ask for: `half` (the default) for thumbnail bakes, `primary` for live cards. */
+  tier?: ArtTier;
+  /** A modal's container: its destruction ends the requests, as the scene's shutdown does. */
+  owner?: Phaser.GameObjects.GameObject;
+}
+
+/**
+ * The art requests of one paged surface, bound to a scene: the rule is
+ * `PagedRequests` (`src/art/pagedRequests.ts`, Phaser-free and tested); this
+ * adds the lifetime (the scene's shutdown or destruction, or a modal owner's
+ * destruction, ends everything) and the timer. The hold is wall-clock, not
+ * the scene clock: the scene clock smooths over the long first frames of a
+ * build, which stretched a 150 ms hold past 250 ms in the probe.
+ */
+export class PagedArt {
+  private readonly requests: PagedRequests;
+
+  constructor(
+    private readonly scene: Phaser.Scene,
+    label: string,
+    options: PagedArtOptions = {},
+  ) {
+    this.requests = new PagedRequests(label, options.tier ?? 'half', {
+      store: () => liveArtStore(),
+      schedule: (fn, ms) => {
+        const timer = setTimeout(fn, ms);
+        return () => clearTimeout(timer);
+      },
+    });
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, this.release, this);
+    scene.events.once(Phaser.Scenes.Events.DESTROY, this.release, this);
+    options.owner?.once(Phaser.GameObjects.Events.DESTROY, () => this.release());
+  }
+
+  /** See `PagedRequests.show`. */
+  show(shown: Iterable<string>, soon: Iterable<string> = [], draw?: (afterHold: boolean) => void, holdMs = 0): boolean {
+    return this.requests.show(shown, soon, draw, holdMs);
+  }
+
+  /** End every request, and any held draw. Safe to call twice. */
+  release(): void {
+    this.requests.release();
+    this.scene.events.off(Phaser.Scenes.Events.SHUTDOWN, this.release, this);
+    this.scene.events.off(Phaser.Scenes.Events.DESTROY, this.release, this);
+  }
 }

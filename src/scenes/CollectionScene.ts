@@ -22,6 +22,7 @@ import {
   defaultFilterState,
   ownedVariantEntries,
   pageCount,
+  pageNeighbourhood,
   pageSlice,
   specialVariantCount,
   variantLabel,
@@ -33,7 +34,7 @@ import { PLAIN_VARIANT, TIER_LABEL, variantKey, type CardVariant } from '../meta
 import { finishOdds, formatOdds } from '../meta/pullOdds';
 import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestures';
 import { FilterBar, TIER_TEXT_COLOR } from '../ui/binder/FilterBar';
-import { makeCardThumb } from '../ui/CardThumbCache';
+import { makeCardThumb, thumbArtWanted } from '../ui/CardThumbCache';
 import { CARD_H, CARD_W, CardView } from '../ui/CardView';
 import {
   cardAtelierProbabilityPlate,
@@ -54,7 +55,7 @@ import {
 } from '../ui/collectionSort';
 import { addKeywordGlossaryPanel } from '../ui/KeywordGlossaryPanel';
 import { ModalGuard } from '../ui/Modal';
-import { gateOnArt } from '../ui/artGate';
+import { gateOnPagedArt, PAGE_ART_HOLD_MS, PagedArt } from '../ui/artGate';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { createSearchInput } from '../ui/SearchInput';
 import {
@@ -153,6 +154,10 @@ export class CollectionScene extends Phaser.Scene {
   private pageContainer: Phaser.GameObjects.Container | null = null;
   /** Containers still tweening out of view — reaped on filter changes. */
   private outgoing: Phaser.GameObjects.Container[] = [];
+  /** The binder's art requests: the spread on show and the spreads either side of it. */
+  private spreadArt: PagedArt | null = null;
+  /** The cards of the spread last asked for, so a refresh of the same spread (new badges) swaps at once. */
+  private spreadCards = '';
   private turning = false;
   private pageControl!: Pager;
   private goldBadge!: GoldBadge;
@@ -182,9 +187,13 @@ export class CollectionScene extends Phaser.Scene {
     super('Collection');
   }
 
-  /** The binder pages through the whole set, so it waits for the whole set. */
+  /**
+   * The binder pages through the whole set. While art streams through the
+   * store it builds at once and asks for art spread by spread (`renderPage`);
+   * with the 1.8 queue it waits for the whole set, as it always did.
+   */
   create(): void {
-    gateOnArt(this, null, () => this.build());
+    gateOnPagedArt(this, () => this.build());
   }
   private build(): void {
     this.state = { ...defaultFilterState(), ownedOnly: true };
@@ -196,6 +205,8 @@ export class CollectionScene extends Phaser.Scene {
     new Toast(this, { modalGuard: this.guard });
     this.pageContainer = null;
     this.outgoing = [];
+    this.spreadArt = new PagedArt(this, 'collection');
+    this.spreadCards = '';
     this.turning = false;
     this.inspect = null;
     this.inspectDef = null;
@@ -428,12 +439,79 @@ export class CollectionScene extends Phaser.Scene {
     this.pageControl.refresh(this.page, pageCount(pool.length, SPREAD_SIZE));
     this.emptyText.setVisible(pool.length === 0);
 
+    // The spread on show is leased at `visible` and the spreads either side
+    // are prefetched at `soon` (docs/plan-art-streaming.md section 2). A turn
+    // starts at once, and the new spread waits up to PAGE_ART_HOLD_MS for its
+    // art, then draws; a thumb whose art is still on its way bakes over the
+    // stand-in and re-bakes in place when it lands (owner question 3). Under
+    // the inspect overlay the spread is hidden, and a refresh of the same
+    // spread (new badges) changes no art, so both swap at once.
+    const { shown, near } = pageNeighbourhood(pool, this.page, SPREAD_SIZE);
+    const cards = shown.map((d) => d.id).join('|');
+    // Card ids only: a display-variant change re-bakes a thumb under a new
+    // key, but its art key is the same card's, so it is almost always resident.
+    const sameSpread = cards === this.spreadCards;
+    this.spreadCards = cards;
+    const animate = dir !== 0 && (this.pageContainer !== null || this.outgoing.length > 0);
+    const turn = animate ? dir : 0;
+    const holdMs = this.inspect === null && !sameSpread ? PAGE_ART_HOLD_MS : 0;
+    const held = this.spreadArt!.show(
+      this.spreadArtFor(shown),
+      this.spreadArtFor(near),
+      (afterHold) => this.placeSpread(pool, turn, afterHold),
+      holdMs,
+    );
+    if (!held) return;
+    // Held: the old spread leaves now (or, for an instant swap, stays with its
+    // taps gated) while the new one waits for its art.
+    this.turning = true;
+    const old = this.pageContainer;
+    if (turn !== 0 && old !== null) {
+      this.pageContainer = null;
+      this.slideOut(old, turn);
+    }
+  }
+
+  /** The art keys the thumbs of `cards` still need before they can bake over real art. */
+  private spreadArtFor(cards: readonly CardDef[]): string[] {
+    const keys: string[] = [];
+    for (const d of cards) {
+      const wanted = thumbArtWanted(this, d, undefined, this.binderVariant(d));
+      if (wanted !== null) keys.push(wanted.key);
+    }
+    return keys;
+  }
+
+  /**
+   * The display variant a binder thumb bakes: owned cards show their selected
+   * display variant, so the binder reads as YOUR binder; plain and unowned
+   * cards bake the plain face.
+   */
+  private binderVariant(d: CardDef): CardVariant | undefined {
+    const save = Services.save.data;
+    const best = ownedCount(save, d.id) > 0 ? displayVariantFor(save, d.id) : null;
+    return best && variantKey(best) !== variantKey(PLAIN_VARIANT) ? best : undefined;
+  }
+
+  /**
+   * Put the new spread in the pockets. `dir` 0 swaps at once (a filter
+   * change, the first paint) and reaps anything still animating from earlier
+   * turns; ±1 slides it in (and the old one out, unless a held turn already
+   * sent it), with taps gated by `turning` while anything moves
+   * (interactivity lives on child Images, so gating, not container hit
+   * areas, is the safety here). `afterHold` is true when the draw waited for
+   * art.
+   */
+  private placeSpread(pool: CardDef[], dir: number, afterHold: boolean): void {
     const old = this.pageContainer;
     this.cells = [];
     const fresh = this.buildSpread(pool);
     this.pageContainer = fresh;
+    // A held spread that lands under the inspect overlay is guarded like the
+    // one it replaced.
+    if (afterHold && this.inspect !== null) this.guard.open(this.cells);
 
-    if (dir === 0 || !old) {
+    if (dir === 0 || (!old && !afterHold)) {
       // Instant swap — and reap anything still animating from earlier turns.
       for (const t of [old, ...this.outgoing]) {
         if (!t) continue;
@@ -446,6 +524,22 @@ export class CollectionScene extends Phaser.Scene {
     }
 
     this.turning = true;
+    if (old) this.slideOut(old, dir);
+    fresh.setX(dir * 70).setAlpha(0);
+    this.tweens.add({
+      targets: fresh,
+      x: 0,
+      alpha: 1,
+      duration: 170,
+      ease: 'Cubic.easeOut',
+      onComplete: () => {
+        this.turning = false;
+      },
+    });
+  }
+
+  /** Slide a spread out of view and destroy it (an instant swap reaps it early). */
+  private slideOut(old: Phaser.GameObjects.Container, dir: number): void {
     this.outgoing.push(old);
     this.tweens.add({
       targets: old,
@@ -457,17 +551,6 @@ export class CollectionScene extends Phaser.Scene {
         const i = this.outgoing.indexOf(old);
         if (i >= 0) this.outgoing.splice(i, 1);
         if (old.active) old.destroy();
-      },
-    });
-    fresh.setX(dir * 70).setAlpha(0);
-    this.tweens.add({
-      targets: fresh,
-      x: 0,
-      alpha: 1,
-      duration: 170,
-      ease: 'Cubic.easeOut',
-      onComplete: () => {
-        this.turning = false;
       },
     });
   }
@@ -491,16 +574,7 @@ export class CollectionScene extends Phaser.Scene {
       // cards show their selected display variant (frame/full-art bake
       // statically; holo shimmer stays an inspect effect), so the binder reads
       // as YOUR binder rather than a plain checklist.
-      const best = owned > 0 ? displayVariantFor(save, d.id) : null;
-      const thumb = makeCardThumb(
-        this,
-        x,
-        y,
-        d,
-        THUMB_CARD_SCALE,
-        undefined,
-        best && variantKey(best) !== variantKey(PLAIN_VARIANT) ? best : undefined,
-      );
+      const thumb = makeCardThumb(this, x, y, d, THUMB_CARD_SCALE, undefined, this.binderVariant(d));
       if (owned === 0) thumb.setAlpha(0.32); // calibrated against the 0.70 dim
       thumb.setInteractive({ useHandCursor: true });
       bindTapButton(this, thumb, () => {

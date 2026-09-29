@@ -15,6 +15,7 @@ import {
   applyFilters,
   collectiblePool,
   defaultFilterState,
+  pageNeighbourhood,
   SORT_LABEL,
   type CollectionFilterState,
   type SortMode,
@@ -59,7 +60,7 @@ import {
 import { Services } from '../meta/services';
 import { PLAIN_VARIANT, TIER_LABEL, variantKey, type CardVariant } from '../meta/variants';
 import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestures';
-import { makeCardThumb } from '../ui/CardThumbCache';
+import { makeCardThumb, thumbArtWanted } from '../ui/CardThumbCache';
 import { CardZoomPreview } from '../ui/CardZoomPreview';
 import { showDarlingsTutorial } from '../ui/DarlingsTutorial';
 import { computeDeckStats, curveBars, deckCountsLine, deckPipCounts, PIE_COLORS } from '../ui/deckStats';
@@ -82,7 +83,7 @@ import {
 } from '../ui/deckPanePresentation';
 import { DECK_POOL_LAYOUT, poolCellPosition } from '../ui/deckPoolLayout';
 import { Dropdown, type DropdownOption } from '../ui/Dropdown';
-import { gateOnArt } from '../ui/artGate';
+import { gateOnPagedArt, PAGE_ART_HOLD_MS, PagedArt } from '../ui/artGate';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { createSearchInput } from '../ui/SearchInput';
 import {
@@ -194,6 +195,14 @@ export class DeckBuilderScene extends Phaser.Scene {
   private touch = false;
   private cells: Phaser.GameObjects.GameObject[] = [];
   private rightPane: Phaser.GameObjects.GameObject[] = [];
+  /** The pool grid's art requests: the page on show and the pages either side of it. */
+  private poolArt: PagedArt | null = null;
+  /** The deck pane's art requests: its thumbnails, and the open deck-list page for the hover zoom. */
+  private paneArt: PagedArt | null = null;
+  /** Art the deck pane's thumbnails still need, gathered while `renderDeck` draws them. */
+  private paneThumbArt: string[] = [];
+  /** The cards on the open deck-list page, gathered by `renderDeckRows`. */
+  private paneRowCards: string[] = [];
   private poolPager!: Pager;
   private status!: Phaser.GameObjects.Text;
   private zoom!: CardZoomPreview;
@@ -246,9 +255,13 @@ export class DeckBuilderScene extends Phaser.Scene {
     return hasLegacyVariantPin || typeof Services.save.data.pinnedVariants[cardId] === 'string';
   }
 
-  /** The pool pane browses the whole set, so it waits for the whole set. */
+  /**
+   * The pool pane browses the whole set. While art streams through the store
+   * the builder builds at once and asks for art page by page; with the 1.8
+   * queue it waits for the whole set, as it always did.
+   */
   create(data: { deckId?: string } = {}): void {
-    gateOnArt(this, null, () => this.build(data));
+    gateOnPagedArt(this, () => this.build(data));
   }
   private build(data: { deckId?: string }): void {
     this.reserveFormatsEnabled = FEATURES.reserveFormats;
@@ -257,6 +270,8 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.savedDeckSnapshot = null;
     this.page = 0;
     this.deckPage = 0;
+    this.poolArt = new PagedArt(this, 'deck-pool');
+    this.paneArt = new PagedArt(this, 'deck-pane');
     this.deckPaneMode = defaultDeckPaneMode();
     this.filterState = { ...defaultFilterState(), ownedOnly: true };
     this.statusMessage = null;
@@ -334,7 +349,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     // 1.8.1.
     this.poolPager = pager(this, DECK_POOL_LAYOUT.pagerX, DECK_POOL_LAYOUT.pagerY, this.page, 1, (page) => {
       this.page = page;
-      this.renderPool();
+      this.renderPool(PAGE_ART_HOLD_MS);
     });
     this.poolPager.container.setVisible(false);
 
@@ -475,7 +490,7 @@ export class DeckBuilderScene extends Phaser.Scene {
   private turnPage(dir: number): void {
     const pages = Math.max(1, Math.ceil(this.pool().length / GRID_SIZE));
     this.page = Phaser.Math.Clamp(this.page + dir, 0, pages - 1);
-    this.renderPool();
+    this.renderPool(PAGE_ART_HOLD_MS);
   }
 
   private countIn(deck: readonly string[], id: string): number {
@@ -665,7 +680,38 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.filterButton.setVariant(this.filterPanel ? 'emphasis' : activeCount > 0 ? 'primary' : 'ghost');
   }
 
-  private renderPool(): void {
+  /** The art keys the pool thumbs of `cards` still need before they can bake over real art. */
+  private thumbArtFor(cards: readonly CardDef[]): string[] {
+    const keys: string[] = [];
+    for (const d of cards) {
+      const wanted = thumbArtWanted(this, d, undefined, this.ownedVariantFor(d.id));
+      if (wanted !== null) keys.push(wanted.key);
+    }
+    return keys;
+  }
+
+  /** A deck-pane thumbnail, noted for the pane's art lease (`paneArt`). */
+  private paneThumb(
+    x: number,
+    y: number,
+    card: CardDef,
+    cardScale: number,
+    landStyle?: string,
+    variant?: CardVariant,
+  ): Phaser.GameObjects.Image {
+    const thumb = makeCardThumb(this, x, y, card, cardScale, landStyle, variant);
+    const wanted = thumbArtWanted(this, card, landStyle, variant);
+    if (wanted !== null) this.paneThumbArt.push(wanted.key);
+    return thumb;
+  }
+
+  /**
+   * Draw the pool grid. `holdMs` is set only by a page turn: the grid clears at
+   * once and the new page waits up to that long for its art before drawing
+   * over stand-ins (owner question 3, as the binder does). A deck edit redraws
+   * the same page at once.
+   */
+  private renderPool(holdMs = 0): void {
     for (const c of this.cells) c.destroy();
     this.cells = [];
     // A Land facet chosen on a classic deck cannot survive a switch to a
@@ -676,12 +722,24 @@ export class DeckBuilderScene extends Phaser.Scene {
       for (const refresh of this.filterDropdownRefreshers) refresh();
       this.syncFilterButton();
     }
-    const save = Services.save.data;
     const pool = this.pool();
     const pages = Math.max(1, Math.ceil(pool.length / GRID_SIZE));
     this.page = Phaser.Math.Clamp(this.page, 0, pages - 1);
     this.syncPoolPager(pages);
+    // The page on show is leased at `visible` and the pages either side are
+    // prefetched at `soon` (docs/plan-art-streaming.md section 2). A thumb
+    // whose art is still on its way bakes over the stand-in and re-bakes in
+    // place when it lands.
+    const around = pageNeighbourhood(pool, this.page, GRID_SIZE);
+    const page = this.page;
+    const draw = (): void => this.drawPoolPage(pool, page);
+    if (this.poolArt === null) draw();
+    else this.poolArt.show(this.thumbArtFor(around.shown), this.thumbArtFor(around.near), draw, holdMs);
+  }
 
+  /** The pool grid's cells for `page` of `pool`. */
+  private drawPoolPage(pool: CardDef[], page: number): void {
+    const save = Services.save.data;
     if (pool.length === 0) {
       const emptyCopy = this.activePoolFilterCount() > 0 ? 'No owned cards match these filters.' : 'No cards in this set yet.';
       const grid = DECK_POOL_LAYOUT;
@@ -699,7 +757,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     }
 
     const grid = DECK_POOL_LAYOUT;
-    pool.slice(this.page * GRID_SIZE, (this.page + 1) * GRID_SIZE).forEach((d, i) => {
+    pool.slice(page * GRID_SIZE, (page + 1) * GRID_SIZE).forEach((d, i) => {
       const { x, y } = poolCellPosition(i);
       // Cached-thumbnail Image instead of a live CardView — cheap to churn per page.
       const variant = this.ownedVariantFor(d.id);
@@ -1117,6 +1175,9 @@ export class DeckBuilderScene extends Phaser.Scene {
     const bounds = shell.contentBounds;
     const rowPitch = 60;
     const rowY0 = bounds.y + 26;
+    // The previews on show hold their art until the modal closes.
+    const previewArt = new PagedArt(this, 'land-styles', { owner: overlay });
+    const previewWants = new Map<string, string | null>();
     BASIC_LAND_IDS.forEach((id, i) => {
       const d = byId(id);
       const y = rowY0 + i * rowPitch;
@@ -1136,6 +1197,8 @@ export class DeckBuilderScene extends Phaser.Scene {
         dynamic?.destroy();
         const style = this.activeSavedDeck()?.landStyle?.[id] ?? null;
         const preview = makeCardThumb(this, bounds.x + 48, y, d, 0.095, style ?? undefined, this.ownedVariantFor(d.id));
+        previewWants.set(id, thumbArtWanted(this, d, style ?? undefined, this.ownedVariantFor(d.id))?.key ?? null);
+        previewArt.show([...previewWants.values()].filter((key): key is string => key !== null));
         const cycler = this.landStyleControl(
           bounds.x + bounds.width - 36,
           y,
@@ -1270,6 +1333,9 @@ export class DeckBuilderScene extends Phaser.Scene {
     );
     const pageSize = DARLING_PAGE_SIZE;
     const pages = formatPageCount(candidates.length, pageSize);
+    // The page on show is leased at `visible` and the pages either side are
+    // prefetched at `soon`, until the picker closes.
+    const pickerArt = new PagedArt(this, 'darling-picker', { owner: overlay });
     let items: Phaser.GameObjects.GameObject[] = [];
     let pageControl: Pager | null = null;
     const clear = (): void => {
@@ -1301,6 +1367,8 @@ export class DeckBuilderScene extends Phaser.Scene {
     };
     const renderPage = (nextPage: number): void => {
       clear();
+      const around = pageNeighbourhood(candidates, nextPage, pageSize);
+      pickerArt.show(this.thumbArtFor(around.shown), this.thumbArtFor(around.near));
       const visible = formatPageSlice(candidates, Math.max(0, nextPage), pageSize);
       if (visible.length === 0) {
         const empty = this.add.text(640, 300, 'No owned legendary creatures yet.', {
@@ -1643,7 +1711,7 @@ export class DeckBuilderScene extends Phaser.Scene {
           color: theme.colors.body,
         })
         .setOrigin(0, 0.5),
-      makeCardThumb(this, x0 + 96, y, byId(sampleId), 0.095, active.landStyle?.[sampleId] ?? undefined, this.ownedVariantFor(sampleId)),
+      this.paneThumb(x0 + 96, y, byId(sampleId), 0.095, active.landStyle?.[sampleId] ?? undefined, this.ownedVariantFor(sampleId)),
       this.add
         .text(x0 + 118, y, styled.length === 0 ? 'Default art' : `${styled.length} of ${BASIC_LAND_IDS.length} basics styled`, {
           fontFamily: theme.fonts.ui,
@@ -2479,7 +2547,9 @@ export class DeckBuilderScene extends Phaser.Scene {
     // there), so the hero star column would be a row of controls that do
     // nothing. The unavailable-card marker still shows.
     const heroEditable = this.activeFormat() !== 'darlings';
-    formatPageSlice(entries, this.deckPage, rows).forEach((entry, i) => {
+    const pageEntries = formatPageSlice(entries, this.deckPage, rows);
+    this.paneRowCards = pageEntries.filter((entry) => CARD_DB[entry.cardId] !== undefined).map((entry) => entry.cardId);
+    pageEntries.forEach((entry, i) => {
       const d = CARD_DB[entry.cardId];
       // All row elements center on one line (design-system alignment rule:
       // icons align to the optical center of the adjacent text).
@@ -2691,6 +2761,8 @@ export class DeckBuilderScene extends Phaser.Scene {
   private renderDeck(): void {
     for (const c of this.rightPane) c.destroy();
     this.rightPane = [];
+    this.paneThumbArt = [];
+    this.paneRowCards = [];
     const x0 = PANEL_LEFT_X;
 
     const active = this.activeSavedDeck();
@@ -2725,8 +2797,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       // it (or the active Darlings tab) reopens the chooser. The old
       // 'Darling' text label under the title collided with the Format row
       // (owner finding 2026-08-18) and said nothing the tab does not.
-      const portrait = makeCardThumb(
-        this,
+      const portrait = this.paneThumb(
         titleLayout.portraitX,
         titleLayout.y,
         CARD_DB[darlingId],
@@ -2810,7 +2881,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       });
       this.rightPane.push(row);
       if (!this.touch) {
-        const preview = makeCardThumb(this, x0 + 94, y, d, 0.095, landStyle ?? undefined, this.ownedVariantFor(d.id));
+        const preview = this.paneThumb(x0 + 94, y, d, 0.095, landStyle ?? undefined, this.ownedVariantFor(d.id));
         const style = this.landStyleControl(x0 + 132, y, id, landStyle);
         this.rightPane.push(preview, style);
       }
@@ -2889,6 +2960,10 @@ export class DeckBuilderScene extends Phaser.Scene {
         onTap: () => this.showRepairModal(blocking),
       });
     this.rightPane.push(exportBtn.container, importBtn.container, saveBtn.container);
+    // The pane's thumbnails lease their art at `visible`. The deck-list rows
+    // draw no art, but hovering one opens the zoom, so the open page's cards
+    // are prefetched at `soon`: the zoom then opens on the half texture.
+    this.paneArt?.show(this.paneThumbArt, this.paneRowCards);
   }
 
   private exportDeckCode(): void {

@@ -1,9 +1,17 @@
 /* global process, console, fetch, WebSocket, setTimeout, clearTimeout, Buffer, URLSearchParams */
 // The art-streaming probe (docs/plan-art-streaming.md section 6; 1.9 lane D,
-// S3). Serves a production build with `vite preview`, drives headless Edge
-// over CDP with a fresh profile, runs a short scripted tour, and at each stop
+// S3, S5a). Serves a production build with `vite preview`, drives headless
+// Edge over CDP with a fresh profile, runs a scripted tour, and at each stop
 // records what the game's read-only `window.__art` hook reports beside what
 // Windows reports for Edge's GPU and renderer processes.
+//
+// The tour (gate 1's, as far as S5a reaches): the menu; the Collection (its
+// first spread, timed until every pocket shows real art, gate 2; five spreads;
+// a filter change; a zoom); the Deck Builder (three pool pages, the deck list,
+// the Darling picker); the Shop; a Tower duel with a zoom and a forced WebGL
+// context loss; then the Collection again. After the first menu stop the save
+// is seeded with two copies of every collectible card (a fresh save owns
+// none, and the binder and the pool show owned cards) and the page reloads.
 //
 //   node scripts/probe-art.mjs --dist <built dist> [options]
 //
@@ -20,8 +28,6 @@
 //   --budget <MiB>     ?artBudget, e.g. 8 for the eviction stress run
 //   --evict off        ?artEvict=off
 //   --opponent <id>    the Tower opponent (default menghuo)
-//   --collection       end the tour at the Collection (before S5a it gates
-//                      on the whole manifest: slow, and pins every file)
 //   --port <n>         the preview port (default 4391; never 5173)
 //   --out <dir>        where probe.json and the screenshots go (default: a
 //                      fresh folder under the OS temp dir)
@@ -40,13 +46,12 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const EDGE = 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
 
 function parseArgs(argv) {
-  const opts = { dist: 'dist', build: false, stream: 'on', tier: 'full', budget: null, evict: null, opponent: 'menghuo', collection: false, port: 4391, out: null, label: 'run' };
+  const opts = { dist: 'dist', build: false, stream: 'on', tier: 'full', budget: null, evict: null, opponent: 'menghuo', port: 4391, out: null, label: 'run' };
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];
     const next = () => argv[++i];
     if (flag === '--dist') opts.dist = next();
     else if (flag === '--build') opts.build = true;
-    else if (flag === '--collection') opts.collection = true;
     else if (flag === '--stream') opts.stream = next();
     else if (flag === '--tier') opts.tier = next();
     else if (flag === '--budget') opts.budget = Number(next());
@@ -121,9 +126,18 @@ writeFileSync(
     preview: { host: '127.0.0.1', port: opts.port, strictPort: true },
   })};\n`,
 );
+const APP = `http://127.0.0.1:${opts.port}/`;
+// Something already answering on the port (another worktree's probe) would be
+// measured in place of this build: vite's strictPort exits, and the poll below
+// would find the other server.
+try {
+  await fetch(APP);
+  throw new Error(`port ${opts.port} is already serving; pick another --port`);
+} catch (error) {
+  if (String(error?.message ?? '').startsWith('port ')) throw error;
+}
 const vite = spawn(process.execPath, [viteBin, 'preview', '--config', configPath], { cwd: ROOT, stdio: 'ignore' });
 children.push(vite);
-const APP = `http://127.0.0.1:${opts.port}/`;
 for (let i = 0; ; i++) {
   try {
     if ((await fetch(APP)).ok) break;
@@ -372,9 +386,98 @@ async function record(name) {
       `evictions=${s.evictions ?? '-'} missedLeases=${s.missedLeases ?? '-'} orphans=${s.orphans ?? '-'} restores=${s.restores ?? '-'} ` +
       `standIns=${art?.standIns.count} missing=${art?.missing.count} errors=${stop.consoleErrors.length} longTasks=${stop.longTasks.length} ` +
       `gpuPrivate=${memory.gpuPrivateMiB} dedicated=${memory.gpuDedicatedMiB} shared=${memory.gpuSharedMiB} renderer=${memory.rendererPrivateMiB} ` +
-      `packs=${log.packReads} loose=${log.looseFull}/${log.looseHalf}`,
+      `packs=${log.packReads} loose=${log.looseFull}/${log.looseHalf}\n` +
+      `           thumbs: baked=${s.thumbBaked ?? '-'} resident=${s.thumbResident ?? '-'} residentMiB=${mib(s.thumbResidentBytes) ?? '-'} ` +
+      `pinnedMiB=${mib(s.thumbPinnedBytes) ?? '-'} budgetMiB=${mib(s.thumbBudget) ?? '-'} provisional=${s.thumbProvisional ?? '-'} ` +
+      `provisionalResident=${s.thumbProvisionalResident ?? '-'} evictions=${s.thumbEvictions ?? '-'} missedHolds=${s.thumbMissedHolds ?? '-'}`,
   );
 }
+
+/** The save key, and the seed: two copies of every collectible card. */
+const SAVE_KEY = 'darlingblades.save.v1';
+
+/**
+ * Give the save two copies of every collectible card, then reload. The ids
+ * come from the game itself (the Collection's own pool with the Owned filter
+ * off, read without starting the scene). The seeded save is written by a
+ * script that runs before the game on the next document: the game flushes
+ * its in-memory save on `pagehide`, which would overwrite a write made now.
+ */
+async function seedSave() {
+  const seeded = await page(`(() => {
+    const col = window.__game.scene.getScene('Collection');
+    const saved = col.state;
+    col.state = { ...saved, ownedOnly: false, search: '' };
+    const ids = col.currentPool().map((d) => d.id);
+    col.state = saved;
+    // A fresh save may not be on disk yet: the game's own pagehide handler flushes it.
+    window.dispatchEvent(new Event('pagehide'));
+    const raw = localStorage.getItem(${JSON.stringify(SAVE_KEY)});
+    if (!raw) return null;
+    const save = JSON.parse(raw);
+    for (const id of ids) save.collection[id] = 2;
+    return { cards: ids.length, json: JSON.stringify(save) };
+  })()`);
+  if (!seeded) throw new Error('no save in localStorage to seed');
+  await S('Page.addScriptToEvaluateOnNewDocument', {
+    source: `try { if (!sessionStorage.getItem('probeSeeded')) { localStorage.setItem(${JSON.stringify(SAVE_KEY)}, ${JSON.stringify(seeded.json)}); sessionStorage.setItem('probeSeeded', '1'); } } catch {}`,
+  });
+  await S('Page.reload', { ignoreCache: false });
+  await until('the main menu after the seed', `(() => { const g = window.__game; return !!(g && g.scene.isActive('MainMenu')); })()`);
+  // The reload started a fresh long-task list.
+  longTasksSeen = 0;
+  return seeded.cards;
+}
+
+/**
+ * Run `action` (an expression in the page) and time, from the page's own
+ * clock, the Collection's spread: `built` is the first frame the binder has
+ * drawn (its pager exists), `placed` the first frame the new spread is in the
+ * pockets (with how many of its thumbs were baked over a stand-in), and `real`
+ * the first frame its pockets are all filled with thumbs baked over real art
+ * (none provisional) and no turn is moving. Frames are counted from the action.
+ */
+async function timeSpread(action) {
+  await page(`(() => {
+    const g = window.__game; const t0 = performance.now();
+    const out = { built: null, builtFrame: null, placed: null, placedFrame: null, provisionalAtPlace: null, real: null, realFrame: null, frames: 0, thumbs: 0, expected: null };
+    window.__spreadTiming = out;
+    // The spread on show before the action: a held swap keeps it up while it waits.
+    const before = g.scene.getScene('Collection').pageContainer ?? null;
+    const thumbsOf = (s) => (s.pageContainer ? s.pageContainer.list.filter((o) => o.type === 'Image' && /^card-thumb-/.test(o.texture?.key ?? '')) : []);
+    const tick = () => {
+      out.frames++;
+      const s = g.scene.getScene('Collection');
+      if (g.scene.isActive('Collection') && s.pageControl) {
+        if (out.built === null) { out.built = performance.now() - t0; out.builtFrame = out.frames; }
+        if (out.expected === null) { const pool = s.currentPool(); out.expected = Math.max(0, Math.min(12, pool.length - s.page * 12)); }
+        const thumbs = thumbsOf(s); out.thumbs = thumbs.length;
+        const provisional = window.__art.provisionalThumbs().count;
+        if (out.placed === null && s.pageContainer !== before && thumbs.length === out.expected) { out.placed = performance.now() - t0; out.placedFrame = out.frames; out.provisionalAtPlace = provisional; }
+        if (thumbs.length === out.expected && !s.turning && provisional === 0) {
+          out.real = performance.now() - t0; out.realFrame = out.frames; return;
+        }
+      }
+      if (performance.now() - t0 < 60000) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+    ${action};
+    return true;
+  })()`);
+  await until('the spread to show real art', '!!(window.__spreadTiming && window.__spreadTiming.real !== null)', 65_000, 25);
+  const timing = await page('window.__spreadTiming');
+  timings.push({ at: stops.length, ...timing });
+  const ms = (v) => (v === null ? '-' : `${Math.round(v)} ms`);
+  console.log(
+    `[${opts.label}] spread: built ${ms(timing.built)} (frame ${timing.builtFrame}), placed ${ms(timing.placed)} (frame ${timing.placedFrame}, ` +
+      `${timing.provisionalAtPlace} provisional), real ${ms(timing.real)} (frame ${timing.realFrame}), ${timing.thumbs} thumbs`,
+  );
+  return timing;
+}
+const timings = [];
+
+/** Call a method on a running scene from the page (the probe's stand-in for a click). */
+const onScene = (key, body) => `(() => { const s = window.__game.scene.getScene(${JSON.stringify(key)}); ${body}; return true; })()`;
 
 let failure = null;
 try {
@@ -383,7 +486,58 @@ try {
   await storeIdle();
   await record('menu');
 
-  await page(`(() => { window.__game.scene.getScene('MainMenu').scene.start('Duel', { opponentId: ${JSON.stringify(opts.opponent)}, gauntletRung: 1 }); return true; })()`);
+  const owned = await seedSave();
+  console.log(`[${opts.label}] seeded the save with ${owned} cards, reloaded`);
+  await storeIdle();
+  await record('menu-seeded');
+
+  // The Collection: its first spread, timed (gate 2), then four turns.
+  await timeSpread(`g.scene.getScene('MainMenu').scene.start('Collection')`);
+  await storeIdle();
+  await record('collection');
+  for (let turn = 2; turn <= 5; turn++) {
+    await timeSpread(`g.scene.getScene('Collection').turnPage(1)`);
+  }
+  await storeIdle();
+  await record('col-spread5');
+  // A filter change to cards the tour has not shown (lands), by the chips' own
+  // path: state, page 0, render.
+  await timeSpread(`(() => { const s = g.scene.getScene('Collection'); s.state.type = 'land'; s.page = 0; s.renderPage(); })()`);
+  await storeIdle();
+  await record('col-filter');
+  // A zoom: the inspect overlay's live card.
+  await page(onScene('Collection', 's.showInspect(s.currentPool()[0])'));
+  await sleep(300);
+  await storeIdle();
+  await record('col-zoom');
+  await page(onScene('Collection', 's.closeInspect()'));
+
+  // The Deck Builder: three pool pages, the deck list, the Darling picker.
+  await page(onScene('Collection', "s.scene.start('DeckBuilder')"));
+  await until('the deck builder', sceneBuilt('DeckBuilder'));
+  await storeIdle();
+  await record('decks');
+  for (let turn = 2; turn <= 3; turn++) {
+    await page(onScene('DeckBuilder', 's.turnPage(1)'));
+    await sleep(100);
+  }
+  await storeIdle();
+  await record('decks-page3');
+  await page(onScene('DeckBuilder', 'for (const d of s.pool().slice(0, 10)) s.addCard(d.id)'));
+  await sleep(100);
+  await storeIdle();
+  await record('deck-list');
+  await page(onScene('DeckBuilder', 's.showDarlingPicker()'));
+  await sleep(200);
+  await storeIdle();
+  await record('darlings');
+
+  await page(onScene('DeckBuilder', "s.scene.start('Shop')"));
+  await until('the shop', sceneBuilt('Shop'));
+  await storeIdle();
+  await record('shop');
+
+  await page(onScene('Shop', `s.scene.start('Duel', { opponentId: ${JSON.stringify(opts.opponent)}, gauntletRung: 1 })`));
   await until('the duel', sceneBuilt('Duel'));
   // The versus bumper and the coin flip play first; the stop is the opening
   // hand (the mulligan), where the duel's card faces are on screen.
@@ -440,17 +594,10 @@ try {
   await storeIdle();
   await record('restored');
 
-  await page(`(() => { window.__game.scene.getScene('Duel').scene.start('Shop'); return true; })()`);
-  await until('the shop', sceneBuilt('Shop'));
+  // Back to the Collection, as gate 1's tour ends.
+  await timeSpread(`g.scene.getScene('Duel').scene.start('Collection')`);
   await storeIdle();
-  await record('shop');
-
-  if (opts.collection) {
-    await page(`(() => { window.__game.scene.getScene('Shop').scene.start('Collection'); return true; })()`);
-    await until('the collection', sceneBuilt('Collection'), 300_000, 250);
-    await storeIdle();
-    await record('collection');
-  }
+  await record('collection-again');
 } catch (error) {
   failure = String(error?.stack ?? error);
   console.error(failure);
@@ -461,7 +608,7 @@ try {
   }
 }
 
-const result = { label: opts.label, url, tier: opts.tier, stream: opts.stream, budgetMiB: opts.budget, failure, stops };
+const result = { label: opts.label, url, tier: opts.tier, stream: opts.stream, budgetMiB: opts.budget, failure, spreadTimings: timings, stops };
 writeFileSync(join(outDir, `${opts.label}.json`), `${JSON.stringify(result, null, 2)}\n`);
 console.log(`[${opts.label}] wrote ${join(outDir, `${opts.label}.json`)}`);
 

@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/art/artLoader.ts, src/art/ArtResolver.ts, src/art/artWatch.ts, src/art/artArrivals.ts, src/art/artRetry.ts, src/ui/CardThumbCache.ts, src/ui/artGate.ts, src/scenes/ArtLoaderScene.ts, scripts/gen-art-manifest.ts, scripts/gen-art-halfres.ts, scripts/serve-lan.ts, .github/workflows/deploy.yml, src-tauri/tauri.conf.json · last-verified: 2026-09-28 · design doc, re-verify when the art loader, the thumbnail cache, the card-face geometry (R13) or the deploy pipeline changes -->
+<!-- source-of-truth: src/art/artLoader.ts, src/art/ArtResolver.ts, src/art/artWatch.ts, src/art/artArrivals.ts, src/art/artRetry.ts, src/ui/CardThumbCache.ts, src/ui/artGate.ts, src/art/pagedRequests.ts, src/ui/displayWalk.ts, src/scenes/ArtLoaderScene.ts, scripts/gen-art-manifest.ts, scripts/gen-art-halfres.ts, scripts/serve-lan.ts, .github/workflows/deploy.yml, src-tauri/tauri.conf.json · last-verified: 2026-09-28 · design doc, re-verify when the art loader, the thumbnail cache, the card-face geometry (R13) or the deploy pipeline changes -->
 
 # Card art streaming: load on demand, unload under a budget (1.9 lane D)
 
@@ -274,7 +274,7 @@ failed file is never asked for again.
 | --- | --- | --- | --- | --- | --- |
 | Collection binder | 12 thumbs per spread, variant rows | the spread on show; the next and previous spread | `visible`; `soon` | the thumb Images (thumb textures); sources are not pinned once baked | half / half |
 | Zoom preview (`CardZoomPreview`, any scene) | a live CardView at 1.3, up to 733x1045 px at 1440p | the hovered card | `now` | the preview's view | full, with half drawn meanwhile / half |
-| Deck Builder | the 12-card pool page, the deck list rows (0.095), the Darling and land-style pickers | the page, the deck list, the open picker page | `visible`; next page `soon` | thumbs | half / half |
+| Deck Builder | the 12-card pool page, the deck pane's thumbs (the Darling portrait, the basics previews, the style sample), the Darling and land-style pickers; the deck-list rows are text and draw no art | the page, the pane's thumbs, the open picker page; the open deck-list page's cards | `visible`; the pages either side `soon`; the deck-list cards prefetched at `soon`, not leased, since the rows draw no art (the row's hover zoom then opens on the half texture) | thumbs | half / half |
 | Pack opening | the rolled cards as live CardViews | the first pack, gated, before the flip; later packs in a batch leased at `soon`, each gated at its own reveal | `now` | the scene | full / half |
 | Duel | both decks, reserves, tokens, Darlings, portraits (115-137 keys) | the set, gated at `create` as today; prefetched at `soon` as soon as an opponent is chosen on Gauntlet, Practice or Play | `now` | the scene, through restarts between rungs (see Traps) | full / half |
 | Limited draft | the pick pack (up to 15 thumbs), the picks | the pack, gated; the picks | `now`; `visible` | scene and thumbs | half thumbs / half |
@@ -288,8 +288,15 @@ failed file is never asked for again.
 | Showcase (dev only) | every card, paged | the page | `visible` | thumbs | full / half |
 
 Collection, the Deck Builder and the Showcase stop gating on the whole
-manifest: they build on their first frame. How a spread shows its first
-frame is owner question 3.
+manifest: they build on their first frame (as built in S5a, `gateOnPagedArt`
+and `PagedArt` in `src/ui/artGate.ts` over `src/art/pagedRequests.ts`). A
+page's lease covers the whole page while any of it is missing, and is
+released once its art is in and the page has drawn. How a spread shows its
+first frame is owner question 3, ruled as recommended: a turn starts at once
+and the new spread waits up to `PAGE_ART_HOLD_MS` (150 ms) for its art, then
+draws over stand-ins, which fill in. The Deck Builder's pool takes the same
+hold on page turns and redraws at once on deck edits; the pickers and the
+deck pane draw at once.
 
 ## 3. Unload: the budget, eviction and pinning
 
@@ -375,12 +382,12 @@ arrival path.
 - **Bakes read the cheapest adequate source** (owner question 1): the
   primary texture if it is resident, else the half texture, else a request
   for the half texture and a provisional bake. At k=2 a thumb bakes at card
-  scale 1.0. There the standard art window is 264x192 px, a downscale from
-  320x400. The full-art window is 282x402 px, a 0.5% upscale. So the half
-  file has enough pixels for every bake at every render size the game offers
-  (k is at most 2). R13 changes the art window's height in wave 2; its
-  largest window is still inside the 282x402 frame interior, and the build
-  re-checks this after R13.
+  scale 1.0. As rechecked by S4 after R13's geometry: the standard art
+  window is 264x216 px, a cover scale of max(264/320, 216/400) = 0.825 from
+  the 320x400 file, a downscale; the full-art window is 282x402 px, a scale
+  of max(282/320, 402/400) = 1.005, a 0.5% upscale. So the half file has
+  enough pixels for every bake at every render size the game offers (k is at
+  most 2).
 
 ## 4. Redraw on arrival as the normal case
 
@@ -391,7 +398,7 @@ Every place that draws card art, and what it needs:
 | `CardView.applyArt` | yes (G10) | add `holdArt` | holds its key; on desktop draws the resident half texture instead of the flat stand-in while the full one loads |
 | `BoardCardView.applyArt` | yes (G10) | add `holdArt` | as CardView |
 | `CardThumbCache` bakes | yes, re-bake in place (G10) | thumb lease on each Image | LRU budget, half-tier bakes |
-| Portraits: the Gauntlet ladder cells in `DuelScene.ts`, `GauntletScene.ts`, `LimitedDraftScene.ts`, `PracticePickerScene.ts`, `ShopScene.ts`, `CommanderPortrait.ts`, `VersusBumper.ts` | **yes: I9, PR #473 (branch `fix/19-portraits`)** | `holdArt` inside `addPortraitArt` | I9 built the shared helper: `src/ui/portraitArt.ts` `addPortraitArt` over `src/ui/artRefit.ts` `fitNowAndWhenArtLands`, used at 7 sites. Its header hands re-apply on removal to this lane. S4 adds the lease and the removal belt inside `addPortraitArt`. It takes the resolver's `ArtRef` today; S4 has it take the card id (or a resolve callback) so the belt can call `getArt` again |
+| Portraits: the Gauntlet ladder cells in `DuelScene.ts`, `GauntletScene.ts`, `LimitedDraftScene.ts`, `PracticePickerScene.ts`, `ShopScene.ts`, `CommanderPortrait.ts`, `VersusBumper.ts` | **yes: I9, PR #473 (branch `fix/19-portraits`)** | `holdArt` inside `addPortraitArt` | I9 built the shared helper, `src/ui/portraitArt.ts` `addPortraitArt`, used at 7 sites. As built in S4 it takes the card id, and `src/ui/artRefit.ts` `fitAndHoldArt` holds the image's art through `holdArt` with a resolve callback, so the removal belt calls `getArt` again and re-fits |
 | `saveCard.ts` | not a redraw: it composes once | a lease, released in `finally` | reads the file's bytes from the store and decodes its own copy (section 1), instead of reading `frame.source.image`, which is a closed bitmap under this design (and today may be the stand-in) |
 | The Forge (`src/forge/scene.ts`) | its own `filecomplete` redraw | none (own page, own loader) | none in 1.9 (section 5) |
 | Card-proof harness (dev) | loads everything up front | none | none |
@@ -625,10 +632,9 @@ Where the lane meets the rest of 1.9:
   then A2 and accessibility in wave 3.
 - **I9 is done, and it is this lane's foundation.** PR #473 (branch
   `fix/19-portraits`) gives the portrait sites one helper,
-  `addPortraitArt` in `src/ui/portraitArt.ts` over `fitNowAndWhenArtLands`
-  in `src/ui/artRefit.ts`, used at 7 sites. Its header leaves re-apply on
-  texture removal to this lane, so S4 adds the lease and the removal belt
-  in that one place.
+  `addPortraitArt` in `src/ui/portraitArt.ts`, used at 7 sites. S4 put the
+  lease and the removal belt in that one place: it takes the card id, and
+  `fitAndHoldArt` in `src/ui/artRefit.ts` holds the art through `holdArt`.
 - **The scenes in S5a** are also touched by lane I (I3, I4, I5, I9) in
   wave 1 and by accessibility from wave 3, so S5a sits between them.
 - **`deploy.yml` and `vite.config.ts`** belong to nobody else in 1.9 as far

@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { ALL_CARDS } from '../data/catalog';
 import type { CardDef, Rarity } from '../engine/types';
 import { TIER_LABEL, type FrameStyle, type HoloFinish } from '../meta/variants';
-import { gateOnArt } from '../ui/artGate';
+import { gateOnPagedArt, PagedArt } from '../ui/artGate';
 import { CardView } from '../ui/CardView';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { theme } from '../ui/theme';
@@ -24,12 +24,18 @@ export class CardShowcaseScene extends Phaser.Scene {
   private fullArtChip!: ThemedButton;
   private cardLabel!: Phaser.GameObjects.Text;
   private readout!: Phaser.GameObjects.Text;
+  /** The pick on show, leased at `visible`; the picks either side, prefetched at `soon`. */
+  private pickArt: PagedArt | null = null;
   constructor() {
     super('Showcase');
   }
-  /** Variant QA browses the whole pool, so it waits for the whole set. */
+  /**
+   * Variant QA pages through a pick per tier. While art streams through the
+   * store it builds at once and asks for the pick on show; with the 1.8 queue
+   * it waits for the whole set, as it always did.
+   */
   create(): void {
-    gateOnArt(this, null, () => this.build());
+    gateOnPagedArt(this, () => this.build());
   }
   private build(): void {
     const width = 1280;
@@ -39,6 +45,7 @@ export class CardShowcaseScene extends Phaser.Scene {
     this.frame = 'white';
     this.holo = 'none';
     this.fullArt = false;
+    this.pickArt = new PagedArt(this, 'showcase', { tier: 'primary' });
     applyBackdrop(this, 'showcase', {
       dim: theme.graphics.dim,
       dimAlpha: 0.4,
@@ -151,6 +158,9 @@ export class CardShowcaseScene extends Phaser.Scene {
   private apply(): void {
     const card = this.picks[this.pickIdx];
     if (!card) return;
+    const count = this.picks.length;
+    const beside = [this.picks[(this.pickIdx + 1) % count], this.picks[(this.pickIdx + count - 1) % count]];
+    this.pickArt?.show([card.id], beside.filter((pick) => pick !== card).map((pick) => pick.id));
     this.view.setCard(card, {
       fx: 'full',
       variant: { frame: this.frame, holo: this.holo, fullArt: this.fullArt },
