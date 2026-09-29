@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-1.9.md, docs/roadmap.md, docs/design-system.md, src/meta/SaveManager.ts, src/scenes/SettingsScene.ts, src/ui/settingsPresentation.ts, src/ui/theme.ts, src/ui/themeWidgets.ts, src/ui/layout.ts, src/ui/sceneTitle.ts, src/ui/profilePresentation.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/ManaSymbols.ts, src/ui/CardFrameFactory.ts, src/scenes/DuelScene.ts, src/gameBoot.ts, src/config/features.ts · last-verified: 2026-09-28 · design/plan doc: 1.9 lane C, re-verified against release/1.9 at 15ffe70, C4 lines (ship gate, C4 row, Settings geometry) re-verified against the C4 branch 2026-09-28; re-verify when the referenced code changes or a wave lands -->
+<!-- source-of-truth: docs/plan-1.9.md, docs/roadmap.md, docs/design-system.md, src/meta/SaveManager.ts, src/scenes/SettingsScene.ts, src/ui/settingsPresentation.ts, src/ui/theme.ts, src/ui/themeWidgets.ts, src/ui/layout.ts, src/ui/sceneTitle.ts, src/ui/profilePresentation.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/ManaSymbols.ts, src/ui/CardFrameFactory.ts, src/scenes/DuelScene.ts, src/gameBoot.ts, src/config/features.ts · last-verified: 2026-09-28 · design/plan doc: 1.9 lane C, re-verified against release/1.9 at 15ffe70, C4 lines (ship gate, C4 row, Settings geometry) re-verified against the C4 branch 2026-09-28; the second sitting's picks (A9-A14, the cue mock M1-M6) recorded 2026-09-28; re-verify when the referenced code changes or a wave lands -->
 
 # Accessibility (1.9 lane C) and the localization record
 
@@ -412,6 +412,32 @@ builds them (taste; Q5). The state-to-cue table lives in a Phaser-free
 module (`src/ui/boardCuePresentation.ts`, wave 1) so tests can assert the
 rule; `BoardCardView` moves onto it in the Duel pass.
 
+**The cue mock, RULED 2026-09-28** (the owner's second sitting, M1-M6 on
+its sheet, all as recommended). All six are built in the Duel pass
+(program wave 3), after A2's two-target flow:
+
+- **M1** The tile chip ("Attack", "Duty", "Blocks") moves from the top-right
+  corner to a tab on the top edge, so a summoning-sick blocker's "Blocks"
+  never sits on the swirl.
+- **M2** Declared attackers stay lifted for all of combat and drop their
+  ring while you choose targets: a ring cannot carry both "attacking" and
+  "legal target" under the colour-vision check, so while targeting a ring
+  means "legal" only.
+- **M3** A one-target spell shows a "1" badge on its pick, as two-target
+  spells do.
+- **M4** A picked graveyard card gets the pick badge instead of today's fade
+  (the fade reads as "unavailable").
+- **M5** The P/T up and down arrows count Marks, so they agree with the
+  numbers on the plate; the Mark badge says how many of the change are
+  Marks. This settles the `StatsMood` constraint above.
+- **M6** An attacker you have already picked keeps its "Attack" chip (the
+  lift also shows it).
+
+`boardCuePresentation.ts` already encodes M2-M6 (the ring yielded while
+targeting, the "1" badge, the grave badge, chevrons from the effective
+stats, the Attack chip on a selected attacker); M1 is placement, drawn in
+`BoardCardView` by the Duel pass.
+
 ## Save-schema impact (v36, the one 1.9 bump)
 
 ```ts
@@ -667,7 +693,8 @@ Recommendation first.
   (the 1.7 draft's recommendation; a profile toggle creates untested
   combinations). The specific designs (pick badge, P/T glyphs, Mark badge,
   focus brackets, the selected-trigger mark) go to the owner as a mock before
-  the Duel pass builds them.
+  the Duel pass builds them. (The mock was shown and ruled on 2026-09-28,
+  M1-M6: see "Cues".)
 - **Q6 The standard palette's `muted` (new).** Measured at 4.18:1 on the
   emphasis surfaces, under the 4.5:1 floor for its 12 px captions.
   **Recommendation: lighten `muted` in the standard palette just enough to
@@ -683,6 +710,33 @@ Recommendation first.
 - **Q8 Telemetry (new).** Adding the two settings to the heartbeat would show
   how many players use them, but it changes the fields sent and so re-arms the
   stats notice for every player. **Recommendation: not in 1.9.**
+
+**Ruled at the owner's second sitting (2026-09-28): the picks C4's build
+raised** (A9-A14 on its sheet), all as recommended:
+
+- **A9 Button hover in standard contrast.** Primary and danger buttons
+  barely change on hover today (1.17:1 and 1.66:1). They gain a 2 px hover
+  border in standard contrast too, on hover only; the idle look is
+  unchanged. (High contrast already has it.) *To build.*
+- **A10 The Accessibility tab's heading** stays "Display" (Audio keeps
+  "Audio"). *No change.*
+- **A11 The Game tab's two columns end level** (Privacy beside Save data)
+  when that fits. *To build.*
+- **A12 The touch caption** reads "Makes menus and help text larger. Hold a
+  card to read it up close." *Approved as written;* C4 already draws it on
+  touch (`SettingsScene.ts`), so the build item is a check that it shows.
+- **A13 A hidden control's saved value is not applied** (no player is stuck
+  at a size they cannot undo), as C4 built it (`src/config/features.ts`).
+  Flipping a ship gate later applies the stored values, so the release that
+  flips `textSizeLive` or `highContrastLive` carries a release-note line
+  saying a saved size or contrast choice takes effect. *On the cut
+  checklist.*
+- **A14 Settings does not remember the last tab** across visits: it opens on
+  Game, one tap from Privacy. *No change.*
+
+A9, A11 and A12 are small and share C4's files (`themeWidgets.ts` for the
+hover border; `settingsPresentation.ts` and `SettingsScene.ts` for the
+columns and the caption), so plan-1.9 proposes them as one small PR, C6.
 
 **Already ruled:** localization, option A (D3, 2026-09-25); translation scope
 and a second language (closed by D3); mobile at 2.0 (D4); one save bump, v36,

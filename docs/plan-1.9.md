@@ -17,7 +17,11 @@ before the engine spec: a design-first overplan and its concretion audit
 decide what the engine builds. **Wave 1 closed at the owner's sitting the
 same evening:** the First Dawn brief, the accessibility plan and the art
 streaming design were approved, the art window set at 216 px (D18), and
-1.9's minimum scope named (D17). This document turns the rulings into lanes and waves. Each
+1.9's minimum scope named (D17). **The second sitting, in wave 2, ruled the
+First Dawn engine spec, the overplan's questions, the D8 review, the usage
+read's questions, the accessibility picks, the sweep personas, the duel cues
+and the art pilot** (see "The wave-2 sitting" under Decisions); A1 starts
+on it. This document turns the rulings into lanes and waves. Each
 wave starts on the owner's word.
 
 The release spine is [plan-road-to-2.0.md](plan-road-to-2.0.md). Its 1.9 row,
@@ -289,8 +293,11 @@ triggers when this creature survives damage.*
 damage equal to their Attack to the other.*
 
 1. **A new op with two targets**, one of yours and one of theirs.
-   `TargetSpec` already has `yourCreature`, `opponentCreature` and
-   `exactly: 2`. The "arrives: Hunt target creature with this" shape uses
+   `TargetSpec` already has `yourCreature` and `opponentCreature`; Hunt
+   uses two ordered specs (hunter, then prey), which the multi-spec path
+   already enumerates, not `exactly: 2` (that is one spec for an unordered
+   pair of the same kind; corrected by the engine spec). The "arrives: Hunt
+   target creature with this" shape uses
    targeted arrival triggers, legal since the Starborne ruling.
 2. **Fizzle.** If either creature is gone at resolution, nothing is dealt,
    as in Magic.
@@ -324,8 +331,10 @@ Deep waves paid:
   replay log version bump, the DuelScene two-target flow and its `switch`
   audit, rules-text templates and glossary entries with icons, and the
   blades-db dictionary rows (`terms --check`, the coverage guard). The
-  keyword matcher must not light up the four existing card names that
-  contain "Hunt".
+  keyword matcher must not light up the existing card names that contain
+  "hunt": ten contain the letters, four the whole word (Alpha of the Wild
+  Hunt, Rune of the Hunt, Wild Hunt Matriarch, Hunt the Boar; corrected by
+  the engine spec).
 - **A usage row from the first day** (lane E), so the new mechanics are not
   judged by win rate alone.
 
@@ -362,6 +371,39 @@ lane lands in two halves:
   DuelScene two-target flow and its `switch` audit, the converter's target
   walk, rules-text templates, glossary entries and icons, and the blades-db
   rows. A2 lands before transcription (wave 3), not before the overplan.
+
+**The spec is RULED (the wave-2 sitting, 2026-09-28):**
+[plan-first-dawn-engine.md](plan-first-dawn-engine.md), its questions Q1-Q10
+(E1-E10 on the sheet), and A1 starts on it. All as recommended but one:
+**E6, whose prey for the seven arrival and attack Hunts** (Fern-Crown
+Tyrant, Kesh, Grave-Fern Stalker, Frill-Neck Stalker, Fern-and-Fire Raptor,
+Fern-Shadow Stalker, Spear-Thrower of the Ember Clan). They hunt a creature
+an opponent controls if a legal one exists; only when none does are they
+forced to hunt another creature you control; with neither, the trigger does
+nothing. Spells, Duties and Empower keep a free choice (B5). What follows:
+
+- **A1** builds the preference (an opponent's creature if able) with the
+  Hunt op's other targeting rules; no optional trigger is built. The lab
+  (A1.3) counts the forced self-hunt on the arrival and attack hunters and
+  prices it.
+- **A2.b** Easy never hunts its own creature *by choice*: its filter covers
+  choices only and must accept the forced case, and `docs/ai.md` says so.
+- **A2.d** The converter's target walk gives the seven creature supply for
+  the forced case (the any-prey case the spec named "if Q6 goes the other
+  way"), and the usage rows count a forced self-hunt apart from a chosen
+  one.
+- **The words.** The spec's player copy is approved (E10) except the seven's
+  template, which is **proposed and pending the owner's wording**: "This
+  hunts another target creature, one an opponent controls if able."
+
+The rest, in one line each: Provoked in the state-based check with the
+Hauntlink exception (E1); Hunt's targeting rules inside the Hunt op, no
+keyword qualifier (E2); "damage each creature you control" kept (E3);
+Empower may Hunt as a validator change (E4); an empowered creature whose
+target leaves resolves and loses only its rider, with a replay-note line
+(E5); Deathblade hunters accepted and costed in the lab (E7); other creature
+ability damage stays off the shared path in 1.9 (E8); Scar-Knife Witch
+reads "another target creature you control" (E9).
 
 ### Lane B — the set: First Dawn, 150-165 cards, authored fresh
 
@@ -412,6 +454,22 @@ rows carry no flavor text (R13):
 6. **Transcription.** The approved artifact is transcribed into data, by
    Codex or an Opus agent under contract; Codex never authors the prose. A2
    lands before it.
+
+**Steps 2-4 are done and ruled (the wave-2 sitting, 2026-09-28).** The
+overplan ([first-dawn-overplan.md](expansions/drafts/first-dawn-overplan.md))
+and the engine spec are ruled; the overplan records each answer on its
+questions. F1: the provisional rates stand until the lab. F2: Oru's Dinosaur
+half is Dreaded. **F3: the Duty count trims toward the brief's 18, and
+landing around 20 is acceptable** ("Trim TOWARDS 18, but if we land around
+20 that's fine"); the trim happens at the cut, after the lab. F4: keep 12
+Hatchling makers. F5: the every-turn engines are measured in the lab before
+the cut. F6: the cut starts from the projected board, upper rarities card by
+card, with the Great Drum kept and Fern-Crown Tyrant dropped (R28's draft
+list loses that slot; its replacement is open until the cut). F7: R28 stays
+red-green. F8: Long-Neck Matriarch reaches Dinokin only. The rulings changed
+row text in two places only (the E6 template on seven rows, pending the
+owner's wording, and Scar-Knife Witch's "another"); no row is re-costed or
+trimmed before the cut.
 
 The rules the rows are written against, all postdating the old list: the
 reserve takes only basics and duals, so the set prints no taplands and no
@@ -470,6 +528,47 @@ What the set carries besides cards:
 
   Freya and Siege Juggernaut were queued too, but 1.8.5's D11 (2026-09-27)
   reverted both cards, so their art still matches.
+- **The art pilot, RULED (the wave-2 sitting, 2026-09-28; P10-P16 on its
+  sheet).** The owner saw every pilot image.
+  - **P10** The two regenerations are approved and ship: Swan-Lake
+    Sovereign's and Brood Communion's new art replaces the shipped art.
+  - **P11** The pilot's recipe reads as First Dawn: "Mostly, yes. I think
+    it's a good look overall." The owner's later rulings the same day
+    (recorded in `docs/art-bible/` on PR #494) settle the misses:
+    - **Tar-Bones** is re-cropped from its retained raw (offset -239, the
+      skull top at about y 197), not regenerated.
+    - **Scorch-Tail** and **Pack-Caller** are redone at the art run: the
+      tail tip, and one raptor (P15).
+    - **Great-Horn Herder** is also redone at the art run: the sauropod's
+      head, the pterosaurs and the raised crook all rose above the window.
+    - **A new rule for new art:** at least two of a character's three
+      species tells show inside the card window; a third may sit in the
+      zoom-only margin. It does not re-audit shipped art.
+  - **P12** Marks keep the cyan bead in First Dawn, as in Starborne and
+    Drowned Deep.
+  - **P13** Case 2 (a woman beside a sauropod) lives on Great-Horn Herder,
+    a woman's card; The Walking Mountain (a Dinosaur card) gets a beast-only
+    image at the cut.
+  - **P14** One Hatchling design (the horned calf) for every card that makes
+    Hatchlings, the long-neck makers included.
+  - **P15** Pack-Caller's art shows one Pack Raptor, since the card makes
+    one (the pilot drew three as a count test).
+  - **P16** **Re-crop the shipped catalogue now**, the recommendation
+    reversed (it was "not now; revisit at QC day"): shipped art moves to the
+    216 px window's head line (y 179) wherever its raw source is still
+    cached, at no image quota. Art whose raw is not cached keeps its crop
+    until it is regenerated.
+- **The P16 re-crop is its own lane B art task in wave 2, with its own PR**,
+  on the one art lane, sequenced with the pilot's own crops, and off A1's
+  path. It records which cards were re-cropped and which kept their old
+  crop for want of a cached raw. **The gate:** the main session reviews
+  every staged sheet before anything is applied, and the owner sees the
+  biggest-movers sheet before merge. The art register
+  (`docs/art-bible/*`) and `docs/art-pipeline.md` are being edited on
+  another branch, so the re-crop PR rebases onto that work rather than
+  editing those files beside it.
+- **Also raised, not ruled:** Cold-Boot Mask has a pale bar in its art file;
+  the sitting's notes suggested adding it to the regeneration list. Open.
 
 ### Lane C — accessibility
 
@@ -486,6 +585,31 @@ lighter `muted`, settings travel with an imported save, no telemetry fields.
 Its measured inventory, the five disjoint C-workstreams, the per-control
 ship gate (controls hidden until every scene passes) and the contrast gate
 are in the plan itself.
+
+**The picks C4's build raised, RULED at the wave-2 sitting (2026-09-28;
+A9-A14 on its sheet), all as recommended** (the plan records each):
+
+- **Proposed C6, one small PR in program wave 2** (accessibility wave 1,
+  after C4 and C5, both merged; it touches C3's and C4's files, so it waits
+  for no scene pass): A9, a 2 px hover border on primary and danger buttons
+  in standard contrast, hover only (`themeWidgets.ts`); A11, the Game tab's
+  two columns end level, Privacy beside Save data, when that fits
+  (`settingsPresentation.ts`, `SettingsScene.ts`); A12, the approved touch
+  caption, "Makes menus and help text larger. Hold a card to read it up
+  close.", which C4 already draws, so C6 only confirms it shows on touch.
+  If the owner prefers, C6 rides the first wave-3 scene pass instead.
+- **No change:** A10 keeps the tab heading "Display"; A14, Settings opens on
+  Game and does not remember the last tab.
+- **A13 goes on the cut checklist** (lane H): a hidden control's saved value
+  is not applied, as C4 built it, so the release that flips a ship gate
+  (`textSizeLive`, `highContrastLive`) applies the stored values, and its
+  release notes carry a line saying so.
+- **The duel cues (M1-M6, the cue mock), RULED as recommended:** the chip
+  moves to a tab on the tile's top edge; declared attackers stay lifted and
+  drop their ring while targeting; a one-target pick shows "1"; a picked
+  graveyard card takes the badge, not a fade; the P/T arrows count Marks; a
+  picked attacker keeps "Attack". All six are built in the Duel pass
+  (program wave 3), after A2's two-target flow.
 
 Scope, per the plan: always-on cues that do not rely on colour (mana pip
 shape, rarity, legal targets, selection, warnings); text size at Standard,
@@ -718,6 +842,31 @@ by the 1.8.1 AI review and is recorded here:
 - A Duty used in main phase 2 leaves its creature tapped through the
   opponent's turn, and nothing counts that cost.
 
+**The first audit's note is in, and its questions are RULED (the wave-2
+sitting, 2026-09-28; U1-U4, all as recommended):**
+[usage-audit-2026-09.md](usage-audit-2026-09.md). The fixes land in
+**wave 3**, behind the unchanged gates:
+
+- **U1** Easy calls her Darling on purpose (today every call is the noise
+  roll): fixed. Rungs 1-3 have no floors, so only their Darlings bands are
+  re-read.
+- **U2** Granted keywords priced by the body (D13) land on the win-rate
+  gates, on the code's evidence; the keyword-grant reading is added for
+  wave 4's read, not as a precondition.
+- **U3** The main-two tap of an enemy creature that untaps before it matters
+  is fixed for every source, artifacts included, and `landEconomy.test.ts`
+  is re-pinned to the intended behaviour, since the action it pins does
+  nothing.
+- **U4** The ramp fix (D13) lands **last in wave 3, and alone**: it moves
+  the Medium proxy and every floor from rung 15 up, and a floor it breaks
+  blocks it until wave 4's tune lifts that boss. Floors never come down.
+
+The note backs D13's ramp and Brood Communion fixes; Starborne Apotheosis
+lands with the Brood Communion fix (the same fix family). The note's other
+proposals (team pumps in Medium's respond ladder, the lost blocker of a
+creature Duty in main two, the harness additions) were not put to this
+sitting and stay as it proposes them.
+
 ### Lane F — the sweep: weenie's cost, racing, and the Medium screen
 
 Where it stands: the sweep runs on GitHub-hosted runners
@@ -771,7 +920,14 @@ the in-process loop.
    eight-persona sweep is shown to fit a night. Of the 15 gap nerfs, 11 are
    now pickable; Granary of Rising Years and Old Growth have no deck role and
    Skadi (U/G) and Morrigan (B/G) no persona, so those four need per-card
-   in-engine checks.
+   in-engine checks. **RULED at the wave-2 sitting (2026-09-28; W1-W3, all
+   as recommended):** W1, `stompy` gets no curve floor beside its half-green
+   floor, since its climb measuring what wins is the sweep's job; W2, the
+   black-green persona waits for wave 4, once the eight-persona sweep is
+   shown to fit a night; W3, `warband` scores 92.4% before any tuning and
+   the shared red core (Barge-Fire Brazier, Ember-Lane Flare, Lu Bu,
+   Wreck-Runner) opens every red deck, which is flagged to the wave-4
+   balance review.
 
 The levers (`scripts/personas/craft.ts`), the personas
 (`scripts/personas/templates.ts`) and the hosted workflow's inputs and
@@ -802,7 +958,10 @@ last before the cut, the standing rule the 1.8 ruling suspended (D9).
   `Cargo.lock`, `app:build` before tagging, `docs/release-notes/v1.9.0.md`
   in the shape the owner accepted for 1.8.0 as the release body, README
   figures re-measured, the two manual matrices, a two-parent merge into
-  `main`.
+  `main`. **Added by the wave-2 sitting (A13, 2026-09-28):** if the cut
+  flips an accessibility ship gate (`textSizeLive`, `highContrastLive`),
+  the release notes carry a line that a stored text size or contrast value
+  now applies (the gate held it back while the control was hidden).
 
 ### Lane I — the follow-ups logged at the 1.8.1 cut
 
@@ -841,7 +1000,7 @@ Rocket x4 re-measure ([ai.md](ai.md)) join D7's wave-4 pass.
 | **AI suggested decks** ([plan](plan-suggested-decks.md)) | **After 2.0** | Tutor v1 and the replay coach stay on one arc. A browser tutor needs a cheap evaluator; lane F's Medium screen is the nearest thing to one |
 | **Editable Limited Warchest** | **After 2.0** | The pip-demand-weighted automatic fill from #279 stays the only build |
 | Live spectating ([plan-player-replays.md](plan-player-replays.md) wave 4) | Cancelled | It rode multiplayer, cancelled 2026-08-24 |
-| **Older-set near-duplicates** (D8) | **1.9.x** | A whole-pool review and resolution plan once the comparator is fixed (wave 0); the owner approves the rule and the slate; fixes ship in a 1.9.x patch |
+| **Older-set near-duplicates** (D8) | **1.9.x** | A whole-pool review and resolution plan once the comparator is fixed (wave 0); the owner approves the rule and the slate; fixes ship in a 1.9.x patch. **Rule and slate RULED 2026-09-28** (41 cards; [d8-near-duplicate-review.md](d8-near-duplicate-review.md)) |
 
 ## Sequencing
 
@@ -864,9 +1023,9 @@ and run lanes C, D, E, F and I underneath those waits.
 | ---: | --- | --- | --- |
 | **0** | 1.8.1 and 1.8.5 shipped; this plan synced (2026-09-28, a PR into `main` with the workbench-skill chore); then `release/1.9` cut from `main`; then, into `release/1.9`, the duplicate comparator learning Duty, Tithe and Whispers | I1 (Foresee on an empty deck, failing test first, v16) into `release/1.9`. Nothing in wave 0 but docs and the chore reaches `main` | the ladder on each PR |
 | **1** | The First Dawn identity brief (Opus 5.5; it names the rung 27-28 bosses, the colour pie, the colour pairs for the new sweep personas, and the working assumptions for Provoked and Hunt); the card-face mock at 216 and 228 px with one phone face (R13) | Usage audit waves 0-1 (gate: a fresh hand count on the tip); weenie profiling and the identical-action-log harness; sweep levers 2-3 built; the accessibility plan re-verified; the art streaming design within itch.io's limits; lane I's wave-1 PRs | **one owner sitting** for the brief, the art window height, the accessibility plan and the streaming design |
-| **2** | The design-first overplan (provisional NEEDS MATH rates on the mechanic rows), its concretion audit and gap list, then `plan-first-dawn-engine.md` (Provoked, Hunt and the kept gaps) and **a second owner sitting** to rule it; then A1: the vocabulary, the Hard reads (after the weenie fix, proven identical on the current pool), the lab rates on the overplan's shapes entered in the scorer, and the mechanic rows rescored. In series beside it: R13 built, then the two 1.8.5 regenerations on the new window, then the art pilot with the boss portraits | The weenie fix; the first full usage audit and its findings note; the colour-gap personas (after the brief) and the levers' one-persona acceptance run; accessibility wave 1 with the v36 bump (and I7); art streaming built; the D8 whole-pool near-duplicate review, with a stat-ladder pass added to the comparator first (its fixes ship in 1.9.x) | full ladder, win-rate gates unchanged, replay goldens, the no-change tests, the owner's eyes on the pilot |
-| **3** | The owner's cut on fully scored rows, the art bible, the art run, transcription (carrying the converter regen of the boss lists) | A2 (before transcription); the usage audit's fixes (D13); accessibility wave 2 (core scenes) | check-art-bible green, every token minted, duplicate audit filed, standing floors cleared |
-| **4** | In order: the balance card edits (the 1.8.5 items and D7's), one converter regen, rungs 27-28 and the theme deck, the targeted usage read, the tunes (the top tier, rung 19, the Darlings summit R23-R26, the ladder inversions, Festival Rocket, the RUNG_BANDS 1-13 re-centre), one measurement, then the floors ratchet once and the new gates land (rungs 27-28, the summit's Darlings rows) | Accessibility wave 3 (long tail) | matrices, precon and boss floors, fixture matrix |
+| **2** | The design-first overplan (provisional NEEDS MATH rates on the mechanic rows), its concretion audit and gap list, then `plan-first-dawn-engine.md` (Provoked, Hunt and the kept gaps) and **a second owner sitting** to rule it; then A1: the vocabulary, the Hard reads (after the weenie fix, proven identical on the current pool), the lab rates on the overplan's shapes entered in the scorer, and the mechanic rows rescored. In series beside it: R13 built, then the two 1.8.5 regenerations on the new window, then the art pilot with the boss portraits; the second sitting ruled the spec, the overplan's questions and the pilot (2026-09-28), then the catalogue re-crop to the y 179 head line (P16, its own PR) | The weenie fix; the first full usage audit and its findings note; the colour-gap personas (after the brief) and the levers' one-persona acceptance run; accessibility wave 1 with the v36 bump (and I7), then C6 (A9, A11, A12; proposed); art streaming built; the D8 whole-pool near-duplicate review, with a stat-ladder pass added to the comparator first (its fixes ship in 1.9.x) | full ladder, win-rate gates unchanged, replay goldens, the no-change tests, the owner's eyes on the pilot |
+| **3** | The owner's cut on fully scored rows, the art bible, the art run, transcription (carrying the converter regen of the boss lists) | A2 (before transcription); the usage audit's fixes (D13; U1-U3 with the local fixes, the ramp fix last and alone, U4); accessibility wave 2 (core scenes, the Duel pass building the cue mock's M1-M6) | check-art-bible green, every token minted, duplicate audit filed, standing floors cleared |
+| **4** | In order: the balance card edits (the 1.8.5 items and D7's), one converter regen, rungs 27-28 and the theme deck, the targeted usage read, the tunes (the top tier, rung 19, the Darlings summit R23-R26, the ladder inversions, Festival Rocket, the RUNG_BANDS 1-13 re-centre; the balance review reads the shared red core the sweep's warband persona flagged, W3), one measurement, then the floors ratchet once and the new gates land (rungs 27-28, the summit's Darlings rows) | Accessibility wave 3 (long tail) | matrices, precon and boss floors, fixture matrix |
 | **5** | QC day, the sweep last (six personas plus the colour-gap personas), release notes, the 1.9.0 cut | | the cut checklist |
 
 **Shared files, in order.** Parallel agents never share a file; where two
@@ -952,9 +1111,12 @@ Numbered so rulings can cite them. Recommendations are the first option.
   any time after wave 0 teaches the comparator Duty, Tithe and Whispers. It
   writes the rule (which kinds of sameness are acceptable) and a slate, the
   owner approves both, and the fixes ship in 1.9.x. Review and slate
-  PROPOSED 2026-09-28 in
+  proposed 2026-09-28 in
   [d8-near-duplicate-review.md](d8-near-duplicate-review.md): 51 pairs, 41
-  cards; awaiting the owner's rulings.
+  cards. **RULED 2026-09-28** (the wave-2 sitting): the rule and the whole
+  slate as drafted, the fixes in a 1.9.x patch that re-gates its boss
+  floors; the one-sided tribe rescue is a follow-up of about seven cards,
+  not drafted, and the four out-of-band cards go to the balance track.
 - **D10 An unfinished deck (G1). RULED as recommended:** save always works;
   an incomplete deck saves as it stands and shows as unplayable where decks
   are picked; every path that would drop unsaved work asks first (the Decks
@@ -1066,6 +1228,45 @@ Numbered so rulings can cite them. Recommendations are the first option.
     is then at the controller's next Dawn; rescored), and the rules-text
     template reads "Marked creatures" instead of "creatures with Marks"
     on every card that uses it.
+- **The wave-2 sitting (the owner, 2026-09-28).** One decision sheet and
+  its addendum, sections E, F, D, U, A, W, M and P, each item as
+  recommended except where noted.
+  - **The First Dawn engine spec is RULED**
+    ([plan-first-dawn-engine.md](plan-first-dawn-engine.md), E1-E10), and
+    A1 starts on it. **E6 went the other way in part:** the seven arrival
+    and attack Hunts hunt a creature an opponent controls if a legal one
+    exists, and only when none does are they forced to hunt another
+    creature you control; spells, Duties and Empower keep a free choice.
+    Their template, "This hunts another target creature, one an opponent
+    controls if able.", is **proposed, pending the owner's wording** (E10
+    approves the rest of the spec's copy). E3 "Keep", E4 "Validator
+    change", E7 "Cost them in lab", E8 "Not in 1.9". See lane A.
+  - **The overplan's questions** (F1-F8): the provisional rates until the
+    lab; Oru's Dinosaur half is Dreaded; the Duty count trims toward 18,
+    about 20 acceptable, at the cut (F3); keep 12 Hatchling makers; the
+    every-turn engines lab first; the projected board with the Great Drum
+    kept and Fern-Crown Tyrant dropped (F6); R28 red-green; the matriarch
+    reaches Dinokin only. See lane B.
+  - **D8's rule and slate are RULED** (D1-D12): only strictly-worse twins
+    across sets (D2), Rage only on Wreck-Runner (D4), A33 folded in (D6),
+    Plaguebearer Draugr 1/5 (D9), the boss floors re-gated in the 1.9.x
+    patch (D10), the one-sided tribe rescue as a follow-up (D11, about
+    seven cards, not drafted), the out-of-band cards to the balance track
+    (D12). See D8 above.
+  - **The usage read's questions** (U1-U4): Easy's Darling fixed; granted
+    keywords land on the gates; the main-two tap re-pinned; the ramp fix
+    last and alone. See lane E.
+  - **Accessibility picks** (A9-A14) and **the duel cues** (M1-M6): see
+    lane C; C6 is proposed for A9, A11 and A12, and A13's release-note line
+    is on the cut checklist (lane H).
+  - **Sweep personas** (W1-W3): no curve floor, B/G in wave 4, the shared
+    red core flagged to wave 4's balance review. See lane F.
+  - **The art pilot** (P10-P16): the two regenerations ship, the recipe
+    reads as First Dawn ("Mostly, yes. I think it's a good look overall."),
+    the cyan Mark bead stays, case 2 on Great-Horn Herder, one Hatchling
+    design, one Pack Raptor, and **P16 went the other way:** the shipped
+    catalogue is re-cropped to the y 179 head line now, wherever the raw
+    is cached. See lane B.
 - **The `research/` ignore rule** from the owner's local `.gitignore` is
   committed, so third-party research material never reaches the public
   repo.
