@@ -428,8 +428,9 @@ its sheet, all as recommended). All six are built in the Duel pass
 - **M4** A picked graveyard card gets the pick badge instead of today's fade
   (the fade reads as "unavailable").
 - **M5** The P/T up and down arrows count Marks, so they agree with the
-  numbers on the plate; the Mark badge says how many of the change are
-  Marks. This settles the `StatsMood` constraint above.
+  numbers on the plate. (How this meets the `StatsMood` constraint above,
+  e.g. whether the Mark badge also says how much of the change is Marks,
+  is the Duel pass's call.)
 - **M6** An attacker you have already picked keeps its "Attack" chip (the
   lift also shows it).
 

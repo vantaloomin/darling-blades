@@ -292,7 +292,9 @@ triggers when this creature survives damage.*
 **Hunt** (Magic's fight): *your creature and target creature each deal
 damage equal to their Attack to the other.*
 
-1. **A new op with two targets**, one of yours and one of theirs.
+1. **A new op with two targets**: the hunter, one of yours, and the prey,
+   any other creature (B5), except that the seven arrival and attack Hunts
+   must pick an opponent's creature if a legal one exists (E6).
    `TargetSpec` already has `yourCreature` and `opponentCreature`; Hunt
    uses two ordered specs (hunter, then prey), which the multi-spec path
    already enumerates, not `exactly: 2` (that is one spec for an unordered
@@ -460,7 +462,7 @@ overplan ([first-dawn-overplan.md](expansions/drafts/first-dawn-overplan.md))
 and the engine spec are ruled; the overplan records each answer on its
 questions. F1: the provisional rates stand until the lab. F2: Oru's Dinosaur
 half is Dreaded. **F3: the Duty count trims toward the brief's 18, and
-landing around 20 is acceptable** ("Trim TOWARDS 18, but if we land around
+landing around 20 is acceptable** ("Trim TOWARDS 18 but if we land around
 20 that's fine"); the trim happens at the cut, after the lab. F4: keep 12
 Hatchling makers. F5: the every-turn engines are measured in the lab before
 the cut. F6: the cut starts from the projected board, upper rarities card by
@@ -533,17 +535,22 @@ What the set carries besides cards:
   - **P10** The two regenerations are approved and ship: Swan-Lake
     Sovereign's and Brood Communion's new art replaces the shipped art.
   - **P11** The pilot's recipe reads as First Dawn: "Mostly, yes. I think
-    it's a good look overall." The owner's later rulings the same day
-    (recorded in `docs/art-bible/` on PR #494) settle the misses:
-    - **Tar-Bones** is re-cropped from its retained raw (offset -239, the
-      skull top at about y 197), not regenerated.
-    - **Scorch-Tail** and **Pack-Caller** are redone at the art run: the
-      tail tip, and one raptor (P15).
-    - **Great-Horn Herder** is also redone at the art run: the sauropod's
-      head, the pterosaurs and the raised crook all rose above the window.
-    - **A new rule for new art:** at least two of a character's three
-      species tells show inside the card window; a third may sit in the
-      zoom-only margin. It does not re-audit shipped art.
+    it's a good look overall." The misses, as settled the same day
+    (recorded in `docs/art-bible/` on PR #494):
+    - **Scorch-Tail**'s tail tip rose above the card window. The main
+      session puts it on the art run's redo list, and **Pack-Caller** is
+      redone for its count (P15).
+    - **Tar-Bones**' skull rose above the window. The main session
+      re-crops its retained raw instead of regenerating it (offset -239;
+      the skull top lands at about y 197), accepted as the pilot's fix.
+    - **Great-Horn Herder:** asked whether the image joins the redo list
+      (its sauropod's head, the pterosaurs and the raised crook sit above
+      the window), the owner answered "Re-Do".
+    - **Species tells:** asked whether at least two of a character's three
+      tells must show inside the card window, the owner answered "Yes, 2/3
+      sounds good". A third may sit in the zoom-only margin. Applying it to
+      new art only, without re-auditing shipped art, is the main session's
+      scope.
   - **P12** Marks keep the cyan bead in First Dawn, as in Starborne and
     Drowned Deep.
   - **P13** Case 2 (a woman beside a sauropod) lives on Great-Horn Herder,
@@ -1204,7 +1211,9 @@ Numbered so rulings can cite them. Recommendations are the first option.
     monster-girls and Dinosaur for plain dinosaurs on tokens and a few
     creature cards, riders are not Dinokin, and a few Beastkin megafauna
     girls sit beside them), Hunt may target your own creatures, which Easy AI
-    never does (B5), and Hunt damage counts for every damage-reading keyword
+    never does (B5; narrowed by E6 for the seven arrival and attack Hunts,
+    which take an opponent's creature if able, so Easy never does it by
+    choice), and Hunt damage counts for every damage-reading keyword
     and trigger (B6), evergreen: any such keyword the game adds later
     applies to Hunt with no Hunt-specific code, while combat-defined
     keywords (First Blade, Twin Blades, Overrun) do not. Also ruled: Bulwark prevents Hunt at any rarity (a

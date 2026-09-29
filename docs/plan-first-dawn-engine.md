@@ -998,15 +998,15 @@ projected cut first, then by rarity.
 | `fd-tahla-shepherdess` | UR | yes | E | none | `allyCreatureArrives` never fires for the holder itself (EffectInterpreter.ts:1036); the face must say "another creature" |
 | `fd-walking-mountain` | SSR | yes | M | Provoked |  |
 | `fd-fang-and-horn` | SSR | yes | M | Hunt, spell |  |
-| `fd-fern-crown-tyrant` | SSR | yes | M | Provoked; Hunt, arrival | Mandatory Hunt with any prey: forced self-hunt when the opponent has no legal prey (Q6) |
+| `fd-fern-crown-tyrant` | SSR | yes | M | Provoked; Hunt, arrival | Mandatory Hunt, an opponent's creature if able: forced self-hunt when the opponent has no legal prey (Q6, ruled) |
 | `fd-ember-crest-tyrant` | SSR | yes | M | Provoked (targeted) |  |
-| `fd-kesh-raptor-rider` | SSR | yes | M | Hunt, attack | Mandatory Hunt with any prey: forced self-hunt when the opponent has no legal prey (Q6) |
+| `fd-kesh-raptor-rider` | SSR | yes | M | Hunt, attack | Mandatory Hunt, an opponent's creature if able: forced self-hunt when the opponent has no legal prey (Q6, ruled) |
 | `fd-long-neck-mother` | SSR | yes | M | Provoked (targeted) |  |
 | `fd-frost-seer` | SSR | yes | E | none |  |
 | `fd-rise-from-tar` | SSR | yes | E | none |  |
 | `fd-nirra-ash-witch` | SSR | yes | M | Provoked |  |
 | `fd-sky-riders-pact` | SSR | yes | E | none |  |
-| `fd-grave-fern-stalker` | SSR | yes | M | Hunt, arrival | Mandatory Hunt with any prey: forced self-hunt when the opponent has no legal prey (Q6) |
+| `fd-grave-fern-stalker` | SSR | yes | M | Hunt, arrival | Mandatory Hunt, an opponent's creature if able: forced self-hunt when the opponent has no legal prey (Q6, ruled) |
 | `fd-tracker-long-grass` | SR | yes | M | Hunt, Duty |  |
 | `fd-wild-tyrant` | SR | yes | M | Provoked |  |
 | `fd-ambush-at-the-river` | SR | yes | M | Hunt, spell |  |
@@ -1024,7 +1024,7 @@ projected cut first, then by rarity.
 | `fd-obsidian-knife` | SR | yes | E | none | Duty ping at any creature, yours included: a source (AI read in A1) |
 | `fd-herd-caller-hornback` | R | yes | E | none | Dinokin Axis is an `axes.ts` entry (data) |
 | `fd-mammothkin-matron` | R | yes | M | Provoked |  |
-| `fd-frill-neck-stalker` | R | yes | M | Hunt, arrival | Mandatory Hunt with any prey: forced self-hunt when the opponent has no legal prey (Q6) |
+| `fd-frill-neck-stalker` | R | yes | M | Hunt, arrival | Mandatory Hunt, an opponent's creature if able: forced self-hunt when the opponent has no legal prey (Q6, ruled) |
 | `fd-horned-herd` | R | yes | E | none |  |
 | `fd-thorn-hide-armourback` | R | yes | M+D | Provoked (targeted); Hunt, Empower; Empower allowlist | Empower Hunt: validator allowlist (types.ts:300-329); an empowered creature whose prey leaves fizzles whole today (probe P5, Q5) |
 | `fd-grip-of-the-old-beast` | R | yes | M | Hunt, spell |  |
@@ -1061,7 +1061,7 @@ projected cut first, then by rarity.
 | `fd-ash-witch-drain` | R | yes | E | none |  |
 | `fd-tar-pit` | R | yes | E | none |  |
 | `fd-tar-skin-brute` | R | yes | M | Provoked |  |
-| `fd-fern-and-fire` | R | yes | M | Hunt, arrival | Mandatory Hunt with any prey: forced self-hunt when the opponent has no legal prey (Q6) |
+| `fd-fern-and-fire` | R | yes | M | Hunt, arrival | Mandatory Hunt, an opponent's creature if able: forced self-hunt when the opponent has no legal prey (Q6, ruled) |
 | `fd-tusk-rage` | R | yes | M | Provoked |  |
 | `fd-herd-guardian` | R | yes | M | Provoked (targeted) |  |
 | `fd-stampede-long-grass` | R | yes | E | none |  |
@@ -1073,7 +1073,7 @@ projected cut first, then by rarity.
 | `fd-bone-totem` | R | yes | E | none |  |
 | `fd-spear-and-fang` | C | yes | M | Hunt, spell |  |
 | `fd-stalk-the-ferns` | C | yes | M | Hunt, spell |  |
-| `fd-fern-shadow-stalker` | C | yes | M | Hunt, arrival | Mandatory Hunt with any prey: forced self-hunt when the opponent has no legal prey (Q6) |
+| `fd-fern-shadow-stalker` | C | yes | M | Hunt, arrival | Mandatory Hunt, an opponent's creature if able: forced self-hunt when the opponent has no legal prey (Q6, ruled) |
 | `fd-horn-crest-charger` | C | yes | M | Hunt, arrival |  |
 | `fd-tall-grass-tracker` | C | yes | M+D | Hunt, Empower; Empower allowlist | Empower Hunt: validator allowlist; fizzle rule, Q5 |
 | `fd-fern-back-grazer` | C | yes | M | Provoked |  |
@@ -1089,7 +1089,7 @@ projected cut first, then by rarity.
 | `fd-fern-crest-raptor` | C | yes | E | none |  |
 | `fd-fern-nest-raider` | C | yes | E | none |  |
 | `fd-challenge-the-beast` | C | yes | M | Hunt, spell |  |
-| `fd-spear-thrower` | C | yes | M | Hunt, arrival | Mandatory Hunt with any prey: forced self-hunt when the opponent has no legal prey (Q6) |
+| `fd-spear-thrower` | C | yes | M | Hunt, arrival | Mandatory Hunt, an opponent's creature if able: forced self-hunt when the opponent has no legal prey (Q6, ruled) |
 | `fd-ridge-raptor` | C | yes | M+D | Hunt, Empower; Empower allowlist | Empower Hunt: validator allowlist; fizzle rule, Q5 |
 | `fd-coal-thrower` | C | yes | E | none | Mandatory target; alone, it pings itself (1/3 survives) |
 | `fd-ember-flick` | C | yes | E | none |  |
@@ -1160,12 +1160,12 @@ projected cut first, then by rarity.
 | `fd-great-drum` | SSR | no | E | none |  |
 | `fd-kree-wind-crest` | SSR | no | E | none |  |
 | `fd-nest-keeper` | SR | no | E | none |  |
-| `fd-crag-leaper` | SR | no | M | Hunt, arrival | Mandatory Hunt with any prey: forced self-hunt when the opponent has no legal prey (Q6) |
+| `fd-crag-leaper` | SR | no | M | Hunt, arrival | Mandatory Hunt, an opponent's creature if able: forced self-hunt when the opponent has no legal prey (Q6, ruled) |
 | `fd-frozen-in-the-ice` | SR | no | E | none |  |
 | `fd-ash-witch-edict` | SR | no | E | none |  |
 | `fd-old-bull` | R | no | E | none |  |
 | `fd-herd-singer` | R | no | E | none | Targeted `allyAttacks` observer: supported (EffectInterpreter.ts:1228-1234) |
-| `fd-tusk-and-claw` | R | no | M | Provoked; Hunt, arrival | Mandatory Hunt with any prey: forced self-hunt when the opponent has no legal prey (Q6) |
+| `fd-tusk-and-claw` | R | no | M | Provoked; Hunt, arrival | Mandatory Hunt, an opponent's creature if able: forced self-hunt when the opponent has no legal prey (Q6, ruled) |
 | `fd-hurled-firebrand` | R | no | E | none |  |
 | `fd-obsidian-tooth` | R | no | M | Provoked |  |
 | `fd-raptor-ambush` | R | no | E | none |  |

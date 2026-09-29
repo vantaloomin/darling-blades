@@ -881,7 +881,8 @@ Hatchling minter) is back on the projected board and Fern-Crown Tyrant (G,
 SSR: Dinokin, Provoked, Hunt, so a source) is off it. Counted from the two
 rows, the projected cut moves: white 29 to 30 rows, Duty 7 to 8 and token
 minters 9 to 10; green 34 to 33 rows, Provoked 10 to 9, Hunt 13 to 12,
-sources 13 to 12 and Dinokin 14 to 13. Pool: Provoked 32, Hunt 22, sources
+sources 13 to 12 and Dinokin 14 to 13. Projected-cut totals after the swap:
+Provoked 32, Hunt 22, sources
 44, Duty 31, token minters 42 (Hatchling 18), Dinokin 42. Every density
 minimum and tribe floor below still holds (green payoffs 9 against 8,
 sources 12 against 10, Hunt 12 against 8; Dinokin 42 against 38). **Duty is
@@ -1142,7 +1143,7 @@ E3, E4, E2, E7 and E1). Each answer leads its question below.
    clears the threshold on eight rows; Bone-Snap Ambush ("with Skyborne")
    then rides it at no extra engine cost, and the owner may restore it from
    the stretch rows.
-6. *Ruled (F3): "Trim TOWARDS 18, but if we land around 20 that's fine."*
+6. *Ruled (F3): "Trim TOWARDS 18 but if we land around 20 that's fine."*
    The target is 18 and about 20 is acceptable; the trim happens at the cut,
    after the lab. (F6 puts the projected cut at 31 Duty rows; G7 is no
    longer a reason to trim, see "G7 and P4".) **Trim Duty toward the brief's
