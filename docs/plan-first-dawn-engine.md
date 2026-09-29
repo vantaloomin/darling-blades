@@ -921,6 +921,10 @@ leaves it arriving without hunting. Attack and Dawn Hunts are unchanged, and
 so is the Empower Hunt. Two more rulings the same day joined A1.1b: card
 text may override the prey, and the generic Hunt's prey is an opponent's
 creature only, with no fallback. The ruled description is now "Your creature and its prey each deal damage equal to their Attack to the other. The prey is a creature an opponent controls, unless the card says otherwise. A creature with Bulwark cannot hunt. A creature that hunts when it arrives can't be cast unless it has prey."
+The owner amended it on 2026-09-29, so players do not expect First Blade to
+protect a hunter: the first sentence ends "to the other, at the same time."
+and is followed by "First Blade and Twin Blades don't apply to a Hunt." The
+engine is unchanged; the exchange was always simultaneous.
 
 - **The prey, and its overrides.** The default prey spec is
   `{ what: 'opponentCreature' }`. A card overrides it by declaring `prey` on
