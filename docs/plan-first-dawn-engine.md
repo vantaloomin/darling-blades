@@ -985,9 +985,14 @@ behaviour; `tests/ai/huntProvoked.test.ts` pins it on fixture cards.
 
 - **Item 1, the Hunt value** (`huntExchangeValue`). As Part 4 says, plus two
   terms it left implicit: Blood Oath's life at the `gainLife` rate (0.35 a
-  point), and a hunter with Bulwark worth 0 (the op does nothing). Damage
-  that kills nobody is worth nothing in itself (it wears off), so a Hunt with
-  no death and no Provoked scores exactly 0, "casting nothing". Every Hunt
+  point), and a hunter with Bulwark worth 0 (the op does nothing). Damage a
+  survivor takes keeps the residual targeted damage reads (0.45 a point,
+  `damageTargetValue`): a gain on an opponent's creature, a cost on yours, so
+  a self-hunt that marks damage on your own creature is priced as a friendly
+  ping is, never free (the review's fix, 2026-09-29). A Hunt that only
+  provokes an opposing creature still scores below casting nothing whenever
+  its Provoked outweighs that residual; an exchange in which neither deals
+  damage scores exactly 0. Every Hunt
   carrier reads it: the source-bound op through `targetValueForAbility`
   (attack and Dawn choices, a hunting Duty through the Duty scorer), the
   spell form through `spellTargetsValue` (slot 0 hunts slot 1, after a pump
@@ -997,10 +1002,13 @@ behaviour; `tests/ai/huntProvoked.test.ts` pins it on fixture cards.
 - **What a Provoked is worth** (`provokedValue`): the effect scored the way a
   Duty's use is (`activatedAbilityValue`'s machinery: its best legal targets
   on the public board, from its controller's side), on the board after the
-  provoking damage (the dead gone, the damage marked), times the ability's
-  condition multiplier; 0 when spent this turn (`firedThisTurn`) or when a
-  targeted effect has no legal target. A Provoked effect's own provoking is
-  not followed (one level), so no chain of reads can recurse.
+  provoking damage (the dead gone, the damage marked); 0 when spent this
+  turn (`firedThisTurn`), when a targeted effect has no legal target, or when
+  its condition is unmet on that board (the engine skips it; the test is the
+  engine's own, read from the public board, with "another" excluding the
+  creature itself and a creature that died this turn, the provoking damage's
+  deaths included, counting). A Provoked effect's own provoking is not
+  followed (one level), so no chain of reads can recurse.
 - **Item 2, friendly sources.** Targeted damage (`damageTargetValue`) and
   the all-creature sweeps (`symmetricCreatureSweepValue`, which now takes
   `eachYourCreature` with its `other`) add each survivor's unspent Provoked:
@@ -1010,7 +1018,9 @@ behaviour; `tests/ai/huntProvoked.test.ts` pins it on fixture cards.
   (`cardValue` with the public board).
 - **Item 3, combat.** Each combatant carries its unspent Provoked's value;
   the attack score and each block pair add the survivors' swing. The
-  double-block search does not read it.
+  double-block search does not read it. `Combatant.provoked` is scored on the
+  board before combat, so a Provoked blocker's best target may die in the
+  same combat; accepted for now.
 - **Item 4.** `opImpactValue` and `empowerValue` price `hunt` card-shaped at
   1.5, half of Empower's destroy (provisional, beside `moveMark`'s 0.75; the
   board value is what every target decision uses); `shapesCombat` includes
@@ -1029,14 +1039,26 @@ behaviour; `tests/ai/huntProvoked.test.ts` pins it on fixture cards.
   on a Provoked creature; `evaluate()` has no term for an unspent Provoked
   on the board. `shapesCombat` for a Hunt Duty is reached only by a hunter
   that cannot attack, since a creature that can attack never uses its Duty
-  in the Morning.
-- **The gates.** Against the unchanged base f2c25228, `scripts/action-log.ts`
-  with four workers: weenie preset 112 games and broad preset 210 games, 0
-  action-log divergences and 0 event-digest divergences on each. A control
-  (an ungated 0.3 swing in the combat planner's Provoked term) diverged 55 of
-  the 112 weenie games.
-- **Tests.** Seventeen behaviour tests, each shown to fail with its term
-  switched off (fifteen mutations, listed in the A1.2 report).
+  in the Morning. A pump earlier in a Hunt spell that takes the prey to 0
+  toughness or less is not valued as a kill by the Hunt read (no card does
+  this yet).
+- **For A1.3, the lab's brief.**
+  - The lab prices with **Hard**. Medium and Easy cast an arrival hunter
+    whenever it is legal, even when every prey kills it: their cast score
+    reads no Hunt value (A2.b).
+  - Until A2.b, Easy self-hunts with an `any` Hunt whenever the shared value
+    says it pays.
+  - If a First Dawn Darling in the cut prints an arrival Hunt, the Darling
+    cast still takes the first prey (A2.b).
+- **The gates.** `scripts/action-log.ts` with four workers, weenie preset 112
+  games and broad preset 210 games, 0 action-log divergences and 0
+  event-digest divergences on each: first against the unchanged base
+  f2c25228, then, after the review's fixes, against 066f1dc7 (A1.1b as
+  merged, with the A1.2 AI files swapped out) and against the unfixed A1.2
+  commit 7c6d2a12. A control (an ungated 0.3 swing in the combat planner's
+  Provoked term) diverged 55 of the 112 weenie games.
+- **Tests.** Twenty behaviour tests, each shown to fail with its term
+  switched off (eighteen mutations, listed in the A1.2 reports).
 
 ## What this spec corrects
 

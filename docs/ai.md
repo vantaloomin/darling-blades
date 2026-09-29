@@ -461,10 +461,13 @@ margin) is A2.b. Each claim is pinned in `tests/ai/huntProvoked.test.ts`.
   hunter with Bulwark does nothing. The prey's removal value counts if it
   dies (a gain when an opponent controls it, a cost when you do), the
   hunter's value is lost if it dies, Blood Oath's life counts at the
-  `gainLife` rate, and each survivor's unspent Provoked counts (plus for
-  yours, minus for theirs). Damage that kills nobody is worth nothing in
-  itself. So killing and surviving beats a kill that costs the hunter, and a
-  Hunt that only provokes an opposing creature scores below doing nothing.
+  `gainLife` rate, damage a survivor takes counts at targeted damage's
+  residual (0.45 a point: a gain on theirs, a cost on yours, so a self-hunt
+  is priced as a friendly ping is), and each survivor's unspent Provoked
+  counts (plus for yours, minus for theirs). So killing and surviving beats a
+  kill that costs the hunter, and a Hunt that only provokes an opposing
+  creature scores below doing nothing whenever its Provoked outweighs the
+  residual.
   Every Hunt target decision reads it: an attack or Dawn Hunt's choice, a
   hunting Duty (used only on prey that pays), a Hunt spell's hunter and prey
   pair (after a pump the same spell gave the hunter), an Empower Hunt, and an
@@ -486,8 +489,9 @@ margin) is A2.b. Each claim is pinned in `tests/ai/huntProvoked.test.ts`.
   provokes an opponent's creature subtracts its effect's value.
 - **What a Provoked effect is worth** (`provokedValue`): its best legal
   targets on the board after the damage, scored from its controller's side
-  the way a Duty's use is; a targeted effect with no legal target is worth 0;
-  a Provoked effect's own provoking is not followed further.
+  the way a Duty's use is; a targeted effect with no legal target, or one
+  whose condition is unmet on that board, is worth 0; a Provoked effect's own
+  provoking is not followed further.
 - **Provoked in combat** (`combatPlans.ts`). In the heuristic exchange a
   combatant dealt damage that survives adds its unspent Provoked (plus for
   the planner's side, minus for the other's). The attack planner stops
@@ -500,10 +504,11 @@ margin) is A2.b. Each claim is pinned in `tests/ai/huntProvoked.test.ts`.
   attack (`shapesCombat`), and every card with a Hunt joins Hard's protected
   cast candidates (`isVocabularyCast`).
 
-**The proof on today's pool (2026-09-29).** `scripts/action-log.ts` against
-the unchanged base f2c25228, four workers: the weenie preset, 112 games, and
-the broad preset, 210 games, each with 0 action-log divergences and 0
-event-digest divergences. As a control, an ungated 0.3 swing in the combat
+**The proof on today's pool (2026-09-29).** `scripts/action-log.ts`, four
+workers: the weenie preset, 112 games, and the broad preset, 210 games, each
+with 0 action-log divergences and 0 event-digest divergences, against the
+unchanged base f2c25228 and again, after the review's fixes, against
+066f1dc7. As a control, an ungated 0.3 swing in the combat
 planner's Provoked term diverged 55 of the 112 weenie games, so the harness
 sees this planner.
 

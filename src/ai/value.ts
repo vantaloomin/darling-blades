@@ -283,7 +283,7 @@ function damageTargetValue(ctx: TargetContext, op: Extract<EffectOp, { op: 'dama
   // its own creature's Provoked effect, and provoking theirs is a cost.
   const provoked = lethal || op.n <= 0 || !unspentProvoked(ctx.db, perm) ? 0 : signedProvokedValue(
     battlefieldAfterDamage(ctx.view.battlefield, ctx.db, new Map([[perm.iid, { damage: op.n, deathblade: false }]])),
-    ctx.db, ctx.view.myId, perm.iid);
+    ctx.db, ctx.view.myId, perm.iid, ctx.view.creatureDiedThisTurn === true);
   return impact * harmSign(ctx, ref) + provoked;
 }
 
@@ -321,16 +321,25 @@ let provokedDepth = 0;
  * gone, the damage marked). The effect is scored the way a Duty's use is
  * (`activatedAbilityValue`): its best legal targets on the public board, from
  * its controller's side; a targeted effect with no legal target does not fire
- * and is worth 0. Never negative, and 0 for a creature without an unspent
+ * and is worth 0, and one whose condition is unmet on that board does not
+ * fire either (the engine skips it). `creatureDiedThisTurn` is what the board
+ * cannot show: whether a creature has died this turn, the provoking damage's
+ * deaths included. Never negative, and 0 for a creature without an unspent
  * Provoked, so no board without one reads anything here.
  */
-export function provokedValue(battlefield: readonly Permanent[], db: CardDb, perm: Permanent): number {
+export function provokedValue(
+  battlefield: readonly Permanent[], db: CardDb, perm: Permanent, creatureDiedThisTurn = false,
+): number {
   if (provokedDepth > 0) return 0;
   const ability = unspentProvoked(db, perm);
   if (!ability) return 0;
+  const view: PlayerView = {
+    ...neutralView(battlefield, perm.controller),
+    ...(creatureDiedThisTurn ? { creatureDiedThisTurn: true as const } : {}),
+  };
+  if (!provokedConditionMet(view, db, perm, ability.condition)) return 0;
   provokedDepth++;
   try {
-    const view = neutralView(battlefield, perm.controller);
     const source = view.battlefield.find((p) => p.iid === perm.iid) ?? perm;
     let lists: TargetRef[][] = [[]];
     for (const spec of ability.targets ?? []) {
@@ -342,22 +351,34 @@ export function provokedValue(battlefield: readonly Permanent[], db: CardDb, per
       view: { ...view, you: { ...view.you }, battlefield: activatedWritesMarks(ops) ? view.battlefield.map((p) => ({ ...p })) : view.battlefield },
       db, source, live: false, targets, targetBatch: false,
     });
-    return Math.max(0, ...lists.map(score)) * abilityConditionMultiplier(ability.condition);
+    return Math.max(0, ...lists.map(score));
   } finally {
     provokedDepth--;
   }
+}
+
+/** The engine's condition test (`conditionSatisfied`) on the public board:
+ * "another" in `controlsOther` excludes the Provoked creature itself. */
+function provokedConditionMet(view: PlayerView, db: CardDb, perm: Permanent, condition: AbilityDef['condition']): boolean {
+  if (typeof condition === 'object' && condition.kind === 'controlsOther') {
+    return view.battlefield.some((p) => p.controller === perm.controller && p.iid !== perm.iid &&
+      isType(def(db, p.cardId), 'creature') && def(db, p.cardId).subtypes.includes(condition.subtype));
+  }
+  return publicCondition(view, db, condition);
 }
 
 /**
  * The signed Provoked value of the survivor `iid` on `after` (the board once
  * the damage that provokes it is marked and its dead are gone): plus for a
  * creature `me` controls, minus for an opponent's. 0 when it is not on that
- * board or has no unspent Provoked.
+ * board or has no unspent Provoked. `creatureDiedThisTurn` as in `provokedValue`.
  */
-function signedProvokedValue(after: readonly Permanent[], db: CardDb, me: PlayerId, iid: number): number {
+function signedProvokedValue(
+  after: readonly Permanent[], db: CardDb, me: PlayerId, iid: number, creatureDiedThisTurn: boolean,
+): number {
   const survivor = after.find((perm) => perm.iid === iid);
   if (!survivor) return 0;
-  const value = provokedValue(after, db, survivor);
+  const value = provokedValue(after, db, survivor, creatureDiedThisTurn);
   return survivor.controller === me ? value : -value;
 }
 
@@ -399,11 +420,12 @@ type HuntMods = ReadonlyMap<number, { p: number; t: number; keywords: readonly K
  * damage counts, Deathblade makes any damage lethal, and a hunter with Bulwark
  * does nothing. Then: the prey's removal value if it dies (a gain when an
  * opponent controls it, a cost when you do), minus the hunter's value if it
- * dies, each Blood Oath's life, and each survivor's unspent Provoked (plus
- * for yours, minus for theirs). So killing and surviving beats trading, and a
- * Hunt that only provokes an opposing creature is worth less than nothing.
- * Damage that kills nobody is worth nothing in itself: it wears off at the
- * end of the turn.
+ * dies, each Blood Oath's life, the residual of the damage a survivor takes
+ * (0.45 a point, as targeted damage reads it: a gain on an opponent's
+ * creature, a cost on yours), and each survivor's unspent Provoked (plus for
+ * yours, minus for theirs). So killing and surviving beats trading, and a
+ * Hunt that only provokes an opposing creature is worth less than nothing
+ * whenever its Provoked outweighs that residual.
  */
 export function huntExchangeValue(
   view: PlayerView, db: CardDb, battlefield: readonly Permanent[], hunterIid: number, preyIid: number,
@@ -432,6 +454,10 @@ export function huntExchangeValue(
   let value = 0;
   if (preyDies) value += lost(prey);
   if (hunterDies) value += lost(hunter);
+  // A survivor's damage, at the residual `damageTargetValue` reads (0.45 a point).
+  const residual = (perm: Permanent, damage: number, died: boolean): number =>
+    died || damage <= 0 ? 0 : damage * 0.45 * (perm.controller === me ? -1 : 1);
+  value += residual(prey, h.attack, preyDies) + residual(hunter, p.attack, hunterDies);
   const lifeGain = (perm: Permanent, keywords: ReadonlySet<Keyword>, damage: number): number =>
     keywords.has('bloodoath') && damage > 0 ? damage * 0.35 * (perm.controller === me ? 1 : -1) : 0;
   value += lifeGain(hunter, h.keywords, h.attack) + lifeGain(prey, p.keywords, p.attack);
@@ -445,8 +471,9 @@ export function huntExchangeValue(
       [hunter.iid, { damage: p.attack, deathblade: p.keywords.has('deathblade') }],
     ]);
     const after = battlefieldAfterDamage(battlefield, db, dealt, (perm) => perm.iid === prey.iid ? preyDies : hunterDies);
-    if (hunterProvoked) value += signedProvokedValue(after, db, me, hunter.iid);
-    if (preyProvoked) value += signedProvokedValue(after, db, me, prey.iid);
+    const died = view.creatureDiedThisTurn === true || preyDies || hunterDies;
+    if (hunterProvoked) value += signedProvokedValue(after, db, me, hunter.iid, died);
+    if (preyProvoked) value += signedProvokedValue(after, db, me, prey.iid, died);
   }
   return value;
 }
@@ -670,6 +697,9 @@ interface ActivatedImpactContext {
   live: boolean;
 }
 
+/** A Hunt's card-shaped floor (`opImpactValue`, `empowerValue`): half a destroy. */
+const HUNT_CARD_FLOOR = 1.5;
+
 export function opImpactValue(op: EffectOp, activated?: ActivatedImpactContext): number {
   if (activated) return activatedOpImpact(op, activated);
   switch (op.op) {
@@ -762,9 +792,6 @@ export function opImpactValue(op: EffectOp, activated?: ActivatedImpactContext):
       return 0;
   }
 }
-
-/** A Hunt's card-shaped floor (`opImpactValue`, `empowerValue`): half a destroy. */
-const HUNT_CARD_FLOOR = 1.5;
 
 /** Duty scores a supplied op directly, without a synthetic arrival decision. */
 function activatedTargetImpact(op: EffectOp, ctx: ActivatedImpactContext, ref: TargetRef): number {
@@ -1175,8 +1202,10 @@ function symmetricCreatureSweepValue(
   }
   if (struck.some((perm) => unspentProvoked(db, perm))) {
     const after = battlefieldAfterDamage(battlefield, db, new Map(struck.map((perm) => [perm.iid, { damage, deathblade: false }])));
+    // The board shows only this sweep's deaths, not earlier ones this turn.
+    const died = struck.some((perm) => !after.some((p) => p.iid === perm.iid));
     for (const perm of struck) {
-      if (unspentProvoked(db, perm)) value += signedProvokedValue(after, db, caster, perm.iid);
+      if (unspentProvoked(db, perm)) value += signedProvokedValue(after, db, caster, perm.iid, died);
     }
   }
   return value;

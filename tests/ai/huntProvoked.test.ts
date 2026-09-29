@@ -25,6 +25,10 @@ const ANY_PREY: TargetSpec = { what: 'creature', other: true };
 const cost = (generic: number) => ({ generic, pips: {} });
 /** "Provoked: draw two cards." */
 const DRAW_TWO: AbilityDef = { when: 'provoked', ops: [{ op: 'draw', n: 2 }] };
+/** "Provoked: draw three cards." */
+const DRAW_THREE: AbilityDef = { when: 'provoked', ops: [{ op: 'draw', n: 3 }] };
+/** "Provoked, if you control a Marked creature: draw two cards." */
+const MARKED_DRAW_TWO: AbilityDef = { when: 'provoked', condition: 'controlMarked', ops: [{ op: 'draw', n: 2 }] };
 /** "Whenever this attacks, Hunt." */
 const ATTACK_HUNT: AbilityDef = { when: 'attacks', targets: [PREY], ops: [{ op: 'hunt', hunter: 'self' }] };
 const body = (id: string, attack: number, defense: number, extra: Partial<CardDef> = {}, keywords: Keyword[] = []) =>
@@ -42,6 +46,9 @@ const DB: CardDb = dbOf(
   body('wall', 1, 5, { abilities: [DRAW_TWO] }),
   body('slab', 1, 5),
   body('bruiser', 2, 5, { abilities: [DRAW_TWO] }),
+  body('hoarder', 2, 5, { abilities: [DRAW_THREE] }),
+  body('sulker', 2, 5, { abilities: [MARKED_DRAW_TWO] }),
+  body('idler', 0, 3, { abilities: [ATTACK_HUNT] }),
   body('plain', 2, 5),
   body('mouse', 1, 1),
   body('asp', 1, 1, {}, ['deathblade']),
@@ -91,16 +98,20 @@ describe('Hunt target value (Part 4, item 1)', () => {
   const valueAgainst = (preyCard: string): number =>
     huntValue(viewOf([{ iid: 1, cardId: 'stalker' }, { iid: 2, cardId: preyCard, controller: 1 }]), 2);
 
-  it('ranks kill-and-survive above a kill that costs the hunter, a trade up above a Hunt that does nothing, and that above one that only provokes the prey', () => {
+  it('ranks kill-and-survive above a kill that costs the hunter, a trade up above casting nothing, and a Hunt that only provokes the prey below it', () => {
     const killAndSurvive = valueAgainst('cub'); // 3 kills a 2/2, which deals 2 to a 3/3
     const killAndDie = valueAgainst('glass'); // 3 kills a 3/1 worth as much, which deals 3 back
     const tradeUp = valueAgainst('rival'); // both 3/3s die; the prey cost 4, the hunter 2
-    const nothing = valueAgainst('post'); // a 0/4 takes 3 and deals nothing
     const provokeOnly = valueAgainst('wall'); // a 1/5 Provoked "draw two" survives
+    const castingNothing = 0;
     expect(killAndSurvive).toBeGreaterThan(killAndDie);
-    expect(tradeUp).toBeGreaterThan(nothing);
-    expect(nothing).toBe(0); // no creature dies and nothing is provoked: the same as casting nothing
-    expect(provokeOnly).toBeLessThan(nothing);
+    expect(tradeUp).toBeGreaterThan(castingNothing);
+    expect(provokeOnly).toBeLessThan(castingNothing);
+  });
+
+  it('an exchange in which neither creature deals damage is worth exactly casting nothing', () => {
+    // A 0/3 hunter and a 0/4 prey: no damage, no death, no Provoked.
+    expect(huntValue(viewOf([{ iid: 1, cardId: 'idler' }, { iid: 2, cardId: 'post', controller: 1 }]), 2)).toBe(0);
   });
 
   it('reads Deathblade on the hunter: a 1/1 Deathblade hunter trades up into a 4/4, a plain 1/1 only dies', () => {
@@ -168,10 +179,10 @@ describe('the Hunt spell and the hunting Duty (Part 4, items 1 and 4)', () => {
 });
 
 describe("an 'any' Hunt takes your own creature only when it pays", () => {
-  // Our Provoked 2/5 ("draw two") takes 3 and survives, and deals the hunter
-  // only 2; the opponent's 1/1 would die to it.
+  // Our Provoked 2/5 ("draw three") takes 3 and survives, and deals the
+  // hunter only 2; the opponent's 1/1 would die to it.
   const korruGame = (spent: boolean): Game => gameOf(
-    [{ iid: 2, cardId: 'bruiser' }, { iid: 3, cardId: 'mouse', controller: 1 }], ['korru'],
+    [{ iid: 2, cardId: 'hoarder' }, { iid: 3, cardId: 'mouse', controller: 1 }], ['korru'],
     (perms) => { if (spent) perms[0].firedThisTurn = [0]; },
   );
 
@@ -181,6 +192,13 @@ describe("an 'any' Hunt takes your own creature only when it pays", () => {
 
   it('hunts the opponent\'s creature when its own creature\'s Provoked is spent this turn', () => {
     expect(keptCastTargets(korruGame(true))).toEqual([[ref(3)]]);
+  });
+
+  it('prices the damage a self-hunt marks on its own creature, as a friendly ping is priced', () => {
+    // No kill and no Provoked either way: our 2/5 would take 3 and deal 2
+    // back; the opponent's 0/4 would take 3. Ours comes first in battlefield order.
+    const game = gameOf([{ iid: 2, cardId: 'plain' }, { iid: 3, cardId: 'post', controller: 1 }], ['korru']);
+    expect(keptCastTargets(game)).toEqual([[ref(3)]]);
   });
 });
 
@@ -194,6 +212,17 @@ describe('friendly sources earn an unspent Provoked (Part 4, item 2)', () => {
     expect(targetValueForAbility(view, DB, source, tender, ref(3))).toBeLessThan(0);
     const spent = viewOf([{ iid: 1, cardId: 'tender' }, { iid: 2, cardId: 'bruiser' }], (perms) => { perms[1].firedThisTurn = [0]; });
     expect(targetValueForAbility(spent, DB, spent.battlefield[0], tender, ref(2))).toBeLessThan(0);
+  });
+
+  it('a Provoked whose condition is unmet on the board adds nothing: the ping stays a cost', () => {
+    // "Provoked, if you control a Marked creature: draw two." The Mark sits on another creature.
+    const ping = (marked: boolean): number => {
+      const view = viewOf([{ iid: 1, cardId: 'tender' }, { iid: 2, cardId: 'sulker' },
+        { iid: 3, cardId: 'plain', plusOneCounters: marked ? 1 : 0 }]);
+      return targetValueForAbility(view, DB, view.battlefield[0], tender, ref(2));
+    };
+    expect(ping(false)).toBeLessThan(0);
+    expect(ping(true)).toBeGreaterThan(0);
   });
 
   it('damage to each creature you control sums the Provoked survivors, and the Duty is used only when they pay', () => {
