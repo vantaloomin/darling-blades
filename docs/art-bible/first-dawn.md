@@ -130,9 +130,10 @@ feet.
 
 **Added after the pilot: Vyra, Ember-Sky Rider** (`fd-vyra-ember-sky-rider`,
 the owner's ninth Ultra Rare, 2026-09-29; the overplan's Ultra Rare table).
-She is the set's only red Skyborne card, a pie exception (the brief gives
-the sky to W/U), and its Shivan Dragon: an Ember-clan woman on a plain red
-and ochre pterosaur. A Human Rider (D2), so she carries no species tells,
+She is the set's sole red Skyborne card, a red rider on a pterosaur (the
+owner's words); the session frames that as a pie exception, since the brief
+gives the sky to W/U. She is its Shivan Dragon: an Ember-clan woman on a
+plain red and ochre pterosaur. A Human Rider (D2), so she carries no species tells,
 and the pterosaur is a plain Dinosaur beast, never a Dinokin. Her entry is
 the last below. It follows the section 4d recipe and the pilot's lessons:
 her head top at or below y 179 and the highest point in frame, the wing
@@ -141,8 +142,10 @@ head inside the band, exactly one rider and one mount, Ember-clan dress, no
 cyan, dawn light. It takes its shape from Asha and Shree (the airborne
 rider, mount and rider never fused) and Kesh (the Ember-clan rider, the
 levelled spear). **Its Prompt is a DRAFT: Fable reviews it before any image
-is generated, at the art run.** Her card facts are the owner's working
-text and change if the name or the card does.
+is generated, at the art run.** Her card facts are working text (the
+owner asked for a red Ultra Rare like Shivan Dragon with a repeatable
+pump-attack ability; the name, cost, stats, typing and clan are the
+session's draft) and change if the name or the card does.
 
 ## Entries
 
@@ -346,7 +349,7 @@ text and change if the name or the card does.
 *DRAFT prompt (2026-09-29): Fable reviews it before any image is generated, at the art run. Not a pilot entry.*
 
 - **Card facts:** {4}{R}{R} · R · 5/5 · skyborne · ur, legendary · holo: prism
-- **Character & source:** Vyra, the Ember clan's sky rider: the set's one red flier (owner, 2026-09-29, a pie exception at Ultra Rare) and its Shivan Dragon. A Human Rider (D2), so she has no species tells, and her mount is a plain pterosaur, a Dinosaur beast (the Glider's build at full size, in red and ochre), not a Dinokin. Thirties, tall and long-limbed, deep bronze skin, dark auburn hair cropped at the jaw, ochre and ash stripes across her cheekbones and upper arms (Ember-clan paint, bands only).
+- **Character & source:** Vyra, the Ember clan's sky rider: the set's sole red Skyborne card (owner, 2026-09-29; a pie exception at Ultra Rare in the session's framing) and its Shivan Dragon. A Human Rider (D2), so she has no species tells, and her mount is a plain pterosaur, a Dinosaur beast (the Glider's build at full size, in red and ochre), not a Dinokin. Thirties, tall and long-limbed, deep bronze skin, dark auburn hair cropped at the jaw, ochre and ash stripes across her cheekbones and upper arms (Ember-clan paint, bands only).
 - **Personality / mood:** "{R}: +1/+0": every coal she feeds the dive makes it hit harder. Reckless, laughing, the Ember clan's fire carried into the sky.
 - **Pose & composition:** Airborne, a shallow dive from right to left across the frame at mid-height, the valley far below. The pterosaur's wings spread wide in a downstroke, both wing tips inside the frame and lower than her head; its crested head leads at the left third, below her head (crest y 300 to 340), jaws closed. Vyra in a hide saddle at the base of its neck, leaning low along it, a flint spear levelled forward past its head, the point below her head. Her head top at or below y 179 is the highest point of anything in frame; eye line y 290. Exactly one rider and one mount: no Gliders, no other fliers.
 - **Costume & attire:** Scorched-leather two-piece, chest and hips covered, sinew ties, a dark red-brown shoulder pelt, leg wraps, a flint knife at the belt.

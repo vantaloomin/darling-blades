@@ -404,7 +404,7 @@ creature an opponent controls, with no fallback, and a card may declare
   (A1.3) drops the forced-self-hunt arm; the self-Hunt arm, through an `any`
   card, is live.
 - **A1.2** (Hard's reads, 2026-09-29) values Hunt and Provoked in the shared AI layer, arrival hunters cast at their best prey, with 0 divergences on the weenie and broad presets ([As built (A1.2)](plan-first-dawn-engine.md#as-built-a12-hards-reads)).
-- **A1.5** (the owner's Vyra ruling, 2026-09-29; see lane B): a non-tap, mana-only ability, repeatable, at Charm speed (after blockers too), one action paying for N activations (the Duel UI's +/- ticker is A2.a's); the scorer carries it as NEEDS MATH at 0 until the lab prices it.
+- **A1.5** (for the owner's Vyra, 2026-09-29; see lane B): a non-tap, mana-only ability, repeatable, at Charm speed (after blockers too), one action paying for N activations (the Duel UI's +/- ticker is A2.a's); the scorer carries it as NEEDS MATH at 0 until the lab prices it.
 - **A2.b** Easy never hunts its own creature *by choice*: its filter matters
   again, on the cards that declare `any` (the owner's B5).
 - **A2.d** The converter's target walk treats every generic Hunt as dead
@@ -490,15 +490,17 @@ row text in two places only (the Hunt template, now the ruled bare keyword
 on every Hunt row, and Scar-Knife Witch's "another"); no row is re-costed or
 trimmed before the cut.
 
-**A ninth Ultra Rare (owner, 2026-09-29).** The owner added the set's
-Shivan Dragon: **Vyra, Ember-Sky Rider** (a working name), {4}{R}{R} 5/5,
-Legendary Creature: Human Rider, Skyborne, "{R}: This gets +1/+0 until
-Sunset." She is the set's only red Skyborne card (a pie exception at Ultra
-Rare; the brief gives the sky to W/U), an Ember-clan woman on a plain
-pterosaur, and she is protected. **The cut's histogram becomes 82 / 49 / 15
-/ 11 / 9 = 166** (B3 ruled 8 Ultra Rares and 165; the owner changed it
-deliberately, one card over D2's 150-165). Her pump is a new construct,
-built as **A1.5** (lane A); on the v4 scorer without it she reads 6.43
+**A ninth Ultra Rare (owner, 2026-09-29).** The owner asked for a red
+Ultra Rare like Shivan Dragon with a repeatable pump-attack ability, the
+set's sole red Skyborne card (a red rider on a pterosaur), whose pump works
+as a Charm with a +/- ticker. **The cut's histogram becomes 82 / 49 / 15 /
+11 / 9 = 166** (B3 ruled 8 Ultra Rares and 165; the owner changed it
+deliberately, one card over D2's 150-165). The session's working draft:
+**Vyra, Ember-Sky Rider**, {4}{R}{R} 5/5, Legendary Creature: Human Rider
+(D2), Skyborne, "{R}: This gets +1/+0 until Sunset.", an Ember-clan woman
+on a plain pterosaur (a pie exception at Ultra Rare in the session's
+framing; the brief gives the sky to W/U), protected. The session scheduled
+the pump as **A1.5** (lane A); on the v4 scorer without it she reads 6.43
 against a budget of 7.44 (Δ -1.01), and the pump is NEEDS MATH, valued 0
 until the lab. The overplan carries her row (overlap not yet run) and the
 art bible her entry, whose prompt Fable reviews before the art run.
@@ -1248,7 +1250,7 @@ Numbered so rulings can cite them. Recommendations are the first option.
     applies to Hunt with no Hunt-specific code, while combat-defined
     keywords (First Blade, Twin Blades, Overrun) do not. Also ruled: Bulwark prevents Hunt at any rarity (a
     Bulwark creature can be prey, never the hunter); no reserved Provoked
-    art tell; 165 cards; Provoked at most once per turn per creature; the
+    art tell; 165 cards (superseded 2026-09-29: 166); Provoked at most once per turn per creature; the
     red-green and red-white sweep personas (D12); the three-row vocabulary
     threshold.
   - **The accessibility plan and the art streaming design are APPROVED**
@@ -1314,19 +1316,26 @@ Numbered so rulings can cite them. Recommendations are the first option.
     design, one Pack Raptor, and **P16 went the other way:** the shipped
     catalogue is re-cropped to the y 179 head line now, wherever the raw
     is cached. See lane B.
-- **Vyra, the ninth Ultra Rare (the owner, 2026-09-29).** Three rulings on
-  one card, Vyra, Ember-Sky Rider (a working name), {4}{R}{R} 5/5, Human
-  Rider, Skyborne, "{R}: This gets +1/+0 until Sunset.":
-  - **The sky.** She is the set's sole red Skyborne card, a pie exception at
-    Ultra Rare: a Human Rider (not Dinokin, D2) on a plain pterosaur.
-  - **The pump.** A non-tap, mana-only ability, repeatable, at Charm speed
-    (after blockers too); the Duel UI gives it a +/- ticker so one action
-    pays for N activations. Built as A1.5; priced at 0 (NEEDS MATH) until
-    the lab.
+- **A ninth Ultra Rare, the set's Shivan Dragon (the owner, 2026-09-29).**
+  The owner asked for "a Red UR card similar to Shivan Dragon, with a
+  repeatable Pump-Attack ability", then ruled three questions:
+  - **The sky.** She is the sole red Skyborne card: a red rider, a woman on
+    a Skyborne pterosaur.
+  - **The pump.** It works as a Charm (Charm speed; in the rules that
+    includes after blockers), and the Duel UI gives it a small +/- ticker
+    for a "single cast" pump instead of asking about every mana.
   - **The count.** Ultra Rare rises from 8 to 9: 82 / 49 / 15 / 11 / 9 =
     166, a deliberate change to the B3 histogram, and one card over D2's
-    150-165 range (the wave-1 sitting's "165 cards" is superseded). See
-    lane B.
+    150-165 range (the wave-1 sitting's "165 cards" is superseded).
+
+  **The working draft (the session's, not ruled):** Vyra, Ember-Sky Rider,
+  {4}{R}{R} 5/5, Legendary Creature: Human Rider (D2), Skyborne, "{R}: This
+  gets +1/+0 until Sunset.", of the Ember clan; red Skyborne framed as a
+  pie exception at Ultra Rare; the pump scheduled as A1.5, narrow, and
+  priced at 0 (NEEDS MATH) until the lab. On the v4 scorer without the pump
+  she reads 6.43 against a budget of 7.44 (Δ -1.01). Owed: the overlap
+  comparator, the rescore, and Fable's review of the art prompt. See lane
+  B.
 - **Starting life: a 2.0 change, so 1.9 stays at 20 (the owner, 2026-09-29).** The owner
   aimed a 5-10 increase in starting life at 2.0, with Core Set II
   ([plan-road-to-2.0.md](plan-road-to-2.0.md#starting-life-a-20-direction)).

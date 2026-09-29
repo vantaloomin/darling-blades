@@ -24,14 +24,15 @@ control" (E9). No row is re-costed, re-rated or trimmed here: the cut does that 
 the lab. The projected cut moves by one swap (F6: the Great Drum in,
 Fern-Crown Tyrant out).
 
-**Status 2026-09-29: the owner added a red Ultra Rare, the set's Shivan
-Dragon.** **Vyra, Ember-Sky Rider** (a working name), {4}{R}{R} 5/5, a
+**Status 2026-09-29: the owner asked for a red Ultra Rare like Shivan
+Dragon, with a repeatable pump-attack ability,** the set's sole red
+Skyborne card, and raised the Ultra Rare count from 8 to 9, so the
+histogram becomes **82 / 49 / 15 / 11 / 9 = 166**: a deliberate change to
+the ruled B3 histogram, and one card over D2's 150-165 range. The session's
+working draft of the card is **Vyra, Ember-Sky Rider**, {4}{R}{R} 5/5, a
 legendary Human Rider with Skyborne and "{R}: This gets +1/+0 until
-Sunset." She is protected, so the cut's Ultra Rare count rises from 8 to 9
-and the histogram becomes **82 / 49 / 15 / 11 / 9 = 166**: a deliberate
-change to the ruled B3 histogram, and one card over D2's 150-165 range.
-Her repeatable pump is a new engine construct (A1.5), valued at 0 until the
-lab prices it. Every count below that she changes is updated; where a number
+Sunset." Her repeatable pump is a new engine construct, scheduled by the
+session as A1.5 and valued at 0 until the lab prices it. Every count below that she changes is updated; where a number
 is quoted as history (the B3 histogram, the F6 swap, the balance pass as
 run), it says so. Her row is in the Ultra Rare table, and the rulings are
 under "Questions for the owner".
@@ -907,7 +908,7 @@ read:
 | Colourless | 7 (7) | 0 (0) | 0 (0) | 2 (2) | 5 (5): 0 / 5 | 0 (0) | 0 (0); C 0 | 0 (0) | 0 (0) |
 | **Pool** | **211 (166)** | **38 (33)** | **25 (23)** | **50 (45)** | **40 (30)** | **48 (41)** | **57 (43)** | **9 (8)** | **4 (4)** |
 
-Against the brief's budget at 165: Provoked 38 rows in the
+Against the brief's budget (computed at 165): Provoked 38 rows in the
 overplan and 33 in the projected cut (budget 26); Hunt
 25 and 23 (budget 18); Duty 40 and 30
 (budget 18). The cut keeps more of each than the budget: the rarity histogram
@@ -968,7 +969,7 @@ Brute).
 
 | Measure (brief section 2) | Overplan | Projected cut | Brief |
 | --- | ---: | ---: | --- |
-| Dinokin cards | 57 | 43 | 38 at 165 |
+| Dinokin cards | 57 | 43 | 38 (the brief's number, computed at 165) |
 | Dinokin at C and R playable in R/G | 32 | 24 | at least 10 |
 | Dinokin at C and R playable in G/W | 27 | 19 | at least 10 |
 | Dinokin commons: green / red / white | 13 / 9 / 7 | 9 / 8 / 6 | at least 8 / 5 / 3 |
@@ -1032,7 +1033,7 @@ come first; the rest is every construct a row needs that
 | `keywordTarget` | a target qualified by a keyword, with or without it (the hunter of a Hunt spell is "target creature you control without Bulwark", H3a; "target creature with Skyborne"); TargetSpec has maxCost, minAttack, marked and tapped only, and the AI target enumeration would offer a Bulwark hunter | 9 (`fd-fang-and-horn`, `fd-ambush-at-the-river`, `fd-grip-of-the-old-beast`, `fd-duel-on-the-ridge`, `fd-blaze-horn-charge`, `fd-spear-and-fang`, `fd-stalk-the-ferns`, `fd-bone-snap`, `fd-challenge-the-beast`) | 8 | yes | Admit (reversed from the first draft): every Hunt spell's hunter must be "target creature you control without Bulwark" (H3a), a keyword-qualified target the engine lacks and the AI's target enumeration would violate, so the construct clears the threshold on the eight Hunt spells alone. A creature that gains Bulwark after targeting must also be refused at resolution (an H3a check in the Hunt op). Bone-Snap Ambush ("with Skyborne") then rides it at no extra engine cost; it stays a stretch row. **Corrected by the engine spec** (item 4), ruled 2026-09-28 (E2): not built. The Bulwark rule lives in the Hunt op, so the general qualifier would serve 0 cut rows (only Bone-Snap Ambush, which stays cut) |
 | `distinctSpellTargets` | the two creature targets of a spell must be different creatures; `other` excludes only the source permanent of an ability, and a spell has none (targeting.ts:156) | 8 (`fd-fang-and-horn`, `fd-ambush-at-the-river`, `fd-grip-of-the-old-beast`, `fd-duel-on-the-ridge`, `fd-blaze-horn-charge`, `fd-spear-and-fang`, `fd-stalk-the-ferns`, `fd-challenge-the-beast`) | 8 | yes | Admit with the Hunt op: a spell's hunter and prey must be two different creatures (H1), and `other` excludes only the source permanent of an ability, which a spell does not have (targeting.ts, around line 156). **Corrected by the engine spec** (items 4 and 6), ruled 2026-09-28 (E2): distinctness is the Hunt op's own rule, not a construct; the spell's prey spec still carries `other: true`, which excludes nothing on a spell and stays in the data only because it prints "another target" |
 | `damageEachYours` | "damage each creature you control N" (no op; the damage op reaches eachCreature or eachOpponentCreature only) | 4 (`fd-uzza-war-painter`, `fd-war-drums`, `fd-trial-by-ember`, `fd-drum-beater`) | 3 | yes | Admit: red's war-drum and white's scarring rite, the source shape the brief expected (2-3 rows). A new `damage` target, `eachYourCreature` (with an optional `other`), beside `eachCreature` and `eachOpponentCreature`. Drum-Beater of the Ember Clan is the only common on it and teaches board-wide self-damage: your own Pack Raptors and Hatchlings die to it. **Ruled 2026-09-28 (E3): keep** (built in A1 as the `eachYourCreature` recipient); if the cut drops one of the three rows, it falls below the threshold and the question returns |
-| `manaPump` (A1.5) | a non-tap, mana-only activated ability, repeatable, at Charm speed (after blockers too): `ActivatedDef`'s cost is `{ tap: true; mana? }` in `src/engine/types.ts`, so every activation today is a Duty and taps | 1 (`fd-vyra-ember-sky-rider`) | 1 | no, one row | **Ruled by the owner 2026-09-29, below the threshold on purpose:** built as A1.5 for Vyra alone, narrow (an untargeted effect on the creature itself, creatures only); one action pays for N activations, which the Duel UI shows as a +/- ticker (A2.a). The scorer carries it as NEEDS MATH at 0 until the lab prices it |
+| `manaPump` (A1.5) | a non-tap, mana-only activated ability, repeatable, at Charm speed (after blockers too): `ActivatedDef`'s cost is `{ tap: true; mana? }` in `src/engine/types.ts`, so every activation today is a Duty and taps | 1 (`fd-vyra-ember-sky-rider`) | 1 | no, one row | **The owner's ruling (2026-09-29):** the ability works as a Charm (Charm speed; in the rules that includes after blockers), and the Duel UI shows a +/- ticker so one activation commits N (A2.a). **The session's calls:** build it below the threshold for this one card, as A1.5, narrow (an untargeted effect on the creature itself, creatures only). The scorer carries it as NEEDS MATH at 0 until the lab prices it |
 | `empowerHunt` | Empower may Hunt (the Empower validator allowlist is moveMark, reclaim, destroy) | 3 (`fd-thorn-hide-armourback`, `fd-tall-grass-tracker`, `fd-ridge-raptor`) | 3 | yes | Admit with the Hunt op, but it is not an allowlist-only change: Empower riders are contractually trigger-safe (types.ts, EmpowerDef; resolve.ts), and a Hunt can kill and so raise a dies trigger or a deferred choice. P4's state-based placement of Provoked keeps the Hunt's own Provoked out of the rider; the dies triggers still need the rider to allow a deferred choice. Rows: fd-thorn-hide-armourback, fd-tall-grass-tracker, fd-ridge-raptor. **Corrected by the engine spec** (item 3), ruled 2026-09-28 (E4): it is an allowlist-only validator change; Hunt damage only marks damage, and the deaths come in the state-based check after the rider. Also ruled (E5): an empowered creature whose prey leaves still resolves and loses only the rider |
 
 **Not needed after all** (the brief's section 10 estimates): the size
@@ -1264,21 +1265,30 @@ E3, E4, E2, E7 and E1). Each answer leads its question below.
     rule P4 as written before the spec, and schedule G7 ahead of A1; if
     either slips, those rows are the ones to reword or cut.
 
-**Ruled 2026-09-29 (the owner): Vyra, the ninth Ultra Rare.** Three
-rulings, the score, and what is still owed:
+**Ruled 2026-09-29 (the owner): a ninth Ultra Rare, the set's Shivan
+Dragon.** The owner asked for "a Red UR card similar to Shivan Dragon, with
+a repeatable Pump-Attack ability", then ruled three questions:
 
-- **The card, and the sky.** Vyra, Ember-Sky Rider (a working name),
-  {4}{R}{R} 5/5, Legendary Creature: Human Rider, Skyborne, "{R}: This gets
-  +1/+0 until Sunset." She is the set's only red Skyborne card, a pie
-  exception at Ultra Rare (the brief gives the sky to W/U): an Ember-clan
-  woman on a plain pterosaur. Riders are Human, not Dinokin (D2), and the
-  mount is a plain Dinosaur beast. Core, protected.
-- **The pump.** A non-tap, mana-only ability, repeatable, at Charm speed
-  (after blockers too), built now as A1.5. The Duel UI gives it a +/-
-  ticker, so one action pays for N activations.
+- **The sky.** She is the sole red Skyborne card: a red rider, a woman on a
+  Skyborne pterosaur.
+- **The pump.** It works as a Charm (Charm speed; in the rules that
+  includes after blockers), and the Duel UI gives it a small +/- ticker, so
+  the player makes a "single cast" pump instead of being asked about every
+  mana.
 - **The count.** Ultra Rare rises from 8 to 9, so the histogram is 82 / 49
   / 15 / 11 / 9 = 166, a deliberate change to B3, and one card over D2's
   150-165 range.
+
+**The working draft (the session's, not ruled):**
+
+- **The card.** Vyra, Ember-Sky Rider, {4}{R}{R} 5/5, Legendary Creature:
+  Human Rider, Skyborne, "{R}: This gets +1/+0 until Sunset." An Ember-clan
+  woman on a plain pterosaur; Human, not Dinokin, per D2, and the mount a
+  plain Dinosaur beast. The session frames red Skyborne as a pie exception
+  at Ultra Rare (the brief gives the sky to W/U). Core, protected.
+- **The engine work.** Scheduled as A1.5: a non-tap, mana-only ability,
+  repeatable, one action paying for N activations, narrow (an untargeted
+  effect on the creature itself, creatures only).
 - **The score.** On the v4 scorer without the pump: power 6.43 against a
   budget of 7.44, Δ -1.01 (body 5/5 +4.58, Skyborne at Attack 5 +1.85). The
   pump is NEEDS MATH, valued 0 until the lab; priced, it fills the gap.

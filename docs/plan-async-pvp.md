@@ -41,18 +41,20 @@ feel of playing a friend's deck, without a second human online.
   imports codes today.
 - **The Hard AI.** `src/ai/tiers.ts` maps the Tower's top two tiers to the
   Hard brain (tier 6: Hard with no noise). Practice already offers a plain
-  training duel at a chosen difficulty (`src/scenes/PracticePickerScene.ts`), and the
-  balance harness plays Hard on arbitrary decks every day.
+  training duel at a chosen difficulty (`src/scenes/PracticePickerScene.ts`),
+  and the balance harness plays Hard on arbitrary decks.
 - **An opponent deck from outside the avatar roster.** `DuelSceneData` has
   `oppDeckOverride` and `landReserveOverride`; the tutorial and Limited use
-  the deck override today. The reserve override is read only on the
-  tutorial's path, so a challenge needs its own branch in duel setup, not a
-  new engine feature.
+  the deck override today. The reserve override is read on the tutorial's
+  and Limited's paths only (`DuelScene.ts`, the `landReserves` build), never
+  for a plain Standard duel, so a challenge needs its own branch in duel
+  setup, not a new engine feature.
 - **Ownership is not checked on an opponent's deck.** `validateDeck`
   (`src/meta/DeckStorage.ts`) checks owned counts for the player's own
   decks; the override path skips it, as Limited's opponents already do.
-- **Replays.** `src/meta/Replay.ts` records every game as a local,
-  deterministic log (decks, seed, actions). A shareable replay code
+- **Replays.** `src/meta/Replay.ts` keeps the last ten games
+  (`REPLAY_CAP = 10`; the tutorial is not recorded) as local,
+  deterministic logs (decks, seed, actions). A shareable replay code
   (`DBR1`, [plan-player-replays.md](plan-player-replays.md)) is specified
   but **not built** (the road-to-2.0 table: "Spec'd, no code").
 - **Save cards.** `src/meta/SaveImage.ts` carries a save code in a PNG
