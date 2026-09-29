@@ -3,7 +3,7 @@ import { getEffectiveStats } from '../engine/statics';
 import type { CardDb, CombatState, Permanent, PlayerId } from '../engine/types';
 import { def, isType, opponentOf } from '../engine/types';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
-import { dawnSelfBleed, permValue } from './value';
+import { dawnSelfBleed, permValue, provokedValue } from './value';
 
 /**
  * Combat planning shared by Medium and Hard. Works on public information
@@ -22,6 +22,9 @@ interface Combatant {
   trample: boolean;
   lifelink: boolean;
   dreaded: boolean;
+  /** What its unspent Provoked is worth to its controller if a blow it
+   * survives sets it off; 0 without one (every card today). */
+  provoked: number;
 }
 
 function combatant(bf: readonly Permanent[], db: CardDb, iid: number, trickBuff = 0): Combatant {
@@ -39,6 +42,7 @@ function combatant(bf: readonly Permanent[], db: CardDb, iid: number, trickBuff 
     trample: stats.keywords.has('overrun'),
     lifelink: stats.keywords.has('bloodoath'),
     dreaded: stats.keywords.has('dreaded'),
+    provoked: provokedValue(bf, db, perm),
   };
 }
 
@@ -50,10 +54,11 @@ function strikesInStep(c: Combatant, first: boolean): boolean {
 }
 
 /** One hit of a combat exchange (module-level so the hot loop allocates no
- * closures). */
-function strike(source: Combatant, target: Combatant, amount: number, dying: Set<number>): void {
+ * closures). `struck`, when given, collects every combatant dealt damage. */
+function strike(source: Combatant, target: Combatant, amount: number, dying: Set<number>, struck?: Set<number>): void {
   if (amount <= 0 || target.damagePrevented) return;
   target.defense -= amount;
+  struck?.add(target.iid);
   if (source.deathtouch || target.defense <= 0) dying.add(target.iid);
 }
 
@@ -67,7 +72,7 @@ function lethalNeed(striker: Combatant, b: Combatant): number {
  * Effective stats stay fixed for this heuristic; continuous effects changing
  * after a death and triggered abilities remain the engine sim's job. */
 function combatExchange(
-  attacker: Combatant, blockers: Combatant[], firstStrikeDone = false, wasBlocked = true,
+  attacker: Combatant, blockers: Combatant[], firstStrikeDone = false, wasBlocked = true, struck?: Set<number>,
 ): { damage: number; dying: number[] } {
   const a = { ...attacker };
   const defenders = blockers.map((b) => ({ ...b }));
@@ -86,15 +91,31 @@ function combatExchange(
       for (let i = 0; i < ordered.length && power > 0; i++) {
         const b = ordered[i];
         const amount = a.trample || i < ordered.length - 1 ? Math.min(power, lethalNeed(a, b)) : power;
-        strike(a, b, amount, dying);
+        strike(a, b, amount, dying, struck);
         power -= amount;
       }
       // An attacker whose first hit killed every blocker is still blocked.
       if (!wasBlocked || a.trample) damage += power;
     }
-    for (const b of returning) strike(b, a, Math.max(0, b.attack), dying);
+    for (const b of returning) strike(b, a, Math.max(0, b.attack), dying, struck);
   }
   return { damage, dying: [...dying] };
+}
+
+/**
+ * Provoked in the exchange (plan-first-dawn-engine.md, Part 4, item 3): each
+ * combatant dealt damage that survives sets off its unspent Provoked, worth
+ * `provoked` to its controller. Signed for the side `attackerIsMine` names:
+ * plus for that side's survivors, minus for the other's. Returns 0 at once
+ * when no combatant has one, so a board without Provoked runs nothing here.
+ */
+function provokedSwing(attacker: Combatant, blockers: readonly Combatant[], attackerIsMine: boolean): number {
+  if (attacker.provoked <= 0 && !blockers.some((b) => b.provoked > 0)) return 0;
+  const struck = new Set<number>();
+  const { dying } = combatExchange(attacker, [...blockers], false, true, struck);
+  const provoked = (c: Combatant): number => struck.has(c.iid) && !dying.includes(c.iid) ? c.provoked : 0;
+  const theirs = blockers.reduce((sum, b) => sum + provoked(b), 0);
+  return attackerIsMine ? provoked(attacker) - theirs : theirs - provoked(attacker);
 }
 
 /** Does the striker kill the victim before or during their straight exchange? */
@@ -142,7 +163,7 @@ class BoardMemo {
   /** defender -> blocker -> attacker. */
   private readonly blockable = new Map<PlayerId, Map<number, Map<number, boolean>>>();
   /** trickBuff -> blocker -> attacker. */
-  private readonly duels = new Map<number, Map<number, Map<number, { iKill: boolean; iDie: boolean }>>>();
+  private readonly duels = new Map<number, Map<number, Map<number, { iKill: boolean; iDie: boolean; provoked: number }>>>();
   private readonly untapped = new Map<PlayerId, Permanent[]>();
   private readonly weights = new Map<PlayerId, { pressing: boolean; oppPower: number }>();
 
@@ -178,14 +199,15 @@ class BoardMemo {
   }
 
   /** The straight exchange between one blocker and one (possibly
-   * trick-buffed) attacker, from the blocker's side. */
-  duel(blocker: number, attacker: number, trickBuff: number): { iKill: boolean; iDie: boolean } {
+   * trick-buffed) attacker, from the blocker's side: `provoked` is the
+   * Provoked swing for the blocker's controller. */
+  duel(blocker: number, attacker: number, trickBuff: number): { iKill: boolean; iDie: boolean; provoked: number } {
     const byAttacker = level(level(this.duels, trickBuff), blocker);
     let out = byAttacker.get(attacker);
     if (!out) {
       const A = this.combatant(attacker, trickBuff);
       const bC = this.combatant(blocker);
-      out = { iKill: kills(bC, A), iDie: kills(A, bC) };
+      out = { iKill: kills(bC, A), iDie: kills(A, bC), provoked: provokedSwing(A, [bC], false) };
       byAttacker.set(attacker, out);
     }
     return out;
@@ -363,6 +385,9 @@ function scoreAttackWith(
     const defenders = myBlockers.map((b) => memo.combatant(b, trickBuff));
     const exchange = combatExchange(A, defenders);
     const iDie = exchange.dying.includes(iid);
+    // Feeding a Provoked blocker a blow it survives costs its effect; a
+    // Provoked attacker that survives its blockers earns its own.
+    total += provokedSwing(A, defenders, true);
     // attacker kills the cheapest blocker it can (auto-assignment)
     const killable = defenders.filter((bC) => exchange.dying.includes(bC.iid));
     const killValue =
@@ -539,11 +564,12 @@ function chooseBlocksWith(
   for (const B of myCreatures) {
     for (const aIid of attackers) {
       if (!memo.canBlock(me, B.iid, aIid)) continue;
-      const { iKill, iDie } = memo.duel(B.iid, aIid, trickBuff);
+      const { iKill, iDie, provoked } = memo.duel(B.iid, aIid, trickBuff);
       const score =
         (iKill ? memo.value(aIid) : 0) -
         (iDie ? memo.value(B.iid) : 0) +
-        fullDamage(memo.combatant(aIid)) * lifePressure;
+        fullDamage(memo.combatant(aIid)) * lifePressure +
+        provoked;
       pairs.push({ blocker: B.iid, attacker: aIid, score });
     }
   }

@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/ScriptAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/targeting.ts, src/ai/activatedPolicy.ts, src/ai/ritePolicy.ts, src/ai/tithePolicy.ts, src/ai/whispersPolicy.ts, src/ai/discardPolicy.ts, src/ai/sacrificePolicy.ts, src/ai/preservePolicy.ts, src/ai/hauntlinkPolicy.ts, src/ai/landPolicy.ts, src/ai/darlingPolicy.ts, src/ai/foresee.ts, src/ai/personality.ts, src/ai/NoisyAI.ts, src/ai/tiers.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts, tests/ai/rungSmokes.test.ts, tests/ai/documentedBehaviour.test.ts, docs/plan-ai-modernization.md · last-verified: 2026-09-28
+<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/ScriptAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/targeting.ts, src/ai/activatedPolicy.ts, src/ai/ritePolicy.ts, src/ai/tithePolicy.ts, src/ai/whispersPolicy.ts, src/ai/discardPolicy.ts, src/ai/sacrificePolicy.ts, src/ai/preservePolicy.ts, src/ai/hauntlinkPolicy.ts, src/ai/landPolicy.ts, src/ai/darlingPolicy.ts, src/ai/foresee.ts, src/ai/personality.ts, src/ai/NoisyAI.ts, src/ai/tiers.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts, tests/ai/rungSmokes.test.ts, tests/ai/documentedBehaviour.test.ts, tests/ai/huntProvoked.test.ts, docs/plan-ai-modernization.md · last-verified: 2026-09-29
      If you change those files, update this doc or re-verify the date. -->
 
 # AI
@@ -443,6 +443,74 @@ only the tap, so it is not a paid Duty. Ten Darlings games each for rungs 5 and
 23-26 used the new branch zero times. On the synthetic list above, over ten
 games, Medium used 14 paid Duties in main one and 12 in main two (0 and 15
 before G9), Hard 6 and 4 (0 and 9).
+
+## Hunt and Provoked (1.9, A1.2)
+
+First Dawn's two mechanics (the ruled rules are in
+[plan-first-dawn-engine.md](plan-first-dawn-engine.md), Parts 1 and 2) are
+read in the shared value layer and combat planner, so every brain sees them;
+Hard's search already plays them through the real engine. Every read is
+zero unless a Hunt op or a Provoked ability is on the board or in the card,
+and on today's pool the games are identical (below). Medium's and Easy's own
+Hunt policy (never hunting their own creature by choice, the self-provoke
+margin) is A2.b. Each claim is pinned in `tests/ai/huntProvoked.test.ts`.
+
+- **A Hunt is valued as the exchange it is** (`huntExchangeValue`,
+  `value.ts`). Both creatures deal their Attack at once on the public board:
+  marked damage counts, Deathblade on either side makes any damage lethal, a
+  hunter with Bulwark does nothing. The prey's removal value counts if it
+  dies (a gain when an opponent controls it, a cost when you do), the
+  hunter's value is lost if it dies, Blood Oath's life counts at the
+  `gainLife` rate, damage a survivor takes counts at targeted damage's
+  residual (0.45 a point: a gain on theirs, a cost on yours, so a self-hunt
+  is priced as a friendly ping is), and each survivor's unspent Provoked
+  counts (plus for yours, minus for theirs). So killing and surviving beats a
+  kill that costs the hunter, and a Hunt that only provokes an opposing
+  creature scores below doing nothing whenever its Provoked outweighs the
+  residual.
+  Every Hunt target decision reads it: an attack or Dawn Hunt's choice, a
+  hunting Duty (used only on prey that pays), a Hunt spell's hunter and prey
+  pair (after a pump the same spell gave the hunter), an Empower Hunt, and an
+  arrival Hunt's prey.
+- **An arrival hunter is cast at its best prey.** Its prey is the cast's
+  target (A1.1b), and the shared cast-target policy keeps one target per
+  cast, so it now values each prey from the arrival ability with the
+  arriving creature as the hunter. Before, every prey scored 0 and every
+  brain cast at the first opposing creature in battlefield order. Easy,
+  Medium and Hard all read this policy.
+- **An `any` Hunt takes your own creature only when that pays:** when it
+  sets off an unspent Provoked worth more than the best alternative. A
+  Provoked already spent this turn earns nothing.
+- **A friendly source earns an unspent Provoked.** Damage aimed at your own
+  creature is still a cost, but a creature that survives it with an unspent
+  Provoked earns that effect's value, and "damage each creature you
+  control" (`eachYourCreature`) sums it over your side, so such a Duty is
+  used when its Provoked survivors pay for it and not otherwise. Damage that
+  provokes an opponent's creature subtracts its effect's value.
+- **What a Provoked effect is worth** (`provokedValue`): its best legal
+  targets on the board after the damage, scored from its controller's side
+  the way a Duty's use is; a targeted effect with no legal target, or one
+  whose condition is unmet on that board, is worth 0; a Provoked effect's own
+  provoking is not followed further.
+- **Provoked in combat** (`combatPlans.ts`). In the heuristic exchange a
+  combatant dealt damage that survives adds its unspent Provoked (plus for
+  the planner's side, minus for the other's). The attack planner stops
+  feeding an opposing Provoked wall a blow it survives, and the block planner
+  prefers the block that provokes its own creature when blocks are otherwise
+  even. The double-block search does not read it.
+- **Casting and Duties.** `opImpactValue` and `empowerValue` price a Hunt
+  card-shaped at 1.5, half of Empower's destroy (provisional; the board
+  value above is what target decisions use), a Hunt Duty can shape the
+  attack (`shapesCombat`), and every card with a Hunt joins Hard's protected
+  cast candidates (`isVocabularyCast`).
+
+**The proof on today's pool (2026-09-29).** `scripts/action-log.ts`, four
+workers: the weenie preset, 112 games, and the broad preset, 210 games, each
+with 0 action-log divergences and 0 event-digest divergences, against the
+unchanged base f2c25228 and again, after the review's fixes, against
+066f1dc7. As a control, an ungated 0.3 swing in the combat
+planner's Provoked term diverged 55 of the 112 weenie games, so the harness
+sees this planner.
 
 ## Win-rate gates
 

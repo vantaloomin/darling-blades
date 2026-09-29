@@ -43,6 +43,9 @@ function shapesCombat(ops: readonly EffectOp[]): boolean {
       case 'boost': case 'addCounters': case 'markAll': case 'propagate': case 'moveMark': case 'removeMarks':
       case 'loseLife': case 'loseLifePerTheirMarked':
         return true;
+      case 'hunt':
+        // A Hunt can kill a blocker, or damage (or lose) the creature that hunts.
+        return true;
       case 'damage':
         return op.to !== 'controller';
       case 'ifTargetMarked':

@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-1.9.md, docs/expansions/drafts/first-dawn-brief.md, docs/expansions/drafts/first-dawn-overplan.md, docs/rules.md, src/engine/types.ts, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/sba.ts, src/engine/combat/damage.ts, src/engine/Game.ts, src/engine/actions.ts, src/engine/resolve.ts, src/ai/value.ts, src/ai/targeting.ts, src/ai/activatedPolicy.ts, src/ai/combatPlans.ts, src/power/scoreCore.ts, src/data/glossary.ts, src/ui/rulesText.ts, scripts/action-log.ts, scripts/avatarReserveDecks.ts, scripts/mechanicUsage.ts · last-verified: 2026-09-28 · engine spec, RULED at the owner's second 1.9 sitting 2026-09-28 (lane A, and lane B step 3, the concretion audit); re-verify when the overplan's cut changes or when A1 lands -->
+<!-- source-of-truth: docs/plan-1.9.md, docs/expansions/drafts/first-dawn-brief.md, docs/expansions/drafts/first-dawn-overplan.md, docs/rules.md, src/engine/types.ts, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/sba.ts, src/engine/combat/damage.ts, src/engine/Game.ts, src/engine/actions.ts, src/engine/resolve.ts, src/ai/value.ts, src/ai/targeting.ts, src/ai/activatedPolicy.ts, src/ai/combatPlans.ts, src/power/scoreCore.ts, src/data/glossary.ts, src/ui/rulesText.ts, scripts/action-log.ts, scripts/avatarReserveDecks.ts, scripts/mechanicUsage.ts · last-verified: 2026-09-29 · engine spec, RULED at the owner's second 1.9 sitting 2026-09-28 (lane A, and lane B step 3, the concretion audit); re-verify when the overplan's cut changes or when A1 lands -->
 
 # First Dawn engine spec: Provoked, Hunt, and what the cards need (1.9 lane A)
 
@@ -973,6 +973,92 @@ creature only, with no fallback. The ruled description is now "Your creature and
 - **The gates.** Broad preset, base 0d0f665c against A1.1b: 210 games, 0
   action-log divergences, 0 event-digest divergences (no shipped card has a
   Hunt).
+
+
+## As built (A1.2): Hard's reads
+
+A1.2 built Part 4's items 1-4 and the A1.1b hand-off in `src/ai`
+(`value.ts`, `targeting.ts`, `combatPlans.ts`, `activatedPolicy.ts`; no
+change to `HardAI.ts`: Hard reads them through its Medium, its target search
+and the shared policies). `docs/ai.md`, "Hunt and Provoked", records the
+behaviour; `tests/ai/huntProvoked.test.ts` pins it on fixture cards.
+
+- **Item 1, the Hunt value** (`huntExchangeValue`). As Part 4 says, plus two
+  terms it left implicit: Blood Oath's life at the `gainLife` rate (0.35 a
+  point), and a hunter with Bulwark worth 0 (the op does nothing). Damage a
+  survivor takes keeps the residual targeted damage reads (0.45 a point,
+  `damageTargetValue`): a gain on an opponent's creature, a cost on yours, so
+  a self-hunt that marks damage on your own creature is priced as a friendly
+  ping is, never free (the review's fix, 2026-09-29). A Hunt that only
+  provokes an opposing creature still scores below casting nothing whenever
+  its Provoked outweighs that residual; an exchange in which neither deals
+  damage scores exactly 0. Every Hunt
+  carrier reads it: the source-bound op through `targetValueForAbility`
+  (attack and Dawn choices, a hunting Duty through the Duty scorer), the
+  spell form through `spellTargetsValue` (slot 0 hunts slot 1, after a pump
+  earlier in the same spell), and an arrival or Empower Hunt at cast with the
+  arriving creature as the hunter (its effective stats with the board's
+  statics).
+- **What a Provoked is worth** (`provokedValue`): the effect scored the way a
+  Duty's use is (`activatedAbilityValue`'s machinery: its best legal targets
+  on the public board, from its controller's side), on the board after the
+  provoking damage (the dead gone, the damage marked); 0 when spent this
+  turn (`firedThisTurn`), when a targeted effect has no legal target, or when
+  its condition is unmet on that board (the engine skips it; the test is the
+  engine's own, read from the public board, with "another" excluding the
+  creature itself and a creature that died this turn, the provoking damage's
+  deaths included, counting). A Provoked effect's own provoking is not
+  followed (one level), so no chain of reads can recurse.
+- **Item 2, friendly sources.** Targeted damage (`damageTargetValue`) and
+  the all-creature sweeps (`symmetricCreatureSweepValue`, which now takes
+  `eachYourCreature` with its `other`) add each survivor's unspent Provoked:
+  plus for yours, as Part 4 says, and minus for an opponent's, the same
+  signing items 1 and 3 use. A Duty that damages each creature you control
+  is priced by that sum, and a Charm or Ritual body that does is too
+  (`cardValue` with the public board).
+- **Item 3, combat.** Each combatant carries its unspent Provoked's value;
+  the attack score and each block pair add the survivors' swing. The
+  double-block search does not read it. `Combatant.provoked` is scored on the
+  board before combat, so a Provoked blocker's best target may die in the
+  same combat; accepted for now.
+- **Item 4.** `opImpactValue` and `empowerValue` price `hunt` card-shaped at
+  1.5, half of Empower's destroy (provisional, beside `moveMark`'s 0.75; the
+  board value is what every target decision uses); `shapesCombat` includes
+  it; every card with a Hunt anywhere is a new-vocabulary cast for Hard.
+- **The hand-off: valued, not exempted.** `vocabularyCastTargetValue` values
+  an arrival hunter's prey from its arrival ability (`arrivalHuntCastValue`,
+  0 when the ability's condition is unmet on the public board), and the Hunt
+  spell's and the Empower Hunt's through the pair above. The collapse then
+  keeps the best prey, and Easy, Medium and Hard all cast at it (tested for
+  each). Exempting hunt specs would have left Medium and Easy at the first
+  prey, since their own cast scores do not read targets; Hard simulates the
+  one variant the policy keeps.
+- **Not read (A2 or later).** A Darling with an arrival Hunt (`castDarling`
+  is outside the cast-target policy, so its prey variants are all kept and
+  the brain takes the first); Medium's removal ladder (`removalValueForCast`)
+  on a Provoked creature; `evaluate()` has no term for an unspent Provoked
+  on the board. `shapesCombat` for a Hunt Duty is reached only by a hunter
+  that cannot attack, since a creature that can attack never uses its Duty
+  in the Morning. A pump earlier in a Hunt spell that takes the prey to 0
+  toughness or less is not valued as a kill by the Hunt read (no card does
+  this yet).
+- **For A1.3, the lab's brief.**
+  - The lab prices with **Hard**. Medium and Easy cast an arrival hunter
+    whenever it is legal, even when every prey kills it: their cast score
+    reads no Hunt value (A2.b).
+  - Until A2.b, Easy self-hunts with an `any` Hunt whenever the shared value
+    says it pays.
+  - If a First Dawn Darling in the cut prints an arrival Hunt, the Darling
+    cast still takes the first prey (A2.b).
+- **The gates.** `scripts/action-log.ts` with four workers, weenie preset 112
+  games and broad preset 210 games, 0 action-log divergences and 0
+  event-digest divergences on each: first against the unchanged base
+  f2c25228, then, after the review's fixes, against 066f1dc7 (A1.1b as
+  merged, with the A1.2 AI files swapped out) and against the unfixed A1.2
+  commit 7c6d2a12. A control (an ungated 0.3 swing in the combat planner's
+  Provoked term) diverged 55 of the 112 weenie games.
+- **Tests.** Twenty behaviour tests, each shown to fail with its term
+  switched off (eighteen mutations, listed in the A1.2 reports).
 
 ## What this spec corrects
 
