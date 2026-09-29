@@ -1108,7 +1108,7 @@ owner, 2026-09-29):
 - **Tokens only.** Creature spells, `raise` and Nine Lives returns at the cap
   behave as before.
 - **The limit.** Each Overcharge is +1/+1; one creature holds at most
-  `RULES.overchargeLimit` (3, a placeholder pending measurement). A namesake at
+  `RULES.overchargeLimit` (3, measured and approved 2026-09-29). A namesake at
   the limit is not eligible; with every namesake at it, the token is refused.
 - **The pick** (a design default, no prompt and no AI decision): the eligible
   namesake with the fewest Overcharges, ties to the oldest (lowest iid). It

@@ -1778,7 +1778,7 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   cut), so the engine builds what the cards need. **Overcharge (A1.7, ruled
   2026-09-29):** a token refused at the 8-creature cap gives a same-name token
   its controller controls +1/+1 instead (never another creature; at most
-  `RULES.overchargeLimit` on one, 3 pending measurement; not a Mark), after a
+  `RULES.overchargeLimit` on one, 3, measured; not a Mark), after a
   28,224-game board-cap study found it recovers First Dawn's go-wide deck where
   a wider cap does not ([rules.md](rules.md), "Board caps").
 - **2.0 is the itch.io launch (owner ruling 2026-09-25).** The largest update

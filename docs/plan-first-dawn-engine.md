@@ -1691,9 +1691,17 @@ line and the badge).
   namesake with the fewest Overcharges, ties to the oldest (lowest iid). It
   spreads the bonus and works with the limit; there is no prompt and no AI
   decision.
-- **The limit.** `RULES.overchargeLimit = 3`, a placeholder pending
-  measurement (commented as such in `src/config/rules.ts`). A namesake at the
-  limit is not eligible.
+- **The limit.** `RULES.overchargeLimit = 3`, measured and approved on
+  2026-09-29. The namesake-only re-measure (13,440 games, Hard on both seats,
+  paired against today's cap on the same seeds) read the go-wide deck R27 at
+  +6.8 pp with a limit of 1, +8.0 at 2, +8.3 at 3, +8.2 at 5 and +8.2 with no
+  limit (each about ±2.9): the gain plateaus from 2, and 3 keeps all of it.
+  With no limit one Hatchling reached 24/24 and the Walking Mountain lab arm
+  +43. The shipped decks stayed inside noise at every limit (Hera +0.9 ± 1.9,
+  Titania +0.6 ± 1.4 at 3), and Hard's time per decision stayed at or below
+  today's. Without the fallback to other creatures the whole gain survives:
+  R27 makes only Hatchlings, so a namesake was there for 98% of refusals.
+  A namesake at the limit is not eligible.
 - **The field.** `Permanent.overcharge?: number` (absent = 0), added for
   creatures in `getEffectiveStats` after the Marks, so combat, the P/T plate,
   `PlayerView` and every AI read see it through the normal stat path. Nothing

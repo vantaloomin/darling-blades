@@ -32,8 +32,9 @@ export const RULES = {
   maxCreatures: 8, // battlefield cap per player
   // Overcharge (1.9 A1.7): a token refused at the creature cap gives one
   // same-name token its controller controls +1/+1 instead. This is the most
-  // Overcharges one creature can hold. PLACEHOLDER pending measurement (the
-  // owner's 2026-09-29 ruling carries the limit; the lab sets the number).
+  // Overcharges one creature can hold. Measured 2026-09-29 (13,440 games):
+  // the go-wide deck's gain plateaus from 2 and 3 keeps all of it, while no
+  // limit let one Hatchling reach 24/24; the owner approved 3.
   overchargeLimit: 3,
   maxNoncreaturePermanents: 4, // noncreature-nonland cap per player
   // Raised 3 -> 4 (user decision 2026-07-31) with the cap now surfaced in the
