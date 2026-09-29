@@ -1060,6 +1060,39 @@ behaviour; `tests/ai/huntProvoked.test.ts` pins it on fixture cards.
 - **Tests.** Twenty behaviour tests, each shown to fail with its term
   switched off (eighteen mutations, listed in the A1.2 reports).
 
+## As built (A2.c): the words
+
+A2.c replaced A1.1's stubs with Part 6's approved copy in
+`src/ui/rulesText.ts`, `src/data/glossary.ts` and `src/ui/KeywordIcons.ts`,
+and wrote the rules into `docs/rules.md` and `docs/keyword-map.md`.
+
+- **Templates.** Every carrier prints its opener and then "Hunt."; the
+  spell form "Target creature you control Hunts.", and ", then it Hunts"
+  after an op that named the hunter. The spell-form Hunt now counts as
+  naming its hunter, so an op after it on the same slot reads "that
+  creature", never a second "target creature you control". A conditional
+  arrival Hunt prints the shipped conditional-arrival template, "If you
+  control another Dinokin, when this arrives, Hunt." (Astral Biomancer's
+  shape), not the "When this arrives, if ..." order the A1.1c notes quote.
+- **Glossary.** `hunt` and `provoked` join `MechanicId`, detected from a
+  `hunt` op on any carrier and a `provoked` ability (`TRIGGER_MECHANIC`),
+  never from a name or from rules text; both sit after Propagate in the
+  Mechanics tab and the Keyword Guide. Hunt's ruled full-sentence definition
+  is the one exception to the fragment house style, named in
+  `FULL_SENTENCE_DEFINITIONS`; the glossary test holds it to the sentence
+  style and every other definition to the fragment.
+- **Icons.** Hunt is three claw marks; Provoked is the anger mark (four
+  veins around a pinched cross). Neither is a hand, a weapon pair or an eye.
+- **Docs.** `rules.md` gains Provoked and Hunt sections, a line under the
+  state-based actions, the shared damage path under Combat's Damage, the
+  Empower correction (four target shapes, the E5 no-fizzle rule, the rider's
+  timing), G8's combat gap under Hauntlink (item 10 below) and "combat and
+  Hunt damage" for Blood Oath and Deathblade (item 13). `keyword-map.md`
+  maps Fight to Hunt and Enrage to Provoked. No generated table changed.
+- **Not enforced:** "no Provoked effect damages its controller's own
+  creatures" (P3's damage half) is a design rule with no validator or
+  catalog test; `validateHuntDef` covers only its "never Hunts" half.
+
 ## What this spec corrects
 
 In the **overplan** (lane B should update it; this spec does not edit it;

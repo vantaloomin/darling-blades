@@ -128,6 +128,10 @@ function referencesAbilityTarget(op: EffectOp): boolean {
       return true;
     case 'raise':
       return op.to !== 'top';
+    case 'hunt':
+      // The spell form names its hunter ("Target creature you control
+      // Hunts"); the source-bound form names no target on the face.
+      return op.hunter === 'target';
     default:
       return false;
   }
@@ -151,7 +155,8 @@ function opText(
         }
         return `deal ${n} damage to ${recipient}`;
       }
-      // Stub (1.9 A1.1): the approved template; A2.c owns the words.
+      // A source that damages its own side (First Dawn, 1.9), approved
+      // 2026-09-28: "deal N damage to each [other] creature you control".
       if (op.to === 'eachYourCreature') return `deal ${n} damage to each ${op.other ? 'other ' : ''}creature you control`;
       if (op.to === 'controller') return `this deals ${n} damage to you`;
       if (op.to === 'opponent') return `this deals ${n} damage to your opponent`;
@@ -296,13 +301,14 @@ function opText(
       return op.who === 'targetOwner' ? `its owner Foresees ${op.n}` : `Foresee ${op.n}`;
     case 'awaken':
       return op.scope === 'self' ? 'Awaken this' : 'Awaken all creatures you control';
-    case 'hunt':
-    {
-      // Stubs (1.9 A1.1) for the ruled bare keyword (2026-09-28): the opener,
-      // then "Hunt."; the spell form "Target creature you control Hunts."
-      // The default prey rule lives in the glossary. A card's own prey (an
-      // override) is named after it; those words are PROPOSED, not approved.
-      // A2.c owns all of them.
+    case 'hunt': {
+      // Hunt is a bare verb keyword, like Mark (ruled 2026-09-28): a
+      // source-bound Hunt prints its opener, then "Hunt." ("When this arrives,
+      // Hunt.", "{T}: Hunt.", "Empower {2}: Hunt."); the spell form prints
+      // "Target creature you control Hunts.", or ", then it Hunts" after a pump
+      // that already named the hunter. The default prey (a creature an
+      // opponent controls) lives in the glossary, never on the card; a card
+      // that declares its own prey names it (approved 2026-09-29).
       const prey = op.prey === 'any' ? ' any other creature'
         : op.prey === 'yours' ? ' another creature you control' : '';
       if (op.hunter === 'target') return `${targetAlreadyNamed ? 'it' : 'target creature you control'} Hunts${prey}`;
@@ -568,7 +574,9 @@ function abilityText(ab: AbilityDef, d: CardDef, additionalDawn = false): string
       sentence = `Whenever you Propagate, ${body}.`;
       break;
     case 'provoked':
-      // Stub (1.9 A1.1): the approved "Provoked: [effect]." template.
+      // "Provoked: [effect]." (approved 2026-09-28). The engine claims it once
+      // each turn without the `oncePerTurn` flag, so the face never prints
+      // "This triggers only once each turn"; the glossary definition says it.
       sentence = `Provoked: ${cap}.`;
       break;
     default:

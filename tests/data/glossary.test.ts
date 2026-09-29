@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   GLOSSARY_SECTIONS,
+  FULL_SENTENCE_DEFINITIONS,
   KEYWORD_NAMES,
   KEYWORD_REMINDER,
   MECHANIC_DEFINITIONS,
@@ -59,16 +60,34 @@ describe('glossary vocabulary', () => {
 
   /** Reminders print after the term's name in the Keyword Guide and the
    *  glossary rows, so each is one lowercase fragment with no closing period.
-   *  Whispers, Tithe and Duty shipped as full sentences beside the rest. */
+   *  Whispers, Tithe and Duty shipped as full sentences beside the rest. The
+   *  owner ruled Hunt's definition as full sentences (2026-09-28); a
+   *  definition named in FULL_SENTENCE_DEFINITIONS is held to that style
+   *  instead, so neither style can drift into the other. */
   it('writes every keyword reminder and mechanic definition in the reminder house style', () => {
     const reminders = [
       ...Object.entries(KEYWORD_REMINDER),
-      ...Object.entries(MECHANIC_DEFINITIONS),
+      ...Object.entries(MECHANIC_DEFINITIONS).filter(([id]) => !FULL_SENTENCE_DEFINITIONS.has(id as MechanicId)),
     ];
     for (const [id, text] of reminders) {
       expect(text.charAt(0), `${id} starts lowercase`).toBe(text.charAt(0).toLowerCase());
       expect(text.endsWith('.'), `${id} has no closing period`).toBe(false);
       expect(text, `${id} is one fragment`).not.toMatch(/\.\s/);
+    }
+    for (const id of FULL_SENTENCE_DEFINITIONS) {
+      const text = MECHANIC_DEFINITIONS[id];
+      expect(text.charAt(0), `${id} starts with a capital`).toBe(text.charAt(0).toUpperCase());
+      expect(text.endsWith('.'), `${id} ends its last sentence`).toBe(true);
+    }
+  });
+
+  it('teaches Hunt and Provoked as Mechanics rows with their own glyphs', () => {
+    const terms = glossarySection('mechanics').terms;
+    for (const [name, key] of [['Hunt', 'hunt'], ['Provoked', 'provoked']] as const) {
+      const row = terms.find((term) => term.name === name);
+      expect(row, `${name} row`).toMatchObject({ icon: { kind: 'mechanic', key } });
+      expect(row!.description.length, `${name} definition`).toBeGreaterThan(0);
+      expect(sectionOfTerm(name)).toBe('mechanics');
     }
   });
 
@@ -227,6 +246,52 @@ describe('cardMechanics', () => {
         expect(guide.has(MECHANIC_NAMES[mechanic])).toBe(true);
       }
     }
+  });
+});
+
+describe('Hunt and Provoked detection', () => {
+  const HUNT_OP = { op: 'hunt', hunter: 'self' } as const;
+  const OPPONENT_PREY = [{ what: 'opponentCreature' }] as const;
+  const carriers: CardDef[] = [
+    { ...mechanicFixture, id: 'hunt-arrival', abilities: [{ when: 'arrives', ops: [HUNT_OP], targets: [...OPPONENT_PREY] }] },
+    { ...mechanicFixture, id: 'hunt-duty', activated: { cost: { tap: true }, ops: [HUNT_OP], targets: [...OPPONENT_PREY] } },
+    { ...mechanicFixture, id: 'hunt-empower', empower: { cost: { generic: 2, pips: {} }, ops: [HUNT_OP], targets: [...OPPONENT_PREY] } },
+    {
+      id: 'hunt-spell', name: 'Hunt Spell Fixture', types: ['ritual'], subtypes: [], colors: ['G'], rarity: 'c',
+      abilities: [{ when: 'spell', ops: [{ op: 'hunt', hunter: 'target' }], targets: [{ what: 'yourCreature' }, { what: 'opponentCreature' }] }],
+    },
+  ];
+
+  it('detects a hunt op on every carrier, for search and the Keyword Guide', () => {
+    for (const card of carriers) {
+      expect(cardMechanics(card), card.id).toContain('hunt');
+      expect(cardTermNames(card), card.id).toContain('Hunt');
+      expect(cardGlossaryEntries(card), card.id).toContainEqual({ name: 'Hunt', reminder: MECHANIC_DEFINITIONS.hunt });
+    }
+  });
+
+  it('detects a Provoked ability, whatever its effect', () => {
+    const provoked: CardDef = {
+      ...mechanicFixture, abilities: [{ when: 'provoked', ops: [{ op: 'gainLife', n: 2 }] }],
+    };
+    expect(cardMechanics(provoked)).toEqual(['provoked']);
+    expect(cardGlossaryEntries(provoked)).toEqual([{ name: 'Provoked', reminder: MECHANIC_DEFINITIONS.provoked }]);
+  });
+
+  /** Ten shipped names contain the letters "hunt", four as the whole word;
+   *  none of those cards hunts, so none may teach Hunt. */
+  it('never reads Hunt off a card name', () => {
+    const named = collectible.filter((d) => /hunt/i.test(d.name));
+    const names = named.map((d) => d.name);
+    expect(names).toEqual(expect.arrayContaining([
+      'Alpha of the Wild Hunt', 'Rune of the Hunt', 'Wild Hunt Matriarch', 'Hunt the Boar',
+    ]));
+    for (const card of named) {
+      expect(cardMechanics(card), card.name).not.toContain('hunt');
+      expect(cardTermNames(card), card.name).not.toContain('Hunt');
+      expect(cardGlossaryEntries(card).map((entry) => entry.name), card.name).not.toContain('Hunt');
+    }
+    expect(cardMechanics({ ...mechanicFixture, name: 'Provoked Hunt' })).toEqual([]);
   });
 });
 
