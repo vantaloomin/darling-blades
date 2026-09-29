@@ -20,6 +20,7 @@ import {
 } from '../../scripts/avatarReserveDecks';
 import { buildDarlingsDeck } from '../../scripts/darlingsDeckBuilder';
 import { buildReserveMatrixFullOwnershipSave } from '../../scripts/reserveMatrixDecks';
+import { cardHasHunt } from '../../src/ai/value';
 import { runAvatarReserveMatrix } from '../../scripts/balance-matrix';
 
 const save = buildReserveMatrixFullOwnershipSave(CARD_DB);
@@ -242,10 +243,10 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
    * covers marked-target cards when no card in the format can add a mark.
    */
   describe('retention rejects cards whose targets cannot exist in the format', () => {
-    const supplyFor = (source: readonly string[]): ReadonlySet<string> => deckTargetSupply([
-      ...STARTER_DECKS.flatMap((deck) => deck.reserveCards ?? []),
-      ...source,
-    ]);
+    // Her source list is her own side, the starter columns her opponents: a
+    // Hunt's hunter must be hers and its generic prey theirs.
+    const supplyFor = (source: readonly string[]): ReadonlySet<string> =>
+      deckTargetSupply(source, CARD_DB, STARTER_DECKS.flatMap((deck) => deck.reserveCards ?? []));
 
     it('the five starter columns really do supply no artifact or enchantment', () => {
       // The premise the whole defect rests on. If a future set puts an artifact
@@ -380,10 +381,13 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
     });
 
     it('never rejects a card whose targets are ordinary creatures', () => {
-      // 1.8 cost caps, attack floors and exact-pair qualifiers need target supply.
+      // 1.8 cost caps, attack floors and exact-pair qualifiers need target supply,
+      // and so do 1.9's attacking-only targets and Hunts (a creature that can
+      // attack or hunt, on the right side), so none of them is ordinary.
       const creatureRemoval = Object.values(CARD_DB).filter((card) =>
+        !cardHasHunt(card) &&
         (card.abilities ?? []).some((a) => (a.targets ?? []).some((t) =>
-          t.what === 'creature' && !t.marked &&
+          t.what === 'creature' && !t.marked && !t.attacking &&
           t.maxCost === undefined && t.minAttack === undefined && t.exactly === undefined)));
       expect(creatureRemoval.length).toBeGreaterThan(0);
       for (const card of creatureRemoval) {

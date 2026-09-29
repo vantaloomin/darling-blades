@@ -36,6 +36,22 @@ const DB: CardDb = Object.fromEntries([
   card('markPayoff', { abilities: [{ when: 'spell', ops: [{ op: 'propagate' }, { op: 'gainLife', n: 8 }] }] }),
   card('ramp', { abilities: [{ when: 'spell', ops: [{ op: 'extraLandDrop' }] }] }),
   card('darling', { types: ['creature'], supertypes: ['legendary'], attack: 3, defense: 3 }),
+  // First Dawn fixtures: Hunt on each carrier, and a Provoked creature.
+  card('three', { types: ['creature'], attack: 3, defense: 3 }),
+  card('stalk', { types: ['charm'], abilities: [{ when: 'spell', targets: [{ what: 'yourCreature' }, { what: 'opponentCreature' }], ops: [{ op: 'hunt', hunter: 'target' }] }] }),
+  card('fangHorn', { types: ['charm'], abilities: [{ when: 'spell', targets: [{ what: 'yourCreature' }, { what: 'opponentCreature' }], ops: [
+    { op: 'boost', p: 2, t: 2, scope: 'target' }, { op: 'hunt', hunter: 'target' },
+  ] }] }),
+  card('stalkAny', { types: ['charm'], abilities: [{ when: 'spell', targets: [{ what: 'yourCreature' }, { what: 'creature', other: true }], ops: [{ op: 'hunt', hunter: 'target', prey: 'any' }] }] }),
+  card('raptor', { types: ['creature'], attack: 3, defense: 3, abilities: [{ when: 'arrives', targets: [{ what: 'opponentCreature' }], ops: [{ op: 'hunt', hunter: 'self' }] }] }),
+  card('korru', { types: ['creature'], attack: 3, defense: 3, abilities: [{ when: 'arrives', targets: [{ what: 'creature', other: true }], ops: [{ op: 'hunt', hunter: 'self', prey: 'any' }] }] }),
+  card('tracker', { types: ['creature'], attack: 2, defense: 4, activated: { cost: { tap: true }, targets: [{ what: 'opponentCreature' }], ops: [{ op: 'hunt', hunter: 'self' }] } }),
+  card('kesh', { types: ['creature'], attack: 3, defense: 3, abilities: [{ when: 'attacks', targets: [{ what: 'opponentCreature' }], ops: [{ op: 'hunt', hunter: 'self' }] }] }),
+  card('anyTracker', { types: ['creature'], attack: 3, defense: 4, activated: { cost: { tap: true }, targets: [{ what: 'creature', other: true }], ops: [{ op: 'hunt', hunter: 'self', prey: 'any' }] } }),
+  card('linkRaptor', { types: ['creature'], attack: 3, defense: 3, hauntlink: { cost: mana(0), linked: { grantKeywords: ['skyborne'] } },
+    abilities: [{ when: 'arrives', targets: [{ what: 'opponentCreature' }], ops: [{ op: 'hunt', hunter: 'self' }] }] }),
+  card('provoked', { types: ['creature'], attack: 1, defense: 4, abilities: [{ when: 'provoked', ops: draw }] }),
+  card('pinger', { abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 1, to: 'target' }] }] }),
 ].map((d) => [d.id, d]));
 
 function perm(iid: number, cardId: string, extra: Partial<Permanent> = {}): Permanent {
@@ -254,6 +270,118 @@ describe('mechanic usage counting', () => {
     expect(row).toMatchObject({ cardsInList: 2, turnsWithChance: 2, turnsTaken: 2, rate: 1, seen: 3 });
     const skimCard = boss.cards.find((c) => c.cardId === 'skim')!;
     expect(skimCard).toMatchObject({ seen: 3, stranded: 1, uses: { skim: 2 } });
+  });
+});
+
+describe('mechanic usage: Hunt and Provoked (First Dawn)', () => {
+  const at = (iid: number) => ({ kind: 'permanent' as const, iid });
+  const cast = (targets: ReturnType<typeof at>[]): Action => ({ type: 'castSpell', handIndex: 0, targets });
+
+  it('names a Hunt on every carrier: a Hunt spell, an arrival hunter cast on its prey, a hunting Duty and a hunting trigger', () => {
+    const board = [perm(4, 'creature'), enemy(9, 'creature')];
+    expect(mechanics(cast([at(4), at(9)]), view({ battlefield: board }, { hand: ['stalk'] }))).toEqual(['hunt:stalk']);
+    expect(mechanics(cast([at(9)]), view({ battlefield: board }, { hand: ['raptor'] }))).toEqual(['hunt:raptor']);
+    // Cast with no prey (a conditional hunter whose condition failed), it does not hunt now.
+    expect(mechanics(cast([]), view({ battlefield: board }, { hand: ['raptor'] }))).toEqual([]);
+    const duty = view({ battlefield: [perm(7, 'tracker'), ...board] });
+    expect(mechanics({ type: 'activate', iid: 7, targets: [at(9)] }, duty)).toEqual(['duty:tracker', 'hunt:tracker']);
+    const trigger = view({
+      battlefield: [perm(7, 'kesh'), ...board],
+      awaiting: { player: 0, kind: 'chooseTarget', sourceIid: 7, abilityIndex: 0, targets: [at(9)] },
+    });
+    expect(mechanics({ type: 'chooseTarget', target: at(9) }, trigger)).toEqual(['hunt:kesh']);
+    // A spell with a target that does not hunt is not a Hunt.
+    expect(mechanics(cast([at(9)]), view({ battlefield: board }, { hand: ['pinger'] }))).toEqual([]);
+  });
+
+  it('counts an any Hunt aimed at her own creature apart: a chance when she could, taken when she did', () => {
+    const game = new GameUsage(DB);
+    const board = [perm(4, 'creature'), enemy(9, 'creature')];
+    const atEnemy = cast([at(9)]);
+    const atOwn = cast([at(4)]);
+    game.record(view({ battlefield: board }, { hand: ['korru'] }), [atEnemy, atOwn, pass], atEnemy);
+    expect(game.chance.get('huntAnySelf')?.size).toBe(1);
+    expect(game.taken.get('huntAnySelf')).toBeUndefined();
+    expect(game.taken.get('hunt')?.size).toBe(1);
+    game.record(view({ turn: 7, battlefield: board }, { hand: ['stalkAny'] }), [cast([at(4), at(9)])], cast([at(9), at(4)]));
+    expect(game.taken.get('huntAnySelf')?.size).toBe(1);
+    // The generic Hunt never reaches her own side, so it is never counted apart.
+    const generic = new GameUsage(DB);
+    generic.record(view({ battlefield: board }, { hand: ['raptor'] }), [atEnemy], atEnemy);
+    expect(generic.chance.get('huntAnySelf')).toBeUndefined();
+  });
+
+  it('flags a Hunt whose hunter dies while its prey survives, reading a pump earlier in the spell and an arriving hunter', () => {
+    const check = SENSE_CHECKS.find((c) => c.id === 'huntLostHunter')!;
+    const flagged = (hand: string, board: Permanent[], targets: ReturnType<typeof at>[]): boolean => {
+      const v = view({ battlefield: board }, { hand: [hand] });
+      expect(check.applies(cast(targets), ctx(v))).toBe(hand);
+      return check.flagged(cast(targets), ctx(v));
+    };
+    const smallIntoThree = [perm(4, 'creature'), enemy(9, 'three')];
+    // A 2/2 hunting a 3/3 dies and leaves it alive; +2/+2 first makes it a kill that survives.
+    expect(flagged('stalk', smallIntoThree, [at(4), at(9)])).toBe(true);
+    expect(flagged('fangHorn', smallIntoThree, [at(4), at(9)])).toBe(false);
+    // A 3/3 arriving into a 6/6 dies for nothing; into a 2/2 it kills and survives.
+    expect(flagged('raptor', [enemy(9, 'bigCreature')], [at(9)])).toBe(true);
+    expect(flagged('raptor', [enemy(9, 'creature')], [at(9)])).toBe(false);
+  });
+
+  it('reads a Hauntlinked cast of an arrival hunter as a link to its host, never a Hunt', () => {
+    // The host is a big creature of hers: read as prey, the Hunt would also look wasted.
+    const v = view({ battlefield: [perm(4, 'bigCreature'), enemy(9, 'creature')] }, { hand: ['linkRaptor'] });
+    const linked: Action = { type: 'castSpell', handIndex: 0, hauntlinked: true, targets: [at(4)] };
+    expect(mechanics(linked, v).filter((hit) => hit.startsWith('hunt'))).toEqual([]);
+    expect(senseChecksFor(linked, ctx(v))).toEqual([]);
+    // The plain cast on prey is still a Hunt.
+    expect(mechanics(cast([at(9)]), v)).toEqual(['hunt:linkRaptor']);
+  });
+
+  it('reads an any Duty hunting her own creature as repeat uses per cast', () => {
+    const collector = new MechanicUsageCollector(DB);
+    const hunt: Action = { type: 'activate', iid: 7, targets: [at(4)] };
+    const ai = collector.wrapFactory(
+      { matrix: 'test', id: 'boss', name: 'Boss', list: { deck: ['anyTracker'] } },
+      () => scripted([cast([]), hunt, hunt]),
+    )();
+    ai.chooseAction(view({ battlefield: [perm(4, 'creature')] }, { hand: ['anyTracker'] }), [cast([]), pass]);
+    const board = view({ turn: 7, battlefield: [perm(7, 'anyTracker'), perm(4, 'creature')] });
+    ai.chooseAction(board, [hunt, pass]);
+    ai.chooseAction({ ...board, turn: 9 }, [hunt, pass]);
+    const [boss] = collector.toJSON().bosses;
+    expect(boss.rows.find((row) => row.mechanic === 'huntAnySelf')).toMatchObject({ turnsTaken: 2, usesPerCast: 2 });
+  });
+
+  it('counts a Provoked fire of hers once a turn, as her own source when her previous action named the creature', () => {
+    const game = new GameUsage(DB);
+    const fired = (iid: number, extra: Partial<Permanent> = {}) => perm(iid, 'provoked', { firedThisTurn: [0], ...extra });
+    const ping = cast([at(4)]);
+    game.record(view({ battlefield: [perm(4, 'provoked')] }, { hand: ['pinger'] }), [ping, pass], ping);
+    // The ping resolved and provoked her creature; an opponent's fired Provoked is not hers.
+    const after = view({ battlefield: [fired(4), fired(9, { owner: 1, controller: 1 })] });
+    game.record(after, [pass], pass);
+    game.record(after, [pass], pass);
+    // Next turn it fires again, after a pass: not her own source.
+    game.record(view({ turn: 7, battlefield: [fired(4)] }), [pass], pass);
+    expect(game.provoked.get('provoked')).toEqual({ fires: 2, ownSource: 1 });
+  });
+
+  it('reports the Hunt rows and the Provoked tally only for a list that carries them', () => {
+    const collector = new MechanicUsageCollector(DB);
+    const run = (id: string, deck: string[]) => {
+      const ai = collector.wrapFactory({ matrix: 'test', id, name: id, list: { deck } }, () => scripted([pass]))();
+      ai.chooseAction(view(), [pass]);
+    };
+    run('plain', ['creature', 'charm']);
+    run('dawn', ['korru', 'provoked', 'provoked']);
+    const [plain, dawn] = collector.toJSON().bosses;
+    expect(plain.rows.filter((row) => row.mechanic.startsWith('hunt')).map((row) => row.cardsInList)).toEqual([0, 0]);
+    expect(plain.provoked).toMatchObject({ cardsInList: 0, fires: 0, perCard: [] });
+    expect(dawn.rows.find((row) => row.mechanic === 'huntAnySelf')?.cardsInList).toBe(1);
+    expect(dawn.provoked).toMatchObject({ cardsInList: 2, fires: 0 });
+    const [plainBlock, dawnBlock] = collector.render().split('[test] ').slice(1);
+    expect(plainBlock).not.toMatch(/Hunt|Provoked/);
+    expect(dawnBlock).toMatch(/Provoked \(passive\)/);
   });
 });
 

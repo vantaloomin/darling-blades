@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-1.9.md, docs/expansions/drafts/first-dawn-brief.md, docs/expansions/drafts/first-dawn-overplan.md, docs/rules.md, src/engine/types.ts, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/sba.ts, src/engine/combat/damage.ts, src/engine/Game.ts, src/engine/actions.ts, src/engine/resolve.ts, src/ai/value.ts, src/ai/targeting.ts, src/ai/activatedPolicy.ts, src/ai/combatPlans.ts, src/ai/pumpPolicy.ts, src/power/scoreCore.ts, src/data/glossary.ts, src/ui/rulesText.ts, scripts/action-log.ts, scripts/avatarReserveDecks.ts, scripts/mechanicUsage.ts · last-verified: 2026-09-29 · engine spec, RULED at the owner's second 1.9 sitting 2026-09-28 (lane A, and lane B step 3, the concretion audit); re-verify when the overplan's cut changes or when A1 lands -->
+<!-- source-of-truth: docs/plan-1.9.md, docs/expansions/drafts/first-dawn-brief.md, docs/expansions/drafts/first-dawn-overplan.md, docs/rules.md, src/engine/types.ts, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/sba.ts, src/engine/combat/damage.ts, src/engine/Game.ts, src/engine/actions.ts, src/engine/resolve.ts, src/ai/value.ts, src/ai/targeting.ts, src/ai/activatedPolicy.ts, src/ai/combatPlans.ts, src/ai/pumpPolicy.ts, src/power/scoreCore.ts, src/data/glossary.ts, src/ui/rulesText.ts, scripts/action-log.ts, scripts/avatarReserveDecks.ts, scripts/mechanicUsage.ts, scripts/mechanicUsageCollector.ts · last-verified: 2026-09-29 · engine spec, RULED at the owner's second 1.9 sitting 2026-09-28 (lane A, and lane B step 3, the concretion audit); re-verify when the overplan's cut changes or when A1 lands -->
 
 # First Dawn engine spec: Provoked, Hunt, and what the cards need (1.9 lane A)
 
@@ -1774,6 +1774,121 @@ line and the badge).
   anchor rule and its glyph through `tests/ui/mechanicIcons.test.ts`; the quest
   count in `tests/meta/quests.test.ts`. Each new test was proved against a
   mutation that switches its behaviour off (37 mutations, each caught).
+
+## As built (A2.d): the tools
+
+A2.d taught the deck converter's target walk (`scripts/avatarReserveDecks.ts`)
+and the mechanic usage audit (`scripts/mechanicUsage.ts`,
+`scripts/mechanicUsageCollector.ts`) about Hunt, Provoked and A1.6's
+constructs. No shipped card hunts, has Provoked or names an attacking
+target, so no shipped deck and no shipped usage row moved (the proof is at
+the end).
+
+**The converter's target walk.**
+
+- **Whose creature.** The walk's pooled categories answer "can this exist
+  anywhere in the format". A Hunt and an attacking target also ask whose, so
+  `deckTargetSupply(cards, db, opponents?)` keeps the two sides apart beside
+  the pooled Set (a WeakMap, as the qualified supply is, so the Set's public
+  iteration is unchanged). The list being judged is its own side; `opponents`
+  is what it plays against. The Warchest conversion is the avatar's source
+  list against the five starter columns, pooled exactly as before. A lone
+  list (the Darlings self-supply checks) is its own opponent: the mirror,
+  which every matchup contains.
+- **A Hunt is one more narrow target of its card**, supplied when its hunter
+  and its prey both are. The spell form needs a creature of your own without
+  printed Bulwark to hunt with; an opponent's creature is never the hunter.
+  The generic prey is a creature an opponent controls, so every generic Hunt
+  (spell, arrival, attack, Dawn, Duty) is dead without one, whatever you
+  hold: an arrival hunter can't even be cast. A Bulwark creature is legal
+  prey. `yours` needs another creature of yours (a second copy of a
+  source-bound hunter counts; the spell form needs two different creatures of
+  yours, one of them able to hunt), and `any` takes either side. The prey
+  spec's own words (cost, Attack, Marked) apply to the same candidate. A
+  Hunt's specs are judged as a pair here, never one by one in the old walk.
+- **A conditional arrival Hunt (A1.1c) is judged as an unconditional one.**
+  Cast without prey it is castable, but it hunts only if its condition comes
+  true before it arrives, so in a format with no prey its Hunt never happens.
+  The walk has never told "castable, but its targeted job cannot happen" from
+  "uncastable": a creature whose mandatory arrival target cannot exist was
+  already dead (the arrival case of the Anubis gate). The condition itself is
+  not walked, as no card's condition is.
+- **Empower Hunts are not walked**, as Empower targets never were: Empower is
+  optional, so the card is still a plain cast.
+- **An attacking-only target (A1.6) needs a creature that can attack** (no
+  printed Bulwark) on a side the spec reaches: either for `creature`, theirs
+  for `opponentCreature`, yours for `yourCreature`, meeting the spec's other
+  words on the same candidate (Bring Down the Beast's Attack 4). It is not a
+  timing gate, as `tapped` is not: every game has combat, and the walk asks
+  whether a target can exist, not how often. An answer that waits for an
+  attack is reactive, not dead; the quality ranking, not the walk, decides
+  whether it earns a slot. Treating it as dead would drop The Elders' Verdict
+  and Bring Down the Beast from every conversion.
+- **`ifTargetSurvives` needed nothing new.** The supply walks already descend
+  into it (`isTargetBranchOp`, A1.6's review), so a token minted in either
+  branch is supply, and no Hunt can sit inside the gate (`validateHuntDef`).
+- **Printed Bulwark only.** A catalog walk cannot see a granted one. A bare
+  `new Set()` carries no sides, so a Hunt or attacking card reads dead against
+  it, as a qualified target already did; the test that no plain creature
+  answer is ever rejected now leaves both out.
+
+**The usage audit.**
+
+- **`hunt`**, one `MECHANIC_RULES` entry: carried by any card with a Hunt op
+  (the Darling too), matched on a Hunt spell's cast, an arrival hunter's cast
+  or Darling call that names prey (a conditional one cast without prey does
+  not hunt then; a Hauntlinked cast names its host, never prey), a paid Empower Hunt, a hunting Duty, and a hunting
+  trigger's prey choice (forced once it fires, so those chances are always
+  taken; the row's note says so). `repeats`, for the Duties.
+- **`huntAnySelf`, counted apart:** a Hunt on a card that declares `any`,
+  aimed at her own creature. A chance is a turn in which such a cast or
+  choice was legal, so its rate shows Easy's zero and Medium's margin (A2.b).
+  `yours` is not counted apart: it has no choice of side. `repeats`, as an
+  `any` Duty can hunt her own creature turn after turn.
+- **The sense check `huntLostHunter`** flags a taken Hunt whose hunter dies
+  while its prey survives, on the public board. It reads the AI's own
+  survival read (`expectsTargetSurvives`, which plays a Hunt spell's pump and
+  damage before the Hunt), and an arrival or Empower hunter as the card
+  arriving now. It is aimed at A1.2's known gap: Medium and Easy cast an
+  arrival hunter whenever it is legal.
+- **Provoked is passive** (U3), so it has no row: the collector keeps a
+  tally, per boss and per card, of her Provoked fires and of those on a
+  creature her own previous action that turn named (a Hunt's hunter or prey,
+  a damage target, a hunter she cast) or swept. Part 8 asked for an event
+  count. The wrapper has no event feed, so the tally reads the public board
+  at her decisions (`firedThisTurn`): a fire after her last decision of a
+  turn, most often a block on the opponent's turn, is missed, as is a
+  creature that fires and leaves the battlefield before her next decision; a response
+  between her action and the fire is not told apart. An event count needs the
+  matrix to hand the collector its `eventObserver` (`scripts/balance-matrix.ts`,
+  not in this change); wave 4's read should say whether the blind spot
+  matters first.
+- **Output.** Every boss's JSON gains the two rows (zeros without carriers),
+  the check, and a `provoked` block; the text table prints them only for a
+  list that carries them.
+- **Overcharge is not in it.** The audit counts choices a brain makes, and
+  Overcharge (A1.7) makes none: its recipient is deterministic. Its
+  frequency belongs beside Provoked as a passive tally, fed by the
+  `overcharged` event once wave 4 hands the collector an event feed.
+
+**Zero on today's pool.**
+
+- `npx tsx scripts/avatarReserveDecks.ts --print` before and after: 2,713
+  lines, byte-identical (`cmp`). The committed-data test ("untuned committed
+  data IS the deterministic converter output") passes unchanged.
+- `npx tsx scripts/balance-matrix.ts --avatars --avatars-reserve --seeds 4
+  --only kitsune-neon-tyrant,the-drowned-deacon --usage --telemetry
+  --telemetry-out`, run on the base scripts and on A2.d's: the printed report
+  is identical apart from its timing lines, the telemetry JSON is identical,
+  and the usage JSON is identical once the new rows, check and `provoked`
+  block are removed; every new row, check and tally reads 0.
+
+**Tests.** `tests/scripts/firstDawnCompatibility.test.ts` (the walk, on
+fixture cards, and one Warchest conversion against the real starter columns)
+and the "Hunt and Provoked" block of `tests/scripts/mechanicUsage.test.ts`,
+each shown to fail with its behaviour switched off. In
+`tests/data/avatarReserveDecks.test.ts`, the dead-target check now builds the
+format's supply with its sides, as the converter does.
 
 ## What this spec corrects
 
