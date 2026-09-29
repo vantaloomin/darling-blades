@@ -70,7 +70,7 @@ import type {
   TargetSpec,
   TriggerWhen,
 } from '../engine/types';
-import { manaValue } from '../engine/types';
+import { flatOps, manaValue } from '../engine/types';
 import { LAND_RESERVE_SIZE } from '../config/rules';
 
 /** v3 vocabulary is newer than this isolated worktree's engine unions. Keep
@@ -243,11 +243,16 @@ export const PIE: Record<string, { pie: Pie; colorless: number }> = {
   discard: { pie: { B: 0, U: SEC }, colorless: SEC },
   drain: { pie: { B: 0 }, colorless: SEC },
   disenchant: { pie: { W: 0, G: 0, R: SEC }, colorless: SEC }, // B artifact kill ~absent
+  // 1.9 (A1.4): Hunt is creature removal by a creature, green and red (the
+  // First Dawn brief), black secondary, as the overplan's provisional pie had it.
+  hunt: { pie: { G: 0, R: 0, B: SEC }, colorless: SEC },
 };
 export function pieClassOf(op: PieEffectOp, targetWhat?: string): string | null {
   switch (op.op) {
     case 'damage':
       if (op.to === 'controller') return null;
+      // 1.9 (A1.4): damage aimed at your own creatures is a Provoked source, not burn.
+      if (op.to === 'eachYourCreature' || (op.to === 'target' && targetWhat === 'yourCreature')) return null;
       if (op.to === 'opponent') return 'faceBurn';
       if (op.to === 'eachCreature' || op.to === 'eachOpponentCreature') return 'sweepDamage';
       return 'burn';
@@ -273,6 +278,7 @@ export function pieClassOf(op: PieEffectOp, targetWhat?: string): string | null 
     case 'sacrifice': return 'kill';
     case 'loseLife': return 'drain';
     case 'destroyArtifactOrSeverEnchantment': case 'destroyNewestOpponentArtifactOrEnchantment': return 'disenchant';
+    case 'hunt': return 'hunt';
     default: return null;
   }
 }
@@ -283,20 +289,22 @@ export function pieClassOf(op: PieEffectOp, targetWhat?: string): string | null 
  * of class weight, proportional below (so a 0.4-MEP rider pays 0.4x). */
 function piePremiums(card: ScorableCardDef, unknowns: UnknownCollector): Part[] {
   const weight = new Map<string, number>();
-  const scan = (ops?: ScorableEffectOp[], targetWhat?: string, fan = 1) => {
+  const scan = (ops?: ScorableEffectOp[], targets?: readonly TargetSpec[], fan = 1, huntWeight = 1) => {
     for (const o of ops ?? []) {
+      const targetWhat = opTargetWhat(o, targets);
       const k = pieClassOf(o, targetWhat);
       if (!k) continue;
-      const raw = valueOp(o, false, card, 'spell', targetWhat, unknowns).v * (isPerTargetOp(o) ? fan : 1);
+      const raw = valueOp(o, false, card, 'spell', targetWhat, unknowns).v * (isPerTargetOp(o) ? fan : 1) * (o.op === 'hunt' ? huntWeight : 1);
       // Self-discard is the one signed entry: it subtracts from the draw
       // class (see pieClassOf). A negative class total pays no premium.
       const v = o.op === 'discard' && o.who === 'self' ? raw : Math.max(0, raw);
       weight.set(k, (weight.get(k) ?? 0) + v);
     }
   };
-  for (const ab of card.abilities ?? []) scan(ab.ops, ab.targets?.[0]?.what, targetFan(ab.targets));
-  scan(card.empower?.ops);
-  for (const duty of dutiesOf(card)) scan(duty.ops, duty.targets?.[0]?.what, targetFan(duty.targets));
+  for (const ab of card.abilities ?? []) scan(ab.ops, ab.targets, targetFan(ab.targets));
+  // 1.9 (A1.4): an Empower Hunt pays the premium at its carrier weight (0).
+  scan(card.empower?.ops, undefined, 1, HUNT_CARRIER.empower);
+  for (const duty of dutiesOf(card)) scan(duty.ops, duty.targets, targetFan(duty.targets));
   for (const ch of card.chapters ?? []) scan(ch);
   if (card.manaAbility?.length && !card.types.includes('land')) weight.set('ramp', 1.3);
   const out: Part[] = [];
@@ -473,6 +481,150 @@ function keywordLabel(k: Keyword, attack: number): string {
   return keywordScales(k) ? `${k} (attack ${attack})` : k;
 }
 
+// ── FIRST DAWN: HUNT AND PROVOKED (1.9, A1.4, in-engine) ─────────────────────
+// Fitted to the A1.3 lab (652,512 games, HardAI on both seats, a 14-deck field;
+// balance/study/lab/fd/first-dawn-findings.md, local-only). The lab's currency
+// is the pooled one-mana step (5.3 pp), read as MEP here as the 1.8.5 keyword
+// lab's was. The calibration table (fitted against measured, every lab row) is
+// in docs/plan-first-dawn-engine.md, "As built (A1.4)". Replaces the
+// overplan's provisional terms (Hunt: creature burn x a Defense slope; Provoked:
+// the effect x (0.2 + 0.15 x Defense)), which the lab contradicted.
+//
+// HUNT. The value is a STEP on whether the hunter survives the exchange, not a
+// slope. The rule: the prey a hunter picks has Attack 2 and Defense 3 (the
+// field's typical creature the hunter can outlast), so a hunter SURVIVES when
+// its Defense is 3 or more, and KILLS when its Attack is 3 or more. Measured
+// (arrival Hunt, the body's value over the same body without it):
+//   dies    2/2 0.14, 3/1 1.03, 3/2 1.13, 4/2 1.37 pooled (Spear-Thrower; its
+//           fair surcharge is 2 mana or more, censored, which A1.4 reads for
+//           cost, so the slope runs to 2.05 at Attack 4; 3/1 and 3/2 read
+//           1.10, inside their intervals)
+//   lives   3/3 2.49, 3/4 3.24, 3/5 3.44, 4/4 3.21, 5/5 3.53: Defense past the
+//           step adds 0.75 a point to a ceiling of 3.5; Attack past 3 adds
+//           nothing (3/4 = 4/4, 3/5 = 5/5).
+// A survivor with Attack under 3 kills less: it keeps the share of the kill
+// the scorer's own creature-burn curve gives its Attack against 3 (a 2/4 keeps
+// 1.2 / 1.7 = 0.71). On a one-shot carrier (arrival, attack, anything but a
+// Duty) it is also capped at that Attack's creature burn plus a modest
+// survival excess (HUNT_LOW_ATTACK_EXCESS, 0.5): NEEDS MATH, since no lab row
+// has a low-Attack survivor on a one-shot carrier, and uncapped a 1/4 or 2/3
+// would read far above a 3/2 that trades. A Duty is exempt: Tracker of the
+// Long Grass (a 2/4 Duty hunter) is the one measured low-Attack survivor, and
+// a Duty picks its moment and its prey every turn; capped, its Duty would read
+// 0.08 against the measured 0.65 [0.45, 0.91].
+export const HUNT_LOW_ATTACK_EXCESS = 0.5;
+export const HUNT_SURVIVES_AT_DEFENSE = 3;
+export const HUNT_KILLS_AT_ATTACK = 3;
+export const HUNT_DIES_AT_ATTACK_2 = 0.15;
+export const HUNT_DIES_PER_ATTACK = 0.95;
+export const HUNT_LIVES_BASE = 2.5;
+export const HUNT_LIVES_PER_DEFENSE = 0.75;
+export const HUNT_LIVES_CAP = 3.5;
+// What one Hunt is worth on each carrier, against the arrival Hunt's exchange:
+//   arrives 1.0  the calibration frame.
+//   attacks 0.9  Kesh (3/2 Warcry, "Whenever this attacks, Hunt.") 0.94
+//                [0.69, 1.26] against the 3/2 arrival exchange 1.05.
+//   duty    0.75 per card, before the Duty's mana discount (valueDuty):
+//                Korru (4/5, {1}{G}) 1.76 [1.47, 2.10], Tracker (2/4,
+//                {2}{G}) 0.65 [0.45, 0.91]; least squares 0.754. Hard uses a
+//                hunting Duty 0.5-0.6 times a game (A1.2's Morning gap), so
+//                this is a Hard-as-built rate.
+//   empower 0    Ridge-Raptor's Empower Hunt: -0.26 [-0.58, -0.01]. Hard
+//                empowers into trades; the option is worth nothing.
+// Any other carrier (Dawn, dies, ...) is unmeasured: one Hunt at the arrival
+// rate, marked NEEDS MATH.
+export const HUNT_CARRIER = { arrives: 1.0, attacks: 0.9, duty: 0.75, empower: 0 } as const;
+// The spell form ("Target creature you control Hunts."): the hunter is
+// whichever creature the caster picks, so the step does not apply to a nominal
+// body. The plain Hunt ritual measured fair at mana value 2 (-0.04 [-0.3, 0.3]
+// against a vanilla 2/2), so its value is a fair 2-mana card's, 1.95. A pump on
+// the hunter earlier in the spell is folded in: each point of Defense moves the
+// value along the surviving hunter's slope (0.75), to the same ceiling; Attack
+// adds nothing (Challenge the Beast +1/+0 0.01, Duel on the Ridge +2/+0 -0.39,
+// Stalk the Ferns +1/+1 -0.01, Fang and Horn +2/+2 +0.98, against a vanilla at
+// the same mana value). Damage to the hunter is a Provoked source, not a loss
+// of Defense: the caster picks a hunter that can take it (Blaze-Horn Charge
+// reads only 0.23 under the plain Hunt at mana value 3).
+export const HUNT_SPELL_BASE = 1.95;
+// Prey declared `yours` (the hunter fights your own creature): the lab's forced
+// self-hunt arm read -0.2 pp over a blank ritual, so the Hunt is worth 0. The
+// `any` override adds nothing over the default prey (-0.1 pp).
+export const HUNT_PREY_YOURS = 0;
+
+/** The scorer's creature-only burn curve (valueOp, damage to a creature target). */
+const creatureBurnRate = (n: number): number => Math.max(0.5 + 0.35 * n, Math.min(2.7, 1.2 + 0.5 * (n - 2)));
+
+/** True when a hunter with this Defense outlasts the typical prey (Attack 2). */
+export function huntSurvives(defense: number): boolean {
+  return defense >= HUNT_SURVIVES_AT_DEFENSE;
+}
+
+/** True when a one-shot Hunt by this hunter is priced under the low-Attack
+ * cap (a NEEDS MATH estimate). */
+export function huntLowAttackCapped(attack: number, defense: number): boolean {
+  return attack > 0 && attack < HUNT_KILLS_AT_ATTACK && huntSurvives(defense);
+}
+
+/** One Hunt's exchange, in MEP, for a hunter of this Attack and Defense, on the
+ * arrival Hunt's frame (the carrier multiplies it). `oneShot` applies the
+ * low-Attack survivor cap (every carrier but a Duty). */
+export function huntExchange(attack: number, defense: number, oneShot = true): number {
+  if (attack <= 0) return 0;
+  const lives = Math.min(HUNT_LIVES_CAP, HUNT_LIVES_BASE + HUNT_LIVES_PER_DEFENSE * (defense - HUNT_SURVIVES_AT_DEFENSE));
+  if (!huntSurvives(defense)) {
+    // A dying hunter is never worth more than one that survives.
+    return Math.min(HUNT_LIVES_BASE, Math.max(0, HUNT_DIES_AT_ATTACK_2 + HUNT_DIES_PER_ATTACK * (attack - 2)));
+  }
+  const reach = Math.min(1, creatureBurnRate(attack) / creatureBurnRate(HUNT_KILLS_AT_ATTACK));
+  const value = reach * lives;
+  return oneShot && huntLowAttackCapped(attack, defense) ? Math.min(value, creatureBurnRate(attack) + HUNT_LOW_ATTACK_EXCESS) : value;
+}
+
+/** The spell form's value with `defensePump` added to its hunter first. */
+export function huntSpellValue(defensePump: number): number {
+  return Math.min(HUNT_LIVES_CAP, HUNT_SPELL_BASE + HUNT_LIVES_PER_DEFENSE * Math.max(0, defensePump));
+}
+
+// PROVOKED. A passive "Provoked: [effect]" is worth its effect times a
+// survival factor on the carrier's Defense. Measured: 0 on small bodies
+// (Cinder-Crest 2/2 -0.28, Fern-Back Grazer 1/4 -0.04, Hearth-Shield Maiden 1/4
+// 0.00), about 0.45-0.5 on big ones (Vessa 5/6 0.45 [0.23, 0.71], The Walking
+// Mountain 6/7 0.51 [0.30, 0.72], Mother of the Long-Necks 4/7 0.44 [0.24,
+// 0.65]). Exposure is flat at 1.2-1.7 a game whatever the body; what differs is
+// whether the creature survives to fire. So the factor is 0 through Defense 4,
+// rises linearly to its ceiling at Defense 6 and stays there. The ceiling, 0.25,
+// is the least-squares fit of the three big bodies' effects (1.0, 2.3, 1.85)
+// to their readings; Defense 5 (0.125) is interpolated, not measured.
+export const PROVOKED_SURVIVAL_ZERO_AT = 4;
+export const PROVOKED_SURVIVAL_FULL_AT = 6;
+export const PROVOKED_SURVIVAL_CAP = 0.25;
+/** The Provoked multiplier for a carrier with this Defense. */
+export function provokedSurvival(defense: number): number {
+  const span = PROVOKED_SURVIVAL_FULL_AT - PROVOKED_SURVIVAL_ZERO_AT;
+  return PROVOKED_SURVIVAL_CAP * Math.min(1, Math.max(0, (defense - PROVOKED_SURVIVAL_ZERO_AT) / span));
+}
+// A SELF-PROVOKE ENGINE: a creature whose own Duty can damage it fires its
+// Provoked about once a turn. Measured: Sefa (Duty {1}: 1 damage to target
+// creature you control; Provoked: a Hatchling and 2 life, 1.55) 1.87 [1.57,
+// 2.20]; Ashka (Duty {R}: 1 damage to target creature; Provoked: 2 to the
+// opponent, 1.0) 0.69 [0.52, 0.95]. Priced as SELF_PROVOKE_FIRES fires of the
+// effect less the Duty's mana discount (the §4q D), when that beats the passive
+// rate: 1.3 is the one value inside both intervals (Sefa 1.27-1.68, Ashka
+// 0.92-1.35), below the Duty's 2.0 because the creature also attacks and blocks.
+export const SELF_PROVOKE_FIRES = 1.3;
+// A SELF-DAMAGE SOURCE (damage its controller aims at their own creatures, a
+// target creature you control or each creature you control): priced once per
+// card, whatever the carrier, because the lab read a repeatable source and a
+// one-shot the same (The Standing Stone's Duty 0.61, Test of the Hearth 0.77).
+// Its value is the deck's Provoked density, which the scorer reads through the
+// card's colour: white is built for the wall deck (R27, 12 exposures a game),
+// where white sources read 0.5 to 1.0; elsewhere (the Stampede, 3 exposures a
+// game) red and colourless sources read 0 to 0.3, and the ones that hurt the
+// deck's own X/1s read below 0. The lab gives ranges, so each colour takes the
+// conservative (lower) end: 0.5 for white, 0 for every other colour. A
+// multicoloured card takes its lowest colour's rate, as the pie premium does.
+export const SELF_SOURCE_RATE: Partial<Record<'W' | 'U' | 'B' | 'R' | 'G', number>> = { W: 0.5 };
+
 // How much a triggered ability is worth relative to the same effect on a spell.
 // v2 adds `entersGraveyard` (0.5) — previously fell through to the `?? 1.0`
 // default, i.e. scored as if it were a spell-speed effect. Typed as a full
@@ -545,11 +697,10 @@ export const TRIGGER_MULT: Record<Exclude<ScorableTriggerWhen, CarrierTriggerWhe
   // provisional until a seeded matrix counts lifegain events per turn in the
   // Drowned Deep white decks. `oncePerTurn` caps it far above this.
   youGainLife: 0.3,
-  // Provoked (1.9, First Dawn): NEEDS MATH. No rate exists until the A1.3 lab
-  // measures one (plan-first-dawn-engine.md, Part 5). triggerMult reports it as
-  // an unknown and prices the effect at 0 rather than invent a multiplier;
-  // this entry only keeps the Record total, and nothing reads it.
-  provoked: 0,
+  // Provoked (1.9, First Dawn, A1.4): priced on the carrier's Defense by
+  // provokedSurvival() below; this entry is that function's ceiling, kept so
+  // the Record stays total. triggerMult never reads it.
+  provoked: PROVOKED_SURVIVAL_CAP,
 };
 
 // §4t (2026-09-24) — recurring observers priced per CARRIER, like `dawn`
@@ -630,10 +781,7 @@ export function triggerMult(w: ScorableTriggerWhen, card: ScorableCardDef, unkno
     const split = CARRIER_TRIGGER_MULT[w];
     return card.types.includes('creature') ? split.creature : split.noncreature;
   }
-  if (w === 'provoked') {
-    unknowns.add('when:provoked (NEEDS MATH: unpriced until the First Dawn lab)');
-    return 0;
-  }
+  if (w === 'provoked') return provokedSurvival(card.defense ?? 0);
   const v = TRIGGER_MULT[w];
   if (v === undefined) {
     unknowns.add(`when:${w}`);
@@ -838,6 +986,24 @@ export function sweepRate(n: number): number {
   return n >= 2 ? Math.min(4.0, 2.0 + 0.9 * (n - 2)) : 0.9 + 0.55 * n;
 }
 
+/** 1.9 (A1.4): one Hunt op (see the Hunt block above). The caller multiplies
+ * a triggered ability's ops by triggerMult(when), so a source-bound Hunt
+ * returns its carrier's net value divided back by that multiplier, as
+ * ARRIVAL_MARK_BODY does. `spell` is the colour-pie scan's read of the op. */
+function valueHunt(op: Extract<ScorableEffectOp, { op: 'hunt' }>, card: ScorableCardDef, when: ScorableTriggerWhen): Part {
+  if (op.prey === 'yours') return { label: 'hunt one of your own creatures (measured at 0)', v: HUNT_PREY_YOURS };
+  if (op.hunter === 'target') return { label: 'hunt (with a creature you choose)', v: huntSpellValue(0) };
+  const a = card.attack ?? 0, d = card.defense ?? 0;
+  const exchange = huntExchange(a, d);
+  const cap = huntLowAttackCapped(a, d) ? ', low Attack, NEEDS MATH' : '';
+  const label = `hunt (hunter ${a}/${d}, ${huntSurvives(d) ? 'survives' : 'dies'}${cap})`;
+  if (when === 'spell') return { label, v: exchange };
+  const carrier = when === 'arrives' ? HUNT_CARRIER.arrives : when === 'attacks' ? HUNT_CARRIER.attacks : undefined;
+  const mult = triggerMult(when, card);
+  const v = mult > 0 ? (exchange * (carrier ?? 1.0)) / mult : 0;
+  return { label: carrier === undefined ? `${label}, NEEDS MATH: an unmeasured carrier at the arrival rate` : label, v };
+}
+
 /** v2 — awaken op valuation. Needs the source CardDef for its own `awakening` rider. */
 function valueAwaken(op: Extract<ScorableEffectOp, { op: 'awaken' }>, card: ScorableCardDef, unknowns: UnknownCollector): Part {
   if (op.scope === 'self') {
@@ -921,6 +1087,9 @@ export function valueOp(
           };
         }
         case 'target':
+          // 1.9 (A1.4): damage aimed at a creature you control is a Provoked
+          // source, priced once per card (selfSourcePart), never as burn.
+          if (targetWhat === 'yourCreature') return { label: `damage to your own creature ${n} (a Provoked source)`, v: 0 };
           // to a target: any-target burn has removal utility (higher floor) vs creature-only.
           // v2.6 SLOPE CORRECTION (owner-approved 2026-08-28, see §4k): the v1
           // rate `0.60 + 0.35n` was calibrated at Shock (n=2) then extrapolated
@@ -936,12 +1105,11 @@ export function valueOp(
           // Slash, Bathe in Dragonfire) and n=5 past a kill spell.
           return canFace
             ? { label: `burn any ${n}`, v: Math.max(0.6 + 0.35 * n, 1.3 + 1.0 * (n - 2)) }
-            : { label: `burn creature ${n}`, v: Math.max(0.5 + 0.35 * n, Math.min(2.7, 1.2 + 0.5 * (n - 2))) };
+            : { label: `burn creature ${n}`, v: creatureBurnRate(n) };
         case 'eachYourCreature':
-          // NEEDS MATH (1.9, First Dawn): damage to your own side is a Provoked
-          // source, priced by the A1.3 lab. Reported as unknown, never a rate.
-          unknowns.add('damage.to:eachYourCreature (NEEDS MATH: unpriced until the First Dawn lab)');
-          return { label: `damage each creature you control ${n} (NEEDS MATH)`, v: 0 };
+          // 1.9 (A1.4): damage to your own side is a Provoked source, priced
+          // once per card (selfSourcePart).
+          return { label: `damage each ${(op as { other?: true }).other ? 'other ' : ''}creature you control ${n} (a Provoked source)`, v: 0 };
         default: {
           const _exhaustive: never = damageTarget;
           unknowns.add(`damage.to:${String(_exhaustive)}`);
@@ -1282,10 +1450,9 @@ export function valueOp(
       // (Codex: Call the Einherjar {2}{B} beats Zombify {3}{B}). 2.2 undervalued it.
       return { label: 'reanimate', v: 3.5 };
     case 'hunt':
-      // NEEDS MATH (1.9, First Dawn): Hunt is priced by the A1.3 lab
-      // (plan-first-dawn-engine.md, Part 5). Reported as unknown, never a rate.
-      unknowns.add('op:hunt (NEEDS MATH: unpriced until the First Dawn lab)');
-      return { label: 'hunt (NEEDS MATH)', v: 0 };
+      // 1.9 (A1.4): see the Hunt block above. The spell form is priced here
+      // with no pump; scoreCard folds a pump on the hunter in (huntSpellValue).
+      return valueHunt(op, card, when);
     default: {
       const _exhaustive: never = op;
       void _exhaustive;
@@ -1417,20 +1584,99 @@ export interface Score {
   unknowns: string[];
 }
 
+/** Every op, branch ops included (the engine's own flatOps, so a branch op
+ * the engine adds later is walked here too). */
+const flatScorable = (ops: readonly ScorableEffectOp[]): ScorableEffectOp[] => flatOps(ops as readonly EffectOp[]) as ScorableEffectOp[];
+
+/** The §4q Duty discount: 0.4 a mana of activation cost, at most 1.5. */
+function dutyDiscount(ability: ScorableActivated): number {
+  return Math.min(1.5, 0.4 * manaValue(ability.cost.mana));
+}
+
+/** The target spec an op aims at: its ability's slot `targetIndex` (default 0). */
+function specOf(op: ScorableEffectOp, targets: readonly TargetSpec[] | undefined): TargetSpec | undefined {
+  return targets?.[(op as { targetIndex?: number }).targetIndex ?? 0];
+}
+
+/** The target kind an op is valued against. A damage op reads its own slot
+ * (1.9, A1.4: whether it hits your own creature is decided there); every other
+ * op keeps the ability's first slot, as the scorer always has. */
+function opTargetWhat(op: ScorableEffectOp, targets: readonly TargetSpec[] | undefined): string | undefined {
+  return op.op === 'damage' ? specOf(op, targets)?.what : targets?.[0]?.what;
+}
+
+/** Every op list on the card with the targets it is aimed with. */
+function opListsOf(card: ScorableCardDef): { ops: readonly ScorableEffectOp[]; targets?: readonly TargetSpec[] }[] {
+  return [
+    ...(card.abilities ?? []).map((ab) => ({ ops: ab.ops ?? [], targets: ab.targets })),
+    ...dutiesOf(card).map((duty) => ({ ops: duty.ops, targets: duty.targets })),
+    ...(card.empower ? [{ ops: card.empower.ops, targets: card.empower.targets }] : []),
+    ...(card.chapters ?? []).map((ops) => ({ ops })),
+  ];
+}
+
+/** 1.9 (A1.4): does any of the card's effects damage its controller's own creatures? */
+function damagesOwnCreatures(card: ScorableCardDef): boolean {
+  return opListsOf(card).some(({ ops, targets }) => flatScorable(ops).some((op) => op.op === 'damage' &&
+    (op.to === 'eachYourCreature' || (op.to === 'target' && specOf(op, targets)?.what === 'yourCreature'))));
+}
+
+/** 1.9 (A1.4): a creature with a Provoked ability and a Duty that can damage
+ * the creature itself (a self-provoke engine): that Duty, else undefined. */
+function selfProvokeDuty(card: ScorableCardDef): ScorableActivated | undefined {
+  if (!card.types.includes('creature') || !(card.abilities ?? []).some((ab) => ab.when === 'provoked')) return undefined;
+  return dutiesOf(card).find((duty) => flatScorable(duty.ops).some((op) => {
+    if (op.op !== 'damage') return false;
+    if (op.to === 'eachCreature') return true;
+    if (op.to === 'eachYourCreature') return !op.other;
+    const spec = specOf(op, duty.targets);
+    return op.to === 'target' && !!spec && !spec.other && (spec.what === 'creature' || spec.what === 'yourCreature' || spec.what === 'any');
+  }));
+}
+
+/** 1.9 (A1.4): a spell-form Hunt's pump on its hunter (slot 0) before the Hunt:
+ * the Defense it adds and the boost ops it folds in. Undefined when the ability
+ * is not a spell-form Hunt. A Mark keeps its own value (it outlasts the Hunt);
+ * damage to the hunter is not a loss of Defense (see HUNT_SPELL_BASE). */
+function spellHuntPump(ab: ScorableAbilityDef): { defense: number; folded: Set<ScorableEffectOp> } | undefined {
+  const ops = ab.ops ?? [];
+  const at = ops.findIndex((op) => op.op === 'hunt' && op.hunter === 'target');
+  if (ab.when !== 'spell' || at < 0) return undefined;
+  const onHunter = (op: ScorableEffectOp) => ((op as { targetIndex?: number }).targetIndex ?? 0) === 0;
+  let defense = 0;
+  const folded = new Set<ScorableEffectOp>();
+  for (const op of flatScorable(ops.slice(0, at))) {
+    if (op.op === 'boost' && op.scope === 'target' && onHunter(op) && op.p >= 0 && op.t >= 0) {
+      defense += op.t;
+      folded.add(op);
+    } else if (op.op === 'addCounters' && op.to === 'target' && onHunter(op)) {
+      defense += op.n;
+    }
+  }
+  return { defense, folded };
+}
+
 /** One Duty at the §4q rate (see the `activated` block in scoreCard). */
 function valueDuty(ability: ScorableActivated, card: ScorableCardDef, unknowns: UnknownCollector): Part {
   const face = (ability.targets ?? []).some((t) => t.what === 'any');
-  const targetWhat = ability.targets?.[0]?.what;
   const fan = targetFan(ability.targets);
   let perTrigger = 0;
+  // 1.9 (A1.4): a hunting Duty is priced per card at its measured rate
+  // (HUNT_CARRIER.duty), not through the Dawn multiplier; the discount below
+  // still applies.
+  let hunt = 0;
   for (const op of ability.ops) {
+    if (op.op === 'hunt') {
+      hunt += op.prey === 'yours' ? HUNT_PREY_YOURS : HUNT_CARRIER.duty * huntExchange(card.attack ?? 0, card.defense ?? 0, false);
+      continue;
+    }
     // §4v: a Duty's extra land drop repeats once a turn, the Dawn engine's shape.
-    const p = valueOp(op, face, card, op.op === 'extraLandDrop' ? 'dawn' : 'spell', targetWhat, unknowns);
+    const p = valueOp(op, face, card, op.op === 'extraLandDrop' ? 'dawn' : 'spell', opTargetWhat(op, ability.targets), unknowns);
     perTrigger += (op.op === 'tap' ? 1.0 : p.v) * (isPerTargetOp(op) ? fan : 1);
   }
   const creatureCarrier = card.types.includes('creature');
   const topBand = creatureCarrier && perTrigger >= 2.0;
-  const expected = topBand ? perTrigger + 1.0 : dawnMult(card) * perTrigger;
+  const expected = (topBand ? perTrigger + 1.0 : dawnMult(card) * perTrigger) + hunt;
   const activationMana = manaValue(ability.cost.mana);
   // The rate-card audit settled the discount's SHAPE (proportional to the
   // ability's value, no cap) but not its size, so today's discount stays
@@ -1440,7 +1686,8 @@ function valueDuty(ability: ScorableActivated, card: ScorableCardDef, unknowns: 
   const carrier = creatureCarrier ? 'creature' : 'non-creature';
   const mana = activationMana ? `, {${activationMana}} to activate` : '';
   const band = topBand ? ', NEEDS MATH band' : '';
-  return { label: `duty (${carrier} carrier${mana}${band})`, v: value };
+  const hunts = ability.ops.some((op) => op.op === 'hunt') ? ', hunts' : '';
+  return { label: `duty (${carrier} carrier${mana}${hunts}${band})`, v: value };
 }
 
 export function scoreCard(card: ScorableCardDef): Score {
@@ -1469,6 +1716,8 @@ export function scoreCard(card: ScorableCardDef): Score {
     }
   }
 
+  // 1.9 (A1.4): the Duty that makes this creature a self-provoke engine, if any.
+  const engineDuty = selfProvokeDuty(card);
   let spellEffect = 0;
   // §4v: the extra land drops inside `spellEffect`, so a Retell that re-casts
   // the printed spell can re-price them at the Retell's own mana.
@@ -1530,11 +1779,31 @@ export function scoreCard(card: ScorableCardDef): Score {
     }
     const face = canFaceOf(ab);
     const fan = targetFan(ab.targets);
+    // 1.9 (A1.4): a Provoked on a self-provoke engine, and a spell-form Hunt's
+    // pump on its hunter (see the Hunt and Provoked block above).
+    let tag = '';
+    if (ab.when === 'provoked' && engineDuty) {
+      const raw = (ab.ops ?? []).reduce((sum, op) => sum + valueOp(op, face, card, ab.when, opTargetWhat(op, ab.targets), unknowns).v * (isPerTargetOp(op) ? fan : 1), 0);
+      const engine = Math.max(0, SELF_PROVOKE_FIRES * raw - dutyDiscount(engineDuty));
+      if (raw > 0 && engine > mult * raw) {
+        mult = (engine / raw) * condMult;
+        tag = ' (fired by its own Duty)';
+      }
+    }
+    const huntPump = spellHuntPump(ab);
     for (const op of ab.ops ?? []) {
-      const p = valueOp(op, face, card, ab.when, ab.targets?.[0]?.what, unknowns);
+      let p = valueOp(op, face, card, ab.when, opTargetWhat(op, ab.targets), unknowns);
+      if (huntPump && op.op === 'hunt' && op.hunter === 'target' && op.prey !== 'yours') {
+        p = { label: huntPump.defense ? `hunt (with a creature you choose, +${huntPump.defense} Defense first)` : p.label, v: huntSpellValue(huntPump.defense) };
+      } else if (huntPump?.folded.has(op) && op.op === 'boost') {
+        // The pump's stats are in the Hunt; a granted keyword keeps its share.
+        const kw = (op.keywords ?? []).reduce((s, k) => s + 0.5 * kwValue(k, unknowns, nominalHost(op.p, op.t)), 0);
+        p = { label: `pump ${sign(op.p)}/${sign(op.t)} on the hunter (in the Hunt)`, v: kw };
+      }
+      if (op.op === 'hunt' && ab.condition !== undefined) p = { ...p, label: `${p.label}, conditional, NEEDS MATH until the A1.1c re-run` };
       const perTarget = isPerTargetOp(op) ? fan : 1;
       const v = p.v * mult * perTarget;
-      parts.push({ label: `${ab.when}:${p.label}${fanLabel(perTarget)}`, v });
+      parts.push({ label: `${ab.when}:${p.label}${tag}${fanLabel(perTarget)}`, v });
       if (!isCreature) spellEffect += v;
       if (!isCreature && op.op === 'extraLandDrop') rampInSpell.push({ op, when: ab.when, mult: mult * perTarget });
     }
@@ -1599,11 +1868,14 @@ export function scoreCard(card: ScorableCardDef): Score {
     // §4v: an extra land drop in the rider is cast for the printed cost plus
     // the Empower cost.
     const empoweredMana = manaValue(card.cost) + manaValue(card.empower.cost);
-    const riderValue = card.empower.ops.reduce((s, op) => s + valueOp(op, false, card, 'spell', undefined, unknowns, empoweredMana).v, 0);
+    // 1.9 (A1.4): an Empower Hunt is worth HUNT_CARRIER.empower (measured 0).
+    const riderHunts = card.empower.ops.some((op) => op.op === 'hunt');
+    const riderValue = card.empower.ops.reduce((s, op) => s + (op.op === 'hunt' ? 0 : valueOp(op, false, card, 'spell', undefined, unknowns, empoweredMana).v), 0);
+    const riderHunt = riderHunts ? HUNT_CARRIER.empower * huntExchange(card.attack ?? 0, card.defense ?? 0) : 0;
     // v4 (rate-card audit row 3, Magic through 2020, n=23): kicker is nearly
     // free upside, 0.15 of the rider (from 0.5). The level leans on 2015-20
     // cards (Dominaria kicker), so it carries the creep caveat.
-    parts.push({ label: 'empower option', v: EMPOWER_SHARE * riderValue });
+    parts.push({ label: riderHunts ? 'empower option (its Hunt measured at 0)' : 'empower option', v: EMPOWER_SHARE * riderValue + riderHunt });
   }
 
   if (card.rite) {
@@ -1714,6 +1986,15 @@ export function scoreCard(card: ScorableCardDef): Score {
       if (i === best) parts.push(d);
       else parts.push({ label: `${d.label}, shares the tap x${DUTY_SHARED_TAP_SHARE}`, v: DUTY_SHARED_TAP_SHARE * d.v });
     });
+  }
+
+  // 1.9 (A1.4): damage aimed at your own creatures is a Provoked source, priced
+  // once per card by colour (SELF_SOURCE_RATE). A self-provoke engine's source
+  // is its own Duty, already priced through its Provoked.
+  if (!engineDuty && damagesOwnCreatures(card)) {
+    const colours = (card.colors ?? []) as ('W' | 'U' | 'B' | 'R' | 'G')[];
+    const rate = colours.length ? Math.min(...colours.map((c) => SELF_SOURCE_RATE[c] ?? 0)) : 0;
+    if (rate > 0) parts.push({ label: 'damages your own creatures (a Provoked source)', v: rate });
   }
 
   if (card.manaActivated?.length) {

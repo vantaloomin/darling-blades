@@ -1281,6 +1281,171 @@ count. `docs/rules.md`, "Repeatable mana abilities", has the rules.
   `tests/ai/pumpPolicy.test.ts` (each brain's rule), each shown to fail with
   its behaviour switched off.
 
+## As built (A1.4): the rates
+
+A1.4 replaced the scorer's Hunt and Provoked stubs, and the overplan's
+provisional terms, with terms fitted to the A1.3 lab (652,512 games, Hard on
+both seats, the 14-deck field; `balance/study/lab/fd/first-dawn-findings.md`,
+local-only). The lab's currency is the pooled one-mana step (5.3 pp), read as
+MEP as the 1.8.5 keyword lab's was. Everything is in `src/power/scoreCore.ts`,
+in the block "FIRST DAWN: HUNT AND PROVOKED", so the Forge and the balance CLI
+price the same way. It is the local power formula's §4w (that section is
+local-only and still to be written from this one).
+
+**Hunt: a step on survival.** The rule: the prey a hunter picks has Attack 2
+and Defense 3 (the field's typical creature it can outlast), so a hunter
+survives when its Defense is 3 or more and kills when its Attack is 3 or more.
+
+- A hunter that dies: 0.15 + 0.95 × (Attack − 2), at most 2.5 (Spear-Thrower's
+  4/2 reads 2.05, the surcharge reading; 3/1 and 3/2 read 1.10).
+- A hunter that survives: 2.5 + 0.75 × (Defense − 3), at most 3.5. Attack
+  past 3 adds nothing (the lab's 3/4 equals its 4/4, its 3/5 its 5/5). With
+  Attack under 3 it keeps the share of the kill the scorer's own creature-burn
+  curve gives that Attack against 3 (a 2/4 keeps 0.71). On a one-shot carrier
+  (anything but a Duty) such a low-Attack survivor is also capped at its
+  Attack's creature burn plus 0.5, marked NEEDS MATH: no lab row has one, and
+  uncapped a 1/4 or 2/3 would read far above a 3/2 that trades. The Duty is
+  exempt, because Tracker of the Long Grass (a 2/4 Duty hunter) is the one
+  measured low-Attack survivor and a Duty picks its moment; capped, its Duty
+  would read 0.08 against the measured 0.65.
+- Carriers, against the arrival Hunt: arrival 1.0, attack 0.9 (Kesh), Duty
+  0.75 of the exchange per card before the Duty's mana discount (Korru and
+  Tracker, least squares), Empower 0 (Ridge-Raptor). Any other carrier is
+  unmeasured: one Hunt at the arrival rate, marked NEEDS MATH.
+- The spell form: 1.95, a fair 2-mana card (the plain Hunt ritual measured
+  fair at mana value 2). Defense added to the hunter earlier in the spell adds
+  0.75 a point, to the same 3.5; Attack adds nothing, and the pump's own stats
+  are not priced again. A Mark on the hunter keeps its own value. Damage to the
+  hunter is a Provoked source, not lost Defense (the caster picks a hunter that
+  can take it).
+- Prey declared `yours` is worth 0 (the forced self-hunt arm); `any` is worth
+  the default (the lab read no difference).
+- Colour pie: Hunt joins the classes, green and red primary, black secondary.
+  An Empower Hunt pays the premium at its carrier weight, so none.
+
+**Provoked: the effect times a survival factor.** 0 through Defense 4, rising
+linearly to 0.25 at Defense 6 and flat after (the ceiling is the least-squares
+fit of the three big bodies; Defense 5's 0.125 is interpolated). Exposure is
+flat whatever the body; what differs is survival.
+
+**The self-provoke engine.** A creature whose own Duty can damage it (a target
+creature, a creature you control or any target, not "other"; or each creature)
+prices its Provoked at 1.3 fires of the effect less the Duty's mana discount,
+when that beats the passive rate. 1.3 is the one value inside both measured
+intervals (Sefa 1.27-1.68, Ashka 0.92-1.35).
+
+**Self-damage sources.** Damage a card aims at its controller's creatures (a
+target creature you control, or each creature you control) is never priced as
+burn and never pays the burn pie premium; a damage op is judged by the slot it
+aims at (its own `targetIndex`), and branch ops count (the walk uses the
+engine's `flatOps`, now exported from `types.ts`). The card gets one "Provoked source"
+part, above 0 only, whatever the carrier (the lab read a repeatable source and a one-shot
+alike): 0.5 on a white card, 0 on any other colour, a multicoloured card
+taking its lowest. The lab gives ranges, so each is the conservative (lower)
+end: white 0.5 to 1.0 in the wall deck (R27), red and colourless 0 to 0.3 in
+the Stampede. Colour stands in for the deck's Provoked density, which the
+scorer cannot see. A self-provoke engine's source is its own Duty and gets no
+second part.
+
+**The calibration table** (fitted = the scorer's row minus its control,
+colour-pie parts out, since the lab's hole cards were colourless; spells are
+card-level, against a vanilla m/m; measured is pooled MEP with the 95% interval):
+
+| Lab row | Fitted | Measured |
+|---|---|---|
+| Arrival Hunt 2/2 | 0.15 | 0.14 [-0.15, 0.39] |
+| Arrival Hunt 3/3 | 2.50 | 2.49 [2.18, 2.92] |
+| Arrival Hunt 4/4 | 3.25 | 3.21 [2.84, 3.68] |
+| Arrival Hunt 5/5 | 3.50 | 3.53 [3.15, 3.99] |
+| Arrival Hunt 3/1 | 1.10 | 1.03 [0.74, 1.35] |
+| Arrival Hunt 3/2 | 1.10 | 1.13 [0.87, 1.44] |
+| Arrival Hunt 3/4 | 3.25 | 3.24 [2.82, 3.84] |
+| Arrival Hunt 3/5 | 3.50 | 3.44 [3.00, 4.03] |
+| Spear-Thrower 4/2 | 2.05 | 1.37 [1.07, 1.69] pooled; own-curve 2.48; fair surcharge 2 mana or more (read for cost, as the findings ask) |
+| Kesh (attack Hunt) | 0.99 | 0.94 [0.69, 1.26] |
+| Ridge-Raptor (Empower Hunt) | 0.00 | -0.26 [-0.58, -0.01] |
+| Crag-Leaper (conditional, the old rule) | 1.50 (stub) | 0.43 [0.19, 0.63], stale |
+| Korru (Duty Hunt) | 1.83 | 1.76 [1.47, 2.10] |
+| Tracker of the Long Grass (Duty Hunt) | 0.52 | 0.65 [0.45, 0.91] |
+| Plain Hunt ritual, mana value 1 / 2 / 3 | +0.95 / -0.05 / -0.91 | +0.13 / -0.04 / -0.56 |
+| Provoked, Fern-Back Grazer 1/4 | 0.00 | -0.04 [-0.26, 0.17] |
+| Provoked, Cinder-Crest Raptor 2/2 | 0.00 | -0.28 [-0.55, -0.02] |
+| Provoked, Hearth-Shield Maiden 1/4 | 0.00 | 0.00 [-0.21, 0.20] |
+| Provoked, Vessa 5/6 | 0.25 | 0.45 [0.23, 0.71] |
+| Provoked, The Walking Mountain 6/7 | 0.57 | 0.51 [0.30, 0.72] |
+| Provoked, Mother of the Long-Necks 4/7 | 0.47 | 0.44 [0.24, 0.65] |
+| Provoked, Sefa (engine) | 1.62 | 1.87 [1.57, 2.20] |
+| Provoked, Ashka (engine) | 0.90 | 0.69 [0.52, 0.95] |
+| Challenge the Beast (+1/+0) | -0.05 | 0.01 [-0.30, 0.28] |
+| Spear and Fang (`any`) | -0.05 | -0.03 [-0.28, 0.25] |
+| Fang and Horn (+2/+2 Charm) | 1.00 | 0.98 [0.68, 1.23] |
+| Stalk the Ferns (+1/+1 Charm) | 0.16 | -0.01 [-0.30, 0.26] |
+| Duel on the Ridge (+2/+0 Charm) | -0.68 | -0.39 [-0.70, -0.11] |
+| Grip of the Old Beast (Mark, then Hunt) | 0.54 | 0.65 [0.34, 0.91] |
+| Blaze-Horn Charge (ping, then Hunt) | -0.91 | -0.79 [-1.04, -0.57] |
+| Ambush at the River (+1/+1, Hunt, draw) | 0.63 | 0.70 [0.42, 0.96] |
+| White sources in R27 (Test of the Hearth, Trial by Ember, The Standing Stone, Hearth-Tender, Scar-Giver Elder (the lab's Scar-Rite Elder), Scar-Singer) | 0.50 each | 0.77, 0.66, 0.61, 0.58, 0.50, 0.48 |
+| Black sources in R27 (Bitter-Blood Brute, Scar-Knife Witch) | 0 | 0.64, 0.15 (n.s.) |
+| Red and colourless sources in the Stampede (Ember-Pot, Fire-Pit, War Drums, Ember-Tongue, Warband Drummer, Firebrand Initiate, Drum-Beater, Uzza, Blaze-Horn) | 0 | 0.29, 0.27, 0.22, 0.14, 0.09, 0.06, -0.11, -0.26, -0.31 |
+
+Where the fit departs, on purpose: Spear-Thrower is fitted to its surcharge
+(the findings' reading for cost; at least 0.8 mana hotter than the
+provisional), not its pooled value. The plain ritual's mana value 1 and 3 arms
+disagree with any single value, because the vanilla ladder's local step is not
+the scorer's budget ladder; mana value 2 is the anchor. Black sources are
+priced at 0 although R27 read Bitter-Blood Brute at 0.64: colour is the
+scorer's only proxy for the deck, and First Dawn's black is not built for the
+wall deck. Ring of Embers (a symmetric sweep) is priced as a sweeper, not a
+source. The spell intervals above are the pp intervals over 5.3.
+
+**Stubs that remain, and why.**
+
+- **The conditional arrival Hunt** ("If you control another Dinokin, when this
+  arrives, Hunt."): NEEDS MATH, priced as the unconditional exchange times the
+  scorer's standing controlsOther gate (0.6), labelled so. The lab measured it
+  before A1.1c, under the old rule (prey needed to cast even with the condition
+  unmet): Crag-Leaper 0.43 in a starter hole, Fern-and-Fire 0.58 and
+  Fern-Shadow 0.63 in the Stampede. The re-run (`plan-rerun-a11c.json`) prices
+  it.
+- **The repeatable mana pump** (A1.5): NEEDS MATH at 0, an unknown, until the
+  re-run's pump arm.
+- **Measured with Hard as built**: the Duty rate carries A1.2's Morning gap (a
+  creature that can attack rarely uses its Duty), and Empower's 0 was measured
+  on a 3/1 that trades; an Empower Hunt on a body that survives is the least
+  certain reading.
+- Not measured, not priced: the Hunt that provokes its own hunter (B7), and a
+  Deathblade hunter (the lab puts it at 0.25 mana or less; E7 option A,
+  accepted).
+
+**The P3 fix.** `validateProvokedDef` now refuses a Provoked effect that
+damages its controller's own creatures: damage to each creature or each
+creature you control, and targeted damage whose slot can be the controller's
+creature (any target, any creature, a creature you control). Only an
+opponent's creature or a player may be its damage target. This is the strict
+reading of P3, "may be aimed at" the controller's creatures, so it also
+forbids "Provoked: deal 1 damage to any target". The catalog test
+already runs the validator over every card, so lane B's rows meet it; no First
+Dawn row breaks it.
+
+**The Forge.** It prices a loaded card with a hunt op the moment the terms
+land; its editor still offers neither Hunt nor Provoked (not in `TRIGGERS` or
+`OP_OPTIONS`), and a shared card with a Provoked ability does not load. The
+stub comment in `src/forge/vocab.ts` says so. New part labels are plain words
+the ledger's fallback reads.
+
+**What moved.** No shipped card's score (1,515 cards, every part compared
+before and after). First Dawn's 166 are rescored in the scratch `fd-rescore/`
+for the owner: 143 in band, 23 out (8 hot, 15 cold), with a proposal for each
+of the 20 not waiting on the re-run. Fable's review (2026-09-29) folded in
+the damage slot, the low-Attack cap, the Empower pie weight, the branch walk
+and the 0.95 slope; the counts held.
+
+**Tests.** `tests/power/firstDawnRates.test.ts` (the survival step, Empower at
+0, the spell's Defense fold, the Provoked survival factor, the engine, the
+source rate, the measured anchors as gates, and the conditional stub staying
+an estimate) and a P3 case in `tests/engine/provoked.test.ts`, each shown to
+fail with its behaviour switched off.
+
 ## What this spec corrects
 
 In the **overplan** (lane B should update it; this spec does not edit it;
