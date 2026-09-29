@@ -270,7 +270,7 @@ Every Road-to-2.0 feature, and where it lands.
 | Mobile rebuild | Spec'd; competitive research and mockups done 2026-09-23 | 2.0 (ruled and confirmed 2026-09-25) |
 | itch.io launch and advertising | Owner ruling 2026-09-25; no plan yet | 2.0 |
 | AI suggested decks | Spec'd, no code | After 2.0 (ruled 2026-09-25) |
-| Story Mode | Spec'd, no code | 2.0 |
+| Story Mode | Direction ruled 2026-09-29: a roguelite with a story spine ([plan](plan-story-mode.md)); no code | 2.0 |
 | AI replay coaching | Spec'd, no code | 2.1 |
 | Cloud saves / accounts | **Spec'd + decisions ruled 2026-08-28** ([spec](plan-telemetry-and-accounts.md), [rollout](rollout-telemetry-and-accounts.md)), no code | 2.1 |
 | Anonymous telemetry | **Shipped 1.8** (save v35, `playSignals`, the Worker, the first-run notice) | — |

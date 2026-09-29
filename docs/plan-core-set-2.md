@@ -1,18 +1,18 @@
-<!-- source-of-truth: docs/roadmap.md, docs/plan-expansion-slate.md, docs/rules.md, docs/architecture.md, docs/ai.md, docs/plan-darlings.md, src/engine/types.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/effects/EffectInterpreter.ts, src/engine/events.ts, src/engine/view.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/meta/SaveManager.ts, src/meta/Replay.ts, scripts/balance-matrix.ts, scripts/personas/craft.ts, scripts/progression-sim.ts · last-verified: 2026-07-26 · design/plan doc - re-verify when the referenced code changes -->
+<!-- source-of-truth: docs/roadmap.md, docs/plan-expansion-slate.md, docs/rules.md, docs/architecture.md, docs/ai.md, docs/plan-darlings.md, docs/plan-story-mode.md, docs/plan-road-to-2.0.md, src/data/cards/beastkin.ts, src/data/opponents.ts, src/engine/types.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/effects/EffectInterpreter.ts, src/engine/events.ts, src/engine/view.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/meta/SaveManager.ts, src/meta/Replay.ts, scripts/balance-matrix.ts, scripts/personas/craft.ts, scripts/progression-sim.ts · last-verified: 2026-07-26 · design/plan doc - re-verify when the referenced code changes -->
 
 # Core Set II, The Mandate, and Oath implementation plan
 
 ## Goal
 
-Release 2.0 ships Core Set II as the anniversary return to the Three Kingdoms and Greek base rosters, with a measured roster-growth process and two coherent hooks: The Mandate as a public contested advantage, and Oath as legendary-led formation synergy that composes naturally with Darlings. The set follows original naming, engine-first mechanics, AI-pilotable decisions, full data/tooling coverage, and dated balance/progression evidence before product quantities are locked.
+Release 2.0 ships Core Set II as the anniversary return to the Three Kingdoms, Greek and Beastkin base rosters (Beastkin added to this plan 2026-09-29; the [road-to-2.0 spine](plan-road-to-2.0.md) has listed all three since 2026-08-24), with a measured roster-growth process and two coherent hooks: The Mandate as a public contested advantage, and Oath as legendary-led formation synergy that composes naturally with Darlings. The set follows original naming, engine-first mechanics, AI-pilotable decisions, full data/tooling coverage, and dated balance/progression evidence before product quantities are locked.
 
 ## Non-goals
 
-This plan does not invent a card count, rarity split, booster price, precon count, rival roster, story, or final card list before the coverage and economy work exists. The Mandate is not a second life total, a card type, a permanent, or a hidden object. Oath does not create an outside-the-deck Darling zone or guaranteed access to a selected legend. Core Set II does not rewrite older Three Kingdoms/Greek cards merely to make new mechanics prevalent.
+This plan does not invent a card count, rarity split, booster price, precon count, rival roster, story, or final card list before the coverage and economy work exists. Story Mode's run and premise belong to [plan-story-mode.md](plan-story-mode.md); this plan supplies only the cards Story Mode depends on ([below](#beastkin-roster-and-story-mode-2026-09-29)). The Mandate is not a second life total, a card type, a permanent, or a hidden object. Oath does not add a second Darling zone or guaranteed access to a selected legend; the Darlings command zone shipped in 1.5.5 ([plan-darlings.md](plan-darlings.md)) is the one that exists. Core Set II does not rewrite older Three Kingdoms/Greek cards merely to make new mechanics prevalent.
 
 ## Player-facing spec
 
-Core Set II appears as its own anniversary set while returning to familiar Three Kingdoms and Greek characters, factions, rivalries, and visual language. New names and rules use Darling Blades vocabulary and do not expose borrowed game terminology.
+Core Set II appears as its own anniversary set while returning to familiar Three Kingdoms, Greek and Beastkin characters, factions, rivalries, and visual language. New names and rules use Darling Blades vocabulary and do not expose borrowed game terminology.
 
 The Mandate rules reminder:
 
@@ -20,11 +20,13 @@ The Mandate rules reminder:
 
 The battlefield shows one public Mandate marker beside its holder. A claim animation and history line fire once per combat-damage batch, even if several creatures connect. Spell damage does not claim it. If no player holds it, combat damage alone does nothing; a card must claim it first. A card may say `Claim The Mandate`, which gives it to that card's controller.
 
+**Note (2026-09-29):** the Oath text in this plan predates the command-zone Darlings shipped in 1.5.5 ([plan-darlings.md](plan-darlings.md)). Where it treats the selected Darling as SavedDeck metadata outside the duel, or proposes adding public Darling ids to the game state, read plan-darlings.md: the duel already receives each seat's Darling (`GameConfig.darlings`) and shows it in the public `darlingZone` of `PlayerView`.
+
 Recommended Oath reminder:
 
 > Oath is active while you control a legendary creature.
 
-Oath abilities use existing trigger/static wording plus that public condition, for example `Oath: At your dawn, put a mark on another creature you control.` A Darlings deck always includes a selected legendary creature in its shuffled 80 cards and uses a 10-land Warchest, so Oath has a clear build-around anchor without changing what happens when that card is drawn, defeated, returned, or Severed. Ordinary Constructed can enable Oath with any legendary creature. Updated for the Warchest reveal 2026-07-31.
+Oath abilities use existing trigger/static wording plus that public condition, for example `Oath: At your dawn, put a mark on another creature you control.` A Darlings deck starts its selected legendary creature in the public command zone with a 79-card spell deck and a 10-land Warchest ([plan-darlings.md](plan-darlings.md)), so Oath has a clear build-around anchor without changing what happens when that card is drawn, defeated, returned, or Severed. Ordinary Constructed can enable Oath with any legendary creature. Updated for the Warchest reveal 2026-07-31.
 
 Pack, collection, deck-builder, rules glossary, and card-detail surfaces explain both hooks before purchase or deck entry. The Mandate marker never covers life, priority, stack, or a Darling portrait. Oath cards show whether the condition is currently active through icon plus text, not color alone.
 
@@ -57,7 +59,7 @@ Recommended Oath engine support extends `AbilityDef.condition` and `StaticDef.co
 
 ### Meta, save, and economy
 
-Choose and register a distinct set key, recommended `core-set-2`, in the canonical `CardDef.set` union and product/filter definitions. Add card arrays under an explicit split such as `src/data/cards/core2-three-kingdoms.ts` and `core2-greek.ts`, then assemble them in `src/data/catalog.ts`. Final filenames can follow data-module conventions, but IDs become permanent once released.
+Choose and register a distinct set key, recommended `core-set-2`, in the canonical `CardDef.set` union and product/filter definitions. Add card arrays under an explicit split such as `src/data/cards/core2-three-kingdoms.ts`, `core2-greek.ts` and `core2-beastkin.ts`, then assemble them in `src/data/catalog.ts`. Final filenames can follow data-module conventions, but IDs become permanent once released.
 
 Booster contents, gold price, duplicate/shard behavior, achievements, starter/precon access, and rival rewards are not inherited by analogy. They are authored through current economy/data services and measured in progression simulation. No set-specific executable loader belongs in the engine.
 
@@ -91,8 +93,8 @@ If the user chooses strict `your Darling` Oath instead of generic legendary cont
 
 Start from the dated current baselines only; do not invent Core Set II targets. The roster process is:
 
-1. Freeze a machine-readable coverage snapshot of the existing Three Kingdoms and Greek rosters: colors, costs, card types, creature sizes, interaction, card advantage, legends, mechanics, AI complexity, Darlings identities, and art/product coverage.
-2. Ask the user to approve desired roster size, faction emphasis, rarity/product shape, and the gaps Core Set II is meant to close.
+1. Freeze a machine-readable coverage snapshot of the existing Three Kingdoms, Greek and Beastkin rosters: colors, costs, card types, creature sizes, interaction, card advantage, legends, mechanics, AI complexity, Darlings identities, and art/product coverage.
+2. Ask the user to approve desired roster size, faction emphasis, rarity/product shape, and the gaps Core Set II is meant to close, including Story Mode's three starter pools and its new Beastkin legend.
 3. Implement The Mandate and Oath with synthetic test cards before authoring collectible cards.
 4. Author small batches, each with rules tests, AI valuation review, original naming/editorial review, and art-bible entries.
 5. Build precons/opponents only from stable batches. Measure current field, Core Set II mirrors, Darlings, and generated metagame diversity.
@@ -128,12 +130,20 @@ Complete the approved coverage ledger, art, boosters, shop, filters, precons, op
 
 Freeze IDs/text/rarities/product odds, close measured balance/economy debts, run editorial/originality/accessibility/mobile/localization scope, and publish dated baselines. Verification: full ladder, reproducible artifacts with exact commands and game counts, fresh/migrated save journeys, pack/collection/deck/Darlings/duel/replay/multiplayer human passes, docs zero-warning checks.
 
+## Beastkin roster and Story Mode (2026-09-29)
+
+**The Beastkin roster.** Beastkin is the third base roster: 26 cards in the base set (`src/data/cards/beastkin.ts`, catalogued under `set: 'base'` alongside Three Kingdoms and Greek). It has two legends today, Kitsune Matriarch Yohime ({4}{U}{G}, the Kitsune lord) and Wolfqueen Lupa ({3}{R}{G}, the Wolf lord), and both are also Tower avatars (rungs 7 and 3 in `src/data/opponents.ts`). The coverage ledger (roster process step 1) covers Beastkin like the other two rosters.
+
+**Design item: the new Beastkin legend for Story Mode.** The owner ruled on 2026-09-29 that Story Mode's third character is a new Core Set II Beastkin legend built for the slot ("Option 3 sounds good", ruling R8(c) in [plan-story-mode.md](plan-story-mode.md)). Blue and an anthem were part of the option-3 description the owner accepted. **The colour pair, tribe (continue Kitsune or a new one) and name are OPEN.** Recommended (the Story Mode planning session's proposal): a blue-inclusive pair (U/W, U/B or U/R) so the three characters cover all five colours, a Beastkin tribal anthem, built to lead a run from the command zone rather than as a Gauntlet boss.
+
+**Story Mode dependency.** Story Mode's three characters are Guan Yu, Saint of War (Three Kingdoms), Persephone, Queen of Two Courts (Olympian) and the new Beastkin legend. Each needs a starter pool from this set: her Darling (existing for Guan Yu and Persephone, new for the Beastkin legend), her starter deck and her reward pool. The pools are designed into the roster ledger and approved with it (step 2), not retrofitted after the card list locks, and this plan's wave 3 (full roster and products) delivers them. What happens to Story Mode if Core Set II slips is an open Story Mode decision.
+
 ## Open decisions for the user
 
 - **Oath semantics:** active while controlling any legendary creature, active only while controlling the selected Darling, or Darlings-only cards. **Recommendation:** any legendary creature; it composes cleanly, stays playable in Constructed, and needs no format identity in GameState.
 - **Set identity:** new `core-set-2` product/set key or append cards to the base set. **Recommendation:** new key for odds, filters, art, saves, and anniversary communication, while using the original rosters.
-- **Roster size and split:** choose total size and Three Kingdoms/Greek allocation after the coverage ledger. **Recommendation:** fill measured role/color gaps first, then approve a count; do not start from a marketing number.
-- **Roster emphasis:** equal return, Three Kingdoms-led Mandate focus, or Greek-led parallel focus. **Recommendation:** Three Kingdoms leads The Mandate, while Greek cards receive equally coherent Oath/legendary and ordinary support rather than a pasted crown theme.
+- **Roster size and split:** choose total size and the Three Kingdoms/Greek/Beastkin allocation after the coverage ledger. **Recommendation:** fill measured role/color gaps first, then approve a count; do not start from a marketing number.
+- **Roster emphasis:** equal return across the three rosters, Three Kingdoms-led Mandate focus, or Greek-led parallel focus, with Beastkin carrying Story Mode's third character either way. **Recommendation:** Three Kingdoms leads The Mandate, while Greek cards receive equally coherent Oath/legendary and ordinary support rather than a pasted crown theme.
 - **The Mandate timing:** recommended dawn draw before permanent dawn triggers, or after all dawn triggers. **Recommendation:** before permanent dawn triggers for a simple deterministic sequence with no pending-choice resume state.
 - **Product scope:** boosters only, boosters plus precons, or full anniversary bundle with rivals/cosmetics. **Recommendation:** boosters plus a small measured precon/rival set; add cosmetics only if art capacity is confirmed.
 - **Darlings packaging:** sell dedicated Darlings precons, provide suggested lists, or rely on deck building. **Recommendation:** use Suggested Decks plus a small curated showcase, avoiding duplicate product complexity until the format baseline exists.
