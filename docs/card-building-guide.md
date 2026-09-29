@@ -106,25 +106,28 @@ score and compare against shipped cards at the same mana value instead.** Sort
 by the thing that actually matters, usually damage per attack, and see which
 rarity tier your card lands in.
 
-## 4. The twelve keywords
+## 4. The thirteen keywords
 
-Counts are collectible cards; "sets" is how many of the eight shipped sets use it.
+Recounted 2026-09-29 from `CARD_DB`. "Cards" is collectible cards that print the
+keyword (grants not counted); "Sets" is how many of the ten shipped sets print it;
+"Colour home" counts the mono-coloured cards among them. The coverage check below
+also counts grants, so it sees Untouchable and Dreaded in one more set each.
 
 | Keyword | Cards | Sets | Colour home | Watch for |
 | --- | --- | --- | --- | --- |
-| **Skyborne** | 94 | 8 | U 43, B 18, W 12 | The most common evasion. A deck with no Skyborne and no Warding Gaze **cannot block a flier at all**; the five starter reserve columns field 21 Skyborne against only 9 Warding Gaze. |
-| **Warding Gaze** | 45 | 8 | G 37 | Green's answer to the above, and almost only green's. Moving it elsewhere quietly changes which colours can defend themselves. |
-| **First Blade** | 45 | 7 | R 15, W 15 | **Beats Deathblade**: it kills first, so the deathtouch never lands. A cheap First Blade body invalidates an expensive Deathblade one. |
-| **Twin Blades** | 20 | 5 | R 7, W 5 | Highest keyword value at +1.25, and it **multiplies every pump effect**. See section 3. |
-| **Warcry** | 74 | 8 | R 57 | Haste. Overwhelmingly red; it reads as off-colour anywhere else. |
-| **Overrun** | 44 | 8 | G 25, R 10 | Multiplies pump into direct reach. Deceptively strong on a big body. |
-| **Sentinel** | 79 | 8 | W 43 | Attacking does not tap. Pairs with anything that rewards a wide untapped board. |
-| **Bulwark** | 22 | 7 | U 7, W 7, G 6 | **Cannot attack**, priced at -0.75. Never combine with attack triggers, and remember `Wolfsbane Ward` grants it as a form of removal. Safe home for self-targeting marks, since nothing doubles. |
-| **Deathblade** | 40 | 7 | B 33 | Blanks big bodies. The starter columns field **22 Deathblade creatures**, so a set full of expensive fatties will underperform against them. |
-| **Blood Oath** | 28 | 8 | W 10 | Lifelink. Multiplies with pump, and squares with Twin Blades. |
-| **Untouchable** | 23 | 6 | U 12 | **One-sided**: opponents cannot target it, your own spells still can. A removal-light deck simply loses to it, so it needs sweepers or blockers in the format. |
-| **Dreaded** | 28 | 5 | B 12 | Needs two blockers. Strong against go-wide decks that want to trade one for one. |
-| **Rage** | 1 | 1 | R 1 | **Attacks every turn if it is able to**, and the only DRAWBACK keyword besides Bulwark. Priced at -0.45, or -0.15 when the card already carries Twin Blades, Warcry, Overrun or First Blade, because a creature built to attack loses almost nothing by being told to (power-formula §4o). Never put it on a card you want back on defence, and never on a body whose value is a blocking statline. Bulwark beats it outright: "cannot attack" wins over "if able". |
+| **Skyborne** | 109 | 10 | U 50, B 17, W 16 | The most common evasion. A deck with no Skyborne and no Warding Gaze **cannot block a flier at all**; the five starter reserve columns field 21 Skyborne against only 9 Warding Gaze. |
+| **Warding Gaze** | 56 | 10 | G 38, W 11 | Green's answer to the above, and mostly green's (white is a distant second). Moving it elsewhere quietly changes which colours can defend themselves. |
+| **First Blade** | 42 | 9 | R 16, W 13 | **Beats Deathblade**: it kills first, so the deathtouch never lands. A cheap First Blade body invalidates an expensive Deathblade one. |
+| **Twin Blades** | 22 | 6 | R 8, W 6 | Highest keyword value at +1.25, and it **multiplies every pump effect**. See section 3. |
+| **Warcry** | 90 | 10 | R 65 | Haste. Overwhelmingly red; it reads as off-colour anywhere else. |
+| **Overrun** | 53 | 10 | G 28, R 14 | Multiplies pump into direct reach. Deceptively strong on a big body. |
+| **Sentinel** | 85 | 10 | W 46, G 21 | Attacking does not tap. Pairs with anything that rewards a wide untapped board. |
+| **Bulwark** | 34 | 9 | G 14, W 8, U 7 | **Cannot attack**, priced at -0.75. Never combine with attack triggers, and remember `Wolfsbane Ward` grants it as a form of removal. Safe home for self-targeting marks, since nothing doubles. |
+| **Deathblade** | 46 | 9 | B 39 | Blanks big bodies. The starter columns field **22 Deathblade creatures**, so a set full of expensive fatties will underperform against them. |
+| **Blood Oath** | 37 | 9 | W 11, B 11 | Lifelink. Multiplies with pump, and squares with Twin Blades. |
+| **Untouchable** | 20 | 8 | U 10, W 3 | **One-sided**: opponents cannot target it, your own spells still can. A removal-light deck simply loses to it, so it needs sweepers or blockers in the format. |
+| **Dreaded** | 35 | 6 | B 19, R 5 | Needs two blockers. Strong against go-wide decks that want to trade one for one. |
+| **Rage** | 11 | 4 | R 10 | **Attacks every turn if it is able to**, and the only DRAWBACK keyword besides Bulwark. Priced at -0.45, or -0.15 when the card already carries Twin Blades, Warcry, Overrun or First Blade, because a creature built to attack loses almost nothing by being told to (power-formula §4o). Never put it on a card you want back on defence, and never on a body whose value is a blocking statline. Bulwark beats it outright: "cannot attack" wins over "if able". |
 
 ### What your card will actually face
 
@@ -153,6 +156,23 @@ Three things fall out of this:
   none of either, so a card built around them is measured against opponents who
   cannot demonstrate the weakness. Treat their win-rate numbers with suspicion
   and check them against the theme precons too.
+
+### Keyword coverage (owner, 2026-09-29)
+
+The owner's goal is "for every keyword to have SOME representation in all
+sets", and the ruling is "every new set must carry all 13 keywords, starting
+with First Dawn". `tests/data/keywordCoverage.test.ts` enforces it: every set
+needs at least one collectible card (not a token, not a basic land) carrying
+each keyword in the `Keyword` union, so a keyword added later is required
+everywhere at once. A card carries a keyword when it prints it or grants it to
+creatures (a lord's static, a boost, a Champion Awakening, a Hauntlink rider),
+as `cardTermNames` in `src/data/glossary.ts` reads it; a token the card makes
+does not count. The ten shipped sets all fell short when the check landed, so
+each is grandfathered with the exact keywords it lacks. That list is a
+ratchet: backfilling a keyword fails the test until it is struck from the
+entry, and losing one a set already carried fails too. A small set may fill
+its gaps with a card or two; a Large set is also expected to carry every named
+mechanic in section 5, which nothing checks yet.
 
 ## 5. The fifteen mechanics
 
