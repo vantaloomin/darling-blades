@@ -912,9 +912,9 @@ export class LimitedDraftScene extends Phaser.Scene {
   }
 
   /**
-   * On to the deck builder with what the grant did: the run does not store it,
-   * so this hand-off is the only way its note can name real numbers. A free
-   * draft grants nothing (drafted 0) and the builder shows no note.
+   * On to the deck builder with what the grant did (the grant also stored it
+   * on the save, so later visits read it back through `storedPremiumGrant`).
+   * A free draft grants nothing (drafted 0) and the builder shows no note.
    */
   private openBuilder(grant: PremiumGrantSummary): void {
     const entry: LimitedBuilderEntry = grant.drafted > 0 ? { premiumGrant: grant } : {};

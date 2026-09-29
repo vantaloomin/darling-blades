@@ -1,5 +1,5 @@
-import { ownedVariants, PLAYSET, type AddResult } from '../meta/Collection';
-import type { DraftState } from '../meta/Limited';
+import { ownedVariants, PLAYSET } from '../meta/Collection';
+import type { DraftState, PremiumGrantSummary } from '../meta/Limited';
 import type { SaveData } from '../meta/SaveManager';
 import { isPlainVariant, PLAIN_VARIANT, variantKey, type CardVariant } from '../meta/variants';
 
@@ -49,32 +49,9 @@ export function premiumOwnershipLine(
   return `${base}. Plain copies past ${PLAYSET} melt to gold.`;
 }
 
-/**
- * What a Premium draft's grant did, read from the add results it returned:
- * every pick is added through the collection's add rule, and a result with
- * `dupeGold` above zero is a plain copy past the plain playset that melted.
- */
-export interface PremiumGrantSummary {
-  /** Picks granted: the whole Premium pool. */
-  drafted: number;
-  /** Copies the collection kept. */
-  added: number;
-  /** Plain copies past the playset, converted to gold instead. */
-  converted: number;
-  /** The gold those conversions paid. */
-  gold: number;
-}
-
-export function premiumGrantSummary(results: readonly Pick<AddResult, 'dupeGold'>[]): PremiumGrantSummary {
-  let converted = 0;
-  let gold = 0;
-  for (const result of results) {
-    if (result.dupeGold <= 0) continue;
-    converted++;
-    gold += result.dupeGold;
-  }
-  return { drafted: results.length, added: results.length - converted, converted, gold };
-}
+// The grant summary moved to meta (the grant stores it on the save, plan 1.9
+// I7); re-exported here for the draft and deck builder screens.
+export { premiumGrantSummary, type PremiumGrantSummary } from '../meta/Limited';
 
 /**
  * The Limited deck builder's note after a Premium draft, in the owner's words
@@ -99,9 +76,9 @@ export function premiumGrantNote(summary: PremiumGrantSummary): string {
 }
 
 /**
- * What the Limited deck builder is opened with. The grant's result exists only
- * at the moment the draft completes (the run does not store it), so the screen
- * that completes the draft hands it over; a later visit arrives without it.
+ * What the Limited deck builder is opened with. The screen that completes the
+ * draft hands the grant over; a later visit (or one after a reload) reads the
+ * copy the grant stored on the save, through `storedPremiumGrant`.
  */
 export interface LimitedBuilderEntry {
   premiumGrant?: PremiumGrantSummary;

@@ -820,7 +820,7 @@ one whose file set does not collide with work already running.
 | I4 | Land styles cannot be reached for Standard and Darlings decks | Deck Builder | 1 | Same file set as I3 |
 | I5 | The Free Draft payout copy | The Limited scenes | 1 | Copy; the wording goes to the owner, no em-dashes |
 | I6 | The tutorial opponent shares the Mousekin portrait | Where the tutorial opponent's portrait is picked (not `src/data/tutorial.ts`, which holds only the two fixed decks; likely DuelScene's tutorial branch), found at pickup | 1 | If an existing unused portrait fits; a new one rides the wave-2 art pilot |
-| I7 | The Premium draft note shows on the first Deck Builder visit only; keeping it needs its summary stored | The Limited scenes, `SaveManager.ts` | 2 | A save change, so it rides the one v36 bump (lane C) |
+| I7 | The Premium draft note shows on the first Deck Builder visit only; keeping it needs its summary stored | The Limited scenes, `SaveManager.ts` | 2 | A save change, so it rides the one v36 bump (lane C). **Built 2026-09-28:** the grant stores the note (`grantPremiumDraftPool`), and the Deck Builder reads it through `storedPremiumGrant` on every Build-step visit, reloads included |
 | I8 | Achievement evaluation rebuilds the goal pool on every call (about 20 ms more on the menu since the catalog grew to 108) | `src/meta/Achievements.ts` | 1 | Independent |
 | I9 | Portrait art never redraws when it arrives; 1.8.1 gave cards `redrawWhenArtLands` (G10) but not the portrait call sites | Eight sites: `DuelScene.ts`, `GauntletScene.ts`, `LimitedDraftScene.ts`, `PracticePickerScene.ts`, `ShopScene.ts`, `CommanderPortrait.ts`, `saveCard.ts`, `VersusBumper.ts` | 1 | Before lane D makes late arrival the normal case |
 
