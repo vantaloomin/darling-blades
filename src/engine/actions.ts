@@ -15,7 +15,7 @@ import { canPay, combineManaCosts, manaSources, maxPayableX, solveMana } from '.
 import { arrivalHuntIndex, conditionSatisfied } from './effects/EffectInterpreter';
 import { castTargetSpecs } from './resolve';
 import { getEffectiveStats } from './statics';
-import type { ActivatedDef, CardDb, CardDef, EffectOp, GameState, ManaCost, Permanent, PlayerId, TargetRef, TargetSpec } from './types';
+import type { ActivatedDef, CardDb, CardDef, EffectOp, GameState, ManaActivatedDef, ManaCost, Permanent, PlayerId, TargetRef, TargetSpec } from './types';
 import {
   cardIdOf,
   def,
@@ -25,6 +25,7 @@ import {
   opponentOf,
   validateEmpowerDef,
   validateHauntlinkDef,
+  validateManaActivatedDef,
   validatePreserveDef,
   validateTitheDef,
   validateWhispersDef,
@@ -127,6 +128,13 @@ export type Action =
   | { type: 'preserveCard'; graveIndex: number; /** The card's identity; see castSpell. */ graveInstanceId?: number; manaPlan?: number[] }
   /** Main-phase tap-cost ability; targets are chosen inline, off-stack. */
   | { type: 'activate'; iid: number; abilityIndex?: number; targets?: TargetRef[]; manaPlan?: number[] }
+  /**
+   * Charm-speed repeatable mana ability (A1.5): pay its cost `times` times and
+   * run its ops that many times, off the stack, as one action. Legal actions
+   * list one entry per ability carrying the most the player can pay; any count
+   * from 1 to that is accepted. A `manaPlan` pays the whole count at once.
+   */
+  | { type: 'activateMana'; iid: number; abilityIndex: number; times: number; manaPlan?: number[] }
   /** Normal creature-timing cast from a public Darling zone. */
   | { type: 'castDarling'; targets?: TargetRef[]; x?: number; manaPlan?: number[] }
   /** Main-phase action: pay four mana to remove one two-mana Darling tax step. */
@@ -669,6 +677,99 @@ function pushActivatedActions(out: Action[], state: GameState, db: CardDb, playe
   }
 }
 
+const manaActivatedValidity = new WeakMap<CardDef, boolean>();
+
+/** A card's repeatable mana abilities (A1.5), or none unless its shape is valid. */
+export function manaActivationsOf(d: CardDef): readonly ManaActivatedDef[] {
+  if (d.manaActivated === undefined) return [];
+  let valid = manaActivatedValidity.get(d);
+  if (valid === undefined) {
+    valid = validateManaActivatedDef(d).length === 0;
+    manaActivatedValidity.set(d, valid);
+  }
+  return valid ? d.manaActivated : [];
+}
+
+/** The cost of `times` activations, paid as one payment. */
+export function repeatedManaCost(cost: ManaCost, times: number): ManaCost {
+  const pips: ManaCost['pips'] = {};
+  for (const [color, n] of Object.entries(cost.pips) as [keyof ManaCost['pips'], number][]) pips[color] = n * times;
+  return { generic: cost.generic * times, pips };
+}
+
+/** The most activations `player` can pay for right now (0 when not even one). */
+export function maxManaActivations(state: Pick<GameState, 'battlefield'>, db: CardDb, player: PlayerId, cost: ManaCost): number {
+  // The validator keeps the cost at one mana or more, so the untapped sources
+  // bound the count; each probe past what is payable is refused by solveMana's
+  // counting checks, never by its search.
+  const most = Math.floor(manaSources(state, db, player).length / Math.max(1, manaValue(cost)));
+  let times = 0;
+  while (times < most && solveMana(state, db, player, repeatedManaCost(cost, times + 1)) !== null) times++;
+  return times;
+}
+
+/** Charm speed: the controller's own main phase, or any response window they hold. */
+function manaActivationWindow(state: GameState, player: PlayerId): boolean {
+  const a = state.awaiting;
+  if (!('player' in a) || a.player !== player) return false;
+  return (a.kind === 'main' && state.activePlayer === player) || a.kind === 'respond' || a.kind === 'endStepWindow';
+}
+
+/** A reason string for an unavailable mana ability, or null when it is offered. */
+export function manaActivationBlockers(
+  state: GameState,
+  db: CardDb,
+  player: PlayerId,
+  perm: Permanent | undefined,
+  abilityIndex: number,
+): string | null {
+  if (!manaActivationWindow(state, player)) return 'This ability is used at Charm speed';
+  if (!perm || !state.battlefield.some((source) => source.iid === perm.iid)) return 'the creature is not on the battlefield';
+  if (perm.controller !== player) return 'the creature is not under your control';
+  const ability = manaActivationsOf(def(db, perm.cardId))[abilityIndex];
+  if (!Number.isInteger(abilityIndex) || !ability) return 'the creature has no such ability';
+  return canPay(state, db, player, ability.cost) ? null : 'cannot pay cost';
+}
+
+function pushManaActivations(out: Action[], state: GameState, db: CardDb, player: PlayerId): void {
+  for (const perm of state.battlefield) {
+    if (perm.controller !== player) continue;
+    const abilities = manaActivationsOf(def(db, perm.cardId));
+    for (let abilityIndex = 0; abilityIndex < abilities.length; abilityIndex++) {
+      if (manaActivationBlockers(state, db, player, perm, abilityIndex) !== null) continue;
+      out.push({
+        type: 'activateMana', iid: perm.iid, abilityIndex,
+        times: maxManaActivations(state, db, player, abilities[abilityIndex].cost),
+      });
+    }
+  }
+}
+
+/**
+ * The auto-pass rule for mana abilities (A1.5). A payable one keeps a window
+ * open for its controller only in combat, and only on a creature that can
+ * still matter there: an attacker, a blocker, or, before blocks, a defending
+ * creature that can block one of the attackers. Every other window (a spell in
+ * a main phase, Sunset) auto-passes as before, so the ability never makes the
+ * game prompt outside the fight it exists for.
+ */
+export function hasCombatManaActivation(state: GameState, db: CardDb, player: PlayerId): boolean {
+  const combat = state.combat;
+  if (state.step !== 'combat' || !combat) return false;
+  let blockers: number[] | undefined;
+  for (const perm of state.battlefield) {
+    if (perm.controller !== player) continue;
+    const abilities = manaActivationsOf(def(db, perm.cardId));
+    if (abilities.length === 0) continue;
+    const fighting = combat.attackers.includes(perm.iid) || combat.blocks.some((b) => b.blocker === perm.iid) ||
+      (combat.phase === 'attackersDeclared' && player !== state.activePlayer &&
+        (blockers ??= blockOptions(state.battlefield, db, player, combat)
+          .filter((option) => option.canBlock.length > 0).map((option) => option.blocker)).includes(perm.iid));
+    if (fighting && abilities.some((ability) => canPay(state, db, player, ability.cost))) return true;
+  }
+  return false;
+}
+
 function skimWindow(state: GameState, player: PlayerId): boolean {
   const a = state.awaiting;
   if (!('player' in a) || a.player !== player) return false;
@@ -925,6 +1026,7 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
         }
       }
       if (usesActivatedHauntlink(state)) pushHauntlinkActions(out, state, db, player);
+      pushManaActivations(out, state, db, player);
       break;
     }
 
@@ -1031,6 +1133,7 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
         pushCastActions(out, state, db, player, graveIndex, d, true);
       });
       if (usesActivatedHauntlink(state)) pushHauntlinkActions(out, state, db, player);
+      pushManaActivations(out, state, db, player);
       break;
     }
 
@@ -1163,6 +1266,16 @@ export function validateAction(
       return action.manaPlan ? validateManaPlanForCost(
         state, db, player, ability.cost.mana ?? { generic: 0, pips: {} }, action.manaPlan,
       ) : null;
+    }
+
+    case 'activateMana': {
+      const perm = state.battlefield.find((source) => source.iid === action.iid);
+      const blocked = manaActivationBlockers(state, db, player, perm, action.abilityIndex);
+      if (blocked) return blocked;
+      if (!Number.isInteger(action.times) || action.times < 1) return 'activation count must be a whole number of at least 1';
+      const cost = repeatedManaCost(manaActivationsOf(def(db, perm!.cardId))[action.abilityIndex].cost, action.times);
+      if (action.manaPlan) return validateManaPlanForCost(state, db, player, cost, action.manaPlan);
+      return solveMana(state, db, player, cost) === null ? 'cannot pay for that many activations' : null;
     }
 
     case 'castSpell': {
@@ -1530,6 +1643,7 @@ function hasWhispersCharm(state: GameState, db: CardDb, player: PlayerId): boole
 export function hasCastableInstant(state: GameState, db: CardDb, player: PlayerId): boolean {
   if (hasWhispersCharm(state, db, player)) return true;
   if (hasPayableHauntlinkAction(state, db, player)) return true;
+  if (hasCombatManaActivation(state, db, player)) return true;
   const me = state.players[player];
   for (const cardId of me.hand) {
     const d = def(db, cardId);
@@ -1559,6 +1673,9 @@ export function hasCastableInstant(state: GameState, db: CardDb, player: PlayerI
 export function hasCastableCharm(state: GameState, db: CardDb, player: PlayerId): boolean {
   if (hasWhispersCharm(state, db, player)) return true;
   if (hasPayableHauntlinkAction(state, db, player)) return true;
+  // A defender who could pump is worth a reopen once one is earned (a resolved
+  // item, or the attacker's own pump in a combat window: Game.apply).
+  if (hasCombatManaActivation(state, db, player)) return true;
   const me = state.players[player];
   for (const cardId of me.hand) {
     const d = def(db, cardId);

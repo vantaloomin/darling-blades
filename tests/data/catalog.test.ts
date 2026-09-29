@@ -6,6 +6,7 @@ import {
   validateEmpowerDef,
   validateHauntlinkDef,
   validateHuntDef,
+  validateManaActivatedDef,
   validateMarkTriggerDef,
   validateNineLivesDef,
   validatePreserveDef,
@@ -103,6 +104,9 @@ describe('catalog integrity', () => {
       expect(preserveErrors, `${card.id}: ${preserveErrors.join('; ')}`).toEqual([]);
       const activatedErrors = activatedCatalogErrors(card, CARD_DB);
       expect(activatedErrors, `${card.id}: ${activatedErrors.join('; ')}`).toEqual([]);
+      // A1.5: the engine silently offers nothing for a card that fails this.
+      const pumpErrors = validateManaActivatedDef(card);
+      expect(pumpErrors, `${card.id}: ${pumpErrors.join('; ')}`).toEqual([]);
     }
   });
 

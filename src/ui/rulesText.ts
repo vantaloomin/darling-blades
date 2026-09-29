@@ -393,6 +393,17 @@ export function activatedText(d: CardDef): string | undefined {
   }).join('\n');
 }
 
+/**
+ * A1.5's repeatable mana ability ("{R}: This gets +1/+0 until Sunset."): the
+ * Duty line's template with the mana cost alone in front, no tap symbol.
+ */
+export function manaActivatedText(d: CardDef): string | undefined {
+  const abilities = d.manaActivated ?? [];
+  if (abilities.length === 0) return undefined;
+  return abilities.map((ability) =>
+    `${manaCostText(ability.cost)}: ${abilityText({ when: 'spell', ops: ability.ops }, d)}`).join('\n');
+}
+
 export function retellText(d: CardDef): string | undefined {
   if (!d.retell) return undefined;
   if (d.types.includes('creature') && d.retell.ops !== undefined) {
@@ -631,6 +642,8 @@ export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
   if (skim) lines.push(skim);
   const activated = activatedText(d);
   if (activated) lines.push(activated);
+  const manaActivated = manaActivatedText(d);
+  if (manaActivated) lines.push(manaActivated);
   if (d.keywords?.length) {
     if (opts?.reminders) {
       for (const k of d.keywords) lines.push(`${KEYWORD_NAMES[k]}: ${KEYWORD_REMINDER[k]}`);

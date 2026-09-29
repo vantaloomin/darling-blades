@@ -20,6 +20,7 @@ import { applyRitePolicy, riteSacrificeValue } from './ritePolicy';
 import { applyTithePolicy, titheManaSaved } from './tithePolicy';
 import { applyWhispersPolicy } from './whispersPolicy';
 import { applyVocabularyTargetPolicy, chooseTargetAction } from './targeting';
+import { chooseSimplePump } from './pumpPolicy';
 import {
   conditionalAbilityValue,
   empowerValue,
@@ -185,8 +186,9 @@ export class EasyAI implements AIPlayer {
   private main(view: PlayerView, legal: Action[]): Action {
     const activate = chooseActivate(view, this.db, legal);
     // Noise may skip Duty, but cannot bypass its timing or target policy.
+    // A mana pump belongs to the combat windows (pumpPolicy), never to noise.
     const nonConcede = legal.filter((l) =>
-      l.type !== 'concede' && (l.type !== 'activate' || l === activate),
+      l.type !== 'concede' && l.type !== 'activateMana' && (l.type !== 'activate' || l === activate),
     );
     const paydown = chooseDarlingPaydown(view, nonConcede);
     if (paydown) return paydown;
@@ -380,6 +382,10 @@ export class EasyAI implements AIPlayer {
 
   private respond(view: PlayerView, legal: Action[]): Action {
     const pass = legal.find((l) => l.type === 'passResponse')!;
+    // A mechanic policy call, like the Hauntlink window: the random pass is
+    // Easy's weakness with its cards, not with this ability.
+    const pump = chooseSimplePump(view, this.db, legal);
+    if (pump) return pump;
     if (rngFloat(this.rng) < this.pers.easyPassRate) return pass;
     const casts = legal.filter((l) => l.type === 'castSpell');
     const skims = legal.filter((l) => l.type === 'skim');

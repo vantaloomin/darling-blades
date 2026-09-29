@@ -247,6 +247,22 @@ export interface ActivatedDef {
   targets?: TargetSpec[];
 }
 
+/**
+ * A repeatable activated ability with a mana-only cost and no tap (1.9, A1.5;
+ * First Dawn's Shivan Dragon pump, "{R}: This gets +1/+0 until Sunset.").
+ * Its controller uses it wherever they could cast a Charm, any number of times:
+ * one `activateMana` action pays the cost `times` times and runs the ops that
+ * many times, off the stack. Narrow by rule (`validateManaActivatedDef`): a
+ * creature's own ability, no tap, no targets, and the ops only boost this
+ * creature until Sunset. Distinct from `ActivatedDef` (a Duty taps) and from
+ * `manaAbility` (what a land or mana creature taps for).
+ */
+export interface ManaActivatedDef {
+  cost: ManaCost;
+  /** Run `times` times in order, with this creature as the source. */
+  ops: EffectOp[];
+}
+
 /** Alternate linked cast for a noncreature Artifact or Enchantment. */
 export interface HauntlinkDef {
   cost: ManaCost;
@@ -491,6 +507,12 @@ export function validateHuntDef(d: CardDef): string[] {
   }
   for (const activation of activatedAbilitiesOf(d)) check(activation.ops, activation.targets, 'bound');
   if (d.empower) check(d.empower.ops, d.empower.targets, 'bound');
+  // A Retell body replaces the printed one with its own ops and targets, and
+  // none of the carriers above covers it, so a Hunt there is refused rather
+  // than left unchecked (Fable's review, 2026-09-29). No First Dawn row has one.
+  if (d.retell?.ops && flatOps(d.retell.ops).some((op) => op.op === 'hunt')) {
+    errors.push('A Retell body never hunts');
+  }
   return errors;
 }
 
@@ -543,6 +565,8 @@ export interface CardDef {
   preserve?: PreserveDef;
   /** Optional main-phase battlefield action with a mandatory tap cost. */
   activated?: ActivatedDef | ActivatedDef[];
+  /** Repeatable non-tap mana abilities at Charm speed (A1.5); creatures only. */
+  manaActivated?: ManaActivatedDef[];
   /** Optional alternative-cost cast that enters attached to a friendly creature. */
   hauntlink?: HauntlinkDef;
   manaAbility?: (Color | 'C')[]; // lands & mana creatures
@@ -771,6 +795,49 @@ export function validateActivatedDef(d: CardDef): string[] {
     if (ops.some((op) => op.op === 'moveMark') && (
       targets.length !== 2 || targets.some((target) => target.upTo !== undefined || target.exactly !== undefined || target.what === 'spell')
     )) errors.push('Activated moveMark needs exactly two single-target permanent specs');
+  }
+  return errors;
+}
+
+/**
+ * Catalog-facing validation for the A1.5 construct, kept narrow (the B10
+ * rule): a creature's own ability, a mana cost of at least one and nothing
+ * else (no tap), no targets, and ops that only give this creature +N/+M,
+ * with no keywords. The engine offers an ability only while its card passes this check.
+ */
+export function validateManaActivatedDef(d: CardDef): string[] {
+  if (d.manaActivated === undefined) return [];
+  const errors: string[] = [];
+  if (!isType(d, 'creature') || isType(d, 'land')) errors.push('A mana ability belongs on a creature');
+  if (!Array.isArray(d.manaActivated) || d.manaActivated.length === 0) {
+    errors.push('A mana ability list must not be empty');
+    return errors;
+  }
+  for (const ability of d.manaActivated) {
+    const extra = Object.keys(ability).filter((key) => key !== 'cost' && key !== 'ops');
+    if (extra.includes('targets')) errors.push('A mana ability has no targets');
+    else if (extra.length > 0) errors.push(`A mana ability has only a cost and ops (not ${extra.join(', ')})`);
+    const cost = ability.cost as ManaCost | undefined;
+    if (!cost || Object.keys(cost).some((key) => key !== 'generic' && key !== 'pips')) {
+      errors.push('A mana ability costs mana only (no tap)');
+    } else if (
+      !Number.isInteger(cost.generic) || cost.generic < 0 || typeof cost.pips !== 'object' ||
+      Object.entries(cost.pips).some(([color, pip]) =>
+        !['W', 'U', 'B', 'R', 'G'].includes(color) || !Number.isInteger(pip) || pip < 0)
+    ) {
+      errors.push('A mana ability cost must be non-negative');
+    } else if (manaValue(cost) < 1) {
+      // A free repeatable ability could be used without end.
+      errors.push('A mana ability costs at least one mana');
+    }
+    const ops = ability.ops ?? [];
+    if (ops.length === 0) errors.push('A mana ability needs ops');
+    for (const op of ops) {
+      if (effectOpUsesTarget(op)) errors.push('A mana ability has no targets');
+      else if (op.op !== 'boost' || op.scope !== 'self') errors.push('A mana ability only boosts this creature until Sunset');
+      else if (!Number.isInteger(op.p) || !Number.isInteger(op.t)) errors.push('A mana ability boost is whole numbers');
+      else if (op.keywords !== undefined) errors.push('A mana ability boost grants no keywords (+N/+M only)');
+    }
   }
   return errors;
 }

@@ -731,6 +731,58 @@ prices a creature's Duty against the attack it forgoes.
 v12; the rules revision stays 4, since no existing card changes behaviour. The
 `activated` game event is logged before the ops run, after `manaTapped`.
 
+### Repeatable mana abilities (1.9, the pump)
+
+A creature with a `manaActivated` block (`CardDef.manaActivated`, 1.9 A1.5)
+carries an ability paid with mana alone, with no tap: First Dawn's "{R}: This
+gets +1/+0 until Sunset." It is not a Duty (a Duty taps) and not a mana
+ability in the land sense (`manaAbility` is what a permanent taps for).
+
+**Timing.** Its controller uses it wherever they could cast a Charm: in their
+own Morning or Afternoon, and in any response window they hold, the attacker's
+window over the blocks and the defender's window over the attackers included.
+It is used any number of times. One `activateMana` action carries a count:
+it pays the cost that many times as one payment and runs the ops that many
+times, and the log records one action. The legal-action list holds one entry
+per ability, carrying the most its controller can pay; any count from 1 to
+that is accepted. The creature must be on the battlefield under its
+controller's control (`manaActivationBlockers` in `src/engine/actions.ts`);
+with no tap in the cost, it can be used the turn the creature arrives, tapped
+or not.
+
+**Resolution.** Like a Hauntlink link, it resolves at once and off the stack:
+no window opens over the pump itself, and a state-based check follows. The
+same player keeps the decision: in a response window the window stays open
+until they pass it (or they act again).
+
+**The defender's reply.** Used as a Charm is (the owner's ruling), an
+attacker's pump in a combat window earns the defender one reply once the
+attacker passes, as a resolved Charm does: it counts toward the revision-2
+reopen (`resolvedSinceOffer`), so the defender is offered a reopened window
+over the blocks if they hold a castable Charm or a payable pump on a creature
+in the fight, within `RULES.maxWindowReopensPerStep`. Reopens only ever go to
+the defender, so the defender's own pump earns nothing and passing the reply
+goes to damage; each pump costs mana, so the exchange cannot loop.
+
+**Auto-pass.** A payable pump keeps a window open for its controller only in
+combat, on a creature still in the fight: an attacker, a blocker, or, before
+blocks, a creature of the defender's that can block one of the attackers
+(`hasCombatManaActivation`, read by both window gates). So the attacker gets
+its window over the blocks and the defender its window over the attackers
+when either could pump. Every other window, a spell cast in a main phase and
+Sunset among them, auto-passes as before: the ability never makes the game
+prompt outside combat.
+
+**Carriers.** Creatures only, and the validator
+(`validateManaActivatedDef`) keeps it narrow: a mana cost of at least one and
+nothing else, no targets, and ops that only give this creature +N/+M until
+Sunset (no keywords). The engine never offers an ability whose card fails
+that check.
+
+**Records.** The new action and the `manaActivated` event need no replay
+bump: the log is already v16 for 1.9, unreleased, and no shipped card carries
+the ability.
+
 ### Whispers (fresh-graveyard cast)
 
 A card with a `whispers` block (`CardDef.whispers`, 1.8) can be cast from

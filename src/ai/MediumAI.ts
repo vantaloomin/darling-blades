@@ -22,6 +22,7 @@ import { chooseHauntlinkWindow, chooseUnlinkedHauntlink } from './hauntlinkPolic
 import { chooseReserveLand } from './landPolicy';
 import { choosePlayDraw } from './playDraw';
 import { choosePreserve } from './preservePolicy';
+import { chooseSimplePump } from './pumpPolicy';
 import { applyRitePolicy, riteSacrificeValue } from './ritePolicy';
 import { applyTithePolicy, titheManaSaved } from './tithePolicy';
 import { applyWhispersPolicy } from './whispersPolicy';
@@ -828,6 +829,8 @@ export class MediumAI implements AIPlayer {
   // -------------------------------------------------------------------
   private respond(view: PlayerView, legal: Action[]): Action {
     const pass = legal.find((l) => l.type === 'passResponse')!;
+    const pump = chooseSimplePump(view, this.db, legal);
+    if (pump) return pump;
     const casts = legal.filter((l): l is SpellCast => l.type === 'castSpell');
     if (casts.length === 0) return pass;
     const opp = opponentOf(view.myId);
