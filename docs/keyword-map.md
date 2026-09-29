@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts, src/data/glossary.ts, src/ui/rulesText.ts, docs/rules.md · last-verified: 2026-09-10 · reference/mapping doc — shipped rows track the code; "Planned" rows record decided names for not-yet-built mechanics, not code · re-verify shipped rows when the referenced code changes -->
+<!-- source-of-truth: src/engine/types.ts, src/data/glossary.ts, src/ui/rulesText.ts, docs/rules.md · last-verified: 2026-09-29 · reference/mapping doc — shipped rows track the code; "Planned" rows record decided names for not-yet-built mechanics, not code · re-verify shipped rows when the referenced code changes -->
 
 # MTG keyword map — Darling Blades terms (shipped + future)
 
@@ -27,7 +27,7 @@ Read each row's **Status** as:
   Reminders below are quoted from `KEYWORD_REMINDER` in `src/data/glossary.ts`
   (re-exported by `src/ui/rulesText.ts` for card-face callers).
 - **Planned** — *not in the engine yet.* The name is **decided** — a themed label,
-  or a kept Magic term where that word is generic enough (Equip, Fight, Sacrifice).
+  or a kept Magic term where that word is generic enough (Equip, Sacrifice).
   **Adding one is a new engine feature, not a rename:** it touches
   `combat/legality.ts`, `combat/damage.ts`, `sba.ts`, the AI value heuristics, and
   the win-rate-floor tests — never a text swap. Do not ship the label without the
@@ -81,7 +81,7 @@ an `EffectOp` (`src/engine/types.ts`) or an engine mechanism.
 | Counter (a spell) | *(cancel)* | `cancel` | Shipped | "Cancel target spell." |
 | +1/+1 counter | **Mark** | `addCounters` | Shipped | "Put N +1/+1 marks on target creature." Player copy only (rulesText, glossary, rules.md); the engine op id and state field are unchanged. A named Mechanic in the Glossary. |
 | Sacrifice | Sacrifice *(kept)* | — | Planned | "Sacrifice" kept as-is (generic enough). "Put a permanent you control into its owner's graveyard." Sacrifice **as an additional cast cost** shipped inside Rite (1.6); the standalone `sacrifice` op (as an effect) still does not exist. |
-| Fight | Fight *(kept)* | — | Planned | "Fight" kept as-is (generic enough). "Each creature deals damage equal to its Attack to the other." No op exists yet. |
+| Fight | **Hunt** | `hunt` | Shipped | *(1.9, First Dawn)* A bare verb keyword like Mark: "When this arrives, Hunt."; the spell form "Target creature you control Hunts." Glossary: "Your creature and its prey each deal damage equal to their Attack to the other. The prey is a creature an opponent controls, unless the card says otherwise. A creature with Bulwark cannot hunt. A creature that hunts when it arrives can't be cast unless it has prey." Supersedes the kept name "Fight" (owner, 2026-09-28). A named Mechanic in the Glossary; rules in [rules.md](rules.md), Hunt. |
 | Attach | *(aura attach)* | `scope:'attached'` statics | Kept | Internal — auras attach to a creature; not a player-facing keyword. |
 | Tap / Untap | Tap / Untap | (core action) | **Kept — out of scope** | Generic action vocab, intentionally not re-themed (per user + de-MTG scope table). Listed here only for completeness. |
 
@@ -99,7 +99,8 @@ text swap.
 | **Unbreakable** | Indestructible | "Can't be destroyed by damage or by 'destroy' effects." | SBA + `destroy`/`massDestroy` op guards; AI value/removal heuristics. |
 | **Aegis** | Protection | "Can't be blocked, targeted, damaged, or enchanted by [quality]." | Quality-parameterized guard across targeting, combat, damage, auras. Heaviest. |
 | **Momentum** | Prowess | "Whenever you cast a noncreature spell, this gets +1/+1 until end of turn." | A cast-trigger + until-end-of-turn buff plumbing; AI sequencing value. |
-| **Fight** | Fight | "Each creature deals damage equal to its Attack to the other." | A `fight` `EffectOp` reusing the damage pipeline; targeting for two creatures. |
+| **Hunt** | Fight | "Your creature and its prey each deal damage equal to their Attack to the other." (full glossary text in the actions table above) | **SHIPPED (1.9, engine PR #498, A1.1b #500):** the `hunt` op in two forms (`hunter: 'self'` on an arrival, attack, Dawn, Duty or Empower; `hunter: 'target'` on a Charm or Ritual, hunter then prey), its damage on the shared creature-damage path combat uses (`applyCreatureDamage`), a default prey of an opponent's creature with `any` and `yours` overrides, Bulwark hunters refused, and an arrival Hunt's prey chosen at cast. blades-db translates it to "fight". |
+| **Provoked** | Enrage *(approx.; ours needs the creature to survive and fires once each turn)* | "Provoked: [effect]." Glossary: "when this creature is dealt damage and survives, it does the listed effect; this triggers only once each turn" | **SHIPPED (1.9, engine PR #498):** the `provoked` `TriggerWhen`, fired in the state-based check after that check's deaths and dies triggers, once each turn by rule, creatures only, at most one per card; an untargeted effect resolves ahead of a dies trigger held for a Hauntlink window (the ruled exception). Not evergreen; recorded like Empower. blades-db translates it to "enrage". |
 | **Sacrifice** | Sacrifice | "Put a permanent you control into its owner's graveyard." | A `sacrifice` `EffectOp` (as cost and as effect); death triggers already exist. |
 | **Hauntlink** | Reconfigure *(approx.)* | "Hauntlink {cost}: At Charm speed, link this to a creature you control or move it to another. This dies with its host." | **REVISED (1.6):** Charm-speed, stack-free battlefield action on Artifacts/Enchantments, one host pointer, immediate repeatable movement, state-driven linked battlefield underlays, and linked-carrier death when the host leaves play. The former alternate-cast mode remains only for old replay revisions. |
 | **Skim** | Cycling | "Skim {cost}: Discard this card, then draw a card." | **SHIPPED (1.4, engine PR #108 + UI PR #112):** `CardDef.skim {cost}` — the engine's first non-cast mana-paying action, full instant speed, off-stack by design (S1), opens response windows via `hasCastableInstant`; AI smoothing gates with a deck-out guard at all difficulties; Cast/Skim chooser in DuelScene. Kept in this table although Cycling is not evergreen. |
@@ -136,8 +137,8 @@ text swap.
   target it; never shorten to "can't be targeted" (`rules.md` Keywords table).
 - New themed labels were collision-checked against the shipped set: **Aegis**,
   **Sudden**, **Unbreakable**, **Dreaded**, **Momentum**, and **Empower**
-  don't shadow any existing label. (Equip, Fight, and Sacrifice keep their
-  generic Magic names.)
+  don't shadow any existing label. (Equip and Sacrifice keep their generic
+  Magic names; Fight shipped as Hunt, below.)
 - **Empower** (Kicker, decided 2026-07-17) was chosen over Tribute/Invoke:
   it describes the mechanic rather than the set, and unlike Surge, Escalate,
   Overload, or Entwine it is not a Magic keyword (the distinctiveness rule
@@ -157,6 +158,14 @@ text swap.
   consequence that no CARD in the set may be named "Nine Lives"
   (plan-duat-creative.md, resolved ruling 5). Preserve was picked over Mummify
   so the mechanic survives outside Egypt.
+- **Hunt / Provoked**, ruled 2026-09-28 for First Dawn: Fight and Enrage are
+  both Magic keywords, so neither is reused. Hunt is a verb keyword that
+  follows Mark ("When this arrives, Hunt."), and its default prey lives in
+  the glossary, never on the card. Ten shipped card names contain the
+  letters "hunt" (four the whole word: Alpha of the Wild Hunt, Rune of the
+  Hunt, Wild Hunt Matriarch, Hunt the Boar); the glossary detects the
+  mechanic from the `hunt` op, never from a name, so none of them teaches
+  it. Provoked has no reserved art tell.
 
 ## Cross-references
 

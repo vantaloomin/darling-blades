@@ -33,6 +33,8 @@ export const MECHANIC_ICON_KEY: Record<MechanicIconId, string> = {
   foresee: 'mechanic-foresee',
   mark: 'mechanic-mark',
   propagate: 'mechanic-propagate',
+  hunt: 'mechanic-hunt',
+  provoked: 'mechanic-provoked',
   quest: 'mechanic-quest',
   championAwakening: 'mechanic-championAwakening',
   empower: 'mechanic-empower',
@@ -105,6 +107,20 @@ const MECHANIC_ICON_PATH: Record<Exclude<MechanicIconId, 'duty'>, string> = {
   propagate:
     'M10 4 L18 4 L18 10 L24 10 L24 18 L18 18 L18 24 L10 24 L10 18 L4 18 L4 10 L10 10 Z ' +
     'M26 20 L34 20 L34 26 L40 26 L40 34 L34 34 L34 40 L26 40 L26 34 L20 34 L20 26 L26 26 Z',
+  // Three claw marks: the predator's stroke. Not a weapon, and never two
+  // blades crossed (Twin Blades owns that); the strokes run parallel, tapered
+  // at both ends, so they read as a raking swipe rather than Sever's clean cut.
+  hunt:
+    'M17 6 Q5 20 7 38 Q15 23 17 6 Z ' +
+    'M27 6 Q15 20 17 38 Q25 23 27 6 Z ' +
+    'M37 6 Q25 20 27 38 Q35 23 37 6 Z',
+  // The anger mark: four swollen veins around a pinched cross. Struck, and
+  // angry about it. No hand (handprints are banned) and no reserved art tell;
+  // the pieces fill the chip's corners, so the dark cross between them never
+  // reads as Mark's solid gold plus.
+  provoked:
+    'M6 19 Q21 21 19 6 L13 6 Q14 14 6 13 Z M38 19 Q23 21 25 6 L31 6 Q30 14 38 13 Z ' +
+    'M6 25 Q21 23 19 38 L13 38 Q14 30 6 31 Z M38 25 Q23 23 25 38 L31 38 Q30 30 38 31 Z',
   // Chapters climbing toward the flag they plant at the end.
   quest: 'M5 35 L14 35 L14 40 L5 40 Z M16 27 L25 27 L25 40 L16 40 Z M27 19 L36 19 L36 40 L27 40 Z M29 4 L32 4 L32 19 L29 19 Z M32 5 L41 9 L32 13 Z',
   // A one-way upgrade, climbing. Was an open eye until 2026-08-24, which read

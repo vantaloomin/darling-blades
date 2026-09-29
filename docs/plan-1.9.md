@@ -412,6 +412,7 @@ creature an opponent controls, with no fallback, and a card may declare
   (A1.3) drops the forced-self-hunt arm; the self-Hunt arm, through an `any`
   card, is live.
 - **A1.2** (Hard's reads, 2026-09-29) values Hunt and Provoked in the shared AI layer, arrival hunters cast at their best prey, with 0 divergences on the weenie and broad presets ([As built (A1.2)](plan-first-dawn-engine.md#as-built-a12-hards-reads)).
+- **A2.c** (the words, 2026-09-29) prints the approved templates, teaches Provoked and Hunt in the glossary (detected from the ability and the op, never a name), gives each a glyph, and writes both into `rules.md` with the Empower correction and G8's combat gap ([As built (A2.c)](plan-first-dawn-engine.md#as-built-a2c-the-words)).
 - **A2.b** Easy never hunts its own creature *by choice*: its filter matters
   again, on the cards that declare `any` (the owner's B5).
 - **A2.d** The converter's target walk treats every generic Hunt as dead
