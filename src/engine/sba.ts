@@ -49,12 +49,17 @@ export function survivesOnBattlefield(state: GameState, db: CardDb, iid: number)
  * exception); a targeted one queues its choice as a plain `chooseTarget`. A
  * pass that provoked anything is a changed pass. Each creature is provoked at
  * most once each turn, so a chain is bounded by the Provoked creatures on the
- * battlefield, and the pass limit grows by one for each of them.
+ * battlefield, and the pass limit (read each pass) grows by one for each of them.
  */
 export function checkStateBased(state: GameState, db: CardDb, emit: Emit, options: { deferPlayerLoss?: boolean } = {}): void {
-  let passes = BASE_PASSES;
-  for (const perm of state.battlefield) if (cardHasProvoked(def(db, perm.cardId))) passes++;
-  for (let pass = 0; pass < passes; pass++) {
+  // The limit is read each pass, so a Provoked creature that arrives mid-check
+  // (a dies token, a Nine Lives return) extends it. With none it is 30.
+  const passLimit = (): number => {
+    let limit = BASE_PASSES;
+    for (const perm of state.battlefield) if (cardHasProvoked(def(db, perm.cardId))) limit++;
+    return limit;
+  };
+  for (let pass = 0; pass < passLimit(); pass++) {
     if (state.winner !== null) return;
     let changed = false;
 

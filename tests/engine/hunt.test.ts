@@ -335,6 +335,18 @@ describe('Hunt: the mandatory source-bound target rule (E6)', () => {
     expect(validateHuntDef({ ...card('angry'), abilities: [{ when: 'provoked', targets: [{ what: 'creature', other: true }], ops: [{ op: 'hunt', hunter: 'self' }] }] }).length).toBeGreaterThan(0);
     expect(validateHuntDef(stalk)).toEqual([]);
   });
+
+  it('refuses a Hunt inside an If-marked branch, where it could never see both creatures', () => {
+    const branched = spell('branched', [{ op: 'ifTargetMarked', then: [{ op: 'hunt', hunter: 'target' }] }], HUNT_SPELL_TARGETS);
+    expect(validateHuntDef(branched).length).toBeGreaterThan(0);
+    const boundBranch = { ...stalker, abilities: [{ ...HUNT_TRIGGER, ops: [{ op: 'ifTargetMarked' as const, then: [{ op: 'hunt' as const, hunter: 'self' as const }] }] }] };
+    expect(validateHuntDef(boundBranch).length).toBeGreaterThan(0);
+  });
+
+  it('refuses a spell-form Hunt on a card whose Empower brings its own targets', () => {
+    const empowered: CardDef = { ...stalk, empower: { cost: { generic: 1, pips: {} }, targets: [{ what: 'creature' }], ops: [{ op: 'draw', n: 1 }] } };
+    expect(validateHuntDef(empowered).length).toBeGreaterThan(0);
+  });
 });
 
 describe('damage each creature you control (E3)', () => {

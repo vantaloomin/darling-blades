@@ -198,6 +198,9 @@ function runEmpowerRider(
       controller: item.controller,
       sourceCardId: item.cardId,
       ...(sourceIid === undefined ? {} : { sourceIid }),
+      // No targetSpecs for a `reclaim` rider (Renenutet): it finds its card by
+      // instance id, and real games are instance-bearing. Only test fixtures
+      // use string graveyards, where it falls back to the chosen index.
       targets: item.targets,
       ...(usesExplicitTargetSlot(d.empower.ops) || usesHunt(d.empower.ops) || specs.some(spec => spec.maxCost !== undefined || spec.minAttack !== undefined || spec.exactly) ? { targetSpecs: specs } : {}),
       ...(specs.length === 1 && (specs[0].upTo !== undefined || specs[0].exactly !== undefined) ? { targetBatch: true } : {}),

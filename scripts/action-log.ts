@@ -290,6 +290,33 @@ export interface DecisionTiming {
   wholeGame?: true;
 }
 
+/**
+ * The event digest: every event, in order, as its JSON, one per line, hashed.
+ * Fed one event at a time as the engine emits it (playLogged), or all at once
+ * (digestOf); both hash the same bytes.
+ */
+export class EventDigest {
+  private readonly hash = createHash('sha256');
+  count = 0;
+
+  add(e: Readonly<GameEvent>): void {
+    this.hash.update(JSON.stringify(e));
+    this.hash.update('\n');
+    this.count++;
+  }
+
+  value(): string {
+    return this.hash.digest('hex').slice(0, 16);
+  }
+}
+
+/** The digest of a whole event stream: its order and every field count. */
+export function digestOf(events: readonly Readonly<GameEvent>[]): string {
+  const digest = new EventDigest();
+  for (const e of events) digest.add(e);
+  return digest.value();
+}
+
 /** Play one seeded game and log every action each seat submitted. */
 export function playLogged(job: GameJob, difficulty: Difficulty, timing?: DecisionTiming[]): GameLog {
   const sa = resolveSide(job.a, difficulty, job.format);
@@ -304,13 +331,8 @@ export function playLogged(job: GameJob, difficulty: Difficulty, timing?: Decisi
   // The event digest reads each event as it is emitted (a later mutation of a
   // permanent it carries cannot leak in). Clones the AI simulates on carry no
   // observer, so only the real game's stream is hashed.
-  const digest = createHash('sha256');
-  let events = 0;
-  const eventObserver = (e: Readonly<GameEvent>): void => {
-    digest.update(JSON.stringify(e));
-    digest.update('\n');
-    events++;
-  };
+  const digest = new EventDigest();
+  const eventObserver = (e: Readonly<GameEvent>): void => digest.add(e);
   // Classic is the engine's default constructor; the reserve formats pass
   // their reserves (and Darlings its command-zone pair) as the matrices do.
   const game = job.format === 'classic'
@@ -358,8 +380,8 @@ export function playLogged(job: GameJob, difficulty: Difficulty, timing?: Decisi
     winner,
     turns: game.state.turn,
     hash: createHash('sha256').update(body).digest('hex').slice(0, 16),
-    eventDigest: digest.digest('hex').slice(0, 16),
-    events,
+    eventDigest: digest.value(),
+    events: digest.count,
     actions,
   };
 }

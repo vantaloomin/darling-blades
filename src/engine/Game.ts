@@ -871,8 +871,10 @@ export class Game {
         st.pendingDecisions.shift();
         const provoked = pending.triggerWhen === 'provoked';
         if (provoked && !survivesOnBattlefield(st, this.db, pending.sourceIid)) {
-          // Its creature was killed or recalled before the choice was
-          // answered: the Provoked effect does nothing.
+          // A guard: the drain already fizzles a Provoked choice whose creature
+          // is gone before raising it, and nothing acts between that and this
+          // answer in a live game. Kept so a restored or hand-built state with
+          // a stale awaiting still does nothing.
           emit({ e: 'triggerFizzled', iid: pending.sourceIid });
           this.resumeNewChoice(emit, pending.continuations);
           return;

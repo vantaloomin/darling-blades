@@ -5,9 +5,11 @@ import {
   validateChaptersDef,
   validateEmpowerDef,
   validateHauntlinkDef,
+  validateHuntDef,
   validateMarkTriggerDef,
   validateNineLivesDef,
   validatePreserveDef,
+  validateProvokedDef,
   validateRiteDef,
 } from '../../src/engine/types';
 import type { CardDef, EffectOp } from '../../src/engine/types';
@@ -40,12 +42,14 @@ import { TOKENS } from '../../src/data/cards/tokens';
 import { activatedCatalogErrors } from '../activatedFixture';
 
 describe('catalog integrity', () => {
-  it('has no invalid Empower, mark-trigger, or chapter definitions across ALL_CARDS', () => {
+  it('has no invalid Empower, mark-trigger, chapter, Provoked or Hunt definitions across ALL_CARDS', () => {
     for (const card of ALL_CARDS) {
       const errors = [
         ...validateEmpowerDef(card),
         ...validateMarkTriggerDef(card),
         ...validateChaptersDef(card),
+        ...validateProvokedDef(card),
+        ...validateHuntDef(card),
       ];
       expect(errors, `${card.id} has invalid Starborne definition: ${errors.join('; ')}`).toEqual([]);
     }

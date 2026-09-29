@@ -431,6 +431,20 @@ export function validateHuntDef(d: CardDef): string[] {
       }
     }
   };
+  // A branch re-runs its ops against its one bound target, so a Hunt inside
+  // one would never see its prey (or, spell-form, its second slot).
+  const huntInBranch = (ops: readonly EffectOp[] | undefined): boolean => flatOps(ops ?? []).some((op) =>
+    op.op === 'ifTargetMarked' && [...flatOps(op.then), ...flatOps(op.else ?? [])].some((inner) => inner.op === 'hunt'));
+  if ((d.abilities ?? []).some((ability) => huntInBranch(ability.ops)) ||
+    activatedAbilitiesOf(d).some((activation) => huntInBranch(activation.ops)) || huntInBranch(d.empower?.ops)) {
+    errors.push('A Hunt cannot sit inside an If-marked branch');
+  }
+  // An empowered cast brings the Empower targets instead of the body's, so a
+  // body Hunt would run on them.
+  if (d.empower?.targets && (d.abilities ?? []).some((ability) => ability.when === 'spell' &&
+    flatOps(ability.ops ?? []).some((op) => op.op === 'hunt' && op.hunter === 'target'))) {
+    errors.push('A spell-form Hunt cannot share a card with Empower targets');
+  }
   for (const ability of d.abilities ?? []) {
     if (ability.when === 'static') continue;
     if (ability.when === 'provoked' && flatOps(ability.ops ?? []).some((op) => op.op === 'hunt')) {

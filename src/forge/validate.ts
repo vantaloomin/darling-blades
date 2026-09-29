@@ -278,6 +278,8 @@ function readOp(raw: unknown, depth: number): ScorableEffectOp {
       case 'token': out[field] = oneOf(value, TOKEN_IDS, 'token'); break;
     }
   }
+  // `other` spares the source only on "each creature you control".
+  if (kind === 'damage' && out.other !== undefined && out.to !== 'eachYourCreature') fail('field');
   return out as ScorableEffectOp;
 }
 

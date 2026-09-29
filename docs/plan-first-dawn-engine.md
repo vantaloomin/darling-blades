@@ -826,9 +826,11 @@ A1.1 built Parts 1-3 on `feat/19-a1-engine` with the owner's rulings of
   carries its target and a `provoked` mark, and it re-checks survival when it
   resolves. This is no new exception: revision 4 opens a window over every
   targeted trigger, and the owner's E1 exception covers untargeted Provoked
-  effects only (ruled keep, 2026-09-29). It re-checks survival at two more points: before its choice is
-  raised (a creature killed or recalled first makes it fizzle without a
-  choice) and when the choice is answered.
+  effects only (ruled keep, 2026-09-29). Survival is re-checked at two
+  reachable points: before its choice is raised (a creature killed or
+  recalled first makes it fizzle without a choice) and when a held one
+  resolves. A third check, when the choice is answered, cannot be reached in a
+  live game and stays only as a guard.
 - **Hunt's own rules reach the Duty too.** A hunting Duty never offers its own
   source as prey (the Duty's rule, not only `other` on the spec), and
   `activatedBlockers` refuses it on a creature with Bulwark, printed or
@@ -845,21 +847,38 @@ A1.1 built Parts 1-3 on `feat/19-a1-engine` with the owner's rulings of
   digest divergences). The v16 version note in `src/meta/Replay.ts` records
   it beside the Foresee divergence; no rules-revision bump (ruled
   2026-09-29).
-- **The validators exist but are not wired into the catalog test.**
+- **The validators are wired into the catalog test now.**
   `validateProvokedDef` and `validateHuntDef` (types.ts) cover P5, P3's "no
   Provoked effect Hunts", "no Bulwark creature prints a source-bound Hunt",
-  the carrier shapes and `opponentIfAble` on creature specs only.
-  Lane B's transcription PR wires them into `tests/data/catalog.test.ts`
-  (ruled 2026-09-29).
+  the carrier shapes, `opponentIfAble` on creature specs only, no Hunt inside
+  an If-marked branch (the branch re-runs against its one bound target, so the
+  Hunt could never see both creatures), and no spell-form Hunt on a card whose
+  Empower brings its own targets. `tests/data/catalog.test.ts` runs them over
+  `ALL_CARDS`, so lane B's rows meet them as they land.
 - **Scorer stubs.** `TRIGGER_MULT` is a total record, so it holds
   `provoked: 0`, which nothing reads: `triggerMult('provoked')` reports
   NEEDS MATH as an unknown and prices the effect at 0, as the `hunt` op and
   the `eachYourCreature` recipient do. The Forge validates `hunt` and
   `eachYourCreature` ops but does not offer them, or Provoked, in its editor
   yet (A1.4 and A2.c).
+- **The pass limit is read each pass**: 30 plus the Provoked creatures on the
+  battlefield at that pass, so a carrier that arrives mid-check extends it.
+  With no Provoked card in play it is exactly 30.
 - **Small shapes.** The `hunted` event carries both amounts; `fireTriggers`
-  returns whether anything fired (the state-based check's "changed"); the Hunt
-  spell form is recognised inside an `ifTargetMarked` branch as well.
+  returns whether anything fired (the state-based check's "changed"); the
+  Forge accepts `other` on a `damage` op only with `to: 'eachYourCreature'`.
+- **The gates.** On the broad preset (210 games), before and after: 0
+  action-log divergences and 0 event-digest divergences. "Before" was recorded
+  with the digest-enabled `scripts/action-log.ts` on the unchanged 0bf96c5
+  engine, before the first engine edit. A deliberate reorder of combat's
+  Blood Oath gains (no decision changed) showed 0 action and 92 digest
+  divergences, so the digest sees what the actions cannot.
+- **Hand-offs to A2.**
+  - A2.a: `hunted` is emitted even when both Attacks are 0, so the Hunt
+    animation must expect an exchange that deals nothing.
+  - A2.c (`rules.md`): a targeted Provoked whose targets vanish before its
+    choice is raised fizzles and stays spent for the turn, as targeted dies
+    and arrival triggers do.
 
 ## What this spec corrects
 
