@@ -21,6 +21,7 @@ import {
   type GauntletTowerLayout,
 } from '../ui/layout';
 import { gateOnArt } from '../ui/artGate';
+import { prefetchDuelArt } from '../ui/duelArt';
 import { addPortraitArt } from '../ui/portraitArt';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { sceneSubtitle, sceneTitle } from '../ui/sceneTitle';
@@ -466,6 +467,7 @@ export class GauntletScene extends Phaser.Scene {
     // Fight / locked
     const fightable = floor === this.currentRung;
     if (fightable) {
+      prefetchDuelArt(this, { opponentId: av.id, gauntletRung: floor });
       const fight = themedButton(this, textX + 104, 478, Services.save.data.gauntlet.run ? 'Fight' : 'Begin Run', {
         variant: 'primary',
         minWidth: 208,

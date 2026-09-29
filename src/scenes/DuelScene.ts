@@ -81,7 +81,6 @@ import {
   setStickyHost,
 } from '../platform/gestures';
 import { darlingFaceCardFor, faceCardFor } from '../meta/deckFace';
-import { landStyleArtKey } from '../art/ArtResolver';
 import { BoardCardView, TILE_W, TILE_H, type BoardHighlight } from '../ui/BoardCardView';
 import { CardZoomPreview } from '../ui/CardZoomPreview';
 import { CardView, CARD_W, CARD_H } from '../ui/CardView';
@@ -177,6 +176,7 @@ import {
 import { groupReserveSlots, landFanSlots } from '../ui/reserveModalPresentation';
 import { packRow, type RowPacking } from '../ui/rowPacking';
 import { gateOnArt } from '../ui/artGate';
+import { duelArtIds, nextDuelArt, prefetchDuelArt } from '../ui/duelArt';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { StackDisplay } from '../ui/StackDisplay';
 import { colorInt, theme } from '../ui/theme';
@@ -203,15 +203,6 @@ export interface DuelSceneData {
   limited?: LimitedDuelData['limited'];
   replay?: ReplayLog;
 }
-
-/**
- * Every token a board can make (28 today). The art gate passes all of them
- * rather than walking every card's effects for `createToken`: the set is
- * small, and a token whose art has not arrived would otherwise pop in dim.
- */
-const TOKEN_CARD_IDS: readonly string[] = Object.values(CARD_DB)
-  .filter((d) => d.token === true)
-  .map((d) => d.id);
 
 /**
  * MouseManager.disableContextMenu() adds a DOM listener with no dedupe and
@@ -582,82 +573,17 @@ export class DuelScene extends Phaser.Scene {
    * The card-art gate (1.8, `src/ui/artGate.ts`). Card art streams in behind
    * the menu now, so a duel launched in the first seconds of a session waits
    * for its own cards and nothing else — the tutorial duel is four art files.
+   * While art streams through the art store (1.9 lane D) the gate's lease
+   * holds the duel's set until SHUTDOWN, and a Tower rung's restart keeps what
+   * the next rung shares (`src/ui/duelArt.ts`).
    *
    * The body below is unchanged, wrapped as-is as `build`.
    */
   create(data: DuelSceneData = {}): void {
-    gateOnArt(this, this.duelArtIds(data), () => this.build(data));
-  }
-
-  /**
-   * Every card this duel can draw, derived from the launch data the way
-   * `build` derives the duel: both seats' decks and Warchests, both Darlings,
-   * the portrait/hero faces, every token the board can make, and the styled
-   * basic-land files the human's deck asked for.
-   *
-   * A coarse superset is fine and a miss is survivable (`ArtResolver.getArt`
-   * falls back to the neutral loading texture), so this deliberately does not
-   * re-run the whole avatar/format resolution — it takes the union of the
-   * candidates instead of duplicating the decision.
-   */
-  private duelArtIds(data: DuelSceneData): string[] {
-    const save = Services.save.data;
-    const replay = data.replay ?? null;
-    const myDeckEntry = activeVisibleSavedDeck(save.decks, save.activeDeckId, FEATURES.reserveFormats);
-    const myDeck =
-      replay?.decks[0] ?? data.deckOverride ?? myDeckEntry?.cards ?? STARTER_DECKS[0].cards;
-    const opponentId = replay?.context.opponentId ?? data.opponentId ?? null;
-    const opponent = opponentId !== null ? avatarById(opponentId) : null;
-    const ids: string[] = [...myDeck, ...TOKEN_CARD_IDS];
-
-    // Seat 1: a recorded deck, an override, or the avatar's own list. Both
-    // reserve variants go in — which one the duel fields depends on the saved
-    // deck's format, and an avatar deck is ~70 files either way.
-    if (replay) ids.push(...replay.decks[1]);
-    if (data.oppDeckOverride) ids.push(...data.oppDeckOverride);
-    if (opponent) {
-      ids.push(...opponent.deck, opponent.portraitCardId);
-      for (const format of ['warchest', 'darlings'] as const) {
-        const side = avatarReserveSide(opponent, format, myDeck, myDeckEntry?.darlingId ?? null, CARD_DB);
-        ids.push(...side.deck, ...side.reserve);
-        if (side.darlingId) ids.push(side.darlingId);
-      }
-    } else if (!replay && !data.oppDeckOverride) {
-      ids.push(
-        ...(STARTER_DECKS.find((d) => d.id !== save.activeDeckId)?.cards ?? STARTER_DECKS[1].cards),
-      );
-    }
-
-    // Both Warchests.
-    for (const reserve of replay?.landReserves ?? []) ids.push(...reserve);
-    for (const reserve of data.landReserveOverride ?? []) ids.push(...reserve);
-    if (Array.isArray(myDeckEntry?.landReserve)) ids.push(...myDeckEntry.landReserve);
-
-    // Darlings, portraits and hero faces.
-    for (const darling of replay?.darlings ?? []) if (darling) ids.push(darling);
-    if (myDeckEntry?.darlingId) ids.push(myDeckEntry.darlingId);
-    if (myDeckEntry?.heroCardId) ids.push(myDeckEntry.heroCardId);
-    if (save.heroCardId) ids.push(save.heroCardId);
-    if (myDeckEntry?.format === 'darlings') {
-      const face = darlingFaceCardFor({ ...myDeckEntry, cards: myDeck }, CARD_DB);
-      if (face) ids.push(face);
-    }
-    const myFace = faceCardFor(myDeck, CARD_DB);
-    if (myFace) ids.push(myFace);
-    const persona = data.limited?.opponentPersonaId
-      ? draftPersonaById(data.limited.opponentPersonaId)
-      : null;
-    if (persona) ids.push(persona.portraitCardId);
-    if (data.tutorial) ids.push(TUTORIAL_OPPONENT_PORTRAIT);
-
-    // Styled basic-land art files are their own manifest keys, not card ids.
-    const landStyle = !replay && data.deckOverride === undefined ? myDeckEntry?.landStyle : null;
-    if (landStyle) {
-      for (const [basicId, style] of Object.entries(landStyle)) {
-        if (style) ids.push(landStyleArtKey(basicId, style));
-      }
-    }
-    return ids;
+    // The gate's lease takes over the prefetch made when this opponent was chosen.
+    nextDuelArt.handOver(() =>
+      gateOnArt(this, duelArtIds(data, Services.save.data, FEATURES.reserveFormats), () => this.build(data)),
+    );
   }
 
   private build(data: DuelSceneData): void {
@@ -8503,6 +8429,7 @@ export class DuelScene extends Phaser.Scene {
 
     if (reward.nextRung !== null) {
       const next = reward.nextRung;
+      prefetchDuelArt(this, { opponentId: this.avatarForGauntletFloor(next).id, gauntletRung: next });
       mk(520, 'Next Foe', 'primary', () =>
         this.restartDuel({ opponentId: this.avatarForGauntletFloor(next).id, gauntletRung: next }),
       );
