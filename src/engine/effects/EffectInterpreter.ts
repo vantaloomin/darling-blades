@@ -17,6 +17,7 @@ import { enumerateTargets, isLegalTarget } from './targeting';
 import type {
   AbilityDef,
   CardDb,
+  CardDef,
   CardEntry,
   EffectOp,
   EffectContinuation,
@@ -1110,20 +1111,60 @@ function fireAllyCreatureArrivesTriggers(
   }
 }
 
+const arrivalHuntCache = new WeakMap<CardDef, number>();
+
+/**
+ * The index of a creature's arrival Hunt ("When this arrives, Hunt."), or -1.
+ * Its prey is chosen when the creature is cast, as a cast target (the owner's
+ * ruling, 2026-09-28): castTargetSpecs reads the ability's one spec, and a
+ * cast arrival runs it inline with that target (fireTriggers, castHuntTargets).
+ * An arrival that is not a cast (a token, a raise, a Nine Lives return) fires
+ * it as an ordinary targeted arrival trigger.
+ */
+export function arrivalHuntIndex(d: CardDef): number {
+  let cached = arrivalHuntCache.get(d);
+  if (cached === undefined) {
+    cached = isType(d, 'creature')
+      ? (d.abilities ?? []).findIndex((ab) => ab.when === 'arrives' && ab.targets?.length === 1 &&
+        (ab.ops ?? []).some((op) => op.op === 'hunt' && op.hunter === 'self'))
+      : -1;
+    arrivalHuntCache.set(d, cached);
+  }
+  return cached;
+}
+
 export function fireTriggers(
   state: GameState,
   db: CardDb,
   emit: Emit,
   when: Exclude<TriggerWhen, 'spell' | 'static'>,
   perm: Permanent,
-  options: { deferPostDies?: boolean; markTriggerDepth?: number; observers?: readonly Permanent[]; sacrifice?: boolean; deferObservers?: boolean } = {},
+  options: {
+    deferPostDies?: boolean; markTriggerDepth?: number; observers?: readonly Permanent[]; sacrifice?: boolean; deferObservers?: boolean;
+    /** A cast arrival: the arrival Hunt's prey, chosen when the creature was cast. */
+    castHuntTargets?: TargetRef[];
+  } = {},
 ): boolean {
   const d = def(db, perm.cardId);
   let fired = false;
+  const castHunt = when === 'arrives' && options.castHuntTargets !== undefined ? arrivalHuntIndex(d) : -1;
   for (let abilityIndex = 0; abilityIndex < (d.abilities ?? []).length; abilityIndex++) {
     const ab = d.abilities![abilityIndex];
     if (ab.when !== when || !ab.ops) continue;
     if (ab.condition !== undefined && !conditionSatisfied(state, db, perm.controller, ab.condition, perm.iid)) continue;
+    if (abilityIndex === castHunt) {
+      // The prey was chosen at cast, so the Hunt resolves inline in its printed
+      // place, as an untargeted arrival ability does. The spec is re-checked:
+      // a prey that is gone or no longer legal leaves nothing to hunt.
+      if (!claimTrigger(perm, ab, abilityIndex)) continue;
+      fired = true;
+      emit({ e: 'triggerFired', iid: perm.iid, when });
+      runOps(state, db, emit, {
+        controller: perm.controller, sourceCardId: perm.cardId, sourceIid: perm.iid,
+        targets: options.castHuntTargets!, targetSpecs: ab.targets!, markTriggerDepth: options.markTriggerDepth,
+      }, ab.ops);
+      continue;
+    }
     if (ab.targets && ab.targets.length > 0) {
       if (ab.targets.length !== 1 || ab.targets[0].upTo !== undefined || ab.targets[0].exactly !== undefined) {
         throw new Error('Targeted arrival abilities must have one single target spec.');

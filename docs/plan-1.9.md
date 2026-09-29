@@ -292,12 +292,18 @@ triggers when this creature survives damage.*
 **Hunt** (Magic's fight): *your creature and target creature each deal
 damage equal to their Attack to the other.*
 
-1. **A new op with two targets**: the hunter, one of yours, and the prey:
-   for every Hunt, a creature an opponent controls if a legal one exists,
-   otherwise another creature you control (the bare-keyword ruling,
-   2026-09-28, widening E6 to every Hunt; you hunt your own only when
-   forced). On the card Hunt is a bare verb keyword like Mark: "When this
-   arrives, Hunt."; the spell form "Target creature you control Hunts."
+1. **A new op with two targets**: the hunter, one of yours, and the prey
+   (the final Hunt ruling, 2026-09-28, superseding E6's fallback): a
+   creature an opponent controls, with no fallback, unless the card declares
+   its own prey, `any` (any other creature, yours included) or `yours`
+   (another creature you control). On the card Hunt is a bare verb keyword
+   like Mark: "When this arrives, Hunt."; the spell form "Target creature
+   you control Hunts."; an override names its prey (PROPOSED: "Hunt any
+   other creature.", "Hunt another creature you control."). **An arrival
+   Hunt chooses its prey at cast:** the creature can't be cast unless it has
+   prey under its own rule, hunts as it arrives, and still arrives without
+   hunting if the prey is gone by then; attack, Dawn and Empower Hunts are
+   unchanged (A1.1b). The ruled description: "Your creature and its prey each deal damage equal to their Attack to the other. The prey is a creature an opponent controls, unless the card says otherwise. A creature with Bulwark cannot hunt. A creature that hunts when it arrives can't be cast unless it has prey."
    `TargetSpec` already has `yourCreature` and `opponentCreature`; Hunt
    uses two ordered specs (hunter, then prey), which the multi-spec path
    already enumerates, not `exactly: 2` (that is one spec for an unordered
@@ -386,25 +392,25 @@ Fern-Shadow Stalker, Spear-Thrower of the Ember Clan). They hunt a creature
 an opponent controls if a legal one exists; only when none does are they
 forced to hunt another creature you control; with neither, the trigger does
 nothing. Spells, Duties and Empower keep a free choice (B5). **Superseded
-later on 2026-09-28 (the bare-keyword ruling):** that prey rule now holds for
-every Hunt (spell, arrival, attack, Dawn, Duty, Empower), and Hunt prints as
-a bare keyword. What follows:
+later on 2026-09-28 (the bare-keyword ruling):** that prey rule held for
+every Hunt, and Hunt prints as a bare keyword. **Superseded again the same
+day (the final Hunt ruling), E6's fallback entirely:** the generic prey is a
+creature an opponent controls, with no fallback, and a card may declare
+`any` or `yours` instead. What follows:
 
-- **A1** builds the preference (an opponent's creature if able) with the
-  Hunt op's other targeting rules; no optional trigger is built. The lab
-  (A1.3) counts the forced self-hunt and prices it (on every Hunt, since the
-  bare-keyword ruling).
-- **A2.b** Easy's own-prey filter is moot: since the bare-keyword ruling no
-  Hunt offers your own creature while an opponent's is legal, so Easy, like
-  everyone, hunts its own only when forced.
-- **A2.d** The converter's target walk gives the seven creature supply for
-  the forced case (the any-prey case the spec named "if Q6 goes the other
-  way"), and the usage rows count a forced self-hunt apart from a chosen
-  one.
+- **A1** builds the prey rule and the two overrides (A1.1b; the A1.1
+  fallback construct is removed); no optional trigger is built. The lab
+  (A1.3) drops the forced-self-hunt arm; the self-Hunt arm, through an `any`
+  card, is live.
+- **A2.b** Easy never hunts its own creature *by choice*: its filter matters
+  again, on the cards that declare `any` (the owner's B5).
+- **A2.d** The converter's target walk treats every generic Hunt as dead
+  without an opponent's creature (an arrival hunter can't be cast), and the
+  usage rows count an `any` self-hunt apart.
 - **The words.** The spec's player copy is approved (E10). The seven's
   proposed template is superseded: Hunt is a bare keyword ("When this
   arrives, Hunt."; "Target creature you control Hunts."), and the Hunt
-  description is APPROVED (2026-09-28): "Your creature and its prey each deal damage equal to their Attack to the other. The prey is a creature an opponent controls if possible, otherwise another creature you control. A creature with Bulwark cannot hunt."
+  description, as the final Hunt ruling leaves it, is RULED (2026-09-28): "Your creature and its prey each deal damage equal to their Attack to the other. The prey is a creature an opponent controls, unless the card says otherwise. A creature with Bulwark cannot hunt. A creature that hunts when it arrives can't be cast unless it has prey."
 
 The rest, in one line each: Provoked in the state-based check with the
 Hauntlink exception (E1); Hunt's targeting rules inside the Hunt op, no
@@ -1219,9 +1225,9 @@ Numbered so rulings can cite them. Recommendations are the first option.
     monster-girls and Dinosaur for plain dinosaurs on tokens and a few
     creature cards, riders are not Dinokin, and a few Beastkin megafauna
     girls sit beside them), Hunt may target your own creatures, which Easy AI
-    never does (B5; narrowed by E6 and then, by the bare-keyword ruling of
-    2026-09-28, for every Hunt: each takes an opponent's creature if able,
-    so nobody hunts their own by choice), and Hunt damage counts for every damage-reading keyword
+    never does (B5; narrowed by the final Hunt ruling of 2026-09-28: the
+    generic Hunt takes only an opponent's creature, and only a card that
+    declares `any` or `yours` reaches your own side), and Hunt damage counts for every damage-reading keyword
     and trigger (B6), evergreen: any such keyword the game adds later
     applies to Hunt with no Hunt-specific code, while combat-defined
     keywords (First Blade, Twin Blades, Overrun) do not. Also ruled: Bulwark prevents Hunt at any rarity (a
@@ -1259,9 +1265,12 @@ Numbered so rulings can cite them. Recommendations are the first option.
     (the bare-keyword ruling):** Hunt is a bare verb keyword like Mark ("When
     this arrives, Hunt.", "During your Dawn, Hunt.", "Whenever this attacks,
     Hunt.", Duties and Empower with their usual opener; the spell form
-    "Target creature you control Hunts."), every Hunt takes a creature an
-    opponent controls if a legal one exists, otherwise another creature you
-    control, and the Hunt description is APPROVED: "Your creature and its prey each deal damage equal to their Attack to the other. The prey is a creature an opponent controls if possible, otherwise another creature you control. A creature with Bulwark cannot hunt." E3 "Keep", E4 "Validator
+    "Target creature you control Hunts."), and every Hunt took an
+    opponent's creature if able, else another of yours. **Superseded again
+    that day (the final Hunt ruling):** the generic prey is an opponent's
+    creature only, with no fallback; a card may declare `any` or `yours`;
+    an arrival hunter chooses its prey at cast and can't be cast without
+    one; the ruled description: "Your creature and its prey each deal damage equal to their Attack to the other. The prey is a creature an opponent controls, unless the card says otherwise. A creature with Bulwark cannot hunt. A creature that hunts when it arrives can't be cast unless it has prey." E3 "Keep", E4 "Validator
     change", E7 "Cost them in lab", E8 "Not in 1.9". See lane A.
   - **The overplan's questions** (F1-F8): the provisional rates until the
     lab; Oru's Dinosaur half is Dreaded; the Duty count trims toward 18,

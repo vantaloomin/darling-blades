@@ -7,21 +7,27 @@ import { enumerateTargets } from '../../src/engine/effects/targeting';
 import { fireTriggers, runOps } from '../../src/engine/effects/EffectInterpreter';
 import { resolveStackItem } from '../../src/engine/resolve';
 import { checkStateBased } from '../../src/engine/sba';
-import type { AbilityDef, CardDb, CardDef, EffectOp, GameState, Keyword, TargetRef, TargetSpec } from '../../src/engine/types';
+import type { AbilityDef, CardDb, CardDef, GameState, HuntPrey, Keyword, Permanent, TargetRef, TargetSpec } from '../../src/engine/types';
 import { validateEmpowerDef, validateHuntDef } from '../../src/engine/types';
 import { board, card, dbOf, ref, spell } from '../drownedDeepFixture';
 
 // Hunt (plan-first-dawn-engine.md, Part 2, as ruled by the owner in E2-E5 and
 // the bare-keyword ruling of 2026-09-28): the hunter and its prey each deal
 // damage equal to their Attack to the other, through the shared
-// creature-damage path. Every Hunt's prey is a creature an opponent controls
-// if a legal one exists, otherwise another creature you control.
+// creature-damage path. A Hunt's prey is a creature an opponent controls
+// (ruled 2026-09-28, no fallback), unless the card declares its own (`any`,
+// `yours`).
 
-/** Every Hunt's prey spec, as card data must carry it. */
-const PREY: TargetSpec = { what: 'creature', other: true, opponentIfAble: true };
+/** The default prey spec, as card data carries it. */
+const PREY: TargetSpec = { what: 'opponentCreature' };
+/** The `any` override's prey spec. */
+const ANY_PREY: TargetSpec = { what: 'creature', other: true };
 const HUNT_SPELL_TARGETS: TargetSpec[] = [{ what: 'yourCreature' }, PREY];
+const ANY_SPELL_TARGETS: TargetSpec[] = [{ what: 'yourCreature' }, ANY_PREY];
 /** "Target creature you control Hunts. Draw a card." */
 const stalk = spell('stalk', [{ op: 'hunt', hunter: 'target' }, { op: 'draw', n: 1 }], HUNT_SPELL_TARGETS);
+/** "Target creature you control Hunts any other creature." (the `any` override) */
+const stalkAny = spell('stalkAny', [{ op: 'hunt', hunter: 'target', prey: 'any' }], ANY_SPELL_TARGETS);
 /** "Target creature you control gets +2/+2 until end of turn, then it Hunts." */
 const fang = spell('fang', [{ op: 'boost', p: 2, t: 2, scope: 'target' }, { op: 'hunt', hunter: 'target' }], HUNT_SPELL_TARGETS);
 const body = (id: string, attack: number, defense: number, keywords: Keyword[] = [], extra: Partial<CardDef> = {}) =>
@@ -31,11 +37,11 @@ const damageOf = (state: GameState, iid: number) => state.battlefield.find((p) =
 const onBoard = (state: GameState, iid: number) => state.battlefield.some((p) => p.iid === iid);
 
 /** Run a spell-form Hunt's ops as the resolving spell does, then its state-based check. */
-function huntNow(state: GameState, db: CardDb, hunter: number, prey: number, ops: EffectOp[] = [{ op: 'hunt', hunter: 'target' }]): GameEvent[] {
+function huntNow(state: GameState, db: CardDb, hunter: number, prey: number, specs: TargetSpec[] = HUNT_SPELL_TARGETS): GameEvent[] {
   const events: GameEvent[] = [];
   runOps(state, db, (e) => events.push(e), {
-    controller: 0, sourceCardId: 'stalk', targets: [ref(hunter), ref(prey)], targetSpecs: HUNT_SPELL_TARGETS,
-  }, ops);
+    controller: 0, sourceCardId: 'stalk', targets: [ref(hunter), ref(prey)], targetSpecs: specs,
+  }, [{ op: 'hunt', hunter: 'target' }]);
   checkStateBased(state, db, (e) => events.push(e));
   return events;
 }
@@ -114,34 +120,29 @@ describe('Hunt: the exchange', () => {
 });
 
 describe('Hunt: targeting (its own rules, E2)', () => {
-  const db = dbOf(body('h', 2, 2), body('wall', 0, 6, ['bulwark']), body('p', 2, 2), body('ghost', 2, 2, ['untouchable']), stalk);
+  const db = dbOf(body('h', 2, 2), body('wall', 0, 6, ['bulwark']), body('p', 2, 2), body('ghost', 2, 2, ['untouchable']), stalk, stalkAny);
+  const board3 = (hand: string) => board([[hand], []], [
+    { iid: 1, cardId: 'h' }, { iid: 2, cardId: 'wall' }, { iid: 3, cardId: 'wall', controller: 1 },
+  ]);
 
   it('legal actions never offer a Bulwark hunter or one creature in both slots', () => {
-    const state = board([['stalk'], []], [
-      { iid: 1, cardId: 'h' }, { iid: 2, cardId: 'wall' }, { iid: 3, cardId: 'wall', controller: 1 },
-    ]);
-    const lists = castTargets(state, db);
+    const lists = castTargets(board3('stalkAny'), db);
     expect(lists.length).toBeGreaterThan(0);
     for (const [hunter, prey] of lists) {
       expect(hunter).not.toEqual(ref(2));
       expect(hunter).not.toEqual(prey);
     }
-    // A Bulwark creature can be prey.
+    // A Bulwark creature can be prey, on either side under `any`.
+    expect(lists).toContainEqual([ref(1), ref(2)]);
     expect(lists).toContainEqual([ref(1), ref(3)]);
-    // Forced onto your own side (the opponent has no creature), the rule still holds.
-    const forced = castTargets(board([['stalk'], []], [{ iid: 1, cardId: 'h' }, { iid: 2, cardId: 'wall' }]), db);
-    expect(forced).toEqual([[ref(1), ref(2)]]);
+    // The default prey is only the opponent's.
+    expect(castTargets(board3('stalk'), db)).toEqual([[ref(1), ref(3)]]);
   });
 
   it('refuses a submitted Bulwark hunter or a creature hunting itself', () => {
-    const state = board([['stalk'], []], [
-      { iid: 1, cardId: 'h' }, { iid: 2, cardId: 'wall' }, { iid: 3, cardId: 'p', controller: 1 },
-    ]);
-    const game = Game.restore(state, db);
+    const game = Game.restore(board3('stalkAny'), db);
     expect(() => game.submit(0, { type: 'castSpell', handIndex: 0, targets: [ref(2), ref(3)] })).toThrow(/Bulwark/);
-    // With no opposing creature your own is legal prey, but never the hunter itself.
-    const alone = Game.restore(board([['stalk'], []], [{ iid: 1, cardId: 'h' }, { iid: 2, cardId: 'wall' }]), db);
-    expect(() => alone.submit(0, { type: 'castSpell', handIndex: 0, targets: [ref(1), ref(1)] })).toThrow(/two different/);
+    expect(() => game.submit(0, { type: 'castSpell', handIndex: 0, targets: [ref(1), ref(1)] })).toThrow(/two different/);
   });
 
   it('a hunter that gains Bulwark before resolution deals nothing', () => {
@@ -152,13 +153,15 @@ describe('Hunt: targeting (its own rules, E2)', () => {
     expect(damageOf(state, 3)).toBe(0);
   });
 
-  it('an opponent\'s Untouchable creature is not legal prey; your own is', () => {
-    const state = board([['stalk'], []], [
+  it('an opponent\'s Untouchable creature is not legal prey; your own is, under `any`', () => {
+    const state = board([['stalkAny'], []], [
       { iid: 1, cardId: 'h' }, { iid: 2, cardId: 'ghost' }, { iid: 3, cardId: 'ghost', controller: 1 },
     ]);
     const preys = castTargets(state, db).map(([, prey]) => prey);
     expect(preys).toContainEqual(ref(2));
     expect(preys).not.toContainEqual(ref(3));
+    state.players[0].hand = ['stalk'];
+    expect(castTargets(state, db)).toEqual([]);
   });
 });
 
@@ -198,11 +201,11 @@ describe('Hunt: keywords through the shared damage path', () => {
     expect(damageOf(state, 1)).toBe(2);
   });
 
-  it('a forced self-hunt (the opponent has no creature) provokes both survivors', () => {
+  it('a self-hunt (the `any` override) provokes both survivors', () => {
     const angry = (id: string) => body(id, 1, 4, [], { abilities: [{ when: 'provoked', ops: [{ op: 'gainLife', n: 2 }] }] });
     const db = dbOf(angry('a'), angry('b'));
     const state = board([[], []], [{ iid: 1, cardId: 'a' }, { iid: 2, cardId: 'b' }]);
-    const events = huntNow(state, db, 1, 2);
+    const events = huntNow(state, db, 1, 2, ANY_SPELL_TARGETS);
     expect(events.filter((e) => e.e === 'triggerFired' && e.when === 'provoked').map((e) => e.e === 'triggerFired' && e.iid)).toEqual([1, 2]);
     expect(state.players[0].life).toBe(24);
   });
@@ -294,54 +297,37 @@ describe('Hunt: its carriers', () => {
   });
 });
 
-describe('Hunt: whose prey (every Hunt, ruled 2026-09-28)', () => {
+describe('Hunt: whose prey (the default, ruled 2026-09-28)', () => {
   // "When this arrives, Hunt.": fixture cards, not the overplan rows.
   const HUNT_TRIGGER: AbilityDef = { when: 'arrives', targets: [PREY], ops: [{ op: 'hunt', hunter: 'self' }] };
   const stalker = body('stalker', 4, 2, [], { abilities: [HUNT_TRIGGER] });
-  /** The same rule without `other`: the rule itself keeps the hunter out. */
-  const bare = body('bare', 4, 2, [], { abilities: [{ ...HUNT_TRIGGER, targets: [{ what: 'creature', opponentIfAble: true }] }] });
-  const db = dbOf(stalker, bare, body('mine', 1, 1), body('theirs', 1, 1), body('ghost', 1, 1, ['untouchable']));
-  const spec = (d: CardDef) => d.abilities![0].targets![0];
-  const offered = (battlefield: Parameters<typeof board>[1], d: CardDef = stalker) =>
-    enumerateTargets(board([[], []], battlefield), db, 0, spec(d), 1);
+  const db = dbOf(stalker, body('mine', 1, 1), body('theirs', 1, 1), body('ghost', 1, 1, ['untouchable']));
+  const offered = (battlefield: Parameters<typeof board>[1]) =>
+    enumerateTargets(board([[], []], battlefield), db, 0, PREY, 1);
 
-  it('offers only the opponent\'s creatures when one is legal', () => {
+  it('offers only the opponent\'s creatures, never your own', () => {
     expect(offered([{ iid: 1, cardId: 'stalker' }, { iid: 2, cardId: 'mine' }, { iid: 3, cardId: 'theirs', controller: 1 }, { iid: 4, cardId: 'theirs', controller: 1 }]))
       .toEqual([ref(3), ref(4)]);
+    expect(offered([{ iid: 1, cardId: 'stalker' }, { iid: 2, cardId: 'mine' }])).toEqual([]);
   });
 
-  it('offers your other creatures when the opponent has none', () => {
-    expect(offered([{ iid: 1, cardId: 'stalker' }, { iid: 2, cardId: 'mine' }])).toEqual([ref(2)]);
+  it('never offers an opponent\'s Untouchable creature', () => {
+    expect(offered([{ iid: 1, cardId: 'stalker' }, { iid: 3, cardId: 'ghost', controller: 1 }])).toEqual([]);
   });
 
-  it('counts an opponent\'s lone Untouchable creature as none', () => {
-    expect(offered([{ iid: 1, cardId: 'stalker' }, { iid: 2, cardId: 'mine' }, { iid: 3, cardId: 'ghost', controller: 1 }])).toEqual([ref(2)]);
-  });
-
-  it.each([['with', stalker], ['without', bare]] as const)('never offers the hunter itself (%s `other` on the spec)', (_, d) => {
-    expect(offered([{ iid: 1, cardId: d.id }], d)).toEqual([]);
-    expect(offered([{ iid: 1, cardId: d.id }, { iid: 2, cardId: 'mine' }], d)).toEqual([ref(2)]);
-  });
-
-  it('the arrival trigger asks for exactly that set, and with neither side legal it does nothing', () => {
-    const game = Game.restore(board([['stalker'], []], [{ iid: 2, cardId: 'mine' }, { iid: 3, cardId: 'theirs', controller: 1 }]), db);
-    game.submit(0, { type: 'castSpell', handIndex: 0 });
-    expect(game.awaiting).toMatchObject({ kind: 'chooseTarget', player: 0, targets: [ref(3)] });
-    expect(game.legalActions(0).filter((a) => a.type === 'chooseTarget')).toEqual([{ type: 'chooseTarget', target: ref(3) }]);
-    game.submit(0, { type: 'chooseTarget', target: ref(3) });
-    expect(onBoard(game.instanceState, 3)).toBe(false);
-    expect(damageOf(game.instanceState, 2)).toBe(0);
-
-    const alone = board([[], []], [{ iid: 1, cardId: 'stalker' }, { iid: 3, cardId: 'ghost', controller: 1 }]);
+  it('an arrival that is not a cast fires the Hunt as an ordinary targeted trigger, and with no legal prey does nothing', () => {
+    const state = board([[], []], [{ iid: 1, cardId: 'stalker' }, { iid: 2, cardId: 'mine' }, { iid: 3, cardId: 'theirs', controller: 1 }]);
+    fireTriggers(state, db, () => {}, 'arrives', state.battlefield[0]);
+    expect(state.pendingDecisions).toMatchObject([{ kind: 'chooseTarget', sourceIid: 1, spec: PREY }]);
+    const alone = board([[], []], [{ iid: 1, cardId: 'stalker' }, { iid: 2, cardId: 'mine' }, { iid: 3, cardId: 'ghost', controller: 1 }]);
     fireTriggers(alone, db, () => {}, 'arrives', alone.battlefield[0]);
     expect(alone.pendingDecisions).toEqual([]);
   });
 
-  it('is a creature-spec rule, and a source-bound Hunt is never printed on a Bulwark creature', () => {
+  it('a source-bound Hunt is never printed on a Bulwark creature, nor as a Provoked effect', () => {
     expect(validateHuntDef(stalker)).toEqual([]);
-    expect(validateHuntDef({ ...stalker, abilities: [{ ...HUNT_TRIGGER, targets: [{ what: 'yourCreature', opponentIfAble: true }] }] }).length).toBeGreaterThan(0);
     expect(validateHuntDef({ ...stalker, keywords: ['bulwark'] }).length).toBeGreaterThan(0);
-    expect(validateHuntDef({ ...card('angry'), abilities: [{ when: 'provoked', targets: [{ what: 'creature', other: true }], ops: [{ op: 'hunt', hunter: 'self' }] }] }).length).toBeGreaterThan(0);
+    expect(validateHuntDef({ ...card('angry'), abilities: [{ when: 'provoked', targets: [PREY], ops: [{ op: 'hunt', hunter: 'self' }] }] }).length).toBeGreaterThan(0);
     expect(validateHuntDef(stalk)).toEqual([]);
   });
 
@@ -399,5 +385,151 @@ describe('damage each creature you control (E3)', () => {
     checkStateBased(state, db, () => {});
     expect(onBoard(state, 1)).toBe(true);
     expect(damageOf(state, 2)).toBe(1);
+  });
+});
+
+describe('Hunt: an arrival Hunt chooses its prey when the creature is cast (A1.1b)', () => {
+  // The owner's ruling (2026-09-28): a creature with an arrival Hunt can't be
+  // cast unless it has prey; the prey is its cast target; it hunts as it
+  // arrives; a prey gone by then leaves it arriving without hunting.
+  const HUNT: AbilityDef = { when: 'arrives', targets: [PREY], ops: [{ op: 'hunt', hunter: 'self' }] };
+  const GAIN: AbilityDef = { when: 'arrives', ops: [{ op: 'gainLife', n: 2 }] };
+  const stalker = body('stalker', 4, 2, [], { abilities: [HUNT] });
+  const db = dbOf(
+    stalker, body('mine', 1, 1), body('theirs', 1, 1), body('ghost', 1, 1, ['untouchable']), body('big', 1, 5),
+    body('lord', 0, 3, [], { abilities: [{ when: 'static', static: { scope: 'filter', filter: { other: true }, p: 1 } }] }),
+    body('huntFirst', 4, 2, [], { abilities: [HUNT, GAIN] }),
+    body('gainFirst', 4, 2, [], { abilities: [GAIN, HUNT] }),
+    body('raider', 4, 2, [], { abilities: [{ ...HUNT, when: 'attacks' }] }),
+    body('dawner', 4, 2, [], { abilities: [{ ...HUNT, when: 'dawn' }] }),
+  );
+  const casts = (state: GameState, database: CardDb = db) => legalActions(state, database, 0)
+    .filter((a): a is Extract<Action, { type: 'castSpell' }> => a.type === 'castSpell')
+    .map((a) => a.targets ?? []);
+
+  it('cannot be cast with no other creature on either side', () => {
+    const state = board([['stalker'], []], []);
+    expect(casts(state)).toEqual([]);
+    expect(() => Game.restore(state, db).submit(0, { type: 'castSpell', handIndex: 0 })).toThrow();
+  });
+
+  it('cannot be cast with only your own other creature (no prey under the default rule)', () => {
+    const state = board([['stalker'], []], [{ iid: 2, cardId: 'mine' }]);
+    expect(casts(state)).toEqual([]);
+    expect(() => Game.restore(state, db).submit(0, { type: 'castSpell', handIndex: 0, targets: [ref(2)] })).toThrow();
+  });
+
+  it('offers each of the opponent\'s creatures as prey', () => {
+    const state = board([['stalker'], []], [{ iid: 2, cardId: 'mine' }, { iid: 3, cardId: 'theirs', controller: 1 }, { iid: 4, cardId: 'theirs', controller: 1 }]);
+    expect(casts(state)).toEqual([[ref(3)], [ref(4)]]);
+  });
+
+  it('an opponent\'s lone Untouchable creature leaves it uncastable', () => {
+    const state = board([['stalker'], []], [{ iid: 2, cardId: 'mine' }, { iid: 3, cardId: 'ghost', controller: 1 }]);
+    expect(casts(state)).toEqual([]);
+  });
+
+  it('hunts as it arrives, with its own effective Attack', () => {
+    const game = Game.restore(board([['stalker'], []], [{ iid: 2, cardId: 'lord' }, { iid: 3, cardId: 'big', controller: 1 }]), db);
+    game.submit(0, { type: 'castSpell', handIndex: 0, targets: [ref(3)] });
+    // A 4/2 with the lord's +1/+0 deals 5 to a 1/5: it dies. No choice was left to make.
+    expect(onBoard(game.instanceState, 3)).toBe(false);
+    expect(game.awaiting).toEqual({ player: 0, kind: 'main' });
+  });
+
+  it.each([['has left', 'gone'], ['is no longer a legal prey', 'untouchable']] as const)(
+    'arrives and does not hunt when the prey %s', (_, how) => {
+      const state = board([[], []], how === 'gone' ? [] : [{ iid: 3, cardId: 'theirs', controller: 1 }]);
+      if (how === 'untouchable') state.battlefield[0].untilEotMods.push({ p: 0, t: 0, keywords: ['untouchable'] });
+      const events: GameEvent[] = [];
+      resolveStackItem(state, db, { sid: 1, cardId: 'stalker', controller: 0, targets: [ref(3)] }, (e) => events.push(e));
+      expect(events).not.toContainEqual({ e: 'targetsFizzled', sid: 1 });
+      expect(state.battlefield.map((p) => p.cardId)).toContain('stalker');
+      expect(events.some((e) => e.e === 'hunted' || e.e === 'damageMarked')).toBe(false);
+    });
+
+  it.each([['huntFirst', ['hunted', 'gain']], ['gainFirst', ['gain', 'hunted']]] as const)(
+    'resolves in its printed place among the arrival abilities (%s)', (cardId, order) => {
+      const state = board([[], []], [{ iid: 3, cardId: 'big', controller: 1 }]);
+      const events: GameEvent[] = [];
+      resolveStackItem(state, db, { sid: 1, cardId, controller: 0, targets: [ref(3)] }, (e) => events.push(e));
+      const seen = events.flatMap((e) => e.e === 'hunted' ? ['hunted'] : e.e === 'lifeChanged' && e.delta === 2 ? ['gain'] : []);
+      expect(seen).toEqual([...order]);
+    });
+
+  it('leaves attack and Dawn Hunts as ordinary triggers: castable without prey, and with none they do nothing', () => {
+    expect(casts(board([['raider'], []], []))).toEqual([[]]);
+    expect(casts(board([['dawner'], []], []))).toEqual([[]]);
+    const state = board([[], []], [{ iid: 1, cardId: 'raider' }, { iid: 2, cardId: 'dawner' }, { iid: 3, cardId: 'theirs', controller: 1 }]);
+    fireTriggers(state, db, () => {}, 'attacks', state.battlefield[0]);
+    fireTriggers(state, db, () => {}, 'dawn', state.battlefield[1]);
+    expect(state.pendingDecisions).toHaveLength(2);
+    const bare = board([[], []], [{ iid: 1, cardId: 'raider' }, { iid: 2, cardId: 'dawner' }]);
+    fireTriggers(bare, db, () => {}, 'attacks', bare.battlefield[0]);
+    fireTriggers(bare, db, () => {}, 'dawn', bare.battlefield[1]);
+    expect(bare.pendingDecisions).toEqual([]);
+    expect(bare.battlefield[0].firedThisTurn).toBeUndefined();
+  });
+
+  it('refuses a second arrival Hunt, or one beside Empower targets', () => {
+    expect(validateHuntDef(stalker)).toEqual([]);
+    expect(validateHuntDef({ ...stalker, abilities: [HUNT, HUNT] }).length).toBeGreaterThan(0);
+    expect(validateHuntDef({ ...stalker, empower: { cost: { generic: 1, pips: {} }, targets: [PREY], ops: [{ op: 'hunt', hunter: 'self' }] } }).length).toBeGreaterThan(0);
+  });
+});
+
+describe('Hunt: a card may state its own prey (overrides, ruled 2026-09-28)', () => {
+  // Card text overrides the default rule only when the op declares it; the
+  // prey spec carries the rule the engine enforces.
+  const SPECS: Record<'default' | HuntPrey, TargetSpec> = {
+    default: PREY,
+    any: ANY_PREY,
+    yours: { what: 'yourCreature', other: true },
+  };
+  const hunter = (prey: 'default' | HuntPrey, spec: TargetSpec = SPECS[prey]): CardDef =>
+    body(`hunter-${prey}`, 3, 3, [], { abilities: [{ when: 'arrives', targets: [spec], ops: [{ op: 'hunt', hunter: 'self', ...(prey === 'default' ? {} : { prey }) }] }] });
+  const db = dbOf(...(['default', 'any', 'yours'] as const).map((p) => hunter(p)),
+    body('mine', 1, 1), body('theirs', 1, 1), body('ghost', 1, 1, ['untouchable']));
+  const preyOf = (prey: 'default' | HuntPrey, battlefield: Partial<Permanent>[]) => {
+    const d = hunter(prey);
+    return enumerateTargets(board([[], []], [{ iid: 1, cardId: d.id }, ...battlefield]), db, 0, d.abilities![0].targets![0], 1);
+  };
+  const full: Partial<Permanent>[] = [{ iid: 2, cardId: 'mine' }, { iid: 3, cardId: 'theirs', controller: 1 }, { iid: 4, cardId: 'ghost', controller: 1 }];
+
+  it.each([
+    ['default', [3]], ['any', [2, 3]], ['yours', [2]],
+  ] as const)('%s: the declared rule is valid data, and its legal prey set matches it (never the hunter)', (prey, expected) => {
+    expect(validateHuntDef(hunter(prey))).toEqual([]);
+    expect(preyOf(prey, full)).toEqual(expected.map(ref));
+  });
+
+  it('the default never falls back to your own creature', () => {
+    const noLegalOpponent: Partial<Permanent>[] = [{ iid: 2, cardId: 'mine' }, { iid: 4, cardId: 'ghost', controller: 1 }];
+    expect(preyOf('default', noLegalOpponent)).toEqual([]);
+    expect(preyOf('any', noLegalOpponent)).toEqual([ref(2)]);
+  });
+
+  it.each(['any', 'yours'] as const)('refuses a %s declaration whose spec does not match it', (prey) => {
+    expect(validateHuntDef(hunter(prey, prey === 'any' ? SPECS.yours : SPECS.any)).length).toBeGreaterThan(0);
+    expect(validateHuntDef(hunter(prey, PREY)).length).toBeGreaterThan(0);
+    // A source-bound override without `other` would offer the hunter as its own prey.
+    expect(validateHuntDef(hunter(prey, { what: SPECS[prey].what })).length).toBeGreaterThan(0);
+  });
+
+  it('refuses an override spec with no declaration', () => {
+    expect(validateHuntDef(hunter('default', SPECS.any)).length).toBeGreaterThan(0);
+    expect(validateHuntDef(hunter('default', SPECS.yours)).length).toBeGreaterThan(0);
+  });
+
+  it.each([
+    ['default', [{ iid: 2, cardId: 'mine' }], []],
+    ['yours', [{ iid: 3, cardId: 'theirs', controller: 1 }], []],
+    ['yours', [{ iid: 2, cardId: 'mine' }], [[2]]],
+    ['any', [{ iid: 2, cardId: 'mine' }, { iid: 3, cardId: 'theirs', controller: 1 }], [[2], [3]]],
+  ] as [('default' | HuntPrey), Partial<Permanent>[], number[][]][])('an arrival %s hunter is castable exactly when its own rule has prey', (prey, battlefield, expected) => {
+    const d = hunter(prey);
+    const lists = legalActions(board([[d.id], []], battlefield), db, 0)
+      .filter((a): a is Extract<Action, { type: 'castSpell' }> => a.type === 'castSpell').map((a) => a.targets ?? []);
+    expect(lists).toEqual(expected.map((iids) => iids.map(ref)));
   });
 });
