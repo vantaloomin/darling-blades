@@ -1890,6 +1890,97 @@ each shown to fail with its behaviour switched off. In
 `tests/data/avatarReserveDecks.test.ts`, the dead-target check now builds the
 format's supply with its sides, as the converter does.
 
+## As built (A2.b): Medium, Easy and the draft
+
+A2.b built Part 4's A2 half in `src/ai/huntPolicy.ts` (new), `EasyAI.ts`,
+`MediumAI.ts` and `src/meta/draftPicker.ts`. `docs/ai.md`, "Hunt and
+Provoked: Medium, Easy and the draft", records the behaviour;
+`tests/ai/huntPolicyA2b.test.ts` and `tests/meta/draftHuntProvoked.test.ts`
+pin it on fixture cards.
+
+- **One filter for both brains** (`applyHuntPolicy`), run before the shared
+  cast-target policy keeps one target per cast. A choice is *friendly* when
+  it hunts your own creature (any carrier; an `any` or `yours` card) or aims
+  damage at your own creature that has Provoked (targeted, or "damage each
+  creature you control"). A Hunt spell's hunter and a sweep of every creature
+  are not friendly choices. Options are grouped by decision (a target choice;
+  one cast mode; one Duty), and a friendly option is dropped unless its
+  shared value clears the plain alternative by the margin: the best plain
+  option of the decision, or 0 (not acting) when the decision can be
+  declined. A forced decision with no plain option keeps everything: a
+  trigger's target is mandatory, and for Medium a creature's own cast (or a
+  Darling call) is forced too (the body is the point; only its arrival prey
+  is chosen).
+- **Easy's margin is infinite** (B5): no avoidable friendly choice, which
+  covers both "never hunts its own creature by choice" and "may skip friendly
+  sources entirely". For Easy a creature cast or Darling call is declinable
+  (Fable's review, S1: casting the creature is a choice), so an `any` arrival
+  hunter whose only prey is its own creature stays in hand. Only a mandatory
+  target is forced: an attack or Dawn Hunt with only its own creature to hunt
+  still hunts it.
+- **Medium's margin is 1.25** (`SELF_PROVOKE_MARGIN`): one card at the value
+  layer's draw rate. A self-Hunt or friendly source spends a card, a Duty or
+  tempo on your own creature, so Medium does it when it nets a card over the
+  plain play. Tested on both sides (a hunter's prey, a Hunt spell with no
+  opposing creature, a damage Duty's target, "damage each creature you
+  control", an attack Hunt's prey). Untuned: no lab arm plays Medium.
+- **Folded in from A1.2's hand-offs.** Medium's cast score adds the arrival
+  Hunt's value on the cast's prey (A1.2: "Medium and Easy cast an arrival
+  hunter whenever it is legal, even when every prey kills it"), so it ranks
+  hunters by their prey; it still casts one when nothing else is castable. A
+  Darling with an arrival Hunt is cast at its best prey by Medium and Easy
+  (`applyDarlingPreyPolicy`; the shared policy keys on `castSpell` only).
+  Easy's cast score still reads no Hunt value, by design.
+- **The counter forecast** (`MediumAI.liveCharm`): a counter whose ops
+  include a spell-form Hunt is held only with a hunter of yours without
+  Bulwark (effective keywords) and a different creature in the prey slot.
+- **The draft picker** (`scorePick`; the pick-history terms, not
+  `scoreBasePick`): a Provoked payoff gains 0.75 times `mechanicWeight` per
+  source drafted and a source the same per payoff, capped at four partners (3
+  at the shipped weight, under one removal's 5); a spell-form Hunt is
+  removal pro rata to the creatures drafted, in full from six; a Hunt bound
+  to the card is full removal, as an arrival damage effect is; `yours` prey
+  is a source, not removal; `any` prey is both. Untuned; the Limited deck
+  builder (`scoreBasePick`) does not read them.
+- **Zero on today's pool.** The filter returns the menu untouched unless the
+  card pool prints a Hunt or a Provoked ability, and the draft terms read
+  zero for a card with no Hunt or Provoked role. A census of all 1,515
+  shipped cards (2026-09-29) found no Hunt, no Provoked, no damage aimed at
+  a creature you control and no "damage each creature you control"; Medium's
+  new cast-score term is 0 without an arrival Hunt and the counter check
+  applies only to a card with a spell-form Hunt. The action-log harness run is
+  the main session's.
+- **Known limits.** Hard constructs its Medium from the same class, so Hard's
+  Medium baseline candidate and its rollouts follow Medium's margin (its own
+  decision is still its search). Medium's removal ladder does not read a Hunt
+  spell as removal. **Scheduled for wave 3 (owner-approved, 2026-09-29):**
+  Medium holds an arrival hunter that every prey would kill; today it ranks
+  one lower but still casts it when nothing else develops (pinned by a test,
+  so the rule's change is visible).
+- **Follow-up after First Dawn lands** (Fable's review): a per-decision
+  pre-check, so the filter skips the friendly classification on decisions
+  whose card cannot hunt or source (today it is gated per pool only, which is
+  free on today's pool and costs a classification per cast, Duty and target
+  option once First Dawn is in it). Not built.
+- **Tests and their mutations.** `tests/ai/huntPolicyA2b.test.ts` (18) and
+  `tests/meta/draftHuntProvoked.test.ts` (7); each mutation below was run
+  against the files and fails the tests named:
+  - Easy's filter removed: 6 fail; Easy given Medium's margin: 7 fail.
+  - Medium's margin at 0: 4 fail; at 1e9: 3 fail.
+  - The forced-decision fallback removed: 2 fail.
+  - Easy's creature casts forced again (S1 off): 1 fails (Easy casts the
+    `any` hunter at its own creature instead of holding it).
+  - Medium's arrival-Hunt cast term removed: 1 fails; Medium holding a hunter
+    whose prey kills it: 1 fails.
+  - The Darling prey policy off: 2 fail (the menu and Easy's noise-roll call).
+  - The counter forecast's Hunt pair check removed: 1 fails.
+  - Friendly detection off, one shape at a time: "damage each creature you
+    control" 2, targeted damage 2, a source-bound self-Hunt 5, a Hunt spell's
+    own prey 3.
+  - Draft: the payoff term 1, the source term 3, the Hunt spell's creature
+    weighting 1, a source-bound Hunt not removal 2, no cap 1, `yours` as
+    removal 1, `any`/`yours` not sources 2, `mechanicWeight` scaling 1.
+
 ## What this spec corrects
 
 In the **overplan** (lane B should update it; this spec does not edit it;

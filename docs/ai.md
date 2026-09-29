@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/ScriptAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/targeting.ts, src/ai/activatedPolicy.ts, src/ai/ritePolicy.ts, src/ai/tithePolicy.ts, src/ai/whispersPolicy.ts, src/ai/discardPolicy.ts, src/ai/sacrificePolicy.ts, src/ai/preservePolicy.ts, src/ai/hauntlinkPolicy.ts, src/ai/landPolicy.ts, src/ai/darlingPolicy.ts, src/ai/foresee.ts, src/ai/personality.ts, src/ai/NoisyAI.ts, src/ai/tiers.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts, tests/ai/rungSmokes.test.ts, tests/ai/documentedBehaviour.test.ts, tests/ai/huntProvoked.test.ts, docs/plan-ai-modernization.md · last-verified: 2026-09-29
+<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/ScriptAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/targeting.ts, src/ai/activatedPolicy.ts, src/ai/ritePolicy.ts, src/ai/tithePolicy.ts, src/ai/whispersPolicy.ts, src/ai/discardPolicy.ts, src/ai/sacrificePolicy.ts, src/ai/preservePolicy.ts, src/ai/hauntlinkPolicy.ts, src/ai/landPolicy.ts, src/ai/darlingPolicy.ts, src/ai/foresee.ts, src/ai/huntPolicy.ts, src/ai/personality.ts, src/ai/NoisyAI.ts, src/ai/tiers.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts, tests/ai/rungSmokes.test.ts, tests/ai/documentedBehaviour.test.ts, tests/ai/huntProvoked.test.ts, tests/ai/huntPolicyA2b.test.ts, tests/meta/draftHuntProvoked.test.ts, docs/plan-ai-modernization.md · last-verified: 2026-09-29
      If you change those files, update this doc or re-verify the date. -->
 
 # AI
@@ -60,6 +60,9 @@ Concretely in the code:
   the spell it displaces, so an affordable rider is no longer always paid.
 - **Hand-size discard:** a uniformly random legal set (the loot discard uses
   the shared `discardPolicy` like every other brain).
+- **Hunt and Provoked (1.9):** never hunts its own creature, or aims damage
+  at its own Provoked creature, when it could avoid it (see "Hunt and
+  Provoked: Medium, Easy and the draft" below).
 
 Easy has its own seeded RNG (`createRngState`) so its randomness is reproducible.
 
@@ -129,6 +132,9 @@ lookahead." Its rules:
   thresholds, with enemy mark removal treated as removal; and **bounce-to-save**
   for an owned creature under lethal targeted removal or a losing block. Every
   rule reads the redacted view and the legal menu only.
+- **Hunt and Provoked (1.9):** a self-Hunt or a friendly Provoked source
+  only when it beats the plain choice by a card; an arrival hunter ranked by
+  its Hunt (see "Hunt and Provoked: Medium, Easy and the draft" below).
 - **Duty:** a tap-only Duty in main one unless its body wants to attack; a
   paid Duty in main one only when it buys the attack something (a lethal one
   ahead of a Hauntlink link, Preserve and every cast unless a spell in hand
@@ -453,7 +459,8 @@ Hard's search already plays them through the real engine. Every read is
 zero unless a Hunt op or a Provoked ability is on the board or in the card,
 and on today's pool the games are identical (below). Medium's and Easy's own
 Hunt policy (never hunting their own creature by choice, the self-provoke
-margin) is A2.b. Each claim is pinned in `tests/ai/huntProvoked.test.ts`.
+margin) is in the next section. Each claim is pinned in
+`tests/ai/huntProvoked.test.ts`.
 
 - **A Hunt is valued as the exchange it is** (`huntExchangeValue`,
   `value.ts`). Both creatures deal their Attack at once on the public board:
@@ -511,6 +518,76 @@ unchanged base f2c25228 and again, after the review's fixes, against
 066f1dc7. As a control, an ungated 0.3 swing in the combat
 planner's Provoked term diverged 55 of the 112 weenie games, so the harness
 sees this planner.
+
+## Hunt and Provoked: Medium, Easy and the draft (1.9, A2.b)
+
+The shared reads above take a self-Hunt (an `any` or `yours` Hunt on your
+own creature) or a friendly Provoked source (damage aimed at your own
+creature that has Provoked, or "damage each creature you control" with one
+there) whenever the value says it pays. Hard plays that read as it is.
+Medium and Easy filter their menus first (`src/ai/huntPolicy.ts`), before
+the shared cast-target policy keeps one target per cast. A Hunt spell's
+hunter is always yours and is not such a choice, nor is a sweep of every
+creature. Each claim is pinned in `tests/ai/huntPolicyA2b.test.ts` and
+`tests/meta/draftHuntProvoked.test.ts`.
+
+- **Easy never hunts its own creature by choice, and skips friendly
+  sources** (the owner's B5). It never casts an `any` or `yours` Hunt spell
+  at its own creature, never uses an `any` or `yours` Hunt Duty on its own
+  creature or a Duty that damages its own Provoked creature, and aims a
+  damage Duty or trigger at another creature when there is one. Casting a
+  creature is a choice too: an arrival hunter (or a Darling) whose only prey
+  is its own creature stays in hand. Only what is mandatory still happens:
+  a trigger's target must be chosen, so an attack or Dawn Hunt whose only
+  prey is its own creature hunts it.
+- **Medium's margin: one card** (`SELF_PROVOKE_MARGIN`, 1.25, the value
+  layer's price for drawing a card). Medium takes a friendly choice only
+  when its value beats the best plain choice of the same decision by that
+  much; when the decision can be declined (a spell, a Duty, an empowered
+  mode) the plain choice includes not acting, worth 0. So a Hunt spell on its
+  own creature is cast only when the Provoked it sets off nets a card, and a
+  hunter takes its own Provoked creature over the opponent's only when that
+  is better by a card. The margin is untuned: no lab arm measures Medium.
+- **Medium ranks an arrival hunter by its Hunt.** Its cast score adds the
+  arrival Hunt's value on the cast's prey (`arrivalHuntCastValue`), so a
+  hunter with prey it kills and survives outranks a slightly better vanilla,
+  and one whose every prey kills it ranks below. It still casts the hunter
+  when nothing else is castable, and a creature cast whose only prey is its
+  own still clears the margin against nothing (the body is the point).
+  Holding an arrival hunter that every prey would kill is a scheduled
+  wave-3 rule (owner-approved, 2026-09-29).
+- **A Darling with an arrival Hunt is cast at its best prey**, for Medium
+  and Easy (`applyDarlingPreyPolicy`); the shared cast-target policy keys on
+  `castSpell` only, so before this they took the first prey in battlefield
+  order. Easy reaches a Darling today only through its noise roll (U1, in
+  wave 3, fixes that).
+- **Medium's counter forecast knows the Hunt pair rule.** A counter that
+  also has a creature of yours hunt is held only when you control a hunter
+  without Bulwark and there is a different creature to hunt, so a
+  Bulwark-only board does not read as castable.
+- **The draft picker** (`scorePick`, `src/meta/draftPicker.ts`). A Provoked
+  payoff (a creature with Provoked) gains 0.75 times `mechanicWeight` for each
+  source already drafted, up to four; a source (damage aimed at a creature
+  you control, damage each creature you control, or an `any` or `yours`
+  Hunt) gains the same for each payoff; a Hunt spell counts as removal
+  (`removalWeight`) pro rata to the creatures drafted, in full from six, and
+  a Hunt bound to the card itself (arrival, attack, Dawn, Duty, Empower)
+  counts as full removal, as an arrival damage effect does. A `yours` Hunt
+  is a source, not removal. The weights are untuned. The Limited deck
+  builder scores with `scoreBasePick`, which does not read them.
+- **Known limits.** Hard builds its Medium on the same code, so Hard's
+  Medium baseline candidate and its rollouts follow Medium's margin; Hard's
+  own decision is its search. Medium's removal ladder still does not treat a
+  Hunt spell as removal (it is cast as a develop spell at its best pair).
+  Medium still casts an arrival hunter whose every prey kills it when nothing
+  else develops (the wave-3 rule above).
+
+**On today's pool the policy is inert.** It reads nothing unless a card in
+the pool prints a Hunt or a Provoked ability, and no shipped card does (a
+census of all 1,515 cards, 2026-09-29: no Hunt, no Provoked, no damage aimed
+at "a creature you control", no "damage each creature you control"), so
+every shipped game is unchanged; the draft terms read zero for a card with
+no Hunt or Provoked role, and every shipped card has none.
 
 ## Win-rate gates
 
