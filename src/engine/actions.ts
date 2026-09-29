@@ -14,7 +14,7 @@ import { graveInstanceAt, graveRefMoved, sameGraveCard } from './graveyard';
 import { canPay, combineManaCosts, manaSources, maxPayableX, solveMana } from './mana';
 import { castTargetSpecs } from './resolve';
 import { getEffectiveStats } from './statics';
-import type { CardDb, CardDef, GameState, ManaCost, Permanent, PlayerId, TargetRef, TargetSpec } from './types';
+import type { ActivatedDef, CardDb, CardDef, EffectOp, GameState, ManaCost, Permanent, PlayerId, TargetRef, TargetSpec } from './types';
 import {
   cardIdOf,
   def,
@@ -41,6 +41,42 @@ function cardHasMoveMark(d: CardDef, empowered: boolean): boolean {
     moveMarkCache.set(d, cached);
   }
   return empowered ? cached.empowered : cached.normal;
+}
+
+function opsInclude(ops: readonly EffectOp[], match: (op: EffectOp) => boolean): boolean {
+  return ops.some((op) => match(op) || (op.op === 'ifTargetMarked' &&
+    (opsInclude(op.then, match) || opsInclude(op.else ?? [], match))));
+}
+
+const spellHuntCache = new WeakMap<CardDef, boolean>();
+
+/**
+ * A spell-form Hunt ("target creature you control hunts another target
+ * creature"): target slot 0 is the hunter, slot 1 the prey. Its pair rule
+ * (a hunter without Bulwark, two different creatures) is enforced here, on
+ * the moveMark precedent, so legal actions never offer an illegal pair and
+ * the AI and the Duel UI inherit it. An empowered cast whose rider brings its
+ * own targets reads those instead.
+ */
+function cardHasSpellHunt(d: CardDef, empowered: boolean): boolean {
+  if (empowered && d.empower?.targets) return false;
+  let cached = spellHuntCache.get(d);
+  if (cached === undefined) {
+    cached = d.abilities?.some((ab) => ab.when === 'spell' &&
+      opsInclude(ab.ops ?? [], (op) => op.op === 'hunt' && op.hunter === 'target')) ?? false;
+    spellHuntCache.set(d, cached);
+  }
+  return cached;
+}
+
+/** A Duty whose source hunts ("this hunts target creature"). */
+function abilityHuntsWithSource(ability: ActivatedDef): boolean {
+  return opsInclude(ability.ops, (op) => op.op === 'hunt' && op.hunter === 'self');
+}
+
+function hasBulwark(state: GameState, db: CardDb, ref: TargetRef | undefined): boolean {
+  return ref?.kind === 'permanent' && state.battlefield.some((perm) => perm.iid === ref.iid) &&
+    getEffectiveStats(state.battlefield, db, ref.iid).keywords.has('bulwark');
 }
 
 function moveMarkTargetIndexes(specs: readonly TargetSpec[]): number[] {
@@ -366,6 +402,7 @@ function targetListsForCast(
   empowered: boolean,
   sourceIid?: number,
   moveMark = cardHasMoveMark(d, empowered),
+  spellHunt = cardHasSpellHunt(d, empowered),
 ): (TargetRef[] | undefined)[] {
   if (specs.some(spec => spec.exactly !== undefined && (specs.length !== 1 || spec.upTo !== undefined))) return [];
   if (specs.length === 0) return [undefined];
@@ -402,10 +439,12 @@ function targetListsForCast(
   const visit = (index: number, chosen: TargetRef[]): void => {
     if (index === specs.length) {
       if (moveMark && moveIndexes.length === 2 && sameTarget(chosen[moveIndexes[0]], chosen[moveIndexes[1]])) return;
+      if (spellHunt && sameTarget(chosen[0], chosen[1])) return;
       out.push([...chosen]);
       return;
     }
     for (const candidate of candidatesFor(specs[index])) {
+      if (spellHunt && index === 0 && hasBulwark(state, db, candidate)) continue;
       visit(index + 1, [...chosen, candidate]);
     }
   };
@@ -464,6 +503,7 @@ function validateTargetList(
   empowered: boolean,
   sourceIid?: number,
   moveMark = cardHasMoveMark(d, empowered),
+  spellHunt = cardHasSpellHunt(d, empowered),
 ): string | null {
   if (specs.some(spec => spec.exactly !== undefined && (specs.length !== 1 || spec.upTo !== undefined))) {
     return 'exactly requires one target spec and cannot combine with upTo';
@@ -499,6 +539,10 @@ function validateTargetList(
       sameTarget(targets[moveIndexes[0]], targets[moveIndexes[1]])
     ) return 'moveMark needs two distinct creatures you control';
   }
+  if (spellHunt) {
+    if (hasBulwark(state, db, targets[0])) return 'a creature with Bulwark cannot hunt';
+    if (sameTarget(targets[0], targets[1])) return 'a Hunt needs two different creatures';
+  }
   return null;
 }
 
@@ -523,10 +567,14 @@ function preserveBlockers(
 function activatedTargetLists(state: GameState, db: CardDb, player: PlayerId, perm: Permanent, abilityIndex = 0) {
   const d = def(db, perm.cardId);
   const ability = activatedAbilitiesOf(d)[abilityIndex];
-  return targetListsForCast(
+  const lists = targetListsForCast(
     state, db, player, d, ability.targets ?? [], false, perm.iid,
-    ability.ops.some((op) => op.op === 'moveMark'),
+    ability.ops.some((op) => op.op === 'moveMark'), false,
   );
+  // A hunting Duty's prey is always another creature.
+  return abilityHuntsWithSource(ability)
+    ? lists.filter((targets) => !targets?.some((ref) => ref.kind === 'permanent' && ref.iid === perm.iid))
+    : lists;
 }
 
 /** A reason string for an unavailable activation, or null when it is offered. */
@@ -555,6 +603,9 @@ export function activatedBlockers(
   }
   const ability = activatedAbilitiesOf(d)[abilityIndex];
   if (!Number.isInteger(abilityIndex) || !ability) return 'invalid activated ability index';
+  if (abilityHuntsWithSource(ability) && getEffectiveStats(state.battlefield, db, perm.iid).keywords.has('bulwark')) {
+    return 'a creature with Bulwark cannot hunt';
+  }
   if (ability.cost.mana && !canPay(state, db, player, ability.cost.mana)) {
     return 'cannot pay cost';
   }
@@ -1060,9 +1111,13 @@ export function validateAction(
       const ability = activatedAbilitiesOf(d)[action.abilityIndex ?? 0];
       const targetError = validateTargetList(
         state, db, player, d, ability.targets ?? [], action.targets ?? [], false, perm!.iid,
-        ability.ops.some((op) => op.op === 'moveMark'),
+        ability.ops.some((op) => op.op === 'moveMark'), false,
       );
       if (targetError) return targetError;
+      if (abilityHuntsWithSource(ability) &&
+        (action.targets ?? []).some((ref) => ref.kind === 'permanent' && ref.iid === perm!.iid)) {
+        return 'a Hunt needs two different creatures';
+      }
       return action.manaPlan ? validateManaPlanForCost(
         state, db, player, ability.cost.mana ?? { generic: 0, pips: {} }, action.manaPlan,
       ) : null;

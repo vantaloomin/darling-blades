@@ -27,7 +27,12 @@ import type { GameFormat, ReserveFormat } from '../config/rules';
 // marks the 1.9 engine: a Foresee that finds an empty deck when it is offered
 // still resolves the ops after it (rules.md, Foresee). A v15 log still replays,
 // identically except through such a Foresee, where the recorded game dropped
-// those ops. v11 through v16 all map to rules revision 4.
+// those ops. v16 also marks the 1.9 Empower fix (the owner's E5 ruling): an
+// empowered permanent whose Empower targets have all left resolves; only the
+// rider is lost (The Drowned Saint; Renenutet, Who Measures the Flood;
+// Tidewalk Analyst). A log recorded before this fix replays
+// differently: the recorded card went to the graveyard. v11 through v16 all
+// map to rules revision 4.
 export const REPLAY_LOG_VERSION = 16 as const;
 /** Newest-first FIFO cap for SaveData.replays (mirrors limited.history's 20). */
 export const REPLAY_CAP = 10;

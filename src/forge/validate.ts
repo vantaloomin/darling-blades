@@ -194,9 +194,10 @@ const MARKS = COUNT(0, 12, true);
 export const OP_RULES: Record<OpKind, Record<string, OpFieldRule>> = {
   damage: {
     n: { kind: 'intOrX', min: 0, max: 10 },
-    to: ENUM(['target', 'opponent', 'controller', 'eachCreature', 'eachOpponentCreature']),
+    to: ENUM(['target', 'opponent', 'controller', 'eachCreature', 'eachOpponentCreature', 'eachYourCreature']),
     targetIndex: TARGET_INDEX,
     severOnDeath: { kind: 'flag', optional: true },
+    other: { kind: 'flag', optional: true },
   },
   gainLife: { n: COUNT(0, 20) },
   loseLife: { n: COUNT(0, 20), who: ENUM(['opponent'], true) },
@@ -225,6 +226,7 @@ export const OP_RULES: Record<OpKind, Record<string, OpFieldRule>> = {
   fetchLand: {},
   markAll: { scope: ENUM(['yourCreatures'], true), other: { kind: 'flag', optional: true } },
   moveMark: {},
+  hunt: { hunter: ENUM(['self', 'target']) },
   removeMarks: TO_TARGET,
   severSelf: {},
   loseLifePerTheirMarked: { who: ENUM(['opponent'], true) },
@@ -276,6 +278,8 @@ function readOp(raw: unknown, depth: number): ScorableEffectOp {
       case 'token': out[field] = oneOf(value, TOKEN_IDS, 'token'); break;
     }
   }
+  // `other` spares the source only on "each creature you control".
+  if (kind === 'damage' && out.other !== undefined && out.to !== 'eachYourCreature') fail('field');
   return out as ScorableEffectOp;
 }
 

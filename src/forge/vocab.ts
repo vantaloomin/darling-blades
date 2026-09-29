@@ -97,6 +97,8 @@ export const TRIGGER_OPENINGS: Record<Exclude<ScorableTriggerWhen, 'spell' | 'st
   youGainLife: 'Whenever you gain life',
   youCastCharm: 'Whenever you cast a Charm',
   sunset: 'At Sunset',
+  // Stub (1.9 A1.1): the approved "Provoked: [effect]" opener; A2.c owns the labels.
+  provoked: 'Provoked',
 };
 
 export const TRIGGER_LABELS: Record<ScorableTriggerWhen, string> = {
@@ -273,6 +275,7 @@ export function defaultOp(kind: OpKind): ScorableEffectOp {
     case 'fetchLand': return { op: 'fetchLand' };
     case 'markAll': return { op: 'markAll' };
     case 'moveMark': return { op: 'moveMark' };
+    case 'hunt': return { op: 'hunt', hunter: 'self' };
     case 'removeMarks': return { op: 'removeMarks' };
     case 'severSelf': return { op: 'severSelf' };
     case 'loseLifePerTheirMarked': return { op: 'loseLifePerTheirMarked' };

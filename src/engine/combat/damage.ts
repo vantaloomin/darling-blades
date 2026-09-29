@@ -1,19 +1,15 @@
-import { firePlayerObservers, fireTriggers } from '../effects/EffectInterpreter';
+import { applyCreatureDamage, type CreatureDamageHit } from '../creatureDamage';
+import { fireTriggers } from '../effects/EffectInterpreter';
 import { checkStateBased } from '../sba';
 import { endGame } from '../phases';
 import { getEffectiveStats } from '../statics';
 import type { Emit } from '../battlefield';
-import type { CardDb, GameState, PlayerId, TargetRef } from '../types';
+import type { CardDb, GameState } from '../types';
 import { opponentOf } from '../types';
 
-interface Hit {
-  source: number; // attacker or blocker iid
-  sourceController: PlayerId;
-  target: TargetRef;
-  amount: number;
-  deathtouch: boolean;
-  lifelink: boolean;
-}
+/** A combat hit: an attacker or blocker iid dealing damage. Deathblade and
+ * Blood Oath are read by the shared creature-damage path (creatureDamage.ts). */
+type Hit = CreatureDamageHit;
 
 /**
  * Resolve combat damage: an automatic first-strike sub-step (only if some
@@ -129,8 +125,6 @@ function dealCombatDamage(
         sourceController: state.activePlayer,
         target: { kind: 'player', player: defender },
         amount: stats.attack,
-        deathtouch: kw.has('deathblade'),
-        lifelink: kw.has('bloodoath'),
       });
       continue;
     }
@@ -144,8 +138,6 @@ function dealCombatDamage(
           sourceController: state.activePlayer,
           target: { kind: 'player', player: defender },
           amount: stats.attack,
-          deathtouch: kw.has('deathblade'),
-          lifelink: kw.has('bloodoath'),
         });
       }
       continue;
@@ -172,8 +164,6 @@ function dealCombatDamage(
           sourceController: state.activePlayer,
           target: { kind: 'permanent', iid: blockerIid },
           amount: assign,
-          deathtouch: kw.has('deathblade'),
-          lifelink: kw.has('bloodoath'),
         });
         remaining -= assign;
       }
@@ -184,8 +174,6 @@ function dealCombatDamage(
         sourceController: state.activePlayer,
         target: { kind: 'player', player: defender },
         amount: remaining,
-        deathtouch: kw.has('deathblade'),
-        lifelink: kw.has('bloodoath'),
       });
     }
   }
@@ -201,8 +189,6 @@ function dealCombatDamage(
       sourceController: defender,
       target: { kind: 'permanent', iid: block.attacker },
       amount: stats.attack,
-      deathtouch: stats.keywords.has('deathblade'),
-      lifelink: stats.keywords.has('bloodoath'),
     });
   }
 
@@ -219,42 +205,9 @@ function dealCombatDamage(
     firstStrike: firstStrikeStep,
   });
 
-  // Apply simultaneously.
-  for (const hit of hits) {
-    if (hit.target.kind === 'permanent') {
-      const targetIid = hit.target.iid;
-      const perm = state.battlefield.find((p) => p.iid === targetIid);
-      if (perm) {
-        perm.damage += hit.amount;
-        if (hit.deathtouch) perm.deathtouched = true;
-        emit({ e: 'damageMarked', iid: perm.iid, amount: hit.amount });
-      }
-    } else if (hit.target.kind === 'player') {
-      const p = state.players[hit.target.player];
-      p.life -= hit.amount;
-      emit({ e: 'lifeChanged', player: hit.target.player, delta: -hit.amount, now: p.life });
-      // combatDamageToPlayer triggers fire here from M5.
-    }
-    if (hit.lifelink && hit.amount > 0) {
-      const healed = state.players[hit.sourceController];
-      healed.life += hit.amount;
-      emit({
-        e: 'lifeChanged',
-        player: hit.sourceController,
-        delta: hit.amount,
-        now: healed.life,
-      });
-    }
-  }
-
-  // Every positive source of Blood Oath gains life separately. Observe only
-  // after the whole simultaneous damage/life-gain batch has been applied.
-  for (const hit of hits) {
-    if (state.winner !== null) return;
-    if (hit.lifelink && hit.amount > 0) {
-      firePlayerObservers(state, db, emit, 'youGainLife', hit.sourceController);
-    }
-  }
+  // Apply simultaneously, through the shared creature-damage path: the
+  // damage, Deathblade, Blood Oath and its observers, and the Provoked mark.
+  applyCreatureDamage(state, db, emit, hits);
 
   // combat-damage-to-player triggers, after all simultaneous damage lands
   for (const hit of hits) {

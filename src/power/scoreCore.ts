@@ -545,6 +545,11 @@ export const TRIGGER_MULT: Record<Exclude<ScorableTriggerWhen, CarrierTriggerWhe
   // provisional until a seeded matrix counts lifegain events per turn in the
   // Drowned Deep white decks. `oncePerTurn` caps it far above this.
   youGainLife: 0.3,
+  // Provoked (1.9, First Dawn): NEEDS MATH. No rate exists until the A1.3 lab
+  // measures one (plan-first-dawn-engine.md, Part 5). triggerMult reports it as
+  // an unknown and prices the effect at 0 rather than invent a multiplier;
+  // this entry only keeps the Record total, and nothing reads it.
+  provoked: 0,
 };
 
 // §4t (2026-09-24) — recurring observers priced per CARRIER, like `dawn`
@@ -624,6 +629,10 @@ export function triggerMult(w: ScorableTriggerWhen, card: ScorableCardDef, unkno
     if (w === 'sunset') return SUNSET_PER_DAWN * dawnMult(card);
     const split = CARRIER_TRIGGER_MULT[w];
     return card.types.includes('creature') ? split.creature : split.noncreature;
+  }
+  if (w === 'provoked') {
+    unknowns.add('when:provoked (NEEDS MATH: unpriced until the First Dawn lab)');
+    return 0;
   }
   const v = TRIGGER_MULT[w];
   if (v === undefined) {
@@ -928,6 +937,11 @@ export function valueOp(
           return canFace
             ? { label: `burn any ${n}`, v: Math.max(0.6 + 0.35 * n, 1.3 + 1.0 * (n - 2)) }
             : { label: `burn creature ${n}`, v: Math.max(0.5 + 0.35 * n, Math.min(2.7, 1.2 + 0.5 * (n - 2))) };
+        case 'eachYourCreature':
+          // NEEDS MATH (1.9, First Dawn): damage to your own side is a Provoked
+          // source, priced by the A1.3 lab. Reported as unknown, never a rate.
+          unknowns.add('damage.to:eachYourCreature (NEEDS MATH: unpriced until the First Dawn lab)');
+          return { label: `damage each creature you control ${n} (NEEDS MATH)`, v: 0 };
         default: {
           const _exhaustive: never = damageTarget;
           unknowns.add(`damage.to:${String(_exhaustive)}`);
@@ -1267,6 +1281,11 @@ export function valueOp(
       // Unconditional reanimation-to-battlefield of any grave creature is strong
       // (Codex: Call the Einherjar {2}{B} beats Zombify {3}{B}). 2.2 undervalued it.
       return { label: 'reanimate', v: 3.5 };
+    case 'hunt':
+      // NEEDS MATH (1.9, First Dawn): Hunt is priced by the A1.3 lab
+      // (plan-first-dawn-engine.md, Part 5). Reported as unknown, never a rate.
+      unknowns.add('op:hunt (NEEDS MATH: unpriced until the First Dawn lab)');
+      return { label: 'hunt (NEEDS MATH)', v: 0 };
     default: {
       const _exhaustive: never = op;
       void _exhaustive;

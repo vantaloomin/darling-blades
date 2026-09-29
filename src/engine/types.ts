@@ -54,6 +54,13 @@ export type TriggerWhen =
   | 'youCastCharm'
   | 'allyAttacks'
   | 'sunset'
+  /**
+   * Provoked: this creature was dealt more than 0 damage and survived the
+   * state-based check that followed. Fired from that check, after its deaths
+   * and their dies triggers; at most once each turn per creature, without a
+   * printed `oncePerTurn` (plan-first-dawn-engine.md, Part 1).
+   */
+  | 'provoked'
   | 'static';
 
 export interface TargetSpec {
@@ -86,11 +93,29 @@ export interface TargetSpec {
   marked?: true;
   /** Restricts legal targets to tapped permanents. */
   tapped?: true;
+  /**
+   * `creature` specs only: "a creature an opponent controls if able, else
+   * another creature you control". While any creature an opponent controls is
+   * a legal target (Untouchable and every other qualifier applied), only those
+   * are legal; only when none is are the caster's own creatures, never the
+   * source itself. The target rule of a mandatory source-bound Hunt trigger
+   * (the owner's E6 ruling, 2026-09-29).
+   */
+  opponentIfAble?: true;
 }
 
+/**
+ * Hunt (`hunt`): the hunter and its prey each deal damage equal to their
+ * Attack to the other, through the shared creature-damage path. `self`: the
+ * source permanent hunts the bound target (an arrival or attack trigger, a
+ * Duty, an Empower rider). `target`: target slot 0 hunts target slot 1 (a
+ * spell). The op's own rules: the two are different creatures and the hunter
+ * has no Bulwark; otherwise nothing is dealt.
+ */
 export type EffectOp =
   | { op: 'damage'; n: number | 'X'; to: 'target' | 'opponent' | 'controller'; targetIndex?: number }
   | { op: 'damage'; n: number | 'X'; to: 'eachCreature' | 'eachOpponentCreature'; severOnDeath?: true }
+  | { op: 'damage'; n: number | 'X'; to: 'eachYourCreature'; other?: true } // damage each [other] creature you control; `other` spares the source
   | { op: 'gainLife'; n: number }
   | { op: 'loseLife'; n: number; who: 'opponent' }
   | { op: 'draw'; n: number }
@@ -132,7 +157,8 @@ export type EffectOp =
   | { op: 'foresee'; n: number; who?: 'targetOwner'; targetIndex?: number } // look at top n, then choose any subset to bottom
   | { op: 'awaken'; scope: 'self' | 'allYours' } // one-way champion upgrade; trigger-safe
   | { op: 'raise'; to?: 'target'; grantKeywords?: Keyword[]; targetIndex?: number }
-  | { op: 'raise'; to: 'top'; withMarks?: number; grantKeywords?: Keyword[] };
+  | { op: 'raise'; to: 'top'; withMarks?: number; grantKeywords?: Keyword[] }
+  | { op: 'hunt'; hunter: 'self' | 'target' }; // see the Hunt note above the union
 
 export interface StaticDef {
   /** `questActive` reads the source controller's public battlefield. */
@@ -259,6 +285,7 @@ export function effectOpUsesTarget(op: EffectOp): boolean {
     case 'moveMark':
     case 'removeMarks':
     case 'reclaim':
+    case 'hunt':
       return true;
     case 'raise':
       return op.to !== 'top';
@@ -291,11 +318,15 @@ function effectOpAddsMark(op: EffectOp): boolean {
 
 /**
  * Catalog-facing validation for the narrowly relaxed Empower target contract.
- * Empower riders are target-free except three named shapes:
+ * Empower riders are target-free except four named shapes:
  *   - `moveMark` carries exactly two single-target specs (from, to);
  *   - `reclaim` carries exactly one `yourGraveCreature` spec (Renenutet, Who
  *     Measures the Flood, 2026-09-04 rework);
- *   - `destroy` carries one target spec, including cost/attack qualifiers.
+ *   - `destroy` carries one target spec, including cost/attack qualifiers;
+ *   - `hunt` (the creature hunts, `hunter: 'self'`) carries one single-target
+ *     spec, exactly as `destroy` does (the owner's E4 ruling). Hunt damage only
+ *     marks damage; the deaths follow in the state-based check after the
+ *     stack item, so the rider stays trigger-safe.
  */
 export function validateEmpowerDef(d: CardDef): string[] {
   if (!d.empower) return [];
@@ -304,6 +335,7 @@ export function validateEmpowerDef(d: CardDef): string[] {
   const hasMoveMark = d.empower.ops.some((op) => op.op === 'moveMark');
   const hasReclaim = d.empower.ops.some((op) => op.op === 'reclaim');
   const hasDestroy = d.empower.ops.some((op) => op.op === 'destroy');
+  const hunts = d.empower.ops.filter((op) => op.op === 'hunt');
   if (hasMoveMark && hasReclaim) {
     errors.push('Empower may not combine moveMark and reclaim');
   }
@@ -319,11 +351,19 @@ export function validateEmpowerDef(d: CardDef): string[] {
     }
   } else if (hasDestroy) {
     if (!targets || targets.length !== 1 || targets[0].upTo || targets[0].exactly) errors.push('Empower destroy needs one single-target spec');
+  } else if (hunts.length > 0) {
+    if (!targets || targets.length !== 1 || targets[0].upTo || targets[0].exactly) errors.push('Empower hunt needs one single-target spec');
   } else if (targets) {
-    errors.push('Empower targets require a moveMark or reclaim op');
+    errors.push('Empower targets require a moveMark, reclaim, destroy or hunt op');
   }
-  if (d.empower.ops.some((op) => effectOpUsesTarget(op) && op.op !== 'moveMark' && op.op !== 'reclaim' && op.op !== 'destroy')) {
-    errors.push('Only moveMark and reclaim may target from Empower');
+  if (hunts.length > 0 && (hasMoveMark || hasReclaim || hasDestroy)) {
+    errors.push('Empower hunt cannot combine with another targeted op');
+  }
+  if (hunts.some((op) => op.op === 'hunt' && op.hunter !== 'self') || (hunts.length > 0 && !isType(d, 'creature'))) {
+    errors.push('Empower hunt is the creature itself hunting (hunter self, on a creature)');
+  }
+  if (d.empower.ops.some((op) => effectOpUsesTarget(op) && op.op !== 'moveMark' && op.op !== 'reclaim' && op.op !== 'destroy' && op.op !== 'hunt')) {
+    errors.push('Only moveMark, reclaim, destroy and hunt may target from Empower');
   }
   return errors;
 }
@@ -341,6 +381,97 @@ export function validateMarkTriggerDef(d: CardDef): string[] {
     }
     if (!MARK_EVENT_WHENS.has(ability.when) || !ability.ops?.some(effectOpAddsMark)) continue;
     errors.push(`${ability.when} abilities cannot add marks`);
+  }
+  return errors;
+}
+
+/** Catalog-facing validation for Provoked: printed on creatures only, at most one per card. */
+export function validateProvokedDef(d: CardDef): string[] {
+  const provoked = (d.abilities ?? []).filter((ability) => ability.when === 'provoked');
+  if (provoked.length === 0) return [];
+  const errors: string[] = [];
+  if (!isType(d, 'creature')) errors.push('Provoked is printed on creatures only');
+  if (provoked.length > 1) errors.push('A card has at most one Provoked ability');
+  if (provoked.some((ability) => ability.oncePerTurn)) {
+    errors.push('Provoked is once each turn by rule; it never sets oncePerTurn');
+  }
+  return errors;
+}
+
+function flatOps(list: readonly EffectOp[]): EffectOp[] {
+  return list.flatMap((op) => op.op === 'ifTargetMarked' ? [op, ...flatOps(op.then), ...flatOps(op.else ?? [])] : [op]);
+}
+
+/**
+ * Every Hunt's prey, in every carrier, is a creature an opponent controls if a
+ * legal one exists, otherwise another creature you control (the owner's
+ * bare-keyword ruling, 2026-09-28). Card data cannot express a free-choice
+ * Hunt; the engine's spec stays general for tests.
+ */
+const PREY_RULE = "A Hunt's prey spec must carry opponentIfAble (an opponent's creature if able, else another of yours)";
+
+/**
+ * Catalog-facing validation for the Hunt op's carriers. The spell form
+ * (`hunter: 'target'`) is a Charm or Ritual body with exactly two single
+ * creature specs, hunter first. The source-bound form (`hunter: 'self'`) is a
+ * creature's triggered ability, Duty or Empower rider with one single-target
+ * spec, never on a creature that prints Bulwark, and never a Provoked effect.
+ * Every Hunt's prey spec carries `opponentIfAble`, which belongs on a
+ * `creature` spec only.
+ */
+export function validateHuntDef(d: CardDef): string[] {
+  const errors: string[] = [];
+  const check = (ops: readonly EffectOp[] | undefined, targets: readonly TargetSpec[] | undefined, where: 'spell' | 'bound'): void => {
+    for (const op of flatOps(ops ?? [])) {
+      if (op.op !== 'hunt') continue;
+      if (op.hunter === 'target') {
+        if (where !== 'spell') errors.push('A spell-form Hunt (hunter target) belongs on a Charm or Ritual body');
+        if (!targets || targets.length !== 2 || targets.some((spec) => spec.upTo !== undefined || spec.exactly !== undefined ||
+          spec.what === 'spell' || spec.what === 'player' || spec.what === 'yourGraveCreature')) {
+          errors.push('A spell-form Hunt needs exactly two single creature target specs (hunter, prey)');
+        }
+        if (targets?.[1]?.opponentIfAble !== true) errors.push(PREY_RULE);
+      } else {
+        if (!isType(d, 'creature')) errors.push('A source-bound Hunt belongs on a creature');
+        if (where === 'spell') errors.push('A spell cannot hunt with itself');
+        if ((d.keywords ?? []).includes('bulwark')) errors.push('A creature with Bulwark cannot print a source-bound Hunt');
+        if (!targets || targets.length !== 1 || targets[0].upTo !== undefined || targets[0].exactly !== undefined) {
+          errors.push('A source-bound Hunt needs one single-target spec');
+        }
+        if (targets?.[0]?.opponentIfAble !== true) errors.push(PREY_RULE);
+      }
+    }
+  };
+  // A branch re-runs its ops against its one bound target, so a Hunt inside
+  // one would never see its prey (or, spell-form, its second slot).
+  const huntInBranch = (ops: readonly EffectOp[] | undefined): boolean => flatOps(ops ?? []).some((op) =>
+    op.op === 'ifTargetMarked' && [...flatOps(op.then), ...flatOps(op.else ?? [])].some((inner) => inner.op === 'hunt'));
+  if ((d.abilities ?? []).some((ability) => huntInBranch(ability.ops)) ||
+    activatedAbilitiesOf(d).some((activation) => huntInBranch(activation.ops)) || huntInBranch(d.empower?.ops)) {
+    errors.push('A Hunt cannot sit inside an If-marked branch');
+  }
+  // An empowered cast brings the Empower targets instead of the body's, so a
+  // body Hunt would run on them.
+  if (d.empower?.targets && (d.abilities ?? []).some((ability) => ability.when === 'spell' &&
+    flatOps(ability.ops ?? []).some((op) => op.op === 'hunt' && op.hunter === 'target'))) {
+    errors.push('A spell-form Hunt cannot share a card with Empower targets');
+  }
+  for (const ability of d.abilities ?? []) {
+    if (ability.when === 'static') continue;
+    if (ability.when === 'provoked' && flatOps(ability.ops ?? []).some((op) => op.op === 'hunt')) {
+      errors.push('A Provoked effect never hunts');
+    }
+    check(ability.ops, ability.targets, ability.when === 'spell' ? 'spell' : 'bound');
+  }
+  for (const activation of activatedAbilitiesOf(d)) check(activation.ops, activation.targets, 'bound');
+  if (d.empower) check(d.empower.ops, d.empower.targets, 'bound');
+  const specs = [
+    ...(d.abilities ?? []).flatMap((ability) => ability.targets ?? []),
+    ...activatedAbilitiesOf(d).flatMap((activation) => activation.targets ?? []),
+    ...(d.empower?.targets ?? []),
+  ];
+  if (specs.some((spec) => spec.opponentIfAble && spec.what !== 'creature')) {
+    errors.push('opponentIfAble belongs on a creature target spec only');
   }
   return errors;
 }
@@ -672,6 +803,12 @@ export interface Permanent {
   awakened?: boolean;
   grantedKeywords?: Keyword[];
   combatDamagePrevented?: true;
+  /**
+   * Dealt more than 0 damage since the last state-based check. Set only on a
+   * creature whose card has a Provoked ability, and cleared by the check that
+   * judges whether it survived (sba.ts), so no other permanent ever carries it.
+   */
+  struck?: true;
 }
 
 export interface StackItem {
@@ -857,6 +994,12 @@ export type PendingDecision =
        * what it raises still queues behind them.
        */
       movedAhead?: number;
+      /**
+       * A targeted Provoked effect held for its Hauntlink window after its
+       * target was chosen: it resolves only if its creature is still on the
+       * battlefield and still not lethally damaged.
+       */
+      provoked?: true;
       /**
        * Held in the middle of a stack flush. Once it and every trigger it
        * causes have resolved, the flush carries on before any plain choice

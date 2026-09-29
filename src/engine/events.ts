@@ -58,6 +58,8 @@ export type GameEvent =
       firstStrike: boolean;
     }
   | { e: 'damageMarked'; iid: number; amount: number }
+  /** A Hunt's exchange, before its damage lands: each deals its Attack (0 when it has none). */
+  | { e: 'hunted'; hunter: number; prey: number; hunterDamage: number; preyDamage: number }
   | { e: 'lifeChanged'; player: PlayerId; delta: number; now: number }
   | { e: 'died'; iid: number; cardId: string; owner: PlayerId }
   /** Battlefield to its owner's hand (a token ceases to exist instead). Not a

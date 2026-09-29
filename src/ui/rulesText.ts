@@ -151,6 +151,8 @@ function opText(
         }
         return `deal ${n} damage to ${recipient}`;
       }
+      // Stub (1.9 A1.1): the approved template; A2.c owns the words.
+      if (op.to === 'eachYourCreature') return `deal ${n} damage to each ${op.other ? 'other ' : ''}creature you control`;
       if (op.to === 'controller') return `this deals ${n} damage to you`;
       if (op.to === 'opponent') return `this deals ${n} damage to your opponent`;
       const isCreatureTarget = target?.what === 'creature' || target?.what === 'yourCreature' || target?.what === 'opponentCreature' ||
@@ -294,6 +296,12 @@ function opText(
       return op.who === 'targetOwner' ? `its owner Foresees ${op.n}` : `Foresee ${op.n}`;
     case 'awaken':
       return op.scope === 'self' ? 'Awaken this' : 'Awaken all creatures you control';
+    case 'hunt':
+      // Stubs (1.9 A1.1) for the ruled bare keyword (2026-09-28): the opener,
+      // then "Hunt."; the spell form "Target creature you control Hunts."
+      // The prey rule lives in the glossary. A2.c owns the words.
+      if (op.hunter === 'target') return targetAlreadyNamed ? 'it Hunts' : 'target creature you control Hunts';
+      return 'Hunt';
     case 'raise': {
       // The graveyard is an ordered pile and `raise top` takes the
       // most-recently-buried creature, so the face must say WHICH card it
@@ -552,6 +560,10 @@ function abilityText(ab: AbilityDef, d: CardDef, additionalDawn = false): string
       break;
     case 'propagated':
       sentence = `Whenever you Propagate, ${body}.`;
+      break;
+    case 'provoked':
+      // Stub (1.9 A1.1): the approved "Provoked: [effect]." template.
+      sentence = `Provoked: ${cap}.`;
       break;
     default:
       sentence = `${cap}.`;
