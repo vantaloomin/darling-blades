@@ -1779,18 +1779,22 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
 - **2.0 is the itch.io launch (owner ruling 2026-09-25).** The largest update
   the game has had, with the mobile overhaul, Core Set II and Story Mode, and
   the release that is posted on itch.io and advertised. No plan exists yet;
-  one is owed when 2.0 opens. Researched 2026-09-25: itch caps an HTML5
-  game at 1,000 files, so card art ships in range-readable packs (1.9 lane D
-  designs for it); every itch game shares one origin and one small, easily
-  cleared storage, so saves do not carry over from bladedarlings.com and the
-  save-code export matters more (never tick itch's SharedArrayBuffer option,
-  which moves the game to a new origin); the play-stats Worker must allow
-  itch's origin and the itch build's CSP must allow itch's own beacon; the
-  Windows build goes up as the portable app folder with itch's `butler`
+  one is owed when 2.0 opens. **Story Mode's direction was ruled 2026-09-29:**
+  a roguelite run with a story spine, played as one of three characters (a
+  Three Kingdoms, an Olympian and a Beastkin legend, unlocked in that order)
+  and keeping one card per act cleared
+  ([plan-story-mode.md](plan-story-mode.md)). Researched 2026-09-25: itch caps
+  an HTML5 game at 1,000 files, so card art ships in range-readable packs (1.9
+  lane D designs for it); every itch game shares one origin and one small,
+  easily cleared storage, so saves do not carry over from bladedarlings.com
+  and the save-code export matters more (never tick itch's SharedArrayBuffer
+  option, which moves the game to a new origin); the play-stats Worker must
+  allow itch's origin and the itch build's CSP must allow itch's own beacon;
+  the Windows build goes up as the portable app folder with itch's `butler`
   tool, which the itch app updates, rather than the installer; itch asks for
   an AI-content tag (Graphics at least) and hides adult content from browse
-  and search. **Mobile duel layout decided the same day: Version C,
-  "Command column (hand-first)"** ([plan-mobile-overhaul.md](plan-mobile-overhaul.md)).
+  and search. **Mobile duel layout decided the same day: Version C, "Command
+  column (hand-first)"** ([plan-mobile-overhaul.md](plan-mobile-overhaul.md)).
 - **A metagame sweep that fits in a night (2026-09-22; levers 1 and 4
   shipped in 1.8).** [plan-sweep-speed.md](plan-sweep-speed.md). Fan-out
   across GitHub-hosted runners shipped (#418, #421, #422; the owner's machine
