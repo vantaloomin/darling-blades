@@ -1908,12 +1908,15 @@ pin it on fixture cards.
   shared value clears the plain alternative by the margin: the best plain
   option of the decision, or 0 (not acting) when the decision can be
   declined. A forced decision with no plain option keeps everything: a
-  trigger's target is mandatory, and a creature's own cast is forced (the
-  body is the point; only its arrival prey is chosen).
+  trigger's target is mandatory, and for Medium a creature's own cast (or a
+  Darling call) is forced too (the body is the point; only its arrival prey
+  is chosen).
 - **Easy's margin is infinite** (B5): no avoidable friendly choice, which
   covers both "never hunts its own creature by choice" and "may skip friendly
-  sources entirely". Easy still casts a creature whose only arrival prey is
-  its own, and an attack or Dawn Hunt with only its own creature to hunt
+  sources entirely". For Easy a creature cast or Darling call is declinable
+  (Fable's review, S1: casting the creature is a choice), so an `any` arrival
+  hunter whose only prey is its own creature stays in hand. Only a mandatory
+  target is forced: an attack or Dawn Hunt with only its own creature to hunt
   still hunts it.
 - **Medium's margin is 1.25** (`SELF_PROVOKE_MARGIN`): one card at the value
   layer's draw rate. A self-Hunt or friendly source spends a card, a Duty or
@@ -1950,8 +1953,33 @@ pin it on fixture cards.
 - **Known limits.** Hard constructs its Medium from the same class, so Hard's
   Medium baseline candidate and its rollouts follow Medium's margin (its own
   decision is still its search). Medium's removal ladder does not read a Hunt
-  spell as removal. A forced creature cast whose every prey kills it is still
-  cast (holding it is a possible later rule).
+  spell as removal. **Scheduled for wave 3 (owner-approved, 2026-09-29):**
+  Medium holds an arrival hunter that every prey would kill; today it ranks
+  one lower but still casts it when nothing else develops (pinned by a test,
+  so the rule's change is visible).
+- **Follow-up after First Dawn lands** (Fable's review): a per-decision
+  pre-check, so the filter skips the friendly classification on decisions
+  whose card cannot hunt or source (today it is gated per pool only, which is
+  free on today's pool and costs a classification per cast, Duty and target
+  option once First Dawn is in it). Not built.
+- **Tests and their mutations.** `tests/ai/huntPolicyA2b.test.ts` (18) and
+  `tests/meta/draftHuntProvoked.test.ts` (7); each mutation below was run
+  against the files and fails the tests named:
+  - Easy's filter removed: 6 fail; Easy given Medium's margin: 7 fail.
+  - Medium's margin at 0: 4 fail; at 1e9: 3 fail.
+  - The forced-decision fallback removed: 2 fail.
+  - Easy's creature casts forced again (S1 off): 1 fails (Easy casts the
+    `any` hunter at its own creature instead of holding it).
+  - Medium's arrival-Hunt cast term removed: 1 fails; Medium holding a hunter
+    whose prey kills it: 1 fails.
+  - The Darling prey policy off: 2 fail (the menu and Easy's noise-roll call).
+  - The counter forecast's Hunt pair check removed: 1 fails.
+  - Friendly detection off, one shape at a time: "damage each creature you
+    control" 2, targeted damage 2, a source-bound self-Hunt 5, a Hunt spell's
+    own prey 3.
+  - Draft: the payoff term 1, the source term 3, the Hunt spell's creature
+    weighting 1, a source-bound Hunt not removal 2, no cap 1, `yours` as
+    removal 1, `any`/`yours` not sources 2, `mechanicWeight` scaling 1.
 
 ## What this spec corrects
 

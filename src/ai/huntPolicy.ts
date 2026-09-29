@@ -44,7 +44,7 @@ function databaseHasHuntOrProvoked(db: CardDb): boolean {
   const found = Object.values(db).some((card) => cardHasProvoked(card) ||
     (card.abilities ?? []).some((ability) => hunts(ability.ops)) ||
     activatedAbilitiesOf(card).some((duty) => hunts(duty.ops)) ||
-    hunts(card.empower?.ops) || hunts(card.retell?.ops));
+    hunts(card.empower?.ops) || hunts(card.retell?.ops) || (card.chapters ?? []).some((chapter) => hunts(chapter)));
   HUNT_OR_PROVOKED.set(db, found);
   return found;
 }
@@ -117,7 +117,7 @@ export function isFriendlyHuntOrSource(view: PlayerView, db: CardDb, action: Act
     }
     case 'chooseTarget': {
       const awaiting = view.awaiting;
-      if (awaiting.kind !== 'chooseTarget' || awaiting.decision === 'sacrifice') return false;
+      if (awaiting.kind !== 'chooseTarget' || awaiting.decision !== undefined) return false;
       const pending = view.pendingDecisions?.find((decision) => decision.kind === 'chooseTarget' &&
         decision.sourceIid === awaiting.sourceIid && decision.abilityIndex === awaiting.abilityIndex);
       const source = view.battlefield.find((perm) => perm.iid === awaiting.sourceIid);
@@ -150,24 +150,30 @@ function optionValue(view: PlayerView, db: CardDb, action: Action): number {
 }
 
 /**
- * The decision an option belongs to, and whether declining it is possible.
- * A pending target choice is forced. So is a creature's own cast (the body is
- * the point; only its arrival prey is chosen). A Duty, a spell, or an
- * empowered mode with its own targets can be declined.
+ * How far an option's decision can be declined:
+ *   - `mandatory`: a pending target choice (the engine needs one);
+ *   - `body`: a creature's own cast or a Darling call, where only the arrival
+ *     prey is chosen. Medium treats it as forced (the body is the point of
+ *     the cast); Easy can hold the card, so for Easy it is declinable (B5:
+ *     casting a creature whose only prey is its own is a choice);
+ *   - `optional`: a Duty, a spell, or an empowered mode with its own targets.
  */
-function decisionOf(view: PlayerView, db: CardDb, action: Action): { key: string; forced: boolean } | undefined {
+type Declinable = 'mandatory' | 'body' | 'optional';
+
+function decisionOf(view: PlayerView, db: CardDb, action: Action): { key: string; declinable: Declinable } | undefined {
   const strip = (a: Action): string => JSON.stringify({ ...a, targets: undefined, manaPlan: undefined });
   switch (action.type) {
     case 'chooseTarget':
-      return { key: 'target', forced: true };
+      return { key: 'target', declinable: 'mandatory' };
     case 'castDarling':
-      return { key: strip(action), forced: true };
+      return { key: strip(action), declinable: 'body' };
     case 'castSpell': {
       const card = def(db, castCardId(view, action));
-      return { key: strip(action), forced: isType(card, 'creature') && !(action.empowered && card.empower?.targets) };
+      return { key: strip(action),
+        declinable: isType(card, 'creature') && !(action.empowered && card.empower?.targets) ? 'body' : 'optional' };
     }
     case 'activate':
-      return { key: strip(action), forced: false };
+      return { key: strip(action), declinable: 'optional' };
     default:
       return undefined;
   }
@@ -177,25 +183,29 @@ function decisionOf(view: PlayerView, db: CardDb, action: Action): { key: string
  * Drop the friendly choices (`isFriendlyHuntOrSource`) that do not clear
  * `margin` over the plain alternative: the best plain option of the same
  * decision, or 0 (not acting) when the decision can be declined. A forced
- * decision with no plain option keeps every option (the engine needs one).
- * `NEVER_BY_CHOICE` drops every avoidable friendly choice (Easy). Returns
+ * decision with no plain option keeps every option: a mandatory target always,
+ * and a creature's own cast for Medium. `NEVER_BY_CHOICE` drops every
+ * avoidable friendly choice (Easy), a creature cast whose every prey is its
+ * own included, so Easy holds that card. Returns
  * `legal` itself when nothing is dropped, and always on a pool with no Hunt
  * and no Provoked card.
  */
 export function applyHuntPolicy(view: PlayerView, db: CardDb, legal: Action[], margin: number): Action[] {
   if (!databaseHasHuntOrProvoked(db)) return legal;
+  const never = margin === NEVER_BY_CHOICE;
   const decisions = new Map<string, { forced: boolean; friendly: Action[]; plain: Action[] }>();
   for (const action of legal) {
     const decision = decisionOf(view, db, action);
     if (!decision) continue;
-    const entry = decisions.get(decision.key) ?? { forced: decision.forced, friendly: [], plain: [] };
+    const forced = decision.declinable === 'mandatory' || decision.declinable === 'body' && !never;
+    const entry = decisions.get(decision.key) ?? { forced, friendly: [], plain: [] };
     (isFriendlyHuntOrSource(view, db, action) ? entry.friendly : entry.plain).push(action);
     decisions.set(decision.key, entry);
   }
   const dropped = new Set<Action>();
   for (const { forced, friendly, plain } of decisions.values()) {
     if (friendly.length === 0 || forced && plain.length === 0) continue;
-    if (margin === NEVER_BY_CHOICE) {
+    if (never) {
       for (const action of friendly) dropped.add(action);
       continue;
     }

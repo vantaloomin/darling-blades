@@ -98,13 +98,14 @@ describe('Easy never hunts its own creature by choice (B5)', () => {
     expect(decide(game, easy())).toEqual({ type: 'passStep' });
   });
 
-  it('casts an any-prey arrival hunter at the opponent\'s creature, and at its own only when that is the only prey', () => {
+  it('casts an any-prey arrival hunter at the opponent\'s creature, and holds it when its only prey is its own', () => {
     const withTheirs = gameOf([{ iid: 2, cardId: 'draws4' }, { iid: 3, cardId: 'mouse', controller: 1 }], ['korru']);
     expect(sharedCastTargets(withTheirs)).toEqual([[ref(2)]]);
     expect(decide(withTheirs, easy())).toMatchObject({ type: 'castSpell', handIndex: 0, targets: [ref(3)] });
-    // The creature is the point of the cast; its prey is forced, not chosen.
+    // Casting the creature is itself a choice: Easy holds the card (B5).
     const onlyOurs = gameOf([{ iid: 2, cardId: 'draws4' }], ['korru']);
-    expect(decide(onlyOurs, easy())).toMatchObject({ type: 'castSpell', handIndex: 0, targets: [ref(2)] });
+    expect(sharedCastTargets(onlyOurs)).toEqual([[ref(2)]]);
+    expect(decide(onlyOurs, easy())).toEqual({ type: 'passStep' });
   });
 
   it('never uses an any-prey Hunt Duty on its own creature', () => {
@@ -216,6 +217,11 @@ describe('Medium ranks an arrival hunter by its Hunt (the A1.2 hand-off)', () =>
     expect(cast('cub')).toMatchObject({ type: 'castSpell', handIndex: 1, targets: [ref(3)] });
     expect(cast('ogre')).toMatchObject({ type: 'castSpell', handIndex: 0 });
   });
+
+  it('still casts the hunter into prey that kills it when nothing else is castable (holding it is a scheduled wave-3 rule)', () => {
+    expect(decide(gameOf([{ iid: 3, cardId: 'ogre', controller: 1 }], ['raptor']), medium()))
+      .toMatchObject({ type: 'castSpell', handIndex: 0, targets: [ref(3)] });
+  });
 });
 
 describe('a Darling with an arrival Hunt is cast at its best prey', () => {
@@ -234,6 +240,18 @@ describe('a Darling with an arrival Hunt is cast at its best prey', () => {
 
   it('Medium casts it there', () => {
     expect(decide(darlingGame(), medium())).toEqual({ type: 'castDarling', targets: [ref(4)] });
+  });
+
+  it('Easy calls it there too, on the only path it has to a Darling today (its noise roll; U1 fixes that in wave 3)', () => {
+    const calls: Action[] = [];
+    for (let seed = 1; seed <= 24; seed++) {
+      const game = darlingGame();
+      const action = new EasyAI(DB, seed, makePersonality({ easyNoise: 1 })).chooseAction(game.viewFor(0), game.legalActions(0));
+      expect(validateAction(game.instanceState, DB, 0, action)).toBeNull();
+      if (action.type === 'castDarling') calls.push(action);
+    }
+    expect(calls.length).toBeGreaterThan(0);
+    for (const call of calls) expect(call).toEqual({ type: 'castDarling', targets: [ref(4)] });
   });
 });
 

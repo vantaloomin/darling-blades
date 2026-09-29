@@ -535,11 +535,11 @@ creature. Each claim is pinned in `tests/ai/huntPolicyA2b.test.ts` and
   sources** (the owner's B5). It never casts an `any` or `yours` Hunt spell
   at its own creature, never uses an `any` or `yours` Hunt Duty on its own
   creature or a Duty that damages its own Provoked creature, and aims a
-  damage Duty or trigger at another creature when there is one. What is
-  forced still
-  happens: a trigger's target is mandatory, so an attack or Dawn Hunt whose
-  only prey is its own creature hunts it, and a creature is still cast when
-  its arrival prey can only be its own (the body is the point of the cast).
+  damage Duty or trigger at another creature when there is one. Casting a
+  creature is a choice too: an arrival hunter (or a Darling) whose only prey
+  is its own creature stays in hand. Only what is mandatory still happens:
+  a trigger's target must be chosen, so an attack or Dawn Hunt whose only
+  prey is its own creature hunts it.
 - **Medium's margin: one card** (`SELF_PROVOKE_MARGIN`, 1.25, the value
   layer's price for drawing a card). Medium takes a friendly choice only
   when its value beats the best plain choice of the same decision by that
@@ -552,7 +552,10 @@ creature. Each claim is pinned in `tests/ai/huntPolicyA2b.test.ts` and
   arrival Hunt's value on the cast's prey (`arrivalHuntCastValue`), so a
   hunter with prey it kills and survives outranks a slightly better vanilla,
   and one whose every prey kills it ranks below. It still casts the hunter
-  when nothing else is castable.
+  when nothing else is castable, and a creature cast whose only prey is its
+  own still clears the margin against nothing (the body is the point).
+  Holding an arrival hunter that every prey would kill is a scheduled
+  wave-3 rule (owner-approved, 2026-09-29).
 - **A Darling with an arrival Hunt is cast at its best prey**, for Medium
   and Easy (`applyDarlingPreyPolicy`); the shared cast-target policy keys on
   `castSpell` only, so before this they took the first prey in battlefield
@@ -575,8 +578,9 @@ creature. Each claim is pinned in `tests/ai/huntPolicyA2b.test.ts` and
 - **Known limits.** Hard builds its Medium on the same code, so Hard's
   Medium baseline candidate and its rollouts follow Medium's margin; Hard's
   own decision is its search. Medium's removal ladder still does not treat a
-  Hunt spell as removal (it is cast as a develop spell at its best pair). A
-  forced creature cast whose only prey kills it is still cast.
+  Hunt spell as removal (it is cast as a develop spell at its best pair).
+  Medium still casts an arrival hunter whose every prey kills it when nothing
+  else develops (the wave-3 rule above).
 
 **On today's pool the policy is inert.** It reads nothing unless a card in
 the pool prints a Hunt or a Provoked ability, and no shipped card does (a
