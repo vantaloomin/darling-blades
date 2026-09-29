@@ -10,7 +10,11 @@
  * Each generation prompt is assembled as [COMPOSITION+STYLE PREAMBLE] +
  * [entry Prompt line] + [NEGATIVES]; the style contract lives in
  * docs/art-bible/index.md §2 and the preamble/negatives below mirror it
- * (see the PREAMBLE comment). Inspect the exact text with --show-prompt.
+ * (see the PREAMBLE comment). Three preambles exist: PREAMBLE (the waist-up
+ * woman, every set before First Dawn), BEAST_PREAMBLE (a "NO woman" entry in
+ * any set) and FIGURE_PREAMBLE (a woman drawn head to knees, First Dawn's
+ * framing, selected per faction; it also gets a figure crop). Inspect the
+ * exact text with --show-prompt; --dry-run names each figure entry's crop.
  *
  * Usage:
  *   npm run gen-card-art -- [--faction <stem>] [--only id1,id2] [--limit N]
@@ -116,6 +120,11 @@ const GEN_TIMEOUT_S = 300;
  * empty background above it (same additive pattern as the seated-pose
  * clause). Smart crop handles placement; the preamble only has to buy sky.
  *
+ * Not for First Dawn (1.9, calibration round 1, 2026-09-29): its entries are
+ * drawn head to knees with the story around the woman, and this sentence's
+ * waist-up, face-at-centre framing fought them. They get FIGURE_PREAMBLE
+ * (below); this preamble stays byte for byte for every older set.
+ *
  * Lighting is deliberately NOT keyed here: the bible's default (warm
  * upper-left key, cool fill) is overridden per entry, and every entry prompt
  * names its own key + rim (the holo shaders depend on per-card lighting), so
@@ -172,6 +181,83 @@ const BEAST_PREAMBLE =
 const BEAST_ENTRY_OPENING = 'NO woman';
 
 /**
+ * The preamble for a pulled-back figure set (First Dawn, 1.9): a woman drawn
+ * from the top of her head to her knees, with the scene's story (a beast, a
+ * nest, a Hatchling, bones, her tail) around her rather than a waist-up bust.
+ *
+ * Why (calibration round 1, 2026-09-29, eleven First Dawn images): PREAMBLE's
+ * "waist-up portrait framing, the face at the exact vertical center" fights
+ * every head-to-knees First Dawn entry. The model drew the figure tall and
+ * high: head tops at 12% to 28% of the raw height, with the lower story
+ * (nest, bones, tail tips) below the card window or, on Herd-Guardian, a head
+ * at 12% that tripped smartcrop's zoom fallback into a 614x767 bust with the
+ * nest gone.
+ *
+ * The geometry it asks for: a 1024x1536 raw is cover-cropped to 1024x1280
+ * (scale 0.625) and the card window shows deliverable rows 138 to 662, with
+ * the head line at y 179. So head top to knees must fit in 662 - 179 = 483
+ * deliverable rows, 773 raw rows: about the middle half of the raw's height,
+ * with the head top about a quarter of the way down (384 raw rows, which the
+ * crop can move to y 179 by starting 97 rows down). The composition sentence
+ * says exactly that. The style sentences are PREAMBLE's, byte for byte.
+ *
+ * Selected by faction (FACTION_FRAMING below), not by entry text: the older
+ * sets' entries and the §3 recipe also say "head to knees", so a text marker
+ * would change their prompts, and a phrase an author words differently would
+ * silently fall back to the waist-up preamble. A beast-alone entry ("NO
+ * woman") keeps BEAST_PREAMBLE in every set.
+ */
+const FIGURE_PREAMBLE =
+  // Composition (First Dawn; see above).
+  'Composition: a pulled-back figure shot seen from a few steps back, never a close-up and ' +
+  'never a waist-up portrait: her whole figure from the top of her head down to her knees ' +
+  'fits inside only the middle half of the canvas height, the top of her head about one ' +
+  'quarter of the way down the canvas and her knees no lower than three quarters of the way ' +
+  'down, with the scene around her. HARD RULE: the very top of her head — including hair, ' +
+  'horns, crest, frill, ears or headdress — sits clearly BELOW the top-quarter line and never ' +
+  'touches it; open sky or empty background fills the top quarter of the canvas above her ' +
+  'head. Every story element — a beast, a nest, an egg, a hatchling, bones, a tail and its ' +
+  'tip, a dropped weapon — sits between the height of her head and the height of her knees, ' +
+  'never at her feet and never in the bottom quarter of the canvas; her lower legs, her feet ' +
+  'and the ground may run off the bottom edge. ' +
+  // Cel DNA + register + scenic background: PREAMBLE's style sentences, verbatim.
+  PREAMBLE.slice(PREAMBLE.indexOf('Style: '));
+
+/**
+ * Per-faction framing. A faction listed here as 'figure' gives its woman
+ * entries FIGURE_PREAMBLE and the figure crop (FIGURE_FOCAL_FRAC); every
+ * other faction keeps PREAMBLE and the default crop, byte for byte. A --bible
+ * draft file is keyed by its file stem.
+ */
+const FACTION_FRAMING: Readonly<Partial<Record<(typeof FACTIONS)[number], 'figure'>>> = {
+  'first-dawn': 'figure',
+};
+
+/**
+ * The smartcrop focal target for a figure entry, passed as `--focal-frac`.
+ * Measured on round 1's raws: smartcrop's default (FOCAL_FRAC, the face
+ * centre at y 291) is a portrait target. For a small full-figure head it
+ * pushes the head top down to about y 250 and the knees out of the window,
+ * and when the head sits high in the raw (focal above 24.4% of the crop) its
+ * zoom fallback shrinks the crop by focal_y / focal_frac, so the higher the
+ * face, the harder the zoom. At 0.10 the headroom floor (head top at y 179)
+ * always decides the placement, since it asks for a lower crop start than the
+ * focal line for any head, and the zoom's crop height (focal_y / 0.10) is the
+ * full 1280 rows unless the face centre sits in the raw's top 128 rows.
+ * So a figure keeps the full raw width; a head drawn too high shows as a
+ * crown clip on the contact sheet (a regeneration) instead of a silent bust.
+ */
+const FIGURE_FOCAL_FRAC = 0.1;
+
+const isFigureEntry = (entry: Entry): boolean =>
+  !entry.prompt.startsWith(BEAST_ENTRY_OPENING) &&
+  (FACTION_FRAMING as Readonly<Record<string, 'figure' | undefined>>)[entry.faction] === 'figure';
+
+/** Extra smartcrop arguments for an entry: none unless it is a figure entry. */
+const cropArgsFor = (entry: Entry): string[] =>
+  isFigureEntry(entry) ? ['--focal-frac', String(FIGURE_FOCAL_FRAC)] : [];
+
+/**
  * Negative block appended after the entry prompt: the NO-TEXT hard rule plus
  * the anatomy/style negatives from index.md §2. Backends habitually stamp
  * gacha nameplates and garbled CJK title-text onto Three Kingdoms art, so the
@@ -189,7 +275,7 @@ const NEGATIVES =
 // The entry Prompt line ends unpunctuated ("… 640×800 portrait"), so close the
 // sentence before the negatives block.
 const preambleFor = (entry: Entry): string =>
-  entry.prompt.startsWith(BEAST_ENTRY_OPENING) ? BEAST_PREAMBLE : PREAMBLE;
+  entry.prompt.startsWith(BEAST_ENTRY_OPENING) ? BEAST_PREAMBLE : isFigureEntry(entry) ? FIGURE_PREAMBLE : PREAMBLE;
 const assemblePrompt = (entry: Entry): string => preambleFor(entry) + entry.prompt + '.' + NEGATIVES;
 
 /**
@@ -588,7 +674,7 @@ function generateOne(
   // resolver trust file presence).
   const post = spawnSync(
     PYTHON,
-    [smartcropPath, rawPath, tmpPath, String(OUT_W), String(OUT_H), 'character'],
+    [smartcropPath, rawPath, tmpPath, String(OUT_W), String(OUT_H), 'character', ...cropArgsFor(entry)],
     { encoding: 'utf8' },
   );
   if (post.status !== 0) {
@@ -671,7 +757,9 @@ function main(): void {
   if (args.dryRun) {
     for (const e of entries) {
       const state = !args.force && exists(e) ? 'exists — skip (use --force)' : todo.includes(e) ? 'would generate' : 'beyond --limit';
-      console.log(`  ${e.id.padEnd(28)} ${e.faction.padEnd(24)} ${state}`);
+      // Figure entries also name their preamble and crop; every other line is unchanged.
+      const framing = isFigureEntry(e) ? ` (figure preamble, crop ${cropArgsFor(e).join(' ')})` : '';
+      console.log(`  ${e.id.padEnd(28)} ${e.faction.padEnd(24)} ${state}${framing}`);
     }
     console.log('gen-card-art: dry run — nothing generated');
     return;

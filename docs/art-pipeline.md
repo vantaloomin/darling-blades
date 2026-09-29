@@ -186,6 +186,65 @@ instead of the waist-up portrait preamble, whose "her head" and "She reads
 as powerful" turned a beast-only token into a monster-girl (`tok-wolf`);
 every other entry's prompt is byte-identical to before.
 
+**The figure preamble and crop (First Dawn, 1.9).** First Dawn's woman
+entries are drawn head to knees with the story around her (a beast, a nest, a
+Hatchling, bones, her tail), and `PREAMBLE`'s "waist-up portrait framing, the
+face at the exact vertical center" fought them. Calibration round 1
+(2026-09-29, eleven images) measured it: head tops at 12% to 28% of the raw
+height, the lower story below the card window, and on Herd-Guardian a head at
+12% that tripped the zoom fallback into a 614x767 bust with the nest gone. So
+`gen-card-art.ts` carries a third preamble, `FIGURE_PREAMBLE`, selected per
+faction (`FACTION_FRAMING`, `first-dawn` only; a `--bible` draft is keyed by
+its file stem), and a beast-alone entry keeps `BEAST_PREAMBLE` in every set.
+Its composition sentence asks for her figure from the top of her head to her
+knees inside the middle half of the canvas height, the head top about a
+quarter of the way down with the headroom HARD RULE at the top-quarter line,
+every story element between her head and her knees, and her lower legs and the
+ground free to run off the bottom; its style sentences are `PREAMBLE`'s,
+verbatim. The geometry: the 1024x1280 cover crop of a 1024x1536 raw maps 1.6
+raw rows to one deliverable row, and the window shows y 138 to 662 with the
+head line at y 179, so head top to knees must fit in 483 deliverable rows,
+773 raw rows, about half the raw's height, with the head top near raw row 384
+(a crop starting 97 rows down puts it on y 179).
+
+Figure entries also get a figure crop, `--focal-frac 0.1` on the smartcrop
+call (the per-card retarget the cropper already had). Character mode's zoom
+fallback scales the crop to the face: when the head sits high in the raw
+(focal above 24.4% of the crop at the ceiling) it shrinks the crop height to
+`focal_y / focal_frac`, so the higher the face, the harder the zoom, and the
+default focal line (y 291) also pushes a small full-figure head down to about
+y 250, taking the knees out of the window. At 0.1 the headroom floor always
+decides the placement (the head top lands on y 179 whenever the raw has the
+sky for it) and the zoom's height is the full 1280 rows unless the face centre
+sits in the raw's top 128 rows, so a figure keeps the full raw width, and a
+head drawn too high shows as a crown clip on the contact sheet, a regeneration,
+not a silent bust. On round 1's nine woman raws the figure crop kept the full
+width on all nine (Herd-Guardian's zoom gone, its crown 21 px above the
+window), and slid six of the other eight crops 30 to 108 raw rows down so
+each head top sat on y 179, showing that much more of the lower story (Ashka's
+and Ice-Cave Diver's raws have no sky for it, and their crops stay at the
+ceiling, heads at y 168 to 171, as before). Proof that
+nothing else moved: `--show-prompt` and `--dry-run` for all 17 other factions
+(937 prompts) are byte-identical before and after, and `--dry-run` names the
+figure preamble and crop on each of First Dawn's 109 woman entries (its 13
+beast-alone entries are unchanged). `--recrop` batches carry no faction and
+keep the default crop.
+
+Round 2 (2026-09-29, seven images under the figure preamble and crop, zero
+refusals): every crop kept the full raw width (round 1 zoomed one of five), and
+the relay model carried the composition sentence through its rewrite. The
+figures came out smaller, head to knees in frame on all seven. What it did
+not move is the head: head tops sat at 13.7% to 23.6% of the raw height (mean
+18.7% on the five cards redrawn from round 1, against 19.6% in round 1), so
+the "one quarter" target is not met, and three of seven heads sit above the
+y 179 line (y 132 to 152), each with the crop already at the
+raw's ceiling (no sky to slide into). The story below the knees still falls out of the window
+when the entry puts it in front of her (Herd-Guardian's nest, River-Snapper's
+bones, 82% to 88% of the raw against a window bottom at 69%), while elements
+placed beside her at hip height landed inside it (Nest-Guard's Hatchling,
+Vessa's tail). An entry that also asks for "crown to feet, nothing cropped"
+fits the whole body and pushes the head up (Nest-Guard, 13.7%).
+
 What a crop cannot fix: every shipped crop already spans the full raw width,
 so "zoom out" is impossible, and a head drawn at the very top edge of the raw
 can only be brought into the window by zooming in until the rest of the scene

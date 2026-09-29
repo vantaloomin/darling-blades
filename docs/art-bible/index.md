@@ -136,6 +136,10 @@ these at AUTHORING time so future expansions don't need a correction pass:
   pulled-back or full-body composition (formations, giants, full creature
   bodies) must say so with force — "extreme wide establishing shot, crown to
   feet, nothing cropped" succeeded where a bare "zoomed out" was ignored.
+- **No woman is drawn with an elongated neck** (owner, 2026-09-29): it reads
+  as disturbing, not as a species feature. A species whose animal is
+  long-necked carries the trait on its plain beasts only; its women keep an
+  ordinary woman's neck, and the prompt says so.
 - **Bodies are designed, not defaulted.** Build, bust, height impression,
   age-read (adult always; juvenile CREATURES like pups must read visibly
   young), and skin tone are explicit per character. Body diversity is a
@@ -831,20 +835,38 @@ monster-girl idiom: a woman's face and figure with **at most three stated
 species tells**, all three named in every prompt and checked at QA, at
 least two of them inside the card window (the tells rule under Direction preferences). Dinokin
 are scaled or feathered, never furred, and never carry mammal ears. **The
-Dinokin skin is a baseline, not a tell:** any Dinokin may carry small scaled
-patches at the temples, shoulders and hips, and they never count toward the
-three. A prompt that lists them says so ("small scaled patches at her temples,
-the Dinokin skin, not a species feature"). The species sheet:
+Dinokin skin is a baseline, not a tell:** every Dinokin carries a row of small
+rounded scales running from the nape down her spine and along the top of her
+tail (where she has one), and may carry small scaled patches at the temples,
+shoulders and hips; none of these count toward the three (owner, 2026-09-29:
+"Approved for scales on all the dinokin"). The row runs along the tail's top
+because most poses are front three-quarter, where a spine row alone never
+shows; a Skywing, who has no tail, carries it between her wings down to the
+small of her back. It stays a narrow row of small rounded scales, never plates
+(plates are the Armourback's tell). Every Dinokin woman's prompt states it
+once, beside the patches and in the same framing ("a narrow row of small
+rounded scales from her nape down her spine and along the top of her tail, the
+Dinokin skin, not a species feature"); riders, clanswomen, Beastkin and plain
+beasts carry none of it. A prompt that lists the patches says so too ("small
+scaled patches at her temples, the Dinokin skin, not a species feature"). The
+species sheet:
 
 | Species | The tells (at most three) |
 |---|---|
 | **Raptor** | one long stiff feathered tail; a low crest of short feathers along the crown and nape; one curved sickle claw on each foot |
 | **Hornback** | exactly two brow horns curving forward; a bony frill fanning back behind the head; one thick tail with a blunt tip |
-| **Longneck** | one very long tail tapering to a thin tip; a visibly long column neck; great height and a calm heavy build |
+| **Longneck** | exactly one very long tail, as long as she is tall, heavy and thick at the root and tapering to a whip-thin tip (longer and thinner-tipped than a Hornback's blunt tail or a Tyrant's massive one); great height and a calm heavy build |
 | **Armourback** | rows of flat bony plates along shoulders and forearms; one heavy tail ending in a bony club; a broad low build |
 | **Tyrant** | one massive tail; a row of short bony ridges above the brows; serrated fangs visible when the mouth is open |
 | **Skywing** | leathery membrane wings from the shoulder blades, never from the arms (two ordinary arms and hands); a backswept head crest; no tail |
 | **Swimmer** *(beyond the brief's six; ratified 2026-09-29)* | one long flat paddle tail; small fin ridges on forearms and calves; a slick wet sheen on the skin |
+
+Longneck women have an ordinary woman's neck; the long neck belongs only to
+the plain beasts (owner, 2026-09-29). The Longneck carries two tells, not
+three, and both must show inside the card window: the tail's root, a long run
+of it and its tip, and her height. In a prompt she is "a tall dinosaur
+monster-girl" with "an ordinary woman's neck of normal length", never
+"longneck", "long-necked" or "sauropod", which prime the neck.
 
 Every Dinokin tail is stated with its count, root and tip: "exactly one
 tail, emerging from the base of her spine at the tailbone, never from her
@@ -902,6 +924,15 @@ prompt clause and a QA check:
   tips] lower than the top of her head", and "the top of her head the
   highest point of the whole figure"; for a beast alone, "its skull [crest,
   horns] the highest point of the whole animal".
+- **Nothing sinks below her knees** (set-wide, 2026-09-29): every secondary
+  story element (a nest, an egg, bones, a paddle tip, a tail's tip, a
+  Hatchling, a dropped weapon) sits at hip-to-knee height or higher, never "at
+  her feet", "in the lower foreground", "on the ground before her" or "at the
+  bottom of the frame"; where it needs the ground, raise the ground (a fern
+  bank, a boulder or a ledge at hip height). The card window ends at 82.7% of
+  the frame (y 662), and anything lower is cropped; the calibration round of
+  2026-09-29 lost Herd-Guardian's nest, River-Snapper's bones and Vessa's tail
+  tip below it. Spells hold their principal figures to the same rule.
 - **The check is by eye, with the lines drawn; the detectors do not see
   it** (measured 2026-09-28 on the pilot's retained raws). `scripts/smartcrop.py`
   and `scripts/audit-art-window.py` look for anime heads and faces; neither
@@ -1207,7 +1238,7 @@ and the token's entry in `constructs-and-tokens.md` must both match them.
   black hair in one heavy low braid, two ash-grey bands across her
   cheekbones, a long ash-grey hide mantle, a bone-hooked staff, one Tar-Bones
   risen behind her. **Nirra** (`fdc-nirra-bo`), the Tar clan's ash-witch,
-  early thirties, lean and long-necked, olive skin, jaw-length black hair
+  early thirties, lean, olive skin, jaw-length black hair
   dusted pale with ash, one ash-grey band across her eyes, one obsidian
   knife.
 - **The First Dawn plain beasts** — one design each, shared by every entry
