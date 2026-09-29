@@ -114,7 +114,7 @@ function isDarlingPermanent(state: GameState, perm: Permanent): boolean {
 }
 
 /** Runtime token identity, with a definition fallback for legacy hand-built snapshots. */
-function isTokenPermanent(db: CardDb, perm: Permanent): boolean {
+export function isTokenPermanent(db: CardDb, perm: Permanent): boolean {
   return perm.isToken === true || (perm.isToken === undefined && def(db, perm.cardId).token === true);
 }
 

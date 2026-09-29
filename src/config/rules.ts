@@ -30,6 +30,11 @@ export const RULES = {
   // so it can never exceed the 7-card hand — the source of the old soft-lock.
   maxMulligans: 3,
   maxCreatures: 8, // battlefield cap per player
+  // Overcharge (1.9 A1.7): a token refused at the creature cap gives one
+  // same-name token its controller controls +1/+1 instead. This is the most
+  // Overcharges one creature can hold. PLACEHOLDER pending measurement (the
+  // owner's 2026-09-29 ruling carries the limit; the lab sets the number).
+  overchargeLimit: 3,
   maxNoncreaturePermanents: 4, // noncreature-nonland cap per player
   // Raised 3 -> 4 (user decision 2026-07-31) with the cap now surfaced in the
   // duel UI (DuelScene shows a running count on gang-blocks and a decline

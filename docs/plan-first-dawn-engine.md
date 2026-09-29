@@ -1667,6 +1667,95 @@ then it Hunts. If it survived, draw a card.") and Ash-Rite ("then you create
   attacking creature ..."), so the validator does not restrict the word to
   spells. The Forge still cannot build either construct.
 
+## As built (A1.7): Overcharge
+
+The board-cap study (2026-09-29, 28,224 games) found First Dawn's go-wide deck
+losing 6.4 tokens a game to the 8-creature cap, and a prototype "Overcharge"
+recovering that power (+7pp) where a wider cap did not and cost Hard 13-17%
+more time a decision. The owner's rulings the same day: build it in 1.9 as a
+game rule for every set and format; namesake only; tokens only; +1/+1 each
+with a per-creature limit; not a Mark. `docs/rules.md`, "Board caps", has the
+rules and the PROPOSED player copy.
+
+- **The rule.** `createToken` re-checks the cap before each token. At the cap
+  the token is not created; `refuseTokenAtCap` (`src/engine/overcharge.ts`)
+  gives one eligible namesake an Overcharge and emits `overcharged`, and the
+  op goes on to its next token. With no eligible namesake, nothing happens
+  (the old behaviour). An eligible namesake is a creature **token** the refused
+  token's controller controls, with the refused token's **name** (not its card
+  id), below the limit. Never any other creature, never a non-token card of
+  that name, never the opponent's token.
+- **The pick** (the main session's fold, a design default): the eligible
+  namesake with the fewest Overcharges, ties to the oldest (lowest iid). It
+  spreads the bonus and works with the limit; there is no prompt and no AI
+  decision.
+- **The limit.** `RULES.overchargeLimit = 3`, a placeholder pending
+  measurement (commented as such in `src/config/rules.ts`). A namesake at the
+  limit is not eligible.
+- **The field.** `Permanent.overcharge?: number` (absent = 0), added for
+  creatures in `getEffectiveStats` after the Marks, so combat, the P/T plate,
+  `PlayerView` and every AI read see it through the normal stat path. Nothing
+  ever copies it: it leaves with the permanent, a Nine Lives return comes back
+  without it, and a later Preserve copy of the same card starts at none.
+- **Every token-creation site.** `createToken` (the one effect that makes
+  tokens) runs the rule. Preserve (`preserveCard` in `Game.ts`) is the only
+  other token maker; its action is refused at legality at the cap
+  (`preserveBlockers`), so it never makes a token there and is unchanged.
+  The non-token cap sites keep the plain refusal: `raise`, the Nine Lives
+  return, and the cast-time checks (`castBlockers`, Darling casts).
+- **Not a Mark: every Mark rule, found by walking each `plusOneCounters`
+  reader and writer, ignores it.** `removeMarks` (clears Marks, keeps
+  Overcharges); `moveMark` (an overcharged creature with no Mark has none to
+  move); Propagate (never starts a Mark on it); `markAll` (adds a Mark beside
+  it); the `yourMarked` / `theirMarked` boosts; the "marked" target spec
+  (`targeting.ts`); the `controlMarked` and marked-threshold conditions, both
+  the triggered (`conditionSatisfied`) and the static (`statics.ts`) forms; the
+  static `filter.marked`; `ifTargetMarked`; `loseLifePerTheirMarked`;
+  "whenever a marked creature you control attacks"; Nine Lives' "no +1/+1
+  marks" check. Gaining an Overcharge fires no Mark trigger (`gainsMark`,
+  `yourCreatureMarked`, `yourPermanentMarked`, `youAddMark`,
+  `otherCreatureMarked`) and no arrival trigger. The AI's Mark reads
+  (`value.ts`, `MediumAI.ts`, `hauntlinkPolicy.ts`) read `plusOneCounters`
+  only, so they ignore it too; its stat reads include it.
+- **The event.** `{ e: 'overcharged', player, iid, cardId, tokenCardId,
+  total }`: the recipient, the refused token's card id and the new count.
+  No permanent enters, so no `tokenCreated`.
+- **The AI.** No new read. Hard's determinized worlds are built from the
+  public view (which carries the field) and run the real engine, so its
+  simulated lines overcharge. `src/ai/value.ts:117` is the cast-time cap for a
+  second creature *spell* and stays: creature spells keep the hard cap. The
+  shared token value (`createToken` at 1.5 a token) is cap-blind; at the cap a
+  token is now worth +1/+1 on a namesake or nothing, which is closer to 1.5
+  than before where a namesake exists. Left as is (no measured need).
+- **The UI.** The duel log prints a line on every `overcharged` (PROPOSED:
+  "Board full: your [Hatchling] gains an Overcharge in place of a new one
+  (+1/+1, 2 of 3)", "enemy" for the opponent's). The tile draws an Overcharge
+  badge (`BoardCardView.setOvercharge`): the Overcharge cell glyph (a new
+  mechanic glyph, not a bolt and not a plus) and the count on a gold-rimmed
+  `rowFill` plate at the tile's right edge (`TILE_FEATURES.overchargeBadge`,
+  anchor `rightEdge`, never the Mark badge's spot), counter-scaled like the
+  action chip so its count keeps 11px type on a shrunken tile. The P/T plate
+  already includes the bonus through `getEffectiveStats`.
+- **The words.** A glossary rule term, Overcharge, in the Mechanics tab beside
+  the zone terms (the glossary had no board-cap term before), its numbers
+  read from `RULES`; `docs/rules.md`'s cap section and constants table.
+- **Save and replay.** No save holds a duel in progress, and replays are
+  action logs (seed, decks, actions), so no format persists a `Permanent`; the
+  undo snapshot is an in-memory clone. Nothing to migrate and no save bump. A
+  1.8.x replay replays through the 1.9 engine identically except where a token
+  was refused beside a namesake, as with the other 1.9 rules fixes.
+- **The scorer.** No change; it does not model the cap.
+- **Tests.** `tests/engine/overcharge.test.ts` (the rule, the event, no
+  fallback, the limit, the pick, multi-token ops, below the cap, a refused
+  token's Marks, either player, the Preserve copy, the `PlayerView`);
+  `tests/engine/overchargeNotAMark.test.ts` (one test per Mark rule above,
+  with Nine Lives' new-object return and the trigger silence);
+  `tests/ai/overchargeSim.test.ts` (Hard's worlds carry the field and run the
+  rule); the badge's anchor through `tests/ui/boardCuePresentation.test.ts`'s
+  anchor rule and its glyph through `tests/ui/mechanicIcons.test.ts`. Each new
+  test was proved against a mutation that switches its behaviour off (36
+  mutations, each caught).
+
 ## What this spec corrects
 
 In the **overplan** (lane B should update it; this spec does not edit it;

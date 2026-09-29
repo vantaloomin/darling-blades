@@ -3158,6 +3158,17 @@ export class DuelScene extends Phaser.Scene {
       case 'awakened':
         this.log(`${this.cardRef(e.cardId)} awakens`, e.cardId);
         break;
+      case 'overcharged': {
+        // A token refused at the creature cap powered up its namesake (1.9
+        // A1.7). Said aloud, or the missing token reads as a bug, the lesson
+        // of the silent blocker cap (src/config/rules.ts).
+        const whose = e.player === HUMAN ? 'your' : 'enemy';
+        this.log(
+          `Board full: ${whose} ${this.cardRef(e.cardId)} gains an Overcharge in place of a new one (+1/+1, ${e.total} of ${RULES.overchargeLimit})`,
+          e.cardId,
+        );
+        break;
+      }
       case 'turnBegan':
         this.log(`Turn ${e.turn}: ${e.player === HUMAN ? 'your' : "opponent's"} turn`);
         this.showTurnBanner(e.turn, e.player === HUMAN);
@@ -3993,6 +4004,7 @@ export class DuelScene extends Phaser.Scene {
       }
       view.setKeywords(stats.keywords);
       view.setAuraCount(perm.attachments.length);
+      view.setOvercharge(perm.overcharge ?? 0, scale);
       // The gold "eligible" ring alone reads the same for an attacker, a
       // Hauntlink move and a Duty; the chip names which (legal Duties are
       // enumerated for your own permanents only).

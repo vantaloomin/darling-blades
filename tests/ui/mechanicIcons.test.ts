@@ -11,13 +11,14 @@ import { CARD_TYPE_DEFINITIONS } from '../../src/ui/rulesText';
  * the rule that no glossary row falls back to a blank gutter.
  */
 describe('mechanic and card-type icons', () => {
-  it('covers every named mechanic plus the two zone terms', () => {
+  it('covers every named mechanic plus the two zone terms and the Overcharge rule', () => {
     for (const id of Object.keys(MECHANIC_NAMES)) {
       expect(MECHANIC_ICON_KEY[id as keyof typeof MECHANIC_ICON_KEY]).toBe(id === 'duty' ? 'pip-T' : `mechanic-${id}`);
     }
     expect(MECHANIC_ICON_KEY.warchest).toBe('mechanic-warchest');
     expect(MECHANIC_ICON_KEY.darlings).toBe('mechanic-darlings');
-    expect(Object.keys(MECHANIC_ICON_KEY)).toHaveLength(Object.keys(MECHANIC_NAMES).length + 2);
+    expect(MECHANIC_ICON_KEY.overcharge).toBe('mechanic-overcharge');
+    expect(Object.keys(MECHANIC_ICON_KEY)).toHaveLength(Object.keys(MECHANIC_NAMES).length + 3);
   });
 
   it('covers every card type', () => {

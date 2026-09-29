@@ -49,6 +49,7 @@ export const MECHANIC_ICON_KEY: Record<MechanicIconId, string> = {
   duty: 'pip-T', // Duty teaches the same tap glyph the card face uses.
   warchest: 'mechanic-warchest',
   darlings: 'mechanic-darlings',
+  overcharge: 'mechanic-overcharge',
 };
 
 /** The phase glossary uses one shared day-cycle glyph for all five rows. */
@@ -164,6 +165,13 @@ const MECHANIC_ICON_PATH: Record<Exclude<MechanicIconId, 'duty'>, string> = {
   warchest: 'M5 15 Q5 11 9 11 L35 11 Q39 11 39 15 L39 19 L5 19 Z M5 22 L39 22 L39 34 Q39 38 35 38 L9 38 Q5 38 5 34 Z M18 15 L26 15 L26 26 L18 26 Z',
   // Her crown: she waits in her own zone and answers when called.
   darlings: 'M5 33 L39 33 L39 40 L5 40 Z M5 31 L8 11 L16 21 L22 6 L28 21 L36 11 L39 31 Z',
+  // A charged cell, standing: a refused token's power stored in its namesake.
+  // Not a bolt (Empower owns it) and not a plus (Mark and Propagate own that);
+  // the two bars are thick enough to survive the 16px keyword-chip size.
+  overcharge:
+    'M17 3 L27 3 L27 8 L17 8 Z ' +
+    'M11 8 L33 8 L33 41 L11 41 Z M15 12 L29 12 L29 37 L15 37 Z ' +
+    'M18 15 L26 15 L26 23 L18 23 Z M18 27 L26 27 L26 34 L18 34 Z',
 };
 
 /** A rising and setting sun marks the shared day-cycle phase vocabulary. */

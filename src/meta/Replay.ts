@@ -31,8 +31,11 @@ import type { GameFormat, ReserveFormat } from '../config/rules';
 // empowered permanent whose Empower targets have all left resolves; only the
 // rider is lost (The Drowned Saint; Renenutet, Who Measures the Flood;
 // Tidewalk Analyst). A log recorded before this fix replays
-// differently: the recorded card went to the graveyard. v11 through v16 all
-// map to rules revision 4.
+// differently: the recorded card went to the graveyard. v16 also carries
+// Overcharge (1.9 A1.7): a token refused at the creature cap beside a token
+// with its name now overcharges that token, so an older log replays
+// differently wherever that happened. v11 through v16 all map to rules
+// revision 4.
 export const REPLAY_LOG_VERSION = 16 as const;
 /** Newest-first FIFO cap for SaveData.replays (mirrors limited.history's 20). */
 export const REPLAY_CAP = 10;

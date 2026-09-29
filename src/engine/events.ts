@@ -102,6 +102,8 @@ export type GameEvent =
   | { e: 'triggerFizzled'; iid: number }
   | { e: 'effectApplied'; op: string; detail?: unknown }
   | { e: 'tokenCreated'; perm: Permanent }
+  /** A token refused at the creature cap gave `iid`, a same-name token `player` controls, one Overcharge (`total` is its count now). */
+  | { e: 'overcharged'; player: PlayerId; iid: number; cardId: string; tokenCardId: string; total: number }
   | { e: 'positionNote'; note: string } // debug/log line, never load-bearing
   | {
       e: 'gameEnded';
