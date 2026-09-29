@@ -70,6 +70,8 @@ const DB: CardDb = dbOf(
   body('tracker', 3, 3, { activated: { cost: { tap: true }, targets: [PREY], ops: [{ op: 'hunt', hunter: 'self' }] } }),
   /** "When this arrives, Hunt any other creature." */
   body('korru', 3, 3, { abilities: [{ when: 'arrives', targets: [ANY_PREY], ops: [{ op: 'hunt', hunter: 'self', prey: 'any' }] }] }),
+  /** "When this arrives, if you control another Dinokin, Hunt." */
+  body('fernRaptor', 3, 3, { subtypes: ['Dinokin'], abilities: [{ when: 'arrives', condition: { kind: 'controlsOther', subtype: 'Dinokin' }, targets: [PREY], ops: [{ op: 'hunt', hunter: 'self' }] }] }),
 );
 
 function gameOf(battlefield: Partial<Permanent>[], hand: string[] = [], setup?: (perms: Permanent[], state: GameState) => void): Game {
@@ -151,6 +153,23 @@ describe('an arrival Hunt chooses its best prey at cast (A1.1b hand-off)', () =>
     const game = raptorGame();
     const action = brain().chooseAction(game.viewFor(0), game.legalActions(0));
     expect(action).toMatchObject({ type: 'castSpell', handIndex: 0, targets: [ref(3)] });
+  });
+});
+
+describe('a conditional arrival Hunt whose condition fails is cast as a plain creature (A1.1c)', () => {
+  // No other Dinokin: the cast names no prey (the owner's ruling, 2026-09-29),
+  // so every brain plays the 3/3 rather than holding it for a condition.
+  it.each([
+    ['Easy', () => new EasyAI(DB, 1, makePersonality({ easyNoise: 0 }))],
+    ['Medium', () => new MediumAI(DB)],
+    ['Hard', () => new HardAI(DB)],
+  ] as const)('%s casts it on an empty board, and beside prey it cannot hunt', (_, brain) => {
+    for (const battlefield of [[], [{ iid: 3, cardId: 'cub', controller: 1 }]] as Partial<Permanent>[][]) {
+      const game = gameOf(battlefield, ['fernRaptor']);
+      const action = brain().chooseAction(game.viewFor(0), game.legalActions(0));
+      expect(action).toMatchObject({ type: 'castSpell', handIndex: 0 });
+      expect((action as Extract<Action, { type: 'castSpell' }>).targets ?? []).toEqual([]);
+    }
   });
 });
 

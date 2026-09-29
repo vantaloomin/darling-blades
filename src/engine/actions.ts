@@ -12,7 +12,7 @@ import {
 import { enumerateTargets, isLegalTarget } from './effects/targeting';
 import { graveInstanceAt, graveRefMoved, sameGraveCard } from './graveyard';
 import { canPay, combineManaCosts, manaSources, maxPayableX, solveMana } from './mana';
-import { arrivalHuntIndex } from './effects/EffectInterpreter';
+import { arrivalHuntIndex, conditionSatisfied } from './effects/EffectInterpreter';
 import { castTargetSpecs } from './resolve';
 import { getEffectiveStats } from './statics';
 import type { ActivatedDef, CardDb, CardDef, EffectOp, GameState, ManaCost, Permanent, PlayerId, TargetRef, TargetSpec } from './types';
@@ -241,7 +241,7 @@ function pushCastActions(
       castBlockers(state, db, player, d, empowered, 0, retell, hauntlinked, options) !== null) continue;
     const cost = castCost(d, empowered, retell, hauntlinked, options);
     if (!cost) continue;
-    const specs = castTargetSpecsFor(d, retell, hauntlinked, empowered);
+    const specs = castTargetSpecsNow(state, db, player, d, retell, hauntlinked, empowered);
     const targetLists = targetListsForCast(state, db, player, d, specs, empowered);
     // Payability depends only on (empowered, x) — hoisted out of the target loop.
     const payableXs = xs.filter((x) =>
@@ -394,6 +394,35 @@ function castTargetSpecsFor(
   return castTargetSpecs(d);
 }
 
+/**
+ * The cast's target specs on the current board. A conditional arrival Hunt
+ * ("When this arrives, if you control another Dinokin, Hunt.") checks its
+ * condition when the creature is cast (the owner's ruling, 2026-09-29): while
+ * the condition fails, the cast names no prey, so the creature is castable
+ * with or without prey and takes no target. On arrival the ability then runs
+ * as an ordinary targeted arrival trigger, which re-checks the condition.
+ * The override casts (Hauntlink, a Retell body, Empower targets) bring their
+ * own specs and are unaffected.
+ */
+function castTargetSpecsNow(
+  state: GameState,
+  db: CardDb,
+  player: PlayerId,
+  d: CardDef,
+  retell: boolean,
+  hauntlinked = false,
+  empowered = false,
+): ReturnType<typeof castTargetSpecs> {
+  const specs = castTargetSpecsFor(d, retell, hauntlinked, empowered);
+  const bodySpecs = !hauntlinked && !(retell && d.retell?.ops) && !(empowered && d.empower?.targets);
+  const hunt = bodySpecs ? arrivalHuntIndex(d) : -1;
+  if (hunt < 0) return specs;
+  const condition = d.abilities![hunt].condition;
+  // Cast from hand or the Darling zone, the creature is not on the
+  // battlefield yet, so every creature there is "another".
+  return condition !== undefined && !conditionSatisfied(state, db, player, condition) ? [] : specs;
+}
+
 function targetListsForCast(
   state: GameState,
   db: CardDb,
@@ -463,7 +492,7 @@ function hasCastableVariant(
   const variants = !retell && canEmpower(d) ? [false, true] : [false];
   for (const empowered of variants) {
     if (castBlockers(state, db, player, d, empowered, 0, retell) !== null) continue;
-    const specs = castTargetSpecsFor(d, retell, false, empowered);
+    const specs = castTargetSpecsNow(state, db, player, d, retell, false, empowered);
     if (targetListsForCast(state, db, player, d, specs, empowered).length > 0) return true;
   }
   return false;
@@ -715,7 +744,7 @@ function pushDarlingCastActions(
         (_, i) => d.x!.min + i,
       )
     : [undefined];
-  const specs = castTargetSpecs(d);
+  const specs = castTargetSpecsNow(state, db, player, d, false);
   const targetLists: (TargetRef[] | undefined)[] = specs.length === 0
     ? [undefined]
     : enumerateTargets(state, db, player, specs[0]).map((target) => [target]);
@@ -1227,7 +1256,7 @@ export function validateAction(
           return 'cannot pay cost';
         }
       }
-      const specs = castTargetSpecsFor(d, isRetell, isHauntlinked, action.empowered === true);
+      const specs = castTargetSpecsNow(state, db, player, d, isRetell, isHauntlinked, action.empowered === true);
       const targets = action.targets ?? [];
       const targetError = validateTargetList(state, db, player, d, specs, targets, action.empowered === true);
       if (targetError) return targetError;
@@ -1279,7 +1308,7 @@ export function validateAction(
         if (err) return err;
         if (action.manaPlan.length !== manaValue(cost) + (action.x ?? 0)) return 'mana plan has wrong source count';
       }
-      const specs = castTargetSpecs(d);
+      const specs = castTargetSpecsNow(state, db, player, d, false);
       const targets = action.targets ?? [];
       if (targets.length !== specs.length) return 'wrong number of targets';
       const moved = movedGraveTarget(state, targets);
@@ -1465,9 +1494,9 @@ export function reasonUncastable(
   }
 
   if (hasCastableVariant(state, db, player, d)) return null;
-  const specs = castTargetSpecs(d);
+  const specs = castTargetSpecsNow(state, db, player, d, false);
   if (specs.length > 0 && enumerateTargets(state, db, player, specs[0]).length === 0) {
-    // Stub, PROPOSED player copy pending the owner (A2.c may replace it).
+    // Player copy approved by the owner, 2026-09-29.
     if (arrivalHuntIndex(d) >= 0) return "It can't be cast: it has no prey to hunt.";
     return 'There are no legal targets for this spell.';
   }

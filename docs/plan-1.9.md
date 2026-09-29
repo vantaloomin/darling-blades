@@ -298,12 +298,20 @@ damage equal to their Attack to the other.*
    its own prey, `any` (any other creature, yours included) or `yours`
    (another creature you control). On the card Hunt is a bare verb keyword
    like Mark: "When this arrives, Hunt."; the spell form "Target creature
-   you control Hunts."; an override names its prey (PROPOSED: "Hunt any
-   other creature.", "Hunt another creature you control."). **An arrival
+   you control Hunts."; an override names its prey (APPROVED 2026-09-29:
+   "Hunt any other creature.", spell "Target creature you control Hunts any
+   other creature.", and "Hunt another creature you control."). **An arrival
    Hunt chooses its prey at cast:** the creature can't be cast unless it has
    prey under its own rule, hunts as it arrives, and still arrives without
    hunting if the prey is gone by then; attack, Dawn and Empower Hunts are
-   unchanged (A1.1b). The ruled description: "Your creature and its prey each deal damage equal to their Attack to the other. The prey is a creature an opponent controls, unless the card says otherwise. A creature with Bulwark cannot hunt. A creature that hunts when it arrives can't be cast unless it has prey."
+   unchanged (A1.1b). The uncastable reason "It can't be cast: it has no
+   prey to hunt." is APPROVED (2026-09-29). **A conditional arrival Hunt
+   checks its condition at cast** (ruled 2026-09-29, A1.1c; "When this
+   arrives, if you control another Dinokin, Hunt."): while the condition
+   holds, the rule above; while it fails, the creature is cast with no prey,
+   castable with or without prey, and hunts on arrival only if the condition
+   has become true by then, as an ordinary arrival trigger
+   ([As built (A1.1c)](plan-first-dawn-engine.md#as-built-a11c-a-conditional-arrival-hunt-checks-its-condition-at-cast)). The ruled description: "Your creature and its prey each deal damage equal to their Attack to the other. The prey is a creature an opponent controls, unless the card says otherwise. A creature with Bulwark cannot hunt. A creature that hunts when it arrives can't be cast unless it has prey."
    `TargetSpec` already has `yourCreature` and `opponentCreature`; Hunt
    uses two ordered specs (hunter, then prey), which the multi-spec path
    already enumerates, not `exactly: 2` (that is one spec for an unordered
@@ -590,8 +598,9 @@ What the set carries besides cards:
   (`docs/art-bible/*`) and `docs/art-pipeline.md` are being edited on
   another branch, so the re-crop PR rebases onto that work rather than
   editing those files beside it.
-- **Also raised, not ruled:** Cold-Boot Mask has a pale bar in its art file;
-  the sitting's notes suggested adding it to the regeneration list. Open.
+- **Cold-Boot Mask joins the regeneration list (RULED, owner, 2026-09-29).**
+  Its art file has a pale bar; the card gets a new image on the art run, as
+  the other regenerations do, and ships its current art until then.
 
 ### Lane C — accessibility
 

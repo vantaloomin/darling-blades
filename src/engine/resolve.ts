@@ -22,7 +22,10 @@ export function isAura(d: CardDef): boolean {
 /**
  * Cast-time target specs: auras and Hauntlink casts target a creature, and a
  * creature with an arrival Hunt names its prey (the owner's ruling,
- * 2026-09-28: it can't be cast unless it has prey).
+ * 2026-09-28: it can't be cast unless it has prey). This is the printed
+ * shape; a conditional arrival Hunt whose condition fails at cast names no
+ * prey (2026-09-29), which the cast enumerator and validator read from the
+ * board (actions.ts, castTargetSpecsNow).
  */
 export function castTargetSpecs(d: CardDef): readonly TargetSpec[] {
   if (isAura(d)) return [{ what: 'creature' }];
@@ -144,7 +147,11 @@ export function resolveStackItem(
         controller: perm.controller,
       });
     }
-    fireTriggers(state, db, emit, 'arrives', perm, huntPreyCast ? { castHuntTargets: item.targets } : {});
+    // A cast with no prey is a conditional Hunt whose condition failed at cast
+    // (the owner's ruling, 2026-09-29): its ability takes the ordinary
+    // targeted-trigger path, which re-checks the condition on arrival.
+    fireTriggers(state, db, emit, 'arrives', perm,
+      huntPreyCast && item.targets.length > 0 ? { castHuntTargets: item.targets } : {});
     runEmpowerRider(state, db, item, d, emit, perm.iid, specs);
     return;
   }
