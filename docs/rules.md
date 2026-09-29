@@ -762,7 +762,8 @@ reopen (`resolvedSinceOffer`), so the defender is offered a reopened window
 over the blocks if they hold a castable Charm or a payable pump on a creature
 in the fight, within `RULES.maxWindowReopensPerStep`. Reopens only ever go to
 the defender, so the defender's own pump earns nothing and passing the reply
-goes to damage; each pump costs mana, so the exchange cannot loop.
+goes to damage; each pump costs mana, so the exchange cannot loop. The
+attacker gets no answer to the defender's reply pump (the owner, 2026-09-29).
 
 **Auto-pass.** A payable pump keeps a window open for its controller only in
 combat, on a creature still in the fight: an attacker, a blocker, or, before

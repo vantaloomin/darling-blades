@@ -1203,7 +1203,9 @@ count. `docs/rules.md`, "Repeatable mana abilities", has the rules.
   `maxWindowReopensPerStep`. Reopens only go to the defender, so the
   defender's own pump earns nothing and passing the reply goes to damage;
   each pump costs mana, so it cannot loop. Without it the attacker's pump was
-  unanswerable, and a defender could only pump blind before blocks.
+  unanswerable, and a defender could only pump blind before blocks. The
+  attacker gets no answer to the defender's reply pump; the owner agreed
+  (2026-09-29), to keep the exchange from chaining.
 - **The auto-pass rule** (`hasCombatManaActivation`, read by
   `hasCastableInstant` and `hasCastableCharm`). A payable pump keeps a window
   open for its controller only during combat and only on a creature still in
