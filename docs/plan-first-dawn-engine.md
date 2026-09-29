@@ -1258,8 +1258,9 @@ count. `docs/rules.md`, "Repeatable mana abilities", has the rules.
   line's template with the mana cost alone in front and no tap symbol, "{R}:
   This gets +1/+0 until Sunset.", printed right after the Duty line (above the
   keyword line). No glossary entry: it is not a keyword.
-- **The scorer.** `scoreCard` reports `manaActivated (NEEDS MATH: repeatable
+- **The scorer.** `scoreCard` reported `manaActivated (NEEDS MATH: repeatable
   mana pump, unpriced until the A1.4 lab)` as unknown, with a part worth 0.
+  A1.4b now prices it at the measured 0.83 ("A1.4b: the re-run's rates").
 - **Records.** The new action and event round-trip through the replay log
   (tested); v16 is unreleased, so no version bump. `docs/architecture.md`'s
   generated event table has the `manaActivated` row.
@@ -1405,14 +1406,13 @@ source. The spell intervals above are the pp intervals over 5.3.
 **Stubs that remain, and why.**
 
 - **The conditional arrival Hunt** ("If you control another Dinokin, when this
-  arrives, Hunt."): NEEDS MATH, priced as the unconditional exchange times the
-  scorer's standing controlsOther gate (0.6), labelled so. The lab measured it
-  before A1.1c, under the old rule (prey needed to cast even with the condition
-  unmet): Crag-Leaper 0.43 in a starter hole, Fern-and-Fire 0.58 and
-  Fern-Shadow 0.63 in the Stampede. The re-run (`plan-rerun-a11c.json`) prices
-  it.
-- **The repeatable mana pump** (A1.5): NEEDS MATH at 0, an unknown, until the
-  re-run's pump arm.
+  arrives, Hunt."): priced by A1.4b (below) at 0.85 of the unconditional
+  exchange when the type is the card's own. Still NEEDS MATH: a Hunt gated on
+  another type (the standing controlsOther gate, 0.6, against a measured
+  off-tribe 0.2), and a gated Hunt on any carrier but arrival.
+- **The repeatable mana pump** (A1.5): priced by A1.4b at 0.83 a card. Still
+  NEEDS MATH: any shape but one +1/+0 pump for one mana on a Skyborne creature
+  (priced at the same 0.83).
 - **Measured with Hard as built**: the Duty rate carries A1.2's Morning gap (a
   creature that can attack rarely uses its Duty), and Empower's 0 was measured
   on a 3/1 that trades; an Empower Hunt on a body that survives is the least
@@ -1447,8 +1447,119 @@ and the 0.95 slope; the counts held.
 **Tests.** `tests/power/firstDawnRates.test.ts` (the survival step, Empower at
 0, the spell's Defense fold, the Provoked survival factor, the engine, the
 source rate, the measured anchors as gates, and the conditional stub staying
-an estimate) and a P3 case in `tests/engine/provoked.test.ts`, each shown to
-fail with its behaviour switched off.
+an estimate, since replaced by A1.4b's tests) and a P3 case in
+`tests/engine/provoked.test.ts`, each shown to fail with its behaviour switched
+off.
+
+### A1.4b: the re-run's rates
+
+The A1.1c re-run (93,072 games on 2026-09-29, on `release/1.9` at 0696fa9c,
+with the method above: Hard on both seats, the 14-deck field, 1 mana = 5.3 pp;
+`balance/study/lab/fd/first-dawn-findings-a11c.md`, local-only) measured the
+two stubs A1.4 left. Both rates sit in `src/power/scoreCore.ts` beside the
+scorer's other gates (`COND_HUNT_OWN_TRIBE`, `MANA_PUMP_VALUE`).
+
+**The conditional arrival Hunt: 0.85 in its own tribe.** The rule: an arrival
+Hunt gated on "if you control another *type*", where the type is one of the
+card's own subtypes, is priced at the unconditional exchange times 0.85,
+which replaces the ability's controlsOther gate (0.6). The part is labelled
+measured.
+
+- **Why the card's own type.** The factor depends on the deck, which the
+  scorer can't see. In the Dinokin decks, where the condition is live, the
+  conditional Hunts read 4.4 to 4.5 pp at 2 copies against Frill-Neck
+  Stalker's unconditional 5.2 pp: about 0.85. Off-tribe, in a starter hole,
+  they keep about 0.2. "Another creature of its own type" is the scorer's
+  proxy for a card built for its tribal deck, and every conditional hunter in
+  the cut (Fern-and-Fire Raptor, Fern-Shadow Stalker, Fern-Crown Tyrant) is a
+  Dinokin built for the Dinokin decks.
+- **Everything else keeps its standing gate.** That covers:
+  - a Hunt gated on another type (0.6, NEEDS MATH: off-tribe measured about 0.2);
+  - a gated Hunt on any other carrier (NEEDS MATH);
+  - any gated ability that doesn't hunt. The controlsOther gate is shared with
+    shipped cards, so it stays 0.6.
+
+**The calibration table.** The in-deck rows are 2-of readings inside a deck,
+a smaller frame than the starter-hole 4-of the Hunt step is fitted in:
+Frill-Neck's own Hunt, 3.25 in the hole frame, reads 0.98 in R28. So an
+in-deck row's fitted value is the scorer's part times 0.98 / 3.25 (0.30); a
+starter-hole row is read directly. Measured is MEP (dWR / 5.3), 95% interval.
+
+| Lab row | Where | Scorer's part | Fitted | Measured |
+|---|---|---|---|---|
+| Frill-Neck Stalker 4/4, unconditional (the frame) | R28, 2-of | 3.25 | 0.98 | 0.98 [0.64, 1.26] |
+| Fern-and-Fire Raptor 3/3's Hunt | Stampede, 2-of | 2.13 | 0.64 | 0.85 [0.58, 1.08] |
+| Fern-Shadow Stalker 3/4's Hunt | Stampede, 2-of | 2.76 | 0.83 | 0.83 [0.58, 1.17] |
+| Crag-Leaper 4/3, condition live | Stampede, 3 copies | 2.13 | 0.64 | 0.77 [0.49, 1.11] |
+| Crag-Leaper 4/3, off-tribe | starter hole | 2.13 | 2.13 | 0.51 [0.28, 0.74] |
+| Fern-and-Fire 3/3, off-tribe (Oru stripped) | starter hole | 2.13 | 2.13 | 0.60 [0.38, 0.85] |
+| Fern-Crown Tyrant 5/5 | R28, 1-of | 2.98 | 0.90 | not isolable; R28 as a whole moved +1.1 ± 0.7 pp under A1.1c |
+
+Where the fit departs:
+- **The off-tribe rows**, on purpose. The scorer prices a Dinokin card for its
+  Dinokin deck, so a copy played outside one is over-read by about 1.5 MEP.
+- **Fern-and-Fire's 3/3 reads under its measurement** (0.64 against 0.85,
+  inside the interval). In the decks the 3/3 and the 3/4 read alike (4.5 and
+  4.4 pp), which the survival step's Defense slope doesn't show. The frame
+  rests on one reference row, so A1.4b doesn't refit the step from it.
+- **The factor is the findings' rounded 0.85.** Read against Frill-Neck's frame
+  body by body, the two in-deck rows give 1.13 and 0.85.
+
+**The mana pump: 0.83 a card.** The rule: a card's repeatable mana pumps are
+worth 0.83, once, whatever their number, with no unknown. The measured shape
+is one pump, +1/+0 on itself for one mana, on a Skyborne creature: Vyra,
+Ember-Sky Rider ({4}{R}{R} 5/5 Skyborne, "{R}: This gets +1/+0 until
+Sunset."). Any other shape takes the same value, marked NEEDS MATH: other
+stats, another cost, no Skyborne, or several pumps. The findings round the
+reading to 0.85; the scorer keeps the measured point.
+
+| Lab row | Fitted | Measured |
+|---|---|---|
+| Vyra's pump (Vyra against Vyra without it, Crimson and Tides holes) | 0.83 | 0.83 [0.66, 0.98] pooled; own-curve 0.98 [0.73, 1.34] |
+| One mana on the card without the pump (the control) | n/a | +4.5 pp [3.1, 5.7], about one mana, as it should be |
+
+Hard pumped in 19% of games, 0.60 pumps a game. The value is spare red mana
+turned into lethal by an evasive finisher, so it is not generalised to a
+ground or small body without its own arm. Medium's simpler pump rule was not
+measured.
+
+**What remains NEEDS MATH.**
+- A Hunt gated on a type that isn't the card's own.
+- A gated Hunt on any carrier but arrival.
+- Every pump shape but the measured one.
+- The frame conversion itself: one reference row, R28 against the Stampede.
+
+**What moved.**
+- **Shipped cards:** no score moved. All 1,515 were compared before and after,
+  every part and unknown.
+- **First Dawn's 166**, rescored in the scratch `fd-rescore/`: four cards moved.
+
+  | Card | Δ on A1.4 | Δ on A1.4b |
+  |---|---|---|
+  | Fern-and-Fire Raptor | +1.41 | +2.04 |
+  | Fern-Shadow Stalker | +1.62 | +2.43 |
+  | Fern-Crown Tyrant | +0.28 | +1.16 |
+  | Vyra, Ember-Sky Rider | -1.01 | -0.18 |
+
+- **The count:** 143 in band, 23 out (9 hot, 14 cold), each with a proposal
+  for the owner. A1.4's 20 are unchanged. A1.4b adds three:
+  - Fern-and-Fire 3/3 to 3/2 (+0.46);
+  - Fern-Shadow 3/4 to 3/2 (-0.16);
+  - Fern-Crown 5/5 to 4/5 (+0.68).
+
+  Vyra lands in band and gets none.
+
+**Tests.** `tests/power/firstDawnRates.test.ts` covers:
+- the three in-deck rows as measured gates in Frill-Neck's frame;
+- the gate costing the Hunt something;
+- an off-tribe gate marked an estimate;
+- the standing gate kept on a tribal ability that doesn't hunt;
+- Vyra's pump inside its interval;
+- every other pump shape marked an estimate.
+
+`tests/engine/manaActivated.test.ts`'s scorer case now expects the pump
+priced. Six mutants were run, one for each behaviour switched off, and each
+failed at least one test.
 
 ## As built (A1.6): attacking targets and "if it survived"
 

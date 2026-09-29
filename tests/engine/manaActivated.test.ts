@@ -266,10 +266,11 @@ describe('the card face and the scorer', () => {
     expect(rulesText(VYRA).split('\n')).toContain('{R}: This gets +1/+0 until Sunset.');
   });
 
-  it('reports the pump as unpriced, never a made-up rate', () => {
+  // The rate itself is gated against the lab in tests/power/firstDawnRates.test.ts.
+  it('prices the working card\'s pump as a known part (A1.4b), not an unknown', () => {
     const score = scoreCard(VYRA);
-    expect(score.unknowns.some((unknown) => unknown.startsWith('manaActivated'))).toBe(true);
-    expect(score.parts.find((part) => part.label.includes('mana pump'))?.v).toBe(0);
+    expect(score.unknowns.some((unknown) => unknown.startsWith('manaActivated'))).toBe(false);
+    expect(score.parts.find((part) => part.label.includes('mana pump'))?.v).toBeGreaterThan(0);
   });
 });
 

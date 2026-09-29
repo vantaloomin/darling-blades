@@ -866,6 +866,42 @@ export const FILTER_SACRIFICE_MULT = 0.5;
 //     carrier is a 7-drop checking at Dawn in a tribal deck.
 export const COND_CREATURE_DIED = 0.4;
 export const COND_CONTROLS_OTHER = 0.6;
+// 1.9 (A1.4b, in-engine): the CONDITIONAL ARRIVAL HUNT ("If you control another
+// Dinokin, when this arrives, Hunt."; the condition is checked at cast, A1.1c).
+// Measured by the A1.1c re-run (balance/study/lab/fd/first-dawn-findings-a11c.md,
+// local-only; Hard on both seats): the gate's factor depends on the deck.
+//   In its tribal deck (the condition live), 2-of: Fern-and-Fire 0.85 [0.58,
+//     1.08], Fern-Shadow Stalker 0.83 [0.58, 1.17], Crag-Leaper 0.77 [0.49,
+//     1.11], against Frill-Neck Stalker's unconditional Hunt 0.98 [0.64, 1.26]
+//     in R28: the conditional keeps about 0.85 of the unconditional.
+//   Off its tribe (a starter hole): Crag-Leaper 0.51, Fern-and-Fire 0.60,
+//     against about 2.5 for an unconditional hunter there: about 0.2.
+// The scorer cannot see the deck, so the rule reads the card: a Hunt on arrival
+// gated on "another <type>" where the type is one of the card's own subtypes is
+// priced for the deck built around that type, at COND_HUNT_OWN_TRIBE, measured.
+// Any other gate on a Hunt keeps its standing factor (controlsOther 0.6 for
+// another type), marked NEEDS MATH: off-tribe the lab read about 0.2.
+export const COND_HUNT_OWN_TRIBE = 0.85;
+// 1.9 (A1.4b, in-engine): the REPEATABLE MANA PUMP (A1.5, a Charm-speed ability
+// used any number of times). Measured by the same re-run on Vyra, Ember-Sky
+// Rider ({4}{R}{R} 5/5 Skyborne, "{R}: This gets +1/+0 until Sunset."), in the
+// Crimson and Tides holes, the card against itself without the pump: +4.4 pp
+// [3.5, 5.2], 0.83 MEP [0.66, 0.98] (own-curve 0.98). Hard pumped in 19% of
+// games; the value is spare mana turned into damage by an evasive finisher.
+// The rule: a card's pumps are worth MANA_PUMP_VALUE once, whatever their
+// number. The measured shape is one ability, +1/+0 on this creature for one
+// mana, on a Skyborne creature; any other shape (other stats, another cost,
+// no Skyborne, several pumps) takes the same value marked NEEDS MATH, as the
+// findings ask (the lab has no arm for a ground or small body).
+export const MANA_PUMP_VALUE = 0.83;
+/** True when the card's pump is the lab's measured shape (see MANA_PUMP_VALUE). */
+export function isMeasuredManaPump(card: ScorableCardDef): boolean {
+  const pumps = card.manaActivated ?? [];
+  if (pumps.length !== 1 || !(card.keywords ?? []).includes('skyborne')) return false;
+  const [pump] = pumps;
+  return manaValue(pump.cost) === 1 && pump.ops.length === 1 &&
+    pump.ops.every((op) => op.op === 'boost' && op.scope === 'self' && op.p === 1 && (op.t ?? 0) === 0 && op.keywords === undefined);
+}
 // Several Duties on one card share the single {T}: at most one fires per
 // untap. The best Duty is priced in full, each other at this share. NEEDS
 // MATH (a midpoint, like §4q's D): Grixis Battlemage (ALA) prices its second
@@ -1002,6 +1038,23 @@ function valueHunt(op: Extract<ScorableEffectOp, { op: 'hunt' }>, card: Scorable
   const mult = triggerMult(when, card);
   const v = mult > 0 ? (exchange * (carrier ?? 1.0)) / mult : 0;
   return { label: carrier === undefined ? `${label}, NEEDS MATH: an unmeasured carrier at the arrival rate` : label, v };
+}
+
+/** 1.9 (A1.4b): how a gated ability's Hunt is priced. An arrival Hunt gated on
+ * another creature of one of the card's own subtypes takes the measured tribal
+ * factor (`factor`, replacing the ability's gate); any other gate on a Hunt
+ * keeps the ability's standing factor (no `factor`) and is marked an estimate.
+ * Undefined when the ability has no gate. */
+export function conditionalHuntGate(ab: ScorableAbilityDef, card: ScorableCardDef): { factor?: number; label: string } | undefined {
+  const cond = ab.condition;
+  if (cond === undefined) return undefined;
+  if (typeof cond === 'object' && cond.kind === 'controlsOther') {
+    if (ab.when === 'arrives' && (card.subtypes ?? []).includes(cond.subtype)) {
+      return { factor: COND_HUNT_OWN_TRIBE, label: `if you control another ${cond.subtype}, its own tribe (measured x${COND_HUNT_OWN_TRIBE})` };
+    }
+    return { label: `if you control another ${cond.subtype}, NEEDS MATH: ${ab.when === 'arrives' ? 'not its own tribe (measured about 0.2 off-tribe)' : 'an unmeasured carrier'}, at the standing x${COND_CONTROLS_OTHER}` };
+  }
+  return { label: 'conditional, NEEDS MATH: an unmeasured gate on a Hunt' };
 }
 
 /** v2 — awaken op valuation. Needs the source CardDef for its own `awakening` rider. */
@@ -1803,6 +1856,7 @@ export function scoreCard(card: ScorableCardDef): Score {
       }
     }
     const huntPump = spellHuntPump(ab);
+    const huntGate = conditionalHuntGate(ab, card);
     for (const op of ab.ops ?? []) {
       let p = valueOp(op, face, card, ab.when, opTargetWhat(op, ab.targets), unknowns);
       if (huntPump && op.op === 'hunt' && op.hunter === 'target' && op.prey !== 'yours') {
@@ -1812,9 +1866,14 @@ export function scoreCard(card: ScorableCardDef): Score {
         const kw = (op.keywords ?? []).reduce((s, k) => s + 0.5 * kwValue(k, unknowns, nominalHost(op.p, op.t)), 0);
         p = { label: `pump ${sign(op.p)}/${sign(op.t)} on the hunter (in the Hunt)`, v: kw };
       }
-      if (op.op === 'hunt' && ab.condition !== undefined) p = { ...p, label: `${p.label}, conditional, NEEDS MATH until the A1.1c re-run` };
+      // 1.9 (A1.4b): a gated Hunt takes its own factor in place of the ability's gate.
+      let opMult = mult;
+      if (op.op === 'hunt' && huntGate) {
+        p = { ...p, label: `${p.label}, ${huntGate.label}` };
+        if (huntGate.factor !== undefined) opMult = mult * (huntGate.factor / condMult);
+      }
       const perTarget = isPerTargetOp(op) ? fan : 1;
-      const v = p.v * mult * perTarget;
+      const v = p.v * opMult * perTarget;
       parts.push({ label: `${ab.when}:${p.label}${tag}${fanLabel(perTarget)}`, v });
       if (!isCreature) spellEffect += v;
       if (!isCreature && op.op === 'extraLandDrop') rampInSpell.push({ op, when: ab.when, mult: mult * perTarget });
@@ -2011,14 +2070,10 @@ export function scoreCard(card: ScorableCardDef): Score {
 
   if (card.manaActivated?.length) {
     // Repeatable mana pump (1.9, A1.5; First Dawn's Shivan Dragon analog,
-    // "{R}: This gets +1/+0 until Sunset."). NEEDS MATH: a Charm-speed ability
-    // used any number of times is worth what the controller's spare mana buys
-    // in the fights it changes, which no static rate captures. The A1.4 lab
-    // prices it from an arm; until then it is reported as unknown at 0, never
-    // a made-up rate.
+    // "{R}: This gets +1/+0 until Sunset."), priced once per card (A1.4b).
     mechanics.push('manaActivated');
-    unknowns.add('manaActivated (NEEDS MATH: repeatable mana pump, unpriced until the A1.4 lab)');
-    parts.push({ label: 'repeatable mana pump (NEEDS MATH)', v: 0 });
+    const measured = isMeasuredManaPump(card);
+    parts.push({ label: measured ? 'repeatable mana pump (+1/+0 for one mana, on a Skyborne creature, measured)' : 'repeatable mana pump, NEEDS MATH: an unmeasured shape at the measured +1/+0 Skyborne rate', v: MANA_PUMP_VALUE });
   }
 
   if (card.whispers) {

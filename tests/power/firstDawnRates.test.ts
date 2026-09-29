@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { AbilityDef, EffectOp, TargetSpec } from '../../src/engine/types';
+import type { AbilityDef, EffectOp, ManaCost, TargetSpec } from '../../src/engine/types';
 import { bodyValue, scoreCard, type ScorableCardDef } from '../../src/power/scoreCore';
 
 // The First Dawn rates (1.9, A1.4): Hunt and Provoked, fitted to the A1.3 lab
@@ -152,10 +152,73 @@ describe('the measured anchors (A1.3 lab, 95% intervals)', () => {
   });
 });
 
-describe('the rates still waiting on the lab stay marked as estimates', () => {
-  it('marks a conditional arrival Hunt NEEDS MATH until the A1.1c re-run', () => {
-    const leaper = creature(4, 3, { abilities: [{ ...arrivalHunt, condition: { kind: 'controlsOther', subtype: 'Dinokin' } }] });
-    const part = scoreCard(leaper).parts.find((p) => p.label.includes('hunt'));
-    expect(part?.label).toMatch(/NEEDS MATH/);
+// A1.4b: the A1.1c re-run (balance/study/lab/fd/first-dawn-findings-a11c.md,
+// local-only). Its in-deck rows are 2-of readings in the Dinokin decks, a
+// smaller frame than the starter holes the Hunt step is fitted in, so each is
+// compared through the one unconditional hunter read in the same kind of deck:
+// Frill-Neck Stalker (a 4/4 Dinokin, arrival Hunt) at 0.98 in R28.
+describe('the conditional arrival Hunt, gated on the hunter\'s own tribe (A1.1c re-run)', () => {
+  const ifAnother = (subtype: string): AbilityDef => ({ ...arrivalHunt, condition: { kind: 'controlsOther', subtype } });
+  const dinokin = (attack: number, defense: number, abilities: AbilityDef[], extra: Partial<ScorableCardDef> = {}) =>
+    creature(attack, defense, { subtypes: ['Dinokin', 'Raptor'], abilities, ...extra });
+  const huntAdds = (card: ScorableCardDef) => adds(card, { abilities: undefined });
+  const frillNeckInDeck = 0.98;
+  const inDeck = (card: ScorableCardDef) => huntAdds(card) * (frillNeckInDeck / huntAdds(dinokin(4, 4, [arrivalHunt])));
+
+  // Measured gates: the fitted in-deck value inside each row's 95% interval.
+  const cases: [string, ScorableCardDef, number, number][] = [
+    ['Fern-and-Fire Raptor 3/3 Warcry, in the Stampede (0.85)', dinokin(3, 3, [ifAnother('Dinokin')], { keywords: ['warcry'] }), 0.58, 1.08],
+    ['Fern-Shadow Stalker 3/4, in the Stampede (0.83)', dinokin(3, 4, [ifAnother('Dinokin')]), 0.58, 1.17],
+    ['Crag-Leaper 4/3 Warcry, in the Stampede (0.77)', dinokin(4, 3, [ifAnother('Dinokin')], { keywords: ['warcry'] }), 0.49, 1.11],
+  ];
+  it.each(cases)('%s', (_name, card, low, high) => {
+    const v = inDeck(card);
+    expect(v).toBeGreaterThanOrEqual(low);
+    expect(v).toBeLessThanOrEqual(high);
+  });
+
+  it('keeps less than the same Hunt without its condition', () => {
+    const shadow = (abilities: AbilityDef[]) => huntAdds(dinokin(3, 4, abilities));
+    expect(shadow([ifAnother('Dinokin')])).toBeLessThan(shadow([arrivalHunt]));
+  });
+
+  it('marks a Hunt gated on another type an estimate, and its own tribe\'s as measured', () => {
+    const huntLabel = (card: ScorableCardDef) => scoreCard(card).parts.find((part) => part.label.includes('hunt'))?.label;
+    expect(huntLabel(dinokin(3, 4, [ifAnother('Dinokin')]))).not.toMatch(/NEEDS MATH/);
+    // Off its tribe the lab read about 0.2 of the unconditional Hunt.
+    expect(huntLabel(dinokin(3, 4, [ifAnother('Beastkin')]))).toMatch(/NEEDS MATH/);
+  });
+
+  it('leaves the standing gate on a tribal ability that does not hunt', () => {
+    // The shared controlsOther gate prices shipped cards; only the Hunt was measured.
+    const gain = (condition?: AbilityDef['condition']): ScorableCardDef =>
+      dinokin(3, 4, [{ when: 'arrives', ops: [{ op: 'gainLife', n: 3 }], ...(condition ? { condition } : {}) }]);
+    const gainPart = (card: ScorableCardDef) => scoreCard(card).parts.find((part) => part.label.startsWith('arrives:gain'))?.v ?? NaN;
+    expect(gainPart(gain({ kind: 'controlsOther', subtype: 'Dinokin' }))).toBeCloseTo(0.6 * gainPart(gain()), 6);
+  });
+});
+
+// A1.4b: Vyra's pump, the same re-run. Vyra as printed against Vyra without the
+// pump, in the Crimson and Tides holes: 0.83 MEP [0.66, 0.98].
+describe('the repeatable mana pump (A1.1c re-run)', () => {
+  const firebreath = (p = 1, pips: ManaCost['pips'] = { R: 1 }) => ({ cost: { generic: 0, pips }, ops: [{ op: 'boost' as const, p, t: 0, scope: 'self' as const }] });
+  const vyra = (extra: Partial<ScorableCardDef> = {}): ScorableCardDef => ({
+    id: 'lab-vyra', name: 'Lab Vyra', types: ['creature'], subtypes: ['Human', 'Rider'], colors: ['R'], cost: { generic: 4, pips: { R: 2 } },
+    attack: 5, defense: 5, keywords: ['skyborne'], rarity: 'ur', manaActivated: [firebreath()], ...extra,
+  });
+  const pumpLabel = (card: ScorableCardDef) => scoreCard(card).parts.find((part) => part.label.includes('mana pump'))?.label;
+
+  it('prices Vyra\'s pump inside its measured interval', () => {
+    const v = adds(vyra(), { manaActivated: undefined });
+    expect(v).toBeGreaterThanOrEqual(0.66);
+    expect(v).toBeLessThanOrEqual(0.98);
+  });
+
+  it('marks the measured shape as measured and every other shape an estimate', () => {
+    expect(pumpLabel(vyra())).not.toMatch(/NEEDS MATH/);
+    expect(pumpLabel(vyra({ keywords: [] }))).toMatch(/NEEDS MATH/); // no Skyborne
+    expect(pumpLabel(vyra({ manaActivated: [firebreath(2)] }))).toMatch(/NEEDS MATH/); // +2/+0
+    expect(pumpLabel(vyra({ manaActivated: [firebreath(1, { R: 2 })] }))).toMatch(/NEEDS MATH/); // two mana
+    expect(scoreCard(vyra()).unknowns).toEqual([]);
   });
 });
