@@ -152,14 +152,16 @@ function waitForArt(
  * built by `build`, which has not run yet, so the wait screen carries its own:
  * the shared back affordance (at the touch-target floor) and Esc, both to the
  * main menu. Leaving shuts the scene down, and `awaitArt` then drops the build.
- * Collection and Decks gate on the whole card set, so early in a session this
- * wait can be the longest one in the game.
+ * With the 1.8 queue, Collection and Decks gate on the whole card set
+ * (`gateOnPagedArt`), so early in a session this wait can be the longest one
+ * in the game.
  *
  * While art streams through the art store (1.9 lane D), the gate also holds
  * `ids` for the scene's life (`sceneArtLease`, at `now`), whether or not it had
  * to wait, so nothing the build draws is evicted under it. With `null` that
- * lease pins the whole manifest, which is why the store stays off until
- * Collection, the Deck Builder and the Showcase gate on what they show (S5a).
+ * lease pins the whole manifest, which is why the scenes that page through the
+ * whole set build at once under the store and ask for art page by page
+ * (`gateOnPagedArt`, `PagedArt`).
  */
 export function gateOnArt(
   scene: Phaser.Scene,
@@ -222,4 +224,144 @@ export function gateOnArt(
   // exactly the wait `awaitArt` has always made.
   if (lease !== null) waitForArt(scene, list, handlers, () => lease.ready);
   else awaitArt(scene, list, handlers);
+}
+
+/**
+ * How long a binder page turn holds its new spread for the spread's art
+ * before drawing stand-ins, which fill in as the art lands
+ * (docs/plan-art-streaming.md, owner question 3, ruled 2026-09-28: the turn
+ * starts at once; the art waits up to about 150 ms).
+ */
+export const PAGE_ART_HOLD_MS = 150;
+
+/**
+ * Build a scene that pages through the whole card set and asks for its art
+ * page by page (`PagedArt`): Collection, the Deck Builder and the Showcase
+ * (1.9 lane D, S5a). While art streams through the store it builds at once,
+ * on its first frame, since the whole-set gate there would be a `now` lease
+ * on every file. With the 1.8 queue (the store off) it is exactly the
+ * whole-set `gateOnArt` these scenes always had.
+ */
+export function gateOnPagedArt(scene: Phaser.Scene, build: () => void): void {
+  if (liveArtStore() === null) gateOnArt(scene, null, build);
+  else build();
+}
+
+export interface PagedArtOptions {
+  /** The store tier to ask for: `half` (the default) for thumbnail bakes, `primary` for live cards. */
+  tier?: ArtTier;
+  /** A modal's container: its destruction ends the requests, as the scene's shutdown does. */
+  owner?: Phaser.GameObjects.GameObject;
+}
+
+const NO_CANCEL = (): void => {};
+
+/**
+ * The art requests of one paged surface (docs/plan-art-streaming.md section
+ * 2): a binder, a pool grid, a picker. Each `show` names what the page on
+ * screen still needs and what a turn would need next; it leases the first at
+ * `visible` (while any of it is missing) and prefetches the second at `soon`
+ * without a pin, and it replaces the previous page's requests, so fast paging
+ * drops what nobody is looking at any more. Everything ends when the scene
+ * shuts down or the owner is destroyed.
+ *
+ * Callers pass only what is still missing a draw of real art (for thumbnails,
+ * `thumbArtWanted`): a thumb is a snapshot, so a page baked on an earlier
+ * visit asks for nothing, and its sources stay unpinned.
+ *
+ * With the 1.8 queue (no store) nothing is asked for and `draw` runs at once,
+ * as the grids always drew.
+ */
+export class PagedArt {
+  private readonly tier: ArtTier;
+  private lease: ArtLease | null = null;
+  private cancelSoon: () => void = NO_CANCEL;
+  /** Bumped by every `show` and by `release`: a held draw from an older page never runs. */
+  private generation = 0;
+  /**
+   * The held draw's deadline. Wall-clock, not the scene clock: the scene
+   * clock smooths over the long first frames of a build, which stretched a
+   * 150 ms hold past 250 ms in the probe.
+   */
+  private holdTimer: ReturnType<typeof setTimeout> | null = null;
+  private released = false;
+
+  constructor(
+    private readonly scene: Phaser.Scene,
+    private readonly label: string,
+    options: PagedArtOptions = {},
+  ) {
+    this.tier = options.tier ?? 'half';
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, this.release, this);
+    scene.events.once(Phaser.Scenes.Events.DESTROY, this.release, this);
+    options.owner?.once(Phaser.GameObjects.Events.DESTROY, () => this.release());
+  }
+
+  /**
+   * Ask for a new page: when any of `shown` is missing, lease all of it at
+   * `visible` (so its resident part is not evicted while the rest loads);
+   * prefetch `soon` at `soon`; and let go of the last page's requests (after
+   * taking the new ones, so art both pages share is never unheld in between).
+   *
+   * `draw`, when given, draws the page. It runs at once when nothing in
+   * `shown` is missing, with no store, or when `holdMs` is 0; otherwise it
+   * runs when the art is in or after `holdMs`, whichever comes first, unless
+   * another `show` or the end of the surface overtook it. Returns true when
+   * the draw is being held.
+   */
+  show(shown: Iterable<string>, soon: Iterable<string> = [], draw?: () => void, holdMs = 0): boolean {
+    const generation = ++this.generation;
+    this.clearHold();
+    const store = this.released ? null : liveArtStore();
+    const previousLease = this.lease;
+    const previousSoon = this.cancelSoon;
+    this.lease = null;
+    this.cancelSoon = NO_CANCEL;
+    if (store !== null) {
+      // Nothing missing: the page draws now, over resident art, and needs no
+      // pin. Otherwise the lease pins the whole page, the resident part too,
+      // so nothing it will draw is evicted while the rest is on its way.
+      const ids = [...shown];
+      if (store.missing(ids, this.tier).length > 0) {
+        this.lease = store.lease(`page:${this.label}`, ids, { priority: 'visible', tier: this.tier });
+      }
+      this.cancelSoon = store.prefetch(soon, { priority: 'soon', tier: this.tier });
+    }
+    previousLease?.release();
+    previousSoon();
+    if (draw === undefined) return false;
+    const lease = this.lease;
+    if (lease === null || holdMs <= 0) {
+      draw();
+      return false;
+    }
+    const land = (): void => {
+      if (generation !== this.generation || this.released || !this.scene.sys.isActive()) return;
+      this.generation++;
+      this.clearHold();
+      draw();
+    };
+    this.holdTimer = setTimeout(land, holdMs);
+    void lease.ready.then(land);
+    return true;
+  }
+
+  private clearHold(): void {
+    if (this.holdTimer !== null) clearTimeout(this.holdTimer);
+    this.holdTimer = null;
+  }
+
+  /** End every request, and any held draw. Safe to call twice. */
+  release(): void {
+    if (this.released) return;
+    this.released = true;
+    this.generation++;
+    this.clearHold();
+    this.lease?.release();
+    this.lease = null;
+    this.cancelSoon();
+    this.cancelSoon = NO_CANCEL;
+    this.scene.events.off(Phaser.Scenes.Events.SHUTDOWN, this.release, this);
+    this.scene.events.off(Phaser.Scenes.Events.DESTROY, this.release, this);
+  }
 }

@@ -245,6 +245,26 @@ export function pageSlice<T>(items: readonly T[], page: number, pageSize: number
   return items.slice(page * pageSize, (page + 1) * pageSize);
 }
 
+/**
+ * What a paged grid asks card art for (1.9 lane D, docs/plan-art-streaming.md
+ * section 2): `shown` is the page on screen (leased at `visible`); `near` is
+ * the page a turn reaches next, then the one before it (prefetched at
+ * `soon`), so the likelier turn is asked for first. `page` is clamped as
+ * `clampPage` clamps it; a page that does not exist is never asked for.
+ */
+export function pageNeighbourhood<T>(
+  items: readonly T[],
+  page: number,
+  pageSize: number,
+): { shown: T[]; near: T[] } {
+  const current = clampPage(page, items.length, pageSize);
+  const last = pageCount(items.length, pageSize) - 1;
+  const near: T[] = [];
+  if (current < last) near.push(...pageSlice(items, current + 1, pageSize));
+  if (current > 0) near.push(...pageSlice(items, current - 1, pageSize));
+  return { shown: pageSlice(items, current, pageSize), near };
+}
+
 // ---------------------------------------------------------------------------
 // Variant summaries (binder badges + inspect panel)
 // ---------------------------------------------------------------------------

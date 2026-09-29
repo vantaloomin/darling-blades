@@ -375,12 +375,12 @@ arrival path.
 - **Bakes read the cheapest adequate source** (owner question 1): the
   primary texture if it is resident, else the half texture, else a request
   for the half texture and a provisional bake. At k=2 a thumb bakes at card
-  scale 1.0. There the standard art window is 264x192 px, a downscale from
-  320x400. The full-art window is 282x402 px, a 0.5% upscale. So the half
-  file has enough pixels for every bake at every render size the game offers
-  (k is at most 2). R13 changes the art window's height in wave 2; its
-  largest window is still inside the 282x402 frame interior, and the build
-  re-checks this after R13.
+  scale 1.0. As rechecked by S4 after R13's geometry: the standard art
+  window is 264x216 px, a cover scale of max(264/320, 216/400) = 0.825 from
+  the 320x400 file, a downscale; the full-art window is 282x402 px, a scale
+  of max(282/320, 402/400) = 1.005, a 0.5% upscale. So the half file has
+  enough pixels for every bake at every render size the game offers (k is at
+  most 2).
 
 ## 4. Redraw on arrival as the normal case
 
@@ -391,7 +391,7 @@ Every place that draws card art, and what it needs:
 | `CardView.applyArt` | yes (G10) | add `holdArt` | holds its key; on desktop draws the resident half texture instead of the flat stand-in while the full one loads |
 | `BoardCardView.applyArt` | yes (G10) | add `holdArt` | as CardView |
 | `CardThumbCache` bakes | yes, re-bake in place (G10) | thumb lease on each Image | LRU budget, half-tier bakes |
-| Portraits: the Gauntlet ladder cells in `DuelScene.ts`, `GauntletScene.ts`, `LimitedDraftScene.ts`, `PracticePickerScene.ts`, `ShopScene.ts`, `CommanderPortrait.ts`, `VersusBumper.ts` | **yes: I9, PR #473 (branch `fix/19-portraits`)** | `holdArt` inside `addPortraitArt` | I9 built the shared helper: `src/ui/portraitArt.ts` `addPortraitArt` over `src/ui/artRefit.ts` `fitNowAndWhenArtLands`, used at 7 sites. Its header hands re-apply on removal to this lane. S4 adds the lease and the removal belt inside `addPortraitArt`. It takes the resolver's `ArtRef` today; S4 has it take the card id (or a resolve callback) so the belt can call `getArt` again |
+| Portraits: the Gauntlet ladder cells in `DuelScene.ts`, `GauntletScene.ts`, `LimitedDraftScene.ts`, `PracticePickerScene.ts`, `ShopScene.ts`, `CommanderPortrait.ts`, `VersusBumper.ts` | **yes: I9, PR #473 (branch `fix/19-portraits`)** | `holdArt` inside `addPortraitArt` | I9 built the shared helper, `src/ui/portraitArt.ts` `addPortraitArt`, used at 7 sites. As built in S4 it takes the card id, and `src/ui/artRefit.ts` `fitAndHoldArt` holds the image's art through `holdArt` with a resolve callback, so the removal belt calls `getArt` again and re-fits |
 | `saveCard.ts` | not a redraw: it composes once | a lease, released in `finally` | reads the file's bytes from the store and decodes its own copy (section 1), instead of reading `frame.source.image`, which is a closed bitmap under this design (and today may be the stand-in) |
 | The Forge (`src/forge/scene.ts`) | its own `filecomplete` redraw | none (own page, own loader) | none in 1.9 (section 5) |
 | Card-proof harness (dev) | loads everything up front | none | none |
@@ -625,10 +625,9 @@ Where the lane meets the rest of 1.9:
   then A2 and accessibility in wave 3.
 - **I9 is done, and it is this lane's foundation.** PR #473 (branch
   `fix/19-portraits`) gives the portrait sites one helper,
-  `addPortraitArt` in `src/ui/portraitArt.ts` over `fitNowAndWhenArtLands`
-  in `src/ui/artRefit.ts`, used at 7 sites. Its header leaves re-apply on
-  texture removal to this lane, so S4 adds the lease and the removal belt
-  in that one place.
+  `addPortraitArt` in `src/ui/portraitArt.ts`, used at 7 sites. S4 put the
+  lease and the removal belt in that one place: it takes the card id, and
+  `fitAndHoldArt` in `src/ui/artRefit.ts` holds the art through `holdArt`.
 - **The scenes in S5a** are also touched by lane I (I3, I4, I5, I9) in
   wave 1 and by accessibility from wave 3, so S5a sits between them.
 - **`deploy.yml` and `vite.config.ts`** belong to nobody else in 1.9 as far

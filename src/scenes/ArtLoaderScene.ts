@@ -26,6 +26,8 @@ import { isTauri } from '../platform/desktopWindow';
 import { IS_DEV } from '../platform/env';
 import { qualityTier } from '../platform/quality';
 import { sceneArtLease } from '../ui/artGate';
+import { provisionalThumbPending, thumbStats } from '../ui/CardThumbCache';
+import { forEachDrawn, type DrawnObject } from '../ui/displayWalk';
 
 /**
  * One object `window.__art` lists (docs/plan-art-streaming.md section 6): the
@@ -50,10 +52,17 @@ export interface ArtProbeHook {
   stats(): Record<string, number | string | boolean>;
   /**
    * Objects still showing a stand-in: drawing `art-loading`, a view still
-   * `awaitingArt` a texture that is resident, or a half texture while the full
-   * one is resident. Gate 3 wants 0 once the store is idle.
+   * `awaitingArt` a texture that is resident, a half texture while the full
+   * one is resident, or a thumbnail baked over a stand-in whose art is
+   * resident. Gate 3 wants 0 once the store is idle.
    */
   standIns(): { count: number; items: ArtProbeItem[] };
+  /**
+   * Thumbnails on screen that were baked over a stand-in (their art has not
+   * landed yet, or it landed and the re-bake is missing). The probe reads it
+   * for "the first spread shows real art" (gate 2).
+   */
+  provisionalThumbs(): { count: number; items: ArtProbeItem[] };
   /** Objects on Phaser's `__MISSING` texture, or on a texture that was destroyed. */
   missingTextures(): { count: number; items: ArtProbeItem[] };
   /** Each live lease: its label, how many textures it pins and how many are resident. */
@@ -72,45 +81,6 @@ declare global {
 const PROBE_ITEMS = 40;
 /** Warnings kept for `window.__art.warnings()`. */
 const WARNINGS_KEPT = 50;
-
-/** A display-list object as the scans read it: every field optional. */
-interface Drawn {
-  type?: string;
-  active?: boolean;
-  texture?: { key: string; manager: unknown };
-  frame?: { width: number; source: unknown };
-  list?: unknown;
-  mask?: { bitmapMask?: unknown } | null;
-  awaitingArt?: unknown;
-}
-
-/** Scenes that hold live objects: created and not shut down (sleeping ones included). */
-function liveScenes(game: Phaser.Game): Phaser.Scene[] {
-  return game.scene.scenes.filter((scene) => {
-    const status = scene.sys.settings.status;
-    return status >= Phaser.Scenes.CREATING && status < Phaser.Scenes.SHUTDOWN && scene.sys.displayList !== undefined;
-  });
-}
-
-/**
- * Visit every object in the live scenes' display lists, walking into
- * Containers and Layers and into the source object of a bitmap mask (the
- * safety scan's reach, section 3).
- */
-function forEachDrawn(game: Phaser.Game, visit: (obj: Drawn, scene: Phaser.Scene) => void): void {
-  const seen = new Set<unknown>();
-  const walk = (value: unknown, scene: Phaser.Scene): void => {
-    if (value === null || typeof value !== 'object' || seen.has(value)) return;
-    seen.add(value);
-    const obj = value as Drawn;
-    visit(obj, scene);
-    if (Array.isArray(obj.list)) for (const child of obj.list) walk(child, scene);
-    if (obj.mask?.bitmapMask) walk(obj.mask.bitmapMask, scene);
-  };
-  for (const scene of liveScenes(game)) {
-    for (const obj of scene.sys.displayList.list) walk(obj, scene);
-  }
-}
 
 /**
  * Point `obj` at `textureKey` and keep what it shows in place: card art is
@@ -423,14 +393,15 @@ export class ArtLoaderScene extends Phaser.Scene {
 
   /**
    * The removal belt's last layer: after every `holdArt` owner of a removed
-   * art texture has re-applied, any live object still on one (a view that
-   * holds nothing yet, before S4 wires `holdArt` into the views) is pointed
-   * at the half texture or the stand-in before the next render, so none reads
-   * a destroyed frame, and its scene leases what it now draws. It stays on
-   * that stand-in: it has no draw of its own to call, and the art it drew may
-   * no longer be what it should show (a pooled view given another card), so
-   * `standIns()` counts it. Each one is counted and warned about: after S4 a
-   * sweep that finds anything is a missed hold.
+   * art texture has re-applied, any live object still on one (an object that
+   * draws card art without `holdArt`, a gated scene's lease or a thumbnail:
+   * since S4 no production view should) is pointed at the half texture or the
+   * stand-in before the next render, so none reads a destroyed frame, and its
+   * scene leases what it now draws. It stays on that stand-in: it has no draw
+   * of its own to call, and the art it drew may no longer be what it should
+   * show (a pooled view given another card), so `standIns()` counts it. Each
+   * one is counted (`orphans`) and warned about, since a sweep that finds
+   * anything is a missed hold.
    */
   private sweepOrphans(removed: ReadonlySet<string>): void {
     const hits: { obj: Phaser.GameObjects.Image; scene: Phaser.Scene; textureKey: string }[] = [];
@@ -504,7 +475,7 @@ export class ArtLoaderScene extends Phaser.Scene {
       }
       return { count, bytes };
     };
-    const list = (test: (obj: Drawn) => string | null): { count: number; items: ArtProbeItem[] } => {
+    const list = (test: (obj: DrawnObject) => string | null): { count: number; items: ArtProbeItem[] } => {
       const items: ArtProbeItem[] = [];
       let count = 0;
       forEachDrawn(game, (obj, scene) => {
@@ -523,10 +494,14 @@ export class ArtLoaderScene extends Phaser.Scene {
       stats: () => {
         const held = artTextures();
         const managed = { managerTextures: held.count, managerBytes: held.bytes };
+        // The thumbnail cache's numbers under a `thumb` prefix (thumbResident, thumbPinnedBytes, ...).
+        const thumbs = Object.fromEntries(
+          Object.entries(thumbStats(textures)).map(([name, value]) => [`thumb${name[0].toUpperCase()}${name.slice(1)}`, value]),
+        );
         const store = this.store;
-        if (store !== null) return { mode: 'store', ...store.stats(), orphans: this.orphans, ...managed };
+        if (store !== null) return { mode: 'store', ...store.stats(), orphans: this.orphans, ...managed, ...thumbs };
         const progress = this.queue?.progress() ?? { loaded: 0, total: 0 };
-        return { mode: 'queue', loaded: progress.loaded, total: progress.total, ...managed };
+        return { mode: 'queue', loaded: progress.loaded, total: progress.total, ...managed, ...thumbs };
       },
       standIns: () =>
         list((obj) => {
@@ -537,7 +512,15 @@ export class ArtLoaderScene extends Phaser.Scene {
           }
           const art = key === undefined ? null : artTextureTier(key);
           if (art?.tier === 'half' && textures.exists(`artfile-${art.key}`)) return 'draws the half texture while the full one is resident';
+          const pending = key === undefined ? null : provisionalThumbPending(key);
+          if (pending !== null && textures.exists(pending)) return `a thumbnail baked over a stand-in, and ${pending} is resident`;
           return null;
+        }),
+      provisionalThumbs: () =>
+        list((obj) => {
+          const key = obj.texture?.key;
+          const pending = key === undefined ? null : provisionalThumbPending(key);
+          return pending === null ? null : `baked over a stand-in for ${pending}`;
         }),
       missingTextures: () =>
         list((obj) => {
