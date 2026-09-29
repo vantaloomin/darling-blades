@@ -196,10 +196,21 @@ const BEAST_ENTRY_OPENING = 'NO woman';
  * The geometry it asks for: a 1024x1536 raw is cover-cropped to 1024x1280
  * (scale 0.625) and the card window shows deliverable rows 138 to 662, with
  * the head line at y 179. So head top to knees must fit in 662 - 179 = 483
- * deliverable rows, 773 raw rows: about the middle half of the raw's height,
- * with the head top about a quarter of the way down (384 raw rows, which the
- * crop can move to y 179 by starting 97 rows down). The composition sentence
- * says exactly that. The style sentences are PREAMBLE's, byte for byte.
+ * deliverable rows, 773 raw rows: about half the raw's height.
+ *
+ * Round 2 (seven images) asked for the head top a quarter of the way down and
+ * got 13.7% to 23.6% (mean 18.0%): the model draws the head about seven points
+ * higher than asked, and three heads sat above y 179 on a crop already at the
+ * raw's ceiling. So the ask is now a third (the top-third HARD RULE PREAMBLE
+ * already uses), with the knees no lower than three quarters. If the model
+ * obeys exactly: head top at raw row 512, which the crop moves to y 179 by
+ * starting 225 rows down (the limit is 256), and knees at row 1152 or higher,
+ * which lands at y 579 or higher, inside the window's y 662. If it keeps its
+ * seven-point bias the head lands near 26%, where a crop starting about 110
+ * rows down still puts it on y 179. The one risk is overshoot: a head below
+ * 35.4% of the raw (row 543) cannot be lifted to y 179 and sits lower, which
+ * costs headroom polish, not the face (a head at 40% lands at y 224). The
+ * style sentences are PREAMBLE's, byte for byte.
  *
  * Selected by faction (FACTION_FRAMING below), not by entry text: the older
  * sets' entries and the §3 recipe also say "head to knees", so a text marker
@@ -210,16 +221,17 @@ const BEAST_ENTRY_OPENING = 'NO woman';
 const FIGURE_PREAMBLE =
   // Composition (First Dawn; see above).
   'Composition: a pulled-back figure shot seen from a few steps back, never a close-up and ' +
-  'never a waist-up portrait: her whole figure from the top of her head down to her knees ' +
-  'fits inside only the middle half of the canvas height, the top of her head about one ' +
-  'quarter of the way down the canvas and her knees no lower than three quarters of the way ' +
-  'down, with the scene around her. HARD RULE: the very top of her head — including hair, ' +
-  'horns, crest, frill, ears or headdress — sits clearly BELOW the top-quarter line and never ' +
-  'touches it; open sky or empty background fills the top quarter of the canvas above her ' +
-  'head. Every story element — a beast, a nest, an egg, a hatchling, bones, a tail and its ' +
-  'tip, a dropped weapon — sits between the height of her head and the height of her knees, ' +
-  'never at her feet and never in the bottom quarter of the canvas; her lower legs, her feet ' +
-  'and the ground may run off the bottom edge. ' +
+  'never a waist-up portrait: the top of her head sits one third of the way down the canvas ' +
+  'and her knees no lower than three quarters of the way down, so her whole figure from the ' +
+  'top of her head to her knees fills well under half of the canvas height, with the scene ' +
+  'around her. HARD RULE: the very top of her head — including hair, horns, crest, frill, ' +
+  'ears or headdress — sits clearly BELOW the top-third boundary line and never touches it; ' +
+  'open sky or empty background fills the whole top third of the canvas above her head. ' +
+  'Every story element — a beast, a nest, an egg, a hatchling, bones, a tail and its tip, a ' +
+  'dropped weapon — sits beside her, between the height of her head and the height of her ' +
+  'knees, never in front of her below her waist, never at her feet and never in the bottom ' +
+  'quarter of the canvas; her lower legs, her feet and the ground may run off the bottom ' +
+  'edge. ' +
   // Cel DNA + register + scenic background: PREAMBLE's style sentences, verbatim.
   PREAMBLE.slice(PREAMBLE.indexOf('Style: '));
 

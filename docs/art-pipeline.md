@@ -196,16 +196,20 @@ height, the lower story below the card window, and on Herd-Guardian a head at
 `gen-card-art.ts` carries a third preamble, `FIGURE_PREAMBLE`, selected per
 faction (`FACTION_FRAMING`, `first-dawn` only; a `--bible` draft is keyed by
 its file stem), and a beast-alone entry keeps `BEAST_PREAMBLE` in every set.
-Its composition sentence asks for her figure from the top of her head to her
-knees inside the middle half of the canvas height, the head top about a
-quarter of the way down with the headroom HARD RULE at the top-quarter line,
-every story element between her head and her knees, and her lower legs and the
-ground free to run off the bottom; its style sentences are `PREAMBLE`'s,
-verbatim. The geometry: the 1024x1280 cover crop of a 1024x1536 raw maps 1.6
-raw rows to one deliverable row, and the window shows y 138 to 662 with the
-head line at y 179, so head top to knees must fit in 483 deliverable rows,
-773 raw rows, about half the raw's height, with the head top near raw row 384
-(a crop starting 97 rows down puts it on y 179).
+Its composition sentence asks for the top of her head one third of the way
+down the canvas (the headroom HARD RULE at the top-third line) and her knees no
+lower than three quarters of the way down, every story element beside her
+between her head and her knees and never in front of her below her waist, and
+her lower legs and the ground free to run off the bottom; its style sentences
+are `PREAMBLE`'s, verbatim. The geometry: the 1024x1280 cover crop of a
+1024x1536 raw maps 1.6 raw rows to one deliverable row, and the window shows
+y 138 to 662 with the head line at y 179, so head top to knees must fit in 483
+deliverable rows, 773 raw rows, about half the raw's height. Obeyed exactly,
+the head top at raw row 512 moves to y 179 with a crop starting 225 rows down
+(the limit is 256), and knees at row 1152 land at y 579, inside the window.
+Rounds 1 and 2 asked for a quarter; round 2's heads came in at 13.7% to 23.6%
+(mean 18.0%), about seven points high, so round 3 asks for a third, which with
+the same bias lands near 26%.
 
 Figure entries also get a figure crop, `--focal-frac 0.1` on the smartcrop
 call (the per-card retarget the cropper already had). Character mode's zoom
@@ -244,6 +248,18 @@ bones, 82% to 88% of the raw against a window bottom at 69%), while elements
 placed beside her at hip height landed inside it (Nest-Guard's Hatchling,
 Vessa's tail). An entry that also asks for "crown to feet, nothing cropped"
 fits the whole body and pushes the head up (Nest-Guard, 13.7%).
+
+Round 3 (nine images, the "one third" ask, story beside her, the wide-shot
+words removed; zero refusals): six heads landed at 21.7% to 33.9% of the raw
+(mean 25.1%), every one of them on the y 179 line, with every crop sliding
+47 to 234 rows down and the window bottom at 72% to 84%. Every story element
+placed beside her landed inside the window (Herd-Guardian's nest, River-Snapper's
+bones, Nest-Guard's Hatchling, Tar-Skin Brute's dropped shield). Three entries
+did not move: two Longneck women whose tell is "great height" and one airborne
+rider sat at 13.4% to 14.1%, crowns at y 129 to 136, as they had in round 2. The
+figure preamble works; those three need entry wording that keeps her small in
+the frame (the Longneck's height tell, the rider on a big mount), not a bigger
+ask.
 
 What a crop cannot fix: every shipped crop already spans the full raw width,
 so "zoom out" is impossible, and a head drawn at the very top edge of the raw

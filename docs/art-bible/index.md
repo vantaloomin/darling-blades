@@ -924,13 +924,18 @@ prompt clause and a QA check:
   tips] lower than the top of her head", and "the top of her head the
   highest point of the whole figure"; for a beast alone, "its skull [crest,
   horns] the highest point of the whole animal".
-- **Nothing sinks below her knees** (set-wide, 2026-09-29): every secondary
-  story element (a nest, an egg, bones, a paddle tip, a tail's tip, a
-  Hatchling, a dropped weapon) sits at hip-to-knee height or higher, never "at
-  her feet", "in the lower foreground", "on the ground before her" or "at the
-  bottom of the frame"; where it needs the ground, raise the ground (a fern
-  bank, a boulder or a ledge at hip height). The card window ends at 82.7% of
-  the frame (y 662), and anything lower is cropped; the calibration round of
+- **Story beside her, never below her knees** (set-wide, 2026-09-29): every
+  secondary story element (a nest, an egg, bones, a paddle tip, a tail's tip,
+  a Hatchling, a dropped weapon) sits beside her at hip or waist height, never
+  lower than her knees, and nothing sits between her and the viewer below her
+  waist: never "in front of her", "at her feet", "in the lower foreground",
+  "on the ground before her" or "at the bottom of the frame". Where it needs
+  the ground, raise the ground beside her (a fern bank, a boulder or a ledge
+  at hip or waist height). Calibration round 2 measured why: a nest and two
+  bones placed in front of her, at a stated height, still landed at 82% to 88%
+  of the raw, under the window, while a Hatchling and a tail placed beside her
+  landed inside it. The card window ends at 82.7% of
+  the frame (y 662), and anything lower is cropped; calibration round 1 of
   2026-09-29 lost Herd-Guardian's nest, River-Snapper's bones and Vessa's tail
   tip below it. Spells hold their principal figures to the same rule.
 - **The check is by eye, with the lines drawn; the detectors do not see
