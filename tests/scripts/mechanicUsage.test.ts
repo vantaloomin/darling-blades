@@ -47,6 +47,9 @@ const DB: CardDb = Object.fromEntries([
   card('korru', { types: ['creature'], attack: 3, defense: 3, abilities: [{ when: 'arrives', targets: [{ what: 'creature', other: true }], ops: [{ op: 'hunt', hunter: 'self', prey: 'any' }] }] }),
   card('tracker', { types: ['creature'], attack: 2, defense: 4, activated: { cost: { tap: true }, targets: [{ what: 'opponentCreature' }], ops: [{ op: 'hunt', hunter: 'self' }] } }),
   card('kesh', { types: ['creature'], attack: 3, defense: 3, abilities: [{ when: 'attacks', targets: [{ what: 'opponentCreature' }], ops: [{ op: 'hunt', hunter: 'self' }] }] }),
+  card('anyTracker', { types: ['creature'], attack: 3, defense: 4, activated: { cost: { tap: true }, targets: [{ what: 'creature', other: true }], ops: [{ op: 'hunt', hunter: 'self', prey: 'any' }] } }),
+  card('linkRaptor', { types: ['creature'], attack: 3, defense: 3, hauntlink: { cost: mana(0), linked: { grantKeywords: ['skyborne'] } },
+    abilities: [{ when: 'arrives', targets: [{ what: 'opponentCreature' }], ops: [{ op: 'hunt', hunter: 'self' }] }] }),
   card('provoked', { types: ['creature'], attack: 1, defense: 4, abilities: [{ when: 'provoked', ops: draw }] }),
   card('pinger', { abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 1, to: 'target' }] }] }),
 ].map((d) => [d.id, d]));
@@ -322,6 +325,31 @@ describe('mechanic usage: Hunt and Provoked (First Dawn)', () => {
     // A 3/3 arriving into a 6/6 dies for nothing; into a 2/2 it kills and survives.
     expect(flagged('raptor', [enemy(9, 'bigCreature')], [at(9)])).toBe(true);
     expect(flagged('raptor', [enemy(9, 'creature')], [at(9)])).toBe(false);
+  });
+
+  it('reads a Hauntlinked cast of an arrival hunter as a link to its host, never a Hunt', () => {
+    // The host is a big creature of hers: read as prey, the Hunt would also look wasted.
+    const v = view({ battlefield: [perm(4, 'bigCreature'), enemy(9, 'creature')] }, { hand: ['linkRaptor'] });
+    const linked: Action = { type: 'castSpell', handIndex: 0, hauntlinked: true, targets: [at(4)] };
+    expect(mechanics(linked, v).filter((hit) => hit.startsWith('hunt'))).toEqual([]);
+    expect(senseChecksFor(linked, ctx(v))).toEqual([]);
+    // The plain cast on prey is still a Hunt.
+    expect(mechanics(cast([at(9)]), v)).toEqual(['hunt:linkRaptor']);
+  });
+
+  it('reads an any Duty hunting her own creature as repeat uses per cast', () => {
+    const collector = new MechanicUsageCollector(DB);
+    const hunt: Action = { type: 'activate', iid: 7, targets: [at(4)] };
+    const ai = collector.wrapFactory(
+      { matrix: 'test', id: 'boss', name: 'Boss', list: { deck: ['anyTracker'] } },
+      () => scripted([cast([]), hunt, hunt]),
+    )();
+    ai.chooseAction(view({ battlefield: [perm(4, 'creature')] }, { hand: ['anyTracker'] }), [cast([]), pass]);
+    const board = view({ turn: 7, battlefield: [perm(7, 'anyTracker'), perm(4, 'creature')] });
+    ai.chooseAction(board, [hunt, pass]);
+    ai.chooseAction({ ...board, turn: 9 }, [hunt, pass]);
+    const [boss] = collector.toJSON().bosses;
+    expect(boss.rows.find((row) => row.mechanic === 'huntAnySelf')).toMatchObject({ turnsTaken: 2, usesPerCast: 2 });
   });
 
   it('counts a Provoked fire of hers once a turn, as her own source when her previous action named the creature', () => {

@@ -206,8 +206,9 @@ export function huntUse(action: Action, ctx: UsageContext): HuntUse | undefined 
   const { view } = ctx;
   switch (action.type) {
     case 'castSpell': {
-      // A Retell body never hunts (validateHuntDef), and it replaces the printed one.
-      if (action.retell) return undefined;
+      // A Retell body never hunts (validateHuntDef), and it replaces the printed one;
+      // a Hauntlinked cast's one target is the host it links to, never prey.
+      if (action.retell || action.hauntlinked) return undefined;
       const id = namedCardId(action, view);
       const d = card(ctx, id);
       if (!id || !d) return undefined;
@@ -285,7 +286,8 @@ export function huntOutcome(use: HuntUse, ctx: UsageContext): { hunterDies: bool
 
 /** Printed beside the Provoked tally: what a wrapper on her brain cannot see. */
 export const PROVOKED_NOTE = 'seen on the public board at her own decisions, so a fire after her last decision of a turn ' +
-  '(most often a block on the opponent\'s turn) is missed; own source means her previous action that turn named or swept ' +
+  '(most often a block on the opponent\'s turn), or on a creature that fires and then leaves the battlefield before her ' +
+  'next decision, is missed; own source means her previous action that turn named or swept ' +
   'the creature, so a response in between is not told apart';
 
 /** The index of the card's Provoked ability, or -1. */
@@ -327,7 +329,7 @@ export function ownDamageReach(action: Action, ctx: UsageContext): DamageReach |
   }
   let ops: readonly EffectOp[] = [];
   let targets: readonly TargetRef[] = [];
-  if (action.type === 'castSpell' && !action.retell) {
+  if (action.type === 'castSpell' && !action.retell && !action.hauntlinked) {
     const d = card(ctx, namedCardId(action, ctx.view));
     if (d) ops = castOps(d, action);
     targets = action.targets ?? [];
@@ -487,6 +489,7 @@ export const MECHANIC_RULES: readonly MechanicRule[] = [
       const use = huntUse(action, ctx);
       return use?.prey === 'any' && hers(ctx, use.preyIid) ? use.cardId : undefined;
     },
+    repeats: true,
     note: 'a Hunt on a card that declares any, aimed at her own creature; a chance is a turn in which she could',
   },
 ];

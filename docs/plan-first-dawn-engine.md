@@ -1837,13 +1837,14 @@ the end).
 - **`hunt`**, one `MECHANIC_RULES` entry: carried by any card with a Hunt op
   (the Darling too), matched on a Hunt spell's cast, an arrival hunter's cast
   or Darling call that names prey (a conditional one cast without prey does
-  not hunt then), a paid Empower Hunt, a hunting Duty, and a hunting
+  not hunt then; a Hauntlinked cast names its host, never prey), a paid Empower Hunt, a hunting Duty, and a hunting
   trigger's prey choice (forced once it fires, so those chances are always
   taken; the row's note says so). `repeats`, for the Duties.
 - **`huntAnySelf`, counted apart:** a Hunt on a card that declares `any`,
   aimed at her own creature. A chance is a turn in which such a cast or
   choice was legal, so its rate shows Easy's zero and Medium's margin (A2.b).
-  `yours` is not counted apart: it has no choice of side.
+  `yours` is not counted apart: it has no choice of side. `repeats`, as an
+  `any` Duty can hunt her own creature turn after turn.
 - **The sense check `huntLostHunter`** flags a taken Hunt whose hunter dies
   while its prey survives, on the public board. It reads the AI's own
   survival read (`expectsTargetSurvives`, which plays a Hunt spell's pump and
@@ -1856,7 +1857,8 @@ the end).
   a damage target, a hunter she cast) or swept. Part 8 asked for an event
   count. The wrapper has no event feed, so the tally reads the public board
   at her decisions (`firedThisTurn`): a fire after her last decision of a
-  turn, most often a block on the opponent's turn, is missed, and a response
+  turn, most often a block on the opponent's turn, is missed, as is a
+  creature that fires and leaves the battlefield before her next decision; a response
   between her action and the fire is not told apart. An event count needs the
   matrix to hand the collector its `eventObserver` (`scripts/balance-matrix.ts`,
   not in this change); wave 4's read should say whether the blind spot
