@@ -1,6 +1,5 @@
 import Phaser from 'phaser';
 import { floorBrain, floorDifficultyPips } from '../ai/tiers';
-import { Art } from '../art/ArtResolver';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { ECONOMY } from '../config/rules';
@@ -645,15 +644,14 @@ export class GauntletScene extends Phaser.Scene {
    */
   private addPortrait(c: Phaser.GameObjects.Container, cardId: string, x: number, y: number): void {
     try {
-      const ref = Art.resolver?.getArt(cardId);
-      if (!ref) return;
       // Cover-fit the art into the 260×328 window, biased to the top so the
       // face reads. A geometry mask crops the overflow to the frame.
       const targetW = 260;
       const targetH = 328;
-      const img = addPortraitArt(this, x, y - 26, ref, (image) => {
+      const img = addPortraitArt(this, x, y - 26, cardId, (image) => {
         image.setScale(Math.max(targetW / image.width, targetH / image.height) * 1.12);
       });
+      if (!img) return;
       const maskShape = this.add
         .rectangle(x, y, targetW, targetH, colorInt(theme.colors.heading))
         .setVisible(false);

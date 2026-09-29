@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ART_LOADING_TEXTURE, Art, ArtResolver } from '../../src/art/ArtResolver';
-import { ArtQueue, setArtLoader, type ArtBatchSink } from '../../src/art/artLoader';
+import { ArtQueue, setArtLoader, setArtStore, type ArtBatchSink } from '../../src/art/artLoader';
 import { CARD_DB } from '../../src/data/catalog';
-import { composeSaveCardCanvas, saveCardArtStillLoading } from '../../src/ui/saveCard';
+import { composeSaveCardCanvas, composeSaveCardCanvasAsync, saveCardArtStillLoading } from '../../src/ui/saveCard';
+import { makeStore, type Harness } from '../art/artStoreFakes';
 
 /**
  * A save card bakes the chosen card's art into the exported PNG. The art
@@ -63,6 +64,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   Art.resolver = null;
   setArtLoader(null);
+  setArtStore(null);
 });
 
 /** The live loader, with this card's file in its queue and a sink that decides its fate. */
@@ -113,5 +115,56 @@ describe('why a save card could not be made', () => {
     });
 
     expect(saveCardArtStillLoading(CARD_ID)).toBe(false);
+  });
+});
+
+/**
+ * While art streams through the art store, a texture's decoded copy is closed
+ * right after upload (docs/plan-art-streaming.md section 1), so the export
+ * must not read pixels back from a texture: it reads the file's bytes from the
+ * store and decodes a copy of its own, which it closes. It reads the file
+ * once, and leaves nothing pinned behind it.
+ */
+describe('a save card while art streams through the store', () => {
+  const ART_KEY = CARD_DB[CARD_ID].artRef ?? CARD_ID;
+
+  /** A store that knows the card's art file, and a decoder that records what it made. */
+  function streaming(): { h: Harness; decoded: { width: number; height: number; closed: boolean }[] } {
+    const h = makeStore({ keyFor: (id) => CARD_DB[id]?.artRef ?? id }, [ART_KEY]);
+    h.source.auto = true;
+    setArtStore(h.store);
+    const decoded: { width: number; height: number; closed: boolean }[] = [];
+    vi.stubGlobal('createImageBitmap', async () => {
+      const bitmap = { width: 640, height: 800, closed: false, close: () => (bitmap.closed = true) };
+      decoded.push(bitmap);
+      return bitmap;
+    });
+    return { h, decoded };
+  }
+
+  it('bakes its own decode of the file, never the texture, and closes it', async () => {
+    const { h, decoded } = streaming();
+    const scene = sceneWith([REAL_TEXTURE, ART_LOADING_TEXTURE]);
+    Art.resolver = resolverFor(scene);
+
+    expect(await composeSaveCardCanvasAsync(scene, CARD_ID, LINES)).not.toBeNull();
+    expect(baked).toEqual([decoded[0]]);
+    expect(decoded[0].closed).toBe(true);
+    expect(h.source.keys).toEqual([ART_KEY]);
+    expect(h.store.leaseReport()).toEqual([]);
+  });
+
+  it('reports the art as unavailable when the file cannot be read, and leaves nothing pinned', async () => {
+    const { h } = streaming();
+    h.source.auto = false;
+    const scene = sceneWith([ART_LOADING_TEXTURE]);
+    Art.resolver = resolverFor(scene);
+
+    const pending = composeSaveCardCanvasAsync(scene, CARD_ID, LINES);
+    await vi.waitFor(() => expect(h.source.open.length).toBeGreaterThan(0));
+    for (const read of h.source.open) read.reject('failed');
+    expect(await pending).toBeNull();
+    expect(baked).toEqual([]);
+    expect(h.store.leaseReport()).toEqual([]);
   });
 });

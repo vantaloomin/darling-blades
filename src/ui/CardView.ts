@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { Art } from '../art/ArtResolver';
-import { redrawWhenArtLands } from '../art/artWatch';
+import type { ArtTier } from '../art/artStore';
+import { holdArt } from '../art/artWatch';
 import { CARD_DB } from '../data/catalog';
 import type { CardDef } from '../engine/types';
 import { isType } from '../engine/types';
@@ -148,8 +149,9 @@ export class CardView extends Phaser.GameObjects.Container {
   private shineFx: Phaser.FX.Shine | null = null;
   private ringTween: Phaser.Tweens.Tween | null = null;
   private zone: Phaser.GameObjects.Zone | null = null;
-  /** The real art texture this face drew the loading stand-in for, if any. */
+  /** The real art texture this face drew a stand-in (or the half texture) for, if any. */
   private artPendingKey: string | null = null;
+  /** Ends the face's hold on its art (`holdArt`): the lease, the arrival wait and the removal belt. */
   private cancelArtWait: (() => void) | null = null;
 
   card: CardDef | null = null;
@@ -282,6 +284,12 @@ export class CardView extends Phaser.GameObjects.Container {
        * shader treatment takes its TileSprite fallback instead.
        */
       maskSafe?: boolean;
+      /**
+       * Which art tier the face needs (docs/plan-art-streaming.md section 3):
+       * `primary` (the default) for a live card; `half` for a thumbnail bake,
+       * which reads the cheapest adequate source. The same without a store.
+       */
+      artTier?: ArtTier;
     } = {},
   ): this {
     this.clearFx();
@@ -316,7 +324,7 @@ export class CardView extends Phaser.GameObjects.Container {
 
     // Frame + art
     this.frame.setTexture(frameKeyFor(card.colors, card.types)).setDisplaySize(CARD_W, CARD_H);
-    this.applyArt(card, isBasic(CARD_DB, card.id) ? opts.landStyle : undefined, artRect);
+    this.applyArt(card, isBasic(CARD_DB, card.id) ? opts.landStyle : undefined, artRect, opts.artTier ?? 'primary');
 
     // Texts. With the cost moved to the bottom-left, the name owns the FULL top
     // band — auto-fit to 244px (was 215, when it had to dodge the top-right
@@ -619,13 +627,16 @@ export class CardView extends Phaser.GameObjects.Container {
 
   /**
    * Draw the card's art into the window. If the file has not streamed in yet
-   * the resolver answers with the loading stand-in, and this face redraws
-   * itself when the file lands (only the art: tint, alpha, holo and every
-   * other layer are left as they are). A new setCard, or destroy, ends the
-   * wait.
+   * the resolver answers with the best resident texture (the half file on
+   * desktop while art streams through the store) or the loading stand-in, and
+   * this face redraws itself when the file lands (only the art: tint, alpha,
+   * holo and every other layer are left as they are). The face holds what it
+   * draws (`holdArt`, docs/plan-art-streaming.md sections 3 and 4): a lease
+   * while art streams through the store, and a redraw in the same tick if the
+   * drawn texture is removed. A new setCard, or destroy, ends the hold.
    */
-  private applyArt(card: CardDef, landStyle: string | undefined, artRect: Rect): void {
-    const artRef = Art.resolver!.getArt(card.id, landStyle);
+  private applyArt(card: CardDef, landStyle: string | undefined, artRect: Rect, tier: ArtTier): void {
+    const artRef = Art.resolver!.getArt(card.id, landStyle, tier);
     if (artRef.frameName) this.art.setTexture(artRef.textureKey, artRef.frameName);
     else this.art.setTexture(artRef.textureKey);
     // Cover the selected window: the standard window crops vertically; full art
@@ -650,13 +661,12 @@ export class CardView extends Phaser.GameObjects.Container {
       );
 
     this.stopArtWait();
-    if (artRef.pending === undefined) return;
-    this.artPendingKey = artRef.pending;
-    this.cancelArtWait = redrawWhenArtLands(this, artRef.pending, () => {
+    this.artPendingKey = artRef.pending ?? null;
+    this.cancelArtWait = holdArt(this, artRef, () => {
       this.cancelArtWait = null;
       this.artPendingKey = null;
       if (!this.art.active || this.card !== card) return;
-      this.applyArt(card, landStyle, artRect);
+      this.applyArt(card, landStyle, artRect, tier);
     });
   }
 

@@ -1,5 +1,4 @@
 import Phaser from 'phaser';
-import { Art } from '../art/ArtResolver';
 import type { AnimationLevel } from '../platform/animPolicy';
 import { addPortraitArt } from './portraitArt';
 import { colorInt, theme } from './theme';
@@ -215,10 +214,10 @@ export class VersusBumper {
         image = this.scene.add.image(x, HEIGHT / 2 - 38, identity.textureKey);
         fit(image);
       } else if (identity.cardId) {
-        const ref = Art.resolver?.getArt(identity.cardId);
-        if (!ref) return null;
         // Card art still streaming in is swapped for the real file when it lands.
-        image = addPortraitArt(this.scene, x, HEIGHT / 2 - 38, ref, fit);
+        const held = addPortraitArt(this.scene, x, HEIGHT / 2 - 38, identity.cardId, fit);
+        if (!held) return null;
+        image = held;
       } else {
         return null;
       }

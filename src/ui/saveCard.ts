@@ -1,6 +1,6 @@
 import type Phaser from 'phaser';
 import { Art, type ArtRef } from '../art/ArtResolver';
-import { isArtLoaded } from '../art/artLoader';
+import { isArtLoaded, liveArtStore } from '../art/artLoader';
 import { theme } from './theme';
 
 /**
@@ -57,19 +57,67 @@ export function composeSaveCardCanvas(
   const source = frame?.source?.image as HTMLImageElement | HTMLCanvasElement | undefined;
   if (!frame || !source) return null;
 
+  return drawSaveCard(source, { x: frame.cutX, y: frame.cutY, w: frame.cutWidth, h: frame.cutHeight }, lines);
+}
+
+/**
+ * `composeSaveCardCanvas` for art that streams through the art store (1.9
+ * lane D; docs/plan-art-streaming.md section 1, "The decoded copy"). Under
+ * WebGL the store closes each texture's decoded copy right after upload, so
+ * nothing can read card-art pixels back from a texture: the export asks the
+ * store for the file's bytes (the same source and HTTP cache as the texture)
+ * and decodes its own copy, which it closes when the cover is drawn. It takes
+ * no lease: nothing here draws the card's texture, and a lease would ask for
+ * the same file a second time. A procedural placeholder (no art file) draws
+ * from its atlas canvas, as before. Null when the bytes cannot be read or
+ * decoded.
+ *
+ * With no store (the 1.8 queue) this is `composeSaveCardCanvas`, unchanged.
+ */
+export async function composeSaveCardCanvasAsync(
+  scene: Phaser.Scene,
+  cardId: string,
+  lines: SaveCardLines,
+): Promise<HTMLCanvasElement | null> {
+  const store = liveArtStore();
+  if (store === null || store.textureKeyFor(cardId) === null) return composeSaveCardCanvas(scene, cardId, lines);
+  try {
+    const blob = await store.fetchBlob(cardId);
+    if (blob === null) return null;
+    const bitmap = await createImageBitmap(blob);
+    try {
+      return drawSaveCard(bitmap, { x: 0, y: 0, w: bitmap.width, h: bitmap.height }, lines);
+    } finally {
+      bitmap.close();
+    }
+  } catch {
+    return null; // a file that will not decode: the caller reports the art as unavailable
+  }
+}
+
+/** The region of the art source to cover-crop from. */
+interface SourceRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** Draw the titled cover from `source`'s `cut` region; null without a 2D context. */
+function drawSaveCard(source: CanvasImageSource, cut: SourceRect, lines: SaveCardLines): HTMLCanvasElement | null {
   const canvas = document.createElement('canvas');
   canvas.width = SAVE_CARD_W;
   canvas.height = SAVE_CARD_H;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  // Cover-crop the frame's cut region into the 640×800 cover. Card art ships
-  // at the same 0.8 aspect, so this is normally a straight scale.
-  const scale = Math.max(SAVE_CARD_W / frame.cutWidth, SAVE_CARD_H / frame.cutHeight);
+  // Cover-crop the cut region into the 640×800 cover. Card art ships at the
+  // same 0.8 aspect, so this is normally a straight scale.
+  const scale = Math.max(SAVE_CARD_W / cut.w, SAVE_CARD_H / cut.h);
   const srcW = SAVE_CARD_W / scale;
   const srcH = SAVE_CARD_H / scale;
-  const sx = frame.cutX + (frame.cutWidth - srcW) / 2;
-  const sy = frame.cutY + (frame.cutHeight - srcH) / 2;
+  const sx = cut.x + (cut.w - srcW) / 2;
+  const sy = cut.y + (cut.h - srcH) / 2;
   ctx.drawImage(source, sx, sy, srcW, srcH, 0, 0, SAVE_CARD_W, SAVE_CARD_H);
 
   // The bottom plate: the bottom fifth, dark and translucent so the art stays

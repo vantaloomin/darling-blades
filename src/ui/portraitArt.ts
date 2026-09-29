@@ -1,34 +1,40 @@
 import type Phaser from 'phaser';
-import type { ArtRef } from '../art/ArtResolver';
-import { redrawWhenArtLands } from '../art/artWatch';
-import { fitNowAndWhenArtLands } from './artRefit';
+import { Art } from '../art/ArtResolver';
+import { holdArt } from '../art/artWatch';
+import { fitAndHoldArt } from './artRefit';
 
 /**
- * A card's art as a single cover-fitted image: the portrait surfaces' way to
- * draw `ArtResolver.getArt`'s answer (1.9, I9). The image is created with
- * whatever the resolver has now, `fit` places it, and if that was the loading
- * stand-in the real texture is swapped in and `fit` runs again when it lands.
- * The wait ends by itself when the image is destroyed or its scene shuts
- * down. The rule lives in `src/ui/artRefit.ts`, tested headless.
+ * A card's art as a single cover-fitted image: the portrait surfaces' one way
+ * to draw card art (1.9: I9, then lane D's S4). The image is created with
+ * whatever `ArtResolver.getArt` has for `cardId` now, and `fit` places it. The
+ * image holds what it draws (`holdArt`, docs/plan-art-streaming.md sections 3
+ * and 4): a lease while art streams through the store, a redraw when better
+ * art lands (the stand-in or the half texture giving way to the full file),
+ * and, when the drawn texture is removed (evicted, or swept at a WebGL context
+ * restore), a redraw in the same tick onto whatever is resident. Each redraw
+ * resolves the card's art again, swaps it in and runs `fit` again. The hold
+ * ends by itself when the image is destroyed or its scene shuts down. The rule
+ * lives in `src/ui/artRefit.ts`, tested headless.
  *
  * `fit` must set scale, crop and position from the image's current texture
  * size (`image.width`, `image.frame`), never relative to their current values,
- * because it runs a second time on a texture of a different size.
+ * because it runs again on a texture of a different size.
  *
- * This covers art that arrives late, once: the swap is to the literal
- * `pending` key, and nothing here calls `getArt` again. Art evicted after it
- * landed would leave the image on a destroyed texture; re-applying on texture
- * removal is lane D's job (its streaming design adds leases), not this
- * helper's.
+ * Returns null when there is no resolver (nothing has booted the art). Throws
+ * what `getArt` throws for a card with no art at all, as the lookup always did,
+ * so a caller's fallback for missing art still applies.
  */
 export function addPortraitArt(
   scene: Phaser.Scene,
   x: number,
   y: number,
-  ref: ArtRef,
+  cardId: string,
   fit: (image: Phaser.GameObjects.Image) => void,
-): Phaser.GameObjects.Image {
+): Phaser.GameObjects.Image | null {
+  const resolver = Art.resolver;
+  if (resolver === null) return null;
+  const ref = resolver.getArt(cardId);
   const image = scene.add.image(x, y, ref.textureKey, ref.frameName);
-  fitNowAndWhenArtLands(image, ref, fit, redrawWhenArtLands);
+  fitAndHoldArt(image, ref, () => resolver.getArt(cardId), fit, holdArt);
   return image;
 }

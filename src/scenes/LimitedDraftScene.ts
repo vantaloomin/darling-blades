@@ -1,5 +1,4 @@
 import Phaser from 'phaser';
-import { Art } from '../art/ArtResolver';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { ECONOMY } from '../config/rules';
@@ -879,14 +878,13 @@ export class LimitedDraftScene extends Phaser.Scene {
   ): void {
     if (!cardId) return;
     try {
-      const ref = Art.resolver?.getArt(cardId);
-      if (!ref) return;
       // Overscan must cover the face-bias shift: (1.16-1)/2 = 0.08 per side >=
       // the 0.08*targetH upward shift, or the mask bottom shows bare panel
       // behind height-bound fits (all card art is 4:5).
-      const image = addPortraitArt(this, x, y - targetH * 0.08, ref, (art) => {
+      const image = addPortraitArt(this, x, y - targetH * 0.08, cardId, (art) => {
         art.setScale(Math.max(targetW / art.width, targetH / art.height) * 1.16);
       });
+      if (!image) return;
       const maskShape = circular
         ? this.add.circle(x, y, Math.min(targetW, targetH) / 2, theme.graphics.dim).setVisible(false)
         : this.add.rectangle(x, y, targetW, targetH, theme.graphics.dim).setVisible(false);

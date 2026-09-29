@@ -1,5 +1,4 @@
 import Phaser from 'phaser';
-import { Art } from '../art/ArtResolver';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { FEATURES } from '../config/features';
@@ -586,9 +585,7 @@ export class PracticePickerScene extends Phaser.Scene {
     parent: Phaser.GameObjects.Container,
   ): Phaser.GameObjects.Image | null {
     try {
-      const ref = Art.resolver?.getArt(cardId);
-      if (!ref) return null;
-      const img = addPortraitArt(this, x, y, ref, (art) => {
+      const img = addPortraitArt(this, x, y, cardId, (art) => {
         const scale = Math.max(targetW / art.width, targetH / art.height) * 1.1;
         art.setScale(scale);
         const cropW = Math.min(art.width, targetW / scale);
@@ -605,6 +602,7 @@ export class PracticePickerScene extends Phaser.Scene {
         // cropped window on the tile.
         art.y = y - (cropY + cropH / 2 - art.height / 2) * scale;
       });
+      if (!img) return null;
       parent.add(img);
       return img;
     } catch {
