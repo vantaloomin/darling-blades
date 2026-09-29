@@ -10,6 +10,7 @@ import { Services } from '../meta/services';
 import { attachTouchGestures } from '../platform/gestures';
 import { TAP_SLOP_PX } from '../platform/gestureCore';
 import { gateOnArt } from '../ui/artGate';
+import { prefetchDuelArt } from '../ui/duelArt';
 import { addPortraitArt } from '../ui/portraitArt';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { showDarlingsTutorial } from '../ui/DarlingsTutorial';
@@ -506,6 +507,7 @@ export class PracticePickerScene extends Phaser.Scene {
 
     const selected = AVATARS.find((av) => av.id === this.selectedAvatarId);
     this.selectionLabel?.setText(selected ? `Face ${selected.name}` : 'Choose a rival');
+    if (selected) prefetchDuelArt(this, { opponentId: selected.id });
   }
 
   private startPractice(difficulty: Difficulty): void {
