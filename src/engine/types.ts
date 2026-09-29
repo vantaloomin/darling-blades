@@ -470,6 +470,12 @@ export function validateHuntDef(d: CardDef): string[] {
   const arrivalHunts = (d.abilities ?? []).filter(isArrivalHunt);
   if (arrivalHunts.length > 1) errors.push('A creature has at most one arrival Hunt');
   if (arrivalHunts.length > 0 && d.empower?.targets) errors.push('An arrival Hunt cannot share a card with Empower targets');
+  // A conditional arrival Hunt reads its condition at cast (A1.1c), on the
+  // board before a Rite or Tithe sacrifice is paid, so a sacrificed creature
+  // would still count: never the two together.
+  if (arrivalHunts.some((ability) => ability.condition !== undefined) && (d.rite || d.tithe)) {
+    errors.push('A conditional arrival Hunt cannot share a card with a Rite or Tithe');
+  }
   // An empowered cast brings the Empower targets instead of the body's, so a
   // body Hunt would run on them.
   if (d.empower?.targets && (d.abilities ?? []).some((ability) => ability.when === 'spell' &&

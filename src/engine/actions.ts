@@ -381,17 +381,31 @@ export function darlingCastCost(d: CardDef, tax: number): ManaCost | undefined {
 
 const DARLING_PAYDOWN_MANA: ManaCost = { generic: DARLING_PAYDOWN_COST, pips: {} };
 
+/**
+ * The cast's printed target specs, and whether they are the body's own
+ * (`body`) rather than an override cast's (Hauntlink, a Retell body, Empower
+ * targets), which bring their own.
+ */
+function castTargetSource(
+  d: CardDef,
+  retell: boolean,
+  hauntlinked = false,
+  empowered = false,
+): { specs: ReturnType<typeof castTargetSpecs>; body: boolean } {
+  if (hauntlinked) return { specs: [{ what: 'yourCreature' }], body: false };
+  // A Retell override replaces the printed body's ops and target requirements.
+  if (retell && d.retell?.ops) return { specs: d.retell.targets ?? [], body: false };
+  if (empowered && d.empower?.targets) return { specs: d.empower.targets, body: false };
+  return { specs: castTargetSpecs(d), body: true };
+}
+
 function castTargetSpecsFor(
   d: CardDef,
   retell: boolean,
   hauntlinked = false,
   empowered = false,
 ): ReturnType<typeof castTargetSpecs> {
-  if (hauntlinked) return [{ what: 'yourCreature' }];
-  // A Retell override replaces the printed body's ops and target requirements.
-  if (retell && d.retell?.ops) return d.retell.targets ?? [];
-  if (empowered && d.empower?.targets) return d.empower.targets;
-  return castTargetSpecs(d);
+  return castTargetSource(d, retell, hauntlinked, empowered).specs;
 }
 
 /**
@@ -401,8 +415,7 @@ function castTargetSpecsFor(
  * the condition fails, the cast names no prey, so the creature is castable
  * with or without prey and takes no target. On arrival the ability then runs
  * as an ordinary targeted arrival trigger, which re-checks the condition.
- * The override casts (Hauntlink, a Retell body, Empower targets) bring their
- * own specs and are unaffected.
+ * The override casts bring their own specs and are unaffected.
  */
 function castTargetSpecsNow(
   state: GameState,
@@ -413,9 +426,8 @@ function castTargetSpecsNow(
   hauntlinked = false,
   empowered = false,
 ): ReturnType<typeof castTargetSpecs> {
-  const specs = castTargetSpecsFor(d, retell, hauntlinked, empowered);
-  const bodySpecs = !hauntlinked && !(retell && d.retell?.ops) && !(empowered && d.empower?.targets);
-  const hunt = bodySpecs ? arrivalHuntIndex(d) : -1;
+  const { specs, body } = castTargetSource(d, retell, hauntlinked, empowered);
+  const hunt = body ? arrivalHuntIndex(d) : -1;
   if (hunt < 0) return specs;
   const condition = d.abilities![hunt].condition;
   // Cast from hand or the Darling zone, the creature is not on the

@@ -606,13 +606,43 @@ describe('Hunt: a conditional arrival Hunt checks its condition at cast (A1.1c)'
     expect(onBoard(game.instanceState, 3)).toBe(false);
   });
 
+  /** Cast with no prey (the condition failed at cast), on the stack over the opponent's response window. */
+  const castWithoutPrey = (battlefield: Partial<Permanent>[]): Game => {
+    const state = board([[], []], battlefield);
+    state.stack = [{ sid: 1, cardId: 'fernRaptor', controller: 0, targets: [] }];
+    state.awaiting = { player: 1, kind: 'respond', over: { type: 'spell', sid: 1 } };
+    return Game.restore(state, db);
+  };
+
   it('cast with no prey, it hunts as an ordinary targeted trigger if the condition holds by arrival', () => {
-    // Cast on an empty board (no target); another Dinokin arrived before it resolved.
-    const state = board([[], []], [KIN, THEIRS]);
+    // Another Dinokin arrived while it was on the stack.
+    const game = castWithoutPrey([KIN, THEIRS]);
+    const events = game.submit(1, { type: 'passResponse' });
+    expect(events).not.toContainEqual({ e: 'targetsFizzled', sid: 1 });
+    expect(game.awaiting).toMatchObject({ kind: 'chooseTarget', player: 0 });
+    game.submit(0, { type: 'chooseTarget', target: ref(3) });
+    const raptor = game.instanceState.battlefield.find((p) => p.cardId === 'fernRaptor')!;
+    expect(onBoard(game.instanceState, 3)).toBe(false); // 4 damage to a 1/1
+    expect(raptor.damage).toBe(1);
+  });
+
+  it('cast with no prey, it just arrives if the condition holds by arrival but there is still no prey', () => {
+    const state = board([[], []], [KIN]);
     const events: GameEvent[] = [];
     resolveStackItem(state, db, { sid: 1, cardId: 'fernRaptor', controller: 0, targets: [] }, (e) => events.push(e));
-    expect(events).not.toContainEqual({ e: 'targetsFizzled', sid: 1 });
-    expect(state.pendingDecisions).toMatchObject([{ kind: 'chooseTarget', player: 0, spec: PREY }]);
+    expect(state.battlefield.map((p) => p.cardId)).toContain('fernRaptor');
+    expect(state.pendingDecisions).toEqual([]);
+    expect(events.some((e) => e.e === 'triggerFired')).toBe(false);
+  });
+
+  it('refuses a conditional arrival Hunt beside a Rite or Tithe, whose sacrifice the cast-time check cannot see', () => {
+    const raptor = db.fernRaptor;
+    expect(validateHuntDef(raptor)).toEqual([]);
+    expect(validateHuntDef({ ...raptor, rite: { n: 1 } }).length).toBeGreaterThan(0);
+    expect(validateHuntDef({ ...raptor, tithe: { per: 2 } }).length).toBeGreaterThan(0);
+    // An unconditional arrival Hunt reads no condition, so it may carry either.
+    expect(validateHuntDef({ ...db.stalker, rite: { n: 1 } })).toEqual([]);
+    expect(validateHuntDef({ ...db.stalker, tithe: { per: 2 } })).toEqual([]);
   });
 
   it('a Darling with a conditional arrival Hunt follows the same rule', () => {

@@ -1026,11 +1026,12 @@ condition when the creature is cast.
   it cannot hunt (tested).
 - **Unchanged:** unconditional arrival Hunts, attack and Dawn Hunts, and the
   Empower Hunt.
-- **Not handled:** a Rite or Tithe sacrifice paid for the cast is read on
-  the board before it is paid, so a Dinokin sacrificed to cast the creature
-  still satisfies the condition at cast (prey is then chosen, and the
-  arrival re-check finds the condition false: it arrives without hunting).
-  No First Dawn row combines the two.
+- **Refused: a conditional arrival Hunt beside a Rite or Tithe.** The
+  condition is read on the board before a Rite or Tithe sacrifice is paid,
+  so a Dinokin sacrificed to cast the creature would still satisfy it at
+  cast. `validateHuntDef` refuses the combination (Fable's review,
+  2026-09-29), so no row can reach that case silently. No First Dawn row
+  combines the two.
 - **Approvals recorded (2026-09-29):** the uncastable reason "It can't be
   cast: it has no prey to hunt." and the override templates "Hunt any other
   creature." (spell: "Target creature you control Hunts any other
