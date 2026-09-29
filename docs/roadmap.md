@@ -2158,6 +2158,15 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   It builds on `DBD3-` deck codes, the Hard brain and the duel's
   opponent-deck override. Plan and open questions:
   [plan-async-pvp.md](plan-async-pvp.md). Nothing is built.
+- **Starting life above 20, with Core Set II (owner direction, 2026-09-29;
+  2.0).** Games between AIs end around each player's ninth or tenth turn
+  (the First Dawn lab's Hard median is turn 19, counting both players'
+  turns), so the most expensive cards rarely get cast. The owner wants 5 to
+  10 more starting life in 2.0, alongside the return to the original sets;
+  the number waits on a 20 / 25 / 30 measurement. Every scorer rate, test
+  floor and boss tune is measured at 20, so it lands with a full
+  re-measure, and 1.9 (First Dawn included) stays at 20. Details:
+  [plan-road-to-2.0.md](plan-road-to-2.0.md#starting-life-a-20-direction).
 - **Design plans authored 2026-07-05.** Four senior-level design docs, each
   grounded in the current code and respecting the iron invariants —
   **Commander mode and MOD/UGC were greenlit into the 1.1 program

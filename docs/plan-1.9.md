@@ -1327,6 +1327,10 @@ Numbered so rulings can cite them. Recommendations are the first option.
     166, a deliberate change to the B3 histogram, and one card over D2's
     150-165 range (the wave-1 sitting's "165 cards" is superseded). See
     lane B.
+- **Starting life: a 2.0 change, so 1.9 stays at 20 (the owner, 2026-09-29).** The owner
+  aimed a 5-10 increase in starting life at 2.0, with Core Set II
+  ([plan-road-to-2.0.md](plan-road-to-2.0.md#starting-life-a-20-direction)).
+  First Dawn's costs, the A1.4 rates and every 1.9 gate are measured at 20.
 - **The `research/` ignore rule** from the owner's local `.gitignore` is
   committed, so third-party research material never reaches the public
   repo.
