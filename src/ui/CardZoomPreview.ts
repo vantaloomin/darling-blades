@@ -2,7 +2,8 @@ import Phaser from 'phaser';
 import type { CardDef } from '../engine/types';
 import type { CardVariant } from '../meta/variants';
 import { attachTouchGestures } from '../platform/gestures';
-import { CardView } from './CardView';
+import { CardView, CARD_H } from './CardView';
+import { colorInt, theme } from './theme';
 
 // Design-space constants, NOT scene.scale (= game size = 1280k×720k under
 // render scale; the camera shows the 1280×720 design window — see
@@ -61,11 +62,19 @@ export interface CardZoomOptions {
 export class CardZoomPreview {
   private scene: Phaser.Scene;
   private view: CardView | null = null;
+  /** The hovered object's state line under the preview (1.9 A2.a), if it has one. */
+  private noteView: Phaser.GameObjects.Container | null = null;
   /** The object whose hover produced the currently VISIBLE preview. */
   private sourceObj: Phaser.GameObjects.GameObject | null = null;
   private timer: Phaser.Time.TimerEvent | null = null;
-  private pending: { card: CardDef; variant?: CardVariant; landStyle?: string; worldX: number; obj: Phaser.GameObjects.GameObject } | null =
-    null;
+  private pending: {
+    card: CardDef;
+    variant?: CardVariant;
+    landStyle?: string;
+    worldX: number;
+    obj: Phaser.GameObjects.GameObject;
+    note?: () => string | null;
+  } | null = null;
   private suppressed = false;
   private zHeld = false;
   private sticky = false;
@@ -94,19 +103,23 @@ export class CardZoomPreview {
 
   /**
    * Wire hover preview onto an interactive object (or a CardView/container
-   * that re-emits pointer events with the Pointer threaded through).
+   * that re-emits pointer events with the Pointer threaded through). `note`
+   * is read when the preview shows: a line of state the card face cannot
+   * print (a battlefield creature's spent Provoked, 1.9 A2.a), drawn on a
+   * plate under the preview, or nothing when it returns null.
    */
   attach(
     obj: Phaser.GameObjects.GameObject,
     card: CardDef,
     variant?: CardVariant,
     landStyle?: string,
+    note?: () => string | null,
   ): void {
     obj.on('pointerover', (p: Phaser.Input.Pointer) => {
       // Touch fires pointerover on finger-down; the long-press gesture owns
       // previews there — never schedule a hover dwell for a touch pointer.
       if (p.wasTouch) return;
-      this.schedule(card, variant, landStyle, p.worldX, obj);
+      this.schedule(card, variant, landStyle, p.worldX, obj, note);
     });
     obj.on('pointerout', () => this.cancelFor(obj));
     obj.once(Phaser.GameObjects.Events.DESTROY, () => this.cancelFor(obj));
@@ -153,6 +166,8 @@ export class CardZoomPreview {
     this.sticky = false;
     this.view?.destroy();
     this.view = null;
+    this.noteView?.destroy();
+    this.noteView = null;
   }
 
   /** Cancel only if `obj` is the pending or shown hover source. */
@@ -178,12 +193,13 @@ export class CardZoomPreview {
     landStyle: string | undefined,
     worldX: number,
     obj: Phaser.GameObjects.GameObject,
+    note?: () => string | null,
   ): void {
     this.cancel();
     if (this.suppressed) return;
-    this.pending = { card, variant, landStyle, worldX, obj };
+    this.pending = { card, variant, landStyle, worldX, obj, note };
     if (this.zHeld) {
-      this.show(card, variant, landStyle, worldX, obj);
+      this.show(card, variant, landStyle, worldX, obj, note);
       return;
     }
     this.timer = this.scene.time.delayedCall(this.delayMs, () => {
@@ -191,7 +207,7 @@ export class CardZoomPreview {
       const p = this.pending;
       // The hovered object may have been destroyed by a re-render mid-dwell.
       if (!p || p.card !== card || !p.obj.active || this.suppressed) return;
-      this.show(card, variant, landStyle, worldX, p.obj);
+      this.show(card, variant, landStyle, worldX, p.obj, note);
     });
   }
 
@@ -201,8 +217,11 @@ export class CardZoomPreview {
     landStyle: string | undefined,
     hoveredWorldX: number,
     obj: Phaser.GameObjects.GameObject | null,
+    note?: () => string | null,
   ): void {
     this.view?.destroy();
+    this.noteView?.destroy();
+    this.noteView = null;
     this.sourceObj = obj; // null for sticky: nothing may auto-dismiss it
     // worldX is design-space (the camera maps pointer → world through the
     // render-scale zoom), so it compares against the DESIGN midpoint — using
@@ -214,6 +233,24 @@ export class CardZoomPreview {
     this.view.setDepth(this.depth);
     // Hover mode never enableInput(): the preview must not intercept or
     // misroute mouse input. (showSticky opts in for the touch tap target.)
+    const line = note?.() ?? null;
+    if (line) this.noteView = this.notePlate(x, this.dockY + (CARD_H * this.scale) / 2 + theme.space(5), line);
+  }
+
+  /** The state line on a `rowFill` plate, centred under the preview, inert like it. */
+  private notePlate(x: number, y: number, line: string): Phaser.GameObjects.Container {
+    const text = this.scene.add.text(0, 0, line, {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.type.label}px`, fontStyle: theme.weight.w600,
+      color: theme.colors.heading, resolution: 2,
+    }).setOrigin(0.5);
+    const w = text.width + theme.space(4);
+    const h = text.height + theme.space(2);
+    const plate = this.scene.add.graphics();
+    plate.fillStyle(colorInt(theme.colors.rowFill), theme.alpha.panel);
+    plate.fillRoundedRect(-w / 2, -h / 2, w, h, theme.radius.control);
+    plate.lineStyle(1, colorInt(theme.colors.panelStroke), theme.alpha.chrome);
+    plate.strokeRoundedRect(-w / 2, -h / 2, w, h, theme.radius.control);
+    return this.scene.add.container(x, y, [plate, text]).setDepth(this.depth);
   }
 
   private onZDown(): void {
@@ -230,6 +267,7 @@ export class CardZoomPreview {
           this.pending.landStyle,
           this.pending.worldX,
           this.pending.obj,
+          this.pending.note,
         );
       }
     }

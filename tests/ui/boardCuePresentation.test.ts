@@ -226,10 +226,12 @@ describe('the P/T cues (no longer one exclusive mood)', () => {
 describe('the tile chip and its priority', () => {
   const none = { link: null, dutyUsable: false, canAttack: false, assignedBlocker: false } as const;
 
-  it('names the action the tile is part of, and when two apply, the one a tap would take: a Hauntlink move, then a Duty, then the attack toggle, then a block record', () => {
+  it('names the action the tile is part of, and when two apply, the one a tap would take: a Hauntlink move, then a Duty, then the pump, then the attack toggle, then a block record', () => {
     expect(tileChipLabel({ ...none, link: 'Link', dutyUsable: true, canAttack: true })).toBe('Link');
-    expect(tileChipLabel({ ...none, link: 'Relink', dutyUsable: true })).toBe('Relink');
-    expect(tileChipLabel({ ...none, dutyUsable: true, canAttack: true })).toBe('Duty');
+    expect(tileChipLabel({ ...none, link: 'Relink', dutyUsable: true, boostUsable: true })).toBe('Relink');
+    expect(tileChipLabel({ ...none, dutyUsable: true, boostUsable: true, canAttack: true })).toBe('Duty');
+    expect(tileChipLabel({ ...none, boostUsable: true, canAttack: true })).toBe('Boost');
+    expect(tileChipLabel({ ...none, boostUsable: true })).toBe('Boost');
     expect(tileChipLabel({ ...none, canAttack: true, assignedBlocker: true })).toBe('Attack');
     expect(tileChipLabel({ ...none, canAttack: true })).toBe('Attack');
     expect(tileChipLabel({ ...none, assignedBlocker: true })).toBe('Blocks');
@@ -239,7 +241,10 @@ describe('the tile chip and its priority', () => {
   it("agrees with today's permanentActionLabel wherever combat adds no chip", () => {
     for (const link of [null, 'Link', 'Relink'] as const) {
       for (const dutyUsable of [false, true]) {
-        expect(tileChipLabel({ ...none, link, dutyUsable }), `${link} ${dutyUsable}`).toBe(permanentActionLabel(link, dutyUsable));
+        for (const boostUsable of [false, true]) {
+          expect(tileChipLabel({ ...none, link, dutyUsable, boostUsable }), `${link} ${dutyUsable} ${boostUsable}`)
+            .toBe(permanentActionLabel(link, dutyUsable, boostUsable));
+        }
       }
     }
   });
@@ -253,12 +258,12 @@ describe('the tile chip and its priority', () => {
     targeting: [],
     declareAttackers: [{ canAttack: true }],
     declareBlockers: [{ assignedBlocker: true }],
-    idle: [{ link: 'Link' }, { link: 'Relink' }, { dutyUsable: true }],
+    idle: [{ link: 'Link' }, { link: 'Relink' }, { dutyUsable: true }, { boostUsable: true }],
     gravePicking: [],
   };
 
   it('puts a chip on a state only where tileChipLabel can name it in that context', () => {
-    const actions: readonly TileChip[] = ['Link', 'Relink', 'Duty'];
+    const actions: readonly TileChip[] = ['Link', 'Relink', 'Duty', 'Boost'];
     for (const state of BOARD_CUE_STATES) {
       const chip = BOARD_CUES[state].chip;
       if (!chip) continue;

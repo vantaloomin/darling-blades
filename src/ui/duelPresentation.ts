@@ -9,6 +9,8 @@ import { compelledAttackers } from '../engine/combat/legality';
 import type { GameEvent } from '../engine/events';
 import type { CardDb, CardDef, GameState, PlayerId, TargetRef } from '../engine/types';
 import { activatedAbilitiesOf, def } from '../engine/types';
+import { BOOST_CHIP_LABEL } from './boardCuePresentation';
+import { manaActivatedEffectText } from './manaPumpPresentation';
 import { activatedText, rulesText } from './rulesText';
 import { sameTargetRef } from './targetSelection';
 
@@ -157,10 +159,12 @@ export const DUTY_BADGE_LABEL = 'Duty';
  * The action chip a battlefield tile carries. The shared gold ring means "you
  * can act with this" whether the permanent can attack, move a Hauntlink or
  * perform a Duty; the chip says which of the last two it is (an attacker has
- * no chip). A legal Hauntlink move names itself first.
+ * no chip). A legal Hauntlink move names itself first. A creature whose
+ * repeatable mana ability can be used now says "Boost" (1.9 A2.a), after a
+ * Duty, as `TILE_CHIP_PRIORITY` orders them.
  */
-export function permanentActionLabel(link: 'Link' | 'Relink' | null, dutyUsable: boolean): string | null {
-  return link ?? (dutyUsable ? DUTY_BADGE_LABEL : null);
+export function permanentActionLabel(link: 'Link' | 'Relink' | null, dutyUsable: boolean, boostUsable = false): string | null {
+  return link ?? (dutyUsable ? DUTY_BADGE_LABEL : boostUsable ? BOOST_CHIP_LABEL : null);
 }
 
 /**
@@ -591,4 +595,74 @@ export function undoBlockedReason(input: UndoRevealInput): string | null {
   }
   if (events.some((e) => (fromDeck(e) || e.e === 'discarded') && !own(e))) return UNDO_BLOCKED_COPY.foe;
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// History lines for the 1.9 events (A2.a)
+// ---------------------------------------------------------------------------
+
+/** What a history line needs to name a permanent: its [bracketed] card reference and whose it is. */
+export interface EventLinePermanent {
+  readonly ref: string;
+  readonly side: DuelSide;
+}
+
+/**
+ * The scene's lookups, so the lines stay pure: `permanent` names a permanent
+ * on the battlefield or one that left in the same batch (null when it cannot
+ * be named), `cardRef` brackets a card name, `card` finds a definition, and
+ * `overchargeLimit` is `RULES.overchargeLimit`.
+ */
+export interface EventLineLookup {
+  permanent(iid: number): EventLinePermanent | null;
+  cardRef(cardId: string): string;
+  card(cardId: string): CardDef;
+  sideOf(player: PlayerId): DuelSide;
+  readonly overchargeLimit: number;
+}
+
+function whose(side: DuelSide, leading: boolean): string {
+  if (side === 'you') return leading ? 'Your' : 'your';
+  return leading ? 'Enemy' : 'enemy';
+}
+
+/**
+ * The history line for a 1.9 event (player copy for approval, except the
+ * Overcharge line, APPROVED 2026-09-29), or null when the event is not one of
+ * these or says nothing:
+ * - `hunted`: "Your [Raptor] hunts enemy [Goblin]: deals 3, takes 1". Both
+ *   numbers always print, so a 0-Attack exchange reads as one.
+ * - `triggerFired` for a Provoked ability: "Your [Thornback] is provoked".
+ *   Every other trigger stays silent here, as before.
+ * - `manaActivated`: "Your [Vyra] uses its ability 3 times: “This gets +1/+0
+ *   until Sunset.”" ("once" for one use), the effect quoted as a Duty's is.
+ * - `overcharged`: the approved Overcharge line.
+ */
+export function eventHistoryLine(e: GameEvent, lookup: EventLineLookup): string | null {
+  switch (e.e) {
+    case 'hunted': {
+      const hunter = lookup.permanent(e.hunter);
+      const prey = lookup.permanent(e.prey);
+      if (!hunter || !prey) return null;
+      return `${whose(hunter.side, true)} ${hunter.ref} hunts ${whose(prey.side, false)} ${prey.ref}: deals ${Math.max(0, e.hunterDamage)}, takes ${Math.max(0, e.preyDamage)}`;
+    }
+    case 'triggerFired': {
+      if (e.when !== 'provoked') return null;
+      const perm = lookup.permanent(e.iid);
+      return perm ? `${whose(perm.side, true)} ${perm.ref} is provoked` : null;
+    }
+    case 'manaActivated': {
+      const side = lookup.sideOf(e.player);
+      const uses = e.times === 1 ? 'once' : `${e.times} times`;
+      const effect = manaActivatedEffectText(lookup.card(e.cardId), e.abilityIndex);
+      const line = `${whose(side, true)} ${lookup.cardRef(e.cardId)} uses its ability ${uses}`;
+      return effect ? `${line}: “${effect}”` : line;
+    }
+    case 'overcharged': {
+      const side = lookup.sideOf(e.player) === 'you' ? 'your' : "the opponent's";
+      return `Board full: ${side} ${lookup.cardRef(e.cardId)} gains an Overcharge in place of a new one (+1/+1, ${e.total} of ${lookup.overchargeLimit})`;
+    }
+    default:
+      return null;
+  }
 }

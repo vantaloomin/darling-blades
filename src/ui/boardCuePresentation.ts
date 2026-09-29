@@ -19,6 +19,7 @@
  *   applies (`TILE_CHIP_PRIORITY`, with the reason beside it).
  */
 
+import type { AbilityDef } from '../engine/types';
 import { resolveTokens, type Palette } from './accessibility';
 
 // ---------------------------------------------------------------------------
@@ -32,7 +33,7 @@ import { resolveTokens, type Palette } from './accessibility';
  *   the engine's mandatory `chooseTarget`), including edict picks.
  * - `declareAttackers` / `declareBlockers`: your combat declarations.
  * - `idle`: a main phase or response window with nothing pending, where a
- *   permanent may offer an action (Link, Relink, Duty) and, in combat, the
+ *   permanent may offer an action (Link, Relink, Duty, Boost) and, in combat, the
  *   declared attackers are still attacking.
  * - `gravePicking`: the graveyard target picker is open.
  */
@@ -64,7 +65,7 @@ export type BoardCueState =
   | 'pendingBlocker'
   /** Your creature assigned to block an attacker. */
   | 'assignedBlocker'
-  /** Your permanent that can take an action now (Link, Relink or Duty). */
+  /** Your permanent that can take an action now (Link, Relink, Duty or Boost). */
   | 'actionReady'
   /** A graveyard card the picker offers. */
   | 'graveLegal'
@@ -110,7 +111,7 @@ export interface BoardCueSpec {
   readonly lift?: boolean;
   /** Badge: the pick order (1, 2) on a round badge. */
   readonly pickBadge?: boolean;
-  /** Label: the tile's action chip. `action` is whichever of Link, Relink or Duty applies. */
+  /** Label: the tile's action chip. `action` is whichever of Link, Relink, Duty or Boost applies. */
   readonly chip?: TileChip | 'action';
   /** Shape: corner brackets outside the tile, drawn over any ring. */
   readonly focusBrackets?: boolean;
@@ -302,23 +303,29 @@ export function pickBadgeLabel(pickIndex: number | null | undefined): string | n
 // The tile chip and its priority
 // ---------------------------------------------------------------------------
 
-/** Chip text a tile can carry. "Attack" and "Blocks" are new in 1.9 (player copy for approval). */
-export type TileChip = 'Link' | 'Relink' | 'Duty' | 'Attack' | 'Blocks';
+/**
+ * Chip text a tile can carry. "Attack" and "Blocks" are new in 1.9 (player
+ * copy for approval); so is "Boost" (1.9 A2.a): a repeatable mana ability
+ * (A1.5's pump, "{R}: This gets +1/+0 until Sunset.") that can be used now.
+ */
+export type TileChip = 'Link' | 'Relink' | 'Duty' | 'Boost' | 'Attack' | 'Blocks';
 
 export const ATTACK_CHIP_LABEL = 'Attack';
 export const BLOCKS_CHIP_LABEL = 'Blocks';
+export const BOOST_CHIP_LABEL = 'Boost';
 
 /**
  * When more than one chip applies, the first in this list shows.
  *
  * A chip names the action the tile is part of: the move it can make
- * (Link, Relink, Duty), the attack it can join or has joined (a tap on a
+ * (Link, Relink, Duty, Boost), the attack it can join or has joined (a tap on a
  * selected attacker withdraws it while the chip still says Attack), the block
  * it is assigned to.
  *
  * Why this order: when two could apply, the chip names what a tap would do, so
  * it follows the order `DuelScene.onBattlefieldClick` dispatches a tap in: a
- * legal Hauntlink move first, then a Duty, then the attacker toggle. "Blocks"
+ * legal Hauntlink move first, then a Duty, then the mana pump's ticker, then
+ * the attacker toggle. "Blocks"
  * comes last because it records an assignment rather than offering an
  * action. Today the rules never offer two of these at once (the engine's
  * declare-attackers and declare-blockers decisions list only their own
@@ -326,13 +333,15 @@ export const BLOCKS_CHIP_LABEL = 'Blocks';
  * Blocks); the order is the answer if a later rule opens a window where they
  * overlap, and it keeps the chip truthful about the tap in that case.
  */
-export const TILE_CHIP_PRIORITY: readonly TileChip[] = ['Link', 'Relink', 'Duty', 'Attack', 'Blocks'];
+export const TILE_CHIP_PRIORITY: readonly TileChip[] = ['Link', 'Relink', 'Duty', 'Boost', 'Attack', 'Blocks'];
 
 export interface TileChipInput {
   /** A legal Hauntlink move, as `hauntlinkActionLabel` names it. */
   readonly link: 'Link' | 'Relink' | null;
   /** A Duty that can be performed now. */
   readonly dutyUsable: boolean;
+  /** A repeatable mana ability that can be used now (1.9 A1.5; absent reads as false). */
+  readonly boostUsable?: boolean;
   /** Declaring attackers, and this creature can attack (selected or not). */
   readonly canAttack: boolean;
   /** Declaring blockers, and this creature is assigned to block. */
@@ -345,6 +354,7 @@ export function tileChipLabel(input: TileChipInput): TileChip | null {
     Link: input.link === 'Link',
     Relink: input.link === 'Relink',
     Duty: input.dutyUsable,
+    Boost: input.boostUsable === true,
     Attack: input.canAttack,
     Blocks: input.assignedBlocker,
   };
@@ -431,6 +441,8 @@ export const CUE_MIN_SCREEN_PX = {
   markBadge: 11,
   /** Overcharge badge type size (1.9 A1.7; its cell glyph draws at 14). Built now, not in the Duel pass. */
   overchargeBadge: 11,
+  /** The spent Provoked badge's glyph (1.9 A2.a): the keyword column's 16px chip, a step smaller. */
+  provokedSpentBadge: 14,
 } as const;
 
 export type ScaledCue = keyof typeof CUE_MIN_SCREEN_PX;
@@ -460,7 +472,8 @@ export function cueScreenSize(cue: ScaledCue, tileScale: number): number {
  * summoning-sickness swirl (top right) and the name (under the top edge).
  * `outsideCorners` is outside the tile's rim, so brackets never cover a badge.
  * `rightEdge` hugs the right edge at mid-height, below the swirl and above
- * the P/T plate's glyphs.
+ * the P/T plate's glyphs. `leftEdge` mirrors it on the left, below the
+ * keyword column's four rows and above the aura badge.
  */
 export type TileAnchor =
   | 'rim'
@@ -473,7 +486,8 @@ export type TileAnchor =
   | 'bottomCenter'
   | 'bottomRight'
   | 'abovePtPlate'
-  | 'rightEdge';
+  | 'rightEdge'
+  | 'leftEdge';
 
 /** What a tile can show, the cues above plus the ones it already draws. */
 export type TileFeature =
@@ -488,7 +502,8 @@ export type TileFeature =
   | 'ptPlate'
   | 'ptGlyphs'
   | 'chapterBadge'
-  | 'overchargeBadge';
+  | 'overchargeBadge'
+  | 'provokedSpentBadge';
 
 /**
  * Anchors, and which kinds of permanent carry each feature. Features on the
@@ -512,10 +527,39 @@ export const TILE_FEATURES: Readonly<Record<TileFeature, { anchor: TileAnchor; o
   // Overcharge (1.9 A1.7) is not a Mark, so it never shares the Mark badge's
   // spot: it sits on the right edge, between the swirl and the P/T plate.
   overchargeBadge: { anchor: 'rightEdge', on: 'creature' },
+  // A Provoked creature's spent trigger (1.9 A2.a). Provoked is not a keyword,
+  // so it never joins the keyword column; it sits on the left edge, opposite
+  // the Overcharge badge, clear of the column above and the aura badge below.
+  provokedSpentBadge: { anchor: 'leftEdge', on: 'creature' },
 };
 
 /** Whether two features can be on one tile at once. */
 export function featuresMeet(a: TileFeature, b: TileFeature): boolean {
   const on = [TILE_FEATURES[a].on, TILE_FEATURES[b].on];
   return !(on.includes('creature') && on.includes('quest'));
+}
+
+// ---------------------------------------------------------------------------
+// The spent Provoked state (1.9 A2.a)
+// ---------------------------------------------------------------------------
+
+/**
+ * The spent state's tooltip and inspect line (player copy APPROVED
+ * 2026-09-28, plan-first-dawn-engine.md Part 6).
+ */
+export const PROVOKED_SPENT_NOTE = 'Provoked this turn.';
+
+/**
+ * Whether a creature's Provoked has fired this turn: one of its `provoked`
+ * abilities is in the permanent's public `firedThisTurn` (view.ts carries
+ * it). Provoked fires at most once each turn and the list clears at every
+ * untap, so a spent Provoked stays spent for the rest of the turn and reads
+ * fresh the next one. False for a card with no Provoked, whatever it fired.
+ */
+export function provokedSpent(
+  abilities: readonly Pick<AbilityDef, 'when'>[] | undefined,
+  firedThisTurn: readonly number[] | undefined,
+): boolean {
+  if (!abilities || !firedThisTurn || firedThisTurn.length === 0) return false;
+  return abilities.some((ability, index) => ability.when === 'provoked' && firedThisTurn.includes(index));
 }

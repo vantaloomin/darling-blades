@@ -1,3 +1,4 @@
+import type { GameEvent } from '../engine/events';
 import type { TargetRef } from '../engine/types';
 
 /**
@@ -40,7 +41,8 @@ export interface CombatPlanOpts {
   strikeMs?: number; // tail so the last strike finishes before the sync
 }
 
-const DEFAULTS: Required<CombatPlanOpts> = {
+/** Combat's full-motion timing; the Hunt's exchange (huntPresentation.ts) plays at the same. */
+export const COMBAT_SEQUENCE_TIMING: Readonly<Required<CombatPlanOpts>> = {
   minStagger: 140,
   maxStagger: 300,
   budget: 1100,
@@ -64,7 +66,7 @@ export function planCombat(
   diedIids: readonly number[] = [],
   opts: CombatPlanOpts = {},
 ): CombatPlan {
-  const { minStagger, maxStagger, budget, strikeMs } = { ...DEFAULTS, ...opts };
+  const { minStagger, maxStagger, budget, strikeMs } = { ...COMBAT_SEQUENCE_TIMING, ...opts };
 
   const flat: CombatHit[] = [];
   for (const r of rounds) for (const h of r.hits) flat.push(h);
@@ -109,4 +111,51 @@ export function planCombat(
   });
   const totalMs = (steps.length - 1) * staggerMs + strikeMs;
   return { steps, staggerMs, totalMs };
+}
+
+/**
+ * Where an event of a full-motion sequence goes (DuelScene
+ * `playCombatSequence`). A sequence holds the board while combat's strikes
+ * or a Hunt's exchange play out, so each event of its batch is either drawn by
+ * those strikes, held for the moment they land, or narrated at once.
+ *
+ * - `combatRound` / `hunt`: the strikes themselves.
+ * - `died`: logged when the blow that caused it lands.
+ * - `heal`: a life gain (Blood Oath), popped once the strikes settle.
+ * - `afterStrikes`: a Provoked trigger (1.9), logged once the strikes settle,
+ *   so "is provoked" never reads before the blow that provoked it.
+ * - `drawn`: already shown by a strike's own number (a combat hit, a Hunt's
+ *   blow, a combat hit on a player).
+ * - `gameEnded`: shown after the sequence.
+ * - `narrate`: everything else, at once (triggers, the pump's line, and any
+ *   damage or life loss a Hunt batch did not draw).
+ *
+ * `combat` says whether the batch lands combat damage; `huntDrawn` is
+ * `huntDrawnDamage(batch)`.
+ */
+export type SequencedRoute = 'combatRound' | 'hunt' | 'died' | 'heal' | 'afterStrikes' | 'drawn' | 'gameEnded' | 'narrate';
+
+export function sequencedEventRoute(
+  e: GameEvent,
+  batch: { readonly combat: boolean; readonly huntDrawn: ReadonlySet<GameEvent> },
+): SequencedRoute {
+  switch (e.e) {
+    case 'combatDamage':
+      return 'combatRound';
+    case 'hunted':
+      return 'hunt';
+    case 'died':
+      return 'died';
+    case 'lifeChanged':
+      // Combat draws each hit on a player per strike; a Hunt never hits one.
+      return e.delta > 0 ? 'heal' : batch.combat ? 'drawn' : 'narrate';
+    case 'damageMarked':
+      return batch.combat || batch.huntDrawn.has(e) ? 'drawn' : 'narrate';
+    case 'triggerFired':
+      return e.when === 'provoked' ? 'afterStrikes' : 'narrate';
+    case 'gameEnded':
+      return 'gameEnded';
+    default:
+      return 'narrate';
+  }
 }

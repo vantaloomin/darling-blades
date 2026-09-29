@@ -58,6 +58,14 @@ const OVERCHARGE_ICON = 14;
 const OVERCHARGE_PAD_X = 3;
 const OVERCHARGE_PAD_Y = 2;
 const OVERCHARGE_GAP = 2;
+// Spent Provoked badge (1.9 A2.a): the left edge just below mid-height
+// (TILE_FEATURES' `leftEdge`), mirroring the Overcharge badge. Low enough that
+// its counter-scaled plate on a packed row stays clear of the keyword column's
+// fourth row, high enough to clear the aura badge in the corner. The Provoked glyph, receded, with a slash through it: spent, not
+// absent. Badge-local design pixels; the badge counter-scales as a whole.
+const PROVOKED_ICON = CUE_MIN_SCREEN_PX.provokedSpentBadge;
+const PROVOKED_PAD = 3;
+const PROVOKED_CY = 18;
 
 /**
  * Tile border per RARITY tier (echoes the CardView RARITY_RING / gem palette):
@@ -181,6 +189,7 @@ export class BoardCardView extends Phaser.GameObjects.Container {
   private overchargeIcon: Phaser.GameObjects.Image;
   private overchargeText: Phaser.GameObjects.Text;
   private overchargeCount = 0;
+  private provokedBadge: Phaser.GameObjects.Container;
   private awakenedRect: Phaser.GameObjects.Rectangle;
   private hauntlinkBrokenMark: Phaser.GameObjects.Graphics;
   private chapterLabel: string | null = null;
@@ -324,6 +333,27 @@ export class BoardCardView extends Phaser.GameObjects.Container {
       .container(TILE_W / 2 - FRAME_M, 0, [this.overchargePlate, this.overchargeIcon, this.overchargeText])
       .setVisible(false);
 
+    // Spent Provoked badge: the Provoked glyph at the subtle alpha with a
+    // slash across it, on the same rowFill plate as the Overcharge badge (a
+    // muted rim, not gold: it records a spent trigger, not a gain). Hidden
+    // until setProvokedSpent shows it.
+    const provokedSide = PROVOKED_ICON + PROVOKED_PAD * 2;
+    const provokedPlate = scene.add.graphics();
+    provokedPlate.fillStyle(colorInt(theme.colors.rowFill), 0.92);
+    provokedPlate.fillRoundedRect(0, -provokedSide / 2, provokedSide, provokedSide, 4);
+    provokedPlate.lineStyle(1, colorInt(theme.colors.muted), 0.9);
+    provokedPlate.strokeRoundedRect(0, -provokedSide / 2, provokedSide, provokedSide, 4);
+    const provokedIcon = scene.add
+      .image(provokedSide / 2, 0, MECHANIC_ICON_KEY.provoked)
+      .setDisplaySize(PROVOKED_ICON, PROVOKED_ICON)
+      .setAlpha(theme.alpha.subtle);
+    const provokedSlash = scene.add.graphics();
+    provokedSlash.lineStyle(2, colorInt(theme.colors.heading), 0.95);
+    provokedSlash.lineBetween(provokedSide - PROVOKED_PAD, -provokedSide / 2 + PROVOKED_PAD, PROVOKED_PAD, provokedSide / 2 - PROVOKED_PAD);
+    this.provokedBadge = scene.add
+      .container(-TILE_W / 2 + FRAME_M, PROVOKED_CY, [provokedPlate, provokedIcon, provokedSlash])
+      .setVisible(false);
+
     // Champion Awakening: a persistent gold ring once the flip happens. Its
     // own rectangle (not the highlight) so targeting highlights, which clear
     // the art tint every sync, cannot wipe the awakened state's cue.
@@ -356,6 +386,7 @@ export class BoardCardView extends Phaser.GameObjects.Container {
       this.actionBadge,
       this.chapterBadge,
       this.overchargeBadge,
+      this.provokedBadge,
       this.sickIcon,
       this.awakenedRect,
       this.hauntlinkBrokenMark,
@@ -417,6 +448,18 @@ export class BoardCardView extends Phaser.GameObjects.Container {
     this.overchargePlate.fillRoundedRect(-w, -h / 2, w, h, 4);
     this.overchargePlate.lineStyle(1, colorInt(theme.colors.gold), 0.9);
     this.overchargePlate.strokeRoundedRect(-w, -h / 2, w, h, 4);
+    return this;
+  }
+
+  /**
+   * Show that this creature's Provoked has fired this turn (`provokedSpent` in
+   * boardCuePresentation). Creatures only. Counter-scales on a shrunken tile
+   * like the Overcharge badge, so the glyph keeps its size on screen.
+   */
+  setProvokedSpent(spent: boolean, tileScale: number): this {
+    const show = spent && this.ptText.visible;
+    this.provokedBadge.setVisible(show);
+    if (show) this.provokedBadge.setScale(cueCounterScale(tileScale));
     return this;
   }
 

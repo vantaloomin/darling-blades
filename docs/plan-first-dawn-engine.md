@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-1.9.md, docs/expansions/drafts/first-dawn-brief.md, docs/expansions/drafts/first-dawn-overplan.md, docs/rules.md, src/engine/types.ts, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/sba.ts, src/engine/combat/damage.ts, src/engine/Game.ts, src/engine/actions.ts, src/engine/resolve.ts, src/ai/value.ts, src/ai/targeting.ts, src/ai/activatedPolicy.ts, src/ai/combatPlans.ts, src/ai/pumpPolicy.ts, src/power/scoreCore.ts, src/data/glossary.ts, src/ui/rulesText.ts, scripts/action-log.ts, scripts/avatarReserveDecks.ts, scripts/mechanicUsage.ts, scripts/mechanicUsageCollector.ts · last-verified: 2026-09-29 · engine spec, RULED at the owner's second 1.9 sitting 2026-09-28 (lane A, and lane B step 3, the concretion audit); re-verify when the overplan's cut changes or when A1 lands -->
+<!-- source-of-truth: docs/plan-1.9.md, docs/expansions/drafts/first-dawn-brief.md, docs/expansions/drafts/first-dawn-overplan.md, docs/rules.md, src/engine/types.ts, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/sba.ts, src/engine/combat/damage.ts, src/engine/Game.ts, src/engine/actions.ts, src/engine/resolve.ts, src/ai/value.ts, src/ai/targeting.ts, src/ai/activatedPolicy.ts, src/ai/combatPlans.ts, src/ai/pumpPolicy.ts, src/power/scoreCore.ts, src/data/glossary.ts, src/ui/rulesText.ts, src/ui/huntPresentation.ts, src/ui/manaPumpPresentation.ts, src/ui/boardCuePresentation.ts, src/scenes/DuelScene.ts, scripts/action-log.ts, scripts/avatarReserveDecks.ts, scripts/mechanicUsage.ts, scripts/mechanicUsageCollector.ts · last-verified: 2026-09-29 · engine spec, RULED at the owner's second 1.9 sitting 2026-09-28 (lane A, and lane B step 3, the concretion audit); re-verify when the overplan's cut changes or when A1 lands -->
 
 # First Dawn engine spec: Provoked, Hunt, and what the cards need (1.9 lane A)
 
@@ -1980,6 +1980,166 @@ pin it on fixture cards.
   - Draft: the payoff term 1, the source term 3, the Hunt spell's creature
     weighting 1, a source-bound Hunt not removal 2, no cap 1, `yours` as
     removal 1, `any`/`yours` not sources 2, `mechanicWeight` scaling 1.
+
+## As built (A2.a): the Duel UI
+
+A2.a built Part 6's Duel card and A1.5's ticker in `src/scenes/DuelScene.ts`
+and `src/ui`, with the pure rules in three Phaser-free modules:
+`boardCuePresentation.ts` (the spent state and the Boost chip),
+`huntPresentation.ts` (the prompts, the exchange, its timing) and
+`manaPumpPresentation.ts` (the ticker), plus the history lines in
+`duelPresentation.ts` (`eventHistoryLine`). No engine, AI or data file
+changed, and no event was added, so `docs/architecture.md` and the generated
+tables are untouched. No shipped card hunts, has Provoked or pumps, so no
+shipped duel looks different except where noted below.
+
+- **The spent Provoked state.** `provokedSpent(abilities, firedThisTurn)`
+  is true when one of the creature's `provoked` abilities is in its public
+  `firedThisTurn`, so it turns on with the first survived blow and clears at
+  the next untap (tested through the real engine: a ping, a second ping the
+  same turn, then `startTurn`). The tile draws a badge
+  (`BoardCardView.setProvokedSpent`): the Provoked glyph at `alpha.subtle`
+  with a slash across it, on a `rowFill` plate with a `muted` rim, at a new
+  `leftEdge` anchor (`TILE_FEATURES.provokedSpentBadge`) just below
+  mid-height, opposite the Overcharge badge and clear of the keyword column
+  (Provoked is a trigger, not a keyword, so it never joins that column).
+  It counter-scales like the Overcharge badge
+  (`CUE_MIN_SCREEN_PX.provokedSpentBadge`, 14). The approved tooltip,
+  "Provoked this turn.", is a line on a plate under the hover preview
+  (`CardZoomPreview.attach` takes a `note` getter, read when the preview
+  shows) and under the card in the inspect overlay. The anchor rule and the
+  size rule in `tests/ui/boardCuePresentation.test.ts` now cover the badge.
+- **The two-target prompts.** Confirmed, not rebuilt: the legal actions hold
+  only legal pairs, and `targetSelectionStep` narrows them pick by pick
+  (tested on fixture cards: no Bulwark creature and no opposing creature is
+  offered as the hunter; after the hunter, only the opponent's creatures,
+  and on an `any` card never the hunter itself). `huntStepPrompt` gives a
+  Hunt spell "Choose the hunter." then "Choose its prey." (APPROVED copy),
+  and the prey prompt stays beside "2 of 2" until the cast is confirmed. The
+  line reads "[Card]: Choose the hunter. (1 of 2)"; every other cast keeps
+  "Choose a target for [Card] · 1 of 2".
+- **The arrival Hunt's prompt.** The existing prompt read "Choose a target
+  for [Card] · 1 of 1", which does not say what the target is for, so the
+  arrival hunter's cast now asks "Choose its prey." too, as do an Empower
+  Hunt's cast, a Duty Hunt and a queued Hunt trigger (an attack, Dawn, or
+  non-cast arrival Hunt: "[Card] attacks: Choose its prey." in the deferred
+  prompt, `deferredTargetPrompt`). A Hauntlink or Retell cast never asks for
+  prey.
+- **The Hunt animation.** One exchange: a thin heading-colour tether between
+  the two for 320ms, each creature lunging 14px toward the other (combat's
+  lunge distance and 140ms beat, along the line between them, since a Hunt
+  can pair two creatures on one row), both blows at the same instant with
+  each striker's own attack effect (`attackFxFor`, as in combat), and each
+  creature's number landing on it: "-N" for the damage it took, or a muted
+  "0" when the other dealt none, so an exchange with no Attack on either side
+  (A1.1's hand-off) still reads as one. The engine's `damageMarked` events
+  for the blows are drawn by the exchange (`huntDrawnDamage`); any other
+  damage in the batch keeps the ordinary float.
+  - **Timing follows combat's presentation.** At `animations: 'full'` a
+    Hunt whose two creatures have tiles plays as a combat sequence step
+    (`playCombatSequence`, `planHunts`): the board is held, input waits, the
+    step takes combat's strike tail (460ms for one Hunt, tested equal to a
+    lone combat strike), several Hunts in one batch are a combat stagger
+    apart, a death is logged when the blow that caused it lands, and a
+    Provoked trigger's line waits for the landing (`sequencedEventRoute`).
+    Input waits as for combat, but a Hunt-only sequence hands its Undo back
+    when it settles, so a Hunt spell can be taken back at every motion
+    setting.
+    At reduced and off motion, and for a hunter with no tile yet (an
+    arrival or Empower hunter cast in that batch), the exchange is drawn
+    right after the board syncs (`flushHuntFx`): no lunge, the living at
+    their settled spots, a creature the Hunt killed struck where it stood
+    while its tile fades, as reduced-motion combat already looks. Off
+    fast-forwards the tweens through the global time scale; reduced halves
+    the particles through the FX policy, as for combat.
+  - The "plain damage flash" fallback was not needed.
+- **The mana pump.** A creature whose `activateMana` is legal carries a
+  "Boost" chip (a new `TileChip`, after Duty in `TILE_CHIP_PRIORITY`, player
+  copy for approval) and the gold "you can act" ring when nothing outranks
+  it (an attacking creature keeps its attack ring and shows the chip).
+  Tapping it opens the ticker (`showPumpTicker`): the Duty confirm's
+  composition with a `-` count `+` stepper. It opens at 1; the legal action's
+  `times` is its top; a step at its bound is subdued and inert, and the row
+  swallows that tap (the probe found a tap on the spent `+` falling through
+  to the dim and cancelling). The confirm submits one `activateMana` built by
+  `pumpSubmission` from the engine's current legal entry, re-read at confirm,
+  with the chosen count and no `manaPlan`: the engine pays the whole count
+  with one `solveMana`, as it pays an unplanned Duty. Arrow keys step it,
+  Enter confirms, Esc cancels.
+  - **The combat window is not a dead pause.** When a response window opens
+    for the human in combat and a pump is legal, a transient notice says
+    "You can boost [name] now, or Pass." and the tile carries the chip; a
+    tap opens the ticker and Pass goes on to damage (probed: 5 Mountains,
+    pumped 4, 9 damage dealt, main two).
+  - **`manaActivated`** gets a history line ("Your [Vyra] uses its ability
+    4 times: “This gets +1/+0 until Sunset.”", "once" for one use) and a small
+    animation: the change the uses gave ("+4/+0") floats off the tile in
+    gold and a gold ring pulses out from it once (400ms), riding the tile.
+- **History lines** (`eventHistoryLine`, player copy for approval except the
+  approved Overcharge line, which moved here unchanged): "Your [Raptor] hunts
+  enemy [Goblin]: deals 3, takes 1" (both numbers always print), and "Your
+  [Thornback] is provoked" for a Provoked `triggerFired` only; every other
+  trigger stays silent, as before.
+- **The event switch audit.** Every site that reads game events in the
+  Duel UI, and what it does with `hunted`, a Provoked `triggerFired`,
+  `manaActivated` and `overcharged`:
+  - `DuelScene.processEvents` (the sequence decision): a `hunted` whose two
+    creatures have tiles starts a full-motion sequence, as combat damage
+    does.
+  - `DuelScene.narrateEvent` (the instant path; its `default` dropped the
+    three new events): `hunted` logs its line and queues the exchange;
+    `triggerFired` logs the Provoked line; `manaActivated` logs its line and
+    plays its animation; `damageMarked` skips a blow the exchange draws;
+    `overcharged` logs through `eventHistoryLine`; `responseWindowOpened`
+    offers the pump.
+  - `DuelScene.playCombatSequence` (its `default` narrated at once, so
+    "is provoked" read before the blow): now `sequencedEventRoute`, which
+    holds a Provoked trigger for the landing, sequences `hunted`, and
+    narrates `manaActivated` and `overcharged` at once.
+  - `DuelScene.renderCombatStep` / `renderHuntStep`: deaths only.
+  - `DuelScene.rememberRetellAction`, `spellTargetsText`,
+    `eventLineLookup` and the batch lookups inside `narrateEvent` (Hauntlink,
+    Whispers, a cast's arrival, Preserve): read `spellCast`, `died`,
+    `recalled`, `hauntlinkFormed`, `permanentEntered` and `preserved` only;
+    none of the four needs them.
+  - `undoBlockedReason` (`duelPresentation.ts`): reads the events that
+    reveal a hidden card; none of the four does, so Undo stays available
+    after a pump or a Hunt, as after a Duty.
+  - `applyDailyQuestProgress` (`src/meta/quests.ts`, outside A2.a):
+    `overcharged` counts toward Summon Extras (A1.7); no quest reads the
+    other three.
+  - `HistoryPanel` and `combatSequence.planCombat` read no event kinds.
+- **Found in the preview probe and fixed:** a Hunt spell's own prompt,
+  arrow and Confirm stayed on screen through the held board (cleared when a
+  Hunt sequence starts); the ticker's tap-through at its bound (above); a
+  hover preview that outlived the tap opening the ticker (cancelled on open).
+- **Not done, for the owner or the Duel pass.**
+  - The touch long-press preview carries no note: the gesture binder
+    passes only the card, so on touch "Provoked this turn." shows in the
+    inspect opened by tapping an opponent's tile, but not on your own tile's
+    long-press preview (the badge still shows).
+  - The chip still sits at the tile's top-right corner; the cue mock's top
+    edge tab (M1) is the Duel pass's.
+  - A Hunt spell's own card reveal plays after the exchange at full motion
+    (`flushPlayReveals` runs in `finishStep`, after the held board), the
+    order combat's sequence already has.
+  - "Undo target" sits over the player's creature row during any
+    two-target cast (it predates the Hunt; a Hunt spell always shows it).
+  - A creature with two pump abilities would open the ticker for its first
+    only; every A1.5 carrier prints one.
+- **Tests.** `tests/ui/firstDawnDuel.test.ts` (18: the spent state through
+  the engine, the prompts over the legal pairs, the exchange's numbers
+  against the engine's own damage, the timing against `planCombat`, the
+  routes, the history lines, the ticker's bounds and its submitted action
+  accepted and applied by the engine, and the Boost chip in the attacker's
+  window over the blocks) and the Boost and anchor additions to
+  `tests/ui/boardCuePresentation.test.ts`. Each was proved against a
+  mutation that switches its behaviour off (32 mutations, each caught).
+- **Probing.** The dev cheats (`src/dev/cheats.local.ts`, local only) gained
+  `fdCards()` and `fdBoard(scenario)`: CARD_DB is frozen, so the lab writes
+  its First Dawn shapes over ten shipped cards for that page session only,
+  then replaces a running duel's board with a Hunt, zero-Attack Hunt,
+  arrival Hunt, Provoked or pump scenario against a passive opponent.
 
 ## What this spec corrects
 
