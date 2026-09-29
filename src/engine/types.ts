@@ -403,12 +403,21 @@ function flatOps(list: readonly EffectOp[]): EffectOp[] {
 }
 
 /**
+ * Every Hunt's prey, in every carrier, is a creature an opponent controls if a
+ * legal one exists, otherwise another creature you control (the owner's
+ * bare-keyword ruling, 2026-09-28). Card data cannot express a free-choice
+ * Hunt; the engine's spec stays general for tests.
+ */
+const PREY_RULE = "A Hunt's prey spec must carry opponentIfAble (an opponent's creature if able, else another of yours)";
+
+/**
  * Catalog-facing validation for the Hunt op's carriers. The spell form
  * (`hunter: 'target'`) is a Charm or Ritual body with exactly two single
  * creature specs, hunter first. The source-bound form (`hunter: 'self'`) is a
  * creature's triggered ability, Duty or Empower rider with one single-target
  * spec, never on a creature that prints Bulwark, and never a Provoked effect.
- * The E6 target rule (`opponentIfAble`) belongs on a `creature` spec only.
+ * Every Hunt's prey spec carries `opponentIfAble`, which belongs on a
+ * `creature` spec only.
  */
 export function validateHuntDef(d: CardDef): string[] {
   const errors: string[] = [];
@@ -421,6 +430,7 @@ export function validateHuntDef(d: CardDef): string[] {
           spec.what === 'spell' || spec.what === 'player' || spec.what === 'yourGraveCreature')) {
           errors.push('A spell-form Hunt needs exactly two single creature target specs (hunter, prey)');
         }
+        if (targets?.[1]?.opponentIfAble !== true) errors.push(PREY_RULE);
       } else {
         if (!isType(d, 'creature')) errors.push('A source-bound Hunt belongs on a creature');
         if (where === 'spell') errors.push('A spell cannot hunt with itself');
@@ -428,6 +438,7 @@ export function validateHuntDef(d: CardDef): string[] {
         if (!targets || targets.length !== 1 || targets[0].upTo !== undefined || targets[0].exactly !== undefined) {
           errors.push('A source-bound Hunt needs one single-target spec');
         }
+        if (targets?.[0]?.opponentIfAble !== true) errors.push(PREY_RULE);
       }
     }
   };

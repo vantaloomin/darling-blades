@@ -11,14 +11,18 @@ import type { AbilityDef, CardDb, CardDef, EffectOp, GameState, Keyword, TargetR
 import { validateEmpowerDef, validateHuntDef } from '../../src/engine/types';
 import { board, card, dbOf, ref, spell } from '../drownedDeepFixture';
 
-// Hunt (plan-first-dawn-engine.md, Part 2, as ruled by the owner in E2-E6):
-// the hunter and its prey each deal damage equal to their Attack to the
-// other, through the shared creature-damage path.
+// Hunt (plan-first-dawn-engine.md, Part 2, as ruled by the owner in E2-E5 and
+// the bare-keyword ruling of 2026-09-28): the hunter and its prey each deal
+// damage equal to their Attack to the other, through the shared
+// creature-damage path. Every Hunt's prey is a creature an opponent controls
+// if a legal one exists, otherwise another creature you control.
 
-const HUNT_SPELL_TARGETS: TargetSpec[] = [{ what: 'yourCreature' }, { what: 'creature', other: true }];
-/** "Target creature you control hunts another target creature, then draw a card." */
+/** Every Hunt's prey spec, as card data must carry it. */
+const PREY: TargetSpec = { what: 'creature', other: true, opponentIfAble: true };
+const HUNT_SPELL_TARGETS: TargetSpec[] = [{ what: 'yourCreature' }, PREY];
+/** "Target creature you control Hunts. Draw a card." */
 const stalk = spell('stalk', [{ op: 'hunt', hunter: 'target' }, { op: 'draw', n: 1 }], HUNT_SPELL_TARGETS);
-/** "Target creature you control gets +2/+2 until end of turn. It hunts another target creature." */
+/** "Target creature you control gets +2/+2 until end of turn, then it Hunts." */
 const fang = spell('fang', [{ op: 'boost', p: 2, t: 2, scope: 'target' }, { op: 'hunt', hunter: 'target' }], HUNT_SPELL_TARGETS);
 const body = (id: string, attack: number, defense: number, keywords: Keyword[] = [], extra: Partial<CardDef> = {}) =>
   card(id, { attack, defense, keywords, ...extra });
@@ -114,7 +118,7 @@ describe('Hunt: targeting (its own rules, E2)', () => {
 
   it('legal actions never offer a Bulwark hunter or one creature in both slots', () => {
     const state = board([['stalk'], []], [
-      { iid: 1, cardId: 'h' }, { iid: 2, cardId: 'wall' }, { iid: 3, cardId: 'p', controller: 1 },
+      { iid: 1, cardId: 'h' }, { iid: 2, cardId: 'wall' }, { iid: 3, cardId: 'wall', controller: 1 },
     ]);
     const lists = castTargets(state, db);
     expect(lists.length).toBeGreaterThan(0);
@@ -122,9 +126,11 @@ describe('Hunt: targeting (its own rules, E2)', () => {
       expect(hunter).not.toEqual(ref(2));
       expect(hunter).not.toEqual(prey);
     }
-    // A Bulwark creature can be prey, and so can your own creature.
-    expect(lists).toContainEqual([ref(1), ref(2)]);
+    // A Bulwark creature can be prey.
     expect(lists).toContainEqual([ref(1), ref(3)]);
+    // Forced onto your own side (the opponent has no creature), the rule still holds.
+    const forced = castTargets(board([['stalk'], []], [{ iid: 1, cardId: 'h' }, { iid: 2, cardId: 'wall' }]), db);
+    expect(forced).toEqual([[ref(1), ref(2)]]);
   });
 
   it('refuses a submitted Bulwark hunter or a creature hunting itself', () => {
@@ -133,7 +139,9 @@ describe('Hunt: targeting (its own rules, E2)', () => {
     ]);
     const game = Game.restore(state, db);
     expect(() => game.submit(0, { type: 'castSpell', handIndex: 0, targets: [ref(2), ref(3)] })).toThrow(/Bulwark/);
-    expect(() => game.submit(0, { type: 'castSpell', handIndex: 0, targets: [ref(1), ref(1)] })).toThrow(/two different/);
+    // With no opposing creature your own is legal prey, but never the hunter itself.
+    const alone = Game.restore(board([['stalk'], []], [{ iid: 1, cardId: 'h' }, { iid: 2, cardId: 'wall' }]), db);
+    expect(() => alone.submit(0, { type: 'castSpell', handIndex: 0, targets: [ref(1), ref(1)] })).toThrow(/two different/);
   });
 
   it('a hunter that gains Bulwark before resolution deals nothing', () => {
@@ -190,7 +198,7 @@ describe('Hunt: keywords through the shared damage path', () => {
     expect(damageOf(state, 1)).toBe(2);
   });
 
-  it('a self-hunt provokes both survivors', () => {
+  it('a forced self-hunt (the opponent has no creature) provokes both survivors', () => {
     const angry = (id: string) => body(id, 1, 4, [], { abilities: [{ when: 'provoked', ops: [{ op: 'gainLife', n: 2 }] }] });
     const db = dbOf(angry('a'), angry('b'));
     const state = board([[], []], [{ iid: 1, cardId: 'a' }, { iid: 2, cardId: 'b' }]);
@@ -202,9 +210,11 @@ describe('Hunt: keywords through the shared damage path', () => {
 
 describe('Hunt: its carriers', () => {
   const tracker = body('tracker', 3, 3, [], {
-    // No `other` on the spec: the Duty's own rule keeps the hunter out of its prey.
-    activated: { cost: { tap: true }, targets: [{ what: 'creature' }], ops: [{ op: 'hunt', hunter: 'self' }] },
+    activated: { cost: { tap: true }, targets: [PREY], ops: [{ op: 'hunt', hunter: 'self' }] },
   });
+  /** Not card data (the validator refuses it): a bare `creature` spec, so only
+   * the Duty's own rule keeps the hunter out of its prey. */
+  const looseTracker = { ...tracker, id: 'loose', activated: { ...tracker.activated as object, targets: [{ what: 'creature' }] } } as CardDef;
   const huntDuties = (state: GameState, db: CardDb) => legalActions(state, db, 0).filter((a) => a.type === 'activate');
 
   it('a Duty Hunt is refused tapped, or newly arrived without Warcry', () => {
@@ -218,8 +228,8 @@ describe('Hunt: its carriers', () => {
   });
 
   it('a Duty Hunt is never offered to a creature that has Bulwark, and never offers the hunter as its own prey', () => {
-    const db = dbOf(tracker, body('p', 1, 1));
-    const state = board([[], []], [{ iid: 1, cardId: 'tracker' }, { iid: 2, cardId: 'p', controller: 1 }]);
+    const db = dbOf(looseTracker, body('p', 1, 1));
+    const state = board([[], []], [{ iid: 1, cardId: 'loose' }, { iid: 2, cardId: 'p', controller: 1 }]);
     const duties = huntDuties(state, db);
     expect(duties.map((a) => a.type === 'activate' && a.targets)).toEqual([[ref(2)]]);
     state.battlefield[0].untilEotMods.push({ p: 0, t: 0, keywords: ['bulwark'] });
@@ -246,7 +256,7 @@ describe('Hunt: its carriers', () => {
   describe('Empower (E4, E5)', () => {
     const raptor = body('raptor', 3, 3, [], {
       abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 2 }] }],
-      empower: { cost: { generic: 0, pips: {} }, targets: [{ what: 'opponentCreature' }], ops: [{ op: 'hunt', hunter: 'self' }] },
+      empower: { cost: { generic: 0, pips: {} }, targets: [PREY], ops: [{ op: 'hunt', hunter: 'self' }] },
     });
     const db = dbOf(raptor, body('p', 1, 2));
 
@@ -284,10 +294,9 @@ describe('Hunt: its carriers', () => {
   });
 });
 
-describe('Hunt: the mandatory source-bound target rule (E6)', () => {
-  // "When this arrives, it hunts another target creature, one an opponent
-  // controls if able": fixture cards, not the seven overplan rows.
-  const HUNT_TRIGGER: AbilityDef = { when: 'arrives', targets: [{ what: 'creature', other: true, opponentIfAble: true }], ops: [{ op: 'hunt', hunter: 'self' }] };
+describe('Hunt: whose prey (every Hunt, ruled 2026-09-28)', () => {
+  // "When this arrives, Hunt.": fixture cards, not the overplan rows.
+  const HUNT_TRIGGER: AbilityDef = { when: 'arrives', targets: [PREY], ops: [{ op: 'hunt', hunter: 'self' }] };
   const stalker = body('stalker', 4, 2, [], { abilities: [HUNT_TRIGGER] });
   /** The same rule without `other`: the rule itself keeps the hunter out. */
   const bare = body('bare', 4, 2, [], { abilities: [{ ...HUNT_TRIGGER, targets: [{ what: 'creature', opponentIfAble: true }] }] });
@@ -334,6 +343,23 @@ describe('Hunt: the mandatory source-bound target rule (E6)', () => {
     expect(validateHuntDef({ ...stalker, keywords: ['bulwark'] }).length).toBeGreaterThan(0);
     expect(validateHuntDef({ ...card('angry'), abilities: [{ when: 'provoked', targets: [{ what: 'creature', other: true }], ops: [{ op: 'hunt', hunter: 'self' }] }] }).length).toBeGreaterThan(0);
     expect(validateHuntDef(stalk)).toEqual([]);
+  });
+
+  const loose: TargetSpec = { what: 'creature', other: true };
+  const bound = (when: AbilityDef['when'], prey: TargetSpec): CardDef =>
+    body(`bound-${when}`, 3, 3, [], { abilities: [{ when, targets: [prey], ops: [{ op: 'hunt', hunter: 'self' }] }] });
+  const carriers: [string, (prey: TargetSpec) => CardDef][] = [
+    ['spell', (prey) => spell('s', [{ op: 'hunt', hunter: 'target' }], [{ what: 'yourCreature' }, prey])],
+    ['arrival', (prey) => bound('arrives', prey)],
+    ['attack', (prey) => bound('attacks', prey)],
+    ['Dawn', (prey) => bound('dawn', prey)],
+    ['Duty', (prey) => body('d', 3, 3, [], { activated: { cost: { tap: true }, targets: [prey], ops: [{ op: 'hunt', hunter: 'self' }] } })],
+    ['Empower', (prey) => body('e', 3, 3, [], { empower: { cost: { generic: 1, pips: {} }, targets: [prey], ops: [{ op: 'hunt', hunter: 'self' }] } })],
+  ];
+
+  it.each(carriers)('card data cannot express a free-choice %s Hunt', (_, make) => {
+    expect(validateHuntDef(make(PREY))).toEqual([]);
+    expect(validateHuntDef(make(loose)).length).toBeGreaterThan(0);
   });
 
   it('refuses a Hunt inside an If-marked branch, where it could never see both creatures', () => {

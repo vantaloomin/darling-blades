@@ -292,9 +292,12 @@ triggers when this creature survives damage.*
 **Hunt** (Magic's fight): *your creature and target creature each deal
 damage equal to their Attack to the other.*
 
-1. **A new op with two targets**: the hunter, one of yours, and the prey,
-   any other creature (B5), except that the seven arrival and attack Hunts
-   must pick an opponent's creature if a legal one exists (E6).
+1. **A new op with two targets**: the hunter, one of yours, and the prey:
+   for every Hunt, a creature an opponent controls if a legal one exists,
+   otherwise another creature you control (the bare-keyword ruling,
+   2026-09-28, widening E6 to every Hunt; you hunt your own only when
+   forced). On the card Hunt is a bare verb keyword like Mark: "When this
+   arrives, Hunt."; the spell form "Target creature you control Hunts."
    `TargetSpec` already has `yourCreature` and `opponentCreature`; Hunt
    uses two ordered specs (hunter, then prey), which the multi-spec path
    already enumerates, not `exactly: 2` (that is one spec for an unordered
@@ -382,21 +385,26 @@ Tyrant, Kesh, Grave-Fern Stalker, Frill-Neck Stalker, Fern-and-Fire Raptor,
 Fern-Shadow Stalker, Spear-Thrower of the Ember Clan). They hunt a creature
 an opponent controls if a legal one exists; only when none does are they
 forced to hunt another creature you control; with neither, the trigger does
-nothing. Spells, Duties and Empower keep a free choice (B5). What follows:
+nothing. Spells, Duties and Empower keep a free choice (B5). **Superseded
+later on 2026-09-28 (the bare-keyword ruling):** that prey rule now holds for
+every Hunt (spell, arrival, attack, Dawn, Duty, Empower), and Hunt prints as
+a bare keyword. What follows:
 
 - **A1** builds the preference (an opponent's creature if able) with the
   Hunt op's other targeting rules; no optional trigger is built. The lab
-  (A1.3) counts the forced self-hunt on the arrival and attack hunters and
-  prices it.
-- **A2.b** Easy never hunts its own creature *by choice*: its filter covers
-  choices only and must accept the forced case, and `docs/ai.md` says so.
+  (A1.3) counts the forced self-hunt and prices it (on every Hunt, since the
+  bare-keyword ruling).
+- **A2.b** Easy's own-prey filter is moot: since the bare-keyword ruling no
+  Hunt offers your own creature while an opponent's is legal, so Easy, like
+  everyone, hunts its own only when forced.
 - **A2.d** The converter's target walk gives the seven creature supply for
   the forced case (the any-prey case the spec named "if Q6 goes the other
   way"), and the usage rows count a forced self-hunt apart from a chosen
   one.
-- **The words.** The spec's player copy is approved (E10) except the seven's
-  template, which is **proposed and pending the owner's wording**: "This
-  hunts another target creature, one an opponent controls if able."
+- **The words.** The spec's player copy is approved (E10). The seven's
+  proposed template is superseded: Hunt is a bare keyword ("When this
+  arrives, Hunt."; "Target creature you control Hunts."), and the Hunt
+  description is APPROVED (2026-09-28): "Your creature and its prey each deal damage equal to their Attack to the other. The prey is a creature an opponent controls if possible, otherwise another creature you control. A creature with Bulwark cannot hunt."
 
 The rest, in one line each: Provoked in the state-based check with the
 Hauntlink exception (E1); Hunt's targeting rules inside the Hunt op, no
@@ -469,8 +477,8 @@ the cut. F6: the cut starts from the projected board, upper rarities card by
 card, with the Great Drum kept and Fern-Crown Tyrant dropped (R28's draft
 list loses that slot; its replacement is open until the cut). F7: R28 stays
 red-green. F8: Long-Neck Matriarch reaches Dinokin only. The rulings changed
-row text in two places only (the E6 template on seven rows, pending the
-owner's wording, and Scar-Knife Witch's "another"); no row is re-costed or
+row text in two places only (the Hunt template, now the ruled bare keyword
+on every Hunt row, and Scar-Knife Witch's "another"); no row is re-costed or
 trimmed before the cut.
 
 The rules the rows are written against, all postdating the old list: the
@@ -1211,9 +1219,9 @@ Numbered so rulings can cite them. Recommendations are the first option.
     monster-girls and Dinosaur for plain dinosaurs on tokens and a few
     creature cards, riders are not Dinokin, and a few Beastkin megafauna
     girls sit beside them), Hunt may target your own creatures, which Easy AI
-    never does (B5; narrowed by E6 for the seven arrival and attack Hunts,
-    which take an opponent's creature if able, so Easy never does it by
-    choice), and Hunt damage counts for every damage-reading keyword
+    never does (B5; narrowed by E6 and then, by the bare-keyword ruling of
+    2026-09-28, for every Hunt: each takes an opponent's creature if able,
+    so nobody hunts their own by choice), and Hunt damage counts for every damage-reading keyword
     and trigger (B6), evergreen: any such keyword the game adds later
     applies to Hunt with no Hunt-specific code, while combat-defined
     keywords (First Blade, Twin Blades, Overrun) do not. Also ruled: Bulwark prevents Hunt at any rarity (a
@@ -1246,9 +1254,14 @@ Numbered so rulings can cite them. Recommendations are the first option.
     and attack Hunts hunt a creature an opponent controls if a legal one
     exists, and only when none does are they forced to hunt another
     creature you control; spells, Duties and Empower keep a free choice.
-    Their template, "This hunts another target creature, one an opponent
-    controls if able.", is **proposed, pending the owner's wording** (E10
-    approves the rest of the spec's copy). E3 "Keep", E4 "Validator
+    Their template was proposed pending the owner's wording (E10 approves
+    the rest of the spec's copy). **E6 and E10 superseded later that day
+    (the bare-keyword ruling):** Hunt is a bare verb keyword like Mark ("When
+    this arrives, Hunt.", "During your Dawn, Hunt.", "Whenever this attacks,
+    Hunt.", Duties and Empower with their usual opener; the spell form
+    "Target creature you control Hunts."), every Hunt takes a creature an
+    opponent controls if a legal one exists, otherwise another creature you
+    control, and the Hunt description is APPROVED: "Your creature and its prey each deal damage equal to their Attack to the other. The prey is a creature an opponent controls if possible, otherwise another creature you control. A creature with Bulwark cannot hunt." E3 "Keep", E4 "Validator
     change", E7 "Cost them in lab", E8 "Not in 1.9". See lane A.
   - **The overplan's questions** (F1-F8): the provisional rates until the
     lab; Oru's Dinosaur half is Dreaded; the Duty count trims toward 18,

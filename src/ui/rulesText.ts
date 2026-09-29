@@ -297,11 +297,11 @@ function opText(
     case 'awaken':
       return op.scope === 'self' ? 'Awaken this' : 'Awaken all creatures you control';
     case 'hunt':
-      // Stubs (1.9 A1.1): the approved templates, and the E6 forced-Hunt line
-      // the owner has not approved yet. A2.c replaces all of them.
-      if (op.hunter === 'target') return 'target creature you control hunts another target creature';
-      if (target?.opponentIfAble) return 'this hunts another target creature, one an opponent controls if able';
-      return `this hunts ${targetPhrase(target)}`;
+      // Stubs (1.9 A1.1) for the ruled bare keyword (2026-09-28): the opener,
+      // then "Hunt."; the spell form "Target creature you control Hunts."
+      // The prey rule lives in the glossary. A2.c owns the words.
+      if (op.hunter === 'target') return targetAlreadyNamed ? 'it Hunts' : 'target creature you control Hunts';
+      return 'Hunt';
     case 'raise': {
       // The graveyard is an ordered pile and `raise top` takes the
       // most-recently-buried creature, so the face must say WHICH card it

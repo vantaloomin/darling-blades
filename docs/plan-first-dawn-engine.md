@@ -6,7 +6,12 @@
 Q7-Q10 as recommended (Q10 except one template); **Q6 went the other way in
 part**: the seven arrival and attack Hunts hunt an opponent's creature if a
 legal one exists, and are forced to hunt your own only when none does (see
-"Rulings" at the end). A1 starts on these rulings. Nothing here is built yet.
+"Rulings" at the end). **Superseded in part later on 2026-09-28 (the
+bare-keyword ruling):** Hunt is a bare verb keyword like Mark ("When this
+arrives, Hunt."), and *every* Hunt, in every carrier, takes a creature an
+opponent controls if a legal one exists, otherwise another creature you
+control (Q6 and Q10 below). A1.1 built Parts 1-3 on these rulings (see "As
+built").
 This is lane B step 3 (the concretion audit) and lane A's spec
 ([plan-1.9.md](plan-1.9.md), D16): the cards were designed first, in the
 [overplan](expansions/drafts/first-dawn-overplan.md), against the approved
@@ -59,7 +64,8 @@ are for the engine builder (A1).
   **Ruled 2026-09-28:** the seven hunt a creature an opponent controls if a
   legal one exists, and only when none does are they forced to hunt another
   creature you control (with neither, the trigger does nothing), so Easy's
-  "never hunts its own" becomes "never by choice" (Q6); the empowered
+  "never hunts its own" becomes "never by choice" (Q6; later that day widened
+  to every Hunt, so no Hunt takes your own creature by choice); the empowered
   creature resolves and loses only its rider (Q5); the Witch reads "another
   target creature you control" (Q9); Deathblade hunters are accepted and the
   lab costs them (Q7).
@@ -80,7 +86,7 @@ projected cut, with the full overplan in brackets.
 | An empowered permanent fizzles whole when its Empower target leaves | A permanent spell with any target fizzles if none is legal (resolve.ts:77-91; probe P5) | 3 affected (3) | a rule fix, not a construct | **Fix** (Q5) |
 | General keyword-qualified target ("target creature with Skyborne") | none | 0 (1: Bone-Snap Ambush) | no | **Drop** |
 | Optional trigger ("you may have this hunt") | Targeted triggers are mandatory (EffectInterpreter.ts:1081-1099) | 0 (the owner ruled a forced fallback instead, Q6) | n/a | **Do not build** (Q6, ruled 2026-09-28) |
-| An opponent's creature if able (Q6, ruled 2026-09-28): a source-bound arrival or attack Hunt's prey is a creature an opponent controls when a legal one exists, otherwise another creature you control | No target preference by controller: a spec offers one candidate set (targeting.ts) | 6 (9); 7 before the owner's F6 took Fern-Crown Tyrant off the projected board | ruled | **Build** (A1). The mechanism is A1's to specify, on the pattern of the Hunt op's other targeting rules (Part 2, rule 2); legal actions and the targeted trigger's choice must both offer only the preferred set when it is non-empty |
+| An opponent's creature if able (Q6, ruled 2026-09-28; widened the same day to every Hunt by the bare-keyword ruling): a Hunt's prey is a creature an opponent controls when a legal one exists, otherwise another creature you control | No target preference by controller: a spec offers one candidate set (targeting.ts) | every Hunt row, 23 (25) | ruled | **Built** (A1.1): `opponentIfAble` on the prey's `creature` spec, required on every Hunt by `validateHuntDef` (As built) |
 | A targeted dies trigger that cannot pick its own card from the graveyard | `other` exempts graveyard refs (targeting.ts:156; probe P3) | 0 (0) | no | **Do not build**; no row uses the shape since Fossil-Dreamer moved to arrival |
 | Dinokin and Dinosaur Axes | Lords already work on `filter.subtype` (statics.ts:112-120) | 3 lords and their payoffs | data | **Data only**: two `src/data/axes.ts` entries |
 | Four tokens (Hatchling, Pack Raptor, Tar-Bones, Glider) | `createToken` of a token def (EffectInterpreter.ts:668-681) | 4 | data | **Data only** |
@@ -254,32 +260,29 @@ reserved art tell; printed on creatures only (P5). This spec rules the rest:
 ### Rules (for the owner)
 
 *Your creature and the prey each deal damage equal to their Attack to the
-other.* Ruled already: you may hunt your own creatures, and Easy never does
-(B5; narrowed for the seven arrival and attack Hunts by Q6, ruled
-2026-09-28: Easy never does *by choice*, rule 2); Bulwark prevents hunting
+other.* Ruled already: you hunt your own creature only when forced (B5 "you
+may hunt your own creatures", narrowed by the bare-keyword ruling of
+2026-09-28 for every Hunt, rule 2); Bulwark prevents hunting
 at any rarity, and a Bulwark creature can be prey (H3a); Hunt damage counts for every damage-reading keyword and trigger,
 present and future, and combat-only keywords do not apply (B6); a hunter
 provoked by its own Hunt is intended (B7). This spec rules the rest:
 
-1. **Forms.** A spell: "Target creature you control hunts another target
-   creature." A source-bound ability: "This hunts [another] target creature
-   [an opponent controls]" on an arrival, an attack, a Duty or an Empower.
-   The seven arrival and attack Hunts that may reach your own side (Q6)
-   read, as **proposed and pending the owner's wording**: "This hunts
-   another target creature, one an opponent controls if able."
+1. **Forms (ruled 2026-09-28: Hunt is a bare verb keyword, like Mark).** A
+   spell: "Target creature you control Hunts." A source-bound ability is its
+   opener, then "Hunt.": "When this arrives, Hunt.", "During your Dawn,
+   Hunt.", "Whenever this attacks, Hunt.", and a Duty's or an Empower's
+   usual opener followed by "Hunt." The prey rule (rule 2) lives in the
+   keyword's description, not on the card.
 2. **Targets.** The hunter and the prey are always two different creatures.
    A creature with Bulwark cannot be chosen as the hunter, and a source-bound
    Hunt on a creature that has Bulwark does nothing. An opponent's
-   Untouchable creature cannot be prey; your own can. **Whose prey (Q6,
-   ruled 2026-09-28).** A Hunt spell, a Duty Hunt and an Empower Hunt keep a
-   free choice of prey, your own creatures included (B5). An arrival or
-   attack Hunt is a mandatory trigger, so it must hunt a creature an
-   opponent controls if a legal one exists; only when none does is it
-   forced to hunt another creature you control; with neither, it does
-   nothing. So Easy never hunts its own creature by choice, but can be
-   forced to by these seven (Fern-Crown Tyrant, Kesh, Grave-Fern Stalker,
-   Frill-Neck Stalker, Fern-and-Fire Raptor, Fern-Shadow Stalker,
-   Spear-Thrower of the Ember Clan).
+   Untouchable creature cannot be prey; your own can. **Whose prey (one
+   meaning everywhere, ruled 2026-09-28).** Every Hunt (spell, arrival,
+   attack, Dawn, Duty, Empower) hunts a creature an opponent controls if a
+   legal one exists; only when none does is it forced to hunt another
+   creature you control; with neither, it has no target and does nothing.
+   Nobody hunts their own creature by choice. (Q6 first ruled this for the
+   seven arrival and attack Hunts only; the bare-keyword ruling widened it.)
 3. **Numbers.** At resolution each deals damage equal to its Attack as it
    is then (pumps earlier in the same effect count, so Fang and Horn's
    +2/+2 is in), both at once. 0 or less deals nothing.
@@ -307,8 +310,8 @@ provoked by its own Hunt is intended (B7). This spec rules the rest:
   slot 0, prey is slot 1, a fixed convention like `moveMark`'s from and to).
   `effectOpUsesTarget` returns true for it (types.ts:243-272). The overplan's
   `pump` and `prey` fields are scoring notes, not op fields: the pump is its
-  own `boost` op before the Hunt, and "an opponent controls" is the target
-  spec (`opponentCreature`).
+  own `boost` op before the Hunt, and the prey is the `creature` spec with
+  `opponentIfAble` (As built).
 - **Targeting rules inside the op, on the `moveMark` precedent.** A card
   whose ops include a spell-form Hunt gets the treatment `cardHasMoveMark`
   gets in `targetListsForCast` and `validateTargetList`
@@ -477,7 +480,8 @@ Grandchild and Wharf Rat, both {B}), not the overplan's Ash-Cat Ambusher.
   may hunt your own creatures") for these seven mandatory triggers only; B5
   still holds for every spell, Duty and Empower Hunt. The alternative engine
   construct (an optional trigger with a decline action, the AI and the UI
-  for it) is not worth seven rows. **Ruled 2026-09-28, otherwise:** the
+  for it) is not worth seven rows. (Superseded later on 2026-09-28: every
+  Hunt now takes that prey rule, Part 2 rule 2.) **Ruled 2026-09-28, otherwise:** the
   seven hunt a creature an opponent controls if a legal one exists, and are
   forced to hunt another creature you control only when none does (Part 2,
   rule 2). No optional trigger is built; the preference is new targeting
@@ -535,11 +539,10 @@ first in `src/ai`, then these reads. A1 records `scripts/action-log.ts record
 --preset broad` before and after, and `compare` must report zero divergent
 games; the same run covers the combat refactor in Part 2.
 
-**A2 (beside the set work, before transcription).** Easy never picks its own
-creature as prey by choice (a filter in `EasyAI.ts`); under Q6 as ruled
-(2026-09-28) the seven arrival and attack Hunts can still force it to, when
-the opponent has no legal prey, so the filter must not refuse that forced
-choice. Easy may skip friendly sources entirely. Medium self-hunts
+**A2 (beside the set work, before transcription).** Easy's own-prey filter
+is moot: since the bare-keyword ruling (2026-09-28) no Hunt offers your own
+creature while an opponent's is legal, so every player, Easy included, hunts
+its own only when forced. Easy may skip friendly sources entirely. Medium self-hunts
 and aims friendly sources only when the value in item 2 clears a margin.
 Draft-picker weights (`src/meta/draftPicker.ts`): Provoked payoffs by source
 density in the pool drafted so far, Hunt as removal weighted by the drafter's
@@ -631,16 +634,14 @@ mechanic row is rescored before the owner's cut.
   `scripts/personas/score.ts`, the Forge's vocabulary, `scripts/audit-overlap.ts`
   and `scripts/mechanicUsage.ts`.
 
-**Rules text and glossary (A2; player copy APPROVED 2026-09-28, Q10, except
-the one template Q6 changed).** Templates:
+**Rules text and glossary (A2; player copy APPROVED 2026-09-28, Q10; the Hunt
+templates RULED later that day as a bare keyword).** Templates:
 
 - "Provoked: [effect]."
-- "Target creature you control hunts another target creature."
-- "This hunts another target creature." (Duty and Empower Hunts, free choice)
-- "This hunts target creature an opponent controls."
-- **PROPOSED, pending the owner's wording** (Q6): "This hunts another target
-  creature, one an opponent controls if able." (the seven arrival and attack
-  Hunts)
+- "Target creature you control Hunts." (the spell form)
+- "[Opener], Hunt.": "When this arrives, Hunt.", "During your Dawn, Hunt.",
+  "Whenever this attacks, Hunt.", and a Duty's or an Empower's usual opener
+  followed by "Hunt."
 - "Deal N damage to each creature you control."
 - "Deal N damage to each other creature you control."
 
@@ -651,8 +652,8 @@ Glossary definitions, in the house style of `MECHANIC_DEFINITIONS`
   the listed effect; this triggers only once each turn" (the second clause
   matches the sentence the engine prints for any once-each-turn trigger,
   rulesText.ts:637-638, so the two never read as different rules)
-- **Hunt**: "your creature and its prey each deal damage equal to their
-  Attack to the other; a creature with Bulwark cannot hunt"
+- **Hunt** (APPROVED 2026-09-28, full sentences, replacing the fragment
+  first proposed): "Your creature and its prey each deal damage equal to their Attack to the other. The prey is a creature an opponent controls if possible, otherwise another creature you control. A creature with Bulwark cannot hunt."
 
 Duel prompts: "Choose the hunter." and "Choose its prey." The spent state's
 tooltip: "Provoked this turn."
@@ -773,7 +774,7 @@ sets and can run in parallel once A1.1 lands (A2.b after A1.2):
 | PR | What | Files |
 | --- | --- | --- |
 | **A2.a Duel UI** | Spent Provoked state, the two-target prompts, the Hunt animation, the event `switch` audit | `src/scenes/DuelScene.ts` (after lane D's duel preload), `src/ui/BoardCardView.ts`, `src/ui/duelPresentation.ts`, `src/ui/targetSelection.ts`, the history log |
-| **A2.b Medium, Easy, draft** | Part 4's A2 half; Easy's own-prey filter applies to choices only, never to the forced case of Q6 (ruled 2026-09-28), and `docs/ai.md` records Easy as "never by choice" | `src/ai/MediumAI.ts`, `src/ai/EasyAI.ts`, `src/meta/draftPicker.ts`, `tests/ai/`, `docs/ai.md` |
+| **A2.b Medium, Easy, draft** | Part 4's A2 half; Easy's own-prey filter is moot (every Hunt takes an opponent's creature when one is legal, ruled 2026-09-28) | `src/ai/MediumAI.ts`, `src/ai/EasyAI.ts`, `src/meta/draftPicker.ts`, `tests/ai/`, `docs/ai.md` |
 | **A2.c Words** | Templates, glossary definitions and icons, `rules.md` (including, under Hauntlink's "Where a held trigger resolves", the known combat gap of item 10 in "What this spec corrects": a dies trigger held in the first-strike step resolves after the regular damage step), `keyword-map.md`, `gen-docs-tables`; locally, the blades-db rows and `terms --check` | `src/ui/rulesText.ts`, `src/data/glossary.ts`, `src/ui/KeywordIcons.ts`, `docs/rules.md`, `docs/keyword-map.md` |
 | **A2.d Tools** | The converter's target walk: a Hunt spell is dead without a non-Bulwark creature of your own, and the seven arrival and attack Hunts, which Q6 (ruled 2026-09-28) forces onto your own creature when the opponent has no legal prey, need creature supply for that forced case (`NARROW_TARGETS`, avatarReserveDecks.ts:98-110); the usage audit rows, with the forced self-hunt counted apart from a chosen one | `scripts/avatarReserveDecks.ts`, `scripts/mechanicUsage.ts`, `scripts/mechanicUsageCollector.ts` |
 
@@ -806,19 +807,21 @@ do not slip: transcription needs them.
 ## As built (A1.1)
 
 A1.1 built Parts 1-3 on `feat/19-a1-engine` with the owner's rulings of
-2026-09-29 (E1-E10). Where the build differs from the text above:
+2026-09-28 (E1-E10, and the later bare-keyword ruling). Where the build
+differs from the text above:
 
-- **E6 changed the forced Hunts.** The seven mandatory arrival and attack
-  Hunts do not narrow to "a creature an opponent controls" (the Q6
-  recommendation). They carry a data-driven target rule, `opponentIfAble` on a
+- **Every Hunt's prey is one data-driven target rule.** `opponentIfAble` on a
   `creature` spec (`types.ts`, `effects/targeting.ts`): while any creature an
   opponent controls is a legal target (Untouchable and every qualifier
   applied), only those are legal; only when none is are the caster's own
   creatures legal, and never the source itself (the rule implies "another",
   whether or not the spec also carries `other`). `enumerateTargets` and
   `isLegalTarget` apply it, so the trigger's no-target check, the queued
-  choice, the AI and the Duel UI all read the same set. Spells, Duties and
-  Empower keep free choice.
+  choice, the AI and the Duel UI all read the same set. `validateHuntDef`
+  requires it on the prey spec of every Hunt, in every carrier, so card data
+  cannot express a free-choice Hunt; the engine still reads a spec without
+  it (tests use that). A spell's prey spec has no source to exclude, so the
+  Hunt op's own distinctness rule keeps the hunter out of it.
 - **A targeted Provoked choice with a Hauntlink payable.** It fires and queues
   as a plain `chooseTarget` (never a target-less `resolveTrigger`, so
   `isHeldDiesTrigger` never sees it). Once its target is chosen it gets the
@@ -826,7 +829,7 @@ A1.1 built Parts 1-3 on `feat/19-a1-engine` with the owner's rulings of
   carries its target and a `provoked` mark, and it re-checks survival when it
   resolves. This is no new exception: revision 4 opens a window over every
   targeted trigger, and the owner's E1 exception covers untargeted Provoked
-  effects only (ruled keep, 2026-09-29). Survival is re-checked at two
+  effects only (ruled keep, 2026-09-28). Survival is re-checked at two
   reachable points: before its choice is raised (a creature killed or
   recalled first makes it fizzle without a choice) and when a held one
   resolves. A third check, when the choice is answered, cannot be reached in a
@@ -846,7 +849,7 @@ A1.1 built Parts 1-3 on `feat/19-a1-engine` with the owner's rulings of
   rider is lost. The broad preset never reaches that corner (0 action and 0
   digest divergences). The v16 version note in `src/meta/Replay.ts` records
   it beside the Foresee divergence; no rules-revision bump (ruled
-  2026-09-29).
+  2026-09-28).
 - **The validators are wired into the catalog test now.**
   `validateProvokedDef` and `validateHuntDef` (types.ts) cover P5, P3's "no
   Provoked effect Hunts", "no Bulwark creature prints a source-bound Hunt",
@@ -855,6 +858,10 @@ A1.1 built Parts 1-3 on `feat/19-a1-engine` with the owner's rulings of
   Hunt could never see both creatures), and no spell-form Hunt on a card whose
   Empower brings its own targets. `tests/data/catalog.test.ts` runs them over
   `ALL_CARDS`, so lane B's rows meet them as they land.
+- **Rules-text stubs** (`rulesText.ts`) print the ruled bare keyword: the
+  opener, then "Hunt."; the spell form "Target creature you control Hunts."
+  (", then it Hunts" after a pump that named the hunter). A2.c owns the
+  words.
 - **Scorer stubs.** `TRIGGER_MULT` is a total record, so it holds
   `provoked: 0`, which nothing reads: `triggerMult('provoked')` reports
   NEEDS MATH as an unknown and prices the effect at 0, as the `hunt` op and
@@ -996,8 +1003,8 @@ Qn here is En there.
    its own" becomes "never by choice" (A2.b), the converter (A2.d) and the
    lab (A1.3) account for the forced case, A1 builds the preference (the
    construct table), and the seven change their template to one **proposed
-   and pending the owner's wording**: "This hunts another target creature,
-   one an opponent controls if able." No optional trigger is built. The
+   and pending the owner's wording** (since retired; see below). No
+   optional trigger is built. The
    question as put: **Arrival and attack Hunts target "a creature an
    opponent controls"** (Fern-Crown Tyrant, Kesh, Grave-Fern Stalker,
    Frill-Neck Stalker, Fern-and-Fire Raptor, Fern-Shadow Stalker,
@@ -1006,6 +1013,13 @@ Qn here is En there.
    must hunt your own creature when the opponent has none, Easy's "never"
    becomes "never by choice", and the converter and the lab account for the
    forced case; or the owner rules an optional-trigger construct.
+   **SUPERSEDED later on 2026-09-28 (the bare-keyword ruling):** one
+   meaning everywhere. Every Hunt (spell, arrival, attack, Dawn, Duty,
+   Empower) takes a creature an opponent controls if a legal one exists,
+   otherwise another creature you control, which narrows B5 for every Hunt:
+   you hunt your own only when forced. The wording "one an opponent controls
+   if able" is retired; no card prints it (Q10). Easy's own-prey filter is
+   moot (A2.b).
 7. **RULED: "Cost them in lab."** *Consequence:* option A; the lab's
    Deathblade arm (Part 5) prices the Hunt spells and both Duty hunters on a
    Deathblade-dense field, and option B stays the fallback if that reading
@@ -1029,11 +1043,15 @@ Qn here is En there.
     seven arrival and attack Hunts' template is proposed and waits for the
     owner's wording. **Approve the player copy in Part 6** (templates, the
     two glossary definitions, the two prompts, the tooltip). Any wording the
-    owner prefers replaces it before A2.c.
+    owner prefers replaces it before A2.c. **SUPERSEDED for Hunt later on
+    2026-09-28:** Hunt is a bare verb keyword like Mark ("When this arrives,
+    Hunt."; the spell form "Target creature you control Hunts."), and the
+    Hunt description is APPROVED: "Your creature and its prey each deal damage equal to their Attack to the other. The prey is a creature an opponent controls if possible, otherwise another creature you control. A creature with Bulwark cannot hunt."
 
-**Open after the sitting:** the Q6 template's wording (proposed above,
-pending the owner); how A1 expresses "an opponent's creature if able" in the
-engine (the construct table names what it must do, not how).
+**Open after the sitting:** none of the two it listed remains. The Q6
+template's wording gave way to the bare keyword (Q10, superseded above), and
+A1.1 expresses "an opponent's creature if able" as `opponentIfAble` (As
+built).
 
 **The overplan's thirteen questions went to the same sitting** (the sheet's
 F1-F8 and E1-E10; the overplan records each answer). So the owner was not
