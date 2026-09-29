@@ -63,6 +63,8 @@ export type MechanicId =
   | 'foresee'
   | 'mark'
   | 'propagate'
+  | 'hunt'
+  | 'provoked'
   | 'quest'
   | 'championAwakening'
   | 'empower'
@@ -81,6 +83,8 @@ export const MECHANIC_NAMES: Record<MechanicId, string> = {
   foresee: 'Foresee',
   mark: 'Mark',
   propagate: 'Propagate',
+  hunt: 'Hunt',
+  provoked: 'Provoked',
   quest: 'Quest',
   championAwakening: 'Champion Awakening',
   empower: 'Empower',
@@ -99,13 +103,20 @@ export const MECHANIC_NAMES: Record<MechanicId, string> = {
  * One-line, player-facing definitions for non-keyword mechanics. House style,
  * shared with KEYWORD_REMINDER: a lowercase fragment, clauses joined by
  * semicolons, no closing period (the Keyword Guide and the glossary print them
- * after the term's name).
+ * after the term's name, each on its own line).
+ *
+ * The one exception is Hunt, which the owner ruled as full sentences
+ * (2026-09-28): its prey rule and its cast rule do not fit one fragment.
+ * FULL_SENTENCE_DEFINITIONS names it, and the glossary test holds it to the
+ * sentence style instead.
  */
 export const MECHANIC_DEFINITIONS: Record<MechanicId, string> = {
   sever: 'severed from the game; severed cards never return',
   foresee: 'look at the top cards of your deck; put any of them on the bottom',
   mark: 'a lasting +1/+1 increase to a creature\'s Attack and Defense',
   propagate: 'put another Mark on each Marked creature you control; it never starts a Mark',
+  hunt: "Your creature and its prey each deal damage equal to their Attack to the other. The prey is a creature an opponent controls, unless the card says otherwise. A creature with Bulwark cannot hunt. A creature that hunts when it arrives can't be cast unless it has prey.",
+  provoked: 'when this creature is dealt damage and survives, it does the listed effect; this triggers only once each turn',
   quest: 'advances a chapter at each of your dawns; leaves after the last',
   championAwakening: 'a one-way upgrade granting the listed stats and keywords',
   empower: 'pay the extra cost as you cast this for the listed bonus effect',
@@ -119,6 +130,9 @@ export const MECHANIC_DEFINITIONS: Record<MechanicId, string> = {
   preserve: 'pay the listed cost and Sever this card from your graveyard to create a token copy of it; only during Morning or Afternoon',
   duty: 'tap this permanent, and pay any listed cost, during your Morning or Afternoon to perform its Duty; a permanent cannot tap the turn it arrives unless it has Warcry',
 };
+
+/** Mechanic definitions the owner ruled as full sentences rather than the fragment house style. */
+export const FULL_SENTENCE_DEFINITIONS: ReadonlySet<MechanicId> = new Set<MechanicId>(['hunt']);
 
 /** Player-facing rarity tier names, shared by the glossary, the Profile, and pack inspect. */
 export const RARITY_NAMES: Record<Rarity, string> = {
@@ -200,10 +214,9 @@ function cardTargetSpecs(d: CardDef): TargetSpec[] {
  * mark-event triggers shipped without teaching Mark because nothing forced the
  * question, so a new trigger now fails the typecheck until it is answered.
  */
-const TRIGGER_MECHANIC: Record<TriggerWhen, 'mark' | 'propagate' | null> = {
+const TRIGGER_MECHANIC: Record<TriggerWhen, 'mark' | 'propagate' | 'provoked' | null> = {
   spell: null,
-  // Stub (1.9 A1.1): Provoked becomes its own MechanicId in A2.c.
-  provoked: null,
+  provoked: 'provoked',
   arrives: null,
   dies: null,
   entersGraveyard: null,
@@ -299,6 +312,12 @@ export function cardMechanics(d: CardDef): MechanicId[] {
     present.push('mark');
   }
   if (teachesPropagate) present.push('propagate');
+  // Hunt is a verb keyword on any carrier (a spell, an arrival, an attack, a
+  // Dawn, a Duty, an Empower rider), so it is read off the op, never off a
+  // name: ten shipped names contain the letters and four the whole word.
+  if (ops.some((op) => op.op === 'hunt')) present.push('hunt');
+  // Provoked is a trigger opener ("Provoked: [effect].").
+  if (abilities.some((ab) => TRIGGER_MECHANIC[ab.when] === 'provoked')) present.push('provoked');
   // A Quest payoff ("While a Quest is active") names the word as surely as a
   // Quest's own chapters do.
   if (d.chapters || abilities.some((ab) => (ab.condition ?? ab.static?.condition) === 'questActive')) {
@@ -409,6 +428,8 @@ const MECHANIC_ORDER: MechanicId[] = [
   'foresee',
   'mark',
   'propagate',
+  'hunt',
+  'provoked',
   'quest',
   'championAwakening',
   'empower',

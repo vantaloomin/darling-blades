@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-09-25
+<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/creatureDamage.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-09-29
      If you change those files, update this doc or re-verify the date. -->
 
 # Rules — the digital ruleset as implemented
@@ -240,9 +240,29 @@ all at once (modern simultaneous damage):
 - After all damage lands, `combatDamageToPlayer` triggers fire for sources that
   hit a player.
 
+**One path for a creature's damage (1.9).** Combat builds its list of hits
+(first strike, damage assignment, Overrun and the prevention filter all
+shape that list) and hands it to `applyCreatureDamage` in
+`src/engine/creatureDamage.ts`, the one place where a creature deals damage.
+It reads each source's keywords once, from its effective keywords, before
+any hit lands, then applies the hits in order: each hit's damage to its
+creature or player, then that hit's Blood Oath gain, hit by hit; then the
+Blood Oath life-gain observers. Deathblade marks the creature it hits, and a
+creature with a Provoked ability that is dealt damage is marked as struck
+for the state-based check (Provoked, below). Hunt deals its damage through
+the same function, so every damage-reading keyword applies to both, and one
+added later hooks this function once. Combat alone keeps its
+`combatDamage` event and its `combatDamageToPlayer` triggers; First Blade,
+Twin Blades and Overrun shape combat's hits and mean nothing to a Hunt.
+Moving combat onto the shared function changed nothing in combat: 210
+games played before and after produced identical action logs and an
+identical per-game event digest. Other creature ability damage ("When this
+arrives, deal 2 damage to any target") stays off this path in 1.9, so it
+carries neither the creature's Deathblade nor its Blood Oath.
+
 ## Keywords
 
-All twelve keywords and their exact implemented semantics (`Keyword` in
+All thirteen keywords and their exact implemented semantics (`Keyword` in
 `src/engine/types.ts`; effects across `statics.ts`, `combat/legality.ts`,
 `combat/damage.ts`, `effects/targeting.ts`):
 
@@ -256,8 +276,8 @@ All twelve keywords and their exact implemented semantics (`Keyword` in
 | **overrun** · Overrun | Assigns lethal to blockers, then spills the excess to the defending player. |
 | **sentinel** · Sentinel | Attacking does not tap it.                                                     |
 | **bulwark** · Bulwark | Cannot attack (`canAttack` returns false).                                       |
-| **deathblade** · Deathblade | Any amount of its combat damage is lethal (1 counts). Sets `deathtouched`, which SBAs check. |
-| **bloodoath** · Blood Oath | Its controller gains life equal to damage it deals (combat and, where relevant, spell damage paths that flag it). |
+| **deathblade** · Deathblade | Any amount of its combat or Hunt damage to a creature is lethal (1 counts). Sets `deathtouched`, which SBAs check. |
+| **bloodoath** · Blood Oath | Its controller gains life equal to the combat and Hunt damage it deals. Other damage from its abilities does not count (1.9). |
 | **untouchable** · Untouchable | **Blocks only the OPPONENT'S targeting.** Your own untouchable creature can still be targeted by *your* spells (`creatureTargetable` only rejects when `perm.controller !== caster`). |
 | **dreaded** · Dreaded | Can be blocked only by two or more creatures. The minimum lives in `minimumBlockersForAttacker` (`combat/legality.ts`); `validateBlocks` enforces it on the final assignment, while `blockOptions` stays permissive so partial assignments can be built incrementally. |
 | **rage** · Rage | Attacks every turn if it is able to. The compulsion is `compelledAttackers` (`combat/legality.ts`), a filter over `eligibleAttackers`, so anything that makes the creature unable to attack removes it: tapped, summoning sick without Warcry, or **Bulwark**, whose flat "cannot attack" wins. Enforced over the WHOLE declaration by `validateAttackers` (the empty declaration that skips combat is the case it exists to reject), the enumerator only offers subsets containing it, and the AI planner may not drop it. |
@@ -265,7 +285,8 @@ All twelve keywords and their exact implemented semantics (`Keyword` in
 Keyword rules text is generated (`KEYWORD_NAMES` in `src/data/glossary.ts`) — see
 [docs/adding-cards.md](adding-cards.md). For the full Magic-evergreen → Darling
 Blades mapping (these 13 plus not-yet-implemented candidates like
-Indestructible, and the Fight/Sacrifice actions), see
+Indestructible, the Sacrifice action, and Fight and Enrage, which 1.9 ships
+as Hunt and Provoked), see
 [docs/keyword-map.md](keyword-map.md).
 
 ### Empower (optional cast cost)
@@ -274,8 +295,26 @@ A card with an `empower` block (`CardDef.empower`, 1.3) may be cast for its
 normal cost, or for the combined cost (`combineManaCosts`) with the empowered
 flag set on the cast action. On resolution the empower ops run after the
 card's normal effect (for permanents, after its arrival triggers); empower ops
-are target-free except two named shapes: `moveMark` carries two targets and `reclaim` carries one `yourGraveCreature` target (2026-09-04, Renenutet). X spells cannot be empowered
-(`validateAction` rejects the combination).
+are target-free except four named shapes (`validateEmpowerDef`): `moveMark`
+carries two targets, `reclaim` carries one `yourGraveCreature` target
+(2026-09-04, Renenutet), `destroy` carries one target, and `hunt` (1.9)
+carries one, the prey of the creature itself hunting ("Empower {2}: Hunt.").
+X spells cannot be empowered (`validateAction` rejects the combination).
+
+**An empowered permanent never fizzles on its Empower targets (1.9, owner
+ruling 2026-09-28).** If every Empower target is gone or illegal when the
+permanent resolves, it still resolves; only the rider finds nothing to act
+on, as Magic's kicker behaves. Before 1.9 it went to the graveyard instead.
+That changes three shipped cards in that corner (The Drowned Saint;
+Renenutet, Who Measures the Flood; Tidewalk Analyst). The v16 version note in
+`src/meta/Replay.ts` records it beside the Foresee divergence, with no rules
+revision bump.
+
+**The rider's timing.** A permanent's rider runs right after its arrival
+triggers fire. A targeted arrival trigger only queues its choice there, so an
+Empower Hunt resolves before the creature's own targeted arrival effect is
+chosen. A Hunt rider deals damage and marks it; nothing dies inside the
+rider, since deaths wait for the state-based check after the stack item.
 
 **Empower is the only ADDITIVE cost in the game.** Retell, Preserve, Hauntlink
 and Skim are all paid *instead of* the printed cost, so they can never ask for
@@ -383,6 +422,17 @@ them, and the held trigger keeps that place:
    the opponent's window over the spell or the attackers opens if they hold
    a castable Charm, then the spell resolves. Holding a Charm changes only
    what the opponent may do in that window.
+
+**A known gap: combat's two damage steps.** Inside combat a held trigger
+does not keep its place. With First Blade or Twin Blades in the fight, the
+regular damage step runs straight after the first-strike step's state-based
+check, and a dies trigger held there waits until combat damage is over. With
+no payable link, a First Blade attacker that kills a blocker whose dies
+trigger gains 5 life gives the order: first-strike damage, the death, +5
+life, then regular damage. With a link payable it is: first-strike damage,
+the death, regular damage (and its deaths), the window, and only then +5
+life. The gap predates 1.9 and is not fixed. An untargeted Provoked effect
+of the same pass does not wait for the held trigger (Provoked, below).
 
 **What matches the no-link game, and what does not.** With every window
 passed, a board with a payable link resolves the same ops and triggers as a
@@ -791,6 +841,149 @@ the rules revision stays 4):
 target are recorded as decisions, so the replay log bumped to v14, still at
 rules revision 4.
 
+### Provoked (damage survived)
+
+"Provoked: [effect]." is a creature's triggered ability (`when: 'provoked'`,
+1.9): **when this creature is dealt damage and survives, it does the listed
+effect, once each turn.** It is printed on creatures only, at most one per
+card (`validateProvokedDef`). Nothing can grant it: statics grant keywords
+and stats only, never a triggered ability.
+
+- **Dealt damage and survives.** Any damage over 0 counts, from anything:
+  combat, a spell, an ability, a Hunt, its own controller's source. Damage
+  that is prevented, or 0 damage, provokes nothing. The creature must still
+  be on the battlefield, not lethally damaged, once the state-based check
+  that follows has removed that check's dead: a creature that dies,
+  Deathblade included, is never provoked. Only a creature whose card prints
+  Provoked is ever marked as struck (`Permanent.struck`), so a board with no
+  Provoked card keeps exactly the state it had before 1.9.
+- **Once each turn.** The first survived blow in a turn provokes it; later
+  ones that turn do not. It resets at the start of every turn, yours and your
+  opponent's, so a creature struck in both of First Blade's damage steps is
+  provoked once, by the first, and several sources at once provoke it once.
+  The card never sets `oncePerTurn` and its face never prints "This triggers
+  only once each turn"; the glossary definition says it. A Provoked effect
+  that finds no legal target when it fires does not fire and is not spent. A
+  creature that leaves and comes back (a Preserve copy, a Nine Lives return,
+  a recast) is a new creature, with its Provoked unspent.
+- **When it resolves.** In the state-based check (`checkStateBased`,
+  `src/engine/sba.ts`), every pass notes its struck creatures that it does not
+  condemn, removes its dead and fires their dies triggers, and then, in
+  battlefield order, fires the Provoked ability of each noted creature still
+  on the battlefield and still not lethally damaged. So a Provoked effect sees
+  the settled board: the dead are gone and their dies tokens are made, and a
+  creature that a dies trigger finishes off in between is not provoked. Every
+  state-based check fires it: after combat damage, after each stack item,
+  after a Duty and in the Dawn.
+- **The one exception (owner ruling 2026-09-28).** When a Hauntlink window
+  holds a dies trigger of the same pass, an untargeted Provoked effect does
+  not wait for it: it resolves in its own pass, ahead of the held dies
+  trigger. Combat cannot keep the no-link order anyway (Hauntlink, "A known
+  gap"), so the ruled exception is simpler than a queue that could not.
+- **A targeted Provoked effect** asks for its target the way a targeted dies
+  or attack trigger does: once the current effect, Duty, Dawn or combat
+  damage step has finished. So an untargeted Provoked effect from the First
+  Blade step (for example "this gets +2/+0 until Sunset") resolves before the
+  regular damage step, and a targeted one is chosen after combat damage. A
+  targeted Provoked raised in the Dawn pauses the Dawn until it is chosen.
+  When its choice comes up the creature must still be on the battlefield and
+  still not lethally damaged; if not, the effect does nothing. **A targeted
+  Provoked whose targets vanish before its choice is raised fizzles and stays
+  spent for the turn**, as targeted dies and arrival triggers do. With a
+  Hauntlink payable, the chosen effect gets the revision-4 window every
+  targeted trigger gets, and survival is checked again when it resolves.
+- **Loops cannot happen.** Each creature is provoked at most once a turn, so
+  a chain of Provoked effects is never longer than the Provoked creatures on
+  the battlefield. The state-based check's pass limit is 30 plus the number
+  of Provoked creatures on the battlefield, read each pass, so a chain of
+  them can never exhaust it. No Provoked effect Hunts (the validator refuses
+  it), and the set's design rule is that none damages its controller's own
+  creatures.
+
+**Damage to each creature you control.** A `damage` op may name
+`eachYourCreature` (1.9): "Deal N damage to each creature you control", or
+"each other creature you control" when it spares its source (`other`). It is
+the source a Provoked deck aims at its own side; every survivor is struck.
+
+### Hunt (two creatures trade blows)
+
+Hunt (1.9) is a bare verb keyword, like Mark: **your creature and its prey
+each deal damage equal to their Attack to the other.** On the card it
+follows its carrier's opener: "When this arrives, Hunt.", "During your
+Dawn, Hunt.", "Whenever this attacks, Hunt.", a Duty ("{1}{G}, {T}: Hunt.")
+or an Empower rider ("Empower {2}: Hunt."). The spell form names the hunter:
+"Target creature you control Hunts.", or ", then it Hunts" after an effect
+that already named it. The engine op is `{ op: 'hunt', hunter: 'self' }`
+for the creature itself and `{ op: 'hunt', hunter: 'target' }` for the spell
+form (hunter in target slot 0, prey in slot 1).
+
+- **The prey (owner ruling 2026-09-28).** The prey is a creature an opponent
+  controls, legal-target rules applied, with no fallback: an opponent's
+  Untouchable creature cannot be prey. A card may declare its own prey
+  instead, and then names it on the face: `any` ("Hunt any other creature.";
+  the spell form "Target creature you control Hunts any other creature.")
+  or `yours` ("Hunt another creature you control."). The prey has one
+  meaning on every carrier, and the target spec carries it
+  (`opponentCreature`, or the override's `creature` or `yourCreature` with
+  `other`); `validateHuntDef` accepts exactly the default spec with no
+  declaration, or a declared override with its matching spec. With no legal
+  prey, an attack or Dawn Hunt does nothing, and a Duty or Empower Hunt has
+  no legal target to be offered with.
+- **The hunter.** The hunter and the prey are always two different
+  creatures. A creature with Bulwark, printed or granted, cannot hunt: legal
+  actions never offer it as a spell's hunter, a Duty Hunt on it is refused
+  (`activatedBlockers`), and a source-bound Hunt on it does nothing. A Bulwark
+  creature can be prey.
+- **The exchange.** At resolution each deals damage equal to its Attack as
+  it is then (a pump earlier in the same effect counts), both read before
+  either is dealt. 0 or less deals nothing. The damage goes through the
+  shared creature-damage path (Combat, Damage): Deathblade on either side
+  makes its damage lethal, Blood Oath gains its controller that much life,
+  and both survivors can be provoked (a hunter provoked by its own Hunt is
+  intended). Hunt damage is not combat damage: First Blade, Twin Blades and
+  Overrun do nothing, and neither a fog nor "prevent combat damage to" stops
+  it. The engine emits a `hunted` event with both amounts, even when both are
+  0.
+- **Fizzle.** At resolution both creatures are checked against their specs.
+  If either has left the battlefield or is no longer a legal target, neither
+  deals damage; the rest of the card still happens, and a spell fizzles as a
+  whole only when every target is gone, as any spell does.
+- **Readiness.** The Hunt itself neither taps nor needs an untapped or
+  seasoned creature, so a spell or arrival Hunt works with a tapped or newly
+  arrived hunter. A Duty Hunt pays the Duty's cost and follows its rules.
+- **An arrival Hunt chooses its prey at cast (owner ruling 2026-09-28).** A
+  creature that hunts when it arrives must hunt to be cast: its prey is
+  chosen with the cast, like a spell's target, under the card's own prey
+  rule, and with no legal prey it can't be cast ("It can't be cast: it has no
+  prey to hunt."). It always arrives: if the prey has left or is no longer
+  legal by then, it arrives and does not hunt. The Hunt runs in its printed
+  place among the creature's arrival abilities, with the creature's Attack as
+  it then is; no state-based check runs inside the stack item, so a hunter
+  dealt lethal damage by its own earlier arrival ability still hunts, and
+  dies in the check after. No Hauntlink window opens over it (its prey was
+  chosen at cast). An arrival that is not a cast (a token, a Preserve copy,
+  a raise, a Nine Lives return) fires the arrival Hunt as an ordinary
+  targeted trigger: with no prey it does nothing.
+- **A conditional arrival Hunt checks its condition at cast (owner ruling
+  2026-09-29).** "If you control another Dinokin, when this arrives, Hunt."
+  While the condition holds at cast, the rule above applies: prey is chosen
+  at cast, and with none the creature can't be cast. While it fails, the
+  creature is cast with no prey, whether or not prey exists; as it arrives
+  the ability takes the ordinary targeted-trigger path, so it does nothing if
+  the condition is still false and asks for prey then if it has become true.
+  A creature whose condition held at cast and fails as it arrives arrives
+  without hunting. A conditional arrival Hunt never shares a card with Rite
+  or Tithe, whose sacrifice is paid after the condition is read.
+- **Carriers.** A spell-form Hunt belongs on a Charm or Ritual with exactly
+  two single creature targets; a source-bound Hunt on a creature, never one
+  that prints Bulwark, and never inside an If-marked branch. A creature has
+  at most one arrival Hunt, and never beside Empower targets.
+
+**Records.** Hunt adds no action: a Hunt spell is an ordinary cast with two
+targets, an arrival hunter's prey rides the cast's `targets`, and a Hunt
+Duty is an ordinary activation. The v16 replay log covers it at rules
+revision 4.
+
 ## Board caps
 
 Two per-player caps are enforced at **cast legality** (`castBlockers` in
@@ -850,6 +1043,12 @@ order:
    returned copy would only die to this rule, and with three copies of one
    legend the return and the death repeated without end.
 
+After a pass's deaths and their dies triggers, **each creature that pass
+saw struck and did not condemn, still on the battlefield and still not
+lethally damaged, is provoked** in battlefield order (Provoked, above), and a
+pass that provoked anything counts as a change. The pass limit is 30 plus the
+Provoked creatures on the battlefield, read each pass.
+
 (Effective defense/attack for these checks is always computed on read by
 `getEffectiveStats` in `src/engine/statics.ts` — base stats + `+1/+1` marks (engine field: counters) +
 until-EOT mods + static layers; nothing is cached.)
@@ -889,4 +1088,6 @@ Magic:
 | Legend rule       | Per-controller, per-**name**; oldest survives.                                                 | Per-controller, per-name; you choose which to keep.     |
 | Turn limit        | Turn 100 → draw.                                                                               | No turn limit (loops handled differently).              |
 | Deck-out          | Losing player is the one who *must* draw from empty.                                            | Same, but on the *next* draw attempt with SBA timing.   |
+| Provoked (enrage) | Fires only if the creature survives, after the check's deaths, and once each turn. | Enrage fires whenever the creature is dealt damage, dead or alive. |
+| Hunt (fight)      | The default prey is an opponent's creature; a creature that hunts as it arrives can't be cast without prey. | Fight names its targets on each card; an ETB fighter is cast freely. |
 | Bounce            | Returns to hand and emits `died`/`cardsBottomed(0)` (no dedicated event; UI resyncs from state).| A distinct zone change.                                 |

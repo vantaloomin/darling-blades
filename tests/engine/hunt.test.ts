@@ -542,3 +542,121 @@ describe('Hunt: a card may state its own prey (overrides, ruled 2026-09-28)', ()
     expect(lists).toEqual(expected.map((iids) => iids.map(ref)));
   });
 });
+
+describe('Hunt: a conditional arrival Hunt checks its condition at cast (A1.1c)', () => {
+  // The owner's ruling (2026-09-29): "When this arrives, if you control
+  // another Dinokin, Hunt." While the condition fails at cast, the creature
+  // is cast with no prey, whether or not prey exists; while it holds, the
+  // prey is chosen at cast exactly as for an unconditional arrival Hunt.
+  const DINOKIN_HUNT: AbilityDef = {
+    when: 'arrives', condition: { kind: 'controlsOther', subtype: 'Dinokin' }, targets: [PREY], ops: [{ op: 'hunt', hunter: 'self' }],
+  };
+  const dino = (id: string, attack: number, defense: number, extra: Partial<CardDef> = {}) =>
+    body(id, attack, defense, [], { subtypes: ['Dinokin'], ...extra });
+  const db = dbOf(
+    dino('fernRaptor', 4, 2, { abilities: [DINOKIN_HUNT] }),
+    dino('kin', 1, 1),
+    body('stalker', 4, 2, [], { abilities: [{ when: 'arrives', targets: [PREY], ops: [{ op: 'hunt', hunter: 'self' }] }] }),
+    body('theirs', 1, 1),
+  );
+  const castsOf = (state: GameState) => legalActions(state, db, 0)
+    .filter((a): a is Extract<Action, { type: 'castSpell' }> => a.type === 'castSpell' && a.handIndex === 0)
+    .map((a) => a.targets ?? []);
+  const THEIRS: Partial<Permanent> = { iid: 3, cardId: 'theirs', controller: 1 };
+  const KIN: Partial<Permanent> = { iid: 2, cardId: 'kin' };
+
+  it('with the condition unmet and no prey, it is cast with no target, arrives and hunts nothing', () => {
+    const state = board([['fernRaptor'], []], []);
+    expect(castsOf(state)).toEqual([[]]);
+    expect(reasonUncastable(state, db, 0, 0)).toBeNull();
+    const game = Game.restore(state, db);
+    game.submit(0, { type: 'castSpell', handIndex: 0 });
+    expect(game.instanceState.battlefield.map((p) => p.cardId)).toEqual(['fernRaptor']);
+    expect(game.instanceState.pendingDecisions).toEqual([]);
+    expect(game.awaiting).toEqual({ player: 0, kind: 'main' });
+    // The unconditional hunter on the same board still has no cast.
+    expect(castsOf(board([['stalker'], []], []))).toEqual([]);
+  });
+
+  it('with the condition unmet and prey present, the only cast names no prey, and the prey is untouched', () => {
+    const state = board([['fernRaptor'], []], [THEIRS]);
+    expect(castsOf(state)).toEqual([[]]);
+    expect(() => Game.restore(board([['fernRaptor'], []], [THEIRS]), db)
+      .submit(0, { type: 'castSpell', handIndex: 0, targets: [ref(3)] })).toThrow(/wrong number of targets/);
+    const game = Game.restore(state, db);
+    game.submit(0, { type: 'castSpell', handIndex: 0 });
+    expect(damageOf(game.instanceState, 3)).toBe(0);
+    expect(game.instanceState.pendingDecisions).toEqual([]);
+  });
+
+  it('with the condition met and no prey, it cannot be cast, for want of prey', () => {
+    const state = board([['fernRaptor'], []], [KIN]);
+    expect(castsOf(state)).toEqual([]);
+    expect(reasonUncastable(state, db, 0, 0)).toMatch(/prey/);
+    expect(() => Game.restore(state, db).submit(0, { type: 'castSpell', handIndex: 0 })).toThrow(/wrong number of targets/);
+  });
+
+  it('with the condition met and prey present, the prey is chosen at cast and the cast without it is refused', () => {
+    const state = board([['fernRaptor'], []], [KIN, THEIRS]);
+    expect(castsOf(state)).toEqual([[ref(3)]]);
+    expect(() => Game.restore(board([['fernRaptor'], []], [KIN, THEIRS]), db)
+      .submit(0, { type: 'castSpell', handIndex: 0 })).toThrow(/wrong number of targets/);
+    const game = Game.restore(state, db);
+    game.submit(0, { type: 'castSpell', handIndex: 0, targets: [ref(3)] });
+    expect(onBoard(game.instanceState, 3)).toBe(false);
+  });
+
+  /** Cast with no prey (the condition failed at cast), on the stack over the opponent's response window. */
+  const castWithoutPrey = (battlefield: Partial<Permanent>[]): Game => {
+    const state = board([[], []], battlefield);
+    state.stack = [{ sid: 1, cardId: 'fernRaptor', controller: 0, targets: [] }];
+    state.awaiting = { player: 1, kind: 'respond', over: { type: 'spell', sid: 1 } };
+    return Game.restore(state, db);
+  };
+
+  it('cast with no prey, it hunts as an ordinary targeted trigger if the condition holds by arrival', () => {
+    // Another Dinokin arrived while it was on the stack.
+    const game = castWithoutPrey([KIN, THEIRS]);
+    const events = game.submit(1, { type: 'passResponse' });
+    expect(events).not.toContainEqual({ e: 'targetsFizzled', sid: 1 });
+    expect(game.awaiting).toMatchObject({ kind: 'chooseTarget', player: 0 });
+    game.submit(0, { type: 'chooseTarget', target: ref(3) });
+    const raptor = game.instanceState.battlefield.find((p) => p.cardId === 'fernRaptor')!;
+    expect(onBoard(game.instanceState, 3)).toBe(false); // 4 damage to a 1/1
+    expect(raptor.damage).toBe(1);
+  });
+
+  it('cast with no prey, it just arrives if the condition holds by arrival but there is still no prey', () => {
+    const state = board([[], []], [KIN]);
+    const events: GameEvent[] = [];
+    resolveStackItem(state, db, { sid: 1, cardId: 'fernRaptor', controller: 0, targets: [] }, (e) => events.push(e));
+    expect(state.battlefield.map((p) => p.cardId)).toContain('fernRaptor');
+    expect(state.pendingDecisions).toEqual([]);
+    expect(events.some((e) => e.e === 'triggerFired')).toBe(false);
+  });
+
+  it('refuses a conditional arrival Hunt beside a Rite or Tithe, whose sacrifice the cast-time check cannot see', () => {
+    const raptor = db.fernRaptor;
+    expect(validateHuntDef(raptor)).toEqual([]);
+    expect(validateHuntDef({ ...raptor, rite: { n: 1 } }).length).toBeGreaterThan(0);
+    expect(validateHuntDef({ ...raptor, tithe: { per: 2 } }).length).toBeGreaterThan(0);
+    // An unconditional arrival Hunt reads no condition, so it may carry either.
+    expect(validateHuntDef({ ...db.stalker, rite: { n: 1 } })).toEqual([]);
+    expect(validateHuntDef({ ...db.stalker, tithe: { per: 2 } })).toEqual([]);
+  });
+
+  it('a Darling with a conditional arrival Hunt follows the same rule', () => {
+    const darlingOn = (battlefield: Partial<Permanent>[]) => {
+      const state = board([[], []], battlefield);
+      state.players[0].darlingZone = 'fernRaptor';
+      state.players[0].darlingTax = 0;
+      return legalActions(state, db, 0)
+        .filter((a): a is Extract<Action, { type: 'castDarling' }> => a.type === 'castDarling')
+        .map((a) => a.targets ?? []);
+    };
+    expect(darlingOn([])).toEqual([[]]);
+    expect(darlingOn([THEIRS])).toEqual([[]]);
+    expect(darlingOn([KIN])).toEqual([]);
+    expect(darlingOn([KIN, THEIRS])).toEqual([[ref(3)]]);
+  });
+});

@@ -279,8 +279,8 @@ provoked by its own Hunt is intended (B7). This spec rules the rest:
    Hunt.", "Whenever this attacks, Hunt.", and a Duty's or an Empower's
    usual opener followed by "Hunt." The default prey (rule 2) lives in the
    keyword's description, not on the card. A card that overrides it names
-   its prey, in templates **PROPOSED, pending the owner**: "Hunt any other
-   creature." (spell: "Target creature you control Hunts any other
+   its prey, in templates **APPROVED by the owner 2026-09-29**: "Hunt any
+   other creature." (spell: "Target creature you control Hunts any other
    creature.") and "Hunt another creature you control."
 2. **Targets.** The hunter and the prey are always two different creatures.
    A creature with Bulwark cannot be chosen as the hunter, and a source-bound
@@ -302,7 +302,18 @@ provoked by its own Hunt is intended (B7). This spec rules the rest:
    then, the creature still arrives and does not hunt (as an empowered
    creature keeps only its rider, Q5). Attack and Dawn Hunts stay ordinary
    triggers (no prey, nothing happens); an Empower Hunt already chooses at
-   cast and is optional.
+   cast and is optional. **A conditional arrival Hunt checks its condition
+   at cast (ruled 2026-09-29).** "When this arrives, if you control another
+   Dinokin, Hunt.": if the condition holds when the creature is cast, it is
+   exactly the rule above (prey chosen at cast; no legal prey, no cast). If
+   the condition fails at cast, the creature is cast with no prey and is
+   castable whether or not prey exists; as it arrives, it hunts only if the
+   condition has become true by then, choosing its prey as an ordinary
+   arrival trigger does. If the condition held at cast but fails as it
+   arrives, it arrives and does not hunt. The owner's words: "It's a
+   conditional Hunt and should be allowed to be played if you don't have a
+   Dinokin on an empty board." The uncastable reason, "It can't be cast: it
+   has no prey to hunt.", is **APPROVED** (2026-09-29).
 3. **Numbers.** At resolution each deals damage equal to its Attack as it
    is then (pumps earlier in the same effect count, so Fang and Horn's
    +2/+2 is in), both at once. 0 or less deals nothing.
@@ -660,7 +671,7 @@ templates RULED later that day as a bare keyword).** Templates:
 - "[Opener], Hunt.": "When this arrives, Hunt.", "During your Dawn, Hunt.",
   "Whenever this attacks, Hunt.", and a Duty's or an Empower's usual opener
   followed by "Hunt."
-- **PROPOSED, pending the owner** (a card's own prey): "Hunt any other
+- **APPROVED by the owner 2026-09-29** (a card's own prey): "Hunt any other
   creature." ("Target creature you control Hunts any other creature.") and
   "Hunt another creature you control."
 - "Deal N damage to each creature you control."
@@ -922,7 +933,7 @@ creature only, with no fallback. The ruled description is now "Your creature and
   its matching spec, and refuses anything else. The `opponentIfAble` flag,
   its targeting rule and its tests are removed (B10: no card uses the
   fallback). The rules-text stubs print "Hunt any other creature." and "Hunt
-  another creature you control." (PROPOSED), the default "Hunt.".
+  another creature you control." (APPROVED 2026-09-29), the default "Hunt.".
 - **The data stays an `arrives` ability** with `{ op: 'hunt', hunter: 'self' }`
   and one prey spec. The engine lifts it:
   `arrivalHuntIndex` (EffectInterpreter.ts) finds it on a creature, and
@@ -955,14 +966,16 @@ creature only, with no fallback. The ruled description is now "Your creature and
   Hunt.") is lifted too: it needs prey to be cast, and the condition is read
   as it arrives, so with the condition unmet it arrives without hunting.
   This follows the approved sentence literally; see the A1.1b report.
+  **Superseded by A1.1c** (the owner's ruling, 2026-09-29): the condition is
+  checked at cast, and with it unmet the creature is cast with no prey.
 - **Validators.** `validateHuntDef` refuses a second arrival Hunt on a card
   and an arrival Hunt beside Empower targets (the cast has one set of
   targets). It checks every prey spec against its rule, as above.
 - **One predicate** decides what an arrival Hunt is: `isArrivalHunt`
   (types.ts), read by `arrivalHuntIndex` and by `validateHuntDef`.
 - **The uncastable reason.** `reasonUncastable` says, for a creature whose
-  arrival Hunt has no prey, **PROPOSED player copy, pending the owner** (A2.c
-  may replace it): "It can't be cast: it has no prey to hunt."
+  arrival Hunt has no prey, player copy **APPROVED by the owner
+  2026-09-29**: "It can't be cast: it has no prey to hunt."
 - **Hand-off to A1.2 (Fable's review):** the AI's cast-target policy (`src/ai/targeting.ts`, `vocabularyCastTargetValue`) reads only `when === 'spell'` abilities, so an arrival Hunt's prey variants all score 0 (undefined for an `any` card), and `applyVocabularyTargetPolicy` keeps only the first: every AI level casts an arrival hunter at the first opponent creature in battlefield order. A1.2 values the hunt op from the arrival ability, or exempts hunt specs from the collapse.
 - **Records.** The prey rides the existing `castSpell` and `castDarling`
   `targets` and the stack item's `targets`, so the action log and replays
@@ -974,6 +987,55 @@ creature only, with no fallback. The ruled description is now "Your creature and
   action-log divergences, 0 event-digest divergences (no shipped card has a
   Hunt).
 
+## As built (A1.1c): a conditional arrival Hunt checks its condition at cast
+
+The owner's ruling (2026-09-29): "It's a conditional Hunt and should be
+allowed to be played if you don't have a Dinokin on an empty board." A
+conditional arrival Hunt ("When this arrives, if you control another
+Dinokin, Hunt.", a `condition` on the lifted `arrives` ability) checks its
+condition when the creature is cast.
+
+- **Condition holds at cast:** as A1.1b. The prey is chosen at cast; with no
+  legal prey the creature can't be cast, and a cast without prey is refused.
+- **Condition fails at cast:** the creature is cast with no target, whether
+  or not prey exists (a cast naming prey is refused). As it arrives, the
+  ability takes the ordinary targeted arrival-trigger path: with the
+  condition still false nothing happens; if it has become true (another
+  Dinokin or a lord arrived in between), the controller chooses its prey
+  then, as for an arrival that is not a cast.
+- **Condition holds at cast, fails as it arrives:** it arrives and does not
+  hunt (the existing re-check in `fireTriggers`).
+- **The shape.** `castTargetSpecs` stays pure (its callers read the printed
+  shape). `actions.ts` gains `castTargetSpecsNow`, the cast's specs on the
+  current board: the arrival Hunt's prey spec, or none while the lifted
+  ability's condition fails (read with `conditionSatisfied`; the creature is
+  not on the battlefield, so every creature there is "another"). The
+  hand-cast enumerator and validator, `hasCastableVariant`, the Darling
+  cast's enumerator and validator, and `reasonUncastable` read it, so the
+  empty target list is offered and accepted exactly when the condition
+  fails, and "no prey" is never the reason then. The override casts
+  (Hauntlink, a Retell body, Empower targets) are unaffected.
+  `resolveStackItem` passes `castHuntTargets` only for a cast that named
+  prey; a cast with none leaves the ability to the ordinary branch, which
+  checks the condition first.
+- **The Duel UI** keys "targeted" off the offered actions' targets, so the
+  empty-target cast plays as an untargeted creature; no scene change.
+- **The AI.** The empty-target cast is an ordinary legal cast;
+  `arrivalHuntCastValue` scores it 0 (no prey), and Easy, Medium and Hard
+  each cast the creature with no target on an empty board and beside prey
+  it cannot hunt (tested).
+- **Unchanged:** unconditional arrival Hunts, attack and Dawn Hunts, and the
+  Empower Hunt.
+- **Refused: a conditional arrival Hunt beside a Rite or Tithe.** The
+  condition is read on the board before a Rite or Tithe sacrifice is paid,
+  so a Dinokin sacrificed to cast the creature would still satisfy it at
+  cast. `validateHuntDef` refuses the combination (Fable's review,
+  2026-09-29), so no row can reach that case silently. No First Dawn row
+  combines the two.
+- **Approvals recorded (2026-09-29):** the uncastable reason "It can't be
+  cast: it has no prey to hunt." and the override templates "Hunt any other
+  creature." (spell: "Target creature you control Hunts any other
+  creature.") and "Hunt another creature you control."
 
 ## As built (A1.2): Hard's reads
 
@@ -1059,6 +1121,40 @@ behaviour; `tests/ai/huntProvoked.test.ts` pins it on fixture cards.
   Provoked term) diverged 55 of the 112 weenie games.
 - **Tests.** Twenty behaviour tests, each shown to fail with its term
   switched off (eighteen mutations, listed in the A1.2 reports).
+
+## As built (A2.c): the words
+
+A2.c replaced A1.1's stubs with Part 6's approved copy in
+`src/ui/rulesText.ts`, `src/data/glossary.ts` and `src/ui/KeywordIcons.ts`,
+and wrote the rules into `docs/rules.md` and `docs/keyword-map.md`.
+
+- **Templates.** Every carrier prints its opener and then "Hunt."; the
+  spell form "Target creature you control Hunts.", and ", then it Hunts"
+  after an op that named the hunter. The spell-form Hunt now counts as
+  naming its hunter, so an op after it on the same slot reads "that
+  creature", never a second "target creature you control". A conditional
+  arrival Hunt prints the shipped conditional-arrival template, "If you
+  control another Dinokin, when this arrives, Hunt." (Astral Biomancer's
+  shape), not the "When this arrives, if ..." order the A1.1c notes quote.
+- **Glossary.** `hunt` and `provoked` join `MechanicId`, detected from a
+  `hunt` op on any carrier and a `provoked` ability (`TRIGGER_MECHANIC`),
+  never from a name or from rules text; both sit after Propagate in the
+  Mechanics tab and the Keyword Guide. Hunt's ruled full-sentence definition
+  is the one exception to the fragment house style, named in
+  `FULL_SENTENCE_DEFINITIONS`; the glossary test holds it to the sentence
+  style and every other definition to the fragment.
+- **Icons.** Hunt is three claw marks; Provoked is the anger mark (four
+  veins around a pinched cross). Neither is a hand, a weapon pair or an eye.
+  Both APPROVED by the owner 2026-09-29.
+- **Docs.** `rules.md` gains Provoked and Hunt sections, a line under the
+  state-based actions, the shared damage path under Combat's Damage, the
+  Empower correction (four target shapes, the E5 no-fizzle rule, the rider's
+  timing), G8's combat gap under Hauntlink (item 10 below) and "combat and
+  Hunt damage" for Blood Oath and Deathblade (item 13). `keyword-map.md`
+  maps Fight to Hunt and Enrage to Provoked. No generated table changed.
+- **Not enforced:** "no Provoked effect damages its controller's own
+  creatures" (P3's damage half) is a design rule with no validator or
+  catalog test; `validateHuntDef` covers only its "never Hunts" half.
 
 ## What this spec corrects
 
