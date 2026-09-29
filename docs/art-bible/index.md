@@ -122,7 +122,11 @@ these at AUTHORING time so future expansions don't need a correction pass:
 - **Species tells are deliberate.** Monster-girl markers (a nekomata's tail,
   a holstaur's neck-bell, a selkie's pelt) are stated explicitly in the
   prompt — never left for the model to guess — and their count/shape is a QA
-  check, not a surprise. **Tails are the new hands**: one card failed QA two
+  check, not a surprise. **At least two of a character's three tells show
+  inside the card window** (y 138-662; owner, 2026-09-28): the card face is
+  what a player reads, so a third tell may fall in the margin only the zoom
+  shows (Scorch-Tail's sickle claws at her feet), never two. New art only;
+  shipped art is not re-audited for it. **Tails are the new hands**: one card failed QA two
   different ways (tip count, then a side-attached root), so any tailed
   character's QA zooms the tail base AND tip — the prompt states count, tip
   shape, and attachment ("emerging from the base of her spine at the
@@ -824,7 +828,8 @@ shell, stone, amber, teeth or horn.
 
 **Dinokin (the dinosaur monster-girls; an Axis with lords).** The Beastkin
 monster-girl idiom: a woman's face and figure with **at most three stated
-species tells**, all three named in every prompt and checked at QA. Dinokin
+species tells**, all three named in every prompt and checked at QA, at
+least two of them inside the card window (the tells rule under Direction preferences). Dinokin
 are scaled or feathered, never furred, and never carry mammal ears. **The
 Dinokin skin is a baseline, not a tell:** any Dinokin may carry small scaled
 patches at the temples, shoulders and hips, and they never count toward the
