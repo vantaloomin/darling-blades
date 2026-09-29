@@ -420,9 +420,7 @@ creature an opponent controls, with no fallback, and a card may declare
 - **A1.7** (Overcharge, ruled 2026-09-29 from the board-cap study): a token refused at the creature cap gives one same-name token its controller controls +1/+1 instead, the fewest-Overcharges namesake first (ties to the oldest); never another creature, tokens only, at most `RULES.overchargeLimit` (3, measured and approved 2026-09-29) on one creature, and not a Mark (its own `Permanent.overcharge`, which no Mark rule sees); an `overcharged` event, a duel-log line and a tile badge; no new AI read ([As built (A1.7)](plan-first-dawn-engine.md#as-built-a17-overcharge)).
 - **A2.b** Easy never hunts its own creature *by choice*: its filter matters
   again, on the cards that declare `any` (the owner's B5).
-- **A2.d** The converter's target walk treats every generic Hunt as dead
-  without an opponent's creature (an arrival hunter can't be cast), and the
-  usage rows count an `any` self-hunt apart.
+- **A2.d** (the tools, 2026-09-29): the converter's target walk judges whose creature a Hunt needs (a Hunt spell is dead without a non-Bulwark creature of your own, every generic Hunt without an opponent's creature, a conditional arrival Hunt alike) and reads an attacking-only target as live wherever something could attack; the usage audit gains a Hunt row, an `any` self-hunt counted apart, a wasted-Hunt check and a Provoked fire tally; no shipped deck or usage row moved ([As built (A2.d)](plan-first-dawn-engine.md#as-built-a2d-the-tools)).
 - **The words.** The spec's player copy is approved (E10). The seven's
   proposed template is superseded: Hunt is a bare keyword ("When this
   arrives, Hunt."; "Target creature you control Hunts."), and the Hunt

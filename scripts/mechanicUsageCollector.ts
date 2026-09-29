@@ -28,8 +28,13 @@ import type { PlayerView } from '../src/engine/view';
 import {
   classifyAction,
   MECHANIC_RULES,
+  ownDamageReach,
+  PROVOKED_NOTE,
+  provokedFired,
+  provokedIndex,
   senseChecksFor,
   SENSE_CHECKS,
+  type DamageReach,
   type ListZone,
   type MechanicRule,
   type SenseCheck,
@@ -65,6 +70,11 @@ interface CheckTally {
   readingSum: number;
   readingCount: number;
   perCard: Record<string, { applicable: number; flagged: number; readingSum: number; readingCount: number }>;
+}
+
+interface ProvokedTally {
+  fires: number;
+  ownSource: number;
 }
 
 const newCard = (): CardTally => ({ seen: 0, castFromHand: 0, cast: 0, stranded: 0, uses: {} });
@@ -109,6 +119,7 @@ function snapshot(view: PlayerView): PlayerView {
       ...perm,
       attachments: [...perm.attachments],
       plusOneCounters: perm.plusOneCounters,
+      ...(perm.firedThisTurn ? { firedThisTurn: [...perm.firedThisTurn] } : {}),
     })),
     awaiting: { ...view.awaiting },
   };
@@ -124,6 +135,13 @@ export class GameUsage {
   readonly uses = new Map<string, number>();
   readonly cards = new Map<string, CardTally>();
   readonly checks = new Map<string, CheckTally>();
+  /**
+   * Provoked fires on her creatures, per card: every fire, and the fires on a
+   * creature her own previous action (the same turn) named or swept.
+   */
+  readonly provoked = new Map<string, ProvokedTally>();
+  private readonly provokedSeen = new Set<string>();
+  private lastReach: { turn: number; reach: DamageReach; board: ReadonlySet<number> } | null = null;
   private lastHand: string[] = [];
   private lastDepartures: string[] = [];
 
@@ -153,6 +171,7 @@ export class GameUsage {
     const ctx: UsageContext = { view, db: this.db, darlingId: this.darlingId };
     const turn = view.turn;
     if (turn > this.maxTurn) this.maxTurn = turn;
+    this.countProvoked(view, turn);
 
     // Seen: copies in the hand now that the last hand, less what her own last
     // action took out, does not account for.
@@ -220,6 +239,28 @@ export class GameUsage {
         per.readingCount++;
       }
     }
+    const reach = ownDamageReach(chosen, ctx);
+    this.lastReach = reach ? { turn, reach, board: new Set(view.battlefield.map((perm) => perm.iid)) } : null;
+  }
+
+  /**
+   * A fire is counted once per creature per turn, the first time one of her
+   * decisions shows it. It is her own source's when her previous action, that
+   * turn, named the creature (a Hunt's hunter or prey, a damage target), swept
+   * her side, or cast the hunter that has since arrived.
+   */
+  private countProvoked(view: PlayerView, turn: number): void {
+    const last = this.lastReach?.turn === turn ? this.lastReach : null;
+    for (const perm of provokedFired(view, this.db)) {
+      const key = `${turn}:${perm.iid}`;
+      if (this.provokedSeen.has(key)) continue;
+      this.provokedSeen.add(key);
+      let tally = this.provoked.get(perm.cardId);
+      if (!tally) this.provoked.set(perm.cardId, (tally = { fires: 0, ownSource: 0 }));
+      tally.fires++;
+      if (last && (last.reach.all || last.reach.iids.has(perm.iid) ||
+        (last.reach.arrivingCardId === perm.cardId && !last.board.has(perm.iid)))) tally.ownSource++;
+    }
   }
 
   /** Copies left in her hand after her last decision's own action. */
@@ -257,6 +298,7 @@ interface BossAggregate {
   uses: Record<string, number>;
   cards: Record<string, CardTally>;
   checks: Record<string, CheckTally>;
+  provoked: Record<string, ProvokedTally>;
   open: GameUsage | null;
 }
 
@@ -304,6 +346,16 @@ export interface UsageCheckJson {
   perCard: { cardId: string; name: string; applicable: number; flagged: number; meanReading: number | null }[];
 }
 
+/** Provoked, a passive mechanic: fires, not chances (plan-first-dawn-engine.md, Part 8). */
+export interface UsageProvokedJson {
+  cardsInList: number;
+  fires: number;
+  /** Fires on a creature her own previous action named or swept. */
+  ownSource: number;
+  perCard: { cardId: string; name: string; copies: number; fires: number; ownSource: number }[];
+  note: string;
+}
+
 export interface UsageBossJson {
   matrix: string;
   id: string;
@@ -315,6 +367,7 @@ export interface UsageBossJson {
   rows: UsageRowJson[];
   cards: UsageCardJson[];
   checks: UsageCheckJson[];
+  provoked: UsageProvokedJson;
 }
 
 export interface MechanicUsageJson {
@@ -357,7 +410,7 @@ export class MechanicUsageCollector {
     if (!boss) {
       boss = {
         info, games: 0, turns: 0, decisions: 0,
-        chance: {}, meaningful: {}, taken: {}, uses: {}, cards: {}, checks: {}, open: null,
+        chance: {}, meaningful: {}, taken: {}, uses: {}, cards: {}, checks: {}, provoked: {}, open: null,
       };
       this.bosses.set(key, boss);
     }
@@ -386,6 +439,11 @@ export class MechanicUsageCollector {
       for (const [mechanic, n] of Object.entries(tally.uses)) add(into.uses, mechanic, n);
     }
     for (const id of game.finalHand()) (boss.cards[id] ??= newCard()).stranded++;
+    for (const [id, tally] of game.provoked) {
+      const into = (boss.provoked[id] ??= { fires: 0, ownSource: 0 });
+      into.fires += tally.fires;
+      into.ownSource += tally.ownSource;
+    }
     for (const [id, tally] of game.checks) {
       const into = (boss.checks[id] ??= newCheck());
       into.applicable += tally.applicable;
@@ -504,6 +562,18 @@ export class MechanicUsageCollector {
             .sort((a, b) => a.name.localeCompare(b.name)),
         };
       });
+      const provokedCopies = new Map<string, number>();
+      for (const id of [...boss.info.list.deck, ...(boss.info.list.darlingId ? [boss.info.list.darlingId] : [])]) {
+        if (provokedIndex(this.db[id]) >= 0) provokedCopies.set(id, (provokedCopies.get(id) ?? 0) + 1);
+      }
+      const provokedIds = [...new Set([...provokedCopies.keys(), ...Object.keys(boss.provoked)])];
+      const provokedCards = provokedIds.map((cardId) => ({
+        cardId,
+        name: this.cardName(cardId),
+        copies: provokedCopies.get(cardId) ?? 0,
+        fires: boss.provoked[cardId]?.fires ?? 0,
+        ownSource: boss.provoked[cardId]?.ownSource ?? 0,
+      })).sort((a, b) => a.name.localeCompare(b.name));
       bosses.push({
         matrix: boss.info.matrix,
         id: boss.info.id,
@@ -515,6 +585,13 @@ export class MechanicUsageCollector {
         rows,
         cards,
         checks,
+        provoked: {
+          cardsInList: [...provokedCopies.values()].reduce((sum, n) => sum + n, 0),
+          fires: provokedCards.reduce((sum, row) => sum + row.fires, 0),
+          ownSource: provokedCards.reduce((sum, row) => sum + row.ownSource, 0),
+          perCard: provokedCards,
+          note: PROVOKED_NOTE,
+        },
       });
     }
     return { bosses };
@@ -562,6 +639,17 @@ export class MechanicUsageCollector {
         if (check.applicable === 0) continue;
         const reading = check.meanReading === null ? '' : `; mean ${check.readingMeans} ${num(check.meanReading, 1)}`;
         lines.push(`  Check: ${check.label}: ${check.flagged} of ${check.applicable} with ${check.flagMeans}${reading}`);
+      }
+      const provoked = boss.provoked;
+      if (provoked.cardsInList > 0 || provoked.fires > 0) {
+        lines.push(
+          `  Provoked (passive): ${provoked.fires} fires, ${provoked.ownSource} on a creature her own action named or swept; ` +
+            `${provoked.cardsInList} cards in list`,
+        );
+        for (const row of provoked.perCard) {
+          lines.push(`    ${row.name.slice(0, 36).padEnd(36)} ${String(row.copies).padStart(6)}  fires ${row.fires}, own source ${row.ownSource}`);
+        }
+        lines.push(`    (Provoked: ${provoked.note})`);
       }
     }
     return lines.join('\n');

@@ -15,13 +15,18 @@
  * test separates a sensible chance from a merely legal one; without it every
  * legal chance counts and the report says so. A cheap check on the TAKEN
  * action (the use looked wasted) is one entry in SENSE_CHECKS.
+ *
+ * A PASSIVE mechanic (one that fires by itself, with no choice to count) has
+ * no row here; its frequency is a tally in the collector read from the public
+ * board (Provoked, below: `provokedFired` and `ownDamageReach`).
  */
 import type { Action } from '../src/engine/actions';
 import { getEffectiveStats } from '../src/engine/statics';
-import type { CardDb, CardDef, EffectOp, Permanent } from '../src/engine/types';
-import { activatedAbilitiesOf, isType, manaValue } from '../src/engine/types';
+import type { AbilityDef, CardDb, CardDef, EffectOp, HuntPrey, Permanent, TargetRef } from '../src/engine/types';
+import { activatedAbilitiesOf, flatOps, isArrivalHunt, isType, manaValue } from '../src/engine/types';
 import type { PlayerView } from '../src/engine/view';
 import { hauntlinkHostFit } from '../src/ai/hauntlinkPolicy';
+import { expectsTargetSurvives } from '../src/ai/value';
 
 export interface UsageContext {
   readonly view: PlayerView;
@@ -153,6 +158,200 @@ function linkHauntCard(attached: boolean) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Hunt (1.9, First Dawn; plan-first-dawn-engine.md, Part 8). One action starts
+// a Hunt: a Hunt spell's cast (slot 0 hunts slot 1), an arrival hunter's cast
+// or Darling call naming its prey, an Empower Hunt paid for, a hunting Duty,
+// or the prey choice of a hunting trigger (attack, Dawn, an arrival that is
+// not a cast, or a conditional arrival whose condition came true after it).
+// ---------------------------------------------------------------------------
+
+const huntOps = (ops: readonly EffectOp[] | undefined): Extract<EffectOp, { op: 'hunt' }>[] =>
+  flatOps(ops ?? []).filter((op): op is Extract<EffectOp, { op: 'hunt' }> => op.op === 'hunt');
+
+/** Does this card print a Hunt (with this declared prey, when given) on a body, trigger, Duty or Empower? */
+export function cardHunts(d: CardDef, prey?: HuntPrey): boolean {
+  return [
+    ...(d.abilities ?? []).flatMap((ability) => huntOps(ability.ops)),
+    ...activatedAbilitiesOf(d).flatMap((ability) => huntOps(ability.ops)),
+    ...huntOps(d.empower?.ops),
+  ].some((op) => prey === undefined || op.prey === prey);
+}
+
+/** A Hunt one action starts. */
+export interface HuntUse {
+  readonly cardId: string;
+  /** The op's declared prey (`any`, `yours`), undefined for the generic Hunt. */
+  readonly prey: HuntPrey | undefined;
+  readonly preyIid: number;
+  /** Absent while the hunter is the creature being cast (an arrival or Empower Hunt). */
+  readonly hunterIid?: number;
+  /** The Hunt spell's ops up to and including the Hunt (a pump before it counts), with its targets. */
+  readonly spell?: { ops: readonly EffectOp[]; targets: readonly TargetRef[] };
+}
+
+const permanentIid = (ref: TargetRef | undefined): number | undefined =>
+  ref?.kind === 'permanent' ? ref.iid : undefined;
+
+/** A source-bound Hunt in these ops, on the prey the action names. */
+function boundHunt(cardId: string, ops: readonly EffectOp[] | undefined, preyRef: TargetRef | undefined, hunterIid?: number): HuntUse | undefined {
+  const op = huntOps(ops).find((hunt) => hunt.hunter === 'self');
+  const preyIid = permanentIid(preyRef);
+  if (!op || preyIid === undefined) return undefined;
+  return { cardId, prey: op.prey, preyIid, ...(hunterIid === undefined ? {} : { hunterIid }) };
+}
+
+/** The Hunt this action starts, or undefined. Reads only the action, the view and the card data. */
+export function huntUse(action: Action, ctx: UsageContext): HuntUse | undefined {
+  const { view } = ctx;
+  switch (action.type) {
+    case 'castSpell': {
+      // A Retell body never hunts (validateHuntDef), and it replaces the printed one.
+      if (action.retell) return undefined;
+      const id = namedCardId(action, view);
+      const d = card(ctx, id);
+      if (!id || !d) return undefined;
+      const targets = action.targets ?? [];
+      if (action.empowered && huntOps(d.empower?.ops).length > 0) return boundHunt(id, d.empower!.ops, targets[0]);
+      const body = (d.abilities ?? []).find((ability) => ability.when === 'spell' &&
+        huntOps(ability.ops).some((op) => op.hunter === 'target'));
+      if (body) {
+        const ops = body.ops ?? [];
+        const at = ops.findIndex((op) => op.op === 'hunt');
+        const hunt = huntOps(ops).find((op) => op.hunter === 'target')!;
+        const hunterIid = permanentIid(targets[0]);
+        const preyIid = permanentIid(targets[1]);
+        if (hunterIid === undefined || preyIid === undefined) return undefined;
+        return { cardId: id, prey: hunt.prey, preyIid, hunterIid, spell: { ops: ops.slice(0, at + 1), targets } };
+      }
+      return boundHunt(id, (d.abilities ?? []).find(isArrivalHunt)?.ops, targets[0]);
+    }
+    case 'castDarling': {
+      const id = namedCardId(action, view, ctx.darlingId);
+      const d = card(ctx, id);
+      return id && d ? boundHunt(id, (d.abilities ?? []).find(isArrivalHunt)?.ops, action.targets?.[0]) : undefined;
+    }
+    case 'activate': {
+      const source = permanent(view, action.iid);
+      const d = card(ctx, source?.cardId);
+      if (!source || !d) return undefined;
+      return boundHunt(source.cardId, activatedAbilitiesOf(d)[action.abilityIndex ?? 0]?.ops, action.targets?.[0], action.iid);
+    }
+    case 'chooseTarget': {
+      const awaiting = view.awaiting;
+      if (awaiting.kind !== 'chooseTarget' || awaiting.decision !== undefined) return undefined;
+      const source = permanent(view, awaiting.sourceIid);
+      const d = card(ctx, source?.cardId);
+      if (!source || !d) return undefined;
+      return boundHunt(source.cardId, d.abilities?.[awaiting.abilityIndex]?.ops, action.target, source.iid);
+    }
+    default:
+      return undefined;
+  }
+}
+
+const hers = (ctx: UsageContext, iid: number | undefined): boolean =>
+  iid !== undefined && permanent(ctx.view, iid)?.controller === ctx.view.myId;
+
+/**
+ * The exchange as the public board reads it (the AI's survival read, which
+ * plays the ops before the gate: a spell's pump and damage, then the Hunt).
+ * An arrival or Empower hunter is read as the card arriving now, under her.
+ */
+export function huntOutcome(use: HuntUse, ctx: UsageContext): { hunterDies: boolean; preyDies: boolean } {
+  const survives = (view: PlayerView, ops: readonly EffectOp[], targets: readonly TargetRef[], slot: number): boolean =>
+    expectsTargetSurvives(view, ctx.db, ops, { op: 'ifTargetSurvives', then: [], targetIndex: slot }, targets);
+  if (use.spell) {
+    return {
+      hunterDies: !survives(ctx.view, use.spell.ops, use.spell.targets, 0),
+      preyDies: !survives(ctx.view, use.spell.ops, use.spell.targets, 1),
+    };
+  }
+  const arriving: Permanent = {
+    iid: -1, cardId: use.cardId, owner: ctx.view.myId, controller: ctx.view.myId, tapped: false, enteredThisTurn: true,
+    damage: 0, deathtouched: false, severBranded: false, attachments: [], plusOneCounters: 0, untilEotMods: [],
+  };
+  const hunterIid = use.hunterIid ?? arriving.iid;
+  const view = use.hunterIid === undefined ? { ...ctx.view, battlefield: [...ctx.view.battlefield, arriving] } : ctx.view;
+  const pair: TargetRef[] = [{ kind: 'permanent', iid: hunterIid }, { kind: 'permanent', iid: use.preyIid }];
+  const exchange: EffectOp[] = [{ op: 'hunt', hunter: 'target' }];
+  return { hunterDies: !survives(view, exchange, pair, 0), preyDies: !survives(view, exchange, pair, 1) };
+}
+
+// ---------------------------------------------------------------------------
+// Provoked (passive). A fire shows on the public board as the creature's
+// Provoked ability index in `firedThisTurn`, which resets at every untap.
+// ---------------------------------------------------------------------------
+
+/** Printed beside the Provoked tally: what a wrapper on her brain cannot see. */
+export const PROVOKED_NOTE = 'seen on the public board at her own decisions, so a fire after her last decision of a turn ' +
+  '(most often a block on the opponent\'s turn) is missed; own source means her previous action that turn named or swept ' +
+  'the creature, so a response in between is not told apart';
+
+/** The index of the card's Provoked ability, or -1. */
+export function provokedIndex(d: CardDef | undefined): number {
+  return (d?.abilities ?? []).findIndex((ability: AbilityDef) => ability.when === 'provoked');
+}
+
+/** Her creatures whose Provoked has fired this turn, on this view. */
+export function provokedFired(view: PlayerView, db: CardDb): Permanent[] {
+  return view.battlefield.filter((perm) => {
+    if (perm.controller !== view.myId) return false;
+    const index = provokedIndex(db[perm.cardId]);
+    return index >= 0 && (perm.firedThisTurn?.includes(index) ?? false);
+  });
+}
+
+/**
+ * Which of her own creatures an action of hers could have dealt damage to: a
+ * Hunt's hunter (the creature being cast, by card id, when it has no iid yet)
+ * and a prey of hers, a damage target of hers, or every one of her creatures
+ * for a sweep (damage to each creature, or each creature she controls).
+ * Undefined when the action can damage none of them.
+ */
+export interface DamageReach {
+  readonly iids: ReadonlySet<number>;
+  readonly all: boolean;
+  readonly arrivingCardId?: string;
+}
+
+export function ownDamageReach(action: Action, ctx: UsageContext): DamageReach | undefined {
+  const iids = new Set<number>();
+  let all = false;
+  let arrivingCardId: string | undefined;
+  const hunt = huntUse(action, ctx);
+  if (hunt) {
+    if (hunt.hunterIid === undefined) arrivingCardId = hunt.cardId;
+    else if (hers(ctx, hunt.hunterIid)) iids.add(hunt.hunterIid);
+    if (hers(ctx, hunt.preyIid)) iids.add(hunt.preyIid);
+  }
+  let ops: readonly EffectOp[] = [];
+  let targets: readonly TargetRef[] = [];
+  if (action.type === 'castSpell' && !action.retell) {
+    const d = card(ctx, namedCardId(action, ctx.view));
+    if (d) ops = castOps(d, action);
+    targets = action.targets ?? [];
+  } else if (action.type === 'activate') {
+    const d = card(ctx, permanent(ctx.view, action.iid)?.cardId);
+    ops = (d && activatedAbilitiesOf(d)[action.abilityIndex ?? 0]?.ops) ?? [];
+    targets = action.targets ?? [];
+  } else if (action.type === 'chooseTarget' && ctx.view.awaiting.kind === 'chooseTarget') {
+    const d = card(ctx, permanent(ctx.view, ctx.view.awaiting.sourceIid)?.cardId);
+    ops = d?.abilities?.[ctx.view.awaiting.abilityIndex]?.ops ?? [];
+    targets = [action.target];
+  }
+  for (const op of flatOps(ops)) {
+    if (op.op !== 'damage') continue;
+    if (op.to === 'eachCreature' || op.to === 'eachYourCreature') all = true;
+    if (op.to === 'target') {
+      const iid = permanentIid(targets[op.targetIndex ?? 0]);
+      if (hers(ctx, iid)) iids.add(iid!);
+    }
+  }
+  if (!all && iids.size === 0 && arrivingCardId === undefined) return undefined;
+  return { iids, all, ...(arrivingCardId === undefined ? {} : { arrivingCardId }) };
+}
+
 /** Section 3 of the plan, one entry per mechanic where the brain CHOOSES. */
 export const MECHANIC_RULES: readonly MechanicRule[] = [
   {
@@ -266,6 +465,29 @@ export const MECHANIC_RULES: readonly MechanicRule[] = [
       return namedCardId(action, ctx.view, ctx.darlingId) ?? `(${action.type})`;
     },
     note: 'any action but a pass or a concession in a respond, end-step or Hauntlink window',
+  },
+  {
+    id: 'hunt',
+    label: 'Hunt',
+    // A Darling can hunt too (an arrival Hunt names its prey at the call).
+    carries: (d) => cardHunts(d),
+    actionTypes: new Set<ActionType>(['castSpell', 'castDarling', 'activate', 'chooseTarget']),
+    match: (action, ctx) => huntUse(action, ctx)?.cardId,
+    repeats: true,
+    note: 'a cast or call naming prey, a paid Empower Hunt, a hunting Duty, or the prey choice of a hunting trigger ' +
+      '(forced once it fires, so those chances are always taken)',
+  },
+  {
+    // Counted apart so Easy's zero and Medium's margin are visible (A2.b).
+    id: 'huntAnySelf',
+    label: 'Hunt own prey (any)',
+    carries: (d) => cardHunts(d, 'any'),
+    actionTypes: new Set<ActionType>(['castSpell', 'castDarling', 'activate', 'chooseTarget']),
+    match: (action, ctx) => {
+      const use = huntUse(action, ctx);
+      return use?.prey === 'any' && hers(ctx, use.preyIid) ? use.cardId : undefined;
+    },
+    note: 'a Hunt on a card that declares any, aimed at her own creature; a chance is a turn in which she could',
   },
 ];
 
@@ -401,6 +623,19 @@ export const SENSE_CHECKS: readonly SenseCheck[] = [
         perm.controller === ctx.view.myId && perm.iid !== carrier.attachedTo &&
         ctx.db[perm.cardId] !== undefined && isType(ctx.db[perm.cardId], 'creature'));
       return others.every((host) => hauntlinkHostFit(board, ctx.db, action.iid, host.iid) <= current);
+    },
+  },
+  {
+    id: 'huntLostHunter',
+    label: 'Hunt',
+    flagMeans: 'the hunter dies and the prey survives, read on the public board (the pump and damage in a Hunt spell ' +
+      'before the Hunt count; a response or anything else before it does not)',
+    applies: (action, ctx) => huntUse(action, ctx)?.cardId,
+    flagged: (action, ctx) => {
+      const use = huntUse(action, ctx);
+      if (!use) return false;
+      const outcome = huntOutcome(use, ctx);
+      return outcome.hunterDies && !outcome.preyDies;
     },
   },
 ];

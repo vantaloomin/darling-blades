@@ -98,12 +98,16 @@ can already count where it matters.
 | Preserve | keep a card at cleanup | `preserveCard` |
 | Darlings | call the Darling, pay down her tax | `castDarling`, `payDownDarlingTax` |
 | Charm-speed play | act in a window instead of passing | any action but `passResponse` while `awaiting.kind` is `respond`, `endStepWindow` or `hauntlinkWindow` |
+| Hunt (1.9) | hunt, and with what prey | a Hunt spell's cast, an arrival hunter's cast or Darling call naming prey, a paid Empower Hunt, a hunting Duty, a hunting trigger's prey choice; an `any` Hunt at her own creature is its own row, and a taken Hunt that lost the hunter and killed nothing is a sense check |
 
 Passive mechanics, counted as frequency only where a deck is built on them
 and only if U3 says so: Mark and Propagate totals, Quest chapters reached,
 Nine Lives returns, Champion Awakening. `balanceTelemetry` already counts
 Nine Lives returns, Preserve activations, Rite casts and graveyard casts, so
-part of this exists.
+part of this exists. Provoked (1.9) has its own tally in the collector: her
+fires per boss, and those on a creature her own action named or swept, read
+from the public board at her decisions (so a fire after her last decision
+of a turn is missed); see [plan-first-dawn-engine.md](plan-first-dawn-engine.md#as-built-a2d-the-tools).
 
 ## 4. How it is measured
 
