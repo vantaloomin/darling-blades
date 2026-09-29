@@ -356,7 +356,8 @@ lane lands in two halves:
 - **A1, on the critical path, after the spec is ruled:** the Provoked
   trigger and the Hunt op (on the v16 replay version I1 took in wave 0),
   every other vocabulary gap the concretion audit found and the spec kept,
-  and the Hard brain's Hunt targeting and Provoked survival reads. The Hard
+  and the Hard brain's Hunt targeting and Provoked survival reads (A1.2; a
+  hand-off from A1.1b's review: the AI's cast-target policy (`src/ai/targeting.ts`, `vocabularyCastTargetValue`) reads only `when === 'spell'` abilities, so an arrival Hunt's prey variants all score 0 (undefined for an `any` card), and `applyVocabularyTargetPolicy` keeps only the first: every AI level casts an arrival hunter at the first opponent creature in battlefield order. A1.2 values the hunt op from the arrival ability, or exempts hunt specs from the collapse). The Hard
   reads belong here because the rates are measured in-engine by games the AI
   plays, and a naive target policy would price Hunt low. They read only the
   new trigger and op, which no shipped card carries, so they must leave the

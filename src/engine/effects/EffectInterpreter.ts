@@ -28,7 +28,7 @@ import type {
   TargetSpec,
   TriggerWhen,
 } from '../types';
-import { cardIdOf, def, effectOpUsesTarget, isCardInstance, isType, opponentOf } from '../types';
+import { cardIdOf, def, effectOpUsesTarget, isArrivalHunt, isCardInstance, isType, opponentOf } from '../types';
 
 export interface EffectContext {
   controller: PlayerId;
@@ -1125,8 +1125,7 @@ export function arrivalHuntIndex(d: CardDef): number {
   let cached = arrivalHuntCache.get(d);
   if (cached === undefined) {
     cached = isType(d, 'creature')
-      ? (d.abilities ?? []).findIndex((ab) => ab.when === 'arrives' && ab.targets?.length === 1 &&
-        (ab.ops ?? []).some((op) => op.op === 'hunt' && op.hunter === 'self'))
+      ? (d.abilities ?? []).findIndex((ab) => isArrivalHunt(ab) && ab.targets?.length === 1)
       : -1;
     arrivalHuntCache.set(d, cached);
   }
@@ -1154,8 +1153,12 @@ export function fireTriggers(
     if (ab.condition !== undefined && !conditionSatisfied(state, db, perm.controller, ab.condition, perm.iid)) continue;
     if (abilityIndex === castHunt) {
       // The prey was chosen at cast, so the Hunt resolves inline in its printed
-      // place, as an untargeted arrival ability does. The spec is re-checked:
-      // a prey that is gone or no longer legal leaves nothing to hunt.
+      // place, as an untargeted arrival ability does. The spec is re-checked
+      // first: a prey that is gone or no longer legal leaves nothing to hunt,
+      // and the ability is skipped silently and unspent, as a targeted
+      // trigger with no legal target is below.
+      const spec = ab.targets![0];
+      if (!options.castHuntTargets!.some((ref) => isLegalTarget(state, db, perm.controller, spec, ref, perm.iid))) continue;
       if (!claimTrigger(perm, ab, abilityIndex)) continue;
       fired = true;
       emit({ e: 'triggerFired', iid: perm.iid, when });

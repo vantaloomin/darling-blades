@@ -938,11 +938,16 @@ creature only, with no fallback. The ruled description is now "Your creature and
   (`castHuntTargets`), which runs the Hunt inline in its printed place among
   the creature's arrival abilities, as an untargeted arrival ability resolves
   today, with the spec re-checked (a prey gone or illegal is hunted by no
-  one). So an untargeted arrival ability printed before it resolves first and
-  one printed after it resolves after; a targeted arrival ability still
-  queues its choice and resolves after; ally-arrival observers follow; the
-  Empower rider (E4) runs after all of them. No Hauntlink window opens over
-  it (its target was chosen at cast, and the stack's own window came first).
+  one, and the ability is then skipped silently and left unspent, as a
+  targeted trigger with no legal target is). So an untargeted arrival ability
+  printed before it resolves first and one printed after it resolves after; a
+  targeted arrival ability still queues its choice and resolves after;
+  ally-arrival observers follow; the Empower rider (E4) runs after all of
+  them. No state-based check runs inside the stack item (the engine's
+  convention), so a hunter dealt lethal damage by its own earlier arrival
+  ability still hunts, with its full Attack, and dies in the check after.
+  No Hauntlink window opens over it (its target was chosen at cast, and the
+  stack's own window came first).
 - **An arrival that is not a cast** (a token, a Preserve copy, a raise, a
   Nine Lives return) fires the arrival Hunt as an ordinary targeted trigger:
   the prey rule applies, and with none it does nothing.
@@ -953,6 +958,12 @@ creature only, with no fallback. The ruled description is now "Your creature and
 - **Validators.** `validateHuntDef` refuses a second arrival Hunt on a card
   and an arrival Hunt beside Empower targets (the cast has one set of
   targets). It checks every prey spec against its rule, as above.
+- **One predicate** decides what an arrival Hunt is: `isArrivalHunt`
+  (types.ts), read by `arrivalHuntIndex` and by `validateHuntDef`.
+- **The uncastable reason.** `reasonUncastable` says, for a creature whose
+  arrival Hunt has no prey, **PROPOSED player copy, pending the owner** (A2.c
+  may replace it): "It can't be cast: it has no prey to hunt."
+- **Hand-off to A1.2 (Fable's review):** the AI's cast-target policy (`src/ai/targeting.ts`, `vocabularyCastTargetValue`) reads only `when === 'spell'` abilities, so an arrival Hunt's prey variants all score 0 (undefined for an `any` card), and `applyVocabularyTargetPolicy` keeps only the first: every AI level casts an arrival hunter at the first opponent creature in battlefield order. A1.2 values the hunt op from the arrival ability, or exempts hunt specs from the collapse.
 - **Records.** The prey rides the existing `castSpell` and `castDarling`
   `targets` and the stack item's `targets`, so the action log and replays
   carry it with no new field and no replay version.

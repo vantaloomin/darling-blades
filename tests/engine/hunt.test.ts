@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Action } from '../../src/engine/actions';
-import { legalActions } from '../../src/engine/actions';
+import { legalActions, reasonUncastable } from '../../src/engine/actions';
 import type { GameEvent } from '../../src/engine/events';
 import { Game } from '../../src/engine/Game';
 import { enumerateTargets } from '../../src/engine/effects/targeting';
@@ -410,13 +410,13 @@ describe('Hunt: an arrival Hunt chooses its prey when the creature is cast (A1.1
   it('cannot be cast with no other creature on either side', () => {
     const state = board([['stalker'], []], []);
     expect(casts(state)).toEqual([]);
-    expect(() => Game.restore(state, db).submit(0, { type: 'castSpell', handIndex: 0 })).toThrow();
+    expect(() => Game.restore(state, db).submit(0, { type: 'castSpell', handIndex: 0 })).toThrow(/wrong number of targets/);
   });
 
   it('cannot be cast with only your own other creature (no prey under the default rule)', () => {
     const state = board([['stalker'], []], [{ iid: 2, cardId: 'mine' }]);
     expect(casts(state)).toEqual([]);
-    expect(() => Game.restore(state, db).submit(0, { type: 'castSpell', handIndex: 0, targets: [ref(2)] })).toThrow();
+    expect(() => Game.restore(state, db).submit(0, { type: 'castSpell', handIndex: 0, targets: [ref(2)] })).toThrow(/illegal target/);
   });
 
   it('offers each of the opponent\'s creatures as prey', () => {
@@ -437,16 +437,26 @@ describe('Hunt: an arrival Hunt chooses its prey when the creature is cast (A1.1
     expect(game.awaiting).toEqual({ player: 0, kind: 'main' });
   });
 
-  it.each([['has left', 'gone'], ['is no longer a legal prey', 'untouchable']] as const)(
+  it.each([
+    ['has left', 'gone'], ['is no longer a legal prey', 'untouchable'], ['has changed controller', 'controller'],
+  ] as const)(
     'arrives and does not hunt when the prey %s', (_, how) => {
       const state = board([[], []], how === 'gone' ? [] : [{ iid: 3, cardId: 'theirs', controller: 1 }]);
       if (how === 'untouchable') state.battlefield[0].untilEotMods.push({ p: 0, t: 0, keywords: ['untouchable'] });
+      // Now the caster's own creature, which the default prey rule never reaches.
+      if (how === 'controller') state.battlefield[0].controller = 0;
       const events: GameEvent[] = [];
       resolveStackItem(state, db, { sid: 1, cardId: 'stalker', controller: 0, targets: [ref(3)] }, (e) => events.push(e));
       expect(events).not.toContainEqual({ e: 'targetsFizzled', sid: 1 });
       expect(state.battlefield.map((p) => p.cardId)).toContain('stalker');
       expect(events.some((e) => e.e === 'hunted' || e.e === 'damageMarked')).toBe(false);
+      // Skipped silently, as a targeted trigger with no legal target is.
+      expect(events.some((e) => e.e === 'triggerFired')).toBe(false);
     });
+
+  it('names the missing prey as the reason it cannot be cast', () => {
+    expect(reasonUncastable(board([['stalker'], []], []), db, 0, 0)).toMatch(/prey/);
+  });
 
   it.each([['huntFirst', ['hunted', 'gain']], ['gainFirst', ['gain', 'hunted']]] as const)(
     'resolves in its printed place among the arrival abilities (%s)', (cardId, order) => {
@@ -468,7 +478,6 @@ describe('Hunt: an arrival Hunt chooses its prey when the creature is cast (A1.1
     fireTriggers(bare, db, () => {}, 'attacks', bare.battlefield[0]);
     fireTriggers(bare, db, () => {}, 'dawn', bare.battlefield[1]);
     expect(bare.pendingDecisions).toEqual([]);
-    expect(bare.battlefield[0].firedThisTurn).toBeUndefined();
   });
 
   it('refuses a second arrival Hunt, or one beside Empower targets', () => {

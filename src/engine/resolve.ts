@@ -105,7 +105,10 @@ export function resolveStackItem(
   const riderTargetsOnly = item.empowered === true && d.empower?.targets !== undefined &&
     item.hauntlinked !== true && !isAura(d) && isPermanentSpell(d, item);
   // Nor does a creature on its arrival Hunt's prey (the same ruling): it
-  // arrives, and hunts only if the prey is still there and still legal.
+  // arrives, and hunts only if the prey is still there and still legal. The
+  // hauntlinked and Retell-override guards cannot fire for a creature (a
+  // Hauntlink carrier is never one, validateHauntlinkDef); they only keep the
+  // condition honest about which casts use the body's targets.
   const huntPreyCast = !riderTargetsOnly && item.hauntlinked !== true && !(item.retell && d.retell?.ops) &&
     isPermanentSpell(d, item) && arrivalHuntIndex(d) >= 0;
   if (specs.length > 0 && !riderTargetsOnly && !huntPreyCast) {

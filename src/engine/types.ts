@@ -419,6 +419,11 @@ function preyRuleError(declared: HuntPrey | undefined, spec: TargetSpec | undefi
     : `A Hunt that declares prey '${declared}' needs the matching prey spec`;
 }
 
+/** Is this ability an arrival Hunt ("When this arrives, Hunt.")? One test for the engine and the validator. */
+export function isArrivalHunt(ability: AbilityDef): boolean {
+  return ability.when === 'arrives' && (ability.ops ?? []).some((op) => op.op === 'hunt' && op.hunter === 'self');
+}
+
 /**
  * Catalog-facing validation for the Hunt op's carriers. The spell form
  * (`hunter: 'target'`) is a Charm or Ritual body with exactly two single
@@ -462,8 +467,7 @@ export function validateHuntDef(d: CardDef): string[] {
   }
   // A creature's arrival Hunt names its prey as the cast target, so the card
   // has one: never two arrival Hunts, never beside Empower targets.
-  const arrivalHunts = (d.abilities ?? []).filter((ability) => ability.when === 'arrives' &&
-    (ability.ops ?? []).some((op) => op.op === 'hunt'));
+  const arrivalHunts = (d.abilities ?? []).filter(isArrivalHunt);
   if (arrivalHunts.length > 1) errors.push('A creature has at most one arrival Hunt');
   if (arrivalHunts.length > 0 && d.empower?.targets) errors.push('An arrival Hunt cannot share a card with Empower targets');
   // An empowered cast brings the Empower targets instead of the body's, so a
