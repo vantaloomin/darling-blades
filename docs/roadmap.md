@@ -2150,6 +2150,36 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   (`selectedDuals` on `completeDraftRun`, `run.landReserve`); the work is the
   build-step UI plus persistence. Owner ruling 2026-09-25: after 2.0
   (it had been deferred to 1.9 by the 1.8 ruling D7).
+- **Async PvP: challenge codes piloted by the Hard AI (proposal,
+  2026-09-29; past 2.0, not scheduled).** The owner's request: share a deck
+  code, and a Hard AI pilots that deck against whoever pastes it, "a
+  semblance of PvP without making any P2P connections". No network, server
+  or accounts, so it stands with the ruling that multiplayer is cancelled.
+  It builds on `DBD3-` deck codes, the Hard brain and the duel's
+  opponent-deck override. Plan and open questions:
+  [plan-async-pvp.md](plan-async-pvp.md). Nothing is built.
+- **Starting life above 20, with Core Set II (owner direction, 2026-09-29;
+  2.0).** Games between AIs end around each player's ninth or tenth turn
+  (the First Dawn lab's Hard median is turn 19, counting both players'
+  turns), so the most expensive cards rarely get cast. The owner wants 5 to
+  10 more starting life in 2.0, alongside the return to the original sets;
+  the number waits on a 20 / 25 / 30 measurement. Every scorer rate, test
+  floor and boss tune is measured at 20, so it lands with a full
+  re-measure, and 1.9 (First Dawn included) stays at 20. Details:
+  [plan-road-to-2.0.md](plan-road-to-2.0.md#starting-life-a-20-direction).
+- **Every keyword in every set (owner, 2026-09-29).**
+  - Each set carries all 13 evergreen keywords. Small sets add a handful of
+    returning set mechanics as one- or two-card cameos; Large sets (2.0's Core
+    Set II) carry every named mechanic too.
+  - **First Dawn** fills its gaps before the cut: First Blade, Twin Blades and
+    Blood Oath.
+  - **The ten shipped sets** get a backfill (approved; proposed for 1.9.x
+    beside D8), either as extra cards or as keywords added to underpowered
+    cards that fit.
+  - **A data check** makes every new set carry all 13, starting with First
+    Dawn.
+  - Details: [plan-1.9.md](plan-1.9.md), the decisions record and "Moved out of
+    1.9".
 - **Design plans authored 2026-07-05.** Four senior-level design docs, each
   grounded in the current code and respecting the iron invariants —
   **Commander mode and MOD/UGC were greenlit into the 1.1 program

@@ -499,6 +499,21 @@ row text in two places only (the Hunt template, now the ruled bare keyword
 on every Hunt row, and Scar-Knife Witch's "another"); no row is re-costed or
 trimmed before the cut.
 
+**A ninth Ultra Rare (owner, 2026-09-29).** The owner asked for a red
+Ultra Rare like Shivan Dragon with a repeatable pump-attack ability, the
+set's sole red Skyborne card (a red rider on a pterosaur), whose pump works
+as a Charm with a +/- ticker. **The cut's histogram becomes 82 / 49 / 15 /
+11 / 9 = 166** (B3 ruled 8 Ultra Rares and 165; the owner changed it
+deliberately, one card over D2's 150-165). The session's working draft:
+**Vyra, Ember-Sky Rider**, {4}{R}{R} 5/5, Legendary Creature: Human Rider
+(D2), Skyborne, "{R}: This gets +1/+0 until Sunset.", an Ember-clan woman
+on a plain pterosaur (a pie exception at Ultra Rare in the session's
+framing; the brief gives the sky to W/U), protected. The session scheduled
+the pump as **A1.5** (lane A); on the v4 scorer without it she reads 6.43
+against a budget of 7.44 (Δ -1.01), and the pump is NEEDS MATH, valued 0
+until the lab. The overplan carries her row (overlap not yet run) and the
+art bible her entry, whose prompt Fable reviews before the art run.
+
 The rules the rows are written against, all postdating the old list: the
 reserve takes only basics and duals, so the set prints no taplands and no
 utility lands; Duty exists on artifacts, enchantments and creatures; no
@@ -1035,6 +1050,7 @@ Rocket x4 re-measure ([ai.md](ai.md)) join D7's wave-4 pass.
 | **Editable Limited Warchest** | **After 2.0** | The pip-demand-weighted automatic fill from #279 stays the only build |
 | Live spectating ([plan-player-replays.md](plan-player-replays.md) wave 4) | Cancelled | It rode multiplayer, cancelled 2026-08-24 |
 | **Older-set near-duplicates** (D8) | **1.9.x** | A whole-pool review and resolution plan once the comparator is fixed (wave 0); the owner approves the rule and the slate; fixes ship in a 1.9.x patch. **Rule and slate RULED 2026-09-28** (41 cards; [d8-near-duplicate-review.md](d8-near-duplicate-review.md)) |
+| **Keyword backfill of the shipped sets** (the owner approved it 2026-09-29; see the decisions record) | **1.9.x** (proposed, beside D8) | Each shipped set gains the evergreen keywords it lacks, as a handful of extra cards or as keywords added to underpowered cards that fit. The gaps (a keyword a card grants counts, as on the card face): Base (Dreaded); Ragnarok (Bulwark, Untouchable, Dreaded); Celtic Fae (Twin Blades, Rage); Arthurian Court (Dreaded, Rage); Gothic Monsters (Twin Blades); Dark Tales (Twin Blades, Rage); Yokai Nights (Rage); Sands of the Duat (First Blade, Deathblade, Rage); Starborne (Rage); Drowned Deep (Twin Blades, Blood Oath). A backfilled set leaves the data check's grandfather list |
 
 ## Sequencing
 
@@ -1245,7 +1261,7 @@ Numbered so rulings can cite them. Recommendations are the first option.
     applies to Hunt with no Hunt-specific code, while combat-defined
     keywords (First Blade, Twin Blades, Overrun) do not. Also ruled: Bulwark prevents Hunt at any rarity (a
     Bulwark creature can be prey, never the hunter); no reserved Provoked
-    art tell; 165 cards; Provoked at most once per turn per creature; the
+    art tell; 165 cards (superseded 2026-09-29: 166); Provoked at most once per turn per creature; the
     red-green and red-white sweep personas (D12); the three-row vocabulary
     threshold.
   - **The accessibility plan and the art streaming design are APPROVED**
@@ -1311,6 +1327,53 @@ Numbered so rulings can cite them. Recommendations are the first option.
     design, one Pack Raptor, and **P16 went the other way:** the shipped
     catalogue is re-cropped to the y 179 head line now, wherever the raw
     is cached. See lane B.
+- **A ninth Ultra Rare, the set's Shivan Dragon (the owner, 2026-09-29).**
+  The owner asked for "a Red UR card similar to Shivan Dragon, with a
+  repeatable Pump-Attack ability", then ruled three questions:
+  - **The sky.** She is the sole red Skyborne card: a red rider, a woman on
+    a Skyborne pterosaur.
+  - **The pump.** It works as a Charm (Charm speed; in the rules that
+    includes after blockers), and the Duel UI gives it a small +/- ticker
+    for a "single cast" pump instead of asking about every mana.
+  - **The count.** Ultra Rare rises from 8 to 9: 82 / 49 / 15 / 11 / 9 =
+    166, a deliberate change to the B3 histogram, and one card over D2's
+    150-165 range (the wave-1 sitting's "165 cards" is superseded).
+
+  **The working draft (the session's, not ruled):** Vyra, Ember-Sky Rider,
+  {4}{R}{R} 5/5, Legendary Creature: Human Rider (D2), Skyborne, "{R}: This
+  gets +1/+0 until Sunset.", of the Ember clan; red Skyborne framed as a
+  pie exception at Ultra Rare; the pump scheduled as A1.5, narrow, and
+  priced at 0 (NEEDS MATH) until the lab. On the v4 scorer without the pump
+  she reads 6.43 against a budget of 7.44 (Δ -1.01). Owed: the overlap
+  comparator, the rescore, and Fable's review of the art prompt. See lane
+  B.
+- **Starting life: a 2.0 change, so 1.9 stays at 20 (the owner, 2026-09-29).** The owner
+  aimed a 5-10 increase in starting life at 2.0, with Core Set II
+  ([plan-road-to-2.0.md](plan-road-to-2.0.md#starting-life-a-20-direction)).
+  First Dawn's costs, the A1.4 rates and every 1.9 gate are measured at 20.
+- **Keyword coverage in every set (the owner, 2026-09-29).** "My goal is for
+  every keyword to have SOME representation in all sets; but we've been bad
+  about it. Maybe we pick a handful of missing "Set Keywords" to incorporate
+  as onsies-twosies in "small" sets, and we look to have the full gambit in
+  "Large" sets?"
+  - **First Dawn** (a Small set) carries all 13 keywords. Today it lacks
+    First Blade, Twin Blades and Blood Oath.
+  - It also takes a handful of returning set mechanics as one- or two-card
+    cameos, the owner's pick from a proposal (in progress). This supersedes,
+    in part, the brief's "Nine Lives, Hauntlink, Whispers, Tithe, Rite,
+    Preserve and Quest stay out".
+  - **Large sets** (2.0's Core Set II) carry every keyword and named
+    mechanic.
+  - **Backfill of the shipped sets: approved** (the owner: "either a handful
+    of extra cards, or adding keywords to underpowered cards that fit
+    thematically"). None of the ten shipped sets carries all 13 keywords.
+    - Extra cards change a shipped set's rarity histogram, which the owner
+      had locked. This approval covers that.
+    - The session proposes the 1.9.x patch, beside the D8 near-duplicate
+      fixes. See the table under "Moved out of 1.9".
+  - **A data check (the owner):** every new set must carry all 13 keywords,
+    starting with First Dawn. The shipped sets are grandfathered until their
+    backfill lands, then leave the list.
 - **The `research/` ignore rule** from the owner's local `.gitignore` is
   committed, so third-party research material never reaches the public
   repo.

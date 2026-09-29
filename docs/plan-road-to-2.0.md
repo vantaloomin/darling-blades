@@ -275,6 +275,8 @@ Every Road-to-2.0 feature, and where it lands.
 | Cloud saves / accounts | **Spec'd + decisions ruled 2026-08-28** ([spec](plan-telemetry-and-accounts.md), [rollout](rollout-telemetry-and-accounts.md)), no code | 2.1 |
 | Anonymous telemetry | **Shipped 1.8** (save v35, `playSignals`, the Worker, the first-run notice) | — |
 | UGC / mods | Spec'd, no code | 2.1 |
+| Async PvP (challenge codes, Hard AI pilot) | Proposal 2026-09-29, no code ([plan](plan-async-pvp.md)) | 2.1+ (not scheduled) |
+| Starting life above 20 (5 to 10 more) | Owner direction 2026-09-29; the size waits on a measurement; no code ([below](#starting-life-a-20-direction)) | 2.0, with Core Set II |
 | Multiplayer | **CANCELLED** | — |
 
 Cloud saves **was** the only item with neither a plan doc nor code, and it is
@@ -291,11 +293,65 @@ came out of the same investigation, is far cheaper than accounts, and lands at
 1.8 rather than 2.1 on the grounds that a trend line is worth what its length is
 worth.
 
+## Starting life: a 2.0 direction
+
+Owner, 2026-09-29: raise the starting life total by 5 to 10 ("I also think we
+should increase the health pool by 5-10"), aimed at 2.0 alongside Core Set II,
+the return to the original sets: "If we are never getting to even playing 10
+lands, a lot of our most expensive cards are never being played."
+
+**The data behind it.** `state.turn` counts each player's turn, so a round is
+two turns:
+
+| Source | Games | Median turns | 90th percentile |
+| --- | --- | --- | --- |
+| First Dawn lab, Hard AI (2026-09-28/29) | 525k | 19 (about 10 rounds) | 31 |
+| First Dawn lab, Medium AI | 108k | 17 | 30 |
+| Duat balance pass, Hard (2026-08-20) | 20k | 17-18 | 27-29 |
+| Duat balance pass, Easy | 20k | 16 | 22 |
+
+- Each player gets about nine turns in a typical game. Even with a land every
+  turn, the 8- and 9-cost cards come online only in the last turn or two, if
+  at all.
+- About 79% of the lab's games were over by round 12.
+- The play stats record a game-length band, but no player duel reports have
+  arrived since 1.8, so these are AI-vs-AI numbers only.
+
+**Why 2.0 and not 1.9:**
+- Every scorer rate that touches damage, reach, lifegain or paying life is
+  measured at 20 life.
+- So is every test floor and boss tune.
+- First Dawn is costed at 20.
+- 2.0 already reopens the original sets, so the change can land with one full
+  re-measure instead of two.
+
+**What it touches:**
+- `RULES.startingLife`;
+- the v4 scorer's life-related terms;
+- every win-rate floor and boss tune;
+- rules, glossary and tutorial copy that says 20;
+- replays recorded under the old total;
+- the Hard AI's time per game, which grows with game length;
+- the board cap, since longer games fill boards more.
+
+**Open: the number.**
+- The board-cap study (2026-09-29) carries a 20 / 25 / 30 arm across a broad
+  field of decks. It reports:
+  - game length and how games end;
+  - each archetype's win-rate shift;
+  - the lands in play at the end, and how often cards of each cost get cast.
+- It is 2.0 input and runs after 1.9 ships (owner, 2026-09-29).
+- Nothing is built.
+
 ## Multiplayer is cancelled
 
 Owner decision 2026-08-24. [plan-multiplayer.md](plan-multiplayer.md) is
 retained as a design record and marked cancelled at its head; nothing should be
 planned against it.
+
+Async PvP ([plan-async-pvp.md](plan-async-pvp.md), a post-2.0 proposal of
+2026-09-29) is consistent with this ruling: the opponent is a local Hard AI
+playing a shared deck code, with no network, server or P2P connection.
 
 The README promised LAN multiplayer in two places and has been corrected. That
 mattered: a promise in shipped copy that will not be kept is the same failure
