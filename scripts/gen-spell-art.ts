@@ -31,7 +31,14 @@
  *   npx tsx scripts/gen-spell-art.ts [--only id1,id2] [--limit N]
  *                                    [--dry-run] [--show-prompt] [--force] [--cli <path>]
  *   npx tsx scripts/gen-spell-art.ts --recrop <file> [--out-dir <path>]
+ *   npx tsx scripts/gen-spell-art.ts --spec <file> --out-dir <path> [--only ...]
  *
+ *   --spec <file>     read prompts from this draft file instead of
+ *                     docs/spell-art.md and skip the 369-id roster check (a set
+ *                     with no card data yet, such as the First Dawn pilot);
+ *                     requires --out-dir
+ *   --out-dir <path>  write the WebPs here instead of public/assets/art/cards
+ *                     and skip gen-art-manifest; must lie outside public/
  *   --only a,b        only these card ids
  *   --limit N         generate at most N images this run (skips don't count)
  *   --dry-run         list what would generate, touch nothing
@@ -52,7 +59,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { convertPngToWebp } from './convert-art-webp';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -281,6 +288,7 @@ const PYTHON = process.env.PYTHON ?? (process.platform === 'win32' ? 'python' : 
 // --- arg parsing ---------------------------------------------------------------
 
 interface Args {
+  spec?: string;
   only?: string[];
   limit?: number;
   recrop?: string;
@@ -301,6 +309,7 @@ function parseArgs(argv: string[]): Args {
       return v;
     };
     if (a === '--only') args.only = next(a).split(',').map((s) => s.trim()).filter(Boolean);
+    else if (a === '--spec') args.spec = next(a);
     else if (a === '--recrop') args.recrop = next(a);
     else if (a === '--out-dir') {
       const value = next(a);
@@ -325,6 +334,17 @@ function fail(msg: string): never {
   process.exit(1);
 }
 
+/** Whether `child` is `parent` or lies under it (case-insensitive on Windows). */
+function isSameOrInside(child: string, parent: string): boolean {
+  const norm = (value: string) => {
+    const n = normalize(resolve(value));
+    return process.platform === 'win32' ? n.toLowerCase() : n;
+  };
+  const c = norm(child);
+  const p = norm(parent);
+  return c === p || c.startsWith(p.endsWith(sep) ? p : `${p}${sep}`);
+}
+
 // --- spell-art.md parsing --------------------------------------------------------
 
 interface Entry {
@@ -347,9 +367,14 @@ interface SmartcropResult {
   achievedOffsetY: number;
 }
 
-/** (card-id → prompt) pairs from docs/spell-art.md, in file order. */
-function parseSpec(): Entry[] {
-  const content = readFileSync(specPath, 'utf8');
+/**
+ * (card-id → prompt) pairs from docs/spell-art.md, in file order. A draft
+ * `path` (--spec) skips the roster check: its ids are not in EXPECTED_IDS by
+ * design, and it only ever writes to an --out-dir.
+ */
+function parseSpec(path: string = specPath): Entry[] {
+  const draft = path !== specPath;
+  const content = readFileSync(path, 'utf8');
   const entries: Entry[] = [];
   let open: Entry | null = null;
   for (const line of content.split(/\r?\n/)) {
@@ -365,7 +390,13 @@ function parseSpec(): Entry[] {
 
   const missing = entries.filter((e) => e.prompt === '');
   if (missing.length > 0) {
-    fail(`spell-art.md: entries missing a Prompt field: ${missing.map((e) => e.id).join(', ')}`);
+    fail(`${basename(path)}: entries missing a Prompt field: ${missing.map((e) => e.id).join(', ')}`);
+  }
+  if (draft) {
+    const ids = entries.map((e) => e.id);
+    const dupes = ids.filter((id, i) => ids.indexOf(id) !== i);
+    if (dupes.length) fail(`${basename(path)}: duplicated ids: ${[...new Set(dupes)].join(', ')}`);
+    return entries;
   }
 
   // Cross-check against the expected ids so a dropped/renamed/reordered entry
@@ -593,9 +624,10 @@ function generateOne(
   cliArgv: string[],
   entry: Entry,
   force: boolean,
+  targetDir: string,
 ): { ok: boolean; error?: string; reusedRaw?: boolean } {
   const rawPath = join(rawDir, `${entry.id}.raw.png`);
-  const outPath = join(outDir, `${entry.id}.webp`);
+  const outPath = join(targetDir, `${entry.id}.webp`);
   const tmpPath = `${outPath}.tmp.png`;
   const prompt = assemblePrompt(entry);
 
@@ -656,20 +688,31 @@ function generateOne(
 function main(): void {
   const args = parseArgs(process.argv.slice(2));
   if (args.recrop) {
-    if (args.only || args.limit !== undefined || args.showPrompt || args.force || args.cli) {
+    if (args.spec || args.only || args.limit !== undefined || args.showPrompt || args.force || args.cli) {
       fail('--recrop cannot be combined with generation filters or --force/--cli');
     }
     runRecrop(args.recrop, args.dryRun, args.outDir);
     return;
   }
-  if (args.outDir !== undefined) fail('--out-dir is only valid with --recrop');
+  // --out-dir in generation mode writes somewhere the game never reads and
+  // skips the manifest, so a draft set's ids can never ship by accident. A
+  // draft --spec must use it; the target may not lie anywhere under public/.
+  const targetDir = args.outDir === undefined ? outDir : resolve(root, args.outDir);
+  if (args.outDir !== undefined && isSameOrInside(targetDir, join(root, 'public'))) {
+    fail('--out-dir must lie outside public/ (the game serves everything under it)');
+  }
+  if (args.spec !== undefined && args.outDir === undefined) {
+    fail('--spec requires --out-dir (a draft spec never writes shipped art)');
+  }
+  const specFile = args.spec === undefined ? specPath : resolve(root, args.spec);
+  if (!existsSync(specFile)) fail(`spec file not found: ${specFile}`);
 
-  let entries = parseSpec();
+  let entries = parseSpec(specFile);
 
   if (args.only) {
     const known = new Set(entries.map((e) => e.id));
     const unknown = args.only.filter((id) => !known.has(id));
-    if (unknown.length > 0) fail(`--only ids not in spell-art.md: ${unknown.join(', ')}`);
+    if (unknown.length > 0) fail(`--only ids not in ${basename(specFile)}: ${unknown.join(', ')}`);
     const wanted = new Set(args.only);
     entries = entries.filter((e) => wanted.has(e.id));
   }
@@ -685,14 +728,15 @@ function main(): void {
     return;
   }
 
-  const exists = (e: Entry) => existsSync(join(outDir, `${e.id}.webp`));
+  const exists = (e: Entry) => existsSync(join(targetDir, `${e.id}.webp`));
   const skipped = args.force ? [] : entries.filter(exists);
   let todo = args.force ? entries : entries.filter((e) => !exists(e));
   if (args.limit !== undefined) todo = todo.slice(0, args.limit);
 
   console.log(
     `gen-spell-art: ${entries.length} spell entr${entries.length === 1 ? 'y' : 'ies'} matched — ` +
-      `${todo.length} to generate, ${skipped.length} already on disk`,
+      `${todo.length} to generate, ${skipped.length} already on disk in ${targetDir}` +
+      (args.outDir !== undefined ? ' (out-dir: gen-art-manifest will not run)' : ''),
   );
 
   if (args.dryRun) {
@@ -708,7 +752,7 @@ function main(): void {
     return;
   }
 
-  mkdirSync(outDir, { recursive: true });
+  mkdirSync(targetDir, { recursive: true });
   mkdirSync(rawDir, { recursive: true });
   const cliArgv = resolveCli(args.cli);
 
@@ -729,7 +773,7 @@ function main(): void {
     const entry = todo[i];
     const t0 = Date.now();
     process.stdout.write(`[${i + 1}/${todo.length}] ${entry.id} … `);
-    const res = generateOne(cliArgv, entry, args.force);
+    const res = generateOne(cliArgv, entry, args.force, targetDir);
     const secs = ((Date.now() - t0) / 1000).toFixed(1);
     if (res.ok) {
       generated++;
@@ -757,7 +801,7 @@ function main(): void {
   );
   for (const f of failures) console.error(`  FAIL ${f.id}: ${f.error}`);
 
-  if (generated > 0) {
+  if (generated > 0 && args.outDir === undefined) {
     const manifest = spawnSync('npm run gen-art-manifest', { shell: true, stdio: 'inherit' });
     if (manifest.status !== 0) fail('gen-art-manifest failed — run `npm run gen-art-manifest` manually');
   }
