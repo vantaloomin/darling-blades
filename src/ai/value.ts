@@ -1,5 +1,7 @@
 import { castCost, type Action } from '../engine/actions';
 import { RULES } from '../config/rules';
+import { cardHasProvoked } from '../engine/creatureDamage';
+import { arrivalHuntIndex } from '../engine/effects/EffectInterpreter';
 import { combineManaCosts, solveMana } from '../engine/mana';
 import { castTargetSpecsFor } from '../engine/resolve';
 import { getEffectiveStats, isQuestActive } from '../engine/statics';
@@ -227,6 +229,9 @@ interface TargetContext {
   source: Permanent | undefined;
   ability: Pick<AbilityDef, 'ops'>;
   includeActivated: boolean;
+  /** A creature being cast whose own Hunt is valued before it is on the
+   * battlefield (an arrival Hunt's prey, an Empower Hunt). */
+  hunterCardId?: string;
 }
 
 function permanentFor(ctx: TargetContext, ref: TargetRef): Permanent | undefined {
@@ -274,7 +279,214 @@ function damageTargetValue(ctx: TargetContext, op: Extract<EffectOp, { op: 'dama
   const impact = lethal
     ? permanentRemovalValue(ctx, perm)
     : op.n * 0.45 + perm.plusOneCounters * 0.15;
-  return impact * harmSign(ctx, ref);
+  // A creature that survives the damage is provoked: a friendly source earns
+  // its own creature's Provoked effect, and provoking theirs is a cost.
+  const provoked = lethal || op.n <= 0 || !unspentProvoked(ctx.db, perm) ? 0 : signedProvokedValue(
+    battlefieldAfterDamage(ctx.view.battlefield, ctx.db, new Map([[perm.iid, { damage: op.n, deathblade: false }]])),
+    ctx.db, ctx.view.myId, perm.iid);
+  return impact * harmSign(ctx, ref) + provoked;
+}
+
+/**
+ * The Provoked ability a creature still has unspent this turn (Provoked is
+ * once each turn, spent in `firedThisTurn` by its ability index), or none.
+ * Zero cost on a card without Provoked: the cached card test comes first.
+ */
+function unspentProvoked(db: CardDb, perm: Permanent): AbilityDef | undefined {
+  const d = def(db, perm.cardId);
+  if (!cardHasProvoked(d)) return undefined;
+  const index = (d.abilities ?? []).findIndex((ability) => ability.when === 'provoked');
+  return perm.firedThisTurn?.includes(index) ? undefined : d.abilities![index];
+}
+
+/** The public-board-only projection a board-shaped potential is scored in:
+ * the battlefield, seen by `controller`, with no hand, deck or graveyard. */
+function neutralView(battlefield: readonly Permanent[], controller: PlayerId): PlayerView {
+  return {
+    myId: controller, activePlayer: controller, startingPlayer: controller,
+    turn: 0, step: 'main2', battlefield: [...battlefield], stack: [], combat: null,
+    fogThisTurn: false, awaiting: { kind: 'main', player: controller }, winner: null,
+    you: { life: 0, hand: [], deckCount: 0, graveyard: [], whispersLive: [], severed: [], landDropsRemaining: 0, mulligans: 0 },
+    opp: { life: 0, handCount: 0, deckCount: 0, graveyard: [], whispersLive: [], severed: [], landDropsRemaining: 0, mulligans: 0 },
+  };
+}
+
+/** Nested Provoked reads are not followed: an effect that provokes another
+ * creature is priced by its own ops only, so no chain can recurse. */
+let provokedDepth = 0;
+
+/**
+ * What a creature's unspent Provoked is worth to its controller if it fires
+ * now, on `battlefield` (the board after the damage that provokes it: the dead
+ * gone, the damage marked). The effect is scored the way a Duty's use is
+ * (`activatedAbilityValue`): its best legal targets on the public board, from
+ * its controller's side; a targeted effect with no legal target does not fire
+ * and is worth 0. Never negative, and 0 for a creature without an unspent
+ * Provoked, so no board without one reads anything here.
+ */
+export function provokedValue(battlefield: readonly Permanent[], db: CardDb, perm: Permanent): number {
+  if (provokedDepth > 0) return 0;
+  const ability = unspentProvoked(db, perm);
+  if (!ability) return 0;
+  provokedDepth++;
+  try {
+    const view = neutralView(battlefield, perm.controller);
+    const source = view.battlefield.find((p) => p.iid === perm.iid) ?? perm;
+    let lists: TargetRef[][] = [[]];
+    for (const spec of ability.targets ?? []) {
+      const refs = activatedPotentialTargets(view, db, source, spec);
+      lists = lists.flatMap((chosen) => refs.map((ref) => [...chosen, ref]));
+    }
+    const ops = ability.ops ?? [];
+    const score = (targets: TargetRef[]): number => activatedOpsImpact(ops, {
+      view: { ...view, you: { ...view.you }, battlefield: activatedWritesMarks(ops) ? view.battlefield.map((p) => ({ ...p })) : view.battlefield },
+      db, source, live: false, targets, targetBatch: false,
+    });
+    return Math.max(0, ...lists.map(score)) * abilityConditionMultiplier(ability.condition);
+  } finally {
+    provokedDepth--;
+  }
+}
+
+/**
+ * The signed Provoked value of the survivor `iid` on `after` (the board once
+ * the damage that provokes it is marked and its dead are gone): plus for a
+ * creature `me` controls, minus for an opponent's. 0 when it is not on that
+ * board or has no unspent Provoked.
+ */
+function signedProvokedValue(after: readonly Permanent[], db: CardDb, me: PlayerId, iid: number): number {
+  const survivor = after.find((perm) => perm.iid === iid);
+  if (!survivor) return 0;
+  const value = provokedValue(after, db, survivor);
+  return survivor.controller === me ? value : -value;
+}
+
+/** Mark each hit's damage and drop the creatures it kills (the state-based
+ * check's test: lethal damage, or any damage from a Deathblade source).
+ * `dies`, when given, replaces that test for the creatures dealt damage (the
+ * Hunt has already judged them, with a pump the board does not show). */
+function battlefieldAfterDamage(
+  battlefield: readonly Permanent[], db: CardDb,
+  dealt: ReadonlyMap<number, { damage: number; deathblade: boolean }>,
+  dies?: (perm: Permanent) => boolean,
+): Permanent[] {
+  const lethal = (perm: Permanent, hit: { damage: number; deathblade: boolean }): boolean => hit.damage > 0 &&
+    (hit.deathblade || perm.damage + hit.damage >= getEffectiveStats(battlefield, db, perm.iid).defense);
+  return battlefield.flatMap((perm) => {
+    const hit = dealt.get(perm.iid);
+    if (!hit || hit.damage <= 0) return [perm];
+    return (dies ? dies(perm) : lethal(perm, hit)) ? [] : [{ ...perm, damage: perm.damage + hit.damage }];
+  });
+}
+
+/** A creature card as it would stand on the battlefield the moment it
+ * arrives under `controller`, for valuing its own arrival or Empower Hunt. */
+function arrivingPermanent(cardId: string, controller: PlayerId): Permanent {
+  return {
+    iid: -1, cardId, owner: controller, controller, tapped: false, enteredThisTurn: true,
+    damage: 0, deathtouched: false, severBranded: false, attachments: [], plusOneCounters: 0, untilEotMods: [],
+  };
+}
+
+/** A pump earlier in the same effect, by iid (Fang and Horn's +2/+2 before its Hunt). */
+type HuntMods = ReadonlyMap<number, { p: number; t: number; keywords: readonly Keyword[] }>;
+
+/**
+ * The value, to `view.myId`, of `hunterIid` hunting `preyIid` on
+ * `battlefield` (plan-first-dawn-engine.md, Part 4, item 1). The exchange is
+ * simulated on the public board as the engine resolves it: each deals its
+ * Attack (after `mods`) to the other at once, 0 or less deals nothing, marked
+ * damage counts, Deathblade makes any damage lethal, and a hunter with Bulwark
+ * does nothing. Then: the prey's removal value if it dies (a gain when an
+ * opponent controls it, a cost when you do), minus the hunter's value if it
+ * dies, each Blood Oath's life, and each survivor's unspent Provoked (plus
+ * for yours, minus for theirs). So killing and surviving beats trading, and a
+ * Hunt that only provokes an opposing creature is worth less than nothing.
+ * Damage that kills nobody is worth nothing in itself: it wears off at the
+ * end of the turn.
+ */
+export function huntExchangeValue(
+  view: PlayerView, db: CardDb, battlefield: readonly Permanent[], hunterIid: number, preyIid: number,
+  mods?: HuntMods, includeActivated = true,
+): number {
+  const hunter = battlefield.find((perm) => perm.iid === hunterIid);
+  const prey = battlefield.find((perm) => perm.iid === preyIid);
+  if (!hunter || !prey || hunter.iid === prey.iid ||
+    !isType(def(db, hunter.cardId), 'creature') || !isType(def(db, prey.cardId), 'creature')) return 0;
+  const side = (perm: Permanent) => {
+    const stats = getEffectiveStats(battlefield, db, perm.iid);
+    const mod = mods?.get(perm.iid);
+    const keywords = new Set<Keyword>([...stats.keywords, ...(mod?.keywords ?? [])]);
+    return { attack: Math.max(0, stats.attack + (mod?.p ?? 0)), defense: stats.defense + (mod?.t ?? 0), keywords };
+  };
+  const h = side(hunter);
+  if (h.keywords.has('bulwark')) return 0;
+  const p = side(prey);
+  const dies = (perm: Permanent, defense: number, damage: number, deathblade: boolean): boolean =>
+    damage > 0 && (deathblade || perm.damage + damage >= defense);
+  const preyDies = dies(prey, p.defense, h.attack, h.keywords.has('deathblade'));
+  const hunterDies = dies(hunter, h.defense, p.attack, p.keywords.has('deathblade'));
+  const me = view.myId;
+  const lost = (perm: Permanent): number =>
+    Math.max(0, removalTargetValue(battlefield, db, perm, includeActivated)) * (perm.controller === me ? -1 : 1);
+  let value = 0;
+  if (preyDies) value += lost(prey);
+  if (hunterDies) value += lost(hunter);
+  const lifeGain = (perm: Permanent, keywords: ReadonlySet<Keyword>, damage: number): number =>
+    keywords.has('bloodoath') && damage > 0 ? damage * 0.35 * (perm.controller === me ? 1 : -1) : 0;
+  value += lifeGain(hunter, h.keywords, h.attack) + lifeGain(prey, p.keywords, p.attack);
+  const provokable = (perm: Permanent, damage: number, died: boolean): boolean =>
+    damage > 0 && !died && unspentProvoked(db, perm) !== undefined;
+  const hunterProvoked = provokable(hunter, p.attack, hunterDies);
+  const preyProvoked = provokable(prey, h.attack, preyDies);
+  if (hunterProvoked || preyProvoked) {
+    const dealt = new Map([
+      [prey.iid, { damage: h.attack, deathblade: h.keywords.has('deathblade') }],
+      [hunter.iid, { damage: p.attack, deathblade: p.keywords.has('deathblade') }],
+    ]);
+    const after = battlefieldAfterDamage(battlefield, db, dealt, (perm) => perm.iid === prey.iid ? preyDies : hunterDies);
+    if (hunterProvoked) value += signedProvokedValue(after, db, me, hunter.iid);
+    if (preyProvoked) value += signedProvokedValue(after, db, me, prey.iid);
+  }
+  return value;
+}
+
+/** A source-bound Hunt (`hunter: 'self'`) on one prey: the source when it is
+ * on the battlefield, else the creature being cast (`hunterCardId`). */
+function selfHuntValue(ctx: TargetContext, ref: TargetRef): number {
+  if (ref.kind !== 'permanent') return 0;
+  if (ctx.source && ctx.view.battlefield.some((perm) => perm.iid === ctx.source!.iid)) {
+    return huntExchangeValue(ctx.view, ctx.db, ctx.view.battlefield, ctx.source.iid, ref.iid, undefined, ctx.includeActivated);
+  }
+  if (!ctx.hunterCardId) return 0;
+  const arriving = arrivingPermanent(ctx.hunterCardId, ctx.view.myId);
+  return huntExchangeValue(ctx.view, ctx.db, [...ctx.view.battlefield, arriving], arriving.iid, ref.iid, undefined, ctx.includeActivated);
+}
+
+/**
+ * The value of casting `cardId` on `targets` for its arrival Hunt (A1.1b: the
+ * prey is the cast's one target): the arrival ability's ops on that prey, the
+ * Hunt among them, with the arriving creature as the hunter. 0 for a card
+ * without an arrival Hunt, and 0 when its condition is unmet on the public
+ * board (it arrives and does not hunt).
+ */
+export function arrivalHuntCastValue(view: PlayerView, db: CardDb, cardId: string, targets: readonly TargetRef[]): number {
+  const d = def(db, cardId);
+  const index = arrivalHuntIndex(d);
+  const ref = targets[0];
+  if (index < 0 || !ref) return 0;
+  const ability = d.abilities![index];
+  if (!publicCondition(view, db, ability.condition)) return 0;
+  const ctx: TargetContext = { view, db, source: undefined, ability, includeActivated: true, hunterCardId: cardId };
+  return (ability.ops ?? []).reduce((sum, op) => sum + effectOnTarget(ctx, op, ref), 0);
+}
+
+/** Does this card print a Hunt anywhere (abilities, Duties, Empower)? */
+export function cardHasHunt(d: ReturnType<typeof def>): boolean {
+  const hunts = (ops: readonly EffectOp[]): boolean => ops.some((op) => op.op === 'hunt' ||
+    op.op === 'ifTargetMarked' && (hunts(op.then) || hunts(op.else ?? [])));
+  return (d.abilities ?? []).some((ability) => hunts(ability.ops ?? [])) ||
+    activatedAbilitiesOf(d).some((ability) => hunts(ability.ops)) || hunts(d.empower?.ops ?? []);
 }
 
 function boostTargetValue(
@@ -380,6 +592,10 @@ function effectOnTarget(ctx: TargetContext, op: EffectOp, ref: TargetRef): numbe
       // small neutral floor for any caller that ranks the op as a whole.
       return opImpactValue(op);
     }
+    case 'hunt':
+      // The spell form needs both of its targets (spellTargetsValue binds
+      // them); a source-bound Hunt's one target is its prey.
+      return op.hunter === 'self' ? selfHuntValue(ctx, ref) : 0;
     default:
       // Target-independent ops do not break a target tie. Their value is
       // still routed through the shared op-impact machinery for future ops.
@@ -395,27 +611,50 @@ export function targetValueForAbility(
   ability: Pick<AbilityDef, 'ops'>,
   ref: TargetRef,
   includeActivated = true,
+  hunterCardId?: string,
 ): number {
-  const ctx: TargetContext = { view, db, source, ability, includeActivated };
+  const ctx: TargetContext = { view, db, source, ability, includeActivated, hunterCardId };
   return (ability.ops ?? []).reduce((sum, op) => sum + effectOnTarget(ctx, op, ref), 0);
 }
 
-/** Signed target contribution for independently bound spell slots. */
+/**
+ * Signed target contribution for independently bound spell slots. A Hunt is
+ * valued as one exchange: the spell form's slot 0 hunts slot 1, after any
+ * pump the same effect gave it first; a source-bound Hunt on a cast (an
+ * Empower Hunt) is the arriving `hunterCardId` hunting slot 0.
+ */
 export function spellTargetsValue(
   view: PlayerView, db: CardDb, ops: readonly EffectOp[], targets: readonly TargetRef[],
-  batch = false, x = 0,
+  batch = false, x = 0, hunterCardId?: string,
 ): number {
   let value = 0;
+  const pumps = ops.some((op) => op.op === 'hunt') ? new Map<number, { p: number; t: number; keywords: Keyword[] }>() : undefined;
   for (const op of ops) {
     if (!effectOpUsesTarget(op)) continue;
+    if (op.op === 'hunt') {
+      value += op.hunter === 'target'
+        ? spellHuntValue(view, db, targets[0], targets[1], pumps)
+        : targets[0] ? targetValueForAbility(view, db, undefined, { ops: [op] }, targets[0], true, hunterCardId) : 0;
+      continue;
+    }
     const refs = 'targetIndex' in op && op.targetIndex !== undefined ? targets.slice(op.targetIndex, op.targetIndex + 1) :
       batch ? targets : targets.slice(0, 1);
     for (const ref of refs) {
       const resolved = op.op === 'damage' && op.n === 'X' ? { ...op, n: x } : op;
       value += targetValueForAbility(view, db, undefined, { ops: [resolved] }, ref);
+      if (pumps && op.op === 'boost' && ref.kind === 'permanent') {
+        const pump = pumps.get(ref.iid) ?? { p: 0, t: 0, keywords: [] };
+        pumps.set(ref.iid, { p: pump.p + op.p, t: pump.t + op.t, keywords: [...pump.keywords, ...(op.keywords ?? [])] });
+      }
     }
   }
   return value;
+}
+
+/** A spell-form Hunt: the creature in slot 0 hunts the one in slot 1. */
+function spellHuntValue(view: PlayerView, db: CardDb, hunter: TargetRef | undefined, prey: TargetRef | undefined, mods?: HuntMods): number {
+  if (hunter?.kind !== 'permanent' || prey?.kind !== 'permanent') return 0;
+  return huntExchangeValue(view, db, view.battlefield, hunter.iid, prey.iid, mods);
 }
 
 interface ActivatedImpactContext {
@@ -514,10 +753,18 @@ export function opImpactValue(op: EffectOp, activated?: ActivatedImpactContext):
       return op.filter === 'allEnchantments' ? 2.5 : 2;
     case 'destroyNewestOpponentArtifactOrEnchantment':
       return 3;
+    case 'hunt':
+      // Card-shaped: the creatures are unknown, so a Hunt is priced at a
+      // conditional removal floor, half of Empower's destroy. Its board value
+      // is `huntExchangeValue`, which every target decision reads. Provisional.
+      return HUNT_CARD_FLOOR;
     default:
       return 0;
   }
 }
+
+/** A Hunt's card-shaped floor (`opImpactValue`, `empowerValue`): half a destroy. */
+const HUNT_CARD_FLOOR = 1.5;
 
 /** Duty scores a supplied op directly, without a synthetic arrival decision. */
 function activatedTargetImpact(op: EffectOp, ctx: ActivatedImpactContext, ref: TargetRef): number {
@@ -575,6 +822,7 @@ function activatedOpImpact(op: EffectOp, ctx: ActivatedImpactContext): number {
   if (op.op === 'damage') {
     if (op.to === 'controller') return op.n === 'X' ? 0 : -op.n * 0.9;
     if (op.to === 'eachCreature') return symmetricCreatureSweepValue(view.battlefield, db, view.myId, op, false);
+    if (op.to === 'eachYourCreature') return symmetricCreatureSweepValue(view.battlefield, db, view.myId, op, false, source.iid);
     if (op.to === 'eachOpponentCreature') return creatures.filter((perm) => perm.controller !== view.myId)
       .reduce((sum, perm) => sum + activatedTargetImpact({ ...op, to: 'target' }, ctx, { kind: 'permanent', iid: perm.iid }), 0);
   }
@@ -726,13 +974,7 @@ export function activatedAbilityValue(battlefield: readonly Permanent[], db: Car
   const source = battlefield.find((p) => p.iid === iid);
   const ability = source && activatedAbilitiesOf(def(db, source.cardId))[abilityIndex];
   if (!source || !ability) return 0;
-  const view: PlayerView = {
-    myId: source.controller, activePlayer: source.controller, startingPlayer: source.controller,
-    turn: 0, step: 'main2', battlefield: [...battlefield], stack: [], combat: null,
-    fogThisTurn: false, awaiting: { kind: 'main', player: source.controller }, winner: null,
-    you: { life: 0, hand: [], deckCount: 0, graveyard: [], whispersLive: [], severed: [], landDropsRemaining: 0, mulligans: 0 },
-    opp: { life: 0, handCount: 0, deckCount: 0, graveyard: [], whispersLive: [], severed: [], landDropsRemaining: 0, mulligans: 0 },
-  };
+  const view = neutralView(battlefield, source.controller);
   let lists: TargetRef[][] = [[]];
   for (const spec of ability.targets ?? []) {
     const refs = activatedPotentialTargets(view, db, source, spec);
@@ -904,12 +1146,20 @@ function symmetricCreatureSweepValue(
   caster: PlayerId,
   op: Extract<EffectOp, { op: 'damage' | 'boost' }>,
   includeActivated = true,
+  sourceIid?: number,
 ): number {
   const opponent = opponentOf(caster);
   let value = 0;
+  // Damage each creature it survives provokes it (plus for the caster's,
+  // minus for the opponent's): read once the whole sweep's damage is marked.
+  const damage = op.op === 'damage' && op.n !== 'X' ? op.n : 0;
+  const struck: Permanent[] = [];
   for (const perm of battlefield) {
     if (!isType(def(db, perm.cardId), 'creature')) continue;
     if (op.op === 'damage' && op.to === 'eachOpponentCreature' && perm.controller === caster) continue;
+    // "Damage each [other] creature you control" (eachYourCreature).
+    if (op.op === 'damage' && op.to === 'eachYourCreature' &&
+      (perm.controller !== caster || op.other === true && perm.iid === sourceIid)) continue;
     const stats = getEffectiveStats(battlefield, db, perm.iid);
     const remainingDefense = stats.defense - perm.damage;
     const dies =
@@ -921,6 +1171,13 @@ function symmetricCreatureSweepValue(
         ? op.n === 'X' ? 0 : op.n * 0.5
         : (Math.abs(op.p) + Math.abs(op.t)) / 2;
     value += perm.controller === opponent ? impact : -impact;
+    if (damage > 0) struck.push(perm);
+  }
+  if (struck.some((perm) => unspentProvoked(db, perm))) {
+    const after = battlefieldAfterDamage(battlefield, db, new Map(struck.map((perm) => [perm.iid, { damage, deathblade: false }])));
+    for (const perm of struck) {
+      if (unspentProvoked(db, perm)) value += signedProvokedValue(after, db, caster, perm.iid);
+    }
   }
   return value;
 }
@@ -1094,6 +1351,11 @@ export function cardValue(db: CardDb, cardId: string, view?: PlayerView, mode: S
       if (ab.when !== 'spell') continue;
       v += (ab.ops ?? []).reduce((sum, op) => sum + opImpactValue(op), 0) *
         abilityConditionMultiplier(ab.condition, isQuestActive(view.battlefield, db, view.myId));
+      // Damage to each of your own creatures: a cost, less every unspent
+      // Provoked it sets off on a survivor (a friendly source, Part 4 item 2).
+      for (const op of ab.ops ?? []) {
+        if (op.op === 'damage' && op.to === 'eachYourCreature') v += symmetricCreatureSweepValue(view.battlefield, db, view.myId, op);
+      }
     }
     const targets = view.battlefield.filter((p) => mode.targets?.some((ref) => ref.kind === 'permanent' && ref.iid === p.iid));
     if (removalKind(db, cardId, mode) !== 'massDestroy') {
@@ -1163,6 +1425,8 @@ export function empowerValue(db: CardDb, cardId: string): number {
         return 1;
       case 'severSelf':
         return -1.5;
+      case 'hunt':
+        return HUNT_CARD_FLOOR;
       case 'ifTargetMarked':
         return op.then.reduce((sum, nested) => sum + opValue(nested), 0) * 0.6 +
           (op.else ?? []).reduce((sum, nested) => sum + opValue(nested), 0) * 0.4;
