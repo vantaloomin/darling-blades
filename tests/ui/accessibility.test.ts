@@ -15,6 +15,7 @@ import {
   type Palette,
   type TypeRole,
 } from '../../src/ui/accessibility';
+import { A11Y_CELLS } from './a11yCells';
 
 afterEach(() => {
   setAccessibility({ textScale: 1, highContrast: false });
@@ -60,15 +61,16 @@ describe('the role policy (Q3)', () => {
 
   it('sizes each role at 100, 115 and 130% as approved', () => {
     for (const [role, sizes] of Object.entries(APPROVED) as [TypeRole, number[]][]) {
-      TEXT_SCALES.forEach((scale, index) => {
-        expect(resolveTokens({ textScale: scale }).type[role], `${role} @ ${scale}`).toBe(sizes[index]);
-      });
+      for (const cell of A11Y_CELLS) {
+        const index = TEXT_SCALES.indexOf(cell.textScale as (typeof TEXT_SCALES)[number]);
+        expect(resolveTokens(cell).type[role], `${role}, ${cell.name}`).toBe(sizes[index]);
+      }
     }
   });
 
   it('never shrinks a role and never lets a heading fall below the reading text it heads', () => {
-    for (const scale of TEXT_SCALES) {
-      const type = resolveTokens({ textScale: scale }).type;
+    for (const cell of A11Y_CELLS) {
+      const type = resolveTokens(cell).type;
       for (const role of Object.keys(TYPE_BASE) as TypeRole[]) expect(type[role]).toBeGreaterThanOrEqual(TYPE_BASE[role]);
       expect(type.h2).toBeGreaterThan(type.body);
       expect(type.h1).toBeGreaterThan(type.h2);
