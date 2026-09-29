@@ -717,7 +717,7 @@ This register applies to every **First Dawn** art-bible entry, every
 that quotes this bible. The global rules above remain in force. Its source is
 section 11 of the approved identity brief
 ([first-dawn-brief.md](../expansions/drafts/first-dawn-brief.md), approved
-2026-09-28); the pilot entries live in [first-dawn.md](first-dawn.md).
+2026-09-28); the set's entries, the pilot's survivors among them, live in [first-dawn.md](first-dawn.md).
 
 First Dawn is **the morning the sun first rose.** The clans of the Cradle, a
 green valley inside a ring of smoking mountains, believe the sun was born
@@ -844,7 +844,7 @@ the Dinokin skin, not a species feature"). The species sheet:
 | **Armourback** | rows of flat bony plates along shoulders and forearms; one heavy tail ending in a bony club; a broad low build |
 | **Tyrant** | one massive tail; a row of short bony ridges above the brows; serrated fangs visible when the mouth is open |
 | **Skywing** | leathery membrane wings from the shoulder blades, never from the arms (two ordinary arms and hands); a backswept head crest; no tail |
-| **Swimmer** *(beyond the brief's six; for the owner's nod)* | one long flat paddle tail; small fin ridges on forearms and calves; a slick wet sheen on the skin |
+| **Swimmer** *(beyond the brief's six; ratified 2026-09-29)* | one long flat paddle tail; small fin ridges on forearms and calves; a slick wet sheen on the skin |
 
 Every Dinokin tail is stated with its count, root and tip: "exactly one
 tail, emerging from the base of her spine at the tailbone, never from her
@@ -1165,7 +1165,75 @@ and the token's entry in `constructs-and-tokens.md` must both match them.
   flesh; not a Dinosaur, because the fossil is dead. **Glider** `tok-glider`
   `U` 1/1 Dinosaur, Skyborne: a small pterosaur, leathery membrane wings from
   one long wing finger to the hind legs, a backswept head crest, no feathers,
-  no tail.
+  no tail, a slate-blue back, a bone-ivory belly and pale sandstone wing
+  membranes the sun shows through (the token entry's colour, which every
+  Glider in the set matches, so none is painted cyan).
+- **The First Dawn named cast** — every legend and named woman of the set,
+  one look each; any entry that shows her again matches it. **Kesh**
+  (`fd-kesh-raptor-rider`), an Ember-clan rider in her late twenties, lean
+  and long-legged, warm brown skin, one low black braid, ochre cheek stripes,
+  riding the Pack Raptor design. **Korru** (`fd-korru-eldest-tracker`), the
+  Fern clan's eldest tracker, late fifties, deep brown weathered skin,
+  grey-streaked black hair in one low braid, a long flint spear, facing the
+  plain tyrant. **Asha and Shree** (`fd-sky-riders-pact`): Asha, a Sky-clan
+  rider in her thirties, fair freckled skin, pale blonde hair under a close
+  leather cap; Shree, her large plain pterosaur; two Gliders fly with them.
+  **Tahla** (`fd-tahla-shepherdess`, rung 27), thirties, sun-browned skin,
+  thick auburn hair in a low plait, a tall pale crook with a bone hook, one
+  Hatchling at her hand, three long-necks far behind. **Oru**
+  (`fd-oru-tyrant-queen`, rung 28), a Dinokin Tyrant in her thirties, bronze
+  skin, long dark-red hair, a low amber-and-bone circlet, a plain tyrant at
+  her shoulder. **Vyra** (`fd-vyra-ember-sky`), the Ember clan's sky rider,
+  thirties, deep bronze skin, dark auburn hair cropped at the jaw, ochre and
+  ash stripes, on a plain rust-red pterosaur with amber-ochre wing
+  membranes. **Vessa** (`fd-vessa-great-horn`), the Fern clan's Great Horn, a
+  Dinokin Hornback in her forties, very tall, deep umber skin, a long
+  silver-white braid, the longest brow horns in the valley (bone ivory banded
+  with sandstone), bare-handed. **Ashka** (`fd-ashka-fire-walker`), the Ember
+  clan's fire-walker, late thirties, dark copper-brown skin, long black hair
+  with one ash-grey streak, ochre cheek stripes and ash-white forearm bands,
+  carrying the ember horn (a hollow aurochs horn of live coals, plain grooved
+  bands). **Sefa** (`fd-sefa-first-fire`), keeper of the Hearth clan's First
+  Fire, late thirties, warm light-brown skin freckled across the nose,
+  hearth-ash white hair in one heavy low braid wound with amber beads, amber
+  eyes, an antler fire-fork at the ring hearth. **Nyra**
+  (`fd-nyra-cliff-nests`), the Sky clan's queen, a Dinokin Skywing in her
+  late thirties, deep umber-brown skin, black hair in one thick low braid, a
+  flat circlet of amber and bone beneath her crest, one Glider at her side.
+  **Kree** (`fd-kree-wind-crest`), a Sky-clan Dinokin Skywing in her late
+  twenties, freckled tan skin, copper-red hair cropped short, the long
+  backswept Wind-Crest. **Oshka** (`fd-oshka-tar-mother`), the Tar clan's
+  mother, fifties, tall and heavy-set, deep umber skin, long grey-streaked
+  black hair in one heavy low braid, two ash-grey bands across her
+  cheekbones, a long ash-grey hide mantle, a bone-hooked staff, one Tar-Bones
+  risen behind her. **Nirra** (`fdc-nirra-bo`), the Tar clan's ash-witch,
+  early thirties, lean and long-necked, olive skin, jaw-length black hair
+  dusted pale with ash, one ash-grey band across her eyes, one obsidian
+  knife.
+- **The First Dawn plain beasts** — one design each, shared by every entry
+  that draws the animal; a plain beast is never a Dinokin and carries no
+  species tells. The **plain tyrant** (Korru's): olive-and-rust scales, small
+  bony ridges above the eyes, two small forelimbs, two massive legs, one
+  massive tail. The **plain horned beast** (The Horned Herd's adult, the
+  Hatchling's parent): three bone-ivory horns, a broad scalloped frill,
+  olive-green hide with sandstone mottling, one short thick blunt tail. The
+  **plain sauropod** (Great-Horn Herder's): grey-green hide with pale
+  dappled flanks, four pillar legs, one long tail tapering to a thin tip.
+  The **plain armoured beast** (`fd-plated-grazer`): a low broad four-legged
+  plant-eater, rows of flat bony plates along back and flanks, a small low
+  head, olive hide with sandstone-and-moss plates, one heavy tail ending in
+  one bony club. The **plain woolly mammoth** (`fd-tusk-and-claw`): shaggy
+  russet-brown wool, a high domed head, small ears, one trunk, two long
+  curved ivory tusks, four pillar legs, one short tufted tail. The **woolly
+  rhinoceros** (`fd-grip-of-the-old-beast`): two nose horns one behind the
+  other, the front one longer, a shaggy russet-brown wool coat over the
+  shoulders, four pillar legs, one short tufted tail. The **wild raptor**
+  (the green batch's prey): the Pack Raptor's build in olive feathers barred
+  with ochre, so it never reads as the red Pack Raptor token. The **Sky
+  clan's riding pterosaur** (`fdc-cliff-top-scout-preserve`,
+  `fd-egg-snatcher`): larger than a Glider, dun-grey hide, pale sandstone
+  wing membranes, a paler belly, a backswept crest, no feathers, no tail,
+  ridden in a hide saddle at the base of its neck.
 - **Places (First Dawn)** — the Cradle (the green valley inside a ring of
   smoking mountains), the Long Grass (the fern plain where the herds cross),
   the Cliff Nests (the Sky clan's sea cliffs), the Ice Wall (the glacier at

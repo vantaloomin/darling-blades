@@ -1,13 +1,13 @@
 /**
- * Generates real card art for the 369 non-creature SPELL/ARTIFACT/LAND prompt
+ * Generates real card art for the 417 non-creature SPELL/ARTIFACT/LAND prompt
  * entries: the 85 primary entries (18 instants, 16 sorceries, 10 enchantments,
  * 1 artifact, + 9 Ragnarök spells/runes, + 31 Gothic Monsters
  * charms/rituals/enchantments/artifacts), plus eight removal-answer records,
  * seven 1.6 returning-mechanics sprinkle spells, five Duat lands, two Wave B
  * support spells, seven Wave C spells, 26 Wave D1 non-creatures, and 24 Wave D2
  * non-creatures, 20 Wave D3 non-creatures, 20 Dark Tales companion spells,
- * 62 Starborne non-creatures, 97 Drowned Deep non-creatures, and six regeneration
- * entries. Prompts
+ * 62 Starborne non-creatures, 97 Drowned Deep non-creatures, six regeneration
+ * entries, and 48 First Dawn non-creatures. Prompts
  * live in docs/spell-art.md; the
  * chatgpt-imagegen CLI is backed by the user's ChatGPT
  * subscription — see the `anthropic-skills:chatgpt-imagegen` skill), then
@@ -34,7 +34,7 @@
  *   npx tsx scripts/gen-spell-art.ts --spec <file> --out-dir <path> [--only ...]
  *
  *   --spec <file>     read prompts from this draft file instead of
- *                     docs/spell-art.md and skip the 369-id roster check (a set
+ *                     docs/spell-art.md and skip the 417-id roster check (a set
  *                     with no card data yet, such as the First Dawn pilot);
  *                     requires --out-dir
  *   --out-dir <path>  write the WebPs here instead of public/assets/art/cards
@@ -76,7 +76,7 @@ const GEN_SIZE = '1024x1536';
 const GEN_TIMEOUT_S = 300;
 
 /**
- * The 369 spell ids docs/spell-art.md must cover, in the authored order (instants
+ * The 417 spell ids docs/spell-art.md must cover, in the authored order (instants
  * → sorceries → enchantments → the Jade Seal → Ragnarök → Gothic Monsters →
  * the removal answer cycle).
  * Parsing cross-checks against this
@@ -228,6 +228,21 @@ const EXPECTED_IDS = [
   // Regenerations 2026-09-22, authored order in docs/spell-art.md.
   'ac-mirror-of-avalon', 'ac-secret-of-avalon', 'ac-treasonous-glance',
   'cf-badb-cathas-warning', 'dt-glass-slipper-at-midnight', 'yn-hauntlink-apex',
+  // First Dawn non-creatures (48), added 2026-09-29 - cut-list order (docs/spell-art.md
+  // 'First Dawn non-creatures'); authored from the owner-reviewed final cut before
+  // src/data/cards/first-dawn.ts lands, so ids are the authority here until it does.
+  'fd-great-drum', 'fd-rise-from-tar', 'fdr-ambush-at-the-river', 'fd-fire-pit',
+  'fd-ring-of-embers', 'fd-standing-stone', 'fd-obsidian-knife', 'fd-grip-of-the-old-beast',
+  'fd-thunder-of-hooves', 'fdc-trial-of-first-scars', 'fd-duel-on-the-ridge',
+  'fd-hurled-firebrand', 'fd-clan-hearth', 'fdr-elders-verdict', 'fd-trial-by-ember',
+  'fd-meltwater', 'fd-thaw-old-bones', 'fd-ice-wall-denial', 'fd-tar-bubbles',
+  'fd-swallowed-by-tar', 'fdr-ash-rite', 'fd-stampede-long-grass', 'fd-blaze-horn-charge',
+  'fd-egg-of-first-dawn', 'fd-bone-totem', 'fd-spear-and-fang', 'fd-egg-clutch',
+  'fdc-thick-hide-source', 'fd-challenge-the-beast', 'fd-ember-flick', 'fd-ember-tongue',
+  'fd-test-of-the-hearth', 'fd-guard-the-nest', 'fd-sun-stare', 'fdr-bring-down-the-beast',
+  'fd-nest-caller', 'fd-glide-wing-ambush', 'fd-glacier-memory', 'fd-cold-refusal',
+  'fd-sea-lizard-wake', 'fd-ice-lens', 'fd-tar-rite', 'fd-tar-flat-grave', 'fd-tar-drowned',
+  'fd-bone-whistle', 'fd-ember-pot', 'fdc-carved-tusk-hauntlink', 'fd-resin-cast',
 ] as const;
 
 /**

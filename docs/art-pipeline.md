@@ -177,7 +177,7 @@ were (the ceiling crop, top = 0).
 First Dawn pilot) is generated from its draft bible with
 `npx tsx scripts/gen-card-art.ts --bible <file> --out-dir <scratch>` and
 `npx tsx scripts/gen-spell-art.ts --spec <file> --out-dir <scratch>` (the
-spec form skips the 369-id roster check). A draft file requires `--out-dir`,
+spec form skips the 417-id roster check). A draft file requires `--out-dir`,
 any `--out-dir` must lie outside `public/`, and a run with `--out-dir` never
 calls `gen-art-manifest`, so no draft id can reach the game. Draft files are
 never added to `FACTIONS`. In `gen-card-art.ts`, an entry whose Prompt starts
@@ -355,10 +355,10 @@ procedural placeholder.
 
 ### Spell art: `scripts/gen-spell-art.ts`
 
-The 369 **non-creature entries covered by the spell-art generator** (45
+The 417 **non-creature entries covered by the spell-art generator** (45
 base, 9 Ragnarök, 31 Gothic Monsters, 8 removal-cycle spells, 7 returning-mechanics
 spells, 84 Sands of the Duat entries, 20 Dark Tales companion spells, 62 Starborne
-entries, 97 Drowned Deep entries, and 6 regeneration entries) likewise sit
+entries, 97 Drowned Deep entries, 48 First Dawn entries, and 6 regeneration entries) likewise sit
 outside the creature art bible and get their own program. Direction lives in
 `docs/spell-art.md` and the driver is
 `npm run gen-spell-art` (`scripts/gen-spell-art.ts`), a sibling of the card and
@@ -384,13 +384,13 @@ outside the doc-driven pipeline during the Celtic Fae expansion) — when adding
 a record after the fact, note that the roster contracts are rigid:
 `check-art-bible` enforces creatures-only faction files with exact
 count/order, and `gen-spell-art.ts` **hard-fails on any id outside its fixed
-369-id roster**. Worse, the drivers' entry parsers treat any top-level
+417-id roster**. Worse, the drivers' entry parsers treat any top-level
 `- **Prompt:**` line as the current entry's prompt, so a casually appended
 block **silently overwrites the previous entry's prompt**. The safe pattern is
 the parser-proof addendum convention at the end of `docs/spell-art.md`
 ("Celtic Fae non-creature addendum"): `####` headings + indented field
 bullets, invisible to the parsers, verified with `--dry-run` after editing. The
-current non-creature generator rosters are 369 spell entries and 22 land entries;
+current non-creature generator rosters are 417 spell entries and 22 land entries;
 the live catalog and manifest inventory is recorded above.
 
 **Historical base-set run status (2026-07-03): COMPLETE — 152/152 on disk**

@@ -71,6 +71,7 @@ const FACTIONS = [
   'sands-of-the-duat',
   'starborne',
   'drowned-deep',
+  'first-dawn',
 ] as const;
 
 const OUT_W = 640;
