@@ -63,6 +63,8 @@ function targetNoun(spec: TargetSpec | undefined): string {
   const qualifiers = [
     spec?.marked ? 'Marked' : undefined,
     spec?.tapped ? 'tapped' : undefined,
+    // "target attacking creature" (A1.6); composes with the others.
+    spec?.attacking ? 'attacking' : undefined,
   ].filter((qualifier): qualifier is string => qualifier !== undefined);
   const restrictions = [
     spec?.maxCost !== undefined ? `cost ${spec.maxCost} or less` : undefined,
@@ -123,6 +125,7 @@ function referencesAbilityTarget(op: EffectOp): boolean {
     case 'moveMark':
     case 'removeMarks':
     case 'ifTargetMarked':
+    case 'ifTargetSurvives':
       return true;
     case 'reclaim':
       return true;
@@ -234,8 +237,9 @@ function opText(
       return 'put the first land from the top of your deck onto the battlefield tapped';
     case 'severSelf':
       return 'sever this';
-    case 'ifTargetMarked': {
-      const renderBranch = (ops: EffectOp[]): string => ops.map((branchOp) => {
+    case 'ifTargetMarked':
+    case 'ifTargetSurvives': {
+      const renderBranch = (ops: EffectOp[]): string => joinOpTexts(ops, ops.map((branchOp) => {
         const explicitIndex = 'targetIndex' in branchOp ? branchOp.targetIndex : undefined;
         return opText(
           branchOp,
@@ -245,8 +249,16 @@ function opText(
           autoBoundTarget,
           targetSpecs,
         );
-      }).join(', then ');
+      }));
       const thenText = renderBranch(op.then);
+      if (op.op === 'ifTargetSurvives') {
+        // "If it survived, draw a card." (A1.6). The clause opens its own
+        // sentence (joinOpTexts); it names the target already named, or the
+        // target itself when nothing named it first.
+        const subject = targetAlreadyNamed || autoBoundTarget ? 'it' : targetPhrase(target);
+        const gate = `if ${subject} survived, ${thenText}`;
+        return !op.else || op.else.length === 0 ? gate : `${gate}; otherwise, ${renderBranch(op.else)}`;
+      }
       if (!op.else || op.else.length === 0) return `if it is Marked, ${thenText}`;
       return `${renderBranch(op.else)}; if it is Marked, ${thenText} instead`;
     }
@@ -334,6 +346,42 @@ function opText(
   }
 }
 
+/**
+ * A clause whose subject is a player other than you ("Each player sacrifices
+ * a creature", "your opponent loses 2 life"). A token made right after one
+ * says who makes it: "then you create ..." (Ash-Rite, 1.9).
+ */
+function otherPlayerSubject(op: EffectOp): boolean {
+  switch (op.op) {
+    case 'sacrifice':
+    case 'loseLife':
+    case 'loseLifePerTheirMarked':
+    case 'discardRandom':
+      return true;
+    case 'grind':
+      return op.who === 'opponent';
+    case 'foresee':
+      return op.who === 'targetOwner';
+    default:
+      return false;
+  }
+}
+
+/**
+ * Join an effect's clauses with ", then ". Two exceptions: "If it survived"
+ * opens its own sentence after the effect it reads (A1.6), and a token made
+ * after another player's clause names you as its maker.
+ */
+function joinOpTexts(ops: readonly EffectOp[], texts: readonly string[]): string {
+  return texts.reduce((body, text, index) => {
+    if (index === 0) return text;
+    const op = ops[index];
+    if (op.op === 'ifTargetSurvives') return `${body}. ${capitalizeFirst(text)}`;
+    const clause = op.op === 'createToken' && otherPlayerSubject(ops[index - 1]) ? `you ${text}` : text;
+    return `${body}, then ${clause}`;
+  }, '');
+}
+
 export function manaCostText(cost: ManaCost): string {
   const parts: string[] = [];
   if (cost.generic > 0) parts.push(`{${cost.generic}}`);
@@ -345,11 +393,11 @@ export function manaCostText(cost: ManaCost): string {
 
 export function empowerText(d: CardDef): string | undefined {
   if (!d.empower) return undefined;
-  const body = d.empower.ops.map((op) =>
+  const body = joinOpTexts(d.empower.ops, d.empower.ops.map((op) =>
     op.op === 'addCounters' && op.to === 'self'
       ? `Arrives with ${markCountText(op.n)}`
       : opText(op, d.empower?.targets?.[opTargetIndex(op)], false, false, false, d.empower?.targets),
-  ).join(', then ');
+  ));
   const cap = capitalizeFirst(body);
   return `Empower ${manaCostText(d.empower.cost)}: ${cap}.`;
 }
@@ -499,7 +547,7 @@ function abilityText(ab: AbilityDef, d: CardDef, additionalDawn = false): string
   }
 
   const namedTargets = new Set<number>();
-  const body = (ab.ops ?? []).map((op) => {
+  const body = joinOpTexts(ab.ops ?? [], (ab.ops ?? []).map((op) => {
     const targetIndex = opTargetIndex(op);
     // A dies trigger excludes the source's own card from a graveyard raise.
     const text = opText(
@@ -512,7 +560,7 @@ function abilityText(ab: AbilityDef, d: CardDef, additionalDawn = false): string
     );
     if (referencesAbilityTarget(op)) namedTargets.add(targetIndex);
     return text;
-  }).join(', then ');
+  }));
   const cap = capitalizeFirst(body);
   const dawnBody = additionalDawn && (ab.ops ?? []).length === 1 && ab.ops?.[0].op === 'draw' && ab.ops[0].n === 1
     ? 'draw an extra card'
@@ -617,7 +665,7 @@ export function romanNumeral(n: number): string {
 }
 
 function chapterText(ops: EffectOp[], index: number): string {
-  const body = ops.map((op) => opText(op)).join(', then ');
+  const body = joinOpTexts(ops, ops.map((op) => opText(op)));
   if (!body) return `Chapter ${romanNumeral(index + 1)}.`;
   const cap = body.charAt(0).toUpperCase() + body.slice(1);
   return `Chapter ${romanNumeral(index + 1)}: ${cap}.`;

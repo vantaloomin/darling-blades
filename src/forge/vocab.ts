@@ -287,6 +287,8 @@ export function defaultOp(kind: OpKind): ScorableEffectOp {
       then: [{ op: 'boost', p: -2, t: -2, scope: 'target' }],
       else: [{ op: 'boost', p: -1, t: -1, scope: 'target' }],
     };
+    // A1.6 stub: the Forge reads the gate but does not offer it yet.
+    case 'ifTargetSurvives': return { op: 'ifTargetSurvives', then: [{ op: 'draw', n: 1 }] };
     case 'tap': return { op: 'tap', to: 'target' };
     case 'propagate': return { op: 'propagate' };
     case 'extraLandDrop': return { op: 'extraLandDrop', n: 1 };

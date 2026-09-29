@@ -10,7 +10,7 @@ import type {
   TargetSpec,
   TriggerWhen,
 } from '../engine/types';
-import { activatedAbilitiesOf } from '../engine/types';
+import { activatedAbilitiesOf, isTargetBranchOp } from '../engine/types';
 
 /**
  * The rules vocabulary, as pure data. This lives in `src/data` — not in the
@@ -115,7 +115,7 @@ export const MECHANIC_DEFINITIONS: Record<MechanicId, string> = {
   foresee: 'look at the top cards of your deck; put any of them on the bottom',
   mark: 'a lasting +1/+1 increase to a creature\'s Attack and Defense',
   propagate: 'put another Mark on each Marked creature you control; it never starts a Mark',
-  hunt: "Your creature and its prey each deal damage equal to their Attack to the other. The prey is a creature an opponent controls, unless the card says otherwise. A creature with Bulwark cannot hunt. A creature that hunts when it arrives can't be cast unless it has prey.",
+  hunt: "Your creature and its prey each deal damage equal to their Attack to the other, at the same time. First Blade and Twin Blades don't apply to a Hunt. The prey is a creature an opponent controls, unless the card says otherwise. A creature with Bulwark cannot hunt. A creature that hunts when it arrives can't be cast unless it has prey.",
   provoked: 'when this creature is dealt damage and survives, it does the listed effect; this triggers only once each turn',
   quest: 'advances a chapter at each of your dawns; leaves after the last',
   championAwakening: 'a one-way upgrade granting the listed stats and keywords',
@@ -185,7 +185,7 @@ function opImpliesSever(op: EffectOp): boolean {
 
 function cardOps(d: CardDef): EffectOp[] {
   const flatten = (ops: readonly EffectOp[]): EffectOp[] => ops.flatMap((op) =>
-    op.op === 'ifTargetMarked'
+    isTargetBranchOp(op)
       ? [op, ...flatten(op.then), ...flatten(op.else ?? [])]
       : [op],
   );

@@ -673,7 +673,7 @@ function plainVocabulary(unknown: string): string {
 function opNeedsTarget(op: ScorableEffectOp): boolean {
   switch (op.op) {
     case 'damage': return op.to === 'target';
-    case 'destroy': case 'sever': case 'recall': case 'tap': case 'removeMarks': case 'moveMark': case 'ifTargetMarked': return true;
+    case 'destroy': case 'sever': case 'recall': case 'tap': case 'removeMarks': case 'moveMark': case 'ifTargetMarked': case 'ifTargetSurvives': return true;
     case 'boost': return op.scope === 'target';
     case 'addCounters': return op.to === 'target';
     case 'raise': return (op.to ?? 'target') === 'target';

@@ -10,7 +10,7 @@ import {
 } from './effects/EffectInterpreter';
 import { isLegalTarget } from './effects/targeting';
 import type { CardDb, CardDef, CardEntry, EffectOp, GameState, StackItem, TargetSpec } from './types';
-import { def, isType } from './types';
+import { def, isTargetBranchOp, isType } from './types';
 
 export type { Emit };
 export { enterBattlefield };
@@ -49,7 +49,7 @@ export function castTargetSpecsFor(
 
 function usesExplicitTargetSlot(ops: readonly EffectOp[]): boolean {
   return ops.some(op => ('targetIndex' in op && op.targetIndex !== undefined) ||
-    (op.op === 'ifTargetMarked' && (usesExplicitTargetSlot(op.then) || usesExplicitTargetSlot(op.else ?? []))));
+    (isTargetBranchOp(op) && (usesExplicitTargetSlot(op.then) || usesExplicitTargetSlot(op.else ?? []))));
 }
 
 /**
@@ -58,7 +58,7 @@ function usesExplicitTargetSlot(ops: readonly EffectOp[]): boolean {
  */
 export function usesHunt(ops: readonly EffectOp[]): boolean {
   return ops.some(op => op.op === 'hunt' ||
-    (op.op === 'ifTargetMarked' && (usesHunt(op.then) || usesHunt(op.else ?? []))));
+    (isTargetBranchOp(op) && (usesHunt(op.then) || usesHunt(op.else ?? []))));
 }
 
 function isPermanentSpell(d: CardDef, item: StackItem): boolean {
@@ -183,7 +183,7 @@ export function resolveStackItem(
               controller: item.controller,
               sourceCardId: item.cardId,
               targets: item.targets,
-              ...(usesExplicitTargetSlot(ab.ops) || usesHunt(ab.ops) || specs.some(s => s.maxCost !== undefined || s.minAttack !== undefined || s.exactly) ? { targetSpecs: specs } : {}),
+              ...(usesExplicitTargetSlot(ab.ops) || usesHunt(ab.ops) || specs.some(s => s.maxCost !== undefined || s.minAttack !== undefined || s.exactly || s.attacking) ? { targetSpecs: specs } : {}),
               ...(specs.length === 1 && (specs[0].upTo !== undefined || specs[0].exactly !== undefined) ? { targetBatch: true } : {}),
               x: item.x,
             },

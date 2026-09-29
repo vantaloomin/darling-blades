@@ -1,6 +1,6 @@
 import { createRngState, rngShuffle } from '../engine/rng';
 import type { CardDb, CardDef, Color, EffectOp, Keyword, TargetSpec } from '../engine/types';
-import { activatedAbilitiesOf, def, isType, manaValue } from '../engine/types';
+import { activatedAbilitiesOf, def, isTargetBranchOp, isType, manaValue } from '../engine/types';
 import { TIER_RANK } from './variants';
 
 const COLOR_ORDER: readonly Color[] = ['W', 'U', 'B', 'R', 'G'];
@@ -138,7 +138,7 @@ export function scoreBasePick(d: CardDef, profile: PickerProfile): number {
   // onto your own creature is a cost, not removal. Generic targets remain useful.
   const collect = (effects: readonly EffectOp[], targets: readonly TargetSpec[] = []): void => {
     for (const op of effects) {
-      if (op.op === 'ifTargetMarked') {
+      if (isTargetBranchOp(op)) {
         collect(op.then, targets);
         collect(op.else ?? [], targets);
       } else {

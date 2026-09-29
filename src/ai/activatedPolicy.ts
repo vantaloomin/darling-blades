@@ -49,6 +49,7 @@ function shapesCombat(ops: readonly EffectOp[]): boolean {
       case 'damage':
         return op.to !== 'controller';
       case 'ifTargetMarked':
+      case 'ifTargetSurvives':
         return shapesCombat(op.then) || shapesCombat(op.else ?? []);
       default:
         return false;
@@ -215,6 +216,7 @@ function dutyReach(ops: readonly EffectOp[]): number {
       case 'markAll': case 'propagate': case 'loseLifePerTheirMarked':
         return Infinity;
       case 'ifTargetMarked':
+      case 'ifTargetSurvives':
         reach += Math.max(dutyReach(op.then), dutyReach(op.else ?? []));
         break;
       default:

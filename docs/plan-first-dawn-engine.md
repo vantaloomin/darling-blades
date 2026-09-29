@@ -921,6 +921,10 @@ leaves it arriving without hunting. Attack and Dawn Hunts are unchanged, and
 so is the Empower Hunt. Two more rulings the same day joined A1.1b: card
 text may override the prey, and the generic Hunt's prey is an opponent's
 creature only, with no fallback. The ruled description is now "Your creature and its prey each deal damage equal to their Attack to the other. The prey is a creature an opponent controls, unless the card says otherwise. A creature with Bulwark cannot hunt. A creature that hunts when it arrives can't be cast unless it has prey."
+The owner amended it on 2026-09-29, so players do not expect First Blade to
+protect a hunter: the first sentence ends "to the other, at the same time."
+and is followed by "First Blade and Twin Blades don't apply to a Hunt." The
+engine is unchanged; the exchange was always simultaneous.
 
 - **The prey, and its overrides.** The default prey spec is
   `{ what: 'opponentCreature' }`. A card overrides it by declaring `prey` on
@@ -1445,6 +1449,112 @@ and the 0.95 slope; the counts held.
 source rate, the measured anchors as gates, and the conditional stub staying
 an estimate) and a P3 case in `tests/engine/provoked.test.ts`, each shown to
 fail with its behaviour switched off.
+
+## As built (A1.6): attacking targets and "if it survived"
+
+The owner reviewed First Dawn's cards (2026-09-29) and asked for three
+reworks, then ruled "Yes, build it" on both engine pieces and "Wording
+only" on Ash-Rite: The Elders' Verdict ({1}{W}{W} Charm, "Sever target
+attacking creature, then you gain 2 life."), Bring Down the Beast ({2}{W}
+Charm, "Destroy target attacking creature with Attack 4 or more."), Ambush
+at the River ({3}{G}, "Target creature you control gets +1/+1 until Sunset,
+then it Hunts. If it survived, draw a card.") and Ash-Rite ("then you create
+..."). The cards are lane B's; A1.6 built the mechanisms on fixture cards.
+`docs/rules.md` has the rules ("Attacking-only targets", "If it survived").
+
+- **`TargetSpec.attacking`.** Legal only on a creature in
+  `state.combat.attackers` that is still on the battlefield
+  (`satisfiesPermanentQualifiers`, `targeting.ts`), so one check serves the
+  cast, legal actions, the fizzle rule at resolution and every AI menu, as
+  `tapped` does. A creature that leaves is out of combat (a returned one has
+  a new iid); after combat `state.combat` is null and nothing is attacking.
+  `resolve.ts` passes a spell's target specs to its ops when a spec is
+  attacking-only, as it does for `minAttack`. `PlayerView` needs nothing: the
+  combat is already public. `validateA16Def` allows the word on creature
+  specs only, and never on a Duty's (a Duty is used in a main phase, where
+  nothing attacks).
+- **The auto-pass rule, unchanged.** `hasCastableInstant` and
+  `hasCastableCharm` enumerate targets through the same legality check, so an
+  attacking-only Charm with no attacker to hit is not castable and keeps no
+  window open: outside combat, over a main-phase spell, with no attackers,
+  and when every attacker fails the other words (Bring Down the Beast's
+  Attack 4). The defender holding one is offered its window over the
+  attackers only when it has a target there.
+- **`ifTargetSurvives`** (`{ op, then, else?, targetIndex? }`, on the
+  `ifTargetMarked` pattern). When it resolves it runs `then` if its target
+  creature is on the battlefield and passes `survivesOnBattlefield` (sba.ts,
+  the Provoked test: not lethally damaged, no Deathblade damage, Defense above
+  0), else `else`. Ops resolve in order, so a Hunt earlier in the same spell
+  has dealt its damage. Deathblade: any damage from a Deathblade source is
+  fatal, so the hunter did not survive. Damage prevention: prevented damage
+  was never marked, so it does not count (Hunt damage is not combat damage,
+  and no non-combat prevention exists). A creature that left the battlefield,
+  or is no longer a legal target, did not survive, and `else` runs.
+  Covered: `effectOpUsesTarget`, the branch walks (`flatOps`, the Empower and
+  Duty validators, `containsNewPlayerChoice`, `usesHunt`,
+  `usesExplicitTargetSlot`, `opsInclude`, mark-trigger recursion), the Forge's
+  exhaustive records (`OP_RULES`, `defaultOp`; the Forge reads the op but
+  does not offer it), the persona score's anchor (0.6, as `ifTargetMarked`)
+  and `validateA16Def` (a creature spec at the gate's slot, never in a
+  chapter). `validateHuntDef` refuses a Hunt inside the gate, as inside an
+  If-marked branch. `docs/adding-cards.md` has the op row.
+- **Rules text** (`rulesText.ts`). `attacking` joins the target words after
+  Marked and tapped ("target attacking creature", "target attacking creature
+  an opponent controls", "target Marked attacking creature", "... with attack
+  4 or more"). The gate prints "If it survived, ..." as its own sentence
+  (`joinOpTexts`), "If target creature you control survived, ..." when
+  nothing named the target first, and "; otherwise, ..." for `else`.
+- **Ash-Rite.** A `createToken` right after a clause whose subject is
+  another player (`sacrifice` each or opponent, `loseLife`, `discardRandom`,
+  an opponent's `grind`, a target owner's `foresee`) prints "then you create
+  ...". The rendered text of the whole catalog (1,515 cards, with and without
+  keyword reminders) is identical before and after: no shipped card has that
+  shape.
+- **The scorer.** `valueOp`'s `ifTargetSurvives` term, one delimited block:
+  `then` weighted 0.86 (the design draft's "draw if the hunter survives"),
+  `else` the rest, reported as `op:ifTargetSurvives (NEEDS MATH ...)`. A
+  placeholder; **A1.4 owns the rate**. The scorer does not price the
+  attacking restriction, as it does not price `minAttack`, `maxCost` or
+  `tapped`: A1.4's to decide.
+- **The AI** (every read is reached only through the new word or op, so
+  today's pool plays exactly as before).
+  - *Attacking-only Charms* reach the defender in its window over the
+    attackers as ordinary castable Charms. Medium's rule 2 (removal on an
+    attacker, by `removalWorth`) casts it on the attacker worth most; Hard
+    starts from Medium's choice and searches the cast's target variants, and
+    picks the same attacker; Easy's rule casts it at random when it does not
+    pass. No brain needed new code for it.
+  - *The survival read* (`expectsTargetSurvives`, `value.ts`): the ops before
+    the gate are played on the public board in order (pumps and damage on a
+    target slot, removal of the gate's creature, a spell-form Hunt with
+    Deathblade and Bulwark), then the state-based test. It picks the branch
+    in `cardValue` (the cast's own targets), `spellTargetsValue` (the target
+    variants, so a prey that would kill the hunter loses the draw) and
+    `boundCastEffects`. With no board (`opImpactValue`, `empowerValue`) the
+    gate takes the scorer's 0.86 blend. A trigger's or Duty's gate reads the
+    board as it stands. Known limits: responses, combat and other ops before
+    the gate are not modelled; the Hauntlink trigger forecast treats the gate
+    as unknown (its default).
+- **Tests.** `tests/engine/attackingTarget.test.ts`,
+  `tests/engine/ifTargetSurvives.test.ts` (with the scorer's placeholder),
+  `tests/ui/a16RulesText.test.ts`, `tests/ai/a16Reads.test.ts`, and the
+  catalog test runs `validateA16Def` over every card. Each was shown to fail
+  with its behaviour switched off (the A1.6 report lists the mutations).
+- **Fable's review, folded in.** Every catalog walk now descends into the
+  gate (`isTargetBranchOp`): the draft picker's `collect`, the glossary's
+  `cardOps` (so a keyword granted inside it reaches the keyword-coverage
+  check), the persona score, `hasTargetBinding` and `newOps` in
+  `src/ai/targeting.ts`, the Avatar reserve supply walks, the activated
+  fixture, `isUpside` and the Forge's `opNeedsTarget`. The Hauntlink trigger
+  forecast takes the branch the survival read picks on its projected board.
+  "then you create" also follows `loseLifePerTheirMarked` and applies inside
+  a branch. The deferred-target prompt says "attacking". `validateA16Def`
+  refuses an `upTo` or `exactly` spec at the gate's slot, so the scorer's
+  per-target fan never meets a gate. `hasTargetQualifier` leaves `attacking`
+  out on purpose (the legacy removal read picks the attacker). An attack
+  trigger may still name an attacking target ("Whenever this attacks, target
+  attacking creature ..."), so the validator does not restrict the word to
+  spells. The Forge still cannot build either construct.
 
 ## What this spec corrects
 

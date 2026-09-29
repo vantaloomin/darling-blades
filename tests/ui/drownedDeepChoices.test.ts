@@ -24,6 +24,7 @@ const DB = dbOf(
   ] }),
   card('single', { activated: { cost: { tap: true }, ops: [{ op: 'gainLife', n: 1 }] } }),
   card('queen', { name: 'Wrecker Queen', abilities: [{ when: 'attacks', targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 1, to: 'target' }] }] }),
+  card('rallier', { name: 'Rallier', abilities: [{ when: 'attacks', targets: [{ what: 'creature', attacking: true }], ops: [{ op: 'boost', p: 1, t: 0, scope: 'target' }] }] }),
   card('gate', { name: 'Marsh Gate', abilities: [{ when: 'dawn', targets: [{ what: 'yourCreature' }], ops: [{ op: 'addCounters', n: 1, to: 'target' }] }] }),
   card('arrival', { abilities: [{ when: 'arrives', targets: [{ what: 'opponentCreature', maxCost: 2 }], ops: [{ op: 'damage', n: 1, to: 'target' }] }] }),
   card('digger', { types: ['artifact'], activated: { cost: { tap: true }, targets: [{ what: 'yourGraveCreature' }], ops: [{ op: 'reclaim', targetIndex: 0 }] } }),
@@ -226,6 +227,13 @@ describe('deferred trigger target presentation', () => {
     game.submit(0, action!);
     expect(game.instanceState.battlefield.find((permanent) => permanent.iid === 2)?.damage).toBe(1);
     expect(confirmDeferredTarget(game.instanceState, DB, 0, ref(2))).toBeNull();
+  });
+
+  it('says "attacking" for an attacking-only target (A1.6)', () => {
+    const game = Game.restore(board([[], []], [{ iid: 1, cardId: 'rallier' }, { iid: 2, cardId: 'bear', controller: 1 }]), DB);
+    game.submit(0, { type: 'passStep' });
+    game.submit(0, { type: 'declareAttackers', attackers: [1] });
+    expect(deferredTargetPrompt(game.instanceState, DB, 0)?.title).toBe('Rallier attacks: choose an attacking creature');
   });
 
   it('names Dawn and retains the choosing controller restriction in prompt and submission', () => {
