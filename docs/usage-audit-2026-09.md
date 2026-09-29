@@ -1,4 +1,4 @@
-<!-- source-of-truth: scripts/mechanicUsage.ts, scripts/mechanicUsageCollector.ts, scripts/balance-matrix.ts, src/ai/MediumAI.ts, src/ai/EasyAI.ts, src/ai/HardAI.ts, src/ai/value.ts, src/ai/activatedPolicy.ts, src/ai/tithePolicy.ts, src/ai/darlingPolicy.ts, src/data/opponents.ts, src/data/starterDecks.ts, src/data/darlingsPrecons.ts · last-verified: 2026-09-28 · a measurement note: the numbers are from commit 4290e37 and do not update; re-run the audit rather than re-verify -->
+<!-- source-of-truth: scripts/mechanicUsage.ts, scripts/mechanicUsageCollector.ts, scripts/balance-matrix.ts, src/ai/MediumAI.ts, src/ai/EasyAI.ts, src/ai/HardAI.ts, src/ai/value.ts, src/ai/activatedPolicy.ts, src/ai/tithePolicy.ts, src/ai/darlingPolicy.ts, src/data/opponents.ts, src/data/starterDecks.ts, src/data/darlingsPrecons.ts · last-verified: 2026-09-28 · a measurement note: the numbers are from commit 4290e37 and do not update; re-run the audit rather than re-verify; section 7's questions ruled at the owner's second sitting 2026-09-28 -->
 
 # Mechanic usage audit, first full read (wave 2, 2026-09-28)
 
@@ -6,8 +6,10 @@ The first full run of the usage audit over gauntlet rungs 1-26, read into
 findings. The tool and the rules for reading it are in
 [plan-mechanic-usage-audit.md](plan-mechanic-usage-audit.md) (sections 4-6).
 This wave changes nothing in the game. The wave-3 list at the end is a
-proposal; D13 of [plan-1.9.md](plan-1.9.md) already approves the three 1.8.5
-AI fixes once this note backs them, and it says which ones it backs (ramp,
+proposal; its four owner questions (section 7) were **ruled** at the
+owner's second sitting, 2026-09-28, as U1-U4, all as recommended. D13 of
+[plan-1.9.md](plan-1.9.md) already approves the three 1.8.5 AI fixes once
+this note backs them, and it says which ones it backs (ramp,
 and the Brood Communion half of the second).
 
 A rate is a prompt to look, never a verdict. Every low reading below was
@@ -424,43 +426,63 @@ The gates, for reference:
 | --- | --- | --- | --- | --- | --- |
 | 1 | **Team pumps in Medium's respond ladder** (Stand as One, Red-Moon Rampage, Shieldwall Call). A targetless `allYours` boost is cast in a blocked combat when it flips at least one fight (saves a blocker or kills an attacker), or adds lethal, or adds unblocked damage worth its cost | P1; cell 400 game 0 turns 13 and 21 | Medium flyers only: Hera's rows up (rung 4, no floor, band only), Zhurong's Darlings row, and the three Medium precon columns. It also changes the Medium baseline that Hard's response search compares against for Carmilla, the Glass-Coffin Queen and Anubis in Darlings, in a direction not measured | no rung floor (no starter carries one); not the two brain gates (TEST_DB has none, checked) | **High**: a dead card in a live boss |
 | 2 | **Mark payoffs do nothing without their target.** `markAll` on your creatures with none of your own, and Propagate or a boost to your Marked with nothing Marked, value at or below 0 on a non-creature cast, so the card is held (D13: Brood Communion, Starborne Apotheosis). Today the flat 1.25 less the empty-board adjustment leaves 0.35 | P2; cells 202312 g2 t3 (Medium) and 2300 g7 t6 (Hard); Apotheosis from the 1.8.5 lab | Chrome Broodmother and the Marsh-Mother keep a card; the Broodship column improves | R23 and R26 floors (up, if anything) | **High**; approved |
-| 3 | **Ramp valued by cast turn** (D13), on the §4v shape: extra untapped mana before the 10-land reserve runs out | section 4 table; cell 201405 g3 t3 | Medium's ramp decks (Grave Harvest, Valhalla's Muster) and the ramp bosses develop earlier; the Grave Harvest proxy gets stronger, so boss rates may drop | **every rung floor 15-26** through Grave Harvest. Each floor is an average over five starter columns, so a Grave Harvest shift moves it by about a fifth of that column's change. If any rung falls under its floor, the fix is blocked until a wave-4 tune lifts that boss: floors never come down. Not the two brain gates (TEST_DB has no ramp, checked) | **High**, but land it alone and last; the largest reach of the set |
-| 4 | **No tap-an-enemy Duty in main two**: the live tap pricing (or `scoredActivationCandidates`) values a tap at 0 when its target will untap before it could matter | P3; cell 211401 g19 t18 | the Abbess and similar tappers stay back to block | none gated (Darlings lists only); `landEconomy.test.ts` pins the artifact version of the same tap, so scope or re-pin is an owner question (section 7) | **Medium**; small, sharp, cheap |
+| 3 | **Ramp valued by cast turn** (D13), on the §4v shape: extra untapped mana before the 10-land reserve runs out | section 4 table; cell 201405 g3 t3 | Medium's ramp decks (Grave Harvest, Valhalla's Muster) and the ramp bosses develop earlier; the Grave Harvest proxy gets stronger, so boss rates may drop | **every rung floor 15-26** through Grave Harvest. Each floor is an average over five starter columns, so a Grave Harvest shift moves it by about a fifth of that column's change. If any rung falls under its floor, the fix is blocked until a wave-4 tune lifts that boss: floors never come down. Not the two brain gates (TEST_DB has no ramp, checked) | **High**, but land it alone and last (**ruled**, U4); the largest reach of the set |
+| 4 | **No tap-an-enemy Duty in main two**: the live tap pricing (or `scoredActivationCandidates`) values a tap at 0 when its target will untap before it could matter | P3; cell 211401 g19 t18 | the Abbess and similar tappers stay back to block | none gated (Darlings lists only); `landEconomy.test.ts` pins the artifact version of the same tap: **ruled re-pin** (U3), so the fix covers every source and the test is re-pinned to the intended behaviour | **Medium**; small, sharp, cheap |
 | 5 | **Price the lost blocker for a creature Duty in main two**: skip a small Duty (Foresee, loot, a little life) when the tapped body would block an opposing attacker safely | P5; cell 2500 g10 turns 15-16 | about 0.8 life a game back to the Deacon; similar on the Marsh-Mother and the looter lists | R25 and R26 floors (up) | **Low** |
-| 6 | **Easy calls her Darling**: include `castDarling` in `usefulCasts`, which also makes the pass with only the Darling castable unreachable | P4; cells 210100 g1 t11 and 210102 g3 | rungs 1-3 get stronger in Darlings (today a call arrives only on the noise roll) | none gated (rungs 1-3 have no floors); re-read their Darlings bands | **Owner call** (below) |
+| 6 | **Easy calls her Darling**: include `castDarling` in `usefulCasts`, which also makes the pass with only the Darling castable unreachable | P4; cells 210100 g1 t11 and 210102 g3 | rungs 1-3 get stronger in Darlings (today a call arrives only on the noise roll) | none gated (rungs 1-3 have no floors); re-read their Darlings bands | **Ruled: fix it** (U1) |
 | 7 | Harness additions from section 5 (Darling-tax meaningful chance, Duty by step, the finer Duty check, the Mark check on non-creatures, a keyword-grant target reading, `--usage-columns`) | section 5 | cleaner reads for wave 4's targeted pass | none (scripts only) | **Medium**; before wave 4's read |
 
+**Ruled (U2): granted keywords land in wave 3** on the win-rate gates, as
+D13 approved, on the code's evidence (the four flat 0.5 sites); the
+keyword-grant reading in item 7 is added for wave 4's read, not as a
+precondition.
+
 **Not for wave 3:**
-- Granted keywords priced flat is approved by D13, but this audit cannot back
-  it. Whether it lands on the gates alone is in section 7.
 - Tithe (L1), Khenut (L2), Carmilla's Rite singletons (L3) and the counters
   (L4) are list questions for wave 4's tuning, read with the usage table as
   the plan asks.
 - The three invisible 1.8.1 limits stay logged; nothing here argues for
   spending on them.
 
-## 7. For the owner
+## 7. For the owner (RULED 2026-09-28)
+
+The owner's second sitting answered these as U1-U4 (U1 Easy's Darling, U2
+granted keywords, U3 the main-two tap, U4 the order), all as recommended.
+Where each lands: **wave 3**, behind the unchanged gates. U1 is item 6, U2
+the granted-keyword change D13 approved, U3 item 4 with its test re-pin;
+each lands with the local fixes, before ramp. U4 puts item 3 (ramp) **last
+and alone**. The rest of section 6 is unchanged by the sitting: item 2 is
+D13's (approved), items 1 and 5 stay this note's proposal, and item 7's
+harness additions come before wave 4's read.
 
 - **Easy's Darling (P4).** Easy never calls her Darling on purpose: a
   removal filter drops the call, and every call seen is the 20% noise roll.
   Fix it (rungs 1-3 get harder in Darlings), or keep it and document it?
-  **Recommended: fix it.** It is a random roll, not a designed weakness.
-  Rungs 1-3 have no floors, so only their Darlings bands need a re-read.
+  **Ruled (U1): yes, fix it** (item 6, wave 3). **Recommended: fix it.** It
+  is a random roll, not a designed weakness. Rungs 1-3 have no floors, so only their Darlings bands need a re-read.
 - **Granted keywords.** D13 approves it, but this audit cannot see it. Two
   views:
   - Opus: add the keyword-grant reading first (item 7), then land it.
   - Fable: land it on the gates as D13 approved. The evidence is the code,
     four flat 0.5 sites in `value.ts`. Add the reading for wave 4's pass, not
     as a precondition.
-  **Recommended: Fable's.**
+  **Recommended: Fable's. Ruled (U2): as recommended**: land it on the
+  gates in wave 3; the reading comes for wave 4.
 - **The main-two tap (item 4) and `landEconomy.test.ts`.** That test pins
   every brain activating Lowland Fort Banner and Festival Rocket in main two
   against an opposing bear, which is the same do-nothing tap from an
   artifact. Scope the fix to creature sources and leave the pin, or fix the
   tap everywhere and re-pin the test to the intended behaviour? This note
   does not decide it. The artifact case costs no blocker, only idle mana.
+  **Ruled (U3): re-pin.** The pinned action does nothing, so item 4 fixes
+  the tap for every source, artifacts included, and `landEconomy.test.ts`
+  is re-pinned to the intended behaviour (no main-two tap against a creature
+  that untaps before it matters), in the same wave-3 change.
 - **Order.** Items 1, 2 and 4 are local and can land together. Item 3 moves
   the Medium proxy and so every number. **Recommended: land it last in wave
   3, alone.** If any rung 15-26 then falls under its floor, it waits for that
   boss's wave-4 tune. Wave 4 then tunes on a re-measure taken after its own
   card edits and converter regen, not on item 3's re-measure alone.
+  **Ruled (U4): yes.** Item 3 lands last in wave 3 and alone; a floor it
+  breaks blocks it until wave 4 lifts that boss, and the floor never comes
+  down.

@@ -1,11 +1,14 @@
-<!-- source-of-truth: scripts/audit-overlap.ts, tests/scripts/auditOverlap.test.ts, src/data/cards/, src/power/scoreCore.ts, src/data/opponents.ts, src/data/starterDecks.ts, src/data/darlingsPrecons.ts, src/data/duatArchetypeDecks.ts · last-verified: 2026-09-28 · D8 of plan-1.9: the rule and the slate are PROPOSED, nothing applied; the fixes ship in a 1.9.x patch once the owner rules both -->
+<!-- source-of-truth: scripts/audit-overlap.ts, tests/scripts/auditOverlap.test.ts, src/data/cards/, src/power/scoreCore.ts, src/data/opponents.ts, src/data/starterDecks.ts, src/data/darlingsPrecons.ts, src/data/duatArchetypeDecks.ts · last-verified: 2026-09-28 · D8 of plan-1.9: the rule and the slate RULED 2026-09-28, nothing applied yet; the fixes ship in a 1.9.x patch -->
 
-# D8: the older-set near-duplicate review (proposal, 2026-09-28)
+# D8: the older-set near-duplicate review (proposed and ruled 2026-09-28)
 
-**Status: PROPOSED.** Plan-1.9 ruling D8 (2026-09-25): the older-set near-duplicates get a whole-pool
-review and a resolution plan; the owner approves the rule (which kinds of sameness are acceptable)
-and the slate; the fixes ship in a 1.9.x patch, not in 1.9.0. No card data changes with this
-document. The owner's questions are at the end, recommendation first.
+**Status: RULED 2026-09-28** (the owner's second 1.9 sitting). The rule is approved as written and
+the whole slate as drafted: the 41 cards, A1 to A33 and B1 to B8, with no row's text changed by a
+ruling. Plan-1.9 ruling D8 (2026-09-25): the older-set near-duplicates get a whole-pool review and a
+resolution plan; the owner approves the rule (which kinds of sameness are acceptable) and the slate;
+the fixes ship in a 1.9.x patch, not in 1.9.0. No card data changes with this document. The owner's
+questions are at the end, each with its answer; two leave follow-ups (D11, a one-sided tribe rescue
+of about seven cards, not drafted; D12, four out-of-band cards, to the balance track).
 
 ## How it was measured
 
@@ -56,7 +59,7 @@ against {3}{R}). It now finds 14 dead printings where it found 10.
   "just better" cards, a costing question, and outside the rule.
 - The scorer does not price a Skim or Retell cost, or a target's `maxCost` (10 cards carry one).
 
-## The rule (proposed)
+## The rule (approved 2026-09-28)
 
 Two cards are **the same text** when the LADDER pass groups them, or when the SPEED pass finds a Charm
 that does everything a Ritual does. For every such pair:
@@ -279,13 +282,17 @@ field move with them:
 - No rarity moves, so the locked per-set rarity histograms hold. No new keyword or mechanic, so
   `terms --check` has nothing new; rebuild the local corpus after the data edit.
 - Measured decks move (above): the full ladder with the win-rate gates, on an idle machine.
+- **What the rulings (2026-09-28) add to the patch:** the boss floors of the rows in measured decks
+  are re-gated in it (D10); Court Minstrel (A1) and White-Crown Marshal (A7) get their taste pass
+  while it is written (D8). Not in this slate: the one-sided tribe rescue (D11, a follow-up of about
+  seven cards, not drafted, its timing open) and the four out-of-band cards (D12, the balance track).
 
 ## Seen on the way, not D8's to fix
 
 - **Already outside the fair band and left alone:** The Debt Is Called (+0.96), Black-Veil Matron
   (+1.20, on nine boss lists, a theme deck and two Darlings precons), Still Harbour (+1.07) and Cold
-  Current (+0.92). What the Sea Wants (+0.76) lands at +0.43 if A33 is folded in. They belong to the
-  balance track.
+  Current (+0.92). What the Sea Wants (+0.76) lands at +0.43 with A33, which the owner folded into
+  the slate (question 6). The other four belong to the balance track (question 12, ruled).
 - **Scorer blind spots:** Skim and Retell prices read the same at any cost (Skim {1} and Skim {2} both
   0.35), so B5's Retell change reads Δ 0.00 and A6's pair scored identically; `maxCost` is ignored, so
   "destroy target creature with cost 2 or less" prices as unrestricted removal.
@@ -305,25 +312,34 @@ Tide-Reader of the Far Reef (Attack and Skim both differ), stay a manual read.")
 
 For the D8 entry, appended: "Review and slate PROPOSED 2026-09-28 in
 [d8-near-duplicate-review.md](d8-near-duplicate-review.md): 51 pairs, 41 cards; awaiting the owner's
-rulings."
+rulings." (Both applied; the D8 entry now reads RULED, from the owner's second sitting.)
 
-## Owner questions (recommendation first)
+## Owner questions (recommendation first; RULED 2026-09-28)
 
-1. **Approve the rule as written?** Recommended: yes. It keeps the 2026-08-31 one-printing-per-set
+The sitting's sheet numbered these D1-D12; each answer leads its question.
+
+1. *Ruled (D1): approved.*
+   **Approve the rule as written?** Recommended: yes. It keeps the 2026-08-31 one-printing-per-set
    ruling, generalises the 2026-09-24 rarity-ladder fixes, and accepts the Scholar and Looter slate.
    It still cannot see the limits listed under "How it was measured" (texts that differ only in op
    choice or order, added riders, the one-sided tribe rescue), so 51 is a floor.
-2. **How far across sets?** Recommended: only strictly-worse twins (rows B1 to B8). The alternatives:
+2. *Ruled (D2): "Strictly Worse."* Only the strictly-worse twins, rows B1 to B8; the 32 accepted
+   cross-set pairs stay accepted.
+   **How far across sets?** Recommended: only strictly-worse twins (rows B1 to B8). The alternatives:
    nothing across sets (drop B1 to B8), or every same-text domination at the same or a lower rarity
    (adds the 32 accepted pairs above, 24 cards not already in the slate, not drafted).
-3. **Keyword-only trade-offs inside one set?** Recommended: accept them (the six pairs listed, and
+3. *Ruled (D3): accept.*
+   **Keyword-only trade-offs inside one set?** Recommended: accept them (the six pairs listed, and
    the eleven stat trades in the slate). Rejecting them adds six rows and forces riders on the stat
    trades, which then beat cross-set reprints.
-4. **Rage as a lever.** After the redraft it is used once, on Wreck-Runner (B1), the cheaper card of
+4. *Ruled (D4): "Only on Wreck-Runner."* B1 as drafted.
+   **Rage as a lever.** After the redraft it is used once, on Wreck-Runner (B1), the cheaper card of
    its pairs. Recommended: yes. The alternative is {1}{R}, which makes it a reprint but lets Wrecker's
    Lookout beat it in its own set. Rage on the smaller card of a pair (the first draft's A10 and A17)
    is withdrawn.
-5. **Five cards become cross-set reprints** (Signal Bridge, Circuit Foretelling, Silt Reading,
+5. *Ruled (D5): accept.* The five reprints stand, B4 as drafted (Read the Ruse and Hold the
+   Crossing are not touched).
+   **Five cards become cross-set reprints** (Signal Bridge, Circuit Foretelling, Silt Reading,
    Ember-Lantern Toss, Bookside Ferrywoman; four new IDENTICAL clusters). Accept reprints as the fix,
    or differentiate? Recommended: accept; rule 1 accepts reprints, and each is the smallest lever. For
    B4 the alternative is to fix the two dead cards instead: Read the Ruse and Hold the Crossing become
@@ -332,22 +348,35 @@ rulings."
    the Ruse is in Shadow Mandate), the Yohime boss list and two precons, where B4 touches one boss list
    and one precon. Recommended: B4 as drafted; Null Route beating it is a rare with an extra line, the
    costing class the rule leaves alone.
-6. **The Price over What the Sea Wants:** fold A33 into this slate (recommended: it separates the pair
+6. *Ruled (D6): "Fold into fix."* The row that changes is A33, kept in the slate as drafted: What
+   the Sea Wants gains "then this deals 2 damage to you" (Δ 0.76 to 0.43), and the Lanterns Below
+   reserve list carries the new text. No other row changes: A23 (The Deep Collects, the other card
+   The Price beat) was already in. The slate stays 41 cards.
+   **The Price over What the Sea Wants:** fold A33 into this slate (recommended: it separates the pair
    and brings What the Sea Wants from +0.76 into the band), or send it to the balance track with the
    other out-of-band cards?
-7. **The identity changes** (Tide-Reader loses the land drop, Stitched Footman loses Bulwark, Sky Map
+7. *Ruled (D7): yes.* A16, A21, A26, A28, A29 and A32 as drafted.
+   **The identity changes** (Tide-Reader loses the land drop, Stitched Footman loses Bulwark, Sky Map
    loses Skim, Lamp and Ledger becomes a Charm, Singing Shell loses its mill, Row Against the Hour
    gains Retell)? Recommended: yes; each alternative tried either left the pair one card or made a new
    near-duplicate.
-8. **A1 Court Minstrel and A7 White-Crown Marshal** pass the comparator without gaining a real job.
+8. *Ruled (D8): approve.* A1 and A7 are approved for the patch, and both get a taste pass when the
+   patch is written.
+   **A1 Court Minstrel and A7 White-Crown Marshal** pass the comparator without gaining a real job.
    Recommended: approve them for the patch, and give both a taste pass when the patch is written.
-9. **Plaguebearer Draugr (A14):** 1/5 (recommended: no cascade) or "When this dies, your opponent loses
+9. *Ruled (D9): 1/5.* A14 as drafted.
+   **Plaguebearer Draugr (A14):** 1/5 (recommended: no cascade) or "When this dies, your opponent loses
    2 life" (Δ +0.11, more flavour, but it makes Yokai Nights' Shrine-Debt Enforcer a strictly worse
    card). It sits in Hel's deck and reserve either way.
-10. **Rows in measured decks** (A3, A5, A6, A9, A10, A12, A14, A18, A24, A27, A28, A31, A33, B4, B8):
+10. *Ruled (D10): "Re-gate."* The 1.9.x patch re-gates the boss floors on the full ladder, on an
+    idle machine; no row is held back for a balance pass.
+    **Rows in measured decks** (A3, A5, A6, A9, A10, A12, A14, A18, A24, A27, A28, A31, A33, B4, B8):
     re-gate the boss floors in the 1.9.x patch (recommended: the moves are small and the patch runs
     the full ladder anyway), or hold those rows for a balance pass?
-11. **Tribe rescue one-sided?** Nine pairs are told apart only by a tribe on the winning card, so the
+11. *Ruled (D11): "Yes, as a follow up."* A dominated pair's loser needs its own reason, a tribe
+    on the winner no longer rescues it. The follow-up (about seven cards, from the nine pairs below
+    less the two A4 and A22 already fix) is not drafted, and when it runs is open.
+    **Tribe rescue one-sided?** Nine pairs are told apart only by a tribe on the winning card, so the
     loser has nothing the winner lacks: Jiang Wei under Zhang Bao (Base), Current-Bend Navigator and
     River-Sky Reader under Chart-Keeper of the Two Ways and Debt-Beetle Swarm under Tomb-Toll Taker
     (Duat), Ghostline Diviner under Echo-Fox Informant (Yokai Nights), Natron Kit-Caller under
@@ -355,5 +384,6 @@ rulings."
     Warcaller (A22 already fixes it), Wrecker Mate under Chrome-Tailed Raider and False-Lamp Bearer
     under Tournament Favorite. Recommended: make the rescue one-sided for dominated pairs (a loser needs
     its own reason) in a follow-up; that adds seven cards, not drafted here.
-12. **The out-of-band cards seen on the way** (The Debt Is Called, Black-Veil Matron, Still Harbour,
+12. *Ruled (D12): "Balance pass."* The four go to the balance track, not this patch.
+    **The out-of-band cards seen on the way** (The Debt Is Called, Black-Veil Matron, Still Harbour,
     Cold Current): leave them to the balance track (recommended), or fold them into this patch?

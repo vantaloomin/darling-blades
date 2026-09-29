@@ -1,8 +1,12 @@
-<!-- source-of-truth: docs/plan-1.9.md, docs/expansions/drafts/first-dawn-brief.md, docs/expansions/drafts/first-dawn-overplan.md, docs/rules.md, src/engine/types.ts, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/sba.ts, src/engine/combat/damage.ts, src/engine/Game.ts, src/engine/actions.ts, src/engine/resolve.ts, src/ai/value.ts, src/ai/targeting.ts, src/ai/activatedPolicy.ts, src/ai/combatPlans.ts, src/power/scoreCore.ts, src/data/glossary.ts, src/ui/rulesText.ts, scripts/action-log.ts, scripts/avatarReserveDecks.ts, scripts/mechanicUsage.ts · last-verified: 2026-09-28 · engine spec for the owner's second 1.9 sitting (lane A, and lane B step 3, the concretion audit); re-verify when the owner rules it, when the overplan's cut changes, or when A1 lands -->
+<!-- source-of-truth: docs/plan-1.9.md, docs/expansions/drafts/first-dawn-brief.md, docs/expansions/drafts/first-dawn-overplan.md, docs/rules.md, src/engine/types.ts, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/sba.ts, src/engine/combat/damage.ts, src/engine/Game.ts, src/engine/actions.ts, src/engine/resolve.ts, src/ai/value.ts, src/ai/targeting.ts, src/ai/activatedPolicy.ts, src/ai/combatPlans.ts, src/power/scoreCore.ts, src/data/glossary.ts, src/ui/rulesText.ts, scripts/action-log.ts, scripts/avatarReserveDecks.ts, scripts/mechanicUsage.ts · last-verified: 2026-09-28 · engine spec, RULED at the owner's second 1.9 sitting 2026-09-28 (lane A, and lane B step 3, the concretion audit); re-verify when the overplan's cut changes or when A1 lands -->
 
 # First Dawn engine spec: Provoked, Hunt, and what the cards need (1.9 lane A)
 
-**Status 2026-09-28: for the owner's second sitting.** Nothing here is built.
+**Status: RULED 2026-09-28, at the owner's second sitting.** Q1-Q5 and
+Q7-Q10 as recommended (Q10 except one template); **Q6 went the other way in
+part**: the seven arrival and attack Hunts hunt an opponent's creature if a
+legal one exists, and are forced to hunt your own only when none does (see
+"Rulings" at the end). A1 starts on these rulings. Nothing here is built yet.
 This is lane B step 3 (the concretion audit) and lane A's spec
 ([plan-1.9.md](plan-1.9.md), D16): the cards were designed first, in the
 [overplan](expansions/drafts/first-dawn-overplan.md), against the approved
@@ -52,6 +56,13 @@ are for the engine builder (A1).
   creature; an Empower-Hunt creature is countered outright if its prey
   leaves before it resolves; Scar-Knife Witch kills itself when it arrives
   alone; and the Deathblade-hunter question is wider than the Hunt spells.
+  **Ruled 2026-09-28:** the seven hunt a creature an opponent controls if a
+  legal one exists, and only when none does are they forced to hunt another
+  creature you control (with neither, the trigger does nothing), so Easy's
+  "never hunts its own" becomes "never by choice" (Q6); the empowered
+  creature resolves and loses only its rider (Q5); the Witch reads "another
+  target creature you control" (Q9); Deathblade hunters are accepted and the
+  lab costs them (Q7).
 
 ## The construct table (the concretion audit's answer)
 
@@ -68,7 +79,8 @@ projected cut, with the full overplan in brackets.
 | Empower may Hunt | Empower's target allowlist is `moveMark`, `reclaim`, `destroy` (types.ts:300-329) | 3 (3) | yes | **Keep, validator only** (Part 3) |
 | An empowered permanent fizzles whole when its Empower target leaves | A permanent spell with any target fizzles if none is legal (resolve.ts:77-91; probe P5) | 3 affected (3) | a rule fix, not a construct | **Fix** (Q5) |
 | General keyword-qualified target ("target creature with Skyborne") | none | 0 (1: Bone-Snap Ambush) | no | **Drop** |
-| Optional trigger ("you may have this hunt") | Targeted triggers are mandatory (EffectInterpreter.ts:1081-1099) | 0 if Q6 goes as recommended (7 otherwise) | n/a | **Do not build**; reword instead (Q6) |
+| Optional trigger ("you may have this hunt") | Targeted triggers are mandatory (EffectInterpreter.ts:1081-1099) | 0 (the owner ruled a forced fallback instead, Q6) | n/a | **Do not build** (Q6, ruled 2026-09-28) |
+| An opponent's creature if able (Q6, ruled 2026-09-28): a source-bound arrival or attack Hunt's prey is a creature an opponent controls when a legal one exists, otherwise another creature you control | No target preference by controller: a spec offers one candidate set (targeting.ts) | 6 (9); 7 before the owner's F6 took Fern-Crown Tyrant off the projected board | ruled | **Build** (A1). The mechanism is A1's to specify, on the pattern of the Hunt op's other targeting rules (Part 2, rule 2); legal actions and the targeted trigger's choice must both offer only the preferred set when it is non-empty |
 | A targeted dies trigger that cannot pick its own card from the graveyard | `other` exempts graveyard refs (targeting.ts:156; probe P3) | 0 (0) | no | **Do not build**; no row uses the shape since Fossil-Dreamer moved to arrival |
 | Dinokin and Dinosaur Axes | Lords already work on `filter.subtype` (statics.ts:112-120) | 3 lords and their payoffs | data | **Data only**: two `src/data/axes.ts` entries |
 | Four tokens (Hatchling, Pack Raptor, Tar-Bones, Glider) | `createToken` of a token def (EffectInterpreter.ts:668-681) | 4 | data | **Data only** |
@@ -83,6 +95,11 @@ projected cut, with the full overplan in brackets.
 | **C** needs the kept construct (`eachYourCreature`) | 3 | 4 |
 | **X** not expressible as written (reword or leave cut) | 0 | 1 |
 | **Total** | **165** | **210** |
+
+The owner's F6 (2026-09-28) keeps The Great Drum of the Hearth (E) and drops
+Fern-Crown Tyrant (M) from the projected board, so the board the cut starts
+from is 109 E and 50 M; the tables here and Appendix A keep the board this
+audit read.
 
 The four tokens are expressible (data). The Stampede theme deck (19 distinct
 cards: 12 M, 7 E), R27's draft list (21: 8 M, 13 E) and R28's (21: 15 M, 6
@@ -238,18 +255,31 @@ reserved art tell; printed on creatures only (P5). This spec rules the rest:
 
 *Your creature and the prey each deal damage equal to their Attack to the
 other.* Ruled already: you may hunt your own creatures, and Easy never does
-(B5); Bulwark prevents hunting at any rarity, and a Bulwark creature can be
-prey (H3a); Hunt damage counts for every damage-reading keyword and trigger,
+(B5; narrowed for the seven arrival and attack Hunts by Q6, ruled
+2026-09-28: Easy never does *by choice*, rule 2); Bulwark prevents hunting
+at any rarity, and a Bulwark creature can be prey (H3a); Hunt damage counts for every damage-reading keyword and trigger,
 present and future, and combat-only keywords do not apply (B6); a hunter
 provoked by its own Hunt is intended (B7). This spec rules the rest:
 
 1. **Forms.** A spell: "Target creature you control hunts another target
    creature." A source-bound ability: "This hunts [another] target creature
    [an opponent controls]" on an arrival, an attack, a Duty or an Empower.
+   The seven arrival and attack Hunts that may reach your own side (Q6)
+   read, as **proposed and pending the owner's wording**: "This hunts
+   another target creature, one an opponent controls if able."
 2. **Targets.** The hunter and the prey are always two different creatures.
    A creature with Bulwark cannot be chosen as the hunter, and a source-bound
    Hunt on a creature that has Bulwark does nothing. An opponent's
-   Untouchable creature cannot be prey; your own can.
+   Untouchable creature cannot be prey; your own can. **Whose prey (Q6,
+   ruled 2026-09-28).** A Hunt spell, a Duty Hunt and an Empower Hunt keep a
+   free choice of prey, your own creatures included (B5). An arrival or
+   attack Hunt is a mandatory trigger, so it must hunt a creature an
+   opponent controls if a legal one exists; only when none does is it
+   forced to hunt another creature you control; with neither, it does
+   nothing. So Easy never hunts its own creature by choice, but can be
+   forced to by these seven (Fern-Crown Tyrant, Kesh, Grave-Fern Stalker,
+   Frill-Neck Stalker, Fern-and-Fire Raptor, Fern-Shadow Stalker,
+   Spear-Thrower of the Ember Clan).
 3. **Numbers.** At resolution each deals damage equal to its Attack as it
    is then (pumps earlier in the same effect count, so Fang and Horn's
    +2/+2 is in), both at once. 0 or less deals nothing.
@@ -447,7 +477,12 @@ Grandchild and Wharf Rat, both {B}), not the overplan's Ash-Cat Ambusher.
   may hunt your own creatures") for these seven mandatory triggers only; B5
   still holds for every spell, Duty and Empower Hunt. The alternative engine
   construct (an optional trigger with a decline action, the AI and the UI
-  for it) is not worth seven rows.
+  for it) is not worth seven rows. **Ruled 2026-09-28, otherwise:** the
+  seven hunt a creature an opponent controls if a legal one exists, and are
+  forced to hunt another creature you control only when none does (Part 2,
+  rule 2). No optional trigger is built; the preference is new targeting
+  work in A1, and the Spear-Thrower case above stands whenever the opponent
+  has no legal prey.
 - **Scar-Knife Witch kills itself when it arrives alone** (Q9). "Arrives:
   damage target creature you control 1, then opponent loses 1 life" has no
   `other`, so with no other creature the only legal target is itself, and a
@@ -501,8 +536,10 @@ first in `src/ai`, then these reads. A1 records `scripts/action-log.ts record
 games; the same run covers the combat refactor in Part 2.
 
 **A2 (beside the set work, before transcription).** Easy never picks its own
-creature as prey (a filter in `EasyAI.ts`; with Q6 as recommended it is never
-forced to), and Easy may skip friendly sources entirely. Medium self-hunts
+creature as prey by choice (a filter in `EasyAI.ts`); under Q6 as ruled
+(2026-09-28) the seven arrival and attack Hunts can still force it to, when
+the opponent has no legal prey, so the filter must not refuse that forced
+choice. Easy may skip friendly sources entirely. Medium self-hunts
 and aims friendly sources only when the value in item 2 clears a margin.
 Draft-picker weights (`src/meta/draftPicker.ts`): Provoked payoffs by source
 density in the pool drafted so far, Hunt as removal weighted by the drafter's
@@ -549,6 +586,11 @@ is new:
   Deathblade-dense field with the one-mana hosts (Q7) and with Oru on the board (her +1/+1 is removal on
   every Dinokin hunter). The two Duty hunters get their own arms. The
   self-Hunt (hunter and prey both yours, both Provoked) is its own arm.
+  **The forced case (Q6, ruled 2026-09-28):** the arrival and attack
+  hunters' arms count, per game, how often the Hunt is forced onto your own
+  creature (the opponent has no legal prey) and what that costs, so their
+  rate prices the forced self-hunt rather than assuming an opponent's
+  creature is always there.
 - **The self-source rows** (the 18 lab-priced rows) are measured in the deck
   they are built for (the Stampede, R27, R28 lists), since their value is
   their deck's Provoked density, and their cost is set from that reading.
@@ -589,13 +631,16 @@ mechanic row is rescored before the owner's cut.
   `scripts/personas/score.ts`, the Forge's vocabulary, `scripts/audit-overlap.ts`
   and `scripts/mechanicUsage.ts`.
 
-**Rules text and glossary (A2; proposed player copy, for the owner's
-approval).** Templates:
+**Rules text and glossary (A2; player copy APPROVED 2026-09-28, Q10, except
+the one template Q6 changed).** Templates:
 
 - "Provoked: [effect]."
 - "Target creature you control hunts another target creature."
-- "This hunts another target creature."
+- "This hunts another target creature." (Duty and Empower Hunts, free choice)
 - "This hunts target creature an opponent controls."
+- **PROPOSED, pending the owner's wording** (Q6): "This hunts another target
+  creature, one an opponent controls if able." (the seven arrival and attack
+  Hunts)
 - "Deal N damage to each creature you control."
 - "Deal N damage to each other creature you control."
 
@@ -639,7 +684,8 @@ corpus rebuild.
   owner takes Q5 (the empowered fizzle) or Q8. If Q5 is taken, a v15 or v16
   log through that corner replays differently; the recommendation (Part 3)
   is a line in the version note beside the Foresee divergence
-  (Replay.ts:20-30), not a revision bump.
+  (Replay.ts:20-30), not a revision bump. **Ruled 2026-09-28:** Q5 taken as
+  recommended (the version-note line, no revision bump); Q8 not in 1.9.
 - **Save:** no change. `struck` is optional runtime state on `Permanent`,
   and no game state is saved.
 
@@ -713,7 +759,7 @@ each PR's gate is the ladder plus what it names.
 | --- | --- | --- | --- |
 | **A1.1 Engine** | Provoked (type, struck mark, SBA firing, once each turn, the raised pass budget, the held-trigger exception); the Hunt op, its targeting rules and the `targetSpecs` condition at its three call sites; `applyCreatureDamage` with combat moved onto it; `eachYourCreature`; the Empower allowlist; the empowered-permanent fizzle (if Q5 goes as recommended); validators; the compile-required stubs in every exhaustive switch the new op and trigger break (the scorer stubs report NEEDS MATH as unknowns); the event digest in the harness | `src/engine/types.ts`, `effects/EffectInterpreter.ts`, `sba.ts`, `combat/damage.ts`, new `creatureDamage.ts`, `actions.ts`, `resolve.ts`, `Game.ts` (line 993's condition), `events.ts`, `src/data/glossary.ts` (the record entries only), `src/ui/rulesText.ts` (stub cases: `opText`'s switch has no default and must return a string, rulesText.ts:136-315), `src/forge/validate.ts` (an `OP_RULES` entry, the `Record<OpKind, ...>` at line 194), `src/forge/vocab.ts` (`TRIGGER_OPENINGS` and `TRIGGER_LABELS`, the `Record<ScorableTriggerWhen, ...>` at lines 80 and 102), `src/power/scoreCore.ts` (stubs), `scripts/personas/score.ts`, `scripts/audit-overlap.ts`, `scripts/action-log.ts` (the digest, agreed with lane F), `tests/engine/` | Part 9's engine tests; replay goldens unchanged; **two hard gates on the broad preset, before and after: identical action logs, and an identical per-game digest of the event stream**. Actions alone cannot see combat's events reordering |
 | **A1.2 Hard's reads** | Part 4 items 1-4 | `src/ai/value.ts`, `src/ai/combatPlans.ts`, `src/ai/activatedPolicy.ts`, `src/ai/targeting.ts`, `tests/ai/` | action logs identical on the broad and weenie presets, against a tip that already has the weenie fix; behaviour tests on the Hunt ranking and the friendly-source value on fixture cards |
-| **A1.3 The lab** | Part 5's arms, run from the main checkout, results written up locally | `balance/study/lab/` (local only) | the measured rates with their intervals, the fire-rate counts, the Deathblade-host and Oru readings |
+| **A1.3 The lab** | Part 5's arms, run from the main checkout, results written up locally | `balance/study/lab/` (local only) | the measured rates with their intervals, the fire-rate counts, the Deathblade-host and Oru readings, and the forced self-hunt rate of the arrival and attack hunters (Q6) |
 | **A1.4 The rates** | The scorer terms and the local formula sections; the overplan's mechanic rows rescored | `src/power/scoreCore.ts`, `tests/power/`, the Forge's labels if any | Forge and in-game scorer agree (same code); every rescored row listed for the cut |
 
 A1.1 changes `types.ts` first; R13's removal of `flavor` rebases onto it
@@ -727,9 +773,9 @@ sets and can run in parallel once A1.1 lands (A2.b after A1.2):
 | PR | What | Files |
 | --- | --- | --- |
 | **A2.a Duel UI** | Spent Provoked state, the two-target prompts, the Hunt animation, the event `switch` audit | `src/scenes/DuelScene.ts` (after lane D's duel preload), `src/ui/BoardCardView.ts`, `src/ui/duelPresentation.ts`, `src/ui/targetSelection.ts`, the history log |
-| **A2.b Medium, Easy, draft** | Part 4's A2 half | `src/ai/MediumAI.ts`, `src/ai/EasyAI.ts`, `src/meta/draftPicker.ts`, `tests/ai/`, `docs/ai.md` |
-| **A2.c Words** | Templates, glossary definitions and icons, `rules.md`, `keyword-map.md`, `gen-docs-tables`; locally, the blades-db rows and `terms --check` | `src/ui/rulesText.ts`, `src/data/glossary.ts`, `src/ui/KeywordIcons.ts`, `docs/rules.md`, `docs/keyword-map.md` |
-| **A2.d Tools** | The converter's target walk: a Hunt spell is dead without a non-Bulwark creature of your own, and a mandatory any-prey Hunt (if Q6 goes the other way) needs creature supply (`NARROW_TARGETS`, avatarReserveDecks.ts:98-110); the usage audit rows | `scripts/avatarReserveDecks.ts`, `scripts/mechanicUsage.ts`, `scripts/mechanicUsageCollector.ts` |
+| **A2.b Medium, Easy, draft** | Part 4's A2 half; Easy's own-prey filter applies to choices only, never to the forced case of Q6 (ruled 2026-09-28), and `docs/ai.md` records Easy as "never by choice" | `src/ai/MediumAI.ts`, `src/ai/EasyAI.ts`, `src/meta/draftPicker.ts`, `tests/ai/`, `docs/ai.md` |
+| **A2.c Words** | Templates, glossary definitions and icons, `rules.md` (including, under Hauntlink's "Where a held trigger resolves", the known combat gap of item 10 in "What this spec corrects": a dies trigger held in the first-strike step resolves after the regular damage step), `keyword-map.md`, `gen-docs-tables`; locally, the blades-db rows and `terms --check` | `src/ui/rulesText.ts`, `src/data/glossary.ts`, `src/ui/KeywordIcons.ts`, `docs/rules.md`, `docs/keyword-map.md` |
+| **A2.d Tools** | The converter's target walk: a Hunt spell is dead without a non-Bulwark creature of your own, and the seven arrival and attack Hunts, which Q6 (ruled 2026-09-28) forces onto your own creature when the opponent has no legal prey, need creature supply for that forced case (`NARROW_TARGETS`, avatarReserveDecks.ts:98-110); the usage audit rows, with the forced self-hunt counted apart from a chosen one | `scripts/avatarReserveDecks.ts`, `scripts/mechanicUsage.ts`, `scripts/mechanicUsageCollector.ts` |
 
 **Risks.**
 
@@ -759,7 +805,8 @@ do not slip: transcription needs them.
 
 ## What this spec corrects
 
-In the **overplan** (lane B should update it; this spec does not edit it):
+In the **overplan** (lane B should update it; this spec does not edit it;
+items 1-6 are recorded there as of 2026-09-28):
 
 1. "G7 ... the engine throws today" and the 14 "G7-gated" Duty rows: G7
    shipped fixed in 1.8.1 (#451). An activation runs through `runOps` and
@@ -786,7 +833,9 @@ In the **overplan** (lane B should update it; this spec does not edit it):
    so distinctness is the Hunt op's rule; the flag stays in the data only
    because it prints "another target" (rulesText.ts:99).
 
-In **plan-1.9** (lane A; report only):
+In **plan-1.9** (lane A; report only; as of 2026-09-28 items 7 and 8
+are applied there, and the G7 and G8 rows already read as items 9 and 10
+ask, since #490; the `rules.md` half of item 10 goes to A2.c's rules pass):
 
 7. "`TargetSpec` already has ... `exactly: 2`" for Hunt: `exactly` is one
    spec for an unordered pair of the same kind (actions.ts:387-398); Hunt
@@ -816,12 +865,17 @@ In the **brief** (report only):
     sets neither Deathblade nor Blood Oath, EffectInterpreter.ts:324-350).
     A2's rules pass should say "combat and Hunt damage".
 
-## Questions for the owner
+## Rulings (the owner's second sitting, 2026-09-28)
 
-Each leads with the recommendation.
+The questions as they were put, recommendation first, each now led by the
+owner's answer and its consequence. The sitting's sheet numbered them E1-E10;
+Qn here is En there.
 
-1. **Rule Provoked as in Part 1:** fired in the state-based check after that
-   check's deaths and dies triggers, once each turn (not spent when it finds
+1. **RULED as recommended.** *Consequence:* A1.1 builds Provoked in the
+   state-based check with the held-trigger exception, and `rules.md` records
+   the exception to the 2026-09-04 order. **Rule Provoked as in Part 1:**
+   fired in the state-based check after that check's deaths and dies
+   triggers, once each turn (not spent when it finds
    no target), targeted effects chosen after the current effect or damage
    step, no extra loop cap (the pass budget is raised instead), **and one
    exception to the G8 order the owner ruled on 2026-09-04: when a
@@ -834,60 +888,95 @@ Each leads with the recommendation.
    creatures that die later in the same effect. *If not the exception:* the
    engine would have to make the combat damage step itself wait for held
    triggers, a change to the G8 machinery that First Dawn does not need.
-2. **Hunt's targeting rules live in the Hunt op; drop the general keyword
-   target.** Bone-Snap Ambush stays cut, or returns reworded. *If not:* a
-   `TargetSpec` keyword qualifier, its AI and UI, for one stretch common.
-3. **Keep "damage each creature you control" for War Drums, Trial by Ember
-   and Drum-Beater.** *If not:* reword them to "damage target creature you
+2. **RULED as recommended.** *Consequence:* no `TargetSpec` keyword
+   qualifier is built; Bone-Snap Ambush stays cut. **Hunt's targeting rules
+   live in the Hunt op; drop the general keyword target.** Bone-Snap Ambush
+   stays cut, or returns reworded. *If not:* a `TargetSpec` keyword
+   qualifier, its AI and UI, for one stretch common.
+3. **RULED: "Keep."** *Consequence:* `eachYourCreature` is built in A1.1,
+   and the question returns if the cut drops one of its three rows. **Keep
+   "damage each creature you control" for War Drums, Trial by Ember and
+   Drum-Beater.** *If not:* reword them to "damage target creature you
    control N", losing the provoke-the-whole-side turn; and if the cut drops
    one of the three, this question comes back.
-4. **Empower may Hunt, as a validator change** (three rows). *If not:* the
-   three become arrival Hunts or plain bodies.
-5. **An empowered creature is not countered when its Empower target leaves;
-   it resolves and only the rider is lost.** Changes The Drowned Saint in
-   that corner. *If not:* removing the prey in response counters an
-   Empower-Hunt creature, and the lab prices that risk into three rows.
-6. **Arrival and attack Hunts target "a creature an opponent controls"**
-   (Fern-Crown Tyrant, Kesh, Grave-Fern Stalker, Frill-Neck Stalker,
-   Fern-and-Fire Raptor, Fern-Shadow Stalker, Spear-Thrower). This narrows
-   B5 for these seven mandatory triggers only; spells, Duties and Empower
-   still hunt your own creatures. *If not:* each
+4. **RULED: "Validator change."** *Consequence:* A1.1 adds `hunt` to
+   Empower's allowlist and nothing else. **Empower may Hunt, as a validator
+   change** (three rows). *If not:* the three become arrival Hunts or plain
+   bodies.
+5. **RULED as recommended.** *Consequence:* A1.1 builds the rule; the replay
+   version note gains the one line for The Drowned Saint's corner (Part 7),
+   with no `rulesRev` bump. **An empowered creature is not countered when its
+   Empower target leaves; it resolves and only the rider is lost.** Changes
+   The Drowned Saint in that corner. *If not:* removing the prey in response
+   counters an Empower-Hunt creature, and the lab prices that risk into three
+   rows.
+6. **RULED OTHERWISE: "Forced to hunt your own, if no other valid target
+   exists."** The seven arrival and attack Hunts hunt a creature an opponent
+   controls if a legal one exists; only when none does are they forced to
+   hunt another creature you control; with neither, the trigger does
+   nothing. Spells, Duties and Empower keep a free choice (B5).
+   *Consequence:* the "if not" below applies in part: Easy's "never hunts
+   its own" becomes "never by choice" (A2.b), the converter (A2.d) and the
+   lab (A1.3) account for the forced case, A1 builds the preference (the
+   construct table), and the seven change their template to one **proposed
+   and pending the owner's wording**: "This hunts another target creature,
+   one an opponent controls if able." No optional trigger is built. The
+   question as put: **Arrival and attack Hunts target "a creature an
+   opponent controls"** (Fern-Crown Tyrant, Kesh, Grave-Fern Stalker,
+   Frill-Neck Stalker, Fern-and-Fire Raptor, Fern-Shadow Stalker,
+   Spear-Thrower). This narrows B5 for these seven mandatory triggers only;
+   spells, Duties and Empower still hunt your own creatures. *If not:* each
    must hunt your own creature when the opponent has none, Easy's "never"
    becomes "never by choice", and the converter and the lab account for the
    forced case; or the owner rules an optional-trigger construct.
-7. **Deathblade hunters: accept and cost them** (option A in Part 2). *If
-   not:* option B, "a creature with Deathblade cannot hunt" in every form; the
-   overplan's spell-only exclusion leaves the Duty hunters open to Rune of
-   Hunger and Rose-Thorn Snare, so B dominates it. Either way the lab
-   measures a Deathblade-dense field with the one-mana hosts.
-8. **Other creature ability damage stays off the shared damage path in
+7. **RULED: "Cost them in lab."** *Consequence:* option A; the lab's
+   Deathblade arm (Part 5) prices the Hunt spells and both Duty hunters on a
+   Deathblade-dense field, and option B stays the fallback if that reading
+   is over band. **Deathblade hunters: accept and cost them** (option A in
+   Part 2). *If not:* option B, "a creature with Deathblade cannot hunt" in
+   every form; the overplan's spell-only exclusion leaves the Duty hunters
+   open to Rune of Hunger and Rose-Thorn Snare, so B dominates it. Either way
+   the lab measures a Deathblade-dense field with the one-mana hosts.
+8. **RULED: "Not in 1.9."** *Consequence:* only combat and Hunt use the
+   shared damage path; the question can return after 1.9 as its own costed
+   item. **Other creature ability damage stays off the shared damage path in
    1.9.** *If not:* Eclipse-Red Queen gains life on her drain, and any of 48
    ability-damage creatures handed Deathblade becomes a repeatable kill,
    each needing a costing pass.
-9. **Scar-Knife Witch reads "another target creature you control".** *If
+9. **RULED as recommended.** *Consequence:* the overplan's row reads
+   "another target creature you control" (`other`); alone, it does nothing.
+   **Scar-Knife Witch reads "another target creature you control".** *If
    not:* it dies when it arrives with no other creature.
-10. **Approve the player copy in Part 6** (templates, the two glossary
-    definitions, the two prompts, the tooltip). Any wording the owner
-    prefers replaces it before A2.c.
+10. **RULED as recommended, except the one template Q6 changed.**
+    *Consequence:* Part 6's copy is approved as written and A2.c uses it; the
+    seven arrival and attack Hunts' template is proposed and waits for the
+    owner's wording. **Approve the player copy in Part 6** (templates, the
+    two glossary definitions, the two prompts, the tooltip). Any wording the
+    owner prefers replaces it before A2.c.
 
-**The overplan's thirteen questions go to the same sitting.** So the owner
-is not asked twice, this is how they map:
+**Open after the sitting:** the Q6 template's wording (proposed above,
+pending the owner); how A1 expresses "an opponent's creature if able" in the
+engine (the construct table names what it must do, not how).
 
-| Overplan question | Here | Relation |
-| --- | --- | --- |
-| 1 Use the provisional rates until the lab replaces them | Part 5 | Answered: same position; the lab's arms are specified |
-| 2 The split lord's Dinosaur bonus (Dreaded) | none | Not an engine question; unaffected (two subtype statics, expressible) |
-| 3 Admit `damageEachYours` | Q3 | Same recommendation; Q3 supersedes it and adds the threshold caveat |
-| 4 Admit Empower-Hunt "as a real engine change, not an allowlist line" | Q4 | **Opposite reasoning:** Q4 supersedes it (validator only) |
-| 5 Admit the keyword-qualified target | Q2 | **Opposite:** Q2 supersedes it (the Hunt op carries the rule; the general construct is dropped) |
-| 6 Trim Duty toward 18 | none | Not an engine question; note that G7 is no longer a reason to trim |
-| 7 Hatchling minters about twelve | none | Unaffected |
-| 8 The engines that fire every turn stay lab-first | Part 5 | Answered: each has a lab arm |
-| 9 The projected cut as the starting board | none | Unaffected; Appendix A classifies that board |
-| 10 R28 stays R/G | none | Unaffected |
-| 11 Exclude Deathblade from the Hunt spell's hunter | Q7 | **Opposite:** Q7 supersedes it (accept and cost; the rule for every form is the fallback) |
-| 12 The matriarch's reach: Dinokin only | none | Unaffected (expressible either way) |
-| 13 The G7 and P4 risk | Q1 | Retired: G7 shipped in 1.8.1; P4 is Q1 |
+**The overplan's thirteen questions went to the same sitting** (the sheet's
+F1-F8 and E1-E10; the overplan records each answer). So the owner was not
+asked twice, this is how they map:
+
+| Overplan question | Here | Relation | Ruled 2026-09-28 |
+| --- | --- | --- | --- |
+| 1 Use the provisional rates until the lab replaces them | Part 5 | Answered: same position; the lab's arms are specified | F1: yes |
+| 2 The split lord's Dinosaur bonus (Dreaded) | none | Not an engine question; unaffected (two subtype statics, expressible) | F2: Dreaded |
+| 3 Admit `damageEachYours` | Q3 | Same recommendation; Q3 supersedes it and adds the threshold caveat | Q3: keep |
+| 4 Admit Empower-Hunt "as a real engine change, not an allowlist line" | Q4 | **Opposite reasoning:** Q4 supersedes it (validator only) | Q4: validator change |
+| 5 Admit the keyword-qualified target | Q2 | **Opposite:** Q2 supersedes it (the Hunt op carries the rule; the general construct is dropped) | Q2: as recommended |
+| 6 Trim Duty toward 18 | none | Not an engine question; note that G7 is no longer a reason to trim | F3: toward 18, about 20 acceptable, at the cut |
+| 7 Hatchling minters about twelve | none | Unaffected | F4: keep 12 |
+| 8 The engines that fire every turn stay lab-first | Part 5 | Answered: each has a lab arm | F5: lab first |
+| 9 The projected cut as the starting board | none | Unaffected; Appendix A classifies that board | F6: yes; the Great Drum kept, Fern-Crown Tyrant dropped |
+| 10 R28 stays R/G | none | Unaffected | F7: yes |
+| 11 Exclude Deathblade from the Hunt spell's hunter | Q7 | **Opposite:** Q7 supersedes it (accept and cost; the rule for every form is the fallback) | Q7: accept, cost in the lab |
+| 12 The matriarch's reach: Dinokin only | none | Unaffected (expressible either way) | F8: Dinokin only |
+| 13 The G7 and P4 risk | Q1 | Retired: G7 shipped in 1.8.1; P4 is Q1 | Q1: as recommended |
 
 ## Appendix A: every row, classified
 
@@ -909,15 +998,15 @@ projected cut first, then by rarity.
 | `fd-tahla-shepherdess` | UR | yes | E | none | `allyCreatureArrives` never fires for the holder itself (EffectInterpreter.ts:1036); the face must say "another creature" |
 | `fd-walking-mountain` | SSR | yes | M | Provoked |  |
 | `fd-fang-and-horn` | SSR | yes | M | Hunt, spell |  |
-| `fd-fern-crown-tyrant` | SSR | yes | M | Provoked; Hunt, arrival | Mandatory Hunt with any prey: forced self-hunt when the opponent has no legal prey (Q6) |
+| `fd-fern-crown-tyrant` | SSR | yes | M | Provoked; Hunt, arrival | Mandatory Hunt, an opponent's creature if able: forced self-hunt when the opponent has no legal prey (Q6, ruled) |
 | `fd-ember-crest-tyrant` | SSR | yes | M | Provoked (targeted) |  |
-| `fd-kesh-raptor-rider` | SSR | yes | M | Hunt, attack | Mandatory Hunt with any prey: forced self-hunt when the opponent has no legal prey (Q6) |
+| `fd-kesh-raptor-rider` | SSR | yes | M | Hunt, attack | Mandatory Hunt, an opponent's creature if able: forced self-hunt when the opponent has no legal prey (Q6, ruled) |
 | `fd-long-neck-mother` | SSR | yes | M | Provoked (targeted) |  |
 | `fd-frost-seer` | SSR | yes | E | none |  |
 | `fd-rise-from-tar` | SSR | yes | E | none |  |
 | `fd-nirra-ash-witch` | SSR | yes | M | Provoked |  |
 | `fd-sky-riders-pact` | SSR | yes | E | none |  |
-| `fd-grave-fern-stalker` | SSR | yes | M | Hunt, arrival | Mandatory Hunt with any prey: forced self-hunt when the opponent has no legal prey (Q6) |
+| `fd-grave-fern-stalker` | SSR | yes | M | Hunt, arrival | Mandatory Hunt, an opponent's creature if able: forced self-hunt when the opponent has no legal prey (Q6, ruled) |
 | `fd-tracker-long-grass` | SR | yes | M | Hunt, Duty |  |
 | `fd-wild-tyrant` | SR | yes | M | Provoked |  |
 | `fd-ambush-at-the-river` | SR | yes | M | Hunt, spell |  |
@@ -935,7 +1024,7 @@ projected cut first, then by rarity.
 | `fd-obsidian-knife` | SR | yes | E | none | Duty ping at any creature, yours included: a source (AI read in A1) |
 | `fd-herd-caller-hornback` | R | yes | E | none | Dinokin Axis is an `axes.ts` entry (data) |
 | `fd-mammothkin-matron` | R | yes | M | Provoked |  |
-| `fd-frill-neck-stalker` | R | yes | M | Hunt, arrival | Mandatory Hunt with any prey: forced self-hunt when the opponent has no legal prey (Q6) |
+| `fd-frill-neck-stalker` | R | yes | M | Hunt, arrival | Mandatory Hunt, an opponent's creature if able: forced self-hunt when the opponent has no legal prey (Q6, ruled) |
 | `fd-horned-herd` | R | yes | E | none |  |
 | `fd-thorn-hide-armourback` | R | yes | M+D | Provoked (targeted); Hunt, Empower; Empower allowlist | Empower Hunt: validator allowlist (types.ts:300-329); an empowered creature whose prey leaves fizzles whole today (probe P5, Q5) |
 | `fd-grip-of-the-old-beast` | R | yes | M | Hunt, spell |  |
@@ -972,7 +1061,7 @@ projected cut first, then by rarity.
 | `fd-ash-witch-drain` | R | yes | E | none |  |
 | `fd-tar-pit` | R | yes | E | none |  |
 | `fd-tar-skin-brute` | R | yes | M | Provoked |  |
-| `fd-fern-and-fire` | R | yes | M | Hunt, arrival | Mandatory Hunt with any prey: forced self-hunt when the opponent has no legal prey (Q6) |
+| `fd-fern-and-fire` | R | yes | M | Hunt, arrival | Mandatory Hunt, an opponent's creature if able: forced self-hunt when the opponent has no legal prey (Q6, ruled) |
 | `fd-tusk-rage` | R | yes | M | Provoked |  |
 | `fd-herd-guardian` | R | yes | M | Provoked (targeted) |  |
 | `fd-stampede-long-grass` | R | yes | E | none |  |
@@ -984,7 +1073,7 @@ projected cut first, then by rarity.
 | `fd-bone-totem` | R | yes | E | none |  |
 | `fd-spear-and-fang` | C | yes | M | Hunt, spell |  |
 | `fd-stalk-the-ferns` | C | yes | M | Hunt, spell |  |
-| `fd-fern-shadow-stalker` | C | yes | M | Hunt, arrival | Mandatory Hunt with any prey: forced self-hunt when the opponent has no legal prey (Q6) |
+| `fd-fern-shadow-stalker` | C | yes | M | Hunt, arrival | Mandatory Hunt, an opponent's creature if able: forced self-hunt when the opponent has no legal prey (Q6, ruled) |
 | `fd-horn-crest-charger` | C | yes | M | Hunt, arrival |  |
 | `fd-tall-grass-tracker` | C | yes | M+D | Hunt, Empower; Empower allowlist | Empower Hunt: validator allowlist; fizzle rule, Q5 |
 | `fd-fern-back-grazer` | C | yes | M | Provoked |  |
@@ -1000,7 +1089,7 @@ projected cut first, then by rarity.
 | `fd-fern-crest-raptor` | C | yes | E | none |  |
 | `fd-fern-nest-raider` | C | yes | E | none |  |
 | `fd-challenge-the-beast` | C | yes | M | Hunt, spell |  |
-| `fd-spear-thrower` | C | yes | M | Hunt, arrival | Mandatory Hunt with any prey: forced self-hunt when the opponent has no legal prey (Q6) |
+| `fd-spear-thrower` | C | yes | M | Hunt, arrival | Mandatory Hunt, an opponent's creature if able: forced self-hunt when the opponent has no legal prey (Q6, ruled) |
 | `fd-ridge-raptor` | C | yes | M+D | Hunt, Empower; Empower allowlist | Empower Hunt: validator allowlist; fizzle rule, Q5 |
 | `fd-coal-thrower` | C | yes | E | none | Mandatory target; alone, it pings itself (1/3 survives) |
 | `fd-ember-flick` | C | yes | E | none |  |
@@ -1071,12 +1160,12 @@ projected cut first, then by rarity.
 | `fd-great-drum` | SSR | no | E | none |  |
 | `fd-kree-wind-crest` | SSR | no | E | none |  |
 | `fd-nest-keeper` | SR | no | E | none |  |
-| `fd-crag-leaper` | SR | no | M | Hunt, arrival | Mandatory Hunt with any prey: forced self-hunt when the opponent has no legal prey (Q6) |
+| `fd-crag-leaper` | SR | no | M | Hunt, arrival | Mandatory Hunt, an opponent's creature if able: forced self-hunt when the opponent has no legal prey (Q6, ruled) |
 | `fd-frozen-in-the-ice` | SR | no | E | none |  |
 | `fd-ash-witch-edict` | SR | no | E | none |  |
 | `fd-old-bull` | R | no | E | none |  |
 | `fd-herd-singer` | R | no | E | none | Targeted `allyAttacks` observer: supported (EffectInterpreter.ts:1228-1234) |
-| `fd-tusk-and-claw` | R | no | M | Provoked; Hunt, arrival | Mandatory Hunt with any prey: forced self-hunt when the opponent has no legal prey (Q6) |
+| `fd-tusk-and-claw` | R | no | M | Provoked; Hunt, arrival | Mandatory Hunt, an opponent's creature if able: forced self-hunt when the opponent has no legal prey (Q6, ruled) |
 | `fd-hurled-firebrand` | R | no | E | none |  |
 | `fd-obsidian-tooth` | R | no | M | Provoked |  |
 | `fd-raptor-ambush` | R | no | E | none |  |

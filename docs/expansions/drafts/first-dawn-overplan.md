@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-1.9.md, docs/expansions/drafts/first-dawn-brief.md, docs/expansions/drafts/drowned-deep-overplan.md, docs/keyword-map.md, docs/card-building-guide.md, src/engine/types.ts, src/data/axes.ts, src/power/scoreCore.ts, scripts/audit-overlap.ts · last-verified: 2026-09-28 · concept draft: the 210-candidate First Dawn overplan for the 165-card cut (lane B step 2, D16: cards before the engine spec); every row scored on the v4 scorer with provisional Provoked and Hunt rates (NEEDS MATH) and run through the duplicate comparator; awaiting the concretion audit, the engine spec, the lab's rates and the owner's cut; nothing here is implemented -->
+<!-- source-of-truth: docs/plan-1.9.md, docs/expansions/drafts/first-dawn-brief.md, docs/expansions/drafts/drowned-deep-overplan.md, docs/keyword-map.md, docs/card-building-guide.md, src/engine/types.ts, src/data/axes.ts, src/power/scoreCore.ts, scripts/audit-overlap.ts, docs/plan-first-dawn-engine.md · last-verified: 2026-09-28 · concept draft: the 210-candidate First Dawn overplan for the 165-card cut (lane B step 2, D16: cards before the engine spec); every row scored on the v4 scorer with provisional Provoked and Hunt rates (NEEDS MATH) and run through the duplicate comparator; its questions and the engine spec ruled at the owner's second sitting 2026-09-28; awaiting A1, the lab's rates, the rescore and the owner's cut; nothing here is implemented -->
 
 # First Dawn: overplan (2026-09-28)
 
@@ -10,6 +10,17 @@ is the concretion audit (step 3: every row mapped to engine vocabulary, the
 gap list with its row counts), then the engine spec for Provoked, Hunt and
 every kept gap (lane A), then the lab's measured rates for Provoked and Hunt,
 a rescore of every mechanic row, and the owner's cut (step 5).
+
+**Status 2026-09-28: the questions are RULED** (the owner's second sitting;
+answers under "Questions for the owner", F1-F8 on the sitting's sheet), and
+so is the engine spec (`docs/plan-first-dawn-engine.md`), which corrects six
+things this draft said (recorded where each is said, marked "Corrected by
+the engine spec"). The rulings changed row text in two places only: the seven
+arrival and attack Hunts take a proposed template (E6, pending the owner's
+wording) and Scar-Knife Witch reads "another target creature you control"
+(E9). No row is re-costed, re-rated or trimmed here: the cut does that after
+the lab. The projected cut moves by one swap (F6: the Great Drum in,
+Fern-Crown Tyrant out).
 
 Every row here is scored on the committed v4 scorer
 (`src/power/scoreCore.ts`, the Forge's own code) with provisional rates for
@@ -38,15 +49,18 @@ Counts are overplan with the projected cut in brackets:
 | Rarity | Overplan | W | U | B | R | G | Multi | Colourless | Projected cut | Target |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | UR | 11 | 2 (1) | 1 (1) | 1 (1) | 2 (1) | 2 (2) | 3 (2) | 0 (0) | 8 | 8 |
-| SSR | 14 | 2 (1) | 2 (1) | 2 (2) | 3 (2) | 3 (3) | 2 (2) | 0 (0) | 11 | 11 |
+| SSR | 14 | 2 (2) | 2 (1) | 2 (2) | 3 (2) | 3 (2) | 2 (2) | 0 (0) | 11 | 11 |
 | SR | 19 | 3 (3) | 3 (2) | 3 (2) | 4 (3) | 4 (3) | 1 (1) | 1 (1) | 15 | 15 |
 | R | 62 | 10 (8) | 9 (7) | 9 (7) | 11 (8) | 12 (9) | 9 (8) | 2 (2) | 49 | 49 |
 | C | 104 | 21 (16) | 17 (14) | 17 (13) | 21 (18) | 24 (17) | 0 (0) | 4 (4) | 82 | 82 |
-| **Total** | **210** | **38 (29)** | **32 (25)** | **32 (25)** | **41 (32)** | **45 (34)** | **15 (13)** | **7 (7)** | **165** | **165** |
+| **Total** | **210** | **38 (30)** | **32 (25)** | **32 (25)** | **41 (32)** | **45 (33)** | **15 (13)** | **7 (7)** | **165** | **165** |
 
 The projected cut lands on the histogram exactly and on the brief's colour
-split within one card (multicolour 13 for 12, colourless 7 for 8: every
-colourless row that survived the overlap audit is kept).
+split within one card (white 30 for 29, green 33 for 34, multicolour 13 for
+12, colourless 7 for 8: every colourless row that survived the overlap audit
+is kept). The bracketed counts include the owner's F6 swap (2026-09-28): the
+Great Drum (W, SSR) in, Fern-Crown Tyrant (G, SSR) out. The self-audit
+tables below still show the board before it; their deltas are listed there.
 
 ## How to read a row
 
@@ -64,7 +78,14 @@ colourless row that survived the overlap audit is kept).
   `this hunts another target creature` (on an arrival, an attack, a Duty or
   an Empower) and the spell form `target creature you control hunts another
   target creature`. The prey may be any other creature, yours included (B5);
-  `an opponent controls` narrows it where written.
+  `an opponent controls` narrows it where written. **Ruled 2026-09-28 (E6):**
+  an arrival or attack Hunt that may reach your side is a forced trigger, so
+  it hunts a creature an opponent controls if a legal one exists and is
+  forced to hunt another creature you control only when none does (with
+  neither, it does nothing); spells, Duties and Empower keep the free
+  choice. Those seven rows read `this hunts another target creature, one an
+  opponent controls if able`, a template **proposed and pending the owner's
+  wording**.
 - **Type lines** carry the tribes. **Dinokin** (the dinosaur monster-girls,
   an Axis with lords) always sits beside an inert species (Raptor, Hornback,
   Longneck, Armourback, Tyrant, Skywing, Swimmer). **Dinosaur** is the plain
@@ -216,7 +237,8 @@ Dinokin get +1/+1. Your Dinosaurs have Dreaded.*
   the UR count past the histogram.
 - The alternatives, for the owner: Warcry (Pack Raptors already have it),
   +0/+1 and Sentinel (the matriarch's shape, which the ruling keeps on
-  Dinokin), Overrun (near-blank on 1/1s).
+  Dinokin), Overrun (near-blank on 1/1s). **Ruled 2026-09-28 (F2):
+  Dreaded**, and the matriarch stays Dinokin only (F8).
 
 ## Ultra Rare (11; cut keeps 8)
 
@@ -239,19 +261,19 @@ Dinokin get +1/+1. Your Dinosaurs have Dreaded.*
 | ID | Name | Colour | Type | Cost | Stats | Mechanics sketch | Flags | Δ | Overlap | Cut | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | ---: | --- | --- | --- |
 | `fd-long-neck-mother` | Mother of the Long-Necks | W | Creature, Dinokin Longneck | {4}{W}{W} | 4/7 | Sentinel. Provoked: create a Hatchling token and Mark target creature you control. | NEEDS MATH: Provoked; LAB FIRST: Two-card engine: with a free source she calves and marks every turn, priced at the passive rate | +0.15 | clear | core | White's block-shaped Provoked Dinokin: a seven-Defense long-neck that makes and marks the herd every time she is struck and lives. Hatchling minter. |
-| `fd-great-drum` | The Great Drum of the Hearth | W | Artifact, legendary | {3}{W} | none | Your creatures get +0/+1. Duty, {1}: tap target creature. Duty, {2}{W}: create a Hatchling token. |  | -0.24 | clear | flex, **cut** | The Drum from the brief's white Duty row, at its top: tap an attacker or call a Hatchling, one a turn (the two Duties share the tap). Hatchling minter. |
+| `fd-great-drum` | The Great Drum of the Hearth | W | Artifact, legendary | {3}{W} | none | Your creatures get +0/+1. Duty, {1}: tap target creature. Duty, {2}{W}: create a Hatchling token. |  | -0.24 | clear | flex; kept (F6, 2026-09-28) | The Drum from the brief's white Duty row, at its top: tap an attacker or call a Hatchling, one a turn (the two Duties share the tap). Hatchling minter. Back on the projected board by the owner's F6: a white Duty showcase card, in place of Fern-Crown Tyrant. |
 | `fd-frost-seer` | Frost-Seer of the Ice Wall | U | Creature, Human Seer | {3}{U}{U} | 2/5 | Duty: tap target creature. During your Dawn: Foresee 1. |  | +0.17 | clear | core | The Ice clan's frost-seer (blue Duty: tap target creature). Blue answers without damage, so she stops a Provoked attacker without provoking it. |
 | `fd-kree-wind-crest` | Kree of the Wind-Crest | U | Creature, Dinokin Skywing | {2}{U}{U} | 3/3 | Skyborne. Arrives: recall target creature an opponent controls with cost 3 or less. Whenever another Dinokin you control attacks, Foresee 1. | NEEDS MATH: observer filter x0.5, target limit | +0.27 | advisory: a creature above 1 shipped body (Zhong Hui, Gilded Prodigy) | flex, **cut** | A blue Dinokin pterosaur that clears a small blocker and scouts for the herd. Recall wipes damage (a recalled creature loses its damage), blue's quiet answer to Provoked. |
 | `fd-rise-from-tar` | Rise From the Tar | B | Ritual | {3}{B}{B} | none | Return target creature card from your graveyard to the battlefield. Create a Tar-Bones token. |  | -0.12 | clear | core | The fossil line's reanimation spell (reanimator is the weakest persona, brief section 4): a body back and a fossil beside it. Tar-Bones minter. |
 | `fd-nirra-ash-witch` | Nirra the Ash-Witch | B | Creature, Human Witch | {2}{B}{B} | 3/3 | Deathblade. Provoked: opponent loses 2 life and you gain 2 life. | NEEDS MATH: Provoked | -0.48 | clear | core | Black's Provoked (a few: drains when struck). Deathblade kills what she fights, but it does nothing for her own survival: at Defense 3 she is provoked by pings and small attackers, and dies to anything big that blocks or is blocked by her. |
 | `fd-ember-crest-tyrant` | Ember-Crest Tyrant | R | Creature, Dinokin Tyrant | {3}{R}{R} | 5/4 | Warcry. Provoked: damage target creature an opponent controls 2. | NEEDS MATH: Provoked | +0.04 | clear | core | Red's Provoked tyrant: strike her and she burns back (never your own side, P3). Warcry makes her attack into blocks the turn she lands. |
-| `fd-kesh-raptor-rider` | Kesh, Raptor-Rider | R | Creature, Human Rider | {2}{R} | 3/2 | Warcry. Whenever this attacks, this hunts another target creature. | NEEDS MATH: Hunt; LAB FIRST: Hunt-rate bias: a glass-cannon hunter (see Spear-Thrower) | +0.07 | clear | core | The set's attack-trigger hunter (brief: 1): she clears a blocker as she charges, and usually trades with anything of Attack 2 or more. A rider, typed after the woman (D2). Pilot art case 1. |
+| `fd-kesh-raptor-rider` | Kesh, Raptor-Rider | R | Creature, Human Rider | {2}{R} | 3/2 | Warcry. Whenever this attacks, this hunts another target creature, one an opponent controls if able. | PROPOSED template (E6, 2026-09-28), pending the owner's wording; NEEDS MATH: Hunt; LAB FIRST: Hunt-rate bias: a glass-cannon hunter (see Spear-Thrower) | +0.07 | clear | core | The set's attack-trigger hunter (brief: 1): she clears a blocker as she charges, and usually trades with anything of Attack 2 or more. A rider, typed after the woman (D2). Pilot art case 1. |
 | `fd-uzza-war-painter` | Uzza the War-Painter | R | Creature, Human Shaman | {2}{R}{R} | 3/3 | Arrives: damage each other creature you control 1, then your creatures get +2/+0 until Sunset. | VOCAB damageEachYours; NEEDS MATH: self-sweep at 0; LAB-PRICED: cold by construction, never moved by its delta | -1.05 | clear | flex, **cut** | Cold by construction, lab-priced: its main term is a source aimed at your own side, which the scorer prices at 0, so its cost is set by design and pool precedent, never by its delta. The war-drum source (VOCAB damageEachYours, 1 of 4): she paints the whole war-party at once, provoking every survivor and sending them in two points bigger. Anti-synergy with Hatchlings is the point: this is red, not the G/W herd. |
 | `fd-walking-mountain` | The Walking Mountain | G | Creature, Dinosaur Longneck | {5}{G}{G} | 6/7 | Warding Gaze. Provoked: create two Hatchling tokens. | NEEDS MATH: Provoked; LAB FIRST: Two-card engine: with a free source it calves two Hatchlings a turn, priced at the passive rate | +0.59 | clear | core | The SSR plain Dinosaur (brief: 1 SSR): a sauropod big enough that every blow it survives hatches the herd. Hatchling minter. Pilot art case 2 (scale). |
 | `fd-fang-and-horn` | Fang and Horn | G | Charm | {1}{G}{G} | none | Target creature you control gets +2/+2 until Sunset, then it hunts another target creature. | VOCAB keywordTarget, distinctSpellTargets; NEEDS MATH: Hunt; LAB FIRST: Deathblade host: Nirra the Ash-Witch hunting with this kills and is provoked | -0.17 | clear | core | The flagship Hunt spell: the pump makes the hunter survive and win, at Charm speed (a combat trick that is also removal). Costed on a nominal 3/3.2 hunter plus the pump. |
-| `fd-fern-crown-tyrant` | Fern-Crown Tyrant | G | Creature, Dinokin Tyrant | {4}{G}{G} | 5/5 | Arrives, if you control another Dinokin: this hunts another target creature. Provoked: Mark this twice. | NEEDS MATH: Provoked, Hunt | +0.28 | clear | core | The Dinokin-conditioned arrival Hunt the brief lists (`controlsOther`), on a tyrant that grows when it survives its own hunt (B7: a hunter provoked by its own Hunt damage is intended). Attack 5 is allowed at SSR (the H5 cap is below SR). |
+| `fd-fern-crown-tyrant` | Fern-Crown Tyrant | G | Creature, Dinokin Tyrant | {4}{G}{G} | 5/5 | Arrives, if you control another Dinokin: this hunts another target creature, one an opponent controls if able. Provoked: Mark this twice. | PROPOSED template (E6, 2026-09-28), pending the owner's wording; NEEDS MATH: Provoked, Hunt | +0.28 | clear | core, **cut** (F6, 2026-09-28) | The Dinokin-conditioned arrival Hunt the brief lists (`controlsOther`), on a tyrant that grows when it survives its own hunt (B7: a hunter provoked by its own Hunt damage is intended). Attack 5 is allowed at SSR (the H5 cap is below SR). Dropped from the projected board by the owner's F6 so the Great Drum stays; green keeps two Double Super Rares. |
 | `fd-sky-riders-pact` | Asha and Shree, Sky-Riders | W/U | Creature, Human Rider | {4}{W}{U} | 3/3 | Skyborne. Arrives: create two Glider tokens. |  | +0.47 | clear | core | The W/U sky rider the token plan names (Glider minter): three fliers in one card for the pterosaur-and-taps pair. |
-| `fd-grave-fern-stalker` | Grave-Fern Stalker | B/G | Creature, Human Tracker | {3}{B}{G} | 4/4 | Arrives: this hunts another target creature. Dies: create a Tar-Bones token. | NEEDS MATH: Hunt | +0.64 | clear | core | B/G (Hunt plus fossils): a hunter whose death leaves a fossil, so a Hunt that trades still leaves a body. A multicolour Hunt row; Tar-Bones minter. |
+| `fd-grave-fern-stalker` | Grave-Fern Stalker | B/G | Creature, Human Tracker | {3}{B}{G} | 4/4 | Arrives: this hunts another target creature, one an opponent controls if able. Dies: create a Tar-Bones token. | PROPOSED template (E6, 2026-09-28), pending the owner's wording; NEEDS MATH: Hunt | +0.64 | clear | core | B/G (Hunt plus fossils): a hunter whose death leaves a fossil, so a Hunt that trades still leaves a body. A multicolour Hunt row; Tar-Bones minter. |
 
 ## Super Rare (19; cut keeps 15)
 
@@ -344,7 +366,7 @@ Dinokin get +1/+1. Your Dinosaurs have Dreaded.*
 | --- | --- | --- | --- | --- | --- | --- | --- | ---: | --- | --- | --- |
 | `fd-herd-caller-hornback` | Herd-Caller Hornback | G | Creature, Dinokin Hornback | {2}{G} | 2/3 | Your other Dinokin have Overrun. | NEEDS MATH: lord x2.0 (flat, D10) | -0.05 | clear | core, protect | THE OVERRUN LORD (brief section 2): the draftable lord. No stat change, so Hunt is untouched and the herd tramples over chump blocks. Dinokin only. |
 | `fd-mammothkin-matron` | Mammothkin Matron | G | Creature, Beastkin Mammoth | {4}{G} | 4/5 | Sentinel. Provoked: Mark this. | NEEDS MATH: Provoked | +0.24 | advisory: a creature above 1 shipped body (River-Silt Giant) | core | Beastkin 1 of 4 (the Woolly Mammoth girl, brief D3). A Provoked body, not a Beastkin payoff: the base set's Packmother and Call of the Wilds absorb her without re-costing. |
-| `fd-frill-neck-stalker` | Frill-Neck Stalker | G | Creature, Dinokin Hornback | {3}{G}{G} | 4/4 | Arrives: this hunts another target creature. | NEEDS MATH: Hunt | +0.10 | clear | core | The green arrival hunter at Rare: Stalking Yeti's shape a mana up with any prey (yours included). Attack 4, the H5 cap below SR. |
+| `fd-frill-neck-stalker` | Frill-Neck Stalker | G | Creature, Dinokin Hornback | {3}{G}{G} | 4/4 | Arrives: this hunts another target creature, one an opponent controls if able. | PROPOSED template (E6, 2026-09-28), pending the owner's wording; NEEDS MATH: Hunt | +0.10 | clear | core | The green arrival hunter at Rare: Stalking Yeti's shape a mana up with any prey (yours only when the opponent has no legal prey, E6). Attack 4, the H5 cap below SR. |
 | `fd-horned-herd` | The Horned Herd | G | Creature, Dinosaur Hornback | {4}{G} | 3/3 | Arrives: create two Hatchling tokens. |  | -0.16 | clear | core | A plain Dinosaur (brief: the horned herd): a beast and its calves. Hatchling minter; three Dinosaurs for Oru's Dreaded. |
 | `fd-thorn-hide-armourback` | Thorn-Hide Armourback | G | Creature, Dinokin Armourback | {2}{G}{G} | 2/5 | Provoked: Mark target creature you control. Empower {2}: this hunts another target creature. | VOCAB empowerHunt; NEEDS MATH: Provoked, Hunt | -0.31 | clear | core | The herd's shield-body: struck, it marks whoever needs it most (itself included). Empowered, it hunts one of your own creatures to provoke both (the self-provoke line, H1), or picks off an X/2 (VOCAB empowerHunt, 3 of 3). Printed plus Empower 6. |
 | `fd-old-bull` | Old Bull of the Herd | G | Creature, Dinokin Hornback | {3}{G} | 3/4 | Whenever another Dinokin you control dies, Mark this and gain 2 life. | NEEDS MATH: observer filter x0.5 | +0.12 | clear | flex, **cut** | The one "whenever another Dinokin you control dies" payoff the brief lists (`allyDies`, subtype filter x0.5). |
@@ -359,7 +381,7 @@ Dinokin get +1/+1. Your Dinosaurs have Dreaded.*
 
 | ID | Name | Colour | Type | Cost | Stats | Mechanics sketch | Flags | Δ | Overlap | Cut | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | ---: | --- | --- | --- |
-| `fd-fern-and-fire` | Fern-and-Fire Raptor | R/G | Creature, Dinokin Raptor | {1}{R}{G} | 3/3 | Warcry. Arrives, if you control another Dinokin: this hunts another target creature. | NEEDS MATH: Hunt | +0.52 | clear | core | R/G, the core pair: the Stampede theme deck's curve hunter. |
+| `fd-fern-and-fire` | Fern-and-Fire Raptor | R/G | Creature, Dinokin Raptor | {1}{R}{G} | 3/3 | Warcry. Arrives, if you control another Dinokin: this hunts another target creature, one an opponent controls if able. | PROPOSED template (E6, 2026-09-28), pending the owner's wording; NEEDS MATH: Hunt | +0.52 | clear | core | R/G, the core pair: the Stampede theme deck's curve hunter. |
 | `fd-tusk-rage` | Tusk-Rage Tyrant | R/G | Creature, Dinokin Tyrant | {3}{R}{G} | 5/5 | Provoked: Mark this and damage opponent 1. | NEEDS MATH: Provoked | +0.58 | clear | core | R/G Provoked tyrant: every blow it survives grows it and burns the player. |
 | `fd-herd-guardian` | Herd-Guardian Longneck | G/W | Creature, Dinokin Longneck | {3}{G}{W} | 2/6 | Sentinel. Provoked: create a Hatchling token and Mark target creature you control. | NEEDS MATH: Provoked | +0.37 | clear | core | G/W, the herd: R27's wall. Attacking into it feeds the herd (brief section 5). Hatchling minter. |
 | `fd-stampede-long-grass` | Stampede of the Long Grass | G/W | Ritual | {1}{G}{W} | none | Create two Hatchling tokens. Your creatures get +1/+0 and gain Overrun until Sunset. |  | -0.10 | clear | core | G/W finisher: the herd arrives and runs in the same turn. Hatchling minter. |
@@ -444,7 +466,7 @@ walls), the go-wide bodies and the token makers.
 | `fd-ash-brand` | Ash-Brand | B | Charm | {B} | none | Target creature gets -1/-1 until Sunset. Grind self 1. |  | -0.19 | clear | flex, **cut** | A small black answer. |
 | `fd-fossil-dreamer` | Fossil-Dreamer | B | Creature, Human Shaman | {3}{B} | 2/3 | Arrives: return target creature card from your graveyard to your hand, then grind self 3. |  | -0.10 | clear | flex | A fossil-line body that reclaims, then fills. (Was a targeted dies-reclaim, which could target the dying card itself: the targeted path has no self-exclusion, so it moved to the arrival.) |
 | `fd-tar-fang` | Tar-Fang Stalker | B | Creature, Dinokin Raptor | {3}{B} | 3/2 | Dreaded. Dies: grind self 2. |  | -0.41 | clear | flex | Black Dinokin 2 of 2 at common. |
-| `fd-scar-knife` | Scar-Knife Witch | B | Creature, Human Witch | {1}{B} | 2/1 | Arrives: damage target creature you control 1, then opponent loses 1 life. | NEEDS MATH: self-source at 0; LAB-PRICED: cold by construction, never moved by its delta | -0.02 | advisory: a creature above 1 shipped body (Draugr Raider) | core | Black's common source (brief: B 1 at C): a blood-letting that provokes your own creature and drains. |
+| `fd-scar-knife` | Scar-Knife Witch | B | Creature, Human Witch | {1}{B} | 2/1 | Arrives: damage another target creature you control 1, then opponent loses 1 life. | NEEDS MATH: self-source at 0; LAB-PRICED: cold by construction, never moved by its delta | -0.02 | advisory: a creature above 1 shipped body (Draugr Raider) | core | Black's common source (brief: B 1 at C): a blood-letting that provokes your own creature and drains. "Another" ruled 2026-09-28 (E9): as first sketched it could only target itself when it arrived alone, and died; now it does nothing alone. Δ and overlap are the pre-ruling reading, not re-run. |
 | `fd-grave-dust` | Grave-Dust | B | Ritual | {B} | none | Grind self 3. Opponent loses 1 life. |  | +0.51 | clear | flex, **cut** | Cheap self-mill for the fossil line. |
 | `fd-bone-heap` | Bone-Heap Shaman | B | Creature, Human Shaman | {4}{B} | 3/4 | Arrives: create a Tar-Bones token. |  | +0.47 | clear | flex | A body and a fossil. Tar-Bones minter. |
 | `fd-ash-choked` | Ash-Choked Breath | B | Ritual | {1}{B} | none | Opponent discards a card at random. Opponent loses 1 life. |  | +0.15 | clear | flex, **cut** | Black common discard. (Discard and grind 1 at {B} reprinted The Wharf's Due.) |
@@ -457,7 +479,7 @@ walls), the go-wide bodies and the token makers.
 | ID | Name | Colour | Type | Cost | Stats | Mechanics sketch | Flags | Δ | Overlap | Cut | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | ---: | --- | --- | --- |
 | `fd-challenge-the-beast` | Challenge the Beast | R | Ritual | {1}{R} | none | Target creature you control gets +1/+0 until Sunset, then it hunts another target creature. | VOCAB keywordTarget, distinctSpellTargets; NEEDS MATH: Hunt; LAB FIRST: Deathblade host: any Deathblade creature plus this is a two-mana kill (H4) | +0.43 | clear | core, protect | The red common Hunt spell (H5: at most one red at common). |
-| `fd-spear-thrower` | Spear-Thrower of the Ember Clan | R | Creature, Human Spearwoman | {3}{R} | 4/2 | Arrives: this hunts another target creature. | NEEDS MATH: Hunt; LAB FIRST: Hunt-rate bias: a glass-cannon hunter, costed on a rate that discounts the burn by survival rather than charging the lost body; not moved again on any new reading | +0.63 | clear | core | Red's common hunter: four Attack, two Defense, so she trades with most prey (brief: red Hunt usually trades). |
+| `fd-spear-thrower` | Spear-Thrower of the Ember Clan | R | Creature, Human Spearwoman | {3}{R} | 4/2 | Arrives: this hunts another target creature, one an opponent controls if able. | PROPOSED template (E6, 2026-09-28), pending the owner's wording; NEEDS MATH: Hunt; LAB FIRST: Hunt-rate bias: a glass-cannon hunter, costed on a rate that discounts the burn by survival rather than charging the lost body; not moved again on any new reading | +0.63 | clear | core | Red's common hunter: four Attack, two Defense, so she trades with most prey (brief: red Hunt usually trades). |
 | `fd-ridge-raptor` | Ridge-Raptor | R | Creature, Dinokin Raptor | {2}{R} | 3/1 | Warcry. Empower {1}{R}: this hunts another target creature. | VOCAB empowerHunt; NEEDS MATH: Hunt; LAB FIRST: Hunt-rate bias: a glass-cannon hunter (see Spear-Thrower) | -0.03 | clear | flex | A red raptor that attacks at once or, paid up, snaps at an X/3 first and usually dies doing it (VOCAB empowerHunt, 2 of 3). Printed plus Empower 5. |
 | `fd-coal-thrower` | Coal-Thrower | R | Creature, Human Firekeeper | {2}{R} | 1/3 | Arrives: damage target creature 1. |  | -0.22 | clear | core, protect | The red common arrival ping: a source aimed at your own Provoked creature, or removal for an X/1. (2/2 reprinted Forge-Hand.) |
 | `fd-ember-flick` | Ember-Flick | R | Charm | {R} | none | Damage target creature 1. Foresee 1. |  | +0.42 | clear | core | The one-mana source at Charm speed: provoke your creature mid-combat, after blocks. |
@@ -484,7 +506,7 @@ walls), the go-wide bodies and the token makers.
 | --- | --- | --- | --- | --- | --- | --- | --- | ---: | --- | --- | --- |
 | `fd-spear-and-fang` | Spear and Fang | G | Ritual | {1}{G} | none | Target creature you control hunts another target creature. | VOCAB keywordTarget, distinctSpellTargets; NEEDS MATH: Hunt; LAB FIRST: Deathblade host: any Deathblade creature plus this is a two-mana kill (H4); costed on a nominal 3/3.2 hunter | -0.57 | clear | core, protect | The plain Hunt spell, green common 1 of 2 (H5). Costed on the better of its two uses (brief H5): removal, or a self-Hunt that provokes two of your own creatures. |
 | `fd-stalk-the-ferns` | Stalk the Ferns | G | Charm | {2}{G} | none | Target creature you control gets +1/+1 until Sunset, then it hunts another target creature. | VOCAB keywordTarget, distinctSpellTargets; NEEDS MATH: Hunt; LAB FIRST: Deathblade host: any Deathblade creature plus this is a kill at Charm speed (H4) | +0.14 | clear | core | Green common Hunt spell 2 of 2: the Charm-speed version, a combat trick that is also removal. |
-| `fd-fern-shadow-stalker` | Fern-Shadow Stalker | G | Creature, Dinokin Raptor | {3}{G} | 3/4 | Arrives, if you control another Dinokin: this hunts another target creature. | NEEDS MATH: Hunt | +0.32 | clear | core | The common Dinokin arrival hunter (`controlsOther`): a Dinokin payoff and a source. |
+| `fd-fern-shadow-stalker` | Fern-Shadow Stalker | G | Creature, Dinokin Raptor | {3}{G} | 3/4 | Arrives, if you control another Dinokin: this hunts another target creature, one an opponent controls if able. | PROPOSED template (E6, 2026-09-28), pending the owner's wording; NEEDS MATH: Hunt | +0.32 | clear | core | The common Dinokin arrival hunter (`controlsOther`): a Dinokin payoff and a source. |
 | `fd-horn-crest-charger` | Horn-Crest Charger | G | Creature, Dinokin Hornback | {4}{G} | 4/4 | Arrives: this hunts another target creature an opponent controls. | NEEDS MATH: Hunt | +0.67 | clear | core | The unconditional common hunter at five mana, Attack 4 (the H5 cap). |
 | `fd-tall-grass-tracker` | Tall-Grass Tracker | G | Creature, Human Tracker | {2}{G} | 2/3 | Empower {2}: this hunts another target creature. | VOCAB empowerHunt; NEEDS MATH: Hunt | -0.24 | clear | flex | Empower as an optional arrival Hunt (brief section 2; VOCAB empowerHunt, 1 of 3): a three-drop body early, a hunter late. Printed plus Empower is 5, under the ceiling of 9. |
 | `fd-fern-back-grazer` | Fern-Back Grazer | G | Creature, Dinokin Longneck | {2}{G} | 1/4 | Provoked: Mark this. | NEEDS MATH: Provoked | +0.08 | clear | core, protect | The common Fungusaur: a grazer that grows each time it survives a blow. Green common payoff. |
@@ -651,7 +673,7 @@ Spells: 36.
 | 2 | Fern-and-Fire Raptor (`fd-fern-and-fire`) | {1}{R}{G} | R | Hunt |
 | 2 | Tusk-Rage Tyrant (`fd-tusk-rage`) | {3}{R}{G} | R | Provoked |
 | 1 | Ember-Crest Tyrant (`fd-ember-crest-tyrant`) | {3}{R}{R} | SSR | Provoked |
-| 1 | Fern-Crown Tyrant (`fd-fern-crown-tyrant`) | {4}{G}{G} | SSR | Hunt |
+| 1 | Fern-Crown Tyrant (`fd-fern-crown-tyrant`) | {4}{G}{G} | SSR | Hunt; **off the projected board since F6** (2026-09-28): this slot needs a replacement from the board, open until the cut |
 | 1 | Vessa, the Great Horn (`fd-vessa-great-horn`) | {3}{G}{G} | UR | Provoked |
 | 1 | Korru, Eldest of the Trackers (`fd-korru-eldest-tracker`) | {3}{G}{G} | UR | Hunt |
 | 1 | Oru, the Tyrant Queen (`fd-oru-tyrant-queen`) | {4}{R}{G} | UR | lord |
@@ -853,6 +875,20 @@ and the colour split bind first, and the owner's cut can trim toward the
 budget (question 6 below). Other sources, Dinokin, Dinosaur creatures,
 Beastkin and token minters sit at or above their budgets.
 
+**The F6 swap (owner, 2026-09-28), not yet folded into the tables in this
+self-audit.** The Great Drum (W, SSR: an artifact with two Duties, a
+Hatchling minter) is back on the projected board and Fern-Crown Tyrant (G,
+SSR: Dinokin, Provoked, Hunt, so a source) is off it. Counted from the two
+rows, the projected cut moves: white 29 to 30 rows, Duty 7 to 8 and token
+minters 9 to 10; green 34 to 33 rows, Provoked 10 to 9, Hunt 13 to 12,
+sources 13 to 12 and Dinokin 14 to 13. Projected-cut totals after the swap:
+Provoked 32, Hunt 22, sources
+44, Duty 31, token minters 42 (Hatchling 18), Dinokin 42. Every density
+minimum and tribe floor below still holds (green payoffs 9 against 8,
+sources 12 against 10, Hunt 12 against 8; Dinokin 42 against 38). **Duty is
+ruled (F3):** trim toward 18, and landing around 20 is acceptable; the trim
+happens at the cut, after the lab.
+
 ### Enabler density against the brief's minimums
 
 A payoff is a card that prints Provoked; a source is a card whose controller
@@ -942,18 +978,18 @@ come first; the rest is every construct a row needs that
 
 | Construct | Rows (overplan / projected cut) | Clears the threshold? | Note |
 | --- | --- | --- | --- |
-| **Provoked** trigger (a new `TriggerWhen`, P1-P5) | 38 / 33 | ruled | Every targeted Provoked effect aims at an opponent's creature or player (P3, checked); the loop cap must reach the Provoked path (P3, A1 work); P4's placement (in the state-based pass, not inline at damage) is load-bearing, see G7 and P4 below |
-| **Hunt** op, both forms (H1-H5) | 25 / 23 | ruled | The op refuses a hunter that has gained Bulwark by resolution (H3a); two Duty Hunts (Korru UR, Tracker SR) and the Duty pings are G7-gated, see below |
-| **Hunt spell targets** (H1, H3a): the hunter spec excludes Bulwark, and the two targets are distinct | `fd-fang-and-horn`, `fd-ambush-at-the-river`, `fd-grip-of-the-old-beast`, `fd-duel-on-the-ridge`, `fd-blaze-horn-charge`, `fd-spear-and-fang`, `fd-stalk-the-ferns`, `fd-challenge-the-beast` | yes, eight rows | Two engine items, `keywordTarget` and `distinctSpellTargets` in the table below. Without them the AI's target enumeration offers a Bulwark hunter, and a spell may name one creature as hunter and prey |
+| **Provoked** trigger (a new `TriggerWhen`, P1-P5) | 38 / 33 | ruled | Every targeted Provoked effect aims at an opponent's creature or player (P3, checked); the loop cap must reach the Provoked path (P3, A1 work); P4's placement (in the state-based pass, not inline at damage) is load-bearing, see G7 and P4 below. **Corrected by the engine spec** (its items 2 and 5, and 11 for the brief): five of the seven targeted Provoked effects in the cut target your own creature, to Mark it (Long-Neck Mother, Elder of the Bone Wall, Thorn-Hide Armourback, Herd-Guardian Longneck, Reed-Wall Keeper), and P3 is about damage, so it still holds; the state-based placement is for survival, not for the Duties; the loop cap need not reach this path, since once each turn bounds it (the pass budget is raised instead). Ruled with the spec's Q1, 2026-09-28 |
+| **Hunt** op, both forms (H1-H5) | 25 / 23 | ruled | The op refuses a hunter that has gained Bulwark by resolution (H3a); two Duty Hunts (Korru UR, Tracker SR) and the Duty pings are G7-gated, see below. **Corrected by the engine spec** (item 1): G7 shipped fixed in 1.8.1 (#451), so nothing here is gated |
+| **Hunt spell targets** (H1, H3a): the hunter spec excludes Bulwark, and the two targets are distinct | `fd-fang-and-horn`, `fd-ambush-at-the-river`, `fd-grip-of-the-old-beast`, `fd-duel-on-the-ridge`, `fd-blaze-horn-charge`, `fd-spear-and-fang`, `fd-stalk-the-ferns`, `fd-challenge-the-beast` | yes, eight rows | Two engine items, `keywordTarget` and `distinctSpellTargets` in the table below. Without them the AI's target enumeration offers a Bulwark hunter, and a spell may name one creature as hunter and prey. **Corrected by the engine spec** (item 4), ruled 2026-09-28 (E2): both are the Hunt op's own targeting rules, on the Mark-moving precedent, not constructs |
 | **Dinokin** Axis | 57 carriers overplan, 43 cut; 3 lords, 14 other payoffs | ruled | An `axes.ts` entry. Payoffs use `filter.subtype` (the lords), `controlsOther` (the conditional arrivals and the `As long as you control another Dinokin` statics), `allyAttacks` and `allyDies` with a subtype filter |
 | **Dinosaur** Axis | 9 creature cards and 3 tokens; 1 payoff (Oru) | ruled by the split lord | An `axes.ts` entry, no new construct |
 
 | Construct | What the engine lacks (checked in `src/engine/types.ts`) | Overplan rows | Projected-cut rows | Clears the three-row threshold? | Recommendation |
 | --- | --- | ---: | ---: | --- | --- |
-| `keywordTarget` | a target qualified by a keyword, with or without it (the hunter of a Hunt spell is "target creature you control without Bulwark", H3a; "target creature with Skyborne"); TargetSpec has maxCost, minAttack, marked and tapped only, and the AI target enumeration would offer a Bulwark hunter | 9 (`fd-fang-and-horn`, `fd-ambush-at-the-river`, `fd-grip-of-the-old-beast`, `fd-duel-on-the-ridge`, `fd-blaze-horn-charge`, `fd-spear-and-fang`, `fd-stalk-the-ferns`, `fd-bone-snap`, `fd-challenge-the-beast`) | 8 | yes | Admit (reversed from the first draft): every Hunt spell's hunter must be "target creature you control without Bulwark" (H3a), a keyword-qualified target the engine lacks and the AI's target enumeration would violate, so the construct clears the threshold on the eight Hunt spells alone. A creature that gains Bulwark after targeting must also be refused at resolution (an H3a check in the Hunt op). Bone-Snap Ambush ("with Skyborne") then rides it at no extra engine cost; it stays a stretch row |
-| `distinctSpellTargets` | the two creature targets of a spell must be different creatures; `other` excludes only the source permanent of an ability, and a spell has none (targeting.ts:156) | 8 (`fd-fang-and-horn`, `fd-ambush-at-the-river`, `fd-grip-of-the-old-beast`, `fd-duel-on-the-ridge`, `fd-blaze-horn-charge`, `fd-spear-and-fang`, `fd-stalk-the-ferns`, `fd-challenge-the-beast`) | 8 | yes | Admit with the Hunt op: a spell's hunter and prey must be two different creatures (H1), and `other` excludes only the source permanent of an ability, which a spell does not have (targeting.ts, around line 156) |
-| `damageEachYours` | "damage each creature you control N" (no op; the damage op reaches eachCreature or eachOpponentCreature only) | 4 (`fd-uzza-war-painter`, `fd-war-drums`, `fd-trial-by-ember`, `fd-drum-beater`) | 3 | yes | Admit: red's war-drum and white's scarring rite, the source shape the brief expected (2-3 rows). A new `damage` target, `eachYourCreature` (with an optional `other`), beside `eachCreature` and `eachOpponentCreature`. Drum-Beater of the Ember Clan is the only common on it and teaches board-wide self-damage: your own Pack Raptors and Hatchlings die to it |
-| `empowerHunt` | Empower may Hunt (the Empower validator allowlist is moveMark, reclaim, destroy) | 3 (`fd-thorn-hide-armourback`, `fd-tall-grass-tracker`, `fd-ridge-raptor`) | 3 | yes | Admit with the Hunt op, but it is not an allowlist-only change: Empower riders are contractually trigger-safe (types.ts, EmpowerDef; resolve.ts), and a Hunt can kill and so raise a dies trigger or a deferred choice. P4's state-based placement of Provoked keeps the Hunt's own Provoked out of the rider; the dies triggers still need the rider to allow a deferred choice. Rows: fd-thorn-hide-armourback, fd-tall-grass-tracker, fd-ridge-raptor |
+| `keywordTarget` | a target qualified by a keyword, with or without it (the hunter of a Hunt spell is "target creature you control without Bulwark", H3a; "target creature with Skyborne"); TargetSpec has maxCost, minAttack, marked and tapped only, and the AI target enumeration would offer a Bulwark hunter | 9 (`fd-fang-and-horn`, `fd-ambush-at-the-river`, `fd-grip-of-the-old-beast`, `fd-duel-on-the-ridge`, `fd-blaze-horn-charge`, `fd-spear-and-fang`, `fd-stalk-the-ferns`, `fd-bone-snap`, `fd-challenge-the-beast`) | 8 | yes | Admit (reversed from the first draft): every Hunt spell's hunter must be "target creature you control without Bulwark" (H3a), a keyword-qualified target the engine lacks and the AI's target enumeration would violate, so the construct clears the threshold on the eight Hunt spells alone. A creature that gains Bulwark after targeting must also be refused at resolution (an H3a check in the Hunt op). Bone-Snap Ambush ("with Skyborne") then rides it at no extra engine cost; it stays a stretch row. **Corrected by the engine spec** (item 4), ruled 2026-09-28 (E2): not built. The Bulwark rule lives in the Hunt op, so the general qualifier would serve 0 cut rows (only Bone-Snap Ambush, which stays cut) |
+| `distinctSpellTargets` | the two creature targets of a spell must be different creatures; `other` excludes only the source permanent of an ability, and a spell has none (targeting.ts:156) | 8 (`fd-fang-and-horn`, `fd-ambush-at-the-river`, `fd-grip-of-the-old-beast`, `fd-duel-on-the-ridge`, `fd-blaze-horn-charge`, `fd-spear-and-fang`, `fd-stalk-the-ferns`, `fd-challenge-the-beast`) | 8 | yes | Admit with the Hunt op: a spell's hunter and prey must be two different creatures (H1), and `other` excludes only the source permanent of an ability, which a spell does not have (targeting.ts, around line 156). **Corrected by the engine spec** (items 4 and 6), ruled 2026-09-28 (E2): distinctness is the Hunt op's own rule, not a construct; the spell's prey spec still carries `other: true`, which excludes nothing on a spell and stays in the data only because it prints "another target" |
+| `damageEachYours` | "damage each creature you control N" (no op; the damage op reaches eachCreature or eachOpponentCreature only) | 4 (`fd-uzza-war-painter`, `fd-war-drums`, `fd-trial-by-ember`, `fd-drum-beater`) | 3 | yes | Admit: red's war-drum and white's scarring rite, the source shape the brief expected (2-3 rows). A new `damage` target, `eachYourCreature` (with an optional `other`), beside `eachCreature` and `eachOpponentCreature`. Drum-Beater of the Ember Clan is the only common on it and teaches board-wide self-damage: your own Pack Raptors and Hatchlings die to it. **Ruled 2026-09-28 (E3): keep** (built in A1 as the `eachYourCreature` recipient); if the cut drops one of the three rows, it falls below the threshold and the question returns |
+| `empowerHunt` | Empower may Hunt (the Empower validator allowlist is moveMark, reclaim, destroy) | 3 (`fd-thorn-hide-armourback`, `fd-tall-grass-tracker`, `fd-ridge-raptor`) | 3 | yes | Admit with the Hunt op, but it is not an allowlist-only change: Empower riders are contractually trigger-safe (types.ts, EmpowerDef; resolve.ts), and a Hunt can kill and so raise a dies trigger or a deferred choice. P4's state-based placement of Provoked keeps the Hunt's own Provoked out of the rider; the dies triggers still need the rider to allow a deferred choice. Rows: fd-thorn-hide-armourback, fd-tall-grass-tracker, fd-ridge-raptor. **Corrected by the engine spec** (item 3), ruled 2026-09-28 (E4): it is an allowlist-only validator change; Hunt damage only marks damage, and the deaths come in the state-based check after the rider. Also ruled (E5): an empowered creature whose prey leaves still resolves and loses only the rider |
 
 **Not needed after all** (the brief's section 10 estimates): the size
 condition ("if you control a creature with Attack 4 or more") was reworded to
@@ -974,6 +1010,17 @@ row that used it, now reclaims on arrival; a future card that wants the shape
 needs that self-exclusion as an engine item.
 
 ### G7 and P4: what about 24 rows (22 in the projected cut) hang on
+
+**Corrected by the engine spec (its items 1-3), ruled 2026-09-28: this risk
+is retired.** G7 shipped fixed in 1.8.1 (#451): an activation runs through
+the same deferral queue a spell uses, and `tests/engine/activated.test.ts`
+covers a Duty that kills a creature whose dies trigger is held, so none of
+the rows below is gated. The validator forbids an inline target only after a
+Foresee, and a targeted trigger raised mid-effect carries the effect's
+targets in its continuation, so the tail Duties would be legal either way;
+Provoked sits in the state-based check for survival (the spec's Q1, ruled as
+recommended). Empower-Hunt is an allowlist-only change (E4). The three
+bullets below are the draft's reading, kept as written.
 
 - **G7** (an activation that raises a dies trigger or a deferred choice; the
   engine throws today, and plan-1.9 requires it fixed before First Dawn
@@ -1028,7 +1075,7 @@ eight).
 
 **UR, cut 3:** Rakka, Queen of the Red Pack (R, flex); The Painted Cave (W, flex); Venna Red-Hand, War-Chief (R/W, flex).
 
-**SSR, cut 3:** Uzza the War-Painter (R, flex); Kree of the Wind-Crest (U, flex); The Great Drum of the Hearth (W, flex).
+**SSR, cut 3:** Uzza the War-Painter (R, flex); Kree of the Wind-Crest (U, flex); Fern-Crown Tyrant (G, core). *As ruled 2026-09-28 (F6): the proposal cut The Great Drum of the Hearth (W, flex) here; the owner kept it and dropped Fern-Crown Tyrant instead.*
 
 **SR, cut 4:** Crag-Leaper (R, flex); Frozen in the Ice (U, flex); Ash on the Wind (B, flex); Nest-Keeper of the Fern (G, flex).
 
@@ -1049,13 +1096,20 @@ flier build-around at Rare would be a new row, not a rewrite.
 (the Hearth, the Drum, the Standing Stone, the Painted Cave). The projected
 cut drops two of them (The Painted Cave at Ultra Rare, The Great Drum at
 Double Super Rare), leaving The Clan Hearth, the Standing Stone and the
-Herd-Horn. Keeping one is recommended in question 9.
+Herd-Horn. Keeping one is recommended in question 9. **Ruled 2026-09-28
+(F6):** the Great Drum is kept, so three of the four showcase cards the
+brief names are on the board (the Hearth, the Drum, the Standing Stone).
 
 ## Questions for the owner
 
-Each leads with the recommendation.
+Each leads with the recommendation. **All RULED at the owner's second
+sitting, 2026-09-28** (the sheet's F1-F8 for the card questions; the engine
+questions 3, 4, 5, 11 and 13 were answered by the engine spec's rulings,
+E3, E4, E2, E7 and E1). Each answer leads its question below.
 
-1. **Provisional rates: use them for the concretion audit and the engine
+1. *Ruled (F1): yes.* The provisional rates stand until the lab replaces
+   them; the flagged rows are not moved on them.
+   **Provisional rates: use them for the concretion audit and the engine
    spec, and let the lab replace them before the cut, knowing their two
    biases.** Hunt discounts the burn by survival instead of charging the lost
    body, so glass-cannon hunters read hot (four rows, not moved again);
@@ -1063,25 +1117,37 @@ Each leads with the recommendation.
    struck least without a source, and prices two-card engines at the passive
    rate (five rows). Both are stated in "The provisional rates"; the flagged
    rows are LAB FIRST.
-2. **The split lord's Dinosaur bonus: Dreaded.** It keeps the anthem off a
+2. *Ruled (F2): "Dreaded is good."* Oru's Dinosaur half is Dreaded, as
+   written. **The split lord's Dinosaur bonus: Dreaded.** It keeps the anthem off a
    token swarm's Attack. Alternatives: Warcry, +0/+1 and Sentinel, Overrun
    (see the split-lord section).
-3. **Admit `damageEachYours` ("damage each creature you control N").** Four
+3. *Ruled (E3): "Keep."* `eachYourCreature` is built in A1 for the three
+   rows. **Admit `damageEachYours` ("damage each creature you control N").** Four
    rows in the overplan, three in the projected cut (War Drums, Drum-Beater,
    Trial by Ember): red's war-drum and white's scarring rite. It clears the
    three-row threshold. Drum-Beater is the only common on it and teaches
    board-wide self-damage (your own Pack Raptors and Hatchlings die to it).
    The alternative is to reword them to "damage target creature you control
    N", which loses the provoke-the-whole-team turn.
-4. **Admit Empower-Hunt with the Hunt op, as a real engine change, not an
+4. *Ruled (E4): "Validator change."* The engine spec showed it is an
+   allowlist line after all (see the construct table), and the owner took
+   that. **Admit Empower-Hunt with the Hunt op, as a real engine change, not an
    allowlist line:** a Hunt inside a trigger-safe rider can raise a dies
    trigger. Three rows, all kept in the proposal.
-5. **Admit the keyword-qualified target (reversed from the first draft).**
+5. *Ruled (E2), the other way from this recommendation:* the Hunt op
+   carries its own Bulwark and distinctness rules, and no general
+   keyword-qualified target is built; Bone-Snap Ambush stays cut, or
+   returns reworded into existing limits.
+   **Admit the keyword-qualified target (reversed from the first draft).**
    Every Hunt spell's hunter must exclude Bulwark (H3a), so the construct
    clears the threshold on eight rows; Bone-Snap Ambush ("with Skyborne")
    then rides it at no extra engine cost, and the owner may restore it from
    the stretch rows.
-6. **Trim Duty toward the brief's 18 in the cut.** The projected cut keeps
+6. *Ruled (F3): "Trim TOWARDS 18 but if we land around 20 that's fine."*
+   The target is 18 and about 20 is acceptable; the trim happens at the cut,
+   after the lab. (F6 puts the projected cut at 31 Duty rows; G7 is no
+   longer a reason to trim, see "G7 and P4".) **Trim Duty toward the brief's
+   18 in the cut.** The projected cut keeps
    30 Duty rows (budget 18), and every Duty is an AI decision
    node and G7-gated when it deals damage or Hunts. The candidates: the
    colourless Duty commons (Bone Whistle, Amber Resin, Ember-Pot), a white
@@ -1089,16 +1155,23 @@ Each leads with the recommendation.
    or the Ice-and-Tar Seer's reclaim. Provoked (33, budget 26)
    and Hunt (23, budget 18) are over by less and can stay over in
    the overplan.
-7. **Hatchling minters: keep about twelve in the cut, not 17.**
+7. *Ruled (F4): "Keep 12."* The flex Hatchling commons go first, at the
+   cut (the projected cut holds 18 makers after F6).
+   **Hatchling minters: keep about twelve in the cut, not 17.**
    The herd is built on them, but 17 makers is more than a
    go-wide pair needs; the flex Hatchling commons are the first to go.
-8. **The engines that fire every turn stay lab-first.** The self-provoke
+8. *Ruled (F5): "Lab first."* Each is measured before the cut.
+   **The engines that fire every turn stay lab-first.** The self-provoke
    engines (Ashka and Sefa, Ultra Rare only: a Duty that damages its own
    carrier), and the two-card engines priced at the passive rate: Vessa with
    the Standing Stone or any free source, The Walking Mountain and Mother of
    the Long-Necks with a free source, and the whole-side provokes (Ring of
    Embers, War Drums). The lab measures each before the cut.
-9. **The projected cut as the starting board, keeping one more white Duty
+9. *Ruled (F6): yes.* The cut starts from the projected board, upper
+   rarities card by card, with the Great Drum kept and Fern-Crown Tyrant
+   dropped (recorded on both rows, the projected cut and the self-audit).
+   Fern-Crown Tyrant's slot on R28's draft list is open until the cut.
+   **The projected cut as the starting board, keeping one more white Duty
    showcase card.** The owner reviews Ultra Rare, Double Super Rare and
    Super Rare card by card first, as for Drowned Deep. The proposal drops
    Rakka, the Painted Cave and Venna Red-Hand at Ultra Rare, and Uzza, Kree
@@ -1106,11 +1179,16 @@ Each leads with the recommendation.
    showcase cards the brief names go with them. Recommended: keep the Great
    Drum and drop Fern-Crown Tyrant instead (green keeps two Double Super
    Rares; white rises to 30 cards, green falls to 33).
-10. **R28 stays R/G (Oru).** Defended in the brief; the R/W alternative has no
+10. *Ruled (F7): yes.* **R28 stays R/G (Oru).** Defended in the brief; the R/W alternative has no
     Ultra Rare legendary in the projected cut.
-11. **(A) Deathblade hunters through the Hunt spells: exclude Deathblade
-    from the spell form's hunter, the same keyword-qualified target as
-    question 5.** Hunt damage carries Deathblade (H4), so any Deathblade body
+11. *Ruled (E7), the other way from this recommendation: "Cost them in
+    lab."* Deathblade hunters are accepted, in every form, and the lab prices
+    the Hunt spells and both Duty hunters on a Deathblade-dense field (the
+    spell-only exclusion would have left the Duty hunters open). "A creature
+    with Deathblade can't hunt", in every form, is the fallback if the lab
+    finds the pairing over band. **(A) Deathblade hunters through the Hunt
+    spells: exclude Deathblade from the spell form's hunter, the same
+    keyword-qualified target as question 5.** Hunt damage carries Deathblade (H4), so any Deathblade body
     plus Spear and Fang ({1}{G}) is an unconditional kill for two mana;
     Ash-Cat Ambusher ({1}{B} 1/1 Deathblade) plus Spear and Fang kills
     anything for three in the signposted B/G pair, against 22 Deathblade
@@ -1120,21 +1198,28 @@ Each leads with the recommendation.
     the B/G payoff (deathtouch plus fight is a Magic staple) and cost the
     spells on the Deathblade case. Either way, the common Hunt spells are
     flagged LAB FIRST on a Deathblade host.
-12. **(B) The matriarch's reach: Dinokin only.** The brief's open question 1
+12. *Ruled (F8): "Dinokin only."* Long-Neck Matriarch's static reaches
+    Dinokin, not Dinosaurs; Oru is the one lord that reaches Dinosaurs.
+    **(B) The matriarch's reach: Dinokin only.** The brief's open question 1
     (does Long-Neck Matriarch also give Dinosaurs +0/+1 and Sentinel) was
     settled by the split-lord ruling only by implication. Now that Oru
     reaches Dinosaurs, a second Dinosaur lord would stack two statics on the
     token swarm; recommended: the matriarch stays Dinokin only. The
     alternative is the brief's original recommendation, which makes
     Hatchlings 1/2 Sentinel under her.
-13. **(C) Risk: 24 rows (22 in the projected cut) depend on
+13. *Retired (E1, with the engine spec):* G7 shipped fixed in 1.8.1, and
+    the owner ruled Provoked's state-based placement as the spec
+    recommended. No row is gated. **(C) Risk: 24 rows (22 in the projected
+    cut) depend on
     G7 and on P4's state-based placement of Provoked** (the Duty pings and
     Duty Hunts, the "damage or Hunt, then a tail" Duties, the Empower-Hunts
     and the targeted Provoked rows; listed under "G7 and P4"). Recommended:
     rule P4 as written before the spec, and schedule G7 ahead of A1; if
     either slips, those rows are the ones to reword or cut.
 
-**For the engine spec (lane A), not the owner:** G7 gates every Duty that
+**For the engine spec (lane A), not the owner** (superseded: the engine
+spec answered each point, and corrected the G7, P4 and Empower-Hunt readings
+here; see its "What this spec corrects"): G7 gates every Duty that
 deals damage or Hunts, and P4's state-based placement is what keeps the tail
 Duties and the Empower-Hunts legal (both listed under "G7 and P4"); the Hunt
 spell's hunter spec excludes Bulwark and its two targets must be distinct
