@@ -20,6 +20,7 @@ import { applyRitePolicy, riteSacrificeValue } from './ritePolicy';
 import { applyTithePolicy, titheManaSaved } from './tithePolicy';
 import { applyWhispersPolicy } from './whispersPolicy';
 import { applyVocabularyTargetPolicy, chooseTargetAction } from './targeting';
+import { applyDarlingPreyPolicy, applyHuntPolicy, NEVER_BY_CHOICE } from './huntPolicy';
 import { chooseSimplePump } from './pumpPolicy';
 import {
   conditionalAbilityValue,
@@ -53,6 +54,10 @@ export class EasyAI implements AIPlayer {
   }
 
   chooseAction(view: PlayerView, legal: Action[]): Action {
+    // Never hunt its own creature, or aim a friendly Provoked source, by
+    // choice (B5; A2.b). It runs before the target policy keeps one variant.
+    legal = applyHuntPolicy(view, this.db, legal, NEVER_BY_CHOICE);
+    legal = applyDarlingPreyPolicy(view, this.db, legal);
     legal = applyVocabularyTargetPolicy(view, this.db, legal);
     legal = applyTithePolicy(view, this.db, legal, this.pers, () => {
       if (view.step !== 'main1' || view.activePlayer !== view.myId) return [];

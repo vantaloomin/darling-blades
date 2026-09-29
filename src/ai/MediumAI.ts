@@ -27,9 +27,11 @@ import { applyRitePolicy, riteSacrificeValue } from './ritePolicy';
 import { applyTithePolicy, titheManaSaved } from './tithePolicy';
 import { applyWhispersPolicy } from './whispersPolicy';
 import { applyVocabularyTargetPolicy, chooseTargetAction } from './targeting';
+import { applyDarlingPreyPolicy, applyHuntPolicy, castNamesArrivalPrey, SELF_PROVOKE_MARGIN } from './huntPolicy';
 import {
   cardValue,
   actionManaCost,
+  arrivalHuntCastValue,
   manaPlanKeeping,
   empowerOpportunityCost,
   empowerValue,
@@ -66,6 +68,10 @@ export class MediumAI implements AIPlayer {
   ) {}
 
   chooseAction(view: PlayerView, legal: Action[]): Action {
+    // A self-Hunt or a friendly Provoked source only when it beats the plain
+    // choice by a card (A2.b). It runs before the target policy keeps one variant.
+    legal = applyHuntPolicy(view, this.db, legal, SELF_PROVOKE_MARGIN);
+    legal = applyDarlingPreyPolicy(view, this.db, legal);
     legal = applyVocabularyTargetPolicy(view, this.db, legal, true);
     legal = applyTithePolicy(view, this.db, legal, this.pers);
     legal = applyRitePolicy(view, this.db, legal);
@@ -233,7 +239,7 @@ export class MediumAI implements AIPlayer {
   /** Empower competes with the best second develop cast its extra mana displaces. */
   private castScore(view: PlayerView, cast: Cast): number {
     const cardId = this.cardIdFor(view, cast);
-    if (cast.type === 'castDarling') return this.developScore(cardId, view, cast);
+    if (cast.type === 'castDarling') return this.developScore(cardId, view, cast) + this.arrivalHuntValue(view, cast, cardId);
     if (cast.hauntlinked) {
       const host = cast.targets?.[0];
       return host?.kind === 'permanent'
@@ -251,7 +257,15 @@ export class MediumAI implements AIPlayer {
     // Printed value cannot see that Propagate and mark-all multiply by the
     // board; on an empty one they are the wrong card to lead with.
     return value + Math.max(0, this.markCastValue(view, cast)) + titheManaSaved(view, this.db, cast) + markBoardAdjust(view.battlefield, this.db, view.myId, cardId) -
-      riteSacrificeValue(view, this.db, cast);
+      riteSacrificeValue(view, this.db, cast) + this.arrivalHuntValue(view, cast, cardId);
+  }
+
+  /** A creature's arrival Hunt on the cast's prey (A1.1b), so a hunter with
+   * prey it kills and survives outranks one whose every prey kills it. 0 for a
+   * card without one (A2.b; the A1.2 hand-off). */
+  private arrivalHuntValue(view: PlayerView, cast: Cast, cardId: string): number {
+    return castNamesArrivalPrey(def(this.db, cardId), cast)
+      ? arrivalHuntCastValue(view, this.db, cardId, cast.targets ?? []) : 0;
   }
 
   /** Does casting this card gain life (lifelink body or a gainLife op)? */
@@ -655,8 +669,15 @@ export class MediumAI implements AIPlayer {
           const canMove = !effects.some(({ op }) => op.op === 'moveMark') ||
             targets.length === 2 && targets[0].some((a) => a.kind === 'permanent' &&
               targets[1].some((b) => b.kind === 'permanent' && b.iid !== a.iid));
+          // The Hunt pair rule (A2.b): a hunter of ours without Bulwark, and a
+          // different creature for its prey. The spell form's hunter and prey
+          // are its first two slots (the op's fixed convention).
+          const canHunt = !effects.some(({ op }) => op.op === 'hunt' && op.hunter === 'target') ||
+            targets.length >= 2 && targets[0].some((a) => a.kind === 'permanent' &&
+              !getEffectiveStats(view.battlefield, this.db, a.iid).keywords.has('bulwark') &&
+              targets[1].some((b) => b.kind === 'permanent' && b.iid !== a.iid));
           const minimum = { generic: d.cost.generic + (d.x?.min ?? 0), pips: d.cost.pips };
-          if (hasTargets && canMove && solveMana(view, this.db, view.myId, minimum) !== null) {
+          if (hasTargets && canMove && canHunt && solveMana(view, this.db, view.myId, minimum) !== null) {
             offer(this.pers.counterFloor, minimum);
           }
         }

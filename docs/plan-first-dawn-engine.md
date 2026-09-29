@@ -1890,6 +1890,69 @@ each shown to fail with its behaviour switched off. In
 `tests/data/avatarReserveDecks.test.ts`, the dead-target check now builds the
 format's supply with its sides, as the converter does.
 
+## As built (A2.b): Medium, Easy and the draft
+
+A2.b built Part 4's A2 half in `src/ai/huntPolicy.ts` (new), `EasyAI.ts`,
+`MediumAI.ts` and `src/meta/draftPicker.ts`. `docs/ai.md`, "Hunt and
+Provoked: Medium, Easy and the draft", records the behaviour;
+`tests/ai/huntPolicyA2b.test.ts` and `tests/meta/draftHuntProvoked.test.ts`
+pin it on fixture cards.
+
+- **One filter for both brains** (`applyHuntPolicy`), run before the shared
+  cast-target policy keeps one target per cast. A choice is *friendly* when
+  it hunts your own creature (any carrier; an `any` or `yours` card) or aims
+  damage at your own creature that has Provoked (targeted, or "damage each
+  creature you control"). A Hunt spell's hunter and a sweep of every creature
+  are not friendly choices. Options are grouped by decision (a target choice;
+  one cast mode; one Duty), and a friendly option is dropped unless its
+  shared value clears the plain alternative by the margin: the best plain
+  option of the decision, or 0 (not acting) when the decision can be
+  declined. A forced decision with no plain option keeps everything: a
+  trigger's target is mandatory, and a creature's own cast is forced (the
+  body is the point; only its arrival prey is chosen).
+- **Easy's margin is infinite** (B5): no avoidable friendly choice, which
+  covers both "never hunts its own creature by choice" and "may skip friendly
+  sources entirely". Easy still casts a creature whose only arrival prey is
+  its own, and an attack or Dawn Hunt with only its own creature to hunt
+  still hunts it.
+- **Medium's margin is 1.25** (`SELF_PROVOKE_MARGIN`): one card at the value
+  layer's draw rate. A self-Hunt or friendly source spends a card, a Duty or
+  tempo on your own creature, so Medium does it when it nets a card over the
+  plain play. Tested on both sides (a hunter's prey, a Hunt spell with no
+  opposing creature, a damage Duty's target, "damage each creature you
+  control", an attack Hunt's prey). Untuned: no lab arm plays Medium.
+- **Folded in from A1.2's hand-offs.** Medium's cast score adds the arrival
+  Hunt's value on the cast's prey (A1.2: "Medium and Easy cast an arrival
+  hunter whenever it is legal, even when every prey kills it"), so it ranks
+  hunters by their prey; it still casts one when nothing else is castable. A
+  Darling with an arrival Hunt is cast at its best prey by Medium and Easy
+  (`applyDarlingPreyPolicy`; the shared policy keys on `castSpell` only).
+  Easy's cast score still reads no Hunt value, by design.
+- **The counter forecast** (`MediumAI.liveCharm`): a counter whose ops
+  include a spell-form Hunt is held only with a hunter of yours without
+  Bulwark (effective keywords) and a different creature in the prey slot.
+- **The draft picker** (`scorePick`; the pick-history terms, not
+  `scoreBasePick`): a Provoked payoff gains 0.75 times `mechanicWeight` per
+  source drafted and a source the same per payoff, capped at four partners (3
+  at the shipped weight, under one removal's 5); a spell-form Hunt is
+  removal pro rata to the creatures drafted, in full from six; a Hunt bound
+  to the card is full removal, as an arrival damage effect is; `yours` prey
+  is a source, not removal; `any` prey is both. Untuned; the Limited deck
+  builder (`scoreBasePick`) does not read them.
+- **Zero on today's pool.** The filter returns the menu untouched unless the
+  card pool prints a Hunt or a Provoked ability, and the draft terms read
+  zero for a card with no Hunt or Provoked role. A census of all 1,515
+  shipped cards (2026-09-29) found no Hunt, no Provoked, no damage aimed at
+  a creature you control and no "damage each creature you control"; Medium's
+  new cast-score term is 0 without an arrival Hunt and the counter check
+  applies only to a card with a spell-form Hunt. The action-log harness run is
+  the main session's.
+- **Known limits.** Hard constructs its Medium from the same class, so Hard's
+  Medium baseline candidate and its rollouts follow Medium's margin (its own
+  decision is still its search). Medium's removal ladder does not read a Hunt
+  spell as removal. A forced creature cast whose every prey kills it is still
+  cast (holding it is a possible later rule).
+
 ## What this spec corrects
 
 In the **overplan** (lane B should update it; this spec does not edit it;
