@@ -5,7 +5,7 @@ import { Game } from '../../src/engine/Game';
 import { runOps } from '../../src/engine/effects/EffectInterpreter';
 import { startTurn } from '../../src/engine/phases';
 import { checkStateBased } from '../../src/engine/sba';
-import type { AbilityDef, CardDb, CardDef, EffectOp, GameState, PlayerId } from '../../src/engine/types';
+import type { AbilityDef, CardDb, CardDef, EffectOp, GameState, PlayerId, TargetSpec } from '../../src/engine/types';
 import { validateProvokedDef } from '../../src/engine/types';
 import { board, card, dbOf, ref, spell } from '../drownedDeepFixture';
 import { HAUNTLINK_DB } from '../hauntlinkFixture';
@@ -306,4 +306,20 @@ describe('Provoked: the catalog contract', () => {
     expect(errors({ ...grazer, abilities: [provoked(gain(1), { oncePerTurn: true })] })).toBeGreaterThan(0);
   });
 
+  // P3, the design rule (no Provoked effect damages its controller's own
+  // creatures): damage aimed only at the opponent's side passes; any damage
+  // that reaches, or may be aimed at, the controller's creatures is refused.
+  it("never damages its controller's own creatures", () => {
+    const errors = (ability: AbilityDef) => validateProvokedDef({ ...grazer, abilities: [ability] });
+    const ping = (what: TargetSpec['what']): AbilityDef => provoked([{ op: 'damage', n: 1, to: 'target' }], { targets: [{ what }] });
+    expect(errors(ping('opponentCreature'))).toEqual([]);
+    expect(errors(ping('player'))).toEqual([]);
+    expect(errors(provoked([{ op: 'damage', n: 2, to: 'opponent' }]))).toEqual([]);
+    for (const what of ['creature', 'yourCreature', 'any'] as const) expect(errors(ping(what)).length, what).toBeGreaterThan(0);
+    expect(errors(provoked([{ op: 'damage', n: 1, to: 'eachYourCreature', other: true }])).length).toBeGreaterThan(0);
+    expect(errors(provoked([{ op: 'damage', n: 1, to: 'eachCreature' }])).length).toBeGreaterThan(0);
+    // The damage op reads its own slot: a second, opponent-side slot is fine.
+    expect(errors(provoked([{ op: 'addCounters', n: 1, to: 'target' }, { op: 'damage', n: 1, to: 'target', targetIndex: 1 }],
+      { targets: [{ what: 'yourCreature' }, { what: 'opponentCreature' }] }))).toEqual([]);
+  });
 });

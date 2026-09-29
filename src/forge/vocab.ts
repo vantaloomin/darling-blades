@@ -97,7 +97,10 @@ export const TRIGGER_OPENINGS: Record<Exclude<ScorableTriggerWhen, 'spell' | 'st
   youGainLife: 'Whenever you gain life',
   youCastCharm: 'Whenever you cast a Charm',
   sunset: 'At Sunset',
-  // Stub (1.9 A1.1): the approved "Provoked: [effect]" opener; A2.c owns the labels.
+  // The approved "Provoked: [effect]" opener (A2.c). The scorer prices Provoked
+  // and the hunt op since A1.4, so the Power Breakdown reads them on a card that
+  // has them. The editor offers neither yet (TRIGGERS and OP_OPTIONS leave
+  // them out): a loaded card may carry a hunt op, never a Provoked ability.
   provoked: 'Provoked',
 };
 

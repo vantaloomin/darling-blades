@@ -393,7 +393,15 @@ export function validateMarkTriggerDef(d: CardDef): string[] {
   return errors;
 }
 
-/** Catalog-facing validation for Provoked: printed on creatures only, at most one per card. */
+/**
+ * Catalog-facing validation for Provoked: printed on creatures only, at most
+ * one per card, and (P3, the design rule; validateHuntDef holds its "never
+ * Hunts" half) no Provoked effect damages its controller's own creatures. A
+ * targeted damage effect must aim at a side the controller's creatures are not
+ * on: an opponent's creature or a player. So damage to each creature, each
+ * creature you control, or a target that may be yours (any target, any
+ * creature, a creature you control) is refused.
+ */
 export function validateProvokedDef(d: CardDef): string[] {
   const provoked = (d.abilities ?? []).filter((ability) => ability.when === 'provoked');
   if (provoked.length === 0) return [];
@@ -403,10 +411,19 @@ export function validateProvokedDef(d: CardDef): string[] {
   if (provoked.some((ability) => ability.oncePerTurn)) {
     errors.push('Provoked is once each turn by rule; it never sets oncePerTurn');
   }
+  const damagesOwnSide = (ability: AbilityDef): boolean => flatOps(ability.ops ?? []).some((op) => {
+    if (op.op !== 'damage') return false;
+    if (op.to === 'eachCreature' || op.to === 'eachYourCreature') return true;
+    if (op.to !== 'target') return false;
+    const spec = ability.targets?.[op.targetIndex ?? 0];
+    return spec?.what !== 'opponentCreature' && spec?.what !== 'player';
+  });
+  if (provoked.some(damagesOwnSide)) errors.push("A Provoked effect never damages its controller's own creatures");
   return errors;
 }
 
-function flatOps(list: readonly EffectOp[]): EffectOp[] {
+/** Every op, the ops inside an If-marked branch included. */
+export function flatOps(list: readonly EffectOp[]): EffectOp[] {
   return list.flatMap((op) => op.op === 'ifTargetMarked' ? [op, ...flatOps(op.then), ...flatOps(op.else ?? [])] : [op]);
 }
 
