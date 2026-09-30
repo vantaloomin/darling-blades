@@ -61,8 +61,9 @@ const OVERCHARGE_GAP = 2;
 // Spent Provoked badge (1.9 A2.a): the left edge just below mid-height
 // (TILE_FEATURES' `leftEdge`), mirroring the Overcharge badge. Low enough that
 // its counter-scaled plate on a packed row stays clear of the keyword column's
-// fourth row, high enough to clear the aura badge in the corner. The Provoked glyph, receded, with a slash through it: spent, not
-// absent. Badge-local design pixels; the badge counter-scales as a whole.
+// fourth row, high enough to clear the aura badge in the corner. It draws the
+// Provoked glyph, receded, with a slash through it: spent, not absent. Its
+// parts are in badge-local design pixels; the badge counter-scales as a whole.
 const PROVOKED_ICON = CUE_MIN_SCREEN_PX.provokedSpentBadge;
 const PROVOKED_PAD = 3;
 const PROVOKED_CY = 18;

@@ -1,8 +1,9 @@
 /**
  * The Hunt in the duel (1.9 A2.a), Phaser-free so its rules can be tested
  * without a scene: the two step prompts, the exchange's two blows and where
- * each number lands, which `damageMarked` events the exchange already draws,
- * and the full-motion timing, matched to combat's (`combatSequence.ts`).
+ * each number lands, what the exchange draws when one of its creatures has no
+ * tile, which `damageMarked` events the exchange already draws, and the
+ * full-motion timing, matched to combat's (`combatSequence.ts`).
  *
  * The engine emits one `hunted` event before the damage lands (both amounts,
  * 0 for a creature with no Attack), then a `damageMarked` for each positive
@@ -12,7 +13,7 @@
  */
 
 import type { GameEvent } from '../engine/events';
-import type { AbilityDef, CardDef, EffectOp } from '../engine/types';
+import type { AbilityDef, CardDef, EffectOp, PlayerId } from '../engine/types';
 import { activatedAbilitiesOf, isArrivalHunt } from '../engine/types';
 import { COMBAT_SEQUENCE_TIMING } from './combatSequence';
 
@@ -118,17 +119,70 @@ export function huntFloatText(amount: number): string {
 }
 
 /**
+ * Whether a creature has a spot the exchange can draw on: a tile on the board
+ * now, or one it will have once the board has synced. An arrival or Empower
+ * hunter cast this batch has none until the sync, and none at all when the
+ * Hunt killed it.
+ */
+export type HuntPlaced = (iid: number) => boolean;
+
+const everyCreaturePlaced: HuntPlaced = () => true;
+
+/** One of a Hunt's creatures as the exchange needs it: its card (for its attack effect) and whose it is. */
+export interface HuntCreature {
+  readonly card: CardDef;
+  readonly side: PlayerId;
+}
+
+/** One blow the exchange draws: its number lands on `blow.target`'s spot. */
+export interface HuntLanding {
+  readonly blow: HuntBlow;
+  /** The striker has a spot to strike from. When it has none, the blow comes in from its side of the board. */
+  readonly strikerPlaced: boolean;
+}
+
+/** What one Hunt's exchange draws, given which of its two creatures has a spot. */
+export interface HuntExchangeDraw {
+  /** Both creatures have a spot: the tether between them, and their lunges. */
+  readonly tether: boolean;
+  /** The blows whose target has a spot, hunter's first. A blow that deals 0 still lands its number. */
+  readonly landings: readonly HuntLanding[];
+}
+
+/**
+ * Decide what a Hunt's exchange draws. A creature with no spot takes no
+ * number, but the blow it dealt still lands on the other one: an arrival
+ * hunter that dies in its own Hunt never had a tile, and its prey still shows
+ * the damage it took.
+ */
+export function huntExchangeDraw(hunt: HuntedEvent, placed: HuntPlaced): HuntExchangeDraw {
+  return {
+    tether: placed(hunt.hunter) && placed(hunt.prey),
+    landings: huntBlows(hunt)
+      .filter((blow) => placed(blow.target))
+      .map((blow) => ({ blow, strikerPlaced: placed(blow.source) })),
+  };
+}
+
+/** A creature that took part in one of the batch's Hunts, as its hunter or its prey. */
+export function tookPartInHunt(batch: readonly GameEvent[], iid: number): boolean {
+  return batch.some((event) => event.e === 'hunted' && (event.hunter === iid || event.prey === iid));
+}
+
+/**
  * The `damageMarked` events a Hunt's exchange already draws, so the generic
  * damage float does not repeat them: for each `hunted`, the first following
  * mark on the prey for the hunter's amount and on the hunter for the prey's,
- * before the next `hunted`. Any other damage in the batch (a spell's own
- * damage op, a Provoked effect) is left to the generic float.
+ * before the next `hunted`. Only a blow the exchange lands (`huntExchangeDraw`)
+ * is claimed: damage on a creature with no spot stays with the generic path.
+ * Any other damage in the batch (a spell's own damage op, a Provoked effect)
+ * is left to the generic float too.
  */
-export function huntDrawnDamage(batch: readonly GameEvent[]): Set<GameEvent> {
+export function huntDrawnDamage(batch: readonly GameEvent[], placed: HuntPlaced = everyCreaturePlaced): Set<GameEvent> {
   const drawn = new Set<GameEvent>();
   batch.forEach((event, index) => {
     if (event.e !== 'hunted') return;
-    const pending = huntBlows(event).filter((blow) => blow.amount > 0);
+    const pending = huntExchangeDraw(event, placed).landings.map((landing) => landing.blow).filter((blow) => blow.amount > 0);
     for (let next = index + 1; next < batch.length && pending.length > 0; next++) {
       const candidate = batch[next];
       if (candidate.e === 'hunted') break;

@@ -621,6 +621,19 @@ export interface EventLineLookup {
   readonly overchargeLimit: number;
 }
 
+/**
+ * The card a permanent was and whose, when it left the battlefield in this
+ * batch (it died, returned to hand, or was severed), so a line about it can
+ * still name it; null when the batch holds no such exit.
+ */
+export function departedInBatch(batch: readonly GameEvent[], iid: number): { cardId: string; player: PlayerId } | null {
+  for (const e of batch) {
+    if ((e.e === 'died' || e.e === 'recalled') && e.iid === iid) return { cardId: e.cardId, player: e.owner };
+    if (e.e === 'severed' && e.iid === iid) return { cardId: e.cardId, player: e.player };
+  }
+  return null;
+}
+
 function whose(side: DuelSide, leading: boolean): string {
   if (side === 'you') return leading ? 'Your' : 'your';
   return leading ? 'Enemy' : 'enemy';

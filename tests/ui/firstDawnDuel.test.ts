@@ -10,11 +10,12 @@ import { getEffectiveStats } from '../../src/engine/statics';
 import type { AbilityDef, CardDb, CardDef, EffectOp, GameState, ManaActivatedDef, TargetSpec } from '../../src/engine/types';
 import { cardIdOf } from '../../src/engine/types';
 import { BOOST_CHIP_LABEL, provokedSpent, tileChipLabel } from '../../src/ui/boardCuePresentation';
-import { planCombat, sequencedEventRoute } from '../../src/ui/combatSequence';
+import { planCombat, sequencedBatchRoutes, sequencedEventRoute } from '../../src/ui/combatSequence';
 import { deferredTargetPrompt } from '../../src/ui/drownedDeepChoices';
-import { eventHistoryLine, type EventLineLookup } from '../../src/ui/duelPresentation';
+import { departedInBatch, eventHistoryLine, type EventLineLookup } from '../../src/ui/duelPresentation';
 import {
-  HUNT_HUNTER_PROMPT, HUNT_PREY_PROMPT, huntBlows, huntDrawnDamage, huntFloatText, huntStepPrompt, planHunts,
+  HUNT_HUNTER_PROMPT, HUNT_PREY_PROMPT, huntBlows, huntDrawnDamage, huntExchangeDraw, huntFloatText, huntStepPrompt,
+  planHunts, tookPartInHunt,
   type HuntedEvent,
 } from '../../src/ui/huntPresentation';
 import {
@@ -79,6 +80,15 @@ function castHunt(db: CardDb, battlefield: Parameters<typeof board>[1], hunter: 
 
 const huntedIn = (events: readonly GameEvent[]): HuntedEvent[] => events.filter((e): e is HuntedEvent => e.e === 'hunted');
 
+/** Attack with `attacker` into a block by `blocker`, and return the batch that lands the combat damage. */
+function fightBatch(db: CardDb, attackerId: string, blockerId: string): GameEvent[] {
+  const game = Game.restore(board([[], []], [{ iid: 1, cardId: attackerId }, { iid: 2, cardId: blockerId, controller: 1 }]), db);
+  game.submit(0, { type: 'passStep' });
+  game.submit(0, { type: 'declareAttackers', attackers: [1] });
+  while (game.awaiting.kind === 'respond') game.submit(game.awaiting.player, { type: 'passResponse' });
+  return game.submit(1, { type: 'declareBlockers', blocks: [{ blocker: 2, attacker: 1 }] });
+}
+
 describe('the spent Provoked state', () => {
   const db = dbOf(grazer, herald);
 
@@ -100,12 +110,6 @@ describe('the spent Provoked state', () => {
     expect(provokedSpent(herald.abilities, [0])).toBe(false);
     expect(provokedSpent(watcher.abilities, [0])).toBe(false);
     expect(provokedSpent(watcher.abilities, [1])).toBe(true);
-  });
-
-  it('is not spent by a blow that kills (the creature is gone, never provoked)', () => {
-    const state = board([[], []], [{ iid: 1, cardId: 'grazer' }]);
-    strike(state, db, 1, 4);
-    expect(state.battlefield.some((p) => p.iid === 1)).toBe(false);
   });
 });
 
@@ -207,6 +211,40 @@ describe('the Hunt exchange', () => {
     expect([...drawn]).toEqual([huntDamage]);
   });
 
+  it('lands the prey\'s number, and says the hunter\'s death, when an arrival hunter dies in its own Hunt without ever having a tile', () => {
+    const db = dbOf(raptor, body('foe', 3, 3));
+    const game = Game.restore(board([['raptor'], []], [{ iid: 4, cardId: 'foe', controller: 1 }]), db);
+    const events: GameEvent[] = [...game.submit(0, castActions(game.instanceState, db, 'raptor')[0])];
+    while (game.awaiting.kind === 'respond') events.push(...game.submit(game.awaiting.player, { type: 'passResponse' }));
+    const [hunt] = huntedIn(events);
+    // The 3/3 hunter and its 3/3 prey kill each other: the hunter was cast in this batch and is gone after it.
+    expect(game.instanceState.battlefield.some((p) => p.iid === hunt.hunter)).toBe(false);
+    const onlyThePrey = (iid: number) => iid === hunt.prey;
+
+    const draw = huntExchangeDraw(hunt, onlyThePrey);
+    expect(draw.tether).toBe(false);
+    expect(draw.landings.map(({ blow, strikerPlaced }) => ({ on: blow.target, amount: blow.amount, strikerPlaced })))
+      .toEqual([{ on: hunt.prey, amount: 3, strikerPlaced: false }]);
+
+    // The exchange claims the mark it lands, and leaves the hunter's to the ordinary path.
+    const drawn = [...huntDrawnDamage(events, onlyThePrey)];
+    expect(drawn).toHaveLength(1);
+    expect(drawn[0]).toMatchObject({ e: 'damageMarked', iid: hunt.prey });
+
+    expect(events.some((e) => e.e === 'died' && e.iid === hunt.hunter)).toBe(true);
+    expect(tookPartInHunt(events, hunt.hunter)).toBe(true);
+    expect(tookPartInHunt(events, hunt.prey)).toBe(true);
+    expect(tookPartInHunt(events, 99)).toBe(false);
+  });
+
+  it('draws the whole exchange when both creatures have a tile', () => {
+    const hunt: HuntedEvent = { e: 'hunted', hunter: 1, prey: 2, hunterDamage: 3, preyDamage: 0 };
+    const draw = huntExchangeDraw(hunt, () => true);
+    expect(draw.tether).toBe(true);
+    expect(draw.landings.map(({ blow, strikerPlaced }) => ({ on: blow.target, amount: blow.amount, strikerPlaced })))
+      .toEqual([{ on: 2, amount: 3, strikerPlaced: true }, { on: 1, amount: 0, strikerPlaced: true }]);
+  });
+
   it('plays at combat\'s timing: both blows in one instant, a combat stagger between Hunts, deaths with the Hunt that caused them', () => {
     const one: HuntedEvent = { e: 'hunted', hunter: 1, prey: 2, hunterDamage: 3, preyDamage: 1 };
     const two: HuntedEvent = { e: 'hunted', hunter: 3, prey: 4, hunterDamage: 2, preyDamage: 2 };
@@ -248,6 +286,35 @@ describe('where the new events go', () => {
     expect(sequencedEventRoute({ e: 'manaActivated', player: 0, iid: 1, cardId: 'x', abilityIndex: 0, times: 2 }, combatBatch)).toBe('narrate');
   });
 
+  it('holds what a Provoked trigger did with its line, in order, and lets the engine move on at once', () => {
+    /** 2/4, "Provoked: you gain 1 life and this deals 1 damage to the opponent." */
+    const biter = card('biter', { abilities: [provoked([{ op: 'gainLife', n: 1 }, { op: 'damage', n: 1, to: 'opponent' }])] });
+    const events = fightBatch(dbOf(biter, body('a', 2, 2)), 'a', 'biter');
+    const routes = sequencedBatchRoutes(events, { combat: true, huntDrawn: new Set<GameEvent>() });
+    const held = events.filter((_, index) => routes[index] === 'afterStrikes');
+    expect(held[0]).toMatchObject({ e: 'triggerFired', when: 'provoked' });
+    // The effect's gain and its damage to the player wait behind the line; no strike draws either.
+    const life = held.filter((e) => e.e === 'lifeChanged').map((e) => e.e === 'lifeChanged' && e.delta);
+    expect(life).toEqual([1, -1]);
+    // The strikes' own damage is still the strikes', and the step change is not held.
+    expect(routes.filter((_, index) => events[index].e === 'damageMarked')).toEqual(['drawn', 'drawn']);
+    const moved = events.findIndex((e) => e.e === 'stepChanged');
+    expect(moved).toBeGreaterThan(events.indexOf(held[held.length - 1]));
+    expect(routes[moved]).toBe('narrate');
+  });
+
+  it('routes a batch with no Provoked trigger exactly as its events route one by one', () => {
+    /** 2/2, "When this dies, you gain 1 life." */
+    const martyr = card('martyr', { attack: 2, defense: 2, abilities: [{ when: 'dies', ops: [{ op: 'gainLife', n: 1 }] }] });
+    const events = fightBatch(dbOf(martyr, body('guard', 2, 4)), 'martyr', 'guard');
+    const routes = sequencedBatchRoutes(events, combatBatch);
+    expect(events.some((e) => e.e === 'triggerFired' && e.when === 'dies')).toBe(true);
+    expect(routes).toEqual(events.map((e) => sequencedEventRoute(e, combatBatch)));
+    // The dies trigger's gain pops as a heal when combat settles, as it did before the hold existed.
+    expect(routes[events.findIndex((e) => e.e === 'lifeChanged' && e.delta > 0)]).toBe('heal');
+    expect(routes).not.toContain('afterStrikes');
+  });
+
   const names: Record<number, string> = { 1: '[Hunter]', 2: '[Prey]' };
   const lookup: EventLineLookup = {
     permanent: (iid) => (names[iid] ? { ref: names[iid], side: iid === 1 ? 'you' : 'opponent' } : null),
@@ -264,12 +331,40 @@ describe('where the new events go', () => {
     expect(hunt).toMatch(/\b0\b/);
     expect(eventHistoryLine({ e: 'triggerFired', iid: 2, when: 'provoked' }, lookup)).toContain('[Prey]');
     expect(eventHistoryLine({ e: 'triggerFired', iid: 2, when: 'dies' }, lookup)).toBeNull();
+    // The pump's line carries how many times it was used (counts the quoted +1/+0 cannot supply), and what it did.
     const pump = (times: number) => eventHistoryLine({ e: 'manaActivated', player: 0, iid: 1, cardId: 'vyra', abilityIndex: 0, times }, lookup)!;
-    expect(pump(3)).toContain('3 times');
-    expect(pump(1)).not.toMatch(/\d times/);
+    for (const times of [2, 3, 4]) expect(pump(times)).toMatch(new RegExp(`\\b${times}\\b`));
+    expect(new Set([1, 2, 3, 4].map(pump)).size).toBe(4);
     expect(pump(3)).toContain('+1/+0');
-    expect(eventHistoryLine({ e: 'overcharged', player: 1, iid: 2, cardId: 'hatchling', tokenCardId: 'hatchling', total: 2 }, lookup))
-      .toContain('2 of 3');
+    // The Overcharge line carries the namesake's count and the limit.
+    const overcharge = (total: number, overchargeLimit: number) => eventHistoryLine(
+      { e: 'overcharged', player: 1, iid: 2, cardId: 'hatchling', tokenCardId: 'hatchling', total }, { ...lookup, overchargeLimit })!;
+    expect(overcharge(2, 5)).toMatch(/\b2\b/);
+    expect(overcharge(2, 5)).toMatch(/\b5\b/);
+    expect(overcharge(2, 5)).not.toBe(overcharge(3, 5));
+    expect(overcharge(2, 5)).not.toBe(overcharge(2, 7));
+  });
+
+  it('names a creature that left in the batch, however it left', () => {
+    const exits: GameEvent[] = [
+      { e: 'died', iid: 2, cardId: 'prey', owner: 1 },
+      { e: 'recalled', iid: 2, cardId: 'prey', owner: 1 },
+      { e: 'severed', iid: 2, cardId: 'prey', player: 1, from: 'battlefield' },
+    ];
+    for (const exit of exits) {
+      const batch: GameEvent[] = [{ e: 'hunted', hunter: 1, prey: 2, hunterDamage: 3, preyDamage: 1 }, exit];
+      const gone: EventLineLookup = {
+        ...lookup,
+        permanent: (iid) => {
+          if (iid === 1) return { ref: '[Hunter]', side: 'you' };
+          const left = departedInBatch(batch, iid);
+          return left ? { ref: `[${left.cardId}]`, side: left.player === 0 ? 'you' : 'opponent' } : null;
+        },
+      };
+      expect(eventHistoryLine(batch[0], gone), exit.e).toContain('[prey]');
+    }
+    // A sever from a graveyard or a deck names no permanent.
+    expect(departedInBatch([{ e: 'severed', cardId: 'prey', player: 1, from: 'graveyard' }], 2)).toBeNull();
   });
 });
 

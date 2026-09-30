@@ -2035,6 +2035,16 @@ shipped duel looks different except where noted below.
   (A1.1's hand-off) still reads as one. The engine's `damageMarked` events
   for the blows are drawn by the exchange (`huntDrawnDamage`); any other
   damage in the batch keeps the ordinary float.
+  - **A creature with no tile** (review fold, S1). An arrival or Empower
+    hunter that dies in its own Hunt never had a tile and has none after the
+    sync. `huntExchangeDraw` decides what is drawn from which of the two has
+    a spot: the tether and the lunges need both; each blow whose target has a
+    spot still lands its strike and its number, struck from the missing
+    creature's side of the board (its creature row, at the target's column).
+    `huntDrawnDamage` claims only the blows the exchange lands, so damage on
+    a creature with no spot stays with the ordinary path, and the death of a
+    creature that took part in the batch's Hunt is logged even when it never
+    had a tile (`tookPartInHunt`).
   - **Timing follows combat's presentation.** At `animations: 'full'` a
     Hunt whose two creatures have tiles plays as a combat sequence step
     (`playCombatSequence`, `planHunts`): the board is held, input waits, the
@@ -2042,6 +2052,16 @@ shipped duel looks different except where noted below.
     lone combat strike), several Hunts in one batch are a combat stagger
     apart, a death is logged when the blow that caused it lands, and a
     Provoked trigger's line waits for the landing (`sequencedEventRoute`).
+    What the trigger did waits with it (review fold, S2):
+    `sequencedBatchRoutes` holds the events that follow a Provoked
+    `triggerFired`, up to the next trigger, the next strikes, or the engine
+    moving on (a step, a turn, a response window, a cast, a declaration, the
+    game's end), in the same held list, so they narrate after the line and in
+    the engine's order. That includes the effect's own damage and life loss,
+    which a combat batch used to count as drawn by the strikes and never
+    showed. A batch with no Provoked trigger routes exactly as its events do
+    one by one (tested against `sequencedEventRoute` on a real combat batch
+    with a dies trigger).
     Input waits as for combat, but a Hunt-only sequence hands its Undo back
     when it settles, so a Hunt spell can be taken back at every motion
     setting.
@@ -2070,7 +2090,9 @@ shipped duel looks different except where noted below.
     for the human in combat and a pump is legal, a transient notice says
     "You can boost [name] now, or Pass." and the tile carries the chip; a
     tap opens the ticker and Pass goes on to damage (probed: 5 Mountains,
-    pumped 4, 9 damage dealt, main two).
+    pumped 4, 9 damage dealt, main two). The notice shows once each combat
+    (review fold, N2): the first window with a pump to offer says it, the
+    later windows of that combat do not, and the next step change re-arms it.
   - **`manaActivated`** gets a history line ("Your [Vyra] uses its ability
     4 times: “This gets +1/+0 until Sunset.”", "once" for one use) and a small
     animation: the change the uses gave ("+4/+0") floats off the tile in
@@ -2093,15 +2115,19 @@ shipped duel looks different except where noted below.
     `overcharged` logs through `eventHistoryLine`; `responseWindowOpened`
     offers the pump.
   - `DuelScene.playCombatSequence` (its `default` narrated at once, so
-    "is provoked" read before the blow): now `sequencedEventRoute`, which
-    holds a Provoked trigger for the landing, sequences `hunted`, and
-    narrates `manaActivated` and `overcharged` at once.
+    "is provoked" read before the blow): now `sequencedBatchRoutes`, which
+    holds a Provoked trigger and its effect for the landing, sequences
+    `hunted`, and narrates `manaActivated` and `overcharged` at once.
   - `DuelScene.renderCombatStep` / `renderHuntStep`: deaths only.
-  - `DuelScene.rememberRetellAction`, `spellTargetsText`,
-    `eventLineLookup` and the batch lookups inside `narrateEvent` (Hauntlink,
-    Whispers, a cast's arrival, Preserve): read `spellCast`, `died`,
-    `recalled`, `hauntlinkFormed`, `permanentEntered` and `preserved` only;
-    none of the four needs them.
+  - `DuelScene.eventLineLookup` names a permanent on the battlefield, one
+    that `died`, was `recalled` or was `severed` in the batch
+    (`departedInBatch`), or, failing both, one whose tile is still up from
+    the last sync, so a Hunt or Provoked line is never dropped for want of a
+    name (review fold, N1). `renderHuntStep` passes it the whole batch.
+  - `DuelScene.rememberRetellAction`, `spellTargetsText` and the batch
+    lookups inside `narrateEvent` (Hauntlink, Whispers, a cast's arrival,
+    Preserve): read `spellCast`, `died`, `recalled`, `hauntlinkFormed`,
+    `permanentEntered` and `preserved` only; none of the four needs them.
   - `undoBlockedReason` (`duelPresentation.ts`): reads the events that
     reveal a hidden card; none of the four does, so Undo stays available
     after a pump or a Hunt, as after a Duty.
@@ -2127,14 +2153,33 @@ shipped duel looks different except where noted below.
     two-target cast (it predates the Hunt; a Hunt spell always shows it).
   - A creature with two pump abilities would open the ticker for its first
     only; every A1.5 carrier prints one.
-- **Tests.** `tests/ui/firstDawnDuel.test.ts` (18: the spent state through
+- **Known gaps** (from the code review, left as they are).
+  - A batch that holds both combat damage and a Hunt plays its Hunts after
+    every combat strike, whatever order the engine resolved them in (review
+    N3). In such a batch a Hunt whose hunter has no tile is not sequenced,
+    and the combat rule counts its damage marks as drawn.
+  - The hover note plate ("Provoked this turn.") has not been checked
+    against the mana-plan strip's position; it needs a look in the browser
+    (review N5).
+  - A death caused by a Provoked effect's own damage is logged with the last
+    strike of the sequence, so it can read before "is provoked".
+  - A tile-less striker's blow comes from its side's creature row at the
+    target's column, not from where its tile would have been. The review
+    fold was not probed in the browser.
+- **Tests.** `tests/ui/firstDawnDuel.test.ts` (22: the spent state through
   the engine, the prompts over the legal pairs, the exchange's numbers
-  against the engine's own damage, the timing against `planCombat`, the
-  routes, the history lines, the ticker's bounds and its submitted action
-  accepted and applied by the engine, and the Boost chip in the attacker's
-  window over the blocks) and the Boost and anchor additions to
+  against the engine's own damage, what the exchange draws when the hunter
+  never had a tile, the timing against `planCombat`, the routes, the held
+  Provoked effect, the names of creatures that left in the batch, the
+  history lines, the ticker's bounds and its submitted action accepted and
+  applied by the engine, and the Boost chip in the attacker's window over
+  the blocks) and the Boost and anchor additions to
   `tests/ui/boardCuePresentation.test.ts`. Each was proved against a
-  mutation that switches its behaviour off (32 mutations, each caught).
+  mutation that switches its behaviour off (32 mutations at the build, 15
+  more at the review fold, each caught). The review fold removed "is not
+  spent by a blow that kills": it asserted only that the engine removed the
+  creature, and `tests/engine/provoked.test.ts` ("does not fire when the
+  damage is lethal") already guards the rule where a mutation can reach it.
 - **Probing.** The dev cheats (`src/dev/cheats.local.ts`, local only) gained
   `fdCards()` and `fdBoard(scenario)`: CARD_DB is frozen, so the lab writes
   its First Dawn shapes over ten shipped cards for that page session only,

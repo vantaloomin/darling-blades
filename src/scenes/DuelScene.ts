@@ -86,15 +86,17 @@ import { CardZoomPreview } from '../ui/CardZoomPreview';
 import { CardView, CARD_W, CARD_H } from '../ui/CardView';
 import { CoachMark } from '../ui/CoachMark';
 import { CombatFx } from '../ui/CombatFx';
-import { planCombat, sequencedEventRoute, type CombatHit, type CombatStep } from '../ui/combatSequence';
+import { planCombat, sequencedBatchRoutes, type CombatHit, type CombatStep } from '../ui/combatSequence';
 import { PROVOKED_SPENT_NOTE, provokedSpent } from '../ui/boardCuePresentation';
 import {
-  huntBlows,
   huntDrawnDamage,
+  huntExchangeDraw,
   huntFloatText,
   huntStepPrompt,
   planHunts,
   targetStepTitle,
+  tookPartInHunt,
+  type HuntCreature,
   type HuntedEvent,
   type HuntStep,
   type HuntTargetSource,
@@ -147,6 +149,7 @@ import {
   dutyTargetsNeedPicker,
   dutyWindowReason,
   type DutyAction,
+  departedInBatch,
   eventHistoryLine,
   type EventLineLookup,
   forcedAttackNotice,
@@ -362,6 +365,8 @@ export class DuelScene extends Phaser.Scene {
   /** Live run roster cached before results can clear the run from the save. */
   private gauntletRosterOrder: readonly number[] | null = null;
   private views = new Map<number, BoardCardView>(); // battlefield iid → tile
+  /** Whose each tile was at the last sync, so a line can still name a permanent that has left. */
+  private viewSides = new Map<number, PlayerId>();
   private handViews: CardView[] = [];
   /** Last rendered hand, retained briefly only so rebuild exits can read as motion. */
   private renderedHand: { cardId: string; view: CardView }[] = [];
@@ -455,11 +460,14 @@ export class DuelScene extends Phaser.Scene {
   /**
    * Hunt exchanges drawn once the board has synced: every Hunt outside a
    * full-motion sequence, and one whose hunter has no tile yet (an arrival or
-   * Empower hunter, cast this batch). Positions and cards are captured at
-   * narration for the tiles that exist then, so a creature the Hunt killed is
-   * still struck where it stood.
+   * Empower hunter, cast this batch). Positions are captured at narration for
+   * the tiles that exist then, so a creature the Hunt killed is still struck
+   * where it stood; each creature's card and side are kept too, so one that
+   * never had a tile (a hunter that died in its own Hunt) still strikes.
    */
-  private pendingHuntFx: { hunt: HuntedEvent; at: Map<number, { x: number; y: number }>; cards: Map<number, CardDef> }[] = [];
+  private pendingHuntFx: { hunt: HuntedEvent; at: Map<number, { x: number; y: number }>; creatures: Map<number, HuntCreature> }[] = [];
+  /** The pump notice has been shown in this combat (`offerCombatPump`). */
+  private combatPumpOffered = false;
   /** CastIntent carry: a lifted untargeted spell or Reserves land awaiting its placing click. */
   private carry: {
     action: Extract<Action, { type: 'castSpell' | 'playLand' }>;
@@ -693,6 +701,7 @@ export class DuelScene extends Phaser.Scene {
     this.coach = null;
     this.tutorialGuard = new ModalGuard();
     this.views = new Map();
+    this.viewSides = new Map();
     this.handViews = [];
     this.renderedHand = [];
     this.previousHand = null;
@@ -754,6 +763,7 @@ export class DuelScene extends Phaser.Scene {
     this.pumpTickerStep = null;
     this.huntDrawn = new Set();
     this.pendingHuntFx = [];
+    this.combatPumpOffered = false;
     this.empowerChooser = null;
     this.empowerChooserGuard = new ModalGuard();
     this.gravePicker = null;
@@ -2945,7 +2955,7 @@ export class DuelScene extends Phaser.Scene {
       const progress = applyDailyQuestProgress(Services.save.data, CARD_DB, events, todayString());
       if (progress.changed) Services.save.touch();
     }
-    this.huntDrawn = huntDrawnDamage(events);
+    this.huntDrawn = huntDrawnDamage(events, (iid) => this.huntPlaced(iid));
     const sequence =
       Services.save.data.settings.animations === 'full' &&
       !this.animatingCombat &&
@@ -2988,7 +2998,7 @@ export class DuelScene extends Phaser.Scene {
         break;
       }
       case 'damageMarked': {
-        // A Hunt's own blows are drawn by its exchange (renderHuntExchange).
+        // A blow a Hunt's exchange lands is drawn there (renderHuntExchange).
         if (this.huntDrawn.has(e)) break;
         Sfx.play('hit');
         const v = this.views.get(e.iid);
@@ -3000,7 +3010,7 @@ export class DuelScene extends Phaser.Scene {
         // has synced, so an arrival hunter cast this batch has its tile.
         const line = eventHistoryLine(e, this.eventLineLookup(batch));
         if (line) this.log(line);
-        this.queueHuntFx(e);
+        this.queueHuntFx(e, batch);
         break;
       }
       case 'triggerFired': {
@@ -3025,7 +3035,10 @@ export class DuelScene extends Phaser.Scene {
           // departing underlap can visibly sever instead of using the normal
           // generic board-card fade.
           this.log(`${who} ${this.cardRef(e.cardId)} lost its host and went to its owner's graveyard`, e.cardId);
-        } else if (v) this.log(`${who} ${this.cardRef(e.cardId)} died`, e.cardId);
+        } else if (v || tookPartInHunt(batch, e.iid)) {
+          // A hunter that died in its own arrival Hunt never had a tile; its death is still said.
+          this.log(`${who} ${this.cardRef(e.cardId)} died`, e.cardId);
+        }
         break;
       }
       case 'recalled': {
@@ -3143,6 +3156,9 @@ export class DuelScene extends Phaser.Scene {
       case 'spellCountered':
         this.whispersSpellIds.delete(e.sid);
         this.log('Spell cancelled!');
+        break;
+      case 'stepChanged':
+        this.combatPumpOffered = false; // a new step: the next combat says it again
         break;
       case 'responseWindowOpened':
         if (e.reopened && e.player === HUMAN) this.showSkipNotice('Respond again');
@@ -3290,10 +3306,11 @@ export class DuelScene extends Phaser.Scene {
       huntDrawn: this.huntDrawn,
     };
 
-    // sequencedEventRoute (combatSequence.ts) decides, per event, what the
+    // sequencedBatchRoutes (combatSequence.ts) decides, per event, what the
     // strikes draw, what waits for them, and what is narrated at once.
-    for (const e of events) {
-      switch (sequencedEventRoute(e, batch)) {
+    const routes = sequencedBatchRoutes(events, batch);
+    events.forEach((e, index) => {
+      switch (routes[index]) {
         case 'combatRound':
           if (e.e === 'combatDamage') rounds.push({ hits: e.hits });
           break;
@@ -3313,7 +3330,7 @@ export class DuelScene extends Phaser.Scene {
           if (e.e === 'lifeChanged') heals.push(e);
           break;
         case 'afterStrikes':
-          afterStrikes.push(e); // a Provoked trigger: said once the blow lands
+          afterStrikes.push(e); // a Provoked trigger, then what it did: said once the blow lands
           break;
         case 'drawn':
           break; // creature and player damage floats are derived from the strikes
@@ -3324,7 +3341,7 @@ export class DuelScene extends Phaser.Scene {
           this.narrateEvent(e, events); // combat triggers etc. — narrate immediately
           break;
       }
-    }
+    });
 
     // Hunts play after the batch's combat strikes (a batch rarely holds both);
     // each death lands with the blow that caused it.
@@ -3368,7 +3385,7 @@ export class DuelScene extends Phaser.Scene {
     for (const step of huntPlan.steps) {
       this.combatTimers.push(
         this.time.delayedCall(step.atMs, () => {
-          if (!this.ended) this.renderHuntStep(step, diedInfo);
+          if (!this.ended) this.renderHuntStep(step, diedInfo, events);
         }),
       );
     }
@@ -3388,19 +3405,16 @@ export class DuelScene extends Phaser.Scene {
   }
 
   /** A Hunt's moment in a full-motion sequence: the exchange on the held board, then its deaths. */
-  private renderHuntStep(step: HuntStep, diedInfo: Map<number, Extract<GameEvent, { e: 'died' }>>): void {
-    const at = new Map<number, { x: number; y: number }>();
-    const cards = new Map<number, CardDef>();
-    for (const iid of [step.hunt.hunter, step.hunt.prey]) {
-      const view = this.views.get(iid);
-      if (view?.active) {
-        at.set(iid, { x: view.x, y: view.y });
-        cards.set(iid, view.card);
-      }
-    }
-    const line = eventHistoryLine(step.hunt, this.eventLineLookup([...diedInfo.values()]));
+  private renderHuntStep(
+    step: HuntStep,
+    diedInfo: Map<number, Extract<GameEvent, { e: 'died' }>>,
+    batch: readonly GameEvent[],
+  ): void {
+    const { at, creatures } = this.huntTiles(step.hunt, batch);
+    // The whole batch, so a creature that died, returned or was severed in it is still named.
+    const line = eventHistoryLine(step.hunt, this.eventLineLookup(batch));
     if (line) this.log(line);
-    this.renderHuntExchange(step.hunt, at, cards, true);
+    this.renderHuntExchange(step.hunt, at, creatures, true);
     for (const iid of step.deaths) this.logSequencedDeath(iid, diedInfo);
   }
 
@@ -3448,20 +3462,42 @@ export class DuelScene extends Phaser.Scene {
     return [e.hunter, e.prey].every((iid) => this.views.get(iid)?.active === true);
   }
 
-  /** Capture a Hunt's tiles as they stand, to draw its exchange once the board has synced (flushHuntFx). */
-  private queueHuntFx(e: HuntedEvent): void {
+  /**
+   * A Hunt's creature has a spot its exchange can draw on: a tile now, or, on
+   * the battlefield after the batch, the tile the next sync gives it.
+   */
+  private huntPlaced(iid: number): boolean {
+    return this.views.get(iid)?.active === true || this.duel.state.battlefield.some((perm) => perm.iid === iid);
+  }
+
+  /**
+   * A Hunt's two creatures as they stand: where each tile is, and each one's
+   * card and side, read from its tile, the battlefield, or the batch it
+   * entered or left in.
+   */
+  private huntTiles(
+    e: HuntedEvent,
+    batch: readonly GameEvent[],
+  ): { at: Map<number, { x: number; y: number }>; creatures: Map<number, HuntCreature> } {
     const at = new Map<number, { x: number; y: number }>();
-    const cards = new Map<number, CardDef>();
+    const creatures = new Map<number, HuntCreature>();
     for (const iid of [e.hunter, e.prey]) {
       const view = this.views.get(iid);
-      if (view?.active) {
-        at.set(iid, { x: view.x, y: view.y });
-        cards.set(iid, view.card);
-      }
-      const perm = this.duel.state.battlefield.find((p) => p.iid === iid);
-      if (perm && !cards.has(iid)) cards.set(iid, def(CARD_DB, perm.cardId));
+      if (view?.active) at.set(iid, { x: view.x, y: view.y });
+      const perm = this.duel.state.battlefield.find((p) => p.iid === iid)
+        ?? batch.find((ev): ev is Extract<GameEvent, { e: 'permanentEntered' | 'tokenCreated' }> =>
+          (ev.e === 'permanentEntered' || ev.e === 'tokenCreated') && ev.perm.iid === iid)?.perm;
+      const left = departedInBatch(batch, iid);
+      const card = view?.active ? view.card : perm ? def(CARD_DB, perm.cardId) : left ? def(CARD_DB, left.cardId) : null;
+      const side = perm?.controller ?? this.viewSides.get(iid) ?? left?.player;
+      if (card && side !== undefined) creatures.set(iid, { card, side });
     }
-    this.pendingHuntFx.push({ hunt: e, at, cards });
+    return { at, creatures };
+  }
+
+  /** Capture a Hunt's tiles as they stand, to draw its exchange once the board has synced (flushHuntFx). */
+  private queueHuntFx(e: HuntedEvent, batch: readonly GameEvent[]): void {
+    this.pendingHuntFx.push({ hunt: e, ...this.huntTiles(e, batch) });
   }
 
   /**
@@ -3472,12 +3508,12 @@ export class DuelScene extends Phaser.Scene {
    */
   private flushHuntFx(): void {
     const queued = this.pendingHuntFx.splice(0);
-    for (const { hunt, at, cards } of queued) {
+    for (const { hunt, at, creatures } of queued) {
       for (const iid of [hunt.hunter, hunt.prey]) {
         const settled = this.boardTargets.get(iid);
         if (settled && this.duel.state.battlefield.some((p) => p.iid === iid)) at.set(iid, { x: settled.x, y: settled.y });
       }
-      this.renderHuntExchange(hunt, at, cards, false);
+      this.renderHuntExchange(hunt, at, creatures, false);
     }
   }
 
@@ -3486,36 +3522,48 @@ export class DuelScene extends Phaser.Scene {
    * each blow with the striker's own attack effect, and each creature's number
    * lands on it: the damage it took, or a muted 0 when the other dealt none,
    * so an exchange with no Attack on either side still reads. `lunge` only on
-   * a held board (a full-motion sequence).
+   * a held board (a full-motion sequence). What is drawn when a creature has
+   * no spot is `huntExchangeDraw`'s: the other one still takes its blow and
+   * its number, struck from the missing creature's side of the board.
    */
   private renderHuntExchange(
     hunt: HuntedEvent,
     at: ReadonlyMap<number, { x: number; y: number }>,
-    cards: ReadonlyMap<number, CardDef>,
+    creatures: ReadonlyMap<number, HuntCreature>,
     lunge: boolean,
   ): void {
+    const draw = huntExchangeDraw(hunt, (iid) => at.has(iid));
     const hunterAt = at.get(hunt.hunter);
     const preyAt = at.get(hunt.prey);
-    if (!hunterAt || !preyAt) return;
-    const tile = (iid: number) => (lunge ? this.views.get(iid) ?? null : null);
-    this.combatFx.exchange(tile(hunt.hunter), hunterAt, tile(hunt.prey), preyAt, colorInt(theme.colors.heading));
+    if (draw.tether && hunterAt && preyAt) {
+      const tile = (iid: number) => (lunge ? this.views.get(iid) ?? null : null);
+      this.combatFx.exchange(tile(hunt.hunter), hunterAt, tile(hunt.prey), preyAt, colorInt(theme.colors.heading));
+    }
     let dealt = false;
-    for (const blow of huntBlows(hunt)) {
-      const from = at.get(blow.source)!;
-      const to = at.get(blow.target)!;
-      const striker = cards.get(blow.source);
+    for (const { blow, strikerPlaced } of draw.landings) {
+      const to = at.get(blow.target);
+      if (!to) continue;
+      const striker = creatures.get(blow.source);
       if (blow.amount > 0) {
         dealt = true;
-        if (striker) this.combatFx.strike(from, to, striker);
+        const from = strikerPlaced ? at.get(blow.source) : striker && this.creatureRowSpot(striker.side, to.x);
+        if (striker && from) this.combatFx.strike(from, to, striker.card);
       }
       this.float(to.x, to.y - 40, huntFloatText(blow.amount), blow.amount > 0 ? '#ffb04a' : theme.colors.muted);
     }
     if (dealt) Sfx.play('hit');
   }
 
+  /** A spot on a side's creature row, for a blow from a creature with no tile. */
+  private creatureRowSpot(side: PlayerId, x: number): { x: number; y: number } {
+    return { x, y: side === HUMAN ? LAYOUT.myCreatures.cy : LAYOUT.oppCreatures.cy };
+  }
+
   /**
-   * The history lines' view of the board: a permanent on the battlefield, or
-   * one that died or left in this batch, named with its [card] and its side.
+   * The history lines' view of the board: a permanent on the battlefield, one
+   * that died, returned or was severed in this batch, or, failing both, one
+   * whose tile is still up from the last sync, named with its [card] and its
+   * side, so a Hunt or Provoked line is not dropped for want of a name.
    */
   private eventLineLookup(batch: readonly GameEvent[]): EventLineLookup {
     const side = (player: PlayerId): 'you' | 'opponent' => (player === HUMAN ? 'you' : 'opponent');
@@ -3523,9 +3571,11 @@ export class DuelScene extends Phaser.Scene {
       permanent: (iid) => {
         const perm = this.duel.state.battlefield.find((p) => p.iid === iid);
         if (perm) return { ref: this.cardRef(perm.cardId), side: side(perm.controller) };
-        const left = batch.find((ev): ev is Extract<GameEvent, { e: 'died' | 'recalled' }> =>
-          (ev.e === 'died' || ev.e === 'recalled') && ev.iid === iid);
-        return left ? { ref: this.cardRef(left.cardId), side: side(left.owner) } : null;
+        const left = departedInBatch(batch, iid);
+        if (left) return { ref: this.cardRef(left.cardId), side: side(left.player) };
+        const tile = this.views.get(iid);
+        const tileSide = this.viewSides.get(iid);
+        return tile && tileSide !== undefined ? { ref: this.cardRef(tile.card.id), side: side(tileSide) } : null;
       },
       cardRef: (cardId) => this.cardRef(cardId),
       card: (cardId) => def(CARD_DB, cardId),
@@ -4131,6 +4181,7 @@ export class DuelScene extends Phaser.Scene {
     for (const [iid, view] of [...this.views]) {
       if (!seen.has(iid)) {
         this.views.delete(iid);
+        this.viewSides.delete(iid);
         const brokenHauntlink = this.brokenHauntlinks.delete(iid);
         if (brokenHauntlink) view.setHauntlinkBroken(true);
         this.tweens.add({
@@ -4174,6 +4225,7 @@ export class DuelScene extends Phaser.Scene {
       const x = this.permanentRowX(layout, packed, i, row.length, scale);
       const y = layout.liftSelected ? this.creatureY(perm.iid, layout.cy) : layout.cy;
       this.boardTargets.set(perm.iid, { x, y, scale });
+      this.viewSides.set(perm.iid, perm.controller);
       const d = def(CARD_DB, perm.cardId);
       let view = this.views.get(perm.iid);
       if (!view) {
@@ -4295,6 +4347,7 @@ export class DuelScene extends Phaser.Scene {
         const x = target.x + overlap.x;
         const y = target.y + overlap.y;
         seen.add(link.iid);
+        this.viewSides.set(link.iid, link.controller);
         let view = this.views.get(link.iid);
         if (!view) {
           view = new BoardCardView(this, x, y, d);
@@ -7440,15 +7493,19 @@ export class DuelScene extends Phaser.Scene {
 
   /**
    * A combat response window opened for you because you could pump (A1.5's
-   * auto-pass rule keeps it open only then, or for a Charm): say so once, so
-   * the window never reads as a dead pause. The tile's Boost chip and ring
-   * stay for as long as the pump is usable.
+   * auto-pass rule keeps it open only then, or for a Charm): say so, so the
+   * window never reads as a dead pause. Said once each combat: the first
+   * window with a pump to offer shows the notice, and the later windows of
+   * that combat do not repeat it. The tile's Boost chip and ring stay for as
+   * long as the pump is usable.
    */
   private offerCombatPump(): void {
-    if (this.replayMode || this.tutorial || this.duel.state.step !== 'combat') return;
+    if (this.combatPumpOffered || this.replayMode || this.tutorial || this.duel.state.step !== 'combat') return;
     const pump = this.duel.legalActions(HUMAN).find((action): action is ManaPumpAction => action.type === 'activateMana');
     const source = pump && this.duel.state.battlefield.find((perm) => perm.iid === pump.iid);
-    if (source) this.showTransientNotice(`You can boost ${def(CARD_DB, source.cardId).name} now, or Pass.`);
+    if (!source) return;
+    this.combatPumpOffered = true;
+    this.showTransientNotice(`You can boost ${def(CARD_DB, source.cardId).name} now, or Pass.`);
   }
 
   /**
