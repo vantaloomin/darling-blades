@@ -86,7 +86,37 @@ import { CardZoomPreview } from '../ui/CardZoomPreview';
 import { CardView, CARD_W, CARD_H } from '../ui/CardView';
 import { CoachMark } from '../ui/CoachMark';
 import { CombatFx } from '../ui/CombatFx';
-import { planCombat, type CombatHit, type CombatStep } from '../ui/combatSequence';
+import { planCombat, sequencedBatchRoutes, type CombatHit, type CombatStep } from '../ui/combatSequence';
+import { PROVOKED_SPENT_NOTE, provokedSpent } from '../ui/boardCuePresentation';
+import {
+  huntDrawnDamage,
+  huntExchangeDraw,
+  huntFloatText,
+  huntStepPrompt,
+  planHunts,
+  targetStepTitle,
+  tookPartInHunt,
+  type HuntCreature,
+  type HuntedEvent,
+  type HuntStep,
+  type HuntTargetSource,
+} from '../ui/huntPresentation';
+import {
+  PUMP_TICKER_CANCEL,
+  PUMP_TICKER_TITLE,
+  manaActivatedEffectText,
+  pumpActionsFor,
+  pumpBoost,
+  pumpBoostText,
+  pumpConfirmLabel,
+  pumpSubmission,
+  pumpSummaryText,
+  pumpTicker,
+  pumpTickerLimitText,
+  stepPumpTicker,
+  type ManaPumpAction,
+  type PumpTicker,
+} from '../ui/manaPumpPresentation';
 import {
   COIN_FLIP_ACTION_CENTERS,
   COIN_FLIP_ACTION_WIDTH,
@@ -119,6 +149,9 @@ import {
   dutyTargetsNeedPicker,
   dutyWindowReason,
   type DutyAction,
+  departedInBatch,
+  eventHistoryLine,
+  type EventLineLookup,
   forcedAttackNotice,
   permanentActionLabel,
   rageMustAttackNotice,
@@ -332,6 +365,8 @@ export class DuelScene extends Phaser.Scene {
   /** Live run roster cached before results can clear the run from the save. */
   private gauntletRosterOrder: readonly number[] | null = null;
   private views = new Map<number, BoardCardView>(); // battlefield iid → tile
+  /** Whose each tile was at the last sync, so a line can still name a permanent that has left. */
+  private viewSides = new Map<number, PlayerId>();
   private handViews: CardView[] = [];
   /** Last rendered hand, retained briefly only so rebuild exits can read as motion. */
   private renderedHand: { cardId: string; view: CardView }[] = [];
@@ -415,7 +450,24 @@ export class DuelScene extends Phaser.Scene {
   private dutyFinishButton: ThemedButton | null = null;
   private dutyHighlights = new Set<number>();
   private dutyActionsBySource = new Map<number, DutyAction[]>();
+  /** Your repeatable mana abilities usable now (1.9 A1.5's pump), by creature; enumerated with the Duties. */
+  private pumpActionsBySource = new Map<number, ManaPumpAction[]>();
   private dutyActionsState: Game['state'] | null = null;
+  /** The open pump ticker's step (-1, +1), for the arrow keys; null when no ticker is open. */
+  private pumpTickerStep: ((delta: number) => void) | null = null;
+  /** This batch's `damageMarked` events a Hunt's exchange draws itself (`huntDrawnDamage`). */
+  private huntDrawn: ReadonlySet<GameEvent> = new Set();
+  /**
+   * Hunt exchanges drawn once the board has synced: every Hunt outside a
+   * full-motion sequence, and one whose hunter has no tile yet (an arrival or
+   * Empower hunter, cast this batch). Positions are captured at narration for
+   * the tiles that exist then, so a creature the Hunt killed is still struck
+   * where it stood; each creature's card and side are kept too, so one that
+   * never had a tile (a hunter that died in its own Hunt) still strikes.
+   */
+  private pendingHuntFx: { hunt: HuntedEvent; at: Map<number, { x: number; y: number }>; creatures: Map<number, HuntCreature> }[] = [];
+  /** The pump notice has been shown in this combat (`offerCombatPump`). */
+  private combatPumpOffered = false;
   /** CastIntent carry: a lifted untargeted spell or Reserves land awaiting its placing click. */
   private carry: {
     action: Extract<Action, { type: 'castSpell' | 'playLand' }>;
@@ -649,6 +701,7 @@ export class DuelScene extends Phaser.Scene {
     this.coach = null;
     this.tutorialGuard = new ModalGuard();
     this.views = new Map();
+    this.viewSides = new Map();
     this.handViews = [];
     this.renderedHand = [];
     this.previousHand = null;
@@ -705,7 +758,12 @@ export class DuelScene extends Phaser.Scene {
     this.dutyFinishButton = null;
     this.dutyHighlights = new Set();
     this.dutyActionsBySource = new Map();
+    this.pumpActionsBySource = new Map();
     this.dutyActionsState = null;
+    this.pumpTickerStep = null;
+    this.huntDrawn = new Set();
+    this.pendingHuntFx = [];
+    this.combatPumpOffered = false;
     this.empowerChooser = null;
     this.empowerChooserGuard = new ModalGuard();
     this.gravePicker = null;
@@ -2315,8 +2373,12 @@ export class DuelScene extends Phaser.Scene {
         : this.actionCardId(duty);
       if (!cardId) return;
       const step = this.pendingTargetStep();
+      const card = def(CARD_DB, cardId);
+      // A Hunt asks for its hunter, then its prey (1.9 A2.a); anything else keeps its title.
+      const huntPrompt = huntStepPrompt(card, this.huntTargetSource(duty), step.selected.length,
+        duty.type === 'activate' ? duty.abilityIndex ?? 0 : 0);
       const prompt = this.add.container(0, 0).setDepth(theme.depth.toast);
-      prompt.add(this.add.text(640, LAYOUT.gap.cy, `${targetPromptTitle(def(CARD_DB, cardId).name)} · ${step.countText}`, {
+      prompt.add(this.add.text(640, LAYOUT.gap.cy, targetStepTitle(card.name, huntPrompt, targetPromptTitle(card.name), step.countText), {
         fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px`, color: theme.colors.gold,
         wordWrap: { width: 480 }, align: 'center', resolution: 2,
       }).setOrigin(0.5));
@@ -2612,6 +2674,7 @@ export class DuelScene extends Phaser.Scene {
   /** Board sync + AI/auto-skip/end-turn; `ended` narrates a combat-deferred game end. */
   private finishStep(ended?: GameEvent): void {
     this.sync();
+    this.flushHuntFx();
     this.flushPlayReveals();
     if (ended) this.narrateEvent(ended);
     if (this.replayMode) {
@@ -2882,19 +2945,21 @@ export class DuelScene extends Phaser.Scene {
 
   /**
    * Play back one event batch. A batch that lands combat damage is choreographed
-   * attacker-by-attacker (playCombatSequence) at `animations: 'full'`; every
-   * other batch — and reduced/off motion — narrates instantly, one event at a
-   * time (the pre-sequencing behavior).
+   * attacker-by-attacker (playCombatSequence) at `animations: 'full'`, and so is
+   * a Hunt whose two creatures are both on the board (1.9 A2.a); every other
+   * batch (and reduced/off motion) narrates instantly, one event at a time
+   * (the pre-sequencing behavior), and draws its Hunts once the board syncs.
    */
   private processEvents(events: GameEvent[]): void {
     if (!this.replayMode && !this.tutorial && events.length > 0) {
       const progress = applyDailyQuestProgress(Services.save.data, CARD_DB, events, todayString());
       if (progress.changed) Services.save.touch();
     }
+    this.huntDrawn = huntDrawnDamage(events, (iid) => this.huntPlaced(iid));
     const sequence =
       Services.save.data.settings.animations === 'full' &&
       !this.animatingCombat &&
-      events.some((e) => e.e === 'combatDamage' && e.hits.length > 0);
+      events.some((e) => (e.e === 'combatDamage' && e.hits.length > 0) || (e.e === 'hunted' && this.huntShownOnBoard(e)));
     if (sequence) {
       this.playCombatSequence(events);
       return;
@@ -2933,9 +2998,32 @@ export class DuelScene extends Phaser.Scene {
         break;
       }
       case 'damageMarked': {
+        // A blow a Hunt's exchange lands is drawn there (renderHuntExchange).
+        if (this.huntDrawn.has(e)) break;
         Sfx.play('hit');
         const v = this.views.get(e.iid);
         if (v) this.float(v.x, v.y - 56, `-${e.amount}`, '#ffb04a');
+        break;
+      }
+      case 'hunted': {
+        // Outside a full-motion sequence the exchange is drawn once the board
+        // has synced, so an arrival hunter cast this batch has its tile.
+        const line = eventHistoryLine(e, this.eventLineLookup(batch));
+        if (line) this.log(line);
+        this.queueHuntFx(e, batch);
+        break;
+      }
+      case 'triggerFired': {
+        // Only a Provoked trigger has a line (1.9); the rest stay silent, as before.
+        const line = eventHistoryLine(e, this.eventLineLookup(batch));
+        const source = this.duel.state.battlefield.find((perm) => perm.iid === e.iid);
+        if (line) this.log(line, source?.cardId);
+        break;
+      }
+      case 'manaActivated': {
+        const line = eventHistoryLine(e, this.eventLineLookup(batch));
+        if (line) this.log(line, e.cardId);
+        this.showManaActivated(e);
         break;
       }
       case 'died': {
@@ -2947,7 +3035,10 @@ export class DuelScene extends Phaser.Scene {
           // departing underlap can visibly sever instead of using the normal
           // generic board-card fade.
           this.log(`${who} ${this.cardRef(e.cardId)} lost its host and went to its owner's graveyard`, e.cardId);
-        } else if (v) this.log(`${who} ${this.cardRef(e.cardId)} died`, e.cardId);
+        } else if (v || tookPartInHunt(batch, e.iid)) {
+          // A hunter that died in its own arrival Hunt never had a tile; its death is still said.
+          this.log(`${who} ${this.cardRef(e.cardId)} died`, e.cardId);
+        }
         break;
       }
       case 'recalled': {
@@ -3066,8 +3157,12 @@ export class DuelScene extends Phaser.Scene {
         this.whispersSpellIds.delete(e.sid);
         this.log('Spell cancelled!');
         break;
+      case 'stepChanged':
+        this.combatPumpOffered = false; // a new step: the next combat says it again
+        break;
       case 'responseWindowOpened':
         if (e.reopened && e.player === HUMAN) this.showSkipNotice('Respond again');
+        else if (e.player === HUMAN) this.offerCombatPump();
         break;
       case 'targetsFizzled':
         this.whispersSpellIds.delete(e.sid);
@@ -3162,11 +3257,8 @@ export class DuelScene extends Phaser.Scene {
         // A token refused at the creature cap powered up its namesake (1.9
         // A1.7). Said aloud, or the missing token reads as a bug, the lesson
         // of the silent blocker cap (src/config/rules.ts).
-        const whose = e.player === HUMAN ? 'your' : "the opponent's";
-        this.log(
-          `Board full: ${whose} ${this.cardRef(e.cardId)} gains an Overcharge in place of a new one (+1/+1, ${e.total} of ${RULES.overchargeLimit})`,
-          e.cardId,
-        );
+        const line = eventHistoryLine(e, this.eventLineLookup(batch));
+        if (line) this.log(line, e.cardId);
         break;
       }
       case 'turnBegan':
@@ -3204,44 +3296,84 @@ export class DuelScene extends Phaser.Scene {
    */
   private playCombatSequence(events: GameEvent[]): void {
     const rounds: { hits: CombatHit[] }[] = [];
+    const hunts: HuntedEvent[] = [];
     const diedInfo = new Map<number, Extract<GameEvent, { e: 'died' }>>();
     const heals: Extract<GameEvent, { e: 'lifeChanged' }>[] = [];
+    const afterStrikes: GameEvent[] = [];
     let ended: Extract<GameEvent, { e: 'gameEnded' }> | undefined;
+    const batch = {
+      combat: events.some((e) => e.e === 'combatDamage' && e.hits.length > 0),
+      huntDrawn: this.huntDrawn,
+    };
 
-    for (const e of events) {
-      switch (e.e) {
-        case 'combatDamage':
-          rounds.push({ hits: e.hits });
+    // sequencedBatchRoutes (combatSequence.ts) decides, per event, what the
+    // strikes draw, what waits for them, and what is narrated at once.
+    const routes = sequencedBatchRoutes(events, batch);
+    events.forEach((e, index) => {
+      switch (routes[index]) {
+        case 'combatRound':
+          if (e.e === 'combatDamage') rounds.push({ hits: e.hits });
+          break;
+        case 'hunt':
+          // A Hunt whose hunter has no tile yet is drawn after the sync.
+          if (e.e === 'hunted') {
+            if (this.huntShownOnBoard(e)) hunts.push(e);
+            else this.narrateEvent(e, events);
+          }
           break;
         case 'died':
-          diedInfo.set(e.iid, e);
+          if (e.e === 'died') diedInfo.set(e.iid, e);
           break;
-        case 'lifeChanged':
+        case 'heal':
           // Player DAMAGE is drawn per-hit (sequenced); keep only lifelink/heal
           // (+delta) to pop once the sequence settles.
-          if (e.delta > 0) heals.push(e);
+          if (e.e === 'lifeChanged') heals.push(e);
           break;
-        case 'damageMarked':
-          break; // creature damage floats are derived per-hit from the strikes
+        case 'afterStrikes':
+          afterStrikes.push(e); // a Provoked trigger, then what it did: said once the blow lands
+          break;
+        case 'drawn':
+          break; // creature and player damage floats are derived from the strikes
         case 'gameEnded':
-          ended = e;
+          if (e.e === 'gameEnded') ended = e;
           break;
-        default:
-          this.narrateEvent(e); // combat triggers etc. — narrate immediately
+        case 'narrate':
+          this.narrateEvent(e, events); // combat triggers etc. — narrate immediately
           break;
       }
-    }
+    });
 
-    const plan = planCombat(rounds, [...diedInfo.keys()]);
-    if (plan.steps.length === 0) {
-      heals.forEach((h) => this.narrateEvent(h));
+    // Hunts play after the batch's combat strikes (a batch rarely holds both);
+    // each death lands with the blow that caused it.
+    const died = [...diedInfo.keys()];
+    const claimed = planHunts(hunts, died);
+    const plan = planCombat(rounds, rounds.length > 0 ? claimed.unclaimed : []);
+    const huntPlan = planHunts(hunts, died, plan.steps.length > 0 ? plan.totalMs : 0);
+    const lastHunt = huntPlan.steps[huntPlan.steps.length - 1];
+    if (plan.steps.length === 0 && lastHunt) lastHunt.deaths.push(...huntPlan.unclaimed);
+    const settle = (): void => {
+      heals.forEach((h) => this.narrateEvent(h)); // lifelink pops as combat settles
+      afterStrikes.forEach((e) => this.narrateEvent(e, events));
+    };
+    if (plan.steps.length === 0 && huntPlan.steps.length === 0) {
+      settle();
       this.finishStep(ended);
       return;
     }
 
     this.animatingCombat = true;
+    // A Hunt-only sequence hands its Undo back when it settles, so a Hunt
+    // spell can be taken back at full motion exactly as at reduced motion.
+    const heldUndo = plan.steps.length === 0 ? { snapshot: this.undoSnapshot, blocked: this.undoBlocked } : null;
     this.undoSnapshot = null; // combat is resolving — no take-backs mid-sequence
     this.undoBlocked = null;
+    // A Hunt spell's own targeting (its prompt, arrow and Confirm) ended with
+    // the cast; clear it now rather than after the held board's sync.
+    if (huntPlan.steps.length > 0) {
+      this.syncTargetPrompt();
+      this.syncButton();
+      this.drawArrows();
+    }
     const dir: -1 | 1 = this.duel.state.activePlayer === HUMAN ? -1 : 1;
     for (const step of plan.steps) {
       this.combatTimers.push(
@@ -3250,15 +3382,40 @@ export class DuelScene extends Phaser.Scene {
         }),
       );
     }
+    for (const step of huntPlan.steps) {
+      this.combatTimers.push(
+        this.time.delayedCall(step.atMs, () => {
+          if (!this.ended) this.renderHuntStep(step, diedInfo, events);
+        }),
+      );
+    }
     this.combatTimers.push(
-      this.time.delayedCall(plan.totalMs, () => {
+      this.time.delayedCall(Math.max(plan.totalMs, huntPlan.totalMs), () => {
         this.combatTimers = [];
         this.animatingCombat = false;
         if (this.ended) return;
-        heals.forEach((h) => this.narrateEvent(h)); // lifelink pops as combat settles
+        if (heldUndo) {
+          this.undoSnapshot = heldUndo.snapshot;
+          this.undoBlocked = heldUndo.blocked;
+        }
+        settle();
         this.finishStep(ended);
       }),
     );
+  }
+
+  /** A Hunt's moment in a full-motion sequence: the exchange on the held board, then its deaths. */
+  private renderHuntStep(
+    step: HuntStep,
+    diedInfo: Map<number, Extract<GameEvent, { e: 'died' }>>,
+    batch: readonly GameEvent[],
+  ): void {
+    const { at, creatures } = this.huntTiles(step.hunt, batch);
+    // The whole batch, so a creature that died, returned or was severed in it is still named.
+    const line = eventHistoryLine(step.hunt, this.eventLineLookup(batch));
+    if (line) this.log(line);
+    this.renderHuntExchange(step.hunt, at, creatures, true);
+    for (const iid of step.deaths) this.logSequencedDeath(iid, diedInfo);
   }
 
   /** Render one attacker's moment: lunge, per-hit strike + damage float, deaths. */
@@ -3284,18 +3441,147 @@ export class DuelScene extends Phaser.Scene {
         this.float(targetPos.x, targetPos.y - 40, `-${hit.amount}`, '#ffb04a');
       }
     }
-    for (const iid of step.deaths) {
-      Sfx.play('death');
-      const info = diedInfo.get(iid);
-      if (info) {
-        const who = info.owner === HUMAN ? 'Your' : 'Enemy';
-        if (this.brokenHauntlinks.delete(iid)) {
-          this.log(`${who} ${this.cardRef(info.cardId)} lost its host and went to its owner's graveyard`, info.cardId);
-        } else {
-          this.log(`${who} ${this.cardRef(info.cardId)} died`, info.cardId);
-        }
-      }
+    for (const iid of step.deaths) this.logSequencedDeath(iid, diedInfo);
+  }
+
+  /** A death in a full-motion sequence, said when the blow that caused it lands. */
+  private logSequencedDeath(iid: number, diedInfo: Map<number, Extract<GameEvent, { e: 'died' }>>): void {
+    Sfx.play('death');
+    const info = diedInfo.get(iid);
+    if (!info) return;
+    const who = info.owner === HUMAN ? 'Your' : 'Enemy';
+    if (this.brokenHauntlinks.delete(iid)) {
+      this.log(`${who} ${this.cardRef(info.cardId)} lost its host and went to its owner's graveyard`, info.cardId);
+    } else {
+      this.log(`${who} ${this.cardRef(info.cardId)} died`, info.cardId);
     }
+  }
+
+  /** A Hunt's two tiles are on the board now, so a full-motion sequence can hold them while it plays. */
+  private huntShownOnBoard(e: HuntedEvent): boolean {
+    return [e.hunter, e.prey].every((iid) => this.views.get(iid)?.active === true);
+  }
+
+  /**
+   * A Hunt's creature has a spot its exchange can draw on: a tile now, or, on
+   * the battlefield after the batch, the tile the next sync gives it.
+   */
+  private huntPlaced(iid: number): boolean {
+    return this.views.get(iid)?.active === true || this.duel.state.battlefield.some((perm) => perm.iid === iid);
+  }
+
+  /**
+   * A Hunt's two creatures as they stand: where each tile is, and each one's
+   * card and side, read from its tile, the battlefield, or the batch it
+   * entered or left in.
+   */
+  private huntTiles(
+    e: HuntedEvent,
+    batch: readonly GameEvent[],
+  ): { at: Map<number, { x: number; y: number }>; creatures: Map<number, HuntCreature> } {
+    const at = new Map<number, { x: number; y: number }>();
+    const creatures = new Map<number, HuntCreature>();
+    for (const iid of [e.hunter, e.prey]) {
+      const view = this.views.get(iid);
+      if (view?.active) at.set(iid, { x: view.x, y: view.y });
+      const perm = this.duel.state.battlefield.find((p) => p.iid === iid)
+        ?? batch.find((ev): ev is Extract<GameEvent, { e: 'permanentEntered' | 'tokenCreated' }> =>
+          (ev.e === 'permanentEntered' || ev.e === 'tokenCreated') && ev.perm.iid === iid)?.perm;
+      const left = departedInBatch(batch, iid);
+      const card = view?.active ? view.card : perm ? def(CARD_DB, perm.cardId) : left ? def(CARD_DB, left.cardId) : null;
+      const side = perm?.controller ?? this.viewSides.get(iid) ?? left?.player;
+      if (card && side !== undefined) creatures.set(iid, { card, side });
+    }
+    return { at, creatures };
+  }
+
+  /** Capture a Hunt's tiles as they stand, to draw its exchange once the board has synced (flushHuntFx). */
+  private queueHuntFx(e: HuntedEvent, batch: readonly GameEvent[]): void {
+    this.pendingHuntFx.push({ hunt: e, ...this.huntTiles(e, batch) });
+  }
+
+  /**
+   * Draw the queued Hunt exchanges after a sync: a creature still on the board
+   * is struck at its tile's settled spot (`boardTargets`, where an arriving
+   * hunter now has a tile), one the Hunt killed where it stood. No lunge: the
+   * sync's own tile tweens are moving the tiles.
+   */
+  private flushHuntFx(): void {
+    const queued = this.pendingHuntFx.splice(0);
+    for (const { hunt, at, creatures } of queued) {
+      for (const iid of [hunt.hunter, hunt.prey]) {
+        const settled = this.boardTargets.get(iid);
+        if (settled && this.duel.state.battlefield.some((p) => p.iid === iid)) at.set(iid, { x: settled.x, y: settled.y });
+      }
+      this.renderHuntExchange(hunt, at, creatures, false);
+    }
+  }
+
+  /**
+   * One Hunt's exchange (1.9 A2.a): both creatures strike at the same instant,
+   * each blow with the striker's own attack effect, and each creature's number
+   * lands on it: the damage it took, or a muted 0 when the other dealt none,
+   * so an exchange with no Attack on either side still reads. `lunge` only on
+   * a held board (a full-motion sequence). What is drawn when a creature has
+   * no spot is `huntExchangeDraw`'s: the other one still takes its blow and
+   * its number, struck from the missing creature's side of the board.
+   */
+  private renderHuntExchange(
+    hunt: HuntedEvent,
+    at: ReadonlyMap<number, { x: number; y: number }>,
+    creatures: ReadonlyMap<number, HuntCreature>,
+    lunge: boolean,
+  ): void {
+    const draw = huntExchangeDraw(hunt, (iid) => at.has(iid));
+    const hunterAt = at.get(hunt.hunter);
+    const preyAt = at.get(hunt.prey);
+    if (draw.tether && hunterAt && preyAt) {
+      const tile = (iid: number) => (lunge ? this.views.get(iid) ?? null : null);
+      this.combatFx.exchange(tile(hunt.hunter), hunterAt, tile(hunt.prey), preyAt, colorInt(theme.colors.heading));
+    }
+    let dealt = false;
+    for (const { blow, strikerPlaced } of draw.landings) {
+      const to = at.get(blow.target);
+      if (!to) continue;
+      const striker = creatures.get(blow.source);
+      if (blow.amount > 0) {
+        dealt = true;
+        const from = strikerPlaced ? at.get(blow.source) : striker && this.creatureRowSpot(striker.side, to.x);
+        if (striker && from) this.combatFx.strike(from, to, striker.card);
+      }
+      this.float(to.x, to.y - 40, huntFloatText(blow.amount), blow.amount > 0 ? '#ffb04a' : theme.colors.muted);
+    }
+    if (dealt) Sfx.play('hit');
+  }
+
+  /** A spot on a side's creature row, for a blow from a creature with no tile. */
+  private creatureRowSpot(side: PlayerId, x: number): { x: number; y: number } {
+    return { x, y: side === HUMAN ? LAYOUT.myCreatures.cy : LAYOUT.oppCreatures.cy };
+  }
+
+  /**
+   * The history lines' view of the board: a permanent on the battlefield, one
+   * that died, returned or was severed in this batch, or, failing both, one
+   * whose tile is still up from the last sync, named with its [card] and its
+   * side, so a Hunt or Provoked line is not dropped for want of a name.
+   */
+  private eventLineLookup(batch: readonly GameEvent[]): EventLineLookup {
+    const side = (player: PlayerId): 'you' | 'opponent' => (player === HUMAN ? 'you' : 'opponent');
+    return {
+      permanent: (iid) => {
+        const perm = this.duel.state.battlefield.find((p) => p.iid === iid);
+        if (perm) return { ref: this.cardRef(perm.cardId), side: side(perm.controller) };
+        const left = departedInBatch(batch, iid);
+        if (left) return { ref: this.cardRef(left.cardId), side: side(left.player) };
+        const tile = this.views.get(iid);
+        const tileSide = this.viewSides.get(iid);
+        return tile && tileSide !== undefined ? { ref: this.cardRef(tile.card.id), side: side(tileSide) } : null;
+      },
+      cardRef: (cardId) => this.cardRef(cardId),
+      card: (cardId) => def(CARD_DB, cardId),
+      sideOf: side,
+      overchargeLimit: RULES.overchargeLimit,
+    };
   }
 
   private log(msg: string, cardId?: string): void {
@@ -3895,6 +4181,7 @@ export class DuelScene extends Phaser.Scene {
     for (const [iid, view] of [...this.views]) {
       if (!seen.has(iid)) {
         this.views.delete(iid);
+        this.viewSides.delete(iid);
         const brokenHauntlink = this.brokenHauntlinks.delete(iid);
         if (brokenHauntlink) view.setHauntlinkBroken(true);
         this.tweens.add({
@@ -3938,6 +4225,7 @@ export class DuelScene extends Phaser.Scene {
       const x = this.permanentRowX(layout, packed, i, row.length, scale);
       const y = layout.liftSelected ? this.creatureY(perm.iid, layout.cy) : layout.cy;
       this.boardTargets.set(perm.iid, { x, y, scale });
+      this.viewSides.set(perm.iid, perm.controller);
       const d = def(CARD_DB, perm.cardId);
       let view = this.views.get(perm.iid);
       if (!view) {
@@ -3963,7 +4251,7 @@ export class DuelScene extends Phaser.Scene {
           // p.button (initiating button of THIS press), not the live
           // rightButtonDown() bitmask -- a chorded left press while the right
           // button is held must act as a left click, not open inspect.
-          if (p.button === 2 && !this.pendingCasts) this.showInspect(d, ownedVariant);
+          if (p.button === 2 && !this.pendingCasts) this.showInspect(d, ownedVariant, undefined, this.permanentNote(iid));
         });
         if (d.activated) {
           view.on('pointerover', (p: Phaser.Input.Pointer) => {
@@ -3976,7 +4264,7 @@ export class DuelScene extends Phaser.Scene {
           variant: ownedVariant,
           onTap: () => this.onBattlefieldTap(iid, d),
         });
-        this.zoom.attach(view, d, ownedVariant);
+        this.zoom.attach(view, d, ownedVariant, undefined, () => this.permanentNote(iid));
         this.views.set(perm.iid, view);
         view.setAlpha(0);
         this.tweens.add({ targets: view, alpha: 1, duration: 200 });
@@ -4005,13 +4293,15 @@ export class DuelScene extends Phaser.Scene {
       view.setKeywords(stats.keywords);
       view.setAuraCount(perm.attachments.length);
       view.setOvercharge(perm.overcharge ?? 0, scale);
+      view.setProvokedSpent(provokedSpent(d.abilities, perm.firedThisTurn), scale);
       // The gold "eligible" ring alone reads the same for an attacker, a
-      // Hauntlink move and a Duty; the chip names which (legal Duties are
-      // enumerated for your own permanents only).
+      // Hauntlink move, a Duty and a pump; the chip names which (legal Duties
+      // and pumps are enumerated for your own permanents only).
       const linkActions = this.hauntlinkActionsFor(perm.iid);
       view.setActionLabel(permanentActionLabel(
         hauntlinkActionLabel(linkActions.length > 0, perm.attachedTo !== undefined),
         this.activateActionsFor(perm.iid).length > 0,
+        this.boostActionsFor(perm.iid).length > 0,
       ), scale);
       view.setHighlight(this.highlightFor(perm));
       // Summoning-sickness affordance (engine is source of truth: entered
@@ -4057,6 +4347,7 @@ export class DuelScene extends Phaser.Scene {
         const x = target.x + overlap.x;
         const y = target.y + overlap.y;
         seen.add(link.iid);
+        this.viewSides.set(link.iid, link.controller);
         let view = this.views.get(link.iid);
         if (!view) {
           view = new BoardCardView(this, x, y, d);
@@ -4145,6 +4436,7 @@ export class DuelScene extends Phaser.Scene {
     if (this.blockAssignments.some((b) => b.blocker === perm.iid)) return 'blocking';
     if (this.pendingBlocker === perm.iid) return 'pendingBlocker';
     if (this.dutyHighlights.has(perm.iid) || this.activateActionsFor(perm.iid).length > 0) return 'eligible';
+    if (this.boostActionsFor(perm.iid).length > 0) return 'eligible';
     if (this.hauntlinkActionsFor(perm.iid).length > 0) return 'eligible';
     if (
       a.kind === 'declareAttackers' &&
@@ -4175,16 +4467,39 @@ export class DuelScene extends Phaser.Scene {
   /** Enumerate once per sync, rather than rebuilding the menu for each tile. */
   private refreshDutyActions(): void {
     this.dutyActionsBySource.clear();
+    this.pumpActionsBySource.clear();
     this.dutyActionsState = this.duel.state;
-    if (this.pendingCasts || this.ended || this.replayMode || !this.dutyActionsState.battlefield.some(
-      (source) => source.controller === HUMAN && def(CARD_DB, source.cardId).activated,
-    )) return;
+    if (this.pendingCasts || this.ended || this.replayMode || !this.dutyActionsState.battlefield.some((source) => {
+      if (source.controller !== HUMAN) return false;
+      const card = def(CARD_DB, source.cardId);
+      return card.activated !== undefined || (card.manaActivated?.length ?? 0) > 0;
+    })) return;
     for (const action of this.duel.legalActions(HUMAN)) {
+      if (action.type === 'activateMana') {
+        const pumps = this.pumpActionsBySource.get(action.iid);
+        if (pumps) pumps.push(action);
+        else this.pumpActionsBySource.set(action.iid, [action]);
+        continue;
+      }
       if (action.type !== 'activate') continue;
       const actions = this.dutyActionsBySource.get(action.iid);
       if (actions) actions.push(action);
       else this.dutyActionsBySource.set(action.iid, [action]);
     }
+  }
+
+  /** Your pump actions on this creature right now (the Duty menu's rules: none while targeting, ended or replaying). */
+  private boostActionsFor(iid: number): ManaPumpAction[] {
+    if (this.pendingCasts || this.ended || this.replayMode) return [];
+    if (this.dutyActionsState !== this.duel.state) return [];
+    return this.pumpActionsBySource.get(iid) ?? [];
+  }
+
+  /** The line a tile's tooltip and inspect add about its state now: a spent Provoked (1.9 A2.a). */
+  private permanentNote(iid: number): string | null {
+    const perm = this.duel.state.battlefield.find((p) => p.iid === iid);
+    if (!perm) return null;
+    return provokedSpent(def(CARD_DB, perm.cardId).abilities, perm.firedThisTurn) ? PROVOKED_SPENT_NOTE : null;
   }
 
   private activateActionsFor(iid: number): DutyAction[] {
@@ -5521,6 +5836,12 @@ export class DuelScene extends Phaser.Scene {
 
   private onChoiceNavigate(e: KeyboardEvent): void {
     if (this.ended || this.replayMode || this.animatingCombat || this.inspect || this.zoneModal || this.pauseOverlay) return;
+    if (this.pumpTickerStep && this.empowerChooser) {
+      // The ticker counts: right and up add one, left and down take one away.
+      e.preventDefault();
+      this.pumpTickerStep(e.key === 'ArrowLeft' || e.key === 'ArrowDown' || e.keyCode === 37 || e.keyCode === 40 ? -1 : 1);
+      return;
+    }
     const delta = e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.keyCode === 37 || e.keyCode === 38 ? -1 : 1;
     const picker = this.dutyPicker ?? this.lootPicker;
     if (picker?.container.active) {
@@ -6075,6 +6396,7 @@ export class DuelScene extends Phaser.Scene {
     // Hauntlink-only window (the legal-action filter inside decides).
     if (this.beginHauntlinkTargeting(iid)) return;
     if (this.beginActivate(iid)) return;
+    if (this.beginBoost(iid)) return;
     // Main and every response window; null in the attacker and blocker steps.
     const dutyReason = this.dutyBlockedReason(iid);
     if (dutyReason) this.showTransientNotice(dutyReason);
@@ -6178,7 +6500,7 @@ export class DuelScene extends Phaser.Scene {
       this.onBattlefieldClick(iid); // assigning a block to this attacker
       return;
     }
-    this.showInspect(d);
+    this.showInspect(d, undefined, undefined, this.permanentNote(iid));
   }
 
   // ---------------------------------------------------------------------
@@ -6537,7 +6859,7 @@ export class DuelScene extends Phaser.Scene {
   // Inspect overlay: right-click any card for the full CardView
   // ---------------------------------------------------------------------
 
-  private showInspect(card: CardDef, variant?: CardVariant, landStyle?: string): void {
+  private showInspect(card: CardDef, variant?: CardVariant, landStyle?: string, note: string | null = null): void {
     if (this.ended) return;
     this.closeInspect();
     this.zoom.setSuppressed(true);
@@ -6566,6 +6888,9 @@ export class DuelScene extends Phaser.Scene {
     });
     c.add(view);
     addKeywordGlossaryPanel(this, c, card, { x: 875, y: 150, width: 300 });
+    // A battlefield creature's state the card face cannot print (1.9 A2.a:
+    // "Provoked this turn."), on a plate between the card and the close hint.
+    if (note) c.add(this.statePlate(width / 2, height - 52, note));
     c.add(
       this.add
         .text(width / 2, height - 26, this.touch ? 'Tap anywhere to close' : 'Click anywhere to close', {
@@ -6990,6 +7315,199 @@ export class DuelScene extends Phaser.Scene {
     this.empowerChooserGuard.open([...this.overlayGuardTargets(), this.undoBtn]);
   }
 
+  /** Which of the Hunt's target sources a pending cast or Duty is (`huntStepPrompt`). */
+  private huntTargetSource(action: TargetSelectionAction): HuntTargetSource {
+    if (action.type === 'activate') return 'duty';
+    if (action.type === 'castDarling') return 'cast';
+    if (action.hauntlinked) return 'hauntlinkCast';
+    if (action.retell) return 'retellCast';
+    return action.empowered ? 'empoweredCast' : 'cast';
+  }
+
+  /**
+   * A small plate with one line of state, for the inspect overlay and the
+   * zoom preview: `rowFill` under body copy, as the tile's badges sit.
+   */
+  private statePlate(x: number, y: number, line: string): Phaser.GameObjects.Container {
+    const text = this.add.text(0, 0, line, {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.type.label}px`, fontStyle: theme.weight.w600,
+      color: theme.colors.heading, resolution: 2,
+    }).setOrigin(0.5);
+    const w = text.width + theme.space(4);
+    const h = text.height + theme.space(2);
+    const plate = this.add.graphics();
+    plate.fillStyle(colorInt(theme.colors.rowFill), theme.alpha.panel);
+    plate.fillRoundedRect(-w / 2, -h / 2, w, h, theme.radius.control);
+    plate.lineStyle(1, colorInt(theme.colors.panelStroke), theme.alpha.chrome);
+    plate.strokeRoundedRect(-w / 2, -h / 2, w, h, theme.radius.control);
+    return this.add.container(x, y, [plate, text]);
+  }
+
+  /** Open the pump ticker when this creature of yours has a repeatable mana ability it can use now. */
+  private beginBoost(iid: number): boolean {
+    const actions = this.boostActionsFor(iid);
+    const source = this.duel.state.battlefield.find((perm) => perm.iid === iid);
+    if (actions.length === 0 || !source) return false;
+    this.clearManaPlanPreview();
+    // One ticker per creature: every A1.5 carrier prints one such ability.
+    this.showPumpTicker(def(CARD_DB, source.cardId), actions[0]);
+    return true;
+  }
+
+  /**
+   * The mana pump's ticker (1.9 A2.a; the owner approves its look): the Duty
+   * confirm's card-and-cost composition with a bounded +/- count between the
+   * card and the buttons. It opens at 1; the legal action's `times` is its
+   * top; the confirm submits ONE `activateMana` carrying the count, and the
+   * engine pays for the whole count (no mana plan from the UI).
+   */
+  private showPumpTicker(card: CardDef, legal: ManaPumpAction): void {
+    const ability = card.manaActivated?.[legal.abilityIndex];
+    if (!ability) return;
+    let ticker: PumpTicker = pumpTicker(legal.times);
+    // The tile's hover preview would outlive the tap that opened this (the
+    // guard disables the tile's zone, so no pointerout ever reaches it).
+    this.zoom.cancel();
+    const c = this.add.container(0, 0).setDepth(theme.depth.modal);
+    const dim = this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.82).setInteractive();
+    bindTapButton(this, dim, (pointer) => {
+      if (!pointer.rightButtonReleased()) this.closeEmpowerChooser();
+    });
+    c.add(dim);
+    c.add(this.add.text(640, 108, PUMP_TICKER_TITLE, {
+      fontFamily: theme.fonts.display, fontSize: `${theme.type.h1}px`, color: theme.colors.heading,
+    }).setOrigin(0.5));
+    const variant = displayVariantFor(Services.save.data, card.id);
+    const view = new CardView(this, 640, 272).setScale(0.48);
+    view.setCard(card, { fx: 'none', variant, fullArt: variant.fullArt });
+    c.add(view);
+    view.enableInput();
+    this.zoom.attach(view, card, variant);
+
+    // The ability in the card's own words, cost first.
+    const abilityLine = renderManaText(this, c, 0, 0,
+      `${manaCostText(ability.cost)}: ${manaActivatedEffectText(card, legal.abilityIndex)}`, {
+        fontFamily: theme.fonts.ui, fontSize: `${theme.type.body}px`, color: theme.colors.body, resolution: 2,
+      });
+    abilityLine.text.setOrigin(0.5).setPosition(640, 406);
+    abilityLine.reflow();
+
+    // The ticker: - count +, the bound under the count.
+    const tickerY = 462;
+    const count = this.add.text(640, tickerY, '', {
+      fontFamily: theme.fonts.display, fontSize: `${theme.type.h1}px`, fontStyle: theme.weight.w700,
+      color: theme.colors.heading, resolution: 2,
+    }).setOrigin(0.5);
+    c.add(count);
+    const limit = this.add.text(640, tickerY + 30, pumpTickerLimitText(ticker.max), {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px`, color: theme.colors.muted, resolution: 2,
+    }).setOrigin(0.5);
+    c.add(limit);
+    // The row swallows its own taps: a press on a spent - or + (subdued and
+    // inert at the bound) must not fall through to the dim, which cancels.
+    c.add(this.add.zone(640, tickerY, 88 * 2 + 96, 64).setInteractive());
+    const step = (delta: number): void => {
+      const next = stepPumpTicker(ticker, delta);
+      if (next.count === ticker.count) return;
+      ticker = next;
+      refresh();
+    };
+    const minus = themedButton(this, 640 - 88, tickerY, '\u2212', {
+      variant: 'emphasis', minWidth: 56,
+      onTap: (pointer) => { if (!pointer.rightButtonReleased()) step(-1); },
+    });
+    const plus = themedButton(this, 640 + 88, tickerY, '+', {
+      variant: 'emphasis', minWidth: 56,
+      onTap: (pointer) => { if (!pointer.rightButtonReleased()) step(+1); },
+    });
+    c.add([minus.container, plus.container]);
+
+    // What the chosen count costs and does, then the confirm and cancel.
+    let summary: ReturnType<typeof renderManaText> | null = null;
+    const confirm = themedButton(this, 640, 590, pumpConfirmLabel(1), {
+      variant: 'primary', minWidth: 220,
+      onTap: (pointer) => {
+        if (pointer.rightButtonReleased()) return;
+        this.dutyConfirm?.();
+      },
+    });
+    c.add(confirm.container);
+    c.add(themedButton(this, 640, 644, PUMP_TICKER_CANCEL, {
+      variant: 'ghost', minWidth: 180,
+      onTap: (pointer) => { if (!pointer.rightButtonReleased()) this.closeEmpowerChooser(); },
+    }).container);
+    const refresh = (): void => {
+      count.setText(String(ticker.count));
+      minus.setEnabled(ticker.canDecrease);
+      plus.setEnabled(ticker.canIncrease);
+      confirm.setLabel(pumpConfirmLabel(ticker.count));
+      summary?.destroy();
+      summary = renderManaText(this, c, 0, 0, pumpSummaryText(ability.cost, ability.ops, ticker.count), {
+        fontFamily: theme.fonts.ui, fontSize: `${theme.type.label}px`, fontStyle: theme.weight.w600,
+        color: theme.colors.gold, resolution: 2,
+      });
+      summary.text.setOrigin(0.5).setPosition(640, 536);
+      summary.reflow();
+    };
+    refresh();
+
+    this.pumpTickerStep = step;
+    this.dutyConfirm = () => {
+      if (!c.active) return;
+      // Re-read the engine's entry: the count is held to what is payable now.
+      const fresh = pumpActionsFor(this.duel.legalActions(HUMAN), legal.iid)
+        .find((action) => action.abilityIndex === legal.abilityIndex);
+      const action = fresh ? pumpSubmission(fresh, ticker.count) : null;
+      if (!action || validateAction(this.duel.instanceState, CARD_DB, HUMAN, action) !== null) return;
+      this.closeEmpowerChooser();
+      this.act(action);
+    };
+    this.empowerChooser = c;
+    this.empowerChooserGuard.open([...this.overlayGuardTargets(), this.undoBtn]);
+  }
+
+  /**
+   * The `manaActivated` event's small animation (1.9 A2.a): the stat change
+   * the uses gave floats off the creature, and a ring pulses out once from
+   * its tile, riding the tile so it turns with it. The P/T plate itself
+   * updates on the sync that follows.
+   */
+  private showManaActivated(e: Extract<GameEvent, { e: 'manaActivated' }>): void {
+    const view = this.views.get(e.iid);
+    const ability = def(CARD_DB, e.cardId).manaActivated?.[e.abilityIndex];
+    if (!view?.active || !ability) return;
+    this.float(view.x, view.y - 56, pumpBoostText(pumpBoost(ability.ops, e.times)), theme.colors.gold);
+    const ring = this.add.rectangle(0, 0, TILE_W + 6, TILE_H + 6, 0x000000, 0)
+      .setStrokeStyle(3, colorInt(theme.colors.gold), 1);
+    view.add(ring);
+    this.tweens.add({
+      targets: ring,
+      scale: 1.08,
+      alpha: 0,
+      duration: theme.motion.slow + theme.motion.base,
+      ease: theme.motion.easeOut,
+      onComplete: () => { if (ring.active) ring.destroy(); },
+      onStop: () => { if (ring.active) ring.destroy(); },
+    });
+  }
+
+  /**
+   * A combat response window opened for you because you could pump (A1.5's
+   * auto-pass rule keeps it open only then, or for a Charm): say so, so the
+   * window never reads as a dead pause. Said once each combat: the first
+   * window with a pump to offer shows the notice, and the later windows of
+   * that combat do not repeat it. The tile's Boost chip and ring stay for as
+   * long as the pump is usable.
+   */
+  private offerCombatPump(): void {
+    if (this.combatPumpOffered || this.replayMode || this.tutorial || this.duel.state.step !== 'combat') return;
+    const pump = this.duel.legalActions(HUMAN).find((action): action is ManaPumpAction => action.type === 'activateMana');
+    const source = pump && this.duel.state.battlefield.find((perm) => perm.iid === pump.iid);
+    if (!source) return;
+    this.combatPumpOffered = true;
+    this.showTransientNotice(`You can boost ${def(CARD_DB, source.cardId).name} now, or Pass.`);
+  }
+
   /**
    * Sacrifice carriers retain ordinary payment choices before choosing any
    * fodder. Returns false, drawing nothing, when there is nothing to choose
@@ -7290,6 +7808,7 @@ export class DuelScene extends Phaser.Scene {
     this.empowerChooser = null;
     this.dutyPicker = null;
     this.dutyConfirm = null;
+    this.pumpTickerStep = null;
     this.empowerChooserGuard.close();
     this.maybeAutoSkip();
     this.endTurnTick();

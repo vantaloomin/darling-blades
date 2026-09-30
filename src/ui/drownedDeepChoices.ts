@@ -6,6 +6,7 @@ import {
 } from '../engine/types';
 import { sacrificeCandidates, toggleSacrifice } from './castSacrifice';
 import { targetAbilityText, targetPromptTitle, type DutyAction } from './duelPresentation';
+import { abilityHuntsPrey, HUNT_PREY_PROMPT } from './huntPresentation';
 import { activatedText } from './rulesText';
 import { sameTargetRef } from './targetSelection';
 
@@ -127,7 +128,10 @@ export function deferredTargetPrompt(state: GameState, db: CardDb, player: Playe
   const event = when === 'attacks' ? ' attacks' : when === 'dawn' ? ' at Dawn' : when === 'sunset' ? ' at Sunset' : '';
   return {
     sourceCardId: card.id,
-    title: when === 'arrives' ? targetPromptTitle(card.name) : `${card.name}${event}: choose ${targetChoiceNoun(pending.spec)}`,
+    // A source-bound Hunt's one target is its prey (1.9 A2.a): the approved step prompt.
+    title: abilityHuntsPrey(card.abilities?.[pending.abilityIndex])
+      ? `${card.name}${event}: ${HUNT_PREY_PROMPT}`
+      : when === 'arrives' ? targetPromptTitle(card.name) : `${card.name}${event}: choose ${targetChoiceNoun(pending.spec)}`,
     text: targetAbilityText(card, pending.abilityIndex), canCancel: false as const,
   };
 }
