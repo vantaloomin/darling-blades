@@ -766,10 +766,10 @@ export function expectsTargetSurvives(
   return defense > 0 && damage < defense && !((perm.deathtouched || hit.deathblade) && damage > 0);
 }
 
-/** The card-shaped weight of "If it survived"'s `then` branch when there is no board to read (A1.6; the scorer's placeholder). */
-const IF_SURVIVES_CARD_WEIGHT = 0.86;
+/** The card-shaped weight of "If it survived"'s `then` branch when there is no board to read: the scorer's measured rate (2026-10-01 lab, 84.45% of Hunts survived; src/power/scoreCore.ts). */
+const IF_SURVIVES_CARD_WEIGHT = 0.845;
 
-/** A gate's card-shaped value: the survival read when there is one, else the placeholder blend. */
+/** A gate's card-shaped value: the survival read when there is one, else the measured blend. */
 function survivalGateImpact(op: Extract<EffectOp, { op: 'ifTargetSurvives' }>, survives?: boolean): number {
   const weight = survives === undefined ? IF_SURVIVES_CARD_WEIGHT : survives ? 1 : 0;
   const sum = (ops: readonly EffectOp[]): number => ops.reduce((total, nested) => total + opImpactValue(nested), 0);

@@ -374,11 +374,10 @@ export function packPriceForSku(sku: BoosterSku): number {
   return ECONOMY.packPrice;
 }
 
-/** Runtime set bridge until the parallel engine type seam adds the new literal. */
 export function packSetForSku(sku: BoosterSku): CardDef['set'] | undefined {
   // Undefined is still the mixed-set fallback for non-shop callers. The Base
   // SKU is explicit so its pool, dupe protection, and pity fallback stay set-scoped.
-  return sku === 'base' ? 'base' : (sku as unknown as CardDef['set']);
+  return sku;
 }
 
 /** The shop order is the source for strip count, release order, and art guard. */
@@ -607,7 +606,7 @@ export class ShopScene extends Phaser.Scene {
     const themeDecks = THEME_DECKS
       .filter((deck) => deck.cards.every((id) => {
         const card = CARD_DB[id];
-        return Boolean(card && (String(card.set) !== DUAT_SET || isLiveCollectible(card)));
+        return Boolean(card && (card.set !== DUAT_SET || isLiveCollectible(card)));
       }))
       .sort((a, b) => setRank(DECK_INFO[b.id]?.featured?.[0]) - setRank(DECK_INFO[a.id]?.featured?.[0]));
     const darlings = [...DARLINGS_PRECONS].sort((a, b) => {

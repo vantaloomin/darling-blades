@@ -1622,9 +1622,10 @@ then it Hunts. If it survived, draw a card.") and Ash-Rite ("then you create
   keyword reminders) is identical before and after: no shipped card has that
   shape.
 - **The scorer.** `valueOp`'s `ifTargetSurvives` term, one delimited block:
-  `then` weighted 0.86 (the design draft's "draw if the hunter survives"),
-  `else` the rest, reported as `op:ifTargetSurvives (NEEDS MATH ...)`. A
-  placeholder; **A1.4 owns the rate**. The scorer does not price the
+  `then` weighted by how often the hunter survives, `else` the rest.
+  First a 0.86 placeholder; **measured 2026-10-01** in the First Dawn lab on
+  Ambush at the River (HardAI, 6,720 games): 4,068 of 4,817 Hunts survived,
+  84.45% (95% 83.40-85.45%), so the weight is 0.845. The scorer does not price the
   attacking restriction, as it does not price `minAttack`, `maxCost` or
   `tapped`: A1.4's to decide.
 - **The AI** (every read is reached only through the new word or op, so
@@ -1642,7 +1643,7 @@ then it Hunts. If it survived, draw a card.") and Ash-Rite ("then you create
     in `cardValue` (the cast's own targets), `spellTargetsValue` (the target
     variants, so a prey that would kill the hunter loses the draw) and
     `boundCastEffects`. With no board (`opImpactValue`, `empowerValue`) the
-    gate takes the scorer's 0.86 blend. A trigger's or Duty's gate reads the
+    gate takes the scorer's blend (0.845, measured). A trigger's or Duty's gate reads the
     board as it stands. Known limits: responses, combat and other ops before
     the gate are not modelled; the Hauntlink trigger forecast treats the gate
     as unknown (its default).

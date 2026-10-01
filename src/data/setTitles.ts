@@ -16,6 +16,7 @@ export const SET_IDS = [
   'sands-of-the-duat',
   'starborne',
   'drowned-deep',
+  'first-dawn',
 ] as const;
 
 /** Set ids as they appear on CardDef.set ('base' when absent). Kept in the
@@ -40,6 +41,7 @@ export const SET_TITLES: Readonly<Record<SetId, string>> = Object.freeze({
   'sands-of-the-duat': 'Sands of the Duat',
   starborne: 'Starborne',
   'drowned-deep': 'Drowned Deep',
+  'first-dawn': 'First Dawn',
 });
 
 /** One short identity line per shop tile. Keep these concrete and editable. */
@@ -54,4 +56,5 @@ export const SET_BLURBS: Readonly<Record<SetId, string>> = Object.freeze({
   'sands-of-the-duat': 'Flood, judgment, and the second return',
   starborne: 'Living hulls, and the light that spreads',
   'drowned-deep': 'The lamps are lit, and the Deep is owed',
+  'first-dawn': 'Clans, great beasts, and the first sunrise',
 });

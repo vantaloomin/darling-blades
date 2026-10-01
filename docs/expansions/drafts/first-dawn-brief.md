@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-1.9.md, docs/plan-expansion-slate.md, docs/plan-road-to-2.0.md, docs/expansions/drafts/drowned-deep-brief.md, docs/rules.md, docs/art-bible/index.md, docs/keyword-map.md, docs/card-building-guide.md, src/engine/types.ts, src/engine/sba.ts, src/engine/effects/EffectInterpreter.ts, src/data/axes.ts, src/data/opponents.ts, scripts/personas/templates.ts · last-verified: 2026-09-28 · set identity brief — the owner-approval gate before the First Dawn overplan is authored; its Provoked and Hunt fine print are working assumptions for the engine spec to confirm; nothing here is a card -->
+<!-- source-of-truth: docs/plan-1.9.md, docs/plan-expansion-slate.md, docs/plan-road-to-2.0.md, docs/expansions/drafts/first-dawn-overplan.md, docs/rules.md, docs/art-bible/index.md, docs/keyword-map.md, docs/card-building-guide.md, src/engine/types.ts, src/engine/sba.ts, src/engine/effects/EffectInterpreter.ts, src/data/axes.ts, src/data/opponents.ts, scripts/personas/templates.ts · last-verified: 2026-10-01 · approved identity brief, synchronized to the owner's locked 166-card cut; the locked cut supersedes early working assumptions where they differ -->
 
 # First Dawn: set identity brief
 
@@ -8,6 +8,8 @@ can be written against it. **Approved by the owner 2026-09-28**, with three
 changes folded in: dinosaurs are a tribe with lords (Dinokin, section 2),
 Hunt may target your own creatures (H1), and Hunt damage counts for every
 damage keyword and trigger (H4). The rulings are listed in section 12.
+The owner's 166-card cut locked on 2026-09-29; its final rows are recorded
+in the overplan and transcribed in `src/data/cards/first-dawn.ts`.
 
 The order is new for this set (owner ruling D16, 2026-09-28): **the cards
 come before the engine spec.** The overplan is designed first, a concretion
@@ -76,8 +78,9 @@ lesson, 2026-08-25).
   U/B (the fossil line), W/U (pterosaur fliers and taps).
 - **Returning mechanics**: Marks (creature-scoped), Rage (raptor packs),
   Empower (an optional arrival Hunt, section 10), Foresee, a little Skim and
-  Retell. Nine Lives, Hauntlink, Whispers, Tithe, Rite, Preserve and Quest
-  stay out.
+  Retell. The locked cut also takes narrow cameos for Nine Lives, Hauntlink,
+  Whispers, Tithe, Rite, Preserve and Quest; those late owner picks supersede
+  the original stay-out direction.
 - **No card carries First Blade and Provoked** (First Blade avoids the
   damage Provoked needs).
 

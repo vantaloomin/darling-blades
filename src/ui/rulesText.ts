@@ -606,7 +606,7 @@ function abilityText(ab: AbilityDef, d: CardDef, additionalDawn = false): string
       sentence = `Whenever this attacks, ${body}.`;
       break;
     case 'allyCreatureArrives':
-      sentence = `Whenever a creature arrives under your control, ${body}.`;
+      sentence = `Whenever another creature arrives under your control, ${body}.`;
       break;
     case 'allyAttacks':
       sentence = `Whenever a creature you control attacks, ${body}.`;

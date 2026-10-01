@@ -5,7 +5,7 @@ import { DROWNED_DEEP_SET, STARBORNE_SET, isLiveCollectible, isLiveSet } from '.
 import { SET_IDS } from '../../src/data/setTitles';
 import { THEME_DECKS } from '../../src/data/starterDecks';
 import { createRngState } from '../../src/engine/rng';
-import type { CardDb, CardDef } from '../../src/engine/types';
+import type { CardDb } from '../../src/engine/types';
 import { applyFilters, collectiblePool, defaultFilterState } from '../../src/meta/collectionFilter';
 import { deckHealth } from '../../src/meta/deckRepair';
 import { buyThemeDeck } from '../../src/meta/Economy';
@@ -25,7 +25,7 @@ describe('Drowned Deep retail pack pipeline', () => {
     for (let seed = 0; seed < 100; seed++) {
       const save = freshSave(0);
       const pack = openPack(save, CARD_DB, createRngState(seed), DROWNED_DEEP_SET);
-      const starborne = openPack(freshSave(0), CARD_DB, createRngState(seed), STARBORNE_SET as unknown as CardDef['set']);
+      const starborne = openPack(freshSave(0), CARD_DB, createRngState(seed), STARBORNE_SET);
       expect(pack.cards).toHaveLength(ECONOMY.boosterPackSize);
       expect(pack.cards).toHaveLength(9);
       for (const { cardId } of pack.cards) {

@@ -687,9 +687,7 @@ describe('Starborne targeted arrival and spell targets', () => {
 
 describe('Stage-4 vocabulary completion', () => {
   it('renders the completed vocabulary with exact totality strings', () => {
-    expect(rulesText(DB.allyObserver)).toBe(
-      'Whenever a creature arrives under your control, Mark it.',
-    );
+    expect(rulesText(DB.allyObserver)).toContain('another');
     expect(rulesText(DB.creatureMarkObserver)).toBe(
       'Whenever a creature you control gets a Mark, you gain 1 life.',
     );

@@ -5,13 +5,13 @@ import type {
   Color,
   Keyword,
   ManaCost,
+  ManaActivatedDef,
   Rarity,
   StaticDef,
   TargetSpec,
 } from '../engine/types';
 import { manaValue } from '../engine/types';
 import { MECHANIC_NAMES } from '../data/glossary';
-import type { SetId } from '../data/setTitles';
 import {
   CARD_FLOOR,
   MANA_STEP,
@@ -32,8 +32,8 @@ import { SET_LABELS } from './vocab';
 
 export const COLOR_ORDER = ['W', 'U', 'B', 'R', 'G'] as const satisfies readonly Color[];
 
-/** Every set the game has, including sets newer than the engine's own union. */
-export type CardSet = NonNullable<CardDef['set']> | SetId;
+/** Every set the game has. */
+export type CardSet = NonNullable<CardDef['set']>;
 export type FrameChoice = FrameStyle | 'default';
 export type HoloChoice = HoloFinish | 'default';
 export type TargetChoice = TargetSpec['what'] | 'none';
@@ -65,6 +65,8 @@ export interface BuilderAbility {
   /** Fires at most once on each player's turn. */
   oncePerTurn?: boolean;
   target: TargetChoice;
+  /** Full bindings of a loaded card, including qualifiers and a Hunt's prey. */
+  targets?: TargetSpec[];
   /** Spell abilities only: the target spec reaches two targets. Absent = one. */
   targetCount?: TargetCount;
   ops: ScorableEffectOp[];
@@ -72,12 +74,12 @@ export interface BuilderAbility {
 }
 
 export interface BuilderMechanics {
-  empower: { enabled: boolean; cost: CostState; ops: ScorableEffectOp[] };
+  empower: { enabled: boolean; cost: CostState; ops: ScorableEffectOp[]; targets?: TargetSpec[] };
   rite: { enabled: boolean; n: number };
   nineLives: { enabled: boolean };
   preserve: { enabled: boolean; cost: CostState };
   skim: { enabled: boolean; cost: CostState };
-  retell: { enabled: boolean; cost: CostState; overrideOps: boolean; ops: ScorableEffectOp[] };
+  retell: { enabled: boolean; cost: CostState; overrideOps: boolean; ops: ScorableEffectOp[]; targets?: TargetSpec[] };
   hauntlink: {
     enabled: boolean;
     cost: CostState;
@@ -94,10 +96,13 @@ export interface BuilderMechanics {
     enabled: boolean;
     cost: CostState;
     target: TargetChoice;
+    targets?: TargetSpec[];
     ops: ScorableEffectOp[];
     /** Further Duties of a loaded card, kept as printed (each shares the one tap). */
     extra?: ScorableActivated[];
   };
+  /** Mana-only activations retain their cost and self boost, without a Duty tap. */
+  manaActivated: { enabled: boolean; abilities: ManaActivatedDef[] };
   /** Whispers (1.8): fresh-graveyard alternative cost. */
   whispers: { enabled: boolean; cost: CostState };
   /** Tithe (1.8): any-number sacrifice, one generic per two Defense. */
@@ -219,6 +224,7 @@ export function createInitialBuilderState(): BuilderState {
       manaAbility: { enabled: false, colors: ['G'] },
       entersTapped: { enabled: false },
       activated: { enabled: false, cost: emptyCost(0), target: 'none', ops: [{ op: 'foresee', n: 1 }] },
+      manaActivated: { enabled: false, abilities: [] },
       whispers: { enabled: false, cost: emptyCost(1) },
       tithe: { enabled: false },
     },
@@ -293,14 +299,27 @@ function abilityToDef(ability: BuilderAbility): ScorableAbilityDef {
     };
   }
   const filter = cleanFilter(ability.filter);
+  const targets = builderTargets(ability.target, ability.targets);
+  if (targets?.[0]) {
+    delete targets[0].upTo;
+    delete targets[0].exactly;
+    Object.assign(targets[0], twoTargets(ability));
+  }
   return {
     when: ability.when,
     condition,
-    targets: ability.target === 'none' ? undefined : [{ what: ability.target, ...twoTargets(ability) }],
+    targets,
     ops: ability.ops,
     ...(filter ? { filter } : {}),
     ...(ability.oncePerTurn ? { oncePerTurn: true as const } : {}),
   };
+}
+
+/** The first target selector edits its kind; all other binding details survive. */
+function builderTargets(target: TargetChoice, specs?: TargetSpec[]): TargetSpec[] | undefined {
+  if (target === 'none') return undefined;
+  const [first, ...rest] = structuredClone(specs ?? []);
+  return [{ ...first, what: target }, ...rest];
 }
 
 /** The two-target part of a spell's target spec. The game fans only a spell's
@@ -344,6 +363,7 @@ function abilityFromDef(ability: ScorableAbilityDef): BuilderAbility {
     when: ability.when,
     ...condition,
     target: ability.targets?.[0]?.what ?? 'none',
+    ...(ability.targets ? { targets: structuredClone(ability.targets) } : {}),
     ...(ability.targets?.[0]?.upTo ? { targetCount: 'upTo' as const } : ability.targets?.[0]?.exactly ? { targetCount: 'exactly' as const } : {}),
     ops: structuredClone(ability.ops ?? []),
     ...(ability.filter ? { filter: structuredClone(ability.filter) } : {}),
@@ -385,7 +405,7 @@ export function fromCardDef(card: ScorableCardDef): BuilderState {
   state.abilities = (card.abilities ?? []).map(abilityFromDef);
 
   state.mechanics.empower = card.empower
-    ? { enabled: true, cost: fromManaCost(card.empower.cost), ops: structuredClone(card.empower.ops) }
+    ? { enabled: true, cost: fromManaCost(card.empower.cost), ops: structuredClone(card.empower.ops), targets: structuredClone(card.empower.targets) }
     : state.mechanics.empower;
   state.mechanics.rite = card.rite
     ? { enabled: true, n: card.rite.n }
@@ -403,6 +423,7 @@ export function fromCardDef(card: ScorableCardDef): BuilderState {
         cost: fromManaCost(card.retell.cost),
         overrideOps: card.retell.ops !== undefined,
         ops: structuredClone(card.retell.ops ?? []),
+        targets: structuredClone(card.retell.targets),
       }
     : state.mechanics.retell;
   state.mechanics.hauntlink = card.hauntlink
@@ -437,10 +458,14 @@ export function fromCardDef(card: ScorableCardDef): BuilderState {
         enabled: true,
         cost: fromManaCost(duty.cost.mana),
         target: duty.targets?.[0]?.what ?? 'none',
+        ...(duty.targets ? { targets: structuredClone(duty.targets) } : {}),
         ops: structuredClone(duty.ops),
         ...(dutiesOf(card).length > 1 ? { extra: structuredClone(dutiesOf(card).slice(1)) } : {}),
       }
     : state.mechanics.activated;
+  state.mechanics.manaActivated = card.manaActivated
+    ? { enabled: true, abilities: structuredClone(card.manaActivated) }
+    : state.mechanics.manaActivated;
   state.mechanics.whispers = card.whispers
     ? { enabled: true, cost: fromManaCost(card.whispers.cost) }
     : state.mechanics.whispers;
@@ -476,7 +501,7 @@ export function toCardDef(state: BuilderState): ScorableCardDef {
     x: state.isX && !isLand ? { min: 0 } : undefined,
     abilities: state.abilities.length ? state.abilities.map(abilityToDef) : undefined,
     empower: mechanics.empower.enabled
-      ? { cost: toManaCost(mechanics.empower.cost), ops: mechanics.empower.ops }
+      ? { cost: toManaCost(mechanics.empower.cost), ops: mechanics.empower.ops, targets: mechanics.empower.targets }
       : undefined,
     rite: mechanics.rite.enabled ? { n: mechanics.rite.n } : undefined,
     nineLives: mechanics.nineLives.enabled ? true : undefined,
@@ -486,6 +511,7 @@ export function toCardDef(state: BuilderState): ScorableCardDef {
       ? {
           cost: toManaCost(mechanics.retell.cost),
           ops: mechanics.retell.overrideOps ? mechanics.retell.ops : undefined,
+          targets: mechanics.retell.overrideOps ? mechanics.retell.targets : undefined,
         }
       : undefined,
     hauntlink: mechanics.hauntlink.enabled
@@ -517,14 +543,17 @@ export function toCardDef(state: BuilderState): ScorableCardDef {
         ? { tap: true, mana: toManaCost(mechanics.activated.cost) }
         : { tap: true },
       ops: mechanics.activated.ops,
-      targets: mechanics.activated.target === 'none' ? undefined : [{ what: mechanics.activated.target }],
+      ...(mechanics.activated.target !== 'none'
+        ? { targets: builderTargets(mechanics.activated.target, mechanics.activated.targets) }
+        : {}),
     }, mechanics.activated.extra) : undefined,
+    manaActivated: mechanics.manaActivated.enabled ? structuredClone(mechanics.manaActivated.abilities) : undefined,
     whispers: mechanics.whispers.enabled ? { cost: toManaCost(mechanics.whispers.cost) } : undefined,
     tithe: mechanics.tithe.enabled ? { per: 2 } : undefined,
     rarity: state.rarity,
     // Never `flavor` (R13): this def is what CardView draws, what Save Image
     // captures, and what export and share links carry.
-    set: state.set as ScorableCardDef['set'],
+    set: state.set,
   };
   return card;
 }
@@ -640,7 +669,7 @@ export function warningsFor(state: BuilderState, score: Score): ForgeWarning[] {
   }
   if (m.tithe.enabled) {
     if (!builderHasType(state, 'creature')) add('tithe-noncreature', 'illegal', `${tithe} goes on creatures only.`);
-    else if (!splitSubtypes(state.subtypesText).includes('Horror') && (state.set as string) === 'drowned-deep') {
+    else if (!splitSubtypes(state.subtypesText).includes('Horror') && state.set === 'drowned-deep') {
       add('tithe-drowned-deep-horror', 'note', `In the ${SET_LABELS['drowned-deep']} set, only Horrors have ${tithe}.`);
     }
     if (state.isX) add('tithe-with-x', 'illegal', `${tithe} can't be used with an X cost. ${refused}`);
@@ -673,7 +702,7 @@ function plainVocabulary(unknown: string): string {
 function opNeedsTarget(op: ScorableEffectOp): boolean {
   switch (op.op) {
     case 'damage': return op.to === 'target';
-    case 'destroy': case 'sever': case 'recall': case 'tap': case 'removeMarks': case 'moveMark': case 'ifTargetMarked': case 'ifTargetSurvives': return true;
+    case 'destroy': case 'sever': case 'recall': case 'tap': case 'removeMarks': case 'moveMark': case 'hunt': case 'ifTargetMarked': case 'ifTargetSurvives': return true;
     case 'boost': return op.scope === 'target';
     case 'addCounters': return op.to === 'target';
     case 'raise': return (op.to ?? 'target') === 'target';

@@ -151,7 +151,7 @@ export type ScorableCardDef = Omit<
   activated?: ScorableActivated | ScorableActivated[];
   whispers?: ScorableWhispers;
   tithe?: ScorableTithe;
-  set?: NonNullable<CardDef['set']> | 'starborne';
+  set?: NonNullable<CardDef['set']>;
 };
 
 // ── Unknown-vocabulary tracking (v2) ────────────────────────────────────────
@@ -1508,14 +1508,15 @@ export function valueOp(
       return valueHunt(op, card, when);
     // --- A1.6 (1.9): "If it survived, ..." (begin) ---
     case 'ifTargetSurvives': {
-      // NEEDS MATH: a placeholder, not a rate. The `then` branch is weighted
-      // 0.86, the design draft's discount for "draw if the hunter survives"
-      // (Ambush at the River); `else` takes the rest. A1.4 owns the rate.
-      const IF_SURVIVES_WEIGHT = 0.86;
+      // The `then` branch is weighted by how often the hunter survives its
+      // Hunt in play; `else` takes the rest. Measured 2026-10-01 in the First
+      // Dawn lab on Ambush at the River (HardAI both seats, the 5 starter
+      // holes against the 14 Warchest columns, 6,720 games): 4,068 of 4,817
+      // Hunts survived, 84.45% (95% Wilson 83.40-85.45%); MediumAI 89.5%.
+      const IF_SURVIVES_WEIGHT = 0.845;
       const gate = op as Extract<ScorableEffectOp, { op: 'ifTargetSurvives' }>;
       const sum = (ops: readonly ScorableEffectOp[]) => ops.reduce((s, o) => s + valueOp(o, canFace, card, when, targetWhat, unknowns).v, 0);
-      unknowns.add('op:ifTargetSurvives (NEEDS MATH: placeholder weight 0.86 until A1.4 prices it)');
-      return { label: 'if it survived (NEEDS MATH)', v: IF_SURVIVES_WEIGHT * sum(gate.then) + (1 - IF_SURVIVES_WEIGHT) * sum(gate.else ?? []) };
+      return { label: 'if it survived', v: IF_SURVIVES_WEIGHT * sum(gate.then) + (1 - IF_SURVIVES_WEIGHT) * sum(gate.else ?? []) };
     }
     // --- A1.6 (end) ---
     default: {

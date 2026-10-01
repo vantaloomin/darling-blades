@@ -49,12 +49,19 @@ describe('Duty in the builder', () => {
       enabled: true,
       cost: { generic: 1, pips: { W: 0, U: 0, B: 0, R: 0, G: 0 } },
       target: 'any',
+      targets: [{ what: 'any' }],
       ops: [{ op: 'damage', n: 1, to: 'target' }],
     });
     const back = toCardDef(state);
     expect(back.activated).toEqual(card.activated);
+    expect(fromCardDef(back).mechanics.activated).toStrictEqual(state.mechanics.activated);
     expect(scoreCard(back).power).toBe(scoreCard(card).power);
-    const free = toCardDef(fromCardDef(artifact({ activated: { cost: { tap: true }, ops: [{ op: 'draw', n: 1 }] } })));
+    const freeCard = artifact({ activated: { cost: { tap: true }, ops: [{ op: 'draw', n: 1 }] } });
+    const freeState = fromCardDef(freeCard);
+    expect(freeState.mechanics.activated).not.toHaveProperty('targets');
+    const free = toCardDef(freeState);
+    expect(free.activated).toStrictEqual(freeCard.activated);
+    expect(fromCardDef(free).mechanics.activated).toStrictEqual(freeState.mechanics.activated);
     expect(dutiesOf(free)[0]?.cost).toEqual({ tap: true });
   });
 

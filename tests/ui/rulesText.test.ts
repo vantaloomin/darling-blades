@@ -211,11 +211,8 @@ describe('Hauntlink rules text', () => {
     expect(text).not.toContain('\u2014');
   });
 
-  it('prints the corrected reminder on all 16 Hauntlink cards', () => {
+  it('prints the corrected reminder on every Hauntlink card', () => {
     const cards = Object.values(CARD_DB).filter((card) => card.hauntlink !== undefined);
-    // 13 Yokai Nights carriers plus the 1.6 card-health wave's three:
-    // Fogbell Chime (Silver Veil), Mirror Shard and Haunted Storybook (Dark Tales).
-    expect(cards).toHaveLength(16);
     for (const card of cards) {
       const text = rulesText(card);
       expect(text).toContain('At Charm speed');

@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-road-to-2.0.md, docs/plan-expansion-slate.md, docs/plan-accessibility-i18n.md, docs/plan-mechanic-usage-audit.md, docs/plan-sweep-speed.md, docs/plan-art-regen-2026-09-22.md, docs/plan-1.8.5.md, docs/metagame-sweep.md, src/engine/types.ts, src/art/artLoader.ts, src/art/ArtResolver.ts, src/ui/CardThumbCache.ts, src/ai/activatedPolicy.ts, src/meta/SaveManager.ts, src/meta/Replay.ts, scripts/audit-overlap.ts, scripts/personas/craft.ts · last-verified: 2026-09-28 · program doc — the 1.9 train, opened on the owner's scope rulings of 2026-09-25; re-verify when the owner rules on the open decisions or a lane lands -->
+<!-- source-of-truth: docs/plan-road-to-2.0.md, docs/plan-expansion-slate.md, docs/plan-accessibility-i18n.md, docs/plan-mechanic-usage-audit.md, docs/plan-sweep-speed.md, docs/plan-art-regen-2026-09-22.md, docs/plan-1.8.5.md, docs/metagame-sweep.md, src/engine/types.ts, src/art/artLoader.ts, src/art/ArtResolver.ts, src/ui/CardThumbCache.ts, src/ai/activatedPolicy.ts, src/meta/SaveManager.ts, src/meta/Replay.ts, scripts/audit-overlap.ts, scripts/personas/craft.ts · last-verified: 2026-10-01 · program doc — the 1.9 train through lane B transcription; re-verify when the owner rules on an open decision or another lane lands -->
 
 # Darling Blades 1.9 — program plan
 
@@ -421,6 +421,7 @@ creature an opponent controls, with no fallback, and a card may declare
 - **A2.a** (the Duel UI, 2026-09-29): a spent-Provoked badge on the tile with "Provoked this turn." on hover and in inspect; the prompts "Choose the hunter." and "Choose its prey."; the Hunt exchange as a step of the combat sequence, both creatures striking at once; the mana pump's count ticker and a Boost chip, with one notice a combat when a pump is payable; history lines for a Hunt, a Provoked fire and a pump ([As built (A2.a)](plan-first-dawn-engine.md#as-built-a2a-the-duel-ui)).
 - **A2.b** (Medium, Easy and the draft, 2026-09-29): Easy never hunts its own creature *by choice* and skips friendly Provoked sources (the owner's B5); Medium takes either only past a one-card margin; Medium ranks an arrival hunter by its Hunt, and both cast an arrival-Hunt Darling at its best prey; Medium's counter forecast reads the Hunt pair rule; the draft picker weighs Provoked payoffs and sources by each other and a Hunt spell by the creatures drafted; inert on today's pool ([As built (A2.b)](plan-first-dawn-engine.md#as-built-a2b-medium-easy-and-the-draft)).
 - **A2.d** (the tools, 2026-09-29): the converter's target walk judges whose creature a Hunt needs (a Hunt spell is dead without a non-Bulwark creature of your own, every generic Hunt without an opponent's creature, a conditional arrival Hunt alike) and reads an attacking-only target as live wherever something could attack; the usage audit gains a Hunt row, an `any` self-hunt counted apart, a wasted-Hunt check and a Provoked fire tally; no shipped deck or usage row moved ([As built (A2.d)](plan-first-dawn-engine.md#as-built-a2d-the-tools)).
+- **B, transcription** (2026-10-01): First Dawn's 166 cards and 4 tokens in data, registered across the catalog, collection surfaces and converter-owned boss lists; the locked cut and scoped data tests are the transcription record ([Final locked cut](expansions/drafts/first-dawn-overplan.md#final-locked-cut-2026-09-29)).
 - **The words.** The spec's player copy is approved (E10). The seven's
   proposed template is superseded: Hunt is a bare keyword ("When this
   arrives, Hunt."; "Target creature you control Hunts."), and the Hunt
@@ -435,7 +436,7 @@ target leaves resolves and loses only its rider, with a replay-note line
 ability damage stays off the shared path in 1.9 (E8); Scar-Knife Witch
 reads "another target creature you control" (E9).
 
-### Lane B — the set: First Dawn, 150-165 cards, authored fresh
+### Lane B — the set: First Dawn, 166 cards, authored fresh
 
 **Owner ruling 2026-09-25: a fresh set, drafted by an Opus 5.5 agent.** The
 July candidate list (`docs/expansions/drafts/first-dawn-overplan.md`,
@@ -1051,7 +1052,7 @@ Rocket x4 re-measure ([ai.md](ai.md)) join D7's wave-4 pass.
 | **AI suggested decks** ([plan](plan-suggested-decks.md)) | **After 2.0** | Tutor v1 and the replay coach stay on one arc. A browser tutor needs a cheap evaluator; lane F's Medium screen is the nearest thing to one |
 | **Editable Limited Warchest** | **After 2.0** | The pip-demand-weighted automatic fill from #279 stays the only build |
 | Live spectating ([plan-player-replays.md](plan-player-replays.md) wave 4) | Cancelled | It rode multiplayer, cancelled 2026-08-24 |
-| **Older-set near-duplicates** (D8) | **1.9.x** | A whole-pool review and resolution plan once the comparator is fixed (wave 0); the owner approves the rule and the slate; fixes ship in a 1.9.x patch. **Rule and slate RULED 2026-09-28** (41 cards; [d8-near-duplicate-review.md](d8-near-duplicate-review.md)) |
+| **Older-set near-duplicates** (D8) | **1.9.x** | A whole-pool review and resolution plan once the comparator is fixed (wave 0); the owner approves the rule and the slate; fixes ship in a 1.9.x patch. **Rule and slate RULED 2026-09-28** (41 cards; [d8-near-duplicate-review.md](d8-near-duplicate-review.md)). First Dawn transcription also flagged Blood-Horn Brute / Hot-Blooded Hornback, Cliff-Top Scout / Egg-Snatcher, Tracker of the Long Grass / Tall-Grass Tracker, and the set's clustered fern-raptor commons for that patch review |
 | **Keyword backfill of the shipped sets** (the owner approved it 2026-09-29; see the decisions record) | **1.9.x** (proposed, beside D8) | Each shipped set gains the evergreen keywords it lacks, as a handful of extra cards or as keywords added to underpowered cards that fit. The gaps (a keyword a card grants counts, as on the card face): Base (Dreaded); Ragnarok (Bulwark, Untouchable, Dreaded); Celtic Fae (Twin Blades, Rage); Arthurian Court (Dreaded, Rage); Gothic Monsters (Twin Blades); Dark Tales (Twin Blades, Rage); Yokai Nights (Rage); Sands of the Duat (First Blade, Deathblade, Rage); Starborne (Rage); Drowned Deep (Twin Blades, Blood Oath). A backfilled set leaves the data check's grandfather list |
 
 ## Sequencing
@@ -1169,6 +1170,10 @@ Numbered so rulings can cite them. Recommendations are the first option.
   slate as drafted, the fixes in a 1.9.x patch that re-gates its boss
   floors; the one-sided tribe rescue is a follow-up of about seven cards,
   not drafted, and the four out-of-band cards go to the balance track.
+  The First Dawn transcription adds four review clusters without changing
+  this release: Blood-Horn Brute / Hot-Blooded Hornback, Cliff-Top Scout /
+  Egg-Snatcher, Tracker of the Long Grass / Tall-Grass Tracker, and the
+  fern-raptor commons.
 - **D10 An unfinished deck (G1). RULED as recommended:** save always works;
   an incomplete deck saves as it stands and shows as unplayable where decks
   are picked; every path that would drop unsaved work asks first (the Decks

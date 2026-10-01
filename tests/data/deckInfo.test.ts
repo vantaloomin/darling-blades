@@ -9,7 +9,7 @@ const SHOP_DECKS = [
   ...STARTER_DECKS,
   ...THEME_DECKS.filter((deck) => deck.cards.every((id) => {
     const card = CARD_DB[id];
-    return Boolean(card && (String(card.set) !== DUAT_SET || isLiveCollectible(card)));
+    return Boolean(card && (card.set !== DUAT_SET || isLiveCollectible(card)));
   })),
 ];
 
