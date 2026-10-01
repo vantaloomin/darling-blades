@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 import type { AIPlayer } from '../src/ai/AIPlayer';
 import { buildAI } from '../src/ai/personality';
 import { ECONOMY } from '../src/config/rules';
+import { packPriceForSku, type BoosterSku } from '../src/meta/boosterSkus';
 import { CARD_DB } from '../src/data/catalog';
 import { draftPersonaById } from '../src/data/draftPersonas';
 import { avatarForRung } from '../src/data/opponents';
@@ -1423,13 +1424,8 @@ function buyPacks(ctx: SimContext, dayIndex: number): void {
  * Every expansion booster a 1.5 player can actually buy, in release order. The
  * rotation is indexed by day, so it stays seed-deterministic.
  */
-const MIXED_EXPANSION_ROTATION: readonly { price: number; set: CardDef['set'] }[] = [
-  { price: ECONOMY.ragnarokPackPrice, set: 'ragnarok' },
-  { price: ECONOMY.celticFaePackPrice, set: 'celtic-fae' },
-  { price: ECONOMY.arthurianCourtPackPrice, set: 'arthurian-court' },
-  { price: ECONOMY.gothicMonstersPackPrice, set: 'gothic-monsters' },
-  { price: ECONOMY.darkTalesPackPrice, set: 'dark-tales' },
-  { price: ECONOMY.yokaiNightsPackPrice, set: 'yokai-nights' },
+const MIXED_EXPANSION_ROTATION: readonly BoosterSku[] = [
+  'ragnarok', 'celtic-fae', 'arthurian-court', 'gothic-monsters', 'dark-tales', 'yokai-nights',
 ];
 
 export function packChoiceForPreference(
@@ -1441,12 +1437,12 @@ export function packChoiceForPreference(
     case 'none':
       return null;
     case 'base':
-      return { price: ECONOMY.packPrice, set: 'base' };
+      return { price: packPriceForSku('base'), set: 'base' };
     case 'ragnarok':
-      return { price: ECONOMY.ragnarokPackPrice, set: 'ragnarok' };
+      return { price: packPriceForSku('ragnarok'), set: 'ragnarok' };
     case 'arthurian-court':
-      return { price: ECONOMY.arthurianCourtPackPrice, set: 'arthurian-court' };
-    case 'mixed':
+      return { price: packPriceForSku('arthurian-court'), set: 'arthurian-court' };
+    case 'mixed': {
       // Mixed preference is a cheap Base Set route with an occasional
       // expansion pack, rotating deterministically through every released
       // expansion. Before 1.5 this branch bought the all-sets product, so one
@@ -1456,9 +1452,11 @@ export function packChoiceForPreference(
       // 2026-07-29 run duly measured every mixed persona pinned at 32-35%.
       // (Those are that era's figures; post-balance-pass the same base-only
       // ceiling is 209/764 = 27% and the ratios re-derive each re-baseline.)
-      return expansionRoll < (dayIndex % 3 === 0 ? 0.6 : 0.35)
+      const set = expansionRoll < (dayIndex % 3 === 0 ? 0.6 : 0.35)
         ? MIXED_EXPANSION_ROTATION[dayIndex % MIXED_EXPANSION_ROTATION.length]
-        : { price: ECONOMY.packPrice, set: 'base' };
+        : 'base';
+      return { price: packPriceForSku(set), set };
+    }
   }
 }
 

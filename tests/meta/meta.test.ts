@@ -1,5 +1,6 @@
 ﻿import { describe, expect, it } from 'vitest';
 import { ECONOMY } from '../../src/config/rules';
+import { packPriceForSku } from '../../src/meta/boosterSkus';
 import { CARD_DB } from '../../src/data/catalog';
 import { DARLINGS_PRECONS } from '../../src/data/darlingsPrecons';
 import { DRAFT_PERSONAS } from '../../src/data/draftPersonas';
@@ -403,9 +404,9 @@ describe('PackOpener', () => {
 
   it('a Celtic Fae booster charges its SKU price and pulls only cf- cards', () => {
     const save = freshSave(0);
-    save.gold = ECONOMY.celticFaePackPrice;
+    save.gold = packPriceForSku('celtic-fae');
 
-    expect(spendGold(save, ECONOMY.celticFaePackPrice)).toBe(true);
+    expect(spendGold(save, packPriceForSku('celtic-fae'))).toBe(true);
     const result = openPack(save, CARD_DB, createRngState(20260710), 'celtic-fae');
 
     expect(save.gold).toBe(0);
@@ -418,9 +419,9 @@ describe('PackOpener', () => {
 
   it('a Gothic Monsters booster charges its SKU price and pulls only gm- cards', () => {
     const save = freshSave(0);
-    save.gold = ECONOMY.gothicMonstersPackPrice;
+    save.gold = packPriceForSku('gothic-monsters');
 
-    expect(spendGold(save, ECONOMY.gothicMonstersPackPrice)).toBe(true);
+    expect(spendGold(save, packPriceForSku('gothic-monsters'))).toBe(true);
     const result = openPack(save, CARD_DB, createRngState(20260717), 'gothic-monsters');
 
     expect(save.gold).toBe(0);

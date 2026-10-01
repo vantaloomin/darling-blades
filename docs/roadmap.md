@@ -558,8 +558,9 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   1.6 to cast normally, then pay a repeatable Charm-speed battlefield link
   cost; a linked carrier dies with its host), engine-first with dedicated tests;
   ally-pair tapped dual cycle replacing
-  the set's five mono taplands; full retail wiring (525g set booster, precon,
-  8 achievements, set icon, attack FX); the entire 120-card art run
+  the set's five mono taplands; full retail wiring (set booster, 525g at launch
+  and 450g in 1.9, precon, 8 achievements, set icon, attack FX); the entire
+  120-card art run
   QA-passed and user-approved with art bible coverage 470/470.
 - **Bosses 19-20 + tower to 20 floors (#151).** Queen of the Lanterned Roof
   and Kitsune Neon Tyrant (R19 71% / R20 75% at 40 seeds, provisional floors
@@ -663,8 +664,9 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   - **Pillar 0 (PR #92): Gothic Monsters, Nocturne Manor.** 81 cards (`gm-`,
     B/R/W vampire-gothic), the **Dreaded** (menace) and **Empower** (kicker)
     engine mechanics landed headless-first and AI-aware at all three
-    difficulties, the `gothic-monsters` booster (525g), the **Bloodmoon
-    Masquerade** precon, eight achievements, bosses **Carmilla** (rung 15) and
+    difficulties, the `gothic-monsters` booster (525g at launch, 450g in 1.9),
+    the **Bloodmoon Masquerade** precon, eight achievements, bosses
+    **Carmilla** (rung 15) and
     **The Bride** (rung 16), full user-accepted art, and a nine-card removal
     answer cycle across five sets (pool to 518).
   - **Pillar 1 (PR #94): daily tower rotation with floor-scaled AI.** A seeded
@@ -762,8 +764,8 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   confirmed one real latent engine bug (an all-whiff dawn foresee drain
   stranded the turn), fixed with a red-test-proven regression. W/U/R
   knight tribal with 7 chapter Quests and five awakening carriers; the
-  1/1 W Squire token (`tok-squire`); set booster SKU at 525g with a
-  five-point crown set icon; the **Questing Table** precon; 8 schema-free
+  1/1 W Squire token (`tok-squire`); set booster SKU at 525g at launch
+  (450g in 1.9) with a five-point crown set icon; the **Questing Table** precon; 8 schema-free
   set achievements; Duel UI chapter badges (I/II plates), awakened gold
   rings, and history narration; the Glossary teaches all four game
   mechanics in a recut 2×2 grid. **Art**: all 80 raws were pre-generated
@@ -1073,9 +1075,10 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   multicolor⇒legendary idiom meaningful). Ships with: DuelScene exile piles +
   zone modals + a mandatory scry picker, 80 smart-cropped finals from
   retained raws (zero generation quota; 41/42 head-detected), a 42-entry
-  art bible with the headroom demand in every prompt, a 525g set-scoped
-  booster with generated pack art (both expansions got real pack fronts;
-  crimp bands now translucent for full-bleed faces), the **Glimmer Bargain**
+  art bible with the headroom demand in every prompt, a set-scoped
+  booster at 525g at launch (450g in 1.9) with generated pack art (both
+  expansions got real pack fronts; crimp bands now translucent for full-bleed
+  faces), the **Glimmer Bargain**
   U/B/G precon, 8 schema-free achievements, and pull-odds "1:N" leading the
   pack-inspect details (runtime-derived from DROPS; god roll ≈ 1:4.94M,
   Monte-Carlo verified over 18M slot rolls). The premium-hero shop toggle
@@ -1110,8 +1113,8 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   bands, in-portrait life squares). The by-eye pass over the new theme system
   is still open (flagged "eyes on deploy" in the impl doc).
 - **Launch economy retune + progression simulation (PRs #35/#36).** Collection
-  boosters are now **9 rolls at 450g** (Ragnarök 525g) — Limited packs stay
-  15 cards; daily quests pay 50g; streak payouts reduced; duplicate refunds
+  boosters became **9 rolls at 450g** (Ragnarök 525g at launch, 450g in 1.9).
+  Limited packs stay 15 cards; daily quests pay 50g; streak payouts reduced; duplicate refunds
   tuned so the expected plain-dupe refund (~68g/pack at full completion) stays
   bounded below pack price. Grounded in a new deterministic
   **progression-sim harness** (`scripts/progression-sim.ts`, 10 personas,
@@ -1741,6 +1744,12 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   - **First Dawn**, a fresh ~150-card set drafted by an Opus 5.5 agent (the
     July overplan is retired), on **Provoked** and **Hunt**, both approved.
     It is costed on the 1.8.5 scorer (§4u keyword scaling, §4v ramp).
+  - **Back-catalog booster pricing** (owner ruling 2026-10-01). Base and
+    older expansions cost 450g; the three newest live expansions cost 525g.
+    `BOOSTER_SKUS` release order drives the tier in `src/meta/boosterSkus.ts`.
+    Hidden sets take no premium slot. First Dawn, Drowned Deep and Starborne
+    are premium for 1.9; Duat costs 450g when live. Appending a new set
+    automatically moves the oldest premium set to the back catalog.
   - **Accessibility.**
   - **Card art streaming** (load on demand, unload under a budget).
   - The **mechanic usage audit**.
