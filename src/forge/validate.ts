@@ -18,7 +18,8 @@
  * Headless: no Phaser, no DOM, no Node built-ins.
  */
 import { ALL_CARDS } from '../data/catalog';
-import type { Color, Keyword, ManaCost, StaticDef, TargetSpec } from '../engine/types';
+import type { Color, Keyword, ManaActivatedDef, ManaCost, StaticDef, TargetSpec } from '../engine/types';
+import { validateTriggerTargetsDef } from '../engine/types';
 import type {
   ScorableAbilityDef,
   ScorableActivated,
@@ -64,6 +65,7 @@ export const FORGE_LIMITS = {
   opsPerList: 12,
   chapters: 9,
   duties: 4,
+  targets: 4,
   /** How deep "If the target is marked" branches may nest. */
   branchDepth: 4,
   riteSacrifices: 9,
@@ -302,8 +304,8 @@ function readCost(value: unknown): ManaCost {
 }
 
 function readTargets(value: unknown): TargetSpec[] {
-  return array(value, 2).map((item) => {
-    const raw = object(item, ['what', 'other', 'upTo', 'exactly']);
+  return array(value, FORGE_LIMITS.targets).map((item) => {
+    const raw = object(item, ['what', 'other', 'upTo', 'exactly', 'marked', 'tapped', 'attacking', 'maxCost', 'minAttack']);
     // The game refuses a spec that is both "up to two" and "exactly two".
     if (raw.upTo !== undefined && raw.exactly !== undefined) fail('target');
     return {
@@ -311,6 +313,11 @@ function readTargets(value: unknown): TargetSpec[] {
       ...(raw.other !== undefined ? { other: oneOf(raw.other, [true] as const) } : {}),
       ...(raw.upTo !== undefined ? { upTo: oneOf(raw.upTo, [2] as const) } : {}),
       ...(raw.exactly !== undefined ? { exactly: oneOf(raw.exactly, [2] as const) } : {}),
+      ...(raw.marked !== undefined ? { marked: oneOf(raw.marked, [true] as const) } : {}),
+      ...(raw.tapped !== undefined ? { tapped: oneOf(raw.tapped, [true] as const) } : {}),
+      ...(raw.attacking !== undefined ? { attacking: oneOf(raw.attacking, [true] as const) } : {}),
+      ...(raw.maxCost !== undefined ? { maxCost: int(raw.maxCost, 0, FORGE_LIMITS.generic) } : {}),
+      ...(raw.minAttack !== undefined ? { minAttack: int(raw.minAttack, 0, FORGE_LIMITS.stat) } : {}),
     };
   });
 }
@@ -358,6 +365,7 @@ function readAbility(value: unknown): ScorableAbilityDef {
   const out: ScorableAbilityDef = { when: oneOf(raw.when, TRIGGERS, 'trigger') };
   if (raw.condition !== undefined) out.condition = readCondition(raw.condition);
   if (raw.targets !== undefined) out.targets = readTargets(raw.targets);
+  if (validateTriggerTargetsDef({ abilities: [out] }).length) fail('target');
   if (raw.ops !== undefined) out.ops = readOps(raw.ops);
   if (raw.filter !== undefined) {
     const filter = object(raw.filter, ['other', 'subtype', 'sacrifice']);
@@ -383,6 +391,16 @@ function readDuty(value: unknown): ScorableActivated {
   };
 }
 
+function readManaActivation(value: unknown): ManaActivatedDef {
+  const raw = object(value, ['cost', 'ops']);
+  const ops = readOps(raw.ops);
+  // The engine's mana-only activation is narrowly a self boost, with no keywords.
+  if (!ops.length || ops.some((op) => op.op !== 'boost' || op.scope !== 'self' || op.keywords !== undefined || op.targetIndex !== undefined)) fail('effect');
+  const cost = readCost(raw.cost);
+  if (cost.generic + Object.values(cost.pips).reduce((sum, n) => sum + n, 0) < 1) fail('number');
+  return { cost, ops: ops as ManaActivatedDef['ops'] };
+}
+
 function readStatBlock(value: unknown, keywordField: 'grantKeywords' | 'keywords'): { p?: number; t?: number } & Partial<Record<typeof keywordField, Keyword[]>> {
   const raw = object(value, ['p', 't', keywordField]);
   return {
@@ -395,7 +413,7 @@ function readStatBlock(value: unknown, keywordField: 'grantKeywords' | 'keywords
 const CARD_FIELDS = [
   'id', 'name', 'types', 'subtypes', 'supertypes', 'cost', 'colors', 'attack', 'defense', 'keywords', 'x',
   'abilities', 'empower', 'rite', 'nineLives', 'preserve', 'skim', 'retell', 'hauntlink', 'awakening',
-  'chapters', 'manaAbility', 'entersTapped', 'activated', 'whispers', 'tithe', 'rarity', 'set',
+  'chapters', 'manaAbility', 'entersTapped', 'activated', 'manaActivated', 'whispers', 'tithe', 'rarity', 'set',
 ] as const satisfies readonly (keyof ScorableCardDef)[];
 
 /**
@@ -437,16 +455,16 @@ function readCard(value: unknown): ScorableCardDef {
   }
   if (raw.abilities !== undefined) card.abilities = array(raw.abilities, FORGE_LIMITS.abilities).map(readAbility);
   if (raw.empower !== undefined) {
-    const empower = object(raw.empower, ['cost', 'ops']);
-    card.empower = { cost: readCost(empower.cost), ops: readOps(empower.ops) };
+    const empower = object(raw.empower, ['cost', 'ops', 'targets']);
+    card.empower = { cost: readCost(empower.cost), ops: readOps(empower.ops), ...(empower.targets !== undefined ? { targets: readTargets(empower.targets) } : {}) };
   }
   if (raw.rite !== undefined) card.rite = { n: int(object(raw.rite, ['n']).n, 1, FORGE_LIMITS.riteSacrifices) };
   if (raw.nineLives !== undefined) card.nineLives = oneOf(raw.nineLives, [true] as const);
   if (raw.preserve !== undefined) card.preserve = { cost: readCost(object(raw.preserve, ['cost']).cost) };
   if (raw.skim !== undefined) card.skim = { cost: readCost(object(raw.skim, ['cost']).cost) };
   if (raw.retell !== undefined) {
-    const retell = object(raw.retell, ['cost', 'ops']);
-    card.retell = { cost: readCost(retell.cost), ...(retell.ops !== undefined ? { ops: readOps(retell.ops) } : {}) };
+    const retell = object(raw.retell, ['cost', 'ops', 'targets']);
+    card.retell = { cost: readCost(retell.cost), ...(retell.ops !== undefined ? { ops: readOps(retell.ops) } : {}), ...(retell.targets !== undefined ? { targets: readTargets(retell.targets) } : {}) };
   }
   if (raw.hauntlink !== undefined) {
     const hauntlink = object(raw.hauntlink, ['cost', 'linked']);
@@ -463,6 +481,11 @@ function readCard(value: unknown): ScorableCardDef {
     if (Array.isArray(card.activated) && card.activated.length === 0) fail('shape');
   }
   if (raw.whispers !== undefined) card.whispers = { cost: readCost(object(raw.whispers, ['cost']).cost) };
+  if (raw.manaActivated !== undefined) {
+    if (!card.types.includes('creature') || card.types.includes('land')) fail('type');
+    card.manaActivated = array(raw.manaActivated, FORGE_LIMITS.duties).map(readManaActivation);
+    if (!card.manaActivated.length) fail('shape');
+  }
   if (raw.tithe !== undefined) card.tithe = { per: oneOf(object(raw.tithe, ['per']).per, [2] as const) };
   return card;
 }

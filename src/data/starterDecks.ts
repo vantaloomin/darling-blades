@@ -105,7 +105,7 @@ export const STARTER_DECKS: DeckList[] = [
       ['gk-hoplite', 4],
       ['tk-shu-liubei', 2],
       ['sd-renenutet-who-measures-the-flood', 1],
-      ['gk-gaia', 1],
+      ['fd-long-neck-mother', 1],
     ]),
     landReserve: expand([
       ['land-forest', 6],

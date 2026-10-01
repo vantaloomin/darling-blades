@@ -1,5 +1,5 @@
 import { ALL_CARDS } from '../data/catalog';
-import { KEYWORD_NAMES, KEYWORD_REMINDER, MECHANIC_NAMES, RARITY_NAMES } from '../data/glossary';
+import { KEYWORD_NAMES, KEYWORD_REMINDER, MECHANIC_DEFINITIONS, MECHANIC_NAMES, RARITY_NAMES } from '../data/glossary';
 import type {
   CardType,
   Color,
@@ -68,6 +68,7 @@ export const TRIGGERS = [
   'youGainLife',
   'youCastCharm',
   'sunset',
+  'provoked',
   'static',
 ] as const satisfies readonly ScorableTriggerWhen[];
 
@@ -97,11 +98,7 @@ export const TRIGGER_OPENINGS: Record<Exclude<ScorableTriggerWhen, 'spell' | 'st
   youGainLife: 'Whenever you gain life',
   youCastCharm: 'Whenever you cast a Charm',
   sunset: 'At Sunset',
-  // The approved "Provoked: [effect]" opener (A2.c). The scorer prices Provoked
-  // and the hunt op since A1.4, so the Power Breakdown reads them on a card that
-  // has them. The editor offers neither yet (TRIGGERS and OP_OPTIONS leave
-  // them out): a loaded card may carry a hunt op, never a Provoked ability.
-  provoked: 'Provoked',
+  provoked: MECHANIC_NAMES.provoked,
 };
 
 export const TRIGGER_LABELS: Record<ScorableTriggerWhen, string> = {
@@ -117,6 +114,8 @@ export const TARGETS = [
   'any',
   'spell',
   'yourCreature',
+  'opponentCreature',
+  'yourPermanent',
   'yourGraveCreature',
   'artifact',
   'enchantment',
@@ -130,6 +129,8 @@ export const TARGET_LABELS: Record<(typeof TARGETS)[number], string> = {
   any: 'Any target',
   spell: 'Spell',
   yourCreature: 'Your creature',
+  opponentCreature: 'Creature an opponent controls',
+  yourPermanent: 'Permanent you control',
   yourGraveCreature: 'Creature card in your graveyard',
   artifact: 'Artifact',
   enchantment: 'Enchantment',
@@ -228,10 +229,12 @@ export const OP_OPTIONS: readonly OpOption[] = [
   { kind: 'fetchLand', label: 'Fetch Land', description: 'Fetch any land to the battlefield tapped.' },
   { kind: 'markAll', label: 'Mark All', description: 'Add one mark to each creature you control.' },
   { kind: 'moveMark', label: 'Move Mark', description: 'Move one mark between your permanents.' },
+  { kind: 'hunt', label: MECHANIC_NAMES.hunt, description: MECHANIC_DEFINITIONS.hunt },
   { kind: 'removeMarks', label: 'Remove Marks', description: 'Remove all marks from the target.' },
   { kind: 'severSelf', label: 'Sever Self', description: 'Sever the source as an ability cost.' },
   { kind: 'loseLifePerTheirMarked', label: 'Marked Life Loss', description: 'Opponent loses life for each marked creature they control.' },
   { kind: 'ifTargetMarked', label: 'If Target Marked', description: 'Use different effects for marked and unmarked targets.' },
+  { kind: 'ifTargetSurvives', label: 'If it survived', description: 'If it survived, draw a card.' },
   { kind: 'tap', label: 'Tap', description: 'Tap a target.' },
   { kind: 'propagate', label: 'Propagate', description: 'Add one mark to your marked permanents.' },
   { kind: 'extraLandDrop', label: 'Extra Land Drop', description: 'Allow additional land plays.' },
@@ -287,7 +290,6 @@ export function defaultOp(kind: OpKind): ScorableEffectOp {
       then: [{ op: 'boost', p: -2, t: -2, scope: 'target' }],
       else: [{ op: 'boost', p: -1, t: -1, scope: 'target' }],
     };
-    // A1.6 stub: the Forge reads the gate but does not offer it yet.
     case 'ifTargetSurvives': return { op: 'ifTargetSurvives', then: [{ op: 'draw', n: 1 }] };
     case 'tap': return { op: 'tap', to: 'target' };
     case 'propagate': return { op: 'propagate' };

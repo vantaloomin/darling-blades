@@ -394,6 +394,21 @@ export function validateEmpowerDef(d: CardDef): string[] {
   return errors;
 }
 
+/**
+ * Deferred triggers choose one target, unlike spells and Duties, whose
+ * targets are chosen up front. Mirrors fireTriggers/fireObserverEvent.
+ */
+export function validateTriggerTargetsDef(d: { abilities?: readonly Pick<AbilityDef, 'when' | 'targets'>[] }): string[] {
+  const errors: string[] = [];
+  for (const ability of d.abilities ?? []) {
+    if (ability.when === 'spell' || ability.when === 'static' || !ability.targets?.length) continue;
+    if (ability.targets.length !== 1 || ability.targets[0].upTo !== undefined || ability.targets[0].exactly !== undefined) {
+      errors.push(`${ability.when} abilities must have one single target spec`);
+    }
+  }
+  return errors;
+}
+
 /** Catalog-facing validation for mark-event triggers, which must not recurse. */
 export function validateMarkTriggerDef(d: CardDef): string[] {
   const errors: string[] = [];

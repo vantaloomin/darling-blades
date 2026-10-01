@@ -720,7 +720,7 @@ export const FIRST_DAWN: readonly CardDef[] = [
     colors: ['W'],
     attack: 2,
     defense: 2,
-    abilities: [{ when: 'arrives', targets: [{ what: 'yourCreature' }, { what: 'yourCreature' }], ops: [{ op: 'damage', n: 1, to: 'target' }, { op: 'addCounters', n: 1, to: 'target', targetIndex: 1 }] }],
+    abilities: [{ when: 'arrives', targets: [{ what: 'yourCreature' }], ops: [{ op: 'damage', n: 1, to: 'target' }, { op: 'addCounters', n: 1, to: 'target' }] }],
     rarity: 'r',
     set: 'first-dawn',
   },
