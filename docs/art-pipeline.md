@@ -1,4 +1,4 @@
-<!-- source-of-truth: package.json, src/art/ArtResolver.ts, src/art/PlaceholderArtGenerator.ts, src/art/ArtAtlas.ts, src/art/SeededRandom.ts, src/art/TribeEmblems.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/fx/HoloEffects.ts, src/ui/fx/IridescencePostFX.ts, src/ui/fx/FXSupport.ts, scripts/gen-art-manifest.ts, scripts/convert-art-webp.ts, scripts/gen-art-halfres.ts, scripts/gen-card-art.ts, scripts/gen-land-art.ts, scripts/gen-spell-art.ts, scripts/gen-scene-art.ts, scripts/smartcrop.py, scripts/audit-art-window.py, scripts/art-contact-sheet.py, scripts/recrop-art.ts, scripts/requirements.txt, src/data/art-manifest.json · last-verified: 2026-09-28
+<!-- source-of-truth: package.json, src/art/ArtResolver.ts, src/art/PlaceholderArtGenerator.ts, src/art/ArtAtlas.ts, src/art/SeededRandom.ts, src/art/TribeEmblems.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/fx/HoloEffects.ts, src/ui/fx/IridescencePostFX.ts, src/ui/fx/FXSupport.ts, scripts/gen-art-manifest.ts, scripts/convert-art-webp.ts, scripts/gen-art-halfres.ts, scripts/gen-card-art.ts, scripts/gen-land-art.ts, scripts/gen-spell-art.ts, scripts/gen-scene-art.ts, scripts/smartcrop.py, scripts/audit-art-window.py, scripts/art-contact-sheet.py, scripts/recrop-art.ts, scripts/requirements.txt, src/data/art-manifest.json · last-verified: 2026-10-01
      If you change those files, update this doc or re-verify the date. -->
 
 # Art pipeline
@@ -451,8 +451,9 @@ outside the creature art bible and get their own program. Direction lives in
 `docs/spell-art.md` and the driver is
 `npm run gen-spell-art` (`scripts/gen-spell-art.ts`), a sibling of the card and
 land drivers with the identical hardened machinery and flags; it uses
-`scripts/smartcrop.py` in **environment** mode, so the post-process stays the
-old center crop for effect-first compositions. Its preamble is
+`scripts/smartcrop.py` in **subject** mode, where a detected head or face guides
+the crop and an effect-only image keeps the old center crop byte-for-byte. Its
+preamble is
 **effect-first** — the spell's dramatic magical *moment* (a bolt, a
 resurrection, a curse-aura, a gale) is the hero of the frame, centered in the
 ART_RECT band, with any figure secondary — and its negatives harden the NO-TEXT
@@ -460,6 +461,15 @@ rule specifically against stamped banner-text/seal-glyphs/nameplates (the
 banner, seal, and oath cards invite them). Output goes to the same
 `public/assets/art/cards/` at 640×800, so the manifest and resolver pick spell
 WebPs up automatically.
+
+First Dawn alone has figure framing for spells: the parser selects the explicit
+`## First Dawn non-creatures` section (rather than its mixed `fd-` / `fdr-` /
+`fdc-` ids), and only a prompt with the positive `EXACTLY … adult woman/women`
+marker gets the pulled-back head-to-knees composition plus subject-mode
+`--focal-frac 0.1`; `NO woman` and other effect-only entries, and every other
+spell group, keep the original preamble and crop. The bulk run motivated the
+split: after one redo, 16 of 47 First Dawn spells still had a head above the
+card's y=179 head line, including 11 above the y=138 window top.
 
 The spell driver also accepts `--recrop <file>` for entries whose retained
 raws live in `%TEMP%/gen-spell-art/`; it uses subject mode and the same

@@ -19,10 +19,10 @@
  *
  * This mirrors scripts/gen-card-art.ts's hardened machinery exactly (temp-file
  * writes, raw-original reuse, Pillow preflight, 3-consecutive-failure abort,
- * win32 CLI fail-fast) with ONE deliberate difference: spells are effect/moment
- * SCENES, not character portraits, so the SPELL preamble below demands a
- * dramatic magical effect centered in the ART_RECT band — it does NOT carry
- * gen-card-art's "waist-up, face at center" character-composition clause.
+ * win32 CLI fail-fast) with one deliberate composition difference: spells are
+ * effect/moment SCENES, not character portraits. PREAMBLE therefore centers the
+ * effect in the ART_RECT band; FIGURE_PREAMBLE pulls First Dawn's woman entries
+ * back to head-to-knees while keeping the effect itself the hero.
  *
  * Each generation prompt is assembled as [SPELL/EFFECT PREAMBLE] + [entry Prompt
  * line] + [NEGATIVES]. Inspect the exact text with --show-prompt.
@@ -50,10 +50,10 @@
  *                     skills-plugin install, then `chatgpt-imagegen` on PATH)
  *
  * The backend only supports a few sizes; we generate at 1024×1536 (nearest
- * larger portrait) and run scripts/smartcrop.py in environment mode to produce
- * the 4:5 / 640×800 deliverable. Environment mode is byte-identical to the old
- * Pillow center cover-crop. Raw uncropped originals are kept in
- * <tmp>/gen-spell-art/ for inspection.
+ * larger portrait) and run scripts/smartcrop.py in subject mode to produce the
+ * 4:5 / 640×800 deliverable. First Dawn woman entries pass `--focal-frac 0.1`;
+ * all other entries keep subject mode's default crop. Raw uncropped originals
+ * are kept in <tmp>/gen-spell-art/ for inspection.
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
@@ -252,13 +252,24 @@ const EXPECTED_IDS = [
  * in text-to-image generation (same rationale as gen-card-art's PREAMBLE).
  *
  * Composition is load-bearing and DELIBERATELY DIFFERENT from gen-card-art:
- * spells are effect/moment SCENES, not portraits, so the composition clause
- * demands the dramatic magical action sit at the vertical center of the canvas
- * (inside the card window's visible middle band — docs/spell-art.md §2), with
- * the top and bottom of the canvas reserved as atmospheric bleed. It must NOT
- * reintroduce gen-card-art's "waist-up, face at center" character framing — a
- * spell may have no character at all, and when it does the EFFECT is the hero of
- * the frame.
+ * spells are effect/moment SCENES, not portraits, so the default composition
+ * clause demands the dramatic magical action sit at the vertical center of the
+ * canvas (inside the card window's visible middle band — docs/spell-art.md §2),
+ * with the top and bottom reserved as atmospheric bleed. It must NOT introduce
+ * character framing for an effect-only spell, and when a figure is present the
+ * EFFECT remains the hero of the frame.
+ *
+ * First Dawn needs a second composition. Its spells mostly put a woman beside
+ * the effect, and the default "exact vertical center" sentence made the model
+ * draw her large and centred, with her head high. In the First Dawn bulk run,
+ * after one redo, 16 of 47 spells still had the head above the card's y=179
+ * head line; 11 of those were above the window top at y=138. FIGURE_PREAMBLE
+ * stages those entries as pulled-back head-to-knees scenes and pairs them with
+ * a figure crop. The effect-first subject text and every style byte stay the
+ * same. Selection uses the entry's authored spell-art section, not its id: the
+ * set spans fd-, fdr- and fdc-. Within that section only the positive authored
+ * marker "EXACTLY … adult woman/women" selects figure framing. A "NO woman"
+ * opening and every effect-only entry lack that marker and keep PREAMBLE.
  */
 const PREAMBLE =
   // Subject: this is a spell effect scene, not a portrait (load-bearing).
@@ -280,6 +291,24 @@ const PREAMBLE =
   'separating the effect from the scene. The illustration is completely text-free. ';
 
 /**
+ * First Dawn's pulled-back spell scene. Reuse PREAMBLE's subject and style
+ * spans so their bytes cannot drift; only the composition sentence differs.
+ */
+const FIGURE_PREAMBLE =
+  PREAMBLE.slice(0, PREAMBLE.indexOf('Composition: ')) +
+  "Composition: the spell's moment is staged as a pulled-back scene; any woman's whole " +
+  'figure from the top of her head to her knees fits in the middle half of the canvas ' +
+  'height, the top of her head about one third of the way down with open sky above; the ' +
+  'effect and every story element sit beside her between her head and her knees. ' +
+  PREAMBLE.slice(PREAMBLE.indexOf('Style: '));
+
+/** The authored spell-art section whose woman entries use figure framing. */
+const FIGURE_GROUP = 'First Dawn non-creatures';
+/** Positive figure marker; effect-only prompts may still contain negative woman/women text. */
+const WOMAN_ENTRY_MARKER = /\bEXACTLY [A-Z0-9-]+ adult (?:woman|women)\b/;
+const FIGURE_FOCAL_FRAC = 0.1;
+
+/**
  * Negative block appended after the entry prompt: the NO-TEXT hard rule (extra
  * strict here — banners, seals, and oath-scrolls in this file invite stamped
  * nameplates and garbled CJK) plus the style/anatomy negatives from index.md §2.
@@ -296,7 +325,12 @@ const NEGATIVES =
 
 // The entry Prompt line ends unpunctuated ("… 640×800 portrait"), so close the
 // sentence before the negatives block.
-const assemblePrompt = (entry: Entry): string => PREAMBLE + entry.prompt + '.' + NEGATIVES;
+const hasWoman = (entry: Entry): boolean => WOMAN_ENTRY_MARKER.test(entry.prompt);
+const isFigureEntry = (entry: Entry): boolean => entry.group === FIGURE_GROUP && hasWoman(entry);
+const cropArgsFor = (entry: Entry): string[] =>
+  isFigureEntry(entry) ? ['--focal-frac', String(FIGURE_FOCAL_FRAC)] : [];
+const preambleFor = (entry: Entry): string => isFigureEntry(entry) ? FIGURE_PREAMBLE : PREAMBLE;
+const assemblePrompt = (entry: Entry): string => preambleFor(entry) + entry.prompt + '.' + NEGATIVES;
 
 const PYTHON = process.env.PYTHON ?? (process.platform === 'win32' ? 'python' : 'python3');
 
@@ -365,6 +399,7 @@ function isSameOrInside(child: string, parent: string): boolean {
 interface Entry {
   id: string;
   name: string;
+  group: string;
   prompt: string;
 }
 
@@ -392,10 +427,18 @@ function parseSpec(path: string = specPath): Entry[] {
   const content = readFileSync(path, 'utf8');
   const entries: Entry[] = [];
   let open: Entry | null = null;
+  let group = '';
   for (const line of content.split(/\r?\n/)) {
+    const section = line.match(/^## (.+?)\s*$/);
+    if (section) {
+      // Counts are documentation, not identity: "First Dawn … (48)" remains
+      // the same group when its roster changes.
+      group = section[1].replace(/\s+\(\d+\)$/, '');
+      continue;
+    }
     const heading = line.match(/^### (.+?) — `([^`]+)`\s*$/);
     if (heading) {
-      open = { id: heading[2], name: heading[1], prompt: '' };
+      open = { id: heading[2], name: heading[1], group, prompt: '' };
       entries.push(open);
       continue;
     }
@@ -681,7 +724,7 @@ function generateOne(
   // resolver trust file presence).
   const post = spawnSync(
     PYTHON,
-    [smartcropPath, rawPath, tmpPath, String(OUT_W), String(OUT_H), 'subject'],
+    [smartcropPath, rawPath, tmpPath, String(OUT_W), String(OUT_H), 'subject', ...cropArgsFor(entry)],
     { encoding: 'utf8' },
   );
   if (post.status !== 0) {
@@ -757,7 +800,12 @@ function main(): void {
   if (args.dryRun) {
     for (const e of entries) {
       const state = !args.force && exists(e) ? 'exists — skip (use --force)' : todo.includes(e) ? 'would generate' : 'beyond --limit';
-      console.log(`  ${e.id.padEnd(28)} ${state}`);
+      const framing = e.group === FIGURE_GROUP
+        ? isFigureEntry(e)
+          ? ` (figure framing: yes; crop ${cropArgsFor(e).join(' ')})`
+          : ' (figure framing: no; default preamble/crop — no positive woman marker)'
+        : '';
+      console.log(`  ${e.id.padEnd(28)} ${state}${framing}`);
     }
     console.log('gen-spell-art: dry run — nothing generated');
     return;
