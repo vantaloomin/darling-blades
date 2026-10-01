@@ -86,7 +86,7 @@ describe('Overcharge: a token refused at the creature cap', () => {
     ]);
   });
 
-  it('does nothing without a same-name token, whatever other creatures are there (no fallback)', () => {
+  it('reports each refused token without a same-name token, and changes no state (no fallback)', () => {
     // A Wolf token, a non-token card named Hatchling, the opponent's Hatchling
     // token and plain bodies: none of them is this player's Hatchling token.
     const state = setup([
@@ -96,7 +96,10 @@ describe('Overcharge: a token refused at the creature cap', () => {
       { iid: 50, cardId: 'tok-hatch', isToken: true, controller: 1 },
     ]);
     const before = structuredClone(state.battlefield);
-    expect(make(state, 2)).toEqual([]);
+    expect(make(state, 2)).toEqual([
+      { e: 'tokenRefused', player: 0, tokenCardId: 'tok-hatch' },
+      { e: 'tokenRefused', player: 0, tokenCardId: 'tok-hatch' },
+    ]);
     expect(state.battlefield).toEqual(before);
   });
 
@@ -106,7 +109,9 @@ describe('Overcharge: a token refused at the creature cap', () => {
     make(state, 1);
     expect([perm(state, 1).overcharge, perm(state, 2).overcharge]).toEqual([limit, limit]);
     const before = structuredClone(state.battlefield);
-    expect(make(state, 3)).toEqual([]);
+    expect(make(state, 3)).toEqual(Array.from({ length: 3 }, () => (
+      { e: 'tokenRefused', player: 0, tokenCardId: 'tok-hatch' }
+    )));
     expect(state.battlefield).toEqual(before);
     expect(stats(state, 1)).toEqual([1 + limit, 1 + limit]);
   });
@@ -144,6 +149,7 @@ describe('Overcharge: a token refused at the creature cap', () => {
     const events = make(state, 2);
     expect(events.filter((e) => e.e === 'tokenCreated')).toHaveLength(2);
     expect(events.some((e) => e.e === 'overcharged')).toBe(false);
+    expect(events.some((e) => e.e === 'tokenRefused')).toBe(false);
     expect(state.battlefield.every((p) => p.overcharge === undefined)).toBe(true);
   });
 

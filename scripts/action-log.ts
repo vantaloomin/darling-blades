@@ -293,7 +293,8 @@ export interface DecisionTiming {
 /**
  * The event digest: every event, in order, as its JSON, one per line, hashed.
  * Fed one event at a time as the engine emits it (playLogged), or all at once
- * (digestOf); both hash the same bytes.
+ * (digestOf); both hash the same bytes. Event variants, including
+ * `tokenRefused`, need no discriminator case because their full JSON is hashed.
  */
 export class EventDigest {
   private readonly hash = createHash('sha256');

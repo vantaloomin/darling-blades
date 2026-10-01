@@ -156,6 +156,9 @@ export function sequencedEventRoute(
       return e.when === 'provoked' ? 'afterStrikes' : 'narrate';
     case 'gameEnded':
       return 'gameEnded';
+    case 'overcharged':
+    case 'tokenRefused':
+      return 'narrate';
     default:
       return 'narrate';
   }

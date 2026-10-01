@@ -12,7 +12,8 @@ import { def, isType } from './types';
  * most `RULES.overchargeLimit` on one creature.
  *
  * - Namesake only: never any other creature, and no fallback. With no eligible
- *   same-name token the refused token simply is not created, as before.
+ *   same-name token the refused token simply is not created, as before, and
+ *   `tokenRefused` says so (owner, 2026-09-29): no state changes, only the log.
  * - Tokens only: creature spells, raises and Nine Lives returns keep the plain
  *   cap. Preserve never reaches here: it is refused at legality at the cap.
  * - Not a Mark: `Permanent.overcharge` is its own field. No Mark rule reads or
@@ -40,7 +41,11 @@ export function overchargeRecipient(
   return best;
 }
 
-/** Handle one token refused at the creature cap: overcharge its namesake, if one is eligible. */
+/**
+ * Handle one token refused at the creature cap: overcharge its namesake, if
+ * one is eligible; otherwise emit `tokenRefused` so the duel log can say why
+ * nothing entered.
+ */
 export function refuseTokenAtCap(
   state: GameState,
   db: CardDb,
@@ -49,7 +54,10 @@ export function refuseTokenAtCap(
   tokenCardId: string,
 ): void {
   const recipient = overchargeRecipient(state, db, controller, tokenCardId);
-  if (!recipient) return;
+  if (!recipient) {
+    emit({ e: 'tokenRefused', player: controller, tokenCardId });
+    return;
+  }
   recipient.overcharge = (recipient.overcharge ?? 0) + 1;
   emit({
     e: 'overcharged',

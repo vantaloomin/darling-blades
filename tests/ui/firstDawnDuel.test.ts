@@ -345,6 +345,26 @@ describe('where the new events go', () => {
     expect(overcharge(2, 5)).not.toBe(overcharge(2, 7));
   });
 
+  it('names the refused token and the side when a full board cannot Overcharge it', () => {
+    const cardDb = dbOf(card('hatchling-token', { name: 'Hatchling', token: true }));
+    const refusedLookup: EventLineLookup = {
+      ...lookup,
+      cardRef: (cardId) => `[${cardDb[cardId].name}]`,
+    };
+    const yours = eventHistoryLine(
+      { e: 'tokenRefused', player: 0, tokenCardId: 'hatchling-token' },
+      refusedLookup,
+    )!;
+    const opponents = eventHistoryLine(
+      { e: 'tokenRefused', player: 1, tokenCardId: 'hatchling-token' },
+      refusedLookup,
+    )!;
+    expect(yours).toContain('Hatchling');
+    expect(yours).toContain('your');
+    expect(opponents).toContain('Hatchling');
+    expect(opponents).toContain('opponent');
+  });
+
   it('names a creature that left in the batch, however it left', () => {
     const exits: GameEvent[] = [
       { e: 'died', iid: 2, cardId: 'prey', owner: 1 },
