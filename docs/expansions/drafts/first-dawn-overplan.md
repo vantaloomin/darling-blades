@@ -13,8 +13,9 @@ every kept gap (lane A), then the lab's measured rates for Provoked and Hunt,
 a rescore of every mechanic row, and the owner's cut (step 5).
 
 **Status 2026-10-01: the 166-card owner cut is locked and transcribed.** The
-final locked section records all retained IDs, the 23 owner-taken fixes and
-the four renames. Projected-cut language elsewhere in this document is
+final locked section records all retained IDs, the 23 owner-taken fixes,
+the four initial renames and the three owner rulings of 2026-10-01.
+Projected-cut language elsewhere in this document is
 preserved as design history and does not override that section.
 
 **Status 2026-09-28: the questions are RULED** (the owner's second sitting;
@@ -84,7 +85,7 @@ G 33, multicolour 13 and colourless 7.
 - R: Ashka, Who Walks in Fire (`fd-ashka-fire-walker`), Vyra, Ember-Sky Rider (`fd-vyra-ember-sky`)
 - G: Vessa, the Great Horn (`fd-vessa-great-horn`), Korru, Eldest of the Trackers (`fd-korru-eldest-tracker`)
 - R/G: Oru, the Tyrant Queen (`fd-oru-tyrant-queen`)
-- G/W: Tahla, Shepherdess of Thunder (`fd-tahla-shepherdess`)
+- G/W: Tahla, Shepherdess of Giants (`fd-tahla-shepherdess`)
 
 **SSR (11)**
 
@@ -134,8 +135,10 @@ Tokens: Hatchling (`tok-hatchling`), Pack Raptor (`tok-pack-raptor`), Tar-Bones 
 ### Transcription notes
 
 - Grip of the Old Beast and Blaze-Horn Charge each target one creature, which is marked or dealt 1 damage and then Hunts. This matches the row design, "then it Hunts."
-- Tahla's lifegain reads "another creature", as the engine always did.
+- Tahla, Shepherdess of Giants (`fd-tahla-shepherdess`) is the owner-ruled name (2026-10-01); her ID is unchanged. Her lifegain reads "another creature", as the engine always did.
 - Blaze-Horn's Provoked ability fires in the state-based check after the spell resolves, so it cannot pump the Hunt.
+- Cinder-Crest Raptor (`fd-cinder-crest`), owner ruling 2026-10-01: add Warcry. Cost and stats remain {1}{R}, 2/2; the Provoked text remains "Provoked: This gets +2/+0 until Sunset."
+- Mammothkin Matron (`fdc-mammothkin-propagate`), owner ruling 2026-10-01: "Sentinel. Provoked: Mark this, then Propagate." Resolve `addCounters` on self before `propagate`.
 
 ### Owner-taken fixes
 
@@ -414,7 +417,7 @@ Dinokin get +1/+1. Your Dinosaurs have Dreaded.*
 | `fd-vessa-great-horn` | Vessa, the Great Horn | G | Creature, Dinokin Hornback, legendary | {3}{G}{G} | 5/6 | Warding Gaze. Your creatures with Marks have Overrun. Provoked: Mark each other creature you control. | NEEDS MATH: Provoked; LAB FIRST: Two-card engine: with the Standing Stone (or any free source) she fires every turn, priced at the passive rate | +0.08 | clear | core | Green's Provoked flagship: striking her marks the herd. Six Defense means she survives almost every blow, so Provoked fires often; the Overrun static turns the Marks into reach. Not a lord (no subtype filter). |
 | `fd-korru-eldest-tracker` | Korru, Eldest of the Trackers | G | Creature, Human Tracker, legendary | {3}{G}{G} | 4/5 | Duty, {1}{G}: Hunt any other creature. | OVERRIDE `any` (ruled 2026-09-28: card text may state its prey; restores the original self-hunt design; PROPOSED template); NEEDS MATH: Hunt | +0.63 | clear | core | Duty Hunt 1 of 2 (H5: SR and above, mana in the Duty). Tahngarth's shape ({3}{R}{R} 4/4, {1}{R}, {T}: fight) moved to green, where Hunt is primary. May hunt her own Provoked creatures (B5). Five Defense: she survives most prey. |
 | `fd-oru-tyrant-queen` | Oru, the Tyrant Queen | R/G | Creature, Dinokin Tyrant, legendary | {4}{R}{G} | 5/5 | Overrun. Your other Dinokin get +1/+1. Your Dinosaurs have Dreaded. | NEEDS MATH: lord x2.0 (flat, D10) | +0.34 | clear | core, protect | THE SPLIT LORD (owner ruling 2026-09-28), in the Tyrant Queen's slot: R28's portrait and Darling, the one Attack lord. Dinokin get +1/+1; plain Dinosaurs (Pack Raptors, Hatchlings, Gliders, the beast cards) get Dreaded instead, which makes a token swarm hard to block without adding Attack to it (the anthem-on-swarm trap stays closed). Makes Dinosaur an Axis. |
-| `fd-tahla-shepherdess` | Tahla, Shepherdess of Thunder | G/W | Creature, Human Shepherd, legendary | {2}{G}{W} | 3/4 | Sentinel. During your Dawn: create a Hatchling token. Whenever a creature arrives under your control, gain 1 life. |  | +0.32 | clear | core, protect | R27's portrait and Darling (the G/W herd): a Hatchling every Dawn and life for every body. Hatchling minter. |
+| `fd-tahla-shepherdess` | Tahla, Shepherdess of Giants | G/W | Creature, Human Shepherd, legendary | {2}{G}{W} | 3/4 | Sentinel. During your Dawn: create a Hatchling token. Whenever a creature arrives under your control, gain 1 life. |  | +0.32 | clear | core, protect | R27's portrait and Darling (the G/W herd): a Hatchling every Dawn and life for every body. Hatchling minter. |
 | `fd-venna-red-hand` | Venna Red-Hand, War-Chief | R/W | Creature, Human Chief, legendary | {2}{R}{W} | 3/3 | Your other creatures get +1/+0 and have Sentinel. Duty, {1}{R}: damage target creature 1. |  | -0.26 | clear | flex, **cut** | The R/W warband's chief (the sweep persona D12 names): an anthem for the war-party and a paid ping that provokes her own walls or finishes theirs. Not a Dinokin lord (no subtype). |
 | `fd-vyra-ember-sky-rider` | Vyra, Ember-Sky Rider | R | Creature, Human Rider, legendary | {4}{R}{R} | 5/5 | Skyborne. {R}: this gets +1/+0 until Sunset (no tap; any number of times, at Charm speed). | NEEDS MATH: repeatable mana pump (A1.5) | -1.01 | not yet run | core, protect (owner, 2026-09-29) | The owner's addition (2026-09-29), the set's Shivan Dragon, the 8th-10th edition anchor ({4}{R}{R} 5/5 flying, firebreathing). The set's only red Skyborne card, a pie exception at Ultra Rare (the brief gives the sky to W/U). A Human Rider on a plain pterosaur (D2: riders are not Dinokin; the mount is a plain Dinosaur beast, not a second card). Scored without the pump: power 6.43 against a budget of 7.44 (body 5/5 +4.58, Skyborne at Attack 5 +1.85); the pump is valued 0 until the lab, so the row is lab-priced and its delta is not evidence, and the priced pump fills the gap. The pump is a new construct (A1.5): one action pays for N activations, which the Duel UI shows as a +/- ticker. Carries no Provoked, no Hunt, no source, no Duty and no token. Working name. |
 
@@ -707,7 +710,7 @@ minterless-token lesson; checked below on the projected cut).
 
 | Token | Colour | Type | Stats | Rules | Minters in the projected cut | Overplan minters | Note |
 | --- | --- | --- | --- | --- | --- | ---: | --- |
-| Hatchling (`fd-tok-hatchling`) | G | Creature, Dinosaur | 1/1 | none | 17: Sefa, Keeper of the First Fire; Tahla, Shepherdess of Thunder; The Walking Mountain; Mother of the Long-Necks; The Horned Herd; The Long-Neck Herd; The Herd-Horn; Herd-Guardian Longneck; Stampede of the Long Grass; Moss-Hide Hornback; Nest-Warden of the Fern; Egg-Clutch; Shepherdess of the Long Grass; Guard the Nest; Elder of the Last Embers; Wall-Kin Shieldbearer; Nest-Guard Longneck | 20 | Young, never a child (art rule). A Dinosaur, so Oru gives it Dreaded; no Dinokin lord reaches it. |
+| Hatchling (`fd-tok-hatchling`) | G | Creature, Dinosaur | 1/1 | none | 17: Sefa, Keeper of the First Fire; Tahla, Shepherdess of Giants; The Walking Mountain; Mother of the Long-Necks; The Horned Herd; The Long-Neck Herd; The Herd-Horn; Herd-Guardian Longneck; Stampede of the Long Grass; Moss-Hide Hornback; Nest-Warden of the Fern; Egg-Clutch; Shepherdess of the Long Grass; Guard the Nest; Elder of the Last Embers; Wall-Kin Shieldbearer; Nest-Guard Longneck | 20 | Young, never a child (art rule). A Dinosaur, so Oru gives it Dreaded; no Dinokin lord reaches it. |
 | Pack Raptor (`fd-tok-pack-raptor`) | R | Creature, Dinosaur | 2/1 | Warcry | 5: Blood-Horn Brute; Call the Pack; The Raptor Pack; Rage-Kin Brawler; Pack-Caller of the Red Cliffs | 8 | Dies to every war-drum source (damage each creature you control 1): red pays for its own rite. |
 | Tar-Bones (`fd-tok-tar-bones`) | B | Creature, Skeleton | 2/2 | none | 11: Oshka, Mother of the Tar Flats; Rise From the Tar; Grave-Fern Stalker; Ambusher of the Tar Flats; Bone-Caller of the Tar; The Tar Bubbles; The Tar Pit; Fossil-Seeker of the Tar; Tar-Rite; Bone-Picker of the Flats; Bone-Heap Shaman | 12 | A fossil from the tar: clean stone-coloured bone (art rule). Not a Dinosaur: the fossil is dead. |
 | Glider (`fd-tok-glider`) | U | Creature, Dinosaur | 1/1 | Skyborne | 8: Nyra, Queen of the Cliff Nests; Asha and Shree, Sky-Riders; Nest-Mother of the Cliffs; Wind Over the Cliff Nests; The Ice Wall Holds; Cliff-Nest Rider; Nest-Caller; Glide-Wing Ambush | 8 | A pterosaur; the flex token, cut first if its minters fall under two. |
@@ -767,9 +770,9 @@ the converter's (generate, then sync), the gate is the one-test-per-pair
 pattern ruled for rungs 27-28, and the floors come from the measured band,
 never from these lists.
 
-### Rung 27: The Shepherdess of Thunder (G/W, the herd)
+### Rung 27: The Shepherdess of Giants (G/W, the herd)
 
-- Portrait and Darling: Tahla, Shepherdess of Thunder (`fd-tahla-shepherdess`).
+- Portrait and Darling: Tahla, Shepherdess of Giants (`fd-tahla-shepherdess`).
 - Plan: Hatchlings from the nest commons and Tahla's Dawn, walls whose
   Provoked gains life, marks the herd or calves (Hearth-Shield Maiden,
   Reed-Wall Keeper, Wall-Kin Shieldbearer, Herd-Guardian Longneck), the
@@ -801,7 +804,7 @@ never from these lists.
 | 1 | The Horned Herd (`fd-horned-herd`) | {4}{G} | R | tokens |
 | 1 | The Long-Neck Herd (`fd-longneck-herd`) | {4}{W} | R | Provoked |
 | 1 | Mother of the Long-Necks (`fd-long-neck-mother`) | {4}{W}{W} | SSR | Provoked |
-| 1 | Tahla, Shepherdess of Thunder (`fd-tahla-shepherdess`) | {2}{G}{W} | UR | tokens |
+| 1 | Tahla, Shepherdess of Giants (`fd-tahla-shepherdess`) | {2}{G}{W} | UR | tokens |
 | 1 | The Walking Mountain (`fd-walking-mountain`) | {5}{G}{G} | SSR | Provoked |
 | 2 | Egg-Clutch (`fd-egg-clutch`) | {2}{G} | C | tokens |
 | 2 | Stampede of the Long Grass (`fd-stampede-long-grass`) | {1}{G}{W} | R | tokens |
@@ -1210,7 +1213,7 @@ bullets below are the draft's reading, kept as written.
 ## Protect-first (kept whatever the histogram says)
 
 1. **Oru, the Tyrant Queen**: the split lord, R28's portrait and Darling.
-2. **Tahla, Shepherdess of Thunder**: R27's portrait and Darling.
+2. **Tahla, Shepherdess of Giants**: R27's portrait and Darling.
 3. **Herd-Caller Hornback** and **Long-Neck Matriarch**: the two other lords
    (the brief keeps all three).
 4. **Spear and Fang** and **Challenge the Beast**: the common Hunt spells that
