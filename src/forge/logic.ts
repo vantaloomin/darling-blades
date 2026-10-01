@@ -11,7 +11,6 @@ import type {
 } from '../engine/types';
 import { manaValue } from '../engine/types';
 import { MECHANIC_NAMES } from '../data/glossary';
-import type { SetId } from '../data/setTitles';
 import {
   CARD_FLOOR,
   MANA_STEP,
@@ -32,8 +31,8 @@ import { SET_LABELS } from './vocab';
 
 export const COLOR_ORDER = ['W', 'U', 'B', 'R', 'G'] as const satisfies readonly Color[];
 
-/** Every set the game has, including sets newer than the engine's own union. */
-export type CardSet = NonNullable<CardDef['set']> | SetId;
+/** Every set the game has. */
+export type CardSet = NonNullable<CardDef['set']>;
 export type FrameChoice = FrameStyle | 'default';
 export type HoloChoice = HoloFinish | 'default';
 export type TargetChoice = TargetSpec['what'] | 'none';
@@ -524,7 +523,7 @@ export function toCardDef(state: BuilderState): ScorableCardDef {
     rarity: state.rarity,
     // Never `flavor` (R13): this def is what CardView draws, what Save Image
     // captures, and what export and share links carry.
-    set: state.set as ScorableCardDef['set'],
+    set: state.set,
   };
   return card;
 }
@@ -640,7 +639,7 @@ export function warningsFor(state: BuilderState, score: Score): ForgeWarning[] {
   }
   if (m.tithe.enabled) {
     if (!builderHasType(state, 'creature')) add('tithe-noncreature', 'illegal', `${tithe} goes on creatures only.`);
-    else if (!splitSubtypes(state.subtypesText).includes('Horror') && (state.set as string) === 'drowned-deep') {
+    else if (!splitSubtypes(state.subtypesText).includes('Horror') && state.set === 'drowned-deep') {
       add('tithe-drowned-deep-horror', 'note', `In the ${SET_LABELS['drowned-deep']} set, only Horrors have ${tithe}.`);
     }
     if (state.isX) add('tithe-with-x', 'illegal', `${tithe} can't be used with an X cost. ${refused}`);

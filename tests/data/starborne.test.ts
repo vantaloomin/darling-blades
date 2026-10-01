@@ -10,7 +10,7 @@ import { packPool, openPack } from '../../src/meta/PackOpener';
 import { freshSave } from '../../src/meta/SaveManager';
 import { rulesText } from '../../src/ui/rulesText';
 
-const STARBORNE_PACK_SET = STARBORNE_SET as unknown as CardDef['set'];
+const STARBORNE_PACK_SET = STARBORNE_SET;
 const RARITIES = ['c', 'r', 'sr', 'ssr', 'ur'] as const;
 const KNOWN_KEYWORDS = new Set([
   'skyborne', 'wardingGaze', 'firstBlade', 'twinBlades', 'warcry', 'overrun',
@@ -224,7 +224,7 @@ describe('Starborne transcription', () => {
   });
 
   it('adds exactly 151 collectibles and three tokens to the global catalog', () => {
-    expect(ALL_CARDS.filter((card) => String(card.set) === STARBORNE_SET && !card.token)).toHaveLength(151);
+    expect(ALL_CARDS.filter((card) => card.set === STARBORNE_SET && !card.token)).toHaveLength(151);
     expect(TOKENS.filter((card) => ['tok-broodling', 'tok-chrome-husk', 'tok-nebula-firefly'].includes(card.id))).toHaveLength(3);
     // Lumen Drone, Violet Hullguard and Void Mote were cut 2026-09-03: no
     // card ever minted them, in the shipped set or the 200-card overplan.

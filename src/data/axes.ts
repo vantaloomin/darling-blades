@@ -45,4 +45,8 @@ export const AXES: readonly string[] = [
   // The owner records the ruling in docs/plan-tribal-pass.md.
   'Horror',
   'Warden',
+  // First Dawn, owner ruling 2026-09-28: Dinokin and plain Dinosaurs are
+  // separate mechanical tribes. Oru and the Dinokin lords filter on them.
+  'Dinokin',
+  'Dinosaur',
 ];

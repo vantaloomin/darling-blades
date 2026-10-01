@@ -139,7 +139,7 @@ const SET_TABLES: [CardDef['set'], Row[]][] = [
   ['arthurian-court', ARTHURIAN_ROWS],
   ['gothic-monsters', GOTHIC_ROWS],
   ['dark-tales', DARK_TALES_ROWS],
-  [STARBORNE_SET as unknown as CardDef['set'], STARBORNE_ROWS],
+  [STARBORNE_SET, STARBORNE_ROWS],
 ];
 
 const ALL_ROWS: Row[] = SET_TABLES.flatMap(([, rows]) => rows);

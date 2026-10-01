@@ -151,7 +151,7 @@ export type ScorableCardDef = Omit<
   activated?: ScorableActivated | ScorableActivated[];
   whispers?: ScorableWhispers;
   tithe?: ScorableTithe;
-  set?: NonNullable<CardDef['set']> | 'starborne';
+  set?: NonNullable<CardDef['set']>;
 };
 
 // ── Unknown-vocabulary tracking (v2) ────────────────────────────────────────

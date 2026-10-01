@@ -14,7 +14,7 @@ import { addCard, craftCard } from '../../src/meta/Collection';
 import { CARD_BACKS } from '../../src/meta/cosmetics';
 import { collectiblePool } from '../../src/meta/collectionFilter';
 import { cardMechanics } from '../../src/data/glossary';
-import { DROWNED_DEEP_SET, DUAT_SET, STARBORNE_SET } from '../../src/data/liveness';
+import { DROWNED_DEEP_SET, DUAT_SET, FIRST_DAWN_SET, STARBORNE_SET } from '../../src/data/liveness';
 import { freshSave } from '../../src/meta/SaveManager';
 import { variantKey } from '../../src/meta/variants';
 
@@ -173,7 +173,7 @@ const DARK_TALES_GOALS = [
 // 2026-08-21: live Duat roster pins for the schema-free achievement wave.
 const SANDS_OF_THE_DUAT_IDS = Object.values(CARD_DB)
   .filter((entry) => collectiblePool([entry]).length > 0)
-  .filter((entry) => (entry.set as string) === DUAT_SET)
+  .filter((entry) => entry.set === DUAT_SET)
   .map((entry) => entry.id);
 const SANDS_OF_THE_DUAT_UR = SANDS_OF_THE_DUAT_IDS.filter((id) => CARD_DB[id].rarity === 'ur');
 const SANDS_OF_THE_DUAT_NINE_LIVES = SANDS_OF_THE_DUAT_IDS.filter((id) => CARD_DB[id].nineLives === true);
@@ -191,7 +191,7 @@ const SANDS_OF_THE_DUAT_GOALS = [
 function liveSetIds(set: string): string[] {
   return Object.values(CARD_DB)
     .filter((entry) => collectiblePool([entry]).length > 0)
-    .filter((entry) => (entry.set as string) === set)
+    .filter((entry) => entry.set === set)
     .map((entry) => entry.id);
 }
 const STARBORNE_IDS = liveSetIds(STARBORNE_SET);
@@ -214,6 +214,15 @@ const DROWNED_DEEP_GOALS = [
   { id: 'theme-drowned-deep-tithe', ids: DROWNED_DEEP_IDS.filter((id) => CARD_DB[id].tithe !== undefined) },
   { id: 'theme-drowned-deep-duty', ids: DROWNED_DEEP_IDS.filter((id) => CARD_DB[id].activated !== undefined) },
   { id: 'theme-drowned-deep-wardens', ids: DROWNED_DEEP_IDS.filter((id) => CARD_DB[id].subtypes.includes('Warden')) },
+] as const;
+const FIRST_DAWN_IDS = liveSetIds(FIRST_DAWN_SET);
+const FIRST_DAWN_GOALS = [
+  { id: 'theme-first-dawn-25', ids: FIRST_DAWN_IDS.slice(0, Math.ceil(FIRST_DAWN_IDS.length * 0.25)) },
+  { id: 'theme-first-dawn-50', ids: FIRST_DAWN_IDS.slice(0, Math.ceil(FIRST_DAWN_IDS.length * 0.5)) },
+  { id: 'theme-first-dawn-complete', ids: FIRST_DAWN_IDS },
+  { id: 'theme-first-dawn-ur', ids: FIRST_DAWN_IDS.filter((id) => CARD_DB[id].rarity === 'ur') },
+  { id: 'theme-first-dawn-hunt', ids: FIRST_DAWN_IDS.filter((id) => cardMechanics(CARD_DB[id]).includes('hunt')) },
+  { id: 'theme-first-dawn-provoked', ids: FIRST_DAWN_IDS.filter((id) => cardMechanics(CARD_DB[id]).includes('provoked')) },
 ] as const;
 const RAINBOW_FRAME = variantKey({ frame: 'rainbow', holo: 'none', fullArt: false });
 
@@ -643,8 +652,8 @@ describe('Sands of the Duat achievements (1.6, eight goals from 1.8.1)', () => {
   });
 });
 
-describe('Starborne and Drowned Deep achievements (1.8.1)', () => {
-  for (const { id, ids } of [...STARBORNE_GOALS, ...DROWNED_DEEP_GOALS]) {
+describe('Starborne, Drowned Deep, and First Dawn achievements', () => {
+  for (const { id, ids } of [...STARBORNE_GOALS, ...DROWNED_DEEP_GOALS, ...FIRST_DAWN_GOALS]) {
     it(`unlocks ${id} with exactly its qualifying collection and locks one card short`, () => {
       const complete = freshSave(0);
       complete.collection = Object.fromEntries(ids.map((cardId) => [cardId, 1]));

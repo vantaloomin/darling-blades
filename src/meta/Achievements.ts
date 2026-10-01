@@ -221,10 +221,11 @@ const isCelticFae = (card: CardDef): boolean => card.set === 'celtic-fae';
 const isArthurianCourt = (card: CardDef): boolean => card.set === 'arthurian-court';
 const isGothicMonsters = (card: CardDef): boolean => card.set === 'gothic-monsters';
 const isDarkTales = (card: CardDef): boolean => card.set === 'dark-tales';
-const isYokaiNights = (card: CardDef): boolean => (card.set as string) === 'yokai-nights';
-const isSandsOfTheDuat = (card: CardDef): boolean => (card.set as string) === 'sands-of-the-duat';
-const isStarborne = (card: CardDef): boolean => (card.set as string) === 'starborne';
-const isDrownedDeep = (card: CardDef): boolean => (card.set as string) === 'drowned-deep';
+const isYokaiNights = (card: CardDef): boolean => card.set === 'yokai-nights';
+const isSandsOfTheDuat = (card: CardDef): boolean => card.set === 'sands-of-the-duat';
+const isStarborne = (card: CardDef): boolean => card.set === 'starborne';
+const isDrownedDeep = (card: CardDef): boolean => card.set === 'drowned-deep';
+const isFirstDawn = (card: CardDef): boolean => card.set === 'first-dawn';
 const YOKAI_NIGHTS_UR = [
   'yn-queen-of-the-lanterned-roof',
   'yn-hauntlink-apex',
@@ -267,6 +268,17 @@ const DROWNED_DEEP_UR = [
   'dd-bell-that-will-not-ring',
   'dd-tide-that-remembers',
   'dd-the-lantern-watch',
+] as const;
+const FIRST_DAWN_UR = [
+  'fd-vessa-great-horn',
+  'fd-korru-eldest-tracker',
+  'fd-ashka-fire-walker',
+  'fd-vyra-ember-sky',
+  'fd-sefa-first-fire',
+  'fd-nyra-cliff-nests',
+  'fd-oshka-tar-mother',
+  'fd-oru-tyrant-queen',
+  'fd-tahla-shepherdess',
 ] as const;
 
 export const ACHIEVEMENTS: readonly AchievementDef[] = [
@@ -1055,6 +1067,55 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     description: 'Own every Drowned Deep Warden.',
     reward: { gold: 400 },
     progress: themedCollection((card) => isDrownedDeep(card) && card.subtypes.includes('Warden')),
+  },
+  // First Dawn (1.9), schema-free and derived from the live pool.
+  {
+    id: 'theme-first-dawn-25',
+    bucket: 'theme',
+    title: 'First Footprints',
+    description: 'Own 25% of First Dawn cards.',
+    reward: { gold: 200 },
+    progress: themedCollection(isFirstDawn, 0.25),
+  },
+  {
+    id: 'theme-first-dawn-50',
+    bucket: 'theme',
+    title: 'Half the Herd',
+    description: 'Own 50% of First Dawn cards.',
+    reward: { gold: 400 },
+    progress: themedCollection(isFirstDawn, 0.5),
+  },
+  {
+    id: 'theme-first-dawn-complete',
+    bucket: 'theme',
+    title: 'The First Dawn',
+    description: 'Own every First Dawn card.',
+    reward: { gold: 2500 },
+    progress: themedCollection(isFirstDawn),
+  },
+  {
+    id: 'theme-first-dawn-ur',
+    bucket: 'theme',
+    title: 'Nine Before Sunrise',
+    description: 'Own all 9 First Dawn UR cards.',
+    reward: { gold: 1550 },
+    progress: (save, db) => themeProgress(save, FIRST_DAWN_UR, db),
+  },
+  {
+    id: 'theme-first-dawn-hunt',
+    bucket: 'theme',
+    title: 'The Great Hunt',
+    description: 'Own all First Dawn Hunt cards.',
+    reward: { gold: 500 },
+    progress: themedCollection((card) => isFirstDawn(card) && cardMechanics(card).includes('hunt')),
+  },
+  {
+    id: 'theme-first-dawn-provoked',
+    bucket: 'theme',
+    title: 'Do Not Wake Them',
+    description: 'Own all First Dawn Provoked cards.',
+    reward: { gold: 450 },
+    progress: themedCollection((card) => isFirstDawn(card) && cardMechanics(card).includes('provoked')),
   },
   {
     id: 'first-win',

@@ -91,7 +91,7 @@ export const TRIGGER_OPENINGS: Record<Exclude<ScorableTriggerWhen, 'spell' | 'st
   otherCreatureMarked: 'Whenever another creature gets a Mark',
   propagated: `Whenever you ${MECHANIC_NAMES.propagate}`,
   markedAllyAttacks: 'Whenever a Marked creature you control attacks',
-  allyCreatureArrives: 'Whenever a creature arrives under your control',
+  allyCreatureArrives: 'Whenever another creature arrives under your control',
   allyDies: 'Whenever a creature you control dies',
   allyAttacks: 'Whenever a creature you control attacks',
   youGainLife: 'Whenever you gain life',

@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-1.9.md, docs/expansions/drafts/first-dawn-brief.md, docs/expansions/drafts/drowned-deep-overplan.md, docs/keyword-map.md, docs/card-building-guide.md, src/engine/types.ts, src/data/axes.ts, src/power/scoreCore.ts, scripts/audit-overlap.ts, docs/plan-first-dawn-engine.md · last-verified: 2026-09-29 · concept draft: the 211-candidate First Dawn overplan for the 166-card cut (lane B step 2, D16: cards before the engine spec; 210 for 165 as authored, and the owner added a ninth Ultra Rare, Vyra, on 2026-09-29); every row scored on the v4 scorer with provisional Provoked and Hunt rates (NEEDS MATH) and run through the duplicate comparator; its questions and the engine spec ruled at the owner's second sitting 2026-09-28; awaiting A1, the lab's rates, the rescore and the owner's cut; nothing here is implemented -->
+<!-- source-of-truth: docs/plan-1.9.md, docs/expansions/drafts/first-dawn-brief.md, docs/expansions/drafts/drowned-deep-overplan.md, docs/keyword-map.md, docs/card-building-guide.md, src/engine/types.ts, src/data/axes.ts, src/power/scoreCore.ts, scripts/audit-overlap.ts, docs/plan-first-dawn-engine.md · last-verified: 2026-10-01 · design history plus the owner's locked 166-card First Dawn cut; the final locked section supersedes projected-cut counts below; transcribed in src/data/cards/first-dawn.ts -->
 
 # First Dawn: overplan (2026-09-28)
 
@@ -11,6 +11,11 @@ is the concretion audit (step 3: every row mapped to engine vocabulary, the
 gap list with its row counts), then the engine spec for Provoked, Hunt and
 every kept gap (lane A), then the lab's measured rates for Provoked and Hunt,
 a rescore of every mechanic row, and the owner's cut (step 5).
+
+**Status 2026-10-01: the 166-card owner cut is locked and transcribed.** The
+final locked section records all retained IDs, the 23 owner-taken fixes and
+the four renames. Projected-cut language elsewhere in this document is
+preserved as design history and does not override that section.
 
 **Status 2026-09-28: the questions are RULED** (the owner's second sitting;
 answers under "Questions for the owner", F1-F8 on the sitting's sheet), and
@@ -51,6 +56,126 @@ the split lord. 2: Super Rares. 3: Rares. 4: Commons. 5: the tokens, the
 Stampede theme deck, the summit pair and the self-audit. The protect-first
 list and a projected cut close the document, so the owner's cut starts from a
 proposal.
+
+## Final locked cut (2026-09-29)
+
+The owner locked **166 cards** after the A1 rates and review pass. This
+section supersedes the projected-cut counts below; the older tables remain
+as design history. The shipped rarity histogram is **82 C / 49 R / 15 SR /
+11 SSR / 9 UR = 166**. The locked colour counts are W 30, U 24, B 25, R 34,
+G 33, multicolour 13 and colourless 7.
+
+| Rarity | Kept |
+| --- | ---: |
+| UR | 9 |
+| SSR | 11 |
+| SR | 15 |
+| R | 49 |
+| C | 82 |
+| **All** | **166** |
+
+### Kept, by rarity and colour
+
+**UR (9)**
+
+- W: Sefa, Keeper of the First Fire (`fd-sefa-first-fire`)
+- U: Nyra, Queen of the Cliff Nests (`fd-nyra-cliff-nests`)
+- B: Oshka, Mother of the Tar Flats (`fd-oshka-tar-mother`)
+- R: Ashka, Who Walks in Fire (`fd-ashka-fire-walker`), Vyra, Ember-Sky Rider (`fd-vyra-ember-sky`)
+- G: Vessa, the Great Horn (`fd-vessa-great-horn`), Korru, Eldest of the Trackers (`fd-korru-eldest-tracker`)
+- R/G: Oru, the Tyrant Queen (`fd-oru-tyrant-queen`)
+- G/W: Tahla, Shepherdess of Thunder (`fd-tahla-shepherdess`)
+
+**SSR (11)**
+
+- W: Mother of the Long-Necks (`fd-long-neck-mother`), The Great Drum of the Hearth (`fd-great-drum`)
+- U: Kree of the Wind-Crest (`fd-kree-wind-crest`)
+- B: Nirra the Ash-Witch (`fdc-nirra-bo`), Rise From the Tar (`fd-rise-from-tar`)
+- R: Ember-Crest Tyrant (`fd-ember-crest-tyrant`), Kesh, Raptor-Rider (`fd-kesh-raptor-rider`)
+- G: The Walking Mountain (`fd-walking-mountain`), Fern-Crown Tyrant (`fd-fern-crown-tyrant`)
+- W/U: Asha and Shree, Sky-Riders (`fd-sky-riders-pact`)
+- B/G: Grave-Fern Stalker (`fd-grave-fern-stalker`)
+
+**SR (15)**
+
+- W: Long-Neck Matriarch (`fd-long-neck-matriarch`), Elder of the Bone Wall (`fdc-bone-wall-elder-bo`), The Standing Stone (`fd-standing-stone`)
+- U: The Deep Swimmer (`fd-sea-lizard`), Keeper of the Ice Wall (`fd-ice-keeper`)
+- B: Ambusher of the Tar Flats (`fd-tar-flat-ambusher`), Bone-Caller of the Tar (`fd-bone-caller`)
+- R: Blood-Horn Brute (`fd-blood-horn-brute`), The Fire-Pit (`fd-fire-pit`), Ring of Embers (`fd-ring-of-embers`)
+- G: Tracker of the Long Grass (`fd-tracker-long-grass`), The Wild Tyrant (`fd-wild-tyrant`), Ambush at the River (`fdr-ambush-at-the-river`)
+- U/B: Ice-and-Tar Seer (`fd-ice-and-tar`)
+- C: The Obsidian Knife (`fd-obsidian-knife`)
+
+**R (49)**
+
+- W: The Long-Neck Herd (`fd-longneck-herd`), Brow-Plate Armourback (`fd-brow-plate`), Woolly Rhinokin Guard (`fd-woolly-rhinokin`), Drum-Keeper of the Hearth (`fd-drum-keeper`), Scar-Giver Elder (`fd-scar-rite-elder`), The Clan Hearth (`fd-clan-hearth`), The Elders' Verdict (`fdr-elders-verdict`), Trial by Ember (`fd-trial-by-ember`)
+- U: Nest-Mother of the Cliffs (`fd-nest-mother`), Ice-Speaker (`fd-ice-speaker`), Cliff-Top Scout (`fdc-cliff-top-scout-preserve`), Swept by the Meltwater (`fd-meltwater`), Thaw the Old Bones (`fd-thaw-old-bones`), The Ice Wall Holds (`fd-ice-wall-denial`)
+- B: Sabrekin Prowler (`fdc-sabrekin-nine-lives`), Tar-Fang Raptor (`fdc-tar-fang-raptor-preserve`), Ash-Witch of the Flats (`fd-ash-witch-drain`), Tar-Skin Brute (`fd-tar-skin-brute`), The Tar Bubbles (`fd-tar-bubbles`), Swallowed by the Tar (`fd-swallowed-by-tar`), Given to the Ash (`fdr-ash-rite`)
+- R: Twin-Claw Raptor (`fdc-twin-claw-raptor`), Magma-Back Armourback (`fd-magma-back`), Rage-Horn Tyrant (`fd-rage-horn`), Kindler of the Ember Clan (`fd-kindler`), Spear-Sister of the Ember Clan (`fdc-spear-sister-fb`), The Raptor Pack (`fd-raptor-pack`), The Proving Days (`fdc-trial-of-first-scars`), Duel on the Ridge (`fd-duel-on-the-ridge`), Hurled Firebrand (`fd-hurled-firebrand`)
+- G: Herd-Caller Hornback (`fd-herd-caller-hornback`), Mammothkin Matron (`fdc-mammothkin-propagate`), The Horned Herd (`fd-horned-herd`), Thorn-Hide Armourback (`fd-thorn-hide-armourback`), Old Bull of the Herd (`fd-old-bull`), Tusk-and-Claw Hornback (`fd-tusk-and-claw`), Great-Horn Herder (`fd-great-horn-herder`), Grip of the Old Beast (`fd-grip-of-the-old-beast`), Thunder of Hooves (`fd-thunder-of-hooves`)
+- W/U: Sky-Herder of the Cliffs (`fd-sky-herder`)
+- B/G: Fossil-Seeker of the Tar (`fd-tar-fossil-seeker`)
+- R/G: Fern-and-Fire Raptor (`fd-fern-and-fire`), Tusk-Rage Tyrant (`fd-tusk-rage`), Blaze-Horn Charge (`fd-blaze-horn-charge`)
+- G/W: Herd-Guardian Longneck (`fd-herd-guardian`), Stampede of the Long Grass (`fd-stampede-long-grass`)
+- R/W: Scar-Proud Initiate (`fdc-scar-proud-initiate`)
+- C: Egg of the First Dawn (`fd-egg-of-first-dawn`), Bone Totem (`fd-bone-totem`)
+
+**C (82)**
+
+- W: Hearth-Shield Maiden (`fdr-hearth-shield-bulwark`), Reed-Wall Keeper (`fd-reed-wall-keeper`), Plated Longneck (`fd-plated-longneck`), Hearth-Tender (`fd-hearth-tender`), Longneck Calf-Guard (`fd-calf-guard`), Shield-Crest Armourback (`fd-shield-crest`), Dawn-Crest Skywing (`fdc-dawn-crest-fb`), Elder of the Last Embers (`fdc-elder-of-embers-bo`), Herd-Wall (`fd-herd-wall`), Scar-Singer of the Hearth (`fd-scar-singer`), Wall-Kin Shieldbearer (`fd-wall-kin`), Nest-Guard Longneck (`fd-nest-guard`), Test of the Hearth (`fd-test-of-the-hearth`), Guard the Nest (`fd-guard-the-nest`), Stare of the Sun (`fd-sun-stare`), Bring Down the Beast (`fdr-bring-down-the-beast`)
+- U: Frost-Rime Wall (`fd-frost-rime-wall`), Frost-Glare Seer (`fdc-frost-glare-un`), River-Snapper (`fdc-river-snapper-un`), Ice-Cave Diver (`fd-frozen-looter`), Egg-Snatcher (`fd-egg-snatcher`), Tide-Pool Lizard (`fd-tidal-lizard`), Sky-Harrier (`fd-sky-harrier`), Frost-Bitten Seer (`fd-frost-bitten-seer`), Nest-Caller (`fd-nest-caller`), Glide-Wing Ambush (`fd-glide-wing-ambush`), Glacier Memory (`fd-glacier-memory`), Cold Refusal (`fd-cold-refusal`), In the Sea-Lizard's Wake (`fd-sea-lizard-wake`), Ice-Lens Totem (`fd-ice-lens`)
+- B: Bone-Picker of the Flats (`fd-bone-picker`), Ash-Cat Ambusher (`fdc-ash-cat-nine-lives`), Bitter-Blood Brute (`fd-bitter-blood`), Tar-Skin Wall (`fd-tar-skin-wall`), Fossil-Dreamer (`fd-fossil-dreamer`), Tar-Fang Stalker (`fdc-tar-fang-whispers`), Scar-Knife Witch (`fd-scar-knife`), Bone-Heap Shaman (`fd-bone-heap`), Tar-Pit Lurker (`fdc-tar-pit-lurker-tithe`), Grave-Mourner (`fdc-grave-mourner-rite`), Stir the Tar (`fd-tar-rite`), Pulled From the Tar (`fd-tar-flat-grave`), Tar-Choke (`fd-tar-drowned`)
+- R: Spear-Thrower of the Ember Clan (`fd-spear-thrower`), Ridge-Raptor (`fd-ridge-raptor`), Coal-Thrower (`fd-coal-thrower`), Drum-Beater of the Ember Clan (`fd-drum-beater`), Firebrand Initiate (`fd-fire-brand-initiate`), Cinder-Crest Raptor (`fd-cinder-crest`), Hot-Blooded Hornback (`fd-hot-blooded`), Scorch-Tail Raptor (`fd-scorch-tail`), Rage-Kin Brawler (`fd-rage-kin-brawler`), War-Painted Raptor (`fd-war-painted`), Pack-Caller of the Red Cliffs (`fd-pack-caller`), Wild Raptors (`fd-wild-raptors`), Fire-Runner Raptor (`fdc-fire-runner-fb`), Blaze-Crest Tyrant (`fd-blaze-crest`), Pack-Runner Raptor (`fd-pack-runner`), Challenge the Beast (`fd-challenge-the-beast`), Ember-Flick (`fd-ember-flick`), Ember-Tongue (`fd-ember-tongue`)
+- G: Fern-Shadow Stalker (`fd-fern-shadow-stalker`), Horn-Crest Charger (`fd-horn-crest-charger`), Tall-Grass Tracker (`fd-tall-grass-tracker`), Fern-Back Grazer (`fd-fern-back-grazer`), Moss-Hide Hornback (`fd-moss-hide-hornback`), Stubborn Armourback (`fd-stubborn-armourback`), Nest-Warden of the Fern (`fd-nest-warden`), Cave Bearkin Mother (`fd-cave-bearkin`), Plated Grazer (`fd-plated-grazer`), Horn-Bearer of the Herd (`fd-horn-bearer`), Grazing Hornback (`fd-grazing-hornback`), Long-Tail Grazer (`fd-long-tail-grazer`), Fern-Crest Raptor (`fd-fern-crest-raptor`), Fern-Nest Raider (`fd-fern-nest-raider`), Spear and Fang (`fd-spear-and-fang`), Egg-Clutch (`fd-egg-clutch`), Thick Hide (`fdc-thick-hide-source`)
+- C: Bone Whistle (`fd-bone-whistle`), Ember-Pot (`fd-ember-pot`), Carved Tusk (`fdc-carved-tusk-hauntlink`), Amber Resin (`fd-resin-cast`)
+
+Tokens: Hatchling (`tok-hatchling`), Pack Raptor (`tok-pack-raptor`), Tar-Bones (`tok-tar-bones`), and Glider (`tok-glider`).
+
+### Transcription notes
+
+- Grip of the Old Beast and Blaze-Horn Charge each target one creature, which is marked or dealt 1 damage and then Hunts. This matches the row design, "then it Hunts."
+- Tahla's lifegain reads "another creature", as the engine always did.
+- Blaze-Horn's Provoked ability fires in the state-based check after the spell resolves, so it cannot pump the Hunt.
+
+### Owner-taken fixes
+
+All 23 accepted fixes from the locked artifact are reflected in the list and
+transcribed data.
+
+| Card | Field | Old | Locked |
+| --- | --- | --- | --- |
+| Horn-Crest Charger (`fd-horn-crest-charger`) | stats | 4/4 | 4/2 |
+| Grave-Fern Stalker (`fd-grave-fern-stalker`) | stats | 4/4 | 4/2 |
+| Fern-Shadow Stalker (`fd-fern-shadow-stalker`) | stats | 3/4 | 3/2 |
+| Fern-and-Fire Raptor (`fd-fern-and-fire`) | stats | 3/3 | 3/2 |
+| Ambusher of the Tar Flats (`fd-tar-flat-ambusher`) | stats | 3/3 | 3/2 |
+| Spear-Sister of the Ember Clan (`fdc-spear-sister-fb`) | stats | 3/3 | 3/2 |
+| Tusk-and-Claw Hornback (`fd-tusk-and-claw`) | stats | 4/5 | 4/3 |
+| Spear-Thrower of the Ember Clan (`fd-spear-thrower`) | cost | {3}{R} | {4}{R} |
+| Fern-Crown Tyrant (`fd-fern-crown-tyrant`) | stats | 5/5 | 4/5 |
+| Sefa, Keeper of the First Fire (`fd-sefa-first-fire`) | stats | 2/5 | 2/6 |
+| The Walking Mountain (`fd-walking-mountain`) | cost | {5}{G}{G} | {4}{G}{G} |
+| The Standing Stone (`fd-standing-stone`) | cost | {2}{W} | {1}{W} |
+| Trial by Ember (`fd-trial-by-ember`) | cost | {1}{W} | {W} |
+| Elder of the Bone Wall (`fdc-bone-wall-elder-bo`) | stats | 1/5 | 1/6 |
+| Ember-Crest Tyrant (`fd-ember-crest-tyrant`) | stats | 5/4 | 5/5 |
+| The Wild Tyrant (`fd-wild-tyrant`) | stats | 7/5 | 7/6 |
+| Mother of the Long-Necks (`fd-long-neck-mother`) | cost | {4}{W}{W} | {3}{W}{W} |
+| Duel on the Ridge (`fd-duel-on-the-ridge`) | text | Target creature you control gets +2/+0 until Sunset, then it Hunts. | Target creature you control gets +2/+1 until Sunset, then it Hunts. |
+| Blood-Horn Brute (`fd-blood-horn-brute`) | stats | 3/4 | 3/5 |
+| Thorn-Hide Armourback (`fd-thorn-hide-armourback`) | cost | {2}{G}{G} | {1}{G}{G} |
+| Tracker of the Long Grass (`fd-tracker-long-grass`) | stats | 2/4 | 3/4 |
+| Rage-Kin Brawler (`fd-rage-kin-brawler`) | cost | {4}{R} | {3}{R} |
+| Blaze-Horn Charge (`fd-blaze-horn-charge`) | cost | {1}{R}{G} | {R}{G} |
+
+### Locked renames
+
+| ID | Draft name | Locked name |
+| --- | --- | --- |
+| `fdr-ash-rite` | Ash-Rite | Given to the Ash |
+| `fd-tar-rite` | Tar-Rite | Stir the Tar |
+| `fd-scar-rite-elder` | Scar-Rite Elder | Scar-Giver Elder |
+| `fdc-trial-of-first-scars` | Trial of First Scars (the draft name) | The Proving Days |
 
 ## Rarity and colour targets
 
@@ -425,7 +550,7 @@ Dinokin get +1/+1. Your Dinosaurs have Dreaded.*
 | `fd-warband-drummer` | Warband Drummer | R/W | Creature, Human Firekeeper | {1}{R}{W} | 2/3 | Sentinel. Duty, {1}: damage target creature you control 1, then it gets +1/+1 until Sunset. | NEEDS MATH: self-source at 0; LAB-PRICED: cold by construction, never moved by its delta | +0.28 | clear | core | R/W, the warband (a source for the D12 persona): drum your own soldier into a rage and a shield at once. |
 | `fd-tar-fossil-seeker` | Fossil-Seeker of the Tar | B/G | Creature, Human Tracker | {2}{B}{G} | 3/3 | Arrives: grind self 3. Dies: create a Tar-Bones token. |  | +0.28 | clear | core | The B/G fossil rare the token plan names (Tar-Bones minter). Brief B/G is Hunt plus fossils; the Hunt half sits on Grave-Fern Stalker. (Renamed: no name carries "Hunt".) |
 | `fd-sky-herder` | Sky-Herder of the Cliffs | W/U | Creature, Human Rider | {2}{W}{U} | 2/3 | Skyborne. Duty, {2}: tap target creature. |  | +0.41 | clear | flex, **cut** | W/U (pterosaur fliers and taps): the rider who taps the biggest attacker every turn. |
-| `fd-blaze-horn-charge` | Blaze-Horn Charge | R/G | Ritual | {1}{R}{G} | none | Damage target creature you control 1, then it Hunts. | RULED template (bare keyword, 2026-09-28); VOCAB keywordTarget, distinctSpellTargets; NEEDS MATH: Hunt, self-source at 0; LAB-PRICED: cold by construction, never moved by its delta | -2.02 | clear | core | Cold by construction, lab-priced: its main term is a source aimed at your own side, which the scorer prices at 0, so its cost is set by design and pool precedent, never by its delta. R/G's self-provoke Hunt: strike your own creature first (it is provoked before it hunts), then send it at the prey. The source and the Hunt on one card, in the core pair. |
+| `fd-blaze-horn-charge` | Blaze-Horn Charge | R/G | Ritual | {1}{R}{G} | none | Damage target creature you control 1, then it Hunts. | RULED template (bare keyword, 2026-09-28); VOCAB keywordTarget, distinctSpellTargets; NEEDS MATH: Hunt, self-source at 0; LAB-PRICED: cold by construction, never moved by its delta | -2.02 | clear | core | Cold by construction, lab-priced: its main term is a source aimed at your own side, which the scorer prices at 0, so its cost is set by design and pool precedent, never by its delta. R/G's self-provoke Hunt: strike your own creature, then send it at the prey. If it survives, Provoked fires in the state-based check after the spell resolves, so it cannot pump the Hunt. The source and the Hunt on one card, in the core pair. |
 | `fd-scar-proud-veteran` | Scar-Proud Veteran | R/W | Creature, Human Spearwoman | {2}{R}{W} | 3/4 | Sentinel. Provoked: this gets +2/+0 until Sunset and gain 2 life. | NEEDS MATH: Provoked | +0.42 | clear | core | R/W's Provoked payoff for the warband's pings: struck before combat, she attacks for five and gains life; struck in combat, she holds. |
 
 ### Colourless (2; cut keeps 2)

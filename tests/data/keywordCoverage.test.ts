@@ -46,12 +46,12 @@ function inSetPool(card: CardDef): boolean {
 
 /** Set ids the catalog stamps, plus any declared set that has no cards yet. */
 const CHECKED_SETS: readonly string[] = [
-  ...new Set<string>([...SET_IDS, ...ALL_CARDS.map((card) => String(card.set))]),
+  ...new Set<string>([...SET_IDS, ...ALL_CARDS.map((card) => card.set ?? 'base')]),
 ];
 
 function missingKeywords(setId: string): Keyword[] {
   const taught = new Set(
-    ALL_CARDS.filter((card) => String(card.set) === setId && inSetPool(card)).flatMap(cardTermNames),
+    ALL_CARDS.filter((card) => (card.set ?? 'base') === setId && inSetPool(card)).flatMap(cardTermNames),
   );
   return EVERGREEN.filter((keyword) => !taught.has(KEYWORD_NAMES[keyword]));
 }

@@ -3,7 +3,6 @@ import { DROPS, ECONOMY } from '../../src/config/rules';
 import { parseYokaiSpecRow, YOKAI_NIGHTS, YOKAI_SPEC_ROWS } from '../../src/data/cards/yokai-nights';
 import { ALL_CARDS, CARD_DB } from '../../src/data/catalog';
 import { THEME_DECKS } from '../../src/data/starterDecks';
-import type { CardDef } from '../../src/engine/types';
 import { validateHauntlinkDef } from '../../src/engine/types';
 import { createRngState } from '../../src/engine/rng';
 import { applyFilters, defaultFilterState } from '../../src/meta/collectionFilter';
@@ -13,7 +12,7 @@ import { validateDeck } from '../../src/meta/DeckStorage';
 import { freshSave } from '../../src/meta/SaveManager';
 import { ACHIEVEMENTS, evaluateAchievements } from '../../src/meta/Achievements';
 
-const YOKAI_SET = 'yokai-nights' as unknown as CardDef['set'];
+const YOKAI_SET = 'yokai-nights';
 const RARITY_COUNTS = { c: 60, r: 36, sr: 11, ssr: 8, ur: 5 } as const;
 const YOKAI_SPECIES = new Set(['Kitsune', 'Oni', 'Yokai', 'Tanuki', 'Kappa', 'Dryad', 'Spirit']);
 const YOKAI_ACHIEVEMENTS = [

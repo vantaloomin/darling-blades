@@ -11,7 +11,7 @@
  * four-point star ("The Silver Veil"); arthurian-court = a five-point royal
  * crown. Tuned to read at ~21px on the card face and ~40px in the glossary.
  */
-export type CardSetId = 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales' | 'yokai-nights' | 'sands-of-the-duat' | 'starborne' | 'drowned-deep';
+export type CardSetId = 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales' | 'yokai-nights' | 'sands-of-the-duat' | 'starborne' | 'drowned-deep' | 'first-dawn';
 
 export const SET_ICON_PATHS: Record<CardSetId, string> = {
   // Heart pierced by a blade: grip + crossguard above the cleft, a tapered
@@ -76,4 +76,14 @@ export const SET_ICON_PATHS: Record<CardSetId, string> = {
     'M29 50 C34 45 39 45 44 50 C49 55 54 55 59 50 C64 45 69 45 71 50 L71 60 ' +
     'C66 55 61 55 56 60 C51 65 46 65 41 60 C36 55 31 55 29 60 Z ' +
     'M43 83 A7 7 0 1 1 57 83 A7 7 0 1 1 43 83 Z',
+  // Placeholder sunrise: a half-sun above a broad horizon. Replace with the
+  // owner's final First Dawn set mark before the 1.9 release cut.
+  'first-dawn':
+    'M12 72 L88 72 L88 82 L12 82 Z ' +
+    'M24 68 A26 26 0 0 1 76 68 Z ' +
+    'M47 4 L53 4 L53 18 L47 18 Z ' +
+    'M18 22 L22 18 L32 28 L28 32 Z ' +
+    'M78 18 L82 22 L72 32 L68 28 Z ' +
+    'M4 47 L18 47 L18 53 L4 53 Z ' +
+    'M82 47 L96 47 L96 53 L82 53 Z',
 };
