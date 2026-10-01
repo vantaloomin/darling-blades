@@ -125,7 +125,7 @@ these at AUTHORING time so future expansions don't need a correction pass:
   check, not a surprise. **At least two of a character's three tells show
   inside the card window** (y 138-662; owner, 2026-09-28): the card face is
   what a player reads, so a third tell may fall in the margin only the zoom
-  shows (Scorch-Tail's sickle claws at her feet), never two. New art only;
+  shows, never two. New art only;
   shipped art is not re-audited for it. **Tails are the new hands**: one card failed QA two
   different ways (tip count, then a side-attached root), so any tailed
   character's QA zooms the tail base AND tip — the prompt states count, tip
@@ -858,13 +858,23 @@ species sheet:
 
 | Species | The tells (at most three) |
 |---|---|
-| **Raptor** | one long stiff feathered tail; a low crest of short feathers along the crown and nape; one curved sickle claw on each foot |
+| **Raptor** | one long stiff feathered tail; a low crest of short feathers along the crown and nape; feathered forearms: a short fringe of stiff feathers along the back of each forearm, elbow to wrist; ordinary human feet |
 | **Hornback** | exactly two brow horns curving forward; a bony frill fanning back behind the head; one thick tail with a blunt tip |
 | **Longneck** | exactly one very long tail, as long as she is tall, heavy and thick at the root and tapering to a whip-thin tip (longer and thinner-tipped than a Hornback's blunt tail or a Tyrant's massive one); great height and a calm heavy build |
 | **Armourback** | rows of flat bony plates along shoulders and forearms; one heavy tail ending in a bony club; a broad low build |
 | **Tyrant** | one massive tail; a row of short bony ridges above the brows; serrated fangs visible when the mouth is open |
 | **Skywing** | leathery membrane wings from the shoulder blades, never from the arms (two ordinary arms and hands); a backswept head crest; no tail |
 | **Swimmer** *(beyond the brief's six; ratified 2026-09-29)* | one long flat paddle tail; small fin ridges on forearms and calves; a slick wet sheen on the skin |
+
+The Raptor's third tell is feathered forearms, never raptor feet (owner,
+2026-10-01, chosen from a test image: "Feathered forearms are the best
+version"). The sickle-claw feet that the 2026-10-01 round-one review tried are
+retired: her feet are ordinary human feet, bare or in leather foot wraps where
+the costume already wraps the legs, and her hands are ordinary human hands. In
+a prompt the clause reads "feathered forearms: a short fringe of stiff
+[feather colour] feathers running along the back of each forearm from elbow to
+wrist, like small folded wings, her hands ordinary human hands", the feathers
+coloured to match her crest and tail.
 
 Longneck women have an ordinary woman's neck; the long neck belongs only to
 the plain beasts (owner, 2026-09-29). The Longneck carries two tells, not
@@ -1227,7 +1237,7 @@ and the token's entry in `constructs-and-tokens.md` must both match them.
   plain tyrant. **Asha and Shree** (`fd-sky-riders-pact`): Asha, a Sky-clan
   rider in her thirties, fair freckled skin, pale blonde hair under a close
   leather cap; Shree, her large plain pterosaur; two Gliders fly with them.
-  **Tahla** (`fd-tahla-shepherdess`, rung 27), thirties, sun-browned skin,
+  **Tahla, Shepherdess of Giants** (`fd-tahla-shepherdess`, rung 27), thirties, sun-browned skin,
   thick auburn hair in a low plait, a tall pale crook with a bone hook, one
   Hatchling at her hand, three long-necks far behind. **Oru**
   (`fd-oru-tyrant-queen`, rung 28), a Dinokin Tyrant in her thirties, bronze

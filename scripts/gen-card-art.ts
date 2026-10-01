@@ -212,6 +212,14 @@ const BEAST_ENTRY_OPENING = 'NO woman';
  * costs headroom polish, not the face (a head at 40% lands at y 224). The
  * style sentences are PREAMBLE's, byte for byte.
  *
+ * The anatomy sentence (owner review round 1, 2026-10-01): of the 14 First Dawn
+ * redraws the owner asked for, nine were anatomy (a missing arm, a third hand,
+ * an arm not joined to the body, a head turned backwards, two tail tips) or
+ * props floating in the air (a shield, a mace, a bone toss). The per-entry
+ * prompts were fixed, and this one sentence rides every First Dawn figure
+ * prompt so the next set of entries does not have to say it each time. First
+ * Dawn only: PREAMBLE and BEAST_PREAMBLE stay byte for byte.
+ *
  * Selected by faction (FACTION_FRAMING below), not by entry text: the older
  * sets' entries and the §3 recipe also say "head to knees", so a text marker
  * would change their prompts, and a phrase an author words differently would
@@ -232,6 +240,11 @@ const FIGURE_PREAMBLE =
   'knees, never in front of her below her waist, never at her feet and never in the bottom ' +
   'quarter of the canvas; her lower legs, her feet and the ground may run off the bottom ' +
   'edge. ' +
+  // Anatomy and props (owner review round 1, 2026-10-01; see above).
+  'Anatomy: every woman has exactly two arms and two hands, both clearly attached at her ' +
+  'shoulders; every weapon, shield or tool is either gripped in a hand, strapped to her, or ' +
+  'resting on the ground or a surface; nothing floats in the air except fire, sparks, dust ' +
+  'or a thrown missile in flight. ' +
   // Cel DNA + register + scenic background: PREAMBLE's style sentences, verbatim.
   PREAMBLE.slice(PREAMBLE.indexOf('Style: '));
 

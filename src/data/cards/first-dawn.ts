@@ -5,6 +5,7 @@ import { cost } from '../cardTypes';
 // 2026-09-29 with the 23 taken rescore fixes and the four renames applied
 // (docs/expansions/drafts/first-dawn-overplan.md, "The cut"). Row order is
 // the art order: creatures (art bible order), then the spell-art non-creatures.
+// Owner rulings, 2026-10-01: Cinder-Crest Warcry, Matron Mark then Propagate, Tahla rename.
 // The comment above each row is its printed text. No flavor text (R13).
 // Every row runs through the catalog validators (Hunt, Provoked, Empower, A1.6).
 export const FIRST_DAWN: readonly CardDef[] = [
@@ -151,7 +152,7 @@ export const FIRST_DAWN: readonly CardDef[] = [
   // Sentinel During your Dawn, create a Hatchling token. Whenever a creature arrives under your control, you gain 1 life.
   {
     id: 'fd-tahla-shepherdess',
-    name: 'Tahla, Shepherdess of Thunder',
+    name: 'Tahla, Shepherdess of Giants',
     types: ['creature'],
     subtypes: ['Human', 'Shepherd'],
     supertypes: ['legendary'],
@@ -475,7 +476,7 @@ export const FIRST_DAWN: readonly CardDef[] = [
     rarity: 'r',
     set: 'first-dawn',
   },
-  // Sentinel Provoked: Propagate, then Mark this.
+  // Sentinel Provoked: Mark this, then Propagate.
   {
     id: 'fdc-mammothkin-propagate',
     name: 'Mammothkin Matron',
@@ -486,7 +487,7 @@ export const FIRST_DAWN: readonly CardDef[] = [
     attack: 4,
     defense: 5,
     keywords: ['sentinel'],
-    abilities: [{ when: 'provoked', ops: [{ op: 'propagate' }, { op: 'addCounters', n: 1, to: 'self' }] }],
+    abilities: [{ when: 'provoked', ops: [{ op: 'addCounters', n: 1, to: 'self' }, { op: 'propagate' }] }],
     rarity: 'r',
     set: 'first-dawn',
   },
@@ -1188,7 +1189,7 @@ export const FIRST_DAWN: readonly CardDef[] = [
     rarity: 'c',
     set: 'first-dawn',
   },
-  // Provoked: This gets +2/+0 until Sunset.
+  // Warcry Provoked: This gets +2/+0 until Sunset.
   {
     id: 'fd-cinder-crest',
     name: 'Cinder-Crest Raptor',
@@ -1198,6 +1199,7 @@ export const FIRST_DAWN: readonly CardDef[] = [
     colors: ['R'],
     attack: 2,
     defense: 2,
+    keywords: ['warcry'],
     abilities: [{ when: 'provoked', ops: [{ op: 'boost', p: 2, t: 0, scope: 'self' }] }],
     rarity: 'c',
     set: 'first-dawn',

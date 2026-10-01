@@ -249,7 +249,7 @@ prefab of the latest reading is reworked before it ships.
 **Rungs 27-28**, above R25 The Drowned Deacon (U/B) and R26 The Marsh-Mother
 (B/G). Working names.
 
-- **R27, The Shepherdess of Thunder (G/W, the herd).** She goes wide with
+- **R27, The Shepherdess of Giants (G/W, the herd).** She goes wide with
   Dinosaur Hatchlings, Dinokin and plain Dinosaur long-necks, walls whose
   Provoked gains life, Marks the herd or makes a Hatchling; the matriarch
   lord keeps the herd alive and Sentinel (Hatchlings included only if

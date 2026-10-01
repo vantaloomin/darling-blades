@@ -292,7 +292,8 @@ const PREAMBLE =
 
 /**
  * First Dawn's pulled-back spell scene. Reuse PREAMBLE's subject and style
- * spans so their bytes cannot drift; only the composition sentence differs.
+ * spans so their bytes cannot drift; only the composition and anatomy
+ * sentences differ.
  */
 const FIGURE_PREAMBLE =
   PREAMBLE.slice(0, PREAMBLE.indexOf('Composition: ')) +
@@ -300,6 +301,14 @@ const FIGURE_PREAMBLE =
   'figure from the top of her head to her knees fits in the middle half of the canvas ' +
   'height, the top of her head about one third of the way down with open sky above; the ' +
   'effect and every story element sit beside her between her head and her knees. ' +
+  // Anatomy and props (owner review round 1, 2026-10-01): four of the First
+  // Dawn spell redraws were a missing arm, an arm not joined to the body, a
+  // haftless axe and a foreshortened throw. Same sentence as gen-card-art's
+  // FIGURE_PREAMBLE; PREAMBLE stays byte for byte for every other entry.
+  'Anatomy: every woman has exactly two arms and two hands, both clearly attached at her ' +
+  'shoulders; every weapon, shield or tool is either gripped in a hand, strapped to her, or ' +
+  'resting on the ground or a surface; nothing floats in the air except fire, sparks, dust ' +
+  'or a thrown missile in flight. ' +
   PREAMBLE.slice(PREAMBLE.indexOf('Style: '));
 
 /** The authored spell-art section whose woman entries use figure framing. */
