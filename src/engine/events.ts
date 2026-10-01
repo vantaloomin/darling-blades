@@ -104,6 +104,8 @@ export type GameEvent =
   | { e: 'tokenCreated'; perm: Permanent }
   /** A token refused at the creature cap gave `iid`, a same-name token `player` controls, one Overcharge (`total` is its count now). */
   | { e: 'overcharged'; player: PlayerId; iid: number; cardId: string; tokenCardId: string; total: number }
+  /** A token refused at the creature cap with no same-name token eligible for an Overcharge: nothing entered and nothing changed (1.9 A1.7). */
+  | { e: 'tokenRefused'; player: PlayerId; tokenCardId: string }
   | { e: 'positionNote'; note: string } // debug/log line, never load-bearing
   | {
       e: 'gameEnded';

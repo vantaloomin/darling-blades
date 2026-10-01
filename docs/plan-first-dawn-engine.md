@@ -1679,6 +1679,9 @@ with a per-creature limit; not a Mark. `docs/rules.md`, "Board caps", has the
 rules and the player copy (approved by the owner, 2026-09-29, with the log
 line and the badge).
 
+When no namesake is eligible, `tokenRefused` names the refused token so the duel log explains why nothing entered.
+It changes no state, and the action-only replay format is unchanged.
+
 - **The rule.** `createToken` re-checks the cap before each token. At the cap
   the token is not created; `refuseTokenAtCap` (`src/engine/overcharge.ts`)
   gives one eligible namesake an Overcharge and emits `overcharged`, and the

@@ -34,8 +34,9 @@ import type { GameFormat, ReserveFormat } from '../config/rules';
 // differently: the recorded card went to the graveyard. v16 also carries
 // Overcharge (1.9 A1.7): a token refused at the creature cap beside a token
 // with its name now overcharges that token, so an older log replays
-// differently wherever that happened. v11 through v16 all map to rules
-// revision 4.
+// differently wherever that happened. `tokenRefused` is derived into the
+// returned eventLog like every engine event; ReplayLog remains action-only and
+// its format is unchanged. v11 through v16 all map to rules revision 4.
 export const REPLAY_LOG_VERSION = 16 as const;
 /** Newest-first FIFO cap for SaveData.replays (mirrors limited.history's 20). */
 export const REPLAY_CAP = 10;

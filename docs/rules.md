@@ -1091,6 +1091,7 @@ other effect that puts a creature onto the battlefield keeps the plain
 check-then-stop: `raise` returns nothing at the cap, and a Nine Lives return
 leaves the card in the graveyard. Preserve never makes a token at the cap: its
 action is refused at legality (`preserveBlockers`), like a creature spell.
+When no namesake can receive an Overcharge, the duel log says the board is full and names the refused token.
 
 **Overcharge (1.9 A1.7; the owner's rulings, 2026-09-29).** A game rule, not a
 card keyword: it applies in every set and format. Player copy (approved by the

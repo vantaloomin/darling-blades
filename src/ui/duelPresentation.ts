@@ -650,6 +650,7 @@ function whose(side: DuelSide, leading: boolean): string {
  * - `manaActivated`: "Your [Vyra] uses its ability 3 times: “This gets +1/+0
  *   until Sunset.”" ("once" for one use), the effect quoted as a Duty's is.
  * - `overcharged`: the approved Overcharge line.
+ * - `tokenRefused`: the approved board-full explanation when no Overcharge is possible.
  */
 export function eventHistoryLine(e: GameEvent, lookup: EventLineLookup): string | null {
   switch (e.e) {
@@ -674,6 +675,10 @@ export function eventHistoryLine(e: GameEvent, lookup: EventLineLookup): string 
     case 'overcharged': {
       const side = lookup.sideOf(e.player) === 'you' ? 'your' : "the opponent's";
       return `Board full: ${side} ${lookup.cardRef(e.cardId)} gains an Overcharge in place of a new one (+1/+1, ${e.total} of ${lookup.overchargeLimit})`;
+    }
+    case 'tokenRefused': {
+      const side = lookup.sideOf(e.player) === 'you' ? 'your' : "the opponent's";
+      return `Board full: no room for ${side} ${lookup.cardRef(e.tokenCardId)}`;
     }
     default:
       return null;

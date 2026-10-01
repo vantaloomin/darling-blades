@@ -3261,6 +3261,11 @@ export class DuelScene extends Phaser.Scene {
         if (line) this.log(line, e.cardId);
         break;
       }
+      case 'tokenRefused': {
+        const line = eventHistoryLine(e, this.eventLineLookup(batch));
+        if (line) this.log(line, e.tokenCardId);
+        break;
+      }
       case 'turnBegan':
         this.log(`Turn ${e.turn}: ${e.player === HUMAN ? 'your' : "opponent's"} turn`);
         this.showTurnBanner(e.turn, e.player === HUMAN);
