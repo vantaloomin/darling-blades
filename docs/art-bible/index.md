@@ -136,6 +136,10 @@ these at AUTHORING time so future expansions don't need a correction pass:
   pulled-back or full-body composition (formations, giants, full creature
   bodies) must say so with force — "extreme wide establishing shot, crown to
   feet, nothing cropped" succeeded where a bare "zoomed out" was ignored.
+- **No woman is drawn with an elongated neck** (owner, 2026-09-29): it reads
+  as disturbing, not as a species feature. A species whose animal is
+  long-necked carries the trait on its plain beasts only; its women keep an
+  ordinary woman's neck, and the prompt says so.
 - **Bodies are designed, not defaulted.** Build, bust, height impression,
   age-read (adult always; juvenile CREATURES like pups must read visibly
   young), and skin tone are explicit per character. Body diversity is a
@@ -223,6 +227,11 @@ the bleed; a head never touches the band edge.
   named as "the brightest thing at the exact centre". Pinning the face high and
   the object at the centre in one prompt produces a close portrait with the object
   below the band (Net Full of Stars, The Marsh Remembers, What Was Promised).
+- **First Dawn uses the figure preamble.** Its woman entries are generated with
+  `gen-card-art.ts`'s `FIGURE_PREAMBLE` and figure crop, not the waist-up
+  portrait preamble: head top a third of the way down the raw, head to knees
+  in frame, the story beside her, the head top placed on y 179
+  (docs/art-pipeline.md).
 - **Check before review.** `scripts/audit-art-window.py` flags HEAD CLIPPED rows
   (a head top above the band plus margin); treat each as a candidate for a human
   look. A re-crop can only add headroom when the default crop starts below the
@@ -717,7 +726,7 @@ This register applies to every **First Dawn** art-bible entry, every
 that quotes this bible. The global rules above remain in force. Its source is
 section 11 of the approved identity brief
 ([first-dawn-brief.md](../expansions/drafts/first-dawn-brief.md), approved
-2026-09-28); the pilot entries live in [first-dawn.md](first-dawn.md).
+2026-09-28); the set's entries, the pilot's survivors among them, live in [first-dawn.md](first-dawn.md).
 
 First Dawn is **the morning the sun first rose.** The clans of the Cradle, a
 green valley inside a ring of smoking mountains, believe the sun was born
@@ -831,20 +840,38 @@ monster-girl idiom: a woman's face and figure with **at most three stated
 species tells**, all three named in every prompt and checked at QA, at
 least two of them inside the card window (the tells rule under Direction preferences). Dinokin
 are scaled or feathered, never furred, and never carry mammal ears. **The
-Dinokin skin is a baseline, not a tell:** any Dinokin may carry small scaled
-patches at the temples, shoulders and hips, and they never count toward the
-three. A prompt that lists them says so ("small scaled patches at her temples,
-the Dinokin skin, not a species feature"). The species sheet:
+Dinokin skin is a baseline, not a tell:** every Dinokin carries a row of small
+rounded scales running from the nape down her spine and along the top of her
+tail (where she has one), and may carry small scaled patches at the temples,
+shoulders and hips; none of these count toward the three (owner, 2026-09-29:
+"Approved for scales on all the dinokin"). The row runs along the tail's top
+because most poses are front three-quarter, where a spine row alone never
+shows; a Skywing, who has no tail, carries it between her wings down to the
+small of her back. It stays a narrow row of small rounded scales, never plates
+(plates are the Armourback's tell). Every Dinokin woman's prompt states it
+once, beside the patches and in the same framing ("a narrow row of small
+rounded scales from her nape down her spine and along the top of her tail, the
+Dinokin skin, not a species feature"); riders, clanswomen, Beastkin and plain
+beasts carry none of it. A prompt that lists the patches says so too ("small
+scaled patches at her temples, the Dinokin skin, not a species feature"). The
+species sheet:
 
 | Species | The tells (at most three) |
 |---|---|
 | **Raptor** | one long stiff feathered tail; a low crest of short feathers along the crown and nape; one curved sickle claw on each foot |
 | **Hornback** | exactly two brow horns curving forward; a bony frill fanning back behind the head; one thick tail with a blunt tip |
-| **Longneck** | one very long tail tapering to a thin tip; a visibly long column neck; great height and a calm heavy build |
+| **Longneck** | exactly one very long tail, as long as she is tall, heavy and thick at the root and tapering to a whip-thin tip (longer and thinner-tipped than a Hornback's blunt tail or a Tyrant's massive one); great height and a calm heavy build |
 | **Armourback** | rows of flat bony plates along shoulders and forearms; one heavy tail ending in a bony club; a broad low build |
 | **Tyrant** | one massive tail; a row of short bony ridges above the brows; serrated fangs visible when the mouth is open |
 | **Skywing** | leathery membrane wings from the shoulder blades, never from the arms (two ordinary arms and hands); a backswept head crest; no tail |
-| **Swimmer** *(beyond the brief's six; for the owner's nod)* | one long flat paddle tail; small fin ridges on forearms and calves; a slick wet sheen on the skin |
+| **Swimmer** *(beyond the brief's six; ratified 2026-09-29)* | one long flat paddle tail; small fin ridges on forearms and calves; a slick wet sheen on the skin |
+
+Longneck women have an ordinary woman's neck; the long neck belongs only to
+the plain beasts (owner, 2026-09-29). The Longneck carries two tells, not
+three, and both must show inside the card window: the tail's root, a long run
+of it and its tip, and her height. In a prompt she is "a tall dinosaur
+monster-girl" with "an ordinary woman's neck of normal length", never
+"longneck", "long-necked" or "sauropod", which prime the neck.
 
 Every Dinokin tail is stated with its count, root and tip: "exactly one
 tail, emerging from the base of her spine at the tailbone, never from her
@@ -902,6 +929,28 @@ prompt clause and a QA check:
   tips] lower than the top of her head", and "the top of her head the
   highest point of the whole figure"; for a beast alone, "its skull [crest,
   horns] the highest point of the whole animal".
+- **Story beside her, never below her knees** (set-wide, 2026-09-29): every
+  secondary story element (a nest, an egg, bones, a paddle tip, a tail's tip,
+  a Hatchling, a dropped weapon) sits beside her at hip or waist height, never
+  lower than her knees, and nothing sits between her and the viewer below her
+  waist: never "in front of her", "at her feet", "in the lower foreground",
+  "on the ground before her" or "at the bottom of the frame". Where it needs
+  the ground, raise the ground beside her (a fern bank, a boulder or a ledge
+  at hip or waist height). Calibration round 2 measured why: a nest and two
+  bones placed in front of her, at a stated height, still landed at 82% to 88%
+  of the raw, under the window, while a Hatchling and a tail placed beside her
+  landed inside it. The card window ends at 82.7% of
+  the frame (y 662), and anything lower is cropped; calibration round 1 of
+  2026-09-29 lost Herd-Guardian's nest, River-Snapper's bones and Vessa's tail
+  tip below it. Spells hold their principal figures to the same rule.
+- **Tall women stay small in the frame** (calibration round 4, 2026-09-29): a
+  Longneck's "great height" is shown against the Hatchling, the ferns or the
+  people around her, and she is "small enough in the frame that open sky fills
+  the top third"; never ask for her to be big in the frame.
+- **Riders: the mount's body at the vertical centre** (round 4): "the mount's
+  body at the vertical centre of the canvas, the whole mount a little over
+  half the frame width, the top of her head one third of the way down the
+  canvas with open sky above it".
 - **The check is by eye, with the lines drawn; the detectors do not see
   it** (measured 2026-09-28 on the pilot's retained raws). `scripts/smartcrop.py`
   and `scripts/audit-art-window.py` look for anime heads and faces; neither
@@ -1165,7 +1214,75 @@ and the token's entry in `constructs-and-tokens.md` must both match them.
   flesh; not a Dinosaur, because the fossil is dead. **Glider** `tok-glider`
   `U` 1/1 Dinosaur, Skyborne: a small pterosaur, leathery membrane wings from
   one long wing finger to the hind legs, a backswept head crest, no feathers,
-  no tail.
+  no tail, a slate-blue back, a bone-ivory belly and pale sandstone wing
+  membranes the sun shows through (the token entry's colour, which every
+  Glider in the set matches, so none is painted cyan).
+- **The First Dawn named cast** — every legend and named woman of the set,
+  one look each; any entry that shows her again matches it. **Kesh**
+  (`fd-kesh-raptor-rider`), an Ember-clan rider in her late twenties, lean
+  and long-legged, warm brown skin, one low black braid, ochre cheek stripes,
+  riding the Pack Raptor design. **Korru** (`fd-korru-eldest-tracker`), the
+  Fern clan's eldest tracker, late fifties, deep brown weathered skin,
+  grey-streaked black hair in one low braid, a long flint spear, facing the
+  plain tyrant. **Asha and Shree** (`fd-sky-riders-pact`): Asha, a Sky-clan
+  rider in her thirties, fair freckled skin, pale blonde hair under a close
+  leather cap; Shree, her large plain pterosaur; two Gliders fly with them.
+  **Tahla** (`fd-tahla-shepherdess`, rung 27), thirties, sun-browned skin,
+  thick auburn hair in a low plait, a tall pale crook with a bone hook, one
+  Hatchling at her hand, three long-necks far behind. **Oru**
+  (`fd-oru-tyrant-queen`, rung 28), a Dinokin Tyrant in her thirties, bronze
+  skin, long dark-red hair, a low amber-and-bone circlet, a plain tyrant at
+  her shoulder. **Vyra** (`fd-vyra-ember-sky`), the Ember clan's sky rider,
+  thirties, deep bronze skin, dark auburn hair cropped at the jaw, ochre and
+  ash stripes, on a plain rust-red pterosaur with amber-ochre wing
+  membranes. **Vessa** (`fd-vessa-great-horn`), the Fern clan's Great Horn, a
+  Dinokin Hornback in her forties, very tall, deep umber skin, a long
+  silver-white braid, the longest brow horns in the valley (bone ivory banded
+  with sandstone), bare-handed. **Ashka** (`fd-ashka-fire-walker`), the Ember
+  clan's fire-walker, late thirties, dark copper-brown skin, long black hair
+  with one ash-grey streak, ochre cheek stripes and ash-white forearm bands,
+  carrying the ember horn (a hollow aurochs horn of live coals, plain grooved
+  bands). **Sefa** (`fd-sefa-first-fire`), keeper of the Hearth clan's First
+  Fire, late thirties, warm light-brown skin freckled across the nose,
+  hearth-ash white hair in one heavy low braid wound with amber beads, amber
+  eyes, an antler fire-fork at the ring hearth. **Nyra**
+  (`fd-nyra-cliff-nests`), the Sky clan's queen, a Dinokin Skywing in her
+  late thirties, deep umber-brown skin, black hair in one thick low braid, a
+  flat circlet of amber and bone beneath her crest, one Glider at her side.
+  **Kree** (`fd-kree-wind-crest`), a Sky-clan Dinokin Skywing in her late
+  twenties, freckled tan skin, copper-red hair cropped short, the long
+  backswept Wind-Crest. **Oshka** (`fd-oshka-tar-mother`), the Tar clan's
+  mother, fifties, tall and heavy-set, deep umber skin, long grey-streaked
+  black hair in one heavy low braid, two ash-grey bands across her
+  cheekbones, a long ash-grey hide mantle, a bone-hooked staff, one Tar-Bones
+  risen behind her. **Nirra** (`fdc-nirra-bo`), the Tar clan's ash-witch,
+  early thirties, lean, olive skin, jaw-length black hair
+  dusted pale with ash, one ash-grey band across her eyes, one obsidian
+  knife.
+- **The First Dawn plain beasts** — one design each, shared by every entry
+  that draws the animal; a plain beast is never a Dinokin and carries no
+  species tells. The **plain tyrant** (Korru's): olive-and-rust scales, small
+  bony ridges above the eyes, two small forelimbs, two massive legs, one
+  massive tail. The **plain horned beast** (The Horned Herd's adult, the
+  Hatchling's parent): three bone-ivory horns, a broad scalloped frill,
+  olive-green hide with sandstone mottling, one short thick blunt tail. The
+  **plain sauropod** (Great-Horn Herder's): grey-green hide with pale
+  dappled flanks, four pillar legs, one long tail tapering to a thin tip.
+  The **plain armoured beast** (`fd-plated-grazer`): a low broad four-legged
+  plant-eater, rows of flat bony plates along back and flanks, a small low
+  head, olive hide with sandstone-and-moss plates, one heavy tail ending in
+  one bony club. The **plain woolly mammoth** (`fd-tusk-and-claw`): shaggy
+  russet-brown wool, a high domed head, small ears, one trunk, two long
+  curved ivory tusks, four pillar legs, one short tufted tail. The **woolly
+  rhinoceros** (`fd-grip-of-the-old-beast`): two nose horns one behind the
+  other, the front one longer, a shaggy russet-brown wool coat over the
+  shoulders, four pillar legs, one short tufted tail. The **wild raptor**
+  (the green batch's prey): the Pack Raptor's build in olive feathers barred
+  with ochre, so it never reads as the red Pack Raptor token. The **Sky
+  clan's riding pterosaur** (`fdc-cliff-top-scout-preserve`,
+  `fd-egg-snatcher`): larger than a Glider, dun-grey hide, pale sandstone
+  wing membranes, a paler belly, a backswept crest, no feathers, no tail,
+  ridden in a hide saddle at the base of its neck.
 - **Places (First Dawn)** — the Cradle (the green valley inside a ring of
   smoking mountains), the Long Grass (the fern plain where the herds cross),
   the Cliff Nests (the Sky clan's sea cliffs), the Ice Wall (the glacier at

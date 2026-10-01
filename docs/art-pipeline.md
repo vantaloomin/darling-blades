@@ -1,4 +1,4 @@
-<!-- source-of-truth: package.json, src/art/ArtResolver.ts, src/art/PlaceholderArtGenerator.ts, src/art/ArtAtlas.ts, src/art/SeededRandom.ts, src/art/TribeEmblems.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/fx/HoloEffects.ts, src/ui/fx/IridescencePostFX.ts, src/ui/fx/FXSupport.ts, scripts/gen-art-manifest.ts, scripts/convert-art-webp.ts, scripts/gen-art-halfres.ts, scripts/gen-card-art.ts, scripts/gen-land-art.ts, scripts/gen-spell-art.ts, scripts/gen-scene-art.ts, scripts/smartcrop.py, scripts/audit-art-window.py, scripts/art-contact-sheet.py, scripts/recrop-art.ts, scripts/requirements.txt, src/data/art-manifest.json · last-verified: 2026-09-28
+<!-- source-of-truth: package.json, src/art/ArtResolver.ts, src/art/PlaceholderArtGenerator.ts, src/art/ArtAtlas.ts, src/art/SeededRandom.ts, src/art/TribeEmblems.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/fx/HoloEffects.ts, src/ui/fx/IridescencePostFX.ts, src/ui/fx/FXSupport.ts, scripts/gen-art-manifest.ts, scripts/convert-art-webp.ts, scripts/gen-art-halfres.ts, scripts/gen-card-art.ts, scripts/gen-land-art.ts, scripts/gen-spell-art.ts, scripts/gen-scene-art.ts, scripts/smartcrop.py, scripts/audit-art-window.py, scripts/art-contact-sheet.py, scripts/recrop-art.ts, scripts/requirements.txt, src/data/art-manifest.json · last-verified: 2026-10-01
      If you change those files, update this doc or re-verify the date. -->
 
 # Art pipeline
@@ -177,7 +177,7 @@ were (the ceiling crop, top = 0).
 First Dawn pilot) is generated from its draft bible with
 `npx tsx scripts/gen-card-art.ts --bible <file> --out-dir <scratch>` and
 `npx tsx scripts/gen-spell-art.ts --spec <file> --out-dir <scratch>` (the
-spec form skips the 369-id roster check). A draft file requires `--out-dir`,
+spec form skips the 417-id roster check). A draft file requires `--out-dir`,
 any `--out-dir` must lie outside `public/`, and a run with `--out-dir` never
 calls `gen-art-manifest`, so no draft id can reach the game. Draft files are
 never added to `FACTIONS`. In `gen-card-art.ts`, an entry whose Prompt starts
@@ -185,6 +185,94 @@ with "NO woman" (a beast-alone frame, art bible §4d) gets `BEAST_PREAMBLE`
 instead of the waist-up portrait preamble, whose "her head" and "She reads
 as powerful" turned a beast-only token into a monster-girl (`tok-wolf`);
 every other entry's prompt is byte-identical to before.
+
+**The figure preamble and crop (First Dawn, 1.9).** First Dawn's woman
+entries are drawn head to knees with the story around her (a beast, a nest, a
+Hatchling, bones, her tail), and `PREAMBLE`'s "waist-up portrait framing, the
+face at the exact vertical center" fought them. Calibration round 1
+(2026-09-29, eleven images) measured it: head tops at 12% to 28% of the raw
+height, the lower story below the card window, and on Herd-Guardian a head at
+12% that tripped the zoom fallback into a 614x767 bust with the nest gone. So
+`gen-card-art.ts` carries a third preamble, `FIGURE_PREAMBLE`, selected per
+faction (`FACTION_FRAMING`, `first-dawn` only; a `--bible` draft is keyed by
+its file stem), and a beast-alone entry keeps `BEAST_PREAMBLE` in every set.
+Its composition sentence asks for the top of her head one third of the way
+down the canvas (the headroom HARD RULE at the top-third line) and her knees no
+lower than three quarters of the way down, every story element beside her
+between her head and her knees and never in front of her below her waist, and
+her lower legs and the ground free to run off the bottom; its style sentences
+are `PREAMBLE`'s, verbatim. The geometry: the 1024x1280 cover crop of a
+1024x1536 raw maps 1.6 raw rows to one deliverable row, and the window shows
+y 138 to 662 with the head line at y 179, so head top to knees must fit in 483
+deliverable rows, 773 raw rows, about half the raw's height. Obeyed exactly,
+the head top at raw row 512 moves to y 179 with a crop starting 225 rows down
+(the limit is 256), and knees at row 1152 land at y 579, inside the window.
+Rounds 1 and 2 asked for a quarter; round 2's heads came in at 13.7% to 23.6%
+(mean 18.0%), about seven points high, so round 3 asks for a third, which with
+the same bias lands near 26%.
+
+Figure entries also get a figure crop, `--focal-frac 0.1` on the smartcrop
+call (the per-card retarget the cropper already had). Character mode's zoom
+fallback scales the crop to the face: when the head sits high in the raw
+(focal above 24.4% of the crop at the ceiling) it shrinks the crop height to
+`focal_y / focal_frac`, so the higher the face, the harder the zoom, and the
+default focal line (y 291) also pushes a small full-figure head down to about
+y 250, taking the knees out of the window. At 0.1 the headroom floor always
+decides the placement (the head top lands on y 179 whenever the raw has the
+sky for it) and the zoom's height is the full 1280 rows unless the face centre
+sits in the raw's top 128 rows, so a figure keeps the full raw width, and a
+head drawn too high shows as a crown clip on the contact sheet, a regeneration,
+not a silent bust. On round 1's nine woman raws the figure crop kept the full
+width on all nine (Herd-Guardian's zoom gone, its crown 21 px above the
+window), and slid six of the other eight crops 30 to 108 raw rows down so
+each head top sat on y 179, showing that much more of the lower story (Ashka's
+and Ice-Cave Diver's raws have no sky for it, and their crops stay at the
+ceiling, heads at y 168 to 171, as before). Proof that
+nothing else moved: `--show-prompt` and `--dry-run` for all 17 other factions
+(931 prompts) are byte-identical before and after, and `--dry-run` names the
+figure preamble and crop on each of First Dawn's 109 woman entries (its 13
+beast-alone entries are unchanged). `--recrop` batches carry no faction and
+keep the default crop.
+
+Round 2 (2026-09-29, seven images under the figure preamble and crop, zero
+refusals): every crop kept the full raw width (round 1 zoomed one of five), and
+the relay model carried the composition sentence through its rewrite. The
+figures came out smaller, head to knees in frame on all seven. What it did
+not move is the head: head tops sat at 13.7% to 23.6% of the raw height (mean
+18.7% on the five cards redrawn from round 1, against 19.6% in round 1), so
+the "one quarter" target is not met, and three of seven heads sit above the
+y 179 line (y 132 to 152), each with the crop already at the
+raw's ceiling (no sky to slide into). The story below the knees still falls out of the window
+when the entry puts it in front of her (Herd-Guardian's nest, River-Snapper's
+bones, 82% to 88% of the raw against a window bottom at 69%), while elements
+placed beside her at hip height landed inside it (Nest-Guard's Hatchling,
+Vessa's tail). An entry that also asks for "crown to feet, nothing cropped"
+fits the whole body and pushes the head up (Nest-Guard, 13.7%).
+
+Round 3 (nine images, the "one third" ask, story beside her, the wide-shot
+words removed; zero refusals): six heads landed at 21.7% to 33.9% of the raw
+(mean 25.1%), every one of them on the y 179 line, with every crop sliding
+47 to 234 rows down and the window bottom at 72% to 84%. Every story element
+placed beside her landed inside the window (Herd-Guardian's nest, River-Snapper's
+bones, Nest-Guard's Hatchling, Tar-Skin Brute's dropped shield). Three entries
+did not move: two Longneck women whose tell is "great height" and one airborne
+rider sat at 13.4% to 14.1%, crowns at y 129 to 136, as they had in round 2. The
+figure preamble works; those three need entry wording that keeps her small in
+the frame (the Longneck's height tell, the rider on a big mount), not a bigger
+ask.
+
+Round 4 (five images, that wording: a Longneck's height shown against what
+stands beside her and "small enough in the frame that open sky fills the top
+third"; a rider's mount with its body at the vertical centre; zero refusals).
+The two fresh proofs moved: Plated Longneck's head top at 21.7% of the raw sat
+on y 179, and Vyra's at 20.6% (from 14.1%) did too. Cliff-Top Scout landed at
+17.4% (y 167) and Herd-Guardian at 15.8% (y 152, from 13.4%), both inside the
+window but short of the head line. Nest-Guard came back from the image backend
+at 1122x1402, a 4:5 raw instead of the requested 1024x1536 (Walking Mountain did
+the same in round 1), which leaves the cover crop no rows to slide; its head top
+at 10.6% put the crown 45 px above the window. A crown gate over the
+deliverables (head top above y 138, and separately above y 179) catches each of
+these, so the bulk run regenerates by measurement rather than by eye.
 
 What a crop cannot fix: every shipped crop already spans the full raw width,
 so "zoom out" is impossible, and a head drawn at the very top edge of the raw
@@ -355,16 +443,17 @@ procedural placeholder.
 
 ### Spell art: `scripts/gen-spell-art.ts`
 
-The 369 **non-creature entries covered by the spell-art generator** (45
+The 417 **non-creature entries covered by the spell-art generator** (45
 base, 9 Ragnarök, 31 Gothic Monsters, 8 removal-cycle spells, 7 returning-mechanics
 spells, 84 Sands of the Duat entries, 20 Dark Tales companion spells, 62 Starborne
-entries, 97 Drowned Deep entries, and 6 regeneration entries) likewise sit
+entries, 97 Drowned Deep entries, 48 First Dawn entries, and 6 regeneration entries) likewise sit
 outside the creature art bible and get their own program. Direction lives in
 `docs/spell-art.md` and the driver is
 `npm run gen-spell-art` (`scripts/gen-spell-art.ts`), a sibling of the card and
 land drivers with the identical hardened machinery and flags; it uses
-`scripts/smartcrop.py` in **environment** mode, so the post-process stays the
-old center crop for effect-first compositions. Its preamble is
+`scripts/smartcrop.py` in **subject** mode, where a detected head or face guides
+the crop and an effect-only image keeps the old center crop byte-for-byte. Its
+preamble is
 **effect-first** — the spell's dramatic magical *moment* (a bolt, a
 resurrection, a curse-aura, a gale) is the hero of the frame, centered in the
 ART_RECT band, with any figure secondary — and its negatives harden the NO-TEXT
@@ -372,6 +461,15 @@ rule specifically against stamped banner-text/seal-glyphs/nameplates (the
 banner, seal, and oath cards invite them). Output goes to the same
 `public/assets/art/cards/` at 640×800, so the manifest and resolver pick spell
 WebPs up automatically.
+
+First Dawn alone has figure framing for spells: the parser selects the explicit
+`## First Dawn non-creatures` section (rather than its mixed `fd-` / `fdr-` /
+`fdc-` ids), and only a prompt with the positive `EXACTLY … adult woman/women`
+marker gets the pulled-back head-to-knees composition plus subject-mode
+`--focal-frac 0.1`; `NO woman` and other effect-only entries, and every other
+spell group, keep the original preamble and crop. The bulk run motivated the
+split: after one redo, 16 of 47 First Dawn spells still had a head above the
+card's y=179 head line, including 11 above the y=138 window top.
 
 The spell driver also accepts `--recrop <file>` for entries whose retained
 raws live in `%TEMP%/gen-spell-art/`; it uses subject mode and the same
@@ -384,13 +482,13 @@ outside the doc-driven pipeline during the Celtic Fae expansion) — when adding
 a record after the fact, note that the roster contracts are rigid:
 `check-art-bible` enforces creatures-only faction files with exact
 count/order, and `gen-spell-art.ts` **hard-fails on any id outside its fixed
-369-id roster**. Worse, the drivers' entry parsers treat any top-level
+417-id roster**. Worse, the drivers' entry parsers treat any top-level
 `- **Prompt:**` line as the current entry's prompt, so a casually appended
 block **silently overwrites the previous entry's prompt**. The safe pattern is
 the parser-proof addendum convention at the end of `docs/spell-art.md`
 ("Celtic Fae non-creature addendum"): `####` headings + indented field
 bullets, invisible to the parsers, verified with `--dry-run` after editing. The
-current non-creature generator rosters are 369 spell entries and 22 land entries;
+current non-creature generator rosters are 417 spell entries and 22 land entries;
 the live catalog and manifest inventory is recorded above.
 
 **Historical base-set run status (2026-07-03): COMPLETE — 152/152 on disk**
