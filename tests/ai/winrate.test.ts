@@ -344,6 +344,26 @@ describe('AI win-rate gates', () => {
     }
   }, 900_000);
 
+  it('First Dawn rungs 27-28 field complete decisive matrices', () => {
+    // Both tower floors are tier 6 PROVISIONAL until wave 4's tuning pass.
+    // Numeric win-rate floors must come from wave 4's measured band; this
+    // untuned pair initially gates complete five-starter matrices and termination.
+    const report = runAvatarMatrix(40, ['the-shepherdess-of-giants', 'the-tyrant-queen']);
+    reportAvatarRates(report);
+    expect(report.rows.map((row) => row.avatar.id)).toEqual([
+      'the-shepherdess-of-giants', 'the-tyrant-queen',
+    ]);
+    for (const row of report.rows) {
+      expect(row.cells, `${row.avatar.id} must face all five starters`).toHaveLength(5);
+      for (const [index, cell] of row.cells.entries()) {
+        const label = `${row.avatar.id} starter cell ${index + 1}`;
+        expect(cell.games, `${label} must field all seeded games`).toBe(40);
+        expect(cell.rowWins + cell.colWins, `${label} must decide all seeded games`).toBe(40);
+        expect(cell.draws, `${label} must terminate decisively`).toBe(0);
+      }
+    }
+  }, 900_000);
+
   it('Drowned Deep rungs 25-26 clear their floors and field complete matrices', () => {
     // FLOORS SET 2026-09-17. Both shipped gated on termination only, tier-6
     // PROVISIONAL "until the owner's tuning pass" - which has now happened

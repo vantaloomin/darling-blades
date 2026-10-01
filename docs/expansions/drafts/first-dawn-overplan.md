@@ -764,6 +764,8 @@ Blaze-Crest Tyrant.
 
 ## The summit pair, rungs 27 and 28 (draft lists)
 
+Built 2026-10-01: Hooves and Fire and the summit pair, rungs 27-28; theme: Frill-Flare Hornback -> Fern-Crest Raptor, Flint-Spear Toss -> Hurled Firebrand; R27: Shepherdess of the Long Grass -> Longneck Calf-Guard x2 + Nest-Guard Longneck, Hearth-Shield Maiden uses `fdr-hearth-shield-bulwark`; R28: Frill-Neck Stalker -> Spear-Sister, Fang and Horn -> Grip of the Old Beast, Flint-Spear Toss -> Hurled Firebrand, Fern-Crown Tyrant is back in the cut. Win-rate floors remain provisional until wave 4.
+
 Working names from the brief. These are draft lists to show the decks exist
 in the projected cut; the reserve decks, land reserves and Darlings decks are
 the converter's (generate, then sync), the gate is the one-test-per-pair

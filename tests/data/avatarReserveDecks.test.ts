@@ -498,15 +498,22 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
     const sorted = (cards: readonly string[]): string[] => [...cards].sort();
     for (const avatar of AVATARS) {
       // The historical pre-Starborne fixture intentionally excludes sb-*;
-      // Starborne and Drowned Deep converter surfaces use the live catalog.
+      // Starborne, Drowned Deep and First Dawn converter surfaces use the live catalog.
       const isDrownedDeep = avatar.id === 'the-drowned-deacon' || avatar.id === 'the-marsh-mother';
-      const sourceDb = isDrownedDeep || avatar.id === 'chrome-broodmother' || avatar.id === 'the-violet-signal-queen'
+      const isFirstDawn = avatar.id === 'the-shepherdess-of-giants' || avatar.id === 'the-tyrant-queen';
+      const sourceDb = isDrownedDeep || isFirstDawn || avatar.id === 'chrome-broodmother' || avatar.id === 'the-violet-signal-queen'
         ? CARD_DB
         : PRE_STARBORNE_DB;
       const first = convertAvatarReserveDecks(avatar, sourceDb);
       const second = convertAvatarReserveDecks(avatar, sourceDb);
       expect(first, `${avatar.id} converter is not deterministic`).toEqual(second);
       expect(sorted(first.landReserve)).toEqual(sorted(avatar.landReserve));
+      if (isFirstDawn) {
+        expect(sorted(first.reserveDeck)).toEqual(sorted(avatar.reserveDeck));
+        expect(sorted(first.darlingsDeck)).toEqual(sorted(avatar.darlingsDeck));
+        expect(first.darlingId).toBe(avatar.darlingId);
+        continue;
+      }
       if (isDrownedDeep) {
         // The measured Deacon and Marsh-Mother reserve tunes are registered
         // above; both Darlings surfaces stay converter-owned.

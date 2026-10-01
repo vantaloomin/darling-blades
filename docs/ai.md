@@ -599,11 +599,13 @@ alternated (so neither AI owns the better deck) and asserts:
 | Medium vs Easy     | **≥ 80%**            | **81.5%** (163/200)     |
 | Hard vs Medium     | CI floor **≥ 0.70**  | **76.5%** (153/200)     |
 
-The same file gates the tower's summit across four tests so no single
+The same file gates the tower's summit across five tests so no single
 matrix blows CI's 900 s per-test budget: rungs 14-18 and rungs 19-22 hold
 per-avatar floors and ordering relations, and rungs 23-24 and 25-26 each hold
 per-avatar floors plus a termination check (five complete 40-seed cells, zero
 draws).
+First Dawn rungs 27-28 have their own complete-matrix and termination gate;
+their tier-6 mapping is provisional until wave 4 sets the measured band.
 Every rung from 14 to 26 has carried a real floor since the 2026-09-17
 re-baseline described under Tower rungs below.
 
@@ -664,8 +666,8 @@ be judged on the same 200-game gate.
 
 An **avatar/personality system** (shipped 2026-07-02) layers tunable knobs over these
 three brains — themed opponents with their own aggression/greed dials, without
-rewriting the cores. The knobs live in `src/ai/personality.ts` (frozen `DEFAULT_PERSONALITY` reproduces the base brains bit-for-bit — enforced by lockstep tests in `tests/ai/personality.test.ts`); the 26 avatars with decks and tunings live in `src/data/opponents.ts` (the base
-8 plus eighteen expansion gauntlet bosses through the Drowned Deep summit pair at rungs 25-26).
+rewriting the cores. The knobs live in `src/ai/personality.ts` (frozen `DEFAULT_PERSONALITY` reproduces the base brains bit-for-bit — enforced by lockstep tests in `tests/ai/personality.test.ts`); the 28 avatars with decks and tunings live in `src/data/opponents.ts` (the base
+8 plus twenty expansion gauntlet bosses through the First Dawn summit pair at rungs 27-28).
 
 Balance is measured, not guessed: `scripts/balance-matrix.ts`
 (`npm run balance-matrix`) runs deterministic avatar-vs-starter, starter-mirror,
@@ -885,8 +887,10 @@ timing), when a Rocket could only fire after the attack.
 
 The Starborne pair (Chrome Broodmother 23, The Violet Signal Queen 24; floors
 0.655 and 0.645) and the Drowned Deep pair (The Drowned Deacon 25, The
-Marsh-Mother 26, the final rung; floors 0.595 and 0.685) each carry their
-own gate with the termination check.
+Marsh-Mother 26; floors 0.595 and 0.685) each carry their
+own gate with the termination check. First Dawn adds The Shepherdess of
+Giants at 27 and The Tyrant Queen as the final rung at 28, with a separate
+termination gate and provisional tier-6 mapping pending wave 4.
 Measured untuned 2026-09-15 at 200 seeds: Deacon 33% (35.5% after phase A,
 35.9% after B), Marsh-Mother 77% (77.9% after A, 74.8% after B: the Tithe
 fodder rule costs her, see the next section). The Deacon's plan is fog, tap and cheap counter

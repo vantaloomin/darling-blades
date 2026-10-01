@@ -114,4 +114,11 @@ export const DECK_INFO: Record<string, DeckInfo> = {
       'Cheap bodies hold the ground while the divers and the mermaids seed the graveyard. The looters turn dead draws into tagged Whispers, the Whispers Charms and Rituals are the value engine, Black Water resets a board that gets ahead, and a curve of Deep Ones and Horrors closes with Tithe as the tempo lever, the Hierophants draining on arrival.',
     featured: ['dd-mother-hydra', 'dd-the-price', 'dd-black-water'],
   },
+  'theme-first-dawn': {
+    colors: 'R/G',
+    archetype: 'First Dawn Dinokin stampede',
+    plays:
+      'Dinokin on a steady curve, every one an honest body. Cheap Provoked creatures and Ember-Flick wake each other up, Hunt and burn clear the blockers, and the Herd-Caller gives the whole pack Overrun. Two tyrants close it out.',
+    featured: ['fd-herd-caller-hornback', 'fd-tusk-rage', 'fd-fern-and-fire'],
+  },
 };

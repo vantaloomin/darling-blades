@@ -1149,12 +1149,12 @@ describe('applyGauntletResult', () => {
   });
 
   it('clearing the final rung pays the completion bonus and ends the run', () => {
-    const finalRung = ECONOMY.gauntletRungGold.length; // 26 with The Marsh-Mother as the Drowned Deep final rung
+    const finalRung = 28;
     const save = freshSave(0);
     save.stats.lastWinDay = '2026-07-02'; // no first-win bonus this time
     save.gauntlet.run = { rung: finalRung, startedAt: 1, seed: 42 };
     const r = applyGauntletResult(save, finalRung, 'hard', true, '2026-07-02');
-    expect(r.gold).toBe(ECONOMY.gauntletRungGold[finalRung - 1] + ECONOMY.gauntletCompletionBonus);
+    expect(r.gold).toBe(840);
     expect(r.completed).toBe(true);
     expect(r.runOver).toBe(true);
     expect(r.nextRung).toBeNull();
@@ -1181,15 +1181,26 @@ describe('applyGauntletResult', () => {
 
   it('a full run pays every rung plus the completion and daily bonuses once', () => {
     const save = freshSave(0);
+    const startingGold = save.gold;
     save.gauntlet.run = { rung: 1, startedAt: 1, seed: 42 };
     let total = 0;
-    for (let rung = 1; rung <= ECONOMY.gauntletRungGold.length; rung++) {
+    for (let rung = 1; rung <= 28; rung++) {
       const diff = rung <= 3 ? 'easy' : rung <= 6 ? 'medium' : 'hard';
-      total += applyGauntletResult(save, rung, diff, true, '2026-07-02').gold;
+      const result = applyGauntletResult(save, rung, diff, true, '2026-07-02');
+      total += result.gold;
+      if (rung === 27) {
+        expect(result.gold).toBe(570);
+        expect(result.completed).toBe(false);
+        expect(result.nextRung).toBe(28);
+        expect(save.gauntlet.run?.rung).toBe(28);
+      }
     }
-    const rungSum = ECONOMY.gauntletRungGold.reduce((s, g) => s + g, 0);
-    expect(total).toBe(rungSum + ECONOMY.gauntletCompletionBonus + ECONOMY.firstWinOfDayBonus);
+    // 8960 rung gold, 250 completion gold, and one 100-gold daily win bonus.
+    expect(total).toBe(9310);
+    expect(save.gold - startingGold).toBe(9310);
     expect(save.gauntlet.completions).toBe(1);
+    expect(save.gauntlet.bestRung).toBe(28);
+    expect(save.gauntlet.run).toBeNull();
   });
 
   it('a loss pays standard loss gold and resets the run', () => {
@@ -1238,6 +1249,36 @@ describe('buyThemeDeck (RagnarÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶k precon
     expect(buyThemeDeck(save, CARD_DB, deck)).toBe(false);
     expect(save.gold).toBe(ECONOMY.preconPrice - 1);
     expect(save.decks.some((d) => d.id === deck.id)).toBe(false);
+  });
+});
+
+describe('buyThemeDeck First Dawn precon', () => {
+  it('charges 500 gold once and grants a playable red-green Warchest deck', () => {
+    const deck = THEME_DECKS.find((entry) => entry.id === 'theme-first-dawn')!;
+    const save = freshSave(0);
+    save.gold = 499;
+    expect(buyThemeDeck(save, CARD_DB, deck)).toBe(false);
+    expect(save.gold).toBe(499);
+    expect(save.decks.some((entry) => entry.id === deck.id)).toBe(false);
+
+    save.gold = 550;
+    save.starterChosen = 'starter-crimson';
+    expect(buyThemeDeck(save, CARD_DB, deck)).toBe(true);
+    expect(save.gold).toBe(50);
+    expect(save.starterChosen).toBe('starter-crimson');
+    const granted = save.decks.find((entry) => entry.id === deck.id)!;
+    expect(granted.format).toBe('warchest');
+    expect(granted.cards).toHaveLength(40);
+    expect(granted.landReserve).toHaveLength(10);
+    expect(granted.cards).toEqual(deck.reserveCards);
+    expect(granted.landReserve).toEqual(deck.landReserve);
+    expect(deckHealth(CARD_DB, save, granted)).toEqual({ blocked: false, issues: [] });
+    for (const id of granted.cards) {
+      expect(CARD_DB[id].colors.every((color) => color === 'R' || color === 'G'), id).toBe(true);
+    }
+    expect(buyThemeDeck(save, CARD_DB, deck)).toBe(false);
+    expect(save.gold).toBe(50);
+    expect(save.decks.filter((entry) => entry.id === deck.id)).toHaveLength(1);
   });
 });
 

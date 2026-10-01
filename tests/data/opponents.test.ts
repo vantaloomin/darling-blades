@@ -12,16 +12,16 @@ import { ECONOMY, RULES } from '../../src/config/rules';
  */
 
 describe('avatar roster shape', () => {
-  it('has exactly 26 landed avatars with unique tiers 1..26', () => {
-    expect(AVATARS).toHaveLength(26);
+  it('covers every tower rung with a unique avatar and its gold reward', () => {
+    expect(AVATARS).toHaveLength(28);
     const tiers = AVATARS.map((a) => a.tier).sort((x, y) => x - y);
-    expect(tiers).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26]);
-    expect(new Set(AVATARS.map((a) => a.id)).size).toBe(26);
-    expect(ECONOMY.gauntletRungGold).toHaveLength(26);
-    expect(ECONOMY.gauntletRungGold.slice(14)).toEqual([330, 350, 370, 390, 410, 430, 450, 470, 490, 510, 530, 550]);
+    expect(tiers).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]);
+    expect(new Set(AVATARS.map((a) => a.id)).size).toBe(28);
+    expect(ECONOMY.gauntletRungGold).toHaveLength(28);
+    expect(ECONOMY.gauntletRungGold.slice(14)).toEqual([330, 350, 370, 390, 410, 430, 450, 470, 490, 510, 530, 550, 570, 590]);
   });
 
-  it('assigns difficulty by tier band (1-3 easy, 4-6 medium, 7-26 hard)', () => {
+  it('assigns difficulty by tier band (1-3 easy, 4-6 medium, 7-28 hard)', () => {
     for (const a of AVATARS) {
       const expected = a.tier <= 3 ? 'easy' : a.tier <= 6 ? 'medium' : 'hard';
       expect(a.difficulty).toBe(expected);
@@ -29,7 +29,7 @@ describe('avatar roster shape', () => {
   });
 
   it('avatarForRung / avatarById resolve consistently', () => {
-    for (let rung = 1; rung <= 26; rung++) {
+    for (let rung = 1; rung <= 28; rung++) {
       const a = avatarForRung(rung);
       expect(a.tier).toBe(rung);
       expect(avatarById(a.id)).toBe(a);
@@ -55,7 +55,9 @@ describe('avatar roster shape', () => {
     expect(avatarForRung(25).name).toBe('The Drowned Deacon');
     expect(avatarForRung(26).id).toBe('the-marsh-mother');
     expect(avatarForRung(26).name).toBe('The Marsh-Mother');
-    expect(() => avatarForRung(27)).toThrow();
+    expect(avatarForRung(27).id).toBe('the-shepherdess-of-giants');
+    expect(avatarForRung(28).id).toBe('the-tyrant-queen');
+    expect(() => avatarForRung(29)).toThrow();
     expect(() => avatarById('nope')).toThrow();
   });
 });
@@ -344,6 +346,45 @@ describe.each(AVATARS.map((a) => [a.name, a] as const))('avatar deck legality â€
   it('names a creature in the deck as its portrait', () => {
     expect(counts.has(avatar.portraitCardId), `portrait ${avatar.portraitCardId} not in deck`).toBe(true);
     expect(CARD_DB[avatar.portraitCardId]?.types.includes('creature')).toBe(true);
+  });
+});
+
+describe.each([
+  ['the-shepherdess-of-giants', ['G', 'W'], 'fd-tahla-shepherdess'],
+  ['the-tyrant-queen', ['R', 'G'], 'fd-oru-tyrant-queen'],
+] as const)('First Dawn summit deck identity: %s', (id, colors, portrait) => {
+  it('keeps its classic spells within its color pair and its legends singleton', () => {
+    const avatar = avatarById(id);
+    const allowedColors = new Set<Color>(colors);
+    const counts = new Map<string, number>();
+    for (const cardId of avatar.deck) {
+      const card = CARD_DB[cardId];
+      expect(card.colors.every((color) => allowedColors.has(color)), cardId).toBe(true);
+      if (card.types.includes('land')) {
+        expect(card.manaAbility?.every((color) => color !== 'C' && allowedColors.has(color)), cardId).toBe(true);
+      } else {
+        expect(card.set, cardId).toBe('first-dawn');
+      }
+      counts.set(cardId, (counts.get(cardId) ?? 0) + 1);
+    }
+    for (const [cardId, count] of counts) {
+      if (CARD_DB[cardId].supertypes?.includes('legendary')) {
+        expect(count, cardId).toBe(1);
+      }
+    }
+    expect(avatar.portraitCardId).toBe(portrait);
+    expect(avatar.deck).toContain(portrait);
+  });
+
+  it('keeps both reserve formats and their Darling inside the same color pair', () => {
+    const avatar = avatarById(id);
+    const allowedColors = new Set<Color>(colors);
+    for (const cardId of [...avatar.reserveDeck, ...avatar.darlingsDeck, avatar.darlingId]) {
+      expect(CARD_DB[cardId].colors.every((color) => allowedColors.has(color)), cardId).toBe(true);
+    }
+    for (const subtype of avatar.personality.preferredSubtypes) {
+      expect(avatar.deck.some((cardId) => CARD_DB[cardId].subtypes.includes(subtype)), subtype).toBe(true);
+    }
   });
 });
 

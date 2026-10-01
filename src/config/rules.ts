@@ -95,8 +95,8 @@ export const ECONOMY = {
   shardHoloMult: { none: 1, shiny: 1.5, rainbow: 2, pearlescent: 3, fractal: 6, void: 12 } as const,
   shardFullArtMult: 25,
   // Avatar Gauntlet: gold per rung cleared (index 0 = rung 1), plus a bonus for
-  // a full 26-rung clear. Full run = 50+70+...+550 (=7800) + 250 bonus =
-  // 8050g before the daily first-win bonus.
+  // a full 28-rung clear. Full run = 50+70+...+590 (=8960) + 250 bonus =
+  // 9210g before the daily first-win bonus.
   // ~40% over practice-grinding — the price of run-risk (a loss resets the run).
   // Rungs 9-10 (210/230) are the Ragnarök bosses; 11-12 (250/270) are the
   // Celtic Fae bosses (The Morrigan, Titania); 13-14 (290/310) are the
@@ -108,8 +108,9 @@ export const ECONOMY = {
   // Mistress of the Ninth Return at 22; the Starborne summit is the next
   // authored rung, with Chrome Broodmother at 23 and The Violet Signal Queen
   // at 24). Rungs 25-26 are the Drowned Deep summit pair: The Drowned
-  // Deacon at 25 and The Marsh-Mother as the final rung at 26.
-  gauntletRungGold: [50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 270, 290, 310, 330, 350, 370, 390, 410, 430, 450, 470, 490, 510, 530, 550] as const,
+  // Deacon at 25 and The Marsh-Mother at 26. First Dawn adds The Shepherdess
+  // of Giants at 27 and The Tyrant Queen as the final rung at 28.
+  gauntletRungGold: [50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 270, 290, 310, 330, 350, 370, 390, 410, 430, 450, 470, 490, 510, 530, 550, 570, 590] as const,
   gauntletCompletionBonus: 250,
   // Free Limited runs are free-entry with ephemeral cards and pay the record
   // payout below. Premium Draft pays to keep its picks; the entry fee already

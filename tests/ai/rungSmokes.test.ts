@@ -61,7 +61,7 @@ describe('reserve-native gauntlet and Darlings termination proof', () => {
     const crimson = STARTER_DECKS[crimsonIndex];
     const proxy = DARLINGS_PRECONS.find((deck) => deck.id === 'darlings-zhou-yu')!;
     expect(AVATARS.map((avatar) => avatar.tier).sort((a, b) => a - b))
-      .toEqual(Array.from({ length: 26 }, (_, i) => i + 1));
+      .toEqual(Array.from({ length: 28 }, (_, i) => i + 1));
     expect(crimson.reserveCards).toHaveLength(40);
     expect(crimson.landReserve).toHaveLength(10);
     expect(proxy).toBeDefined();
