@@ -96,14 +96,15 @@ describe('If it survived stays narrow (validator)', () => {
   });
 });
 
-describe('If it survived in the scorer (a placeholder until A1.4)', () => {
-  it('prices the gated draw below a draw on either branch and above none, and reports it as NEEDS MATH', () => {
+describe('If it survived in the scorer', () => {
+  it('prices the gated draw below an unconditional draw and above none, without an unknown', () => {
     const pump: EffectOp = { op: 'boost', p: 1, t: 1, scope: 'target' };
     const power = (ops: EffectOp[]): number => scoreCard(spell('s', ops, [{ what: 'yourCreature' }])).power;
     const gated = power([pump, GATE]);
     // The same draw on both branches is a sure draw through the same gate.
     expect(gated).toBeLessThan(power([pump, { ...GATE, else: [{ op: 'draw', n: 1 }] }]));
+    expect(gated).toBeLessThan(power([pump, { op: 'draw', n: 1 }]));
     expect(gated).toBeGreaterThan(power([pump]));
-    expect(scoreCard(AMBUSH).unknowns.some((unknown) => unknown.startsWith('op:ifTargetSurvives'))).toBe(true);
+    expect(scoreCard(AMBUSH).unknowns.some((unknown) => unknown.startsWith('op:ifTargetSurvives'))).toBe(false);
   });
 });

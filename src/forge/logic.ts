@@ -458,7 +458,7 @@ export function fromCardDef(card: ScorableCardDef): BuilderState {
         enabled: true,
         cost: fromManaCost(duty.cost.mana),
         target: duty.targets?.[0]?.what ?? 'none',
-        targets: structuredClone(duty.targets),
+        ...(duty.targets ? { targets: structuredClone(duty.targets) } : {}),
         ops: structuredClone(duty.ops),
         ...(dutiesOf(card).length > 1 ? { extra: structuredClone(dutiesOf(card).slice(1)) } : {}),
       }
@@ -543,7 +543,9 @@ export function toCardDef(state: BuilderState): ScorableCardDef {
         ? { tap: true, mana: toManaCost(mechanics.activated.cost) }
         : { tap: true },
       ops: mechanics.activated.ops,
-      targets: builderTargets(mechanics.activated.target, mechanics.activated.targets),
+      ...(mechanics.activated.target !== 'none'
+        ? { targets: builderTargets(mechanics.activated.target, mechanics.activated.targets) }
+        : {}),
     }, mechanics.activated.extra) : undefined,
     manaActivated: mechanics.manaActivated.enabled ? structuredClone(mechanics.manaActivated.abilities) : undefined,
     whispers: mechanics.whispers.enabled ? { cost: toManaCost(mechanics.whispers.cost) } : undefined,
