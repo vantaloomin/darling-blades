@@ -1,17 +1,16 @@
 import Phaser from 'phaser';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
-import { FEATURES } from '../config/features';
 import { ECONOMY } from '../config/rules';
 import { CARD_DB } from '../data/catalog';
 import { DECK_INFO } from '../data/deckInfo';
-import { DUAT_SET, isLiveCollectible } from '../data/liveness';
+import { DUAT_SET, isLiveCollectible, isLiveSet } from '../data/liveness';
 import {
   DARLINGS_PRECONS,
   FREE_DARLINGS_PRECON_ID,
   type DarlingsPrecon,
 } from '../data/darlingsPrecons';
-import { SET_BLURBS, SET_IDS, SET_TITLES, type SetId } from '../data/setTitles';
+import { SET_BLURBS, SET_IDS, type SetId } from '../data/setTitles';
 import { STARTER_DECKS, THEME_DECKS, type DeckList } from '../data/starterDecks';
 import { createRngState } from '../engine/rng';
 import { def, isType, manaValue, type CardDef } from '../engine/types';
@@ -28,6 +27,7 @@ import {
   type GrantedDeckBuild,
 } from '../meta/Economy';
 import { openPack, openPacks } from '../meta/PackOpener';
+import { BOOSTER_SKUS, packPriceForSku, type BoosterSku } from '../meta/boosterSkus';
 import { packPoolSummary, type PackPoolSummary } from '../meta/packSummary';
 import { Services } from '../meta/services';
 import { checkpointAchievements } from '../meta/achievementCheckpoint';
@@ -40,7 +40,7 @@ import { deckPageCount, deckPageSlice } from '../ui/deckListPaging';
 import { computeDeckStats, CURVE_MAX, PIE_COLORS } from '../ui/deckStats';
 import { fxPolicy } from '../ui/fx/FXSupport';
 import { modalGuardTarget } from '../ui/Modal';
-import { createOddsModal, type BoosterSku } from '../ui/OddsModal';
+import { createOddsModal } from '../ui/OddsModal';
 import { OverlayCoordinator } from '../ui/OverlayCoordinator';
 import { artMissing } from '../art/artLoader';
 import { awaitArt, gateOnArt } from '../ui/artGate';
@@ -78,7 +78,7 @@ const WHEEL_STEP_COOLDOWN_MS = 250;
  */
 const DECK_COMMIT_REPEAT_GUARD_MS = 500;
 
-export type { BoosterSku } from '../ui/OddsModal';
+export { BOOSTER_SKUS, packPriceForSku, type BoosterSku } from '../meta/boosterSkus';
 
 interface PackTint {
   start: string;
@@ -169,6 +169,15 @@ const DROWNED_DEEP_PACK_TINT: PackTint = {
   mist: '#7d8590',
 };
 
+const FIRST_DAWN_PACK_TINT: PackTint = {
+  start: '#efe6d0',
+  middle: '#3c4147',
+  end: '#26292d',
+  trim: '#efe6d0',
+  foil: '#f08a5d',
+  mist: '#ffc7a0',
+};
+
 const packRR = (
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -253,6 +262,7 @@ function bakeRealPackBase(
   ctx: CanvasRenderingContext2D,
   sceneArtKey: string,
   trimY = 0,
+  trimColor: string = theme.colors.gold,
 ): void {
   const img = scene.textures.get(sceneArtKey).getSourceImage() as CanvasImageSource;
   const sw = (img as { width: number }).width;
@@ -274,10 +284,10 @@ function bakeRealPackBase(
     ctx.drawImage(img, (PACK_W - dw) / 2, (PACK_H - sh * scale) / 2, dw, sh * scale);
   }
   ctx.restore();
-  // gold trim over the cropped edge (the procedural path strokes it inline)
+  // Trim over the cropped edge (the procedural path strokes it inline).
   packRR(ctx, 2, 2, PACK_W - 4, PACK_H - 4, 14);
   ctx.lineWidth = 4;
-  ctx.strokeStyle = theme.colors.gold;
+  ctx.strokeStyle = trimColor;
   ctx.stroke();
 }
 
@@ -285,6 +295,7 @@ export interface PackArtOpts {
   key?: string; // texture key (default 'packart')
   sceneArtKey?: string; // real-art source key (default 'scene-pack-art')
   tint?: PackTint; // procedural fallback treatment; real art remains untouched
+  realArtTrim?: string; // optional palette-specific edge; older fronts retain gold
   /**
    * Plain bars baked into the source art, in source pixels per edge, measured
    * from the shipped webp. Only the three sets authored under the hardened
@@ -347,6 +358,14 @@ export const DROWNED_DEEP_PACK_ART: PackArtOpts = {
   trimY: 63,
 };
 
+export const FIRST_DAWN_PACK_ART: PackArtOpts = {
+  key: 'packart-first-dawn',
+  sceneArtKey: 'scene-pack-art-first-dawn',
+  tint: FIRST_DAWN_PACK_TINT,
+  trimY: 63,
+  realArtTrim: FIRST_DAWN_PACK_TINT.trim,
+};
+
 export function packTextureForSku(sku: BoosterSku): string {
   if (sku === 'ragnarok') return 'packart-ragnarok';
   if (sku === 'celtic-fae') return 'packart-celtic-fae';
@@ -357,21 +376,8 @@ export function packTextureForSku(sku: BoosterSku): string {
   if (sku === 'sands-of-the-duat') return 'packart-sands-of-the-duat';
   if (sku === 'starborne') return 'packart-starborne';
   if (sku === 'drowned-deep') return 'packart-drowned-deep';
+  if (sku === 'first-dawn') return 'packart-first-dawn';
   return 'packart';
-}
-
-/** Unit gold price for one booster of the given SKU (shared with PackOpeningScene's re-buy CTAs). */
-export function packPriceForSku(sku: BoosterSku): number {
-  if (sku === 'ragnarok') return ECONOMY.ragnarokPackPrice;
-  if (sku === 'celtic-fae') return ECONOMY.celticFaePackPrice;
-  if (sku === 'arthurian-court') return ECONOMY.arthurianCourtPackPrice;
-  if (sku === 'gothic-monsters') return ECONOMY.gothicMonstersPackPrice;
-  if (sku === 'dark-tales') return ECONOMY.darkTalesPackPrice;
-  if (sku === 'yokai-nights') return ECONOMY.yokaiNightsPackPrice;
-  if (sku === 'sands-of-the-duat') return ECONOMY.sandsOfTheDuatPackPrice;
-  if (sku === 'starborne') return ECONOMY.starbornePackPrice;
-  if (sku === 'drowned-deep') return ECONOMY.drownedDeepPackPrice;
-  return ECONOMY.packPrice;
 }
 
 export function packSetForSku(sku: BoosterSku): CardDef['set'] | undefined {
@@ -380,23 +386,9 @@ export function packSetForSku(sku: BoosterSku): CardDef['set'] | undefined {
   return sku;
 }
 
-/** The shop order is the source for strip count, release order, and art guard. */
-export const BOOSTER_SKUS: ReadonlyArray<{ label: string; textureKey: string; sku: BoosterSku }> = [
-  { label: SET_TITLES.base, textureKey: 'packart', sku: 'base' },
-  { label: SET_TITLES.ragnarok, textureKey: 'packart-ragnarok', sku: 'ragnarok' },
-  { label: SET_TITLES['celtic-fae'], textureKey: 'packart-celtic-fae', sku: 'celtic-fae' },
-  { label: SET_TITLES['arthurian-court'], textureKey: 'packart-arthurian-court', sku: 'arthurian-court' },
-  { label: SET_TITLES['gothic-monsters'], textureKey: 'packart-gothic-monsters', sku: 'gothic-monsters' },
-  { label: SET_TITLES['dark-tales'], textureKey: 'packart-dark-tales', sku: 'dark-tales' },
-  { label: SET_TITLES['yokai-nights'], textureKey: 'packart-yokai-nights', sku: 'yokai-nights' },
-  { label: SET_TITLES['sands-of-the-duat'], textureKey: 'packart-sands-of-the-duat', sku: 'sands-of-the-duat' },
-  { label: SET_TITLES.starborne, textureKey: 'packart-starborne', sku: 'starborne' },
-  { label: SET_TITLES['drowned-deep'], textureKey: 'packart-drowned-deep', sku: 'drowned-deep' },
-];
-
 /**
  * The shop strip shows only released sets: the Sands of the Duat SKU rides
- * BOOSTER_SKUS (the booster art guard reads that block) but stays hidden until
+ * BOOSTER_SKUS (the booster art guard reads that catalog) but stays hidden until
  * FEATURES.duatLive flips at the shared balance pass. Every strip consumer
  * must index into THIS list, never BOOSTER_SKUS, or the peek/layout indexes
  * disagree with the tiles.
@@ -408,11 +400,11 @@ export const BOOSTER_SKUS: ReadonlyArray<{ label: string; textureKey: string; sk
  * release order, so a set appended there leads the strip automatically.
  */
 export function visibleBoosterSkus(): ReadonlyArray<{ label: string; textureKey: string; sku: BoosterSku }> {
-  return BOOSTER_SKUS.filter((entry) => entry.sku !== 'sands-of-the-duat' || FEATURES.duatLive).reverse();
+  return BOOSTER_SKUS.filter((entry) => isLiveSet(entry.sku)).reverse();
 }
 
-/** Only the newest SKU gets launch emphasis. Keep this beside BOOSTER_SKUS. */
-export const NEWEST_SKU: BoosterSku = 'drowned-deep';
+/** Only the newest SKU gets launch emphasis. */
+export const NEWEST_SKU: BoosterSku = 'first-dawn';
 
 /**
  * Bake a booster-pack texture once (shared with PackOpeningScene). Real front
@@ -431,7 +423,7 @@ export function bakePackArt(scene: Phaser.Scene, opts: PackArtOpts = {}): void {
   const ctx = tex.getContext();
 
   if (scene.textures.exists(sceneArtKey)) {
-    bakeRealPackBase(scene, ctx, sceneArtKey, opts.trimY ?? 0);
+    bakeRealPackBase(scene, ctx, sceneArtKey, opts.trimY ?? 0, opts.realArtTrim);
   } else {
     bakeProceduralPackBase(ctx, opts.tint ?? BASE_PACK_TINT);
   }
@@ -768,6 +760,7 @@ export class ShopScene extends Phaser.Scene {
     bakePackArt(this, SANDS_OF_THE_DUAT_PACK_ART);
     bakePackArt(this, STARBORNE_PACK_ART);
     bakePackArt(this, DROWNED_DEEP_PACK_ART);
+    bakePackArt(this, FIRST_DAWN_PACK_ART);
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('shop');
 

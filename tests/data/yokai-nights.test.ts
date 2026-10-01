@@ -120,8 +120,7 @@ describe('Yokai Nights data integrity', () => {
       .filter((op) => op.op === 'createToken')).toEqual([]);
   });
 
-  it('keeps every rarity tier self-contained in the 525g booster', () => {
-    expect(ECONOMY.yokaiNightsPackPrice).toBe(525);
+  it('keeps every rarity tier self-contained in the set booster', () => {
     for (const tier of Object.keys(RARITY_COUNTS) as Array<keyof typeof RARITY_COUNTS>) {
       const pool = packPool(CARD_DB, tier, YOKAI_SET);
       expect(pool.length, `${tier} pool`).toBeGreaterThan(0);

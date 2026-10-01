@@ -76,14 +76,17 @@ export const SET_ICON_PATHS: Record<CardSetId, string> = {
     'M29 50 C34 45 39 45 44 50 C49 55 54 55 59 50 C64 45 69 45 71 50 L71 60 ' +
     'C66 55 61 55 56 60 C51 65 46 65 41 60 C36 55 31 55 29 60 Z ' +
     'M43 83 A7 7 0 1 1 57 83 A7 7 0 1 1 43 83 Z',
-  // Placeholder sunrise: a half-sun above a broad horizon. Replace with the
-  // owner's final First Dawn set mark before the 1.9 release cut.
+  // Horned skull before the sun (First Dawn, owner-picked 2026-10-01): the
+  // scalloped frill doubles as the rising sun, crossed by two long brow horns
+  // whose tips break its rim. Punched gaps set the horns in front of the frill;
+  // round eye sockets; the face tapers to a centred beak. Mirror-symmetric.
   'first-dawn':
-    'M12 72 L88 72 L88 82 L12 82 Z ' +
-    'M24 68 A26 26 0 0 1 76 68 Z ' +
-    'M47 4 L53 4 L53 18 L47 18 Z ' +
-    'M18 22 L22 18 L32 28 L28 32 Z ' +
-    'M78 18 L82 22 L72 32 L68 28 Z ' +
-    'M4 47 L18 47 L18 53 L4 53 Z ' +
-    'M82 47 L96 47 L96 53 L82 53 Z',
+    'M8 62 C8 59.2 6.8 56.2 7.2 53.4 C7.6 50.5 9.7 48.2 10.5 45.6 C11.4 43 11.1 39.7 12.4 37.2 C13.6 34.7 16.3 ' +
+    '33.3 17.8 31.1 C12 23 10 10 23 3 C18 14 20 21 29 20.4 C31.1 19 32.8 16.3 35.1 15.3 C37.5 14.3 40.3 15.2 ' +
+    '42.7 14.7 C45.1 14.2 47.5 12.3 50 12.3 C52.5 12.3 54.9 14.2 57.3 14.7 C59.7 15.2 62.5 14.3 64.9 15.3 C67.2 ' +
+    '16.3 68.9 19 71 20.4 C80 21 82 14 77 3 C90 10 88 23 82.2 31.1 C83.7 33.3 86.4 34.7 87.6 37.2 C88.9 39.7 ' +
+    '88.6 43 89.5 45.6 C90.3 48.2 92.4 50.5 92.8 53.4 C93.2 56.2 92 59.2 92 62 L65 62 C65 76 58 88 50 98 ' +
+    'C42 88 35 76 35 62 Z M25 23 C26 34 34 44 42 50 L45 46 C36 37 31 29 30 23 ' +
+    'Z M75 23 C74 34 66 44 58 50 L55 46 C64 37 69 29 70 23 Z M36.5 60 A4.5 4.5 0 1 1 45.5 60 A4.5 4.5 0 1 1 ' +
+    '36.5 60 Z M54.5 60 A4.5 4.5 0 1 1 63.5 60 A4.5 4.5 0 1 1 54.5 60 Z',
 };

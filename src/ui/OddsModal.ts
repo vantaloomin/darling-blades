@@ -1,13 +1,14 @@
 import Phaser from 'phaser';
 import { DROPS } from '../config/rules';
 import { SET_TITLES } from '../data/setTitles';
+import type { BoosterSku } from '../meta/boosterSkus';
 import { modalGuardTarget } from './Modal';
 import { OverlayCoordinator } from './OverlayCoordinator';
 import { measuredRowsLayout } from './layout';
 import { theme } from './theme';
 import { modalShell, themedButton, type ModalShell } from './themeWidgets';
 
-export type BoosterSku = 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales' | 'yokai-nights' | 'sands-of-the-duat' | 'starborne' | 'drowned-deep';
+export type { BoosterSku } from '../meta/boosterSkus';
 
 interface PackOddsMeta {
   packName: string;
@@ -32,6 +33,7 @@ const PACK_ODDS_META: Record<BoosterSku, PackOddsMeta> = {
   'sands-of-the-duat': { packName: SET_TITLES['sands-of-the-duat'], setName: SET_TITLES['sands-of-the-duat'] },
   starborne: { packName: SET_TITLES.starborne, setName: SET_TITLES.starborne },
   'drowned-deep': { packName: SET_TITLES['drowned-deep'], setName: SET_TITLES['drowned-deep'] },
+  'first-dawn': { packName: SET_TITLES['first-dawn'], setName: SET_TITLES['first-dawn'] },
 };
 
 const TIER_LABELS: Record<string, string> = { c: 'C', r: 'R', sr: 'SR', ssr: 'SSR', ur: 'UR' };

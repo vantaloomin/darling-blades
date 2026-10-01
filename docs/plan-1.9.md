@@ -1015,6 +1015,10 @@ last before the cut, the standing rule the 1.8 ruling suspended (D9).
   flips an accessibility ship gate (`textSizeLive`, `highContrastLive`),
   the release notes carry a line that a stored text size or contrast value
   now applies (the gate held it back while the control was hidden).
+- **Release-note line owed (owner ruling 2026-10-01):** "Older expansion
+  boosters now cost 450 gold, the same as the base set. The three newest
+  sets stay at 525." The tier counts only sets a player can buy, with hidden
+  SKUs excluded; `BOOSTER_SKUS` release order drives the automatic step-down.
 
 ### Lane I — the follow-ups logged at the 1.8.1 cut
 

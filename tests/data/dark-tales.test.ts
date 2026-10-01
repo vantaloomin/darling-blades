@@ -106,7 +106,7 @@ describe('Dark Tales data integrity', () => {
     }
   });
 
-  it('round-trips the set filter and the 525g set booster', () => {
+  it('round-trips the set filter and the set-scoped booster', () => {
     const save = freshSave(0);
     const filtered = applyFilters(
       ALL_CARDS.filter((card) => !DARK_TALES_COMPANION.some((companion) => companion.id === card.id)),
@@ -128,7 +128,6 @@ describe('Dark Tales data integrity', () => {
     } finally {
       FEATURES.dtCompanionLive = previous;
     }
-    expect(ECONOMY.darkTalesPackPrice).toBe(525);
     const result = openPack(save, CARD_DB, createRngState(20_260_723), 'dark-tales');
     expect(result.cards).toHaveLength(ECONOMY.boosterPackSize);
     expect(result.cards.every((card) => CARD_DB[card.cardId].set === 'dark-tales')).toBe(true);

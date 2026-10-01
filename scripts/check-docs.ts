@@ -9,6 +9,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { BOOSTER_SKUS } from '../src/meta/boosterSkus';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const strict = process.argv.includes('--strict');
@@ -165,18 +166,10 @@ for (const doc of docs) {
  * is `pack-art`; all other SKUs use `pack-art-<sku>`.
  */
 function checkBoosterArtContract(): void {
-  const shopSource = readFileSync(join(root, 'src/scenes/ShopScene.ts'), 'utf8');
-  const skuBlock = shopSource.match(/export const BOOSTER_SKUS[\s\S]*?^\];/m)?.[0];
-  if (!skuBlock) {
-    console.error('ERROR booster art guard: could not find BOOSTER_SKUS in src/scenes/ShopScene.ts');
-    boosterArtGuardFailures++;
-    return;
-  }
-  const skus = [...skuBlock.matchAll(/sku:\s*'([^']+)'/g)].map((match) => match[1]);
   const sceneArt = readFileSync(join(root, 'docs/scene-art.md'), 'utf8');
   const manifest = JSON.parse(readFileSync(join(root, 'src/data/art-manifest.json'), 'utf8')) as { scenes?: unknown };
   const manifestScenes = Array.isArray(manifest.scenes) ? manifest.scenes.filter((key): key is string => typeof key === 'string') : [];
-  for (const sku of skus) {
+  for (const { sku } of BOOSTER_SKUS) {
     const key = sku === 'base' ? 'pack-art' : `pack-art-${sku}`;
     const headingPattern = new RegExp('^### [^\\r\\n]*`' + key + '`', 'm');
     const missingHeading = !headingPattern.test(sceneArt);

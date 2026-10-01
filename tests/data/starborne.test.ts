@@ -212,7 +212,6 @@ describe('Starborne transcription', () => {
   });
 
   it('registers a live, self-contained booster pool', () => {
-    expect(ECONOMY.starbornePackPrice).toBe(525);
     for (const rarity of RARITIES) {
       const pool = packPool(CARD_DB, rarity, STARBORNE_PACK_SET);
       expect(pool.length, `${rarity} Starborne pool`).toBeGreaterThan(0);
