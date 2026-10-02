@@ -7,7 +7,7 @@ import { RARITY_NAMES } from '../data/glossary';
 import { ACHIEVEMENTS, type AchievementDef } from '../meta/Achievements';
 import { ownedCount } from '../meta/Collection';
 import { todayString } from '../meta/Economy';
-import { collectionCompletion, matchesSearch } from '../meta/collectionFilter';
+import { collectionCompletion, matchesSearch, pageNeighbourhood } from '../meta/collectionFilter';
 import { embedSaveCode, readSaveCode, saveImageFilename } from '../meta/SaveImage';
 import {
   DECK_STYLE_LABEL,
@@ -25,10 +25,10 @@ import { isReplayVisible } from '../ui/deckBuilderHelpers';
 import { OverlayCoordinator } from '../ui/OverlayCoordinator';
 import { createMultilineInput, type MultilineInputHandle } from '../ui/MultilineInput';
 import { createSearchInput, type SearchInputHandle } from '../ui/SearchInput';
-import { artMissing } from '../art/artLoader';
-import { ART_WAIT_TEXT_STYLE, awaitArt } from '../ui/artGate';
+import { artMissing, liveArtStore } from '../art/artLoader';
+import { ART_WAIT_TEXT_STYLE, awaitArt, PagedArt } from '../ui/artGate';
 import { applyBackdrop } from '../ui/SceneBackdrop';
-import { makeCardThumb } from '../ui/CardThumbCache';
+import { makeCardThumb, thumbArtWanted } from '../ui/CardThumbCache';
 import { CARD_H, CARD_W } from '../ui/CardView';
 import type { Rect } from '../ui/layout';
 import {
@@ -495,7 +495,7 @@ export class ProfileScene extends Phaser.Scene {
     // PNG, so a stand-in texture would ship inside the file).
     const owned = Object.keys(this.saveData.collection);
     this.pickerShell?.close();
-    if (artMissing(owned).length === 0) {
+    if (liveArtStore() !== null || artMissing(owned).length === 0) {
       this.buildSaveCardPicker(getCode);
       return;
     }
@@ -531,7 +531,7 @@ export class ProfileScene extends Phaser.Scene {
       .text(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2, '', ART_WAIT_TEXT_STYLE)
       .setOrigin(0.5);
     waiting.container.add(line);
-    awaitArt(this, owned, {
+    awaitArt(waiting.container, owned, {
       onWait: (text) => {
         if (line.active) line.setText(text);
       },
@@ -596,6 +596,7 @@ export class ProfileScene extends Phaser.Scene {
     // 24 cached thumbs is cheap next to keeping partial state honest.
     const gridC = this.add.container(0, 0);
     c.add(gridC);
+    const pickerArt = new PagedArt(this, 'profile-save-card-picker', { owner: c });
     const COLS = PROFILE_SAVE_CARD_PICKER.columns;
     const PAGE_SIZE = COLS * PROFILE_SAVE_CARD_PICKER.rows;
     const density = this.data.get('a11yDensity');
@@ -608,6 +609,14 @@ export class ProfileScene extends Phaser.Scene {
       const filtered = ownedPool.filter((d) => matchesSearch(d, query));
       const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
       page = Math.min(page, pages - 1);
+      // The picker draws at once. Its thumbs re-bake on arrival; only this
+      // page's missing sources are leased, with the adjacent pages at soon.
+      const around = pageNeighbourhood(filtered, page, PAGE_SIZE);
+      const artFor = (cards: typeof filtered): string[] => cards.flatMap((card) => {
+        const wanted = thumbArtWanted(this, card);
+        return wanted === null ? [] : [wanted.key];
+      });
+      pickerArt.show(artFor(around.shown), artFor(around.near));
       if (filtered.length === 0) {
         gridC.add(
           this.add
@@ -620,7 +629,7 @@ export class ProfileScene extends Phaser.Scene {
         );
         return;
       }
-      const visible = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+      const visible = around.shown;
       visible.forEach((card, i) => {
         const x = L.columnXs[i % COLS];
         const y = L.rowYs[Math.floor(i / COLS)];

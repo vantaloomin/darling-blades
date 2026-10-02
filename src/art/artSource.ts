@@ -205,7 +205,15 @@ async function exchange(io: Io, url: string, range: string | null, signal: Abort
   try {
     let res: Response;
     try {
-      res = await io.fetch(url, { headers: range ? { Range: range } : undefined, signal: ctl.signal });
+      // Chromium cannot share a sparse HTTP-cache entry between concurrent
+      // range requests. Bypass that cache for ranges; the CDN still caches
+      // the packs, and Pages sends max-age=14400. A persistent art cache was
+      // ruled out of 1.9 (S-Q5). Whole-pack and loose reads keep their defaults.
+      res = await io.fetch(url, {
+        headers: range ? { Range: range } : undefined,
+        ...(range ? { cache: 'no-store' as const } : {}),
+        signal: ctl.signal,
+      });
     } catch {
       throw whyStopped('network error');
     }

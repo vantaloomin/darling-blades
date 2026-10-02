@@ -29,7 +29,7 @@ import {
   LIMITED_DETAILS_PANEL,
   limitedListRow,
 } from '../ui/limitedPanePresentation';
-import { gateOnArt } from '../ui/artGate';
+import { awaitArt, gateOnArt, PagedArt } from '../ui/artGate';
 import { SCENE_TITLE } from '../ui/layout';
 import { bakeManaSymbols } from '../ui/ManaSymbols';
 import { drawPipBeadRow } from '../ui/pipBeadRow';
@@ -74,6 +74,9 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
   private selectedDuals: string[] = [];
   private poolPage = 0;
   private deckPage = 0;
+  /** These list rows draw text; their page requests warm the full-size inspect. */
+  private poolArt: PagedArt | null = null;
+  private deckArt: PagedArt | null = null;
   private selectedId: string | null = null;
   private cardInspect: Phaser.GameObjects.Container | null = null;
   private leavePrompt: ModalShell | null = null;
@@ -92,8 +95,7 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
     this.premiumGrant = data.premiumGrant ?? null;
     const run = Services.save.data.limited.activeRun;
     gateOnArt(this, [...(run?.pool ?? []), ...(run?.deck ?? []), ...(run?.landReserve ?? [])], () =>
-      this.build(),
-    );
+      this.build(), { releaseAfterBuild: true });
   }
   private build(): void {
     this.cardInspect = null;
@@ -129,6 +131,8 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
     bakeManaSymbols(this);
     this.deck = [...run.deck];
     this.selectedDuals = run.landReserve?.filter((id) => CARD_DB[id] && isDualLand(CARD_DB[id])) ?? [];
+    this.poolArt = new PagedArt(this, 'limited-pool', { tier: 'primary' });
+    this.deckArt = new PagedArt(this, 'limited-deck', { tier: 'primary' });
     this.draw(run);
   }
   /**
@@ -194,7 +198,9 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
     const ids = [...poolCounts.keys()].filter((id) => !isBasic(CARD_DB, id)).sort(sortCards);
     const maxPage = Math.max(0, Math.ceil(ids.length / ROWS) - 1);
     this.poolPage = Math.min(this.poolPage, maxPage);
-    ids.slice(this.poolPage * ROWS, this.poolPage * ROWS + ROWS).forEach((id, i) => {
+    const shown = ids.slice(this.poolPage * ROWS, this.poolPage * ROWS + ROWS);
+    this.poolArt?.show([], shown);
+    shown.forEach((id, i) => {
       const owned = poolCounts.get(id) ?? 0;
       const used = deckCounts.get(id) ?? 0;
       const dual = isDualLand(CARD_DB[id]);
@@ -241,7 +247,9 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
     const ids = [...counts.keys()].sort(sortCards);
     const maxPage = Math.max(0, Math.ceil(ids.length / ROWS) - 1);
     this.deckPage = Math.min(this.deckPage, maxPage);
-    ids.slice(this.deckPage * ROWS, this.deckPage * ROWS + ROWS).forEach((id, i) =>
+    const shown = ids.slice(this.deckPage * ROWS, this.deckPage * ROWS + ROWS);
+    this.deckArt?.show([], shown);
+    shown.forEach((id, i) =>
       this.cardRow(
         x,
         y + 56 + i * 31,
@@ -506,7 +514,10 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
       },
     });
     const c = shell.container;
-    c.add(new CardView(this, 455, 360).setScale(1.35).setCard(card, { fx: 'full' }));
+    // The modal's now lease promotes an evicted inspect above page prefetch;
+    // CardView owns its arrival redraw and keeps the existing immediate draw.
+    awaitArt(c, [id], { onReady: () => undefined });
+    c.add(new CardView(this, 455, 360).setScale(1.35).setCard(card, { fx: 'full', artTier: 'primary' }));
     c.add(
       this.add.text(730, 154, card.name, {
         fontFamily: theme.fonts.display,

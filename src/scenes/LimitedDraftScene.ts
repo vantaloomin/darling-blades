@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { liveArtStore } from '../art/artLoader';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { ECONOMY } from '../config/rules';
@@ -27,7 +28,7 @@ import {
   type HoloFinish,
 } from '../meta/variants';
 import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestures';
-import { makeCardThumb } from '../ui/CardThumbCache';
+import { makeCardThumb, thumbArtWanted } from '../ui/CardThumbCache';
 import { FRAME_TREATMENTS } from '../ui/CardFrameFactory';
 import { CardView } from '../ui/CardView';
 import { computeDeckStats, CURVE_MAX, PIE_COLORS } from '../ui/deckStats';
@@ -41,7 +42,7 @@ import {
 } from '../ui/limitedDraftPresentation';
 import { bakeManaSymbols } from '../ui/ManaSymbols';
 import { ModalGuard } from '../ui/Modal';
-import { gateOnArt } from '../ui/artGate';
+import { gateOnArt, PagedArt } from '../ui/artGate';
 import { addPortraitArt } from '../ui/portraitArt';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { sceneTitle } from '../ui/sceneTitle';
@@ -117,20 +118,26 @@ export class LimitedDraftScene extends Phaser.Scene {
   }
 
   /**
-   * Every card in every pack of the run — the picks table and the pack grid
-   * both draw from them — plus the seat portraits of the run's own personas
-   * (they are drawn beside the packs, so they belong in the same wait).
+   * Stream only the human's current pack at half tier and the table's
+   * portraits at primary. The old loader keeps its whole-run gate.
    */
   create(): void {
     const run = Services.save.data.limited.activeRun;
     const draft = run?.draft;
+    const portraits = (draft?.personaIds ?? [])
+      .map((id) => draftPersonaById(id)?.portraitCardId)
+      .filter((id): id is string => typeof id === 'string');
+    if (liveArtStore() !== null) {
+      gateOnArt(this, portraits, () => {
+        gateOnArt(this, draft ? currentDraftPack(draft) : [], () => this.build(), { tier: 'half' });
+      });
+      return;
+    }
     const ids = [
       ...(draft?.currentPacks.flat() ?? []),
       ...(draft?.packs.flat(2) ?? []),
       ...(draft?.picks.flat() ?? []),
-      ...(draft?.personaIds ?? [])
-        .map((id) => draftPersonaById(id)?.portraitCardId)
-        .filter((id): id is string => typeof id === 'string'),
+      ...portraits,
     ];
     gateOnArt(this, ids, () => this.build());
   }
@@ -377,6 +384,12 @@ export class LimitedDraftScene extends Phaser.Scene {
 
   private drawPicks(run: LimitedRun): void {
     const picks = [...(run.draft?.picks[0] ?? [])].reverse();
+    const art = new PagedArt(this, 'draft-picks');
+    const wanted = picks.flatMap((id) => {
+      const request = thumbArtWanted(this, def(CARD_DB, id));
+      return request === null ? [] : [request.key];
+    });
+    art.show(wanted);
     const stats = computeDeckStats([...picks], CARD_DB);
     const x = 848;
     const y = 224;

@@ -1,9 +1,55 @@
 import { describe, expect, it } from 'vitest';
-import { coachInfoLayout, dutyPanelPages, historyPanelPages, stackPanelPage, zonePanelLayout } from '../../src/ui/duelPanelPresentation';
+import { coachInfoLayout, dutyPanelPages, historyPanelPages, stackPanelPage, zonePanelHeaderFindings, zonePanelLayout } from '../../src/ui/duelPanelPresentation';
+import { CARD_FACE_H } from '../../src/config/cardFaceGeometry';
 import { theme } from '../../src/ui/theme';
 import { forEachA11yCell } from './a11yCells';
 
 describe('Duel panel reading tracks', () => {
+  it('separates the zone subtitle from the title by at least four pixels in every cell', () => {
+    forEachA11yCell(({ name }) => {
+      for (const expanded of [false, true]) {
+        const titleHeight = theme.type.h1 + 6, subtitleHeight = theme.type.label + 4;
+        const layout = zonePanelLayout(expanded, titleHeight, subtitleHeight, 18, 28, 28);
+        expect(layout.subtitleY - subtitleHeight / 2 - (layout.titleY + titleHeight / 2), name)
+          .toBeGreaterThanOrEqual(4 - 1e-6);
+      }
+    });
+  });
+
+  it('separates the zone subtitle from first-row thumbs and their top badges in every cell', () => {
+    forEachA11yCell(({ name }) => {
+      for (const expanded of [false, true]) {
+        for (const subtitleLines of [1, 2, 4]) {
+          const subtitleHeight = (theme.type.label + 4) * subtitleLines;
+          const layout = zonePanelLayout(expanded, theme.type.h1 + 6, subtitleHeight, 18, 28, 28);
+          // Actual Image bounds include CardThumbCache's eight-pixel bleed.
+          const thumbTop = layout.firstY - (CARD_FACE_H + 16) * 0.24 / 2;
+          const badgeTop = layout.firstY - CARD_FACE_H * 0.24 / 2 + 2;
+          expect(Math.min(thumbTop, badgeTop) - (layout.subtitleY + subtitleHeight / 2), name)
+            .toBeGreaterThanOrEqual(4 - 1e-6);
+        }
+      }
+    });
+  });
+
+  it('keeps six columns and four compact rows with a subtitle at standard text', () => {
+    forEachA11yCell(({ textScale }) => {
+      if (textScale !== 1) return;
+      const layout = zonePanelLayout(false, theme.type.h1 + 6, theme.type.label + 4, 18, 28, 28);
+      expect(layout.columns).toBe(6);
+      expect(layout.rows).toBe(4);
+    });
+  });
+
+  it('reports subtitle clearance failures against rendered titles, image thumbs and raised badges', () => {
+    const title = { y: 20, height: 30 }, subtitle = { y: 54, height: 18 };
+    const thumb = { y: 76, height: 100 };
+    expect(zonePanelHeaderFindings(title, subtitle, [thumb])).toEqual([]);
+    expect(zonePanelHeaderFindings(title, { ...subtitle, y: 53 }, [thumb])).toEqual(['title']);
+    expect(zonePanelHeaderFindings(title, subtitle, [{ ...thumb, y: 75 }])).toEqual(['grid']);
+    expect(zonePanelHeaderFindings(title, subtitle, [thumb, { y: 70, height: 20 }])).toEqual(['grid']);
+  });
+
   it('keeps ordinary zone capacity and anchors while measured action growth remains above the pager', () => {
     forEachA11yCell(() => {
       for (const expanded of [false, true]) {

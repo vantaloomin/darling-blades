@@ -547,6 +547,7 @@ export class ShopScene extends Phaser.Scene {
   private inspectIdx: number | null = null;
   /** Supersedes a pending inspect art wait when another row is tapped. */
   private inspectWaitToken = 0;
+  private inspectWaitOwner: Phaser.GameObjects.Container | null = null;
   /** The open preview's distinct-card entries in visual order (creatures → spells → lands). */
   private previewEntries: PreviewEntry[] = [];
   private previewInteractiveTargets: Phaser.GameObjects.GameObject[] = [];
@@ -1877,7 +1878,8 @@ export class ShopScene extends Phaser.Scene {
    */
   private showDeckPreview(sku: DeckSku): void {
     this.closeOverlay();
-    const cards = grantedDeckBuild(sku.deck).cards;
+    const build = grantedDeckBuild(sku.deck);
+    const cards = [...build.cards, ...(build.darlingId ? [build.darlingId] : [])];
     if (artMissing(cards).length === 0) {
       this.buildDeckPreview(sku);
       return;
@@ -1909,7 +1911,7 @@ export class ShopScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
     waiting.container.add(line);
-    awaitArt(this, cards, {
+    awaitArt(waiting.container, cards, {
       onWait: (text) => {
         if (line.active) line.setText(text);
       },
@@ -1976,6 +1978,10 @@ export class ShopScene extends Phaser.Scene {
     this.overlay = shell;
     this.previewInteractiveTargets = [...shell.interactiveChildren];
     const c = shell.container;
+    // The wait above has settled before this synchronous build. Keep its set
+    // on the completed modal too, including when the fast path skipped the
+    // waiting shell; closing a preview releases its sources immediately.
+    awaitArt(c, this.previewEntries.map((entry) => entry.d.id), { onReady: () => undefined });
     const content = shell.tracks.contentBounds;
     const contentCenterX = content.x + content.width / 2;
 
@@ -2388,8 +2394,10 @@ export class ShopScene extends Phaser.Scene {
     const entry = this.previewEntries[idx];
     if (!entry) return;
     const token = ++this.inspectWaitToken;
+    const owner = this.add.container(0, 0).setDepth(theme.depth.inspect);
+    this.inspectWaitOwner = owner;
     let line: Phaser.GameObjects.Text | null = null;
-    awaitArt(this, [entry.d.id], {
+    awaitArt(owner, [entry.d.id], {
       onWait: (text) => {
         if (token !== this.inspectWaitToken) return;
         line ??= this.add
@@ -2400,12 +2408,15 @@ export class ShopScene extends Phaser.Scene {
           })
           .setOrigin(0.5)
           .setDepth(theme.depth.inspect);
+        owner.add(line);
         line.setText(text);
       },
       onReady: () => {
         line?.destroy();
         if (token !== this.inspectWaitToken) return;
         this.buildCardInspect(idx);
+        owner.destroy();
+        if (this.inspectWaitOwner === owner) this.inspectWaitOwner = null;
       },
     });
   }
@@ -2435,6 +2446,8 @@ export class ShopScene extends Phaser.Scene {
     this.inspect = shell;
     this.inspectIdx = idx;
     const c = shell.container;
+    // The pending wait has settled; this shell owns the lease until close.
+    awaitArt(c, [entry.d.id], { onReady: () => undefined });
     const content = shell.tracks.contentBounds;
     const contentX = content.x + content.width / 2;
     const contentY = content.y + content.height / 2;
@@ -2458,6 +2471,7 @@ export class ShopScene extends Phaser.Scene {
 
   private onPreviewClosed(shell: ModalShell): void {
     if (this.overlay !== shell) return;
+    this.closeInspect();
     this.overlay = null;
     this.previewEntries = [];
     this.previewInteractiveTargets = [];
@@ -2467,6 +2481,8 @@ export class ShopScene extends Phaser.Scene {
     // Also drops any pending inspect art wait, so a closed preview can never
     // have an inspect open itself a beat later.
     this.inspectWaitToken++;
+    this.inspectWaitOwner?.destroy();
+    this.inspectWaitOwner = null;
     this.inspect?.close();
     this.inspect = null;
     this.inspectIdx = null;

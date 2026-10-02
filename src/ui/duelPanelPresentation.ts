@@ -39,9 +39,23 @@ export function dutyPanelPages(heights: readonly number[], titleHeight: number, 
 /** The card grid is fixed-size; only measured chrome consumes extra rows. */
 export function zonePanelLayout(expanded: boolean, titleHeight: number, subtitleHeight: number,
   badgeHeight: number, deadlineHeight: number, actionHeight: number, actionWidth = 0) {
-  const subtitleY = Math.max(122, 86 + titleHeight / 2 + 8 + subtitleHeight / 2);
-  const headerGrowth = Math.max(0, titleHeight - 34) + Math.max(0, subtitleHeight - 18);
   const thumbHalfHeight = CARD_FACE_H * 0.24 / 2;
+  // CardThumbCache bleeds eight card-local pixels above and below the face.
+  // Include that drawn Image envelope in header clearance, without changing
+  // the release action offsets or row pitch when there is no subtitle.
+  const thumbOuterHalfHeight = thumbHalfHeight + 8 * 0.24;
+  const releaseFirstY = expanded ? 195 : 176;
+  const headerGap = 4;
+  // Fit the release title and subtitle above the fixed grid, preserving all
+  // four compact rows. Larger measured text consumes extra space below it.
+  const titleY = subtitleHeight > 0
+    ? Math.min(86, releaseFirstY - thumbOuterHalfHeight - headerGap - 18 - headerGap - 34 / 2)
+    : 86;
+  const subtitleY = subtitleHeight > 0
+    ? Math.max(Math.min(122, releaseFirstY - thumbOuterHalfHeight - headerGap - 18 / 2),
+      titleY + titleHeight / 2 + headerGap + subtitleHeight / 2)
+    : Math.max(122, 86 + titleHeight / 2 + 8 + subtitleHeight / 2);
+  const headerGrowth = Math.max(0, titleHeight - 34) + Math.max(0, subtitleHeight - 18);
   const actionGap = Math.max(46, actionHeight + 16);
   const deadlineOffset = expanded ? Math.max(68, thumbHalfHeight + 4 + deadlineHeight / 2) : 0;
   const actionOffset = expanded
@@ -51,12 +65,22 @@ export function zonePanelLayout(expanded: boolean, titleHeight: number, subtitle
   const normalActionOffset = actionHeight <= 28 ? 52 : actionOffset;
   const columnGap = Math.max(expanded ? 200 : 128, actionWidth + 12);
   const columns = Math.max(1, Math.min(expanded ? 4 : 6, Math.floor(840 / columnGap)));
-  const firstY = Math.max((expanded ? 195 : 176) + headerGrowth, badgeHeight / 2 + 90);
+  const firstY = Math.max(releaseFirstY + headerGrowth, badgeHeight / 2 + 90,
+    subtitleHeight > 0 ? subtitleY + subtitleHeight / 2 + headerGap + thumbOuterHalfHeight : 0);
   const lastOffset = expanded ? actionOffset + actionGap + actionHeight / 2 : normalActionOffset + actionHeight / 2;
   const pitch = (expanded ? 235 : 120) + Math.max(0, lastOffset - (expanded ? 170 : 66));
   const rows = Math.max(1, Math.min(expanded ? 2 : 4, Math.floor((604 - firstY - lastOffset) / pitch) + 1));
-  return { columns, rows, pageSize: columns * rows, columnGap, firstY, pitch, subtitleY,
+  return { columns, rows, pageSize: columns * rows, columnGap, firstY, pitch, titleY, subtitleY,
     deadlineOffset, actionOffset: expanded ? actionOffset : normalActionOffset, actionGap };
+}
+
+/** The rendered probe supplies actual title, subtitle, thumb and badge bands. */
+export function zonePanelHeaderFindings(title: { y: number; height: number }, subtitle: { y: number; height: number },
+  grid: readonly { y: number; height: number }[]): ('title' | 'grid')[] {
+  const findings: ('title' | 'grid')[] = [];
+  if (subtitle.y - (title.y + title.height) < 4 - 1e-3) findings.push('title');
+  if (grid.some(item => item.y - (subtitle.y + subtitle.height) < 4 - 1e-3)) findings.push('grid');
+  return findings;
 }
 
 /** Content-grown coaching card, keeping the release single-line centre/anchors. */
