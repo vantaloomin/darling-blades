@@ -40,6 +40,8 @@
 import Phaser from 'phaser';
 import { REPLAY_LOG_VERSION, replayDbStamp, type ReplayLog } from '../meta/Replay';
 import { AVATARS } from '../data/opponents';
+import { wave2BFixtureSave, WAVE_2B_FIXTURE_IDS, WAVE_2B_LONGEST_CARD_IDS } from './deckCollectionFixtures';
+import type { DeckBuilderSceneData } from '../scenes/DeckBuilderScene';
 import type { SavedDeck } from '../meta/SaveManager';
 import { CLASSIC_RETIRED_ISSUE } from '../meta/deckRepair';
 import { CARD_DB } from '../data/catalog';
@@ -47,7 +49,7 @@ import { currentAccessibility, setAccessibility, TEXT_SCALES } from '../ui/acces
 import { BoardCardView } from '../ui/BoardCardView';
 import { CardView } from '../ui/CardView';
 import { theme } from '../ui/theme';
-import { menuTextFindings } from '../ui/menuText';
+import { menuTextFindings, menuTextOverlap, type MenuTextSurface } from '../ui/menuText';
 
 export interface ProbeCell {
   readonly textScale: number;
@@ -166,6 +168,53 @@ export const WAVE_2A_SCENES: readonly ProbeScene[] = [
   { label: 'Gauntlet / rung 28', key: 'Gauntlet', data: { a11yRung: 28 } },
 ];
 
+/** Batch B: isolated full-catalog saves, full names, every owned scene modal. */
+const BATCH_B_SAVE = wave2BFixtureSave();
+const BATCH_B_CLASSIC = wave2BFixtureSave();
+BATCH_B_CLASSIC.decks[0].format = undefined;
+BATCH_B_CLASSIC.decks[0].darlingId = null;
+BATCH_B_CLASSIC.decks[0].cards.push(...Array<string>(20).fill('land-mountain'));
+const BATCH_B_VARIANTS = wave2BFixtureSave();
+const BATCH_B_CARD = WAVE_2B_LONGEST_CARD_IDS[0];
+const ownedFinishes: Record<string, number> = {};
+for (const frame of ['white', 'blue', 'red', 'gold', 'rainbow', 'black']) {
+  for (const holo of ['none', 'shiny', 'rainbow', 'pearlescent', 'fractal', 'void']) {
+    for (const fullArt of [false, true]) ownedFinishes[`${frame}|${holo}|${fullArt ? 'full-art' : 'standard'}`] = 5;
+  }
+}
+BATCH_B_VARIANTS.collectionVariants[BATCH_B_CARD] = ownedFinishes;
+BATCH_B_VARIANTS.collection[BATCH_B_CARD] = Object.values(ownedFinishes).reduce((a, b) => a + b, 0);
+const builderFixture = (extra: Partial<NonNullable<DeckBuilderSceneData['a11yFixture']>> = {}, deckId = WAVE_2B_FIXTURE_IDS.darlings as string): DeckBuilderSceneData => ({
+  deckId, a11yFixture: { save: BATCH_B_SAVE, ...extra },
+});
+export const WAVE_2B_SCENES: readonly ProbeScene[] = [
+  { label: 'Deck Builder / Darlings 79', key: 'DeckBuilder', data: builderFixture() },
+  { label: 'Deck Builder / full catalog', key: 'DeckBuilder', data: builderFixture({}, WAVE_2B_FIXTURE_IDS.fullCatalog) },
+  { label: 'Deck Builder / full catalog / last page', key: 'DeckBuilder', data: builderFixture({ page: Number.MAX_SAFE_INTEGER }, WAVE_2B_FIXTURE_IDS.fullCatalog) },
+  { label: 'Deck Builder / decks / last page', key: 'DeckBuilder', data: builderFixture({ modal: 'decks', pickerPage: Number.MAX_SAFE_INTEGER }) },
+  { label: 'Deck Builder / classic basics', key: 'DeckBuilder', data: builderFixture({ save: BATCH_B_CLASSIC }) },
+  { label: 'Deck Builder / empty', key: 'DeckBuilder', data: builderFixture({}, WAVE_2B_FIXTURE_IDS.empty) },
+  ...WAVE_2B_LONGEST_CARD_IDS.flatMap((focusCardId) => [false, true].map((touch) => ({
+    label: `Deck Builder / longest card / ${touch ? 'touch' : 'desktop'}`, key: 'DeckBuilder',
+    data: builderFixture({ focusCardId, touch }), requiredText: [CARD_DB[focusCardId].name],
+  }))),
+  ...(['warchest', 'style'] as const).map((mode) => ({ label: `Deck Builder / ${mode}`, key: 'DeckBuilder', data: builderFixture({ mode }) })),
+  ...(['decks', 'darling', 'reserve', 'landStyles', 'repair', 'rename', 'format', 'export', 'import', 'unsaved', 'filters'] as const)
+    .map((modal) => ({ label: `Deck Builder / ${modal}`, key: 'DeckBuilder', data: builderFixture({ modal }, modal === 'repair' ? WAVE_2B_FIXTURE_IDS.fullCatalog : WAVE_2B_FIXTURE_IDS.darlings) })),
+  { label: 'Deck Builder / set options', key: 'DeckBuilder', data: builderFixture({ modal: 'filters', filter: 'set' }) },
+  { label: 'Collection / full catalog', key: 'Collection', data: { a11yFixture: { save: BATCH_B_SAVE } } },
+  { label: 'Collection / empty', key: 'Collection', data: { a11yFixture: { save: BATCH_B_SAVE, cards: [] } } },
+  ...(['set', 'color', 'type', 'rarity', 'sort'] as const).map((openFilter) => ({
+    label: `Collection / ${openFilter} options`, key: 'Collection', data: { a11yFixture: { save: BATCH_B_SAVE, openFilter } },
+  })),
+  ...[0, 9, 71].map((variantPage) => ({ label: `Collection / all finishes / page ${variantPage}`, key: 'Collection',
+    data: { a11yFixture: { save: BATCH_B_VARIANTS, inspectCardId: BATCH_B_CARD, variantPage } } })),
+  { label: 'Collection / finish comparison', key: 'Collection', data: { a11yFixture: {
+    save: BATCH_B_VARIANTS, inspectCardId: BATCH_B_CARD, compareVariantIndex: 9 } } },
+  ...WAVE_2B_LONGEST_CARD_IDS.map((inspectCardId) => ({ label: 'Collection / longest card inspect', key: 'Collection',
+    data: { a11yFixture: { save: BATCH_B_SAVE, inspectCardId } }, requiredText: [CARD_DB[inspectCardId].name] })),
+];
+
 /** `SCENE_TITLE` scenes this probe cannot open without a fixture it does not build. */
 export const WAVE_1_SKIPPED: readonly { scene: string; reason: string }[] = [
   { scene: 'LimitedDraft', reason: 'needs a draft in progress; the Limited pass (accessibility wave 3) enrols it with a fixture' },
@@ -185,12 +234,6 @@ function contains(outer: ProbeRect, inner: ProbeRect): boolean {
     inner.y >= outer.y - EPS &&
     inner.x + inner.width <= outer.x + outer.width + EPS &&
     inner.y + inner.height <= outer.y + outer.height + EPS
-  );
-}
-
-function intersects(a: ProbeRect, b: ProbeRect): boolean {
-  return (
-    a.x < b.x + b.width - EPS && b.x < a.x + a.width - EPS && a.y < b.y + b.height - EPS && b.y < a.y + a.height - EPS
   );
 }
 
@@ -296,6 +339,9 @@ interface WalkedText {
   readonly panel: ProbeRect | null;
   /** The display-list layer: the index of its top-level ancestor (a modal is its own layer). */
   readonly layer: string;
+  readonly surface?: MenuTextSurface;
+  readonly depth: number;
+  readonly order: number;
 }
 
 function walkTexts(scene: Phaser.Scene): { texts: WalkedText[]; cardFaceTexts: number; maskedOut: number } {
@@ -309,6 +355,7 @@ function walkTexts(scene: Phaser.Scene): { texts: WalkedText[]; cardFaceTexts: n
     layer: string,
     onCard: boolean,
     clip: ProbeRect | null,
+    depth: number, order: number, surface?: MenuTextSurface,
   ): void => {
     const shown = object as Phaser.GameObjects.GameObject & Partial<Phaser.GameObjects.Components.Visible & Phaser.GameObjects.Components.Alpha>;
     if (shown.visible === false || shown.alpha === 0) return;
@@ -318,7 +365,9 @@ function walkTexts(scene: Phaser.Scene): { texts: WalkedText[]; cardFaceTexts: n
       const card = onCard || object instanceof CardView || object instanceof BoardCardView;
       const modal = modalPanelRect(object);
       const nextLayer = modal ? `${layer}/modal` : layer;
-      for (const child of object.list) visit(child, modal ?? panel, nextLayer, card, visibleArea);
+      const plate = modal ?? object.getData('a11ySurface') as ProbeRect | undefined;
+      const nextSurface = plate ? { id: layer, bounds: plate, depth, order } : surface;
+      for (const child of object.list) visit(child, modal ?? panel, nextLayer, card, visibleArea, depth, order, nextSurface);
       return;
     }
     if (!(object instanceof Phaser.GameObjects.Text) || object.text.trim() === '') return;
@@ -333,9 +382,9 @@ function walkTexts(scene: Phaser.Scene): { texts: WalkedText[]; cardFaceTexts: n
       return;
     }
     const m = object.getWorldTransformMatrix();
-    texts.push({ object, bounds, unclippedBounds: round(object.getBounds()), clip: visibleArea, scale: Math.min(Math.abs(m.scaleX), Math.abs(m.scaleY)), panel, layer });
+    texts.push({ object, bounds, unclippedBounds: round(object.getBounds()), clip: visibleArea, scale: Math.min(Math.abs(m.scaleX), Math.abs(m.scaleY)), panel, layer, surface, depth, order });
   };
-  scene.children.list.forEach((child, index) => visit(child, null, String(index), false, null));
+  scene.children.list.forEach((child, index) => visit(child, null, String(index), false, null, (child as Phaser.GameObjects.GameObject & Partial<Phaser.GameObjects.Components.Depth>).depth ?? 0, index));
   return { texts, cardFaceTexts, maskedOut };
 }
 
@@ -387,8 +436,7 @@ export function checkScene(scene: Phaser.Scene): Omit<ProbeSceneReport, 'scene'>
   for (let i = 0; i < texts.length; i++) {
     for (let j = i + 1; j < texts.length; j++) {
       const [a, b] = [texts[i], texts[j]];
-      const sameLayer = a.layer.includes('/modal') === b.layer.includes('/modal');
-      if (sameLayer && intersects(a.bounds, b.bounds)) {
+      if (menuTextOverlap(a, b)) {
         findings.push({ kind: 'overlap', text: label(a.object), bounds: a.bounds, detail: `"${label(b.object)}" ${JSON.stringify(b.bounds)}` });
       }
     }
@@ -442,8 +490,13 @@ async function openScene(game: Phaser.Game, spec: ProbeScene, settleMs: number):
   const data = spec.replayFixtures ? { ...spec.data, replays: fixtureReplays() } : spec.data;
   game.scene.start(spec.key, data);
   for (let i = 0; i < 200 && !game.scene.isActive(spec.key); i++) await wait(25);
+  const scene = game.scene.getScene(spec.key);
+  if (spec.key === 'DeckBuilder' || spec.key === 'Collection') {
+    for (let i = 0; i < 800 && scene.data.get('a11yReady') !== true; i++) await wait(25);
+    if (scene.data.get('a11yReady') !== true) throw new Error(`${spec.key} did not finish building its fixture`);
+  }
   await wait(settleMs);
-  return game.scene.getScene(spec.key);
+  return scene;
 }
 
 /**
@@ -509,6 +562,7 @@ export async function runA11yProbe(game: Phaser.Game, options: ProbeOptions = {}
           sceneReports.push({ scene: spec.label, ...result, findings });
           if (options.snapshots) snapshots[spec.label] = await snapshot(game);
         } catch (error) {
+          totalFindings++;
           sceneReports.push({ scene: spec.label, texts: 0, cardFaceTexts: 0, maskedOut: 0, findings: [], error: String(error) });
         }
       }

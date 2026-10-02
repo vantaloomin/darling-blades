@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DECK_POOL_LAYOUT, poolCellPosition } from '../../src/ui/deckPoolLayout';
 import { theme } from '../../src/ui/theme';
+import { forEachA11yCell } from './a11yCells';
 
 /**
  * The Deck Builder's pool side inside the title-safe frame (y 36-684): the
@@ -35,5 +36,26 @@ describe('deck builder pool layout', () => {
     expect(-grid.badgeOffsetY + grid.chipHitHeight / 2).toBeLessThanOrEqual(rowGapBelowCardAbove);
     // Nor the card in the column to its left.
     expect(-grid.chipOffsetX + grid.chipHitWidth / 2).toBeLessThanOrEqual(grid.pitchX - grid.cardWidth / 2);
+  });
+});
+
+describe('deck builder pool accessibility layout', () => {
+  it('keeps exempt card faces and their input bands inside the pool in every accessibility cell', () => {
+    forEachA11yCell(() => {
+      const grid = DECK_POOL_LAYOUT;
+      for (let index = 0; index < grid.cols * grid.rows; index++) {
+        const cell = poolCellPosition(index);
+        expect(cell.x - grid.cardWidth / 2).toBeGreaterThanOrEqual(theme.design.safeLeft);
+        expect(cell.x + grid.cardWidth / 2).toBeLessThanOrEqual(grid.paneLeft);
+        expect(cell.y - grid.cardHeight / 2).toBeGreaterThanOrEqual(grid.headerY + theme.control.minHitHeight / 2);
+        expect(cell.y + grid.cardHeight / 2).toBeLessThanOrEqual(grid.pagerY - theme.control.minHitHeight / 2);
+        expect(grid.chipHitHeight).toBeGreaterThanOrEqual(theme.control.minHitHeight);
+        if (index >= grid.cols) {
+          const previous = poolCellPosition(index - grid.cols);
+          expect(cell.y + grid.badgeOffsetY - grid.chipHitHeight / 2)
+            .toBeGreaterThanOrEqual(previous.y + grid.cardHeight / 2);
+        }
+      }
+    });
   });
 });

@@ -12,6 +12,7 @@ import { theme } from '../theme';
 import { Dropdown, type DropdownOption } from '../Dropdown';
 import { roundedTrigger, type RoundedTrigger } from '../themeWidgets';
 import { TIER_TEXT_COLOR } from '../theme';
+import { collectionFilterLayout, type CollectionFilterName } from '../collectionPresentation';
 
 /**
  * Tier text colours for chips and binder badges - the light stops of
@@ -32,6 +33,8 @@ export class FilterBar {
   private readonly dropdowns: Dropdown<string>[] = [];
   private readonly ownedPill: RoundedTrigger;
   private readonly state: CollectionFilterState;
+  private readonly top: number;
+  bottom = 0;
 
   constructor(
     scene: Phaser.Scene,
@@ -48,6 +51,7 @@ export class FilterBar {
   ) {
     this.state = state;
     const y = opts.y;
+    this.top = y - theme.control.minHitHeight / 2;
     const change = opts.onChange;
 
     const mk = <T extends string>(
@@ -57,12 +61,14 @@ export class FilterBar {
       get: () => T,
       set: (v: T) => void,
       minW = 96,
+      maxValueWidth = 150,
     ): void => {
       const dd = new Dropdown<T>(scene, x, y, {
         label,
         options,
         value: get(),
         minW,
+        maxValueWidth,
         onSelect: (v) => {
           set(v);
           this.reflow();
@@ -80,7 +86,7 @@ export class FilterBar {
     ];
     // The row starts on the title-safe frame's left edge (it started at x 55
     // until the 1.8 cut, 2026-09-23); reflow() places everything after it.
-    mk(theme.design.safeLeft, 'Set', setOpts, () => state.set, (v) => (state.set = v), 92);
+    mk(theme.design.safeLeft, 'Set', setOpts, () => state.set, (v) => (state.set = v), 92, 180);
 
     const colorOpts: DropdownOption<Color | 'all'>[] = [
       { value: 'all', label: 'All' },
@@ -126,6 +132,7 @@ export class FilterBar {
         opts.sortControl.get,
         opts.sortControl.set,
         230,
+        210,
       );
     } else {
       mk(775, 'Sort', sortOpts, () => state.sort, (v) => (state.sort = v), 92);
@@ -163,16 +170,24 @@ export class FilterBar {
    * The Owned pill is the row's last control and follows the same rule.
    */
   private reflow(): void {
-    const gap = theme.space(2);
-    let cursor: number | null = null;
-    for (const dd of this.dropdowns) {
-      const hit = dd.hitBounds();
-      if (cursor !== null) dd.setX(cursor - hit.x);
-      cursor = dd.containerX + hit.x + hit.width + gap;
-    }
-    if (cursor === null) return;
     const pill = this.ownedPill.getMeasuredBounds().hit;
-    this.ownedPill.container.x = cursor - pill.x;
+    const layout = collectionFilterLayout([...this.dropdowns.map((dd) => dd.hitBounds().width), pill.width], this.top);
+    this.dropdowns.forEach((dd, index) => {
+      const rect = layout.controls[index];
+      dd.setPosition(rect.x - dd.hitBounds().x, rect.y + rect.height / 2);
+    });
+    const rect = layout.controls[layout.controls.length - 1];
+    this.ownedPill.container.setPosition(rect.x - pill.x, rect.y + rect.height / 2);
+    this.bottom = layout.bottom;
+  }
+
+  /** Fixture entry and scene-level navigation guard share the real controls. */
+  open(name: CollectionFilterName): void {
+    this.dropdowns[['set', 'color', 'type', 'rarity', 'sort'].indexOf(name)]?.open();
+  }
+
+  get isOpen(): boolean {
+    return this.dropdowns.some((dd) => dd.isOpen);
   }
 
   private closeAllExcept(keep: Dropdown<string>): void {

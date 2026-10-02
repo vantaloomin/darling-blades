@@ -517,8 +517,21 @@ menu and Play passes (Play, Practice, Gauntlet). The rendered probe
 and the headless harness now count a truncated name or title as a finding:
 names in the Gauntlet's detail pane wrap to three lines at 115 and 130, and
 titles to two. Practice captions wrap, and the Gauntlet's Reward line stays
-outside the scrolling blurb. Deck Builder, Collection, Shop and Profile
-follow; the Duel comes last.
+outside the scrolling blurb. Batch B adds Deck Builder and Collection, with
+live typography and chrome tokens, content-sized dialogs, whole-line scrolling
+for repair/status text, and measured, paged deck and finish lists. At 100%,
+deck lists preserve the release profiles: 28px pitch and six rows on desktop,
+44px and five on touch. Wrapped text grows individual rows; inflated input
+bounds stay disjoint, and the pager shares the mana-curve heading band.
+Deck/card/set
+identities wrap; compact filter triggers may abbreviate because the full option
+is one tap away. `WAVE_2B_SCENES` covers 34 scenarios in each of the six cells
+(204 rendered checks, 0 findings), alongside the enrolled headless layout
+sweeps. Fixtures include the longest canonical deck and card names, a legal
+79-card Darlings deck, the full 1,648-card collectible catalog, all 72 finishes,
+last pages and 9,999,999 gold. Saved lists have no finite maximum, so the full
+catalog is the bounded stress fixture. Card faces remain exempt. Shop and
+Profile follow; the Duel comes last.
 
 One pass per scene: literal sizes and raw chrome colours to tokens,
 literal-height modals made content-sized or scrolling, the cues applied, and

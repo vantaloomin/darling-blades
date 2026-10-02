@@ -1,4 +1,10 @@
 import Phaser from 'phaser';
+import { IS_DEV } from '../platform/env';
+import { currentAccessibility } from '../ui/accessibility';
+import { fitMenuName } from '../ui/menuText';
+import { bindMenuScroll } from '../ui/menuScroll';
+import { menuLineHeight, menuNoticeLayout } from '../ui/mainMenuPresentation';
+import type { SaveData } from '../meta/SaveManager';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { SET_ICON_PATHS } from '../art/setIcons';
@@ -6,11 +12,12 @@ import { isLiveSet } from '../data/liveness';
 import { SET_IDS, SET_TITLES } from '../data/setTitles';
 import { FEATURES } from '../config/features';
 import { RULES } from '../config/rules';
+import { CARD_FACE_H } from '../config/cardFaceGeometry';
 import { heroById } from '../data/heroes';
 import { ALL_CARDS, CARD_DB, byId } from '../data/catalog';
 import type { CardDef, CardType, Color, Rarity } from '../engine/types';
 import { def, isType, manaValue } from '../engine/types';
-import { displayVariantFor, isBasic, ownedCount } from '../meta/Collection';
+import { displayVariantFor, ownedCount } from '../meta/Collection';
 import {
   applyFilters,
   collectiblePool,
@@ -66,21 +73,21 @@ import { showDarlingsTutorial } from '../ui/DarlingsTutorial';
 import { computeDeckStats, curveBars, deckCountsLine, deckPipCounts, PIE_COLORS } from '../ui/deckStats';
 import {
   DECK_PANE_LAYOUT,
-  DECK_PICKER_LAYOUT,
-  constructedBasicsRowY,
-  constructedListTop,
+  deckPickerLayout,
+  deckPaneHeaderLayout,
+  deckPaneSummaryLayout,
+  deckReserveLayout,
   deckPaneOffsetY,
   deckPickerTilePosition,
   deckPaneToggleState,
-  deckRowCenterY,
   deckStatusTone,
   defaultDeckPaneMode,
   resolveDeckPaneMode,
   warchestSlotLabel,
-  warchestSlotPosition,
   type DeckPaneMode,
   type DeckStatusMessage,
 } from '../ui/deckPanePresentation';
+import { deckListLayout, deckListProfile } from '../ui/deckListPaging';
 import { DECK_POOL_LAYOUT, poolCellPosition } from '../ui/deckPoolLayout';
 import { Dropdown, type DropdownOption } from '../ui/Dropdown';
 import { gateOnPagedArt, PAGE_ART_HOLD_MS, PagedArt } from '../ui/artGate';
@@ -133,23 +140,11 @@ import {
 
 const GRID_SIZE = DECK_POOL_LAYOUT.cols * DECK_POOL_LAYOUT.rows;
 const DECK_CODE_CARD_IDS = ALL_CARDS.map((card) => card.id);
-/** Touch profile: deck-list rows per page and their pitch (plan §1.4). */
-const TOUCH_DECK_ROWS = 5;
-const TOUCH_DECK_PITCH = 44;
-/** Desktop profile: denser tap-to-remove rows, same paging model (no hard clip). */
-const DESKTOP_DECK_ROWS = 6;
-const DESKTOP_DECK_PITCH = DECK_PANE_LAYOUT.cards.rowPitch;
 /**
  * How long an armed deck Delete waits for its second press, as Settings'
  * Reset and the Gauntlet's Abandon do.
  */
 const DELETE_ARM_MS = 4000;
-/** Deck-list pager row + the stats block below it (F13), both cleared by the shorter list. */
-const DECK_PAGER_Y = DECK_PANE_LAYOUT.summary.pagerY;
-const DECK_STATS_Y = DECK_PANE_LAYOUT.summary.statsHeadingY;
-// Rows stop clear of the stats heading band (isolation pass 2026-08-18),
-// which lifted 24px with the rest of the summary stack on 2026-08-25.
-const DECK_ROW_TRACK_BOTTOM = DECK_STATS_Y - 32;
 /**
  * The right panel's content column. Its fill runs from DECK_PANE_LAYOUT.panelX
  * to the screen edge, and the content sits between the pane's left edge and
@@ -168,7 +163,14 @@ const POOL_SEARCH_X = FILTER_BUTTON_X - FILTER_BUTTON_WIDTH / 2 - theme.space(3)
 /** The pool-filter popover opens on the title-safe frame's left edge. */
 const FILTER_PANEL = { x: theme.design.safeLeft, y: 82, width: 300, height: 554, inset: 24 } as const;
 const DECK_NAME_MAX_LENGTH = 24;
-const DARLING_PAGE_SIZE = 6;
+
+export interface DeckBuilderSceneData {
+  deckId?: string;
+  /** Read-only dev fixture clone; never installed in Services. */
+  a11yFixture?: { save: SaveData; mode?: DeckPaneMode; page?: number; touch?: boolean; focusCardId?: string; pickerPage?: number;
+    modal?: 'decks' | 'darling' | 'reserve' | 'landStyles' | 'repair' | 'rename' | 'format' | 'export' | 'import' | 'unsaved' | 'filters';
+    filter?: 'set' | 'color' | 'type' | 'rarity' | 'sort' };
+}
 
 interface DeckHeroDisplay {
   name: string;
@@ -180,7 +182,7 @@ interface DeckHeroDisplay {
  * Edit the active deck: paged owned-card pool left, deck list + basics right.
  *
  * The deck list has two profiles (mobile-lan-plan §1.4). Desktop keeps the
- * dense 22px rows where the row itself is tap-to-remove. On touch devices the
+ * dense 28px rows where the row itself is tap-to-remove. On touch devices the
  * audited hazard — 1.6mm-tall rows where every tap is a DESTRUCTIVE remove —
  * is replaced wholesale: bigger row pitch, removal only via an explicit
  * per-row − button (90px hit box), and page controls instead of the y>560
@@ -188,6 +190,11 @@ interface DeckHeroDisplay {
  * steppers can carry pitch-filling hit boxes.
  */
 export class DeckBuilderScene extends Phaser.Scene {
+  private fixtureSave: SaveData | null = null;
+  private fixtureFocusCardId: string | null = null;
+  private fixturePickerPage = 0;
+  private get save(): SaveData { return this.fixtureSave ?? Services.save.data; }
+  private flush(): void { if (!this.fixtureSave) Services.save.flush(); }
   private deck: string[] = [];
   private variantPins: Array<string | null> = [];
   private page = 0;
@@ -205,6 +212,9 @@ export class DeckBuilderScene extends Phaser.Scene {
   private paneRowCards: string[] = [];
   private poolPager!: Pager;
   private status!: Phaser.GameObjects.Text;
+  private statusScroll: Phaser.GameObjects.Container | null = null;
+  private headerLayout = deckPaneHeaderLayout();
+  private summaryLayout = deckPaneSummaryLayout();
   private zoom!: CardZoomPreview;
   private deckCodeOverlay: Phaser.GameObjects.Container | null = null;
   private searchInput: Phaser.GameObjects.DOMElement | null = null;
@@ -244,7 +254,7 @@ export class DeckBuilderScene extends Phaser.Scene {
 
   /** Collection-context previews use the player's shared display treatment. */
   private ownedVariantFor(cardId: string): CardVariant | undefined {
-    const save = Services.save.data;
+    const save = this.save;
     if (ownedCount(save, cardId) <= 0) return undefined;
     const variant = displayVariantFor(save, cardId);
     return variantKey(variant) === variantKey(PLAIN_VARIANT) ? undefined : variant;
@@ -252,7 +262,7 @@ export class DeckBuilderScene extends Phaser.Scene {
 
   /** A collection pin or retained legacy slot pin keeps a collapsed row legible. */
   private hasPinnedDisplay(cardId: string, hasLegacyVariantPin = false): boolean {
-    return hasLegacyVariantPin || typeof Services.save.data.pinnedVariants[cardId] === 'string';
+    return hasLegacyVariantPin || typeof this.save.pinnedVariants[cardId] === 'string';
   }
 
   /**
@@ -260,10 +270,15 @@ export class DeckBuilderScene extends Phaser.Scene {
    * the builder builds at once and asks for art page by page; with the 1.8
    * queue it waits for the whole set, as it always did.
    */
-  create(data: { deckId?: string } = {}): void {
+  create(data: DeckBuilderSceneData = {}): void {
+    this.sys.settings.data = {};
+    this.data.set('a11yReady', false);
+    this.fixturePickerPage = IS_DEV ? data.a11yFixture?.pickerPage ?? 0 : 0;
+    this.fixtureFocusCardId = IS_DEV ? data.a11yFixture?.focusCardId ?? null : null;
+    this.fixtureSave = IS_DEV && data.a11yFixture ? structuredClone(data.a11yFixture.save) : null;
     gateOnPagedArt(this, () => this.build(data));
   }
-  private build(data: { deckId?: string }): void {
+  private build(data: DeckBuilderSceneData): void {
     this.reserveFormatsEnabled = FEATURES.reserveFormats;
     this.classicRetired = FEATURES.classicRetired;
     this.workingDeckId = null;
@@ -275,7 +290,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.deckPaneMode = defaultDeckPaneMode();
     this.filterState = { ...defaultFilterState(), ownedOnly: true };
     this.statusMessage = null;
-    this.touch = isTouchDevice();
+    this.touch = IS_DEV && data.a11yFixture?.touch !== undefined ? data.a11yFixture.touch : isTouchDevice();
     this.cells = [];
     this.rightPane = [];
     this.deckCodeOverlay = null;
@@ -285,7 +300,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.filterDropdownRefreshers = [];
     this.unsavedPrompt = null;
 
-    const save = Services.save.data;
+    const save = this.save;
     const requested = typeof data.deckId === 'string'
       ? save.decks.find((deck) => deck.id === data.deckId) ?? null
       : null;
@@ -301,7 +316,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     // the right 400px), so it's drawn after applyBackdrop, not inside it.
     applyBackdrop(this, 'deckbuilder', {
       dim: theme.graphics.dim,
-      dimAlpha: 0.55,
+      dimAlpha: currentAccessibility().highContrast ? theme.alpha.overlayDim : 0.55,
       fallback: () => {
         const grad = this.add.graphics();
         grad.fillGradientStyle(theme.graphics.panelFill, theme.graphics.panelFill, theme.graphics.dim, theme.graphics.dim, 1);
@@ -368,7 +383,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       if (dy === 0 || pagingBlocked()) return;
       const dir = dy > 0 ? 1 : -1;
       if (p.x >= DECK_PANE_LAYOUT.left) {
-        if (this.deckPaneMode !== 'cards') return;
+        if (this.deckPaneMode !== 'cards' || p.worldY >= this.summaryLayout.pagerY - theme.control.minHitHeight / 2) return;
         this.deckPage += dir; // renderDeckRows clamps to the real page count
         this.renderDeck();
         return;
@@ -399,8 +414,7 @@ export class DeckBuilderScene extends Phaser.Scene {
         color: theme.colors.danger,
         wordWrap: { width: 360 },
       })
-      .setOrigin(0, 1)
-      .setMaxLines(2);
+      .setOrigin(0, 0);
 
     this.zoom = new CardZoomPreview(this, {
       scale: 1.12,
@@ -411,10 +425,14 @@ export class DeckBuilderScene extends Phaser.Scene {
       rightX: 690,
     });
 
+    if (IS_DEV && data.a11yFixture) {
+      this.deckPaneMode = data.a11yFixture.mode ?? 'cards';
+      this.deckPage = data.a11yFixture.page ?? 0;
+    }
     this.renderPool();
     this.renderDeck();
     this.syncFilterButton();
-    if (this.activeFormat() === 'darlings') {
+    if (this.activeFormat() === 'darlings' && !this.fixtureSave) {
       showDarlingsTutorial(this, {
         onReadMore: () => this.scene.start('Glossary', {
           focus: 'Darlings',
@@ -422,6 +440,25 @@ export class DeckBuilderScene extends Phaser.Scene {
         }),
       });
     }
+    if (IS_DEV && data.a11yFixture) {
+      switch (data.a11yFixture.modal) {
+        case 'decks': this.openDeckPicker(); break;
+        case 'darling': this.showDarlingPicker(); break;
+        case 'reserve': this.showReserveLandPicker(0); break;
+        case 'landStyles': this.showLandStylesModal(); break;
+        case 'repair': this.showRepairModal(this.currentIssues().filter((i) => i.kind === 'error')); break;
+        case 'rename': if (this.workingDeckId) this.promptRename(this.workingDeckId); break;
+        case 'format': this.showNewDeckFormatPrompt(() => {}); break;
+        case 'export': this.exportDeckCode(); break;
+        case 'import': this.showDeckCodeOverlay('import'); break;
+        case 'unsaved': this.deck.push(BASIC_LAND_IDS[0]); this.confirmUnsavedChanges('leave', () => {}); break;
+        case 'filters':
+          this.openFilterPanel();
+          if (data.a11yFixture.filter) this.filterDropdowns[['set','color','type','rarity','sort'].indexOf(data.a11yFixture.filter)]?.open();
+          break;
+      }
+    }
+    this.data.set('a11yReady', true);
   }
 
   private activeFormat(): BuilderFormat {
@@ -461,10 +498,10 @@ export class DeckBuilderScene extends Phaser.Scene {
   private issuesFor(target: DeckCodeImportTarget, cards: readonly string[]): ReturnType<typeof validateDeck> {
     const { format, darlingId, landReserve } = target;
     if (format === 'darlings') {
-      return validateDarlingsDeck(CARD_DB, Services.save.data, cards, darlingId, landReserve);
+      return validateDarlingsDeck(CARD_DB, this.save, cards, darlingId, landReserve);
     }
     if (format === 'warchest') {
-      return validateWarchestDeck(CARD_DB, Services.save.data, cards, landReserve);
+      return validateWarchestDeck(CARD_DB, this.save, cards, landReserve);
     }
     // A classic deck opened after retirement is blocked by its FORMAT, not by
     // its card count. Reporting the 60-card check first told the player to add
@@ -472,7 +509,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     // conversion that actually unblocks it (user report 2026-08-24). deckHealth
     // is the authority on that; lead with its sentence and keep the ordinary
     // legality issues behind it so nothing is hidden.
-    const issues = validateDeck(CARD_DB, Services.save.data, cards);
+    const issues = validateDeck(CARD_DB, this.save, cards);
     if (this.classicRetired) {
       return [{ kind: 'error', message: CLASSIC_RETIRED_ISSUE }, ...issues];
     }
@@ -484,7 +521,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     const cards = collectiblePool(ALL_CARDS).filter(
       (card) => !this.isReserveFormat() || !card.types.includes('land'),
     );
-    return applyFilters(cards, this.filterState, Services.save.data);
+    return applyFilters(cards, this.filterState, this.save);
   }
 
   private turnPage(dir: number): void {
@@ -526,6 +563,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.filterPanel = panel;
 
     const f = FILTER_PANEL;
+    panel.setData('a11ySurface', f);
     const bg = themedPanel(this, f.x, f.y, f.width, f.height, { alpha: 0.98, strokeAlpha: theme.alpha.chrome });
     // A Graphics has no hit area, so `bg.setInteractive()` swallowed nothing:
     // a tap on the panel's empty space fell through and added the pool card
@@ -564,13 +602,14 @@ export class DeckBuilderScene extends Phaser.Scene {
         options,
         value: get(),
         minW,
+        maxValueWidth: 120,
         onSelect: (v) => {
           set(v);
           this.applyPoolFilterChange();
         },
         onOpen: () => this.closeFilterDropdownsExcept(dd as unknown as Dropdown<string>),
       });
-      dd.button.setDepth(81);
+      dd.setDepth(81);
       this.filterDropdowns.push(dd as unknown as Dropdown<string>);
       this.filterDropdownRefreshers.push(() => dd.setValue(get()));
     };
@@ -739,7 +778,7 @@ export class DeckBuilderScene extends Phaser.Scene {
 
   /** The pool grid's cells for `page` of `pool`. */
   private drawPoolPage(pool: CardDef[], page: number): void {
-    const save = Services.save.data;
+    const save = this.save;
     if (pool.length === 0) {
       const emptyCopy = this.activePoolFilterCount() > 0 ? 'No owned cards match these filters.' : 'No cards in this set yet.';
       const grid = DECK_POOL_LAYOUT;
@@ -802,7 +841,7 @@ export class DeckBuilderScene extends Phaser.Scene {
   }
 
   private addCard(id: string): void {
-    const save = Services.save.data;
+    const save = this.save;
     const card = CARD_DB[id];
     if (!card || (this.isReserveFormat() && card.types.includes('land'))) return;
     const inDeck = this.countIn(this.deck, id);
@@ -825,7 +864,7 @@ export class DeckBuilderScene extends Phaser.Scene {
   private addPlayset(id: string): void {
     const card = CARD_DB[id];
     if (!card || (this.isReserveFormat() && card.types.includes('land'))) return;
-    const cap = Math.min(this.copyLimit(), ownedCount(Services.save.data, id));
+    const cap = Math.min(this.copyLimit(), ownedCount(this.save, id));
     this.statusMessage = null;
     const additions = new Array(Math.max(0, cap - this.countIn(this.deck, id))).fill(id);
     const next = appendDeckSlots({ cards: this.deck, variantPins: this.variantPins }, additions);
@@ -865,7 +904,7 @@ export class DeckBuilderScene extends Phaser.Scene {
   }
 
   private activeSavedDeck(): SavedDeck | null {
-    const save = Services.save.data;
+    const save = this.save;
     return save.decks.find((d) => d.id === this.workingDeckId) ?? null;
   }
 
@@ -912,7 +951,7 @@ export class DeckBuilderScene extends Phaser.Scene {
    * saved deck that cannot be played is shown as such and never seated.
    */
   private saveWorkingDeck(): void {
-    const save = Services.save.data;
+    const save = this.save;
     const format = this.activeFormat();
     // The working deck, never save.activeDeckId: when a hidden reserve deck is
     // still the save's active deck, writing to that id would overwrite the very
@@ -940,7 +979,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.workingDarlingId = saved?.darlingId ?? null;
     this.savedDeckSnapshot = deckBaseline(saved);
     if (saved) this.acknowledgeUnplayableDeck(saved);
-    Services.save.flush();
+    this.flush();
     // The status band's issue line under this says what still stands between
     // the deck and a duel.
     this.statusMessage = this.currentIssues().some((issue) => issue.kind === 'error')
@@ -957,7 +996,7 @@ export class DeckBuilderScene extends Phaser.Scene {
   private commitSavedRecord(deck: SavedDeck): void {
     this.savedDeckSnapshot = deckBaseline(deck);
     this.acknowledgeUnplayableDeck(deck);
-    Services.save.flush();
+    this.flush();
   }
 
   /**
@@ -967,7 +1006,7 @@ export class DeckBuilderScene extends Phaser.Scene {
    * gets it, and the menu forgets this one once it can be played.
    */
   private acknowledgeUnplayableDeck(deck: SavedDeck): void {
-    const save = Services.save.data;
+    const save = this.save;
     if (!deckHealth(CARD_DB, save, deck).blocked) return;
     save.deckRepairNoticeAck = acknowledgeDeckRepairNotice(save.deckRepairNoticeAck, deck.id);
   }
@@ -994,9 +1033,11 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.setSearchInputVisible(false);
     const copy = unsavedChangesCopy(path, this.currentIssues().some((issue) => issue.kind === 'error'));
     const staying = path !== 'leave';
+    const body = this.add.text(0, 0, copy.body, { fontFamily: theme.fonts.ui, fontSize: theme.type.body,
+      color: theme.colors.body, align: 'center', wordWrap: { width: 640 }, lineSpacing: theme.space(1) }).setOrigin(0.5);
+    const notice = menuNoticeLayout(720, menuLineHeight(theme.type.h1), body.height);
     const shell = modalShell(this, {
-      width: 620,
-      height: 300,
+      ...notice,
       dimAlpha: 0.82,
       dismissal: 'dismissible',
       onClose: () => {
@@ -1012,19 +1053,13 @@ export class DeckBuilderScene extends Phaser.Scene {
       fontSize: `${theme.type.h1}px`,
       color: theme.colors.heading,
     }).setOrigin(0.5));
-    c.add(this.add.text(640, contentBounds.y + contentBounds.height / 2, copy.body, {
-      fontFamily: theme.fonts.ui,
-      fontSize: `${theme.type.body}px`,
-      color: theme.colors.body,
-      align: 'center',
-      wordWrap: { width: 540 },
-      lineSpacing: 4,
-    }).setOrigin(0.5));
+    body.setPosition(640, contentBounds.y + contentBounds.height / 2);
+    c.add(body);
     // Three buttons (150 + 190 + 150) with 36px gaps span 562px, centred in
     // the 620px shell: 359..921 against panel edges at 330 and 950. The prior
     // 420/640/880 spacing pushed Keep Editing to 955 and off the panel.
     const footerY = footerTrack.y + footerTrack.height / 2;
-    const save = themedButton(this, 434, footerY, 'Save Deck', {
+    const save = themedButton(this, 0, footerY, 'Save Deck', {
       variant: 'primary',
       minWidth: 150,
       onTap: () => {
@@ -1037,13 +1072,13 @@ export class DeckBuilderScene extends Phaser.Scene {
         proceed();
       },
     });
-    const discard = themedButton(this, 640, footerY, copy.discardLabel, {
+    const discard = themedButton(this, 0, footerY, copy.discardLabel, {
       variant: 'danger',
       minWidth: 190,
       onTap: () => {
         shell.close();
-        restoreDeckBaseline(Services.save.data.decks, this.savedDeckSnapshot, this.workingDeckId);
-        Services.save.flush();
+        restoreDeckBaseline(this.save.decks, this.savedDeckSnapshot, this.workingDeckId);
+        this.flush();
         if (staying) {
           // Same deck, so its baseline stays; the working copy returns to it.
           this.loadWorkingDeck(this.activeSavedDeck());
@@ -1054,12 +1089,16 @@ export class DeckBuilderScene extends Phaser.Scene {
         proceed();
       },
     });
-    const cancel = themedButton(this, 846, footerY, 'Keep Editing', {
+    const cancel = themedButton(this, 0, footerY, 'Keep Editing', {
       variant: 'ghost',
       minWidth: 150,
       onTap: shell.close,
     });
-    c.add([save.container, discard.container, cancel.container]);
+    const buttons = [save, discard, cancel];
+    const widths = buttons.map((button) => button.getMeasuredSize().hit.width);
+    let cursor = 640 - (widths.reduce((sum, width) => sum + width, 0) + theme.space(6) * 2) / 2;
+    buttons.forEach((button, index) => { button.container.setX(cursor + widths[index] / 2); cursor += widths[index] + theme.space(6); });
+    c.add(buttons.map((button) => button.container));
   }
 
   private deckHeroId(): string | null {
@@ -1080,7 +1119,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       text: next ? `Hero Image: ${def(CARD_DB, id).name}` : 'Hero image cleared.',
       tone: 'success',
     };
-    Services.save.flush();
+    this.flush();
     Sfx.play('shimmer');
     this.renderDeck();
   }
@@ -1095,7 +1134,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     if (next) styles[basicId] = next;
     else delete styles[basicId];
     deck.landStyle = Object.keys(styles).length > 0 ? styles : null;
-    Services.save.flush();
+    this.flush();
     if (rerenderDeck) this.renderDeck();
     return next;
   }
@@ -1149,8 +1188,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.zoom.setSuppressed(true);
 
     const shell = modalShell(this, {
-      width: 620,
-      height: 520,
+      ...menuNoticeLayout(620, menuLineHeight(theme.type.h2), BASIC_LAND_IDS.length * (theme.control.minHitHeight + theme.space(4)) - theme.space(2)),
       dimAlpha: 0.52,
       depth: theme.depth.inspect,
       dismissal: 'esc-and-close',
@@ -1173,7 +1211,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     );
 
     const bounds = shell.contentBounds;
-    const rowPitch = 60;
+    const rowPitch = theme.control.minHitHeight + theme.space(4);
     const rowY0 = bounds.y + 26;
     // The previews on show hold their art until the modal closes.
     const previewArt = new PagedArt(this, 'land-styles', { owner: overlay });
@@ -1299,10 +1337,17 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.closeFilterPanel();
     this.setSearchInputVisible(false);
     this.zoom.setSuppressed(true);
-    const candidates = listOwnedLegendaryCreatures(CARD_DB, Services.save.data);
+    const candidates = listOwnedLegendaryCreatures(CARD_DB, this.save);
+    const measure = this.add.text(0, 0, '', { fontFamily: theme.fonts.ui, fontSize: theme.type.caption,
+      wordWrap: { width: 208 }, align: 'center' }).setVisible(false);
+    const nameHeight = Math.max(menuLineHeight(theme.type.caption), ...candidates.map((card) => { measure.setText(card.name); return measure.height; }));
+    measure.destroy();
+    const rules = this.add.text(0, 0, DARLINGS_RULES_COPY, { fontFamily: theme.fonts.ui, fontSize: theme.type.caption,
+      color: theme.colors.body, align: 'center', wordWrap: { width: 700 } }).setOrigin(0.5, 0);
+    const galleryHeight = rules.height + theme.space(4) + 420 * 0.22 + theme.space(3) + nameHeight + theme.space(3) + theme.control.minHitHeight;
+    const picker = menuNoticeLayout(850, menuLineHeight(theme.type.h1), galleryHeight);
     const shell = modalShell(this, {
-      width: 850,
-      height: 570,
+      ...picker,
       dimAlpha: 0.56,
       depth: theme.depth.inspect,
       dismissal: 'esc-and-close',
@@ -1316,22 +1361,15 @@ export class DeckBuilderScene extends Phaser.Scene {
     // Shell panel spans y 75-645: keep the header inside it, the copy narrow
     // enough to clear the corner close button, and both above row 1 (top 162).
     overlay.add(
-      this.add.text(640, 108, 'Choose your Darling', {
+      this.add.text(640, shell.tracks.titleTrack.y + shell.tracks.titleTrack.height / 2, 'Choose your Darling', {
         fontFamily: theme.fonts.display,
         fontSize: `${theme.type.h1}px`,
         color: theme.colors.heading,
       }).setOrigin(0.5),
     );
-    overlay.add(
-      this.add.text(640, 142, DARLINGS_RULES_COPY, {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.caption}px`,
-        color: theme.colors.body,
-        align: 'center',
-        wordWrap: { width: 620 },
-      }).setOrigin(0.5),
-    );
-    const pageSize = DARLING_PAGE_SIZE;
+    rules.setPosition(640, shell.contentBounds.y);
+    overlay.add(rules);
+    const pageSize = 3;
     const pages = formatPageCount(candidates.length, pageSize);
     // The page on show is leased at `visible` and the pages either side are
     // prefetched at `soon`, until the picker closes.
@@ -1382,15 +1420,16 @@ export class DeckBuilderScene extends Phaser.Scene {
         return;
       }
       visible.forEach((candidate, index) => {
-        const position = gridPosition(index, 3, 355, 208, 190, 150);
+        const position = gridPosition(index, 3, 400, shell.contentBounds.y + rules.height + theme.space(4) + 420 * 0.22 / 2, 240, 0);
         const thumb = makeCardThumb(this, position.x, position.y, candidate, 0.22, undefined, this.ownedVariantFor(candidate.id));
-        const name = this.add.text(position.x, position.y + 72, candidate.name, {
+        const name = this.add.text(position.x, position.y + 420 * 0.22 / 2 + theme.space(3), candidate.name, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           color: theme.colors.body,
         }).setOrigin(0.5);
-        this.fitTextToWidth(name, 150);
-        const button = themedButton(this, position.x, position.y + 101, 'Choose', {
+        name.setOrigin(0.5, 0);
+        fitMenuName(name, 208, Number.POSITIVE_INFINITY);
+        const button = themedButton(this, position.x, position.y + 420 * 0.22 / 2 + theme.space(3) + nameHeight + theme.space(3) + theme.control.minHitHeight / 2, 'Choose', {
           variant: 'primary',
           size: 'sm',
           minWidth: 108,
@@ -1402,7 +1441,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       pageControl?.refresh(Math.max(0, nextPage), pages);
     };
     if (pages > 1) {
-      pageControl = pager(this, 590, 500, 0, pages, renderPage);
+      pageControl = pager(this, 590, shell.tracks.footerTrack.y + shell.tracks.footerTrack.height / 2, 0, pages, renderPage);
       overlay.add(pageControl.container);
     }
     renderPage(0);
@@ -1411,7 +1450,7 @@ export class DeckBuilderScene extends Phaser.Scene {
   private reserveLandChoices(): CardDef[] {
     const darlingId = this.activeDarlingId();
     return Object.values(CARD_DB)
-      .filter((card) => isBasicLand(card) || (isDualLand(card) && ownedCount(Services.save.data, card.id) > 0))
+      .filter((card) => isBasicLand(card) || (isDualLand(card) && ownedCount(this.save, card.id) > 0))
       .filter((card) => !darlingId || darlingsCardError(CARD_DB, darlingId, card.id) === null)
       // Basics first: they are the unlimited, always-legal pick the subtitle
       // advertises, and a flat alphabetical sort buried them on later pages
@@ -1438,9 +1477,22 @@ export class DeckBuilderScene extends Phaser.Scene {
   }
 
   private showReserveLandPicker(index: number): void {
+    const choices: Array<{ id: string | null; label: string; pips: string[]; tapped: boolean }> = [
+      { id: null, label: 'Remove land', pips: [], tapped: false },
+      ...this.reserveLandChoices().map((card) => ({
+        id: card.id,
+        label: card.name,
+        pips: [...(card.manaAbility ?? [])],
+        tapped: card.entersTapped === true,
+      })),
+    ];
+    const measure = this.add.text(0, 0, '', { fontFamily: theme.fonts.ui, fontSize: theme.type.caption,
+      fontStyle: theme.weight.w600, wordWrap: { width: 252, useAdvancedWrap: true } }).setVisible(false);
+    const rowHeight = Math.max(theme.control.minHitHeight, ...choices.map((choice) => { measure.setText(choice.label); return measure.height + theme.space(2); }));
+    measure.destroy();
+    const rowPitch = rowHeight + theme.space(3);
     const shell = modalShell(this, {
-      width: 760,
-      height: 560,
+      ...menuNoticeLayout(980, menuLineHeight(theme.type.h2), 2 * menuLineHeight(theme.type.caption) + theme.space(4) + 4 * rowPitch),
       dimAlpha: 0.56,
       depth: theme.depth.inspect,
       dismissal: 'dismissible',
@@ -1472,15 +1524,6 @@ export class DeckBuilderScene extends Phaser.Scene {
     // nothing but its name: "Ash Ballroom" told a player nothing about what it
     // taps for or whether it arrives tapped (player report, 2026-08-24). Each
     // choice now carries its colour pips and a tapped marker.
-    const choices: Array<{ id: string | null; label: string; pips: string[]; tapped: boolean }> = [
-      { id: null, label: 'Remove land', pips: [], tapped: false },
-      ...this.reserveLandChoices().map((card) => ({
-        id: card.id,
-        label: card.name,
-        pips: [...(card.manaAbility ?? [])],
-        tapped: card.entersTapped === true,
-      })),
-    ];
     const pageSize = 8;
     const pages = formatPageCount(choices.length, pageSize);
     let items: Phaser.GameObjects.GameObject[] = [];
@@ -1492,11 +1535,12 @@ export class DeckBuilderScene extends Phaser.Scene {
     const renderPage = (nextPage: number): void => {
       clear();
       formatPageSlice(choices, Math.max(0, nextPage), pageSize).forEach((choice, choiceIndex) => {
-        const position = gridPosition(choiceIndex, 2, centerX - 188, content.y + theme.space(11), 301, 62);
+        const position = gridPosition(choiceIndex, 2, centerX - 230, content.y + 2 * menuLineHeight(theme.type.caption) + theme.space(4) + rowHeight / 2, 440, rowPitch);
         const button = themedButton(this, position.x, position.y, choice.label, {
           variant: choice.id === this.landReserve[index] ? 'primary' : 'ghost',
           size: 'sm',
-          minWidth: 196,
+          minWidth: 276,
+          maxTextWidth: 252,
           onTap: () => {
             this.setReserveSlot(index, choice.id);
             shell.close();
@@ -1505,7 +1549,7 @@ export class DeckBuilderScene extends Phaser.Scene {
         overlay.add(button.container);
         items.push(button.container);
         // Pips sit outside the button so they never fight its label for room.
-        let pipX = position.x + 108;
+        let pipX = position.x + 156;
         for (const pip of choice.pips) {
           const key = `pip-${pip}`;
           if (!this.textures.exists(key)) continue;
@@ -1530,7 +1574,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       pageControl?.refresh(Math.max(0, nextPage), pages);
     };
     if (pages > 1) {
-      pageControl = pager(this, centerX, content.y + content.height - theme.space(6), 0, pages, renderPage);
+      pageControl = pager(this, centerX - 50, shell.tracks.footerTrack.y + shell.tracks.footerTrack.height / 2, 0, pages, renderPage);
       overlay.add(pageControl.container);
     }
     renderPage(0);
@@ -1543,7 +1587,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     // toggle's Warchest label (owner finding, 2026-08-18). Render only a
     // genuine choice.
     if (tabs.length < 2) return;
-    const layout = DECK_PANE_LAYOUT.formatRow;
+    const layout = { ...DECK_PANE_LAYOUT.formatRow, y: this.headerLayout.formatY };
     // A retired classic deck matches none of the offered tabs, so the row would
     // otherwise render with nothing lit and read as a bug rather than as a deck
     // sitting on a format that is no longer playable (user report 2026-08-24).
@@ -1750,7 +1794,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.styleShell = openCosmeticPicker(this, {
       kind,
       currentId: (kind === 'cardBack' ? active.cardBack : active.playmat) ?? null,
-      owned: Services.save.data.cosmetics.owned,
+      owned: this.save.cosmetics.owned,
       subtitle: `Style for ${active.name}. This deck only.`,
       onEquip: (id) => {
         const deck = this.activeSavedDeck();
@@ -1760,7 +1804,7 @@ export class DeckBuilderScene extends Phaser.Scene {
         const value = id === (kind === 'cardBack' ? DEFAULT_CARD_BACK_ID : DEFAULT_PLAYMAT_ID) ? null : id;
         if (kind === 'cardBack') deck.cardBack = value;
         else deck.playmat = value;
-        Services.save.touch();
+        if (!this.fixtureSave) Services.save.touch();
         this.renderDeck();
       },
       onClose: () => {
@@ -1772,67 +1816,62 @@ export class DeckBuilderScene extends Phaser.Scene {
   /** Full-width reserve workspace below the Cards / Warchest toggle. */
   private renderReservePanel(format: BuilderFormat, lift = 0): void {
     const layout = DECK_PANE_LAYOUT;
-    const reserve = layout.warchest;
-    // The whole workspace rides up by `lift` when the format switch above it
-    // is hidden; the backing panel grows so its bottom edge stays pinned.
-    const panel = this.add.container(0, -lift);
-    const reserveIssues = validateLandReserve(CARD_DB, Services.save.data, this.landReserve);
-    panel.add(themedPanel(
-      this,
-      layout.left,
-      layout.content.top,
-      layout.right - layout.left,
-      layout.content.bottom - layout.content.top + lift,
-      { alpha: theme.alpha.panel, radius: theme.radius.control },
-    ));
-    panel.add(this.add.text(layout.left + 16, reserve.headingY, 'Warchest Reserves', {
-      fontFamily: theme.fonts.display,
-      fontSize: `${theme.type.label}px`,
-      color: theme.colors.heading,
-    }).setOrigin(0, 0.5));
+    const top = layout.content.top - lift;
+    const bottom = this.summaryLayout.statusTop - theme.space(3);
+    const panel = this.add.container(0, 0);
+    panel.add(themedPanel(this, layout.left, top, layout.right - layout.left, bottom - top,
+      { alpha: theme.alpha.panel, radius: theme.radius.control }));
+    const reserveIssues = validateLandReserve(CARD_DB, this.save, this.landReserve);
     const duals = this.landReserve.filter((id) => CARD_DB[id] && isDualLand(CARD_DB[id])).length;
-    panel.add(this.add.text(
-      layout.left + 16,
-      reserve.countY,
-      this.landReserve.length + '/' + LAND_RESERVE_SIZE + ' lands · ' + duals + '/' + MAX_DUAL_LANDS + ' duals',
-      {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.caption}px`,
-        color: duals > MAX_DUAL_LANDS ? theme.colors.danger : theme.colors.body,
-      },
-    ).setOrigin(0, 0.5));
-    panel.add(this.add.text(layout.left + 16, reserve.validationY, reserveIssues[0]?.message ?? 'Warchest ready.', {
-      fontFamily: theme.fonts.ui,
-      fontSize: `${theme.type.micro}px`,
-      color: reserveIssues.length > 0 ? theme.colors.danger : theme.colors.success,
-      wordWrap: { width: reserve.rulesWidth },
-    }).setOrigin(0, 0));
-    for (let i = 0; i < LAND_RESERVE_SIZE; i++) {
-      const position = warchestSlotPosition(i);
+    const x = layout.left + theme.space(3), width = layout.right - x - theme.space(3);
+    const heading = this.add.text(x, 0, 'Warchest Reserves', { fontFamily: theme.fonts.display,
+      fontSize: theme.type.label, color: theme.colors.heading });
+    const count = this.add.text(x, 0, this.landReserve.length + '/' + LAND_RESERVE_SIZE + ' lands · ' + duals + '/' + MAX_DUAL_LANDS + ' duals',
+      { fontFamily: theme.fonts.ui, fontSize: theme.type.caption, color: duals > MAX_DUAL_LANDS ? theme.colors.danger : theme.colors.body });
+    const validation = this.add.text(x, 0, reserveIssues[0]?.message ?? 'Warchest ready.',
+      { fontFamily: theme.fonts.ui, fontSize: theme.type.micro, color: reserveIssues.length ? theme.colors.danger : theme.colors.success,
+        wordWrap: { width } });
+    panel.add([heading, count, validation]);
+    const rules = this.add.text(x, 0, formatRulesCopy(format) ?? '', { fontFamily: theme.fonts.ui,
+      fontSize: theme.type.micro, color: theme.colors.body, wordWrap: { width }, lineSpacing: theme.space(0.5) });
+    rules.setY(bottom - theme.space(3) - rules.height);
+    panel.add(rules);
+    const slotWidth = (width - theme.space(2)) / 2;
+    const buttons = Array.from({ length: LAND_RESERVE_SIZE }, (_, i) => {
       const card = this.landReserve[i] ? CARD_DB[this.landReserve[i]] : undefined;
-      const name = card ? card.name : 'Choose land';
-      const button = themedButton(this, position.x, position.y, warchestSlotLabel(i, name), {
-        variant: card ? 'ghost' : 'emphasis',
-        size: 'sm',
-        minWidth: reserve.slotWidth,
-        onTap: () => this.showReserveLandPicker(i),
+      return themedButton(this, 0, 0, warchestSlotLabel(i, card?.name ?? 'Choose land'), {
+        variant: card ? 'ghost' : 'emphasis', size: 'sm', minWidth: slotWidth,
+        maxTextWidth: slotWidth - theme.space(6), onTap: () => this.showReserveLandPicker(i),
       });
-      this.fitTextToWidth(button.label, reserve.slotLabelWidth);
-      panel.add(button.container);
+    });
+    const reserve = deckReserveLayout({ top, bottom, headerHeights: [heading.height, count.height, validation.height],
+      rulesHeight: rules.height, slotHeight: Math.max(...buttons.map((button) => button.getMeasuredSize().hit.height)), slotCount: buttons.length });
+    [heading, count, validation].forEach((text, index) => text.setY(reserve.headerYs[index]));
+    rules.setY(reserve.rulesY);
+    const { pageSize, pageCount, pagerY } = reserve;
+    let control: Pager | null = null;
+    const showPage = (page: number): void => {
+      buttons.forEach((button, index) => {
+        const local = index - page * pageSize, visible = local >= 0 && local < pageSize;
+        button.container.setVisible(visible); button.setEnabled(visible);
+        if (visible) {
+          const center = reserve.slotCenter(local);
+          button.container.setPosition(center.x, center.y);
+        }
+      });
+      control?.refresh(page, pageCount);
+    };
+    panel.add(buttons.map((button) => button.container));
+    if (pageCount > 1) {
+      control = pager(this, layout.left + 130, pagerY, 0, pageCount, showPage);
+      panel.add(control.container);
     }
-    panel.add(this.add.text(layout.left + 12, reserve.rulesTop, formatRulesCopy(format) ?? '', {
-      fontFamily: theme.fonts.ui,
-      fontSize: `${theme.type.micro}px`,
-      color: theme.colors.body,
-      wordWrap: { width: reserve.rulesWidth },
-      lineSpacing: 2,
-    }).setOrigin(0, 0));
+    showPage(0);
     this.rightPane.push(panel);
   }
 
-  /** ‹ N/M › deck-list pager, shared by both profiles; sits below the list. */
-  private renderDeckPagers(x0: number, pages: number): void {
-    const deckPager = pager(this, x0 + 250, DECK_PAGER_Y, this.deckPage, pages, (page) => {
+  private renderDeckPagers(pages: number): void {
+    const deckPager = pager(this, this.summaryLayout.pagerX, this.summaryLayout.pagerY, this.deckPage, pages, (page) => {
       this.deckPage = page;
       this.renderDeck();
     });
@@ -1849,15 +1888,24 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.confirmUnsavedChanges('decks', () => this.openDeckPicker());
   }
 
-  private openDeckPicker(): void {
-    const save = Services.save.data;
+  private openDeckPicker(initialPage = this.fixturePickerPage, focusDeckId?: string): void {
+    const save = this.save;
     this.closeFilterPanel();
     this.setSearchInputVisible(false);
+    const decks = visibleSavedDecks(save.decks, this.reserveFormatsEnabled);
+    const measure = this.add.text(0, 0, '', { fontFamily: theme.fonts.display, fontSize: theme.type.label,
+      wordWrap: { width: deckPickerLayout().nameWidth, useAdvancedWrap: true } }).setVisible(false);
+    const nameHeight = Math.max(menuLineHeight(theme.type.label), ...decks.map((deck) => { measure.setText(deck.name); return measure.height; }));
+    measure.destroy();
+    const measureActions = ['Using', 'Copy', 'Rename', 'Delete'].map((label) => themedButton(this, 0, 0, label, { size: 'sm' }));
+    const actionW = Math.max(...measureActions.map((button) => button.getMeasuredSize().hit.width));
+    measureActions.forEach((button) => button.container.destroy());
+    const pickerLayout = deckPickerLayout({ count: decks.length + 1, nameHeight, actionWidth: actionW });
     const deckPickerShell = modalShell(this, {
       // The title-safe frame's full width: at 1200 the panel's border ran
       // 24px past the frame on both sides (1.8 cut, 2026-09-23).
       width: theme.design.safeWidth,
-      height: DECK_PICKER_LAYOUT.panelHeight,
+      height: pickerLayout.panelHeight,
       dimAlpha: 0.52,
       depth: theme.depth.modal,
       dismissal: 'esc-only',
@@ -1875,26 +1923,29 @@ export class DeckBuilderScene extends Phaser.Scene {
       save.activeDeckId = id;
       this.loadWorkingDeck(save.decks.find((d) => d.id === id) ?? null);
       this.deckPaneMode = defaultDeckPaneMode();
-      Services.save.flush();
+      this.flush();
       this.renderPool();
       this.renderDeck();
       renderGrid();
     };
     overlay.add(
       this.add
-        .text(theme.design.centerX, DECK_PICKER_LAYOUT.titleY, 'Your Decks', { fontFamily: theme.fonts.display, fontSize: `${theme.type.h1}px`, color: theme.colors.heading })
+        .text(theme.design.centerX, pickerLayout.titleY, 'Your Decks', { fontFamily: theme.fonts.display, fontSize: `${theme.type.h1}px`, color: theme.colors.heading })
         .setOrigin(0.5),
     );
 
     const gridLayer = this.add.container(0, 0);
     overlay.add(gridLayer);
-    // Tile grid and footer line: deckPanePresentation.ts (DECK_PICKER_LAYOUT).
-    const tileW = DECK_PICKER_LAYOUT.tile.width;
-    const tileH = DECK_PICKER_LAYOUT.tile.height;
-    const pageSize = DECK_PICKER_LAYOUT.tile.cols * DECK_PICKER_LAYOUT.tile.rows;
-    const actionW = 66;
-    const actionGap = 16;
-    let pickerPage = 0;
+    // Tile grid and footer line: deckPanePresentation.ts (pickerLayout).
+    const tileW = pickerLayout.tile.width;
+    const tileH = pickerLayout.tile.height;
+    const pageSize = pickerLayout.tile.cols * pickerLayout.tile.rows;
+    const focusIndex = focusDeckId ? decks.findIndex((deck) => deck.id === focusDeckId) : -1;
+    let pickerPage = focusIndex >= 0 ? Math.floor(focusIndex / pageSize) : initialPage;
+    const reopenPicker = (focusId?: string): void => {
+      closeOverlay();
+      this.openDeckPicker(pickerPage, focusId);
+    };
 
     const renderDeckTile = (parent: Phaser.GameObjects.Container, deck: SavedDeck, x: number, y: number): void => {
       const isActive = deck.id === this.workingDeckId;
@@ -1904,25 +1955,26 @@ export class DeckBuilderScene extends Phaser.Scene {
       const top = y - tileH / 2;
       const rightGuideX = left + tileW - 13;
       const bg = this.add
-        .rectangle(x, y, tileW, tileH, isActive ? theme.graphics.rowFillActive : theme.graphics.panelFill, 0.96)
+        .rectangle(x, y, tileW, tileH, isActive ? theme.graphics.rowFillActive : theme.graphics.panelFill, theme.alpha.panel)
         .setStrokeStyle(1, colorInt(isActive ? theme.colors.gold : theme.colors.panelStroke), isActive ? 1 : theme.alpha.chrome)
         .setInteractive({ useHandCursor: true });
       bindTapButton(this, bg, () => setActiveDeck(deck.id));
       parent.add(bg);
 
       const title = this.add
-        .text(left + 18, top + 22, deck.name, {
+        .text(left + pickerLayout.padding, top + pickerLayout.nameTop, deck.name, {
           fontFamily: theme.fonts.display,
           fontSize: `${theme.type.label}px`,
           color: isActive ? theme.colors.gold : theme.colors.heading,
         })
         .setOrigin(0, 0.5);
-      this.fitTextToWidth(title, 200);
+      title.setOrigin(0, 0);
+      fitMenuName(title, pickerLayout.nameWidth, Number.POSITIVE_INFINITY);
       parent.add(title);
       const blockKind = deckBlockKind(deck, repair.blocked, this.classicRetired);
       parent.add(
         this.add
-          .text(left + 18, top + 47, blockKind ? `${formatLabel(deckFormat)} · ${deckBlockLabel(blockKind)}` : formatLabel(deckFormat), {
+          .text(left + 18, top + pickerLayout.badgeTop + menuLineHeight(theme.type.micro) / 2, blockKind ? `${formatLabel(deckFormat)} · ${deckBlockLabel(blockKind)}` : formatLabel(deckFormat), {
             fontFamily: theme.fonts.ui,
             fontSize: theme.type.micro + 'px',
             fontStyle: theme.weight.w700,
@@ -1930,25 +1982,24 @@ export class DeckBuilderScene extends Phaser.Scene {
           })
           .setOrigin(0, 0.5),
       );
-      this.addDeckColorPips(parent, rightGuideX, top + 22, deck.cards);
-
       const hero = this.deckPickerHero(deck);
-      this.addDeckHeroPortrait(parent, left + 91, top + 134, hero, 142, 184);
-      parent.add(
-        this.add
-          .text(rightGuideX, top + 62, deck.cards.length + '/' + formatDeckSize(deckFormat), {
+      this.addDeckHeroPortrait(parent, left + pickerLayout.portrait.x, top + pickerLayout.portrait.y, hero, pickerLayout.portrait.width, pickerLayout.portrait.height);
+      const countLabel = this.add
+          .text(rightGuideX, top + pickerLayout.badgeTop + menuLineHeight(theme.type.micro) / 2, deck.cards.length + '/' + formatDeckSize(deckFormat), {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.body}px`,
             fontStyle: '700',
             color: repair.blocked ? theme.colors.danger : deck.cards.length === formatDeckSize(deckFormat) ? theme.colors.success : theme.colors.danger,
           })
-          .setOrigin(1, 0.5),
-      );
+          .setOrigin(1, 0.5);
+      parent.add(countLabel);
+      this.addDeckColorPips(parent, rightGuideX - countLabel.width - theme.space(2),
+        top + pickerLayout.badgeTop + menuLineHeight(theme.type.micro) / 2, deck.cards);
 
-      const actionX0 = rightGuideX - actionW * 2 - actionGap;
-      const actionX1 = rightGuideX;
-      const actionY0 = top + 116;
-      const actionY1 = top + 166;
+      const actionX0 = left + pickerLayout.actions.firstX - actionW / 2;
+      const actionX1 = left + pickerLayout.actions.secondX + actionW / 2;
+      const actionY0 = top + pickerLayout.actions.firstY;
+      const actionY1 = top + pickerLayout.actions.secondY;
       const useBtn = themedButton(this, actionX0 + actionW / 2, actionY0, isActive ? 'Using' : 'Use', {
         variant: isActive ? 'primary' : 'ghost',
         size: 'sm',
@@ -1965,10 +2016,8 @@ export class DeckBuilderScene extends Phaser.Scene {
           if (!id) return;
           const copy = save.decks.find((d) => d.id === id);
           if (copy) this.acknowledgeUnplayableDeck(copy);
-          const index = visibleSavedDecks(save.decks, this.reserveFormatsEnabled).findIndex((d) => d.id === id);
-          if (index >= 0) pickerPage = Math.floor(index / pageSize);
-          Services.save.flush();
-          renderGrid();
+          this.flush();
+          reopenPicker(id);
         },
       });
       parent.add(copyBtn.container);
@@ -1979,7 +2028,7 @@ export class DeckBuilderScene extends Phaser.Scene {
         onTap: () => {
         this.promptRename(deck.id, () => {
           if (deck.id === this.workingDeckId) this.renderDeck();
-          renderGrid();
+          reopenPicker(deck.id);
         });
         },
       });
@@ -2015,6 +2064,7 @@ export class DeckBuilderScene extends Phaser.Scene {
         variant: 'danger',
         size: 'sm',
         minWidth: actionW,
+        maxTextWidth: pickerLayout.actions.width - theme.space(6),
         onTap: (pointer) => {
         if (save.settings.confirmDestructive && !delArmed) {
           setDeleteArmed(true, pointer.wasTouch);
@@ -2035,8 +2085,8 @@ export class DeckBuilderScene extends Phaser.Scene {
           this.renderPool();
           this.renderDeck();
         }
-        Services.save.flush();
-        renderGrid();
+        this.flush();
+        reopenPicker();
         },
       });
       parent.add(delBtn.container);
@@ -2113,12 +2163,12 @@ export class DeckBuilderScene extends Phaser.Scene {
       const pages = Math.max(1, Math.ceil(tiles.length / pageSize));
       pickerPage = Phaser.Math.Clamp(pickerPage, 0, pages - 1);
       tiles.slice(pickerPage * pageSize, (pickerPage + 1) * pageSize).forEach((tile, i) => {
-        const { x, y } = deckPickerTilePosition(i);
+        const { x, y } = deckPickerTilePosition(i, pickerLayout);
         if (tile.kind === 'deck') renderDeckTile(gridLayer, tile.deck, x, y);
         else renderNewTile(gridLayer, x, y);
       });
       if (pages > 1) {
-        const pickerPager = pager(this, DECK_PICKER_LAYOUT.pagerX, DECK_PICKER_LAYOUT.footerY, pickerPage, pages, (page) => {
+        const pickerPager = pager(this, pickerLayout.pagerX, pickerLayout.footerY, pickerPage, pages, (page) => {
           pickerPage = page;
           renderGrid();
         });
@@ -2127,9 +2177,9 @@ export class DeckBuilderScene extends Phaser.Scene {
     };
     renderGrid();
 
-    const closeBtn = themedButton(this, DECK_PICKER_LAYOUT.closeX, DECK_PICKER_LAYOUT.footerY, 'Close', {
+    const closeBtn = themedButton(this, pickerLayout.closeX, pickerLayout.footerY, 'Close', {
       variant: 'ghost',
-      minWidth: DECK_PICKER_LAYOUT.closeMinWidth,
+      minWidth: pickerLayout.closeMinWidth,
       onTap: closeOverlay,
     });
     overlay.add(closeBtn.container);
@@ -2138,8 +2188,7 @@ export class DeckBuilderScene extends Phaser.Scene {
   private showNewDeckFormatPrompt(onChoose: (format: BuilderFormat) => void): void {
     const formats = offeredBuilderFormats(this.reserveFormatsEnabled, this.classicRetired);
     const shell = modalShell(this, {
-      width: 520,
-      height: 340,
+      ...menuNoticeLayout(520, menuLineHeight(theme.type.h1), formats.length * (theme.control.minHitHeight + theme.space(3)) - theme.space(3)),
       dimAlpha: 0.72,
       depth: theme.depth.inspect,
       dismissal: 'esc-and-close',
@@ -2191,10 +2240,6 @@ export class DeckBuilderScene extends Phaser.Scene {
     overlay.add(cancel.container);
   }
 
-  private fitTextToWidth(text: Phaser.GameObjects.Text, maxWidth: number): void {
-    text.setScale(Math.min(1, maxWidth / Math.max(1, text.width)));
-  }
-
   private setSearchInputVisible(visible: boolean): void {
     if (this.searchInput?.active) this.searchInput.setVisible(visible);
   }
@@ -2231,7 +2276,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       deck.heroCardId && CARD_DB[deck.heroCardId] && deck.cards.includes(deck.heroCardId) ? deck.heroCardId : null;
     if (deckHero) return { name: def(CARD_DB, deckHero).name, cardId: deckHero };
 
-    const save = Services.save.data;
+    const save = this.save;
     const premium = save.heroPortraitId ? heroById(save.heroPortraitId) : undefined;
     if (premium && save.decks.some((d) => d.id === premium.unlockDeckId) && this.textures.exists(premium.textureKey)) {
       return { name: premium.name, cardId: null, textureKey: premium.textureKey };
@@ -2317,20 +2362,21 @@ export class DeckBuilderScene extends Phaser.Scene {
 
   /** Rename a deck in-place via a styled modal; Enter commits, Esc/Cancel dismiss. */
   private promptRename(deckId: string, onDone?: () => void): void {
-    const save = Services.save.data;
+    const save = this.save;
     const deck = save.decks.find((d) => d.id === deckId);
     if (!deck) return;
     const renameShell = modalShell(this, {
-      width: 460,
-      height: 230,
+      ...menuNoticeLayout(460, menuLineHeight(theme.type.h2), menuLineHeight(theme.type.caption) + theme.space(3) + menuLineHeight(theme.type.body) + theme.space(6)),
       dimAlpha: 0.52,
       depth: theme.depth.results,
       dismissal: 'mandatory',
     });
     const modal = renameShell.container;
+    this.setSearchInputVisible(false);
+    modal.once('destroy', () => this.setSearchInputVisible(!sceneHasOpenModal(this)));
     modal.add(
       this.add
-        .text(640, 298, 'Rename Deck', {
+        .text(640, renameShell.tracks.titleTrack.y + renameShell.tracks.titleTrack.height / 2, 'Rename Deck', {
           fontFamily: theme.fonts.display,
           fontSize: `${theme.type.h2}px`,
           color: theme.colors.heading,
@@ -2339,7 +2385,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     );
     modal.add(
       this.add
-        .text(640, 330, `${DECK_NAME_MAX_LENGTH} characters max`, {
+        .text(640, renameShell.contentBounds.y + menuLineHeight(theme.type.caption) / 2, `${DECK_NAME_MAX_LENGTH} characters max`, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           color: theme.colors.muted,
@@ -2356,8 +2402,9 @@ export class DeckBuilderScene extends Phaser.Scene {
       'style',
       `width:340px;box-sizing:border-box;padding:10px 12px;font:${theme.type.body}px ${theme.fonts.ui};color:${theme.colors.body};background:${theme.colors.panelFill};border:1px solid ${theme.colors.gold};border-radius:${theme.radius.control}px;outline:none;text-align:center;box-shadow:0 0 18px ${theme.colors.btnEmphasisBg};`,
     );
-    const inputDom = this.add.dom(640, 372, input).setDepth(151);
+    const inputDom = this.add.dom(640, renameShell.contentBounds.y + menuLineHeight(theme.type.caption) + theme.space(3) + (menuLineHeight(theme.type.body) + theme.space(5)) / 2, input).setDepth(151);
 
+    modal.add(inputDom);
     const close = (): void => {
       inputDom.destroy();
       renameShell.close();
@@ -2368,7 +2415,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       done = true;
       const name = input.value.trim().slice(0, DECK_NAME_MAX_LENGTH);
       if (!cancel && name) renameDeck(save, deckId, name);
-      Services.save.flush();
+      this.flush();
       close();
       if (!cancel && name) onDone?.();
     };
@@ -2376,12 +2423,12 @@ export class DeckBuilderScene extends Phaser.Scene {
       if (e.key === 'Enter') commit();
       else if (e.key === 'Escape') commit(true);
     });
-    const saveBtn = themedButton(this, 585, 438, 'Save', {
+    const saveBtn = themedButton(this, 580, renameShell.tracks.footerTrack.y + renameShell.tracks.footerTrack.height / 2, 'Save', {
       variant: 'primary',
       minWidth: 90,
       onTap: () => commit(),
     });
-    const cancelBtn = themedButton(this, 704, 438, 'Cancel', {
+    const cancelBtn = themedButton(this, 700, renameShell.tracks.footerTrack.y + renameShell.tracks.footerTrack.height / 2, 'Cancel', {
       variant: 'ghost',
       minWidth: 90,
       onTap: () => commit(true),
@@ -2398,7 +2445,7 @@ export class DeckBuilderScene extends Phaser.Scene {
 
     push(
       this.add
-        .text(x0, DECK_STATS_Y, 'Mana curve', {
+        .text(x0, this.summaryLayout.statsHeadingY, 'Mana curve', {
           fontFamily: theme.fonts.display,
           fontSize: `${theme.type.label}px`,
           color: theme.colors.gold,
@@ -2406,18 +2453,18 @@ export class DeckBuilderScene extends Phaser.Scene {
         .setOrigin(0, 0.5),
     );
 
-    const baseY = DECK_PANE_LAYOUT.summary.barBaseY; // bar baseline (bars grow upward)
+    const baseY = this.summaryLayout.barBaseY; // bar baseline (bars grow upward)
     const curveLayout = DECK_PANE_LAYOUT.curve;
     for (const bar of curveBars(s.curve, {
       firstX: curveLayout.firstX,
       pitch: curveLayout.pitch,
-      maxHeight: DECK_PANE_LAYOUT.summary.barMaxHeight,
+      maxHeight: this.summaryLayout.barMaxHeight,
     })) {
       push(this.add.rectangle(bar.x, baseY, curveLayout.barWidth, bar.height, bar.count > 0 ? colorInt(theme.colors.gold) : theme.graphics.rowFill).setOrigin(0.5, 1));
       if (bar.count > 0) {
         push(
           this.add
-            .text(bar.x, baseY - bar.height - 8, `${bar.count}`, {
+            .text(bar.x, baseY - bar.height - this.summaryLayout.countOffsetY, `${bar.count}`, {
               fontFamily: theme.fonts.ui,
               fontSize: `${theme.type.micro}px`,
               color: theme.colors.body,
@@ -2427,7 +2474,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       }
       push(
         this.add
-          .text(bar.x, baseY + 9, bar.label, {
+          .text(bar.x, this.summaryLayout.manaValueY, bar.label, {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.micro}px`,
             color: theme.colors.muted,
@@ -2442,7 +2489,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     // the old "W·12 R·44" letter run broke that convention. In a reserve
     // format the counts name the Warchest fill, not a "0 lands" that never
     // changes.
-    const y = DECK_PANE_LAYOUT.summary.summaryLineY;
+    const y = this.summaryLayout.summaryTop + menuLineHeight(theme.type.caption) / 2;
     const pipSize = 16;
     let right = PANEL_RIGHT_X;
     const pips = deckPipCounts(s);
@@ -2472,7 +2519,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     const counts = this.add
       .text(
         x0,
-        y,
+        y + menuLineHeight(theme.type.caption) + theme.space(1),
         deckCountsLine(
           s,
           this.isReserveFormat()
@@ -2486,7 +2533,8 @@ export class DeckBuilderScene extends Phaser.Scene {
         },
       )
       .setOrigin(0, 0.5);
-    this.fitTextToWidth(counts, right - x0);
+    fitMenuName(counts, PANEL_RIGHT_X - x0, Number.POSITIVE_INFINITY);
+    counts.setOrigin(0, 0).setY(y + menuLineHeight(theme.type.caption) / 2 + theme.space(1));
     push(counts);
   }
 
@@ -2507,16 +2555,61 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.renderDeck();
   }
 
-  private renderDeckRows(x0: number, heroId: string | null, listY0: number, maxRows?: number): void {
+  private basicDeckRowLabel(id: BasicLandId): string {
+    return `${byId(id).name}: ${this.countIn(this.deck, id)}${this.hasPinnedDisplay(id) ? '  📌' : ''}`;
+  }
+
+  private renderConstructedBasicRow(id: BasicLandId, y: number): void {
+    const x0 = PANEL_LEFT_X;
+      const d = byId(id);
+      const landStyle = this.activeSavedDeck()?.landStyle?.[id] ?? null;
+      const row = this.add
+        .text(x0, y, this.basicDeckRowLabel(id), {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          color: theme.colors.body,
+        })
+        .setOrigin(0, 0.5);
+      fitMenuName(row, 76, Number.POSITIVE_INFINITY);
+      const minus = themedButton(this, PANEL_RIGHT_X - 149, y, '−', {
+        variant: 'danger',
+        size: 'sm',
+        minWidth: 90,
+        onTap: () => this.removeCard(id),
+      });
+      const plus = themedButton(this, PANEL_RIGHT_X - 45, y, '+', {
+        variant: 'emphasis',
+        size: 'sm',
+        minWidth: 90,
+        onTap: () => {
+          this.statusMessage = null;
+          const next = appendDeckSlot({ cards: this.deck, variantPins: this.variantPins }, id);
+          this.deck = next.cards;
+          this.variantPins = next.variantPins;
+          this.renderDeck();
+        },
+      });
+      this.rightPane.push(row);
+      {
+        const preview = this.paneThumb(x0 + 94, y, d, 0.095, landStyle ?? undefined, this.ownedVariantFor(d.id));
+        const style = this.landStyleControl(x0 + 132, y, id, landStyle);
+        this.rightPane.push(preview, style);
+      }
+      this.rightPane.push(minus.container, plus.container);
+  }
+
+  private renderDeckRows(x0: number, heroId: string | null, listY0: number): void {
     // Basics are hidden here ONLY in constructed, where the +/- basics block
     // above owns them. In a reserve format that block is replaced by the
     // Warchest panel, so hiding basics here left a migrated classic deck's
     // ~20 basic lands invisible AND unremovable: the repair banner demanded
     // 40 cards, the deck held 60, and nothing in the UI could reach the
     // difference. Show them so they can be removed (player report, 2026-08-24).
-    const hideBasics = !this.isReserveFormat();
-    const entries = collapseDeckRows(this.deck, this.variantPins)
-      .filter(({ cardId }) => !CARD_DB[cardId] || !hideBasics || !isBasic(CARD_DB, cardId))
+    const rows = collapseDeckRows(this.deck, this.variantPins);
+    if (!this.isReserveFormat()) for (const cardId of BASIC_LAND_IDS) {
+      if (!rows.some((row) => row.cardId === cardId)) rows.push({ cardId, quantity: 0, firstIndex: -1, hasLegacyVariantPin: false });
+    }
+    const entries = rows
       .sort((a, b) => {
         const da = CARD_DB[a.cardId];
         const dbb = CARD_DB[b.cardId];
@@ -2528,32 +2621,64 @@ export class DeckBuilderScene extends Phaser.Scene {
           a.firstIndex - b.firstIndex
         );
       });
-    const preferredRows = maxRows ?? (this.touch ? TOUCH_DECK_ROWS : DESKTOP_DECK_ROWS);
-    const rowPitch = this.touch ? TOUCH_DECK_PITCH : DESKTOP_DECK_PITCH;
-    const rowHeight = theme.type.caption + 4;
-    const rowsThatFit = (bottom: number): number => Math.max(
-      1,
-      Math.floor((bottom - rowHeight - listY0) / rowPitch) + 1,
-    );
-    // Short pages can use the whole card-row track. Longer lists reserve the
-    // pager's 44px hit band, shrinking only this already-paged region.
-    const rowsWithoutPager = Math.min(preferredRows, rowsThatFit(DECK_ROW_TRACK_BOTTOM));
-    const rows = entries.length > rowsWithoutPager
-      ? Math.min(preferredRows, rowsThatFit(DECK_PAGER_Y - theme.control.minHitHeight / 2 - 8))
-      : rowsWithoutPager;
-    const pages = formatPageCount(entries.length, rows);
+    const nameWidth = this.touch ? 148 : DECK_PANE_LAYOUT.cards.nameWidth;
+    const measure = this.add.text(0, 0, '', { fontFamily: theme.fonts.ui, fontSize: theme.type.caption,
+      wordWrap: { width: nameWidth, useAdvancedWrap: true } }).setVisible(false);
+    const basicRow = (id: string): boolean => !this.isReserveFormat() && BASIC_LAND_IDS.includes(id as BasicLandId);
+    const rowHeights = entries.map((entry) => {
+      if (basicRow(entry.cardId)) {
+        const id = entry.cardId as BasicLandId;
+        measure.setWordWrapWidth(76, true).setText(this.basicDeckRowLabel(id));
+        // The exempt preview's face is 39.9px high; transparent FX bleed
+        // does not add row spacing. Controls retain their own 44px hit bands.
+        return Math.max(measure.height, CARD_FACE_H * 0.095, theme.control.heightSm);
+      }
+      measure.setWordWrapWidth(nameWidth, true).setText(CARD_DB[entry.cardId]?.name ?? `Unavailable card: ${entry.cardId}`);
+      // The drawn minus control is 30px. Its inflated hit band stays separate.
+      return Math.max(measure.height, this.touch ? theme.control.heightSm : 0);
+    });
+    let heroInputHeight = 0;
+    if (this.activeFormat() !== 'darlings') {
+      measure.setFontSize(DECK_PANE_LAYOUT.cards.starSize).setFontStyle('700').setText('\u2606');
+      // The star owns an independently inflated input band. Adding the name's
+      // wrap gap to this control would widen the release's 28px desktop pitch.
+      heroInputHeight = measure.height;
+    }
+    measure.destroy();
+    const profile = deckListProfile(this.touch);
+    const layout = deckListLayout(rowHeights, { top: listY0, bottom: this.summaryLayout.listBottom,
+      pagerY: this.summaryLayout.pagerY, ...profile,
+      inputHeights: entries.map(entry => basicRow(entry.cardId) ? theme.control.minHitHeight
+        : Math.max(profile.rowPitch, heroInputHeight)),
+      // Touch's minus column sits to the right of the pager; desktop names
+      // and constructed style controls share its x range and must stop above it.
+      inputBottoms: entries.map(entry => !this.touch || basicRow(entry.cardId)
+        ? this.summaryLayout.pagerY - theme.control.minHitHeight / 2 : Infinity),
+    });
+    const pages = layout.pages.length;
+    if (this.fixtureFocusCardId) {
+      const focusIndex = entries.findIndex((entry) => entry.cardId === this.fixtureFocusCardId);
+      const focusPage = layout.pages.findIndex((page) => page.some((row) => row.index === focusIndex));
+      if (focusPage >= 0) this.deckPage = focusPage;
+    }
     this.deckPage = Phaser.Math.Clamp(this.deckPage, 0, pages - 1);
     // A Darlings deck's face is always its Darling (toggleDeckHero refuses
     // there), so the hero star column would be a row of controls that do
     // nothing. The unavailable-card marker still shows.
     const heroEditable = this.activeFormat() !== 'darlings';
-    const pageEntries = formatPageSlice(entries, this.deckPage, rows);
+    const pageRows = layout.pages[this.deckPage];
+    const pageEntries = pageRows.map((row) => entries[row.index]);
     this.paneRowCards = pageEntries.filter((entry) => CARD_DB[entry.cardId] !== undefined).map((entry) => entry.cardId);
     pageEntries.forEach((entry, i) => {
       const d = CARD_DB[entry.cardId];
+      if (!this.isReserveFormat() && BASIC_LAND_IDS.includes(entry.cardId as BasicLandId)) {
+        this.renderConstructedBasicRow(entry.cardId as BasicLandId, pageRows[i].y);
+        return;
+      }
       // All row elements center on one line (design-system alignment rule:
       // icons align to the optical center of the adjacent text).
-      const cy = deckRowCenterY(listY0, i, rowPitch);
+      const cy = pageRows[i].y;
+      const rowPitch = profile.rowPitch;
       const starGlyph = !d ? '!' : !heroEditable ? '' : heroId === entry.cardId ? '★' : '☆';
       const star = this.add
         .text(x0, cy, starGlyph, {
@@ -2568,7 +2693,7 @@ export class DeckBuilderScene extends Phaser.Scene {
         bindTapButton(this, star, () => this.toggleDeckHero(entry.cardId));
         // 44 wide so a near-miss lands on the star (hero toggle), never on
         // the remove row behind it (owner finding 2026-08-18).
-        inflateHitArea(star, 44, this.touch ? TOUCH_DECK_PITCH : DESKTOP_DECK_PITCH);
+        inflateHitArea(star, 44, rowPitch);
       }
       const hasPinnedDisplay = d && this.hasPinnedDisplay(entry.cardId, entry.hasLegacyVariantPin);
       const marker = this.add
@@ -2592,7 +2717,7 @@ export class DeckBuilderScene extends Phaser.Scene {
         color: d ? theme.colors.body : theme.colors.danger,
         },
       ).setOrigin(0, 0.5);
-      if (!this.touch) this.fitTextToWidth(row, cardsLayout.nameWidth);
+      fitMenuName(row, nameWidth, Number.POSITIVE_INFINITY);
       // The remove hit area grows RIGHTWARD from the name's left edge: a
       // centered inflation on a short name would spread back over the star
       // and pin columns, which is exactly how cards were removed by accident
@@ -2612,22 +2737,22 @@ export class DeckBuilderScene extends Phaser.Scene {
         : null;
       if (!this.touch) {
         row.setInteractive({ useHandCursor: true });
-        inflateHitArea(row, cardsLayout.nameWidth, DESKTOP_DECK_PITCH, { biasX: rowHitBias });
+        inflateHitArea(row, cardsLayout.nameWidth, rowPitch, { biasX: rowHitBias });
         if (d) this.zoom.attach(row, d, variant);
         row.on('pointerover', () => {
           row.setColor(theme.colors.danger);
-          inflateHitArea(row, cardsLayout.nameWidth, DESKTOP_DECK_PITCH, { biasX: rowHitBias });
+          inflateHitArea(row, cardsLayout.nameWidth, rowPitch, { biasX: rowHitBias });
         });
         row.on('pointerout', () => {
           row.setColor(d ? theme.colors.body : theme.colors.danger);
-          inflateHitArea(row, cardsLayout.nameWidth, DESKTOP_DECK_PITCH, { biasX: rowHitBias });
+          inflateHitArea(row, cardsLayout.nameWidth, rowPitch, { biasX: rowHitBias });
         });
         bindTapButton(this, row, (p) => this.removeCardAt(entry.firstIndex, p));
       }
       this.rightPane.push(star, marker, row);
       if (quantity) this.rightPane.push(quantity);
       if (this.touch) {
-        const minus = themedButton(this, PANEL_RIGHT_X - 45, cy + 1, '−', {
+        const minus = themedButton(this, PANEL_RIGHT_X - 45, cy, '−', {
           variant: 'danger',
           size: 'sm',
           minWidth: 90,
@@ -2636,7 +2761,7 @@ export class DeckBuilderScene extends Phaser.Scene {
         this.rightPane.push(minus.container);
       }
     });
-    if (pages > 1) this.renderDeckPagers(x0, pages);
+    if (pages > 1) this.renderDeckPagers(pages);
   }
 
   /**
@@ -2654,10 +2779,21 @@ export class DeckBuilderScene extends Phaser.Scene {
       ? this.deck.filter((id) => CARD_DB[id] && isType(CARD_DB[id], 'land')).length
       : 0;
     const lines = blocking.map((issue) => `• ${issue.message}`).join('\n');
-    const height = 236 + Math.min(blocking.length, 4) * 30 + (lands > 0 ? 56 : 0);
+    const issuesText = this.add.text(0, 0, lines, { fontFamily: theme.fonts.ui, fontSize: theme.type.label,
+      color: theme.colors.danger, wordWrap: { width: 500 }, lineSpacing: theme.space(1.5) });
+    const lineCount = Math.max(1, issuesText.getWrappedText().length);
+    const lineHeight = (issuesText.height - (lineCount - 1) * issuesText.lineSpacing) / lineCount;
+    const linePitch = lineHeight + issuesText.lineSpacing;
+    const footerHeight = theme.control.minHitHeight + (lands > 0 ? theme.control.minHitHeight + theme.space(3) : 0);
+    const headingHeight = menuLineHeight(theme.type.caption) + theme.space(3);
+    const overhead = menuNoticeLayout(560, menuLineHeight(theme.type.h2), headingHeight).height + footerHeight - theme.control.minHitHeight;
+    const available = theme.design.safeHeight - overhead;
+    const visibleHeight = Math.min(issuesText.height, Math.floor((available + issuesText.lineSpacing) / linePitch) * linePitch - issuesText.lineSpacing);
+    const height = overhead + visibleHeight;
     const shell = modalShell(this, {
       width: 560,
       height,
+      footerTrackHeight: footerHeight,
       dimAlpha: 0.52,
       depth: theme.depth.results,
       dismissal: 'esc-only',
@@ -2691,7 +2827,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       this.add
         .text(
           640,
-          top + 74,
+          shell.contentBounds.y + menuLineHeight(theme.type.caption) / 2,
           `${blocking.length} blocking ${blocking.length === 1 ? 'issue keeps' : 'issues keep'} this deck out of a duel.`,
           {
             fontFamily: theme.fonts.ui,
@@ -2701,19 +2837,13 @@ export class DeckBuilderScene extends Phaser.Scene {
         )
         .setOrigin(0.5),
     );
-    modal.add(
-      this.add
-        .text(390, top + 104, lines, {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.label}px`,
-          color: theme.colors.danger,
-          wordWrap: { width: 500 },
-          lineSpacing: 6,
-        })
-        .setOrigin(0, 0),
-    );
-
-    const ctaY = top + height - 44;
+    const viewport = { x: shell.contentBounds.x, y: shell.contentBounds.y + headingHeight,
+      width: shell.contentBounds.width, height: visibleHeight };
+    issuesText.setPosition(viewport.x, 0).setData('a11yFullText', lines).setData('a11yWholeLines', { lineHeight, linePitch });
+    const content = this.add.container(0, 0, [issuesText]);
+    modal.add(content);
+    bindMenuScroll(this, content, viewport, issuesText.height, undefined, undefined, linePitch, shell);
+    const ctaY = shell.tracks.footerTrack.y + shell.tracks.footerTrack.height - theme.control.minHitHeight / 2;
     // Every classic deck migrated into a reserve format arrives carrying its
     // whole mana base, which is exactly the cards the format no longer wants.
     // Removing them one row at a time is not the "couple of clicks" the repair
@@ -2759,6 +2889,9 @@ export class DeckBuilderScene extends Phaser.Scene {
   }
 
   private renderDeck(): void {
+    this.statusScroll?.remove(this.status);
+    this.statusScroll?.destroy();
+    this.statusScroll = null;
     for (const c of this.rightPane) c.destroy();
     this.rightPane = [];
     this.paneThumbArt = [];
@@ -2770,7 +2903,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     const hasWarchest = format !== 'constructed';
     this.deckPaneMode = resolveDeckPaneMode(this.deckPaneMode, hasWarchest);
     const reserveIssues = hasWarchest
-      ? validateLandReserve(CARD_DB, Services.save.data, this.landReserve)
+      ? validateLandReserve(CARD_DB, this.save, this.landReserve)
       : [];
     const issues = this.currentIssues();
     const blocking = issues.filter((issue) => issue.kind === 'error');
@@ -2790,7 +2923,15 @@ export class DeckBuilderScene extends Phaser.Scene {
         color: this.deck.length === formatDeckSize(format) ? theme.colors.success : theme.colors.gold,
       })
       .setOrigin(0, 0.5);
-    this.fitTextToWidth(title, this.touch ? 130 : format === 'constructed' ? 250 : 190);
+    fitMenuName(title, PANEL_RIGHT_X - 100 - deckTitleX, Number.POSITIVE_INFINITY);
+    this.headerLayout = deckPaneHeaderLayout(title.height);
+    title.setY(this.headerLayout.titleY);
+    const stats = computeDeckStats(this.deck, CARD_DB);
+    const summaryMeasure = this.add.text(0, 0, deckCountsLine(stats, hasWarchest
+      ? { kind: 'warchest', filled: this.landReserve.length, size: LAND_RESERVE_SIZE } : { kind: 'list' }), {
+      fontFamily: theme.fonts.ui, fontSize: theme.type.caption, wordWrap: { width: 360, useAdvancedWrap: true } }).setVisible(false);
+    this.summaryLayout = deckPaneSummaryLayout({ summaryHeight: menuLineHeight(theme.type.caption) + theme.space(1) + summaryMeasure.height });
+    summaryMeasure.destroy();
     this.rightPane.push(title);
     if (format === 'darlings' && active && darlingId && CARD_DB[darlingId]) {
       // The portrait beside the title IS the Darling indicator, and tapping
@@ -2799,14 +2940,14 @@ export class DeckBuilderScene extends Phaser.Scene {
       // (owner finding 2026-08-18) and said nothing the tab does not.
       const portrait = this.paneThumb(
         titleLayout.portraitX,
-        titleLayout.y,
+        this.headerLayout.titleY,
         CARD_DB[darlingId],
         titleLayout.portraitScale,
         undefined,
         this.ownedVariantFor(darlingId),
       );
       const portraitHit = this.add
-        .zone(titleLayout.portraitX, titleLayout.y, titleLayout.portraitHitWidth, titleLayout.portraitHitHeight)
+        .zone(titleLayout.portraitX, this.headerLayout.titleY, titleLayout.portraitHitWidth, titleLayout.portraitHitHeight)
         .setInteractive({ useHandCursor: true });
       bindTapButton(this, portraitHit, () => this.openDarlingsFormat());
       this.rightPane.push(portrait, portraitHit);
@@ -2816,22 +2957,10 @@ export class DeckBuilderScene extends Phaser.Scene {
         offeredBuilderFormats(this.reserveFormatsEnabled, this.classicRetired),
       ).length >= 2;
     if (formatSwitchVisible) this.renderFormatSwitch(x0, format);
-    const paneLift = hasWarchest ? deckPaneOffsetY(formatSwitchVisible) : 0;
+    const paneLift = (hasWarchest ? deckPaneOffsetY(formatSwitchVisible) : 0) + DECK_PANE_LAYOUT.content.top - this.headerLayout.contentTop;
     if (hasWarchest) this.renderDeckPaneToggle(reserveIssues.length, paneLift);
-    if (format === 'constructed' && this.touch) {
-      // Touch only, on the retired Constructed format. Its hit band runs 11px
-      // into the second Format tab's, as it ran 12px into it on the old y 32
-      // row: nothing else in the title row has room for a 110px button.
-      const landStylesBtn = themedButton(this, x0 + 200, titleLayout.y, 'Land styles', {
-        variant: 'emphasis',
-        size: 'sm',
-        minWidth: 110,
-        onTap: () => this.showLandStylesModal(),
-      });
-      this.rightPane.push(landStylesBtn.container);
-    }
     // F15: deck picker (switch / new / copy / rename / delete).
-    const decksBtn = themedButton(this, DECK_PANE_LAYOUT.decks.x, DECK_PANE_LAYOUT.decks.y, '☰ Decks', {
+    const decksBtn = themedButton(this, DECK_PANE_LAYOUT.decks.x, this.headerLayout.titleY, '☰ Decks', {
       variant: 'emphasis',
       size: 'sm',
       minWidth: DECK_PANE_LAYOUT.decks.minWidth,
@@ -2840,7 +2969,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.rightPane.push(decksBtn.container);
 
     // Constructed: the list starts below the basics block (deckPanePresentation.ts).
-    let deckListY0 = constructedListTop(this.touch);
+    let deckListY0 = this.headerLayout.formatY + theme.control.minHitHeight / 2 + theme.space(2);
     if (hasWarchest) {
       deckListY0 = DECK_PANE_LAYOUT.content.top + DECK_PANE_LAYOUT.content.listInset - paneLift;
       if (this.deckPaneMode === 'warchest') this.renderReservePanel(format, paneLift);
@@ -2848,56 +2977,16 @@ export class DeckBuilderScene extends Phaser.Scene {
       // Touch keeps the pre-feature five-row block. Desktop carries an inline
       // preview and selector on each row. Both start where the Format tabs'
       // hit band ends (touch rows started at y 78, under the tabs, before 1.8.1).
-      BASIC_LAND_IDS.forEach((id, i) => {
-      const d = byId(id);
-      const y = constructedBasicsRowY(i, this.touch);
-      const n = this.countIn(this.deck, id);
-      const landStyle = active?.landStyle?.[id] ?? null;
-      const row = this.add
-        .text(x0, y, `${d.name}: ${n}${this.hasPinnedDisplay(id) ? '  📌' : ''}`, {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${this.touch ? theme.type.label : theme.type.caption}px`,
-          color: theme.colors.body,
-        })
-        .setOrigin(0, 0.5);
-      if (!this.touch) this.fitTextToWidth(row, 76);
-      const minus = themedButton(this, PANEL_RIGHT_X - (this.touch ? 145 : 149), y, '−', {
-        variant: 'danger',
-        size: 'sm',
-        minWidth: 90,
-        onTap: () => this.removeCard(id),
-      });
-      const plus = themedButton(this, PANEL_RIGHT_X - 45, y, '+', {
-        variant: 'emphasis',
-        size: 'sm',
-        minWidth: 90,
-        onTap: () => {
-          this.statusMessage = null;
-          const next = appendDeckSlot({ cards: this.deck, variantPins: this.variantPins }, id);
-          this.deck = next.cards;
-          this.variantPins = next.variantPins;
-          this.renderDeck();
-        },
-      });
-      this.rightPane.push(row);
-      if (!this.touch) {
-        const preview = this.paneThumb(x0 + 94, y, d, 0.095, landStyle ?? undefined, this.ownedVariantFor(d.id));
-        const style = this.landStyleControl(x0 + 132, y, id, landStyle);
-        this.rightPane.push(preview, style);
-      }
-      this.rightPane.push(minus.container, plus.container);
-      });
+
     }
 
     if (this.deckPaneMode === 'style') {
       this.renderStylePanel(paneLift);
     } else if (this.deckPaneMode === 'cards') {
       const heroId = this.deckHeroId();
-      // The reserve-format pane starts its rows near the top (no basics
-      // block), so geometry, not the constructed six-row cap, decides how
-      // many rows a page holds (owner finding 2026-08-18: fill the pane
-      // before paginating).
-      this.renderDeckRows(x0, heroId, deckListY0, hasWarchest ? Number.POSITIVE_INFINITY : undefined);
+      // Keep the desktop/touch preferred count. Measured wrapped rows can
+      // reduce a page only when the remaining list track cannot hold them.
+      this.renderDeckRows(x0, heroId, deckListY0);
       // The curve and the color balance are what you build a deck BY, so they
       // stay on screen through every invalid intermediate state. Blocking
       // issues speak through the status band and the CTA row below.
@@ -2912,22 +3001,29 @@ export class DeckBuilderScene extends Phaser.Scene {
     const statusLines = message ? [message.text, ...issueLines] : issueLines;
     // Two lines in every view: the status band is the only error surface now,
     // and one line clipped the first issue mid-sentence.
-    this.status.setMaxLines(DECK_PANE_LAYOUT.summary.statusMaxLines);
+    this.status.setMaxLines(0);
     this.status.setColor(
       deckStatusTone(message, blocking.length > 0) === 'success' ? theme.colors.success : theme.colors.danger,
     );
-    this.status.setText(statusLines.join('\n'));
+    this.status.setText(statusLines.join('\n')).setPosition(x0, 0);
+    this.status.setData('a11yFullText', this.status.text);
+    const lineHeight = this.status.height / Math.max(1, this.status.getWrappedText().length);
+    this.status.setData('a11yWholeLines', { lineHeight, linePitch: lineHeight });
+    const statusHeight = Math.min(this.status.height, lineHeight * 2);
+    this.statusScroll = this.add.container(0, 0, [this.status]);
+    bindMenuScroll(this, this.statusScroll, { x: x0, y: this.summaryLayout.statusBottomY - statusHeight,
+      width: 360, height: statusHeight }, this.status.height, undefined, undefined, lineHeight);
     // Bottom action row: Export left-aligned to the x0 gutter, Import
     // right-aligned to the panel gutter (the old x0+334 center clipped it
     // off-screen), Save centered between them on the same baseline.
     const cta = DECK_PANE_LAYOUT.cta;
-    const exportBtn = themedButton(this, cta.exportX, DECK_PANE_LAYOUT.summary.ctaY, 'Export Code', {
+    const exportBtn = themedButton(this, x0 + 84, this.summaryLayout.secondaryCtaY, 'Export Code', {
       variant: 'emphasis',
       size: 'sm',
       minWidth: cta.sideMinWidth,
       onTap: () => this.exportDeckCode(),
     });
-    const importBtn = themedButton(this, cta.importX, DECK_PANE_LAYOUT.summary.ctaY, 'Import Code', {
+    const importBtn = themedButton(this, PANEL_RIGHT_X - 84, this.summaryLayout.secondaryCtaY, 'Import Code', {
       variant: 'emphasis',
       size: 'sm',
       minWidth: cta.sideMinWidth,
@@ -3038,14 +3134,21 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.closeFilterPanel();
     this.closeDeckCodeOverlay();
     this.zoom.setSuppressed(true);
+    this.setSearchInputVisible(false);
+    const intro = this.add.text(0, 0,
+      mode === 'export' ? 'Copy this code to share the current deck.' : 'Paste a deck code, then import it into the editor.',
+      { fontFamily: theme.fonts.ui, fontSize: theme.type.label, color: theme.colors.body,
+        align: 'center', wordWrap: { width: 620 } }).setOrigin(0.5, 0);
+    const inputHeight = Math.max(92, menuLineHeight(theme.type.label) * 4);
+    const bodyHeight = intro.height + theme.space(3) + inputHeight + theme.space(3) + 3 * menuLineHeight(theme.type.caption);
     const deckCodeShell = modalShell(this, {
-      width: 720,
-      height: 330,
+      ...menuNoticeLayout(720, menuLineHeight(theme.type.h2), bodyHeight),
       dimAlpha: 0.52,
       depth: theme.depth.inspect,
       dismissal: 'esc-only',
       onClose: () => {
         this.deckCodeOverlay = null;
+        this.setSearchInputVisible(true);
         this.zoom.setSuppressed(false);
       },
     });
@@ -3054,28 +3157,18 @@ export class DeckBuilderScene extends Phaser.Scene {
 
     overlay.add(
       this.add
-        .text(640, 228, mode === 'export' ? 'Export Deck Code' : 'Import Deck Code', {
+        .text(640, deckCodeShell.tracks.titleTrack.y + deckCodeShell.tracks.titleTrack.height / 2, mode === 'export' ? 'Export Deck Code' : 'Import Deck Code', {
           fontFamily: theme.fonts.display,
           fontSize: `${theme.type.h2}px`,
           color: theme.colors.heading,
         })
         .setOrigin(0.5),
     );
-    overlay.add(
-      this.add
-        .text(
-          640,
-          266,
-          mode === 'export' ? 'Copy this code to share the current deck.' : 'Paste a deck code, then import it into the editor.',
-          {
-            fontFamily: theme.fonts.ui,
-            fontSize: `${theme.type.label}px`,
-            color: theme.colors.body,
-          },
-        )
-        .setOrigin(0.5),
-    );
-
+    intro.setPosition(640, deckCodeShell.contentBounds.y);
+    overlay.add(intro);
+    const inputTop = intro.y + intro.height + theme.space(3);
+    const noteTop = inputTop + inputHeight + theme.space(3);
+    const footerY = deckCodeShell.tracks.footerTrack.y + deckCodeShell.tracks.footerTrack.height / 2;
     const textarea = document.createElement('textarea');
     textarea.value = code;
     textarea.readOnly = mode === 'export';
@@ -3085,7 +3178,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       'style',
       [
         'width:620px',
-        'height:92px',
+        `height:${inputHeight}px`,
         'box-sizing:border-box',
         'resize:none',
         'padding:12px 14px',
@@ -3099,34 +3192,35 @@ export class DeckBuilderScene extends Phaser.Scene {
         `box-shadow:0 0 18px ${theme.colors.btnEmphasisBg}`,
       ].join(';'),
     );
-    const dom = this.add.dom(640, 342, textarea).setOrigin(0.5);
+    const dom = this.add.dom(640, inputTop + inputHeight / 2, textarea).setOrigin(0.5);
     overlay.add(dom);
 
     const note = this.add
-      .text(640, 418, '', {
+      .text(640, noteTop, '', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         color: theme.colors.muted,
+        align: 'center', wordWrap: { width: 620 },
       })
-      .setOrigin(0.5);
+      .setOrigin(0.5, 0);
     overlay.add(note);
 
     if (mode === 'export') {
-      const copyBtn = themedButton(this, 578, 472, 'Copy Code', {
+      const copyBtn = themedButton(this, 560, footerY, 'Copy Code', {
         variant: 'primary',
         minWidth: 120,
         onTap: () => {
           void this.copyDeckCode(code, textarea, note);
         },
       });
-      const closeBtn = themedButton(this, 716, 472, 'Close', {
+      const closeBtn = themedButton(this, 720, footerY, 'Close', {
         variant: 'ghost',
         minWidth: 100,
         onTap: () => this.closeDeckCodeOverlay(),
       });
       overlay.add([copyBtn.container, closeBtn.container]);
     } else {
-      const importBtn = themedButton(this, 570, 472, 'Import', {
+      const importBtn = themedButton(this, 560, footerY, 'Import', {
         variant: 'primary',
         minWidth: 100,
         onTap: () => {
@@ -3140,7 +3234,7 @@ export class DeckBuilderScene extends Phaser.Scene {
           this.statusMessage = null;
         },
       });
-      const cancelBtn = themedButton(this, 710, 472, 'Cancel', {
+      const cancelBtn = themedButton(this, 720, footerY, 'Cancel', {
         variant: 'ghost',
         minWidth: 100,
         onTap: () => this.closeDeckCodeOverlay(),

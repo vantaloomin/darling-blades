@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { bindTapButton, inflateHitArea } from '../platform/gestures';
 import { colorInt, theme } from './theme';
+import { fitMenuName } from './menuText';
+import { ellipsizeText } from './textFit';
 import {
   controlFontSize,
   controlStrokeWidth,
@@ -44,6 +46,8 @@ export interface ThemedButtonOptions {
   variant?: ButtonVariant;
   size?: ButtonSize;
   minWidth?: number;
+  /** Full labels wrap and grow vertically within this measured text column. */
+  maxTextWidth?: number;
   padding?: number;
   onTap?: (pointer: Phaser.Input.Pointer) => void;
   enabled?: boolean;
@@ -89,14 +93,17 @@ export function themedButton(
       color: themedButtonColors(variant).fg,
     })
     .setOrigin(0.5);
+  if (opts.maxTextWidth !== undefined) fitMenuName(label, opts.maxTextWidth, Number.POSITIVE_INFINITY);
   const inputZone = scene.add.zone(0, 0, 1, height).setInteractive({ useHandCursor: true });
   container.add([background, label, inputZone]);
 
   let enabled = opts.enabled ?? true;
   let hovered = false;
-  let measurement = measureThemedButton(label.width, size, opts.minWidth ?? 0, opts.padding);
+  const measure = (): ThemedButtonMeasurement => measureThemedButton(label.width, size, opts.minWidth ?? 0, opts.padding,
+    opts.maxTextWidth !== undefined ? label.height : 0);
+  let measurement = measure();
   const redraw = (): void => {
-    measurement = measureThemedButton(label.width, size, opts.minWidth ?? 0, opts.padding);
+    measurement = measure();
     const style = themedButtonColors(variant);
     background.clear();
     background.fillStyle(colorInt(style.bg), 1);
@@ -138,6 +145,7 @@ export function themedButton(
   };
   const setLabel = (next: string): void => {
     label.setText(next);
+    if (opts.maxTextWidth !== undefined) fitMenuName(label, opts.maxTextWidth, Number.POSITIVE_INFINITY);
     redraw();
   };
   const setVariant = (next: ButtonVariant): void => {
@@ -287,6 +295,7 @@ export function roundedTrigger(
 
   const triggerGap = DROPDOWN_GEOMETRY.triggerGap;
   const glyphSlotWidth = DROPDOWN_GEOMETRY.glyphSlotWidth;
+  if (value && parts?.maxValueWidth !== undefined) ellipsizeText(value, parts.maxValueWidth);
   const fixedMeasurement = parts
     ? measureThemedButton(
         label.width + triggerGap + Math.max(value?.width ?? 0, parts.maxValueWidth ?? 0) + triggerGap + glyphSlotWidth,
@@ -356,7 +365,7 @@ export function roundedTrigger(
     inflateHitArea(inputZone, measurement.hitWidth, measurement.hitHeight);
     container.setPosition(
       previousLeft === null ? x + measurement.visual.width / 2 : previousLeft + measurement.visual.width / 2,
-      y,
+      placed ? container.y : y,
     );
     placed = true;
   };
@@ -376,7 +385,10 @@ export function roundedTrigger(
     redraw();
   };
   const setValue = (next: string): void => {
-    if (value) value.setText(next);
+    if (value) {
+      value.setText(next);
+      if (parts?.maxValueWidth !== undefined) ellipsizeText(value, parts.maxValueWidth, next);
+    }
     else label.setText(next);
     redraw();
   };
@@ -605,6 +617,7 @@ export interface ModalShell {
   /** The coordinator lease when this shell was registered, if any. */
   overlayLease?: OverlayLease;
   close(): void;
+  isTop(): boolean;
 }
 
 /** One Esc route per running scene; see `SceneEscRouter` for the rules. */
@@ -796,6 +809,7 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
     focus: opts.focus,
     overlayLease,
     close,
+    isTop: () => escRouter.top === escEntry,
   };
 }
 

@@ -2,21 +2,25 @@ import { describe, expect, it } from 'vitest';
 import {
   DECK_PANE_LAYOUT,
   DECK_PICKER_LAYOUT,
-  DECK_STATUS_LINE_HEIGHT,
   PAGER_HIT_REACH,
   constructedBasicsRowY,
+  deckPaneHeaderLayout,
+  deckPaneSummaryLayout,
   deckPaneOffsetY,
   deckPickerTilePosition,
+  deckPickerLayout,
   deckPaneToggleState,
+  deckReserveLayout,
   deckRowCenterY,
   deckStatusTone,
   defaultDeckPaneMode,
   resolveDeckPaneMode,
   toggleDeckPaneMode,
   warchestSlotLabel,
-  warchestSlotPosition,
 } from '../../src/ui/deckPanePresentation';
 import { theme } from '../../src/ui/theme';
+import { menuLineHeight } from '../../src/ui/mainMenuPresentation';
+import { forEachA11yCell } from './a11yCells';
 
 /**
  * The pane's header rows inside the title-safe frame (y 36-684). The title row
@@ -57,9 +61,8 @@ describe('deck pane header rows', () => {
     // The first card row's hit band starts where the View row's ends.
     const firstRowY = deckRowCenterY(layout.content.top + layout.content.listInset, 0, layout.cards.rowPitch);
     expect(firstRowY - layout.cards.rowPitch / 2).toBeGreaterThanOrEqual(layout.toggle.y + hitHalf);
-    // The Warchest panel's edge clears the View buttons, and its heading sits inside it.
+    // The Warchest panel's edge clears the View buttons.
     expect(layout.content.top).toBeGreaterThan(layout.toggle.y + theme.control.heightSm / 2);
-    expect(layout.warchest.headingY - 10).toBeGreaterThan(layout.content.top);
   });
 
   it('starts the Constructed basics block below the Format tabs', () => {
@@ -100,10 +103,10 @@ describe('deck pane presentation', () => {
 
   it('respects the isolation tiers through the bottom summary stack', () => {
     const s = DECK_PANE_LAYOUT.summary;
-    const pagerBandBottom = s.pagerY + 22; // 44px hit band
-    const headingTop = s.statsHeadingY - 8;
-    // pager -> stats block: at least the within-super-group 12.
-    expect(headingTop - pagerBandBottom).toBeGreaterThanOrEqual(12);
+    // Pager and heading share a row; their horizontal bands stay disjoint.
+    // 110px encloses the rendered heading at every supported scale.
+    expect(s.pagerY).toBe(s.statsHeadingY);
+    expect(s.pagerX - 22 - (DECK_PANE_LAYOUT.left + 110)).toBeGreaterThanOrEqual(12);
     // heading clears the tallest bar's count label (center barBaseY-h-8).
     expect(s.barBaseY - s.barMaxHeight - 8 - 7).toBeGreaterThanOrEqual(s.statsHeadingY + 8);
     // merged summary line sits below the mv labels (barBaseY+9) with margin.
@@ -112,7 +115,7 @@ describe('deck pane presentation', () => {
     // grows upward, so every line it is allowed to hold must clear the stats
     // above it. One clipped line used to be the price of showing the curve;
     // the stack lifted instead (player report 2026-08-25).
-    const statusTop = s.statusBottomY - DECK_STATUS_LINE_HEIGHT * s.statusMaxLines;
+    const statusTop = s.statusTop;
     expect(s.statusMaxLines).toBeGreaterThanOrEqual(2);
     expect(statusTop - (s.summaryLineY + 8)).toBeGreaterThanOrEqual(16);
     // status -> CTA row: within the action group, measured to the CTAs' hit boxes.
@@ -160,19 +163,78 @@ describe('deck pane presentation', () => {
     });
   });
 
-  it('fills the full-width Warchest panel with ten readable two-column slots', () => {
-    const layout = DECK_PANE_LAYOUT;
-    const slots = Array.from({ length: 10 }, (_, index) => warchestSlotPosition(index));
-    for (const position of slots) {
-      expect(position.x - layout.warchest.slotWidth / 2).toBeGreaterThanOrEqual(layout.left);
-      expect(position.x + layout.warchest.slotWidth / 2).toBeLessThanOrEqual(layout.right);
-      expect(position.y).toBeGreaterThan(layout.content.top);
-      expect(position.y).toBeLessThan(layout.warchest.rulesTop);
-    }
-    expect(new Set(slots.map(({ x }) => x)).size).toBe(2);
-    expect(new Set(slots.map(({ y }) => y)).size).toBe(5);
+  it('preserves each reserve slot number and its complete land name', () => {
     expect(warchestSlotLabel(0, 'Red Cliffs Anchorage')).toBe('1. Red Cliffs Anchorage');
-    expect(warchestSlotLabel(0, 'Red Cliffs Anchorage')).not.toContain('…');
+    expect(warchestSlotLabel(9, 'The Long Road Beyond the River')).toBe('10. The Long Road Beyond the River');
+  });
+});
+
+describe('deck reserve measured accessibility layout', () => {
+  it('keeps wrapped headers, slot hit bands, pager and rules separate in every accessibility cell', () => {
+    forEachA11yCell(() => {
+      for (const validationLines of [1, 2]) {
+        for (const rulesLines of [1, 2, 3]) {
+          for (const slotLines of [1, 2, 3]) {
+            const top = DECK_PANE_LAYOUT.content.top;
+            const bottom = DECK_PANE_LAYOUT.content.bottom;
+            const headerHeights = [menuLineHeight(theme.type.label), menuLineHeight(theme.type.caption),
+              validationLines * menuLineHeight(theme.type.micro)];
+            const rulesHeight = rulesLines * menuLineHeight(theme.type.micro) + (rulesLines - 1) * theme.space(0.5);
+            const slotHeight = slotLines * menuLineHeight(theme.type.caption) + theme.space(2);
+            const layout = deckReserveLayout({ top, bottom, headerHeights, rulesHeight, slotHeight, slotCount: 10 });
+            for (let index = 0; index < headerHeights.length; index++) {
+              expect(layout.headerYs[index]).toBeGreaterThanOrEqual(top + theme.space(3));
+              expect(layout.headerYs[index] + headerHeights[index]).toBeLessThanOrEqual(layout.headerBottom);
+              if (index > 0) expect(layout.headerYs[index]).toBeGreaterThanOrEqual(
+                layout.headerYs[index - 1] + headerHeights[index - 1] + theme.space(1));
+            }
+            expect(layout.rowHeight).toBeGreaterThanOrEqual(slotHeight);
+            expect(layout.rowHeight).toBeGreaterThanOrEqual(theme.control.minHitHeight);
+            expect(layout.slotWidth).toBeGreaterThanOrEqual(theme.control.minHitWidth);
+            for (let index = 0; index < layout.pageSize; index++) {
+              const slot = layout.slotCenter(index);
+              expect(slot.x - layout.slotWidth / 2).toBeGreaterThanOrEqual(DECK_PANE_LAYOUT.left + theme.space(3));
+              expect(slot.x + layout.slotWidth / 2).toBeLessThanOrEqual(DECK_PANE_LAYOUT.right - theme.space(3));
+              expect(slot.y - layout.rowHeight / 2).toBeGreaterThanOrEqual(layout.headerBottom + theme.space(2));
+              expect(slot.y + layout.rowHeight / 2).toBeLessThanOrEqual(
+                layout.pagerY - theme.control.minHitHeight / 2 - theme.space(2));
+              if (index % 2 === 1) expect(slot.x - layout.slotWidth / 2).toBeGreaterThanOrEqual(
+                layout.slotCenter(index - 1).x + layout.slotWidth / 2 + theme.space(2));
+              if (index >= 2) expect(slot.y - layout.rowHeight / 2).toBeGreaterThanOrEqual(
+                layout.slotCenter(index - 2).y + layout.rowHeight / 2 + theme.space(2));
+            }
+            expect(layout.pagerY + theme.control.minHitHeight / 2).toBeLessThanOrEqual(layout.rulesY - theme.space(2));
+            expect(layout.rulesY + rulesHeight).toBeLessThanOrEqual(bottom - theme.space(3));
+          }
+        }
+      }
+    });
+  });
+
+  it('makes every reserve slot reachable exactly once across whole-row pages in every accessibility cell', () => {
+    forEachA11yCell(() => {
+      for (const slotCount of [0, 1, 10, 11, 23]) {
+        const layout = deckReserveLayout({ top: DECK_PANE_LAYOUT.content.top, bottom: DECK_PANE_LAYOUT.content.bottom,
+          headerHeights: [menuLineHeight(theme.type.label), menuLineHeight(theme.type.caption), 2 * menuLineHeight(theme.type.micro)],
+          rulesHeight: 3 * menuLineHeight(theme.type.micro), slotHeight: 3 * menuLineHeight(theme.type.caption) + theme.space(2), slotCount });
+        const visited: number[] = [];
+        for (let page = 0; page < layout.pageCount; page++) {
+          for (let local = 0; local < layout.pageSize; local++) {
+            const index = page * layout.pageSize + local;
+            if (index < slotCount) visited.push(index);
+          }
+        }
+        expect(visited).toEqual(Array.from({ length: slotCount }, (_, index) => index));
+        expect(layout.pageCount).toBeGreaterThanOrEqual(1);
+        expect(layout.pageSize % 2).toBe(0);
+        if (slotCount > 0) expect((layout.pageCount - 1) * layout.pageSize).toBeLessThan(slotCount);
+      }
+    });
+  });
+
+  it('rejects a workspace too short for one whole measured slot row', () => {
+    expect(() => deckReserveLayout({ top: 200, bottom: 320, headerHeights: [24, 20],
+      rulesHeight: 40, slotHeight: 60, slotCount: 10 })).toThrow(RangeError);
   });
 });
 
@@ -268,7 +330,7 @@ describe('deck stats survive an invalid deck', () => {
     // The repair banner this replaced was drawn at y 514-630, straight over
     // the curve. Nothing may occupy that band except the stats themselves.
     const s = DECK_PANE_LAYOUT.summary;
-    const statusTop = s.statusBottomY - DECK_STATUS_LINE_HEIGHT * s.statusMaxLines;
+    const statusTop = s.statusTop;
     for (const y of [s.pagerY, s.statsHeadingY, s.barBaseY, s.summaryLineY]) {
       expect(y).toBeGreaterThan(DECK_PANE_LAYOUT.toggle.y);
       expect(y).toBeLessThan(statusTop);
@@ -277,5 +339,95 @@ describe('deck stats survive an invalid deck', () => {
     // The Warchest view's panel takes the stats' place, so it too must end
     // above the status band that shares the pane with it.
     expect(statusTop - DECK_PANE_LAYOUT.content.bottom).toBeGreaterThanOrEqual(8);
+  });
+});
+
+describe('deck pane measured accessibility layout', () => {
+  it('keeps wrapped titles above the controls in every accessibility cell', () => {
+    forEachA11yCell(() => {
+      for (const lines of [1, 2, 3]) {
+        const titleHeight = lines * menuLineHeight(theme.type.h2);
+        const header = deckPaneHeaderLayout(titleHeight);
+        expect(header.titleY - titleHeight / 2).toBeGreaterThanOrEqual(theme.design.safeTop);
+        expect(header.formatY - theme.control.minHitHeight / 2)
+          .toBeGreaterThanOrEqual(header.titleY + titleHeight / 2 + theme.space(2));
+        expect(header.toggleY - theme.control.minHitHeight / 2)
+          .toBeGreaterThanOrEqual(header.formatY + theme.control.minHitHeight / 2);
+        expect(header.contentTop).toBeGreaterThanOrEqual(header.toggleY + theme.control.minHitHeight / 2);
+      }
+    });
+  });
+
+  it('separates measured summary lines, curve labels, status and both action rows in every accessibility cell', () => {
+    forEachA11yCell(() => {
+      for (const lines of [1, 2, 3]) {
+        const measured = {
+          headingHeight: menuLineHeight(theme.type.label), countHeight: menuLineHeight(theme.type.micro),
+          manaValueHeight: menuLineHeight(theme.type.micro), summaryHeight: lines * menuLineHeight(theme.type.caption),
+          statusHeight: 2 * menuLineHeight(theme.type.caption),
+        };
+        const summary = deckPaneSummaryLayout(measured);
+        const hitHalf = theme.control.minHitHeight / 2;
+        expect(summary.ctaY + hitHalf).toBeLessThanOrEqual(theme.design.safeBottom);
+        expect(summary.secondaryCtaY + hitHalf).toBeLessThanOrEqual(summary.ctaY - hitHalf - theme.space(2));
+        expect(summary.statusBottomY).toBeLessThanOrEqual(summary.secondaryCtaY - hitHalf - theme.space(2));
+        expect(summary.summaryLineY + measured.summaryHeight / 2)
+          .toBeLessThanOrEqual(summary.statusTop - theme.space(4));
+        expect(summary.manaValueY + measured.manaValueHeight / 2).toBeLessThanOrEqual(summary.summaryTop - theme.space(2));
+        const highestCountTop = summary.barBaseY - summary.barMaxHeight - summary.countOffsetY - measured.countHeight / 2;
+        expect(summary.statsHeadingY + measured.headingHeight / 2).toBeLessThanOrEqual(highestCountTop - theme.space(1));
+        expect(summary.listBottom).toBeLessThanOrEqual(summary.statsHeadingY - measured.headingHeight / 2 - theme.space(3));
+        for (const headingWidth of [80, 96, 110]) {
+          expect(summary.pagerX - hitHalf - (DECK_PANE_LAYOUT.left + headingWidth)).toBeGreaterThanOrEqual(theme.space(3));
+          expect(summary.pagerX + PAGER_HIT_REACH.right).toBeLessThanOrEqual(DECK_PANE_LAYOUT.right);
+        }
+        expect(summary.pagerY - hitHalf).toBeGreaterThan(theme.design.safeTop);
+      }
+    });
+  });
+
+  it('reads title and row roles live after the layout object has been retained', () => {
+    const layout = DECK_PANE_LAYOUT;
+    forEachA11yCell(() => {
+      expect(layout.title.halfHeight * 2).toBeGreaterThanOrEqual(2 * menuLineHeight(theme.type.h2));
+      expect(layout.cards.rowPitch).toBe(28); // the release pitch; wrapped text is measured per row
+      expect(layout.cards.starSize).toBeGreaterThanOrEqual(theme.type.h2);
+      expect(layout.cards.pinSize).toBeGreaterThanOrEqual(theme.type.label);
+      expect(layout.summary.statusBottomY - layout.summary.statusTop).toBeGreaterThanOrEqual(2 * menuLineHeight(theme.type.caption));
+    });
+  });
+});
+
+describe('deck picker measured accessibility layout', () => {
+  it('fits full measured identities and action hit bands inside every paged tile in every accessibility cell', () => {
+    forEachA11yCell(() => {
+      for (const lines of [1, 2, 3]) {
+        const nameHeight = lines * menuLineHeight(theme.type.label);
+        const badgeHeight = 2 * menuLineHeight(theme.type.micro);
+        const noteHeight = 2 * menuLineHeight(theme.type.micro);
+        for (const actionWidth of [90, 110, 138]) {
+          const layout = deckPickerLayout({ count: 17, nameHeight, badgeHeight, deleteNoteHeight: noteHeight, actionWidth });
+          const hitHalf = theme.control.minHitHeight / 2;
+          expect(theme.design.centerY - layout.panelHeight / 2).toBeGreaterThanOrEqual(theme.design.safeTop);
+          expect(theme.design.centerY + layout.panelHeight / 2).toBeLessThanOrEqual(theme.design.safeBottom);
+          expect(layout.nameTop + nameHeight).toBeLessThanOrEqual(layout.badgeTop - theme.space(1));
+          expect(layout.badgeTop + badgeHeight).toBeLessThanOrEqual(layout.portrait.y - layout.portrait.height / 2 - theme.space(3));
+          expect(layout.portrait.x + layout.portrait.width / 2).toBeLessThanOrEqual(layout.actions.firstX - actionWidth / 2 - theme.space(3));
+          expect(layout.actions.firstX + actionWidth / 2).toBeLessThanOrEqual(layout.actions.secondX - actionWidth / 2 - theme.space(3));
+          expect(layout.actions.secondX + actionWidth / 2).toBeLessThanOrEqual(layout.tile.width - layout.padding);
+          expect(layout.actions.firstY + hitHalf).toBeLessThanOrEqual(layout.actions.secondY - hitHalf - theme.space(2));
+          expect(layout.actions.secondY + hitHalf).toBeLessThanOrEqual(layout.actions.noteY - theme.space(2));
+          expect(layout.actions.noteY + noteHeight).toBeLessThanOrEqual(layout.tile.height - layout.padding);
+          expect(layout.portrait.y + layout.portrait.height / 2).toBeLessThanOrEqual(layout.tile.height - layout.padding);
+          for (let i = 0; i < layout.pageSize; i++) {
+            const position = deckPickerTilePosition(i, layout);
+            expect(position.x - layout.tile.width / 2).toBeGreaterThanOrEqual(theme.design.safeLeft);
+            expect(position.x + layout.tile.width / 2).toBeLessThanOrEqual(theme.design.safeRight);
+            expect(position.y - layout.tile.height / 2).toBeGreaterThanOrEqual(layout.gridTop);
+            expect(position.y + layout.tile.height / 2).toBeLessThanOrEqual(layout.footerY - hitHalf - theme.space(4));
+          }
+        }
+      }
+    });
   });
 });

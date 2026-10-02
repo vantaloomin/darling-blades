@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { IS_DEV } from '../platform/env';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { ALL_CARDS, CARD_DB } from '../data/catalog';
@@ -29,10 +30,11 @@ import {
   type CollectionFilterState,
 } from '../meta/collectionFilter';
 import { Services } from '../meta/services';
+import type { SaveData } from '../meta/SaveManager';
 import { checkpointAchievements } from '../meta/achievementCheckpoint';
 import { PLAIN_VARIANT, TIER_LABEL, variantKey, type CardVariant } from '../meta/variants';
 import { finishOdds, formatOdds } from '../meta/pullOdds';
-import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestures';
+import { bindTapButton, isTouchDevice } from '../platform/gestures';
 import { FilterBar, TIER_TEXT_COLOR } from '../ui/binder/FilterBar';
 import { makeCardThumb, thumbArtWanted } from '../ui/CardThumbCache';
 import { CARD_H, CARD_W, CardView } from '../ui/CardView';
@@ -67,6 +69,17 @@ import {
 } from '../ui/shardRitual';
 import { HEADER_CURRENCY_ANCHOR } from '../ui/layout';
 import { sceneTitle } from '../ui/sceneTitle';
+import { currentAccessibility } from '../ui/accessibility';
+import { fitMenuName } from '../ui/menuText';
+import {
+  collectionActionLayout,
+  collectionBinderLayout,
+  collectionHeaderLayout,
+  collectionInspectColumns,
+  collectionProbabilityLayout,
+  collectionVariantLayout,
+  type CollectionA11yFixture,
+} from '../ui/collectionPresentation';
 import { colorInt, theme } from '../ui/theme';
 import { queueAchievementUnlockToasts } from '../ui/achievementToast';
 import { Toast } from '../ui/Toast';
@@ -97,49 +110,22 @@ const INSPECT_CLOSE_LOCK_MS = 300;
 /** How long an armed Craft waits for its second press, as Gauntlet's Abandon does. */
 const CRAFT_ARM_MS = 4000;
 
-const ATELIER_CARD = {
-  x: 450,
-  y: 320,
-  scale: 1.25,
-  probabilityPlateY: 604,
-} as const;
-
-// ---------------------------------------------------------------------------
-// Binder spread geometry (design px)
-//
-// Thumb scale 0.47 → card face 141.0 × 197.4. The baked thumb texture carries
-// CardThumbCache's 8 card-px vertical bake bleed per side, so the Image is
-// 141.0 × 204.92 (±102.46 about the pocket centre vs ±98.7 of the face).
-//
-// Open-binder spread: two pages of 3×2 pockets (12 cards/spread) around a
-// spine at x=640. Pocket pitch 158×232. Column centres 227/385/543 and
-// 737/895/1053; row centres 268/500.
-//   row 0: image 165.5..370.5, face 169.3..366.7, badge strip centre 380.7
-//   row 1: image 397.5..602.5, face 401.3..598.7, badge strip centre 612.7
-// Everything (bleed included) tops out at ~621.7 — 98px above the 720 bound
-// (the pre-rewrite grid cropped its bottom row 19px past 720).
-// Above: the header row on the shared header line (y 58, track 36..80) and
-// the filter bar (centre y=104, hit 82..126), clear of the top pockets' hit
-// rects at 165.5, so controls and cards can never steal each other's taps.
-// Below: the pager at y=655 (hit 633..677), covered by nothing.
-// ---------------------------------------------------------------------------
-const THUMB_CARD_SCALE = 0.47;
-const FACE_W = 300 * THUMB_CARD_SCALE; // 141
-const FACE_H = 420 * THUMB_CARD_SCALE; // 197.4
-
+// Two pages of three by two pockets. The faces use specialist card geometry;
+// the measured filter band and live-size badges determine their available space.
 const COLS_PER_PAGE = 3;
 const ROWS_PER_PAGE = 2;
 const SPREAD_SIZE = COLS_PER_PAGE * ROWS_PER_PAGE * 2; // 12 pockets per spread
-const LEFT_COLS = [227, 385, 543];
-const RIGHT_COLS = [737, 895, 1053];
-const ROW0_Y = 268;
-const PITCH_Y = 232;
-/** Badge strip centre, below the face and outside it (face half-height + 14). */
-const LABEL_DY = FACE_H / 2 + 14;
 
 /** Collection binder: paginated two-page spread with facet filters, sorting,
  * variant badges and a variant-showcase inspect overlay. */
 export class CollectionScene extends Phaser.Scene {
+  private fixture: CollectionA11yFixture | null = null;
+  private fixtureSave: SaveData | null = null;
+  private binder = collectionBinderLayout(200);
+  private binderChrome: Phaser.GameObjects.Graphics | null = null;
+  private get saveData(): SaveData { return this.fixtureSave ?? Services.save.data; }
+  private get cards(): readonly CardDef[] { return this.fixture?.cards ?? ALL_CARDS; }
+  private flushSave(): void { if (!this.fixture) Services.save.flush(); }
   // Open on the player's OWNED cards by default (the binder is about what you
   // have); the Owned toggle flips back to the full pool. defaultFilterState()
   // stays neutral so the pure filter + its tests are unaffected.
@@ -192,11 +178,16 @@ export class CollectionScene extends Phaser.Scene {
    * store it builds at once and asks for art spread by spread (`renderPage`);
    * with the 1.8 queue it waits for the whole set, as it always did.
    */
-  create(): void {
+  create(data: { a11yFixture?: CollectionA11yFixture } = {}): void {
+    this.data.set('a11yReady', false);
+    this.fixture = IS_DEV ? data.a11yFixture ?? null : null;
+    this.fixtureSave = this.fixture ? structuredClone(this.fixture.save ?? Services.save.data) : null;
+    if (this.fixtureSave && this.fixture?.gold !== undefined) this.fixtureSave.gold = this.fixture.gold;
+    this.sys.settings.data = {};
     gateOnPagedArt(this, () => this.build());
   }
   private build(): void {
-    this.state = { ...defaultFilterState(), ownedOnly: true };
+    this.state = { ...defaultFilterState(), ownedOnly: true, ...this.fixture?.filter };
     this.page = 0;
     this.sortSelection = DEFAULT_COLLECTION_SORT;
     this.cells = [];
@@ -213,13 +204,14 @@ export class CollectionScene extends Phaser.Scene {
     this.holoMove = null;
     this.inspectRitualCleanup = null;
     this.binderStale = false;
+    this.binderChrome = null;
 
     // Backdrop first (docs/scene-art.md §3); the gradient is the fallback.
     applyBackdrop(this, 'collection', {
       dim: colorInt(theme.colors.dim),
       // 0.70 (2026-07-03 calibration): keeps the grid region under the ≤12%
       // effective-luminance cap so 0.32-alpha unowned thumbs keep separating.
-      dimAlpha: 0.7,
+      dimAlpha: currentAccessibility().highContrast ? theme.alpha.overlayDim : 0.7,
       fallback: () => {
         const bg = this.add.graphics();
         bg.fillGradientStyle(
@@ -232,41 +224,40 @@ export class CollectionScene extends Phaser.Scene {
         bg.fillRect(0, 0, DESIGN_W, DESIGN_H);
       },
     });
+    this.binderChrome = this.add.graphics();
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('shop'); // the light browsing bed
 
-    // Header row on the shared header line (theme.design.headerCenterY), the
-    // back button's line, so every header control and label sits inside the
-    // title-safe frame. The title, search, and counters sat at y 30 until the
-    // 1.8 cut (2026-09-23), their boxes starting above the frame's top edge.
-    // The filter bar's hit band begins at 82, below the header track (36-80).
-    const headerY = theme.design.headerCenterY;
+    // Title and currency share the navigation track. Search and collection
+    // statistics have their own measured band before the wrapping filters.
     sceneTitle(this, 'Collection');
     // Crafting spends gold here, so keep the shared currency badge beside the
     // collection stats and refresh it with the binder view.
-    this.goldBadge = goldBadge(this, HEADER_CURRENCY_ANCHOR.x, HEADER_CURRENCY_ANCHOR.y, { flashOnChange: true });
-    // The two stat lines stack on the header line, one half-pitch either side.
+    this.goldBadge = goldBadge(this, HEADER_CURRENCY_ANCHOR.x, HEADER_CURRENCY_ANCHOR.y, {
+      flashOnChange: true, getValue: () => this.saveData.gold,
+    });
     this.counterText = this.add
-      .text(DESIGN_W - 200, headerY - 11, '', {
+      .text(theme.design.safeRight, 0, '0/0 collected', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.label}px`,
         color: theme.colors.muted,
       })
-      .setOrigin(1, 0.5);
+      .setOrigin(1, 0);
     this.completionText = this.add
-      .text(DESIGN_W - 200, headerY + 11, '', {
+      .text(theme.design.safeRight, 0, '0% pool · 0 special cards', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         color: theme.colors.muted,
       })
-      .setOrigin(1, 0.5);
+      .setOrigin(1, 0);
+    const header = collectionHeaderLayout(this.counterText.height, this.completionText.height);
+    this.counterText.setY(header.counterY);
+    this.completionText.setY(header.completionY);
     const back = backButton(this, 'Menu', () => this.scene.start('MainMenu'));
     registerSceneBackNavigation(this, () => this.scene.start('MainMenu'));
 
-    this.drawBinderChrome();
-
     this.filterBar = new FilterBar(this, this.state, {
-      y: 104,
+      y: header.filterTop + theme.control.minHitHeight / 2,
       sortControl: {
         options: COLLECTION_SORT_OPTIONS,
         get: () => this.sortSelection,
@@ -280,13 +271,9 @@ export class CollectionScene extends Phaser.Scene {
       },
     });
 
-    // Card search (F8): the DOM <input> feeds state.search through the same
-    // reset-page + re-render path the filter chips use.
-    // The old "Search name / type / trait / mechanic…" measured ~250 px of 14 px
-    // Inter against the box's 228 px content width and cut off at "mechan".
-    // This hint keeps all four search fields at ~187 px.
-    this.searchInput = createSearchInput(this, 355, headerY, {
-      width: 250,
+    // The DOM input uses a full-width hint and feeds the same filtered pool.
+    this.searchInput = createSearchInput(this, header.search.x + header.search.width / 2, header.search.y, {
+      width: header.search.width,
       placeholder: 'Name, type, trait, mechanic…',
       accessibleName: 'Search cards by name, type, trait, or mechanic',
       onChange: (value) => {
@@ -296,7 +283,7 @@ export class CollectionScene extends Phaser.Scene {
       },
     });
 
-    this.pageControl = pager(this, DESIGN_W / 2 - 56, 655, this.page, 1, (page) => {
+    this.pageControl = pager(this, DESIGN_W / 2 - 56, theme.design.footerCenterY, this.page, 1, (page) => {
       const direction = page > this.page ? 1 : -1;
       this.page = page;
       this.renderPage(direction);
@@ -335,29 +322,33 @@ export class CollectionScene extends Phaser.Scene {
     this.guardTargets = [...this.filterBar.targets, this.pageControl.previous, this.pageControl.next, back];
 
     this.renderPage();
+    if (this.fixture?.inspectCardId) {
+      const card = this.cards.find((entry) => entry.id === this.fixture?.inspectCardId);
+      if (card) this.showInspect(card, this.fixture.clearedDisplayPin);
+    } else if (this.fixture?.openFilter) this.filterBar.open(this.fixture.openFilter);
+    this.data.set('a11yReady', true);
   }
 
   /** Static open-binder art: two page slabs, spine, and the fixed pockets. */
   private drawBinderChrome(): void {
-    const g = this.add.graphics();
+    const g = this.binderChrome!;
+    g.clear();
+    this.binder = collectionBinderLayout(this.filterBar.bottom + theme.space(3));
     // page slabs
     g.fillStyle(theme.graphics.panelFill, theme.alpha.chrome);
-    g.fillRoundedRect(140, 150, 490, 484, 12);
-    g.fillRoundedRect(650, 150, 490, 484, 12);
-    g.lineStyle(2, theme.graphics.panelStroke, 1);
-    g.strokeRoundedRect(140, 150, 490, 484, 12);
-    g.strokeRoundedRect(650, 150, 490, 484, 12);
-    // spine / gutter
-    g.fillStyle(theme.graphics.dim, theme.alpha.panel);
-    g.fillRect(630, 154, 20, 476);
+    for (const page of this.binder.pages) {
+      g.fillRoundedRect(page.x, page.y, page.width, page.height, theme.radius.panel);
+      g.lineStyle(theme.control.borderWidth, theme.graphics.panelStroke, 1);
+      g.strokeRoundedRect(page.x, page.y, page.width, page.height, theme.radius.panel);
+    }
     // pockets — fixed; cards drop into them, badges sit on the lip below
     g.lineStyle(1, theme.graphics.panelStroke, theme.alpha.chrome);
     g.fillStyle(theme.graphics.rowFill, theme.alpha.subtle);
-    for (const cx of [...LEFT_COLS, ...RIGHT_COLS]) {
+    for (const cx of this.binder.columns.flat()) {
       for (let row = 0; row < ROWS_PER_PAGE; row++) {
-        const cy = ROW0_Y + row * PITCH_Y;
-        const w = FACE_W + 8;
-        const h = FACE_H + 8;
+        const cy = this.binder.rowYs[row];
+        const w = this.binder.faceWidth + theme.space(2);
+        const h = this.binder.faceHeight + theme.space(2);
         g.fillRoundedRect(cx - w / 2, cy - h / 2, w, h, 8);
         g.strokeRoundedRect(cx - w / 2, cy - h / 2, w, h, 8);
       }
@@ -366,9 +357,9 @@ export class CollectionScene extends Phaser.Scene {
 
   private currentPool(): CardDef[] {
     return sortCollectionCards(
-      applyFilters(collectionDisplayPool(ALL_CARDS, Services.save.data), this.state, Services.save.data),
+      applyFilters(collectionDisplayPool(this.cards, this.saveData), this.state, this.saveData),
       this.sortSelection,
-      Services.save.data,
+      this.saveData,
     );
   }
 
@@ -404,7 +395,7 @@ export class CollectionScene extends Phaser.Scene {
   private turnPage(dir: number): void {
     // Scene-level wheel bypasses ModalGuard — self-gate under the inspect
     // overlay, and don't stack page turns mid-tween.
-    if (this.inspect || this.turning) return;
+    if (this.inspect || this.turning || this.filterBar.isOpen) return;
     const pool = this.currentPool();
     const target = clampPage(this.page + dir, pool.length, SPREAD_SIZE);
     if (target === this.page) return;
@@ -420,13 +411,14 @@ export class CollectionScene extends Phaser.Scene {
    */
   private renderPage(dir = 0): void {
     this.binderStale = false;
-    const save = Services.save.data;
-    const collectible = collectiblePool(ALL_CARDS);
+    this.drawBinderChrome();
+    const save = this.saveData;
+    const collectible = collectiblePool(this.cards);
     const pool = this.currentPool();
     this.page = clampPage(this.page, pool.length, SPREAD_SIZE);
 
     const ownedKinds = collectible.filter((d) => ownedCount(save, d.id) > 0).length;
-    const completion = collectionCompletion(ALL_CARDS, save);
+    const completion = collectionCompletion(this.cards, save);
     this.goldBadge.refresh(save.gold);
     this.counterText.setText(`${ownedKinds}/${collectible.length} collected`);
     // Floor, from the integer counts: rounding showed 1,481 of 1,482 as 100%,
@@ -488,7 +480,7 @@ export class CollectionScene extends Phaser.Scene {
    * cards bake the plain face.
    */
   private binderVariant(d: CardDef): CardVariant | undefined {
-    const save = Services.save.data;
+    const save = this.saveData;
     const best = ownedCount(save, d.id) > 0 ? displayVariantFor(save, d.id) : null;
     return best && variantKey(best) !== variantKey(PLAIN_VARIANT) ? best : undefined;
   }
@@ -557,16 +549,16 @@ export class CollectionScene extends Phaser.Scene {
 
   /** One spread: baked thumbs in the pockets + badges on the lip below each. */
   private buildSpread(pool: CardDef[]): Phaser.GameObjects.Container {
-    const save = Services.save.data;
+    const save = this.saveData;
     const c = this.add.container(0, 0);
     const slice = pageSlice(pool, this.page, SPREAD_SIZE);
     const perPage = COLS_PER_PAGE * ROWS_PER_PAGE;
 
     slice.forEach((d, i) => {
-      const cols = i < perPage ? LEFT_COLS : RIGHT_COLS;
+      const cols = this.binder.columns[i < perPage ? 0 : 1];
       const within = i % perPage;
       const x = cols[within % COLS_PER_PAGE];
-      const y = ROW0_Y + Math.floor(within / COLS_PER_PAGE) * PITCH_Y;
+      const y = this.binder.rowYs[Math.floor(within / COLS_PER_PAGE)];
       const owned = ownedCount(save, d.id);
 
       // Cached-thumbnail Image (tier gem included) — cheap to churn per
@@ -574,7 +566,7 @@ export class CollectionScene extends Phaser.Scene {
       // cards show their selected display variant (frame/full-art bake
       // statically; holo shimmer stays an inspect effect), so the binder reads
       // as YOUR binder rather than a plain checklist.
-      const thumb = makeCardThumb(this, x, y, d, THUMB_CARD_SCALE, undefined, this.binderVariant(d));
+      const thumb = makeCardThumb(this, x, y, d, this.binder.scale, undefined, this.binderVariant(d));
       if (owned === 0) thumb.setAlpha(0.32); // calibrated against the 0.70 dim
       thumb.setInteractive({ useHandCursor: true });
       bindTapButton(this, thumb, () => {
@@ -584,7 +576,7 @@ export class CollectionScene extends Phaser.Scene {
       this.cells.push(thumb);
 
       // Badge strip — strictly OUTSIDE the card face (face bottom +14).
-      const ly = y + LABEL_DY;
+      const ly = y + this.binder.labelOffset;
       const badge = (
         bx: number,
         originX: number,
@@ -599,13 +591,13 @@ export class CollectionScene extends Phaser.Scene {
             color,
           })
           .setOrigin(originX, 0.5);
-      c.add(badge(x - FACE_W / 2 + 2, 0, TIER_LABEL[d.rarity], TIER_TEXT_COLOR[d.rarity]));
+      c.add(badge(x - this.binder.badgeWidth / 2, 0, TIER_LABEL[d.rarity], TIER_TEXT_COLOR[d.rarity]));
       if (owned > 0) {
         c.add(badge(x, 0.5, `×${owned}`, owned >= PLAYSET ? theme.colors.gold : theme.colors.heading));
       }
       const specials = specialVariantCount(save, d.id);
       if (specials > 0) {
-        c.add(badge(x + FACE_W / 2 - 2, 1, `✦${specials}`, theme.rarity.ssr));
+        c.add(badge(x + this.binder.badgeWidth / 2, 1, `✦${specials}`, TIER_TEXT_COLOR.ssr));
       }
     });
     return c;
@@ -620,12 +612,14 @@ export class CollectionScene extends Phaser.Scene {
     this.closeInspect();
     this.filterBar.closeAll(); // a floating dropdown must not sit over the overlay
     this.searchInput?.setVisible(false); // DOM input always floats above the canvas dim
-    const save = Services.save.data;
+    const save = this.saveData;
     const owned = ownedCount(save, d.id);
+    const columns = collectionInspectColumns();
+    const atelier = { x: columns.cardX, y: 350, scale: 1 };
     const shell = modalShell(this, {
-      width: 1080,
-      height: 660,
-      dimAlpha: 0.82,
+      width: columns.width,
+      height: columns.height,
+      dimAlpha: currentAccessibility().highContrast ? theme.alpha.overlayDim : 0.82,
       dismissal: 'esc-only',
       depth: theme.depth.overlay,
       onClose: () => this.closeInspect(),
@@ -662,23 +656,18 @@ export class CollectionScene extends Phaser.Scene {
     const animationLevel = save.settings.animations;
     const touchProfile = isTouchDevice();
 
-    // Full Art gallery light. It stays centered at every motion level: the
-    // pointer-following version read as a lamp wandering behind the card
-    // (owner, 2026-09-03), so only the card tilts now. Sized to the showcase
-    // card (375x525 at scale 1.25) with an even 20px rim on every side, so
-    // it reads as a glow around the card rather than a lopsided halo.
+    // The full-art light follows the measured showcase size, remaining fixed
+    // while the card tilts. Layout is finalized after the odds text is measured.
     const galleryHalo = this.add
-      .ellipse(ATELIER_CARD.x, ATELIER_CARD.y, 415, 565, colorInt(theme.colors.gold), 0.1)
+      .ellipse(atelier.x, atelier.y, 415, 565, colorInt(theme.colors.gold), 0.1)
       .setBlendMode(Phaser.BlendModes.ADD)
       .setVisible(false);
     const galleryFloor = this.add
-      .ellipse(ATELIER_CARD.x, 588, 350, 30, colorInt(theme.colors.gold), 0.2)
+      .ellipse(atelier.x, 588, 350, 30, colorInt(theme.colors.gold), 0.2)
       .setBlendMode(Phaser.BlendModes.ADD)
       .setVisible(false);
-    // Hung from the title-safe frame's top edge; centred on y 38 its box
-    // began above the frame (1.8 cut, 2026-09-23).
     const galleryTitle = this.add
-      .text(ATELIER_CARD.x, theme.design.safeTop, 'FULL ART GALLERY LIGHT', {
+      .text(atelier.x, theme.design.safeTop, 'FULL ART GALLERY LIGHT', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.micro}px`,
         fontStyle: theme.weight.w700,
@@ -687,33 +676,33 @@ export class CollectionScene extends Phaser.Scene {
       })
       .setOrigin(0.5, 0)
       .setVisible(false);
-    const view = new CardView(this, ATELIER_CARD.x, ATELIER_CARD.y);
-    view.setScale(ATELIER_CARD.scale).setCard(
+    const view = new CardView(this, atelier.x, atelier.y);
+    view.setScale(atelier.scale).setCard(
       d,
       shown ? { fx: 'full', variant: shown, fullArt: shown.fullArt } : { fx: 'full' },
     );
-    const compareView = new CardView(this, ATELIER_CARD.x, ATELIER_CARD.y)
-      .setScale(ATELIER_CARD.scale)
+    const compareView = new CardView(this, atelier.x, atelier.y)
+      .setScale(atelier.scale)
       .setVisible(false);
     const compareMaskSource = this.add
       .graphics()
-      .setPosition(ATELIER_CARD.x, ATELIER_CARD.y)
-      .setScale(ATELIER_CARD.scale)
+      .setPosition(atelier.x, atelier.y)
+      .setScale(atelier.scale)
       .setVisible(false);
     const compareMask = compareMaskSource.createGeometryMask();
     compareView.setMask(compareMask);
     const wipeOverlay = this.add
-      .container(ATELIER_CARD.x, ATELIER_CARD.y)
-      .setScale(ATELIER_CARD.scale)
+      .container(atelier.x, atelier.y)
+      .setScale(atelier.scale)
       .setVisible(false);
-    const wipeDivider = this.add.rectangle(0, 0, 2, CARD_H, 0xffffff, 0.92);
+    const wipeDivider = this.add.rectangle(0, 0, 2, CARD_H, colorInt(theme.colors.heading), theme.alpha.chrome);
     const wipeHandle = this.add
       .circle(0, CARD_H / 2 - 14, 7, colorInt(theme.colors.panelFill), 0.96)
       .setStrokeStyle(2, colorInt(theme.colors.gold), 1);
     wipeOverlay.add([wipeDivider, wipeHandle]);
 
     const compareLeftLabel = this.add
-      .text(ATELIER_CARD.x - CARD_W * ATELIER_CARD.scale / 2, 43, '', {
+      .text(atelier.x - CARD_W * atelier.scale / 2, 43, '', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.micro}px`,
         fontStyle: theme.weight.w700,
@@ -722,7 +711,7 @@ export class CollectionScene extends Phaser.Scene {
       .setOrigin(0, 0.5)
       .setVisible(false);
     const compareRightLabel = this.add
-      .text(ATELIER_CARD.x + CARD_W * ATELIER_CARD.scale / 2, 43, '', {
+      .text(atelier.x + CARD_W * atelier.scale / 2, 43, '', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.micro}px`,
         fontStyle: theme.weight.w700,
@@ -732,7 +721,7 @@ export class CollectionScene extends Phaser.Scene {
       .setVisible(false);
     const compareHint = this.add
       .text(
-        ATELIER_CARD.x,
+        atelier.x,
         591,
         touchProfile ? 'Drag across card to compare' : 'Move across card to compare',
         {
@@ -744,51 +733,26 @@ export class CollectionScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setVisible(false);
 
+    const cardName = this.add.text(columns.left, columns.nameTop, d.name, {
+      fontFamily: theme.fonts.display, fontSize: `${theme.type.h2}px`,
+      fontStyle: theme.weight.w700, color: theme.colors.heading,
+    });
+    fitMenuName(cardName, columns.nameWidth, 3);
     const probabilityPlate = this.add.graphics();
-    probabilityPlate
-      .fillStyle(theme.graphics.panelFill, 0.94)
-      .fillRoundedRect(
-        ATELIER_CARD.x - 225,
-        ATELIER_CARD.probabilityPlateY,
-        450,
-        70,
-        theme.radius.panel,
-      )
-      .lineStyle(1, theme.graphics.panelStroke, theme.alpha.chrome)
-      .strokeRoundedRect(
-        ATELIER_CARD.x - 225,
-        ATELIER_CARD.probabilityPlateY,
-        450,
-        70,
-        theme.radius.panel,
-      );
-    const probabilityTitle = this.add
-      .text(ATELIER_CARD.x, ATELIER_CARD.probabilityPlateY + 9, 'EXACT BOOSTER-SLOT ODDS', {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.micro}px`,
-        fontStyle: theme.weight.w700,
-        color: theme.colors.muted,
-        letterSpacing: 1,
-      })
-      .setOrigin(0.5, 0);
-    const probabilityHeadline = this.add
-      .text(ATELIER_CARD.x, ATELIER_CARD.probabilityPlateY + 25, '', {
-        fontFamily: theme.fonts.display,
-        fontSize: `${theme.type.label}px`,
-        color: theme.colors.gold,
-      })
-      .setOrigin(0.5, 0);
-    const probabilityAxes = this.add
-      .text(ATELIER_CARD.x, ATELIER_CARD.probabilityPlateY + 44, '', {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.micro}px`,
-        color: theme.colors.body,
-        align: 'center',
-        wordWrap: { width: 434 },
-      })
-      .setOrigin(0.5, 0);
+    const probabilityTitle = this.add.text(0, 0, 'EXACT BOOSTER-SLOT ODDS', {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.type.micro}px`,
+      fontStyle: theme.weight.w700, color: theme.colors.muted, letterSpacing: 1,
+    }).setOrigin(0.5, 0);
+    const probabilityHeadline = this.add.text(0, 0, '', {
+      fontFamily: theme.fonts.display, fontSize: `${theme.type.label}px`, color: theme.colors.gold,
+    }).setOrigin(0.5, 0);
+    const probabilityAxes = this.add.text(0, 0, '', {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.type.micro}px`, color: theme.colors.body,
+      align: 'center', wordWrap: { width: columns.nameWidth - theme.space(4) },
+    }).setOrigin(0.5, 0);
 
     c.add([
+      cardName,
       galleryHalo,
       galleryFloor,
       view,
@@ -804,7 +768,7 @@ export class CollectionScene extends Phaser.Scene {
       probabilityHeadline,
       probabilityAxes,
     ]);
-    addKeywordGlossaryPanel(this, c, d, { x: 58, y: 156, width: 170 });
+    addKeywordGlossaryPanel(this, c, d, { ...columns.glossary, y: cardName.y + cardName.height + theme.space(3), maxHeight: 370 });
 
     let wipe = 0;
     let wipeTween: Phaser.Tweens.Tween | null = null;
@@ -845,10 +809,10 @@ export class CollectionScene extends Phaser.Scene {
     const applyAtelierPose = (pose: CardAtelierTiltPose): void => {
       tiltTween?.remove();
       tiltTween = null;
-      const x = ATELIER_CARD.x + pose.offsetX;
-      const y = ATELIER_CARD.y + pose.offsetY;
-      const scaleX = ATELIER_CARD.scale * pose.scaleX;
-      const scaleY = ATELIER_CARD.scale * pose.scaleY;
+      const x = atelier.x + pose.offsetX;
+      const y = atelier.y + pose.offsetY;
+      const scaleX = atelier.scale * pose.scaleX;
+      const scaleY = atelier.scale * pose.scaleY;
       for (const target of [view, compareView, compareMaskSource, wipeOverlay]) {
         target.setPosition(x, y).setScale(scaleX, scaleY).setAngle(pose.angleDeg);
       }
@@ -858,18 +822,18 @@ export class CollectionScene extends Phaser.Scene {
     const settleAtelierPose = (): void => {
       tiltTween?.remove();
       tiltTween = null;
-      galleryHalo.setPosition(ATELIER_CARD.x, ATELIER_CARD.y);
-      galleryFloor.setX(ATELIER_CARD.x);
+      galleryHalo.setPosition(atelier.x, atelier.y);
+      galleryFloor.setX(atelier.x);
       if (animationLevel !== 'full') {
         applyAtelierPose(cardAtelierTiltPose({ x: 0, y: 0, inside: false }, animationLevel, false));
         return;
       }
       tiltTween = this.tweens.add({
         targets: [view, compareView, compareMaskSource, wipeOverlay],
-        x: ATELIER_CARD.x,
-        y: ATELIER_CARD.y,
-        scaleX: ATELIER_CARD.scale,
-        scaleY: ATELIER_CARD.scale,
+        x: atelier.x,
+        y: atelier.y,
+        scaleX: atelier.scale,
+        scaleY: atelier.scale,
         angle: 0,
         duration: theme.motion.base,
         ease: theme.motion.easeOut,
@@ -888,6 +852,35 @@ export class CollectionScene extends Phaser.Scene {
       const plate = cardAtelierProbabilityPlate(d.rarity, variant);
       probabilityHeadline.setText(`${plate.oddsText} · ${plate.percentText}`);
       probabilityAxes.setText(plate.axisText);
+      fitMenuName(probabilityAxes, columns.nameWidth - theme.space(4), 3);
+      const probability = collectionProbabilityLayout([probabilityTitle.height, probabilityHeadline.height, probabilityAxes.height]);
+      const box = probability.box;
+      probabilityPlate.clear().fillStyle(theme.graphics.panelFill, theme.alpha.panel)
+        .fillRoundedRect(box.x, box.y, box.width, box.height, theme.radius.panel)
+        .lineStyle(theme.control.borderWidth, theme.graphics.panelStroke, theme.alpha.chrome)
+        .strokeRoundedRect(box.x, box.y, box.width, box.height, theme.radius.panel);
+      [probabilityTitle, probabilityHeadline, probabilityAxes].forEach((text, index) => {
+        text.setPosition(box.x + box.width / 2, probability.ys[index]);
+      });
+      const labelTop = cardName.y + cardName.height + theme.space(3);
+      galleryTitle.setPosition(atelier.x, labelTop).setOrigin(0.5, 0);
+      fitMenuName(galleryTitle, columns.cardWidth, 2);
+      fitMenuName(compareLeftLabel, columns.cardWidth, 2);
+      fitMenuName(compareRightLabel, columns.cardWidth, 2);
+      compareLeftLabel.setPosition(atelier.x, labelTop).setOrigin(0.5, 0);
+      compareRightLabel.setPosition(atelier.x, labelTop + compareLeftLabel.height + theme.space(1)).setOrigin(0.5, 0);
+      fitMenuName(compareHint, columns.cardWidth, 2);
+      const labelsHeight = comparisonActive
+        ? compareLeftLabel.height + compareRightLabel.height + theme.space(1)
+        : galleryTitle.height;
+      const top = labelTop + labelsHeight + theme.space(2);
+      const bottom = box.y - compareHint.height - theme.space(4);
+      atelier.scale = Math.min(columns.cardWidth / CARD_W, (bottom - top) / CARD_H);
+      atelier.y = top + (bottom - top) / 2;
+      compareHint.setPosition(atelier.x, bottom + theme.space(2)).setOrigin(0.5, 0);
+      galleryHalo.setPosition(atelier.x, atelier.y).setSize(CARD_W * atelier.scale + 40, CARD_H * atelier.scale + 40);
+      galleryFloor.setPosition(atelier.x, bottom).setSize(CARD_W * atelier.scale, 30);
+      applyAtelierPose(cardAtelierTiltPose({ x: 0, y: 0, inside: false }, 'off', false));
     };
     const bindTouchCompare = (): void => {
       if (view.inputZone) return;
@@ -999,167 +992,129 @@ export class CollectionScene extends Phaser.Scene {
       compareMask.destroy();
     });
 
-    // Variant panel, right of the card (card spans x 262.5..637.5 at rest).
-    const panelX = 740;
-    if (clearedDisplayPin) {
-      c.add(
-        this.add
-          .text(panelX, 84, 'Pinned display cleared. Showing your rarest owned look.', {
-            fontFamily: theme.fonts.ui,
-            fontSize: `${theme.type.caption}px`,
-            color: theme.colors.success,
-            wordWrap: { width: 470 },
-            lineSpacing: 3,
-          })
-          .setOrigin(0, 0.5),
-      );
-    }
-    c.add(
-      this.add
-        .text(panelX, 130, owned > 0 ? 'Owned variants' : 'Not yet collected', {
-          fontFamily: theme.fonts.display,
-          fontSize: `${theme.type.h2}px`,
-          color: owned > 0 ? theme.colors.heading : theme.colors.muted,
-        })
-        .setOrigin(0, 0.5),
+    // Actions take their measured height first; the variants page in the band above.
+    const actions = this.addInspectActions(
+      c, d, view, () => displayedVariant, () => ritualInProgress, suspendAtelierForRitual,
     );
+    const actionLayout = collectionActionLayout(actions.map((button) =>
+      Math.max(button.getMeasuredSize().hit.height, Number(button.container.getData('reservedHeight') ?? 0))));
+    actions.forEach((button, index) => button.container.setY(actionLayout.ys[index]));
+    const panelX = columns.detailsX;
+    const heading = this.add.text(panelX, columns.nameTop, owned > 0 ? 'Owned variants' : 'Not yet collected', {
+      fontFamily: theme.fonts.display, fontSize: `${theme.type.h2}px`,
+      color: owned > 0 ? theme.colors.heading : theme.colors.muted,
+    });
+    fitMenuName(heading, columns.detailsWidth, 2);
+    c.add(heading);
+    let variantTop = heading.y + heading.height + theme.space(3);
+    if (clearedDisplayPin) {
+      const note = this.add.text(panelX, variantTop, 'Pinned display cleared. Showing your rarest owned look.', {
+        fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px`, color: theme.colors.success,
+        wordWrap: { width: columns.detailsWidth }, lineSpacing: theme.space(1),
+      });
+      fitMenuName(note, columns.detailsWidth, 3);
+      c.add(note);
+      variantTop += note.height + theme.space(3);
+    }
     if (owned > 0) {
-      // Pull odds are the player-facing rarity of a finish. Keep the rarest
-      // owned treatment first, independent of the internal display ranking.
       const entries = [...ownedVariantEntries(save, d.id)].sort(
-        (a, b) =>
-          finishOdds(a.variant.frame, a.variant.holo, a.variant.fullArt) -
-            finishOdds(b.variant.frame, b.variant.holo, b.variant.fullArt) ||
-          variantKey(a.variant).localeCompare(variantKey(b.variant)),
+        (a, b) => finishOdds(a.variant.frame, a.variant.holo, a.variant.fullArt)
+          - finishOdds(b.variant.frame, b.variant.holo, b.variant.fullArt)
+          || variantKey(a.variant).localeCompare(variantKey(b.variant)),
       );
-      const VARIANT_ROWS = 7;
-      const VARIANT_ROW_Y = 176;
-      const VARIANT_ROW_PITCH = 48;
-      const variantPageCount = Math.max(1, Math.ceil(entries.length / VARIANT_ROWS));
+      const rowTextWidth = columns.detailsWidth - theme.control.minHitWidth - theme.space(8);
+      const measure = this.add.text(0, 0, '', {
+        fontFamily: theme.fonts.ui, fontSize: `${theme.type.label}px`, fontStyle: theme.weight.w600,
+        wordWrap: { width: rowTextWidth },
+      }).setVisible(false);
+      const nameHeight = Math.max(...entries.map((entry) => {
+        measure.setText(`▸ ${variantLabel(entry.variant)}  ×${entry.count}`); return measure.height;
+      }));
+      measure.setFontSize(theme.type.caption);
+      const oddsHeight = Math.max(...entries.map((entry) => {
+        measure.setText(formatOdds(finishOdds(entry.variant.frame, entry.variant.holo, entry.variant.fullArt)));
+        return measure.height;
+      }));
+      measure.destroy();
+      const variants = collectionVariantLayout(variantTop, actionLayout.listBottom,
+        nameHeight + theme.space(1) + oddsHeight, entries.length);
       let selectedKey = variantKey(shown!);
       let pinnedKey: string | null = save.pinnedVariants[d.id] ?? null;
-      let rows: {
-        background: Phaser.GameObjects.Graphics;
-        text: Phaser.GameObjects.Text;
-        odds: Phaser.GameObjects.Text;
-        pin: ThemedButton;
-        variant: CardVariant;
-        count: number;
-      }[] = [];
+      let rows: { container: Phaser.GameObjects.Container; background: Phaser.GameObjects.Graphics;
+        text: Phaser.GameObjects.Text; odds: Phaser.GameObjects.Text; pin: ThemedButton;
+        variant: CardVariant; count: number; y: number }[] = [];
       const restyle = (): void => {
-        for (const r of rows) {
-          const sel = variantKey(r.variant) === selectedKey;
-          r.background
-            .clear()
-            .fillStyle(sel ? theme.graphics.rowFillActive : theme.graphics.rowFill, theme.alpha.panel)
-            .fillRoundedRect(panelX - 14, r.text.y - 20, 370, 40, theme.radius.control)
-            .lineStyle(1, theme.graphics.panelStroke, theme.alpha.chrome)
-            .strokeRoundedRect(panelX - 14, r.text.y - 20, 370, 40, theme.radius.control);
-          r.text.setText(`${sel ? '▸ ' : '   '}${variantLabel(r.variant)}  ×${r.count}`);
-          r.text.setColor(sel ? theme.colors.gold : theme.colors.body);
-          r.pin.setVariant(pinnedKey === variantKey(r.variant) ? 'primary' : 'ghost');
-          // setText/setColor reset the hit bounds — re-inflate, biased right
-          // so the rect never reaches back over the card.
-          inflateHitArea(r.text, 300, 44, {
-            biasX: Math.max(0, (300 - r.text.width) / 2),
-          });
+        for (const row of rows) {
+          const selected = variantKey(row.variant) === selectedKey;
+          row.background.clear()
+            .fillStyle(selected ? theme.graphics.rowFillActive : theme.graphics.rowFill, theme.alpha.panel)
+            .fillRoundedRect(panelX, row.y - variants.rowHeight / 2, columns.detailsWidth, variants.rowHeight, theme.radius.control)
+            .lineStyle(theme.control.borderWidth, theme.graphics.panelStroke, theme.alpha.chrome)
+            .strokeRoundedRect(panelX, row.y - variants.rowHeight / 2, columns.detailsWidth, variants.rowHeight, theme.radius.control);
+          row.text.setText(`${selected ? '▸ ' : '   '}${variantLabel(row.variant)}  ×${row.count}`)
+            .setColor(selected ? theme.colors.gold : theme.colors.body);
+          fitMenuName(row.text, rowTextWidth, 3);
+          row.pin.setVariant(pinnedKey === variantKey(row.variant) ? 'primary' : 'ghost');
         }
       };
       let variantPageControl: Pager | null = null;
       const renderVariantPage = (page: number): void => {
-        for (const row of rows) {
-          if (row.background.active) row.background.destroy();
-          if (row.text.active) row.text.destroy();
-          if (row.odds.active) row.odds.destroy();
-          // The pin is a themed button: without this the previous page's pins
-          // stayed behind (and stayed tappable) over the new page's rows.
-          if (row.pin.container.active) row.pin.container.destroy();
-        }
+        for (const row of rows) row.container.destroy();
         rows = [];
-        const start = page * VARIANT_ROWS;
-        entries.slice(start, start + VARIANT_ROWS).forEach((e, i) => {
+        const start = page * variants.pageSize;
+        entries.slice(start, start + variants.pageSize).forEach((entry, index) => {
+          const y = variants.rowYs[index];
+          const top = y - variants.rowHeight / 2 + theme.space(2);
+          const row = this.add.container(0, 0);
           const background = this.add.graphics();
-          const t = this.add
-            .text(panelX, VARIANT_ROW_Y + i * VARIANT_ROW_PITCH, '', {
-              fontFamily: theme.fonts.ui,
-              fontSize: `${theme.type.label}px`,
-              fontStyle: theme.weight.w600,
-              color: theme.colors.body,
-            })
-            .setOrigin(0, 0.5)
+          const text = this.add.text(panelX + theme.space(2), top, '', {
+            fontFamily: theme.fonts.ui, fontSize: `${theme.type.label}px`,
+            fontStyle: theme.weight.w600, color: theme.colors.body,
+          });
+          const odds = this.add.text(panelX + theme.space(2), top + nameHeight + theme.space(1), formatOdds(
+            finishOdds(entry.variant.frame, entry.variant.holo, entry.variant.fullArt)), {
+            fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px`, color: theme.colors.muted,
+          });
+          const select = this.add.zone(panelX + (columns.detailsWidth - theme.control.minHitWidth - theme.space(2)) / 2,
+            y, columns.detailsWidth - theme.control.minHitWidth - theme.space(2), variants.rowHeight)
             .setInteractive({ useHandCursor: true });
-          const odds = this.add
-            .text(panelX + 360, VARIANT_ROW_Y + i * VARIANT_ROW_PITCH, formatOdds(
-              finishOdds(e.variant.frame, e.variant.holo, e.variant.fullArt),
-            ), {
-              fontFamily: theme.fonts.ui,
-              fontSize: `${theme.type.caption}px`,
-              color: theme.colors.muted,
-            })
-            .setOrigin(0, 0.5)
-            .setVisible(false);
-          bindTapButton(this, t, () => {
+          bindTapButton(this, select, () => {
             if (ritualInProgress) return;
-            selectedKey = variantKey(e.variant);
-            presentVariant(e.variant);
-            restyle();
+            selectedKey = variantKey(entry.variant); presentVariant(entry.variant); restyle();
           });
-          t.on('pointerover', (pointer: Phaser.Input.Pointer) => {
-            if (!pointer.wasTouch) odds.setVisible(true);
-          });
-          t.on('pointerout', () => odds.setVisible(false));
-          const pin = themedButton(this, panelX + 320, VARIANT_ROW_Y + i * VARIANT_ROW_PITCH, '📌', {
-            variant: pinnedKey === variantKey(e.variant) ? 'primary' : 'ghost',
-            size: 'sm',
-            minWidth: 36,
+          const pin = themedButton(this, columns.right - theme.control.minHitWidth / 2, y, '📌', {
+            variant: pinnedKey === variantKey(entry.variant) ? 'primary' : 'ghost', size: 'sm',
             onTap: () => {
               if (ritualInProgress) return;
-              const key = variantKey(e.variant);
+              const key = variantKey(entry.variant);
               let nextVariant: CardVariant;
               if (pinnedKey === key) {
-                delete save.pinnedVariants[d.id];
-                pinnedKey = null;
-                nextVariant = displayVariantFor(save, d.id);
+                delete save.pinnedVariants[d.id]; pinnedKey = null; nextVariant = displayVariantFor(save, d.id);
               } else {
-                save.pinnedVariants[d.id] = key;
-                pinnedKey = key;
-                nextVariant = e.variant;
+                save.pinnedVariants[d.id] = key; pinnedKey = key; nextVariant = entry.variant;
               }
-              selectedKey = variantKey(nextVariant);
-              presentVariant(nextVariant);
-              Services.save.flush();
-              Sfx.play('shimmer');
-              restyle();
+              selectedKey = variantKey(nextVariant); presentVariant(nextVariant);
+              this.flushSave(); Sfx.play('shimmer'); restyle();
             },
           });
-          rows.push({ background, text: t, odds, pin, variant: e.variant, count: e.count });
-          c.add([background, t, odds, pin.container]);
+          row.add([background, text, odds, select, pin.container]);
+          rows.push({ container: row, background, text, odds, pin, variant: entry.variant, count: entry.count, y });
+          c.add(row);
         });
-        variantPageControl?.refresh(page, variantPageCount);
+        variantPageControl?.refresh(page, variants.pageCount);
         restyle();
       };
-      variantPageControl = pager(this, panelX + 118, 522, 0, variantPageCount, renderVariantPage);
+      variantPageControl = pager(this, panelX + columns.detailsWidth / 2 - 56, variants.pagerY,
+        0, variants.pageCount, renderVariantPage);
       c.add(variantPageControl.container);
-      renderVariantPage(0);
+      renderVariantPage(Math.max(0, Math.min(variants.pageCount - 1, this.fixture?.variantPage ?? 0)));
+      if (this.fixture?.compareVariantIndex !== undefined) {
+        const entry = entries[this.fixture.compareVariantIndex];
+        if (entry) { selectedKey = variantKey(entry.variant); presentVariant(entry.variant); restyle(); }
+      }
     }
 
-    // Card actions: owned cards can choose a fallback hero portrait or shard;
-    // missing collectibles can be crafted.
-    this.addInspectActions(
-      c,
-      d,
-      view,
-      () => displayedVariant,
-      () => ritualInProgress,
-      suspendAtelierForRitual,
-    );
-
-    // The dismissal hint takes the corner a close button would hold: the
-    // reserved close track's right edge, on the shared header line. It sat at
-    // (640, 688) until 1.8.1 (2026-09-25), below the title-safe frame's 684
-    // and under the odds plate, and the bottom band has no room left (plate,
-    // Hero or Craft, Shard). The header line stays clear of the cleared-pin
-    // note under it (y 84).
+    // The existing dismissal hint owns the shell's header close track.
     const closeTrack = shell.tracks.closeTrack;
     c.add(
       this.add
@@ -1186,7 +1141,10 @@ export class CollectionScene extends Phaser.Scene {
     variant: 'primary' | 'emphasis' = 'emphasis',
     onTap: (pointer: Phaser.Input.Pointer) => void,
   ): ThemedButton {
-    const t = themedButton(this, x + 150, y, label, { variant, minWidth: 300, onTap });
+    const columns = collectionInspectColumns();
+    const t = themedButton(this, x + columns.detailsWidth / 2, y, label, {
+      variant, minWidth: columns.detailsWidth, maxTextWidth: columns.detailsWidth - theme.space(8), onTap,
+    });
     c.add(t.container);
     return t;
   }
@@ -1203,13 +1161,11 @@ export class CollectionScene extends Phaser.Scene {
     displayedVariant: () => CardVariant | undefined,
     isRitualInProgress: () => boolean,
     startRitual: () => void,
-  ): void {
-    const panelX = 740;
-    // Action chips are 40px tall with a 44px tap area, so their row centres
-    // must be at least 52px apart to keep 8px between the tap areas. Hero or
-    // Craft sits at 584 (hit 562..606); Shard at 648 (hit 626..670), inside
-    // the title-safe frame's 684 and clear of the variant pager above (522).
-    const save = Services.save.data;
+  ): ThemedButton[] {
+    const panelX = collectionInspectColumns().detailsX;
+    const buttons: ThemedButton[] = [];
+    // The caller lays these out from their measured maximum label heights.
+    const save = this.saveData;
     if (ownedCount(save, d.id) > 0) {
       // Name the input the player has: never "tap" to a mouse, never "click"
       // to a finger. The last press decides once there has been one.
@@ -1219,19 +1175,23 @@ export class CollectionScene extends Phaser.Scene {
       const heroBtn = this.overlayChip(
         c,
         panelX,
-        584,
+        0,
         heroLabel(),
         save.heroCardId === d.id ? 'primary' : 'emphasis',
         (pointer) => {
           if (isRitualInProgress()) return;
           heroVerb = pointer.wasTouch ? 'tap' : 'click';
           save.heroCardId = save.heroCardId === d.id ? null : d.id;
-          Services.save.flush();
+          this.flushSave();
           Sfx.play('shimmer');
           heroBtn.setLabel(heroLabel());
           heroBtn.setVariant(save.heroCardId === d.id ? 'primary' : 'emphasis');
         },
       );
+      heroBtn.setLabel(`★ Default hero (${heroVerb} to clear)`);
+      heroBtn.container.setData('reservedHeight', heroBtn.getMeasuredSize().hit.height);
+      heroBtn.setLabel(heroLabel());
+      buttons.push(heroBtn);
     }
 
     const owned = ownedCount(save, d.id);
@@ -1252,7 +1212,7 @@ export class CollectionScene extends Phaser.Scene {
         craftBtn.setLabel(label());
         craftBtn.setVariant('emphasis');
       };
-      const craftBtn = this.overlayChip(c, panelX, 584, label(), 'emphasis', (pointer) => {
+      const craftBtn = this.overlayChip(c, panelX, 0, label(), 'emphasis', (pointer) => {
         if (isRitualInProgress()) return;
         // Shared destructive-confirm policy (Gauntlet's Abandon, Limited's
         // Retire): two presses unless the player opted out in Settings, the
@@ -1272,15 +1232,19 @@ export class CollectionScene extends Phaser.Scene {
         const result = craftCard(save, CARD_DB, d.id);
         if (!result.ok) return;
         const checkpoint = checkpointAchievements(save, CARD_DB);
-        Services.save.flush();
-        if (checkpoint.changed) queueAchievementUnlockToasts(checkpoint.ids);
+        this.flushSave();
+        if (!this.fixture && checkpoint.changed) queueAchievementUnlockToasts(checkpoint.ids);
         Sfx.play('coin');
         this.renderPage(); // refresh counts, thumb alpha, and the gold badge
         this.showInspect(d); // keep the inspect overlay open on the new copy
       });
       // Shop convention: keep an unaffordable action visible with its price,
       // but make its input inert until the balance can cover the cost.
+      craftBtn.setLabel(`${armedVerb} again to craft (${costLabel})`);
+      craftBtn.container.setData('reservedHeight', craftBtn.getMeasuredSize().hit.height);
+      craftBtn.setLabel(label());
       craftBtn.setEnabled(save.gold >= cost);
+      buttons.push(craftBtn);
     }
 
     // Shard: convert copies past the per-variant playset (4 of each frame|holo)
@@ -1293,12 +1257,13 @@ export class CollectionScene extends Phaser.Scene {
       const shardBtn = this.overlayChip(
         c,
         panelX,
-        648,
+        0,
         `⛏ Hold to shard ×${excess} extra (+${gold}🪙)`,
         'emphasis',
         () => undefined,
       );
 
+      buttons.push(shardBtn);
       const holdLabel = `⛏ Hold to shard ×${excess} extra (+${gold}🪙)`;
       const progressFill = this.add.graphics();
       // The progress visual belongs inside the CTA instead of around the
@@ -1387,8 +1352,8 @@ export class CollectionScene extends Phaser.Scene {
           const result = shardExcess(save, CARD_DB, d.id);
           this.binderStale = true;
           const checkpoint = checkpointAchievements(save, CARD_DB);
-          Services.save.flush();
-          if (checkpoint.changed) queueAchievementUnlockToasts(checkpoint.ids);
+          this.flushSave();
+          if (!this.fixture && checkpoint.changed) queueAchievementUnlockToasts(checkpoint.ids);
           startRitual();
           shardBtn.setLabel(`Released (+${result.gold}🪙)`);
           Sfx.play('shatter');
@@ -1406,6 +1371,7 @@ export class CollectionScene extends Phaser.Scene {
       shardBtn.inputZone.on('pointerupoutside', releaseEarly);
       shardBtn.inputZone.on('pointerout', releaseEarly);
     }
+    return buttons;
   }
 
   /**
@@ -1443,7 +1409,7 @@ export class CollectionScene extends Phaser.Scene {
         badge.setDepth(badgeDepth);
         // If the modal was closed early, land the visible currency state even
         // though the ceremonial counter no longer has an overlay to inhabit.
-        if (!finished) this.goldBadge.refresh(Services.save.data.gold);
+        if (!finished) this.goldBadge.refresh(this.saveData.gold);
       }
     };
     this.inspectRitualCleanup = cleanup;
