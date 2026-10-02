@@ -5,7 +5,11 @@ import type { CardDef, Keyword, Rarity } from '../engine/types';
 import { isType } from '../engine/types';
 import type { CardVariant } from '../meta/variants';
 import { applyHolo, type HoloHandle } from './fx/HoloEffects';
-import { CUE_MIN_SCREEN_PX, cueCounterScale } from './boardCuePresentation';
+import {
+  CUE_MIN_SCREEN_PX, awakeningRingVisible, cueCounterScale, cueColour, cueIn, pickBadgeLabel, sickSwirlBounds, statsCue, tileChipBounds,
+  type BoardCueState, type CueContext, type StatsCueInput, type StatsTone,
+} from './boardCuePresentation';
+import { currentAccessibility } from './accessibility';
 import { KEYWORD_ICON_KEY, MECHANIC_ICON_KEY } from './KeywordIcons';
 import { colorInt, theme } from './theme';
 
@@ -93,22 +97,10 @@ export type BoardHighlight =
   | 'pendingBlocker'
   | 'eligible';
 
-/** Bright border color per state (art tints below keep today's softer hues). */
-const BORDER_COLORS: Record<Exclude<BoardHighlight, 'none'>, number> = {
-  legalTarget: 0x6ee87d,
-  legalTargetOpponent: colorInt(theme.colors.dangerArmed),
-  selectedAttacker: 0xff8a6a,
-  selectedSacrifice: 0xd4a3ff,
-  attacking: 0xffb09a,
-  blocking: 0x7fb0ff,
-  pendingBlocker: 0x5a9aff,
-  eligible: 0xffe28a,
-};
-
 /** Same tint values the old full-card battlefield rendering used. */
 const ART_TINTS: Record<Exclude<BoardHighlight, 'none'>, number> = {
   legalTarget: 0xa8f0b0,
-  legalTargetOpponent: colorInt(theme.colors.danger),
+  get legalTargetOpponent() { return colorInt(theme.colors.danger); },
   selectedAttacker: 0xffb0a0,
   selectedSacrifice: 0xe4c6ff,
   attacking: 0xffc0b0,
@@ -117,7 +109,8 @@ const ART_TINTS: Record<Exclude<BoardHighlight, 'none'>, number> = {
   eligible: 0xfff2c0,
 };
 
-export type StatsMood = 'normal' | 'damaged' | 'buffed' | 'weakened';
+/** Legacy preview callers may still supply a mood; live tiles supply all facts. */
+export type StatsMood = StatsTone;
 
 const STATS_COLORS: Record<StatsMood, string> = {
   normal: '#241d10',
@@ -181,6 +174,12 @@ export class BoardCardView extends Phaser.GameObjects.Container {
   private ptText: Phaser.GameObjects.Text;
   private auraBadge: Phaser.GameObjects.Text;
   private actionBadge: Phaser.GameObjects.Text;
+  private pickBadge: Phaser.GameObjects.Container;
+  private pickText: Phaser.GameObjects.Text;
+  private pickPlate: Phaser.GameObjects.Arc;
+  private focusBrackets: Phaser.GameObjects.Graphics;
+  private statsGlyphs: Phaser.GameObjects.Graphics;
+  private markBadge: Phaser.GameObjects.Text;
   private keywordIcons: Phaser.GameObjects.Image[] = [];
   private keywordOverflow: Phaser.GameObjects.Text | null = null;
   private sickIcon: Phaser.GameObjects.Image;
@@ -195,6 +194,7 @@ export class BoardCardView extends Phaser.GameObjects.Container {
   private hauntlinkBrokenMark: Phaser.GameObjects.Graphics;
   private chapterLabel: string | null = null;
   private awakenedState = false;
+  private cueContext: CueContext = 'idle';
   private holo: HoloHandle | null = null;
   private holoFinish: CardVariant['holo'] | null = null;
   private sick = false;
@@ -228,7 +228,7 @@ export class BoardCardView extends Phaser.GameObjects.Container {
     // Name legibility scrim along the top, then the name centered within it —
     // capped in width so it clears the trait column at top-left and the
     // summoning-sick swirl at top-right, which draw over the scrim.
-    const nameScrim = scene.add.rectangle(0, NAME_CY, ART_W, NAME_H, 0x0d0b16, 0.62);
+    const nameScrim = scene.add.rectangle(0, NAME_CY, ART_W, NAME_H, 0x0d0b16, theme.alpha.scrim);
     const nameText = scene.add
       .text(0, NAME_CY, card.name, {
         fontFamily: 'Inter, Arial, sans-serif',
@@ -279,7 +279,7 @@ export class BoardCardView extends Phaser.GameObjects.Container {
       .setVisible(false);
 
     this.actionBadge = scene.add
-      .text(TILE_W / 2 - 3, -TILE_H / 2 + 3, '', {
+      .text(0, -TILE_H / 2, '', {
         fontFamily: 'Inter, Arial, sans-serif',
         fontSize: '10px',
         fontStyle: '700',
@@ -288,15 +288,34 @@ export class BoardCardView extends Phaser.GameObjects.Container {
         padding: { x: 4, y: 2 },
         resolution: 2,
       })
-      .setOrigin(1, 0)
+      .setOrigin(0.5)
+      .setName('board-action-tab')
       .setVisible(false);
+
+    this.pickPlate = scene.add.circle(0, 0, CUE_MIN_SCREEN_PX.pickBadge / 2, colorInt(theme.colors.gold))
+      .setStrokeStyle(2, colorInt(theme.colors.onGold));
+    this.pickText = scene.add.text(0, 0, '', {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.typeBase.caption}px`, fontStyle: theme.weight.w700,
+      color: theme.colors.onGold, resolution: 2,
+    }).setOrigin(0.5);
+    this.pickBadge = scene.add.container(0, 0, [this.pickPlate, this.pickText])
+      .setName('board-pick-badge').setVisible(false);
+    this.focusBrackets = scene.add.graphics().setName('board-focus-brackets').setVisible(false);
+    this.statsGlyphs = scene.add.graphics().setPosition(PT_CX + PT_W / 2, PT_CY - PT_H / 2 - 4)
+      .setName('board-stats-glyphs').setVisible(false);
+    this.markBadge = scene.add.text(0, TILE_H / 2 - FRAME_M, '', {
+      fontFamily: theme.fonts.ui, fontSize: `${CUE_MIN_SCREEN_PX.markBadge}px`, fontStyle: theme.weight.w700,
+      color: theme.colors.gold, backgroundColor: theme.colors.rowFill, padding: { x: 2, y: 1 }, resolution: 2,
+    }).setOrigin(0.5, 1).setName('board-mark-badge').setVisible(false);
 
     // Summoning-sickness badge: top-right corner of the art window, opposite
     // the trait column. Hidden until set.
     ensureSickTexture(scene);
+    const sickBounds = sickSwirlBounds(TILE_W, TILE_H);
     this.sickIcon = scene.add
-      .image(TILE_W / 2 - 14, -TILE_H / 2 + 14, SICK_TEX)
-      .setDisplaySize(22, 22)
+      .image(sickBounds.x + sickBounds.width / 2, sickBounds.y + sickBounds.height / 2, SICK_TEX)
+      .setDisplaySize(sickBounds.width, sickBounds.height)
+      .setName('board-sick-swirl')
       .setVisible(false);
 
     // Quest chapter badge: bottom-right corner, mirroring the aura badge's
@@ -355,12 +374,12 @@ export class BoardCardView extends Phaser.GameObjects.Container {
       .container(-TILE_W / 2 + FRAME_M, PROVOKED_CY, [provokedPlate, provokedIcon, provokedSlash])
       .setVisible(false);
 
-    // Champion Awakening: a persistent gold ring once the flip happens. Its
-    // own rectangle (not the highlight) so targeting highlights, which clear
-    // the art tint every sync, cannot wipe the awakened state's cue.
+    // Champion Awakening: its persistent state survives target choices, but
+    // the ring yields there so only legal targets have a perimeter ring.
     this.awakenedRect = scene.add
       .rectangle(0, 0, TILE_W + 4, TILE_H + 4, 0x000000, 0)
       .setStrokeStyle(2, colorInt(theme.colors.gold), 0.95)
+      .setName('board-awakening-ring')
       .setVisible(false);
 
     // A brief, distinct severed-link mark. DuelScene holds this state between
@@ -373,6 +392,7 @@ export class BoardCardView extends Phaser.GameObjects.Container {
     this.highlightRect = scene.add
       .rectangle(0, 0, TILE_W + 6, TILE_H + 6, 0x000000, 0)
       .setStrokeStyle(3, 0xffffff, 1)
+      .setName('board-state-ring')
       .setVisible(false);
 
     this.add([
@@ -383,8 +403,9 @@ export class BoardCardView extends Phaser.GameObjects.Container {
       nameText,
       this.ptPlate,
       this.ptText,
+      this.statsGlyphs,
+      this.markBadge,
       this.auraBadge,
-      this.actionBadge,
       this.chapterBadge,
       this.overchargeBadge,
       this.provokedBadge,
@@ -392,15 +413,50 @@ export class BoardCardView extends Phaser.GameObjects.Container {
       this.awakenedRect,
       this.hauntlinkBrokenMark,
       this.highlightRect,
+      // A top-edge tab crosses the rim. Draw its opaque plate and glyphs
+      // after the rings so the upper letters cannot be painted over.
+      this.actionBadge,
+      this.pickBadge,
+      this.focusBrackets,
     ]);
+    // Operational badges participate in glyph/mask checks even though the
+    // underlying card name and P/T retain their fixed card-face geometry.
+    for (const text of [this.actionBadge, this.pickText, this.markBadge,
+      this.auraBadge, this.chapterBadge, this.overchargeText]) {
+      text.setData('a11yCueText', true).setData('a11yKeepVisible', true);
+    }
     this.setSize(TILE_W, TILE_H);
     scene.add.existing(this);
   }
 
   /** Effective P/T (defense already minus marked damage). No-op for non-creatures. */
-  setStats(attack: number, defenseLeft: number, mood: StatsMood): this {
+  setStats(attack: number, defenseLeft: number, input: StatsCueInput | StatsMood, tileScale = 1): this {
     if (!this.ptText.visible) return this;
-    this.ptText.setText(`${attack}/${defenseLeft}`).setColor(STATS_COLORS[mood]);
+    const cue = typeof input === 'string' ? null : statsCue(input);
+    const tone = cue?.tone ?? (typeof input === 'string' ? input : 'normal');
+    this.ptText.setText(`${attack}/${defenseLeft}`).setColor(STATS_COLORS[tone]);
+    this.setData('a11yStatsCue', cue);
+    this.statsGlyphs.clear().setVisible(cue !== null && cue.glyphs.length > 0).setScale(cueCounterScale(tileScale));
+    this.markBadge.setVisible(cue !== null && cue.markBadge !== null);
+    if (!cue) return this;
+    if (cue.markBadge !== null) {
+      this.markBadge.setText(`+${cue.markBadge}`).setScale(cueCounterScale(tileScale));
+      this.markBadge.setColor(theme.colors.gold).setBackgroundColor(theme.colors.rowFill);
+    }
+    const size = CUE_MIN_SCREEN_PX.statGlyph, gap = 4, pad = 3;
+    const width = cue.glyphs.length * size + Math.max(0, cue.glyphs.length - 1) * gap + pad * 2;
+    this.statsGlyphs.fillStyle(colorInt(theme.colors.rowFill), 1);
+    this.statsGlyphs.fillRoundedRect(-width, -size - pad * 2, width, size + pad * 2, 3);
+    cue.glyphs.forEach((glyph, index) => {
+      const x = -width + pad + index * (size + gap), y = -size - pad;
+      this.statsGlyphs.lineStyle(2, colorInt(glyph === 'damage' || glyph === 'lowered' ? theme.colors.dangerArmed : theme.colors.success), 1);
+      if (glyph === 'damage') this.statsGlyphs.lineBetween(x + 2, y + size, x + size - 2, y);
+      else {
+        const end = glyph === 'raised' ? y + size * 0.75 : y + size * 0.25;
+        const tip = glyph === 'raised' ? y + size * 0.25 : y + size * 0.75;
+        this.statsGlyphs.beginPath().moveTo(x, end).lineTo(x + size / 2, tip).lineTo(x + size, end).strokePath();
+      }
+    });
     return this;
   }
 
@@ -422,8 +478,41 @@ export class BoardCardView extends Phaser.GameObjects.Container {
     this.actionBadge.setVisible(label !== null);
     if (label !== null) {
       this.actionBadge.setText(label);
-      this.actionBadge.setScale(tileScale > 0 ? Math.max(1, 1 / tileScale) : 1);
+      this.actionBadge.setScale(cueCounterScale(tileScale));
+      const bounds = tileChipBounds(TILE_W, TILE_H, this.actionBadge.width, this.actionBadge.height, tileScale);
+      this.actionBadge.setPosition(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+      this.actionBadge.setData('a11yChipBounds', bounds);
     }
+    this.setData('a11yChip', label);
+    return this;
+  }
+
+  /** Every picked target carries its 1-based order, including a lone pick. */
+  setPickBadge(pickIndex: number | readonly number[] | null, tileScale = 1): this {
+    const label = pickBadgeLabel(pickIndex);
+    this.pickBadge.setVisible(label !== null).setScale(cueCounterScale(tileScale));
+    if (label !== null) {
+      this.pickText.setText(label).setColor(theme.colors.onGold);
+      this.pickPlate.setRadius(Math.max(CUE_MIN_SCREEN_PX.pickBadge / 2, this.pickText.width / 2 + 4));
+      this.pickPlate.setFillStyle(colorInt(theme.colors.gold)).setStrokeStyle(2, colorInt(theme.colors.onGold));
+    }
+    this.setData('a11yPickBadge', label);
+    return this;
+  }
+
+  /** Focus is brackets over the state's ring, never another state's hue. */
+  setKeyboardFocus(focused: boolean): this {
+    const show = focused && cueIn('keyboardFocus', 'targeting')?.focusBrackets === true;
+    this.focusBrackets.clear().setVisible(show);
+    if (show) {
+      const halfW = TILE_W / 2 + 8, halfH = TILE_H / 2 + 8, length = 13;
+      this.focusBrackets.lineStyle(theme.outline.focus, colorInt(theme.colors.heading), 1);
+      for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
+        this.focusBrackets.beginPath().moveTo(sx * (halfW - length), sy * halfH)
+          .lineTo(sx * halfW, sy * halfH).lineTo(sx * halfW, sy * (halfH - length)).strokePath();
+      }
+    }
+    this.setData('a11yKeyboardFocus', show);
     return this;
   }
 
@@ -483,7 +572,7 @@ export class BoardCardView extends Phaser.GameObjects.Container {
   setAwakened(awakened: boolean): this {
     if (this.awakenedState === awakened) return this;
     this.awakenedState = awakened;
-    this.awakenedRect.setVisible(awakened);
+    this.awakenedRect.setVisible(awakeningRingVisible(awakened, this.cueContext));
     return this;
   }
 
@@ -560,15 +649,38 @@ export class BoardCardView extends Phaser.GameObjects.Container {
     return this;
   }
 
-  setHighlight(kind: BoardHighlight): this {
-    if (kind === 'none') {
+  /** Ring policy is shared with the headless cue gate; the scene owns lift. */
+  setCue(state: BoardCueState | null, context: CueContext): this {
+    this.cueContext = context;
+    this.awakenedRect.setVisible(awakeningRingVisible(this.awakenedState, context));
+    const cue = state === null ? null : cueIn(state, context);
+    this.setData('a11yCue', cue);
+    if (!cue?.rim) {
       this.highlightRect.setVisible(false);
       this.art.clearTint();
     } else {
-      this.highlightRect.setVisible(true).setStrokeStyle(3, BORDER_COLORS[kind], 1);
-      this.art.setTint(ART_TINTS[kind]);
+      this.highlightRect.setVisible(true).setStrokeStyle(theme.outline.state, colorInt(cueColour(cue.rim, currentAccessibility().highContrast)), 1);
+      const tint: Partial<Record<BoardCueState, Exclude<BoardHighlight, 'none'>>> = {
+        legalTarget: 'legalTarget', legalTargetOpponent: 'legalTargetOpponent', pickedTarget: 'selectedAttacker',
+        selectedSacrifice: 'selectedSacrifice', eligibleAttacker: 'eligible', selectedAttacker: 'selectedAttacker',
+        attacking: 'attacking', pendingBlocker: 'pendingBlocker', assignedBlocker: 'blocking', actionReady: 'eligible',
+      };
+      const kind = tint[cue.state];
+      if (kind) this.art.setTint(ART_TINTS[kind]);
+      else this.art.clearTint();
     }
     return this;
+  }
+
+  /** Brief event flashes and older previews still use the historical names. */
+  setHighlight(kind: BoardHighlight): this {
+    const cues: Record<Exclude<BoardHighlight, 'none'>, [BoardCueState, CueContext]> = {
+      legalTarget: ['legalTarget', 'targeting'], legalTargetOpponent: ['legalTargetOpponent', 'targeting'],
+      selectedAttacker: ['selectedAttacker', 'declareAttackers'], selectedSacrifice: ['selectedSacrifice', 'targeting'],
+      attacking: ['attacking', 'idle'], blocking: ['assignedBlocker', 'declareBlockers'],
+      pendingBlocker: ['pendingBlocker', 'declareBlockers'], eligible: ['actionReady', 'idle'],
+    };
+    return kind === 'none' ? this.setCue(null, 'idle') : this.setCue(...cues[kind]);
   }
 
   setTapped(tapped: boolean, animate = true): void {

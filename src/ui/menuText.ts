@@ -45,11 +45,24 @@ export interface MenuTextCheck {
   linePitch?: number;
   /** Prices, rewards and primary actions must never be clipped by a mask. */
   keepVisible?: boolean;
+  /** Actual ink, rather than the Text object's padded allocation. */
+  glyphBounds?: Rect;
+  /** The text's own raster canvas in the same coordinates as glyphBounds. */
+  glyphClip?: Rect;
+  /** Opaque geometry drawn later in the same widget, including ring strokes. */
+  occluders?: readonly Rect[];
 }
 
 /** Checks source preservation and measured bounds, including what a mask hides. */
 export function menuTextFindings(check: MenuTextCheck): ('truncatedText' | 'clippedText')[] {
   const findings: ('truncatedText' | 'clippedText')[] = [];
+  if (check.glyphBounds) {
+    const ink = check.glyphBounds;
+    if (check.glyphClip && !isRectContained(ink, check.glyphClip, 0.5)) findings.push('clippedText');
+    if (check.occluders?.some(cover =>
+      Math.min(ink.x + ink.width, cover.x + cover.width) - Math.max(ink.x, cover.x) > 0.5 &&
+      Math.min(ink.y + ink.height, cover.y + cover.height) - Math.max(ink.y, cover.y) > 0.5)) findings.push('clippedText');
+  }
   const normalized = (value: string): string => value.replace(/\s+/g, ' ').trim();
   if (normalized(check.expected) !== normalized(check.actual)
     || check.expected.replace(/\s+/g, '') !== check.lines.join('').replace(/\s+/g, '')

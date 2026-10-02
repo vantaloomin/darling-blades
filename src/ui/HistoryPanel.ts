@@ -1,5 +1,8 @@
 import Phaser from 'phaser';
 import { bindTapButton, inflateHitArea } from '../platform/gestures';
+import { colorInt, theme } from './theme';
+import { duelPanelAlpha, duelPanelType, historyPanelPages } from './duelPanelPresentation';
+import { pager, sceneHasOpenModal } from './themeWidgets';
 
 // Design-space constants, NOT scene.scale (= game size = 1280k×720k under
 // render scale; the camera shows the 1280×720 design window — see
@@ -14,7 +17,7 @@ const MAX_LINES = 14;
 /** Top of the log rows, below the title + hairline rule. */
 const LOG_TOP = 106;
 /** Depth: above the board (arrows 50 / cards 10–55) but below modal overlays (>=100). */
-const DEPTH = 70;
+const DEPTH = theme.depth.history;
 
 // Slide geometry. Closed: the panel body sits fully off-screen to the right,
 // only the tab (which pokes out to the LEFT of the panel's left edge) is
@@ -57,6 +60,11 @@ export class HistoryPanel {
   private readonly onCardTap?: (cardId: string) => void;
   private slideTween: Phaser.Tweens.Tween | null = null;
   private open = false;
+  private page = 0;
+  private readonly logTop: number;
+  private readonly title: Phaser.GameObjects.Text;
+  private pageControl: ReturnType<typeof pager> | null = null;
+  private pages: ReturnType<typeof historyPanelPages> = [[]];
 
   constructor(scene: Phaser.Scene, onCardTap?: (cardId: string) => void) {
     this.scene = scene;
@@ -65,9 +73,9 @@ export class HistoryPanel {
     // Panel body: a semi-transparent dark plate docked to the panel's right
     // portion (drawn in container-local space, left edge at local x=0).
     const bg = scene.add.graphics();
-    bg.fillStyle(0x120e20, 0.82);
+    bg.fillStyle(theme.graphics.panelFill, duelPanelAlpha(0.82));
     bg.fillRoundedRect(0, 40, PANEL_W, DESIGN_H - 80, 10);
-    bg.lineStyle(1, 0x3a2f5c, 1);
+    bg.lineStyle(1, theme.graphics.panelStroke, 1);
     bg.strokeRoundedRect(0, 40, PANEL_W, DESIGN_H - 80, 10);
 
     // Click blocker: the 1a layout parks the smart button / End Turn /
@@ -80,20 +88,22 @@ export class HistoryPanel {
     // nothing. Modal overlays (depth ≥100 with their own full-screen dims)
     // still sit above it.
     const blocker = scene.add
-      .rectangle(PANEL_W / 2, DESIGN_H / 2, PANEL_W, DESIGN_H - 80, 0x000000, 0)
+      .rectangle(PANEL_W / 2, DESIGN_H / 2, PANEL_W, DESIGN_H - 80, theme.graphics.dim, 0)
       .setInteractive();
 
     const title = scene.add
       .text(20, 58, 'History', {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '20px',
-        color: '#ffd88a',
+        fontFamily: theme.fonts.display,
+        fontSize: `${theme.type.h2}px`,
+        color: theme.colors.gold,
         resolution: 2,
       })
       .setOrigin(0, 0);
+    this.title = title.setVisible(false);
+    this.logTop = Math.max(LOG_TOP, title.y + title.height + 18);
     // Gold hairline under the title, HUD-style.
     const rule = scene.add.graphics();
-    rule.fillStyle(0x8a6d1f, 0.55);
+    rule.fillStyle(colorInt(theme.colors.gold), 0.55);
     rule.fillRect(20, 92, PANEL_W - 40, 1);
 
     // The tab: a vertical "History" strip pinned to the LEFT of the panel body
@@ -101,16 +111,16 @@ export class HistoryPanel {
     // right edge. Rotated -90° reads bottom-to-top. Made interactive directly
     // (plain Text, unscaled), then inflated for a ≥90px touch target.
     const tabBg = scene.add.graphics();
-    tabBg.fillStyle(0x2c2344, 0.95);
+    tabBg.fillStyle(theme.graphics.rowFillActive, duelPanelAlpha(0.95));
     tabBg.fillRoundedRect(-TAB_W, (DESIGN_H - TAB_H) / 2, TAB_W, TAB_H, { tl: 8, bl: 8, tr: 0, br: 0 });
-    tabBg.lineStyle(1, 0x3a2f5c, 1);
+    tabBg.lineStyle(1, theme.graphics.panelStroke, 1);
     tabBg.strokeRoundedRect(-TAB_W, (DESIGN_H - TAB_H) / 2, TAB_W, TAB_H, { tl: 8, bl: 8, tr: 0, br: 0 });
 
     this.tabLabel = scene.add
       .text(-TAB_W / 2, DESIGN_H / 2, 'History', {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '14px',
-        color: '#ffd88a',
+        fontFamily: theme.fonts.display,
+        fontSize: `${theme.type.label}px`,
+        color: theme.colors.gold,
         resolution: 2,
       })
       .setOrigin(0.5)
@@ -124,7 +134,9 @@ export class HistoryPanel {
 
     this.container = scene.add
       .container(CLOSED_X, 0, [bg, blocker, title, rule, tabBg, this.tabLabel])
-      .setDepth(DEPTH);
+      .setDepth(DEPTH).setData('a11yArea', { x: OPEN_X - TAB_W, y: 40, width: PANEL_W + TAB_W, height: DESIGN_H - 80 });
+    this.tabLabel.setData('a11yArea', { x: 0, y: 0, width: DESIGN_W, height: DESIGN_H });
+    this.scene.input.on('wheel', this.onWheel, this);
 
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, this.destroy, this);
   }
@@ -139,6 +151,7 @@ export class HistoryPanel {
    *  tappable (routes to onCardTap so the scene can show the card). */
   push(entry: string, cardId?: string): void {
     this.entries.unshift({ text: entry, cardId });
+    this.page = 0;
     if (this.entries.length > MAX_LINES) this.entries.length = MAX_LINES;
     this.render();
   }
@@ -146,6 +159,7 @@ export class HistoryPanel {
   /** Drop all history. */
   clear(): void {
     this.entries.length = 0;
+    this.page = 0;
     this.render();
   }
 
@@ -161,26 +175,28 @@ export class HistoryPanel {
     if (!this.container.active) return;
     for (const r of this.rows) r.destroy();
     this.rows.length = 0;
+    this.pageControl?.container.destroy();
+    this.pageControl = null;
     let y = LOG_TOP;
     for (const e of this.entries) {
       const tappable = !!e.cardId && !!this.onCardTap;
       const row = this.scene.add
         .text(20, y, e.text, {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '13px',
-          color: tappable ? '#d8cff0' : '#cbc2e0',
+          fontFamily: theme.fonts.ui,
+          fontSize: `${duelPanelType().history}px`,
+          color: tappable ? theme.colors.heading : theme.colors.body,
           lineSpacing: 2,
-          wordWrap: { width: PANEL_W - 40 },
+          wordWrap: { width: PANEL_W - 40, useAdvancedWrap: true },
           resolution: 2,
         })
-        .setOrigin(0, 0);
+        .setOrigin(0, 0).setData('a11yFullText', e.text).setData('a11yTextWidth', PANEL_W - 40);
       if (tappable) {
         row.setInteractive({ useHandCursor: true });
         row.on('pointerover', (p: Phaser.Input.Pointer) => {
-          if (!p.wasTouch) row.setColor('#ffe6a0');
+          if (!p.wasTouch) row.setColor(theme.colors.goldHover);
         });
         row.on('pointerout', (p: Phaser.Input.Pointer) => {
-          if (!p.wasTouch) row.setColor('#d8cff0');
+          if (!p.wasTouch) row.setColor(theme.colors.heading);
         });
         bindTapButton(this.scene, row, () => this.onCardTap!(e.cardId!));
       }
@@ -188,11 +204,53 @@ export class HistoryPanel {
       this.rows.push(row);
       y += row.height + 6;
     }
+    const top = this.logTop;
+    this.pages = historyPanelPages(this.rows.map(row => row.height), top);
+    if (this.pages.length > 1) {
+      this.pages = historyPanelPages(this.rows.map(row => row.height), top, 620);
+      this.pageControl = pager(this.scene, PANEL_W / 2 - 44, 652, this.page, this.pages.length,
+        next => { this.page = next; this.placePage(); });
+      this.container.add(this.pageControl.container);
+      for (const label of [this.pageControl.previous, this.pageControl.next, this.pageControl.label])
+        label.setData('a11yArea', { x: OPEN_X, y: 40, width: PANEL_W, height: DESIGN_H - 80 });
+    }
+    this.placePage();
+  }
+
+  private placePage(): void {
+    this.page = Math.max(0, Math.min(this.pages.length - 1, this.page));
+    for (const row of this.rows) { row.setVisible(false); if (row.input) row.disableInteractive(); }
+    for (const entry of this.pages[this.page]) {
+      const row = this.rows[entry.index];
+      row.setY(entry.y).setVisible(this.open);
+      if (row.input && this.open) row.setInteractive({ useHandCursor: true });
+      row.setData('a11yArea', { x: OPEN_X, y: 40, width: PANEL_W, height: DESIGN_H - 80 });
+    }
+    this.title.setVisible(this.open);
+    this.pageControl?.container.setVisible(this.open);
+    this.pageControl?.refresh(this.page, this.pages.length);
+    this.container.setData('a11ySurface', { x: this.open ? OPEN_X : CLOSED_X, y: 40, width: PANEL_W, height: DESIGN_H - 80 });
+  }
+
+  private onWheel(pointer: Phaser.Input.Pointer, _over: unknown, _dx: number, dy: number): void {
+    // Custom duel choices use ModalGuard rather than modalShell. Its disabled
+    // tab is the shared signal that this panel must not react behind them.
+    if (!this.open || !this.tabLabel.input?.enabled || sceneHasOpenModal(this.scene)
+      || pointer.worldX < OPEN_X || this.pages.length <= 1) return;
+    this.page += Math.sign(dy); this.placePage();
+  }
+
+  /** Open directly at a requested page; normal input and fixtures share the same path. */
+  showPage(page = 0): void {
+    this.page = page;
+    if (!this.open) this.toggle();
+    this.placePage();
   }
 
   private toggle(): void {
     if (!this.container.active) return;
     this.open = !this.open;
+    this.placePage();
     this.slideTween?.stop();
     this.slideTween = this.scene.tweens.add({
       targets: this.container,
@@ -213,6 +271,7 @@ export class HistoryPanel {
     this.slideTween?.stop();
     this.slideTween = null;
     this.scene.events.off(Phaser.Scenes.Events.SHUTDOWN, this.destroy, this);
+    this.scene.input.off('wheel', this.onWheel, this);
     this.container.destroy(); // destroys all children (bg, title, rule, rows, tab)
   }
 }

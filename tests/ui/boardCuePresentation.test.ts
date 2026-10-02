@@ -5,6 +5,7 @@ import {
   CUE_CONTEXTS,
   TILE_FEATURES,
   coPresentPairs,
+  awakeningRingVisible,
   cueColour,
   cueIn,
   featuresMeet,
@@ -14,6 +15,8 @@ import {
   cueScreenSize,
   CUE_MIN_SCREEN_PX,
   statsCue,
+  sickSwirlBounds,
+  tileChipBounds,
   tileChipLabel,
   type BoardCueState,
   type CueContext,
@@ -139,6 +142,16 @@ describe('cue distinctness (the gate)', () => {
     expect(ringed.sort()).toEqual(['legalTarget', 'legalTargetOpponent', 'pickedTarget', 'selectedSacrifice']);
     expect(cueIn('attacking', 'targeting')!.lift).toBe(true);
     expect(cueIn('attacking', 'declareBlockers')!.rim).not.toBeNull();
+    // Declaration, responses and target choices may alternate throughout
+    // combat; the position continues to record the declaration in all three.
+    for (const context of ['declareBlockers', 'idle', 'targeting'] as const) {
+      expect(cueIn('attacking', context)!.lift, context).toBe(true);
+    }
+    // An awakened attacker must not retain its other perimeter ring while
+    // the combat ring yields; after choosing, its persistent ring returns.
+    expect(awakeningRingVisible(true, 'targeting')).toBe(false);
+    expect(awakeningRingVisible(true, 'idle')).toBe(true);
+    expect(awakeningRingVisible(false, 'idle')).toBe(false);
   });
 });
 
@@ -146,6 +159,11 @@ describe('the pick badge', () => {
   it('numbers picks from 1 in pick order and is absent for anything not picked', () => {
     expect(pickBadgeLabel(0)).toBe('1');
     expect(pickBadgeLabel(1)).toBe('2');
+    // Independent slots may choose the same creature: keep both slot numbers
+    // on that creature, rather than losing the second pick to findIndex.
+    expect(pickBadgeLabel([0, 1])).toBe('1, 2');
+    expect(pickBadgeLabel([1, 2])).toBe('2, 3');
+    expect(pickBadgeLabel([])).toBeNull();
     for (const none of [null, undefined, -1, 0.5]) expect(pickBadgeLabel(none)).toBeNull();
   });
 
@@ -169,6 +187,11 @@ describe('the P/T cues (no longer one exclusive mood)', () => {
     expect(cue.glyphs).toContain('damage');
     expect(cue.glyphs).toContain('raised');
     expect(cue.markBadge).toBe(2);
+    // A temporary boost adds to the same effective-stat arrow; the badge
+    // still counts only the two Marks rather than every point of the boost.
+    const boosted = statsCue(input({ damage: 1, attackDelta: 5, defenseDelta: 2, marks: 2 }));
+    expect(boosted.glyphs).toEqual(['damage', 'raised']);
+    expect(boosted.markBadge).toBe(2);
   });
 
   it('shows both chevrons when one stat is up and the other down', () => {
@@ -236,6 +259,7 @@ describe('the tile chip and its priority', () => {
     expect(tileChipLabel({ ...none, canAttack: true })).toBe('Attack');
     expect(tileChipLabel({ ...none, assignedBlocker: true })).toBe('Blocks');
     expect(tileChipLabel(none)).toBeNull();
+    expect(cueIn('selectedAttacker', 'declareAttackers')!.chip).toBe('Attack');
   });
 
   it("agrees with today's permanentActionLabel wherever combat adds no chip", () => {
@@ -292,6 +316,21 @@ describe('cue size on a shrunken tile', () => {
 });
 
 describe('where the cues sit on a tile', () => {
+  it('keeps a readable top-edge action tab clear of the sick swirl even when the tile shrinks', () => {
+    const swirl = sickSwirlBounds(156, 170);
+    for (const scale of [0.3, 0.45, 0.55, 0.8, 1]) {
+      for (const width of [35, 48, 64]) {
+        const chip = tileChipBounds(156, 170, width, 16, scale);
+        expect(chip.x + chip.width / 2).toBe(0);
+        expect(chip.y).toBeLessThan(-170 / 2);
+        expect(chip.width * scale).toBeGreaterThanOrEqual(width);
+        const overlapX = Math.min(chip.x + chip.width, swirl.x + swirl.width) - Math.max(chip.x, swirl.x);
+        const overlapY = Math.min(chip.y + chip.height, swirl.y + swirl.height) - Math.max(chip.y, swirl.y);
+        expect(overlapX <= 0 || overlapY <= 0, `chip ${width}px at ${scale}`).toBe(true);
+      }
+    }
+  });
+
   it('never puts two features that can share a tile on the same spot', () => {
     const features = Object.keys(TILE_FEATURES) as TileFeature[];
     for (let i = 0; i < features.length; i++) {

@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
 import { bindTapButton, inflateHitArea } from '../platform/gestures';
+import { theme, colorInt } from './theme';
+import { duelPanelAlpha } from './duelPanelPresentation';
 import { bakePileIcons, PILE_ICON_KEYS, PILE_ICON_SIZE, type PileIconKind } from './pileIcons';
 
 /**
@@ -22,11 +24,10 @@ export interface PileViewOpts {
 const BADGE_W = 40;
 const BADGE_H = 16;
 const BADGE_GAP = 4;
-const BADGE_FILL = 0x0d0a18;
-const BADGE_STROKE = 0x3a2f5c;
-const BADGE_TEXT_COLOR = '#cbc2e0';
-const ALERT_COLOR = 0xffd700;
 const ALERT_CHIP_R = 9;
+// HUD numerals retain the release badge geometry, like the duel life totals.
+const PILE_NUMERAL_SIZE = 11;
+const PILE_NUMERAL_FONT = 'Consolas, "Courier New", monospace';
 
 export class PileView extends Phaser.GameObjects.Container {
   readonly kind: PileKind;
@@ -40,6 +41,7 @@ export class PileView extends Phaser.GameObjects.Container {
   constructor(scene: Phaser.Scene, x: number, y: number, kind: PileKind, opts?: PileViewOpts) {
     super(scene, x, y);
     this.kind = kind;
+    this.setData('a11yArea', { x: 0, y: 0, width: theme.design.width, height: theme.design.height });
 
     bakePileIcons(scene);
 
@@ -89,7 +91,7 @@ export class PileView extends Phaser.GameObjects.Container {
       const pad = 5;
       const { top, bottom, width } = this.alertBounds;
       const outline = this.scene.add.graphics();
-      outline.lineStyle(2, ALERT_COLOR, 1);
+      outline.lineStyle(2, colorInt(theme.colors.goldHover), 1);
       outline.strokeRoundedRect(
         -width / 2 - pad,
         top - pad,
@@ -99,14 +101,14 @@ export class PileView extends Phaser.GameObjects.Container {
       );
       const chipX = width / 2 + pad;
       const chipY = top - pad;
-      outline.fillStyle(ALERT_COLOR, 1);
+      outline.fillStyle(colorInt(theme.colors.goldHover), 1);
       outline.fillCircle(chipX, chipY, ALERT_CHIP_R);
       const chipText = this.scene.add
         .text(chipX, chipY, `${count}`, {
-          fontFamily: 'Consolas, "Courier New", monospace',
-          fontSize: '11px',
-          fontStyle: '700',
-          color: '#1a1426',
+          fontFamily: PILE_NUMERAL_FONT,
+          fontSize: `${PILE_NUMERAL_SIZE}px`,
+          fontStyle: theme.weight.w700,
+          color: theme.colors.onGold,
           resolution: 2,
         })
         .setOrigin(0.5);
@@ -129,18 +131,18 @@ export class PileView extends Phaser.GameObjects.Container {
 
   private buildBadge(cy: number): Phaser.GameObjects.Text {
     const g = this.scene.add.graphics();
-    g.fillStyle(BADGE_FILL, 0.92);
+    g.fillStyle(theme.graphics.panelFill, duelPanelAlpha(0.92));
     g.fillRoundedRect(-BADGE_W / 2, cy - BADGE_H / 2, BADGE_W, BADGE_H, 5);
-    g.lineStyle(1, BADGE_STROKE, 1);
+    g.lineStyle(1, theme.graphics.panelStroke, 1);
     g.strokeRoundedRect(-BADGE_W / 2, cy - BADGE_H / 2, BADGE_W, BADGE_H, 5);
     this.add(g);
 
     const text = this.scene.add
       .text(0, cy, '0', {
-        fontFamily: 'Consolas, "Courier New", monospace',
-        fontSize: '11px',
-        fontStyle: '700',
-        color: BADGE_TEXT_COLOR,
+        fontFamily: PILE_NUMERAL_FONT,
+        fontSize: `${PILE_NUMERAL_SIZE}px`,
+        fontStyle: theme.weight.w700,
+        color: theme.colors.body,
         resolution: 2,
       })
       .setOrigin(0.5);

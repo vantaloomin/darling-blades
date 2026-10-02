@@ -396,29 +396,31 @@ the design system's rule.
 | `ZoneContentsModal` actions | Out of scope: an action selects and closes the modal, so there is no picked state; an unavailable action is dimmed with no input, the design system's disabled rule | | none |
 | Mana identity | Already sigil plus colour; no change | | none |
 
-Two constraints the cue mock must settle before the Duel pass builds:
+Two constraints settled by the Duel pass (2026-10-02):
 
-- **`StatsMood` is exclusive.** DuelScene (~4046-4049) passes one mood:
-  `damaged` wins and hides `buffed` or `weakened`, and Marks fold into
-  `buffed` through the effective stats. A damage mark plus a chevron, and a
-  Mark badge separate from other buffs, need `setStats` to carry damage, the
-  stat delta and the Mark count as separate inputs.
+- **`StatsMood` remains exclusive for colour.** `setStats` now also carries
+  damage, the effective stat deltas (including Marks), and the Mark count
+  separately. The damage slash and up/down chevrons can coexist. The existing
+  `+N` Mark badge identifies the Mark contribution without adding player copy;
+  damage still wins the colour precedence.
 - **The "Attack" chip needs a priority** against the labels
   `permanentActionLabel` already returns (Link, Relink, Duty): the mock fixes
   which one a permanent shows when two apply.
 
-The cue designs are drawn in a mock for the owner before the Duel pass
-builds them (taste; Q5). The state-to-cue table lives in a Phaser-free
-module (`src/ui/boardCuePresentation.ts`, wave 1) so tests can assert the
-rule; `BoardCardView` moves onto it in the Duel pass.
+The owner ruled the drawn cue mock before implementation (taste; Q5).
+The state-to-cue table remains Phaser-free in `src/ui/boardCuePresentation.ts`;
+`DuelScene`, `duelPresentation` and `BoardCardView` now use it in the live tiles.
 
 **The cue mock, RULED 2026-09-28** (the owner's second sitting, M1-M6 on
-its sheet, all as recommended). All six are built in the Duel pass
-(program wave 3), after A2's two-target flow:
+its sheet, all as recommended). **M1-M6 built 2026-10-02** in Wave 2 batch D
+(program wave 3), after A2's two-target flow and lane D's preload:
 
 - **M1** The tile chip ("Attack", "Duty", "Blocks") moves from the top-right
   corner to a tab on the top edge, so a summoning-sick blocker's "Blocks"
-  never sits on the swirl.
+  never sits on the swirl. Its opaque plate and text draw after the state
+  rings, which otherwise paint over the upper letters. The glyph check
+  includes operational badge text, raster/mask clipping and later ring
+  strokes; card-face text remains exempt. Tile anchors are unchanged.
 - **M2** Declared attackers stay lifted for all of combat and drop their
   ring while you choose targets: a ring cannot carry both "attacking" and
   "legal target" under the colour-vision check, so while targeting a ring
@@ -428,16 +430,18 @@ its sheet, all as recommended). All six are built in the Duel pass
 - **M4** A picked graveyard card gets the pick badge instead of today's fade
   (the fade reads as "unavailable").
 - **M5** The P/T up and down arrows count Marks, so they agree with the
-  numbers on the plate. (How this meets the `StatsMood` constraint above,
-  e.g. whether the Mark badge also says how much of the change is Marks,
-  is the Duel pass's call.)
+  numbers on the plate. Independent damage/delta/Mark inputs meet the
+  `StatsMood` constraint above; the existing `+N` badge shows the Mark count.
 - **M6** An attacker you have already picked keeps its "Attack" chip (the
   lift also shows it).
 
-`boardCuePresentation.ts` already encodes M2-M6 (the ring yielded while
+`boardCuePresentation.ts` encodes M2-M6 (the ring yielded while
 targeting, the "1" badge, the grave badge, chevrons from the effective
 stats, the Attack chip on a selected attacker); M1 is placement, drawn in
-`BoardCardView` by the Duel pass.
+`BoardCardView`. Declared attackers retain their lift independently of the
+ring; targeting also suppresses awakening and Duty-flash rings. Numbered picks
+cover tiles, player portraits/life totals and grave cards. Accepted picks keep
+a short display-only confirmation without delaying or changing dispatch.
 
 ## Save-schema impact (v36, the one 1.9 bump)
 
@@ -553,7 +557,29 @@ gold, every Darlings preview page, list ends and Profile dialogs: 34 scenarios
 in each of the six cells (204 rendered checks, 0 findings). The 100% full-name
 assertion rejects an ellipsis mutation in both the harness and the rendered
 preview. Pointer interactions, DOM suppression and
-mutation checks passed without changing the real save. The Duel comes last.
+mutation checks passed without changing the real save. Batch D completes Wave 2
+with the Duel file set: live chrome/type tokens, measured result/pause dialogs,
+whole-entry History pages, bounded stack pages, wrapped Darling/choice/coach
+text and the ruled M1-M6 cues. Card faces, engine and AI remain unchanged.
+At 100%, board and HUD anchors, original portrait name shrink-to-fit, three
+Duty rows at 112px pitch, and the zone grids (6x4 at 120px; expanded 4x2 at
+235px) remain at release density. History retains the newest 14 entries and
+pages only complete entries; a deep stack keeps its 104px card pitch and pages
+the cards that would fall outside the lane. The 28-rung recap keeps its 5x6
+grid, 70.4px pitch and portrait anchors; full-column foreground name strips
+keep wrapped names above later portrait art. Larger recap rows page from
+measured text. Primary actions and rewards remain outside reading masks.
+`WAVE_2D_SCENES` includes eight creatures per side, tokens/Overcharge, every
+cue, real submitted picks (including departed, grave and repeated targets),
+longest panel copy and first/last pages: 31 scenarios per cell, 186 rendered
+checks, zero findings. All six cue mutations are rejected in both contrast
+modes. Pointer paging and modal wheel suppression pass without changing the
+save. Fresh six-cell snapshots are in
+`C:/Users/Jim/AppData/Local/Temp/db-w2d-probe/`.
+The approver correction is captured in `db-w2d-probe2`: the expanded badge
+check caught 60 findings before the M1 draw-order fix, and the M2 fixture now
+places the pointer on a legal target before capture instead of leaving its
+arrow tip at the pointer's initial `(0,0)`.
 
 One pass per scene: literal sizes and raw chrome colours to tokens,
 literal-height modals made content-sized or scrolling, the cues applied, and

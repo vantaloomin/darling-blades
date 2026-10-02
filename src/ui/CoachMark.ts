@@ -1,4 +1,8 @@
 import Phaser from 'phaser';
+import { bindTapButton } from '../platform/gestures';
+import { theme, colorInt } from './theme';
+import { coachInfoLayout, duelPanelAlpha, duelPanelType } from './duelPanelPresentation';
+import { bindMenuScroll } from './menuScroll';
 
 /**
  * The tutorial's coach-mark layer (see docs/plan-road-to-1.0.md Feature 1).
@@ -16,10 +20,7 @@ import Phaser from 'phaser';
  * re-render mid-tween), and the whole thing self-destroys on scene SHUTDOWN so
  * a restart can never stack it.
  */
-const DEPTH = 95;
-const RING_COLOR = 0xffd166;
-const BUBBLE_BG = 0x1c1730;
-const BUBBLE_STROKE = 0xffd88a;
+const DEPTH = theme.depth.popover;
 
 export class CoachMark {
   private ring: Phaser.GameObjects.Graphics | null = null;
@@ -59,7 +60,7 @@ export class CoachMark {
     const rh = b.height + pad * 2;
 
     const ring = this.scene.add.graphics().setDepth(DEPTH);
-    ring.lineStyle(3, RING_COLOR, 0.95);
+    ring.lineStyle(theme.outline.focus, colorInt(theme.colors.gold), duelPanelAlpha(0.95));
     ring.strokeRoundedRect(rx, ry, rw, rh, 10);
     this.ring = ring;
     this.scene.tweens.add({
@@ -75,7 +76,7 @@ export class CoachMark {
     const cx = Phaser.Math.Clamp(b.centerX, 150, 1130);
     const above = b.centerY > 360;
     const by = above ? ry - 34 : ry + rh + 34;
-    this.bubble = this.buildBubble(cx, Phaser.Math.Clamp(by, 40, 680), text, 280);
+    this.bubble = this.buildBubble(cx, Phaser.Math.Clamp(by, 40, 680), text, 280, above);
     if (this.cueSuppressed) this.setCueSuppressed(true);
   }
 
@@ -90,36 +91,40 @@ export class CoachMark {
     this.clearInfo();
     const c = this.scene.add.container(0, 0).setDepth(DEPTH + 1);
     const dim = this.scene.add
-      .rectangle(640, 360, 1280, 720, 0x0a0812, 0.66)
+      .rectangle(640, 360, 1280, 720, theme.graphics.dim, duelPanelAlpha(0.66))
       .setInteractive({ useHandCursor: true });
     const body = this.scene.add
       .text(640, 0, text, {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '22px',
-        color: '#f0e6ff',
+        fontFamily: theme.fonts.display,
+        fontSize: `${duelPanelType().coachInfo}px`,
+        color: theme.colors.heading,
         align: 'center',
-        wordWrap: { width: 380 },
+        wordWrap: { width: 380, useAdvancedWrap: true },
       })
       .setOrigin(0.5, 0);
+    body.setData('a11yFullText', text).setData('a11yTextWidth', 380);
+    const hint = this.scene.add.text(640, 0, 'tap to continue \u25b8', {
+      fontFamily: theme.fonts.ui, fontSize: `${duelPanelType().history}px`, color: theme.colors.muted,
+    }).setOrigin(0.5).setData('a11yKeepVisible', true);
     const lineHeight = body.height / Math.max(1, body.getWrappedText(text).length);
-    const height = 130 + (body.height - lineHeight);
-    const top = 365 - height / 2;
-    body.setY(top + 48 - lineHeight / 2); // the first line's centre sits 48px below the border
+    const layout = coachInfoLayout(body.height, lineHeight, hint.height);
+    const { top, height } = layout;
+    hint.setY(layout.hintY);
     const panel = this.scene.add.graphics();
-    panel.fillStyle(BUBBLE_BG, 0.98);
-    panel.lineStyle(2, BUBBLE_STROKE, 0.9);
+    panel.fillStyle(theme.graphics.panelFill, duelPanelAlpha(0.98));
+    panel.lineStyle(2, colorInt(theme.colors.gold), theme.alpha.panel);
     panel.fillRoundedRect(430, top, 420, height, 14);
     panel.strokeRoundedRect(430, top, 420, height, 14);
-    const hint = this.scene.add
-      .text(640, top + height - 28, 'tap to continue ▸', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '13px',
-        color: '#a89cc6',
-      })
-      .setOrigin(0.5);
-    c.add([dim, panel, body, hint]);
+    const content = this.scene.add.container(0, layout.bodyTop, [body]);
+    c.add([dim, panel, content, hint]);
+    c.setData('a11ySurface', { x: 430, y: top, width: 420, height });
+    if (body.height > layout.bodyViewportHeight) {
+      body.setData('a11yWholeLines', { lineHeight, linePitch: lineHeight });
+      bindMenuScroll(this.scene, content, { x: 440, y: layout.bodyTop, width: 400,
+        height: layout.bodyViewportHeight }, body.height, undefined, undefined, lineHeight);
+    }
     this.info = c;
-    dim.on('pointerup', () => {
+    bindTapButton(this.scene, dim, () => {
       this.clearInfo();
       onDismiss();
     });
@@ -136,22 +141,27 @@ export class CoachMark {
     this.clearInfo();
   }
 
-  private buildBubble(cx: number, cy: number, text: string, width: number): Phaser.GameObjects.Container {
+  private buildBubble(cx: number, cy: number, text: string, width: number, above: boolean): Phaser.GameObjects.Container {
     const c = this.scene.add.container(cx, cy).setDepth(DEPTH);
     const label = this.scene.add
       .text(0, 0, text, {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '15px',
-        fontStyle: '600',
-        color: '#ffe9b8',
+        fontFamily: theme.fonts.ui,
+        fontSize: `${duelPanelType().coach}px`,
+        fontStyle: theme.weight.w600,
+        color: theme.colors.gold,
         align: 'center',
-        wordWrap: { width: width - 28 },
+        wordWrap: { width: width - 28, useAdvancedWrap: true },
       })
       .setOrigin(0.5);
+    label.setData('a11yFullText', text).setData('a11yTextWidth', width - 28);
     const h = Math.max(44, label.height + 22);
+    const growth = Math.max(0, h - 44) / 2;
+    c.setY(Phaser.Math.Clamp(cy + (above ? -growth : growth), theme.design.safeTop + h / 2, theme.design.safeBottom - h / 2));
+    c.setData('a11yArea', { x: cx - width / 2, y: c.y - h / 2, width, height: h });
+    c.setData('a11ySurface', { x: cx - width / 2, y: c.y - h / 2, width, height: h });
     const bg = this.scene.add.graphics();
-    bg.fillStyle(BUBBLE_BG, 0.96);
-    bg.lineStyle(2, BUBBLE_STROKE, 0.85);
+    bg.fillStyle(theme.graphics.panelFill, duelPanelAlpha(0.96));
+    bg.lineStyle(2, colorInt(theme.colors.gold), theme.alpha.chrome);
     bg.fillRoundedRect(-width / 2, -h / 2, width, h, 10);
     bg.strokeRoundedRect(-width / 2, -h / 2, width, h, 10);
     c.add([bg, label]);

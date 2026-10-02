@@ -9,13 +9,37 @@ import { compelledAttackers } from '../engine/combat/legality';
 import type { GameEvent } from '../engine/events';
 import type { CardDb, CardDef, GameState, PlayerId, TargetRef } from '../engine/types';
 import { activatedAbilitiesOf, def } from '../engine/types';
-import { BOOST_CHIP_LABEL } from './boardCuePresentation';
+import { BOOST_CHIP_LABEL, cueIn, tileChipLabel, type BoardCueState, type CueContext, type TileChipInput } from './boardCuePresentation';
 import { manaActivatedEffectText } from './manaPumpPresentation';
 import { activatedText, rulesText } from './rulesText';
 import { sameTargetRef } from './targetSelection';
 
 export type DuelSide = 'you' | 'opponent';
 export type TargetRingTone = 'friendly' | 'hostile';
+
+/** A single presentation decision shared by the live tile and headless fixtures. */
+export function duelTilePresentation(input: TileChipInput & {
+  context: CueContext; opponent: boolean; legal: boolean; picked: boolean;
+  sacrifice: boolean; selectedAttacker: boolean; attacking: boolean; pendingBlocker: boolean;
+  actionFlash: boolean;
+}): { state: BoardCueState | null; lifted: boolean; chip: ReturnType<typeof tileChipLabel> } {
+  const targeting = input.context === 'targeting';
+  const state: BoardCueState | null = input.sacrifice ? 'selectedSacrifice'
+    : input.picked ? 'pickedTarget'
+      : input.legal ? (input.opponent ? 'legalTargetOpponent' : 'legalTarget')
+        : targeting ? (input.attacking ? 'attacking' : null)
+          : input.selectedAttacker ? 'selectedAttacker'
+            : input.attacking ? 'attacking'
+              : input.assignedBlocker ? 'assignedBlocker'
+                : input.pendingBlocker ? 'pendingBlocker'
+                  : input.canAttack ? 'eligibleAttacker'
+                    : input.actionFlash || input.link || input.dutyUsable || input.boostUsable ? 'actionReady' : null;
+  // Lift is orthogonal to the ring: picking a declared attacker cannot lower it.
+  const lifted = Boolean((input.attacking && cueIn('attacking', input.context)?.lift) ||
+    (input.selectedAttacker && cueIn('selectedAttacker', input.context)?.lift) ||
+    (input.pendingBlocker && cueIn('pendingBlocker', input.context)?.lift));
+  return { state, lifted, chip: targeting ? null : tileChipLabel(input) };
+}
 
 /** Small, non-interactive center prompt used while a mandatory arrival target is chosen. */
 export const TARGET_PROMPT_LAYOUT = {
