@@ -22,8 +22,11 @@
  * new game record on every call and folds the previous one into its boss.
  */
 import type { AIPlayer } from '../src/ai/AIPlayer';
+import { combatForecast } from '../src/ai/combatPlans';
 import type { Action } from '../src/engine/actions';
+import { validateBlocks } from '../src/engine/combat/legality';
 import type { CardDb, Permanent } from '../src/engine/types';
+import { activatedAbilitiesOf, isType } from '../src/engine/types';
 import type { PlayerView } from '../src/engine/view';
 import {
   classifyAction,
@@ -62,6 +65,8 @@ interface CardTally {
   cast: number;
   stranded: number;
   uses: Record<string, number>;
+  dutyMain1: number;
+  dutyMain2: number;
 }
 
 interface CheckTally {
@@ -77,7 +82,7 @@ interface ProvokedTally {
   ownSource: number;
 }
 
-const newCard = (): CardTally => ({ seen: 0, castFromHand: 0, cast: 0, stranded: 0, uses: {} });
+const newCard = (): CardTally => ({ seen: 0, castFromHand: 0, cast: 0, stranded: 0, uses: {}, dutyMain1: 0, dutyMain2: 0 });
 const newCheck = (): CheckTally => ({ applicable: 0, flagged: 0, readingSum: 0, readingCount: 0, perCard: {} });
 
 function countIds(ids: readonly string[]): Map<string, number> {
@@ -144,6 +149,7 @@ export class GameUsage {
   private lastReach: { turn: number; reach: DamageReach; board: ReadonlySet<number> } | null = null;
   private lastHand: string[] = [];
   private lastDepartures: string[] = [];
+  private readonly dutySources = new Map<number, { turn: number; cardId: string }>();
 
   constructor(
     private readonly db: CardDb,
@@ -168,10 +174,11 @@ export class GameUsage {
   /** Record one decision: the view and menu she was handed, and her choice. */
   record(view: PlayerView, legal: readonly Action[], chosen: Action): void {
     this.decisions++;
-    const ctx: UsageContext = { view, db: this.db, darlingId: this.darlingId };
+    const ctx: UsageContext = { view, db: this.db, darlingId: this.darlingId, legal };
     const turn = view.turn;
     if (turn > this.maxTurn) this.maxTurn = turn;
     this.countProvoked(view, turn);
+    this.countLostDutyBlocks(view, chosen);
 
     // Seen: copies in the hand now that the last hand, less what her own last
     // action took out, does not account for.
@@ -215,6 +222,19 @@ export class GameUsage {
       const id = this.darlingId ?? view.you.darlingZone;
       if (id) this.tally(id).cast++;
     }
+    if (chosen.type === 'activate') {
+      const source = view.battlefield.find((body) => body.iid === chosen.iid);
+      if (source) {
+        if (view.step === 'main1') this.tally(source.cardId).dutyMain1++;
+        if (view.step === 'main2') {
+          this.tally(source.cardId).dutyMain2++;
+          const d = this.db[source.cardId];
+          if (d && isType(d, 'creature') && activatedAbilitiesOf(d)[chosen.abilityIndex ?? 0]?.cost.tap) {
+            this.dutySources.set(source.iid, { turn, cardId: source.cardId });
+          }
+        }
+      }
+    }
     for (const hit of classifyAction(chosen, ctx, this.rules)) {
       this.mark(this.taken, hit.mechanic, turn);
       this.uses.set(hit.mechanic, (this.uses.get(hit.mechanic) ?? 0) + 1);
@@ -222,25 +242,59 @@ export class GameUsage {
       tally.uses[hit.mechanic] = (tally.uses[hit.mechanic] ?? 0) + 1;
     }
     for (const { check, cardId } of senseChecksFor(chosen, ctx, this.senseChecks)) {
-      let tally = this.checks.get(check.id);
-      if (!tally) this.checks.set(check.id, (tally = newCheck()));
-      const per = (tally.perCard[cardId] ??= { applicable: 0, flagged: 0, readingSum: 0, readingCount: 0 });
-      tally.applicable++;
-      per.applicable++;
-      if (check.flagged(chosen, ctx)) {
-        tally.flagged++;
-        per.flagged++;
-      }
-      if (check.reading) {
-        const value = check.reading(chosen, ctx);
-        tally.readingSum += value;
-        tally.readingCount++;
-        per.readingSum += value;
-        per.readingCount++;
-      }
+      const readings = check.readings?.(chosen, ctx) ?? (check.reading ? [check.reading(chosen, ctx)] : []);
+      this.recordCheck(check.id, cardId, check.flagged(chosen, ctx), readings);
     }
     const reach = ownDamageReach(chosen, ctx);
     this.lastReach = reach ? { turn, reach, board: new Set(view.battlefield.map((perm) => perm.iid)) } : null;
+  }
+
+  private recordCheck(id: string, cardId: string, flagged: boolean, readings: readonly number[]): void {
+    let tally = this.checks.get(id);
+    if (!tally) this.checks.set(id, (tally = newCheck()));
+    const per = (tally.perCard[cardId] ??= { applicable: 0, flagged: 0, readingSum: 0, readingCount: 0 });
+    for (const count of [tally, per]) {
+      count.applicable++;
+      if (flagged) count.flagged++;
+      count.readingSum += readings.reduce((sum, reading) => sum + reading, 0);
+      count.readingCount += readings.length;
+    }
+  }
+
+  /** One observation per Duty source at the next opposing blocked combat.
+   * Untap only that source on a private board and ask the shared combat rules
+   * whether a legal single block prevents damage without killing it.
+   */
+  private countLostDutyBlocks(view: PlayerView, chosen: Action): void {
+    for (const [iid, duty] of this.dutySources) {
+      const source = view.battlefield.find((body) => body.iid === iid);
+      if (view.turn > duty.turn + 1 || !source || source.controller !== view.myId ||
+        (view.turn > duty.turn && !source.tapped)) {
+        this.dutySources.delete(iid);
+        continue;
+      }
+      // The engine can skip every response after blocks. The submitted block
+      // assignment is already public and is the last observation in that case.
+      const combat = view.combat && chosen.type === 'declareBlockers'
+        ? { ...view.combat, blocks: chosen.blocks, phase: 'blockersDeclared' as const } : view.combat;
+      if (view.turn !== duty.turn + 1 || view.activePlayer === view.myId || !source.tapped ||
+        !combat || combat.phase !== 'blockersDeclared' || combat.attackers.length === 0) continue;
+      this.dutySources.delete(iid);
+      if (!this.senseChecks.some((check) => check.id === 'creatureDutySafeBlockLost')) continue;
+      let prevented = 0;
+      if (!view.fogThisTurn) {
+        const board = view.battlefield.map((body) => body.iid === iid ? { ...body, tapped: false } : body);
+        const before = combatForecast(board, this.db, combat);
+        for (const attacker of combat.attackers) {
+          if (combat.blocks.some((block) => block.attacker === attacker)) continue;
+          const blocks = [...combat.blocks, { blocker: iid, attacker }];
+          if (validateBlocks(board, this.db, view.myId, combat, blocks) !== null) continue;
+          const after = combatForecast(board, this.db, { ...combat, blocks });
+          if (!after.dying.includes(iid)) prevented = Math.max(prevented, before.damage - after.damage);
+        }
+      }
+      this.recordCheck('creatureDutySafeBlockLost', duty.cardId, prevented > 0, [prevented]);
+    }
   }
 
   /**
@@ -318,6 +372,9 @@ export interface UsageRowJson {
   castWhenSeen: number | null;
   /** Only for mechanics one permanent repeats; null otherwise or with no cast. */
   usesPerCast: number | null;
+  /** Duty activations split by main step; null for other mechanics. */
+  usesMain1: number | null;
+  usesMain2: number | null;
   note?: string;
 }
 
@@ -333,6 +390,8 @@ export interface UsageCardJson {
   stranded: number;
   uses: Record<string, number>;
   usesPerCast: number | null;
+  dutyMain1: number;
+  dutyMain2: number;
 }
 
 export interface UsageCheckJson {
@@ -343,6 +402,8 @@ export interface UsageCheckJson {
   flagged: number;
   readingMeans?: string;
   meanReading: number | null;
+  readingCount: number;
+  readingSum: number;
   perCard: { cardId: string; name: string; applicable: number; flagged: number; meanReading: number | null }[];
 }
 
@@ -436,6 +497,8 @@ export class MechanicUsageCollector {
       into.seen += tally.seen;
       into.cast += tally.cast;
       into.castFromHand += tally.castFromHand;
+      into.dutyMain1 += tally.dutyMain1;
+      into.dutyMain2 += tally.dutyMain2;
       for (const [mechanic, n] of Object.entries(tally.uses)) add(into.uses, mechanic, n);
     }
     for (const id of game.finalHand()) (boss.cards[id] ??= newCard()).stranded++;
@@ -482,7 +545,7 @@ export class MechanicUsageCollector {
     for (const boss of this.bosses.values()) {
       this.fold(boss);
       const rows: UsageRowJson[] = [];
-      const cardMechanics = new Map<string, { copies: number; mechanics: string[]; repeats: boolean }>();
+      const cardMechanics = new Map<string, { copies: number; mechanics: string[]; repeats: boolean; reportUses: boolean }>();
       for (const rule of this.rules) {
         const carriers = this.carriersOf(rule, boss.info.list);
         let seen = 0;
@@ -491,9 +554,10 @@ export class MechanicUsageCollector {
         let uses = 0;
         for (const [id, copies] of carriers) {
           const tally = boss.cards[id];
-          const entry = cardMechanics.get(id) ?? { copies, mechanics: [], repeats: false };
+          const entry = cardMechanics.get(id) ?? { copies, mechanics: [], repeats: false, reportUses: false };
           entry.mechanics.push(rule.id);
           entry.repeats ||= rule.repeats === true;
+          entry.reportUses ||= rule.reportUses === true;
           cardMechanics.set(id, entry);
           if (!tally) continue;
           seen += tally.seen;
@@ -514,8 +578,10 @@ export class MechanicUsageCollector {
           uses: boss.uses[rule.id] ?? 0,
           seen,
           castFromHand,
-          castWhenSeen: ratio(castFromHand, seen),
+          castWhenSeen: rule.reportUses ? null : ratio(castFromHand, seen),
           usesPerCast: rule.repeats ? ratio(uses, cast) : null,
+          usesMain1: rule.id === 'duty' ? Object.values(boss.cards).reduce((sum, tally) => sum + tally.dutyMain1, 0) : null,
+          usesMain2: rule.id === 'duty' ? Object.values(boss.cards).reduce((sum, tally) => sum + tally.dutyMain2, 0) : null,
           ...(rule.note ? { note: rule.note } : {}),
         });
       }
@@ -534,10 +600,12 @@ export class MechanicUsageCollector {
             seen: tally.seen,
             cast: tally.cast,
             castFromHand: tally.castFromHand,
-            castWhenSeen: ratio(tally.castFromHand, tally.seen),
+            castWhenSeen: entry.reportUses ? null : ratio(tally.castFromHand, tally.seen),
             stranded: tally.stranded,
             uses: { ...tally.uses },
             usesPerCast: entry.repeats ? ratio(repeatUses, tally.cast) : null,
+            dutyMain1: tally.dutyMain1,
+            dutyMain2: tally.dutyMain2,
           };
         })
         .sort((a, b) => a.name.localeCompare(b.name));
@@ -551,6 +619,8 @@ export class MechanicUsageCollector {
           flagged: tally.flagged,
           ...(check.readingMeans ? { readingMeans: check.readingMeans } : {}),
           meanReading: ratio(tally.readingSum, tally.readingCount),
+          readingCount: tally.readingCount,
+          readingSum: tally.readingSum,
           perCard: Object.entries(tally.perCard)
             .map(([cardId, per]) => ({
               cardId,
@@ -600,7 +670,7 @@ export class MechanicUsageCollector {
   render(): string {
     const pct = (value: number | null): string => (value === null ? '-' : `${(value * 100).toFixed(0)}%`);
     const num = (value: number | null, digits = 2): string => (value === null ? '-' : value.toFixed(digits));
-    const lines: string[] = ['MECHANIC USAGE (row AI only; read-only wrapper):'];
+    const lines: string[] = ['MECHANIC USAGE (selected row or column AI; read-only wrapper):'];
     for (const boss of this.toJSON().bosses) {
       const tier = boss.tier === undefined ? '' : `R${boss.tier} `;
       lines.push('');
@@ -609,14 +679,15 @@ export class MechanicUsageCollector {
           '(engine turn counter, both players\' turns)',
       );
       lines.push(
-        '  Mechanic               Cards in list  Turns with a chance  Meaningful  Taken  Rate  Cast when seen  Uses per cast',
+        '  Mechanic               Cards in list  Turns with a chance  Meaningful  Taken  Rate  Uses  Main 1  Main 2  Cast when seen  Uses per cast',
       );
       const shown = boss.rows.filter((row) => row.cardsInList > 0 || row.turnsWithChance > 0);
       for (const row of shown) {
         lines.push(
           `  ${row.label.padEnd(22)} ${String(row.cardsInList).padStart(13)} ${String(row.turnsWithChance).padStart(20)} ` +
             `${(row.turnsWithMeaningfulChance === null ? '=legal' : String(row.turnsWithMeaningfulChance)).padStart(11)} ` +
-            `${String(row.turnsTaken).padStart(6)} ${pct(row.rate).padStart(5)} ${pct(row.castWhenSeen).padStart(15)} ` +
+            `${String(row.turnsTaken).padStart(6)} ${pct(row.rate).padStart(5)} ${String(row.uses).padStart(5)} ` +
+            `${String(row.usesMain1 ?? '-').padStart(7)} ${String(row.usesMain2 ?? '-').padStart(7)} ${pct(row.castWhenSeen).padStart(15)} ` +
             `${num(row.usesPerCast).padStart(14)}`,
         );
       }
@@ -637,7 +708,8 @@ export class MechanicUsageCollector {
       }
       for (const check of boss.checks) {
         if (check.applicable === 0) continue;
-        const reading = check.meanReading === null ? '' : `; mean ${check.readingMeans} ${num(check.meanReading, 1)}`;
+        const reading = check.meanReading === null ? '' :
+          `; mean ${check.readingMeans} ${num(check.meanReading, 1)} (${check.readingCount} readings, total ${num(check.readingSum, 1)})`;
         lines.push(`  Check: ${check.label}: ${check.flagged} of ${check.applicable} with ${check.flagMeans}${reading}`);
       }
       const provoked = boss.provoked;

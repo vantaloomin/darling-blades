@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ai/AIPlayer.ts, src/engine/actions.ts, src/engine/events.ts, src/meta/balanceTelemetry.ts, scripts/balance-matrix.ts, scripts/mechanicUsage.ts, scripts/mechanicUsageCollector.ts, tests/scripts/mechanicUsage.test.ts, src/data/glossary.ts, tests/ai/documentedBehaviour.test.ts, tests/ai/winrate.test.ts, docs/ai.md · last-verified: 2026-09-28 · waves 0-1 built on feat/19-usage-audit; re-verify when wave 2 lands -->
+<!-- source-of-truth: src/ai/AIPlayer.ts, src/engine/actions.ts, src/engine/events.ts, src/meta/balanceTelemetry.ts, scripts/balance-matrix.ts, scripts/mechanicUsage.ts, scripts/mechanicUsageCollector.ts, tests/scripts/mechanicUsage.test.ts, src/data/glossary.ts, tests/ai/documentedBehaviour.test.ts, tests/ai/winrate.test.ts, docs/ai.md · last-verified: 2026-10-02 · waves 0-3 harness; re-verify when the collector or matrix wrapper changes -->
 
 # Mechanic usage audit: how often the brains use what they can (proposal, 2026-09-19)
 
@@ -111,7 +111,7 @@ of a turn is missed); see [plan-first-dawn-engine.md](plan-first-dawn-engine.md#
 
 ## 4. How it is measured
 
-**A decorator on the row AI, nothing else.** `AIPlayer.chooseAction(view,
+**A decorator on the selected AI, nothing else.** `AIPlayer.chooseAction(view,
 legal)` already hands any wrapper the three things it needs: the redacted
 view, every legal action, and the action chosen. The wrapper returns the
 inner brain's choice untouched. No engine change, no AI change, no new
@@ -124,6 +124,15 @@ new `--usage` flag on `scripts/balance-matrix.ts` turns it on for
 `--avatars`, `--avatars-reserve` and `--avatars-darlings`. Off by default, so
 every current number stays byte-identical.
 
+**Wave 3 additions (2026-10-02).** `--usage-columns` records the column's
+Medium brain, aggregated by deck over the selected bosses. It works alone or
+with `--usage`; column groups have `-columns` appended to the matrix name in
+the same `usage.bosses` JSON array. Cell indices, seed assignment and brains
+are unchanged. For example, the Medium starter pass is one command:
+`npx tsx scripts/balance-matrix.ts --avatars --usage-columns --seeds 40 --telemetry-out medium-usage.json`.
+Use `--avatars-reserve` for starters and theme decks, or `--avatars-darlings`
+for Darlings precons. `--only` still selects the opposing bosses.
+
 **Three counts per mechanic, per boss, and the unit matters.**
 
 1. **Turns with a chance, and turns taken.** A chance is a turn in which the
@@ -134,8 +143,10 @@ every current number stays byte-identical.
    about half.
 2. **Per card: seen, cast, stranded.** For every card carrying the mechanic:
    how many copies reached her hand, how many were cast, how many sat in her
-   final hand. "Cast when seen" is the single most useful number found on
-   2026-09-19.
+   final hand. Skim, Retell and Whispers rows show **uses**, and their
+   `castWhenSeen` is null (printed `-`), including per-card rows carrying one
+   of those mechanics: cycling or repeated graveyard casts make a hand-cast
+   ratio misleading. Raw seen and cast counts remain available.
 3. **Uses per cast**, for mechanics that repeat (Hauntlink links, Duty
    activations). This is what separated "the policy is broken" from "the
    card never arrives".
@@ -165,12 +176,14 @@ policy's own public host fit, by more than the policy's own move margin
 (0.65 per link mana plus 0.25). It does not re-check the policy's other
 condition, that no friendly creature dies from the move, and it cannot see a
 window move's combat gain. A Hauntlink link is meaningful whenever legal,
-because a legal link implies an unlinked carrier. Every other chance is
-legal-only, and the table says so. Five checks run on the TAKEN action:
+because a legal link implies an unlinked carrier. Darling-tax paydown is
+meaningful only while the Darling is in the command zone and the exact
+legal menu offers no call. Every other chance is legal-only, and the table
+says so. Checks run on the TAKEN action:
 - a ramp (extra land drop) cast, with her own turn of the cast and a flag
   when no land is left in the reserve;
-- a Mark payoff (Propagate, a boost to her Marked) cast with no Marked
-  creature;
+- a non-creature Mark payoff (Propagate, a boost to her Marked) cast with no
+  Marked creature; a creature's body is itself a payoff;
 - a Mark-all cast with no creature of her own (this over-states waste for a
   card with another effect, such as Flareburst's damage);
 - a creature Duty in main phase 2 while the opponent has a creature with
@@ -178,11 +191,33 @@ legal-only, and the table says so. Five checks run on the TAKEN action:
   still counts);
 - a main-phase Hauntlink move when the link already sat on the best host.
 
+Duty uses also split into `usesMain1` and `usesMain2` on the Duty row
+(`dutyMain1` and `dutyMain2` per card). These count activations, not turns.
+The finer `creatureDutySafeBlockLost` check follows a creature tapped for
+Duty in main two to the next opposing attack. At the submitted blocks (or
+the first observed post-block window), it counts each still-tapped source
+once. It flags a source only if untapping that source would permit a legal
+block of an actually unblocked attacker, leave the source alive, and reduce
+forecast face damage. The shared block validator and combat forecast include
+evasion, Dreaded's minimum, First Blade, Twin Blades and damage prevention.
+The reading is damage prevented by the best single block for that source;
+summing multiple sources is not a jointly optimized alternate block plan.
+Sources removed, untapped or no longer controlled before that attack are
+excluded; the coarse check remains for comparison.
+
+`keywordGrantAttack` reads effective Attack for each body receiving a new
+keyword from a chosen cast: targeted and team boosts, static grants and paid
+Empower. Each body contributes once per cast, after its boosts and static
+layers; an existing keyword adds no reading. This is the public cast-time
+projection, before any response, not a resolution-success count. Check JSON
+includes `readingCount` and `readingSum` as well as `meanReading`, so a team
+grant's recipients are not silently weighted as one body.
+
 **The output** is one table per boss in the matrix report, and the same rows
 in the `--telemetry-out` JSON:
 
-| Mechanic | Cards in list | Turns with a chance | Taken | Rate | Cast when seen | Uses per cast |
-| --- | --- | --- | --- | --- | --- | --- |
+| Mechanic | Cards in list | Turns with a chance | Meaningful | Taken | Rate | Uses | Main 1 | Main 2 | Cast when seen | Uses per cast |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 
 ## 5. How it is read
 

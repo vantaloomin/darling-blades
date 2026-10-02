@@ -23,6 +23,9 @@ const grantBody = (id: string, attack: number, keyword: Keyword, empower: boolea
 };
 export const DB: CardDb = {
   ...TEST_DB,
+  'in-stand-as-one': CARD_DB['in-stand-as-one'],
+  'gm-red-moon-rampage': CARD_DB['gm-red-moon-rampage'],
+  'ac-shieldwall-call': CARD_DB['ac-shieldwall-call'],
   'tok-kelp-shade': CARD_DB['tok-kelp-shade'],
   'tok-broodling': CARD_DB['tok-broodling'],
   'sb-starborne-apotheosis': CARD_DB['sb-starborne-apotheosis'],

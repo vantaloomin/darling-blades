@@ -437,6 +437,20 @@ D13 approved, on the code's evidence (the four flat 0.5 sites); the
 keyword-grant reading in item 7 is added for wave 4's read, not as a
 precondition.
 
+**Landed (2026-10-02, item 1):** Medium reads targetless team pumps after
+blocks with its existing combat forecast: save a friendly fighter, kill an
+additional enemy, add lethal, or add damage worth the cast's mana cost.
+Stand as One, Red-Moon Rampage (including Overrun) and Shieldwall Call work
+on both combat sides. The documented Hera turns 13 and 21 are replayed
+from recorded actions; a real no-gain combat and wasted boards keep the card.
+
+**Landed (2026-10-02, item 7):** the harness adds meaningful Darling-tax
+chances, mechanic uses for Skim/Retell/Whispers, non-creature-only
+`markPayoffUnmarked`, Duty by main step, safe blocks lost at the next
+opposing attack, keyword recipients' Attack, and `--usage-columns` for U5.
+The coarse Duty check remains alongside the finer one. Definitions and
+commands are in [the tool's guide](plan-mechanic-usage-audit.md).
+
 **Not for wave 3:**
 - Tithe (L1), Khenut (L2), Carmilla's Rite singletons (L3) and the counters
   (L4) are list questions for wave 4's tuning, read with the usage table as
@@ -515,3 +529,93 @@ not new numeric gates. No band or floor changed. The 200-game brain gates
 remain 82.5% Medium/Easy and 71.5% Hard/Medium; all rung gates pass. The
 approved local changes leave ramp (U4), team-pump timing, lost-blocker
 pricing, harness additions, cards and lists for their own work.
+
+**Second wave-3 follow-up (2026-10-02, items 1 and 7).** Comparison against
+`8282318c` (#521), 20 seeds per cell, 900 games on each side: Hera's three
+matrices, Zhurong's Darlings row, and Carmilla, Glass-Coffin Queen and
+Anubis in Darlings. These use the audit's cell indices and first 20 seeds.
+The current Warchest fleet has a fifteenth column, Hooves and Fire; the
+table below compares just the audit's original fourteen columns. Across
+all fifteen, Hera reads 31.33% before and 40.67% after. No bands change.
+
+| Row, mean of decisive-game cell rates | Before | After |
+| --- | --- | --- |
+| Hera, avatars (100 games; band only, no floor) | 28.00% | 38.00% |
+| Hera, Warchest (280 matched games) | 32.14% | 41.43% |
+| Hera, Darlings (100 games) | 55.00% | 56.00% |
+| Zhurong, Darlings (100 games, one draw on each side) | 60.53% | 61.58% |
+
+Hera's avatar Charm uses go from 0/506 legal chance turns to 76/274.
+The avatar band checker reports no flags; neither reserve matrix applies
+the classic bands. The catalog still has exactly the three team-pump
+Charms named in P1, with none in any starter or theme build or in TEST_DB.
+
+For Hard, the comparison also saves every baseline post-block response
+position with a legal team pump, then asks the new brain about that same
+public view and legal menu. This separates the baseline effect from later
+games diverging. The 300 Hard games supplied 64 positions:
+
+| Darlings boss | Positions | Medium baseline changed | Hard choice changed | Hard team casts, before to after |
+| --- | --- | --- | --- | --- |
+| Carmilla | 6 | 6 | 5 | 1 to 6 |
+| Glass-Coffin Queen | 33 | 26 | 19 | 8 to 27 |
+| Anubis | 25 | 18 | 11 | 7 to 18 |
+
+The engine replays the historical P1 action prefixes at turns 13 and 21
+and Medium casts Stand as One in both. On the current engine, the turn-13
+forecast goes from 7 to 9 face damage with the same casualties; at turn 21
+it goes from 4 to 5, saves a Militia and kills Lu Lingqi. The historical turn-23 no-gain
+combat keeps the card. Synthetic engine combats cover both sides,
+Overrun lethal, damage worth the mana, prevention, empty boards and pending
+team pumps: an already-paid Shieldwall prevents a redundant second one,
+while an enemy Rampage can make that second Shieldwall necessary.
+
+The harness smoke read uses its default 20 seeds per cell on five of the
+audit's bosses, 1,000 actual games, with both row and column recording:
+
+```sh
+npx tsx scripts/balance-matrix.ts --avatars --avatars-darlings --usage --usage-columns --only hera,zhurong,artoria,chrome-broodmother,the-drowned-deacon --seeds 20 --telemetry-out usage-smoke.json
+```
+
+Each boss/matrix row below has 100 games. These are fresh readings on the
+changed policy, not replacements for the full wave-2 sample:
+
+| New reading | Measured result |
+| --- | --- |
+| Hera, Darlings tax | 55 meaningful chance turns of 271 legal turns; 5 paydowns |
+| Deacon, Darlings mechanic uses | 185 Skims, 120 Retells, 43 Whispers; cast/seen suppressed |
+| Chrome Broodmother, Darlings non-creature Mark payoffs | 9 unmarked casts of 21 applicable casts |
+| Deacon, avatars Duty by step | 0 main-one, 166 main-two uses |
+| Deacon, Darlings Duty by step | 324 main-one, 210 main-two uses |
+| Deacon, avatars safe blocks lost | 27 of 99 still-tapped Duty-source observations; 46 preventable damage summed |
+| Deacon, Darlings safe blocks lost | 30 of 56 observations; 69 preventable damage summed |
+| Deacon, Darlings granted-keyword recipients | 31 bodies, total Attack 107, mean 3.45 |
+| Medium column groups | 10 groups (five starters and five Darlings precons), 100 games each |
+
+Lost-block damage is a separate best legal single-block counterfactual for
+each source, not an optimal combined assignment or a measured win-rate loss.
+The wrapper remains read-only, and the engine-driven count and seeded
+losslessness tests pass. Disabling the team rule fails nine of its thirteen
+behaviour cases; disabling six harness additions fails ten selected cases,
+and disabling the fine Duty observer separately fails all five of its cases.
+
+Verification: both detached four-worker `winrate.test.ts` runs pass all
+eight tests (587.1 seconds before, 610.1 after). The first run's console
+interception retained pass/fail but suppressed numeric rates; the second
+disables interception, so the numeric rates here are **after** measurements.
+
+| Gate | Before | After |
+| --- | --- | --- |
+| Medium over Easy, 200 games, floor 80% | Pass | 165/200, 82.5%, pass |
+| Hard over Medium, 200 games, floor 70% | Pass | 143/200, 71.5%, pass |
+| Rungs 15-26, unchanged 40-seed floors | All pass | All pass |
+| Other win-rate legality, completeness and ordering checks | All pass | All pass |
+
+After means for rungs 14-28, in rung order: 66.5 / 69.0 / 72.5 / 79.5 /
+85.0 / 70.0 / 94.0 / 66.5 / 75.0 / 72.5 / 74.0 / 67.0 / 74.0 / 73.0 /
+61.5 percent; every row has 200 decisive games and no draws. No assertion,
+floor or band changed. Typecheck, lint and generated-doc-table verification
+pass. AI, scripts and engine tests (with the separately run win-rate file
+excluded) pass 1,712 tests, with four skipped. `check-docs` exits zero with
+four missing local-path warnings (three `scripts/blades-db.ts` references
+and the local `sweep-running-do-not-disturb` memory reference).

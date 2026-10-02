@@ -7,12 +7,15 @@ import { DARLINGS_PRECON_MATRIX_FLEET } from '../../src/data/darlingsPrecons';
 import { AVATARS } from '../../src/data/opponents';
 import { STARTER_DECKS } from '../../src/data/starterDecks';
 import type { Action } from '../../src/engine/actions';
-import type { CardDb, CardDef, Permanent } from '../../src/engine/types';
+import { Game } from '../../src/engine/Game';
+import { getEffectiveStats } from '../../src/engine/statics';
+import type { CardDb, CardDef, GameState, Permanent } from '../../src/engine/types';
 import type { PlayerView } from '../../src/engine/view';
 import { WARCHEST_HAND_SIZE } from '../../src/meta/warchest';
-import { playOut, runCell, type CellSpec } from '../../scripts/balance-matrix';
+import { playOut, runAvatarMatrix, runAvatarReserveMatrix, runCell, type CellSpec } from '../../scripts/balance-matrix';
 import { classifyAction, MECHANIC_RULES, SENSE_CHECKS, senseChecksFor, type UsageContext } from '../../scripts/mechanicUsage';
 import { GameUsage, MechanicUsageCollector } from '../../scripts/mechanicUsageCollector';
+import { makeTestState, TEST_DB } from '../helpers';
 
 // A small synthetic card pool: each card carries exactly the mechanic its
 // scenario needs, so a recost or rewording of a live card cannot fail these.
@@ -385,7 +388,154 @@ describe('mechanic usage: Hunt and Provoked (First Dawn)', () => {
   });
 });
 
+describe('mechanic usage through engine decisions', () => {
+  const realDb: CardDb = {
+    ...DB, forest: TEST_DB.forest,
+    whisper: card('whisper', { skim: { cost: mana(0) }, whispers: { cost: mana(0) },
+      abilities: [{ when: 'spell', ops: [{ op: 'gainLife', n: 1 }] }] }),
+    markBody: card('markBody', { types: ['creature'], attack: 1, defense: 3,
+      abilities: [{ when: 'arrives', ops: [{ op: 'propagate' }] }] }),
+    grantTarget: card('grantTarget', { abilities: [{ when: 'spell', targets: [{ what: 'yourCreature' }],
+      ops: [{ op: 'boost', p: 2, t: 0, keywords: ['firstBlade'], scope: 'target' }] }] }),
+    grantTeam: card('grantTeam', { abilities: [{ when: 'spell',
+      ops: [{ op: 'boost', p: 1, t: 0, keywords: ['skyborne'], scope: 'allYours' }] }] }),
+    grantStatic: card('grantStatic', { types: ['enchantment'], abilities: [{ when: 'static',
+      static: { scope: 'filter', grantKeywords: ['bloodoath'] } }] }),
+    grantEmpower: card('grantEmpower', { types: ['creature'], attack: 1, defense: 3,
+      empower: { cost: mana(0), ops: [{ op: 'boost', p: 3, t: 0, keywords: ['warcry'], scope: 'self' }] } }),
+    lethalTouch: card('lethalTouch', { types: ['creature'], attack: 1, defense: 3, keywords: ['deathblade'] }),
+    menacer: card('menacer', { types: ['creature'], attack: 2, defense: 2, keywords: ['dreaded'] }),
+  };
+  const stateFor = (hand: string[] = [], battlefield: Permanent[] = [], lands = 20): GameState => {
+    const state = makeTestState({ hands: [hand, []], battlefield: [
+      ...battlefield, ...Array.from({ length: lands }, (_, i) => perm(100 + i, 'forest')),
+    ] });
+    for (const player of state.players) player.deck = Array.from({ length: 30 }, () => 'creature');
+    return state;
+  };
+  const measured = (state: GameState, collector = new MechanicUsageCollector(realDb), darlingId?: string) => {
+    const game = Game.restore(state, realDb);
+    let choice: Action = pass;
+    const brain = collector.wrapFactory({ matrix: 'scenario', id: 'player', name: 'Player',
+      list: { deck: [...state.players[0].hand as string[], ...state.battlefield.map((p) => p.cardId)], darlingId } },
+    () => ({ chooseAction: () => choice }))();
+    const take = (match: Action['type'] | ((a: Action) => boolean)): void => {
+      const awaiting = game.awaiting;
+      if (awaiting.kind === 'gameOver') throw new Error('Scenario ended before its next action');
+      const player = awaiting.player;
+      const legal = game.legalActions(player);
+      const selected = legal.find(typeof match === 'string' ? (a) => a.type === match : match);
+      if (!selected) throw new Error(`No matching action at ${JSON.stringify(game.awaiting)}: ${JSON.stringify(legal)}`);
+      choice = selected;
+      const action = player === 0 ? brain.chooseAction(game.viewFor(player), legal) : selected;
+      game.submit(player, action);
+    };
+    const settle = (): void => {
+      for (let i = 0; i < 20 && game.awaiting.kind === 'respond'; i++) take('passResponse');
+    };
+    const cast = (id: string, mode?: 'retell' | 'whispers' | 'empowered'): void => {
+      take((a) => a.type === 'castSpell' && (mode === undefined || a[mode] === true) &&
+        (a.graveIndex === undefined ? game.viewFor(0).you.hand[a.handIndex] : game.viewFor(0).you.graveyard[a.graveIndex]) === id);
+      settle();
+    };
+    return { game, collector, take, settle, cast };
+  };
+
+  it('counts only command-zone turns without a legal call as meaningful tax chances', () => {
+    const collector = new MechanicUsageCollector(realDb);
+    for (const [zone, lands] of [['darling', 4], ['darling', 8], [null, 4]] as const) {
+      const state = stateFor([], zone === null ? [perm(1, 'darling')] : [], lands);
+      state.players[0].darlingZone = zone;
+      state.players[0].darlingTax = 4;
+      const run = measured(state, collector, 'darling');
+      run.take('payDownDarlingTax');
+      expect(run.game.viewFor(0).you.darlingTax).toBe(2);
+    }
+    expect(collector.toJSON().bosses[0].rows.find((r) => r.mechanic === 'darlingTax'))
+      .toMatchObject({ turnsWithChance: 3, turnsWithMeaningfulChance: 1, uses: 3 });
+  });
+
+  it('reports cycling and graveyard casts as uses even when a copy never casts from hand or casts twice', () => {
+    const run = measured(stateFor(['skim', 'retell', 'whisper']));
+    run.take((a) => a.type === 'skim' && run.game.viewFor(0).you.hand[a.handIndex] === 'skim');
+    run.cast('retell');
+    run.cast('retell', 'retell');
+    run.take((a) => a.type === 'skim' && run.game.viewFor(0).you.hand[a.handIndex] === 'whisper');
+    run.cast('whisper', 'whispers');
+    const boss = run.collector.toJSON().bosses[0];
+    expect(boss.rows.find((r) => r.mechanic === 'skim')).toMatchObject({ uses: 2, castWhenSeen: null });
+    expect(boss.rows.find((r) => r.mechanic === 'retell')).toMatchObject({ uses: 1, castWhenSeen: null });
+    expect(boss.rows.find((r) => r.mechanic === 'whispers')).toMatchObject({ uses: 1, castWhenSeen: null });
+    expect(boss.cards.find((c) => c.cardId === 'retell')).toMatchObject({ seen: 1, cast: 2, castWhenSeen: null });
+    expect(boss.cards.find((c) => c.cardId === 'whisper')).toMatchObject({ seen: 1, castFromHand: 0, castWhenSeen: null });
+  });
+
+  it('counts an empty Mark payoff spell while allowing a creature to supply its body', () => {
+    const run = measured(stateFor(['markPayoff', 'markBody']));
+    run.cast('markPayoff');
+    run.cast('markBody');
+    expect(run.game.viewFor(0).battlefield.some((p) => p.cardId === 'markBody')).toBe(true);
+    expect(run.collector.toJSON().bosses[0].checks.find((c) => c.check === 'markPayoffUnmarked'))
+      .toMatchObject({ applicable: 1, flagged: 1 });
+  });
+
+  it.each([
+    ['creature', 1, 2], ['flyer', 0, 0], ['three', 0, 0], ['lethalTouch', 0, 0], ['menacer', 0, 0],
+  ])('splits Duty by step and reads the safe block lost against %s without requiring a response window', (attacker, flagged, damage) => {
+    const run = measured(stateFor([], [perm(1, 'dutyCreature'), perm(2, 'dutyCreature'), enemy(3, String(attacker))]));
+    run.take((a) => a.type === 'activate' && a.iid === 1);
+    run.take('passStep');
+    run.take((a) => a.type === 'declareAttackers' && a.attackers.length === 0);
+    run.take((a) => a.type === 'activate' && a.iid === 2);
+    run.take('passStep');
+    // No Charm is in either hand: the engine advances straight to the next main.
+    run.take('passStep');
+    run.take((a) => a.type === 'declareAttackers' && a.attackers.includes(3));
+    run.take((a) => a.type === 'declareBlockers' && a.blocks.length === 0);
+    expect(run.game.viewFor(0).you.life).toBe(20 - (realDb[String(attacker)].attack ?? 0));
+    const boss = run.collector.toJSON().bosses[0];
+    expect(boss.rows.find((r) => r.mechanic === 'duty')).toMatchObject({ uses: 2, usesMain1: 1, usesMain2: 1 });
+    expect(boss.checks.find((c) => c.check === 'creatureDutySafeBlockLost'))
+      .toMatchObject({ applicable: 1, flagged, readingSum: damage });
+  });
+
+  it('reads each granted body at its effective Attack for target, team, static and paid Empower grants', () => {
+    const run = measured(stateFor(['grantTarget', 'grantTeam', 'grantStatic', 'grantStatic', 'grantEmpower'],
+      [perm(1, 'creature'), perm(2, 'bigCreature')]));
+    run.cast('grantTarget');
+    run.cast('grantTeam');
+    run.cast('grantStatic');
+    run.cast('grantStatic'); // A second copy adds no new keyword to either body.
+    run.cast('grantEmpower', 'empowered');
+    const battlefield = run.game.viewFor(0).battlefield;
+    expect(getEffectiveStats(battlefield, realDb, 1).attack).toBe(5);
+    expect(getEffectiveStats(battlefield, realDb, 2).attack).toBe(7);
+    expect(run.collector.toJSON().bosses[0].checks.find((c) => c.check === 'keywordGrantAttack'))
+      .toMatchObject({ applicable: 4, readingCount: 6, readingSum: 32 });
+  });
+});
+
 describe('mechanic usage wrapper changes nothing', () => {
+  it('aggregates Medium columns over selected bosses in both matrix formats without changing cells', () => {
+    const columns = new MechanicUsageCollector(CARD_DB);
+    const plain = runAvatarMatrix(1, ['hera', 'zhurong']);
+    const measured = runAvatarMatrix(1, ['hera', 'zhurong'], undefined, undefined, columns);
+    expect(measured).toEqual(plain);
+    expect(columns.toJSON().bosses.find((deck) => deck.id === STARTER_DECKS[0].id)?.games).toBe(2);
+    for (const deck of columns.toJSON().bosses) {
+      expect(deck.matrix).toBe('avatars-columns');
+      expect(deck.games).toBe(2); // One seeded game against each selected boss.
+      expect(deck.decisions).toBeGreaterThan(0);
+    }
+    const reserveColumns = new MechanicUsageCollector(CARD_DB);
+    const reserve = runAvatarReserveMatrix('darlings', 1, ['hera'], undefined, undefined, reserveColumns);
+    expect(reserve).toEqual(runAvatarReserveMatrix('darlings', 1, ['hera']));
+    const mirrorBlood = reserveColumns.toJSON().bosses.find((deck) => deck.name === DARLINGS_PRECON_MATRIX_FLEET[0].name)!;
+    expect(mirrorBlood.matrix).toBe('avatars-darlings-columns');
+    expect(mirrorBlood.games).toBe(1);
+    expect(mirrorBlood.decisions).toBeGreaterThan(0);
+  }, 120_000);
+
   // Kitsune runs the Hauntlink package, a Skim card and Charms, so the
   // wrapper's heaviest paths (host fit, window checks) run in these games.
   const kitsune = AVATARS.find((a) => a.id === 'kitsune-neon-tyrant')!;
