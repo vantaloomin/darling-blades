@@ -5,7 +5,9 @@
 **Status: Proposal, 2026-10-02; post-2.0; nothing built.** Added to the
 roadmap at the owner's request. Placement is after 2.0 and not scheduled,
 because the two hard parts, perfect loops and storage, need their own
-investigation first.
+investigation first. **Direction ruled the same day: (A) procedural living
+art to start, (B) generated video long term if a good solution is found**
+(open question 1 below).
 
 ## Goal
 
@@ -108,10 +110,12 @@ What follows:
 
 ## Open questions (for the owner, when this is scheduled)
 
-1. **The motion style:** (A) living art over the still, (B) generated video,
-   or (C) both. Recommendation: **(C), starting with (A).** (A) solves both
-   hard parts by construction. A pilot of about 5 cards answers whether its
-   subtle motion is special enough before any video is generated.
+1. **The motion style. RULED (owner, 2026-10-02): "assume A to start, and B
+   long term if we can find a good solution."** Animated printings begin as
+   (A), living art over the still, starting with a pilot of about 5 cards.
+   (B), generated video, is the long-term goal, adopted only once a pipeline
+   produces loops that pass the owner's eyes at a storage cost the launch
+   budget can carry. Until then (B) is research, not a commitment.
 2. **Which cards can come Animated:** every card, or a curated set (for
    example Ultra and Super-Super Rares, or a featured set at each launch).
 3. **The axis:** an Animated printing as the top step of the Full Art axis
