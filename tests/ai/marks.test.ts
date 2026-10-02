@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { MediumAI } from '../../src/ai/MediumAI';
+import { Game } from '../../src/engine/Game';
+import { makeTestState, TEST_DB } from '../helpers';
 import type { CardDb, Permanent } from '../../src/engine/types';
 import {
   MARKED_BODY_PREMIUM,
@@ -95,7 +98,17 @@ describe('mark cards wait for the board that multiplies them', () => {
   });
 
   it('mark-all scales with the creatures it will touch', () => {
-    expect(markBoardAdjust([], db, 0, 'mark-all')).toBeLessThan(0);
+    const castDb = { ...TEST_DB, ...db };
+    for (const hasCreature of [false, true]) {
+      const state = makeTestState({ active: 0, hands: [['mark-all'], []], battlefield: [
+        { iid: 100, cardId: 'forest', controller: 0 },
+        ...(hasCreature ? [{ iid: 101, cardId: 'body', controller: 0 as const }] : []),
+      ] });
+      const game = Game.restore(state, castDb);
+      expect(new MediumAI(castDb).chooseAction(game.viewFor(0), game.legalActions(0))).toEqual(
+        hasCreature ? { type: 'castSpell', handIndex: 0 } : { type: 'passStep' },
+      );
+    }
     expect(markBoardAdjust([perm('body', 0)], db, 0, 'mark-all')).toBeLessThan(0);
     expect(markBoardAdjust([perm('body', 0), perm('body', 0), perm('body', 0)], db, 0, 'mark-all')).toBeGreaterThan(0);
   });

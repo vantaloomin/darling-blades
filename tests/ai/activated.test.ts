@@ -395,7 +395,7 @@ describe('Duty battlefield value', () => {
     expect(Number.isFinite(permValue(view.battlefield, DB, 21))).toBe(true);
   });
 
-  it('keeps a tapper Duty\'s potential while its only target is tapped, and scores that tap now at zero', () => {
+  it('keeps a tapper Duty\'s potential and values its live tap only before the enemy can block', () => {
     // A creature that attacked stays tapped only until its controller's
     // untap, so the tapper's board value must not collapse meanwhile.
     const tapperOn = (tapped: boolean) => board('duty_paid_tapper', 'main2', [
@@ -407,7 +407,12 @@ describe('Duty battlefield value', () => {
     expect(premium(tapperOn(false))).toBeGreaterThan(0);
     expect(premium(tapperOn(true))).toBeCloseTo(premium(tapperOn(false)));
     const tapGiant: Action = { type: 'activate', iid: SOURCE, targets: [{ kind: 'permanent', iid: 21 }] };
-    expect(activateActionValue(tapperOn(false), DB, tapGiant)).toBeGreaterThan(0);
+    const beforeCombat = board('duty_paid_tapper', 'main1', [
+      { iid: 11, cardId: 'forest', controller: 0 }, { iid: 12, cardId: 'forest', controller: 0 },
+      { iid: 20, cardId: 'bear', controller: 0 }, { iid: 21, cardId: 'giant', controller: 1 },
+    ]).viewFor(0);
+    expect(activateActionValue(beforeCombat, DB, tapGiant)).toBeGreaterThan(0);
+    expect(activateActionValue(tapperOn(false), DB, tapGiant)).toBe(0);
     expect(activateActionValue(tapperOn(true), DB, tapGiant)).toBe(0);
   });
 });

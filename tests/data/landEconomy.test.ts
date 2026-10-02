@@ -434,7 +434,6 @@ interface HeavyCase {
 
 const HEAVY_ROWS: HeavyCase[] = [
   { id: 'ac-mirror-lake', name: 'Mirror-Lake Glass', lands: 2 },
-  { id: 'ac-lowland-fort', name: 'Lowland Fort Banner', lands: 2, extra: [{ iid: 20, cardId: 'bear', controller: 1 }] },
   { id: 'gm-red-roof-village', name: 'Festival Rocket', lands: 2, extra: [{ iid: 20, cardId: 'bear', controller: 1 }] },
   { id: 'gm-moor-path', name: 'Moorlight Lantern', lands: 3 },
   { id: 'dt-riverbend-trail', name: 'Riverbend Waterwheel', lands: 3, graveyard: ['bear'] },
@@ -442,7 +441,7 @@ const HEAVY_ROWS: HeavyCase[] = [
   { id: 'sb-interstellar-crossing', name: 'Crossing Beacon', lands: 3 },
 ];
 
-describe('land economy: the seven heavier rows are played by every brain', () => {
+describe('land economy: useful paid Duties are played by every brain', () => {
   it.each(
     HEAVY_ROWS.flatMap((row) => DIFFICULTIES.map((difficulty) => [row.name, difficulty, row] as const)),
   )('%s is activated by the %s brain in its Afternoon', (_name, difficulty, row) => {
@@ -459,5 +458,22 @@ describe('land economy: the seven heavier rows are played by every brain', () =>
     expect(activateActionValue(view, DB, policy!)).toBeGreaterThan(0);
     const chosen = brain(difficulty).chooseAction(view, legal);
     expect(chosen, `${row.id} ${difficulty} chose ${chosen.type}`).toMatchObject({ type: 'activate', iid: SOURCE });
+    if (row.id === 'gm-red-roof-village') {
+      // The audit called this a tap; Rocket actually deals 2 damage. Its
+      // Afternoon use kills this bear, so the useful activation is retained.
+      game.submit(0, chosen);
+      expect(game.state.battlefield.some((permanent) => permanent.iid === 20)).toBe(false);
+    }
   });
+
+  it.each(DIFFICULTIES.map((difficulty) => ['ac-lowland-fort', difficulty] as const))(
+    '%s is kept untapped by %s after combat when the enemy untaps before the tap could matter', (id, difficulty) => {
+      const game = board(id, { lands: 2, extra: [{ iid: 20, cardId: 'bear', controller: 1 }], step: 'main2' });
+      const legal = game.legalActions(0);
+      expect(legal).toContainEqual({ type: 'activate', iid: SOURCE, targets: [{ kind: 'permanent', iid: 20 }] });
+      expect(brain(difficulty).chooseAction(game.viewFor(0), legal)).toEqual({ type: 'passStep' });
+      expect(perm(game, SOURCE).tapped).toBe(false);
+      expect(perm(game, 20).tapped).toBe(false);
+    },
+  );
 });

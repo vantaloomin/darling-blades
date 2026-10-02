@@ -176,6 +176,53 @@ function keywordScore(keywords: Iterable<Keyword>, attack: number): number {
   return s;
 }
 
+type KeywordBody = { attack: number; keywords: ReadonlySet<Keyword> };
+
+/** A grant uses the printed-keyword price on the receiving body after the
+ * boost. An existing keyword adds nothing. Card-only estimates retain the
+ * established reference body when the recipient is not known. */
+function boostKeywordValue(op: Extract<EffectOp, { op: 'boost' }>, bodies?: readonly KeywordBody[]): number {
+  const recipients = bodies ?? [{ attack: KEYWORD_REFERENCE_ATTACK, keywords: new Set<Keyword>() }];
+  return recipients.reduce((sum, body) => sum + keywordScore(
+    new Set((op.keywords ?? []).filter((keyword) => !body.keywords.has(keyword))), body.attack + op.p,
+  ), 0);
+}
+
+function boostRecipients(
+  view: PlayerView | undefined, db: CardDb, cardId: string,
+  op: Extract<EffectOp, { op: 'boost' }>, mode: SpellMode = {}, earlierOps: readonly EffectOp[] = [],
+): KeywordBody[] | undefined {
+  if (!op.keywords?.length) return [];
+  const d = def(db, cardId);
+  if (op.scope === 'self' && isType(d, 'creature')) {
+    return [{ attack: d.attack ?? 0, keywords: new Set(d.keywords ?? []) }];
+  }
+  if (!view) return undefined;
+  // A spell can create the bodies its later grant will reach (Stampede of
+  // the Long Grass). Only project its explicit tokens, up to the real cap;
+  // public statics then price the new bodies just like existing recipients.
+  let battlefield = view.battlefield;
+  if (earlierOps.some((earlier) => earlier.op === 'createToken')) {
+    battlefield = [...battlefield];
+    let iid = Math.min(0, ...battlefield.map((perm) => perm.iid)) - 1;
+    let room = RULES.maxCreatures - battlefield.filter((perm) => perm.controller === view.myId && isType(def(db, perm.cardId), 'creature')).length;
+    for (const earlier of earlierOps) {
+      if (earlier.op !== 'createToken') continue;
+      for (let count = 0; count < earlier.count && room > 0; count++, room--) {
+        battlefield.push({ ...arrivingPermanent(earlier.token, view.myId), iid: iid--,
+          isToken: true, plusOneCounters: earlier.marks ?? 0 });
+      }
+    }
+  }
+  const targets = spellOpTargets(db, cardId, mode, op);
+  return battlefield.filter((perm) => isType(def(db, perm.cardId), 'creature') && (
+    op.scope === 'target' ? targets.some((ref) => ref.kind === 'permanent' && ref.iid === perm.iid) :
+    op.scope === 'self' ? false : op.scope === 'all' ||
+    (op.scope === 'theirMarked' ? perm.controller !== view.myId : perm.controller === view.myId) &&
+    (op.scope !== 'yourMarked' && op.scope !== 'theirMarked' || perm.plusOneCounters > 0)
+  )).map((perm) => getEffectiveStats(battlefield, db, perm.iid));
+}
+
 /** Modest free-value premium while a Nine Lives body still has no marks. */
 export const NINE_LIVES_BONUS = 1;
 
@@ -524,7 +571,8 @@ function boostTargetValue(
   if (op.scope !== 'target') return 0;
   const perm = permanentFor(ctx, ref);
   if (!perm || !isType(def(ctx.db, perm.cardId), 'creature')) return 0;
-  const printedDelta = (op.p + op.t) / 2 + (op.keywords?.length ?? 0) * 0.5;
+  const stats = getEffectiveStats(ctx.view.battlefield, ctx.db, perm.iid);
+  const printedDelta = (op.p + op.t) / 2 + boostKeywordValue(op, [stats]);
   // A positive boost helps our body and hurts theirs; a negative boost has the
   // opposite sign. The 0.75 factor keeps a one-turn trick below removal.
   return printedDelta * (perm.controller === ctx.view.myId ? 1 : -1) * 0.75;
@@ -798,7 +846,7 @@ interface ActivatedImpactContext {
 /** A Hunt's card-shaped floor (`opImpactValue`, `empowerValue`): half a destroy. */
 const HUNT_CARD_FLOOR = 1.5;
 
-export function opImpactValue(op: EffectOp, activated?: ActivatedImpactContext): number {
+export function opImpactValue(op: EffectOp, activated?: ActivatedImpactContext, recipients?: readonly KeywordBody[]): number {
   if (activated) return activatedOpImpact(op, activated);
   switch (op.op) {
     case 'gainLife':
@@ -835,7 +883,7 @@ export function opImpactValue(op: EffectOp, activated?: ActivatedImpactContext):
       return 1.5;
     case 'boost':
       return op.scope === 'self' || op.scope === 'allYours' || op.scope === 'yourMarked' || op.scope === 'theirMarked'
-        ? (Math.max(0, op.p + op.t) / 2 + (op.keywords?.length ?? 0) * 0.5) *
+        ? (Math.max(0, op.p + op.t) / 2 + boostKeywordValue(op, recipients)) *
           (op.scope === 'theirMarked' ? 0.65 : 1)
         : 0;
     case 'moveMark':
@@ -907,7 +955,8 @@ function activatedTargetImpact(op: EffectOp, ctx: ActivatedImpactContext, ref: T
     getEffectiveStats(view.battlefield, db, target.iid).defense + op.t <= target.damage) {
     return removalTargetValue(view.battlefield, db, target, false) * (target.controller === view.myId ? -1 : 1);
   }
-  if (op.op === 'tap' && target?.tapped && ctx.live) return 0;
+  if (op.op === 'tap' && ctx.live && (target?.tapped ||
+    target && target.controller !== view.myId && view.activePlayer === view.myId && view.step === 'main2')) return 0;
   if (op.op === 'foresee' && op.who === 'targetOwner') {
     const owner = target?.owner ?? (ref.kind === 'player' || ref.kind === 'grave' ? ref.player : undefined);
     return owner === undefined ? 0 : op.n * 0.5 * (owner === view.myId ? 1 : -1);
@@ -1132,17 +1181,16 @@ export function activatedAbilityValue(battlefield: readonly Permanent[], db: Car
 }
 
 /** Extra battlefield value for non-creature static and recurring engines. */
-function nonCreatureAbilityImpact(db: CardDb, cardId: string): number {
-  const d = def(db, cardId);
+function nonCreatureAbilityImpact(battlefield: readonly Permanent[], db: CardDb, source: Permanent): number {
+  const d = def(db, source.cardId);
   if (isType(d, 'creature')) return 0;
   let value = 0;
   for (const ab of d.abilities ?? []) {
     if (ab.when === 'static' && ab.static) {
       const st = ab.static;
       const stats = (Math.abs(st.p ?? 0) + Math.abs(st.t ?? 0)) / 2;
-      const keywords = (st.grantKeywords?.length ?? 0) * 0.5;
       const base = st.scope === 'filter' ? 1.5 : st.scope === 'attached' ? 0.75 : 1;
-      value += base + stats * 0.7 + keywords;
+      value += base + stats * 0.7;
       continue;
     }
     const conditionMultiplier = abilityConditionMultiplier(ab.condition);
@@ -1150,6 +1198,19 @@ function nonCreatureAbilityImpact(db: CardDb, cardId: string): number {
       value += 0.75 + (ab.ops ?? []).reduce((sum, op) => sum + opImpactValue(op), 0) * conditionMultiplier;
     } else if (ab.when !== 'spell') {
       value += 0.35 + (ab.ops ?? []).reduce((sum, op) => sum + opImpactValue(op) * 0.5, 0) * conditionMultiplier;
+    }
+  }
+  const grants = new Set((d.abilities ?? []).flatMap((ab) => ab.when === 'static' ? ab.static?.grantKeywords ?? [] : []));
+  if (grants.size > 0) {
+    // Let the engine's static layers enforce attachment, filters, conditions
+    // and duplicate grants. Price only keywords this source actually adds.
+    const withoutSource = battlefield.filter((perm) => perm.iid !== source.iid);
+    for (const perm of withoutSource) {
+      if (!isType(def(db, perm.cardId), 'creature')) continue;
+      const current = getEffectiveStats(battlefield, db, perm.iid);
+      const prior = getEffectiveStats(withoutSource, db, perm.iid);
+      const keywords = [...grants].filter((keyword) => current.keywords.has(keyword) && !prior.keywords.has(keyword));
+      value += keywordScore(keywords, current.attack) * (perm.controller === source.controller ? 1 : -1);
     }
   }
   if (d.chapters) value += d.chapters.length * 0.5;
@@ -1164,7 +1225,7 @@ export function removalTargetValue(
 ): number {
   const d = def(db, perm.cardId);
   const impact = isType(d, 'artifact') || isType(d, 'enchantment')
-    ? nonCreatureAbilityImpact(db, perm.cardId)
+    ? nonCreatureAbilityImpact(battlefield, db, perm)
     : 0;
   return permValue(battlefield, db, perm.iid, includeActivated) + impact;
 }
@@ -1201,6 +1262,35 @@ export function castSpellOps(db: CardDb, cardId: string, mode: SpellMode = {}, v
     .filter((ab) => ab.when === 'spell' && (!view || publicCondition(view, db, ab.condition)))
     .flatMap((ab) => ab.ops ?? []);
   return [...ops, ...(mode.empowered ? d.empower?.ops ?? [] : [])];
+}
+
+/** Undefined for other ops; zero means this Mark payoff has no recipient. */
+function markRecipients(view: PlayerView, db: CardDb, op: EffectOp): number | undefined {
+  if (op.op !== 'propagate' && !(op.op === 'boost' && op.scope === 'yourMarked') &&
+    !(op.op === 'markAll' && op.scope === 'yourCreatures')) return undefined;
+  return view.battlefield.filter((perm) => perm.controller === view.myId && isType(def(db, perm.cardId), 'creature') &&
+    (op.op === 'markAll' || perm.plusOneCounters > 0)).length;
+}
+
+/** Hold a Mark-only spell until it has a board. Incidental life (Apotheosis)
+ * does not spend the payoff; an independent effect such as Reef Bloom's
+ * Foresee still has a use. A creature is always allowed to develop its body. */
+export function emptyMarkPayoff(view: PlayerView, db: CardDb, cardId: string, mode: SpellMode = {}): boolean {
+  const d = def(db, cardId);
+  if (isType(d, 'creature') && !(mode.retell && d.retell?.ops) || mode.hauntlinked) return false;
+  const ops = castSpellOps(db, cardId, mode, view);
+  const recipients = ops.map((op) => markRecipients(view, db, op));
+  return recipients.some((count) => count !== undefined) &&
+    ops.every((op, index) => recipients[index] === 0 || op.op === 'gainLife');
+}
+
+/** The shared cast menu must not reintroduce an empty payoff through search,
+ * Whispers or Retell after the develop ladder has declined it. */
+export function usefulMarkCast(view: PlayerView, db: CardDb, action: Action): boolean {
+  if (action.type !== 'castSpell') return true;
+  const cardId = (action.retell || action.whispers) && action.graveIndex !== undefined
+    ? view.you.graveyard[action.graveIndex] : view.you.hand[action.handIndex];
+  return !emptyMarkPayoff(view, db, cardId, action);
 }
 
 export function spellOpTargets(db: CardDb, cardId: string, mode: SpellMode, op: EffectOp): readonly TargetRef[] {
@@ -1459,7 +1549,8 @@ export function conditionalAbilityValue(db: CardDb, cardId: string, view?: Playe
       typeof ab.condition === 'object' && ab.condition.kind === 'controlsOther';
     if (!markedOps && !markedCondition && !vocabularyTrigger && !vocabularyCondition &&
       !(view && ab.condition === 'questActive')) continue;
-    value += (ab.ops ?? []).reduce((sum, op) => sum + opImpactValue(op), 0) *
+    value += (ab.ops ?? []).reduce((sum, op, index) => sum + opImpactValue(op, undefined,
+      op.op === 'boost' ? boostRecipients(view, db, cardId, op, {}, (ab.ops ?? []).slice(0, index)) : undefined), 0) *
       abilityConditionMultiplier(ab.condition, view && isQuestActive(view.battlefield, db, view.myId)) * 0.5;
   }
   return value;
@@ -1467,6 +1558,7 @@ export function conditionalAbilityValue(db: CardDb, cardId: string, view?: Playe
 
 export function cardValue(db: CardDb, cardId: string, view?: PlayerView, mode: SpellMode = {}): number {
   const d = def(db, cardId);
+  if (view && emptyMarkPayoff(view, db, cardId, mode)) return 0;
   let v = manaValue(d.cost);
   if (isType(d, 'creature')) {
     v += ((d.attack ?? 0) + (d.defense ?? 0)) / 2;
@@ -1489,7 +1581,8 @@ export function cardValue(db: CardDb, cardId: string, view?: PlayerView, mode: S
       // "If it survived" reads the cast's own targets when it has them (A1.6).
       v += (ab.ops ?? []).reduce((sum, op, index) => sum + (op.op === 'ifTargetSurvives' && mode.targets
         ? survivalGateImpact(op, expectsTargetSurvives(view, db, (ab.ops ?? []).slice(0, index), op, mode.targets, mode.x ?? 0))
-        : opImpactValue(op)), 0) *
+        : markRecipients(view, db, op) === 0 ? 0 :
+          opImpactValue(op, undefined, op.op === 'boost' ? boostRecipients(view, db, cardId, op, mode, (ab.ops ?? []).slice(0, index)) : undefined)), 0) *
         abilityConditionMultiplier(ab.condition, isQuestActive(view.battlefield, db, view.myId));
       // Damage to each of your own creatures: a cost, less every unspent
       // Provoked it sets off on a survivor (a friendly source, Part 4 item 2).
@@ -1517,9 +1610,9 @@ export function questBoardValue(battlefield: readonly Permanent[], db: CardDb, c
 }
 
 /** Cheap deterministic estimate used when an AI chooses whether to pay Empower. */
-export function empowerValue(db: CardDb, cardId: string): number {
+export function empowerValue(db: CardDb, cardId: string, view?: PlayerView, mode: SpellMode = {}): number {
   const ops = def(db, cardId).empower?.ops ?? [];
-  const opValue = (op: EffectOp): number => {
+  const opValue = (op: EffectOp, index: number): number => {
     switch (op.op) {
       case 'damage':
         return op.n === 'X' ? 0 : op.n * (op.to === 'controller' ? -0.6 : 0.9);
@@ -1540,10 +1633,8 @@ export function empowerValue(db: CardDb, cardId: string): number {
       case 'addCounters':
         return op.n * 1.5;
       case 'propagate':
-        // Same conservative single-mark floor as `opImpactValue`: `empowerValue`
-        // is a cheap deterministic card-shaped estimate with no battlefield in
-        // its signature, and over-pricing Propagate here would make the AI pay
-        // Empower into a board with nothing marked on it.
+        // Retain the conservative single-mark estimate. Live recipient
+        // pricing here is limited to the granted-keyword change (U2).
         return 1.5;
       case 'createToken':
         return op.count * 2;
@@ -1552,7 +1643,7 @@ export function empowerValue(db: CardDb, cardId: string): number {
       case 'foresee':
         return op.n * 0.6;
       case 'boost':
-        return (op.p + op.t) / 2 + (op.keywords?.length ?? 0) * 0.5;
+        return (op.p + op.t) / 2 + boostKeywordValue(op, boostRecipients(view, db, cardId, op, { ...mode, empowered: true }, ops.slice(0, index)));
       case 'moveMark':
         return 0.75;
       case 'removeMarks':
@@ -1568,16 +1659,16 @@ export function empowerValue(db: CardDb, cardId: string): number {
       case 'hunt':
         return HUNT_CARD_FLOOR;
       case 'ifTargetMarked':
-        return op.then.reduce((sum, nested) => sum + opValue(nested), 0) * 0.6 +
-          (op.else ?? []).reduce((sum, nested) => sum + opValue(nested), 0) * 0.4;
+        return op.then.reduce((sum, nested) => sum + opValue(nested, index), 0) * 0.6 +
+          (op.else ?? []).reduce((sum, nested) => sum + opValue(nested, index), 0) * 0.4;
       case 'ifTargetSurvives':
-        return op.then.reduce((sum, nested) => sum + opValue(nested), 0) * IF_SURVIVES_CARD_WEIGHT +
-          (op.else ?? []).reduce((sum, nested) => sum + opValue(nested), 0) * (1 - IF_SURVIVES_CARD_WEIGHT);
+        return op.then.reduce((sum, nested) => sum + opValue(nested, index), 0) * IF_SURVIVES_CARD_WEIGHT +
+          (op.else ?? []).reduce((sum, nested) => sum + opValue(nested, index), 0) * (1 - IF_SURVIVES_CARD_WEIGHT);
       default:
         return 0;
     }
   };
-  return ops.reduce((sum, op) => sum + opValue(op), 0);
+  return ops.reduce((sum, op, index) => sum + opValue(op, index), 0);
 }
 
 /** Cheap deterministic smoothing value for a hand-side Skim action. */
@@ -1818,6 +1909,11 @@ export function markBoardAdjust(
   ).length;
   let adjust = 0;
   for (const op of ops) {
+    // The live spell price already removed an empty payoff. Keep a mixed
+    // spell's independent effect (Reef Bloom's Foresee) without charging it
+    // for the absent Mark twice. Creature riders retain their body ordering.
+    if (!isType(d, 'creature') && (op.op === 'propagate' && marked === 0 ||
+      op.op === 'markAll' && op.scope === 'yourCreatures' && creatures === 0)) continue;
     if (op.op === 'propagate') adjust += (marked - 1) * 0.8;
     else if (op.op === 'markAll' && op.scope === 'yourCreatures') adjust += (creatures - 1.5) * 0.6;
   }

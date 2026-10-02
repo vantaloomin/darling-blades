@@ -56,7 +56,7 @@ export function chooseRiteSacrifices(
   const buyValue =
     cardValue(db, cardId) +
     (cast.x ?? 0) +
-    (cast.empowered ? empowerValue(db, cardId) : 0);
+    (cast.empowered ? empowerValue(db, cardId, view, cast) : 0);
   if (fodder.some(({ value }) => value > buyValue)) return undefined;
   return fodder.map(({ perm }) => perm.iid);
 }

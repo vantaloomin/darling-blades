@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-road-to-2.0.md, docs/plan-expansion-slate.md, docs/plan-accessibility-i18n.md, docs/plan-mechanic-usage-audit.md, docs/plan-sweep-speed.md, docs/plan-art-regen-2026-09-22.md, docs/plan-1.8.5.md, docs/metagame-sweep.md, src/engine/types.ts, src/art/artLoader.ts, src/art/ArtResolver.ts, src/ui/CardThumbCache.ts, src/ai/activatedPolicy.ts, src/meta/SaveManager.ts, src/meta/Replay.ts, scripts/audit-overlap.ts, scripts/personas/craft.ts · last-verified: 2026-10-01 · program doc — the 1.9 train through lane B transcription; re-verify when the owner rules on an open decision or another lane lands -->
+<!-- source-of-truth: docs/plan-road-to-2.0.md, docs/plan-expansion-slate.md, docs/plan-accessibility-i18n.md, docs/plan-mechanic-usage-audit.md, docs/plan-sweep-speed.md, docs/plan-art-regen-2026-09-22.md, docs/plan-1.8.5.md, docs/metagame-sweep.md, src/engine/types.ts, src/art/artLoader.ts, src/art/ArtResolver.ts, src/ui/CardThumbCache.ts, src/ai/activatedPolicy.ts, src/meta/SaveManager.ts, src/meta/Replay.ts, scripts/audit-overlap.ts, scripts/personas/craft.ts · last-verified: 2026-10-02 · program doc — the 1.9 train through lane B transcription; re-verify when the owner rules on an open decision or another lane lands -->
 
 # Darling Blades 1.9 — program plan
 
@@ -920,6 +920,20 @@ lands with the Brood Communion fix (the same fix family). The note's other
 proposals (team pumps in Medium's respond ladder, the lost blocker of a
 creature Duty in main two, the harness additions) were not put to this
 sitting and stay as it proposes them.
+
+- **As built (wave 3, first usage-audit fixes, 2026-10-02):** U1 adds the
+  Darling to Easy's deliberate casts; U3 values the useless main-two enemy
+  tap at zero for every source, with both approved test re-pins; D13 holds
+  Brood Communion and Apotheosis until their Mark payoffs have recipients,
+  while still casting creature bodies; U2 prices the four keyword-grant
+  sites with the existing printed-keyword valuation on the receiving body.
+  Thirteen new documented behaviours pass, including the seeded P2-P4
+  positions. The brain gates remain 82.5% / 71.5% over 200 games each and
+  all rung gates pass without a floor change. The focused 500-game usage
+  read takes Communion's empty-board share from 30.8% to 0% and useless
+  main-two taps from 107 to 0; Easy's Darling calls and the unfloored
+  Darlings rungs 1-3 are re-read in [the audit's section 7](usage-audit-2026-09.md#7-for-the-owner-ruled-2026-09-28).
+  Ramp still lands last and alone (U4); no card, list or harness change.
 
 ### Lane F — the sweep: weenie's cost, racing, and the Medium screen
 

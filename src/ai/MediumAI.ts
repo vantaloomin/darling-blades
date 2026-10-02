@@ -39,6 +39,7 @@ import {
   faceDamageForCast,
   hauntlinkCastValue,
   markBoardAdjust,
+  usefulMarkCast,
   markedBoardValue,
   permValue,
   removalKind,
@@ -68,6 +69,7 @@ export class MediumAI implements AIPlayer {
   ) {}
 
   chooseAction(view: PlayerView, legal: Action[]): Action {
+    legal = legal.filter((action) => usefulMarkCast(view, this.db, action));
     // A self-Hunt or a friendly Provoked source only when it beats the plain
     // choice by a card (A2.b). It runs before the target policy keeps one variant.
     legal = applyHuntPolicy(view, this.db, legal, SELF_PROVOKE_MARGIN);
@@ -251,7 +253,7 @@ export class MediumAI implements AIPlayer {
       : cast.retell
       ? retellValue(this.db, cardId) + 0.01
       : this.developScore(cardId, view, cast) + (cast.x ?? 0) +
-          (cast.empowered ? empowerValue(this.db, cardId) + 0.01 -
+          (cast.empowered ? empowerValue(this.db, cardId, view, cast) + 0.01 -
             empowerOpportunityCost(view, this.db, cast, (otherView, other) =>
               this.isDevelopable(otherView, other) ? this.castScore(otherView, other) : 0) : 0);
     // Printed value cannot see that Propagate and mark-all multiply by the
