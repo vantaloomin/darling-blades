@@ -8,7 +8,8 @@ import type { PlayerId } from '../../src/engine/types';
 import { WARCHEST_HAND_SIZE } from '../../src/meta/warchest';
 import positions from './fixtures/usageAuditPositions.json';
 
-/** The audit's actual seeded games, with action prefixes recorded at 30cbf0e8.
+/** The audit's actual seeded games, with recorded action prefixes: P1's team
+ * combats at 4290e37, and the P2-P4 main-phase positions at 30cbf0e8.
  * Replay the history through the engine so earlier improvements cannot erase
  * the decision under test. No battlefield, hand or RNG state is fabricated.
  * Cell numbering and seats follow scripts/balance-matrix.ts's runCell. */
@@ -29,7 +30,8 @@ export function usageAuditGame(name: keyof typeof positions): Game {
   });
   for (const entry of position.prefix) game.submit(entry.player as PlayerId, entry.action as Action);
   if (game.state.turn !== position.turn || game.state.step !== position.step ||
-    game.awaiting.kind !== 'main' || game.awaiting.player !== position.player) {
+    game.awaiting.kind !== ('awaiting' in position ? position.awaiting : 'main') ||
+    game.awaiting.kind === 'gameOver' || game.awaiting.player !== position.player) {
     throw new Error(`Audit position ${name} did not reach its recorded decision`);
   }
   return game;

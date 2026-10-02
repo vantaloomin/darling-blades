@@ -121,7 +121,11 @@ lookahead." Its rules:
   kills only if `n ≥ toughness − marked damage`.
 - **Responses / end step:** counter a big enemy spell (mv ≥ 4), a spell hitting
   its best creature, or a `massDestroy`; remove a dangerous attacker; pump a
-  creature to win or survive a fight; spend spare removal and free card-draw at
+  creature to win or survive a fight; after blocks, spend a targetless team
+  pump when the combat forecast saves a friendly fighter or kills another
+  enemy, adds lethal, or adds damage at least equal to the cast's mana cost.
+  The fight rule works on attack and defence, reads granted keywords such as
+  Overrun, and respects combat-damage prevention. Spend spare removal and free card-draw at
   the opponent's end step. Since phase A (2026-09-15) the ladder also reads the
   shapes it used to leave in hand: **fog** when the incoming damage is lethal or
   drops it under the life curve's knee, or saves a blocked body worth more than

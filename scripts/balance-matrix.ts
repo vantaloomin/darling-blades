@@ -54,6 +54,8 @@
  *                        uses per cast (docs/plan-mechanic-usage-audit.md).
  *                        With --telemetry-out the rows join the JSON as
  *                        `usage`. Off by default; no number moves either way.
+ *   --usage-columns      The same audit on Medium's column decks, summed over
+ *                        selected bosses; can be combined with --usage.
  *   --only <id,id,...>   Avatar-matrix row filter for fast tuning iteration
  *                        (e.g. --only simayi,menghuo). Cell seeds are keyed by
  *                        (rung, starter) so filtered runs reproduce the exact
@@ -608,12 +610,13 @@ export function runAvatarMatrix(
   onlyIds?: string[],
   telemetry?: BalanceTelemetryCollector,
   usage?: MechanicUsageCollector,
+  usageColumns?: MechanicUsageCollector,
 ): AvatarMatrixReport {
   const columns = STARTER_DECKS.map((starter) => {
     if (!starter.reserveCards || !starter.landReserve) {
       throw new Error(`Starter ${starter.id} has no reserve build; regenerate src/data/starterDecks.ts`);
     }
-    return { name: starter.name, cards: starter.reserveCards, landReserve: starter.landReserve };
+    return { id: starter.id, name: starter.name, cards: starter.reserveCards, landReserve: starter.landReserve };
   });
   const roster = [...AVATARS]
     .sort((a, b) => a.tier - b.tier)
@@ -627,7 +630,11 @@ export function runAvatarMatrix(
             { matrix: 'avatars', id: av.id, name: av.name, tier: av.tier, list: { deck: av.reserveDeck } },
             (seed: number) => buildAI(av.difficulty, CARD_DB, seed, av.personality),
           ),
-          colAI: () => new MediumAI(CARD_DB),
+          colAI: usageRowAI(
+            usageColumns,
+            { matrix: 'avatars-columns', id: starter.id, name: starter.name, list: { deck: starter.cards } },
+            () => new MediumAI(CARD_DB),
+          ),
           decks: () => [av.reserveDeck, starter.cards],
           format: 'warchest',
           reserves: () => [av.landReserve, starter.landReserve],
@@ -713,6 +720,7 @@ export function runAvatarReserveMatrix(
   onlyIds?: string[],
   telemetry?: BalanceTelemetryCollector,
   usage?: MechanicUsageCollector,
+  usageColumns?: MechanicUsageCollector,
 ): AvatarReserveMatrixReport {
   const columns: readonly ReserveColumn[] =
     format === 'warchest'
@@ -748,7 +756,14 @@ export function runAvatarReserveMatrix(
             },
             (seed: number) => buildAI(av.difficulty, CARD_DB, seed, av.personality),
           ),
-          colAI: () => new MediumAI(CARD_DB),
+          colAI: usageRowAI(
+            usageColumns,
+            {
+              matrix: `avatars-${format}-columns`, id: proxy.name, name: proxy.name,
+              list: { deck: proxy.cards, darlingId: proxy.darlingId },
+            },
+            () => new MediumAI(CARD_DB),
+          ),
           decks: () => [avatarDeck, proxy.cards],
           format,
           reserves: () => [av.landReserve, proxy.landReserve],
@@ -1944,6 +1959,7 @@ function main(): void {
   const wantTelemetry = flag('telemetry') || telemetryOut !== undefined;
   const telemetry = wantTelemetry ? new BalanceTelemetryCollector() : undefined;
   const usage = flag('usage') ? new MechanicUsageCollector(CARD_DB) : undefined;
+  const usageColumns = flag('usage-columns') ? new MechanicUsageCollector(CARD_DB) : undefined;
   const wantStarters = flag('starters');
   const wantDifficulty = flag('difficulty');
   const wantTiers = flag('tiers');
@@ -2044,9 +2060,9 @@ function main(): void {
 
   const t0 = Date.now();
   const reports: { table: string; flags?: string[] }[] = [];
-  if (wantAvatars) reports.push(runAvatarMatrix(seeds, only, telemetry, usage));
-  if (wantAvatarsReserve) reports.push(runAvatarReserveMatrix('warchest', seeds, only, telemetry, usage));
-  if (wantAvatarsDarlings) reports.push(runAvatarReserveMatrix('darlings', seeds, only, telemetry, usage));
+  if (wantAvatars) reports.push(runAvatarMatrix(seeds, only, telemetry, usage, usageColumns));
+  if (wantAvatarsReserve) reports.push(runAvatarReserveMatrix('warchest', seeds, only, telemetry, usage, usageColumns));
+  if (wantAvatarsDarlings) reports.push(runAvatarReserveMatrix('darlings', seeds, only, telemetry, usage, usageColumns));
   if (wantStarters) reports.push(runStarterMatrix(seeds, telemetry));
   if (wantDifficulty) reports.push(runDifficultyMatrix(seeds, telemetry));
   if (wantTiers) reports.push(runTierMatrix(seeds, telemetry));
@@ -2071,11 +2087,14 @@ function main(): void {
   }
   if (telemetry) console.log('\n' + telemetry.render());
   if (usage) console.log('\n' + usage.render());
+  if (usageColumns) console.log('\n' + usageColumns.render());
   if (telemetry && telemetryOut) {
     const outputPath = resolve(telemetryOut);
     mkdirSync(dirname(outputPath), { recursive: true });
-    // The usage key joins the JSON only under --usage, so a plain run writes the same bytes.
-    const json = usage ? { ...telemetry.toJSON(), usage: usage.toJSON() } : telemetry.toJSON();
+    // Plain runs preserve their bytes; both opt-in sides share the usage key.
+    const json = usage || usageColumns ? {
+      ...telemetry.toJSON(), usage: { bosses: [...(usage?.toJSON().bosses ?? []), ...(usageColumns?.toJSON().bosses ?? [])] },
+    } : telemetry.toJSON();
     writeFileSync(outputPath, JSON.stringify(json, null, 2) + '\n', 'utf8');
     console.log(`Telemetry JSON: ${outputPath}`);
   }

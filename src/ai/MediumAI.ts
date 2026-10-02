@@ -938,7 +938,9 @@ export class MediumAI implements AIPlayer {
         return best;
     }
 
-    // 3. Pump my creature when it helps combat.
+    // 3. Pump my team or creature when it helps combat.
+    const teamPump = this.teamPumpForCombat(view, casts);
+    if (teamPump) return teamPump;
     if (view.combat) {
       for (const c of casts) {
         const perm = this.targetPerm(view, c.targets?.[0]);
@@ -985,6 +987,49 @@ export class MediumAI implements AIPlayer {
       }
     }
     return this.whispersFreebie(view, casts) ?? pass;
+  }
+
+  /** A team Charm earns its card after blocks by changing a fight or adding
+   * damage worth its mana; lethal needs no cost margin. Use the same public
+   * combat forecast as the other response tricks, including prevention. */
+  private teamPumpForCombat(view: PlayerView, casts: SpellCast[]): SpellCast | undefined {
+    if (view.step !== 'combat' || view.combat?.phase !== 'blockersDeclared') return undefined;
+    type Boost = Extract<EffectOp, { op: 'boost' }>;
+    const teamBoosts = (ops: EffectOp[]): Boost[] => ops.filter((op): op is Boost =>
+      op.op === 'boost' && op.scope === 'allYours' && op.p >= 0 && op.t >= 0 &&
+      (op.p + op.t > 0 || (op.keywords?.length ?? 0) > 0));
+    const boosted = (board: Permanent[], controller: number, boosts: Boost[]): Permanent[] =>
+      board.map((perm) => perm.controller === controller && isType(def(this.db, perm.cardId), 'creature')
+        ? { ...perm, untilEotMods: [...perm.untilEotMods,
+          ...boosts.map((op) => ({ p: op.p, t: op.t, keywords: op.keywords ?? [] }))] } : perm);
+    let pendingBoard: Permanent[] | undefined;
+    for (const cast of casts) {
+      if ((cast.targets?.length ?? 0) !== 0) continue;
+      const boosts = teamBoosts(this.castOps(view, cast));
+      if (boosts.length === 0) continue;
+      // A reply can reoffer us a cast while the first pump is still on the
+      // stack. Count uncanceled team pumps already paid for on either side.
+      if (!pendingBoard) {
+        pendingBoard = view.battlefield;
+        for (const item of this.pendingSpells(view)) {
+          const ops = boundCastEffects({ ...view, myId: item.controller }, this.db, item.cardId, item).map(({ op }) => op);
+          const pending = teamBoosts(ops);
+          if (pending.length > 0) pendingBoard = boosted(pendingBoard, item.controller, pending);
+        }
+      }
+      const before = this.combatPrediction(view, pendingBoard);
+      if (!before) return undefined;
+      const projected = boosted(pendingBoard, view.myId, boosts);
+      const after = this.combatPrediction(view, projected)!;
+      const saved = before.dying.some((iid) => !after.dying.includes(iid) &&
+        this.targetPerm(view, { kind: 'permanent', iid })?.controller === view.myId);
+      const killed = after.dying.some((iid) => !before.dying.includes(iid) &&
+        this.targetPerm(view, { kind: 'permanent', iid })?.controller !== view.myId);
+      if (saved || killed) return cast;
+      if (view.activePlayer === view.myId && before.damage < view.opp.life && after.damage > before.damage &&
+        (after.damage >= view.opp.life || after.damage - before.damage >= this.manaForCast(view, cast))) return cast;
+    }
+    return undefined;
   }
 
   /** Spend useful targetless Whispers in any response window before expiry. */

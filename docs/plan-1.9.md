@@ -935,6 +935,16 @@ sitting and stay as it proposes them.
   Darlings rungs 1-3 are re-read in [the audit's section 7](usage-audit-2026-09.md#7-for-the-owner-ruled-2026-09-28).
   Ramp still lands last and alone (U4); no card, list or harness change.
 
+- **As built (wave 3, second usage-audit fixes, 2026-10-02):** item 1 gives
+  Medium a post-block team-pump rule using the existing combat forecast and
+  mana cost; item 7 adds meaningful Darling-tax chances, uses for Skim,
+  Retell and Whispers, non-creature Mark-payoff checks, Duty by main step,
+  safe blocks lost on the next opposing attack, keyword recipients' Attack,
+  and `--usage-columns`. The seeded Hera positions, counter-cases, Hard
+  baseline comparison and unchanged gates are recorded in
+  [the usage audit](usage-audit-2026-09.md). No band, floor, card or list changes;
+  ramp still lands last and alone (U4).
+
 ### Lane F — the sweep: weenie's cost, racing, and the Medium screen
 
 Where it stands: the sweep runs on GitHub-hosted runners

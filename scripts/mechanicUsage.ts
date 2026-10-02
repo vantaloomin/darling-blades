@@ -26,7 +26,7 @@ import type { AbilityDef, CardDb, CardDef, EffectOp, HuntPrey, Permanent, Target
 import { activatedAbilitiesOf, flatOps, isArrivalHunt, isType, manaValue } from '../src/engine/types';
 import type { PlayerView } from '../src/engine/view';
 import { hauntlinkHostFit } from '../src/ai/hauntlinkPolicy';
-import { expectsTargetSurvives } from '../src/ai/value';
+import { boundCastEffects, expectsTargetSurvives } from '../src/ai/value';
 
 export interface UsageContext {
   readonly view: PlayerView;
@@ -36,6 +36,8 @@ export interface UsageContext {
    * null once she is called, while the tax paydown stays legal.
    */
   readonly darlingId?: string | null;
+  /** The exact menu this decision offered, when recording a live game. */
+  readonly legal?: readonly Action[];
 }
 
 export type ActionType = Action['type'];
@@ -54,6 +56,8 @@ export interface MechanicRule {
   readonly match: (action: Action, ctx: UsageContext) => string | undefined;
   /** One permanent can use it again and again: report uses per cast. */
   readonly repeats?: true;
+  /** Cycling and graveyard reuse are measured by uses, not hand-cast rate. */
+  readonly reportUses?: true;
   /**
    * A cheap public test that a legal use would also be a sensible one. Only
    * consulted for actions `match` accepted. Absent: every legal chance counts.
@@ -366,6 +370,7 @@ export const MECHANIC_RULES: readonly MechanicRule[] = [
   {
     id: 'skim',
     label: 'Skim',
+    reportUses: true,
     carries: (d, zone) => zone === 'deck' && d.skim !== undefined,
     actionTypes: new Set<ActionType>(['skim']),
     match: (action, ctx) => (action.type === 'skim' ? namedCardId(action, ctx.view) : undefined),
@@ -373,6 +378,7 @@ export const MECHANIC_RULES: readonly MechanicRule[] = [
   {
     id: 'retell',
     label: 'Retell',
+    reportUses: true,
     carries: (d, zone) => zone === 'deck' && d.retell !== undefined,
     actionTypes: castOnly,
     match: castWith((a) => a.retell === true),
@@ -380,6 +386,7 @@ export const MECHANIC_RULES: readonly MechanicRule[] = [
   {
     id: 'whispers',
     label: 'Whispers',
+    reportUses: true,
     carries: (d, zone) => zone === 'deck' && d.whispers !== undefined,
     actionTypes: castOnly,
     match: castWith((a) => a.whispers === true),
@@ -454,7 +461,9 @@ export const MECHANIC_RULES: readonly MechanicRule[] = [
     match: (action, ctx) =>
       (action.type === 'payDownDarlingTax' ? namedCardId(action, ctx.view, ctx.darlingId) : undefined),
     repeats: true,
-    note: 'uses per cast = paydowns per call of the Darling',
+    meaningful: (_action, ctx) => ctx.view.you.darlingZone != null &&
+      !(ctx.legal ? ctx.legal.some((action) => action.type === 'castDarling') : ctx.view.you.darlingCastable === true),
+    note: 'meaningful = in the command zone and not castable; uses per cast = paydowns per call of the Darling',
   },
   {
     id: 'charmWindow',
@@ -531,6 +540,8 @@ export interface SenseCheck {
   readonly applies: (action: Action, ctx: UsageContext) => string | undefined;
   readonly flagged: (action: Action, ctx: UsageContext) => boolean;
   readonly reading?: (action: Action, ctx: UsageContext) => number;
+  /** Multiple recipients of one cast each contribute one reading. */
+  readonly readings?: (action: Action, ctx: UsageContext) => readonly number[];
 }
 
 /** The spell-time ops a cast will run: the body, plus Empower's when paid. */
@@ -558,6 +569,73 @@ export function ownTurn(view: PlayerView): number {
   return view.startingPlayer === view.myId ? Math.ceil(view.turn / 2) : Math.floor(view.turn / 2);
 }
 
+/** Public cast-time recipients, including static layers and paid Empower.
+ * Existing keywords do not become a new grant. Each body contributes once,
+ * at its effective Attack after this cast's boosts and static layers. This is
+ * a reading of the chosen cast, not a claim that no response will stop it.
+ */
+export function keywordGrantAttacks(action: Action, ctx: UsageContext): number[] {
+  if (action.type !== 'castSpell') return [];
+  const id = namedCardId(action, ctx.view);
+  const d = card(ctx, id);
+  if (!id || !d) return [];
+  const effects = boundCastEffects(ctx.view, ctx.db, id, action);
+  const bodyRuns = !(action.retell && d.retell?.ops);
+  const hasStaticGrant = bodyRuns && (d.abilities ?? []).some((ability) =>
+    ability.when === 'static' && (ability.static?.grantKeywords?.length ?? 0) > 0);
+  if (!hasStaticGrant && !effects.some(({ op }) => op.op === 'boost' && (op.keywords?.length ?? 0) > 0)) return [];
+  let board = [...ctx.view.battlefield];
+  let grantDb = ctx.db;
+  const granted = new Set<number>();
+  const sourceIid = Math.min(0, ...board.map((body) => body.iid)) - 1;
+  const arrives = bodyRuns && (isType(d, 'creature') || isType(d, 'artifact') || isType(d, 'enchantment') || d.chapters !== undefined);
+  if (arrives) {
+    const attachedTo = d.subtypes.includes('Aura') ? permanentIid(action.targets?.[0]) : undefined;
+    // Isolate the arriving source: an older copy's existing grants must stay.
+    let projectedId = '__usage_grant';
+    while (grantDb[projectedId]) projectedId += '_';
+    grantDb = { ...grantDb, [projectedId]: { ...d, id: projectedId } };
+    const source: Permanent = {
+      iid: sourceIid, cardId: projectedId, owner: ctx.view.myId, controller: ctx.view.myId,
+      tapped: false, enteredThisTurn: true, damage: 0, deathtouched: false,
+      severBranded: false, attachments: [], plusOneCounters: 0, untilEotMods: [],
+      ...(attachedTo === undefined ? {} : { attachedTo }),
+    };
+    board = [...board, source];
+    if (hasStaticGrant) {
+      const withoutGrants: CardDb = { ...grantDb, [projectedId]: { ...d, abilities: d.abilities?.map((ability) =>
+        ability.when === 'static' && ability.static
+          ? { ...ability, static: { ...ability.static, grantKeywords: [] } } : ability) } };
+      for (const body of board) {
+        if (!isType(grantDb[body.cardId], 'creature')) continue;
+        const after = getEffectiveStats(board, grantDb, body.iid);
+        const before = getEffectiveStats(board, withoutGrants, body.iid);
+        if ([...after.keywords].some((keyword) => !before.keywords.has(keyword))) granted.add(body.iid);
+      }
+    }
+  }
+  for (const { op, targets } of effects) {
+    if (op.op !== 'boost') continue;
+    const recipients = board.filter((body) => {
+      if (!isType(grantDb[body.cardId], 'creature')) return false;
+      if (op.scope === 'target') return targets.some((target) => target.kind === 'permanent' && target.iid === body.iid);
+      if (op.scope === 'self') return body.iid === sourceIid;
+      if (op.scope === 'all') return true;
+      const mine = body.controller === ctx.view.myId;
+      return op.scope === 'allYours' ? mine : body.plusOneCounters > 0 && (op.scope === 'yourMarked' ? mine : !mine);
+    });
+    const iids = new Set(recipients.map((body) => body.iid));
+    for (const body of recipients) {
+      const before = getEffectiveStats(board, grantDb, body.iid);
+      if (op.keywords?.some((keyword) => !before.keywords.has(keyword))) granted.add(body.iid);
+    }
+    board = board.map((body) => iids.has(body.iid) ? {
+      ...body, untilEotMods: [...body.untilEotMods, { p: op.p, t: op.t, keywords: op.keywords ?? [] }],
+    } : body);
+  }
+  return [...granted].map((iid) => getEffectiveStats(board, grantDb, iid).attack);
+}
+
 export const SENSE_CHECKS: readonly SenseCheck[] = [
   {
     id: 'rampCast',
@@ -577,7 +655,7 @@ export const SENSE_CHECKS: readonly SenseCheck[] = [
     flagMeans: 'no Marked creature of hers on the board',
     applies: (action, ctx) => {
       const cast = castCard(action, ctx);
-      return cast?.ops.some((op) =>
+      return cast && !isType(cast.d, 'creature') && cast.ops.some((op) =>
         op.op === 'propagate' || (op.op === 'boost' && op.scope === 'yourMarked')) ? cast.id : undefined;
     },
     flagged: (_action, ctx) => !mineCreatures(ctx).some((perm) => perm.plusOneCounters > 0),
@@ -608,6 +686,24 @@ export const SENSE_CHECKS: readonly SenseCheck[] = [
       perm.controller !== ctx.view.myId && ctx.db[perm.cardId] !== undefined &&
       isType(ctx.db[perm.cardId], 'creature') &&
       getEffectiveStats(ctx.view.battlefield, ctx.db, perm.iid).attack > 0),
+  },
+  {
+    // Recorded after the next opposing blocks, by GameUsage: it needs two views.
+    id: 'creatureDutySafeBlockLost',
+    label: 'Creature Duty before the next opposing attack',
+    flagMeans: 'a still-tapped source could safely block an actually unblocked attacker',
+    readingMeans: 'damage a safe block could prevent (best single block per source)',
+    applies: () => undefined,
+    flagged: () => false,
+  },
+  {
+    id: 'keywordGrantAttack',
+    label: 'Keyword-grant cast recipients',
+    flagMeans: 'none (recipient reading only)',
+    readingMeans: 'recipient Attack after the grant; one reading per body per cast',
+    applies: (action, ctx) => keywordGrantAttacks(action, ctx).length > 0 ? namedCardId(action, ctx.view) : undefined,
+    flagged: () => false,
+    readings: keywordGrantAttacks,
   },
   {
     // Main phase only: a move in a window answers a live combat or trigger,

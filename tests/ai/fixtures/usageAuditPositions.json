@@ -2216,5 +2216,2496 @@
         }
       }
     ]
+  },
+  "teamAttack": {
+    "name": "teamAttack",
+    "matrix": "avatars",
+    "rung": 4,
+    "column": 0,
+    "cell": 400,
+    "game": 0,
+    "turn": 13,
+    "step": "combat",
+    "player": 0,
+    "awaiting": "respond",
+    "prefix": [
+      {
+        "player": 0,
+        "action": {
+          "type": "keepHand"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "keepHand"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 0
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passResponse"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passResponse"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 2
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 0
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 5
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 4
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 3
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 2
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 0
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 1
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": [
+            5
+          ]
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareBlockers",
+          "blocks": [
+            {
+              "blocker": 7,
+              "attacker": 5
+            }
+          ]
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 2
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 2
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 4
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": [
+            14
+          ]
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareBlockers",
+          "blocks": [
+            {
+              "blocker": 17,
+              "attacker": 14
+            }
+          ]
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 2
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 1
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 0
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 1
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 1
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 6
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 5
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": [
+            14,
+            19
+          ]
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareBlockers",
+          "blocks": []
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 2
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": [
+            16,
+            21,
+            23,
+            25
+          ]
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareBlockers",
+          "blocks": [
+            {
+              "blocker": 10,
+              "attacker": 25
+            },
+            {
+              "blocker": 27,
+              "attacker": 23
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "teamHold": {
+    "name": "teamHold",
+    "matrix": "avatars",
+    "rung": 4,
+    "column": 0,
+    "cell": 400,
+    "game": 0,
+    "turn": 23,
+    "step": "combat",
+    "player": 0,
+    "awaiting": "respond",
+    "prefix": [
+      {
+        "player": 0,
+        "action": {
+          "type": "keepHand"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "keepHand"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 0
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passResponse"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passResponse"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 2
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 0
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 5
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 4
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 3
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 2
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 0
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 1
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": [
+            5
+          ]
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareBlockers",
+          "blocks": [
+            {
+              "blocker": 7,
+              "attacker": 5
+            }
+          ]
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 2
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 2
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 4
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": [
+            14
+          ]
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareBlockers",
+          "blocks": [
+            {
+              "blocker": 17,
+              "attacker": 14
+            }
+          ]
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 2
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 1
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 0
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 1
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 1
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 6
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 5
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": [
+            14,
+            19
+          ]
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareBlockers",
+          "blocks": []
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 2
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": [
+            16,
+            21,
+            23,
+            25
+          ]
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareBlockers",
+          "blocks": [
+            {
+              "blocker": 10,
+              "attacker": 25
+            },
+            {
+              "blocker": 27,
+              "attacker": 23
+            }
+          ]
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passResponse"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 2
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 3
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passResponse"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 3
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passResponse"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 0
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passResponse"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": [
+            10,
+            14,
+            19,
+            27,
+            28
+          ]
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passResponse"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareBlockers",
+          "blocks": [
+            {
+              "blocker": 16,
+              "attacker": 27
+            },
+            {
+              "blocker": 22,
+              "attacker": 10
+            },
+            {
+              "blocker": 8,
+              "attacker": 28
+            },
+            {
+              "blocker": 30,
+              "attacker": 14
+            }
+          ]
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passResponse"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 2
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 2
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": [
+            16
+          ]
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareBlockers",
+          "blocks": []
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passResponse"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 3
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passResponse"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passResponse"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 2
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passResponse"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 2
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passResponse"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": [
+            16,
+            40,
+            41,
+            44
+          ]
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareBlockers",
+          "blocks": [
+            {
+              "blocker": 10,
+              "attacker": 40
+            },
+            {
+              "blocker": 14,
+              "attacker": 41
+            },
+            {
+              "blocker": 19,
+              "attacker": 44
+            }
+          ]
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passResponse"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 2
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passResponse"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 2
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": [
+            16,
+            46
+          ]
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareBlockers",
+          "blocks": [
+            {
+              "blocker": 14,
+              "attacker": 46
+            },
+            {
+              "blocker": 34,
+              "attacker": 16
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "teamRepeat": {
+    "name": "teamRepeat",
+    "matrix": "avatars",
+    "rung": 4,
+    "column": 0,
+    "cell": 400,
+    "game": 0,
+    "turn": 21,
+    "step": "combat",
+    "player": 0,
+    "awaiting": "respond",
+    "prefix": [
+      {
+        "player": 0,
+        "action": {
+          "type": "keepHand"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "keepHand"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 0
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passResponse"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passResponse"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 2
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 0
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 5
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 4
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 3
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 2
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 0
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 1
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": [
+            5
+          ]
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareBlockers",
+          "blocks": [
+            {
+              "blocker": 7,
+              "attacker": 5
+            }
+          ]
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 2
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 2
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 4
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": [
+            14
+          ]
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareBlockers",
+          "blocks": [
+            {
+              "blocker": 17,
+              "attacker": 14
+            }
+          ]
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 2
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 1
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 0
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 1
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 1
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 6
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 5
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": [
+            14,
+            19
+          ]
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareBlockers",
+          "blocks": []
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 2
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": [
+            16,
+            21,
+            23,
+            25
+          ]
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareBlockers",
+          "blocks": [
+            {
+              "blocker": 10,
+              "attacker": 25
+            },
+            {
+              "blocker": 27,
+              "attacker": 23
+            }
+          ]
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passResponse"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 2
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 3
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passResponse"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 3
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passResponse"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 0
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passResponse"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": [
+            10,
+            14,
+            19,
+            27,
+            28
+          ]
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passResponse"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareBlockers",
+          "blocks": [
+            {
+              "blocker": 16,
+              "attacker": 27
+            },
+            {
+              "blocker": 22,
+              "attacker": 10
+            },
+            {
+              "blocker": 8,
+              "attacker": 28
+            },
+            {
+              "blocker": 30,
+              "attacker": 14
+            }
+          ]
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passResponse"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 2
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 2
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": [
+            16
+          ]
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareBlockers",
+          "blocks": []
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passResponse"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 3
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passResponse"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passResponse"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 2
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passResponse"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "castSpell",
+          "handIndex": 2
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passResponse"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": [
+            16,
+            40,
+            41,
+            44
+          ]
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareBlockers",
+          "blocks": [
+            {
+              "blocker": 10,
+              "attacker": 40
+            },
+            {
+              "blocker": 14,
+              "attacker": 41
+            },
+            {
+              "blocker": 19,
+              "attacker": 44
+            }
+          ]
+        }
+      }
+    ]
   }
 }
