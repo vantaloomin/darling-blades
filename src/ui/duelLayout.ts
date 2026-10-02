@@ -19,6 +19,12 @@
 import { OPPONENT_RESERVE_PILE_LAYOUT } from './duelPresentation';
 import type { Rect } from './layout';
 import { theme } from './theme';
+import type { TypeRole } from './accessibility';
+
+/** Off-ramp Duel HUD sizes preserve release geometry at 100%, following their role thereafter. */
+export function duelHudType(base: number, role: TypeRole = 'label'): number {
+  return Math.round(base * theme.type[role] / theme.typeBase[role]);
+}
 
 const SAFE = theme.design.titleSafe;
 

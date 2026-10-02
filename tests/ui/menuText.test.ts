@@ -131,6 +131,18 @@ describe('full identities under advanced word wrapping', () => {
   it('rejects a missing final word fragment even while the remaining bounds fit', () => {
     expect(menuTextFindings({ ...check, lines: ['Chrome-Vio', 'let Brood'] })).toContain('truncatedText');
   });
+
+  it('rejects a later ring painted across badge ink even when the whole text allocation fits', () => {
+    for (const actual of ['Duty', 'Attack', 'Blocks', '1', '1, 2', '+2']) {
+      const badge = { expected: actual, actual, lines: [actual], bounds: { x: 0, y: 0, width: 40, height: 20 },
+        glyphBounds: { x: 4, y: 4, width: 30, height: 10 }, glyphClip: { x: 0, y: 0, width: 40, height: 20 } };
+      expect(menuTextFindings(badge)).toEqual([]);
+      expect(menuTextFindings({ ...badge, occluders: [{ x: 0, y: 5, width: 40, height: 3 }] })).toContain('clippedText');
+      expect(menuTextFindings({ ...badge, occluders: [{ x: 0, y: 16, width: 40, height: 3 }] })).toEqual([]);
+      expect(menuTextFindings({ ...badge, glyphClip: { x: 0, y: 6, width: 40, height: 14 } })).toContain('clippedText');
+      expect(menuTextFindings({ ...badge, clip: { x: 0, y: 6, width: 40, height: 14 }, keepVisible: true })).toContain('clippedText');
+    }
+  });
 });
 
 describe('buttons containing measured multiline labels', () => {

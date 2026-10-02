@@ -105,6 +105,11 @@ interface Enrolled {
 
 /** The enrolled modules (wave 1: Settings after C4, the layout.ts headers and SCENE_TITLE, Profile) and the resolver. */
 const ENROLLED: readonly Enrolled[] = [
+  { module: 'src/ui/duelPanelPresentation.ts (Duel history, stack, zone, choices and coaches)', rules: {
+    frame: { file: 'tests/ui/duelPanelPresentation.test.ts', tests: ['keeps ordinary zone capacity and anchors while measured action growth remains above the pager', 'keeps deep stack pages inside the frame without shrinking cards or losing stack order'] },
+    gap: { file: 'tests/ui/duelPanelPresentation.test.ts', tests: ['keeps each whole Duty readable and puts overflow options on reachable pages', 'preserves complete history entries and their release gap across pages'] },
+    inset: { file: 'tests/ui/duelPanelPresentation.test.ts', tests: ['keeps the coach footer outside the reading viewport at every text size'] },
+  } },
   { module: 'src/ui/shopPresentation.ts and src/ui/deckShopLayout.ts (Shop)', rules: { frame: { file: 'tests/ui/shopPresentation.test.ts', tests: ['keeps wrapped pack identities above the art and the purchase action outside the reading band', 'sizes dialogs from measured content and keeps the footer separate', 'preserves the release list capacities, pitches and anchors for standard measured text'] } } },
   { module: 'src/ui/profilePresentation.ts (Profile measured replays)', rules: { inset: { file: 'tests/ui/shopPresentation.test.ts', tests: ['keeps every measured replay cell inside the panel while larger lines reduce capacity'] } } },
   { module: 'src/ui/deckPanePresentation.ts (Deck Builder)', rules: { frame: { file: 'tests/ui/deckPanePresentation.test.ts', tests: ['keeps wrapped titles above the controls in every accessibility cell','separates measured summary lines, curve labels, status and both action rows in every accessibility cell','fits full measured identities and action hit bands inside every paged tile in every accessibility cell'] } } },

@@ -8,6 +8,7 @@ import {
   OPPONENT_RESERVE_CLEARANCE,
   TARGET_ARROW_HEAD_LENGTH,
   attackButtonLabel,
+  duelTilePresentation,
   attackDeclaration,
   forcedAttackNotice,
   hauntlinkActionLabel,
@@ -448,5 +449,31 @@ describe('A refused move in History', () => {
     const { raw, line } = refuse(makeTestState({}), { type: 'passResponse' });
     expectPlain(line, raw);
     expect(line).toBe(REFUSED_MOVE_LINE);
+  });
+});
+
+
+describe('orthogonal live tile presentation', () => {
+  const base = { context: 'idle' as const, opponent: false, legal: false, picked: false, sacrifice: false,
+    selectedAttacker: false, attacking: false, pendingBlocker: false, actionFlash: false,
+    canAttack: false, assignedBlocker: false, link: null, dutyUsable: false };
+  it('keeps a declared attacker lifted when the legal-target ring takes precedence', () => {
+    expect(duelTilePresentation({ ...base, context: 'targeting', attacking: true, legal: true }))
+      .toMatchObject({ state: 'legalTarget', lifted: true, chip: null });
+    expect(duelTilePresentation({ ...base, context: 'targeting', attacking: true, picked: true }))
+      .toMatchObject({ state: 'pickedTarget', lifted: true });
+    expect(duelTilePresentation({ ...base, context: 'idle', attacking: true })).toMatchObject({ lifted: true });
+  });
+  it('does not let a Duty flash advertise an illegal target', () => {
+    expect(duelTilePresentation({ ...base, context: 'targeting', actionFlash: true }))
+      .toMatchObject({ state: null, chip: null });
+  });
+  it('keeps Attack on selected attackers and names assigned blockers independently of sickness', () => {
+    expect(duelTilePresentation({ ...base, context: 'declareAttackers', canAttack: true, selectedAttacker: true }))
+      .toMatchObject({ chip: 'Attack', lifted: true });
+    expect(duelTilePresentation({ ...base, context: 'declareBlockers', assignedBlocker: true }))
+      .toMatchObject({ chip: 'Blocks', lifted: false });
+    expect(duelTilePresentation({ ...base, context: 'declareBlockers', pendingBlocker: true }))
+      .toMatchObject({ state: 'pendingBlocker', lifted: true });
   });
 });

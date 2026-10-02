@@ -8,10 +8,12 @@ import { renderManaText } from './ManaText';
 import { theme, colorInt } from './theme';
 import { themedButton } from './themeWidgets';
 import {
-  DUTY_CHOOSER_LAYOUT, LOOT_PICKER_LAYOUT, dutyChooserRows, lootPickerPage,
+  DUTY_CHOOSER_LAYOUT, LOOT_PICKER_LAYOUT, lootPickerPage,
   toggleLootDiscard, type DutyChoice, type MandatorySelection,
 } from './drownedDeepChoices';
 import { dutyRowPips } from './duelPresentation';
+import { duelPanelAlpha, duelPanelType, dutyPanelPages } from './duelPanelPresentation';
+import { fitMenuName } from './menuText';
 
 /** Input is routed by DuelScene so keyboard and pointer share these callbacks. */
 export interface ChoiceOverlay {
@@ -112,7 +114,7 @@ export function showLootPicker(scene: Phaser.Scene, options: {
         onTap: pointer => { if (!pointer.rightButtonReleased()) turnPage(1); },
       }).container);
       body.add(scene.add.text(l.width / 2, 652, `${page + 1} / ${sheet.pageCount}`, {
-        fontFamily: theme.fonts.ui, fontSize: '16px', color: theme.colors.muted,
+        fontFamily: theme.fonts.ui, fontSize: `${theme.type.body}px`, color: theme.colors.muted,
       }).setOrigin(0.5));
     }
   };
@@ -138,14 +140,15 @@ export function showDutyPicker(scene: Phaser.Scene, options: {
   cancel(): void;
 }): ChoiceOverlay {
   const l = DUTY_CHOOSER_LAYOUT;
-  const container = scene.add.container(0, 0).setDepth(105);
-  const dim = scene.add.rectangle(640, 360, 1280, 720, theme.graphics.dim, 0.82).setInteractive();
+  const container = scene.add.container(0, 0).setDepth(theme.depth.modal);
+  const dim = scene.add.rectangle(640, 360, 1280, 720, theme.graphics.dim, duelPanelAlpha(0.82)).setInteractive();
   // Tapping outside cancels, as it does on every other cast chooser.
   bindTapButton(scene, dim, pointer => { if (!pointer.rightButtonReleased()) options.cancel(); });
   container.add(dim);
   const body = scene.add.container(0, 0);
   container.add(body);
   let focus = 0;
+  let pageStarts = [0];
   const choose = (index: number): void => {
     if (container.active && options.choices()[index]?.enabled) options.choose(index);
   };
@@ -153,43 +156,54 @@ export function showDutyPicker(scene: Phaser.Scene, options: {
     if (!container.active) return;
     body.removeAll(true);
     const choices = options.choices();
-    const sheet = dutyChooserRows(choices.length, Math.floor(focus / l.pageSize));
-    body.add(scene.add.text(l.x, l.titleY, `${options.card.name}: choose a Duty`, {
-      fontFamily: theme.fonts.display, fontSize: '26px', color: theme.colors.heading,
-      wordWrap: { width: 850 }, align: 'center', resolution: 2,
-    }).setOrigin(0.5));
-    for (const row of sheet.rows) {
-      const choice = choices[row.abilityIndex];
-      const alpha = choice.enabled ? 1 : theme.alpha.subtle;
-      const plate = scene.add.rectangle(row.x, row.y, row.width, row.height, theme.graphics.rowFillActive)
-        .setStrokeStyle(2, colorInt(focus === row.abilityIndex ? theme.colors.gold : theme.colors.panelStroke))
-        .setAlpha(alpha);
-      body.add(plate);
-      // The card face's order: mana pips, then the tap icon, then the effect
-      // ("[2], [tap]: Draw a card."; a free Duty is "[tap]: Foresee 2."). Every
-      // row opens on a pip at the same inset, so both kinds align.
+    const title = scene.add.text(l.x, l.titleY, `${options.card.name}: choose a Duty`, {
+      fontFamily: theme.fonts.display, fontSize: `${duelPanelType().dutyTitle}px`, color: theme.colors.heading,
+      align: 'center', resolution: 2,
+    }).setOrigin(0.5);
+    fitMenuName(title, 850, 3);
+    body.add(title);
+    const hint = !options.touch ? scene.add.text(l.x, 180, 'Arrows to choose · Enter to select', {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.type.body}px`, color: theme.colors.muted,
+    }).setOrigin(0.5) : null;
+    if (hint) body.add(hint);
+    const rendered = choices.map(choice => {
+      const row = scene.add.container(0, 0).setVisible(false);
+      body.add(row);
       const { raw, tapPips } = dutyRowPips(choice.line);
-      const text = renderManaText(scene, body, row.left + 20, row.top + 14, raw, {
-        fontFamily: theme.fonts.ui, fontSize: '18px', color: theme.colors.body,
-        wordWrap: { width: row.width - 40 }, resolution: 2,
+      const text = renderManaText(scene, row, 20, 14, raw, {
+        fontFamily: theme.fonts.ui, fontSize: `${duelPanelType().dutyBody}px`, color: theme.colors.body,
+        wordWrap: { width: l.width - 40, useAdvancedWrap: true }, resolution: 2,
       });
+      text.text.setData('a11yFullText', text.text.text).setData('a11yTextWidth', l.width - 40).setData('a11yKeepVisible', true);
       for (const index of tapPips) text.pips[index]?.setTexture('pip-T');
-      text.text.setScale(Math.min(1, (row.height - 28) / Math.max(1, text.text.height)));
-      text.reflow();
-      text.setAlpha(alpha);
-      // Disabled rows still consume the hit, so their click cannot dismiss the dim behind them.
-      const zone = scene.add.zone(row.x, row.y, row.width, row.height).setInteractive({ useHandCursor: choice.enabled });
-      body.add(zone);
-      bindTapButton(scene, zone, pointer => { if (!pointer.rightButtonReleased()) choose(row.abilityIndex); });
+      return { row, text };
+    });
+    const layout = dutyPanelPages(rendered.map(item => item.text.text.height), title.height, hint?.height ?? 0);
+    hint?.setY(layout.hintY);
+    pageStarts = layout.pages.map(rows => rows[0]?.index ?? 0);
+    const page = Math.max(0, layout.pages.findIndex(rows => rows.some(row => row.index === focus)));
+    const sheet = { page, pageCount: layout.pages.length, canPrevious: page > 0, canNext: page < layout.pages.length - 1 };
+    const visibleRows = layout.pages[page];
+    for (const row of visibleRows) {
+      const choice = choices[row.index];
+      const entry = rendered[row.index];
+      entry.row.setVisible(true).setPosition(l.x - l.width / 2, row.top);
+      const plate = scene.add.rectangle(l.width / 2, row.height / 2, l.width, row.height, theme.graphics.rowFillActive)
+        .setStrokeStyle(2, colorInt(focus === row.index ? theme.colors.gold : theme.colors.panelStroke));
+      entry.row.addAt(plate, 0).setAlpha(choice.enabled ? 1 : theme.alpha.subtle);
+      // Content grows the row. The full effect and its mana cost are never shrunk or masked.
+      entry.text.reflow();
+      const zone = scene.add.zone(l.width / 2, row.height / 2, l.width, row.height).setInteractive({ useHandCursor: choice.enabled });
+      entry.row.add(zone);
+      bindTapButton(scene, zone, pointer => { if (!pointer.rightButtonReleased()) choose(row.index); });
     }
-    if (!options.touch) {
-      body.add(scene.add.text(l.x, 180, 'Arrows to choose · Enter to select', {
-        fontFamily: theme.fonts.ui, fontSize: '16px', color: theme.colors.muted,
-      }).setOrigin(0.5));
-    }
+    container.setData('a11ySurface', { x: 0, y: 0, width: 1280, height: 720 });
+    container.setData('a11yDensity', { actual: { id: 'duel-duty', rows: Math.max(...layout.pages.map(rows => rows.length)), columns: 1,
+      pitch: (visibleRows[0]?.height ?? l.rowHeight) + l.rowGap, top: layout.top },
+      release: { id: 'duel-duty', rows: Math.min(3, choices.length), columns: 1, pitch: 112, top: 210 } });
     if (sheet.pageCount > 1) {
       body.add(scene.add.text(l.x, l.footerY, `${sheet.page + 1}/${sheet.pageCount}`, {
-        fontFamily: theme.fonts.ui, fontSize: '16px', color: theme.colors.muted,
+        fontFamily: theme.fonts.ui, fontSize: `${theme.type.body}px`, color: theme.colors.muted,
       }).setOrigin(0.5));
       for (const delta of [-1, 1]) {
         const nav = delta < 0 ? l.previous : l.next;
@@ -198,7 +212,7 @@ export function showDutyPicker(scene: Phaser.Scene, options: {
           enabled: delta < 0 ? sheet.canPrevious : sheet.canNext, minWidth: nav.width,
           onTap: pointer => {
             if (pointer.rightButtonReleased()) return;
-            focus = Math.max(0, Math.min(choices.length - 1, (sheet.page + delta) * l.pageSize));
+            focus = Math.max(0, Math.min(choices.length - 1, pageStarts[sheet.page + delta] ?? focus));
             draw();
           },
         }).container);

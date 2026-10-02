@@ -5,10 +5,8 @@
  * nobody has to tell two hues apart to play (plan-accessibility-i18n.md,
  * "Cues", and the cue policy: always on, no vision profiles).
  *
- * Phaser-free and not yet wired: `BoardCardView` and `DuelScene` move onto
- * this table in the Duel pass (accessibility wave 2), after the owner has seen
- * the cue mock. Until then the tile still draws its own copy of these colours
- * (`BoardCardView`'s `BORDER_COLORS`), so a colour change must land in both.
+ * Phaser-free presentation rules shared by the real duel tiles and their
+ * headless and rendered accessibility gates.
  *
  * Two constraints the plan asked the mock to settle are settled here as API:
  * - `statsCue` takes damage, the stat change and the Mark count as separate
@@ -136,8 +134,7 @@ export const BOARD_CUE_HEX = {
 } as const;
 
 /**
- * The state-to-cue table. Recommended designs, one per state, for the owner's
- * mock review (plan Q5); the Duel pass builds them.
+ * The state-to-cue table approved in the owner's M1-M6 cue review.
  */
 export const BOARD_CUES: Readonly<Record<BoardCueState, BoardCueSpec>> = {
   legalTarget: { surface: 'tile', contexts: ['targeting'], rim: HEX(BOARD_CUE_HEX.legalTarget), side: 'yours' },
@@ -208,8 +205,7 @@ export const BOARD_CUES: Readonly<Record<BoardCueState, BoardCueSpec>> = {
   // event, not a decision state, and must never paint a ring while targeting,
   // where a ring means "legal".
   actionReady: { surface: 'tile', contexts: ['idle'], rim: HEX(BOARD_CUE_HEX.eligible), side: 'yours', chip: 'action' },
-  // Today a picked graveyard card is only faded to `alpha.subtle`, which reads
-  // as "unavailable"; the badge replaces the fade.
+  // A badge records the pick without making the card look unavailable.
   graveLegal: { surface: 'graveCard', contexts: ['gravePicking'], rim: null, side: 'either' },
   gravePicked: { surface: 'graveCard', contexts: ['gravePicking'], rim: null, side: 'either', pickBadge: true },
   // The ring's tone follows the player (`playerRingColour`); today it is the
@@ -246,6 +242,11 @@ export function cueIn(state: BoardCueState, context: CueContext): ResolvedCue | 
   if (!spec.contexts.includes(context)) return null;
   const rim = spec.rimYieldsIn?.includes(context) ? null : spec.rim;
   return { ...spec, state, context, rim, side: spec.sideIn?.[context] ?? spec.side };
+}
+
+/** A persistent Awakening ring also yields while rings identify legal targets. */
+export function awakeningRingVisible(awakened: boolean, context: CueContext): boolean {
+  return awakened && context !== 'targeting';
 }
 
 /** Every pair of states on the same surface that can be on screen together, with the context they share. */
@@ -294,9 +295,11 @@ export function nonColourDifferences(a: ResolvedCue, b: ResolvedCue): NonColourC
  * "1" too, so the badge reads the same whether a spell takes one target or
  * two (A2's two-target flow). Null for anything not picked.
  */
-export function pickBadgeLabel(pickIndex: number | null | undefined): string | null {
-  if (pickIndex === null || pickIndex === undefined || !Number.isInteger(pickIndex) || pickIndex < 0) return null;
-  return String(pickIndex + 1);
+export function pickBadgeLabel(pickIndex: number | readonly number[] | null | undefined): string | null {
+  if (pickIndex === null || pickIndex === undefined) return null;
+  const indices = typeof pickIndex === 'number' ? [pickIndex] : pickIndex;
+  const labels = [...new Set(indices)].filter(index => Number.isInteger(index) && index >= 0).map(index => String(index + 1));
+  return labels.length > 0 ? labels.join(', ') : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -460,6 +463,33 @@ export function cueCounterScale(tileScale: number): number {
 /** A cue's size on screen for a tile at `tileScale`, drawn at its minimum size inside the tile. */
 export function cueScreenSize(cue: ScaledCue, tileScale: number): number {
   return CUE_MIN_SCREEN_PX[cue] * cueCounterScale(tileScale) * tileScale;
+}
+
+export interface TileCueRect {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+/** Shared geometry for the swirl and the measured top-edge action tab. */
+export function sickSwirlBounds(tileWidth: number, tileHeight: number): TileCueRect {
+  return { x: tileWidth / 2 - 25, y: -tileHeight / 2 + 3, width: 22, height: 22 };
+}
+
+/**
+ * Centre the chip on the top edge. If counter-scaling makes it reach the
+ * corner badges, raise its bottom to the edge instead: the whole action
+ * remains readable and a sick blocker's chip never covers its swirl.
+ */
+export function tileChipBounds(
+  tileWidth: number, tileHeight: number, textWidth: number, textHeight: number, tileScale: number,
+): TileCueRect {
+  const counterScale = cueCounterScale(tileScale);
+  const width = textWidth * counterScale, height = textHeight * counterScale;
+  const cornerStart = sickSwirlBounds(tileWidth, tileHeight).x;
+  const y = -tileHeight / 2 - (width / 2 >= cornerStart ? height : height / 2);
+  return { x: -width / 2, y, width, height };
 }
 
 // ---------------------------------------------------------------------------
