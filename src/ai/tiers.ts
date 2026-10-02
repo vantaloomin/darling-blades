@@ -155,6 +155,8 @@ export function buildTierAI(
 // The full dated table lives beside FLOOR_BANDS in scripts/balance-matrix.ts.
 // Floors 21-26 are tier 6 PROVISIONAL (2026-08-21), pending the end-of-set
 // `--floors` re-baseline.
+// Floors 27-28 are tier 6 PROVISIONAL (2026-10-01); their real floors
+// come from wave 4's measured band after the First Dawn tuning pass.
 const FLOOR_TIERS: readonly TowerTier[] = [
   1, 1, 1,
   2, 2, 2,
@@ -162,6 +164,7 @@ const FLOOR_TIERS: readonly TowerTier[] = [
   4, 4, 4,
   5, 5, 5,
   6, 6, 6,
+  6, 6,
   6, 6,
   6, 6,
   6, 6,

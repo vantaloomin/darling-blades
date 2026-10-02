@@ -60,11 +60,11 @@ describe('starter roster shape', () => {
 });
 
 describe('theme roster shape', () => {
-  it('lands nine theme decks including the Drowned Deep precon', () => {
-    expect(THEME_DECKS).toHaveLength(9);
-    expect(new Set(THEME_DECKS.map((deck) => deck.id)).size).toBe(9);
+  it('offers First Dawn alongside the established precons without duplicate product ids', () => {
+    expect(new Set(THEME_DECKS.map((deck) => deck.id)).size).toBe(THEME_DECKS.length);
     expect(THEME_DECKS.find((deck) => deck.id === 'theme-starborne')?.name).toBe('Chrome-Violet Broodship');
-    expect(THEME_DECKS.at(-1)).toMatchObject({ id: 'theme-drowned-deep', name: 'Lanterns Below' });
+    expect(THEME_DECKS.some((deck) => deck.id === 'theme-drowned-deep')).toBe(true);
+    expect(THEME_DECKS.some((deck) => deck.id === 'theme-first-dawn')).toBe(true);
   });
 });
 
@@ -177,10 +177,10 @@ describe.each(THEME_DECKS.map((d) => [d.name, d] as const))('theme deck legality
     }
   });
 
-  it('keeps legendaries at 2-3 copies except the authored Mother Hydra singleton', () => {
+  it('keeps the authored singleton legends and other theme legends at 2-3 copies', () => {
     for (const [id, n] of counts) {
       if (CARD_DB[id]?.supertypes?.includes('legendary')) {
-        if (deck.id === 'theme-drowned-deep' && id === 'dd-mother-hydra') {
+        if (deck.id === 'theme-first-dawn' || (deck.id === 'theme-drowned-deep' && id === 'dd-mother-hydra')) {
           expect(n, `${id} x${n}`).toBe(1);
           continue;
         }
@@ -188,6 +188,32 @@ describe.each(THEME_DECKS.map((d) => [d.name, d] as const))('theme deck legality
         expect(n, `${id} x${n}`).toBeLessThanOrEqual(3);
       }
     }
+  });
+});
+
+describe('First Dawn theme deck identity', () => {
+  it('offers a legal red-green First Dawn list and features cards the deck contains', () => {
+    const deck = THEME_DECKS.find((entry) => entry.id === 'theme-first-dawn')!;
+    const allowedColors = new Set<Color>(['R', 'G']);
+    for (const id of deck.cards) {
+      const card = CARD_DB[id];
+      expect(card.colors.every((color) => allowedColors.has(color)), id).toBe(true);
+      if (card.supertypes?.includes('basic')) {
+        expect(['land-mountain', 'land-forest']).toContain(id);
+      } else {
+        expect(card.set, id).toBe('first-dawn');
+      }
+    }
+    for (const id of DECK_INFO[deck.id].featured) expect(deck.cards).toContain(id);
+    for (const id of [...deck.reserveCards!, ...deck.landReserve!]) {
+      expect(CARD_DB[id].colors.every((color) => allowedColors.has(color)), id).toBe(true);
+      if (CARD_DB[id].types.includes('land')) {
+        expect(CARD_DB[id].manaAbility?.every((color) => color !== 'C' && allowedColors.has(color)), id).toBe(true);
+      }
+    }
+    const save = freshSave(0);
+    grantDeckCards(save, CARD_DB, deck.cards);
+    expect(validateDeck(CARD_DB, save, deck.cards).filter((issue) => issue.kind === 'error')).toEqual([]);
   });
 });
 

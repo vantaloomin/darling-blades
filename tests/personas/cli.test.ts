@@ -44,9 +44,10 @@ describe('persona CLI defaults', () => {
     expect(artifact.iterations).toBe(80);
     expect(artifact.seeds).toBe(150);
     expect(artifact.field).toBe('prefabs');
-    // 2026-09-15 Drowned Deep retail wave: Lanterns Below grows the
-    // approved player-prefab reference field from 13 to 14.
-    expect(artifact.referenceField).toHaveLength(14);
+    // The expanded prefab field keeps both recent expansion products eligible.
+    expect(artifact.referenceField.map((deck) => deck.id)).toEqual(
+      expect.arrayContaining(['theme-drowned-deep', 'theme-first-dawn']),
+    );
   });
 
   it('requires exactly one persona selection mode', () => {

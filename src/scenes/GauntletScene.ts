@@ -83,7 +83,7 @@ export class GauntletScene extends Phaser.Scene {
     super('Gauntlet');
   }
 
-  /** The tower rail and detail pane draw all 26 avatar portrait cards. */
+  /** The tower rail and detail pane draw all 28 avatar portrait cards. */
   create(): void {
     gateOnArt(this, AVATARS.map((avatar) => avatar.portraitCardId), () => this.build());
   }

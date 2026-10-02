@@ -219,7 +219,7 @@ const TENTHS_BUCKETS: readonly string[] = Array.from({ length: 11 }, (_, i) =>
  * the client's by the schema test, so a new top-tier avatar fails the suite
  * here rather than silently dropping that rung's heartbeats at the edge.
  */
-const GAUNTLET_RUNG_CAP = 26;
+const GAUNTLET_RUNG_CAP = 28;
 const MULLIGAN_CAP = 3;
 
 export const SIGNAL_VOCAB = {

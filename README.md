@@ -24,7 +24,7 @@ Darling Blades is a single-player trading card game in the style of Magic: the G
 
 The cast is what's different. The **1,482 collectible cards across ten sets** draw on the officers of the Three Kingdoms, the Greek pantheon, tribal Beastkin, Norse Ragnarök, the Celtic Fae courts, Arthurian knights, Gothic Monsters, storybook Dark Tales, cyberpunk Yokai, the Egyptian Duat, living starships, and a drowned fishing town. Every card carries finished cel-shaded gacha-anime art; nothing in the shipped game is programmer-art or a placeholder.
 
-You play or skip a short tutorial, claim a free starter deck, crack booster packs, and build a 40-spell deck with its ten-land Warchest. Then you duel: Practice matches against any tower boss, the 26-rung **Avatar Gauntlet** of named bosses reshuffled daily, or a seat at the **Draft** table against seven AI rivals.
+You play or skip a short tutorial, claim a free starter deck, crack booster packs, and build a 40-spell deck with its ten-land Warchest. Then you duel: Practice matches against any tower boss, the 28-rung **Avatar Gauntlet** of named bosses reshuffled daily, or a seat at the **Draft** table against seven AI rivals.
 
 ## Features
 
@@ -33,7 +33,7 @@ You play or skip a short tutorial, claim a free starter deck, crack booster pack
 - **MTG-style deckbuilding with one departure:** your lands live in a ten-land **Warchest** beside a 40-spell deck, and an auto-tap mana solver pays your costs.
 - **Two formats.** **Warchest** is the standard constructed game. **Darlings** is the EDH-style one, where your Darling waits in her own zone over a 79-card singleton deck.
 - **Gacha-style boosters.** Every slot rolls a rarity, a frame, a holo finish, and a slim chance at Full Art; every pack tile shows its exact odds.
-- **The Avatar Gauntlet**, a 26-rung ladder of named bosses, each with her own deck and personality. The roster reshuffles daily, and the floor you reach sets the AI's strength.
+- **The Avatar Gauntlet**, a 28-rung ladder of named bosses, each with her own deck and personality. The roster reshuffles daily, and the floor you reach sets the AI's strength.
 - **Draft mode**, an eight-seat persona draft: 45 picks over three passed packs, then three matches. A free tier pays gold on your record; Premium keeps every pick.
 - **Daily quests, achievements, and a win streak** with claimable gold, all rolled from a date seed so every player sees the same day.
 - **Deck share codes and save codes.** Paste a deck straight into another player's builder, or carry your whole profile to another machine.
@@ -63,7 +63,7 @@ The main menu routes to:
 
 | Mode | What it does |
 | --- | --- |
-| **Play → Avatar Gauntlet** | Climb the 26-rung ladder of named bosses, with per-rung gold and a completion bonus. |
+| **Play → Avatar Gauntlet** | Climb the 28-rung ladder of named bosses, with per-rung gold and a completion bonus. |
 | **Play → Draft** | Draft against seven named AI drafters, build a deck, and play three matches. |
 | **Play → Practice** | A one-off duel against any tower boss or a plain Easy / Medium / Hard opponent. |
 | **Shop** | Buy any set's booster, or whole decks from the Decks tab, each with a full preview. |

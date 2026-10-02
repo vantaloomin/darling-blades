@@ -13,9 +13,9 @@ _Dated 2026-09-28, at the 1.8.5 cut. Review monthly._
   repo folder is now `DarlingBlades` (renamed from `WaifuTCG`).
 - **Playable end-to-end.** First launch shows the anonymous-stats notice
   with its switch, then offers an optional **tutorial**; a new player claims a
-  free starter deck in the shop and plays the **Avatar Gauntlet** (a 26-rung
-  tower on a daily-reshuffled ladder, the Drowned Deep pair at rungs 25-26
-  since 1.8) or Practice duels, then rewards, shop, pack opening, collection
+  free starter deck in the shop and plays the **Avatar Gauntlet** (a 28-rung
+  tower on a daily-reshuffled ladder, the First Dawn pair at rungs 27-28
+  built for 1.9) or Practice duels, then rewards, shop, pack opening, collection
   and deck builder, all wired, with procedural SFX and ambient music. The menu
   opens in about a second and card art streams behind it (1.8).
 - **Feature- and art-complete for desktop + phone-over-LAN (Tier 1).** The
@@ -37,7 +37,7 @@ _Dated 2026-09-28, at the 1.8.5 cut. Review monthly._
   (Marks, Propagate), and Drowned Deep (Whispers, Tithe), each with its own
   set-scoped booster. Duty, the tap ability, is game-wide since 1.8: 82 cards
   carry one, 27 of them the former utility taplands.
-- **5 starter precons, 9 theme decks and 5 Darlings precons**
+- **5 starter precons, 10 theme decks and 5 Darlings precons**
   (`src/data/starterDecks.ts`), the starters covering all five colours, each
   colour in exactly two lists.
 - **Audio complete in structure**: a procedural WebAudio SFX layer

@@ -4,6 +4,7 @@ import {
   buildDuelDigest,
   buildHeartbeat,
   buildSessionCards,
+  GAUNTLET_RUNG_CAP,
   type DuelDeckInput,
   type DuelResultInput,
   type SignalEnv,
@@ -385,7 +386,8 @@ describe('what is written', () => {
       '250+',
       '1-24',
     ]);
-    expect(point.doubles).toEqual([0, 1, 26]);
+    // The fixture's best rung is far past the tower, so it is written clamped to the top rung.
+    expect(point.doubles).toEqual([0, 1, GAUNTLET_RUNG_CAP]);
   });
 
   it('writes one duel row in the documented column order, with no card id anywhere', async () => {

@@ -9,8 +9,8 @@ import { expand } from './starterDecks';
  * `portraitCardId` is a real creature in the deck whose placeholder bust is
  * already baked into the atlas after Preload.
  *
- * Gauntlet ordering is by `tier` (1..26 currently landed). Difficulty follows the plan:
- * tiers 1-3 Easy, 4-6 Medium, 7-26 Hard (9-10 are the Ragnarök bosses,
+ * Gauntlet ordering is by `tier` (1..28 currently landed). Difficulty follows the plan:
+ * tiers 1-3 Easy, 4-6 Medium, 7-28 Hard (9-10 are the Ragnarök bosses,
  * 11-12 are the Celtic Fae bosses, 13-14 are the Arthurian Court pair, and
  * 15-16 are the Gothic Monsters pair, 17-18 are the Dark Tales summit pair,
  * and 19-20 are the Yokai Nights summit pair, and 21-22 are the Sands of the
@@ -18,7 +18,9 @@ import { expand } from './starterDecks';
  * the order 2026-08-21 so the climb ends on the stronger boss). Rungs 23-24
  * are the Starborne summit pair: Chrome Broodmother at 23, The Violet Signal
  * Queen at 24. Rungs 25-26 are the Drowned Deep summit pair: The Drowned
- * Deacon at 25, The Marsh-Mother as the final rung at 26.
+ * Deacon at 25, The Marsh-Mother at 26. Rungs 27-28 are the First Dawn
+ * summit pair: The Shepherdess of Giants at 27, The Tyrant Queen as the
+ * final rung at 28.
  */
 export interface Avatar {
   id: string;
@@ -26,7 +28,7 @@ export interface Avatar {
   title: string;
   blurb: string;
   theme: string;
-  tier: number; // 1..26 (unique)
+  tier: number; // 1..28 (unique)
   difficulty: Difficulty;
   deck: string[]; // 60 real cardIds — classic; the Tower and Draft still pilot this
   personality: Personality;
@@ -739,6 +741,23 @@ export interface Avatar {
  * exceptions; worst cell 71 (Sunwell over Red Cliffs). The FREE deck
  * (Red Cliffs Refrain) sitting mildly bottom is deliberate product
  * posture, not an accident - it onboards, the paid decks aspire.
+ *
+ * FIRST DAWN SUMMIT - UNTUNED 2026-10-01, 200 seeds/cell, 2,000 games,
+ * zero draws, 255.25 s wall time at four workers. A temporary detached runner
+ * distributed the ten runAvatarMatrix cells via runCell, with identical
+ * reserve-native decks, personalities, opening hands, alternating seats and
+ * (tier * 100 + starter index) seed identities. Reproduce with
+ * `npx tsx scripts/balance-matrix.ts --avatars --seeds 200 --only
+ * the-shepherdess-of-giants,the-tyrant-queen` (the production CLI is serial).
+ *
+ *                            Muster  Communion   Tides  Mandate  Harvest |  avg
+ *   R27 Shepherdess [hard]     44.0       95.5    70.5     60.0     80.0 | 70.0
+ *   R28 Tyrant Queen [hard]    56.0       80.0    59.0     62.0     61.5 | 63.7
+ *
+ * R27: 700/1,000 wins; R28: 637/1,000 wins. No tuning was made. Both tower
+ * floors are tier 6 PROVISIONAL; numeric win-rate floors come from wave 4's
+ * measured band. The dedicated 40-seed pair gate fields all 400 games with
+ * zero draws (123.66 s including Vitest startup).
  */
 export const AVATARS: readonly Avatar[] = [
   // ---------------------------------------------------------------------
@@ -4968,6 +4987,319 @@ export const AVATARS: readonly Avatar[] = [
     ],
     darlingId: 'dd-marsh-mother-horror',
   },
+
+  // ---------------------------------------------------------------------
+  // Rung 27 - The Shepherdess of Giants.
+  {
+    id: 'the-shepherdess-of-giants',
+    name: 'The Shepherdess of Giants',
+    title: 'Strike the Herd and It Grows',
+    blurb: 'Tahla walks the long grass with a herd that outweighs a village. Every blow you land wakes another calf, and every calf she keeps is one more wall between you and her.',
+    theme: 'Green-White Herd (Hatchling tokens, Provoked walls, Sentinel)',
+    tier: 27,
+    difficulty: 'hard',
+    portraitCardId: 'fd-tahla-shepherdess',
+    personality: makePersonality({
+      aggression: 0.8,
+      holdback: 1.2,
+      attackThreshold: 0.6,
+      removalBias: 0.5,
+      subtypeBias: 0.6,
+      preferredSubtypes: ['Longneck', 'Hornback', 'Armourback'],
+    }),
+    deck: expand([
+      ['land-forest', 12],
+      ['land-plains', 12],
+      ['fd-nest-warden', 3],
+      ['fd-calf-guard', 2],
+      ['fd-nest-guard', 1],
+      ['fdr-hearth-shield-bulwark', 3],
+      ['fd-reed-wall-keeper', 2],
+      ['fd-wall-kin', 2],
+      ['fd-horn-bearer', 2],
+      ['fd-long-neck-matriarch', 2],
+      ['fd-herd-guardian', 2],
+      ['fd-moss-hide-hornback', 2],
+      ['fd-horned-herd', 1],
+      ['fd-longneck-herd', 1],
+      ['fd-long-neck-mother', 1],
+      ['fd-tahla-shepherdess', 1],
+      ['fd-walking-mountain', 1],
+      ['fd-egg-clutch', 2],
+      ['fd-stampede-long-grass', 2],
+      ['fd-thunder-of-hooves', 1],
+      ['fd-test-of-the-hearth', 2],
+      ['fd-standing-stone', 1],
+      ['fd-clan-hearth', 1],
+      ['fd-sun-stare', 1],
+    ]),
+    // Generated 2026-10-01 by scripts/avatarReserveDecks.ts (generate, then sync).
+    // Converter curve caps omit fd-longneck-herd and fd-long-neck-mother.
+    reserveDeck: expand([
+      ['fd-nest-warden', 3],
+      ['fd-calf-guard', 4],
+      ['fd-nest-guard', 1],
+      ['fdr-hearth-shield-bulwark', 3],
+      ['fd-reed-wall-keeper', 2],
+      ['fd-wall-kin', 2],
+      ['fd-horn-bearer', 2],
+      ['fd-long-neck-matriarch', 2],
+      ['fd-herd-guardian', 2],
+      ['fd-moss-hide-hornback', 2],
+      ['fd-horned-herd', 1],
+      ['fd-tahla-shepherdess', 1],
+      ['fd-walking-mountain', 1],
+      ['fd-egg-clutch', 2],
+      ['fd-stampede-long-grass', 2],
+      ['fd-thunder-of-hooves', 1],
+      ['fd-test-of-the-hearth', 4],
+      ['fd-standing-stone', 1],
+      ['fd-clan-hearth', 3],
+      ['fd-sun-stare', 1],
+    ]),
+    landReserve: expand([
+      ['land-forest', 5],
+      ['land-plains', 5],
+    ]),
+    darlingsDeck: [
+      'fd-nest-warden',
+      'fd-calf-guard',
+      'fd-nest-guard',
+      'fdr-hearth-shield-bulwark',
+      'fd-reed-wall-keeper',
+      'fd-wall-kin',
+      'fd-horn-bearer',
+      'fd-long-neck-matriarch',
+      'fd-herd-guardian',
+      'fd-moss-hide-hornback',
+      'fd-horned-herd',
+      'fd-longneck-herd',
+      'fd-long-neck-mother',
+      'fd-walking-mountain',
+      'fd-egg-clutch',
+      'fd-stampede-long-grass',
+      'fd-thunder-of-hooves',
+      'fd-test-of-the-hearth',
+      'fd-standing-stone',
+      'fd-clan-hearth',
+      'fd-sun-stare',
+      'ac-bramble-chapel',
+      'ac-candlelit-vigil',
+      'ac-lance-of-dawn',
+      'ac-quest-marker',
+      'ac-steel-prayer',
+      'ar-training-dummy',
+      'bk-bunny-vanguard',
+      'bk-mousekin-pantry-guard',
+      'bk-nekomata-scout',
+      'cf-apple-of-emain',
+      'cf-cold-iron-nail',
+      'cf-dawn-torc',
+      'cf-mossy-ring',
+      'cf-oak-shield-vow',
+      'cf-ogham-fate-stones',
+      'cf-silver-thread',
+      'cf-thorn-sprite',
+      'cf-thornsnare',
+      'dd-coral-graft',
+      'dd-drowned-chapel-bell',
+      'dd-harbour-vigil',
+      'dd-lamp-bearer',
+      'dd-net-mender-of-the-point',
+      'dd-rite-of-the-lamp',
+      'dd-salt-chapel',
+      'dd-salt-ward',
+      'dd-shore-lantern',
+      'dd-widows-lantern',
+      'dt-ancestor-smoke',
+      'dt-apple-basket',
+      'dt-bookmark-charm',
+      'dt-brass-lamp-charm',
+      'dt-candle-in-window',
+      'dt-gilded-cage',
+      'dt-jade-dragon-scale',
+      'dt-once-more-with-magic',
+      'dt-palace-steps',
+      'dt-plaid-arrow',
+      'dt-ragged-ballgown',
+      'dt-reflection-sword',
+      'dt-rose-petal-shield',
+      'dt-rose-vine-snare',
+      'dt-satin-slipper',
+      'dt-training-yard-dawn',
+      'dt-wolf-path',
+      'fd-ember-pot',
+      'fd-resin-cast',
+      'fd-trial-by-ember',
+      'fdc-thick-hide-source',
+      'gm-cellar-door',
+      'gm-chapel-yard',
+      'gm-holy-water-vial',
+      'gm-silver-knife',
+      'gm-thorned-cemetery',
+      'gm-wolfsbane-ward',
+      'in-blessed-respite',
+      'in-shieldwall',
+      'in-stand-as-one',
+    ],
+    darlingId: 'fd-tahla-shepherdess',
+  },
+
+  // ---------------------------------------------------------------------
+  // Rung 28 - The Tyrant Queen.
+  {
+    id: 'the-tyrant-queen',
+    name: 'The Tyrant Queen',
+    title: 'The Last Thing That Hunts',
+    blurb: 'Oru is the biggest thing in the valley, and she knows it. Her trackers pick the prey, her firekeepers wake the beasts, and whatever is still standing when the hunt ends meets the queen herself.',
+    theme: 'Red-Green Tyrants (Hunt, Provoked, Overrun)',
+    tier: 28,
+    difficulty: 'hard',
+    portraitCardId: 'fd-oru-tyrant-queen',
+    personality: makePersonality({
+      aggression: 1.3,
+      holdback: 0.7,
+      attackThreshold: 0.3,
+      removalBias: 0.8,
+      subtypeBias: 0.6,
+      preferredSubtypes: ['Tyrant', 'Hornback', 'Armourback'],
+    }),
+    deck: expand([
+      ['land-mountain', 12],
+      ['land-forest', 12],
+      ['fd-kindler', 2],
+      ['fd-coal-thrower', 2],
+      ['fd-cinder-crest', 3],
+      ['fd-magma-back', 2],
+      ['fd-blood-horn-brute', 2],
+      ['fdc-spear-sister-fb', 2],
+      ['fd-fern-and-fire', 2],
+      ['fd-tusk-rage', 2],
+      ['fd-ember-crest-tyrant', 1],
+      ['fd-fern-crown-tyrant', 1],
+      ['fd-vessa-great-horn', 1],
+      ['fd-korru-eldest-tracker', 1],
+      ['fd-oru-tyrant-queen', 1],
+      ['fd-thorn-hide-armourback', 2],
+      ['fd-spear-and-fang', 2],
+      ['fd-grip-of-the-old-beast', 2],
+      ['fd-blaze-horn-charge', 2],
+      ['fd-duel-on-the-ridge', 2],
+      ['fd-fire-pit', 1],
+      ['fd-hurled-firebrand', 2],
+      ['fd-ring-of-embers', 1],
+    ]),
+    // Generated 2026-10-01 by scripts/avatarReserveDecks.ts (generate, then sync).
+    // Converter curve caps omit fd-korru-eldest-tracker.
+    reserveDeck: expand([
+      ['fd-kindler', 2],
+      ['fd-coal-thrower', 2],
+      ['fd-cinder-crest', 4],
+      ['fd-magma-back', 2],
+      ['fd-blood-horn-brute', 2],
+      ['fdc-spear-sister-fb', 2],
+      ['fd-fern-and-fire', 2],
+      ['fd-tusk-rage', 2],
+      ['fd-ember-crest-tyrant', 1],
+      ['fd-fern-crown-tyrant', 1],
+      ['fd-vessa-great-horn', 1],
+      ['fd-oru-tyrant-queen', 1],
+      ['fd-thorn-hide-armourback', 2],
+      ['fd-spear-and-fang', 2],
+      ['fd-grip-of-the-old-beast', 2],
+      ['fd-blaze-horn-charge', 4],
+      ['fd-duel-on-the-ridge', 2],
+      ['fd-fire-pit', 3],
+      ['fd-hurled-firebrand', 2],
+      ['fd-ring-of-embers', 1],
+    ]),
+    landReserve: expand([
+      ['land-mountain', 5],
+      ['land-forest', 5],
+    ]),
+    darlingsDeck: [
+      'fd-kindler',
+      'fd-coal-thrower',
+      'fd-cinder-crest',
+      'fd-magma-back',
+      'fd-blood-horn-brute',
+      'fdc-spear-sister-fb',
+      'fd-fern-and-fire',
+      'fd-tusk-rage',
+      'fd-ember-crest-tyrant',
+      'fd-fern-crown-tyrant',
+      'fd-vessa-great-horn',
+      'fd-korru-eldest-tracker',
+      'fd-thorn-hide-armourback',
+      'fd-spear-and-fang',
+      'fd-grip-of-the-old-beast',
+      'fd-blaze-horn-charge',
+      'fd-duel-on-the-ridge',
+      'fd-fire-pit',
+      'fd-hurled-firebrand',
+      'fd-ring-of-embers',
+      'ac-bramble-chapel',
+      'ac-quest-marker',
+      'ac-rallying-horn',
+      'ac-red-tournament-ground',
+      'ac-tilting-lance',
+      'ar-training-dummy',
+      'bk-nekomata-scout',
+      'cf-apple-of-emain',
+      'cf-cold-iron-nail',
+      'cf-dawn-torc',
+      'cf-fae-spark',
+      'cf-mossy-ring',
+      'cf-ogham-fate-stones',
+      'cf-silver-thread',
+      'cf-thorn-sprite',
+      'cf-thornsnare',
+      'dd-coral-graft',
+      'dd-rite-of-the-lamp-fire',
+      'dd-salt-fire-lesser',
+      'dd-wreck-runner',
+      'dt-apple-basket',
+      'dt-bookmark-charm',
+      'dt-brass-lamp-charm',
+      'dt-desert-rooftop',
+      'dt-jade-dragon-scale',
+      'dt-plaid-arrow',
+      'dt-ragged-ballgown',
+      'dt-rose-vine-snare',
+      'dt-satin-slipper',
+      'dt-wolf-path',
+      'en-battle-fervor',
+      'fd-ember-flick',
+      'fd-ember-pot',
+      'fd-ember-tongue',
+      'fd-resin-cast',
+      'fdc-thick-hide-source',
+      'gm-cellar-door',
+      'gm-red-curtain-cut',
+      'gm-thorned-cemetery',
+      'in-boar-rush',
+      'in-comet-blast',
+      'in-fire-attack',
+      'in-valley-mist',
+      'in-wild-surge',
+      'rg-berserkers-fury',
+      'rg-rune-of-fury',
+      'sb-bloomdrive-surge',
+      'sb-blue-echo-array',
+      'sb-brood-communion',
+      'sb-ember-lane',
+      'sb-gravitic-bloom',
+      'sb-green-propagation-chorus',
+      'sb-hullwake-overdrive',
+      'sb-null-orbit-array',
+      'sb-redline-salvage',
+      'sb-sky-map',
+      'sd-barge-fire-brazier',
+      'sd-burn-the-rope',
+      'sd-empty-heart-jar',
+    ],
+    darlingId: 'fd-oru-tyrant-queen',
+  },
 ];
 
 /** Look up an avatar by id (throws on unknown — callers pass validated ids). */
@@ -4977,7 +5309,7 @@ export function avatarById(id: string): Avatar {
   return a;
 }
 
-/** The avatar at a 1-based gauntlet rung (1..26 currently landed). */
+/** The avatar at a 1-based gauntlet rung (1..28 currently landed). */
 export function avatarForRung(rung: number): Avatar {
   const a = AVATARS.find((x) => x.tier === rung);
   if (!a) throw new Error(`No avatar for rung ${rung}`);

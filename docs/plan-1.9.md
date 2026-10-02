@@ -545,6 +545,7 @@ What the set carries besides cards:
   summit, rungs 23-28: at about 77 seconds a rung at 40 seeds (measured on
   rungs 14-22), the whole 28-rung tower would take about 2,150 seconds
   against the 900-second budget, and the summit about 460.
+  Built 2026-10-01: Hooves and Fire and the summit pair, rungs 27-28; theme: Frill-Flare Hornback -> Fern-Crest Raptor, Flint-Spear Toss -> Hurled Firebrand; R27: Shepherdess of the Long Grass -> Longneck Calf-Guard x2 + Nest-Guard Longneck, Hearth-Shield Maiden uses `fdr-hearth-shield-bulwark`; R28: Frill-Neck Stalker -> Spear-Sister, Fang and Horn -> Grip of the Old Beast, Flint-Spear Toss -> Hurled Firebrand, Fern-Crown Tyrant is back in the cut. Win-rate floors remain provisional until wave 4.
 - **Set achievements.** Starborne and Drowned Deep get theirs in 1.8.1
   (G12); First Dawn ships with its own.
 - An art-bible section, set icon, booster blurb, land style, the
