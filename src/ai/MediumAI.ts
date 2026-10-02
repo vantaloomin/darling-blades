@@ -251,7 +251,7 @@ export class MediumAI implements AIPlayer {
     const value = cast.whispers
       ? whispersValue(this.db, cardId, view) + cardValue(this.db, cardId, view, cast) - cardValue(this.db, cardId)
       : cast.retell
-      ? retellValue(this.db, cardId) + 0.01
+      ? retellValue(this.db, cardId, view) + 0.01
       : this.developScore(cardId, view, cast) + (cast.x ?? 0) +
           (cast.empowered ? empowerValue(this.db, cardId, view, cast) + 0.01 -
             empowerOpportunityCost(view, this.db, cast, (otherView, other) =>

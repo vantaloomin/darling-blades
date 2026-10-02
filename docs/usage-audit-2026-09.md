@@ -451,6 +451,13 @@ opposing attack, keyword recipients' Attack, and `--usage-columns` for U5.
 The coarse Duty check remains alongside the finer one. Definitions and
 commands are in [the tool's guide](plan-mechanic-usage-audit.md).
 
+**Landed (2026-10-02, item 3 / U4):** live ramp uses the scorer's §4v
+cast-turn shape for arrival and spell effects, Empower, Retell and Dawn
+engines. The seeded Seiðr-Weaver position now spends its ramp on turn two;
+an empty or one-land reserve leaves only the body. The anchor, card floor
+and every win-rate floor stay unchanged. The matched measurements and
+before/after gates are in [section 9](#9-ramp-by-cast-turn-u4-2026-10-02).
+
 **Not for wave 3:**
 - Tithe (L1), Khenut (L2), Carmilla's Rite singletons (L3) and the counters
   (L4) are list questions for wave 4's tuning, read with the usage table as
@@ -619,3 +626,84 @@ pass. AI, scripts and engine tests (with the separately run win-rate file
 excluded) pass 1,712 tests, with four skipped. `check-docs` exits zero with
 four missing local-path warnings (three `scripts/blades-db.ts` references
 and the local `sweep-running-do-not-disturb` memory reference).
+
+## 9. Ramp by cast turn (U4, 2026-10-02)
+
+This change lands alone and last in wave 3, after `feb4218c` (the Medium
+team-pump change). The before/after read uses the existing `runCell` and
+`MechanicUsageCollector` exports, wrapping the column's Medium brain for
+Grave Harvest and Valhalla's Muster. It plays Warchest rungs 1-26, columns
+4 and 5, 20 seeds per cell: 520 games per deck, 1,040 on each side. Cells
+are `200000 + rung * 100 + column`; game seeds are `cell * 100000 + game`.
+The row brains, lists and seeds match on both sides.
+
+The historical **6.9** mean is the earlier ramp lab's two-mana probe
+reading. These are fresh measurements on the branch, using the usage
+tool's `rampCast` own-turn reading. Seiðr-Weaver is the two-mana ramp card
+in these decks; Tender and Demeter each cost four in the current data.
+
+| Card (mana value), Medium deck | Before mean own turn (casts) | After mean own turn (casts) | Empty-reserve casts, before → after |
+| --- | --- | --- | --- |
+| Verdant Seiðr-Weaver (2), Valhalla's Muster | 8.981 (362) | 8.404 (406) | 214/362 (59.1%) → 224/406 (55.2%) |
+| Worldroot Tender (4), Valhalla's Muster | 8.008 (258) | 7.489 (270) | 76/258 (29.5%) → 79/270 (29.3%) |
+| Demeter, Harvest Mother (4), Grave Harvest | 7.164 (641) | 7.164 (641) | 149/641 (23.2%) → 149/641 (23.2%) |
+
+Valhalla's combined ramp mean moves from 8.576 to 8.038 (620 to 676 casts).
+Many casts remain late: the change prices the ramp's remaining mana,
+while body value and the existing cast ladder still decide which card wins.
+
+**The documented position.** Replaying cell 201405 game 3's action prefix
+from `feb4218c` reaches engine turn 3, Medium's second turn, with two lands
+and eight in reserve. Before, she casts Corpse-Taker. After, she casts
+Verdant Seiðr-Weaver and plays the additional land. With zero or one reserve
+land, the same card is valued as its body alone and Corpse-Taker wins that
+choice again. These cases extend `documentedBehaviour.test.ts`; the
+recorded prefix lives beside the other audit positions.
+
+**Shape and proofs.** `value.ts` imports the pure §4v scorer's constants and
+turn-two anchor schedule. It compares two schedules from the live own land
+count and reserve, consumes pending land permissions in both, and counts
+extra untapped mana after future normal drops. It uses absolute own-turn
+decay (0.89), diminishing same-turn mana (0.58), and the Dawn schedule's
+realization (0.62). New Dawn engines first fire next Dawn. Arrival and
+spell casts, Empower and live Retell share the shape. Pure ramp triggers
+lose the generic trigger premium; mixed triggers retain their other value.
+No card-only estimate invents a reserve. The 1.9 anchor and mana-value-2
+card floor are unchanged.
+
+The 18 added behaviour cases cover the named position and counter-cases,
+the anchor, delayed casts, reserve exhaustion, pending permissions,
+multiple drops, both seats, Dawn timing and realization, mixed triggers,
+Empower, Retell's live choice, and unusable off-turn or Sunset permissions.
+Restoring the original `value.ts` makes 13 of them fail; restoring the fix
+passes the requested suite. This mutation changes no fixture or gate.
+
+**Gates, before and after.** Both runs are detached with `--maxWorkers=4`.
+The before run is `tests/ai/winrate.test.ts`; the after run includes that
+same file in the requested AI/engine/data/meta/power suite. Each brain
+gate plays 200 games; each rung uses five starter columns at 40 seeds per
+cell, 200 games. Every rung has zero draws on both sides.
+
+| Gate | Floor (%) | Before (%) | After (%) |
+| --- | --- | --- | --- |
+| Medium over Easy | 80.0 | 82.5 | 82.5 |
+| Hard over Medium | 70.0 | 71.5 | 71.5 |
+| R14 Artoria | ordering only | 66.5 | 66.5 |
+| R15 Carmilla | 65.5 | 69.0 | 69.0 |
+| R16 Storm-Crowned Bride | 64.5 | 72.5 | 72.5 |
+| R17 Glass-Coffin Queen | 71.5 | 79.5 | 79.5 |
+| R18 Abyssal Songstress | 82.5 | 85.0 | 85.0 |
+| R19 Queen of the Lanterned Roof | 67.5 | 70.0 | 70.0 |
+| R20 Kitsune Neon Tyrant | 83.5 | 94.0 | 94.0 |
+| R21 Anubis | 58.5 | 66.5 | 66.5 |
+| R22 Bastet | 68.5 | 75.0 | 75.0 |
+| R23 Chrome Broodmother | 67.5 | 72.5 | 72.5 |
+| R24 Violet Signal Queen | 64.5 | 74.0 | 74.0 |
+| R25 Drowned Deacon | 60.5 | 67.0 | 67.0 |
+| R26 Marsh-Mother | 68.5 | 74.0 | 74.0 |
+| R27 Shepherdess of Giants | completeness/termination only | 73.0 | 73.0 |
+| R28 Tyrant Queen | completeness/termination only | 61.5 | 61.5 |
+
+All floors, ordering, legality and completeness checks pass unchanged.
+The requested test folders pass 3,292 tests with four skipped (190 files
+passed, one skipped). No card, list, harness, band or floor was changed.

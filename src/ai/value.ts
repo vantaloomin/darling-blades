@@ -8,6 +8,7 @@ import { getEffectiveStats, isQuestActive } from '../engine/statics';
 import type { AbilityDef, ActivatedDef, CardDb, EffectOp, Keyword, ManaCost, Permanent, PlayerId, TargetRef, TargetSpec } from '../engine/types';
 import { activatedAbilitiesOf, def, effectOpUsesTarget, isTargetBranchOp, isType, manaValue, opponentOf } from '../engine/types';
 import type { PlayerView } from '../engine/view';
+import { extraManaByTurn, RAMP_ANCHOR, RAMP_DAWN_SHARE, RAMP_STACK, RAMP_TURN_DECAY } from '../power/scoreCore';
 import { determinize } from './determinize';
 
 type ManaSpendAction = Extract<Action, { type: 'castSpell' | 'castDarling' | 'activate' }>;
@@ -239,9 +240,13 @@ function isLordOrLegendary(db: CardDb, cardId: string): boolean {
   return (d.abilities ?? []).some((ab) => ab.when === 'static' && ab.static?.scope === 'filter');
 }
 
-function hasTriggeredAbility(db: CardDb, cardId: string): boolean {
+function hasTriggeredAbility(db: CardDb, cardId: string, view?: PlayerView): boolean {
   return (def(db, cardId).abilities ?? []).some(
-    (ab) => ab.when !== 'static' && ab.when !== 'spell',
+    // Live pure-ramp triggers get their entire value from the mana schedule.
+    // Keep the existing premium for mixed triggers and card-only estimates.
+    (ab) => ab.when !== 'static' && ab.when !== 'spell' &&
+      !(view?.you.landReserve !== undefined && (ab.when === 'arrives' || ab.when === 'dawn') &&
+        ab.ops?.length && ab.ops.every((op) => op.op === 'extraLandDrop')),
   );
 }
 
@@ -818,9 +823,9 @@ export function expectsTargetSurvives(
 const IF_SURVIVES_CARD_WEIGHT = 0.845;
 
 /** A gate's card-shaped value: the survival read when there is one, else the measured blend. */
-function survivalGateImpact(op: Extract<EffectOp, { op: 'ifTargetSurvives' }>, survives?: boolean): number {
+function survivalGateImpact(op: Extract<EffectOp, { op: 'ifTargetSurvives' }>, survives?: boolean, ramp?: RampImpactContext): number {
   const weight = survives === undefined ? IF_SURVIVES_CARD_WEIGHT : survives ? 1 : 0;
-  const sum = (ops: readonly EffectOp[]): number => ops.reduce((total, nested) => total + opImpactValue(nested), 0);
+  const sum = (ops: readonly EffectOp[]): number => ops.reduce((total, nested) => total + opImpactValue(nested, undefined, undefined, ramp), 0);
   return weight * sum(op.then) + (1 - weight) * sum(op.else ?? []);
 }
 
@@ -846,7 +851,47 @@ interface ActivatedImpactContext {
 /** A Hunt's card-shaped floor (`opImpactValue`, `empowerValue`): half a destroy. */
 const HUNT_CARD_FLOOR = 1.5;
 
-export function opImpactValue(op: EffectOp, activated?: ActivatedImpactContext, recipients?: readonly KeywordBody[]): number {
+interface RampImpactContext {
+  view: PlayerView;
+  db: CardDb;
+  everyDawn?: boolean;
+}
+
+// Keep §4v's turn-two 1.9 anchor: each scheduled mana uses the scorer's
+// absolute-turn decay, and additional mana on one turn its stacking discount.
+const rampLeadValue = (extra: number): number => (1 - RAMP_STACK ** extra) / (1 - RAMP_STACK);
+const RAMP_PER_WEIGHTED_MANA = RAMP_ANCHOR / extraManaByTurn((turn) => turn === 2 ? 1 : 0)
+  .reduce((sum, extra, index) => sum + RAMP_TURN_DECAY ** index * rampLeadValue(extra), 0);
+
+/** §4v (src/power/scoreCore.ts), starting from the live public economy rather
+ * than assuming mana value == cast turn == lands in play. Compare this cast
+ * with a blank from the same position; both schedules use their normal drops.
+ * Extra lands enter tapped, so count the lead only after the NEXT normal
+ * drop. A new Dawn engine first fires next turn; its capped schedule receives
+ * the scorer's measured Dawn share, once. No view/reserve means no guarantee. */
+function extraLandDropValue(n: number, context?: RampImpactContext): number {
+  if (!context) return 0;
+  const { view, db, everyDawn = false } = context;
+  const reserve = view.you.landReserve?.length ?? 0;
+  const canPlayThisTurn = view.activePlayer === view.myId && view.step !== 'end' && view.step !== 'cleanup';
+  if (!reserve || n <= 0 || !everyDawn && !canPlayThisTurn) return 0;
+  const lands = view.battlefield.filter((p) => p.controller === view.myId && isType(def(db, p.cardId), 'land')).length;
+  const cap = lands + reserve;
+  let normal = Math.min(cap, lands + (canPlayThisTurn ? view.you.landDropsRemaining : 0));
+  let ramped = Math.min(cap, normal + (everyDawn ? 0 : n));
+  const ownTurn = Math.floor((view.turn + Number(view.startingPlayer === view.myId)) / 2);
+  let weightedMana = 0;
+  for (let future = 1; normal < cap; future++) {
+    normal = Math.min(cap, normal + 1);
+    ramped = Math.min(cap, ramped + 1);
+    weightedMana += RAMP_TURN_DECAY ** (ownTurn + future - 1) * rampLeadValue(ramped - normal);
+    if (everyDawn) ramped = Math.min(cap, ramped + n);
+  }
+  return weightedMana * RAMP_PER_WEIGHTED_MANA * (everyDawn ? RAMP_DAWN_SHARE : 1);
+}
+
+
+export function opImpactValue(op: EffectOp, activated?: ActivatedImpactContext, recipients?: readonly KeywordBody[], ramp?: RampImpactContext): number {
   if (activated) return activatedOpImpact(op, activated);
   switch (op.op) {
     case 'gainLife':
@@ -904,6 +949,8 @@ export function opImpactValue(op: EffectOp, activated?: ActivatedImpactContext, 
     case 'fetchLand':
       // Deck composition and landfall-like arrivals are unavailable here.
       return 1;
+    case 'extraLandDrop':
+      return extraLandDropValue(op.n ?? 1, ramp);
     case 'severSelf':
       // This is a sacrifice-like cost, not a benefit of the trigger.
       return -1.5;
@@ -913,14 +960,14 @@ export function opImpactValue(op: EffectOp, activated?: ActivatedImpactContext, 
       return (op.to === 'top' ? 2.5 + (op.withMarks ?? 0) * 0.65 : 2) +
         keywordScore(op.grantKeywords ?? [], KEYWORD_REFERENCE_ATTACK);
     case 'ifTargetMarked': {
-      const thenValue = op.then.reduce((sum, nested) => sum + opImpactValue(nested), 0);
-      const elseValue = (op.else ?? []).reduce((sum, nested) => sum + opImpactValue(nested), 0);
+      const thenValue = op.then.reduce((sum, nested) => sum + opImpactValue(nested, undefined, undefined, ramp), 0);
+      const elseValue = (op.else ?? []).reduce((sum, nested) => sum + opImpactValue(nested, undefined, undefined, ramp), 0);
       // A card-shaped estimate cannot know whether the target is marked. Keep
       // only a conservative portion of the better branch's upside.
       return Math.min(thenValue, elseValue) * 0.4 + Math.max(thenValue, elseValue) * 0.6;
     }
     case 'ifTargetSurvives':
-      return survivalGateImpact(op);
+      return survivalGateImpact(op, undefined, ramp);
     case 'severGrave':
       return op.who === 'opponent' ? op.n * 0.6 : 0;
     case 'foresee':
@@ -967,6 +1014,7 @@ function activatedTargetImpact(op: EffectOp, ctx: ActivatedImpactContext, ref: T
 /** Signed public-board scoring used only by the new activated rider. */
 function activatedOpImpact(op: EffectOp, ctx: ActivatedImpactContext): number {
   const { view, db, source } = ctx;
+  if (op.op === 'extraLandDrop') return extraLandDropValue(op.n ?? 1, { view, db });
   const refs = 'targetIndex' in op && op.targetIndex !== undefined ? ctx.targets.slice(op.targetIndex, op.targetIndex + 1) :
     ctx.targetBatch ? ctx.targets : ctx.targets.slice(0, 1);
   const material = (perm: Permanent): number => removalTargetValue(view.battlefield, db, perm, false);
@@ -1566,7 +1614,16 @@ export function cardValue(db: CardDb, cardId: string, view?: PlayerView, mode: S
     v += nineLivesValue(d);
   }
   if (isLordOrLegendary(db, cardId)) v += 1;
-  if (hasTriggeredAbility(db, cardId)) v += 0.75;
+  if (hasTriggeredAbility(db, cardId, view)) v += 0.75;
+  if (view) {
+    for (const ab of d.abilities ?? []) {
+      if (ab.when !== 'arrives' && ab.when !== 'dawn') continue;
+      const drops = (ab.ops ?? []).reduce((sum, op) => sum + (op.op === 'extraLandDrop' ? op.n ?? 1 : 0), 0);
+      if (drops) v += opImpactValue({ op: 'extraLandDrop', n: drops }, undefined, undefined,
+        { view, db, everyDawn: ab.when === 'dawn' }) *
+        abilityConditionMultiplier(ab.condition, isQuestActive(view.battlefield, db, view.myId));
+    }
+  }
   // New marked/arrival mechanics get a conservative printed premium. Keep
   // this restricted to the provisional wave so existing card valuations and
   // their measured win-rate gates remain byte-for-byte behaviorally stable.
@@ -1580,9 +1637,9 @@ export function cardValue(db: CardDb, cardId: string, view?: PlayerView, mode: S
       if (ab.when !== 'spell') continue;
       // "If it survived" reads the cast's own targets when it has them (A1.6).
       v += (ab.ops ?? []).reduce((sum, op, index) => sum + (op.op === 'ifTargetSurvives' && mode.targets
-        ? survivalGateImpact(op, expectsTargetSurvives(view, db, (ab.ops ?? []).slice(0, index), op, mode.targets, mode.x ?? 0))
+        ? survivalGateImpact(op, expectsTargetSurvives(view, db, (ab.ops ?? []).slice(0, index), op, mode.targets, mode.x ?? 0), { view, db })
         : markRecipients(view, db, op) === 0 ? 0 :
-          opImpactValue(op, undefined, op.op === 'boost' ? boostRecipients(view, db, cardId, op, mode, (ab.ops ?? []).slice(0, index)) : undefined)), 0) *
+          opImpactValue(op, undefined, op.op === 'boost' ? boostRecipients(view, db, cardId, op, mode, (ab.ops ?? []).slice(0, index)) : undefined, { view, db })), 0) *
         abilityConditionMultiplier(ab.condition, isQuestActive(view.battlefield, db, view.myId));
       // Damage to each of your own creatures: a cost, less every unspent
       // Provoked it sets off on a survivor (a friendly source, Part 4 item 2).
@@ -1614,6 +1671,8 @@ export function empowerValue(db: CardDb, cardId: string, view?: PlayerView, mode
   const ops = def(db, cardId).empower?.ops ?? [];
   const opValue = (op: EffectOp, index: number): number => {
     switch (op.op) {
+      case 'extraLandDrop':
+        return opImpactValue(op, undefined, undefined, view ? { view, db } : undefined);
       case 'damage':
         return op.n === 'X' ? 0 : op.n * (op.to === 'controller' ? -0.6 : 0.9);
       case 'destroy':
@@ -1683,11 +1742,11 @@ export function skimValue(db: CardDb, cardId: string): number {
  * graveyard card, so its body is priced as extra access to a spell rather than
  * as a second copy in hand. R4 override ops are the body being valued.
  */
-export function retellValue(db: CardDb, cardId: string): number {
+export function retellValue(db: CardDb, cardId: string, view?: PlayerView): number {
   const d = def(db, cardId);
   if (!d.retell) return 0;
   const ops = d.retell.ops ?? spellOps(db, cardId);
-  return 0.75 + ops.reduce((sum, op) => sum + opImpactValue(op), 0);
+  return 0.75 + ops.reduce((sum, op) => sum + opImpactValue(op, undefined, undefined, view ? { view, db } : undefined), 0);
 }
 
 /** A live marker expires next Dawn on our turn; on theirs it survives ours. */
