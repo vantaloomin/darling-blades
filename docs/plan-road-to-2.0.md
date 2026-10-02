@@ -276,6 +276,7 @@ Every Road-to-2.0 feature, and where it lands.
 | Anonymous telemetry | **Shipped 1.8** (save v35, `playSignals`, the Worker, the first-run notice) | — |
 | UGC / mods | Spec'd, no code | 2.1 |
 | Async PvP (challenge codes, Hard AI pilot) | Proposal 2026-09-29, no code ([plan](plan-async-pvp.md)) | 2.1+ (not scheduled) |
+| Animated art (a printing above Full Art) | Proposal 2026-10-02, no code ([plan](plan-animated-art.md)) | After 2.0 (not scheduled) |
 | Starting life above 20 (5 to 10 more) | Owner direction 2026-09-29; the size waits on a measurement; no code ([below](#starting-life-a-20-direction)) | 2.0, with Core Set II |
 | Multiplayer | **CANCELLED** | — |
 

@@ -1809,6 +1809,19 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   an AI-content tag (Graphics at least) and hides adult content from browse
   and search. **Mobile duel layout decided the same day: Version C, "Command
   column (hand-first)"** ([plan-mobile-overhaul.md](plan-mobile-overhaul.md)).
+- **Animated art: a printing rarer than Full Art (proposal 2026-10-02; post-2.0,
+  not scheduled, nothing built).** The owner asked for a new top printing
+  whose art moves in a seamless loop. The two hard parts are perfect loops
+  and storage: the itch.io launch caps a game at 500 MB and 1,000 files,
+  and the shipped art is already 249 MB. Video for every card would not
+  fit. **Direction ruled 2026-10-02: (A) to start, (B) long term "if we can
+  find a good solution".** (A) is procedural "living art" (a small per-card
+  depth and motion map, shader-driven, so every loop is perfect by
+  construction, at about 20-60 KB a card), piloted on about 5 cards; (B) is
+  generated video, adopted only when its loops pass review at a cost the
+  launch budget can carry. Three questions still wait for the owner: which
+  cards, the axis shape and rates, and where any video files would live
+  ([plan-animated-art.md](plan-animated-art.md)).
 - **A metagame sweep that fits in a night (2026-09-22; levers 1 and 4
   shipped in 1.8).** [plan-sweep-speed.md](plan-sweep-speed.md). Fan-out
   across GitHub-hosted runners shipped (#418, #421, #422; the owner's machine
