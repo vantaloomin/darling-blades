@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   ArtSourceError,
   WHOLE_PACKS_HELD,
@@ -145,6 +145,33 @@ async function failureOf(p: Promise<unknown>): Promise<ArtSourceFailure> {
 }
 
 describe('pack source: a host that serves ranges', () => {
+  it('asks the browser not to use its HTTP cache for range reads only', async () => {
+    const h = host((call, pack) => {
+      // This pack forces a second, whole-pack request through the same seam.
+      if (call.range && call.url.endsWith('full-b.0000000002.bin')) {
+        return new Response(null, { status: 206, headers: { 'Content-Encoding': 'gzip' } });
+      }
+      return serveRange(call, pack);
+    });
+    const fetch = vi.fn(h.fetch);
+    const src = createPackSource({ index: INDEX, keys: KEYS, fetch, log: h.logger });
+    expect(await blobBytes(await src.read('a1', 'full'))).toEqual([...FILES.a1]);
+    const later = await Promise.all(['a2', 'a3'].map((key) => src.read(key, 'full')));
+    expect(await Promise.all(later.map(blobBytes))).toEqual([[...FILES.a2], [...FILES.a3]]);
+    expect(await blobBytes(await src.read('a1', 'half'))).toEqual([...FILES.a1h]);
+    // Both the deciding request and subsequent parallel reads bypass the cache.
+    for (const [, init] of fetch.mock.calls) expect(init?.cache).toBe('no-store');
+
+    fetch.mockClear();
+    expect(await blobBytes(await src.read('b1', 'full'))).toEqual([...FILES.b1]);
+    expect(fetch.mock.calls.map(([, init]) => init?.cache)).toEqual(['no-store', undefined]);
+
+    fetch.mockClear();
+    const loose = createLooseSource({ fetch, hasHalf: () => true });
+    expect(await blobBytes(await loose.read('a1', 'half'))).toEqual([...FILES.a1h]);
+    expect(fetch.mock.calls.map(([, init]) => init?.cache)).toEqual([undefined]);
+  });
+
   it('reads each card with one range request for exactly its bytes', async () => {
     const h = host();
     const src = packSource(h);

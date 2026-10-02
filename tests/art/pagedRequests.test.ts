@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PagedRequests, type PagedStore } from '../../src/art/pagedRequests';
+import type { ArtTier } from '../../src/art/artStore';
 import { flush, loadAll, makeStore, type Harness } from './artStoreFakes';
 
 /**
@@ -16,9 +17,9 @@ interface Scheduled {
   cancelled: boolean;
 }
 
-function paged(h: Harness | null, label = 'binder'): { requests: PagedRequests; timers: Scheduled[] } {
+function paged(h: Harness | null, label = 'binder', tier: ArtTier = 'primary'): { requests: PagedRequests; timers: Scheduled[] } {
   const timers: Scheduled[] = [];
-  const requests = new PagedRequests(label, 'primary', {
+  const requests = new PagedRequests(label, tier, {
     store: () => (h === null ? null : (h.store as PagedStore)),
     schedule: (fn, ms) => {
       const timer: Scheduled = { fn, ms, cancelled: false };
@@ -41,6 +42,42 @@ const pageLeases = (h: Harness) =>
   h.store.leaseReport().filter((lease) => lease.label.startsWith('page:'));
 
 describe('pagedRequests: what a page leases', () => {
+  it('serves the visible picker page before neighbours, and neighbours before idle work without pinning them', async () => {
+    const h = makeStore({ maxInFlight: 1 });
+    h.store.prefetch(['f'], { priority: 'now' });
+    h.store.prefetch(['d'], { priority: 'idle' });
+    const { requests } = paged(h, 'picker');
+
+    requests.show(['a'], ['b']);
+    await arrive(h, ['f']);
+    expect(h.source.open.map((read) => read.key)).toEqual(['a']);
+
+    await arrive(h, ['a']);
+    expect(h.source.open.map((read) => read.key)).toEqual(['b']);
+    expect(h.store.stats().pinnedBytes).toBe(0);
+
+    await arrive(h, ['b']);
+    expect(h.source.open.map((read) => read.key)).toEqual(['d']);
+    requests.release();
+    h.store.dispose();
+  });
+
+  it('loads a thumbnail picker page and its neighbours from the half tier on desktop', async () => {
+    const h = makeStore();
+    const { requests } = paged(h, 'picker', 'half');
+
+    requests.show(['a'], ['b']);
+    expect(h.source.reads.find((read) => read.key === 'a')?.tier).toBe('half');
+    expect(h.source.reads.find((read) => read.key === 'b')?.tier).toBe('half');
+    await arrive(h, ['a', 'b']);
+
+    expect(h.store.isResident('a', 'half')).toBe(true);
+    expect(h.store.isResident('a', 'primary')).toBe(false);
+    expect(h.store.isResident('b', 'half')).toBe(true);
+    expect(h.store.isResident('b', 'primary')).toBe(false);
+    requests.release();
+  });
+
   it('leases nothing for a page whose art is all resident, and draws it at once', async () => {
     const h = makeStore();
     await loadAll(h, ['a', 'b']);
@@ -176,6 +213,32 @@ describe('pagedRequests: when a page draws', () => {
 });
 
 describe('pagedRequests: when a page lets go of its art', () => {
+  it('closing a loading picker cancels its page and neighbours, and a reopened picker can load normally', async () => {
+    const h = makeStore({ maxInFlight: 1 });
+    const first = paged(h, 'picker');
+    const draws: string[] = [];
+    first.requests.show(['a'], ['b', 'c'], () => draws.push('closed'), 150);
+    await h.tick();
+
+    first.requests.release();
+    first.timers[0].fn();
+    await h.tick();
+    expect(h.source.open).toEqual([]);
+    expect(h.store.stats().queued).toBe(0);
+    expect(h.store.leaseReport()).toEqual([]);
+
+    const second = paged(h, 'picker');
+    second.requests.show(['c'], ['d'], () => draws.push('reopened'), 150);
+    await h.tick();
+    expect(h.source.open.map((read) => read.key)).toEqual(['c']);
+    await arrive(h, ['c']);
+    expect(draws).toEqual(['reopened']);
+    second.requests.release();
+    await h.tick();
+    expect(h.source.open).toEqual([]);
+    expect(h.store.stats().queued).toBe(0);
+  });
+
   it('releases the page lease once the art is in and the page has drawn', async () => {
     const h = makeStore();
     const { requests } = paged(h);

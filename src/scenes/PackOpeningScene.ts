@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { liveArtStore } from '../art/artLoader';
+import { PackRequests } from '../art/packRequests';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { CARD_DB } from '../data/catalog';
@@ -113,6 +115,8 @@ interface SpecialEntry {
  */
 export class PackOpeningScene extends Phaser.Scene {
   private result!: PackResult;
+  private packArt: PackRequests | null = null;
+  private readonly packForCard = new Map<AddResult, number>();
   /** Revealed, inspectable pulls in reveal order - the arrow-key ring. */
   private inspectables: { card: AddResult; view: CardView }[] = [];
   private inspectShell: import('../ui/themeWidgets').ModalShell | null = null;
@@ -163,15 +167,11 @@ export class PackOpeningScene extends Phaser.Scene {
 
   /** The reveal draws exactly the rolled cards, single pack or batch. */
   create(data: PackOpeningData): void {
-    const packs = 'batch' in data ? data.batch : [data];
-    const ids = packs.flatMap((pack) => pack.cards.map((card) => card.cardId));
-    gateOnArt(this, ids, () => this.build(data));
-  }
-  private build(data: PackOpeningData): void {
-    // A repeat opener can re-enter this scene without a fresh Scene instance.
-    // Close any inspect lease and clear every create-owned reference before
-    // rebuilding the reveal so destroyed objects never receive new updates.
+    // Phaser reuses this Scene instance. Clear the previous run before an
+    // asynchronous gate can yield to update(), whose runway was destroyed
+    // at shutdown but whose old inertia/idle state otherwise survives.
     this.closePackInspect();
+    this.runway = null;
     this.sku = data.sku ?? 'base';
     this.shopBoosterIndex = data.shopBoosterIndex;
     this.revealed = 0;
@@ -179,11 +179,36 @@ export class PackOpeningScene extends Phaser.Scene {
     this.buttons = [];
     this.inspectables = [];
     this.skipBtn = null;
+    this.toasts = null;
     this.bestSettled = false;
     this.packRevealComplete = false;
+    const packs = 'batch' in data ? data.batch : [data];
+    this.packArt?.release();
+    this.packArt = null;
+    this.packForCard.clear();
+    const ids = packs.map((pack, index) => pack.cards.map((card) => {
+      this.packForCard.set(card, index);
+      return card.cardId;
+    }));
+    const store = liveArtStore();
+    if (store === null) {
+      gateOnArt(this, ids.flat(), () => this.build(data));
+      return;
+    }
+    const art = new PackRequests(store, ids);
+    this.packArt = art;
+    const release = (): void => {
+      art.release();
+      if (this.packArt === art) this.packArt = null;
+      this.events.off(Phaser.Scenes.Events.SHUTDOWN, release);
+      this.events.off(Phaser.Scenes.Events.DESTROY, release);
+    };
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, release);
+    this.events.once(Phaser.Scenes.Events.DESTROY, release);
+    gateOnArt(this, ids[0] ?? [], () => this.build(data));
+  }
+  private build(data: PackOpeningData): void {
     this.cardBackTextureKey = this.resolveCardBackTexture();
-    // A restart already destroyed the display objects; only the state survives.
-    this.runway = null;
     bakePackArt(this);
     if (this.sku === 'ragnarok') {
       bakePackArt(this, {
@@ -309,6 +334,16 @@ export class PackOpeningScene extends Phaser.Scene {
 
   /** F10 batch reveal: an at-a-glance summary of a multi-pack open. */
   private showBatchSummary(batch: PackResult[]): void {
+    if (this.packArt === null) this.drawBatchSummary(batch);
+    else {
+      const notable = batch.flatMap((pack) => pack.cards)
+        .filter((card) => card.tier !== 'c' && card.tier !== 'r')
+        .sort((a, b) => TIER_RANK[b.tier] - TIER_RANK[a.tier]).slice(0, 16);
+      this.packArt.reveal(notable.map((card) => this.packForCard.get(card)!), () => this.drawBatchSummary(batch));
+    }
+  }
+
+  private drawBatchSummary(batch: PackResult[]): void {
     const width = 1280;
     const all = batch.flatMap((p) => p.cards);
     const specials = all.filter((c) => c.tier !== 'c' && c.tier !== 'r');
@@ -569,6 +604,7 @@ export class PackOpeningScene extends Phaser.Scene {
     }
     const gateIdx = indexAtGate(rw.offset, rw.cards.length);
     if (gateIdx > rw.revealedMax) this.runwayRevealTo(gateIdx);
+    else this.packArt?.cancelReveal();
     rw.needle.x = rw.minimap.x + gateProgress(rw.revealedMax, rw.cards.length) * rw.minimap.w;
   }
 
@@ -657,6 +693,21 @@ export class PackOpeningScene extends Phaser.Scene {
   private runwayRevealTo(target: number): void {
     const rw = this.runway;
     if (!rw) return;
+    if (this.packArt === null) this.runwayRevealReady(target);
+    else {
+      const packs = rw.cards.slice(rw.revealedMax + 1, target + 1)
+        .map((card) => this.packForCard.get(card)!);
+      this.packArt.reveal(packs, () => {
+        if (this.runway !== rw || !rw.root.active) return;
+        this.runwayRevealReady(target);
+        rw.needle.x = rw.minimap.x + gateProgress(rw.revealedMax, rw.cards.length) * rw.minimap.w;
+      });
+    }
+  }
+
+  private runwayRevealReady(target: number): void {
+    const rw = this.runway;
+    if (!rw) return;
     for (let i = rw.revealedMax + 1; i <= target && i < rw.cards.length; i++) {
       rw.revealedMax = i;
       const card = rw.cards[i];
@@ -695,6 +746,15 @@ export class PackOpeningScene extends Phaser.Scene {
     const next = rw.revealedMax + 1;
     if (next >= rw.cards.length) {
       this.runwayFinish();
+      return;
+    }
+    // The rail is rarity-sorted across the batch. Wait for the original
+    // pack of the next card before moving it through the flip gate.
+    const pack = this.packForCard.get(rw.cards[next])!;
+    if (this.packArt !== null && !this.packArt.isReady(pack)) {
+      this.packArt.reveal([pack], () => {
+        if (this.runway === rw && rw.root.active && rw.mode === 'auto') this.runwayAdvance();
+      });
       return;
     }
     const target = railOffsetForIndex(next);
@@ -865,6 +925,7 @@ export class PackOpeningScene extends Phaser.Scene {
       }
       return;
     }
+    this.packArt?.cancelReveal();
     rw.autoTween?.remove();
     rw.autoTween = null;
     rw.mode = 'scrub';

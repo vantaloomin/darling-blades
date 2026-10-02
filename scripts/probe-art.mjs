@@ -5,12 +5,13 @@
 // records what the game's read-only `window.__art` hook reports beside what
 // Windows reports for Edge's GPU and renderer processes.
 //
-// The tour (gate 1's, as far as S5a reaches): the menu; the Collection (its
+// The tour: the menu; the Collection (its
 // first spread, timed until every pocket shows real art, gate 2; five spreads;
 // a filter change; a zoom); the Deck Builder (three pool pages, the deck list,
-// the Darling picker); the Shop; a Tower duel with a zoom and a forced WebGL
-// context loss; then the Collection again. After the first menu stop the save
-// is seeded with two copies of every collectible card (a fresh save owns
+// the Darling picker); Shop previews; three packs; Limited draft and builder;
+// the Profile picker; the hall; Play, Practice and Tower; a duel with a zoom,
+// paged graveyard and forced WebGL context loss; then Collection again.
+// After the first menu stop the save is seeded with four copies of every collectible card (a fresh save owns
 // none, and the binder and the pool show owned cards) and the page reloads.
 //
 //   node scripts/probe-art.mjs --dist <built dist> [options]
@@ -27,7 +28,7 @@
 //                      DPR 3, touch) (default full, 1920x1080)
 //   --budget <MiB>     ?artBudget, e.g. 8 for the eviction stress run
 //   --evict off        ?artEvict=off
-//   --opponent <id>    the Tower opponent (default menghuo)
+//   --opponent <id>    override the current Tower roster opponent
 //   --port <n>         the preview port (default 4391; never 5173)
 //   --out <dir>        where probe.json and the screenshots go (default: a
 //                      fresh folder under the OS temp dir)
@@ -37,7 +38,7 @@
 // Memory` counters); elsewhere they read null. The whole Edge and vite
 // process trees are killed on exit.
 import { execFileSync, spawn } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -46,7 +47,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const EDGE = 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
 
 function parseArgs(argv) {
-  const opts = { dist: 'dist', build: false, stream: 'on', tier: 'full', budget: null, evict: null, opponent: 'menghuo', port: 4391, out: null, label: 'run' };
+  const opts = { dist: 'dist', build: false, stream: 'on', tier: 'full', budget: null, evict: null, opponent: null, port: 4391, out: null, label: 'run' };
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];
     const next = () => argv[++i];
@@ -75,21 +76,51 @@ mkdirSync(outDir, { recursive: true });
 const scratch = mkdtempSync(join(outDir, 'tmp-'));
 const dist = resolve(ROOT, opts.dist);
 const children = [];
+const ownedPids = new Set();
 
 function killTree(pid) {
   if (!pid) return;
   try {
-    if (process.platform === 'win32') execFileSync('taskkill', ['/PID', String(pid), '/F', '/T'], { stdio: 'ignore' });
+    if (process.platform === 'win32') execFileSync('taskkill', ['/PID', String(pid), '/F', '/T'], { stdio: 'ignore', windowsHide: true });
     else process.kill(pid, 'SIGKILL');
   } catch {
-    // already gone
+    // Some Windows executors deny taskkill's process-tree enumeration while
+    // permitting termination of a child we own. CDP's recorded child PIDs
+    // are also visited by cleanup.
+    try { process.kill(pid, 'SIGKILL'); } catch { /* already gone */ }
   }
 }
 
 function cleanup() {
+  const pids = [...new Set([...ownedPids, ...children.map((child) => child.pid)].filter(Boolean))];
   for (const child of children.splice(0)) killTree(child.pid);
+  for (const pid of pids) killTree(pid);
+  const alive = (pid) => {
+    try { process.kill(pid, 0); return true; } catch (error) { return error.code !== 'ESRCH'; }
+  };
+  // Termination can return before Windows has finished closing the process.
+  const deadline = Date.now() + 3000;
+  const pause = new Int32Array(new SharedArrayBuffer(4));
+  let remaining = pids.filter(alive);
+  while (remaining.length > 0 && Date.now() < deadline) {
+    Atomics.wait(pause, 0, 0, 50);
+    remaining = pids.filter(alive);
+  }
+  for (const pid of pids) if (!remaining.includes(pid)) ownedPids.delete(pid);
+  return { tracked: pids, remaining };
 }
 process.on('exit', cleanup);
+// Setup can fail before the tour's try/catch (for example, Edge cannot start
+// its GPU process). Keep that failure and cleanup reviewable as well.
+process.once('uncaughtException', (error) => {
+  const cleaned = cleanup();
+  const result = { label: opts.label, tier: opts.tier, stream: opts.stream, budgetMiB: opts.budget,
+    failure: String(error?.stack ?? error), stage: 'startup', gatesPassed: false, stops: [], cleanup: cleaned };
+  writeFileSync(join(outDir, `${opts.label}.json`), `${JSON.stringify(result, null, 2)}\n`);
+  console.error(result.failure);
+  console.error(`[${opts.label}] startup failed; owned processes remaining=${cleaned.remaining.length}`);
+  process.exit(1);
+});
 process.on('SIGINT', () => process.exit(130));
 process.on('SIGTERM', () => process.exit(143));
 // A hard stop, so a stuck tour never leaves Edge and vite running.
@@ -136,7 +167,7 @@ try {
 } catch (error) {
   if (String(error?.message ?? '').startsWith('port ')) throw error;
 }
-const vite = spawn(process.execPath, [viteBin, 'preview', '--config', configPath], { cwd: ROOT, stdio: 'ignore' });
+const vite = spawn(process.execPath, [viteBin, 'preview', '--config', configPath, '--configLoader', 'runner'], { cwd: ROOT, stdio: 'ignore', windowsHide: true });
 children.push(vite);
 for (let i = 0; ; i++) {
   try {
@@ -153,6 +184,7 @@ for (let i = 0; ; i++) {
 const lite = opts.tier === 'lite';
 const [W, H] = lite ? [844, 390] : [1920, 1080];
 const profile = join(scratch, 'edge-profile');
+const edgeLog = openSync(join(outDir, `${opts.label}-edge.log`), 'w');
 const edge = spawn(
   EDGE,
   [
@@ -160,8 +192,9 @@ const edge = spawn(
     `--window-size=${W},${H}`, '--no-first-run', '--no-default-browser-check',
     '--enable-gpu', '--use-angle=d3d11', '--ignore-gpu-blocklist', 'about:blank',
   ],
-  { stdio: 'ignore' },
+  { stdio: ['ignore', edgeLog, edgeLog], windowsHide: true },
 );
+closeSync(edgeLog);
 children.push(edge);
 
 /** The port Edge picked (port 0), from its profile: never someone else's browser. */
@@ -199,6 +232,9 @@ ws.onmessage = (event) => {
     if (m.params.type === 'error') log.errors.push(text);
     if (m.params.type === 'warning') log.warnings.push(text);
   }
+  if (m.method === 'Log.entryAdded' && m.params.entry.level === 'error') {
+    log.errors.push(m.params.entry.text);
+  }
   if (m.method === 'Network.requestWillBeSent') {
     const url = m.params.request.url;
     if (url.includes('/art/packs/')) log.packReads++;
@@ -224,11 +260,12 @@ const { result: { targetId } } = await send('Target.createTarget', { url: 'about
 const { result: { sessionId } } = await send('Target.attachToTarget', { targetId, flatten: true });
 const S = (method, params) => send(method, params, sessionId);
 await S('Runtime.enable');
+await S('Log.enable');
 await S('Page.enable');
 await S('Page.bringToFront');
 await S('Network.enable');
+await S('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: lite ? 3 : 1, mobile: lite });
 if (lite) {
-  await S('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 3, mobile: true });
   await S('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
 }
 // Long tasks over 50 ms, counted in the page from the first script on.
@@ -274,12 +311,13 @@ const sceneBuilt = (key) => `(() => {
 
 /**
  * Nothing queued, in flight or waiting to upload for 500 ms (gate 3's
- * "idle"). The 1.8 queue has no such state; there the stop waits 1.5 s.
+ * "idle"). The 1.8 queue must finish its manifest, then stay idle for 500 ms.
  */
 async function storeIdle() {
   const mode = await page('window.__art ? window.__art.mode : null');
   if (mode !== 'store') {
-    await sleep(1500);
+    await until('the legacy art queue to finish', '(() => { const s = window.__art?.stats(); return s && s.loaded === s.total; })()');
+    await sleep(500);
     return;
   }
   let quietSince = null;
@@ -298,6 +336,7 @@ async function storeIdle() {
 async function processMemory() {
   const info = await send('SystemInfo.getProcessInfo');
   const processes = info.result?.processInfo ?? [];
+  for (const entry of processes) if (Number.isInteger(Number(entry.id))) ownedPids.add(Number(entry.id));
   const gpu = processes.find((p) => p.type === 'GPU' || p.type === 'gpu-process');
   const renderers = processes.filter((p) => p.type === 'renderer');
   if (process.platform !== 'win32' || gpu === undefined) return { gpuPrivateMiB: null, gpuDedicatedMiB: null, gpuSharedMiB: null, rendererPrivateMiB: null };
@@ -306,7 +345,7 @@ async function processMemory() {
     `Get-Process -Id ${ids.join(',')} -ErrorAction SilentlyContinue | ForEach-Object { 'P ' + $_.Id + ' ' + $_.PrivateMemorySize64 }`,
     `try { (Get-Counter -Counter '\\GPU Process Memory(pid_${gpu.id}_*)\\Dedicated Usage','\\GPU Process Memory(pid_${gpu.id}_*)\\Shared Usage' -ErrorAction Stop).CounterSamples | ForEach-Object { 'C ' + $_.Path + ' ' + $_.CookedValue } } catch { 'C none 0' }`,
   ].join('; ');
-  const text = execFileSync('powershell', ['-NoProfile', '-Command', ps], { encoding: 'utf8' });
+  const text = execFileSync('powershell', ['-NoProfile', '-Command', ps], { encoding: 'utf8', windowsHide: true });
   const privateBy = new Map();
   let dedicated = 0;
   let shared = 0;
@@ -349,6 +388,7 @@ async function clickText(sceneKey, pattern) {
 }
 
 const stops = [];
+const gateFailures = [];
 let errorsSeen = 0;
 let warningsSeen = 0;
 let longTasksSeen = 0;
@@ -359,6 +399,7 @@ async function record(name) {
     return { mode: a.mode, stats: a.stats(), standIns: a.standIns(), missing: a.missingTextures(), leases: a.leases(), warnings: a.warnings() };
   })()`);
   const scenes = await page('window.__game.scene.getScenes(true).map((s) => s.sys.settings.key)');
+  const dimensions = await page('(() => { const g = window.__game; return { width: g.canvas.width, height: g.canvas.height, k: g.canvas.width / 1280, viewportWidth: innerWidth, viewportHeight: innerHeight }; })()');
   const longTasks = (await page('window.__longTasks || []')) ?? [];
   const memory = await processMemory();
   const shot = await S('Page.captureScreenshot', { format: 'png' });
@@ -367,6 +408,7 @@ async function record(name) {
   const stop = {
     stop: name,
     scenes,
+    dimensions,
     ...memory,
     art,
     consoleErrors: log.errors.slice(errorsSeen),
@@ -380,11 +422,17 @@ async function record(name) {
   longTasksSeen = longTasks.length;
   stops.push(stop);
   const s = art?.stats ?? {};
+  const counts = { standIns: art?.standIns.count ?? -1, missingTextures: art?.missing.count ?? -1,
+    consoleErrors: stop.consoleErrors.length, missedLeases: s.missedLeases ?? 0,
+    thumbMissedHolds: s.thumbMissedHolds ?? 0, orphans: s.orphans ?? 0 };
+  for (const [gate, count] of Object.entries(counts)) if (count !== 0) gateFailures.push({ stop: name, gate, count });
+  if (dimensions.k !== (lite ? 1 : 2)) gateFailures.push({ stop: name, gate: 'renderScale', actual: dimensions.k });
+  if (dimensions.viewportWidth !== W || dimensions.viewportHeight !== H) gateFailures.push({ stop: name, gate: 'viewport', actual: dimensions });
   console.log(
     `[${opts.label}] ${name.padEnd(8)} mode=${art?.mode ?? 'none'} resident=${s.resident ?? s.loaded ?? '-'} ` +
       `residentMiB=${mib(s.residentBytes) ?? '-'} pinnedMiB=${mib(s.pinnedBytes) ?? '-'} managerMiB=${mib(s.managerBytes)} ` +
       `evictions=${s.evictions ?? '-'} missedLeases=${s.missedLeases ?? '-'} orphans=${s.orphans ?? '-'} restores=${s.restores ?? '-'} ` +
-      `standIns=${art?.standIns.count} missing=${art?.missing.count} errors=${stop.consoleErrors.length} longTasks=${stop.longTasks.length} ` +
+      `standIns=${art?.standIns.count} missing=${art?.missing.count} errors=${stop.consoleErrors.length} longTasks=${stop.longTasks.length} render=${dimensions.width}x${dimensions.height} k=${dimensions.k} ` +
       `gpuPrivate=${memory.gpuPrivateMiB} dedicated=${memory.gpuDedicatedMiB} shared=${memory.gpuSharedMiB} renderer=${memory.rendererPrivateMiB} ` +
       `packs=${log.packReads} loose=${log.looseFull}/${log.looseHalf}\n` +
       `           thumbs: baked=${s.thumbBaked ?? '-'} resident=${s.thumbResident ?? '-'} residentMiB=${mib(s.thumbResidentBytes) ?? '-'} ` +
@@ -393,11 +441,11 @@ async function record(name) {
   );
 }
 
-/** The save key, and the seed: two copies of every collectible card. */
+/** The save key, and the seed: four copies of every collectible card. */
 const SAVE_KEY = 'darlingblades.save.v1';
 
 /**
- * Give the save two copies of every collectible card, then reload. The ids
+ * Give the save four copies of every collectible card, then reload. The ids
  * come from the game itself (the Collection's own pool with the Owned filter
  * off, read without starting the scene). The seeded save is written by a
  * script that runs before the game on the next document: the game flushes
@@ -415,7 +463,22 @@ async function seedSave() {
     const raw = localStorage.getItem(${JSON.stringify(SAVE_KEY)});
     if (!raw) return null;
     const save = JSON.parse(raw);
-    for (const id of ids) save.collection[id] = 2;
+    for (const id of ids) save.collection[id] = 4;
+    save.gold = 100000;
+    save.tutorialDone = true;
+    save.darlingsTutorialSeen = true;
+    save.settings.animations = 'reduced';
+    const cards = new Map(col.cards.map((card) => [card.id, card]));
+    const starter = window.__game.scene.getScene('Shop').deckSections()[0].skus[0].deck;
+    const spells = (starter.reserveCards ?? starter.cards).filter((id) => !cards.get(id)?.types.includes('land'));
+    const lands = starter.landReserve ?? starter.cards.filter((id) => cards.get(id)?.types.includes('land')).slice(0, 10);
+    const deck = { id: 'probe-warchest', name: 'Probe Warchest', cards: spells, format: 'warchest',
+      landReserve: lands, darlingId: null, heroCardId: null, landStyle: null,
+      variantPins: spells.map(() => null), cardBack: null, playmat: null };
+    save.decks = [deck];
+    save.activeDeckId = deck.id;
+    save.starterChosen = starter.id;
+    save.limited.activeRun = null;
     return { cards: ids.length, json: JSON.stringify(save) };
   })()`);
   if (!seeded) throw new Error('no save in localStorage to seed');
@@ -479,6 +542,31 @@ const timings = [];
 /** Call a method on a running scene from the page (the probe's stand-in for a click). */
 const onScene = (key, body) => `(() => { const s = window.__game.scene.getScene(${JSON.stringify(key)}); ${body}; return true; })()`;
 
+/** Emit the existing mouse activation handler; all fixtures remain inside this CDP profile. */
+async function tapText(sceneKey, text, owner = 's.children') {
+  return page(onScene(sceneKey, `
+    let target = null;
+    const walk = (object) => {
+      if (!object.active || object.visible === false || target) return;
+      if (object.type === 'Text' && object.text === ${JSON.stringify(text)}) {
+        const hit = object.input?.enabled ? object : object.parentContainer?.list.find((child) => child.type === 'Zone' && child.input?.enabled);
+        if (hit) target = hit;
+      }
+      if (Array.isArray(object.list)) object.list.forEach(walk);
+    };
+    (${owner}).list.forEach(walk);
+    if (!target) return false;
+    target.emit('pointerup', { wasTouch: false, button: 0, rightButtonReleased: () => false });
+  `));
+}
+
+async function stopAt(name) {
+  await storeIdle();
+  await record(name);
+}
+
+const tourEvidence = {};
+
 let failure = null;
 try {
   await S('Page.navigate', { url });
@@ -536,8 +624,119 @@ try {
   await until('the shop', sceneBuilt('Shop'));
   await storeIdle();
   await record('shop');
+  await page(onScene('Shop', `
+    s.setTab('decks');
+    const skus = s.deckSections().flatMap((section) => section.skus);
+    s.showDeckPreview(skus[skus.length - 1]);
+    s.closeOverlay();
+  `));
+  await stopAt('shop-cancel');
+  await page(onScene('Shop', 's.showDeckPreview(s.deckSections()[0].skus[0])'));
+  await until('the deck preview', `(() => { const s = window.__game.scene.getScene('Shop'); return s.overlay?.container.active && s.previewEntries.length > 0; })()`);
+  await stopAt('shop-preview');
+  await page(onScene('Shop', 's.showCardInspect(0)'));
+  await until('the shop inspect', "!!window.__game.scene.getScene('Shop').inspect?.container.active");
+  await stopAt('shop-inspect');
+  await page(onScene('Shop', 's.closeOverlay(); s.showDeckPreview(s.deckSections()[0].skus[0])'));
+  await stopAt('shop-reopened');
+  await page(onScene('Shop', "s.closeOverlay(); s.showOddsModal('base', { poolSize: 1, ownedDistinct: 0 })"));
+  await stopAt('shop-odds');
+  await page(onScene('Shop', "s.closeOverlay(); s.setTab('boosters'); s.qty = 3; s.buyPacks(s.boosterStripTiles.find(tile => tile.sku === 'base').price, undefined, 'base')"));
+  await until('the three-pack runway', "!!window.__game.scene.getScene('PackOpening').runway?.root.active");
+  tourEvidence.packBatch = await page(`(() => {
+    const s = window.__game.scene.getScene('PackOpening'); const rw = s.runway;
+    rw.autoTween?.remove(); rw.autoTween = null; rw.mode = 'scrub'; s.packArt?.cancelReveal();
+    window.__probePackBatch = rw.batch;
+    return { packs: rw.batch.length, cards: rw.cards.length };
+  })()`);
+  if (tourEvidence.packBatch.packs < 3) throw new Error('pack fixture did not open three packs');
+  for (let index = 0; index < tourEvidence.packBatch.cards; index++) {
+    await page(onScene('PackOpening', `
+      const rw = s.runway;
+      const pitch = (rw.maxOffset - rw.minOffset) / (rw.cards.length + 1);
+      s.runwayApplyOffset(rw.maxOffset - (${index} + 2) * pitch);
+    `));
+    await until(`pack card ${index + 1} to flip`, `window.__game.scene.getScene('PackOpening').runway.revealedMax >= ${index}`);
+    if ((index + 1) % 15 === 0 || index === tourEvidence.packBatch.cards - 1) await stopAt(`packs-flipped-${index + 1}`);
+  }
+  tourEvidence.packBatch.revealed = await page("window.__game.scene.getScene('PackOpening').runway.revealedMax + 1");
+  await page(onScene('PackOpening', 's.runwaySkip()'));
+  await stopAt('packs-summary');
+  await page(onScene('PackOpening', "s.scene.start('Shop')"));
+  await until('Shop after the pack batch', sceneBuilt('Shop'));
+  await page(onScene('Shop', "s.scene.start('PackOpening', { batch: window.__probePackBatch })"));
+  await until('the re-entered pack runway', "!!window.__game.scene.getScene('PackOpening').runway?.root.active");
+  await page(onScene('PackOpening', 's.runwaySkip()'));
+  await stopAt('packs-reentered');
 
-  await page(onScene('Shop', `s.scene.start('Duel', { opponentId: ${JSON.stringify(opts.opponent)}, gauntletRung: 1 })`));
+  await page(onScene('PackOpening', "s.scene.start('Limited')"));
+  await until('Limited', sceneBuilt('Limited'));
+  if (!(await tapText('Limited', 'Free Draft'))) throw new Error('Free Draft button missing');
+  await until('the draft pick', sceneBuilt('LimitedDraft'));
+  await stopAt('limited-draft');
+  const oldPick = await page("window.__game.scene.getScene('Shop').saveData.limited.activeRun.draft.pickIndex");
+  await page(onScene('LimitedDraft', `
+    const run = window.__game.scene.getScene('Shop').saveData.limited.activeRun;
+    window.__probeOldPackCell = s.packCells[0];
+    s.selectCard(0, run.draft.currentPacks[0][0]); s.confirmPick(run);
+  `));
+  await until('the next draft pick', `(() => {
+    const s = window.__game.scene.getScene('LimitedDraft');
+    const run = window.__game.scene.getScene('Shop').saveData.limited.activeRun;
+    return s.sys.isActive() && s.packCells.length > 0 && s.packCells[0] !== window.__probeOldPackCell && run.draft.pickIndex > ${oldPick};
+  })()`);
+  await until('the rebuilt draft', sceneBuilt('LimitedDraft'));
+  await stopAt('limited-picked');
+  tourEvidence.draftPicks = await page("window.__game.scene.getScene('Shop').saveData.limited.activeRun.draft.picks[0].length");
+  await page(onScene('LimitedDraft', `
+    const save = window.__game.scene.getScene('Shop').saveData;
+    const run = save.limited.activeRun;
+    const cards = window.__game.scene.getScene('Collection').cards;
+    const pool = cards.filter((card) => !card.token && !card.types.includes('land') && save.collection[card.id] > 0).slice(0, 45).map((card) => card.id);
+    run.status = 'build'; run.pool = pool; run.deck = pool.slice(0, 25);
+    run.landReserve = [...save.decks[0].landReserve];
+    s.scene.start('LimitedDeckBuilder');
+  `));
+  await until('the Limited deck builder', sceneBuilt('LimitedDeckBuilder'));
+  await stopAt('limited-builder');
+  await page(onScene('LimitedDeckBuilder', 's.poolPage=1; s.deckPage=1; s.draw(window.__game.scene.getScene("Shop").saveData.limited.activeRun)'));
+  await stopAt('limited-page2');
+  await page(onScene('LimitedDeckBuilder', "s.showCardInspect(window.__game.scene.getScene('Shop').saveData.limited.activeRun.pool[0])"));
+  await stopAt('limited-inspect');
+  await page(onScene('LimitedDeckBuilder', "s.closeCardInspect(); s.scene.start('Profile')"));
+  await until('Profile', sceneBuilt('Profile'));
+  await page(onScene('Profile', "s.openSaveCardPicker(() => 'probe'); s.pickerShell?.close()"));
+  await stopAt('profile-cancel');
+  await page(onScene('Profile', "s.openSaveCardPicker(() => 'probe')"));
+  await until('the Profile picker', "!!window.__game.scene.getScene('Profile').pickerSearch");
+  await stopAt('profile-picker');
+  for (let turn = 2; turn <= 3; turn++) {
+    if (!(await tapText('Profile', '›', 's.pickerShell.container'))) throw new Error('Profile picker next page missing');
+    await stopAt(`profile-page${turn}`);
+  }
+  await page(onScene('Profile', "s.pickerShell.close(); s.openSaveCardPicker(() => 'probe')"));
+  await stopAt('profile-reopened');
+  await page(onScene('Profile', "s.pickerShell.close(); s.scene.start('Achievements', { view: 'hall' })"));
+  await until('the Achievements hall', sceneBuilt('Achievements'));
+  await stopAt('achievements');
+  await page(onScene('Achievements', "s.scene.start('Play')"));
+  await until('Play', sceneBuilt('Play'));
+  await stopAt('play');
+  await page(onScene('Play', 's.showDeckSelect()'));
+  await stopAt('play-decks');
+  await page(onScene('Play', "s.scene.start('PracticePicker')"));
+  await until('Practice', sceneBuilt('PracticePicker'));
+  await stopAt('practice');
+  await page(onScene('PracticePicker', 's.selectedAvatarId = s.tileNodes[0].id; s.refreshSelection()'));
+  await stopAt('practice-selected');
+  await page(onScene('PracticePicker', "s.scene.start('Gauntlet')"));
+  await until('the Gauntlet', sceneBuilt('Gauntlet'));
+  await stopAt('gauntlet');
+  tourEvidence.towerOpponent = await page("window.__game.scene.getScene('Gauntlet').avatarForFloor(window.__game.scene.getScene('Gauntlet').currentRung).id");
+  if (opts.opponent !== null) {
+    tourEvidence.towerOpponent = opts.opponent;
+    await page(onScene('Gauntlet', `s.scene.start('Duel', { opponentId: ${JSON.stringify(opts.opponent)}, gauntletRung: s.currentRung })`));
+  } else await page(onScene('Gauntlet', 's.startFight(s.avatarForFloor(s.currentRung), s.currentRung)'));
   await until('the duel', sceneBuilt('Duel'));
   // The versus bumper and the coin flip play first; the stop is the opening
   // hand (the mulligan), where the duel's card faces are on screen.
@@ -556,7 +755,7 @@ try {
     if (!faced) await clickText('Duel', '^Play First$');
     if (!faced) await sleep(500);
   }
-  if (!faced) console.warn('warning: no card face appeared in the duel within 30 s');
+  if (!faced) throw new Error('no card face appeared in the duel within 30 s');
   await storeIdle();
   await record('duel');
 
@@ -571,8 +770,36 @@ try {
   await sleep(300);
   await storeIdle();
   await record(`zoom`);
-  if (zoomed === null) console.warn('warning: no card to zoom in the duel');
+  if (zoomed === null) throw new Error('no card to zoom in the duel');
   await page(`(() => { const d = window.__game.scene.getScene('Duel'); d.zoom?.dismissSticky(); return true; })()`);
+
+  // Keep the real opening hand before opening the public-zone browser. The
+  // fixture repeats only cards already in this duel's lease; it changes this
+  // disposable profile's in-memory duel, never the user's save or production.
+  for (let attempt = 0; attempt < 100; attempt++) {
+    if (await page("window.__game.scene.getScene('Duel').canOpenZoneModal()")) break;
+    await tapText('Duel', 'Keep');
+    await sleep(100);
+  }
+  await until('a human decision for the zone browser', "window.__game.scene.getScene('Duel').canOpenZoneModal()", 20_000);
+  tourEvidence.zoneEntries = await page(`(() => {
+    const d = window.__game.scene.getScene('Duel');
+    const player = d.duel.state.players[0];
+    const cards = [...player.deck, ...player.hand];
+    if (cards.length === 0) throw new Error('no duel cards for the zone fixture');
+    player.graveyard = Array.from({ length: 72 }, (_, index) => cards[index % cards.length]);
+    d.sync(); d.showZoneModal(0, 'graveyard');
+    return player.graveyard.length;
+  })()`);
+  await until('the large zone modal', "!!window.__game.scene.getScene('Duel').zoneModal?.container.active");
+  await stopAt('duel-zone');
+  await page(onScene('Duel', 's.zoneModal.showPage(1)'));
+  await stopAt('duel-zone-page2');
+  await page(onScene('Duel', 's.zoneModal.close()'));
+  await until('the zone modal to reopen', "window.__game.scene.getScene('Duel').canOpenZoneModal()", 20_000);
+  await page(onScene('Duel', "s.showZoneModal(0, 'graveyard')"));
+  await stopAt('duel-zone-reopened');
+  await page(onScene('Duel', 's.zoneModal.close()'));
 
   const restoresBefore = (await page('window.__art ? window.__art.stats().restores ?? 0 : 0')) ?? 0;
   const lost = await page(`(() => {
@@ -608,17 +835,25 @@ try {
   }
 }
 
-const result = { label: opts.label, url, tier: opts.tier, stream: opts.stream, budgetMiB: opts.budget, failure, spreadTimings: timings, stops };
-writeFileSync(join(outDir, `${opts.label}.json`), `${JSON.stringify(result, null, 2)}\n`);
-console.log(`[${opts.label}] wrote ${join(outDir, `${opts.label}.json`)}`);
-
+try {
+  const processInfo = (await send('SystemInfo.getProcessInfo')).result?.processInfo ?? [];
+  for (const entry of processInfo) if (Number.isInteger(Number(entry.id))) ownedPids.add(Number(entry.id));
+} catch {
+  // A failed browser may already be gone; the previously tracked PIDs remain.
+}
 await send('Browser.close').catch(() => {});
 ws.close();
 await sleep(500);
-cleanup();
+const cleaned = cleanup();
+if (cleaned.remaining.length > 0) gateFailures.push({ stop: 'cleanup', gate: 'ownedProcessesStillRunning', pids: cleaned.remaining });
+const result = { label: opts.label, url, tier: opts.tier, stream: opts.stream, budgetMiB: opts.budget,
+  failure, gateFailures, gatesPassed: failure === null && gateFailures.length === 0,
+  cleanup: cleaned, tourEvidence, spreadTimings: timings, stops };
+writeFileSync(join(outDir, `${opts.label}.json`), `${JSON.stringify(result, null, 2)}\n`);
+console.log(`[${opts.label}] wrote ${join(outDir, `${opts.label}.json`)}; gates=${result.gatesPassed ? 'PASS' : 'FAIL'}; owned processes remaining=${cleaned.remaining.length}`);
 try {
   rmSync(scratch, { recursive: true, force: true });
 } catch {
   // Edge may still hold a lock on its profile
 }
-process.exit(failure === null ? 0 : 1);
+process.exit(result.gatesPassed ? 0 : 1);

@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/art/artLoader.ts, src/art/ArtResolver.ts, src/art/artWatch.ts, src/art/artArrivals.ts, src/art/artRetry.ts, src/ui/CardThumbCache.ts, src/ui/artGate.ts, src/ui/duelArt.ts, src/art/pagedRequests.ts, src/ui/displayWalk.ts, src/scenes/ArtLoaderScene.ts, scripts/gen-art-manifest.ts, scripts/gen-art-halfres.ts, scripts/serve-lan.ts, .github/workflows/deploy.yml, src-tauri/tauri.conf.json · last-verified: 2026-09-28 · design doc, re-verify when the art loader, the thumbnail cache, the card-face geometry (R13) or the deploy pipeline changes -->
+<!-- source-of-truth: src/art/artLoader.ts, src/art/artSource.ts, src/art/ArtResolver.ts, src/art/artWatch.ts, src/art/artArrivals.ts, src/art/artRetry.ts, src/ui/CardThumbCache.ts, src/ui/artGate.ts, src/ui/duelArt.ts, src/art/pagedRequests.ts, src/art/packRequests.ts, src/art/artLifetime.ts, src/ui/displayWalk.ts, src/scenes/ArtLoaderScene.ts, scripts/gen-art-manifest.ts, scripts/gen-art-halfres.ts, scripts/serve-lan.ts, .github/workflows/deploy.yml, src-tauri/tauri.conf.json · last-verified: 2026-10-02 · design doc, re-verify when the art loader, the thumbnail cache, the card-face geometry (R13) or the deploy pipeline changes -->
 
 # Card art streaming: load on demand, unload under a budget (1.9 lane D)
 
@@ -275,14 +275,15 @@ failed file is never asked for again.
 | Collection binder | 12 thumbs per spread, variant rows | the spread on show; the next and previous spread | `visible`; `soon` | the thumb Images (thumb textures); sources are not pinned once baked | half / half |
 | Zoom preview (`CardZoomPreview`, any scene) | a live CardView at 1.3, up to 733x1045 px at 1440p | the hovered card | `now` | the preview's view | full, with half drawn meanwhile / half |
 | Deck Builder | the 12-card pool page, the deck pane's thumbs (the Darling portrait, the basics previews, the style sample), the Darling and land-style pickers; the deck-list rows are text and draw no art | the page, the pane's thumbs, the open picker page; the open deck-list page's cards | `visible`; the pages either side `soon`; the deck-list cards prefetched at `soon`, not leased, since the rows draw no art (the row's hover zoom then opens on the half texture) | thumbs | half / half |
-| Pack opening | the rolled cards as live CardViews | the first pack, gated, before the flip; later packs in a batch leased at `soon`, each gated at its own reveal | `now` | the scene | full / half |
+| Pack opening | the rolled cards as live CardViews | built: first original pack gated before build; later packs leased at `soon`, promoted before their cards flip in the existing rarity-sorted runway; Skip gates its summary cards | `now`; later packs `soon` | the batch, released at scene shutdown or destruction | full / half |
 | Duel | both decks, reserves, tokens, Darlings, portraits (115-137 keys; in the Tower also the 26 rung portraits the run recap draws) | the set (`src/ui/duelArt.ts`), gated at `create` as today; prefetched at `soon` once the opponent is chosen: the Tower screen's rung, Practice's selection, the Tower reward's Next Foe. Play has no prefetch: nothing is chosen there | `now` | the scene, through restarts between rungs (see Traps) | full / half |
-| Limited draft | the pick pack (up to 15 thumbs), the picks | the pack, gated; the picks | `now`; `visible` | scene and thumbs | half thumbs / half |
-| Limited Deck Builder | the pool and deck; a 1.35 CardView inspect | the pool, gated as today, then per page | `now` | scene | full for the inspect / half |
-| Shop | 19 grid faces, featured thumbs, the deck preview and atelier modals | the faces, gated; each modal's cards through `awaitArt` | `now` | scene; each modal's lease, released when the modal is destroyed | full / half |
-| Profile | the owned-card picker (thumbs) | the picker page | `visible` | thumbs | half / half |
-| Achievements hall | furnishings as CardViews | the hall set, gated as today | `now` | scene | full / half |
-| Gauntlet, Practice picker, Play | 26 avatar portraits; the Play deck faces (thumbs) | portraits gated as today | `now` | scene | full / half |
+| Limited draft | the pick pack (up to 15 thumbs), the picks, table portraits | built: current human pack gated at half; portraits gated at primary; picks through `PagedArt` | `now`; picks `visible` | scene and thumb Images; released at shutdown or destruction | half thumbs, primary portraits / half |
+| Limited Deck Builder | text-only pool and deck pages; a 1.35 CardView inspect | built: pool gated as today, gate released after build; text pages prefetch their cards; inspect takes its own primary lease | gate and inspect `now`; pages `soon` | initial gate until build; inspect until destruction | full inspect / half |
+| Shop | grid faces, featured thumbs, deck preview and nested inspect | built: faces gated; waiting and finished modal containers each own `awaitArt`; odds draws no card art. The atelier is Collection's existing inspect | `now` | scene until shutdown; each modal until destruction | full / half |
+| Profile | the owned-card picker (thumbs) | built: picker page at once through `PagedArt`, neighbours prefetched | `visible`; neighbours `soon` | page sources until arrival and bake; thumb Images until destruction; modal destruction cancels outstanding requests | half / half |
+| Achievements hall | furnishings as CardViews | built: hall set gated as today; shutdown release verified in `sceneArtLease` | `now` | scene until shutdown | full / half |
+| Gauntlet, Practice picker, Play | avatar portraits; the Play deck faces (thumbs) | built: existing portrait and face gates retained; Tower and Practice still prefetch the chosen duel through S5b | `now`; chosen duel `soon` | scene until shutdown | full / half |
+| Zone contents | one page of graveyard, severed or reserve thumbs | built: page through `PagedArt`, neighbours prefetched; the duel's primary lease normally already covers their sources | `visible`; neighbours `soon` | page until arrival and bake; thumb Images until destruction; modal destruction cancels outstanding requests | half bakes from resident primary when available / half |
 | Duel HUD portraits, Versus bumper | a portrait each | with the duel set | `now` | the duel lease | full / half |
 | Save-card export (`saveCard.ts`) | a 640x800 composite | the file's bytes from the store, decoded into its own bitmap; lease released in `finally` | `now` | the export | full / half |
 | Showcase (dev only) | every card, paged | the page | `visible` | thumbs | full / half |
@@ -516,6 +517,14 @@ wait for its answer. That costs one round trip per pack per session, and it
 stops six parallel requests from each downloading a whole pack from a host
 that ignores ranges.
 
+Range reads pass `cache: 'no-store'` through the source's `Io`/`exchange`
+seam. Chromium cannot share a sparse HTTP-cache entry between concurrent
+range requests; otherwise it can reject them with
+`ERR_CACHE_OPERATION_NOT_SUPPORTED`. This bypasses the browser HTTP cache
+only for ranges. The CDN still caches the packs, and Pages sends
+`max-age=14400`. Whole-pack reads and loose-file reads keep their existing
+cache behaviour. A persistent art cache was ruled out of 1.9 (S-Q5).
+
 | Response | What it means | What the store does |
 | --- | --- | --- |
 | 206, `Content-Range` starts at the offset, body length matches, starts `RIFF....WEBP` | good | decode |
@@ -539,11 +548,34 @@ Edge over CDP, and a fresh profile per run. It reads a small read-only
 `window.__art` hook (`stats()`, `standIns()`, `missingTextures()`) that S3
 adds beside `window.__game`.
 
+S5a long-tail verification, 2026-10-02: the production build and 1,387
+art/UI tests pass, including the accessibility layout files. All 19 new
+behaviour tests failed under their named mutations. The full- and lite-tier
+Edge attempts failed before the game loaded: the GPU subprocess exited with
+`0xC0000022` (access denied). The rendered accessibility probe also failed at
+browser startup. Those sandbox attempts collected no per-stop measurements.
+The approver then ran the production build outside the sandbox: 43 stops at
+both sizes and both budgets, plus a passing streaming-off run. Every
+streaming-on run had zero missed leases, stand-ins and missing textures.
+The only failures were `ERR_CACHE_OPERATION_NOT_SUPPORTED` console errors:
+15 full/default, 11 lite/default, 28 full/8 MiB and 14 lite/8 MiB. The
+range-only cache bypass in section 5 was then confirmed by the approver's
+full-tier, 8 MiB rerun: zero console errors, missed leases, stand-ins and
+missing textures. The zone subtitle header now clears the title and full
+thumbnail bounds, including their bleed, by at least 4 px without losing
+the compact grid's 24-card page at standard text. The rendered accessibility
+probe also checks live subtitle, thumbnail and badge bounds in the existing
+human graveyard fixture. Its rendered rerun remains unverified.
+`FEATURES.artStream` remains false, and S6 still owns gates 1, 2 and 5.
+
 1. **GPU residency, before and after, both tiers.** A scripted tour: menu,
    Collection (five spreads, a filter change, a zoom), the Deck Builder
    (three pool pages, the deck list, the Darling picker), the Shop and its
-   deck preview, a batch pack opening, a draft pick, the Gauntlet, a Tower
-   duel with a zoom, then back to Collection. At each stop it records, from
+   deck preview and inspect, a three-pack batch with every card flipped, a
+   draft pick, the Limited builder and inspect, the Profile picker through
+   two page turns, the Achievements hall, Play, Practice, the Gauntlet, a Tower
+   duel with a zoom and a large paged zone modal, then back to Collection.
+   Close/reopen stops exercise modal and scene lifetimes. At each stop it records, from
    outside the store: the Edge GPU process's private memory, its dedicated
    VRAM and its shared GPU memory (the Windows `GPU Process Memory`
    counters), and the renderer process's private memory. The GPU process's
@@ -619,7 +651,7 @@ shared-file order in [plan-1.9.md](plan-1.9.md) (Sequencing) holds.
 | **S2 Sources and packs** | NEW `src/art/artSource.ts`, `scripts/pack-art.ts`, `tests/art/artSource.test.ts`, `tests/scripts/packArt.test.ts` (+ a 3-file fixture); EDIT `vite.config.ts`, `package.json` (the `build` script), `.gitignore`, `.github/workflows/deploy.yml`, `scripts/serve-lan.ts`, `docs/desktop-build.md`, `docs/architecture.md` | the sitting; runs beside S1 | the source interface is agreed first, in S1's PR description |
 | **S3 The Phaser shell** | EDIT `src/scenes/ArtLoaderScene.ts` (decode, upload cap, eviction and the safety scan, `window.__art`), `src/art/ArtResolver.ts` (tier and the best-resident answer), `src/art/artWatch.ts` (`holdArt`), `src/ui/artGate.ts` (scene leases), `src/scenes/PreloadScene.ts`; NEW `scripts/probe-art.mjs` | S1, S2 | **ships behind a flag, default off (today's whole-manifest stream)**, flipped to "stream on" only when S5a's Collection, Deck Builder and Showcase split has landed. Without that split, S3 turns their `gateOnArt(this, null)` into a `now` lease on the whole manifest: 3 GB pinned, worse than today |
 | **S4 Views hold what they draw** | EDIT `src/ui/CardView.ts`, `src/ui/BoardCardView.ts`, `src/ui/CardThumbCache.ts`, `src/ui/portraitArt.ts` (I9's `addPortraitArt`: the lease and the removal belt go inside it), `src/ui/saveCard.ts` | S3; **R13 in `CardView.ts`**; I9 (PR #473) | shared file order: R13, then this, then accessibility's card surfaces |
-| **S5a Grids and menus** | EDIT `CollectionScene.ts`, `DeckBuilderScene.ts`, `CardShowcaseScene.ts`, `PackOpeningScene.ts`, `LimitedDraftScene.ts`, `LimitedDeckBuilderScene.ts`, `ShopScene.ts`, `ProfileScene.ts`, `AchievementsScene.ts`, `PlayScene.ts`, `GauntletScene.ts`, `PracticePickerScene.ts`, `src/ui/ZoneContentsModal.ts` | S4; I9 and I5 (`LimitedDraftScene.ts`), I9 (`ShopScene.ts`, `GauntletScene.ts`, `PracticePickerScene.ts`); I3 and I4 (`DeckBuilderScene.ts`) | before accessibility's core-scene pass (plan wave 3); can split into Collection, Deck Builder and Showcase, then the rest |
+| **S5a Grids and menus** | EDIT `CollectionScene.ts`, `DeckBuilderScene.ts`, `CardShowcaseScene.ts`, `PackOpeningScene.ts`, `LimitedDraftScene.ts`, `LimitedDeckBuilderScene.ts`, `ShopScene.ts`, `ProfileScene.ts`, `AchievementsScene.ts`, `PlayScene.ts`, `GauntletScene.ts`, `PracticePickerScene.ts`, `src/ui/ZoneContentsModal.ts`; shared `artGate.ts`, `pagedRequests.ts`, `packRequests.ts`, `artLifetime.ts`; probe and Phaser-free tests | S4; I9 and I5 (`LimitedDraftScene.ts`), I9 (`ShopScene.ts`, `GauntletScene.ts`, `PracticePickerScene.ts`); I3 and I4 (`DeckBuilderScene.ts`) | Built: core and long tail, preserving the landed accessibility layouts. Scene gates, paged thumbnails, per-pack reveal gates and destroy-bound modal waits are in place. `FEATURES.artStream` stays false; S6 owns the release measurements and switch |
 | **S5b The duel** | EDIT `src/scenes/DuelScene.ts` (the duel lease across rung restarts, the portrait leases) | S4; **I6 and I9** (wave 1) | shared file order: I6/I9, then this, then A2's two-target flow, then accessibility's Duel pass |
 | **S6 Gates** | the probe runs (section 6), numbers into this doc; the desktop app run | S5a, S5b | measurement only |
 
@@ -646,6 +678,9 @@ Where the lane meets the rest of 1.9:
 
 **The line:** the packaging is the 2.0 requirement, and eviction is the 1.9
 benefit. The store is built so the source is a seam.
+
+The S5a long tail below is now implemented; its rendered gates remain open.
+The earlier deferral boundary is retained here as release context.
 
 - **Where wave 2 would actually run long.** Not S2: packs are Phaser-free
   and about two days of work. The long parts are S5a (13 scene files that
@@ -745,10 +780,12 @@ Each opens with the recommendation.
    deploys take roughly twice as long. The Forge moves to packs and the
    loose files leave Pages by 2.0. itch never gets them, nor the Forge.
 5. **A persistent art cache (Cache Storage keyed by pack hash), so a
-   returning player does not download art again.** Recommended: not in 1.9.
-   On Pages, Cloudflare's 4-hour cache and the browser's HTTP cache cover
-   most repeat sessions on Chromium. Whether Safari caches 206 responses
-   is unverified. On itch the storage is partitioned and Safari makes it
+   returning player does not download art again.** Ruled out of 1.9 (S-Q5).
+   On Pages, Cloudflare still caches the packs and Pages sends
+   `max-age=14400`. Range reads bypass the browser HTTP cache because
+   Chromium cannot share a sparse entry between concurrent ranges;
+   whole-pack and loose-file reads keep their existing cache behaviour.
+   On itch the storage is partitioned and Safari makes it
    ephemeral, so the cache helps least where it would matter most.
    Revisit with 2.0's measurements, Safari first.
 6. **If 1.9 runs long, defer the packs (S2) and S5a's long tail to 2.0.**

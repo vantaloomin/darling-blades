@@ -1,8 +1,10 @@
 import Phaser from 'phaser';
 import type { CardDef, ManaCost } from '../engine/types';
 import type { CardVariant } from '../meta/variants';
+import { pageNeighbourhood } from '../meta/collectionFilter';
 import { bindTapButton, inflateHitArea } from '../platform/gestures';
-import { makeCardThumb } from './CardThumbCache';
+import { makeCardThumb, thumbArtWanted } from './CardThumbCache';
+import { PagedArt } from './artGate';
 import { CARD_H, CARD_W } from './CardView';
 import { manaCostText } from './rulesText';
 import { renderManaText } from './ManaText';
@@ -106,7 +108,9 @@ export function showZoneContents(
     });
     rendered.text.setOrigin(0.5).setData('a11yKeepVisible', true).setData('a11yFullText', rendered.text.text);
     rendered.reflow();
-    subtitleHeight = rendered.text.height;
+    const subtitleBounds = sub.getBounds();
+    subtitleHeight = 2 * Math.max(sub.y - subtitleBounds.y, subtitleBounds.bottom - sub.y);
+    container.setData('a11yZoneHeader', { title, subtitle: sub });
     container.add(sub);
   }
   const measure = scene.add.container(0, 0).setVisible(false);
@@ -135,9 +139,15 @@ export function showZoneContents(
   }
   measure.destroy();
   const layout = zonePanelLayout(expanded, title.height, subtitleHeight, badgeHeight, deadlineHeight, actionHeight, actionWidth);
+  title.setY(layout.titleY);
   sub?.setY(layout.subtitleY);
   const { columns, columnGap, pageSize } = layout;
   const pageCount = Math.max(1, Math.ceil(opts.entries.length / pageSize));
+  const pageArt = new PagedArt(scene, 'zone-contents', { owner: container });
+  const wantedArt = (entries: readonly ZoneContentsEntry[]): string[] => entries.flatMap((entry) => {
+    const wanted = thumbArtWanted(scene, entry.card, entry.landStyle, entry.variant);
+    return wanted === null ? [] : [wanted.key];
+  });
   container.setData('a11yDensity', {
     actual: { id: 'duel-zone', rows: layout.rows, columns, pitch: layout.pitch, top: layout.firstY },
     release: expanded ? { id: 'duel-zone', rows: 2, columns: 4, pitch: 235, top: 195 } : { id: 'duel-zone', rows: 4, columns: 6, pitch: 120, top: 176 },
@@ -167,6 +177,7 @@ export function showZoneContents(
       .setOrigin(1, 0);
     const badgeW = Math.max(34, Math.ceil(label.width + 10));
     const badge = scene.add.graphics();
+    badge.setData('a11yZoneGrid', true);
     badge.fillStyle(theme.graphics.panelFill, duelPanelAlpha(0.94));
     badge.fillRoundedRect(label.x - badgeW, label.y - 2, badgeW, badgeHeight, theme.radius.control);
     badge.lineStyle(1, theme.graphics.panelStroke, theme.alpha.chrome);
@@ -210,7 +221,12 @@ export function showZoneContents(
   };
 
   const renderPage = (nextPage: number): void => {
+    if (!container.active) return;
     page = Phaser.Math.Clamp(nextPage, 0, pageCount - 1);
+    const around = pageNeighbourhood(opts.entries, page, pageSize);
+    // A duel normally already holds these sources. Other callers, and styled
+    // or newly created cards, still get the same bounded page request rule.
+    pageArt.show(wantedArt(around.shown), wantedArt(around.near));
     clearGrid();
     if (opts.entries.length === 0) {
       addGridItem(
@@ -234,6 +250,7 @@ export function showZoneContents(
       const x = GRID_CX - ((columns - 1) * columnGap) / 2 + col * columnGap;
       const y = layout.firstY + row * layout.pitch;
       const thumb = makeCardThumb(scene, x, y, entry.card, thumbScale, entry.landStyle, entry.variant);
+      thumb.setData('a11yZoneGrid', true);
       thumb.setInteractive({ useHandCursor: true });
       bindTapButton(scene, thumb, (pointer) => {
         if (pointer.rightButtonReleased()) return;

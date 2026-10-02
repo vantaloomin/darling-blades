@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { ART_EVENT_PROGRESS, artMissing, ensureArt, liveArtStore, manifestArtKeys } from '../art/artLoader';
 import type { ArtLease, ArtPriority, ArtTier } from '../art/artStore';
 import { PagedRequests } from '../art/pagedRequests';
+import { bindArtLease } from '../art/artLifetime';
 import { backLabelFor } from './navigation';
 import { applySceneSettings } from './SceneBackdrop';
 import { theme } from './theme';
@@ -69,11 +70,35 @@ export interface ArtWaitHandlers {
  * for back-navigation during a wait.
  */
 export function awaitArt(
-  scene: Phaser.Scene,
+  owner: Phaser.Scene | Phaser.GameObjects.Container,
   ids: Iterable<string> | null,
   handlers: ArtWaitHandlers,
 ): void {
-  waitForArt(scene, ids, handlers, () => ensureArt(ids));
+  const scene = owner instanceof Phaser.Scene ? owner : owner.scene;
+  if (!scene || (owner instanceof Phaser.GameObjects.Container && !owner.active)) return;
+  const list = ids === null ? null : [...ids];
+  const store = liveArtStore();
+  const lease = store === null ? null : bindArtLease(
+    store.lease(`wait:${scene.sys.settings.key}`, list ?? manifestArtKeys(), { priority: 'now' }),
+    (release) => onArtOwnerGone(scene, owner, release),
+  );
+  waitForArt(scene, list, handlers, () => lease?.ready ?? ensureArt(list), 'primary', owner);
+}
+
+/** Both shutdown and destruction end a wait; re-entry gets fresh listeners. */
+function onArtOwnerGone(
+  scene: Phaser.Scene,
+  owner: Phaser.Scene | Phaser.GameObjects.Container,
+  gone: () => void,
+): () => void {
+  scene.events.once(Phaser.Scenes.Events.SHUTDOWN, gone);
+  scene.events.once(Phaser.Scenes.Events.DESTROY, gone);
+  if (owner instanceof Phaser.GameObjects.Container) owner.once(Phaser.GameObjects.Events.DESTROY, gone);
+  return () => {
+    scene.events.off(Phaser.Scenes.Events.SHUTDOWN, gone);
+    scene.events.off(Phaser.Scenes.Events.DESTROY, gone);
+    if (owner instanceof Phaser.GameObjects.Container) owner.off(Phaser.GameObjects.Events.DESTROY, gone);
+  };
 }
 
 /**
@@ -94,15 +119,10 @@ export function sceneArtLease(
 ): ArtLease | null {
   const store = liveArtStore();
   if (store === null) return null;
-  const lease = store.lease(`scene:${scene.sys.settings.key}`, ids ?? manifestArtKeys(), { priority, tier });
-  const release = (): void => {
-    lease.release();
-    scene.events.off(Phaser.Scenes.Events.SHUTDOWN, release);
-    scene.events.off(Phaser.Scenes.Events.DESTROY, release);
-  };
-  scene.events.once(Phaser.Scenes.Events.SHUTDOWN, release);
-  scene.events.once(Phaser.Scenes.Events.DESTROY, release);
-  return lease;
+  return bindArtLease(
+    store.lease(`scene:${scene.sys.settings.key}`, ids ?? manifestArtKeys(), { priority, tier }),
+    (release) => onArtOwnerGone(scene, scene, release),
+  );
 }
 
 /** `awaitArt`'s wait, with what "ready" means supplied by the caller. */
@@ -111,19 +131,19 @@ function waitForArt(
   ids: Iterable<string> | null,
   handlers: ArtWaitHandlers,
   whenReady: () => Promise<void>,
+  tier: ArtTier = 'primary',
+  owner: Phaser.Scene | Phaser.GameObjects.Container = scene,
 ): void {
-  const total = artMissing(ids).length;
+  const missing = (): number => liveArtStore()?.missing(ids ?? manifestArtKeys(), tier).length ?? artMissing(ids).length;
+  const total = missing();
   if (total === 0) {
     handlers.onReady();
     return;
   }
 
   const onProgress = (): void => {
-    handlers.onWait?.(loadingLine(total, artMissing(ids).length));
+    handlers.onWait?.(loadingLine(total, missing()));
   };
-  handlers.onWait?.(loadingLine(total, total));
-  scene.game.events.on(ART_EVENT_PROGRESS, onProgress);
-
   let settled = false;
   const stopListening = (): void => {
     scene.game.events.off(ART_EVENT_PROGRESS, onProgress);
@@ -131,14 +151,18 @@ function waitForArt(
   const onShutdown = (): void => {
     settled = true;
     stopListening();
+    stopGone();
   };
-  scene.events.once(Phaser.Scenes.Events.SHUTDOWN, onShutdown);
+  const stopGone = onArtOwnerGone(scene, owner, onShutdown);
+  scene.game.events.on(ART_EVENT_PROGRESS, onProgress);
+  handlers.onWait?.(loadingLine(total, total));
 
   void whenReady().then(() => {
-    if (settled || !scene.sys.isActive()) return;
+    if (settled) return;
     settled = true;
-    scene.events.off(Phaser.Scenes.Events.SHUTDOWN, onShutdown);
+    stopGone();
     stopListening();
+    if (!scene.sys.isActive() || (owner instanceof Phaser.GameObjects.Container && !owner.active)) return;
     handlers.onReady();
   });
 }
@@ -168,9 +192,11 @@ export function gateOnArt(
   scene: Phaser.Scene,
   ids: Iterable<string> | null,
   build: () => void,
+  options: { tier?: ArtTier; releaseAfterBuild?: boolean } = {},
 ): void {
   const list = ids === null ? null : [...ids];
-  const lease = sceneArtLease(scene, list, 'now');
+  const tier = options.tier ?? 'primary';
+  const lease = sceneArtLease(scene, list, 'now', tier);
   let shade: Phaser.GameObjects.Graphics | null = null;
   let label: Phaser.GameObjects.Text | null = null;
   let back: Phaser.GameObjects.Text | null = null;
@@ -218,12 +244,16 @@ export function gateOnArt(
       shade?.destroy();
       label?.destroy();
       back?.destroy();
-      build();
+      try {
+        build();
+      } finally {
+        if (options.releaseAfterBuild) lease?.release();
+      }
     },
   };
   // Through the store the scene's own lease is the wait; through the queue,
   // exactly the wait `awaitArt` has always made.
-  if (lease !== null) waitForArt(scene, list, handlers, () => lease.ready);
+  if (lease !== null) waitForArt(scene, list, handlers, () => lease.ready, tier);
   else awaitArt(scene, list, handlers);
 }
 

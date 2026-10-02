@@ -53,6 +53,7 @@ import { currentAccessibility, setAccessibility, TEXT_SCALES } from '../ui/acces
 import { BoardCardView } from '../ui/BoardCardView';
 import { CardView } from '../ui/CardView';
 import { theme } from '../ui/theme';
+import { zonePanelHeaderFindings } from '../ui/duelPanelPresentation';
 import { menuDensityFindings, menuTextFindings, menuTextOverlap, type MenuTextSurface, type MenuDensity } from '../ui/menuText';
 
 export interface ProbeCell {
@@ -606,6 +607,32 @@ export function checkScene(scene: Phaser.Scene): Omit<ProbeSceneReport, 'scene'>
       }
     }
   }
+  // Zone headers must clear non-Text thumbs and badge plates too. Read the
+  // live objects, not the layout's predicted bands, so misplaced draws fail.
+  const checkZone = (object: Phaser.GameObjects.GameObject): void => {
+    if ('visible' in object && object.visible === false) return;
+    if (!(object instanceof Phaser.GameObjects.Container)) return;
+    const header = object.getData('a11yZoneHeader') as {
+      title: Phaser.GameObjects.Text; subtitle: Phaser.GameObjects.Container;
+    } | undefined;
+    if (header) {
+      const grid = object.list.filter(item => item.active && item.getData('a11yZoneGrid') === true)
+        .flatMap(item => {
+          if (item instanceof Phaser.GameObjects.Graphics) {
+            const local = graphicsLocalRect(item);
+            return local ? [toWorld(item, local)] : [];
+          }
+          return item instanceof Phaser.GameObjects.Image ? [item.getBounds()] : [];
+        });
+      const subtitle = header.subtitle.getBounds();
+      for (const edge of zonePanelHeaderFindings(header.title.getBounds(), subtitle, grid)) {
+        findings.push({ kind: 'overlap', text: 'zone subtitle', bounds: round(subtitle),
+          detail: `less than 4px clearance from ${edge}` });
+      }
+    }
+    object.list.forEach(checkZone);
+  };
+  scene.children.list.forEach(checkZone);
   return { texts: texts.length, cardFaceTexts, maskedOut, findings, density: density?.actual };
 }
 
