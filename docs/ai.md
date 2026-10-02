@@ -996,7 +996,8 @@ do prove is listed beside the claim it proves, in the file.
 
 **Usage-audit behaviour proofs (wave 3, 2026-10-02).** The named cells are
 seeded engine games with their recorded action prefixes replayed at
-`30cbf0e8`; earlier improved decisions cannot erase the position under test.
+`30cbf0e8` (P2-P4) or `feb4218c` (P5, ramp); earlier improved decisions
+cannot erase the position under test.
 The keyword sites have code evidence, and Apotheosis appears in no audit
 list, so those entries use constructed positions as section 4 permits.
 
@@ -1006,6 +1007,7 @@ list, so those entries use constructed positions as section 4 permits.
 | A main-two enemy tap that expires before it matters is worth zero, for every source (U3) | P3, Darlings cell 211401 game 19 turn 18: Hard leaves the Abbess untapped; `landEconomy.test.ts` covers the artifact on all three brains, and `activated.test.ts` keeps the positive main-one tap and persistent board premium |
 | Medium and Hard hold a Mark payoff without recipients (D13) | P2, Warchest cell 202312 game 2 turn 3 and avatars cell 2300 game 7 turn 6: hold Brood Communion; hold Apotheosis without Marks, cast it with a live payoff, still cast the creature body; Medium still spends Reef Bloom for its independent Foresee |
 | A granted keyword uses the printed-keyword valuation on its recipient (U2) | Targeted grants prefer the body that benefits, skip redundant keywords, and price Deathblade versus Skyborne by attack for spell boosts and Empower; removal sees the recipient's size and controller on static grants; a later boost sees tokens created earlier in its spell |
+| Medium spends ramp while it still accelerates later turns (U4) | P5, Warchest cell 201405 game 3 turn 3: cast Verdant Seiðr-Weaver on her second turn and play the extra land; with zero or one reserve land, value it as its body alone. `rampValue.test.ts` covers the live schedule, pending drops, stacking, Dawn, Empower and Retell |
 
 All four former flat `0.5` grant sites in `value.ts` use the existing
 `keywordScore` / `keywordBonus` valuation: targeted boosts, generic boost
@@ -1017,13 +1019,21 @@ the existing `KEYWORD_REFERENCE_ATTACK` (3), not a new price.
 **Gaps the 1.8.5 labs found, logged for 1.9** (`docs/plan-1.8.5.md`; the lab
 write-ups sit in the local `balance/study/lab/`):
 
-- **Ramp is valued at 0.** `opImpactValue` has no `extraLandDrop` case, and
-  `empowerValue` scores it 0 too. So Medium casts a two-mana ramp spell at a
-  blank card's priority, on its own turn 6.9 on average, and a Dawn ramp
-  engine gets only the flat triggered-ability premium. A one-line flat case
-  would bring back the scorer's old defect. The target is the scorer's §4v
-  shape: extra untapped mana before the 10-land reserve runs out, from the
-  land count the view already carries. It changes play, so it needs the gates.
+- **Fixed in wave 3: ramp valued by cast turn (D13 / U4).** `opImpactValue`,
+  Empower and Medium's Retell use the scorer's §4v shape. From the live
+  `PlayerView`, compare two schedules starting with the same battlefield
+  lands and remaining reserve, consume existing land permissions in both,
+  then count the proposed ramp's extra untapped mana after each future
+  normal land drop. The scorer supplies the 0.89 turn decay, 0.58 stacking
+  discount, 0.62 Dawn realization and unchanged turn-two 1.9 anchor.
+  A new Dawn engine starts at the next Dawn and earns only its productive
+  firings before the reserve runs out. A pure ramp trigger gets this value
+  instead of the generic trigger premium: with zero or one land left, its
+  creature is worth its body alone. Mixed triggers keep their other value.
+  Card-only estimates and classic games do not assume a guaranteed reserve.
+  The mana-value-2 card floor stays. The historical lab mean was 6.9; the
+  matched branch measurements and unchanged gates are recorded in
+  [the U4 usage read](usage-audit-2026-09.md#9-ramp-by-cast-turn-u4-2026-10-02).
 - **Fixed in wave 3: Starborne Apotheosis and Brood Communion without
   recipients (D13).** The labs read 72% of Apotheosis casts without Marks
   and 32-39% of Communion casts without creatures. The live Mark payoff now

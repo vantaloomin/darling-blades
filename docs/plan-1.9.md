@@ -133,7 +133,7 @@ and what it hands on:
 
 | Item | What 1.8.5 found | Where it lands |
 | --- | --- | --- |
-| **The AI values ramp at 0** | `opImpactValue` has no `extraLandDrop` case, so Medium casts a two-mana ramp spell on its own turn 6.9 on average, and a Dawn ramp engine earns only the triggered-ability premium. A flat case would reintroduce the scorer's old defect; the target is the §4v cast-turn shape. It changes play, so it re-measures the gates | Lane E (the usage audit); **the AI change is approved (D13, 2026-09-28)** |
+| **The AI values ramp at 0** | Fixed with the §4v cast-turn shape from live battlefield lands, reserve and turn: cast effects, Empower, Retell and a Dawn engine's remaining productive firings. The historical lab mean was 6.9; matched usage measurements and every unchanged gate are recorded in the usage audit | Lane E; **LANDED 2026-10-02 (D13 / U4), last and alone in wave 3** |
 | **The ramp anchor** | One extra land at mana value 2 stays at the Rampant Growth anchor, 1.9; the ramp lab measured it at 1.22 [0.95, 1.60]. Lowering it would make every ramp card read cheaper in the Forge | **RULED 2026-09-28: keep 1.9.** The anchor does not move; the lab reading is recorded in §4v |
 | **48 reverted nerfs** | 1.8.5 shipped only the 27 nerfs the sweep backs with play. 48 cards the new scorer calls over budget were never picked by the sweep's optimizer, 15 of them because no persona plays their colours (green, red-white). They stay as in 1.8.1, and the Forge reads some as Over Value | A measure-later pass: per-card in-engine checks, or the sweep with green and red-white personas (lane F, ruled D12); the list is `balance/study/slate/reverted-48.json` |
 | **Starborne Apotheosis still under** | Measured about 1.6 below its budget after its buff. The AI casts it as "gain 8 life" with no Marked creature on the board in 72% of casts | AI mark-awareness first (lane E), then re-measure |
@@ -944,6 +944,16 @@ sitting and stay as it proposes them.
   baseline comparison and unchanged gates are recorded in
   [the usage audit](usage-audit-2026-09.md). No band, floor, card or list changes;
   ramp still lands last and alone (U4).
+
+- **As built (wave 3, ramp valuation, U4, 2026-10-02):** ramp casts,
+  Empower and Retell use the scorer's §4v constants on the live land and
+  reserve schedule; Dawn engines start next Dawn and stop earning value
+  when normal drops catch up. Pure ramp bodies lose the generic trigger
+  premium, so an exhausted or one-land reserve leaves only the body.
+  The 1.9 anchor and mana-value-2 card floor stay. The seeded turn-two
+  Seiðr-Weaver decision, counter-cases, matched cast-turn means and every
+  before/after gate are recorded in
+  [the U4 usage read](usage-audit-2026-09.md#9-ramp-by-cast-turn-u4-2026-10-02).
 
 ### Lane F — the sweep: weenie's cost, racing, and the Medium screen
 

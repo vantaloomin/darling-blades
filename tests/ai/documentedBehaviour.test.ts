@@ -21,6 +21,31 @@ afterAll(() => {
 });
 
 describe('documented public-board usage decisions', () => {
+  // P5: Warchest cell 201405, game 3, turn 3 at feb4218c. The recorded
+  // prefix reaches Medium's second turn after her normal land drop.
+  it('Medium develops Seiðr-Weaver early while its extra land can accelerate later turns', () => {
+    const game = checked(() => usageAuditGame('earlyRamp'));
+    const view = game.viewFor(0);
+    expect(view.battlefield.filter((p) => p.controller === 0 && CARD_DB[p.cardId].types.includes('land'))).toHaveLength(2);
+    expect(view.you.landReserve).toHaveLength(8);
+    const handIndex = view.you.hand.indexOf('rg-verdant-seidr');
+    expect(game.legalActions(0)).toContainEqual({ type: 'castSpell', handIndex });
+    expect(act(game, new MediumAI(CARD_DB), CARD_DB)).toEqual({ type: 'castSpell', handIndex });
+    expect(game.viewFor(0).you.landDropsRemaining).toBe(1);
+    expect(act(game, new MediumAI(CARD_DB), CARD_DB)).toMatchObject({ type: 'playLand' });
+    expect(game.viewFor(0).you.landReserve).toHaveLength(7);
+  });
+
+  it.each([0, 1])('Medium values Seiðr-Weaver as its body alone with %i reserve land left', (remaining) => {
+    const game = checked(() => usageAuditGame('earlyRamp'));
+    const view = game.viewFor(0);
+    view.you.landReserve = view.you.landReserve!.slice(0, remaining);
+    const bodyOnly = { ...CARD_DB, 'rg-verdant-seidr': { ...CARD_DB['rg-verdant-seidr'], abilities: [] } };
+    expect(cardValue(CARD_DB, 'rg-verdant-seidr', view)).toBe(cardValue(bodyOnly, 'rg-verdant-seidr', view));
+    const action = new MediumAI(CARD_DB).chooseAction(view, game.legalActions(0));
+    expect(action).toEqual({ type: 'castSpell', handIndex: view.you.hand.indexOf('rg-corpse-taker') });
+  });
+
   // P4: Darlings cell 210102, game 3, turn 22 at 30cbf0e8. The deliberate
   // branch must call Gaia when it is the only cast; noise is disabled here.
   it('Easy calls her affordable Darling when she has no spell to cast', () => {

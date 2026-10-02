@@ -4707,5 +4707,92 @@
         }
       }
     ]
+  },
+  "earlyRamp": {
+    "name": "earlyRamp",
+    "matrix": "warchest",
+    "rung": 14,
+    "column": 5,
+    "cell": 201405,
+    "game": 3,
+    "turn": 3,
+    "step": "main1",
+    "player": 0,
+    "prefix": [
+      {
+        "player": 0,
+        "action": {
+          "type": "keepHand"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "keepHand"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 0
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "declareAttackers",
+          "attackers": []
+        }
+      },
+      {
+        "player": 1,
+        "action": {
+          "type": "passStep"
+        }
+      },
+      {
+        "player": 0,
+        "action": {
+          "type": "playLand",
+          "handIndex": -1,
+          "reserveIndex": 3
+        }
+      }
+    ]
   }
 }
