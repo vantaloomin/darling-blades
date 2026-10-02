@@ -530,8 +530,30 @@ is one tap away. `WAVE_2B_SCENES` covers 34 scenarios in each of the six cells
 sweeps. Fixtures include the longest canonical deck and card names, a legal
 79-card Darlings deck, the full 1,648-card collectible catalog, all 72 finishes,
 last pages and 9,999,999 gold. Saved lists have no finite maximum, so the full
-catalog is the bounded stress fixture. Card faces remain exempt. Shop and
-Profile follow; the Duel comes last.
+catalog is the bounded stress fixture. Card faces remain exempt. Batch C adds Shop and Profile: live pack-chrome
+reads (including cached pack redraws), wrapped pack and preview identities,
+measured odds/preview/confirmation dialogs, and replay pages sized from actual
+metadata and note lines. Shop deck/card rows preserve release shrink-to-fit
+at 100%; at 115/130 they shrink no lower than the base role before abbreviating.
+Replay names and showcase seals keep their release ellipsis. Complete identity
+is one tap away in the preview, inspect or a wrapped identity dialog.
+Larger pack tiles reserve a shared measured title track, keeping their art and
+Buy buttons aligned. Overflowing grant text scrolls in whole lines above the
+standard section gap without moving Buy or Close. Prices, purchase actions and the
+insufficient-gold line stay visible outside scrolling reading regions.
+At 100%, release density and anchors stay unchanged: four booster tiles,
+two rows of four deck tiles, nine entries per preview column (18 per page),
+five replay rows per column (10 per page), and three rows of eight save-card
+thumbnails (24 per page). Profile statistics keep their 38px pitch and
+4/5/8/8 rows on Practice/Gauntlet/Draft/Collection. The probe now reports
+standard-size density drift and checks masked key information, with mutation
+proofs. `WAVE_2C_SCENES` includes every booster, both price tiers, the longest
+canonical deck names, a 79-card Darlings precon, First Dawn odds, 9,999,999
+gold, every Darlings preview page, list ends and Profile dialogs: 34 scenarios
+in each of the six cells (204 rendered checks, 0 findings). The 100% full-name
+assertion rejects an ellipsis mutation in both the harness and the rendered
+preview. Pointer interactions, DOM suppression and
+mutation checks passed without changing the real save. The Duel comes last.
 
 One pass per scene: literal sizes and raw chrome colours to tokens,
 literal-height modals made content-sized or scrolling, the cues applied, and

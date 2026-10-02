@@ -1,4 +1,9 @@
-import type Phaser from 'phaser';
+/** Only measurements are required; headless presentation tests can supply them. */
+export interface MeasuredText {
+  text: string;
+  width: number;
+  setText(value: string): unknown;
+}
 
 /**
  * Fit rendered text into a hard width budget.
@@ -19,7 +24,7 @@ import type Phaser from 'phaser';
  * read as a rendering fault).
  */
 export function ellipsizeText(
-  text: Phaser.GameObjects.Text,
+  text: MeasuredText,
   maxWidth: number,
   value: string = text.text,
 ): void {

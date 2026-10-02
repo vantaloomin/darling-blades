@@ -13,6 +13,9 @@ import { openPack, openPacks, type PackResult } from '../../src/meta/PackOpener'
 import { packPoolSummary } from '../../src/meta/packSummary';
 import { freshSave } from '../../src/meta/SaveManager';
 import { colorInt, theme } from '../../src/ui/theme';
+import { setAccessibility } from '../../src/ui/accessibility';
+import { fitMenuName } from '../../src/ui/menuText';
+import { shopPackLayout } from '../../src/ui/shopPresentation';
 
 const SKU_ORDER = [
   'base', 'ragnarok', 'celtic-fae', 'arthurian-court', 'gothic-monsters',
@@ -101,6 +104,8 @@ function sceneMethod<T>(
 function displayObject(x = 0, y = 0) {
   const object = {
     x, y, width: 60, height: 20, displayWidth: 60,
+    text: '', setData: () => object, setWordWrapWidth: () => object, setAlign: () => object,
+    setY: (next: number) => { object.y = next; return object; },
     setOrigin: () => object, setScale: () => object, setDisplaySize: () => object,
     setInteractive: () => object, fillStyle: () => object, fillRoundedRect: () => object,
     lineStyle: () => object, strokeRoundedRect: () => object,
@@ -123,7 +128,7 @@ describe('Expansion shop retail', () => {
         Date: { now: () => 12345 },
       });
       const scene = {
-        qty: 1, boosterStripIndex: 0, insufficientFunds, closeOverlay: vi.fn(),
+        saveData: save, qty: 1, boosterStripIndex: 0, insufficientFunds, closeOverlay: vi.fn(),
         checkpointAchievementUnlocks: () => [], scene: { start },
       };
       save.gold = price - 1;
@@ -194,14 +199,14 @@ describe('Expansion shop retail', () => {
         group: { add: ReturnType<typeof vi.fn> }, x: number, label: string,
         textureKey: string, price: number, sku: Sku, onBuy: () => void,
       ) => void>('buildPackSku', {
-        NEWEST_SKU: shop.NEWEST_SKU, SET_BLURBS, theme, colorInt, CARD_DB,
+        NEWEST_SKU: shop.NEWEST_SKU, SET_BLURBS, theme, colorInt, CARD_DB, fitMenuName, shopPackLayout,
         Services: { save: { data: freshSave(0) } }, packPoolSummary,
         packSetForSku: shop.packSetForSku, fxPolicy: () => ({ shine: false }),
-        themedButton: () => ({ container: {}, inputZone: {} }),
+        themedButton: () => ({ container: {}, inputZone: {}, label: displayObject() }),
         inflateHitArea: vi.fn(), bindTapButton: vi.fn(),
       });
       const scene = {
-        add: { text, image: displayObject, graphics: displayObject },
+        saveData: freshSave(0), add: { text, image: displayObject, graphics: displayObject },
         skuButtons: [], shopInteractiveTargets: [],
       };
       for (const row of visible) {
@@ -231,7 +236,7 @@ describe('Expansion shop retail', () => {
     const ctx = {
       ...displayObject(), strokeStyle: '', lineWidth: 0, fillStyle: '', globalAlpha: 1,
       save: vi.fn(), restore: vi.fn(), beginPath: vi.fn(), moveTo: vi.fn(),
-      arcTo: vi.fn(), closePath: vi.fn(), clip: vi.fn(), fillRect: vi.fn(),
+      arcTo: vi.fn(), closePath: vi.fn(), clip: vi.fn(), fillRect: vi.fn(), clearRect: vi.fn(),
       drawImage: vi.fn<(image: unknown, ...crop: number[]) => void>(), stroke: vi.fn(),
     };
     const canvas = { getContext: () => ctx, refresh: vi.fn() };
@@ -243,7 +248,7 @@ describe('Expansion shop retail', () => {
     const fallback = vi.fn();
     const { bakePackArt } = isolatedDeclarations<{
       bakePackArt: (scene: unknown, opts: RetailDeclarations['FIRST_DAWN_PACK_ART']) => void;
-    }>(shopSource, ['PACK_W', 'PACK_H', 'packRR', 'bakeRealPackBase', 'bakePackArt'], {
+    }>(shopSource, ['PACK_W', 'PACK_H', 'packRR', 'packPalettes', 'bakeRealPackBase', 'bakePackArt'], {
       theme, bakeProceduralPackBase: fallback,
     });
     bakePackArt(scene, shop.FIRST_DAWN_PACK_ART);
@@ -252,6 +257,20 @@ describe('Expansion shop retail', () => {
     expect(fallback).not.toHaveBeenCalled();
     expect(ctx.strokeStyle).toBe('#efe6d0');
     expect(canvas.refresh).toHaveBeenCalledOnce();
+  });
+
+  it('reads pack chrome from the current palette after the module has already loaded', () => {
+    const { CELTIC_FAE_PACK_TINT } = isolatedDeclarations<{ CELTIC_FAE_PACK_TINT: { middle: string } }>(
+      shopSource, ['CELTIC_FAE_PACK_TINT'], { theme },
+    );
+    try {
+      setAccessibility({ textScale: 1, highContrast: false });
+      expect(CELTIC_FAE_PACK_TINT.middle).toBe('#9589ac');
+      setAccessibility({ textScale: 1, highContrast: true });
+      expect(CELTIC_FAE_PACK_TINT.middle).toBe('#b7b0c7');
+    } finally {
+      setAccessibility({ textScale: 1, highContrast: false });
+    }
   });
 
   it.each(['drowned-deep', 'first-dawn'] as const)('discloses the %s pool under its shop title', (sku) => {
