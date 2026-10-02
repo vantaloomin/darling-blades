@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { artStoreConfig } from '../../src/art/artBudget';
 import { ThumbBook } from '../../src/ui/thumbBudget';
 
 /**
@@ -13,11 +14,16 @@ import { ThumbBook } from '../../src/ui/thumbBudget';
 
 const THUMB = 100;
 
-function book(budgetThumbs: number, drawn: string[] = []): { book: ThumbBook; clock: { t: number }; removed: string[] } {
+function book(
+  budgetThumbs: number,
+  drawn: string[] = [],
+  evict?: boolean,
+): { book: ThumbBook; clock: { t: number }; removed: string[] } {
   const clock = { t: 10_000 };
   const removed: string[] = [];
   const thumbs = new ThumbBook({
     budgetBytes: budgetThumbs * THUMB,
+    evict,
     now: () => clock.t,
     remove: (key) => removed.push(key),
     inUse: (keys) => new Set(keys.filter((key) => drawn.includes(key))),
@@ -40,6 +46,23 @@ describe('the thumb budget', () => {
 
     expect(b.evict()).toEqual([]);
     expect(removed).toEqual([]);
+  });
+
+  it('keeps released and newly baked thumbs over budget without scheduling eviction under artEvict=off', () => {
+    const config = artStoreConfig({ quality: 'full', search: '?artEvict=off' });
+    const { book: b, clock, removed } = book(1, [], config.evict);
+    bakeAll(b, clock, ['a', 'b', 'c']);
+    const release = b.hold('a');
+    release();
+    clock.t += 5_000;
+
+    expect(b.wantsPass).toBe(false);
+    expect(b.evict()).toEqual([]);
+    bakeAll(b, clock, ['d']);
+    expect(b.wantsPass).toBe(false);
+    expect(b.evict()).toEqual([]);
+    expect(removed).toEqual([]);
+    for (const key of ['a', 'b', 'c', 'd']) expect(b.has(key)).toBe(true);
   });
 
   it('evicts unheld thumbs least recently used first, down to the low-water mark', () => {

@@ -20,6 +20,8 @@ import { ResidencyBook } from '../art/artBudget';
 export interface ThumbBookOptions {
   /** The thumb budget in bytes (`artStoreConfig(...).thumbBudgetBytes`). */
   budgetBytes: number;
+  /** False under `?artEvict=off`: no budget eviction. Defaults to true. */
+  evict?: boolean;
   /** Milliseconds. */
   now: () => number;
   /** Remove the thumb's texture (and whatever the cache keeps for it). */
@@ -92,7 +94,7 @@ export class ThumbBook {
 
   /** True when something since the last pass could make one worth running. */
   get wantsPass(): boolean {
-    return this.dirty;
+    return this.opts.evict !== false && this.dirty;
   }
 
   /**
@@ -102,6 +104,7 @@ export class ThumbBook {
    */
   evict(): string[] {
     this.dirty = false;
+    if (this.opts.evict === false) return [];
     const now = this.opts.now();
     const budget = this.opts.budgetBytes;
     if (this.book.residentBytes <= budget) return [];

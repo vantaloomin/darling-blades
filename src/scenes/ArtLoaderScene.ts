@@ -16,7 +16,7 @@ import {
 import { ART_WARM_SET_SHARE, artStoreConfig, textureBytes } from '../art/artBudget';
 import { ART_LOADING_TEXTURE } from '../art/ArtResolver';
 import { loadBatchWithRetry, type ArtPassHooks } from '../art/artRetry';
-import { createArtSource } from '../art/artSource';
+import { buildArtSourceKind, createArtSource } from '../art/artSource';
 import { ArtStore, type ArtImage, type ArtLease, type ArtTextureSink } from '../art/artStore';
 import { ART_EVENT_CONTEXT_RESTORED, artTextureTier, onArtTextureRemoved } from '../art/artWatch';
 import { artStreamEnabled } from '../config/features';
@@ -48,6 +48,8 @@ export interface ArtProbeItem {
  */
 export interface ArtProbeHook {
   readonly mode: 'store' | 'queue';
+  /** Configured build source. The legacy queue always reads loose files. */
+  readonly source: 'packs' | 'loose';
   /** The store's counters plus what the texture manager holds; the queue's progress when off. */
   stats(): Record<string, number | string | boolean>;
   /**
@@ -104,13 +106,14 @@ function refit(obj: Phaser.GameObjects.Image, textureKey: string): void {
  * Two modes, chosen once per page load by `FEATURES.artStream` and the
  * `?artStream=on|off` switch (`artStreamEnabled`):
  *
- * - **The queue (1.8, the shipped default):** the 1,537 card images stream in
- *   behind the menu, tutorial and starter decks first, and nothing is ever
+ * - **The queue (`?artStream=off` fallback):** the whole card manifest streams
+ *   in behind the menu, tutorial and starter decks first, and nothing is ever
  *   unloaded. The queue, the priority lane and the `ensure` semantics live in
  *   the Phaser-free `src/art/artLoader.ts`; this adds Phaser's loader and the
  *   `game.events` re-emit that `src/ui/artGate.ts` listens to.
- * - **The art store (1.9 lane D, docs/plan-art-streaming.md):** art loads when
- *   a lease or a prefetch asks for it and is evicted under a budget. This is
+ * - **The art store (shipped default, docs/plan-art-streaming.md):** art loads
+ *   when a lease or a prefetch asks for it and is evicted under a budget
+ *   unless `?artEvict=off` disables eviction. This is
  *   the Phaser shell over `src/art/artStore.ts`: the texture sink (upload
  *   with the decoded copy dropped, removal, the safety scan), the per-frame
  *   `frame()` call, the context-restore and texture-removal forwarding, and
@@ -491,6 +494,7 @@ export class ArtLoaderScene extends Phaser.Scene {
     };
     return Object.freeze({
       mode: this.store !== null ? 'store' : 'queue',
+      source: buildArtSourceKind(),
       stats: () => {
         const held = artTextures();
         const managed = { managerTextures: held.count, managerBytes: held.bytes };

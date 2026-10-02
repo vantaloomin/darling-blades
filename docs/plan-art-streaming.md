@@ -1,11 +1,12 @@
-<!-- source-of-truth: src/art/artLoader.ts, src/art/artSource.ts, src/art/ArtResolver.ts, src/art/artWatch.ts, src/art/artArrivals.ts, src/art/artRetry.ts, src/ui/CardThumbCache.ts, src/ui/artGate.ts, src/ui/duelArt.ts, src/art/pagedRequests.ts, src/art/packRequests.ts, src/art/artLifetime.ts, src/ui/displayWalk.ts, src/scenes/ArtLoaderScene.ts, scripts/gen-art-manifest.ts, scripts/gen-art-halfres.ts, scripts/serve-lan.ts, .github/workflows/deploy.yml, src-tauri/tauri.conf.json · last-verified: 2026-10-02 · design doc, re-verify when the art loader, the thumbnail cache, the card-face geometry (R13) or the deploy pipeline changes -->
+<!-- source-of-truth: src/config/features.ts, src/art/artBudget.ts, src/art/artLoader.ts, src/art/artSource.ts, src/art/ArtResolver.ts, src/art/artWatch.ts, src/art/artArrivals.ts, src/art/artRetry.ts, src/ui/CardThumbCache.ts, src/ui/artGate.ts, src/ui/duelArt.ts, src/art/pagedRequests.ts, src/art/packRequests.ts, src/art/artLifetime.ts, src/ui/displayWalk.ts, src/scenes/ArtLoaderScene.ts, scripts/probe-art.mjs, scripts/art-probe-metrics.mjs, scripts/art-probe-processes.mjs, scripts/art-probe-save.ts, scripts/gen-art-manifest.ts, scripts/gen-art-halfres.ts, scripts/serve-lan.ts, .github/workflows/deploy.yml, src-tauri/tauri.conf.json · last-verified: 2026-10-02 · design doc, re-verify when the art loader, the thumbnail cache, the card-face geometry (R13) or the deploy pipeline changes -->
 
 # Card art streaming: load on demand, unload under a budget (1.9 lane D)
 
-**Status 2026-09-28: design, wave 1, for the owner's wave-1 sitting.** Built
-in wave 2 ([plan-1.9.md](plan-1.9.md), Sequencing). Lane D is the lane to
-defer if 1.9 runs long; section 8 says which part can slip to 2.0 without
-making the itch.io build harder.
+**Status 2026-10-02: S1-S6 built; flag on in 1.9.**
+`FEATURES.artStream` is true. S6's probe and gate calculations are implemented;
+the approver's measurements for all eight gates in section 6 are pending.
+Built instrumentation and a default-on flag do not establish a passed gate.
+The earlier deferral choices in section 8 remain historical release context.
 
 ## Summary
 
@@ -317,8 +318,16 @@ Whole-pack fallback mode (section 5) can hold up to two more packs (at most
 (ANGLE's GPU-process memory before a first draw, dedicated VRAM after) is
 what gate 1 measures. A pinned set larger than the budget is allowed. Pins always win,
 and the store logs a warning in dev builds when pins alone exceed the budget.
-These are constants, tuned once from the gate tour (owner question 2), and a
+These constants are checked by the gate tour (owner question 2); a
 `?artBudget=<MiB>` URL override exists for the stress run.
+
+The table gives the base budgets. Built in S6, the `lite` tier reads
+`navigator.deviceMemory`: at most 2 GB halves both budgets, at least 8 GB
+multiplies both by 1.5, and intermediate or unavailable values keep the base
+budgets. The `full` tier is unchanged. An explicit `?artBudget=<MiB>` takes
+precedence and scales the thumbnail budget proportionally. `?artEvict=off`
+disables both source-art and thumbnail eviction while retaining on-demand
+loading; `?artStream=off` selects the legacy whole-manifest loader instead.
 
 ### Eviction
 
@@ -542,91 +551,538 @@ since packs cannot reach Pages before the 1.9 cut.
 
 ## 6. Measurements and gates
 
-All of it runs on a probe (`scripts/probe-art.mjs`, built with S3) that does
-what the "before" probe did: a production build, `vite preview`, headless
-Edge over CDP, and a fresh profile per run. It reads a small read-only
-`window.__art` hook (`stats()`, `standIns()`, `missingTextures()`) that S3
-adds beside `window.__game`.
+`scripts/probe-art.mjs` drives a production build in headless Edge over CDP,
+using a fresh disposable profile per run. It reads the existing, read-only
+`window.__art` diagnostics beside `window.__game`. The desktop mode attaches
+to the existing WebView2 game and validates its native app ancestry instead.
+All eight gates below remain **pending approver measurement**. Earlier
+design baselines and S5a observations are historical evidence, not results
+for this build or these corrected S6 measurements.
 
-S5a long-tail verification, 2026-10-02: the production build and 1,387
-art/UI tests pass, including the accessibility layout files. All 19 new
-behaviour tests failed under their named mutations. The full- and lite-tier
-Edge attempts failed before the game loaded: the GPU subprocess exited with
-`0xC0000022` (access denied). The rendered accessibility probe also failed at
-browser startup. Those sandbox attempts collected no per-stop measurements.
-The approver then ran the production build outside the sandbox: 43 stops at
-both sizes and both budgets, plus a passing streaming-off run. Every
-streaming-on run had zero missed leases, stand-ins and missing textures.
-The only failures were `ERR_CACHE_OPERATION_NOT_SUPPORTED` console errors:
-15 full/default, 11 lite/default, 28 full/8 MiB and 14 lite/8 MiB. The
-range-only cache bypass in section 5 was then confirmed by the approver's
-full-tier, 8 MiB rerun: zero console errors, missed leases, stand-ins and
-missing textures. The zone subtitle header now clears the title and full
-thumbnail bounds, including their bleed, by at least 4 px without losing
-the compact grid's 24-card page at standard text. The rendered accessibility
-probe also checks live subtitle, thumbnail and badge bounds in the existing
-human graveyard fixture. Its rendered rerun remains unverified.
-`FEATURES.artStream` remains false, and S6 still owns gates 1, 2 and 5.
+The normal tour visits the menu; Collection (five spreads, a filter, zoom);
+Deck Builder (pool pages, deck list, Darling picker); Shop previews; every
+card in a three-pack batch; Limited draft and builder; Profile picker pages;
+Achievements; Play, Practice and Tower; a duel, zoom and paged zone modal;
+context loss and restore; then Collection again. Close/reopen stops exercise
+scene and modal lifetimes. Runs and repeat children retain their JSON and
+screenshots. A nonzero exit requires inspection of the named gate's verdict;
+a legacy baseline can exceed streaming thresholds without invalidating its
+raw measurements. A startup failure or incomplete evidence never passes.
 
-1. **GPU residency, before and after, both tiers.** A scripted tour: menu,
-   Collection (five spreads, a filter change, a zoom), the Deck Builder
-   (three pool pages, the deck list, the Darling picker), the Shop and its
-   deck preview and inspect, a three-pack batch with every card flipped, a
-   draft pick, the Limited builder and inspect, the Profile picker through
-   two page turns, the Achievements hall, Play, Practice, the Gauntlet, a Tower
-   duel with a zoom and a large paged zone modal, then back to Collection.
-   Close/reopen stops exercise modal and scene lifetimes. At each stop it records, from
-   outside the store: the Edge GPU process's private memory, its dedicated
-   VRAM and its shared GPU memory (the Windows `GPU Process Memory`
-   counters), and the renderer process's private memory. The GPU process's
-   private memory alone is not enough: under ANGLE on D3D11 it holds a
-   texture only until the texture is first drawn, and drawn art moves into
-   dedicated VRAM. The first stop, the menu before any card art, is the
-   base `B`. **Pass:** at every stop, GPU-process private + dedicated +
-   shared stays under `B` + **1,000 MiB** on the desktop tier and `B` +
-   **260 MiB** on the phone tier (the section 3 process-memory figures at
-   budget, about 20% headroom, no pinned overflow on this tour), and the
-   renderer process stays within 100 MiB of its value at `B`. The store's
-   own byte counts are logged beside them for diagnosis but pass nothing.
-   Against today, at the Collection stop: 4,176 MiB private + 281 MiB
-   dedicated on the desktop tier, 1,190 MiB + 96 MiB on the phone tier.
-2. **Time to Collection, before and after, both tiers.** Measured as today,
-   plus the time until all 12 pockets of the first spread show real art.
-   Runs: local, desktop at 50 Mbps, phone tier at 20 Mbps with a 4x CPU
-   throttle. Before: 16.1-16.6 s, 43.9 s, 5.3 s and 29.8 s.
-   **Pass:** the binder draws on its first frame; the first spread is real
-   within 0.5 s locally and within 2 s throttled (12 half files are about
-   0.4 MB).
-3. **No stand-in left after arrival, every scene, two sizes.** At each stop
-   of the tour, after the store has been idle (nothing queued or in flight)
-   for 500 ms: `standIns()` (objects showing `art-loading`, or a CardView or
-   BoardCardView still `awaitingArt` a key that is resident, or a
-   provisional thumb whose key is resident) must be 0. `missingTextures()`
-   (objects on Phaser's `__MISSING`) must also be 0, and the console must
-   have no errors. The two sizes are desktop 1920x1080 at k=2 on the full
-   tier and 844x390 at k=1 on the lite tier. Every production scene is
-   covered, with the Showcase in a dev build.
-4. **The eviction stress run.** The same tour with `?artBudget=8`, which
-   evicts on every scene change. **Pass:** gate 3 holds, and the safety scan
-   reports no missed lease. This is the proof that nothing a live object
-   uses is destroyed.
-5. **Main-thread cost.** Long tasks over 50 ms during the tour, before and
-   after. **Pass:** no worse than before, which was none recorded.
-6. **A desktop app run.** `npm run app:build`, then `app.exe` launched with
-   `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=<port>`,
-   and the same probe over CDP (loose source on Tauri's protocol). It
-   includes opening the privacy policy window during a duel's gated load:
-   the #432 failure mode, which must still recover with no stand-in left.
-   Unverified until the build: that WebView2 honours that variable for this
-   app.
-7. **The first Pages deploy with packs** (the 1.9 cut): for every pack,
-   `curl -s -D - -o /dev/null -H "Accept-Encoding: gzip, br" -r 0-99 <pack URL>`
-   returns `206` with no `content-encoding` header, and the live site passes
-   gate 3 on a phone and a desktop.
-8. **A context-loss run.** During a duel, the probe forces a loss and a
-   restore through `WEBGL_lose_context` (`loseContext()`, then
-   `restoreContext()`). **Pass:** the game keeps running, gate 3 holds once
-   the store is idle again, and the console has no errors.
+At each stop, `residentMiB` and `pinnedMiB` are top-level fields computed as
+bytes / 1,048,576 without rounding; unavailable legacy values are `null`.
+`longTasks` is a numeric count, `longTaskTotalMs` is the sum, and
+`longTaskDurationsMs` retains the individual unrounded durations over 50 ms.
+Process memory comes from outside the store. Missing process identities,
+Windows counters or observer support remain unavailable and make the
+relevant gate **UNMEASURED**, rather than turning into zero.
+The JSON source label comes from the read-only `window.__art.source` hook's
+configured build source, rather than a guess from command-line options.
+Request counters retain which pack or loose-file transports were used.
+
+### Preparation
+
+Run this block once, then the gate blocks in the same PowerShell session.
+Node, Python with Pillow and psutil, dependencies, Edge, and the existing
+full-resolution art are prerequisites. By default, reuse the prepared web
+build identified in the handoff; set `$s6Dist` to that exact directory. The
+`normal` option regenerates half-resolution art, then builds the manifest,
+packs, legal pages and notices. No command below stages, commits or pushes
+changes.
+
+The alternative uses the probe's Git-free `--build` path after generating
+its inputs. That option builds and runs a preliminary tour; it is not a
+build-only switch. Its separate web output survives the later desktop build.
+Normal tours explicitly use `--repeat 1`; timing runs use three independent
+profiles (`--repeat` defaults to 3).
+
+```powershell
+Set-Location -LiteralPath 'Z:\Coding Projects\DarlingBlades-worktrees\w7-art'
+$s6Out = Join-Path $env:TEMP ('db-s6\measurements-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+New-Item -ItemType Directory -Path $s6Out -Force | Out-Null
+$s6BuildMode = 'existing' # existing, normal, or probe (Git-free build alternative).
+$s6Dist = Join-Path (Get-Location).Path 'dist' # Use the prepared web directory from the handoff.
+if ($env:TAURI_ENV_PLATFORM) { throw 'Prepare the web build without TAURI_ENV_PLATFORM set' }
+if ($s6BuildMode -eq 'probe') {
+    foreach ($script in @('gen-art-halfres', 'gen-art-manifest', 'pack-art', 'gen-legal-pages', 'gen-third-party-notices')) {
+        & npx.cmd tsx "scripts/$script.ts"
+        if ($LASTEXITCODE -ne 0) { throw "Preparation failed: $script" }
+    }
+    $s6Dist = Join-Path $s6Out 'web-dist'
+    node scripts/probe-art.mjs --build --dist $s6Dist --stream off --tier full --repeat 1 --out $s6Out --label preparation-off
+    Write-Host "Preliminary tour exit: $LASTEXITCODE; inspect preparation-off.json"
+} elseif ($s6BuildMode -eq 'normal') {
+    npm.cmd run gen-art-halfres
+    if ($LASTEXITCODE -ne 0) { throw 'Half-resolution generation failed' }
+    npm.cmd run build
+    if ($LASTEXITCODE -ne 0) { throw 'Web build failed' }
+    $s6Dist = (Resolve-Path -LiteralPath 'dist').Path
+} elseif ($s6BuildMode -ne 'existing') {
+    throw 's6BuildMode must be existing, normal, or probe'
+}
+if (-not (Test-Path -LiteralPath (Join-Path $s6Dist 'index.html'))) { throw 'Prepared web build is missing' }
+Write-Host "Build: $s6Dist; evidence: $s6Out"
+```
+
+### Gates as measured
+
+Empty cells are reserved for the approver's actual observations, artifact
+paths and verdicts. Do not populate them from estimates, unit tests,
+historical runs or a failed browser launch. A table row is not an assertion
+that the run happened.
+
+#### Gate 1: GPU and renderer residency
+
+Before the first menu sample, the probe holds card-art requests so `B` is
+the menu before any card art has loaded. It then releases the requests and
+runs the complete tour. At every stop, sum **all** identified GPU processes'
+private, dedicated and shared memory; separately sum all renderer private
+memory. Per-PID identities, ancestry and counter availability are retained.
+
+Streaming passes only if GPU total is strictly below `B + 1,000 MiB` on
+`full`, or strictly below `B + 260 MiB` on `lite`, at every stop. Renderer
+private memory must be at most its own `B + 100 MiB`. The first menu remains
+the baseline even when one of its counters is unavailable. Store byte
+counts are diagnostic and cannot substitute for these measurements.
+
+| Tier | Mode | Menu GPU B (MiB) | Maximum GPU above B (MiB) | Maximum renderer above B (MiB) | JSON / verdict |
+| --- | --- | --- | --- | --- | --- |
+| full | off baseline | | | | |
+| full | on | | | | |
+| lite | off baseline | | | | |
+| lite | on | | | | |
+
+```powershell
+$gateOut = Join-Path $s6Out 'gate1'
+foreach ($tier in @('full', 'lite')) {
+    foreach ($mode in @('off', 'on')) {
+        $label = "gate1-$tier-$mode"
+        node scripts/probe-art.mjs --dist $s6Dist --tier $tier --stream $mode --repeat 1 --out $gateOut --label $label
+        Write-Host "$label exit: $LASTEXITCODE; inspect $gateOut\$label.json"
+    }
+}
+```
+
+#### Gate 2: cold time to Collection
+
+`--timing` builds its owned-card save offline through
+`scripts/art-probe-save.ts`, using the real `freshSave`, collectible catalog
+and starter-deck data without Phaser or a browser boot. In a fresh profile,
+the probe injects this fixture before the **first game navigation** and
+clears browser cache before that navigation. No bootstrap browser load or
+seed reload warms the app. From the first navigation it records the binder's
+first draw, the loading line disappearing, and all 12 first-spread pockets
+showing real art. It also records Collection-entry clocks and the binder's
+frame number. Offline fixture construction, warm tour stops and page-turn
+timings are excluded.
+
+Run all four scenarios with streaming off and on, three independent profiles
+per cell. Publish the medians of all three observations without trimming
+failures or outliers. Acceptance applies to the cold **Collection-entry**
+clock: binder on frame 1, all 12 pockets real within 500 ms locally or
+2,000 ms when throttled. Navigation clocks are reported separately so boot
+cost remains visible; they must not be presented as Collection-entry time.
+
+`--net N` means N megabits/s and **40 ms imposed round-trip latency** through
+CDP's `latency` parameter (minimum request-to-response delay). It does not
+mean 40 ms each way, nor measured Internet RTT. The local scenarios impose
+zero latency. `--cpu 4` applies fourfold CPU slowdown. See the
+[CDP network emulation definition](https://chromedevtools.github.io/devtools-protocol/tot/Network/#method-emulateNetworkConditions).
+
+| Scenario | Mode | Navigation to binder / loading gone / 12 real, median ms | Entry to binder / 12 real, median ms | Binder frame / pockets | JSON / verdict |
+| --- | --- | --- | --- | --- | --- |
+| full local | off | | | | |
+| full local | on | | | | |
+| full 50 Mbps, 40 ms, CPU 1 | off | | | | |
+| full 50 Mbps, 40 ms, CPU 1 | on | | | | |
+| lite local | off | | | | |
+| lite local | on | | | | |
+| lite 20 Mbps, 40 ms, CPU 4 | off | | | | |
+| lite 20 Mbps, 40 ms, CPU 4 | on | | | | |
+
+```powershell
+$gateOut = Join-Path $s6Out 'gate2'
+$scenarios = @(
+    @{ name = 'full-local'; tier = 'full'; net = $null; cpu = 1 },
+    @{ name = 'full-50'; tier = 'full'; net = 50; cpu = 1 },
+    @{ name = 'lite-local'; tier = 'lite'; net = $null; cpu = 1 },
+    @{ name = 'lite-20-cpu4'; tier = 'lite'; net = 20; cpu = 4 }
+)
+foreach ($scenario in $scenarios) {
+    foreach ($mode in @('off', 'on')) {
+        $label = 'gate2-' + $scenario.name + '-' + $mode
+        $probeArgs = @('scripts/probe-art.mjs', '--dist', $s6Dist, '--timing', '--tier', $scenario.tier,
+            '--stream', $mode, '--cpu', [string]$scenario.cpu, '--repeat', '3', '--out', $gateOut, '--label', $label)
+        if ($null -ne $scenario.net) { $probeArgs += @('--net', [string]$scenario.net) }
+        & node @probeArgs
+        Write-Host "$label exit: $LASTEXITCODE; inspect the parent JSON and all three child runs"
+    }
+}
+```
+
+#### Gate 3: arrival and live-object correctness
+
+At every tour stop, wait until nothing is queued, in flight or pending upload
+for 500 ms. `standIns()` and `missingTextures()` must both be zero, with no
+console errors. This includes provisional thumbnails whose source is now
+resident. Check full at 1920x1080, k=2, and lite at 844x390, k=1. `--stream
+default` also verifies the shipped default selects the store. After the
+production runs, `--url <dev URL> --showcase` repeats the tour in a dev build,
+then visits Showcase, changes its pick twice and returns to Collection. These
+two additional full/lite runs use the loose source and their own profiles.
+The block owns a hidden Vite server on port 4392, with a temporary config and
+cache. Its dev defines match the app's version and loose source; the temporary
+config does not invoke Git or change the repository's config.
+
+| Surface / tier | Stops checked | Stand-ins | Missing textures | Console errors | JSON / verdict |
+| --- | --- | --- | --- | --- | --- |
+| production full | | | | | |
+| production lite | | | | | |
+| Showcase, dev full | | | | | |
+| Showcase, dev lite | | | | | |
+
+```powershell
+$gateOut = Join-Path $s6Out 'gate3'
+foreach ($tier in @('full', 'lite')) {
+    $label = "gate3-$tier-default"
+    node scripts/probe-art.mjs --dist $s6Dist --tier $tier --stream default --repeat 1 --out $gateOut --label $label
+    Write-Host "$label exit: $LASTEXITCODE; inspect $gateOut\$label.json"
+}
+New-Item -ItemType Directory -Path $gateOut -Force | Out-Null
+$devRoot = (Get-Location).Path
+$devPort = 4392
+$devUrl = "http://127.0.0.1:$devPort/"
+$devConfig = Join-Path $gateOut 'showcase.vite.config.mjs'
+$devSettings = @{
+    root = $devRoot
+    cacheDir = (Join-Path $gateOut 'vite-cache')
+    define = @{
+        __APP_VERSION__ = ((Get-Content -LiteralPath 'package.json' -Raw | ConvertFrom-Json).version | ConvertTo-Json -Compress)
+        __GIT_SHA__ = '"dev"'
+        __ART_SOURCE__ = '"loose"'
+    }
+    server = @{ host = '127.0.0.1'; port = $devPort; strictPort = $true }
+}
+('export default ' + ($devSettings | ConvertTo-Json -Depth 5 -Compress) + ';') |
+    Set-Content -LiteralPath $devConfig -Encoding UTF8
+$portCheck = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, $devPort)
+try { $portCheck.Start() } finally { $portCheck.Stop() }
+$nodeExe = (Get-Command node -ErrorAction Stop).Source
+$viteBin = (Resolve-Path -LiteralPath 'node_modules/vite/bin/vite.js').Path
+$viteArgs = @(('"' + $viteBin + '"'), '--config', ('"' + $devConfig + '"'), '--configLoader', 'runner')
+$devTreeCode = @'
+import json, psutil, sys
+try:
+    root = psutil.Process(int(sys.argv[1]))
+    rows = []
+    for proc in [root] + root.children(recursive=True):
+        try:
+            rows.append({'pid': proc.pid, 'startedAt': proc.create_time()})
+        except psutil.NoSuchProcess:
+            pass
+    print(json.dumps(rows))
+except psutil.NoSuchProcess:
+    print('[]')
+'@
+$dev = $null
+$devStartTicks = $null
+$devOwned = @()
+$devCleanupUnknown = $false
+$devCleanupExit = 1
+try {
+    $dev = Start-Process -FilePath $nodeExe -ArgumentList $viteArgs -WorkingDirectory $devRoot -WindowStyle Hidden -PassThru `
+        -RedirectStandardOutput (Join-Path $gateOut 'showcase-vite.stdout.log') `
+        -RedirectStandardError (Join-Path $gateOut 'showcase-vite.stderr.log')
+    $devStartTicks = $dev.StartTime.ToUniversalTime().Ticks
+    $deadline = [DateTime]::UtcNow.AddSeconds(60)
+    while ($true) {
+        if ($dev.HasExited) { throw 'Showcase Vite server exited; inspect its logs' }
+        try {
+            $response = Invoke-WebRequest -Uri $devUrl -UseBasicParsing -TimeoutSec 2
+            if ($response.StatusCode -eq 200) { break }
+        } catch { }
+        if ([DateTime]::UtcNow -ge $deadline) { throw 'Showcase Vite server did not become ready' }
+        Start-Sleep -Milliseconds 200
+    }
+    $snapshot = python -c $devTreeCode $dev.Id
+    if ($LASTEXITCODE -ne 0) { throw 'Could not record the owned Vite process tree' }
+    $devOwned += @($snapshot | ConvertFrom-Json)
+    foreach ($tier in @('full', 'lite')) {
+        $label = "gate3-showcase-$tier"
+        node scripts/probe-art.mjs --url $devUrl --showcase --tier $tier --stream on --repeat 1 --out $gateOut --label $label
+        Write-Host "$label exit: $LASTEXITCODE; inspect all Showcase stops and the return to Collection"
+    }
+} finally {
+    if ($null -ne $dev) {
+        $current = Get-Process -Id $dev.Id -ErrorAction SilentlyContinue
+        if ($current -and $current.StartTime.ToUniversalTime().Ticks -eq $devStartTicks) {
+            $snapshot = python -c $devTreeCode $dev.Id
+            if ($LASTEXITCODE -eq 0) { $devOwned += @($snapshot | ConvertFrom-Json) }
+            else { $devCleanupUnknown = $true }
+            taskkill.exe /PID $dev.Id /T /F | Out-Null
+        }
+    }
+    $ownedJson = ConvertTo-Json -InputObject @($devOwned) -Depth 4 -Compress
+    $cleanupJson = $ownedJson | python -c @'
+import json, psutil, sys
+owned = json.load(sys.stdin)
+seen, waiting, errors = set(), [], []
+for item in owned:
+    identity = (item['pid'], item['startedAt'])
+    if identity in seen:
+        continue
+    seen.add(identity)
+    try:
+        proc = psutil.Process(item['pid'])
+        if proc.create_time() == item['startedAt']:
+            proc.kill()
+            waiting.append(proc)
+    except psutil.NoSuchProcess:
+        pass
+    except psutil.AccessDenied:
+        errors.append({'pid': item['pid'], 'reason': 'access denied'})
+_, alive = psutil.wait_procs(waiting, timeout=5)
+print(json.dumps({'tracked': owned, 'remaining': [proc.pid for proc in alive], 'errors': errors}))
+sys.exit(1 if alive or errors else 0)
+'@
+    $devCleanupExit = $LASTEXITCODE
+    $cleanupJson | Set-Content -LiteralPath (Join-Path $gateOut 'showcase-vite-cleanup.json') -Encoding UTF8
+}
+if ($devCleanupUnknown -or $devCleanupExit -ne 0) { throw 'Vite process cleanup is incomplete or unverified' }
+```
+
+#### Gate 4: eviction stress
+
+Run the same full and lite tours at `--budget 8` (`?artBudget=8`). Gate 3 must
+hold and the safety scan must report zero missed leases/thumbnail holds.
+Every stop must report an effective source budget of exactly 8 MiB, and the
+completed tour must observe both source evictions and thumbnail evictions
+greater than zero. An eviction-disabled run cannot prove this gate. Source
+and thumbnail budgets both scale under the override.
+
+| Tier | Effective budget (MiB) | Source / thumb evictions | Missed leases / holds | Stand-ins / missing textures | Console errors | JSON / verdict |
+| --- | --- | --- | --- | --- | --- | --- |
+| full, 8 MiB | | | | | | |
+| lite, 8 MiB | | | | | | |
+
+```powershell
+$gateOut = Join-Path $s6Out 'gate4'
+foreach ($tier in @('full', 'lite')) {
+    $label = "gate4-$tier-8mib"
+    node scripts/probe-art.mjs --dist $s6Dist --tier $tier --stream on --budget 8 --repeat 1 --out $gateOut --label $label
+    Write-Host "$label exit: $LASTEXITCODE; inspect $gateOut\$label.json"
+}
+```
+
+#### Gate 5: main-thread cost against streaming off
+
+Collect a new off baseline and pass its JSON to `--baseline` for the on run.
+The comparison requires the same complete **ordered** stop list, tier,
+throttle, budget, eviction mode, target and art source. Pack, draft and Tower
+inputs use deterministic seeds; the captured pack/draft card IDs, Tower
+opponent and duel seed must also match between the actual runs. Matching
+stop names alone is insufficient. Both the total count of tasks over 50 ms
+and their total duration must be no greater than the baseline. Historical
+zero-task observations cannot stand in for this build's baseline.
+Unavailable observers or mismatched conditions/fixtures are UNMEASURED.
+
+| Tier | Off count / total ms | On count / total ms | Ordered stops, conditions and fixtures match | Baseline / candidate JSON | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| full | | | | | |
+| lite | | | | | |
+
+```powershell
+$gateOut = Join-Path $s6Out 'gate5'
+foreach ($tier in @('full', 'lite')) {
+    $offLabel = "gate5-$tier-off"
+    node scripts/probe-art.mjs --dist $s6Dist --tier $tier --stream off --repeat 1 --out $gateOut --label $offLabel
+    Write-Host "$offLabel exit: $LASTEXITCODE; retain its JSON even if streaming thresholds fail"
+    $baseline = Join-Path $gateOut "$offLabel.json"
+    if (-not (Test-Path -LiteralPath $baseline)) { throw "Missing baseline: $baseline" }
+    $onLabel = "gate5-$tier-on"
+    node scripts/probe-art.mjs --dist $s6Dist --tier $tier --stream on --repeat 1 --baseline $baseline --out $gateOut --label $onLabel
+    Write-Host "$onLabel exit: $LASTEXITCODE; inspect its gate 5 comparison"
+}
+```
+
+#### Gate 6: packaged desktop and privacy-window interruption
+
+Build the actual Tauri app, find Cargo's `app.exe`, and launch it with a fresh
+`WEBVIEW2_USER_DATA_FOLDER` and an inherited debugging port. Attach to the
+existing game target, retaining Tauri's own URL and loose-art source. The
+probe validates app/PID ancestry and never shuts down the native app; this
+block's `finally` owns the process tree, verifies cleanup, and restores the
+environment. It preserves the profile and artifacts for inspection.
+
+The probe establishes a cold duel with CDP art requests held. It opens the
+real `./privacy.html` window only while Duel has its `Unsheathing` gate and
+positive in-flight work. It releases the held requests immediately after
+the atomic window-open call, before waiting for policy content, so real art
+I/O can overlap the remaining window initialization. It verifies the new
+window's canonical privacy path and `Darling Blades Privacy Policy` title,
+the completed duel, and the privacy target's disappearance through its
+return-to-game route. A reused page window would not prove the creation
+path. Gate 3 must hold after recovery. Record any actual network failures;
+zero failures means the interruption was exercised without an observed
+transient failure, not that a failure was reproduced.
+
+Run this after local web measurements. `app:build` rebuilds `dist` for loose
+Tauri assets; rebuild the web target before reusing that directory for a web
+gate. The alternative preparation's separate `$s6Dist` avoids that overwrite.
+WebView2 environment inheritance is documented by
+[Microsoft](https://learn.microsoft.com/en-us/microsoft-edge/webview2/how-to/debug-visual-studio-code#using-an-environment-variable);
+whether this packaged build attaches successfully remains an actual gate.
+
+| App / source | Native PID and descendant evidence | Pending gate / new privacy window | Network failures / duel recovery | Cleanup survivors | JSON / verdict |
+| --- | --- | --- | --- | --- | --- |
+| app.exe / loose | | | | | |
+
+```powershell
+$gateOut = Join-Path $s6Out 'gate6'
+New-Item -ItemType Directory -Path $gateOut -Force | Out-Null
+npm.cmd run app:build
+if ($LASTEXITCODE -ne 0) { throw 'Desktop build failed' }
+$cargoJson = cargo metadata --no-deps --locked --format-version 1 --manifest-path src-tauri/Cargo.toml
+if ($LASTEXITCODE -ne 0) { throw 'Cargo metadata failed' }
+$targetRoot = ($cargoJson | ConvertFrom-Json).target_directory
+$appExe = (Resolve-Path -LiteralPath (Join-Path $targetRoot 'release\app.exe')).Path
+$cdpPort = 9431
+$portCheck = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, $cdpPort)
+try { $portCheck.Start() } finally { $portCheck.Stop() }
+$oldArguments = [Environment]::GetEnvironmentVariable('WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS')
+$oldProfile = [Environment]::GetEnvironmentVariable('WEBVIEW2_USER_DATA_FOLDER')
+$desktop = $null
+$nativeStartTicks = $null
+$ownedProcesses = @()
+$probeExit = 1
+$cleanupExit = 1
+$cleanupUnknown = $false
+function Get-S6OwnedTree([int]$AppPid) {
+    $snapshot = python -c @'
+import json, psutil, sys
+try:
+    root = psutil.Process(int(sys.argv[1]))
+    owned = [root] + root.children(recursive=True)
+    rows = []
+    for item in owned:
+        try:
+            rows.append({'pid': item.pid, 'startedAt': item.create_time()})
+        except psutil.NoSuchProcess:
+            pass
+    print(json.dumps(rows))
+except psutil.NoSuchProcess:
+    print('[]')
+'@ $AppPid
+    if ($LASTEXITCODE -ne 0) { throw 'Could not record native app descendants' }
+    @($snapshot | ConvertFrom-Json)
+}
+try {
+    $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = "--remote-debugging-port=$cdpPort"
+    $env:WEBVIEW2_USER_DATA_FOLDER = Join-Path $gateOut ('webview-profile-' + [guid]::NewGuid())
+    $desktop = Start-Process -FilePath $appExe -WindowStyle Hidden -PassThru
+    $nativeStartTicks = $desktop.StartTime.ToUniversalTime().Ticks
+    $ownedProcesses += Get-S6OwnedTree $desktop.Id
+    node scripts/probe-art.mjs --attach $cdpPort --app-pid $desktop.Id --tier full --stream on --repeat 1 --out $gateOut --label gate6-desktop
+    $probeExit = $LASTEXITCODE
+} finally {
+    try {
+        if ($null -ne $desktop) {
+            $current = Get-Process -Id $desktop.Id -ErrorAction SilentlyContinue
+            if ($current -and $current.StartTime.ToUniversalTime().Ticks -eq $nativeStartTicks) {
+                try { $ownedProcesses += Get-S6OwnedTree $desktop.Id }
+                catch { $cleanupUnknown = $true; Write-Warning $_ }
+                taskkill.exe /PID $desktop.Id /T /F | Out-Null
+            }
+        }
+        # Only recorded identities may be killed or counted; protect against PID reuse.
+        $ownedJson = ConvertTo-Json -InputObject @($ownedProcesses) -Depth 4 -Compress
+        $cleanupJson = $ownedJson | python -c @'
+import json, psutil, sys
+owned = json.load(sys.stdin)
+tracked, errors, waiting = [], [], []
+seen = set()
+for item in owned:
+    identity = (item['pid'], item['startedAt'])
+    if identity in seen:
+        continue
+    seen.add(identity)
+    tracked.append(item)
+    try:
+        proc = psutil.Process(item['pid'])
+        if proc.create_time() == item['startedAt']:
+            proc.kill()
+            waiting.append(proc)
+    except psutil.NoSuchProcess:
+        pass
+    except psutil.AccessDenied:
+        errors.append({'pid': item['pid'], 'reason': 'access denied'})
+_, alive = psutil.wait_procs(waiting, timeout=5)
+result = {'tracked': tracked, 'remaining': [proc.pid for proc in alive], 'errors': errors}
+print(json.dumps(result))
+sys.exit(1 if alive or errors else 0)
+'@
+        $cleanupExit = $LASTEXITCODE
+        $cleanupJson | Set-Content -LiteralPath (Join-Path $gateOut 'native-cleanup.json') -Encoding UTF8
+    } finally {
+        [Environment]::SetEnvironmentVariable('WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS', $oldArguments)
+        [Environment]::SetEnvironmentVariable('WEBVIEW2_USER_DATA_FOLDER', $oldProfile)
+    }
+}
+if ($cleanupUnknown -or $cleanupExit -ne 0) { throw 'Native process cleanup is incomplete or unverified; inspect native-cleanup.json' }
+if ($probeExit -ne 0) { throw 'Desktop probe failed or is unmeasured; inspect gate6-desktop.json' }
+```
+
+#### Gate 7: deployed pack ranges and live rendering
+
+After deploying the matching 1.9 build, check **every distinct full and half
+pack in the staged index**, requesting bytes 0-99 with `Accept-Encoding:
+gzip, br`. Each must return 206, matching `Content-Range`, and no
+`Content-Encoding`. Then run the live tour on both tiers and require gate 3.
+Checking one pack, the local preview, or transport alone does not pass this
+gate. The local index must match the deployed build's content hashes.
+
+| Target | Packs checked / 206 / no encoding | Full live gate 3 | Lite live gate 3 | JSON / verdict |
+| --- | --- | --- | --- | --- |
+| first matching 1.9 Pages deploy | | | | |
+
+```powershell
+$gateOut = Join-Path $s6Out 'gate7'
+$liveBase = 'https://bladedarlings.com/' # Use the matching deployed build, including its project path if any.
+node scripts/probe-art.mjs --check-packs $liveBase --repeat 1 --out $gateOut --label gate7-packs
+Write-Host "Pack transport exit: $LASTEXITCODE; inspect gate7-packs.json"
+foreach ($tier in @('full', 'lite')) {
+    $label = "gate7-live-$tier"
+    node scripts/probe-art.mjs --url $liveBase --tier $tier --stream default --repeat 1 --out $gateOut --label $label
+    Write-Host "$label exit: $LASTEXITCODE; inspect the live gate 3 evidence"
+}
+```
+
+#### Gate 8: actual context loss and restore
+
+The tour forces `WEBGL_lose_context` during Duel and requires both actual
+`webglcontextlost` and `webglcontextrestored` events. After restoration the
+game's frame counter must advance, pinned art must reload, and gate 3 must
+hold with no console errors. Calling the extension without observed events,
+an unavailable extension or canvas fallback cannot prove the gate.
+
+| Tier | Lost / restored events | Frames advanced | Stand-ins / missing textures | Console errors | JSON / verdict |
+| --- | --- | --- | --- | --- | --- |
+| full | | | | | |
+| lite | | | | | |
+
+```powershell
+$gateOut = Join-Path $s6Out 'gate8'
+foreach ($tier in @('full', 'lite')) {
+    $label = "gate8-$tier-restore"
+    node scripts/probe-art.mjs --dist $s6Dist --tier $tier --stream on --repeat 1 --out $gateOut --label $label
+    Write-Host "$label exit: $LASTEXITCODE; inspect actual events, running frames and the restored stop"
+}
+```
+
+Run gates 1-5 and 8 before gate 6 if `$s6Dist` is the ordinary `dist` folder,
+or repeat web preparation after gate 6. Gate 7 follows the matching deploy.
+The standalone approver copy of this runbook is
+`C:\Users\Jim\AppData\Local\Temp\db-s6\RUNBOOK.md`.
 
 Unit tests (Phaser-free, `tests/art/`): the store's ordering by priority and
 recency; cancellation dropping queued work; leases pinning against eviction;
@@ -647,13 +1103,13 @@ shared-file order in [plan-1.9.md](plan-1.9.md) (Sequencing) holds.
 
 | PR | Files | After | Notes |
 | --- | --- | --- | --- |
-| **S1 The store** | NEW `src/art/artStore.ts`, `src/art/artBudget.ts`, `tests/art/artStore.test.ts`; EDIT `src/art/artLoader.ts`, `tests/art/artLoader.test.ts` | the owner's sitting | Phaser-free; the old API becomes wrappers; no behaviour change on its own |
-| **S2 Sources and packs** | NEW `src/art/artSource.ts`, `scripts/pack-art.ts`, `tests/art/artSource.test.ts`, `tests/scripts/packArt.test.ts` (+ a 3-file fixture); EDIT `vite.config.ts`, `package.json` (the `build` script), `.gitignore`, `.github/workflows/deploy.yml`, `scripts/serve-lan.ts`, `docs/desktop-build.md`, `docs/architecture.md` | the sitting; runs beside S1 | the source interface is agreed first, in S1's PR description |
-| **S3 The Phaser shell** | EDIT `src/scenes/ArtLoaderScene.ts` (decode, upload cap, eviction and the safety scan, `window.__art`), `src/art/ArtResolver.ts` (tier and the best-resident answer), `src/art/artWatch.ts` (`holdArt`), `src/ui/artGate.ts` (scene leases), `src/scenes/PreloadScene.ts`; NEW `scripts/probe-art.mjs` | S1, S2 | **ships behind a flag, default off (today's whole-manifest stream)**, flipped to "stream on" only when S5a's Collection, Deck Builder and Showcase split has landed. Without that split, S3 turns their `gateOnArt(this, null)` into a `now` lease on the whole manifest: 3 GB pinned, worse than today |
-| **S4 Views hold what they draw** | EDIT `src/ui/CardView.ts`, `src/ui/BoardCardView.ts`, `src/ui/CardThumbCache.ts`, `src/ui/portraitArt.ts` (I9's `addPortraitArt`: the lease and the removal belt go inside it), `src/ui/saveCard.ts` | S3; **R13 in `CardView.ts`**; I9 (PR #473) | shared file order: R13, then this, then accessibility's card surfaces |
-| **S5a Grids and menus** | EDIT `CollectionScene.ts`, `DeckBuilderScene.ts`, `CardShowcaseScene.ts`, `PackOpeningScene.ts`, `LimitedDraftScene.ts`, `LimitedDeckBuilderScene.ts`, `ShopScene.ts`, `ProfileScene.ts`, `AchievementsScene.ts`, `PlayScene.ts`, `GauntletScene.ts`, `PracticePickerScene.ts`, `src/ui/ZoneContentsModal.ts`; shared `artGate.ts`, `pagedRequests.ts`, `packRequests.ts`, `artLifetime.ts`; probe and Phaser-free tests | S4; I9 and I5 (`LimitedDraftScene.ts`), I9 (`ShopScene.ts`, `GauntletScene.ts`, `PracticePickerScene.ts`); I3 and I4 (`DeckBuilderScene.ts`) | Built: core and long tail, preserving the landed accessibility layouts. Scene gates, paged thumbnails, per-pack reveal gates and destroy-bound modal waits are in place. `FEATURES.artStream` stays false; S6 owns the release measurements and switch |
-| **S5b The duel** | EDIT `src/scenes/DuelScene.ts` (the duel lease across rung restarts, the portrait leases) | S4; **I6 and I9** (wave 1) | shared file order: I6/I9, then this, then A2's two-target flow, then accessibility's Duel pass |
-| **S6 Gates** | the probe runs (section 6), numbers into this doc; the desktop app run | S5a, S5b | measurement only |
+| **S1 The store (built)** | NEW `src/art/artStore.ts`, `src/art/artBudget.ts`, `tests/art/artStore.test.ts`; EDIT `src/art/artLoader.ts`, `tests/art/artLoader.test.ts` | the owner's sitting | Built: Phaser-free store, budgets, leases, priorities and compatibility wrappers |
+| **S2 Sources and packs (built)** | NEW `src/art/artSource.ts`, `scripts/pack-art.ts`, `tests/art/artSource.test.ts`, `tests/scripts/packArt.test.ts` (+ a 3-file fixture); EDIT `vite.config.ts`, `package.json` (the `build` script), `.gitignore`, `.github/workflows/deploy.yml`, `scripts/serve-lan.ts`, `docs/desktop-build.md`, `docs/architecture.md` | the sitting; runs beside S1 | Built: loose and packed sources, content-hashed packs, range fallbacks and target-specific build wiring |
+| **S3 The Phaser shell (built)** | EDIT `src/scenes/ArtLoaderScene.ts` (decode, upload cap, eviction and the safety scan, `window.__art`), `src/art/ArtResolver.ts` (tier and the best-resident answer), `src/art/artWatch.ts` (`holdArt`), `src/ui/artGate.ts` (scene leases), `src/scenes/PreloadScene.ts`; NEW `scripts/probe-art.mjs` | S1, S2 | Built; **on by default in 1.9** after S5a's Collection, Deck Builder and Showcase paging split. `?artStream=off` selects the legacy whole-manifest loader |
+| **S4 Views hold what they draw (built)** | EDIT `src/ui/CardView.ts`, `src/ui/BoardCardView.ts`, `src/ui/CardThumbCache.ts`, `src/ui/portraitArt.ts` (I9's `addPortraitArt`: the lease and the removal belt go inside it), `src/ui/saveCard.ts` | S3; **R13 in `CardView.ts`**; I9 (PR #473) | Built: view, portrait, export and thumbnail ownership; shared-file order was R13, then S4, then accessibility |
+| **S5a Grids and menus (built)** | EDIT `CollectionScene.ts`, `DeckBuilderScene.ts`, `CardShowcaseScene.ts`, `PackOpeningScene.ts`, `LimitedDraftScene.ts`, `LimitedDeckBuilderScene.ts`, `ShopScene.ts`, `ProfileScene.ts`, `AchievementsScene.ts`, `PlayScene.ts`, `GauntletScene.ts`, `PracticePickerScene.ts`, `src/ui/ZoneContentsModal.ts`; shared `artGate.ts`, `pagedRequests.ts`, `packRequests.ts`, `artLifetime.ts`; probe and Phaser-free tests | S4; I9 and I5 (`LimitedDraftScene.ts`), I9 (`ShopScene.ts`, `GauntletScene.ts`, `PracticePickerScene.ts`); I3 and I4 (`DeckBuilderScene.ts`) | Built: core and long tail, preserving the landed accessibility layouts. Paged thumbnails, per-pack reveal gates and destroy-bound modal waits are in place; flag on in 1.9 |
+| **S5b The duel (built)** | EDIT `src/scenes/DuelScene.ts` (the duel lease across rung restarts, the portrait leases) | S4; **I6 and I9** (wave 1) | Built: duel and portrait leases, including rung handover; shared-file order was I6/I9, then S5b, then A2 and accessibility |
+| **S6 Gates (built)** | `scripts/probe-art.mjs`, `scripts/art-probe-metrics.mjs`, `scripts/art-probe-processes.mjs`, `scripts/art-probe-save.ts`; section 6 and the standalone runbook | S5a, S5b | Built: corrected timing, memory and long-task measurements; desktop attach and gate runbook. All eight approver measurements remain pending; no measured gate result is claimed |
 
 Where the lane meets the rest of 1.9:
 
@@ -690,8 +1146,8 @@ The earlier deferral boundary is retained here as release context.
   Limited scenes. They stay correct through the old wrappers
   (`gateOnArt`, `awaitArt`, `ensureArt` on their own sets), just without
   paging-level leases. Ship S1, S3, S4, S5a's core (Collection, the Deck
-  Builder and the Showcase, the three whole-manifest gates S3's flag waits
-  on, plus pack opening), S5b and S6 over the
+  Builder and the Showcase, the three whole-manifest gates that originally
+  required S3's flag, plus pack opening), S5b and S6 over the
   loose source on every target. Players still get the residency cut and an
   instant Collection, and 2.0 adds a second source behind an interface that
   already exists, plus the build step. Nothing in 1.9 would need rewriting
@@ -794,11 +1250,11 @@ Each opens with the recommendation.
    The cost is the release of pack soak on Pages, so 2.0 would schedule its
    own before the itch launch.
 7. **Scale the phone budget by the device's memory where the browser says
-   it.** Recommended: yes. Where `navigator.deviceMemory` is present
-   (Chromium on Android), scale the 160 + 48 MiB budget with it: half at
-   2 GB or less, the base at 4 GB, 1.5x at 8 GB. Keep the base as the floor
-   everywhere else, including iOS, which never exposes it. The alternative
-   is one fixed phone budget.
+   it.** Built in S6. Where `navigator.deviceMemory` is present, scale both
+   lite budgets: half at 2 GB or less, the base between 2 and 8 GB, and 1.5x
+   at 8 GB or more. An unavailable or invalid value keeps the base; the full
+   tier is unchanged. Both the art store and thumbnail cache receive the
+   device-memory value, and an explicit `?artBudget=<MiB>` overrides it.
 8. **A shipped "no eviction" switch as the desktop fallback.** Recommended:
    yes, as a URL flag (`?artEvict=off`), which adds no player copy (a
    Settings toggle would need a string for the owner to word). It keeps
@@ -806,5 +1262,7 @@ Each opens with the recommendation.
    residency, bounded by what the player actually visits). It is the
    answer to a crash report after release that the gates did not catch,
    without a hotfix. The alternative is no switch, relying on the gates
-   and a hotfix. As built (S1), the flag applies on every tier, not only
-   desktop: it is explicit, and a phone under it behaves as today.
+   and a hotfix. As built, the flag applies on every tier, not only desktop;
+   S6 also wires it through the thumbnail cache, so it disables both source
+   and thumbnail eviction. It does not select the legacy loader: that is
+   `?artStream=off`.

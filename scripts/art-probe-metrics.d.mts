@@ -1,0 +1,44 @@
+export type GateStatus = 'PASS' | 'FAIL' | 'UNMEASURED';
+export interface GateVerdict { status: GateStatus; reasons: string[] }
+export interface LongTaskSummary { count: number | null; totalMs: number | null; durationsMs: number[] | null }
+export interface MemorySample { gpuMiB: number | null; rendererMiB: number | null }
+export interface CollectionTiming {
+  navigationToBinderMs: number;
+  navigationToLoadingGoneMs: number;
+  navigationToRealMs: number;
+  enterToBinderMs: number;
+  enterToRealMs: number;
+  binderFrame: number;
+  expectedPockets: number;
+  actualPockets: number;
+}
+export interface CollectionVerdict extends GateVerdict { measured: boolean; limitMs: number | null; timing: CollectionTiming | null }
+export function bytesToMiB(bytes: unknown): number | null;
+export function normalizeLongTasks(durations: unknown): LongTaskSummary;
+export function normalizeStop<T extends object>(stop: T): Omit<T, 'longTasks' | 'longTaskTotalMs' | 'longTaskDurationsMs' | 'residentMiB' | 'pinnedMiB'> & {
+  residentMiB: number | null;
+  pinnedMiB: number | null;
+  longTasks: number | null;
+  longTaskTotalMs: number | null;
+  longTaskDurationsMs: number[] | null;
+};
+export function memoryGate(run: unknown): GateVerdict & {
+  baseline: MemorySample;
+  gpuLimitMiB: number | null;
+  rendererLimitMiB: number | null;
+  stops: Array<MemorySample & { stop: string }>;
+};
+export function collectionGate(run: unknown): CollectionVerdict;
+export const spreadGate: typeof collectionGate;
+export function longTaskGate(candidate: unknown, baseline: unknown): GateVerdict & { candidate: LongTaskSummary; baseline: LongTaskSummary };
+export function median(values: unknown): number | null;
+export function summarizeTimings(runs: unknown, expectedRepeats: number): {
+  status: GateStatus;
+  expectedRepeats: number;
+  attemptedRepeats: number;
+  validRepeats: number;
+  failedRuns: number[];
+  unmeasuredRuns: number[];
+  medians: Pick<CollectionTiming, 'navigationToBinderMs' | 'navigationToLoadingGoneMs' | 'navigationToRealMs' | 'enterToBinderMs' | 'enterToRealMs'> | null;
+  runs: Array<CollectionVerdict & { index: number; label: string | null }>;
+};

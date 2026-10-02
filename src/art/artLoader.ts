@@ -368,12 +368,10 @@ export class ArtQueue {
 let live: ArtQueue | null = null;
 
 /**
- * The live art store (1.9 lane D), set by the Phaser shell only when art
- * streaming is switched on (S3, behind a flag). While it is set, the old
- * module-level API below answers from the store instead of the queue: these
- * are the thin wrappers the scenes keep calling until they move to leases.
- * While it is null (the shipped default until S3's flag flips), nothing here
- * changes behaviour.
+ * The live art store (1.9 lane D), set by the Phaser shell by default. While
+ * it is set, the module-level API below answers from the store instead of
+ * the queue: these are the compatibility wrappers the scenes keep calling.
+ * Under `?artStream=off` it stays null and these wrappers use the 1.8 queue.
  */
 let liveStore: ArtStore | null = null;
 
