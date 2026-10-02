@@ -105,6 +105,10 @@ interface Enrolled {
 
 /** The enrolled modules (wave 1: Settings after C4, the layout.ts headers and SCENE_TITLE, Profile) and the resolver. */
 const ENROLLED: readonly Enrolled[] = [
+  { module: 'src/ui/deckPanePresentation.ts (Deck Builder)', rules: { frame: { file: 'tests/ui/deckPanePresentation.test.ts', tests: ['keeps wrapped titles above the controls in every accessibility cell','separates measured summary lines, curve labels, status and both action rows in every accessibility cell','fits full measured identities and action hit bands inside every paged tile in every accessibility cell'] } } },
+  { module: 'src/ui/deckListPaging.ts (Deck Builder)', rules: { frame: { file: 'tests/ui/deckListPaging.test.ts', tests: ['keeps every wrapped row whole, reachable and separate from its neighbours and pager in every accessibility cell', 'fills the Darlings fixture page with measured rows at $textScale, touch $touch'] } } },
+  { module: 'src/ui/deckPoolLayout.ts (Deck Builder)', rules: { frame: { file: 'tests/ui/deckPoolLayout.test.ts', tests: ['keeps exempt card faces and their input bands inside the pool in every accessibility cell'] } } },
+  { module: 'src/ui/collectionPresentation.ts (Collection)', rules: { frame: { file: 'tests/ui/collectionPresentation.test.ts', tests: ['keeps the search, statistics, filters, and binder in separate bands','keeps every face and its full-size badge band within its binder page','sizes the odds plate from all wrapped lines above the panel inset','paginates all finishes without crossing wrapped actions or the pager'] } } },
   { module: 'src/ui/mainMenuPresentation.ts (Main menu)', rules: {
     frame: { here: 'Main menu: measured chrome and content-sized notices' },
     gap: { here: 'Main menu: measured chrome and content-sized notices' },

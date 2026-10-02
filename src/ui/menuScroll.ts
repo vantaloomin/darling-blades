@@ -3,24 +3,25 @@ import { TAP_SLOP_PX } from '../platform/gestureCore';
 import { isRectContained, type Rect } from './layout';
 import { menuScrollOffset } from './menuText';
 import { theme } from './theme';
-import { sceneHasOpenModal, type ThemedButton } from './themeWidgets';
+import { sceneHasOpenModal, type ModalShell, type ThemedButton } from './themeWidgets';
 
 /** A measured menu column. Its content uses world x and local y; no scaled input. */
 export function bindMenuScroll(
   scene: Phaser.Scene, content: Phaser.GameObjects.Container, viewport: Rect, contentHeight: number,
-  blocked: () => boolean = () => false, buttons: readonly ThemedButton[] = [], step = 0,
+  blocked: () => boolean = () => false, buttons: readonly ThemedButton[] = [], step = 0, modal?: ModalShell,
 ): void {
   const maxScroll = Math.max(0, contentHeight - viewport.height);
   const mask = scene.add.graphics().fillStyle(theme.graphics.panelFill, 1)
     .fillRect(viewport.x, viewport.y, viewport.width, viewport.height).setVisible(false);
   content.setMask(mask.createGeometryMask());
   const thumb = scene.add.graphics();
+  content.parentContainer?.add(thumb);
   let offset = 0;
   let requested = 0;
   let drag: { id: number; y: number; offset: number } | null = null;
   const contains = (p: Phaser.Input.Pointer): boolean => p.worldX >= viewport.x && p.worldX <= viewport.x + viewport.width
     && p.worldY >= viewport.y && p.worldY <= viewport.y + viewport.height;
-  const unavailable = (): boolean => blocked() || sceneHasOpenModal(scene);
+  const unavailable = (): boolean => blocked() || (modal ? !modal.isTop() : sceneHasOpenModal(scene));
   const place = (next: number): void => {
     requested = Math.max(0, Math.min(maxScroll, next));
     offset = menuScrollOffset(requested, maxScroll, step);

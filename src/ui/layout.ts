@@ -512,10 +512,12 @@ export function measureThemedButton(
   size: ControlSize = 'md',
   minWidth = 0,
   padding = controlPadding(size),
+  labelHeight = 0,
 ): ThemedButtonMeasurement {
   const safeLabelWidth = Math.max(0, labelWidth);
   const safePadding = Math.max(0, padding);
-  const height = size === 'sm' ? theme.control.heightSm : theme.control.heightMd;
+  const height = Math.max(size === 'sm' ? theme.control.heightSm : theme.control.heightMd,
+    labelHeight > 0 ? Math.ceil(labelHeight + theme.space(2)) : 0);
   const width = Math.max(minWidth, Math.ceil(safeLabelWidth + safePadding * 2));
   const visual = {
     x: -width / 2,
