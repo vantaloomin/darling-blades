@@ -1,6 +1,17 @@
 import { GAP_FLOORS, SCENE_TITLE, type Rect } from './layout';
 import { currentTokens } from './accessibility';
 import { theme } from './theme';
+import type { SaveData } from '../meta/SaveManager';
+
+export interface ProfileA11yFixture {
+  save?: SaveData;
+  tab?: ProfileStatTab;
+  modal?: 'export' | 'picker' | 'import' | 'confirm';
+  preview?: boolean;
+  replayPage?: number;
+  pickerPage?: number;
+  identity?: string;
+}
 
 /**
  * The Profile scene's layout, derived from the design-system tokens and the
@@ -298,6 +309,7 @@ function computeLayout() {
   const replayNoteY = replayMetaY + type.caption / 2 + GAP_DATUM + type.micro / 2;
   const replayCellHeight = replayNoteY + type.micro / 2 + REPLAY_PAD_Y;
   const replaysTop = panels.headY + type.h2 / 2 + GAP_WITHIN;
+  const replayRows = Math.min(REPLAY_ROWS, Math.floor((panels.bottom - PROFILE_PANEL_BOTTOM_INSET - replaysTop + GAP_LIST) / (replayCellHeight + GAP_LIST)));
   const replays = {
     headingX: RIGHT_CONTENT_X,
     headingY: panels.headY,
@@ -305,8 +317,8 @@ function computeLayout() {
     top: replaysTop,
     width: RIGHT_CONTENT_WIDTH,
     columns: REPLAY_COLUMNS,
-    rows: REPLAY_ROWS,
-    capacity: REPLAY_COLUMNS * REPLAY_ROWS,
+    rows: replayRows,
+    capacity: REPLAY_COLUMNS * replayRows,
     gutter: GAP_LIST,
     cellWidth: REPLAY_CELL_WIDTH,
     cellHeight: replayCellHeight,
@@ -477,15 +489,32 @@ export const PROFILE_REPLAYS = live(() => currentLayout().replays);
 
 /** The cell for replay `index`: column-major, so the newest five read down the left column. */
 export function profileReplayCell(index: number): Rect {
-  const { top, cellHeight } = currentLayout().replays;
-  const column = Math.floor(index / REPLAY_ROWS);
-  const row = index % REPLAY_ROWS;
+  const { top, cellHeight, rows } = currentLayout().replays;
+  const column = Math.floor(index / rows);
+  const row = index % rows;
   return {
     x: RIGHT_CONTENT_X + column * (REPLAY_CELL_WIDTH + GAP_LIST),
     y: top + row * (cellHeight + GAP_LIST),
     width: REPLAY_CELL_WIDTH,
     height: cellHeight,
   };
+}
+
+/** Actual wrapped line heights drive replay pagination; release anchors are floors. */
+export function profileMeasuredReplays(metaHeight: number, noteHeight: number) {
+  const row = PROFILE_REPLAY_ROW;
+  const metaY = Math.max(48, row.titleY + row.watchHeight / 2 + GAP_DATUM + metaHeight / 2);
+  const noteY = Math.max(63.5, metaY + metaHeight / 2 + GAP_DATUM + noteHeight / 2);
+  // At standard size the historical one-pixel inter-line clearance remains intact.
+  const standard = metaHeight <= 15 && noteHeight <= 14;
+  const actualMetaY = standard ? 48 : metaY;
+  const actualNoteY = standard ? 63.5 : noteY;
+  const height = standard ? 77 : Math.max(77, actualNoteY + noteHeight / 2 + row.padY);
+  const available = PROFILE_PANELS.bottom - PROFILE_PANEL_BOTTOM_INSET - PROFILE_REPLAYS.top;
+  const rows = Math.min(5, Math.floor((available + GAP_LIST) / (height + GAP_LIST)));
+  return { metaY: actualMetaY, noteY: actualNoteY, height, rows, capacity: rows * REPLAY_COLUMNS,
+    cell: (index: number): Rect => ({ x: RIGHT_CONTENT_X + Math.floor(index / rows) * (REPLAY_CELL_WIDTH + GAP_LIST),
+      y: PROFILE_REPLAYS.top + (index % rows) * (height + GAP_LIST), width: REPLAY_CELL_WIDTH, height }) };
 }
 
 /**

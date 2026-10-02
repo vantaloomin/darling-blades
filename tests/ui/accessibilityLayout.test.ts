@@ -105,6 +105,8 @@ interface Enrolled {
 
 /** The enrolled modules (wave 1: Settings after C4, the layout.ts headers and SCENE_TITLE, Profile) and the resolver. */
 const ENROLLED: readonly Enrolled[] = [
+  { module: 'src/ui/shopPresentation.ts and src/ui/deckShopLayout.ts (Shop)', rules: { frame: { file: 'tests/ui/shopPresentation.test.ts', tests: ['keeps wrapped pack identities above the art and the purchase action outside the reading band', 'sizes dialogs from measured content and keeps the footer separate', 'preserves the release list capacities, pitches and anchors for standard measured text'] } } },
+  { module: 'src/ui/profilePresentation.ts (Profile measured replays)', rules: { inset: { file: 'tests/ui/shopPresentation.test.ts', tests: ['keeps every measured replay cell inside the panel while larger lines reduce capacity'] } } },
   { module: 'src/ui/deckPanePresentation.ts (Deck Builder)', rules: { frame: { file: 'tests/ui/deckPanePresentation.test.ts', tests: ['keeps wrapped titles above the controls in every accessibility cell','separates measured summary lines, curve labels, status and both action rows in every accessibility cell','fits full measured identities and action hit bands inside every paged tile in every accessibility cell'] } } },
   { module: 'src/ui/deckListPaging.ts (Deck Builder)', rules: { frame: { file: 'tests/ui/deckListPaging.test.ts', tests: ['keeps every wrapped row whole, reachable and separate from its neighbours and pager in every accessibility cell', 'fills the Darlings fixture page with measured rows at $textScale, touch $touch'] } } },
   { module: 'src/ui/deckPoolLayout.ts (Deck Builder)', rules: { frame: { file: 'tests/ui/deckPoolLayout.test.ts', tests: ['keeps exempt card faces and their input bands inside the pool in every accessibility cell'] } } },
@@ -271,25 +273,8 @@ function saveActions(exportWidth: number, importWidth: number): [string, Rect][]
 }
 
 
-/**
- * The matrix's known failures: the only rules allowed to fail, each at the
- * text sizes listed (in both contrasts, since contrast moves nothing). Each
- * runs there as `it.fails`, so the suite goes red the day it starts to hold,
- * and the entry must then come out. Clearing them is the owning scene pass's
- * job under the C5 gate, not a reason to loosen the rule.
- * - Profile (measured 2026-09-28, C3, when its geometry went live): five rows
- *   of taller replay cells overrun the right panel's content box, by 16px at
- *   115% and 33px at 130%.
- */
-const KNOWN_LARGER_TEXT_FAILURES: Record<string, readonly number[]> = {
-  "replay grid: five rows fit the panel's content box": [1.15, 1.3],
-};
-
-function profileLayoutRules(textScale: number): void {
-  const rule = (name: string, fn: () => void): void => {
-    if (KNOWN_LARGER_TEXT_FAILURES[name]?.includes(textScale)) it.fails(name, fn);
-    else it(name, fn);
-  };
+function profileLayoutRules(): void {
+  const rule = it;
 
   describe('the Profile header', () => {
     rule('puts the title on the back link\'s line, inside the frame and clear of the link', () => {
@@ -447,7 +432,7 @@ function profileLayoutRules(textScale: number): void {
     });
     const replayCells = (): Rect[] => Array.from({ length: PROFILE_REPLAYS.capacity }, (_, i) => profileReplayCell(i));
 
-    rule("replay grid: five rows fit the panel's content box", () => {
+    rule("replay grid: every page fits the panel's content box", () => {
       const content = replayContent();
       for (const [i, cell] of replayCells().entries()) expect(isRectContained(cell, content), `cell ${i}`).toBe(true);
     });
@@ -1014,7 +999,7 @@ for (const cell of A11Y_CELLS) {
     sharedHeaderRules();
     settingsFrameRules();
     coreMenuRules(cell.textScale);
-    profileLayoutRules(cell.textScale);
+    profileLayoutRules();
   });
 }
 

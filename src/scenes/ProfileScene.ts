@@ -53,7 +53,7 @@ import {
   profileImportFooterXs,
   profileImportLayout,
   profilePickerLayout,
-  profileReplayCell,
+  profileMeasuredReplays,
   profileReplayNameWidth,
   profileSaveActionCenters,
   profileStatNoteTop,
@@ -68,6 +68,8 @@ import {
   pickPngFile,
   saveCardArtStillLoading,
 } from '../ui/saveCard';
+import { fitMenuName } from '../ui/menuText';
+import type { ProfileA11yFixture } from '../ui/profilePresentation';
 import { ellipsizeText } from '../ui/textFit';
 import { sceneTitle } from '../ui/sceneTitle';
 import { applySavedAccessibility } from '../ui/settingsPresentation';
@@ -102,6 +104,10 @@ const hitWidth = (button: ThemedButton): number => button.getMeasuredSize().hit.
  * built first and then placed from their measured hit width.
  */
 export class ProfileScene extends Phaser.Scene {
+  private fixture: ProfileA11yFixture | null = null;
+  private fixtureSave: SaveData | null = null;
+  private get saveData(): SaveData { return this.fixtureSave ?? Services.save.data; }
+  private identityShell: ModalShell | null = null;
   private statTab: ProfileStatTab = 'practice';
   /** Everything the active tab drew, cleared on each tab switch. */
   private statTabNodes: Phaser.GameObjects.GameObject[] = [];
@@ -126,11 +132,17 @@ export class ProfileScene extends Phaser.Scene {
     super('Profile');
   }
 
-  create(data: { notice?: string; replays?: readonly ReplayLog[] } = {}): void {
+  create(data: { notice?: string; replays?: readonly ReplayLog[]; a11yFixture?: ProfileA11yFixture } = {}): void {
     // The notice is one-shot: Phaser keeps a start's data for the next start
     // that passes none (Systems.start only replaces it when given some), so a
     // later plain visit would show "Save imported" again.
     this.sys.settings.data = {};
+    this.fixture = IS_DEV ? data.a11yFixture ?? null : null;
+    this.fixtureSave = this.fixture?.save ? structuredClone(this.fixture.save) : null;
+    this.statTab = this.fixture?.tab ?? 'practice';
+    this.identityShell = null;
+    this.data.set('a11yReady', false);
+    this.data.set('a11yDensity', { actual: [], release: [] });
     this.reserveFormatsEnabled = FEATURES.reserveFormats;
     this.coordinator = new OverlayCoordinator();
     this.profileInteractiveTargets = [];
@@ -161,7 +173,7 @@ export class ProfileScene extends Phaser.Scene {
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('menu');
 
-    const p = computeProfile(Services.save.data);
+    const p = computeProfile(this.saveData);
 
     // Header line: the back link (added last, below) and the shared title.
     sceneTitle(this, 'Profile');
@@ -225,9 +237,9 @@ export class ProfileScene extends Phaser.Scene {
         color: theme.colors.gold,
       })
       .setOrigin(0, 0.5);
-    const replays = (data.replays ?? Services.save.data.replays) // data.replays: dev probe fixtures (src/dev/a11yProbe.ts)
+    const replays = (data.replays ?? this.saveData.replays) // data.replays: dev probe fixtures (src/dev/a11yProbe.ts)
       .filter((log) => isReplayVisible(log, this.reserveFormatsEnabled))
-      .slice(0, PROFILE_REPLAYS.capacity);
+      .slice(0, 10);
     if (replays.length === 0) {
       this.add
         .text(PROFILE_REPLAYS.left, PROFILE_REPLAYS.emptyY, 'No replays yet. Finish a duel and it will appear here.', {
@@ -238,10 +250,39 @@ export class ProfileScene extends Phaser.Scene {
         })
         .setOrigin(0, 0.5);
     } else {
-      replays.forEach((log, index) => this.replayRow(log, profileReplayCell(index)));
+      const measure = (value: string, fontSize: number): number => {
+        const text = this.add.text(0, 0, value, { fontFamily: theme.fonts.ui, fontSize: `${fontSize}px`, wordWrap: { width: PROFILE_REPLAY_ROW.textWidth } });
+        const height = text.height; text.destroy(); return height;
+      };
+      const metaHeight = Math.max(...replays.map((log) => measure(this.replayMeta(log), theme.type.caption)));
+      const noteHeight = measure('This replay was recorded on an older version.', theme.type.micro);
+      const layout = profileMeasuredReplays(metaHeight, noteHeight);
+      const density = this.data.get('a11yDensity');
+      density.actual.push({ id: 'replays', rows: layout.rows, columns: 2, pitch: layout.height + PROFILE_REPLAYS.gutter, top: PROFILE_REPLAYS.top });
+      density.release.push({ id: 'replays', rows: 5, columns: 2, pitch: 85, top: 243 });
+      const pages = Math.ceil(replays.length / layout.capacity);
+      let rows: Phaser.GameObjects.Container[] = [];
+      let control: ReturnType<typeof pager> | null = null;
+      const render = (page: number): void => {
+        rows.forEach((row) => row.destroy());
+        this.profileInteractiveTargets = this.profileInteractiveTargets.filter((target) => target.active);
+        rows = replays.slice(page * layout.capacity, (page + 1) * layout.capacity).map((log, index) => this.replayRow(log, layout.cell(index), layout));
+        control?.refresh(page, pages);
+      };
+      if (pages > 1) {
+        control = pager(this, PROFILE_REPLAYS.left + PROFILE_REPLAYS.width - 180, PROFILE_REPLAYS.headingY, 0, pages, render);
+        this.profileInteractiveTargets.push(control.previous, control.next);
+      }
+      render(Math.min(pages - 1, this.fixture?.replayPage ?? 0));
     }
 
     this.profileInteractiveTargets.push(backButton(this, 'Menu', () => this.scene.start('MainMenu')));
+    if (this.fixture?.modal === 'export' || this.fixture?.modal === 'picker') this.openExportModal();
+    if (this.fixture?.modal === 'picker') this.openSaveCardPicker(() => this.tryEncode(false) ?? '');
+    if (this.fixture?.modal === 'import' || this.fixture?.modal === 'confirm') this.openImportModal();
+    if (this.fixture?.modal === 'confirm') this.openImportConfirmation(this.saveData);
+    if (this.fixture?.identity) this.showIdentity(this.fixture.identity);
+    if (this.fixture?.modal !== 'picker') this.data.set('a11yReady', true);
   }
 
   private readonly onEscKey = (): void => {
@@ -256,6 +297,7 @@ export class ProfileScene extends Phaser.Scene {
     this.confirmationShell?.close();
     this.exportInput?.destroy();
     this.importInput?.destroy();
+    this.identityShell?.close();
     this.coordinator.destroy();
     this.input.keyboard?.off('keydown-ESC', this.onEscKey);
   };
@@ -283,7 +325,7 @@ export class ProfileScene extends Phaser.Scene {
    */
   private tryEncode(includeReplays: boolean): string | null {
     try {
-      return encode(Services.save.data, { includeReplays });
+      return encode(this.saveData, { includeReplays });
     } catch {
       return null;
     }
@@ -451,7 +493,7 @@ export class ProfileScene extends Phaser.Scene {
     // The only card art the Profile draws: the owned-pool grid behind the save
     // card export (src/ui/saveCard.ts composes the chosen card's art into the
     // PNG, so a stand-in texture would ship inside the file).
-    const owned = Object.keys(Services.save.data.collection);
+    const owned = Object.keys(this.saveData.collection);
     this.pickerShell?.close();
     if (artMissing(owned).length === 0) {
       this.buildSaveCardPicker(getCode);
@@ -545,7 +587,7 @@ export class ProfileScene extends Phaser.Scene {
         .setOrigin(0.5),
     );
 
-    const save = Services.save.data;
+    const save = this.saveData;
     const ownedPool = ALL_CARDS
       .filter((d) => ownedCount(save, d.id) > 0)
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -556,8 +598,11 @@ export class ProfileScene extends Phaser.Scene {
     c.add(gridC);
     const COLS = PROFILE_SAVE_CARD_PICKER.columns;
     const PAGE_SIZE = COLS * PROFILE_SAVE_CARD_PICKER.rows;
+    const density = this.data.get('a11yDensity');
+    density.actual.push({ id: 'save card picker', rows: PROFILE_SAVE_CARD_PICKER.rows, columns: COLS, pitch: L.rowYs[1] - L.rowYs[0], top: L.gridTop });
+    density.release.push({ id: 'save card picker', rows: 3, columns: 8, pitch: 142.8, top: 172 });
     let query = '';
-    let page = 0;
+    let page = this.fixture?.pickerPage ?? 0;
     const renderGrid = (): void => {
       gridC.removeAll(true);
       const filtered = ownedPool.filter((d) => matchesSearch(d, query));
@@ -605,10 +650,12 @@ export class ProfileScene extends Phaser.Scene {
     });
     this.pickerSearch = search;
     renderGrid();
+    this.data.set('a11yReady', true);
   }
 
   /** One save-card export at a time: a second tap during one would download twice. */
   private async exportSaveCard(cardId: string, code: string): Promise<void> {
+    if (this.fixture) return;
     if (this.exportingSaveCard) return;
     this.exportingSaveCard = true;
     try {
@@ -620,8 +667,8 @@ export class ProfileScene extends Phaser.Scene {
 
   /** Composite the cover, embed the code, and hand the PNG to the browser. */
   private async composeAndDownloadSaveCard(cardId: string, code: string): Promise<void> {
-    const completion = collectionCompletion(ALL_CARDS, Services.save.data);
-    const bestRung = Services.save.data.gauntlet.bestRung;
+    const completion = collectionCompletion(ALL_CARDS, this.saveData);
+    const bestRung = this.saveData.gauntlet.bestRung;
     const identity =
       `${formatRate(completion.percent)} collection` + (bestRung > 0 ? ` · Tower rung ${bestRung}` : '');
     const canvas = await composeSaveCardCanvasAsync(this, cardId, {
@@ -788,14 +835,20 @@ export class ProfileScene extends Phaser.Scene {
       cardImportButton.inputZone,
       previewButton.inputZone,
     ];
+    if (this.fixture?.preview) { input.setValue(this.tryEncode(false) ?? ''); runPreview(); }
     input.focus();
   }
 
   private openImportConfirmation(save: SaveData): void {
     this.confirmationShell?.close();
+    const M = PROFILE_CONFIRM_MODAL;
+    const message = this.add.text(0, 0, "Replace this device's save? Your current profile will be overwritten. Export it first if you may want it back.", {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.type.body}px`, color: theme.colors.body,
+      wordWrap: { width: M.messageWrap }, align: 'center', lineSpacing: M.messageLineSpacing,
+    }).setOrigin(0.5);
     const shell = modalShell(this, {
       width: PROFILE_CONFIRM_MODAL.width,
-      height: PROFILE_CONFIRM_MODAL.height,
+      height: Math.max(PROFILE_CONFIRM_MODAL.height, message.height + 168),
       dimAlpha: 0.9,
       depth: theme.depth.results,
       dismissal: 'esc-and-close',
@@ -812,19 +865,8 @@ export class ProfileScene extends Phaser.Scene {
     this.confirmationShell = shell;
     const c = shell.container;
     const L = profileConfirmLayout(shell.tracks);
-    const M = PROFILE_CONFIRM_MODAL;
-    c.add(
-      this.add
-        .text(L.messageX, L.messageY, "Replace this device's save? Your current profile will be overwritten. Export it first if you may want it back.", {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.body}px`,
-          color: theme.colors.body,
-          wordWrap: { width: M.messageWrap },
-          align: 'center',
-          lineSpacing: M.messageLineSpacing,
-        })
-        .setOrigin(0.5),
-    );
+    message.setPosition(L.messageX, L.messageY);
+    c.add(message);
     const cancelButton = themedButton(this, 0, L.footerY, 'Cancel', {
       variant: 'ghost',
       minWidth: M.cancelMinWidth,
@@ -834,6 +876,7 @@ export class ProfileScene extends Phaser.Scene {
       variant: 'danger',
       minWidth: M.confirmMinWidth,
       onTap: () => {
+        if (this.fixture) return;
         if (!Services.replaceSave(save)) {
           shell.close();
           this.importStatus
@@ -843,7 +886,7 @@ export class ProfileScene extends Phaser.Scene {
         }
         // The imported save's text size and contrast travel with it (plan Q7):
         // in force before the restart rebuilds this scene.
-        applySavedAccessibility(Services.save.data.settings, IS_DEV);
+        applySavedAccessibility(this.saveData.settings, IS_DEV);
         shell.close();
         this.importShell?.close();
         this.scene.restart({ notice: 'Save imported' });
@@ -875,7 +918,7 @@ export class ProfileScene extends Phaser.Scene {
    */
   private drawShowcase(): void {
     const S = PROFILE_SHOWCASE;
-    const achievements = Services.save.data.achievements;
+    const achievements = this.saveData.achievements;
     const pins = achievements.pinned
       .map((id) => ACHIEVEMENTS.find((achievement) => achievement.id === id))
       .filter((achievement): achievement is AchievementDef =>
@@ -920,7 +963,14 @@ export class ProfileScene extends Phaser.Scene {
           color: theme.colors.success,
         })
         .setOrigin(0.5);
+      const growth = Math.max(0, title.height - 15);
+      title.setY(S.titleY - growth / 2);
+      label.setY(S.claimedY + growth / 2);
       seal.add([plate, title, label]);
+      const hit = this.add.zone(0, 0, w, h).setInteractive({ useHandCursor: true });
+      seal.add(hit);
+      bindTapButton(this, hit, () => this.showIdentity(achievement.title));
+      this.profileInteractiveTargets.push(hit);
     });
   }
 
@@ -998,7 +1048,7 @@ export class ProfileScene extends Phaser.Scene {
   }
 
   private renderPracticeTab(): void {
-    const p = computeProfile(Services.save.data);
+    const p = computeProfile(this.saveData);
     p.byDifficulty.forEach((d, i) => {
       this.statTabRow(
         i,
@@ -1012,8 +1062,8 @@ export class ProfileScene extends Phaser.Scene {
   }
 
   private renderGauntletTab(): void {
-    const p = computeProfile(Services.save.data);
-    const g = Services.save.data.gauntlet;
+    const p = computeProfile(this.saveData);
+    const g = this.saveData.gauntlet;
     this.statTabRow(0, 'Best rung reached', p.bestRung > 0 ? `Rung ${p.bestRung}` : 'None');
     this.statTabRow(1, 'Full clears', `${p.completions}`);
     this.statTabRow(2, 'Mono-color clears', `${g.clearStyles.monoColor}`);
@@ -1023,7 +1073,7 @@ export class ProfileScene extends Phaser.Scene {
   }
 
   private renderDraftTab(): void {
-    const d = computeDraftSummary(Services.save.data.limited);
+    const d = computeDraftSummary(this.saveData.limited);
     this.statTabRow(0, 'Best finish', d.bestWins > 0 ? `${d.bestWins} wins` : 'None');
     this.statTabRow(1, 'Runs completed', `${d.runs}`);
     this.statTabRow(
@@ -1047,7 +1097,7 @@ export class ProfileScene extends Phaser.Scene {
   }
 
   private renderCollectionTab(): void {
-    const c = collectionCompletion(ALL_CARDS, Services.save.data);
+    const c = collectionCompletion(ALL_CARDS, this.saveData);
     this.statTabRow(0, 'Cards owned', `${c.owned} / ${c.total}      ${formatRate(c.percent)}`);
     c.byRarity.forEach((r, i) => {
       this.statTabRow(
@@ -1080,14 +1130,30 @@ export class ProfileScene extends Phaser.Scene {
    * wrap onto the line below); the mode/result line sits under it, and a
    * replay recorded on an older version gets its note in place of the button.
    */
-  private replayRow(log: ReplayLog, cell: Rect): void {
-    const R = PROFILE_REPLAY_ROW;
-    const replayable = canReplay(log, CARD_DB);
-    const row = this.add.container(0, 0).setAlpha(replayable ? 1 : theme.alpha.subtle);
-    row.add(panel(this, cell.x, cell.y, cell.width, cell.height, { alpha: theme.alpha.subtle, radius: theme.radius.control }));
+  private replayMeta(log: ReplayLog): string {
     const mode = log.context.mode[0].toUpperCase() + log.context.mode.slice(1);
     const result = log.result === 'win' ? 'Victory' : 'Defeat';
     const date = todayString(new Date(log.endedAt));
+    return `${mode} · ${result} · ${log.turns === 1 ? '1 turn' : `${log.turns} turns`} · ${date}`;
+  }
+
+  private showIdentity(value: string): void {
+    this.identityShell?.close();
+    const title = this.add.text(0, 0, value, { fontFamily: theme.fonts.display, fontSize: `${theme.type.h1}px`, color: theme.colors.heading, align: 'center' }).setOrigin(0.5);
+    fitMenuName(title, 600, 4);
+    const shell = modalShell(this, { width: 700, height: title.height + 176, dismissal: 'esc-and-close', coordinator: this.coordinator, registration: { dismissible: true, guardTargets: this.profileInteractiveTargets.map(modalGuardTarget) }, onClose: () => { this.identityShell = null; } });
+    this.identityShell = shell;
+    const area = shell.tracks.contentBounds;
+    title.setPosition(area.x + area.width / 2, area.y + area.height / 2);
+    shell.container.add(title);
+  }
+
+  private replayRow(log: ReplayLog, cell: Rect, layout: ReturnType<typeof profileMeasuredReplays>): Phaser.GameObjects.Container {
+    const R = PROFILE_REPLAY_ROW;
+    const replayable = canReplay(log, CARD_DB);
+    const row = this.add.container(0, 0);
+    row.add(panel(this, cell.x, cell.y, cell.width, cell.height, { alpha: theme.alpha.subtle, radius: theme.radius.control }));
+
     const name = this.add
       .text(cell.x + R.textX, cell.y + R.titleY, '', {
         fontFamily: theme.fonts.ui,
@@ -1098,7 +1164,7 @@ export class ProfileScene extends Phaser.Scene {
     row.add(name);
     row.add(
       this.add
-        .text(cell.x + R.textX, cell.y + R.metaY, `${mode} · ${result} · ${log.turns === 1 ? '1 turn' : `${log.turns} turns`} · ${date}`, {
+        .text(cell.x + R.textX, cell.y + layout.metaY, this.replayMeta(log), {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           color: replayable ? theme.colors.muted : theme.colors.danger,
@@ -1123,14 +1189,21 @@ export class ProfileScene extends Phaser.Scene {
     } else {
       row.add(
         this.add
-          .text(cell.x + R.textX, cell.y + R.noteY, 'This replay was recorded on an older version.', {
+          .text(cell.x + R.textX, cell.y + layout.noteY, 'This replay was recorded on an older version.', {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.micro}px`,
             color: theme.colors.muted,
+            wordWrap: { width: R.textWidth },
           })
           .setOrigin(0, 0.5),
       );
     }
     ellipsizeText(name, profileReplayNameWidth(watchWidth), log.context.opponentName);
+    const nameWidth = profileReplayNameWidth(watchWidth);
+    const nameHit = this.add.zone(cell.x + R.textX + nameWidth / 2, cell.y + R.titleY, nameWidth, theme.control.minHitHeight).setInteractive({ useHandCursor: true });
+    row.add(nameHit);
+    bindTapButton(this, nameHit, () => this.showIdentity(log.context.opponentName));
+    this.profileInteractiveTargets.push(nameHit);
+    return row;
   }
 }

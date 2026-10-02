@@ -1,4 +1,18 @@
 import { isRectContained, type Rect } from './layout';
+import { ellipsizeText, type MeasuredText } from './textFit';
+
+/** Preserve release shrink-to-fit; larger settings stop at the base role size. */
+export function fitMenuListName(
+  text: MeasuredText & { setScale(scale: number): unknown; setData(key: string, value: unknown): unknown },
+  width: number, fontSize: number, baseFontSize: number,
+): void {
+  const ratio = Math.min(1, width / Math.max(1, text.width));
+  const scale = fontSize <= baseFontSize ? ratio : Math.max(baseFontSize / fontSize, ratio);
+  text.setScale(scale);
+  text.setData('a11yFitToBox', true);
+  if (fontSize > baseFontSize) text.setData('a11yMinFontSize', baseFontSize);
+  if (fontSize > baseFontSize && text.width * scale > width) ellipsizeText(text, width / scale);
+}
 
 /** The small measured-Text interface keeps the presentation rule Phaser-free. */
 export interface MenuNameText {
@@ -29,6 +43,8 @@ export interface MenuTextCheck {
   clip?: Rect;
   lineHeight?: number;
   linePitch?: number;
+  /** Prices, rewards and primary actions must never be clipped by a mask. */
+  keepVisible?: boolean;
 }
 
 /** Checks source preservation and measured bounds, including what a mask hides. */
@@ -41,6 +57,7 @@ export function menuTextFindings(check: MenuTextCheck): ('truncatedText' | 'clip
     || (check.maxLines !== undefined && check.lines.length > check.maxLines)) findings.push('truncatedText');
   if (check.box && !isRectContained(check.bounds, check.box, 0.5)) findings.push('clippedText');
   if (check.clip) {
+    if (check.keepVisible && !isRectContained(check.bounds, check.clip, 0.5)) findings.push('clippedText');
     if (check.lineHeight !== undefined && check.linePitch !== undefined) {
       for (let i = 0; i < check.lines.length; i++) {
         const top = check.bounds.y + i * check.linePitch, bottom = top + check.lineHeight;
@@ -52,6 +69,23 @@ export function menuTextFindings(check: MenuTextCheck): ('truncatedText' | 'clip
     } else if (!isRectContained(check.bounds, check.clip, 0.5)) findings.push('clippedText');
   }
   return [...new Set(findings)];
+}
+
+export interface MenuDensity {
+  id: string;
+  rows: number;
+  columns: number;
+  pitch: number;
+  top: number;
+}
+
+/** Release density and anchors are a compatibility contract at standard text. */
+export function menuDensityFindings(actual: readonly MenuDensity[], release: readonly MenuDensity[], textScale: number): string[] {
+  if (textScale !== 1) return [];
+  return release.filter((baseline) => {
+    const now = actual.find((item) => item.id === baseline.id);
+    return !now || (['rows', 'columns', 'pitch', 'top'] as const).some((key) => Math.abs(now[key] - baseline[key]) > 0.5);
+  }).map((item) => item.id);
 }
 
 /** Whole-line resting positions, with the exact end still reachable. */

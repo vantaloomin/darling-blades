@@ -38,6 +38,7 @@
  */
 
 import Phaser from 'phaser';
+import { wave2CShopSave, wave2CProfileSave, WAVE_2C_LONGEST_DECKS, WAVE_2C_DARLINGS } from './shopProfileFixtures';
 import { REPLAY_LOG_VERSION, replayDbStamp, type ReplayLog } from '../meta/Replay';
 import { AVATARS } from '../data/opponents';
 import { wave2BFixtureSave, WAVE_2B_FIXTURE_IDS, WAVE_2B_LONGEST_CARD_IDS } from './deckCollectionFixtures';
@@ -49,7 +50,7 @@ import { currentAccessibility, setAccessibility, TEXT_SCALES } from '../ui/acces
 import { BoardCardView } from '../ui/BoardCardView';
 import { CardView } from '../ui/CardView';
 import { theme } from '../ui/theme';
-import { menuTextFindings, menuTextOverlap, type MenuTextSurface } from '../ui/menuText';
+import { menuDensityFindings, menuTextFindings, menuTextOverlap, type MenuTextSurface, type MenuDensity } from '../ui/menuText';
 
 export interface ProbeCell {
   readonly textScale: number;
@@ -74,7 +75,7 @@ export interface ProbeRect {
   readonly height: number;
 }
 
-export type ProbeFindingKind = 'outsideFrame' | 'outsidePanel' | 'outsideDeclaredBox' | 'overlap' | 'scaledDown' | 'missingText' | 'truncatedText' | 'clippedText';
+export type ProbeFindingKind = 'outsideFrame' | 'outsidePanel' | 'outsideDeclaredBox' | 'overlap' | 'scaledDown' | 'missingText' | 'truncatedText' | 'clippedText' | 'density';
 
 export interface ProbeFinding {
   readonly kind: ProbeFindingKind;
@@ -91,6 +92,7 @@ export interface ProbeSceneReport {
   readonly cardFaceTexts: number;
   /** Texts a mask hides entirely (the off-screen rows of a scrolling list). */
   readonly maskedOut: number;
+  readonly density?: readonly MenuDensity[];
   readonly findings: readonly ProbeFinding[];
   readonly error?: string;
 }
@@ -213,6 +215,35 @@ export const WAVE_2B_SCENES: readonly ProbeScene[] = [
     save: BATCH_B_VARIANTS, inspectCardId: BATCH_B_CARD, compareVariantIndex: 9 } } },
   ...WAVE_2B_LONGEST_CARD_IDS.map((inspectCardId) => ({ label: 'Collection / longest card inspect', key: 'Collection',
     data: { a11yFixture: { save: BATCH_B_SAVE, inspectCardId } }, requiredText: [CARD_DB[inspectCardId].name] })),
+];
+
+/** Shop and Profile: every product, price tier, list end and owned dialog. */
+export const WAVE_2C_SCENES: readonly ProbeScene[] = [
+  ...[0, 4, 7].flatMap((boosterIndex) => [1, 10].map((quantity) => ({
+    label: `Shop / packs ${boosterIndex} / quantity ${quantity}`, key: 'Shop',
+    data: { tab: 'boosters', boosterIndex, a11yFixture: { save: wave2CShopSave(), quantity } },
+  }))),
+  { label: 'Shop / insufficient gold', key: 'Shop', data: { tab: 'boosters', a11yFixture: { save: wave2CShopSave(0), quantity: 10 } } },
+  ...(['standard', 'darlings'] as const).flatMap((deckTab) => [0, 100].map((deckIndex) => ({
+    label: `Shop / ${deckTab} / ${deckIndex}`, key: 'Shop', data: { tab: 'decks', a11yFixture: { save: wave2CShopSave(), deckTab, deckIndex } },
+  }))),
+  ...[...WAVE_2C_LONGEST_DECKS, WAVE_2C_DARLINGS].flatMap((deck) => (deck === WAVE_2C_DARLINGS ? [0, 1, 2, 3, 100] : [0, 100]).map((previewPage) => ({
+    label: `Shop / preview ${deck.id} / ${previewPage}`, key: 'Shop',
+    data: { tab: 'decks', a11yFixture: { save: wave2CShopSave(), deckId: deck.id, previewPage } }, requiredText: [deck.name],
+  }))),
+  { label: 'Shop / signature inspect', key: 'Shop', data: { tab: 'decks', a11yFixture: { save: wave2CShopSave(), deckId: WAVE_2C_DARLINGS.id, inspectIndex: 0 } } },
+  { label: 'Shop / First Dawn odds', key: 'Shop', data: { tab: 'boosters', a11yFixture: { save: wave2CShopSave(), odds: 'first-dawn' } } },
+  { label: 'Profile / empty', key: 'Profile', data: { a11yFixture: { save: wave2CShopSave() } } },
+  { label: 'Profile / picker last page', key: 'Profile', data: { a11yFixture: { save: wave2CProfileSave(), modal: 'picker', pickerPage: 10000 } } },
+  ...(['practice', 'gauntlet', 'draft', 'collection'] as const).map((tab) => ({
+    label: `Profile / ${tab}`, key: 'Profile', replayFixtures: true, data: { a11yFixture: { save: wave2CProfileSave(), tab } },
+  })),
+  { label: 'Profile / replay last page', key: 'Profile', replayFixtures: true, data: { a11yFixture: { save: wave2CProfileSave(), replayPage: 100 } } },
+  { label: 'Profile / full replay name', key: 'Profile', replayFixtures: true, data: { a11yFixture: { save: wave2CProfileSave(), identity: 'Seraphine of the Long Ember Road' } }, requiredText: ['Seraphine of the Long Ember Road'] },
+  ...(['export', 'import', 'confirm', 'picker'] as const).map((modal) => ({
+    label: `Profile / ${modal}`, key: 'Profile', replayFixtures: true,
+    data: { a11yFixture: { save: wave2CProfileSave(), modal, preview: true } },
+  })),
 ];
 
 /** `SCENE_TITLE` scenes this probe cannot open without a fixture it does not build. */
@@ -377,12 +408,12 @@ function walkTexts(scene: Phaser.Scene): { texts: WalkedText[]; cardFaceTexts: n
     }
     // A mask shows only part of a scrolling list: check what shows, skip what it hides.
     const bounds = visibleArea ? intersection(round(object.getBounds()), visibleArea) : round(object.getBounds());
-    if (!bounds) {
+    if (!bounds && object.getData('a11yKeepVisible') !== true) {
       maskedOut++;
       return;
     }
     const m = object.getWorldTransformMatrix();
-    texts.push({ object, bounds, unclippedBounds: round(object.getBounds()), clip: visibleArea, scale: Math.min(Math.abs(m.scaleX), Math.abs(m.scaleY)), panel, layer, surface, depth, order });
+    texts.push({ object, bounds: bounds ?? round(object.getBounds()), unclippedBounds: round(object.getBounds()), clip: visibleArea, scale: Math.min(Math.abs(m.scaleX), Math.abs(m.scaleY)), panel, layer, surface, depth, order });
   };
   scene.children.list.forEach((child, index) => visit(child, null, String(index), false, null, (child as Phaser.GameObjects.GameObject & Partial<Phaser.GameObjects.Components.Depth>).depth ?? 0, index));
   return { texts, cardFaceTexts, maskedOut };
@@ -408,9 +439,19 @@ export function checkScene(scene: Phaser.Scene): Omit<ProbeSceneReport, 'scene'>
       findings.push({ kind: 'outsidePanel', text, bounds: t.bounds, detail: `panel ${JSON.stringify(t.panel)}` });
     }
     const declared = t.object.getData('a11yBox') as ProbeRect | undefined;
+    // This release contract is declared by the scene, independently of the
+    // fitting helper: replacing shrink-to-fit with ellipsis must fail at 100%.
+    const releaseFullText = t.object.getData('a11yReleaseFullText') as string | undefined;
+    if (currentAccessibility().textScale === 1 && releaseFullText !== undefined) {
+      for (const kind of menuTextFindings({ expected: releaseFullText, actual: t.object.text,
+        lines: t.object.getWrappedText(), bounds: t.unclippedBounds })) {
+        findings.push({ kind, text, bounds: t.unclippedBounds, detail: 'release list names must remain complete at 100%' });
+      }
+    }
     const fullText = t.object.getData('a11yFullText') as string | undefined;
     const wholeLines = t.object.getData('a11yWholeLines') as { lineHeight: number; linePitch: number } | undefined;
-    if (fullText !== undefined || wholeLines) {
+    const keepVisible = t.object.getData('a11yKeepVisible') === true;
+    if (fullText !== undefined || wholeLines || keepVisible) {
       const maxWidth = t.object.getData('a11yTextWidth') as number | undefined;
       const maxHeight = t.object.getData('a11yTextHeight') as number | undefined;
       const box = declared ?? ((maxWidth !== undefined || maxHeight !== undefined) ? {
@@ -419,7 +460,7 @@ export function checkScene(scene: Phaser.Scene): Omit<ProbeSceneReport, 'scene'>
       for (const kind of menuTextFindings({ expected: fullText ?? t.object.text, actual: t.object.text,
         lines: t.object.getWrappedText(), drawnLines: t.object.style.maxLines,
         maxLines: t.object.getData('a11yMaxLines') as number | undefined,
-        bounds: t.unclippedBounds, box, clip: t.clip ?? undefined, ...wholeLines })) {
+        bounds: t.unclippedBounds, box, clip: t.clip ?? undefined, keepVisible, ...wholeLines })) {
         findings.push({ kind, text, bounds: t.unclippedBounds,
           detail: 'full source text, wrapped line count and unmasked glyph-line bounds' });
       }
@@ -431,6 +472,14 @@ export function checkScene(scene: Phaser.Scene): Omit<ProbeSceneReport, 'scene'>
     if (t.scale < 1 - 1e-3 && t.object.getData('a11yFitToBox') !== true) {
       findings.push({ kind: 'scaledDown', text, bounds: t.bounds, detail: `scale ${t.scale.toFixed(3)}` });
     }
+    const minFontSize = t.object.getData('a11yMinFontSize') as number | undefined;
+    if (minFontSize !== undefined && parseFloat(String(t.object.style.fontSize)) * t.scale < minFontSize - 1e-3) {
+      findings.push({ kind: 'scaledDown', text, bounds: t.bounds, detail: `below the ${minFontSize}px base role` });
+    }
+  }
+  const density = scene.data.get('a11yDensity') as { actual: MenuDensity[]; release: MenuDensity[] } | undefined;
+  if (density) for (const id of menuDensityFindings(density.actual, density.release, currentAccessibility().textScale)) {
+    findings.push({ kind: 'density', text: id, bounds: { x: 0, y: 0, width: 0, height: 0 }, detail: JSON.stringify({ actual: density.actual.find((item) => item.id === id), release: density.release.find((item) => item.id === id) }) });
   }
   // A modal covers what is under it, so only Texts on one layer can collide.
   for (let i = 0; i < texts.length; i++) {
@@ -441,7 +490,7 @@ export function checkScene(scene: Phaser.Scene): Omit<ProbeSceneReport, 'scene'>
       }
     }
   }
-  return { texts: texts.length, cardFaceTexts, maskedOut, findings };
+  return { texts: texts.length, cardFaceTexts, maskedOut, findings, density: density?.actual };
 }
 
 const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
@@ -458,7 +507,7 @@ async function snapshot(game: Phaser.Game): Promise<string> {
  * one- and many-turn meta lines, so every line the replay cell can draw is on
  * screen.
  */
-function fixtureReplays(): ReplayLog[] {
+export function fixtureReplays(): ReplayLog[] {
   const stamp = replayDbStamp(CARD_DB);
   const names = ['Seraphine of the Long Ember Road', 'Ash', 'Mirelle Vantablack-Ossuary', 'Queen Tamsin the Unhurried', 'Ro'];
   return Array.from({ length: 10 }, (_, i) => ({
@@ -491,7 +540,7 @@ async function openScene(game: Phaser.Game, spec: ProbeScene, settleMs: number):
   game.scene.start(spec.key, data);
   for (let i = 0; i < 200 && !game.scene.isActive(spec.key); i++) await wait(25);
   const scene = game.scene.getScene(spec.key);
-  if (spec.key === 'DeckBuilder' || spec.key === 'Collection') {
+  if (['DeckBuilder', 'Collection', 'Shop', 'Profile'].includes(spec.key)) {
     for (let i = 0; i < 800 && scene.data.get('a11yReady') !== true; i++) await wait(25);
     if (scene.data.get('a11yReady') !== true) throw new Error(`${spec.key} did not finish building its fixture`);
   }

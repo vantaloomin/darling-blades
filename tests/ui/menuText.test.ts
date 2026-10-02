@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { CARD_DB } from '../../src/data/catalog';
 import { currentAccessibility, setAccessibility, TEXT_SCALES } from '../../src/ui/accessibility';
 import { isRectContained, measureThemedButton, type Rect } from '../../src/ui/layout';
-import { menuTextFindings, menuTextOverlap, type MenuTextLayer, type MenuTextSurface } from '../../src/ui/menuText';
+import { fitMenuListName, menuTextFindings, menuTextOverlap, type MenuTextLayer, type MenuTextSurface } from '../../src/ui/menuText';
 import { theme } from '../../src/ui/theme';
 
 const background: MenuTextLayer = {
@@ -11,6 +12,45 @@ const foregroundBounds: Rect = { x: 60, y: 25, width: 60, height: 20 };
 const plate: MenuTextSurface = {
   id: 'inspect', bounds: { x: 55, y: 20, width: 80, height: 40 }, depth: 5, order: 0,
 };
+
+/** Supplied measurement envelope; the rendered probe checks actual glyphs. */
+function measuredName(value: string, fontSize: number) {
+  const name = {
+    text: value, scale: 1,
+    get width() { return name.text.length * fontSize * 0.7; },
+    setText(text: string) { name.text = text; },
+    setScale(scale: number) { name.scale = scale; },
+    setData() {},
+  };
+  return name;
+}
+
+describe('release list-name fitting', () => {
+  it('shows every preview card name in full at 100%, shrinking exactly to the release width', () => {
+    for (const card of Object.values(CARD_DB)) {
+      const name = measuredName(card.name, theme.typeBase.caption);
+      const releaseScale = Math.min(1, 184 / name.width);
+      fitMenuListName(name, 184, theme.typeBase.caption, theme.typeBase.caption);
+      const bounds = { x: 0, y: 0, width: name.width * name.scale, height: 15 * name.scale };
+      expect(menuTextFindings({ expected: card.name, actual: name.text, lines: [name.text],
+        bounds, box: { ...bounds, width: 184 } }), card.name).toEqual([]);
+      expect(name.scale, card.name).toBe(releaseScale);
+    }
+  });
+
+  it.each([12, 14])('uses a %ipx base-role floor at larger settings before abbreviating', (base) => {
+    for (const font of [Math.round(base * 1.15), Math.round(base * 1.3)]) {
+      for (const value of ['Short', 'A name of middling length', 'Quan Cong, Daring Marchioness of the Red Cliffs']) {
+        const name = measuredName(value, font);
+        const fitsAtBase = value.length * base * 0.7 <= 184;
+        fitMenuListName(name, 184, font, base);
+        expect(name.scale * font).toBeGreaterThanOrEqual(base);
+        expect(name.width * name.scale).toBeLessThanOrEqual(184 + 1e-6);
+        expect(name.text === value).toBe(fitsAtBase);
+      }
+    }
+  });
+});
 
 /** Collision is symmetric even though the plate covering it has a direction. */
 function expectOverlap(a: MenuTextLayer, b: MenuTextLayer, expected: boolean): void {
