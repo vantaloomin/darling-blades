@@ -1,5 +1,12 @@
 import Phaser from 'phaser';
 import { floorBrain, floorDifficultyPips } from '../ai/tiers';
+import { fitMenuName } from '../ui/menuText';
+import { currentAccessibility } from '../ui/accessibility';
+import { gauntletPresentation, gauntletDetailLayout, gauntletNameLineLimit } from '../ui/playPresentation';
+import { bindMenuScroll } from '../ui/menuScroll';
+import { triggerSelectedMark } from '../ui/controlStyle';
+import { IS_DEV } from '../platform/env';
+import type { SaveData } from '../meta/SaveManager';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { ECONOMY } from '../config/rules';
@@ -14,7 +21,6 @@ import { Services } from '../meta/services';
 import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestures';
 import {
   GAUNTLET_TOWER_SCROLLBAR,
-  GAUNTLET_TOWER_VIEWPORT,
   gauntletScrollToRung,
   gauntletTowerLayout,
   scrollOffsetByDelta,
@@ -34,18 +40,6 @@ import { backButton, panel, registerSceneBackNavigation, themedButton, type Them
 const ABANDON_ARM_MS = 4000;
 
 /**
- * The detail column hangs off the tower: its text column (COL_W wide) ends one
- * gap short of the tower's left edge, and the portrait sits TEXT_OFFSET left of
- * the text. The tower is anchored to the title-safe right edge
- * (GAUNTLET_TOWER_VIEWPORT), so the whole composition moves with it.
- */
-const DETAIL_COL_W = 300;
-const DETAIL_TOWER_GAP = 20;
-const DETAIL_TEXT_OFFSET = 200;
-const DETAIL_TEXT_X = GAUNTLET_TOWER_VIEWPORT.x - DETAIL_TOWER_GAP - DETAIL_COL_W;
-const DETAIL_PANEL_X = DETAIL_TEXT_X - DETAIL_TEXT_OFFSET;
-
-/**
  * The Avatar Gauntlet tower. A count-aware right-rail ladder (cleared ✓ /
  * current highlighted / future dimmed) and a left panel showing the selected
  * avatar — portrait, name/title/blurb, theme chip, difficulty pips, and the
@@ -56,10 +50,12 @@ const DETAIL_PANEL_X = DETAIL_TEXT_X - DETAIL_TEXT_OFFSET;
  * Only the current rung is fightable — you climb one rung at a time.
  */
 export class GauntletScene extends Phaser.Scene {
+  private fixtureRun: SaveData['gauntlet'] | null = null;
+  private get gauntlet(): SaveData['gauntlet'] { return this.fixtureRun ?? Services.save.data.gauntlet; }
   private selectedRung = 1;
   private currentRung = 1; // the rung you may actually fight
   private panel: Phaser.GameObjects.Container | null = null;
-  private rowNodes: { rung: number; box: Phaser.GameObjects.Rectangle; label: Phaser.GameObjects.Text }[] = [];
+  private rowNodes: { rung: number; box: Phaser.GameObjects.Rectangle; mark: Phaser.GameObjects.Graphics; label: Phaser.GameObjects.Text }[] = [];
   /** Scrolling ladder state; the tower outgrew a fixed 500px column at 22 rungs. */
   private towerLayout: GauntletTowerLayout | null = null;
   private towerContent: Phaser.GameObjects.Container | null = null;
@@ -84,7 +80,10 @@ export class GauntletScene extends Phaser.Scene {
   }
 
   /** The tower rail and detail pane draw all 28 avatar portrait cards. */
-  create(): void {
+  create(data: { a11yRung?: number } = {}): void {
+    this.sys.settings.data = {};
+    this.fixtureRun = IS_DEV && data.a11yRung ? { ...Services.save.data.gauntlet,
+      run: { rung: data.a11yRung, seed: 2147483647, startedAt: 0, rosterDay: 0, rosterSeed: 0 } } : null;
     gateOnArt(this, AVATARS.map((avatar) => avatar.portraitCardId), () => this.build());
   }
   private build(): void {
@@ -108,7 +107,7 @@ export class GauntletScene extends Phaser.Scene {
     // Backdrop first (docs/scene-art.md §3); the gradient is the fallback.
     applyBackdrop(this, 'gauntlet', {
       dim: colorInt(theme.colors.dim),
-      dimAlpha: 0.5,
+      dimAlpha: currentAccessibility().highContrast ? theme.alpha.overlayDim : 0.5,
       fallback: () => {
         const bg = this.add.graphics();
         bg.fillGradientStyle(
@@ -122,7 +121,7 @@ export class GauntletScene extends Phaser.Scene {
       },
     });
 
-    const g = Services.save.data.gauntlet;
+    const g = this.gauntlet;
     this.currentRung = g.run?.rung ?? 1;
     this.selectedRung = this.currentRung;
     const todayDay = localDateKey(Date.now());
@@ -147,6 +146,7 @@ export class GauntletScene extends Phaser.Scene {
       { fontSize: theme.type.label },
     );
 
+    panel(this, theme.design.safeLeft, 120, gauntletPresentation().tower.x - theme.design.safeLeft - theme.space(3), 520);
     this.buildTower();
     this.buildPanel();
     this.buildSeedBar();
@@ -157,34 +157,42 @@ export class GauntletScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------------
   private buildTower(): void {
-    const g = Services.save.data.gauntlet;
+    const g = this.gauntlet;
     // The ladder's right edge, scrollbar included, sits on the title-safe edge.
-    const viewport = { ...GAUNTLET_TOWER_VIEWPORT };
-    const railX = viewport.x + viewport.width / 2;
+    const base = gauntletPresentation();
+    const railX = base.tower.x + base.tower.width / 2;
     const rungs = ECONOMY.gauntletRungGold.length;
 
     // Two caption lines centred between the scene subtitle (which ends near
     // y 101) and the tower viewport (156); centred at 122 until 1.8.1 the block
     // began 5px under the subtitle once it hung below the header track.
-    this.add
+    const heading = this.add
       .text(
         railX,
-        126,
+        base.railHeadingTop,
         `Best: ${g.bestRung > 0 ? `Rung ${g.bestRung}` : 'None'}   ·   Clears: ${g.completions}\n${this.rosterHeading(!!g.run)}`,
         {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           color: theme.colors.muted,
           align: 'center',
-          lineSpacing: 2,
+          wordWrap: { width: base.tower.width },
+          lineSpacing: theme.space(0.5),
         },
       )
-      .setOrigin(0.5);
+      .setOrigin(0.5, 0);
 
     // The ladder scrolls instead of compressing. Rows keep a readable pitch at
     // any tower length, and the layout subtracts the star column from the name
     // budget so the two can never overlap (they did at 22 rungs).
-    const layout = gauntletTowerLayout(rungs, viewport);
+    const viewport = gauntletPresentation(heading.height).tower;
+    const starMeasure = this.add.text(0, 0, '★★★', { fontFamily: theme.fonts.ui, fontSize: `${theme.type.label}px` });
+    const labelMeasure = this.add.text(0, 0, 'Rung', { fontFamily: theme.fonts.display, fontSize: `${theme.type.body}px` });
+    const layout = gauntletTowerLayout(rungs, viewport, {
+      starColumnWidth: starMeasure.width,
+      rowHeight: Math.max(theme.control.minHitHeight, labelMeasure.height + theme.space(4), starMeasure.height + theme.space(4)),
+    });
+    starMeasure.destroy(); labelMeasure.destroy();
     this.towerLayout = layout;
     const content = this.add.container(viewport.x, viewport.y);
     this.towerContent = content;
@@ -231,8 +239,9 @@ export class GauntletScene extends Phaser.Scene {
       box.on('pointerout', (p: Phaser.Input.Pointer) => {
         if (!p.wasTouch) this.refreshTower();
       });
-      content.add([box, label, stars]);
-      this.rowNodes.push({ rung, box, label });
+      const mark = this.add.graphics();
+      content.add([box, label, stars, mark]);
+      this.rowNodes.push({ rung, box, mark, label });
     }
 
     // The mask is a scene-level child on purpose: parenting it to the container
@@ -304,6 +313,11 @@ export class GauntletScene extends Phaser.Scene {
     if (!layout || !this.towerContent) return;
     this.towerScroll = scrollOffsetByDelta(0, next, layout.maxScroll);
     this.towerContent.setPosition(layout.viewport.x, layout.viewport.y - this.towerScroll);
+    for (const node of this.rowNodes) {
+      const top = node.box.y - layout.rowHeight / 2 - this.towerScroll;
+      if (top >= 0 && top + layout.rowHeight <= layout.viewport.height) node.box.setInteractive({ useHandCursor: true });
+      else node.box.disableInteractive();
+    }
     this.redrawTowerScrollbar();
   }
 
@@ -332,9 +346,15 @@ export class GauntletScene extends Phaser.Scene {
       const isCurrent = node.rung === this.currentRung;
       node.box.setFillStyle(this.rowColor(node.rung), 1);
       node.box.setStrokeStyle(
-        isSelected ? 3 : 2,
+        isSelected ? theme.outline.state : 2,
         colorInt(isSelected ? theme.colors.goldHover : isCurrent ? theme.colors.gold : theme.colors.panelStroke),
       );
+      node.mark.clear();
+      if (isSelected) {
+        const mark = triggerSelectedMark({ visual: { x: 0, y: node.box.y - node.box.height / 2,
+          width: node.box.width, height: node.box.height }, labelWidth: node.label.width, padding: theme.space(3) });
+        node.mark.fillStyle(colorInt(theme.colors.gold), 1).fillRect(mark.x, mark.y, mark.width, mark.height);
+      }
     }
   }
 
@@ -373,102 +393,70 @@ export class GauntletScene extends Phaser.Scene {
     const av = this.avatarForFloor(floor);
     const c = this.add.container(0, 0);
 
-    const px = DETAIL_PANEL_X; // panel center x
-    const portraitY = 300;
-
-    // portrait bust (framed)
-    const frame = panel(this, px - 134, portraitY - 168, 268, 336, { alpha: 1 });
-    c.add(frame);
+    const layout = gauntletPresentation();
+    const px = layout.portraitX;
+    const portraitY = layout.portraitY;
+    c.add(panel(this, px - 134, portraitY - 168, 268, 336, { alpha: 1 }));
     this.addPortrait(c, av.portraitCardId, px, portraitY);
+    c.add(this.add.text(px - layout.themeWidth / 2, layout.themeTop, av.theme, {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px`, fontStyle: theme.weight.w600,
+      color: theme.colors.body, wordWrap: { width: layout.themeWidth }, align: 'center',
+    }));
+    const textX = layout.textX;
+    const COL_W = layout.textWidth;
+    const copyWidth = COL_W - (currentAccessibility().textScale > 1 ? theme.space(2) : 0);
 
-    // theme chip
-    const chip = this.add
-      .text(px, portraitY + 190, av.theme, {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.caption}px`,
-        fontStyle: theme.weight.w600,
-        color: theme.colors.body,
-      })
-      .setOrigin(0.5);
-    c.add(chip);
-
-    // name + title. The text column ends DETAIL_TOWER_GAP short of the tower's
-    // left edge, so everything here is capped to COL_W and wraps/scales rather
-    // than bleeding over a rung label.
-    const textX = DETAIL_TEXT_X;
-    const COL_W = DETAIL_COL_W;
-    const nameText = this.add
-      .text(textX, 150, av.name, {
-          fontFamily: theme.fonts.display,
-          fontSize: `${theme.type.h1}px`,
-          color: theme.colors.heading,
-      })
-      .setOrigin(0, 0);
-    // A long name (e.g. "Yohime, Kitsune Matriarch") shrinks to fit one line
-    // instead of wrapping down into the title.
-    nameText.setScale(Math.min(1, COL_W / Math.max(1, nameText.width)));
-    c.add(nameText);
-    c.add(
-      this.add
-        .text(textX, 196, av.title, {
-            fontFamily: theme.fonts.display,
-            fontSize: `${theme.type.body}px`,
-            fontStyle: 'italic',
-            color: theme.colors.gold,
-          wordWrap: { width: COL_W },
-        })
-        .setOrigin(0, 0),
-    );
-
-    // difficulty pips + rung
-    c.add(
-      this.add
-        .text(textX, 232, `Rung ${floor}   ${'★'.repeat(floorDifficultyPips(floor))}   (${floorBrain(floor)})`, {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.label}px`,
-          color: theme.colors.gold,
-        })
-        .setOrigin(0, 0),
-    );
-
-    // blurb
-    c.add(
-      this.add
-        .text(textX, 274, av.blurb, {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.label}px`,
-          color: theme.colors.body,
-          lineSpacing: 4,
-          wordWrap: { width: COL_W },
-        })
-        .setOrigin(0, 0),
-    );
-
-    // reward line
+    const name = this.add.text(textX, 0, av.name, {
+      fontFamily: theme.fonts.display, fontSize: `${theme.type.h1}px`, color: theme.colors.heading,
+    });
+    fitMenuName(name, copyWidth, gauntletNameLineLimit());
+    const title = this.add.text(textX, 0, av.title, {
+      fontFamily: theme.fonts.display, fontSize: `${theme.type.body}px`, fontStyle: 'italic',
+      color: theme.colors.gold, wordWrap: { width: COL_W },
+    });
+    fitMenuName(title, copyWidth);
+    // Spare canvas space protects italic overhangs without moving the column.
+    if (currentAccessibility().textScale > 1) title.setPadding({ right: theme.space(1) });
+    title.setData('a11yTextWidth', COL_W);
+    const rung = this.add.text(textX, 0, `Rung ${floor}   ${'★'.repeat(floorDifficultyPips(floor))}   (${floorBrain(floor)})`, {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.type.label}px`, color: theme.colors.gold,
+      wordWrap: { width: COL_W },
+    });
+    const blurb = this.add.text(textX, 0, av.blurb, {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.type.label}px`, color: theme.colors.body,
+      lineSpacing: theme.space(1), wordWrap: { width: copyWidth },
+    });
     const reward = ECONOMY.gauntletRungGold[floor - 1];
-    const rewardLine =
-      floor === ECONOMY.gauntletRungGold.length
-        ? `Reward: 🪙 ${reward}  +  🪙 ${ECONOMY.gauntletCompletionBonus} completion bonus`
-        : `Reward: 🪙 ${reward}`;
-    c.add(
-      this.add
-        .text(textX, 400, rewardLine, {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.body}px`,
-          fontStyle: theme.weight.w600,
-          color: theme.colors.gold,
-          // The final rung's line carries the completion bonus and is long — wrap
-          // it in the column rather than letting it run under the rung rail.
-          wordWrap: { width: COL_W },
-        })
-        .setOrigin(0, 0),
-    );
+    const rewardLine = floor === ECONOMY.gauntletRungGold.length
+      ? `Reward: 🪙 ${reward}  +  🪙 ${ECONOMY.gauntletCompletionBonus} completion bonus` : `Reward: 🪙 ${reward}`;
+    const rewardText = this.add.text(textX, 0, rewardLine, {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.type.body}px`, fontStyle: theme.weight.w600,
+      color: theme.colors.gold, wordWrap: { width: COL_W },
+    });
+    const blurbLines = blurb.getWrappedText().length;
+    const lineHeight = (blurb.height - blurb.lineSpacing * (blurbLines - 1)) / blurbLines;
+    const linePitch = lineHeight + blurb.lineSpacing;
+    const detail = gauntletDetailLayout({ name: name.height, title: title.height, rung: rung.height,
+      blurb: blurb.height, reward: rewardText.height, lineHeight, linePitch });
+    name.setY(detail.nameY); title.setY(detail.titleY); rung.setY(detail.rungY); rewardText.setY(detail.rewardY);
+    for (const text of [name, title]) text.setData('a11yBox', {
+      x: textX, y: text.y, width: COL_W, height: text.height,
+    });
+    rewardText.setData('a11yFullText', rewardLine).setData('a11yBox', {
+      x: textX, y: detail.rewardY, width: COL_W, height: layout.detailViewport.y + layout.detailViewport.height - detail.rewardY,
+    });
+    c.add([name, title, rung, rewardText]);
+    const textContent = this.add.container(0, 0);
+    blurb.setData('a11yWholeLines', { lineHeight, linePitch });
+    textContent.add(blurb);
+    c.add(textContent);
+    bindMenuScroll(this, textContent, detail.blurb, blurb.height, undefined, undefined, linePitch);
 
     // Fight / locked
     const fightable = floor === this.currentRung;
     if (fightable) {
       prefetchDuelArt(this, { opponentId: av.id, gauntletRung: floor });
-      const fight = themedButton(this, textX + 104, 478, Services.save.data.gauntlet.run ? 'Fight' : 'Begin Run', {
+      const fight = themedButton(this, textX + 104, layout.fightY, this.gauntlet.run ? 'Fight' : 'Begin Run', {
         variant: 'primary',
         minWidth: 208,
         onTap: () => this.startFight(av, floor),
@@ -479,12 +467,13 @@ export class GauntletScene extends Phaser.Scene {
         floor < this.currentRung ? 'Already cleared this run' : 'Clear the rungs below first';
       c.add(
         this.add
-          .text(textX, 462, `🔒 ${locked}`, {
+          .text(textX, layout.fightY, `🔒 ${locked}`, {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.label}px`,
             color: theme.colors.muted,
+            wordWrap: { width: COL_W },
           })
-          .setOrigin(0, 0),
+          .setOrigin(0, 0.5),
       );
     }
 
@@ -494,8 +483,8 @@ export class GauntletScene extends Phaser.Scene {
     // slip could abandon instead of fight. Kept below the fight line, not to its
     // right — the armed label is wide and would run under the tower rail, so it
     // grows rightward from the Fight button's left edge.
-    if (Services.save.data.gauntlet.run) {
-      const abandon = themedButton(this, textX + 104, 576, 'Abandon Run', {
+    if (this.gauntlet.run) {
+      const abandon = themedButton(this, textX + 104, layout.abandonY, 'Abandon Run', {
         variant: 'danger',
         minWidth: 208,
         onTap: (pointer) => this.onAbandon(pointer),
@@ -506,7 +495,7 @@ export class GauntletScene extends Phaser.Scene {
       c.add(abandon.container);
       // What the second press loses, shown only while armed.
       this.abandonWarning = this.add
-        .text(textX, 606, 'Your climb restarts at rung 1. Gold already won is kept.', {
+        .text(textX, layout.warningY, 'Your climb restarts at rung 1. Gold already won is kept.', {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           color: theme.colors.danger,
@@ -540,8 +529,8 @@ export class GauntletScene extends Phaser.Scene {
       });
       return;
     }
-    Services.save.data.gauntlet.run = null;
-    Services.save.flush();
+    this.gauntlet.run = null;
+    if (!this.fixtureRun) Services.save.flush();
     this.scene.restart();
   }
 
@@ -554,7 +543,7 @@ export class GauntletScene extends Phaser.Scene {
   private startFight(av: Avatar, floor: number): void {
     // Begin (or resume) the run at this rung. A fresh run locks in the chosen
     // seed (every rung derives its duel seed from it — reproducible playthrough).
-    const g = Services.save.data.gauntlet;
+    const g = this.gauntlet;
     if (!g.run) {
       g.run = {
         rung: floor,
@@ -564,7 +553,7 @@ export class GauntletScene extends Phaser.Scene {
         rosterSeed: this.roster.rosterSeed,
       };
     }
-    Services.save.flush();
+    if (!this.fixtureRun) Services.save.flush();
     this.scene.start('Duel', { opponentId: av.id, gauntletRung: floor });
   }
 
@@ -577,7 +566,7 @@ export class GauntletScene extends Phaser.Scene {
   private buildSeedBar(): void {
     this.seedBar?.destroy();
     const c = this.add.container(0, 0);
-    const g = Services.save.data.gauntlet;
+    const g = this.gauntlet;
     const active = !!g.run;
     const seed = active ? g.run!.seed : this.pendingSeed;
     // On the shared footer line at the title-safe left edge. It sat at
@@ -610,7 +599,9 @@ export class GauntletScene extends Phaser.Scene {
         const minWidth = 90;
         const t = themedButton(this, x + minWidth / 2, y, text, { variant: 'emphasis', size: 'sm', minWidth, onTap });
         c.add(t.container);
-        x += Math.max(minWidth, t.label.width + theme.space(4)) + 10;
+        const width = t.getMeasuredSize().hit.width;
+        t.container.setX(x + width / 2);
+        x += width + theme.space(3);
       };
       chip('↻ Reroll', () => {
         this.pendingSeed = clampSeed(Math.floor(Math.random() * 2 ** 31));

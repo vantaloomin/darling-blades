@@ -1,4 +1,7 @@
 import Phaser from 'phaser';
+import { currentAccessibility } from '../ui/accessibility';
+import { menuSelectionMark, playDeckPickerLayout, playDeckRowColumns, playMenuLayout, playTextStack } from '../ui/playPresentation';
+import { ellipsizeText } from '../ui/textFit';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { CARD_DB } from '../data/catalog';
@@ -9,7 +12,8 @@ import { darlingFaceCardFor, faceCardFor } from '../meta/deckFace';
 import { deckHealth } from '../meta/deckRepair';
 import { firstDuelLaunchIssue } from '../meta/duelSetup';
 import { Services } from '../meta/services';
-import type { SavedDeck } from '../meta/SaveManager';
+import { IS_DEV } from '../platform/env';
+import type { SaveData, SavedDeck } from '../meta/SaveManager';
 import { bindTapButton } from '../platform/gestures';
 import { makeCardThumb } from '../ui/CardThumbCache';
 import { ModalGuard } from '../ui/Modal';
@@ -44,10 +48,16 @@ const PLAY_ITEMS: { label: string; scene: string; data?: object }[] = [
   { label: 'Practice', scene: 'PracticePicker' },
 ];
 
-/** Deck rows per quick-select page (7 x 48px pitch fits the 520-tall shell). */
-const DECK_PAGE_SIZE = 7;
+export interface PlaySceneData {
+  launchNotice?: string;
+  /** Dev-only presentation fixtures. Never installed in Services or persisted. */
+  a11yDecks?: SavedDeck[];
+  a11yPicker?: boolean;
+}
 
 export class PlayScene extends Phaser.Scene {
+  private fixtureSave: SaveData | null = null;
+  private get save(): SaveData { return this.fixtureSave ?? Services.save.data; }
   private guard = new ModalGuard();
   /** Underlying interactive targets deadened while the deck select is open. */
   private menuTargets: Phaser.GameObjects.GameObject[] = [];
@@ -64,14 +74,16 @@ export class PlayScene extends Phaser.Scene {
    * The active-deck plate and the quick-select modal draw one face card per
    * saved deck (deckFace.ts) — nothing else here is card art.
    */
-  create(data: { launchNotice?: string } = {}): void {
+  create(data: PlaySceneData = {}): void {
+    this.sys.settings.data = {};
+    this.fixtureSave = IS_DEV && data.a11yDecks ? { ...Services.save.data, decks: data.a11yDecks, activeDeckId: data.a11yDecks[0]?.id ?? null } : null;
     this.reserveFormatsEnabled = FEATURES.reserveFormats;
-    const faces = Services.save.data.decks
+    const faces = this.save.decks
       .map((deck) => this.deckFaceId(deck))
       .filter((id): id is string => id !== null);
     gateOnArt(this, faces, () => this.build(data));
   }
-  private build(data: { launchNotice?: string }): void {
+  private build(data: PlaySceneData): void {
     this.reserveFormatsEnabled = FEATURES.reserveFormats;
     this.classicRetired = FEATURES.classicRetired;
     this.guard = new ModalGuard();
@@ -81,7 +93,7 @@ export class PlayScene extends Phaser.Scene {
     const width = 1280;
     applyBackdrop(this, 'mainmenu', {
       dim: theme.graphics.dim,
-      dimAlpha: 0.5,
+      dimAlpha: currentAccessibility().highContrast ? theme.alpha.overlayDim : 0.5,
       fallback: () => {
         /* the clear colour shows, matching MainMenu's bare fallback */
       },
@@ -107,17 +119,16 @@ export class PlayScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    backButton(this, 'Menu', () => this.scene.start('MainMenu'));
+    this.menuTargets.push(backButton(this, 'Menu', () => this.scene.start('MainMenu')));
     registerSceneBackNavigation(this, () => this.scene.start('MainMenu'));
 
     // The shared currency anchor: right edge on the title-safe frame's right
     // edge, on the header line.
-    goldBadge(this, HEADER_CURRENCY_ANCHOR.x, HEADER_CURRENCY_ANCHOR.y, { getValue: () => Services.save.data.gold });
+    goldBadge(this, HEADER_CURRENCY_ANCHOR.x, HEADER_CURRENCY_ANCHOR.y, { getValue: () => this.save.gold });
 
-    const firstY = 286;
-    const pitchY = 56;
+    const menu = playMenuLayout();
     PLAY_ITEMS.forEach((entry, i) => {
-      const btn = themedButton(this, width / 2, firstY + i * pitchY, entry.label, {
+      const btn = themedButton(this, width / 2, menu.actionYs[i], entry.label, {
         variant: 'ghost',
         size: 'sm',
         minWidth: 300,
@@ -128,10 +139,11 @@ export class PlayScene extends Phaser.Scene {
 
     this.buildDeckPlate();
     if (data.launchNotice) this.showLaunchNotice(data.launchNotice);
+    if (IS_DEV && data.a11yPicker) this.showDeckSelect();
   }
 
   private activeDeck(): SavedDeck | null {
-    const save = Services.save.data;
+    const save = this.save;
     return activeVisibleSavedDeck(save.decks, save.activeDeckId, this.reserveFormatsEnabled);
   }
 
@@ -144,14 +156,14 @@ export class PlayScene extends Phaser.Scene {
       onTap: () => this.scene.start('DeckBuilder', { deckId: this.activeDeck()?.id }),
     };
     if (scene === 'PracticePicker') {
-      const issue = firstDuelLaunchIssue(CARD_DB, Services.save.data, deck);
+      const issue = firstDuelLaunchIssue(CARD_DB, this.save, deck);
       if (issue) {
         this.showLaunchNotice(`Cannot start Practice: ${issue}`, openDecks);
         return;
       }
     }
     if (scene === 'Gauntlet') {
-      const issue = firstDuelLaunchIssue(CARD_DB, Services.save.data, deck);
+      const issue = firstDuelLaunchIssue(CARD_DB, this.save, deck);
       if (issue) {
         this.showLaunchNotice(`Cannot start Gauntlet: ${issue}`, openDecks);
         return;
@@ -185,24 +197,21 @@ export class PlayScene extends Phaser.Scene {
     this.clearLaunchNotice();
     const notice = this.add.container(0, 0);
     this.launchNotice = notice;
-    notice.add(
-      this.add
-        .text(640, action ? 466 : 500, message, {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.caption}px`,
-          color: theme.colors.danger,
-          align: 'center',
-          wordWrap: { width: 620 },
-        })
-        .setOrigin(0.5),
-    );
-    if (action) {
-      const button = themedButton(this, 640, 502, action.label, {
-        variant: 'ghost',
-        size: 'sm',
-        minWidth: 132,
-        onTap: action.onTap,
-      });
+    const area = playMenuLayout().notice;
+    const button = action ? themedButton(this, 0, 0, action.label, {
+      variant: 'ghost', size: 'sm', minWidth: 132, onTap: action.onTap,
+    }) : null;
+    const buttonWidth = button?.getMeasuredSize().hit.width ?? 0;
+    const messageText = this.add.text(0, 0, message, {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px`, color: theme.colors.danger,
+      wordWrap: { width: Math.min(760, area.width - buttonWidth - theme.space(3)) },
+    }).setOrigin(0, 0.5);
+    const total = messageText.width + (button ? theme.space(3) + buttonWidth : 0);
+    const left = theme.design.centerX - total / 2;
+    messageText.setPosition(left, area.y + area.height / 2);
+    notice.add(messageText);
+    if (button) {
+      button.container.setPosition(left + messageText.width + theme.space(3) + buttonWidth / 2, area.y + area.height / 2);
       notice.add(button.container);
       this.menuTargets.push(button.inputZone);
     }
@@ -239,14 +248,11 @@ export class PlayScene extends Phaser.Scene {
     const c = this.add.container(0, 0);
     this.deckPlate = c;
 
-    const save = Services.save.data;
+    const save = this.save;
     const deck = this.activeDeck();
-    const w = 480;
-    const h = 96;
-    const left = 640 - w / 2;
-    const cy = 570;
-    const top = cy - h / 2;
-    c.add(panel(this, left, top, w, h, { alpha: 0.7 }));
+    const { x: left, y: top, width: w, height: h } = playMenuLayout().plate;
+    const cy = top + h / 2;
+    c.add(panel(this, left, top, w, h));
 
     if (deck === null) {
       // Fresh saves (or a save with no decks) route to where a deck comes
@@ -289,37 +295,24 @@ export class PlayScene extends Phaser.Scene {
       c.add(makeCardThumb(this, left + 46, cy, def(CARD_DB, faceId), 0.18, undefined, displayVariantFor(save, faceId)));
       textLeft = left + 86;
     }
-    c.add(
-      this.add
-        .text(textLeft, cy - 26, unavailable ? formatLabel(deckFormat).toUpperCase() + ' DECK' : 'ACTIVE DECK', {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.micro}px`,
-          fontStyle: theme.weight.w700,
-          color: theme.colors.muted,
-        })
-        .setOrigin(0, 0.5),
-    );
-    const name = this.add
-      .text(textLeft, cy, deck.name, {
-        fontFamily: theme.fonts.display,
-        fontSize: `${theme.type.h2}px`,
-        color: theme.colors.gold,
-      })
-      .setOrigin(0, 0.5);
-    const maxNameW = left + w - 150 - textLeft;
-    if (name.width > maxNameW) name.setScale(maxNameW / name.width);
-    c.add(name);
-    c.add(
-      this.add
-        .text(textLeft, cy + 25, blockKind ? deckBlockLabel(blockKind) : unavailable ?? (deck.cards.length + '/' + formatDeckSize(deckFormat) + ' cards'), {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.caption}px`,
-          color: repair.blocked || unavailable ? theme.colors.danger : deck.cards.length === formatDeckSize(deckFormat) ? theme.colors.success : theme.colors.danger,
-          wordWrap: { width: w - 190 },
-        })
-        .setOrigin(0, 0.5),
-    );
-    const change = themedButton(this, left + w - 78, repair.blocked ? cy + 22 : cy, 'Change', {
+    const tag = this.add.text(textLeft, 0, unavailable ? formatLabel(deckFormat).toUpperCase() + ' DECK' : 'ACTIVE DECK', {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.type.micro}px`, fontStyle: theme.weight.w700, color: theme.colors.muted,
+    });
+    const name = this.add.text(textLeft, 0, deck.name, {
+      fontFamily: theme.fonts.display, fontSize: `${theme.type.h2}px`, color: theme.colors.gold,
+    });
+    const maxNameW = left + w - 164 - textLeft;
+    ellipsizeText(name, maxNameW);
+    const status = this.add.text(textLeft, 0, blockKind ? deckBlockLabel(blockKind) : unavailable ?? (deck.cards.length + '/' + formatDeckSize(deckFormat) + ' cards'), {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px`,
+      color: repair.blocked || unavailable ? theme.colors.danger : deck.cards.length === formatDeckSize(deckFormat) ? theme.colors.success : theme.colors.danger,
+      wordWrap: { width: maxNameW },
+    });
+    const text = [tag, name, status];
+    const stack = playTextStack(text.map((t) => t.height), 0, theme.space(2));
+    text.forEach((t, i) => t.setY(cy - stack.bottom / 2 + stack.ys[i]));
+    c.add(text);
+    const change = themedButton(this, left + w - 78, repair.blocked ? cy + 28 : cy, 'Change', {
       variant: 'ghost',
       size: 'sm',
       minWidth: 110,
@@ -328,7 +321,7 @@ export class PlayScene extends Phaser.Scene {
     c.add(change.container);
     this.menuTargets.push(change.inputZone);
     if (repair.blocked) {
-      const fix = themedButton(this, left + w - 78, cy - 22, 'Fix', {
+      const fix = themedButton(this, left + w - 78, cy - 28, 'Fix', {
         variant: 'primary',
         size: 'sm',
         minWidth: 110,
@@ -347,118 +340,98 @@ export class PlayScene extends Phaser.Scene {
    * full Decks screen for building/renaming.
    */
   private showDeckSelect(): void {
-    const save = Services.save.data;
+    const save = this.save;
     const decks = visibleSavedDecks(save.decks, this.reserveFormatsEnabled);
-    const shell = modalShell(this, {
-      width: 620,
-      height: 520,
-      dismissal: 'dismissible',
-      onClose: () => this.guard.close(),
+    const built = decks.map((deck) => {
+      const format = builderFormatForDeck(deck, this.reserveFormatsEnabled);
+      const unavailable = formatGauntletUnavailableCopy(format, this.classicRetired);
+      const repair = deckHealth(CARD_DB, save, deck);
+      const blockKind = deckBlockKind(deck, repair.blocked, this.classicRetired);
+      const active = deck.id === this.activeDeck()?.id;
+      const name = this.add.text(0, 0, deck.name, {
+        fontFamily: theme.fonts.display, fontSize: `${theme.type.label}px`, color: active ? theme.colors.gold : theme.colors.heading,
+      });
+      const badge = this.add.text(0, 0, blockKind ? `${formatLabel(format)} · ${deckBlockLabel(blockKind)}` : formatLabel(format), {
+        fontFamily: theme.fonts.ui, fontSize: `${theme.type.micro}px`, color: repair.blocked || unavailable ? theme.colors.danger : theme.colors.muted,
+      });
+      const count = this.add.text(0, 0, deck.cards.length + '/' + formatDeckSize(format), {
+        fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px`,
+        color: repair.blocked || unavailable ? theme.colors.danger : deck.cards.length === formatDeckSize(format) ? theme.colors.success : theme.colors.danger,
+      }).setOrigin(1, 0.5);
+      const state = this.add.text(0, 0, unavailable ? 'Practice only' : active ? 'Using' : 'Use', {
+        fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px`, fontStyle: theme.weight.w600,
+        color: unavailable ? theme.colors.danger : active ? theme.colors.gold : theme.colors.body,
+      }).setOrigin(1, 0.5);
+      return { deck, active, name, badge, count, state };
     });
+    const rowWidth = 820 - theme.space(12);
+    const rightWidth = Math.max(0, ...built.map((r) => r.count.width + r.state.width + theme.space(3)));
+    const nameWidth = playDeckRowColumns({ x: 0, width: rowWidth }, 0, 0, rightWidth).nameWidth;
+    for (const row of built) {
+      ellipsizeText(row.name, nameWidth);
+      row.badge.setWordWrapWidth(nameWidth);
+    }
+    const layout = playDeckPickerLayout(decks.length,
+      Math.max(0, ...built.map((r) => r.name.height)), Math.max(0, ...built.map((r) => r.badge.height)));
+    const shell = modalShell(this, { width: layout.width, height: layout.height, titleTrackHeight: layout.titleTrackHeight,
+      dismissal: 'dismissible', onClose: () => this.guard.close() });
     this.guard.open(this.menuTargets);
     const c = shell.container;
     const content = shell.tracks.contentBounds;
-    c.add(
-      this.add
-        .text(shell.tracks.titleTrack.x + shell.tracks.titleTrack.width / 2, shell.tracks.titleTrack.y + shell.tracks.titleTrack.height / 2, 'Choose Your Deck', {
-          fontFamily: theme.fonts.display,
-          fontSize: `${theme.type.h1}px`,
-          color: theme.colors.heading,
-        })
-        .setOrigin(0.5),
-    );
-
+    c.add(this.add.text(shell.tracks.titleTrack.x, shell.tracks.titleTrack.y, 'Choose Your Deck', {
+      fontFamily: theme.fonts.display, fontSize: `${theme.type.h1}px`, color: theme.colors.heading,
+    }));
     const select = (id: string): void => {
       save.activeDeckId = id;
-      Services.save.flush();
+      if (!this.fixtureSave) Services.save.flush();
       shell.close();
       this.clearLaunchNotice();
       this.buildDeckPlate();
     };
-
-    const rowW = content.width - 32;
-    const rowX = content.x + 16;
-    const pitch = 48;
-    const listTop = content.y + 30;
-    const pages = Math.max(1, Math.ceil(decks.length / DECK_PAGE_SIZE));
+    const rows = built.map((r) => {
+      const row = this.add.container(0, 0).setVisible(false);
+      const band = this.add.rectangle(content.x + rowWidth / 2, 0, rowWidth, layout.rowHeight,
+        r.active ? theme.graphics.rowFillActive : theme.graphics.rowFill, theme.alpha.panel)
+        .setStrokeStyle(theme.control.borderWidth, r.active ? colorInt(theme.colors.gold) : theme.graphics.panelStroke)
+        .setInteractive({ useHandCursor: true });
+      bindTapButton(this, band, () => select(r.deck.id));
+      band.on('pointerover', (pointer: Phaser.Input.Pointer) => { if (!pointer.wasTouch) band.setFillStyle(theme.graphics.rowFillActive, theme.alpha.panel); });
+      band.on('pointerout', () => band.setFillStyle(r.active ? theme.graphics.rowFillActive : theme.graphics.rowFill, theme.alpha.panel));
+      const columns = playDeckRowColumns({ x: content.x, width: rowWidth }, r.state.width, r.count.width, rightWidth);
+      r.state.setPosition(columns.stateRight, 0);
+      r.count.setPosition(columns.countRight, 0);
+      const stack = playTextStack([r.name.height, r.badge.height], 0, theme.space(1));
+      r.name.setPosition(columns.nameX, -stack.bottom / 2);
+      r.badge.setPosition(r.name.x, -stack.bottom / 2 + stack.ys[1]);
+      row.add([band, r.name, r.badge, r.count, r.state]);
+      if (r.active) {
+        const mark = menuSelectionMark({ visual: { x: content.x, y: -layout.rowHeight / 2, width: rowWidth, height: layout.rowHeight },
+          labelWidth: r.name.width, padding: theme.space(4) });
+        row.add(this.add.graphics().fillStyle(colorInt(theme.colors.gold), 1).fillRect(mark.x, mark.y, mark.width, mark.height));
+      }
+      c.add(row);
+      return { row, band };
+    });
+    const pages = Math.max(1, Math.ceil(decks.length / layout.pageSize));
     let pageControl: ReturnType<typeof pager> | null = null;
-    let rowItems: Phaser.GameObjects.GameObject[] = [];
     const renderPage = (page: number): void => {
-      for (const item of rowItems) if (item.active) item.destroy();
-      rowItems = [];
-      const visible = decks.slice(page * DECK_PAGE_SIZE, (page + 1) * DECK_PAGE_SIZE);
-      visible.forEach((deck, i) => {
-        const y = listTop + i * pitch;
-        const isActive = deck.id === this.activeDeck()?.id;
-        const band = this.add
-          .rectangle(rowX + rowW / 2, y, rowW, 40, isActive ? theme.graphics.rowFillActive : theme.graphics.rowFill, 0.9)
-          .setStrokeStyle(
-            theme.control.borderWidth,
-            colorInt(isActive ? theme.colors.gold : theme.colors.panelStroke),
-            isActive ? 1 : theme.alpha.chrome,
-          )
-          .setInteractive({ useHandCursor: true });
-        bindTapButton(this, band, () => select(deck.id));
-        band.on('pointerover', (pointer: Phaser.Input.Pointer) => {
-          if (!pointer.wasTouch && !isActive) band.setFillStyle(theme.graphics.rowFillActive, 0.9);
-        });
-        band.on('pointerout', () => {
-          if (!isActive) band.setFillStyle(theme.graphics.rowFill, 0.9);
-        });
-        const deckFormat = builderFormatForDeck(deck, this.reserveFormatsEnabled);
-        const unavailable = formatGauntletUnavailableCopy(deckFormat, this.classicRetired);
-        const repair = deckHealth(CARD_DB, save, deck);
-        const blockKind = deckBlockKind(deck, repair.blocked, this.classicRetired);
-        const name = this.add
-          .text(rowX + 16, y - 7, deck.name, {
-            fontFamily: theme.fonts.display,
-            fontSize: `${theme.type.label}px`,
-            color: isActive ? theme.colors.gold : theme.colors.heading,
-          })
-          .setOrigin(0, 0.5);
-        if (name.width > rowW - 200) name.setScale((rowW - 200) / name.width);
-        const badge = this.add
-          .text(rowX + 16, y + 12, blockKind ? `${formatLabel(deckFormat)} · ${deckBlockLabel(blockKind)}` : formatLabel(deckFormat), {
-            fontFamily: theme.fonts.ui,
-            fontSize: `${theme.type.micro}px`,
-            color: repair.blocked || unavailable ? theme.colors.danger : theme.colors.muted,
-          })
-          .setOrigin(0, 0.5);
-        const count = this.add
-          .text(rowX + rowW - 84, y, deck.cards.length + '/' + formatDeckSize(deckFormat), {
-            fontFamily: theme.fonts.ui,
-            fontSize: `${theme.type.caption}px`,
-            color: repair.blocked || unavailable ? theme.colors.danger : deck.cards.length === formatDeckSize(deckFormat) ? theme.colors.success : theme.colors.danger,
-          })
-          .setOrigin(1, 0.5);
-        const state = this.add
-          .text(rowX + rowW - 16, y, unavailable ? 'Practice only' : isActive ? 'Using' : 'Use', {
-            fontFamily: theme.fonts.ui,
-            fontSize: `${theme.type.caption}px`,
-            fontStyle: theme.weight.w600,
-            color: unavailable ? theme.colors.danger : isActive ? theme.colors.gold : theme.colors.body,
-          })
-          .setOrigin(1, 0.5);
-        for (const item of [band, name, badge, count, state]) {
-          rowItems.push(item);
-          c.add(item);
-        }
+      rows.forEach(({ row, band }, i) => {
+        const index = i - page * layout.pageSize;
+        const visible = index >= 0 && index < layout.pageSize;
+        row.setVisible(visible);
+        if (visible) { row.setY(layout.rowYs[index]); band.setInteractive({ useHandCursor: true }); }
+        else band.disableInteractive();
       });
       pageControl?.refresh(page, pages);
     };
     if (pages > 1) {
-      pageControl = pager(this, content.x + content.width / 2 - 44, listTop + DECK_PAGE_SIZE * pitch - 14, 0, pages, renderPage);
+      pageControl = pager(this, content.x + content.width / 2 - 44, layout.pagerY, 0, pages, renderPage);
       c.add(pageControl.container);
     }
     renderPage(0);
-
     const footer = shell.tracks.footerTrack;
-    const edit = themedButton(this, footer.x + footer.width / 2, footer.y + footer.height / 2, 'Edit Decks', {
-      variant: 'ghost',
-      size: 'sm',
-      minWidth: 140,
-      onTap: () => this.scene.start('DeckBuilder'),
-    });
-    c.add(edit.container);
+    c.add(themedButton(this, footer.x + footer.width / 2, footer.y + footer.height / 2, 'Edit Decks', {
+      variant: 'ghost', size: 'sm', minWidth: 140, onTap: () => this.scene.start('DeckBuilder'),
+    }).container);
   }
 }

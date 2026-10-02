@@ -1,4 +1,7 @@
 import Phaser from 'phaser';
+import { currentAccessibility } from '../ui/accessibility';
+import { IS_DEV } from '../platform/env';
+import { bindMenuScroll } from '../ui/menuScroll';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { ScriptAI } from '../ai/ScriptAI';
@@ -14,6 +17,7 @@ import {
   type FlaggedDeckSummary,
 } from '../meta/deckRepair';
 import {
+  DAILY_QUESTS,
   claimDailyQuest,
   dailyQuestStatuses,
   dailyRerollsRemaining,
@@ -25,10 +29,12 @@ import { Services } from '../meta/services';
 import { normalizeStatsNoticeVersion, STATS_NOTICE_VERSION } from '../meta/statsNotice';
 import { signals } from '../net/signals';
 import { readSignalsGateInput, signalsAllowed } from '../net/signalsGate';
+import { controlFontSize } from '../ui/controlStyle';
+import { measureThemedButton } from '../ui/layout';
 import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { createStatsNoticeDialog } from '../ui/StatsNoticeDialog';
-import { mainMenuButtonY, mainMenuCornerY, MAIN_MENU_CORNER, MAIN_MENU_ITEMS, MAIN_MENU_X } from '../ui/mainMenuPresentation';
+import { mainMenuButtonY, mainMenuCornerY, mainMenuCornerLayout, mainMenuDailyLayout, menuNoticeLayout, MAIN_MENU_DAILY, MAIN_MENU_CORNER, MAIN_MENU_ITEMS, MAIN_MENU_X } from '../ui/mainMenuPresentation';
 import {
   createStatsNoticeController,
   menuArrivalSteps,
@@ -47,6 +53,7 @@ import { VERSION_LABEL } from '../version';
 const MENU_ITEMS = MAIN_MENU_ITEMS;
 
 export class MainMenuScene extends Phaser.Scene {
+  private fixture = false;
   private menuItems: Phaser.GameObjects.GameObject[] = [];
   private guard = new ModalGuard();
   private toasts!: Toast;
@@ -55,7 +62,10 @@ export class MainMenuScene extends Phaser.Scene {
     super('MainMenu');
   }
 
-  create(): void {
+  create(data: { a11yFixture?: boolean; tutorial?: boolean; repair?: FlaggedDeckSummary[] } = {}): void {
+    const fixture = IS_DEV && data.a11yFixture === true;
+    this.fixture = fixture;
+    this.sys.settings.data = {};
     this.menuItems = [];
     this.guard = new ModalGuard();
     this.toasts = new Toast(this, { modalGuard: this.guard });
@@ -72,7 +82,7 @@ export class MainMenuScene extends Phaser.Scene {
       // 0.50, raised from the 0.35 starting point (2026-07-03): the generated
       // vista's horizon glow reaches the bottom menu items; 0.35 left the
       // central column at ~35% luminance vs the ≤28% cap (scene-art.md §2).
-      dimAlpha: 0.5,
+      dimAlpha: currentAccessibility().highContrast ? theme.alpha.overlayDim : 0.5,
       fallback: () => {
         /* scene had no background of its own — the clear colour shows */
       },
@@ -92,9 +102,9 @@ export class MainMenuScene extends Phaser.Scene {
     // save codes, migrations, and dev grants mutate the save outside any
     // checkpoint, and claiming validates against the persisted unlocked
     // list. No toast here — recovered unlocks are old news, not fresh events.
-    if (syncAchievements(save, CARD_DB).length > 0) Services.save.flush();
+    if (!fixture && syncAchievements(save, CARD_DB).length > 0) Services.save.flush();
     const today = todayString();
-    if (ensureDailyState(save, today)) Services.save.flush();
+    if (!fixture && ensureDailyState(save, today)) Services.save.flush();
     const claimableAchievements = evaluateAchievements(save, CARD_DB).filter(
       (status) => status.unlocked && !status.claimed,
     ).length;
@@ -119,14 +129,23 @@ export class MainMenuScene extends Phaser.Scene {
     });
     this.menuItems.push(gear.inputZone);
 
+    const cornerLabels = ['👤 Profile', '❔ How to Play', '📖 Glossary'];
+    const leftWidth = Math.max(...cornerLabels.map((label) => {
+      const text = this.add.text(0, 0, label, { fontFamily: theme.fonts.ui,
+        fontSize: `${controlFontSize('sm')}px`, fontStyle: theme.weight.w600 });
+      const width = measureThemedButton(text.width, 'sm', MAIN_MENU_CORNER.minWidth).hit.width;
+      text.destroy();
+      return width;
+    }));
+
     // Profile entry: top-left corner, balancing the top-right gold+gear cluster.
     // Like the gear, it lives in the corner because the 8-row menu list is full;
     // joins menuItems so the starter-picker ModalGuard disables it too.
     // The three learning-corner buttons share a centre and a width so the
     // cluster reads as one column; Profile was 120 wide at x 90 against the
     // other two at 150 wide and x 100, so it sat narrower and 5px left.
-    const profile = themedButton(this, MAIN_MENU_CORNER.leftX, mainMenuCornerY(0), '👤 Profile', {
-      variant: 'ghost', size: 'sm', minWidth: MAIN_MENU_CORNER.minWidth, onTap: () => this.scene.start('Profile'),
+    const profile = themedButton(this, MAIN_MENU_CORNER.leftX, mainMenuCornerY(0), cornerLabels[0], {
+      variant: 'ghost', size: 'sm', minWidth: leftWidth, onTap: () => this.scene.start('Profile'),
     });
     this.menuItems.push(profile.inputZone);
 
@@ -134,20 +153,24 @@ export class MainMenuScene extends Phaser.Scene {
     // Profile, mirroring ⚙ Settings on the right). Makes skipping reversible
     // (docs/plan-road-to-1.0.md Feature 1). Joins menuItems so the starter
     // picker's ModalGuard deadens it too.
-    const howto = themedButton(this, MAIN_MENU_CORNER.leftX, mainMenuCornerY(1), '❔ How to Play', {
-      variant: 'ghost', size: 'sm', minWidth: MAIN_MENU_CORNER.minWidth, onTap: () => this.startTutorial(),
+    const howto = themedButton(this, MAIN_MENU_CORNER.leftX, mainMenuCornerY(1), cornerLabels[1], {
+      variant: 'ghost', size: 'sm', minWidth: leftWidth, onTap: () => this.startTutorial(),
     });
     this.menuItems.push(howto.inputZone);
 
     // Reference glossary, kept beside the tutorial so players can learn away
     // from a live duel. It joins the guard-managed menu targets like every
     // other learning-corner control.
-    const glossary = themedButton(this, MAIN_MENU_CORNER.leftX, mainMenuCornerY(2), '📖 Glossary', {
-      variant: 'ghost', size: 'sm', minWidth: MAIN_MENU_CORNER.minWidth, onTap: () => this.scene.start('Glossary'),
+    const glossary = themedButton(this, MAIN_MENU_CORNER.leftX, mainMenuCornerY(2), cornerLabels[2], {
+      variant: 'ghost', size: 'sm', minWidth: leftWidth, onTap: () => this.scene.start('Glossary'),
     });
     this.menuItems.push(glossary.inputZone);
 
-    this.drawDailyPanel(today);
+    const corners = mainMenuCornerLayout([profile, howto, glossary].map((b) => b.getMeasuredSize().hit.width), gear.getMeasuredSize().hit.width);
+    // Anchor the common measured width to the safe edge.
+    for (const button of [profile, howto, glossary]) button.container.setX(corners.leftX);
+    gear.container.setX(corners.rightX);
+    this.drawDailyPanel(today, fixture);
 
     MENU_ITEMS.forEach((entry, i) => {
       const itemY = mainMenuButtonY(i);
@@ -172,13 +195,16 @@ export class MainMenuScene extends Phaser.Scene {
 
     // Build identity, bottom-left corner (non-interactive, low-contrast). The
     // Settings screen hosts the on-demand "Check for updates" action.
-    this.add.text(14, 702, VERSION_LABEL, {
+    this.add.text(14, theme.design.height - theme.space(1), VERSION_LABEL, {
       fontFamily: theme.fonts.ui,
       fontSize: `${theme.type.caption}px`,
       color: theme.colors.muted,
-    });
+    }).setOrigin(0, 1).setData('a11yExpendable', true);
 
-    this.runArrival();
+    if (fixture) {
+      if (data.tutorial) this.promptTutorial();
+      else if (data.repair?.length) this.showDeckRepairNotice(data.repair);
+    } else this.runArrival();
   }
 
   /**
@@ -287,52 +313,39 @@ export class MainMenuScene extends Phaser.Scene {
   private showDeckRepairNotice(flagged: readonly FlaggedDeckSummary[]): void {
     const save = Services.save.data;
     let repairDeckId: string | null = null;
+    const single = flagged.length === 1;
+    const title = this.add.text(0, 0, single ? 'Your deck needs fixes' : 'Your decks need fixes', {
+      fontFamily: theme.fonts.display, fontSize: `${theme.type.h1}px`, color: theme.colors.heading,
+    });
+    const message = this.add.text(0, 0,
+      (single
+        ? 'The rules changed with this update. One of your decks no longer fits the current format. '
+        : `The rules changed with this update. ${flagged.length} of your decks no longer fit the current format. `) +
+        'Nothing was deleted; every card is still in your collection. Open the Deck Builder to bring them up to date.', {
+        fontFamily: theme.fonts.ui, fontSize: `${theme.type.body}px`, color: theme.colors.body,
+        wordWrap: { width: 696 }, lineSpacing: theme.space(1),
+      });
+    const layout = menuNoticeLayout(760, title.height, message.height);
     const shell = modalShell(this, {
-      width: 760,
-      height: 430,
-      dimAlpha: 0.68,
+      width: layout.width, height: layout.height, titleTrackHeight: layout.titleTrackHeight,
       dismissal: 'mandatory',
       onClose: () => {
-        // Deliberately no acknowledgement here: only the two buttons stamp it.
-        // A programmatic close (scene teardown, tab-guard takeover) must leave
-        // the notice unacknowledged so it shows again next boot.
         this.guard.close();
         if (repairDeckId) this.scene.start('DeckBuilder', { deckId: repairDeckId });
       },
     });
     const acknowledge = (): void => {
+      if (this.fixture) return;
       save.deckRepairNoticeAck = deckRepairNoticeFingerprint(flagged);
       Services.save.flush();
     };
     this.guard.open(this.menuItems);
     const content = shell.container;
-    const single = flagged.length === 1;
-    content.add(
-      this.add.text(640, 200, single ? 'Your deck needs fixes' : 'Your decks need fixes', {
-        fontFamily: theme.fonts.display,
-        fontSize: `${theme.type.h1}px`,
-        color: theme.colors.heading,
-      }).setOrigin(0.5),
-    );
-    content.add(
-      this.add.text(
-        640,
-        315,
-        (single
-          ? 'The rules changed with this update. One of your decks no longer fits the current format. '
-          : `The rules changed with this update. ${flagged.length} of your decks no longer fit the current format. `) +
-          'Nothing was deleted; every card is still in your collection. Open the Deck Builder to bring them up to date.',
-        {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.body}px`,
-          color: theme.colors.body,
-          align: 'center',
-          wordWrap: { width: 640 },
-          lineSpacing: 5,
-        },
-      ).setOrigin(0.5),
-    );
-    const fix = themedButton(this, 520, 485, 'Fix Now', {
+    title.setPosition(shell.tracks.titleTrack.x, shell.tracks.titleTrack.y);
+    message.setPosition(shell.tracks.contentBounds.x, shell.tracks.contentBounds.y);
+    content.add([title, message]);
+    const footerY = shell.tracks.footerTrack.y + shell.tracks.footerTrack.height / 2;
+    const fix = themedButton(this, 520, footerY, 'Fix Now', {
       variant: 'primary',
       minWidth: 160,
       onTap: () => {
@@ -341,7 +354,7 @@ export class MainMenuScene extends Phaser.Scene {
         shell.close();
       },
     });
-    const later = themedButton(this, 760, 485, 'Later', {
+    const later = themedButton(this, 760, footerY, 'Later', {
       variant: 'ghost',
       minWidth: 160,
       onTap: () => {
@@ -351,7 +364,7 @@ export class MainMenuScene extends Phaser.Scene {
     });
     // Corner dismiss: an explicit tap, so it acknowledges exactly like Later.
     // Pinned to the shell's top-right corner (shell is centered at 640x360).
-    const corner = themedButton(this, 640 + 760 / 2 - 34, 360 - 430 / 2 + 34, '×', {
+    const corner = themedButton(this, shell.tracks.closeTrack.x + shell.tracks.closeTrack.width / 2, shell.tracks.closeTrack.y + shell.tracks.closeTrack.height / 2, '×', {
       variant: 'ghost',
       size: 'sm',
       minWidth: 30,
@@ -400,108 +413,82 @@ export class MainMenuScene extends Phaser.Scene {
     }
   }
 
-  private drawDailyPanel(today: string): void {
+  private drawDailyPanel(today: string, fixture = false): void {
     const save = Services.save.data;
-    const quests = dailyQuestStatuses(save, today);
+    const quests = fixture ? DAILY_QUESTS.slice().sort((a, b) => b.description.length - a.description.length).slice(0, 3).map((q, i) => ({
+      ...q, progress: i === 1 ? q.target : 0, claimed: i === 2, complete: i !== 0,
+    })) : dailyQuestStatuses(save, today);
     const rerollsLeft = dailyRerollsRemaining(save, today);
     const streak = dailyStreakStatus(save, today);
-    const x = 670;
-    const y = 250;
-    const w = 540;
-    const h = 380;
-    panel(this, x, y, w, h, { alpha: 0.86 });
-
-    this.add.text(x + 24, y + 22, 'Daily Blades', {
-      fontFamily: theme.fonts.display,
-      fontSize: `${theme.type.h1}px`,
-      color: theme.colors.heading,
+    const { x, width: w } = MAIN_MENU_DAILY;
+    const title = this.add.text(x + 16, 0, 'Daily Blades', {
+      fontFamily: theme.fonts.display, fontSize: `${theme.type.h1}px`, color: theme.colors.heading,
     });
-    this.add
-      .text(x + w - 24, y + 25, `Rerolls ${rerollsLeft}/${ECONOMY.dailyRerollsPerDay}`, {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.label}px`,
-        color: theme.colors.muted,
-      })
-      .setOrigin(1, 0);
-
-    const streakText = streak.wonToday
-      ? `Streak ${streak.count} · win locked in`
-      : `Streak ${streak.count} · next win +${streak.nextGold}`;
-    this.add.text(x + 24, y + 55, streakText, {
-      fontFamily: theme.fonts.ui,
-      fontSize: `${theme.type.label}px`,
-      color: streak.wonToday ? theme.colors.success : theme.colors.gold,
+    const rerolls = this.add.text(x + w - 16, 0, `Rerolls ${rerollsLeft}/${ECONOMY.dailyRerollsPerDay}`, {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.type.label}px`, color: theme.colors.muted,
+    }).setOrigin(1, 0);
+    const streakText = this.add.text(x + 16, 0, streak.wonToday
+      ? `Streak ${streak.count} · win locked in` : `Streak ${streak.count} · next win +${streak.nextGold}`, {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.type.label}px`, color: streak.wonToday ? theme.colors.success : theme.colors.gold,
     });
-
-    quests.forEach((quest, i) => {
-      const rowY = y + 86 + i * 92;
-      const rowH = 78;
-      panel(this, x + 18, rowY, w - 36, rowH, { alpha: 0.78, radius: theme.radius.control });
-
-      this.add.text(x + 34, rowY + 10, quest.title, {
-        fontFamily: theme.fonts.display,
-        fontSize: `${theme.type.label}px`,
-        color: quest.claimed ? theme.colors.muted : theme.colors.heading,
-      });
-      this.add.text(x + 34, rowY + 35, quest.description, {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.caption}px`,
-        color: theme.colors.muted,
-      });
-
-      const barX = x + 34;
-      const barY = rowY + 61;
-      const barW = 278;
-      const fillW = Math.round((barW * Math.min(quest.progress, quest.target)) / quest.target);
-      const progress = this.add.graphics().fillStyle(colorInt(theme.colors.panelStroke), 1);
-      progress.fillRoundedRect(barX, barY, barW, 8, 4);
-      if (fillW > 0) {
-        progress.fillStyle(colorInt(quest.complete ? theme.colors.success : theme.colors.gold), 1);
-        progress.fillRoundedRect(barX, barY, fillW, 8, 4);
-      }
-      this.add
-        .text(barX + barW + 12, barY - 5, `${Math.min(quest.progress, quest.target)}/${quest.target}`, {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.caption}px`,
-          color: theme.colors.body,
-        })
-        .setOrigin(0, 0);
-
-      const buttonX = x + w - 84;
-      const buttonY = rowY + 40;
-      if (quest.claimed) {
-        this.add
-          .text(buttonX, buttonY, 'Claimed', {
-            fontFamily: theme.fonts.ui,
-            fontSize: `${theme.type.label}px`,
-            color: theme.colors.success,
-          })
-          .setOrigin(0.5);
-      } else if (quest.complete) {
-        this.dailyButton(buttonX, buttonY, `Claim +${quest.rewardGold}`, true, () => {
-          const result = claimDailyQuest(save, i, todayString());
+    const content = this.add.container(0, 0);
+    const rows = quests.map((quest, i) => {
+      const row = this.add.container(0, 0);
+      const action = quest.claimed || (!quest.complete && rerollsLeft === 0)
+        ? this.add.text(0, 0, quest.claimed ? 'Claimed' : 'No rerolls', {
+          fontFamily: theme.fonts.ui, fontSize: `${theme.type.label}px`, color: quest.claimed ? theme.colors.success : theme.colors.muted,
+        }).setOrigin(0.5)
+        : this.dailyButton(0, 0, quest.complete ? `Claim +${quest.rewardGold}` : 'Reroll', quest.complete, () => {
+          if (fixture) return;
+          const result = quest.complete ? claimDailyQuest(save, i, todayString()) : rerollDailyQuest(save, i, todayString());
           if (!result.ok) return;
           Services.save.flush();
-          Sfx.play('coin');
+          if (quest.complete) Sfx.play('coin');
           this.scene.restart();
         });
-      } else if (rerollsLeft > 0) {
-        this.dailyButton(buttonX, buttonY, 'Reroll', false, () => {
-          const result = rerollDailyQuest(save, i, todayString());
-          if (!result.ok) return;
-          Services.save.flush();
-          this.scene.restart();
-        });
-      } else {
-        this.add
-          .text(buttonX, buttonY, 'No rerolls', {
-            fontFamily: theme.fonts.ui,
-            fontSize: `${theme.type.caption}px`,
-            color: theme.colors.muted,
-          })
-          .setOrigin(0.5);
-      }
+      const button = 'container' in action ? action : null;
+      const actionNode = button ? button.container : action as Phaser.GameObjects.Text;
+      const actionWidth = button ? button.getMeasuredSize().hit.width : (action as Phaser.GameObjects.Text).width;
+      const textX = x + 24;
+      const textWidth = w - 64 - actionWidth;
+      const name = this.add.text(textX, 0, quest.title, {
+        fontFamily: theme.fonts.display, fontSize: `${theme.type.label}px`, color: quest.claimed ? theme.colors.muted : theme.colors.heading,
+        wordWrap: { width: textWidth },
+      });
+      const description = this.add.text(textX, 0, quest.description, {
+        fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px`, color: theme.colors.muted,
+        wordWrap: { width: textWidth },
+      });
+      const progressText = this.add.text(textX + textWidth, 0, `${Math.min(quest.progress, quest.target)}/${quest.target}`, {
+        fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px`, color: theme.colors.body,
+      }).setOrigin(1, 0);
+      row.add([name, description, progressText, actionNode]);
+      content.add(row);
+      return { row, quest, name, description, progressText, actionNode, actionWidth, textWidth, button };
     });
+    const layout = mainMenuDailyLayout(Math.max(title.height, rerolls.height), streakText.height, rows.map((r) => ({
+      title: r.name.height, description: r.description.height, progress: r.progressText.height,
+      action: r.button ? r.button.getMeasuredSize().hit.height : (r.actionNode as Phaser.GameObjects.Text).height,
+    })));
+    const bg = panel(this, layout.panel.x, layout.panel.y, layout.panel.width, layout.panel.height);
+    this.children.moveBelow(bg, title);
+    title.setY(layout.headingY); rerolls.setY(layout.headingY); streakText.setY(layout.streakY);
+    rows.forEach((r, i) => {
+      const at = layout.rows[i];
+      r.name.setY(at.titleY); r.description.setY(at.descriptionY); r.progressText.setY(at.progressY);
+      r.actionNode.setPosition(x + w - 24 - r.actionWidth / 2, at.y + at.height / 2);
+      const rowBg = panel(this, layout.viewport.x, at.y, layout.viewport.width, at.height, { radius: theme.radius.control });
+      r.row.addAt(rowBg, 0);
+      const barW = r.textWidth - r.progressText.width - theme.space(3);
+      const barY = at.progressY + r.progressText.height / 2 - 4;
+      const progress = this.add.graphics().fillStyle(theme.graphics.panelStroke, 1);
+      progress.fillRoundedRect(x + 24, barY, barW, 8, 4);
+      const fillW = Math.round(barW * Math.min(r.quest.progress, r.quest.target) / r.quest.target);
+      if (fillW > 0) progress.fillStyle(r.quest.complete ? colorInt(theme.colors.success) : colorInt(theme.colors.gold), 1).fillRoundedRect(x + 24, barY, fillW, 8, 4);
+      r.row.add(progress);
+    });
+    bindMenuScroll(this, content, layout.viewport, layout.contentHeight, () => this.guard.isOpen,
+      rows.flatMap((r) => r.button ? [r.button] : []));
   }
 
   private dailyButton(x: number, y: number, label: string, primary: boolean, cb: () => void): ThemedButton {
@@ -523,51 +510,32 @@ export class MainMenuScene extends Phaser.Scene {
    * players claim their free starter in the Shop's Decks tab.)
    */
   private promptTutorial(): void {
-    const width = 1280;
-    const height = 720;
-    const c = this.add.container(0, 0).setDepth(100);
-    c.add(this.add.rectangle(width / 2, height / 2, width, height, theme.graphics.dim, theme.alpha.overlayDim).setInteractive());
-    c.add(
-      this.add
-        .text(width / 2, 250, 'New to card games?', {
-          fontFamily: theme.fonts.display,
-          fontSize: `${theme.type.display}px`,
-          color: theme.colors.heading,
-        })
-        .setOrigin(0.5),
-    );
-    c.add(
-      this.add
-        .text(
-          width / 2,
-          314,
-          'A quick match teaches the basics: mana, creatures, and combat.\n' +
-            'You get the same starting bonus either way, so skipping costs you nothing.\n' +
-            'You can replay it anytime from "How to Play".',
-          {
-            fontFamily: theme.fonts.ui,
-            fontSize: `${theme.type.body}px`,
-            color: theme.colors.muted,
-            align: 'center',
-            lineSpacing: 6,
-          },
-        )
-        .setOrigin(0.5),
-    );
-    const mk = (x: number, label: string, primary: boolean, cb: () => void): void => {
-      const btn = themedButton(this, x, 420, label, {
-        variant: primary ? 'primary' : 'ghost',
-        minWidth: 180,
-        onTap: cb,
+    const title = this.add.text(0, 0, 'New to card games?', {
+      fontFamily: theme.fonts.display, fontSize: `${theme.type.display}px`, color: theme.colors.heading,
+    });
+    const message = this.add.text(0, 0,
+      'A quick match teaches the basics: mana, creatures, and combat.\n' +
+      'You get the same starting bonus either way, so skipping costs you nothing.\n' +
+      'You can replay it anytime from "How to Play".', {
+        fontFamily: theme.fonts.ui, fontSize: `${theme.type.body}px`, color: theme.colors.muted,
+        wordWrap: { width: 792 }, lineSpacing: theme.space(1),
       });
-      c.add(btn.container);
-    };
-    mk(width / 2 - 130, 'Start Tutorial', true, () => this.startTutorial());
-    mk(width / 2 + 130, 'Skip', false, () => this.skipTutorial());
+    const layout = menuNoticeLayout(840, title.height, message.height);
+    const shell = modalShell(this, { width: layout.width, height: layout.height,
+      titleTrackHeight: layout.titleTrackHeight, dismissal: 'mandatory', onClose: () => this.guard.close() });
+    this.guard.open(this.menuItems);
+    title.setPosition(shell.tracks.titleTrack.x, shell.tracks.titleTrack.y);
+    message.setPosition(shell.tracks.contentBounds.x, shell.tracks.contentBounds.y);
+    shell.container.add([title, message]);
+    const y = shell.tracks.footerTrack.y + shell.tracks.footerTrack.height / 2;
+    const start = themedButton(this, 510, y, 'Start Tutorial', { variant: 'primary', minWidth: 180, onTap: () => this.startTutorial() });
+    const skip = themedButton(this, 770, y, 'Skip', { variant: 'ghost', minWidth: 180, onTap: () => this.skipTutorial() });
+    shell.container.add([start.container, skip.container]);
   }
 
   /** Launch the scripted tutorial duel. */
   private startTutorial(): void {
+    if (this.fixture) return;
     this.scene.start('Duel', tutorialLaunchData(new ScriptAI(CARD_DB)));
   }
 
@@ -576,6 +544,7 @@ export class MainMenuScene extends Phaser.Scene {
    * Decks tab to claim the free starter deck (parity with completing the tutorial).
    */
   private skipTutorial(): void {
+    if (this.fixture) return;
     const save = Services.save.data;
     if (!save.tutorialDone) {
       save.tutorialDone = true;

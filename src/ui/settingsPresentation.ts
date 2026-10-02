@@ -225,6 +225,13 @@ export const SETTINGS_TABS: readonly { key: SettingsTab; label: string }[] = [
 
 export const DEFAULT_SETTINGS_TAB: SettingsTab = 'game';
 
+/** A12: the instruction follows the device's card-preview gesture. */
+export function settingsTextSizeCaption(touch: boolean): string {
+  return touch
+    ? 'Makes menus and help text larger. Hold a card to read it up close.'
+    : 'Makes menus and help text larger. Hover over a card to read it up close.';
+}
+
 /** Anything that is not a tab's key opens the default tab. */
 export function normalizeSettingsTab(value: unknown): SettingsTab {
   return SETTINGS_TABS.some((tab) => tab.key === value) ? (value as SettingsTab) : DEFAULT_SETTINGS_TAB;

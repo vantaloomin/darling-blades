@@ -62,6 +62,12 @@ describe('the shared button colours', () => {
 });
 
 describe('the shared control border', () => {
+  it('gives primary and danger hover a 2px border, with every idle border unchanged', () => {
+    forEachA11yCell(() => {
+      for (const variant of VARIANTS) expect(controlStrokeWidth(false, variant)).toBe(1);
+      for (const variant of ['primary', 'danger'] as const) expect(controlStrokeWidth(true, variant)).toBe(2);
+    });
+  });
   it('stays the 1px border idle and hovered at standard contrast', () => {
     expect(controlStrokeWidth(false)).toBe(theme.control.borderWidth);
     expect(controlStrokeWidth(true)).toBe(theme.control.borderWidth);

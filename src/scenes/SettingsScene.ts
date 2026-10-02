@@ -43,6 +43,7 @@ import {
   settingsRowStacks,
   settingsTabCenters,
   settingsTabColumns,
+  settingsTextSizeCaption,
   shiftGroupInside,
   volumeStepperXs,
   type AccessibilityControlsShown,
@@ -90,6 +91,8 @@ function measuredControl(button: ThemedButton): MeasuredControl {
 /** What the scene is started with: the tab to open (Game when absent). */
 export interface SettingsSceneData {
   tab?: SettingsTab;
+  /** Dev-only device fixture; never changes the saved settings. */
+  a11yTouch?: boolean;
 }
 
 /**
@@ -117,6 +120,7 @@ interface ChipGroup {
  */
 export class SettingsScene extends Phaser.Scene {
   private tab: SettingsTab = 'game';
+  private touchCaption = false;
   private shown: AccessibilityControlsShown = accessibilityControlsShown(IS_DEV);
   private toggles: { button: ThemedButton; on: () => boolean }[] = [];
   private chipGroups: ChipGroup[] = [];
@@ -138,6 +142,7 @@ export class SettingsScene extends Phaser.Scene {
     // start that passes none (Systems.start only replaces it when given
     // some), which would reopen the last tab on the next visit.
     this.tab = normalizeSettingsTab(data?.tab);
+    this.touchCaption = IS_DEV && data?.a11yTouch !== undefined ? data.a11yTouch : isTouchDevice();
     this.sys.settings.data = {};
   }
 
@@ -312,9 +317,7 @@ export class SettingsScene extends Phaser.Scene {
             this.previewAccessibility();
           },
           // Chosen the way the Instant cast caption picks tap or click.
-          isTouchDevice()
-            ? 'Makes menus and help text larger. Hold a card to read it up close.'
-            : 'Makes menus and help text larger. Hover over a card to read it up close.',
+          settingsTextSizeCaption(this.touchCaption),
         );
       case 'highContrast':
         return this.rightToggleRow(

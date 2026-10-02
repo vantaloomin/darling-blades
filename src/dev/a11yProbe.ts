@@ -9,6 +9,10 @@
  * - overlaps another visible Text on the same layer, or
  * - is drawn scaled below 1 without declaring itself fit-to-box
  *   (`text.setData('a11yFitToBox', true)`).
+ * Full menu identities declare `a11yFullText` and `a11yMaxLines`; removing
+ * characters, capping lines or clipping their unmasked bounds is a finding.
+ * Scrolling blurbs declare `a11yWholeLines`, so a partial glyph line at a
+ * mask edge is also a finding, even though its visible fragment fits.
  * Card faces are exempt (plan: card faces never scale; `CardView` and
  * `BoardCardView` text is card-internal geometry and shrinks to fit by rule).
  * A Text marked `setData('a11yExpendable', true)` (the design system's
@@ -35,11 +39,15 @@
 
 import Phaser from 'phaser';
 import { REPLAY_LOG_VERSION, replayDbStamp, type ReplayLog } from '../meta/Replay';
+import { AVATARS } from '../data/opponents';
+import type { SavedDeck } from '../meta/SaveManager';
+import { CLASSIC_RETIRED_ISSUE } from '../meta/deckRepair';
 import { CARD_DB } from '../data/catalog';
 import { currentAccessibility, setAccessibility, TEXT_SCALES } from '../ui/accessibility';
 import { BoardCardView } from '../ui/BoardCardView';
 import { CardView } from '../ui/CardView';
 import { theme } from '../ui/theme';
+import { menuTextFindings } from '../ui/menuText';
 
 export interface ProbeCell {
   readonly textScale: number;
@@ -53,6 +61,8 @@ export interface ProbeScene {
   readonly data?: object;
   /** Hand the scene the fixture replay list in its start data (Profile). */
   readonly replayFixtures?: boolean;
+  /** Copy whose presence is part of this fixture, independently of its geometry. */
+  readonly requiredText?: readonly string[];
 }
 
 export interface ProbeRect {
@@ -62,7 +72,7 @@ export interface ProbeRect {
   readonly height: number;
 }
 
-export type ProbeFindingKind = 'outsideFrame' | 'outsidePanel' | 'outsideDeclaredBox' | 'overlap' | 'scaledDown';
+export type ProbeFindingKind = 'outsideFrame' | 'outsidePanel' | 'outsideDeclaredBox' | 'overlap' | 'scaledDown' | 'missingText' | 'truncatedText' | 'clippedText';
 
 export interface ProbeFinding {
   readonly kind: ProbeFindingKind;
@@ -127,6 +137,33 @@ export const WAVE_1_SCENES: readonly ProbeScene[] = [
   { label: 'Limited', key: 'Limited' },
   { label: 'Practice picker', key: 'PracticePicker' },
   { label: 'Shop', key: 'Shop' },
+];
+
+/** This batch's measured surfaces, including touch copy, dialogs and full lists. */
+const PLAY_FIXTURE_DECKS: SavedDeck[] = AVATARS.map((avatar, i) => ({
+  id: `a11y-${i}`, name: avatar.name, cards: [avatar.portraitCardId], heroCardId: avatar.portraitCardId,
+  landStyle: null, format: i % 2 ? 'darlings' : 'warchest', darlingId: avatar.portraitCardId, landReserve: [],
+}));
+export const WAVE_2A_SCENES: readonly ProbeScene[] = [
+  { label: 'Settings / Game', key: 'Settings', data: { tab: 'game' } },
+  { label: 'Settings / Accessibility / touch', key: 'Settings', data: { tab: 'accessibility', a11yTouch: true },
+    requiredText: ['Makes menus and help text larger. Hold a card to read it up close.'] },
+  { label: 'Main menu / daily quests', key: 'MainMenu', data: { a11yFixture: true } },
+  { label: 'Main menu / tutorial', key: 'MainMenu', data: { a11yFixture: true, tutorial: true } },
+  { label: 'Main menu / repair', key: 'MainMenu', data: { a11yFixture: true,
+    repair: [{ deckId: 'a11y', name: '', issues: [], firstIssue: '' }] } },
+  { label: 'Play / empty', key: 'Play', data: { a11yDecks: [] } },
+  { label: 'Play / active deck', key: 'Play', data: { a11yDecks: PLAY_FIXTURE_DECKS } },
+  { label: 'Play / deck picker', key: 'Play', data: { a11yDecks: PLAY_FIXTURE_DECKS, a11yPicker: true } },
+  { label: 'Play / launch notice', key: 'Play', data: { a11yDecks: PLAY_FIXTURE_DECKS, launchNotice: CLASSIC_RETIRED_ISSUE } },
+  { label: 'Practice picker', key: 'PracticePicker', data: { a11yFixture: true } },
+  ...AVATARS.filter((av) => ['anubis-who-holds-the-scale', 'bastet-mistress-of-the-ninth-return'].includes(av.id)).map((av) => ({
+    label: `Practice picker / ${av.name}`, key: 'PracticePicker', data: { a11yFixture: true, a11yAvatarId: av.id }, requiredText: [av.name],
+  })),
+  ...[21, 22].map((rung) => ({ label: `Gauntlet / rung ${rung}`, key: 'Gauntlet', data: { a11yRung: rung },
+    requiredText: [AVATARS[rung - 1].name, AVATARS[rung - 1].title] })),
+  { label: 'Gauntlet / rung 1', key: 'Gauntlet', data: { a11yRung: 1 } },
+  { label: 'Gauntlet / rung 28', key: 'Gauntlet', data: { a11yRung: 28 } },
 ];
 
 /** `SCENE_TITLE` scenes this probe cannot open without a fixture it does not build. */
@@ -252,6 +289,8 @@ function intersection(a: ProbeRect, b: ProbeRect): ProbeRect | null {
 interface WalkedText {
   readonly object: Phaser.GameObjects.Text;
   readonly bounds: ProbeRect;
+  readonly unclippedBounds: ProbeRect;
+  readonly clip: ProbeRect | null;
   readonly scale: number;
   /** The nearest enclosing modal panel, if the Text is inside a modalShell. */
   readonly panel: ProbeRect | null;
@@ -294,7 +333,7 @@ function walkTexts(scene: Phaser.Scene): { texts: WalkedText[]; cardFaceTexts: n
       return;
     }
     const m = object.getWorldTransformMatrix();
-    texts.push({ object, bounds, scale: Math.min(Math.abs(m.scaleX), Math.abs(m.scaleY)), panel, layer });
+    texts.push({ object, bounds, unclippedBounds: round(object.getBounds()), clip: visibleArea, scale: Math.min(Math.abs(m.scaleX), Math.abs(m.scaleY)), panel, layer });
   };
   scene.children.list.forEach((child, index) => visit(child, null, String(index), false, null));
   return { texts, cardFaceTexts, maskedOut };
@@ -320,6 +359,23 @@ export function checkScene(scene: Phaser.Scene): Omit<ProbeSceneReport, 'scene'>
       findings.push({ kind: 'outsidePanel', text, bounds: t.bounds, detail: `panel ${JSON.stringify(t.panel)}` });
     }
     const declared = t.object.getData('a11yBox') as ProbeRect | undefined;
+    const fullText = t.object.getData('a11yFullText') as string | undefined;
+    const wholeLines = t.object.getData('a11yWholeLines') as { lineHeight: number; linePitch: number } | undefined;
+    if (fullText !== undefined || wholeLines) {
+      const maxWidth = t.object.getData('a11yTextWidth') as number | undefined;
+      const maxHeight = t.object.getData('a11yTextHeight') as number | undefined;
+      const box = declared ?? ((maxWidth !== undefined || maxHeight !== undefined) ? {
+        ...t.unclippedBounds, width: maxWidth ?? t.unclippedBounds.width, height: maxHeight ?? t.unclippedBounds.height,
+      } : undefined);
+      for (const kind of menuTextFindings({ expected: fullText ?? t.object.text, actual: t.object.text,
+        lines: t.object.getWrappedText(), drawnLines: t.object.style.maxLines,
+        maxLines: t.object.getData('a11yMaxLines') as number | undefined,
+        bounds: t.unclippedBounds, box, clip: t.clip ?? undefined, ...wholeLines })) {
+        findings.push({ kind, text, bounds: t.unclippedBounds,
+          detail: 'full source text, wrapped line count and unmasked glyph-line bounds' });
+      }
+    }
+
     if (declared && !contains(declared, t.bounds)) {
       findings.push({ kind: 'outsideDeclaredBox', text, bounds: t.bounds, detail: `box ${JSON.stringify(declared)}` });
     }
@@ -397,6 +453,7 @@ async function openScene(game: Phaser.Game, spec: ProbeScene, settleMs: number):
  */
 export const PROBE_RESTARTABLE: readonly string[] = [
   'MainMenu',
+  'Play',
   'Settings',
   'Profile',
   'Collection',
@@ -444,8 +501,12 @@ export async function runA11yProbe(game: Phaser.Game, options: ProbeOptions = {}
         try {
           const scene = await openScene(game, spec, settleMs);
           const result = checkScene(scene);
-          totalFindings += result.findings.length;
-          sceneReports.push({ scene: spec.label, ...result });
+          const visible = walkTexts(scene).texts;
+          const missing: ProbeFinding[] = (spec.requiredText ?? []).filter((text) => !visible.some((entry) => entry.object.text === text))
+            .map((text) => ({ kind: 'missingText', text, bounds: { x: 0, y: 0, width: 0, height: 0 }, detail: 'required visible fixture copy' }));
+          const findings = [...result.findings, ...missing];
+          totalFindings += findings.length;
+          sceneReports.push({ scene: spec.label, ...result, findings });
           if (options.snapshots) snapshots[spec.label] = await snapshot(game);
         } catch (error) {
           sceneReports.push({ scene: spec.label, texts: 0, cardFaceTexts: 0, maskedOut: 0, findings: [], error: String(error) });

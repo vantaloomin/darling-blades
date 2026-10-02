@@ -108,7 +108,7 @@ export function themedButton(
       theme.radius.control,
     );
     background.lineStyle(
-      controlStrokeWidth(hovered),
+      controlStrokeWidth(hovered, variant),
       colorInt(hovered ? style.hoverStroke : style.stroke),
       hovered ? 1 : theme.alpha.chrome,
     );

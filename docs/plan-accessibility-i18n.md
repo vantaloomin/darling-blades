@@ -511,6 +511,15 @@ by C5: **R13 first**, then C5.
 
 ### Wave 2 (program wave 3): core scenes
 
+**Built so far (2026-10-02):** batch A, C6 (A9, A11 and A12) with the Main
+menu and Play passes (Play, Practice, Gauntlet). The rendered probe
+(`WAVE_2A_SCENES`, 16 scenes) shows 0 findings in all six cells. The probe
+and the headless harness now count a truncated name or title as a finding:
+names in the Gauntlet's detail pane wrap to three lines at 115 and 130, and
+titles to two. Practice captions wrap, and the Gauntlet's Reward line stays
+outside the scrolling blurb. Deck Builder, Collection, Shop and Profile
+follow; the Duel comes last.
+
 One pass per scene: literal sizes and raw chrome colours to tokens,
 literal-height modals made content-sized or scrolling, the cues applied, and
 each scene cleared by the probe in all six cells. File sets:
