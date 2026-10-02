@@ -20,7 +20,7 @@ import { applyTithePolicy, isTitheCast, titheManaSaved } from './tithePolicy';
 import { applyWhispersPolicy } from './whispersPolicy';
 import { applyVocabularyTargetPolicy, chooseTargetAction, isVocabularyCast } from './targeting';
 import { chooseSacrifice } from './sacrificePolicy';
-import { actionManaCost, cardValue, empowerValue, faceDamageForCast, hauntlinkCastValue, whispersValue, type SpellMode } from './value';
+import { actionManaCost, cardValue, empowerValue, faceDamageForCast, hauntlinkCastValue, usefulMarkCast, whispersValue, type SpellMode } from './value';
 
 type CreatureCast = Extract<Action, { type: 'castSpell' | 'castDarling' }>;
 
@@ -56,6 +56,7 @@ export class HardAI implements AIPlayer {
   }
 
   chooseAction(view: PlayerView, legal: Action[]): Action {
+    legal = legal.filter((action) => usefulMarkCast(view, this.db, action));
     legal = applyVocabularyTargetPolicy(view, this.db, legal, true);
     legal = applyTithePolicy(view, this.db, legal, this.pers, () =>
       view.step === 'main1' && view.activePlayer === view.myId
@@ -72,7 +73,7 @@ export class HardAI implements AIPlayer {
         (cast.x ?? 0) + (cast.type === 'castSpell' ? titheManaSaved(view, this.db, cast) : 0);
       return cardValue(this.db, id, view, mode) + (cast.type === 'castSpell' && cast.whispers
         ? whispersValue(this.db, id, view) - cardValue(this.db, id) :
-        (cast.x ?? 0) + (cast.type === 'castSpell' && cast.empowered ? empowerValue(this.db, id) : 0));
+        (cast.x ?? 0) + (cast.type === 'castSpell' && cast.empowered ? empowerValue(this.db, id, view, mode) : 0));
     });
     switch (view.awaiting.kind) {
       case 'choosePlayDraw':

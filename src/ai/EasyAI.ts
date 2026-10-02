@@ -132,7 +132,7 @@ export class EasyAI implements AIPlayer {
       : action.retell
       ? retellValue(this.db, cardId) + 0.01
       : manaValue(d.cost) + nineLivesValue(d) + conditionalAbilityValue(this.db, cardId) + (action.x ?? 0) +
-          (action.empowered ? empowerValue(this.db, cardId) + 0.01 -
+          (action.empowered ? empowerValue(this.db, cardId, view, action) + 0.01 -
             empowerOpportunityCost(view, this.db, action, (otherView, other) => this.castScore(otherView, other)) : 0);
     return castValue + titheManaSaved(view, this.db, action) - riteSacrificeValue(view, this.db, action);
   }
@@ -222,7 +222,7 @@ export class EasyAI implements AIPlayer {
     }
     if (casts.length > 0) {
       const usefulCasts = casts.filter((cast) => {
-        if (cast.type !== 'castSpell') return false;
+        if (cast.type === 'castDarling') return true;
         const cardId = this.cardIdFor(view, cast);
         const kind = removalKind(this.db, cardId);
         if (kind !== 'massDestroy' && kind !== 'destroyNewest') return true;

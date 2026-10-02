@@ -197,7 +197,7 @@ stays tapped through the opponent's turn, so the tap also costs a blocker.
   creature sources.
 - ai.md records that a paid tap in main two "achieves nothing ... but it
   spends only mana nothing else wanted". `tests/data/landEconomy.test.ts`
-  pins every brain activating Lowland Fort Banner and Festival Rocket in main
+  pins every brain activating Lowland Fort Banner (Festival Rocket deals 2 damage, not a tap) in main
   two against an opposing bear, which is the same do-nothing tap from an
   artifact. On a creature source the tap also spends a blocker. Whether to
   scope the fix to creature sources (leaving that pin) or to re-pin the
@@ -460,6 +460,7 @@ harness additions come before wave 4's read.
   Fix it (rungs 1-3 get harder in Darlings), or keep it and document it?
   **Ruled (U1): yes, fix it** (item 6, wave 3). **Recommended: fix it.** It
   is a random roll, not a designed weakness. Rungs 1-3 have no floors, so only their Darlings bands need a re-read.
+  **Landed (2026-10-02, U1 / item 6):** `usefulCasts` includes `castDarling`; the seeded P4 Darling-only position now calls Gaia deliberately.
 - **Granted keywords.** D13 approves it, but this audit cannot see it. Two
   views:
   - Opus: add the keyword-grant reading first (item 7), then land it.
@@ -468,8 +469,9 @@ harness additions come before wave 4's read.
     as a precondition.
   **Recommended: Fable's. Ruled (U2): as recommended**: land it on the
   gates in wave 3; the reading comes for wave 4.
+  **Landed (2026-10-02, U2):** all four grant sites use the existing printed-keyword `keywordScore` / `keywordBonus` on the recipient's body; the behaviour proofs cover targeted boosts, generic boosts, static grants and Empower. No new valuation constant or usage-harness feature.
 - **The main-two tap (item 4) and `landEconomy.test.ts`.** That test pins
-  every brain activating Lowland Fort Banner and Festival Rocket in main two
+  every brain activating Lowland Fort Banner in main two (Festival Rocket deals 2 damage, not a tap)
   against an opposing bear, which is the same do-nothing tap from an
   artifact. Scope the fix to creature sources and leave the pin, or fix the
   tap everywhere and re-pin the test to the intended behaviour? This note
@@ -478,6 +480,8 @@ harness additions come before wave 4's read.
   the tap for every source, artifacts included, and `landEconomy.test.ts`
   is re-pinned to the intended behaviour (no main-two tap against a creature
   that untaps before it matters), in the same wave-3 change.
+  **Landed (2026-10-02, U3 / item 4):** the live tap value is zero for every source in this position. The approved `landEconomy.test.ts` and `activated.test.ts` re-pins describe the intended behaviour: no wasted Afternoon tap, a positive Morning tap before combat, zero on an already-tapped target, and an unchanged board premium for future uses. These are ruled behaviour changes, not loosened gates.
+- **Mark payoffs (D13 / item 2).** **Landed (2026-10-02):** Medium and Hard hold Brood Communion with no creatures and Apotheosis with nothing Marked. The empty payoff contributes zero; creature bodies and independent spell effects remain useful. Both seeded P2 positions and the constructed Apotheosis position are documented-behaviour proofs.
 - **Order.** Items 1, 2 and 4 are local and can land together. Item 3 moves
   the Medium proxy and so every number. **Recommended: land it last in wave
   3, alone.** If any rung 15-26 then falls under its floor, it waits for that
@@ -486,3 +490,28 @@ harness additions come before wave 4's read.
   **Ruled (U4): yes.** Item 3 lands last in wave 3 and alone; a floor it
   breaks blocks it until wave 4 lifts that boss, and the floor never comes
   down.
+
+**Wave-3 follow-up read (2026-10-02).** This is a focused comparison from
+`30cbf0e8` to the four fixes, not a replacement for the full wave-2 numbers
+above: 20 seeds per cell, 500 games on each side. It uses the existing
+matrix exports and usage collector: Darlings rungs 1-3 and 14 against all
+five shop precons, plus Chrome Broodmother against the five starter reserve
+builds. A local observer counts chosen main-two enemy taps; no shipped
+harness change. Runtime was 67.0 seconds before and 70.2 after.
+
+| Reading | Before | After |
+| --- | --- | --- |
+| Brood Communion empty-board share, Hard Chrome Broodmother | 24/78 (30.8%) | 0/73 (0%) |
+| Easy Darling calls, Menghuo / Hestia / Lupa, 100 games each; repeat calls included | 36 / 35 / 32 | 104 / 121 / 145 |
+| Main-two taps of an untapped enemy, across these cells | 107 | 0 |
+| Darlings rung 1 mean / highest cell | 27.06% / 50% | 32.75% / 55% |
+| Darlings rung 2 mean / highest cell | 12.25% / 30% | 7.00% / 20% |
+| Darlings rung 3 mean / highest cell | 27.11% / 45% | 32.33% / 50% |
+
+The Darlings mean is the mean of its five decisive-game cell rates; draws
+are excluded within each cell. The reserve harness explicitly applies no
+classic `RUNG_BANDS` to Darlings, so these are the requested band re-reads,
+not new numeric gates. No band or floor changed. The 200-game brain gates
+remain 82.5% Medium/Easy and 71.5% Hard/Medium; all rung gates pass. The
+approved local changes leave ramp (U4), team-pump timing, lost-blocker
+pricing, harness additions, cards and lists for their own work.

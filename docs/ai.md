@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/ScriptAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/targeting.ts, src/ai/activatedPolicy.ts, src/ai/ritePolicy.ts, src/ai/tithePolicy.ts, src/ai/whispersPolicy.ts, src/ai/discardPolicy.ts, src/ai/sacrificePolicy.ts, src/ai/preservePolicy.ts, src/ai/hauntlinkPolicy.ts, src/ai/landPolicy.ts, src/ai/darlingPolicy.ts, src/ai/foresee.ts, src/ai/huntPolicy.ts, src/ai/personality.ts, src/ai/NoisyAI.ts, src/ai/tiers.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts, tests/ai/rungSmokes.test.ts, tests/ai/documentedBehaviour.test.ts, tests/ai/huntProvoked.test.ts, tests/ai/huntPolicyA2b.test.ts, tests/meta/draftHuntProvoked.test.ts, docs/plan-ai-modernization.md · last-verified: 2026-09-29
+<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/ScriptAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/targeting.ts, src/ai/activatedPolicy.ts, src/ai/ritePolicy.ts, src/ai/tithePolicy.ts, src/ai/whispersPolicy.ts, src/ai/discardPolicy.ts, src/ai/sacrificePolicy.ts, src/ai/preservePolicy.ts, src/ai/hauntlinkPolicy.ts, src/ai/landPolicy.ts, src/ai/darlingPolicy.ts, src/ai/foresee.ts, src/ai/huntPolicy.ts, src/ai/personality.ts, src/ai/NoisyAI.ts, src/ai/tiers.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts, tests/ai/rungSmokes.test.ts, tests/ai/documentedBehaviour.test.ts, tests/ai/huntProvoked.test.ts, tests/ai/huntPolicyA2b.test.ts, tests/meta/draftHuntProvoked.test.ts, docs/plan-ai-modernization.md · last-verified: 2026-10-02
      If you change those files, update this doc or re-verify the date. -->
 
 # AI
@@ -327,7 +327,14 @@ it exists to enable (review finding G9). The rule now:
   than `PRECOMBAT_DUTY_MARGIN` (0.75 in `scoreAttack` units: two damage
   through at high life, one at twelve or below). It is ranked by its impact
   plus that gain, or plus `PRECOMBAT_LETHAL` (100, what `scoreAttack` pays a
-  lethal connection). Anything else waits for main two as before.
+  lethal connection). Other useful Duties wait for main two as before.
+- **An enemy tap must still matter.** Since wave 3 (U3), tapping an enemy
+  in our main two is worth zero: that creature untaps before another
+  attack. This live price applies to artifact and creature sources alike.
+  The same tap before combat remains valuable, and the tapper's board
+  premium persists while its only target is already tapped; future uses
+  remain available. The approved `activated.test.ts` and
+  `landEconomy.test.ts` re-pins assert these behaviours.
 - **The gain is the fight's, not the weights'.** `scoreAttack` weighs damage
   0.45 a point above twelve life and 0.9 at or below, 0.2 more with two
   creatures to spare, and its holdback reads the defender's power. A ping
@@ -402,11 +409,12 @@ it exists to enable (review finding G9). The rule now:
   points, and Hard read every tap-then-attack race as a loss. The potential
   now treats a target as untapped by the next use; scoring the action on the
   live board still sees the tap state.
-- **Unchanged.** Easy and ScriptAI keep the simple timing (they pass no
+- **Timing kept from 1.8.1.** Easy and ScriptAI keep the simple timing (they pass no
   context). A creature Duty source that can attack still attacks first. In
-  main two a paid tap or until-end-of-turn pump still fires on leftover mana:
-  it achieves nothing after combat, but it spends only mana nothing else
-  wanted, and `tests/data/landEconomy.test.ts` pins that Afternoon use.
+  main two an until-end-of-turn pump can still fire on leftover mana after
+  combat. U3 removes the useless enemy tap from this case;
+  `tests/data/landEconomy.test.ts` now asserts the declined tap separately
+  from useful Afternoon Duties.
 - **Known limits, logged for 1.9.** A kill of a creature that would die in
   combat anyway (a chump blocker) reads as worth nothing before combat, as
   it did in 1.8.0. Lethal on the best target is judged against the greedy
@@ -559,8 +567,8 @@ creature. Each claim is pinned in `tests/ai/huntPolicyA2b.test.ts` and
 - **A Darling with an arrival Hunt is cast at its best prey**, for Medium
   and Easy (`applyDarlingPreyPolicy`); the shared cast-target policy keys on
   `castSpell` only, so before this they took the first prey in battlefield
-  order. Easy reaches a Darling today only through its noise roll (U1, in
-  wave 3, fixes that).
+  order. Since wave 3 (U1), Easy includes the Darling in its deliberate
+  useful-cast choices as well as its noise roll.
 - **Medium's counter forecast knows the Hunt pair rule.** A counter that
   also has a creature of yours hunt is held only when you control a hunter
   without Bulwark and there is a different creature to hunt, so a
@@ -916,12 +924,11 @@ every card plays; as intended, not yet. Two test files are the scoreboard:
   formats (Warchest and Darlings) with its own brain and personality, and
   every Darlings precon, one seed each, under one 900 s file budget. No
   crashes, no illegal actions, every game to `gameOver`.
-- `tests/ai/documentedBehaviour.test.ts` pins one test per claim in this
-  document. Thirty-seven pass (phase A flipped five and phase B three on
-  2026-09-15, phase C three on 2026-09-16); three are marked `it.fails` and
-  name the phase that owns them (D draft 3). A phase lands by flipping its own tests to `it`; a
-  fixture or legality error inside an expected failure fails the file, so the
-  marker can never hide a broken brain. Phase A's own rules are pinned in
+- `tests/ai/documentedBehaviour.test.ts` pins the claims in this document.
+  All sixty-six pass: forty from modernization, thirteen Duty timing
+  entries from 1.8.1 and thirteen usage-audit entries from wave 3.
+  A fixture or legality error fails the file independently of any expected
+  failure, so a marker can never hide a broken brain. Phase A's rules are pinned in
   `tests/ai/castLadder.test.ts`, `castLadderReview.test.ts` and
   `hardTiming.test.ts`.
 
@@ -983,6 +990,26 @@ improved too. The untuned Deacon moved 33 to 35.5 and Lanterns Below 18.9 to
 66.4; the surgery records sit beside each list). Everything the tests
 do prove is listed beside the claim it proves, in the file.
 
+**Usage-audit behaviour proofs (wave 3, 2026-10-02).** The named cells are
+seeded engine games with their recorded action prefixes replayed at
+`30cbf0e8`; earlier improved decisions cannot erase the position under test.
+The keyword sites have code evidence, and Apotheosis appears in no audit
+list, so those entries use constructed positions as section 4 permits.
+
+| Claim | Proof in `tests/ai/documentedBehaviour.test.ts` |
+| --- | --- |
+| Easy deliberately calls her affordable Darling (U1) | P4, Darlings cell 210102 game 3 turn 22: with no other cast, she calls Gaia |
+| A main-two enemy tap that expires before it matters is worth zero, for every source (U3) | P3, Darlings cell 211401 game 19 turn 18: Hard leaves the Abbess untapped; `landEconomy.test.ts` covers the artifact on all three brains, and `activated.test.ts` keeps the positive main-one tap and persistent board premium |
+| Medium and Hard hold a Mark payoff without recipients (D13) | P2, Warchest cell 202312 game 2 turn 3 and avatars cell 2300 game 7 turn 6: hold Brood Communion; hold Apotheosis without Marks, cast it with a live payoff, still cast the creature body; Medium still spends Reef Bloom for its independent Foresee |
+| A granted keyword uses the printed-keyword valuation on its recipient (U2) | Targeted grants prefer the body that benefits, skip redundant keywords, and price Deathblade versus Skyborne by attack for spell boosts and Empower; removal sees the recipient's size and controller on static grants; a later boost sees tokens created earlier in its spell |
+
+All four former flat `0.5` grant sites in `value.ts` use the existing
+`keywordScore` / `keywordBonus` valuation: targeted boosts, generic boost
+ops, non-creature static grants and Empower boosts. The receiving body's
+attack includes the boost; static grants use effective stats. A duplicate
+keyword adds nothing. A card-only estimate with no known recipient retains
+the existing `KEYWORD_REFERENCE_ATTACK` (3), not a new price.
+
 **Gaps the 1.8.5 labs found, logged for 1.9** (`docs/plan-1.8.5.md`; the lab
 write-ups sit in the local `balance/study/lab/`):
 
@@ -993,12 +1020,17 @@ write-ups sit in the local `balance/study/lab/`):
   would bring back the scorer's old defect. The target is the scorer's §4v
   shape: extra untapped mana before the 10-land reserve runs out, from the
   land count the view already carries. It changes play, so it needs the gates.
-- **Starborne Apotheosis is cast as "gain 8 life".** 72% of casts come with
-  no Marked creature on the board, so Propagate and the +2/+2 do nothing.
-- **Brood Communion is often cast on an empty board**: 32-39% of casts.
-- **Some granted keywords are still priced flat.** Keywords granted by boost
-  ops and by non-creature static grants were outside lane 4's attack-scaling
-  pass.
+- **Fixed in wave 3: Starborne Apotheosis and Brood Communion without
+  recipients (D13).** The labs read 72% of Apotheosis casts without Marks
+  and 32-39% of Communion casts without creatures. The live Mark payoff now
+  contributes zero without recipients, and Medium and Hard hold the
+  non-creature payoff, including Apotheosis's incidental life gain. A
+  creature is still cast for its body, and independent spell effects remain
+  useful. This replaces the old positive remainder after the empty-board
+  adjustment; it does not add another penalty to it.
+- **Fixed in wave 3: granted keywords priced by the receiving body (U2).**
+  The four sites and their existing valuation are listed in the proof table
+  above; lane 4's printed-keyword attack shape now covers these grants too.
 
 ## Tower strength tiers (the decision-noise dial)
 
