@@ -1,4 +1,4 @@
-import { HEADER_CURRENCY_ANCHOR } from './layout';
+import { HEADER_CURRENCY_ANCHOR, modalShellLayout, type Rect } from './layout';
 import { theme } from './theme';
 
 export interface MainMenuItem {
@@ -61,4 +61,59 @@ export const MAIN_MENU_CORNER = {
 
 export function mainMenuCornerY(index: number): number {
   return MAIN_MENU_CORNER.firstY + index * MAIN_MENU_CORNER.pitch;
+}
+
+
+/** Reading line boxes follow the live role, including its leading. */
+export function menuLineHeight(size: number): number {
+  return Math.ceil(size * 4 / 3);
+}
+
+/** Same-width corner controls, measured before placement, anchored to the safe edges. */
+export function mainMenuCornerLayout(leftWidths: readonly number[], rightWidth: number) {
+  const leftWidth = Math.max(MAIN_MENU_CORNER.minWidth, ...leftWidths);
+  const width = Math.max(MAIN_MENU_CORNER.rightMinWidth, rightWidth);
+  return { leftWidth, leftX: theme.design.safeLeft + leftWidth / 2, rightX: theme.design.safeRight - width / 2 };
+}
+
+/** Content-sized modal using the same reserved tracks as modalShell. */
+export function menuNoticeLayout(width: number, titleHeight: number, bodyHeight: number) {
+  const titleTrackHeight = Math.max(theme.control.minHitHeight, titleHeight);
+  const height = theme.space(12) + theme.space(8) + titleTrackHeight + bodyHeight + theme.control.minHitHeight;
+  return { width, height, titleTrackHeight, tracks: modalShellLayout({ width, height, titleTrackHeight }) };
+}
+
+export const MAIN_MENU_DAILY = { x: 650, y: 216, width: theme.design.safeRight - 650 } as const;
+
+export interface DailyRowMeasure {
+  title: number;
+  description: number;
+  progress: number;
+  action: number;
+}
+
+/** Measured row content, with a scroll viewport if the three quests outgrow the frame. */
+export function mainMenuDailyLayout(headingHeight: number, streakHeight: number, rows: readonly DailyRowMeasure[]) {
+  const pad = theme.space(4);
+  const gap = theme.space(2);
+  const headingY = MAIN_MENU_DAILY.y + pad;
+  const streakY = headingY + headingHeight + gap;
+  const viewportTop = streakY + streakHeight + theme.space(3);
+  let next = 0;
+  const placed = rows.map((row) => {
+    const textHeight = row.title + theme.space(1) + row.description + gap + row.progress;
+    const height = Math.max(textHeight, row.action) + 2 * gap;
+    const result = { y: next, height, titleY: next + gap,
+      descriptionY: next + gap + row.title + theme.space(1),
+      progressY: next + gap + row.title + theme.space(1) + row.description + gap };
+    next += height + theme.space(3);
+    return result;
+  });
+  const contentHeight = Math.max(0, next - theme.space(3));
+  const viewport: Rect = { x: MAIN_MENU_DAILY.x + pad, y: viewportTop,
+    width: MAIN_MENU_DAILY.width - 2 * pad,
+    height: Math.min(contentHeight, theme.design.safeBottom - pad - viewportTop) };
+  return { headingY, streakY, rows: placed, viewport, contentHeight,
+    maxScroll: Math.max(0, contentHeight - viewport.height),
+    panel: { ...MAIN_MENU_DAILY, height: viewportTop - MAIN_MENU_DAILY.y + viewport.height + pad } };
 }

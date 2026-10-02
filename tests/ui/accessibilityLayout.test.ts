@@ -1,6 +1,10 @@
+import { fitMenuName, menuTextFindings, menuScrollOffset, type MenuNameText } from '../../src/ui/menuText';
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { setAccessibility, TEXT_SCALES } from '../../src/ui/accessibility';
+import { mainMenuButtonY, mainMenuCornerY, mainMenuCornerLayout, mainMenuDailyLayout, menuNoticeLayout, menuLineHeight, MAIN_MENU_ITEMS, MAIN_MENU_X } from '../../src/ui/mainMenuPresentation';
+import { menuSelectionMark, gauntletDetailLayout, gauntletNameLineLimit, playDeckPickerLayout, playDeckRowColumns, playMenuLayout, playTextStack, practicePickerLayout, gauntletPresentation } from '../../src/ui/playPresentation';
+import { gauntletTowerLayout, gauntletScrollToRung } from '../../src/ui/layout';
 import { controlFontSize } from '../../src/ui/controlStyle';
 import {
   COMPACT_TOUCH_GAP_RANGE,
@@ -58,6 +62,7 @@ import {
   SETTINGS_TAB_ROW,
   layoutSettingsTab,
   settingsRhythm,
+  settingsTextSizeCaption,
 } from '../../src/ui/settingsPresentation';
 import { RARITY_ORDER } from '../../src/meta/collectionFilter';
 import { theme } from '../../src/ui/theme';
@@ -100,6 +105,24 @@ interface Enrolled {
 
 /** The enrolled modules (wave 1: Settings after C4, the layout.ts headers and SCENE_TITLE, Profile) and the resolver. */
 const ENROLLED: readonly Enrolled[] = [
+  { module: 'src/ui/mainMenuPresentation.ts (Main menu)', rules: {
+    frame: { here: 'Main menu: measured chrome and content-sized notices' },
+    gap: { here: 'Main menu: measured chrome and content-sized notices' },
+    inset: { here: 'Main menu: measured chrome and content-sized notices' },
+  } },
+  { module: 'src/ui/playPresentation.ts (Play)', rules: {
+    frame: { here: 'Play: deck plate and paged deck selection' },
+    gap: { here: 'Play: deck plate and paged deck selection' },
+    inset: { here: 'Play: deck plate and paged deck selection' },
+  } },
+  { module: 'src/ui/playPresentation.ts (PracticePicker)', rules: {
+    frame: { here: 'Practice: portrait, name and action tracks' }, gap: { here: 'Practice: portrait, name and action tracks' },
+    inset: { here: 'Practice: portrait, name and action tracks' },
+  } },
+  { module: 'src/ui/playPresentation.ts and src/ui/layout.ts (Gauntlet)', rules: {
+    frame: { here: 'Gauntlet: the scrolling rail and detail column' }, gap: { here: 'Gauntlet: the scrolling rail and detail column' },
+    inset: { here: 'Gauntlet: the scrolling rail and detail column' },
+  } },
   {
     module: 'src/ui/settingsPresentation.ts (Settings, C4)',
     rules: {
@@ -670,6 +693,13 @@ function sharedHeaderRules(): void {
 
 function settingsFrameRules(): void {
   describe('Settings: the header, tab row and panels inside the title-safe frame', () => {
+    it('shows the approved card-preview gesture in the touch caption', () => {
+      expect(settingsTextSizeCaption(true)).toBe('Makes menus and help text larger. Hold a card to read it up close.');
+      expect(settingsTextSizeCaption(false)).toContain('Hover over a card');
+      const layout = layoutSettingsTab('accessibility', undefined, { textSize: { captionLines: 3 } });
+      expect(layout.columns[0].layout.contentBottom).toBeLessThanOrEqual(SETTINGS_PANELS.bottom - 16);
+    });
+
     it('keeps every panel, and the tab row and header controls above them, inside the frame', () => {
       const band = { y: SETTINGS_PANELS.top, height: SETTINGS_PANELS.bottom - SETTINGS_PANELS.top };
       for (const [name, frame] of Object.entries(SETTINGS_FRAMES)) {
@@ -682,6 +712,284 @@ function settingsFrameRules(): void {
       expect(SETTINGS_HEADER_ACTION.right).toBeLessThanOrEqual(theme.design.safeRight);
       // The header's action buttons are small controls: their label line fits the control height.
       expect(lineBox(controlFontSize('sm'), INTER_LINE)).toBeLessThanOrEqual(theme.control.heightSm);
+    });
+  });
+}
+
+function coreMenuRules(textScale: number): void {
+  describe('complete menu identities and isolated selection cues', () => {
+    it('preserves complete rival names and titles when a measured line is wider than its column', () => {
+      for (const value of ['Bastet, Mistress of the Ninth Return', 'Anubis, Who Holds the Scale',
+        'The Shepherdess of Giants', 'The Tyrant Queen', 'The Last Thing That Hunts']) {
+        // Synthetic width scenarios exercise the presentation decision, not Windows font metrics.
+        // The browser probe supplies real glyph bounds to the same content checker.
+        for (const measuredWidth of [310, 420, 560]) {
+          let wrapWidth = 0;
+          const text: MenuNameText = {
+            text: value,
+            get width() { return wrapWidth || measuredWidth * this.text.length / value.length; },
+            setText(next) { this.text = next; },
+            setWordWrapWidth(width) { wrapWidth = width; },
+            setData() {},
+          };
+          fitMenuName(text, 292);
+          expect(text.text, value).toBe(value);
+          expect(wrapWidth, value).toBeGreaterThan(0);
+          expect(text.width).toBeLessThanOrEqual(292);
+        }
+      }
+    });
+
+    it('preserves the full enlarged Gauntlet name within its line allowance and keeps the remaining detail visible', () => {
+      const value = 'Bastet, Mistress of the Ninth Return';
+      // Conservative word-advance envelope at the 28px base heading size.
+      // Calibrated to the approver's real-font break at both enlarged sizes:
+      // Bastet, Mistress / of the Ninth / Return. These are bounds, not claimed font measurements.
+      const advances: Record<string, number> = { 'Bastet,': 90, Mistress: 145, of: 24, the: 35, Ninth: 85, Return: 105 };
+      const ratio = theme.type.h1 / 28;
+      const width = gauntletPresentation().textWidth - (textScale > 1 ? 8 : 0);
+      const lines: string[] = [];
+      let lineWidth = 0;
+      for (const word of value.split(' ')) {
+        const advance = advances[word] * ratio;
+        expect(advance).toBeLessThanOrEqual(width);
+        const nextWidth = lineWidth + (lineWidth ? 9 * ratio : 0) + advance;
+        if (!lines.length || nextWidth > width) { lines.push(word); lineWidth = advance; }
+        else { lines[lines.length - 1] += ` ${word}`; lineWidth = nextWidth; }
+      }
+      expect(lines.length).toBe(textScale > 1 ? 3 : 2);
+      const data = new Map<string, unknown>();
+      const text: MenuNameText = { text: value, width,
+        setText(next) { this.text = next; }, setWordWrapWidth() {},
+        setData(key, next) { data.set(key, next); } };
+      fitMenuName(text, width, gauntletNameLineLimit());
+      const lineHeight = menuLineHeight(theme.type.label), linePitch = lineHeight + 4;
+      const measured = { name: lines.length * menuLineHeight(theme.type.h1), title: 2 * menuLineHeight(theme.type.body),
+        rung: menuLineHeight(theme.type.label), blurb: 12 * linePitch - 4,
+        reward: menuLineHeight(theme.type.body), lineHeight, linePitch };
+      const detail = gauntletDetailLayout(measured);
+      expect(menuTextFindings({ expected: data.get('a11yFullText') as string, actual: text.text, lines,
+        maxLines: data.get('a11yMaxLines') as number,
+        bounds: { x: 0, y: 0, width, height: measured.name } })).toEqual([]);
+      expect(detail.titleY - detail.nameY - measured.name).toBeGreaterThanOrEqual(12);
+      expect(detail.blurb.y - detail.rungY - measured.rung).toBeGreaterThanOrEqual(12);
+      expect(detail.blurb.height).toBeGreaterThanOrEqual(lineHeight);
+      expect((detail.blurb.height + 4) % linePitch).toBe(0);
+      expect(detail.rewardY - bottom(detail.blurb)).toBeGreaterThanOrEqual(12);
+      expect(detail.rewardY + measured.reward).toBeLessThanOrEqual(gauntletPresentation().fightY - HIT / 2 - 12);
+      fitMenuName(text, width); // The title's default contract must still reject a third line.
+      expect(menuTextFindings({ expected: value, actual: value, lines: ['Bastet, Mistress', 'of the Ninth', 'Return'],
+        maxLines: data.get('a11yMaxLines') as number, bounds: { x: 0, y: 0, width, height: measured.name } })).toContain('truncatedText');
+    });
+
+    it('reserves the complete two-line Practice caption inside the tile', () => {
+      const captionHeight = 2 * menuLineHeight(theme.type.caption);
+      const l = practicePickerLayout(captionHeight);
+      expect(l.nameBand).toBeGreaterThanOrEqual(captionHeight + 8);
+      expect(l.portraitHeight + l.nameBand + 10).toBeLessThanOrEqual(l.rowHeight);
+    });
+
+    it('keeps reward outside the blurb mask above Fight and leaves only whole resting lines', () => {
+      const p = gauntletPresentation();
+      const lineHeight = menuLineHeight(theme.type.label), linePitch = lineHeight + 4;
+      for (const nameLines of [1, 2]) for (const titleLines of [1, 2]) for (const rungLines of [1, 2]) for (const blurbLines of [1, 6, 12]) {
+        const reward = 2 * menuLineHeight(theme.type.body);
+        const m = { name: nameLines * menuLineHeight(theme.type.h1), title: titleLines * menuLineHeight(theme.type.body),
+          rung: rungLines * menuLineHeight(theme.type.label), blurb: blurbLines * linePitch - 4, reward, lineHeight, linePitch };
+        const l = gauntletDetailLayout(m);
+        expect(l.titleY - l.nameY - m.name).toBeGreaterThanOrEqual(12);
+        expect(l.rungY - l.titleY - m.title).toBeGreaterThanOrEqual(12);
+        expect(l.blurb.y - l.rungY - m.rung).toBeGreaterThanOrEqual(12);
+        expect(l.blurb.height).toBeGreaterThanOrEqual(lineHeight);
+        expect(l.rewardY - bottom(l.blurb)).toBeGreaterThanOrEqual(12);
+        expect(l.rewardY + reward).toBeLessThanOrEqual(p.fightY - HIT / 2 - 12);
+        expect((l.blurb.height + 4) / linePitch).toBeCloseTo(Math.round((l.blurb.height + 4) / linePitch));
+      }
+    });
+
+    it('keeps the row and tile selection marks clear of borders and text', () => {
+      for (const [visual, border, textInset] of [
+        [{ x: 0, y: 0, width: 772, height: 68 }, theme.control.borderWidth, 8],
+        [{ x: 0, y: 0, width: 206, height: 191 }, theme.outline.state, 9],
+      ] as const) {
+        const mark = menuSelectionMark({ visual, labelWidth: 160, padding: 16 }, border);
+        expect(bottom(visual) - bottom(mark)).toBeGreaterThanOrEqual(border / 2 + 2);
+        expect(mark.y - (bottom(visual) - textInset)).toBeGreaterThanOrEqual(1.5);
+      }
+    });
+
+    it('preserves a fitting standard-size caption band and rests scrolling blurbs on whole lines', () => {
+      const base = practicePickerLayout();
+      for (const height of [4, 8, 12]) expect(practicePickerLayout(height).nameBand).toBe(base.nameBand);
+      for (const pitch of [20, 24, 28]) for (let requested = 0; requested <= 12 * pitch; requested += 7) {
+        const offset = menuScrollOffset(requested, 10 * pitch, pitch);
+        expect(offset % pitch).toBe(0);
+        expect(offset).toBeGreaterThanOrEqual(0);
+        expect(offset).toBeLessThanOrEqual(10 * pitch);
+      }
+    });
+
+    it('reports removed characters, capped lines and masked glyphs instead of accepting their visible fragment', () => {
+      const expected = 'Bastet, Mistress of the Ninth Return';
+      const bounds = { x: 0, y: 0, width: 280, height: 44 };
+      const base = { expected, actual: expected, lines: ['Bastet, Mistress of', 'the Ninth Return'], bounds, box: bounds, maxLines: 2 };
+      expect(menuTextFindings(base)).toEqual([]);
+      expect(menuTextFindings({ ...base, actual: 'Bastet, Mistress...' })).toContain('truncatedText');
+      expect(menuTextFindings({ ...base, drawnLines: 1 })).toContain('truncatedText');
+      expect(menuTextFindings({ ...base, lines: ['Bastet, Mistress', 'of the Ninth', 'Return'] })).toContain('truncatedText');
+      expect(menuTextFindings({ ...base, bounds: { ...bounds, width: 290 } })).toContain('clippedText');
+      expect(menuTextFindings({ ...base, clip: { ...bounds, height: 32 }, lineHeight: 20, linePitch: 24 })).toContain('clippedText');
+      expect(menuTextFindings({ ...base, clip: { ...bounds, height: 20 }, lineHeight: 20, linePitch: 24 })).toEqual([]);
+    });
+  });
+
+  describe('Main menu: measured chrome and content-sized notices', () => {
+    it('anchors measured corner controls to the frame, clear of one another and the menu', () => {
+      for (const width of [150, 180, 240, 280]) {
+        const l = mainMenuCornerLayout([width, width - 20, width - 40], width);
+        const controls: [string, Rect][] = [0, 1, 2].map((i) => [`corner ${i}`, hitBox(l.leftX, mainMenuCornerY(i), l.leftWidth)]);
+        controls.push(['settings', hitBox(l.rightX, mainMenuCornerY(1), width)]);
+        MAIN_MENU_ITEMS.forEach((_, i) => controls.push([`menu ${i}`, hitBox(MAIN_MENU_X, mainMenuButtonY(i), 300)]));
+        for (const [name, rect] of controls) expect(isInsideTitleSafe(rect), name).toBe(true);
+        expectPairwiseGap(controls, GAP_FLOORS.ordinary);
+      }
+    });
+
+    it('keeps daily rows disjoint and uses a bounded scroll viewport when copy grows', () => {
+      for (const lines of [1, 2, 4]) {
+        const row = { title: menuLineHeight(theme.type.label), description: lines * menuLineHeight(theme.type.caption),
+          progress: menuLineHeight(theme.type.caption), action: HIT };
+        const l = mainMenuDailyLayout(menuLineHeight(theme.type.h1), menuLineHeight(theme.type.label), [row, row, row]);
+        expect(isInsideTitleSafe(l.panel)).toBe(true);
+        expect(isRectContained(l.viewport, l.panel)).toBe(true);
+        expect(bottom(l.viewport)).toBeLessThanOrEqual(bottom(l.panel) - 16);
+        l.rows.forEach((at, i) => {
+          expect(at.descriptionY - at.titleY - row.title).toBeGreaterThanOrEqual(4);
+          expect(at.progressY - at.descriptionY - row.description).toBeGreaterThanOrEqual(8);
+          expect(at.progressY + row.progress).toBeLessThanOrEqual(at.y + at.height - 8);
+          expect(at.height).toBeGreaterThanOrEqual(HIT + 16);
+          if (i) expect(at.y - l.rows[i - 1].y - l.rows[i - 1].height).toBeGreaterThanOrEqual(12);
+        });
+        expect(l.viewport.height + l.maxScroll).toBeGreaterThanOrEqual(l.contentHeight);
+        expect(l.rows.at(-1)!.y + l.rows.at(-1)!.height - l.maxScroll).toBeLessThanOrEqual(l.viewport.height);
+      }
+    });
+
+    it('sizes tutorial and repair notices from the body while reserving separate title, close and footer tracks', () => {
+      for (const width of [760, 840]) for (const lines of [1, 3, 6, 10]) {
+        const bodyHeight = lines * menuLineHeight(theme.type.body);
+        const l = menuNoticeLayout(width, menuLineHeight(theme.type.display), bodyHeight);
+        expect(isInsideTitleSafe(l.tracks.panel)).toBe(true);
+        expect(l.tracks.contentBounds.height).toBeGreaterThanOrEqual(bodyHeight);
+        expect(l.tracks.tracksInsidePanel).toBe(true);
+        expectPairwiseGap([['title', l.tracks.titleTrack], ['close', l.tracks.closeTrack],
+          ['body', l.tracks.contentBounds], ['footer', l.tracks.footerTrack]], GAP_FLOORS.ordinary);
+      }
+    });
+  });
+
+  describe('Play: deck plate and paged deck selection', () => {
+    it('isolates mode actions, launch feedback and the active deck above the frame bottom', () => {
+      const l = playMenuLayout();
+      const actions = l.actionYs.map((y, i): [string, Rect] => [`mode ${i}`, hitBox(640, y, 300)]);
+      for (const [, rect] of actions) expect(isInsideTitleSafe(rect)).toBe(true);
+      expect(isInsideTitleSafe(l.plate)).toBe(true);
+      expect(isInsideTitleSafe(l.notice)).toBe(true);
+      expectPairwiseGap([...actions, ['notice', l.notice], ['plate', l.plate]], GAP_FLOORS.ordinary);
+      const stacked = playTextStack([menuLineHeight(theme.type.micro), menuLineHeight(theme.type.h2), 3 * menuLineHeight(theme.type.caption)], 0, 8);
+      expect(stacked.bottom).toBeLessThanOrEqual(l.plate.height - 16);
+      expect(l.plate.height).toBeGreaterThanOrEqual(2 * HIT + 12 + 16);
+    });
+
+    it('keeps deck names and metadata clear of measured counts and the widest status label', () => {
+      for (const stateWidth of [30, 100, 160]) for (const countWidth of [24, 48, 80]) {
+        const row = { x: 254, width: 772 };
+        const l = playDeckRowColumns(row, stateWidth, countWidth, 252);
+        expect(l.nameWidth).toBeGreaterThan(0);
+        expect(l.nameX).toBeGreaterThanOrEqual(row.x + 16);
+        expect(l.nameX + l.nameWidth).toBeLessThanOrEqual(l.countLeft - 12);
+        expect(l.countRight).toBeLessThanOrEqual(l.stateRight - stateWidth - 12);
+        expect(l.stateRight).toBeLessThanOrEqual(row.x + row.width - 16);
+      }
+    });
+
+    it('pages growing deck rows inside a content-sized shell with independent pager and footer tracks', () => {
+      for (const count of [0, 1, 7, 28, 1000]) for (const lines of [1, 2]) {
+        const name = menuLineHeight(theme.type.label), badge = lines * menuLineHeight(theme.type.micro);
+        const l = playDeckPickerLayout(count, name, badge);
+        expect(isInsideTitleSafe(l.tracks.panel)).toBe(true);
+        expect(l.rowHeight).toBeGreaterThanOrEqual(name + badge + 4 + 16);
+        const rows = l.rowYs.map((y, i): [string, Rect] => [`deck ${i}`, box(l.tracks.contentBounds.x + l.tracks.contentBounds.width / 2, y, l.tracks.contentBounds.width, l.rowHeight)]);
+        for (const [, row] of rows) expect(isRectContained(row, l.tracks.contentBounds)).toBe(true);
+        expectPairwiseGap(rows, GAP_FLOORS.ordinary);
+        if (count > l.pageSize) {
+          const pager = hitBox(640, l.pagerY, 180);
+          expect(isRectContained(pager, l.tracks.contentBounds)).toBe(true);
+          expectPairwiseGap([...rows, ['pager', pager]], GAP_FLOORS.ordinary);
+        }
+        expect(l.tracks.footerTrack.y - bottom(l.tracks.contentBounds)).toBeGreaterThanOrEqual(16);
+      }
+    });
+  });
+
+  describe('Practice: portrait, name and action tracks', () => {
+    it('reserves a readable name band without shrinking, and isolates both portrait rows and the action footer', () => {
+      const l = practicePickerLayout();
+      expect(isInsideTitleSafe(l.viewport)).toBe(true);
+      const tiles: [string, Rect][] = [];
+      for (let i = 0; i < l.rows; i++) {
+        const top = l.columnTop + i * (l.rowHeight + l.rowGap);
+        const tile = { x: l.viewport.x, y: top, width: 206, height: l.rowHeight };
+        tiles.push([`tile ${i}`, tile]);
+        expect(isRectContained(tile, l.viewport)).toBe(true);
+        expect(l.portraitHeight + l.nameBand + 10).toBeLessThanOrEqual(l.rowHeight);
+        expect(l.nameBand).toBeGreaterThanOrEqual(menuLineHeight(theme.type.caption) + 8);
+      }
+      expectPairwiseGap(tiles, GAP_FLOORS.ordinary);
+      const selection = box(640, l.selectionY, 700, menuLineHeight(theme.type.h2));
+      const controls = [476, 640, 804].map((x, i): [string, Rect] => [`difficulty ${i}`, hitBox(x, l.difficultyY, 148)]);
+      controls.push(['selection', selection], ['notice', hitBox(640, l.noticeY, 900)]);
+      for (const [, rect] of controls) expect(isInsideTitleSafe(rect)).toBe(true);
+      expect(selection.y - bottom(l.viewport)).toBeGreaterThanOrEqual(8);
+      expectPairwiseGap(controls, GAP_FLOORS.ordinary);
+    });
+  });
+
+  describe('Gauntlet: the scrolling rail and detail column', () => {
+    it('keeps all 28 rungs readable, reserves measured stars and can expose either end of the rail', () => {
+      const p = gauntletPresentation();
+      expect(isInsideTitleSafe(p.tower)).toBe(true);
+      for (const stars of [36, 48, 64, 96]) {
+        const l = gauntletTowerLayout(28, p.tower, { starColumnWidth: stars });
+        expect(l.rowHeight).toBeGreaterThanOrEqual(menuLineHeight(theme.type.body) + 16);
+        expect(l.rowPitch - l.rowHeight).toBeGreaterThanOrEqual(8);
+        expect(l.starRightX - stars - l.labelX - l.labelWidth).toBeGreaterThanOrEqual(8);
+        expect(l.labelWidth).toBeGreaterThan(0);
+        expect(isInsideTitleSafe(l.scrollbar)).toBe(true);
+        for (let rung = 1; rung <= 28; rung++) {
+          const scroll = gauntletScrollToRung(rung, 28, l);
+          const y = (28 - rung) * l.rowPitch - scroll;
+          expect(y).toBeGreaterThanOrEqual(0);
+          expect(y + l.rowHeight).toBeLessThanOrEqual(l.viewport.height);
+        }
+      }
+    });
+
+    it('separates the scrolling detail from Fight, Abandon and the warning at the largest content budget', () => {
+      const l = gauntletPresentation();
+      const fight = hitBox(l.textX + 104, l.fightY, 208);
+      const abandon = hitBox(l.textX + 150, l.abandonY, 300);
+      const warning = { x: l.textX, y: l.warningY, width: l.textWidth, height: 2 * menuLineHeight(theme.type.caption) };
+      for (const rect of [l.detailViewport, fight, abandon, warning]) expect(isInsideTitleSafe(rect)).toBe(true);
+      expect(fight.y - bottom(l.detailViewport)).toBeGreaterThanOrEqual(12);
+      expect(abandon.y - bottom(fight)).toBeGreaterThanOrEqual(24);
+      expect(warning.y - bottom(abandon)).toBeGreaterThanOrEqual(8);
+      expect(bottom(warning)).toBeLessThanOrEqual(theme.design.footerCenterY - HIT / 2 - 8);
+      const stack = playTextStack([menuLineHeight(theme.type.h1), 3 * menuLineHeight(theme.type.body), menuLineHeight(theme.type.label),
+        12 * menuLineHeight(theme.type.label), 3 * menuLineHeight(theme.type.body)]);
+      expectStacked(stack.ys.map((y, i) => [`text ${i}`, { x: 0, y, width: l.textWidth,
+        height: [menuLineHeight(theme.type.h1), 3 * menuLineHeight(theme.type.body), menuLineHeight(theme.type.label),
+          12 * menuLineHeight(theme.type.label), 3 * menuLineHeight(theme.type.body)][i] }]), 12);
     });
   });
 }
@@ -701,6 +1009,7 @@ for (const cell of A11Y_CELLS) {
     });
     sharedHeaderRules();
     settingsFrameRules();
+    coreMenuRules(cell.textScale);
     profileLayoutRules(cell.textScale);
   });
 }
@@ -715,6 +1024,8 @@ describe('the matrix itself', () => {
       JSON.stringify({
         title: [SCENE_TITLE.fontSize, SCENE_TITLE.subtitleTop],
         settings: [SETTINGS_PANELS, SETTINGS_FRAMES, SETTINGS_TAB_ROW, settingsRhythm(), layoutSettingsTab('game'), layoutSettingsTab('accessibility')],
+        mainMenu: [mainMenuCornerLayout([180, 220], 180), mainMenuDailyLayout(menuLineHeight(theme.type.h1), menuLineHeight(theme.type.label), [{ title: menuLineHeight(theme.type.label), description: menuLineHeight(theme.type.caption), progress: menuLineHeight(theme.type.caption), action: HIT }])],
+        play: [playMenuLayout(), playDeckPickerLayout(28), practicePickerLayout(), gauntletPresentation(), gauntletTowerLayout(28, gauntletPresentation().tower)],
         profile: [PROFILE_HEADER, PROFILE_RECORD, PROFILE_SHOWCASE, PROFILE_PANELS, PROFILE_REPLAYS, PROFILE_REPLAY_ROW, profileReplayCell(9)],
       });
     const bySize: string[] = [];

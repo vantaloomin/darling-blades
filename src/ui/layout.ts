@@ -1189,12 +1189,12 @@ export function gauntletTowerLayout(
   viewport: Rect,
   opts: GauntletTowerOptions = {},
 ): GauntletTowerLayout {
-  const rowHeight = Math.max(0, opts.rowHeight ?? 40);
+  const rowHeight = Math.max(0, opts.rowHeight ?? Math.max(theme.control.minHitHeight, Math.ceil(theme.type.body * 4 / 3) + theme.space(4)));
   const rowGap = Math.max(0, opts.rowGap ?? theme.space(3));
   const rowPitch = rowHeight + rowGap;
   const rowWidth = Math.max(0, viewport.width);
   const padX = theme.space(3);
-  const starColumnWidth = Math.max(0, opts.starColumnWidth ?? theme.space(9));
+  const starColumnWidth = Math.max(0, opts.starColumnWidth ?? Math.ceil(theme.space(9) * theme.type.label / theme.typeBase.label));
   const labelX = padX;
   const count = Math.max(0, rungs);
   const contentHeight = count === 0 ? 0 : count * rowPitch - rowGap;

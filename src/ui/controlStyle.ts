@@ -44,15 +44,12 @@ export function themedButtonColors(variant: ThemedButtonVariant): ThemedButtonCo
 
 /**
  * A shared control's border width, idle or hovered/pressed. In standard
- * contrast both are the 1px border: the hover stroke's colour and its alpha
- * step (`alpha.chrome` to 1) carry the change. High contrast makes chrome
- * opaque, which removes the alpha step, and on the primary and danger buttons
- * the two stroke colours are within 1.2:1 of each other; so there the hovered
- * stroke is one pixel thicker, a difference that does not rest on colour.
+ * contrast primary and danger also thicken on hover (A9); the other variants
+ * keep their colour/alpha step. Idle borders stay unchanged in both palettes.
  */
-export function controlStrokeWidth(active: boolean): number {
+export function controlStrokeWidth(active: boolean, variant?: ThemedButtonVariant): number {
   const base = theme.control.borderWidth;
-  return active && currentAccessibility().highContrast ? base + 1 : base;
+  return active && (currentAccessibility().highContrast || variant === 'primary' || variant === 'danger') ? base + 1 : base;
 }
 
 /**

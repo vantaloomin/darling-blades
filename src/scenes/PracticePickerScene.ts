@@ -1,7 +1,12 @@
 import Phaser from 'phaser';
+import { currentAccessibility } from '../ui/accessibility';
+import { fitMenuName } from '../ui/menuText';
+import { practicePickerLayout, menuSelectionMark } from '../ui/playPresentation';
+import { ellipsizeText } from '../ui/textFit';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { FEATURES } from '../config/features';
+import { IS_DEV } from '../platform/env';
 import { CARD_DB } from '../data/catalog';
 import { AVATARS } from '../data/opponents';
 import type { Difficulty } from '../meta/Economy';
@@ -24,9 +29,7 @@ import {
   boosterStripVisibility,
   clampBoosterStripOffset,
   type BoosterStripLayout,
-  type StripLayoutOptions,
 } from '../ui/boosterStripLayout';
-import { GAP_FLOORS } from '../ui/layout';
 import { sceneSubtitle, sceneTitle } from '../ui/sceneTitle';
 import { colorInt, theme } from '../ui/theme';
 import {
@@ -43,44 +46,6 @@ import {
  * columns it is six, and eight rivals are on screen at once instead of four.
  * The two rows move as one unit because they are children of one column tile.
  */
-const PICKER_ROWS = 2;
-const PICKER_COLUMN_TOP = 130;
-const PICKER_COLUMN_HEIGHT = 396;
-const PICKER_ROW_GAP = 14;
-const PICKER_ROW_HEIGHT = (PICKER_COLUMN_HEIGHT - PICKER_ROW_GAP) / PICKER_ROWS;
-
-const PICKER_STRIP_OPTIONS: StripLayoutOptions = {
-  visibleCount: 4,
-  tileWidth: 206,
-  tileHeight: PICKER_COLUMN_HEIGHT,
-  tileStride: 248,
-  viewport: {
-    x: theme.design.safeLeft,
-    y: 126,
-    width: theme.design.safeWidth,
-    height: 404,
-  },
-  verticalBand: { y: PICKER_COLUMN_TOP, height: PICKER_COLUMN_HEIGHT },
-  tapBand: { y: PICKER_COLUMN_TOP, height: PICKER_COLUMN_HEIGHT },
-  peekY: PICKER_COLUMN_TOP,
-};
-
-// addPortrait cover-crops, so the window can be any aspect: at two rows the
-// card sits wider than tall and shows a head-and-shoulders band rather than
-// letterboxing a 0.8 portrait into a short cell.
-const PICKER_NAME_BAND = 40;
-const PICKER_PORTRAIT_WIDTH = 190;
-const PICKER_PORTRAIT_HEIGHT = PICKER_ROW_HEIGHT - PICKER_NAME_BAND - 10;
-/**
- * The launch notice and its action share the footer line; the difficulty row
- * sits one hit box and the ordinary gap above it, and the "Face <rival>" label
- * keeps its old distance above the row. The action sat alone at y 680 until
- * the 1.8 cut (2026-09-23), its hit box running to 702, past the title-safe
- * frame, and there was no room under the difficulty row to bring it inside.
- */
-const LAUNCH_NOTICE_Y = theme.design.footerCenterY;
-const DIFFICULTY_ROW_Y = LAUNCH_NOTICE_Y - theme.control.minHitHeight - GAP_FLOORS.ordinary;
-const SELECTION_LABEL_Y = DIFFICULTY_ROW_Y - 56;
 const WHEEL_STEP_THRESHOLD = 60;
 const WHEEL_STEP_COOLDOWN_MS = 250;
 
@@ -91,12 +56,14 @@ const WHEEL_STEP_COOLDOWN_MS = 250;
  * changes the brain that pilots them. No gauntlet state is read or written.
  */
 export class PracticePickerScene extends Phaser.Scene {
+  private picker = practicePickerLayout();
   private selectedAvatarId = AVATARS[AVATARS.length - 1]?.id ?? '';
   private tileNodes: {
     id: string;
     column: number;
     container: Phaser.GameObjects.Container;
     box: Phaser.GameObjects.Rectangle;
+    selectedMark: Phaser.GameObjects.Graphics;
     name: Phaser.GameObjects.Text;
     portrait: Phaser.GameObjects.Image | null;
   }[] = [];
@@ -116,18 +83,24 @@ export class PracticePickerScene extends Phaser.Scene {
   private launchNotice: Phaser.GameObjects.Text | null = null;
   private launchNoticeAction: Phaser.GameObjects.Container | null = null;
   private reserveFormatsEnabled = false;
+  private a11yFixture = false;
+  private fixtureAvatarId: string | null = null;
 
   constructor() {
     super('PracticePicker');
   }
 
   /** The picker strip draws all 26 avatar portrait cards. */
-  create(): void {
+  create(data: { a11yFixture?: boolean; a11yAvatarId?: string } = {}): void {
+    this.a11yFixture = IS_DEV && data.a11yFixture === true;
+    this.fixtureAvatarId = this.a11yFixture && AVATARS.some((av) => av.id === data.a11yAvatarId) ? data.a11yAvatarId! : null;
+    this.sys.settings.data = {};
     gateOnArt(this, AVATARS.map((avatar) => avatar.portraitCardId), () => this.build());
   }
   private build(): void {
+    this.picker = practicePickerLayout();
     this.reserveFormatsEnabled = FEATURES.reserveFormats;
-    this.selectedAvatarId = AVATARS[AVATARS.length - 1]?.id ?? '';
+    this.selectedAvatarId = this.fixtureAvatarId ?? AVATARS[AVATARS.length - 1]?.id ?? '';
     this.tileNodes = [];
     this.pickerStripContent = null;
     this.pickerStripZone = null;
@@ -150,7 +123,7 @@ export class PracticePickerScene extends Phaser.Scene {
     const height = 720;
     applyBackdrop(this, 'gauntlet', {
       dim: colorInt(theme.colors.dim),
-      dimAlpha: 0.58,
+      dimAlpha: currentAccessibility().highContrast ? theme.alpha.overlayDim : 0.58,
       fallback: () => {
         const bg = this.add.graphics();
         bg.fillGradientStyle(
@@ -187,7 +160,7 @@ export class PracticePickerScene extends Phaser.Scene {
       Services.save.data.activeDeckId,
       this.reserveFormatsEnabled,
     );
-    if (activeDeck?.format === 'darlings') {
+    if (!this.a11yFixture && activeDeck?.format === 'darlings') {
       showDarlingsTutorial(this, {
         onReadMore: () => this.scene.start('Glossary', {
           focus: 'Darlings',
@@ -206,9 +179,23 @@ export class PracticePickerScene extends Phaser.Scene {
     const roster = [...AVATARS].sort((a, b) => b.tier - a.tier);
     // Column-major: a column holds ranks 2n and 2n+1, so scrolling walks the
     // tier order continuously instead of jumping a whole row at a time.
-    const columns = Math.ceil(roster.length / PICKER_ROWS);
+    // Measure full wrapped names before sharing a band height across the strip.
+    const names = roster.map((av) => {
+      const text = this.add.text(0, 0, av.name, {
+        fontFamily: theme.fonts.display, fontSize: `${theme.type.caption}px`, color: theme.colors.body, align: 'center',
+      }).setOrigin(0.5);
+      fitMenuName(text, 206 - theme.space(4));
+      return text;
+    });
+    this.picker = practicePickerLayout(Math.max(...names.map((text) => text.height)));
+    const columns = Math.ceil(roster.length / this.picker.rows);
     const selectedIndex = Math.max(0, roster.findIndex((av) => av.id === this.selectedAvatarId));
-    const layout = boosterStripLayout(columns, Math.floor(selectedIndex / PICKER_ROWS), PICKER_STRIP_OPTIONS);
+    const layout = boosterStripLayout(columns, Math.floor(selectedIndex / this.picker.rows), {
+      visibleCount: 4, tileWidth: 206, tileHeight: this.picker.columnHeight, tileStride: 248,
+      viewport: this.picker.viewport,
+      verticalBand: { y: this.picker.columnTop, height: this.picker.columnHeight },
+      tapBand: { y: this.picker.columnTop, height: this.picker.columnHeight }, peekY: this.picker.columnTop,
+    });
     this.pickerStripLayout = layout;
 
     const content = this.add.container(0, 0);
@@ -226,7 +213,7 @@ export class PracticePickerScene extends Phaser.Scene {
     attachTouchGestures(this, zone, { onTap: this.onPickerStripTap });
 
     const maskSource = this.add.graphics();
-    maskSource.fillStyle(0xffffff, 1);
+    maskSource.fillStyle(theme.graphics.panelFill, 1);
     maskSource.fillRect(
       layout.viewport.x,
       layout.viewport.y,
@@ -237,47 +224,39 @@ export class PracticePickerScene extends Phaser.Scene {
     content.setMask(maskSource.createGeometryMask());
 
     roster.forEach((av, index) => {
-      const column = Math.floor(index / PICKER_ROWS);
-      const row = index % PICKER_ROWS;
+      const column = Math.floor(index / this.picker.rows);
+      const row = index % this.picker.rows;
       const columnX = layout.tileCenters[column] ?? layout.firstCenter;
-      const rowTop = PICKER_COLUMN_TOP + row * (PICKER_ROW_HEIGHT + PICKER_ROW_GAP);
+      const rowTop = this.picker.columnTop + row * (this.picker.rowHeight + this.picker.rowGap);
       const tile = this.add.container(columnX, 0);
       const box = this.add
         .rectangle(
           0,
-          rowTop + PICKER_ROW_HEIGHT / 2,
+          rowTop + this.picker.rowHeight / 2,
           layout.tileWidth,
-          PICKER_ROW_HEIGHT,
+          this.picker.rowHeight,
           theme.graphics.rowFill,
           theme.alpha.panel,
         )
         .setStrokeStyle(2, colorInt(theme.colors.panelStroke));
       // The name is centered in a reserved band rather than hung below a
       // fixed baseline, so wrapped names cannot escape the cell.
-      const nameBandTop = rowTop + PICKER_ROW_HEIGHT - PICKER_NAME_BAND - 5;
-      const name = this.add
-        .text(0, nameBandTop + PICKER_NAME_BAND / 2, av.name, {
-          fontFamily: theme.fonts.display,
-          fontSize: `${theme.type.caption}px`,
-          color: theme.colors.body,
-          align: 'center',
-          lineSpacing: -2,
-          wordWrap: { width: layout.tileWidth - 16 },
-        })
-        .setOrigin(0.5, 0.5);
-      if (name.height > PICKER_NAME_BAND) name.setScale(PICKER_NAME_BAND / name.height);
+      const nameBandTop = rowTop + this.picker.rowHeight - this.picker.nameBand - 5;
+      const name = names[index].setPosition(0, nameBandTop + this.picker.nameBand / 2);
+      name.setData('a11yTextHeight', this.picker.nameBand - theme.space(2));
+      const selectedMark = this.add.graphics();
 
-      tile.add([box, name]);
+      tile.add([box, name, selectedMark]);
       content.add(tile);
       const portrait = this.addPortrait(
         av.portraitCardId,
         columnX,
-        rowTop + 5 + PICKER_PORTRAIT_HEIGHT / 2,
-        PICKER_PORTRAIT_WIDTH,
-        PICKER_PORTRAIT_HEIGHT,
+        rowTop + 5 + this.picker.portraitHeight / 2,
+        this.picker.portraitWidth,
+        this.picker.portraitHeight,
         content,
       );
-      this.tileNodes.push({ id: av.id, column, container: tile, box, name, portrait });
+      this.tileNodes.push({ id: av.id, column, container: tile, box, selectedMark, name, portrait });
     });
 
     const arrowY = layout.fullTileRects[0].y + layout.fullTileRects[0].height / 2;
@@ -348,12 +327,12 @@ export class PracticePickerScene extends Phaser.Scene {
     // The shared strip classifies the COLUMN; the row comes from where in the
     // column the tap landed, and the gap between rows selects nothing.
     const row = Math.floor(
-      (pointer.worldY - PICKER_COLUMN_TOP) / (PICKER_ROW_HEIGHT + PICKER_ROW_GAP),
+      (pointer.worldY - this.picker.columnTop) / (this.picker.rowHeight + this.picker.rowGap),
     );
-    if (row < 0 || row >= PICKER_ROWS) return;
-    const rowTop = PICKER_COLUMN_TOP + row * (PICKER_ROW_HEIGHT + PICKER_ROW_GAP);
-    if (pointer.worldY > rowTop + PICKER_ROW_HEIGHT) return;
-    const tile = this.tileNodes[decision.index * PICKER_ROWS + row];
+    if (row < 0 || row >= this.picker.rows) return;
+    const rowTop = this.picker.columnTop + row * (this.picker.rowHeight + this.picker.rowGap);
+    if (pointer.worldY > rowTop + this.picker.rowHeight) return;
+    const tile = this.tileNodes[decision.index * this.picker.rows + row];
     if (!tile) return;
     this.selectedAvatarId = tile.id;
     this.refreshSelection();
@@ -472,7 +451,7 @@ export class PracticePickerScene extends Phaser.Scene {
 
   private buildDifficultyActions(): void {
     this.selectionLabel = this.add
-      .text(640, SELECTION_LABEL_Y, '', {
+      .text(640, this.picker.selectionY, '', {
         fontFamily: theme.fonts.display,
         fontSize: `${theme.type.h2}px`,
         color: theme.colors.heading,
@@ -482,7 +461,7 @@ export class PracticePickerScene extends Phaser.Scene {
     const difficulties: readonly Difficulty[] = ['easy', 'medium', 'hard'];
     difficulties.forEach((difficulty, index) => {
       const label = difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
-      themedButton(this, 476 + index * 164, DIFFICULTY_ROW_Y, label, {
+      themedButton(this, 476 + index * 164, this.picker.difficultyY, label, {
         variant: 'ghost',
         minWidth: 148,
         onTap: () => this.startPractice(difficulty),
@@ -499,14 +478,21 @@ export class PracticePickerScene extends Phaser.Scene {
         selected ? theme.graphics.rowFillActive : theme.graphics.rowFill,
         selected ? 1 : theme.alpha.panel,
       );
-      node.box.setStrokeStyle(selected ? 3 : 2, colorInt(selected ? theme.colors.goldHover : theme.colors.panelStroke));
+      node.box.setStrokeStyle(selected ? theme.outline.state : 2, colorInt(selected ? theme.colors.goldHover : theme.colors.panelStroke));
       // Names are display-only. The scene-level strip Zone owns tile hits, so
       // recoloring a Text cannot leave a stale Text hit area behind.
       node.name.setColor(selected ? theme.colors.gold : theme.colors.body);
+      node.selectedMark.clear();
+      if (selected) {
+        const mark = menuSelectionMark({ visual: { x: -node.box.width / 2, y: node.box.y - node.box.height / 2,
+          width: node.box.width, height: node.box.height }, labelWidth: node.name.width, padding: theme.space(4) }, theme.outline.state);
+        node.selectedMark.fillStyle(colorInt(theme.colors.gold), 1).fillRect(mark.x, mark.y, mark.width, mark.height);
+      }
     }
 
     const selected = AVATARS.find((av) => av.id === this.selectedAvatarId);
     this.selectionLabel?.setText(selected ? `Face ${selected.name}` : 'Choose a rival');
+    if (this.selectionLabel) ellipsizeText(this.selectionLabel, theme.design.safeWidth - theme.space(8));
     if (selected) prefetchDuelArt(this, { opponentId: selected.id });
   }
 
@@ -535,7 +521,7 @@ export class PracticePickerScene extends Phaser.Scene {
   ): void {
     if (!this.launchNotice || !this.launchNotice.active) {
       this.launchNotice = this.add
-        .text(0, LAUNCH_NOTICE_Y, message, {
+        .text(0, this.picker.noticeY, message, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           color: theme.colors.danger,
@@ -554,7 +540,7 @@ export class PracticePickerScene extends Phaser.Scene {
     let actionWidth = 0;
     let button: ThemedButton | null = null;
     if (action) {
-      button = themedButton(this, 0, LAUNCH_NOTICE_Y, action.label, {
+      button = themedButton(this, 0, this.picker.noticeY, action.label, {
         variant: 'ghost',
         size: 'sm',
         minWidth: 132,
