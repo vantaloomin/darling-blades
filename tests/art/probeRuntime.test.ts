@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  installLongTaskRecorder, retryMemorySample, sampleAfterGc, settleOwnedProcesses, type LongTaskScope,
+  configureProbeNetwork, installLongTaskRecorder, retryMemorySample, sampleAfterGc, settleOwnedProcesses, type LongTaskScope,
 } from '../../scripts/art-probe-runtime.mjs';
+import { makeStore } from './artStoreFakes';
 
 const counters = (gpu: number | null, renderer: number | null) => ({
   gpuPrivateMiB: gpu, gpuDedicatedMiB: 20, gpuSharedMiB: 30, rendererPrivateMiB: renderer,
@@ -48,21 +49,29 @@ describe('probe memory sampling', () => {
     expect(result.memorySampling.complete).toBe(false);
   });
 
-  // Mutation: gc-after-sample; move the collectGarbage call after the read.
+  // Mutations: gc-after-sample; heap-total-instead-of-used; reset-after-gc.
   it('samples after GC has settled while preserving the gameplay snapshot taken before it', async () => {
     const tasks = [60];
     let gcDone = false;
     let settled = false;
     let observing = true;
+    let prepared = false;
     const result = await sampleAfterGc({
       pauseLongTasks: () => { observing = false; return tasks.slice(); },
-      collectGarbage: () => { gcDone = true; tasks.push(900); },
+      prepareMemory: () => { expect(observing).toBe(false); prepared = true; },
+      collectGarbage: () => { expect(prepared).toBe(true); gcDone = true; tasks.push(900); },
       wait: async ms => { expect(gcDone).toBe(true); expect(ms).toBeGreaterThan(0); settled = true; },
       readMemory: () => { expect(gcDone && settled).toBe(true); expect(observing).toBe(false); return counters(110, 200); },
+      readHeapUsage: () => {
+        expect(gcDone && settled).toBe(true);
+        expect(observing).toBe(false);
+        return { usedSize: 1572864, totalSize: 8388608 };
+      },
       resumeLongTasks: () => { observing = true; },
     });
     expect(result.longTasks).toEqual([60]);
     expect(result.memory.rendererPrivateMiB).toBe(200);
+    expect(result.memory.jsHeapUsedMiB).toBe(1.5);
     expect(observing).toBe(true);
   });
 
@@ -73,14 +82,27 @@ describe('probe memory sampling', () => {
       pauseLongTasks: () => { observing = false; return []; },
       collectGarbage: () => { throw new Error('GC unavailable'); },
       wait: async () => {}, readMemory: () => counters(1, 1),
+      readHeapUsage: () => ({ usedSize: 0 }),
       resumeLongTasks: () => { observing = true; },
     })).rejects.toThrow('GC unavailable');
     expect(observing).toBe(true);
   });
+
+  // Mutation: missing-heap-is-zero; substitute 0 when the CDP heap read fails.
+  it('reports an unavailable JS heap as null while preserving valid process counters', async () => {
+    const result = await sampleAfterGc({
+      pauseLongTasks: () => [], collectGarbage: () => {}, wait: () => {},
+      readMemory: () => counters(100, 200),
+      readHeapUsage: () => { throw new Error('target unavailable'); }, resumeLongTasks: () => {},
+    });
+    expect(result.memory.jsHeapUsedMiB).toBeNull();
+    expect(result.memory.rendererPrivateMiB).toBe(200);
+    expect(result.memory.jsHeapUnavailable).toContain('target unavailable');
+  });
 });
 
 describe('probe long-task attribution', () => {
-  // Mutation: buffer-on-resume; replay the GC window on the next observation.
+  // Mutations: buffer-on-resume; retain-task-history (splice -> slice).
   it('drains gameplay before pausing and never attributes buffered diagnostic work to the next stop', () => {
     const scope: LongTaskScope = {};
     const observers: FakeObserver[] = [];
@@ -109,7 +131,56 @@ describe('probe long-task attribution', () => {
     observer.task(900);
     scope.__resumeProbeLongTasks!();
     observer.task(70);
-    expect(scope.__pauseProbeLongTasks!()).toEqual([80, 70]);
+    expect(scope.__pauseProbeLongTasks!()).toEqual([70]);
+    expect(scope.__longTasks).toEqual([]);
+    // Repeated load/evict activity must not leave a history array in the page.
+    for (let cycle = 0; cycle < 40; cycle++) {
+      scope.__resumeProbeLongTasks!();
+      observer.task(60);
+      expect(scope.__pauseProbeLongTasks!()).toEqual([60]);
+      expect(scope.__longTasks).toEqual([]);
+    }
+  });
+});
+
+describe('probe network observation lifetime', () => {
+  // Mutations: retain-response-bodies (omit buffer limits); retain-request-history
+  // (omit disable); lose-throttle-on-reset (omit reapplying the conditions).
+  it('repeated art load and eviction cycles retain no inspector bodies or past-stop requests and keep throttling', async () => {
+    const requests = new Map<number, { body: Blob | null }>();
+    let bodyLimit = Infinity;
+    let conditions: Record<string, unknown> = {};
+    let seen = 0;
+    const send = (method: string, params: Record<string, unknown> = {}): void => {
+      if (method === 'Network.disable') { requests.clear(); conditions = {}; }
+      if (method === 'Network.enable') bodyLimit = Number(params.maxResourceBufferSize ?? Infinity);
+      if (method === 'Network.emulateNetworkConditions') conditions = params;
+    };
+    const throttle = { offline: false, latency: 40, downloadThroughput: 2500000, uploadThroughput: 2500000 };
+    await configureProbeNetwork(send, throttle);
+    const h = makeStore({ budgetBytes: 1 });
+    h.source.auto = true;
+    const read = h.source.read.bind(h.source);
+    h.source.read = async (...args) => {
+      const body = await read(...args);
+      requests.set(++seen, { body: body.size <= bodyLimit ? body : null });
+      return body;
+    };
+    for (let cycle = 0; cycle < 24; cycle++) {
+      const lease = h.store.lease('probe', ['a']);
+      await h.tick();
+      await lease.ready;
+      lease.release();
+      h.clock.t += 5000;
+      await h.tick();
+      expect(h.store.stats().resident).toBe(0);
+      expect([...requests.values()].filter(request => request.body !== null)).toHaveLength(0);
+      await configureProbeNetwork(send, throttle, true);
+      expect(requests.size).toBe(0);
+      expect(conditions).toEqual({ offline: false, latency: 40, downloadThroughput: 2500000, uploadThroughput: 2500000 });
+    }
+    expect(seen).toBe(24); // Events still reached the runner for every re-read.
+    h.store.dispose();
   });
 });
 

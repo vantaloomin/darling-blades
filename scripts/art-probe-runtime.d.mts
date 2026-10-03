@@ -1,4 +1,5 @@
 export const PROBE_VERSION: string;
+export function configureProbeNetwork(send: (method: string, params?: Record<string, unknown>) => unknown | Promise<unknown>, conditions: Record<string, unknown>, reset?: boolean): Promise<void>;
 export interface LongTaskScope {
   __longTasks?: number[] | null;
   __pauseProbeLongTasks?: () => number[] | null;
@@ -17,6 +18,7 @@ export interface MemoryReading {
   gpuDedicatedMiB: number | null;
   gpuSharedMiB: number | null;
   rendererPrivateMiB: number | null;
+  jsHeapUsedMiB?: number | null;
   [key: string]: unknown;
 }
 export function retryMemorySample(read: () => unknown | Promise<unknown>, wait: (ms: number) => void | Promise<void>, options?: { attempts?: number; delayMs?: number }): Promise<MemoryReading & {
@@ -24,9 +26,11 @@ export function retryMemorySample(read: () => unknown | Promise<unknown>, wait: 
 }>;
 export function sampleAfterGc<T> (io: {
   pauseLongTasks: () => T | Promise<T>;
+  prepareMemory?: () => unknown | Promise<unknown>;
   collectGarbage: () => unknown | Promise<unknown>;
   wait: (ms: number) => void | Promise<void>;
   readMemory: () => unknown | Promise<unknown>;
+  readHeapUsage: () => { usedSize?: number } | Promise<{ usedSize?: number }>;
   resumeLongTasks: () => unknown | Promise<unknown>;
 }): Promise<{ longTasks: T; memory: Awaited<ReturnType<typeof retryMemorySample>> }>;
 export function settleOwnedProcesses(pids: number[], io: {

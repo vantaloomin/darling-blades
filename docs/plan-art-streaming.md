@@ -205,7 +205,9 @@ as thin wrappers while the scenes migrate, then go.
   batch.
 - **Uploads are capped per frame.** Decoded bitmaps become textures from the
   scene's update, at most 4 full or 8 half per frame (to be tuned by the
-  long-task check in the gates).
+  long-task check in the gates). A decoded bitmap waiting for that frame
+  still occupies the fetch/decode window. Paused frames cannot accumulate
+  a decoded copy of every queued card.
 - **Cancellation.** A queued request that no lease or prefetch still holds
   is dropped. An in-flight fetch whose key is no longer wanted is aborted
   (`AbortController`) if its body has not arrived. A body that has arrived
@@ -378,6 +380,11 @@ layers, and the stress gate proves all of them:
 `ArtResolver.getArt` already answers "absent" with a stand-in and a `pending`
 key, so a key loaded again after eviction redraws through the existing
 arrival path.
+
+An evicted key with no remaining request, pin or failure history also loses
+its store slot. Read-only residency queries do not recreate those records.
+Released leases and canceled prefetches drop their slot references; retry
+and final-failure history still lasts for the policy above.
 
 ### `CardThumbCache`
 
@@ -582,7 +589,7 @@ The JSON source label comes from the read-only `window.__art.source` hook's
 configured build source, rather than a guess from command-line options.
 Request counters retain which pack or loose-file transports were used.
 
-The measurement method is versioned as `probeVersion: s6-g1-gc-retry-v3` in
+The measurement method is versioned as `probeVersion: s6-retention-heap-v4` in
 every run JSON and repeat parent. Memory and long-task comparisons refuse
 missing or different versions, including a child that differs from its
 repeat parent. Rerun both off and on; old evidence cannot be combined with
@@ -590,11 +597,30 @@ this method.
 
 Before **every** stop's process-memory sample, in every mode, the probe
 uses CDP `HeapProfiler.enable` / `HeapProfiler.collectGarbage` and waits
-250 ms. This measures after uncollected page garbage has been released.
-The long-task recorder drains queued gameplay entries and snapshots them
-before GC, then disconnects through GC, settling and counter sampling.
-It resumes without buffered replay, so diagnostic work is excluded from
-gate 5 and cannot migrate to the next stop.
+250 ms. It then records `jsHeapUsedMiB` from CDP `Runtime.getHeapUsage`
+(`usedSize / 1,048,576`, without rounding) beside `rendererPrivateMiB`.
+An unavailable heap reading stays null, with its reason recorded. These
+separate JS-heap growth from native renderer memory; neither is inferred
+from `performance.memory`.
+The long-task recorder drains queued gameplay entries to the runner before
+GC and clears that interval from the page. It disconnects through diagnostic
+cleanup, GC, settling and counter sampling, then resumes without buffered
+replay. Diagnostic work is excluded from gate 5 and cannot migrate to the
+next stop.
+
+The probe observes network events with zero response-body buffers. Chromium's
+[inspector network agent](https://raw.githubusercontent.com/chromium/chromium/main/third_party/blink/renderer/core/inspector/inspector_network_agent.cc)
+otherwise retains response content independently of the HTTP cache (a 200 MB
+desktop default). Its
+[request metadata](https://raw.githubusercontent.com/chromium/chromium/main/third_party/blink/renderer/core/inspector/network_resources_data.cc)
+also survives completed requests. Before each idle stop's GC the probe resets
+that domain and immediately reapplies the same network throttle; accumulated
+request counts remain in the Node runner. This does not clear the HTTP cache,
+reload the page, or reset the game's store. The initial menu's held requests
+and an interrupted run's failure snapshot skip that reset. This method is
+identical with streaming off and on. The renderer leak run must be repeated;
+code inspection alone does not establish how much of its growth was inspector
+retention.
 
 Private bytes come from Windows `Get-Process.PrivateMemorySize64` for the
 GPU and renderer PIDs identified by CDP. Dedicated/shared GPU bytes come

@@ -169,10 +169,13 @@ interface Job {
   dead: boolean;
 }
 
-interface Slot {
+interface ArtFile {
   key: string;
   textureKey: string;
   file: ArtFileTier;
+}
+
+interface Slot extends ArtFile {
   /** Leases and prefetches that want this slot loaded, by holder id. */
   holders: Map<number, Holder>;
   /** Leases waiting on this slot for `ready`. */
@@ -340,34 +343,38 @@ export class ArtStore {
     return () => {
       if (cancelled) return;
       cancelled = true;
-      for (const slot of held) this.dropHolder(slot, holder);
+      for (const slot of held) {
+        this.dropHolder(slot, holder);
+        this.pruneSlot(slot);
+      }
+      held.length = 0;
       this.pump();
     };
   }
 
   /** True when the id's texture for `tier` can be drawn now. */
   isResident(id: string, tier: ArtTier = 'primary'): boolean {
-    const slot = this.slotFor(id, tier);
-    return slot === null || this.book.has(slot.textureKey);
+    const file = this.fileFor(id, tier);
+    return file === null || this.book.has(file.textureKey);
   }
 
   /** The texture key `id` draws from on `tier`, or null when it has no art file. */
   textureKeyFor(id: string, tier: ArtTier = 'primary'): string | null {
-    return this.slotFor(id, tier)?.textureKey ?? null;
+    return this.fileFor(id, tier)?.textureKey ?? null;
   }
 
   /** A draw counts as a use for the LRU order. */
   touch(ids: Iterable<string>, tier: ArtTier = 'primary'): void {
     const now = this.now();
-    for (const slot of this.slotsFor(ids, tier)) this.book.touch(slot.textureKey, now);
+    for (const file of this.filesFor(ids, tier)) this.book.touch(file.textureKey, now);
   }
 
   /** Art keys among `ids` whose `tier` texture is not resident (`null` = the whole manifest). */
   missing(ids: Iterable<string> | null, tier: ArtTier = 'primary'): string[] {
     const source = ids ?? this.opts.manifest;
-    return this.slotsFor(source, tier)
-      .filter((slot) => !this.book.has(slot.textureKey))
-      .map((slot) => slot.key);
+    return this.filesFor(source, tier)
+      .filter((file) => !this.book.has(file.textureKey))
+      .map((file) => file.key);
   }
 
   /**
@@ -377,16 +384,16 @@ export class ArtStore {
    * loader gave up on. `isResident` is the drawability answer.
    */
   isSettled(id: string, tier: ArtTier = 'primary'): boolean {
-    const slot = this.slotFor(id, tier);
-    return slot === null || this.settled.has(slot.textureKey);
+    const file = this.fileFor(id, tier);
+    return file === null || this.settled.has(file.textureKey);
   }
 
   /** Art keys among `ids` that are not settled on `tier` (`null` = the whole manifest). */
   unsettled(ids: Iterable<string> | null, tier: ArtTier = 'primary'): string[] {
     const source = ids ?? this.opts.manifest;
-    return this.slotsFor(source, tier)
-      .filter((slot) => !this.settled.has(slot.textureKey))
-      .map((slot) => slot.key);
+    return this.filesFor(source, tier)
+      .filter((file) => !this.settled.has(file.textureKey))
+      .map((file) => file.key);
   }
 
   /** Settled primary keys against the manifest (the old loading-line numbers). */
@@ -405,10 +412,10 @@ export class ArtStore {
    * the id has no art file or the read failed.
    */
   async fetchBlob(id: string, tier: ArtTier = 'primary'): Promise<Blob | null> {
-    const slot = this.slotFor(id, tier);
-    if (slot === null) return null;
+    const file = this.fileFor(id, tier);
+    if (file === null) return null;
     try {
-      return await this.readWithResends(slot, new AbortController().signal);
+      return await this.readWithResends(file, new AbortController().signal);
     } catch {
       return null;
     }
@@ -447,6 +454,7 @@ export class ArtStore {
     if (this.disposed) return;
     this.pump();
     this.uploadSome();
+    this.pump();
     this.maybeEvict();
   }
 
@@ -514,7 +522,7 @@ export class ArtStore {
     }
     for (const upload of this.uploads) upload.image.close();
     this.uploads.length = 0;
-    for (const lease of this.leases) lease.settle();
+    for (const lease of this.leases) lease.release();
     this.leases.clear();
     this.active.clear();
   }
@@ -553,8 +561,10 @@ export class ArtStore {
       slot.waiters.delete(lease);
       this.book.unpin(slot.textureKey, now);
       this.dropHolder(slot, lease.id);
+      this.pruneSlot(slot);
     }
     lease.pending.clear();
+    lease.slots.clear();
     this.dirty = true;
     this.checkPinsOverBudget();
     this.pump();
@@ -562,7 +572,8 @@ export class ArtStore {
 
   // ------------------------------------------------------ slots and requests
 
-  private slotFor(id: string, tier: ArtTier): Slot | null {
+  /** Resolve a file without retaining request state for queries or exports. */
+  private fileFor(id: string, tier: ArtTier): ArtFile | null {
     const key = this.opts.keyFor(id);
     if (!this.known.has(key)) return null;
     const half = this.opts.hasHalf(key);
@@ -580,6 +591,25 @@ export class ArtStore {
       textureKey = artTextureKey(key);
       file = 'full';
     }
+    return { key, textureKey, file };
+  }
+
+  private filesFor(ids: Iterable<string>, tier: ArtTier): ArtFile[] {
+    const seen = new Set<string>();
+    const files: ArtFile[] = [];
+    for (const id of ids) {
+      const file = this.fileFor(id, tier);
+      if (file === null || seen.has(file.textureKey)) continue;
+      seen.add(file.textureKey);
+      files.push(file);
+    }
+    return files;
+  }
+
+  private slotFor(id: string, tier: ArtTier): Slot | null {
+    const resolved = this.fileFor(id, tier);
+    if (resolved === null) return null;
+    const { key, textureKey, file } = resolved;
     let slot = this.slots.get(textureKey);
     if (slot === undefined) {
       slot = {
@@ -699,7 +729,9 @@ export class ArtStore {
   private pump(): void {
     if (this.disposed) return;
     const now = this.now();
-    while (this.active.size < this.maxInFlight) {
+    // Decoded images still occupy the window until a frame uploads them.
+    // Otherwise fast reads can decode the whole queue while frames are paused.
+    while (this.active.size + this.uploads.length < this.maxInFlight) {
       const slot = this.pick(now, this.oldestActiveJob());
       if (slot === null) return;
       if (slot.deferred !== null) {
@@ -750,7 +782,7 @@ export class ArtStore {
   }
 
   /** One read, re-sent at once up to twice while the failure is transient. */
-  private async readWithResends(slot: Slot, signal: AbortSignal): Promise<Blob> {
+  private async readWithResends(slot: ArtFile, signal: AbortSignal): Promise<Blob> {
     let lastError: unknown;
     for (let send = 0; send <= ART_IMMEDIATE_RESENDS; send++) {
       if (signal.aborted) throw lastError ?? new Error('aborted');
@@ -772,6 +804,7 @@ export class ArtStore {
       // Nobody wants it any more: forget the attempt rather than record a failure.
       slot.pass = 1;
       slot.deferred = null;
+      this.pruneSlot(slot);
       this.pump();
       return;
     }
@@ -899,6 +932,15 @@ export class ArtStore {
       slot.kept.close();
       slot.kept = null;
     }
+    if (slot !== undefined) this.pruneSlot(slot);
+  }
+
+  /** Drop unowned metadata, preserving retry history and reentrant removal leases. */
+  private pruneSlot(slot: Slot): void {
+    if (slot.job !== null || slot.kept !== null || slot.failed !== null || slot.deferred !== null
+      || slot.holders.size > 0 || slot.waiters.size > 0 || slot.pinnedBy.size > 0
+      || this.book.has(slot.textureKey) || this.slots.get(slot.textureKey) !== slot) return;
+    this.slots.delete(slot.textureKey);
   }
 
   private markSettled(textureKey: string, on: boolean): void {

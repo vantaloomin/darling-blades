@@ -181,7 +181,7 @@ describe('artStore: requests, priorities and cancellation', () => {
     for (const key of ['f', 'a', 'd', 'e', 'b', 'c']) {
       expect(h.source.open.map((read) => read.key)).toEqual([key]);
       h.source.finish(key);
-      await flush();
+      await h.tick();
     }
   });
 
@@ -229,6 +229,26 @@ describe('artStore: requests, priorities and cancellation', () => {
     h.clock.t += 5000;
     await h.tick();
     expect(h.sink.removed).toEqual([T('a')]);
+  });
+
+  // Mutation: retain-unwanted-decode-failure; omit pruning when a released decode fails.
+  it('forgets request state when decoding repeatedly fails after its last owner leaves', async () => {
+    let failDecode!: () => void;
+    const h = makeStore({ decode: () => new Promise((_resolve, reject) => {
+      failDecode = () => reject(new Error('invalid image'));
+    }) }, ['a']);
+    for (let cycle = 0; cycle < 12; cycle++) {
+      const lease = h.store.lease('closing view', ['a']);
+      h.source.finish('a');
+      await flush();
+      lease.release();
+      await lease.ready;
+      failDecode();
+      await h.tick();
+      expect(h.store.stats()).toMatchObject({ inFlight: 0, queued: 0, uploadsPending: 0, resident: 0, failures: 0 });
+      expect((h.store as unknown as { slots: Map<string, unknown> }).slots.size).toBe(0);
+    }
+    expect(h.sink.textures.size).toBe(0);
   });
 
   it('shares one fetch between leases and keeps it while any of them wants it', async () => {
@@ -303,6 +323,27 @@ describe('artStore: arrivals and uploads', () => {
     expect(h.sink.added).toHaveLength(6);
   });
 
+  // Mutation: decode-without-backpressure; remove uploads.length from the pump window.
+  it('holds later reads until a frame consumes the bounded decoded-image queue', async () => {
+    const h = makeStore({ maxInFlight: 2 });
+    h.source.auto = true;
+    const lease = h.store.lease('page', ['a', 'b', 'c', 'd']);
+    await flush();
+    await flush();
+    expect(h.store.stats()).toMatchObject({ inFlight: 0, uploadsPending: 2, queued: 2, resident: 0 });
+    expect(h.decoded.filter((image) => !image.closed)).toHaveLength(2);
+
+    // Consuming the first pair opens the window for the remaining pair.
+    await h.tick();
+    expect(h.store.stats()).toMatchObject({ inFlight: 0, uploadsPending: 2, queued: 0, resident: 2 });
+    expect(h.decoded.filter((image) => !image.closed)).toHaveLength(2);
+    await h.tick();
+    await lease.ready;
+    expect(h.store.stats()).toMatchObject({ inFlight: 0, uploadsPending: 0, queued: 0, resident: 4 });
+    expect(h.decoded.every((image) => image.closed)).toBe(true);
+    lease.release();
+  });
+
   it('holds the half texture beside the full one on desktop, and one texture on lite', async () => {
     const desk = makeStore();
     desk.source.auto = true;
@@ -363,10 +404,12 @@ describe('artStore: failures and the retry', () => {
     await lease.ready; // never hangs
     expect(h.store.isResident('a')).toBe(false);
     expect(h.store.stats().failures).toBe(1);
+    lease.release(); // Dropping ownership must retain the failed key's backoff.
 
     const soon = h.store.lease('again', ['a']);
     await soon.ready;
     expect(h.source.reads).toHaveLength(6);
+    soon.release();
 
     h.clock.t += 30_000;
     h.store.lease('later', ['a']);
@@ -379,7 +422,7 @@ describe('artStore: failures and the retry', () => {
     h.store.prefetch(keys.slice(1), { priority: 'idle' });
     const lease = h.store.lease('duel', ['a'], { priority: 'now' });
     h.source.finish('k0'); // frees a slot: a goes out
-    await flush();
+    await h.tick();
     for (let i = 0; i < 3; i++) {
       h.source.fail('a');
       await flush();
@@ -407,6 +450,7 @@ describe('artStore: failures and the retry', () => {
     const lease = h.store.lease('duel', ['a'], { priority: 'now' });
     h.source.fail('a', 'failed');
     await lease.ready;
+    lease.release(); // A final failure remains final even after every lease leaves.
     h.clock.t += 60_000;
     await h.tick();
     h.store.lease('later', ['a']);
@@ -480,7 +524,7 @@ describe('artStore: context restore', () => {
       const read = h.source.open[0];
       asked.push(read.key);
       read.resolve();
-      await flush();
+      await h.tick();
     }
     // e was already in flight; then the pinned pair at now, ahead of the
     // visible d; c (unpinned) is not asked for again.
@@ -510,7 +554,7 @@ describe('artStore: removals, restores, widening and disposal', () => {
     expect(h.store.isResident('a')).toBe(false);
     for (let i = 0; i < 3; i++) {
       h.source.open[0].resolve();
-      await flush();
+      await h.tick();
     }
     // e was in flight; the visible d beats the soon a.
     expect(h.source.keys.slice(before - 1)).toEqual(['e', 'd', 'a']);
@@ -576,6 +620,7 @@ describe('artStore: removals, restores, widening and disposal', () => {
     expect(h.store.stats().pinnedBytes).toBe(2 * FULL_BYTES);
   });
 
+  // Mutation: dispose-with-live-leases; settle leases without releasing their ownership.
   it('on dispose aborts fetches, closes decoded images and settles every lease', async () => {
     const h = makeStore();
     const one = h.store.lease('one', ['a']);
@@ -590,12 +635,50 @@ describe('artStore: removals, restores, widening and disposal', () => {
     await two.ready;
     expect(signal.aborted).toBe(true);
     expect(h.decoded[0].closed).toBe(true);
+    expect((one as unknown as { slots: Set<unknown> }).slots.size).toBe(0);
+    expect((two as unknown as { slots: Set<unknown> }).slots.size).toBe(0);
+    one.add(['c']); // A retained lease cannot add new work to a disposed store.
+    expect(h.store.stats().queued).toBe(0);
     h.store.frame();
     expect(h.sink.added).toEqual([]);
   });
 });
 
 describe('artStore: accounting', () => {
+  // Mutations: retain-evicted-slot; retain-released-lease-slots; allocate-slots-for-queries.
+  it('returns ownership and request bookkeeping to empty after repeated load and eviction of the same keys', async () => {
+    const h = makeStore({ budgetBytes: 1 }, ['a', 'b']);
+    const internal = h.store as unknown as {
+      slots: Map<string, unknown>; leases: Set<unknown>; active: Set<unknown>; uploads: unknown[];
+      settled: Set<string>; missed: Set<string>;
+    };
+    for (let cycle = 0; cycle < 12; cycle++) {
+      const key = cycle % 2 === 0 ? 'a' : 'b';
+      const lease = h.store.lease('temporary view', [key]);
+      h.source.finish(key);
+      await h.tick();
+      await lease.ready;
+      lease.release();
+      expect((lease as unknown as { slots: Set<unknown> }).slots.size).toBe(0);
+      await h.tick();
+      expect(h.store.stats()).toMatchObject({ residentBytes: 0, pinnedBytes: 0, resident: 0, queued: 0, inFlight: 0, uploadsPending: 0 });
+      expect(h.store.isResident(key)).toBe(false);
+      expect(h.store.isSettled(key)).toBe(false);
+      h.store.textureKeyFor(key);
+      h.store.touch(['a', 'b']);
+      expect(h.store.missing(null)).toHaveLength(2);
+      expect(h.store.unsettled(null)).toHaveLength(2);
+      expect(h.store.leaseReport()).toEqual([]);
+      expect(internal.slots.size).toBe(0);
+      expect(internal.leases.size).toBe(0);
+      expect(internal.active.size).toBe(0);
+      expect(internal.uploads.length).toBe(0);
+      expect(internal.settled.size).toBe(0);
+      expect(internal.missed.size).toBe(0);
+      expect(h.decoded.every((image) => image.closed)).toBe(true);
+    }
+  });
+
   it('reports resident, pinned, queued and in-flight work', async () => {
     const h = makeStore({ maxInFlight: 1, budgetBytes: 7 * FULL_BYTES });
     await loadAll(h, ['a']);

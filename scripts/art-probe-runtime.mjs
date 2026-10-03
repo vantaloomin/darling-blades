@@ -1,5 +1,5 @@
 // Probe policy with injectable IO and clocks; no browser, Phaser or processes.
-export const PROBE_VERSION = 's6-g1-gc-retry-v3';
+export const PROBE_VERSION = 's6-retention-heap-v4';
 const counterNames = ['gpuPrivateMiB', 'gpuDedicatedMiB', 'gpuSharedMiB', 'rendererPrivateMiB'];
 const measured = value => typeof value === 'number' && Number.isFinite(value) && value >= 0;
 
@@ -20,7 +20,9 @@ export function installLongTaskRecorder(scope, Observer) {
       append(observer.takeRecords());
       paused = true;
       observer.disconnect();
-      return scope.__longTasks.slice();
+      // Transfer this interval to the runner; the page must not retain the
+      // history of every stop in a long, single-navigation tour.
+      return scope.__longTasks.splice(0);
     };
     scope.__resumeProbeLongTasks = () => {
       observer.takeRecords();
@@ -33,6 +35,20 @@ export function installLongTaskRecorder(scope, Observer) {
     scope.__pauseProbeLongTasks = () => null;
     scope.__resumeProbeLongTasks = () => {};
   }
+}
+
+/**
+ * Observe request events, without retaining response bodies for DevTools.
+ * Chromium's NetworkResourcesData otherwise keeps bodies per request (up to
+ * 200 MB on desktop), independently of the HTTP cache and art eviction.
+ * Reset at idle stops to drop request metadata too; disable clears network
+ * emulation, so restore it before letting gameplay continue. Node owns the
+ * accumulated event counts. No browser HTTP cache is cleared here.
+ */
+export async function configureProbeNetwork(send, conditions, reset = false) {
+  if (reset) await send('Network.disable');
+  await send('Network.enable', { maxTotalBufferSize: 0, maxResourceBufferSize: 0, maxPostDataSize: 0 });
+  await send('Network.emulateNetworkConditions', conditions);
 }
 
 /** Retry entire observations. Never splice counters from different attempts. */
@@ -53,12 +69,21 @@ export async function retryMemorySample(read, wait, { attempts = 3, delayMs = 15
 }
 
 /** Snapshot gameplay first; diagnostic GC/waits/retries are outside attribution. */
-export async function sampleAfterGc({ pauseLongTasks, collectGarbage, wait, readMemory, resumeLongTasks }) {
+export async function sampleAfterGc({ pauseLongTasks, prepareMemory = async () => {}, collectGarbage, wait, readMemory, readHeapUsage, resumeLongTasks }) {
   const longTasks = await pauseLongTasks();
   try {
+    await prepareMemory();
     await collectGarbage();
     await wait(250);
-    return { longTasks, memory: await retryMemorySample(readMemory, wait) };
+    let jsHeapUsedMiB = null;
+    let jsHeapUnavailable;
+    try {
+      const heap = await readHeapUsage();
+      if (measured(heap?.usedSize)) jsHeapUsedMiB = heap.usedSize / 1048576;
+      else jsHeapUnavailable = 'Runtime.getHeapUsage did not return a valid usedSize';
+    } catch (error) { jsHeapUnavailable = String(error); }
+    return { longTasks, memory: { ...await retryMemorySample(readMemory, wait), jsHeapUsedMiB,
+      ...(jsHeapUnavailable ? { jsHeapUnavailable } : {}) } };
   } finally {
     await resumeLongTasks();
   }

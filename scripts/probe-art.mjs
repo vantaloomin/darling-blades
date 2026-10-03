@@ -47,7 +47,7 @@ import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { collectionGate, longTaskGate, loopMemoryGate, memoryGate, normalizeStop, summarizeTimings } from './art-probe-metrics.mjs';
 import { discoverAttachedApp, readProcessMemory } from './art-probe-processes.mjs';
-import { installLongTaskRecorder, PROBE_VERSION, sampleAfterGc, settleOwnedProcesses } from './art-probe-runtime.mjs';
+import { configureProbeNetwork, installLongTaskRecorder, PROBE_VERSION, sampleAfterGc, settleOwnedProcesses } from './art-probe-runtime.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const EDGE = 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
@@ -472,10 +472,10 @@ await S('HeapProfiler.enable');
 await S('Log.enable');
 await S('Page.enable');
 await S('Page.bringToFront');
-await S('Network.enable');
-await S('Network.emulateNetworkConditions', { offline: false, latency: throttle.latencyMs,
+const networkConditions = { offline: false, latency: throttle.latencyMs,
   downloadThroughput: opts.net === null ? -1 : opts.net * 1_000_000 / 8,
-  uploadThroughput: opts.net === null ? -1 : opts.net * 1_000_000 / 8 });
+  uploadThroughput: opts.net === null ? -1 : opts.net * 1_000_000 / 8 };
+await configureProbeNetwork(S, networkConditions);
 await S('Emulation.setCPUThrottlingRate', { rate: opts.cpu });
 await S('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: lite ? 3 : 1, mobile: lite });
 if (lite) {
@@ -596,14 +596,12 @@ const stops = [];
 const gateFailures = [];
 let errorsSeen = 0;
 let warningsSeen = 0;
-let longTasksSeen = 0;
 let carriedTasks = [];
 let activeLoop = opts.timing ? null : 1;
 let tourCompletedLoops = 0;
 async function carryLongTasks() {
-  const tasks = await page('window.__longTasks ?? null');
-  carriedTasks = carriedTasks !== null && tasks !== null ? [...carriedTasks, ...tasks.slice(longTasksSeen)] : null;
-  longTasksSeen = 0;
+  const tasks = await page('window.__pauseProbeLongTasks()');
+  carriedTasks = carriedTasks !== null && tasks !== null ? [...carriedTasks, ...tasks] : null;
 }
 
 async function record(name) {
@@ -617,9 +615,14 @@ async function record(name) {
   const dimensions = await page('(() => { const g = window.__game; return { width: g.canvas.width, height: g.canvas.height, k: g.canvas.width / 1280, viewportWidth: innerWidth, viewportHeight: innerHeight }; })()');
   const { longTasks, memory } = await sampleAfterGc({
     pauseLongTasks: () => page('window.__pauseProbeLongTasks()'),
+    // The first menu deliberately holds Fetch requests, and failure evidence
+    // may be captured mid-load. Neither is a safe idle reset boundary.
+    prepareMemory: baseStop === 'failed' || (baseStop === 'menu' && activeLoop === 1)
+      ? undefined : () => configureProbeNetwork(S, networkConditions, true),
     collectGarbage: () => S('HeapProfiler.collectGarbage'),
     wait: sleep,
     readMemory: processMemory,
+    readHeapUsage: async () => (await S('Runtime.getHeapUsage')).result,
     resumeLongTasks: () => page('window.__resumeProbeLongTasks()'),
   });
   const shot = await S('Page.captureScreenshot', { format: 'png' });
@@ -635,13 +638,12 @@ async function record(name) {
     art,
     consoleErrors: log.errors.slice(errorsSeen),
     consoleWarnings: log.warnings.slice(warningsSeen),
-    longTasks: longTasks !== null && carriedTasks !== null ? [...carriedTasks, ...longTasks.slice(longTasksSeen)] : null,
+    longTasks: longTasks !== null && carriedTasks !== null ? [...carriedTasks, ...longTasks] : null,
     requests: { packReads: log.packReads, looseFull: log.looseFull, looseHalf: log.looseHalf },
     screenshot: shotName,
   });
   errorsSeen = log.errors.length;
   warningsSeen = log.warnings.length;
-  longTasksSeen = longTasks?.length ?? 0;
   carriedTasks = [];
   stops.push(stop);
   const s = art?.stats ?? {};
@@ -659,7 +661,7 @@ async function record(name) {
       `residentMiB=${mib(s.residentBytes) ?? '-'} pinnedMiB=${mib(s.pinnedBytes) ?? '-'} managerMiB=${mib(s.managerBytes)} ` +
       `evictions=${s.evictions ?? '-'} missedLeases=${s.missedLeases ?? '-'} orphans=${s.orphans ?? '-'} restores=${s.restores ?? '-'} ` +
       `standIns=${art?.standIns.count} missing=${art?.missing.count} errors=${stop.consoleErrors.length} longTasks=${stop.longTasks} longTaskTotalMs=${stop.longTaskTotalMs} render=${dimensions.width}x${dimensions.height} k=${dimensions.k} ` +
-      `gpuPrivate=${memory.gpuPrivateMiB} dedicated=${memory.gpuDedicatedMiB} shared=${memory.gpuSharedMiB} renderer=${memory.rendererPrivateMiB} ` +
+      `gpuPrivate=${memory.gpuPrivateMiB} dedicated=${memory.gpuDedicatedMiB} shared=${memory.gpuSharedMiB} renderer=${memory.rendererPrivateMiB} jsHeapUsedMiB=${memory.jsHeapUsedMiB} ` +
       `packs=${log.packReads} loose=${log.looseFull}/${log.looseHalf}\n` +
       `           thumbs: baked=${s.thumbBaked ?? '-'} resident=${s.thumbResident ?? '-'} residentMiB=${mib(s.thumbResidentBytes) ?? '-'} ` +
       `pinnedMiB=${mib(s.thumbPinnedBytes) ?? '-'} budgetMiB=${mib(s.thumbBudget) ?? '-'} provisional=${s.thumbProvisional ?? '-'} ` +
@@ -762,7 +764,6 @@ let collectionTiming = null;
 async function coldCollection() {
   const seed = await seedSave();
   await S('Network.clearBrowserCache');
-  longTasksSeen = 0;
   await inject(`(() => {
     const out = { navigationToBinderMs: null, navigationToLoadingGoneMs: null, navigationToRealMs: null,
       enterToBinderMs: null, enterToRealMs: null, binderFrame: null, expectedPockets: 12, actualPockets: 0,
@@ -817,7 +818,6 @@ async function desktopPrivacyDuringLoad(opponentId, gauntletRung) {
   await pauseCardRequests();
   await carryLongTasks();
   await S('Page.reload', { ignoreCache: true });
-  longTasksSeen = 0;
   await until('the desktop menu after a cold store restart', "window.__game?.scene.isActive('MainMenu')");
   await page(onScene('MainMenu', `s.scene.start('Duel', ${JSON.stringify({ opponentId, gauntletRung })})`));
   const pendingDuel = `(() => {
@@ -1009,6 +1009,7 @@ try {
   await until('Shop after the pack batch', sceneBuilt('Shop'));
   await page(onScene('Shop', "s.scene.start('PackOpening', { batch: window.__probePackBatch })"));
   await until('the re-entered pack runway', "!!window.__game.scene.getScene('PackOpening').runway?.root.active");
+  await page('delete window.__probePackBatch');
   await page(onScene('PackOpening', 's.runwaySkip()'));
   await stopAt('packs-reentered');
 
@@ -1030,6 +1031,7 @@ try {
     return s.sys.isActive() && s.packCells.length > 0 && s.packCells[0] !== window.__probeOldPackCell && run.draft.pickIndex > ${oldPick};
   })()`);
   await until('the rebuilt draft', sceneBuilt('LimitedDraft'));
+  await page('delete window.__probeOldPackCell');
   await stopAt('limited-picked');
   tourEvidence.draftPicks = await page("window.__game.scene.getScene('Shop').saveData.limited.activeRun.draft.picks[0].length");
   await page(onScene('LimitedDraft', `
