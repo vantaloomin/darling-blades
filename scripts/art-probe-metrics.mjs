@@ -45,32 +45,191 @@ function memoryAt(stop) {
   };
 }
 
-/** Gate 1: the first menu is B, never the first sample that happens to be valid. */
-export function memoryGate(run) {
-  const failures = [];
-  const missing = [];
+function memorySamples(stops) {
+  return stops.map((stop) => ({ stop: stop?.stop ?? null, baseStop: stop?.baseStop ?? null,
+    loop: stop?.loop ?? null, ...memoryAt(stop) }));
+}
+
+function memoryPeaks(samples) {
+  const peak = (field) => samples.length > 0 && samples.every((sample) => measured(sample[field]))
+    ? Math.max(...samples.map((sample) => sample[field])) : null;
+  return { gpuPeakMiB: peak('gpuMiB'), rendererPeakMiB: peak('rendererMiB') };
+}
+
+function tourShape(run) {
+  const reasons = [];
   const stops = Array.isArray(run?.stops) ? run.stops : [];
-  const allowanceMiB = run?.tier === 'full' ? 1000 : run?.tier === 'lite' ? 260 : null;
-  if (allowanceMiB === null) missing.push('Unknown art tier');
-  if (run?.failure !== null) missing.push('Run did not complete successfully');
-  const first = stops[0]?.stop === 'menu' ? stops[0] : null;
-  if (first === null) missing.push('First stop is not the menu baseline');
-  const baseline = memoryAt(first);
-  if (baseline.gpuMiB === null) missing.push('Menu GPU baseline is incomplete');
-  if (baseline.rendererMiB === null) missing.push('Menu renderer baseline is incomplete');
-  const gpuLimitMiB = baseline.gpuMiB !== null && allowanceMiB !== null ? baseline.gpuMiB + allowanceMiB : null;
-  const rendererLimitMiB = baseline.rendererMiB !== null ? baseline.rendererMiB + 100 : null;
-  const samples = stops.map((stop, index) => {
-    const values = memoryAt(stop);
-    const name = typeof stop?.stop === 'string' ? stop.stop : `sample ${index}`;
-    if (values.gpuMiB === null) missing.push(`${name}: GPU counters are incomplete`);
-    else if (gpuLimitMiB !== null && values.gpuMiB >= gpuLimitMiB) failures.push(`${name}: GPU memory is not below its limit`);
-    if (values.rendererMiB === null) missing.push(`${name}: renderer counter is incomplete`);
-    else if (rendererLimitMiB !== null && values.rendererMiB > rendererLimitMiB) failures.push(`${name}: renderer memory exceeds its limit`);
-    return { stop: name, ...values };
+  if (run?.failure !== null || (run?.signal !== undefined && run.signal !== null)
+    || (run?.exitCode !== undefined && run.exitCode !== 0 && run.exitCode !== 1)
+    || run?.cleanup?.remaining?.length > 0) reasons.push('Run is unfinished or interrupted');
+  const validLoops = Number.isSafeInteger(run?.loops) && run.loops > 0 && run.loops <= stops.length;
+  if (!validLoops || run?.tourCompletedLoops !== run?.loops) reasons.push('Completed tour loops are not proven');
+  if (run?.timing === true || stops[0]?.stop !== 'menu' || stops[0]?.baseStop !== 'menu' || stops[0]?.loop !== 1) {
+    reasons.push('A full tour must start at loop 1 menu');
+  }
+  const tail = stops.slice(-2);
+  if (tail.length !== 2 || tail[0]?.loop !== null || tail[0]?.baseStop !== 'restored'
+    || tail[1]?.loop !== null || tail[1]?.baseStop !== 'collection-after-restore') {
+    reasons.push('Post-tour context restoration stops are incomplete');
+  }
+  if (stops.some((stop) => typeof stop?.stop !== 'string' || !stop.stop
+    || typeof stop?.baseStop !== 'string' || !stop.baseStop)) reasons.push('Stop names are incomplete');
+  const loopStops = stops.slice(0, -2);
+  const groups = [];
+  if (validLoops) {
+    let previous = 1;
+    for (const stop of loopStops) {
+      if (!Number.isInteger(stop?.loop) || stop.loop < 1 || stop.loop > run.loops
+        || stop.loop < previous || stop.loop > previous + 1) {
+        reasons.push('Loop stops are missing or out of sequence');
+        break;
+      }
+      previous = stop.loop;
+    }
+    for (let loop = 1; loop <= run.loops; loop++) {
+      const group = loopStops.filter((stop) => stop?.loop === loop);
+      groups.push({ loop, stops: group });
+      if (group.length === 0 || group[0]?.baseStop !== 'menu' || group.at(-1)?.baseStop !== 'collection-again'
+        || (loop > 1 && JSON.stringify(group.map((stop) => stop.baseStop)) !== JSON.stringify(groups[0].stops.map((stop) => stop.baseStop)))) {
+        reasons.push(`Loop ${loop} does not contain the same complete ordered tour`);
+      }
+    }
+  }
+  return { reasons, stops, groups };
+}
+
+function measurementTimes(measurement) {
+  const iso = (value) => typeof value === 'string'
+    && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value)
+    && Number.isFinite(Date.parse(value));
+  if (!iso(measurement?.startedAt) || !iso(measurement?.finishedAt)) return null;
+  const startedAt = Date.parse(measurement.startedAt);
+  const finishedAt = Date.parse(measurement.finishedAt);
+  return startedAt <= finishedAt ? { startedAt, finishedAt } : null;
+}
+
+function validMeasurement(measurement) {
+  const hash = (value) => typeof value === 'string' && /^[a-f0-9]{64}$/i.test(value);
+  return hash(measurement?.buildId) && hash(measurement?.machineId)
+    && measurement?.tourVersion === 's6-g1-v2' && measurementTimes(measurement) !== null;
+}
+
+function sameMemoryConfiguration(left, right) {
+  const budget = (value) => value === null || (measured(value) && value > 0);
+  return ['full', 'lite'].includes(left?.tier) && left.tier === right?.tier
+    && sameThrottle(left?.throttle, right?.throttle)
+    && budget(left?.budgetMiB) && left.budgetMiB === right?.budgetMiB
+    && ['on', 'off'].includes(left?.evict) && left.evict === right?.evict
+    && ['web', 'desktop'].includes(left?.target) && left.target === right?.target
+    && ['packs', 'loose'].includes(left?.source) && left.source === right?.source
+    && Number.isSafeInteger(left?.loops) && left.loops > 0 && left.loops === right?.loops;
+}
+
+function memoryBlock(input, expectedMode) {
+  const parent = input !== null && typeof input === 'object' && Object.hasOwn(input, 'runs');
+  const entries = parent ? (Array.isArray(input.runs) ? input.runs : []) : input == null ? [] : [input];
+  const expectedRepeats = parent ? input.repeat : entries.length;
+  const reasons = [];
+  if (!Number.isSafeInteger(expectedRepeats) || expectedRepeats < 1 || entries.length !== expectedRepeats) {
+    reasons.push('Requested repeat count is incomplete');
+  }
+  if (parent && input.failure != null) reasons.push('Repeat block did not finish');
+  const runs = entries.map((run, index) => {
+    const shape = tourShape(run);
+    const samples = memorySamples(shape.stops);
+    const peaks = memoryPeaks(samples);
+    const issues = [...shape.reasons];
+    if (peaks.gpuPeakMiB === null) issues.push('GPU counters are incomplete');
+    if (peaks.rendererPeakMiB === null) issues.push('Renderer counters are incomplete');
+    if (!validMeasurement(run?.measurement)) issues.push('Build, machine, tour version or measurement timestamps are incomplete');
+    if (!sameMemoryConfiguration(run, run)) issues.push('Measurement configuration is incomplete');
+    if (!sameTourFixture(run?.tourFixture, run?.tourFixture)) issues.push('Tour fixture is incomplete');
+    const mode = actualMode(run);
+    if (!['store', 'queue'].includes(mode) || (expectedMode !== null && mode !== expectedMode)) issues.push('Loader mode does not match this measurement block');
+    return { index, label: run?.label ?? null, measurement: run?.measurement ?? null,
+      ...peaks, reasons: issues, valid: issues.length === 0, stops: samples };
   });
-  return { status: verdict(failures, missing), reasons: [...failures, ...missing], baseline,
-    gpuLimitMiB, rendererLimitMiB, stops: samples };
+  const validRepeats = runs.filter((run) => run.valid).length;
+  for (const run of runs) for (const reason of run.reasons) reasons.push(`Run ${run.index + 1}: ${reason}`);
+  const complete = reasons.length === 0;
+  return { entries, summary: { expectedRepeats: Number.isSafeInteger(expectedRepeats) ? expectedRepeats : null,
+    attemptedRepeats: entries.length, validRepeats, reasons, runs,
+    medianGpuPeakMiB: complete ? median(runs.map((run) => run.gpuPeakMiB)) : null,
+    medianRendererPeakMiB: complete ? median(runs.map((run) => run.rendererPeakMiB)) : null } };
+}
+
+/** Gate 1: matched off-then-on measurements; medians are taken after each run's peak. */
+export function memoryGate(on, off) {
+  const paired = off !== undefined && off !== null;
+  const current = memoryBlock(on, paired ? 'store' : null);
+  const before = paired ? memoryBlock(off, 'queue') : null;
+  const candidate = current.summary;
+  const baseline = before?.summary ?? null;
+  const missing = [...candidate.reasons, ...(baseline?.reasons ?? [])];
+  const failures = [];
+  if (!paired) missing.push('A streaming-off measurement is required for comparison');
+  if (paired && candidate.attemptedRepeats !== baseline.attemptedRepeats) missing.push('Measurement blocks have different repeat counts');
+  const all = [...(before?.entries ?? []), ...current.entries];
+  const reference = all[0];
+  for (const run of all) {
+    if (!sameMemoryConfiguration(reference, run)) missing.push('Tier, throttle, budget, eviction, target, source or loop count does not match');
+    if (!sameTourFixture(reference?.tourFixture, run?.tourFixture)) missing.push('Tour fixtures do not match across all attempts');
+    const stopIdentity = (entry) => (Array.isArray(entry?.stops) ? entry.stops : []).map((stop) => [stop?.stop, stop?.baseStop, stop?.loop]);
+    if (JSON.stringify(stopIdentity(reference)) !== JSON.stringify(stopIdentity(run))) missing.push('Ordered stop names or loop metadata do not match');
+    if (!validMeasurement(reference?.measurement) || !validMeasurement(run?.measurement)
+      || reference.measurement.buildId.toLowerCase() !== run.measurement.buildId.toLowerCase()
+      || reference.measurement.machineId.toLowerCase() !== run.measurement.machineId.toLowerCase()
+      || reference.measurement.tourVersion !== run.measurement.tourVersion) missing.push('Build, machine or tour version does not match across all attempts');
+  }
+  if (paired && before.entries.length > 0 && current.entries.length > 0
+    && all.every((run) => measurementTimes(run?.measurement) !== null)) {
+    const latestOffFinish = Math.max(...before.entries.map((run) => measurementTimes(run.measurement).finishedAt));
+    const earliestOnStart = Math.min(...current.entries.map((run) => measurementTimes(run.measurement).startedAt));
+    if (latestOffFinish > earliestOnStart) missing.push('All streaming-off attempts must finish before any streaming-on attempt starts');
+  }
+  const tier = current.entries[0]?.tier ?? null;
+  const gpuFractionLimit = tier === 'full' ? 0.6 : tier === 'lite' ? 0.7 : null;
+  if (baseline?.medianGpuPeakMiB === 0) missing.push('Streaming-off GPU median is zero, so percentage reduction is undefined');
+  let gpuLimitMiB = null;
+  let rendererLimitMiB = null;
+  let gpuPercentOfOff = null;
+  let gpuReductionPercent = null;
+  let rendererDeltaMiB = null;
+  if (missing.length === 0) {
+    gpuLimitMiB = baseline.medianGpuPeakMiB * gpuFractionLimit;
+    rendererLimitMiB = baseline.medianRendererPeakMiB + 100;
+    gpuPercentOfOff = candidate.medianGpuPeakMiB / baseline.medianGpuPeakMiB * 100;
+    gpuReductionPercent = 100 - gpuPercentOfOff;
+    rendererDeltaMiB = candidate.medianRendererPeakMiB - baseline.medianRendererPeakMiB;
+    if (candidate.medianGpuPeakMiB * 100 > baseline.medianGpuPeakMiB * (tier === 'full' ? 60 : 70)) failures.push('Median GPU peak exceeds the streaming-off percentage limit');
+    if (candidate.medianRendererPeakMiB > rendererLimitMiB) failures.push('Median renderer peak exceeds streaming-off by more than 100 MiB');
+  }
+  return { status: missing.length ? 'UNMEASURED' : verdict(failures, []), reasons: [...missing, ...failures],
+    tier, gpuFractionLimit, gpuPercentOfOff, gpuReductionPercent, rendererDeltaMiB, gpuLimitMiB, rendererLimitMiB, candidate, baseline };
+}
+
+/** Repeated same-page stress tours must plateau before the final context restore. */
+export function loopMemoryGate(run) {
+  const shape = tourShape(run);
+  const missing = [...shape.reasons];
+  const failures = [];
+  if (run?.budgetMiB !== 8 || run?.evict !== 'on' || actualMode(run) !== 'store' || run?.target !== 'web'
+    || !Number.isInteger(run?.loops) || run.loops < 2) missing.push('Loop comparison requires at least two web streaming stress tours with eviction enabled');
+  const proof = run?.tourEvidence?.loopContinuity;
+  if (proof?.samePage !== true || !measured(proof?.navigationTimeOrigin) || proof.navigationTimeOrigin <= 0
+    || proof?.contextRestoresAfterLoops !== true) missing.push('Same-page execution without an intervening context restore is not proven');
+  const loops = shape.groups.map(({ loop, stops }) => ({ loop, ...memoryPeaks(memorySamples(stops)) }));
+  if (loops.some((loop) => loop.gpuPeakMiB === null || loop.rendererPeakMiB === null)) missing.push('Loop memory counters are incomplete');
+  const firstLoop = loops[0] ?? null;
+  const limits = { gpuMiB: firstLoop?.gpuPeakMiB == null ? null : firstLoop.gpuPeakMiB + 100,
+    rendererMiB: firstLoop?.rendererPeakMiB == null ? null : firstLoop.rendererPeakMiB + 100 };
+  if (missing.length === 0) {
+    for (const loop of loops.slice(1)) {
+      if (loop.gpuPeakMiB > limits.gpuMiB) failures.push(`Loop ${loop.loop} GPU peak exceeds loop 1 by more than 100 MiB`);
+      if (loop.rendererPeakMiB > limits.rendererMiB) failures.push(`Loop ${loop.loop} renderer peak exceeds loop 1 by more than 100 MiB`);
+    }
+  }
+  return { status: missing.length ? 'UNMEASURED' : verdict(failures, []), reasons: [...missing, ...failures], limits, firstLoop, loops };
 }
 
 function validThrottle(throttle) {

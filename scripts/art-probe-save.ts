@@ -22,4 +22,5 @@ save.gold = 100000;
 save.tutorialDone = true;
 save.darlingsTutorialSeen = true;
 save.settings.animations = 'reduced';
+save.gauntlet.run = { rung: 1, startedAt: 0, seed: 1906001, rosterDay: 0, rosterSeed: 1906002 };
 process.stdout.write(JSON.stringify(save));

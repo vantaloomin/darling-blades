@@ -1,11 +1,32 @@
 import { describe, expect, it } from 'vitest';
 import {
-  bytesToMiB, collectionGate, longTaskGate, median, memoryGate, normalizeLongTasks, normalizeStop, summarizeTimings,
+  bytesToMiB, collectionGate, longTaskGate, loopMemoryGate, median, memoryGate, normalizeLongTasks, normalizeStop, summarizeTimings,
 } from '../../scripts/art-probe-metrics.mjs';
 
 const local = { downloadMbps: null, latencyMs: 0, cpuRate: 1 };
 const memory = (stop: string, overrides: Record<string, unknown> = {}) => ({
-  stop, gpuPrivateMiB: 100, gpuDedicatedMiB: 200, gpuSharedMiB: 50, rendererPrivateMiB: 400, ...overrides,
+  stop, baseStop: stop, loop: 1, gpuPrivateMiB: 0, gpuDedicatedMiB: 0, gpuSharedMiB: 0, rendererPrivateMiB: 0, ...overrides,
+});
+const memoryTour = (stream: 'on' | 'off', gpu = 600, renderer = 400, overrides: Record<string, unknown> = {}) => ({
+  stream, failure: null, tier: 'full', throttle: local, budgetMiB: null, evict: 'on', target: 'web', source: 'packs',
+  loops: 1, tourCompletedLoops: 1,
+  measurement: {
+    buildId: 'a'.repeat(64), machineId: 'b'.repeat(64), tourVersion: 's6-g1-v2',
+    startedAt: stream === 'on' ? '2026-10-03T01:00:00.000Z' : '2026-10-03T00:00:00.000Z',
+    finishedAt: stream === 'on' ? '2026-10-03T01:10:00.000Z' : '2026-10-03T00:10:00.000Z',
+  },
+  tourFixture: { version: 's6-v1', opponentId: 'opponent-a', packCardIds: ['card-a', 'card-b'], draftPackIds: ['card-c', 'card-d'], duelSeed: 37 },
+  stops: [memory('menu'), memory('collection-again', { gpuPrivateMiB: gpu, rendererPrivateMiB: renderer }),
+    memory('restored', { loop: null }), memory('collection-after-restore', { loop: null })],
+  ...overrides,
+});
+const loopTour = (peaks: Array<[number, number]>) => memoryTour('on', 0, 0, {
+  budgetMiB: 8, loops: peaks.length, tourCompletedLoops: peaks.length,
+  tourEvidence: { loopContinuity: { samePage: true, navigationTimeOrigin: 1791000000000, contextRestoresAfterLoops: true } },
+  stops: [...peaks.flatMap(([gpuPrivateMiB, rendererPrivateMiB], index) => [
+    memory(index === 0 ? 'menu' : `loop${index + 1}-menu`, { baseStop: 'menu', loop: index + 1 }),
+    memory(index === 0 ? 'collection-again' : `loop${index + 1}-collection-again`, { baseStop: 'collection-again', loop: index + 1, gpuPrivateMiB, rendererPrivateMiB }),
+  ]), memory('restored', { loop: null }), memory('collection-after-restore', { loop: null })],
 });
 const timingRun = (overrides: Record<string, unknown> = {}) => ({
   failure: null, tier: 'full', throttle: local,
@@ -22,49 +43,175 @@ const tour = (stream: 'on' | 'off', durations: number[][] = [[], [80]]) => ({
 });
 
 describe('probe memory gate', () => {
-  // Mutation: change the GPU comparison from >= to >.
-  it('rejects exact desktop GPU headroom and accepts a fractional MiB below it', () => {
-    const check = (gpuPrivateMiB: number) => memoryGate({ failure: null, tier: 'full', stops: [memory('menu'), memory('collection', { gpuPrivateMiB })] });
-    expect(check(1099.999).status).toBe('PASS');
-    expect(check(1100).status).toBe('FAIL');
+  // Mutation: unpaired-pass; report PASS for an unpaired run.
+  it('reports raw full-tour peaks but never passes an unpaired run', () => {
+    const result = memoryGate(memoryTour('on', 0, 0, { stops: [
+      memory('menu', { gpuPrivateMiB: 100, gpuDedicatedMiB: 200, gpuSharedMiB: 50, rendererPrivateMiB: 400 }),
+      memory('collection-again', { gpuPrivateMiB: 250, gpuDedicatedMiB: 25, gpuSharedMiB: 25, rendererPrivateMiB: 450 }),
+      memory('restored', { loop: null, gpuPrivateMiB: 10, gpuDedicatedMiB: 600, gpuSharedMiB: 10 }),
+      memory('collection-after-restore', { loop: null }),
+    ] }));
+    expect(result.status).toBe('UNMEASURED');
+    expect(result.candidate.runs[0].gpuPeakMiB).toBe(620);
+    expect(result.candidate.runs[0].rendererPeakMiB).toBe(450);
+    expect(result.baseline).toBeNull();
   });
 
-  // Mutation: give lite the desktop 1000 MiB allowance.
-  it('applies the smaller phone headroom to the complete GPU sum', () => {
-    const check = (gpuPrivateMiB: number) => memoryGate({ failure: null, tier: 'lite', stops: [memory('menu'), memory('collection', { gpuPrivateMiB })] });
-    expect(check(359.99).status).toBe('PASS');
-    expect(check(360).status).toBe('FAIL');
+  // Mutations: gpu-boundary-strict; tier-percent-swap; reduction-is-ratio.
+  it.each([
+    ['full', 600, 600.01, 60, 40], ['lite', 700, 700.01, 70, 30],
+  ])('accepts the exact %s percentage limit and rejects any excess', (tier, allowed, excess, percent, reduction) => {
+    const before = memoryTour('off', 1000, 400, { tier });
+    const result = memoryGate(memoryTour('on', allowed as number, 400, { tier }), before);
+    expect(result.status).toBe('PASS');
+    expect(result.gpuPercentOfOff).toBe(percent);
+    expect(result.gpuReductionPercent).toBe(reduction);
+    expect(memoryGate(memoryTour('on', excess as number, 400, { tier }), before).status).toBe('FAIL');
   });
 
-  // Mutation: omit the named GPU field from memoryAt's sum.
-  it.each(['gpuPrivateMiB', 'gpuDedicatedMiB', 'gpuSharedMiB'])('counts growth in %s even when the other counters stay flat', (field) => {
-    const baseline = memory('menu');
-    const current = memory('collection', { [field]: Number(baseline[field as keyof typeof baseline]) + 1001 });
-    expect(memoryGate({ failure: null, tier: 'full', stops: [baseline, current] }).status).toBe('FAIL');
+  // Mutation: omit-gpu-component; omit any one GPU counter from memoryAt.
+  it('uses the sum of all three GPU counters at each stop', () => {
+    const on = memoryTour('on');
+    on.stops[1] = memory('collection-again', { gpuPrivateMiB: 100, gpuDedicatedMiB: 250, gpuSharedMiB: 251, rendererPrivateMiB: 400 });
+    const result = memoryGate(on, memoryTour('off', 1000));
+    expect(result.candidate.medianGpuPeakMiB).toBe(601);
+    expect(result.status).toBe('FAIL');
   });
 
-  // Mutation: make the renderer comparison inclusive (>=).
-  it('allows exactly 100 MiB of renderer growth but fails any excess', () => {
-    const check = (rendererPrivateMiB: number) => memoryGate({ failure: null, tier: 'full', stops: [memory('menu'), memory('duel', { rendererPrivateMiB })] });
-    expect(check(500).status).toBe('PASS');
-    expect(check(500.01).status).toBe('FAIL');
+  // Mutation: renderer-boundary-strict; use >= instead of >.
+  it('allows exactly 100 MiB of renderer growth while independently rejecting any excess', () => {
+    expect(memoryGate(memoryTour('on', 500, 500), memoryTour('off', 1000, 400)).status).toBe('PASS');
+    expect(memoryGate(memoryTour('on', 500, 500.01), memoryTour('off', 1000, 400)).status).toBe('FAIL');
   });
 
-  // Mutation: replace missing/null/nonfinite counters with zero in memoryAt.
-  it.each(['gpuPrivateMiB', 'gpuDedicatedMiB', 'gpuSharedMiB', 'rendererPrivateMiB'])('leaves %s gaps unmeasured at either the baseline or a later stop', (field) => {
+  // Mutations: median-to-maximum; peak-after-median; average-peaks.
+  it('compares medians of per-run peaks even when different stops peak and one repeat exceeds the limit', () => {
+    const first = memoryTour('on', 0, 0);
+    first.stops[0] = memory('menu', { gpuPrivateMiB: 500, rendererPrivateMiB: 550 });
+    const last = memoryTour('on', 0, 0);
+    last.stops[2] = memory('restored', { loop: null, gpuPrivateMiB: 900, rendererPrivateMiB: 500 });
+    const result = memoryGate({ repeat: 3, runs: [first, memoryTour('on', 600, 450), last] },
+      { repeat: 3, runs: [memoryTour('off', 1000, 400), memoryTour('off', 2000, 300), memoryTour('off', 1000, 400)] });
+    expect(result.status).toBe('PASS');
+    expect(result.candidate.medianGpuPeakMiB).toBe(600);
+    expect(result.baseline?.medianGpuPeakMiB).toBe(1000);
+    expect(result.candidate.medianRendererPeakMiB).toBe(500);
+    expect(result.baseline?.medianRendererPeakMiB).toBe(400);
+    expect(result.rendererDeltaMiB).toBe(100);
+  });
+
+  // Mutation: zero-baseline-pass; remove the undefined percentage guard.
+  it('leaves a zero GPU baseline unmeasured even when both measured peaks are zero', () => {
+    const result = memoryGate(memoryTour('on', 0), memoryTour('off', 0));
+    expect(result.status).toBe('UNMEASURED');
+    expect(result.baseline?.medianGpuPeakMiB).toBe(0);
+    expect(result.gpuReductionPercent).toBeNull();
+  });
+
+  // Mutation: missing-is-zero; default an absent/nonfinite counter to zero.
+  it.each(['gpuPrivateMiB', 'gpuDedicatedMiB', 'gpuSharedMiB', 'rendererPrivateMiB'])('requires %s at every stop in both measurement blocks', (field) => {
     for (const value of [undefined, null, NaN, Infinity, -1]) {
-      for (const atBaseline of [true, false]) {
-        const baseline = memory('menu', atBaseline ? { [field]: value } : {});
-        const later = memory('collection', atBaseline ? {} : { [field]: value });
-        expect(memoryGate({ failure: null, tier: 'full', stops: [baseline, later] }).status).toBe('UNMEASURED');
+      for (const missingFromOn of [true, false]) {
+        const on = memoryTour('on', 500);
+        const off = memoryTour('off', 1000);
+        (missingFromOn ? on : off).stops[0] = memory('menu', { [field]: value });
+        expect(memoryGate(on, off).status).toBe('UNMEASURED');
       }
     }
   });
 
-  // Mutation: choose a later valid menu sample, or drop the completion check.
-  it('never substitutes a later menu or treats an interrupted tour as complete', () => {
-    expect(memoryGate({ failure: null, tier: 'full', stops: [memory('collection'), memory('menu')] }).status).toBe('UNMEASURED');
-    expect(memoryGate({ failure: 'browser exited', tier: 'full', stops: [memory('menu')] }).status).toBe('UNMEASURED');
+  // Mutations: discard-failed-attempt; ignore-repeat-count.
+  it('preserves failed attempts and withholds medians when requested repeats are unfinished or absent', () => {
+    const runs = [memoryTour('on', 500), memoryTour('on', 590, 400, { failure: 'browser exited' }), memoryTour('on', 600)];
+    const off = { repeat: 3, runs: [memoryTour('off', 1000), memoryTour('off', 1000), memoryTour('off', 1000)] };
+    const result = memoryGate({ repeat: 3, runs }, off);
+    expect(result.status).toBe('UNMEASURED');
+    expect(result.candidate.attemptedRepeats).toBe(3);
+    expect(result.candidate.validRepeats).toBe(2);
+    expect(result.candidate.runs[1].gpuPeakMiB).toBe(590);
+    expect(result.candidate.medianGpuPeakMiB).toBeNull();
+    expect(memoryGate({ repeat: 3, runs: [runs[0], runs[2]] }, off).status).toBe('UNMEASURED');
+    expect(memoryGate({ repeat: 3, runs: [runs[0], runs[2]] }, { repeat: 3, runs: [off.runs[0], off.runs[1]] }).status).toBe('UNMEASURED');
+    expect(memoryGate(runs[0], off).status).toBe('UNMEASURED');
+  });
+
+  // Mutation: ignore-memory-configuration; remove an individual matching condition.
+  it.each([
+    ['tier', 'lite'], ['throttle', { downloadMbps: 50, latencyMs: 40, cpuRate: 1 }],
+    ['budgetMiB', 8], ['evict', 'off'], ['target', 'desktop'], ['source', 'loose'],
+  ])('requires matching, measured %s for a memory comparison', (field, value) => {
+    expect(memoryGate(memoryTour('on'), memoryTour('off', 1000, 400, { [field as string]: value })).status).toBe('UNMEASURED');
+    expect(memoryGate(memoryTour('on'), memoryTour('off', 1000, 400, { [field as string]: undefined })).status).toBe('UNMEASURED');
+  });
+
+  // Mutations: first-repeat-identity-only; ignore-build-machine-fixture.
+  it('requires build, machine, version and fixture identity across every attempt', () => {
+    const before = memoryTour('off', 1000);
+    for (const measurement of [{ buildId: 'c'.repeat(64) }, { machineId: 'c'.repeat(64) }, { tourVersion: 'old-tour' }, { buildId: null }]) {
+      const changed = memoryTour('on', 600, 400, { measurement: { ...memoryTour('on').measurement, ...measurement } });
+      expect(memoryGate({ repeat: 2, runs: [memoryTour('on'), changed] }, { repeat: 2, runs: [before, before] }).status).toBe('UNMEASURED');
+    }
+    expect(memoryGate(memoryTour('on', 600, 400, { tourFixture: { ...before.tourFixture, duelSeed: 38 } }), before).status).toBe('UNMEASURED');
+    expect(memoryGate(memoryTour('on', 600, 400, { tourFixture: null }), before).status).toBe('UNMEASURED');
+  });
+
+  // Mutation: pairwise-time-order-only; allow overlapping off/on measurement blocks.
+  it('requires all off repeats to finish before the first on repeat and permits a shared boundary', () => {
+    const at = (stream: 'on' | 'off', startedAt: string, finishedAt: string) => memoryTour(stream, stream === 'on' ? 600 : 1000, 400,
+      { measurement: { ...memoryTour(stream).measurement, startedAt, finishedAt } });
+    expect(memoryGate(at('on', '2026-10-03T00:10:00.000Z', '2026-10-03T00:20:00.000Z'), memoryTour('off', 1000)).status).toBe('PASS');
+    expect(memoryGate({ repeat: 2, runs: [at('on', '2026-10-03T00:20:00.000Z', '2026-10-03T00:30:00.000Z'), at('on', '2026-10-03T01:20:00.000Z', '2026-10-03T01:30:00.000Z')] },
+      { repeat: 2, runs: [memoryTour('off', 1000), at('off', '2026-10-03T01:00:00.000Z', '2026-10-03T01:10:00.000Z')] }).status).toBe('UNMEASURED');
+    expect(memoryGate(at('on', 'not-a-time', '2026-10-03T01:10:00.000Z'), memoryTour('off', 1000)).status).toBe('UNMEASURED');
+  });
+
+  // Mutations: ignore-mode; ignore-tour-completion; ignore-stop-identity.
+  it('requires opposite measured loader modes and complete matching tours', () => {
+    const on = memoryTour('on');
+    const before = memoryTour('off', 1000);
+    expect(memoryGate({ ...on, stream: 'default', mode: 'store', exitCode: 1 }, before).status).toBe('PASS');
+    expect(memoryGate(on, { ...before, mode: 'store' }).status).toBe('UNMEASURED');
+    for (const incomplete of [
+      { timing: true }, { tourCompletedLoops: 0 }, { failure: 'browser exited' }, { signal: 'SIGTERM' },
+      { stops: on.stops.slice(0, -1) }, { stops: [on.stops[1], on.stops[0], ...on.stops.slice(2)] },
+      { stops: [on.stops[0], { ...on.stops[1], stop: 'different-workload' }, ...on.stops.slice(2)] },
+    ]) expect(memoryGate({ ...on, ...incomplete }, before).status).toBe('UNMEASURED');
+    expect(memoryGate(loopTour([[500, 300], [500, 300]]), before).status).toBe('UNMEASURED');
+  });
+
+  // Mutations: loop-boundary-strict; ignore-loop-renderer; ignore-loop-gpu.
+  it('allows loop two exactly 100 MiB above loop one and rejects excess in either counter', () => {
+    expect(loopMemoryGate(loopTour([[500, 300], [600, 400]])).status).toBe('PASS');
+    expect(loopMemoryGate(loopTour([[500, 300], [600.01, 400]])).status).toBe('FAIL');
+    expect(loopMemoryGate(loopTour([[500, 300], [600, 400.01]])).status).toBe('FAIL');
+  });
+
+  // Mutations: ignore-later-loops; rolling-loop-baseline compares only to the preceding loop.
+  it('compares every later loop to loop one so gradual growth cannot hide a leak', () => {
+    expect(loopMemoryGate(loopTour([[500, 300], [590, 390], [650, 450]])).status).toBe('FAIL');
+  });
+
+  // Mutation: include-restore-in-loop-peaks; attribute the final restored context to loop two.
+  it('excludes the final context restoration from leak peaks while retaining it in full-tour evidence', () => {
+    const run = loopTour([[500, 300], [600, 400]]);
+    run.stops[4] = memory('restored', { loop: null, gpuPrivateMiB: 9000, rendererPrivateMiB: 8000 });
+    expect(loopMemoryGate(run).status).toBe('PASS');
+    expect(memoryGate(run).candidate.runs[0].gpuPeakMiB).toBe(9000);
+  });
+
+  // Mutations: ignore-loop-context; ignore-stress-config; discard-incomplete-loop.
+  it('requires complete identical stress loops on one page without an intervening context restore', () => {
+    const run = loopTour([[500, 300], [600, 400]]);
+    for (const change of [
+      { budgetMiB: null }, { evict: 'off' }, { stream: 'off' }, { target: 'desktop' },
+      { tourCompletedLoops: 1 }, { failure: 'browser exited' }, { tourEvidence: undefined },
+      { tourEvidence: { loopContinuity: { samePage: false, navigationTimeOrigin: 1791000000000, contextRestoresAfterLoops: true } } },
+      { tourEvidence: { loopContinuity: { samePage: true, navigationTimeOrigin: null, contextRestoresAfterLoops: true } } },
+      { tourEvidence: { loopContinuity: { samePage: true, navigationTimeOrigin: 1791000000000, contextRestoresAfterLoops: false } } },
+      { stops: [run.stops[0], run.stops[1], ...run.stops.slice(3)] },
+      { stops: run.stops.map((stop, index) => index === 3 ? { ...stop, gpuSharedMiB: null } : stop) },
+    ]) expect(loopMemoryGate({ ...run, ...change }).status).toBe('UNMEASURED');
+    expect(loopMemoryGate(loopTour([[500, 300]])).status).toBe('UNMEASURED');
   });
 });
 

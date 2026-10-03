@@ -22,11 +22,40 @@ export function normalizeStop<T extends object>(stop: T): Omit<T, 'longTasks' | 
   longTaskTotalMs: number | null;
   longTaskDurationsMs: number[] | null;
 };
-export function memoryGate(run: unknown): GateVerdict & {
-  baseline: MemorySample;
+export interface MemoryRunSummary {
+  index: number;
+  label: string | null;
+  measurement: unknown;
+  gpuPeakMiB: number | null;
+  rendererPeakMiB: number | null;
+  reasons: string[];
+  valid: boolean;
+  stops: Array<MemorySample & { stop: string | null; baseStop: string | null; loop: number | null }>;
+}
+export interface MemoryBlockSummary {
+  expectedRepeats: number | null;
+  attemptedRepeats: number;
+  validRepeats: number;
+  reasons: string[];
+  runs: MemoryRunSummary[];
+  medianGpuPeakMiB: number | null;
+  medianRendererPeakMiB: number | null;
+}
+export function memoryGate(on: unknown, off?: unknown): GateVerdict & {
+  tier: string | null;
+  gpuFractionLimit: number | null;
+  gpuPercentOfOff: number | null;
+  gpuReductionPercent: number | null;
+  rendererDeltaMiB: number | null;
   gpuLimitMiB: number | null;
   rendererLimitMiB: number | null;
-  stops: Array<MemorySample & { stop: string }>;
+  candidate: MemoryBlockSummary;
+  baseline: MemoryBlockSummary | null;
+};
+export function loopMemoryGate(run: unknown): GateVerdict & {
+  limits: { gpuMiB: number | null; rendererMiB: number | null };
+  firstLoop: { loop: number; gpuPeakMiB: number | null; rendererPeakMiB: number | null } | null;
+  loops: Array<{ loop: number; gpuPeakMiB: number | null; rendererPeakMiB: number | null }>;
 };
 export function collectionGate(run: unknown): CollectionVerdict;
 export const spreadGate: typeof collectionGate;

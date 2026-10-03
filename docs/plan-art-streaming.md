@@ -1,10 +1,11 @@
-<!-- source-of-truth: src/config/features.ts, src/art/artBudget.ts, src/art/artLoader.ts, src/art/artSource.ts, src/art/ArtResolver.ts, src/art/artWatch.ts, src/art/artArrivals.ts, src/art/artRetry.ts, src/ui/CardThumbCache.ts, src/ui/artGate.ts, src/ui/duelArt.ts, src/art/pagedRequests.ts, src/art/packRequests.ts, src/art/artLifetime.ts, src/ui/displayWalk.ts, src/scenes/ArtLoaderScene.ts, scripts/probe-art.mjs, scripts/art-probe-metrics.mjs, scripts/art-probe-processes.mjs, scripts/art-probe-save.ts, scripts/gen-art-manifest.ts, scripts/gen-art-halfres.ts, scripts/serve-lan.ts, .github/workflows/deploy.yml, src-tauri/tauri.conf.json · last-verified: 2026-10-02 · design doc, re-verify when the art loader, the thumbnail cache, the card-face geometry (R13) or the deploy pipeline changes -->
+<!-- source-of-truth: src/config/features.ts, src/art/artBudget.ts, src/art/artLoader.ts, src/art/artSource.ts, src/art/ArtResolver.ts, src/art/artWatch.ts, src/art/artArrivals.ts, src/art/artRetry.ts, src/ui/CardThumbCache.ts, src/ui/artGate.ts, src/ui/duelArt.ts, src/art/pagedRequests.ts, src/art/packRequests.ts, src/art/artLifetime.ts, src/ui/displayWalk.ts, src/scenes/ArtLoaderScene.ts, scripts/probe-art.mjs, scripts/art-probe-metrics.mjs, scripts/art-probe-compare.mjs, scripts/art-probe-processes.mjs, scripts/art-probe-save.ts, scripts/gen-art-manifest.ts, scripts/gen-art-halfres.ts, scripts/serve-lan.ts, .github/workflows/deploy.yml, src-tauri/tauri.conf.json · last-verified: 2026-10-03 · design doc, re-verify when the art loader, the thumbnail cache, the card-face geometry (R13) or the deploy pipeline changes -->
 
 # Card art streaming: load on demand, unload under a budget (1.9 lane D)
 
-**Status 2026-10-02: S1-S6 built; flag on in 1.9.**
+**Status 2026-10-03: S1-S6 built; flag on in 1.9.**
 `FEATURES.artStream` is true. S6's probe and gate calculations are implemented;
-the approver's measurements for all eight gates in section 6 are pending.
+Section 6 records the approver's evidence and the revised gate-1 rule;
+fresh runs of the revised tour are pending.
 Built instrumentation and a default-on flag do not establish a passed gate.
 The earlier deferral choices in section 8 remain historical release context.
 
@@ -555,15 +556,16 @@ since packs cannot reach Pages before the 1.9 cut.
 using a fresh disposable profile per run. It reads the existing, read-only
 `window.__art` diagnostics beside `window.__game`. The desktop mode attaches
 to the existing WebView2 game and validates its native app ancestry instead.
-All eight gates below remain **pending approver measurement**. Earlier
-design baselines and S5a observations are historical evidence, not results
-for this build or these corrected S6 measurements.
+Fresh runs of this revised tour remain **pending approver measurement**.
+Earlier design baselines, S5a observations and the S6 evidence quoted under
+gate 1 explain the design and ruling; they are not fresh paired results.
 
 The normal tour visits the menu; Collection (five spreads, a filter, zoom);
 Deck Builder (pool pages, deck list, Darling picker); Shop previews; every
 card in a three-pack batch; Limited draft and builder; Profile picker pages;
 Achievements; Play, Practice and Tower; a duel, zoom and paged zone modal;
-context loss and restore; then Collection again. Close/reopen stops exercise
+then Collection again. After all loops, a final duel exercises context loss
+and restore, followed by Collection. Close/reopen stops exercise
 scene and modal lifetimes. Runs and repeat children retain their JSON and
 screenshots. A nonzero exit requires inspection of the named gate's verdict;
 a legacy baseline can exceed streaming thresholds without invalidating its
@@ -593,7 +595,10 @@ changes.
 The alternative uses the probe's Git-free `--build` path after generating
 its inputs. That option builds and runs a preliminary tour; it is not a
 build-only switch. Its separate web output survives the later desktop build.
-Normal tours explicitly use `--repeat 1`; timing runs use three independent
+Most tours use `--repeat 1`; the paired gate-1 runs use three. Each web tour
+also runs one cold
+timing pass in a separate fresh profile after closing the tour browser.
+`--timing` runs only the cold pass. Timing runs use three independent
 profiles (`--repeat` defaults to 3).
 
 ```powershell
@@ -631,41 +636,99 @@ paths and verdicts. Do not populate them from estimates, unit tests,
 historical runs or a failed browser launch. A table row is not an assertion
 that the run happened.
 
-#### Gate 1: GPU and renderer residency
+#### Gate 1: paired GPU peaks, renderer peaks and retention
 
-Before the first menu sample, the probe holds card-art requests so `B` is
-the menu before any card art has loaded. It then releases the requests and
-runs the complete tour. At every stop, sum **all** identified GPU processes'
-private, dedicated and shared memory; separately sum all renderer private
-memory. Per-PID identities, ancestry and counter availability are retained.
+**Owner ruling, 2026-10-03: measure against today.** Edge's measured GPU
+process cost is about 3-5 times live texture bytes (about 1.4 times just
+after context restore); the original B+1,000 / B+260 limits assumed about
+1.2 times. The 640+192 MiB desktop and 160+48 MiB phone budgets are unchanged.
+The former renderer B+100 rule also failed with streaming off (+170 MiB).
 
-Streaming passes only if GPU total is strictly below `B + 1,000 MiB` on
-`full`, or strictly below `B + 260 MiB` on `lite`, at every stop. Renderer
-private memory must be at most its own `B + 100 MiB`. The first menu remains
-the baseline even when one of its counters is unavailable. Store byte
-counts are diagnostic and cannot substitute for these measurements.
+The approver's same-tour evidence, measured outside the sandbox:
 
-| Tier | Mode | Menu GPU B (MiB) | Maximum GPU above B (MiB) | Maximum renderer above B (MiB) | JSON / verdict |
+| Tier | Streaming-off GPU peak (MiB) | Streaming-on GPU peak (MiB) | Reduction |
+| --- | --- | --- | --- |
+| full | 6,563 | 3,325 | about 49% |
+| lite | 2,120 | 1,354 | about 36% |
+
+A full-tier 8 MiB run stayed flat at about 1,800 MiB through 1,039 evictions.
+These observations justify the rule; they do not substitute for fresh paired
+runs of this build. The earlier design baselines remain in section 3:
+3,002 MiB of desktop source textures (4,176 MiB GPU-process private) and
+750 MiB on phones (1,190 MiB private), before unbounded thumbs.
+
+At every stop, sum all identified GPU processes' private, dedicated and
+shared memory. Take the maximum of those sums over the complete tour, and
+separately the maximum total renderer private memory. Missing counters
+remain missing, never zero. **Peak reduction passes** when the on GPU peak
+is at most 60% of off on `full`, or at most 70% on `lite`. **Renderer passes**
+when its on peak is at most its off peak plus 100 MiB. Both must pass.
+With repeats, compare the medians of the per-run peaks, never pooled stops
+or an average; every requested repeat must have complete evidence.
+
+Run off then on back to back on the same machine, build, tier and tour,
+without intervening build or measurement jobs. The standalone Phaser-free
+`scripts/art-probe-compare.mjs` reads the two JSONs (individual runs or
+repeat parents), writes the numbers, percentages and paired verdict, and
+rejects incomplete or mismatched evidence. Code/document build hashes,
+machine hashes, timestamps, fixture and ordered-stop metadata identify the
+pair. External URLs and attached apps have no verified local build hash,
+so cannot supply this paired verdict. A single unpaired run reports gate 1
+as **UNMEASURED**, retaining its raw peaks. Its successful exit only means
+the applicable capture gates passed; it is not a paired gate-1 pass.
+
+The first `menu` still loads the fixture before navigation, holds art IO
+and checks zero resident art. Its counters remain diagnostic, not limits.
+`--loops N` (default 1) then repeats the entire scene tour N times in one
+page. Only the disposable save fixture is reset between loops; the store
+and caches survive, with unchanged navigation time origin and no context
+restore. Loop 2 and later suffix their stop names with `-loop2`, etc.
+Gates 3 and 4 continue checking every stop of every loop.
+
+**Gate 1 leak** is separate: on `--budget 8 --loops 2`, loop 2's GPU peak
+and renderer peak must each be at most loop 1's corresponding peak plus
+100 MiB. With more loops, every later loop is checked against loop 1.
+Forced context loss runs once after all loops, followed by a final return
+to Collection, so a restore cannot conceal retained allocations. These
+last two stops count in the full-tour paired peak, but not loop peaks.
+Desktop attach accepts one loop because its privacy test reloads the page.
+
+| Tier | Off/on JSONs | Median off/on GPU peaks (MiB) | Reduction | Median off/on renderer peaks (MiB) | Paired verdict |
 | --- | --- | --- | --- | --- | --- |
-| full | off baseline | | | | |
-| full | on | | | | |
-| lite | off baseline | | | | |
-| lite | on | | | | |
+| full | | | | | |
+| lite | | | | | |
+
+| Tier, 8 MiB | Loop 1/2 GPU peaks (MiB) | Loop 1/2 renderer peaks (MiB) | JSON / gate 1 leak |
+| --- | --- | --- | --- |
+| full | | | |
+| lite | | | |
 
 ```powershell
 $gateOut = Join-Path $s6Out 'gate1'
 foreach ($tier in @('full', 'lite')) {
-    foreach ($mode in @('off', 'on')) {
-        $label = "gate1-$tier-$mode"
-        node scripts/probe-art.mjs --dist $s6Dist --tier $tier --stream $mode --repeat 1 --out $gateOut --label $label
-        Write-Host "$label exit: $LASTEXITCODE; inspect $gateOut\$label.json"
-    }
+    # Keep each off/on pair consecutive, on this machine and this exact build.
+    $offLabel = "gate1-$tier-off"
+    $onLabel = "gate1-$tier-on"
+    node scripts/probe-art.mjs --dist $s6Dist --tier $tier --stream off --repeat 3 --out $gateOut --label $offLabel
+    Write-Host "$offLabel capture exit: $LASTEXITCODE"
+    node scripts/probe-art.mjs --dist $s6Dist --tier $tier --stream on --repeat 3 --out $gateOut --label $onLabel
+    Write-Host "$onLabel capture exit: $LASTEXITCODE"
+    node scripts/art-probe-compare.mjs --off (Join-Path $gateOut "$offLabel.json") --on (Join-Path $gateOut "$onLabel.json") --out (Join-Path $gateOut "gate1-$tier-paired.json")
+    Write-Host "$tier paired gate 1 exit: $LASTEXITCODE"
+    node scripts/probe-art.mjs --dist $s6Dist --tier $tier --stream on --budget 8 --loops 2 --repeat 1 --out $gateOut --label "gate1-$tier-leak"
+    Write-Host "$tier gate 1 leak exit: $LASTEXITCODE; inspect gate1-$tier-leak.json"
 }
 ```
 
 #### Gate 2: cold time to Collection
 
-`--timing` builds its owned-card save offline through
+Every ordinary web tour now captures a separate cold pass automatically;
+its `collectionTiming` and repeat medians come from that pass, whose JSON
+and capture status remain under `coldTimingRun`. The tour and timing
+browsers run serially. `--timing` selects the same measurement alone.
+Attached desktop tours remain outside this cold-profile measurement.
+
+The cold pass builds its owned-card save offline through
 `scripts/art-probe-save.ts`, using the real `freshSave`, collectible catalog
 and starter-deck data without Phaser or a browser boot. In a fresh profile,
 the probe injects this fixture before the **first game navigation** and

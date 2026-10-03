@@ -5,14 +5,15 @@
 // records what the game's read-only `window.__art` hook reports beside what
 // Windows reports for Edge's GPU and renderer processes.
 //
-// The tour: the menu; the Collection (its
-// first spread, timed until every pocket shows real art, gate 2; five spreads;
+// The tour: the menu; the Collection (five spreads with diagnostic timings;
 // a filter change; a zoom); the Deck Builder (three pool pages, the deck list,
 // the Darling picker); Shop previews; three packs; Limited draft and builder;
 // the Profile picker; the hall; Play, Practice and Tower; a duel with a zoom,
 // paged graveyard and forced WebGL context loss; then Collection again.
-// After the first menu stop the save is seeded with four copies of every collectible card (a fresh save owns
-// none, and the binder and the pool show owned cards) and the page reloads.
+// An offline save fixture is installed before the first game navigation.
+// The menu baseline includes that save, with card requests held and zero art
+// resident. Every web tour also captures gate 2 in a separate cold profile;
+// --timing runs only that measurement, without the tour or its baseline pause.
 //
 //   node scripts/probe-art.mjs --dist <built dist> [options]
 //
@@ -27,6 +28,7 @@
 //   --tier full|lite   the quality tier; lite also emulates a phone (844x390,
 //                      DPR 3, touch) (default full, 1920x1080)
 //   --budget <MiB>     ?artBudget, e.g. 8 for the eviction stress run
+//   --loops <n>        repeat the tour in one page, keeping its art caches (default 1)
 //   --evict off        ?artEvict=off
 //   --opponent <id>    override the current Tower roster opponent
 //   --port <n>         the preview port (default 4391; never 5173)
@@ -38,11 +40,12 @@
 // Memory` counters); elsewhere they read null. The whole Edge and vite
 // process trees are killed on exit.
 import { execFileSync, spawn } from 'node:child_process';
-import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { createHash } from 'node:crypto';
+import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { arch, cpus, hostname, platform, release, tmpdir, totalmem } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { collectionGate, longTaskGate, memoryGate, normalizeStop, summarizeTimings } from './art-probe-metrics.mjs';
+import { collectionGate, longTaskGate, loopMemoryGate, memoryGate, normalizeStop, summarizeTimings } from './art-probe-metrics.mjs';
 import { discoverAttachedApp, readProcessMemory } from './art-probe-processes.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -50,7 +53,7 @@ const EDGE = 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
 
 function parseArgs(argv) {
   const opts = { dist: 'dist', build: false, stream: 'on', tier: 'full', budget: null, evict: null, opponent: null, port: 4391, out: null, label: 'run',
-    timing: false, net: null, cpu: 1, repeat: 3, baseline: null, attach: null, appPid: null, url: null, checkPacks: null, showcase: false, help: false };
+    timing: false, net: null, cpu: 1, repeat: 3, loops: 1, baseline: null, attach: null, appPid: null, url: null, checkPacks: null, showcase: false, help: false };
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];
     const next = () => { const value = argv[++i]; if (value === undefined || value.startsWith('--')) throw new Error(`missing value for ${flag}`); return value; };
@@ -68,6 +71,7 @@ function parseArgs(argv) {
     else if (flag === '--net') opts.net = Number(next());
     else if (flag === '--cpu') opts.cpu = Number(next());
     else if (flag === '--repeat') opts.repeat = Number(next());
+    else if (flag === '--loops') opts.loops = Number(next());
     else if (flag === '--baseline') opts.baseline = next();
     else if (flag === '--attach') opts.attach = Number(next());
     else if (flag === '--app-pid') opts.appPid = Number(next());
@@ -82,20 +86,21 @@ function parseArgs(argv) {
   for (const key of ['port', 'cpu', 'repeat', 'net', 'budget', 'attach', 'appPid']) {
     if (opts[key] !== null && (!Number.isFinite(opts[key]) || opts[key] <= 0)) throw new Error(`invalid ${key}`);
   }
-  if (!Number.isInteger(opts.repeat) || opts.cpu < 1) throw new Error('repeat must be an integer; cpu must be at least 1');
+  if (!Number.isSafeInteger(opts.repeat) || !Number.isSafeInteger(opts.loops) || opts.loops < 1 || opts.cpu < 1) throw new Error('repeat and loops must be positive integers; cpu must be at least 1');
+  if (opts.timing && opts.loops !== 1) throw new Error('--timing is one cold navigation, without --loops');
   if (opts.attach !== null) {
     if (!argv.includes('--repeat')) opts.repeat = 1;
-    if (opts.repeat !== 1 || opts.timing || opts.build || opts.url) throw new Error('attach requires one tour of an already-running app, without --timing/--build/--url');
+    if (opts.repeat !== 1 || opts.loops !== 1 || opts.timing || opts.build || opts.url) throw new Error('attach requires one tour of an already-running app, without --loops/--timing/--build/--url');
   }
   if (opts.evict !== null && opts.evict !== 'off') throw new Error('--evict accepts off');
-  if (opts.showcase && (!opts.url || opts.attach !== null || opts.timing)) throw new Error('--showcase requires --url pointing at a dev server, without attach/timing');
+  if (opts.showcase && (!opts.url || opts.attach !== null || opts.timing || opts.loops !== 1)) throw new Error('--showcase requires --url pointing at a dev server, without attach/timing/loops');
   return opts;
 }
 
 const opts = parseArgs(process.argv.slice(2));
 if (opts.help) {
   console.log('probe-art: --dist DIR [--build] --stream on|off|default --tier full|lite --budget MiB --evict off\n' +
-    '--timing --net Mbps (40ms RTT) --cpu RATE --repeat N (default 3; attach 1)\n' +
+    '--timing (cold pass only; web tours include one) --net Mbps (40ms RTT) --cpu RATE --repeat N (default 3; attach 1) --loops N (default 1)\n' +
     '--baseline OFF.json --attach CDP_PORT [--app-pid PID] --url BASE_URL [--showcase] --check-packs BASE_URL\n' +
     '--out DIR --label NAME --port PORT --opponent ID. See docs/plan-art-streaming.md section 6.');
   process.exit(0);
@@ -156,11 +161,35 @@ process.once('uncaughtException', (error) => {
 });
 process.on('SIGINT', () => process.exit(130));
 process.on('SIGTERM', () => process.exit(143));
+
+/** Every child owns a fresh browser profile and closes it before returning. */
+async function runProbeChild(args, resultPath) {
+  if (existsSync(resultPath)) rmSync(resultPath);
+  const child = spawn(process.execPath, [fileURLToPath(import.meta.url), ...args], { cwd: ROOT, stdio: 'inherit', windowsHide: true });
+  children.push(child);
+  const ended = await new Promise((res, rej) => { child.once('exit', (code, signal) => res({ code, signal })); child.once('error', rej); });
+  children.splice(children.indexOf(child), 1);
+  let result;
+  try {
+    result = JSON.parse(readFileSync(resultPath, 'utf8'));
+    if (result === null || typeof result !== 'object' || Array.isArray(result)) throw new Error('expected a result object');
+  } catch (error) {
+    // Preserve this attempt and keep later repeats running if the child was
+    // interrupted during its JSON write. Leave the original file for review.
+    result = { failure: `child result unavailable: ${String(error)}`, gatesPassed: false };
+  }
+  // A complete failing gate still has useful timings. An interrupted child
+  // must not supply a passing result, even if it wrote JSON before stopping.
+  if (ended.signal !== null || ended.code === null) result.failure = `child interrupted: ${ended.signal ?? 'no exit code'}`;
+  if (ended.code !== 0 && result.gatesPassed === true) result.failure = `child exited ${ended.code} after writing a passing result`;
+  return { ...result, resultPath, exitCode: ended.code, signal: ended.signal,
+    gatesPassed: ended.code === 0 && result.gatesPassed === true };
+}
 // A hard stop, so a stuck tour never leaves Edge and vite running.
 setTimeout(() => {
-  console.error('probe-art: gave up after 30 minutes');
+  console.error('probe-art: exceeded the tour time allowance');
   process.exit(2);
-}, 30 * 60_000).unref();
+}, Math.min(2_147_483_647, 30 * 60_000 * opts.repeat * opts.loops)).unref();
 
 // Gate 7's transport check is separate from the rendered tour on the live site.
 if (opts.checkPacks !== null) {
@@ -200,25 +229,18 @@ if (opts.repeat > 1) {
     const label = `${opts.label}-${String(i + 1).padStart(2, '0')}`;
     const runDir = join(outDir, label);
     const resultPath = join(runDir, `${label}.json`);
-    if (existsSync(resultPath)) rmSync(resultPath);
-    const args = [fileURLToPath(import.meta.url), ...forwarded, '--repeat', '1', '--out', runDir, '--label', label];
+    const args = [...forwarded, '--repeat', '1', '--out', runDir, '--label', label];
     if (opts.build && i === 0) args.push('--build');
     if (opts.baseline) args.push('--baseline', baseline.runs?.[i]?.resultPath ?? resolve(opts.baseline));
-    const child = spawn(process.execPath, args, { cwd: ROOT, stdio: 'inherit', windowsHide: true });
-    children.push(child);
-    const ended = await new Promise((res, rej) => { child.once('exit', (code, signal) => res({ code, signal })); child.once('error', rej); });
-    children.splice(children.indexOf(child), 1);
-    const result = existsSync(resultPath) ? JSON.parse(readFileSync(resultPath, 'utf8')) : { failure: 'child produced no result', gatesPassed: false };
-    // A complete failing gate still has useful timings. A signal or absent
-    // result is an incomplete attempt, never a sample to trim from the median.
-    if (ended.signal !== null || ended.code === null) result.failure = `child interrupted: ${ended.signal ?? 'no exit code'}`;
-    runs.push({ ...result, resultPath, exitCode: ended.code, signal: ended.signal,
-      gatesPassed: ended.code === 0 && result.gatesPassed === true });
+    runs.push(await runProbeChild(args, resultPath));
   }
   const result = { label: opts.label, tier: opts.tier, stream: opts.stream, throttle, repeat: opts.repeat,
     timing: summarizeTimings(runs, opts.repeat), runs, gatesPassed: runs.every(run => run.gatesPassed === true) };
+  result.gate1 = memoryGate(result);
+  result.gate1Leak = { status: runs.some(run => run.gate1Leak?.status === 'FAIL') ? 'FAIL'
+    : runs.every(run => run.gate1Leak?.status === 'PASS') ? 'PASS' : 'UNMEASURED', runs: runs.map(run => run.gate1Leak ?? null) };
   writeFileSync(join(outDir, `${opts.label}.json`), JSON.stringify(result, null, 2));
-  console.log(`[${opts.label}] ${opts.repeat} independent runs: ${result.gatesPassed ? 'PASS' : 'FAIL'}; timing medians=${JSON.stringify(result.timing)}`);
+  console.log(`[${opts.label}] ${opts.repeat} independent runs: ${result.gatesPassed ? 'PASS' : 'FAIL'}; gate1=${result.gate1.status}; gate 1 leak=${result.gate1Leak.status}; timing medians=${JSON.stringify(result.timing)}`);
   process.exit(result.gatesPassed ? 0 : 1);
 }
 
@@ -226,6 +248,23 @@ if (opts.repeat > 1) {
 
 const viteBin = join(ROOT, 'node_modules', 'vite', 'bin', 'vite.js');
 let APP = opts.url;
+// Hash served code and documents, not Git identity or a caller-supplied label.
+// External URLs/attached apps have no verified local build and remain unpaired.
+function buildIdentity() {
+  if (opts.url !== null || opts.attach !== null) return null;
+  const hash = createHash('sha256');
+  const visit = (directory) => {
+    for (const entry of readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) visit(path);
+      else if (/\.(?:html|js|css|json)$/.test(entry.name)) {
+        hash.update(relative(dist, path).replaceAll('\\', '/')).update('\0').update(readFileSync(path)).update('\0');
+      }
+    }
+  };
+  visit(dist);
+  return hash.digest('hex');
+}
 if (opts.build) {
   // --emptyOutDir deletes the folder first: only ever one inside the repo or the temp dir.
   const inside = (parent) => {
@@ -246,6 +285,9 @@ if (opts.build) {
   writeFileSync(buildConfig, config);
   execFileSync(process.execPath, [viteBin, 'build', '--outDir', dist, '--emptyOutDir', '--config', buildConfig, '--configLoader', 'runner'], { cwd: ROOT, stdio: 'inherit', windowsHide: true });
 }
+const measurement = { buildId: buildIdentity(), machineId: createHash('sha256')
+  .update(JSON.stringify([hostname(), platform(), release(), arch(), totalmem(), cpus().map(cpu => cpu.model)])).digest('hex'),
+  startedAt: new Date().toISOString(), finishedAt: null, tourVersion: 's6-g1-v2' };
 if (opts.attach === null && opts.url === null) {
 if (!existsSync(join(dist, 'index.html'))) throw new Error(`no build at ${dist} (pass --build or --dist)`);
 if (!existsSync(join(dist, 'assets', 'art', 'cards-half'))) console.warn(`warning: ${dist} has no cards-half/: the half tier is missing`);
@@ -401,6 +443,12 @@ const injectedScripts = [];
 async function inject(source) {
   const response = await S('Page.addScriptToEvaluateOnNewDocument', { source });
   injectedScripts.push(response.result.identifier);
+  return response.result.identifier;
+}
+async function removeInjection(identifier) {
+  await S('Page.removeScriptToEvaluateOnNewDocument', { identifier });
+  const index = injectedScripts.indexOf(identifier);
+  if (index !== -1) injectedScripts.splice(index, 1);
 }
 await S('Runtime.enable');
 await S('Log.enable');
@@ -532,6 +580,8 @@ let errorsSeen = 0;
 let warningsSeen = 0;
 let longTasksSeen = 0;
 let carriedTasks = [];
+let activeLoop = opts.timing ? null : 1;
+let tourCompletedLoops = 0;
 async function carryLongTasks() {
   const tasks = await page('window.__longTasks ?? null');
   carriedTasks = carriedTasks !== null && tasks !== null ? [...carriedTasks, ...tasks.slice(longTasksSeen)] : null;
@@ -539,6 +589,8 @@ async function carryLongTasks() {
 }
 
 async function record(name) {
+  const baseStop = name;
+  if (activeLoop > 1) name = `${name}-loop${activeLoop}`;
   const art = await page(`(() => {
     const a = window.__art; if (!a) return null;
     return { mode: a.mode, source: a.source, stats: a.stats(), standIns: a.standIns(), missing: a.missingTextures(), leases: a.leases(), warnings: a.warnings() };
@@ -552,6 +604,8 @@ async function record(name) {
   writeFileSync(join(outDir, shotName), Buffer.from(shot.result.data, 'base64'));
   const stop = normalizeStop({
     stop: name,
+    baseStop,
+    loop: activeLoop,
     scenes,
     dimensions,
     ...memory,
@@ -593,53 +647,12 @@ async function record(name) {
 /** The save key, and the seed: four copies of every collectible card. */
 const SAVE_KEY = 'darlingblades.save.v1';
 
-/**
- * Give the save four copies of every collectible card, then reload. The ids
- * come from the game itself (the Collection's own pool with the Owned filter
- * off, read without starting the scene). The seeded save is written by a
- * script that runs before the game on the next document: the game flushes
- * its in-memory save on `pagehide`, which would overwrite a write made now.
- */
-async function seedSave(reload = true) {
-  const seeded = await page(`(() => {
-    const col = window.__game.scene.getScene('Collection');
-    const saved = col.state;
-    col.state = { ...saved, ownedOnly: false, search: '' };
-    const ids = col.currentPool().map((d) => d.id);
-    col.state = saved;
-    // A fresh save may not be on disk yet: the game's own pagehide handler flushes it.
-    window.dispatchEvent(new Event('pagehide'));
-    const raw = localStorage.getItem(${JSON.stringify(SAVE_KEY)});
-    if (!raw) return null;
-    const save = JSON.parse(raw);
-    for (const id of ids) save.collection[id] = 4;
-    save.gold = 100000;
-    save.tutorialDone = true;
-    save.darlingsTutorialSeen = true;
-    save.settings.animations = 'reduced';
-    const cards = new Map(col.cards.map((card) => [card.id, card]));
-    const starter = window.__game.scene.getScene('Shop').deckSections()[0].skus[0].deck;
-    const spells = (starter.reserveCards ?? starter.cards).filter((id) => !cards.get(id)?.types.includes('land'));
-    const lands = starter.landReserve ?? starter.cards.filter((id) => cards.get(id)?.types.includes('land')).slice(0, 10);
-    const deck = { id: 'probe-warchest', name: 'Probe Warchest', cards: spells, format: 'warchest',
-      landReserve: lands, darlingId: null, heroCardId: null, landStyle: null,
-      variantPins: spells.map(() => null), cardBack: null, playmat: null };
-    save.decks = [deck];
-    save.activeDeckId = deck.id;
-    save.starterChosen = starter.id;
-    save.limited.activeRun = null;
-    save.gauntlet.run = { rung: 1, startedAt: 0, seed: 1906001, rosterDay: 0, rosterSeed: 1906002 };
-    return { cards: ids.length, json: JSON.stringify(save) };
-  })()`);
-  if (!seeded) throw new Error('no save in localStorage to seed');
-  await inject(`try { if (!sessionStorage.getItem('probeSeeded')) { localStorage.setItem(${JSON.stringify(SAVE_KEY)}, ${JSON.stringify(seeded.json)}); sessionStorage.setItem('probeSeeded', '1'); } } catch {}`);
-  if (!reload) return seeded.cards;
-  await carryLongTasks();
-  await S('Page.reload', { ignoreCache: false });
-  await until('the main menu after the seed', `(() => { const g = window.__game; return !!(g && g.scene.isActive('MainMenu')); })()`);
-  // The reload started a fresh long-task list.
-  longTasksSeen = 0;
-  return seeded.cards;
+/** Install the owned-card fixture before boot, without a seed/reload cycle. */
+async function seedSave() {
+  const seed = JSON.parse(execFileSync(process.execPath, [join(ROOT, 'node_modules/tsx/dist/cli.mjs'), join(ROOT, 'scripts/art-probe-save.ts')],
+    { cwd: ROOT, encoding: 'utf8', windowsHide: true, maxBuffer: 8 * 1048576 }));
+  const identifier = await inject(`localStorage.setItem(${JSON.stringify(SAVE_KEY)}, ${JSON.stringify(JSON.stringify(seed))});`);
+  return { cards: Object.keys(seed.collection).length, identifier };
 }
 
 /**
@@ -724,9 +737,7 @@ let collectionTiming = null;
 
 /** The profile's first game navigation: its fixture is made without a browser. */
 async function coldCollection() {
-  const seed = JSON.parse(execFileSync(process.execPath, [join(ROOT, 'node_modules/tsx/dist/cli.mjs'), join(ROOT, 'scripts/art-probe-save.ts')],
-    { cwd: ROOT, encoding: 'utf8', windowsHide: true, maxBuffer: 8 * 1048576 }));
-  await inject(`localStorage.setItem(${JSON.stringify(SAVE_KEY)}, ${JSON.stringify(JSON.stringify(seed))});`);
+  const seed = await seedSave();
   await S('Network.clearBrowserCache');
   longTasksSeen = 0;
   await inject(`(() => {
@@ -770,6 +781,7 @@ async function coldCollection() {
   await S('Page.navigate', { url });
   await until('twelve real pockets on the cold first spread', 'window.__collectionTiming?.done === true');
   collectionTiming = await page('window.__collectionTiming');
+  await removeInjection(seed.identifier);
   tourEvidence.coldNavigation = { freshProfile: true, firstGameNavigation: true, offlineSaveFixture: true,
     clock: 'performance.now since navigation timeOrigin', throttle };
   await stopAt('collection');
@@ -845,26 +857,48 @@ try {
   if (opts.timing) await coldCollection();
   else {
   if (attachedApp !== null) originalSave = await page(`localStorage.getItem(${JSON.stringify(SAVE_KEY)})`);
+  const seeded = await seedSave();
   await pauseCardRequests();
   await S('Page.navigate', { url });
   await until('the main menu', `(() => { const g = window.__game; return !!(g && g.scene.isActive('MainMenu')); })()`);
-  // B must precede the first card upload, including the legacy warm queue.
+  await removeInjection(seeded.identifier);
+  const owned = await page("Object.keys(window.__game.scene.getScene('Shop').saveData.collection).length");
+  if (owned !== seeded.cards) throw new Error('menu B did not load the seeded save');
+  // B includes the seeded save and precedes the first card upload.
   // Boot backdrops/fonts are ready; card requests are held until B is sampled.
   await sleep(500);
   const baselineStats = await page('window.__art.stats()');
   if ((baselineStats.resident ?? baselineStats.loaded) !== 0) throw new Error('menu B already contains card art');
   tourEvidence.menuBeforeCardArt = true;
+  tourEvidence.seededBaseline = { ownedCards: owned, resident: baselineStats.resident ?? baselineStats.loaded, heldRequests: heldRequests.length, seededBeforeNavigation: true };
   tourEvidence.device = await page('({ deviceMemoryGb: navigator.deviceMemory ?? null, userAgent: navigator.userAgent })');
+  await page("window.__probeInitialSave = JSON.stringify(window.__game.scene.getScene('Shop').saveData)");
+  const continuityStart = await page('({ navigationTimeOrigin: performance.timeOrigin, restores: window.__art.stats().restores ?? 0 })');
+  tourEvidence.loopFixtures = [];
+  tourEvidence.loopContinuity = { samePage: true, ...continuityStart, contextRestoresAfterLoops: false };
+  for (let loop = 1; loop <= opts.loops; loop++) {
+  activeLoop = loop;
+  if (loop > 1) {
+    // Reset only the disposable save. Scene shutdown releases its normal
+    // leases; the page, store, texture manager and their caches stay alive.
+    await page(onScene('Collection', `
+      const save = window.__game.scene.getScene('Shop').saveData;
+      Object.assign(save, JSON.parse(window.__probeInitialSave));
+      localStorage.setItem(${JSON.stringify(SAVE_KEY)}, JSON.stringify(save));
+      s.scene.start('MainMenu');
+    `));
+    await until('the menu on the same page', "window.__game.scene.isActive('MainMenu')");
+    await storeIdle();
+  }
   await record('menu');
-
-  await releaseCardRequests();
-
-  const owned = await seedSave();
-  console.log(`[${opts.label}] seeded the save with ${owned} cards, reloaded`);
+  if (loop === 1) await releaseCardRequests();
+  console.log(`[${opts.label}] tour loop ${loop}/${opts.loops}; seeded menu, no page reload`);
   await storeIdle();
-  await record('menu-seeded');
+  await record('menu-ready');
 
-  // The Collection: its first spread, timed (gate 2), then four turns.
+  // Warm spread/action timings are diagnostic. Gate 2 uses a separate cold
+  // profile after this tour's browser has closed, so B's sampling delay
+  // cannot inflate navigation time or warm its HTTP cache.
   await timeSpread(`g.scene.getScene('MainMenu').scene.start('Collection')`);
   await storeIdle();
   await record('collection');
@@ -982,6 +1016,8 @@ try {
     const pool = cards.filter((card) => !card.token && !card.types.includes('land') && save.collection[card.id] > 0).slice(0, 45).map((card) => card.id);
     run.status = 'build'; run.pool = pool; run.deck = pool.slice(0, 25);
     run.landReserve = [...save.decks[0].landReserve];
+    const builder = window.__game.scene.getScene('LimitedDeckBuilder');
+    builder.poolPage = 0; builder.deckPage = 0;
     s.scene.start('LimitedDeckBuilder');
   `));
   await until('the Limited deck builder', sceneBuilt('LimitedDeckBuilder'));
@@ -1093,6 +1129,38 @@ try {
   await stopAt('duel-zone-reopened');
   await page(onScene('Duel', 's.zoneModal.close()'));
 
+  // Back to the Collection, as gate 1's tour ends.
+  await timeSpread(`g.scene.getScene('Duel').scene.start('Collection')`);
+  await storeIdle();
+  await record('collection-again');
+  if (opts.showcase) {
+    await page(onScene('Collection', "s.scene.start('Showcase')"));
+    await until('the dev Showcase', sceneBuilt('Showcase'));
+    await stopAt('showcase');
+    for (let pick = 0; pick < 2; pick++) {
+      await page(onScene('Showcase', 's.pickIdx = (s.pickIdx + 1) % s.picks.length; s.apply()'));
+      await stopAt(`showcase-pick${pick + 2}`);
+    }
+    await page(onScene('Showcase', "s.scene.start('Collection')"));
+    await until('Collection after Showcase', sceneBuilt('Collection'));
+    await stopAt('collection-after-showcase');
+  }
+  const loopFixture = { version: 's6-v1', opponentId: tourEvidence.towerOpponent,
+    packCardIds: tourEvidence.packBatch.cardIds, draftPackIds: tourEvidence.draftPackIds, duelSeed: tourEvidence.duelSeed };
+  if (loop > 1 && JSON.stringify(loopFixture) !== JSON.stringify(tourEvidence.loopFixtures[0])) throw new Error('tour fixture changed between loops');
+  tourEvidence.loopFixtures.push(loopFixture);
+  const continuityNow = await page('({ navigationTimeOrigin: performance.timeOrigin, restores: window.__art.stats().restores ?? 0 })');
+  tourEvidence.loopContinuity.samePage &&= continuityNow.navigationTimeOrigin === continuityStart.navigationTimeOrigin;
+  if (opts.loops > 1 && (!tourEvidence.loopContinuity.samePage || continuityNow.restores !== continuityStart.restores)) throw new Error('page or graphics context reset between leak loops');
+  tourCompletedLoops = loop;
+  }
+  // A context restore releases pooled GPU allocations. Keep it after every
+  // leak loop so it cannot conceal growth from one tour to the next.
+  tourEvidence.loopContinuity.contextRestoresAfterLoops = true;
+  activeLoop = null;
+  await page(onScene('Collection', `s.scene.start('Duel', { opponentId: ${JSON.stringify(tourEvidence.towerOpponent)}, gauntletRung: 1 })`));
+  await until('the duel for context restoration', sceneBuilt('Duel'));
+  await storeIdle();
   const restoresBefore = (await page('window.__art ? window.__art.stats().restores ?? 0 : 0')) ?? 0;
   const lost = await page(`(() => {
     const g = window.__game; const gl = g.renderer.gl; if (!gl) return 'canvas';
@@ -1119,22 +1187,8 @@ try {
   await record('restored');
   tourEvidence.context = await page('({ ...window.__contextProof, frameAfter: window.__game.loop.frame, duelActive: window.__game.scene.isActive("Duel"), contextLost: window.__game.renderer.gl.isContextLost() })');
 
-  // Back to the Collection, as gate 1's tour ends.
   await timeSpread(`g.scene.getScene('Duel').scene.start('Collection')`);
-  await storeIdle();
-  await record('collection-again');
-  if (opts.showcase) {
-    await page(onScene('Collection', "s.scene.start('Showcase')"));
-    await until('the dev Showcase', sceneBuilt('Showcase'));
-    await stopAt('showcase');
-    for (let pick = 0; pick < 2; pick++) {
-      await page(onScene('Showcase', 's.pickIdx = (s.pickIdx + 1) % s.picks.length; s.apply()'));
-      await stopAt(`showcase-pick${pick + 2}`);
-    }
-    await page(onScene('Showcase', "s.scene.start('Collection')"));
-    await until('Collection after Showcase', sceneBuilt('Collection'));
-    await stopAt('collection-after-showcase');
-  }
+  await stopAt('collection-after-restore');
   }
 } catch (error) {
   failure = String(error?.stack ?? error);
@@ -1145,6 +1199,10 @@ try {
     // the page may be gone
   }
 }
+measurement.finishedAt = new Date().toISOString();
+try {
+  if (buildIdentity() !== measurement.buildId) failure = 'served build changed during measurement';
+} catch (error) { failure = `could not verify the measured build: ${String(error)}`; }
 
 if (attachedApp === null) {
   try {
@@ -1174,7 +1232,33 @@ ws.close();
 await sleep(500);
 const cleaned = cleanup();
 if (cleaned.remaining.length > 0) gateFailures.push({ stop: 'cleanup', gate: 'ownedProcessesStillRunning', pids: cleaned.remaining });
+let coldTimingRun = null;
+if (!opts.timing && opts.attach === null && cleaned.remaining.length === 0) {
+  // A menu B sample deliberately holds IO while Windows counters are read.
+  // Measure navigation in its own fresh profile instead of counting that
+  // artificial pause or relabelling a warm spread as a cold first load.
+  const label = `${opts.label}-cold`;
+  const runDir = join(outDir, 'cold');
+  const args = ['--timing', '--repeat', '1', '--dist', dist, '--tier', opts.tier, '--stream', opts.stream,
+    '--cpu', String(opts.cpu), '--port', String(opts.port), '--out', runDir, '--label', label];
+  for (const [flag, value] of [['--net', opts.net], ['--budget', opts.budget], ['--evict', opts.evict], ['--url', opts.url]]) {
+    if (value !== null) args.push(flag, String(value));
+  }
+  try {
+    coldTimingRun = await runProbeChild(args, join(runDir, `${label}.json`));
+    const complete = coldTimingRun.failure === null && coldTimingRun.gate3?.status === 'PASS'
+      && coldTimingRun.cleanup?.remaining?.length === 0 && coldTimingRun.signal === null
+      && (coldTimingRun.exitCode === 0 || coldTimingRun.gate2?.status === 'FAIL');
+    // Preserve complete slow samples for the median, but never make an
+    // interrupted/unclean child appear successful under the tour's failure:null.
+    collectionTiming = complete ? coldTimingRun.collectionTiming : null;
+    tourEvidence.coldNavigation = { ...coldTimingRun.tourEvidence?.coldNavigation, resultPath: coldTimingRun.resultPath };
+  } catch (error) {
+    coldTimingRun = { failure: String(error), collectionTiming: null, cleanup: cleanup() };
+  }
+}
 const result = { label: opts.label, url, tier: opts.tier, stream: opts.stream, budgetMiB: opts.budget,
+  measurement, loops: opts.loops, tourCompletedLoops,
   evict: opts.evict ?? 'on', throttle, target: attachedApp === null ? 'web' : 'desktop',
   source: stops[0]?.art?.source ?? null,
   // The legacy queue always fetches loose art, even in the packs build.
@@ -1183,14 +1267,15 @@ const result = { label: opts.label, url, tier: opts.tier, stream: opts.stream, b
   cleanup: { ...cleaned, attachedAppLeftForLauncher: attachedApp?.pid ?? null },
   tourEvidence, tourFixture: opts.timing ? null : { version: 's6-v1', opponentId: tourEvidence.towerOpponent,
     packCardIds: tourEvidence.packBatch?.cardIds, draftPackIds: tourEvidence.draftPackIds, duelSeed: tourEvidence.duelSeed },
-  networkFailures: log.networkFailures, collectionTiming, spreadTimings: timings, stops };
+  networkFailures: log.networkFailures, collectionTiming, coldTimingRun, spreadTimings: timings, stops };
 result.gate1 = memoryGate(result);
+result.gate1Leak = loopMemoryGate(result);
 result.gate2 = collectionGate(result);
 result.gate3 = { status: failure === null && gateFailures.length === 0 ? 'PASS' : 'FAIL', failures: gateFailures };
 const stress = { budgetApplied: stops.every(stop => stop.art?.stats?.budget === 8 * 1048576),
   sourceEvictions: Math.max(0, ...stops.map(stop => stop.art?.stats?.evictions ?? 0)),
   thumbEvictions: Math.max(0, ...stops.map(stop => stop.art?.stats?.thumbEvictions ?? 0)) };
-result.gate4 = { status: opts.budget !== 8 || result.mode !== 'store' || opts.evict === 'off' ? 'UNMEASURED'
+result.gate4 = { status: opts.timing || opts.budget !== 8 || result.mode !== 'store' || opts.evict === 'off' ? 'UNMEASURED'
   : result.gate3.status === 'PASS' && stress.budgetApplied && stress.sourceEvictions > 0 && stress.thumbEvictions > 0 ? 'PASS' : 'FAIL', evidence: stress };
 result.gate5 = longTaskGate(result, opts.baseline ? JSON.parse(readFileSync(resolve(opts.baseline), 'utf8')) : null);
 const privacy = tourEvidence.desktopPrivacy;
@@ -1203,15 +1288,18 @@ result.gate8 = { status: opts.timing ? 'UNMEASURED'
 // An off run supplies the before measurements; exceeding streaming's memory
 // or latency limits must not prevent it from supplying a valid baseline.
 const required = ['gate3'];
-if (opts.timing) { if (result.mode === 'store') required.push('gate2'); }
-else { required.push('gate8'); if (result.mode === 'store' && opts.evict !== 'off') required.push('gate1'); }
-if (opts.budget === 8 && result.mode === 'store' && opts.evict !== 'off') required.push('gate4');
+if (result.mode === 'store' && opts.attach === null) required.push('gate2');
+if (!opts.timing) required.push('gate8');
+if (opts.loops >= 2 && opts.budget === 8 && result.mode === 'store' && opts.evict !== 'off') required.push('gate1Leak');
+if (!opts.timing && opts.budget === 8 && result.mode === 'store' && opts.evict !== 'off') required.push('gate4');
 if (opts.baseline) required.push('gate5');
 if (attachedApp !== null) required.push('gate6');
 result.requiredGates = required;
-result.gatesPassed = failure === null && required.every(gate => result[gate].status === 'PASS');
+result.gatesPassed = failure === null && required.every(gate => result[gate].status === 'PASS')
+  && (opts.attach !== null || result.gate2.measured);
 writeFileSync(join(outDir, `${opts.label}.json`), `${JSON.stringify(result, null, 2)}\n`);
 console.log(`[${opts.label}] wrote ${join(outDir, `${opts.label}.json`)}; gate1=${result.gate1.status} gate3=${result.gate3.status} gate2=${result.gate2.status} gate5=${result.gate5.status} gate6=${result.gate6.status} gate8=${result.gate8.status}; gates=${result.gatesPassed ? 'PASS' : 'FAIL'}; owned processes remaining=${cleaned.remaining.length}`);
+console.log(`[${opts.label}] gate 1 leak=${result.gate1Leak.status}; ${JSON.stringify(result.gate1Leak)}`);
 try {
   rmSync(scratch, { recursive: true, force: true });
 } catch {
