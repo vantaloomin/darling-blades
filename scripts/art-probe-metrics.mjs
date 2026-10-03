@@ -3,6 +3,7 @@
 const measured = (value) => typeof value === 'number' && Number.isFinite(value) && value >= 0;
 const invalidTasks = () => ({ count: null, totalMs: null, durationsMs: null });
 const verdict = (failures, missing) => failures.length ? 'FAIL' : missing.length ? 'UNMEASURED' : 'PASS';
+const sameProbeVersion = (left, right) => typeof left === 'string' && left.trim().length > 0 && left === right;
 
 export function bytesToMiB(bytes) {
   return measured(bytes) ? bytes / 1048576 : null;
@@ -139,6 +140,7 @@ function memoryBlock(input, expectedMode) {
     const samples = memorySamples(shape.stops);
     const peaks = memoryPeaks(samples);
     const issues = [...shape.reasons];
+    if (!sameProbeVersion(input?.probeVersion, run?.probeVersion)) issues.push('Probe version is missing or does not match its repeat parent');
     if (peaks.gpuPeakMiB === null) issues.push('GPU counters are incomplete');
     if (peaks.rendererPeakMiB === null) issues.push('Renderer counters are incomplete');
     if (!validMeasurement(run?.measurement)) issues.push('Build, machine, tour version or measurement timestamps are incomplete');
@@ -172,6 +174,7 @@ export function memoryGate(on, off) {
   const all = [...(before?.entries ?? []), ...current.entries];
   const reference = all[0];
   for (const run of all) {
+    if (!sameProbeVersion(reference?.probeVersion, run?.probeVersion)) missing.push('Probe versions do not match across all attempts');
     if (!sameMemoryConfiguration(reference, run)) missing.push('Tier, throttle, budget, eviction, target, source or loop count does not match');
     if (!sameTourFixture(reference?.tourFixture, run?.tourFixture)) missing.push('Tour fixtures do not match across all attempts');
     const stopIdentity = (entry) => (Array.isArray(entry?.stops) ? entry.stops : []).map((stop) => [stop?.stop, stop?.baseStop, stop?.loop]);
@@ -302,6 +305,7 @@ function sameTourFixture(left, right) {
 export function longTaskGate(candidate, baseline) {
   const missing = [];
   const failures = [];
+  if (!sameProbeVersion(candidate?.probeVersion, baseline?.probeVersion)) missing.push('Probe versions are missing or do not match');
   if (candidate?.failure !== null || baseline?.failure !== null) missing.push('Both runs must complete successfully');
   if (!sameTourFixture(candidate?.tourFixture, baseline?.tourFixture)) missing.push('Tour fixtures are incomplete or do not match');
   if (actualMode(candidate) !== 'store' || actualMode(baseline) !== 'queue') missing.push('Comparison needs streaming on and a streaming-off baseline');

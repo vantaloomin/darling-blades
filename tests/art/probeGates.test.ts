@@ -8,7 +8,7 @@ const memory = (stop: string, overrides: Record<string, unknown> = {}) => ({
   stop, baseStop: stop, loop: 1, gpuPrivateMiB: 0, gpuDedicatedMiB: 0, gpuSharedMiB: 0, rendererPrivateMiB: 0, ...overrides,
 });
 const memoryTour = (stream: 'on' | 'off', gpu = 600, renderer = 400, overrides: Record<string, unknown> = {}) => ({
-  stream, failure: null, tier: 'full', throttle: local, budgetMiB: null, evict: 'on', target: 'web', source: 'packs',
+  probeVersion: 'fixture-probe-a', stream, failure: null, tier: 'full', throttle: local, budgetMiB: null, evict: 'on', target: 'web', source: 'packs',
   loops: 1, tourCompletedLoops: 1,
   measurement: {
     buildId: 'a'.repeat(64), machineId: 'b'.repeat(64), tourVersion: 's6-g1-v2',
@@ -37,7 +37,7 @@ const timingRun = (overrides: Record<string, unknown> = {}) => ({
   },
 });
 const tour = (stream: 'on' | 'off', durations: number[][] = [[], [80]]) => ({
-  stream, failure: null, tier: 'full', throttle: local, budgetMiB: null, evict: 'on', target: 'web', source: 'packs',
+  probeVersion: 'fixture-probe-a', stream, failure: null, tier: 'full', throttle: local, budgetMiB: null, evict: 'on', target: 'web', source: 'packs',
   tourFixture: { version: 's6-v1', opponentId: 'opponent-a', packCardIds: ['card-a', 'card-b'], draftPackIds: ['card-c', 'card-d'], duelSeed: 37 },
   stops: durations.map((longTasks, index) => ({ stop: index === 0 ? 'menu' : 'collection', longTasks })),
 });
@@ -90,8 +90,8 @@ describe('probe memory gate', () => {
     first.stops[0] = memory('menu', { gpuPrivateMiB: 500, rendererPrivateMiB: 550 });
     const last = memoryTour('on', 0, 0);
     last.stops[2] = memory('restored', { loop: null, gpuPrivateMiB: 900, rendererPrivateMiB: 500 });
-    const result = memoryGate({ repeat: 3, runs: [first, memoryTour('on', 600, 450), last] },
-      { repeat: 3, runs: [memoryTour('off', 1000, 400), memoryTour('off', 2000, 300), memoryTour('off', 1000, 400)] });
+    const result = memoryGate({ probeVersion: 'fixture-probe-a', repeat: 3, runs: [first, memoryTour('on', 600, 450), last] },
+      { probeVersion: 'fixture-probe-a', repeat: 3, runs: [memoryTour('off', 1000, 400), memoryTour('off', 2000, 300), memoryTour('off', 1000, 400)] });
     expect(result.status).toBe('PASS');
     expect(result.candidate.medianGpuPeakMiB).toBe(600);
     expect(result.baseline?.medianGpuPeakMiB).toBe(1000);
@@ -123,15 +123,15 @@ describe('probe memory gate', () => {
   // Mutations: discard-failed-attempt; ignore-repeat-count.
   it('preserves failed attempts and withholds medians when requested repeats are unfinished or absent', () => {
     const runs = [memoryTour('on', 500), memoryTour('on', 590, 400, { failure: 'browser exited' }), memoryTour('on', 600)];
-    const off = { repeat: 3, runs: [memoryTour('off', 1000), memoryTour('off', 1000), memoryTour('off', 1000)] };
-    const result = memoryGate({ repeat: 3, runs }, off);
+    const off = { probeVersion: 'fixture-probe-a', repeat: 3, runs: [memoryTour('off', 1000), memoryTour('off', 1000), memoryTour('off', 1000)] };
+    const result = memoryGate({ probeVersion: 'fixture-probe-a', repeat: 3, runs }, off);
     expect(result.status).toBe('UNMEASURED');
     expect(result.candidate.attemptedRepeats).toBe(3);
     expect(result.candidate.validRepeats).toBe(2);
     expect(result.candidate.runs[1].gpuPeakMiB).toBe(590);
     expect(result.candidate.medianGpuPeakMiB).toBeNull();
-    expect(memoryGate({ repeat: 3, runs: [runs[0], runs[2]] }, off).status).toBe('UNMEASURED');
-    expect(memoryGate({ repeat: 3, runs: [runs[0], runs[2]] }, { repeat: 3, runs: [off.runs[0], off.runs[1]] }).status).toBe('UNMEASURED');
+    expect(memoryGate({ probeVersion: 'fixture-probe-a', repeat: 3, runs: [runs[0], runs[2]] }, off).status).toBe('UNMEASURED');
+    expect(memoryGate({ probeVersion: 'fixture-probe-a', repeat: 3, runs: [runs[0], runs[2]] }, { probeVersion: 'fixture-probe-a', repeat: 3, runs: [off.runs[0], off.runs[1]] }).status).toBe('UNMEASURED');
     expect(memoryGate(runs[0], off).status).toBe('UNMEASURED');
   });
 
@@ -149,10 +149,35 @@ describe('probe memory gate', () => {
     const before = memoryTour('off', 1000);
     for (const measurement of [{ buildId: 'c'.repeat(64) }, { machineId: 'c'.repeat(64) }, { tourVersion: 'old-tour' }, { buildId: null }]) {
       const changed = memoryTour('on', 600, 400, { measurement: { ...memoryTour('on').measurement, ...measurement } });
-      expect(memoryGate({ repeat: 2, runs: [memoryTour('on'), changed] }, { repeat: 2, runs: [before, before] }).status).toBe('UNMEASURED');
+      expect(memoryGate({ probeVersion: 'fixture-probe-a', repeat: 2, runs: [memoryTour('on'), changed] }, { probeVersion: 'fixture-probe-a', repeat: 2, runs: [before, before] }).status).toBe('UNMEASURED');
     }
     expect(memoryGate(memoryTour('on', 600, 400, { tourFixture: { ...before.tourFixture, duelSeed: 38 } }), before).status).toBe('UNMEASURED');
     expect(memoryGate(memoryTour('on', 600, 400, { tourFixture: null }), before).status).toBe('UNMEASURED');
+  });
+
+  // Mutations: ignore-memory-probe-version; accept-unversioned-probes.
+  it('compares memory only between explicitly versioned runs using the same probe method', () => {
+    const before = memoryTour('off', 1000);
+    expect(memoryGate(memoryTour('on'), before).status).toBe('PASS');
+    expect(memoryGate(memoryTour('on', 600, 400, { probeVersion: 'fixture-probe-b' }), before).status).toBe('UNMEASURED');
+    for (const probeVersion of [undefined, null, '', '   ']) {
+      expect(memoryGate(memoryTour('on', 600, 400, { probeVersion }), before).status).toBe('UNMEASURED');
+      expect(memoryGate(memoryTour('on'), { ...before, probeVersion }).status).toBe('UNMEASURED');
+      expect(memoryGate(memoryTour('on', 600, 400, { probeVersion }), { ...before, probeVersion }).status).toBe('UNMEASURED');
+    }
+  });
+
+  // Mutation: ignore-parent-probe-version; trust only the first child or ignore the parent's version.
+  it('requires every repeat to carry its parent probe version before memory can be compared', () => {
+    const on = { probeVersion: 'fixture-probe-a', repeat: 2, runs: [memoryTour('on'), memoryTour('on')] };
+    const off = { probeVersion: 'fixture-probe-a', repeat: 2, runs: [memoryTour('off', 1000), memoryTour('off', 1000)] };
+    expect(memoryGate(on, off).status).toBe('PASS');
+    for (const probeVersion of ['fixture-probe-b', undefined, null, '', '   ']) {
+      expect(memoryGate({ ...on, probeVersion }, off).status).toBe('UNMEASURED');
+      expect(memoryGate(on, { ...off, probeVersion }).status).toBe('UNMEASURED');
+      expect(memoryGate({ ...on, runs: [on.runs[0], { ...on.runs[1], probeVersion }] }, off).status).toBe('UNMEASURED');
+      expect(memoryGate(on, { ...off, runs: [off.runs[0], { ...off.runs[1], probeVersion }] }).status).toBe('UNMEASURED');
+    }
   });
 
   // Mutation: pairwise-time-order-only; allow overlapping off/on measurement blocks.
@@ -160,8 +185,8 @@ describe('probe memory gate', () => {
     const at = (stream: 'on' | 'off', startedAt: string, finishedAt: string) => memoryTour(stream, stream === 'on' ? 600 : 1000, 400,
       { measurement: { ...memoryTour(stream).measurement, startedAt, finishedAt } });
     expect(memoryGate(at('on', '2026-10-03T00:10:00.000Z', '2026-10-03T00:20:00.000Z'), memoryTour('off', 1000)).status).toBe('PASS');
-    expect(memoryGate({ repeat: 2, runs: [at('on', '2026-10-03T00:20:00.000Z', '2026-10-03T00:30:00.000Z'), at('on', '2026-10-03T01:20:00.000Z', '2026-10-03T01:30:00.000Z')] },
-      { repeat: 2, runs: [memoryTour('off', 1000), at('off', '2026-10-03T01:00:00.000Z', '2026-10-03T01:10:00.000Z')] }).status).toBe('UNMEASURED');
+    expect(memoryGate({ probeVersion: 'fixture-probe-a', repeat: 2, runs: [at('on', '2026-10-03T00:20:00.000Z', '2026-10-03T00:30:00.000Z'), at('on', '2026-10-03T01:20:00.000Z', '2026-10-03T01:30:00.000Z')] },
+      { probeVersion: 'fixture-probe-a', repeat: 2, runs: [memoryTour('off', 1000), at('off', '2026-10-03T01:00:00.000Z', '2026-10-03T01:10:00.000Z')] }).status).toBe('UNMEASURED');
     expect(memoryGate(at('on', 'not-a-time', '2026-10-03T01:10:00.000Z'), memoryTour('off', 1000)).status).toBe('UNMEASURED');
   });
 
@@ -282,6 +307,17 @@ describe('cold Collection gate', () => {
 });
 
 describe('matched-tour long-task comparison', () => {
+  // Mutation: ignore-long-task-probe-version; compare costs from incompatible collection methods.
+  it('compares long-task cost only when both runs name the same probe method', () => {
+    const before = tour('off');
+    expect(longTaskGate(tour('on'), before).status).toBe('PASS');
+    for (const probeVersion of ['fixture-probe-b', undefined, null, '', '   ']) {
+      expect(longTaskGate({ ...tour('on'), probeVersion }, before).status).toBe('UNMEASURED');
+      expect(longTaskGate(tour('on'), { ...before, probeVersion }).status).toBe('UNMEASURED');
+    }
+    expect(longTaskGate({ ...tour('on'), probeVersion: undefined }, { ...before, probeVersion: undefined }).status).toBe('UNMEASURED');
+  });
+
   // Mutation: reject equality or require both count and duration to improve strictly.
   it('accepts equal cost and a measured zero-task tour against a zero-task baseline', () => {
     expect(longTaskGate(tour('on'), tour('off')).status).toBe('PASS');

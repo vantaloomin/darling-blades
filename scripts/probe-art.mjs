@@ -47,6 +47,7 @@ import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { collectionGate, longTaskGate, loopMemoryGate, memoryGate, normalizeStop, summarizeTimings } from './art-probe-metrics.mjs';
 import { discoverAttachedApp, readProcessMemory } from './art-probe-processes.mjs';
+import { installLongTaskRecorder, PROBE_VERSION, sampleAfterGc, settleOwnedProcesses } from './art-probe-runtime.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const EDGE = 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
@@ -115,6 +116,7 @@ const scratch = mkdtempSync(join(outDir, 'tmp-'));
 const dist = resolve(ROOT, opts.dist);
 const children = [];
 const ownedPids = new Set();
+let previewProcess = null;
 
 function killTree(pid) {
   if (!pid) return;
@@ -129,13 +131,14 @@ function killTree(pid) {
   }
 }
 
-function cleanup() {
+function alive(pid) {
+  try { process.kill(pid, 0); return true; } catch (error) { return error.code !== 'ESRCH'; }
+}
+
+function emergencyCleanup() {
   const pids = [...new Set([...ownedPids, ...children.map((child) => child.pid)].filter(Boolean))];
   for (const child of children.splice(0)) killTree(child.pid);
   for (const pid of pids) killTree(pid);
-  const alive = (pid) => {
-    try { process.kill(pid, 0); return true; } catch (error) { return error.code !== 'ESRCH'; }
-  };
   // Termination can return before Windows has finished closing the process.
   const deadline = Date.now() + 3000;
   const pause = new Int32Array(new SharedArrayBuffer(4));
@@ -147,12 +150,25 @@ function cleanup() {
   for (const pid of pids) if (!remaining.includes(pid)) ownedPids.delete(pid);
   return { tracked: pids, remaining };
 }
-process.on('exit', cleanup);
+// Exit/signal handlers cannot await; the completed-tour path below can.
+process.on('exit', emergencyCleanup);
+async function cleanup() {
+  const pids = [...new Set([...ownedPids, ...children.map(child => child.pid)].filter(Boolean))];
+  // Browser.close already requested Edge shutdown. Ask preview to stop too,
+  // then allow owned processes to settle before forcing any remaining trees.
+  if (previewProcess?.exitCode === null) previewProcess.kill('SIGTERM');
+  const result = await settleOwnedProcesses(pids, { alive, forceKill: killTree, wait: sleep, now: Date.now });
+  for (const pid of pids) if (!result.remaining.includes(pid)) ownedPids.delete(pid);
+  for (let index = children.length - 1; index >= 0; index--) {
+    if (!result.remaining.includes(children[index].pid)) children.splice(index, 1);
+  }
+  return result;
+}
 // Setup can fail before the tour's try/catch (for example, Edge cannot start
 // its GPU process). Keep that failure and cleanup reviewable as well.
-process.once('uncaughtException', (error) => {
-  const cleaned = cleanup();
-  const result = { label: opts.label, tier: opts.tier, stream: opts.stream, budgetMiB: opts.budget,
+process.once('uncaughtException', async (error) => {
+  const cleaned = await cleanup();
+  const result = { probeVersion: PROBE_VERSION, label: opts.label, tier: opts.tier, stream: opts.stream, budgetMiB: opts.budget,
     failure: String(error?.stack ?? error), stage: 'startup', gatesPassed: false, stops: [], cleanup: cleaned };
   writeFileSync(join(outDir, `${opts.label}.json`), `${JSON.stringify(result, null, 2)}\n`);
   console.error(result.failure);
@@ -176,7 +192,7 @@ async function runProbeChild(args, resultPath) {
   } catch (error) {
     // Preserve this attempt and keep later repeats running if the child was
     // interrupted during its JSON write. Leave the original file for review.
-    result = { failure: `child result unavailable: ${String(error)}`, gatesPassed: false };
+    result = { probeVersion: PROBE_VERSION, failure: `child result unavailable: ${String(error)}`, gatesPassed: false };
   }
   // A complete failing gate still has useful timings. An interrupted child
   // must not supply a passing result, even if it wrote JSON before stopping.
@@ -208,7 +224,7 @@ if (opts.checkPacks !== null) {
         pass: response.status === 206 && encoding === null && /^bytes 0-99\//.test(range ?? '') });
     } catch (error) { packs.push({ name, url: packUrl, pass: false, error: String(error) }); }
   }
-  const result = { gate7: { status: packs.every(pack => pack.pass) ? 'PASS' : 'FAIL', packs } };
+  const result = { probeVersion: PROBE_VERSION, gate7: { status: packs.every(pack => pack.pass) ? 'PASS' : 'FAIL', packs } };
   writeFileSync(join(outDir, `${opts.label}.json`), JSON.stringify(result, null, 2));
   console.log(`[${opts.label}] pack transport ${result.gate7.status}: ${packs.filter(pack => pack.pass).length}/${packs.length}; live gate 3 is still required`);
   process.exit(result.gate7.status === 'PASS' ? 0 : 1);
@@ -234,7 +250,7 @@ if (opts.repeat > 1) {
     if (opts.baseline) args.push('--baseline', baseline.runs?.[i]?.resultPath ?? resolve(opts.baseline));
     runs.push(await runProbeChild(args, resultPath));
   }
-  const result = { label: opts.label, tier: opts.tier, stream: opts.stream, throttle, repeat: opts.repeat,
+  const result = { probeVersion: PROBE_VERSION, label: opts.label, tier: opts.tier, stream: opts.stream, throttle, repeat: opts.repeat,
     timing: summarizeTimings(runs, opts.repeat), runs, gatesPassed: runs.every(run => run.gatesPassed === true) };
   result.gate1 = memoryGate(result);
   result.gate1Leak = { status: runs.some(run => run.gate1Leak?.status === 'FAIL') ? 'FAIL'
@@ -317,6 +333,7 @@ try {
 }
 const vite = spawn(process.execPath, [viteBin, 'preview', '--config', configPath, '--configLoader', 'runner'], { cwd: ROOT, stdio: 'ignore', windowsHide: true });
 children.push(vite);
+previewProcess = vite;
 for (let i = 0; ; i++) {
   try {
     if ((await fetch(APP)).ok) break;
@@ -451,6 +468,7 @@ async function removeInjection(identifier) {
   if (index !== -1) injectedScripts.splice(index, 1);
 }
 await S('Runtime.enable');
+await S('HeapProfiler.enable');
 await S('Log.enable');
 await S('Page.enable');
 await S('Page.bringToFront');
@@ -464,7 +482,7 @@ if (lite) {
   await S('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
 }
 // Long tasks over 50 ms, counted in the page from the first script on.
-await inject(`window.__longTasks = null; try { if (PerformanceObserver.supportedEntryTypes.includes('longtask')) { window.__longTasks = []; new PerformanceObserver((list) => { for (const e of list.getEntries()) if (e.duration > 50) window.__longTasks.push(e.duration); }).observe({ type: 'longtask', buffered: true }); } } catch { window.__longTasks = null; }`);
+await inject(`(${installLongTaskRecorder.toString()})(window, PerformanceObserver);`);
 
 async function pauseCardRequests() {
   holdArt = true;
@@ -597,8 +615,13 @@ async function record(name) {
   })()`);
   const scenes = await page('window.__game.scene.getScenes(true).map((s) => s.sys.settings.key)');
   const dimensions = await page('(() => { const g = window.__game; return { width: g.canvas.width, height: g.canvas.height, k: g.canvas.width / 1280, viewportWidth: innerWidth, viewportHeight: innerHeight }; })()');
-  const longTasks = await page('window.__longTasks ?? null');
-  const memory = await processMemory();
+  const { longTasks, memory } = await sampleAfterGc({
+    pauseLongTasks: () => page('window.__pauseProbeLongTasks()'),
+    collectGarbage: () => S('HeapProfiler.collectGarbage'),
+    wait: sleep,
+    readMemory: processMemory,
+    resumeLongTasks: () => page('window.__resumeProbeLongTasks()'),
+  });
   const shot = await S('Page.captureScreenshot', { format: 'png' });
   const shotName = `${opts.label}-${name}.png`;
   writeFileSync(join(outDir, shotName), Buffer.from(shot.result.data, 'base64'));
@@ -1225,12 +1248,13 @@ if (attachedApp === null) {
     await S('Emulation.clearDeviceMetricsOverride');
     await S('Emulation.setTouchEmulationEnabled', { enabled: false });
     await S('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+    await S('HeapProfiler.disable');
     await send('Target.detachFromTarget', { sessionId });
   } catch (error) { gateFailures.push({ stop: 'detach', gate: 'desktopCleanup', error: String(error) }); }
 }
 ws.close();
 await sleep(500);
-const cleaned = cleanup();
+const cleaned = await cleanup();
 if (cleaned.remaining.length > 0) gateFailures.push({ stop: 'cleanup', gate: 'ownedProcessesStillRunning', pids: cleaned.remaining });
 let coldTimingRun = null;
 if (!opts.timing && opts.attach === null && cleaned.remaining.length === 0) {
@@ -1254,10 +1278,10 @@ if (!opts.timing && opts.attach === null && cleaned.remaining.length === 0) {
     collectionTiming = complete ? coldTimingRun.collectionTiming : null;
     tourEvidence.coldNavigation = { ...coldTimingRun.tourEvidence?.coldNavigation, resultPath: coldTimingRun.resultPath };
   } catch (error) {
-    coldTimingRun = { failure: String(error), collectionTiming: null, cleanup: cleanup() };
+    coldTimingRun = { probeVersion: PROBE_VERSION, failure: String(error), collectionTiming: null, cleanup: await cleanup() };
   }
 }
-const result = { label: opts.label, url, tier: opts.tier, stream: opts.stream, budgetMiB: opts.budget,
+const result = { probeVersion: PROBE_VERSION, label: opts.label, url, tier: opts.tier, stream: opts.stream, budgetMiB: opts.budget,
   measurement, loops: opts.loops, tourCompletedLoops,
   evict: opts.evict ?? 'on', throttle, target: attachedApp === null ? 'web' : 'desktop',
   source: stops[0]?.art?.source ?? null,

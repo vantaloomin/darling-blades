@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/config/features.ts, src/art/artBudget.ts, src/art/artLoader.ts, src/art/artSource.ts, src/art/ArtResolver.ts, src/art/artWatch.ts, src/art/artArrivals.ts, src/art/artRetry.ts, src/ui/CardThumbCache.ts, src/ui/artGate.ts, src/ui/duelArt.ts, src/art/pagedRequests.ts, src/art/packRequests.ts, src/art/artLifetime.ts, src/ui/displayWalk.ts, src/scenes/ArtLoaderScene.ts, scripts/probe-art.mjs, scripts/art-probe-metrics.mjs, scripts/art-probe-compare.mjs, scripts/art-probe-processes.mjs, scripts/art-probe-save.ts, scripts/gen-art-manifest.ts, scripts/gen-art-halfres.ts, scripts/serve-lan.ts, .github/workflows/deploy.yml, src-tauri/tauri.conf.json · last-verified: 2026-10-03 · design doc, re-verify when the art loader, the thumbnail cache, the card-face geometry (R13) or the deploy pipeline changes -->
+<!-- source-of-truth: src/config/features.ts, src/art/artBudget.ts, src/art/artLoader.ts, src/art/artSource.ts, src/art/ArtResolver.ts, src/art/artWatch.ts, src/art/artArrivals.ts, src/art/artRetry.ts, src/ui/CardThumbCache.ts, src/ui/artGate.ts, src/ui/duelArt.ts, src/art/pagedRequests.ts, src/art/packRequests.ts, src/art/artLifetime.ts, src/ui/displayWalk.ts, src/scenes/ArtLoaderScene.ts, scripts/probe-art.mjs, scripts/art-probe-metrics.mjs, scripts/art-probe-runtime.mjs, scripts/art-probe-compare.mjs, scripts/art-probe-processes.mjs, scripts/art-probe-save.ts, scripts/gen-art-manifest.ts, scripts/gen-art-halfres.ts, scripts/serve-lan.ts, .github/workflows/deploy.yml, src-tauri/tauri.conf.json · last-verified: 2026-10-03 · design doc, re-verify when the art loader, the thumbnail cache, the card-face geometry (R13) or the deploy pipeline changes -->
 
 # Card art streaming: load on demand, unload under a budget (1.9 lane D)
 
@@ -581,6 +581,38 @@ relevant gate **UNMEASURED**, rather than turning into zero.
 The JSON source label comes from the read-only `window.__art.source` hook's
 configured build source, rather than a guess from command-line options.
 Request counters retain which pack or loose-file transports were used.
+
+The measurement method is versioned as `probeVersion: s6-g1-gc-retry-v3` in
+every run JSON and repeat parent. Memory and long-task comparisons refuse
+missing or different versions, including a child that differs from its
+repeat parent. Rerun both off and on; old evidence cannot be combined with
+this method.
+
+Before **every** stop's process-memory sample, in every mode, the probe
+uses CDP `HeapProfiler.enable` / `HeapProfiler.collectGarbage` and waits
+250 ms. This measures after uncollected page garbage has been released.
+The long-task recorder drains queued gameplay entries and snapshots them
+before GC, then disconnects through GC, settling and counter sampling.
+It resumes without buffered replay, so diagnostic work is excluded from
+gate 5 and cannot migrate to the next stop.
+
+Private bytes come from Windows `Get-Process.PrivateMemorySize64` for the
+GPU and renderer PIDs identified by CDP. Dedicated/shared GPU bytes come
+from the Windows `GPU Process Memory` counters. A renderer can exit between
+CDP enumeration and the provider read; the supplied failures contain
+`Cannot find a process` and `Process exited before memory measurement`.
+The probe retries the complete four-counter observation up to three times,
+waiting 150 ms between attempts and re-enumerating CDP PIDs each time.
+`memorySampling.observations` retains the attempts. It uses one complete
+observation, never counters stitched across attempts. If retries run out,
+the final unavailable values stay null and the memory verdict stays
+UNMEASURED.
+
+After requesting browser/preview shutdown, cleanup polls owned processes
+for up to 15 seconds, force-kills remaining trees, then verifies exit for
+up to 5 seconds. Successfully killed stragglers appear in
+`cleanup.warnings`, without failing gates 3 or 8. Only processes still alive
+after that verification enter `cleanup.remaining` and fail cleanup.
 
 ### Preparation
 
