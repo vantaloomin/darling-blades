@@ -27,6 +27,17 @@ import { activateActionValue, arrivalHuntCastValue, boundCastEffects, castSpellO
  */
 export const SELF_PROVOKE_MARGIN = 1.25;
 
+/**
+ * What a Hunt Medium spends from hand (a Hunt spell, or an Empower Hunt's
+ * extra mana) must be worth on the public board at its pair: the same one
+ * card. The exchange already charges the hunter it loses, so a kill the
+ * hunter survives clears it, a trade clears it only when the prey is worth a
+ * card more than the hunter, and a Hunt that kills nothing is held unless the
+ * Provoked it sets off nets the card (wave 4, M3). Untuned, like the margin
+ * above.
+ */
+export const HUNT_SPEND_MARGIN = SELF_PROVOKE_MARGIN;
+
 /** Easy's margin: a friendly choice is never taken while a plain one exists. */
 export const NEVER_BY_CHOICE = Infinity;
 

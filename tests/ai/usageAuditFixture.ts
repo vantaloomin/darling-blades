@@ -9,8 +9,9 @@ import { WARCHEST_HAND_SIZE } from '../../src/meta/warchest';
 import positions from './fixtures/usageAuditPositions.json';
 
 /** The audit's actual seeded games, with recorded action prefixes: P1's team
- * combats at 4290e37, the P2-P4 main-phase positions at 30cbf0e8, and P5's
- * early ramp decision at feb4218c.
+ * combats at 4290e37, the P2-P4 main-phase positions at 30cbf0e8, P5's early
+ * ramp decision at feb4218c, and wave 4's positions (blazeHorn, lostHunt,
+ * emptyTrial, hardTrial) at e365cc0c.
  * Replay the history through the engine so earlier improvements cannot erase
  * the decision under test. No battlefield, hand or RNG state is fabricated.
  * Cell numbering and seats follow scripts/balance-matrix.ts's runCell. */
