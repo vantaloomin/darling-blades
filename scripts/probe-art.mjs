@@ -47,7 +47,7 @@ import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { collectionGate, longTaskGate, loopMemoryGate, memoryGate, normalizeStop, summarizeTimings } from './art-probe-metrics.mjs';
 import { discoverAttachedApp, readProcessMemory } from './art-probe-processes.mjs';
-import { configureProbeNetwork, installLongTaskRecorder, PROBE_VERSION, sampleAfterGc, settleOwnedProcesses } from './art-probe-runtime.mjs';
+import { configureProbeNetwork, installArtDispatchHold, installLongTaskRecorder, PROBE_VERSION, sampleAfterGc, settleOwnedProcesses } from './art-probe-runtime.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const EDGE = 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
@@ -484,12 +484,27 @@ if (lite) {
 // Long tasks over 50 ms, counted in the page from the first script on.
 await inject(`(${installLongTaskRecorder.toString()})(window, PerformanceObserver);`);
 
+let dispatchHoldInjection = null;
 async function pauseCardRequests() {
+  if (attachedApp !== null) {
+    const source = `(${installArtDispatchHold.toString()})(window);`;
+    dispatchHoldInjection = await inject(source);
+    await page(source);
+    return;
+  }
   holdArt = true;
   await S('Fetch.enable', { patterns: ['*/assets/art/cards/*', '*/assets/art/cards-half/*', '*/assets/art/packs/*']
     .map(urlPattern => ({ urlPattern, requestStage: 'Request' })) });
 }
 async function releaseCardRequests() {
+  if (attachedApp !== null) {
+    if (dispatchHoldInjection !== null) {
+      await removeInjection(dispatchHoldInjection);
+      dispatchHoldInjection = null;
+    }
+    await page('window.__probeArtFetch?.dispose()');
+    return;
+  }
   holdArt = false;
   for (const request of heldRequests.splice(0)) {
     await send('Fetch.continueRequest', { requestId: request.requestId }, request.sessionId).catch(() => {});
@@ -826,7 +841,9 @@ async function desktopPrivacyDuringLoad(opponentId, gauntletRung) {
       if (o.type === 'Text') texts.push(o.text); if (Array.isArray(o.list)) o.list.forEach(walk); };
     g.scene.getScene('Duel').children.list.forEach(walk);
     const stats = window.__art?.stats();
-    return texts.some(text => /Unsheathing/.test(text)) && stats?.inFlight > 0 ? { gateVisible: true, inFlight: stats.inFlight, mode: window.__art.mode } : null;
+    const held = window.__probeArtFetch?.heldRequests ?? 0;
+    return texts.some(text => /Unsheathing/.test(text)) && stats?.inFlight > 0 && held > 0
+      ? { gateVisible: true, inFlight: stats.inFlight, heldRequests: held, interruption: 'page-fetch-dispatch', mode: window.__art.mode } : null;
   })()`;
   await until('a live duel art gate before opening privacy', pendingDuel, 30000);
   const opened = await S('Runtime.evaluate', { expression: `(() => {
@@ -834,7 +851,7 @@ async function desktopPrivacyDuringLoad(opponentId, gauntletRung) {
     window.open('./privacy.html', '_blank', 'noopener,noreferrer'); return evidence;
   })()`, returnByValue: true, userGesture: true });
   if (opened.result.exceptionDetails) throw new Error('privacy window did not open during the duel gate');
-  tourEvidence.desktopPrivacy = { ...opened.result.result.value, heldRequests: heldRequests.length, newWindow: false, loaded: false, duelRecovered: false };
+  tourEvidence.desktopPrivacy = { ...opened.result.result.value, newWindow: false, loaded: false, duelRecovered: false };
   // Let native art IO overlap popup initialization once opening during the
   // pending gate is proven. Whether #432 actually recurs is observational.
   await releaseCardRequests();
@@ -893,7 +910,8 @@ try {
   const baselineStats = await page('window.__art.stats()');
   if ((baselineStats.resident ?? baselineStats.loaded) !== 0) throw new Error('menu B already contains card art');
   tourEvidence.menuBeforeCardArt = true;
-  tourEvidence.seededBaseline = { ownedCards: owned, resident: baselineStats.resident ?? baselineStats.loaded, heldRequests: heldRequests.length, seededBeforeNavigation: true };
+  tourEvidence.seededBaseline = { ownedCards: owned, resident: baselineStats.resident ?? baselineStats.loaded,
+    heldRequests: attachedApp === null ? heldRequests.length : await page('window.__probeArtFetch.heldRequests'), seededBeforeNavigation: true };
   tourEvidence.device = await page('({ deviceMemoryGb: navigator.deviceMemory ?? null, userAgent: navigator.userAgent })');
   await page("window.__probeInitialSave = JSON.stringify(window.__game.scene.getScene('Shop').saveData)");
   const continuityStart = await page('({ navigationTimeOrigin: performance.timeOrigin, restores: window.__art.stats().restores ?? 0 })');

@@ -1,8 +1,112 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
-  configureProbeNetwork, installLongTaskRecorder, retryMemorySample, sampleAfterGc, settleOwnedProcesses, type LongTaskScope,
+  configureProbeNetwork, installArtDispatchHold, installLongTaskRecorder, retryMemorySample, sampleAfterGc, settleOwnedProcesses, type ArtDispatchScope, type LongTaskScope,
 } from '../../scripts/art-probe-runtime.mjs';
-import { makeStore } from './artStoreFakes';
+import { createLooseSource } from '../../src/art/artSource';
+import { FakeImage, makeStore } from './artStoreFakes';
+
+function dispatchScope(fetch: typeof globalThis.fetch): ArtDispatchScope {
+  return { fetch, URL, location: { origin: 'http://tauri.localhost', href: 'http://tauri.localhost/' } };
+}
+
+describe('attached app art dispatch interruption', () => {
+  // Mutation: dispatch-while-held; bypass the art dispatch queue.
+  it('keeps a real store lease pending during interruption then recovers through native loose-file fetch without failures', async () => {
+    const native = vi.fn<typeof fetch>(async () => new Response(new Uint8Array([
+      82, 73, 70, 70, 4, 0, 0, 0, 87, 69, 66, 80, // RIFF / WEBP
+    ])));
+    const scope = dispatchScope(native);
+    // The injected function must survive serialization into a new document.
+    const install = new Function(`return (${installArtDispatchHold.toString()})`)() as typeof installArtDispatchHold;
+    const hold = install(scope);
+    const keys = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+    const h = makeStore({ maxInFlight: 8,
+      source: createLooseSource({ fetch: (...args) => scope.fetch(...args), hasHalf: () => true }),
+      decode: async () => new FakeImage(640, 800, 'art'),
+    }, keys);
+    const lease = h.store.lease('duel', keys);
+    let ready = false;
+    void lease.ready.then(() => { ready = true; });
+    try {
+      await h.tick();
+      expect(h.store.stats().inFlight).toBe(8);
+      expect(hold.heldRequests).toBe(8);
+      expect(ready).toBe(false);
+      expect(native).not.toHaveBeenCalled();
+      hold.dispose();
+      for (let frame = 0; frame < 20 && !ready; frame++) await h.tick();
+      expect(ready).toBe(true);
+      expect(h.store.stats().resident).toBe(8);
+      expect(h.store.stats().failures).toBe(0);
+      expect(native).toHaveBeenCalledTimes(8);
+      expect(hold.heldRequests).toBe(0);
+      expect(scope.fetch).toBe(native);
+      expect(scope.__probeArtFetch).toBeUndefined();
+    } finally { hold.dispose(); lease.release(); h.store.dispose(); }
+  });
+
+  // Mutation: hold-all-requests; remove the art URL/origin restriction.
+  it('leaves privacy and other non-art or foreign-origin requests on their original dispatch path', async () => {
+    const native = vi.fn<typeof fetch>(async () => new Response('ok'));
+    const scope = dispatchScope(native);
+    const hold = installArtDispatchHold(scope);
+    const urls = ['./privacy.html', './assets/audio/menu.ogg', 'https://elsewhere.test/assets/art/cards/a.webp'];
+    const promises = urls.map(url => scope.fetch(url));
+    try {
+      expect(native.mock.calls.map(call => call[0])).toEqual(urls);
+      expect(hold.heldRequests).toBe(0);
+    } finally { hold.dispose(); await Promise.all(promises); }
+  });
+
+  // Mutations: lose-fetch-arguments; suppress-native-failure; retain-held-abort-listener.
+  it('releases the original Request and options exactly once and preserves native fetch rejection', async () => {
+    const failure = new Error('native handler failed');
+    const native = vi.fn<typeof fetch>(async () => { throw failure; });
+    const scope = dispatchScope(native);
+    const hold = installArtDispatchHold(scope);
+    const request = new Request('http://tauri.localhost/assets/art/cards-half/a.webp');
+    const signal = new AbortController().signal;
+    const removed = vi.spyOn(signal, 'removeEventListener');
+    const init = { signal, cache: 'no-store' as const };
+    const result = scope.fetch(request, init);
+    const check = expect(result).rejects.toBe(failure);
+    hold.release();
+    hold.dispose();
+    hold.dispose();
+    await check;
+    expect(native).toHaveBeenCalledTimes(1);
+    expect(native.mock.calls[0][0]).toBe(request);
+    expect(native.mock.calls[0][1]).toBe(init);
+    expect(removed).toHaveBeenCalledWith('abort', expect.any(Function));
+    expect(hold.heldRequests).toBe(0);
+  });
+
+  // Mutations: dispatch-cancelled-request; inherit-explicit-null-signal.
+  it('settles cancelled held reads and forgets them before releasing or replacing the hook', async () => {
+    const native = vi.fn<typeof fetch>(async () => new Response('ok'));
+    const scope = dispatchScope(native);
+    const hold = installArtDispatchHold(scope);
+    const controller = new AbortController();
+    const result = scope.fetch('./assets/art/cards/a.webp', { signal: controller.signal });
+    const aborted = expect(result).rejects.toHaveProperty('name', 'AbortError');
+    controller.abort();
+    await aborted;
+    expect(hold.heldRequests).toBe(0);
+    const again = scope.fetch('./assets/art/cards/a.webp', { signal: controller.signal });
+    await expect(again).rejects.toHaveProperty('name', 'AbortError');
+    // Explicit null overrides an aborted Request signal, just as native fetch does.
+    const request = new Request('http://tauri.localhost/assets/art/cards/a.webp', { signal: controller.signal });
+    const allowed = scope.fetch(request, { signal: null });
+    expect(hold.heldRequests).toBe(1);
+    const replacement = installArtDispatchHold(scope);
+    await allowed;
+    replacement.dispose();
+    expect(native).toHaveBeenCalledTimes(1);
+    expect(native.mock.calls[0]).toEqual([request, { signal: null }]);
+    expect(scope.fetch).toBe(native);
+    expect(scope.__probeArtFetch).toBeUndefined();
+  });
+});
 
 const counters = (gpu: number | null, renderer: number | null) => ({
   gpuPrivateMiB: gpu, gpuDedicatedMiB: 20, gpuSharedMiB: 30, rendererPrivateMiB: renderer,

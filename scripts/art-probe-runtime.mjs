@@ -1,7 +1,56 @@
 // Probe policy with injectable IO and clocks; no browser, Phaser or processes.
-export const PROBE_VERSION = 's6-retention-heap-v4';
+export const PROBE_VERSION = 's6-desktop-dispatch-v5';
 const counterNames = ['gpuPrivateMiB', 'gpuDedicatedMiB', 'gpuSharedMiB', 'rendererPrivateMiB'];
 const measured = value => typeof value === 'number' && Number.isFinite(value) && value >= 0;
+
+/**
+ * Serialized into an attached page only, before game scripts run. Hold store
+ * fetch dispatch, not CDP Fetch requests: continuing an intercepted request
+ * bypasses WebView2's handler for Tauri's custom HTTP origin. Release through
+ * the original page fetch, with its arguments/signal intact. No app hook or
+ * response substitution, and no interception of the privacy document.
+ */
+export function installArtDispatchHold(scope) {
+  scope.__probeArtFetch?.dispose();
+  const nativeFetch = scope.fetch;
+  const pending = new Set();
+  let paused = true;
+  const isArt = input => {
+    const url = new scope.URL(typeof input === 'string' ? input : input.url ?? String(input), scope.location.href);
+    return url.origin === scope.location.origin && /\/assets\/art\/(cards|cards-half|packs)\//.test(url.pathname);
+  };
+  const dispatch = (...args) => nativeFetch.apply(scope, args);
+  const wrapped = (...args) => {
+    if (!paused || !isArt(args[0])) return dispatch(...args);
+    const signal = args[1]?.signal === undefined ? args[0]?.signal : args[1].signal;
+    return new Promise((resolve, reject) => {
+      const forget = () => { pending.delete(start); signal?.removeEventListener('abort', abort); };
+      const abort = () => {
+        forget();
+        reject(signal.reason ?? Object.assign(new Error('Aborted'), { name: 'AbortError' }));
+      };
+      const start = () => {
+        forget();
+        try { resolve(dispatch(...args)); } catch (error) { reject(error); }
+      };
+      if (signal?.aborted) { abort(); return; }
+      pending.add(start);
+      signal?.addEventListener('abort', abort, { once: true });
+    });
+  };
+  const control = {
+    get heldRequests() { return pending.size; },
+    release() { paused = false; for (const start of [...pending]) start(); },
+    dispose() {
+      control.release();
+      if (scope.fetch === wrapped) scope.fetch = nativeFetch;
+      if (scope.__probeArtFetch === control) delete scope.__probeArtFetch;
+    },
+  };
+  scope.fetch = wrapped;
+  scope.__probeArtFetch = control;
+  return control;
+}
 
 /** Serialized into the page; injected dependencies keep the recorder testable. */
 export function installLongTaskRecorder(scope, Observer) {

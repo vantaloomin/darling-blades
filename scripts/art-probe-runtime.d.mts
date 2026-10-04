@@ -1,4 +1,16 @@
 export const PROBE_VERSION: string;
+export interface ArtDispatchHold {
+  readonly heldRequests: number;
+  release(): void;
+  dispose(): void;
+}
+export interface ArtDispatchScope {
+  fetch: typeof fetch;
+  URL: typeof URL;
+  location: { href: string; origin: string };
+  __probeArtFetch?: ArtDispatchHold;
+}
+export function installArtDispatchHold(scope: ArtDispatchScope): ArtDispatchHold;
 export function configureProbeNetwork(send: (method: string, params?: Record<string, unknown>) => unknown | Promise<unknown>, conditions: Record<string, unknown>, reset?: boolean): Promise<void>;
 export interface LongTaskScope {
   __longTasks?: number[] | null;

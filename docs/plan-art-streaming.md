@@ -589,7 +589,7 @@ The JSON source label comes from the read-only `window.__art.source` hook's
 configured build source, rather than a guess from command-line options.
 Request counters retain which pack or loose-file transports were used.
 
-The measurement method is versioned as `probeVersion: s6-retention-heap-v4` in
+The measurement method is versioned as `probeVersion: s6-desktop-dispatch-v5` in
 every run JSON and repeat parent. Memory and long-task comparisons refuse
 missing or different versions, including a child that differs from its
 repeat parent. Rerun both off and on; old evidence cannot be combined with
@@ -1035,17 +1035,27 @@ probe validates app/PID ancestry and never shuts down the native app; this
 block's `finally` owns the process tree, verifies cleanup, and restores the
 environment. It preserves the profile and artifacts for inspection.
 
-The probe establishes a cold duel with CDP art requests held. It opens the
-real `./privacy.html` window only while Duel has its `Unsheathing` gate and
-positive in-flight work. It releases the held requests immediately after
-the atomic window-open call, before waiting for policy content, so real art
-I/O can overlap the remaining window initialization. It verifies the new
-window's canonical privacy path and `Darling Blades Privacy Policy` title,
-the completed duel, and the privacy target's disappearance through its
-return-to-game route. A reused page window would not prove the creation
-path. Gate 3 must hold after recovery. Record any actual network failures;
-zero failures means the interruption was exercised without an observed
-transient failure, not that a failure was reproduced.
+The probe establishes a cold duel with art-store reads in flight, holding
+only their fetch dispatch in a probe-injected page shim. CDP Fetch interception
+is not used on the app: continuing an intercepted request bypasses WebView2's
+custom-protocol handler for `http://tauri.localhost` and produces connection
+refusals. Web tours keep their existing CDP mechanism. No app code or player
+flow installs this shim, and cleanup restores the original fetch function.
+
+It opens the real `./privacy.html` window only while Duel has its
+`Unsheathing` gate, positive store in-flight work and held dispatches, all
+checked in the same call that opens the window. The evidence identifies
+`interruption: page-fetch-dispatch`; these are outstanding store reads,
+not a claim that their native HTTP transport has started. Immediately after
+the window-open call, the shim forwards each original request and signal
+through the original page fetch so Tauri's handler serves it. Privacy document
+requests are never held. Real art I/O can overlap the remaining window
+initialization. The probe verifies the new window's canonical privacy path
+and `Darling Blades Privacy Policy` title, the completed duel, and the privacy
+target's disappearance through its return-to-game route. Gate 3 must hold after
+recovery. Gate 8 also requires gate 3 for the entire tour; the previous desktop
+context-restore evidence was complete, but those eight probe-created console
+errors alone made both gates fail.
 
 Run this after local web measurements. `app:build` rebuilds `dist` for loose
 Tauri assets; rebuild the web target before reusing that directory for a web
@@ -1058,99 +1068,28 @@ whether this packaged build attaches successfully remains an actual gate.
 | --- | --- | --- | --- | --- | --- |
 | app.exe / loose | | | | | |
 
+The launcher owns the app tree and verifies recorded PID/creation-time
+identities. It writes JSON arrays to temporary files, then the Python helper
+reads a file and writes `native-cleanup.json` directly, including empty trees
+and errors. The launcher writes a failure record if that helper cannot run;
+there is no JSON stdin pipe or inline `python -c` quoting. The old block's
+explicit `ConvertTo-Json -InputObject @(...)` handles empty arrays correctly
+on PowerShell 5.1; the missing record's original cause was not established.
+
+Use `-SkipBuild` for a probe-only rerun against the existing
+`src-tauri/target/release/app.exe`; this skips both the build and Cargo
+metadata. `-AppExe <path>` supports another target directory. Every launch
+records the resolved executable, SHA-256, profile and build choice in
+`native-launch.json`. Preserve the cleanup and owned-identity input files
+beside the probe JSON.
+
 ```powershell
 $gateOut = Join-Path $s6Out 'gate6'
-New-Item -ItemType Directory -Path $gateOut -Force | Out-Null
-npm.cmd run app:build
-if ($LASTEXITCODE -ne 0) { throw 'Desktop build failed' }
-$cargoJson = cargo metadata --no-deps --locked --format-version 1 --manifest-path src-tauri/Cargo.toml
-if ($LASTEXITCODE -ne 0) { throw 'Cargo metadata failed' }
-$targetRoot = ($cargoJson | ConvertFrom-Json).target_directory
-$appExe = (Resolve-Path -LiteralPath (Join-Path $targetRoot 'release\app.exe')).Path
-$cdpPort = 9431
-$portCheck = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, $cdpPort)
-try { $portCheck.Start() } finally { $portCheck.Stop() }
-$oldArguments = [Environment]::GetEnvironmentVariable('WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS')
-$oldProfile = [Environment]::GetEnvironmentVariable('WEBVIEW2_USER_DATA_FOLDER')
-$desktop = $null
-$nativeStartTicks = $null
-$ownedProcesses = @()
-$probeExit = 1
-$cleanupExit = 1
-$cleanupUnknown = $false
-function Get-S6OwnedTree([int]$AppPid) {
-    $snapshot = python -c @'
-import json, psutil, sys
-try:
-    root = psutil.Process(int(sys.argv[1]))
-    owned = [root] + root.children(recursive=True)
-    rows = []
-    for item in owned:
-        try:
-            rows.append({'pid': item.pid, 'startedAt': item.create_time()})
-        except psutil.NoSuchProcess:
-            pass
-    print(json.dumps(rows))
-except psutil.NoSuchProcess:
-    print('[]')
-'@ $AppPid
-    if ($LASTEXITCODE -ne 0) { throw 'Could not record native app descendants' }
-    @($snapshot | ConvertFrom-Json)
-}
-try {
-    $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = "--remote-debugging-port=$cdpPort"
-    $env:WEBVIEW2_USER_DATA_FOLDER = Join-Path $gateOut ('webview-profile-' + [guid]::NewGuid())
-    $desktop = Start-Process -FilePath $appExe -WindowStyle Hidden -PassThru
-    $nativeStartTicks = $desktop.StartTime.ToUniversalTime().Ticks
-    $ownedProcesses += Get-S6OwnedTree $desktop.Id
-    node scripts/probe-art.mjs --attach $cdpPort --app-pid $desktop.Id --tier full --stream on --repeat 1 --out $gateOut --label gate6-desktop
-    $probeExit = $LASTEXITCODE
-} finally {
-    try {
-        if ($null -ne $desktop) {
-            $current = Get-Process -Id $desktop.Id -ErrorAction SilentlyContinue
-            if ($current -and $current.StartTime.ToUniversalTime().Ticks -eq $nativeStartTicks) {
-                try { $ownedProcesses += Get-S6OwnedTree $desktop.Id }
-                catch { $cleanupUnknown = $true; Write-Warning $_ }
-                taskkill.exe /PID $desktop.Id /T /F | Out-Null
-            }
-        }
-        # Only recorded identities may be killed or counted; protect against PID reuse.
-        $ownedJson = ConvertTo-Json -InputObject @($ownedProcesses) -Depth 4 -Compress
-        $cleanupJson = $ownedJson | python -c @'
-import json, psutil, sys
-owned = json.load(sys.stdin)
-tracked, errors, waiting = [], [], []
-seen = set()
-for item in owned:
-    identity = (item['pid'], item['startedAt'])
-    if identity in seen:
-        continue
-    seen.add(identity)
-    tracked.append(item)
-    try:
-        proc = psutil.Process(item['pid'])
-        if proc.create_time() == item['startedAt']:
-            proc.kill()
-            waiting.append(proc)
-    except psutil.NoSuchProcess:
-        pass
-    except psutil.AccessDenied:
-        errors.append({'pid': item['pid'], 'reason': 'access denied'})
-_, alive = psutil.wait_procs(waiting, timeout=5)
-result = {'tracked': tracked, 'remaining': [proc.pid for proc in alive], 'errors': errors}
-print(json.dumps(result))
-sys.exit(1 if alive or errors else 0)
-'@
-        $cleanupExit = $LASTEXITCODE
-        $cleanupJson | Set-Content -LiteralPath (Join-Path $gateOut 'native-cleanup.json') -Encoding UTF8
-    } finally {
-        [Environment]::SetEnvironmentVariable('WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS', $oldArguments)
-        [Environment]::SetEnvironmentVariable('WEBVIEW2_USER_DATA_FOLDER', $oldProfile)
-    }
-}
-if ($cleanupUnknown -or $cleanupExit -ne 0) { throw 'Native process cleanup is incomplete or unverified; inspect native-cleanup.json' }
-if ($probeExit -ne 0) { throw 'Desktop probe failed or is unmeasured; inspect gate6-desktop.json' }
+# First measurement: builds, resolves app.exe, launches, probes and closes its tree.
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/probe-art-desktop.ps1 -Out $gateOut
+# Probe-only rerun: reuse the already measured binary without building or running Cargo.
+# powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/probe-art-desktop.ps1 -SkipBuild -Out (Join-Path $s6Out 'gate6-rerun')
+if ($LASTEXITCODE -ne 0) { throw 'Inspect gate6-desktop.json and native-cleanup.json' }
 ```
 
 #### Gate 7: deployed pack ranges and live rendering
