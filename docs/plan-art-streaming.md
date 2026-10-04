@@ -1,12 +1,12 @@
-<!-- source-of-truth: src/config/features.ts, src/art/artBudget.ts, src/art/artLoader.ts, src/art/artSource.ts, src/art/ArtResolver.ts, src/art/artWatch.ts, src/art/artArrivals.ts, src/art/artRetry.ts, src/ui/CardThumbCache.ts, src/ui/artGate.ts, src/ui/duelArt.ts, src/art/pagedRequests.ts, src/art/packRequests.ts, src/art/artLifetime.ts, src/ui/displayWalk.ts, src/scenes/ArtLoaderScene.ts, scripts/probe-art.mjs, scripts/art-probe-metrics.mjs, scripts/art-probe-runtime.mjs, scripts/art-probe-compare.mjs, scripts/art-probe-processes.mjs, scripts/art-probe-save.ts, scripts/gen-art-manifest.ts, scripts/gen-art-halfres.ts, scripts/serve-lan.ts, .github/workflows/deploy.yml, src-tauri/tauri.conf.json · last-verified: 2026-10-03 · design doc, re-verify when the art loader, the thumbnail cache, the card-face geometry (R13) or the deploy pipeline changes -->
+<!-- source-of-truth: src/config/features.ts, src/art/artBudget.ts, src/art/artLoader.ts, src/art/artSource.ts, src/art/ArtResolver.ts, src/art/artWatch.ts, src/art/artArrivals.ts, src/art/artRetry.ts, src/ui/CardThumbCache.ts, src/ui/artGate.ts, src/ui/duelArt.ts, src/art/pagedRequests.ts, src/art/packRequests.ts, src/art/artLifetime.ts, src/ui/displayWalk.ts, src/scenes/ArtLoaderScene.ts, scripts/probe-art.mjs, scripts/art-probe-metrics.mjs, scripts/art-probe-runtime.mjs, scripts/art-probe-compare.mjs, scripts/art-probe-processes.mjs, scripts/art-probe-save.ts, scripts/gen-art-manifest.ts, scripts/gen-art-halfres.ts, scripts/serve-lan.ts, .github/workflows/deploy.yml, src-tauri/tauri.conf.json · last-verified: 2026-10-04 · design doc, re-verify when the art loader, the thumbnail cache, the card-face geometry (R13) or the deploy pipeline changes -->
 
 # Card art streaming: load on demand, unload under a budget (1.9 lane D)
 
-**Status 2026-10-03: S1-S6 built; flag on in 1.9.**
-`FEATURES.artStream` is true. S6's probe and gate calculations are implemented;
-Section 6 records the approver's evidence and the revised gate-1 rule;
-fresh runs of the revised tour are pending.
-Built instrumentation and a default-on flag do not establish a passed gate.
+**Status 2026-10-04: S1-S6 built and measured; flag on in 1.9.**
+`FEATURES.artStream` is true. Gates 1-6 and 8 pass on build c3b0d7f5
+(section 6, "Gates as measured"), under the owner's 2026-10-03 ruling for
+gate 1 (measure against today) and 2026-10-04 ruling for gate 5 (median of
+three pairs). Gate 7 runs at the 1.9 cut against the deployed site.
 The earlier deferral choices in section 8 remain historical release context.
 
 ## Summary
@@ -689,10 +689,12 @@ Write-Host "Build: $s6Dist; evidence: $s6Out"
 
 ### Gates as measured
 
-Empty cells are reserved for the approver's actual observations, artifact
-paths and verdicts. Do not populate them from estimates, unit tests,
-historical runs or a failed browser launch. A table row is not an assertion
-that the run happened.
+Measured by the approver on 2026-10-03 and 2026-10-04, outside the sandbox, on
+one machine: build c3b0d7f5 (the art store after the retention fixes), probe
+`s6-retention-heap-v4` for gates 1-5 and 8, and `s6-desktop-dispatch-v5` for
+the desktop run, the Showcase and the lite gate-5 pairs. Labels name the run
+JSONs; the evidence is local (not committed). Gate 7 runs at the 1.9 cut,
+against the deployed site.
 
 #### Gate 1: paired GPU peaks, renderer peaks and retention
 
@@ -753,13 +755,13 @@ Desktop attach accepts one loop because its privacy test reloads the page.
 
 | Tier | Off/on JSONs | Median off/on GPU peaks (MiB) | Reduction | Median off/on renderer peaks (MiB) | Paired verdict |
 | --- | --- | --- | --- | --- | --- |
-| full | | | | | |
-| lite | | | | | |
+| full | gate1-full-off / gate1-full-on (3 runs each) | 6,565 / 3,234 | 50.7% (needs 40%) | 352 / 347 | PASS |
+| lite | gate1-lite-off / gate1-lite-on (3 runs each) | 2,088 / 1,349 | 35.4% (needs 30%) | 349 / 340 | PASS |
 
 | Tier, 8 MiB | Loop 1/2 GPU peaks (MiB) | Loop 1/2 renderer peaks (MiB) | JSON / gate 1 leak |
 | --- | --- | --- | --- |
-| full | | | |
-| lite | | | |
+| full | 2,117 / 2,126 | 347 / 362 | gate1-full-leak / PASS (2,561 source, 561 thumb evictions) |
+| lite | 790 / 785 | 332 / 357 | gate1-lite-leak / PASS (2,508 source, 512 thumb evictions) |
 
 ```powershell
 $gateOut = Join-Path $s6Out 'gate1'
@@ -812,14 +814,14 @@ zero latency. `--cpu 4` applies fourfold CPU slowdown. See the
 
 | Scenario | Mode | Navigation to binder / loading gone / 12 real, median ms | Entry to binder / 12 real, median ms | Binder frame / pockets | JSON / verdict |
 | --- | --- | --- | --- | --- | --- |
-| full local | off | | | | |
-| full local | on | | | | |
-| full 50 Mbps, 40 ms, CPU 1 | off | | | | |
-| full 50 Mbps, 40 ms, CPU 1 | on | | | | |
-| lite local | off | | | | |
-| lite local | on | | | | |
-| lite 20 Mbps, 40 ms, CPU 4 | off | | | | |
-| lite 20 Mbps, 40 ms, CPU 4 | on | | | | |
+| full local | off | 18,856 / 18,856 / 18,856 | 17,948 / 17,948 | gated (whole manifest) | gate2-full-local-off / FAIL (the before state) |
+| full local | on | 939 / 939 / 1,134 | 45 / 229 | frame 1 / 12 of 12 | gate2-full-local-on / PASS |
+| full 50 Mbps, 40 ms, CPU 1 | off | 54,584 / 54,584 / 54,584 | 52,775 / 52,775 | gated (whole manifest) | gate2-full-50-off / FAIL (the before state) |
+| full 50 Mbps, 40 ms, CPU 1 | on | 1,835 / 1,835 / 2,251 | 34 / 447 | frame 1 / 12 of 12 | gate2-full-50-on / PASS |
+| lite local | off | 9,383 / 9,383 / 9,383 | 8,523 / 8,523 | gated (whole manifest) | gate2-lite-local-off / FAIL (the before state) |
+| lite local | on | 898 / 898 / 1,074 | 35 / 210 | frame 1 / 12 of 12 | gate2-lite-local-on / PASS |
+| lite 20 Mbps, 40 ms, CPU 4 | off | 39,293 / 39,293 / 39,293 | 34,756 / 34,756 | gated (whole manifest) | gate2-lite-20-cpu4-off / FAIL (the before state) |
+| lite 20 Mbps, 40 ms, CPU 4 | on | 4,868 / 4,868 / 6,081 | 209 / 1,422 | frame 1 / 12 of 12 | gate2-lite-20-cpu4-on / PASS |
 
 ```powershell
 $gateOut = Join-Path $s6Out 'gate2'
@@ -857,10 +859,10 @@ config does not invoke Git or change the repository's config.
 
 | Surface / tier | Stops checked | Stand-ins | Missing textures | Console errors | JSON / verdict |
 | --- | --- | --- | --- | --- | --- |
-| production full | | | | | |
-| production lite | | | | | |
-| Showcase, dev full | | | | | |
-| Showcase, dev lite | | | | | |
+| production full | 48 x 3 runs | 0 | 0 | 0 | gate1-full-on-01..03 / PASS |
+| production lite | 48 x 3 runs | 0 | 0 | 0 | gate1-lite-on-01..03 / PASS |
+| Showcase, dev full | 52 | 0 | 0 | 0 | gate3-showcase-full / PASS |
+| Showcase, dev lite | 52 | 0 | 0 | 0 | gate3-showcase-lite-r2 / PASS (the first run was a probe false positive: a reused PID counted as a cleanup survivor) |
 
 ```powershell
 $gateOut = Join-Path $s6Out 'gate3'
@@ -983,8 +985,8 @@ and thumbnail budgets both scale under the override.
 
 | Tier | Effective budget (MiB) | Source / thumb evictions | Missed leases / holds | Stand-ins / missing textures | Console errors | JSON / verdict |
 | --- | --- | --- | --- | --- | --- | --- |
-| full, 8 MiB | | | | | | |
-| lite, 8 MiB | | | | | | |
+| full, 8 MiB | 8 | 2,561 / 561 | 0 / 0 | 0 / 0 | 0 | gate1-full-leak (2 loops) / PASS |
+| lite, 8 MiB | 8 | 2,508 / 512 | 0 / 0 | 0 / 0 | 0 | gate1-lite-leak (2 loops) / PASS |
 
 ```powershell
 $gateOut = Join-Path $s6Out 'gate4'
@@ -1032,8 +1034,8 @@ stand in for independent runs. No browser is launched by the comparator.
 
 | Tier | Valid / attempted pairs | Off median count / total ms | On median count / total ms | Pair compatibility / probe version | Comparison JSON / verdict |
 | --- | --- | --- | --- | --- | --- |
-| full | | | | | |
-| lite | | | | | |
+| full | 3 / 3 | 8 / 15,166 | 8 / 1,176 | matched / s6-retention-heap-v4 | gate5-full-median / PASS |
+| lite | 3 / 3 | 9 / 4,771 | 8 / 1,204 | matched / s6-desktop-dispatch-v5 | gate5-lite-median / PASS |
 
 ```powershell
 $gateOut = Join-Path $s6Out 'gate5-v5'
@@ -1097,7 +1099,7 @@ whether this packaged build attaches successfully remains an actual gate.
 
 | App / source | Native PID and descendant evidence | Pending gate / new privacy window | Network failures / duel recovery | Cleanup survivors | JSON / verdict |
 | --- | --- | --- | --- | --- | --- |
-| app.exe / loose | | | | | |
+| app.exe / loose | app.exe + 7 WebView2 descendants recorded | Duel gate showing, 8 in flight / new window, tauri.localhost/privacy.html, "Darling Blades Privacy Policy" | 8 cancelled fetches, 0 console errors / duel recovered, 0 stand-ins | 0 (8 tracked) | gate6-desktop (rerun, probe v5) / PASS |
 
 The launcher owns the app tree and verifies recorded PID/creation-time
 identities. It writes JSON arrays to temporary files, then the Python helper
@@ -1158,8 +1160,8 @@ an unavailable extension or canvas fallback cannot prove the gate.
 
 | Tier | Lost / restored events | Frames advanced | Stand-ins / missing textures | Console errors | JSON / verdict |
 | --- | --- | --- | --- | --- | --- |
-| full | | | | | |
-| lite | | | | | |
+| full | 1 / 1 (each of 3 runs) | about 330-350 frames after restore | 0 / 0 | 0 | gate1-full-on-01..03 / PASS |
+| lite | 1 / 1 (each of 3 runs) | about 280-300 frames after restore | 0 / 0 | 0 | gate1-lite-on-01..03 / PASS |
 
 ```powershell
 $gateOut = Join-Path $s6Out 'gate8'
