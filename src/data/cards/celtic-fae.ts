@@ -20,7 +20,7 @@ export const CELTIC_FAE = [
   // ULTRA RARE (4)
   // =========================================================================
   fae('cf-morrigan-black-wing', 'Morrigan, Black-Wing Omen', 'Goddess', {
-    supertypes: ['legendary'], cost: cost(3, 'BG'), colors: ['B', 'G'], attack: 5, defense: 5,
+    supertypes: ['legendary'], cost: cost(4, 'BG'), colors: ['B', 'G'], attack: 5, defense: 5,
     keywords: ['skyborne'],
     abilities: [{ when: 'arrives', ops: [{ op: 'severGrave', n: 3, who: 'opponent' }] }, { when: 'attacks', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'ur',

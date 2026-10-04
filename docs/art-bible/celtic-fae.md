@@ -14,7 +14,7 @@ empty top third above the subject’s head and crown, preserving headroom for
 smart-crop and preventing clipped silhouettes in the card window.
 
 ### Morrigan, Black-Wing Omen — `cf-morrigan-black-wing`
-- **Card facts:** {3}{B}{G} · B/G (gold frame) · 5/5 · skyborne · ur, legendary · holo: otherworldly aurora
+- **Card facts:** {4}{B}{G} · B/G (gold frame) · 5/5 · skyborne · ur, legendary · holo: otherworldly aurora
 - **Character & source:** Morrigan, an adult fae war goddess in a raven-aspected court form; mechanically an airborne omen and evasive threat, a reader and arranger of fate, a keeper of the veil between worlds.
 - **Personality / mood:** “A raven lands on the treaty. The treaty loses its nerve.” — regal, pitiless, and almost amused by the bargain already broken.
 - **Pose & composition:** descending from a slow wingbeat, spear angled down while the cloak describes a raven silhouette; face ≈ y 320 and eye-line ≈ y 300–360. The entire top third stays clear empty sky or mist above the head, crown, antlers, and hair for crop-safe headroom.

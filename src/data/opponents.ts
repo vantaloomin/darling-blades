@@ -2196,7 +2196,7 @@ export const AVATARS: readonly Avatar[] = [
       ['cf-barrow-whisper', 2],
     ]),
     reserveDeck: expand([
-      ['cf-morrigan-black-wing', 3],
+      ['cf-morrigan-black-wing', 2],
       ['cf-bean-sidhe-keening', 4],
       ['cf-raven-torc-envoy', 4],
       ['cf-crowbone-prophet', 3],
@@ -2204,7 +2204,7 @@ export const AVATARS: readonly Avatar[] = [
       ['cf-bog-banshee', 4],
       ['cf-black-dog-of-lane', 4],
       ['cf-hounds-of-annwn', 3],
-      ['cf-blackthorn-duelist', 2],
+      ['cf-blackthorn-duelist', 3],
       ['cf-bitter-geas', 4],
       ['cf-gold-ring-bargain', 2],
       ['cf-barrow-whisper', 4],
