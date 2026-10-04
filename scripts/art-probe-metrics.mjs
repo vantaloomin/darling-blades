@@ -333,6 +333,44 @@ export function longTaskGate(candidate, baseline) {
   return { status: verdict(failures, missing), reasons: [...failures, ...missing], candidate: current, baseline: before };
 }
 
+/** Gate 5 (owner ruling 2026-10-04): separate medians over >=3 valid pairs.
+ * A measured per-pair FAIL is still valid evidence and must not be trimmed.
+ * Compatibility belongs to each pair; versions must also agree across pairs.
+ */
+export function longTaskMedianGate(input) {
+  const entries = Array.isArray(input) ? input : [];
+  const pairs = entries.map((pair, index) => {
+    const comparison = longTaskGate(pair?.on, pair?.off);
+    return { index, onLabel: pair?.on?.label ?? null, offLabel: pair?.off?.label ?? null,
+      versions: { on: pair?.on?.probeVersion ?? null, off: pair?.off?.probeVersion ?? null },
+      valid: comparison.status !== 'UNMEASURED', ...comparison };
+  });
+  const valid = pairs.filter(pair => pair.valid);
+  const missing = [];
+  const failures = [];
+  if (valid.length < 3) missing.push('At least three valid off/on pairs are required');
+  const version = entries[0]?.off?.probeVersion;
+  const sameVersion = entries.length > 0 && entries.every(pair =>
+    sameProbeVersion(version, pair?.off?.probeVersion) && sameProbeVersion(version, pair?.on?.probeVersion));
+  if (!sameVersion) missing.push('Probe versions are missing or do not match across all pairs');
+  const tier = entries[valid[0]?.index]?.on?.tier ?? null;
+  if (valid.some(pair => entries[pair.index]?.on?.tier !== tier)) missing.push('Valid pairs must use the same art tier');
+  const summary = side => ({
+    medianCount: missing.length ? null : median(valid.map(pair => pair[side].count)),
+    medianTotalMs: missing.length ? null : median(valid.map(pair => pair[side].totalMs)),
+  });
+  const candidate = summary('candidate');
+  const baseline = summary('baseline');
+  if (missing.length === 0) {
+    if (candidate.medianCount > baseline.medianCount) failures.push('Median long-task count increased');
+    if (candidate.medianTotalMs > baseline.medianTotalMs) failures.push('Median long-task total duration increased');
+  }
+  return { status: verdict(failures, missing), reasons: [...failures, ...missing],
+    probeVersion: sameVersion ? version : null, tier, requiredPairs: 3,
+    attemptedPairs: pairs.length, validPairs: valid.length,
+    invalidPairs: pairs.filter(pair => !pair.valid).map(pair => pair.index), pairs, candidate, baseline };
+}
+
 /** An invalid observation invalidates the median; no outlier or failure trimming. */
 export function median(values) {
   if (!Array.isArray(values) || values.length === 0 || !values.every((value) => typeof value === 'number' && Number.isFinite(value))) return null;

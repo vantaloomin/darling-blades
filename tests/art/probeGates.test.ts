@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  bytesToMiB, collectionGate, longTaskGate, loopMemoryGate, median, memoryGate, normalizeLongTasks, normalizeStop, summarizeTimings,
+  bytesToMiB, collectionGate, longTaskGate, longTaskMedianGate, loopMemoryGate, median, memoryGate, normalizeLongTasks, normalizeStop, summarizeTimings,
 } from '../../scripts/art-probe-metrics.mjs';
 
 const local = { downloadMbps: null, latencyMs: 0, cpuRate: 1 };
@@ -377,6 +377,106 @@ describe('matched-tour long-task comparison', () => {
   it('does not pass failed runs or absent observer evidence', () => {
     expect(longTaskGate({ ...tour('on'), failure: 'browser exited' }, tour('off')).status).toBe('UNMEASURED');
     expect(longTaskGate(tour('on'), { ...tour('off'), stops: [{ stop: 'menu' }, { stop: 'collection' }] }).status).toBe('UNMEASURED');
+  });
+});
+
+describe('paired long-task medians', () => {
+  const pair = (off: number[] = [80], on: number[] = [80]) => ({ off: tour('off', [[], off]), on: tour('on', [[], on]) });
+
+  // Mutations: average-counts; trim-failing-pairs; count-boundary-strict.
+  it('compares separate count medians including measured failing pairs and permits equality despite pair jitter', () => {
+    const pairs = [[1, 2], [9, 8], [10, 100]].map(([off, on]) => pair(Array(off).fill(1000), Array(on).fill(100)));
+    const result = longTaskMedianGate(pairs);
+    expect(result.status).toBe('PASS');
+    expect(result.baseline.medianCount).toBe(9);
+    expect(result.candidate.medianCount).toBe(8);
+    expect(result.pairs.map(p => p.status)).toEqual(['FAIL', 'PASS', 'FAIL']);
+    expect(result.validPairs).toBe(3);
+    const jitter = longTaskMedianGate([[8, 9], [9, 7], [7, 8]].map(([off, on]) => pair(Array(off).fill(1000), Array(on).fill(100))));
+    expect(jitter.status).toBe('PASS');
+    expect(jitter.baseline.medianCount).toBe(8);
+    expect(jitter.candidate.medianCount).toBe(8);
+  });
+
+  // Mutation: omit-median-count-limit; compare only total duration or require both to increase.
+  it('fails a higher median task count independently of a lower median duration', () => {
+    const result = longTaskMedianGate([[2, 1], [2, 3], [20, 4]].map(([off, on]) => pair(Array(off).fill(1000), Array(on).fill(100))));
+    expect(result.status).toBe('FAIL');
+    expect(result.baseline.medianCount).toBe(2);
+    expect(result.candidate.medianCount).toBe(3);
+    expect(result.baseline.medianTotalMs).toBe(2000);
+    expect(result.candidate.medianTotalMs).toBe(300);
+  });
+
+  // Mutations: average-durations; duration-boundary-strict; omit-median-duration-limit.
+  it('compares median durations independently of counts without letting one expensive repeat decide the result', () => {
+    const result = longTaskMedianGate([pair([600], [100]), pair([500], [400]), pair([200], [10000])]);
+    expect(result.status).toBe('PASS');
+    expect(result.baseline.medianTotalMs).toBe(500);
+    expect(result.candidate.medianTotalMs).toBe(400);
+    expect(longTaskMedianGate([pair([100], [100]), pair([300], [300]), pair([200], [200])]).status).toBe('PASS');
+    const longer = longTaskMedianGate([pair([100, 100], [400]), pair([300, 300], [800]), pair([10000, 10000], [1000])]);
+    expect(longer.status).toBe('FAIL');
+    expect(longer.baseline.medianTotalMs).toBe(600);
+    expect(longer.candidate.medianTotalMs).toBe(800);
+    expect(longer.baseline.medianCount).toBe(2);
+    expect(longer.candidate.medianCount).toBe(1);
+  });
+
+  // Mutation: accept-two-pairs; lower the minimum valid count to two.
+  it('withholds the gate and medians until at least three pairs are measured', () => {
+    for (const pairs of [[], [pair()], [pair(), pair()]]) {
+      const result = longTaskMedianGate(pairs);
+      expect(result.status).toBe('UNMEASURED');
+      expect(result.candidate.medianCount).toBeNull();
+      expect(result.baseline.medianTotalMs).toBeNull();
+    }
+  });
+
+  // Mutations: ignore-cross-pair-version; require-current-probe-version.
+  it('accepts consistently versioned older evidence and refuses mixed methods even when each pair is internally matched', () => {
+    const pairs = [pair(), pair(), pair()];
+    for (const p of pairs) p.on.probeVersion = p.off.probeVersion = 's6-retention-heap-v4';
+    expect(longTaskMedianGate(pairs).status).toBe('PASS');
+    pairs[2].on.probeVersion = pairs[2].off.probeVersion = 's6-desktop-dispatch-v5';
+    const mixed = longTaskMedianGate(pairs);
+    expect(mixed.validPairs).toBe(3);
+    expect(mixed.status).toBe('UNMEASURED');
+    expect(mixed.candidate.medianCount).toBeNull();
+    // An invalid pair cannot conceal a different measurement version either.
+    pairs[2].on.tourFixture.duelSeed++;
+    const additional = [pair(), pair()];
+    for (const p of additional) p.on.probeVersion = p.off.probeVersion = 's6-retention-heap-v4';
+    pairs.push(...additional);
+    expect(longTaskMedianGate(pairs).status).toBe('UNMEASURED');
+  });
+
+  // Mutations: count-invalid-pairs; skip-pair-fixture-check; require-cross-pair-fixtures.
+  it('invalidates a mismatched fixture within its pair and uses only complete matched pairs for the median', () => {
+    const pairs = [pair(), pair(), pair([80], [10000])];
+    pairs[2].on.tourFixture.duelSeed++;
+    const incomplete = longTaskMedianGate(pairs);
+    expect(incomplete.status).toBe('UNMEASURED');
+    expect(incomplete.validPairs).toBe(2);
+    expect(incomplete.invalidPairs).toEqual([2]);
+    expect(incomplete.pairs[2].valid).toBe(false);
+    expect(incomplete.pairs[2].candidate.totalMs).toBe(10000);
+    const replacement = pair();
+    replacement.on.tourFixture.duelSeed = replacement.off.tourFixture.duelSeed = 100;
+    const complete = longTaskMedianGate([...pairs, replacement]);
+    expect(complete.status).toBe('PASS');
+    expect(complete.validPairs).toBe(3);
+    expect(complete.pairs[2].valid).toBe(false);
+    expect(complete.candidate.medianTotalMs).toBe(80);
+  });
+
+  // Mutation: combine-tiers; omit the cross-pair art-tier check.
+  it('keeps full and lite median verdicts separate even when every pair matches internally', () => {
+    const pairs = [pair(), pair(), pair()];
+    pairs[2].on.tier = pairs[2].off.tier = 'lite';
+    const result = longTaskMedianGate(pairs);
+    expect(result.validPairs).toBe(3);
+    expect(result.status).toBe('UNMEASURED');
   });
 });
 

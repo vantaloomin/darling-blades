@@ -997,32 +997,63 @@ foreach ($tier in @('full', 'lite')) {
 
 #### Gate 5: main-thread cost against streaming off
 
-Collect a new off baseline and pass its JSON to `--baseline` for the on run.
-The comparison requires the same complete **ordered** stop list, tier,
-throttle, budget, eviction mode, target and art source. Pack, draft and Tower
-inputs use deterministic seeds; the captured pack/draft card IDs, Tower
-opponent and duel seed must also match between the actual runs. Matching
-stop names alone is insufficient. Both the total count of tasks over 50 ms
-and their total duration must be no greater than the baseline. Historical
-zero-task observations cannot stand in for this build's baseline.
-Unavailable observers or mismatched conditions/fixtures are UNMEASURED.
+Collect three off/on pairs per tier. Keep `--baseline` on every on run: its
+single-pair verdict remains the evidence for that pair. The gate itself is
+judged by the **separate medians** of the valid off and on runs: PASS requires
+on median long-task count <= off median count **and** on median total ms <=
+off median total ms. Tasks must exceed 50 ms, using unrounded durations.
+Owner ruling 2026-10-04: random 50-65 ms tasks caused pair jitter (full counts
+off 8 / 9 / 7, on 9 / 7 / 8; both medians 8), while total times were about
+15 s off and 1.2 s on.
 
-| Tier | Off count / total ms | On count / total ms | Ordered stops, conditions and fixtures match | Baseline / candidate JSON | Verdict |
+Each pair must match its own complete **ordered** stop list, tier, throttle,
+budget, eviction mode, target and art source. Pack, draft and Tower inputs
+use deterministic seeds; the captured pack/draft card IDs, Tower opponent
+and duel seed must also match within that pair. Matching stop names alone
+is insufficient. Unavailable observers or mismatched conditions/fixtures
+make that pair invalid. The aggregate retains its numbers and reasons but
+excludes it from both medians. A measured pair with a FAIL verdict is valid
+and stays in the medians; do not discard a count or duration increase.
+
+Fewer than three valid pairs means **UNMEASURED**. Do not combine full and
+lite tiers. Every attempted pair must carry the same explicit `probeVersion`,
+including across pairs; a mismatch or missing version is UNMEASURED even if
+three other pairs are valid. The check compares evidence versions to each
+other, not to the currently installed probe: all three existing full v4
+pairs can be compared. The lone lite v4 pair cannot join new v5 pairs; lite
+needs three pairs at v5. Historical zero-task observations cannot replace
+this build's measured baseline.
+
+`art-probe-compare.mjs --gate 5` accepts repeated `--pair OFF.json ON.json`
+arguments and writes every pair's validity, single-pair verdict and numbers,
+plus both medians and the aggregate verdict. Supply all attempts; N may
+exceed three to replace invalid measurements. Reusing an input path cannot
+stand in for independent runs. No browser is launched by the comparator.
+
+| Tier | Valid / attempted pairs | Off median count / total ms | On median count / total ms | Pair compatibility / probe version | Comparison JSON / verdict |
 | --- | --- | --- | --- | --- | --- |
 | full | | | | | |
 | lite | | | | | |
 
 ```powershell
-$gateOut = Join-Path $s6Out 'gate5'
+$gateOut = Join-Path $s6Out 'gate5-v5'
 foreach ($tier in @('full', 'lite')) {
-    $offLabel = "gate5-$tier-off"
-    node scripts/probe-art.mjs --dist $s6Dist --tier $tier --stream off --repeat 1 --out $gateOut --label $offLabel
-    Write-Host "$offLabel exit: $LASTEXITCODE; retain its JSON even if streaming thresholds fail"
-    $baseline = Join-Path $gateOut "$offLabel.json"
-    if (-not (Test-Path -LiteralPath $baseline)) { throw "Missing baseline: $baseline" }
-    $onLabel = "gate5-$tier-on"
-    node scripts/probe-art.mjs --dist $s6Dist --tier $tier --stream on --repeat 1 --baseline $baseline --out $gateOut --label $onLabel
-    Write-Host "$onLabel exit: $LASTEXITCODE; inspect its gate 5 comparison"
+    $compareArgs = @('--gate', '5')
+    foreach ($pair in 1..3) {
+        $offLabel = "gate5-$tier-off-r$pair"
+        node scripts/probe-art.mjs --dist $s6Dist --tier $tier --stream off --repeat 1 --out $gateOut --label $offLabel
+        Write-Host "$offLabel exit: $LASTEXITCODE; retain its JSON even if streaming thresholds fail"
+        $baseline = Join-Path $gateOut "$offLabel.json"
+        if (-not (Test-Path -LiteralPath $baseline)) { throw "Missing baseline: $baseline" }
+        $onLabel = "gate5-$tier-on-r$pair"
+        node scripts/probe-art.mjs --dist $s6Dist --tier $tier --stream on --repeat 1 --baseline $baseline --out $gateOut --label $onLabel
+        Write-Host "$onLabel exit: $LASTEXITCODE; retain the per-pair evidence, including measured failures"
+        $candidate = Join-Path $gateOut "$onLabel.json"
+        if (-not (Test-Path -LiteralPath $candidate)) { throw "Missing candidate: $candidate" }
+        $compareArgs += @('--pair', $baseline, $candidate)
+    }
+    node scripts/art-probe-compare.mjs @compareArgs --out (Join-Path $gateOut "gate5-$tier-median.json")
+    Write-Host "Gate 5 $tier median comparison exit: $LASTEXITCODE; inspect its aggregate verdict"
 }
 ```
 

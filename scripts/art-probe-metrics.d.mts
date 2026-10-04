@@ -60,6 +60,20 @@ export function loopMemoryGate(run: unknown): GateVerdict & {
 export function collectionGate(run: unknown): CollectionVerdict;
 export const spreadGate: typeof collectionGate;
 export function longTaskGate(candidate: unknown, baseline: unknown): GateVerdict & { candidate: LongTaskSummary; baseline: LongTaskSummary };
+export function longTaskMedianGate(pairs: unknown): GateVerdict & {
+  probeVersion: string | null;
+  tier: string | null;
+  requiredPairs: number;
+  attemptedPairs: number;
+  validPairs: number;
+  invalidPairs: number[];
+  pairs: Array<ReturnType<typeof longTaskGate> & {
+    index: number; onLabel: string | null; offLabel: string | null;
+    versions: { on: string | null; off: string | null }; valid: boolean;
+  }>;
+  candidate: { medianCount: number | null; medianTotalMs: number | null };
+  baseline: { medianCount: number | null; medianTotalMs: number | null };
+};
 export function median(values: unknown): number | null;
 export function summarizeTimings(runs: unknown, expectedRepeats: number): {
   status: GateStatus;
