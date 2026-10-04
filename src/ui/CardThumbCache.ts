@@ -50,6 +50,7 @@ import { ThumbBook } from './thumbBudget';
  *   holds its thumb until it is destroyed, and unheld thumbs are evicted
  *   least recently used first once the thumbs are over their budget. An
  *   evicted thumb's texture is removed and `ensureCardThumb` bakes it again.
+ *   `?artEvict=off` disables thumbnail eviction along with source-art eviction.
  * - A provisional thumb whose half file settles as failed keeps its stand-in
  *   bake until it is evicted, as a failed file keeps its stand-in anywhere.
  *
@@ -120,14 +121,15 @@ function residencyFor(scene: Phaser.Scene): ThumbResidency | null {
   if (store === null) return null;
   if (residency !== null && residency.store === store && residency.game === scene.game) return residency;
   const game = scene.game;
-  const budgetBytes = artStoreConfig({
+  const config = artStoreConfig({
     quality: qualityTier(),
     deviceMemoryGb: (navigator as Navigator & { deviceMemory?: number }).deviceMemory,
     search: window.location.search,
     desktopApp: isTauri(),
-  }).thumbBudgetBytes;
+  });
   const book = new ThumbBook({
-    budgetBytes,
+    budgetBytes: config.thumbBudgetBytes,
+    evict: config.evict,
     now: () => performance.now(),
     remove: (key) => discardThumb(game, key),
     inUse: (keys) => thumbsDrawn(game, keys),

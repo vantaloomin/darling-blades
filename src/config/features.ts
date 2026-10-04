@@ -32,13 +32,12 @@ export const FEATURES = {
   // --- end lane C ship gates ---
   /**
    * 1.9 lane D (docs/plan-art-streaming.md): card art loads on demand through
-   * the art store and is evicted under a memory budget. Off is the 1.8
-   * whole-manifest stream, unchanged. It stays off until S5a moves Collection,
-   * the Deck Builder and the Showcase off their whole-manifest gates: before
-   * that, switching it on pins all 1,537 files there (about 3 GB on desktop).
+   * the art store and is evicted under a memory budget by default.
    * `?artStream=on` / `?artStream=off` override it for one page load.
+   * `?artStream=off` restores the 1.8 whole-manifest loader; `?artEvict=off`
+   * keeps on-demand streaming and disables eviction.
    */
-  artStream: false,
+  artStream: true,
 };
 
 /**
