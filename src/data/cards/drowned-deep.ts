@@ -3304,7 +3304,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     rarity: 'c',
     set: 'drowned-deep',
   },
-  // Each creature gets -3/-3 until end of turn.
+  // Each creature gets -2/-2 until end of turn.
   {
     id: 'dd-black-tide-rising',
     name: 'Black Tide Rising',
@@ -3312,7 +3312,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     subtypes: [],
     cost: cost(0, 'BB'),
     colors: ['B'],
-    abilities: [{ when: 'spell', ops: [{ op: 'boost', p: -3, t: -3, scope: 'all' }] }],
+    abilities: [{ when: 'spell', ops: [{ op: 'boost', p: -2, t: -2, scope: 'all' }] }],
     rarity: 'c',
     set: 'drowned-deep',
   },
