@@ -85,6 +85,44 @@ describe('documented public-board usage decisions', () => {
     expect(game.viewFor(player).you.hand).toContain('sb-brood-communion');
   });
 
+  // Wave 4, M1: Hooves and Fire's Warchest cell 200114, game 0, turn 14, at
+  // e365cc0c. The Hornback survives the Charge's 1 and the Hoarder's blow.
+  it('Medium casts Blaze-Horn Charge, whose first effect damages its own creature, at a pair it survives', () => {
+    const game = checked(() => usageAuditGame('blazeHorn'));
+    const handIndex = game.viewFor(1).you.hand.indexOf('fd-blaze-horn-charge');
+    const action = act(game, new MediumAI(CARD_DB), CARD_DB) as Extract<Action, { type: 'castSpell' }>;
+    expect(action).toMatchObject({ type: 'castSpell', handIndex });
+    const [hunter, prey] = action.targets!.map((target) => target.kind === 'permanent' ? target.iid : -1);
+    while (game.awaiting.kind === 'respond') game.submit(game.awaiting.player, { type: 'passResponse' });
+    expect(game.state.stack).toEqual([]);
+    expect(game.state.battlefield.some((perm) => perm.iid === hunter)).toBe(true);
+    expect(game.state.battlefield.some((perm) => perm.iid === prey)).toBe(false);
+  });
+
+  // Wave 4, M3: Warchest cell 200514, game 3, turn 22, at e365cc0c. Every
+  // Hunt pair loses the 2/3 to Zhurong's 4/3 without the kill.
+  it('Medium holds Spear and Fang when its Hunt would lose the hunter without the kill', () => {
+    const game = checked(() => usageAuditGame('lostHunt'));
+    const handIndex = game.viewFor(0).you.hand.indexOf('fd-spear-and-fang');
+    expect(game.legalActions(0).some((action) => action.type === 'castSpell' && action.handIndex === handIndex)).toBe(true);
+    expect(act(game, new MediumAI(CARD_DB), CARD_DB)).not.toMatchObject({ type: 'castSpell', handIndex });
+  });
+
+  // Wave 4, Trial by Ember: Hera's (Medium) Darlings cell 210402, game 4,
+  // turn 4, and the Shepherdess's (Hard) cell 212702, game 3, turn 4.
+  it.each(['emptyTrial', 'hardTrial'] as const)('%s: the boss holds Trial by Ember with no creature of its own', (position) => {
+    const game = checked(() => usageAuditGame(position));
+    const player = game.awaiting.kind === 'main' ? game.awaiting.player : 0;
+    const view = game.viewFor(player);
+    expect(view.battlefield.filter((perm) => perm.controller === player && CARD_DB[perm.cardId].types.includes('creature'))).toEqual([]);
+    const handIndex = view.you.hand.indexOf('fd-trial-by-ember');
+    expect(game.legalActions(player)).toContainEqual({ type: 'castSpell', handIndex });
+    const brain = position === 'emptyTrial'
+      ? new MediumAI(CARD_DB, AVATARS.find((avatar) => avatar.id === 'hera')!.personality)
+      : new HardAI(CARD_DB, AVATARS.find((avatar) => avatar.id === 'the-shepherdess-of-giants')!.personality);
+    expect(act(game, brain, CARD_DB)).not.toMatchObject({ type: 'castSpell', handIndex });
+  });
+
   // Section 4 permits a constructed position: no audit list has Apotheosis.
   it.each(['medium', 'hard'] as const)('%s saves Apotheosis for its Marked creatures and still develops a payoff body', (difficulty) => {
     const brain = () => difficulty === 'medium' ? medium() : hard();
