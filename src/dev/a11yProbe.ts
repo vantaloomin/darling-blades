@@ -292,6 +292,11 @@ export const WAVE_2D_SCENES: readonly ProbeScene[] = [
     data: { a11yFixture: 'full-board', a11yOverlay: 'recap', a11yPage: Number.MAX_SAFE_INTEGER } },
 ];
 
+/** Wave 3, the long tail: one list per batch, each owned by its fixture module. */
+export { WAVE_3A_SCENES } from './wave3LimitedFixtures';
+export { WAVE_3B_SCENES } from './wave3PackGlossaryFixtures';
+export { WAVE_3C_SCENES } from './wave3DialogFixtures';
+
 /** `SCENE_TITLE` scenes this probe cannot open without a fixture it does not build. */
 export const WAVE_1_SKIPPED: readonly { scene: string; reason: string }[] = [
   { scene: 'LimitedDraft', reason: 'needs a draft in progress; the Limited pass (accessibility wave 3) enrols it with a fixture' },
@@ -775,7 +780,8 @@ async function openScene(game: Phaser.Game, spec: ProbeScene, settleMs: number):
   game.scene.start(spec.key, data);
   for (let i = 0; i < 200 && !game.scene.isActive(spec.key); i++) await wait(25);
   const scene = game.scene.getScene(spec.key);
-  if (['DeckBuilder', 'Collection', 'Shop', 'Profile', 'Duel'].includes(spec.key)) {
+  // A scene that builds a fixture asynchronously sets `a11yReady` false in create().
+  if (scene.data.has('a11yReady')) {
     for (let i = 0; i < 800 && scene.data.get('a11yReady') !== true; i++) await wait(25);
     if (scene.data.get('a11yReady') !== true) throw new Error(`${spec.key} did not finish building its fixture`);
   }
