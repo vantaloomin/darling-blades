@@ -11,7 +11,7 @@ import {
 } from './boardCuePresentation';
 import { currentAccessibility } from './accessibility';
 import { KEYWORD_ICON_KEY, MECHANIC_ICON_KEY } from './KeywordIcons';
-import { ensureNumeralBadgeInk, INTER_FIGURE_HEIGHT, isNumeralLabel } from './NumeralGlyphs';
+import { ensureNumeralBadgeInk, ensureNumeralPlateInk, INTER_FIGURE_HEIGHT } from './NumeralGlyphs';
 import { colorInt, theme } from './theme';
 
 /** Chapter numerals for the Quest badge (chapters ship 2-3 deep; 5 is headroom). */
@@ -72,6 +72,13 @@ const OVERCHARGE_GAP = 2;
 const PROVOKED_ICON = CUE_MIN_SCREEN_PX.provokedSpentBadge;
 const PROVOKED_PAD = 3;
 const PROVOKED_CY = 18;
+// Mark badge "+2": vector numerals at the cap height of its old 11px bold
+// type, on a rounded plate about the size of that Text's padded box.
+const MARK_PLATE = {
+  digitHeight: CUE_MIN_SCREEN_PX.markBadge * INTER_FIGURE_HEIGHT,
+  padX: 3,
+  padY: 3.5,
+} as const;
 
 /**
  * Tile border per RARITY tier (echoes the CardView RARITY_RING / gem palette):
@@ -176,13 +183,15 @@ export class BoardCardView extends Phaser.GameObjects.Container {
   private auraBadge: Phaser.GameObjects.Text;
   private actionBadge: Phaser.GameObjects.Text;
   private pickBadge: Phaser.GameObjects.Container;
-  private pickText: Phaser.GameObjects.Text;
-  /** A one-pick badge's vector digits (repeated picks "1, 2" use pickText). */
+  /** The pick order as vector numerals ("1", repeated picks "1, 2"). */
   private pickDigits: Phaser.GameObjects.Image;
   private pickPlate: Phaser.GameObjects.Arc;
   private focusBrackets: Phaser.GameObjects.Graphics;
   private statsGlyphs: Phaser.GameObjects.Graphics;
-  private markBadge: Phaser.GameObjects.Text;
+  /** The Mark count "+2": vector numerals on a rounded plate. */
+  private markBadge: Phaser.GameObjects.Container;
+  private markPlate: Phaser.GameObjects.Graphics;
+  private markDigits: Phaser.GameObjects.Image;
   private keywordIcons: Phaser.GameObjects.Image[] = [];
   private keywordOverflow: Phaser.GameObjects.Text | null = null;
   private sickIcon: Phaser.GameObjects.Image;
@@ -297,20 +306,18 @@ export class BoardCardView extends Phaser.GameObjects.Container {
 
     this.pickPlate = scene.add.circle(0, 0, CUE_MIN_SCREEN_PX.pickBadge / 2, colorInt(theme.colors.gold))
       .setStrokeStyle(2, colorInt(theme.colors.onGold));
-    this.pickText = scene.add.text(0, 0, '', {
-      fontFamily: theme.fonts.ui, fontSize: `${theme.typeBase.caption}px`, fontStyle: theme.weight.w700,
-      color: theme.colors.onGold, resolution: 2,
-    }).setOrigin(0.5);
-    this.pickDigits = scene.add.image(0, 0, '__DEFAULT').setVisible(false);
-    this.pickBadge = scene.add.container(0, 0, [this.pickPlate, this.pickText, this.pickDigits])
+    this.pickDigits = scene.add.image(0, 0, '__DEFAULT');
+    this.pickBadge = scene.add.container(0, 0, [this.pickPlate, this.pickDigits])
       .setName('board-pick-badge').setVisible(false);
     this.focusBrackets = scene.add.graphics().setName('board-focus-brackets').setVisible(false);
     this.statsGlyphs = scene.add.graphics().setPosition(PT_CX + PT_W / 2, PT_CY - PT_H / 2 - 4)
       .setName('board-stats-glyphs').setVisible(false);
-    this.markBadge = scene.add.text(0, TILE_H / 2 - FRAME_M, '', {
-      fontFamily: theme.fonts.ui, fontSize: `${CUE_MIN_SCREEN_PX.markBadge}px`, fontStyle: theme.weight.w700,
-      color: theme.colors.gold, backgroundColor: theme.colors.rowFill, padding: { x: 2, y: 1 }, resolution: 2,
-    }).setOrigin(0.5, 1).setName('board-mark-badge').setVisible(false);
+    // Bottom-centre, its plate's lower edge on the frame margin (setStats
+    // draws the plate and sets the numeral).
+    this.markPlate = scene.add.graphics();
+    this.markDigits = scene.add.image(0, 0, '__DEFAULT');
+    this.markBadge = scene.add.container(0, TILE_H / 2 - FRAME_M, [this.markPlate, this.markDigits])
+      .setName('board-mark-badge').setVisible(false);
 
     // Summoning-sickness badge: top-right corner of the art window, opposite
     // the trait column. Hidden until set.
@@ -425,7 +432,7 @@ export class BoardCardView extends Phaser.GameObjects.Container {
     ]);
     // Operational badges participate in glyph/mask checks even though the
     // underlying card name and P/T retain their fixed card-face geometry.
-    for (const text of [this.actionBadge, this.pickText, this.markBadge,
+    for (const text of [this.actionBadge,
       this.auraBadge, this.chapterBadge, this.overchargeText]) {
       text.setData('a11yCueText', true).setData('a11yKeepVisible', true);
     }
@@ -444,8 +451,13 @@ export class BoardCardView extends Phaser.GameObjects.Container {
     this.markBadge.setVisible(cue !== null && cue.markBadge !== null);
     if (!cue) return this;
     if (cue.markBadge !== null) {
-      this.markBadge.setText(`+${cue.markBadge}`).setScale(cueCounterScale(tileScale));
-      this.markBadge.setColor(theme.colors.gold).setBackgroundColor(theme.colors.rowFill);
+      const label = `+${cue.markBadge}`;
+      const ink = ensureNumeralPlateInk(this.scene, label, theme.colors.gold, MARK_PLATE);
+      this.markPlate.clear().fillStyle(colorInt(theme.colors.rowFill), 1)
+        .fillRoundedRect(-ink.width / 2, -ink.height, ink.width, ink.height, 3);
+      this.markDigits.setTexture(ink.texture).setDisplaySize(ink.width, ink.height)
+        .setPosition(0, -ink.height / 2).setData('a11yNumeral', label);
+      this.markBadge.setScale(cueCounterScale(tileScale));
     }
     const size = CUE_MIN_SCREEN_PX.statGlyph, gap = 4, pad = 3;
     const width = cue.glyphs.length * size + Math.max(0, cue.glyphs.length - 1) * gap + pad * 2;
@@ -496,20 +508,10 @@ export class BoardCardView extends Phaser.GameObjects.Container {
     const label = pickBadgeLabel(pickIndex);
     this.pickBadge.setVisible(label !== null).setScale(cueCounterScale(tileScale));
     if (label !== null) {
-      let radius: number;
-      if (isNumeralLabel(label)) {
-        const ink = ensureNumeralBadgeInk(this.scene, Number(label), theme.colors.onGold,
-          theme.typeBase.caption * INTER_FIGURE_HEIGHT, CUE_MIN_SCREEN_PX.pickBadge);
-        this.pickText.setText('').setVisible(false);
-        this.pickDigits.setTexture(ink.texture).setDisplaySize(ink.diameter, ink.diameter)
-          .setData('a11yNumeral', label).setVisible(true);
-        radius = ink.diameter / 2;
-      } else {
-        this.pickDigits.setVisible(false).setData('a11yNumeral', null);
-        this.pickText.setText(label).setColor(theme.colors.onGold).setVisible(true);
-        radius = Math.max(CUE_MIN_SCREEN_PX.pickBadge / 2, this.pickText.width / 2 + 4);
-      }
-      this.pickPlate.setRadius(radius);
+      const ink = ensureNumeralBadgeInk(this.scene, label, theme.colors.onGold,
+        theme.typeBase.caption * INTER_FIGURE_HEIGHT, CUE_MIN_SCREEN_PX.pickBadge);
+      this.pickDigits.setTexture(ink.texture).setDisplaySize(ink.diameter, ink.diameter).setData('a11yNumeral', label);
+      this.pickPlate.setRadius(ink.diameter / 2);
       this.pickPlate.setFillStyle(colorInt(theme.colors.gold)).setStrokeStyle(2, colorInt(theme.colors.onGold));
     }
     this.setData('a11yPickBadge', label);

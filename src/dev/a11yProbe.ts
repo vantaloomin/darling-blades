@@ -672,11 +672,10 @@ export function checkDuelCue(scene: Phaser.Scene, cue: NonNullable<ProbeScene['d
   const shown = (object: Phaser.GameObjects.GameObject | undefined): boolean => !!object && objects.includes(object);
   const textIs = (object: Phaser.GameObjects.GameObject | undefined, value: string): boolean =>
     shown(object) && object instanceof Phaser.GameObjects.Text && object.text === value;
-  // A one-pick badge draws vector digits (an Image tagged with its numeral);
-  // repeated picks ("1, 2") still draw Text.
+  // A pick or Mark badge draws vector numerals: an Image tagged with its
+  // label ("1", repeated picks "1, 2", Marks "+2").
   const numeralIs = (object: Phaser.GameObjects.GameObject | undefined, value: string): boolean =>
-    textIs(object, value)
-    || (shown(object) && object instanceof Phaser.GameObjects.Image && object.getData('a11yNumeral') === value);
+    shown(object) && object instanceof Phaser.GameObjects.Image && object.getData('a11yNumeral') === value;
   const badgeIs = (view: BoardCardView | undefined, value: string): boolean => {
     const badge = child(view, 'board-pick-badge');
     return shown(badge) && badge instanceof Phaser.GameObjects.Container
@@ -722,7 +721,7 @@ export function checkDuelCue(scene: Phaser.Scene, cue: NonNullable<ProbeScene['d
     const stats = view?.getData('a11yStatsCue') as { glyphs: string[]; markBadge: number | null } | undefined;
     if (!stats?.glyphs.includes('damage') || !stats.glyphs.includes('raised') || stats.markBadge !== 2
       || !shown(glyph) || !(glyph instanceof Phaser.GameObjects.Graphics) || glyph.commandBuffer.length === 0
-      || !shown(mark) || !(mark instanceof Phaser.GameObjects.Text) || !mark.text.includes('2'))
+      || !shown(mark) || !(mark instanceof Phaser.GameObjects.Container) || !mark.list.some((item) => numeralIs(item, '+2')))
       return fail('damage and raised-stat glyphs must coexist with the two-Mark badge');
   }
   return [];

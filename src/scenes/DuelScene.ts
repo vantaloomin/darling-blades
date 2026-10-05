@@ -70,7 +70,7 @@ import type { GameEvent } from '../engine/events';
 import { Game } from '../engine/Game';
 import { combineManaCosts, manaSources, solveMana } from '../engine/mana';
 import { ensureSplitPip } from '../ui/ManaSymbols';
-import { ensureNumeralBadgeInk, INTER_FIGURE_HEIGHT, isNumeralLabel } from '../ui/NumeralGlyphs';
+import { ensureNumeralBadgeInk, INTER_FIGURE_HEIGHT } from '../ui/NumeralGlyphs';
 import { getEffectiveStats, isSummoningSick } from '../engine/statics';
 import type { CardDef, Color, ManaColor, PlayerId, Permanent, TargetRef } from '../engine/types';
 import { activatedAbilitiesOf, cardIdOf, def, isType, manaValue } from '../engine/types';
@@ -1699,22 +1699,10 @@ export class DuelScene extends Phaser.Scene {
     const label = pickBadgeLabel(index);
     if (label === null) return;
     const badge = this.add.container(x, y);
-    let numeral: Phaser.GameObjects.GameObject;
-    let radius: number;
-    if (isNumeralLabel(label)) {
-      // One pick: vector digits centred on their ink (no font metrics).
-      const ink = ensureNumeralBadgeInk(this, Number(label), theme.colors.heading,
-        theme.typeBase.label * INTER_FIGURE_HEIGHT, 24);
-      radius = ink.diameter / 2;
-      numeral = this.add.image(0, 0, ink.texture).setDisplaySize(ink.diameter, ink.diameter).setData('a11yNumeral', label);
-    } else {
-      // Repeated picks ("1, 2") keep the text badge: the comma is not a numeral glyph.
-      const text = this.add.text(0, 0, label, { fontFamily: theme.fonts.ui, fontSize: `${theme.typeBase.label}px`,
-        fontStyle: theme.weight.w700, color: theme.colors.heading, resolution: 2 }).setOrigin(0.5);
-      radius = Math.max(12, text.width / 2 + 4);
-      text.setData('a11yCueText', true).setData('a11yKeepVisible', true);
-      numeral = text;
-    }
+    // Vector numerals ("1", repeated picks "1, 2") centred on their ink.
+    const ink = ensureNumeralBadgeInk(this, label, theme.colors.heading, theme.typeBase.label * INTER_FIGURE_HEIGHT, 24);
+    const radius = ink.diameter / 2;
+    const numeral = this.add.image(0, 0, ink.texture).setDisplaySize(ink.diameter, ink.diameter).setData('a11yNumeral', label);
     badge.add(this.add.circle(0, 0, radius, theme.graphics.panelFill).setStrokeStyle(theme.outline.state, colorInt(theme.colors.gold)));
     badge.add(numeral);
     badge.setData('a11yPickBadge', label);

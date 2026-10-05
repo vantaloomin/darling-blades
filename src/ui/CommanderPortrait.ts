@@ -6,7 +6,7 @@ import { currentAccessibility } from './accessibility';
 import { pickBadgeLabel, CUE_MIN_SCREEN_PX } from './boardCuePresentation';
 import { duelPanelAlpha } from './duelPanelPresentation';
 import { fitMenuName } from './menuText';
-import { ensureNumeralBadgeInk, INTER_FIGURE_HEIGHT, isNumeralLabel } from './NumeralGlyphs';
+import { ensureNumeralBadgeInk, INTER_FIGURE_HEIGHT } from './NumeralGlyphs';
 
 /**
  * "Reactive waifu on stage" panel for the duel board (wireframe 1a): a
@@ -60,8 +60,7 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
   private readonly frameW: number;
   private readonly pickBadge: Phaser.GameObjects.Container;
   private readonly pickPlate: Phaser.GameObjects.Arc;
-  private readonly pickText: Phaser.GameObjects.Text;
-  /** A one-pick badge's vector digits (repeated picks "1, 2" use pickText). */
+  /** The pick order as vector numerals ("1", repeated picks "1, 2"). */
   private readonly pickDigits: Phaser.GameObjects.Image;
   /** The badge's type size and ink, fixed when the portrait is built. */
   private readonly pickFontPx: number;
@@ -159,13 +158,8 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
       .setStrokeStyle(theme.outline.state, theme.graphics.panelFill);
     this.pickFontPx = theme.type.label;
     this.pickInk = theme.colors.onGold;
-    this.pickText = scene.add.text(0, 0, '', {
-      fontFamily: theme.fonts.ui, fontSize: `${this.pickFontPx}px`, fontStyle: theme.weight.w700,
-      color: this.pickInk, resolution: 2,
-    }).setOrigin(0.5);
-    this.pickText.setData('a11yCueText', true).setData('a11yKeepVisible', true);
-    this.pickDigits = scene.add.image(0, 0, '__DEFAULT').setVisible(false);
-    this.pickBadge.add([this.pickPlate, this.pickText, this.pickDigits]);
+    this.pickDigits = scene.add.image(0, 0, '__DEFAULT');
+    this.pickBadge.add([this.pickPlate, this.pickDigits]);
 
     this.targetRing = scene.add.graphics().setVisible(false);
     // Never make the Container itself interactive: its child Zone tracks the
@@ -266,18 +260,12 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
     const label = pickBadgeLabel(pickIndex);
     this.pickBadge.setVisible(label !== null).setName('portrait-pick-badge')
       .setData('a11yPickBadge', label).setData('a11yPickSurface', 'portrait');
-    if (isNumeralLabel(label)) {
-      // One pick: vector digits centred on their ink (no font metrics).
-      const ink = ensureNumeralBadgeInk(this.scene, Number(label), this.pickInk,
+    if (label !== null) {
+      // Vector numerals centred on their ink (no font metrics).
+      const ink = ensureNumeralBadgeInk(this.scene, label, this.pickInk,
         this.pickFontPx * INTER_FIGURE_HEIGHT, CUE_MIN_SCREEN_PX.pickBadge);
-      this.pickText.setText('').setVisible(false);
-      this.pickDigits.setTexture(ink.texture).setDisplaySize(ink.diameter, ink.diameter)
-        .setData('a11yNumeral', label).setVisible(true);
+      this.pickDigits.setTexture(ink.texture).setDisplaySize(ink.diameter, ink.diameter).setData('a11yNumeral', label);
       this.pickPlate.setRadius(ink.diameter / 2);
-    } else {
-      this.pickDigits.setVisible(false).setData('a11yNumeral', null);
-      this.pickText.setText(label ?? '').setVisible(true);
-      this.pickPlate.setRadius(Math.max(CUE_MIN_SCREEN_PX.pickBadge / 2, this.pickText.width / 2 + 4));
     }
     return this;
   }

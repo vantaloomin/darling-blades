@@ -1523,7 +1523,7 @@ The stock CLI runs every row in one process. The 4-worker sharded run took about
   - Medium never aims a target-creature damage spell at its own Provoked creature (Ember-Flick), and Foresee is worth 0 to Medium;
   - a creature Duty used in main phase two leaves its creature tapped;
   - Festival Rocket activations are net-negative in Medium's hands.
-- **Numeral follow-ups:** the repeated-pick label "1, 2" needs a comma glyph. The Mark "+2" badge is a rounded plate, not a circle.
+- **Numeral follow-ups: done.** The numerals gained a comma and a plus, so repeated picks ("1, 2"), the Mark "+2" badge (on a rounded plate) and the pile counts draw vector numerals too.
 - **Local-only tooling, not in the repo:**
   - the Forge's `power-scores.json` was not rescored after the Maiden recost;
   - the local `blades-db terms --check` fails on a pre-existing "arrives" leak (Orbital Graft, Salt Chapel, Tahla).

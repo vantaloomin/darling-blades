@@ -1,9 +1,18 @@
 import type Phaser from 'phaser';
-import { NUMERAL_PATHS, numeralBadgeGeometry, numeralLayout, type NumeralLayout } from '../art/numeralPaths';
+import {
+  isNumeralText,
+  NUMERAL_PATHS,
+  numeralBadgeGeometry,
+  numeralLayout,
+  numeralPlateGeometry,
+  type NumeralLayout,
+  type NumeralPlateSpec,
+} from '../art/numeralPaths';
 
 /**
- * Vector numerals for round badges (pick order, castable counts) and the
- * mana beads. One fill routine, so a bead and a badge draw the same digits.
+ * Vector numerals for round badges (pick order, castable counts), count
+ * plates (Marks, pile counts) and the mana beads. One fill routine, so a
+ * bead and a badge draw the same digits.
  */
 
 /** Fill a laid-out numeral group in `ink` (layout units = canvas pixels). */
@@ -14,15 +23,16 @@ export function fillNumeral(ctx: CanvasRenderingContext2D, layout: NumeralLayout
     ctx.save();
     ctx.translate(glyph.tx, glyph.ty);
     ctx.scale(layout.k, layout.k);
-    ctx.fill(new Path2D(NUMERAL_PATHS[glyph.digit]), 'evenodd');
+    ctx.fill(new Path2D(NUMERAL_PATHS[glyph.glyph]), 'evenodd');
     ctx.restore();
   }
   ctx.restore();
 }
 
-/** A label a numeral badge can draw as vector digits (a whole number). */
+/** A label a numeral badge can draw as vector glyphs: a whole number, a
+ * Mark count "+2" or repeated picks "1, 2". */
 export function isNumeralLabel(label: string | null | undefined): label is string {
-  return typeof label === 'string' && /^\d{1,6}$/.test(label);
+  return typeof label === 'string' && label.length <= 40 && isNumeralText(label);
 }
 
 /** Baked at twice the display size, like the resolution-2 Text it replaces. */
@@ -36,7 +46,7 @@ export interface NumeralBadgeInk {
 }
 
 /**
- * Bake (once) the digits of `n` for a round badge and return the texture and
+ * Bake (once) the numeral label for a round badge and return the texture and
  * the disc diameter to draw it on. The texture is a transparent square of the
  * disc's size: place the Image at the disc centre with
  * `setDisplaySize(diameter, diameter)` and the numeral's ink sits centred on
@@ -47,21 +57,60 @@ export interface NumeralBadgeInk {
  */
 export function ensureNumeralBadgeInk(
   scene: Phaser.Scene,
-  n: number,
+  label: number | string,
   ink: string,
   digitHeight: number,
   minDiameter: number,
 ): NumeralBadgeInk {
-  const { diameter, options } = numeralBadgeGeometry(n, digitHeight, minDiameter);
-  const texture = `numeral-badge-${n}-${ink}-${digitHeight.toFixed(2)}-${minDiameter}`;
+  const { diameter, options } = numeralBadgeGeometry(label, digitHeight, minDiameter);
+  const texture = `numeral-badge-${label}-${ink}-${digitHeight.toFixed(2)}-${minDiameter}`;
   if (!scene.textures.exists(texture)) {
     const size = Math.ceil(diameter * BADGE_RESOLUTION);
     // The same layout in texture pixels: its options are disc fractions.
     const tex = scene.textures.createCanvas(texture, size, size)!;
-    fillNumeral(tex.getContext(), numeralLayout(n, size, options), ink);
+    fillNumeral(tex.getContext(), numeralLayout(label, size, options), ink);
     tex.refresh();
   }
   return { texture, diameter };
+}
+
+export interface NumeralPlateInk {
+  /** Texture key: the label alone, on a transparent plate-sized rectangle. */
+  texture: string;
+  /** The plate's size (and the image's display size), in design pixels. */
+  width: number;
+  height: number;
+}
+
+/**
+ * Bake (once) a numeral label for a rectangular plate (the Mark "+2" badge,
+ * a pile count). Like the round badge, the texture is transparent and the
+ * plate's size: place the Image on the plate centre with
+ * `setDisplaySize(width, height)`; the plate itself stays the consumer's.
+ */
+export function ensureNumeralPlateInk(
+  scene: Phaser.Scene,
+  label: number | string,
+  ink: string,
+  spec: NumeralPlateSpec,
+): NumeralPlateInk {
+  const { width, height } = numeralPlateGeometry(label, spec);
+  const texture = `numeral-plate-${label}-${ink}-${spec.digitHeight.toFixed(2)}-${spec.padX}-${spec.padY}`
+    + `-${spec.minWidth ?? 0}-${spec.minHeight ?? 0}`;
+  if (!scene.textures.exists(texture)) {
+    // Whole texture pixels: the plate at twice its size, rounded up, with the
+    // label laid out centred in exactly that canvas.
+    const r = BADGE_RESOLUTION;
+    const w = Math.ceil(width * r);
+    const h = Math.ceil(height * r);
+    const baked = numeralPlateGeometry(label, {
+      digitHeight: spec.digitHeight * r, padX: spec.padX * r, padY: spec.padY * r, minWidth: w, minHeight: h,
+    });
+    const tex = scene.textures.createCanvas(texture, w, h)!;
+    fillNumeral(tex.getContext(), baked.layout, ink);
+    tex.refresh();
+  }
+  return { texture, width, height };
 }
 
 /**
