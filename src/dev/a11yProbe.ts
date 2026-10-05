@@ -672,10 +672,15 @@ export function checkDuelCue(scene: Phaser.Scene, cue: NonNullable<ProbeScene['d
   const shown = (object: Phaser.GameObjects.GameObject | undefined): boolean => !!object && objects.includes(object);
   const textIs = (object: Phaser.GameObjects.GameObject | undefined, value: string): boolean =>
     shown(object) && object instanceof Phaser.GameObjects.Text && object.text === value;
+  // A one-pick badge draws vector digits (an Image tagged with its numeral);
+  // repeated picks ("1, 2") still draw Text.
+  const numeralIs = (object: Phaser.GameObjects.GameObject | undefined, value: string): boolean =>
+    textIs(object, value)
+    || (shown(object) && object instanceof Phaser.GameObjects.Image && object.getData('a11yNumeral') === value);
   const badgeIs = (view: BoardCardView | undefined, value: string): boolean => {
     const badge = child(view, 'board-pick-badge');
     return shown(badge) && badge instanceof Phaser.GameObjects.Container
-      && badge.list.some((item) => textIs(item, value));
+      && badge.list.some((item) => numeralIs(item, value));
   };
   const fail = (detail: string): ProbeFinding[] => [{ kind: 'cue', text: cue,
     bounds: { x: 0, y: 0, width: 0, height: 0 }, detail }];
@@ -709,7 +714,7 @@ export function checkDuelCue(scene: Phaser.Scene, cue: NonNullable<ProbeScene['d
     if (cue === 'M4' && picked instanceof CardView && picked.alpha !== 1) return fail('picked grave card must keep full opacity');
     const badge = cue === 'portrait' ? picked : objects.find((object) => object.name === 'duel-pick-badge'
       && object.getData('a11yPickBadge') === '1');
-    if (!(badge instanceof Phaser.GameObjects.Container) || !badge.list.some((item) => textIs(item, '1')))
+    if (!(badge instanceof Phaser.GameObjects.Container) || !badge.list.some((item) => numeralIs(item, '1')))
       return fail('picked surface must visibly render the numeric badge');
   }
   if (cue === 'M5') {

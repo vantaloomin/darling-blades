@@ -201,17 +201,19 @@ export interface NumeralLayout {
   glyphs: NumeralGlyphPlacement[];
 }
 
-/**
- * Lay out the decimal digits of `n` for a bead of `beadSize` pixels: glyphs
- * sit side by side with NUMERAL_TRACKING between their ink, and the GROUP's
- * ink box is centred on the bead centre in both axes. A lone digit's cap
- * height is NUMERAL_CAP_FRACTION of the bead; wider groups shrink until the
- * ink box corners sit inside NUMERAL_SAFE_RADIUS of the bead.
- */
-export function numeralLayout(n: number, beadSize: number): NumeralLayout {
+interface GroupExtent {
+  digits: Digit[];
+  /** Per glyph: the x shift that puts its ink left edge at its slot. */
+  offsets: number[];
+  width: number;
+  top: number;
+  height: number;
+}
+
+/** The ink extent of n's digits packed side by side, in path units. */
+function groupExtent(n: number): GroupExtent {
   if (!Number.isInteger(n) || n < 0) throw new Error(`numeralLayout: expected a whole number, got ${n}`);
   const digits = String(n).split('') as Digit[];
-  // Group extent in path units, glyphs packed by their ink boxes.
   let cursor = 0;
   let top = Infinity;
   let bottom = -Infinity;
@@ -219,22 +221,86 @@ export function numeralLayout(n: number, beadSize: number): NumeralLayout {
   digits.forEach((digit, index) => {
     const box = digitInkBox(digit);
     if (index > 0) cursor += NUMERAL_TRACKING;
-    offsets.push(cursor - box.minX); // shift that puts this glyph's ink left edge at `cursor`
+    offsets.push(cursor - box.minX);
     cursor += box.maxX - box.minX;
     top = Math.min(top, box.minY);
     bottom = Math.max(bottom, box.maxY);
   });
-  const groupW = cursor;
-  const groupH = bottom - top;
-  const half = beadSize / 2;
-  const capK = (NUMERAL_CAP_FRACTION * beadSize) / groupH;
-  const safe = NUMERAL_SAFE_RADIUS * beadSize;
-  const fitK = safe / Math.hypot(groupW / 2, groupH / 2);
+  return { digits, offsets, width: cursor, top, height: bottom - top };
+}
+
+export interface NumeralLayoutOptions {
+  /** A lone digit's cap height as a fraction of the box (default NUMERAL_CAP_FRACTION). */
+  capFraction?: number;
+  /** The radius, as a fraction of the box, that the group's ink box corners
+   * must stay inside (default NUMERAL_SAFE_RADIUS). */
+  safeRadius?: number;
+}
+
+/**
+ * Lay out the decimal digits of `n` in a square box of `boxSize` pixels (the
+ * bead, the badge disc or the Forge's SVG viewBox): glyphs sit side by side
+ * with NUMERAL_TRACKING between their ink, and the GROUP's ink box is centred
+ * on the box centre in both axes. A lone digit's cap height is `capFraction`
+ * of the box; wider groups shrink until the ink box corners sit inside
+ * `safeRadius` of the box centre.
+ */
+export function numeralLayout(n: number, boxSize: number, options: NumeralLayoutOptions = {}): NumeralLayout {
+  const group = groupExtent(n);
+  const half = boxSize / 2;
+  const capK = ((options.capFraction ?? NUMERAL_CAP_FRACTION) * boxSize) / group.height;
+  const safe = (options.safeRadius ?? NUMERAL_SAFE_RADIUS) * boxSize;
+  const fitK = safe / Math.hypot(group.width / 2, group.height / 2);
   const k = Math.min(capK, fitK);
-  const left = half - (k * groupW) / 2;
-  const ty = half - k * (top + groupH / 2);
+  const left = half - (k * group.width) / 2;
+  const ty = half - k * (group.top + group.height / 2);
   return {
     k,
-    glyphs: digits.map((digit, index) => ({ digit, tx: left + k * offsets[index], ty })),
+    glyphs: group.digits.map((digit, index) => ({ digit, tx: left + k * group.offsets[index], ty })),
   };
 }
+
+/** How far inside a badge disc's edge the numeral's ink box corners stay:
+ * clear of a ring stroked on the edge (up to 5px in high contrast, so 2.5px
+ * inside) with a hair of air. */
+export const NUMERAL_BADGE_INSET = 3;
+/** Side padding a badge keeps around a wide numeral group (the old Text
+ * badges grew their radius to `text.width / 2 + 4`). */
+export const NUMERAL_BADGE_PAD = 4;
+
+export interface NumeralBadgeGeometry {
+  /** The disc's diameter in pixels: `minDiameter`, grown for wide groups. */
+  diameter: number;
+  /** The layout options as fractions of the disc, so a bake at any
+   * resolution lays out the same numeral (`numeralLayout(n, size, options)`). */
+  options: Required<NumeralLayoutOptions>;
+  /** The numeral laid out in a `diameter`-pixel box centred on the disc. */
+  layout: NumeralLayout;
+}
+
+/**
+ * A numeral on a round badge (pick order, castable count): the digits keep
+ * `digitHeight` pixels of cap height, the disc keeps `minDiameter` unless a
+ * wide group needs more (side padding NUMERAL_BADGE_PAD, ink box corners
+ * NUMERAL_BADGE_INSET inside the edge), and the group is centred on its ink.
+ */
+export function numeralBadgeGeometry(n: number, digitHeight: number, minDiameter: number): NumeralBadgeGeometry {
+  const group = groupExtent(n);
+  const k = digitHeight / group.height;
+  const inkW = k * group.width;
+  const corner = Math.hypot(inkW / 2, digitHeight / 2);
+  const diameter = Math.max(minDiameter, inkW + 2 * NUMERAL_BADGE_PAD, 2 * (corner + NUMERAL_BADGE_INSET));
+  const options = {
+    capFraction: digitHeight / diameter,
+    safeRadius: (diameter / 2 - NUMERAL_BADGE_INSET) / diameter,
+  };
+  return { diameter, options, layout: numeralLayout(n, diameter, options) };
+}
+
+/** The Forge page's inline-SVG numeral: a 100-unit viewBox filling the
+ * content box of its grey `.generic-pip` circle. */
+export const FORGE_NUMERAL_BOX = 100;
+export const FORGE_NUMERAL_OPTIONS: Readonly<Required<NumeralLayoutOptions>> = {
+  capFraction: 0.42,
+  safeRadius: 0.4,
+};

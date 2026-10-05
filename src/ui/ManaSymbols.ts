@@ -1,7 +1,8 @@
 import type Phaser from 'phaser';
 import type { ManaCost } from '../engine/types';
 import { ICON_PATHS, type IconKey } from '../art/iconPaths';
-import { NUMERAL_PATHS, numeralLayout } from '../art/numeralPaths';
+import { numeralLayout } from '../art/numeralPaths';
+import { fillNumeral } from './NumeralGlyphs';
 
 const PIP_COLORS: Record<IconKey, { bg: string; fg: string }> = {
   W: { bg: '#f5ecd2', fg: '#5b4a1e' },
@@ -151,15 +152,7 @@ export function ensureNumeralPip(scene: Phaser.Scene, n: number): string {
   ctx.fillStyle = PIP_COLORS.C.bg;
   ctx.fill();
   finishBead(ctx);
-  const layout = numeralLayout(n, PIP_SIZE);
-  ctx.fillStyle = NUMERAL_INK;
-  for (const glyph of layout.glyphs) {
-    ctx.save();
-    ctx.translate(glyph.tx, glyph.ty);
-    ctx.scale(layout.k, layout.k);
-    ctx.fill(new Path2D(NUMERAL_PATHS[glyph.digit]), 'evenodd');
-    ctx.restore();
-  }
+  fillNumeral(ctx, numeralLayout(n, PIP_SIZE), NUMERAL_INK);
   tex.refresh();
   return texKey;
 }

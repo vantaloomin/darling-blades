@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { NUMERAL_PATHS, numeralLayout, pathInkBox, type Digit } from '../../src/art/numeralPaths';
+import {
+  FORGE_NUMERAL_BOX,
+  FORGE_NUMERAL_OPTIONS,
+  NUMERAL_PATHS,
+  numeralBadgeGeometry,
+  numeralLayout,
+  pathInkBox,
+  type Digit,
+  type NumeralLayout,
+} from '../../src/art/numeralPaths';
 import { ALL_CARDS } from '../../src/data/catalog';
 import { FORGE_LIMITS } from '../../src/forge/validate';
 
@@ -55,11 +64,12 @@ const SAMPLES = new Map<Digit, Array<[number, number]>>(
   (Object.keys(NUMERAL_PATHS) as Digit[]).map((digit) => [digit, sampleInk(NUMERAL_PATHS[digit])]),
 );
 
-/** Every sampled ink point of n's numeral group, in bead pixels. */
-function groupInk(n: number): Array<Array<[number, number]>> {
-  const layout = numeralLayout(n, BEAD);
+/** Every sampled ink point of a laid-out group, per glyph, times `scale`
+ * (a bake drawn at another size than it is shown). Defaults to n's bead. */
+function groupInk(n: number, layout: NumeralLayout = numeralLayout(n, BEAD), scale = 1): Array<Array<[number, number]>> {
   return layout.glyphs.map((glyph) =>
-    SAMPLES.get(glyph.digit)!.map(([px, py]): [number, number] => [glyph.tx + layout.k * px, glyph.ty + layout.k * py]),
+    SAMPLES.get(glyph.digit)!.map(([px, py]): [number, number] =>
+      [(glyph.tx + layout.k * px) * scale, (glyph.ty + layout.k * py) * scale]),
   );
 }
 
@@ -118,5 +128,76 @@ describe('generic-cost numeral beads', () => {
     expect(box.minX).toBe(0);
     expect(box.maxX).toBe(100);
     expect(() => pathInkBox('M0 0 A5 5 0 0 1 10 10 Z')).toThrow(/unsupported/);
+  });
+});
+
+// Round badges (pick order, castable count) span these digit heights: the
+// pile chip's 7px up to a portrait badge at a large text scale, on the 18px
+// chip and the 24px pick discs.
+const BADGE_DIGIT_HEIGHTS = [6, 7, 8.7, 10.2, 12, 14, 16];
+const BADGE_MIN_DIAMETERS = [18, 24];
+/** A ring stroked on the disc edge reaches this far inside (5px high contrast). */
+const RING_INSIDE = 2.5;
+
+describe('numeral badges', () => {
+  // The badge bake lays the numeral out at twice its shown size (rounded up
+  // to whole texture pixels) and is drawn back down to the disc diameter.
+  const shownBadge = (n: number, digitHeight: number, minDiameter: number) => {
+    const geometry = numeralBadgeGeometry(n, digitHeight, minDiameter);
+    const size = Math.ceil(geometry.diameter * 2);
+    const ink = groupInk(n, numeralLayout(n, size, geometry.options), geometry.diameter / size);
+    return { diameter: geometry.diameter, ink };
+  };
+
+  it('centres the numeral on the disc by its real ink, as baked and shown', () => {
+    for (const height of BADGE_DIGIT_HEIGHTS) {
+      for (const min of BADGE_MIN_DIAMETERS) {
+        for (const n of AMOUNTS) {
+          const { diameter, ink } = shownBadge(n, height, min);
+          const box = extent(ink.flat());
+          const where = `n=${n} h=${height} min=${min}`;
+          expect(Math.abs((box.minX + box.maxX) / 2 - diameter / 2), `${where} horizontal`).toBeLessThan(0.1);
+          expect(Math.abs((box.minY + box.maxY) / 2 - diameter / 2), `${where} vertical`).toBeLessThan(0.1);
+        }
+      }
+    }
+  });
+
+  it('keeps the numeral clear of the ring, growing the disc for wide counts', () => {
+    for (const height of BADGE_DIGIT_HEIGHTS) {
+      for (const min of BADGE_MIN_DIAMETERS) {
+        for (const n of AMOUNTS) {
+          const { diameter, ink } = shownBadge(n, height, min);
+          const centre = diameter / 2;
+          const farthest = Math.max(...ink.flat().map(([px, py]) => Math.hypot(px - centre, py - centre)));
+          expect(farthest, `n=${n} h=${height} min=${min}`).toBeLessThanOrEqual(centre - RING_INSIDE);
+          expect(diameter).toBeGreaterThanOrEqual(min);
+        }
+      }
+    }
+  });
+
+  it('draws every digit at the requested height', () => {
+    for (const height of BADGE_DIGIT_HEIGHTS) {
+      for (const n of AMOUNTS) {
+        const box = extent(shownBadge(n, height, 24).ink.flat());
+        expect(box.maxY - box.minY, `n=${n} h=${height}`).toBeCloseTo(height, 1);
+      }
+    }
+  });
+});
+
+describe('Forge generic-pip numerals', () => {
+  it('centre every amount in the circle and keep it inside the content box', () => {
+    const centre = FORGE_NUMERAL_BOX / 2;
+    for (const n of AMOUNTS) {
+      const ink = groupInk(n, numeralLayout(n, FORGE_NUMERAL_BOX, FORGE_NUMERAL_OPTIONS)).flat();
+      const box = extent(ink);
+      expect(Math.abs((box.minX + box.maxX) / 2 - centre), `n=${n} horizontal`).toBeLessThan(0.4);
+      expect(Math.abs((box.minY + box.maxY) / 2 - centre), `n=${n} vertical`).toBeLessThan(0.4);
+      // The circle's content box is inscribed in its border: keep 5% air.
+      const farthest = Math.max(...ink.map(([px, py]) => Math.hypot(px - centre, py - centre)));
+      expect(farthest, `n=${n}`).toBeLessThanOrEqual(centre * 0.9);
+    }
   });
 });
