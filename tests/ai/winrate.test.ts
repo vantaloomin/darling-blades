@@ -4,7 +4,7 @@ import { EasyAI } from '../../src/ai/EasyAI';
 import { HardAI } from '../../src/ai/HardAI';
 import { MediumAI } from '../../src/ai/MediumAI';
 import { Game } from '../../src/engine/Game';
-import { runAvatarMatrix } from '../../scripts/balance-matrix';
+import { runAvatarMatrix, runAvatarReserveMatrix } from '../../scripts/balance-matrix';
 import { deckOf, TEST_DB } from '../helpers';
 
 /** Coherent two-color 40-card decks — skill decides games, not color screw. */
@@ -65,6 +65,27 @@ function reportAvatarRates(report: ReturnType<typeof runAvatarMatrix>): void {
     const draws = row.cells.reduce((sum, cell) => sum + cell.draws, 0);
     console.log(`R${row.avatar.tier} ${row.avatar.name}: ${wins}/${games - draws}, ` +
       `mean ${(row.avg * 100).toFixed(1)}%, ${draws} draws (${row.cells.length} cells, 40 seeds/cell)`);
+  }
+}
+
+/**
+ * The Darlings summit gate (1.9 wave 4): each boss's themed Darlings list vs
+ * the five curated shop precons, at 40 seeds per cell. A row passes on its
+ * floor and on a draw ceiling (Q5): Darlings games can legitimately run to the
+ * turn limit, so termination is a ceiling set from the 200-seed reading, not
+ * zero draws.
+ */
+function darlingsSummitGate(bosses: Record<string, { floor: number; drawCeiling: number }>): void {
+  const report = runAvatarReserveMatrix('darlings', 40, Object.keys(bosses));
+  reportAvatarRates(report);
+  expect(report.rows.map((row) => row.avatar.id).sort()).toEqual(Object.keys(bosses).sort());
+  for (const row of report.rows) {
+    const { floor, drawCeiling } = bosses[row.avatar.id];
+    expect(row.cells, `${row.avatar.id} must face all five precons`).toHaveLength(5);
+    for (const cell of row.cells) expect(cell.games, `${row.avatar.id} must field all seeded games`).toBe(40);
+    expect(row.avg, `${row.avatar.id} Darlings floor`).toBeGreaterThanOrEqual(floor);
+    const draws = row.cells.reduce((sum, cell) => sum + cell.draws, 0);
+    expect(draws, `${row.avatar.id} Darlings draw ceiling`).toBeLessThanOrEqual(drawCeiling);
   }
 }
 
@@ -219,6 +240,19 @@ describe('AI win-rate gates', () => {
     // avg 71.7 on the committed list at 200 seeds/cell, 0 draws.
     // 71.7 - 6.5 = 65.2, so her floor RATCHETS UP 0.545 -> 0.65; CI's 40
     // seeds read 68.0, 0 draws.
+    //
+    // 1.9 WAVE-4 RE-BASELINE 2026-10-05 (`--avatars --seeds 200` at cb335b10,
+    // after the wave-4 tunes; 28,000 games, 2 draws, both below rung 14):
+    //   R14 67.2 · R15 67.6 · R16 71.0 · R17 78.0 · R18 89.1 · R19 74.8 ·
+    //   R20 90.2 · R21 62.8 · R22 75.2 · R23 74.1 · R24 72.9 · R25 66.2 ·
+    //   R26 75.0 · R27 68.7 · R28 76.0
+    // Same minus-6.5pp rule, rounded down to the half point, ratchet only.
+    // Two floors rise (R19 .675 -> .68, R24 .645 -> .66) and R27 and R28 get
+    // their first ones; every other candidate sits at or under its standing
+    // floor, which is KEPT. R15 Carmilla's candidate is 61.0 against her .655,
+    // so her 200-seed margin stays 2.1pp, the narrowest on the ladder. No list
+    // lever moved her in wave 4 (her opponents.ts entry); the drop came with
+    // the wave 2-3 brain changes.
     expect(r15.avg, 'Carmilla floor').toBeGreaterThanOrEqual(0.655);
     // R16 The Bride was HAND-TUNED in this pass, 54% -> 69%. The converter's
     // curve cap {6:2} had halved her legend from the 4 copies her own classic
@@ -266,7 +300,9 @@ describe('AI win-rate gates', () => {
     if (!r19 || !r20 || !r21 || !r22) return;
     // 1.8.5 RE-BASELINE 2026-09-28 (final build, `--avatars --seeds 200`,
     // FLAGS none): 74 - 6.5 = 67.5, so the floor RATCHETS UP 0.65 -> 0.675.
-    expect(r19.avg, 'Queen of the Lanterned Roof floor').toBeGreaterThanOrEqual(0.675);
+    // 1.9 wave-4 re-baseline 2026-10-05 (the table in the gate above):
+    // 74.8 - 6.5 = 68.3, so the floor RATCHETS UP 0.675 -> 0.68.
+    expect(r19.avg, 'Queen of the Lanterned Roof floor').toBeGreaterThanOrEqual(0.68);
     // 1.8.5 RE-BASELINE 2026-09-28 (final build, `--avatars --seeds 200`,
     // FLAGS none): 90 - 6.5 = 83.5, so the floor RATCHETS UP 0.815 -> 0.835.
     expect(r20.avg, 'Kitsune Neon Tyrant floor').toBeGreaterThanOrEqual(0.835);
@@ -338,16 +374,21 @@ describe('AI win-rate gates', () => {
     // R24 Violet Signal Queen: 71 - 6.5 = 64.5, so the floor RATCHETS UP
     // 0.615 -> 0.645. Same minus-6.5pp convention, rounded down to the half
     // point.
-    expect(r24.avg, 'Violet Signal Queen floor').toBeGreaterThanOrEqual(0.645);
+    // 1.9 wave-4 re-baseline 2026-10-05 (the table in the rungs 14-18 gate):
+    // 72.9 - 6.5 = 66.4, so the floor RATCHETS UP 0.645 -> 0.66.
+    expect(r24.avg, 'Violet Signal Queen floor').toBeGreaterThanOrEqual(0.66);
     for (const cell of [...r23.cells, ...r24.cells]) {
       expect(cell.draws, 'new boss cell must terminate decisively').toBe(0);
     }
   }, 900_000);
 
-  it('First Dawn rungs 27-28 field complete decisive matrices', () => {
-    // Both tower floors are tier 6 PROVISIONAL until wave 4's tuning pass.
-    // Numeric win-rate floors must come from wave 4's measured band; this
-    // untuned pair initially gates complete five-starter matrices and termination.
+  it('First Dawn rungs 27-28 clear their floors and field complete decisive matrices', () => {
+    // FLOORS SET 2026-10-05 from wave 4's end-of-wave reading (`--avatars
+    // --seeds 200` at cb335b10, the table in the rungs 14-18 gate), after the
+    // wave-4 tunes. Cells in Muster/Communion/Tides/Mandate/Harvest order,
+    // 0 draws: R27 44/96/74/55/75 avg 68.7 · R28 62/79/68/92/81 avg 76.0.
+    // Same minus-6.5pp rule, rounded down to the half point. Until now this
+    // pair gated complete five-starter matrices and termination only.
     const report = runAvatarMatrix(40, ['the-shepherdess-of-giants', 'the-tyrant-queen']);
     reportAvatarRates(report);
     expect(report.rows.map((row) => row.avatar.id)).toEqual([
@@ -362,6 +403,12 @@ describe('AI win-rate gates', () => {
         expect(cell.draws, `${label} must terminate decisively`).toBe(0);
       }
     }
+    const row = (id: string) => report.rows.find((entry) => entry.avatar.id === id);
+    // R27 The Shepherdess of Giants: 68.7 - 6.5 = 62.2, so 0.62.
+    expect(row('the-shepherdess-of-giants')?.avg, 'Shepherdess of Giants floor').toBeGreaterThanOrEqual(0.62);
+    // R28 The Tyrant Queen: 76.0 - 6.5 = 69.5, so 0.695. Her list was rebuilt
+    // on 2026-10-05 so the summit tops the gate ladder (owner).
+    expect(row('the-tyrant-queen')?.avg, 'Tyrant Queen floor').toBeGreaterThanOrEqual(0.695);
   }, 900_000);
 
   it('Drowned Deep rungs 25-26 clear their floors and field complete matrices', () => {
@@ -412,6 +459,34 @@ describe('AI win-rate gates', () => {
       expect(cell.rowWins + cell.colWins, 'new boss cell must decide all 40 seeded games').toBe(40);
       expect(cell.draws, 'new boss cell must terminate decisively').toBe(0);
     }
+  }, 900_000);
+
+  // FLOORS SET 2026-10-05 from wave 4's end-of-wave reading,
+  // `--avatars-darlings --seeds 200` at cb335b10 (28,000 games), after the
+  // summit's Darlings lists moved to the themed builder. Cells in Red Cliffs /
+  // Queen Below / Sunwell / Mirror-Blood / Sable order:
+  //   R23 42/46/95/51/58 avg 58.3 (18 draws) · R24 38/41/96/44/59 avg 55.4
+  //   R25 36/46/94/46/66 avg 57.3 · R26 39/40/96/52/58 avg 56.8
+  //   R27 82/74/94/80/90 avg 84.0 (3 draws) · R28 57/55/99/57/80 avg 69.5
+  // Floor = mean - 6.5, rounded down to the half point. Draw ceiling = the
+  // 200-seed draw rate scaled to 200 games plus three standard deviations,
+  // rounded up, at least 2: R23 (3.6 expected) 10, R27 (0.6) 3, the rest 2.
+  // R27 stays above R28 in Darlings (owner, 2026-10-04). Split in two because
+  // the six rows run about 430 s locally, about 680 s on CI.
+  it('Darlings summit rungs 23-25 clear their floors and draw ceilings', () => {
+    darlingsSummitGate({
+      'chrome-broodmother': { floor: 0.515, drawCeiling: 10 },
+      'the-violet-signal-queen': { floor: 0.485, drawCeiling: 2 },
+      'the-drowned-deacon': { floor: 0.505, drawCeiling: 2 },
+    });
+  }, 900_000);
+
+  it('Darlings summit rungs 26-28 clear their floors and draw ceilings', () => {
+    darlingsSummitGate({
+      'the-marsh-mother': { floor: 0.5, drawCeiling: 2 },
+      'the-shepherdess-of-giants': { floor: 0.775, drawCeiling: 3 },
+      'the-tyrant-queen': { floor: 0.63, drawCeiling: 2 },
+    });
   }, 900_000);
 
 });
