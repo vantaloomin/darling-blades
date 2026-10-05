@@ -41,6 +41,7 @@ import { bindMenuScroll } from '../ui/menuScroll';
 import { shopPackLayout, shopPreviewListLayout, shopPreviewModalLayout, type ShopA11yFixture } from '../ui/shopPresentation';
 import { DECK_SHOP_LAYOUT, DECK_SHOP_GRID, deckShopCardLayout } from '../ui/deckShopLayout';
 import { CARD_H, CardView } from '../ui/CardView';
+import { rarityLine } from '../ui/CardZoomPreview';
 import { deckPageCount, deckPageSlice } from '../ui/deckListPaging';
 import { computeDeckStats, CURVE_MAX, PIE_COLORS } from '../ui/deckStats';
 import { fxPolicy } from '../ui/fx/FXSupport';
@@ -2455,6 +2456,22 @@ export class ShopScene extends Phaser.Scene {
     const view = new CardView(this, contentX, contentY).setScale(inspectScale);
     view.setCard(entry.d, { fx: 'full' });
     c.add(view);
+    // The tier as words (the face shows it only as a gem colour), on the
+    // shell's otherwise empty title track beside the close button.
+    if (!entry.d.token) {
+      const title = shell.tracks.titleTrack;
+      c.add(
+        this.add
+          .text(title.x, title.y + title.height / 2, rarityLine(entry.d), {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.label}px`,
+            fontStyle: theme.weight.w600,
+            color: theme.colors.heading,
+            wordWrap: { width: title.width },
+          })
+          .setOrigin(0, 0.5),
+      );
+    }
     const footer = shell.tracks.footerTrack;
     c.add(
       this.add

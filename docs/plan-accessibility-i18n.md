@@ -670,6 +670,24 @@ behaviour; snapping to whole rows would change the 100% look in Duel and
 Collection too); and rarity text in the Duel, Collection, Deck Builder and
 Shop inspect overlays, which this plan did not name.
 
+**Wave 5 QC (2026-10-05).** The inspect overlays now write the tier as words
+with `rarityLine` (Duel, Collection, Shop and the Limited draft; Deck Builder
+has only the hover zoom, which already had it; the Limited deck builder keeps
+its "SSR · creature · MV n" line). The Duel inspect gained two probe
+scenarios in `WAVE_2D_SCENES` (a full keyword guide, and none) and declares
+its full-canvas dim as an `a11ySurface`, as the choice overlays do; its close
+hint now sits on the title-safe bottom (it was at y 694, past the 684 frame).
+The Duel history and pile scenarios settle for 2,000 ms, since one full pass
+in five caught History mid-slide. A full re-run at the release head, every
+`WAVE_*` list in all six cells, read 0 findings apart from that flake. Not
+covered by any list: `PreloadScene`'s loading label (it follows the
+resolver since #538). Colour-vision captures for gate 2 (Chromium's emulation, a
+model's read, not the human review): under protanopia and deuteranopia the
+face-down SR and UR glows look alike; under achromatopsia the runway minimap's
+R, SR and SSR segments, the face-down glows and the two corner stars do; the
+background wash is too faint to carry rarity for anyone. Duel cues, Settings
+selection and the Collection chips survive every simulation.
+
 ### Wave 4: the localization record
 
 Closes by recording option A (see the record below). No build work.

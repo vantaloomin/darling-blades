@@ -35,6 +35,7 @@ import { FRAME_TREATMENTS } from '../ui/CardFrameFactory';
 import { CardView } from '../ui/CardView';
 import { computeDeckStats, CURVE_MAX, PIE_COLORS } from '../ui/deckStats';
 import { addKeywordGlossaryPanel } from '../ui/KeywordGlossaryPanel';
+import { rarityLine } from '../ui/CardZoomPreview';
 import { leaveDraftPrompt } from '../ui/leaveDraftPrompt';
 import {
   LIMITED_PICKS_PANEL,
@@ -843,6 +844,7 @@ export class LimitedDraftScene extends Phaser.Scene {
         .setOrigin(0, 0.5),
     );
     const curveBucket = card.types.includes('land') ? null : Math.min(manaValue(card.cost), CURVE_MAX);
+    let curveBottom = 244;
     for (let mv = 0; mv <= CURVE_MAX; mv++) {
       const bucketX = columnX + 94 + mv * 47;
       const highlighted = mv === curveBucket;
@@ -855,16 +857,31 @@ export class LimitedDraftScene extends Phaser.Scene {
           })
           .setOrigin(0.5),
       );
-      c.add(
-        this.add
-          .text(bucketX, 244, highlighted ? `${stats.curve[mv]}→${stats.curve[mv] + 1}` : String(stats.curve[mv]), {
-            fontFamily: theme.fonts.ui,
-            fontSize: `${theme.type.caption}px`,
-            fontStyle: highlighted ? theme.weight.w700 : theme.weight.w600,
-            color: highlighted ? theme.colors.gold : theme.colors.body,
-          })
-          .setOrigin(0.5),
-      );
+      const count = this.add
+        .text(bucketX, 244, highlighted ? `${stats.curve[mv]}→${stats.curve[mv] + 1}` : String(stats.curve[mv]), {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          fontStyle: highlighted ? theme.weight.w700 : theme.weight.w600,
+          color: highlighted ? theme.colors.gold : theme.colors.body,
+        })
+        .setOrigin(0.5);
+      curveBottom = Math.max(curveBottom, count.y + count.height / 2);
+      c.add(count);
+    }
+
+    // The tier as words (the face shows it only as a gem colour), between the
+    // curve and the glossary panel, which starts below its measured bottom.
+    let glossaryTop = 300;
+    if (!card.token) {
+      const rarity = this.add.text(columnX, curveBottom + theme.space(3), rarityLine(card), {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        fontStyle: theme.weight.w600,
+        color: theme.colors.body,
+        wordWrap: { width: columnWidth },
+      });
+      glossaryTop = Math.max(glossaryTop, rarity.y + rarity.height + theme.space(4));
+      c.add(rarity);
     }
 
     // Every glossary term the card uses, not only combat keywords: the panel
@@ -915,9 +932,9 @@ export class LimitedDraftScene extends Phaser.Scene {
     }
     addKeywordGlossaryPanel(this, c, card, {
       x: columnX,
-      y: 300,
+      y: glossaryTop,
       width: columnWidth,
-      maxHeight: glossaryBottom - 300,
+      maxHeight: glossaryBottom - glossaryTop,
     });
     this.inspectHint = this.add
       .text(640, 634, '', {

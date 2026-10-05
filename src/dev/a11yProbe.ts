@@ -48,7 +48,10 @@ import { wave2BFixtureSave, WAVE_2B_FIXTURE_IDS, WAVE_2B_LONGEST_CARD_IDS } from
 import type { DeckBuilderSceneData } from '../scenes/DeckBuilderScene';
 import type { SavedDeck } from '../meta/SaveManager';
 import { CLASSIC_RETIRED_ISSUE } from '../meta/deckRepair';
-import { CARD_DB } from '../data/catalog';
+import { ALL_CARDS, CARD_DB } from '../data/catalog';
+import { collectiblePool } from '../meta/collectionFilter';
+import { rarityLine } from '../ui/CardZoomPreview';
+import { cardGlossaryEntries } from '../ui/rulesText';
 import { currentAccessibility, setAccessibility, TEXT_SCALES } from '../ui/accessibility';
 import { BoardCardView } from '../ui/BoardCardView';
 import { CardView } from '../ui/CardView';
@@ -224,7 +227,8 @@ export const WAVE_2B_SCENES: readonly ProbeScene[] = [
   { label: 'Collection / finish comparison', key: 'Collection', data: { a11yFixture: {
     save: BATCH_B_VARIANTS, inspectCardId: BATCH_B_CARD, compareVariantIndex: 9 } } },
   ...WAVE_2B_LONGEST_CARD_IDS.map((inspectCardId) => ({ label: 'Collection / longest card inspect', key: 'Collection',
-    data: { a11yFixture: { save: BATCH_B_SAVE, inspectCardId } }, requiredText: [CARD_DB[inspectCardId].name] })),
+    data: { a11yFixture: { save: BATCH_B_SAVE, inspectCardId } },
+    requiredText: [CARD_DB[inspectCardId].name, rarityLine(CARD_DB[inspectCardId])] })),
 ];
 
 /** Shop and Profile: every product, price tier, list end and owned dialog. */
@@ -256,6 +260,10 @@ export const WAVE_2C_SCENES: readonly ProbeScene[] = [
   })),
 ];
 
+const DUEL_INSPECT_CARD = collectiblePool(ALL_CARDS).filter((card) => card.rarity === 'ssr')
+  .reduce((best, card) => (cardGlossaryEntries(card).length > cardGlossaryEntries(best).length ? card : best));
+const DUEL_PLAIN_CARD = collectiblePool(ALL_CARDS).find((card) => card.rarity === 'ssr' && cardGlossaryEntries(card).length === 0)
+  ?? collectiblePool(ALL_CARDS).find((card) => cardGlossaryEntries(card).length === 0) ?? DUEL_INSPECT_CARD;
 /** Final Wave 2 pass: real boards, cue carriers and both ends of paged panels. */
 const duelFixture = (name: DuelA11yFixtureName, extra: Partial<ProbeScene> = {}, page?: number): ProbeScene => ({
   label: `Duel / ${name}${page === undefined ? '' : ' / last page'}`, key: 'Duel',
@@ -280,7 +288,10 @@ export const WAVE_2D_SCENES: readonly ProbeScene[] = [
   duelFixture('graveyard-pick', { duelCue: 'M4' }),
   duelFixture('marks-boost-damage', { duelCue: 'M5' }),
   duelFixture('picked-attacker', { duelCue: 'M6' }),
-  ...(['history', 'stack', 'graveyard'] as const).flatMap((name) => [duelFixture(name), duelFixture(name, {}, Number.MAX_SAFE_INTEGER)]),
+  // History slides in on a tween that a loaded renderer can stretch past the
+  // default settle (1 pass in 5 measured it mid-slide); give the panels time.
+  ...(['history', 'stack', 'graveyard'] as const).flatMap((name) => [
+    duelFixture(name, { settleMs: 2000 }), duelFixture(name, { settleMs: 2000 }, Number.MAX_SAFE_INTEGER)]),
   duelFixture('darling', { requiredText: [WAVE_2D_DARLING.name] }),
   duelFixture('duty'),
   duelFixture('coach-cue', { requiredText: [WAVE_2D_COACH_CUE] }),
@@ -290,6 +301,12 @@ export const WAVE_2D_SCENES: readonly ProbeScene[] = [
   })),
   { label: 'Duel / recap / last page', key: 'Duel',
     data: { a11yFixture: 'full-board', a11yOverlay: 'recap', a11yPage: Number.MAX_SAFE_INTEGER } },
+  // The full-card inspect: the longest tier name over the fullest keyword guide.
+  { label: 'Duel / inspect', key: 'Duel',
+    data: { a11yFixture: 'full-board', a11yInspectCardId: DUEL_INSPECT_CARD.id }, requiredText: [rarityLine(DUEL_INSPECT_CARD)] },
+  // No keyword guide: the tier line takes the panel's place.
+  { label: 'Duel / inspect / no keywords', key: 'Duel',
+    data: { a11yFixture: 'full-board', a11yInspectCardId: DUEL_PLAIN_CARD.id }, requiredText: [rarityLine(DUEL_PLAIN_CARD)] },
 ];
 
 /** Wave 3, the long tail: one list per batch, each owned by its fixture module. */

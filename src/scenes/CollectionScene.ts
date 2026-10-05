@@ -56,6 +56,7 @@ import {
   type CollectionSortSelection,
 } from '../ui/collectionSort';
 import { addKeywordGlossaryPanel } from '../ui/KeywordGlossaryPanel';
+import { rarityLine } from '../ui/CardZoomPreview';
 import { ModalGuard } from '../ui/Modal';
 import { gateOnPagedArt, PAGE_ART_HOLD_MS, PagedArt } from '../ui/artGate';
 import { applyBackdrop } from '../ui/SceneBackdrop';
@@ -738,6 +739,14 @@ export class CollectionScene extends Phaser.Scene {
       fontStyle: theme.weight.w700, color: theme.colors.heading,
     });
     fitMenuName(cardName, columns.nameWidth, 3);
+    // The tier as words under the name (the face shows it only as a gem
+    // colour); the glossary and the card's labels hang from its measured bottom.
+    const rarity = this.add.text(columns.left, cardName.y + cardName.height + theme.space(1), d.token ? '' : rarityLine(d), {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.type.label}px`,
+      fontStyle: theme.weight.w600, color: theme.colors.body,
+      wordWrap: { width: columns.nameWidth },
+    });
+    const detailsTop = (rarity.text ? rarity.y + rarity.height : cardName.y + cardName.height) + theme.space(3);
     const probabilityPlate = this.add.graphics();
     const probabilityTitle = this.add.text(0, 0, 'EXACT BOOSTER-SLOT ODDS', {
       fontFamily: theme.fonts.ui, fontSize: `${theme.type.micro}px`,
@@ -753,6 +762,7 @@ export class CollectionScene extends Phaser.Scene {
 
     c.add([
       cardName,
+      rarity,
       galleryHalo,
       galleryFloor,
       view,
@@ -768,7 +778,10 @@ export class CollectionScene extends Phaser.Scene {
       probabilityHeadline,
       probabilityAxes,
     ]);
-    addKeywordGlossaryPanel(this, c, d, { ...columns.glossary, y: cardName.y + cardName.height + theme.space(3), maxHeight: 370 });
+    // The rarity line's height comes out of the glossary's cap: its bottom stays put.
+    addKeywordGlossaryPanel(this, c, d, {
+      ...columns.glossary, y: detailsTop, maxHeight: 370 - (detailsTop - (cardName.y + cardName.height + theme.space(3))),
+    });
 
     let wipe = 0;
     let wipeTween: Phaser.Tweens.Tween | null = null;
@@ -862,7 +875,7 @@ export class CollectionScene extends Phaser.Scene {
       [probabilityTitle, probabilityHeadline, probabilityAxes].forEach((text, index) => {
         text.setPosition(box.x + box.width / 2, probability.ys[index]);
       });
-      const labelTop = cardName.y + cardName.height + theme.space(3);
+      const labelTop = detailsTop;
       galleryTitle.setPosition(atelier.x, labelTop).setOrigin(0.5, 0);
       fitMenuName(galleryTitle, columns.cardWidth, 2);
       fitMenuName(compareLeftLabel, columns.cardWidth, 2);
