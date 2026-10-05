@@ -1,4 +1,5 @@
 import type Phaser from 'phaser';
+import { ensureNumeralPip, numeralPipKey } from './ManaSymbols';
 
 const NBSP = '\u00a0';
 const TOKEN_GROUP = /(?:\{(?:\d+|[WUBRGC])\})+/g;
@@ -6,6 +7,7 @@ const TOKEN = /\{(\d+|[WUBRGC])\}/g;
 
 export interface ManaTextPip {
   texture: string;
+  /** Generic amount; `texture` is its numeral bead (baked on render). */
   number?: number;
 }
 
@@ -27,7 +29,6 @@ export interface PaddedManaText {
 export interface ManaTextRender {
   text: Phaser.GameObjects.Text;
   pips: Phaser.GameObjects.Image[];
-  numbers: Phaser.GameObjects.Text[];
   reflow: () => void;
   setAlpha: (alpha: number) => void;
   destroy: () => void;
@@ -46,7 +47,8 @@ export function segmentManaText(raw: string): ManaTextSegment[] {
     for (const token of value.matchAll(TOKEN)) {
       const symbol = token[1];
       if (/^\d+$/.test(symbol)) {
-        pips.push({ texture: 'pip-C', number: Number(symbol) });
+        const n = Number(symbol);
+        pips.push({ texture: numeralPipKey(n), number: n });
       } else {
         pips.push({ texture: `pip-${symbol}` });
       }
@@ -138,59 +140,19 @@ export function renderManaText(
   text.setText(padded.text);
 
   const pips: Phaser.GameObjects.Image[] = [];
-  const numbers: Phaser.GameObjects.Text[] = [];
-  // Vertical distance (local units, >0 = below center) between the digit's
-  // ACTUAL ink center and its text-canvas center, one entry per numeral.
-  // origin(0.5) centers the em box, but Cinzel's lining digits sit off the
-  // box's middle (measured +1.5px low on a 25px bead in the collection
-  // modal), so the bead centering scans the rendered glyph itself.
-  const inkOffsets: number[] = [];
-  const scanInkCenterOffset = (t: Phaser.GameObjects.Text): number => {
-    const w = t.canvas.width;
-    const h = t.canvas.height;
-    if (!w || !h) return 0;
-    const data = t.context.getImageData(0, 0, w, h).data;
-    let top = -1;
-    let bottom = -1;
-    for (let yy = 0; yy < h; yy++) {
-      for (let xx = 0; xx < w; xx++) {
-        if (data[(yy * w + xx) * 4 + 3] > 16) {
-          if (top < 0) top = yy;
-          bottom = yy;
-          break;
-        }
-      }
-    }
-    if (top < 0) return 0;
-    const resolution = t.style.resolution || 1;
-    return ((top + bottom + 1) / 2 - h / 2) / resolution;
-  };
   for (const run of padded.runs) {
     for (const spec of run.pips) {
-      const pip = scene.add.image(0, 0, spec.texture).setVisible(false);
+      // Generic amounts are numeral beads with the digits baked in, centred
+      // on their vector ink box; nothing font-dependent rides on top.
+      const texture = spec.number !== undefined ? ensureNumeralPip(scene, spec.number) : spec.texture;
+      const pip = scene.add.image(0, 0, texture).setVisible(false);
       container.add(pip);
       pips.push(pip);
-      if (spec.number !== undefined) {
-        const number = scene.add
-          .text(0, 0, String(spec.number), {
-            fontFamily: 'Cinzel, Georgia, serif',
-            fontSize: `${Math.max(8, pipSize * 0.62)}px`,
-            fontStyle: 'bold',
-            color: '#2b2f36',
-            resolution: style.resolution ?? 1,
-          })
-          .setOrigin(0.5)
-          .setVisible(false);
-        container.add(number);
-        numbers.push(number);
-        inkOffsets.push(scanInkCenterOffset(number));
-      }
     }
   }
 
   const reflow = (): void => {
     for (const pip of pips) pip.setVisible(false);
-    for (const number of numbers) number.setVisible(false);
 
     const lines = text.getWrappedText();
     const paddingLeft = text.padding.left ?? 0;
@@ -204,7 +166,6 @@ export function renderManaText(
     let searchLine = 0;
     let searchColumn = 0;
     let pipIndex = 0;
-    let numberIndex = 0;
 
     for (const run of padded.runs) {
       let lineIndex = -1;
@@ -222,7 +183,6 @@ export function renderManaText(
       }
       if (lineIndex < 0) {
         pipIndex += run.pips.length;
-        numberIndex += run.pips.filter((pip) => pip.number !== undefined).length;
         continue;
       }
 
@@ -239,22 +199,13 @@ export function renderManaText(
       const runX = paddingLeft + text.style.strokeThickness / 2 + alignOffset + prefixWidth + runInset;
       const centerY = paddingTop + lineIndex * lineStep + lineHeight / 2;
 
-      run.pips.forEach((spec, index) => {
+      run.pips.forEach((_spec, index) => {
         const centerX = runX + index * (pipSize + pipGap) + pipSize / 2;
-        const pip = pips[pipIndex++];
-        pip
+        pips[pipIndex++]
           .setPosition(baseX + centerX * text.scaleX, baseY + centerY * text.scaleY)
           .setDisplaySize(pipSize * Math.abs(text.scaleX), pipSize * Math.abs(text.scaleY))
           .setAlpha(text.alpha)
           .setVisible(text.visible);
-        if (spec.number !== undefined) {
-          const idx = numberIndex++;
-          numbers[idx]
-            .setPosition(pip.x, pip.y - text.scaleY * inkOffsets[idx])
-            .setScale(text.scaleX, text.scaleY)
-            .setAlpha(text.alpha)
-            .setVisible(text.visible);
-        }
       });
     }
   };
@@ -262,15 +213,13 @@ export function renderManaText(
   const setAlpha = (alpha: number): void => {
     text.setAlpha(alpha);
     for (const pip of pips) pip.setAlpha(alpha);
-    for (const number of numbers) number.setAlpha(alpha);
   };
 
   const destroy = (): void => {
     text.destroy();
     for (const pip of pips) pip.destroy();
-    for (const number of numbers) number.destroy();
   };
 
   reflow();
-  return { text, pips, numbers, reflow, setAlpha, destroy };
+  return { text, pips, reflow, setAlpha, destroy };
 }

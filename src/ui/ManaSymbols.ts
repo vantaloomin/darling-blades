@@ -1,6 +1,7 @@
 import type Phaser from 'phaser';
 import type { ManaCost } from '../engine/types';
 import { ICON_PATHS, type IconKey } from '../art/iconPaths';
+import { NUMERAL_PATHS, numeralLayout } from '../art/numeralPaths';
 
 const PIP_COLORS: Record<IconKey, { bg: string; fg: string }> = {
   W: { bg: '#f5ecd2', fg: '#5b4a1e' },
@@ -13,6 +14,10 @@ const PIP_COLORS: Record<IconKey, { bg: string; fg: string }> = {
 };
 
 export const PIP_SIZE = 64; // baked ~3×; consumers setDisplaySize down (16–48px)
+
+/** Generic-cost numeral ink: darker than the C key's fg, so the digit keeps
+ * the contrast the old Text overlay had on the grey bead. */
+const NUMERAL_INK = '#2b2f36';
 
 /** Outline stroke + radial "bead" shading shared by every pip baker — one
  * place to tune the bead look so mono and split pips never drift apart. */
@@ -59,8 +64,8 @@ function drawIcon(
 /**
  * Bake circular mana-pip textures once at boot: pip-W … pip-G, pip-C, pip-T.
  * The face of each bead is a hand-authored vector icon (src/art/iconPaths.ts)
- * filled via Path2D — no webfont dependency; generic-cost numerals stay Text
- * objects at the consumers.
+ * filled via Path2D — no webfont dependency. Generic-cost beads carrying a
+ * number are baked on demand by `ensureNumeralPip`.
  */
 export function bakeManaSymbols(scene: Phaser.Scene): void {
   for (const key of Object.keys(PIP_COLORS) as IconKey[]) {
@@ -74,8 +79,8 @@ export function bakeManaSymbols(scene: Phaser.Scene): void {
     ctx.fillStyle = PIP_COLORS[key].bg;
     ctx.fill();
     finishBead(ctx);
-    // pip-C stays faint so the 13px generic-cost numeral drawn over it
-    // (CardView) stays legible.
+    // Plain pip-C ({C} colorless mana, the empty mana-strip placeholder)
+    // keeps a faint crystal; numbered generic beads are pip-C-<n>.
     drawIcon(ctx, key, c, c, 0.78, key === 'C' ? 0.34 : 1);
     tex.refresh();
   }
@@ -119,15 +124,57 @@ export function ensureSplitPip(scene: Phaser.Scene, colors: readonly IconKey[]):
   return texKey;
 }
 
+/** Texture key of the generic-cost bead printed with `n`. Pure, so
+ * segmenters and cost layouts can name it before a scene bakes it. */
+export function numeralPipKey(n: number): string {
+  return `pip-C-${n}`;
+}
+
+/**
+ * Bake (once) and return the texture key for a generic-cost bead printed
+ * with `n`: the grey C bead and its shading, then the digits as vector paths
+ * (src/art/numeralPaths.ts) laid out by `numeralLayout`, which centres the
+ * group's real ink box on the bead centre. No webfont and no Text overlay,
+ * so the numeral sits the same before and after Cinzel loads, and every
+ * consumer (card faces, rules text, prompts, thumbnails) shares one bake.
+ * The faint crystal icon is left off numeral beads: the digit is the whole
+ * message, and the hexagon's edges would cross two-digit groups at 16px.
+ */
+export function ensureNumeralPip(scene: Phaser.Scene, n: number): string {
+  const texKey = numeralPipKey(n);
+  if (scene.textures.exists(texKey)) return texKey;
+  const tex = scene.textures.createCanvas(texKey, PIP_SIZE, PIP_SIZE)!;
+  const ctx = tex.getContext();
+  const c = PIP_SIZE / 2;
+  ctx.beginPath();
+  ctx.arc(c, c, c - 2, 0, Math.PI * 2);
+  ctx.fillStyle = PIP_COLORS.C.bg;
+  ctx.fill();
+  finishBead(ctx);
+  const layout = numeralLayout(n, PIP_SIZE);
+  ctx.fillStyle = NUMERAL_INK;
+  for (const glyph of layout.glyphs) {
+    ctx.save();
+    ctx.translate(glyph.tx, glyph.ty);
+    ctx.scale(layout.k, layout.k);
+    ctx.fill(new Path2D(NUMERAL_PATHS[glyph.digit]), 'evenodd');
+    ctx.restore();
+  }
+  tex.refresh();
+  return texKey;
+}
+
 export interface PipSpec {
   texture: string;
-  number?: number; // generic amount rendered as a Text on top
+  /** Generic amount. `texture` is then its numeral bead, which a consumer
+   * bakes with `ensureNumeralPip(scene, number)` before drawing it. */
+  number?: number;
 }
 
 /** Right-to-left pip order for a cost: colored pips first (rightmost), generic last. */
 export function pipsFor(cost: ManaCost): PipSpec[] {
   const out: PipSpec[] = [];
-  if (cost.generic > 0) out.push({ texture: 'pip-C', number: cost.generic });
+  if (cost.generic > 0) out.push({ texture: numeralPipKey(cost.generic), number: cost.generic });
   for (const c of ['W', 'U', 'B', 'R', 'G'] as const) {
     for (let i = 0; i < (cost.pips[c] ?? 0); i++) out.push({ texture: `pip-${c}` });
   }
