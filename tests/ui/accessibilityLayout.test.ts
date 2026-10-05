@@ -105,6 +105,11 @@ interface Enrolled {
 
 /** The enrolled modules (wave 1: Settings after C4, the layout.ts headers and SCENE_TITLE, Profile) and the resolver. */
 const ENROLLED: readonly Enrolled[] = [
+  { module: 'src/ui/limitedPanePresentation.ts and src/ui/limitedDraftPresentation.ts (Limited builder and draft)', rules: {
+    frame: { file: 'tests/ui/limitedPanePresentation.test.ts', tests: ['keeps the header lines, the three panels and the footer apart in every accessibility cell'] },
+    gap: { file: 'tests/ui/limitedDraftPresentation.test.ts', tests: ['keeps each label clear of the row under it in every accessibility cell', 'fits every pick inside the panel without thumbs touching in every accessibility cell'] },
+    inset: { file: 'tests/ui/limitedPanePresentation.test.ts', tests: ['keeps every list row whole, above the pager and inside its panel in every accessibility cell', 'stacks the Details ledger in reading order above the panel inset in every accessibility cell'] },
+  } },
   { module: 'src/ui/duelPanelPresentation.ts (Duel history, stack, zone, choices and coaches)', rules: {
     frame: { file: 'tests/ui/duelPanelPresentation.test.ts', tests: ['keeps ordinary zone capacity and anchors while measured action growth remains above the pager', 'keeps deep stack pages inside the frame without shrinking cards or losing stack order'] },
     gap: { file: 'tests/ui/duelPanelPresentation.test.ts', tests: ['keeps each whole Duty readable and puts overflow options on reachable pages', 'preserves complete history entries and their release gap across pages'] },
@@ -199,6 +204,10 @@ const ENROLLED: readonly Enrolled[] = [
       },
     },
   },
+  { module: 'src/ui/duelModalPresentation.ts duelButtonPairCenters (Duel tutorial complete overlay)', rules: {
+    frame: { file: 'tests/ui/duelModalPresentation.test.ts', tests: ['keeps a minimum gap, stays centred and inside the safe frame in every cell'] },
+    gap: { file: 'tests/ui/duelModalPresentation.test.ts', tests: ['keeps a minimum gap, stays centred and inside the safe frame in every cell'] },
+  } },
 ];
 
 /**

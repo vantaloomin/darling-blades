@@ -17,9 +17,16 @@ import {
 import { payPremiumDraftEntry, premiumEntryStatus, todayString } from '../meta/Economy';
 import { Services } from '../meta/services';
 import { isTouchDevice } from '../platform/gestures';
+import { IS_DEV } from '../platform/env';
+import type { SaveData } from '../meta/SaveManager';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { HEADER_CURRENCY_ANCHOR } from '../ui/layout';
-import { premiumGrantSummary, type LimitedBuilderEntry, type PremiumGrantSummary } from '../ui/limitedDraftPresentation';
+import {
+  premiumGrantSummary,
+  type LimitedBuilderEntry,
+  type LimitedHubA11yFixture,
+  type PremiumGrantSummary,
+} from '../ui/limitedDraftPresentation';
 import { sceneSubtitle, sceneTitle } from '../ui/sceneTitle';
 import { theme } from '../ui/theme';
 import { Toast } from '../ui/Toast';
@@ -37,6 +44,9 @@ const CTA_COL_LEFT = 24 + CTA_W / 2; // 134
 const CTA_COL_RIGHT = 540 - 24 - CTA_W / 2; // 406
 /** How long an armed Retire waits for its second press, as Settings' Reset does. */
 const RETIRE_ARM_MS = 4000;
+/** The records list: eight rows of one heading-and-caption line each, which fit at every text size. */
+const HISTORY_ROWS = 8;
+const HISTORY_PITCH = 42;
 
 export class LimitedScene extends Phaser.Scene {
   private retireArmed = false;
@@ -50,10 +60,21 @@ export class LimitedScene extends Phaser.Scene {
    * handed to the deck builder on Resume so its note names real numbers.
    */
   private premiumGrant: PremiumGrantSummary | null = null;
+  /** Dev-only probe fixture: an in-memory save read instead of the real one, never persisted. */
+  private fixture: LimitedHubA11yFixture | null = null;
+  private fixtureSave: SaveData | null = null;
+  private get saveData(): SaveData {
+    return this.fixtureSave ?? Services.save.data;
+  }
   constructor() {
     super('Limited');
   }
-  create(): void {
+  create(data: { a11yFixture?: LimitedHubA11yFixture } = {}): void {
+    this.fixture = IS_DEV ? data.a11yFixture ?? null : null;
+    this.fixtureSave = this.fixture ? structuredClone(this.fixture.save) : null;
+    // Phaser keeps a start's data for the next start that passes none, so a
+    // fixture must not outlive its probe visit.
+    if (this.fixture) this.sys.settings.data = {};
     this.retireArmed = false;
     this.retireBtn = null;
     this.runPoolLine = null;
@@ -71,7 +92,7 @@ export class LimitedScene extends Phaser.Scene {
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('menu');
     new Toast(this);
-    const save = Services.save.data;
+    const save = this.saveData;
     if (
       save.limited.activeRun?.status === 'draft' &&
       save.limited.activeRun.draft?.completed
@@ -82,25 +103,28 @@ export class LimitedScene extends Phaser.Scene {
       if (grant.drafted > 0) this.premiumGrant = grant;
       recordDraftEncounters(save.limited, save.limited.activeRun);
       save.limited.activeRun = completeDraftRun(CARD_DB, save.limited.activeRun);
-      Services.save.flush();
+      this.persist();
     }
     sceneTitle(this, 'Draft');
+    // One line at the standard size; larger text wraps it inside the frame
+    // (it ended past both frame edges at 130%), and the panels start below it.
     sceneSubtitle(
       this,
       `Draft from packs against seven rivals, build exactly ${LIMITED_DECK_SIZE} spells, then play three matches. Your Warchest of 10 lands is provided.`,
       { fontSize: theme.type.body },
-    );
+    ).setAlign('center').setWordWrapWidth(theme.design.safeWidth, true);
     backButton(this, 'Play', () => this.scene.start('Play'));
     registerSceneBackNavigation(this, () => this.scene.start('Play'));
     // Gold is spendable here (the Premium Draft entry), so show the balance in
     // its usual top-right corner spot.
-    goldBadge(this, HEADER_CURRENCY_ANCHOR.x, HEADER_CURRENCY_ANCHOR.y, { getValue: () => Services.save.data.gold });
+    goldBadge(this, HEADER_CURRENCY_ANCHOR.x, HEADER_CURRENCY_ANCHOR.y, { getValue: () => this.saveData.gold });
     this.drawRunPanel();
     this.drawStartPanel();
     this.drawHistory();
+    if (this.fixture?.armRetire && this.retireBtn) this.armRetire(false);
   }
   private drawRunPanel(): void {
-    const run = Services.save.data.limited.activeRun;
+    const run = this.saveData.limited.activeRun;
     const x = 70;
     const y = 140;
     panel(this, x, y, 540, 235);
@@ -156,14 +180,14 @@ export class LimitedScene extends Phaser.Scene {
     );
   }
   private drawStartPanel(): void {
-    const save = Services.save.data;
+    const save = this.saveData;
     const runActive = !!save.limited.activeRun;
     const premiumStatus = premiumEntryStatus(save, todayString());
     const premiumUnaffordable = save.gold < ECONOMY.premiumDraftEntry;
     const premiumDisabled = runActive || !premiumStatus.allowed || premiumUnaffordable;
     const x = 70;
     const y = 410;
-    panel(this, x, y, 540, 180);
+    const startPanel = panel(this, x, y, 540, 180);
     this.title(x + 24, y + 28, 'New Run', runActive ? theme.colors.muted : theme.colors.heading);
     // Seed controls are deliberately NOT exposed here (user decision
     // 2026-07-14): draft runs roll a fresh hidden seed at start — the
@@ -174,9 +198,9 @@ export class LimitedScene extends Phaser.Scene {
       'Free Draft',
       'primary',
       () => {
-        if (!runActive) {
-          Services.save.data.limited.activeRun = startDraftRun(CARD_DB, freshRunSeed(), Date.now());
-          Services.save.flush();
+        if (!runActive && !this.fixture) {
+          this.saveData.limited.activeRun = startDraftRun(CARD_DB, freshRunSeed(), Date.now());
+          this.persist();
           this.scene.start('LimitedDraft');
         }
       },
@@ -188,35 +212,48 @@ export class LimitedScene extends Phaser.Scene {
       `Premium Draft · ${ECONOMY.premiumDraftEntry.toLocaleString('en-US')}g`,
       'primary',
       () => {
-        if (runActive) return;
+        if (runActive || this.fixture) return;
         if (!payPremiumDraftEntry(save, todayString())) return;
         const run = startDraftRun(CARD_DB, freshRunSeed(), Date.now(), { premium: true });
         save.limited.activeRun = run;
-        Services.save.flush();
+        this.persist();
         this.scene.start('LimitedDraft');
       },
       premiumDisabled,
     );
     // Each entry's terms sit under its own column so neither can read as
     // applying to the other: what the run pays, then whether the picks stay.
-    // Caption geometry: the panel bottoms out at y+180, so the first line
-    // starts at y+112 (a two-line wrap ends ~y+142) and the keep-line at y+152
-    // is kept short enough to stay single-line inside CTA_W. The Premium
-    // column's weekly-allowance line is single-line, so its pay line fits
-    // between it and the keep-line at y+132.
-    this.ctaCaption(x + CTA_COL_LEFT, y + 112, freeDraftPayoutCopy(), runActive);
-    this.ctaCaption(x + CTA_COL_LEFT, y + 152, 'Picks are not kept.', runActive);
-    this.ctaCaption(
-      x + CTA_COL_RIGHT,
-      y + 112,
-      premiumAllowanceCopy(premiumStatus, runActive, premiumUnaffordable),
-      premiumDisabled,
+    // Caption geometry at the standard size: the first line starts at y+112
+    // (the Free column's two-line wrap ends ~y+142), the keep-lines at y+152,
+    // and the Premium column's pay line at y+132 between its single-line
+    // allowance line and its keep-line. Those are floors: each caption starts
+    // no higher than the one above it ends, so a wrapped line at a larger
+    // size pushes the rest down, and the panel grows to hold the taller column.
+    const column = (cx: number, muted: boolean, lines: readonly (readonly [number, string])[]): number => {
+      let bottom = y;
+      for (const [offset, copy] of lines) bottom = this.ctaCaption(cx, Math.max(y + offset, bottom), copy, muted);
+      return bottom;
+    };
+    const captionsBottom = Math.max(
+      column(x + CTA_COL_LEFT, runActive, [[112, freeDraftPayoutCopy()], [152, 'Picks are not kept.']]),
+      column(x + CTA_COL_RIGHT, premiumDisabled, [
+        [112, premiumAllowanceCopy(premiumStatus, runActive, premiumUnaffordable)],
+        [132, 'Pays no gold.'],
+        [152, 'Every pick is yours to keep.'],
+      ]),
     );
-    this.ctaCaption(x + CTA_COL_RIGHT, y + 132, 'Pays no gold.', premiumDisabled);
-    this.ctaCaption(x + CTA_COL_RIGHT, y + 152, 'Every pick is yours to keep.', premiumDisabled);
+    const height = Math.max(180, captionsBottom + theme.space(3) - y);
+    if (height > 180) {
+      // Redrawn at the measured height in the release panel's place in the
+      // display order (behind its title, buttons and captions).
+      const grown = panel(this, x, y, 540, height);
+      this.children.moveBelow(grown, startPanel);
+      startPanel.destroy();
+    }
   }
-  private ctaCaption(x: number, y: number, text: string, muted: boolean): void {
-    this.add
+  /** One caption under a CTA column; returns its bottom edge. */
+  private ctaCaption(x: number, y: number, text: string, muted: boolean): number {
+    const caption = this.add
       .text(x, y, text, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
@@ -225,9 +262,10 @@ export class LimitedScene extends Phaser.Scene {
         wordWrap: { width: CTA_W },
       })
       .setOrigin(0.5, 0);
+    return caption.y + caption.height;
   }
   private drawHistory(): void {
-    const save = Services.save.data;
+    const save = this.saveData;
     const x = 670;
     const y = 140;
     panel(this, x, y, 540, 480);
@@ -250,8 +288,13 @@ export class LimitedScene extends Phaser.Scene {
       );
       return;
     }
-    draftHistory.slice(0, 8).forEach((entry, i) => {
-      const rowY = y + 104 + i * 42;
+    // Release density, the 100% contract: eight records at a 42px pitch.
+    this.data.set('a11yDensity', {
+      actual: [{ id: 'records', rows: HISTORY_ROWS, columns: 1, pitch: HISTORY_PITCH, top: y + 104 }],
+      release: [{ id: 'records', rows: 8, columns: 1, pitch: 42, top: 244 }],
+    });
+    draftHistory.slice(0, HISTORY_ROWS).forEach((entry, i) => {
+      const rowY = y + 104 + i * HISTORY_PITCH;
       const row = this.add.rectangle(
         x + 270,
         rowY + 12,
@@ -277,7 +320,12 @@ export class LimitedScene extends Phaser.Scene {
       );
     });
   }
+  /** Fixtures never reach storage. */
+  private persist(): void {
+    if (!this.fixture) Services.save.flush();
+  }
   private continueRun(run: LimitedRun): void {
+    if (this.fixture) return;
     if (run.status === 'draft') this.scene.start('LimitedDraft');
     else if (run.status === 'build') {
       const entry: LimitedBuilderEntry = this.premiumGrant ? { premiumGrant: this.premiumGrant } : {};
@@ -286,14 +334,15 @@ export class LimitedScene extends Phaser.Scene {
     else this.scene.start('Duel', limitedDuelData(run));
   }
   private retireRun(pointer?: Phaser.Input.Pointer): void {
-    if (Services.save.data.settings.confirmDestructive && !this.retireArmed) {
+    if (this.saveData.settings.confirmDestructive && !this.retireArmed) {
       this.armRetire(pointer?.wasTouch ?? isTouchDevice());
       return;
     }
+    if (this.fixture) return;
     this.retireDisarm?.remove(false);
     this.retireDisarm = null;
-    Services.save.data.limited.activeRun = null;
-    Services.save.flush();
+    this.saveData.limited.activeRun = null;
+    this.persist();
     this.scene.restart();
   }
   /** First press: name the loss, then stand down after a few seconds unanswered. */
