@@ -630,6 +630,46 @@ text in `CardZoomPreview`, and the pseudo-long English fixtures (longest deck
 names, longest card names, seven-digit gold, maximum list lengths). R13 and
 I7 touch the Limited files in program wave 2, before this.
 
+**Built (2026-10-05), in three PRs (#538, #539, batch B).** Batch C (#538): toasts lay out from
+measured lines and stack by their own heights (this also fixed the Shop's
+"Deck granted" toast at 100%, whose long deck name wrapped onto the title);
+the versus bumper keeps release shrink-to-fit at 100% and wraps a long name
+to two lines at 115/130; the cosmetic picker measures, then places; the
+stats privacy panel scrolls in whole entries; `CardZoomPreview` shows the
+rarity as words ("Rarity: Super Special Rare") on its plate; the preload
+label follows the resolver. `StatsNoticeDialog`, `LegalPanel` and
+`DarlingsTutorial` already passed; Boot and ArtLoader draw no text.
+Batch A and the Duel tutorial (#539): the Limited hub, draft and
+drafted-pool builder, with `limitedPanePresentation`'s literal line heights
+on the resolver, measured lists and picks grid, a content-sized leave
+prompt, and a gold bar under the selected pack plate; the tutorial pause
+menu and the "Tutorial Complete!" overlay through fixture hooks that never
+run the onboarding grant. Batch B: Achievements rows and hall
+plinths measured (titles wrap, no ellipsis; every row in a filter takes the
+tallest row's height so pages hold equal counts), the wing-scope chip back
+inside the frame, Pack Opening's pull inspect sized from its measured detail
+lines, and "tap to skip"/"tap to continue" placed where the camera zoom
+lands them (in release they fell partly off-screen). Glossary,
+`KeywordGlossaryPanel` and `boosterStripLayout` already passed.
+`WAVE_1_SKIPPED` is empty.
+
+Rendered probe, six cells each, headless Chromium on Linux (glyph widths
+are Linux fallback fonts, not the Windows ones): `WAVE_3A_SCENES` 31
+scenarios (186 checks), `WAVE_3B_SCENES` 34 (204), `WAVE_3C_SCENES` 22
+(132): 0 findings. Pack Opening was measured at `?quality=lite`, because
+swiftshader cannot render the full holo tier at a usable frame rate; lite
+changes effects, not text geometry, but the full tier is unmeasured until a
+run on a real GPU.
+
+Open after wave 3, for the human review (gate 2): the rarity cues in Pack
+Opening that still rest on colour alone (the runway minimap segments and
+background wash, the face-down SR/SSR/UR glow, the green "new card" and
+violet "new variant" corner stars, the spotlight tint); the Glossary list
+and keyword guide show a half-clipped row at their mask edge (release
+behaviour; snapping to whole rows would change the 100% look in Duel and
+Collection too); and rarity text in the Duel, Collection, Deck Builder and
+Shop inspect overlays, which this plan did not name.
+
 ### Wave 4: the localization record
 
 Closes by recording option A (see the record below). No build work.
