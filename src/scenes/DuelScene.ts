@@ -84,7 +84,7 @@ import {
 } from '../platform/gestures';
 import { darlingFaceCardFor, faceCardFor } from '../meta/deckFace';
 import { BoardCardView, TILE_W, TILE_H, } from '../ui/BoardCardView';
-import { CardZoomPreview } from '../ui/CardZoomPreview';
+import { CardZoomPreview, rarityLine } from '../ui/CardZoomPreview';
 import { CardView, CARD_W, CARD_H } from '../ui/CardView';
 import { CoachMark } from '../ui/CoachMark';
 import { CombatFx } from '../ui/CombatFx';
@@ -193,7 +193,7 @@ import { confirmedTargetSelection, removeLastTargetSelection, targetSelectionSte
 import { showDutyPicker, showLootPicker, type ChoiceOverlay } from '../ui/choiceOverlays';
 import { renderManaText } from '../ui/ManaText';
 import { PHASE_TRACK_ROWS, phaseTrackRowForStep, type PhaseTrackRow } from '../ui/phaseTrack';
-import { empowerText, manaCostText, romanNumeral } from '../ui/rulesText';
+import { cardGlossaryEntries, empowerText, manaCostText, romanNumeral } from '../ui/rulesText';
 import { PileView } from '../ui/PileView';
 import { bakeKeywordIcons } from '../ui/KeywordIcons';
 import {
@@ -235,6 +235,8 @@ export interface DuelSceneData {
   a11yCommitPick?: boolean;
   a11yOverlay?: 'pause' | 'replay-complete' | 'replay-unavailable' | 'recap' | 'coin' | 'result'
     | 'tutorial-pause' | 'tutorial-complete' | 'tutorial-ended';
+  /** Dev-only, with `a11yFixture`: open the full-card inspect on this card. */
+  a11yInspectCardId?: string;
   difficulty?: Difficulty;
   opponentId?: string;
   gauntletRung?: number;
@@ -1155,6 +1157,7 @@ export class DuelScene extends Phaser.Scene {
         this.replayMode = true;
         this.finishReplayPlayback(data.a11yOverlay === 'replay-complete' ? 'Replay complete' : 'Replay unavailable');
       }
+      if (data.a11yInspectCardId) this.showInspect(def(CARD_DB, data.a11yInspectCardId));
       this.data.set('a11yReady', true);
       return;
     }
@@ -7141,6 +7144,9 @@ export class DuelScene extends Phaser.Scene {
     const width = 1280; // design-space constants (see buildZones)
     const height = 720;
     const c = this.add.container(0, 0).setDepth(110);
+    // The dim covers the whole board: what is under it is out of view (the
+    // a11y probe reads this the same way as the duel's choice overlays).
+    c.setData('a11ySurface', { x: 0, y: 0, width, height });
     const dim = this.add
       .rectangle(width / 2, height / 2, width, height, 0x000000, 0.8)
       .setInteractive();
@@ -7153,19 +7159,46 @@ export class DuelScene extends Phaser.Scene {
       landStyle,
     });
     c.add(view);
+    // The tier as words (the face shows it only as a gem colour), atop the
+    // keyword column: bottom-anchored over the panel, so larger text grows up
+    // into the free band beside the card; with no panel it takes the panel's
+    // place. Tokens have no rarity, as on the hover zoom.
+    if (!card.token) {
+      const hasGlossary = cardGlossaryEntries(card).length > 0;
+      c.add(
+        this.add
+          .text(875, hasGlossary ? 150 - theme.space(3) : 150, rarityLine(card), {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.label}px`,
+            fontStyle: theme.weight.w600,
+            color: theme.colors.heading,
+            wordWrap: { width: 300 },
+          })
+          .setOrigin(0, hasGlossary ? 1 : 0),
+      );
+    }
     addKeywordGlossaryPanel(this, c, card, { x: 875, y: 150, width: 300 });
+    // The close hint sits on the title-safe bottom edge, measured from its own
+    // height, so larger text grows it upward and never off the frame.
+    const closeHint = this.add
+      .text(width / 2, theme.design.safeBottom, this.touch ? 'Tap anywhere to close' : 'Click anywhere to close', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.label}px`,
+        color: theme.colors.muted,
+      })
+      .setOrigin(0.5, 1);
     // A battlefield creature's state the card face cannot print (1.9 A2.a:
-    // "Provoked this turn."), on a plate between the card and the close hint.
-    if (note) c.add(this.statePlate(width / 2, height - 52, note));
-    c.add(
-      this.add
-        .text(width / 2, height - 26, this.touch ? 'Tap anywhere to close' : 'Click anywhere to close', {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.label}px`,
-          color: theme.colors.muted,
-        })
-        .setOrigin(0.5),
-    );
+    // "Provoked this turn."), on a plate between the card and the close hint;
+    // the card rises, if it must, to keep clear of the plate.
+    if (note) {
+      const plate = this.statePlate(width / 2, 0, note);
+      const plateHeight = plate.getBounds().height;
+      plate.setY(closeHint.y - closeHint.height - theme.space(1) - plateHeight / 2);
+      const cardBottom = plate.y - plateHeight / 2 - theme.space(1);
+      view.setY(Math.min(view.y, cardBottom - (CARD_H * view.scaleY) / 2));
+      c.add(plate);
+    }
+    c.add(closeHint);
     this.inspectMove = (p: Phaser.Input.Pointer) => view.setHoloPointer(p.worldX, p.worldY);
     this.input.on('pointermove', this.inspectMove);
     dim.on('pointerup', (p: Phaser.Input.Pointer) => {

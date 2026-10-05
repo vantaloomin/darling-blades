@@ -30,7 +30,31 @@ of 12 swaps accepted, 51.7% final). It raced out 1 swap and screened out
 none, so it played 5,320 Hard + 5,460 Medium games against 5,460 Hard
 unraced, and took 305 s against 297 s. That size says nothing about the
 saving: with 30 seeds the looks are tiny, and early in a climb most swaps
-win. Originally:
+win.
+**Status 2026-10-05: the acceptance run's result, read at wave 5.** The
+three arms ran on the hosted runners on 2026-09-28 and 09-29 (midrange,
+seed 13003, rounds 0 and 1; runs 36483336577 plain, 36483371516 race,
+36519766681 race + screen; the optional 50-seed screen arm was not run), and
+`compare-crafts.ts` over the `sweep-data` crafts reads:
+
+| Arm | Round 0 | Round 1 | Hard games vs plain | Medium games | Chunk-0 wall clock, r0 / r1 |
+| --- | --- | --- | --- | --- | --- |
+| plain | 79.8%, 30 accepted | 77.7%, 37 accepted | 100% | 0 | 95 / 155 min |
+| race | identical | identical | 87.4% / 87.7% (17 and 20 swaps raced out) | 0 | 167 / 106 min |
+| race + screen | identical | identical | 87.4% / 87.7% (0 screened out) | 170,100 per round | 99 / 223 min |
+
+Both levered arms are byte-identical to the plain arm once the lever keys
+are stripped: the same accepted swaps at every iteration and the same 40
+cards. The race plays about 12% fewer Hard games and changes nothing; the
+hosted runners' own variance (the same plain work took 95 and 155 minutes)
+hides that saving in wall clock. The full-seeds screen dropped nothing and
+added a Medium measurement to every proposal, so it costs more than it
+saves. Reading: **race passes on identity and game count and is used for the
+1.9 sweep; the screen fails and stays off.** The 1.9 sweep was dispatched
+with `race=true` (run 37372207714, 2026-10-05). Making `race` the workflow
+default is a one-line follow-up.
+
+Originally:
 **proposal, 2026-09-22. Nothing here is authorized.** Owner ask:
 the sweep takes three to five days on a 9950X3D, which is too long for the
 one step that has to run last before every cut. This is the measured
