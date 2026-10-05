@@ -1452,7 +1452,7 @@ The owner moved 1.9 orchestration to the project coordinator session on 2026-10-
   - **Hearth-Shield Maiden {1}{W} -> {W}** (owner, 2026-10-04, from a measured lab: -0.77 in play at {1}{W}, +0.11 at {W}), with the converter regen. Wild Communion is registered hand-tuned so it keeps Mother of the Long-Necks, the gate columns' only Mark source.
   - **A Darlings builder rule:** a card is dropped when fewer than 6 other creatures in the list meet its own-side condition.
   - **R23-R28 Darlings lists now come from the themed builder:** R23-R26 rise from 10-30% to 55-58%, and R27's turn-limit stall falls from 45 draws in 200 to 3.
-  - **Reserve tunes at 200 seeds**, confirmed on the 15-column matrix: R11 40.9 -> 64.8, R13 47.4 -> 54.4, R24 71.5 -> 72.9, R28 63.6 -> 68.5.
+  - **Reserve tunes at 200 seeds**, confirmed on the 15-column matrix: R11 40.9 -> 64.8, R13 47.4 -> 54.4, R24 71.5 -> 72.9, R28 63.6 -> 68.5, then 76.0 after the 2026-10-05 rebuild (below).
   - **R15 Carmilla is unchanged:** eleven levers all read inside the noise.
   - **Verification:** `winrate.test.ts` 8/8; `tests/data` and `tests/power` green; tsc, lint and the doc checkers clean.
 
@@ -1507,7 +1507,7 @@ The stock CLI runs every row in one process. The 4-worker sharded run took about
 
 ### Open for the owner
 
-- **R28 sits under R26 on the gate** (68.5 against 75.0) and is level with R27 (68.7). On the wide matrix she reads 76.0 against R26's 78.4. Q3 covered Darlings only. Whether the summit must top the gate ladder too has not been asked.
+- **Answered 2026-10-05: R28 tops the gate ladder too** (owner: "Yes, it should"). Her reserve list was rebuilt in the tunes PR: gate 68.5 -> 76.0, wide 76.0 -> 81.0, 0 draws, against R26's 75.0 and 78.4. The margin on the gate is about one point, so the end-of-wave reading decides it; her `opponents.ts` entry has the levers.
 - **R15 Carmilla has a 2.1-point margin over her floor** at 200 seeds. Her 40-seed gate reads 69.0 against .655. No list lever helped, because the drop came with the wave 2-3 brain changes. Watch her at the ratchet.
 
 ### Carried, not blocking

@@ -5253,30 +5253,46 @@ export const AVATARS: readonly Avatar[] = [
     // -1 Ring of Embers -1 Coal-Thrower +2 Fern-Crest Raptor (63.0), and on top
     // of the pair -2 Kindler +2 Fern-Crest Raptor (67.8), -2 Coal-Thrower +2
     // Horn-Crest Charger (62.6), -2 Kindler +2 Ridge-Raptor (62.9), -2 Grip of
-    // the Old Beast +2 Fern-and-Fire (68.5). This committed list: gate 68.5
-    // (58/84/59/70/73), wide 76.0, 0 draws.
+    // the Old Beast +2 Fern-and-Fire (68.5). That list: gate 68.5
+    // (58/84/59/70/73), wide 76.0, 0 draws, level with rung 27 and under
+    // rung 26 (75.0).
+    // RE-TUNED 2026-10-05 (1.9 wave 4; owner: the summit tops the gate ladder
+    // too). Personality levers read flat (68.1-68.6) and the swaps above
+    // stalled near 71, so the list was rebuilt as a fast red Dinokin curve
+    // under Oru: Fire-Runner and Twin-Claw Raptors, Rage-Horn and four
+    // Ember-Crest Tyrants, Blaze-Crest on top, Ashka and Kesh for reach, and
+    // the 2-mana enablers (Kindler, Coal-Thrower, Spear and Fang, Grip,
+    // Blaze-Horn Charge, The Fire-Pit), the Thorn-Hide and Magma-Back walls,
+    // Spear-Sister and Fern-and-Fire cut. Gate 76.0 (62/79/68/92/81), wide
+    // 81.0 (its five starter cells 76.0 on their own seeds), 0 draws, against
+    // rung 26's 75.0 gate and 78.4 wide. Measured and not taken from the same
+    // build: 7/3 Mountains (77.3 gate, 81.8 wide; it needs a land-reserve pin
+    // exemption and moves her Darlings row), Fern-and-Fire for Twin-Claw
+    // (74.3), Spear-Sister for Twin-Claw (72.5), Blood-Horn or Duel for
+    // Spear-Sister (70.5, 72.4), Ring for Kesh (70.2), Korru for Kesh (74.9),
+    // Ashka for Vyra (76.0), Duel for Rage-Kin Brawler (76.4), Ring for
+    // Thunder of Hooves (71.0), Tusk-Rage for War-Painted (72.7). The list
+    // order below is the measured one: the same cards in another order shuffle
+    // differently and read 76.1 gate and 80.9 wide, with one double-KO draw
+    // (both players at -1 on turn 19) in the Shadow Mandate cell's 40 CI seeds.
     reserveDeck: expand([
-      ['fd-kindler', 2],
-      ['fd-coal-thrower', 2],
       ['fd-cinder-crest', 4],
-      ['fd-magma-back', 2],
-      ['fd-blood-horn-brute', 2],
-      ['fdc-spear-sister-fb', 2],
-      ['fd-fern-and-fire', 2],
+      ['fdc-fire-runner-fb', 4],
+      ['fd-rage-horn', 4],
+      ['fd-ember-crest-tyrant', 4],
       ['fd-tusk-rage', 2],
-      ['fd-ember-crest-tyrant', 2],
-      ['fd-fern-crown-tyrant', 1],
-      ['fd-vessa-great-horn', 1],
       ['fd-oru-tyrant-queen', 1],
-      ['fd-thorn-hide-armourback', 2],
-      ['fd-spear-and-fang', 2],
-      ['fd-grip-of-the-old-beast', 2],
-      ['fd-blaze-horn-charge', 2],
-      ['fd-korru-eldest-tracker', 1],
-      ['fd-duel-on-the-ridge', 2],
-      ['fd-fire-pit', 1],
+      ['fd-ashka-fire-walker', 1],
+      ['fd-vessa-great-horn', 1],
       ['fd-hurled-firebrand', 4],
-      ['fd-ring-of-embers', 1],
+      ['fd-ring-of-embers', 2],
+      ['fd-blood-horn-brute', 2],
+      ['fd-korru-eldest-tracker', 1],
+      ['fd-fern-crown-tyrant', 1],
+      ['fd-duel-on-the-ridge', 2],
+      ['fd-kesh-raptor-rider', 1],
+      ['fd-blaze-crest', 2],
+      ['fdc-twin-claw-raptor', 4],
     ]),
     landReserve: expand([
       ['land-mountain', 5],
