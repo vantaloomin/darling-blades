@@ -116,6 +116,11 @@ const ENROLLED: readonly Enrolled[] = [
   { module: 'src/ui/deckListPaging.ts (Deck Builder)', rules: { frame: { file: 'tests/ui/deckListPaging.test.ts', tests: ['keeps every wrapped row whole, reachable and separate from its neighbours and pager in every accessibility cell', 'fills the Darlings fixture page with measured rows at $textScale, touch $touch'] } } },
   { module: 'src/ui/deckPoolLayout.ts (Deck Builder)', rules: { frame: { file: 'tests/ui/deckPoolLayout.test.ts', tests: ['keeps exempt card faces and their input bands inside the pool in every accessibility cell'] } } },
   { module: 'src/ui/collectionPresentation.ts (Collection)', rules: { frame: { file: 'tests/ui/collectionPresentation.test.ts', tests: ['keeps the search, statistics, filters, and binder in separate bands','keeps every face and its full-size badge band within its binder page','sizes the odds plate from all wrapped lines above the panel inset','paginates all finishes without crossing wrapped actions or the pager'] } } },
+  { module: 'src/ui/toastQueue.ts and src/ui/cosmeticPickerLayout.ts (Toast, Cosmetic picker; wave 3 batch C)', rules: {
+    frame: { file: 'tests/ui/cosmeticPickerLayout.test.ts', tests: ['keeps wrapped names, blurbs, the tag and Equip apart and the shell inside the frame in every accessibility cell'] },
+    gap: { file: 'tests/ui/toastQueue.test.ts', tests: ['keeps every line apart and inside the plaque in every accessibility cell, for one- to three-line bodies', 'hangs a stack of grown cards from the release top, inside the frame and a gap apart'] },
+    inset: { file: 'tests/ui/toastQueue.test.ts', tests: ['keeps every line apart and inside the plaque in every accessibility cell, for one- to three-line bodies'] },
+  } },
   { module: 'src/ui/mainMenuPresentation.ts (Main menu)', rules: {
     frame: { here: 'Main menu: measured chrome and content-sized notices' },
     gap: { here: 'Main menu: measured chrome and content-sized notices' },

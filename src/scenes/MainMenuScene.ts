@@ -62,7 +62,11 @@ export class MainMenuScene extends Phaser.Scene {
     super('MainMenu');
   }
 
-  create(data: { a11yFixture?: boolean; tutorial?: boolean; repair?: FlaggedDeckSummary[] } = {}): void {
+  create(data: {
+    a11yFixture?: boolean; tutorial?: boolean; repair?: FlaggedDeckSummary[];
+    /** Dev probe only (src/dev/wave3DialogFixtures.ts): open one shared dialog over the fixture menu. */
+    a11yOpen?: (scene: Phaser.Scene) => void;
+  } = {}): void {
     const fixture = IS_DEV && data.a11yFixture === true;
     this.fixture = fixture;
     this.sys.settings.data = {};
@@ -204,6 +208,7 @@ export class MainMenuScene extends Phaser.Scene {
     if (fixture) {
       if (data.tutorial) this.promptTutorial();
       else if (data.repair?.length) this.showDeckRepairNotice(data.repair);
+      else data.a11yOpen?.(this);
     } else this.runArrival();
   }
 

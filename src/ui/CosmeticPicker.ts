@@ -9,10 +9,12 @@ import {
   type CardBackDefinition,
   type PlaymatDefinition,
 } from '../meta/cosmetics';
+import { modalShellLayout } from './layout';
 import { modalShell, themedButton, type ModalShell } from './themeWidgets';
 import { modalGuardTarget } from './Modal';
 import type { OverlayCoordinator } from './OverlayCoordinator';
 import { theme } from './theme';
+import { COSMETIC_PICKER, cosmeticPlateRows } from './cosmeticPickerLayout';
 
 /**
  * The card-back / playmat chooser.
@@ -78,13 +80,64 @@ export function defaultIdFor(kind: CosmeticKind): string {
 export function openCosmeticPicker(scene: Phaser.Scene, opts: CosmeticPickerOptions): ModalShell {
   const entries: readonly (CardBackDefinition | PlaymatDefinition)[] =
     opts.kind === 'cardBack' ? CARD_BACKS : PLAYMATS;
+  // Measure-then-place: every plate's text is built before the shell, so the
+  // shell can grow by exactly what larger text needs. At standard text the
+  // release geometry stands: the 596 shell, the plate at its natural ~392, and
+  // the name, blurb and tag rows at their release offsets.
+  const probe = modalShellLayout({ width: COSMETIC_PICKER.width, height: COSMETIC_PICKER.height });
+  const contentWidth = probe.contentBounds.width;
+  const gap = theme.space(5);
+  const plateW = Math.floor((contentWidth - gap * (entries.length - 1)) / entries.length);
+  const subtitle = scene.add
+    .text(0, 0, opts.subtitle ?? 'Choose a style. Courts can add earned rewards later.', {
+      fontFamily: theme.fonts.ui,
+      fontSize: `${theme.type.caption}px`,
+      color: theme.colors.muted,
+      align: 'center',
+      wordWrap: { width: contentWidth },
+    })
+    .setOrigin(0.5, 0);
+  const plates = entries.map((entry) => ({
+    name: scene.add
+      .text(0, 0, entry.name, {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.label}px`,
+        fontStyle: theme.weight.w700,
+        color: theme.colors.heading,
+        wordWrap: { width: plateW - theme.space(4) },
+        align: 'center',
+      })
+      .setOrigin(0.5, 0),
+    blurb: scene.add
+      .text(0, 0, entry.blurb, {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.micro}px`,
+        color: theme.colors.muted,
+        wordWrap: { width: plateW - theme.space(6) },
+        align: 'center',
+        lineSpacing: 2,
+      })
+      .setOrigin(0.5, 0),
+    tag: scene.add
+      .text(0, 0, 'EQUIPPED', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.micro}px`,
+        fontStyle: theme.weight.w700,
+        color: theme.colors.success,
+      })
+      .setOrigin(0.5),
+  }));
+  const rows = cosmeticPlateRows({
+    subtitle: subtitle.height,
+    name: Math.max(...plates.map((p) => p.name.height)),
+    blurb: Math.max(...plates.map((p) => p.blurb.height)),
+    tag: Math.max(...plates.map((p) => p.tag.height)),
+    buttonHit: theme.control.minHitHeight,
+  });
+
   const shell = modalShell(scene, {
-    width: 1120,
-    // Sized so contentBounds leaves the plate its natural height:
-    // contentBounds.height == height - 168 (24x2 padding, 44 title, 44 footer,
-    // two 16 track gaps), and the grid takes that less the subtitle band. 596
-    // lands the plate at ~392 and keeps Equip off the floor.
-    height: 596,
+    width: COSMETIC_PICKER.width,
+    height: COSMETIC_PICKER.height + rows.extraHeight,
     dimAlpha: 0.86,
     depth: theme.depth.modal,
     dismissal: 'dismissible',
@@ -103,6 +156,7 @@ export function openCosmeticPicker(scene: Phaser.Scene, opts: CosmeticPickerOpti
   const content = shell.contentBounds;
   const titleTrack = shell.tracks.titleTrack;
   const panelCenterX = content.x + content.width / 2;
+  subtitle.setPosition(panelCenterX, content.y + rows.subtitleTop);
   shell.container.add([
     scene.add
       .text(
@@ -116,24 +170,11 @@ export function openCosmeticPicker(scene: Phaser.Scene, opts: CosmeticPickerOpti
         },
       )
       .setOrigin(0.5),
-    scene.add
-      .text(
-        panelCenterX,
-        content.y + theme.space(3),
-        opts.subtitle ?? 'Choose a style. Courts can add earned rewards later.',
-        {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.caption}px`,
-          color: theme.colors.muted,
-        },
-      )
-      .setOrigin(0.5, 0),
+    subtitle,
   ]);
 
-  const gridTop = content.y + theme.space(9);
+  const gridTop = content.y + rows.gridTop;
   const gridHeight = content.y + content.height - gridTop;
-  const gap = theme.space(5);
-  const plateW = Math.floor((content.width - gap * (entries.length - 1)) / entries.length);
   const step = plateW + gap;
   const firstCenter = content.x + plateW / 2;
   // ONE shared equipped id for the whole grid. Per-plate copies would each be
@@ -163,37 +204,11 @@ export function openCosmeticPicker(scene: Phaser.Scene, opts: CosmeticPickerOpti
       shell.container.add(swatch);
     }
 
-    shell.container.add([
-      scene.add
-        .text(x, gridTop + theme.space(38), entry.name, {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.label}px`,
-          fontStyle: theme.weight.w700,
-          color: theme.colors.heading,
-          wordWrap: { width: plateW - theme.space(4) },
-          align: 'center',
-        })
-        .setOrigin(0.5, 0),
-      scene.add
-        .text(x, gridTop + theme.space(47.5), entry.blurb, {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.micro}px`,
-          color: theme.colors.muted,
-          wordWrap: { width: plateW - theme.space(6) },
-          align: 'center',
-          lineSpacing: 2,
-        })
-        .setOrigin(0.5, 0),
-    ]);
-    const tag = scene.add
-      .text(x, gridTop + theme.space(67), '', {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.micro}px`,
-        fontStyle: theme.weight.w700,
-        color: theme.colors.success,
-      })
-      .setOrigin(0.5);
-    shell.container.add(tag);
+    const { name, blurb, tag } = plates[index];
+    name.setPosition(x, gridTop + rows.nameTop);
+    blurb.setPosition(x, gridTop + rows.blurbTop);
+    tag.setPosition(x, gridTop + rows.tagCenter);
+    shell.container.add([name, blurb, tag]);
 
     const button = themedButton(scene, x, gridTop + gridHeight - theme.space(11), 'Equip', {
       variant: 'ghost',

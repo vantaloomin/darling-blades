@@ -12,6 +12,10 @@ import {
   COIN_FLIP_SIDES,
 } from '../ui/coinFlipLayout';
 import { applySceneSettings, sceneTextureKey } from '../ui/SceneBackdrop';
+import { theme } from '../ui/theme';
+
+/** `theme.fonts.display` without Cinzel, which has not loaded yet. */
+const PRELOAD_LABEL_FONT = 'Georgia, serif';
 
 /** Scene/menu art keys from the manifest (empty until scene WebPs generate). */
 const SCENE_KEYS: string[] = (manifest as { scenes?: string[] }).scenes ?? [];
@@ -58,9 +62,14 @@ export class PreloadScene extends Phaser.Scene {
 
     const label = this.add
       .text(width / 2, height / 2, 'Unsheathing Blades…', {
-        fontFamily: 'Georgia, serif',
-        fontSize: '22px',
-        color: '#8f83a8',
+        // The webfonts load in create(), after this label is drawn, so it is
+        // set in the display stack's own fallback rather than in Cinzel.
+        fontFamily: PRELOAD_LABEL_FONT,
+        // The release 22px is the h2 heading role plus 2; it follows h2's
+        // half step at larger text (24, 25) under the saved text size, which
+        // the boot path applies before this scene builds.
+        fontSize: `${theme.type.h2 + 2}px`,
+        color: theme.colors.muted,
       })
       .setOrigin(0.5);
     this.load.on('progress', (v: number) => {
