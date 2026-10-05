@@ -28,6 +28,19 @@ export function packPool(db: CardDb, tier: Rarity, set?: CardDef['set']): string
     .sort();
 }
 
+/**
+ * Booster dupe protection. sr/ssr/ur slots roll only cards owned below a
+ * playset while any exist; c/r slots roll only unowned cards while any exist
+ * (missing cards first, owner ruling 2026-10-05, measured +20% day-60 uniques
+ * at the 1,648-card pool). Filtering never consumes rng, so it moves no other
+ * roll. The economy model replays the same rule.
+ */
+export function dupeProtectedPool(tier: Rarity, pool: string[], owned: (cardId: string) => number): string[] {
+  const limit = tier === 'c' || tier === 'r' ? 1 : PLAYSET;
+  const wanted = pool.filter((id) => owned(id) < limit);
+  return wanted.length > 0 ? wanted : pool;
+}
+
 /** If a tier's booster pool is empty, the slot falls back one tier down. */
 const TIER_FALLBACK: Record<Rarity, Rarity | null> = {
   ur: 'ssr',
@@ -44,9 +57,8 @@ export interface PackResult {
 
 /**
  * Roll one booster: `ECONOMY.boosterPackSize` independent slots, each rolling tier →
- * card → frame → holo (in that rng order — determinism depends on it). The
- * sr/ssr/ur slots are dupe-protected: while any card of that tier is owned
- * below a playset, only those cards are rolled. An empty tier pool falls back
+ * card → frame → holo (in that rng order — determinism depends on it). Every
+ * slot is dupe-protected (see `dupeProtectedPool`). An empty tier pool falls back
  * one tier down (a tiny card set never crashes a pack). Collection updates
  * and plain-dupe→gold conversion happen here, via `addCard`. The result is
  * plain JSON-serializable data, sorted worst→best for the reveal.
@@ -62,10 +74,7 @@ export function openPack(save: SaveData, db: CardDb, rng: RngState, set?: CardDe
       tier = down;
       pool = packPool(db, tier, set);
     }
-    if (tier === 'sr' || tier === 'ssr' || tier === 'ur') {
-      const incomplete = pool.filter((id) => ownedCount(save, id) < PLAYSET);
-      if (incomplete.length > 0) pool = incomplete;
-    }
+    pool = dupeProtectedPool(tier, pool, (id) => ownedCount(save, id));
     const cardId = pool[rngInt(rng, pool.length)];
     const frame = rollFrame(rng);
     const holo = rollHolo(rng);

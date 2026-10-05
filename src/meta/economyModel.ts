@@ -2,7 +2,7 @@ import { DROPS, ECONOMY } from '../config/rules';
 import { rngInt, type RngState } from '../engine/rng';
 import type { CardDb, CardDef, Rarity } from '../engine/types';
 import { PLAYSET } from './Collection';
-import { packPool } from './PackOpener';
+import { dupeProtectedPool, packPool } from './PackOpener';
 import {
   PLAIN_VARIANT,
   rollFrame,
@@ -110,7 +110,6 @@ const TIER_FALLBACK: Record<Rarity, Rarity | null> = {
   c: null,
 };
 
-const PROTECTED_TIERS = new Set<Rarity>(['sr', 'ssr', 'ur']);
 const PLAIN_KEY = variantKey(PLAIN_VARIANT);
 
 function probability(value: number, name: string): number {
@@ -224,11 +223,7 @@ export function expectedPlainDupeRefundPerPack(
   let expectedPerSlot = 0;
   for (const [requestedTier, weight] of DROPS.tier) {
     const { tier, pool } = resolvePool(db, requestedTier, set);
-    let selected = pool;
-    if (PROTECTED_TIERS.has(tier)) {
-      const incomplete = pool.filter((id) => (ownership.collection[id] ?? 0) < PLAYSET);
-      if (incomplete.length > 0) selected = incomplete;
-    }
+    const selected = dupeProtectedPool(tier, pool, (id) => ownership.collection[id] ?? 0);
     const refundable = selected.filter((id) => plainCount(ownership, id) >= PLAYSET).length;
     expectedPerSlot += (weight / 100) * (refundable / selected.length) * plainChance * ECONOMY.dupeGold[tier];
   }
@@ -369,10 +364,7 @@ function drawKeptCard(
   const rolledTier = rollTier(rng);
   const resolved = pools[rolledTier];
   let pool = resolved.pool;
-  if (dupeProtected && PROTECTED_TIERS.has(resolved.tier)) {
-    const incomplete = pool.filter((id) => (state.collection[id] ?? 0) < PLAYSET);
-    if (incomplete.length > 0) pool = incomplete;
-  }
+  if (dupeProtected) pool = dupeProtectedPool(resolved.tier, pool, (id) => state.collection[id] ?? 0);
   const card: KeptCard = {
     cardId: pool[rngInt(rng, pool.length)],
     variant: { frame: rollFrame(rng), holo: rollHolo(rng), fullArt: rollFullArt(rng) },
@@ -409,7 +401,7 @@ function sampledCardValue(
  * Compare a selection-neutral 45-card Premium Draft baseline with three
  * collection boosters (27 rolls). The caller owns the seeded RNG. Premium
  * draws use Limited's unprotected card rolls; booster draws use openPack's
- * high-tier playset protection. Both sides use the same per-variant value rules;
+ * dupe protection. Both sides use the same per-variant value rules;
  * Premium's mode-gold term is zero because its entry fee already buys the kept
  * picks.
  */

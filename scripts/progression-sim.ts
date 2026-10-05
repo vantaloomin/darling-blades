@@ -597,7 +597,7 @@ export const COARSE_PROGRESSION_BANDS = Object.freeze({
 });
 
 export const CANONICAL_FINE_BASELINE_DATE = '2026-10-05';
-export const CANONICAL_FINE_BASELINE_SAMPLE = '10 personas x 8 seeds x 60 days, 1.9 with First Dawn, 1648 collectible (1685 catalog)';
+export const CANONICAL_FINE_BASELINE_SAMPLE = '10 personas x 8 seeds x 60 days, 1.9.x missing-first c/r packs, 1648 collectible (1685 catalog)';
 
 /**
  * Flag-only bands measured from balance/econ-baseline-2026-07-31-post-pass.report.json
@@ -659,6 +659,25 @@ export const CANONICAL_FINE_BASELINE_SAMPLE = '10 personas x 8 seeds x 60 days, 
  * craftedUniques stayed 0.0 for every persona: the sim only crafts past 85%
  * completion, which no persona reaches at this pool.
  *
+ * RE-CENTRED AGAIN for a deliberate economy change (1.9.x, owner ruling
+ * 2026-10-05): booster c/r slots roll unowned cards first
+ * (`dupeProtectedPool`). Same run shape at the same pool; filtering consumes
+ * no rng, so every other roll is unchanged. uniqueCards moved up, each band
+ * keeping the relative tolerance of the band above; packs/day (0.28-2.25),
+ * Premium runs (17.9) and quest claims stayed inside their windows.
+ *
+ * Persona              Uniques   new band
+ * new-casual    217.0 -> 252.9   206..300
+ * daily-grinder 441.8 -> 546.1   469..677
+ * gauntlet-climber 469.5 -> 570.9 498..726
+ * limited-fan   780.5 -> 849.4   824..943
+ * collector     389.6 -> 479.0   390..634
+ * theme-deck-buyer 389.1 -> 401.9 366..501
+ * hardcore-optimizer 539.4 -> 676.8 653..788
+ * low-skill-casual 170.6 -> 221.0 156..326
+ * high-skill-veteran 502.1 -> 595.9 525..720
+ * completionist 612.9 -> 718.3   693..827
+ *
  * Retained history (bands as they stood before 2026-10-05, measured 2026-07-31):
  * new-casual 18.77 -> 18..26, 0.45 -> 0.09..1.08, 0 -> 0..1, 42.50 -> 25..64
  * daily-grinder 52.88 -> 46..66, 1.49 -> 0.86..2.28, 0 -> 0..1, 73.82 -> 54..94
@@ -677,26 +696,26 @@ export const CANONICAL_FINE_BANDS: Readonly<Record<string, {
   premiumDraftRuns: readonly [number, number];
   dailyQuestClaimRate: readonly [number, number];
 }>> = Object.freeze({
-  // Re-centred 2026-10-05 (table above); was [162, 235].
-  'new-casual': { uniqueCards: [177, 257], packsPerDay: [0.09, 1.08], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.25, 0.64] },
-  // Re-centred 2026-10-05 (table above); was [348, 500].
-  'daily-grinder': { uniqueCards: [380, 547], packsPerDay: [0.86, 2.28], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.54, 0.94] },
-  // Re-centred 2026-10-05 (table above); was [338, 491].
-  'gauntlet-climber': { uniqueCards: [410, 597], packsPerDay: [0.77, 2.14], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.486, 0.886] },
-  // Re-centred 2026-10-05 (table above); was [550, 628].
-  'limited-fan': { uniqueCards: [758, 866], packsPerDay: [0.07, 0.92], premiumDraftRuns: [16, 20], dailyQuestClaimRate: [0.535, 0.922] },
-  // Re-centred 2026-10-05 (table above); was [261, 422].
-  collector: { uniqueCards: [318, 515], packsPerDay: [0.48, 1.71], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.436, 0.836] },
-  // Re-centred 2026-10-05 (table above); was [237, 323].
-  'theme-deck-buyer': { uniqueCards: [355, 485], packsPerDay: [0.34, 1.29], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.4, 0.8] },
-  // Re-centred 2026-10-05 (table above); was [497, 598].
-  'hardcore-optimizer': { uniqueCards: [521, 628], packsPerDay: [1.48, 3.22], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.7, 1] },
-  // Re-centred 2026-10-05 (table above); was [102, 210].
-  'low-skill-casual': { uniqueCards: [121, 251], packsPerDay: [0.11, 0.95], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.21, 0.61] },
-  // Re-centred 2026-10-05 (table above); was [407, 556].
-  'high-skill-veteran': { uniqueCards: [443, 606], packsPerDay: [1.09, 2.71], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.595, 0.945] },
-  // Re-centred 2026-10-05 (table above); was [502, 597].
-  completionist: { uniqueCards: [592, 705], packsPerDay: [1.36, 3.09], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.698, 1] },
+  // Re-centred 2026-10-05 twice (tables above); was [162, 235], then [177, 257].
+  'new-casual': { uniqueCards: [206, 300], packsPerDay: [0.09, 1.08], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.25, 0.64] },
+  // Re-centred 2026-10-05 twice (tables above); was [348, 500], then [380, 547].
+  'daily-grinder': { uniqueCards: [469, 677], packsPerDay: [0.86, 2.28], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.54, 0.94] },
+  // Re-centred 2026-10-05 twice (tables above); was [338, 491], then [410, 597].
+  'gauntlet-climber': { uniqueCards: [498, 726], packsPerDay: [0.77, 2.14], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.486, 0.886] },
+  // Re-centred 2026-10-05 twice (tables above); was [550, 628], then [758, 866].
+  'limited-fan': { uniqueCards: [824, 943], packsPerDay: [0.07, 0.92], premiumDraftRuns: [16, 20], dailyQuestClaimRate: [0.535, 0.922] },
+  // Re-centred 2026-10-05 twice (tables above); was [261, 422], then [318, 515].
+  collector: { uniqueCards: [390, 634], packsPerDay: [0.48, 1.71], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.436, 0.836] },
+  // Re-centred 2026-10-05 twice (tables above); was [237, 323], then [355, 485].
+  'theme-deck-buyer': { uniqueCards: [366, 501], packsPerDay: [0.34, 1.29], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.4, 0.8] },
+  // Re-centred 2026-10-05 twice (tables above); was [497, 598], then [521, 628].
+  'hardcore-optimizer': { uniqueCards: [653, 788], packsPerDay: [1.48, 3.22], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.7, 1] },
+  // Re-centred 2026-10-05 twice (tables above); was [102, 210], then [121, 251].
+  'low-skill-casual': { uniqueCards: [156, 326], packsPerDay: [0.11, 0.95], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.21, 0.61] },
+  // Re-centred 2026-10-05 twice (tables above); was [407, 556], then [443, 606].
+  'high-skill-veteran': { uniqueCards: [525, 720], packsPerDay: [1.09, 2.71], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.595, 0.945] },
+  // Re-centred 2026-10-05 twice (tables above); was [502, 597], then [592, 705].
+  completionist: { uniqueCards: [693, 827], packsPerDay: [1.36, 3.09], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.698, 1] },
 });
 
 const emptyRewards = (): RewardLedger => ({
