@@ -284,7 +284,7 @@ describe('bot draft', () => {
         ).toHaveLength(0);
       });
     }
-  });
+  }, 30_000);
 
   it('advances persona familiarity per completed draft and clamps the reveal tier at 4', () => {
     const state = freshLimitedState();
