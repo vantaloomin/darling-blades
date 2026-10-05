@@ -46,7 +46,8 @@ describe('documented public-board usage decisions', () => {
     expect(action).toEqual({ type: 'castSpell', handIndex: view.you.hand.indexOf('rg-corpse-taker') });
   });
 
-  // P4: Darlings cell 210102, game 3, turn 22 at 30cbf0e8. The deliberate
+  // P4: Darlings cell 210102, game 87, turn 16, re-recorded at 4228aab9 after
+  // the wave-4 tunes moved the audit's game 3. The deliberate
   // branch must call Gaia when it is the only cast; noise is disabled here.
   it('Easy calls her affordable Darling when she has no spell to cast', () => {
     const game = checked(() => usageAuditGame('darlingAlone'));
@@ -109,7 +110,8 @@ describe('documented public-board usage decisions', () => {
   });
 
   // Wave 4, Trial by Ember: Hera's (Medium) Darlings cell 210402, game 4,
-  // turn 4, and the Shepherdess's (Hard) cell 212702, game 3, turn 4.
+  // turn 4, and the Shepherdess's (Hard) cell 212700, game 12, turn 2,
+  // re-recorded at 4228aab9 after the themed builder replaced her list.
   it.each(['emptyTrial', 'hardTrial'] as const)('%s: the boss holds Trial by Ember with no creature of its own', (position) => {
     const game = checked(() => usageAuditGame(position));
     const player = game.awaiting.kind === 'main' ? game.awaiting.player : 0;

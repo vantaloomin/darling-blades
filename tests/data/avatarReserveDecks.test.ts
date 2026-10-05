@@ -234,6 +234,28 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
     // across the 14 player decks: the standing list 68%, the converter's 60%,
     // lower in every column. The standing list is kept by measured intent.
     'artoria',
+    // 2026-10-04 R28 The Tyrant Queen (1.9 wave 4): two Hurled Firebrands for
+    // two Fire-Pits, then Korru and a second Ember-Crest Tyrant for two
+    // Blaze-Horn Charges, measured 63.6% -> 68.5% across five 200-seed cells
+    // and 72.4% -> 76.0% on the 15-column matrix, 0 draws. Reserve list only;
+    // classic/lands unchanged, Darlings from the themed builder.
+    'the-tyrant-queen',
+    // 2026-10-04 R11 The Morrigan (1.9 wave 4): four Cut the Wrappings for four
+    // Barrow Whisper and three Court Archers for three Crowbone Prophets gave
+    // her an answer and a 2-drop, 40.9% -> 64.8% across five 200-seed cells and
+    // 37.5% -> 62.3% on the 15-column matrix. Reserve list only; classic/lands
+    // unchanged, Darlings as the themed builder last built them.
+    'the-morrigan',
+  ]);
+
+  // Summit Darlings lists (rungs 23-28) that carry a measured tune on top of
+  // the themed builder's output; each entry's evidence is beside its list in
+  // src/data/opponents.ts.
+  const HAND_TUNED_DARLINGS = new Set<string>([
+    // 2026-10-04 R24: the builder's one Signal Drown (a dead Mark rider; she
+    // has no Mark source) -> Cold Refusal, 54.8% -> 55.4% over five 200-seed
+    // cells, matching the same swap in her reserve list.
+    'the-violet-signal-queen',
   ]);
 
   /**
@@ -508,30 +530,39 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
       const second = convertAvatarReserveDecks(avatar, sourceDb);
       expect(first, `${avatar.id} converter is not deterministic`).toEqual(second);
       expect(sorted(first.landReserve)).toEqual(sorted(avatar.landReserve));
-      if (isFirstDawn) {
-        expect(sorted(first.reserveDeck)).toEqual(sorted(avatar.reserveDeck));
-        expect(sorted(first.darlingsDeck)).toEqual(sorted(avatar.darlingsDeck));
+      // 2026-10-04 (1.9 wave 4): the summit's Darlings lists (rungs 23-28) are
+      // built by the themed builder over the live catalog, like rungs 1-22's.
+      // The converter's colour-and-curve fill had left each about 60 one-mana
+      // singletons; at 200 seeds the builder lists measured +16 to +48 points
+      // (rungs 23-26 from 10-30 to 55-59) and ended rung 27's turn-limit stall.
+      // A list in HAND_TUNED_DARLINGS is a measured tune on top of the builder.
+      const expectSummitDarlings = (): void => {
+        const built = buildDarlingsDeck(avatar, CARD_DB);
+        if (HAND_TUNED_DARLINGS.has(avatar.id)) {
+          expect(sorted(built.cards), `${avatar.id} is listed as hand-tuned Darlings but matches the builder`)
+            .not.toEqual(sorted(avatar.darlingsDeck));
+        } else {
+          expect(sorted(built.cards)).toEqual(sorted(avatar.darlingsDeck));
+        }
+        expect(built.darlingId).toBe(avatar.darlingId);
         expect(first.darlingId).toBe(avatar.darlingId);
-        continue;
-      }
-      if (isDrownedDeep) {
-        // The measured Deacon and Marsh-Mother reserve tunes are registered
-        // above; both Darlings surfaces stay converter-owned.
+      };
+      if (isFirstDawn || isDrownedDeep) {
+        // Measured reserve tunes are registered in HAND_TUNED_WARCHEST; the
+        // rest of these reserve lists stay converter-owned.
         if (HAND_TUNED_WARCHEST.has(avatar.id)) {
           expect(sorted(first.reserveDeck), `${avatar.id} is listed as hand-tuned but matches the first cut`)
             .not.toEqual(sorted(avatar.reserveDeck));
         } else {
           expect(sorted(first.reserveDeck)).toEqual(sorted(avatar.reserveDeck));
         }
-        expect(sorted(first.darlingsDeck)).toEqual(sorted(avatar.darlingsDeck));
-        expect(first.darlingId).toEqual(avatar.darlingId);
+        expectSummitDarlings();
         continue;
       }
       if (avatar.id === 'chrome-broodmother' || avatar.id === 'the-violet-signal-queen') {
         // Starborne's classic, reserve, and land lists are locked authored
-        // contract fields. Only the Darlings surface is converter-owned here.
-        expect(sorted(first.darlingsDeck)).toEqual(sorted(avatar.darlingsDeck));
-        expect(first.darlingId).toEqual(avatar.darlingId);
+        // contract fields. Only the Darlings surface is generated here.
+        expectSummitDarlings();
         continue;
       }
       if (HAND_TUNED_WARCHEST.has(avatar.id)) {

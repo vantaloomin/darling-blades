@@ -11,7 +11,8 @@ import positions from './fixtures/usageAuditPositions.json';
 /** The audit's actual seeded games, with recorded action prefixes: P1's team
  * combats at 4290e37, the P2-P4 main-phase positions at 30cbf0e8, P5's early
  * ramp decision at feb4218c, and wave 4's positions (blazeHorn, lostHunt,
- * emptyTrial, hardTrial) at e365cc0c.
+ * emptyTrial, hardTrial) at e365cc0c. darlingAlone and hardTrial were
+ * re-recorded at 4228aab9, whose wave-4 tunes changed their games.
  * Replay the history through the engine so earlier improvements cannot erase
  * the decision under test. No battlefield, hand or RNG state is fabricated.
  * Cell numbering and seats follow scripts/balance-matrix.ts's runCell. */
