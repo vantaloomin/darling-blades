@@ -109,6 +109,11 @@ its colour and layout checks into tests. Every number below is its output.
   and pin glyphs (20 and 14 in `deckPanePresentation`), DuelScene's mana-row
   pip text (22), and DuelScene's turn banner, whose 26 px title shrinks to a
   17 px floor when a long name would overflow its frame.
+- Since this measurement (2026-10-04, 1.9 numeral pips): `ManaText`'s pip
+  numerals and `CardView`'s 13 px cost-tray numeral are gone (generic amounts
+  are vector `pip-C-<n>` beads), and single-number pick badges and the pile
+  alert chip draw vector digits sized from their old type. The counts above
+  stay as measured; re-count on the next inventory.
 
 ### Token reads frozen at import
 

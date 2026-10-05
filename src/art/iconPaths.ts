@@ -39,8 +39,8 @@ export const ICON_PATHS: Record<IconKey, string> = {
   G:
     'M50 6 C69 6 83 20 83 37 C83 52 72 62 59 65 L59 82 L68 90 L32 90 ' +
     'L41 82 L41 65 C28 62 17 52 17 37 C17 20 31 6 50 6 Z',
-  // C — colorless crystal: hexagonal ring (open center keeps overlaid
-  // generic-cost numerals legible).
+  // C — colorless crystal: hexagonal ring. Numbered generic-cost beads
+  // (pip-C-<n>) leave it off and print a numeral from numeralPaths.ts.
   C:
     'M50 6 L86 28 L86 72 L50 94 L14 72 L14 28 Z ' +
     'M50 20 L74 35 L74 65 L50 80 L26 65 L26 35 Z',

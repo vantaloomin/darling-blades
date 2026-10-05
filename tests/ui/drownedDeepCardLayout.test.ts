@@ -45,8 +45,8 @@ describe('Drowned Deep card layout inputs', () => {
     const measure = (value: string): number => value.length * 4;
     const padded = padManaTextSegments(segments, 16, 1.92, measure);
     expect(padded.runs.map((run) => run.pips)).toEqual([
-      [{ texture: 'pip-C', number: 2 }, { texture: 'pip-B' }],
-      [{ texture: 'pip-C', number: 1 }, { texture: 'pip-B' }],
+      [{ texture: 'pip-C-2', number: 2 }, { texture: 'pip-B' }],
+      [{ texture: 'pip-C-1', number: 1 }, { texture: 'pip-B' }],
     ]);
     expect(padded.text.replaceAll('\u00a0', '')).toBe(raw.replace(/\{[12]\}\{B\}/g, ''));
     expect(padded.text.split('\n')).toHaveLength(2);

@@ -3,6 +3,7 @@ import { bindTapButton, inflateHitArea } from '../platform/gestures';
 import { theme, colorInt } from './theme';
 import { duelPanelAlpha } from './duelPanelPresentation';
 import { bakePileIcons, PILE_ICON_KEYS, PILE_ICON_SIZE, type PileIconKind } from './pileIcons';
+import { CONSOLAS_FIGURE_HEIGHT, ensureNumeralBadgeInk } from './NumeralGlyphs';
 
 /**
  * Compact, display-only pile indicators for the duel layout.
@@ -35,7 +36,7 @@ export class PileView extends Phaser.GameObjects.Container {
 
   private readonly countText: Phaser.GameObjects.Text;
   private readonly alertBounds: { top: number; bottom: number; width: number };
-  private alertNodes: { outline: Phaser.GameObjects.Graphics; chipText: Phaser.GameObjects.Text } | null = null;
+  private alertNodes: { outline: Phaser.GameObjects.Graphics; chipDigits: Phaser.GameObjects.Image } | null = null;
   private alertTween: Phaser.Tweens.Tween | null = null;
 
   constructor(scene: Phaser.Scene, x: number, y: number, kind: PileKind, opts?: PileViewOpts) {
@@ -82,7 +83,7 @@ export class PileView extends Phaser.GameObjects.Container {
       this.alertTween = null;
       if (this.alertNodes) {
         this.alertNodes.outline.destroy();
-        this.alertNodes.chipText.destroy();
+        this.alertNodes.chipDigits.destroy();
         this.alertNodes = null;
       }
       return this;
@@ -103,18 +104,11 @@ export class PileView extends Phaser.GameObjects.Container {
       const chipY = top - pad;
       outline.fillStyle(colorInt(theme.colors.goldHover), 1);
       outline.fillCircle(chipX, chipY, ALERT_CHIP_R);
-      const chipText = this.scene.add
-        .text(chipX, chipY, `${count}`, {
-          fontFamily: PILE_NUMERAL_FONT,
-          fontSize: `${PILE_NUMERAL_SIZE}px`,
-          fontStyle: theme.weight.w700,
-          color: theme.colors.onGold,
-          resolution: 2,
-        })
-        .setOrigin(0.5);
+      const chipDigits = this.scene.add.image(chipX, chipY, '__DEFAULT');
+      this.showChipCount(chipDigits, count);
       this.add(outline);
-      this.add(chipText);
-      this.alertNodes = { outline, chipText };
+      this.add(chipDigits);
+      this.alertNodes = { outline, chipDigits };
       this.alertTween = this.scene.tweens.add({
         targets: outline,
         alpha: 0.55,
@@ -124,9 +118,18 @@ export class PileView extends Phaser.GameObjects.Container {
         ease: 'Sine.easeInOut',
       });
     } else {
-      this.alertNodes.chipText.setText(`${count}`);
+      this.showChipCount(this.alertNodes.chipDigits, count);
     }
     return this;
+  }
+
+  /** The chip's count as vector digits centred on their ink, sized like the
+   * Consolas numeral it replaces; a rare 3+ digit count shrinks to the chip. */
+  private showChipCount(chip: Phaser.GameObjects.Image, count: number): void {
+    const ink = ensureNumeralBadgeInk(this.scene, count, theme.colors.onGold,
+      PILE_NUMERAL_SIZE * CONSOLAS_FIGURE_HEIGHT, ALERT_CHIP_R * 2);
+    const size = Math.min(ink.diameter, ALERT_CHIP_R * 2);
+    chip.setTexture(ink.texture).setDisplaySize(size, size).setData('a11yNumeral', String(count));
   }
 
   private buildBadge(cy: number): Phaser.GameObjects.Text {

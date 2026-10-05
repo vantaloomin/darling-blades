@@ -11,6 +11,7 @@ import {
 } from './boardCuePresentation';
 import { currentAccessibility } from './accessibility';
 import { KEYWORD_ICON_KEY, MECHANIC_ICON_KEY } from './KeywordIcons';
+import { ensureNumeralBadgeInk, INTER_FIGURE_HEIGHT, isNumeralLabel } from './NumeralGlyphs';
 import { colorInt, theme } from './theme';
 
 /** Chapter numerals for the Quest badge (chapters ship 2-3 deep; 5 is headroom). */
@@ -176,6 +177,8 @@ export class BoardCardView extends Phaser.GameObjects.Container {
   private actionBadge: Phaser.GameObjects.Text;
   private pickBadge: Phaser.GameObjects.Container;
   private pickText: Phaser.GameObjects.Text;
+  /** A one-pick badge's vector digits (repeated picks "1, 2" use pickText). */
+  private pickDigits: Phaser.GameObjects.Image;
   private pickPlate: Phaser.GameObjects.Arc;
   private focusBrackets: Phaser.GameObjects.Graphics;
   private statsGlyphs: Phaser.GameObjects.Graphics;
@@ -298,7 +301,8 @@ export class BoardCardView extends Phaser.GameObjects.Container {
       fontFamily: theme.fonts.ui, fontSize: `${theme.typeBase.caption}px`, fontStyle: theme.weight.w700,
       color: theme.colors.onGold, resolution: 2,
     }).setOrigin(0.5);
-    this.pickBadge = scene.add.container(0, 0, [this.pickPlate, this.pickText])
+    this.pickDigits = scene.add.image(0, 0, '__DEFAULT').setVisible(false);
+    this.pickBadge = scene.add.container(0, 0, [this.pickPlate, this.pickText, this.pickDigits])
       .setName('board-pick-badge').setVisible(false);
     this.focusBrackets = scene.add.graphics().setName('board-focus-brackets').setVisible(false);
     this.statsGlyphs = scene.add.graphics().setPosition(PT_CX + PT_W / 2, PT_CY - PT_H / 2 - 4)
@@ -492,8 +496,20 @@ export class BoardCardView extends Phaser.GameObjects.Container {
     const label = pickBadgeLabel(pickIndex);
     this.pickBadge.setVisible(label !== null).setScale(cueCounterScale(tileScale));
     if (label !== null) {
-      this.pickText.setText(label).setColor(theme.colors.onGold);
-      this.pickPlate.setRadius(Math.max(CUE_MIN_SCREEN_PX.pickBadge / 2, this.pickText.width / 2 + 4));
+      let radius: number;
+      if (isNumeralLabel(label)) {
+        const ink = ensureNumeralBadgeInk(this.scene, Number(label), theme.colors.onGold,
+          theme.typeBase.caption * INTER_FIGURE_HEIGHT, CUE_MIN_SCREEN_PX.pickBadge);
+        this.pickText.setText('').setVisible(false);
+        this.pickDigits.setTexture(ink.texture).setDisplaySize(ink.diameter, ink.diameter)
+          .setData('a11yNumeral', label).setVisible(true);
+        radius = ink.diameter / 2;
+      } else {
+        this.pickDigits.setVisible(false).setData('a11yNumeral', null);
+        this.pickText.setText(label).setColor(theme.colors.onGold).setVisible(true);
+        radius = Math.max(CUE_MIN_SCREEN_PX.pickBadge / 2, this.pickText.width / 2 + 4);
+      }
+      this.pickPlate.setRadius(radius);
       this.pickPlate.setFillStyle(colorInt(theme.colors.gold)).setStrokeStyle(2, colorInt(theme.colors.onGold));
     }
     this.setData('a11yPickBadge', label);

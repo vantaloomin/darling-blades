@@ -4,6 +4,7 @@ import { ALL_CARDS } from '../data/catalog';
 import { MECHANIC_DEFINITIONS, MECHANIC_NAMES, type MechanicId } from '../data/glossary';
 import { artKeyFor, artTextureKey } from '../art/artLoader';
 import { ICON_PATHS } from '../art/iconPaths';
+import { FORGE_NUMERAL_BOX, FORGE_NUMERAL_OPTIONS, NUMERAL_PATHS, numeralLayout } from '../art/numeralPaths';
 import type { CardDef, Color, Keyword, ManaCost, StaticDef } from '../engine/types';
 import { setQualityTier } from '../platform/quality';
 import { frameKeyFor } from '../ui/CardFrameFactory';
@@ -222,16 +223,32 @@ function pipSvg(color: Color, sizeClass = ''): string {
   </svg>`;
 }
 
+/**
+ * A generic amount in the grey `.generic-pip` circle: the game's vector
+ * numerals (src/art/numeralPaths.ts) as inline SVG filling the circle's
+ * content box, centred on their ink like the in-game pip-C-<n> beads, so the
+ * digit never rides on Cinzel's line box. The amount is spoken via aria-label.
+ */
+function genericPipMarkup(amount: number): string {
+  const n = Math.max(0, Math.floor(Number(amount)));
+  const layout = numeralLayout(n, FORGE_NUMERAL_BOX, FORGE_NUMERAL_OPTIONS);
+  const round = (value: number): number => Math.round(value * 1000) / 1000;
+  const paths = layout.glyphs.map((glyph) =>
+    `<path transform="translate(${round(glyph.tx)} ${round(glyph.ty)}) scale(${round(layout.k)})" d="${NUMERAL_PATHS[glyph.digit]}" fill="currentColor" fill-rule="evenodd"></path>`,
+  ).join('');
+  return `<span class="generic-pip" role="img" aria-label="${n} generic mana"><svg viewBox="0 0 ${FORGE_NUMERAL_BOX} ${FORGE_NUMERAL_BOX}" aria-hidden="true" focusable="false">${paths}</svg></span>`;
+}
+
 /** A printed mana cost as pips. Built from numbers only, never from player text. */
 function costMarkup(cost: ManaCost | undefined, isX: boolean, pipClass: string): string {
   if (!cost) return '';
   const items: string[] = [];
   if (isX) items.push('<span class="generic-pip">X</span>');
-  if (cost.generic > 0) items.push(`<span class="generic-pip">${Number(cost.generic)}</span>`);
+  if (cost.generic > 0) items.push(genericPipMarkup(cost.generic));
   for (const color of COLOR_ORDER) {
     for (let index = 0; index < (cost.pips[color] ?? 0); index += 1) items.push(pipSvg(color, pipClass));
   }
-  return items.join('') || '<span class="generic-pip">0</span>';
+  return items.join('') || genericPipMarkup(0);
 }
 
 pipControls.innerHTML = COLOR_ORDER.map((color) => `

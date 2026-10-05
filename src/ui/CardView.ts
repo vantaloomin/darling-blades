@@ -23,7 +23,7 @@ import { applyHolo, type HoloHandle } from './fx/HoloEffects';
 import { fxPolicy } from './fx/FXSupport';
 import { IridescencePostFX } from './fx/IridescencePostFX';
 import { manaPipPadding, renderManaText, type ManaTextRender } from './ManaText';
-import { pipsFor } from './ManaSymbols';
+import { ensureNumeralPip, pipsFor } from './ManaSymbols';
 import { rulesText, typeLine } from './rulesText';
 
 export const CARD_W = CARD_FACE_W;
@@ -554,22 +554,12 @@ export class CardView extends Phaser.GameObjects.Container {
       this.costPlate.setVisible(true).setDisplaySize(plateW, BADGE_H).setX(left + plateW / 2);
       let px = left + (plateW - fitRowW) / 2 + PIP / 2;
       for (const spec of pipSpecs) {
-        const img = this.scene.add.image(px, BOTTOM_BADGE_Y, spec.texture).setDisplaySize(PIP, PIP);
+        // The generic amount is baked into its bead (vector digits centred
+        // on their ink box), so no font metric can push it off centre.
+        const texture = spec.number !== undefined ? ensureNumeralPip(this.scene, spec.number) : spec.texture;
+        const img = this.scene.add.image(px, BOTTOM_BADGE_Y, texture).setDisplaySize(PIP, PIP);
         this.add(img);
         this.pips.push(img);
-        if (spec.number !== undefined) {
-          const t = this.scene.add
-            .text(px, BOTTOM_BADGE_Y - 1, String(spec.number), {
-              fontFamily: 'Cinzel, Georgia, serif',
-              fontSize: '13px',
-              fontStyle: 'bold',
-              color: '#2b2f36',
-              resolution: 2,
-            })
-            .setOrigin(0.5);
-          this.add(t);
-          this.pips.push(t);
-        }
         px += step;
       }
     }
@@ -687,7 +677,6 @@ export class CardView extends Phaser.GameObjects.Container {
       this.typeText,
       this.rulesTextObj,
       ...(this.manaRules?.pips ?? []),
-      ...(this.manaRules?.numbers ?? []),
       this.costPlate,
       ...this.pips,
       this.ptPlate,

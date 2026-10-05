@@ -148,7 +148,7 @@ describe('Duty duel presentation', () => {
     // A free Duty opens on the tap.
     expect(free.tapPips[0]).toBe(0);
     // A paid Duty prints its mana first, as the card face does (#394).
-    expect(pips(paid.raw).slice(0, paid.tapPips[0])).toEqual([{ texture: 'pip-C', number: 2 }]);
+    expect(pips(paid.raw).slice(0, paid.tapPips[0])).toEqual([{ texture: 'pip-C-2', number: 2 }]);
   });
 
   it('uses the picker for hidden permanents and grave targets while retaining every mixed option', () => {
