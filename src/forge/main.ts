@@ -234,7 +234,7 @@ function genericPipMarkup(amount: number): string {
   const layout = numeralLayout(n, FORGE_NUMERAL_BOX, FORGE_NUMERAL_OPTIONS);
   const round = (value: number): number => Math.round(value * 1000) / 1000;
   const paths = layout.glyphs.map((glyph) =>
-    `<path transform="translate(${round(glyph.tx)} ${round(glyph.ty)}) scale(${round(layout.k)})" d="${NUMERAL_PATHS[glyph.digit]}" fill="currentColor" fill-rule="evenodd"></path>`,
+    `<path transform="translate(${round(glyph.tx)} ${round(glyph.ty)}) scale(${round(layout.k)})" d="${NUMERAL_PATHS[glyph.glyph]}" fill="currentColor" fill-rule="evenodd"></path>`,
   ).join('');
   return `<span class="generic-pip" role="img" aria-label="${n} generic mana"><svg viewBox="0 0 ${FORGE_NUMERAL_BOX} ${FORGE_NUMERAL_BOX}" aria-hidden="true" focusable="false">${paths}</svg></span>`;
 }

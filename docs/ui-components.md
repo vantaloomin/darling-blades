@@ -54,10 +54,11 @@ net, keeping 8px between inflated hit rects.
   in the same container so dynamic-texture bakes retain them. Generic
   amounts are `pip-C-<n>` beads baked on demand by `ensureNumeralPip`
   (vector digits from `src/art/numeralPaths.ts`, centred on their ink box),
-  never a Text laid over a bead. Round number badges (pick order, the pile
-  castable chip) keep their own disc and draw the same digits from
-  `ensureNumeralBadgeInk` (`src/ui/NumeralGlyphs.ts`); labels that are not a
-  whole number (repeated picks "1, 2") stay Text.
+  never a Text laid over a bead. Round number badges (pick order, repeated
+  picks "1, 2", the pile castable chip) keep their own disc and draw the same
+  glyphs from `ensureNumeralBadgeInk` (`src/ui/NumeralGlyphs.ts`); count
+  plates (the Mark "+2" badge, the pile counts) keep their own plate and use
+  `ensureNumeralPlateInk`. The glyph set is the digits, a comma and a plus.
 - `ensureCardThumb` / `makeCardThumb` bake-and-cache static thumbnails;
   the cache key includes every render-affecting input (card id + land
   style today) - extend the key when you add one, or stale thumbs leak

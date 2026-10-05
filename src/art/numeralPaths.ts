@@ -17,8 +17,11 @@
  * Strokes are sized to survive the 64px bake shrunk to a 16px bead.
  */
 export type Digit = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9';
+/** A glyph a numeral label can draw: the digits, the comma of a repeated-pick
+ * label ("1, 2") and the plus of a Mark count ("+2"). */
+export type NumeralGlyph = Digit | ',' | '+';
 
-export const NUMERAL_PATHS: Record<Digit, string> = {
+export const NUMERAL_PATHS: Record<NumeralGlyph, string> = {
   // 0: tall oval ring, thick sides, hairline top and bottom.
   '0':
     'M50 14 C63.8 14 75 30.1 75 50 C75 69.9 63.8 86 50 86 C36.2 86 25 69.9 25 50 C25 30.1 36.2 14 50 14 Z ' +
@@ -79,6 +82,15 @@ export const NUMERAL_PATHS: Record<Digit, string> = {
     'C56.5 61 52.5 62.5 48 62.5 C34 62.5 24 53 24 38.5 C24 24 35 14 49.5 14 ' +
     'C65 14 75 28 75 48 C75 71 63 86 48 86 Z ' +
     'M49.5 55.5 C43 55.5 39 48 39 38 C39 28 43 21 49.5 21 C56 21 60.5 28 60.5 38 C60.5 48 56 55.5 49.5 55.5 Z',
+  // ,: a ball sitting on the baseline (the digits' ball terminals) with a
+  // tapering tail curled down and left below it.
+  ',':
+    'M50 69.5 C55 69.5 59 73.5 59 78.5 C59 88 54 95.5 44 100.5 L42.5 97.5 C48 94.5 51 91 52 87.2 ' +
+    'C51.4 87.4 50.7 87.5 50 87.5 C45 87.5 41 83.5 41 78.5 C41 73.5 45 69.5 50 69.5 Z',
+  // +: even arms (between the stems and the hairlines in weight) crossing on
+  // the cap middle, so a "+2" sits level with its digit.
+  '+':
+    'M45 29 L55 29 L55 45 L71 45 L71 55 L55 55 L55 71 L45 71 L45 55 L29 55 L29 45 L45 45 Z',
 };
 
 export interface InkBox {
@@ -169,18 +181,20 @@ export function pathInkBox(d: string): InkBox {
   return box;
 }
 
-const INK_BOXES = new Map<Digit, InkBox>();
-function digitInkBox(digit: Digit): InkBox {
-  let box = INK_BOXES.get(digit);
+const INK_BOXES = new Map<NumeralGlyph, InkBox>();
+function glyphInkBox(glyph: NumeralGlyph): InkBox {
+  let box = INK_BOXES.get(glyph);
   if (!box) {
-    box = pathInkBox(NUMERAL_PATHS[digit]);
-    INK_BOXES.set(digit, box);
+    box = pathInkBox(NUMERAL_PATHS[glyph]);
+    INK_BOXES.set(glyph, box);
   }
   return box;
 }
 
 /** Gap between adjacent glyphs' ink, in path units (scaled with the glyphs). */
 export const NUMERAL_TRACKING = 5;
+/** The word space after a comma ("1, 2"), on top of the tracking. */
+export const NUMERAL_WORD_SPACE = 16;
 /** Cap height of a lone numeral as a fraction of the bead diameter. */
 export const NUMERAL_CAP_FRACTION = 0.5;
 /** Margin kept between the group's ink box corners and the bead's inner
@@ -189,7 +203,7 @@ export const NUMERAL_CAP_FRACTION = 0.5;
 export const NUMERAL_SAFE_RADIUS = 0.4;
 
 export interface NumeralGlyphPlacement {
-  digit: Digit;
+  glyph: NumeralGlyph;
   /** Path-unit → bead-pixel transform: px = tx + k * x, py = ty + k * y. */
   tx: number;
   ty: number;
@@ -202,31 +216,60 @@ export interface NumeralLayout {
 }
 
 interface GroupExtent {
-  digits: Digit[];
+  glyphs: NumeralGlyph[];
   /** Per glyph: the x shift that puts its ink left edge at its slot. */
   offsets: number[];
   width: number;
+  /** The digits' cap line and height: what a label is sized and centred by
+   * (a comma's tail hangs below the baseline, as it does in type). */
   top: number;
   height: number;
+  /** Farthest ink above and below the cap box's middle (the comma's tail). */
+  reach: number;
 }
 
-/** The ink extent of n's digits packed side by side, in path units. */
-function groupExtent(n: number): GroupExtent {
-  if (!Number.isInteger(n) || n < 0) throw new Error(`numeralLayout: expected a whole number, got ${n}`);
-  const digits = String(n).split('') as Digit[];
+/** Labels a numeral can draw: a whole number, a Mark count "+2", or
+ * repeated picks "1, 2". */
+const NUMERAL_LABEL = /^\+?\d+(?:, \d+)*$/;
+
+/** True when `label` is drawable in vector numerals. */
+export function isNumeralText(label: string): boolean {
+  return NUMERAL_LABEL.test(label);
+}
+
+function labelGlyphs(label: number | string): NumeralGlyph[] {
+  if (typeof label === 'number') {
+    if (!Number.isInteger(label) || label < 0) throw new Error(`numeralLayout: expected a whole number, got ${label}`);
+    label = String(label);
+  }
+  if (!NUMERAL_LABEL.test(label)) throw new Error(`numeralLayout: not a numeral label: "${label}"`);
+  return label.replace(/ /g, '').split('') as NumeralGlyph[];
+}
+
+/** The ink extent of a label's glyphs packed side by side, in path units. */
+function groupExtent(label: number | string): GroupExtent {
+  const glyphs = labelGlyphs(label);
   let cursor = 0;
   let top = Infinity;
   let bottom = -Infinity;
+  let inkTop = Infinity;
+  let inkBottom = -Infinity;
   const offsets: number[] = [];
-  digits.forEach((digit, index) => {
-    const box = digitInkBox(digit);
-    if (index > 0) cursor += NUMERAL_TRACKING;
+  glyphs.forEach((glyph, index) => {
+    const box = glyphInkBox(glyph);
+    if (index > 0) cursor += NUMERAL_TRACKING + (glyphs[index - 1] === ',' ? NUMERAL_WORD_SPACE : 0);
     offsets.push(cursor - box.minX);
     cursor += box.maxX - box.minX;
-    top = Math.min(top, box.minY);
-    bottom = Math.max(bottom, box.maxY);
+    if (glyph !== ',' && glyph !== '+') {
+      top = Math.min(top, box.minY);
+      bottom = Math.max(bottom, box.maxY);
+    }
+    inkTop = Math.min(inkTop, box.minY);
+    inkBottom = Math.max(inkBottom, box.maxY);
   });
-  return { digits, offsets, width: cursor, top, height: bottom - top };
+  const middle = (top + bottom) / 2;
+  const reach = Math.max(middle - inkTop, inkBottom - middle);
+  return { glyphs, offsets, width: cursor, top, height: bottom - top, reach };
 }
 
 export interface NumeralLayoutOptions {
@@ -237,27 +280,32 @@ export interface NumeralLayoutOptions {
   safeRadius?: number;
 }
 
-/**
- * Lay out the decimal digits of `n` in a square box of `boxSize` pixels (the
- * bead, the badge disc or the Forge's SVG viewBox): glyphs sit side by side
- * with NUMERAL_TRACKING between their ink, and the GROUP's ink box is centred
- * on the box centre in both axes. A lone digit's cap height is `capFraction`
- * of the box; wider groups shrink until the ink box corners sit inside
- * `safeRadius` of the box centre.
- */
-export function numeralLayout(n: number, boxSize: number, options: NumeralLayoutOptions = {}): NumeralLayout {
-  const group = groupExtent(n);
-  const half = boxSize / 2;
-  const capK = ((options.capFraction ?? NUMERAL_CAP_FRACTION) * boxSize) / group.height;
-  const safe = (options.safeRadius ?? NUMERAL_SAFE_RADIUS) * boxSize;
-  const fitK = safe / Math.hypot(group.width / 2, group.height / 2);
-  const k = Math.min(capK, fitK);
-  const left = half - (k * group.width) / 2;
-  const ty = half - k * (group.top + group.height / 2);
+/** Place a measured group at scale `k`, its ink width and cap box centred
+ * on (cx, cy). */
+function placeGroup(group: GroupExtent, k: number, cx: number, cy: number): NumeralLayout {
+  const left = cx - (k * group.width) / 2;
+  const ty = cy - k * (group.top + group.height / 2);
   return {
     k,
-    glyphs: group.digits.map((digit, index) => ({ digit, tx: left + k * group.offsets[index], ty })),
+    glyphs: group.glyphs.map((glyph, index) => ({ glyph, tx: left + k * group.offsets[index], ty })),
   };
+}
+
+/**
+ * Lay out a numeral label (a whole number, "+2", "1, 2") in a square box of
+ * `boxSize` pixels (the bead, the badge disc or the Forge's SVG viewBox):
+ * glyphs sit side by side with NUMERAL_TRACKING between their ink, and the
+ * group's ink width and the digits' cap box are centred on the box centre
+ * (for digits alone that is the ink box). A lone digit's cap height is
+ * `capFraction` of the box; wider groups shrink until every ink corner,
+ * a comma's tail included, sits inside `safeRadius` of the box centre.
+ */
+export function numeralLayout(label: number | string, boxSize: number, options: NumeralLayoutOptions = {}): NumeralLayout {
+  const group = groupExtent(label);
+  const capK = ((options.capFraction ?? NUMERAL_CAP_FRACTION) * boxSize) / group.height;
+  const safe = (options.safeRadius ?? NUMERAL_SAFE_RADIUS) * boxSize;
+  const fitK = safe / Math.hypot(group.width / 2, group.reach);
+  return placeGroup(group, Math.min(capK, fitK), boxSize / 2, boxSize / 2);
 }
 
 /** How far inside a badge disc's edge the numeral's ink box corners stay:
@@ -284,17 +332,50 @@ export interface NumeralBadgeGeometry {
  * wide group needs more (side padding NUMERAL_BADGE_PAD, ink box corners
  * NUMERAL_BADGE_INSET inside the edge), and the group is centred on its ink.
  */
-export function numeralBadgeGeometry(n: number, digitHeight: number, minDiameter: number): NumeralBadgeGeometry {
-  const group = groupExtent(n);
+export function numeralBadgeGeometry(label: number | string, digitHeight: number, minDiameter: number): NumeralBadgeGeometry {
+  const group = groupExtent(label);
   const k = digitHeight / group.height;
   const inkW = k * group.width;
-  const corner = Math.hypot(inkW / 2, digitHeight / 2);
+  const corner = Math.hypot(inkW / 2, k * group.reach);
   const diameter = Math.max(minDiameter, inkW + 2 * NUMERAL_BADGE_PAD, 2 * (corner + NUMERAL_BADGE_INSET));
   const options = {
     capFraction: digitHeight / diameter,
     safeRadius: (diameter / 2 - NUMERAL_BADGE_INSET) / diameter,
   };
-  return { diameter, options, layout: numeralLayout(n, diameter, options) };
+  return { diameter, options, layout: numeralLayout(label, diameter, options) };
+}
+
+export interface NumeralPlateSpec {
+  /** Cap height of the digits, in pixels. */
+  digitHeight: number;
+  /** Air kept beside and above/below the ink. */
+  padX: number;
+  padY: number;
+  /** The plate never shrinks below this (a fixed-size count plate). */
+  minWidth?: number;
+  minHeight?: number;
+}
+
+export interface NumeralPlateGeometry {
+  width: number;
+  height: number;
+  /** The label laid out in a `width` x `height` box, centred like a badge. */
+  layout: NumeralLayout;
+}
+
+/**
+ * A numeral on a rectangular plate (the Mark "+2" badge, the pile counts):
+ * the digits keep `digitHeight` of cap height and the plate is the ink plus
+ * its padding (or the minimum size), with the label centred on it. Scaling
+ * every length in `spec` scales the result exactly, so a bake at twice the
+ * size is the same layout.
+ */
+export function numeralPlateGeometry(label: number | string, spec: NumeralPlateSpec): NumeralPlateGeometry {
+  const group = groupExtent(label);
+  const k = spec.digitHeight / group.height;
+  const width = Math.max(spec.minWidth ?? 0, k * group.width + 2 * spec.padX);
+  const height = Math.max(spec.minHeight ?? 0, 2 * k * group.reach + 2 * spec.padY);
+  return { width, height, layout: placeGroup(group, k, width / 2, height / 2) };
 }
 
 /** The Forge page's inline-SVG numeral: a 100-unit viewBox filling the

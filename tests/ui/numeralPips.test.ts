@@ -5,8 +5,9 @@ import {
   NUMERAL_PATHS,
   numeralBadgeGeometry,
   numeralLayout,
+  numeralPlateGeometry,
   pathInkBox,
-  type Digit,
+  type NumeralGlyph,
   type NumeralLayout,
 } from '../../src/art/numeralPaths';
 import { ALL_CARDS } from '../../src/data/catalog';
@@ -60,15 +61,15 @@ function sampleInk(d: string): Array<[number, number]> {
   return points;
 }
 
-const SAMPLES = new Map<Digit, Array<[number, number]>>(
-  (Object.keys(NUMERAL_PATHS) as Digit[]).map((digit) => [digit, sampleInk(NUMERAL_PATHS[digit])]),
+const SAMPLES = new Map<NumeralGlyph, Array<[number, number]>>(
+  (Object.keys(NUMERAL_PATHS) as NumeralGlyph[]).map((glyph) => [glyph, sampleInk(NUMERAL_PATHS[glyph])]),
 );
 
 /** Every sampled ink point of a laid-out group, per glyph, times `scale`
  * (a bake drawn at another size than it is shown). Defaults to n's bead. */
-function groupInk(n: number, layout: NumeralLayout = numeralLayout(n, BEAD), scale = 1): Array<Array<[number, number]>> {
+function groupInk(n: number | string, layout: NumeralLayout = numeralLayout(n, BEAD), scale = 1): Array<Array<[number, number]>> {
   return layout.glyphs.map((glyph) =>
-    SAMPLES.get(glyph.digit)!.map(([px, py]): [number, number] =>
+    SAMPLES.get(glyph.glyph)!.map(([px, py]): [number, number] =>
       [(glyph.tx + layout.k * px) * scale, (glyph.ty + layout.k * py) * scale]),
   );
 }
@@ -142,7 +143,7 @@ const RING_INSIDE = 2.5;
 describe('numeral badges', () => {
   // The badge bake lays the numeral out at twice its shown size (rounded up
   // to whole texture pixels) and is drawn back down to the disc diameter.
-  const shownBadge = (n: number, digitHeight: number, minDiameter: number) => {
+  const shownBadge = (n: number | string, digitHeight: number, minDiameter: number) => {
     const geometry = numeralBadgeGeometry(n, digitHeight, minDiameter);
     const size = Math.ceil(geometry.diameter * 2);
     const ink = groupInk(n, numeralLayout(n, size, geometry.options), geometry.diameter / size);
@@ -183,6 +184,103 @@ describe('numeral badges', () => {
         const box = extent(shownBadge(n, height, 24).ink.flat());
         expect(box.maxY - box.minY, `n=${n} h=${height}`).toBeCloseTo(height, 1);
       }
+    }
+  });
+});
+
+// Labels with punctuation: repeated picks (a creature picked for several
+// ordered target slots) and Mark counts.
+const PICK_LABELS = ['1, 2', '2, 3', '1, 2, 3', '9, 10', '1, 2, 3, 4'];
+const MARK_LABELS = ['+1', '+2', '+9', '+10', '+25'];
+
+/** Per glyph of a label: its sampled extent, tagged with the glyph. */
+function glyphExtents(label: string, layout: NumeralLayout, scale = 1) {
+  return groupInk(label, layout, scale).map((ink, index) => ({ glyph: layout.glyphs[index].glyph, ...extent(ink) }));
+}
+
+describe('repeated-pick and Mark numerals', () => {
+  // The bake at twice the size, shown at the disc's diameter (as above).
+  const shownBadge = (label: string, digitHeight: number, minDiameter: number) => {
+    const geometry = numeralBadgeGeometry(label, digitHeight, minDiameter);
+    const size = Math.ceil(geometry.diameter * 2);
+    const layout = numeralLayout(label, size, geometry.options);
+    return { diameter: geometry.diameter, glyphs: glyphExtents(label, layout, geometry.diameter / size),
+      ink: groupInk(label, layout, geometry.diameter / size).flat() };
+  };
+
+  it('centres a repeated-pick label on the disc by its digits, with the comma tail clear of the ring', () => {
+    for (const height of BADGE_DIGIT_HEIGHTS) {
+      for (const label of PICK_LABELS) {
+        const { diameter, glyphs, ink } = shownBadge(label, height, 24);
+        const where = `${label} h=${height}`;
+        const all = extent(ink);
+        const digits = glyphs.filter((g) => g.glyph !== ',');
+        const capTop = Math.min(...digits.map((g) => g.minY));
+        const base = Math.max(...digits.map((g) => g.maxY));
+        expect(Math.abs((all.minX + all.maxX) / 2 - diameter / 2), `${where} horizontal`).toBeLessThan(0.1);
+        expect(Math.abs((capTop + base) / 2 - diameter / 2), `${where} vertical`).toBeLessThan(0.1);
+        expect(base - capTop, `${where} digit height`).toBeCloseTo(height, 1);
+        const farthest = Math.max(...ink.map(([px, py]) => Math.hypot(px - diameter / 2, py - diameter / 2)));
+        expect(farthest, where).toBeLessThanOrEqual(diameter / 2 - RING_INSIDE);
+      }
+    }
+  });
+
+  it('sets each comma low after its number, apart from both neighbours, so "1, 2" never reads as "12" or "1\'2"', () => {
+    for (const label of PICK_LABELS) {
+      const geometry = numeralBadgeGeometry(label, 8.7, 24);
+      const glyphs = glyphExtents(label, geometry.layout);
+      const digits = glyphs.filter((g) => g.glyph !== ',');
+      const capTop = Math.min(...digits.map((g) => g.minY));
+      const base = Math.max(...digits.map((g) => g.maxY));
+      glyphs.forEach((glyph, i) => {
+        if (i > 0) expect(glyph.minX - glyphs[i - 1].maxX, `${label} gap ${i}`).toBeGreaterThan(0.3);
+        if (glyph.glyph !== ',') return;
+        // Below the cap middle, its tail past the baseline.
+        expect(glyph.minY, label).toBeGreaterThan((capTop + base) / 2);
+        expect(glyph.maxY, label).toBeGreaterThan(base);
+        // The word space: wider after the comma than before it.
+        expect(glyphs[i + 1].minX - glyph.maxX, label).toBeGreaterThan(glyph.minX - glyphs[i - 1].maxX);
+      });
+    }
+  });
+
+  it('centres a Mark count on its plate, the plus level with its digits', () => {
+    for (const height of BADGE_DIGIT_HEIGHTS) {
+      for (const label of MARK_LABELS) {
+        const spec = { digitHeight: height, padX: 3, padY: 3.5 };
+        const plate = numeralPlateGeometry(label, spec);
+        const glyphs = glyphExtents(label, plate.layout);
+        const all = extent(groupInk(label, plate.layout).flat());
+        const digits = glyphs.filter((g) => g.glyph !== '+');
+        const plus = glyphs.find((g) => g.glyph === '+')!;
+        const where = `${label} h=${height}`;
+        expect(Math.abs((all.minX + all.maxX) / 2 - plate.width / 2), `${where} horizontal`).toBeLessThan(0.1);
+        expect(Math.abs((all.minY + all.maxY) / 2 - plate.height / 2), `${where} vertical`).toBeLessThan(0.1);
+        expect(all.maxY - all.minY, `${where} digit height`).toBeCloseTo(height, 1);
+        expect(Math.abs((plus.minY + plus.maxY) / 2 - (digits[0].minY + digits[0].maxY) / 2), where).toBeLessThan(0.1);
+        expect(digits[0].minX - plus.maxX, where).toBeGreaterThan(0.3);
+        expect(all.minX, where).toBeGreaterThanOrEqual(spec.padX - 0.1);
+        expect(plate.width - all.maxX, where).toBeGreaterThanOrEqual(spec.padX - 0.1);
+        expect(all.minY, where).toBeGreaterThanOrEqual(spec.padY - 0.1);
+      }
+    }
+  });
+
+  it('keeps a fixed-size count plate at its size and the count centred in it', () => {
+    const spec = { digitHeight: 7, padX: 3, padY: 0, minWidth: 40, minHeight: 16 };
+    for (const n of AMOUNTS) {
+      const plate = numeralPlateGeometry(n, spec);
+      const box = extent(groupInk(n, plate.layout).flat());
+      expect([plate.width, plate.height], `n=${n}`).toEqual([40, 16]);
+      expect(Math.abs((box.minX + box.maxX) / 2 - 20), `n=${n} horizontal`).toBeLessThan(0.1);
+      expect(Math.abs((box.minY + box.maxY) / 2 - 8), `n=${n} vertical`).toBeLessThan(0.1);
+    }
+  });
+
+  it('refuses a label it has no glyphs for', () => {
+    for (const label of ['', '1,2', '-1', '1/2', '2+', 'x']) {
+      expect(() => numeralLayout(label, BEAD), JSON.stringify(label)).toThrow(/not a numeral label/);
     }
   });
 });
