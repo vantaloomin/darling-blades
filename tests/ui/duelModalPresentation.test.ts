@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { duelModalLayout } from '../../src/ui/duelModalPresentation';
+import { currentAccessibility } from '../../src/ui/accessibility';
+import { duelButtonPairCenters, duelModalLayout } from '../../src/ui/duelModalPresentation';
+import { theme } from '../../src/ui/theme';
+import { forEachA11yCell } from './a11yCells';
 import { isRectContained, type Rect } from '../../src/ui/layout';
 
 const panel: Rect = { x: 300, y: 180, width: 600, height: 360 };
@@ -48,5 +51,27 @@ describe('duel modal measured bands', () => {
       { safe: { x: 64, y: 36, width: 1152, height: 648 } });
     expect(result.fits).toBe(false);
     for (const band of result.rows) expect(isRectContained(band.bounds, result.panel)).toBe(true);
+  });
+});
+
+describe('duel overlay action pair', () => {
+  it('keeps the authored centres at standard text however wide the labels are', () => {
+    expect(duelButtonPairCenters(640, 120, [300, 300], 1)).toEqual([520, 760]);
+  });
+
+  it('keeps a minimum gap, stays centred and inside the safe frame in every cell', () => {
+    forEachA11yCell(({ name }) => {
+      const scale = currentAccessibility().textScale;
+      for (const base of [[180, 160], [200, 190]] as const) {
+        const widths = [base[0] * scale, base[1] * scale] as const;
+        const [left, right] = duelButtonPairCenters(640, 120, widths, scale);
+        const leftEdge = left - widths[0] / 2, rightEdge = right + widths[1] / 2;
+        expect(right - widths[1] / 2 - (left + widths[0] / 2), name).toBeGreaterThanOrEqual(24 - 1e-9);
+        expect(left + right, name).toBeCloseTo(1280);
+        expect(right - left, name).toBeGreaterThanOrEqual(240);
+        expect(leftEdge, name).toBeGreaterThanOrEqual(theme.design.safeLeft);
+        expect(rightEdge, name).toBeLessThanOrEqual(theme.design.safeLeft + theme.design.safeWidth);
+      }
+    });
   });
 });

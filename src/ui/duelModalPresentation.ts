@@ -54,3 +54,20 @@ export function duelModalLayout(
   const separate = rows.every((row, index) => index === 0 || row.bounds.y >= rows[index - 1].bounds.y + rows[index - 1].bounds.height);
   return { panel: frame, rows, fits: contained && separate && (!options.safe || isRectContained(frame, options.safe, 0.5)) };
 }
+
+/**
+ * Two side-by-side actions centred on `centerX` (a panel-less overlay's
+ * footer). At 100% text they keep their authored centres `halfSpan` either
+ * side; at larger text they move apart symmetrically only as far as their
+ * measured widths need to keep `gap` of air between them. Returns both centres.
+ */
+export function duelButtonPairCenters(
+  centerX: number,
+  halfSpan: number,
+  widths: readonly [number, number],
+  textScale: number,
+  gap = 24,
+): [number, number] {
+  const half = textScale > 1 ? Math.max(halfSpan, (gap + (widths[0] + widths[1]) / 2) / 2) : halfSpan;
+  return [centerX - half, centerX + half];
+}

@@ -16,6 +16,7 @@
  */
 import type Phaser from 'phaser';
 import type { ProbeScene } from './a11yProbe';
+import { ECONOMY } from '../config/rules';
 import { ALL_CARDS, CARD_DB } from '../data/catalog';
 import { DARLINGS_PRECONS } from '../data/darlingsPrecons';
 import { DRAFT_PERSONAS } from '../data/draftPersonas';
@@ -182,4 +183,13 @@ export const WAVE_3C_SCENES: readonly ProbeScene[] = [
   // (DuelScene is not this batch's file): the coach cue and the info card.
   { label: 'Duel tutorial / coach cue', key: 'Duel', data: { a11yFixture: 'coach-cue' }, requiredText: [WAVE_2D_COACH_CUE] },
   { label: 'Duel tutorial / coach info', key: 'Duel', data: { a11yFixture: 'coach-info' }, requiredText: [WAVE_2D_COACH_INFO] },
+  // Batch D: the tutorial's own chrome over a fixture board. The Duel draws
+  // it without starting the live tutorial and never runs the onboarding grant,
+  // so nothing here writes the save.
+  { label: 'Duel tutorial / pause menu', key: 'Duel', data: { a11yFixture: 'full-board', a11yOverlay: 'tutorial-pause' },
+    requiredText: ['Tutorial', 'Leave Tutorial'] },
+  { label: 'Duel tutorial / complete, first time', key: 'Duel', data: { a11yFixture: 'full-board', a11yOverlay: 'tutorial-complete' },
+    requiredText: ['Tutorial Complete!', `+${ECONOMY.startingGold} gold`, 'To the Shop', 'Main Menu'] },
+  { label: 'Duel tutorial / ended, replay', key: 'Duel', data: { a11yFixture: 'full-board', a11yOverlay: 'tutorial-ended' },
+    requiredText: ['Tutorial Ended', 'To the Shop', 'Main Menu'] },
 ];

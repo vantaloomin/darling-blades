@@ -298,10 +298,7 @@ export { WAVE_3B_SCENES } from './wave3PackGlossaryFixtures';
 export { WAVE_3C_SCENES } from './wave3DialogFixtures';
 
 /** `SCENE_TITLE` scenes this probe cannot open without a fixture it does not build. */
-export const WAVE_1_SKIPPED: readonly { scene: string; reason: string }[] = [
-  { scene: 'LimitedDraft', reason: 'needs a draft in progress; the Limited pass (accessibility wave 3) enrols it with a fixture' },
-  { scene: 'LimitedDeckBuilder', reason: 'needs a drafted pool; the Limited pass (accessibility wave 3) enrols it with a fixture' },
-];
+export const WAVE_1_SKIPPED: readonly { scene: string; reason: string }[] = [];
 
 export function cellName(cell: ProbeCell): string {
   return `${Math.round(cell.textScale * 100)}${cell.highContrast ? 'hc' : ''}`;

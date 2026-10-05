@@ -179,6 +179,8 @@ import {
   toggleAttacker,
 } from '../ui/duelPresentation';
 import { fitDuelModal } from '../ui/duelModal';
+import { duelButtonPairCenters, duelModalLayout } from '../ui/duelModalPresentation';
+import type { Rect } from '../ui/layout';
 import { duelRecapLayout } from '../ui/duelRecapPresentation';
 import { currentAccessibility } from '../ui/accessibility';
 import { DUEL_LAYOUT, duelHudType, LIFE_BADGE_SIZE, LIFE_TARGET_RING, SEVERED_PILE_HIT } from '../ui/duelLayout';
@@ -231,7 +233,8 @@ export interface DuelSceneData {
   a11yFixture?: DuelA11yFixtureName;
   a11yPage?: number;
   a11yCommitPick?: boolean;
-  a11yOverlay?: 'pause' | 'replay-complete' | 'replay-unavailable' | 'recap' | 'coin' | 'result';
+  a11yOverlay?: 'pause' | 'replay-complete' | 'replay-unavailable' | 'recap' | 'coin' | 'result'
+    | 'tutorial-pause' | 'tutorial-complete' | 'tutorial-ended';
   difficulty?: Difficulty;
   opponentId?: string;
   gauntletRung?: number;
@@ -574,6 +577,13 @@ export class DuelScene extends Phaser.Scene {
   private tutCharmCast = false;
   private tutCharmInfoShown = false;
   private tutCompleted = false;
+  /**
+   * Dev-only: draw the tutorial's own chrome (the pause menu's Leave Tutorial
+   * row and its "Tutorial" matchup line) over a fixture board without turning
+   * on the live tutorial, so no coach ticks and Leave Tutorial stays inert
+   * (`leaveTutorial` still requires `tutorial`); nothing writes the save.
+   */
+  private a11yTutorialChrome = false;
   /** A tap-to-continue info card is up; the guide waits for its dismissal. */
   private coachInfoActive = false;
   private aiTimer: Phaser.Time.TimerEvent | null = null;
@@ -649,6 +659,7 @@ export class DuelScene extends Phaser.Scene {
    */
   create(data: DuelSceneData = {}): void {
     this.a11yFixture = null;
+    this.a11yTutorialChrome = false;
     this.data.set('a11yReady', false);
     if (import.meta.env.DEV && data.a11yFixture) {
       void import('../dev/duelA11yFixtures').then(({ wave2DDuelFixture }) => {
@@ -1133,6 +1144,13 @@ export class DuelScene extends Phaser.Scene {
       if (data.a11yOverlay === 'result') this.showPracticeResultPanel(true, '', this.rewardLine(9999999, true, 7, true));
       if (data.a11yOverlay === 'recap') this.showGauntletRunRecap(false, 28, 'concede', this.rewardLine(9999999, true, 7), data.a11yPage);
       if (data.a11yOverlay === 'coin') this.buildCoinFlipOverlay(HUMAN);
+      if (data.a11yOverlay === 'tutorial-pause') {
+        this.a11yTutorialChrome = true;
+        this.showPauseMenu();
+      }
+      // The overlay alone: the real path's grant (which writes the save) never runs.
+      if (data.a11yOverlay === 'tutorial-complete') this.showTutorialCompleteOverlay(true, true);
+      if (data.a11yOverlay === 'tutorial-ended') this.showTutorialCompleteOverlay(false, false);
       if (data.a11yOverlay?.startsWith('replay-')) {
         this.replayMode = true;
         this.finishReplayPlayback(data.a11yOverlay === 'replay-complete' ? 'Replay complete' : 'Replay unavailable');
@@ -1443,48 +1461,83 @@ export class DuelScene extends Phaser.Scene {
     const firstTime = this.grantTutorialOnboarding();
     Music.duck(1.8);
     Sfx.play(success ? 'win' : 'click');
+    this.showTutorialCompleteOverlay(success, firstTime);
+  }
 
-    const width = 1280;
-    const height = 720;
+  /**
+   * The lesson's closing overlay: a full-stage dim with the headline, the
+   * Shop nudge, the first-time gold and two actions. Presentation only (the
+   * grant happened before), so the a11y fixture can draw it without a save.
+   * Release anchors hold at 100% text; larger text pushes a colliding row down
+   * and the two actions apart, never shrinking or clipping a line.
+   */
+  private showTutorialCompleteOverlay(success: boolean, firstTime: boolean): void {
+    const width = theme.design.width;
+    const height = theme.design.height;
+    const cx = theme.design.centerX;
     const c = this.add.container(0, 0).setDepth(120);
-    c.add(this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.8).setInteractive());
-    c.add(
-      this.add
-        .text(width / 2, 244, success ? 'Tutorial Complete!' : 'Tutorial Ended', {
-          fontFamily: theme.fonts.display, fontSize: `${duelHudType(52, 'display')}px`, fontStyle: 'bold', color: theme.colors.goldHover,
-        })
-        .setOrigin(0.5),
-    );
-    c.add(
-      this.add
-        .text(width / 2, 312, "You've got the basics. Now claim your free deck in the Shop.", {
-          fontFamily: theme.fonts.ui, fontSize: `${duelHudType(18, 'label')}px`, color: theme.colors.body,
-        })
-        .setOrigin(0.5),
-    );
+    c.add(this.add.rectangle(width / 2, height / 2, width, height, theme.graphics.dim, 0.8).setInteractive());
+    const rows: { y: number; objects: Phaser.GameObjects.Text[] }[] = [];
+    const row = (y: number, ...objects: Phaser.GameObjects.Text[]): void => {
+      for (const object of objects) {
+        c.add(object);
+        object.setData('a11yKeepVisible', true).setData('a11yFullText', object.text);
+      }
+      rows.push({ y, objects });
+    };
+    row(244, this.add
+      .text(cx, 244, success ? 'Tutorial Complete!' : 'Tutorial Ended', {
+        fontFamily: theme.fonts.display, fontSize: `${duelHudType(52, 'display')}px`, fontStyle: 'bold', color: theme.colors.goldHover,
+        align: 'center', wordWrap: { width: 900, useAdvancedWrap: true },
+      })
+      .setOrigin(0.5));
+    row(312, this.add
+      .text(cx, 312, "You've got the basics. Now claim your free deck in the Shop.", {
+        fontFamily: theme.fonts.ui, fontSize: `${duelHudType(18, 'label')}px`, color: theme.colors.body,
+        align: 'center', wordWrap: { width: 720 },
+      })
+      .setOrigin(0.5));
     if (firstTime) {
-      c.add(
-        this.add
-          .text(width / 2, 356, `+${ECONOMY.startingGold} gold`, {
-            fontFamily: theme.fonts.ui, fontSize: `${theme.type.h2}px`, fontStyle: '600', color: theme.colors.gold,
-          })
-          .setOrigin(0.5),
-      );
+      row(356, this.add
+        .text(cx, 356, `+${ECONOMY.startingGold} gold`, {
+          fontFamily: theme.fonts.ui, fontSize: `${theme.type.h2}px`, fontStyle: '600', color: theme.colors.gold,
+        })
+        .setOrigin(0.5));
     }
-    const mk = (x: number, label: string, cb: () => void): void => {
+    const mk = (label: string, cb: () => void): Phaser.GameObjects.Text => {
       const btn = this.add
-        .text(x, 440, label, {
+        .text(cx, 440, label, {
           fontFamily: theme.fonts.display, fontSize: `${duelHudType(24, 'h1')}px`, color: theme.colors.gold,
           backgroundColor: theme.colors.btnEmphasisBg, padding: { x: 18, y: 10 },
         })
         .setOrigin(0.5)
         .setInteractive({ useHandCursor: true });
       bindTapButton(this, btn, cb);
-      inflateHitArea(btn, 90, 90);
-      c.add(btn);
+      return btn;
     };
-    mk(width / 2 - 120, 'To the Shop', () => this.scene.start('Shop', { tab: 'decks' }));
-    mk(width / 2 + 120, 'Main Menu', () => this.scene.start('MainMenu'));
+    const shop = mk('To the Shop', () => this.scene.start('Shop', { tab: 'decks' }));
+    const menu = mk('Main Menu', () => this.scene.start('MainMenu'));
+    const textScale = currentAccessibility().textScale;
+    const [shopX, menuX] = duelButtonPairCenters(cx, 120, [shop.width, menu.width], textScale);
+    shop.setX(shopX);
+    menu.setX(menuX);
+    row(440, shop, menu);
+    const union = (objects: readonly Phaser.GameObjects.Text[]): Rect => {
+      const b = objects.map((o) => o.getBounds());
+      const x = Math.min(...b.map((r) => r.x)), y = Math.min(...b.map((r) => r.y));
+      return { x, y, width: Math.max(...b.map((r) => r.right)) - x, height: Math.max(...b.map((r) => r.bottom)) - y };
+    };
+    const layout = duelModalLayout(
+      { x: cx - 320, y: 200, width: 640, height: 290 },
+      rows.map(({ y, objects }) => ({ y, bounds: union(objects) })),
+      textScale,
+      { safe: { x: theme.design.safeLeft, y: theme.design.titleSafe.top, width: theme.design.safeWidth, height: theme.design.safeHeight } },
+    );
+    rows.forEach(({ objects }, index) => {
+      for (const object of objects) object.setY(object.y + layout.rows[index].offsetY);
+    });
+    inflateHitArea(shop, 90, 90);
+    inflateHitArea(menu, 90, 90);
     this.guard.open(this.overlayGuardTargets());
   }
 
@@ -1606,7 +1659,7 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private matchupLabel(): string {
-    if (this.tutorial) return 'Tutorial';
+    if (this.tutorial || this.a11yTutorialChrome) return 'Tutorial';
     if (this.replayMode && this.replayLog) {
       return `Replay · vs ${this.replayLog.context.opponentName}`;
     }
@@ -7264,7 +7317,7 @@ export class DuelScene extends Phaser.Scene {
     });
     c.add(music.container);
 
-    if (this.tutorial) {
+    if (this.tutorial || this.a11yTutorialChrome) {
       // Leaving the lesson loses nothing (no result is recorded and it stays
       // replayable from How to Play), so it is a quiet, single-tap exit.
       c.add(themedButton(this, 640, 500, 'Leave Tutorial', {
@@ -7276,7 +7329,7 @@ export class DuelScene extends Phaser.Scene {
       }).container);
       fitDuelModal(this, shell, { width: 420, height: 430, rows: [{ y: 190 }, { y: 226, wrapWidth: 340 },
       { y: 276 }, { y: 326 }, { y: 376 }, { y: 426 }, { y: 500 }] });
-    this.pauseOverlay = c;
+      this.pauseOverlay = c;
       this.pauseGuard.open(this.overlayGuardTargets());
       return;
     }
