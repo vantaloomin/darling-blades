@@ -1439,7 +1439,7 @@ Numbered so rulings can cite them. Recommendations are the first option.
 
 ## Handoff (2026-10-04)
 
-The owner moved 1.9 orchestration to the project coordinator session on 2026-10-04. This section is the state at the handoff, written so the train can be picked up from GitHub alone. The full wave-4 measurement record is in [plan-1.9-wave4-tunes.md](plan-1.9-wave4-tunes.md).
+The owner moved 1.9 orchestration to the project coordinator session on 2026-10-04. This section is the state at the handoff, written so the train can be picked up from GitHub alone. The full wave-4 measurement records are [plan-1.9-wave4-tunes.md](plan-1.9-wave4-tunes.md) (the tower baseline and the tunes), [plan-1.9-wave4-card-slate.md](plan-1.9-wave4-card-slate.md), [plan-1.9-wave4-usage-read.md](plan-1.9-wave4-usage-read.md) and [plan-1.9-wave4-two-cards.md](plan-1.9-wave4-two-cards.md).
 
 ### Done
 
