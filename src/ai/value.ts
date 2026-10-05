@@ -399,10 +399,18 @@ export function provokedValue(
       lists = lists.flatMap((chosen) => refs.map((ref) => [...chosen, ref]));
     }
     const ops = ability.ops ?? [];
-    const score = (targets: TargetRef[]): number => activatedOpsImpact(ops, {
-      view: { ...view, you: { ...view.you }, battlefield: activatedWritesMarks(ops) ? view.battlefield.map((p) => ({ ...p })) : view.battlefield },
-      db, source, live: false, targets, targetBatch: false,
-    });
+    // Mark-writing ops change only `plusOneCounters`, so one copy of the board
+    // serves every target list, its marks reset before each (a fresh copy per
+    // list made a wide board quadratic in copies).
+    const marked = activatedWritesMarks(ops) ? view.battlefield.map((p) => ({ ...p })) : undefined;
+    const marks = marked?.map((p) => p.plusOneCounters);
+    const score = (targets: TargetRef[]): number => {
+      if (marked) for (let i = 0; i < marked.length; i++) marked[i].plusOneCounters = marks![i];
+      return activatedOpsImpact(ops, {
+        view: { ...view, you: { ...view.you }, battlefield: marked ?? view.battlefield },
+        db, source, live: false, targets, targetBatch: false,
+      });
+    };
     return Math.max(0, ...lists.map(score));
   } finally {
     provokedDepth--;
