@@ -99,8 +99,9 @@ export function createStatsPrivacyPanel(
   // rect's top-left, so every number below is a local offset.
   const body = scene.add.container(content.x, content.y);
   const bullets = scene.add.graphics();
-  bullets.fillStyle(colorInt(theme.colors.gold), 0.9);
   body.add(bullets);
+  /** Every text in the scrolling body, and its bullet when it is a field line. */
+  const entries: { text: Phaser.GameObjects.Text; bullet: { x: number; y: number } | null }[] = [];
 
   const addText = (
     x: number,
@@ -110,6 +111,7 @@ export function createStatsPrivacyPanel(
   ): Phaser.GameObjects.Text => {
     const object = scene.add.text(x, y, text, style).setOrigin(0, 0);
     body.add(object);
+    entries.push({ text: object, bullet: null });
     return object;
   };
 
@@ -148,11 +150,11 @@ export function createStatsPrivacyPanel(
         wordWrap: { width: lineWrap },
         lineSpacing: 2,
       });
-      bullets.fillCircle(
-        x + STATS_PANEL_LAYOUT.bulletX,
-        y + Math.min(text.height, 18) / 2,
-        STATS_PANEL_LAYOUT.bulletRadius,
-      );
+      // The release 18px first-line band, grown with the caption role.
+      entries[entries.length - 1].bullet = {
+        x: x + STATS_PANEL_LAYOUT.bulletX,
+        y: y + Math.min(text.height, (18 * theme.type.caption) / theme.typeBase.caption) / 2,
+      };
       y += text.height + STATS_PANEL_LAYOUT.rowGap;
     }
     if (column.extra !== undefined) {
@@ -191,6 +193,23 @@ export function createStatsPrivacyPanel(
   const contentHeight = Math.max(columnsBottom, cursor + neverBody.height);
   container.add(body);
 
+  /**
+   * Show only the entries wholly inside the viewport at `offset`, so a
+   * scrolled list never shows a line cut through by the mask's edge (the
+   * columns share no line grid, so no single step could snap all three).
+   * Each shown entry declares that it must stay whole inside the mask.
+   */
+  const showWholeEntries = (offset: number): void => {
+    bullets.clear().fillStyle(colorInt(theme.colors.gold), 0.9);
+    for (const entry of entries) {
+      const top = entry.text.y - offset;
+      const whole = top >= -0.5 && top + entry.text.height <= content.height + 0.5;
+      entry.text.setVisible(whole).setData('a11yKeepVisible', whole);
+      if (whole && entry.bullet) bullets.fillCircle(entry.bullet.x, entry.bullet.y, STATS_PANEL_LAYOUT.bulletRadius);
+    }
+  };
+  showWholeEntries(0);
+
   // Overflow: mask the content rect and scroll, the way the keyword glossary
   // panel does. Nothing shrinks; the type scale's caption size is the floor.
   const maxScroll = statsPanelMaxScroll(contentHeight, content.height);
@@ -219,7 +238,9 @@ export function createStatsPrivacyPanel(
         .fillRoundedRect(railX, content.y, theme.space(0.5), content.height, theme.radius.control);
       thumb
         .clear()
-        .fillStyle(theme.graphics.rowFillActive, theme.alpha.chrome)
+        // A muted thumb on the stroke-tinted rail: rowFillActive barely
+        // separated from the panel, so where the list stood was hard to read.
+        .fillStyle(colorInt(theme.colors.muted), theme.alpha.chrome)
         .fillRoundedRect(
           railX - theme.space(0.5),
           content.y + (offset / maxScroll) * travel,
@@ -231,6 +252,7 @@ export function createStatsPrivacyPanel(
     const setScroll = (next: number): void => {
       offset = scrollOffsetByDelta(0, next, maxScroll);
       body.setPosition(content.x, content.y - offset);
+      showWholeEntries(offset);
       redraw();
     };
 

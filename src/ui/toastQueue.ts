@@ -72,3 +72,88 @@ export function collapseToastBatch(notices: readonly ToastNotice[]): ToastBatch 
     },
   };
 }
+
+// ---------------------------------------------------------------------------
+// The card's measured layout (1.9 accessibility wave 3)
+// ---------------------------------------------------------------------------
+
+/**
+ * The right-rail plaque. `height` is the release card; the insets reproduce
+ * the -28 / -5 / +25 offsets the rail has always drawn at that height.
+ */
+export const TOAST_CARD = {
+  width: 344,
+  height: 86,
+  /** The release stack's first centre; its top edge is `stackTop`. */
+  firstCenterY: 82,
+  gap: 12,
+  titleCenter: 15,
+  bodyCenter: 38,
+  /** A `fitBody` card's body top. */
+  bodyTop: 30,
+  detailFromBottom: 18,
+  bottomPad: 14,
+  /** A grown card's detail sits this far under its body (the fitBody rule). */
+  detailGap: 12,
+  /** Inside the plaque's inner stroke, which is 7px in from the edge. */
+  innerInset: 8,
+  /** The least space between two lines of a card, for both the release and the stacked layout. */
+  lineGap: 4,
+  /** Between the lines of a card that had to be stacked from measured heights. */
+  stackGap: 6,
+} as const;
+
+export interface ToastMeasured {
+  title: number;
+  body: number;
+  detail: number | null;
+  fitBody: boolean;
+}
+
+/** Tops (from the card's top edge) of each line, and the card's height. */
+export interface ToastCardLayout {
+  height: number;
+  titleTop: number;
+  bodyTop: number;
+  detailTop: number | null;
+}
+
+/**
+ * Lay out one card from its measured line heights. A card whose lines fit the
+ * release slots (at least `lineGap` apart and inside the inner stroke) keeps
+ * them exactly; one that does not (a body that wrapped, or larger text) stacks
+ * its lines from their measured heights and grows, so no line lands on another.
+ */
+export function toastCardLayout(m: ToastMeasured): ToastCardLayout {
+  const C = TOAST_CARD;
+  const releaseHeight = m.fitBody
+    ? Math.max(C.height, Math.ceil(C.bodyTop + m.body + (m.detail !== null ? m.detail + C.detailGap : 0) + C.bottomPad))
+    : C.height;
+  const release: ToastCardLayout = {
+    height: releaseHeight,
+    titleTop: C.titleCenter - m.title / 2,
+    bodyTop: m.fitBody ? C.bodyTop : C.bodyCenter - m.body / 2,
+    detailTop: m.detail === null ? null : releaseHeight - C.detailFromBottom - m.detail / 2,
+  };
+  const lastBottom = release.detailTop !== null && m.detail !== null ? release.detailTop + m.detail : release.bodyTop + m.body;
+  const fits = release.titleTop >= C.innerInset - C.lineGap
+    && release.titleTop + m.title + C.lineGap <= release.bodyTop
+    && (release.detailTop === null || release.bodyTop + m.body + C.lineGap <= release.detailTop)
+    && lastBottom <= releaseHeight - C.innerInset + C.lineGap;
+  if (fits) return release;
+  const titleTop = C.innerInset;
+  const bodyTop = titleTop + m.title + C.stackGap;
+  const detailTop = m.detail === null ? null : bodyTop + m.body + C.stackGap;
+  const bottom = detailTop !== null && m.detail !== null ? detailTop + m.detail : bodyTop + m.body;
+  return { height: Math.max(C.height, Math.ceil(bottom + C.bottomPad)), titleTop, bodyTop, detailTop };
+}
+
+/** The release stack's top edge: every card hangs from it, whatever its height. */
+export function toastStackCenters(heights: readonly number[]): number[] {
+  let top = TOAST_CARD.firstCenterY - TOAST_CARD.height / 2;
+  return heights.map((height) => {
+    const center = top + height / 2;
+    top += height + TOAST_CARD.gap;
+    return center;
+  });
+}

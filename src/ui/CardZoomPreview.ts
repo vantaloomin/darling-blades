@@ -2,7 +2,8 @@ import Phaser from 'phaser';
 import type { CardDef } from '../engine/types';
 import type { CardVariant } from '../meta/variants';
 import { attachTouchGestures } from '../platform/gestures';
-import { CardView, CARD_H } from './CardView';
+import { RARITY_NAMES } from '../data/glossary';
+import { CardView, CARD_H, CARD_W } from './CardView';
 import { colorInt, theme } from './theme';
 
 // Design-space constants, NOT scene.scale (= game size = 1280k×720k under
@@ -59,10 +60,19 @@ export interface CardZoomOptions {
   onStickyTap?: (card: CardDef, variant?: CardVariant, landStyle?: string) => void;
 }
 
+/** The tier as words, so rarity never rests on the gem's colour alone. */
+export function rarityLine(card: Pick<CardDef, 'rarity'>): string {
+  return `Rarity: ${RARITY_NAMES[card.rarity]}`;
+}
+
 export class CardZoomPreview {
   private scene: Phaser.Scene;
   private view: CardView | null = null;
-  /** The hovered object's state line under the preview (1.9 A2.a), if it has one. */
+  /**
+   * The plate under the preview: the card's rarity as words (1.9
+   * accessibility wave 3; the face shows it only as a gem colour), then the
+   * hovered object's state line (1.9 A2.a), if it has one.
+   */
   private noteView: Phaser.GameObjects.Container | null = null;
   /** The object whose hover produced the currently VISIBLE preview. */
   private sourceObj: Phaser.GameObjects.GameObject | null = null;
@@ -234,23 +244,38 @@ export class CardZoomPreview {
     // Hover mode never enableInput(): the preview must not intercept or
     // misroute mouse input. (showSticky opts in for the touch tap target.)
     const line = note?.() ?? null;
-    if (line) this.noteView = this.notePlate(x, this.dockY + (CARD_H * this.scale) / 2 + theme.space(5), line);
+    const lines = [...(card.token ? [] : [rarityLine(card)]), ...(line ? [line] : [])];
+    if (lines.length > 0) {
+      this.noteView = this.infoPlate(x, this.dockY + (CARD_H * this.scale) / 2 + theme.space(2), CARD_W * this.scale, lines);
+    }
   }
 
-  /** The state line on a `rowFill` plate, centred under the preview, inert like it. */
-  private notePlate(x: number, y: number, line: string): Phaser.GameObjects.Container {
-    const text = this.scene.add.text(0, 0, line, {
+  /**
+   * The rarity and state lines on one `rowFill` plate, hung from `top` and
+   * centred under the preview, inert like it. Each line wraps at the card's
+   * width, so larger text grows the plate downward and never over the card.
+   */
+  private infoPlate(x: number, top: number, maxWidth: number, lines: readonly string[]): Phaser.GameObjects.Container {
+    const padX = theme.space(2);
+    const padY = theme.space(1);
+    const texts = lines.map((line, index) => this.scene.add.text(0, 0, line, {
       fontFamily: theme.fonts.ui, fontSize: `${theme.type.label}px`, fontStyle: theme.weight.w600,
-      color: theme.colors.heading, resolution: 2,
-    }).setOrigin(0.5);
-    const w = text.width + theme.space(4);
-    const h = text.height + theme.space(2);
+      color: index === 0 && lines.length > 1 ? theme.colors.body : theme.colors.heading, resolution: 2,
+      align: 'center', wordWrap: { width: maxWidth - padX * 2 },
+    }).setOrigin(0.5, 0));
+    const w = Math.max(...texts.map((text) => text.width)) + padX * 2;
+    let cursor = padY;
+    for (const text of texts) {
+      text.setY(cursor);
+      cursor += text.height + theme.space(0.5);
+    }
+    const h = cursor - theme.space(0.5) + padY;
     const plate = this.scene.add.graphics();
     plate.fillStyle(colorInt(theme.colors.rowFill), theme.alpha.panel);
-    plate.fillRoundedRect(-w / 2, -h / 2, w, h, theme.radius.control);
+    plate.fillRoundedRect(-w / 2, 0, w, h, theme.radius.control);
     plate.lineStyle(1, colorInt(theme.colors.panelStroke), theme.alpha.chrome);
-    plate.strokeRoundedRect(-w / 2, -h / 2, w, h, theme.radius.control);
-    return this.scene.add.container(x, y, [plate, text]).setDepth(this.depth);
+    plate.strokeRoundedRect(-w / 2, 0, w, h, theme.radius.control);
+    return this.scene.add.container(x, top, [plate, ...texts]).setDepth(this.depth);
   }
 
   private onZDown(): void {
