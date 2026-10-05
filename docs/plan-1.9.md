@@ -1249,6 +1249,16 @@ Numbered so rulings can cite them. Recommendations are the first option.
   - **Collection dilution**, deferred until a finished sweep. **Revisit in
     wave 4**, once First Dawn's count is final, because every set dilutes
     the pool further.
+    **Revisited 2026-10-05: day-60 bands re-dated, a pacing lever scoped
+    for 1.9.x.** At the final pool (1,648 collectible) the canonical run
+    (10 personas x 8 seeds x 60 days) passes all four coarse gates; every
+    persona owns more cards than at the 764-card baseline (Limited Fan
+    780.5, Completionist 612.9) while their share of the pool fell to
+    10-47%. The three fine flags were all above their ceilings, so the
+    uniqueCards bands are re-centred on the fresh measurement with their
+    old tolerances; packs/day, Premium runs and quest claims stood inside
+    their windows. The owner chose to also speed pacing: the lever is
+    measured and brought for sign-off, to ship in a 1.9.x, not this cut.
 - **D9 Where the sweep runs. RULED as recommended.** The standing rule is that the metagame sweep
   runs last before a cut, so the balance numbers describe the field players
   get. 1.8 set it aside because a sweep took days; it ran after launch with
@@ -1523,7 +1533,7 @@ The stock CLI runs every row in one process. The 4-worker sharded run took about
 - **Alongside wave 4:**
   - accessibility wave 3's long tail;
   - the Hard perf profile on First Dawn decks;
-  - the collection dilution revisit.
+  - the collection dilution revisit (bands re-dated 2026-10-05; the pacing lever is for 1.9.x).
 - **Wave 5:**
   - QC;
   - the metagame sweep, run last with all six personas;
