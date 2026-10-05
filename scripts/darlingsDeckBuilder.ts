@@ -29,7 +29,7 @@ import { CARD_DB } from '../src/data/catalog';
 import { isLiveCollectible } from '../src/data/liveness';
 import { AVATARS, type Avatar } from '../src/data/opponents';
 import { DARLINGS_DECK_SIZE } from '../src/meta/warchest';
-import type { CardDb, CardDef, Color } from '../src/engine/types';
+import { activatedAbilitiesOf, type CardDb, type CardDef, type Color } from '../src/engine/types';
 
 export type Role =
   | 'removal'
@@ -182,7 +182,56 @@ export function themeBonus(card: CardDef, darling: CardDef, ownIds: Set<string>,
   return bonus;
 }
 
+/**
+ * A card whose payoff needs a board its own list cannot build plays as a blank.
+ * Measured in the 1.9 wave-4 usage read: Fern-Crown Tyrant's arrival Hunt fired
+ * 0.07-0.18 times a cast in Darlings lists holding 2-3 other Dinokin (0.81-0.84
+ * in the Tyrant Queen's lists, which hold nine), and Great-Horn Herder was used
+ * 8 times in 500 games from a list with no Attack-4 creature. So a card is left
+ * out when an own-side condition it carries (another creature of a subtype, or
+ * a target creature you control with Attack N or more) is met by fewer than
+ * this many OTHER creatures in the built list.
+ */
+export const CONDITION_SUPPORT_MIN = 6;
+
+export function unsupportedCondition(card: CardDef, list: readonly CardDef[]): boolean {
+  const others = list.filter((c) => c.id !== card.id && c.types.includes('creature'));
+  for (const ability of card.abilities ?? []) {
+    const condition = ability.condition;
+    if (typeof condition === 'object' && condition.kind === 'controlsOther') {
+      const subtype = condition.subtype;
+      if (others.filter((c) => c.subtypes.includes(subtype)).length < CONDITION_SUPPORT_MIN) return true;
+    }
+  }
+  const targetLists = [
+    ...(card.abilities ?? []).map((ability) => ability.targets ?? []),
+    ...activatedAbilitiesOf(card).map((ability) => ability.targets ?? []),
+  ];
+  for (const targets of targetLists) {
+    for (const target of targets) {
+      if (target.what !== 'yourCreature' || target.minAttack === undefined) continue;
+      const minAttack = target.minAttack;
+      if (others.filter((c) => (c.attack ?? 0) >= minAttack).length < CONDITION_SUPPORT_MIN) return true;
+    }
+  }
+  return false;
+}
+
 export function buildDarlingsDeck(avatar: Avatar, db: CardDb = CARD_DB): DarlingsBuild {
+  // Build, drop any chosen card whose condition the list cannot support, and
+  // rebuild without it until the list is stable (a few passes at most).
+  const excluded = new Set<string>();
+  for (let pass = 0; pass < 10; pass++) {
+    const build = buildDarlingsDeckOnce(avatar, db, excluded);
+    const chosen = build.cards.map((id) => db[id]);
+    const dead = chosen.filter((card) => unsupportedCondition(card, chosen));
+    if (dead.length === 0) return build;
+    for (const card of dead) excluded.add(card.id);
+  }
+  throw new Error(`${avatar.id}: Darlings build did not settle`);
+}
+
+function buildDarlingsDeckOnce(avatar: Avatar, db: CardDb, excluded: ReadonlySet<string>): DarlingsBuild {
   const darling = db[avatar.darlingId];
   if (!darling) throw new Error(`${avatar.id} has no Darling ${avatar.darlingId}`);
   const colors = darling.colors.length > 0 ? darling.colors : (['W', 'U', 'B', 'R', 'G'] as Color[]);
@@ -198,7 +247,7 @@ export function buildDarlingsDeck(avatar: Avatar, db: CardDb = CARD_DB): Darling
   // One ranking, quality-led: strength decides, theme adjusts. Ties break on
   // cheapness then id so the build stays deterministic.
   const pool = Object.values(db)
-    .filter((card) => card.id !== darling.id && eligible(card, colors))
+    .filter((card) => card.id !== darling.id && !excluded.has(card.id) && eligible(card, colors))
     .map((card) => {
       const quality = qualityScore(card);
       const theme = themeBonus(card, darling, ownIds, tribes);

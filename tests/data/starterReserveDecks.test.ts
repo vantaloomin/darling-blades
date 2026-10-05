@@ -16,7 +16,13 @@ const save = buildReserveMatrixFullOwnershipSave(CARD_DB);
 
 // Shadow Mandate has an owner-ruled, measured reserve package rather than
 // the generic converter output; its exact list is pinned in starterDecks.test.
-const HAND_TUNED_STARTER_IDS = new Set(['starter-mandate']);
+// 2026-10-04 Wild Communion: Hearth-Shield Maiden's recost to {W} made the
+// converter's last catalog-fill slot take her in place of Mother of the
+// Long-Necks. The kept list holds Mother, the only Mark source in the five
+// gate columns (the Mark-supply premise in avatarReserveDecks.test), and the
+// swap measured 2 points weaker for the weakest starter (bosses' Communion
+// cells +2.0 on average, 28 rungs x 200 seeds). Kept by measured intent.
+const HAND_TUNED_STARTER_IDS = new Set(['starter-mandate', 'starter-wild']);
 
 describe('reserve-native starter builds (1.6 migration)', () => {
   for (const starter of STARTER_DECKS) {

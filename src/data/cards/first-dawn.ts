@@ -1339,7 +1339,7 @@ export const FIRST_DAWN: readonly CardDef[] = [
     name: 'Hearth-Shield Maiden',
     types: ['creature'],
     subtypes: ['Human', 'Firekeeper'],
-    cost: cost(1, 'W'),
+    cost: cost(0, 'W'),
     colors: ['W'],
     attack: 1,
     defense: 4,
