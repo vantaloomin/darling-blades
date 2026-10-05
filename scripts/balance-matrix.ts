@@ -451,14 +451,22 @@ export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   // The shape these numbers describe (Hestia 8, Sima Yi 22, The Morrigan 43,
   // Yohime 76 at rung 7) is recorded there as a 1.9 lower-tower pass; nothing
   // in a list changed here.
-  4: { minAvg: 0.22, maxAvg: 0.62 },
+  // 4-13 RE-CENTRED AGAIN 2026-10-05 (owner, 1.9 wave 4, Q6) on the
+  // end-of-wave reading, `--avatars --seeds 200` at cb335b10 after the wave-4
+  // tunes; same method, downs allowed, the 1-6 ceilings kept. Measured:
+  // R4 38.2 · R5 43.6 · R6 42.3 · R7 77.2 · R8 63.1 · R9 69.0 · R10 72.3 ·
+  // R11 64.8 · R12 63.1 · R13 54.4. One band comes DOWN: R10 .69 -> .655.
+  // R5 and R8 are unchanged; the other seven go UP. Superseded 2026-09-21
+  // values, for the record: R4 .22 · R6 .155 · R7 .695 · R9 .61 · R10 .69 ·
+  // R11 .365 · R12 .52 · R13 .43. These are harness bands, not CI floors.
+  4: { minAvg: 0.315, maxAvg: 0.62 },
   5: { minAvg: 0.37, maxAvg: 0.67 },
-  6: { minAvg: 0.155, maxAvg: 0.72 },
-  7: { minAvg: 0.695 },
+  6: { minAvg: 0.355, maxAvg: 0.72 },
+  7: { minAvg: 0.705 },
   8: { minAvg: 0.565 },
-  9: { minAvg: 0.61 },
-  10: { minAvg: 0.69 },
-  11: { minAvg: 0.365 },
+  9: { minAvg: 0.625 },
+  10: { minAvg: 0.655 },
+  11: { minAvg: 0.58 },
   // 12-20 re-centred 2026-07-31 from the W7 combined re-baseline (200
   // seeds/cell on the post-balance-pass field): each min is the 200-seed
   // average minus a 6.5pp 40-seed noise band, rounded down to the half
@@ -496,7 +504,7 @@ export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   //     cheap removal to offset four taplands she cannot change.
   // The ladder still dips at R19 (61) and R21 (57) relative to R18/R20; that
   // shape is the accepted, documented non-monotonic summit, not a regression.
-  12: { minAvg: 0.52 },
+  12: { minAvg: 0.565 },
   // 13-14 calibrated 2026-07-16 from fresh 40-seed tower measurements (66%/66%
   // after two card-buff rounds + six deck iterations; CI margin ~4pp at 40
   // seeds). The AC rungs are quest/attrition gates, not stat walls; Brunhild's
@@ -504,8 +512,8 @@ export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   // measured 76%), so a non-monotonic summit continues the accepted pattern.
   // Closing the residual 10pp vs R11/12 needs in-color W/U removal (a future
   // set) or heavier cross-set splash - recorded in opponents.ts's baseline.
-  // (13's value is the 2026-09-21 re-centre above; 14 keeps its own.)
-  13: { minAvg: 0.43 },
+  // (13's value is the 2026-10-05 re-centre above; 14 keeps its own.)
+  13: { minAvg: 0.475 },
   14: { minAvg: 0.565 },
   // 15-22 carry the 2026-08-23 reserve-native re-centre described above.
   // Superseded classic values, for the record: R15 .675 R16 .605 R17 .705
@@ -520,18 +528,24 @@ export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   // under the standing floor are recorded, never applied). R20 then took her
   // tuning pass the same day and ratcheted .805 -> .815, and R19 hers,
   // .545 -> .65.
+  // SYNCED AGAIN 2026-10-05 (1.9 wave 4). The 1.8.5 ratchet had moved the
+  // gate floors and not these bands, so R16-R20, R23 and R25 had fallen
+  // behind; the wave-4 ratchet then raised R19 and R24, and R27-R28 got their
+  // first floors. Every value below now equals its gate floor (all up).
   15: { minAvg: 0.655 },
-  16: { minAvg: 0.625 },
-  17: { minAvg: 0.705 },
-  18: { minAvg: 0.82 },
-  19: { minAvg: 0.65 },
-  20: { minAvg: 0.815 },
+  16: { minAvg: 0.645 },
+  17: { minAvg: 0.715 },
+  18: { minAvg: 0.825 },
+  19: { minAvg: 0.68 },
+  20: { minAvg: 0.835 },
   21: { minAvg: 0.585 },
   22: { minAvg: 0.685 },
-  23: { minAvg: 0.655 },
-  24: { minAvg: 0.645 },
-  25: { minAvg: 0.595 },
+  23: { minAvg: 0.675 },
+  24: { minAvg: 0.66 },
+  25: { minAvg: 0.605 },
   26: { minAvg: 0.685 },
+  27: { minAvg: 0.62 },
+  28: { minAvg: 0.695 },
 });
 
 // ---------------------------------------------------------------------------
@@ -1844,6 +1858,17 @@ export const FLOOR_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   24: { minAvg: 0.585 },
   25: { minAvg: 0.585 },
   26: { minAvg: 0.585 },
+  // Floors 27-28 gated 2026-10-05 (1.9 wave 4; the roster reached 28 with
+  // First Dawn). Same T6 plateau band. Measured at the wave-4 end-of-wave tip
+  // (cb335b10), `--floors --seeds 80`, 11,200 games, 0 draws, no flags:
+  // T1 18.6 · T2 25.2 · T3 41.8 · T4 56.0 · T5 55.2 avg, and the T6 plateau
+  // F16 67.5 · F17 67.0 · F18 68.8 · F19 69.5 · F20 67.8 · F21 61.8 · F22 69.8
+  // · F23 67.0 · F24 65.3 · F25 66.5 · F26 66.8 · F27 71.8 · F28 68.0. F21,
+  // the low row (58.8 at 80 seeds in the wave-4 baseline), re-read 67.0 at
+  // 200 seeds. The top tier sits near 66-68 against .585 (owner, Q4: accept;
+  // a tier-dial retune is for 1.9.x or 2.0).
+  27: { minAvg: 0.585 },
+  28: { minAvg: 0.585 },
 });
 
 /**

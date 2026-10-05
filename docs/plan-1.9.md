@@ -1472,9 +1472,16 @@ The owner moved 1.9 orchestration to the project coordinator session on 2026-10-
 - **Q5:** the Darlings gate terminates on a draw ceiling, not on zero draws.
 - **Q7:** R8 stays under R7, the documented "wall at rung 7".
 
-### Next: wave 4's end-of-wave measurement (not started)
+### Wave 4's end-of-wave measurement (done 2026-10-05)
 
-Run it on the tip after the tunes PR merges.
+Measured at cb335b10, after #535 (the tunes, with R28's gate rebuild) merged. The record, with every table, is [plan-1.9-wave4-end-of-wave.md](plan-1.9-wave4-end-of-wave.md); the end-of-wave PR carries the ratchet, the gates and the bands.
+
+- **Summit:** R28 tops the gate (76.0 against R26's 75.0) and the wide matrix (81.0); R27 stays above her in Darlings.
+- **Floors:** R19 .675 -> .68 and R24 .645 -> .66; R27 .62 and R28 .695 are new. Every other floor is kept. R15 Carmilla's margin is still 2.1.
+- **Darlings summit gate:** new, R23-R28 at 40 seeds in two tests, with floors and per-row draw ceilings.
+- **Bands:** `RUNG_BANDS` 1-13 re-centred (only R10 comes down, .69 -> .655); 14-28 synced up to the gate floors; `FLOOR_BANDS` 27-28 at .585. F21 re-read 67.0 at 200 seeds.
+
+The steps as planned, kept for the next end-of-wave run:
 
 **CPU rules (owner):**
 - one heavy job at a time;
@@ -1507,8 +1514,8 @@ The stock CLI runs every row in one process. The 4-worker sharded run took about
 
 ### Open for the owner
 
-- **Answered 2026-10-05: R28 tops the gate ladder too** (owner: "Yes, it should"). Her reserve list was rebuilt in the tunes PR: gate 68.5 -> 76.0, wide 76.0 -> 81.0, 0 draws, against R26's 75.0 and 78.4. The margin on the gate is about one point, so the end-of-wave reading decides it; her `opponents.ts` entry has the levers.
-- **R15 Carmilla has a 2.1-point margin over her floor** at 200 seeds. Her 40-seed gate reads 69.0 against .655. No list lever helped, because the drop came with the wave 2-3 brain changes. Watch her at the ratchet.
+- **Answered 2026-10-05: R28 tops the gate ladder too** (owner: "Yes, it should"). Her reserve list was rebuilt in the tunes PR: gate 68.5 -> 76.0, wide 76.0 -> 81.0, 0 draws, against R26's 75.0 and 78.4. The end-of-wave reading confirmed it. The gate margin is about one point, inside the 40-seed noise, so no ordering assertion gates it.
+- **R15 Carmilla has a 2.1-point margin over her floor** at 200 seeds. Her 40-seed gate reads 69.0 against .655. No list lever helped, because the drop came with the wave 2-3 brain changes. The 2026-10-05 ratchet kept her floor at .655 (her candidate is 61.0), so the margin is unchanged; she is the first row to watch if the AI moves again.
 
 ### Carried, not blocking
 
