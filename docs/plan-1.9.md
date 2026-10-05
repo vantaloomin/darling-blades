@@ -1436,3 +1436,96 @@ Numbered so rulings can cite them. Recommendations are the first option.
 - No player telemetry of mechanic usage; the audit is a harness tool.
 - No floors lowered. No mid-train sweep.
 - No cloud accounts code; that is 2.1.
+
+## Handoff (2026-10-04)
+
+The owner moved 1.9 orchestration to the project coordinator session on 2026-10-04. This section is the state at the handoff, written so the train can be picked up from GitHub alone. The full wave-4 measurement record is in [plan-1.9-wave4-tunes.md](plan-1.9-wave4-tunes.md).
+
+### Done
+
+- **Waves 0-3.** Wave 3 closed with lane D's S6 (#531): art streaming is on by default, and every gate is measured in [plan-art-streaming.md](plan-art-streaming.md) except gate 7, which waits for the 1.9 cut.
+- **Wave 4 so far, on `release/1.9`:**
+  - **#532, the card edits** (owner, 2026-10-04): Black Tide Rising goes to -2/-2, and Morrigan to {4}{B}{G}.
+  - **#533, the Medium-AI fixes from the targeted usage read** (owner: "M1 + M3 + the low items"). Every gate is unchanged and nothing moved more than 2 points.
+  - **#534, vector numerals** for the cost pips, the pick badges, the pile chip and the Forge (owner request).
+- **In the tunes PR** (branch `feat/19-w4-tunes`). The AI is frozen at #533. No floor, `RUNG_BANDS` or `FLOOR_BANDS` entry changed.
+  - **Hearth-Shield Maiden {1}{W} -> {W}** (owner, 2026-10-04, from a measured lab: -0.77 in play at {1}{W}, +0.11 at {W}), with the converter regen. Wild Communion is registered hand-tuned so it keeps Mother of the Long-Necks, the gate columns' only Mark source.
+  - **A Darlings builder rule:** a card is dropped when fewer than 6 other creatures in the list meet its own-side condition.
+  - **R23-R28 Darlings lists now come from the themed builder:** R23-R26 rise from 10-30% to 55-58%, and R27's turn-limit stall falls from 45 draws in 200 to 3.
+  - **Reserve tunes at 200 seeds**, confirmed on the 15-column matrix: R11 40.9 -> 64.8, R13 47.4 -> 54.4, R24 71.5 -> 72.9, R28 63.6 -> 68.5.
+  - **R15 Carmilla is unchanged:** eleven levers all read inside the noise.
+  - **Verification:** `winrate.test.ts` 8/8; `tests/data` and `tests/power` green; tsc, lint and the doc checkers clean.
+
+### Rulings made in wave 4 (2026-10-04)
+
+**Owner:**
+- **The card slate:** Black Tide Rising goes to -2/-2, and Morrigan to {4}{B}{G}.
+- **The AI fixes:** M1 + M3 + the low items.
+- **The two-card lab:** Hearth-Shield Maiden goes to {W}. Ember-Flick is unchanged.
+- **Q3, summit order in Darlings:** lift R28 by a list tune. If she still falls short, R27 stays above R28 in Darlings only, and R27 is never weakened. Every R28 Darlings lever read inside the noise, so R27 stays above her there.
+- **Q4, the top tier:** accept about 66% against the .585 band. A tier-dial retune goes to 1.9.x or 2.0.
+- **Q6, RUNG_BANDS 1-13:** re-centre on the end-of-wave reading at mean - 6.5, rounded down to the half point, with downs allowed. List each band that comes down in the PR. These are harness bands, not CI floors; gate floors still only rise.
+
+**Main session:**
+- **Q1:** Wild Communion keeps Mother of the Long-Necks.
+- **Q2:** the summit's Darlings lists come from the themed builder.
+- **Q5:** the Darlings gate terminates on a draw ceiling, not on zero draws.
+- **Q7:** R8 stays under R7, the documented "wall at rung 7".
+
+### Next: wave 4's end-of-wave measurement (not started)
+
+Run it on the tip after the tunes PR merges.
+
+**CPU rules (owner):**
+- one heavy job at a time;
+- at most 4 workers;
+- set `OMP_NUM_THREADS=1` and `ORT_NUM_THREADS=1`;
+- close every process afterwards.
+
+The stock CLI runs every row in one process. The 4-worker sharded run took about 20 minutes wall per matrix at 200 seeds.
+
+1. **Gate format (what CI gates):** `npx tsx scripts/balance-matrix.ts --avatars --seeds 200`
+   - **Ratchet the floors** in `tests/ai/winrate.test.ts` for R15-R26 to max(standing floor, 200-seed mean - 6.5, rounded down to the half point).
+   - **Add floors for R27 and R28** by the same rule, in the "First Dawn rungs 27-28" test.
+   - **`RUNG_BANDS` in `scripts/balance-matrix.ts`:**
+     - add rungs 27 and 28;
+     - sync 14-26 up to the gate floors (R16, R17, R18, R19, R20, R23 and R25 have fallen behind them; the table is in the tunes record, section 6);
+     - re-centre 1-13 per Q6.
+2. **Wide matrix (confirms the tunes):** `npx tsx scripts/balance-matrix.ts --avatars-reserve --seeds 200`. Check at least R11, R13, R24 and R28 against the tunes record, section 11.
+3. **Darlings:** `npx tsx scripts/balance-matrix.ts --avatars-darlings --seeds 200`
+   - **Add a Darlings gate for R23-R28** at 40 seeds, with floors = mean - 6.5 rounded down.
+   - **Split it into two tests** (R23-R25 and R26-R28). At 40 seeds it is about 430 s locally and about 680 s on CI.
+   - **Terminate on a per-row draw ceiling** set from this reading (Q5). The themed R23 list draws 18 of 200 against Sunwell Ledger today.
+4. **Floors (the tier dial):** `npx tsx scripts/balance-matrix.ts --floors --seeds 80`
+   - Add `FLOOR_BANDS` 27-28 at .585.
+   - Re-read F21 at 200 seeds. It read 58.8 at 80 seeds, 0.3 over its band, and is probably noise.
+5. **Gates:**
+   - `npx vitest run tests/ai/winrate.test.ts` alone (about 530 s);
+   - `npx vitest run tests/data tests/power`;
+   - then the full suite on an idle machine (about 13 min).
+6. **One PR** carries the ratchet, the new gates and the band changes, with the measured tables in its body.
+
+### Open for the owner
+
+- **R28 sits under R26 on the gate** (68.5 against 75.0) and is level with R27 (68.7). On the wide matrix she reads 76.0 against R26's 78.4. Q3 covered Darlings only. Whether the summit must top the gate ladder too has not been asked.
+- **R15 Carmilla has a 2.1-point margin over her floor** at 200 seeds. Her 40-seed gate reads 69.0 against .655. No list lever helped, because the drop came with the wave 2-3 brain changes. Watch her at the ratchet.
+
+### Carried, not blocking
+
+- **AI gaps, logged for later:**
+  - Medium never aims a target-creature damage spell at its own Provoked creature (Ember-Flick), and Foresee is worth 0 to Medium;
+  - a creature Duty used in main phase two leaves its creature tapped;
+  - Festival Rocket activations are net-negative in Medium's hands.
+- **Numeral follow-ups:** the repeated-pick label "1, 2" needs a comma glyph. The Mark "+2" badge is a rounded plate, not a circle.
+- **Local-only tooling, not in the repo:**
+  - the Forge's `power-scores.json` was not rescored after the Maiden recost;
+  - the local `blades-db terms --check` fails on a pre-existing "arrives" leak (Orbital Graft, Salt Chapel, Tahla).
+- **Alongside wave 4:**
+  - accessibility wave 3's long tail;
+  - the Hard perf profile on First Dawn decks;
+  - the collection dilution revisit.
+- **Wave 5:**
+  - QC;
+  - the metagame sweep, run last with all six personas;
+  - the release notes, including the pack-price line;
+  - the 1.9.0 cut: art-streaming gate 7 on the deployed pack ranges, and the db-signals Worker redeploy, which needs the owner's Cloudflare token.
