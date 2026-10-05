@@ -116,6 +116,11 @@ const ENROLLED: readonly Enrolled[] = [
     inset: { file: 'tests/ui/duelPanelPresentation.test.ts', tests: ['keeps the coach footer outside the reading viewport at every text size'] },
   } },
   { module: 'src/ui/shopPresentation.ts and src/ui/deckShopLayout.ts (Shop)', rules: { frame: { file: 'tests/ui/shopPresentation.test.ts', tests: ['keeps wrapped pack identities above the art and the purchase action outside the reading band', 'sizes dialogs from measured content and keeps the footer separate', 'preserves the release list capacities, pitches and anchors for standard measured text'] } } },
+  { module: 'src/ui/achievementPresentation.ts and src/ui/packRunwayPresentation.ts (Achievements, Pack Opening inspect)', rules: {
+    frame: { file: 'tests/ui/achievementPresentation.test.ts', tests: ['keeps every row of a page inside the list band, apart by the release gap, in every accessibility cell'] },
+    gap: { file: 'tests/ui/achievementPresentation.test.ts', tests: ['holds the title block, the goal and the progress column inside the row in every accessibility cell'] },
+    inset: { file: 'tests/ui/packRunwayPresentation.test.ts', tests: ['keeps the card and every detail line inside the dialog and the frame, above its bottom inset, in every accessibility cell'] },
+  } },
   { module: 'src/ui/profilePresentation.ts (Profile measured replays)', rules: { inset: { file: 'tests/ui/shopPresentation.test.ts', tests: ['keeps every measured replay cell inside the panel while larger lines reduce capacity'] } } },
   { module: 'src/ui/deckPanePresentation.ts (Deck Builder)', rules: { frame: { file: 'tests/ui/deckPanePresentation.test.ts', tests: ['keeps wrapped titles above the controls in every accessibility cell','separates measured summary lines, curve labels, status and both action rows in every accessibility cell','fits full measured identities and action hit bands inside every paged tile in every accessibility cell'] } } },
   { module: 'src/ui/deckListPaging.ts (Deck Builder)', rules: { frame: { file: 'tests/ui/deckListPaging.test.ts', tests: ['keeps every wrapped row whole, reachable and separate from its neighbours and pager in every accessibility cell', 'fills the Darlings fixture page with measured rows at $textScale, touch $touch'] } } },

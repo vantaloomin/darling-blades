@@ -26,6 +26,7 @@ import { createSearchInput, type SearchInputHandle } from '../ui/SearchInput';
 import { colorInt, theme } from '../ui/theme';
 import { backButton, panel, registerSceneBackNavigation } from '../ui/themeWidgets';
 import { backLabelFor, type BackDestination } from '../ui/navigation';
+import { IS_DEV } from '../platform/env';
 
 /** `null` is the cross-section results view; anything else is one tab. */
 type ActiveTab = GlossarySectionId | null;
@@ -40,6 +41,11 @@ export interface GlossarySceneData {
   focus?: string;
   /** Where the back affordance returns to; defaults to the Main Menu. */
   returnTo?: { scene: BackDestination; data?: object };
+  /**
+   * Dev probe only (`src/dev/wave3PackGlossaryFixtures.ts`): open a rail tab
+   * (`'all'` for All Terms) or a search, optionally scrolled to the list's end.
+   */
+  a11yFixture?: { tab?: GlossarySectionId | 'all'; query?: string; scroll?: 'end' };
 }
 
 const ALL_TAB_LABEL = 'All Terms';
@@ -56,6 +62,7 @@ const ALL_TAB_LABEL = 'All Terms';
  */
 export class GlossaryScene extends Phaser.Scene {
   private focus: string | null = null;
+  private fixture: GlossarySceneData['a11yFixture'] | null = null;
   private returnTo: { scene: BackDestination; data?: object } = { scene: 'MainMenu' };
 
   private frame!: GlossaryFrame;
@@ -82,8 +89,10 @@ export class GlossaryScene extends Phaser.Scene {
 
   init(data: GlossarySceneData = {}): void {
     this.focus = data.focus ?? null;
+    this.fixture = IS_DEV ? data.a11yFixture ?? null : null;
     this.returnTo = data.returnTo ?? { scene: 'MainMenu' };
     this.activeTab = this.focus ? sectionOfTerm(this.focus) ?? 'combat' : 'combat';
+    if (this.fixture?.tab) this.activeTab = this.fixture.tab === 'all' ? null : this.fixture.tab;
     this.tabBeforeSearch = this.activeTab;
     this.query = '';
     this.scrollOffset = 0;
@@ -136,7 +145,14 @@ export class GlossaryScene extends Phaser.Scene {
     this.buildContentChrome();
     this.buildSearchInput();
     this.bindScrollInput();
+    const query = this.fixture?.query;
+    if (query && this.searchInput) {
+      this.searchInput.inputElement.value = query;
+      this.query = query;
+      this.activeTab = null;
+    }
     this.render();
+    if (this.fixture?.scroll === 'end') this.setScroll(this.layout?.maxScroll ?? 0);
   }
 
   // -------------------------------------------------------------------------

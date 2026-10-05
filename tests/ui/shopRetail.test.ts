@@ -167,7 +167,7 @@ describe('Expansion shop retail', () => {
           }, source, 'PackOpeningScene',
         );
         const scene = {
-          sku, specials: [], buttons: [], finishAchievementCheckpoint: vi.fn(),
+          sku, saveData: save, specials: [], buttons: [], finishAchievementCheckpoint: vi.fn(),
           addButtonRailPanel: vi.fn(), addRailButton, tweens: { timeScale: 1 },
           scene: { restart },
         };

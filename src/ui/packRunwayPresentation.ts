@@ -304,3 +304,58 @@ export function packRevealLayout(gridCount: number, specialCount: number): PackR
   const specialSlots = place(specials, PACK_REVEAL_SPECIAL_SCALE);
   return { grid: gridSlots, specials: specialSlots };
 }
+
+// ---------------------------------------------------------------------------
+// Pull inspect
+// ---------------------------------------------------------------------------
+
+/**
+ * The pull inspect: the card over its detail lines (odds, new, rarity, frame,
+ * holo, treatment), in one dialog inside the title-safe frame. Its 680px
+ * shell and 108px detail plate (release) overran the frame's foot, and with
+ * all six lines the plate overran its own lines too. Now the plate takes its
+ * measured lines and the card takes what is left, up to its release scale.
+ */
+export const PACK_INSPECT = {
+  width: 600,
+  detailWidth: 520,
+  /** Release: the plate's height and the pitch of its lines. */
+  detailMinHeight: 108,
+  minLinePitch: 22,
+  linePad: theme.space(3),
+  lineGap: theme.space(1),
+  cardMaxScale: 1.22,
+  /** Between the shell's edges, the card and the plate. */
+  pad: theme.space(3),
+} as const;
+
+export interface PackInspectLayout {
+  panel: { x: number; y: number; width: number; height: number };
+  detail: { x: number; y: number; width: number; height: number };
+  /** Centre y of each detail line. */
+  lineYs: number[];
+  cardY: number;
+  cardScale: number;
+}
+
+/** Lay out the inspect from each detail line's measured height. */
+export function packInspectLayout(lineHeights: readonly number[]): PackInspectLayout {
+  const I = PACK_INSPECT;
+  const top = theme.design.safeTop;
+  const bottom = theme.design.safeBottom;
+  const pitch = Math.max(I.minLinePitch, ...lineHeights.map((h) => h + I.lineGap));
+  const linesHeight = lineHeights.length * pitch;
+  const detailHeight = Math.max(I.detailMinHeight, linesHeight + 2 * I.linePad);
+  const detailY = bottom - I.pad - detailHeight;
+  const firstLineY = detailY + (detailHeight - linesHeight) / 2 + pitch / 2;
+  const cardTop = top + I.pad;
+  const cardSpace = Math.max(0, detailY - I.pad - cardTop);
+  const cardScale = Math.min(I.cardMaxScale, cardSpace / RUNWAY_CARD_DESIGN_HEIGHT);
+  return {
+    panel: { x: theme.design.centerX - I.width / 2, y: top, width: I.width, height: bottom - top },
+    detail: { x: theme.design.centerX - I.detailWidth / 2, y: detailY, width: I.detailWidth, height: detailHeight },
+    lineYs: lineHeights.map((_, i) => firstLineY + i * pitch),
+    cardY: cardTop + cardSpace / 2,
+    cardScale,
+  };
+}

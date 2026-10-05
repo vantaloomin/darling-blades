@@ -11,11 +11,22 @@ import {
 } from '../meta/Achievements';
 import { collectionCompletion } from '../meta/collectionFilter';
 import { progressPercentLabel } from '../ui/progressPercent';
-import { ellipsizeText } from '../ui/textFit';
+import { fitMenuName } from '../ui/menuText';
 import { Services } from '../meta/services';
+import type { SaveData } from '../meta/SaveManager';
+import { IS_DEV } from '../platform/env';
 import { def } from '../engine/types';
 import type { AnimationLevel } from '../platform/animPolicy';
 import {
+  ACHIEVEMENT_LIST,
+  ACHIEVEMENT_ROW,
+  achievementListLayout,
+  achievementRowLayout,
+  hallPlinthLayout,
+  HALL_PLINTH,
+  type AchievementListLayout,
+  type AchievementRowMeasure,
+  type AchievementRowLayout,
   achievementCascadeDelay,
   achievementCascadeDuration,
   achievementClaimMotion,
@@ -45,16 +56,8 @@ import {
 
 const DESIGN_W = 1280;
 const DESIGN_H = 720;
-const PER_PAGE = 16;
-const ROWS_PER_COLUMN = 8;
-
-const CONTENT_X = 72;
-const CONTENT_W = 1136;
-const COLUMN_GAP = 32;
-const ROW_W = (CONTENT_W - COLUMN_GAP) / 2;
-const ROW_Y = 196;
-const ROW_H = 50;
-const ROW_PITCH = 56;
+const CONTENT_X = ACHIEVEMENT_LIST.x;
+const CONTENT_W = ACHIEVEMENT_LIST.width;
 /**
  * One list row, left to right: the copy block, the gauge, and the progress
  * column (the readout, or Claim). The copy block's first line carries the
@@ -64,12 +67,14 @@ const ROW_PITCH = 56;
  * ended in an ellipsis. Measured in Inter (2026-09-25): the widest goal is
  * 350px at caption size, the widest title 192px, the widest wing name 60px,
  * the widest reward 70px, and the widest readout ("1482/1482 · 100%") 106px.
+ * Larger text wraps the title and the goal instead (accessibility wave 3):
+ * the rows grow to the tallest one the filter shows, and a page holds fewer.
  */
-const ROW_PAD = 14;
-const COPY_RIGHT = 384;
-const GAUGE_CENTER = 410;
-const PROGRESS_LEFT = 432;
-const CLAIM_MIN_W = 90;
+const ROW_PAD = ACHIEVEMENT_ROW.pad;
+const COPY_RIGHT = ACHIEVEMENT_ROW.copyRight;
+const GAUGE_CENTER = ACHIEVEMENT_ROW.gaugeCenter;
+const PROGRESS_LEFT = ACHIEVEMENT_ROW.progressLeft;
+const CLAIM_MIN_W = ACHIEVEMENT_ROW.claimMinWidth;
 const CLAIM_CENTER = PROGRESS_LEFT + CLAIM_MIN_W / 2;
 /** Between the title and its wing name, and before the reward. */
 const TITLE_LINE_GAP = theme.space(2);
@@ -81,6 +86,8 @@ const SUMMARY_H = 40;
 const SUMMARY_POOL_W = 250;
 const SUMMARY_SPECIAL_W = 190;
 const FILTER_Y = 164;
+/** The release list's density, held at standard text (the probe checks it). */
+const RELEASE_LIST_DENSITY = { id: 'achievement list', rows: 8, columns: 2, pitch: 56, top: 196 } as const;
 const FILTER_W = 104;
 const FILTER_GAP = 16;
 
@@ -102,6 +109,13 @@ interface AchievementsRoute {
   view: HallView;
   bucket: HallBucket | 'all';
 }
+
+/** Dev probe only (`src/dev/wave3PackGlossaryFixtures.ts`): an in-memory save, never persisted. */
+export interface AchievementsA11yFixture {
+  save: SaveData;
+}
+
+export type AchievementsSceneData = Partial<AchievementsRoute> & { a11yFixture?: AchievementsA11yFixture };
 
 interface ClaimSealTarget {
   x: number;
@@ -127,6 +141,8 @@ function filterStatuses(statuses: AchievementStatus[], filter: AchievementFilter
 export class AchievementsScene extends Phaser.Scene {
   /** The current hall/list position; every restart re-enters through it. */
   private route: AchievementsRoute = { page: 0, filter: 'all', view: 'hall', bucket: 'all' };
+  private fixture: AchievementsA11yFixture | null = null;
+  private fixtureSave: SaveData | null = null;
 
   constructor() {
     super('Achievements');
@@ -136,15 +152,33 @@ export class AchievementsScene extends Phaser.Scene {
    * The only card art here is the Trophy Hall furnishing: two owned thumbs
    * leaning behind each of the five wing plinths (`wingFurnishings`).
    */
-  create(
-    data: { page?: number; filter?: AchievementFilter; view?: HallView; bucket?: HallBucket | 'all' } = {},
-  ): void {
-    const owned = Object.keys(Services.save.data.collection);
-    gateOnArt(this, HALL_BUCKETS.flatMap((bucket) => wingFurnishings(bucket, owned)), () => this.build(data));
+  create(data: AchievementsSceneData = {}): void {
+    this.fixture = IS_DEV ? data.a11yFixture ?? null : null;
+    this.fixtureSave = this.fixture ? structuredClone(this.fixture.save) : null;
+    this.data.set('a11yReady', false);
+    const owned = Object.keys(this.saveData.collection);
+    gateOnArt(this, HALL_BUCKETS.flatMap((bucket) => wingFurnishings(bucket, owned)), () => {
+      this.build(data);
+      this.data.set('a11yReady', true);
+    });
   }
-  private build(
-    data: { page?: number; filter?: AchievementFilter; view?: HallView; bucket?: HallBucket | 'all' },
-  ): void {
+
+  /** The player's save, or the probe fixture's in-memory copy. */
+  private get saveData(): SaveData {
+    return this.fixtureSave ?? Services.save.data;
+  }
+
+  /** Persist a change to the real save; a probe fixture is never written. */
+  private persist(): void {
+    if (!this.fixture) Services.save.flush();
+  }
+
+  /** Every restart re-enters through the route (and keeps a probe fixture). */
+  private restartAt(route: AchievementsRoute): void {
+    this.scene.restart({ ...route, ...(this.fixture ? { a11yFixture: this.fixture } : {}) });
+  }
+
+  private build(data: AchievementsSceneData): void {
     applyBackdrop(this, 'collection', {
       dim: colorInt(theme.colors.dim),
       dimAlpha: 0.74,
@@ -167,13 +201,13 @@ export class AchievementsScene extends Phaser.Scene {
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('shop');
 
-    const save = Services.save.data;
+    const save = this.saveData;
     // Recovery sync, deliberately kept ALONGSIDE the mutation checkpoints:
     // imported save codes, migrations, and dev grants change the save outside
     // any checkpoint, and claiming validates against the persisted unlocked
     // list — without this, such saves show satisfied plaques that refuse to
     // claim. Checkpoints make unlocks immediate; this makes them recoverable.
-    if (syncAchievements(save, CARD_DB).length > 0) Services.save.flush();
+    if (syncAchievements(save, CARD_DB).length > 0) this.persist();
     const statuses = evaluateAchievements(save, CARD_DB);
     const filter = data.filter ?? 'all';
     const view: HallView = data.view ?? 'hall';
@@ -181,6 +215,14 @@ export class AchievementsScene extends Phaser.Scene {
     const bucketStatuses =
       bucket === 'all' ? statuses : statuses.filter((status) => status.def.bucket === bucket);
     const filteredStatuses = filterStatuses(bucketStatuses, filter);
+    // Measure first, page second: every row of the filter takes the tallest
+    // measured row, so a page's capacity never changes between its pages.
+    const list = view === 'list' ? this.measureList(filteredStatuses) : achievementListLayout(ACHIEVEMENT_LIST.rowHeight);
+    this.data.set('a11yDensity', view === 'list' ? {
+      actual: { ...RELEASE_LIST_DENSITY, rows: list.rowsPerColumn, pitch: list.pitch },
+      release: RELEASE_LIST_DENSITY,
+    } : { actual: [], release: [] });
+    const PER_PAGE = list.perPage;
     const pageCount = Math.max(1, Math.ceil(filteredStatuses.length / PER_PAGE));
     const page = Math.min(Math.max(0, data.page ?? 0), pageCount - 1);
     this.route = { page, filter, view, bucket };
@@ -228,7 +270,7 @@ export class AchievementsScene extends Phaser.Scene {
           disableClaimControls();
           const result = claimAllAchievements(save);
           if (result.gold > 0) {
-            Services.save.flush();
+            this.persist();
             const claimedIds = new Set(result.ids);
             const targets = visibleStatuses
               .filter((status) => claimedIds.has(status.def.id))
@@ -245,12 +287,12 @@ export class AchievementsScene extends Phaser.Scene {
               animationLevel,
               () => {
                 Sfx.play('coin');
-                this.scene.restart(this.route);
+                this.restartAt(this.route);
               },
             );
             return;
           }
-          this.scene.restart(this.route);
+          this.restartAt(this.route);
         },
       });
       const claimAllWidth = claimAllButton.getMeasuredSize().visual.width;
@@ -269,19 +311,15 @@ export class AchievementsScene extends Phaser.Scene {
     }
     this.drawFilters(filter);
     visibleStatuses.forEach((status, index) => {
-      const col = index < ROWS_PER_COLUMN ? 0 : 1;
-      const row = index % ROWS_PER_COLUMN;
-      const x = CONTENT_X + col * (ROW_W + COLUMN_GAP);
-      const y = ROW_Y + row * ROW_PITCH;
+      const { x, y } = list.cell(index);
       if (status.unlocked && !status.claimed) {
-        visibleClaimTargets.set(status.def.id, { x: x + CLAIM_CENTER, y: y + ROW_H / 2 });
+        visibleClaimTargets.set(status.def.id, { x: x + CLAIM_CENTER, y: y + list.rowHeight / 2 });
       }
       const claimButton = this.drawAchievementRow(
         status,
         x,
         y,
-        page,
-        filter,
+        list,
         animationLevel,
         disableClaimControls,
       );
@@ -289,7 +327,7 @@ export class AchievementsScene extends Phaser.Scene {
     });
     if (visibleStatuses.length === 0) {
       this.add
-        .text(theme.design.centerX, ROW_Y + ROW_H / 2, 'No achievements in this state.', {
+        .text(theme.design.centerX, ACHIEVEMENT_LIST.top + ACHIEVEMENT_LIST.rowHeight / 2, 'No achievements in this state.', {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           color: theme.colors.muted,
@@ -300,7 +338,7 @@ export class AchievementsScene extends Phaser.Scene {
   }
 
   private drawCompletionPanel(): void {
-    const completion = collectionCompletion(ALL_CARDS, Services.save.data);
+    const completion = collectionCompletion(ALL_CARDS, this.saveData);
     panel(this, CONTENT_X, SUMMARY_Y, CONTENT_W, SUMMARY_H, { alpha: theme.alpha.panel });
 
     const cellW = (CONTENT_W - SUMMARY_POOL_W - SUMMARY_SPECIAL_W) / COLOR_KEYS.length;
@@ -364,28 +402,31 @@ export class AchievementsScene extends Phaser.Scene {
         size: 'sm',
         minWidth: 104,
         selected: this.route.view === key,
-        onTap: () => this.scene.restart({ ...this.route, page: 0, view: key }),
+        onTap: () => this.restartAt({ ...this.route, page: 0, view: key }),
       });
     });
     if (this.route.view === 'list' && this.route.bucket !== 'all') {
-      roundedTrigger(
+      // Right-aligned on the content edge (its left edge sat at 1120, which
+      // put a 150px chip outside the title-safe frame).
+      const chip = roundedTrigger(
         this,
-        CONTENT_X + CONTENT_W - 88,
+        0,
         FILTER_Y,
         `${BUCKET_LABEL[this.route.bucket]} ✕`,
         {
           size: 'sm',
           minWidth: 150,
           selected: true,
-          onTap: () => this.scene.restart({ ...this.route, page: 0, bucket: 'all' }),
+          onTap: () => this.restartAt({ ...this.route, page: 0, bucket: 'all' }),
         },
       );
+      chip.container.setX(CONTENT_X + CONTENT_W - chip.getMeasuredSize().visual.width / 2);
     }
   }
 
   /** The Trophy Hall: five wings, one per bucket, each a plinth into its list. */
   private drawHall(statuses: AchievementStatus[]): void {
-    const save = Services.save.data;
+    const save = this.saveData;
     const owned = Object.keys(save.collection);
     const byId = new Map(statuses.map((status) => [status.def.id, status]));
     const frames = hallWingFrames();
@@ -421,35 +462,43 @@ export class AchievementsScene extends Phaser.Scene {
       this.drawWingGauge(f.x + f.w - 46, f.y + 44, wing);
       const featured = wing.featuredId ? byId.get(wing.featuredId) : undefined;
       if (featured) {
-        const py = f.y + f.h - 70;
-        const pw = f.w - 130;
-        const plinth = this.add.graphics();
         const ready = featured.unlocked && !featured.claimed;
-        plinth.fillStyle(theme.graphics.rowFill, theme.alpha.panel);
-        plinth.fillRoundedRect(f.x + 14, py, pw, 54, theme.radius.control);
-        plinth.lineStyle(
-          theme.control.borderWidth,
-          colorInt(ready ? theme.colors.gold : theme.colors.success),
-          theme.alpha.chrome,
-        );
-        plinth.strokeRoundedRect(f.x + 14, py, pw, 54, theme.radius.control);
+        const plinth = this.add.graphics();
         const title = this.add
-          .text(f.x + 26, py + 18, '', {
+          .text(0, 0, featured.def.title, {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.label}px`,
             fontStyle: theme.weight.w700,
             color: ready ? theme.colors.heading : theme.colors.success,
           })
-          .setOrigin(0, 0.5);
-        ellipsizeText(title, pw - 24, featured.def.title);
-        this.add
-          .text(f.x + 26, py + 39, ready ? 'Ready to claim' : 'Claimed', {
+          .setOrigin(0, 0);
+        const status = this.add
+          .text(0, 0, ready ? 'Ready to claim' : 'Claimed', {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.micro}px`,
             fontStyle: theme.weight.w700,
             color: ready ? theme.colors.gold : theme.colors.success,
           })
-          .setOrigin(0, 0.5);
+          .setOrigin(0, 0);
+        // The plinth keeps its foot and grows upward when its title wraps.
+        const textWidth = hallPlinthLayout(f, { titleHeight: 0, titleLineHeight: 0, statusHeight: 0, statusLineHeight: 0 }).textWidth;
+        fitMenuName(title, textWidth, 3);
+        const p = hallPlinthLayout(f, {
+          titleHeight: title.height,
+          titleLineHeight: title.height / Math.max(1, title.getWrappedText().length),
+          statusHeight: status.height,
+          statusLineHeight: status.height,
+        });
+        plinth.fillStyle(theme.graphics.rowFill, theme.alpha.panel);
+        plinth.fillRoundedRect(p.x, p.y, p.width, p.height, theme.radius.control);
+        plinth.lineStyle(
+          theme.control.borderWidth,
+          colorInt(ready ? theme.colors.gold : theme.colors.success),
+          theme.alpha.chrome,
+        );
+        plinth.strokeRoundedRect(p.x, p.y, p.width, p.height, theme.radius.control);
+        title.setPosition(p.x + HALL_PLINTH.textInset, p.y + p.titleTop);
+        status.setPosition(p.x + HALL_PLINTH.textInset, p.y + p.statusTop);
       } else {
         this.add
           .text(f.x + 18, f.y + f.h - 44, 'No trophies here yet.', {
@@ -464,7 +513,7 @@ export class AchievementsScene extends Phaser.Scene {
         .setInteractive({ useHandCursor: true });
       zone.on('pointerup', (p: Phaser.Input.Pointer) => {
         if (p.rightButtonReleased()) return;
-        this.scene.restart({ page: 0, filter: 'all', view: 'list', bucket: wing.bucket });
+        this.restartAt({ page: 0, filter: 'all', view: 'list', bucket: wing.bucket });
       });
     });
   }
@@ -496,7 +545,7 @@ export class AchievementsScene extends Phaser.Scene {
 
   /** 📌 on a claimed row: pin to (or unpin from) the Profile showcase. */
   private drawPinToggle(id: string, x: number, y: number): void {
-    const save = Services.save.data;
+    const save = this.saveData;
     const pinned = save.achievements.pinned.includes(id);
     this.add
       .text(x, y, '📌', { fontSize: '18px' })
@@ -506,58 +555,46 @@ export class AchievementsScene extends Phaser.Scene {
     zone.on('pointerup', (p: Phaser.Input.Pointer) => {
       if (p.rightButtonReleased()) return;
       save.achievements.pinned = togglePin(save.achievements.pinned, id);
-      Services.save.touch();
-      this.scene.restart(this.route);
+      if (!this.fixture) Services.save.touch();
+      this.restartAt(this.route);
     });
   }
 
   private drawFilters(selected: AchievementFilter): void {
-    const totalWidth = FILTERS.length * FILTER_W + (FILTERS.length - 1) * FILTER_GAP;
-    const startX = theme.design.centerX - totalWidth / 2;
-    FILTERS.forEach((filter, index) => {
-      roundedTrigger(this, startX + index * (FILTER_W + FILTER_GAP), FILTER_Y, filter.label, {
-        size: 'sm',
-        minWidth: FILTER_W,
-        selected: filter.key === selected,
-        onTap: () => this.scene.restart({ ...this.route, page: 0, filter: filter.key }),
-      });
+    // Measure, then place: larger text widens a chip, and the row stays
+    // centred with its gaps instead of the chips running into each other.
+    const chips = FILTERS.map((filter) => roundedTrigger(this, 0, FILTER_Y, filter.label, {
+      size: 'sm',
+      minWidth: FILTER_W,
+      selected: filter.key === selected,
+      onTap: () => this.restartAt({ ...this.route, page: 0, filter: filter.key }),
+    }));
+    const widths = chips.map((chip) => chip.getMeasuredSize().visual.width);
+    let left = theme.design.centerX - (widths.reduce((sum, w) => sum + w, 0) + (chips.length - 1) * FILTER_GAP) / 2;
+    chips.forEach((chip, index) => {
+      chip.container.setX(left + widths[index] / 2);
+      left += widths[index] + FILTER_GAP;
     });
   }
 
-  private drawAchievementRow(
-    status: AchievementStatus,
-    x: number,
-    y: number,
-    page: number,
-    filter: AchievementFilter,
-    animationLevel: AnimationLevel,
-    disableClaimControls: () => void,
-  ): ThemedButton | null {
+  /**
+   * One row's texts, positioned by `placeRowTexts`. The title wraps inside
+   * the space the reward and wing name leave on its line, the goal across the
+   * copy block, and the readout splits at its interpunct when it outgrows the
+   * progress column. None of them is ever cut short.
+   */
+  private rowTexts(status: AchievementStatus, rowWidth: number): {
+    reward: Phaser.GameObjects.Text;
+    bucket: Phaser.GameObjects.Text;
+    title: Phaser.GameObjects.Text;
+    goal: Phaser.GameObjects.Text;
+    readout: Phaser.GameObjects.Text | null;
+    measure: AchievementRowMeasure;
+  } {
     const claimable = status.unlocked && !status.claimed;
     const claimed = status.claimed;
-    const centerY = y + ROW_H / 2;
-    const g = this.add.graphics();
-    g.fillStyle(
-      claimable ? theme.graphics.rowFillActive : theme.graphics.rowFill,
-      claimed ? theme.alpha.subtle : theme.alpha.panel,
-    );
-    g.fillRoundedRect(x, y, ROW_W, ROW_H, theme.radius.control);
-    g.lineStyle(
-      theme.control.borderWidth,
-      colorInt(claimable ? theme.colors.gold : theme.colors.panelStroke),
-      claimed ? theme.alpha.subtle : theme.alpha.chrome,
-    );
-    g.strokeRoundedRect(x, y, ROW_W, ROW_H, theme.radius.control);
-    // A claimed row's gauge is a full circle saying nothing; the slot becomes
-    // the showcase pin toggle instead.
-    if (claimed) this.drawPinToggle(status.def.id, x + GAUGE_CENTER, centerY);
-    else this.drawProgressGauge(status, x + GAUGE_CENTER, centerY);
-
-    // First line: the title, its wing, and the reward on the copy block's
-    // right edge. The title yields first if the line is ever too long.
-    const titleY = y + 14;
     const reward = this.add
-      .text(x + COPY_RIGHT, titleY, `+${status.def.reward.gold} Gold`, {
+      .text(0, 0, `+${status.def.reward.gold} Gold`, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         fontStyle: theme.weight.w600,
@@ -565,62 +602,133 @@ export class AchievementsScene extends Phaser.Scene {
       })
       .setOrigin(1, 0.5);
     const bucket = this.add
-      .text(0, titleY, BUCKET_LABEL[status.def.bucket], {
+      .text(0, 0, BUCKET_LABEL[status.def.bucket], {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         fontStyle: theme.weight.w600,
         color: theme.colors.muted,
       })
       .setOrigin(0, 0.5);
+    const titleBudget = Math.max(1, COPY_RIGHT - ROW_PAD - reward.width - bucket.width - 2 * TITLE_LINE_GAP);
     const title = this.add
-      .text(x + ROW_PAD, titleY, '', {
+      .text(0, 0, `${claimed ? '✓ ' : ''}${status.def.title}`, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.label}px`,
         fontStyle: theme.weight.w700,
         color: claimed ? theme.colors.success : status.unlocked ? theme.colors.heading : theme.colors.muted,
       })
-      .setOrigin(0, 0.5);
-    const titleBudget = COPY_RIGHT - ROW_PAD - reward.width - bucket.width - 2 * TITLE_LINE_GAP;
-    ellipsizeText(title, Math.max(0, titleBudget), `${claimed ? '✓ ' : ''}${status.def.title}`);
-    bucket.setX(title.x + title.width + TITLE_LINE_GAP);
-
-    // Second line: the goal, across the whole copy block.
+      .setOrigin(0, 0);
+    fitMenuName(title, titleBudget, 3);
     const goal = this.add
-      .text(x + ROW_PAD, y + 35, '', {
+      .text(0, 0, status.def.description, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         color: claimed ? theme.colors.muted : theme.colors.body,
       })
-      .setOrigin(0, 0.5);
-    ellipsizeText(goal, COPY_RIGHT - ROW_PAD, status.def.description);
-
+      .setOrigin(0, 0);
+    fitMenuName(goal, COPY_RIGHT - ROW_PAD, 3);
+    let readout: Phaser.GameObjects.Text | null = null;
     if (!claimable) {
-      const progress = `${Math.min(status.current, status.target)}/${status.target} · ${progressPercentLabel(status.percent)}`;
-      this.add
-        .text(x + PROGRESS_LEFT, centerY, progress, {
+      const count = `${Math.min(status.current, status.target)}/${status.target}`;
+      readout = this.add
+        .text(0, 0, `${count} · ${progressPercentLabel(status.percent)}`, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           fontStyle: theme.weight.w600,
           color: claimed ? theme.colors.muted : theme.colors.body,
         })
         .setOrigin(0, 0.5);
-    } else {
+      if (readout.width > rowWidth - PROGRESS_LEFT - ROW_PAD / 2) readout.setText(`${count}\n${progressPercentLabel(status.percent)}`);
+    }
+    const lineHeight = (text: Phaser.GameObjects.Text): number => text.height / Math.max(1, text.getWrappedText().length);
+    return {
+      reward,
+      bucket,
+      title,
+      goal,
+      readout,
+      measure: {
+        titleHeight: title.height,
+        titleLineHeight: lineHeight(title),
+        goalHeight: goal.height,
+        goalLineHeight: lineHeight(goal),
+        progressHeight: readout?.height ?? theme.control.heightSm,
+      },
+    };
+  }
+
+  /** The list's paging: every row of the filter at the tallest measured row. */
+  private measureList(statuses: readonly AchievementStatus[]): AchievementListLayout {
+    const rowWidth = achievementListLayout(ACHIEVEMENT_LIST.rowHeight).rowWidth;
+    let height: number = ACHIEVEMENT_LIST.rowHeight;
+    for (const status of statuses) {
+      const texts = this.rowTexts(status, rowWidth);
+      height = Math.max(height, achievementRowLayout(texts.measure).height);
+      [texts.reward, texts.bucket, texts.title, texts.goal, texts.readout].forEach((text) => text?.destroy());
+    }
+    return achievementListLayout(height);
+  }
+
+  private drawAchievementRow(
+    status: AchievementStatus,
+    x: number,
+    y: number,
+    list: AchievementListLayout,
+    animationLevel: AnimationLevel,
+    disableClaimControls: () => void,
+  ): ThemedButton | null {
+    const claimable = status.unlocked && !status.claimed;
+    const claimed = status.claimed;
+    const rowW = list.rowWidth;
+    const rowH = list.rowHeight;
+    const centerY = y + rowH / 2;
+    const g = this.add.graphics();
+    g.fillStyle(
+      claimable ? theme.graphics.rowFillActive : theme.graphics.rowFill,
+      claimed ? theme.alpha.subtle : theme.alpha.panel,
+    );
+    g.fillRoundedRect(x, y, rowW, rowH, theme.radius.control);
+    g.lineStyle(
+      theme.control.borderWidth,
+      colorInt(claimable ? theme.colors.gold : theme.colors.panelStroke),
+      claimed ? theme.alpha.subtle : theme.alpha.chrome,
+    );
+    g.strokeRoundedRect(x, y, rowW, rowH, theme.radius.control);
+    // A claimed row's gauge is a full circle saying nothing; the slot becomes
+    // the showcase pin toggle instead.
+    if (claimed) this.drawPinToggle(status.def.id, x + GAUGE_CENTER, centerY);
+    else this.drawProgressGauge(status, x + GAUGE_CENTER, centerY);
+
+    // First line: the title, its wing, and the reward on the copy block's
+    // right edge; the title wraps if the line is ever too long. Second: the goal.
+    const { reward, bucket, title, goal, readout, measure } = this.rowTexts(status, rowW);
+    const row: AchievementRowLayout = achievementRowLayout(measure);
+    // Rows share the tallest row's height; a shorter copy block centres in it.
+    const top = y + (rowH - row.height) / 2;
+    const firstLineY = top + row.titleTop + measure.titleLineHeight / 2;
+    title.setPosition(x + ROW_PAD, top + row.titleTop);
+    reward.setPosition(x + COPY_RIGHT, firstLineY);
+    bucket.setPosition(title.x + title.width + TITLE_LINE_GAP, firstLineY);
+    goal.setPosition(x + ROW_PAD, top + row.goalTop);
+    readout?.setPosition(x + PROGRESS_LEFT, centerY);
+
+    if (claimable) {
       const claimButton = themedButton(this, x + CLAIM_CENTER, centerY, 'Claim', {
         variant: 'emphasis',
         size: 'sm',
         minWidth: CLAIM_MIN_W,
         onTap: () => {
           disableClaimControls();
-          const result = claimAchievement(Services.save.data, status.def.id);
+          const result = claimAchievement(this.saveData, status.def.id);
           if (result.ok) {
-            Services.save.flush();
+            this.persist();
             this.playClaimCascade([{ x: x + CLAIM_CENTER, y: centerY }], animationLevel, () => {
               Sfx.play('coin');
-              this.scene.restart(this.route);
+              this.restartAt(this.route);
             });
             return;
           }
-          this.scene.restart(this.route);
+          this.restartAt(this.route);
         },
       });
       return claimButton;
@@ -729,7 +837,7 @@ export class AchievementsScene extends Phaser.Scene {
   private drawPagingControls(page: number, pageCount: number): void {
     if (pageCount <= 1) return;
     pager(this, DESIGN_W / 2 - 44, theme.design.footerCenterY, page, pageCount, (nextPage) =>
-      this.scene.restart({ ...this.route, page: nextPage }),
+      this.restartAt({ ...this.route, page: nextPage }),
     );
   }
 }
