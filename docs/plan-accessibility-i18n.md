@@ -243,6 +243,9 @@ Choosing a size or contrast previews at once: the Settings scene rebuilds
 under the new values, and every other scene reads them the next time it is
 built. Where the group goes is Q1 (recommended: three tabs).
 
+**Both gates flipped for 1.9.0 (owner, 2026-10-06),** on the wave-5 QC's
+reading of 0 findings across every `WAVE_*` list in all six cells.
+
 **The ship gate for a half-built state.** After wave 1 the controls would
 offer 115%, 130% and high contrast while no scene has been reflowed. So:
 
@@ -686,7 +689,19 @@ model's read, not the human review): under protanopia and deuteranopia the
 face-down SR and UR glows look alike; under achromatopsia the runway minimap's
 R, SR and SSR segments, the face-down glows and the two corner stars do; the
 background wash is too faint to carry rarity for anyone. Duel cues, Settings
-selection and the Collection chips survive every simulation.
+selection and the Collection chips survive every simulation. Fixed after the
+captures, with the colours unchanged (`src/ui/packCuePresentation.ts`): a
+face-down SR, SSR or UR wears its tier abbreviation on a tab over its top
+edge (the glow already told the tier, so the tab spoils nothing); the minimap
+parts its runs with a 2 px gap and labels each run with its tier under the
+ribbon, pushed aside in order where a run is too short for its label; and a
+new variant's corner marker is a diamond where a new card's is a star, both
+vector glyphs. `tests/ui/packCuePresentation.test.ts` holds each surface's
+cues apart by a non-colour channel, also under monochromacy, and
+`WAVE_3B_SCENES` gained a `Pack Opening / face down` scenario (35, 210
+checks); its ten Pack Opening scenarios read 0 findings in all six cells at
+`?quality=lite`. The background wash and the spotlight tint stay colour
+only (the wash carries nothing, the tint is transient).
 
 ### Wave 4: the localization record
 

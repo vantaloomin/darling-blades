@@ -26,9 +26,11 @@ export const FEATURES = {
    * no player lands in a half-built state they have no control to undo. Each
    * flips when every player-facing scene clears the rendered probe in the
    * cells its control opens; high contrast may ship before 130% text.
+   * Both flipped for 1.9.0 (owner, 2026-10-06): every WAVE_* probe list
+   * read 0 findings in all six cells at the wave-5 QC.
    */
-  textSizeLive: false,
-  highContrastLive: false,
+  textSizeLive: true,
+  highContrastLive: true,
   // --- end lane C ship gates ---
   /**
    * 1.9 lane D (docs/plan-art-streaming.md): card art loads on demand through
