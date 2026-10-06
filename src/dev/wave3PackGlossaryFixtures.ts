@@ -73,6 +73,7 @@ const packScene = (label: string, data: object, settleMs?: number): ProbeScene =
 
 const PACK_SCENES: ProbeScene[] = [
   packScene('tear', { ...wave3SinglePack(), sku: 'base', a11yFixture: { save: wave3PackSave(), state: 'tear' } }),
+  packScene('face down', { ...wave3SinglePack(), sku: 'base', a11yFixture: { save: wave3PackSave(), state: 'facedown' } }),
   packScene('revealed', { ...wave3SinglePack(), sku: 'base', a11yFixture: { save: wave3PackSave(), state: 'revealed' } }),
   packScene('revealed / no gold', { ...wave3SinglePack(), sku: 'first-dawn', a11yFixture: { save: wave3PackSave(0), state: 'revealed' } }),
   packScene('best card', { ...wave3SinglePack(), sku: 'base', a11yFixture: { save: wave3PackSave(), state: 'best' } }, 1200),

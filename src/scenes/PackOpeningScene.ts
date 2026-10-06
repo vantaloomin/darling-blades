@@ -49,6 +49,16 @@ import {
   RUNWAY_SKIP,
   virtualRange,
 } from '../ui/packRunwayPresentation';
+import {
+  FACE_DOWN_GLOW,
+  faceDownTabRect,
+  minimapLabelSlots,
+  minimapSegmentSpan,
+  MINIMAP_CUES,
+  NEW_MARKER,
+  newMarkerGlyph,
+  newMarkerGlyphPoints,
+} from '../ui/packCuePresentation';
 import { gateOnArt } from '../ui/artGate';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { bindInspectHotkeys } from '../ui/inspectHotkeys';
@@ -69,14 +79,15 @@ const BUTTON_Y = PACK_BUTTON_Y;
 /**
  * Dev probe only (`src/dev/wave3PackGlossaryFixtures.ts`): an in-memory save,
  * never persisted, and the reveal state to settle in. A single pack: `tear`
- * (waiting for the tap), `revealed` (every card face up, the CTA rail), `best`
+ * (waiting for the tap), `facedown` (the specials dealt and waiting, with
+ * their glows and tier tabs), `revealed` (every card face up, the CTA rail), `best`
  * (the best card's spotlight) or `inspect` (the best card's inspect dialog). A
  * batch: `runway` (the ride finished), `spotlight` (the last card's stop) or,
  * with animations off in the save, the summary.
  */
 export interface PackOpeningA11yFixture {
   save: SaveData;
-  state?: 'tear' | 'revealed' | 'best' | 'inspect' | 'runway' | 'spotlight';
+  state?: 'tear' | 'facedown' | 'revealed' | 'best' | 'inspect' | 'runway' | 'spotlight';
 }
 
 /** Pack Opening entry data: a single pack or a batch, plus where the Shop strip stood. */
@@ -87,9 +98,9 @@ export type PackOpeningData = (
 
 /** Face-down hint pulse + tier-tag colors for the specials row (sr/ssr/ur). */
 const HINT = {
-  sr: { glow: 16763955, pulse: 520, label: theme.rarity.sr },
-  ssr: { glow: 11691775, pulse: 420, label: theme.rarity.ssr },
-  ur: { glow: 16733542, pulse: 320, label: theme.rarity.ur },
+  sr: { glow: FACE_DOWN_GLOW.sr, pulse: 520, label: theme.rarity.sr },
+  ssr: { glow: FACE_DOWN_GLOW.ssr, pulse: 420, label: theme.rarity.ssr },
+  ur: { glow: FACE_DOWN_GLOW.ur, pulse: 320, label: theme.rarity.ur },
 } as const;
 
 /**
@@ -121,6 +132,8 @@ interface SpecialEntry {
   homeScale: number;
   /** lite-tier rarity hint (ring-sprite pulse) — destroyed on reveal */
   hint?: Phaser.GameObjects.Image;
+  /** the face-down tier tab (plate + abbreviation) — destroyed on reveal */
+  tab?: Phaser.GameObjects.GameObject[];
 }
 
 /**
@@ -365,6 +378,11 @@ export class PackOpeningScene extends Phaser.Scene {
     prompt.destroy();
     this.dealCards();
     const grid = this.result.cards.length - this.specials.length;
+    if (state === 'facedown') {
+      // The specials wait face down, each with its glow and tier tab.
+      this.whenFixture(() => this.inspectables.length >= grid && this.specials.every((s) => s.tab), () => this.markFixtureReady());
+      return;
+    }
     this.whenFixture(() => this.inspectables.length >= grid, () => {
       if (state === 'best' && this.specials.length > 0) {
         this.revealSpecial(this.specials[this.specials.length - 1], true);
@@ -608,14 +626,33 @@ export class PackOpeningScene extends Phaser.Scene {
     );
     root.add(gate);
     // Tier-colored ribbon minimap with a progress needle — the no-scrollbar rule.
+    // Colour is not the only channel: runs are parted by a gap and each is
+    // labelled with its tier underneath (packCuePresentation).
     const minimap = { x: RUNWAY_MINIMAP.x, w: RUNWAY_MINIMAP.width };
     const mmY = RUNWAY_MINIMAP.y;
     const mm = this.add.graphics();
-    for (const seg of minimapSegments(cards)) {
+    const segments = minimapSegments(cards);
+    segments.forEach((seg, i) => {
+      const span = minimapSegmentSpan(seg, i === segments.length - 1, minimap.x, minimap.w);
       mm.fillStyle(colorInt(theme.rarity[seg.tier]), 0.85);
-      mm.fillRect(minimap.x + seg.from * minimap.w, mmY, Math.max(1, (seg.to - seg.from) * minimap.w), 8);
-    }
+      mm.fillRect(span.x, mmY, span.width, 8);
+    });
     root.add(mm);
+    const labelY = mmY + 8 + MINIMAP_CUES.labelRowOffset;
+    const labels = segments.map((seg) => this.add
+      .text(0, labelY, TIER_LABEL[seg.tier], {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        fontStyle: '700',
+        color: theme.rarity[seg.tier],
+      })
+      .setOrigin(0, 0));
+    const slots = minimapLabelSlots(segments, labels.map((label) => label.width), minimap.x, minimap.w);
+    labels.forEach((label, i) => {
+      if (slots) label.setX(slots[i].x);
+      else label.destroy();
+    });
+    if (slots) root.add(labels);
     const needle = this.add.rectangle(minimap.x, mmY + 4, 3, 18, 0xffffff, 0.95);
     root.add(needle);
     // Scrub band beneath the cards: dragging anywhere on the rail moves it.
@@ -1252,6 +1289,8 @@ export class PackOpeningScene extends Phaser.Scene {
           // on an already-revealed card (revealSpecial early-returns on done,
           // so its cleanup never runs).
           if (entry.done || !view.active) return;
+          // tier tab: the glow's tier in words, so it is not colour alone
+          entry.tab = this.addFaceDownTab(card, x, y, scale);
           // tier-hint glow: gold for sr, violet for ssr, crimson for ur
           if (fxPolicy(this).packGlow && view.postFX) {
             const glow = view.postFX.addGlow(hint.glow, 2, 0, false, 0.12, 18);
@@ -1358,25 +1397,52 @@ export class PackOpeningScene extends Phaser.Scene {
     });
   }
 
+  /**
+   * The corner marker on a revealed pull: a star for a new card, a diamond
+   * for a new variant of a card already owned. The glyph's outline carries
+   * the difference, so green against violet is not the only channel.
+   */
   private addNewMarker(view: CardView, card: AddResult): void {
-    if (!card.isNew && !card.isNewVariant) return;
+    const glyph = newMarkerGlyph(card);
+    if (!glyph) return;
     if (view.getData('packNewMarker')) return;
     view.setData('packNewMarker', true);
 
-    const color = card.isNew ? theme.colors.success : theme.rarity.ssr;
-    const stroke = colorInt(color);
+    const ink = colorInt(glyph === 'star' ? theme.colors.success : theme.rarity.ssr);
     const bg = this.add
-      .circle(124, -176, 13, theme.graphics.panelFill, 0.9)
-      .setStrokeStyle(1.5, stroke, 0.95);
-    const star = this.add
-      .text(124, -177, '★', {
+      .circle(NEW_MARKER.x, NEW_MARKER.y, NEW_MARKER.radius, theme.graphics.panelFill, 0.9)
+      .setStrokeStyle(NEW_MARKER.stroke, ink, 0.95);
+    const mark = this.add.graphics();
+    mark.fillStyle(ink, 1);
+    mark.fillPoints(newMarkerGlyphPoints(glyph, NEW_MARKER.x, NEW_MARKER.y, NEW_MARKER.glyphRadius), true);
+    view.add([bg, mark]);
+  }
+
+  /**
+   * A face-down special's tier tab: its abbreviation on a plate over the
+   * card's top edge, in the tier's colour. The glow already tells the tier,
+   * so the tab only says it in words as well.
+   */
+  private addFaceDownTab(card: AddResult, x: number, y: number, scale: number): Phaser.GameObjects.GameObject[] {
+    const tier = card.tier as keyof typeof HINT;
+    const color = (HINT[tier] ?? HINT.sr).label;
+    const label = this.add
+      .text(x, 0, TIER_LABEL[card.tier], {
         fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.body}px`,
-        fontStyle: '800',
+        fontSize: `${theme.type.caption}px`,
+        fontStyle: '700',
         color,
       })
       .setOrigin(0.5);
-    view.add([bg, star]);
+    const rect = faceDownTabRect(x, y, scale, label.width);
+    label.setY(rect.y + rect.height / 2);
+    const plate = this.add.graphics();
+    plate.fillStyle(theme.graphics.panelFill, 0.92);
+    plate.fillRoundedRect(rect.x, rect.y, rect.width, rect.height, rect.height / 2);
+    plate.lineStyle(1.5, colorInt(color), 0.95);
+    plate.strokeRoundedRect(rect.x, rect.y, rect.width, rect.height, rect.height / 2);
+    this.children.bringToTop(label);
+    return [plate, label];
   }
 
   private showPackInspect(card: AddResult): void {
@@ -1559,6 +1625,10 @@ export class PackOpeningScene extends Phaser.Scene {
       this.tweens.killTweensOf(entry.hint);
       entry.hint.destroy();
       entry.hint = undefined;
+    }
+    if (entry.tab) {
+      for (const part of entry.tab) part.destroy();
+      entry.tab = undefined;
     }
 
     if (!escalate || fast) {
