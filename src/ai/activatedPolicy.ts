@@ -166,7 +166,7 @@ export function precombatDutyEdge(
   try {
     const game = determinize(view, sdb);
     game.submit(me, action);
-    if (game.state.winner === me) {
+    if (game.instanceState.winner === me) {
       edge = { lethal: true, gain: PRECOMBAT_LETHAL };
     } else {
       const after = game.viewFor(me);
@@ -258,7 +258,7 @@ function lethalScreen(view: PlayerView, sdb: CardDb, action: ActivateAction, con
   try {
     const game = determinize(view, sdb);
     game.submit(me, action);
-    if (game.state.winner === me) {
+    if (game.instanceState.winner === me) {
       lethal = true;
     } else {
       const after = game.viewFor(me);

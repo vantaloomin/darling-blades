@@ -284,6 +284,8 @@ interface TargetContext {
   /** A creature being cast whose own Hunt is valued before it is on the
    * battlefield (an arrival Hunt's prey, an Empower Hunt). */
   hunterCardId?: string;
+  /** Provoked reads already made on this board (`provokedAfterDamage`). */
+  provoked?: ProvokedMemo;
 }
 
 function permanentFor(ctx: TargetContext, ref: TargetRef): Permanent | undefined {
@@ -333,10 +335,30 @@ function damageTargetValue(ctx: TargetContext, op: Extract<EffectOp, { op: 'dama
     : op.n * 0.45 + perm.plusOneCounters * 0.15;
   // A creature that survives the damage is provoked: a friendly source earns
   // its own creature's Provoked effect, and provoking theirs is a cost.
-  const provoked = lethal || op.n <= 0 || !unspentProvoked(ctx.db, perm) ? 0 : signedProvokedValue(
-    battlefieldAfterDamage(ctx.view.battlefield, ctx.db, new Map([[perm.iid, { damage: op.n, deathblade: false }]])),
-    ctx.db, ctx.view.myId, perm.iid, ctx.view.creatureDiedThisTurn === true);
+  const provoked = lethal || op.n <= 0 || !unspentProvoked(ctx.db, perm) ? 0 : provokedAfterDamage(ctx, perm.iid, op.n);
   return impact * harmSign(ctx, ref) + provoked;
+}
+
+/**
+ * Provoked reads made on one board that does not change while the memo
+ * lives: one board evaluation (`createPermanentValuer`) or one view
+ * (`activateActionValue`). Every Duty that pings a creature asks the same
+ * question of it, so the read is kept by creature, damage and side.
+ */
+type ProvokedMemo = Map<string, number>;
+
+/** The signed Provoked value of `iid` surviving `n` damage on the context's
+ * board (the Provoked term of `damageTargetValue`). */
+function provokedAfterDamage(ctx: TargetContext, iid: number, n: number): number {
+  const memo = provokedDepth > 0 ? undefined : ctx.provoked;
+  const key = memo && `${iid}|${n}|${ctx.view.myId}|${ctx.view.creatureDiedThisTurn === true}`;
+  const known = key === undefined ? undefined : memo!.get(key);
+  if (known !== undefined) return known;
+  const value = signedProvokedValue(
+    battlefieldAfterDamage(ctx.view.battlefield, ctx.db, new Map([[iid, { damage: n, deathblade: false }]])),
+    ctx.db, ctx.view.myId, iid, ctx.view.creatureDiedThisTurn === true);
+  if (key !== undefined) memo!.set(key, value);
+  return value;
 }
 
 /**
@@ -399,22 +421,34 @@ export function provokedValue(
       lists = lists.flatMap((chosen) => refs.map((ref) => [...chosen, ref]));
     }
     const ops = ability.ops ?? [];
-    // Mark-writing ops change only `plusOneCounters`, so one copy of the board
-    // serves every target list, its marks reset before each (a fresh copy per
-    // list made a wide board quadratic in copies).
-    const marked = activatedWritesMarks(ops) ? view.battlefield.map((p) => ({ ...p })) : undefined;
-    const marks = marked?.map((p) => p.plusOneCounters);
-    const score = (targets: TargetRef[]): number => {
-      if (marked) for (let i = 0; i < marked.length; i++) marked[i].plusOneCounters = marks![i];
-      return activatedOpsImpact(ops, {
-        view: { ...view, you: { ...view.you }, battlefield: marked ?? view.battlefield },
-        db, source, live: false, targets, targetBatch: false,
-      });
-    };
+    const scratch = activatedWritesMarks(ops) ? markScratch(view.battlefield, db) : undefined;
+    const score = (targets: TargetRef[]): number => activatedOpsImpact(ops, {
+      view: { ...view, you: { ...view.you }, battlefield: scratch ? scratch.reset() : view.battlefield },
+      db, source, live: false, targets, targetBatch: false,
+    });
     return Math.max(0, ...lists.map(score));
   } finally {
     provokedDepth--;
   }
+}
+
+/**
+ * The board a mark-writing score writes on. Mark ops change only a creature's
+ * `plusOneCounters` (`activatedOpsImpact`), so only the creatures are copied
+ * and the rest of the board is shared; `reset` puts every copy's marks back,
+ * so one scratch serves every target list of one read (a fresh copy per list
+ * made a wide board quadratic in copies).
+ */
+function markScratch(battlefield: readonly Permanent[], db: CardDb): { reset: () => Permanent[] } {
+  const board = battlefield.map((p) => isType(def(db, p.cardId), 'creature') ? { ...p } : p);
+  const copies = board.filter((p, i) => p !== battlefield[i]);
+  const marks = copies.map((p) => p.plusOneCounters);
+  return {
+    reset: () => {
+      for (let i = 0; i < copies.length; i++) copies[i].plusOneCounters = marks[i];
+      return board;
+    },
+  };
 }
 
 /** The engine's condition test (`conditionSatisfied`) on the public board:
@@ -785,8 +819,9 @@ export function targetValueForAbility(
   ref: TargetRef,
   includeActivated = true,
   hunterCardId?: string,
+  provoked?: ProvokedMemo,
 ): number {
-  const ctx: TargetContext = { view, db, source, ability, includeActivated, hunterCardId };
+  const ctx: TargetContext = { view, db, source, ability, includeActivated, hunterCardId, provoked };
   return (ability.ops ?? []).reduce((sum, op) => sum + effectOnTarget(ctx, op, ref), 0);
 }
 
@@ -947,6 +982,8 @@ interface ActivatedImpactContext {
    * count, and prices a tap as if its target has untapped by the next use:
    * a creature that attacked is tapped only until its controller's untap. */
   live: boolean;
+  /** Set only while `view.battlefield` is the memo's own board, unwritten. */
+  provoked?: ProvokedMemo;
 }
 
 /** A Hunt's card-shaped floor (`opImpactValue`, `empowerValue`): half a destroy. */
@@ -1109,7 +1146,7 @@ function activatedTargetImpact(op: EffectOp, ctx: ActivatedImpactContext, ref: T
     const owner = target?.owner ?? (ref.kind === 'player' || ref.kind === 'grave' ? ref.player : undefined);
     return owner === undefined ? 0 : op.n * 0.5 * (owner === view.myId ? 1 : -1);
   }
-  return targetValueForAbility(view, db, source, { ops: [op] }, ref, false);
+  return targetValueForAbility(view, db, source, { ops: [op] }, ref, false, undefined, ctx.provoked);
 }
 
 /** Signed public-board scoring used only by the new activated rider. */
@@ -1228,12 +1265,28 @@ function activatedOpsImpact(ops: readonly EffectOp[], ctx: ActivatedImpactContex
   return value;
 }
 
+/**
+ * One decision values the same Duty several times (the Hunt policy, then
+ * Medium's mana reserve and its ladder). Views are never mutated once built
+ * (as `activatedPolicy`'s edge cache relies on), so a view's values are kept
+ * on the view object itself, by database and by the only parts of the action
+ * the value reads, and die with the view.
+ */
+const ACTIVATE_VALUES = new WeakMap<PlayerView, WeakMap<CardDb, { values: Map<string, number>; provoked: ProvokedMemo }>>();
+
 export function activateActionValue(
   view: PlayerView,
   db: CardDb,
   action: Extract<Action, { type: 'activate' }>,
 ): number {
-  return activatedActionImpact(view, db, action, true);
+  let byDb = ACTIVATE_VALUES.get(view);
+  if (!byDb) ACTIVATE_VALUES.set(view, byDb = new WeakMap());
+  let memo = byDb.get(db);
+  if (!memo) byDb.set(db, memo = { values: new Map(), provoked: new Map() });
+  const key = `${action.iid}|${action.abilityIndex ?? 0}|${JSON.stringify(action.targets ?? [])}`;
+  let value = memo.values.get(key);
+  if (value === undefined) memo.values.set(key, value = activatedActionImpact(view, db, action, true, memo.provoked));
+  return value;
 }
 
 /** Mark writes can couple optional targets through later ops or branches. */
@@ -1249,17 +1302,22 @@ function activatedActionImpact(
   db: CardDb,
   action: Extract<Action, { type: 'activate' }>,
   live: boolean,
+  provoked?: ProvokedMemo,
+  /** A mark-writing Duty's scratch of `view.battlefield`, kept by a caller that scores many target lists. */
+  scratch?: { reset: () => Permanent[] },
 ): number {
   const source = view.battlefield.find((p) => p.iid === action.iid);
   const ability = source && activatedAbilitiesOf(def(db, source.cardId))[action.abilityIndex ?? 0];
   if (!source || !ability) return -Infinity;
+  const writesMarks = activatedWritesMarks(ability.ops);
   const ctx: ActivatedImpactContext = {
     view: {
       ...view, you: { ...view.you },
-      battlefield: activatedWritesMarks(ability.ops)
-        ? view.battlefield.map((perm) => ({ ...perm })) : view.battlefield,
+      battlefield: writesMarks ? (scratch ?? markScratch(view.battlefield, db)).reset() : view.battlefield,
     },
     db, source, live,
+    // A mark-writing Duty scores a copy it writes, not the memo's board.
+    ...(writesMarks ? {} : { provoked }),
     targets: action.targets ?? [],
     targetBatch: ability.targets?.length === 1 && (ability.targets[0].upTo !== undefined || ability.targets[0].exactly !== undefined),
   };
@@ -1297,17 +1355,21 @@ function activatedPotentialTargets(view: PlayerView, db: CardDb, source: Permane
  * it is not an inferred deck or a fabricated hidden state. Readiness and mana
  * are deliberately ignored: a tapped or newly arrived rider is still valuable.
  */
-export function activatedAbilityValue(battlefield: readonly Permanent[], db: CardDb, iid: number, abilityIndex = 0): number {
+export function activatedAbilityValue(
+  battlefield: readonly Permanent[], db: CardDb, iid: number, abilityIndex = 0, provoked?: ProvokedMemo,
+): number {
   const source = battlefield.find((p) => p.iid === iid);
   const ability = source && activatedAbilitiesOf(def(db, source.cardId))[abilityIndex];
   if (!source || !ability) return 0;
   const view = neutralView(battlefield, source.controller);
+  // One scratch board for every target list scored below (`markScratch`).
+  const scratch = activatedWritesMarks(ability.ops) ? markScratch(view.battlefield, db) : undefined;
   let lists: TargetRef[][] = [[]];
   for (const spec of ability.targets ?? []) {
     const refs = activatedPotentialTargets(view, db, source, spec);
     if (spec.upTo !== undefined || spec.exactly !== undefined) {
       const score = (targets: TargetRef[]): number =>
-        activatedActionImpact(view, db, { type: 'activate', iid, abilityIndex, targets }, false);
+        activatedActionImpact(view, db, { type: 'activate', iid, abilityIndex, targets }, false, provoked, scratch);
       const singles = refs.map((ref, index) => ({ ref, index, value: score([ref]) }));
       let best = spec.exactly !== undefined ? 0 : Math.max(0, score([]), ...singles.map((entry) => entry.value));
       // Read-only ops are additive per target, with target-free ops paid once.
@@ -1326,7 +1388,8 @@ export function activatedAbilityValue(battlefield: readonly Permanent[], db: Car
       lists = lists.flatMap((chosen) => refs.map((ref) => [...chosen, ref]));
     }
   }
-  return Math.max(0, ...lists.map((targets) => activatedActionImpact(view, db, { type: 'activate', iid, abilityIndex, targets }, false)));
+  return Math.max(0, ...lists.map((targets) =>
+    activatedActionImpact(view, db, { type: 'activate', iid, abilityIndex, targets }, false, provoked, scratch)));
 }
 
 /** Extra battlefield value for non-creature static and recurring engines. */
@@ -2113,7 +2176,12 @@ export function markBoardAdjust(
   return adjust;
 }
 
-type ActivatedPotentialCache = Map<ActivatedDef, Map<PlayerId, number>>;
+/** One board evaluation's Duty potentials by ability and controller, and its
+ * Provoked reads (the board does not change while a valuer lives). */
+interface ActivatedPotentialCache {
+  potentials: Map<ActivatedDef, Map<PlayerId, number>>;
+  provoked: ProvokedMemo;
+}
 
 function activatedUsesSource(ops: readonly EffectOp[]): boolean {
   return ops.some((op) => op.op === 'severSelf' ||
@@ -2127,7 +2195,7 @@ function activatedUsesSource(ops: readonly EffectOp[]): boolean {
 
 /** Reuse identical source-independent riders only within this board evaluation. */
 export function createPermanentValuer(battlefield: readonly Permanent[], db: CardDb): (iid: number) => number {
-  const cache: ActivatedPotentialCache = new Map();
+  const cache: ActivatedPotentialCache = { potentials: new Map(), provoked: new Map() };
   return (iid) => permValue(battlefield, db, iid, true, cache);
 }
 
@@ -2136,13 +2204,13 @@ function cachedActivatedPotential(
   ability: ActivatedDef, abilityIndex: number, cache?: ActivatedPotentialCache,
 ): number {
   if (!cache || ability.targets?.some((spec) => spec.other) || activatedUsesSource(ability.ops)) {
-    return activatedAbilityValue(battlefield, db, perm.iid, abilityIndex);
+    return activatedAbilityValue(battlefield, db, perm.iid, abilityIndex, cache?.provoked);
   }
-  let byController = cache.get(ability);
+  let byController = cache.potentials.get(ability);
   const cached = byController?.get(perm.controller);
   if (cached !== undefined) return cached;
-  const value = activatedAbilityValue(battlefield, db, perm.iid, abilityIndex);
-  if (!byController) { byController = new Map(); cache.set(ability, byController); }
+  const value = activatedAbilityValue(battlefield, db, perm.iid, abilityIndex, cache.provoked);
+  if (!byController) { byController = new Map(); cache.potentials.set(ability, byController); }
   byController.set(perm.controller, value);
   return value;
 }

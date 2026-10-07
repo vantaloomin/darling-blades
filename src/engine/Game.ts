@@ -404,7 +404,10 @@ export class Game {
     };
     this.apply(player, bindActionGraveRefs(this.st, action), emit);
     this.maybeRaiseDeferredDecision(emit);
-    this.publicState = legacyState(this.st);
+    // The facade is rebuilt on its next read, not here: a simulated world
+    // submits many actions between reads, and with no facade there is nothing
+    // to sync back. Projecting the state and syncing it back changes nothing.
+    this.publicState = undefined;
     return this.buf;
   }
 
