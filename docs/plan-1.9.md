@@ -976,6 +976,19 @@ the in-process loop.
    standing floors like every other mid-train brain change. Then weenie
    rejoins the sweep, six personas again; its return is proven by the wave-5
    sweep, not by a mid-train one.
+   **Wave 5 (2026-10-07): the cost came back.** The wave-5 sweep (run
+   37467035904) measured weenie at about 52 minutes per measurement and
+   attrition at about 25, far past either's September cost. Not an engine
+   regression: since First Dawn joined `--pool all` (#517), both greedy
+   decks draft the white Bulwark walls and self-pingers (Ember-Pot, Sefa,
+   Scar-Singer, Bone Wall Elder, Hearth-Shield Maiden), so games run about
+   1.5x the turns and each Hard decision values many pings against
+   Provoked. A second behaviour-identical speed pass (lazy public state in
+   `Game.submit`, plain-data view copies, per-board memos of the Provoked
+   and Duty reads, cached static layers) makes those games 1.67x
+   (weenie) and 1.41x (attrition) faster, with byte-identical action logs
+   on 338 Hard games (the broad preset plus both decks against four
+   opponents) and no event-stream difference.
 2. **Racing the swaps** (lever 2 of [plan-sweep-speed.md](plan-sweep-speed.md)),
    behind `--race`: measure a candidate swap in batches and stop once it is
    outside the incumbent by more than the noise at that sample size. The

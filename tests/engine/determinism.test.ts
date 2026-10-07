@@ -16,6 +16,27 @@ describe('determinism', () => {
     expect(JSON.stringify(a.state)).toBe(JSON.stringify(b.state));
   });
 
+  it('plays the same game whether or not anyone reads the legacy public state', () => {
+    // Simulated worlds never read game.state, so its facade is built only on a
+    // read; building one and syncing it back must leave the game unchanged.
+    const mk = (): Game =>
+      new Game({ decks: [smallGreenDeck(), smallGreenDeck()], seed: 515151, db: TEST_DB });
+    const read = mk();
+    const unread = mk();
+    const events: [unknown[], unknown[]] = [[], []];
+    for (let step = 0; step < 20_000; step++) {
+      void read.state;
+      const awaiting = unread.instanceState.awaiting;
+      if (awaiting.kind === 'gameOver') break;
+      const action = botAction(unread.legalActions(awaiting.player));
+      events[0].push(...read.submit(awaiting.player, action));
+      events[1].push(...unread.submit(awaiting.player, action));
+    }
+    expect(unread.instanceState.winner).not.toBeNull();
+    expect(JSON.stringify(events[1])).toBe(JSON.stringify(events[0]));
+    expect(JSON.stringify(unread.instanceState)).toBe(JSON.stringify(read.instanceState));
+  });
+
   it('two Game instances built from the same decks and seed share no state', () => {
     const mk = (): Game =>
       new Game({ decks: [smallGreenDeck(), smallGreenDeck()], seed: 313131, db: TEST_DB });

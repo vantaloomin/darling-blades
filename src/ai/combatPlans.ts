@@ -3,7 +3,7 @@ import { getEffectiveStats } from '../engine/statics';
 import type { CardDb, CombatState, Permanent, PlayerId } from '../engine/types';
 import { def, isType, opponentOf } from '../engine/types';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
-import { dawnSelfBleed, permValue, provokedValue } from './value';
+import { createPermanentValuer, dawnSelfBleed, provokedValue } from './value';
 
 /**
  * Combat planning shared by Medium and Hard. Works on public information
@@ -166,6 +166,7 @@ class BoardMemo {
   private readonly duels = new Map<number, Map<number, Map<number, { iKill: boolean; iDie: boolean; provoked: number }>>>();
   private readonly untapped = new Map<PlayerId, Permanent[]>();
   private readonly weights = new Map<PlayerId, { pressing: boolean; oppPower: number }>();
+  private valuer?: (iid: number) => number;
 
   constructor(readonly bf: readonly Permanent[], readonly db: CardDb) {}
 
@@ -182,7 +183,10 @@ class BoardMemo {
   value(iid: number): number {
     let v = this.values.get(iid);
     if (v === undefined) {
-      v = permValue(this.bf, this.db, iid);
+      // One valuer for the memo's board: the Duty reads it shares are the
+      // same pure function of the board as `permValue`'s own.
+      this.valuer ??= createPermanentValuer(this.bf, this.db);
+      v = this.valuer(iid);
       this.values.set(iid, v);
     }
     return v;
