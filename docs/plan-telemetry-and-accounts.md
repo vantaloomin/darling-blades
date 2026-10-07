@@ -278,7 +278,7 @@ TCG, not a child-directed service. The minimal-change compliant position:
 - **Telemetry collects no persistent identifier and no personal information**,
   so it falls outside COPPA's collection definition even under a pessimistic
   reading. This is the real protection; the rest is hygiene.
-- **State the intended audience** (13+ to play; accounts 16+) in the README and
+- **State the intended audience** (16+ to play and for accounts; raised from 13+ on 2026-10-07) in the README and
   the privacy page.
 - **Age-gate account creation only** — never the game. Use a neutral
   date-of-birth entry, not a "are you over 13?" yes/no, which is a known-weak

@@ -18,7 +18,7 @@ play.
 
 ## 1. Who can play
 
-You must be at least 13 years old to play. If you are under the age of
+You must be at least 16 years old to play. If you are under the age of
 majority where you live, a parent or guardian should read these terms with
 you.
 

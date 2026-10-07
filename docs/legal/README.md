@@ -19,7 +19,7 @@ be live before the first event is sent"*, holds by construction.
 | File | Purpose | Needed by |
 | --- | --- | --- |
 | [privacy-policy.md](privacy-policy.md) | What leaves the device, who receives it, how long it lives, player rights | 1.8 launch; hard-gated: live before the first T2 event |
-| [terms-of-service.md](terms-of-service.md) | Terms of use for the game | 1.8 launch (anchors the 13+ audience) |
+| [terms-of-service.md](terms-of-service.md) | Terms of use for the game | 1.8 launch (anchors the 16+ audience) |
 | [notices.md](notices.md) | Trademark non-affiliation, art rights, open-source notices | 1.8 launch (the README's MTG reference has no disclaimer today) |
 | [accounts-2.1-additions.md](accounts-2.1-additions.md) | Staged cloud-accounts text for the policy and terms | Merge at wave C3 (2.1), not before |
 
@@ -106,16 +106,15 @@ builds the same bytes:
   from each `.woff2` file's own `name` table, so a font swapped for a different
   cut updates the file on the next build.
 - **Rust.** `src-tauri/Cargo.lock` gives crate and version for every crate the
-  desktop installer redistributes.
+  desktop installer redistributes, and `docs/legal/rust-crate-licenses.txt`
+  supplies their license texts for the Windows target.
 
-**Two gaps, both deliberate and both offline limits.** The full **SIL OFL 1.1
-text** is not reproduced: no copy of it ships in this repo and the generator
-never invents license text. Committing one as `docs/legal/OFL-1.1.txt` inlines
-it in the fonts section on the next build, which is the one step that closes
-the OFL's redistribution requirement properly. And the **Rust crates' license
-texts** are listed by crate and version only: `cargo about` is not installed,
-so there is no offline source for them; the file says each crate's text ships
-in its own registry source. Both are worth closing before a desktop release.
+**Both earlier gaps are closed.** `docs/legal/OFL-1.1.txt` inlines the OFL
+text in the fonts section. The crate texts come from `cargo about` (added
+2026-10-07), which needs crates.io, so its output is committed rather than
+built: after any `Cargo.lock` change, rerun the command at the top of
+`src-tauri/about.toml`. The build refuses to run while that file covers a crate
+version the lockfile no longer pins, so a stale copy cannot ship.
 
 ## Telemetry review, 2026-09-10
 
@@ -272,8 +271,9 @@ draft. Fixes marked *applied* are already in the files.
 
 Short confirm-or-change items. Defaults are what the drafts assume.
 
-1. **Content rating / audience.** Drafts say 13+ to play (the spec's line).
-   Confirm that matches the art and themes.
+1. **Content rating / audience.** **Decided 2026-10-07: 16+ to play** (owner
+   card pick, given the fanservice-forward art bible). Was 13+, the spec's
+   original line. No age gate: there is no account to gate.
 2. **Art rights statement vs AI-generated art.** The README reserves all rights
    to the card art. The art is AI-generated (`docs/art-pipeline.md`), and in
    the US purely AI-generated images may not be copyrightable (Copyright

@@ -5,10 +5,12 @@ import { describe, expect, it } from 'vitest';
 import {
   buildNotices,
   productionPackageNames,
+  readCoveredCrates,
   readCrateNotices,
   readFontNameTable,
   readFontNotices,
   readNpmNotices,
+  staleCoveredCrates,
 } from '../../scripts/gen-third-party-notices';
 
 /**
@@ -85,6 +87,25 @@ describe('the third-party notices', () => {
       .map((block) => block.match(/^\s*name\s*=\s*"(.*)"/m)?.[1]);
     expect(local.length).toBeGreaterThan(0);
     for (const name of local) expect(crates.map((crate) => crate.name)).not.toContain(name);
+  });
+
+  it('carries a license text for crates the Windows build links, all pinned by the lockfile', () => {
+    const lock = readCrateNotices(readFileSync(join(root, 'src-tauri', 'Cargo.lock'), 'utf8'));
+    const covered = readCoveredCrates(
+      readFileSync(join(root, 'docs', 'legal', 'rust-crate-licenses.txt'), 'utf8'),
+    );
+    expect(covered.length).toBeGreaterThan(0);
+    expect(staleCoveredCrates(covered, lock)).toEqual([]);
+    // tauri is what the installer is built on, so its text must be there.
+    expect(covered.map((crate) => crate.name)).toContain('tauri');
+  });
+
+  it('flags covered crates whose pinned version has moved on', () => {
+    const locked = [{ name: 'serde', version: '1.0.300' }];
+    expect(staleCoveredCrates([{ name: 'serde', version: '1.0.200' }], locked)).toEqual([
+      { name: 'serde', version: '1.0.200' },
+    ]);
+    expect(staleCoveredCrates([{ name: 'serde', version: '1.0.300' }], locked)).toEqual([]);
   });
 
   it('is byte-identical on a second run, which is what --check compares', () => {
