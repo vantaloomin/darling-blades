@@ -106,16 +106,15 @@ builds the same bytes:
   from each `.woff2` file's own `name` table, so a font swapped for a different
   cut updates the file on the next build.
 - **Rust.** `src-tauri/Cargo.lock` gives crate and version for every crate the
-  desktop installer redistributes.
+  desktop installer redistributes, and `docs/legal/rust-crate-licenses.txt`
+  supplies their license texts for the Windows target.
 
-**Two gaps, both deliberate and both offline limits.** The full **SIL OFL 1.1
-text** is not reproduced: no copy of it ships in this repo and the generator
-never invents license text. Committing one as `docs/legal/OFL-1.1.txt` inlines
-it in the fonts section on the next build, which is the one step that closes
-the OFL's redistribution requirement properly. And the **Rust crates' license
-texts** are listed by crate and version only: `cargo about` is not installed,
-so there is no offline source for them; the file says each crate's text ships
-in its own registry source. Both are worth closing before a desktop release.
+**Both earlier gaps are closed.** `docs/legal/OFL-1.1.txt` inlines the OFL
+text in the fonts section. The crate texts come from `cargo about` (added
+2026-10-07), which needs crates.io, so its output is committed rather than
+built: after any `Cargo.lock` change, rerun the command at the top of
+`src-tauri/about.toml`. The build refuses to run while that file covers a crate
+version the lockfile no longer pins, so a stale copy cannot ship.
 
 ## Telemetry review, 2026-09-10
 

@@ -4,6 +4,7 @@ version = "1.8.5"
 description = "Darling Blades — a single-player MTG-style collectible card game"
 authors = ["Loominvanta"]
 license = ""
+publish = false
 repository = ""
 edition = "2021"
 rust-version = "1.77.2"
