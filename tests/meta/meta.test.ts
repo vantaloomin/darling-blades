@@ -459,6 +459,29 @@ describe('PackOpener', () => {
     expect(srSeen).toBeGreaterThan(0); // the assertion above actually ran
   });
 
+  it('rolls unowned cards first in the c/r slots', () => {
+    // Own one copy of every common but the last: the first common slot must
+    // roll it (reveal order is sorted, so check membership), and once owned
+    // the whole pool is back for later slots.
+    const commons = packPool(TEST_DB, 'c');
+    expect(commons.length).toBeGreaterThan(1);
+    const missing = commons[commons.length - 1];
+    let checked = 0;
+    for (let seed = 1; seed <= 30; seed++) {
+      const save = freshSave(0);
+      for (const id of commons) {
+        if (id === missing) continue;
+        save.collection[id] = 1;
+        save.collectionVariants[id] = { [variantKey(PLAIN_VARIANT)]: 1 };
+      }
+      const pulled = openPack(save, TEST_DB, createRngState(seed)).cards.filter((c) => c.tier === 'c');
+      if (pulled.length === 0) continue;
+      expect(pulled.map((c) => c.cardId)).toContain(missing);
+      checked++;
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
+
   it('falls back one tier down when a tier pool is empty', () => {
     // A db with no ssr/ur cards: those rolls must fall back (ssr                   sr, ur                   ssr                   sr),
     // never crash. 30 packs                  450 slots                    ssr/ur (6%) rolls are all but certain.

@@ -1272,6 +1272,9 @@ Numbered so rulings can cite them. Recommendations are the first option.
     old tolerances; packs/day, Premium runs and quest claims stood inside
     their windows. The owner chose to also speed pacing: the lever is
     measured and brought for sign-off, to ship in a 1.9.x, not this cut.
+    **Lever ruled 2026-10-05 (owner): ship "missing cards first" for c/r
+    booster slots in 1.9.x** (+20% median day-60 uniques, gold flat; the
+    bands re-centre with it).
 - **D9 Where the sweep runs. RULED as recommended.** The standing rule is that the metagame sweep
   runs last before a cut, so the balance numbers describe the field players
   get. 1.8 set it aside because a sweep took days; it ran after launch with

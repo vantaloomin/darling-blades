@@ -622,7 +622,7 @@ anywhere:
 - **`PackOpener`** (`PackOpener.ts`) — rolls a collection booster of
   `ECONOMY.boosterPackSize`
   independent slots (tier → card → frame → holo), dupe-protects the sr/ssr/ur
-  slots, falls back a tier when a pool is empty, and folds the results into
+  slots and rolls unowned c/r cards first, falls back a tier when a pool is empty, and folds the results into
   the collection, sorted worst→best for the reveal.
 - **`Collection`** (`Collection.ts`) — variant-aware `addCard`/`ownedCount`/
   `ownedVariants`/`bestOwnedVariant`. Aggregate counts live in `collection`;

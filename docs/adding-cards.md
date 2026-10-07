@@ -617,8 +617,9 @@ Every card in the pack is produced by **three independent seeded rolls**:
 
 The frame + holo pair is the card copy's **variant**
 (`CardVariant` in `src/meta/variants.ts`). Card picks in the `sr`, `ssr`, and
-`ur` tiers are **dupe-protected within their tier** — the roll avoids repeating
-the same card id inside a pack while the tier's pool allows it. This is why the
+`ur` tiers are **dupe-protected within their tier** — the roll avoids cards
+already owned at a full playset while the tier's pool allows it — and `c`/`r`
+picks roll **unowned cards first** (1.9.x, `dupeProtectedPool`). This is why the
 catalog test requires every tier's booster-eligible pool to be non-empty and
 the `ur` pool to hold at least 4 cards.
 
