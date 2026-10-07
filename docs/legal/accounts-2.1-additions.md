@@ -58,8 +58,8 @@ cases".
 
 **3.3, "What is never sent":** add "an account, email, or sign-in token".
 
-**Section 4 (Children):** add "Cloud accounts are available only to players
-aged 16 and over."
+**Section 4 (Children):** nothing to add. The game itself is 16+ since
+2026-10-07, so accounts need no separate age line.
 
 **Section 5 (Rights):** add the bullet "**Cloud accounts:** use the Cloud
 panel, which lets you do all of the above yourself, or contact us."

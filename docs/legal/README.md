@@ -19,7 +19,7 @@ be live before the first event is sent"*, holds by construction.
 | File | Purpose | Needed by |
 | --- | --- | --- |
 | [privacy-policy.md](privacy-policy.md) | What leaves the device, who receives it, how long it lives, player rights | 1.8 launch; hard-gated: live before the first T2 event |
-| [terms-of-service.md](terms-of-service.md) | Terms of use for the game | 1.8 launch (anchors the 13+ audience) |
+| [terms-of-service.md](terms-of-service.md) | Terms of use for the game | 1.8 launch (anchors the 16+ audience) |
 | [notices.md](notices.md) | Trademark non-affiliation, art rights, open-source notices | 1.8 launch (the README's MTG reference has no disclaimer today) |
 | [accounts-2.1-additions.md](accounts-2.1-additions.md) | Staged cloud-accounts text for the policy and terms | Merge at wave C3 (2.1), not before |
 
@@ -272,8 +272,9 @@ draft. Fixes marked *applied* are already in the files.
 
 Short confirm-or-change items. Defaults are what the drafts assume.
 
-1. **Content rating / audience.** Drafts say 13+ to play (the spec's line).
-   Confirm that matches the art and themes.
+1. **Content rating / audience.** **Decided 2026-10-07: 16+ to play** (owner
+   card pick, given the fanservice-forward art bible). Was 13+, the spec's
+   original line. No age gate: there is no account to gate.
 2. **Art rights statement vs AI-generated art.** The README reserves all rights
    to the card art. The art is AI-generated (`docs/art-pipeline.md`), and in
    the US purely AI-generated images may not be copyrightable (Copyright

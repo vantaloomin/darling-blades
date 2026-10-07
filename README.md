@@ -120,3 +120,5 @@ The source code in this repository is released under the [MIT License](LICENSE).
 The illustrated card and scene art (everything under `public/assets/art/`) and the desktop app icons (`src-tauri/icons/`) are **not** covered by that license; all rights to those images are reserved.
 
 Three pages ship with every build and are linked from the Legal button in Settings: the [privacy policy](https://bladedarlings.com/privacy.html), the [terms of service](https://bladedarlings.com/terms.html), and the [notices](https://bladedarlings.com/notices.html), which cover trademark non-affiliation, art rights, and the third-party licenses the game redistributes.
+
+Darling Blades is made for players aged 16 and over.
