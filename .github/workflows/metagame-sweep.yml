@@ -52,6 +52,17 @@
 # craft starts over at chunk 0, because checkpoints are not published to
 # `sweep-data`.
 #
+# TO CARRY A STOPPED RUN. A run stopped mid-round publishes nothing for that
+# round (only the last chunk uploads `craft-r<n>-*`), but every chunk job's
+# `chunk-r<n>-c<c>-<persona>` artifact survives for five days. Re-dispatch
+# with the SAME inputs and `resume_from` set to `run:<run id>:<chunk>`, naming
+# a chunk whose job completed for every persona, for example
+# `run:37467035904:4`. Chunk 0 of each round then downloads each persona's
+# artifact of that chunk from that run and continues from it: a finished craft
+# is copied forward, a checkpoint resumes where it stopped. A round the
+# stopped run never reached has no such artifact and starts fresh. (It rides
+# on `resume_from` because a dispatch takes at most ten inputs.)
+#
 # WHY CHUNKS. GitHub stops a hosted job at 360 minutes, and a whole craft does
 # not fit. The first fanned-out sweep (run 35764255645, 2026-09-22, the
 # defaults above) hit the 350-minute job timeout on four of six personas. The
@@ -127,7 +138,7 @@ on:
         description: Personas to craft, comma separated
         default: burn,draw-go,attrition,reanimator,weenie,midrange,stompy,warband
       resume_from:
-        description: 'Optional: a sweeps/<dir> path on the sweep-data branch to resume'
+        description: 'Optional: a sweeps/<dir> path on the sweep-data branch to resume, or run:<run id>:<chunk> to carry a stopped run'
         default: ''
       # Levers 2 and 3 (docs/plan-sweep-speed.md), off by default until the
       # one-persona acceptance run passes. See LEVERS in the header.
@@ -147,6 +158,8 @@ on:
 # The merge job commits to `sweep-data`. Nothing else is needed.
 permissions:
   contents: write
+  # Only a carried run needs it: reading another run's chunk artifacts.
+  actions: read
 
 # Its own group, and never cancelled: two dispatches would upload crafts under
 # the same artifact names and merge each other's rounds.
@@ -185,6 +198,9 @@ jobs:
       sweep-args: ${{ steps.plan.outputs.sweep-args }}
       chunk-minutes: ${{ steps.plan.outputs.chunk-minutes }}
       chunks: ${{ steps.plan.outputs.chunks }}
+      resume-dir: ${{ steps.plan.outputs.resume-dir }}
+      carry-run: ${{ steps.plan.outputs.carry-run }}
+      carry-chunk: ${{ steps.plan.outputs.carry-chunk }}
     steps:
       # Refused here, before any runner starts. A budget of 300 minutes or more
       # would leave the 350-minute job too little room for the iteration in
@@ -225,6 +241,7 @@ jobs:
         env:
           PERSONAS: ${{ inputs.personas }}
           SEED: ${{ inputs.seed }}
+          RESUME_FROM: ${{ inputs.resume_from }}
           LEVERS: ${{ inputs.race && '-race' || '' }}${{ inputs.screen == 'medium' && '-screen' || '' }}${{ inputs.screen_seeds != '' && format('-s{0}', inputs.screen_seeds) || '' }}
         run: |
           set -euo pipefail
@@ -237,6 +254,16 @@ jobs:
           printf 'sweep-args=%s\n' "$SWEEP_ARGS" >> "$GITHUB_OUTPUT"
           echo "chunk-minutes=$CHUNK_MINUTES" >> "$GITHUB_OUTPUT"
           echo "chunks=$CHUNKS" >> "$GITHUB_OUTPUT"
+          if [[ "$RESUME_FROM" =~ ^run:([0-9]+):([0-9])$ ]]; then
+            echo "carry-run=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+            echo "carry-chunk=${BASH_REMATCH[2]}" >> "$GITHUB_OUTPUT"
+            echo "Carrying chunk ${BASH_REMATCH[2]} of run ${BASH_REMATCH[1]}"
+          elif [[ "$RESUME_FROM" == run:* ]]; then
+            echo "resume_from run:<run id>:<chunk> takes a chunk 0 to 9 (got $RESUME_FROM)."
+            exit 1
+          else
+            printf 'resume-dir=%s\n' "$RESUME_FROM" >> "$GITHUB_OUTPUT"
+          fi
           echo "Personas: $LIST"
 
   # Each round is one call to the round workflow: a chain of chunk jobs, each a
@@ -249,7 +276,9 @@ jobs:
       round: 0
       personas: ${{ needs.setup.outputs.personas }}
       sweep_args: ${{ needs.setup.outputs.sweep-args }}
-      resume_from: ${{ inputs.resume_from }}
+      resume_from: ${{ needs.setup.outputs.resume-dir }}
+      carry_run: ${{ needs.setup.outputs.carry-run }}
+      carry_chunk: ${{ needs.setup.outputs.carry-chunk }}
       chunk_minutes: ${{ fromJSON(needs.setup.outputs.chunk-minutes) }}
       chunks: ${{ fromJSON(needs.setup.outputs.chunks) }}
 
@@ -296,7 +325,9 @@ jobs:
       round: 1
       personas: ${{ needs.setup.outputs.personas }}
       sweep_args: ${{ needs.setup.outputs.sweep-args }}
-      resume_from: ${{ inputs.resume_from }}
+      resume_from: ${{ needs.setup.outputs.resume-dir }}
+      carry_run: ${{ needs.setup.outputs.carry-run }}
+      carry_chunk: ${{ needs.setup.outputs.carry-chunk }}
       chunk_minutes: ${{ fromJSON(needs.setup.outputs.chunk-minutes) }}
       chunks: ${{ fromJSON(needs.setup.outputs.chunks) }}
 
@@ -340,7 +371,9 @@ jobs:
       round: 2
       personas: ${{ needs.setup.outputs.personas }}
       sweep_args: ${{ needs.setup.outputs.sweep-args }}
-      resume_from: ${{ inputs.resume_from }}
+      resume_from: ${{ needs.setup.outputs.resume-dir }}
+      carry_run: ${{ needs.setup.outputs.carry-run }}
+      carry_chunk: ${{ needs.setup.outputs.carry-chunk }}
       chunk_minutes: ${{ fromJSON(needs.setup.outputs.chunk-minutes) }}
       chunks: ${{ fromJSON(needs.setup.outputs.chunks) }}
 
@@ -384,7 +417,9 @@ jobs:
       round: 3
       personas: ${{ needs.setup.outputs.personas }}
       sweep_args: ${{ needs.setup.outputs.sweep-args }}
-      resume_from: ${{ inputs.resume_from }}
+      resume_from: ${{ needs.setup.outputs.resume-dir }}
+      carry_run: ${{ needs.setup.outputs.carry-run }}
+      carry_chunk: ${{ needs.setup.outputs.carry-chunk }}
       chunk_minutes: ${{ fromJSON(needs.setup.outputs.chunk-minutes) }}
       chunks: ${{ fromJSON(needs.setup.outputs.chunks) }}
 
@@ -428,7 +463,9 @@ jobs:
       round: 4
       personas: ${{ needs.setup.outputs.personas }}
       sweep_args: ${{ needs.setup.outputs.sweep-args }}
-      resume_from: ${{ inputs.resume_from }}
+      resume_from: ${{ needs.setup.outputs.resume-dir }}
+      carry_run: ${{ needs.setup.outputs.carry-run }}
+      carry_chunk: ${{ needs.setup.outputs.carry-chunk }}
       chunk_minutes: ${{ fromJSON(needs.setup.outputs.chunk-minutes) }}
       chunks: ${{ fromJSON(needs.setup.outputs.chunks) }}
 
