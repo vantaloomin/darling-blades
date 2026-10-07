@@ -234,6 +234,20 @@ partial sweep still merges: the merge reports
 which personas are missing from an incomplete round, merges the rounds that are
 complete, and fails only when round 0 never finished for every persona.
 
+**Carrying a stopped run.** A run cancelled or failed mid-round publishes
+nothing for that round, because only a round's last chunk uploads its
+`craft-r<n>-*` files. Its chunk artifacts (`chunk-r<n>-c<c>-<persona>`, a
+finished craft or a checkpoint) survive for five days, though, and a new
+dispatch can continue from them: set `resume_from` to `run:<run id>:<chunk>`
+with the other inputs unchanged, naming a chunk whose job completed for every
+persona. Chunk 0 of each round downloads each persona's artifact of that chunk
+from that run, copies a finished craft forward and resumes a checkpoint where it
+stopped, mid-craft. A round the stopped run never reached starts fresh. First
+used 2026-10-07 to carry run 37467035904 (round 0, chunk 4) onto the faster
+Hard brain of #547, which plays the same moves. Its round 0 had six crafts done
+and weenie at iteration 22 of 80; recrafting weenie from zero would have cost
+about a day and a half of chain.
+
 **Resuming a sweep from before stompy and warband.** A sweep dispatched before
 the colour-gap personas joined (1.9, ruling D12) crafted six personas, and the
 persona list is part of every craft's run configuration. To resume one, set
