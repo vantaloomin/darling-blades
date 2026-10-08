@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/mobile-support-matrix.md, docs/mobile-lan-plan.md, docs/plan-accessibility-i18n.md, docs/plan-art-streaming.md, docs/design-system.md, index.html, vite.config.ts, src/gameBoot.ts, src/platform/gestureCore.ts, src/platform/gestures.ts, src/platform/quality.ts, src/platform/renderScale.ts, src/platform/clientProfile.ts, src/ui/accessibility.ts, src/ui/theme.ts, src/ui/layout.ts, src/ui/duelLayout.ts, src/ui/SceneBackdrop.ts, src/art/ArtResolver.ts, src/dev/a11yProbe.ts, src/scenes/ · last-verified: 2026-10-08 · plan doc, DRAFT for the 2.0 wave-1 sitting: rewritten for 2.0 lane C; nothing below is ruled except what it quotes with a date; re-verify when the owner rules P11 or the M decisions, and when each wave ships -->
+<!-- source-of-truth: docs/mobile-support-matrix.md, docs/mobile-lan-plan.md, docs/plan-accessibility-i18n.md, docs/plan-art-streaming.md, docs/design-system.md, index.html, vite.config.ts, src/gameBoot.ts, src/platform/gestureCore.ts, src/platform/gestures.ts, src/platform/quality.ts, src/platform/renderScale.ts, src/platform/clientProfile.ts, src/ui/accessibility.ts, src/ui/theme.ts, src/ui/layout.ts, src/ui/duelLayout.ts, src/ui/SceneBackdrop.ts, src/art/ArtResolver.ts, src/art/artBudget.ts, src/config/cardFaceGeometry.ts, src/ui/handFan.ts, src/forge/scene.ts, src/dev/a11yProbe.ts, src/scenes/ · last-verified: 2026-10-08 · plan doc, DRAFT for the 2.0 wave-1 sitting: rewritten for 2.0 lane C; nothing below is ruled except what it quotes with a date; re-verify when the owner rules P11 or the M decisions, and when each wave ships -->
 
 # Mobile overhaul: the 2.0 plan (draft)
 
@@ -45,15 +45,20 @@ recommendation). Every line that depends on one of these is marked
   (`src/ui/theme.ts`), and Phaser's `Scale.FIT` shrinks that into the page
   (`src/gameBoot.ts`). Phones get no layout of their own.
 - **Touch landscape reserves 80 px** for browser bars (`--chrome-top: 32px`,
-  `--chrome-bottom: 48px` in `index.html`), on top of the safe areas.
-  Portrait phones see a rotate screen.
+  `--chrome-bottom: 48px` in `index.html`): the top and bottom take the
+  larger of that reserve and the safe-area inset, and the side insets come
+  off the width. Portrait phones see a rotate screen (a CSS media query in
+  `index.html`).
 - **Phones run the `lite` tier** (`src/platform/quality.ts`): no heavy card
   effects, half-resolution 320x400 art, render scale clamped to 1
-  (`src/platform/renderScale.ts`), and a 208 MiB art texture budget
-  ([plan-art-streaming.md](plan-art-streaming.md) section 3).
+  (`src/platform/renderScale.ts`), and an art texture budget of 208 MiB at
+  base, scaled by `navigator.deviceMemory` where the browser reports it
+  (Android, never iOS) to between 104 and 312 MiB (`src/art/artBudget.ts`,
+  [plan-art-streaming.md](plan-art-streaming.md) section 3).
 - **Gestures** are settled and tested (`src/platform/gestureCore.ts`): a tap
-  is under 250 ms and within 10 px, a long press is 450 ms, and the gap
-  between them is a dead zone that does nothing.
+  is under 250 ms and within 10 design px, a long press is 450 ms, and the
+  gap between them is a dead zone that does nothing. On a phone today the
+  10 px slop is only about 4 CSS px, because the canvas is shrunk.
 - **1.9 built the hooks this pass uses:** the accessibility resolver
   (`src/ui/accessibility.ts`) that makes every type, colour and alpha token
   a live read, the shared layout functions in `src/ui/layout.ts`, the Duel
@@ -63,21 +68,25 @@ recommendation). Every line that depends on one of these is marked
   heartbeat reports a phone, tablet or computer label
   (`src/platform/clientProfile.ts`), but every daily total since 2026-09-24
   has been held back by the k = 10 privacy floor (`signals-data` branch,
-  `rollups/`). The device list is chosen from market share and the build's
-  own floor instead.
+  `rollups/`). The label also splits touch devices by viewport **width**
+  (767 and 1279 px), so a phone held in landscape (780 to 956 px wide)
+  reports as a tablet. The device list is chosen from market share and the
+  build's own floor instead.
 
 ### The problem in numbers
 
 On a common phone the 1280x720 canvas is drawn at about 0.4 to 0.5 of its
-size. A 6.1-inch iPhone in landscape is 844x390 CSS px. After the 80 px
-reserve the game gets 310 px of height, so the scale is 310 / 720 = 0.43:
+size. A 6.1-inch iPhone in landscape is at most 844x390 CSS px (less while
+Safari's bar shows, since the page uses `dvh`). After the 80 px reserve and
+the 47 px side insets the game gets about 750x310, so the scale is
+310 / 720 = 0.43:
 
 | Design value | Design px | On that phone | Platform guidance |
 | --- | ---: | ---: | --- |
 | Body text | 16 | **6.9 px** | Apple's default body is 17 pt; 11 pt is its floor |
 | Micro text | 11 | **4.7 px** | |
 | Hit floor | 44 | **19 px** | Apple 44 pt, Android 48 dp |
-| A hand card | 170 tall | 73 px | |
+| A hand card | 252 tall (0.6 of the 420 px face, `src/ui/handFan.ts`) | 108 px | |
 
 Larger text size (130%) does not rescue this: 21 px body becomes 9 px. The
 fix is a layout that is drawn for the phone's own size, which is what
@@ -89,7 +98,7 @@ Version C is.
 
 **Recommended:** phones get a **compact-landscape profile** whose design
 space is the phone's own content box in CSS px, so **one design pixel is one
-CSS pixel.** On the 6.1-inch iPhone that is about 844x310. The 44 px hit
+CSS pixel.** On the 6.1-inch iPhone that is about 750x310. The 44 px hit
 floor then means 44 pt on the glass, the type ramp reads at its stated size,
 and the research session's measurements (a 240 pt card face, taken in
 headless Edge on 2026-09-25) carry over unchanged.
@@ -99,9 +108,11 @@ headless Edge on 2026-09-25) carry over unchanged.
   width instead of the letterbox bars `Scale.FIT` leaves today.
 - **Sharp on the glass.** The canvas backing store renders at the device
   pixel ratio, capped at 2 (a new cap; today `lite` is clamped to 1). At
-  844x310 and a factor of 2 that is about 1.0 megapixels, under the desktop's
-  2560x1440 at k = 2. Text rasterizes at the same factor through the
-  existing hook in `gameBoot.ts`.
+  750x310 and a factor of 2 that is about 0.9 megapixels, under the desktop's
+  3.7 at k = 2. Text rasterizes at the same factor through the existing hook
+  in `gameBoot.ts`. Most iPhones are 3x screens, so the cap leaves a 1.5x
+  upscale: slightly soft, accepted for fill rate and memory on weak phones.
+  A 2.625x Android screen snaps to 2, so `RenderK` stays `1 | 1.5 | 2`.
 - **Desktop and tablets are untouched.** They keep the **wide** profile,
   1280x720 fit to the window. A tablet in landscape draws the canvas at
   about 0.9 (an 11-inch iPad is 1180x820), which already reads.
@@ -112,36 +123,51 @@ headless Edge on 2026-09-25) carry over unchanged.
 - **Alternative (not recommended):** keep 1280x720 for phones and double
   every size inside it. It needs no canvas change, but it keeps the
   letterbox and turns every token into a per-profile pair, the per-scene
-  fork the accessibility plan ruled out.
+  fork the accessibility plan ruled out (plan-accessibility-i18n, "For 2.0").
 
 **Profile rule (proposed, M2 [P11]):** compact when the device is touch,
 landscape, and the content box is under 500 CSS px tall; wide otherwise.
 Portrait phones keep the rotate screen. Nothing is saved: the profile is
-worked out on each load and on each resize, so moving a save between
-devices cannot strand it. The threshold is set from the matrix's fixtures in
+worked out on each load, so moving a save between devices cannot strand
+it. A resize while playing (rotation, browser bars) re-fits the canvas but
+changes the profile only at the next scene start, and a resize while a text
+field has focus is ignored, because the phone's keyboard shrinks the
+viewport (C6). The threshold is set from the matrix's fixtures in
 wave 1, so no listed tablet lands in compact and no listed phone lands in
 wide.
 
 ### C2. Scenes move one at a time (M6)
 
 **Recommended:** each scene declares whether it has a compact composition.
-A scene that does not yet keeps running in the wide profile on a phone,
-shrunk as today. The game switches its size when a scene starts. This lets
-every migration wave ship on its own, behind the scene's own switch, with no
-half-built phone scene in front of players.
+A scene that does not yet keeps its 1280x720 design space on a phone,
+shrunk as today. This lets every migration wave ship on its own, behind the
+scene's own switch, with no half-built phone scene in front of players.
 
-The risk is the size switch itself: changing Phaser's game size between
-scenes on a real phone (texture memory, camera reset, the `SceneBackdrop`
-camera-zoom hook that assumes 1280x720). **Wave 1 proves it with a spike on
-the owner's phone before any scene moves.** If it fails, the fallback is to
-move all scenes in one release, and waves 2-4 stop shipping separately.
+**How, without resizing the game:** on a phone the canvas is sized once, at
+load, to the content box times the render factor, and never changes size
+after that. A migrated scene draws in the content box. An unmigrated scene
+keeps drawing in 1280x720, and its camera zooms and centres it to fit, with
+the background colour as the letterbox. The repo already works this way at
+desktop scale: `SceneBackdrop.applySceneSettings` zooms every scene's
+camera by the render factor and centres it on the 1280x720 middle, and
+pointer input reads world coordinates, so hit areas follow. No runtime
+`setGameSize`, so no texture or camera reset and no DOM-layer refresh.
+
+Two things to prove in wave 1: text stays crisp with `roundPixels` on under
+a fractional camera zoom (today's zoom is a whole or half factor), and the
+always-running art loader scene sets its own camera. If the camera approach
+fails, the fallback is Phaser's `setGameSize` at scene start, which the
+Forge already uses (`src/forge/scene.ts`).
 
 ### C3. The resolver gets a device term, not a fork
 
 The accessibility plan already says how ([plan-accessibility-i18n.md](plan-accessibility-i18n.md),
 "For 2.0"): the mobile pass adds a device term to the same resolver and
-never forks sizes per scene. With C1 that term is small. Type sizes need no
-phone floor, because a design pixel is already a CSS pixel. What the profile
+never forks sizes per scene. That plan's example was a phone type floor;
+C1 makes it unnecessary, because a design pixel is already a CSS pixel, so
+this plan supersedes the example. The term itself is a `profile` input
+beside text size and contrast (the resolver reads only those two today,
+`src/ui/accessibility.ts`). What the profile
 changes is **which roles a compact scene picks** (no 64 px marquee in a
 310 px tall screen) and **the spacing scale**, both read through the
 resolver. The three text sizes (100, 115, 130%) and high contrast apply on
@@ -185,22 +211,27 @@ one stays as it is), Phaser-free and rule-tested the same way:
 Art-first (a): the name, the art at the desktop band (216 px window in
 desktop terms, 65% of the image shown), the cost, P/T and a keyword row. The
 full rules sit in the panel beside the enlarged face, and grids keep
-tap-to-inspect. The reusable geometry is `src/ui/cardFaceGeometry.ts` on the
-1.9 prototype branch `proto/19-r13-mock` (not merged).
+tap-to-inspect. The face geometry to build from is
+`src/config/cardFaceGeometry.ts` (the 300x420 face and its 264x216 art
+window), which landed in 1.9 from the R13 mock.
 
 **Art resolution (proposed, M13):** at a factor of 2 a 240 pt face is 480
 device px tall, so the half-resolution art (400 px tall) is slightly soft
 when enlarged. Proposed: the board and hand stay on half art inside the
-208 MiB budget, and the one enlarged card asks the art store for its full
+phone budget, and the one enlarged card asks the art store for its full
 texture, pinned while it is open. That costs one full texture (2 MiB) at a
 time.
 
 ### C6. Lists, menus and dialogs
 
 One shared set of compact primitives on `src/ui/layout.ts`: a header with
-back and title, a bottom action bar, tabs, a search field (the DOM input
-already used by `SearchInput`), a pager, a card grid sized from the content
-box, and sheets in place of fixed-height modals. List scenes page or scroll
+back and title, a bottom action bar, tabs, a search field, a pager, a card
+grid sized from the content box, and sheets in place of fixed-height
+modals. The game's text fields are real page inputs (`SearchInput`,
+`MultilineInput`, two in `DeckBuilderScene`, and the save-card code in
+`saveCard.ts`). Focusing one raises the phone's keyboard, so each compact
+scene keeps its focused field above the keyboard, read from
+`window.visualViewport`, and the profile ignores that resize (C1). List scenes page or scroll
 in bounded regions with their filters kept on screen. Dense dialogs become
 pages or sheets, never smaller text.
 
@@ -215,14 +246,17 @@ pages or sheets, never smaller text.
   a regression check, not because pixels moved.
 - **Save:** none, under P11's automatic layout. No viewport size or inset is
   ever stored.
-- **Play stats:** none needed. The heartbeat's form factor label already
-  says which profile class a player is in.
+- **Play stats (proposed):** the form factor label classifies by the
+  viewport's shorter side instead of its width, so a landscape phone reports
+  as a phone. A one-line change in `classifyFormFactor`; the privacy policy's
+  "phone, tablet or computer" wording stays true. Mobile wave 1.
 
 ## Scenes
 
 The game has 20 scenes today (`src/scenes/`). Story Mode's scenes do not
 exist yet; lane E builds them on these primitives from the start, so they
-need no migration.
+need no migration. (The 2.0 plan's lane C lists Story in mobile wave 4; this plan
+reads it as built compact-ready instead, and wave 4 only checks it.)
 
 | Scene | Wave | Notes |
 | --- | ---: | --- |
@@ -246,23 +280,35 @@ word.
 
 - `ScreenMetrics` and the profile rule, Phaser-free and unit-tested over the
   matrix's viewport fixtures.
-- The scene size switch, proven on the owner's phone first (C2).
+- The per-scene camera fit (C2), proven on the owner's phone first.
 - The compact design space and the render factor (C1); the resolver's
   device term (C3).
 - The shared compact primitives (C6), with hit-target checks on every one.
 - **The device baseline:** on each tested device in the matrix, a capture
   of today's game (what clips, what is too small) and the real content box,
-  to check the 80 px browser-bar reserve. It was tuned for Safari's bars; on
-  Android Chrome the page height may already exclude the address bar, in
-  which case the reserve takes another 80 px off an already short screen
-  (inferred, not measured).
+  to check the 80 px browser-bar reserve. The page height is `100dvh`, which
+  in both Safari and Chrome already leaves out a visible browser bar, so the
+  reserve may be taking 80 px twice whenever a bar shows (inferred, not
+  measured). The baseline also times a Hard AI turn on the weakest Android
+  phone: the engine and AI run on the page's main thread, and a long think
+  freezes the screen. If it does, the fix touches `src/ai` or moves the AI
+  to a worker, and the 2.0 plan freezes the AI at the end of 2.0 wave 2, so
+  it is found here, not in the Duel wave.
+- **The probe learns viewports.** `src/dev/a11yProbe.ts` renders the
+  1280x720 window at three text sizes and two contrasts; it gains a
+  profile and viewport axis so it can render the matrix's fixtures.
+- **Small fixes that ride this wave:** the form factor label (above), the
+  old-browser message ([mobile-support-matrix.md](mobile-support-matrix.md)),
+  and the tap slop re-expressed in CSS px (C1 makes the 10 px slop 10 CSS px
+  instead of about 4; Android's own slop is 8 dp, so 10 is kept unless the
+  devices say otherwise).
 - The Duel mocks (C4), for the owner to approve before wave 3.
 - The cheap proposals parked on 2026-09-25 (M11, M12) if the owner takes
   them.
 
 **Gate:** unit tests for the metrics and profile rule; the probe's fixtures
 render at every matrix viewport with no control outside the safe box; the
-size switch works on the owner's phone; build, lint, docs green.
+camera fit works on the owner's phone; build, lint, docs green.
 
 ### Mobile wave 2 (2.0 wave 3): menus and list scenes
 
@@ -302,11 +348,14 @@ separately from the automated results.
   parallel.
 - `src/ui/accessibility.ts` and `src/ui/theme.ts`: only mobile wave 1
   changes them in 2.0.
-- `src/gameBoot.ts` and `index.html`: mobile wave 1, then lane F's itch
-  build target, in that order.
-- Story Mode's run shell (lane E, 2.0 wave 2) needs mobile wave 1's
-  primitives; it starts on the wide profile and adopts compact when they
-  land.
+- `src/gameBoot.ts` and `index.html` (the rotate query for M11, the
+  browser-bar reserve, the old-browser message): mobile wave 1 only. Lane
+  F's itch target (2.0 wave 1) changes `vite.config.ts` and
+  `scripts/cspForTarget.ts`, which inject the page's connection policy at
+  build, not `index.html` itself, so the two do not share a file.
+- `src/ui/layout.ts`: mobile wave 1 adds the compact primitives. Story
+  Mode's run shell (lane E, 2.0 wave 2) puts its own pieces in its own
+  module and uses mobile's once they land; it starts on the wide profile.
 
 ## Testing
 
@@ -332,10 +381,10 @@ Each has a recommendation. None is ruled. M1-M4 are P11's parts.
 | **M3** [P11] | Distribution | Browser only in 2.0 |
 | **M4** [P11] | Phone card face | Art-first (a) |
 | **M5** | How phones get their own layout | A compact design space where one design pixel is one CSS pixel, rendered at up to 2x (C1) |
-| **M6** | Ship scenes one at a time | Yes, each behind its own switch, if wave 1's size-switch spike works on a real phone (C2) |
+| **M6** | Ship scenes one at a time | Yes, each behind its own switch; unmigrated scenes fit by camera zoom inside a canvas sized once (C2) |
 | **M7** | The supported devices | The matrix in [mobile-support-matrix.md](mobile-support-matrix.md) |
-| **M8** | A full-screen button | Yes, where the browser allows it (Android Chrome, iPad Safari). iPhone Safari does not allow it for games |
-| **M9** | Home-screen mode (a web app manifest) | Not in 2.0. On iPhone a home-screen web app keeps its own storage, so a player's save would not follow them from Safari |
+| **M8** | A full-screen button | Yes, where the browser allows it (Android Chrome, iPad Safari). iPhone Safari allows full screen only for video, so on iPhone the only way past Safari's bars is M9 |
+| **M9** | Home-screen mode (a web app manifest) | Not in 2.0. On iPhone (as of current iOS) a home-screen web app keeps its own storage, so a player's save would not follow them from Safari. Android shares Chrome's storage, so the problem is iPhone's; revisit with save codes in front |
 | **M10** | The Duel hand | Closed by Version C: named rows |
 | **M11** | Upright tablets (parked 2026-09-25) | Stop blocking them: a tablet held upright gets the wide profile instead of the rotate screen. Wave 1 |
 | **M12** | Art on the rotate screen (parked 2026-09-25) | Yes, one scene image behind the message. Wave 1 |
@@ -348,7 +397,7 @@ Each has a recommendation. None is ruled. M1-M4 are P11's parts.
 - An installable app, offline play or an app-store package [P11].
 - A saved layout preference [P11].
 - LAN PvP and any multiplayer (cancelled 2026-08-24).
-- Changes to the gesture thresholds without device evidence.
+- Changes to the gesture times without device evidence (the slop's unit change is wave 1's, above).
 - The itch.io embed check, which moves with the itch launch (P2). itch can
   launch a game full screen on phones, so the embed is a lane F check on
   this plan's layouts, not a separate layout.
@@ -359,8 +408,11 @@ Each has a recommendation. None is ruled. M1-M4 are P11's parts.
   wrong action the worst failure. The dead-zone rule, the sticky preview
   and the equivalence test are the guards; the owner's long sessions are the
   proof.
-- **The size switch (C2) may not hold up on real phones.** The spike is
-  first for that reason, and the fallback is a single release of all scenes.
+- **The camera fit (C2) may soften text** under a fractional zoom with
+  `roundPixels`. Wave 1 checks it first; the fallback is `setGameSize` at
+  scene start.
+- **Hard AI on a weak phone** may freeze the screen while it thinks. Wave
+  1's baseline times it, before the AI freezes.
 - **Short Android screens.** Many Android phones are 360 CSS px tall in
   landscape, shorter than an iPhone SE (375). With the address bar showing,
   the content box can be under 300 px. The matrix makes 360 the design

@@ -23,10 +23,13 @@ The floor is set by what the build emits, not by choice. `vite.config.ts`
 sets no `build.target`, so Vite 8's default applies: **Chrome and Edge 111,
 Firefox 114, Safari and iOS 16.4** (Vite 8.1.2's
 `ESBUILD_BASELINE_WIDELY_AVAILABLE_TARGET`, read from the package
-2026-10-08). The two newest platform features the game relies on sit under
-that line: `structuredClone` (56 call sites in `src/`; Safari 15.4, Chrome
-98) and `dvh` units in `index.html` (Safari 15.4, Chrome 108). WebGL is
-needed for the tested levels.
+2026-10-08). That target only sets the syntax the build emits; it adds no
+polyfills, so the real floor is whichever is newer, the target or the
+newest browser feature the code calls. The ones checked sit under it:
+`structuredClone` (about 55 call sites in `src/`; Safari 15.4, Chrome 98)
+and `dvh` units in `index.html` (Safari 15.4, Chrome 108). No full audit of
+browser features was done (inferred floor). WebGL is needed for the tested
+levels.
 
 **Proposed: an old-browser message.** Below the floor the game's script fails
 to parse and the player sees the dark page and nothing else. A few lines of
@@ -38,20 +41,21 @@ Blades" with the supported list. Small and reversible; mobile wave 1.
 
 | Device class | Screen in landscape (CSS px) | Browser | Level | Why it is here |
 | --- | ---: | --- | --- | --- |
-| **6.1-inch iPhone** (iPhone 12 to 17, 16e) | 844x390 to 874x402 | Safari, current iOS | **Tested** | The most common iPhone size; the main design target |
-| **Android, 360 px class** (many Samsung Galaxy A and S phones) | about 780x360 | Chrome and Samsung Internet, current | **Tested** | The shortest common screen, so the design minimum. A Galaxy A phone is also the weakest common hardware, so it sets the performance floor (M14) |
+| **6.1 to 6.3-inch iPhone** (iPhone 12 to 17, 16e) | 844x390 to 874x402 | Safari, current iOS | **Tested** | The most common iPhone size; the main design target |
+| **Android, 360 px class** (many Samsung Galaxy A and S phones) | about 780x360 | Chrome and Samsung Internet, current (the Chrome 111 floor is about Samsung Internet 22, which trails Chrome) | **Tested** | The shortest common screen, so the design minimum. A Galaxy A phone is also the weakest common hardware, so it sets the performance floor (M14) |
 | iPhone SE, 2nd and 3rd generation | 667x375 | Safari | Supported | The narrowest screen (16:9); Version C's three columns must fit it |
 | iPhone 12 and 13 mini | 812x375 | Safari | Supported | Short and notched |
-| Large iPhones (Plus and Pro Max) | 926x428 to 956x440 | Safari | Supported | The largest phone layout |
+| Large iPhones (Plus and Pro Max) | 926x428, 932x430, 956x440 | Safari | Supported | The largest phone layout |
 | Pixel and other 412 px Android | about 915x412 | Chrome | Supported | Common Android size above the minimum |
 | Any phone on Firefox for Android | | Firefox 114+ | Works, not tested | Small share |
-| Chrome, Edge or Firefox on iPhone | | Same WebKit engine as Safari | Works, not tested | Safari's testing covers the engine |
+| Chrome, Edge or Firefox on iPhone | | Same WebKit engine as Safari (other engines are allowed only in the EU, and none is widely shipped) | Works, not tested | Safari's testing covers the engine |
 | iOS 16.4 to the version before last | | Safari | Works, not tested | Above the build floor; outside the tested pair |
 | Below Safari 16.4 or Chrome 111 | | | Not supported | The build floor |
 
 **OS versions (proposed):** Tested and Supported mean **the current iOS
-and the one before** (iOS 26 and iOS 18 when written; the pair moves each
-September), and **Android 10 or later with an up-to-date Chrome or Samsung
+and the one before** (iOS 26 and iOS 18 at the last check this doc could
+make; if iOS 27 shipped in September 2026 the pair is 27 and 26, to confirm
+at the sitting), and **Android 10 or later with an up-to-date Chrome or Samsung
 Internet.** iOS 26 runs on the iPhone 11 and later, including the second and
 third generation SE.
 
@@ -66,20 +70,17 @@ draws at about 0.9 scale on an 11-inch iPad, which reads today.
 | --- | ---: | --- | --- |
 | iPad, 10.9 to 11 inch, landscape | 1180x820 | Safari | **Tested** if the owner has one, else Supported |
 | iPad mini, landscape | 1133x744 | Safari | Supported |
-| Any tablet held upright (M11) | e.g. 820x1180 | Safari, Chrome | Supported if M11 is ruled yes; today it shows the rotate screen |
+| Any tablet held upright (M11) | e.g. 820x1180 | Safari, Chrome | Supported if M11 is ruled yes; today it shows the rotate screen (a CSS media query in `index.html`; unblocking adds a minimum-size clause to it) |
 | Android tablets, landscape | 1280 wide and up | Chrome | Works, not tested |
 
 The profile rule's 500 px threshold (plan C1) is checked against this table:
 the iPad mini's 744 px height must land in the wide profile and every phone
 above in compact.
 
-## Desktop (unchanged, listed for completeness)
+## Desktop (unchanged)
 
-Chrome, Edge, Firefox and Safari on Mac, current versions, and the desktop
-app (Windows, WebView2). A touchscreen laptop is a desktop: the play stats'
-classifier already treats a touch device 1280 px wide or more as one
-(`src/platform/clientProfile.ts`). Desktop gets the wide profile and touch
-works on it as today. No new desktop testing comes from this plan.
+Current Chrome, Edge, Firefox and Mac Safari, and the desktop app, all on
+the wide profile; touchscreen laptops included. No new desktop testing.
 
 ## The layout fixtures
 
@@ -96,19 +97,22 @@ devices, browser bars included.
 | `phone-main` | 844x390 | 47, 47, 21 | 6.1-inch iPhone |
 | `phone-island` | 852x393 | 59, 59, 21 | 6.1-inch iPhone with the Dynamic Island |
 | `phone-android` | 915x412 | 0, 0, 0 | Pixel class |
-| `phone-large` | 956x440 | 62, 62, 21 | Pro Max class |
+| `phone-large` | 956x440 | 62, 62, 21 | Pro Max class (16 and 17) |
 | `tablet-mini` | 1133x744 | 0, 0, 20 | iPad mini (must resolve to wide) |
 | `tablet-upright` | 820x1180 | 0, 0, 20 | Upright tablet (M11) |
 
-Each runs at 100%, 115% and 130% text, and in high contrast for the Duel.
+Android rows are 0 because Chrome reports a nonzero safe-area inset only
+in full screen on a phone with a camera cutout; with M8's full-screen
+button the baseline adds a full-screen Android fixture. Each fixture runs
+at 100%, 115% and 130% text, and in high contrast for the Duel.
 
 **One thing to measure first.** `index.html` reserves 32 px at the top and
-48 px at the bottom for browser bars on every touch device in landscape. It
-was tuned for Safari's bars. If Android Chrome already leaves its address
-bar out of the page height, the reserve takes another 80 px off the
-`phone-short` screen and leaves it about 200 px tall. This is inferred, not
-measured; the baseline settles it, and the reserve becomes per-browser if
-so.
+48 px at the bottom for browser bars on every touch device in landscape.
+The page height is `100dvh`, which in Safari and Chrome alike already
+leaves out a visible bar. If so, the reserve counts a showing bar twice,
+and on `phone-short` with Chrome's address bar up that leaves about 220 px.
+This is inferred, not measured; the baseline measures both browsers and
+the reserve changes to match.
 
 ## What the real-device testing needs
 
