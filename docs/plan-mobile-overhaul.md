@@ -288,7 +288,7 @@ word.
 - The compact design space and the render factor (C1); the resolver's
   device term (C3).
 - The shared compact primitives (C6), with hit-target checks on every one.
-- **The emulator** (proposed): a session on the owner's PC installs the
+- **The emulator** (owner, 2026-10-08: set up at the start of this wave, not before): a session on the owner's PC installs the
   Android command-line tools (not the full Studio app), makes a 360 px
   Galaxy-class phone, and drives its Chrome over the debugging bridge for
   screenshots and scripted scene walks. It runs in short sessions, per the
