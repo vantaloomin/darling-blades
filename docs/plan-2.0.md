@@ -14,8 +14,8 @@ the owner's 2026-10-08 priority order:
 
 | | Set | Mechanics | Engine feature | Non-card headline |
 | --- | --- | --- | --- | --- |
-| Spine (2026-08-24) | **Core Set II** (Three Kingdoms / Greek), Large 250+ | The Mandate | Shared game state | Story Mode |
-| Ruled (2026-09-25, D4) | **Core Set II** (Beastkin added 2026-09-29) | The Mandate | Shared game state | Story Mode + Mobile; **the itch.io launch** |
+| Spine (2026-08-24) | **Core Set II** (Three Kingdoms / Greek / Beastkin), Large 250+ | The Mandate | Shared game state | Story Mode |
+| After D4 (2026-09-25) | unchanged | unchanged | unchanged | Story Mode + Mobile; **the itch.io launch** (D4 ruled Mobile and itch only) |
 | **Proposed (2026-10-08)** | **Core Set II**, Large, with Oath | The Mandate | Shared game state | **Mobile**, **starting life above 20**, **Story Mode Act 1 + endless**. itch.io follows 2.0 once it is stable on the site |
 
 ## The owner's priority order (2026-10-08)
@@ -91,8 +91,11 @@ Act 1 are in 2.0 unless the owner moves them.
 
 These are ruled or proposed for 1.9.x, not 2.0. They are listed because they
 change the ground 2.0 measures on. **Proposed (P3): 1.9.x ships before 2.0's
-wave 2**, so Core Set II's costing, the life study and the end-of-train
-measurement all start from a pool that already has these fixes.
+wave 2**, so Core Set II's costing and the end-of-train measurement start
+from a pool that already has these fixes. The life study (D1) starts on
+1.9.0 without waiting: it measures how game length moves with life, which
+the near-duplicate and backfill edits barely touch, and its numbers are
+re-read in the one end-of-train measurement anyway (P15).
 
 - **The older-set near-duplicates** (D8 of 1.9, 41 cards ruled 2026-09-28,
   [d8-near-duplicate-review.md](d8-near-duplicate-review.md)), with the boss
@@ -112,7 +115,7 @@ follow the priority order where they can.
 ### Lane A: Core Set II (priority 1)
 
 **What the spine and rulings fix:** a Large set (250+) returning to the Three
-Kingdoms, Greek and Beastkin rosters (Beastkin added 2026-09-29), the
+Kingdoms, Greek and Beastkin rosters (on the spine since 2026-08-24), the
 anniversary set. A Large set carries every keyword and every named mechanic
 (owner, 2026-09-29, [plan-1.9.md](plan-1.9.md)). It supplies Story Mode's
 three starter pools and its new Beastkin legend (Story Mode R8c).
@@ -155,7 +158,16 @@ transcription. The cards decide what the engine builds.
    the pace. Cropped to today's frame at the 216 px window.
 8. **Products:** boosters, the shop deck, precons and rivals as the brief
    proposes; pricing follows the release-order tier rule in
-   `src/meta/boosterSkus.ts` (the newest three are premium).
+   `src/meta/boosterSkus.ts` (the newest three are premium, so appending the
+   set moves Starborne to the 450g back catalogue).
+9. **The new-set checklist** every set carries, named here so none is
+   missed: the art bible entries and `check-art-bible`; the art packs rebuilt
+   with the new set's pack and index ([plan-art-streaming.md](plan-art-streaming.md)
+   section 5; the itch file-count gate depends on it); the Forge (its set
+   union and labels, and a `power-scores.json` rescore); the blades-db
+   rebuild and `terms --check` for the new mechanics; glossary, rules and
+   tutorial text for the Mandate and Oath; the duplicate comparator over the
+   whole pool.
 
 ### Lane B: The Mandate and shared game state (priority 3)
 
@@ -168,7 +180,8 @@ spec is in [plan-core-set-2.md](plan-core-set-2.md) and stands.
 - **B1, the spec** (`plan-core-set-2-engine.md`, after the overplan, as First
   Dawn's engine spec did): the timing rulings (dawn draw before permanent dawn
   triggers, recommended), the claim point in first-strike and normal batches,
-  the event, the view field, the replay version bump, Oath's predicate.
+  the event, the view field, its part of the train's one replay bump (P16),
+  Oath's predicate.
 - **B2, the engine** on synthetic fixtures before any collectible card:
   golden event tests for every ordering case the set plan lists (initial
   state, effect claim, dawn order, turn-one skip, deck-out, first strike,
@@ -235,9 +248,16 @@ data and the touch list are in [plan-road-to-2.0.md](plan-road-to-2.0.md#startin
   that says 20.
 - **D4, the re-measure** is the train's one end-of-wave measurement (lane I),
   shared with Core Set II. Floors are re-baselined there, see P8.
-- **Replays** recorded under 20 stay playable: the starting life rides the
-  replay's rules context or the version bump makes old logs replay under
-  their own total. Spec'd in D3.
+- **Replays** recorded under 20 must replay under 20. Today nothing carries
+  the total: `Game.ts` reads `RULES.startingLife` directly and neither
+  `GameConfig` nor the replay log has a life field, so an old log would
+  diverge. D3 adds `startingLife` to `GameConfig` and the log, as a new
+  rules revision (5; logs v11 through v16 all map to revision 4,
+  `src/meta/Replay.ts`).
+- **One replay bump for the train (proposed, P16).** The Mandate (B1), the
+  life field (D3) and Story's `mode: 'story'` (lane E) each want a
+  `REPLAY_LOG_VERSION` change. They share one bump, 16 to 17, landed by
+  whichever arrives first and extended by the others before the cut.
 
 ### Lane E: Story Mode, Act 1 + endless (priority 5)
 
@@ -262,7 +282,10 @@ scope lever the Story Mode plan recorded. Proposed reading (P9):
 - **Run counting** applies to both (R9: three fights counts a run).
 
 **Waves** (the plan's own, scoped): one headless run with Guan Yu on current
-cards and the save field (v37, the train's one bump, P10); the run shell
+cards and the save field (v37, the train's one bump, P10), with save
+portability in the same wave: the save code's `hasCompleteSaveShape` check
+and the import preview learn the `story` field, so save codes and save
+cards carry it (lane F's itch export prompt depends on this); the run shell
 behind a flag, on lane C's layouts and 1.9's text scale; Act 1 content and
 the three starter pools once Core Set II's roster locks; the story matrix
 and progression runs; release QA.
@@ -277,9 +300,10 @@ script before wave 3.
 site. The known work (researched 2026-09-25, roadmap "2.0 is the itch.io
 launch"; [plan-art-streaming.md](plan-art-streaming.md) section 8):
 
-- **Build target:** an itch target that drops the loose art folders and the
-  Forge, with a file-count gate (1,000 files, 500 MB) in CI; the CSP's
-  `connect-src` allows itch's injected beacon (`scripts/cspForTarget.ts`);
+- **Build target (new code):** an itch target that drops the loose art
+  folders and the Forge, with a new file-count gate (1,000 files, 500 MB) in
+  CI; a new itch case in `scripts/cspForTarget.ts` (today it only adds the
+  Tauri IPC sources) so `connect-src` allows itch's injected beacon;
   never tick itch's SharedArrayBuffer option (it moves the game to a new
   origin).
 - **The play-stats Worker** accepts itch's origin; it is redeployed with the
@@ -295,6 +319,13 @@ launch"; [plan-art-streaming.md](plan-art-streaming.md) section 8):
 - **Before the launch:** the lawyer pass on the terms and privacy policy
   ([docs/legal/README.md](legal/README.md) says "ideally before 2.1"; an
   advertised launch with play stats on by default is when it matters).
+
+**The doc fan-out once P2 is ruled.** "2.0 is the itch.io launch" is written
+as ruled in: the roadmap's Planned section, the spine row and the Load risk
+note in [plan-road-to-2.0.md](plan-road-to-2.0.md), 1.9's D4, the mobile
+plan's header ("launch-critical"), the Story Mode plan's Goal ("the mode the
+itch.io launch advertises") and the art streaming plan's section 8 ("Always
+2.0"). Each gets a dated note pointing here, in wave 0.
 
 **In 2.0 itself (cheap, behind a flag):** the itch build target and its gate
 in CI, so the target is proven every release instead of the week of the
@@ -316,8 +347,9 @@ points, and it is AI ([plan-1.9-wave4-tunes.md](plan-1.9-wave4-tunes.md),
 4.1). The 2026-09-21 note proposed measuring it against a human, not only the
 Medium proxy in the player's seat.
 
-**Proposed:** after the life change and the AI freeze, as part of lane I's
-measurement, or in a 2.0.x. A human calibration needs play data: the play
+**Proposed:** after the life change, in wave 4, as the one deliberate change
+to the frozen AI: the tier dial moves, then lane I's measurement reads it.
+Or in a 2.0.x. A human calibration needs play data: the play
 stats' game-length and outcome bands (no player duel reports had arrived as
 of 2026-09-29) or the owner's own runs.
 
@@ -326,11 +358,15 @@ of 2026-09-29) or the owner's own runs.
 - **One end-of-train measurement** after Core Set II, the Mandate AI reads
   and the life change: the matrices, the boss tunes for the new pool, the
   Darlings summit, Story's matrix.
-- **The floor rule under a life change (P8).** Floors only ratchet up, but a
-  life change moves every number for a reason that is not drift. Proposed:
-  one owner-approved re-baseline at the new life total, every floor set from
-  fresh 200-seed readings by the 1.9 rule (mean - 6.5, rounded down), each
-  that comes down listed in the PR; from there floors ratchet up again.
+- **The floor rule under a life change (P8).** Test gate floors only
+  ratchet up (an iron invariant in `CLAUDE.md`), but a life change moves
+  every number for a reason that is not drift. Proposed: one owner-approved
+  re-baseline at the new life total, every gate floor set from fresh
+  200-seed readings by the 1.9 rule (mean - 6.5, rounded down), each that
+  comes down listed in the PR; from there floors ratchet up again. Ruling
+  it means amending the invariant's wording in `CLAUDE.md` and the playbook
+  to name the exception. The harness bands (`RUNG_BANDS`, `FLOOR_BANDS`)
+  are not gate floors and could already come down (1.9 Q6).
 - **The metagame sweep**, last before the cut, on GitHub Actions (1.9 D9
   precedent), with Core Set II's colour pairs as personas if the brief adds
   them.
@@ -346,7 +382,7 @@ Waves are dependency-ordered; each starts on the owner's word.
 | ---: | --- | --- | --- |
 | **0** | 1.9.0 ships; 1.9.x ships (P3); `release/2.0` cut from `main` | D1, the life study, starts as soon as 1.9.0 is on `main` | none |
 | **1** | Core Set II's refreshed plan, ledger and identity brief | Mobile plan rewrite and support matrix; Story save field and headless run; the itch build target behind a flag | **one sitting**: the brief, the life number, the mobile decisions, Story's premise direction |
-| **2** | The design-first overplan, its concretion audit, the Mandate and Oath engine spec, **a second sitting** to rule it; then B2 and the lab rates; D3 (the life change) | Mobile wave 1 (primitives); Story run shell; B3 AI reads proven against the standing floors | the engine spec and the overplan |
+| **2** | The design-first overplan, its concretion audit, the Mandate and Oath engine spec, **a second sitting** to rule it; then B2 and the lab rates; D3 (the life change) | Mobile wave 1 (primitives); Story run shell; B3 AI reads and any carried 1.9 AI gaps, proven against the standing floors; **the AI freezes at the end of the wave** | the engine spec and the overplan |
 | **3** | The rescore on the new life total, the owner's cut, the art bible, the art run, transcription | Mobile waves 2-3 (lists, then the Duel with the Mandate marker); Story Act 1 content once the starter pools lock | the cut, then art review rounds |
 | **4** | Rung or precon content, the tunes, **the one measurement**, the re-baseline (P8), the new gates | Mobile wave 4 on real devices; Story matrix and progression; lane H if in scope | the measured tables |
 | **5** | QC, the sweep last, release notes, the 2.0.0 cut on the site | The itch launch plan finalised; lawyer pass | the cut |
@@ -392,10 +428,16 @@ Each has a recommendation. None is ruled.
 | **P12** | Story voice (R7, TBD) | None at 2.0 |
 | **P13** | The new Beastkin legend | A blue-inclusive pair with a Beastkin anthem, named in the identity brief; Yohime as the fallback if Core Set II slips |
 | **P14** | The difficulty retune | After the life change, measured against a human (play stats or the owner's runs); 2.0.x if it slips |
+| **P15** | The life study's pool | Start it on 1.9.0 without waiting for 1.9.x; its readings are re-taken in the end-of-train measurement |
+| **P16** | Replay versions | One `REPLAY_LOG_VERSION` bump (16 to 17) shared by the Mandate, the life field and Story |
+| **P17** | If the life study is late | Wait for it; moving the change to 2.1 is the fallback only if waiting would hold Core Set II's costing |
+| **P18** | Does itch wait for full Story Mode? | No: launch with Act 1 + endless, the priority order (itch 6, full Story 7). The store page sells Story Mode as growing, with Acts 2-3 as the next update |
 
 Still open from earlier plans and carried here: the permanent-buy price and
-limits (Story), Story's premise, Core Set II's product scope and Darlings
-packaging (the set plan's open decisions).
+limits (Story), Story's premise, Core Set II's product scope, Darlings
+packaging, roster emphasis (Three Kingdoms leading the Mandate, or an equal
+return), and whether Core Set II reprints or revises Guan Yu and Persephone,
+which Story's first two characters depend on (the set plan's open decisions).
 
 ## Not in 2.0
 
@@ -429,8 +471,9 @@ packaging (the set plan's open decisions).
   little else). Mobile and Story Act 1 ride beside a 250-card set. The cut
   order (P1) is the relief valve; full Story Mode already sits outside.
 - **The life change touches everything measured.** If the study is late,
-  the set is costed at 20 and the change moves to 2.1 rather than costing
-  the set twice.
+  the choice is to wait for it or to cost the set at 20 and move the change
+  to 2.1 (P17). The owner aimed it at 2.0 with Core Set II; moving it is the
+  owner's call, not this plan's.
 - **The Duel is touched by three lanes** (mobile, the Mandate UI, Story's
   launch context). The shared-file order above is the guard.
 - **Story Mode waits on the set** for its starter pools and third character.
