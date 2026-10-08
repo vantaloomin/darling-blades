@@ -547,7 +547,8 @@ cache behaviour. A persistent art cache was ruled out of 1.9 (S-Q5).
 | 206, `Content-Range` starts at the offset, body length matches, starts `RIFF....WEBP` | good | decode |
 | 200 with the whole pack | the host ignores `Range` (`serve-lan.ts` before its fix, a proxy) | whole-pack mode for that pack: keep the bytes (at most two packs held, least recently used dropped) and slice from them; no more range reads to it this session; one console warning |
 | any `Content-Encoding` on the response (including a 206 whose body then fails to read) | the host compressed the pack (the itch trap), so ranges address compressed bytes; a compressed partial body cannot be decoded | treat as 200: whole-pack mode (`fetch` decompresses a full body transparently); one warning. Not retried as a transient failure |
-| 416, wrong length or wrong magic | index and pack disagree (should be impossible with hashed names) | fail the key for the session; one error |
+| 416 | index and pack disagree (should be impossible with hashed names) | fail the key for the session; one error |
+| 206 with the wrong start, wrong length or wrong magic | something rewrote the range: 1.9.0's gate 7 found bladedarlings.com serving every pack gzip-compressed, and the browser still saw bad ranges | loose-file mode for that pack (the loose files are on Pages in 1.9); one error. Before 1.9.0's hotfix this failed the key, so live art never loaded |
 | 404 on the pack | a tab older than the deploy | try the loose URL (present on Pages in 1.9); otherwise fail the pack's keys |
 | network error before any response or mid-body (a 206 with no `Content-Encoding` whose body fails to read), 408, 429, 5xx, an idle timeout | transient | the retry in section 1; the pack's mode is unchanged. Reads waiting on a pack's first read fail with it, and the store re-sends them |
 
@@ -1259,6 +1260,7 @@ The earlier deferral boundary is retained here as release context.
   5. No code caches a `Frame` or `Texture` reference across frames. Hold
      keys and resolve them when drawing, so an eviction can never leave a
      stale reference behind.
+- **Revised 2026-10-08 ([plan-2.0.md](plan-2.0.md), P2):** the itch launch is a 2.0.x; the itch target below still lands in 2.0, behind a flag.
 - **Always 2.0, whatever 1.9 does:** the itch target's deletion of the loose
   folders and `dist/forge/`, its file-count gate, the itch target's
   `connect-src` gaining `https://itch.io` for the beacon itch injects

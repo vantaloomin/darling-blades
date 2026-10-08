@@ -311,23 +311,35 @@ describe('pack source: the index and the pack disagree', () => {
     },
   });
 
-  it('fails a key whose bytes are not a webp file, logs one error, and never asks again', async () => {
+  it('reads loose files for a pack whose range bytes are not a webp file, logging one error', async () => {
     const h = host();
     const src = packSource(h, shifted());
-    expect(await failureOf(src.read('a1', 'full'))).toBe('failed');
-    expect(await failureOf(src.read('a1', 'full'))).toBe('failed');
-    expect(h.packCalls()).toHaveLength(1);
-    expect(h.log.errors).toHaveLength(1);
-    // The pack's other keys still read.
+    expect(await blobBytes(await src.read('a1', 'full'))).toEqual([...FILES.a1]);
     expect(await blobBytes(await src.read('a2', 'full'))).toEqual([...FILES.a2]);
+    // One range read decided it; after that the pack's keys go to the loose files.
+    expect(h.packCalls()).toHaveLength(1);
+    expect(h.calls.slice(1).map((c) => c.url)).toEqual(['assets/art/cards/a1.webp', 'assets/art/cards/a2.webp']);
+    expect(h.log.errors).toHaveLength(1);
   });
 
-  it('fails a key when the 206 body is the wrong length', async () => {
+  it('reads loose files when the 206 body is the wrong length', async () => {
     const h = host((call, pack) => {
       const res = serveRange(call, pack) as Response;
       return new Response(new Uint8Array([...FILES.a1, 0]), { status: 206, headers: res.headers });
     });
-    expect(await failureOf(packSource(h).read('a1', 'full'))).toBe('failed');
+    expect(await blobBytes(await packSource(h).read('a1', 'full'))).toEqual([...FILES.a1]);
+  });
+
+  it('fails the key when the range is wrong and the loose file is gone too', async () => {
+    // Compressed bytes with no Content-Encoding the page can see.
+    const h = host(({ range }) => {
+      const [start, end] = range!.replace('bytes=', '').split('-').map(Number);
+      const body = new Uint8Array(end - start + 1).fill(7);
+      body.set([0x1f, 0x8b], 0);
+      return new Response(body, { status: 206, headers: { 'Content-Range': `bytes ${start}-${end}/999` } });
+    });
+    expect(await failureOf(packSource(h).read('a3', 'full'))).toBe('failed');
+    expect(h.calls.map((c) => c.url)).toEqual(['assets/art/packs/full-a.0000000001.bin', 'assets/art/cards/a3.webp']);
   });
 
   it('fails a key on a 416', async () => {

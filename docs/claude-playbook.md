@@ -184,7 +184,9 @@ of ad-hoc status relays.
   `SaveData.version` with a real `migrate()` + a migration test; old blobs must
   keep loading.
 - **Gates only ratchet up**: test floors (win rates, balance bands) may be
-  raised with fresh measurements, never lowered to make a change pass.
+  raised with fresh measurements, never lowered to make a change pass. The
+  one exception is the owner-approved reset when 2.0 changes starting life
+  ([plan-2.0.md](plan-2.0.md) P8, 2026-10-08).
 
 ## 6. The think-through checklist (before any nontrivial step)
 
