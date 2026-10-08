@@ -330,12 +330,20 @@ function damageTargetValue(ctx: TargetContext, op: Extract<EffectOp, { op: 'dama
   if (!isType(d, 'creature')) return 0;
   const stats = getEffectiveStats(ctx.view.battlefield, ctx.db, perm.iid);
   const lethal = op.n >= stats.defense - perm.damage;
+  // Damage a survivor keeps wears off at cleanup. In an end step nothing is
+  // left before then for it to add to, so its residual is worth nothing there
+  // (1.9.1), on either side: the price of pinging their creature, and the
+  // cost of pinging ours.
+  const endStep = ctx.view.step === 'end';
   const impact = lethal
     ? permanentRemovalValue(ctx, perm)
-    : op.n * 0.45 + perm.plusOneCounters * 0.15;
+    : endStep ? 0 : op.n * 0.45 + perm.plusOneCounters * 0.15;
   // A creature that survives the damage is provoked: a friendly source earns
-  // its own creature's Provoked effect, and provoking theirs is a cost.
-  const provoked = lethal || op.n <= 0 || !unspentProvoked(ctx.db, perm) ? 0 : provokedAfterDamage(ctx, perm.iid, op.n);
+  // its own creature's Provoked effect, and provoking theirs is a cost. In an
+  // end step an until-Sunset pump (Cinder-Crest's +2/+0) ends unused.
+  const provokedAbility = lethal || op.n <= 0 ? undefined : unspentProvoked(ctx.db, perm);
+  const provoked = !provokedAbility || endStep && (provokedAbility.ops ?? []).every((o) => o.op === 'boost')
+    ? 0 : provokedAfterDamage(ctx, perm.iid, op.n);
   return impact * harmSign(ctx, ref) + provoked;
 }
 
@@ -1800,6 +1808,19 @@ export function spellTargetedBodyImpact(view: PlayerView, db: CardDb, cardId: st
   const abilities = mode.retell && d.retell?.ops ? [{ when: 'spell' as const, ops: d.retell.ops }] : d.abilities ?? [];
   return abilities.reduce((sum, ab) => sum + (ab.when === 'spell'
     ? spellAbilityImpact(view, db, cardId, ab, mode, effectOpUsesTarget) : 0), 0);
+}
+
+/** What `cardValue` counts for a spell's ops that name no target (Ember-Flick's
+ * Foresee, a removal spell's draw), at the printed rates (`opImpactValue`).
+ * A caller that values a cast by its targets alone (Medium's removal worth,
+ * the Hunt policy's options) adds this so the rest of the card is not worth 0
+ * to it (1.9.1). 0 for a creature or a permanent. */
+export function spellUntargetedBodyImpact(view: PlayerView, db: CardDb, cardId: string, mode: SpellMode = {}): number {
+  const d = def(db, cardId);
+  if (isType(d, 'creature') || !isType(d, 'charm') && !isType(d, 'ritual')) return 0;
+  const abilities = mode.retell && d.retell?.ops ? [{ when: 'spell' as const, ops: d.retell.ops }] : d.abilities ?? [];
+  return abilities.reduce((sum, ab) => sum + (ab.when === 'spell'
+    ? spellAbilityImpact(view, db, cardId, ab, mode, (op) => !effectOpUsesTarget(op)) : 0), 0);
 }
 
 export function cardValue(db: CardDb, cardId: string, view?: PlayerView, mode: SpellMode = {}): number {

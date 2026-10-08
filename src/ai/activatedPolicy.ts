@@ -1,5 +1,5 @@
 import type { Action } from '../engine/actions';
-import { canAttack, canBlock, eligibleAttackers } from '../engine/combat/legality';
+import { canAttack, canBlock, eligibleAttackers, validateBlocks } from '../engine/combat/legality';
 import { getEffectiveStats } from '../engine/statics';
 import type { ActivatedDef, CardDb, EffectOp, Permanent, PlayerId } from '../engine/types';
 import { activatedAbilitiesOf, def, isType, manaValue, opponentOf } from '../engine/types';
@@ -276,6 +276,63 @@ function lethalScreen(view: PlayerView, sdb: CardDb, action: ActivateAction, con
   return lethal;
 }
 
+/**
+ * What a point of damage to us is worth: the value layer's rate for a Duty's
+ * damage to its own controller (`activatedOpImpact`, 0.9 a point, the same as
+ * face damage to the opponent).
+ */
+const DAMAGE_TO_US_RATE = 0.9;
+
+const LOST_BLOCK_CACHE = new WeakMap<PlayerView, WeakMap<CardDb, Map<string, number>>>();
+
+/**
+ * What tapping our creature `iid` on our own turn costs at the opponent's
+ * next attack (1.9.1): it stays tapped until our next untap step. The usage
+ * audit's "safe block lost" reading, as a forecast: the board after cleanup
+ * (damage and until-Sunset effects gone, their creatures untapped and able
+ * to attack, ours as they are with `iid` tapped), their attack by the shared
+ * planner, our blocks by the shared block model without `iid`; then the most
+ * forecast damage one more block by `iid` on an unblocked attacker prevents,
+ * when that block is legal and `iid` lives through it. Priced at
+ * `DAMAGE_TO_US_RATE`. 0 when they have no attack or no such block. Reads
+ * only the public board.
+ */
+export function lostBlockCost(view: PlayerView, db: CardDb, iid: number, pers: Personality): number {
+  let byDb = LOST_BLOCK_CACHE.get(view);
+  if (!byDb) LOST_BLOCK_CACHE.set(view, byDb = new WeakMap());
+  let memo = byDb.get(db);
+  if (!memo) byDb.set(db, memo = new Map());
+  const key = `${iid}|${JSON.stringify(pers)}`;
+  const known = memo.get(key);
+  if (known !== undefined) return known;
+  const me = view.myId;
+  const opp = opponentOf(me);
+  const tapped = view.battlefield.map((perm) => ({
+    ...perm, untilEotMods: [], damage: 0, deathtouched: false, severBranded: false, combatDamagePrevented: undefined,
+    ...(perm.controller === opp ? { tapped: false, enteredThisTurn: false } : {}),
+    ...(perm.iid === iid ? { tapped: true } : {}),
+  }));
+  let prevented = 0;
+  const attackers = chooseAttackers(tapped, db, opp, view.you.life, 0, view.opp.life);
+  if (attackers.length > 0) {
+    const declared = { attackers, blocks: [], phase: 'attackersDeclared' as const, damagePrevented: false };
+    const blocks = chooseBlocks(tapped, db, me, view.you.life, declared, 0, pers);
+    const combat = { ...declared, blocks, phase: 'blockersDeclared' as const };
+    const untapped = tapped.map((perm) => perm.iid === iid ? { ...perm, tapped: false } : perm);
+    const before = combatForecast(untapped, db, combat).damage;
+    for (const attacker of attackers) {
+      if (blocks.some((block) => block.attacker === attacker)) continue;
+      const more = [...blocks, { blocker: iid, attacker }];
+      if (validateBlocks(untapped, db, me, combat, more) !== null) continue;
+      const after = combatForecast(untapped, db, { ...combat, blocks: more });
+      if (!after.dying.includes(iid)) prevented = Math.max(prevented, before - after.damage);
+    }
+  }
+  const cost = prevented * DAMAGE_TO_US_RATE;
+  memo.set(key, cost);
+  return cost;
+}
+
 export interface ScoredActivation {
   action: ActivateAction;
   value: number;
@@ -337,8 +394,15 @@ export function scoredActivationCandidates(
     if (paidMorning && (!precombat || !reachesFight(view, simDb(db), action, ability,
       eligible ??= eligibleAttackers(view.battlefield, simDb(db), view.myId)))) return;
     // Never a self-harming ability, whatever the attack would gain.
-    const value = activateActionValue(view, db, action);
+    let value = activateActionValue(view, db, action);
     if (!(value > 0)) return;
+    // A creature its Duty taps stays tapped through the opponent's turn, so a
+    // Duty that does not compete with its attack is charged the safe block
+    // the body loses (1.9.1). Only a brain with a forecast pays it.
+    if (precombat && !paidMorning && isType(d, 'creature') && ability.cost.tap) {
+      value -= lostBlockCost(view, db, source.iid, precombat.pers);
+      if (!(value > 0)) return;
+    }
     if (!paidMorning) {
       rows.push({ index, action, value, lethal: false });
       return;

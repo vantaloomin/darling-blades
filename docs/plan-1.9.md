@@ -894,7 +894,8 @@ by the 1.8.1 AI review and is recorded here:
 - Lethal is judged against greedy blocks.
 - Medium's re-pick after a Hard veto skips Hard's search.
 - A Duty used in main phase 2 leaves its creature tapped through the
-  opponent's turn, and nothing counts that cost.
+  opponent's turn, and nothing counts that cost. **Fixed in 1.9.1**: the
+  safe block it loses is charged (ai.md, Duty timing).
 
 **The first audit's note is in, and its questions are RULED (the wave-2
 sitting, 2026-09-28; U1-U4, all as recommended):**
@@ -1545,10 +1546,11 @@ The stock CLI runs every row in one process. The 4-worker sharded run took about
 
 ### Carried, not blocking
 
-- **AI gaps, logged for later:**
-  - Medium never aims a target-creature damage spell at its own Provoked creature (Ember-Flick), and Foresee is worth 0 to Medium;
-  - a creature Duty used in main phase two leaves its creature tapped;
-  - Festival Rocket activations are net-negative in Medium's hands.
+- **AI gaps, logged for later: fixed in 1.9.1** ([ai.md](ai.md), "AI gaps logged in 1.9, as built (1.9.1)"; `tests/ai/aiGaps191.test.ts`):
+  - Medium never aimed a target-creature damage spell at its own Provoked creature (Ember-Flick): fixed; it now flicks its own Provoked creature at the opponent's end step when that nets a card;
+  - Foresee was worth 0 to Medium: fixed; its removal worth and Hunt-policy options count a spell's untargeted ops at the printed rates;
+  - a creature Duty used in main phase two left its creature tapped: fixed; the safe block it loses at the next opposing attack is charged;
+  - Festival Rocket activations net-negative in Medium's hands: not reproduced (activations +3.0 pp at 1,500 games), so no change.
 - **Numeral follow-ups: done.** The numerals gained a comma and a plus, so repeated picks ("1, 2"), the Mark "+2" badge (on a rounded plate) and the pile counts draw vector numerals too.
 - **Local-only tooling, not in the repo:**
   - the Forge's `power-scores.json` was not rescored after the Maiden recost;

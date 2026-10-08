@@ -27,7 +27,7 @@ import { applyRitePolicy, riteSacrificeValue } from './ritePolicy';
 import { applyTithePolicy, titheManaSaved } from './tithePolicy';
 import { applyWhispersPolicy } from './whispersPolicy';
 import { applyVocabularyTargetPolicy, chooseTargetAction } from './targeting';
-import { applyDarlingPreyPolicy, applyHuntPolicy, castNamesArrivalPrey, HUNT_SPEND_MARGIN, isFriendlyHuntOrSource, SELF_PROVOKE_MARGIN } from './huntPolicy';
+import { applyDarlingPreyPolicy, applyHuntPolicy, castNamesArrivalPrey, HUNT_SPEND_MARGIN, huntOptionValue, isFriendlyHuntOrSource, SELF_PROVOKE_MARGIN } from './huntPolicy';
 import {
   cardValue,
   actionManaCost,
@@ -50,6 +50,7 @@ import {
   skimValue,
   spellTargetedBodyImpact,
   spellTargetsValue,
+  spellUntargetedBodyImpact,
   targetValueForAbility,
   whispersValue,
 } from './value';
@@ -439,13 +440,19 @@ export class MediumAI implements AIPlayer {
     return this.removedTargets(view, cast).length > 0;
   }
 
+  /** What the cast removes, plus what the rest of the card does (1.9.1): the
+   * ops that name no target (Ember-Flick's Foresee, a draw) at the printed
+   * rates `cardValue` uses, so a rider is not worth 0 next to the bar. */
   private removalWorth(view: PlayerView, cast: Cast): number {
-    return this.removedTargets(view, cast).reduce((sum, perm) => {
+    const removed = this.removedTargets(view, cast);
+    if (removed.length === 0) return 0;
+    const cardId = this.cardIdFor(view, cast);
+    return removed.reduce((sum, perm) => {
       const d = def(this.db, perm.cardId);
       return sum + (isType(d, 'artifact') || isType(d, 'enchantment') ||
-        this.isRemoval(this.cardIdFor(view, cast), cast) === 'removeMarks'
+        this.isRemoval(cardId, cast) === 'removeMarks'
         ? this.removalCastValue(view, cast, perm) : permValue(view.battlefield, this.db, perm.iid));
-    }, 0);
+    }, 0) + spellUntargetedBodyImpact(view, this.db, cardId, cast.type === 'castSpell' ? cast : {});
   }
 
   /** Permanent marks go on bodies that survive, using the shared target scorer. */
@@ -1214,6 +1221,14 @@ export class MediumAI implements AIPlayer {
     }
     const hunt = this.huntCharmRemoval(view, casts);
     if (hunt) return hunt.cast;
+    // A friendly Provoked source (1.9.1): Ember-Flick on our own Rage-Kin
+    // Brawler for its token. `applyHuntPolicy` kept only the friendly targets
+    // that beat the plain ones, and not casting, by a card; in an end step the
+    // damage wears off unused and an until-Sunset Provoked pump earns nothing.
+    const provoke = casts.filter((c) => isFriendlyHuntOrSource(view, this.db, c) && this.huntPays(view, c))
+      .map((cast) => ({ cast, value: huntOptionValue(view, this.db, cast) }))
+      .sort((a, b) => b.value - a.value)[0];
+    if (provoke && provoke.value >= SELF_PROVOKE_MARGIN) return provoke.cast;
     // free value instants with no targets (card draw etc.)
     const freebie = casts.find((c) => {
       const d = def(this.db, this.cardIdFor(view, c));

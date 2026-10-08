@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/ScriptAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/targeting.ts, src/ai/activatedPolicy.ts, src/ai/ritePolicy.ts, src/ai/tithePolicy.ts, src/ai/whispersPolicy.ts, src/ai/discardPolicy.ts, src/ai/sacrificePolicy.ts, src/ai/preservePolicy.ts, src/ai/hauntlinkPolicy.ts, src/ai/landPolicy.ts, src/ai/darlingPolicy.ts, src/ai/foresee.ts, src/ai/huntPolicy.ts, src/ai/personality.ts, src/ai/NoisyAI.ts, src/ai/tiers.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts, tests/ai/rungSmokes.test.ts, tests/ai/documentedBehaviour.test.ts, tests/ai/huntProvoked.test.ts, tests/ai/huntPolicyA2b.test.ts, tests/ai/huntSpend.test.ts, tests/ai/creatureDutyMorning.test.ts, tests/meta/draftHuntProvoked.test.ts, docs/plan-ai-modernization.md · last-verified: 2026-10-04
+<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/ScriptAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/targeting.ts, src/ai/activatedPolicy.ts, src/ai/ritePolicy.ts, src/ai/tithePolicy.ts, src/ai/whispersPolicy.ts, src/ai/discardPolicy.ts, src/ai/sacrificePolicy.ts, src/ai/preservePolicy.ts, src/ai/hauntlinkPolicy.ts, src/ai/landPolicy.ts, src/ai/darlingPolicy.ts, src/ai/foresee.ts, src/ai/huntPolicy.ts, src/ai/personality.ts, src/ai/NoisyAI.ts, src/ai/tiers.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts, tests/ai/rungSmokes.test.ts, tests/ai/documentedBehaviour.test.ts, tests/ai/huntProvoked.test.ts, tests/ai/huntPolicyA2b.test.ts, tests/ai/huntSpend.test.ts, tests/ai/creatureDutyMorning.test.ts, tests/ai/aiGaps191.test.ts, tests/meta/draftHuntProvoked.test.ts, docs/plan-ai-modernization.md · last-verified: 2026-10-08
      If you change those files, update this doc or re-verify the date. -->
 
 # AI
@@ -439,6 +439,21 @@ it exists to enable (review finding G9). The rule now:
   block model, not the defender's best blocks (only the screened targets
   must also beat the cautious defender). Medium's replacement pick after
   Hard vetoes a Duty is Medium's alone and skips Hard's search.
+- **As built (1.9.1): the lost blocker.** A creature tapped for its Duty on
+  our turn stays tapped through the opponent's, and nothing priced that.
+  `lostBlockCost` (`activatedPolicy.ts`) is the usage audit's "safe block
+  lost on the next opposing attack" as a forecast: on the board after
+  cleanup, with their creatures untapped, their attack by the shared planner
+  and our blocks without the source, it takes the most damage one more block
+  by the source would prevent on an unblocked attacker, when that block is
+  legal and the source lives. That damage at 0.9 a point (the value layer's
+  rate for damage to us) comes off the Duty's value, and a Duty left at zero
+  or less is not used. It applies to a Duty that does not compete with the
+  body's attack (main two, or main one when the body cannot attack) and only
+  for a brain that passes a `PrecombatContext`: Medium, and Hard in main one.
+  Easy, ScriptAI and Hard's simulated opponent are unchanged, and Hard's own
+  main-two search still scores the Duty without it. Pinned in
+  `tests/ai/aiGaps191.test.ts` (Salvage Diver against Lu Lingqi).
 
 **Cost, 2026-09-25.** The 1.8.1 review's probe (bears and giants N a side,
 four lands each, one Duty artifact; mean ms per decision on a shared
@@ -574,6 +589,14 @@ creature. Each claim is pinned in `tests/ai/huntPolicyA2b.test.ts` and
   own creature is cast only when the Provoked it sets off nets a card, and a
   hunter takes its own Provoked creature over the opponent's only when that
   is better by a card. The margin is untuned: no lab arm measures Medium.
+  **As built (1.9.1):** a spell's options also carry the ops that name no
+  target (`spellUntargetedBodyImpact`: Ember-Flick's Foresee), which matter
+  only against not acting. Medium casts a kept friendly source at the
+  opponent's end step (Ember-Flick on its own Rage-Kin Brawler for the Pack
+  Raptor). In an end step, damage a creature survives is worth nothing on
+  either side, since it wears off at cleanup, and so is an until-Sunset
+  Provoked pump (Cinder-Crest). Before, Medium never aimed Ember-Flick at
+  its own creature.
 - **Medium ranks an arrival hunter by its Hunt.** Its cast score adds the
   arrival Hunt's value on the cast's prey (`arrivalHuntCastValue`), so a
   hunter with prey it kills and survives outranks a slightly better vanilla,
@@ -1125,6 +1148,34 @@ write-ups sit in the local `balance/study/lab/`):
 - **Fixed in wave 3: granted keywords priced by the receiving body (U2).**
   The four sites and their existing valuation are listed in the proof table
   above; lane 4's printed-keyword attack shape now covers these grants too.
+
+**AI gaps logged in 1.9, as built (1.9.1).** Pinned in
+`tests/ai/aiGaps191.test.ts`.
+
+- **Ember-Flick on Medium's own Provoked creature: fixed.** See "Hunt and
+  Provoked: Medium, Easy and the draft".
+- **Foresee worth 0 to Medium: fixed.** Medium priced a removal cast by what
+  it kills alone. Its removal worth now adds the ops that name no target, at
+  the printed rates `cardValue` already uses (Foresee 0.5 a card, draw
+  1.25). An Ember-Flick that kills a 3/1 worth 3.0 now clears the 3.5
+  instant-speed bar; the same Charm without its Foresee does not.
+- **A creature Duty in main two leaves a blocker tapped: fixed.** See Duty
+  timing, "As built (1.9.1): the lost blocker".
+- **Festival Rocket activations net-negative in Medium's hands: not
+  reproduced, so not changed.** A focused probe, Medium on both seats in
+  Warchest, the same seeds for every arm. Activations against a copy whose
+  Rocket is cast but never activated:
+  - Chrome Broodmother's reserve list with four Rockets for the four Ashwood
+    Rangers, against the five starters: 52.0 against 44.5, 200 games.
+  - The warband persona's round-0 deck with four Rockets for the four Barge
+    Fire Braziers, against the fifteen columns: 82.9 against 79.9, 1,500
+    games.
+
+  Dropping the 40% of activations that kill nothing (82.4) or the main-one
+  activations (82.0) moves nothing measurable. The slate's losses were the
+  card's slot (it replaced Rangers in a Hard boss's list), not its use.
+  A U3-style zero for a ping that kills nothing would only drop those
+  activations, which measured neutral, so it was not made.
 
 ## Tower strength tiers (the decision-noise dial)
 
