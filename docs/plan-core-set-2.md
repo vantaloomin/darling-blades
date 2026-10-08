@@ -355,6 +355,10 @@ full list with recommendations.
   art run behind it. The guard is to start the study as soon as 1.9.0 is on
   `main` and to do all the cost-free work (overplan, concretion audit,
   engine, AI reads, art pilot) while it runs.
+- **Expensive cards stay unplayed whatever the life total.** The life study
+  measured spells at 7 or more cast about 0.3 a game even at 30 life, since
+  Standard caps lands at 10. The set's costs are the lever: keep the top end
+  at 5-6 with few 7+ cards (brief question 16).
 - **Art volume**: about 250 card images, the tokens, any rung portraits and
   the Beastkin legend.
 - **Depends on**: Darlings' command zone (`docs/plan-darlings.md`), the

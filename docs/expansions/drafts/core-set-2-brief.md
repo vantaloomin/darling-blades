@@ -453,6 +453,13 @@ the life study sits on this set's critical path. What the brief does about it no
 - **A real top end**: about 40 cards at mana value 5 or more in the 250 (16%,
   against the rosters' 11% today), with at least four per colour, so the
   longer games the change buys have something to cast.
+- **Concentrate that top end at mana value 5 and 6.** The life study
+  (`plans/2.0/life-study-d1.md`, recommending 25 life, the owner's pick
+  pending) found spells costing 7 or more are almost never cast at any
+  total, about 0.3 a game even at 30 life, because Standard caps a player
+  at 10 lands. Longer games alone will not get them played; their costs
+  will. So the set prints few cards at 7 or more, only at rare and above,
+  each costed to be castable by the turns games actually reach (question 16).
 - **The Mandate gets stronger as games get longer.** Each turn held is a
   card. The lab measures its rates at the new total, never at 20.
 - **Sworn's legends** at mana value 4 to 6 are the natural Darlings for longer
@@ -532,6 +539,11 @@ Each leads with the recommendation.
     2.0, since mobile and Story ride beside the set.
 14. **Add two sweep personas, U/R and B/G** (section 12).
 15. **Add one theme deck, W/U Beastkin under the Jade Rabbit** (section 12).
+16. **Keep cards costing 7 or more to about six in the 250, rare and above,
+    with most of the top end at 5 and 6** (section 11). The life study
+    shows 7+ spells are rarely cast even at 30 life, so cost is the lever,
+    not life. The alternative is a cost-reduction mechanic (say, cheaper
+    while you hold the Mandate) so a few big cards stay big but castable.
 
 **FYI, no ruling needed now:** every name is a working name until the cut;
 the art register (section 14) is an outline for the art bible, written after
