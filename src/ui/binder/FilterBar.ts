@@ -35,6 +35,8 @@ export class FilterBar {
   private readonly state: CollectionFilterState;
   private readonly top: number;
   bottom = 0;
+  /** The grid's column width; the scene's search box takes one column. */
+  columnWidth = 0;
 
   constructor(
     scene: Phaser.Scene,
@@ -142,7 +144,6 @@ export class FilterBar {
     // fixed x, so the row cannot run into it when the first chip moves.
     this.ownedPill = roundedTrigger(scene, 0, y, '', {
       variant: 'ghost',
-      size: 'sm',
       minWidth: 96,
       onTap: () => {
         state.ownedOnly = !state.ownedOnly;
@@ -164,19 +165,24 @@ export class FilterBar {
   }
 
   /**
-   * Interactive isolation for the chip row: selected labels change trigger
-   * widths, so chips reflow left-to-right keeping at least 8px between
-   * INFLATED hit rects (design-system.md; the first chip anchors the row).
-   * The Owned pill is the row's last control and follows the same rule.
+   * Lay the controls on collectionFilterLayout's equal-column grid: each
+   * trigger is measured at its natural width, then stretched to its column,
+   * so the bar spans the binder and every edge shares a column line. The
+   * Owned pill is the last cell and follows the same rule.
    */
   private reflow(): void {
-    const pill = this.ownedPill.getMeasuredBounds().hit;
-    const layout = collectionFilterLayout([...this.dropdowns.map((dd) => dd.hitBounds().width), pill.width], this.top);
+    this.ownedPill.setMinWidth(0);
+    const pillWidth = this.ownedPill.getMeasuredBounds().visual.width;
+    const layout = collectionFilterLayout([...this.dropdowns.map((dd) => dd.naturalWidth()), pillWidth], this.top);
+    this.columnWidth = layout.columnWidth;
     this.dropdowns.forEach((dd, index) => {
       const rect = layout.controls[index];
-      dd.setPosition(rect.x - dd.hitBounds().x, rect.y + rect.height / 2);
+      dd.setWidth(rect.width);
+      dd.setPosition(rect.x - dd.visualBounds().x, rect.y + rect.height / 2);
     });
     const rect = layout.controls[layout.controls.length - 1];
+    this.ownedPill.setMinWidth(rect.width);
+    const pill = this.ownedPill.getMeasuredBounds().visual;
     this.ownedPill.container.setPosition(rect.x - pill.x, rect.y + rect.height / 2);
     this.bottom = layout.bottom;
   }

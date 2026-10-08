@@ -25,26 +25,36 @@ export function collectionHeaderLayout(counterHeight: number, completionHeight: 
   const top = theme.design.headerCenterY + theme.control.minHitHeight / 2 + theme.space(3);
   const height = Math.max(theme.control.minHitHeight, counterHeight + gap + completionHeight);
   return {
-    search: { x: theme.design.safeLeft, y: top + height / 2, width: 430 },
+    search: { x: theme.design.safeLeft, y: top + height / 2 },
     counterY: top, completionY: top + counterHeight + gap,
     filterTop: top + height + theme.space(3),
   };
 }
 
-/** Measured controls wrap as a group without shrinking their labels or hit areas. */
+/**
+ * The filter controls sit on an equal-column grid spanning the title-safe
+ * frame, so every edge lands on the binder's edges or a shared column line.
+ * The grid takes the most columns whose width still fits every control's
+ * measured width; text size can only drop it to fewer, wider columns.
+ */
 export function collectionFilterLayout(widths: readonly number[], top: number) {
   const gap = theme.space(2);
   const height = theme.control.minHitHeight;
-  let x = theme.design.safeLeft, y = top;
-  const controls = widths.map((width): Rect => {
-    if (x > theme.design.safeLeft && x + width > theme.design.safeRight) {
-      x = theme.design.safeLeft; y += height + gap;
-    }
-    const rect = { x, y, width, height };
-    x += width + gap;
-    return rect;
-  });
-  return { controls, bottom: y + height };
+  const widest = Math.max(0, ...widths);
+  const columnWidth = (n: number) => (theme.design.safeWidth - gap * (n - 1)) / n;
+  let columns = Math.max(1, widths.length);
+  while (columns > 1 && columnWidth(columns) < widest) columns--;
+  // Balance the rows: four controls in a 3-wide grid read better as 2 + 2.
+  const rows = Math.ceil(widths.length / columns);
+  columns = Math.max(1, Math.ceil(widths.length / rows));
+  const width = columnWidth(columns);
+  const controls = widths.map((_, index): Rect => ({
+    x: theme.design.safeLeft + (index % columns) * (width + gap),
+    y: top + Math.floor(index / columns) * (height + gap),
+    width,
+    height,
+  }));
+  return { controls, columnWidth: width, bottom: top + rows * height + (rows - 1) * gap };
 }
 
 /** The specialist card faces yield space to live-size chrome above and below. */
@@ -61,7 +71,10 @@ export function collectionBinderLayout(top: number, badgeHeight = menuLineHeight
     .map((x): Rect => ({ x, y: top, width: pageWidth, height: bottom - top }));
   const columns = pages.map((page) => Array.from({ length: 3 }, (_, i) => page.x + pageWidth * (i + 0.5) / 3));
   return { pages, columns, rowYs, faceWidth, faceHeight, scale, badgeHeight,
-    badgeWidth: pageWidth / 3 - theme.space(4),
+    // The badge strip shares the card face's edges: tier left, count centred, finishes right.
+    badgeWidth: faceWidth,
+    /** The pocket's share of its page: the widest a badge strip may grow. */
+    cellWidth: pageWidth / 3 - theme.space(4),
     labelOffset: faceHeight / 2 + theme.space(2) + badgeHeight / 2,
     pagerY: theme.design.footerCenterY, bottom };
 }

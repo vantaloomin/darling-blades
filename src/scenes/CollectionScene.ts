@@ -89,6 +89,7 @@ import {
   goldBadge,
   modalShell,
   pager,
+  PAGER_CENTER_OFFSET,
   registerSceneBackNavigation,
   themedButton,
   type GoldBadge,
@@ -272,9 +273,11 @@ export class CollectionScene extends Phaser.Scene {
       },
     });
 
-    // The DOM input uses a full-width hint and feeds the same filtered pool.
-    this.searchInput = createSearchInput(this, header.search.x + header.search.width / 2, header.search.y, {
-      width: header.search.width,
+    // The DOM input takes the filter grid's first column, so its edges share
+    // the Set filter's column lines, and feeds the same filtered pool.
+    const searchWidth = this.filterBar.columnWidth;
+    this.searchInput = createSearchInput(this, header.search.x + searchWidth / 2, header.search.y, {
+      width: searchWidth,
       placeholder: 'Name, type, trait, mechanic…',
       accessibleName: 'Search cards by name, type, trait, or mechanic',
       onChange: (value) => {
@@ -284,7 +287,7 @@ export class CollectionScene extends Phaser.Scene {
       },
     });
 
-    this.pageControl = pager(this, DESIGN_W / 2 - 56, theme.design.footerCenterY, this.page, 1, (page) => {
+    this.pageControl = pager(this, DESIGN_W / 2 - PAGER_CENTER_OFFSET, theme.design.footerCenterY, this.page, 1, (page) => {
       const direction = page > this.page ? 1 : -1;
       this.page = page;
       this.renderPage(direction);
@@ -331,17 +334,22 @@ export class CollectionScene extends Phaser.Scene {
   }
 
   /** Static open-binder art: two page slabs, spine, and the fixed pockets. */
-  private drawBinderChrome(): void {
+  private drawBinderChrome(empty: boolean): void {
     const g = this.binderChrome!;
     g.clear();
     this.binder = collectionBinderLayout(this.filterBar.bottom + theme.space(3));
-    // page slabs
+    // page slabs; an empty result draws one slab across the spread so its
+    // message is centred on a surface, not across the spine and the pockets.
+    const [left, right] = this.binder.pages;
+    const slabs = empty ? [{ x: left.x, y: left.y, width: right.x + right.width - left.x, height: left.height }] : this.binder.pages;
     g.fillStyle(theme.graphics.panelFill, theme.alpha.chrome);
-    for (const page of this.binder.pages) {
+    for (const page of slabs) {
       g.fillRoundedRect(page.x, page.y, page.width, page.height, theme.radius.panel);
       g.lineStyle(theme.control.borderWidth, theme.graphics.panelStroke, 1);
       g.strokeRoundedRect(page.x, page.y, page.width, page.height, theme.radius.panel);
     }
+    this.emptyText.setY(left.y + left.height / 2).setVisible(empty);
+    if (empty) return;
     // pockets — fixed; cards drop into them, badges sit on the lip below
     g.lineStyle(1, theme.graphics.panelStroke, theme.alpha.chrome);
     g.fillStyle(theme.graphics.rowFill, theme.alpha.subtle);
@@ -412,10 +420,10 @@ export class CollectionScene extends Phaser.Scene {
    */
   private renderPage(dir = 0): void {
     this.binderStale = false;
-    this.drawBinderChrome();
     const save = this.saveData;
     const collectible = collectiblePool(this.cards);
     const pool = this.currentPool();
+    this.drawBinderChrome(pool.length === 0);
     this.page = clampPage(this.page, pool.length, SPREAD_SIZE);
 
     const ownedKinds = collectible.filter((d) => ownedCount(save, d.id) > 0).length;
@@ -429,8 +437,10 @@ export class CollectionScene extends Phaser.Scene {
     this.completionText.setText(
       `${poolPercent}% pool · ${completion.variants.specialCards} special cards`,
     );
-    this.pageControl.refresh(this.page, pageCount(pool.length, SPREAD_SIZE));
-    this.emptyText.setVisible(pool.length === 0);
+    const spreads = pageCount(pool.length, SPREAD_SIZE);
+    this.pageControl.refresh(this.page, spreads);
+    // One spread needs no pager.
+    this.pageControl.container.setVisible(spreads > 1);
 
     // The spread on show is leased at `visible` and the spreads either side
     // are prefetched at `soon` (docs/plan-art-streaming.md section 2). A turn
@@ -592,14 +602,26 @@ export class CollectionScene extends Phaser.Scene {
             color,
           })
           .setOrigin(originX, 0.5);
-      c.add(badge(x - this.binder.badgeWidth / 2, 0, TIER_LABEL[d.rarity], TIER_TEXT_COLOR[d.rarity]));
-      if (owned > 0) {
-        c.add(badge(x, 0.5, `×${owned}`, owned >= PLAYSET ? theme.colors.gold : theme.colors.heading));
-      }
+      // The strip shares the card face's edges: tier on the left, counts
+      // gathered on the right. Counts too long for the face widen the strip
+      // symmetrically, up to the pocket's cell, so badges never collide.
+      const gap = theme.space(2);
+      const tier = badge(0, 0, TIER_LABEL[d.rarity], TIER_TEXT_COLOR[d.rarity]);
       const specials = specialVariantCount(save, d.id);
-      if (specials > 0) {
-        c.add(badge(x + this.binder.badgeWidth / 2, 1, `✦${specials}`, TIER_TEXT_COLOR.ssr));
+      const special = specials > 0 ? badge(0, 1, `✦${specials}`, TIER_TEXT_COLOR.ssr) : null;
+      const count = owned > 0
+        ? badge(0, 1, `×${owned}`, owned >= PLAYSET ? theme.colors.gold : theme.colors.heading)
+        : null;
+      const needed = tier.width + [count, special].reduce((sum, t) => sum + (t ? gap + t.width : 0), 0);
+      const half = Math.min(Math.max(this.binder.badgeWidth, needed), this.binder.cellWidth) / 2;
+      tier.setX(x - half);
+      let cursor = x + half;
+      for (const t of [special, count]) {
+        if (!t) continue;
+        t.setX(cursor);
+        cursor -= t.width + gap;
       }
+      c.add([tier, ...[count, special].filter((t): t is Phaser.GameObjects.Text => t !== null)]);
     });
     return c;
   }
@@ -1117,8 +1139,10 @@ export class CollectionScene extends Phaser.Scene {
         variantPageControl?.refresh(page, variants.pageCount);
         restyle();
       };
-      variantPageControl = pager(this, panelX + columns.detailsWidth / 2 - 56, variants.pagerY,
+      variantPageControl = pager(this, panelX + columns.detailsWidth / 2 - PAGER_CENTER_OFFSET, variants.pagerY,
         0, variants.pageCount, renderVariantPage);
+      // One page needs no pager.
+      variantPageControl.container.setVisible(variants.pageCount > 1);
       c.add(variantPageControl.container);
       renderVariantPage(Math.max(0, Math.min(variants.pageCount - 1, this.fixture?.variantPage ?? 0)));
       if (this.fixture?.compareVariantIndex !== undefined) {
