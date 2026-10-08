@@ -430,7 +430,7 @@ fits a roster. Overplan targets, one to three cards each unless noted:
 | **Duty** | strategists' orders, war drums, temple braziers; every colour | 10-14 |
 
 **All 31 are a hard floor** (the owner, 2026-10-08: "ALL the keywords
-across this set, even if it means that we expand beyond 250"). The cut
+and mechanics across this set, even if it means that we expand beyond 250"). The cut
 never removes the last card carrying a keyword or mechanic; if keeping one
 means going over 250, the set goes over. **Every keyword appears at C or R
 at least once**, so a player meets it in packs, and the per-set data check
