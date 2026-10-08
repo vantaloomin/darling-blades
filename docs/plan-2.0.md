@@ -2,11 +2,10 @@
 
 # Darling Blades 2.0: program plan (draft)
 
-**Status 2026-10-08: DRAFT for the owner.** Written while 1.9.0 is being cut
-(PR #550 on `release/1.9`). Only the rulings quoted with a date are ruled.
-Every lane, wave and recommendation below is this draft's proposal and waits
-on the owner, collected under [Decisions for the owner](#decisions-for-the-owner).
-Each wave starts on the owner's word, as in 1.9.
+**Status 2026-10-08: decisions P1-P18 RULED by the owner, one by one, the
+same day** (see [Decisions for the owner](#decisions-for-the-owner)). Written
+while 1.9.0 was being cut. Lane and wave detail not covered by a ruling is
+this plan's proposal. Each wave starts on the owner's word, as in 1.9.
 
 The release spine is [plan-road-to-2.0.md](plan-road-to-2.0.md). Its 2.0 row,
 as agreed 2026-08-24, as ruled 2026-09-25, and as this draft proposes after
@@ -412,7 +411,8 @@ owner's review turnaround sets most of the calendar.
 
 ## Decisions for the owner
 
-Each has a recommendation. None is ruled.
+**All eighteen ruled by the owner on 2026-10-08, one by one.** Where a ruling
+differs from the recommendation, the row says so.
 
 | # | Decision | Recommendation |
 | --- | --- | --- |
@@ -433,7 +433,7 @@ Each has a recommendation. None is ruled.
 | **P15** | The life study's pool | **Settled 2026-10-08:** the study is already running on 1.9.0 (owner: "The Life investigation is already happening"); its readings are re-taken in the end-of-train measurement |
 | **P16** | Replay versions | **RULED 2026-10-08: as recommended.** One `REPLAY_LOG_VERSION` bump (16 to 17) shared by the Mandate, the life field and Story |
 | **P17** | If the life study is late | **RULED 2026-10-08: always wait.** Core Set II's rescore waits for the life number however long the study takes; there is no 20-life fallback. The life study is on the set's critical path |
-| **P18** | Does itch wait for full Story Mode? | No: launch with Act 1 + endless, the priority order (itch 6, full Story 7). The store page sells Story Mode as growing, with Acts 2-3 as the next update |
+| **P18** | Does itch wait for full Story Mode? | **RULED 2026-10-08: as recommended.** No: launch with Act 1 + endless, the priority order (itch 6, full Story 7). The store page sells Story Mode as growing, with Acts 2-3 as the next update |
 
 Still open from earlier plans and carried here: the permanent-buy price and
 limits (Story), Story's premise, Core Set II's product scope, Darlings
