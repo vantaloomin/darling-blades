@@ -288,6 +288,11 @@ word.
 - The compact design space and the render factor (C1); the resolver's
   device term (C3).
 - The shared compact primitives (C6), with hit-target checks on every one.
+- **The emulator** (proposed): a session on the owner's PC installs the
+  Android command-line tools (not the full Studio app), makes a 360 px
+  Galaxy-class phone, and drives its Chrome over the debugging bridge for
+  screenshots and scripted scene walks. It runs in short sessions, per the
+  owner's rule on PC load; it needs Windows virtualization and about 10 GB.
 - **The device baseline:** on each tested device in the matrix, a capture
   of today's game (what clips, what is too small) and the real content box,
   to check the 80 px browser-bar reserve. The page height is `100dvh`, which
