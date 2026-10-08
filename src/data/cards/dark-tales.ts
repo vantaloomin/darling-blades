@@ -171,7 +171,7 @@ const SR: CardDef[] = [
   }),
   creature('dt-red-hood-wolfslayer', 'Red Hood Wolfslayer', ['Human', 'Hunter'], {
     supertypes: ['legendary'], cost: cost(2, 'RG'), colors: ['R', 'G'], attack: 4, defense: 4,
-    keywords: ['firstBlade', 'overrun'], rarity: 'sr',
+    keywords: ['firstBlade', 'overrun', 'rage'], rarity: 'sr',
   }),
   enchantment('dt-rose-cage-ballad', 'Rose-Cage Ballad', [], {
     cost: cost(3, 'B'), colors: ['B'], abilities: [dawn([{ op: 'loseLife', n: 2, who: 'opponent' }, { op: 'gainLife', n: 2 }])],

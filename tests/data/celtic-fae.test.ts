@@ -24,6 +24,7 @@ const KEYWORDS = new Set<Keyword>([
   'deathblade',
   'bloodoath',
   'untouchable',
+  'rage',
 ]);
 const OPS = new Set([
   'damage',

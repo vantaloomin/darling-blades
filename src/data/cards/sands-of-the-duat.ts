@@ -2172,6 +2172,7 @@ export const SANDS_OF_THE_DUAT = [
     colors: ['B'],
     attack: 1,
     defense: 1,
+    keywords: ['deathblade'],
     abilities: [{ when: 'dies', ops: [{ op: 'loseLife', n: 1, who: 'opponent' }] }],
     rarity: 'c',
   },
@@ -2464,8 +2465,9 @@ export const SANDS_OF_THE_DUAT = [
     subtypes: ['Bastet', 'Warrior'],
     cost: cost(3, 'R'),
     colors: ['R'],
-    attack: 4,
+    attack: 5,
     defense: 3,
+    keywords: ['rage'],
     rarity: 'c',
   },
   {

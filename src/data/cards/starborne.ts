@@ -587,7 +587,7 @@ export const STARBORNE = [
     abilities: [{ when: 'static', static: { scope: 'filter', filter: { marked: true, who: 'opponent' }, p: -1, t: 0 } }],
   }),
   creature('sb-lance-of-two-suns', 'Lance of Two Suns', ['Alien', 'Duelist'], {
-    cost: cost(2, 'R'), colors: R, attack: 2, defense: 1, keywords: ['twinBlades'], rarity: 'c',
+    cost: cost(2, 'R'), colors: R, attack: 2, defense: 1, keywords: ['twinBlades', 'rage'], rarity: 'c',
     abilities: [arrivesTargeted({ what: 'creature', other: true }, [{ op: 'addCounters', n: 1, to: 'target' }])],
   }),
   creature('sb-mirrorblade-consort', 'Mirrorblade Consort', ['Lumenborn'], {

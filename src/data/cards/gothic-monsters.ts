@@ -460,7 +460,7 @@ export const GOTHIC_MONSTERS = [
     rarity: 'c',
   },
   creature('gm-lantern-patrol', 'Lantern Patrol', ['Hunter', 'Patrol'], {
-    cost: cost(2, 'W'), colors: ['W'], attack: 2, defense: 2, keywords: ['firstBlade'],
+    cost: cost(2, 'W'), colors: ['W'], attack: 1, defense: 3, keywords: ['twinBlades'],
     rarity: 'c',
   }),
   {

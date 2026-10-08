@@ -113,7 +113,7 @@ const SR: CardDef[] = [
   }),
   creature('dt-bell-tower-dancer', 'Bell-Tower Dancer', ['Human', 'Dancer'], {
     supertypes: ['legendary'], cost: cost(1, 'WR'), colors: ['W', 'R'], attack: 2, defense: 2,
-    keywords: ['warcry', 'firstBlade'], skim: { cost: cost(1) },
+    keywords: ['warcry', 'twinBlades'], skim: { cost: cost(1) },
     rarity: 'sr',
   }),
   creature('dt-duchess-of-the-lost-winter', 'Duchess of the Lost Winter', ['Human', 'Duchess'], {

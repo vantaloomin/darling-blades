@@ -515,7 +515,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Oni Enforcer)",
     "cost": "{3}{R}",
     "stats": "4/3",
-    "mechanics": "Warcry. When this attacks: opponent loses 1 life."
+    "mechanics": "Warcry, Rage. When this attacks: opponent loses 1 life."
   },
   {
     "id": "yn-burn-the-billboard",
@@ -1233,6 +1233,7 @@ const KEYWORDS: Readonly<Record<string, Keyword>> = {
   'Blood Oath': 'bloodoath',
   Untouchable: 'untouchable',
   Dreaded: 'dreaded',
+  Rage: 'rage',
 };
 
 const CLEAN_SPECIES = new Set(['Kitsune', 'Oni', 'Yokai', 'Tanuki', 'Kappa', 'Dryad', 'Spirit', 'Human']);

@@ -146,7 +146,7 @@ export const ARTHURIAN_COURT = [
   },
   creature('ac-mordred-bastard-star', 'Mordred, Bastard Star', ['Knight', 'Rebel'], {
     supertypes: ['legendary'], cost: cost(3, 'BR'), colors: ['B', 'R'], attack: 4, defense: 4,
-    keywords: ['overrun', 'warcry'],
+    keywords: ['overrun', 'warcry', 'dreaded'],
     abilities: [{ when: 'attacks', ops: [{ op: 'damage', n: 2, to: 'opponent' }] }],
     rarity: 'sr',
   }),
@@ -435,7 +435,7 @@ export const ARTHURIAN_COURT = [
     rarity: 'c',
   },
   creature('ac-errant-duelist', 'Errant Duelist', ['Knight', 'Duelist'], {
-    cost: cost(2, 'R'), colors: ['R'], attack: 2, defense: 2, keywords: ['firstBlade'],
+    cost: cost(2, 'R'), colors: ['R'], attack: 2, defense: 2, keywords: ['firstBlade', 'rage'],
     awakening: { p: 1, t: 1, keywords: ['untouchable'] },
     rarity: 'c',
   }),

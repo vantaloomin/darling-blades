@@ -1688,7 +1688,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     rarity: 'c',
     set: 'drowned-deep',
   },
-  // Whenever another creature you control dies, opponent loses 1 life.
+  // Blood Oath. Whenever another creature you control dies, opponent loses 1 life.
   {
     id: 'dd-marsh-widow',
     name: 'Marsh-Widow',
@@ -1698,6 +1698,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['B'],
     attack: 2,
     defense: 3,
+    keywords: ['bloodoath'],
     abilities: [{ when: 'allyDies', filter: { other: true }, ops: [{ op: 'loseLife', n: 1, who: 'opponent' }] }],
     rarity: 'c',
     set: 'drowned-deep',
@@ -2180,7 +2181,7 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     rarity: 'c',
     set: 'drowned-deep',
   },
-  // Overrun.
+  // Overrun. Twin Blades.
   {
     id: 'dd-wrecker-captain-lesser',
     name: 'Wrecker Mate',
@@ -2188,9 +2189,9 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     subtypes: ['Human'],
     cost: cost(2, 'RR'),
     colors: ['R'],
-    attack: 4,
+    attack: 2,
     defense: 3,
-    keywords: ['overrun'],
+    keywords: ['overrun', 'twinBlades'],
     rarity: 'c',
     set: 'drowned-deep',
   },

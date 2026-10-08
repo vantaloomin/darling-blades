@@ -646,8 +646,8 @@ patterned, never lettered.
 - **Prompt:** Fate-Reader Acolyte, a Norn, a weaver of fate at the world-well, in layered rune-embroidered robes and a veil of drifting mist; seated at the loom of fate, reading a thread drawn taut between her hands, against the Well of Urd beneath a root of Yggdrasil, threads of fate glinting in the air; unreadable and ancient, seeing the ending already written; a pale well-glow from below with a violet rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Keeper of the Well of Urd — `rg-well-keeper`
-- **Card facts:** {3}{U} · U · 2/4 · c · holo: none
-- **Character & source:** a Norn, a weaver of fate at the world-well; mechanically a straightforward body on the battlefield.
+- **Card facts:** {3}{U} · U · 2/4 · bulwark · c · holo: none
+- **Character & source:** a Norn, a weaver of fate at the world-well; mechanically a guard of the well who draws a card when she arrives and never leaves it to attack.
 - **Personality / mood:** "The well remembers everything. She just files it." — unreadable and ancient, seeing the ending already written.
 - **Pose & composition:** seated at the loom of fate, reading a thread drawn taut between her hands; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
 - **Costume & attire:** layered rune-embroidered robes and a veil of drifting mist.
@@ -661,7 +661,7 @@ patterned, never lettered.
 - **Prompt:** Keeper of the Well of Urd, a Norn, a weaver of fate at the world-well, in layered rune-embroidered robes and a veil of drifting mist; seated at the loom of fate, reading a thread drawn taut between her hands, against the Well of Urd beneath a root of Yggdrasil, threads of fate glinting in the air; unreadable and ancient, seeing the ending already written; a pale well-glow from below with a violet rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Runecarver Adept — `rg-runecarver`
-- **Card facts:** {2}{U} · U · 1/3 · c · holo: none
+- **Card facts:** {2}{U} · U · 1/3 · untouchable · c · holo: none
 - **Character & source:** a Norn, a weaver of fate at the world-well; mechanically she feeds the graveyard.
 - **Personality / mood:** "Each rune she carves is one the world must now obey." — unreadable and ancient, seeing the ending already written.
 - **Pose & composition:** seated at the loom of fate, reading a thread drawn taut between her hands; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -721,7 +721,7 @@ patterned, never lettered.
 - **Prompt:** Bog-Fen Lurker, a Draugr, a barrow-dead warrior risen from the howe, in rusted grave-mail and torn burial finery, cold grave-fire burning in the eye-sockets; hauling upright out of the grave-earth, blade first, against a cracked-open barrow mound spilling blue grave-light over black earth; hateful and patient, robbed of everything but the grudge; a cold blue grave-fire key, near-black fill — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Hungry Shade — `rg-hungry-shade`
-- **Card facts:** {2}{B} · B · 2/2 · c · holo: none
+- **Card facts:** {2}{B} · B · 2/2 · dreaded · c · holo: none
 - **Character & source:** a mist-wraith shade of the fens; mechanically a straightforward body on the battlefield.
 - **Personality / mood:** "It leaves a little poorer than it found you." — hollow and hungry.
 - **Pose & composition:** half-dissolved, drifting forward faster than mist should move; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.

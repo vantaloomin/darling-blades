@@ -153,7 +153,7 @@ export const CELTIC_FAE = [
   {
     id: 'cf-brigid-ember-blessing', name: "Brigid's Ember Blessing", types: ['charm'], subtypes: [],
     cost: cost(1, 'R'), colors: ['R'],
-    abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'boost', p: 1, t: 1, keywords: ['firstBlade'], scope: 'target' }, { op: 'foresee', n: 1 }] }],
+    abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'boost', p: 1, t: 1, keywords: ['twinBlades'], scope: 'target' }, { op: 'foresee', n: 1 }] }],
     rarity: 'r',
   },
   fae('cf-sidhe-silver-lancer', 'Sidhe Silver-Lancer', 'Knight', {
@@ -383,7 +383,7 @@ export const CELTIC_FAE = [
     rarity: 'c',
   },
   fae('cf-laughing-pooka', 'Laughing Pooka', 'Pooka', {
-    cost: cost(0, 'RR'), colors: ['R'], attack: 4, defense: 1,
+    cost: cost(0, 'RR'), colors: ['R'], attack: 4, defense: 1, keywords: ['rage'],
     rarity: 'c',
   }),
   fae('cf-hazelwand-mystic', 'Hazelwand Mystic', 'Druid', {

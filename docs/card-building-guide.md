@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts, src/data/glossary.ts, balance/power-scores.json, docs/keyword-map.md · last-verified: 2026-09-10 · design doc — how to cost and combine cards; re-verify when a keyword, mechanic, or the power formula changes -->
+<!-- source-of-truth: src/engine/types.ts, src/data/glossary.ts, balance/power-scores.json, docs/keyword-map.md · last-verified: 2026-10-08 · design doc — how to cost and combine cards; re-verify when a keyword, mechanic, or the power formula changes -->
 
 # Card Building Guide
 
@@ -86,8 +86,9 @@ Every trap below scores as "fine" and is not.
 
 - **Twin Blades multiplies damage.** A +1/+1 mark on a double-striker is worth
   about two damage, not one. Starborne priced `sb-lance-of-two-suns` as a common
-  that arrived as a 3/2 Twin Blades for mv3, six damage, when **every shipped
-  mv3 Twin Blades body deals four and three of the four are rare**. Its sibling
+  that arrived as a 3/2 Twin Blades for mv3, six damage, when **every mv3 Twin Blades
+  body shipped then dealt four and three of the four were rare** (the 1.9.1
+  backfill's 1/3 Lantern Patrol deals two). Its sibling
   `sb-splitlight-corsair` reached ten damage at mv5, which is the UR tier.
   Neither tripped the formula.
 - **Overrun multiplies pump.** Excess damage carries to the player, so +X/+X on
@@ -108,26 +109,28 @@ rarity tier your card lands in.
 
 ## 4. The thirteen keywords
 
-Recounted 2026-09-29 from `CARD_DB`. "Cards" is collectible cards that print the
-keyword (grants not counted); "Sets" is how many of the ten shipped sets print it;
-"Colour home" counts the mono-coloured cards among them. The coverage check below
-also counts grants, so it sees Untouchable and Dreaded in one more set each.
+Recounted 2026-10-08 from `CARD_DB`, after D8 and the 1.9.1 keyword backfill.
+"Cards" is collectible cards of the ten shipped sets that print the keyword
+(grants not counted); "Sets" is how many of those ten print it; "Colour home"
+counts the mono-coloured cards among them. The coverage check below also counts
+grants, so it sees Twin Blades and Dreaded in Celtic Fae and Untouchable in
+Arthurian Court, where no card prints them.
 
 | Keyword | Cards | Sets | Colour home | Watch for |
 | --- | --- | --- | --- | --- |
-| **Skyborne** | 109 | 10 | U 50, B 17, W 16 | The most common evasion. A deck with no Skyborne and no Warding Gaze **cannot block a flier at all**; the five starter reserve columns field 21 Skyborne against only 9 Warding Gaze. |
-| **Warding Gaze** | 56 | 10 | G 38, W 11 | Green's answer to the above, and mostly green's (white is a distant second). Moving it elsewhere quietly changes which colours can defend themselves. |
-| **First Blade** | 42 | 9 | R 16, W 13 | **Beats Deathblade**: it kills first, so the deathtouch never lands. A cheap First Blade body invalidates an expensive Deathblade one. |
-| **Twin Blades** | 22 | 6 | R 8, W 6 | Highest keyword value at +1.25, and it **multiplies every pump effect**. See section 3. |
+| **Skyborne** | 110 | 10 | U 51, B 17, W 16 | The most common evasion. A deck with no Skyborne and no Warding Gaze **cannot block a flier at all**; the five starter reserve columns field 21 Skyborne against only 9 Warding Gaze. |
+| **Warding Gaze** | 57 | 10 | G 39, W 11 | Green's answer to the above, and mostly green's (white is a distant second). Moving it elsewhere quietly changes which colours can defend themselves. |
+| **First Blade** | 41 | 10 | R 16, W 13 | **Beats Deathblade**: it kills first, so the deathtouch never lands. A cheap First Blade body invalidates an expensive Deathblade one. |
+| **Twin Blades** | 25 | 9 | R 9, W 7 | Highest keyword value at +1.25, and it **multiplies every pump effect**. See section 3. |
 | **Warcry** | 90 | 10 | R 65 | Haste. Overwhelmingly red; it reads as off-colour anywhere else. |
-| **Overrun** | 53 | 10 | G 28, R 14 | Multiplies pump into direct reach. Deceptively strong on a big body. |
-| **Sentinel** | 85 | 10 | W 46, G 21 | Attacking does not tap. Pairs with anything that rewards a wide untapped board. |
-| **Bulwark** | 34 | 9 | G 14, W 8, U 7 | **Cannot attack**, priced at -0.75. Never combine with attack triggers, and remember `Wolfsbane Ward` grants it as a form of removal. Safe home for self-targeting marks, since nothing doubles. |
-| **Deathblade** | 46 | 9 | B 39 | Blanks big bodies. The starter columns field **22 Deathblade creatures**, so a set full of expensive fatties will underperform against them. |
-| **Blood Oath** | 37 | 9 | W 11, B 11 | Lifelink. Multiplies with pump, and squares with Twin Blades. |
-| **Untouchable** | 20 | 8 | U 10, W 3 | **One-sided**: opponents cannot target it, your own spells still can. A removal-light deck simply loses to it, so it needs sweepers or blockers in the format. |
-| **Dreaded** | 35 | 6 | B 19, R 5 | Needs two blockers. Strong against go-wide decks that want to trade one for one. |
-| **Rage** | 11 | 4 | R 10 | **Attacks every turn if it is able to**, and the only DRAWBACK keyword besides Bulwark. Priced at -0.45, or -0.15 when the card already carries Twin Blades, Warcry, Overrun or First Blade, because a creature built to attack loses almost nothing by being told to (power-formula §4o). Never put it on a card you want back on defence, and never on a body whose value is a blocking statline. Bulwark beats it outright: "cannot attack" wins over "if able". |
+| **Overrun** | 54 | 10 | G 29, R 14 | Multiplies pump into direct reach. Deceptively strong on a big body. |
+| **Sentinel** | 87 | 10 | W 48, G 21 | Attacking does not tap. Pairs with anything that rewards a wide untapped board. |
+| **Bulwark** | 34 | 10 | G 14, W 8, U 7 | **Cannot attack**, priced at -0.75. Never combine with attack triggers, and remember `Wolfsbane Ward` grants it as a form of removal. Safe home for self-targeting marks, since nothing doubles. |
+| **Deathblade** | 47 | 10 | B 40 | Blanks big bodies. The starter columns field **22 Deathblade creatures**, so a set full of expensive fatties will underperform against them. |
+| **Blood Oath** | 38 | 10 | B 12, W 11 | Lifelink. Multiplies with pump, and squares with Twin Blades. |
+| **Untouchable** | 21 | 9 | U 11, W 3 | **One-sided**: opponents cannot target it, your own spells still can. A removal-light deck simply loses to it, so it needs sweepers or blockers in the format. |
+| **Dreaded** | 38 | 9 | B 21, R 5 | Needs two blockers. Strong against go-wide decks that want to trade one for one. |
+| **Rage** | 18 | 10 | R 16 | **Attacks every turn if it is able to**, and the only DRAWBACK keyword besides Bulwark. Priced at -0.45, or -0.15 when the card already carries Twin Blades, Warcry, Overrun or First Blade, because a creature built to attack loses almost nothing by being told to (power-formula §4o). Never put it on a card you want back on defence, and never on a body whose value is a blocking statline. Bulwark beats it outright: "cannot attack" wins over "if able". |
 
 ### What your card will actually face
 
@@ -167,10 +170,11 @@ each keyword in the `Keyword` union, so a keyword added later is required
 everywhere at once. A card carries a keyword when it prints it or grants it to
 creatures (a lord's static, a boost, a Champion Awakening, a Hauntlink rider),
 as `cardTermNames` in `src/data/glossary.ts` reads it; a token the card makes
-does not count. The ten shipped sets all fell short when the check landed, so
-each is grandfathered with the exact keywords it lacks. That list is a
-ratchet: backfilling a keyword fails the test until it is struck from the
-entry, and losing one a set already carried fails too. A small set may fill
+does not count. The ten shipped sets all fell short when the check landed (18
+gaps, grandfathered at first); the 1.9.1 keyword backfill
+([keyword-backfill-1.9.1.md](keyword-backfill-1.9.1.md)) closed every one, with
+D8's Ninth-Step Duelist taking Duat's First Blade, so no set is exempt now and
+losing a keyword fails the test. A small set may fill
 its gaps with a card or two; a Large set is also expected to carry every named
 mechanic in section 5, which nothing checks yet.
 
