@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mainMenuButtonY, mainMenuCornerY, MAIN_MENU_CORNER, MAIN_MENU_ITEMS, MAIN_MENU_PITCH_Y } from '../../src/ui/mainMenuPresentation';
+import { mainMenuDailyLayout, mainMenuHeaderRow, mainMenuNavRows, menuLineHeight, MAIN_MENU_CONTENT, MAIN_MENU_HEADER_GAP, MAIN_MENU_ITEMS } from '../../src/ui/mainMenuPresentation';
 import { theme } from '../../src/ui/theme';
 
 describe('main menu presentation', () => {
@@ -7,29 +7,38 @@ describe('main menu presentation', () => {
     expect(MAIN_MENU_ITEMS.map((item) => item.label)).not.toContain('Card Showcase');
   });
 
-  it('keeps the remaining menu rows on one gap-free pitch', () => {
-    const ys = MAIN_MENU_ITEMS.map((_, index) => mainMenuButtonY(index));
-    expect(ys[0]).toBe(286);
-    expect(ys.slice(1).every((y, index) => y - ys[index] === MAIN_MENU_PITCH_Y)).toBe(true);
-    // One rhythm for the whole screen, and at least the within-group gap
-    // between consecutive 44px hit boxes.
-    expect(MAIN_MENU_PITCH_Y).toBe(MAIN_MENU_CORNER.pitch);
-    expect(MAIN_MENU_PITCH_Y - theme.control.minHitHeight).toBeGreaterThanOrEqual(8);
+  it('gives Play the one tall plate and spaces every row evenly down to the shared bottom line', () => {
+    const rows = mainMenuNavRows();
+    expect(MAIN_MENU_ITEMS[0].label).toBe('Play');
+    expect(rows[0].y).toBe(MAIN_MENU_CONTENT.top);
+    expect(rows.slice(1).every((row) => row.height < rows[0].height && row.height >= theme.control.minHitHeight)).toBe(true);
+    const gaps = rows.slice(1).map((row, i) => row.y - (rows[i].y + rows[i].height));
+    expect(new Set(gaps).size).toBe(1);
+    expect(gaps[0]).toBeGreaterThanOrEqual(8);
+    const last = rows.at(-1)!;
+    expect(last.y + last.height).toBe(MAIN_MENU_CONTENT.bottom);
+  });
+
+  it('starts the Daily panel on the nav column\'s top line and ends it no higher than its bottom line', () => {
+    const line = menuLineHeight(theme.type.caption);
+    const l = mainMenuDailyLayout(menuLineHeight(theme.type.h1), menuLineHeight(theme.type.label),
+      [0, 1, 2].map(() => ({ title: line, description: line, progress: line, action: theme.control.minHitHeight })));
+    expect(l.panel.y).toBe(MAIN_MENU_CONTENT.top);
+    expect(l.panel.y + l.panel.height).toBeGreaterThanOrEqual(MAIN_MENU_CONTENT.bottom);
+    const nav = mainMenuNavRows()[0];
+    expect(l.panel.x).toBeGreaterThan(nav.x + nav.width);
   });
 });
 
-describe('the main menu corner clusters', () => {
-  it('start on the shared header line, so the top hit box begins at the title-safe edge', () => {
-    expect(mainMenuCornerY(0) - theme.control.minHitHeight / 2).toBeGreaterThanOrEqual(theme.design.safeTop);
-    expect(mainMenuCornerY(0)).toBe(theme.design.headerCenterY);
-  });
-
-  it('keep consecutive hit boxes disjoint and clear of the menu list', () => {
-    for (let i = 1; i < 3; i++) {
-      expect(mainMenuCornerY(i) - theme.control.minHitHeight / 2).toBeGreaterThanOrEqual(
-        mainMenuCornerY(i - 1) + theme.control.minHitHeight / 2,
-      );
+describe('the main menu header row', () => {
+  it('runs the learning buttons hit box to hit box from the left edge, and keeps Settings clear of the badge', () => {
+    const widths = [100, 132, 110];
+    const row = mainMenuHeaderRow(widths, 120, 150);
+    expect(row.y).toBe(theme.design.headerCenterY);
+    expect(row.leftX[0] - widths[0] / 2).toBe(theme.design.safeLeft);
+    for (let i = 1; i < widths.length; i++) {
+      expect(row.leftX[i] - widths[i] / 2 - (row.leftX[i - 1] + widths[i - 1] / 2)).toBe(MAIN_MENU_HEADER_GAP);
     }
-    expect(mainMenuCornerY(2) + theme.control.minHitHeight / 2).toBeLessThan(mainMenuButtonY(0) - theme.control.minHitHeight / 2);
+    expect(row.badgeX - 150 - (row.rightX + 60)).toBeGreaterThanOrEqual(MAIN_MENU_HEADER_GAP);
   });
 });

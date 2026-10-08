@@ -33,6 +33,8 @@ import {
   measureThemedButton,
   measureControlCluster,
   measuredRowsLayout,
+  backdropDimAlpha,
+  HIGH_CONTRAST_BACKDROP_DIM,
   modalDimAlpha,
   MODAL_DIM_FLOOR,
   modalShellLayout,
@@ -49,7 +51,7 @@ import {
   LIMITED_DETAILS_PANEL,
   limitedListRow,
 } from '../../src/ui/limitedPanePresentation';
-import { MAIN_MENU_CORNER, mainMenuCornerY } from '../../src/ui/mainMenuPresentation';
+import { mainMenuHeaderRow, mainMenuNavRows, MAIN_MENU_VERSION } from '../../src/ui/mainMenuPresentation';
 
 const pickerStripOptions: StripLayoutOptions = {
   visibleCount: 4,
@@ -398,6 +400,14 @@ describe('layout geometry', () => {
     // With no close button the title may use the full inner width.
     const open = modalShellLayout({ width: 900, height: 600, hasClose: false });
     expect(open.centredTitleTrack.width).toBe(open.inner.width);
+  });
+
+  it('keeps scene art behind one uniform scrim in high contrast', () => {
+    for (const requested of [undefined, 0.45, 0.5, 0.82]) {
+      expect(backdropDimAlpha(requested, true)).toBe(HIGH_CONTRAST_BACKDROP_DIM);
+    }
+    expect(HIGH_CONTRAST_BACKDROP_DIM).toBeLessThan(1);
+    expect(backdropDimAlpha(0.5, false)).toBe(0.5);
   });
 
   it('never lets a modal sit on a dim light enough to read the screen behind', () => {
@@ -811,14 +821,16 @@ describe('title-safe frame: every placed control', () => {
     // at the badge's 20px size is well under 160px wide.
     const badge = (x: number, y: number): Rect => ({ x: x - 160, y: y - 13, width: 160, height: 26 });
     expectInside('scene badge', badge(HEADER_CURRENCY_ANCHOR.x, HEADER_CURRENCY_ANCHOR.y));
-    expectInside('main menu badge', badge(MAIN_MENU_CORNER.badgeX, mainMenuCornerY(0)));
+    const header = mainMenuHeaderRow([110, 130, 110], 120, 160);
+    expectInside('main menu badge', badge(header.badgeX, header.y));
   });
 
-  it('keeps both main menu corner columns inside the frame', () => {
-    for (let i = 0; i < 3; i++) {
-      expectInside(`left corner ${i}`, buttonHit(MAIN_MENU_CORNER.leftX, mainMenuCornerY(i), 'sm', MAIN_MENU_CORNER.minWidth));
-    }
-    expectInside('Settings', buttonHit(MAIN_MENU_CORNER.rightX, mainMenuCornerY(1), 'sm', MAIN_MENU_CORNER.rightMinWidth));
+  it('keeps the main menu header row, nav column and build stamp inside the frame', () => {
+    const header = mainMenuHeaderRow([110, 130, 110], 120, 160);
+    header.leftX.forEach((x, i) => expectInside(`header ${i}`, buttonHit(x, header.y, 'sm', 110)));
+    expectInside('Settings', buttonHit(header.rightX, header.y, 'sm', 120));
+    mainMenuNavRows().forEach((row, i) => expectInside(`nav ${i}`, row));
+    expectInside('build stamp', { x: MAIN_MENU_VERSION.x, y: MAIN_MENU_VERSION.y - 24, width: 120, height: 24 });
   });
 
   it('keeps the Gauntlet ladder and its scrollbar inside the frame', () => {

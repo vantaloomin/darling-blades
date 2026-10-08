@@ -302,6 +302,8 @@ Use named alpha steps rather than visually similar local decimals:
   A modal shell never draws a dim lighter than `MODAL_DIM_FLOOR` (0.78,
   `layout.ts`), and its panel is always opaque, so the screen behind never
   reads through as a second layer of UI.
+- Scene backdrops keep their art in high contrast behind one uniform scrim,
+  `HIGH_CONTRAST_BACKDROP_DIM` (0.8, `layout.ts`); `applyBackdrop` applies it.
 - `panel` (0.90): structural surface opacity. Opaque (1) in high contrast.
 - `chrome` (0.85): borders and idle control chrome. Opaque (1) in high
   contrast, which removes the idle-to-hover alpha step; the hovered stroke

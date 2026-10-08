@@ -213,7 +213,7 @@ export class CollectionScene extends Phaser.Scene {
       dim: colorInt(theme.colors.dim),
       // 0.70 (2026-07-03 calibration): keeps the grid region under the ≤12%
       // effective-luminance cap so 0.32-alpha unowned thumbs keep separating.
-      dimAlpha: currentAccessibility().highContrast ? theme.alpha.overlayDim : 0.7,
+      dimAlpha: 0.7,
       fallback: () => {
         const bg = this.add.graphics();
         bg.fillGradientStyle(

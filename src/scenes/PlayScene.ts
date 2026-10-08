@@ -1,5 +1,4 @@
 import Phaser from 'phaser';
-import { currentAccessibility } from '../ui/accessibility';
 import { menuSelectionMark, playDeckPickerLayout, playDeckRowColumns, playMenuLayout, playTextStack } from '../ui/playPresentation';
 import { ellipsizeText } from '../ui/textFit';
 import { Music } from '../audio/music';
@@ -93,7 +92,7 @@ export class PlayScene extends Phaser.Scene {
     const width = 1280;
     applyBackdrop(this, 'mainmenu', {
       dim: theme.graphics.dim,
-      dimAlpha: currentAccessibility().highContrast ? theme.alpha.overlayDim : 0.5,
+      dimAlpha: 0.5,
       fallback: () => {
         /* the clear colour shows, matching MainMenu's bare fallback */
       },

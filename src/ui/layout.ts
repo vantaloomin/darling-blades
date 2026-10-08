@@ -734,6 +734,19 @@ export function modalDimAlpha(requested: number | undefined, themeDim: number): 
   return Math.min(1, Math.max(requested ?? themeDim, floor));
 }
 
+/**
+ * High contrast's scene-art dim: one uniform scrim on every screen. Six
+ * screens used to go fully opaque in high contrast, dropping their art, while
+ * the rest kept their standard dim; the owner ruled on 2026-10-08 to keep the
+ * art everywhere behind one dark scrim.
+ */
+export const HIGH_CONTRAST_BACKDROP_DIM = 0.8;
+
+/** The dim a scene backdrop draws: its own in standard contrast, the uniform scrim in high contrast. */
+export function backdropDimAlpha(requested: number | undefined, highContrast: boolean): number {
+  return highContrast ? HIGH_CONTRAST_BACKDROP_DIM : requested ?? 0;
+}
+
 export interface ModalShellLayoutOptions {
   width: number;
   height: number;

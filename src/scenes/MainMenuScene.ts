@@ -1,5 +1,4 @@
 import Phaser from 'phaser';
-import { currentAccessibility } from '../ui/accessibility';
 import { IS_DEV } from '../platform/env';
 import { bindMenuScroll } from '../ui/menuScroll';
 import { Music } from '../audio/music';
@@ -29,12 +28,13 @@ import { Services } from '../meta/services';
 import { normalizeStatsNoticeVersion, STATS_NOTICE_VERSION } from '../meta/statsNotice';
 import { signals } from '../net/signals';
 import { readSignalsGateInput, signalsAllowed } from '../net/signalsGate';
-import { controlFontSize } from '../ui/controlStyle';
-import { measureThemedButton } from '../ui/layout';
 import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { createStatsNoticeDialog } from '../ui/StatsNoticeDialog';
-import { mainMenuButtonY, mainMenuCornerY, mainMenuCornerLayout, mainMenuDailyLayout, menuNoticeLayout, MAIN_MENU_DAILY, MAIN_MENU_CORNER, MAIN_MENU_ITEMS, MAIN_MENU_X } from '../ui/mainMenuPresentation';
+import { mainMenuDailyLayout, mainMenuHeaderRow, mainMenuNavRows, menuNoticeLayout, MAIN_MENU_DAILY, MAIN_MENU_ITEMS, MAIN_MENU_VERSION } from '../ui/mainMenuPresentation';
+import { menuNavButton } from '../ui/MenuNavButton';
+import { activeVisibleSavedDeck } from '../ui/deckBuilderHelpers';
+import { FEATURES } from '../config/features';
 import {
   createStatsNoticeController,
   menuArrivalSteps,
@@ -51,6 +51,8 @@ import { VERSION_LABEL } from '../version';
 
 // Game modes live one level down. "Decks" remains the saved-deck picker and builder.
 const MENU_ITEMS = MAIN_MENU_ITEMS;
+/** Every Daily row's action column: Reroll, Claim +N, Claimed, No rerolls. */
+const DAILY_ACTION_WIDTH = 120;
 
 export class MainMenuScene extends Phaser.Scene {
   private fixture = false;
@@ -86,7 +88,7 @@ export class MainMenuScene extends Phaser.Scene {
       // 0.50, raised from the 0.35 starting point (2026-07-03): the generated
       // vista's horizon glow reaches the bottom menu items; 0.35 left the
       // central column at ~35% luminance vs the ≤28% cap (scene-art.md §2).
-      dimAlpha: currentAccessibility().highContrast ? theme.alpha.overlayDim : 0.5,
+      dimAlpha: 0.5,
       fallback: () => {
         /* scene had no background of its own — the clear colour shows */
       },
@@ -109,9 +111,8 @@ export class MainMenuScene extends Phaser.Scene {
     if (!fixture && syncAchievements(save, CARD_DB).length > 0) Services.save.flush();
     const today = todayString();
     if (!fixture && ensureDailyState(save, today)) Services.save.flush();
-    const claimableAchievements = evaluateAchievements(save, CARD_DB).filter(
-      (status) => status.unlocked && !status.claimed,
-    ).length;
+    const achievements = evaluateAchievements(save, CARD_DB);
+    const claimableAchievements = achievements.filter((status) => status.unlocked && !status.claimed).length;
 
     this.add
       .text(width / 2, 140, 'Darling Blades', {
@@ -121,89 +122,62 @@ export class MainMenuScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    goldBadge(this, MAIN_MENU_CORNER.badgeX, mainMenuCornerY(0), { getValue: () => Services.save.data.gold });
-
-    // Settings entry: a gear under the gold counter (the 8-row menu list is
-    // full). The gold text above is non-interactive, so the 90px inflated hit
-    // rect has no interactive neighbor to collide with. It joins menuItems so
-    // the starter-picker ModalGuard disables it too. (The old VolumeControl
-    // widget is gone — SettingsScene owns all audio controls now.)
-    const gear = themedButton(this, MAIN_MENU_CORNER.rightX, mainMenuCornerY(1), '⚙ Settings', {
-      variant: 'ghost', size: 'sm', minWidth: MAIN_MENU_CORNER.rightMinWidth, onTap: () => this.scene.start('Settings'),
-    });
-    this.menuItems.push(gear.inputZone);
-
-    const cornerLabels = ['👤 Profile', '❔ How to Play', '📖 Glossary'];
-    const leftWidth = Math.max(...cornerLabels.map((label) => {
-      const text = this.add.text(0, 0, label, { fontFamily: theme.fonts.ui,
-        fontSize: `${controlFontSize('sm')}px`, fontStyle: theme.weight.w600 });
-      const width = measureThemedButton(text.width, 'sm', MAIN_MENU_CORNER.minWidth).hit.width;
-      text.destroy();
-      return width;
-    }));
-
-    // Profile entry: top-left corner, balancing the top-right gold+gear cluster.
-    // Like the gear, it lives in the corner because the 8-row menu list is full;
+    // One header row (the approved 2026-10-08 menu): the learning buttons run
+    // from the frame's left edge, Settings sits left of the gold badge. Each
     // joins menuItems so the starter-picker ModalGuard disables it too.
-    // The three learning-corner buttons share a centre and a width so the
-    // cluster reads as one column; Profile was 120 wide at x 90 against the
-    // other two at 150 wide and x 100, so it sat narrower and 5px left.
-    const profile = themedButton(this, MAIN_MENU_CORNER.leftX, mainMenuCornerY(0), cornerLabels[0], {
-      variant: 'ghost', size: 'sm', minWidth: leftWidth, onTap: () => this.scene.start('Profile'),
-    });
-    this.menuItems.push(profile.inputZone);
-
-    // "How to Play" — replay the optional tutorial anytime (top-left, under
-    // Profile, mirroring ⚙ Settings on the right). Makes skipping reversible
-    // (docs/plan-road-to-1.0.md Feature 1). Joins menuItems so the starter
-    // picker's ModalGuard deadens it too.
-    const howto = themedButton(this, MAIN_MENU_CORNER.leftX, mainMenuCornerY(1), cornerLabels[1], {
-      variant: 'ghost', size: 'sm', minWidth: leftWidth, onTap: () => this.startTutorial(),
-    });
-    this.menuItems.push(howto.inputZone);
-
-    // Reference glossary, kept beside the tutorial so players can learn away
-    // from a live duel. It joins the guard-managed menu targets like every
-    // other learning-corner control.
-    const glossary = themedButton(this, MAIN_MENU_CORNER.leftX, mainMenuCornerY(2), cornerLabels[2], {
-      variant: 'ghost', size: 'sm', minWidth: leftWidth, onTap: () => this.scene.start('Glossary'),
-    });
-    this.menuItems.push(glossary.inputZone);
-
-    const corners = mainMenuCornerLayout([profile, howto, glossary].map((b) => b.getMeasuredSize().hit.width), gear.getMeasuredSize().hit.width);
-    // Anchor the common measured width to the safe edge.
-    for (const button of [profile, howto, glossary]) button.container.setX(corners.leftX);
-    gear.container.setX(corners.rightX);
+    const badge = goldBadge(this, theme.design.safeRight, theme.design.headerCenterY, { getValue: () => Services.save.data.gold });
+    const headerButton = (label: string, onTap: () => void): ThemedButton => {
+      // At least the hit width, so plate and tap box share their edges.
+      const button = themedButton(this, 0, theme.design.headerCenterY, label, {
+        variant: 'ghost', size: 'sm', minWidth: theme.control.minHitWidth, onTap });
+      this.menuItems.push(button.inputZone);
+      return button;
+    };
+    const learning = [
+      headerButton('👤 Profile', () => this.scene.start('Profile')),
+      // Replay the optional tutorial anytime; makes skipping reversible.
+      headerButton('❔ How to Play', () => this.startTutorial()),
+      headerButton('📖 Glossary', () => this.scene.start('Glossary')),
+    ];
+    const gear = headerButton('⚙ Settings', () => this.scene.start('Settings'));
+    const header = mainMenuHeaderRow(learning.map((b) => b.getMeasuredSize().hit.width),
+      gear.getMeasuredSize().hit.width, badge.text.width);
+    learning.forEach((button, i) => button.container.setX(header.leftX[i]));
+    gear.container.setX(header.rightX);
     this.drawDailyPanel(today, fixture);
 
+    const unlocked = achievements.filter((status) => status.unlocked).length;
+    const activeDeck = activeVisibleSavedDeck(save.decks, save.activeDeckId, FEATURES.reserveFormats);
+    const navRows = mainMenuNavRows();
     MENU_ITEMS.forEach((entry, i) => {
-      const itemY = mainMenuButtonY(i);
-      const item = themedButton(this, MAIN_MENU_X, itemY, entry.label, {
-        variant: 'ghost',
-        size: 'sm',
-        minWidth: 300,
+      const isPlay = i === 0;
+      const isAchievements = entry.scene === 'Achievements';
+      const item = menuNavButton(this, navRows[i], {
+        label: entry.label,
+        primary: isPlay,
+        ...(isPlay ? { sublabel: activeDeck ? activeDeck.name : 'Choose a deck to play' } : {}),
+        ...(isAchievements ? { trailing: `${unlocked} / ${achievements.length}` } : {}),
         onTap: () => this.scene.start(entry.scene, entry.data),
       });
       // Unlocked-but-unclaimed achievements get a small gold claim-count badge
-      // at the row's right edge (replaces the old "(N)" label suffix). The
-      // count recomputes on scene create, which re-runs after every duel/shop
-      // visit. Pulse only at animations 'full'; reduced/off show it static.
-      if (entry.scene === 'Achievements' && claimableAchievements > 0) {
-        this.addClaimBadge(MAIN_MENU_X + 172, itemY, claimableAchievements);
+      // beside the row's count. Pulse only at animations 'full'.
+      if (isAchievements && claimableAchievements > 0) {
+        const row = navRows[i];
+        this.addClaimBadge(row.x + item.trailingLeft - theme.space(3) - 13, row.y + row.height / 2, claimableAchievements);
       }
-
-      // Hit boxes fill the full 56px row pitch (the audited 15px dead gaps
-      // between rows are the fix column's target — plan §1.4).
       this.menuItems.push(item.inputZone);
     });
 
-    // Build identity, bottom-left corner (non-interactive, low-contrast). The
-    // Settings screen hosts the on-demand "Check for updates" action.
-    this.add.text(14, theme.design.height - theme.space(1), VERSION_LABEL, {
+    // Build identity, bottom-left inside the frame on a small dark plate so
+    // it reads over the art (non-interactive). Settings hosts "Check for updates".
+    const stamp = this.add.text(MAIN_MENU_VERSION.x + MAIN_MENU_VERSION.padX, MAIN_MENU_VERSION.y - MAIN_MENU_VERSION.padY, VERSION_LABEL, {
       fontFamily: theme.fonts.ui,
       fontSize: `${theme.type.caption}px`,
-      color: theme.colors.muted,
+      color: theme.colors.body,
     }).setOrigin(0, 1).setData('a11yExpendable', true);
+    const stampPlate = panel(this, MAIN_MENU_VERSION.x, stamp.y - stamp.height - MAIN_MENU_VERSION.padY,
+      stamp.width + 2 * MAIN_MENU_VERSION.padX, stamp.height + 2 * MAIN_MENU_VERSION.padY, { radius: theme.radius.control });
+    this.children.moveBelow(stampPlate, stamp);
 
     if (fixture) {
       if (data.tutorial) this.promptTutorial();
@@ -439,23 +413,21 @@ export class MainMenuScene extends Phaser.Scene {
     const content = this.add.container(0, 0);
     const rows = quests.map((quest, i) => {
       const row = this.add.container(0, 0);
-      const action = quest.claimed || (!quest.complete && rerollsLeft === 0)
-        ? this.add.text(0, 0, quest.claimed ? 'Claimed' : 'No rerolls', {
-          fontFamily: theme.fonts.ui, fontSize: `${theme.type.label}px`, color: quest.claimed ? theme.colors.success : theme.colors.muted,
-        }).setOrigin(0.5)
-        : this.dailyButton(0, 0, quest.complete ? `Claim +${quest.rewardGold}` : 'Reroll', quest.complete, () => {
-          if (fixture) return;
-          const result = quest.complete ? claimDailyQuest(save, i, todayString()) : rerollDailyQuest(save, i, todayString());
-          if (!result.ok) return;
-          Services.save.flush();
-          if (quest.complete) Sfx.play('coin');
-          this.scene.restart();
-        });
-      const button = 'container' in action ? action : null;
-      const actionNode = button ? button.container : action as Phaser.GameObjects.Text;
-      const actionWidth = button ? button.getMeasuredSize().hit.width : (action as Phaser.GameObjects.Text).width;
+      // One action column (the approved menu): Reroll, Claim and the settled
+      // states share a width. Claim is outlined gold, not filled: Play is the
+      // screen's one primary action.
+      const settled = quest.claimed || (!quest.complete && rerollsLeft === 0);
+      const button = settled ? null : this.dailyButton(0, 0, quest.complete ? `Claim +${quest.rewardGold}` : 'Reroll', quest.complete, () => {
+        if (fixture) return;
+        const result = quest.complete ? claimDailyQuest(save, i, todayString()) : rerollDailyQuest(save, i, todayString());
+        if (!result.ok) return;
+        Services.save.flush();
+        if (quest.complete) Sfx.play('coin');
+        this.scene.restart();
+      });
+      const actionNode = button ? button.container : this.dailyStatePill(quest.claimed ? '✓ Claimed' : 'No rerolls', quest.claimed);
       const textX = x + 24;
-      const textWidth = w - 64 - actionWidth;
+      const textWidth = w - 64 - DAILY_ACTION_WIDTH;
       const name = this.add.text(textX, 0, quest.title, {
         fontFamily: theme.fonts.display, fontSize: `${theme.type.label}px`, color: quest.claimed ? theme.colors.muted : theme.colors.heading,
         wordWrap: { width: textWidth },
@@ -469,11 +441,11 @@ export class MainMenuScene extends Phaser.Scene {
       }).setOrigin(1, 0);
       row.add([name, description, progressText, actionNode]);
       content.add(row);
-      return { row, quest, name, description, progressText, actionNode, actionWidth, textWidth, button };
+      return { row, quest, name, description, progressText, actionNode, textWidth, button };
     });
     const layout = mainMenuDailyLayout(Math.max(title.height, rerolls.height), streakText.height, rows.map((r) => ({
       title: r.name.height, description: r.description.height, progress: r.progressText.height,
-      action: r.button ? r.button.getMeasuredSize().hit.height : (r.actionNode as Phaser.GameObjects.Text).height,
+      action: theme.control.minHitHeight,
     })));
     const bg = panel(this, layout.panel.x, layout.panel.y, layout.panel.width, layout.panel.height);
     this.children.moveBelow(bg, title);
@@ -481,7 +453,7 @@ export class MainMenuScene extends Phaser.Scene {
     rows.forEach((r, i) => {
       const at = layout.rows[i];
       r.name.setY(at.titleY); r.description.setY(at.descriptionY); r.progressText.setY(at.progressY);
-      r.actionNode.setPosition(x + w - 24 - r.actionWidth / 2, at.y + at.height / 2);
+      r.actionNode.setPosition(x + w - 24 - DAILY_ACTION_WIDTH / 2, at.y + at.height / 2);
       const rowBg = panel(this, layout.viewport.x, at.y, layout.viewport.width, at.height, { radius: theme.radius.control });
       r.row.addAt(rowBg, 0);
       const barW = r.textWidth - r.progressText.width - theme.space(3);
@@ -496,15 +468,29 @@ export class MainMenuScene extends Phaser.Scene {
       rows.flatMap((r) => r.button ? [r.button] : []));
   }
 
-  private dailyButton(x: number, y: number, label: string, primary: boolean, cb: () => void): ThemedButton {
+  private dailyButton(x: number, y: number, label: string, claim: boolean, cb: () => void): ThemedButton {
     const btn = themedButton(this, x, y, label, {
-      variant: primary ? 'primary' : 'ghost',
+      variant: claim ? 'emphasis' : 'ghost',
       size: 'sm',
-      minWidth: 112,
+      minWidth: DAILY_ACTION_WIDTH,
+      maxTextWidth: DAILY_ACTION_WIDTH - 2 * theme.space(2),
       onTap: cb,
     });
     this.menuItems.push(btn.inputZone);
     return btn;
+  }
+
+  /** A settled quest's state, drawn as a non-interactive pill the size of the action buttons. */
+  private dailyStatePill(label: string, done: boolean): Phaser.GameObjects.Container {
+    const color = done ? theme.colors.success : theme.colors.muted;
+    const h = theme.control.heightSm;
+    const plate = this.add.graphics()
+      .lineStyle(theme.control.borderWidth, colorInt(color), 0.45)
+      .strokeRoundedRect(-DAILY_ACTION_WIDTH / 2, -h / 2, DAILY_ACTION_WIDTH, h, theme.radius.control);
+    const text = this.add.text(0, 0, label, {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.type.label}px`, fontStyle: theme.weight.w600, color,
+    }).setOrigin(0.5);
+    return this.add.container(0, 0, [plate, text]);
   }
 
   /**

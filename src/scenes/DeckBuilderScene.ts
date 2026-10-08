@@ -1,6 +1,5 @@
 import Phaser from 'phaser';
 import { IS_DEV } from '../platform/env';
-import { currentAccessibility } from '../ui/accessibility';
 import { fitMenuName } from '../ui/menuText';
 import { bindMenuScroll } from '../ui/menuScroll';
 import { menuLineHeight, menuNoticeLayout } from '../ui/mainMenuPresentation';
@@ -318,7 +317,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     // the right 400px), so it's drawn after applyBackdrop, not inside it.
     applyBackdrop(this, 'deckbuilder', {
       dim: theme.graphics.dim,
-      dimAlpha: currentAccessibility().highContrast ? theme.alpha.overlayDim : 0.55,
+      dimAlpha: 0.55,
       fallback: () => {
         const grad = this.add.graphics();
         grad.fillGradientStyle(theme.graphics.panelFill, theme.graphics.panelFill, theme.graphics.dim, theme.graphics.dim, 1);

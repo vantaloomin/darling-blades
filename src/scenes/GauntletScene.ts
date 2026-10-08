@@ -107,7 +107,7 @@ export class GauntletScene extends Phaser.Scene {
     // Backdrop first (docs/scene-art.md §3); the gradient is the fallback.
     applyBackdrop(this, 'gauntlet', {
       dim: colorInt(theme.colors.dim),
-      dimAlpha: currentAccessibility().highContrast ? theme.alpha.overlayDim : 0.5,
+      dimAlpha: 0.5,
       fallback: () => {
         const bg = this.add.graphics();
         bg.fillGradientStyle(
