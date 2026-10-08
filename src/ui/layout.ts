@@ -1247,7 +1247,8 @@ export function gauntletTowerLayout(
   const rowWidth = Math.max(0, viewport.width);
   const padX = theme.space(3);
   const starColumnWidth = Math.max(0, opts.starColumnWidth ?? Math.ceil(theme.space(9) * theme.type.label / theme.typeBase.label));
-  const labelX = padX;
+  // The label clears the selected row's left accent bar (listRowAccentBar).
+  const labelX = padX + theme.space(2);
   const count = Math.max(0, rungs);
   const contentHeight = count === 0 ? 0 : count * rowPitch - rowGap;
   const { gap, railWidth, thumbWidth } = GAUNTLET_TOWER_SCROLLBAR;
@@ -1265,7 +1266,7 @@ export function gauntletTowerLayout(
     labelX,
     // The star column and both paddings come out of the name's budget, which
     // is what makes the overlap unrepresentable rather than merely unlikely.
-    labelWidth: Math.max(0, rowWidth - padX * 2 - starColumnWidth - theme.space(2)),
+    labelWidth: Math.max(0, rowWidth - labelX - padX - starColumnWidth - theme.space(2)),
     starRightX: rowWidth - padX,
     contentHeight,
     maxScroll: Math.max(0, contentHeight - viewport.height),

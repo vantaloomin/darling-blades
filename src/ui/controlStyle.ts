@@ -100,3 +100,24 @@ export function triggerSelectedMark(input: TriggerSelectedMarkInput): Rect {
     height: thickness,
   };
 }
+
+/**
+ * The selected mark on a list row (the selection language ruled 2026-10-08:
+ * border plus a left accent bar for list rows, the underline for text tabs):
+ * a gold bar just inside the row's left border, inset from its top and
+ * bottom, so the mark never sits under the label as a tab's does.
+ */
+export const LIST_ROW_ACCENT = {
+  width: theme.space(1),
+  inset: theme.space(1.5),
+} as const;
+
+export function listRowAccentBar(visual: Rect, borderWidth: number = theme.control.borderWidth): Rect {
+  const inset = borderWidth + LIST_ROW_ACCENT.inset;
+  return {
+    x: visual.x + borderWidth + theme.space(1),
+    y: visual.y + inset,
+    width: LIST_ROW_ACCENT.width,
+    height: Math.max(0, visual.height - 2 * inset),
+  };
+}

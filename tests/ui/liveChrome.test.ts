@@ -5,6 +5,7 @@ import {
   controlStrokeWidth,
   themedButtonColors,
   triggerSelectedMark,
+  listRowAccentBar,
   type ThemedButtonVariant,
 } from '../../src/ui/controlStyle';
 import {
@@ -17,6 +18,7 @@ import {
 } from '../../src/ui/layout';
 import { textBlockHeight } from '../../src/ui/profilePresentation';
 import { theme } from '../../src/ui/theme';
+import { gauntletTowerLayout } from '../../src/ui/layout';
 import { forEachA11yCell } from './a11yCells';
 
 /**
@@ -159,5 +161,23 @@ describe('the rounded trigger\'s selected mark', () => {
     const standard = triggerSelectedMark(input).height;
     setAccessibility({ textScale: 1, highContrast: true });
     expect(triggerSelectedMark(input).height).toBeGreaterThan(standard);
+  });
+});
+
+describe('the list row accent bar', () => {
+  it('sits inside the row border, clear of its top, bottom and the row label', () => {
+    forEachA11yCell(() => {
+      for (const [visual, border, labelInset] of [
+        [{ x: 0, y: 0, width: 420, height: 56 }, theme.outline.state, gauntletTowerLayout(28, { x: 0, y: 0, width: 420, height: 484 }).labelX],
+        [{ x: 64, y: -30, width: 772, height: 60 }, theme.control.borderWidth, theme.space(4)],
+      ] as const) {
+        const bar = listRowAccentBar(visual, border);
+        expect(bar.x).toBeGreaterThanOrEqual(visual.x + border);
+        expect(bar.y).toBeGreaterThan(visual.y + border);
+        expect(bar.y + bar.height).toBeLessThan(visual.y + visual.height - border);
+        expect(bar.height).toBeGreaterThan(visual.height / 2);
+        expect(visual.x + labelInset - (bar.x + bar.width)).toBeGreaterThanOrEqual(theme.space(1));
+      }
+    });
   });
 });

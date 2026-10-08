@@ -4,7 +4,7 @@ import { fitMenuName } from '../ui/menuText';
 import { currentAccessibility } from '../ui/accessibility';
 import { gauntletPresentation, gauntletDetailLayout, gauntletNameLineLimit } from '../ui/playPresentation';
 import { bindMenuScroll } from '../ui/menuScroll';
-import { triggerSelectedMark } from '../ui/controlStyle';
+import { listRowAccentBar } from '../ui/controlStyle';
 import { IS_DEV } from '../platform/env';
 import type { SaveData } from '../meta/SaveManager';
 import { Music } from '../audio/music';
@@ -355,8 +355,8 @@ export class GauntletScene extends Phaser.Scene {
       );
       node.mark.clear();
       if (isSelected) {
-        const mark = triggerSelectedMark({ visual: { x: 0, y: node.box.y - node.box.height / 2,
-          width: node.box.width, height: node.box.height }, labelWidth: node.label.width, padding: theme.space(3) });
+        const mark = listRowAccentBar({ x: 0, y: node.box.y - node.box.height / 2,
+          width: node.box.width, height: node.box.height }, theme.outline.state);
         node.mark.fillStyle(colorInt(theme.colors.gold), 1).fillRect(mark.x, mark.y, mark.width, mark.height);
       }
     }
