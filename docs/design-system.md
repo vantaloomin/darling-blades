@@ -299,6 +299,9 @@ and Apple's game/layout guidance on
 Use named alpha steps rather than visually similar local decimals:
 
 - `overlayDim` (0.92): default modal separation. Opaque (1) in high contrast.
+  A modal shell never draws a dim lighter than `MODAL_DIM_FLOOR` (0.78,
+  `layout.ts`), and its panel is always opaque, so the screen behind never
+  reads through as a second layer of UI.
 - `panel` (0.90): structural surface opacity. Opaque (1) in high contrast.
 - `chrome` (0.85): borders and idle control chrome. Opaque (1) in high
   contrast, which removes the idle-to-hover alpha step; the hovered stroke

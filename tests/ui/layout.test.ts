@@ -33,6 +33,8 @@ import {
   measureThemedButton,
   measureControlCluster,
   measuredRowsLayout,
+  modalDimAlpha,
+  MODAL_DIM_FLOOR,
   modalShellLayout,
   scrollOffsetByDelta,
   sceneHeaderFooterLayout,
@@ -384,6 +386,26 @@ describe('layout geometry', () => {
       expect(inactiveGap(layout.titleTrack, layout.contentBounds).gap).toBe(16);
       expect(inactiveGap(layout.contentBounds, layout.footerTrack).gap).toBe(16);
     }
+  });
+
+  it('centres a modal title on the panel whether or not a close button is shown', () => {
+    for (const hasClose of [true, false]) {
+      const layout = modalShellLayout({ width: 900, height: 600, hasClose });
+      const track = layout.centredTitleTrack;
+      expect(track.x + track.width / 2).toBe(layout.panel.x + layout.panel.width / 2);
+      expect(isRectContained(track, layout.titleTrack)).toBe(true);
+    }
+    // With no close button the title may use the full inner width.
+    const open = modalShellLayout({ width: 900, height: 600, hasClose: false });
+    expect(open.centredTitleTrack.width).toBe(open.inner.width);
+  });
+
+  it('never lets a modal sit on a dim light enough to read the screen behind', () => {
+    expect(modalDimAlpha(0.45, 0.92)).toBe(MODAL_DIM_FLOOR);
+    expect(modalDimAlpha(0.82, 0.92)).toBe(0.82);
+    expect(modalDimAlpha(undefined, 0.92)).toBe(0.92);
+    // High contrast's opaque dim wins over any lighter request.
+    expect(modalDimAlpha(0.52, 1)).toBe(1);
   });
 
   it('keeps the gauntlet recap grid clear of the 820x640 modal footer track', () => {
