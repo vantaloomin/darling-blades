@@ -338,9 +338,9 @@ full list with recommendations.
   it. No legendary Meng Huo, Zhurong or Hestia (they already exist); new
   characters take those legend slots, and rungs 1, 2 and 5 keep their
   stand-in Darlings.
-- **The Mandate timing:** dawn draw before permanent dawn triggers.
-  *Recommended*: a simple deterministic sequence with no pending-choice
-  resume state.
+- **The Mandate's rules, ruled 2026-10-08:** it is never claimed without a
+  card; its draw happens at the start of dawn, before permanent dawn
+  triggers, as a fixed sequence with no pending-choice resume state.
 - **Reprint or revise Guan Yu and Persephone:** *recommended no*; Story's
   first two characters stay the shipped cards.
 - **Product scope:** boosters plus one theme deck; no new Darlings precon at

@@ -553,10 +553,9 @@ Each leads with the recommendation.
 6. **Ruled (P6): Sworn is active while you control any legendary
    creature.**
 
-   6a. **Keep the Mandate's rule as written (only a card claims it when no
-   one holds it), with 20 claimers.** The alternative: the first combat
-   damage to a player claims an unclaimed Mandate, so it is always in play
-   from the first hit, still one public field.
+   6a. **Ruled (the owner, 2026-10-08): the Mandate is never claimed
+   without a card**, so the set carries its 20 claimers. Its draw happens
+   at the start of dawn, before other dawn triggers.
 7. **Ruled (P5, P6): the names are "the Mandate" and "Sworn".** Sworn
    replaced Oath, which Blood Oath, the Grail Oath, Peach Garden Oath and
    Liu Bei, Benevolent Oathkeeper already use. "Crown" is dropped. The two
