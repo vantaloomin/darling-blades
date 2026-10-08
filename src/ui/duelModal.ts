@@ -87,7 +87,7 @@ export function fitDuelModal(scene: Phaser.Scene, shell: ModalShell, options: Fi
   const contentTop = titleTrack.y + titleTrack.height + (options.gap ?? 6);
   const contentBottom = footerTrack.y - (options.gap ?? 6);
   const contentBounds = { ...layout.inner, y: Math.min(contentTop, contentBottom), height: Math.max(0, contentBottom - contentTop) };
-  shell.tracks = { titleTrack, contentBounds, footerTrack, closeTrack: layout.closeTrack };
+  shell.tracks = { titleTrack, contentBounds, footerTrack, closeTrack: layout.closeTrack, centredTitleTrack: { ...titleTrack } };
   shell.contentBounds = contentBounds;
   shell.closeButton?.container.setPosition(layout.closeTrack.x + layout.closeTrack.width / 2, layout.closeTrack.y + layout.closeTrack.height / 2);
   return result;

@@ -572,6 +572,9 @@ function centeredRect(centerX: number, centerY: number, size: RectSize): Rect {
   };
 }
 
+/** The pager label's centre, from the pager's x: centre a pager at `cx - PAGER_CENTER_OFFSET`. */
+export const PAGER_CENTER_OFFSET = 51;
+
 /**
  * Where the currency badge hangs on every screen that shows one: its RIGHT
  * edge on the title-safe frame's right edge, centred on the shared header
@@ -580,9 +583,6 @@ function centeredRect(centerX: number, centerY: number, size: RectSize): Rect {
  * (2026-09-23), 34px outside the frame the design system reserves for
  * currency; the shared scene header already anchored it here.
  */
-/** The pager label's centre, from the pager's x: centre a pager at `cx - PAGER_CENTER_OFFSET`. */
-export const PAGER_CENTER_OFFSET = 51;
-
 export const HEADER_CURRENCY_ANCHOR: Readonly<Point> = {
   x: theme.design.safeRight,
   y: theme.design.headerCenterY,
@@ -717,6 +717,23 @@ export function sceneHeaderFooterLayout(opts: HeaderFooterLayoutOptions): Header
   };
 }
 
+/**
+ * The lightest dim a modal may sit on. Callers asked for anything from 0.45
+ * to 0.92, and below about 0.75 the screen behind reads through as a second
+ * layer of UI (the 2026-10-08 UI review). Lighter requests are raised to this.
+ */
+export const MODAL_DIM_FLOOR = 0.78;
+
+/**
+ * The dim alpha a modal shell actually draws: the caller's request (or the
+ * theme default), never lighter than `MODAL_DIM_FLOOR`, and never lighter
+ * than the theme's own modal dim when that is opaque (high contrast).
+ */
+export function modalDimAlpha(requested: number | undefined, themeDim: number): number {
+  const floor = themeDim >= 1 ? 1 : MODAL_DIM_FLOOR;
+  return Math.min(1, Math.max(requested ?? themeDim, floor));
+}
+
 export interface ModalShellLayoutOptions {
   width: number;
   height: number;
@@ -728,12 +745,19 @@ export interface ModalShellLayoutOptions {
   footerTrackHeight?: number;
   closeHitWidth?: number;
   closeHitHeight?: number;
+  /** False when the shell draws no close button, so no title space is held for one. */
+  hasClose?: boolean;
 }
 
 export interface ModalShellLayout {
   panel: Rect;
   inner: Rect;
   titleTrack: Rect;
+  /**
+   * The title track trimmed equally on both sides, so a centred title sits on
+   * the panel's centre line, not the close-shortened track's.
+   */
+  centredTitleTrack: Rect;
   contentBounds: Rect;
   /** Alias for callers that think in terms of reserved tracks. */
   contentTrack: Rect;
@@ -776,10 +800,17 @@ export function modalShellLayout(opts: ModalShellLayoutOptions): ModalShellLayou
     width: closeWidth,
     height: closeHeight,
   };
+  const closeReach = opts.hasClose === false ? 0 : closeWidth + trackGap;
   const titleTrack = {
     x: inner.x,
     y: inner.y,
-    width: Math.max(0, closeTrack.x - trackGap - inner.x),
+    width: Math.max(0, inner.width - closeReach),
+    height: titleHeight,
+  };
+  const centredTitleTrack = {
+    x: inner.x + closeReach,
+    y: inner.y,
+    width: Math.max(0, inner.width - closeReach * 2),
     height: titleHeight,
   };
   const footerTrack = {
@@ -802,6 +833,7 @@ export function modalShellLayout(opts: ModalShellLayoutOptions): ModalShellLayou
     panel,
     inner,
     titleTrack,
+    centredTitleTrack,
     contentBounds,
     contentTrack: contentBounds,
     footerTrack,

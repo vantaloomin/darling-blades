@@ -239,7 +239,7 @@ export function createOddsModal(
   for (const text of [lead, poolLine, source, noteOne, noteTwo]) fitMenuName(text, content.width, 4);
 
   const shell = modalShell(scene, {
-    ...shopModalLayout(860, 520, noteTwo.y + noteTwo.height, title.height),
+    ...shopModalLayout(860, 360, noteTwo.y + noteTwo.height, title.height),
     dimAlpha: 0.52,
     depth: theme.depth.modal,
     showClose: false,
@@ -254,7 +254,7 @@ export function createOddsModal(
   });
 
   container.setPosition(shell.tracks.contentBounds.x, shell.tracks.contentBounds.y);
-  const track = shell.tracks.titleTrack;
+  const track = shell.tracks.centredTitleTrack;
   title.setPosition(track.x + track.width / 2, track.y + track.height / 2);
   shell.container.add([container, title]);
   const footer = shell.tracks.footerTrack;
@@ -263,6 +263,8 @@ export function createOddsModal(
     minWidth: 90,
     onTap: () => shell.close(),
   });
+  // Right edge on the content's right edge, like every other modal footer.
+  close.container.x = footer.x + footer.width - close.getMeasuredBounds().visual.width / 2;
   shell.container.add(close.container);
   shell.interactiveChildren.push(close.inputZone);
   return shell;

@@ -17,6 +17,7 @@ import {
   DROPDOWN_GEOMETRY,
   measureThemedButton,
   modalShellLayout,
+  modalDimAlpha,
   PAGER_CENTER_OFFSET,
   sceneHeaderFooterLayout,
   type ControlSize,
@@ -72,6 +73,9 @@ export interface ThemedButton {
   setEnabled(enabled: boolean): void;
 }
 
+/** A disabled button's label: visibly off, still readable (a price, a reason). */
+const DISABLED_LABEL_ALPHA = 0.72;
+
 /** Rounded button chrome with an explicit Zone input target (never the container). */
 export function themedButton(
   scene: Phaser.Scene,
@@ -106,8 +110,11 @@ export function themedButton(
   const redraw = (): void => {
     measurement = measure();
     const style = themedButtonColors(variant);
+    // Disabled fades the plate, not the words: a price or reason on a button
+    // the player can't press yet must stay readable (2026-10-08 UI review).
+    const plateAlpha = enabled ? 1 : theme.alpha.subtle;
     background.clear();
-    background.fillStyle(colorInt(style.bg), 1);
+    background.fillStyle(colorInt(style.bg), plateAlpha);
     background.fillRoundedRect(
       measurement.visual.x,
       measurement.visual.y,
@@ -118,7 +125,7 @@ export function themedButton(
     background.lineStyle(
       controlStrokeWidth(hovered, variant),
       colorInt(hovered ? style.hoverStroke : style.stroke),
-      hovered ? 1 : theme.alpha.chrome,
+      hovered ? 1 : theme.alpha.chrome * plateAlpha,
     );
     background.strokeRoundedRect(
       measurement.visual.x,
@@ -139,7 +146,7 @@ export function themedButton(
   const setEnabled = (next: boolean): void => {
     enabled = next;
     if (!enabled) hovered = false;
-    container.setAlpha(enabled ? 1 : theme.alpha.subtle);
+    label.setAlpha(enabled ? 1 : DISABLED_LABEL_ALPHA);
     if (enabled) inputZone.setInteractive({ useHandCursor: true });
     else inputZone.disableInteractive();
     redraw();
@@ -587,10 +594,8 @@ export interface ModalShellOptions {
   y?: number;
   dimAlpha?: number;
   /**
-   * Fill the panel fully opaque instead of the shared `panel` alpha (0.9).
-   * For reading surfaces opened over bright text behind a light dim, where a
-   * 10% see-through panel lets the screen underneath ghost through the copy.
-   * Off by default, so every other modal keeps its look.
+   * @deprecated Every modal panel is now opaque: a 10% see-through panel let
+   * the screen underneath ghost through the copy (2026-10-08 UI review).
    */
   opaque?: boolean;
   /** Named dismissal behavior. Every migrated scene call site sets this. */
@@ -619,7 +624,7 @@ export interface ModalShell {
   panel: Phaser.GameObjects.Graphics;
   closeButton?: ThemedButton;
   interactiveChildren: Phaser.GameObjects.GameObject[];
-  tracks: Pick<ModalShellLayout, 'titleTrack' | 'contentBounds' | 'footerTrack' | 'closeTrack'>;
+  tracks: Pick<ModalShellLayout, 'titleTrack' | 'centredTitleTrack' | 'contentBounds' | 'footerTrack' | 'closeTrack'>;
   contentBounds: Rect;
   /** Inert metadata for the future shared focus manager. */
   focus?: FocusMetadata;
@@ -689,7 +694,7 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
     theme.design.width,
     theme.design.height,
     theme.graphics.dim,
-    opts.dimAlpha ?? theme.alpha.overlayDim,
+    modalDimAlpha(opts.dimAlpha, theme.alpha.overlayDim),
   );
   const chrome = panel(
     scene,
@@ -697,7 +702,7 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
     y - opts.height / 2,
     opts.width,
     opts.height,
-    opts.opaque ? { alpha: 1 } : {},
+    { alpha: 1 },
   );
   const container = scene.add.container(0, 0, [dim, chrome]).setDepth(opts.depth ?? theme.depth.modal);
   const interactiveChildren: Phaser.GameObjects.GameObject[] = [];
@@ -771,6 +776,7 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
     footerTrackHeight: opts.footerTrackHeight,
     closeHitWidth: closeSize.width,
     closeHitHeight: closeSize.height,
+    hasClose: closeButton !== undefined,
   });
   if (closeButton) {
     closeButton.container.setPosition(
@@ -810,6 +816,7 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
     interactiveChildren,
     tracks: {
       titleTrack: layout.titleTrack,
+      centredTitleTrack: layout.centredTitleTrack,
       contentBounds: layout.contentBounds,
       footerTrack: layout.footerTrack,
       closeTrack: layout.closeTrack,
@@ -844,20 +851,27 @@ export function backButton(
     })
     .setOrigin(0, 0.5)
     .setInteractive({ useHandCursor: true });
+  // The label starts on the title-safe left edge, the line every panel and
+  // grid starts on; its inflated hit band grows rightward from there instead
+  // of centring the label inside it (which set "← Menu" ~12px inboard).
   const placement = anchoredControlBounds('top-left', button.width, button.height);
-  button.setPosition(placement.visual.x, placement.visual.y + placement.visual.height / 2);
+  button.setPosition(placement.hit.x, placement.visual.y + placement.visual.height / 2);
+  const inflate = (): void => {
+    inflateHitArea(button, theme.control.minHitWidth, theme.control.minHitHeight,
+      { biasX: (placement.hit.width - button.width) / 2 });
+  };
   bindTapButton(scene, button, onTap);
-  inflateHitArea(button, theme.control.minHitWidth, theme.control.minHitHeight);
+  inflate();
   button.on('pointerover', (pointer: Phaser.Input.Pointer) => {
     if (!pointer.wasTouch) {
       button.setColor(theme.colors.goldHover);
-      inflateHitArea(button, theme.control.minHitWidth, theme.control.minHitHeight);
+      inflate();
     }
   });
   button.on('pointerout', (pointer: Phaser.Input.Pointer) => {
     if (!pointer.wasTouch) {
       button.setColor(theme.colors.gold);
-      inflateHitArea(button, theme.control.minHitWidth, theme.control.minHitHeight);
+      inflate();
     }
   });
   const focusable = button as FocusableText;

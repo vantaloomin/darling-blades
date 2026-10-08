@@ -1987,8 +1987,8 @@ export class ShopScene extends Phaser.Scene {
     const contentCenterX = content.x + content.width / 2;
 
     // Header: name, color identity as real mana beads + archetype, how-it-plays.
-    const titleY = shell.tracks.titleTrack.y + shell.tracks.titleTrack.height / 2;
-    const titleX = shell.tracks.titleTrack.x + shell.tracks.titleTrack.width / 2;
+    const titleY = shell.tracks.centredTitleTrack.y + shell.tracks.centredTitleTrack.height / 2;
+    const titleX = shell.tracks.centredTitleTrack.x + shell.tracks.centredTitleTrack.width / 2;
     title.setPosition(titleX, titleY);
     c.add(title);
     const idY = content.y + 8;
