@@ -432,7 +432,7 @@ Each has a recommendation. None is ruled.
 | **P14** | The difficulty retune | **RULED 2026-10-08: after the life change, in wave 4,** as the one deliberate change to the frozen AI (the tier dial in `src/ai/tiers.ts`), with the target checked against a human (the owner's runs or play stats), not only the Medium proxy. Negotiable to a 2.0.x under P1 |
 | **P15** | The life study's pool | **Settled 2026-10-08:** the study is already running on 1.9.0 (owner: "The Life investigation is already happening"); its readings are re-taken in the end-of-train measurement |
 | **P16** | Replay versions | **RULED 2026-10-08: as recommended.** One `REPLAY_LOG_VERSION` bump (16 to 17) shared by the Mandate, the life field and Story |
-| **P17** | If the life study is late | Wait for it; moving the change to 2.1 is the fallback only if waiting would hold Core Set II's costing |
+| **P17** | If the life study is late | **RULED 2026-10-08: always wait.** Core Set II's rescore waits for the life number however long the study takes; there is no 20-life fallback. The life study is on the set's critical path |
 | **P18** | Does itch wait for full Story Mode? | No: launch with Act 1 + endless, the priority order (itch 6, full Story 7). The store page sells Story Mode as growing, with Acts 2-3 as the next update |
 
 Still open from earlier plans and carried here: the permanent-buy price and
@@ -472,10 +472,9 @@ which Story's first two characters depend on (the set plan's open decisions).
 - **2.0 breaks the Large-release rule by design** (D4: a Large set carries
   little else). Mobile and Story Act 1 ride beside a 250-card set. The cut
   order (P1) is the relief valve; full Story Mode already sits outside.
-- **The life change touches everything measured.** If the study is late,
-  the choice is to wait for it or to cost the set at 20 and move the change
-  to 2.1 (P17). The owner aimed it at 2.0 with Core Set II; moving it is the
-  owner's call, not this plan's.
+- **The life change touches everything measured,** and the owner ruled
+  (P17) that Core Set II's costing waits for its number. The life study is
+  on the critical path: if it runs long, the set does too.
 - **The Duel is touched by three lanes** (mobile, the Mandate UI, Story's
   launch context). The shared-file order above is the guard.
 - **Story Mode waits on the set** for its starter pools and third character.
