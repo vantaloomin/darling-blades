@@ -147,6 +147,44 @@ export class CombatFx {
     }
   }
 
+  /**
+   * A Hunt's exchange (1.9 A2.a): a short lunge of each creature toward the
+   * other, the same 14px, 140ms yoyo as combat's lunge but along the line
+   * between them (a Hunt can pair two creatures on one row), and a thin
+   * tether between the two for the same beat, so the pair reads as one
+   * exchange even when a blow deals nothing. Only tiles still standing
+   * (`.active`) lunge; the strikes themselves are `strike()` per blow.
+   */
+  exchange(a: Phaser.GameObjects.Container | null, aAt: Pt, b: Phaser.GameObjects.Container | null, bAt: Pt, colour: number): void {
+    if (this.destroyed) return;
+    const g = this.gfx();
+    g.lineStyle(2, colour, 0.85);
+    g.lineBetween(aAt.x, aAt.y, bAt.x, bAt.y);
+    this.playAndDispose(g, 320, { from: 0.85, to: 0 });
+    const toward = (view: Phaser.GameObjects.Container | null, from: Pt, to: Pt): void => {
+      if (!view?.active) return;
+      const len = Math.hypot(to.x - from.x, to.y - from.y);
+      if (len < 1) return;
+      const rest = { x: view.x, y: view.y };
+      this.scene.tweens.add({
+        targets: view,
+        x: rest.x + ((to.x - from.x) / len) * 14,
+        y: rest.y + ((to.y - from.y) / len) * 14,
+        duration: 140,
+        ease: 'Quad.easeOut',
+        yoyo: true,
+        onComplete: () => {
+          if (view.active) view.setPosition(rest.x, rest.y);
+        },
+        onStop: () => {
+          if (view.active) view.setPosition(rest.x, rest.y);
+        },
+      });
+    };
+    toward(a, aAt, bAt);
+    toward(b, bAt, aAt);
+  }
+
   /** Flush every in-flight temporary. Safe to call multiple times. */
   destroy(): void {
     this.destroyed = true;

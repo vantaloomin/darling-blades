@@ -1,6 +1,9 @@
 import Phaser from 'phaser';
 import { bindTapButton, inflateHitArea } from '../platform/gestures';
+import { theme, colorInt } from './theme';
+import { duelPanelAlpha } from './duelPanelPresentation';
 import { bakePileIcons, PILE_ICON_KEYS, PILE_ICON_SIZE, type PileIconKind } from './pileIcons';
+import { CONSOLAS_FIGURE_HEIGHT, ensureNumeralBadgeInk, ensureNumeralPlateInk } from './NumeralGlyphs';
 
 /**
  * Compact, display-only pile indicators for the duel layout.
@@ -22,24 +25,27 @@ export interface PileViewOpts {
 const BADGE_W = 40;
 const BADGE_H = 16;
 const BADGE_GAP = 4;
-const BADGE_FILL = 0x0d0a18;
-const BADGE_STROKE = 0x3a2f5c;
-const BADGE_TEXT_COLOR = '#cbc2e0';
-const ALERT_COLOR = 0xffd700;
 const ALERT_CHIP_R = 9;
+// HUD numerals retain the release badge geometry, like the duel life totals:
+// the vector digits keep the cap height of the 11px Consolas they replace.
+const PILE_NUMERAL_SIZE = 11;
+const PILE_DIGIT_HEIGHT = PILE_NUMERAL_SIZE * CONSOLAS_FIGURE_HEIGHT;
+/** The count drawn in the badge's own box (a rare wide count may overhang). */
+const PILE_COUNT_PLATE = { digitHeight: PILE_DIGIT_HEIGHT, padX: 3, padY: 0, minWidth: BADGE_W, minHeight: BADGE_H } as const;
 
 export class PileView extends Phaser.GameObjects.Container {
   readonly kind: PileKind;
   readonly inputZone?: Phaser.GameObjects.Zone;
 
-  private readonly countText: Phaser.GameObjects.Text;
+  private readonly countDigits: Phaser.GameObjects.Image;
   private readonly alertBounds: { top: number; bottom: number; width: number };
-  private alertNodes: { outline: Phaser.GameObjects.Graphics; chipText: Phaser.GameObjects.Text } | null = null;
+  private alertNodes: { outline: Phaser.GameObjects.Graphics; chipDigits: Phaser.GameObjects.Image } | null = null;
   private alertTween: Phaser.Tweens.Tween | null = null;
 
   constructor(scene: Phaser.Scene, x: number, y: number, kind: PileKind, opts?: PileViewOpts) {
     super(scene, x, y);
     this.kind = kind;
+    this.setData('a11yArea', { x: 0, y: 0, width: theme.design.width, height: theme.design.height });
 
     bakePileIcons(scene);
 
@@ -48,7 +54,7 @@ export class PileView extends Phaser.GameObjects.Container {
     const badgeCY = iconCY + iconSize / 2 + BADGE_GAP + BADGE_H / 2;
     const icon = scene.add.image(0, iconCY, PILE_ICON_KEYS[kind]).setDisplaySize(iconSize, iconSize);
     this.add(icon);
-    this.countText = this.buildBadge(badgeCY);
+    this.countDigits = this.buildBadge(badgeCY);
     this.alertBounds = {
       top: iconCY - iconSize / 2,
       bottom: badgeCY + BADGE_H / 2,
@@ -64,7 +70,8 @@ export class PileView extends Phaser.GameObjects.Container {
 
   setCount(n: number): this {
     const count = Math.max(0, Math.floor(n));
-    this.countText.setText(`${count}`);
+    const ink = ensureNumeralPlateInk(this.scene, count, theme.colors.body, PILE_COUNT_PLATE);
+    this.countDigits.setTexture(ink.texture).setDisplaySize(ink.width, ink.height).setData('a11yNumeral', String(count));
     return this;
   }
 
@@ -80,7 +87,7 @@ export class PileView extends Phaser.GameObjects.Container {
       this.alertTween = null;
       if (this.alertNodes) {
         this.alertNodes.outline.destroy();
-        this.alertNodes.chipText.destroy();
+        this.alertNodes.chipDigits.destroy();
         this.alertNodes = null;
       }
       return this;
@@ -89,7 +96,7 @@ export class PileView extends Phaser.GameObjects.Container {
       const pad = 5;
       const { top, bottom, width } = this.alertBounds;
       const outline = this.scene.add.graphics();
-      outline.lineStyle(2, ALERT_COLOR, 1);
+      outline.lineStyle(2, colorInt(theme.colors.goldHover), 1);
       outline.strokeRoundedRect(
         -width / 2 - pad,
         top - pad,
@@ -99,20 +106,13 @@ export class PileView extends Phaser.GameObjects.Container {
       );
       const chipX = width / 2 + pad;
       const chipY = top - pad;
-      outline.fillStyle(ALERT_COLOR, 1);
+      outline.fillStyle(colorInt(theme.colors.goldHover), 1);
       outline.fillCircle(chipX, chipY, ALERT_CHIP_R);
-      const chipText = this.scene.add
-        .text(chipX, chipY, `${count}`, {
-          fontFamily: 'Consolas, "Courier New", monospace',
-          fontSize: '11px',
-          fontStyle: '700',
-          color: '#1a1426',
-          resolution: 2,
-        })
-        .setOrigin(0.5);
+      const chipDigits = this.scene.add.image(chipX, chipY, '__DEFAULT');
+      this.showChipCount(chipDigits, count);
       this.add(outline);
-      this.add(chipText);
-      this.alertNodes = { outline, chipText };
+      this.add(chipDigits);
+      this.alertNodes = { outline, chipDigits };
       this.alertTween = this.scene.tweens.add({
         targets: outline,
         alpha: 0.55,
@@ -122,30 +122,31 @@ export class PileView extends Phaser.GameObjects.Container {
         ease: 'Sine.easeInOut',
       });
     } else {
-      this.alertNodes.chipText.setText(`${count}`);
+      this.showChipCount(this.alertNodes.chipDigits, count);
     }
     return this;
   }
 
-  private buildBadge(cy: number): Phaser.GameObjects.Text {
+  /** The chip's count as vector digits centred on their ink, sized like the
+   * Consolas numeral it replaces; a rare 3+ digit count shrinks to the chip. */
+  private showChipCount(chip: Phaser.GameObjects.Image, count: number): void {
+    const ink = ensureNumeralBadgeInk(this.scene, count, theme.colors.onGold, PILE_DIGIT_HEIGHT, ALERT_CHIP_R * 2);
+    const size = Math.min(ink.diameter, ALERT_CHIP_R * 2);
+    chip.setTexture(ink.texture).setDisplaySize(size, size).setData('a11yNumeral', String(count));
+  }
+
+  private buildBadge(cy: number): Phaser.GameObjects.Image {
     const g = this.scene.add.graphics();
-    g.fillStyle(BADGE_FILL, 0.92);
+    g.fillStyle(theme.graphics.panelFill, duelPanelAlpha(0.92));
     g.fillRoundedRect(-BADGE_W / 2, cy - BADGE_H / 2, BADGE_W, BADGE_H, 5);
-    g.lineStyle(1, BADGE_STROKE, 1);
+    g.lineStyle(1, theme.graphics.panelStroke, 1);
     g.strokeRoundedRect(-BADGE_W / 2, cy - BADGE_H / 2, BADGE_W, BADGE_H, 5);
     this.add(g);
 
-    const text = this.scene.add
-      .text(0, cy, '0', {
-        fontFamily: 'Consolas, "Courier New", monospace',
-        fontSize: '11px',
-        fontStyle: '700',
-        color: BADGE_TEXT_COLOR,
-        resolution: 2,
-      })
-      .setOrigin(0.5);
-    this.add(text);
-    return text;
+    // setCount bakes the count's numeral into this image.
+    const digits = this.scene.add.image(0, cy, '__DEFAULT');
+    this.add(digits);
+    return digits;
   }
 
   private buildInputZone(

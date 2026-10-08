@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/*.ts, src/art/PlaceholderArtGenerator.ts, src/ui/CardView.ts, src/ui/fx/HoloEffects.ts, docs/plan-duat-creative.md, docs/land-art.md · last-verified: 2026-08-28 -->
+<!-- source-of-truth: src/data/cards/*.ts, src/art/PlaceholderArtGenerator.ts, src/ui/CardView.ts, src/config/cardFaceGeometry.ts, src/ui/fx/HoloEffects.ts, docs/plan-duat-creative.md, docs/land-art.md, docs/expansions/drafts/first-dawn-brief.md · last-verified: 2026-09-28 -->
 
 # Darling Blades Art Bible — Index (The Contract)
 
@@ -122,7 +122,11 @@ these at AUTHORING time so future expansions don't need a correction pass:
 - **Species tells are deliberate.** Monster-girl markers (a nekomata's tail,
   a holstaur's neck-bell, a selkie's pelt) are stated explicitly in the
   prompt — never left for the model to guess — and their count/shape is a QA
-  check, not a surprise. **Tails are the new hands**: one card failed QA two
+  check, not a surprise. **At least two of a character's three tells show
+  inside the card window** (y 138-662; owner, 2026-09-28): the card face is
+  what a player reads, so a third tell may fall in the margin only the zoom
+  shows, never two. New art only;
+  shipped art is not re-audited for it. **Tails are the new hands**: one card failed QA two
   different ways (tip count, then a side-attached root), so any tailed
   character's QA zooms the tail base AND tip — the prompt states count, tip
   shape, and attachment ("emerging from the base of her spine at the
@@ -132,6 +136,10 @@ these at AUTHORING time so future expansions don't need a correction pass:
   pulled-back or full-body composition (formations, giants, full creature
   bodies) must say so with force — "extreme wide establishing shot, crown to
   feet, nothing cropped" succeeded where a bare "zoomed out" was ignored.
+- **No woman is drawn with an elongated neck** (owner, 2026-09-29): it reads
+  as disturbing, not as a species feature. A species whose animal is
+  long-necked carries the trait on its plain beasts only; its women keep an
+  ordinary woman's neck, and the prompt says so.
 - **Bodies are designed, not defaulted.** Build, bust, height impression,
   age-read (adult always; juvenile CREATURES like pups must read visibly
   young), and skin tone are explicit per character. Body diversity is a
@@ -149,19 +157,26 @@ these at AUTHORING time so future expansions don't need a correction pass:
 
 ## 3. Canvas & safe zone (load-bearing — read twice)
 
-Verified against `src/ui/CardView.ts`:
-`ART_RECT = { x: -132, y: -164, w: 264, h: 192 }` with cover-crop
-`scale = max(264/srcW, 192/srcH)`; for a 4:5 source the scale is width-driven
-(264/320 = 0.825), the full width shows, and the vertical overflow is cropped
-symmetrically: `cropH = 192/0.825 = 232.7` of 400 source px = **58.2 % of the
-image height**, centered.
+Verified against `src/config/cardFaceGeometry.ts` (the geometry `CardView` lays out
+from and the frame bake draws): the art window is
+`CARD_FACE.art = { x: -132, y: -164, w: 264, h: 216 }` (264×216 since 1.9: flavor
+text left the card, owner ruling R13, and the art took the room at 216 px, ruling
+D18). `CardView` cover-crops with `scale = max(264/srcW, 216/srcH)`; for a 4:5
+source the scale is width-driven (264/320 = 0.825), the full width shows, and the
+vertical overflow is cropped symmetrically: `cropH = 216/0.825 = 261.8` of 400
+source px = **65.5 % of the image height**, centered (rows 17.3 % to 82.7 %;
+`artBand()` in the same module computes it).
 
 **On the 640×800 deliverable:**
 
-- The card frame displays only the **middle 58.2 % vertical band: y ≈ 167 → 633**.
+- The card frame displays only the **middle 65.5 % vertical band: y ≈ 138 → 662**
+  (before 1.9 it was the middle 58.2 %, y ≈ 167 → 633; art composed for that band
+  still sits inside this one, with more room showing above every head).
   Everything above/below is bleed — paint it (it must extend coherently; the full
   image may appear in future full-art contexts), but tell **no story** there.
-- **Face fully inside y 200–560.** Ideal **eye line ≈ y 300–380**.
+- **Face fully inside y 200–560.** Ideal **eye line ≈ y 270–350** (y 300–380
+  under the 192 window; it moved up with the band, as the headroom rule did, and
+  `scripts/smartcrop.py` puts a detected head's focal point at y ≈ 291).
 - **Horizontal: the full 640 px width is visible.** Keep any critical silhouette
   (face, weapon hand, identifying prop) at least **32 px off the left/right edges**.
 - **Weapons and effects may deliberately break the band** — a halberd slashing into
@@ -172,14 +187,14 @@ image height**, centered.
         640 × 800 deliverable                    y (px)
    ┌───────────────────────────────────┐           0
    │ / / / / /  TOP BLEED  / / / / / / │               cropped by card frame
-   ├───────────────────────────────────┤  ◄──  167     VISIBLE BAND TOP
+   ├───────────────────────────────────┤  ◄──  138     VISIBLE BAND TOP
    │                                   │
    │     ┌─ ─ ─ face zone ─ ─ ─┐       │  ◄──  200
-   │     │   eye line ideal    │       │  ◄──  300–380
+   │     │   eye line ideal    │       │  ◄──  270–350
    │     │                     │       │
    │     └─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─┘       │  ◄──  560
    │                                   │
-   ├───────────────────────────────────┤  ◄──  633     VISIBLE BAND BOTTOM
+   ├───────────────────────────────────┤  ◄──  662     VISIBLE BAND BOTTOM
    │ / / / /  BOTTOM BLEED  / / / / /  │               cropped by card frame
    └───────────────────────────────────┘         800
    →│32│←   critical silhouette     →│32│←
@@ -188,9 +203,17 @@ image height**, centered.
 
 **Headroom rule (owner, 2026-09-25; binding for every future creature, spell and
 regeneration prompt).** The top of the head (crown, hair, hood or headdress) sits
-at or below **y ≈ 208** of the deliverable: about 40 px, a twelfth of the visible
-band, of open background between the band top (167) and the head. Raised hands,
-weapons and effects may break into the bleed; a head never touches the band edge.
+at or below **y ≈ 179** of the deliverable: about 41 px of open background between
+the band top (138) and the head. Raised hands, weapons and effects may break into
+the bleed; a head never touches the band edge.
+
+- **How 179 was derived.** The rule was written against the 264×192 window as
+  y ≈ 208, which is about 41 px (40.7) under that window's band top: y 167.3
+  (800 × 20.91 %, where 20.91 % = (1 − 192/264 × 640/800) / 2). When the window
+  grew to 216 (1.9) the band top moved up to y 138.2 (800 × 17.27 %), and the rule
+  moved with it, keeping the same 41 px margin: 138.2 + 41 ≈ 179. The margin is
+  the owner's measure of isolation space above a head; it did not grow with the
+  band. Art that met the old rule (head top at or below 208) meets the new one.
 
 - **Say it in the prompt, measurably.** "Face at one third from the top of the
   canvas" on its own let the model put the crown on the band edge in 9 of the 17
@@ -204,15 +227,20 @@ weapons and effects may break into the bleed; a head never touches the band edge
   named as "the brightest thing at the exact centre". Pinning the face high and
   the object at the centre in one prompt produces a close portrait with the object
   below the band (Net Full of Stars, The Marsh Remembers, What Was Promised).
+- **First Dawn uses the figure preamble.** Its woman entries are generated with
+  `gen-card-art.ts`'s `FIGURE_PREAMBLE` and figure crop, not the waist-up
+  portrait preamble: head top a third of the way down the raw, head to knees
+  in frame, the story beside her, the head top placed on y 179
+  (docs/art-pipeline.md).
 - **Check before review.** `scripts/audit-art-window.py` flags HEAD CLIPPED rows
   (a head top above the band plus margin); treat each as a candidate for a human
   look. A re-crop can only add headroom when the default crop starts below the
   raw's top row (`offsetY` negative, reported as achieved); when it already starts
   at row 0 the raw has no room above the head, and the fix is a regeneration.
 
-**Scale check:** the art window renders at 264×192 on a 300×420 card; battlefield
-cards are scaled 0.45, so the art shows at roughly **119×86 px**. Commons must read
-at that size. (Hand ≈ 145×106, inspect ≈ 396×288.)
+**Scale check:** the art window renders at 264×216 on a 300×420 card; a card
+scaled 0.45 shows the art at roughly **119×97 px**. Commons must read at that size.
+(Hand ≈ 145×119, inspect ≈ 396×324.)
 
 ---
 
@@ -294,7 +322,8 @@ introduce another saturated cool red.
 - Pair the warm practical key with a lapis-cool rim from the river, night sky,
   or an inlaid surface. This warm-key / lapis-rim pair is the Duat signature.
 - Every illustration carries a warm value above roughly 70% luminance inside
-  the central 640x800 band, y 167-633. Use gold on a collar, a lit face, or
+  the central 640x800 band, y 138-662 (y 167-633 before the 216 window of
+  1.9). Use gold on a collar, a lit face, or
   natron linen so the card cannot collapse into a dark battlefield rectangle.
 - Use the daylight / tomb rhythm: hard-noon exteriors read as white stone,
   short shadows, and heat shimmer; lamp-lit tomb interiors read as practical
@@ -690,6 +719,284 @@ or skin. Underwater scenes are drawn as a dark interior seen through still
 glass, with the surface visible somewhere in frame. Never a blue colour wash
 over the whole image, never "underwater" as a filter on the figure.
 
+## 4d. The First Dawn set register (binding)
+
+This register applies to every **First Dawn** art-bible entry, every
+`docs/spell-art.md` entry with an `fd-` id, and every set-scoped key visual
+that quotes this bible. The global rules above remain in force. Its source is
+section 11 of the approved identity brief
+([first-dawn-brief.md](../expansions/drafts/first-dawn-brief.md), approved
+2026-09-28); the set's entries, the pilot's survivors among them, live in [first-dawn.md](first-dawn.md).
+
+First Dawn is **the morning the sun first rose.** The clans of the Cradle, a
+green valley inside a ring of smoking mountains, believe the sun was born
+this morning and everything alive is waking to it: ferns taller than a woman,
+rivers running warm off the volcanoes, and beasts that are the largest things
+that will ever live. Five clans of cavewomen share the valley: the Fern clan
+(green), the Ember clan (red), the Hearth clan (white), the Sky and Ice clans
+(blue) and the Tar clan (black). The tone is sunlit wonder with teeth: primal
+and heroic, never grim, never comic. The register's job is to make that
+beautiful, and to make very large non-human subjects readable inside a card
+window built for a woman's face.
+
+### Accent palette
+
+Layer these over the card's colour-identity palette.
+
+| Accent | Hex | Required visual use |
+|---|---|---|
+| **Fern green** | `#4f8a3c` / `#8cc063` | fern forest, reed beds, the Fern clan's leaf-dyed hide |
+| **Basalt grey** | `#34383b` / `#5b6166` | the value floor: shadow, volcanic rock, cliff faces |
+| **Tar brown** | `#3d2a1a` / `#8a6a48` | the Tar Flats: tar is glossy dark brown with sky reflections, never black |
+| **Sandstone** | `#d9b98c` / `#b08a5a` | ridges, cave walls, dry ground, dust |
+| **Dawn peach** | `#ffc7a0` / `#f39a6b` | the low sun's light on skin, stone and steam |
+| **Sky blue** | `#8cc4ec` / `#4f93cf` | the clear morning sky and the cool rim |
+| **Lava orange** | `#ff7a2e` / `#ffb057` | the Ember clan's fire, the volcano's glow, hearth embers |
+| **Glacier white-blue** | `#e6f3fb` / `#b7d8ee` | the Ice Wall, frost, the Ice clan's pale furs |
+| **Bone ivory** | `#efe6d0` / `#d8cba8` | bone tools, beads, horn, the Hearth clan's bleached hide |
+| **Amber resin** | `#e39b2d` / `#f6c35a` | resin beads, amber ornaments, honey-lit sap |
+
+**Marks keep the engine's own colour.** A Mark is the biolume cyan bloom
+`#5ff0e0` defined in section 4b, drawn in this set as one small bead of
+living cyan light set in the skin or hide, like a drop of glowing resin, one
+per Mark, countable, on the body at mid-height (kept after the art pilot,
+owner 2026-09-28, as Starborne and Drowned Deep keep it; where the bead
+appears and where it does not is set out in [first-dawn.md](first-dawn.md)).
+Cyan appears nowhere else in
+a First Dawn frame: not in the sky, not on the Ice Wall, not in water. The
+three 4b rules for a mark mention (a stated count on a named bearer, a state
+never a transition, the placement clause) apply to every Mark prompt.
+
+**Provoked has no reserved art tell** (owner ruling 2026-09-28). A Provoked
+card is recognised by its rules text only: no reserved colour, glow, scar,
+marking or pose belongs to the mechanic.
+
+### Value floor and lighting doctrine
+
+- **A daylight set.** Every frame is lit by **a low sun on the horizon**: a
+  warm dawn-peach key from one side, with long shadows across the ground,
+  and the clear sky-blue as the one cool rim on the opposite edge. Steam off
+  the fern forest and the warm rivers, and clear air. Never night, never an
+  overcast or storm sky, never a high noon sun.
+- The sun is the key even indoors: a cave or a hollow is lit by the low sun
+  raking through its mouth. Fire, embers and lava appear as props and small
+  practicals, never as a second key.
+- The darkest visible value in the central band is **basalt grey `#34383b`**.
+  No true black anywhere, matching the global rule. Tar is the darkest
+  material in the set and is drawn glossy, with sky and sun reflected in it.
+- Every illustration carries a sunlit surface above roughly 70% luminance
+  inside the band (y 138 to 662): lit sky, sunlit stone, a lit face or bone
+  ivory. A daylight set has no excuse for a dark rectangle.
+
+### NO-TEXT, and the stone-age variant that matters
+
+The global NO-TEXT rule applies. A stone-age set breaks it with cave walls,
+carved bone and painted skin.
+
+- **Negative, carried on every First Dawn prompt:** `no text, no letters, no
+  numerals, no pictograph rows, no tally marks, no carved symbols, no runes,
+  no glyphs, no hand stencils, no writing or symbols on any surface`
+- **Cave paintings show animals and hunts only**: beasts, herds and hunters
+  as painted silhouettes, drawn in the set's own crisp style and never
+  imitating a real cave. Never a row of pictographs, never tally marks,
+  never a symbol, never a handprint.
+- Body paint is bands and stripes of colour (ochre, ash, chalk), never a
+  symbol or a glyph shape. Carved bone, horn and stone carry plain grooves
+  or bands only.
+
+### Composition by mechanic family
+
+| Family | The moment to draw |
+|---|---|
+| **Provoked** | The blow survived: the creature braced a heartbeat after the strike, dust and chipped scale still falling, weight already coming forward, angrier. Never a wound, never blood. No reserved colour, glow, scar or marking (owner ruling); the art shows temper, the rules text carries the mechanic. |
+| **Hunt** | A fight both sides can lose: hunter and prey in one frame at the instant before contact, both whole, both dangerous, facing each other across open ground. When the prey cannot share the frame (a Hunt that rides a charge, or a common that needs one figure), the hunter's weapon and eyes fix on prey just past the frame edge. Never the kill, never a carcass, never blood. When the prey is the hunter's own creature (a Hunt may target your own), draw a sparring challenge, not an attack. |
+| **Duty** | The act of tending, mid-work: the drum struck, the fire fed, the stone swung, the herd called, the hide stretched. Never the result, always the act. |
+| **Tokens made** | Foreshadow the token in frame, with an exact count: two Hatchlings are two Hatchlings, unhatched eggs count as the Hatchlings they will be. |
+| **Grind self, the fossil line** | Clean stone-coloured bones settling into glossy tar, or lifted out of it: a slow sink or a slow rise, never flesh. |
+| **Foresee** | A scout on a ridge or a cliff nest, looking far across the valley toward the sun on the horizon. |
+| **Rage and Warcry** | Mid-charge, dust thrown behind, the whole body committed forward. |
+| **Marks** | Exactly as section 4b: an exact stated count of cyan beads ON the body at mid-height, a state never a transition, the placement clause every time. |
+| **Lords (Dinokin)** | The herd answering her: the lord in front, the herd behind her at a stated count, or only as dust on the horizon with no bodies drawn; every head inside the band. |
+
+### The peoples and their tells
+
+Every First Dawn character is an adult woman, per the global rule. The
+clans' costume languages, the monster-girl tribes and the beasts are kept
+apart so the cast stays coherent.
+
+**The five clans (Human cards: chiefs, hunters, trackers, firekeepers, seers,
+elders, riders).** No species tells, ever. Each clan reads through one
+costume language: the **Fern clan** in leaf-dyed hide and woven grass with
+bone toggles; the **Ember clan** in scorched leather with ochre and ash
+stripes of body paint and flint at the belt; the **Hearth clan** in bleached
+pale hide with bone and shell beads; the **Sky and Ice clans** in wind-cut
+pale leathers and glacier-white furs; the **Tar clan** in tar-glossed hide
+with ash-grey paint and obsidian blades. Flint spears, atlatls, bolas and
+stone axes. **No metal, no wheel, no writing**: every ornament is bone,
+shell, stone, amber, teeth or horn.
+
+**Dinokin (the dinosaur monster-girls; an Axis with lords).** The Beastkin
+monster-girl idiom: a woman's face and figure with **at most three stated
+species tells**, all three named in every prompt and checked at QA, at
+least two of them inside the card window (the tells rule under Direction preferences). Dinokin
+are scaled or feathered, never furred, and never carry mammal ears. **The
+Dinokin skin is a baseline, not a tell:** every Dinokin carries a row of small
+rounded scales running from the nape down her spine and along the top of her
+tail (where she has one), and may carry small scaled patches at the temples,
+shoulders and hips; none of these count toward the three (owner, 2026-09-29:
+"Approved for scales on all the dinokin"). The row runs along the tail's top
+because most poses are front three-quarter, where a spine row alone never
+shows; a Skywing, who has no tail, carries it between her wings down to the
+small of her back. It stays a narrow row of small rounded scales, never plates
+(plates are the Armourback's tell). Every Dinokin woman's prompt states it
+once, beside the patches and in the same framing ("a narrow row of small
+rounded scales from her nape down her spine and along the top of her tail, the
+Dinokin skin, not a species feature"); riders, clanswomen, Beastkin and plain
+beasts carry none of it. A prompt that lists the patches says so too ("small
+scaled patches at her temples, the Dinokin skin, not a species feature"). The
+species sheet:
+
+| Species | The tells (at most three) |
+|---|---|
+| **Raptor** | one long stiff feathered tail; a low crest of short feathers along the crown and nape; feathered forearms: a short fringe of stiff feathers along the back of each forearm, elbow to wrist; ordinary human feet |
+| **Hornback** | exactly two brow horns curving forward; a bony frill fanning back behind the head; one thick tail with a blunt tip |
+| **Longneck** | exactly one very long tail, as long as she is tall, heavy and thick at the root and tapering to a whip-thin tip (longer and thinner-tipped than a Hornback's blunt tail or a Tyrant's massive one); great height and a calm heavy build |
+| **Armourback** | rows of flat bony plates along shoulders and forearms; one heavy tail ending in a bony club; a broad low build |
+| **Tyrant** | one massive tail; a row of short bony ridges above the brows; serrated fangs visible when the mouth is open |
+| **Skywing** | leathery membrane wings from the shoulder blades, never from the arms (two ordinary arms and hands); a backswept head crest; no tail |
+| **Swimmer** *(beyond the brief's six; ratified 2026-09-29)* | one long flat paddle tail; small fin ridges on forearms and calves; a slick wet sheen on the skin |
+
+The Raptor's third tell is feathered forearms, never raptor feet (owner,
+2026-10-01, chosen from a test image: "Feathered forearms are the best
+version"). The sickle-claw feet that the 2026-10-01 round-one review tried are
+retired: her feet are ordinary human feet, bare or in leather foot wraps where
+the costume already wraps the legs, and her hands are ordinary human hands. In
+a prompt the clause reads "feathered forearms: a short fringe of stiff
+[feather colour] feathers running along the back of each forearm from elbow to
+wrist, like small folded wings, her hands ordinary human hands", the feathers
+coloured to match her crest and tail.
+
+Longneck women have an ordinary woman's neck; the long neck belongs only to
+the plain beasts (owner, 2026-09-29). The Longneck carries two tells, not
+three, and both must show inside the card window: the tail's root, a long run
+of it and its tip, and her height. In a prompt she is "a tall dinosaur
+monster-girl" with "an ordinary woman's neck of normal length", never
+"longneck", "long-necked" or "sauropod", which prime the neck.
+
+Every Dinokin tail is stated with its count, root and tip: "exactly one
+tail, emerging from the base of her spine at the tailbone, never from her
+hip, side or waist, ending in exactly one [tip]" (section 2, "tails are the
+new hands").
+
+**Riders are not Dinokin** (owner ruling D2). A rider is a clanswoman typed
+after the woman, with no species tells; her beast is a plain animal.
+
+**Beastkin (the megafauna girls: Mammoth, Cave Bear, Sabretooth, Woolly
+Rhino).** A separate people from the Dinokin (owner ruling D3): furred,
+mammal ears, the Beastkin species-sheet idiom of `beastkin.md`, at most three
+tells, never scales or feathers.
+
+**The beasts (plain Dinosaurs and megafauna).** Genre pastiche in the *One
+Million Years B.C.* tradition, not paleontology: invented, readable animals
+with clear silhouettes. **No franchise creature designs and no film hybrids**:
+no beast drawn after a named film, game or toy line, and no spliced monster.
+
+**Costume coverage rule** (checkable in a prompt): the fur or hide two-piece
+is allowed as the genre costume, with **chest and hips fully covered,
+visible ties or straps, and at least one more layer** (a wrap, a cloak, leg
+wraps or a shoulder pelt), never string-minimal and never slipping. Name the
+extra layer in the prompt.
+
+**Banned motifs.** No real-world regalia or sacred styles: **no feathered war
+bonnets or Plains headdresses, no Arctic peoples' dress, no dot-painting and
+no real cave-art styles**; every costume is invented from hide, fur, bone,
+shell and stone. **No gore, no wounds, no butchery**; fossils only as clean
+stone-coloured bone. **No captive or dragged women.** No real-person
+likeness.
+
+### Large non-humanoid subjects
+
+Dinosaurs are new territory for the prompt recipe. Every rule here is a
+prompt clause and a QA check:
+
+- **The 216 window.** A card shows image rows 17.3% to 82.7%: y 138 to 662
+  of the 640x800 deliverable (section 3). The story sits inside that band.
+- **A beast's head is a head.** It sits inside the band and is never cropped.
+  The headroom rule applies to it exactly as to a woman's: **every head top,
+  human or dinosaur, at or below y ≈ 179**, and horns, frills, crests and
+  headwear count toward the head top. In the prompt: "the top of every head,
+  horns, frill and crest included, no higher than one quarter of the way
+  down the canvas with open sky above it".
+- **Nothing climbs above the head line** (owner, art pilot review
+  2026-09-28). Anything that can rise above a head stays at or below
+  y ≈ 179 too: **tail tips, skull crests, horns, raised weapons and wings**.
+  In this set that narrows section 3's allowance for weapons and effects
+  breaking into the bleed. The pilot's two misses were Tar-Bones, whose
+  skull reared above the card window, and Scorch-Tail Raptor, whose tail
+  curled up until its tip did the same. The crop places the detected head
+  at y 179 and cuts whatever stands above it. In the prompt, name the part
+  and pin it under the head: "[her tail tip / the spear point / the wing
+  tips] lower than the top of her head", and "the top of her head the
+  highest point of the whole figure"; for a beast alone, "its skull [crest,
+  horns] the highest point of the whole animal".
+- **Story beside her, never below her knees** (set-wide, 2026-09-29): every
+  secondary story element (a nest, an egg, bones, a paddle tip, a tail's tip,
+  a Hatchling, a dropped weapon) sits beside her at hip or waist height, never
+  lower than her knees, and nothing sits between her and the viewer below her
+  waist: never "in front of her", "at her feet", "in the lower foreground",
+  "on the ground before her" or "at the bottom of the frame". Where it needs
+  the ground, raise the ground beside her (a fern bank, a boulder or a ledge
+  at hip or waist height). Calibration round 2 measured why: a nest and two
+  bones placed in front of her, at a stated height, still landed at 82% to 88%
+  of the raw, under the window, while a Hatchling and a tail placed beside her
+  landed inside it. The card window ends at 82.7% of
+  the frame (y 662), and anything lower is cropped; calibration round 1 of
+  2026-09-29 lost Herd-Guardian's nest, River-Snapper's bones and Vessa's tail
+  tip below it. Spells hold their principal figures to the same rule.
+- **Tall women stay small in the frame** (calibration round 4, 2026-09-29): a
+  Longneck's "great height" is shown against the Hatchling, the ferns or the
+  people around her, and she is "small enough in the frame that open sky fills
+  the top third"; never ask for her to be big in the frame.
+- **Riders: the mount's body at the vertical centre** (round 4): "the mount's
+  body at the vertical centre of the canvas, the whole mount a little over
+  half the frame width, the top of her head one third of the way down the
+  canvas with open sky above it".
+- **The check is by eye, with the lines drawn; the detectors do not see
+  it** (measured 2026-09-28 on the pilot's retained raws). `scripts/smartcrop.py`
+  and `scripts/audit-art-window.py` look for anime heads and faces; neither
+  measures a tail, a wing or a skull. On Scorch-Tail the head detector found
+  her head, the crop put its top at y 179 exactly, and the audit passed it
+  while the tail tip sat at about y 70. On Tar-Bones the head and face
+  detectors found nothing, so the audit skipped the card, and the crop fell
+  through to the loose person detector, which boxed the tail of bones at the
+  right and set the crop 111 raw rows lower than a centre crop, leaving the
+  skull top at about y 48. So the check is the contact sheet with the band
+  (y 138 and 662) and the head line (y 179) drawn on every image, read for
+  anything above the line, plus smartcrop's per-card detection source: a
+  beast-alone frame that reports `person` or `head` had its crop anchored on
+  whatever the detector boxed, so look at where the box sits. When the crop
+  starts below the raw's top row, a zero-quota `gen-card-art --recrop` with a
+  negative `offsetY` lowers everything (docs/art-pipeline.md); when it
+  already starts at row 0, the fix is a regeneration.
+- **Scale by distance, never by shrinking the woman.** A sauropod reads huge
+  because it stands far back and still towers; the woman in the foreground
+  stays at true human size. Its whole body, raised head included, fits
+  inside the band.
+- **Tails state count, root and tip**, for beasts as for Dinokin.
+- **Mount and rider never fuse.** The rider sits in a hide saddle strapped
+  behind the beast's shoulders, one leg on each side, her hands on braided
+  hide reins; her body and the beast's are separate shapes with a visible
+  line between them, and the beast's head is its own, well ahead of her.
+- **Count control.** Name the exact number of beasts in frame; give each a
+  whole visible head and visible ground or sky between their bodies, with no
+  overlapping heads or limbs.
+- **Hatchlings read young**: an oversized head and eyes, stubby limbs, soft
+  skin, nub horns, shell fragments. **No human child appears anywhere.**
+- **Beast-alone frames out-shout the preamble.** The card generator's
+  preamble asks for a waist-up woman; a beast-alone entry says "no woman, no
+  person, no human figure anywhere in the frame" in its prompt, twice if it
+  must (section 2, "wide compositions must out-shout the preamble").
+
 ---
 
 ## 5. Rarity ambition ladder
@@ -899,6 +1206,99 @@ and the token's entry in `constructs-and-tokens.md` must both match them.
   Reach (the open water), the Salt Marsh (kelp and reef), the Breakwater (the
   wreckers' rock). Name the place in the Background field; keep the same
   description of it across entries.
+- **First Dawn tokens** — four set tokens, shared canon between the token
+  entries and every entry that mints or foreshadows them (working ids until
+  the cut). **Hatchling** `tok-hatchling` `G` 1/1 Dinosaur: ONE design for
+  every minter, the long-neck and herd cards included (owner, 2026-09-28): a
+  long-neck's calf is this horned calf, never a long-necked hatchling. It is
+  a newborn horned plant-eater with an oversized head and big round eyes, three tiny nub horns,
+  a small soft frill, four stubby legs, one short stub tail with a rounded
+  tip, soft pale-olive skin with faint sandstone mottling; it reads young, and
+  no human child ever stands in for it. **Pack Raptor** `tok-pack-raptor` `R`
+  2/1 Dinosaur, Warcry: the plain raptor every rider and pack-caller shares,
+  rust-red feathers along the back, a low crest, two legs with one sickle
+  claw each, two small clawed forelimbs, one long stiff tail ending in a fan
+  of dark feathers. **Tar-Bones** `tok-tar-bones` `B` 2/2 Skeleton: a
+  raptor-sized fossil skeleton rising out of glossy tar, clean stone-coloured
+  bone like weathered grey-tan limestone, empty sockets with no glow, no
+  flesh; not a Dinosaur, because the fossil is dead. **Glider** `tok-glider`
+  `U` 1/1 Dinosaur, Skyborne: a small pterosaur, leathery membrane wings from
+  one long wing finger to the hind legs, a backswept head crest, no feathers,
+  no tail, a slate-blue back, a bone-ivory belly and pale sandstone wing
+  membranes the sun shows through (the token entry's colour, which every
+  Glider in the set matches, so none is painted cyan).
+- **The First Dawn named cast** — every legend and named woman of the set,
+  one look each; any entry that shows her again matches it. **Kesh**
+  (`fd-kesh-raptor-rider`), an Ember-clan rider in her late twenties, lean
+  and long-legged, warm brown skin, one low black braid, ochre cheek stripes,
+  riding the Pack Raptor design. **Korru** (`fd-korru-eldest-tracker`), the
+  Fern clan's eldest tracker, late fifties, deep brown weathered skin,
+  grey-streaked black hair in one low braid, a long flint spear, facing the
+  plain tyrant. **Asha and Shree** (`fd-sky-riders-pact`): Asha, a Sky-clan
+  rider in her thirties, fair freckled skin, pale blonde hair under a close
+  leather cap; Shree, her large plain pterosaur; two Gliders fly with them.
+  **Tahla, Shepherdess of Giants** (`fd-tahla-shepherdess`, rung 27), thirties, sun-browned skin,
+  thick auburn hair in a low plait, a tall pale crook with a bone hook, one
+  Hatchling at her hand, three long-necks far behind. **Oru**
+  (`fd-oru-tyrant-queen`, rung 28), a Dinokin Tyrant in her thirties, bronze
+  skin, long dark-red hair, a low amber-and-bone circlet, a plain tyrant at
+  her shoulder. **Vyra** (`fd-vyra-ember-sky`), the Ember clan's sky rider,
+  thirties, deep bronze skin, dark auburn hair cropped at the jaw, ochre and
+  ash stripes, on a plain rust-red pterosaur with amber-ochre wing
+  membranes. **Vessa** (`fd-vessa-great-horn`), the Fern clan's Great Horn, a
+  Dinokin Hornback in her forties, very tall, deep umber skin, a long
+  silver-white braid, the longest brow horns in the valley (bone ivory banded
+  with sandstone), bare-handed. **Ashka** (`fd-ashka-fire-walker`), the Ember
+  clan's fire-walker, late thirties, dark copper-brown skin, long black hair
+  with one ash-grey streak, ochre cheek stripes and ash-white forearm bands,
+  carrying the ember horn (a hollow aurochs horn of live coals, plain grooved
+  bands). **Sefa** (`fd-sefa-first-fire`), keeper of the Hearth clan's First
+  Fire, late thirties, warm light-brown skin freckled across the nose,
+  hearth-ash white hair in one heavy low braid wound with amber beads, amber
+  eyes, an antler fire-fork at the ring hearth. **Nyra**
+  (`fd-nyra-cliff-nests`), the Sky clan's queen, a Dinokin Skywing in her
+  late thirties, deep umber-brown skin, black hair in one thick low braid, a
+  flat circlet of amber and bone beneath her crest, one Glider at her side.
+  **Kree** (`fd-kree-wind-crest`), a Sky-clan Dinokin Skywing in her late
+  twenties, freckled tan skin, copper-red hair cropped short, the long
+  backswept Wind-Crest. **Oshka** (`fd-oshka-tar-mother`), the Tar clan's
+  mother, fifties, tall and heavy-set, deep umber skin, long grey-streaked
+  black hair in one heavy low braid, two ash-grey bands across her
+  cheekbones, a long ash-grey hide mantle, a bone-hooked staff, one Tar-Bones
+  risen behind her. **Nirra** (`fdc-nirra-bo`), the Tar clan's ash-witch,
+  early thirties, lean, olive skin, jaw-length black hair
+  dusted pale with ash, one ash-grey band across her eyes, one obsidian
+  knife.
+- **The First Dawn plain beasts** — one design each, shared by every entry
+  that draws the animal; a plain beast is never a Dinokin and carries no
+  species tells. The **plain tyrant** (Korru's): olive-and-rust scales, small
+  bony ridges above the eyes, two small forelimbs, two massive legs, one
+  massive tail. The **plain horned beast** (The Horned Herd's adult, the
+  Hatchling's parent): three bone-ivory horns, a broad scalloped frill,
+  olive-green hide with sandstone mottling, one short thick blunt tail. The
+  **plain sauropod** (Great-Horn Herder's): grey-green hide with pale
+  dappled flanks, four pillar legs, one long tail tapering to a thin tip.
+  The **plain armoured beast** (`fd-plated-grazer`): a low broad four-legged
+  plant-eater, rows of flat bony plates along back and flanks, a small low
+  head, olive hide with sandstone-and-moss plates, one heavy tail ending in
+  one bony club. The **plain woolly mammoth** (`fd-tusk-and-claw`): shaggy
+  russet-brown wool, a high domed head, small ears, one trunk, two long
+  curved ivory tusks, four pillar legs, one short tufted tail. The **woolly
+  rhinoceros** (`fd-grip-of-the-old-beast`): two nose horns one behind the
+  other, the front one longer, a shaggy russet-brown wool coat over the
+  shoulders, four pillar legs, one short tufted tail. The **wild raptor**
+  (the green batch's prey): the Pack Raptor's build in olive feathers barred
+  with ochre, so it never reads as the red Pack Raptor token. The **Sky
+  clan's riding pterosaur** (`fdc-cliff-top-scout-preserve`,
+  `fd-egg-snatcher`): larger than a Glider, dun-grey hide, pale sandstone
+  wing membranes, a paler belly, a backswept crest, no feathers, no tail,
+  ridden in a hide saddle at the base of its neck.
+- **Places (First Dawn)** — the Cradle (the green valley inside a ring of
+  smoking mountains), the Long Grass (the fern plain where the herds cross),
+  the Cliff Nests (the Sky clan's sea cliffs), the Ice Wall (the glacier at
+  the valley's cold end), the Tar Flats (the Tar clan's bubbling pools under
+  ash haze). Name the place in the Background field; keep the same
+  description of it across entries.
 
 ---
 
@@ -911,7 +1311,7 @@ order:
 ### <Card Name> — `<card-id>`
 - **Card facts:** {cost} · {colors} · {P/T} · {keywords} · {rarity}{, legendary?} · holo: {explicit | auto:<computed>}
 - **Character & source:** …
-- **Personality / mood:** … (seed from the card's flavor text — it is the character voice)
+- **Personality / mood:** … (seed from the card's name, subtypes and set identity; cards carry no flavor text since R13)
 - **Pose & composition:** … (state where the face sits in the safe band)
 - **Costume & attire:** …
 - **Palette:** … (name the hexes + accents)
@@ -992,8 +1392,9 @@ These three are part of the contract. Match their density and specificity.
    `.ts` file). No skips, no additions, no reordering.
 2. **All 13 fields, exact labels, exact order** (section 8). **180–250 words per
    entry** plus the prompt line.
-3. **The card data drives the art.** Use flavor text (it *is* the character
-   voice), cost, stats, keywords, and abilities to pick the pose and moment:
+3. **The card data drives the art.** Use the name, subtypes, cost, stats,
+   keywords, and abilities to pick the pose and moment (cards carry no flavor
+   text since R13, 2026-09-25; entries written before it quote the old lines):
    a 0/4 `defender` does not lunge; `haste` lunges; `deathblade` gets one quiet
    lethal implement; an ETB token-maker shows or foreshadows its tokens; a
    `bloodoath` healer glows warm. High cost = high spectacle.

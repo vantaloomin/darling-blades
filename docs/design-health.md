@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards, scripts/blades-db.ts · last-verified: 2026-08-25 · design doc — pool-wide health metrics; re-measure when a set ships -->
+<!-- source-of-truth: src/data/cards, scripts/blades-db.ts · last-verified: 2026-09-28 · design doc — pool-wide health metrics; re-measure when a set ships -->
 
 # Design health
 
@@ -14,7 +14,7 @@ from a fresh clone, so the numbers live here rather than only in a script.
 
 A card counts as a functional duplicate when an earlier set already printed one
 with the **same normalised mana cost, the same power and toughness, and the same
-rules text**. Names, art, subtypes and flavor are ignored.
+rules text**. Names, art and subtypes are ignored.
 
 Measured 2026-08-25 across 1,079 collectible cards:
 

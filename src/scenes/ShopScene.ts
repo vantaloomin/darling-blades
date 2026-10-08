@@ -1,18 +1,16 @@
 import Phaser from 'phaser';
-import { Art } from '../art/ArtResolver';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
-import { FEATURES } from '../config/features';
 import { ECONOMY } from '../config/rules';
 import { CARD_DB } from '../data/catalog';
 import { DECK_INFO } from '../data/deckInfo';
-import { DUAT_SET, isLiveCollectible } from '../data/liveness';
+import { DUAT_SET, isLiveCollectible, isLiveSet } from '../data/liveness';
 import {
   DARLINGS_PRECONS,
   FREE_DARLINGS_PRECON_ID,
   type DarlingsPrecon,
 } from '../data/darlingsPrecons';
-import { SET_BLURBS, SET_IDS, SET_TITLES, type SetId } from '../data/setTitles';
+import { SET_BLURBS, SET_IDS, type SetId } from '../data/setTitles';
 import { STARTER_DECKS, THEME_DECKS, type DeckList } from '../data/starterDecks';
 import { createRngState } from '../engine/rng';
 import { def, isType, manaValue, type CardDef } from '../engine/types';
@@ -29,22 +27,30 @@ import {
   type GrantedDeckBuild,
 } from '../meta/Economy';
 import { openPack, openPacks } from '../meta/PackOpener';
+import { BOOSTER_SKUS, packPriceForSku, type BoosterSku } from '../meta/boosterSkus';
 import { packPoolSummary, type PackPoolSummary } from '../meta/packSummary';
 import { Services } from '../meta/services';
 import { checkpointAchievements } from '../meta/achievementCheckpoint';
 import { attachTouchGestures, bindTapButton, inflateHitArea } from '../platform/gestures';
 import { TAP_SLOP_PX } from '../platform/gestureCore';
 import { makeCardThumb } from '../ui/CardThumbCache';
-import { DECK_SHOP_LAYOUT } from '../ui/deckShopLayout';
+import { IS_DEV } from '../platform/env';
+import type { SaveData } from '../meta/SaveManager';
+import { fitMenuListName, fitMenuName } from '../ui/menuText';
+import { bindMenuScroll } from '../ui/menuScroll';
+import { shopPackLayout, shopPreviewListLayout, shopPreviewModalLayout, type ShopA11yFixture } from '../ui/shopPresentation';
+import { DECK_SHOP_LAYOUT, DECK_SHOP_GRID, deckShopCardLayout } from '../ui/deckShopLayout';
 import { CARD_H, CardView } from '../ui/CardView';
+import { rarityLine } from '../ui/CardZoomPreview';
 import { deckPageCount, deckPageSlice } from '../ui/deckListPaging';
 import { computeDeckStats, CURVE_MAX, PIE_COLORS } from '../ui/deckStats';
 import { fxPolicy } from '../ui/fx/FXSupport';
 import { modalGuardTarget } from '../ui/Modal';
-import { createOddsModal, type BoosterSku } from '../ui/OddsModal';
+import { createOddsModal } from '../ui/OddsModal';
 import { OverlayCoordinator } from '../ui/OverlayCoordinator';
 import { artMissing } from '../art/artLoader';
 import { awaitArt, gateOnArt } from '../ui/artGate';
+import { addPortraitArt } from '../ui/portraitArt';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { HEADER_CURRENCY_ANCHOR } from '../ui/layout';
 import { sceneTitle } from '../ui/sceneTitle';
@@ -78,7 +84,7 @@ const WHEEL_STEP_COOLDOWN_MS = 250;
  */
 const DECK_COMMIT_REPEAT_GUARD_MS = 500;
 
-export type { BoosterSku } from '../ui/OddsModal';
+export { BOOSTER_SKUS, packPriceForSku, type BoosterSku } from '../meta/boosterSkus';
 
 interface PackTint {
   start: string;
@@ -90,65 +96,65 @@ interface PackTint {
 }
 
 const BASE_PACK_TINT: PackTint = {
-  start: theme.colors.btnEmphasisBg,
-  middle: theme.colors.panelFill,
-  end: theme.colors.dangerBg,
-  trim: theme.colors.gold,
-  foil: theme.colors.gold,
+  get start() { return theme.colors.btnEmphasisBg; },
+  get middle() { return theme.colors.panelFill; },
+  get end() { return theme.colors.dangerBg; },
+  get trim() { return theme.colors.gold; },
+  get foil() { return theme.colors.gold; },
 };
 
 const CELTIC_FAE_PACK_TINT: PackTint = {
-  start: theme.colors.success,
-  middle: theme.colors.muted,
-  end: theme.colors.panelFill,
-  trim: theme.colors.heading,
-  foil: theme.colors.heading,
-  mist: theme.colors.success,
+  get start() { return theme.colors.success; },
+  get middle() { return theme.colors.muted; },
+  get end() { return theme.colors.panelFill; },
+  get trim() { return theme.colors.heading; },
+  get foil() { return theme.colors.heading; },
+  get mist() { return theme.colors.success; },
 };
 
 const ARTHURIAN_COURT_PACK_TINT: PackTint = {
-  start: theme.colors.heading,
-  middle: theme.colors.panelFill,
-  end: theme.colors.muted,
-  trim: theme.colors.gold,
-  foil: theme.colors.heading,
-  mist: theme.colors.gold,
+  get start() { return theme.colors.heading; },
+  get middle() { return theme.colors.panelFill; },
+  get end() { return theme.colors.muted; },
+  get trim() { return theme.colors.gold; },
+  get foil() { return theme.colors.heading; },
+  get mist() { return theme.colors.gold; },
 };
 
 const GOTHIC_MONSTERS_PACK_TINT: PackTint = {
-  start: theme.colors.dangerBg,
-  middle: theme.colors.panelFill,
-  end: theme.colors.muted,
-  trim: theme.colors.gold,
-  foil: theme.colors.danger,
-  mist: theme.colors.danger,
+  get start() { return theme.colors.dangerBg; },
+  get middle() { return theme.colors.panelFill; },
+  get end() { return theme.colors.muted; },
+  get trim() { return theme.colors.gold; },
+  get foil() { return theme.colors.danger; },
+  get mist() { return theme.colors.danger; },
 };
 
 const DARK_TALES_PACK_TINT: PackTint = {
-  start: theme.colors.btnEmphasisBg,
-  middle: theme.colors.panelFill,
-  end: theme.colors.muted,
-  trim: theme.colors.gold,
-  foil: theme.colors.heading,
-  mist: theme.colors.panelStroke,
+  get start() { return theme.colors.btnEmphasisBg; },
+  get middle() { return theme.colors.panelFill; },
+  get end() { return theme.colors.muted; },
+  get trim() { return theme.colors.gold; },
+  get foil() { return theme.colors.heading; },
+  get mist() { return theme.colors.panelStroke; },
 };
 
 const YOKAI_NIGHTS_PACK_TINT: PackTint = {
-  start: theme.colors.dangerBg,
-  middle: theme.colors.btnEmphasisBg,
-  end: theme.colors.panelFill,
-  trim: theme.colors.heading,
-  foil: theme.colors.success,
-  mist: theme.colors.gold,
+  get start() { return theme.colors.dangerBg; },
+  get middle() { return theme.colors.btnEmphasisBg; },
+  get end() { return theme.colors.panelFill; },
+  get trim() { return theme.colors.heading; },
+  get foil() { return theme.colors.success; },
+  get mist() { return theme.colors.gold; },
 };
 
 const SANDS_OF_THE_DUAT_PACK_TINT: PackTint = {
-  start: theme.colors.btnEmphasisBg,
-  middle: theme.colors.panelFill,
-  end: theme.colors.muted,
-  trim: theme.colors.gold,
-  foil: theme.colors.gold,
-  mist: theme.colors.heading,
+  get start() { return theme.colors.btnEmphasisBg; },
+  get middle() { return theme.colors.panelFill; },
+  get end() { return theme.colors.muted; },
+  get trim() { return theme.colors.gold; },
+  get foil() { return theme.colors.gold; },
+  get mist() { return theme.colors.heading; },
 };
 
 const STARBORNE_PACK_TINT: PackTint = {
@@ -167,6 +173,15 @@ const DROWNED_DEEP_PACK_TINT: PackTint = {
   trim: '#a8783c',
   foil: '#d6e07c',
   mist: '#7d8590',
+};
+
+const FIRST_DAWN_PACK_TINT: PackTint = {
+  start: '#efe6d0',
+  middle: '#3c4147',
+  end: '#26292d',
+  trim: '#efe6d0',
+  foil: '#f08a5d',
+  mist: '#ffc7a0',
 };
 
 const packRR = (
@@ -253,6 +268,7 @@ function bakeRealPackBase(
   ctx: CanvasRenderingContext2D,
   sceneArtKey: string,
   trimY = 0,
+  trimColor: string = theme.colors.gold,
 ): void {
   const img = scene.textures.get(sceneArtKey).getSourceImage() as CanvasImageSource;
   const sw = (img as { width: number }).width;
@@ -274,10 +290,10 @@ function bakeRealPackBase(
     ctx.drawImage(img, (PACK_W - dw) / 2, (PACK_H - sh * scale) / 2, dw, sh * scale);
   }
   ctx.restore();
-  // gold trim over the cropped edge (the procedural path strokes it inline)
+  // Trim over the cropped edge (the procedural path strokes it inline).
   packRR(ctx, 2, 2, PACK_W - 4, PACK_H - 4, 14);
   ctx.lineWidth = 4;
-  ctx.strokeStyle = theme.colors.gold;
+  ctx.strokeStyle = trimColor;
   ctx.stroke();
 }
 
@@ -285,6 +301,7 @@ export interface PackArtOpts {
   key?: string; // texture key (default 'packart')
   sceneArtKey?: string; // real-art source key (default 'scene-pack-art')
   tint?: PackTint; // procedural fallback treatment; real art remains untouched
+  realArtTrim?: string; // optional palette-specific edge; older fronts retain gold
   /**
    * Plain bars baked into the source art, in source pixels per edge, measured
    * from the shipped webp. Only the three sets authored under the hardened
@@ -347,6 +364,14 @@ export const DROWNED_DEEP_PACK_ART: PackArtOpts = {
   trimY: 63,
 };
 
+export const FIRST_DAWN_PACK_ART: PackArtOpts = {
+  key: 'packart-first-dawn',
+  sceneArtKey: 'scene-pack-art-first-dawn',
+  tint: FIRST_DAWN_PACK_TINT,
+  trimY: 63,
+  realArtTrim: FIRST_DAWN_PACK_TINT.trim,
+};
+
 export function packTextureForSku(sku: BoosterSku): string {
   if (sku === 'ragnarok') return 'packart-ragnarok';
   if (sku === 'celtic-fae') return 'packart-celtic-fae';
@@ -357,47 +382,19 @@ export function packTextureForSku(sku: BoosterSku): string {
   if (sku === 'sands-of-the-duat') return 'packart-sands-of-the-duat';
   if (sku === 'starborne') return 'packart-starborne';
   if (sku === 'drowned-deep') return 'packart-drowned-deep';
+  if (sku === 'first-dawn') return 'packart-first-dawn';
   return 'packart';
 }
 
-/** Unit gold price for one booster of the given SKU (shared with PackOpeningScene's re-buy CTAs). */
-export function packPriceForSku(sku: BoosterSku): number {
-  if (sku === 'ragnarok') return ECONOMY.ragnarokPackPrice;
-  if (sku === 'celtic-fae') return ECONOMY.celticFaePackPrice;
-  if (sku === 'arthurian-court') return ECONOMY.arthurianCourtPackPrice;
-  if (sku === 'gothic-monsters') return ECONOMY.gothicMonstersPackPrice;
-  if (sku === 'dark-tales') return ECONOMY.darkTalesPackPrice;
-  if (sku === 'yokai-nights') return ECONOMY.yokaiNightsPackPrice;
-  if (sku === 'sands-of-the-duat') return ECONOMY.sandsOfTheDuatPackPrice;
-  if (sku === 'starborne') return ECONOMY.starbornePackPrice;
-  if (sku === 'drowned-deep') return ECONOMY.drownedDeepPackPrice;
-  return ECONOMY.packPrice;
-}
-
-/** Runtime set bridge until the parallel engine type seam adds the new literal. */
 export function packSetForSku(sku: BoosterSku): CardDef['set'] | undefined {
   // Undefined is still the mixed-set fallback for non-shop callers. The Base
   // SKU is explicit so its pool, dupe protection, and pity fallback stay set-scoped.
-  return sku === 'base' ? 'base' : (sku as unknown as CardDef['set']);
+  return sku;
 }
-
-/** The shop order is the source for strip count, release order, and art guard. */
-export const BOOSTER_SKUS: ReadonlyArray<{ label: string; textureKey: string; sku: BoosterSku }> = [
-  { label: SET_TITLES.base, textureKey: 'packart', sku: 'base' },
-  { label: SET_TITLES.ragnarok, textureKey: 'packart-ragnarok', sku: 'ragnarok' },
-  { label: SET_TITLES['celtic-fae'], textureKey: 'packart-celtic-fae', sku: 'celtic-fae' },
-  { label: SET_TITLES['arthurian-court'], textureKey: 'packart-arthurian-court', sku: 'arthurian-court' },
-  { label: SET_TITLES['gothic-monsters'], textureKey: 'packart-gothic-monsters', sku: 'gothic-monsters' },
-  { label: SET_TITLES['dark-tales'], textureKey: 'packart-dark-tales', sku: 'dark-tales' },
-  { label: SET_TITLES['yokai-nights'], textureKey: 'packart-yokai-nights', sku: 'yokai-nights' },
-  { label: SET_TITLES['sands-of-the-duat'], textureKey: 'packart-sands-of-the-duat', sku: 'sands-of-the-duat' },
-  { label: SET_TITLES.starborne, textureKey: 'packart-starborne', sku: 'starborne' },
-  { label: SET_TITLES['drowned-deep'], textureKey: 'packart-drowned-deep', sku: 'drowned-deep' },
-];
 
 /**
  * The shop strip shows only released sets: the Sands of the Duat SKU rides
- * BOOSTER_SKUS (the booster art guard reads that block) but stays hidden until
+ * BOOSTER_SKUS (the booster art guard reads that catalog) but stays hidden until
  * FEATURES.duatLive flips at the shared balance pass. Every strip consumer
  * must index into THIS list, never BOOSTER_SKUS, or the peek/layout indexes
  * disagree with the tiles.
@@ -409,11 +406,11 @@ export const BOOSTER_SKUS: ReadonlyArray<{ label: string; textureKey: string; sk
  * release order, so a set appended there leads the strip automatically.
  */
 export function visibleBoosterSkus(): ReadonlyArray<{ label: string; textureKey: string; sku: BoosterSku }> {
-  return BOOSTER_SKUS.filter((entry) => entry.sku !== 'sands-of-the-duat' || FEATURES.duatLive).reverse();
+  return BOOSTER_SKUS.filter((entry) => isLiveSet(entry.sku)).reverse();
 }
 
-/** Only the newest SKU gets launch emphasis. Keep this beside BOOSTER_SKUS. */
-export const NEWEST_SKU: BoosterSku = 'drowned-deep';
+/** Only the newest SKU gets launch emphasis. */
+export const NEWEST_SKU: BoosterSku = 'first-dawn';
 
 /**
  * Bake a booster-pack texture once (shared with PackOpeningScene). Real front
@@ -422,17 +419,23 @@ export const NEWEST_SKU: BoosterSku = 'drowned-deep';
  * but the face stays text-free. Parameterized so expansion SKUs can bake their
  * own texture treatment.
  */
+const packPalettes = new WeakMap<Phaser.Textures.Texture, string>();
+
 export function bakePackArt(scene: Phaser.Scene, opts: PackArtOpts = {}): void {
   const key = opts.key ?? 'packart';
   const sceneArtKey = opts.sceneArtKey ?? 'scene-pack-art';
-  if (scene.textures.exists(key)) return;
+  const palette = JSON.stringify([opts.tint ?? BASE_PACK_TINT, opts.realArtTrim ?? theme.colors.gold, theme.colors.btnGhostBg]);
   const W = PACK_W;
   const H = PACK_H;
-  const tex = scene.textures.createCanvas(key, W, H)!;
+  const tex = scene.textures.exists(key)
+    ? scene.textures.get(key) as Phaser.Textures.CanvasTexture
+    : scene.textures.createCanvas(key, W, H)!;
+  if (packPalettes.get(tex) === palette) return;
   const ctx = tex.getContext();
+  ctx.clearRect(0, 0, W, H);
 
   if (scene.textures.exists(sceneArtKey)) {
-    bakeRealPackBase(scene, ctx, sceneArtKey, opts.trimY ?? 0);
+    bakeRealPackBase(scene, ctx, sceneArtKey, opts.trimY ?? 0, opts.realArtTrim);
   } else {
     bakeProceduralPackBase(ctx, opts.tint ?? BASE_PACK_TINT);
   }
@@ -448,6 +451,7 @@ export function bakePackArt(scene: Phaser.Scene, opts: PackArtOpts = {}): void {
   ctx.fillRect(2, H - 28, W - 4, 26);
   ctx.restore();
   tex.refresh();
+  packPalettes.set(tex, palette);
 }
 
 type ShopTab = 'boosters' | 'decks';
@@ -460,6 +464,7 @@ type ShopTab = 'boosters' | 'decks';
 export interface ShopSceneData {
   tab?: ShopTab;
   boosterIndex?: number;
+  a11yFixture?: ShopA11yFixture;
 }
 
 /** Sub-tab within the Decks tab (user-directed 2026-09-01): the stacked
@@ -474,18 +479,18 @@ type DeckSectionKey = 'standard' | 'darlings';
  * to page. The shared strip math owns clamping, snapping, and column tap
  * classification; the row comes from where in the column the tap landed.
  */
-const DECK_GRID_ROWS = 2;
-const DECK_CARD_W = 230;
-const DECK_STRIP_TOP = 174;
-const DECK_ROW_GAP = 12;
-const DECK_COLUMN_H = 500;
+const DECK_GRID_ROWS = DECK_SHOP_GRID.rows;
+const DECK_CARD_W = DECK_SHOP_GRID.width;
+const DECK_STRIP_TOP = DECK_SHOP_GRID.top;
+const DECK_ROW_GAP = DECK_SHOP_GRID.rowGap;
+const DECK_COLUMN_H = DECK_SHOP_GRID.height;
 const DECK_CARD_H = (DECK_COLUMN_H - DECK_ROW_GAP) / DECK_GRID_ROWS;
-const DECK_CARD_ART_H = 130;
+const DECK_CARD_ART_H = DECK_SHOP_GRID.artHeight;
 const DECK_STRIP_OPTIONS: StripLayoutOptions = {
-  visibleCount: 4,
+  visibleCount: DECK_SHOP_GRID.columns,
   tileWidth: DECK_CARD_W,
   tileHeight: DECK_COLUMN_H,
-  tileStride: 262,
+  tileStride: DECK_SHOP_GRID.stride,
   viewport: {
     x: theme.design.safeLeft,
     y: DECK_STRIP_TOP - 8,
@@ -524,11 +529,12 @@ interface PreviewEntry {
   n: number;
 }
 
-const PREVIEW_ROWS_PER_COLUMN = 9;
-const PREVIEW_PAGE_SIZE = PREVIEW_ROWS_PER_COLUMN * 2;
 const FEATURED_THUMB_SCALE = 0.21;
 
 export class ShopScene extends Phaser.Scene {
+  private fixture: ShopA11yFixture | null = null;
+  private fixtureSave: SaveData | null = null;
+  private get saveData(): SaveData { return this.fixtureSave ?? Services.save.data; }
   private goldBadge!: GoldBadge;
   private tab: ShopTab = 'boosters';
   private deckTab: DeckSectionKey = 'standard';
@@ -542,6 +548,7 @@ export class ShopScene extends Phaser.Scene {
   private inspectIdx: number | null = null;
   /** Supersedes a pending inspect art wait when another row is tapped. */
   private inspectWaitToken = 0;
+  private inspectWaitOwner: Phaser.GameObjects.Container | null = null;
   /** The open preview's distinct-card entries in visual order (creatures → spells → lands). */
   private previewEntries: PreviewEntry[] = [];
   private previewInteractiveTargets: Phaser.GameObjects.GameObject[] = [];
@@ -607,7 +614,7 @@ export class ShopScene extends Phaser.Scene {
     const themeDecks = THEME_DECKS
       .filter((deck) => deck.cards.every((id) => {
         const card = CARD_DB[id];
-        return Boolean(card && (String(card.set) !== DUAT_SET || isLiveCollectible(card)));
+        return Boolean(card && (card.set !== DUAT_SET || isLiveCollectible(card)));
       }))
       .sort((a, b) => setRank(DECK_INFO[b.id]?.featured?.[0]) - setRank(DECK_INFO[a.id]?.featured?.[0]));
     const darlings = [...DARLINGS_PRECONS].sort((a, b) => {
@@ -663,6 +670,10 @@ export class ShopScene extends Phaser.Scene {
     // first, the claim-aware default tab) while an explicit entry still wins.
     // Nothing in the Shop restarts itself or reads settings.data later.
     this.sys.settings.data = {};
+    this.fixture = IS_DEV ? data.a11yFixture ?? null : null;
+    this.fixtureSave = this.fixture ? structuredClone(this.fixture.save) : null;
+    this.data.set('a11yReady', false);
+    this.data.set('a11yDensity', { actual: [], release: [] });
     const faces = [...STARTER_DECKS, ...THEME_DECKS, ...DARLINGS_PRECONS].map((deck) =>
       this.deckGridPortraitId(deck),
     );
@@ -684,7 +695,8 @@ export class ShopScene extends Phaser.Scene {
       DARLINGS_PRECONS.some((deck) => this.isFreeClaim(deck))
       ? 'darlings'
       : 'standard';
-    this.qty = 1;
+    this.deckTab = this.fixture?.deckTab ?? this.deckTab;
+    this.qty = this.fixture?.quantity ?? 1;
     this.skuButtons = [];
     this.qtyChips = new Map();
     this.tabButtons = new Map();
@@ -769,6 +781,7 @@ export class ShopScene extends Phaser.Scene {
     bakePackArt(this, SANDS_OF_THE_DUAT_PACK_ART);
     bakePackArt(this, STARBORNE_PACK_ART);
     bakePackArt(this, DROWNED_DEEP_PACK_ART);
+    bakePackArt(this, FIRST_DAWN_PACK_ART);
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('shop');
 
@@ -781,10 +794,14 @@ export class ShopScene extends Phaser.Scene {
     this.boostersGroup = this.add.container(0, 0);
     this.decksGroup = this.add.container(0, 0);
     this.buildBoostersGroup(this.boostersGroup, data.boosterIndex ?? 0);
-    this.buildDecksGroup(this.decksGroup);
+    this.buildDecksGroup(this.decksGroup, this.fixture?.deckIndex);
     this.setTab(this.tab); // honors the initial tab (onboarding routes to 'decks')
 
     this.shopInteractiveTargets.push(backButton(this, 'Menu', () => this.scene.start('MainMenu')));
+    if (this.fixture?.odds) this.showOddsModal(this.fixture.odds, packPoolSummary(this.saveData, CARD_DB, packSetForSku(this.fixture.odds)));
+    const preview = this.deckSections().flatMap((section) => section.skus).find((sku) => sku.deck.id === this.fixture?.deckId);
+    if (preview) this.showDeckPreview(preview);
+    else this.data.set('a11yReady', true);
   }
 
   private readonly onShutdown = (): void => {
@@ -826,7 +843,7 @@ export class ShopScene extends Phaser.Scene {
   }
 
   private refreshGold(): void {
-    this.goldBadge.refresh(Services.save.data.gold);
+    this.goldBadge.refresh(this.saveData.gold);
     this.refreshSkuAffordability();
   }
 
@@ -839,7 +856,7 @@ export class ShopScene extends Phaser.Scene {
    * insufficient-funds shake when not even one pack is.
    */
   private refreshSkuAffordability(): void {
-    const gold = Services.save.data.gold;
+    const gold = this.saveData.gold;
     // A disabled Buy button already reads as "you cannot afford this", so the
     // per-tile price breakdown was seven copies of the same fact. The one
     // global line under the quantity chips covers the rest.
@@ -906,6 +923,9 @@ export class ShopScene extends Phaser.Scene {
     const skus = visibleBoosterSkus();
     const layout = boosterStripLayout(skus.length);
     this.boosterStripLayout = layout;
+    const density = this.data.get('a11yDensity');
+    density.actual.push({ id: 'boosters', rows: 1, columns: layout.visibleCount, pitch: layout.tileStride, top: layout.viewport.y });
+    density.release.push({ id: 'boosters', rows: 1, columns: 4, pitch: 240, top: 142 });
     const content = this.add.container(0, 0);
     this.boosterStripContent = content;
     const zone = this.add
@@ -933,11 +953,25 @@ export class ShopScene extends Phaser.Scene {
     group.add([zone, content, maskSource]);
     this.shopInteractiveTargets.push(zone);
 
+    // A shared measured header track keeps wrapped titles from lowering one
+    // pack relative to its neighbours. Standard text keeps the release anchors.
+    let rowLayout: ReturnType<typeof shopPackLayout> | undefined;
+    if (theme.type.h2 > theme.typeBase.h2) {
+      const title = this.add.text(0, 0, '', { fontFamily: theme.fonts.display, fontSize: `${theme.type.h2}px` });
+      const blurb = this.add.text(0, 0, '', { fontFamily: theme.fonts.ui, fontSize: `${theme.type.micro}px` });
+      const pool = this.add.text(0, 0, 'Ag', { fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px` });
+      title.setWordWrapWidth(184, true);
+      blurb.setWordWrapWidth(210, true);
+      const titleHeight = Math.max(...skus.map((def) => title.setText(def.label).height));
+      const blurbHeight = Math.max(...skus.map((def) => blurb.setText(SET_BLURBS[def.sku]).height));
+      rowLayout = shopPackLayout(titleHeight, blurbHeight, pool.height);
+      title.destroy(); blurb.destroy(); pool.destroy();
+    }
     skus.forEach((def, i) => {
       const price = packPriceForSku(def.sku);
       const tile = this.add.container(layout.tileCenters[i] ?? 0, 0);
       const pack = this.buildPackSku(tile, 0, def.label, def.textureKey, price, def.sku, () =>
-        this.buyPacks(price, packSetForSku(def.sku), def.sku),
+        this.buyPacks(price, packSetForSku(def.sku), def.sku), rowLayout,
       );
       content.add(tile);
       this.boosterStripTiles.push({ sku: def.sku, price, tile, pack });
@@ -960,6 +994,10 @@ export class ShopScene extends Phaser.Scene {
       .setDisplaySize(layout.tileWidth, 300)
       .setAlpha(1)
       .setY(390);
+    if (rowLayout) for (const peek of [leftPeek, rightPeek]) {
+      peek.setDisplaySize(layout.tileWidth * rowLayout.artHeight / 300, rowLayout.artHeight)
+        .setY(rowLayout.artTop + rowLayout.artHeight / 2);
+    }
     leftPeek.setMask(stripMask);
     rightPeek.setMask(stripMask);
     this.boosterStripEdgePeeks = [leftPeek, rightPeek];
@@ -998,15 +1036,13 @@ export class ShopScene extends Phaser.Scene {
     price: number,
     sku: BoosterSku,
     onBuy: () => void,
+    rowLayout?: ReturnType<typeof shopPackLayout>,
   ): Phaser.GameObjects.Image {
     const title = this.add
       .text(x, 172, label, { fontFamily: theme.fonts.display, fontSize: `${theme.type.h2}px`, color: theme.colors.heading })
       .setOrigin(0.5);
-    // Glyph widths are font-fallback-dependent on Windows, so measure the
-    // rendered width and shrink-to-fit the 210px product tile rather than
-    // sizing by eye.
-    const maxTitleWidth = 184;
-    if (title.width > maxTitleWidth) title.setScale(maxTitleWidth / title.width);
+    fitMenuName(title, 184, 3);
+    title.setAlign('center');
     const setIcon = this.add
       .image(x - title.displayWidth / 2 - 18, title.y, `seticon-${sku}-sr`)
       .setDisplaySize(22, 22);
@@ -1017,10 +1053,11 @@ export class ShopScene extends Phaser.Scene {
         color: theme.colors.muted,
       })
       .setOrigin(0.5);
-    if (blurb.width > 198) blurb.setScale(198 / blurb.width);
+    fitMenuName(blurb, 210, 3);
+    blurb.setAlign('center');
     // Pool-first disclosure: slot odds are identical across boosters, so the
     // pool is the real decision variable between tiles.
-    const pool = packPoolSummary(Services.save.data, CARD_DB, packSetForSku(sku));
+    const pool = packPoolSummary(this.saveData, CARD_DB, packSetForSku(sku));
     const poolCaption = this.add
       .text(x, 220, `${pool.ownedDistinct}/${pool.poolSize} Owned`, {
         fontFamily: theme.fonts.ui,
@@ -1028,12 +1065,15 @@ export class ShopScene extends Phaser.Scene {
         color: theme.colors.muted,
       })
       .setOrigin(0.5);
+    const packLayout = rowLayout ?? shopPackLayout(title.height, blurb.height, poolCaption.height);
+    blurb.setY(packLayout.blurbY);
+    poolCaption.setY(packLayout.poolY);
     // No idle float. Dragging the strip is this screen's motion language now,
     // and a bobbing pack both fought that and pushed the art up under the
     // pool caption (the art top and the caption baseline overlapped by 11px).
     const pack = this.add
-      .image(x, 390, textureKey)
-      .setDisplaySize(210, 300);
+      .image(x, packLayout.artTop + packLayout.artHeight / 2, textureKey)
+      .setDisplaySize(210 * packLayout.artHeight / 300, packLayout.artHeight);
     if (fxPolicy(this).shine && pack.preFX) pack.preFX.addShine(0.5, 0.3, 4);
     // Every pack CTA is gold primary. The newest pack once used 'emphasis'
     // (dark bg, gold text) to stand out, but beside a rail of gold primaries
@@ -1052,7 +1092,7 @@ export class ShopScene extends Phaser.Scene {
       // Left of the caption: the info bubble rides its right edge, and the
       // two collided when both sat on the same side.
       const chip = this.add
-        .text(x - 84, 220, 'New', {
+        .text(x - 84, poolCaption.y, 'New', {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.micro}px`,
           fontStyle: theme.weight.w700,
@@ -1089,6 +1129,7 @@ export class ShopScene extends Phaser.Scene {
     bindTapButton(this, info, () => {
       if (!this.boosterStripDragging) this.showOddsModal(sku, pool);
     });
+    buyBtn.label.setData('a11yKeepVisible', true);
     this.skuButtons.push({ btn: buyBtn, price });
     this.shopInteractiveTargets.push(buyBtn.inputZone, info);
     group.add([title, setIcon, blurb, poolCaption, infoBg, info, pack, buyBtn.container]);
@@ -1140,13 +1181,14 @@ export class ShopScene extends Phaser.Scene {
       })
       .setOrigin(0, 0.5)
       .setVisible(false);
+    status.setData('a11yKeepVisible', true);
     this.boosterQtyStatus = status;
     group.add(status);
     this.refreshQtyChips();
   }
 
   private refreshQtyChips(): void {
-    const gold = Services.save.data.gold;
+    const gold = this.saveData.gold;
     for (const [n, chip] of this.qtyChips) {
       chip.setVariant(n === this.qty ? 'primary' : 'ghost');
       chip.setEnabled(this.skuButtons.some(({ price }) => gold >= price * n));
@@ -1303,12 +1345,13 @@ export class ShopScene extends Phaser.Scene {
   }
 
   private checkpointAchievementUnlocks(): string[] {
-    return checkpointAchievements(Services.save.data, CARD_DB).ids;
+    return checkpointAchievements(this.saveData, CARD_DB).ids;
   }
 
   /** Buy + open the selected quantity of one SKU (clamped to what you can afford). */
   private buyPacks(unitPrice: number, set: CardDef['set'] | undefined, sku: BoosterSku): void {
-    const save = Services.save.data;
+    if (this.fixture) return;
+    const save = this.saveData;
     const n = Math.min(this.qty, Math.floor(save.gold / unitPrice));
     if (n < 1) {
       this.insufficientFunds();
@@ -1371,6 +1414,11 @@ export class ShopScene extends Phaser.Scene {
       DECK_STRIP_OPTIONS,
     );
     this.deckStripLayout = layout;
+    const density = this.data.get('a11yDensity');
+    density.actual = density.actual.filter((item: { id: string }) => item.id !== 'deck tiles');
+    density.release = density.release.filter((item: { id: string }) => item.id !== 'deck tiles');
+    density.actual.push({ id: 'deck tiles', rows: DECK_GRID_ROWS, columns: layout.visibleCount, pitch: DECK_CARD_H + DECK_ROW_GAP, top: DECK_STRIP_TOP });
+    density.release.push({ id: 'deck tiles', rows: 2, columns: 4, pitch: 256, top: 174 });
     const content = this.add.container(0, 0);
     this.deckStripContent = content;
     const zone = this.add
@@ -1438,7 +1486,7 @@ export class ShopScene extends Phaser.Scene {
 
   /** Starter and Zhou Yu grants are independent, one-time FREE claims. */
   private isFreeClaim(deck: DeckList | DarlingsPrecon): boolean {
-    const save = Services.save.data;
+    const save = this.saveData;
     if (isDarlingsPrecon(deck)) {
       return (
         deck.id === FREE_DARLINGS_PRECON_ID &&
@@ -1467,7 +1515,7 @@ export class ShopScene extends Phaser.Scene {
     // The one free starter claim still wins: it also activates a deck and
     // stamps the claim, which a completion grant does not.
     const freeClaim = this.isFreeClaim(deck);
-    const owned = !freeClaim && shopDeckOwned(Services.save.data, CARD_DB, deck);
+    const owned = !freeClaim && shopDeckOwned(this.saveData, CARD_DB, deck);
     const halfW = DECK_CARD_W / 2;
 
     const plate = panel(this, -halfW, rowTop, DECK_CARD_W, DECK_CARD_H, { alpha: 0.7 });
@@ -1486,7 +1534,9 @@ export class ShopScene extends Phaser.Scene {
         color: isTheme ? theme.colors.gold : theme.colors.heading,
       })
       .setOrigin(0.5);
-    if (name.width > DECK_CARD_W - 16) name.setScale((DECK_CARD_W - 16) / name.width);
+    // Release shows the full name at 100%; larger text has a base-size floor.
+    name.setData('a11yReleaseFullText', deck.name);
+    fitMenuListName(name, DECK_CARD_W - 16, theme.type.label, theme.typeBase.label);
     tile.add(name);
 
     // Color identity renders as mana pips, never letter codes (design-system
@@ -1500,7 +1550,7 @@ export class ShopScene extends Phaser.Scene {
     for (let i = 0; i < pipKeys.length; i++) {
       tile.add(
         this.add
-          .image(pipsX0 + i * pipStep, rowTop + DECK_CARD_ART_H + 44, `pip-${pipKeys[i]}`)
+          .image(pipsX0 + i * pipStep, rowTop + deckShopCardLayout(name.height).pipY, `pip-${pipKeys[i]}`)
           .setDisplaySize(PIP, PIP),
       );
     }
@@ -1510,7 +1560,7 @@ export class ShopScene extends Phaser.Scene {
     // buildDecksGroup), which re-evaluates this with the new balance. An owned
     // card offers Clone Deck: a fresh factory copy into the library
     // (user-directed 2026-09-01).
-    const ctaY = rowTop + DECK_CARD_H - 34;
+    const ctaY = rowTop + deckShopCardLayout(name.height).ctaY;
     const cta = owned
       ? themedButton(this, 0, ctaY, 'Clone Deck', {
           variant: 'ghost',
@@ -1524,11 +1574,12 @@ export class ShopScene extends Phaser.Scene {
           variant: 'primary',
           size: 'sm',
           minWidth: 160,
-          enabled: freeClaim || Services.save.data.gold >= price,
+          enabled: freeClaim || this.saveData.gold >= price,
           onTap: () => {
             if (!this.deckStripDragging) this.onBuyDeck(sku);
           },
         });
+    cta.label.setData('a11yKeepVisible', true);
     this.deckInteractiveTargets.push(cta.inputZone);
     tile.add(cta.container);
     return cta.container;
@@ -1545,22 +1596,22 @@ export class ShopScene extends Phaser.Scene {
     parent: Phaser.GameObjects.Container,
   ): Phaser.GameObjects.Image | null {
     try {
-      const ref = Art.resolver?.getArt(cardId);
-      if (!ref) return null;
-      const img = this.add.image(x, y, ref.textureKey, ref.frameName);
-      const scale = Math.max(targetW / img.width, targetH / img.height) * 1.05;
-      img.setScale(scale);
-      const cropW = Math.min(img.width, targetW / scale);
-      const cropH = Math.min(img.height, targetH / scale);
-      const cropX = (img.width - cropW) / 2;
-      // Bias the window upward so faces sit in frame.
-      const cropY = Math.max(
-        0,
-        Math.min(img.height - cropH, (img.height - cropH) / 2 - (targetH * 0.07) / scale),
-      );
-      img.setCrop(cropX, cropY, cropW, cropH);
-      img.x = x - (cropX + cropW / 2 - img.width / 2) * scale;
-      img.y = y - (cropY + cropH / 2 - img.height / 2) * scale;
+      const img = addPortraitArt(this, x, y, cardId, (art) => {
+        const scale = Math.max(targetW / art.width, targetH / art.height) * 1.05;
+        art.setScale(scale);
+        const cropW = Math.min(art.width, targetW / scale);
+        const cropH = Math.min(art.height, targetH / scale);
+        const cropX = (art.width - cropW) / 2;
+        // Bias the window upward so faces sit in frame.
+        const cropY = Math.max(
+          0,
+          Math.min(art.height - cropH, (art.height - cropH) / 2 - (targetH * 0.07) / scale),
+        );
+        art.setCrop(cropX, cropY, cropW, cropH);
+        art.x = x - (cropX + cropW / 2 - art.width / 2) * scale;
+        art.y = y - (cropY + cropH / 2 - art.height / 2) * scale;
+      });
+      if (!img) return null;
       parent.add(img);
       return img;
     } catch {
@@ -1714,8 +1765,9 @@ export class ShopScene extends Phaser.Scene {
 
   /** Claim/buy a deck. Returns true only when the purchase actually happened. */
   private onBuyDeck(sku: DeckSku): boolean {
+    if (this.fixture) return false;
     if (this.deckCommitTooSoon()) return false;
-    const save = Services.save.data;
+    const save = this.saveData;
     const freeClaim = this.isFreeClaim(sku.deck);
     const purchased = freeClaim
       ? (isDarlingsPrecon(sku.deck)
@@ -1751,8 +1803,9 @@ export class ShopScene extends Phaser.Scene {
    * repeat taps that each saved another copy.
    */
   private onCloneDeck(sku: DeckSku, onSaved?: (granted: boolean) => void): void {
+    if (this.fixture) return;
     if (this.deckCommitTooSoon()) return;
-    const id = cloneShopDeck(Services.save.data, CARD_DB, sku.deck);
+    const id = cloneShopDeck(this.saveData, CARD_DB, sku.deck);
     if (!id) return;
     this.lastDeckCommitAt = this.time.now;
     Sfx.play('flip');
@@ -1826,7 +1879,8 @@ export class ShopScene extends Phaser.Scene {
    */
   private showDeckPreview(sku: DeckSku): void {
     this.closeOverlay();
-    const cards = grantedDeckBuild(sku.deck).cards;
+    const build = grantedDeckBuild(sku.deck);
+    const cards = [...build.cards, ...(build.darlingId ? [build.darlingId] : [])];
     if (artMissing(cards).length === 0) {
       this.buildDeckPreview(sku);
       return;
@@ -1853,12 +1907,12 @@ export class ShopScene extends Phaser.Scene {
     const line = this.add
       .text(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2, '', {
         fontFamily: 'Georgia, serif',
-        fontSize: '22px',
+        fontSize: `${theme.type.h2}px`,
         color: theme.colors.muted,
       })
       .setOrigin(0.5);
     waiting.container.add(line);
-    awaitArt(this, cards, {
+    awaitArt(waiting.container, cards, {
       onWait: (text) => {
         if (line.active) line.setText(text);
       },
@@ -1879,7 +1933,7 @@ export class ShopScene extends Phaser.Scene {
   private buildDeckPreview(sku: DeckSku): void {
     this.closeOverlay();
     const { deck, price } = sku;
-    const save = Services.save.data;
+    const save = this.saveData;
     const inLibrary = save.decks.some((d) => d.id === deck.id);
     const freeClaim = this.isFreeClaim(deck);
     const owned = !freeClaim && shopDeckOwned(save, CARD_DB, deck);
@@ -1901,9 +1955,17 @@ export class ShopScene extends Phaser.Scene {
     // deck's signature card; before this the preview never showed her.
     const darlingEntry: PreviewEntry | null = build.darlingId ? { d: def(CARD_DB, build.darlingId), n: 1 } : null;
     this.previewEntries = [...(darlingEntry ? [darlingEntry] : []), ...creatures, ...spells, ...lands];
+    const title = this.add.text(0, 0, deck.name, { fontFamily: theme.fonts.display, fontSize: `${theme.type.h1}px`, color: theme.colors.gold, align: 'center' }).setOrigin(0.5);
+    fitMenuName(title, 880, 2);
+    const darlings = isDarlingsPrecon(deck);
+    const plays = info?.plays ?? (darlings ? `${deck.blurb} Your Darling waits in her own zone until you call her.` : '');
+    const playsText = plays ? this.add.text(0, 0, plays, {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px`, color: theme.colors.body,
+      wordWrap: { width: 860 }, align: 'center', lineSpacing: 4,
+    }).setOrigin(0.5, 0) : null;
+    const previewLayout = shopPreviewModalLayout(title.height, playsText?.height ?? 0);
     const shell = modalShell(this, {
-      width: 980,
-      height: 600,
+      ...previewLayout,
       dimAlpha: 0.52,
       depth: theme.depth.modal,
       dismissal: 'tap-only',
@@ -1917,23 +1979,19 @@ export class ShopScene extends Phaser.Scene {
     this.overlay = shell;
     this.previewInteractiveTargets = [...shell.interactiveChildren];
     const c = shell.container;
+    // The wait above has settled before this synchronous build. Keep its set
+    // on the completed modal too, including when the fast path skipped the
+    // waiting shell; closing a preview releases its sources immediately.
+    awaitArt(c, this.previewEntries.map((entry) => entry.d.id), { onReady: () => undefined });
     const content = shell.tracks.contentBounds;
     const contentCenterX = content.x + content.width / 2;
 
     // Header: name, color identity as real mana beads + archetype, how-it-plays.
     const titleY = shell.tracks.titleTrack.y + shell.tracks.titleTrack.height / 2;
     const titleX = shell.tracks.titleTrack.x + shell.tracks.titleTrack.width / 2;
-    c.add(
-      this.add
-        .text(titleX, titleY, deck.name, {
-          fontFamily: theme.fonts.display,
-          fontSize: `${theme.type.h1}px`,
-          color: theme.colors.gold,
-        })
-        .setOrigin(0.5),
-    );
+    title.setPosition(titleX, titleY);
+    c.add(title);
     const idY = content.y + 8;
-    const darlings = isDarlingsPrecon(deck);
     // A Darlings precon has no DECK_INFO: its identity line names the Darling
     // and its blurb leads the how-it-plays line (it used to print twice).
     const archetype = darlingEntry ? `Darling: ${darlingEntry.d.name}` : (info?.archetype ?? '');
@@ -1947,6 +2005,7 @@ export class ShopScene extends Phaser.Scene {
     const pipKeys = (info?.colors ?? (darlings ? deck.colors.join('/') : '')).split('/').filter(Boolean);
     const pipSize = 22;
     const pipPitch = pipSize + 4;
+    fitMenuName(archText, content.width - pipKeys.length * pipPitch - 24, 2);
     const clusterW = pipKeys.length * pipPitch + 8 + archText.width;
     let px = contentCenterX - clusterW / 2;
     for (const k of pipKeys) {
@@ -1956,21 +2015,8 @@ export class ShopScene extends Phaser.Scene {
     archText.setPosition(px + 8, idY);
     c.add(archText);
     // "Her own zone" is the glossary's term for where a Darling waits.
-    const plays = info?.plays ?? (darlings ? `${deck.blurb} Your Darling waits in her own zone until you call her.` : '');
-    if (plays) {
-      c.add(
-        this.add
-          .text(contentCenterX, content.y + 24, plays, {
-            fontFamily: theme.fonts.ui,
-            fontSize: `${theme.type.caption}px`,
-            color: theme.colors.body,
-            wordWrap: { width: content.width - 72 },
-            align: 'center',
-            lineSpacing: 4,
-          })
-          .setOrigin(0.5, 0),
-      );
-    }
+    if (playsText) { playsText.setPosition(contentCenterX, content.y + 24); c.add(playsText); }
+
 
     // Left column: signature cards, mana curve, composition, and grant preview.
     const stats = computeDeckStats(build.cards, CARD_DB);
@@ -1985,8 +2031,8 @@ export class ShopScene extends Phaser.Scene {
         })
         .setOrigin(0, 0.5);
 
-    c.add(sectionLabel(statsX, content.y + 78, darlingEntry ? 'YOUR DARLING · TAP TO INSPECT' : 'SIGNATURE CARDS · TAP TO INSPECT'));
-    const featuredY = content.y + 140;
+    c.add(sectionLabel(statsX, content.y + previewLayout.headerGrowth + 78, darlingEntry ? 'YOUR DARLING · TAP TO INSPECT' : 'SIGNATURE CARDS · TAP TO INSPECT'));
+    const featuredY = content.y + previewLayout.headerGrowth + 140;
     const featuredPitch = 92;
     const featuredX0 = statsX + 38;
     // Only cards the purchase grants can be shown (the list is the source),
@@ -2026,8 +2072,11 @@ export class ShopScene extends Phaser.Scene {
       c.add([badge, label]);
     }
 
-    c.add(sectionLabel(statsX, content.y + 204, 'MANA CURVE'));
-    const barBase = content.y + 258;
+    c.add(sectionLabel(statsX, content.y + previewLayout.headerGrowth + 204, 'MANA CURVE'));
+    const curveLabel = sectionLabel(0, 0, 'MANA CURVE');
+    const curveGrowth = Math.max(0, curveLabel.height - 14);
+    curveLabel.destroy();
+    const barBase = content.y + previewLayout.headerGrowth + 258 + curveGrowth;
     const maxCount = Math.max(1, ...stats.curve);
     stats.curve.forEach((count, mv) => {
       const bx = statsX + 10 + mv * 24;
@@ -2066,7 +2115,7 @@ export class ShopScene extends Phaser.Scene {
       : `${stats.lands} lands`;
     c.add(
       this.add
-        .text(statsX, content.y + 288, `${stats.typeCounts.creature} creatures · ${other} other · ${landsCopy}`, {
+        .text(statsX, content.y + previewLayout.headerGrowth + 288 + curveGrowth, `${stats.typeCounts.creature} creatures · ${other} other · ${landsCopy}`, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           color: theme.colors.body,
@@ -2074,7 +2123,7 @@ export class ShopScene extends Phaser.Scene {
         .setOrigin(0, 0.5),
     );
     let pipX = statsX;
-    const pipY = content.y + 318;
+    const pipY = content.y + previewLayout.headerGrowth + 318 + curveGrowth;
     for (const color of PIE_COLORS) {
       const n = stats.colorPips[color];
       if (n === 0) continue;
@@ -2091,23 +2140,22 @@ export class ShopScene extends Phaser.Scene {
     }
 
     // What the purchase actually adds (mirrors grantDeckCards — see Economy).
-    c.add(sectionLabel(statsX, content.y + 346, 'WHAT YOU GET'));
+    c.add(sectionLabel(statsX, content.y + previewLayout.headerGrowth + 346 + curveGrowth, 'WHAT YOU GET'));
     const grant = previewDeckGrant(save, CARD_DB, deckProductCardIds(deck));
     const grantText =
       grant.grantedCopies > 0
         ? `Adds ${grant.grantedCopies} new card copies to your collection; you already own ${grant.ownedCopies} of its ${grant.nonBasicCopies} non-basic copies. Basics are always free.`
         : 'Adds no new copies: your collection already has every card this deck runs.';
-    c.add(
-      this.add
-        .text(statsX, content.y + 364, grantText, {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.caption}px`,
-          color: theme.colors.body,
-          wordWrap: { width: 310 },
-          lineSpacing: 4,
-        })
-        .setOrigin(0, 0),
-    );
+    const grantBody = this.add
+      .text(statsX, content.y + previewLayout.headerGrowth + 364 + curveGrowth, grantText, {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        color: theme.colors.body,
+        wordWrap: { width: 310 },
+        lineSpacing: 4,
+      })
+      .setOrigin(0, 0);
+    c.add(grantBody);
 
     // Right block: the complete, bounded list. One page is a stable pair of
     // nine-row columns; the pure shared helpers guarantee no entry is dropped.
@@ -2131,11 +2179,19 @@ export class ShopScene extends Phaser.Scene {
       ['Lands', lands.reduce((sum, entry) => sum + entry.n, 0)],
     ]);
     const colW = 260;
-    const pitch = 24;
+    const sample = this.add.text(0, 0, 'Ag', { fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px` });
+    const listLayout = shopPreviewListLayout(sample.height, content.y + previewLayout.headerGrowth + 104, content.y + previewLayout.headerGrowth + content.height - 24);
+    sample.destroy();
+    const pitch = listLayout.pitch;
+    const density = this.data.get('a11yDensity');
+    density.actual = density.actual.filter((item: { id: string }) => item.id !== 'preview');
+    density.release = density.release.filter((item: { id: string }) => item.id !== 'preview');
+    density.actual.push({ id: 'preview', rows: listLayout.rows, columns: 2, pitch, top: content.y + previewLayout.headerGrowth + 104 });
+    density.release.push({ id: 'preview', rows: 9, columns: 2, pitch: 24, top: 248 });
     const listX = content.x + 376;
     const secondListX = listX + 295;
-    const listTop = content.y + 104;
-    const pages = deckPageCount(categorized.length, PREVIEW_PAGE_SIZE);
+    const listTop = content.y + previewLayout.headerGrowth + 104;
+    const pages = deckPageCount(categorized.length, listLayout.pageSize);
     let pageControl: ReturnType<typeof pager> | null = null;
     let listItems: Phaser.GameObjects.GameObject[] = [];
     let listTargets: Phaser.GameObjects.GameObject[] = [];
@@ -2174,9 +2230,10 @@ export class ShopScene extends Phaser.Scene {
           color: theme.colors.body,
         })
         .setOrigin(0, 0.5);
-      // Full name always — shrink-to-fit rather than truncate (never split(',')).
-      const maxNameW = colW - 76;
-      if (name.width > maxNameW) name.setScale(maxNameW / name.width);
+      // Release shows every name in full at 100%. Larger text may abbreviate
+      // only after reaching the base caption size; tap opens the full identity.
+      name.setData('a11yReleaseFullText', entry.d.name);
+      fitMenuListName(name, colW - 76, theme.type.caption, theme.typeBase.caption);
       const mv = this.add
         .text(x + colW - 8, y, isType(entry.d, 'land') ? '' : `${manaValue(entry.d.cost)}`, {
           fontFamily: theme.fonts.ui,
@@ -2201,16 +2258,16 @@ export class ShopScene extends Phaser.Scene {
     };
     const renderPage = (page: number): void => {
       clearList();
-      const visible = deckPageSlice(categorized, page, PREVIEW_PAGE_SIZE);
-      renderColumn(listX, visible.slice(0, PREVIEW_ROWS_PER_COLUMN));
-      renderColumn(secondListX, visible.slice(PREVIEW_ROWS_PER_COLUMN));
+      const visible = deckPageSlice(categorized, page, listLayout.pageSize);
+      renderColumn(listX, visible.slice(0, listLayout.rows));
+      renderColumn(secondListX, visible.slice(listLayout.rows));
       pageControl?.refresh(page, pages);
     };
     if (pages > 1) {
       pageControl = pager(
         this,
         (listX + colW + secondListX) / 2 - 44,
-        content.y + content.height - 4,
+        content.y + previewLayout.headerGrowth + content.height - 4,
         0,
         pages,
         renderPage,
@@ -2218,7 +2275,7 @@ export class ShopScene extends Phaser.Scene {
       c.add(pageControl.container);
       this.previewInteractiveTargets.push(pageControl.previous, pageControl.next);
     }
-    renderPage(0);
+    renderPage(Math.min(pages - 1, this.fixture?.previewPage ?? 0));
 
     // Footer: the honest decision block — price vs balance before committing —
     // positioned on the shell's own footer track (the old hardcoded y overhung
@@ -2262,7 +2319,23 @@ export class ShopScene extends Phaser.Scene {
         lineSpacing: 3,
       })
       .setOrigin(0, 0.5);
+    footerText.setData('a11yKeepVisible', true);
     c.add(footerText);
+    // Keep a section gap above the decision line without moving its buttons.
+    // Only overflowing grant copy scrolls, with complete glyph lines at rest.
+    const grantRoom = footerText.y - footerText.height / 2 - theme.space(4) - grantBody.y;
+    if (grantBody.height > grantRoom) {
+      const lines = grantBody.getWrappedText().length;
+      const lineHeight = (grantBody.height - (lines - 1) * grantBody.lineSpacing) / lines;
+      const linePitch = lineHeight + grantBody.lineSpacing;
+      const visibleLines = Math.max(1, Math.floor((grantRoom + grantBody.lineSpacing) / linePitch));
+      const viewport = { x: statsX, y: grantBody.y, width: 326,
+        height: visibleLines * linePitch - grantBody.lineSpacing };
+      grantBody.setY(0).setData('a11yFullText', grantText).setData('a11yWholeLines', { lineHeight, linePitch });
+      const grantColumn = this.add.container(0, 0, [grantBody]);
+      c.add(grantColumn);
+      bindMenuScroll(this, grantColumn, viewport, grantBody.height, undefined, undefined, linePitch, shell);
+    }
     if (!owned) {
       const buy = themedButton(this, footerRight - 216, footY, freeClaim ? 'Claim Free ✦' : `Buy · 🪙 ${price}`, {
         variant: 'primary',
@@ -2306,6 +2379,8 @@ export class ShopScene extends Phaser.Scene {
     });
     c.add(close.container);
     this.previewInteractiveTargets.push(close.inputZone);
+    if (this.fixture?.inspectIndex !== undefined) this.showCardInspect(this.fixture.inspectIndex);
+    else this.data.set('a11yReady', true);
   }
 
   /**
@@ -2320,24 +2395,29 @@ export class ShopScene extends Phaser.Scene {
     const entry = this.previewEntries[idx];
     if (!entry) return;
     const token = ++this.inspectWaitToken;
+    const owner = this.add.container(0, 0).setDepth(theme.depth.inspect);
+    this.inspectWaitOwner = owner;
     let line: Phaser.GameObjects.Text | null = null;
-    awaitArt(this, [entry.d.id], {
+    awaitArt(owner, [entry.d.id], {
       onWait: (text) => {
         if (token !== this.inspectWaitToken) return;
         line ??= this.add
           .text(theme.design.centerX, theme.design.centerY, '', {
             fontFamily: 'Georgia, serif',
-            fontSize: '22px',
+            fontSize: `${theme.type.h2}px`,
             color: theme.colors.muted,
           })
           .setOrigin(0.5)
           .setDepth(theme.depth.inspect);
+        owner.add(line);
         line.setText(text);
       },
       onReady: () => {
         line?.destroy();
         if (token !== this.inspectWaitToken) return;
         this.buildCardInspect(idx);
+        owner.destroy();
+        if (this.inspectWaitOwner === owner) this.inspectWaitOwner = null;
       },
     });
   }
@@ -2367,6 +2447,8 @@ export class ShopScene extends Phaser.Scene {
     this.inspect = shell;
     this.inspectIdx = idx;
     const c = shell.container;
+    // The pending wait has settled; this shell owns the lease until close.
+    awaitArt(c, [entry.d.id], { onReady: () => undefined });
     const content = shell.tracks.contentBounds;
     const contentX = content.x + content.width / 2;
     const contentY = content.y + content.height / 2;
@@ -2374,6 +2456,22 @@ export class ShopScene extends Phaser.Scene {
     const view = new CardView(this, contentX, contentY).setScale(inspectScale);
     view.setCard(entry.d, { fx: 'full' });
     c.add(view);
+    // The tier as words (the face shows it only as a gem colour), on the
+    // shell's otherwise empty title track beside the close button.
+    if (!entry.d.token) {
+      const title = shell.tracks.titleTrack;
+      c.add(
+        this.add
+          .text(title.x, title.y + title.height / 2, rarityLine(entry.d), {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.label}px`,
+            fontStyle: theme.weight.w600,
+            color: theme.colors.heading,
+            wordWrap: { width: title.width },
+          })
+          .setOrigin(0, 0.5),
+      );
+    }
     const footer = shell.tracks.footerTrack;
     c.add(
       this.add
@@ -2381,13 +2479,16 @@ export class ShopScene extends Phaser.Scene {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           color: theme.colors.muted,
+          wordWrap: { width: footer.width }, align: 'center',
         })
         .setOrigin(0.5),
     );
+    this.data.set('a11yReady', true);
   }
 
   private onPreviewClosed(shell: ModalShell): void {
     if (this.overlay !== shell) return;
+    this.closeInspect();
     this.overlay = null;
     this.previewEntries = [];
     this.previewInteractiveTargets = [];
@@ -2397,6 +2498,8 @@ export class ShopScene extends Phaser.Scene {
     // Also drops any pending inspect art wait, so a closed preview can never
     // have an inspect open itself a beat later.
     this.inspectWaitToken++;
+    this.inspectWaitOwner?.destroy();
+    this.inspectWaitOwner = null;
     this.inspect?.close();
     this.inspect = null;
     this.inspectIdx = null;

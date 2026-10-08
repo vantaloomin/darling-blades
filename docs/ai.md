@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/ScriptAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/targeting.ts, src/ai/activatedPolicy.ts, src/ai/ritePolicy.ts, src/ai/tithePolicy.ts, src/ai/whispersPolicy.ts, src/ai/discardPolicy.ts, src/ai/sacrificePolicy.ts, src/ai/preservePolicy.ts, src/ai/hauntlinkPolicy.ts, src/ai/landPolicy.ts, src/ai/darlingPolicy.ts, src/ai/foresee.ts, src/ai/personality.ts, src/ai/NoisyAI.ts, src/ai/tiers.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts, tests/ai/rungSmokes.test.ts, tests/ai/documentedBehaviour.test.ts, docs/plan-ai-modernization.md · last-verified: 2026-09-28
+<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/ScriptAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/targeting.ts, src/ai/activatedPolicy.ts, src/ai/ritePolicy.ts, src/ai/tithePolicy.ts, src/ai/whispersPolicy.ts, src/ai/discardPolicy.ts, src/ai/sacrificePolicy.ts, src/ai/preservePolicy.ts, src/ai/hauntlinkPolicy.ts, src/ai/landPolicy.ts, src/ai/darlingPolicy.ts, src/ai/foresee.ts, src/ai/huntPolicy.ts, src/ai/personality.ts, src/ai/NoisyAI.ts, src/ai/tiers.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts, tests/ai/rungSmokes.test.ts, tests/ai/documentedBehaviour.test.ts, tests/ai/huntProvoked.test.ts, tests/ai/huntPolicyA2b.test.ts, tests/ai/huntSpend.test.ts, tests/ai/creatureDutyMorning.test.ts, tests/meta/draftHuntProvoked.test.ts, docs/plan-ai-modernization.md · last-verified: 2026-10-04
      If you change those files, update this doc or re-verify the date. -->
 
 # AI
@@ -60,6 +60,9 @@ Concretely in the code:
   the spell it displaces, so an affordable rider is no longer always paid.
 - **Hand-size discard:** a uniformly random legal set (the loot discard uses
   the shared `discardPolicy` like every other brain).
+- **Hunt and Provoked (1.9):** never hunts its own creature, or aims damage
+  at its own Provoked creature, when it could avoid it (see "Hunt and
+  Provoked: Medium, Easy and the draft" below).
 
 Easy has its own seeded RNG (`createRngState`) so its randomness is reproducible.
 
@@ -118,7 +121,11 @@ lookahead." Its rules:
   kills only if `n ≥ toughness − marked damage`.
 - **Responses / end step:** counter a big enemy spell (mv ≥ 4), a spell hitting
   its best creature, or a `massDestroy`; remove a dangerous attacker; pump a
-  creature to win or survive a fight; spend spare removal and free card-draw at
+  creature to win or survive a fight; after blocks, spend a targetless team
+  pump when the combat forecast saves a friendly fighter or kills another
+  enemy, adds lethal, or adds damage at least equal to the cast's mana cost.
+  The fight rule works on attack and defence, reads granted keywords such as
+  Overrun, and respects combat-damage prevention. Spend spare removal and free card-draw at
   the opponent's end step. Since phase A (2026-09-15) the ladder also reads the
   shapes it used to leave in hand: **fog** when the incoming damage is lethal or
   drops it under the life curve's knee, or saves a blocked body worth more than
@@ -129,7 +136,14 @@ lookahead." Its rules:
   thresholds, with enemy mark removal treated as removal; and **bounce-to-save**
   for an owned creature under lethal targeted removal or a losing block. Every
   rule reads the redacted view and the legal menu only.
-- **Duty:** a tap-only Duty in main one unless its body wants to attack; a
+- **Hunt and Provoked (1.9):** a self-Hunt or a friendly Provoked source
+  only when it beats the plain choice by a card; an arrival hunter ranked by
+  its Hunt; a Hunt spent from hand (a Hunt spell, an Empower Hunt) only when
+  it kills and nets a card, and a Hunt Charm held for the opponent's turn
+  (wave 4; see "Hunt and Provoked: Medium, Easy and the draft" below).
+- **Duty:** a tap-only Duty in main one unless its body could attack (since
+  wave 4 such a body's Duty goes first when the forecast, planning the attack
+  without that body, says it buys more); a
   paid Duty in main one only when it buys the attack something (a lethal one
   ahead of a Hauntlink link, Preserve and every cast unless a spell in hand
   wins on its own), otherwise in main two after developing (1.8.1, Duty
@@ -236,6 +250,26 @@ engine's exact firstBlade/overrun/deathblade math beats any heuristic:
 The margins exist because the inert opponent model makes small eval deltas
 noisy — deviations must earn their keep.
 
+**Cost (1.9 lane F, 2026-09-28).** A go-wide game cost the Hard brain about
+ten times a midrange one, which kept the weenie persona out of the 1.8
+sweep. A CPU profile of greedy weenie against the prefab field put 54% of
+the time in the attack lookahead, 22% in block simulations and 9% in the
+main search; underneath, 42% was the engine deep-copying the whole legacy
+state on every submit, and 17% the combat planner recomputing each
+creature's effective stats for every blocker and attacker pair. Two
+decision-preserving changes cut it: a per-call board memo in
+`combatPlans.ts` (stats, `permValue`, `canBlock` and duel results, keyed by
+instance id in nested maps) plus a per-decision cache of simulated block
+plans in `searchBlocks`, and an engine `legacyState` that copies only the
+fields it keeps. Weenie games went from 1,441 to 681 ms (2.1x) and midrange
+from 177 to 100 ms (1.8x). The proof that no decision changed is
+`scripts/action-log.ts`: seeded games recorded action for action and
+compared, with 0 divergences over the warchest, Darlings and classic sets
+(about 25,000 actions each) and an old-versus-new engine differential over
+11,000 games; lane A reuses the same harness for its Hard reads. Capping
+the attack search (8 candidates: 1.8% of attack choices change for about
+12% of weenie time) was measured and not taken, because it changes play.
+
 ### The evaluation function
 
 `src/ai/evaluate.ts` scores a position for the player to move. Inputs:
@@ -301,7 +335,14 @@ it exists to enable (review finding G9). The rule now:
   than `PRECOMBAT_DUTY_MARGIN` (0.75 in `scoreAttack` units: two damage
   through at high life, one at twelve or below). It is ranked by its impact
   plus that gain, or plus `PRECOMBAT_LETHAL` (100, what `scoreAttack` pays a
-  lethal connection). Anything else waits for main two as before.
+  lethal connection). Other useful Duties wait for main two as before.
+- **An enemy tap must still matter.** Since wave 3 (U3), tapping an enemy
+  in our main two is worth zero: that creature untaps before another
+  attack. This live price applies to artifact and creature sources alike.
+  The same tap before combat remains valuable, and the tapper's board
+  premium persists while its only target is already tapped; future uses
+  remain available. The approved `activated.test.ts` and
+  `landEconomy.test.ts` re-pins assert these behaviours.
 - **The gain is the fight's, not the weights'.** `scoreAttack` weighs damage
   0.45 a point above twelve life and 0.9 at or below, 0.2 more with two
   creatures to spare, and its holdback reads the defender's power. A ping
@@ -376,11 +417,22 @@ it exists to enable (review finding G9). The rule now:
   points, and Hard read every tap-then-attack race as a loss. The potential
   now treats a target as untapped by the next use; scoring the action on the
   live board still sees the tap state.
-- **Unchanged.** Easy and ScriptAI keep the simple timing (they pass no
-  context). A creature Duty source that can attack still attacks first. In
-  main two a paid tap or until-end-of-turn pump still fires on leftover mana:
-  it achieves nothing after combat, but it spends only mana nothing else
-  wanted, and `tests/data/landEconomy.test.ts` pins that Afternoon use.
+- **Timing kept from 1.8.1.** Easy and ScriptAI keep the simple timing (they pass no
+  context). Without a forecast (Easy, ScriptAI, Hard's simulated opponent) a creature Duty source that can attack still attacks first. In
+  main two an until-end-of-turn pump can still fire on leftover mana after
+  combat. U3 removes the useless enemy tap from this case;
+  `tests/data/landEconomy.test.ts` now asserts the declined tap separately
+  from useful Afternoon Duties.
+- **A body that could attack (wave 4).** A creature's Duty in main one used
+  to wait while the body could attack, so after U3 a creature that taps
+  another creature had no live turn: Ice-Speaker ({2}, tap: tap target
+  creature) was cast 52 times in Titania's 500 Darlings games and never used.
+  Medium and Hard now send such a Duty, paid or not, through the same
+  forecast as a paid one. The engine performs the Duty, so the source is
+  tapped and the attack is planned without it; the Duty goes first only when
+  the attack becomes lethal or gains more than the margin, net of the body's
+  own attack. Otherwise the body attacks first and a main-two tap of an enemy
+  stays worth nothing (U3). Pinned in `tests/ai/creatureDutyMorning.test.ts`.
 - **Known limits, logged for 1.9.** A kill of a creature that would die in
   combat anyway (a chump blocker) reads as worth nothing before combat, as
   it did in 1.8.0. Lethal on the best target is judged against the greedy
@@ -424,6 +476,207 @@ only the tap, so it is not a paid Duty. Ten Darlings games each for rungs 5 and
 games, Medium used 14 paid Duties in main one and 12 in main two (0 and 15
 before G9), Hard 6 and 4 (0 and 9).
 
+## Hunt and Provoked (1.9, A1.2)
+
+First Dawn's two mechanics (the ruled rules are in
+[plan-first-dawn-engine.md](plan-first-dawn-engine.md), Parts 1 and 2) are
+read in the shared value layer and combat planner, so every brain sees them;
+Hard's search already plays them through the real engine. Every read is
+zero unless a Hunt op or a Provoked ability is on the board or in the card,
+and on today's pool the games are identical (below). Medium's and Easy's own
+Hunt policy (never hunting their own creature by choice, the self-provoke
+margin) is in the next section. Each claim is pinned in
+`tests/ai/huntProvoked.test.ts`.
+
+- **A Hunt is valued as the exchange it is** (`huntExchangeValue`,
+  `value.ts`). Both creatures deal their Attack at once on the public board:
+  marked damage counts, Deathblade on either side makes any damage lethal, a
+  hunter with Bulwark does nothing. The prey's removal value counts if it
+  dies (a gain when an opponent controls it, a cost when you do), the
+  hunter's value is lost if it dies, Blood Oath's life counts at the
+  `gainLife` rate, damage a survivor takes counts at targeted damage's
+  residual (0.45 a point: a gain on theirs, a cost on yours, so a self-hunt
+  is priced as a friendly ping is), and each survivor's unspent Provoked
+  counts (plus for yours, minus for theirs). So killing and surviving beats a
+  kill that costs the hunter, and a Hunt that only provokes an opposing
+  creature scores below doing nothing whenever its Provoked outweighs the
+  residual.
+  Every Hunt target decision reads it: an attack or Dawn Hunt's choice, a
+  hunting Duty (used only on prey that pays), a Hunt spell's hunter and prey
+  pair (after a pump the same spell gave the hunter), an Empower Hunt, and an
+  arrival Hunt's prey.
+- **An arrival hunter is cast at its best prey.** Its prey is the cast's
+  target (A1.1b), and the shared cast-target policy keeps one target per
+  cast, so it now values each prey from the arrival ability with the
+  arriving creature as the hunter. Before, every prey scored 0 and every
+  brain cast at the first opposing creature in battlefield order. Easy,
+  Medium and Hard all read this policy.
+- **An `any` Hunt takes your own creature only when that pays:** when it
+  sets off an unspent Provoked worth more than the best alternative. A
+  Provoked already spent this turn earns nothing.
+- **A friendly source earns an unspent Provoked.** Damage aimed at your own
+  creature is still a cost, but a creature that survives it with an unspent
+  Provoked earns that effect's value, and "damage each creature you
+  control" (`eachYourCreature`) sums it over your side, so such a Duty is
+  used when its Provoked survivors pay for it and not otherwise. Damage that
+  provokes an opponent's creature subtracts its effect's value.
+- **What a Provoked effect is worth** (`provokedValue`): its best legal
+  targets on the board after the damage, scored from its controller's side
+  the way a Duty's use is; a targeted effect with no legal target, or one
+  whose condition is unmet on that board, is worth 0; a Provoked effect's own
+  provoking is not followed further.
+- **Provoked in combat** (`combatPlans.ts`). In the heuristic exchange a
+  combatant dealt damage that survives adds its unspent Provoked (plus for
+  the planner's side, minus for the other's). The attack planner stops
+  feeding an opposing Provoked wall a blow it survives, and the block planner
+  prefers the block that provokes its own creature when blocks are otherwise
+  even. The double-block search does not read it.
+- **Casting and Duties.** `opImpactValue` and `empowerValue` price a Hunt
+  card-shaped at 1.5, half of Empower's destroy (provisional; the board
+  value above is what target decisions use), a Hunt Duty can shape the
+  attack (`shapesCombat`), and every card with a Hunt joins Hard's protected
+  cast candidates (`isVocabularyCast`).
+
+**The proof on today's pool (2026-09-29).** `scripts/action-log.ts`, four
+workers: the weenie preset, 112 games, and the broad preset, 210 games, each
+with 0 action-log divergences and 0 event-digest divergences, against the
+unchanged base f2c25228 and again, after the review's fixes, against
+066f1dc7. As a control, an ungated 0.3 swing in the combat
+planner's Provoked term diverged 55 of the 112 weenie games, so the harness
+sees this planner.
+
+## Hunt and Provoked: Medium, Easy and the draft (1.9, A2.b)
+
+The shared reads above take a self-Hunt (an `any` or `yours` Hunt on your
+own creature) or a friendly Provoked source (damage aimed at your own
+creature that has Provoked, or "damage each creature you control" with one
+there) whenever the value says it pays. Hard plays that read as it is.
+Medium and Easy filter their menus first (`src/ai/huntPolicy.ts`), before
+the shared cast-target policy keeps one target per cast. A Hunt spell's
+hunter is always yours and is not such a choice, nor is a sweep of every
+creature. Each claim is pinned in `tests/ai/huntPolicyA2b.test.ts` and
+`tests/meta/draftHuntProvoked.test.ts`.
+
+- **Easy never hunts its own creature by choice, and skips friendly
+  sources** (the owner's B5). It never casts an `any` or `yours` Hunt spell
+  at its own creature, never uses an `any` or `yours` Hunt Duty on its own
+  creature or a Duty that damages its own Provoked creature, and aims a
+  damage Duty or trigger at another creature when there is one. Casting a
+  creature is a choice too: an arrival hunter (or a Darling) whose only prey
+  is its own creature stays in hand. Only what is mandatory still happens:
+  a trigger's target must be chosen, so an attack or Dawn Hunt whose only
+  prey is its own creature hunts it.
+- **Medium's margin: one card** (`SELF_PROVOKE_MARGIN`, 1.25, the value
+  layer's price for drawing a card). Medium takes a friendly choice only
+  when its value beats the best plain choice of the same decision by that
+  much; when the decision can be declined (a spell, a Duty, an empowered
+  mode) the plain choice includes not acting, worth 0. So a Hunt spell on its
+  own creature is cast only when the Provoked it sets off nets a card, and a
+  hunter takes its own Provoked creature over the opponent's only when that
+  is better by a card. The margin is untuned: no lab arm measures Medium.
+- **Medium ranks an arrival hunter by its Hunt.** Its cast score adds the
+  arrival Hunt's value on the cast's prey (`arrivalHuntCastValue`), so a
+  hunter with prey it kills and survives outranks a slightly better vanilla,
+  and one whose every prey kills it ranks below. It still casts the hunter
+  when nothing else is castable, and a creature cast whose only prey is its
+  own still clears the margin against nothing (the body is the point).
+  Holding an arrival hunter that every prey would kill is a scheduled
+  wave-3 rule (owner-approved, 2026-09-29).
+- **A Darling with an arrival Hunt is cast at its best prey**, for Medium
+  and Easy (`applyDarlingPreyPolicy`); the shared cast-target policy keys on
+  `castSpell` only, so before this they took the first prey in battlefield
+  order. Since wave 3 (U1), Easy includes the Darling in its deliberate
+  useful-cast choices as well as its noise roll.
+- **Medium's counter forecast knows the Hunt pair rule.** A counter that
+  also has a creature of yours hunt is held only when you control a hunter
+  without Bulwark and there is a different creature to hunt, so a
+  Bulwark-only board does not read as castable.
+- **The draft picker** (`scorePick`, `src/meta/draftPicker.ts`). A Provoked
+  payoff (a creature with Provoked) gains 0.75 times `mechanicWeight` for each
+  source already drafted, up to four; a source (damage aimed at a creature
+  you control, damage each creature you control, or an `any` or `yours`
+  Hunt) gains the same for each payoff; a Hunt spell counts as removal
+  (`removalWeight`) pro rata to the creatures drafted, in full from six, and
+  a Hunt bound to the card itself (arrival, attack, Dawn, Duty, Empower)
+  counts as full removal, as an arrival damage effect does. A `yours` Hunt
+  is a source, not removal. The weights are untuned. The Limited deck
+  builder scores with `scoreBasePick`, which does not read them.
+- **Medium spends a Hunt from hand only when it pays (wave 4, M3).** The
+  printed value gave every Hunt spell and Empower Hunt the same card-shaped
+  1.5, so Medium cast a Hunt at its best pair even when that pair lost the
+  hunter: on Hooves and Fire 11.7% of its Hunts lost the hunter without the
+  kill on the public board (Hard 3-4%; Spear and Fang 21% against Hard's
+  1%). Its cast score now carries the pair's own value (`spellTargetsValue`:
+  the pump or damage the spell's earlier ops give, then the exchange) in
+  place of what the printed value counts for those ops (the floor, an "If it
+  survived" draw: `spellTargetedBodyImpact`), and a
+  Hunt is cast or its Empower paid only when the prey dies, the hunter is not
+  lost without the kill (`castHuntOutcome`), and the value clears one card
+  (`HUNT_SPEND_MARGIN`, the same 1.25 as the self-provoke margin). The
+  exchange already charges a lost hunter, so a kill the hunter survives
+  clears it and a trade clears it only when the prey is worth a card more. A
+  friendly choice is the one Hunt that need not kill: its point is the
+  Provoked, and the margin above already judged it. Opposing responses are
+  not read; Hard's search still plays them.
+- **A spell whose first effect damages its own creature is cast (wave 4,
+  M1).** Blaze-Horn Charge (1 damage to your creature, then it Hunts) and
+  Test of the Hearth (1 damage to your creature, Mark your creature) read as
+  targeted-damage removal to the cast-aware classifier (`removalKind`), so
+  Medium held them out of development and its removal rules found no enemy
+  to remove: 0 casts on 1,964 legal turns. Damage a card aims only at a
+  creature of yours is now a cost or a Provoked source, never removal. A
+  Hunt's exchange is fought with that damage marked, for every brain. The
+  engine checks state only after the whole effect, so a hunter the damage
+  makes lethal still deals its full Attack and then dies: the Charge on a
+  3/1 is a trade into their 4/3, not a Hunt that fights nothing. Test of the
+  Hearth is a Mark Charm, and Medium develops those in its own main phase
+  (the rule Mark casts already had), or casts it at the opponent's end step
+  with its Mark rule if it is still in hand. Its damage counts against the
+  creature's toughness plus the Mark the same Charm then gives it, and the
+  Provoked that damage sets off counts toward the cast. A pump that first
+  damages its creature (Ember-Tongue, Thick Hide) counts that damage in the
+  fight it is cast for.
+- **A Hunt Charm is instant-speed removal (wave 4, M2).** Medium held a Hunt
+  Charm out of its main phase like every Charm, and cast it only as a
+  combat pump (Duel on the Ridge: 3 of 101 legal turns). It now casts one in
+  the opponent's turn when its pair kills, under the bar its other
+  instant-speed removal clears (3.5 plus `removalBias`), judged on the
+  exchange alone: the until-Sunset pump is spent by the fight. It hunts an
+  attacker during their combat, or at their end step, and its live-Charm
+  reserve holds the mana for it. After blocks, the damage the hunter's own
+  fight will still deal it (from the creature it blocks or is blocked by,
+  when that is not the prey) is marked on it first, so a blocker that
+  survives its block is not spent on a Hunt that leaves it to die there. In
+  Medium's own main phase it stays held.
+- **Measured, 2026-10-04** (the usage read's own cells and seeds, against
+  the unchanged base e365cc0c). Hooves and Fire as the Medium column, 1,120
+  games: Blaze-Horn Charge 0 to 560 casts (0% to 49% cast when seen); Hunts
+  that lose the hunter without the kill 315 of 2,697 (11.7%) to 123 of 3,036
+  (4.1%), every one of them now an arrival hunter's (the known limit below;
+  Spear and Fang 103 to 0, Ridge-Raptor's Empower 66 to 0, Challenge the
+  Beast 69 to 0); the deck's share 31.0% to 36.8%. In the Darlings lists,
+  500 games a boss: Duel on the Ridge 12 to 44 casts for Zhurong;
+  Ice-Speaker's Duty 0 to 25 uses for Titania; Trial by Ember cast with no
+  creature of her own 14 of 71 to 0 of 63 (Hera), 7 of 47 to 0 of 39 (Cao
+  Cao) and 9 of 49 to 0 of 43 (the Shepherdess), Easy's Hestia unchanged at
+  25 of 86; Test of the Hearth for Hera 0 of 48 to 44 of 48 cast when seen
+  (200 games). Every win-rate gate reads the same rate before and after.
+- **Known limits.** Hard builds its Medium on the same code, so Hard's
+  Medium baseline candidate and its rollouts follow Medium's margin and the
+  wave-4 Hunt rules; Hard's own decision is its search. Medium's main-phase
+  removal ladder still does not treat a Hunt spell as removal: it is cast as
+  a develop spell, now priced by its pair. A Hunt Charm aimed at an attacker
+  needs the best pair's prey to be attacking (the shared target policy keeps
+  one pair per cast). Medium still casts an arrival hunter whose every prey
+  kills it when nothing else develops (the wave-3 rule above).
+
+**On today's pool the policy is inert.** It reads nothing unless a card in
+the pool prints a Hunt or a Provoked ability, and no shipped card does (a
+census of all 1,515 cards, 2026-09-29: no Hunt, no Provoked, no damage aimed
+at "a creature you control", no "damage each creature you control"), so
+every shipped game is unchanged; the draft terms read zero for a card with
+no Hunt or Provoked role, and every shipped card has none.
+
 ## Win-rate gates
 
 `tests/ai/winrate.test.ts` plays hundreds of seeded AI-vs-AI games with sides
@@ -434,11 +687,13 @@ alternated (so neither AI owns the better deck) and asserts:
 | Medium vs Easy     | **≥ 80%**            | **81.5%** (163/200)     |
 | Hard vs Medium     | CI floor **≥ 0.70**  | **76.5%** (153/200)     |
 
-The same file gates the tower's summit across four tests so no single
+The same file gates the tower's summit across five tests so no single
 matrix blows CI's 900 s per-test budget: rungs 14-18 and rungs 19-22 hold
 per-avatar floors and ordering relations, and rungs 23-24 and 25-26 each hold
 per-avatar floors plus a termination check (five complete 40-seed cells, zero
 draws).
+First Dawn rungs 27-28 have their own complete-matrix and termination gate;
+their tier-6 mapping is provisional until wave 4 sets the measured band.
 Every rung from 14 to 26 has carried a real floor since the 2026-09-17
 re-baseline described under Tower rungs below.
 
@@ -499,8 +754,8 @@ be judged on the same 200-game gate.
 
 An **avatar/personality system** (shipped 2026-07-02) layers tunable knobs over these
 three brains — themed opponents with their own aggression/greed dials, without
-rewriting the cores. The knobs live in `src/ai/personality.ts` (frozen `DEFAULT_PERSONALITY` reproduces the base brains bit-for-bit — enforced by lockstep tests in `tests/ai/personality.test.ts`); the 26 avatars with decks and tunings live in `src/data/opponents.ts` (the base
-8 plus eighteen expansion gauntlet bosses through the Drowned Deep summit pair at rungs 25-26).
+rewriting the cores. The knobs live in `src/ai/personality.ts` (frozen `DEFAULT_PERSONALITY` reproduces the base brains bit-for-bit — enforced by lockstep tests in `tests/ai/personality.test.ts`); the 28 avatars with decks and tunings live in `src/data/opponents.ts` (the base
+8 plus twenty expansion gauntlet bosses through the First Dawn summit pair at rungs 27-28).
 
 Balance is measured, not guessed: `scripts/balance-matrix.ts`
 (`npm run balance-matrix`) runs deterministic avatar-vs-starter, starter-mirror,
@@ -720,8 +975,10 @@ timing), when a Rocket could only fire after the attack.
 
 The Starborne pair (Chrome Broodmother 23, The Violet Signal Queen 24; floors
 0.655 and 0.645) and the Drowned Deep pair (The Drowned Deacon 25, The
-Marsh-Mother 26, the final rung; floors 0.595 and 0.685) each carry their
-own gate with the termination check.
+Marsh-Mother 26; floors 0.595 and 0.685) each carry their
+own gate with the termination check. First Dawn adds The Shepherdess of
+Giants at 27 and The Tyrant Queen as the final rung at 28, with a separate
+termination gate and provisional tier-6 mapping pending wave 4.
 Measured untuned 2026-09-15 at 200 seeds: Deacon 33% (35.5% after phase A,
 35.9% after B), Marsh-Mother 77% (77.9% after A, 74.8% after B: the Tithe
 fodder rule costs her, see the next section). The Deacon's plan is fog, tap and cheap counter
@@ -747,12 +1004,12 @@ every card plays; as intended, not yet. Two test files are the scoreboard:
   formats (Warchest and Darlings) with its own brain and personality, and
   every Darlings precon, one seed each, under one 900 s file budget. No
   crashes, no illegal actions, every game to `gameOver`.
-- `tests/ai/documentedBehaviour.test.ts` pins one test per claim in this
-  document. Thirty-seven pass (phase A flipped five and phase B three on
-  2026-09-15, phase C three on 2026-09-16); three are marked `it.fails` and
-  name the phase that owns them (D draft 3). A phase lands by flipping its own tests to `it`; a
-  fixture or legality error inside an expected failure fails the file, so the
-  marker can never hide a broken brain. Phase A's own rules are pinned in
+- `tests/ai/documentedBehaviour.test.ts` pins the claims in this document.
+  All seventy pass: forty from modernization, thirteen Duty timing
+  entries from 1.8.1, thirteen usage-audit entries from wave 3 and four
+  from wave 4.
+  A fixture or legality error fails the file independently of any expected
+  failure, so a marker can never hide a broken brain. Phase A's rules are pinned in
   `tests/ai/castLadder.test.ts`, `castLadderReview.test.ts` and
   `hardTiming.test.ts`.
 
@@ -814,22 +1071,60 @@ improved too. The untuned Deacon moved 33 to 35.5 and Lanterns Below 18.9 to
 66.4; the surgery records sit beside each list). Everything the tests
 do prove is listed beside the claim it proves, in the file.
 
+**Usage-audit behaviour proofs (wave 3, 2026-10-02).** The named cells are
+seeded engine games with their recorded action prefixes replayed at
+`30cbf0e8` (P2-P4) or `feb4218c` (P5, ramp); earlier improved decisions
+cannot erase the position under test.
+The keyword sites have code evidence, and Apotheosis appears in no audit
+list, so those entries use constructed positions as section 4 permits.
+
+| Claim | Proof in `tests/ai/documentedBehaviour.test.ts` |
+| --- | --- |
+| Easy deliberately calls her affordable Darling (U1) | P4, Darlings cell 210102 game 3 turn 22: with no other cast, she calls Gaia |
+| A main-two enemy tap that expires before it matters is worth zero, for every source (U3) | P3, Darlings cell 211401 game 19 turn 18: Hard leaves the Abbess untapped; `landEconomy.test.ts` covers the artifact on all three brains, and `activated.test.ts` keeps the positive main-one tap and persistent board premium |
+| Medium and Hard hold a Mark payoff without recipients (D13) | P2, Warchest cell 202312 game 2 turn 3 and avatars cell 2300 game 7 turn 6: hold Brood Communion; hold Apotheosis without Marks, cast it with a live payoff, still cast the creature body; Medium still spends Reef Bloom for its independent Foresee |
+| A granted keyword uses the printed-keyword valuation on its recipient (U2) | Targeted grants prefer the body that benefits, skip redundant keywords, and price Deathblade versus Skyborne by attack for spell boosts and Empower; removal sees the recipient's size and controller on static grants; a later boost sees tokens created earlier in its spell |
+| Medium casts a spell whose first effect damages its own creature (wave 4, M1) | Hooves and Fire, Warchest cell 200114 game 0 turn 14: cast Blaze-Horn Charge with the Hornback, which survives the Charge's 1 and the Hoarder's blow and kills it. `huntSpend.test.ts` covers the pair read with the damage marked (a lethally damaged 3/1 still trades into a 4/3), Test of the Hearth in the main phase and at the end step, its own Mark keeping a damaged creature alive, its Provoked, and Ember-Tongue's own damage |
+| Medium spends a Hunt only when it kills and does not lose the hunter (wave 4, M3) | Warchest cell 200514 game 3 turn 22: hold Spear and Fang when every pair loses the 2/3 to Zhurong without the kill. `huntSpend.test.ts` covers the kill, a damage-only Hunt and Ridge-Raptor's Empower |
+| Medium and Hard hold Trial by Ember with no creature of their own (wave 4) | Hera's (Medium) Darlings cell 210402 game 4 turn 4 and the Shepherdess's (Hard) cell 212702 game 3 turn 4: hold it on an empty board; `huntSpend.test.ts` casts it once a creature can take the Mark |
+| Medium spends ramp while it still accelerates later turns (U4) | P5, Warchest cell 201405 game 3 turn 3: cast Verdant Seiðr-Weaver on her second turn and play the extra land; with zero or one reserve land, value it as its body alone. `rampValue.test.ts` covers the live schedule, pending drops, stacking, Dawn, Empower and Retell |
+
+All four former flat `0.5` grant sites in `value.ts` use the existing
+`keywordScore` / `keywordBonus` valuation: targeted boosts, generic boost
+ops, non-creature static grants and Empower boosts. The receiving body's
+attack includes the boost; static grants use effective stats. A duplicate
+keyword adds nothing. A card-only estimate with no known recipient retains
+the existing `KEYWORD_REFERENCE_ATTACK` (3), not a new price.
+
 **Gaps the 1.8.5 labs found, logged for 1.9** (`docs/plan-1.8.5.md`; the lab
 write-ups sit in the local `balance/study/lab/`):
 
-- **Ramp is valued at 0.** `opImpactValue` has no `extraLandDrop` case, and
-  `empowerValue` scores it 0 too. So Medium casts a two-mana ramp spell at a
-  blank card's priority, on its own turn 6.9 on average, and a Dawn ramp
-  engine gets only the flat triggered-ability premium. A one-line flat case
-  would bring back the scorer's old defect. The target is the scorer's §4v
-  shape: extra untapped mana before the 10-land reserve runs out, from the
-  land count the view already carries. It changes play, so it needs the gates.
-- **Starborne Apotheosis is cast as "gain 8 life".** 72% of casts come with
-  no Marked creature on the board, so Propagate and the +2/+2 do nothing.
-- **Brood Communion is often cast on an empty board**: 32-39% of casts.
-- **Some granted keywords are still priced flat.** Keywords granted by boost
-  ops and by non-creature static grants were outside lane 4's attack-scaling
-  pass.
+- **Fixed in wave 3: ramp valued by cast turn (D13 / U4).** `opImpactValue`,
+  Empower and Medium's Retell use the scorer's §4v shape. From the live
+  `PlayerView`, compare two schedules starting with the same battlefield
+  lands and remaining reserve, consume existing land permissions in both,
+  then count the proposed ramp's extra untapped mana after each future
+  normal land drop. The scorer supplies the 0.89 turn decay, 0.58 stacking
+  discount, 0.62 Dawn realization and unchanged turn-two 1.9 anchor.
+  A new Dawn engine starts at the next Dawn and earns only its productive
+  firings before the reserve runs out. A pure ramp trigger gets this value
+  instead of the generic trigger premium: with zero or one land left, its
+  creature is worth its body alone. Mixed triggers keep their other value.
+  Card-only estimates and classic games do not assume a guaranteed reserve.
+  The mana-value-2 card floor stays. The historical lab mean was 6.9; the
+  matched branch measurements and unchanged gates are recorded in
+  [the U4 usage read](usage-audit-2026-09.md#9-ramp-by-cast-turn-u4-2026-10-02).
+- **Fixed in wave 3: Starborne Apotheosis and Brood Communion without
+  recipients (D13).** The labs read 72% of Apotheosis casts without Marks
+  and 32-39% of Communion casts without creatures. The live Mark payoff now
+  contributes zero without recipients, and Medium and Hard hold the
+  non-creature payoff, including Apotheosis's incidental life gain. A
+  creature is still cast for its body, and independent spell effects remain
+  useful. This replaces the old positive remainder after the empty-board
+  adjustment; it does not add another penalty to it.
+- **Fixed in wave 3: granted keywords priced by the receiving body (U2).**
+  The four sites and their existing valuation are listed in the proof table
+  above; lane 4's printed-keyword attack shape now covers these grants too.
 
 ## Tower strength tiers (the decision-noise dial)
 

@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/config/rules.ts, src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/resolve.ts, src/data/glossary.ts, src/ui/rulesText.ts, src/ui/fx/HoloEffects.ts, src/ui/CardView.ts, src/meta/PackOpener.ts, src/meta/Achievements.ts, tests/data/catalog.test.ts, tests/data/gender.test.ts · last-verified: 2026-09-10
+<!-- source-of-truth: src/config/rules.ts, src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/resolve.ts, src/data/glossary.ts, src/ui/rulesText.ts, src/ui/fx/HoloEffects.ts, src/ui/CardView.ts, src/meta/PackOpener.ts, src/meta/boosterSkus.ts, src/meta/Achievements.ts, tests/data/catalog.test.ts, tests/data/gender.test.ts · last-verified: 2026-09-28
      If you change those files, update this doc or re-verify the date. -->
 
 # Adding cards
@@ -75,7 +75,6 @@ From `CardDef` in `src/engine/types.ts` (re-exported through
 | `manaAbility` | `(Color \| 'C')[]?`             | Lands and mana creatures. `C` pays generic cost only.                  |
 | `entersTapped`| `boolean?`                             | Taplands enter tapped; either/or duals print "Arrives tapped."       |
 | `rarity`      | `Rarity`                               | `c`/`r`/`sr`/`ssr`/`ur` (displayed as C / R / SR / SSR / UR; best-first sort order `ur < ssr < sr < r < c`). |
-| `flavor`      | `string?`                              | Flavor text (may be suppressed on busy cards — see below).            |
 | `artRef`      | `string?`                              | Share another card's art key (both placeholder and real art).         |
 | `token`       | `boolean?`                             | Non-collectible; evaporates on leaving the battlefield.               |
 | `chapters`    | `EffectOp[][]?`                        | Quest chapters — the source of truth for Quest identity and activation. Arrival enters Chapter I; each later controller dawn advances. |
@@ -153,7 +152,7 @@ cost(0, 'W')   // {W}
 cost(3)        // {3}  (colorless artifacts)
 ```
 
-## Rarity, holo, and flavor conventions
+## Rarity, holo, and card-text conventions
 
 ### Holo finishes are per-copy, not per-card
 
@@ -179,13 +178,13 @@ alone mark its tier (duels and the deck builder render variant-less cards). The
 animated iridescent ring is reserved for the `rainbow` frame. Nothing to author per
 card.
 
-### Flavor suppression
+### No flavor text
 
-`CardView.setCard` (`src/ui/CardView.ts`) shows flavor text **only when the
-generated rules text is under ~160 characters** — busy cards drop their flavor to
-keep the text box legible. Verify in `setCard`:
-`card.flavor && rules.length < 160`. Nothing to author here; just know your
-flavor may not display on a wordy card.
+Cards carry **no flavor text** (owner ruling R13, 2026-09-25): `CardDef` has no
+`flavor` field, and the rules text owns the whole text box under the 264 × 216
+art window. The box holds about four lines at the full 13 px; longer rules text
+shrinks to fit, so write rules text short. A card's mood lives in its name, its
+subtypes and its art.
 
 ### Every card subject (and avatar boss) is a woman
 
@@ -195,8 +194,8 @@ referring to the subject is a bug — write `she` / `her`. Male **third parties*
 are fine (a heroine can have a father, a husband, a male foe, or duel a male
 god); this is a pronouns-only rule, not a purge of every masculine noun.
 
-`tests/data/gender.test.ts` enforces it: it scans every card `flavor` and every
-avatar `title`/`blurb` for those pronouns and fails the suite (a CI gate) on any
+`tests/data/gender.test.ts` enforces it: it scans every avatar `title`/`blurb`
+for those pronouns and fails the suite (a CI gate) on any
 hit. Names are not scanned (real surnames like *Zhang He* collide with the
 pronoun list). If a card ever needs a masculine pronoun for a genuine male third
 party ("She dared *him* to try."), register its id in that test's `ALLOW` map
@@ -282,8 +281,9 @@ in `src/engine/effects/EffectInterpreter.ts`. Each op emits
 
 | Op                                           | Shape                                                                                                                                           | Semantics                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Notable events                 |
 | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
-| `damage`                                     | `{ n: number\|'X'; to: 'target'\|'opponent'\|'controller'; targetIndex?: number }`                                                              | `n` (or `ctx.x` if `'X'`) damage. `target` → `targets[0]` (player = life loss, creature = marked damage); `opponent`/`controller` → that player's face.                                                                                                                                                                                                                                                                                                         | `lifeChanged` / `damageMarked` |
-| `damage`                                     | `{ n: number\|'X'; to: 'eachCreature'\|'eachOpponentCreature'; severOnDeath?: true }`                                                           | `n` (or `ctx.x` if `'X'`) damage. `target` → `targets[0]` (player = life loss, creature = marked damage); `opponent`/`controller` → that player's face.                                                                                                                                                                                                                                                                                                         | `lifeChanged` / `damageMarked` |
+| `damage`                                     | `{ n: number\|'X'; to: 'target'\|'opponent'\|'controller'; targetIndex?: number }`                                                              | `n` (or `ctx.x` if `'X'`) damage. `target` → `targets[0]` (player = life loss, creature = marked damage); `opponent`/`controller` → that player's face; `eachYourCreature` → each creature the controller controls (`other` spares the source).                                                                                                                                                                                                                 | `lifeChanged` / `damageMarked` |
+| `damage`                                     | `{ n: number\|'X'; to: 'eachCreature'\|'eachOpponentCreature'; severOnDeath?: true }`                                                           | `n` (or `ctx.x` if `'X'`) damage. `target` → `targets[0]` (player = life loss, creature = marked damage); `opponent`/`controller` → that player's face; `eachYourCreature` → each creature the controller controls (`other` spares the source).                                                                                                                                                                                                                 | `lifeChanged` / `damageMarked` |
+| `damage`                                     | `{ n: number\|'X'; to: 'eachYourCreature'; other?: true }`                                                                                      | `n` (or `ctx.x` if `'X'`) damage. `target` → `targets[0]` (player = life loss, creature = marked damage); `opponent`/`controller` → that player's face; `eachYourCreature` → each creature the controller controls (`other` spares the source).                                                                                                                                                                                                                 | `lifeChanged` / `damageMarked` |
 | `gainLife`                                   | `{ n: number }`                                                                                                                                 | Controller gains `n` life.                                                                                                                                                                                                                                                                                                                                                                                                                                      | `lifeChanged`                  |
 | `loseLife`                                   | `{ n: number; who: 'opponent' }`                                                                                                                | **Opponent-only.** Opponent loses `n` life.                                                                                                                                                                                                                                                                                                                                                                                                                     | `lifeChanged`                  |
 | `draw`                                       | `{ n: number }`                                                                                                                                 | Controller draws `n` (can deck them out → loss).                                                                                                                                                                                                                                                                                                                                                                                                                | `drew`                         |
@@ -309,6 +309,7 @@ in `src/engine/effects/EffectInterpreter.ts`. Each op emits
 | `loseLifePerTheirMarked`                     | `{ who: 'opponent' }`                                                                                                                           | Your opponent loses 1 life for each marked creature they control.                                                                                                                                                                                                                                                                                                                                                                                               | lifeChanged                    |
 | `fetchLand`                                  | `{}`                                                                                                                                            | Scans your deck from the top down, puts the first land found onto the battlefield tapped, and preserves the order of every other card.                                                                                                                                                                                                                                                                                                                          | permanentEntered               |
 | `ifTargetMarked`                             | `{ then: EffectOp[]; else?: EffectOp[]; targetIndex?: number }`                                                                                 | Runs the then branch when the target creature has a Mark, otherwise the optional else branch.                                                                                                                                                                                                                                                                                                                                                                   | (nested ops)                   |
+| `ifTargetSurvives`                           | `{ then: EffectOp[]; else?: EffectOp[]; targetIndex?: number }`                                                                                 | Runs the then branch when the target creature is still on the battlefield and would survive the next state-based check (not lethally damaged, no Deathblade damage); otherwise the optional else branch.                                                                                                                                                                                                                                                        | (nested ops)                   |
 | `severSelf`                                  | `{}`                                                                                                                                            | (describe me)                                                                                                                                                                                                                                                                                                                                                                                                                                                   | —                              |
 | `tap`                                        | `{ to: 'target'; targetIndex?: number }`                                                                                                        | Taps `targets[0]`.                                                                                                                                                                                                                                                                                                                                                                                                                                              | —                              |
 | `extraLandDrop`                              | `{ n?: number }`                                                                                                                                | Grants the controller `n` additional land drops this turn. In Warchest and Darlings, each drop beyond the first enters tapped by the normal land-drop rule.                                                                                                                                                                                                                                                                                                     | â€”                            |
@@ -322,6 +323,7 @@ in `src/engine/effects/EffectInterpreter.ts`. Each op emits
 | `awaken`                                     | `{ scope: 'self'\|'allYours' }`                                                                                                                 | Champion Awakening: flips the one-way `awakened` state on the source (`self`) or every friendly creature (`allYours`) that has a `CardDef.awakening` block and is not yet awakened; `getEffectiveStats` then applies the block's stats/keywords. Target-free; creatures without a block are untouched (no event).                                                                                                                                               | `awakened`                     |
 | `raise`                                      | `{ to?: 'target'; grantKeywords?: Keyword[]; targetIndex?: number }`                                                                            | Returns a creature card from **your** graveyard to the **battlefield** (summoning-sick, re-fires `arrives`, respects the 8-creature cap). `target` uses a `yourGraveCreature` target; `top` (automatic) returns the most-recently-buried creature, printed as "the top creature card of your graveyard" so the face names which card comes back. A `dies`-triggered raise never returns its own source, and prints "the top **other** creature card" to say so. | `permanentEntered`             |
 | `raise`                                      | `{ to: 'top'; withMarks?: number; grantKeywords?: Keyword[] }`                                                                                  | Returns a creature card from **your** graveyard to the **battlefield** (summoning-sick, re-fires `arrives`, respects the 8-creature cap). `target` uses a `yourGraveCreature` target; `top` (automatic) returns the most-recently-buried creature, printed as "the top creature card of your graveyard" so the face names which card comes back. A `dies`-triggered raise never returns its own source, and prints "the top **other** creature card" to say so. | `permanentEntered`             |
+| `hunt`                                       | `{ hunter: 'self'\|'target'; prey?: HuntPrey }`                                                                                                 | The hunter and its prey each deal damage equal to their Attack to the other (`self`: the source hunts `targets[0]`; `target`: `targets[0]` hunts `targets[1]`); nothing if either is gone or the hunter has Bulwark. `prey` declares a card's own prey (`any`: any other creature; `yours`: another creature you control); absent, the prey is a creature an opponent controls.                                                                                 | `hunted` / `damageMarked`      |
 
 <!-- END GENERATED -->
 
@@ -442,7 +444,6 @@ them together before calling a glyph done.
   attack: 2,
   defense: 2,
   rarity: 'c',
-  flavor: 'Hibernates professionally. Fights recreationally.',
 },
 ```
 
@@ -461,7 +462,6 @@ them together before calling a glyph done.
   defense: 2,
   keywords: ['flying'],
   rarity: 'r',
-  flavor: 'Her opinions arrive at terminal velocity.',
 },
 ```
 
@@ -479,7 +479,6 @@ them together before calling a glyph done.
   defense: 2,
   abilities: [{ when: 'arrives', ops: [{ op: 'extraLandDrop' }] }],
   rarity: 'r',
-  flavor: 'The forest follows her home and stays.',
 },
 ```
 
@@ -503,7 +502,6 @@ them together before calling a glyph done.
     },
   ],
   rarity: 'r',
-  flavor: 'The pack eats first. She insists.',
 },
 ```
 
@@ -523,7 +521,6 @@ them together before calling a glyph done.
   defense: 2,
   abilities: [{ when: 'dies', ops: [{ op: 'loseLife', n: 2, who: 'opponent' }] }],
   rarity: 'r',
-  flavor: 'Even her downfall was expensive.',
 },
 ```
 
@@ -541,7 +538,6 @@ them together before calling a glyph done.
     { when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'destroy', to: 'target' }] },
   ],
   rarity: 'r',
-  flavor: 'One dark syllable, one vacancy.',
 },
 ```
 
@@ -560,7 +556,6 @@ them together before calling a glyph done.
     { when: 'spell', targets: [{ what: 'any' }], ops: [{ op: 'damage', n: 'X', to: 'target' }] },
   ],
   rarity: 'sr',
-  flavor: 'Aim, invoice the heavens, release.',
 },
 ```
 
@@ -579,7 +574,6 @@ target (`en-wings-of-dawn`, `enchantments.ts`):
     { when: 'static', static: { scope: 'attached', p: 1, t: 1, grantKeywords: ['skyborne'] } },
   ],
   rarity: 'r',
-  flavor: 'Standard-issue miracle, size medium.',
 },
 ```
 
@@ -596,7 +590,6 @@ target (`en-wings-of-dawn`, `enchantments.ts`):
   colors: ['W'],
   abilities: [{ when: 'spell', ops: [{ op: 'createToken', token: 'tok-militia', count: 2 }] }],
   rarity: 'c',
-  flavor: 'Farm tools count. Enthusiasm counts double.',
 },
 ```
 
@@ -607,9 +600,14 @@ target (`en-wings-of-dawn`, `enchantments.ts`):
 (dual taplands are allowed, basics are not). So a new collectible card is
 automatically pack-eligible; **tokens and basics are excluded** by construction.
 
-A base booster pack is **9 card rolls at 450g**; the Ragnarök booster is **9 card
-rolls at 525g**. Every card in the pack is produced by **three independent seeded
-rolls**:
+Collection boosters are **9 card rolls**. Base and back-catalog expansions cost
+**450g**; the **three newest live expansions cost 525g**. `packPriceForSku`
+(`src/meta/boosterSkus.ts`) derives the tier from `BOOSTER_SKUS` release order,
+excluding Base and hidden sets before taking the newest three. Append a new
+expansion there and the oldest premium set steps down automatically. The prices
+and premium-set count live in `ECONOMY` (`src/config/rules.ts`).
+
+Every card in the pack is produced by **three independent seeded rolls**:
 
 - **Axis A — rarity tier**: `c` 50% / `r` 30% / `sr` 14% / `ssr` 5% / `ur` 1%.
 - **Axis B — frame**: `white` 50 / `blue` 30 / `red` 15 / `gold` 3.55 /
@@ -619,8 +617,9 @@ rolls**:
 
 The frame + holo pair is the card copy's **variant**
 (`CardVariant` in `src/meta/variants.ts`). Card picks in the `sr`, `ssr`, and
-`ur` tiers are **dupe-protected within their tier** — the roll avoids repeating
-the same card id inside a pack while the tier's pool allows it. This is why the
+`ur` tiers are **dupe-protected within their tier** — the roll avoids cards
+already owned at a full playset while the tier's pool allows it — and `c`/`r`
+picks roll **unowned cards first** (1.9.x, `dupeProtectedPool`). This is why the
 catalog test requires every tier's booster-eligible pool to be non-empty and
 the `ur` pool to hold at least 4 cards.
 

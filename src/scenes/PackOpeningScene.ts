@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { liveArtStore } from '../art/artLoader';
+import { PackRequests } from '../art/packRequests';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { CARD_DB } from '../data/catalog';
@@ -7,9 +9,12 @@ import { createRngState } from '../engine/rng';
 import { def } from '../engine/types';
 import type { AddResult } from '../meta/Collection';
 import { spendGold } from '../meta/Economy';
+import { packPriceForSku, type BoosterSku } from '../meta/boosterSkus';
 import { openPack, openPacks, type PackResult } from '../meta/PackOpener';
 import { formatOdds, variantOdds } from '../meta/pullOdds';
 import { Services } from '../meta/services';
+import type { SaveData } from '../meta/SaveManager';
+import { IS_DEV } from '../platform/env';
 import { checkpointAchievements } from '../meta/achievementCheckpoint';
 import { CARD_BACKS, cardBackTextureKey, resolveDeckCardBackId } from '../meta/cosmetics';
 import { isPlainVariant, TIER_LABEL, TIER_RANK, type CardVariant } from '../meta/variants';
@@ -27,6 +32,8 @@ import {
   inertiaStep,
   minimapSegments,
   PACK_BUTTON_PANEL,
+  PACK_INSPECT,
+  packInspectLayout,
   PACK_BUTTON_Y,
   packRevealLayout,
   railOffsetForIndex,
@@ -42,6 +49,16 @@ import {
   RUNWAY_SKIP,
   virtualRange,
 } from '../ui/packRunwayPresentation';
+import {
+  FACE_DOWN_GLOW,
+  faceDownTabRect,
+  minimapLabelSlots,
+  minimapSegmentSpan,
+  MINIMAP_CUES,
+  NEW_MARKER,
+  newMarkerGlyph,
+  newMarkerGlyphPoints,
+} from '../ui/packCuePresentation';
 import { gateOnArt } from '../ui/artGate';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { bindInspectHotkeys } from '../ui/inspectHotkeys';
@@ -49,8 +66,8 @@ import { colorInt, theme } from '../ui/theme';
 import { queueAchievementUnlockToasts } from '../ui/achievementToast';
 import { Toast } from '../ui/Toast';
 import { backButton, modalShell, panel, registerSceneBackNavigation, themedButton, type ThemedButton } from '../ui/themeWidgets';
-import { ARTHURIAN_COURT_PACK_ART, bakePackArt, CELTIC_FAE_PACK_ART, DARK_TALES_PACK_ART, DROWNED_DEEP_PACK_ART, GOTHIC_MONSTERS_PACK_ART, SANDS_OF_THE_DUAT_PACK_ART,
-  STARBORNE_PACK_ART, YOKAI_NIGHTS_PACK_ART, packPriceForSku, packSetForSku, packTextureForSku, type BoosterSku, type ShopSceneData } from './ShopScene';
+import { ARTHURIAN_COURT_PACK_ART, bakePackArt, CELTIC_FAE_PACK_ART, DARK_TALES_PACK_ART, DROWNED_DEEP_PACK_ART, FIRST_DAWN_PACK_ART, GOTHIC_MONSTERS_PACK_ART, SANDS_OF_THE_DUAT_PACK_ART,
+  STARBORNE_PACK_ART, YOKAI_NIGHTS_PACK_ART, packSetForSku, packTextureForSku, type ShopSceneData } from './ShopScene';
 
 /**
  * The CTA rail sits on the title-safe footer line (it was at y 674, which put
@@ -59,16 +76,31 @@ import { ARTHURIAN_COURT_PACK_ART, bakePackArt, CELTIC_FAE_PACK_ART, DARK_TALES_
  */
 const BUTTON_Y = PACK_BUTTON_Y;
 
+/**
+ * Dev probe only (`src/dev/wave3PackGlossaryFixtures.ts`): an in-memory save,
+ * never persisted, and the reveal state to settle in. A single pack: `tear`
+ * (waiting for the tap), `facedown` (the specials dealt and waiting, with
+ * their glows and tier tabs), `revealed` (every card face up, the CTA rail), `best`
+ * (the best card's spotlight) or `inspect` (the best card's inspect dialog). A
+ * batch: `runway` (the ride finished), `spotlight` (the last card's stop) or,
+ * with animations off in the save, the summary.
+ */
+export interface PackOpeningA11yFixture {
+  save: SaveData;
+  state?: 'tear' | 'facedown' | 'revealed' | 'best' | 'inspect' | 'runway' | 'spotlight';
+}
+
 /** Pack Opening entry data: a single pack or a batch, plus where the Shop strip stood. */
-type PackOpeningData =
+export type PackOpeningData = (
   | (PackResult & { sku?: BoosterSku; shopBoosterIndex?: number })
-  | { batch: PackResult[]; sku?: BoosterSku; shopBoosterIndex?: number };
+  | { batch: PackResult[]; sku?: BoosterSku; shopBoosterIndex?: number }
+) & { a11yFixture?: PackOpeningA11yFixture };
 
 /** Face-down hint pulse + tier-tag colors for the specials row (sr/ssr/ur). */
 const HINT = {
-  sr: { glow: 16763955, pulse: 520, label: theme.rarity.sr },
-  ssr: { glow: 11691775, pulse: 420, label: theme.rarity.ssr },
-  ur: { glow: 16733542, pulse: 320, label: theme.rarity.ur },
+  sr: { glow: FACE_DOWN_GLOW.sr, pulse: 520, label: theme.rarity.sr },
+  ssr: { glow: FACE_DOWN_GLOW.ssr, pulse: 420, label: theme.rarity.ssr },
+  ur: { glow: FACE_DOWN_GLOW.ur, pulse: 320, label: theme.rarity.ur },
 } as const;
 
 /**
@@ -100,6 +132,8 @@ interface SpecialEntry {
   homeScale: number;
   /** lite-tier rarity hint (ring-sprite pulse) — destroyed on reveal */
   hint?: Phaser.GameObjects.Image;
+  /** the face-down tier tab (plate + abbreviation) — destroyed on reveal */
+  tab?: Phaser.GameObjects.GameObject[];
 }
 
 /**
@@ -112,6 +146,8 @@ interface SpecialEntry {
  */
 export class PackOpeningScene extends Phaser.Scene {
   private result!: PackResult;
+  private packArt: PackRequests | null = null;
+  private readonly packForCard = new Map<AddResult, number>();
   /** Revealed, inspectable pulls in reveal order - the arrow-key ring. */
   private inspectables: { card: AddResult; view: CardView }[] = [];
   private inspectShell: import('../ui/themeWidgets').ModalShell | null = null;
@@ -155,6 +191,8 @@ export class PackOpeningScene extends Phaser.Scene {
   /** guards the best-card spotlight settle so tap-to-skip and the wobble's own
    * onComplete can't both run the restore (one-shot per pack). */
   private bestSettled = false;
+  private fixture: PackOpeningA11yFixture | null = null;
+  private fixtureSave: SaveData | null = null;
 
   constructor() {
     super('PackOpening');
@@ -162,15 +200,14 @@ export class PackOpeningScene extends Phaser.Scene {
 
   /** The reveal draws exactly the rolled cards, single pack or batch. */
   create(data: PackOpeningData): void {
-    const packs = 'batch' in data ? data.batch : [data];
-    const ids = packs.flatMap((pack) => pack.cards.map((card) => card.cardId));
-    gateOnArt(this, ids, () => this.build(data));
-  }
-  private build(data: PackOpeningData): void {
-    // A repeat opener can re-enter this scene without a fresh Scene instance.
-    // Close any inspect lease and clear every create-owned reference before
-    // rebuilding the reveal so destroyed objects never receive new updates.
+    // Phaser reuses this Scene instance. Clear the previous run before an
+    // asynchronous gate can yield to update(), whose runway was destroyed
+    // at shutdown but whose old inertia/idle state otherwise survives.
     this.closePackInspect();
+    this.runway = null;
+    this.fixture = IS_DEV ? data.a11yFixture ?? null : null;
+    this.fixtureSave = this.fixture ? structuredClone(this.fixture.save) : null;
+    if (this.fixture) this.data.set('a11yReady', false);
     this.sku = data.sku ?? 'base';
     this.shopBoosterIndex = data.shopBoosterIndex;
     this.revealed = 0;
@@ -178,11 +215,58 @@ export class PackOpeningScene extends Phaser.Scene {
     this.buttons = [];
     this.inspectables = [];
     this.skipBtn = null;
+    this.toasts = null;
     this.bestSettled = false;
     this.packRevealComplete = false;
+    const packs = 'batch' in data ? data.batch : [data];
+    this.packArt?.release();
+    this.packArt = null;
+    this.packForCard.clear();
+    const ids = packs.map((pack, index) => pack.cards.map((card) => {
+      this.packForCard.set(card, index);
+      return card.cardId;
+    }));
+    const store = liveArtStore();
+    if (store === null) {
+      gateOnArt(this, ids.flat(), () => this.build(data));
+      return;
+    }
+    const art = new PackRequests(store, ids);
+    this.packArt = art;
+    const release = (): void => {
+      art.release();
+      if (this.packArt === art) this.packArt = null;
+      this.events.off(Phaser.Scenes.Events.SHUTDOWN, release);
+      this.events.off(Phaser.Scenes.Events.DESTROY, release);
+    };
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, release);
+    this.events.once(Phaser.Scenes.Events.DESTROY, release);
+    gateOnArt(this, ids[0] ?? [], () => this.build(data));
+  }
+
+  /** The player's save, or the probe fixture's in-memory copy. */
+  private get saveData(): SaveData {
+    return this.fixtureSave ?? Services.save.data;
+  }
+
+  /** The probe measures once a fixture's reveal state has settled. */
+  private markFixtureReady(): void {
+    if (this.fixture) this.data.set('a11yReady', true);
+  }
+
+  /** Poll (fixtures only) until `ready()` holds, then act. */
+  private whenFixture(ready: () => boolean, action: () => void): void {
+    if (ready()) {
+      action();
+      return;
+    }
+    this.time.delayedCall(50, () => {
+      if (this.sys.isActive()) this.whenFixture(ready, action);
+    });
+  }
+
+  private build(data: PackOpeningData): void {
     this.cardBackTextureKey = this.resolveCardBackTexture();
-    // A restart already destroyed the display objects; only the state survives.
-    this.runway = null;
     bakePackArt(this);
     if (this.sku === 'ragnarok') {
       bakePackArt(this, {
@@ -205,6 +289,8 @@ export class PackOpeningScene extends Phaser.Scene {
       bakePackArt(this, STARBORNE_PACK_ART);
     } else if (this.sku === 'drowned-deep') {
       bakePackArt(this, DROWNED_DEEP_PACK_ART);
+    } else if (this.sku === 'first-dawn') {
+      bakePackArt(this, FIRST_DAWN_PACK_ART);
     }
     this.input.on('gameobjectup', () => Sfx.play('click'));
     if (!contextMenuDisabled) {
@@ -240,7 +326,7 @@ export class PackOpeningScene extends Phaser.Scene {
     // A multi-pack buy rides the Pack Runway: every pull on one rail through
     // the reveal gate. Animations off keeps the at-a-glance summary.
     if ('batch' in data) {
-      if (Services.save.data.settings.animations === 'off') {
+      if (this.saveData.settings.animations === 'off') {
         this.showBatchSummary(data.batch);
         this.finishAchievementCheckpoint();
       } else {
@@ -277,6 +363,37 @@ export class PackOpeningScene extends Phaser.Scene {
       prompt.destroy();
       this.tear(pack);
     });
+    this.settleSingleFixture(pack, prompt);
+  }
+
+  /** Fixtures only: skip the tear and settle the single-pack state asked for. */
+  private settleSingleFixture(pack: Phaser.GameObjects.Image, prompt: Phaser.GameObjects.Text): void {
+    const state = this.fixture?.state ?? 'tear';
+    if (!this.fixture || state === 'tear') {
+      this.markFixtureReady();
+      return;
+    }
+    this.tweens.killTweensOf([pack, prompt]);
+    pack.destroy();
+    prompt.destroy();
+    this.dealCards();
+    const grid = this.result.cards.length - this.specials.length;
+    if (state === 'facedown') {
+      // The specials wait face down, each with its glow and tier tab.
+      this.whenFixture(() => this.inspectables.length >= grid && this.specials.every((s) => s.tab), () => this.markFixtureReady());
+      return;
+    }
+    this.whenFixture(() => this.inspectables.length >= grid, () => {
+      if (state === 'best' && this.specials.length > 0) {
+        this.revealSpecial(this.specials[this.specials.length - 1], true);
+        return;
+      }
+      this.skipAll();
+      this.whenFixture(() => this.inspectables.length >= this.result.cards.length, () => {
+        if (state === 'inspect') this.showPackInspect(this.result.cards[this.result.cards.length - 1]);
+        this.markFixtureReady();
+      });
+    });
   }
 
   /**
@@ -286,7 +403,7 @@ export class PackOpeningScene extends Phaser.Scene {
    * so the active deck is the only source there is.
    */
   private resolveCardBackTexture(): string {
-    const save = Services.save.data;
+    const save = this.saveData;
     const active = save.decks.find((deck) => deck.id === save.activeDeckId) ?? null;
     const id = resolveDeckCardBackId(active);
     const entry = id ? CARD_BACKS.find((candidate) => candidate.id === id) : undefined;
@@ -306,20 +423,30 @@ export class PackOpeningScene extends Phaser.Scene {
 
   /** F10 batch reveal: an at-a-glance summary of a multi-pack open. */
   private showBatchSummary(batch: PackResult[]): void {
+    if (this.packArt === null) this.drawBatchSummary(batch);
+    else {
+      const notable = batch.flatMap((pack) => pack.cards)
+        .filter((card) => card.tier !== 'c' && card.tier !== 'r')
+        .sort((a, b) => TIER_RANK[b.tier] - TIER_RANK[a.tier]).slice(0, 16);
+      this.packArt.reveal(notable.map((card) => this.packForCard.get(card)!), () => this.drawBatchSummary(batch));
+    }
+  }
+
+  private drawBatchSummary(batch: PackResult[]): void {
     const width = 1280;
     const all = batch.flatMap((p) => p.cards);
     const specials = all.filter((c) => c.tier !== 'c' && c.tier !== 'r');
     const newCards = all.filter((c) => c.isNew).length;
     const dupeGold = all.reduce((sum, c) => sum + c.dupeGold, 0);
 
-    this.add
+    const title = this.add
       .text(width / 2, 70, `Opened ${batch.length} packs`, {
         fontFamily: theme.fonts.display,
         fontSize: `${theme.type.display}px`,
         color: theme.colors.heading,
       })
       .setOrigin(0.5);
-    this.add
+    const stats = this.add
       .text(
         width / 2,
         116,
@@ -328,6 +455,7 @@ export class PackOpeningScene extends Phaser.Scene {
         { fontFamily: theme.fonts.ui, fontSize: `${theme.type.body}px`, color: theme.colors.body },
       )
       .setOrigin(0.5);
+    this.stackHeading(title, stats);
 
     // Best pulls: the specials, best-first, up to two rows of eight.
     const notable = [...specials].sort((a, b) => TIER_RANK[b.tier] - TIER_RANK[a.tier]).slice(0, 16);
@@ -368,6 +496,26 @@ export class PackOpeningScene extends Phaser.Scene {
     }
 
     this.buildBatchButtons(batch.length);
+    this.markFixtureReady();
+  }
+
+  /**
+   * A centred heading and the line under it, at their release centres unless
+   * that would put the heading over the title-safe frame's top edge or the
+   * line into the heading; then each moves down just enough.
+   */
+  private stackHeading(heading: Phaser.GameObjects.Text, line: Phaser.GameObjects.Text): void {
+    heading.setY(Math.max(heading.y, theme.design.safeTop + heading.height / 2));
+    line.setY(Math.max(line.y, heading.y + heading.height / 2 + theme.space(1) + line.height / 2));
+  }
+
+  /**
+   * A spotlight's footer hint. The camera zooms about the canvas centre while
+   * a card is spotlit, so a hint placed on the footer line drew below the
+   * screen; place it where the zoom lands it on that line.
+   */
+  private spotlightHintY(zoom: number): number {
+    return theme.design.centerY + (theme.design.footerCenterY - theme.design.centerY) / zoom;
   }
 
   /**
@@ -378,7 +526,7 @@ export class PackOpeningScene extends Phaser.Scene {
   private buildBatchButtons(openedQty: number): void {
     const width = 1280;
     const price = packPriceForSku(this.sku);
-    const gold = Services.save.data.gold;
+    const gold = this.saveData.gold;
     const steps = [10, 5, 1].filter((n) => n <= openedQty);
     const qty = steps.find((n) => gold >= n * price) ?? 1;
     const label = qty === 1 ? `Open Another (🪙 ${price})` : `Open ×${qty} More (🪙 ${qty * price})`;
@@ -387,6 +535,7 @@ export class PackOpeningScene extends Phaser.Scene {
     // Short of even one pack: the re-buy shows disabled with its price, as
     // the Shop's Buy buttons do, instead of looking live and doing nothing.
     this.addRailButton(width / 2 - 200, label, gold >= qty * price, () => {
+      if (this.fixture) return;
       const save = Services.save.data;
       if (!spendGold(save, qty * price)) return;
       Sfx.play('coin');
@@ -444,24 +593,22 @@ export class PackOpeningScene extends Phaser.Scene {
     // Boundary lighting: a low wash retinted as the gate crosses tier runs.
     const tint = this.add.rectangle(width / 2, 360, width, 720, colorInt(theme.rarity.c), 0.08);
     root.add(tint);
-    root.add(
-      this.add
-        .text(width / 2, 60, `Opened ${batch.length} packs`, {
-          fontFamily: theme.fonts.display,
-          fontSize: `${theme.type.display}px`,
-          color: theme.colors.heading,
-        })
-        .setOrigin(0.5),
-    );
-    root.add(
-      this.add
-        .text(width / 2, 102, 'Drag to scrub · tap a revealed card to inspect', {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.caption}px`,
-          color: theme.colors.muted,
-        })
-        .setOrigin(0.5),
-    );
+    const title = this.add
+      .text(width / 2, 60, `Opened ${batch.length} packs`, {
+        fontFamily: theme.fonts.display,
+        fontSize: `${theme.type.display}px`,
+        color: theme.colors.heading,
+      })
+      .setOrigin(0.5);
+    const hint = this.add
+      .text(width / 2, 102, 'Drag to scrub · tap a revealed card to inspect', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        color: theme.colors.muted,
+      })
+      .setOrigin(0.5);
+    this.stackHeading(title, hint);
+    root.add([title, hint]);
     // Gate notches: where cards turn over.
     const gate = this.add.graphics();
     gate.lineStyle(2, colorInt(theme.colors.gold), 0.55);
@@ -479,14 +626,33 @@ export class PackOpeningScene extends Phaser.Scene {
     );
     root.add(gate);
     // Tier-colored ribbon minimap with a progress needle — the no-scrollbar rule.
+    // Colour is not the only channel: runs are parted by a gap and each is
+    // labelled with its tier underneath (packCuePresentation).
     const minimap = { x: RUNWAY_MINIMAP.x, w: RUNWAY_MINIMAP.width };
     const mmY = RUNWAY_MINIMAP.y;
     const mm = this.add.graphics();
-    for (const seg of minimapSegments(cards)) {
+    const segments = minimapSegments(cards);
+    segments.forEach((seg, i) => {
+      const span = minimapSegmentSpan(seg, i === segments.length - 1, minimap.x, minimap.w);
       mm.fillStyle(colorInt(theme.rarity[seg.tier]), 0.85);
-      mm.fillRect(minimap.x + seg.from * minimap.w, mmY, Math.max(1, (seg.to - seg.from) * minimap.w), 8);
-    }
+      mm.fillRect(span.x, mmY, span.width, 8);
+    });
     root.add(mm);
+    const labelY = mmY + 8 + MINIMAP_CUES.labelRowOffset;
+    const labels = segments.map((seg) => this.add
+      .text(0, labelY, TIER_LABEL[seg.tier], {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        fontStyle: '700',
+        color: theme.rarity[seg.tier],
+      })
+      .setOrigin(0, 0));
+    const slots = minimapLabelSlots(segments, labels.map((label) => label.width), minimap.x, minimap.w);
+    labels.forEach((label, i) => {
+      if (slots) label.setX(slots[i].x);
+      else label.destroy();
+    });
+    if (slots) root.add(labels);
     const needle = this.add.rectangle(minimap.x, mmY + 4, 3, 18, 0xffffff, 0.95);
     root.add(needle);
     // Scrub band beneath the cards: dragging anywhere on the rail moves it.
@@ -541,7 +707,25 @@ export class PackOpeningScene extends Phaser.Scene {
       onTap: () => this.runwaySkip(),
     });
     this.runwayApplyOffset(startOffset);
-    this.runwayAdvance();
+    if (this.fixture) this.settleRunwayFixture();
+    else this.runwayAdvance();
+  }
+
+  /** Fixtures only: park the last card on the gate, then finish or spotlight it. */
+  private settleRunwayFixture(): void {
+    const rw = this.runway!;
+    const last = rw.cards.length - 1;
+    rw.mode = 'idle';
+    if (this.fixture?.state !== 'spotlight') rw.finaleStarted = true;
+    this.runwayApplyOffset(railOffsetForIndex(last));
+    this.whenFixture(() => rw.revealedMax >= last, () => {
+      if (this.fixture?.state === 'spotlight') {
+        this.runwaySpotlightStop(last, true);
+        this.markFixtureReady();
+      } else {
+        this.whenFixture(() => rw.mode === 'done', () => this.markFixtureReady());
+      }
+    });
   }
 
   /** One shared sink for every offset change: clamp, virtualize, place, reveal. */
@@ -566,6 +750,7 @@ export class PackOpeningScene extends Phaser.Scene {
     }
     const gateIdx = indexAtGate(rw.offset, rw.cards.length);
     if (gateIdx > rw.revealedMax) this.runwayRevealTo(gateIdx);
+    else this.packArt?.cancelReveal();
     rw.needle.x = rw.minimap.x + gateProgress(rw.revealedMax, rw.cards.length) * rw.minimap.w;
   }
 
@@ -627,7 +812,7 @@ export class PackOpeningScene extends Phaser.Scene {
    * grows over the real render, so the rail can keep moving beneath it.
    */
   private shedFullArtFrame(view: CardView, card: AddResult): void {
-    if (Services.save.data.settings.animations !== 'full') return;
+    if (this.saveData.settings.animations !== 'full') return;
     const framedVariant: CardVariant = { frame: card.frame, holo: 'none', fullArt: false };
     const framed = new CardView(this, 0, 0);
     framed.setCard(def(CARD_DB, card.cardId), {
@@ -652,6 +837,21 @@ export class PackOpeningScene extends Phaser.Scene {
 
   /** Reveal every card up to and including `target` (gate crossings). */
   private runwayRevealTo(target: number): void {
+    const rw = this.runway;
+    if (!rw) return;
+    if (this.packArt === null) this.runwayRevealReady(target);
+    else {
+      const packs = rw.cards.slice(rw.revealedMax + 1, target + 1)
+        .map((card) => this.packForCard.get(card)!);
+      this.packArt.reveal(packs, () => {
+        if (this.runway !== rw || !rw.root.active) return;
+        this.runwayRevealReady(target);
+        rw.needle.x = rw.minimap.x + gateProgress(rw.revealedMax, rw.cards.length) * rw.minimap.w;
+      });
+    }
+  }
+
+  private runwayRevealReady(target: number): void {
     const rw = this.runway;
     if (!rw) return;
     for (let i = rw.revealedMax + 1; i <= target && i < rw.cards.length; i++) {
@@ -694,6 +894,15 @@ export class PackOpeningScene extends Phaser.Scene {
       this.runwayFinish();
       return;
     }
+    // The rail is rarity-sorted across the batch. Wait for the original
+    // pack of the next card before moving it through the flip gate.
+    const pack = this.packForCard.get(rw.cards[next])!;
+    if (this.packArt !== null && !this.packArt.isReady(pack)) {
+      this.packArt.reveal([pack], () => {
+        if (this.runway === rw && rw.root.active && rw.mode === 'auto') this.runwayAdvance();
+      });
+      return;
+    }
     const target = railOffsetForIndex(next);
     const distance = rw.offset - target;
     // Scrubbed back into revealed territory: fast-travel to the frontier first.
@@ -714,7 +923,7 @@ export class PackOpeningScene extends Phaser.Scene {
     const tier = rw.cards[next].tier;
     let runIndex = 0;
     for (let j = next - 1; j >= 0 && rw.cards[j].tier === tier; j--) runIndex++;
-    const level = Services.save.data.settings.animations === 'reduced' ? 'reduced' : 'full';
+    const level = this.saveData.settings.animations === 'reduced' ? 'reduced' : 'full';
     const dwell = cardDwellMs(tier, runIndex, level);
     rw.autoTween = this.tweens.add({
       targets: rw,
@@ -785,7 +994,7 @@ export class PackOpeningScene extends Phaser.Scene {
     burst.setDepth(60);
     burst.explode(Math.max(1, Math.round(esc.particles * fxPolicy(this).particleScale)), RUNWAY_GATE_X, RUNWAY_CARD_Y);
     const hint = this.add
-      .text(width / 2, theme.design.footerCenterY, 'tap to continue', {
+      .text(width / 2, this.spotlightHintY(esc.zoom), 'tap to continue', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.label}px`,
         color: theme.colors.muted,
@@ -862,6 +1071,7 @@ export class PackOpeningScene extends Phaser.Scene {
       }
       return;
     }
+    this.packArt?.cancelReveal();
     rw.autoTween?.remove();
     rw.autoTween = null;
     rw.mode = 'scrub';
@@ -1079,6 +1289,8 @@ export class PackOpeningScene extends Phaser.Scene {
           // on an already-revealed card (revealSpecial early-returns on done,
           // so its cleanup never runs).
           if (entry.done || !view.active) return;
+          // tier tab: the glow's tier in words, so it is not colour alone
+          entry.tab = this.addFaceDownTab(card, x, y, scale);
           // tier-hint glow: gold for sr, violet for ssr, crimson for ur
           if (fxPolicy(this).packGlow && view.postFX) {
             const glow = view.postFX.addGlow(hint.glow, 2, 0, false, 0.12, 18);
@@ -1185,35 +1397,76 @@ export class PackOpeningScene extends Phaser.Scene {
     });
   }
 
+  /**
+   * The corner marker on a revealed pull: a star for a new card, a diamond
+   * for a new variant of a card already owned. The glyph's outline carries
+   * the difference, so green against violet is not the only channel.
+   */
   private addNewMarker(view: CardView, card: AddResult): void {
-    if (!card.isNew && !card.isNewVariant) return;
+    const glyph = newMarkerGlyph(card);
+    if (!glyph) return;
     if (view.getData('packNewMarker')) return;
     view.setData('packNewMarker', true);
 
-    const color = card.isNew ? theme.colors.success : theme.rarity.ssr;
-    const stroke = colorInt(color);
+    const ink = colorInt(glyph === 'star' ? theme.colors.success : theme.rarity.ssr);
     const bg = this.add
-      .circle(124, -176, 13, theme.graphics.panelFill, 0.9)
-      .setStrokeStyle(1.5, stroke, 0.95);
-    const star = this.add
-      .text(124, -177, '★', {
+      .circle(NEW_MARKER.x, NEW_MARKER.y, NEW_MARKER.radius, theme.graphics.panelFill, 0.9)
+      .setStrokeStyle(NEW_MARKER.stroke, ink, 0.95);
+    const mark = this.add.graphics();
+    mark.fillStyle(ink, 1);
+    mark.fillPoints(newMarkerGlyphPoints(glyph, NEW_MARKER.x, NEW_MARKER.y, NEW_MARKER.glyphRadius), true);
+    view.add([bg, mark]);
+  }
+
+  /**
+   * A face-down special's tier tab: its abbreviation on a plate over the
+   * card's top edge, in the tier's colour. The glow already tells the tier,
+   * so the tab only says it in words as well.
+   */
+  private addFaceDownTab(card: AddResult, x: number, y: number, scale: number): Phaser.GameObjects.GameObject[] {
+    const tier = card.tier as keyof typeof HINT;
+    const color = (HINT[tier] ?? HINT.sr).label;
+    const label = this.add
+      .text(x, 0, TIER_LABEL[card.tier], {
         fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.body}px`,
-        fontStyle: '800',
+        fontSize: `${theme.type.caption}px`,
+        fontStyle: '700',
         color,
       })
       .setOrigin(0.5);
-    view.add([bg, star]);
+    const rect = faceDownTabRect(x, y, scale, label.width);
+    label.setY(rect.y + rect.height / 2);
+    const plate = this.add.graphics();
+    plate.fillStyle(theme.graphics.panelFill, 0.92);
+    plate.fillRoundedRect(rect.x, rect.y, rect.width, rect.height, rect.height / 2);
+    plate.lineStyle(1.5, colorInt(color), 0.95);
+    plate.strokeRoundedRect(rect.x, rect.y, rect.width, rect.height, rect.height / 2);
+    this.children.bringToTop(label);
+    return [plate, label];
   }
 
   private showPackInspect(card: AddResult): void {
     // Re-entry (arrow stepping) replaces the open modal; close silently first.
     this.closePackInspect();
-    const width = 1280;
     const variant: CardVariant = { frame: card.frame, holo: card.holo, fullArt: card.fullArt };
+    // Measure the detail lines first: the shell, the plate and the card's
+    // size all follow from them (packInspectLayout).
+    const detailLines = this.packPullDetails(card, variant);
+    const lineTexts = detailLines.map((line, i) => this.add
+      .text(theme.design.centerX, 0, line, {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.label}px`,
+        fontStyle: i === 0 && line.includes('★') ? '800' : '600',
+        color: this.packPullDetailColor(line),
+        align: 'center',
+        wordWrap: { width: PACK_INSPECT.detailWidth - 2 * PACK_INSPECT.linePad, useAdvancedWrap: true },
+      })
+      .setOrigin(0.5));
+    const layout = packInspectLayout(lineTexts.map((text) => text.height));
     const shell = modalShell(this, {
-      width: 600,
-      height: 680,
+      width: layout.panel.width,
+      height: layout.panel.height,
+      y: layout.panel.y + layout.panel.height / 2,
       dimAlpha: 0.52,
       depth: theme.depth.inspect,
       dismissal: 'tap-and-close', // ESC arrives via the shared inspect-hotkeys binding below
@@ -1233,7 +1486,7 @@ export class PackOpeningScene extends Phaser.Scene {
     });
     const c = shell.container;
 
-    const view = new CardView(this, width / 2, 326).setScale(1.22);
+    const view = new CardView(this, theme.design.centerX, layout.cardY).setScale(layout.cardScale);
     view.setCard(def(CARD_DB, card.cardId), {
       fx: card.holo !== 'none' ? 'full' : 'static',
       variant: isPlainVariant(variant) ? undefined : variant,
@@ -1241,24 +1494,11 @@ export class PackOpeningScene extends Phaser.Scene {
     });
     c.add(view);
 
-    const detailLines = this.packPullDetails(card, variant);
-    const detailPanelY = 638;
-    const lineH = 22;
-    c.add(
-      panel(this, width / 2 - 260, detailPanelY - 54, 520, 108, { alpha: 0.98 }),
-    );
-    const firstY = detailPanelY - ((detailLines.length - 1) * lineH) / 2;
-    detailLines.forEach((line, i) => {
-      c.add(
-        this.add
-          .text(width / 2, firstY + i * lineH, line, {
-            fontFamily: theme.fonts.ui,
-            fontSize: `${theme.type.label}px`,
-            fontStyle: i === 0 && line.includes('★') ? '800' : '600',
-            color: this.packPullDetailColor(line),
-          })
-          .setOrigin(0.5),
-      );
+    const { detail } = layout;
+    c.add(panel(this, detail.x, detail.y, detail.width, detail.height, { alpha: 0.98 }));
+    lineTexts.forEach((text, i) => {
+      text.setY(layout.lineYs[i]);
+      c.add(text);
     });
   }
 
@@ -1386,6 +1626,10 @@ export class PackOpeningScene extends Phaser.Scene {
       entry.hint.destroy();
       entry.hint = undefined;
     }
+    if (entry.tab) {
+      for (const part of entry.tab) part.destroy();
+      entry.tab = undefined;
+    }
 
     if (!escalate || fast) {
       // On skip, only the best card keeps its shimmer (one sting, not a chord);
@@ -1444,7 +1688,7 @@ export class PackOpeningScene extends Phaser.Scene {
           // showcase early. Both the tap and the wobble's natural end route
           // through settleBest, which is one-shot guarded so they can't double.
           const skipHint = this.add
-            .text(width / 2, theme.design.footerCenterY, 'tap to skip', {
+            .text(width / 2, this.spotlightHintY(esc.zoom), 'tap to skip', {
               fontFamily: theme.fonts.ui,
               fontSize: `${theme.type.label}px`,
               color: theme.colors.muted,
@@ -1453,6 +1697,7 @@ export class PackOpeningScene extends Phaser.Scene {
             .setDepth(41)
             .setAlpha(0);
           this.tweens.add({ targets: skipHint, alpha: 1, duration: 400 });
+          this.markFixtureReady();
           dim.once('pointerup', () => this.settleBest(entry, dim, skipHint));
           view.once('pointerup', () => this.settleBest(entry, dim, skipHint));
           // showcase wobble, then settle back to its dealt slot
@@ -1489,7 +1734,7 @@ export class PackOpeningScene extends Phaser.Scene {
     // Restore the animation-policy baseline, NOT a hardcoded 1 — otherwise the
     // 'reduced'/'off' timeScale that applySceneSettings set at create() is
     // silently lost for the rest of the pack once any SR+ card escalates.
-    this.tweens.timeScale = animTimeScale(Services.save.data.settings.animations);
+    this.tweens.timeScale = animTimeScale(this.saveData.settings.animations);
     // restore to the render-scale base zoom, not 1 (zoomTo is absolute)
     this.cameras.main.zoomTo(activeRenderScale(), 300);
     if (skipHint.active) skipHint.destroy();
@@ -1518,7 +1763,7 @@ export class PackOpeningScene extends Phaser.Scene {
   }
 
   private skipAll(): void {
-    this.tweens.timeScale = animTimeScale(Services.save.data.settings.animations);
+    this.tweens.timeScale = animTimeScale(this.saveData.settings.animations);
     for (const entry of this.specials) this.revealSpecial(entry, false, true);
     this.checkAllRevealed();
   }
@@ -1535,8 +1780,9 @@ export class PackOpeningScene extends Phaser.Scene {
     const openPrice = packPriceForSku(this.sku);
     // Short of the price: disabled with the price still readable, never a live
     // button that silently does nothing (review 2026-09-23).
-    const canAfford = Services.save.data.gold >= openPrice;
+    const canAfford = this.saveData.gold >= openPrice;
     this.addRailButton(width / 2 - 200, `Open Another (🪙 ${openPrice})`, canAfford, () => {
+      if (this.fixture) return;
       const save = Services.save.data;
       if (!spendGold(save, openPrice)) return;
       Sfx.play('coin');
@@ -1553,6 +1799,10 @@ export class PackOpeningScene extends Phaser.Scene {
   private finishAchievementCheckpoint(): void {
     if (this.packRevealComplete) return;
     this.packRevealComplete = true;
+    if (this.fixture) {
+      this.toasts?.release();
+      return;
+    }
     const checkpoint = checkpointAchievements(Services.save.data, CARD_DB);
     if (checkpoint.changed) {
       Services.save.flush();

@@ -66,7 +66,7 @@ describe('ETB-only non-creature permanent health', () => {
     // keep doing something after it lands. Every set, live or not, is checked.
     const arrivalOnly = ALL_CARDS.filter((card) => !card.token && isPermanent(card) && isEtbOnly(card)).map((card) => card.id);
     expect(arrivalOnly, 'one-time effects belong on Rituals or Charms').toEqual([]);
-    expect(ALL_CARDS.filter((card) => String(card.set) === STARBORNE_SET && isPermanent(card)).length).toBeGreaterThan(0);
+    expect(ALL_CARDS.filter((card) => card.set === STARBORNE_SET && isPermanent(card)).length).toBeGreaterThan(0);
   });
 
   it('classifies the known Hauntlink and graveyard-trigger regressions', () => {

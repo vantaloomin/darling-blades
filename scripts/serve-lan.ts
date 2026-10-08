@@ -138,6 +138,30 @@ function lanAddresses(): { ip: string; name: string }[] {
 
 // --- static file server -----------------------------------------------------------
 
+/**
+ * One `Range: bytes=...` header against a file of `size` bytes. Returns the
+ * inclusive byte span to send as a 206, `'unsatisfiable'` for a 416, or null
+ * to send the whole file as a 200: no header, a unit other than bytes, a
+ * malformed header, or a multi-range request (RFC 9110 lets a server ignore
+ * Range, and the game only ever asks for one span).
+ */
+export function parseRange(header: string | undefined, size: number): { start: number; end: number } | 'unsatisfiable' | null {
+  if (!header) return null;
+  const m = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
+  if (!m || (m[1] === '' && m[2] === '')) return null;
+  if (m[1] === '') {
+    // Suffix range: the last N bytes.
+    const n = Number(m[2]);
+    if (n === 0 || size === 0) return 'unsatisfiable';
+    return { start: Math.max(0, size - n), end: size - 1 };
+  }
+  const start = Number(m[1]);
+  const end = m[2] === '' ? size - 1 : Math.min(Number(m[2]), size - 1);
+  if (m[2] !== '' && Number(m[2]) < start) return null;
+  if (start >= size) return 'unsatisfiable';
+  return { start, end };
+}
+
 function handler(req: IncomingMessage, res: ServerResponse): void {
   const end = (code: number, body: string): void => {
     res.writeHead(code, { 'Content-Type': 'text/plain; charset=utf-8' });
@@ -165,18 +189,35 @@ function handler(req: IncomingMessage, res: ServerResponse): void {
   if (!st || !st.isFile()) return end(404, 'not found');
 
   const type = MIME[extname(filePath).toLowerCase()] ?? 'application/octet-stream';
-  res.writeHead(200, {
+  const headers = {
     'Content-Type': type,
-    'Content-Length': st.size,
+    'Accept-Ranges': 'bytes',
     // index.html must revalidate (it names the hashed bundles); assets may
     // cache briefly — keeps phone reloads fast without going stale for long.
     'Cache-Control': filePath.endsWith('index.html') ? 'no-cache' : 'max-age=300',
-  });
+  };
+  // Byte ranges: the web build reads each card out of its art pack with one
+  // range request (src/art/artSource.ts). Without this the game would fall
+  // back to downloading every pack whole on the phone.
+  const range = parseRange(req.headers.range, st.size);
+  if (range === 'unsatisfiable') {
+    res.writeHead(416, { ...headers, 'Content-Range': `bytes */${st.size}` });
+    return void res.end();
+  }
+  if (range) {
+    res.writeHead(206, {
+      ...headers,
+      'Content-Length': range.end - range.start + 1,
+      'Content-Range': `bytes ${range.start}-${range.end}/${st.size}`,
+    });
+  } else {
+    res.writeHead(200, { ...headers, 'Content-Length': st.size });
+  }
   if (req.method === 'HEAD') return void res.end();
   // TOCTOU/EACCES between statSync and open: without an error handler the
   // stream 'error' event throws and crashes the process — same class as the
   // NUL-byte case, on a network-exposed server.
-  const stream = createReadStream(filePath);
+  const stream = createReadStream(filePath, range ? { start: range.start, end: range.end } : undefined);
   stream.on('error', () => {
     if (!res.headersSent) return end(500, 'read error');
     res.destroy();
@@ -255,4 +296,6 @@ function main(): void {
   });
 }
 
-main();
+// Run only when invoked (`npm run play:lan`), so tests can import parseRange.
+const invokedPath = process.argv[1] ? resolve(process.argv[1]).toLowerCase() : '';
+if (invokedPath === fileURLToPath(import.meta.url).toLowerCase()) main();

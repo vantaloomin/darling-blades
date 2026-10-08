@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ui/theme.ts, src/ui/themeWidgets.ts, src/ui/modalDismissPresentation.ts, src/ui/navigation.ts, src/ui/SceneBackdrop.ts, src/ui/Dropdown.ts, src/ui/SearchInput.ts, src/ui/binder/FilterBar.ts, src/platform/gestures.ts, src/platform/animPolicy.ts, src/ui/CardFrameFactory.ts, docs/art-bible/index.md, docs/scene-art.md, docs/plan-ui-ux-refresh.md · last-verified: 2026-08-22 · core UI and visual-language contract -->
+<!-- source-of-truth: src/ui/theme.ts, src/ui/accessibility.ts, src/ui/controlStyle.ts, src/ui/boardCuePresentation.ts, src/ui/BoardCardView.ts, src/ui/manaPumpPresentation.ts, src/ui/themeWidgets.ts, src/ui/modalDismissPresentation.ts, src/ui/navigation.ts, src/ui/SceneBackdrop.ts, src/ui/Dropdown.ts, src/ui/SearchInput.ts, src/ui/binder/FilterBar.ts, src/platform/gestures.ts, src/platform/animPolicy.ts, src/ui/CardFrameFactory.ts, src/config/cardFaceGeometry.ts, docs/art-bible/index.md, docs/scene-art.md, docs/plan-ui-ux-refresh.md · last-verified: 2026-09-28 · core UI and visual-language contract -->
 
 # Darling Blades core design system
 
@@ -71,7 +71,7 @@ not a second brand color.
 | Text on gold | `colors.onGold` | `#1a1426` | Filled primary-control labels |
 | Heading | `colors.heading` | `#f0e6ff` | High-emphasis titles and values |
 | Body | `colors.body` | `#c9bde0` | Default readable UI copy |
-| Muted | `colors.muted` | `#8f83a8` | Secondary copy and inactive metadata |
+| Muted | `colors.muted` | `#9589ac` | Secondary copy and inactive metadata (lightened from `#8f83a8` in 1.9 so it clears 4.5:1 on every surface it is drawn on) |
 | Success | `colors.success` | `#9be6a8` | Completion and positive confirmation |
 | Danger | `colors.danger` | `#f0b0a0` | Destructive labels and errors |
 | Armed danger | `colors.dangerArmed` | `#f08a8a` | Explicit destructive confirmation state |
@@ -84,6 +84,9 @@ not a second brand color.
 Use `theme.colors` for Phaser Text, DOM/CSS, and canvas string colors. Use
 `theme.graphics` for Phaser Graphics numeric colors. Numeric counterparts are
 derived from the string tokens so the two representations cannot drift.
+Both groups are read live from the palette in force (see
+[High contrast](#high-contrast)): read them inside the function that draws,
+never into a module-level constant, or a contrast change will not reach it.
 
 Rarity colors are a categorical ramp, not generic status colors. Set-symbol
 **shape** identifies the set and symbol **fill** identifies rarity. Compact card
@@ -295,11 +298,18 @@ and Apple's game/layout guidance on
 
 Use named alpha steps rather than visually similar local decimals:
 
-- `overlayDim` (0.92): default modal separation.
-- `panel` (0.90): structural surface opacity.
-- `chrome` (0.85): borders and idle control chrome.
-- `subtle` (0.50): disabled or secondary information.
+- `overlayDim` (0.92): default modal separation. Opaque (1) in high contrast.
+- `panel` (0.90): structural surface opacity. Opaque (1) in high contrast.
+- `chrome` (0.85): borders and idle control chrome. Opaque (1) in high
+  contrast, which removes the idle-to-hover alpha step; the hovered stroke
+  thickens instead (see [Selection and state cues](#selection-and-state-cues)).
+- `subtle` (0.50): disabled or secondary information. Unchanged in high
+  contrast, so a disabled control never looks live.
 - `ghost` (0.32): intentionally receded content such as unowned cards.
+  Unchanged in high contrast.
+- `scrim` (0.62; 0.85 in high contrast; new in 1.9): the backplate under
+  operational text drawn over art, such as a board tile's name strip. The
+  board tile still draws a literal 0.62 and adopts `scrim` in the Duel pass.
 
 Per-scene backdrop dims are calibrated readability values and may differ.
 Document them in `docs/scene-art.md`; do not turn every calibration into a
@@ -317,6 +327,63 @@ controlled through the global time scale; FX capability policy separately
 reduces or removes shaders, particles, glows, and other non-tween spectacle.
 Even with motion off, callbacks must complete and the flow must remain
 playable. Never make color, motion, or sound the sole carrier of a state change.
+
+### Text scale
+
+Players choose Standard, Large or Largest text (100, 115, 130%; stored as
+`settings.textScale`, normalized to that set by `normalizeTextScale`). The
+resolver in `src/ui/accessibility.ts` answers `theme.type` for the size in
+force, by role:
+
+| Role | Base | Large | Largest | Scaling |
+| --- | ---: | ---: | ---: | --- |
+| `displayXL` | 64 | 64 | 64 | none |
+| `display` | 44 | 44 | 44 | none |
+| `h1` | 28 | 30 | 32 | half the step |
+| `h2` | 20 | 22 | 23 | half the step |
+| `body` | 16 | 18 | 21 | full |
+| `label` | 14 | 16 | 18 | full |
+| `caption` | 12 | 14 | 16 | full |
+| `micro` | 11 | 13 | 14 | full |
+
+- Reading roles take the whole step, headings half, display sizes none (they
+  are already large, and a scaled marquee eats the title-safe frame).
+- **Card faces never scale.** `CardView`, `BoardCardView` and the other card
+  specialists keep card-internal geometry and read `theme.typeBase` (the 100%
+  ramp) when they need a role size; a player reads a card larger through the
+  zoom preview and the inspect view.
+- Read `theme.type` inside the function that builds, never at module scope.
+  Geometry derived from a type size (a rhythm, a header band) is computed
+  when the scene builds.
+- A surface that no longer fits reflows, pages or scrolls; it never shrinks
+  its text back down. Fit-to-box (`fitWrappedText`) stays the card-face rule.
+- Place control groups from measured widths (measure-then-place) or from
+  widths scaled with the resolver, never from fixed widths.
+- The gate has two halves: the headless matrix
+  (`tests/ui/accessibilityLayout.test.ts`: every enrolled layout module in
+  each of the six text-size and contrast cells) and the rendered probe
+  (`src/dev/a11yProbe.ts`), which alone measures real text.
+
+### High contrast
+
+`settings.highContrast` switches the chrome to a second palette and alpha set
+(the same resolver, read live). It strengthens chrome and leaves card art,
+card frames, mana pips and rarity materials untouched.
+
+| Token | Standard | High contrast | Why |
+| --- | --- | --- | --- |
+| `colors.muted` | `#9589ac` | `#b7b0c7` | 7:1 on its worst surface (`rowFillActive`) |
+| `colors.dangerArmed` | `#f08a8a` | `#f29d9d` | 7:1 on `rowFillActive` |
+| `colors.panelStroke` | `#4a3f6e` | `#7768a8` | 3:1 against every chrome surface, so panel edges read |
+| `alpha.overlayDim`, `alpha.panel`, `alpha.chrome` | 0.92, 0.90, 0.85 | 1 | Opaque panels, dim and chrome, so scene art cannot lower contrast |
+| `alpha.scrim` | 0.62 | 0.85 | A stronger backplate under text over art |
+| `outline.state`, `outline.focus` | 3px | 5px | Thicker board state and focus outlines |
+
+Surfaces keep their standard values, so selected and idle rows keep their
+difference. Every used text-on-surface pair (`USED_TEXT_PAIRS`) holds 4.5:1
+in standard and 7:1 in high contrast; a new pairing joins that set in the
+change that draws it. `theme.outline` is new in 1.9: stroke widths for board
+state highlights and the keyboard focus cue, read live like the other groups.
 
 ## Components
 
@@ -427,6 +494,27 @@ must at least preserve Esc-to-close where applicable and must not make existing
 keyboard paths worse; a future keyboard-navigation primitive belongs in the
 core layer, not in one scene.
 
+### Selection and state cues
+
+No state a player needs has colour as its only carrier. Each has a
+non-colour cue: a shape, a label, a badge, an icon or a position.
+
+| State | Cue |
+| --- | --- |
+| Selected filter tab or chip (`roundedTrigger`) | A gold bar on the trigger's bottom edge, centred under the label: half the label's width (at least 12px), 2px thick, 3px in high contrast. It never moves or resizes the trigger. A select with `parts` has no bar; its chevron flips instead. |
+| Hovered or pressed control, high contrast | The border thickens by 1px (`controlStrokeWidth`), because opaque chrome removes the alpha step the standard palette uses. **Ruled 2026-09-28 (A9), not built yet:** primary and danger buttons, whose hover step is 1.17:1 and 1.66:1 in the standard palette, gain a 2px hover border in standard contrast too, on hover only; the idle look is unchanged. |
+| Settings chips and toggles | The filled `primary` variant; toggles also relabel On/Off. |
+| Armed destructive button (for example Concede) | The button relabels to name what the second press does ("Click to concede", or "Tap to concede" on touch): its cue is the label. |
+| Mana identity | Every pip carries its own sigil. |
+| Duel board states | Specified in `src/ui/boardCuePresentation.ts`, built by the Duel pass: a pick badge (1, 2) on picked targets, sacrifice picks, graveyard picks and player portraits; keyboard focus brackets outside the tile; a chip naming the action the tile is part of ("Attack" on creatures that can attack or are picked to, "Blocks" on assigned blockers, beside the existing Link, Relink and Duty, and "Boost", built now, on a creature whose repeatable mana ability can be used, after Duty in `TILE_CHIP_PRIORITY`, 1.9 A2.a); a lift for selected attackers, pending blockers and declared attackers; P/T glyphs for damage and for raised and lowered stats; a Mark badge with its count; an Overcharge badge (its glyph and count) at the tile's right edge, never the Mark badge's spot (1.9 A1.7). Cues drawn on a shrunken tile counter-scale (`cueCounterScale`, the chip's rule) so they keep a minimum size on screen. While targeting, a tile ring means "legal" and nothing else. **Ruled 2026-09-28 from the cue mock (M1-M6), built in the Duel pass:** the chip sits in a tab on the tile's top edge, not the top-right corner (M1); declared attackers stay lifted all combat and drop their ring while you choose targets (M2); a one-target spell's pick shows "1" too (M3); a picked graveyard card takes the badge, not a fade (M4); the P/T arrows count every change the plate shows (Marks and Overcharges included), so they agree with the plate's numbers; the Mark badge counts Marks alone (M5); a picked attacker keeps its "Attack" chip (M6). |
+| Spent Provoked (1.9 A2.a, built now) | A badge at the tile's left edge, just below mid-height (`TILE_FEATURES.provokedSpentBadge`, anchor `leftEdge`, opposite the Overcharge badge and never in the keyword column, since Provoked is a trigger, not a keyword): the Provoked glyph at `alpha.subtle` with a heading-colour slash across it, on a `rowFill` plate with a `muted` rim (not gold: it records a spent trigger, not a gain). It shows only while one of the creature's Provoked abilities is in its public `firedThisTurn` (`provokedSpent`), so it appears on the first survived blow and clears at the next untap. Counter-scaled like the Overcharge badge (`CUE_MIN_SCREEN_PX.provokedSpentBadge`, 14). The hover preview and the inspect overlay add the line "Provoked this turn." on a `rowFill` plate under the card. Its cue is presence and shape, never colour. |
+| Mana pump ticker (1.9 A2.a; its look awaits the owner's approval) | A bounded count stepper inside the Duty confirm's card-and-cost composition: title, the card, the ability line with its pips, then `−` count `+` (two `emphasis` buttons around the count in the display face at `h1`, "Up to N" under it in `muted` caption), a gold summary of the chosen count's cost and effect ("Pay {R}{R}: +2/+0 until Sunset"), the `primary` confirm naming the count ("Activate once", "Activate 3 times") and a `ghost` Cancel. It opens at 1; a step at its bound is subdued and inert (the pager's rule), and the row swallows that tap so it never falls through to the dim, which cancels. Left or Down steps down, Right or Up steps up, Enter confirms, Esc cancels. |
+
+`tests/ui/boardCuePresentation.test.ts` holds the board cues to the gate:
+any two states that can be on screen together differ in a non-colour
+channel, or stay at least 10 apart in CIEDE2000 under normal vision and
+simulated protanopia, deuteranopia and tritanopia, in both palettes.
+
 ## Imagery and material language
 
 ### Scene stages
@@ -449,6 +537,13 @@ not merely particle count.
 
 Frames use identity-colored metal, pale name/type bands, a parchment rules
 field, a set-shaped rarity symbol, and optional cosmetic frame/holo treatments.
+A standard face reads top to bottom: the name band, the 264 × 216 art window,
+the type band, then the rules field, which the rules text owns alone and
+shrinks to fit (cards carry no flavor text since 1.9, owner ruling R13), with
+the cost, set-symbol and P/T badges along the foot. The numbers live in
+`src/config/cardFaceGeometry.ts`, which `CardView` lays out from and the frame bake
+draws, so the two cannot drift. Full-art faces put the same chrome on plates
+over art that fills the frame.
 Material golds, WUBRG colors, foil spectra, and impact colors are domain values,
 not substitutions for interface action/status colors.
 

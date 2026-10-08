@@ -1,9 +1,10 @@
 import type { Action } from '../engine/actions';
 import { castTargetSpecsFor } from '../engine/resolve';
 import type { AbilityDef, CardDb, CardDef, EffectOp, Permanent, TargetRef, TargetSpec } from '../engine/types';
-import { def } from '../engine/types';
+import { def, isTargetBranchOp } from '../engine/types';
 import type { PlayerView } from '../engine/view';
-import { boundCastEffects, spellTargetsValue, targetValueForAbility } from './value';
+import { arrivalHuntIndex } from '../engine/effects/EffectInterpreter';
+import { arrivalHuntCastValue, boundCastEffects, cardHasHunt, spellTargetsValue, targetValueForAbility } from './value';
 
 export { targetValueForAbility } from './value';
 
@@ -52,18 +53,22 @@ export function chooseTargetAction(
 }
 
 const NEW_TARGET_DATABASES = new WeakMap<CardDb, boolean>();
+// `attacking` (A1.6) is left out on purpose: an attacking-only Charm keeps the
+// legacy menu, where Medium's removal-on-an-attacker rule (removalWorth) picks
+// the attacker and Hard searches the variants from there.
 const hasTargetQualifier = (spec: TargetSpec): boolean => spec.exactly !== undefined ||
   spec.what === 'opponentCreature' || spec.maxCost !== undefined || spec.minAttack !== undefined;
 const hasTargetBinding = (items: readonly EffectOp[]): boolean => items.some((op) =>
   'targetIndex' in op && op.targetIndex !== undefined || op.op === 'preventCombatTo' ||
-  op.op === 'ifTargetMarked' && (hasTargetBinding(op.then) || hasTargetBinding(op.else ?? [])));
+  isTargetBranchOp(op) && (hasTargetBinding(op.then) || hasTargetBinding(op.else ?? [])));
 function databaseHasNewTargets(db: CardDb): boolean {
   const cached = NEW_TARGET_DATABASES.get(db);
   if (cached !== undefined) return cached;
   const found = Object.values(db).some((card) =>
     card.retell !== undefined && card.types.includes('creature') ||
     (card.abilities ?? []).some((ability) => (ability.targets ?? []).some(hasTargetQualifier) || hasTargetBinding(ability.ops ?? [])) ||
-    (card.empower?.targets ?? []).some(hasTargetQualifier) || hasTargetBinding(card.empower?.ops ?? []));
+    (card.empower?.targets ?? []).some(hasTargetQualifier) || hasTargetBinding(card.empower?.ops ?? []) ||
+    cardHasHunt(card));
   NEW_TARGET_DATABASES.set(db, found);
   return found;
 }
@@ -77,13 +82,22 @@ export function vocabularyCastTargetValue(view: PlayerView, db: CardDb, action: 
   const specs = castTargetSpecsFor(card, action.retell === true, action.hauntlinked === true, action.empowered === true);
   const ops = action.retell && card.retell?.ops ? card.retell.ops :
     (card.abilities ?? []).filter((ability) => ability.when === 'spell').flatMap((ability) => ability.ops ?? []);
+  // A creature's arrival Hunt names its prey as the cast's target (A1.1b), so
+  // its prey variants are valued from the arrival ability, the arriving
+  // creature hunting. The override casts (Retell's body, a Hauntlink host,
+  // Empower's own targets) bring other targets.
+  const arrivalHunt = !(action.retell && card.retell?.ops) && action.hauntlinked !== true &&
+    !(action.empowered && card.empower?.targets) && arrivalHuntIndex(card) >= 0;
+  const empowerOps = action.empowered ? card.empower?.ops ?? [] : [];
   const newShape = specs.some(hasTargetQualifier) || hasTargetBinding(ops) ||
     action.retell === true && card.types.includes('creature') ||
-    ops.some((op) => op.op === 'preventCombatTo');
+    ops.some((op) => op.op === 'preventCombatTo') ||
+    arrivalHunt || ops.some((op) => op.op === 'hunt') || empowerOps.some((op) => op.op === 'hunt');
   if (!newShape) return undefined;
   return spellTargetsValue(view, db, ops, action.targets ?? [], specs.length === 1 &&
-    (specs[0].exactly !== undefined || specs[0].upTo !== undefined), action.x ?? 0) +
-    (action.empowered ? spellTargetsValue(view, db, card.empower?.ops ?? [], action.targets ?? []) : 0);
+    (specs[0].exactly !== undefined || specs[0].upTo !== undefined), action.x ?? 0, cardId) +
+    (arrivalHunt ? arrivalHuntCastValue(view, db, cardId, action.targets ?? []) : 0) +
+    (action.empowered ? spellTargetsValue(view, db, empowerOps, action.targets ?? [], false, 0, cardId) : 0);
 }
 
 /** Keep the best target assignment for each new cast mode before brain priorities. */
@@ -131,17 +145,17 @@ export function isVocabularyCast(view: PlayerView, db: CardDb, action: Action): 
   const cached = VOCABULARY_CARDS.get(card);
   if (cached !== undefined) return cached;
   const newOps = (ops: readonly EffectOp[]): boolean => ops.some((op) =>
-    ['discard', 'sacrifice', 'tapAll', 'preventCombatTo', 'reclaimSelf'].includes(op.op) ||
+    ['discard', 'sacrifice', 'tapAll', 'preventCombatTo', 'reclaimSelf', 'hunt'].includes(op.op) ||
     op.op === 'damage' && op.to === 'eachOpponentCreature' ||
     op.op === 'markAll' && op.other === true ||
     op.op === 'boost' && op.scope === 'self' ||
     op.op === 'createToken' && op.marks !== undefined ||
     op.op === 'raise' && op.grantKeywords !== undefined ||
-    op.op === 'ifTargetMarked' && (newOps(op.then) || newOps(op.else ?? [])) ||
+    isTargetBranchOp(op) && (newOps(op.then) || newOps(op.else ?? [])) ||
     hasTargetBinding([op]));
   const found = card.retell !== undefined && card.types.includes('creature') ||
     (card.abilities ?? []).some((ability) => (ability.targets ?? []).some(hasTargetQualifier) || newOps(ability.ops ?? [])) ||
-    card.empower?.ops.some((op) => op.op === 'destroy') === true ||
+    card.empower?.ops.some((op) => op.op === 'destroy' || op.op === 'hunt') === true ||
     newOps(card.retell?.ops ?? []);
   VOCABULARY_CARDS.set(card, found);
   return found;

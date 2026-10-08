@@ -15,7 +15,7 @@ describe('segmentManaText', () => {
   it('segments a single generic group', () => {
     expect(segmentManaText('Pay {2}.')).toEqual([
       { kind: 'text', value: 'Pay ' },
-      { kind: 'pipRun', value: '{2}', pips: [{ texture: 'pip-C', number: 2 }] },
+      { kind: 'pipRun', value: '{2}', pips: [{ texture: 'pip-C-2', number: 2 }] },
       { kind: 'text', value: '.' },
     ]);
   });
@@ -26,7 +26,7 @@ describe('segmentManaText', () => {
       {
         kind: 'pipRun',
         value: '{2}{B}',
-        pips: [{ texture: 'pip-C', number: 2 }, { texture: 'pip-B' }],
+        pips: [{ texture: 'pip-C-2', number: 2 }, { texture: 'pip-B' }],
       },
       { kind: 'text', value: ': x' },
     ]);
@@ -39,7 +39,7 @@ describe('segmentManaText', () => {
       {
         kind: 'pipRun',
         value: '{3}{U}',
-        pips: [{ texture: 'pip-C', number: 3 }, { texture: 'pip-U' }],
+        pips: [{ texture: 'pip-C-3', number: 3 }, { texture: 'pip-U' }],
       },
       { kind: 'text', value: '.' },
     ]);

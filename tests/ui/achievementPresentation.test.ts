@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { theme } from '../../src/ui/theme';
+import { forEachA11yCell } from './a11yCells';
 import {
+  ACHIEVEMENT_LIST,
+  ACHIEVEMENT_ROW,
+  achievementListLayout,
+  achievementRowLayout,
+  hallPlinthLayout,
   achievementCascadeDelay,
   achievementCascadeDuration,
   achievementClaimMotion,
@@ -120,5 +127,84 @@ describe('achievement claim presentation', () => {
     expect(pitches[0]).toBe(1);
     expect(pitches.at(-1)).toBeCloseTo(2 ** (7 / 12));
     expect(pitches.every((pitch, index) => index === 0 || pitch > pitches[index - 1])).toBe(true);
+  });
+});
+
+/**
+ * Text heights for the headless half: a line box of 1.25 em at the role's
+ * size in force. Real glyph metrics are the rendered probe's job; these rules
+ * hold for any heights, and these exercise them at every text size.
+ */
+const line = (size: number): number => Math.ceil(size * 1.25);
+const rowMeasure = (titleLines: number, goalLines: number) => ({
+  titleHeight: titleLines * line(theme.type.label),
+  titleLineHeight: line(theme.type.label),
+  goalHeight: goalLines * line(theme.type.caption),
+  goalLineHeight: line(theme.type.caption),
+  progressHeight: 2 * line(theme.type.caption),
+});
+const titleSafe = theme.design.titleSafe;
+
+describe('the measured goal list', () => {
+  it('keeps every row of a page inside the list band, apart by the release gap, in every accessibility cell', () => {
+    forEachA11yCell((cell) => {
+      for (const [titleLines, goalLines] of [[1, 1], [2, 2], [3, 3]]) {
+        const row = achievementRowLayout(rowMeasure(titleLines, goalLines));
+        const list = achievementListLayout(row.height);
+        const cells = Array.from({ length: list.perPage }, (_, i) => list.cell(i));
+        for (const [i, { x, y }] of cells.entries()) {
+          expect(x, cell.name).toBeGreaterThanOrEqual(titleSafe.left);
+          expect(x + list.rowWidth, cell.name).toBeLessThanOrEqual(titleSafe.right);
+          expect(y, cell.name).toBeGreaterThanOrEqual(ACHIEVEMENT_LIST.top);
+          expect(y + list.rowHeight, `${cell.name}: above the pager`).toBeLessThanOrEqual(ACHIEVEMENT_LIST.bottom);
+          for (const other of cells.slice(i + 1)) {
+            const apartX = other.x >= x + list.rowWidth + ACHIEVEMENT_LIST.rowGap || x >= other.x + list.rowWidth + ACHIEVEMENT_LIST.rowGap;
+            const apartY = other.y >= y + list.rowHeight + ACHIEVEMENT_LIST.rowGap || y >= other.y + list.rowHeight + ACHIEVEMENT_LIST.rowGap;
+            expect(apartX || apartY, `${cell.name}: rows ${i} and ${cells.indexOf(other)}`).toBe(true);
+          }
+        }
+      }
+    });
+  });
+
+  it('holds the title block, the goal and the progress column inside the row in every accessibility cell', () => {
+    forEachA11yCell((cell) => {
+      for (const [titleLines, goalLines] of [[1, 1], [2, 1], [1, 3], [3, 3]]) {
+        const m = rowMeasure(titleLines, goalLines);
+        const row = achievementRowLayout(m);
+        expect(row.titleTop, cell.name).toBeGreaterThanOrEqual(ACHIEVEMENT_ROW.inset);
+        expect(row.goalTop, cell.name).toBeGreaterThanOrEqual(row.titleTop + m.titleHeight + ACHIEVEMENT_ROW.inset);
+        expect(row.goalTop + m.goalHeight + ACHIEVEMENT_ROW.inset, cell.name).toBeLessThanOrEqual(row.height);
+        expect(m.progressHeight + 2 * ACHIEVEMENT_ROW.inset, cell.name).toBeLessThanOrEqual(row.height);
+      }
+    });
+  });
+
+  it('pages the release list at standard text: eight 50px rows a column at a 56px pitch from y 196', () => {
+    // Inter's rendered single lines at 14 and 12px (17 and 15px) keep the
+    // release row, whose title and goal centres sat at 14 and 35.
+    const row = achievementRowLayout({ titleHeight: 17, titleLineHeight: 17, goalHeight: 15, goalLineHeight: 15, progressHeight: 15 });
+    expect(row).toEqual({ height: 50, titleTop: 5.5, goalTop: 27.5 });
+    const list = achievementListLayout(row.height);
+    expect([list.rowsPerColumn, list.perPage, list.pitch]).toEqual([8, 16, 56]);
+    expect([list.cell(0), list.cell(8)]).toEqual([{ x: 72, y: 196 }, { x: 72 + 552 + 32, y: 196 }]);
+  });
+
+  it('keeps a wing plinth inside its wing and below the wing summary in every accessibility cell', () => {
+    forEachA11yCell((cell) => {
+      for (const titleLines of [1, 2, 3]) {
+        for (const frame of hallWingFrames()) {
+          const titleHeight = titleLines * line(theme.type.label);
+          const statusHeight = line(theme.type.micro);
+          const p = hallPlinthLayout(frame, { titleHeight, titleLineHeight: line(theme.type.label), statusHeight, statusLineHeight: statusHeight });
+          // The wing summary line is centred 56px into the frame.
+          expect(p.y, `${cell.name}: ${titleLines} title lines`).toBeGreaterThanOrEqual(frame.y + 56 + line(theme.type.caption) / 2 + ACHIEVEMENT_ROW.inset);
+          expect(p.y + p.height).toBeLessThanOrEqual(frame.y + frame.h);
+          expect(p.x + p.width).toBeLessThanOrEqual(frame.x + frame.w);
+          expect(p.statusTop, cell.name).toBeGreaterThanOrEqual(p.titleTop + titleHeight + ACHIEVEMENT_ROW.inset);
+          expect(p.statusTop + statusHeight + ACHIEVEMENT_ROW.inset, cell.name).toBeLessThanOrEqual(p.height);
+        }
+      }
+    });
   });
 });

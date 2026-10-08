@@ -58,6 +58,8 @@ export type GameEvent =
       firstStrike: boolean;
     }
   | { e: 'damageMarked'; iid: number; amount: number }
+  /** A Hunt's exchange, before its damage lands: each deals its Attack (0 when it has none). */
+  | { e: 'hunted'; hunter: number; prey: number; hunterDamage: number; preyDamage: number }
   | { e: 'lifeChanged'; player: PlayerId; delta: number; now: number }
   | { e: 'died'; iid: number; cardId: string; owner: PlayerId }
   /** Battlefield to its owner's hand (a token ceases to exist instead). Not a
@@ -82,6 +84,8 @@ export type GameEvent =
     }
   | { e: 'preserved'; player: PlayerId; cardId: string }
   | { e: 'activated'; player: PlayerId; iid: number; cardId: string; abilityIndex?: number }
+  /** A repeatable mana ability used several times as one action (A1.5), and the events of its ops follow. */
+  | { e: 'manaActivated'; player: PlayerId; iid: number; cardId: string; abilityIndex: number; times: number }
   | {
       // Foresee resolution summary. Redaction mechanism (deliberate): per the
       // contract above, the event carries FULL identities and the presenter
@@ -98,6 +102,10 @@ export type GameEvent =
   | { e: 'triggerFizzled'; iid: number }
   | { e: 'effectApplied'; op: string; detail?: unknown }
   | { e: 'tokenCreated'; perm: Permanent }
+  /** A token refused at the creature cap gave `iid`, a same-name token `player` controls, one Overcharge (`total` is its count now). */
+  | { e: 'overcharged'; player: PlayerId; iid: number; cardId: string; tokenCardId: string; total: number }
+  /** A token refused at the creature cap with no same-name token eligible for an Overcharge: nothing entered and nothing changed (1.9 A1.7). */
+  | { e: 'tokenRefused'; player: PlayerId; tokenCardId: string }
   | { e: 'positionNote'; note: string } // debug/log line, never load-bearing
   | {
       e: 'gameEnded';

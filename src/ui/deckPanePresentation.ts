@@ -1,5 +1,8 @@
 /** Phaser-free state and geometry for the Deck Builder's right-pane views and its ☰ Decks picker. */
 
+import { DESKTOP_DECK_PITCH } from './deckListPaging';
+import { menuLineHeight } from './mainMenuPresentation';
+import { playTextStack } from './playPresentation';
 import { theme } from './theme';
 
 /**
@@ -30,62 +33,48 @@ const PANE_WIDTH = 360;
 const PANE_RIGHT = theme.design.safeRight;
 const PANE_LEFT = PANE_RIGHT - PANE_WIDTH;
 
-/**
- * The bottom summary stack (design-system "Spacing and grouping" tiers).
- * It must hold pager, curve, one merged summary line, a two-line status band,
- * and the CTA row; the ledger the test pins is
- * pager band | 12 | stats block | 16 | status | 8 | CTAs. The two old
- * summary lines merged into one so the status band never overlaps the
- * block above it (it could before 2026-08-18).
- *
- * The whole stack lifted 24px on 2026-08-25 to buy the status band its
- * second line back WITH the stats on screen. Before that lift a blocking
- * deck error had nowhere to go but a panel drawn OVER the curve, so a deck
- * one card short of legal showed no curve and no color balance at all
- * (player report). The error is a status line now, and the curve never
- * leaves.
- *
- * The CTA row sits on the shared footer line (theme.design.footerCenterY).
- * It was centred on y 684 until the 1.8 cut (2026-09-23), so its hit boxes ran
- * to 706, past the title-safe frame; the stack above closed its spare gaps to
- * the tier minimums and the pager rose 6px to make the room.
- */
-const SUMMARY = {
-  pagerY: 462,
-  statsHeadingY: 504,
-  barBaseY: 552,
-  barMaxHeight: 24,
-  summaryLineY: 576,
-  statusBottomY: 632,
-  /** Two lines in every view: the status band is the only error surface. */
-  statusMaxLines: 2,
-  ctaY: theme.design.footerCenterY,
-} as const;
+/** Rendered text heights for the summary's independent reading tracks. */
+export interface DeckPaneSummaryMeasure {
+  headingHeight: number;
+  countHeight: number;
+  manaValueHeight: number;
+  summaryHeight: number;
+  statusHeight: number;
+}
 
-/** One status-band line, for the band's height budget. */
-export const DECK_STATUS_LINE_HEIGHT = 16;
+/** Bottom-anchored reading tracks leave both action rows their full hit bands. */
+export function deckPaneSummaryLayout(measured: Partial<DeckPaneSummaryMeasure> = {}) {
+  const headingHeight = measured.headingHeight ?? menuLineHeight(theme.type.label);
+  const countHeight = measured.countHeight ?? menuLineHeight(theme.type.micro);
+  const manaValueHeight = measured.manaValueHeight ?? menuLineHeight(theme.type.micro);
+  const summaryHeight = measured.summaryHeight ?? menuLineHeight(theme.type.caption);
+  const statusHeight = measured.statusHeight ?? 2 * menuLineHeight(theme.type.caption);
+  const ctaY = theme.design.footerCenterY;
+  const secondaryCtaY = ctaY - theme.control.minHitHeight - theme.space(2);
+  const statusBottomY = secondaryCtaY - theme.control.minHitHeight / 2 - theme.space(2);
+  const statusTop = statusBottomY - statusHeight;
+  const summaryTop = statusTop - theme.space(4) - summaryHeight;
+  const barBaseY = summaryTop - theme.space(2) - manaValueHeight;
+  const barMaxHeight = 24;
+  const countOffsetY = countHeight / 2 + theme.space(1);
+  const headingBottom = barBaseY - barMaxHeight - countHeight - theme.space(2);
+  const statsHeadingY = headingBottom - headingHeight / 2;
+  const listBottom = headingBottom - headingHeight - theme.space(3);
+  const pagerY = statsHeadingY;
+  return { pagerY, pagerX: PANE_LEFT + 144, statsHeadingY, barBaseY, barMaxHeight, summaryLineY: summaryTop + summaryHeight / 2,
+    summaryTop, statusTop, statusBottomY, statusMaxLines: 2, ctaY, secondaryCtaY,
+    manaValueY: barBaseY + manaValueHeight / 2, countOffsetY, listBottom };
+}
 
-/**
- * The pane's three header rows, top to bottom: the title row (deck name,
- * Darling portrait, the Decks button), the Format row, and the View row.
- *
- * The title row sits on the shared header line (theme.design.headerCenterY),
- * the back button's line, so its 44px hit bands start on the title-safe
- * frame's top edge. It was centred on y 32 until 1.8.1, its text and its
- * Decks button starting above the frame. The rows below moved down with it:
- * the Format tabs clear the title text by one small gap (they share its
- * columns), and the View row's hit band starts where the Format row's ends.
- * Decks and the Darling portrait are the only title-row controls, and each
- * owns a column no Format tab reaches, so their hit bands may run level with
- * the tabs' (pinned by test).
- */
-const HEADER = {
-  titleY: theme.design.headerCenterY,
-  /** Half the title Text's box (h2 display type), for the gap below it. */
-  titleHalfHeight: 14,
-  formatY: 91,
-  toggleY: 135,
-} as const;
+/** Wrapped title, Format and View tracks start at the safe edge and grow down. */
+export function deckPaneHeaderLayout(titleHeight = 2 * menuLineHeight(theme.type.h2)) {
+  const titleHalfHeight = Math.max(titleHeight, theme.control.minHitHeight) / 2;
+  const titleY = theme.design.safeTop + titleHalfHeight;
+  const formatY = titleY + titleHalfHeight + theme.space(2) + theme.control.minHitHeight / 2;
+  const toggleY = formatY + theme.control.minHitHeight;
+  return { titleY, titleHalfHeight, titleWidth: PANE_WIDTH - 46 - 100, formatY, toggleY,
+    contentTop: toggleY + theme.control.minHitHeight / 2 };
+}
 
 export const DECK_PANE_LAYOUT = {
   /** The side panel's fill: one 20px gutter left of the content, to the screen edge. */
@@ -94,8 +83,8 @@ export const DECK_PANE_LAYOUT = {
   right: PANE_RIGHT,
   /** The deck's name and count, the Darling portrait, and the Decks button. */
   title: {
-    y: HEADER.titleY,
-    halfHeight: HEADER.titleHalfHeight,
+    get y() { return deckPaneHeaderLayout().titleY; },
+    get halfHeight() { return deckPaneHeaderLayout().titleHalfHeight; },
     /** The Darling portrait beside the title, and its tap target (reopens the chooser). */
     portraitX: PANE_LEFT + 20,
     portraitScale: 0.09,
@@ -108,7 +97,7 @@ export const DECK_PANE_LAYOUT = {
     cardsX: PANE_LEFT + 100,
     warchestX: PANE_LEFT + 192,
     styleX: PANE_LEFT + 284,
-    y: HEADER.toggleY,
+    get y() { return deckPaneHeaderLayout().toggleY; },
     minWidth: 84,
   },
   content: {
@@ -116,11 +105,11 @@ export const DECK_PANE_LAYOUT = {
      * Below the View row: a first card row's hit band starts where the View
      * row's ends, and the Warchest panel's edge clears the View buttons.
      */
-    top: 156,
+    get top() { return deckPaneHeaderLayout().contentTop; },
     /** The Cards view's list starts this far below `top`. */
     listInset: 8,
     /** The Warchest panel ends one gap above the status band's top line. */
-    bottom: SUMMARY.statusBottomY - DECK_STATUS_LINE_HEIGHT * SUMMARY.statusMaxLines - theme.space(3),
+    get bottom() { return deckPaneSummaryLayout().statusTop - theme.space(3); },
   },
   /**
    * The retired Constructed format's inline basics block (the only format
@@ -130,42 +119,27 @@ export const DECK_PANE_LAYOUT = {
    * 46px pitch still leaves daylight between neighbours' hit bands.
    */
   basics: {
-    firstY: HEADER.formatY + theme.control.minHitHeight,
+    get firstY() { return deckPaneHeaderLayout().formatY + theme.control.minHitHeight; },
     desktopPitch: 46,
     touchPitch: 40,
     count: 5,
   },
-  warchest: {
-    headingY: 174,
-    countY: 196,
-    validationY: 218,
-    slotFirstX: PANE_LEFT + 92,
-    slotFirstY: 266,
-    slotPitchX: 176,
-    slotPitchY: 47,
-    slotColumns: 2,
-    slotWidth: 168,
-    slotLabelWidth: 150,
-    rulesTop: 490,
-    rulesWidth: 336,
-  },
   /**
    * Desktop card rows. The name column ends clear of the right-aligned count
    * chip (countRightX is the chip's RIGHT edge; countReserve is the widest
-   * chip plus its gap), so a long legend name ellipsizes instead of running
-   * under the count - the enforced-isolation test pins that clearance.
+   * chip plus its gap), so a long legend name wraps within its own column.
    */
   cards: {
-    rowPitch: 28,
+    rowPitch: DESKTOP_DECK_PITCH,
     starX: PANE_LEFT,
     pinX: PANE_LEFT + 24,
     nameX: PANE_LEFT + 44,
     nameWidth: 250,
     countRightX: PANE_RIGHT - 16,
     countReserve: 46,
-    /** Row iconography (hero star / display pin), sized for the 28px pitch. */
-    starSize: 20,
-    pinSize: 14,
+    /** Row iconography follows the live heading and label roles. */
+    get starSize() { return theme.type.h2; },
+    get pinSize() { return theme.type.label; },
   },
   /**
    * The Format conversion row (Warchest / Darlings). Tabs sit left of the
@@ -177,18 +151,17 @@ export const DECK_PANE_LAYOUT = {
    */
   formatRow: {
     labelX: PANE_LEFT,
-    y: HEADER.formatY,
+    get y() { return deckPaneHeaderLayout().formatY; },
     tabFirstX: PANE_LEFT + 90,
     tabPitch: 90,
     tabMinWidth: 78,
     decksHitLeft: PANE_RIGHT - 100,
   },
   /** The deck picker's '☰ Decks' button, right-aligned to the pane on the title row. */
-  decks: { x: PANE_RIGHT - 45, y: HEADER.titleY, minWidth: 90 },
+  decks: { x: PANE_RIGHT - 45, get y() { return deckPaneHeaderLayout().titleY; }, minWidth: 90 },
   /**
-   * The bottom action row: Export left-aligned to the pane's left edge, Import
-   * right-aligned to its right edge, Save centred between them, all on
-   * `summary.ctaY`.
+   * Export and Import share the secondary action row; Save centres on the
+   * footer row. The scene uses measured button widths to place each pair.
    */
   cta: {
     exportX: PANE_LEFT + 52,
@@ -203,7 +176,7 @@ export const DECK_PANE_LAYOUT = {
     pitch: 43,
     barWidth: 30,
   },
-  summary: SUMMARY,
+  get summary() { return deckPaneSummaryLayout(); },
 } as const;
 
 /**
@@ -247,12 +220,42 @@ export function deckPaneToggleState(
   };
 }
 
-export function warchestSlotPosition(index: number): { x: number; y: number } {
-  const slot = DECK_PANE_LAYOUT.warchest;
-  return {
-    x: slot.slotFirstX + (index % slot.slotColumns) * slot.slotPitchX,
-    y: slot.slotFirstY + Math.floor(index / slot.slotColumns) * slot.slotPitchY,
-  };
+export interface DeckReserveMeasure {
+  top: number;
+  bottom: number;
+  headerHeights: readonly number[];
+  rulesHeight: number;
+  /** Tallest measured slot hit band, including any wrapped label. */
+  slotHeight: number;
+  slotCount: number;
+}
+
+/** Measured reserve text and whole slot rows share a bounded, paged workspace. */
+export function deckReserveLayout(measured: DeckReserveMeasure) {
+  const inset = theme.space(3);
+  const gap = theme.space(2);
+  const columns = 2;
+  const contentX = PANE_LEFT + inset;
+  const contentWidth = PANE_WIDTH - inset * 2;
+  const slotWidth = (contentWidth - gap) / columns;
+  const header = playTextStack(measured.headerHeights, measured.top + inset, theme.space(1));
+  const rulesY = measured.bottom - inset - measured.rulesHeight;
+  const pagerY = rulesY - gap - theme.control.minHitHeight / 2;
+  const rowHeight = Math.max(theme.control.minHitHeight, measured.slotHeight);
+  const rowPitch = rowHeight + gap;
+  const availableRows = Math.floor((pagerY - theme.control.minHitHeight / 2 - gap - header.bottom) / rowPitch);
+  if (measured.slotCount > 0 && availableRows < 1) {
+    throw new RangeError('The reserve workspace must fit one complete measured slot row.');
+  }
+  const pageSize = Math.max(1, availableRows) * columns;
+  const pageCount = Math.max(1, Math.ceil(measured.slotCount / pageSize));
+  return { headerYs: header.ys, headerBottom: header.bottom, rulesY, pagerY, rowHeight, rowPitch,
+    pageSize, pageCount, contentX, contentWidth, slotWidth,
+    /** Page-local index: rows restart below the header on every page. */
+    slotCenter(index: number) {
+      return { x: contentX + slotWidth / 2 + index % columns * (slotWidth + gap),
+        y: header.bottom + gap + rowHeight / 2 + Math.floor(index / columns) * rowPitch };
+    } };
 }
 
 export function warchestSlotLabel(index: number, name: string): string {
@@ -278,31 +281,69 @@ export function constructedListTop(touch: boolean): number {
   return constructedBasicsRowY(DECK_PANE_LAYOUT.basics.count - 1, touch) + theme.control.minHitHeight / 2 + theme.space(2);
 }
 
-const PICKER_TILE = { width: 340, height: 250, gapX: 28, gapY: 18, cols: 3, rows: 2 } as const;
-const PICKER_GRID_LEFT =
-  theme.design.centerX - (PICKER_TILE.cols * PICKER_TILE.width + (PICKER_TILE.cols - 1) * PICKER_TILE.gapX) / 2;
+export interface DeckPickerMeasure {
+  count?: number;
+  nameHeight?: number;
+  badgeHeight?: number;
+  deleteNoteHeight?: number;
+  /** Widest unarmed action hit band. Armed Delete occupies the whole pair. */
+  actionWidth?: number;
+}
 
-/**
- * The ☰ Decks picker: a modal as wide as the title-safe frame, the title, two
- * rows of three deck tiles, and one footer line under them holding Close
- * (centred) and, when the decks fill more than one page, the pager (at the
- * grid's left edge, clear of Close).
- *
- * Until 1.8.1 Close sat on y 678 (drawn 658-698), past the frame and across
- * the panel's bottom edge, and the pager sat on y 638, its hit band 8px into
- * the second tile row. The tiles did not move.
- */
+/** Full identities and measured controls determine tile size and page capacity. */
+export function deckPickerLayout(measured: DeckPickerMeasure = {}) {
+  const padding = theme.space(4.5);
+  const gapX = theme.space(6);
+  const gapY = theme.space(4.5);
+  const cols = 2;
+  const width = (theme.design.safeWidth - padding * 2 - gapX) / cols;
+  const actionWidth = Math.max(theme.control.minHitWidth, measured.actionWidth ?? theme.control.minHitWidth);
+  const actionGap = theme.space(3);
+  const nameHeight = measured.nameHeight ?? 2 * menuLineHeight(theme.type.label);
+  const badgeHeight = measured.badgeHeight ?? menuLineHeight(theme.type.micro);
+  const noteHeight = measured.deleteNoteHeight ?? 2 * menuLineHeight(theme.type.micro);
+  const nameTop = padding;
+  const badgeTop = nameTop + nameHeight + theme.space(1);
+  const bodyTop = badgeTop + badgeHeight + theme.space(3);
+  const portraitWidth = 142;
+  const portraitHeight = 184;
+  const firstX = width - padding - actionWidth * 1.5 - actionGap;
+  const secondX = width - padding - actionWidth / 2;
+  const firstY = bodyTop + theme.control.minHitHeight / 2;
+  const secondY = firstY + theme.control.minHitHeight + theme.space(2);
+  const noteY = secondY + theme.control.minHitHeight / 2 + theme.space(2);
+  const height = Math.max(bodyTop + portraitHeight, noteY + noteHeight) + padding;
+  const titleTrackHeight = Math.max(theme.control.minHitHeight, menuLineHeight(theme.type.h1));
+  const overhead = padding * 2 + titleTrackHeight + theme.space(4) * 2 + theme.control.minHitHeight;
+  const maxRows = Math.max(1, Math.floor((theme.design.safeHeight - overhead + gapY) / (height + gapY)));
+  const rows = Math.min(maxRows, Math.max(1, Math.ceil((measured.count ?? cols) / cols)));
+  const panelHeight = overhead + rows * height + (rows - 1) * gapY;
+  const panelTop = theme.design.centerY - panelHeight / 2;
+  const gridLeft = theme.design.safeLeft + padding;
+  const titleY = panelTop + padding + titleTrackHeight / 2;
+  const gridTop = panelTop + padding + titleTrackHeight + theme.space(4);
+  const footerY = gridTop + rows * height + (rows - 1) * gapY + theme.space(4) + theme.control.minHitHeight / 2;
+  return { panelHeight, titleY, tile: { width, height, gapX, gapY, cols, rows }, gridLeft, gridTop,
+    footerY, closeX: theme.design.centerX, closeMinWidth: 100,
+    pagerX: gridLeft + theme.control.minHitHeight / 2, pageSize: cols * rows,
+    padding, nameWidth: width - padding * 2, nameTop, badgeTop, pipsY: bodyTop + theme.control.minHitHeight / 2,
+    portrait: { x: padding + portraitWidth / 2, y: bodyTop + portraitHeight / 2, width: portraitWidth, height: portraitHeight },
+    actions: { firstX, secondX, firstY, secondY, columnX: (firstX + secondX) / 2, noteY,
+      width: actionWidth * 2 + actionGap } };
+}
+
+/** Default picker geometry stays live; rendered callers pass their measured text. */
 export const DECK_PICKER_LAYOUT = {
-  panelHeight: 640,
-  titleY: 72,
-  tile: PICKER_TILE,
-  gridLeft: PICKER_GRID_LEFT,
-  gridTop: 106,
-  footerY: 652,
-  closeX: theme.design.centerX,
-  closeMinWidth: 100,
+  get panelHeight() { return deckPickerLayout().panelHeight; },
+  get titleY() { return deckPickerLayout().titleY; },
+  get tile() { return deckPickerLayout().tile; },
+  get gridLeft() { return deckPickerLayout().gridLeft; },
+  get gridTop() { return deckPickerLayout().gridTop; },
+  get footerY() { return deckPickerLayout().footerY; },
+  get closeX() { return deckPickerLayout().closeX; },
+  get closeMinWidth() { return deckPickerLayout().closeMinWidth; },
   /** The pager's left chevron sits at pagerX; its hit band starts on the grid's left edge. */
-  pagerX: PICKER_GRID_LEFT + theme.control.minHitHeight / 2,
+  get pagerX() { return deckPickerLayout().pagerX; },
 } as const;
 
 /**
@@ -316,8 +357,8 @@ export const PAGER_HIT_REACH = {
 } as const;
 
 /** Centre of picker tile `index` on a page (row-major). */
-export function deckPickerTilePosition(index: number): { x: number; y: number } {
-  const { tile, gridLeft, gridTop } = DECK_PICKER_LAYOUT;
+export function deckPickerTilePosition(index: number, layout = deckPickerLayout()): { x: number; y: number } {
+  const { tile, gridLeft, gridTop } = layout;
   const col = index % tile.cols;
   const row = Math.floor(index / tile.cols);
   return {

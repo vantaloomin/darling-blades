@@ -6,7 +6,9 @@ import {
 } from '../engine/types';
 import { sacrificeCandidates, toggleSacrifice } from './castSacrifice';
 import { targetAbilityText, targetPromptTitle, type DutyAction } from './duelPresentation';
+import { abilityHuntsPrey, HUNT_PREY_PROMPT } from './huntPresentation';
 import { activatedText } from './rulesText';
+import { sameTargetRef } from './targetSelection';
 
 export type DiscardAction = Extract<Action, { type: 'discard' }>;
 export type ChooseTargetAction = Extract<Action, { type: 'chooseTarget' }>;
@@ -91,17 +93,10 @@ function pendingTarget(state: GameState, player: PlayerId) {
     pending.sourceIid === awaiting.sourceIid && pending.abilityIndex === awaiting.abilityIndex ? pending : null;
 }
 
-function sameTarget(a: TargetRef, b: TargetRef): boolean {
-  if (a.kind === 'permanent' && b.kind === 'permanent') return a.iid === b.iid;
-  if (a.kind === 'player' && b.kind === 'player') return a.player === b.player;
-  if (a.kind === 'stackItem' && b.kind === 'stackItem') return a.sid === b.sid;
-  return a.kind === 'grave' && b.kind === 'grave' && a.player === b.player && a.index === b.index;
-}
-
 /** One validation path for keyboard and pointer, including stale source/target guards. */
 export function confirmDeferredTarget(state: GameState, db: CardDb, player: PlayerId, target: TargetRef): ChooseTargetAction | null {
   if (!pendingTarget(state, player) || state.awaiting.kind !== 'chooseTarget') return null;
-  const offered = state.awaiting.targets.find((candidate) => sameTarget(candidate, target));
+  const offered = state.awaiting.targets.find((candidate) => sameTargetRef(candidate, target));
   if (!offered) return null;
   const action: ChooseTargetAction = { type: 'chooseTarget', target: offered };
   return validateAction(state, db, player, action) === null ? action : null;
@@ -114,7 +109,7 @@ function targetChoiceNoun(spec: TargetSpec): string {
     yourPermanent: 'permanent you control', yourGraveCreature: 'creature card from your graveyard',
     artifact: 'artifact', enchantment: 'enchantment', artifactOrEnchantment: 'artifact or enchantment',
   };
-  const adjectives = [spec.marked ? 'Marked' : '', spec.tapped ? 'tapped' : ''].filter(Boolean);
+  const adjectives = [spec.marked ? 'Marked' : '', spec.tapped ? 'tapped' : '', spec.attacking ? 'attacking' : ''].filter(Boolean);
   const restrictions = [
     spec.maxCost === undefined ? '' : `cost ${spec.maxCost} or less`,
     spec.minAttack === undefined ? '' : `attack ${spec.minAttack} or more`,
@@ -133,7 +128,10 @@ export function deferredTargetPrompt(state: GameState, db: CardDb, player: Playe
   const event = when === 'attacks' ? ' attacks' : when === 'dawn' ? ' at Dawn' : when === 'sunset' ? ' at Sunset' : '';
   return {
     sourceCardId: card.id,
-    title: when === 'arrives' ? targetPromptTitle(card.name) : `${card.name}${event}: choose ${targetChoiceNoun(pending.spec)}`,
+    // A source-bound Hunt's one target is its prey (1.9 A2.a): the approved step prompt.
+    title: abilityHuntsPrey(card.abilities?.[pending.abilityIndex])
+      ? `${card.name}${event}: ${HUNT_PREY_PROMPT}`
+      : when === 'arrives' ? targetPromptTitle(card.name) : `${card.name}${event}: choose ${targetChoiceNoun(pending.spec)}`,
     text: targetAbilityText(card, pending.abilityIndex), canCancel: false as const,
   };
 }

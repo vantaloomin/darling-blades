@@ -2,6 +2,7 @@ import type { CardDef } from '../engine/types';
 import { isType } from '../engine/types';
 import { STARBORNE } from './cards/starborne';
 import { DROWNED_DEEP } from './cards/drowned-deep';
+import { FIRST_DAWN } from './cards/first-dawn';
 import { TOKENS } from './cards/tokens';
 
 // ---------------------------------------------------------------------------
@@ -814,6 +815,42 @@ for (const card of [...DROWNED_DEEP, ...TOKENS.filter((token) => DROWNED_DEEP_TO
   if (isType(card, 'creature') && !ATTACK_FX_MAP[card.id]) {
     const rule = DROWNED_DEEP_FX_RULES.find((candidate) => candidate.matches(card));
     ATTACK_FX_MAP[card.id] = DROWNED_DEEP_TOKEN_FX[card.id] ?? (rule
+      ? { archetype: rule.archetype, heavy: rule.heavy(card) }
+      : { archetype: fallbackArchetype(card), heavy: fallbackHeavy(card) });
+  }
+}
+
+const FIRST_DAWN_TOKEN_FX: Record<string, AttackFxSpec> = {
+  'tok-hatchling': { archetype: 'claw', heavy: false },
+  'tok-pack-raptor': { archetype: 'claw', heavy: false },
+  'tok-tar-bones': { archetype: 'shadow', heavy: false },
+  'tok-glider': { archetype: 'aerial', heavy: false },
+};
+
+const FIRST_DAWN_FX_RULES: readonly {
+  matches: (card: CardDef) => boolean;
+  archetype: AttackArchetype;
+  heavy: (card: CardDef) => boolean;
+}[] = [
+  { matches: (card) => card.keywords?.includes('skyborne') === true,
+    archetype: 'aerial', heavy: () => false },
+  { matches: (card) => card.subtypes.includes('Skeleton'), archetype: 'shadow', heavy: () => false },
+  { matches: (card) => card.subtypes.some((subtype) => ['Witch', 'Seer', 'Shaman'].includes(subtype)),
+    archetype: 'arcane', heavy: () => false },
+  { matches: (card) => card.subtypes.includes('Spearwoman'), archetype: 'pierce', heavy: () => false },
+  { matches: (card) => card.subtypes.some((subtype) => [
+    'Dinokin', 'Dinosaur', 'Tyrant', 'Hornback', 'Armourback', 'Longneck', 'Raptor', 'Beastkin', 'Bearkin',
+  ].includes(subtype)), archetype: 'claw', heavy: (card) => (card.attack ?? 0) >= 5 },
+  { matches: (card) => card.subtypes.includes('Human'), archetype: 'slash', heavy: (card) => (card.attack ?? 0) >= 5 },
+];
+
+// First Dawn (2026-10-01): the set's beasts strike as claws, its fossil
+// token as shadow, its sky creatures aerially, and its human specialists by
+// weapon or magic. First match wins; token identities override the rules.
+for (const card of [...FIRST_DAWN, ...TOKENS.filter((token) => FIRST_DAWN_TOKEN_FX[token.id])]) {
+  if (isType(card, 'creature') && !ATTACK_FX_MAP[card.id]) {
+    const rule = FIRST_DAWN_FX_RULES.find((candidate) => candidate.matches(card));
+    ATTACK_FX_MAP[card.id] = FIRST_DAWN_TOKEN_FX[card.id] ?? (rule
       ? { archetype: rule.archetype, heavy: rule.heavy(card) }
       : { archetype: fallbackArchetype(card), heavy: fallbackHeavy(card) });
   }

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { Art } from '../art/ArtResolver';
+import { liveArtStore } from '../art/artLoader';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { ECONOMY } from '../config/rules';
@@ -28,24 +28,35 @@ import {
   type HoloFinish,
 } from '../meta/variants';
 import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestures';
-import { makeCardThumb } from '../ui/CardThumbCache';
+import { IS_DEV } from '../platform/env';
+import type { SaveData } from '../meta/SaveManager';
+import { makeCardThumb, thumbArtWanted } from '../ui/CardThumbCache';
 import { FRAME_TREATMENTS } from '../ui/CardFrameFactory';
 import { CardView } from '../ui/CardView';
 import { computeDeckStats, CURVE_MAX, PIE_COLORS } from '../ui/deckStats';
 import { addKeywordGlossaryPanel } from '../ui/KeywordGlossaryPanel';
+import { rarityLine } from '../ui/CardZoomPreview';
 import { leaveDraftPrompt } from '../ui/leaveDraftPrompt';
 import {
+  LIMITED_PICKS_PANEL,
+  limitedPicksLayout,
+  PICK_THUMB_SCALE,
   premiumGrantSummary,
   premiumOwnershipLine,
   type LimitedBuilderEntry,
+  type LimitedDraftA11yFixture,
   type PremiumGrantSummary,
 } from '../ui/limitedDraftPresentation';
 import { bakeManaSymbols } from '../ui/ManaSymbols';
 import { ModalGuard } from '../ui/Modal';
-import { gateOnArt } from '../ui/artGate';
+import { fitMenuName, type MenuDensity } from '../ui/menuText';
+import { gateOnArt, PagedArt } from '../ui/artGate';
+import { addPortraitArt } from '../ui/portraitArt';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { sceneTitle } from '../ui/sceneTitle';
 import { colorInt, theme } from '../ui/theme';
+import { currentAccessibility } from '../ui/accessibility';
+import { TRIGGER_SELECTED_MARK } from '../ui/controlStyle';
 import {
   backButton,
   modalShell,
@@ -59,9 +70,13 @@ import {
 const DESIGN_W = theme.design.width;
 const DESIGN_H = theme.design.height;
 const PACK_THUMB_SCALE = 0.25;
-const PICK_THUMB_SCALE = 0.09;
 const PACK_COLS = 5;
-const PICK_COLS = 9;
+/** The pack grid (card faces, never scaled): three rows of five. */
+const PACK_TOP = 330;
+const PACK_ROW_PITCH = 122;
+const PACK_PLATE = { width: 86, height: 116 } as const;
+/** The persona modal: the release 700x420 panel, its top at y 150; it grows downward. */
+const PERSONA_MODAL = { width: 700, height: 420, top: 150 } as const;
 /** Seat-table geometry, shared by the row layout and the pass animation. */
 const SEAT_FIRST_X = 140;
 const SEAT_PITCH = 142;
@@ -83,6 +98,8 @@ interface SeatIdentity {
 interface PackCell {
   plate: Phaser.GameObjects.Rectangle;
   thumb: Phaser.GameObjects.Image;
+  /** The selected mark under the plate, so selection is not carried by colour alone. */
+  mark: Phaser.GameObjects.Rectangle;
   baseStroke: number;
   baseStrokeWidth: number;
   baseStrokeAlpha: number;
@@ -102,6 +119,13 @@ export class LimitedDraftScene extends Phaser.Scene {
   private leavePrompt: ModalShell | null = null;
   /** True while the pass animation plays — re-entry guard for confirmPick. */
   private passing = false;
+  /** Dev-only probe fixture: an in-memory save read instead of the real one, never persisted. */
+  private fixture: LimitedDraftA11yFixture | null = null;
+  private fixtureSave: SaveData | null = null;
+  private touch = false;
+  private get saveData(): SaveData {
+    return this.fixtureSave ?? Services.save.data;
+  }
 
   /**
    * Visual column for a seat: You, 7, 6, … 1 left-to-right, so the engine's
@@ -117,20 +141,33 @@ export class LimitedDraftScene extends Phaser.Scene {
   }
 
   /**
-   * Every card in every pack of the run — the picks table and the pack grid
-   * both draw from them — plus the seat portraits of the run's own personas
-   * (they are drawn beside the packs, so they belong in the same wait).
+   * Stream only the human's current pack at half tier and the table's
+   * portraits at primary. The old loader keeps its whole-run gate.
    */
-  create(): void {
-    const run = Services.save.data.limited.activeRun;
+  create(data: { a11yFixture?: LimitedDraftA11yFixture } = {}): void {
+    this.fixture = IS_DEV ? data.a11yFixture ?? null : null;
+    this.fixtureSave = this.fixture ? structuredClone(this.fixture.save) : null;
+    // Phaser keeps a start's data for the next start that passes none, so a
+    // fixture must not outlive its probe visit.
+    if (this.fixture) this.sys.settings.data = {};
+    this.touch = this.fixture?.touch ?? isTouchDevice();
+    this.data.set('a11yReady', false);
+    const run = this.saveData.limited.activeRun;
     const draft = run?.draft;
+    const portraits = (draft?.personaIds ?? [])
+      .map((id) => draftPersonaById(id)?.portraitCardId)
+      .filter((id): id is string => typeof id === 'string');
+    if (liveArtStore() !== null) {
+      gateOnArt(this, portraits, () => {
+        gateOnArt(this, draft ? currentDraftPack(draft) : [], () => this.build(), { tier: 'half' });
+      });
+      return;
+    }
     const ids = [
       ...(draft?.currentPacks.flat() ?? []),
       ...(draft?.packs.flat(2) ?? []),
       ...(draft?.picks.flat() ?? []),
-      ...(draft?.personaIds ?? [])
-        .map((id) => draftPersonaById(id)?.portraitCardId)
-        .filter((id): id is string => typeof id === 'string'),
+      ...portraits,
     ];
     gateOnArt(this, ids, () => this.build());
   }
@@ -181,7 +218,7 @@ export class LimitedDraftScene extends Phaser.Scene {
     }
     Music.setMood('menu');
 
-    const run = Services.save.data.limited.activeRun;
+    const run = this.saveData.limited.activeRun;
     if (!run || !run.draft) {
       this.scene.start('Limited');
       return;
@@ -190,10 +227,10 @@ export class LimitedDraftScene extends Phaser.Scene {
     registerSceneBackNavigation(this, () => this.leaveDraft());
     if (run.draft.completed) {
       // Interrupted-save path (confirmPick normally records before this).
-      const grant = premiumGrantSummary(grantPremiumDraftPool(Services.save.data, CARD_DB, run));
-      recordDraftEncounters(Services.save.data.limited, run);
-      Services.save.data.limited.activeRun = completeDraftRun(CARD_DB, run);
-      Services.save.flush();
+      const grant = premiumGrantSummary(grantPremiumDraftPool(this.saveData, CARD_DB, run));
+      recordDraftEncounters(this.saveData.limited, run);
+      this.saveData.limited.activeRun = completeDraftRun(CARD_DB, run);
+      this.persist();
       this.openBuilder(grant);
       return;
     }
@@ -204,6 +241,33 @@ export class LimitedDraftScene extends Phaser.Scene {
     this.drawPack(run, pack);
     this.drawPicks(run);
     this.drawActions(run);
+    this.openFixtureState(run, pack);
+    this.data.set('a11yReady', true);
+  }
+
+  /** The probe fixture's selection and modal, opened the way a player opens them. */
+  private openFixtureState(run: LimitedRun, pack: readonly string[]): void {
+    const f = this.fixture;
+    if (!f) return;
+    if (f.select !== undefined && pack[f.select]) this.selectCard(f.select, pack[f.select]);
+    if (f.modal === 'leave') this.leaveDraft();
+    if (f.modal === 'persona') this.showPersona(this.identityForSeat(run, f.seat ?? 0));
+    if (f.modal === 'inspect' && pack[f.inspect ?? 0]) this.showCardInspect(def(CARD_DB, pack[f.inspect ?? 0]), f.inspect ?? 0);
+  }
+
+  /** The release grid density, the 100% contract the probe checks. */
+  private recordDensity(actual: MenuDensity, release: MenuDensity): void {
+    const density = (this.data.get('a11yDensity') as { actual: MenuDensity[]; release: MenuDensity[] } | undefined)
+      ?? { actual: [], release: [] };
+    this.data.set('a11yDensity', {
+      actual: [...density.actual.filter((d) => d.id !== actual.id), actual],
+      release: [...density.release.filter((d) => d.id !== release.id), release],
+    });
+  }
+
+  /** Fixtures never reach storage. */
+  private persist(): void {
+    if (!this.fixture) Services.save.flush();
   }
 
   private drawHeader(run: LimitedRun, remainingCards: number): void {
@@ -332,6 +396,8 @@ export class LimitedDraftScene extends Phaser.Scene {
       color: theme.colors.heading,
     });
 
+    this.recordDensity({ id: 'pack', rows: 3, columns: PACK_COLS, pitch: PACK_ROW_PITCH, top: PACK_TOP },
+      { id: 'pack', rows: 3, columns: 5, pitch: 122, top: 330 });
     pack.forEach((id, index) => {
       const card = def(CARD_DB, id);
       const variant = run.premium ? run.draft?.currentPackVariants?.[0]?.[index] : undefined;
@@ -342,9 +408,9 @@ export class LimitedDraftScene extends Phaser.Scene {
       const col = index % PACK_COLS;
       const row = Math.floor(index / PACK_COLS);
       const cx = 128 + col * 150;
-      const cy = 330 + row * 122;
+      const cy = PACK_TOP + row * PACK_ROW_PITCH;
       const plate = this.add
-        .rectangle(cx, cy, 86, 116, theme.graphics.rowFill, 0.92)
+        .rectangle(cx, cy, PACK_PLATE.width, PACK_PLATE.height, theme.graphics.rowFill, 0.92)
         .setStrokeStyle(baseStrokeWidth, baseStroke, baseStrokeAlpha);
       if (special) {
         this.add
@@ -370,24 +436,42 @@ export class LimitedDraftScene extends Phaser.Scene {
         }
       });
       thumb.on('pointerout', () => this.refreshPackSelection());
-      this.packCells.push({ plate, thumb, baseStroke, baseStrokeWidth, baseStrokeAlpha });
+      // A gold bar just under the plate, half its width (the filter
+      // trigger's selected mark): the selected plate's gold stroke and fill
+      // would otherwise be the only carriers, beside special prints' own
+      // coloured strokes. It sits in the 6px gap above the next row.
+      const thickness = currentAccessibility().highContrast
+        ? TRIGGER_SELECTED_MARK.highContrastThickness
+        : TRIGGER_SELECTED_MARK.thickness;
+      const mark = this.add
+        .rectangle(cx, cy + PACK_PLATE.height / 2 + 2 + thickness / 2, PACK_PLATE.width / 2, thickness, colorInt(theme.colors.gold), 1)
+        .setVisible(false);
+      this.packCells.push({ plate, thumb, mark, baseStroke, baseStrokeWidth, baseStrokeAlpha });
       this.interactiveTargets.push(thumb);
     });
   }
 
   private drawPicks(run: LimitedRun): void {
     const picks = [...(run.draft?.picks[0] ?? [])].reverse();
+    const art = new PagedArt(this, 'draft-picks');
+    const wanted = picks.flatMap((id) => {
+      const request = thumbArtWanted(this, def(CARD_DB, id));
+      return request === null ? [] : [request.key];
+    });
+    art.show(wanted);
     const stats = computeDeckStats([...picks], CARD_DB);
-    const x = 848;
-    const y = 224;
-    panel(this, x, y, 368, 404, { alpha: 0.96 });
+    const P = LIMITED_PICKS_PANEL;
+    const L = limitedPicksLayout();
+    const x = P.x;
+    const y = P.y;
+    panel(this, x, y, P.width, P.height, { alpha: 0.96 });
     this.add.text(x + 16, y + 12, `Your Picks (${picks.length})`, {
       fontFamily: theme.fonts.display,
       fontSize: `${theme.type.h2}px`,
       color: theme.colors.heading,
     });
 
-    this.add.text(x + 16, y + 49, 'COLORS', {
+    this.add.text(x + 16, y + L.colorsTop, 'COLORS', {
       fontFamily: theme.fonts.ui,
       fontSize: `${theme.type.micro}px`,
       fontStyle: theme.weight.w700,
@@ -395,9 +479,9 @@ export class LimitedDraftScene extends Phaser.Scene {
     });
     PIE_COLORS.forEach((color, index) => {
       const pipX = x + 27 + index * 67;
-      this.add.image(pipX, y + 70, `pip-${color}`).setDisplaySize(18, 18);
+      this.add.image(pipX, y + L.pipY, `pip-${color}`).setDisplaySize(18, 18);
       this.add
-        .text(pipX + 13, y + 70, String(stats.colorPips[color]), {
+        .text(pipX + 13, y + L.pipY, String(stats.colorPips[color]), {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           fontStyle: theme.weight.w600,
@@ -406,7 +490,7 @@ export class LimitedDraftScene extends Phaser.Scene {
         .setOrigin(0, 0.5);
     });
 
-    this.add.text(x + 16, y + 91, 'MANA CURVE', {
+    this.add.text(x + 16, y + L.curveTop, 'MANA CURVE', {
       fontFamily: theme.fonts.ui,
       fontSize: `${theme.type.micro}px`,
       fontStyle: theme.weight.w700,
@@ -415,14 +499,14 @@ export class LimitedDraftScene extends Phaser.Scene {
     for (let mv = 0; mv <= CURVE_MAX; mv++) {
       const cx = x + 32 + mv * 41;
       this.add
-        .text(cx, y + 111, mv === CURVE_MAX ? '7+' : String(mv), {
+        .text(cx, y + L.axisY, mv === CURVE_MAX ? '7+' : String(mv), {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.micro}px`,
           color: theme.colors.muted,
         })
         .setOrigin(0.5);
       this.add
-        .text(cx, y + 130, String(stats.curve[mv]), {
+        .text(cx, y + L.countY, String(stats.curve[mv]), {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           fontStyle: theme.weight.w700,
@@ -431,8 +515,8 @@ export class LimitedDraftScene extends Phaser.Scene {
         .setOrigin(0.5);
     }
 
-    this.add.rectangle(x + 184, y + 153, 336, 1, theme.graphics.panelStroke, 1);
-    this.add.text(x + 16, y + 164, 'DRAFTED CARDS · MOST RECENT FIRST', {
+    this.add.rectangle(x + 184, y + L.ruleY, 336, 1, theme.graphics.panelStroke, 1);
+    this.add.text(x + 16, y + L.listTop, 'DRAFTED CARDS · MOST RECENT FIRST', {
       fontFamily: theme.fonts.ui,
       fontSize: `${theme.type.micro}px`,
       fontStyle: theme.weight.w700,
@@ -440,13 +524,15 @@ export class LimitedDraftScene extends Phaser.Scene {
     });
 
     picks.forEach((id, index) => {
-      const col = index % PICK_COLS;
-      const row = Math.floor(index / PICK_COLS);
-      makeCardThumb(this, x + 35 + col * 37, y + 204 + row * 43, def(CARD_DB, id), PICK_THUMB_SCALE);
+      const col = index % L.columns;
+      const row = Math.floor(index / L.columns);
+      makeCardThumb(this, x + P.thumbInset + col * L.columnPitch, y + L.gridTop + row * L.rowPitch, def(CARD_DB, id), PICK_THUMB_SCALE);
     });
+    this.recordDensity({ id: 'picks', rows: L.rows, columns: L.columns, pitch: L.rowPitch, top: y + L.gridTop },
+      { id: 'picks', rows: 5, columns: 9, pitch: 43, top: 428 });
     if (picks.length === 0) {
       this.add
-        .text(x + 184, y + 285, 'Your picks will collect here.', {
+        .text(x + 184, y + L.emptyY, 'Your picks will collect here.', {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.label}px`,
           color: theme.colors.muted,
@@ -459,7 +545,7 @@ export class LimitedDraftScene extends Phaser.Scene {
     this.add.text(
       theme.design.safeLeft,
       660,
-      isTouchDevice()
+      this.touch
         ? 'Tap a card to select · long-press to inspect'
         : 'Click selects · right-click inspects · in inspect: arrows browse, Space/Enter selects then picks',
       {
@@ -479,7 +565,7 @@ export class LimitedDraftScene extends Phaser.Scene {
   }
 
   private leaveDraft(): void {
-    const run = Services.save.data.limited.activeRun;
+    const run = this.saveData.limited.activeRun;
     if (!run) {
       this.scene.start('Limited');
       return;
@@ -506,7 +592,7 @@ export class LimitedDraftScene extends Phaser.Scene {
 
   /** The pack shown by the current draft state (empty when no run). */
   private currentPack(): readonly string[] {
-    const run = Services.save.data.limited.activeRun;
+    const run = this.saveData.limited.activeRun;
     return run?.draft ? currentDraftPack(run.draft) : [];
   }
 
@@ -532,7 +618,7 @@ export class LimitedDraftScene extends Phaser.Scene {
       this.refreshInspectHint();
       return;
     }
-    const run = Services.save.data.limited.activeRun;
+    const run = this.saveData.limited.activeRun;
     if (!run) return;
     this.closeModal();
     this.confirmPick(run);
@@ -551,8 +637,9 @@ export class LimitedDraftScene extends Phaser.Scene {
   }
 
   private refreshPackSelection(): void {
-    this.packCells.forEach(({ plate, baseStroke, baseStrokeWidth, baseStrokeAlpha }, index) => {
+    this.packCells.forEach(({ plate, mark, baseStroke, baseStrokeWidth, baseStrokeAlpha }, index) => {
       const selected = index === this.selectedCell;
+      mark.setVisible(selected);
       plate
         .setFillStyle(selected ? theme.graphics.rowFillActive : theme.graphics.rowFill, selected ? 1 : 0.92)
         .setStrokeStyle(
@@ -565,9 +652,81 @@ export class LimitedDraftScene extends Phaser.Scene {
 
   private showPersona(identity: SeatIdentity): void {
     this.closeModal();
+    // The reading column flows top to bottom from each line's measured
+    // bottom; the release offsets (name 214, the next line 259, colours 302,
+    // the blurb or hint 352, familiarity 465) are floors, so the standard
+    // size draws as before and larger text pushes lines down instead of
+    // over each other. The panel's top stays put and it grows downward.
+    const columnX = 582;
+    const wrap = { width: 330, useAdvancedWrap: true };
+    const lines: Phaser.GameObjects.Text[] = [];
+    let bottom = 0;
+    const line = (floor: number, text: Phaser.GameObjects.Text): Phaser.GameObjects.Text => {
+      text.setY(Math.max(floor, bottom === 0 ? floor : bottom + theme.space(2)));
+      bottom = text.y + text.height;
+      lines.push(text);
+      return text;
+    };
+    const name = line(214, this.add.text(columnX, 0, identity.name, {
+      fontFamily: theme.fonts.display,
+      fontSize: `${theme.type.h1}px`,
+      color: theme.colors.heading,
+    }));
+    fitMenuName(name, wrap.width, 3);
+    bottom = name.y + name.height;
+    // Progressive reveal: tier 2 shows color habits, tier 3 the theme, tier 4
+    // the full read. Below the threshold each slot shows what's still hidden.
+    if (identity.tier >= 3) {
+      fitMenuName(line(259, this.add.text(columnX, 0, identity.title, {
+        fontFamily: theme.fonts.display,
+        fontSize: `${theme.type.body}px`,
+        fontStyle: 'italic',
+        color: theme.colors.gold,
+        wordWrap: wrap,
+      })), wrap.width, 3);
+    }
+    if (identity.tier >= 2) {
+      line(identity.tier >= 3 ? 302 : 259, this.add.text(columnX, 0, `Colors: ${identity.colorHint}`, {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.label}px`,
+        color: theme.colors.body,
+        lineSpacing: 5,
+        wordWrap: wrap,
+      }));
+    }
+    if (identity.tier >= 4) {
+      line(352, this.add.text(columnX, 0, identity.blurb, {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.body}px`,
+        color: theme.colors.body,
+        lineSpacing: 6,
+        wordWrap: wrap,
+      }));
+    } else {
+      line(identity.tier >= 2 ? 352 : 259, this.add.text(columnX, 0, revealHint(identity.tier), {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.label}px`,
+        fontStyle: 'italic',
+        color: theme.colors.muted,
+        lineSpacing: 5,
+        wordWrap: wrap,
+      }));
+    }
+    const pips = '◆'.repeat(identity.tier) + '◇'.repeat(4 - identity.tier);
+    line(465, this.add.text(columnX, 0, `Familiarity ${pips}`, {
+      fontFamily: theme.fonts.ui,
+      fontSize: `${theme.type.caption}px`,
+      fontStyle: theme.weight.w700,
+      color: identity.tier >= 4 ? theme.colors.gold : theme.colors.muted,
+    }));
+    for (const text of lines) text.setData('a11yFullText', text.text);
+
+    const top = PERSONA_MODAL.top;
+    const height = Math.max(PERSONA_MODAL.height, Math.ceil(bottom + theme.space(6) - top));
     const shell = modalShell(this, {
-      width: 700,
-      height: 420,
+      width: PERSONA_MODAL.width,
+      height,
+      y: top + height / 2,
       dimAlpha: 0.76,
       depth: theme.depth.modal,
       dismissal: 'dismissible',
@@ -591,71 +750,8 @@ export class LimitedDraftScene extends Phaser.Scene {
     c.add(
       this.add.rectangle(434, 340, 212, 280, theme.graphics.dim, 0).setStrokeStyle(2, colorInt(theme.colors.gold), 1),
     );
-    c.add(
-      this.add.text(582, 214, identity.name, {
-        fontFamily: theme.fonts.display,
-        fontSize: `${theme.type.h1}px`,
-        color: theme.colors.heading,
-        wordWrap: { width: 330 },
-      }),
-    );
-    // Progressive reveal: tier 2 shows color habits, tier 3 the theme, tier 4
-    // the full read. Below the threshold each slot shows what's still hidden.
-    if (identity.tier >= 3) {
-      c.add(
-        this.add.text(582, 259, identity.title, {
-          fontFamily: theme.fonts.display,
-          fontSize: `${theme.type.body}px`,
-          fontStyle: 'italic',
-          color: theme.colors.gold,
-          wordWrap: { width: 330 },
-        }),
-      );
-    }
-    if (identity.tier >= 2) {
-      c.add(
-        this.add.text(582, identity.tier >= 3 ? 302 : 259, `Colors: ${identity.colorHint}`, {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.label}px`,
-          color: theme.colors.body,
-          lineSpacing: 5,
-          wordWrap: { width: 330 },
-        }),
-      );
-    }
-    if (identity.tier >= 4) {
-      c.add(
-        this.add.text(582, 352, identity.blurb, {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.body}px`,
-          color: theme.colors.body,
-          lineSpacing: 6,
-          wordWrap: { width: 330 },
-        }),
-      );
-    } else {
-      c.add(
-        this.add.text(582, identity.tier >= 2 ? 352 : 259, revealHint(identity.tier), {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.label}px`,
-          fontStyle: 'italic',
-          color: theme.colors.muted,
-          lineSpacing: 5,
-          wordWrap: { width: 330 },
-        }),
-      );
-    }
-    const pips = '◆'.repeat(identity.tier) + '◇'.repeat(4 - identity.tier);
-    c.add(
-      this.add.text(582, 465, `Familiarity ${pips}`, {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.caption}px`,
-        fontStyle: theme.weight.w700,
-        color: identity.tier >= 4 ? theme.colors.gold : theme.colors.muted,
-      }),
-    );
+    c.add(lines);
   }
-
   private showCardInspect(card: CardDef, packIndex: number): void {
     this.closeModal();
     const shell = modalShell(this, {
@@ -702,20 +798,21 @@ export class LimitedDraftScene extends Phaser.Scene {
       }),
     );
 
-    const run = Services.save.data.limited.activeRun;
+    const run = this.saveData.limited.activeRun;
     const stats = computeDeckStats([...(run?.draft?.picks[0] ?? [])], CARD_DB);
-    c.add(
-      this.add
-        .text(columnX, 160, 'POOL COLORS', {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.micro}px`,
-          fontStyle: theme.weight.w700,
-          color: theme.colors.muted,
-        })
-        .setOrigin(0, 0.5),
-    );
+    const poolColors = this.add
+      .text(columnX, 160, 'POOL COLORS', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.micro}px`,
+        fontStyle: theme.weight.w700,
+        color: theme.colors.muted,
+      })
+      .setOrigin(0, 0.5);
+    c.add(poolColors);
+    // The first pip (18px wide) keeps a grid step clear of the label as it grows.
+    const firstPipX = Math.max(columnX + 112, poolColors.x + poolColors.width + theme.space(2) + 9);
     PIE_COLORS.forEach((color, index) => {
-      const pipX = columnX + 112 + index * 68;
+      const pipX = firstPipX + index * 68;
       const before = stats.colorPips[color];
       const contribution = card.colors.includes(color) ? (card.cost?.pips[color] ?? 0) : 0;
       c.add(this.add.image(pipX, 160, `pip-${color}`).setDisplaySize(18, 18));
@@ -747,6 +844,7 @@ export class LimitedDraftScene extends Phaser.Scene {
         .setOrigin(0, 0.5),
     );
     const curveBucket = card.types.includes('land') ? null : Math.min(manaValue(card.cost), CURVE_MAX);
+    let curveBottom = 244;
     for (let mv = 0; mv <= CURVE_MAX; mv++) {
       const bucketX = columnX + 94 + mv * 47;
       const highlighted = mv === curveBucket;
@@ -759,55 +857,85 @@ export class LimitedDraftScene extends Phaser.Scene {
           })
           .setOrigin(0.5),
       );
-      c.add(
-        this.add
-          .text(bucketX, 244, highlighted ? `${stats.curve[mv]}→${stats.curve[mv] + 1}` : String(stats.curve[mv]), {
-            fontFamily: theme.fonts.ui,
-            fontSize: `${theme.type.caption}px`,
-            fontStyle: highlighted ? theme.weight.w700 : theme.weight.w600,
-            color: highlighted ? theme.colors.gold : theme.colors.body,
-          })
-          .setOrigin(0.5),
-      );
+      const count = this.add
+        .text(bucketX, 244, highlighted ? `${stats.curve[mv]}→${stats.curve[mv] + 1}` : String(stats.curve[mv]), {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          fontStyle: highlighted ? theme.weight.w700 : theme.weight.w600,
+          color: highlighted ? theme.colors.gold : theme.colors.body,
+        })
+        .setOrigin(0.5);
+      curveBottom = Math.max(curveBottom, count.y + count.height / 2);
+      c.add(count);
+    }
+
+    // The tier as words (the face shows it only as a gem colour), between the
+    // curve and the glossary panel, which starts below its measured bottom.
+    let glossaryTop = 300;
+    if (!card.token) {
+      const rarity = this.add.text(columnX, curveBottom + theme.space(3), rarityLine(card), {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        fontStyle: theme.weight.w600,
+        color: theme.colors.body,
+        wordWrap: { width: columnWidth },
+      });
+      glossaryTop = Math.max(glossaryTop, rarity.y + rarity.height + theme.space(4));
+      c.add(rarity);
     }
 
     // Every glossary term the card uses, not only combat keywords: the panel
     // reads the same entries Collection's inspect shows (Duty, Foresee,
     // Sever...) and draws nothing for a card with none.
-    addKeywordGlossaryPanel(this, c, card, {
-      x: columnX,
-      y: 300,
-      width: columnWidth,
-      maxHeight: run?.premium ? 200 : 280,
-    });
+    const closeHint = this.add
+      .text(884, 598, `${this.touch ? 'Tap' : 'Click'} outside or use × to close`, {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        color: theme.colors.muted,
+      })
+      .setOrigin(0.5);
 
+    // The Premium lines: the print at y 520 and the ownership line at 550 at
+    // the standard size; a wrapped print line pushes the ownership line down,
+    // and if the pair would reach the close hint the pair moves up instead,
+    // taking the room out of the glossary panel above it.
+    let glossaryBottom = run?.premium ? 500 : 580;
     if (run?.premium) {
-      c.add(
-        this.add.text(columnX, 520, premiumVariantLine(variant), {
+      const print = this.add.text(columnX, 520, premiumVariantLine(variant), {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        fontStyle: theme.weight.w600,
+        color: !variant || isPlainVariant(variant) ? theme.colors.body : theme.colors.gold,
+        wordWrap: { width: columnWidth },
+      });
+      const ownership = this.add.text(
+        columnX,
+        0,
+        premiumOwnershipLine(this.saveData, card.id, variant, {
+          picks: run.draft?.picks[0] ?? [],
+          pickVariants: run.draft?.pickVariants,
+        }),
+        {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
-          fontStyle: theme.weight.w600,
-          color: !variant || isPlainVariant(variant) ? theme.colors.body : theme.colors.gold,
+          color: theme.colors.muted,
           wordWrap: { width: columnWidth },
-        }),
+        },
       );
-      c.add(
-        this.add.text(
-          columnX,
-          550,
-          premiumOwnershipLine(Services.save.data, card.id, variant, {
-            picks: run.draft?.picks[0] ?? [],
-            pickVariants: run.draft?.pickVariants,
-          }),
-          {
-            fontFamily: theme.fonts.ui,
-            fontSize: `${theme.type.caption}px`,
-            color: theme.colors.muted,
-            wordWrap: { width: columnWidth },
-          },
-        ),
-      );
+      ownership.setY(Math.max(550, print.y + print.height + theme.space(2)));
+      const limit = closeHint.y - closeHint.height / 2 - theme.space(2);
+      const lift = Math.max(0, ownership.y + ownership.height - limit);
+      print.y -= lift;
+      ownership.y -= lift;
+      glossaryBottom = Math.min(glossaryBottom, print.y - theme.space(5));
+      c.add([print, ownership]);
     }
+    addKeywordGlossaryPanel(this, c, card, {
+      x: columnX,
+      y: glossaryTop,
+      width: columnWidth,
+      maxHeight: glossaryBottom - glossaryTop,
+    });
     this.inspectHint = this.add
       .text(640, 634, '', {
         fontFamily: theme.fonts.ui,
@@ -818,15 +946,7 @@ export class LimitedDraftScene extends Phaser.Scene {
       .setOrigin(0.5);
     c.add(this.inspectHint);
     this.refreshInspectHint();
-    c.add(
-      this.add
-        .text(884, 598, `${isTouchDevice() ? 'Tap' : 'Click'} outside or use × to close`, {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.caption}px`,
-          color: theme.colors.muted,
-        })
-        .setOrigin(0.5),
-    );
+    c.add(closeHint);
   }
 
   private identityForSeat(run: LimitedRun, seat: number): SeatIdentity {
@@ -860,7 +980,7 @@ export class LimitedDraftScene extends Phaser.Scene {
       colorHint: persona.colorHint,
       // Familiarity is earned: profiles unlock over completed drafts together
       // (the current run counts as the first meeting).
-      tier: personaRevealTier(Services.save.data.limited, persona.id),
+      tier: personaRevealTier(this.saveData.limited, persona.id),
       portraitCardId: persona.portraitCardId,
       human: false,
     };
@@ -878,15 +998,13 @@ export class LimitedDraftScene extends Phaser.Scene {
   ): void {
     if (!cardId) return;
     try {
-      const ref = Art.resolver?.getArt(cardId);
-      if (!ref) return;
-      const image = this.add.image(x, y, ref.textureKey, ref.frameName);
-      // Overscan must cover the face-bias shift below: (1.16-1)/2 = 0.08 per
-      // side >= the 0.08*targetH upward shift, or the mask bottom shows bare
-      // panel behind height-bound fits (all card art is 320x400).
-      const scale = Math.max(targetW / image.width, targetH / image.height) * 1.16;
-      image.setScale(scale);
-      image.y = y - targetH * 0.08;
+      // Overscan must cover the face-bias shift: (1.16-1)/2 = 0.08 per side >=
+      // the 0.08*targetH upward shift, or the mask bottom shows bare panel
+      // behind height-bound fits (all card art is 4:5).
+      const image = addPortraitArt(this, x, y - targetH * 0.08, cardId, (art) => {
+        art.setScale(Math.max(targetW / art.width, targetH / art.height) * 1.16);
+      });
+      if (!image) return;
       const maskShape = circular
         ? this.add.circle(x, y, Math.min(targetW, targetH) / 2, theme.graphics.dim).setVisible(false)
         : this.add.rectangle(x, y, targetW, targetH, theme.graphics.dim).setVisible(false);
@@ -912,9 +1030,9 @@ export class LimitedDraftScene extends Phaser.Scene {
   }
 
   /**
-   * On to the deck builder with what the grant did: the run does not store it,
-   * so this hand-off is the only way its note can name real numbers. A free
-   * draft grants nothing (drafted 0) and the builder shows no note.
+   * On to the deck builder with what the grant did (the grant also stored it
+   * on the save, so later visits read it back through `storedPremiumGrant`).
+   * A free draft grants nothing (drafted 0) and the builder shows no note.
    */
   private openBuilder(grant: PremiumGrantSummary): void {
     const entry: LimitedBuilderEntry = grant.drafted > 0 ? { premiumGrant: grant } : {};
@@ -922,6 +1040,7 @@ export class LimitedDraftScene extends Phaser.Scene {
   }
 
   private confirmPick(run: LimitedRun): void {
+    if (this.fixture) return;
     if (this.passing || !this.selectedId || !run.draft) return;
     const prevPackIndex = run.draft.packIndex;
     const updated: LimitedRun = {
@@ -932,13 +1051,13 @@ export class LimitedDraftScene extends Phaser.Scene {
     if (updated.draft?.completed) {
       // A finished draft (all 45 picks) is what teaches you the table —
       // familiarity advances exactly once per completed draft per persona.
-      grant = premiumGrantSummary(grantPremiumDraftPool(Services.save.data, CARD_DB, updated));
-      recordDraftEncounters(Services.save.data.limited, updated);
+      grant = premiumGrantSummary(grantPremiumDraftPool(this.saveData, CARD_DB, updated));
+      recordDraftEncounters(this.saveData.limited, updated);
     }
-    Services.save.data.limited.activeRun = updated.draft?.completed
+    this.saveData.limited.activeRun = updated.draft?.completed
       ? completeDraftRun(CARD_DB, updated)
       : updated;
-    Services.save.flush();
+    this.persist();
     if (grant) {
       this.openBuilder(grant);
       return;
@@ -947,7 +1066,7 @@ export class LimitedDraftScene extends Phaser.Scene {
     // one seat over before the next pick appears. Pack boundaries (fresh packs
     // are opened, nothing passes) and non-full animation settings skip it.
     const samePack = updated.draft!.packIndex === prevPackIndex;
-    if (!samePack || Services.save.data.settings.animations !== 'full') {
+    if (!samePack || this.saveData.settings.animations !== 'full') {
       this.scene.start('LimitedDraft');
       return;
     }
@@ -993,7 +1112,7 @@ export class LimitedDraftScene extends Phaser.Scene {
   }
 
   private currentPackVariant(index: number): CardVariant | undefined {
-    const run = Services.save.data.limited.activeRun;
+    const run = this.saveData.limited.activeRun;
     return run?.premium ? run.draft?.currentPackVariants?.[0]?.[index] : undefined;
   }
 

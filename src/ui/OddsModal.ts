@@ -1,13 +1,16 @@
 import Phaser from 'phaser';
 import { DROPS } from '../config/rules';
 import { SET_TITLES } from '../data/setTitles';
+import type { BoosterSku } from '../meta/boosterSkus';
 import { modalGuardTarget } from './Modal';
 import { OverlayCoordinator } from './OverlayCoordinator';
 import { measuredRowsLayout } from './layout';
+import { fitMenuName } from './menuText';
+import { shopModalLayout } from './shopPresentation';
 import { theme } from './theme';
 import { modalShell, themedButton, type ModalShell } from './themeWidgets';
 
-export type BoosterSku = 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales' | 'yokai-nights' | 'sands-of-the-duat' | 'starborne' | 'drowned-deep';
+export type { BoosterSku } from '../meta/boosterSkus';
 
 interface PackOddsMeta {
   packName: string;
@@ -32,6 +35,7 @@ const PACK_ODDS_META: Record<BoosterSku, PackOddsMeta> = {
   'sands-of-the-duat': { packName: SET_TITLES['sands-of-the-duat'], setName: SET_TITLES['sands-of-the-duat'] },
   starborne: { packName: SET_TITLES.starborne, setName: SET_TITLES.starborne },
   'drowned-deep': { packName: SET_TITLES['drowned-deep'], setName: SET_TITLES['drowned-deep'] },
+  'first-dawn': { packName: SET_TITLES['first-dawn'], setName: SET_TITLES['first-dawn'] },
 };
 
 const TIER_LABELS: Record<string, string> = { c: 'C', r: 'R', sr: 'SR', ssr: 'SSR', ur: 'UR' };
@@ -92,36 +96,16 @@ export function createOddsModal(
       colorFor: () => theme.colors.body,
     },
   ];
-  const rowHeight = theme.space(5);
+  const measure = scene.add.text(0, 0, 'Ag', { fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px` });
+  const rowHeight = Math.max(theme.space(5), measure.height + theme.space(1));
+  measure.destroy();
   const columnGap = theme.space(3);
-  const shell = modalShell(scene, {
-    width: 860,
-    height: 520,
-    dimAlpha: 0.52,
-    depth: theme.depth.modal,
-    showClose: false,
-    tapDimToClose: true,
-    escToClose: false,
-    coordinator,
-    registration: {
-      dismissible: true,
-      guardTargets: guardTargets.map(modalGuardTarget),
-    },
-    onClose,
-  });
-
-  const content = shell.tracks.contentBounds;
-  const container = shell.container;
-  const titleTrack = shell.tracks.titleTrack;
-  container.add(
-    scene.add
-      .text(titleTrack.x + titleTrack.width / 2, titleTrack.y + titleTrack.height / 2, `${meta.packName} Drop Rates`, {
-        fontFamily: theme.fonts.display,
-        fontSize: `${theme.type.h1}px`,
-        color: theme.colors.gold,
-      })
-      .setOrigin(0.5),
-  );
+  const content = { x: 0, y: 0, width: 812, height: theme.design.safeHeight };
+  const container = scene.add.container(0, 0);
+  const title = scene.add.text(0, 0, `${meta.packName} Drop Rates`, {
+    fontFamily: theme.fonts.display, fontSize: `${theme.type.h1}px`, color: theme.colors.gold, align: 'center',
+  }).setOrigin(0.5);
+  fitMenuName(title, 740, 2);
 
   const lead = scene.add
     .text(content.x, content.y, 'Per card. Each slot rolls rarity, frame, holo finish, and Full Art independently.', {
@@ -252,14 +236,34 @@ export function createOddsModal(
     )
     .setOrigin(0, 0);
   container.add([notesLabel, noteOne, noteTwo]);
+  for (const text of [lead, poolLine, source, noteOne, noteTwo]) fitMenuName(text, content.width, 4);
 
+  const shell = modalShell(scene, {
+    ...shopModalLayout(860, 520, noteTwo.y + noteTwo.height, title.height),
+    dimAlpha: 0.52,
+    depth: theme.depth.modal,
+    showClose: false,
+    tapDimToClose: true,
+    escToClose: false,
+    coordinator,
+    registration: {
+      dismissible: true,
+      guardTargets: guardTargets.map(modalGuardTarget),
+    },
+    onClose,
+  });
+
+  container.setPosition(shell.tracks.contentBounds.x, shell.tracks.contentBounds.y);
+  const track = shell.tracks.titleTrack;
+  title.setPosition(track.x + track.width / 2, track.y + track.height / 2);
+  shell.container.add([container, title]);
   const footer = shell.tracks.footerTrack;
   const close = themedButton(scene, footer.x + footer.width - theme.space(15), footer.y + footer.height / 2, 'Close', {
     variant: 'ghost',
     minWidth: 90,
     onTap: () => shell.close(),
   });
-  container.add(close.container);
+  shell.container.add(close.container);
   shell.interactiveChildren.push(close.inputZone);
   return shell;
 }

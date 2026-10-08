@@ -1,11 +1,60 @@
-<!-- source-of-truth: scripts/personas/craft.ts, scripts/personas/measure-worker.ts, scripts/run-sweep.ps1, docs/plan-battle-box.md, memory sweep-running-do-not-disturb · last-verified: 2026-09-22 · PROPOSAL, nothing authorized -->
+<!-- source-of-truth: scripts/personas/craft.ts, scripts/personas/lever.ts, scripts/personas/measure-worker.ts, scripts/run-sweep.ps1, docs/plan-battle-box.md, memory sweep-running-do-not-disturb · last-verified: 2026-09-28 · levers 1 and 4 shipped, 2 and 3 built behind flags -->
 
 # Making the metagame sweep fit in a night
 
 **Status 2026-09-25: levers 1 and 4 shipped in 1.8 (fan-out on
 GitHub-hosted runners, #418, #421, #422); levers 2 and 3 APPROVED for 1.9**
 (owner ruling 2026-09-25, lane F of [plan-1.9.md](plan-1.9.md)), with the
-one-persona comparison below as their acceptance gate. Originally:
+one-persona comparison below as their acceptance gate.
+**Status 2026-09-28: levers 2 and 3 BUILT behind flags, off by default**
+(1.9 wave 1): `craft.ts --race` and `--screen medium`, and the hosted
+workflow's `race` and `screen` inputs. How they work, what they journal and
+how to run them: [metagame-sweep.md](metagame-sweep.md), "Racing and
+screening the swaps". The race is a one-sided group sequential futility test
+on paired games (a constant, Pocock-type boundary computed for the look
+schedule, alpha 0.01 across all looks); the screen is the five-point Medium
+threshold below, as a flag. The acceptance comparison has NOT run yet; it is
+wave 2, on the hosted runners, as FOUR arms on one persona and one seed
+(plain, race only, race + screen, and race + a 50-seed screen), because the
+screen may cost more than it saves: at the review's measured Medium/Hard
+speed of about 3.4x (not the 5.8x in the table below; the ratio moves with
+the machine, 5.9x to 6.0x on the owner's), a full-seeds screen costs about
+0.29 of a Hard measurement on every proposal, and the swaps it drops are ones
+the race stops at its first look anyway. The procedure, the exact dispatches
+and the side-by-side comparison script (`scripts/personas/compare-crafts.ts`)
+are in [metagame-sweep.md](metagame-sweep.md), "The acceptance run". A local smoke (midrange, round 0, prefab
+field, 30 seeds, 12 iterations, race batch 10, six workers, 2026-09-28)
+proved the plumbing only: the raced and screened craft, whole or in two
+chunks, was byte-identical to the unraced craft apart from the lever keys (9
+of 12 swaps accepted, 51.7% final). It raced out 1 swap and screened out
+none, so it played 5,320 Hard + 5,460 Medium games against 5,460 Hard
+unraced, and took 305 s against 297 s. That size says nothing about the
+saving: with 30 seeds the looks are tiny, and early in a climb most swaps
+win.
+**Status 2026-10-05: the acceptance run's result, read at wave 5.** The
+three arms ran on the hosted runners on 2026-09-28 and 09-29 (midrange,
+seed 13003, rounds 0 and 1; runs 36483336577 plain, 36483371516 race,
+36519766681 race + screen; the optional 50-seed screen arm was not run), and
+`compare-crafts.ts` over the `sweep-data` crafts reads:
+
+| Arm | Round 0 | Round 1 | Hard games vs plain | Medium games | Chunk-0 wall clock, r0 / r1 |
+| --- | --- | --- | --- | --- | --- |
+| plain | 79.8%, 30 accepted | 77.7%, 37 accepted | 100% | 0 | 95 / 155 min |
+| race | identical | identical | 87.4% / 87.7% (17 and 20 swaps raced out) | 0 | 167 / 106 min |
+| race + screen | identical | identical | 87.4% / 87.7% (0 screened out) | 170,100 per round | 99 / 223 min |
+
+Both levered arms are byte-identical to the plain arm once the lever keys
+are stripped: the same accepted swaps at every iteration and the same 40
+cards. The race plays about 12% fewer Hard games and changes nothing; the
+hosted runners' own variance (the same plain work took 95 and 155 minutes)
+hides that saving in wall clock. The full-seeds screen dropped nothing and
+added a Medium measurement to every proposal, so it costs more than it
+saves. Reading: **race passes on identity and game count and is used for the
+1.9 sweep; the screen fails and stays off.** The 1.9 sweep was dispatched
+with `race=true` (run 37372207714, 2026-10-05). Making `race` the workflow
+default is a one-line follow-up.
+
+Originally:
 **proposal, 2026-09-22. Nothing here is authorized.** Owner ask:
 the sweep takes three to five days on a 9950X3D, which is too long for the
 one step that has to run last before every cut. This is the measured
@@ -16,7 +65,8 @@ answer.
 ## Where the time goes, measured
 
 The sweep (`scripts/personas/craft.ts`, run by `scripts/run-sweep.ps1`)
-crafts a deck for each of six personas against a reference field, then
+crafts a deck for each persona (six when this was measured; eight since
+ruling D12 added stompy and warband) against a reference field, then
 re-crafts each against the field the others produced, for up to four
 rounds. One craft is a hill climb: 80 proposed card swaps, each measured
 by playing the candidate list against every deck in the field.
@@ -80,10 +130,10 @@ trusting it.
 
 ### 4. Fan out across machines (the wall-clock lever)
 
-The six personas in a round are independent; only rounds are sequential.
+The personas in a round are independent; only rounds are sequential.
 The repository is public, and public repositories get GitHub-hosted Linux
 runners at no cost. A `workflow_dispatch` workflow with one job per persona
-per round (six jobs in parallel, each `craft.ts --persona <id> --round n`
+per round (one job per persona in parallel, each `craft.ts --persona <id> --round n`
 against the previous round's uploaded artifacts, with the journal as an
 artifact between rounds and `--resume` for a rerun) runs a whole round in
 the time of the slowest craft on a 4-vCPU runner, and the owner's machine

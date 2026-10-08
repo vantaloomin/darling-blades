@@ -1,7 +1,9 @@
-import { ownedVariants, PLAYSET, type AddResult } from '../meta/Collection';
-import type { DraftState } from '../meta/Limited';
+import { ownedVariants, PLAYSET } from '../meta/Collection';
+import type { DraftState, PremiumGrantSummary } from '../meta/Limited';
 import type { SaveData } from '../meta/SaveManager';
 import { isPlainVariant, PLAIN_VARIANT, variantKey, type CardVariant } from '../meta/variants';
+import { CARD_FACE_H } from '../config/cardFaceGeometry';
+import { limitedLineGrowth } from './limitedPanePresentation';
 
 /**
  * Phaser-free copy for the Limited draft screen.
@@ -49,32 +51,9 @@ export function premiumOwnershipLine(
   return `${base}. Plain copies past ${PLAYSET} melt to gold.`;
 }
 
-/**
- * What a Premium draft's grant did, read from the add results it returned:
- * every pick is added through the collection's add rule, and a result with
- * `dupeGold` above zero is a plain copy past the plain playset that melted.
- */
-export interface PremiumGrantSummary {
-  /** Picks granted: the whole Premium pool. */
-  drafted: number;
-  /** Copies the collection kept. */
-  added: number;
-  /** Plain copies past the playset, converted to gold instead. */
-  converted: number;
-  /** The gold those conversions paid. */
-  gold: number;
-}
-
-export function premiumGrantSummary(results: readonly Pick<AddResult, 'dupeGold'>[]): PremiumGrantSummary {
-  let converted = 0;
-  let gold = 0;
-  for (const result of results) {
-    if (result.dupeGold <= 0) continue;
-    converted++;
-    gold += result.dupeGold;
-  }
-  return { drafted: results.length, added: results.length - converted, converted, gold };
-}
+// The grant summary moved to meta (the grant stores it on the save, plan 1.9
+// I7); re-exported here for the draft and deck builder screens.
+export { premiumGrantSummary, type PremiumGrantSummary } from '../meta/Limited';
 
 /**
  * The Limited deck builder's note after a Premium draft, in the owner's words
@@ -99,10 +78,118 @@ export function premiumGrantNote(summary: PremiumGrantSummary): string {
 }
 
 /**
- * What the Limited deck builder is opened with. The grant's result exists only
- * at the moment the draft completes (the run does not store it), so the screen
- * that completes the draft hands it over; a later visit arrives without it.
+ * What the Limited deck builder is opened with. The screen that completes the
+ * draft hands the grant over; a later visit (or one after a reload) reads the
+ * copy the grant stored on the save, through `storedPremiumGrant`.
  */
 export interface LimitedBuilderEntry {
   premiumGrant?: PremiumGrantSummary;
+}
+
+/**
+ * Dev-only accessibility probe fixtures (src/dev/wave3LimitedFixtures.ts):
+ * an in-memory save the scene reads instead of the real one, plus the state to
+ * open. A scene honours them only under IS_DEV and never persists them.
+ */
+export interface LimitedHubA11yFixture {
+  save: SaveData;
+  /** Open with Retire already armed (its consequence line in the pool line's place). */
+  armRetire?: boolean;
+}
+
+export interface LimitedDraftA11yFixture {
+  save: SaveData;
+  modal?: 'leave' | 'persona' | 'inspect';
+  /** The seat whose persona modal opens (0 is the human). */
+  seat?: number;
+  /** The pack index the card inspect opens on. */
+  inspect?: number;
+  /** A pack index selected before any modal opens. */
+  select?: number;
+  touch?: boolean;
+}
+
+export interface LimitedBuilderA11yFixture {
+  save: SaveData;
+  modal?: 'leave' | 'inspect';
+  selectedId?: string;
+  poolPage?: number;
+  deckPage?: number;
+}
+
+/**
+ * The draft screen's Your Picks panel ledger, as offsets from the panel top
+ * (Phaser-free; the scene draws it). Each line is its release (100%) offset
+ * plus the growth of the lines above it at the text size in force, so the
+ * release panel is unchanged at 100%: the COLORS label at +49, the pip row
+ * centred at +70, MANA CURVE at +91, the axis at +111, the counts at +130, the
+ * rule at +153, the list label at +164, and nine thumbs a row from +204 at a
+ * 37px by 43px pitch. Until 1.9 these were literals, and at 130% each label
+ * sat on the row under it. The thumbs are card faces and never scale; when the
+ * labels above grow, the grid takes more, narrower columns (up to eleven) so
+ * the 44 picks before the last still end above the release bottom.
+ */
+export const LIMITED_PICKS_PANEL = {
+  x: 848,
+  y: 224,
+  width: 368,
+  height: 404,
+  /** The most picks the panel shows: every pick but the last, which ends the draft. */
+  maxPicks: 44,
+  /** The first thumb's centre, from the panel's left edge (and the last's, from its right). */
+  thumbInset: 35,
+  releaseColumns: 9,
+  releaseColumnPitch: 37,
+  releaseRowPitch: 43,
+  /** Thumbs never touch: at least this much between rows. */
+  minRowGap: 2,
+} as const;
+
+export const PICK_THUMB_SCALE = 0.09;
+
+export function limitedPicksLayout(): {
+  colorsTop: number;
+  pipY: number;
+  curveTop: number;
+  axisY: number;
+  countY: number;
+  ruleY: number;
+  listTop: number;
+  gridTop: number;
+  columns: number;
+  rows: number;
+  columnPitch: number;
+  rowPitch: number;
+  emptyY: number;
+} {
+  const g = limitedLineGrowth;
+  let grown = g('h2');
+  const colorsTop = 49 + grown;
+  grown += g('micro');
+  const pipY = 70 + grown + g('caption') / 2;
+  grown += g('caption');
+  const curveTop = 91 + grown;
+  grown += g('micro');
+  const axisY = 111 + grown + g('micro') / 2;
+  grown += g('micro');
+  const countY = 130 + grown + g('caption') / 2;
+  grown += g('caption');
+  const ruleY = 153 + grown;
+  const listTop = 164 + grown;
+  grown += g('micro');
+  const gridTop = 204 + grown;
+  const P = LIMITED_PICKS_PANEL;
+  const releaseRows = Math.ceil(P.maxPicks / P.releaseColumns);
+  // The last row's centre may sit no lower than the release grid's.
+  const lastRowY = 204 + (releaseRows - 1) * P.releaseRowPitch;
+  const thumbHeight = CARD_FACE_H * PICK_THUMB_SCALE;
+  let grid: { columns: number; rows: number; columnPitch: number; rowPitch: number } = { columns: P.releaseColumns, rows: releaseRows, columnPitch: P.releaseColumnPitch, rowPitch: P.releaseRowPitch };
+  for (let columns = P.releaseColumns; columns <= P.releaseColumns + 2; columns++) {
+    const rows = Math.ceil(P.maxPicks / columns);
+    const rowPitch = rows > 1 ? Math.min(P.releaseRowPitch, (lastRowY - gridTop) / (rows - 1)) : P.releaseRowPitch;
+    const columnPitch = Math.min(P.releaseColumnPitch, (P.width - 2 * P.thumbInset) / (columns - 1));
+    grid = { columns, rows, columnPitch, rowPitch };
+    if (rowPitch >= thumbHeight + P.minRowGap) break;
+  }
+  return { colorsTop, pipY, curveTop, axisY, countY, ruleY, listTop, gridTop, ...grid, emptyY: 285 + grown };
 }

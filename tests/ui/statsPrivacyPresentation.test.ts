@@ -6,13 +6,6 @@ import { STATS_NOTICE_VERSION } from '../../src/meta/statsNotice';
 import { signalsAllowed, type SignalsGateInput } from '../../src/net/signalsGate';
 import { modalShellLayout } from '../../src/ui/layout';
 import {
-  SETTINGS_LEFT_PANEL_BAND,
-  SETTINGS_PANEL_BAND,
-  SETTINGS_RESET_BLOCK,
-  YOUR_TURN_SECTION,
-  yourTurnRowY,
-} from '../../src/ui/settingsPresentation';
-import {
   STATS_CARDS_EXTRA_LINE,
   STATS_CARDS_FIELD_LINES,
   STATS_DUEL_FIELD_LINES,
@@ -496,36 +489,9 @@ describe('the stamp', () => {
 });
 
 describe('the Settings row layout', () => {
-  const HIT_HALF = theme.control.minHitHeight / 2;
-
-  it('sits inside the left panel, clear of the section above it', () => {
-    const lastYourTurnNote = yourTurnRowY(YOUR_TURN_SECTION.rowCount - 1).note;
-    expect(STATS_SETTINGS_ROW.sectionTitleY - theme.type.h2 / 2).toBeGreaterThan(lastYourTurnNote + 7);
-    expect(STATS_SETTINGS_ROW.rowY - HIT_HALF).toBeGreaterThan(
-      STATS_SETTINGS_ROW.sectionTitleY + theme.type.h2 / 2,
-    );
-    // Two wrapped caption lines plus a bottom margin still clear the panel.
-    expect(STATS_SETTINGS_ROW.noteTopY + 2 * (theme.type.caption + 4)).toBeLessThanOrEqual(
-      SETTINGS_LEFT_PANEL_BAND.bottom,
-    );
-    expect(SETTINGS_LEFT_PANEL_BAND.bottom).toBeLessThanOrEqual(theme.design.safeBottom);
-  });
-
-  it('keeps the caption clear of the row it belongs to', () => {
-    expect(STATS_SETTINGS_ROW.noteTopY).toBeGreaterThanOrEqual(STATS_SETTINGS_ROW.rowY + theme.control.heightSm / 2);
-  });
-
-  it('reads the same rhythm as the "Your turn" section above it', () => {
-    // The gap from the last "Your turn" caption to the Privacy heading is the
-    // between-groups gap the whole scene uses, not a number of its own.
-    const lastNote = yourTurnRowY(YOUR_TURN_SECTION.rowCount - 1).note;
-    const captionBottom = lastNote + (theme.type.caption + 4) / 2;
-    expect(STATS_SETTINGS_ROW.sectionTitleY - theme.type.h2 / 2 - captionBottom).toBeGreaterThanOrEqual(16);
-    expect(STATS_SETTINGS_ROW.rowY - STATS_SETTINGS_ROW.sectionTitleY).toBe(
-      yourTurnRowY(0).row - YOUR_TURN_SECTION.headingY,
-    );
-  });
-
+  // The row's y, label and caption follow the Settings rhythm and are held to
+  // the layout rules in every text-size cell by tests/ui/settingsPresentation.test.ts;
+  // only the x placement of its button is this module's.
   it('places the panel button clear of the toggle at every plausible width', () => {
     const toggleRight = STATS_SETTINGS_ROW.toggleX + STATS_SETTINGS_ROW.toggleHitHalfWidth;
     for (let hitWidth = theme.control.minHitWidth; hitWidth <= 130; hitWidth += 2) {
@@ -542,20 +508,6 @@ describe('the Settings row layout', () => {
     expect(statsPanelButtonCenterX(theme.control.minHitWidth)).toBe(
       STATS_SETTINGS_ROW.buttonRightX - theme.control.minHitWidth / 2,
     );
-  });
-
-  it('wraps the caption inside the panel text column', () => {
-    expect(STATS_SETTINGS_ROW.labelX + STATS_SETTINGS_ROW.noteWrapWidth).toBeLessThanOrEqual(
-      STATS_SETTINGS_ROW.buttonRightX,
-    );
-  });
-
-  it('keeps the Reset row inside the Gameplay panel, level with the Privacy row', () => {
-    // Both columns end in a one-row section under its own heading, so the two
-    // last rows share a y and the two panels read as a pair.
-    expect(SETTINGS_RESET_BLOCK.rowY).toBe(STATS_SETTINGS_ROW.rowY);
-    expect(SETTINGS_RESET_BLOCK.captionY + theme.type.caption).toBeLessThanOrEqual(SETTINGS_PANEL_BAND.bottom - 16);
-    expect(SETTINGS_RESET_BLOCK.rowY - HIT_HALF).toBeGreaterThan(SETTINGS_PANEL_BAND.top);
   });
 });
 

@@ -1,42 +1,19 @@
 /**
  * Shared visual tokens. This module intentionally has no Phaser import so
  * headless tests and non-rendering code can inspect the design system safely.
+ *
+ * `type`, `colors`, `graphics`, `alpha` and `outline` are live: each read goes
+ * through the accessibility resolver (`./accessibility`) and answers for the
+ * text size and contrast in force, so a read inside a function (at scene
+ * build) follows a settings change. A read at module scope, or a group object
+ * kept in a module-level constant, is frozen at import: don't add one.
+ * `typeBase` is the unscaled ramp for card-internal geometry. `rarity` and
+ * everything else here are fixed.
  */
 
-const colors = {
-  gold: '#ffd88a',
-  goldHover: '#ffd700',
-  onGold: '#1a1426',
-  heading: '#f0e6ff',
-  body: '#c9bde0',
-  muted: '#8f83a8',
-  success: '#9be6a8',
-  danger: '#f0b0a0',
-  dangerArmed: '#f08a8a',
-  dangerBg: '#3a1f28',
-  panelFill: '#161226',
-  panelStroke: '#4a3f6e',
-  btnPrimaryBg: '#ffd88a',
-  btnEmphasisBg: '#2c2344',
-  btnGhostBg: '#241d3a',
-  rowFill: '#211a34',
-  rowFillActive: '#2c2344',
-  dim: '#0a0812',
-} as const;
+import { currentTokens, TYPE_BASE } from './accessibility';
 
-/** Convert a CSS/Text colour token to Phaser Graphics' numeric form. */
-export function colorInt(color: string): number {
-  return Number.parseInt(color.slice(1), 16);
-}
-
-const graphics = {
-  panelFill: colorInt(colors.panelFill),
-  panelStroke: colorInt(colors.panelStroke),
-  dangerBg: colorInt(colors.dangerBg),
-  rowFill: colorInt(colors.rowFill),
-  rowFillActive: colorInt(colors.rowFillActive),
-  dim: colorInt(colors.dim),
-} as const;
+export { colorInt } from './accessibility';
 
 const DESIGN_WIDTH = 1280;
 const DESIGN_HEIGHT = 720;
@@ -81,8 +58,12 @@ const design = {
 } as const;
 
 export const theme = {
-  colors,
-  graphics,
+  get colors() {
+    return currentTokens().colors;
+  },
+  get graphics() {
+    return currentTokens().graphics;
+  },
   rarity: {
     c: '#9aa0ab',
     r: '#dfe6f2',
@@ -94,15 +75,11 @@ export const theme = {
     display: 'Cinzel, Georgia, serif',
     ui: 'Inter, Arial, sans-serif',
   },
-  type: {
-    displayXL: 64,
-    display: 44,
-    h1: 28,
-    h2: 20,
-    body: 16,
-    label: 14,
-    caption: 12,
-    micro: 11,
+  /** The 100% ramp. Card faces and other card-internal geometry read this; chrome reads `type`. */
+  typeBase: TYPE_BASE,
+  /** Chrome type sizes at the text size in force (the role policy in `./accessibility`). */
+  get type() {
+    return currentTokens().type;
   },
   weight: {
     w600: '600',
@@ -121,12 +98,12 @@ export const theme = {
     slow: 220,
     easeOut: 'Cubic.easeOut',
   },
-  alpha: {
-    overlayDim: 0.92,
-    panel: 0.9,
-    chrome: 0.85,
-    subtle: 0.5,
-    ghost: 0.32,
+  get alpha() {
+    return currentTokens().alpha;
+  },
+  /** Board state and focus outline widths (3px, 5px in high contrast). */
+  get outline() {
+    return currentTokens().outline;
   },
   depth: {
     tiles: 5,

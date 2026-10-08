@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/meta/SaveManager.ts, src/meta/cosmetics.ts, src/meta/Achievements.ts, src/scenes/DuelScene.ts, src/scenes/ProfileScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/PreloadScene.ts, src/scenes/ArtLoaderScene.ts, src/art/artLoader.ts, src/ui/artGate.ts, src/ui/CardFrameFactory.ts, src/ui/CardView.ts, docs/design-system.md · last-verified: 2026-09-28 -->
+<!-- source-of-truth: src/meta/SaveManager.ts, src/meta/cosmetics.ts, src/meta/Achievements.ts, src/scenes/DuelScene.ts, src/scenes/ProfileScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/PreloadScene.ts, src/scenes/ArtLoaderScene.ts, src/art/artLoader.ts, src/art/artSource.ts, scripts/pack-art.ts, src/ui/artGate.ts, src/ui/CardFrameFactory.ts, src/ui/CardView.ts, docs/design-system.md · last-verified: 2026-09-28 -->
      If you change those files, update this doc or re-verify the date. -->
 
 # Architecture
@@ -115,63 +115,67 @@ The full `GameEvent` union (`src/engine/events.ts`):
 
 <!-- BEGIN GENERATED: GameEvent table (events from src/engine/events.ts · run: npm run gen-docs-tables · payload/meaning prose is hand-maintained) -->
 
-| Event                   | Payload (besides `e`)                           | Meaning                                                                                                                                                                                                               |
-| ----------------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `coinFlipped`           | `winner`                                        | Opt-in play/draw choice (`playDrawChoice`): the seeded flip picked who chooses.                                                                                                                                       |
-| `playDrawChosen`        | `player`, `play`                                | The flip winner chose to play first (`play: true`) or draw first.                                                                                                                                                     |
-| `firstPlayerChosen`     | `player`                                        | The starting player is set (directly from the seeded flip, or after the play/draw choice resolves).                                                                                                                   |
-| `turnBegan`             | `player`, `turn`                                | A new turn started for `player`.                                                                                                                                                                                      |
-| `stepChanged`           | `step`                                          | The turn advanced to a new step.                                                                                                                                                                                      |
-| `untapped`              | `iids`                                          | These permanents untapped during the untap step.                                                                                                                                                                      |
-| `drew`                  | `player`, `cardId`                              | `player` drew a card (full info — presenter hides opponent's).                                                                                                                                                        |
-| `mulliganTaken`         | `player`, `count`                               | `player` mulliganed; `count` is their running mulligan total.                                                                                                                                                         |
-| `handKept`              | `player`                                        | `player` kept their opening hand.                                                                                                                                                                                     |
-| `cardsBottomed`         | `player`, `count`                               | `player` put `count` cards on the bottom (London mulligan). Also emitted with `count: 0` by `recall` as a UI resync nudge.                                                                                            |
-| `landPlayed`            | `player`, `iid`, `cardId`                       | A land entered under `player`.                                                                                                                                                                                        |
-| `manaTapped`            | `player`, `iids`                                | These sources tapped to pay for a spell.                                                                                                                                                                              |
-| `darlingTaxPaidDown`    | `player`, `tax`                                 | (describe me)                                                                                                                                                                                                         |
-| `darlingReturned`       | `player`, `cardId`, `tax`, `reason`             | (describe me)                                                                                                                                                                                                         |
-| `skimmed`               | `player`, `cardId`                              | (describe me)                                                                                                                                                                                                         |
-| `whispered`             | `player`, `cardId`                              | A Whispers cast was announced from a fresh graveyard entry; emitted beside the cast event, for narration                                                                                                              |
-| `spellCast`             | `sid`, `cardId`, `controller`, `targets`        | A spell went on the stack.                                                                                                                                                                                            |
-| `responseWindowOpened`  | `player`, `reopened?`                           | A response window opened for `player`; `reopened: true` marks a revision-2 post-flush offer.                                                                                                                          |
-| `spellResolved`         | `sid`                                           | A stack item resolved.                                                                                                                                                                                                |
-| `spellCountered`        | `sid`                                           | A stack item was countered off the stack.                                                                                                                                                                             |
-| `targetsFizzled`        | `sid`                                           | Every target became illegal; the spell fizzled to the graveyard.                                                                                                                                                      |
-| `permanentEntered`      | `perm`                                          | A non-token permanent entered the battlefield.                                                                                                                                                                        |
-| `hauntlinkFormed`       | `linkIid`, `hostIid`, `cardId`, `controller`    | (describe me)                                                                                                                                                                                                         |
-| `hauntlinkBroken`       | `linkIid`, `hostIid`, `cardId`, `owner`         | (describe me)                                                                                                                                                                                                         |
-| `chapterAdvanced`       | `iid`, `cardId`, `chapter`                      | A Quest entered its next chapter (I on arrival, then one per controller dawn); its chapter ops follow.                                                                                                                |
-| `awakened`              | `iid`, `cardId`                                 | A creature's Champion Awakening flipped on (one-way); its awakening stats/keywords now apply.                                                                                                                         |
-| `attackersDeclared`     | `iids`                                          | The active player declared these attackers.                                                                                                                                                                           |
-| `blockersDeclared`      | `blocks`                                        | The defender declared these blocker→attacker pairs.                                                                                                                                                                   |
-| `combatDamage`          | `hits[{source, target, amount}]`, `firstStrike` | A batch of simultaneous combat damage was computed.                                                                                                                                                                   |
-| `damageMarked`          | `iid`, `amount`                                 | Damage was marked on a permanent.                                                                                                                                                                                     |
-| `lifeChanged`           | `player`, `delta`, `now`                        | A player's life total changed.                                                                                                                                                                                        |
-| `died`                  | `iid`, `cardId`, `owner`                        | A permanent left the battlefield to the graveyard.                                                                                                                                                                    |
-| `recalled`              | `iid`, `cardId`, `owner`, `token?`              | A permanent returned to its owner's hand (a token ceased to exist). Not a death: no dies trigger, and quests and telemetry do not count it                                                                            |
-| `nineLivesReturned`     | `player`, `iid`, `cardId`                       | A Nine Lives creature died markless and returned to the battlefield with its +1/+1 mark (telemetry counts these returns)                                                                                              |
-| `discarded`             | `player`, `cardId`                              | A card went from hand to graveyard.                                                                                                                                                                                   |
-| `milled`                | `player`, `cardId`                              | A card went from the top of a deck to the graveyard (the `grind` op).                                                                                                                                                 |
-| `graveyardTriggerFired` | `cardId`, `owner`, `when`, `instanceId?`        | A card's entersGraveyard ability fired as it was put into its owner's graveyard from any zone (dies, sacrifice, discard, mill, fizzle)                                                                                |
-| `severed`               | `player`, `cardId`, `from`, `iid?`              | A card was severed (removed from the game) from the battlefield, a graveyard, or a deck into `player`'s severed pile                                                                                                  |
-| `preserved`             | `player`, `cardId`                              | A Preserve activation severed the card from the graveyard and created its token copy (disambiguates from severGrave for telemetry)                                                                                    |
-| `activated`             | `player`, `iid`, `cardId`, `abilityIndex?`      | A tap-cost ability (Duty) was used (`abilityIndex` names which Duty on a multi-Duty card; omitted means the first): the source permanent tapped and its ops ran off-stack; emitted before the ops, after `manaTapped` |
-| `foresaw`               | `player`, `kept`, `bottomed`                    | A foresee resolved: cardIds left on top / sent to the bottom (full info; the presenter redacts the opponent's).                                                                                                       |
-| `triggerFired`          | `iid`, `when`                                   | A permanent's triggered ability fired.                                                                                                                                                                                |
-| `triggerFizzled`        | `iid`                                           | A queued targeted trigger had no legal target when its decision drained; no effect ran.                                                                                                                               |
-| `effectApplied`         | `op`, `detail?`                                 | One `EffectOp` executed (op name for logging).                                                                                                                                                                        |
-| `tokenCreated`          | `perm`                                          | A token permanent entered.                                                                                                                                                                                            |
-| `positionNote`          | `note`                                          | Debug/log line only — never load-bearing.                                                                                                                                                                             |
-| `gameEnded`             | `winner`, `reason`                              | The game ended (`reason`: `life`/`deck`/`concede`/`turnLimit`).                                                                                                                                                       |
+| Event                   | Payload (besides `e`)                              | Meaning                                                                                                                                                                                                               |
+| ----------------------- | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `coinFlipped`           | `winner`                                           | Opt-in play/draw choice (`playDrawChoice`): the seeded flip picked who chooses.                                                                                                                                       |
+| `playDrawChosen`        | `player`, `play`                                   | The flip winner chose to play first (`play: true`) or draw first.                                                                                                                                                     |
+| `firstPlayerChosen`     | `player`                                           | The starting player is set (directly from the seeded flip, or after the play/draw choice resolves).                                                                                                                   |
+| `turnBegan`             | `player`, `turn`                                   | A new turn started for `player`.                                                                                                                                                                                      |
+| `stepChanged`           | `step`                                             | The turn advanced to a new step.                                                                                                                                                                                      |
+| `untapped`              | `iids`                                             | These permanents untapped during the untap step.                                                                                                                                                                      |
+| `drew`                  | `player`, `cardId`                                 | `player` drew a card (full info — presenter hides opponent's).                                                                                                                                                        |
+| `mulliganTaken`         | `player`, `count`                                  | `player` mulliganed; `count` is their running mulligan total.                                                                                                                                                         |
+| `handKept`              | `player`                                           | `player` kept their opening hand.                                                                                                                                                                                     |
+| `cardsBottomed`         | `player`, `count`                                  | `player` put `count` cards on the bottom (London mulligan). Also emitted with `count: 0` by `recall` as a UI resync nudge.                                                                                            |
+| `landPlayed`            | `player`, `iid`, `cardId`                          | A land entered under `player`.                                                                                                                                                                                        |
+| `manaTapped`            | `player`, `iids`                                   | These sources tapped to pay for a spell.                                                                                                                                                                              |
+| `darlingTaxPaidDown`    | `player`, `tax`                                    | (describe me)                                                                                                                                                                                                         |
+| `darlingReturned`       | `player`, `cardId`, `tax`, `reason`                | (describe me)                                                                                                                                                                                                         |
+| `skimmed`               | `player`, `cardId`                                 | (describe me)                                                                                                                                                                                                         |
+| `whispered`             | `player`, `cardId`                                 | A Whispers cast was announced from a fresh graveyard entry; emitted beside the cast event, for narration                                                                                                              |
+| `spellCast`             | `sid`, `cardId`, `controller`, `targets`           | A spell went on the stack.                                                                                                                                                                                            |
+| `responseWindowOpened`  | `player`, `reopened?`                              | A response window opened for `player`; `reopened: true` marks a revision-2 post-flush offer.                                                                                                                          |
+| `spellResolved`         | `sid`                                              | A stack item resolved.                                                                                                                                                                                                |
+| `spellCountered`        | `sid`                                              | A stack item was countered off the stack.                                                                                                                                                                             |
+| `targetsFizzled`        | `sid`                                              | Every target became illegal; the spell fizzled to the graveyard.                                                                                                                                                      |
+| `permanentEntered`      | `perm`                                             | A non-token permanent entered the battlefield.                                                                                                                                                                        |
+| `hauntlinkFormed`       | `linkIid`, `hostIid`, `cardId`, `controller`       | (describe me)                                                                                                                                                                                                         |
+| `hauntlinkBroken`       | `linkIid`, `hostIid`, `cardId`, `owner`            | (describe me)                                                                                                                                                                                                         |
+| `chapterAdvanced`       | `iid`, `cardId`, `chapter`                         | A Quest entered its next chapter (I on arrival, then one per controller dawn); its chapter ops follow.                                                                                                                |
+| `awakened`              | `iid`, `cardId`                                    | A creature's Champion Awakening flipped on (one-way); its awakening stats/keywords now apply.                                                                                                                         |
+| `attackersDeclared`     | `iids`                                             | The active player declared these attackers.                                                                                                                                                                           |
+| `blockersDeclared`      | `blocks`                                           | The defender declared these blocker→attacker pairs.                                                                                                                                                                   |
+| `combatDamage`          | `hits[{source, target, amount}]`, `firstStrike`    | A batch of simultaneous combat damage was computed.                                                                                                                                                                   |
+| `damageMarked`          | `iid`, `amount`                                    | Damage was marked on a permanent.                                                                                                                                                                                     |
+| `hunted`                | `hunter`, `prey`, `hunterDamage`, `preyDamage`     | A Hunt's exchange, emitted before its damage lands.                                                                                                                                                                   |
+| `lifeChanged`           | `player`, `delta`, `now`                           | A player's life total changed.                                                                                                                                                                                        |
+| `died`                  | `iid`, `cardId`, `owner`                           | A permanent left the battlefield to the graveyard.                                                                                                                                                                    |
+| `recalled`              | `iid`, `cardId`, `owner`, `token?`                 | A permanent returned to its owner's hand (a token ceased to exist). Not a death: no dies trigger, and quests and telemetry do not count it                                                                            |
+| `nineLivesReturned`     | `player`, `iid`, `cardId`                          | A Nine Lives creature died markless and returned to the battlefield with its +1/+1 mark (telemetry counts these returns)                                                                                              |
+| `discarded`             | `player`, `cardId`                                 | A card went from hand to graveyard.                                                                                                                                                                                   |
+| `milled`                | `player`, `cardId`                                 | A card went from the top of a deck to the graveyard (the `grind` op).                                                                                                                                                 |
+| `graveyardTriggerFired` | `cardId`, `owner`, `when`, `instanceId?`           | A card's entersGraveyard ability fired as it was put into its owner's graveyard from any zone (dies, sacrifice, discard, mill, fizzle)                                                                                |
+| `severed`               | `player`, `cardId`, `from`, `iid?`                 | A card was severed (removed from the game) from the battlefield, a graveyard, or a deck into `player`'s severed pile                                                                                                  |
+| `preserved`             | `player`, `cardId`                                 | A Preserve activation severed the card from the graveyard and created its token copy (disambiguates from severGrave for telemetry)                                                                                    |
+| `activated`             | `player`, `iid`, `cardId`, `abilityIndex?`         | A tap-cost ability (Duty) was used (`abilityIndex` names which Duty on a multi-Duty card; omitted means the first): the source permanent tapped and its ops ran off-stack; emitted before the ops, after `manaTapped` |
+| `manaActivated`         | `player`, `iid`, `cardId`, `abilityIndex`, `times` | A repeatable mana ability (A1.5) was used `times` times as one action: no tap, off-stack, at Charm speed; emitted after `manaTapped` and before the ops' events (one set per activation)                              |
+| `foresaw`               | `player`, `kept`, `bottomed`                       | A foresee resolved: cardIds left on top / sent to the bottom (full info; the presenter redacts the opponent's).                                                                                                       |
+| `triggerFired`          | `iid`, `when`                                      | A permanent's triggered ability fired.                                                                                                                                                                                |
+| `triggerFizzled`        | `iid`                                              | A queued targeted trigger had no legal target when its decision drained; no effect ran.                                                                                                                               |
+| `effectApplied`         | `op`, `detail?`                                    | One `EffectOp` executed (op name for logging).                                                                                                                                                                        |
+| `tokenCreated`          | `perm`                                             | A token permanent entered.                                                                                                                                                                                            |
+| `overcharged`           | `player`, `iid`, `cardId`, `tokenCardId`, `total`  | A token refused at the creature cap gave `iid`, a same-name token `player` controls, one Overcharge (+1/+1, not a Mark) instead; `total` is its count now; nothing entered (1.9 A1.7)                                 |
+| `tokenRefused`          | `player`, `tokenCardId`                            | A token was refused at the creature cap with no same-name token eligible for an Overcharge; nothing entered and no state changed (1.9 A1.7).                                                                          |
+| `positionNote`          | `note`                                             | Debug/log line only — never load-bearing.                                                                                                                                                                             |
+| `gameEnded`             | `winner`, `reason`                                 | The game ended (`reason`: `life`/`deck`/`concede`/`turnLimit`).                                                                                                                                                       |
 
 <!-- END GENERATED -->
 
 ### Replay discipline and rules revisions
 
 `ReplayLog.v` selects observable engine behavior as well as validating the log
-shape. New v15 logs (1.8.1) run under current rules revision 4, as do versions
-11 through 14; versions 8 through 10 run under revision 3, version 7 under
+shape. New v16 logs (1.9) run under current rules revision 4, as do versions
+11 through 15; versions 8 through 10 run under revision 3, version 7 under
 revision 2 with the former Hauntlink cast mode, and version 6 under revision 1
 with the classic single-window path. From v15 an action names a graveyard card
 by its instance id as well as its position; an older log names the position
@@ -181,16 +185,26 @@ shifted position (a Retell cast whose target sat above its own source, or a
 response that moved the graveyard before the spell resolved): there the
 replay returns the card the position named at submission. 1.8.0 logs are
 refused anyway, since the 1.8.1 card-text changes moved the card-data stamp.
-1.8.5 changed card data only, so the log version stays 15. Its 90 card
+1.8.5 changed card data only, so the log version stayed 15. Its 90 card
 changes moved the stamp again, and 1.8.1 logs are refused under it: the stamp,
-not a version bump, is what retires a replay when cards change.
+not a version bump, is what retires a replay when cards change. v16 (1.9)
+marks an ungated engine fix: a Foresee that finds an empty deck when it is
+offered still resolves the ops after it, where earlier builds dropped them
+(rules.md, Foresee). An older log still replays identically except through
+such a Foresee. Until 1.9's first card-data change moves the stamp, a 1.8.5
+log is still accepted and would replay differently only on that path; the
+1.9.0 release carries card changes (R13, First Dawn), so no pre-1.9 log
+reaches it on a release build. No client code replays a log today:
+`ProfileScene` reads `canReplay` for its badge only.
 A current-version log containing the explicit legacy
 Hauntlink cast marker selects revision 2 as well. These paths are preserved
 behind `GameConfig.rulesRev`; legacy `GameState` JSON omits both `rulesRev` and
 revision-2 episode bookkeeping. A gated behavior change may keep an older
 replay version executable only while its complete old path remains intact.
-Ungated observable changes still bump `REPLAY_LOG_VERSION` and fail closed, and
-database-stamp drift always fails closed.
+An ungated observable change bumps `REPLAY_LOG_VERSION`. Older versions stay
+executable only where their recorded games replay the same, or where the
+card-data stamp already refuses every log the change could affect (G6 in
+1.8.1, the Foresee fix in 1.9). Database-stamp drift always fails closed.
 
 ## Hidden information: `viewFor` redaction
 
@@ -270,6 +284,23 @@ Boot → Preload → MainMenu → { Gauntlet→Duel, Duel, Shop→PackOpening, C
   line in its own chrome. `ArtResolver.getArt` returns the neutral
   `art-loading` texture for a file that is still queued, as a backstop, never
   as the mechanism.
+
+  **Where the bytes come from (1.9, lane D).** `src/art/artSource.ts` is the
+  seam the coming art store reads through
+  ([plan-art-streaming.md](plan-art-streaming.md) section 5). The *loose*
+  source fetches `assets/art/cards/<key>.webp` (or `cards-half/`); the *packs*
+  source reads a card with one HTTP range request out of a content-hashed pack,
+  one per set per tier (`assets/art/packs/<tier>-<set>.<hash>.bin`), whose
+  offsets come from `src/data/art-packs.json`, generated by
+  `scripts/pack-art.ts` and bundled. When a host answers badly the packs source
+  falls back without the caller knowing: a 200 or a compressed answer puts that
+  pack in whole-pack mode (download once, slice), a 404 reads the loose file,
+  and only a network error, 5xx or timeout comes back as `transient` for the
+  store's retry. The `__ART_SOURCE__` define picks the source: `'packs'` for a
+  web production build, `'loose'` for dev, tests and the desktop app (Tauri
+  ignores `Range`, see [desktop-build.md](desktop-build.md)). Until the store
+  lands (S3, behind a flag), nothing in the game reads the source, and the
+  ArtLoader stream above still loads loose files.
 - **MainMenu** (`MainMenuScene.ts`) — the menu + starter picker.
 - **Gauntlet** (`GauntletScene.ts`) — the Avatar Gauntlet ladder, reached from
   the MainMenu "Avatar Gauntlet" item; shows the ten rungs and launches
@@ -572,10 +603,17 @@ anywhere:
   the first-win-only streak bonus. `DuelScene.processEvents()` forwards public
   `GameEvent[]` batches for progress; the result path records streaks only when
   the human wins. `MainMenuScene` renders the Daily Blades panel.
-- **Deck codes** (`DeckCode.ts`) — a pure versioned `DBD2-...` decklist codec
-  for exact-order export/import, with backward-compatible `DBD1-...` import.
-  `DeckBuilderScene` owns the styled copy/paste UI and validates decoded imports
-  through `DeckStorage.validateDeck`.
+- **Deck codes** (`DeckCode.ts`) — a pure versioned deck codec for exact-order
+  export/import. Since 1.9 it writes `DBD3-...`: a format header, then a
+  Darlings deck's Darling and a Standard or Darlings deck's Warchest Reserves,
+  then the list, so a shared code rebuilds the whole deck. It still reads
+  `DBD2-...` and `DBD1-...` codes, which carry only a list (golden fixtures for
+  every shape in `tests/meta/deckCode.test.ts`). `DeckBuilderScene` owns the
+  styled copy/paste UI; `planDeckCodeImport` (`src/ui/deckBuilderHelpers.ts`)
+  decides what an import writes and judges it with the open format's
+  validators. A list-only code fills the open deck's list and keeps its format,
+  Darling and Warchest; a full code replaces all four as unsaved edits. Import
+  asks first when the open deck has unsaved changes.
 - **`variants`** (`variants.ts`) — the multi-axis drop system: `FrameStyle` /
   `HoloFinish` / `CardVariant` (`variantKey` = `frame|holo`), the specialness
   ranking (frame primary, holo tiebreak), and the seeded cumulative-weight
@@ -584,7 +622,7 @@ anywhere:
 - **`PackOpener`** (`PackOpener.ts`) — rolls a collection booster of
   `ECONOMY.boosterPackSize`
   independent slots (tier → card → frame → holo), dupe-protects the sr/ssr/ur
-  slots, falls back a tier when a pool is empty, and folds the results into
+  slots and rolls unowned c/r cards first, falls back a tier when a pool is empty, and folds the results into
   the collection, sorted worst→best for the reveal.
 - **`Collection`** (`Collection.ts`) — variant-aware `addCard`/`ownedCount`/
   `ownedVariants`/`bestOwnedVariant`. Aggregate counts live in `collection`;

@@ -2,7 +2,9 @@ import Phaser from 'phaser';
 import type { CardDef } from '../engine/types';
 import type { CardVariant } from '../meta/variants';
 import { attachTouchGestures } from '../platform/gestures';
-import { CardView } from './CardView';
+import { RARITY_NAMES } from '../data/glossary';
+import { CardView, CARD_H, CARD_W } from './CardView';
+import { colorInt, theme } from './theme';
 
 // Design-space constants, NOT scene.scale (= game size = 1280k×720k under
 // render scale; the camera shows the 1280×720 design window — see
@@ -58,14 +60,31 @@ export interface CardZoomOptions {
   onStickyTap?: (card: CardDef, variant?: CardVariant, landStyle?: string) => void;
 }
 
+/** The tier as words, so rarity never rests on the gem's colour alone. */
+export function rarityLine(card: Pick<CardDef, 'rarity'>): string {
+  return `Rarity: ${RARITY_NAMES[card.rarity]}`;
+}
+
 export class CardZoomPreview {
   private scene: Phaser.Scene;
   private view: CardView | null = null;
+  /**
+   * The plate under the preview: the card's rarity as words (1.9
+   * accessibility wave 3; the face shows it only as a gem colour), then the
+   * hovered object's state line (1.9 A2.a), if it has one.
+   */
+  private noteView: Phaser.GameObjects.Container | null = null;
   /** The object whose hover produced the currently VISIBLE preview. */
   private sourceObj: Phaser.GameObjects.GameObject | null = null;
   private timer: Phaser.Time.TimerEvent | null = null;
-  private pending: { card: CardDef; variant?: CardVariant; landStyle?: string; worldX: number; obj: Phaser.GameObjects.GameObject } | null =
-    null;
+  private pending: {
+    card: CardDef;
+    variant?: CardVariant;
+    landStyle?: string;
+    worldX: number;
+    obj: Phaser.GameObjects.GameObject;
+    note?: () => string | null;
+  } | null = null;
   private suppressed = false;
   private zHeld = false;
   private sticky = false;
@@ -94,19 +113,23 @@ export class CardZoomPreview {
 
   /**
    * Wire hover preview onto an interactive object (or a CardView/container
-   * that re-emits pointer events with the Pointer threaded through).
+   * that re-emits pointer events with the Pointer threaded through). `note`
+   * is read when the preview shows: a line of state the card face cannot
+   * print (a battlefield creature's spent Provoked, 1.9 A2.a), drawn on a
+   * plate under the preview, or nothing when it returns null.
    */
   attach(
     obj: Phaser.GameObjects.GameObject,
     card: CardDef,
     variant?: CardVariant,
     landStyle?: string,
+    note?: () => string | null,
   ): void {
     obj.on('pointerover', (p: Phaser.Input.Pointer) => {
       // Touch fires pointerover on finger-down; the long-press gesture owns
       // previews there — never schedule a hover dwell for a touch pointer.
       if (p.wasTouch) return;
-      this.schedule(card, variant, landStyle, p.worldX, obj);
+      this.schedule(card, variant, landStyle, p.worldX, obj, note);
     });
     obj.on('pointerout', () => this.cancelFor(obj));
     obj.once(Phaser.GameObjects.Events.DESTROY, () => this.cancelFor(obj));
@@ -153,6 +176,8 @@ export class CardZoomPreview {
     this.sticky = false;
     this.view?.destroy();
     this.view = null;
+    this.noteView?.destroy();
+    this.noteView = null;
   }
 
   /** Cancel only if `obj` is the pending or shown hover source. */
@@ -178,12 +203,13 @@ export class CardZoomPreview {
     landStyle: string | undefined,
     worldX: number,
     obj: Phaser.GameObjects.GameObject,
+    note?: () => string | null,
   ): void {
     this.cancel();
     if (this.suppressed) return;
-    this.pending = { card, variant, landStyle, worldX, obj };
+    this.pending = { card, variant, landStyle, worldX, obj, note };
     if (this.zHeld) {
-      this.show(card, variant, landStyle, worldX, obj);
+      this.show(card, variant, landStyle, worldX, obj, note);
       return;
     }
     this.timer = this.scene.time.delayedCall(this.delayMs, () => {
@@ -191,7 +217,7 @@ export class CardZoomPreview {
       const p = this.pending;
       // The hovered object may have been destroyed by a re-render mid-dwell.
       if (!p || p.card !== card || !p.obj.active || this.suppressed) return;
-      this.show(card, variant, landStyle, worldX, p.obj);
+      this.show(card, variant, landStyle, worldX, p.obj, note);
     });
   }
 
@@ -201,8 +227,11 @@ export class CardZoomPreview {
     landStyle: string | undefined,
     hoveredWorldX: number,
     obj: Phaser.GameObjects.GameObject | null,
+    note?: () => string | null,
   ): void {
     this.view?.destroy();
+    this.noteView?.destroy();
+    this.noteView = null;
     this.sourceObj = obj; // null for sticky: nothing may auto-dismiss it
     // worldX is design-space (the camera maps pointer → world through the
     // render-scale zoom), so it compares against the DESIGN midpoint — using
@@ -214,6 +243,39 @@ export class CardZoomPreview {
     this.view.setDepth(this.depth);
     // Hover mode never enableInput(): the preview must not intercept or
     // misroute mouse input. (showSticky opts in for the touch tap target.)
+    const line = note?.() ?? null;
+    const lines = [...(card.token ? [] : [rarityLine(card)]), ...(line ? [line] : [])];
+    if (lines.length > 0) {
+      this.noteView = this.infoPlate(x, this.dockY + (CARD_H * this.scale) / 2 + theme.space(2), CARD_W * this.scale, lines);
+    }
+  }
+
+  /**
+   * The rarity and state lines on one `rowFill` plate, hung from `top` and
+   * centred under the preview, inert like it. Each line wraps at the card's
+   * width, so larger text grows the plate downward and never over the card.
+   */
+  private infoPlate(x: number, top: number, maxWidth: number, lines: readonly string[]): Phaser.GameObjects.Container {
+    const padX = theme.space(2);
+    const padY = theme.space(1);
+    const texts = lines.map((line, index) => this.scene.add.text(0, 0, line, {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.type.label}px`, fontStyle: theme.weight.w600,
+      color: index === 0 && lines.length > 1 ? theme.colors.body : theme.colors.heading, resolution: 2,
+      align: 'center', wordWrap: { width: maxWidth - padX * 2 },
+    }).setOrigin(0.5, 0));
+    const w = Math.max(...texts.map((text) => text.width)) + padX * 2;
+    let cursor = padY;
+    for (const text of texts) {
+      text.setY(cursor);
+      cursor += text.height + theme.space(0.5);
+    }
+    const h = cursor - theme.space(0.5) + padY;
+    const plate = this.scene.add.graphics();
+    plate.fillStyle(colorInt(theme.colors.rowFill), theme.alpha.panel);
+    plate.fillRoundedRect(-w / 2, 0, w, h, theme.radius.control);
+    plate.lineStyle(1, colorInt(theme.colors.panelStroke), theme.alpha.chrome);
+    plate.strokeRoundedRect(-w / 2, 0, w, h, theme.radius.control);
+    return this.scene.add.container(x, top, [plate, ...texts]).setDepth(this.depth);
   }
 
   private onZDown(): void {
@@ -230,6 +292,7 @@ export class CardZoomPreview {
           this.pending.landStyle,
           this.pending.worldX,
           this.pending.obj,
+          this.pending.note,
         );
       }
     }

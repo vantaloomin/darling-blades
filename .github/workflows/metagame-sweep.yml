@@ -3,16 +3,20 @@
 # The sweep crafts a deck for each persona against a reference field, then
 # re-crafts each against the field the others produced, for up to four rounds.
 # Every craft inside a round is independent and its seed derives from the run
-# seed, the round and the persona id, so the crafts of one round can run on six
-# machines at once and still be the crafts the in-process loop would have made.
-# Only the rounds are sequential. What comes back is byte-identical to a local
-# `npx tsx scripts/personas/craft.ts --metagame --all` at the same seed:
-# `tests/personas/fanout.test.ts` asserts that file for file.
+# seed, the round and the persona id, so the crafts of one round can run on
+# one machine per persona at once and still be the crafts the in-process loop
+# would have made. Only the rounds are sequential. What comes back is
+# byte-identical to a local `npx tsx scripts/personas/craft.ts --metagame --all`
+# at the same seed: `tests/personas/fanout.test.ts` asserts that file for file,
+# and `tests/personas/templates.test.ts` that the default persona list below is
+# every persona `--all` crafts.
 #
 # TO RUN IT. Actions tab, "Metagame sweep", Run workflow. The defaults are the
 # real sweep (seed 13003, four rounds, the prefab field, 150 seeds per matchup,
-# 80 hill-climb iterations, all six personas). For a dry run, dispatch with
-# seeds 10, iterations 5, rounds 1. Each round is a call to
+# 80 hill-climb iterations, every persona in scripts/personas/templates.ts:
+# the original six plus stompy (R/G) and warband (R/W), the colour-gap
+# personas of ruling D12). For a dry run, dispatch with seeds 10, iterations
+# 5, rounds 1. Each round is a call to
 # metagame-sweep-round.yml: every persona's craft runs as a chain of up to
 # CHUNKS jobs (ten), each of which stops starting new iterations once
 # CHUNK_MINUTES (240) have passed (see WHY CHUNKS). A dry run at iterations 5
@@ -23,8 +27,8 @@
 # WHAT TO EXPECT. A round lasts as long as its slowest craft, because each
 # chunk job waits for every persona's previous chunk. While weenie is the
 # slowest persona, that is about 27 hours of chain per round (see WHY CHUNKS),
-# a little more for each chunk's setup, and a later round measures against 19
-# decks (the reference field plus the other five personas) instead of 14. So
+# a little more for each chunk's setup, and a later round measures against 21
+# decks (the reference field plus the other seven personas) instead of 14. So
 # the whole sweep is several days of wall clock on GitHub, with the owner's
 # machine idle throughout. This workflow cannot shorten that. The lever that
 # would is the cost of a weenie game in the Hard brain, which is a 1.9 item.
@@ -47,6 +51,17 @@
 # crafts that were lost run again. Resume works at craft granularity: a lost
 # craft starts over at chunk 0, because checkpoints are not published to
 # `sweep-data`.
+#
+# TO CARRY A STOPPED RUN. A run stopped mid-round publishes nothing for that
+# round (only the last chunk uploads `craft-r<n>-*`), but every chunk job's
+# `chunk-r<n>-c<c>-<persona>` artifact survives for five days. Re-dispatch
+# with the SAME inputs and `resume_from` set to `run:<run id>:<chunk>`, naming
+# a chunk whose job completed for every persona, for example
+# `run:37467035904:4`. Chunk 0 of each round then downloads each persona's
+# artifact of that chunk from that run and continues from it: a finished craft
+# is copied forward, a checkpoint resumes where it stopped. A round the
+# stopped run never reached has no such artifact and starts fresh. (It rides
+# on `resume_from` because a dispatch takes at most ten inputs.)
 #
 # WHY CHUNKS. GitHub stops a hosted job at 360 minutes, and a whole craft does
 # not fit. The first fanned-out sweep (run 35764255645, 2026-09-22, the
@@ -76,9 +91,21 @@
 # for weenie's 27 with a margin; a craft that still has not finished in its
 # tenth chunk fails there, naming CHUNKS and CHUNK_MINUTES.
 #
-# WHAT THIS DOES NOT CHANGE. The same seeds, the same games per matchup, the
-# same Hard brain on both seats, the same acceptance rule, the same artifact
-# schema. Worker count does not enter the result: a game's seed is derived from
+# LEVERS. Two inputs, both off by default (plus `screen_seeds`, blank by
+# default, which sets --screen-seeds under screen medium): `race` adds --race (measure each
+# proposed swap in 30-seed batches and stop it once it trails the incumbent,
+# game for game, past a group sequential boundary; a close or better swap runs
+# the full seeds, so an accepted swap keeps its full measurement) and `screen`
+# adds --screen medium (drop a swap Medium scores more than five points worse
+# before Hard measures it; only Hard accepts). Both enter every craft's run
+# configuration, so a raced sweep never merges or resumes with an unraced one:
+# resume a raced sweep with the same two inputs. Their settings are the
+# craft.ts defaults; see docs/metagame-sweep.md.
+#
+# WHAT THIS DOES NOT CHANGE. The same seeds, the same games per matchup (with
+# the LEVERS off; a raced swap may stop early, a screened one plays Medium
+# first), the same Hard brain on both seats, the same acceptance rule, the
+# same artifact schema. Worker count does not enter the result: a game's seed is derived from
 # its matchup and its index, not from which worker ran it (measured 2026-09-22,
 # crafts at one, two and four workers were byte-identical), so a four-core
 # runner and the owner's eight-worker local run produce the same numbers. Chunk
@@ -109,14 +136,30 @@ on:
         default: '80'
       personas:
         description: Personas to craft, comma separated
-        default: burn,draw-go,attrition,reanimator,weenie,midrange
+        default: burn,draw-go,attrition,reanimator,weenie,midrange,stompy,warband
       resume_from:
-        description: 'Optional: a sweeps/<dir> path on the sweep-data branch to resume'
+        description: 'Optional: a sweeps/<dir> path on the sweep-data branch to resume, or run:<run id>:<chunk> to carry a stopped run'
+        default: ''
+      # Levers 2 and 3 (docs/plan-sweep-speed.md), off by default until the
+      # one-persona acceptance run passes. See LEVERS in the header.
+      race:
+        description: 'Race each proposed swap (--race: 30-seed batches, alpha 0.01)'
+        type: boolean
+        default: false
+      screen:
+        description: 'Screen each proposed swap under Medium first (--screen medium: 5 points)'
+        type: choice
+        options: ['none', 'medium']
+        default: 'none'
+      screen_seeds:
+        description: 'Optional, with screen medium: Medium seeds per matchup (--screen-seeds; blank = the seeds input)'
         default: ''
 
 # The merge job commits to `sweep-data`. Nothing else is needed.
 permissions:
   contents: write
+  # Only a carried run needs it: reading another run's chunk artifacts.
+  actions: read
 
 # Its own group, and never cancelled: two dispatches would upload crafts under
 # the same artifact names and merge each other's rounds.
@@ -137,6 +180,9 @@ env:
     --seeds ${{ inputs.seeds }}
     --iterations ${{ inputs.iterations }}
     --seed ${{ inputs.seed }}
+    ${{ inputs.race && '--race' || '' }}
+    ${{ inputs.screen == 'medium' && '--screen medium' || '' }}
+    ${{ inputs.screen_seeds != '' && format('--screen-seeds {0}', inputs.screen_seeds) || '' }}
   # The time budget of one chunk job, in minutes, and chunk jobs per craft (at
   # most 10, the jobs metagame-sweep-round.yml defines). See WHY CHUNKS above.
   CHUNK_MINUTES: '240'
@@ -152,6 +198,9 @@ jobs:
       sweep-args: ${{ steps.plan.outputs.sweep-args }}
       chunk-minutes: ${{ steps.plan.outputs.chunk-minutes }}
       chunks: ${{ steps.plan.outputs.chunks }}
+      resume-dir: ${{ steps.plan.outputs.resume-dir }}
+      carry-run: ${{ steps.plan.outputs.carry-run }}
+      carry-chunk: ${{ steps.plan.outputs.carry-chunk }}
     steps:
       # Refused here, before any runner starts. A budget of 300 minutes or more
       # would leave the 350-minute job too little room for the iteration in
@@ -159,11 +208,19 @@ jobs:
       - name: Check the inputs and the chunk settings
         env:
           ITERATIONS: ${{ inputs.iterations }}
+          SCREEN: ${{ inputs.screen }}
+          SCREEN_SEEDS: ${{ inputs.screen_seeds }}
         run: |
           set -euo pipefail
           if ! [[ "$ITERATIONS" =~ ^[0-9]+$ ]]; then
             echo "iterations must be a whole number (got $ITERATIONS)."
             exit 1
+          fi
+          if [ -n "$SCREEN_SEEDS" ]; then
+            if ! [[ "$SCREEN_SEEDS" =~ ^[1-9][0-9]*$ ]] || [ "$SCREEN" != "medium" ]; then
+              echo "screen_seeds must be a positive whole number, with screen medium (got '$SCREEN_SEEDS', screen $SCREEN)."
+              exit 1
+            fi
           fi
           if ! [[ "$CHUNK_MINUTES" =~ ^[1-9][0-9]*$ ]] || [ "$CHUNK_MINUTES" -ge 300 ]; then
             echo "CHUNK_MINUTES must be a positive whole number below 300 (got $CHUNK_MINUTES)."
@@ -176,12 +233,16 @@ jobs:
           echo "Each craft runs in up to $CHUNKS chunks of $CHUNK_MINUTES minutes."
 
       # The persona list becomes the matrix, and the output directory is fixed
-      # here so every job agrees on it even across a UTC midnight.
+      # here so every job agrees on it even across a UTC midnight. A raced or
+      # screened sweep gets its own directory (-race, -screen, -s<screen seeds>), so it never
+      # lands on top of an unraced sweep of the same seed and day.
       - name: Read the persona list
         id: plan
         env:
           PERSONAS: ${{ inputs.personas }}
           SEED: ${{ inputs.seed }}
+          RESUME_FROM: ${{ inputs.resume_from }}
+          LEVERS: ${{ inputs.race && '-race' || '' }}${{ inputs.screen == 'medium' && '-screen' || '' }}${{ inputs.screen_seeds != '' && format('-s{0}', inputs.screen_seeds) || '' }}
         run: |
           set -euo pipefail
           LIST=$(printf '%s' "$PERSONAS" | jq -Rc 'split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0))')
@@ -189,10 +250,20 @@ jobs:
             *$'\n'*) echo "The dispatch inputs may not contain line breaks."; exit 1 ;;
           esac
           echo "personas=$LIST" >> "$GITHUB_OUTPUT"
-          echo "sweep-dir=sweeps/$(date -u +%Y-%m-%d)-$SEED" >> "$GITHUB_OUTPUT"
+          echo "sweep-dir=sweeps/$(date -u +%Y-%m-%d)-$SEED$LEVERS" >> "$GITHUB_OUTPUT"
           printf 'sweep-args=%s\n' "$SWEEP_ARGS" >> "$GITHUB_OUTPUT"
           echo "chunk-minutes=$CHUNK_MINUTES" >> "$GITHUB_OUTPUT"
           echo "chunks=$CHUNKS" >> "$GITHUB_OUTPUT"
+          if [[ "$RESUME_FROM" =~ ^run:([0-9]+):([0-9])$ ]]; then
+            echo "carry-run=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+            echo "carry-chunk=${BASH_REMATCH[2]}" >> "$GITHUB_OUTPUT"
+            echo "Carrying chunk ${BASH_REMATCH[2]} of run ${BASH_REMATCH[1]}"
+          elif [[ "$RESUME_FROM" == run:* ]]; then
+            echo "resume_from run:<run id>:<chunk> takes a chunk 0 to 9 (got $RESUME_FROM)."
+            exit 1
+          else
+            printf 'resume-dir=%s\n' "$RESUME_FROM" >> "$GITHUB_OUTPUT"
+          fi
           echo "Personas: $LIST"
 
   # Each round is one call to the round workflow: a chain of chunk jobs, each a
@@ -205,7 +276,9 @@ jobs:
       round: 0
       personas: ${{ needs.setup.outputs.personas }}
       sweep_args: ${{ needs.setup.outputs.sweep-args }}
-      resume_from: ${{ inputs.resume_from }}
+      resume_from: ${{ needs.setup.outputs.resume-dir }}
+      carry_run: ${{ needs.setup.outputs.carry-run }}
+      carry_chunk: ${{ needs.setup.outputs.carry-chunk }}
       chunk_minutes: ${{ fromJSON(needs.setup.outputs.chunk-minutes) }}
       chunks: ${{ fromJSON(needs.setup.outputs.chunks) }}
 
@@ -252,7 +325,9 @@ jobs:
       round: 1
       personas: ${{ needs.setup.outputs.personas }}
       sweep_args: ${{ needs.setup.outputs.sweep-args }}
-      resume_from: ${{ inputs.resume_from }}
+      resume_from: ${{ needs.setup.outputs.resume-dir }}
+      carry_run: ${{ needs.setup.outputs.carry-run }}
+      carry_chunk: ${{ needs.setup.outputs.carry-chunk }}
       chunk_minutes: ${{ fromJSON(needs.setup.outputs.chunk-minutes) }}
       chunks: ${{ fromJSON(needs.setup.outputs.chunks) }}
 
@@ -296,7 +371,9 @@ jobs:
       round: 2
       personas: ${{ needs.setup.outputs.personas }}
       sweep_args: ${{ needs.setup.outputs.sweep-args }}
-      resume_from: ${{ inputs.resume_from }}
+      resume_from: ${{ needs.setup.outputs.resume-dir }}
+      carry_run: ${{ needs.setup.outputs.carry-run }}
+      carry_chunk: ${{ needs.setup.outputs.carry-chunk }}
       chunk_minutes: ${{ fromJSON(needs.setup.outputs.chunk-minutes) }}
       chunks: ${{ fromJSON(needs.setup.outputs.chunks) }}
 
@@ -340,7 +417,9 @@ jobs:
       round: 3
       personas: ${{ needs.setup.outputs.personas }}
       sweep_args: ${{ needs.setup.outputs.sweep-args }}
-      resume_from: ${{ inputs.resume_from }}
+      resume_from: ${{ needs.setup.outputs.resume-dir }}
+      carry_run: ${{ needs.setup.outputs.carry-run }}
+      carry_chunk: ${{ needs.setup.outputs.carry-chunk }}
       chunk_minutes: ${{ fromJSON(needs.setup.outputs.chunk-minutes) }}
       chunks: ${{ fromJSON(needs.setup.outputs.chunks) }}
 
@@ -384,7 +463,9 @@ jobs:
       round: 4
       personas: ${{ needs.setup.outputs.personas }}
       sweep_args: ${{ needs.setup.outputs.sweep-args }}
-      resume_from: ${{ inputs.resume_from }}
+      resume_from: ${{ needs.setup.outputs.resume-dir }}
+      carry_run: ${{ needs.setup.outputs.carry-run }}
+      carry_chunk: ${{ needs.setup.outputs.carry-chunk }}
       chunk_minutes: ${{ fromJSON(needs.setup.outputs.chunk-minutes) }}
       chunks: ${{ fromJSON(needs.setup.outputs.chunks) }}
 

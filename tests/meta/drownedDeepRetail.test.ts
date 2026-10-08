@@ -1,43 +1,48 @@
 import { describe, expect, it } from 'vitest';
 import { ECONOMY } from '../../src/config/rules';
 import { ALL_CARDS, CARD_DB } from '../../src/data/catalog';
-import { DROWNED_DEEP_SET, STARBORNE_SET, isLiveCollectible, isLiveSet } from '../../src/data/liveness';
+import { DROWNED_DEEP_SET, FIRST_DAWN_SET, isLiveCollectible, isLiveSet } from '../../src/data/liveness';
 import { SET_IDS } from '../../src/data/setTitles';
 import { THEME_DECKS } from '../../src/data/starterDecks';
-import { createRngState } from '../../src/engine/rng';
-import type { CardDb, CardDef } from '../../src/engine/types';
+import { createRngState, rngFloat } from '../../src/engine/rng';
+import type { CardDb } from '../../src/engine/types';
 import { applyFilters, collectiblePool, defaultFilterState } from '../../src/meta/collectionFilter';
 import { deckHealth } from '../../src/meta/deckRepair';
 import { buyThemeDeck } from '../../src/meta/Economy';
-import { openPack, packPool, type PackResult } from '../../src/meta/PackOpener';
+import { openPack, packPool } from '../../src/meta/PackOpener';
 import { packPoolSummary } from '../../src/meta/packSummary';
 import { freshSave } from '../../src/meta/SaveManager';
 import { PLAIN_VARIANT, variantKey } from '../../src/meta/variants';
 
 const TIERS = ['c', 'r', 'sr', 'ssr', 'ur'] as const;
-const finishes = (result: PackResult) => result.cards.map(({ tier, frame, holo, fullArt }) => ({
-  tier, frame, holo, fullArt,
-}));
 
-describe('Drowned Deep retail pack pipeline', () => {
-  it('opens 100 seeded nine-card packs with only dd- collectibles and the standard slot odds', () => {
-    for (const tier of TIERS) expect(packPool(CARD_DB, tier, DROWNED_DEEP_SET).length).toBeGreaterThan(0);
+describe('Expansion retail pack pipeline', () => {
+  it.each([DROWNED_DEEP_SET, FIRST_DAWN_SET])('opens 100 seeded nine-card %s packs with only set collectibles and the standard rarity odds', (set) => {
+    for (const tier of TIERS) expect(packPool(CARD_DB, tier, set).length).toBeGreaterThan(0);
+    const seen = new Set<string>();
     for (let seed = 0; seed < 100; seed++) {
       const save = freshSave(0);
-      const pack = openPack(save, CARD_DB, createRngState(seed), DROWNED_DEEP_SET);
-      const starborne = openPack(freshSave(0), CARD_DB, createRngState(seed), STARBORNE_SET as unknown as CardDef['set']);
-      expect(pack.cards).toHaveLength(ECONOMY.boosterPackSize);
+      const pack = openPack(save, CARD_DB, createRngState(seed), set);
       expect(pack.cards).toHaveLength(9);
       for (const { cardId } of pack.cards) {
-        expect(cardId.startsWith('dd-'), `seed ${seed}: ${cardId}`).toBe(true);
-        expect(CARD_DB[cardId].set).toBe(DROWNED_DEEP_SET);
+        expect(CARD_DB[cardId].set).toBe(set);
         expect(CARD_DB[cardId].token).toBeFalsy();
         expect(isLiveCollectible(CARD_DB[cardId])).toBe(true);
       }
-      // Both complete tier pools consume the same global tier/finish rolls.
-      expect(finishes(pack), `seed ${seed}`).toEqual(finishes(starborne));
+      // Independent odds oracle: nine slots, each consuming rarity, card,
+      // frame, holo, full-art rolls. Complete pools must never downgrade a tier.
+      const rolls = createRngState(seed);
+      const expected = [];
+      for (let slot = 0; slot < 9; slot++) {
+        const percent = rngFloat(rolls) * 100;
+        expected.push(percent < 50 ? 'c' : percent < 80 ? 'r' : percent < 94 ? 'sr' : percent < 99 ? 'ssr' : 'ur');
+        for (let axis = 0; axis < 4; axis++) rngFloat(rolls);
+      }
+      expect(pack.cards.map(({ tier }) => tier).sort(), `seed ${seed}`).toEqual(expected.sort());
+      for (const { tier } of pack.cards) seen.add(tier);
       expect(save.stats.packsOpened).toBe(1);
     }
+    expect([...seen].sort()).toEqual([...TIERS].sort());
   });
 
   it('keeps SR, SSR, and UR duplicate protection inside the set', () => {

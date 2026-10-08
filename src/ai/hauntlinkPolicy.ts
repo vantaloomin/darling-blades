@@ -136,6 +136,15 @@ function projectTrigger(view: PlayerView, db: CardDb, battlefield: Permanent[], 
         case 'ifTargetMarked':
           if (refs.length && !visit(targets[0]?.plusOneCounters > 0 ? op.then : op.else ?? [], slot)) return false;
           break;
+        case 'ifTargetSurvives': {
+          // The survival read on the projected board (A1.6): the target is
+          // there and passes the state-based test after the ops before it.
+          const target = targets[0];
+          const lives = target !== undefined && creature(target) &&
+            removeDoomed(context.battlefield, db).some((perm) => perm.iid === target.iid);
+          if (!visit(lives ? op.then : op.else ?? [], slot)) return false;
+          break;
+        }
         case 'damage': {
           const affected = op.to === 'eachCreature' || op.to === 'eachOpponentCreature'
             ? context.battlefield.filter((perm) => creature(perm) && (op.to !== 'eachOpponentCreature' || perm.controller !== trigger.controller))

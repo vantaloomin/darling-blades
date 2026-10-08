@@ -2,6 +2,7 @@ import type Phaser from 'phaser';
 import type { FrameStyle } from '../meta/variants';
 import { CARD_BACKS, DEFAULT_CARD_BACK_ID, cardBackTextureKey } from '../meta/cosmetics';
 import { SET_ICON_PATHS, type CardSetId } from '../art/setIcons';
+import { CARD_FACE } from '../config/cardFaceGeometry';
 
 /**
  * Bakes card frame textures once at boot, drawn at 2× (600×840) so frames
@@ -277,6 +278,9 @@ function bakeRealCardBack(scene: Phaser.Scene, ctx: CanvasRenderingContext2D, ar
 }
 
 export function bakeCardFrames(scene: Phaser.Scene): void {
+  // The art window, type band and text box come from the shared card-face
+  // geometry (the 264x216 window, R13), so the bake and CardView's layout agree.
+  const { art, typeBand, textBox } = CARD_FACE.bake;
   for (const [key, pal] of Object.entries(FRAME_PALETTES)) {
     const texKey = `frame-${key}`;
     if (scene.textures.exists(texKey)) continue;
@@ -311,7 +315,7 @@ export function bakeCardFrames(scene: Phaser.Scene): void {
     ctx.stroke();
 
     // Art window (near-black backing; art renders on top)
-    rr(ctx, 36, 92, FRAME_W - 72, 384, 10);
+    rr(ctx, art.x, art.y, art.w, art.h, 10);
     ctx.fillStyle = '#0a090d';
     ctx.fill();
     ctx.lineWidth = 4;
@@ -319,7 +323,7 @@ export function bakeCardFrames(scene: Phaser.Scene): void {
     ctx.stroke();
 
     // Type band
-    rr(ctx, 32, 488, FRAME_W - 64, 44, 12);
+    rr(ctx, typeBand.x, typeBand.y, typeBand.w, typeBand.h, 12);
     ctx.fillStyle = pal.panel;
     ctx.fill();
     ctx.lineWidth = 3;
@@ -327,7 +331,7 @@ export function bakeCardFrames(scene: Phaser.Scene): void {
     ctx.stroke();
 
     // Text box
-    rr(ctx, 32, 544, FRAME_W - 64, 260, 12);
+    rr(ctx, textBox.x, textBox.y, textBox.w, textBox.h, 12);
     ctx.fillStyle = pal.text;
     ctx.fill();
     ctx.lineWidth = 3;
@@ -376,7 +380,7 @@ export function bakeCardFrames(scene: Phaser.Scene): void {
     ctx.fill();
     // cut the art window out (same rect the frame bake uses)
     ctx.globalCompositeOperation = 'destination-out';
-    rr(ctx, 36, 92, FRAME_W - 72, 384, 10);
+    rr(ctx, art.x, art.y, art.w, art.h, 10);
     ctx.fill();
     ctx.globalCompositeOperation = 'source-over';
     tex.refresh();

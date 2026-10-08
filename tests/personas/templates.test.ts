@@ -1,17 +1,47 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { DECK_ROLES, PERSONA_TEMPLATES, PERSONA_TEMPLATE_VERSION } from '../../scripts/personas/templates';
+import {
+  DECK_ROLES,
+  PERSONA_TEMPLATES,
+  PERSONA_TEMPLATE_VERSION,
+  type PersonaTemplate,
+} from '../../scripts/personas/templates';
 import { LAND_RESERVE_SIZE, WARCHEST_DECK_SIZE } from '../../src/meta/warchest';
 
+const colorPair = (template: PersonaTemplate): string => [...template.colorIdentity].sort().join('');
+
 describe('persona template roster', () => {
-  it('contains exactly the six approved personas', () => {
-    expect(PERSONA_TEMPLATES.map((template) => template.id)).toEqual([
-      'burn',
-      'draw-go',
-      'attrition',
-      'reanimator',
-      'weenie',
-      'midrange',
-    ]);
+  // A persona id names craft files, artifacts and journal keys; two templates
+  // sharing one would overwrite each other's crafts in a sweep.
+  it('gives every persona its own id and dashboard name', () => {
+    expect(new Set(PERSONA_TEMPLATES.map((template) => template.id)).size).toBe(PERSONA_TEMPLATES.length);
+    expect(new Set(PERSONA_TEMPLATES.map((template) => template.name)).size).toBe(PERSONA_TEMPLATES.length);
+  });
+
+  // Two fixed personas in one pair would spend a craft per round re-measuring
+  // colours the sweep already sees, instead of a pair it does not.
+  it('gives every fixed-colour persona its own colour pair', () => {
+    const pairs = PERSONA_TEMPLATES.filter((template) => template.colorPolicy === 'fixed').map(colorPair);
+    expect(new Set(pairs).size).toBe(pairs.length);
+  });
+
+  // Ruling D12 (plan-1.9 lane F item 5): the sweep plays red-green, First
+  // Dawn's core pair, and red-white, the gap the ruling names.
+  it.each(['GR', 'RW'])('has a fixed persona in the D12 pair %s', (pair) => {
+    expect(PERSONA_TEMPLATES.some((template) =>
+      template.colorPolicy === 'fixed' && colorPair(template) === pair)).toBe(true);
+  });
+
+  // The hosted workflow's header promises its default dispatch is the same
+  // sweep as a local `craft.ts --metagame --all`, which crafts every template.
+  it('makes the hosted sweep default to every persona', () => {
+    const workflow = readFileSync(resolve(__dirname, '../../.github/workflows/metagame-sweep.yml'), 'utf8');
+    const block = /^ {6}personas:\r?\n(?: {8}.*\r?\n)*? {8}default:\s*(.+)$/m.exec(workflow);
+    expect(block).not.toBeNull();
+    const defaults = block![1].split(',').map((id) => id.trim()).filter(Boolean);
+    expect(new Set(defaults)).toEqual(new Set(PERSONA_TEMPLATES.map((template) => template.id)));
+    expect(defaults).toHaveLength(new Set(defaults).size);
   });
 
   it('uses one version for every template', () => {

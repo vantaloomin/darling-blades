@@ -16,14 +16,13 @@ describe('Drowned Deep card layout inputs', () => {
     expect(activatedAbilitiesOf(card).every((ability) => ability.targets?.[0].maxCost !== undefined)).toBe(true);
   });
 
-  it('retains the capped Duty, keyword, arrival and flavor budgets on the approved Tidewife face', () => {
+  it('retains the capped Duty, keyword and arrival lines on the approved Tidewife face', () => {
     const card = DROWNED_DEEP_CARD_LAYOUT_FIXTURES[0];
     expect(rulesText(card)).toBe(
       "{T}: Return target creature with cost 3 or less to its owner's hand.\n" +
       'Skyborne\n' +
       'When this arrives, put the top 3 cards of your deck into your graveyard.',
     );
-    expect(card.flavor).toBe('She married the tide. The tide has been very attentive.');
   });
 
   it('retains both long Duty lines with independent costs and complete target qualifiers', () => {
@@ -46,8 +45,8 @@ describe('Drowned Deep card layout inputs', () => {
     const measure = (value: string): number => value.length * 4;
     const padded = padManaTextSegments(segments, 16, 1.92, measure);
     expect(padded.runs.map((run) => run.pips)).toEqual([
-      [{ texture: 'pip-C', number: 2 }, { texture: 'pip-B' }],
-      [{ texture: 'pip-C', number: 1 }, { texture: 'pip-B' }],
+      [{ texture: 'pip-C-2', number: 2 }, { texture: 'pip-B' }],
+      [{ texture: 'pip-C-1', number: 1 }, { texture: 'pip-B' }],
     ]);
     expect(padded.text.replaceAll('\u00a0', '')).toBe(raw.replace(/\{[12]\}\{B\}/g, ''));
     expect(padded.text.split('\n')).toHaveLength(2);

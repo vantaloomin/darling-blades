@@ -10,14 +10,24 @@
  * Each generation prompt is assembled as [COMPOSITION+STYLE PREAMBLE] +
  * [entry Prompt line] + [NEGATIVES]; the style contract lives in
  * docs/art-bible/index.md §2 and the preamble/negatives below mirror it
- * (see the PREAMBLE comment). Inspect the exact text with --show-prompt.
+ * (see the PREAMBLE comment). Three preambles exist: PREAMBLE (the waist-up
+ * woman, every set before First Dawn), BEAST_PREAMBLE (a "NO woman" entry in
+ * any set) and FIGURE_PREAMBLE (a woman drawn head to knees, First Dawn's
+ * framing, selected per faction; it also gets a figure crop). Inspect the
+ * exact text with --show-prompt; --dry-run names each figure entry's crop.
  *
  * Usage:
  *   npm run gen-card-art -- [--faction <stem>] [--only id1,id2] [--limit N]
  *                           [--dry-run] [--show-prompt] [--force] [--cli <path>]
  *   npm run gen-card-art -- --recrop <file> [--out-dir <path>]
+ *   npx tsx scripts/gen-card-art.ts --bible <file> --out-dir <path> [--only ...]
  *
  *   --faction greek   only entries from docs/art-bible/greek.md
+ *   --bible <file>    read entries from this draft bible file instead of the
+ *                     faction files (a set with no card data yet, such as the
+ *                     First Dawn pilot); requires --out-dir
+ *   --out-dir <path>  write the WebPs here instead of public/assets/art/cards
+ *                     and skip gen-art-manifest; must lie outside public/
  *   --only a,b        only these card ids
  *   --limit N         generate at most N images this run (skips don't count)
  *   --dry-run         list what would generate, touch nothing
@@ -36,7 +46,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { convertPngToWebp } from './convert-art-webp';
 
@@ -65,6 +75,7 @@ const FACTIONS = [
   'sands-of-the-duat',
   'starborne',
   'drowned-deep',
+  'first-dawn',
 ] as const;
 
 const OUT_W = 640;
@@ -89,8 +100,10 @@ const GEN_TIMEOUT_S = 300;
  * card window's visible band (docs/art-bible/index.md §3), i.e. the frame
  * decapitates the character. A soft "keep detail in the middle band" hint was
  * NOT enough; the prefix must demand waist-up framing and explicitly reserve
- * the top of the canvas as background. Face at vertical center of the
- * deliverable ≈ eye line y 340–400, inside the bible's face zone (200–560).
+ * the top of the canvas as background. The face at the vertical center of the
+ * raw canvas buys headroom; smartcrop then places it (the focal line, y ≈ 291
+ * of the deliverable since the 216 window of 1.9; docs/art-pipeline.md),
+ * inside the bible's face zone (200–560).
  *
  * Recalibrated for the cel-gacha pivot (same day): under the new style,
  * SEATED/ENTHRONED poses rendered more body and pushed eyes to y≈140–175
@@ -106,6 +119,11 @@ const GEN_TIMEOUT_S = 300;
  * halo/headdress sits clearly BELOW the top-third boundary with generous
  * empty background above it (same additive pattern as the seated-pose
  * clause). Smart crop handles placement; the preamble only has to buy sky.
+ *
+ * Not for First Dawn (1.9, calibration round 1, 2026-09-29): its entries are
+ * drawn head to knees with the story around the woman, and this sentence's
+ * waist-up, face-at-centre framing fought them. They get FIGURE_PREAMBLE
+ * (below); this preamble stays byte for byte for every older set.
  *
  * Lighting is deliberately NOT keyed here: the bible's default (warm
  * upper-left key, cool fill) is overridden per entry, and every entry prompt
@@ -131,6 +149,140 @@ const PREAMBLE =
   'text-free. ';
 
 /**
+ * The preamble for a beast-alone entry: an animal is the whole subject and no
+ * person is in frame (docs/art-bible/index.md §4d, "the beast alone"). The
+ * default preamble above says "her head", "a conventionally beautiful anime
+ * face" and "She reads as powerful" on every prompt, and a beast-only entry
+ * under it came out as a monster-girl (tok-wolf, a wolf-girl). The same
+ * headroom HARD RULE applies to the animal's head, horns, frill and crest
+ * included; the cel-shading sentence keeps the house style and drops every
+ * her/she/face clause.
+ *
+ * Selected deterministically by the entry itself: a Prompt line that starts
+ * with "NO woman" (the §4d beast-alone opening) gets this preamble; every other
+ * entry keeps PREAMBLE byte for byte. No new bible field.
+ */
+const BEAST_PREAMBLE =
+  'Composition: one animal is the whole subject, and there is no woman, no man, no person ' +
+  'and no human figure anywhere in the frame; the animal is fully an animal, with no human ' +
+  'face, no human body, no human hair and no clothing. Its whole head, including horns, ' +
+  'frill, crest or skull, sits inside the middle band of the canvas. HARD RULE: the very top ' +
+  'of its head — horns, frill and crest included — sits clearly BELOW the top-third boundary ' +
+  'line and never touches it; open sky or empty background fills the top of the canvas ' +
+  'above it. ' +
+  'Style: crisp cel-shaded gacha anime splash art — clean confident inked linework with ' +
+  'line-weight variation, hard-edged cel shading in two to three tone steps, bright anime ' +
+  'specular highlights, saturated readable colors. The animal reads powerful and alive, with ' +
+  'a crisp rim light separating it from the background. The background is a fully rendered ' +
+  'anime key-visual environment with real depth and story, slightly softer and more ' +
+  'atmospheric than the animal. The illustration is completely text-free. ';
+
+/** The opening that marks a beast-alone entry (see BEAST_PREAMBLE). */
+const BEAST_ENTRY_OPENING = 'NO woman';
+
+/**
+ * The preamble for a pulled-back figure set (First Dawn, 1.9): a woman drawn
+ * from the top of her head to her knees, with the scene's story (a beast, a
+ * nest, a Hatchling, bones, her tail) around her rather than a waist-up bust.
+ *
+ * Why (calibration round 1, 2026-09-29, eleven First Dawn images): PREAMBLE's
+ * "waist-up portrait framing, the face at the exact vertical center" fights
+ * every head-to-knees First Dawn entry. The model drew the figure tall and
+ * high: head tops at 12% to 28% of the raw height, with the lower story
+ * (nest, bones, tail tips) below the card window or, on Herd-Guardian, a head
+ * at 12% that tripped smartcrop's zoom fallback into a 614x767 bust with the
+ * nest gone.
+ *
+ * The geometry it asks for: a 1024x1536 raw is cover-cropped to 1024x1280
+ * (scale 0.625) and the card window shows deliverable rows 138 to 662, with
+ * the head line at y 179. So head top to knees must fit in 662 - 179 = 483
+ * deliverable rows, 773 raw rows: about half the raw's height.
+ *
+ * Round 2 (seven images) asked for the head top a quarter of the way down and
+ * got 13.7% to 23.6% (mean 18.0%): the model draws the head about seven points
+ * higher than asked, and three heads sat above y 179 on a crop already at the
+ * raw's ceiling. So the ask is now a third (the top-third HARD RULE PREAMBLE
+ * already uses), with the knees no lower than three quarters. If the model
+ * obeys exactly: head top at raw row 512, which the crop moves to y 179 by
+ * starting 225 rows down (the limit is 256), and knees at row 1152 or higher,
+ * which lands at y 579 or higher, inside the window's y 662. If it keeps its
+ * seven-point bias the head lands near 26%, where a crop starting about 110
+ * rows down still puts it on y 179. The one risk is overshoot: a head below
+ * 35.4% of the raw (row 543) cannot be lifted to y 179 and sits lower, which
+ * costs headroom polish, not the face (a head at 40% lands at y 224). The
+ * style sentences are PREAMBLE's, byte for byte.
+ *
+ * The anatomy sentence (owner review round 1, 2026-10-01): of the 14 First Dawn
+ * redraws the owner asked for, nine were anatomy (a missing arm, a third hand,
+ * an arm not joined to the body, a head turned backwards, two tail tips) or
+ * props floating in the air (a shield, a mace, a bone toss). The per-entry
+ * prompts were fixed, and this one sentence rides every First Dawn figure
+ * prompt so the next set of entries does not have to say it each time. First
+ * Dawn only: PREAMBLE and BEAST_PREAMBLE stay byte for byte.
+ *
+ * Selected by faction (FACTION_FRAMING below), not by entry text: the older
+ * sets' entries and the §3 recipe also say "head to knees", so a text marker
+ * would change their prompts, and a phrase an author words differently would
+ * silently fall back to the waist-up preamble. A beast-alone entry ("NO
+ * woman") keeps BEAST_PREAMBLE in every set.
+ */
+const FIGURE_PREAMBLE =
+  // Composition (First Dawn; see above).
+  'Composition: a pulled-back figure shot seen from a few steps back, never a close-up and ' +
+  'never a waist-up portrait: the top of her head sits one third of the way down the canvas ' +
+  'and her knees no lower than three quarters of the way down, so her whole figure from the ' +
+  'top of her head to her knees fills well under half of the canvas height, with the scene ' +
+  'around her. HARD RULE: the very top of her head — including hair, horns, crest, frill, ' +
+  'ears or headdress — sits clearly BELOW the top-third boundary line and never touches it; ' +
+  'open sky or empty background fills the whole top third of the canvas above her head. ' +
+  'Every story element — a beast, a nest, an egg, a hatchling, bones, a tail and its tip, a ' +
+  'dropped weapon — sits beside her, between the height of her head and the height of her ' +
+  'knees, never in front of her below her waist, never at her feet and never in the bottom ' +
+  'quarter of the canvas; her lower legs, her feet and the ground may run off the bottom ' +
+  'edge. ' +
+  // Anatomy and props (owner review round 1, 2026-10-01; see above).
+  'Anatomy: every woman has exactly two arms and two hands, both clearly attached at her ' +
+  'shoulders; every weapon, shield or tool is either gripped in a hand, strapped to her, or ' +
+  'resting on the ground or a surface; nothing floats in the air except fire, sparks, dust ' +
+  'or a thrown missile in flight. ' +
+  // Cel DNA + register + scenic background: PREAMBLE's style sentences, verbatim.
+  PREAMBLE.slice(PREAMBLE.indexOf('Style: '));
+
+/**
+ * Per-faction framing. A faction listed here as 'figure' gives its woman
+ * entries FIGURE_PREAMBLE and the figure crop (FIGURE_FOCAL_FRAC); every
+ * other faction keeps PREAMBLE and the default crop, byte for byte. A --bible
+ * draft file is keyed by its file stem.
+ */
+const FACTION_FRAMING: Readonly<Partial<Record<(typeof FACTIONS)[number], 'figure'>>> = {
+  'first-dawn': 'figure',
+};
+
+/**
+ * The smartcrop focal target for a figure entry, passed as `--focal-frac`.
+ * Measured on round 1's raws: smartcrop's default (FOCAL_FRAC, the face
+ * centre at y 291) is a portrait target. For a small full-figure head it
+ * pushes the head top down to about y 250 and the knees out of the window,
+ * and when the head sits high in the raw (focal above 24.4% of the crop) its
+ * zoom fallback shrinks the crop by focal_y / focal_frac, so the higher the
+ * face, the harder the zoom. At 0.10 the headroom floor (head top at y 179)
+ * always decides the placement, since it asks for a lower crop start than the
+ * focal line for any head, and the zoom's crop height (focal_y / 0.10) is the
+ * full 1280 rows unless the face centre sits in the raw's top 128 rows.
+ * So a figure keeps the full raw width; a head drawn too high shows as a
+ * crown clip on the contact sheet (a regeneration) instead of a silent bust.
+ */
+const FIGURE_FOCAL_FRAC = 0.1;
+
+const isFigureEntry = (entry: Entry): boolean =>
+  !entry.prompt.startsWith(BEAST_ENTRY_OPENING) &&
+  (FACTION_FRAMING as Readonly<Record<string, 'figure' | undefined>>)[entry.faction] === 'figure';
+
+/** Extra smartcrop arguments for an entry: none unless it is a figure entry. */
+const cropArgsFor = (entry: Entry): string[] =>
+  isFigureEntry(entry) ? ['--focal-frac', String(FIGURE_FOCAL_FRAC)] : [];
+
+/**
  * Negative block appended after the entry prompt: the NO-TEXT hard rule plus
  * the anatomy/style negatives from index.md §2. Backends habitually stamp
  * gacha nameplates and garbled CJK title-text onto Three Kingdoms art, so the
@@ -147,7 +299,9 @@ const NEGATIVES =
 
 // The entry Prompt line ends unpunctuated ("… 640×800 portrait"), so close the
 // sentence before the negatives block.
-const assemblePrompt = (entry: Entry): string => PREAMBLE + entry.prompt + '.' + NEGATIVES;
+const preambleFor = (entry: Entry): string =>
+  entry.prompt.startsWith(BEAST_ENTRY_OPENING) ? BEAST_PREAMBLE : isFigureEntry(entry) ? FIGURE_PREAMBLE : PREAMBLE;
+const assemblePrompt = (entry: Entry): string => preambleFor(entry) + entry.prompt + '.' + NEGATIVES;
 
 /**
  * Prefer the repo's dedicated art venv over whatever `python` happens to be on
@@ -180,6 +334,7 @@ const PYTHON = process.env.PYTHON
 
 interface Args {
   faction?: string;
+  bible?: string;
   only?: string[];
   limit?: number;
   recrop?: string;
@@ -200,6 +355,7 @@ function parseArgs(argv: string[]): Args {
       return v;
     };
     if (a === '--faction') args.faction = next(a);
+    else if (a === '--bible') args.bible = next(a);
     else if (a === '--only') args.only = next(a).split(',').map((s) => s.trim()).filter(Boolean);
     else if (a === '--recrop') args.recrop = next(a);
     else if (a === '--out-dir') {
@@ -226,6 +382,17 @@ function parseArgs(argv: string[]): Args {
 function fail(msg: string): never {
   console.error(`gen-card-art: ${msg}`);
   process.exit(1);
+}
+
+/** Whether `child` is `parent` or lies under it (case-insensitive on Windows). */
+function isSameOrInside(child: string, parent: string): boolean {
+  const norm = (value: string) => {
+    const n = normalize(resolve(value));
+    return process.platform === 'win32' ? n.toLowerCase() : n;
+  };
+  const c = norm(child);
+  const p = norm(parent);
+  return c === p || c.startsWith(p.endsWith(sep) ? p : `${p}${sep}`);
 }
 
 // --- art-bible parsing -----------------------------------------------------------
@@ -257,7 +424,12 @@ interface SmartcropResult {
 
 /** (card-id → prompt) pairs from one faction file, in file order. */
 function parseFaction(faction: string): Entry[] {
-  const content = readFileSync(join(bibleDir, `${faction}.md`), 'utf8');
+  return parseBibleFile(join(bibleDir, `${faction}.md`), faction);
+}
+
+/** Entries from one bible file; `faction` labels them (the file stem). */
+function parseBibleFile(path: string, faction: string): Entry[] {
+  const content = readFileSync(path, 'utf8');
   const entries: Entry[] = [];
   let open: Entry | null = null;
   for (const line of content.split(/\r?\n/)) {
@@ -485,9 +657,10 @@ function generateOne(
   cliArgv: string[],
   entry: Entry,
   force: boolean,
+  targetDir: string,
 ): { ok: boolean; error?: string; reusedRaw?: boolean } {
   const rawPath = join(rawDir, `${entry.id}.raw.png`);
-  const outPath = join(outDir, `${entry.id}.webp`);
+  const outPath = join(targetDir, `${entry.id}.webp`);
   const tmpPath = `${outPath}.tmp.png`;
   const prompt = assemblePrompt(entry);
 
@@ -526,7 +699,7 @@ function generateOne(
   // resolver trust file presence).
   const post = spawnSync(
     PYTHON,
-    [smartcropPath, rawPath, tmpPath, String(OUT_W), String(OUT_H), 'character'],
+    [smartcropPath, rawPath, tmpPath, String(OUT_W), String(OUT_H), 'character', ...cropArgsFor(entry)],
     { encoding: 'utf8' },
   );
   if (post.status !== 0) {
@@ -548,21 +721,35 @@ function generateOne(
 function main(): void {
   const args = parseArgs(process.argv.slice(2));
   if (args.recrop) {
-    if (args.faction || args.only || args.limit !== undefined || args.showPrompt || args.force || args.cli) {
+    if (args.faction || args.bible || args.only || args.limit !== undefined || args.showPrompt || args.force || args.cli) {
       fail('--recrop cannot be combined with generation filters or --force/--cli');
     }
     runRecrop(args.recrop, args.dryRun, args.outDir);
     return;
   }
-  if (args.outDir !== undefined) fail('--out-dir is only valid with --recrop');
+  // --out-dir in generation mode writes somewhere the game never reads and
+  // skips the manifest, so a draft set's ids can never ship by accident. A
+  // draft --bible must use it; the target may not lie anywhere under public/.
+  const targetDir = args.outDir === undefined ? outDir : resolve(root, args.outDir);
+  if (args.outDir !== undefined && isSameOrInside(targetDir, join(root, 'public'))) {
+    fail('--out-dir must lie outside public/ (the game serves everything under it)');
+  }
+  if (args.bible !== undefined) {
+    if (args.faction) fail('--bible cannot be combined with --faction');
+    if (args.outDir === undefined) fail('--bible requires --out-dir (a draft bible never writes shipped art)');
+  }
 
+  const bibleFile = args.bible === undefined ? undefined : resolve(root, args.bible);
+  if (bibleFile !== undefined && !existsSync(bibleFile)) fail(`bible file not found: ${bibleFile}`);
   const factions = args.faction ? [args.faction] : [...FACTIONS];
-  let entries = factions.flatMap(parseFaction);
+  let entries = bibleFile !== undefined
+    ? parseBibleFile(bibleFile, basename(bibleFile, '.md'))
+    : factions.flatMap(parseFaction);
 
   if (args.only) {
     const known = new Set(entries.map((e) => e.id));
     const unknown = args.only.filter((id) => !known.has(id));
-    if (unknown.length > 0) fail(`--only ids not in the selected faction file(s): ${unknown.join(', ')}`);
+    if (unknown.length > 0) fail(`--only ids not in the selected bible file(s): ${unknown.join(', ')}`);
     const wanted = new Set(args.only);
     entries = entries.filter((e) => wanted.has(e.id));
   }
@@ -578,21 +765,26 @@ function main(): void {
     return;
   }
 
-  const exists = (e: Entry) => existsSync(join(outDir, `${e.id}.webp`));
+  const exists = (e: Entry) => existsSync(join(targetDir, `${e.id}.webp`));
   const skipped = args.force ? [] : entries.filter(exists);
   let todo = args.force ? entries : entries.filter((e) => !exists(e));
   if (args.limit !== undefined) todo = todo.slice(0, args.limit);
 
+  const source = bibleFile !== undefined
+    ? bibleFile
+    : `${factions.length} faction file${factions.length === 1 ? '' : 's'}`;
   console.log(
     `gen-card-art: ${entries.length} entr${entries.length === 1 ? 'y' : 'ies'} matched ` +
-      `(${factions.length} faction file${factions.length === 1 ? '' : 's'}) — ` +
-      `${todo.length} to generate, ${skipped.length} already on disk`,
+      `(${source}) — ${todo.length} to generate, ${skipped.length} already on disk in ${targetDir}` +
+      (args.outDir !== undefined ? ' (out-dir: gen-art-manifest will not run)' : ''),
   );
 
   if (args.dryRun) {
     for (const e of entries) {
       const state = !args.force && exists(e) ? 'exists — skip (use --force)' : todo.includes(e) ? 'would generate' : 'beyond --limit';
-      console.log(`  ${e.id.padEnd(28)} ${e.faction.padEnd(24)} ${state}`);
+      // Figure entries also name their preamble and crop; every other line is unchanged.
+      const framing = isFigureEntry(e) ? ` (figure preamble, crop ${cropArgsFor(e).join(' ')})` : '';
+      console.log(`  ${e.id.padEnd(28)} ${e.faction.padEnd(24)} ${state}${framing}`);
     }
     console.log('gen-card-art: dry run — nothing generated');
     return;
@@ -602,7 +794,7 @@ function main(): void {
     return;
   }
 
-  mkdirSync(outDir, { recursive: true });
+  mkdirSync(targetDir, { recursive: true });
   mkdirSync(rawDir, { recursive: true });
   const cliArgv = resolveCli(args.cli);
 
@@ -623,7 +815,7 @@ function main(): void {
     const entry = todo[i];
     const t0 = Date.now();
     process.stdout.write(`[${i + 1}/${todo.length}] ${entry.id} … `);
-    const res = generateOne(cliArgv, entry, args.force);
+    const res = generateOne(cliArgv, entry, args.force, targetDir);
     const secs = ((Date.now() - t0) / 1000).toFixed(1);
     if (res.ok) {
       generated++;
@@ -651,7 +843,7 @@ function main(): void {
   );
   for (const f of failures) console.error(`  FAIL ${f.id}: ${f.error}`);
 
-  if (generated > 0) {
+  if (generated > 0 && args.outDir === undefined) {
     const manifest = spawnSync('npm run gen-art-manifest', { shell: true, stdio: 'inherit' });
     if (manifest.status !== 0) fail('gen-art-manifest failed — run `npm run gen-art-manifest` manually');
   }

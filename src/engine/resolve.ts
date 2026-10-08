@@ -1,6 +1,7 @@
 import type { Emit } from './battlefield';
 import { enterBattlefield } from './battlefield';
 import {
+  arrivalHuntIndex,
   conditionSatisfied,
   fireGraveyardTriggers,
   fireTriggers,
@@ -9,7 +10,7 @@ import {
 } from './effects/EffectInterpreter';
 import { isLegalTarget } from './effects/targeting';
 import type { CardDb, CardDef, CardEntry, EffectOp, GameState, StackItem, TargetSpec } from './types';
-import { def, isType } from './types';
+import { def, isTargetBranchOp, isType } from './types';
 
 export type { Emit };
 export { enterBattlefield };
@@ -18,9 +19,18 @@ export function isAura(d: CardDef): boolean {
   return d.subtypes.includes('Aura');
 }
 
-/** Cast-time target specs: auras and Hauntlink casts target a creature. */
+/**
+ * Cast-time target specs: auras and Hauntlink casts target a creature, and a
+ * creature with an arrival Hunt names its prey (the owner's ruling,
+ * 2026-09-28: it can't be cast unless it has prey). This is the printed
+ * shape; a conditional arrival Hunt whose condition fails at cast names no
+ * prey (2026-09-29), which the cast enumerator and validator read from the
+ * board (actions.ts, castTargetSpecsNow).
+ */
 export function castTargetSpecs(d: CardDef): readonly TargetSpec[] {
   if (isAura(d)) return [{ what: 'creature' }];
+  const hunt = arrivalHuntIndex(d);
+  if (hunt >= 0) return d.abilities![hunt].targets!;
   return targetSpecsOf(d.abilities);
 }
 
@@ -39,7 +49,25 @@ export function castTargetSpecsFor(
 
 function usesExplicitTargetSlot(ops: readonly EffectOp[]): boolean {
   return ops.some(op => ('targetIndex' in op && op.targetIndex !== undefined) ||
-    (op.op === 'ifTargetMarked' && (usesExplicitTargetSlot(op.then) || usesExplicitTargetSlot(op.else ?? []))));
+    (isTargetBranchOp(op) && (usesExplicitTargetSlot(op.then) || usesExplicitTargetSlot(op.else ?? []))));
+}
+
+/**
+ * Does this op list include a Hunt? A Hunt re-checks both its creatures
+ * against their specs at resolution, so its callers pass `targetSpecs`.
+ */
+export function usesHunt(ops: readonly EffectOp[]): boolean {
+  return ops.some(op => op.op === 'hunt' ||
+    (isTargetBranchOp(op) && (usesHunt(op.then) || usesHunt(op.else ?? []))));
+}
+
+function isPermanentSpell(d: CardDef, item: StackItem): boolean {
+  return !(item.retell && d.retell?.ops) && (
+    isType(d, 'creature') ||
+    isType(d, 'artifact') ||
+    isType(d, 'enchantment') ||
+    (isType(d, 'ritual') && d.chapters !== undefined)
+  );
 }
 
 function moveSpellOnExit(state: GameState, db: CardDb, item: StackItem, emit: Emit): void {
@@ -74,7 +102,19 @@ export function resolveStackItem(
     item.hauntlinked === true,
     item.empowered === true,
   );
-  if (specs.length > 0) {
+  // An empowered permanent never fizzles on its Empower targets: it resolves,
+  // and only the rider finds nothing to act on (the owner's E5 ruling,
+  // 2026-09-29; Magic's kicker behaves this way).
+  const riderTargetsOnly = item.empowered === true && d.empower?.targets !== undefined &&
+    item.hauntlinked !== true && !isAura(d) && isPermanentSpell(d, item);
+  // Nor does a creature on its arrival Hunt's prey (the same ruling): it
+  // arrives, and hunts only if the prey is still there and still legal. The
+  // hauntlinked and Retell-override guards cannot fire for a creature (a
+  // Hauntlink carrier is never one, validateHauntlinkDef); they only keep the
+  // condition honest about which casts use the body's targets.
+  const huntPreyCast = !riderTargetsOnly && item.hauntlinked !== true && !(item.retell && d.retell?.ops) &&
+    isPermanentSpell(d, item) && arrivalHuntIndex(d) >= 0;
+  if (specs.length > 0 && !riderTargetsOnly && !huntPreyCast) {
     const optionalTargets = specs.length === 1 && specs[0].upTo !== undefined;
     const batchTargets = optionalTargets || (specs.length === 1 && specs[0].exactly !== undefined);
     const anyLegal =
@@ -92,12 +132,7 @@ export function resolveStackItem(
 
   emit({ e: 'spellResolved', sid: item.sid });
 
-  if (!(item.retell && d.retell?.ops) && (
-    isType(d, 'creature') ||
-    isType(d, 'artifact') ||
-    isType(d, 'enchantment') ||
-    (isType(d, 'ritual') && d.chapters !== undefined)
-  )) {
+  if (isPermanentSpell(d, item)) {
     const attachedTo =
       (isAura(d) || item.hauntlinked === true) && item.targets[0]?.kind === 'permanent'
         ? item.targets[0].iid
@@ -112,7 +147,11 @@ export function resolveStackItem(
         controller: perm.controller,
       });
     }
-    fireTriggers(state, db, emit, 'arrives', perm);
+    // A cast with no prey is a conditional Hunt whose condition failed at cast
+    // (the owner's ruling, 2026-09-29): its ability takes the ordinary
+    // targeted-trigger path, which re-checks the condition on arrival.
+    fireTriggers(state, db, emit, 'arrives', perm,
+      huntPreyCast && item.targets.length > 0 ? { castHuntTargets: item.targets } : {});
     runEmpowerRider(state, db, item, d, emit, perm.iid, specs);
     return;
   }
@@ -144,7 +183,7 @@ export function resolveStackItem(
               controller: item.controller,
               sourceCardId: item.cardId,
               targets: item.targets,
-              ...(usesExplicitTargetSlot(ab.ops) || specs.some(s => s.maxCost !== undefined || s.minAttack !== undefined || s.exactly) ? { targetSpecs: specs } : {}),
+              ...(usesExplicitTargetSlot(ab.ops) || usesHunt(ab.ops) || specs.some(s => s.maxCost !== undefined || s.minAttack !== undefined || s.exactly || s.attacking) ? { targetSpecs: specs } : {}),
               ...(specs.length === 1 && (specs[0].upTo !== undefined || specs[0].exactly !== undefined) ? { targetBatch: true } : {}),
               x: item.x,
             },
@@ -180,8 +219,11 @@ function runEmpowerRider(
       controller: item.controller,
       sourceCardId: item.cardId,
       ...(sourceIid === undefined ? {} : { sourceIid }),
+      // No targetSpecs for a `reclaim` rider (Renenutet): it finds its card by
+      // instance id, and real games are instance-bearing. Only test fixtures
+      // use string graveyards, where it falls back to the chosen index.
       targets: item.targets,
-      ...(usesExplicitTargetSlot(d.empower.ops) || specs.some(spec => spec.maxCost !== undefined || spec.minAttack !== undefined || spec.exactly) ? { targetSpecs: specs } : {}),
+      ...(usesExplicitTargetSlot(d.empower.ops) || usesHunt(d.empower.ops) || specs.some(spec => spec.maxCost !== undefined || spec.minAttack !== undefined || spec.exactly) ? { targetSpecs: specs } : {}),
       ...(specs.length === 1 && (specs[0].upTo !== undefined || specs[0].exactly !== undefined) ? { targetBatch: true } : {}),
     },
     d.empower.ops,

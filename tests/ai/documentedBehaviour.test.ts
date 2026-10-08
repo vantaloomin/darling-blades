@@ -4,16 +4,181 @@ import { MediumAI } from '../../src/ai/MediumAI';
 import { HardAI } from '../../src/ai/HardAI';
 import * as combatPlans from '../../src/ai/combatPlans';
 import { makePersonality } from '../../src/ai/personality';
+import { CARD_DB } from '../../src/data/catalog';
+import { AVATARS } from '../../src/data/opponents';
+import { getEffectiveStats } from '../../src/engine/statics';
 import { activateActionValue, cardValue, permValue } from '../../src/ai/value';
 import { validateAction, type Action } from '../../src/engine/actions';
 import { Game } from '../../src/engine/Game';
 import type { PlayerView } from '../../src/engine/view';
 import { DEFAULT_PICKER, pickNoise, scorePick } from '../../src/meta/draftPicker';
 import { act, attacks, blocks, body, checked, DB, fixture, invariantErrors, lands } from './documentedBehaviourFixture';
+import { usageAuditGame } from './usageAuditFixture';
 
 afterEach(() => { vi.restoreAllMocks(); });
 afterAll(() => {
   expect(invariantErrors, 'fixture/legality errors cannot satisfy it.fails').toEqual([]);
+});
+
+describe('documented public-board usage decisions', () => {
+  // P5: Warchest cell 201405, game 3, turn 3 at feb4218c. The recorded
+  // prefix reaches Medium's second turn after her normal land drop.
+  it('Medium develops Seiðr-Weaver early while its extra land can accelerate later turns', () => {
+    const game = checked(() => usageAuditGame('earlyRamp'));
+    const view = game.viewFor(0);
+    expect(view.battlefield.filter((p) => p.controller === 0 && CARD_DB[p.cardId].types.includes('land'))).toHaveLength(2);
+    expect(view.you.landReserve).toHaveLength(8);
+    const handIndex = view.you.hand.indexOf('rg-verdant-seidr');
+    expect(game.legalActions(0)).toContainEqual({ type: 'castSpell', handIndex });
+    expect(act(game, new MediumAI(CARD_DB), CARD_DB)).toEqual({ type: 'castSpell', handIndex });
+    expect(game.viewFor(0).you.landDropsRemaining).toBe(1);
+    expect(act(game, new MediumAI(CARD_DB), CARD_DB)).toMatchObject({ type: 'playLand' });
+    expect(game.viewFor(0).you.landReserve).toHaveLength(7);
+  });
+
+  it.each([0, 1])('Medium values Seiðr-Weaver as its body alone with %i reserve land left', (remaining) => {
+    const game = checked(() => usageAuditGame('earlyRamp'));
+    const view = game.viewFor(0);
+    view.you.landReserve = view.you.landReserve!.slice(0, remaining);
+    const bodyOnly = { ...CARD_DB, 'rg-verdant-seidr': { ...CARD_DB['rg-verdant-seidr'], abilities: [] } };
+    expect(cardValue(CARD_DB, 'rg-verdant-seidr', view)).toBe(cardValue(bodyOnly, 'rg-verdant-seidr', view));
+    const action = new MediumAI(CARD_DB).chooseAction(view, game.legalActions(0));
+    expect(action).toEqual({ type: 'castSpell', handIndex: view.you.hand.indexOf('rg-corpse-taker') });
+  });
+
+  // P4: Darlings cell 210102, game 87, turn 16, re-recorded at 4228aab9 after
+  // the wave-4 tunes moved the audit's game 3. The deliberate
+  // branch must call Gaia when it is the only cast; noise is disabled here.
+  it('Easy calls her affordable Darling when she has no spell to cast', () => {
+    const game = checked(() => usageAuditGame('darlingAlone'));
+    const player = game.awaiting.kind === 'main' ? game.awaiting.player : 0;
+    const legal = game.legalActions(player);
+    expect(legal.some((action) => action.type === 'castDarling')).toBe(true);
+    expect(legal.some((action) => action.type === 'castSpell')).toBe(false);
+    expect(act(game, new EasyAI(CARD_DB, 41, makePersonality({ easyNoise: 0 })), CARD_DB))
+      .toMatchObject({ type: 'castDarling' });
+    expect(game.viewFor(player).you.darlingZone).toBeNull();
+  });
+
+  // P3: Darlings cell 211401, game 19, turn 18. Hel untaps next turn.
+  it('Hard keeps the Abbess ready after combat instead of tapping an enemy that will untap', () => {
+    const game = checked(() => usageAuditGame('afternoonTap'));
+    const player = game.awaiting.kind === 'main' ? game.awaiting.player : 0;
+    expect(game.legalActions(player)).toContainEqual({ type: 'activate', iid: 24, targets: [ref(13)] });
+    const artoria = AVATARS.find((avatar) => avatar.id === 'artoria')!;
+    const action = act(game, new HardAI(CARD_DB, artoria.personality), CARD_DB);
+    expect(action).not.toMatchObject({ type: 'activate', iid: 24 });
+    expect(game.state.battlefield.find((perm) => perm.iid === 24)?.tapped).toBe(false);
+  });
+
+  // P2: Warchest 202312/g2/t3 and avatars 2300/g7/t6, respectively.
+  it.each(['mediumMark', 'hardMark'] as const)('%s holds Brood Communion until it has a creature to Mark', (position) => {
+    const game = checked(() => usageAuditGame(position));
+    const player = game.awaiting.kind === 'main' ? game.awaiting.player : 0;
+    const view = game.viewFor(player);
+    expect(view.battlefield.filter((perm) => perm.controller === player && CARD_DB[perm.cardId].types.includes('creature'))).toEqual([]);
+    const handIndex = view.you.hand.indexOf('sb-brood-communion');
+    expect(game.legalActions(player)).toContainEqual({ type: 'castSpell', handIndex });
+    const brain = position === 'mediumMark' ? new MediumAI(CARD_DB) :
+      new HardAI(CARD_DB, AVATARS.find((avatar) => avatar.id === 'chrome-broodmother')!.personality);
+    expect(act(game, brain, CARD_DB)).toEqual({ type: 'passStep' });
+    expect(cardValue(CARD_DB, 'sb-brood-communion', view)).toBeLessThanOrEqual(0);
+    expect(game.viewFor(player).you.hand).toContain('sb-brood-communion');
+  });
+
+  // Wave 4, M1: Hooves and Fire's Warchest cell 200114, game 0, turn 14, at
+  // e365cc0c. The Hornback survives the Charge's 1 and the Hoarder's blow.
+  it('Medium casts Blaze-Horn Charge, whose first effect damages its own creature, at a pair it survives', () => {
+    const game = checked(() => usageAuditGame('blazeHorn'));
+    const handIndex = game.viewFor(1).you.hand.indexOf('fd-blaze-horn-charge');
+    const action = act(game, new MediumAI(CARD_DB), CARD_DB) as Extract<Action, { type: 'castSpell' }>;
+    expect(action).toMatchObject({ type: 'castSpell', handIndex });
+    const [hunter, prey] = action.targets!.map((target) => target.kind === 'permanent' ? target.iid : -1);
+    while (game.awaiting.kind === 'respond') game.submit(game.awaiting.player, { type: 'passResponse' });
+    expect(game.state.stack).toEqual([]);
+    expect(game.state.battlefield.some((perm) => perm.iid === hunter)).toBe(true);
+    expect(game.state.battlefield.some((perm) => perm.iid === prey)).toBe(false);
+  });
+
+  // Wave 4, M3: Warchest cell 200514, game 3, turn 22, at e365cc0c. Every
+  // Hunt pair loses the 2/3 to Zhurong's 4/3 without the kill.
+  it('Medium holds Spear and Fang when its Hunt would lose the hunter without the kill', () => {
+    const game = checked(() => usageAuditGame('lostHunt'));
+    const handIndex = game.viewFor(0).you.hand.indexOf('fd-spear-and-fang');
+    expect(game.legalActions(0).some((action) => action.type === 'castSpell' && action.handIndex === handIndex)).toBe(true);
+    expect(act(game, new MediumAI(CARD_DB), CARD_DB)).not.toMatchObject({ type: 'castSpell', handIndex });
+  });
+
+  // Wave 4, Trial by Ember: Hera's (Medium) Darlings cell 210402, game 4,
+  // turn 4, and the Shepherdess's (Hard) cell 212700, game 12, turn 2,
+  // re-recorded at 4228aab9 after the themed builder replaced her list.
+  it.each(['emptyTrial', 'hardTrial'] as const)('%s: the boss holds Trial by Ember with no creature of its own', (position) => {
+    const game = checked(() => usageAuditGame(position));
+    const player = game.awaiting.kind === 'main' ? game.awaiting.player : 0;
+    const view = game.viewFor(player);
+    expect(view.battlefield.filter((perm) => perm.controller === player && CARD_DB[perm.cardId].types.includes('creature'))).toEqual([]);
+    const handIndex = view.you.hand.indexOf('fd-trial-by-ember');
+    expect(game.legalActions(player)).toContainEqual({ type: 'castSpell', handIndex });
+    const brain = position === 'emptyTrial'
+      ? new MediumAI(CARD_DB, AVATARS.find((avatar) => avatar.id === 'hera')!.personality)
+      : new HardAI(CARD_DB, AVATARS.find((avatar) => avatar.id === 'the-shepherdess-of-giants')!.personality);
+    expect(act(game, brain, CARD_DB)).not.toMatchObject({ type: 'castSpell', handIndex });
+  });
+
+  // Section 4 permits a constructed position: no audit list has Apotheosis.
+  it.each(['medium', 'hard'] as const)('%s saves Apotheosis for its Marked creatures and still develops a payoff body', (difficulty) => {
+    const brain = () => difficulty === 'medium' ? medium() : hard();
+    for (const marked of [false, true]) {
+      const game = fixture(['sb-starborne-apotheosis'], [body(100, 'plains'), body(101, 'plains'),
+        body(10, 'giant', 0, { plusOneCounters: marked ? 1 : 0 })], (state) => { state.players[1].life = 8; });
+      requireLegal(game, { type: 'castSpell', handIndex: 0 });
+      expect(act(game, brain())).toEqual(marked ? { type: 'castSpell', handIndex: 0 } : { type: 'passStep' });
+    }
+    const bodyGame = fixture(['sb-rootlight-broodmother'], lands(6));
+    expect(act(bodyGame, brain())).toMatchObject({ type: 'castSpell', handIndex: 0 });
+  });
+
+  it('Medium spends Reef Bloom for its independent Foresee even without creatures', () => {
+    const reef = fixture(['dd-reef-bloom'], lands(2));
+    expect(act(reef)).toMatchObject({ type: 'castSpell', handIndex: 0 });
+    expect(reef.awaiting.kind).toBe('foresee');
+  });
+
+  // U2's four sites have code evidence, rather than an audit matrix cell.
+  it('Medium grants Skyborne to the creature that can deal more damage', () => {
+    const game = fixture([], [body(10, 'small_guard'), body(11, 'giant'), body(30, 'grant_flight')]);
+    expect(act(game)).toEqual({ type: 'activate', iid: 30, targets: [ref(11)] });
+    expect(getEffectiveStats(game.state.battlefield, DB, 11).keywords.has('skyborne')).toBe(true);
+    expect(getEffectiveStats(game.state.battlefield, DB, 10).keywords.has('skyborne')).toBe(false);
+    const alreadyFlying = fixture([], [body(10, 'small_guard'), body(11, 'giant', 0,
+      { untilEotMods: [{ p: 0, t: 0, keywords: ['skyborne'] }] }), body(30, 'grant_flight')]);
+    expect(act(alreadyFlying)).toEqual({ type: 'activate', iid: 30, targets: [ref(10)] });
+  });
+
+  it.each(['sunset', 'empower'] as const)('Medium prefers %s Deathblade on a small body and Skyborne on a large body', (rider) => {
+    for (const [size, first, wanted] of [['one', 'flight', 'death'], ['five', 'death', 'flight']] as const) {
+      const game = fixture([`${rider}_${first}_${size}`, `${rider}_${wanted}_${size}`], lands(3));
+      expect(act(game)).toMatchObject({ type: 'castSpell', handIndex: 1,
+        ...(rider === 'empower' ? { empowered: true } : {}) });
+    }
+  });
+
+  it('Medium removes the Skyborne grant on the larger enemy body first', () => {
+    const game = fixture(['remove_engine'], [body(20, 'small_guard', 1), body(21, 'giant', 1),
+      body(30, 'grant_aura', 1, { attachedTo: 20 }), body(31, 'grant_aura', 1, { attachedTo: 21 })]);
+    expect(act(game)).toEqual({ type: 'castSpell', handIndex: 0, targets: [ref(31)] });
+  });
+
+  it('Medium removes the hostile Bulwark grant from its larger body first', () => {
+    const game = fixture(['remove_engine'], [body(20, 'small_guard'), body(21, 'giant'),
+      body(30, 'prison_aura', 1, { attachedTo: 20 }), body(31, 'prison_aura', 1, { attachedTo: 21 })]);
+    expect(act(game)).toEqual({ type: 'castSpell', handIndex: 0, targets: [ref(31)] });
+  });
+
+  it('Medium values Overrun on the tokens a spell creates before granting it', () => {
+    const game = fixture(['plain_stampede', 'fd-stampede-long-grass'], [...lands(2), body(102, 'plains')]);
+    expect(act(game)).toMatchObject({ type: 'castSpell', handIndex: 1 });
+  });
 });
 
 const ref = (iid: number) => ({ kind: 'permanent' as const, iid });

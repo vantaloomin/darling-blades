@@ -3,23 +3,13 @@ import { Sfx } from '../audio/sfx';
 import { bindTapButton } from '../platform/gestures';
 import { ModalGuard } from './Modal';
 import { colorInt, theme } from './theme';
-import { collapseToastBatch, type ToastNotice } from './toastQueue';
+import { collapseToastBatch, TOAST_CARD, toastCardLayout, toastStackCenters, type ToastNotice } from './toastQueue';
 
-const TOAST_W = 344;
-const TOAST_H = 86;
+const TOAST_W = TOAST_CARD.width;
 const TOAST_X = theme.design.safeRight - TOAST_W / 2;
-const TOAST_Y = 82;
-const TOAST_GAP = 12;
 const TOAST_ENTRY_MS = 220;
 const TOAST_HOLD_MS = 3200;
 const TOAST_STAGGER_MS = 140;
-// Card-relative text insets, measured from the plaque's own top or bottom edge
-// so they hold for a card that grew. At TOAST_H they reproduce the fixed
-// -28 / -5 / +25 offsets this rail has always drawn.
-const TITLE_INSET = 15;
-const BODY_CENTER_INSET = 38;
-const BODY_TOP_INSET = 30;
-const DETAIL_BOTTOM_INSET = 18;
 
 export interface ToastOptions {
   /** A scene-local ModalGuard pauses the rail and disables its tap targets. */
@@ -48,6 +38,15 @@ function setActiveToast(toast: Toast | null): void {
 export function queueToast(notice: ToastNotice): void {
   if (activeToast?.isLive()) activeToast.enqueue(notice);
   else pendingToasts.push(notice);
+}
+
+/**
+ * Dev probe fixtures only: forget every notice waiting for a host, so a
+ * fixture's toasts never follow it into the next fixture's scene. The game
+ * never calls this; a real scene handoff carries its notices on, by design.
+ */
+export function discardPendingToasts(): void {
+  pendingToasts.length = 0;
 }
 
 /** Mount one right-rail host for the current scene. */
@@ -130,19 +129,17 @@ export class Toast {
     if (!this.live || this.isBlocked() || this.visible.length > 0 || this.queued.length === 0) return;
     const batch = collapseToastBatch(this.queued.splice(0));
     const notices = batch.kind === 'stack' ? batch.notices : [batch.notice];
-    // Stack by the cards' own heights. Every card that does not opt into
-    // `fitBody` measures TOAST_H, so this walks the same y's the fixed
-    // `TOAST_Y + index * (TOAST_H + TOAST_GAP)` used to produce.
-    let y = TOAST_Y;
-    notices.forEach((notice, index) => {
-      y += this.present(notice, index, y) + TOAST_GAP;
-    });
+    // Stack by the cards' own measured heights, hung from the release stack's
+    // top edge. Cards at the release height walk the same y's the fixed
+    // `82 + index * (86 + 12)` used to produce.
+    const cards = notices.map((notice, index) => this.present(notice, index));
+    toastStackCenters(cards.map((card) => card.height)).forEach((y, index) => cards[index].container.setY(y));
   }
 
-  /** Builds one card at `y` and returns the height it took. */
-  private present(notice: ToastNotice, index: number, y: number): number {
+  /** Builds one card (the caller places it on the stack) and returns it with its height. */
+  private present(notice: ToastNotice, index: number): { container: Phaser.GameObjects.Container; height: number } {
     const container = this.scene.add
-      .container(theme.design.width + TOAST_W / 2, y)
+      .container(theme.design.width + TOAST_W / 2, 0)
       .setDepth(theme.depth.toast)
       .setAlpha(0);
     const title = this.scene.add
@@ -151,8 +148,9 @@ export class Toast {
         fontSize: `${theme.type.caption}px`,
         fontStyle: theme.weight.w700,
         color: theme.colors.gold,
+        wordWrap: { width: TOAST_W - 36 },
       })
-      .setOrigin(0, 0.5);
+      .setOrigin(0, 0);
     const body = this.scene.add
       .text(-TOAST_W / 2 + 18, 0, notice.body, {
         fontFamily: theme.fonts.ui,
@@ -160,32 +158,33 @@ export class Toast {
         color: theme.colors.body,
         wordWrap: { width: TOAST_W - 36 },
       })
-      .setOrigin(0, 0.5);
+      .setOrigin(0, 0);
     const detail = notice.detail
       ? this.scene.add
           .text(-TOAST_W / 2 + 18, 0, notice.detail, {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.caption}px`,
             color: theme.colors.muted,
+            wordWrap: { width: TOAST_W - 36 },
           })
-          .setOrigin(0, 0.5)
+          .setOrigin(0, 0)
       : undefined;
 
-    // The card is TOAST_H unless the notice asked to be shown in full, in
-    // which case it grows to the body Phaser actually measured (a three-line
-    // body overruns the fixed plaque and lands on the title).
-    const height =
-      notice.fitBody === true
-        ? Math.max(
-            TOAST_H,
-            Math.ceil(BODY_TOP_INSET + body.height + (detail ? detail.height + 12 : 0) + 14),
-          )
-        : TOAST_H;
+    // Measure-then-place (toastCardLayout): the release card keeps its slots
+    // while its lines fit them; a wrapped body or larger text stacks the lines
+    // from their measured heights and the card grows, so none lands on another.
+    // `fitBody` (copy to be read in full) keeps its own growing rule.
+    const layout = toastCardLayout({
+      title: title.height,
+      body: body.height,
+      detail: detail ? detail.height : null,
+      fitBody: notice.fitBody === true,
+    });
+    const height = layout.height;
     const top = -height / 2;
-    title.setY(top + TITLE_INSET);
-    if (notice.fitBody === true) body.setOrigin(0, 0).setY(top + BODY_TOP_INSET);
-    else body.setY(top + BODY_CENTER_INSET);
-    detail?.setY(height / 2 - DETAIL_BOTTOM_INSET);
+    title.setY(top + layout.titleTop);
+    body.setY(top + layout.bodyTop);
+    if (detail && layout.detailTop !== null) detail.setY(top + layout.detailTop);
 
     const plaque = this.scene.add.graphics();
     plaque.fillStyle(theme.graphics.panelFill, 0.96);
@@ -236,7 +235,7 @@ export class Toast {
     // Last, and only now: the card exists on screen. A caller that records
     // having shown something records it here and nowhere earlier.
     notice.onShown?.();
-    return height;
+    return { container, height };
   }
 
   private dismiss(card: ToastCard, immediate = false): void {

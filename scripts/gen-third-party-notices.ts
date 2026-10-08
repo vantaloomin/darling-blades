@@ -22,9 +22,11 @@
  *    inlined when `docs/legal/OFL-1.1.txt` exists; until it does, the file
  *    prints the URL each font names for it.
  * 3. **Rust.** `src-tauri/Cargo.lock` names every crate the desktop build
- *    links. Without `cargo about` installed there is no offline source for each
- *    crate's license text, so the section lists crate and version and says
- *    where the text lives. Nothing is guessed.
+ *    links. The license texts come from `docs/legal/rust-crate-licenses.txt`,
+ *    which `cargo about` writes and the repo commits (it needs crates.io, so it
+ *    is not part of the offline build; `src-tauri/about.toml` has the command).
+ *    A crate it covers that the lockfile no longer pins makes the build fail,
+ *    so a dependency bump cannot leave stale texts behind. Nothing is guessed.
  *
  * Usage:
  *   npx tsx scripts/gen-third-party-notices.ts          write the file
@@ -42,6 +44,8 @@ const TARGET = join(root, 'public', NOTICES_FILE);
 const FONT_DIR = join(root, 'public', 'assets', 'fonts');
 /** Drop this file in and the OFL text is inlined instead of linked. */
 const OFL_TEXT = join(root, 'docs', 'legal', 'OFL-1.1.txt');
+/** `cargo about`'s output for the Windows installer; see `src-tauri/about.toml`. */
+const RUST_LICENSES = join(root, 'docs', 'legal', 'rust-crate-licenses.txt');
 
 const RULE = '='.repeat(74);
 const THIN = '-'.repeat(74);
@@ -243,6 +247,21 @@ export function readCrateNotices(lockfile: string): CrateNotice[] {
   return crates.sort((a, b) => a.name.localeCompare(b.name) || a.version.localeCompare(b.version));
 }
 
+/** The "Crates covered:" index at the top of the `cargo about` output. */
+export function readCoveredCrates(licenses: string): CrateNotice[] {
+  const index = licenses.split(/^Crates covered:$/m)[1]?.split(/^-{10,}$/m)[0] ?? '';
+  return [...index.matchAll(/^ {2}(\S+) (\S+)$/gm)].map(([, name, version]) => ({ name, version }));
+}
+
+/** Covered crates the lockfile no longer pins: the texts predate a dependency change. */
+export function staleCoveredCrates(
+  covered: readonly CrateNotice[],
+  locked: readonly CrateNotice[],
+): CrateNotice[] {
+  const pinned = new Set(locked.map((c) => `${c.name} ${c.version}`));
+  return covered.filter((c) => !pinned.has(`${c.name} ${c.version}`));
+}
+
 // ---------------------------------------------------------------------------
 // The file
 // ---------------------------------------------------------------------------
@@ -253,6 +272,8 @@ export interface NoticesInput {
   crates: readonly CrateNotice[];
   /** The OFL 1.1 text, when a copy is committed; otherwise the fonts' URLs stand in. */
   oflText: string | null;
+  /** `cargo about`'s crate license texts, when committed; otherwise only names and versions. */
+  rustLicenses: string | null;
 }
 
 export function renderNotices(input: NoticesInput): string {
@@ -308,26 +329,50 @@ export function renderNotices(input: NoticesInput): string {
   }
 
   out.push(RULE, '3. Rust crates (desktop app only)', RULE, '');
-  out.push(
-    'The desktop installer redistributes the compiled crates below, as recorded in',
-    'src-tauri/Cargo.lock. Their license texts are not reproduced here: `cargo',
-    'about` is not part of this build, and each crate\'s full license text ships',
-    'in its own registry source, under',
-    '~/.cargo/registry/src/index.crates.io-*/<crate>-<version>/.',
-    '',
-  );
+  if (input.rustLicenses) {
+    out.push(
+      'The desktop installer redistributes compiled Rust crates. Every crate in',
+      'src-tauri/Cargo.lock is listed below; the license texts that follow cover',
+      'the ones the Windows build links. Source for each crate, including the',
+      'MPL-2.0 ones, is published on crates.io.',
+      '',
+    );
+  } else {
+    out.push(
+      'The desktop installer redistributes the compiled crates below, as recorded in',
+      'src-tauri/Cargo.lock. Their license texts are not reproduced here: no',
+      'docs/legal/rust-crate-licenses.txt is committed, and each crate\'s full',
+      'license text ships in its own registry source, under',
+      '~/.cargo/registry/src/index.crates.io-*/<crate>-<version>/.',
+      '',
+    );
+  }
   for (const crate of input.crates) out.push(`  ${crate.name} ${crate.version}`);
   out.push('');
+  if (input.rustLicenses) out.push(THIN, '', input.rustLicenses, '');
   out.push(RULE, `${input.crates.length} crate(s) listed.`, RULE, '');
   return out.join('\n');
 }
 
 export function buildNotices(projectRoot: string = root): string {
+  const crates = readCrateNotices(readFileSync(join(projectRoot, 'src-tauri', 'Cargo.lock'), 'utf8'));
+  const rustLicenses = existsSync(RUST_LICENSES) ? normalise(readFileSync(RUST_LICENSES, 'utf8')) : null;
+  if (rustLicenses) {
+    const stale = staleCoveredCrates(readCoveredCrates(rustLicenses), crates);
+    if (stale.length > 0) {
+      throw new Error(
+        `docs/legal/rust-crate-licenses.txt covers crates Cargo.lock no longer pins (${stale
+          .map((c) => `${c.name} ${c.version}`)
+          .join(', ')}); regenerate it with cargo about (see src-tauri/about.toml)`,
+      );
+    }
+  }
   return renderNotices({
     npm: readNpmNotices(projectRoot),
     fonts: readFontNotices(join(projectRoot, 'public', 'assets', 'fonts')),
-    crates: readCrateNotices(readFileSync(join(projectRoot, 'src-tauri', 'Cargo.lock'), 'utf8')),
+    crates,
     oflText: existsSync(OFL_TEXT) ? normalise(readFileSync(OFL_TEXT, 'utf8')) : null,
+    rustLicenses,
   });
 }
 

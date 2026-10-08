@@ -1,14 +1,18 @@
 import Phaser from 'phaser';
 import type { CardDef, ManaCost } from '../engine/types';
 import type { CardVariant } from '../meta/variants';
+import { pageNeighbourhood } from '../meta/collectionFilter';
 import { bindTapButton, inflateHitArea } from '../platform/gestures';
-import { makeCardThumb } from './CardThumbCache';
+import { makeCardThumb, thumbArtWanted } from './CardThumbCache';
+import { PagedArt } from './artGate';
 import { CARD_H, CARD_W } from './CardView';
 import { manaCostText } from './rulesText';
 import { renderManaText } from './ManaText';
 import { colorInt, theme } from './theme';
 import { modalShell, pager, type ModalShellOptions } from './themeWidgets';
 import { WHISPERS_ZONE_LAYOUT } from './zoneContentsPresentation';
+import { duelPanelAlpha, duelPanelType, zonePanelLayout } from './duelPanelPresentation';
+import { fitMenuName } from './menuText';
 
 export interface ZoneContentsAction {
   label: string;
@@ -55,20 +59,14 @@ export interface ZoneContentsModalOptions
 export interface ZoneContentsModal {
   container: Phaser.GameObjects.Container;
   close(): void;
+  showPage(page: number): void;
 }
 
 const MODAL_W = 920;
 const MODAL_H = 620;
-const GRID_COLS = 6;
-const GRID_ROWS = 4;
-const PAGE_SIZE = GRID_COLS * GRID_ROWS;
 const THUMB_SCALE = 0.24;
-const COL_GAP = 128;
-const ROW_GAP = 120;
 const GRID_CX = 640;
-const GRID_TOP_Y = 176;
 const BADGE_H = 18;
-const ACTION_Y_OFFSET = 52;
 const ACTION_H = 28;
 
 export function showZoneContents(
@@ -78,7 +76,7 @@ export function showZoneContents(
   const shell = modalShell(scene, {
     width: MODAL_W,
     height: MODAL_H,
-    dimAlpha: opts.dimAlpha ?? 0.62,
+    dimAlpha: duelPanelAlpha(opts.dimAlpha ?? 0.62),
     escToClose: opts.escToClose ?? true,
     tapDimToClose: opts.tapDimToClose ?? true,
     showClose: opts.showClose ?? false,
@@ -87,40 +85,73 @@ export function showZoneContents(
   });
   const container = shell.container;
   const expanded = opts.entries.some((entry) => entry.deadline || entry.additionalActions?.length);
-  const columns = expanded ? WHISPERS_ZONE_LAYOUT.columns : GRID_COLS;
-  const columnGap = expanded ? WHISPERS_ZONE_LAYOUT.columnGap : COL_GAP;
-  const pageSize = expanded ? columns * WHISPERS_ZONE_LAYOUT.rows : PAGE_SIZE;
   const thumbScale = THUMB_SCALE;
-  const pageCount = Math.max(1, Math.ceil(opts.entries.length / pageSize));
   const thumbW = CARD_W * thumbScale;
   const thumbH = CARD_H * thumbScale;
   let page = 0;
   let pageControl: ReturnType<typeof pager> | null = null;
   let gridItems: Phaser.GameObjects.GameObject[] = [];
 
-  container.add(
-    scene.add
-      .text(GRID_CX, 86, opts.title, {
-        fontFamily: theme.fonts.display,
-        fontSize: `${theme.type.h1}px`,
-        fontStyle: theme.weight.w700,
-        color: theme.colors.heading,
-        resolution: 2,
-      })
-      .setOrigin(0.5),
-  );
+  const title = scene.add.text(GRID_CX, 86, opts.title, {
+    fontFamily: theme.fonts.display, fontSize: `${theme.type.h1}px`,
+    fontStyle: theme.weight.w700, color: theme.colors.heading, resolution: 2, align: 'center',
+  }).setOrigin(0.5);
+  fitMenuName(title, 840, 3);
+  container.add(title);
+  let sub: Phaser.GameObjects.Container | undefined;
+  let subtitleHeight = 0;
   if (opts.subtitle) {
-    const sub = scene.add.container(GRID_CX, 122);
+    sub = scene.add.container(GRID_CX, 122);
     const rendered = renderManaText(scene, sub, 0, 0, opts.subtitle, {
-      fontFamily: theme.fonts.ui,
-      fontSize: `${theme.type.label}px`,
-      color: theme.colors.body,
-      resolution: 2,
+      fontFamily: theme.fonts.ui, fontSize: `${theme.type.label}px`, color: theme.colors.body,
+      wordWrap: { width: 840, useAdvancedWrap: true }, align: 'center', resolution: 2,
     });
-    rendered.text.setOrigin(0.5);
+    rendered.text.setOrigin(0.5).setData('a11yKeepVisible', true).setData('a11yFullText', rendered.text.text);
     rendered.reflow();
+    const subtitleBounds = sub.getBounds();
+    subtitleHeight = 2 * Math.max(sub.y - subtitleBounds.y, subtitleBounds.bottom - sub.y);
+    container.setData('a11yZoneHeader', { title, subtitle: sub });
     container.add(sub);
   }
+  const measure = scene.add.container(0, 0).setVisible(false);
+  let deadlineHeight = 0, actionHeight = ACTION_H, actionWidth = 0, badgeHeight = BADGE_H;
+  for (const entry of opts.entries) {
+    const badge = scene.add.text(0, 0, entry.badge ?? `x${entry.count}`, {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.type.micro}px`, fontStyle: theme.weight.w700,
+    });
+    measure.add(badge); badgeHeight = Math.max(badgeHeight, badge.height + 4);
+    if (entry.deadline) {
+      const deadline = scene.add.text(0, 0, entry.deadline, {
+        fontFamily: theme.fonts.ui, fontSize: `${duelPanelType().deadline}px`,
+        padding: { x: 3, y: 2 }, wordWrap: { width: 112, useAdvancedWrap: true },
+      });
+      measure.add(deadline); deadlineHeight = Math.max(deadlineHeight, deadline.height);
+    }
+    for (const action of [...(entry.action ? [entry.action] : []), ...(entry.additionalActions ?? [])]) {
+      const cost = action.cost ? ` ${manaCostText(action.cost)}` : '';
+      const text = renderManaText(scene, measure, 0, 0, `${action.label}${cost}`, {
+        fontFamily: theme.fonts.ui, fontSize: `${theme.type.micro}px`, fontStyle: theme.weight.w700,
+        wordWrap: { width: expanded ? 170 : 110, useAdvancedWrap: true }, align: 'center',
+      });
+      actionHeight = Math.max(actionHeight, text.text.height + 10);
+      actionWidth = Math.max(actionWidth, text.text.width + 18);
+    }
+  }
+  measure.destroy();
+  const layout = zonePanelLayout(expanded, title.height, subtitleHeight, badgeHeight, deadlineHeight, actionHeight, actionWidth);
+  title.setY(layout.titleY);
+  sub?.setY(layout.subtitleY);
+  const { columns, columnGap, pageSize } = layout;
+  const pageCount = Math.max(1, Math.ceil(opts.entries.length / pageSize));
+  const pageArt = new PagedArt(scene, 'zone-contents', { owner: container });
+  const wantedArt = (entries: readonly ZoneContentsEntry[]): string[] => entries.flatMap((entry) => {
+    const wanted = thumbArtWanted(scene, entry.card, entry.landStyle, entry.variant);
+    return wanted === null ? [] : [wanted.key];
+  });
+  container.setData('a11yDensity', {
+    actual: { id: 'duel-zone', rows: layout.rows, columns, pitch: layout.pitch, top: layout.firstY },
+    release: expanded ? { id: 'duel-zone', rows: 2, columns: 4, pitch: 235, top: 195 } : { id: 'duel-zone', rows: 4, columns: 6, pitch: 120, top: 176 },
+  });
 
   const clearGrid = (): void => {
     for (const item of gridItems) {
@@ -146,10 +177,11 @@ export function showZoneContents(
       .setOrigin(1, 0);
     const badgeW = Math.max(34, Math.ceil(label.width + 10));
     const badge = scene.add.graphics();
-    badge.fillStyle(theme.graphics.panelFill, 0.94);
-    badge.fillRoundedRect(label.x - badgeW, label.y - 2, badgeW, BADGE_H, theme.radius.control);
+    badge.setData('a11yZoneGrid', true);
+    badge.fillStyle(theme.graphics.panelFill, duelPanelAlpha(0.94));
+    badge.fillRoundedRect(label.x - badgeW, label.y - 2, badgeW, badgeHeight, theme.radius.control);
     badge.lineStyle(1, theme.graphics.panelStroke, theme.alpha.chrome);
-    badge.strokeRoundedRect(label.x - badgeW, label.y - 2, badgeW, BADGE_H, theme.radius.control);
+    badge.strokeRoundedRect(label.x - badgeW, label.y - 2, badgeW, badgeHeight, theme.radius.control);
     addGridItem(badge);
     addGridItem(label);
   };
@@ -162,21 +194,21 @@ export function showZoneContents(
       fontFamily: theme.fonts.ui,
       fontSize: `${theme.type.micro}px`,
       fontStyle: theme.weight.w700,
-      color: theme.colors.gold,
+      color: theme.colors.gold, wordWrap: { width: expanded ? 170 : 110, useAdvancedWrap: true }, align: 'center',
       resolution: 2,
     });
-    rendered.text.setOrigin(0.5);
+    rendered.text.setOrigin(0.5).setData('a11yKeepVisible', true).setData('a11yFullText', rendered.text.text);
     rendered.reflow();
     const width = Math.max(76, rendered.text.width + 18);
     const background = scene.add.graphics();
     background
       .fillStyle(colorInt(theme.colors.btnEmphasisBg), 1)
-      .fillRoundedRect(-width / 2, -ACTION_H / 2, width, ACTION_H, theme.radius.control)
+      .fillRoundedRect(-width / 2, -actionHeight / 2, width, actionHeight, theme.radius.control)
       .lineStyle(1, colorInt(theme.colors.gold), theme.alpha.chrome)
-      .strokeRoundedRect(-width / 2, -ACTION_H / 2, width, ACTION_H, theme.radius.control);
+      .strokeRoundedRect(-width / 2, -actionHeight / 2, width, actionHeight, theme.radius.control);
     chip.addAt(background, 0);
     if (enabled) {
-      const zone = scene.add.zone(0, 0, width, ACTION_H).setInteractive({ useHandCursor: true });
+      const zone = scene.add.zone(0, 0, width, actionHeight).setInteractive({ useHandCursor: true });
       chip.add(zone);
       bindTapButton(scene, zone, (pointer) => {
         if (pointer.rightButtonReleased()) return;
@@ -184,12 +216,17 @@ export function showZoneContents(
         action.onSelect();
       });
       inflateHitArea(zone, Math.max(90, width), 44);
-    } else chip.setAlpha(0.5);
+    } else chip.setAlpha(theme.alpha.subtle);
     addGridItem(chip);
   };
 
   const renderPage = (nextPage: number): void => {
+    if (!container.active) return;
     page = Phaser.Math.Clamp(nextPage, 0, pageCount - 1);
+    const around = pageNeighbourhood(opts.entries, page, pageSize);
+    // A duel normally already holds these sources. Other callers, and styled
+    // or newly created cards, still get the same bounded page request rule.
+    pageArt.show(wantedArt(around.shown), wantedArt(around.near));
     clearGrid();
     if (opts.entries.length === 0) {
       addGridItem(
@@ -211,8 +248,9 @@ export function showZoneContents(
       const col = i % columns;
       const row = Math.floor(i / columns);
       const x = GRID_CX - ((columns - 1) * columnGap) / 2 + col * columnGap;
-      const y = expanded ? WHISPERS_ZONE_LAYOUT.firstCenterY + row * WHISPERS_ZONE_LAYOUT.rowGap : GRID_TOP_Y + row * ROW_GAP;
+      const y = layout.firstY + row * layout.pitch;
       const thumb = makeCardThumb(scene, x, y, entry.card, thumbScale, entry.landStyle, entry.variant);
+      thumb.setData('a11yZoneGrid', true);
       thumb.setInteractive({ useHandCursor: true });
       bindTapButton(scene, thumb, (pointer) => {
         if (pointer.rightButtonReleased()) return;
@@ -227,14 +265,14 @@ export function showZoneContents(
       addGridItem(thumb);
       const badge = entry.badge === undefined ? `x${entry.count}` : entry.badge;
       if (badge) addBadge(x, y, badge);
-      if (entry.deadline) addGridItem(scene.add.text(x, y + WHISPERS_ZONE_LAYOUT.deadlineOffset, entry.deadline, {
-        fontFamily: theme.fonts.ui, fontSize: '10px', color: theme.colors.gold,
+      if (entry.deadline) addGridItem(scene.add.text(x, y + layout.deadlineOffset, entry.deadline, {
+        fontFamily: theme.fonts.ui, fontSize: `${duelPanelType().deadline}px`, color: theme.colors.gold,
         backgroundColor: theme.colors.btnGhostBg, padding: { x: 3, y: 2 },
-        wordWrap: { width: 112 }, align: 'center', resolution: 2,
-      }).setOrigin(0.5));
+        wordWrap: { width: 112, useAdvancedWrap: true }, align: 'center', resolution: 2,
+      }).setOrigin(0.5).setData('a11yKeepVisible', true).setData('a11yFullText', entry.deadline));
       const actions = [...(entry.action ? [entry.action] : []), ...(entry.additionalActions ?? [])];
       actions.forEach((action, index) => addActionChip(x,
-        y + (expanded ? WHISPERS_ZONE_LAYOUT.actionOffset + index * WHISPERS_ZONE_LAYOUT.actionGap : ACTION_Y_OFFSET), action));
+        y + layout.actionOffset + index * layout.actionGap, action));
     }
     pageControl?.refresh(page, pageCount);
   };
@@ -246,5 +284,5 @@ export function showZoneContents(
   renderPage(0);
   container.once('destroy', clearGrid);
 
-  return { container, close: shell.close };
+  return { container, close: shell.close, showPage: renderPage };
 }

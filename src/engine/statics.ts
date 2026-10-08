@@ -1,4 +1,4 @@
-import type { AbilityDef, CardDb, Keyword, Permanent, PlayerId } from './types';
+import type { AbilityDef, CardDb, CardDef, Keyword, Permanent, PlayerId } from './types';
 import { def, isType, opponentOf } from './types';
 
 export interface EffectiveStats {
@@ -54,8 +54,24 @@ function staticConditionSatisfied(
 }
 
 /**
+ * A card's static abilities in printed order, or null when it has none and no
+ * Hauntlink rider: the only parts of a card a static read looks at, found
+ * once per card (as `cardHasProvoked` does) rather than on every read.
+ */
+const staticLayers = new WeakMap<CardDef, readonly AbilityDef[] | null>();
+function staticLayersOf(d: CardDef): readonly AbilityDef[] | null {
+  let layers = staticLayers.get(d);
+  if (layers === undefined) {
+    const found = (d.abilities ?? []).filter((ab) => ab.when === 'static' && ab.static);
+    layers = found.length === 0 && !d.hauntlink ? null : found;
+    staticLayers.set(d, layers);
+  }
+  return layers;
+}
+
+/**
  * Effective P/T and keywords are ALWAYS computed on read — base printed stats
- * + +1/+1 counters + until-EOT mods + static layers (auras attached to the
+ * + +1/+1 counters (Marks, then Overcharges) + until-EOT mods + static layers (auras attached to the
  * creature, and battlefield-wide lord filters). Nothing is ever cached, so
  * statics can never desync. Operates on the battlefield array (public
  * information), so AI code can call it on a redacted view too.
@@ -80,6 +96,9 @@ export function getEffectiveStats(
   if (targetIsCreature) {
     attack += perm.plusOneCounters;
     defense += perm.plusOneCounters;
+    // Overcharge is its own +1/+1 each, never a Mark (A1.7).
+    attack += perm.overcharge ?? 0;
+    defense += perm.overcharge ?? 0;
   }
 
   if (perm.awakened && d.awakening) {
@@ -97,9 +116,10 @@ export function getEffectiveStats(
   // Static layers from other permanents (auras on me, lords on the field).
   for (const src of battlefield) {
     const srcDef = def(db, src.cardId);
-    for (const ab of srcDef.abilities ?? []) {
-      if (ab.when !== 'static' || !ab.static) continue;
-      const st = ab.static;
+    const layers = staticLayersOf(srcDef);
+    if (layers === null) continue;
+    for (const ab of layers) {
+      const st = ab.static!;
       const condition = ab.condition ?? st.condition;
       if (condition !== undefined && !staticConditionSatisfied(battlefield, db, src.controller, condition, src.iid)) continue;
 

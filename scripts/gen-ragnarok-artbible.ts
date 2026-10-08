@@ -3,7 +3,9 @@
  * entry for every creature in the Ragnarök set (src/data/cards/ragnarok.ts), in
  * source-file order. The Card-facts line is computed EXACTLY from the card data
  * so `npm run check-art-bible` passes; the prose fields are Norse art direction
- * keyed by the card's primary subtype, color palette, and its own flavor text.
+ * keyed by the card's primary subtype and color palette. (Cards carry no
+ * flavor text since R13, 2026-09-25; the committed entries keep the lines it
+ * once quoted.)
  * Re-run after editing the set: `npx tsx scripts/gen-ragnarok-artbible.ts`.
  */
 import { writeFileSync } from 'node:fs';
@@ -254,7 +256,6 @@ function shortName(name: string): string {
 
 function entry(card: CardDef): string {
   const a = artFor(card);
-  const flavor = (card.flavor ?? '').replace(/"/g, '”');
   const promptBody =
     `${shortName(card.name)}, ${a.kind}, in ${a.costume}; ${a.pose}, against ${a.bg}; ` +
     `${a.expr}; ${a.light}`;
@@ -262,7 +263,7 @@ function entry(card: CardDef): string {
     `### ${card.name} — \`${card.id}\``,
     `- **Card facts:** ${factsLine(card)}`,
     `- **Character & source:** ${a.kind}; mechanically ${mechanicalNote(card)}.`,
-    `- **Personality / mood:** ${flavor ? `"${flavor}" — ` : ''}${a.expr}.`,
+    `- **Personality / mood:** ${a.expr}.`,
     `- **Pose & composition:** ${a.pose}; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.`,
     `- **Costume & attire:** ${a.costume}.`,
     `- **Palette:** ${paletteOf(card)}; Ragnarök accents — glacier blue-white, aurora green-violet, runic gold, and ash — layered over the color anchor, never replacing it.`,

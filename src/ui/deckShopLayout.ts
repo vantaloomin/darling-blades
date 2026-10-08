@@ -1,5 +1,20 @@
 import { theme } from './theme';
 
+/** The shipped horizontal product grid, shared with strip hit classification. */
+export const DECK_SHOP_GRID = {
+  rows: 2, columns: 4, width: 230, top: 174, rowGap: 12, height: 500, artHeight: 130, stride: 262,
+} as const;
+
+/** Release grid: two rows of four cards. Text may borrow space from the art. */
+export function deckShopCardLayout(nameHeight: number) {
+  const grid = DECK_SHOP_GRID;
+  const height = (grid.height - grid.rowGap) / grid.rows;
+  const ctaY = height - 34;
+  const nameY = 152;
+  const pipY = Math.max(174, nameY + nameHeight / 2 + theme.space(1) + 7);
+  return { height, ctaY, nameY, pipY, artHeight: grid.artHeight, rows: grid.rows, columns: grid.columns, pitch: height + grid.rowGap };
+}
+
 /**
  * Two labelled deck-shop sections share one compact, touch-safe plate grid.
  * Keeping the geometry Phaser-free lets the Shop scene and layout tests agree

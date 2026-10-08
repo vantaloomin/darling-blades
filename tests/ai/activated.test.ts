@@ -350,6 +350,72 @@ describe('Duty battlefield value', () => {
     expect(valueOf(11)).toBe(11.5);
   });
 
+  it('scores every target list of a mark-writing Duty on a clean board', () => {
+    // The first list's mark must not linger into the next: a creature it
+    // marked would take the costly branch when a later pair names it again.
+    const markPair: CardDef = carrier('duty_mark_pair', ['artifact'], {
+      activated: { cost: { tap: true }, targets: [{ what: 'yourCreature', upTo: 2 }], ops: [
+        { op: 'ifTargetMarked', then: [{ op: 'damage', n: 5, to: 'controller' }], else: [{ op: 'addCounters', n: 1, to: 'target' }] },
+      ] },
+    });
+    const db: CardDb = { ...DB, duty_mark_pair: markPair };
+    const game = Game.restore(makeTestState({ active: 0, battlefield: [
+      { iid: SOURCE, cardId: markPair.id, controller: 0 },
+      ...[20, 21, 22].map((iid) => ({ iid, cardId: 'bear', controller: 0 as const })),
+    ] }), db);
+    const pair = activateActionValue(game.viewFor(0), db, { type: 'activate', iid: SOURCE,
+      targets: [{ kind: 'permanent', iid: 21 }, { kind: 'permanent', iid: 22 }] });
+    const single = activateActionValue(game.viewFor(0), db, { type: 'activate', iid: SOURCE,
+      targets: [{ kind: 'permanent', iid: 22 }] });
+    expect(pair).toBeGreaterThan(single);
+    expect(activatedAbilityValue(game.viewFor(0).battlefield, db, SOURCE)).toBe(pair);
+  });
+
+  it('shares a Provoked read between Duties only when the damage and the side match', () => {
+    // Two Provoked creatures pinged by four Duties: ours for 1, for 2, and for
+    // 1 after a mark (on a copied board), and theirs for 1, which pays for them.
+    const db: CardDb = {
+      ...DB,
+      prov_marker: carrier('prov_marker', ['creature'], {
+        activated: undefined, attack: 1, defense: 4,
+        abilities: [{ when: 'provoked', targets: [{ what: 'yourCreature' }], ops: [{ op: 'addCounters', n: 1, to: 'target' }] }],
+      }),
+      prov_healer: carrier('prov_healer', ['creature'], {
+        activated: undefined, attack: 1, defense: 2, abilities: [{ when: 'provoked', ops: [{ op: 'gainLife', n: 3 }] }],
+      }),
+      duty_ping: carrier('duty_ping', ['artifact'], {
+        activated: { cost: { tap: true }, targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 1, to: 'target' }] },
+      }),
+      duty_ping_two: carrier('duty_ping_two', ['artifact'], {
+        activated: { cost: { tap: true }, targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 2, to: 'target' }] },
+      }),
+      duty_mark_ping: carrier('duty_mark_ping', ['artifact'], {
+        activated: { cost: { tap: true }, targets: [{ what: 'creature' }], ops: [
+          { op: 'addCounters', n: 1, to: 'target' }, { op: 'damage', n: 1, to: 'target' },
+        ] },
+      }),
+    };
+    const game = Game.restore(makeTestState({ active: 0, battlefield: [
+      { iid: 10, cardId: 'duty_ping', controller: 0 },
+      { iid: 11, cardId: 'duty_ping_two', controller: 0 },
+      { iid: 12, cardId: 'duty_ping', controller: 1 },
+      { iid: 13, cardId: 'duty_mark_ping', controller: 0 },
+      { iid: 20, cardId: 'prov_marker', controller: 0 },
+      { iid: 21, cardId: 'bear', controller: 0 },
+      { iid: 22, cardId: 'prov_healer', controller: 0 },
+      { iid: 30, cardId: 'bear', controller: 1 },
+    ] }), db);
+    const battlefield = game.viewFor(0).battlefield;
+    // One evaluation reads all three; each must match a read with nothing shared.
+    const valueOf = createPermanentValuer(battlefield, db);
+    for (const iid of [10, 11, 12, 13]) expect(valueOf(iid)).toBe(permValue(battlefield, db, iid));
+    const view = game.viewFor(0);
+    const pings = [10, 11, 13].flatMap((iid) => [20, 22].map((target): Extract<Action, { type: 'activate' }> =>
+      ({ type: 'activate', iid, targets: [{ kind: 'permanent', iid: target }] })));
+    const shared = pings.map((action) => activateActionValue(view, db, action));
+    expect(shared).toEqual(pings.map((action) => activateActionValue(game.viewFor(0), db, action)));
+  });
+
   it('keeps potential reuse local to a board evaluation and separate by controller', () => {
     const game = board('duty_perf', 'main1', [
       { iid: 11, cardId: 'duty_perf', controller: 1 },
@@ -395,7 +461,7 @@ describe('Duty battlefield value', () => {
     expect(Number.isFinite(permValue(view.battlefield, DB, 21))).toBe(true);
   });
 
-  it('keeps a tapper Duty\'s potential while its only target is tapped, and scores that tap now at zero', () => {
+  it('keeps a tapper Duty\'s potential and values its live tap only before the enemy can block', () => {
     // A creature that attacked stays tapped only until its controller's
     // untap, so the tapper's board value must not collapse meanwhile.
     const tapperOn = (tapped: boolean) => board('duty_paid_tapper', 'main2', [
@@ -407,7 +473,12 @@ describe('Duty battlefield value', () => {
     expect(premium(tapperOn(false))).toBeGreaterThan(0);
     expect(premium(tapperOn(true))).toBeCloseTo(premium(tapperOn(false)));
     const tapGiant: Action = { type: 'activate', iid: SOURCE, targets: [{ kind: 'permanent', iid: 21 }] };
-    expect(activateActionValue(tapperOn(false), DB, tapGiant)).toBeGreaterThan(0);
+    const beforeCombat = board('duty_paid_tapper', 'main1', [
+      { iid: 11, cardId: 'forest', controller: 0 }, { iid: 12, cardId: 'forest', controller: 0 },
+      { iid: 20, cardId: 'bear', controller: 0 }, { iid: 21, cardId: 'giant', controller: 1 },
+    ]).viewFor(0);
+    expect(activateActionValue(beforeCombat, DB, tapGiant)).toBeGreaterThan(0);
+    expect(activateActionValue(tapperOn(false), DB, tapGiant)).toBe(0);
     expect(activateActionValue(tapperOn(true), DB, tapGiant)).toBe(0);
   });
 });

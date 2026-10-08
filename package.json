@@ -1,14 +1,14 @@
 {
   "name": "darling-blades",
   "private": true,
-  "version": "1.8.5",
+  "version": "1.9.0",
   "type": "module",
   "engines": {
     "node": ">=24"
   },
   "scripts": {
     "dev": "npm run gen-art-manifest && npm run gen-legal-pages && npm run gen-third-party-notices && vite",
-    "build": "npm run gen-art-manifest && npm run gen-legal-pages && npm run gen-third-party-notices && tsc --noEmit && vite build && npm run forge:build",
+    "build": "npm run gen-art-manifest && npm run pack-art && npm run gen-legal-pages && npm run gen-third-party-notices && tsc --noEmit && vite build && npm run forge:build",
     "forge": "npm run gen-art-manifest && vite --config vite.forge.config.ts",
     "forge:build": "tsx scripts/build-forge.ts",
     "cardproof": "npm run cardproof:build && vite preview --config vite.cardproof.config.ts --host localhost --port 5175",
@@ -23,6 +23,7 @@
     "gen-art-manifest": "tsx scripts/gen-art-manifest.ts",
     "convert-art-webp": "tsx scripts/convert-art-webp.ts",
     "gen-art-halfres": "tsx scripts/gen-art-halfres.ts",
+    "pack-art": "tsx scripts/pack-art.ts",
     "gen-card-art": "tsx scripts/gen-card-art.ts",
     "gen-scene-art": "tsx scripts/gen-scene-art.ts",
     "gen-land-art": "tsx scripts/gen-land-art.ts",

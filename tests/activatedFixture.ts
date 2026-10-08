@@ -1,6 +1,6 @@
 import { activatedAbilitiesOf } from '../src/engine/types';
 import type { CardDb, CardDef, EffectOp } from '../src/engine/types';
-import { isType, validateActivatedDef } from '../src/engine/types';
+import { isTargetBranchOp, isType, validateActivatedDef } from '../src/engine/types';
 
 /** The catalog gate, shared with fixture proofs before a card reaches Game. */
 export function activatedCatalogErrors(card: CardDef, db: CardDb): string[] {
@@ -24,14 +24,14 @@ export function activatedCatalogErrors(card: CardDef, db: CardDb): string[] {
       .some((op) => opCanTargetArrival(op, seen));
   };
   const opCanTargetArrival = (op: EffectOp, visiting: ReadonlySet<string>): boolean => {
-    if (op.op === 'ifTargetMarked') {
+    if (isTargetBranchOp(op)) {
       return [...op.then, ...(op.else ?? [])].some((nested) => opCanTargetArrival(nested, visiting));
     }
     return candidates(op).some((entered) => arrivalCanTarget(entered, visiting));
   };
   const inspect = (ops: EffectOp[]): void => {
     for (const op of ops) {
-      if (op.op === 'ifTargetMarked') {
+      if (isTargetBranchOp(op)) {
         inspect(op.then);
         inspect(op.else ?? []);
       } else if (op.op === 'createToken' && !db[op.token]) {

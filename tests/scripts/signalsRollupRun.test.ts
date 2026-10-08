@@ -190,7 +190,7 @@ describe('the command line and the config file', () => {
   it('ships with the start date the legal pages name as the 1.8 release date', () => {
     // The day anonymous play stats began: the rollup must not count the
     // deploy-day synthetic rows before it. It stays the 1.8 date when the
-    // privacy policy's own effective date moves ([PRIVACY EFFECTIVE DATE]).
+    // documents' own effective dates move ([PRIVACY EFFECTIVE DATE], [TERMS EFFECTIVE DATE]).
     const shipped = parseConfig(
       readFileSync(new URL('../../scripts/signals-rollup/config.json', import.meta.url), 'utf8'),
     );

@@ -42,6 +42,22 @@ export interface PersonaTemplate {
     targets: Readonly<Record<CurveBand, number>>;
   };
   quotas: Readonly<Record<DeckRole, number>>;
+  /**
+   * Optional colour floor, off unless set: for each named colour, the minimum
+   * fraction of the deck's spells whose colours include it. The greedy build
+   * meets it and the hill climb never proposes a swap that breaks it. The
+   * greedy score is rate-dominated, so without a floor a pair whose one colour
+   * out-rates the other builds a one-colour deck with a splash; the floor is
+   * how a fixed pair stays a pair. A template without one builds exactly as
+   * it did before the field existed. Fixed-colour personas only, naming
+   * colours in `colorIdentity`.
+   *
+   * Changing an existing template's floor changes what it builds, so bump
+   * PERSONA_TEMPLATE_VERSION as for any template edit: the journal config
+   * does not fingerprint the floor, and an artifact records the floor in
+   * force when it was written.
+   */
+  minColorShare?: Readonly<Partial<Record<Color, number>>>;
   synergy: {
     subtypes: readonly string[];
     keywords: readonly Keyword[];
@@ -134,6 +150,62 @@ export const PERSONA_TEMPLATES = [
     curve: { maxManaValue: 7, targets: { early: 13, mid: 21, late: 6 } },
     quotas: { threats: 17, removal: 9, interaction: 6, draw: 4, finishers: 4, lands: 10 },
     synergy: { subtypes: [], keywords: [], effectOps: [] },
+  }),
+  // The colour-gap personas (ruling D12, 2026-09-28; plan-1.9 lane F item 5).
+  // Until these, no persona played green or red-white outside weenie's first
+  // day, so the sweep could not see those cards, nor First Dawn's R/G core
+  // (Hunt, Provoked). Appended, not interleaved: a sweep of the original six
+  // filters the roster in this order, so its crafts are unchanged. For the
+  // same reason PERSONA_TEMPLATE_VERSION stays put: it marks what a template
+  // MEANS (v2: reserve-native quotas), and no existing template changed; which
+  // personas a sweep crafted is already in every craft's config (personaIds),
+  // so a merge never mixes a six-persona sweep with an eight-persona one.
+  //
+  // R/G: a big-body deck whose removal is burn (Hunt, when First Dawn lands,
+  // is the same job in green). The cap of 6 reaches green's top end, and with
+  // it six of the eight mono-green nerfs 1.8.5 reverted. Beastkin, Wolf and
+  // Hunter are the pair's tribes with payoffs in the pool; Dinokin is First
+  // Dawn's R/G tribe and matches nothing until its cards exist (subtype names
+  // are inert strings to the scorer, so nothing validates them against the
+  // catalog). The keywords are green-leaning on purpose (Warcry and Rage are
+  // nearly all red here), though the floor below does the real work.
+  template({
+    id: 'stompy',
+    name: 'The Stompy Player',
+    archetype: 'Red-green big bodies backed by burn',
+    colorIdentity: ['R', 'G'],
+    colorPolicy: 'fixed',
+    curve: { maxManaValue: 6, targets: { early: 11, mid: 20, late: 9 } },
+    quotas: { threats: 21, removal: 8, interaction: 3, draw: 3, finishers: 5, lands: 10 },
+    // Half the spells green, or the rate-led greedy build is 29 red to 11
+    // green at the sweep seed (red's top rates out-score green's, and no
+    // synergy tag closes that gap). At 0.5 it is 20 red, 16 green, 4 gold.
+    minColorShare: { G: 0.5 },
+    synergy: {
+      subtypes: ['Beastkin', 'Wolf', 'Hunter', 'Dinokin'],
+      keywords: ['overrun', 'sentinel'],
+      effectOps: ['addCounters', 'createToken', 'extraLandDrop'],
+    },
+  }),
+  // R/W: an aggressive warband, lower than stompy and less spread than weenie.
+  // `damage` matches both burn and the pool's self-damage sources (damage to
+  // you or to every creature), each op counted, so a card that does both
+  // scores twice; First Dawn's red self-damage is the same op. Bastet is the
+  // pair's tribe (nine payoffs across R and W, and three of the reverted R/W
+  // gods and duelists); the cap of 5 reaches all five reverted R/W cards.
+  template({
+    id: 'warband',
+    name: 'The Warband Player',
+    archetype: 'Red-white warcry aggro with pump and self-damage',
+    colorIdentity: ['R', 'W'],
+    colorPolicy: 'fixed',
+    curve: { maxManaValue: 5, targets: { early: 22, mid: 15, late: 3 } },
+    quotas: { threats: 22, removal: 9, interaction: 5, draw: 1, finishers: 3, lands: 10 },
+    synergy: {
+      subtypes: ['Bastet', 'Warrior', 'Valkyrie'],
+      keywords: ['warcry', 'firstBlade', 'twinBlades', 'sentinel'],
+      effectOps: ['damage', 'gainLife', 'boost'],
+    },
   }),
 ] as const satisfies readonly PersonaTemplate[];
 

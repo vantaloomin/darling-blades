@@ -35,7 +35,9 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 | Squirrelkin | tufted squirrel ears | huge bushy plume tail (over-scaled) | prominent incisors; cheek-pouch fullness |
 | Boarkin | low bristled ears | short tufted boar tail | upward tusks; bristle-mane ridge |
 | Bearkin (untyped) | small round bear ears | stub bear tail | heavy claws; broad build |
-| Rhinokin (untyped) | small side ears | tufted tail | single nose-horn; grey hide-plates |
+| Rhinokin (untyped) | small side ears | tufted tail | single nose-horn; grey hide-plates. **Woolly Rhinokin** (First Dawn): exactly three tells, the small side ears, two nose-horns (one behind the other, the front one longer) and a shaggy russet-brown wool coat over the shoulders; no tail (owner ruling 2026-09-29) |
+| Mammothkin (First Dawn) | small rounded furred ears, set low | no tail (owner ruling 2026-09-29: three tells, ears, tusks and wool mane) | two long curved ivory tusks at the jawline, curving forward and up, never through the lips; a shaggy russet wool mane over the shoulders and back |
+| Sabretooth (First Dawn) | short rounded cat ears | short bobbed cat tail (one tip) | two long sabre fangs from the upper jaw, past the lower lip (owner ruling 2026-09-29: three tells, ears, sabre fangs and bobbed tail; the tawny coat with faint spots is description, not a tell) |
 | Bunnykin (untyped) | tall floppy lop ears | round cotton-puff tail | buck teeth; long hind-foot stance |
 
 ---

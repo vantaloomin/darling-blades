@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { Services } from '../meta/services';
+import { IS_DEV } from '../platform/env';
 import {
   DARLINGS_TUTORIAL_BUTTONS,
   DARLINGS_TUTORIAL_LINES,
@@ -12,6 +13,8 @@ import { modalShell, themedButton, type ModalShell } from './themeWidgets';
 export interface DarlingsTutorialOptions {
   onDismiss?: () => void;
   onReadMore: () => void;
+  /** Dev probe fixtures only: show even when already seen, and record nothing in the save. */
+  preview?: boolean;
 }
 
 const TUTORIAL_WIDTH = 760;
@@ -32,11 +35,16 @@ export function showDarlingsTutorial(
   scene: Phaser.Scene,
   options: DarlingsTutorialOptions,
 ): ModalShell | null {
-  if (Services.save.data.darlingsTutorialSeen) return null;
+  const preview = IS_DEV && options.preview === true;
+  if (!preview && Services.save.data.darlingsTutorialSeen) return null;
   let readMore = false;
-  const dismiss = (): void => {
+  const markSeen = (): void => {
+    if (preview) return;
     Services.save.data.darlingsTutorialSeen = true;
     Services.save.flush();
+  };
+  const dismiss = (): void => {
+    markSeen();
     if (!readMore) options.onDismiss?.();
   };
 
@@ -100,8 +108,7 @@ export function showDarlingsTutorial(
     minWidth: 142,
     onTap: () => {
       readMore = true;
-      Services.save.data.darlingsTutorialSeen = true;
-      Services.save.flush();
+      markSeen();
       shell.close();
       options.onReadMore();
     },

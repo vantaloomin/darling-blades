@@ -1,5 +1,17 @@
 import { GAP_FLOORS, SCENE_TITLE, type Rect } from './layout';
+import { currentTokens } from './accessibility';
 import { theme } from './theme';
+import type { SaveData } from '../meta/SaveManager';
+
+export interface ProfileA11yFixture {
+  save?: SaveData;
+  tab?: ProfileStatTab;
+  modal?: 'export' | 'picker' | 'import' | 'confirm';
+  preview?: boolean;
+  replayPage?: number;
+  pickerPage?: number;
+  identity?: string;
+}
 
 /**
  * The Profile scene's layout, derived from the design-system tokens and the
@@ -96,68 +108,34 @@ export function packCentered(widths: readonly number[], centerX: number, gaps: n
 }
 
 // ---------------------------------------------------------------------------
-// Header: the back link and the title share the frame's header line
+// Live geometry
+//
+// Most of the screen's geometry derives from type sizes, and `theme.type`
+// follows the text size in force (`./accessibility`). So that geometry is
+// computed by `computeLayout` below, once per settings change (memoised on the
+// resolved token set), and each exported constant is a view whose fields read
+// the current layout. The exports keep their 1.8 shapes, so the scene reads
+// them unchanged, and a Profile built after a text-size change is laid out for
+// it. Geometry that no type size feeds stays a plain constant.
 // ---------------------------------------------------------------------------
-
-export const PROFILE_HEADER = {
-  y: SCENE_TITLE.y, // 58, the back button's row (the shared sceneTitle)
-  titleX: SCENE_TITLE.x,
-  /**
-   * The title's width is font-fallback dependent, so neighbours clear an
-   * allowance rather than a measurement: six title-size glyphs either side.
-   */
-  titleHalfWidth: SCENE_TITLE.fontSize * 3,
-  bottom: theme.design.safeTop + HIT_HEIGHT, // 80
-} as const;
-
-// ---------------------------------------------------------------------------
-// Record row: the win record in the centre, the save actions at the right
-// edge, the trophy showcase at the left edge
-// ---------------------------------------------------------------------------
-
-const RECORD_TOP = PROFILE_HEADER.bottom + GAP_WITHIN; // 92
-const RECORD_Y = RECORD_TOP + HIT_HALF; // 114
-
-export const PROFILE_RECORD = {
-  x: theme.design.centerX,
-  top: RECORD_TOP,
-  /** The W / L line; the save actions share it. */
-  y: RECORD_Y,
-  /** The win-rate line under it. */
-  rateY: RECORD_Y + theme.type.h1 / 2 + GAP_WITHIN + theme.type.body / 2, // 148
-  /**
-   * Allowance for the centred record lines: eight h1-size glyphs either side,
-   * which holds four-digit win and loss counts and a three-digit duel count.
-   */
-  halfWidth: theme.type.h1 * 4, // 112
-} as const;
 
 /**
- * Export and Import, right-aligned to the frame (and so to the right panel's
- * edge) on the record line. The import notice ("Save imported") is their
- * status line, right-aligned under them the way Settings hangs its update
- * status under its header control.
+ * A frozen object with `read()`'s keys, each a getter over the current
+ * `read()`. It calls `read()` once at import, only to enumerate the keys.
  */
-export const PROFILE_SAVE_ACTIONS = {
-  right: theme.design.safeRight,
-  y: RECORD_Y,
-  minWidth: 160,
-  gap: GAP_WITHIN,
-  noticeY: RECORD_Y + HIT_HALF + theme.space(2) + theme.type.label / 2, // 151
-} as const;
-
-/** Where the pair goes once both hit widths are measured. */
-export function profileSaveActionCenters(
-  exportHitWidth: number,
-  importHitWidth: number,
-): { exportX: number; importX: number } {
-  const [exportX, importX] = packRight(
-    [exportHitWidth, importHitWidth],
-    PROFILE_SAVE_ACTIONS.right,
-    PROFILE_SAVE_ACTIONS.gap,
-  );
-  return { exportX, importX };
+function live<T extends object>(read: () => T): T {
+  const view = {} as T;
+  for (const key of Object.keys(read()) as (keyof T)[]) {
+    Object.defineProperty(view, key, { enumerable: true, get: () => read()[key] });
+  }
+  return Object.freeze(view);
 }
+
+// Header and record row: the header line and the record's top are fixed by
+// the frame; the record's lines and allowance follow h1 and body.
+const HEADER_BOTTOM = theme.design.safeTop + HIT_HEIGHT; // 80
+const RECORD_TOP = HEADER_BOTTOM + GAP_WITHIN; // 92
+const RECORD_Y = RECORD_TOP + HIT_HALF; // 114
 
 /** The axis-aligned box a `width` x `height` plate covers once tilted by `angleDeg`. */
 export function rotatedSize(width: number, height: number, angleDeg: number): { width: number; height: number } {
@@ -173,67 +151,26 @@ const SEAL_MAX_WIDTH = 148;
 const SEAL_ANGLE = -3;
 const SEAL_COUNT = 3;
 const SHOWCASE_LEFT = theme.design.safeLeft;
-/** The seals end a group gap short of the record's allowance. */
-const SHOWCASE_LIMIT = PROFILE_RECORD.x - PROFILE_RECORD.halfWidth - GAP_GROUP;
 
-function sealRow(width: number): { xs: number[]; right: number; tilted: { width: number; height: number } } {
-  const tilted = rotatedSize(width, SEAL_HEIGHT, SEAL_ANGLE);
+/** The row of seals at a plate width. `xs` and `tilted` are frozen: the live exports hand the same objects to every reader. */
+function sealRow(width: number): {
+  xs: readonly number[];
+  right: number;
+  tilted: Readonly<{ width: number; height: number }>;
+} {
+  const tilted = Object.freeze(rotatedSize(width, SEAL_HEIGHT, SEAL_ANGLE));
   const first = SHOWCASE_LEFT + Math.ceil(tilted.width / 2);
   const pitch = width + GAP_WITHIN;
-  const xs = Array.from({ length: SEAL_COUNT }, (_, i) => first + i * pitch);
+  const xs = Object.freeze(Array.from({ length: SEAL_COUNT }, (_, i) => first + i * pitch));
   return { xs, right: xs[SEAL_COUNT - 1] + tilted.width / 2, tilted };
 }
 
-/** The widest plate (up to the old 148) whose row of three still clears the record. */
-function fitSealWidth(): number {
+/** The widest plate (up to the old 148) whose row of three still ends by `limit`. */
+function fitSealWidth(limit: number): number {
   let width = SEAL_MAX_WIDTH;
-  while (width > 0 && sealRow(width).right > SHOWCASE_LIMIT) width -= 1;
+  while (width > 0 && sealRow(width).right > limit) width -= 1;
   return width;
 }
-
-const SEAL_WIDTH = fitSealWidth();
-const SEAL_ROW = sealRow(SEAL_WIDTH);
-const SHOWCASE_LABEL_Y = RECORD_TOP + theme.type.micro / 2;
-const SEAL_Y = RECORD_TOP + theme.type.micro + GAP_DATUM + Math.ceil(SEAL_ROW.tilted.height / 2);
-/** The seal's two lines (title, CLAIMED) as one block centred on the plate. */
-const SEAL_LINES = theme.type.caption + theme.space(2) + theme.type.micro;
-
-/**
- * Trophy Hall showcase: up to three claimed achievements as tilted plaques
- * under a "Showcase" label, from the frame's left edge. The plate width is
- * derived so the row of three ends a group gap short of the record, whatever
- * the pin count (the geometry never jumps between one pin and three).
- */
-export const PROFILE_SHOWCASE = {
-  maxPins: SEAL_COUNT,
-  left: SHOWCASE_LEFT,
-  labelY: SHOWCASE_LABEL_Y,
-  sealY: SEAL_Y,
-  sealWidth: SEAL_WIDTH,
-  sealHeight: SEAL_HEIGHT,
-  angle: SEAL_ANGLE,
-  xs: SEAL_ROW.xs,
-  /** The tilted plate's axis-aligned box, for the rule tests. */
-  tilted: SEAL_ROW.tilted,
-  /** The inner gold stroke's inset from the plate edge. */
-  innerInset: GAP_DATUM,
-  /** Plate-local centres of the title and CLAIMED lines. */
-  titleY: -SEAL_LINES / 2 + theme.type.caption / 2,
-  claimedY: SEAL_LINES / 2 - theme.type.micro / 2,
-  titleMaxWidth: SEAL_WIDTH - 2 * theme.space(2),
-  bottom: SEAL_Y + SEAL_ROW.tilted.height / 2,
-} as const;
-
-/** The lowest thing in the header band; the panels start a region gap under it. */
-export const PROFILE_HEADER_BAND_BOTTOM = Math.max(
-  PROFILE_RECORD.rateY + theme.type.body / 2,
-  PROFILE_SAVE_ACTIONS.noticeY + theme.type.label / 2,
-  PROFILE_SHOWCASE.bottom,
-);
-
-// ---------------------------------------------------------------------------
-// The two panels
-// ---------------------------------------------------------------------------
 
 /** Left-panel stat tabs (1.6.3). */
 export type ProfileStatTab = 'practice' | 'gauntlet' | 'draft' | 'collection';
@@ -246,80 +183,23 @@ export const PROFILE_STAT_TABS: readonly { key: ProfileStatTab; label: string }[
 const TAB_WIDTH = 100;
 const TAB_STRIP_WIDTH = packedWidth(PROFILE_STAT_TABS.map(() => TAB_WIDTH), GAP_WITHIN); // 436
 
-const PANEL_TOP = Math.ceil(PROFILE_HEADER_BAND_BOTTOM) + GAP_BETWEEN;
 const LEFT_PANEL_WIDTH = TAB_STRIP_WIDTH + 2 * PANEL_INSET;
 const RIGHT_PANEL_X = theme.design.safeLeft + LEFT_PANEL_WIDTH + GAP_BETWEEN;
-
-/**
- * Two panels spanning the frame edge to edge, from under the header band to
- * the frame's bottom. The left one is as wide as the tab strip plus its
- * insets; the right one (Replays) takes the rest.
- */
-export const PROFILE_PANELS = {
-  top: PANEL_TOP,
-  bottom: theme.design.safeBottom,
-  inset: PANEL_INSET,
-  gap: GAP_BETWEEN,
-  left: { x: theme.design.safeLeft, width: LEFT_PANEL_WIDTH },
-  right: { x: RIGHT_PANEL_X, width: theme.design.safeRight - RIGHT_PANEL_X },
-  /** The panels' head line: the tab strip on the left, the Replays heading on the right. */
-  headY: PANEL_TOP + GAP_BETWEEN + theme.type.h2 / 2,
-} as const;
+const LEFT_CONTENT_X = theme.design.safeLeft + PANEL_INSET;
+const RIGHT_CONTENT_X = RIGHT_PANEL_X + PANEL_INSET;
+const RIGHT_CONTENT_WIDTH = theme.design.safeRight - RIGHT_PANEL_X - 2 * PANEL_INSET;
 
 /** Content keeps at least this much clear of a panel's bottom edge. */
 export const PROFILE_PANEL_BOTTOM_INSET = GAP_GROUP;
 
-const LEFT_CONTENT_X = PROFILE_PANELS.left.x + PANEL_INSET;
-const RIGHT_CONTENT_X = PROFILE_PANELS.right.x + PANEL_INSET;
-const RIGHT_CONTENT_WIDTH = PROFILE_PANELS.right.width - 2 * PANEL_INSET;
-
-/** The tab strip spans exactly the stat-row column under it. */
-export const PROFILE_TAB_STRIP = {
-  y: PROFILE_PANELS.headY,
-  width: TAB_WIDTH,
-  gap: GAP_WITHIN,
-  xs: packLeft(PROFILE_STAT_TABS.map(() => TAB_WIDTH), LEFT_CONTENT_X, GAP_WITHIN),
-} as const;
-
 const STAT_ROW_HEIGHT = 30;
 const STAT_ROW_PITCH = STAT_ROW_HEIGHT + GAP_LIST;
-const STAT_ROWS_TOP = PROFILE_PANELS.headY + HIT_HALF + GAP_WITHIN;
-const STAT_NOTE_LINE = textBlockHeight(theme.type.micro, 1);
 
-/** The stat table under the tabs; every tab shares this rhythm. */
-export const PROFILE_STAT_ROWS = {
-  x: LEFT_CONTENT_X,
-  width: TAB_STRIP_WIDTH,
-  height: STAT_ROW_HEIGHT,
-  gap: GAP_LIST,
-  top: STAT_ROWS_TOP,
-  textLeft: LEFT_CONTENT_X + TEXT_INSET,
-  textRight: LEFT_CONTENT_X + TAB_STRIP_WIDTH - TEXT_INSET,
-  noteWrap: TAB_STRIP_WIDTH - 2 * TEXT_INSET,
-  noteLineSpacing: 2,
-} as const;
-
-/** Centre y of stat row `index`. */
-export function profileStatRowY(index: number): number {
-  return STAT_ROWS_TOP + index * STAT_ROW_PITCH + STAT_ROW_HEIGHT / 2;
+/** Top of the note under `rowsAbove` rows, for a stat table starting at `rowsTop`. */
+function statNoteTop(rowsTop: number, rowsAbove: number): number {
+  if (rowsAbove <= 0) return rowsTop;
+  return rowsTop + rowsAbove * STAT_ROW_PITCH - GAP_LIST + GAP_WITHIN;
 }
-
-/** Top of the note under `rowsAbove` rows (drawn with origin (0, 0), so a wrap grows downward). */
-export function profileStatNoteTop(rowsAbove: number): number {
-  if (rowsAbove <= 0) return STAT_ROWS_TOP;
-  return STAT_ROWS_TOP + rowsAbove * STAT_ROW_PITCH - GAP_LIST + GAP_WITHIN;
-}
-
-/** How many rows fit above a one-line note inside the left panel's bottom inset. */
-export const PROFILE_STAT_ROW_CAPACITY = (() => {
-  let rows = 0;
-  while (profileStatNoteTop(rows + 1) + STAT_NOTE_LINE <= PROFILE_PANELS.bottom - PROFILE_PANEL_BOTTOM_INSET) rows += 1;
-  return rows;
-})();
-
-// ---------------------------------------------------------------------------
-// Replays: a two-column grid of cells, read down the first column first
-// ---------------------------------------------------------------------------
 
 const REPLAY_COLUMNS = 2;
 const REPLAY_ROWS = 5;
@@ -328,39 +208,313 @@ const REPLAY_PAD_Y = GAP_LIST;
 const WATCH_MIN_WIDTH = 78;
 const WATCH_HEIGHT = theme.control.heightSm; // the Watch button's visual; its track is line 1
 const REPLAY_TITLE_Y = REPLAY_PAD_Y + WATCH_HEIGHT / 2;
-const REPLAY_META_Y = REPLAY_PAD_Y + WATCH_HEIGHT + GAP_DATUM + theme.type.caption / 2;
-const REPLAY_NOTE_Y = REPLAY_META_Y + theme.type.caption / 2 + GAP_DATUM + theme.type.micro / 2;
-const REPLAY_CELL_HEIGHT = REPLAY_NOTE_Y + theme.type.micro / 2 + REPLAY_PAD_Y;
 const REPLAY_CELL_WIDTH = (RIGHT_CONTENT_WIDTH - (REPLAY_COLUMNS - 1) * GAP_LIST) / REPLAY_COLUMNS;
-const REPLAYS_TOP = PROFILE_PANELS.headY + theme.type.h2 / 2 + GAP_WITHIN;
 
-export const PROFILE_REPLAYS = {
-  headingX: RIGHT_CONTENT_X,
-  headingY: PROFILE_PANELS.headY,
-  left: RIGHT_CONTENT_X,
-  top: REPLAYS_TOP,
-  width: RIGHT_CONTENT_WIDTH,
-  columns: REPLAY_COLUMNS,
-  rows: REPLAY_ROWS,
-  capacity: REPLAY_COLUMNS * REPLAY_ROWS,
-  gutter: GAP_LIST,
-  cellWidth: REPLAY_CELL_WIDTH,
-  cellHeight: REPLAY_CELL_HEIGHT,
-  /** The empty state sits where the first replay's name would. */
-  emptyY: REPLAYS_TOP + REPLAY_TITLE_Y,
-  emptyWrap: RIGHT_CONTENT_WIDTH,
-} as const;
+/**
+ * Every text-size-dependent value on the screen, for the type ramp in force.
+ * The trailing comments give the standard (100%) values.
+ */
+function computeLayout() {
+  const type = theme.type;
+
+  const header = {
+    y: SCENE_TITLE.y, // 58, the back button's row (the shared sceneTitle)
+    titleX: SCENE_TITLE.x,
+    titleHalfWidth: SCENE_TITLE.fontSize * 3, // 84
+    bottom: HEADER_BOTTOM,
+  } as const;
+
+  const record = {
+    x: theme.design.centerX,
+    top: RECORD_TOP,
+    y: RECORD_Y,
+    rateY: RECORD_Y + type.h1 / 2 + GAP_WITHIN + type.body / 2, // 148
+    halfWidth: type.h1 * 4, // 112
+  } as const;
+
+  const saveActions = {
+    right: theme.design.safeRight,
+    y: RECORD_Y,
+    minWidth: 160,
+    gap: GAP_WITHIN,
+    noticeY: RECORD_Y + HIT_HALF + theme.space(2) + type.label / 2, // 151
+  } as const;
+
+  // The seals end a group gap short of the record's allowance.
+  const sealWidth = fitSealWidth(record.x - record.halfWidth - GAP_GROUP);
+  const seals = sealRow(sealWidth);
+  const sealY = RECORD_TOP + type.micro + GAP_DATUM + Math.ceil(seals.tilted.height / 2);
+  // The seal's two lines (title, CLAIMED) as one block centred on the plate.
+  const sealLines = type.caption + theme.space(2) + type.micro;
+  const showcase = {
+    maxPins: SEAL_COUNT,
+    left: SHOWCASE_LEFT,
+    labelY: RECORD_TOP + type.micro / 2,
+    sealY,
+    sealWidth,
+    sealHeight: SEAL_HEIGHT,
+    angle: SEAL_ANGLE,
+    xs: seals.xs,
+    tilted: seals.tilted,
+    innerInset: GAP_DATUM,
+    titleY: -sealLines / 2 + type.caption / 2,
+    claimedY: sealLines / 2 - type.micro / 2,
+    titleMaxWidth: sealWidth - 2 * theme.space(2),
+    bottom: sealY + seals.tilted.height / 2,
+  } as const;
+
+  const headerBandBottom = Math.max(
+    record.rateY + type.body / 2,
+    saveActions.noticeY + type.label / 2,
+    showcase.bottom,
+  );
+
+  const panelTop = Math.ceil(headerBandBottom) + GAP_BETWEEN;
+  const panels = {
+    top: panelTop,
+    bottom: theme.design.safeBottom,
+    inset: PANEL_INSET,
+    gap: GAP_BETWEEN,
+    left: { x: theme.design.safeLeft, width: LEFT_PANEL_WIDTH },
+    right: { x: RIGHT_PANEL_X, width: theme.design.safeRight - RIGHT_PANEL_X },
+    headY: panelTop + GAP_BETWEEN + type.h2 / 2,
+  } as const;
+
+  const tabStrip = {
+    y: panels.headY,
+    width: TAB_WIDTH,
+    gap: GAP_WITHIN,
+    xs: packLeft(PROFILE_STAT_TABS.map(() => TAB_WIDTH), LEFT_CONTENT_X, GAP_WITHIN),
+  } as const;
+
+  const statRowsTop = panels.headY + HIT_HALF + GAP_WITHIN;
+  const statRows = {
+    x: LEFT_CONTENT_X,
+    width: TAB_STRIP_WIDTH,
+    height: STAT_ROW_HEIGHT,
+    gap: GAP_LIST,
+    top: statRowsTop,
+    textLeft: LEFT_CONTENT_X + TEXT_INSET,
+    textRight: LEFT_CONTENT_X + TAB_STRIP_WIDTH - TEXT_INSET,
+    noteWrap: TAB_STRIP_WIDTH - 2 * TEXT_INSET,
+    noteLineSpacing: 2,
+  } as const;
+  const statNoteLine = textBlockHeight(type.micro, 1);
+  let statRowCapacity = 0;
+  while (statNoteTop(statRowsTop, statRowCapacity + 1) + statNoteLine <= panels.bottom - PROFILE_PANEL_BOTTOM_INSET) {
+    statRowCapacity += 1;
+  }
+
+  const replayMetaY = REPLAY_PAD_Y + WATCH_HEIGHT + GAP_DATUM + type.caption / 2;
+  const replayNoteY = replayMetaY + type.caption / 2 + GAP_DATUM + type.micro / 2;
+  const replayCellHeight = replayNoteY + type.micro / 2 + REPLAY_PAD_Y;
+  const replaysTop = panels.headY + type.h2 / 2 + GAP_WITHIN;
+  const replayRows = Math.min(REPLAY_ROWS, Math.floor((panels.bottom - PROFILE_PANEL_BOTTOM_INSET - replaysTop + GAP_LIST) / (replayCellHeight + GAP_LIST)));
+  const replays = {
+    headingX: RIGHT_CONTENT_X,
+    headingY: panels.headY,
+    left: RIGHT_CONTENT_X,
+    top: replaysTop,
+    width: RIGHT_CONTENT_WIDTH,
+    columns: REPLAY_COLUMNS,
+    rows: replayRows,
+    capacity: REPLAY_COLUMNS * replayRows,
+    gutter: GAP_LIST,
+    cellWidth: REPLAY_CELL_WIDTH,
+    cellHeight: replayCellHeight,
+    emptyY: replaysTop + REPLAY_TITLE_Y,
+    emptyWrap: RIGHT_CONTENT_WIDTH,
+  } as const;
+  const replayRow = {
+    textX: REPLAY_PAD_X,
+    titleY: REPLAY_TITLE_Y,
+    metaY: replayMetaY,
+    noteY: replayNoteY,
+    padX: REPLAY_PAD_X,
+    padY: REPLAY_PAD_Y,
+    textWidth: REPLAY_CELL_WIDTH - 2 * REPLAY_PAD_X,
+    watchMinWidth: WATCH_MIN_WIDTH,
+    watchHeight: WATCH_HEIGHT,
+  } as const;
+
+  const saveCardPicker = {
+    columns: 8,
+    rows: 3,
+    /** Every thumb is a tap target (tap downloads), so the grid keeps compact-touch isolation. */
+    gutter: GAP_FLOORS.compactTouch,
+    searchWidth: 360,
+    /**
+     * The search field's CSS box (SearchInput.ts): a label-size line, 6px
+     * padding and a 1px border top and bottom. Its focus ring (3px outline,
+     * 3px offset) reaches 6px past that and must not cover the first row of cards.
+     */
+    searchHeight: Math.ceil(type.label * 1.25) + 2 * 6 + 2 * 1,
+    searchRing: 3 + 3,
+    /** The thumb scale the picker was drawn at before 1.8.1; the derived scale never exceeds it. */
+    maxThumbScale: 0.34,
+    /**
+     * A baked thumb is the card plus an 8px bleed top and bottom (card units),
+     * which is part of the Image and so of its hit area (CardThumbCache.ts).
+     */
+    thumbBleed: 8,
+  } as const;
+
+  return {
+    header,
+    record,
+    saveActions,
+    showcase,
+    headerBandBottom,
+    panels,
+    tabStrip,
+    statRows,
+    statRowCapacity,
+    replays,
+    replayRow,
+    saveCardPicker,
+  };
+}
+
+type ProfileLayout = ReturnType<typeof computeLayout>;
+
+let cachedLayout: { tokens: ReturnType<typeof currentTokens>; layout: ProfileLayout } | null = null;
+
+/** The layout for the settings in force, recomputed only when they change. */
+function currentLayout(): ProfileLayout {
+  const tokens = currentTokens();
+  if (cachedLayout?.tokens !== tokens) cachedLayout = { tokens, layout: computeLayout() };
+  return cachedLayout.layout;
+}
+
+// ---------------------------------------------------------------------------
+// Header: the back link and the title share the frame's header line
+// ---------------------------------------------------------------------------
+
+/**
+ * `titleHalfWidth`: the title's width is font-fallback dependent, so
+ * neighbours clear an allowance rather than a measurement: six title-size
+ * glyphs either side.
+ */
+export const PROFILE_HEADER = live(() => currentLayout().header);
+
+// ---------------------------------------------------------------------------
+// Record row: the win record in the centre, the save actions at the right
+// edge, the trophy showcase at the left edge
+// ---------------------------------------------------------------------------
+
+/**
+ * `y` is the W / L line (the save actions share it); `rateY` the win-rate
+ * line under it. `halfWidth` is the allowance for the centred record lines:
+ * eight h1-size glyphs either side, which holds four-digit win and loss counts
+ * and a three-digit duel count.
+ */
+export const PROFILE_RECORD = live(() => currentLayout().record);
+
+/**
+ * Export and Import, right-aligned to the frame (and so to the right panel's
+ * edge) on the record line. The import notice ("Save imported") is their
+ * status line, right-aligned under them the way Settings hangs its update
+ * status under its header control.
+ */
+export const PROFILE_SAVE_ACTIONS = live(() => currentLayout().saveActions);
+
+/** Where the pair goes once both hit widths are measured. */
+export function profileSaveActionCenters(
+  exportHitWidth: number,
+  importHitWidth: number,
+): { exportX: number; importX: number } {
+  const [exportX, importX] = packRight(
+    [exportHitWidth, importHitWidth],
+    PROFILE_SAVE_ACTIONS.right,
+    PROFILE_SAVE_ACTIONS.gap,
+  );
+  return { exportX, importX };
+}
+
+/**
+ * Trophy Hall showcase: up to three claimed achievements as tilted plaques
+ * under a "Showcase" label, from the frame's left edge. The plate width is
+ * derived so the row of three ends a group gap short of the record, whatever
+ * the pin count (the geometry never jumps between one pin and three).
+ * `tilted` is the tilted plate's axis-aligned box, for the rule tests;
+ * `innerInset` the inner gold stroke's inset from the plate edge; `titleY`
+ * and `claimedY` the plate-local centres of the title and CLAIMED lines.
+ */
+export const PROFILE_SHOWCASE = live(() => currentLayout().showcase);
+
+/** The lowest thing in the header band; the panels start a region gap under it. */
+export function profileHeaderBandBottom(): number {
+  return currentLayout().headerBandBottom;
+}
+
+// ---------------------------------------------------------------------------
+// The two panels
+// ---------------------------------------------------------------------------
+
+/**
+ * Two panels spanning the frame edge to edge, from under the header band to
+ * the frame's bottom. The left one is as wide as the tab strip plus its
+ * insets; the right one (Replays) takes the rest. `headY` is the panels' head
+ * line: the tab strip on the left, the Replays heading on the right.
+ */
+export const PROFILE_PANELS = live(() => currentLayout().panels);
+
+/** The tab strip spans exactly the stat-row column under it. */
+export const PROFILE_TAB_STRIP = live(() => currentLayout().tabStrip);
+
+/** The stat table under the tabs; every tab shares this rhythm. */
+export const PROFILE_STAT_ROWS = live(() => currentLayout().statRows);
+
+/** Centre y of stat row `index`. */
+export function profileStatRowY(index: number): number {
+  return currentLayout().statRows.top + index * STAT_ROW_PITCH + STAT_ROW_HEIGHT / 2;
+}
+
+/** Top of the note under `rowsAbove` rows (drawn with origin (0, 0), so a wrap grows downward). */
+export function profileStatNoteTop(rowsAbove: number): number {
+  return statNoteTop(currentLayout().statRows.top, rowsAbove);
+}
+
+/** How many rows fit above a one-line note inside the left panel's bottom inset. */
+export function profileStatRowCapacity(): number {
+  return currentLayout().statRowCapacity;
+}
+
+// ---------------------------------------------------------------------------
+// Replays: a two-column grid of cells, read down the first column first
+// ---------------------------------------------------------------------------
+
+/** The replay grid; the empty state sits where the first replay's name would. */
+export const PROFILE_REPLAYS = live(() => currentLayout().replays);
 
 /** The cell for replay `index`: column-major, so the newest five read down the left column. */
 export function profileReplayCell(index: number): Rect {
-  const column = Math.floor(index / REPLAY_ROWS);
-  const row = index % REPLAY_ROWS;
+  const { top, cellHeight, rows } = currentLayout().replays;
+  const column = Math.floor(index / rows);
+  const row = index % rows;
   return {
     x: RIGHT_CONTENT_X + column * (REPLAY_CELL_WIDTH + GAP_LIST),
-    y: REPLAYS_TOP + row * (REPLAY_CELL_HEIGHT + GAP_LIST),
+    y: top + row * (cellHeight + GAP_LIST),
     width: REPLAY_CELL_WIDTH,
-    height: REPLAY_CELL_HEIGHT,
+    height: cellHeight,
   };
+}
+
+/** Actual wrapped line heights drive replay pagination; release anchors are floors. */
+export function profileMeasuredReplays(metaHeight: number, noteHeight: number) {
+  const row = PROFILE_REPLAY_ROW;
+  const metaY = Math.max(48, row.titleY + row.watchHeight / 2 + GAP_DATUM + metaHeight / 2);
+  const noteY = Math.max(63.5, metaY + metaHeight / 2 + GAP_DATUM + noteHeight / 2);
+  // At standard size the historical one-pixel inter-line clearance remains intact.
+  const standard = metaHeight <= 15 && noteHeight <= 14;
+  const actualMetaY = standard ? 48 : metaY;
+  const actualNoteY = standard ? 63.5 : noteY;
+  const height = standard ? 77 : Math.max(77, actualNoteY + noteHeight / 2 + row.padY);
+  const available = PROFILE_PANELS.bottom - PROFILE_PANEL_BOTTOM_INSET - PROFILE_REPLAYS.top;
+  const rows = Math.min(5, Math.floor((available + GAP_LIST) / (height + GAP_LIST)));
+  return { metaY: actualMetaY, noteY: actualNoteY, height, rows, capacity: rows * REPLAY_COLUMNS,
+    cell: (index: number): Rect => ({ x: RIGHT_CONTENT_X + Math.floor(index / rows) * (REPLAY_CELL_WIDTH + GAP_LIST),
+      y: PROFILE_REPLAYS.top + (index % rows) * (height + GAP_LIST), width: REPLAY_CELL_WIDTH, height }) };
 }
 
 /**
@@ -371,17 +525,7 @@ export function profileReplayCell(index: number): Rect {
  * button and no note; an unplayable one has the note and no button, and both
  * keep the same line positions.
  */
-export const PROFILE_REPLAY_ROW = {
-  textX: REPLAY_PAD_X,
-  titleY: REPLAY_TITLE_Y,
-  metaY: REPLAY_META_Y,
-  noteY: REPLAY_NOTE_Y,
-  padX: REPLAY_PAD_X,
-  padY: REPLAY_PAD_Y,
-  textWidth: REPLAY_CELL_WIDTH - 2 * REPLAY_PAD_X,
-  watchMinWidth: WATCH_MIN_WIDTH,
-  watchHeight: WATCH_HEIGHT,
-} as const;
+export const PROFILE_REPLAY_ROW = live(() => currentLayout().replayRow);
 
 /** Cell-local centre x of a Watch button of the measured visual width: right-aligned to the text inset. */
 export function profileWatchX(watchVisualWidth: number): number {
@@ -549,27 +693,8 @@ export function profileConfirmFooterXs(t: ProfileModalTracks, cancelHitWidth: nu
   return packCentered([cancelHitWidth, confirmHitWidth], midX(t.footerTrack), GAP_FLOORS.destructive);
 }
 
-export const PROFILE_SAVE_CARD_PICKER = {
-  columns: 8,
-  rows: 3,
-  /** Every thumb is a tap target (tap downloads), so the grid keeps compact-touch isolation. */
-  gutter: GAP_FLOORS.compactTouch,
-  searchWidth: 360,
-  /**
-   * The search field's CSS box (SearchInput.ts): a 14px line, 6px padding and
-   * a 1px border top and bottom. Its focus ring (3px outline, 3px offset)
-   * reaches 6px past that and must not cover the first row of cards.
-   */
-  searchHeight: Math.ceil(theme.type.label * 1.25) + 2 * 6 + 2 * 1,
-  searchRing: 3 + 3,
-  /** The thumb scale the picker was drawn at before 1.8.1; the derived scale never exceeds it. */
-  maxThumbScale: 0.34,
-  /**
-   * A baked thumb is the card plus an 8px bleed top and bottom (card units),
-   * which is part of the Image and so of its hit area (CardThumbCache.ts).
-   */
-  thumbBleed: 8,
-} as const;
+/** The save-card picker's grid and search field (the field's height follows the label size). */
+export const PROFILE_SAVE_CARD_PICKER = live(() => currentLayout().saveCardPicker);
 
 export interface ProfilePickerLayout {
   x: number;

@@ -12,7 +12,9 @@
 # asserts it.
 #
 # THE CHAIN, per persona:
-#   chunk-0  fresh start, or the craft copied forward from `resume_from`
+#   chunk-0  fresh start, the craft copied forward from `resume_from`, or the
+#            chunk artifact of a stopped run continued (`carry_run`, from
+#            `resume_from: run:<run id>:<chunk>` in metagame-sweep.yml)
 #   chunk-1  continues chunk-0's checkpoint, or copies its finished craft
 #   chunk-2  the same, from chunk-1
 #   ...
@@ -48,6 +50,14 @@ on:
         description: A sweeps/<dir> path on sweep-data whose crafts are copied forward, or empty
         type: string
         default: ''
+      carry_run:
+        description: A stopped sweep run's id whose chunk artifacts chunk-0 continues, or empty
+        type: string
+        default: ''
+      carry_chunk:
+        description: With carry_run, the chunk of that run to continue from
+        type: string
+        default: ''
       chunk_minutes:
         description: Time budget of one chunk job, in minutes; no new iteration starts after it
         type: number
@@ -63,7 +73,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 350
     strategy:
-      # One persona's failure must not cancel the other five: the merge reports
+      # One persona's failure must not cancel the others: the merge reports
       # a missing craft and a resume re-runs only that one.
       fail-fast: false
       matrix:
@@ -100,6 +110,18 @@ jobs:
           ref: sweep-data
           path: resume
 
+      # A pattern, not a name: a round the stopped run never reached has no
+      # artifact, and that round then starts fresh instead of failing.
+      - name: Download the carried chunk
+        if: inputs.carry_run != ''
+        uses: actions/download-artifact@v4
+        with:
+          pattern: chunk-r${{ inputs.round }}-c${{ inputs.carry_chunk }}-${{ matrix.persona }}
+          path: carry
+          merge-multiple: true
+          run-id: ${{ inputs.carry_run }}
+          github-token: ${{ github.token }}
+
       - name: Craft the first chunk
         id: craft
         env:
@@ -113,6 +135,7 @@ jobs:
           ARGS=(--metagame-craft "$PERSONA" --round "$ROUND" --out out --workers "$(nproc)" --chunk-minutes "$CHUNK_MINUTES")
           if [ "$ROUND" -ge 1 ]; then ARGS+=(--field-dir field); fi
           if [ -n "$RESUME_FROM" ]; then ARGS+=(--resume-from "resume/$RESUME_FROM/crafts"); fi
+          if [ -d carry ] && [ -n "$(ls -A carry)" ]; then ARGS+=(--resume-from carry); fi
           npx tsx scripts/personas/craft.ts "${ARGS[@]}" $SWEEP_ARGS | tee chunk.txt
           # craft-complete= and next-iteration= become this step's outputs.
           grep -E '^(craft-complete|next-iteration)=' chunk.txt >> "$GITHUB_OUTPUT"
@@ -151,7 +174,7 @@ jobs:
   chunk-1:
     name: Chunk 1
     needs: chunk-0
-    # Runs even when a persona failed chunk 0, so the other five continue. The
+    # Runs even when a persona failed chunk 0, so the others continue. The
     # failed persona's chunk fails at the download below, cheaply.
     if: ${{ !cancelled() && inputs.chunks > 1 }}
     runs-on: ubuntu-latest

@@ -22,7 +22,22 @@ import { manaValue, type CardDef, type Color } from '../../src/engine/types';
 import { runCell, type CellResult } from '../balance-matrix';
 import { buildLandReserve } from '../reserveMatrixDecks';
 import { LAND_RESERVE_SIZE, WARCHEST_DECK_SIZE } from '../../src/meta/warchest';
-import { runParallelGames, type MeasureGameJob } from './measure-worker';
+import {
+  DEFAULT_RACE_ALPHA,
+  DEFAULT_RACE_BATCH,
+  DEFAULT_SCREEN_THRESHOLD,
+  leverAccounting,
+  leverAccountingLines,
+  raceCandidate,
+  racePlan,
+  type GameOutcomes,
+  type LeverLog,
+  type LeverSwapRecord,
+  type RaceConfig,
+  type RacePlan,
+  type ScreenConfig,
+} from './lever';
+import { playMeasureGame, runParallelGames, type MeasureGameJob } from './measure-worker';
 import { cardRoles, curveBand, rateCard, scoreCard, type PersonaDeckState } from './score';
 import {
   PERSONA_TEMPLATES,
@@ -87,6 +102,27 @@ Fan-out mode (the same loop, one craft per process; see docs/metagame-sweep.md):
                              with --chunk-iterations: whichever bound comes
                              first ends the chunk. Where a chunk stops never
                              changes the finished craft.
+  --race [--race-batch <n>] [--race-alpha <a>]
+                             Lever 2, off by default. Measure each proposed
+                             swap in batches of n seeds per matchup (default
+                             30) and stop it at an interim look where it
+                             trails the incumbent, game for game on the same
+                             seeds, past a group sequential boundary that holds
+                             the chance of stopping an equal swap at any look
+                             to a (default 0.01). A swap that is close, or
+                             better, runs the full --seeds, so an accepted swap
+                             always carries its full measurement.
+  --screen medium [--screen-threshold <points>] [--screen-seeds <n>]
+                             Lever 3, off by default. Measure each proposed
+                             swap under Medium first (n seeds per matchup,
+                             default --seeds) and drop it when it trails the
+                             incumbent's Medium score by more than the
+                             threshold (default 5 points). Only the Hard
+                             measurement accepts a swap. Both levers apply to
+                             --metagame-craft and --metagame, enter the run
+                             configuration (a raced craft never merges or
+                             resumes with an unraced one), and journal per
+                             swap how many games it took and why it stopped.
   --metagame-merge <dir> [--check-stable]
                              Replay the fanned-out crafts under <dir> through
                              the loop's own convergence policy and write the
@@ -184,6 +220,12 @@ export interface HillClimbLog {
   acceptedSwaps: AcceptedSwap[];
   rejectedSwaps: number;
   unproposedIterations: number;
+  /**
+   * Present only on a raced or screened craft (`--race`, `--screen medium`):
+   * per proposed swap, how many games it took and why it stopped. An unraced,
+   * unscreened craft has no such key, so its bytes are what they always were.
+   */
+  lever?: LeverLog;
 }
 
 export interface HillClimbResult {
@@ -264,7 +306,11 @@ export interface ProposedSwap {
 export interface PersonaArtifact {
   schemaVersion: 1;
   mode?: 'single-round' | 'metagame-loop';
-  persona: { id: string; name: string };
+  /**
+   * The persona's identity, plus its colour floor when the template sets one
+   * (absent otherwise, so an artifact of a floorless persona is unchanged).
+   */
+  persona: { id: string; name: string; minColorShare?: PersonaTemplate['minColorShare'] };
   pool: string;
   field: MeasuredFieldId;
   seed: number;
@@ -304,6 +350,27 @@ export interface MeasureOptions {
 
 export type MeasureFunction = (deck: readonly string[], options: MeasureOptions) => MeasuredRecord;
 
+export type GameDifficulty = 'hard' | 'medium';
+
+/** Games [from, to) of every matchup, under one brain on both seats. */
+export interface GameSliceRequest {
+  difficulty: GameDifficulty;
+  from: number;
+  to: number;
+}
+
+/**
+ * The per-game measurement the levers need: for each matchup in the field, the
+ * row's results for games [from, to) as a W / L / D string. Game j of a matchup
+ * is the same game seed whatever deck is measured, which is what makes a
+ * candidate and the incumbent comparable game by game.
+ */
+export type GameMeasureFunction = (
+  deck: readonly string[],
+  options: MeasureOptions,
+  request: GameSliceRequest,
+) => GameOutcomes;
+
 export interface MetagameOptions {
   poolId: string;
   pool: readonly CardDef[];
@@ -315,6 +382,12 @@ export interface MetagameOptions {
   personaIds: readonly string[];
   measure?: MeasureFunction;
   propose?: HillClimbOptions['propose'];
+  /** Lever 2: race each proposed swap (docs/plan-sweep-speed.md). */
+  race?: RaceConfig;
+  /** Lever 3: screen each proposed swap under Medium before Hard measures it. */
+  screen?: ScreenConfig;
+  /** The per-game measure the levers use; the real engine when absent. */
+  measureGames?: GameMeasureFunction;
   /**
    * Optional per-craft progress hook (sweep dashboards). Called immediately
    * BEFORE each persona's hill-climb starts: once per persona in the round-0
@@ -379,6 +452,8 @@ export interface MeasureCacheStats {
 }
 
 const measuredCache = new Map<string, MeasuredRecord>();
+/** The levers' cache: per deck and brain, the longest prefix of games known per matchup. */
+const gameOutcomeCache = new Map<string, GameOutcomes>();
 let measureStats = { calls: 0, hits: 0, misses: 0, simulatedGames: 0 };
 
 export function defaultMeasureWorkers(): number {
@@ -396,6 +471,7 @@ export function resolveMeasureWorkers(requested?: number): number {
 
 export function resetMeasureCache(): void {
   measuredCache.clear();
+  gameOutcomeCache.clear();
   measureStats = { calls: 0, hits: 0, misses: 0, simulatedGames: 0 };
 }
 
@@ -425,6 +501,61 @@ const isBasic = (card: CardDef): boolean => card.supertypes?.includes('basic') ?
 function cardAllowedByColors(card: CardDef, colors: readonly Color[]): boolean {
   return card.colors.every((color) => colors.includes(color));
 }
+
+/** The order the greedy build fills a deck's spell roles in; also what counts as a spell slot. */
+const GREEDY_ROLE_ORDER: readonly SpellRole[] = ['finishers', 'draw', 'removal', 'interaction', 'threats'];
+
+/**
+ * A template's colour floor (`minColorShare`) as spell counts: each floored
+ * colour and how many of the deck's spells must include it, rounded up.
+ * Empty when the template sets no floor, and every use below is then a no-op,
+ * so a template without a floor builds and climbs byte for byte as before.
+ *
+ * Throws on a malformed floor up front (a best-two persona, a colour outside
+ * the fixed identity, a share outside (0, 1]) rather than failing late with a
+ * misleading "cannot meet". The build forces a colour only when it must, with
+ * no look-ahead, so two floors that together ask for more than every spell
+ * (a gold card counts toward both) can still fail at the last slots.
+ */
+export function colorFloorCounts(template: PersonaTemplate): [Color, number][] {
+  const floor = template.minColorShare;
+  if (!floor) return [];
+  if (template.colorPolicy !== 'fixed') {
+    throw new Error(`${template.id}: minColorShare needs a fixed colour identity (colorPolicy is ${template.colorPolicy})`);
+  }
+  const spells = GREEDY_ROLE_ORDER.reduce((sum, role) => sum + template.quotas[role], 0);
+  return Object.entries(floor).map(([color, share]) => {
+    if (!template.colorIdentity.includes(color as Color)) {
+      throw new Error(`${template.id}: minColorShare names ${color}, outside its colours ${template.colorIdentity.join('/')}`);
+    }
+    if (typeof share !== 'number' || !(share > 0 && share <= 1)) {
+      throw new Error(`${template.id}: minColorShare.${color} must be in (0, 1] (got ${share})`);
+    }
+    // The epsilon keeps a share written as count/spells from rounding up past it.
+    return [color as Color, Math.ceil(share * spells - 1e-9)];
+  });
+}
+
+const spellsWithColor = (deck: readonly string[], color: Color): number =>
+  deck.filter((id) => CARD_DB[id].colors.includes(color)).length;
+
+/**
+ * The colours the card filling one slot must include to keep the floor: those
+ * the rest of the deck (`others`) cannot reach even if every one of the
+ * `openAfter` slots still unfilled after this one goes to that colour.
+ */
+function colorsRequiredByFloor(
+  floors: readonly (readonly [Color, number])[],
+  others: readonly string[],
+  openAfter: number,
+): Color[] {
+  return floors
+    .filter(([color, need]) => need - spellsWithColor(others, color) > openAfter)
+    .map(([color]) => color);
+}
+
+const includesColors = (card: CardDef, required: readonly Color[]): boolean =>
+  required.every((color) => card.colors.includes(color));
 
 export function cardsForPool(pool: string): CardDef[] {
   const knownSets = new Set(ALL_CARDS.map((card) => card.set).filter((set): set is NonNullable<CardDef['set']> => Boolean(set)));
@@ -506,19 +637,36 @@ export function buildGreedyDeck(template: PersonaTemplate, pool: readonly CardDe
   for (const card of candidates) tieRanks.set(card.id, rngNext(rng));
   const counts = new Map<string, number>();
   const assigned: AssignedCard[] = [];
-  const roleOrder: readonly SpellRole[] = ['finishers', 'draw', 'removal', 'interaction', 'threats'];
+  const roleOrder = GREEDY_ROLE_ORDER;
+  // The colour floor binds a slot only once the slots left could no longer
+  // reach it otherwise ("forced when needed"), so every other slot is ranked
+  // exactly as without a floor: the earlier roles keep their best cards in
+  // either colour (a red-green deck keeps red burn as removal), and the
+  // floored colour fills the last slots it must, which are the threats.
+  const floors = colorFloorCounts(template);
+  const spellSlots = roleOrder.reduce((sum, role) => sum + template.quotas[role], 0);
 
   for (const role of roleOrder) {
     for (let slot = 0; slot < template.quotas[role]; slot++) {
       const state = stateFor(template, assigned, selectedColors);
+      const required = colorsRequiredByFloor(
+        floors,
+        assigned.map((entry) => entry.cardId),
+        spellSlots - assigned.length - 1,
+      );
       const legal = candidates.filter((card) =>
         (counts.get(card.id) ?? 0) < 4 &&
         manaValue(card.cost) <= template.curve.maxManaValue &&
-        cardRoles(card).includes(role));
+        cardRoles(card).includes(role) &&
+        includesColors(card, required));
       let chosen = rankedCandidate(legal, template, state, role, tieRanks);
       if (!chosen) {
-        const fallback = candidates.filter((card) => (counts.get(card.id) ?? 0) < 4);
+        const fallback = candidates.filter((card) =>
+          (counts.get(card.id) ?? 0) < 4 && includesColors(card, required));
         chosen = rankedCandidate(fallback, template, state, role, tieRanks);
+      }
+      if (!chosen && required.length > 0) {
+        throw new Error(`Pool cannot meet ${template.id}'s colour floor (${required.join(', ')}) from here, with ${spellSlots - assigned.length} slots left`);
       }
       if (!chosen) throw new Error(`Pool cannot supply ${60 - assigned.length} remaining deck slots for ${template.id}`);
       assigned.push({ cardId: chosen.id, role });
@@ -663,10 +811,7 @@ export function measureDeckAgainstField(
     }
   }
   measureStats.misses++;
-  const compositionStamp = options.field === 'personas'
-    ? `|${fieldComposition.map((reference) => `${reference.id}:${reference.deck.join(',')}`).join('|')}`
-    : '';
-  const base = (stableHash(`${options.seed}|${options.personaId}|${options.field}${compositionStamp}`) % 20_000) + 60_000;
+  const base = measurementBase(options, fieldComposition);
   if (workers === 1) {
     measureStats.simulatedGames += fieldComposition.length * options.seeds;
     const matchups = fieldComposition.map((reference, index) => {
@@ -732,6 +877,147 @@ export function measureDeckAgainstField(
   return result;
 }
 
+/**
+ * The first game seed of a measurement, derived from the run seed, the persona
+ * and the field and never from the deck measured. Game j of matchup m is seed
+ * (base + m) x 100,000 + j for every candidate, which is what pairs a
+ * candidate's games with the incumbent's.
+ */
+function measurementBase(options: MeasureOptions, fieldComposition: readonly FieldCompositionEntry[]): number {
+  const compositionStamp = options.field === 'personas'
+    ? `|${fieldComposition.map((reference) => `${reference.id}:${reference.deck.join(',')}`).join('|')}`
+    : '';
+  return (stableHash(`${options.seed}|${options.personaId}|${options.field}${compositionStamp}`) % 20_000) + 60_000;
+}
+
+/**
+ * Games [from, to) of every matchup, per game, under the requested brain. The
+ * same seeds, seats and AI seeds as `measureDeckAgainstField`, so the Hard
+ * games [0, seeds) are exactly the games a full measurement plays, and
+ * `recordFromOutcomes` over them is byte-identical to its record.
+ */
+export function measureGamesAgainstField(
+  deck: readonly string[],
+  options: MeasureOptions,
+  fieldComposition: readonly FieldCompositionEntry[],
+  request: GameSliceRequest,
+): GameOutcomes {
+  const rowReserve = options.landReserve;
+  if (!rowReserve) {
+    throw new Error(
+      `measureGamesAgainstField requires a landReserve for ${options.personaId}; ` +
+      'Warchest cannot be measured without one.',
+    );
+  }
+  const { difficulty, from, to } = request;
+  if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to < from) {
+    throw new Error(`Invalid game range [${from}, ${to})`);
+  }
+  assertCraftedDeckLegal(deck, rowReserve);
+  const workers = resolveMeasureWorkers(options.workers);
+  measureStats.calls++;
+  const cacheKey = JSON.stringify({
+    deck: [...deck],
+    landReserve: [...rowReserve],
+    field: options.field,
+    seed: options.seed,
+    personaId: options.personaId,
+    difficulty,
+    fieldComposition: fieldComposition.map((reference) => ({
+      kind: reference.kind,
+      id: reference.id,
+      personaId: reference.personaId ?? null,
+      deck: [...reference.deck],
+      landReserve: [...reference.landReserve],
+    })),
+  });
+  const memoize = options.memoize !== false;
+  const known = memoize ? gameOutcomeCache.get(cacheKey) : undefined;
+  const knownLength = known?.[0]?.length ?? 0;
+  const slice = (outcomes: GameOutcomes): GameOutcomes => outcomes.map((games) => games.slice(from, to));
+  if (known && knownLength >= to) {
+    measureStats.hits++;
+    return slice(known);
+  }
+  measureStats.misses++;
+  // Extend the cached prefix when the request continues it; otherwise play the
+  // range on its own.
+  const extending = known !== undefined && knownLength >= from;
+  const start = extending ? knownLength : from;
+  const base = measurementBase(options, fieldComposition);
+  const jobs: MeasureGameJob[] = [];
+  for (const [matchupIndex, reference] of fieldComposition.entries()) {
+    for (let gameIndex = start; gameIndex < to; gameIndex++) {
+      jobs.push({
+        resultIndex: jobs.length,
+        matchupIndex,
+        gameIndex,
+        gameSeed: (base + matchupIndex) * 100_000 + gameIndex,
+        rowIsP0: gameIndex % 2 === 0,
+        rowDeck: [...deck],
+        colDeck: [...reference.deck],
+        rowReserve: [...rowReserve],
+        colReserve: [...reference.landReserve],
+        difficulty,
+      });
+    }
+  }
+  measureStats.simulatedGames += jobs.length;
+  const codes = workers === 1 ? jobs.map((job) => playMeasureGame(job)) : runParallelGames(jobs, workers);
+  const played = fieldComposition.map(() => [] as string[]);
+  for (const job of jobs) {
+    const code = codes[job.resultIndex];
+    played[job.matchupIndex].push(code === 2 ? 'D' : (code === 0) === job.rowIsP0 ? 'W' : 'L');
+  }
+  const fresh = played.map((games) => games.join(''));
+  if (extending) {
+    const combined = known!.map((games, index) => games + fresh[index]);
+    gameOutcomeCache.set(cacheKey, combined);
+    return slice(combined);
+  }
+  if (memoize && from === 0) gameOutcomeCache.set(cacheKey, fresh);
+  return fresh;
+}
+
+/**
+ * A measured record from per-game outcomes, in exactly the shape (and key
+ * order) `measureDeckAgainstField` writes, so a raced swap that runs the full
+ * count carries the same record an unraced craft would have.
+ */
+export function recordFromOutcomes(
+  options: MeasureOptions,
+  fieldComposition: readonly FieldCompositionEntry[],
+  outcomes: GameOutcomes,
+): MeasuredRecord {
+  if (outcomes.length !== fieldComposition.length) {
+    throw new Error(`Outcomes cover ${outcomes.length} matchups; the field has ${fieldComposition.length}`);
+  }
+  const seeds = outcomes[0]?.length ?? options.seeds;
+  const matchups = fieldComposition.map((reference, index) => {
+    const games = outcomes[index];
+    if (games.length !== seeds) throw new Error('Every matchup must hold the same number of games');
+    let rowWins = 0;
+    let colWins = 0;
+    let draws = 0;
+    for (const result of games) {
+      if (result === 'W') rowWins++;
+      else if (result === 'L') colWins++;
+      else draws++;
+    }
+    const decided = rowWins + colWins;
+    return {
+      referenceId: reference.id,
+      referenceName: reference.name,
+      rowWins,
+      colWins,
+      draws,
+      games: seeds,
+      rate: decided === 0 ? 0 : rowWins / decided,
+    };
+  });
+  return summarizeMeasurement({ ...options, seeds }, matchups);
+}
+
 function summarizeMeasurement(options: MeasureOptions, matchups: MatchupRecord[]): MeasuredRecord {
   const rowWins = matchups.reduce((sum, cell) => sum + cell.rowWins, 0);
   const losses = matchups.reduce((sum, cell) => sum + cell.colWins, 0);
@@ -765,9 +1051,20 @@ export function proposeQuotaLegalSwap(
 ): ProposedSwap | null {
   if (current.assigned.length === 0) return null;
   const counts = cardCounts(current.deck);
+  // The colour floor filters the incoming card, so a swap that would break it
+  // is never proposed. Refusing it after measuring instead would spend a full
+  // measurement on a deck the persona may not play. Without a floor the
+  // filter passes every card, so the candidate list and the rng draws are
+  // unchanged.
+  const floors = colorFloorCounts(template);
   for (let attempt = 0; attempt < current.assigned.length * 3; attempt++) {
     const index = rngInt(rng, current.assigned.length);
     const outgoing = current.assigned[index];
+    const required = floors.length === 0 ? [] : colorsRequiredByFloor(
+      floors,
+      current.deck.filter((_, deckIndex) => deckIndex !== index),
+      0,
+    );
     const candidates = pool.filter((card) =>
       !card.types.includes('land') &&
       !card.token &&
@@ -775,7 +1072,8 @@ export function proposeQuotaLegalSwap(
       cardAllowedByColors(card, current.selectedColors) &&
       manaValue(card.cost) <= template.curve.maxManaValue &&
       cardRoles(card).includes(outgoing.role) &&
-      (counts.get(card.id) ?? 0) < 4);
+      (counts.get(card.id) ?? 0) < 4 &&
+      includesColors(card, required));
     if (candidates.length === 0) continue;
     candidates.sort((a, b) => a.id.localeCompare(b.id));
     const incoming = candidates[rngInt(rng, candidates.length)];
@@ -809,6 +1107,34 @@ export interface HillClimbOptions {
     rng: RngState,
     iteration: number,
   ) => ProposedSwap | null;
+  /**
+   * Levers 2 and 3. When present, every measurement goes through `games` (per
+   * game, so a candidate can be raced against the incumbent game by game), and
+   * `measure` is not called. Absent: the unraced, unscreened climb, unchanged.
+   */
+  lever?: LeverClimbOptions;
+}
+
+export interface LeverClimbOptions {
+  race?: RacePlan;
+  screen?: ScreenConfig;
+  /** Seeds per matchup of a full Hard measurement. */
+  seeds: number;
+  games: (deck: readonly string[], request: GameSliceRequest) => GameOutcomes;
+  /** The measured record for complete outcomes (every matchup the same length). */
+  record: (outcomes: GameOutcomes) => MeasuredRecord;
+}
+
+/**
+ * What the levers carry between iterations, beside the plain climb's state:
+ * the incumbent's per-game Hard outcomes (the race pairs against them), its
+ * Medium record (the screen compares against it), and the journal so far.
+ * Plain JSON, so it rides in a chunk's checkpoint.
+ */
+export interface LeverState {
+  retainedOutcomes: GameOutcomes;
+  retainedScreen?: MeasuredRecord;
+  log: LeverLog;
 }
 
 /**
@@ -829,12 +1155,43 @@ export interface HillClimbState {
   acceptedSwaps: AcceptedSwap[];
   rejectedSwaps: number;
   unproposedIterations: number;
+  /** Present exactly when the climb runs with levers. */
+  lever?: LeverState;
 }
+
+const gameCount = (outcomes: GameOutcomes): number =>
+  outcomes.reduce((sum, games) => sum + games.length, 0);
 
 /** Seed the rng and measure the greedy build. No swap has been proposed yet. */
 export function createHillClimbState(options: HillClimbOptions): HillClimbState {
   const rng = createRngState(options.seed ^ 0x5ca1ab1e);
-  const initialMeasurement = options.measure(options.initial.deck);
+  const lever = options.lever;
+  if (!lever) {
+    const initialMeasurement = options.measure(options.initial.deck);
+    return {
+      nextIteration: 1,
+      rng,
+      initial: options.initial,
+      initialMeasurement,
+      retained: options.initial,
+      retainedMeasurement: initialMeasurement,
+      acceptedSwaps: [],
+      rejectedSwaps: 0,
+      unproposedIterations: 0,
+    };
+  }
+  // The greedy build is the first incumbent: a full Hard measurement, kept per
+  // game for the race, and a Medium one for the screen.
+  const initialOutcomes = lever.games(options.initial.deck, { difficulty: 'hard', from: 0, to: lever.seeds });
+  const initialMeasurement = lever.record(initialOutcomes);
+  let retainedScreen: MeasuredRecord | undefined;
+  let initialScreenGames = 0;
+  if (lever.screen) {
+    const screenOutcomes = lever.games(options.initial.deck, { difficulty: 'medium', from: 0, to: lever.screen.seeds });
+    retainedScreen = lever.record(screenOutcomes);
+    initialScreenGames = gameCount(screenOutcomes);
+  }
+  const fullGames = gameCount(initialOutcomes);
   return {
     nextIteration: 1,
     rng,
@@ -845,7 +1202,98 @@ export function createHillClimbState(options: HillClimbOptions): HillClimbState 
     acceptedSwaps: [],
     rejectedSwaps: 0,
     unproposedIterations: 0,
+    lever: {
+      retainedOutcomes: initialOutcomes,
+      ...(retainedScreen ? { retainedScreen } : {}),
+      log: {
+        ...(lever.race ? { race: { ...lever.race, looks: [...lever.race.looks] } } : {}),
+        ...(lever.screen ? { screen: { ...lever.screen } } : {}),
+        fullGames,
+        initialHardGames: fullGames,
+        initialScreenGames,
+        swaps: [],
+      },
+    },
   };
+}
+
+const roundTo = (value: number, places: number): number => {
+  const scale = 10 ** places;
+  return Math.round(value * scale) / scale;
+};
+
+/**
+ * One proposed swap under the levers. The screen (when on) measures the
+ * candidate under Medium and drops it when it trails the incumbent by more
+ * than the threshold. The race (when on) measures Hard in batches and drops
+ * it at the first interim look where the paired statistic is past the
+ * boundary. Whatever survives runs the full Hard count and meets the plain
+ * climb's own rule, so only a full Hard measurement ever accepts a swap.
+ */
+function leverStep(
+  state: HillClimbState,
+  lever: LeverClimbOptions,
+  leverState: LeverState,
+  proposal: ProposedSwap,
+  iteration: number,
+): void {
+  const deck = proposal.build.deck;
+  const base = { iteration, out: proposal.out, in: proposal.in };
+  const reject = (record: LeverSwapRecord): void => {
+    state.rejectedSwaps++;
+    leverState.log.swaps.push(record);
+  };
+
+  let screenGames = 0;
+  let screenDelta: number | undefined;
+  let candidateScreen: MeasuredRecord | undefined;
+  if (lever.screen) {
+    const incumbentScreen = leverState.retainedScreen;
+    if (!incumbentScreen) throw new Error('A screened climb has no Medium measurement of its incumbent');
+    const outcomes = lever.games(deck, { difficulty: 'medium', from: 0, to: lever.screen.seeds });
+    candidateScreen = lever.record(outcomes);
+    screenGames = gameCount(outcomes);
+    const trailingBy = incumbentScreen.score - candidateScreen.score;
+    screenDelta = roundTo(-trailingBy * 100, 2);
+    if (trailingBy * 100 > lever.screen.threshold) {
+      reject({ ...base, stop: 'screened-out', accepted: false, hardGames: 0, screenGames, screenDelta });
+      return;
+    }
+  }
+  const screenFields = lever.screen ? { screenGames, screenDelta } : { screenGames };
+
+  const race = raceCandidate(lever.race, leverState.retainedOutcomes, lever.seeds,
+    (from, to) => lever.games(deck, { difficulty: 'hard', from, to }));
+  const outcomes = race.outcomes;
+  if (race.stoppedAt !== undefined) {
+    reject({
+      ...base, stop: 'raced-out', accepted: false, hardGames: gameCount(outcomes), ...screenFields,
+      racedAt: race.stoppedAt, z: roundTo(race.z!, 3),
+    });
+    return;
+  }
+  const measurement = lever.record(outcomes);
+  const hardGames = gameCount(outcomes);
+  if (measurement.score > state.retainedMeasurement.score) {
+    const priorScore = state.retainedMeasurement.score;
+    state.retained = proposal.build;
+    state.retainedMeasurement = measurement;
+    leverState.retainedOutcomes = outcomes;
+    // The candidate's own Medium record becomes the incumbent's: no re-measure.
+    if (candidateScreen) leverState.retainedScreen = candidateScreen;
+    state.acceptedSwaps.push({
+      iteration,
+      out: proposal.out,
+      in: proposal.in,
+      role: proposal.role,
+      priorScore,
+      nextScore: measurement.score,
+      scoreDelta: measurement.score - priorScore,
+    });
+    leverState.log.swaps.push({ ...base, stop: 'full', accepted: true, hardGames, ...screenFields });
+  } else {
+    reject({ ...base, stop: 'full', accepted: false, hardGames, ...screenFields });
+  }
 }
 
 /**
@@ -869,6 +1317,11 @@ export function advanceHillClimb(
   const proposer = options.propose ?? ((current, pool, template, rng) => proposeQuotaLegalSwap(current, pool, template, rng));
   const last = Math.min(upTo, options.iterations);
   const first = state.nextIteration;
+  if ((options.lever === undefined) !== (state.lever === undefined)) {
+    throw new Error(options.lever
+      ? 'This climb runs with levers, but its state was started without them'
+      : 'This climb runs without levers, but its state was started with them');
+  }
 
   for (let iteration = first; iteration <= last; iteration++) {
     if (stop && iteration > first && stop()) break;
@@ -879,6 +1332,10 @@ export function advanceHillClimb(
       continue;
     }
     assertCraftedDeckLegal(proposal.build.deck, proposal.build.landReserve);
+    if (options.lever && state.lever) {
+      leverStep(state, options.lever, state.lever, proposal, iteration);
+      continue;
+    }
     const candidateMeasurement = options.measure(proposal.build.deck);
     if (candidateMeasurement.score > state.retainedMeasurement.score) {
       const priorScore = state.retainedMeasurement.score;
@@ -913,6 +1370,7 @@ export function finishHillClimb(state: HillClimbState): HillClimbResult {
       acceptedSwaps,
       rejectedSwaps: state.rejectedSwaps,
       unproposedIterations: state.unproposedIterations,
+      ...(state.lever ? { lever: state.lever.log } : {}),
     },
     greedyBeatsFinal: initialMeasurement.score > retainedMeasurement.score,
     nonMonotonicClimb: acceptedSwaps.some((swap) => swap.scoreDelta <= 0),
@@ -995,6 +1453,17 @@ function prepareMetagameCraft(
   const measure = (deck: readonly string[]): MeasuredRecord => options.measure
     ? options.measure(deck, measureOptions)
     : measureDeckAgainstField(deck, measureOptions, fieldComposition);
+  const lever: LeverClimbOptions | undefined = options.race || options.screen
+    ? {
+      ...(options.race ? { race: racePlan(options.race, options.seeds) } : {}),
+      ...(options.screen ? { screen: options.screen } : {}),
+      seeds: options.seeds,
+      games: (deck, request) => options.measureGames
+        ? options.measureGames(deck, measureOptions, request)
+        : measureGamesAgainstField(deck, measureOptions, fieldComposition, request),
+      record: (outcomes) => recordFromOutcomes(measureOptions, fieldComposition, outcomes),
+    }
+    : undefined;
   return {
     craftSeed,
     hillClimb: {
@@ -1005,6 +1474,7 @@ function prepareMetagameCraft(
       seed: craftSeed,
       measure,
       propose: options.propose,
+      ...(lever ? { lever } : {}),
     },
   };
 }
@@ -1085,7 +1555,7 @@ function buildMetagameArtifacts(
     return {
       schemaVersion: 1 as const,
       mode: 'metagame-loop' as const,
-      persona: { id: template.id, name: template.name },
+      persona: personaIdentity(template),
       pool: options.poolId,
       field: finalRound.measured.field,
       seed: options.seed,
@@ -1149,7 +1619,7 @@ export function recordSeedRound(state: MetagameLoopState, personaId: string, rou
  *
  * This is the ONE implementation of the policy. The in-process loop calls it
  * after crafting a round; the fan-out merge calls it after reading a round's
- * six craft files off disk. Both therefore stop in the same place for the same
+ * craft files (one per persona) off disk. Both therefore stop in the same place for the same
  * reason, which is what lets a fanned-out sweep claim to be the same
  * measurement as a local one.
  */
@@ -1329,6 +1799,13 @@ export function runMetagameLoop(options: MetagameOptions): MetagameResult {
   };
 }
 
+/** An artifact's persona block: the floor rides along only when the template sets one. */
+function personaIdentity(template: PersonaTemplate): PersonaArtifact['persona'] {
+  return template.minColorShare
+    ? { id: template.id, name: template.name, minColorShare: { ...template.minColorShare } }
+    : { id: template.id, name: template.name };
+}
+
 export function makeArtifact(
   template: PersonaTemplate,
   pool: string,
@@ -1339,7 +1816,7 @@ export function makeArtifact(
   return {
     schemaVersion: 1,
     mode: 'single-round',
-    persona: { id: template.id, name: template.name },
+    persona: personaIdentity(template),
     pool,
     field: options.field,
     seed: options.seed,
@@ -1411,6 +1888,13 @@ export interface JournalConfig {
   templateVersion: string;
   poolId: string;
   field: FieldId;
+  /**
+   * Levers 2 and 3. Written only when on, so an unraced, unscreened sweep's
+   * configuration (and every file that carries it) is byte-identical to
+   * before; a raced craft and an unraced one never merge or resume as one.
+   */
+  race?: RaceConfig;
+  screen?: ScreenConfig;
 }
 
 interface JournalHeader {
@@ -1438,6 +1922,9 @@ function parseJournalConfig(value: unknown): JournalConfig | undefined {
     typeof raw.poolId !== 'string' ||
     (raw.field !== 'prefabs' && raw.field !== 'starters')
   ) return undefined;
+  const race = raw.race === undefined ? undefined : parseRaceConfig(raw.race);
+  const screen = raw.screen === undefined ? undefined : parseScreenConfig(raw.screen);
+  if ((raw.race !== undefined && !race) || (raw.screen !== undefined && !screen)) return undefined;
   return {
     seed: raw.seed,
     seeds: raw.seeds,
@@ -1447,13 +1934,39 @@ function parseJournalConfig(value: unknown): JournalConfig | undefined {
     templateVersion: raw.templateVersion,
     poolId: raw.poolId,
     field: raw.field,
+    ...(race ? { race } : {}),
+    ...(screen ? { screen } : {}),
   };
 }
 
+function parseRaceConfig(value: unknown): RaceConfig | undefined {
+  const raw = recordValue(value);
+  if (
+    typeof raw?.batch !== 'number' || !Number.isInteger(raw.batch) || raw.batch < 1 ||
+    typeof raw.alpha !== 'number' || !(raw.alpha > 0 && raw.alpha < 0.5)
+  ) return undefined;
+  return { batch: raw.batch, alpha: raw.alpha };
+}
+
+function parseScreenConfig(value: unknown): ScreenConfig | undefined {
+  const raw = recordValue(value);
+  if (
+    raw?.difficulty !== 'medium' ||
+    typeof raw.threshold !== 'number' || !Number.isFinite(raw.threshold) || raw.threshold < 0 ||
+    typeof raw.seeds !== 'number' || !Number.isInteger(raw.seeds) || raw.seeds < 1
+  ) return undefined;
+  return { difficulty: 'medium', threshold: raw.threshold, seeds: raw.seeds };
+}
+
 function journalConfigDescription(config: JournalConfig): string {
+  const race = config.race ? `race batch ${config.race.batch} alpha ${config.race.alpha}` : 'no race';
+  const screen = config.screen
+    ? `screen medium over ${config.screen.threshold} points at ${config.screen.seeds} seeds`
+    : 'no screen';
   return `seed ${config.seed}, ${config.seeds} seeds, ${config.iterations} iterations, ` +
     `maxRounds ${config.maxRounds}, personas ${config.personaIds.join(',')}, ` +
-    `template ${config.templateVersion}, pool ${config.poolId}, field ${config.field}`;
+    `template ${config.templateVersion}, pool ${config.poolId}, field ${config.field}, ` +
+    `${race}, ${screen}`;
 }
 
 function journalConfigsEqual(left: JournalConfig, right: JournalConfig): boolean {
@@ -1651,6 +2164,8 @@ export interface SingleCraftOptions {
   /** Round 1 and later: where the previous round's per-persona crafts live. */
   fieldDir?: string;
   measure?: MeasureFunction;
+  /** The levers' per-game measure (`config.race` / `config.screen`); the real engine when absent. */
+  measureGames?: GameMeasureFunction;
   propose?: MetagameOptions['propose'];
 }
 
@@ -1710,6 +2225,9 @@ function resolveSingleCraft(options: SingleCraftOptions): ResolvedSingleCraft {
       personaIds: config.personaIds,
       measure: options.measure,
       propose: options.propose,
+      race: config.race,
+      screen: config.screen,
+      measureGames: options.measureGames,
     },
   };
 }
@@ -1776,6 +2294,21 @@ function parseCraftCheckpoint(path: string): CraftCheckpoint {
     typeof state.rejectedSwaps !== 'number' || typeof state.unproposedIterations !== 'number'
   ) {
     throw new Error(`Invalid craft checkpoint: ${basename(path)}`);
+  }
+  // A raced or screened craft checkpoints the levers' state too, and only then.
+  const leverState = recordValue(state.lever);
+  const leverLog = recordValue(leverState?.log);
+  const leverOutcomes = leverState?.retainedOutcomes;
+  const wantsLever = config.race !== undefined || config.screen !== undefined;
+  if (
+    wantsLever !== (state.lever !== undefined) ||
+    (wantsLever && (
+      !Array.isArray(leverOutcomes) || !leverOutcomes.every((games) => typeof games === 'string') ||
+      !Array.isArray(leverLog?.swaps) ||
+      (config.screen !== undefined && recordValue(leverState?.retainedScreen) === undefined)
+    ))
+  ) {
+    throw new Error(`Invalid craft checkpoint: ${basename(path)} (lever state does not match its configuration)`);
   }
   return { ...(parsed as unknown as CraftCheckpoint), config };
 }
@@ -2031,6 +2564,62 @@ export interface CliDependencies {
   today?: () => string;
   /** Milliseconds, for --chunk-minutes; `Date.now` when absent. */
   now?: () => number;
+  /** The levers' per-game measure (--race, --screen); the real engine when absent. */
+  measureGames?: GameMeasureFunction;
+}
+
+const LEVER_FLAGS = ['race', 'race-batch', 'race-alpha', 'screen', 'screen-threshold', 'screen-seeds'] as const;
+
+interface LeverFlags {
+  race?: RaceConfig;
+  screen?: ScreenConfig;
+}
+
+/**
+ * --race [--race-batch n] [--race-alpha a] and --screen medium
+ * [--screen-threshold points] [--screen-seeds n]. Both off unless named.
+ */
+function parseLeverFlags(
+  opt: (name: string) => string | undefined,
+  has: (name: string) => boolean,
+  seeds: number,
+): LeverFlags {
+  for (const flag of ['race-batch', 'race-alpha'] as const) {
+    if (has(flag) && !has('race')) throw new Error(`--${flag} needs --race`);
+  }
+  for (const flag of ['screen-threshold', 'screen-seeds'] as const) {
+    if (has(flag) && !has('screen')) throw new Error(`--${flag} needs --screen medium`);
+  }
+  let race: RaceConfig | undefined;
+  if (has('race')) {
+    const alphaText = opt('race-alpha');
+    const alpha = alphaText === undefined ? DEFAULT_RACE_ALPHA : Number(alphaText);
+    if (!(alpha > 0 && alpha < 0.5)) {
+      throw new Error(`--race-alpha must be a number above 0 and below 0.5 (got ${alphaText})`);
+    }
+    race = { batch: parsePositiveInteger(opt('race-batch'), '--race-batch', DEFAULT_RACE_BATCH), alpha };
+    if (race.batch >= seeds) {
+      throw new Error(
+        `--race-batch ${race.batch} must be below --seeds ${seeds}: with no interim look the race never stops anything`,
+      );
+    }
+  }
+  let screen: ScreenConfig | undefined;
+  if (has('screen')) {
+    const mode = opt('screen');
+    if (mode !== 'medium') throw new Error(`--screen takes medium, the only screen there is (got ${mode})`);
+    const thresholdText = opt('screen-threshold');
+    const threshold = thresholdText === undefined ? DEFAULT_SCREEN_THRESHOLD : Number(thresholdText);
+    if (thresholdText !== undefined && (thresholdText.trim() === '' || !Number.isFinite(threshold) || threshold < 0)) {
+      throw new Error(`--screen-threshold must be a non-negative number of points (got ${thresholdText})`);
+    }
+    screen = {
+      difficulty: 'medium',
+      threshold,
+      seeds: parsePositiveInteger(opt('screen-seeds'), '--screen-seeds', seeds),
+    };
+  }
+  return { ...(race ? { race } : {}), ...(screen ? { screen } : {}) };
 }
 
 function readArtifact(path: string): PersonaArtifact {
@@ -2087,6 +2676,27 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
         return measureDeckAgainstField(deck, configured, configured.fieldComposition);
       }
       return measureDeck(deck, configured);
+    };
+
+    const runtimeMeasureGames: GameMeasureFunction = (deck, options, request) => {
+      const configured = { ...options, workers, memoize };
+      if (dependencies.measureGames) return dependencies.measureGames(deck, configured, request);
+      if (dependencies.measure) {
+        throw new Error('A stubbed measure cannot race or screen; pass measureGames as well');
+      }
+      if (!configured.fieldComposition) throw new Error('A per-game measurement requires a field composition');
+      return measureGamesAgainstField(deck, configured, configured.fieldComposition, request);
+    };
+    const leverRequested = LEVER_FLAGS.some((flag) => has(flag));
+    if (leverRequested && (has('metagame-merge') || (opt('metagame-craft') === undefined && !has('metagame')))) {
+      throw new Error(
+        '--race and --screen apply to the sweep crafts only (--metagame-craft, --metagame). ' +
+        'A merge reads them from the crafts it merges.',
+      );
+    }
+    const printLever = (prefix: string, lever: LeverLog | undefined): void => {
+      if (!lever) return;
+      for (const line of leverAccountingLines(leverAccounting(lever))) log(`${prefix}${line}`);
     };
 
     for (const flag of ['chunk-iterations', 'chunk-minutes']) {
@@ -2199,6 +2809,7 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
         poolId,
         field,
       };
+      Object.assign(config, parseLeverFlags(opt, has, config.seeds));
       // Required, not defaulted: a silent round 0 would be a multi-hour craft
       // of the wrong thing.
       if (opt('round') === undefined) throw new Error('--metagame-craft requires --round <n>');
@@ -2282,6 +2893,7 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
           pool,
           fieldDir,
           measure: runtimeMeasure,
+          measureGames: runtimeMeasureGames,
         });
       } else {
         const chunk = runSingleCraftChunk({
@@ -2291,6 +2903,7 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
           pool,
           fieldDir,
           measure: runtimeMeasure,
+          measureGames: runtimeMeasureGames,
           chunkIterations,
           stop,
           checkpointPath,
@@ -2304,6 +2917,7 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
           log(`Checkpoint: ${template.name} (${template.id}) round ${round} stopped before iteration ` +
             `${chunk.nextIteration} of ${config.iterations}`);
           log(`Checkpoint file: ${outCheckpoint}`);
+          printLever('So far. ', chunk.checkpoint.state.lever?.log);
           reportChunk(false, chunk.nextIteration);
           return 0;
         }
@@ -2319,6 +2933,7 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
       log(`Crafted ${template.name} (${template.id}) round ${round}`);
       log(`Measured: ${pct(crafted.measured)} against ${crafted.fieldComposition.length} decks`);
       log(`Accepted swaps: ${crafted.hillClimb.acceptedSwaps.length}; rejected: ${crafted.hillClimb.rejectedSwaps}`);
+      printLever('', crafted.hillClimb.lever);
       log(`Craft: ${target}`);
       log(`Journal: ${journalPath}`);
       return 0;
@@ -2388,6 +3003,7 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
         templateVersion: PERSONA_TEMPLATE_VERSION,
         poolId,
         field,
+        ...parseLeverFlags(opt, has, seeds),
       };
       let resumed: Map<string, MetagameRound>;
       if (resumeRequested) {
@@ -2486,6 +3102,9 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
         maxRounds,
         personaIds: selectedPersonaIds!,
         measure: runtimeMeasure,
+        race: journalConfig.race,
+        screen: journalConfig.screen,
+        measureGames: runtimeMeasureGames,
         onProgress: (event) => {
           const now = Date.now();
           if (lastProgressAt !== undefined) lastCraftMs = now - lastProgressAt;
@@ -2513,8 +3132,10 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
             games: round.measured.games,
             acceptedSwaps: round.hillClimb.acceptedSwaps.length,
             initialScore: round.hillClimb.initialScore,
+            ...(round.hillClimb.lever ? { lever: leverAccounting(round.hillClimb.lever) } : {}),
             finishedAt: new Date().toISOString(),
           });
+          printLever(`${personaId} round ${round.round}. `, round.hillClimb.lever);
           writeStatus({ state: 'running', ...lastCheckpointProgress });
         },
       });

@@ -40,7 +40,7 @@ import {
   type Rect,
 } from '../../src/ui/layout';
 import { CURVE_MAX } from '../../src/ui/deckStats';
-import { DECK_PANE_LAYOUT, warchestSlotPosition } from '../../src/ui/deckPanePresentation';
+import { DECK_PANE_LAYOUT, deckReserveLayout } from '../../src/ui/deckPanePresentation';
 import {
   LIMITED_BUILDER_COLUMNS,
   LIMITED_BUILDER_HEADER,
@@ -846,9 +846,11 @@ describe('title-safe frame: every placed control', () => {
     }
     const f = d.formatRow;
     for (let i = 0; i < 2; i++) expectInside(`format tab ${i}`, buttonHit(f.tabFirstX + i * f.tabPitch, f.y, 'sm', f.tabMinWidth));
-    for (let i = 0; i < 10; i++) {
-      const slot = warchestSlotPosition(i);
-      expectInside(`Warchest slot ${i}`, buttonHit(slot.x, slot.y, 'sm', d.warchest.slotWidth));
+    const reserve = deckReserveLayout({ top: d.content.top, bottom: d.content.bottom,
+      headerHeights: [24, 20, 20], rulesHeight: 56, slotHeight: 44, slotCount: 10 });
+    for (let i = 0; i < Math.min(10, reserve.pageSize); i++) {
+      const slot = reserve.slotCenter(i);
+      expectInside(`Warchest slot ${i}`, buttonHit(slot.x, slot.y, 'sm', reserve.slotWidth));
     }
     const rowY = d.content.top + d.cards.rowPitch;
     expectInside('card row', { x: d.cards.starX, y: rowY, width: d.cards.countRightX - d.cards.starX, height: d.cards.rowPitch });

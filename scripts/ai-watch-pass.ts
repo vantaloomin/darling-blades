@@ -184,6 +184,9 @@ function makeObserver(watch: WatchCard, me: PlayerId, stats: GameStats) {
         stats.won = event.winner === me;
         break;
       }
+      case 'tokenRefused':
+        // The watch measures card use and board state; a refused token changes neither.
+        break;
       default:
         break;
     }

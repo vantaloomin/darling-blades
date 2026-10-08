@@ -16,19 +16,30 @@ import {
   type LimitedRun,
 } from '../meta/Limited';
 import { isDualLand, LAND_RESERVE_SIZE, MAX_DUAL_LANDS } from '../meta/warchest';
+import { storedPremiumGrant } from '../meta/SaveManager';
 import { Services } from '../meta/services';
 import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestures';
+import { IS_DEV } from '../platform/env';
+import type { SaveData } from '../meta/SaveManager';
 import { CardView } from '../ui/CardView';
 import { computeDeckStats, curveBars, deckCountsLine, deckPipBeads } from '../ui/deckStats';
 import { leaveDraftPrompt } from '../ui/leaveDraftPrompt';
-import { premiumGrantNote, type LimitedBuilderEntry, type PremiumGrantSummary } from '../ui/limitedDraftPresentation';
+import {
+  premiumGrantNote,
+  type LimitedBuilderA11yFixture,
+  type LimitedBuilderEntry,
+  type PremiumGrantSummary,
+} from '../ui/limitedDraftPresentation';
 import {
   LIMITED_BUILDER_COLUMNS,
   LIMITED_BUILDER_HEADER,
   LIMITED_DETAILS_PANEL,
+  limitedDetailsBottom,
+  limitedListLayout,
   limitedListRow,
 } from '../ui/limitedPanePresentation';
-import { gateOnArt } from '../ui/artGate';
+import { fitMenuName, type MenuDensity } from '../ui/menuText';
+import { awaitArt, gateOnArt, PagedArt } from '../ui/artGate';
 import { SCENE_TITLE } from '../ui/layout';
 import { bakeManaSymbols } from '../ui/ManaSymbols';
 import { drawPipBeadRow } from '../ui/pipBeadRow';
@@ -38,7 +49,6 @@ import { ellipsizeText } from '../ui/textFit';
 import { colorInt, theme } from '../ui/theme';
 import { backButton, modalShell, pager, panel, registerSceneBackNavigation, themedButton, type ModalShell } from '../ui/themeWidgets';
 
-const ROWS = 13;
 /** Half the caption line's rendered height: the shape line's centre, below its top. */
 const SHAPE_LINE_HALF_HEIGHT = 8;
 /**
@@ -73,25 +83,41 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
   private selectedDuals: string[] = [];
   private poolPage = 0;
   private deckPage = 0;
+  /** These list rows draw text; their page requests warm the full-size inspect. */
+  private poolArt: PagedArt | null = null;
+  private deckArt: PagedArt | null = null;
   private selectedId: string | null = null;
   private cardInspect: Phaser.GameObjects.Container | null = null;
   private leavePrompt: ModalShell | null = null;
   /**
    * What the Premium grant did, handed over by the screen that completed the
-   * draft. The run does not store it, so a later visit arrives without it and
-   * the note is not drawn: it can only say what happened with real numbers.
+   * draft. A later visit arrives without it and reads the copy the grant
+   * stored on the save (`storedPremiumGrant`), so the note shows on every
+   * visit during the run's Build step, reloads included.
    */
   private premiumGrant: PremiumGrantSummary | null = null;
+  /** Dev-only probe fixture: an in-memory save read instead of the real one, never persisted. */
+  private fixture: LimitedBuilderA11yFixture | null = null;
+  private fixtureSave: SaveData | null = null;
+  private fixtureVisited = false;
+  private get saveData(): SaveData {
+    return this.fixtureSave ?? Services.save.data;
+  }
   constructor() {
     super('LimitedDeckBuilder');
   }
   /** The pool pane and the deck column draw only the run's own pool. */
-  create(data: LimitedBuilderEntry = {}): void {
+  create(data: LimitedBuilderEntry & { a11yFixture?: LimitedBuilderA11yFixture } = {}): void {
     this.premiumGrant = data.premiumGrant ?? null;
-    const run = Services.save.data.limited.activeRun;
+    this.fixture = IS_DEV ? data.a11yFixture ?? null : null;
+    this.fixtureSave = this.fixture ? structuredClone(this.fixture.save) : null;
+    // Phaser keeps a start's data for the next start that passes none, so a
+    // fixture must not outlive its probe visit.
+    if (this.fixture) this.sys.settings.data = {};
+    this.data.set('a11yReady', false);
+    const run = this.saveData.limited.activeRun;
     gateOnArt(this, [...(run?.pool ?? []), ...(run?.deck ?? []), ...(run?.landReserve ?? [])], () =>
-      this.build(),
-    );
+      this.build(), { releaseAfterBuild: true });
   }
   private build(): void {
     this.cardInspect = null;
@@ -116,7 +142,7 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
     });
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('menu');
-    const run = Services.save.data.limited.activeRun;
+    const run = this.saveData.limited.activeRun;
     if (!run) {
       this.scene.start('Limited');
       return;
@@ -127,7 +153,20 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
     bakeManaSymbols(this);
     this.deck = [...run.deck];
     this.selectedDuals = run.landReserve?.filter((id) => CARD_DB[id] && isDualLand(CARD_DB[id])) ?? [];
+    this.poolArt = new PagedArt(this, 'limited-pool', { tier: 'primary' });
+    this.deckArt = new PagedArt(this, 'limited-deck', { tier: 'primary' });
+    const f = this.fixture;
+    if (f || this.fixtureVisited) {
+      // A fixture's pages and selection must not leak into a real visit.
+      this.selectedId = f?.selectedId ?? null;
+      this.poolPage = f?.poolPage ?? 0;
+      this.deckPage = f?.deckPage ?? 0;
+      this.fixtureVisited = !!f;
+    }
     this.draw(run);
+    if (f?.modal === 'inspect' && f.selectedId) this.showCardInspect(f.selectedId);
+    if (f?.modal === 'leave') this.leaveDraft();
+    this.data.set('a11yReady', true);
   }
   /**
    * Rebuild the whole screen. The previous frame is DESTROYED first:
@@ -167,9 +206,10 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
     );
     // One line even in the worst case: every pick melted at the top tier
     // measures 708px (Inter caption, 2026-09-25) against the 1152px frame.
-    if (run.premium && this.premiumGrant) {
+    const premiumGrant = this.premiumGrant ?? storedPremiumGrant(this.saveData.limited);
+    if (run.premium && premiumGrant) {
       this.add
-        .text(SCENE_TITLE.x, LIMITED_BUILDER_HEADER.premiumNoteTop, premiumGrantNote(this.premiumGrant), {
+        .text(SCENE_TITLE.x, LIMITED_BUILDER_HEADER.premiumNoteTop, premiumGrantNote(premiumGrant), {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           color: theme.colors.gold,
@@ -189,16 +229,21 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
     const deckCounts = countCards(this.deck);
     const reserveCounts = countCards(this.selectedDuals);
     const ids = [...poolCounts.keys()].filter((id) => !isBasic(CARD_DB, id)).sort(sortCards);
+    const list = limitedListLayout();
+    const ROWS = list.rows;
     const maxPage = Math.max(0, Math.ceil(ids.length / ROWS) - 1);
     this.poolPage = Math.min(this.poolPage, maxPage);
-    ids.slice(this.poolPage * ROWS, this.poolPage * ROWS + ROWS).forEach((id, i) => {
+    const shown = ids.slice(this.poolPage * ROWS, this.poolPage * ROWS + ROWS);
+    this.recordListDensity('pool', y);
+    this.poolArt?.show([], shown);
+    shown.forEach((id, i) => {
       const owned = poolCounts.get(id) ?? 0;
       const used = deckCounts.get(id) ?? 0;
       const dual = isDualLand(CARD_DB[id]);
       const reserveUsed = reserveCounts.get(id) ?? 0;
       this.cardRow(
         x,
-        y + 56 + i * 31,
+        y + list.rowsTop + i * list.pitch,
         `${dual ? reserveUsed : used}/${owned} ${cardLine(id)}`,
         id,
         dual && reserveUsed > 0 ? '−' : '+',
@@ -220,7 +265,7 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
         },
       );
     });
-    pager(this, x + LIMITED_BUILDER_COLUMNS.inset, y + 477, this.poolPage, maxPage + 1, (page) => {
+    pager(this, x + LIMITED_BUILDER_COLUMNS.inset, y + list.pagerY, this.poolPage, maxPage + 1, (page) => {
       this.poolPage = page;
       this.draw(run);
     });
@@ -236,12 +281,17 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
     );
     const counts = countCards(this.deck);
     const ids = [...counts.keys()].sort(sortCards);
+    const list = limitedListLayout();
+    const ROWS = list.rows;
     const maxPage = Math.max(0, Math.ceil(ids.length / ROWS) - 1);
     this.deckPage = Math.min(this.deckPage, maxPage);
-    ids.slice(this.deckPage * ROWS, this.deckPage * ROWS + ROWS).forEach((id, i) =>
+    const shown = ids.slice(this.deckPage * ROWS, this.deckPage * ROWS + ROWS);
+    this.recordListDensity('deck', y);
+    this.deckArt?.show([], shown);
+    shown.forEach((id, i) =>
       this.cardRow(
         x,
-        y + 56 + i * 31,
+        y + list.rowsTop + i * list.pitch,
         `${counts.get(id) ?? 0}x ${cardLine(id)}`,
         id,
         '−',
@@ -253,7 +303,7 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
         },
       ),
     );
-    pager(this, x + LIMITED_BUILDER_COLUMNS.inset, y + 477, this.deckPage, maxPage + 1, (page) => {
+    pager(this, x + LIMITED_BUILDER_COLUMNS.inset, y + list.pagerY, this.deckPage, maxPage + 1, (page) => {
       this.deckPage = page;
       this.draw(run);
     });
@@ -286,28 +336,28 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
       theme.type.caption,
       theme.colors.muted,
     );
+    // The selected card's whole name wraps (up to three lines at the largest
+    // size); the detail line and the issue list follow its measured height.
+    let issuesY = L.issuesY;
     if (this.selectedId) {
       const card = def(CARD_DB, this.selectedId);
-      this.add.text(L.contentX, L.selected.nameY, card.name, {
+      const name = this.add.text(L.contentX, L.selected.nameY, card.name, {
         fontFamily: theme.fonts.display,
         fontSize: `${theme.type.h2}px`,
         color: theme.colors.heading,
-        wordWrap: { width: L.wrapWidth },
       });
-      this.text(L.contentX, L.selected.detailY, detailLine(card), theme.type.label, theme.colors.muted);
-      this.add
-        .text(L.contentX, L.selected.flavorY, card.flavor ?? '', {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.label}px`,
-          fontStyle: 'italic',
-          color: theme.colors.muted,
-          wordWrap: { width: L.wrapWidth },
-        })
-        .setMaxLines(L.selected.flavorMaxLines);
+      fitMenuName(name, L.wrapWidth, 3);
+      const detailY = Math.max(L.selected.detailY, name.y + name.height + theme.space(1));
+      const detail = this.add.text(L.contentX, detailY, detailLine(card), {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.label}px`,
+        color: theme.colors.muted,
+      });
+      issuesY = Math.max(issuesY, detail.y + detail.height + theme.space(4));
     }
-    this.add.text(
+    const issueText = this.add.text(
       L.contentX,
-      L.issuesY,
+      issuesY,
       issues.length
         ? issues.map((issue) => `${issue.kind}: ${issue.message}`).join('\n')
         : 'Deck is legal.',
@@ -319,6 +369,20 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
         lineSpacing: 4,
       },
     );
+    issueText.setData('a11yFullText', issueText.text);
+    issueText.setData('a11yBox', { x: L.x, y: L.y, width: L.width, height: limitedDetailsBottom() - L.y - theme.space(2) });
+  }
+
+  /** The release list density (13 rows at a 31px pitch from y+56) is the 100% contract. */
+  private recordListDensity(id: 'pool' | 'deck', panelY: number): void {
+    const list = limitedListLayout();
+    const density = this.data.get('a11yDensity') as { actual: MenuDensity[]; release: MenuDensity[] } | undefined
+      ?? { actual: [], release: [] };
+    density.actual = density.actual.filter((item) => item.id !== id);
+    density.release = density.release.filter((item) => item.id !== id);
+    density.actual.push({ id, rows: list.rows, columns: 1, pitch: list.pitch, top: panelY + list.rowsTop });
+    density.release.push({ id, rows: 13, columns: 1, pitch: 31, top: 184 });
+    this.data.set('a11yDensity', density);
   }
 
   /**
@@ -438,7 +502,7 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
   }
 
   private leaveDraft(): void {
-    const run = Services.save.data.limited.activeRun;
+    const run = this.saveData.limited.activeRun;
     if (!run) {
       this.scene.start('Limited');
       return;
@@ -464,6 +528,7 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
     onAction: () => void,
   ): void {
     const geometry = limitedListRow(panelX);
+    const list = limitedListLayout();
     const row = this.add
       .text(geometry.plateX, y, short(label, 39), {
         fontFamily: theme.fonts.ui,
@@ -472,24 +537,24 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
         backgroundColor: theme.colors.rowFill,
         padding: { x: 8, y: 5 },
       })
-      .setFixedSize(geometry.plateWidth, 25)
+      .setFixedSize(geometry.plateWidth, list.rowHeight)
       .setInteractive({ useHandCursor: true });
     row.on('pointerover', (p: Phaser.Input.Pointer) => {
       if (!p.wasTouch) {
         row.setColor(theme.colors.gold);
-        inflateHitArea(row, 250, 31);
+        inflateHitArea(row, 250, list.pitch);
       }
     });
     row.on('pointerout', () => {
       row.setColor(theme.colors.heading);
-      inflateHitArea(row, 250, 31);
+      inflateHitArea(row, 250, list.pitch);
     });
     bindTapButton(this, row, () => {
       this.selectedId = id;
       this.showCardInspect(id);
     });
-    inflateHitArea(row, 250, 31);
-    const action = themedButton(this, geometry.actionX, y + 12, actionLabel, {
+    inflateHitArea(row, 250, list.pitch);
+    const action = themedButton(this, geometry.actionX, y + Math.floor(list.rowHeight / 2), actionLabel, {
       variant: actionLabel === '+' ? 'emphasis' : 'danger',
       size: 'sm',
       minWidth: geometry.actionWidth,
@@ -512,43 +577,39 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
       },
     });
     const c = shell.container;
-    c.add(new CardView(this, 455, 360).setScale(1.35).setCard(card, { fx: 'full' }));
+    // The modal's now lease promotes an evicted inspect above page prefetch;
+    // CardView owns its arrival redraw and keeps the existing immediate draw.
+    awaitArt(c, [id], { onReady: () => undefined });
+    c.add(new CardView(this, 455, 360).setScale(1.35).setCard(card, { fx: 'full', artTier: 'primary' }));
+    // The whole name wraps in the reading column (the list rows abbreviate
+    // it; this is where it is read in full), and the detail line follows it.
+    const name = this.add.text(730, 154, card.name, {
+      fontFamily: theme.fonts.display,
+      fontSize: `${theme.type.h1}px`,
+      color: theme.colors.gold,
+    });
+    fitMenuName(name, 380, 4);
+    c.add(name);
     c.add(
-      this.add.text(730, 154, card.name, {
-        fontFamily: theme.fonts.display,
-        fontSize: `${theme.type.h1}px`,
-        color: theme.colors.gold,
-        wordWrap: { width: 380 },
-      }),
-    );
-    c.add(
-      this.add.text(730, 218, detailLine(card), {
+      this.add.text(730, Math.max(218, name.y + name.height + theme.space(2)), detailLine(card), {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.body}px`,
         color: theme.colors.heading,
         wordWrap: { width: 380 },
       }),
     );
-    c.add(
-      this.add.text(730, 274, card.flavor ?? '', {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.label}px`,
-        fontStyle: 'italic',
-        color: theme.colors.muted,
-        wordWrap: { width: 380 },
-        lineSpacing: 5,
-      }),
-    );
+    // The dim closes it; the panel itself does not, so "anywhere" was wrong.
+    // Inside the panel, on the reading column's bottom inset: on the shared
+    // footer line (y 662) it sat below the panel's bottom edge (640).
+    const panelBottom = theme.design.centerY + 560 / 2;
     c.add(
       this.add
-        // The dim closes it; the panel itself does not, so "anywhere" was wrong.
-        // On the shared footer line: at y 682 it ran past the title-safe frame.
-        .text(640, theme.design.footerCenterY, `${isTouchDevice() ? 'Tap' : 'Click'} outside to close`, {
+        .text(730, panelBottom - theme.space(6), `${isTouchDevice() ? 'Tap' : 'Click'} outside to close`, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.label}px`,
           color: theme.colors.muted,
         })
-        .setOrigin(0.5),
+        .setOrigin(0, 1),
     );
     this.cardInspect = c;
   }
@@ -557,21 +618,22 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
     this.cardInspect = null;
   }
   private startMatch(run: LimitedRun): void {
+    if (this.fixture) return;
     if (validateLimitedDeck(CARD_DB, run.pool, this.deck).some((issue) => issue.kind === 'error'))
       return;
     const updated = completeDraftRun(CARD_DB, run);
     updated.deck = [...this.deck];
     updated.landReserve = limitedLandReserve(CARD_DB, updated.deck, updated.pool, this.selectedDuals);
     updated.status = 'matches';
-    Services.save.data.limited.activeRun = updated;
+    this.saveData.limited.activeRun = updated;
     Services.save.flush();
     this.scene.start('Duel', limitedDuelData(updated));
   }
   private persistAndRedraw(run: LimitedRun): void {
     run.deck = [...this.deck];
     run.landReserve = limitedLandReserve(CARD_DB, this.deck, run.pool, this.selectedDuals);
-    Services.save.data.limited.activeRun = run;
-    Services.save.flush();
+    this.saveData.limited.activeRun = run;
+    if (!this.fixture) Services.save.flush();
     this.draw(run);
   }
   private removeOne(id: string, from: string[] = this.deck): void {

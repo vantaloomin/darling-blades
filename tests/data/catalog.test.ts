@@ -2,12 +2,16 @@ import { describe, expect, it } from 'vitest';
 import {
   activatedAbilitiesOf,
   manaValue,
+  validateA16Def,
   validateChaptersDef,
   validateEmpowerDef,
   validateHauntlinkDef,
+  validateHuntDef,
+  validateManaActivatedDef,
   validateMarkTriggerDef,
   validateNineLivesDef,
   validatePreserveDef,
+  validateProvokedDef,
   validateRiteDef,
 } from '../../src/engine/types';
 import type { CardDef, EffectOp } from '../../src/engine/types';
@@ -30,6 +34,7 @@ import { RAGNAROK } from '../../src/data/cards/ragnarok';
 import { SANDS_OF_THE_DUAT } from '../../src/data/cards/sands-of-the-duat';
 import { STARBORNE } from '../../src/data/cards/starborne';
 import { DROWNED_DEEP } from '../../src/data/cards/drowned-deep';
+import { FIRST_DAWN } from '../../src/data/cards/first-dawn';
 import { SORCERIES } from '../../src/data/cards/sorceries';
 import { TK_JIN } from '../../src/data/cards/tk-jin';
 import { TK_OTHER } from '../../src/data/cards/tk-other';
@@ -40,12 +45,15 @@ import { TOKENS } from '../../src/data/cards/tokens';
 import { activatedCatalogErrors } from '../activatedFixture';
 
 describe('catalog integrity', () => {
-  it('has no invalid Empower, mark-trigger, or chapter definitions across ALL_CARDS', () => {
+  it('has no invalid Empower, mark-trigger, chapter, Provoked, Hunt, attacking-target or If-it-survived definitions across ALL_CARDS', () => {
     for (const card of ALL_CARDS) {
       const errors = [
         ...validateEmpowerDef(card),
         ...validateMarkTriggerDef(card),
         ...validateChaptersDef(card),
+        ...validateProvokedDef(card),
+        ...validateHuntDef(card),
+        ...validateA16Def(card),
       ];
       expect(errors, `${card.id} has invalid Starborne definition: ${errors.join('; ')}`).toEqual([]);
     }
@@ -99,6 +107,9 @@ describe('catalog integrity', () => {
       expect(preserveErrors, `${card.id}: ${preserveErrors.join('; ')}`).toEqual([]);
       const activatedErrors = activatedCatalogErrors(card, CARD_DB);
       expect(activatedErrors, `${card.id}: ${activatedErrors.join('; ')}`).toEqual([]);
+      // A1.5: the engine silently offers nothing for a card that fails this.
+      const pumpErrors = validateManaActivatedDef(card);
+      expect(pumpErrors, `${card.id}: ${pumpErrors.join('; ')}`).toEqual([]);
     }
   });
 
@@ -133,7 +144,7 @@ describe('catalog integrity', () => {
   // field. Only presentation may repeat. Ability and keyword order carry no
   // rules meaning, so they are compared as sets.
   it('no set prints the same card twice under two names', () => {
-    const PRESENTATION = new Set(['id', 'name', 'flavor', 'rarity', 'artRef', 'displayTypeLine', 'set', 'token']);
+    const PRESENTATION = new Set(['id', 'name', 'rarity', 'artRef', 'displayTypeLine', 'set', 'token']);
     const canon = (value: unknown): unknown => {
       if (Array.isArray(value)) return value.map(canon);
       if (value === null || typeof value !== 'object') return value;
@@ -174,6 +185,7 @@ describe('catalog integrity', () => {
       [SANDS_OF_THE_DUAT, 'sd-'],
       [STARBORNE, 'sb-'],
       [DROWNED_DEEP, 'dd-'],
+      [FIRST_DAWN, 'fd'],
       [INSTANTS, 'in-'],
       [SORCERIES, 'so-'],
       [ENCHANTMENTS, 'en-'],
@@ -313,11 +325,13 @@ describe('catalog integrity', () => {
       } else if (card.id.startsWith('yn-')) {
         expect(card.set, card.id + ' should be set:yokai-nights').toBe('yokai-nights');
       } else if (card.id.startsWith('sd-')) {
-        expect(String(card.set), card.id + ' should be set:sands-of-the-duat').toBe('sands-of-the-duat');
+        expect(card.set, card.id + ' should be set:sands-of-the-duat').toBe('sands-of-the-duat');
       } else if (card.id.startsWith('sb-')) {
-        expect(String(card.set), card.id + ' should be set:starborne').toBe('starborne');
+        expect(card.set, card.id + ' should be set:starborne').toBe('starborne');
       } else if (card.id.startsWith('dd-')) {
         expect(card.set, card.id + ' should be set:drowned-deep').toBe('drowned-deep');
+      } else if (card.id.startsWith('fd')) {
+        expect(card.set, card.id + ' should be set:first-dawn').toBe('first-dawn');
       } else {
         expect(card.set ?? 'base', `${card.id} should be set:base`).toBe('base');
       }
@@ -392,6 +406,12 @@ describe('catalog integrity', () => {
       'sd-harvest-after-rain', 'gm-grave-rose-garden', 'sb-orbital-cleansing',
       // DC3, 2026-09-15: the three Drowned Deep multicolour spells remain non-legendary.
       'dd-lightkeepers-oath', 'dd-watch-and-tide', 'dd-horror-garden',
+      // First Dawn locked cut, 2026-09-29: the signposted pairs include
+      // non-legendary creatures and two non-legendary Rituals.
+      'fd-sky-riders-pact', 'fd-grave-fern-stalker', 'fd-ice-and-tar',
+      'fd-fern-and-fire', 'fd-tusk-rage', 'fd-herd-guardian',
+      'fd-tar-fossil-seeker', 'fd-sky-herder', 'fdc-scar-proud-initiate',
+      'fd-stampede-long-grass', 'fd-blaze-horn-charge',
     ]);
     for (const card of ALL_CARDS) {
       if (card.types.includes('land') || card.colors.length < 2) continue;

@@ -1,8 +1,15 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import manifest from '../../src/data/art-manifest.json';
 import {
   ArtQueue,
   artFileUrl,
+  artMissing,
+  artProgress,
+  ensureArt,
+  isArtLoaded,
+  requestArt,
+  setArtLoader,
+  setArtStore,
   artKeyFor,
   artQueueOrder,
   defaultArtOrder,
@@ -18,6 +25,7 @@ import {
   TUTORIAL_PLAYER_DECK,
 } from '../../src/data/tutorial';
 import { setQualityTier } from '../../src/platform/quality';
+import { FULL_BYTES, flush, makeStore } from './artStoreFakes';
 
 /**
  * A hand-driven stand-in for the scene's LoaderPlugin: it records each batch
@@ -303,5 +311,66 @@ describe('ArtQueue', () => {
     sink.finishBatch();
     expect(queue.missing(['k0', 'k1'])).toEqual([]);
     expect(queue.missing(null)).toEqual(['k2', 'k3', 'k4', 'k5']);
+  });
+});
+
+describe('the module API over a live art store (1.9 wrappers)', () => {
+  afterEach(() => {
+    setArtStore(null);
+    setArtLoader(null);
+  });
+
+  it('counts a file the store gave up on as loaded, as the queue did', async () => {
+    const h = makeStore({}, KEYS);
+    setArtStore(h.store);
+    const ready = ensureArt(['k1', 'k2']);
+    h.source.fail('k1', 'failed');
+    h.source.finish('k2');
+    await h.tick();
+    await ready;
+
+    expect(isArtLoaded('k1')).toBe(true);
+    expect(artMissing(['k1', 'k2', 'k3'])).toEqual(['k3']);
+    expect(artProgress()).toEqual({ loaded: 2, total: KEYS.length });
+    expect(h.store.isResident('k1')).toBe(false);
+  });
+
+  it('warns when ensureArt(null) pins the whole manifest through the store', async () => {
+    const h = makeStore({}, KEYS);
+    h.source.auto = true;
+    setArtStore(h.store);
+    const ready = ensureArt(null);
+    for (let i = 0; i < 3; i++) await h.tick();
+    await ready;
+    expect(h.warnings.some((w) => w.includes('ensureArt(null)'))).toBe(true);
+  });
+
+  it('answers from the store while one is set, and from the queue again once it is cleared', async () => {
+    const sink = new FakeSink();
+    const queue = queueOf(sink);
+    setArtLoader(queue);
+    const h = makeStore({ budgetBytes: 10 * FULL_BYTES }, KEYS);
+    setArtStore(h.store);
+
+    const ready = ensureArt(['k1']);
+    expect(isArtLoaded('k1')).toBe(false);
+    expect(h.source.keys).toEqual(['k1']);
+    expect(sink.batches).toEqual([]); // the queue was not asked
+    h.source.finish('k1');
+    await h.tick();
+    await ready;
+    expect(isArtLoaded('k1')).toBe(true);
+    expect(artMissing(['k1', 'k2'])).toEqual(['k2']);
+    // ensureArt's lease is released once ready: nothing stays pinned by it.
+    expect(h.store.stats().pinnedBytes).toBe(0);
+
+    requestArt(['k2']);
+    expect(h.source.keys).toEqual(['k1', 'k2']);
+
+    setArtStore(null);
+    expect(isArtLoaded('k1')).toBe(false); // the queue has loaded nothing
+    requestArt(['k1']);
+    expect(sink.batches.length).toBeGreaterThan(0);
+    await flush();
   });
 });

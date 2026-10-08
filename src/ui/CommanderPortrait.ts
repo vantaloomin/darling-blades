@@ -1,7 +1,12 @@
 import Phaser from 'phaser';
-import { Art } from '../art/ArtResolver';
 import { faceTargetSurfaceState } from './faceTargetPresentation';
-import { colorInt } from './theme';
+import { addPortraitArt } from './portraitArt';
+import { colorInt, theme } from './theme';
+import { currentAccessibility } from './accessibility';
+import { pickBadgeLabel, CUE_MIN_SCREEN_PX } from './boardCuePresentation';
+import { duelPanelAlpha } from './duelPanelPresentation';
+import { fitMenuName } from './menuText';
+import { ensureNumeralBadgeInk, INTER_FIGURE_HEIGHT } from './NumeralGlyphs';
 
 /**
  * "Reactive waifu on stage" panel for the duel board (wireframe 1a): a
@@ -53,6 +58,13 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
   private maskGfx: Phaser.GameObjects.Graphics | null = null;
   private geoMask: Phaser.Display.Masks.GeometryMask | null = null;
   private readonly frameW: number;
+  private readonly pickBadge: Phaser.GameObjects.Container;
+  private readonly pickPlate: Phaser.GameObjects.Arc;
+  /** The pick order as vector numerals ("1", repeated picks "1, 2"). */
+  private readonly pickDigits: Phaser.GameObjects.Image;
+  /** The badge's type size and ink, fixed when the portrait is built. */
+  private readonly pickFontPx: number;
+  private readonly pickInk: string;
 
   constructor(scene: Phaser.Scene, x: number, y: number, opts: CommanderPortraitOpts) {
     super(scene, x, y);
@@ -60,6 +72,15 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
     const h = opts.height;
     const edge = opts.edge ?? 'bottom';
     this.frameW = w;
+    this.labelText = scene.add.text(w / 2, h - LABEL_H / 2, opts.label, {
+      fontFamily: theme.fonts.display, fontSize: `${theme.type.caption}px`,
+      fontStyle: theme.weight.w700, color: theme.colors.gold, resolution: 2, align: 'center',
+    }).setOrigin(0.5).setData('a11yReleaseFullText', opts.label).setData('a11yKeepVisible', true);
+    this.fitLabel();
+    const labelH = currentAccessibility().textScale === 1 ? LABEL_H : Math.max(LABEL_H, this.labelText.height + 8);
+    this.labelText.setY(h - labelH / 2);
+    this.setData('a11yArea', { x, y, width: w, height: h });
+
 
     // Plate + border in the duel HUD family (DuelScene's bottom-left HUD
     // plate: 0x1d1636 @ 0.92 with a 1px 0x3a2f5c stroke). The bottom-edge
@@ -69,13 +90,13 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
       ? { tl: CORNER_R, tr: CORNER_R, bl: 0, br: 0 }
       : { tl: 0, tr: 0, bl: CORNER_R, br: CORNER_R };
     const plate = scene.add.graphics();
-    plate.fillStyle(0x1d1636, 0.92);
+    plate.fillStyle(theme.graphics.panelFill, duelPanelAlpha(0.92));
     plate.fillRoundedRect(0, 0, w, h, corners);
-    plate.lineStyle(1, 0x3a2f5c, 1);
+    plate.lineStyle(1, theme.graphics.panelStroke, 1);
     plate.strokeRoundedRect(0, 0, w, h, corners);
 
     const artW = w - INSET * 2;
-    const artH = h - INSET - LABEL_H;
+    const artH = h - INSET - labelH;
     const artCX = w / 2;
     const artCY = INSET + artH / 2;
 
@@ -91,6 +112,7 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
       ? { tl: CORNER_R - INSET, tr: CORNER_R - INSET, bl: 0, br: 0 }
       : { tl: 0, tr: 0, bl: 0, br: 0 };
     this.maskGfx = scene.add.graphics().setVisible(false);
+    // White is geometry-mask stencil ink, not a chrome colour.
     this.maskGfx.fillStyle(0xffffff, 1);
     this.maskGfx.fillRoundedRect(x + INSET, y + INSET, artW, artH, maskCorners);
     this.geoMask = this.maskGfx.createGeometryMask();
@@ -103,6 +125,7 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
 
     // Reaction overlays exist even without art so damage/cast still read on a
     // frame-only fallback. They share the art mask so the rounded top holds.
+    // Damage/cast reaction tints belong to the specialist art palette.
     this.flashRect = scene.add
       .rectangle(artCX, artCY, artW, artH, 0xff3b2f, 1)
       .setAlpha(0)
@@ -115,30 +138,28 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
     // Bottom label plate with a gold hairline on top, HUD seam-style. Its
     // lower corners continue the top-edge frame's downward-facing rounding.
     const labelPlate = scene.add.graphics();
-    labelPlate.fillStyle(0x161226, 0.94);
+    labelPlate.fillStyle(theme.graphics.panelFill, duelPanelAlpha(0.94));
     if (edge === 'top') {
-      labelPlate.fillRoundedRect(1, h - LABEL_H, w - 2, LABEL_H - 1, {
+      labelPlate.fillRoundedRect(1, h - labelH, w - 2, labelH - 1, {
         tl: 0,
         tr: 0,
         bl: CORNER_R - 1,
         br: CORNER_R - 1,
       });
     } else {
-      labelPlate.fillRect(1, h - LABEL_H, w - 2, LABEL_H - 1);
+      labelPlate.fillRect(1, h - labelH, w - 2, labelH - 1);
     }
-    labelPlate.fillStyle(0x8a6d1f, 0.55);
-    labelPlate.fillRect(1, h - LABEL_H, w - 2, 1);
+    labelPlate.fillStyle(colorInt(theme.colors.gold), 0.55);
+    labelPlate.fillRect(1, h - labelH, w - 2, 1);
 
-    this.labelText = scene.add
-      .text(w / 2, h - LABEL_H / 2, opts.label, {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '12px',
-        fontStyle: 'bold',
-        color: '#ffd88a',
-        resolution: 2,
-      })
-      .setOrigin(0.5);
-    this.fitLabel();
+    this.pickBadge = scene.add.container(w / 2, h / 2).setVisible(false);
+    const badgeRadius = CUE_MIN_SCREEN_PX.pickBadge / 2;
+    this.pickPlate = scene.add.circle(0, 0, badgeRadius, colorInt(theme.colors.gold))
+      .setStrokeStyle(theme.outline.state, theme.graphics.panelFill);
+    this.pickFontPx = theme.type.label;
+    this.pickInk = theme.colors.onGold;
+    this.pickDigits = scene.add.image(0, 0, '__DEFAULT');
+    this.pickBadge.add([this.pickPlate, this.pickDigits]);
 
     this.targetRing = scene.add.graphics().setVisible(false);
     // Never make the Container itself interactive: its child Zone tracks the
@@ -148,7 +169,7 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
 
     const children: Phaser.GameObjects.GameObject[] = [plate];
     if (this.art) children.push(this.art);
-    children.push(this.flashRect, this.glowRect, labelPlate, this.labelText, this.targetRing, this.targetZone);
+    children.push(this.flashRect, this.glowRect, labelPlate, this.labelText, this.targetRing, this.pickBadge, this.targetZone);
     this.add(children);
     this.setSize(w, h);
     scene.add.existing(this);
@@ -159,23 +180,22 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
    * placeholders — always pass textureKey AND frameName so both work) into
    * the window with the GauntletScene addPortrait recipe: ~12% overscan and
    * an upward bias so the face band reads. Missing art must degrade to
-   * frame + label, never crash the duel.
+   * frame + label, never crash the duel. Art still streaming in draws the
+   * loading stand-in and is swapped for the real file when it lands.
    */
   private buildArt(cardId: string, cx: number, cy: number, artW: number, artH: number): void {
     try {
-      const ref = Art.resolver?.getArt(cardId);
-      if (!ref) return;
-      const img = ref.frameName
-        ? this.scene.add.image(cx, cy, ref.textureKey, ref.frameName)
-        : this.scene.add.image(cx, cy, ref.textureKey);
-      const srcW = img.frame.width;
-      const srcH = img.frame.height;
-      const scale = Math.max(artW / srcW, artH / srcH) * 1.12;
-      img.setScale(scale);
-      // Clamp the bias to the vertical overscan so the art always covers the
-      // window bottom (an unclamped fixed bias leaves a gap on wide windows).
-      const overflow = Math.max(0, (srcH * scale - artH) / 2);
-      img.y = cy - Math.min(artH * 0.08, overflow);
+      const img = addPortraitArt(this.scene, cx, cy, cardId, (art) => {
+        const srcW = art.frame.width;
+        const srcH = art.frame.height;
+        const scale = Math.max(artW / srcW, artH / srcH) * 1.12;
+        art.setScale(scale);
+        // Clamp the bias to the vertical overscan so the art always covers the
+        // window bottom (an unclamped fixed bias leaves a gap on wide windows).
+        const overflow = Math.max(0, (srcH * scale - artH) / 2);
+        art.y = cy - Math.min(artH * 0.08, overflow);
+      });
+      if (!img) return;
       if (this.geoMask) img.setMask(this.geoMask);
       this.art = img;
       this.artBaseX = cx;
@@ -226,7 +246,7 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
     this.setDepth(state.depth);
     this.targetRing.clear().setVisible(targetable);
     if (state.targetEnabled) {
-      this.targetRing.lineStyle(3, colorInt(color), 0.98);
+      this.targetRing.lineStyle(theme.outline.state, colorInt(color), 0.98);
       this.targetRing.strokeRoundedRect(2, 2, this.frameW - 4, this.height - 4, CORNER_R);
       this.targetZone.setInteractive({ useHandCursor: true });
     } else {
@@ -235,8 +255,29 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
     return this;
   }
 
+  /** Zero-based pick index, shared with tile/grave picks; null clears the badge. */
+  setPickBadge(pickIndex: number | readonly number[] | null): this {
+    const label = pickBadgeLabel(pickIndex);
+    this.pickBadge.setVisible(label !== null).setName('portrait-pick-badge')
+      .setData('a11yPickBadge', label).setData('a11yPickSurface', 'portrait');
+    if (label !== null) {
+      // Vector numerals centred on their ink (no font metrics).
+      const ink = ensureNumeralBadgeInk(this.scene, label, this.pickInk,
+        this.pickFontPx * INTER_FIGURE_HEIGHT, CUE_MIN_SCREEN_PX.pickBadge);
+      this.pickDigits.setTexture(ink.texture).setDisplaySize(ink.diameter, ink.diameter).setData('a11yNumeral', label);
+      this.pickPlate.setRadius(ink.diameter / 2);
+    }
+    return this;
+  }
+
   private fitLabel(): void {
-    this.labelText.setScale(Math.min(1, (this.frameW - 14) / Math.max(1, this.labelText.width)));
+    if (currentAccessibility().textScale === 1) {
+      this.labelText.setScale(Math.min(1, (this.frameW - 14) / Math.max(1, this.labelText.width)))
+        .setData('a11yFitToBox', true);
+    } else {
+      this.labelText.setScale(1);
+      fitMenuName(this.labelText, this.frameW - 14, 6);
+    }
   }
 
   /**

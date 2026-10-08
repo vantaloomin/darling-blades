@@ -4,6 +4,7 @@ import { STARTER_DECKS } from '../data/starterDecks';
 import { TUTORIAL_AI_DECK, TUTORIAL_LAND_RESERVE, TUTORIAL_PLAYER_DECK } from '../data/tutorial';
 import { CARD_DB } from '../data/catalog';
 import { qualityTier } from '../platform/quality';
+import type { ArtStore } from './artStore';
 
 /**
  * Session-long card-art loading, split out of `PreloadScene` (1.8).
@@ -73,6 +74,20 @@ export function artKeyFor(id: string): string {
 /** Phaser texture key convention for a manifest-listed real art file. */
 export function artTextureKey(key: string): string {
   return `artfile-${key}`;
+}
+
+/**
+ * Texture key for the half-resolution copy the desktop tier may hold beside
+ * the full one (thumbnail bakes, the progressive stand-in; 1.9 art store). On
+ * `lite` the primary texture already is the half file, under `artTextureKey`.
+ */
+export function artHalfTextureKey(key: string): string {
+  return `arthalf-${key}`;
+}
+
+/** Every manifest art key, in manifest order (the art store's key set). */
+export function manifestArtKeys(): readonly string[] {
+  return MANIFEST_KEYS;
 }
 
 /** True when the half-res 320x400 file for this key is on disk. */
@@ -352,6 +367,14 @@ export class ArtQueue {
  */
 let live: ArtQueue | null = null;
 
+/**
+ * The live art store (1.9 lane D), set by the Phaser shell by default. While
+ * it is set, the module-level API below answers from the store instead of
+ * the queue: these are the compatibility wrappers the scenes keep calling.
+ * Under `?artStream=off` it stays null and these wrappers use the 1.8 queue.
+ */
+let liveStore: ArtStore | null = null;
+
 export function setArtLoader(queue: ArtQueue | null): void {
   live = queue;
 }
@@ -360,23 +383,54 @@ export function artLoader(): ArtQueue | null {
   return live;
 }
 
+export function setArtStore(store: ArtStore | null): void {
+  liveStore = store;
+}
+
+export function liveArtStore(): ArtStore | null {
+  return liveStore;
+}
+
 export function isArtLoaded(id: string): boolean {
+  if (liveStore !== null) return liveStore.isSettled(id);
   return live === null ? true : live.isLoaded(id);
 }
 
 export function artProgress(): ArtProgress {
+  if (liveStore !== null) return liveStore.progress();
   return live === null ? { loaded: 0, total: 0 } : live.progress();
 }
 
 /** Art keys still outstanding among `ids` (`null` = every card in the set). */
 export function artMissing(ids: Iterable<string> | null): string[] {
+  if (liveStore !== null) return liveStore.unsettled(ids);
   return live === null ? [] : live.missing(ids);
 }
 
+/**
+ * Ask for `ids` ahead of everything else. Through the store this is an
+ * unpinned request at `visible`, the level of "drawn with a stand-in now".
+ */
 export function requestArt(ids: Iterable<string> | null): void {
+  if (liveStore !== null) {
+    if (ids !== null) liveStore.prefetch(ids, { priority: 'visible' });
+    return;
+  }
   live?.request(ids);
 }
 
+/**
+ * Resolve once `ids` are in (or failed). Through the store this is a lease at
+ * `now`, released as soon as it is ready: the release grace then keeps the
+ * textures for the caller's build, as it does across a scene change.
+ */
 export function ensureArt(ids: Iterable<string> | null): Promise<void> {
+  if (liveStore !== null) {
+    if (ids === null) {
+      liveStore.warn('ensureArt(null) through the art store pins the whole manifest at now');
+    }
+    const lease = liveStore.lease('ensureArt', ids ?? MANIFEST_KEYS, { priority: 'now' });
+    return lease.ready.then(() => lease.release());
+  }
   return live === null ? Promise.resolve() : live.ensure(ids);
 }

@@ -25,7 +25,7 @@ import {
   type ForgeSet,
 } from '../../src/forge/setModel';
 import { FORGE_LIMITS, type ForgeEntry } from '../../src/forge/validate';
-import { scoreCard } from '../../src/power/scoreCore';
+import { dutiesOf, scoreCard } from '../../src/power/scoreCore';
 
 /** Every card a player can collect: the pool the Forge's Start From a Card offers, minus tokens. */
 const COLLECTIBLE = ALL_CARDS.filter((card) => !card.token);
@@ -64,6 +64,16 @@ describe('set file round trip', () => {
     const failures: string[] = [];
     for (let start = 0; start < COLLECTIBLE.length; start += MAX_SET_CARDS) {
       const entries = COLLECTIBLE.slice(start, start + MAX_SET_CARDS).map((_card, offset) => builtEntry(start + offset));
+      // Check the load as well as export/import: otherwise the builder can
+      // silently drop bindings before both sides of the round trip see them.
+      entries.forEach(({ card }, offset) => {
+        const source = COLLECTIBLE[start + offset];
+        expect(card.abilities?.map((ability) => ability.targets), source.id).toEqual(source.abilities?.map((ability) => ability.targets));
+        expect(card.empower?.targets, source.id).toEqual(source.empower?.targets);
+        expect(card.retell?.targets, source.id).toEqual(source.retell?.targets);
+        expect(dutiesOf(card).map((duty) => duty.targets), source.id).toEqual(dutiesOf(source).map((duty) => duty.targets));
+        expect(card.manaActivated, source.id).toEqual(source.manaActivated);
+      });
       const set: ForgeSet = { name: 'Catalog', cards: entries };
       const result = importSetText(exportSetJson(set));
       if (!result.ok) throw new Error(`import refused the export: ${result.problem}`);
@@ -132,6 +142,12 @@ describe('importing a hostile or broken file', () => {
       ['prototype key', JSON.stringify(good()).replace('"name":', '"__proto__":{"polluted":true},"name":'), 'field'],
       ['unknown keyword', withCard((card) => { card.keywords = ['flying']; }), 'keyword'],
       ['unknown trigger', withCard((card) => { card.abilities = [{ when: 'upkeep', ops: [] }]; }), 'trigger'],
+      ['multiple arrival targets', withCard((card) => { card.abilities = [{ when: 'arrives', targets: [{ what: 'yourCreature' }, { what: 'yourCreature' }], ops: [{ op: 'draw', n: 1 }] }]; }), 'target'],
+      ['fanned Provoked target', withCard((card) => { card.abilities = [{ when: 'provoked', targets: [{ what: 'opponentCreature', upTo: 2 }], ops: [{ op: 'damage', n: 1, to: 'target' }] }]; }), 'target'],
+      ['non-boolean attacking qualifier', withCard((card) => { card.abilities = [{ when: 'spell', targets: [{ what: 'creature', attacking: 'yes' }], ops: [{ op: 'tap', to: 'target' }] }]; }), 'shape'],
+      ['free repeatable pump', withCard((card) => { card.manaActivated = [{ cost: { generic: 0, pips: {} }, ops: [{ op: 'boost', p: 1, t: 0, scope: 'self' }] }]; }), 'number'],
+      ['targeted mana activation', withCard((card) => { card.manaActivated = [{ cost: { generic: 1, pips: {} }, ops: [{ op: 'boost', p: 1, t: 0, scope: 'target' }] }]; }), 'effect'],
+      ['tapping mana activation', withCard((card) => { card.manaActivated = [{ cost: { generic: 1, pips: {}, tap: true }, ops: [{ op: 'boost', p: 1, t: 0, scope: 'self' }] }]; }), 'field'],
       ['unknown token', withCard((card) => { card.abilities = [{ when: 'spell', ops: [{ op: 'createToken', token: 'token-nope', count: 1 }] }]; }), 'token'],
       ['too many effects', withCard((card) => { card.abilities = [{ when: 'spell', ops: Array.from({ length: FORGE_LIMITS.opsPerList + 1 }, () => ({ op: 'draw', n: 1 })) }]; }), 'size'],
       ['branches nested too deep', withCard((card) => { card.abilities = [{ when: 'spell', ops: [deepBranch(FORGE_LIMITS.branchDepth)] }]; }), 'size'],

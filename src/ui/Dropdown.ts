@@ -8,6 +8,7 @@ import {
 } from './layout';
 import { roundedTrigger, type RoundedTrigger } from './themeWidgets';
 import { theme } from './theme';
+import { fitMenuName } from './menuText';
 
 /**
  * A compact select dropdown. The trigger and option rows use flat Phaser
@@ -48,6 +49,8 @@ export interface DropdownOpts<T extends string> {
   options: DropdownOption<T>[];
   value: T;
   minW?: number;
+  /** Compact trigger only; the open menu always reveals each full option. */
+  maxValueWidth?: number;
   enabled?: boolean;
   focus?: FocusMetadata;
   onSelect: (v: T) => void;
@@ -78,7 +81,7 @@ export class Dropdown<T extends string> {
       parts: {
         label: opts.label,
         value: this.selectedLabel(),
-        maxValueWidth: this.longestOptionLabelWidth,
+        maxValueWidth: opts.maxValueWidth ?? this.longestOptionLabelWidth,
       },
       enabled: opts.enabled,
       focus: opts.focus,
@@ -122,6 +125,15 @@ export class Dropdown<T extends string> {
     this.trigger.container.x = x;
   }
 
+  setPosition(x: number, y: number): void {
+    this.trigger.container.setPosition(x, y);
+  }
+
+  /** Raise the entire trigger, including its input target, above an owned panel. */
+  setDepth(depth: number): void {
+    this.trigger.container.setDepth(depth);
+  }
+
   get isOpen(): boolean {
     return this.panel !== null;
   }
@@ -151,7 +163,7 @@ export class Dropdown<T extends string> {
       popover.panel.width,
       popover.panel.height,
     );
-    const panel = this.scene.add.container(0, 0).setDepth(PANEL_DEPTH);
+    const panel = this.scene.add.container(0, 0).setDepth(PANEL_DEPTH).setData('a11ySurface', popover.panel);
     const plate = this.scene.add
       .graphics()
       .fillStyle(theme.graphics.panelFill, theme.alpha.panel)
@@ -217,6 +229,7 @@ export class Dropdown<T extends string> {
           },
         )
         .setOrigin(0, 0.5);
+      fitMenuName(text, rowBounds.width - 2 * DROPDOWN_GEOMETRY.rowTextInset - DROPDOWN_GEOMETRY.glyphSlotWidth, 1);
       const check = selected
         ? this.scene.add
             .text(

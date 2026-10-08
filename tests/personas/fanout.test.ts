@@ -70,9 +70,10 @@ function fanOut(
 }
 
 /**
- * The fan-out's whole claim is that a sweep run on six machines is the SAME
- * measurement as one run in one process. Anything less than byte identity would
- * leave that claim to inspection, so this compares the files themselves.
+ * The fan-out's whole claim is that a sweep run on one machine per persona is
+ * the SAME measurement as one run in one process. Anything less than byte
+ * identity would leave that claim to inspection, so this compares the files
+ * themselves.
  */
 describe('metagame fan-out', { timeout: 600_000 }, () => {
   it('merges fanned-out crafts into the in-process loop byte for byte', () => {
@@ -80,10 +81,10 @@ describe('metagame fan-out', { timeout: 600_000 }, () => {
     const fanDir = temp('crafts');
     const mergedDir = temp('merged');
     // Deliberately small: five reference decks, two seeds, one hill-climb swap.
-    // The loop side alone measured 87 s at this size on an idle box (2026-09-22);
-    // the sweep's own 14-deck, 150-seed, 80-iteration shape is a night's work.
+    // This bounded pool reaches both response rounds. Adding a set must not
+    // change the games in a test of execution equivalence.
     const common = [
-      '--personas', 'burn,weenie', '--rounds', '2', '--field', 'starters', '--pool', 'all',
+      '--personas', 'burn,weenie', '--rounds', '2', '--field', 'starters', '--pool', 'gothic-monsters',
       '--seeds', '2', '--iterations', '1', '--seed', '13003', '--workers', '1',
     ];
 
@@ -91,7 +92,7 @@ describe('metagame fan-out', { timeout: 600_000 }, () => {
     fanOut(fanDir, mergedDir, common, 2);
 
     for (const persona of PERSONAS) {
-      const name = `${TODAY}-metagame-${persona}-all.json`;
+      const name = `${TODAY}-metagame-${persona}-gothic-monsters.json`;
       expect(readFileSync(join(mergedDir, name), 'utf8'))
         .toBe(readFileSync(join(loopDir, name), 'utf8'));
     }
@@ -106,7 +107,7 @@ describe('metagame fan-out', { timeout: 600_000 }, () => {
     const mergedDir = temp('stable-merged');
     const deps = { ...quiet, measure: stubMeasure };
     const common = [
-      '--personas', 'burn,weenie', '--rounds', '2', '--field', 'starters', '--pool', 'all',
+      '--personas', 'burn,weenie', '--rounds', '2', '--field', 'starters', '--pool', 'base',
       '--seeds', '1', '--iterations', '0', '--seed', '424242', '--workers', '1',
     ];
 
@@ -116,11 +117,11 @@ describe('metagame fan-out', { timeout: 600_000 }, () => {
     fanOut(fanDir, mergedDir, common, 2, deps);
 
     for (const persona of PERSONAS) {
-      const name = `${TODAY}-metagame-${persona}-all.json`;
+      const name = `${TODAY}-metagame-${persona}-base.json`;
       expect(readFileSync(join(mergedDir, name), 'utf8'))
         .toBe(readFileSync(join(loopDir, name), 'utf8'));
     }
-    const merged = JSON.parse(readFileSync(join(mergedDir, `${TODAY}-metagame-burn-all.json`), 'utf8')) as {
+    const merged = JSON.parse(readFileSync(join(mergedDir, `${TODAY}-metagame-burn-base.json`), 'utf8')) as {
       metagame: { summary: { stoppedReason: string; completedRounds: number; converged: boolean } };
     };
     expect(merged.metagame.summary).toMatchObject({
@@ -134,7 +135,7 @@ describe('metagame fan-out', { timeout: 600_000 }, () => {
     const mergedDir = temp('check-merged');
     const deps = { ...quiet, measure: stubMeasure };
     const common = [
-      '--personas', 'burn,weenie', '--rounds', '4', '--field', 'starters', '--pool', 'all',
+      '--personas', 'burn,weenie', '--rounds', '4', '--field', 'starters', '--pool', 'base',
       '--seeds', '1', '--iterations', '0', '--seed', '424242', '--workers', '1',
     ];
     fanOut(fanDir, mergedDir, common, 1, deps);
@@ -154,7 +155,7 @@ describe('metagame fan-out', { timeout: 600_000 }, () => {
     const errors: string[] = [];
     expect(runCli([
       '--metagame-craft', 'not-a-persona', '--round', '0', '--personas', 'burn,weenie',
-      '--field', 'starters', '--seeds', '1', '--iterations', '0', '--out', temp('unknown'),
+      '--field', 'starters', '--pool', 'base', '--seeds', '1', '--iterations', '0', '--out', temp('unknown'),
     ], { ...quiet, measure: stubMeasure, error: (message) => errors.push(message) })).toBe(1);
     expect(errors).toEqual(['Unknown persona: not-a-persona']);
   });
@@ -163,7 +164,7 @@ describe('metagame fan-out', { timeout: 600_000 }, () => {
     const fanDir = temp('gap-crafts');
     const deps = { ...quiet, measure: stubMeasure };
     const common = [
-      '--personas', 'burn,weenie', '--rounds', '2', '--field', 'starters',
+      '--personas', 'burn,weenie', '--rounds', '2', '--field', 'starters', '--pool', 'base',
       '--seeds', '1', '--iterations', '0', '--seed', '424242',
     ];
     const roundZero = join(fanDir, 'r0');
@@ -184,7 +185,7 @@ describe('metagame fan-out', { timeout: 600_000 }, () => {
     const fanDir = temp('mismatch-crafts');
     const deps = { ...quiet, measure: stubMeasure };
     const roundZero = join(fanDir, 'r0');
-    const common = ['--personas', 'burn,weenie', '--rounds', '2', '--field', 'starters', '--iterations', '0', '--seed', '424242'];
+    const common = ['--personas', 'burn,weenie', '--rounds', '2', '--field', 'starters', '--pool', 'base', '--iterations', '0', '--seed', '424242'];
     for (const persona of PERSONAS) {
       expect(runCli(['--metagame-craft', persona, '--round', '0', ...common, '--seeds', '1', '--out', roundZero], deps)).toBe(0);
     }
@@ -206,7 +207,7 @@ describe('metagame fan-out', { timeout: 600_000 }, () => {
     const deps = { ...quiet, measure: stubMeasure };
     expect(runCli([
       '--metagame-craft', 'burn', '--round', '0', '--personas', 'burn,weenie', '--rounds', '2',
-      '--field', 'starters', '--seeds', '1', '--iterations', '0', '--seed', '424242',
+      '--field', 'starters', '--pool', 'base', '--seeds', '1', '--iterations', '0', '--seed', '424242',
       '--out', join(fanDir, 'r0'),
     ], deps)).toBe(0);
 
@@ -223,7 +224,7 @@ describe('metagame fan-out', { timeout: 600_000 }, () => {
     const deps = { ...quiet, measure: stubMeasure };
     const args = (out: string, extra: string[] = []): string[] => [
       '--metagame-craft', 'burn', '--round', '0', '--personas', 'burn,weenie', '--rounds', '2',
-      '--field', 'starters', '--seeds', '1', '--iterations', '0', '--seed', '424242',
+      '--field', 'starters', '--pool', 'base', '--seeds', '1', '--iterations', '0', '--seed', '424242',
       '--out', out, ...extra,
     ];
     expect(runCli(args(resumeDir), deps)).toBe(0);
@@ -335,9 +336,11 @@ const withFlag = (args: readonly string[], flag: string, value: string): string[
  * one measurement.
  */
 describe('chunked crafts', { timeout: 600_000 }, () => {
+  // This bounded pool exercises both accepted and rejected swaps under the
+  // deck-dependent measurement. New expansions must not change that path.
   const stubArgs = [
     '--metagame-craft', 'burn', '--round', '0', '--personas', 'burn,weenie', '--rounds', '2',
-    '--field', 'starters', '--pool', 'all', '--seeds', '1', '--iterations', '7', '--seed', '424242',
+    '--field', 'starters', '--pool', 'gothic-monsters', '--seeds', '1', '--iterations', '7', '--seed', '424242',
     '--workers', '1',
   ];
   const stubDeps = { ...quiet, measure: deckScoreMeasure };
@@ -453,7 +456,7 @@ describe('chunked crafts', { timeout: 600_000 }, () => {
   it('refuses --chunk-iterations on the in-process loop, which resumes from its journal', () => {
     const errors: string[] = [];
     expect(runCli([
-      '--metagame', '--personas', 'burn,weenie', '--rounds', '1', '--field', 'starters',
+      '--metagame', '--personas', 'burn,weenie', '--rounds', '1', '--field', 'starters', '--pool', 'base',
       '--seeds', '1', '--iterations', '4', '--seed', '424242', '--chunk-iterations', '2',
       '--out', temp('loop-chunk'),
     ], { ...stubDeps, error: (message) => errors.push(message) })).toBe(1);
@@ -515,7 +518,7 @@ describe('chunked crafts', { timeout: 600_000 }, () => {
     const errors: string[] = [];
     const deps = { ...stubDeps, error: (message: string) => errors.push(message) };
     expect(runCli([
-      '--metagame', '--personas', 'burn,weenie', '--rounds', '1', '--field', 'starters',
+      '--metagame', '--personas', 'burn,weenie', '--rounds', '1', '--field', 'starters', '--pool', 'base',
       '--seeds', '1', '--iterations', '4', '--seed', '424242', '--chunk-minutes', '240',
       '--out', temp('loop-minutes'),
     ], deps)).toBe(1);
@@ -536,7 +539,7 @@ describe('chunked crafts', { timeout: 600_000 }, () => {
     // instead of reading the unchunked run's cache.
     const args = [
       '--metagame-craft', 'weenie', '--round', '0', '--personas', 'burn,weenie', '--rounds', '1',
-      '--field', 'starters', '--pool', 'all', '--seeds', '2', '--iterations', '4', '--seed', '13003',
+      '--field', 'starters', '--pool', 'base', '--seeds', '2', '--iterations', '4', '--seed', '13003',
       '--workers', '1', '--no-memo',
     ];
     const wholeDir = temp('engine-whole');

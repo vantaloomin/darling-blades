@@ -10,7 +10,7 @@ import {
   usesLandReserve,
 } from '../config/rules';
 import type { Action } from './actions';
-import { castCost, darlingCastCost, legalActions, validateAction } from './actions';
+import { castCost, darlingCastCost, legalActions, manaActivationsOf, repeatedManaCost, validateAction } from './actions';
 import { hasCastableCharm, hasCastableInstant, hasPayableHauntlinkAction } from './actions';
 import { anyPayableHauntlink } from './hauntlinkWindow';
 import { resolveCombatDamage } from './combat/damage';
@@ -29,7 +29,7 @@ import type { GameEvent } from './events';
 import { solveMana } from './mana';
 import { bindGraveRef, freshGraveyardCard } from './graveyard';
 import { attachPermanent, destroyPermanent, firesDiesForDestroy } from './battlefield';
-import { checkStateBased } from './sba';
+import { checkStateBased, survivesOnBattlefield } from './sba';
 import { getEffectiveStats } from './statics';
 import {
   drawCards,
@@ -45,7 +45,7 @@ import {
 } from './phases';
 import { createRngState, rngInt, rngShuffle } from './rng';
 import type { Emit } from './resolve';
-import { enterBattlefield, resolveStackItem } from './resolve';
+import { enterBattlefield, resolveStackItem, usesHunt } from './resolve';
 import type {
   Awaiting,
   CardEntry,
@@ -357,9 +357,14 @@ export class Game {
 
   viewFor(player: PlayerId): PlayerView {
     this.syncLegacyMutations();
-    const castable = [0, 1].map((seat) =>
-      legalActions(this.st, this.db, seat as PlayerId).some((action) => action.type === 'castDarling'),
-    ) as [boolean, boolean];
+    // legalActions offers castDarling only to a seat whose Darling zone holds
+    // a card, so a seat without one reads false without enumerating its whole
+    // menu (every Warchest seat, and every simulated step Hard takes).
+    const castable = [0, 1].map((seat) => {
+      const zone = this.st.players[seat].darlingZone;
+      return zone !== undefined && zone !== null &&
+        legalActions(this.st, this.db, seat as PlayerId).some((action) => action.type === 'castDarling');
+    }) as [boolean, boolean];
     return viewFor(this.st, player, castable);
   }
 
@@ -399,7 +404,10 @@ export class Game {
     };
     this.apply(player, bindActionGraveRefs(this.st, action), emit);
     this.maybeRaiseDeferredDecision(emit);
-    this.publicState = legacyState(this.st);
+    // The facade is rebuilt on its next read, not here: a simulated world
+    // submits many actions between reads, and with no facade there is nothing
+    // to sync back. Projecting the state and syncing it back changes nothing.
+    this.publicState = undefined;
     return this.buf;
   }
 
@@ -495,7 +503,10 @@ export class Game {
       p.continuations !== undefined || (p.kind === 'chooseTarget' && p.triggerWhen !== undefined)) &&
       !st.stackClosed && (st.awaiting.kind === 'respond' || st.awaiting.kind === 'endStepWindow'))
       st.decisionResume ??= structuredClone(st.awaiting);
-    while (st.pendingDecisions.length > 0) {
+    // A choice settled below without being offered (nothing to discard, sacrifice,
+    // target or look at) still resolves the rest of its effect, and that can
+    // end the game. Once it has, nothing more is offered or resumed.
+    while (st.pendingDecisions.length > 0 && st.winner === null) {
       // A held trigger goes first. With no payable link it would have resolved
       // inline before any queued choice was offered, so it is moved to the
       // head (its window reads the head) and what it raises still queues
@@ -534,7 +545,9 @@ export class Game {
           return;
         }
         st.pendingDecisions.shift();
-        const resolveTrigger = (): void => runOps(
+        const resolveTrigger = (): void => next.provoked && !survivesOnBattlefield(st, this.db, next.sourceIid)
+          ? emit({ e: 'triggerFizzled', iid: next.sourceIid })
+          : runOps(
           st,
           this.db,
           emit,
@@ -573,16 +586,17 @@ export class Game {
         continue;
       }
       if (next.kind === 'foresee' && this.foreseeCards(next.player, next.n).length === 0) {
+        // The deck ran out while the Foresee waited: nothing to look at, so
+        // no choice, but the rest of its effect still resolves.
         st.pendingDecisions.shift();
-        if (next.continuations) this.resumeNewChoice(emit, next.continuations, next.thenOps ? () => runOps(
-          st, this.db, emit,
-          { ...(next.thenContext ?? { controller: next.player, sourceCardId: 'foresee-continuation' }), targets: [] },
-          next.thenOps!,
-        ) : undefined);
+        this.resumeAfterForesee(next, emit);
         continue;
       }
       if (next.kind === 'chooseTarget') {
-        const targets = enumerateTargets(this.st, this.db, next.player, next.spec, next.sourceIid);
+        // A targeted Provoked effect needs its creature still on the
+        // battlefield and still not lethally damaged when its choice comes.
+        const provokedGone = next.triggerWhen === 'provoked' && !survivesOnBattlefield(st, this.db, next.sourceIid);
+        const targets = provokedGone ? [] : enumerateTargets(this.st, this.db, next.player, next.spec, next.sourceIid);
         if (targets.length === 0) {
           // The target was legal when the trigger was queued, but an earlier
           // queued trigger may have moved or removed every target. Fizzle
@@ -603,6 +617,7 @@ export class Game {
       }
       break;
     }
+    if (st.winner !== null) return;
     const next = st.pendingDecisions[0];
     if (next?.kind === 'foresee') {
       st.awaiting = { player: next.player, kind: 'foresee', cards: this.foreseeCards(next.player, next.n) };
@@ -715,6 +730,31 @@ export class Game {
   }
 
   /**
+   * Carry on with the effect a settled Foresee paused: its target-free tail
+   * in the effect's own context (the chooser can be the opponent of the
+   * effect's controller), then any frames queued behind it. One path whether
+   * the player chose or the deck held nothing to look at (rules.md, Foresee),
+   * so a short deck never removes the ops that follow a Foresee.
+   */
+  private resumeAfterForesee(pending: Extract<PendingDecision, { kind: 'foresee' }>, emit: Emit): void {
+    const st = this.st;
+    const tail = pending.thenOps;
+    const runTail = tail ? (): void => runOps(
+      st, this.db, emit,
+      { ...(pending.thenContext ?? { controller: pending.player, sourceCardId: 'foresee-continuation' }), targets: [] },
+      tail,
+    ) : undefined;
+    if (pending.continuations) {
+      // A nested legacy Foresee may already own an inner tail. Resolve it
+      // before appending the enclosing new observer's continuation.
+      this.resumeNewChoice(emit, pending.continuations, runTail);
+    } else if (runTail) {
+      runTail();
+      checkStateBased(st, this.db, emit);
+    }
+  }
+
+  /**
    * Awaiting Foresee cards are top-first, matching the player-facing order.
    * A Foresee continuation suspends before its trailing ops mutate this deck.
    */
@@ -807,31 +847,7 @@ export class Game {
           kept: kept.map(cardIdOf),
           bottomed: bottomed.map(cardIdOf),
         });
-        if (pending.continuations) {
-          // A nested legacy Foresee may already own an inner tail. Resolve it
-          // before appending the enclosing new observer's continuation.
-          this.resumeNewChoice(emit, pending.continuations, pending.thenOps ? () => runOps(
-            st, this.db, emit,
-            { ...(pending.thenContext ?? { controller: pending.player, sourceCardId: 'foresee-continuation' }), targets: [] },
-            pending.thenOps!,
-          ) : undefined);
-          return;
-        }
-        if (pending.thenOps) {
-          // The chooser can be the opponent of the effect's controller.
-          // Resume the target-free tail under its captured source context.
-          runOps(
-            st,
-            this.db,
-            emit,
-            {
-              ...(pending.thenContext ?? { controller: pending.player, sourceCardId: 'foresee-continuation' }),
-              targets: [],
-            },
-            pending.thenOps,
-          );
-          checkStateBased(st, this.db, emit);
-        }
+        this.resumeAfterForesee(pending, emit);
         return;
       }
 
@@ -856,12 +872,23 @@ export class Game {
           pending.abilityIndex !== st.awaiting.abilityIndex
         ) return;
         st.pendingDecisions.shift();
+        const provoked = pending.triggerWhen === 'provoked';
+        if (provoked && !survivesOnBattlefield(st, this.db, pending.sourceIid)) {
+          // A guard: the drain already fizzles a Provoked choice whose creature
+          // is gone before raising it, and nothing acts between that and this
+          // answer in a live game. Kept so a restored or hand-built state with
+          // a stale awaiting still does nothing.
+          emit({ e: 'triggerFizzled', iid: pending.sourceIid });
+          this.resumeNewChoice(emit, pending.continuations);
+          return;
+        }
         // Revision 4: hold the ops back so Hauntlink windows can be offered
         // over the now-known target. Only when someone can actually pay a
         // link - otherwise the path below is byte-identical to revision 3.
         if ((st.rulesRev ?? 1) >= 4 && anyPayableHauntlink(st, this.db)) {
           const newTrigger = pending.triggerWhen !== undefined || pending.continuations !== undefined ||
-            pending.spec.maxCost !== undefined || pending.spec.minAttack !== undefined || pending.spec.what === 'opponentCreature';
+            pending.spec.maxCost !== undefined || pending.spec.minAttack !== undefined || pending.spec.what === 'opponentCreature' ||
+            usesHunt(pending.ops);
           st.pendingDecisions.unshift({
             kind: 'resolveTrigger',
             controller: pending.player,
@@ -872,6 +899,7 @@ export class Game {
             offered: [],
             ...(newTrigger ? { targetSpecs: [pending.spec], newDecisionContext: true as const } : {}),
             ...(pending.continuations ? { continuations: pending.continuations } : {}),
+            ...(provoked ? { provoked: true as const } : {}),
           });
           return;
         }
@@ -982,7 +1010,7 @@ export class Game {
           sourceCardId: perm.cardId,
           sourceIid: perm.iid,
           targets: action.targets ?? [],
-          ...(specs.some(s => s.exactly || s.maxCost !== undefined || s.minAttack !== undefined) ? { targetSpecs: specs } : {}),
+          ...(usesHunt(ability.ops) || specs.some(s => s.exactly || s.maxCost !== undefined || s.minAttack !== undefined) ? { targetSpecs: specs } : {}),
           ...(specs.length === 1 && (specs[0].upTo !== undefined || specs[0].exactly !== undefined) ? { targetBatch: true } : {}),
         }, ability.ops);
         // Like deferred-target triggers, this off-stack path owns its SBA.
@@ -990,6 +1018,31 @@ export class Game {
         // trigger and the rest of the Duty behind it) is raised by the drain
         // in submit(), the queue a resolving spell uses.
         checkStateBased(st, this.db, emit);
+        return;
+      }
+
+      case 'activateMana': {
+        // Charm speed and off the stack, like a Hauntlink link: the cost is
+        // paid for every activation at once, the ops run that many times, and
+        // the same player keeps the decision (a window stays open for them
+        // until they pass; no response window opens over the pump itself).
+        const perm = findPermanent(st, action.iid)!;
+        const ability = manaActivationsOf(def(this.db, perm.cardId))[action.abilityIndex];
+        const plan = action.manaPlan ?? solveMana(st, this.db, player, repeatedManaCost(ability.cost, action.times))!;
+        for (const iid of plan) findPermanent(st, iid)!.tapped = true;
+        if (plan.length > 0) emit({ e: 'manaTapped', player, iids: plan });
+        emit({ e: 'manaActivated', player, iid: perm.iid, cardId: perm.cardId, abilityIndex: action.abilityIndex, times: action.times });
+        for (let i = 0; i < action.times && st.winner === null; i++) {
+          runOps(st, this.db, emit, { controller: player, sourceCardId: perm.cardId, sourceIid: perm.iid, targets: [] }, ability.ops);
+        }
+        checkStateBased(st, this.db, emit);
+        // Used "as a Charm" (the owner's ruling): the attacker's pump in a
+        // combat window earns the defender one reply once the attacker passes,
+        // as a resolved Charm does (the revision-2 reopen, capped per step).
+        // Reopens are only ever offered to the defender, so the defender's own
+        // pump earns nothing, and each pump costs mana, so this cannot loop.
+        if (st.step === 'combat' && st.awaiting.kind === 'respond' && player === st.activePlayer &&
+          (st.rulesRev ?? 1) >= 2 && st.episode) st.episode.resolvedSinceOffer++;
         return;
       }
 
@@ -1467,9 +1520,27 @@ function normalizeAwaiting(awaiting: LegacyAwaiting, state: GameState): Awaiting
   };
 }
 
+/** The top-level fields `legacyState` rebuilds (or drops) itself. */
+const LEGACY_REBUILT: ReadonlySet<string> = new Set(['players', 'battlefield', 'stack', 'awaiting', 'nextInstanceId']);
+
 function legacyState(state: GameState): LegacyGameState {
-  const rest = structuredClone(state) as LegacyGameState;
-  delete rest.nextInstanceId;
+  // Deep-copy only the fields the projection keeps, in one structuredClone so
+  // any sharing between them is kept exactly as a whole-state copy kept it.
+  // This used to copy the whole state (both decks and hands as instances, the
+  // battlefield and stack twice) and throw the rebuilt fields' copies away:
+  // about 30% of a wide-board Hard game (1.9 lane F). The keys are laid out in
+  // the state's own order, as the whole-state copy laid them out, so anything
+  // that serialises the result sees the same text.
+  const source = state as unknown as Record<string, unknown>;
+  const kept: Record<string, unknown> = {};
+  for (const key of Object.keys(source)) {
+    if (!LEGACY_REBUILT.has(key)) kept[key] = source[key];
+  }
+  const copied = structuredClone(kept);
+  const rest: Record<string, unknown> = {};
+  for (const key of Object.keys(source)) {
+    if (key !== 'nextInstanceId') rest[key] = LEGACY_REBUILT.has(key) ? undefined : copied[key];
+  }
   const players = state.players.map((player) => {
     const legacy = {
       ...player,
@@ -1487,7 +1558,7 @@ function legacyState(state: GameState): LegacyGameState {
     return legacy;
   }) as [LegacyGameState['players'][0], LegacyGameState['players'][1]];
   return {
-    ...rest,
+    ...(rest as unknown as LegacyGameState),
     players,
     // Battlefield and stack are public zones, so their physical identity is
     // retained in the compatibility projection. Hidden player zones below

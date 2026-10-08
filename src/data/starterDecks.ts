@@ -105,7 +105,7 @@ export const STARTER_DECKS: DeckList[] = [
       ['gk-hoplite', 4],
       ['tk-shu-liubei', 2],
       ['sd-renenutet-who-measures-the-flood', 1],
-      ['gk-gaia', 1],
+      ['fd-long-neck-mother', 1],
     ]),
     landReserve: expand([
       ['land-forest', 6],
@@ -1112,7 +1112,7 @@ export const THEME_DECKS: DeckList[] = [
     // 38/19/43/52/52/27%. Adding the fourth Ion copy at the expense of the
     // setup spell did not improve the row and was reverted.
     // 2026-08-30 owner-ruling surgery 8 KEPT as the next-test base: -2
-    // Signal Inversion, +2 Overcharge the Hull (reserve mirrored) measured
+    // Signal Inversion, +2 Overcharge the Hull (now Vent the Reactor; reserve mirrored) measured
     // 39.8% (1016/2550) in the 17-cell prefab row, with full field cells
     // 24/45/37/34/41/33/46/40/33/57/53/34/40/18/51/61/33%. Doubling the
     // cheap fire removal raised every priority starter cell and kept the
@@ -1272,6 +1272,60 @@ export const THEME_DECKS: DeckList[] = [
     landReserve: expand([
       ['land-island', 5],
       ['land-swamp', 5],
+    ]),
+  },
+  {
+    id: 'theme-first-dawn',
+    name: 'Hooves and Fire',
+    // Hooves and Fire: R/G First Dawn Dinokin stampede. Every creature is an honest body on a steady curve; cheap Provoked creatures and Ember-Flick wake each other, Hunt and burn clear the blockers, the Herd-Caller gives the pack Overrun, and two tyrants close.
+    cards: expand([
+      ['land-mountain', 12],
+      ['land-forest', 12],
+      ['fd-fern-crest-raptor', 3],
+      ['fd-cinder-crest', 3],
+      ['fd-horn-bearer', 3],
+      ['fd-herd-caller-hornback', 2],
+      ['fd-coal-thrower', 2],
+      ['fd-ridge-raptor', 2],
+      ['fd-fern-and-fire', 2],
+      ['fd-fern-shadow-stalker', 2],
+      ['fd-hot-blooded', 2],
+      ['fd-horn-crest-charger', 2],
+      ['fd-tusk-rage', 1],
+      ['fd-blaze-crest', 1],
+      ['fd-rage-kin-brawler', 1],
+      ['fd-spear-and-fang', 2],
+      ['fd-challenge-the-beast', 2],
+      ['fd-hurled-firebrand', 2],
+      ['fd-ember-flick', 2],
+      ['fd-thunder-of-hooves', 1],
+      ['fd-blaze-horn-charge', 1],
+    ]),
+    // Generated 2026-10-01 by scripts/avatarReserveDecks.ts.
+    reserveCards: expand([
+      ['fd-fern-crest-raptor', 3],
+      ['fd-cinder-crest', 3],
+      ['fd-horn-bearer', 3],
+      ['fd-herd-caller-hornback', 2],
+      ['fd-coal-thrower', 2],
+      ['fd-ridge-raptor', 2],
+      ['fd-fern-and-fire', 2],
+      ['fd-fern-shadow-stalker', 2],
+      ['fd-hot-blooded', 2],
+      ['fd-horn-crest-charger', 2],
+      ['fd-tusk-rage', 1],
+      ['fd-blaze-crest', 1],
+      ['fd-rage-kin-brawler', 1],
+      ['fd-spear-and-fang', 2],
+      ['fd-challenge-the-beast', 2],
+      ['fd-hurled-firebrand', 2],
+      ['fd-ember-flick', 4],
+      ['fd-thunder-of-hooves', 1],
+      ['fd-blaze-horn-charge', 3],
+    ]),
+    landReserve: expand([
+      ['land-mountain', 5],
+      ['land-forest', 5],
     ]),
   },
 ];

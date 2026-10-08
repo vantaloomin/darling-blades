@@ -4,6 +4,7 @@ import { ALL_CARDS } from '../data/catalog';
 import { MECHANIC_DEFINITIONS, MECHANIC_NAMES, type MechanicId } from '../data/glossary';
 import { artKeyFor, artTextureKey } from '../art/artLoader';
 import { ICON_PATHS } from '../art/iconPaths';
+import { FORGE_NUMERAL_BOX, FORGE_NUMERAL_OPTIONS, NUMERAL_PATHS, numeralLayout } from '../art/numeralPaths';
 import type { CardDef, Color, Keyword, ManaCost, StaticDef } from '../engine/types';
 import { setQualityTier } from '../platform/quality';
 import { frameKeyFor } from '../ui/CardFrameFactory';
@@ -222,16 +223,32 @@ function pipSvg(color: Color, sizeClass = ''): string {
   </svg>`;
 }
 
+/**
+ * A generic amount in the grey `.generic-pip` circle: the game's vector
+ * numerals (src/art/numeralPaths.ts) as inline SVG filling the circle's
+ * content box, centred on their ink like the in-game pip-C-<n> beads, so the
+ * digit never rides on Cinzel's line box. The amount is spoken via aria-label.
+ */
+function genericPipMarkup(amount: number): string {
+  const n = Math.max(0, Math.floor(Number(amount)));
+  const layout = numeralLayout(n, FORGE_NUMERAL_BOX, FORGE_NUMERAL_OPTIONS);
+  const round = (value: number): number => Math.round(value * 1000) / 1000;
+  const paths = layout.glyphs.map((glyph) =>
+    `<path transform="translate(${round(glyph.tx)} ${round(glyph.ty)}) scale(${round(layout.k)})" d="${NUMERAL_PATHS[glyph.glyph]}" fill="currentColor" fill-rule="evenodd"></path>`,
+  ).join('');
+  return `<span class="generic-pip" role="img" aria-label="${n} generic mana"><svg viewBox="0 0 ${FORGE_NUMERAL_BOX} ${FORGE_NUMERAL_BOX}" aria-hidden="true" focusable="false">${paths}</svg></span>`;
+}
+
 /** A printed mana cost as pips. Built from numbers only, never from player text. */
 function costMarkup(cost: ManaCost | undefined, isX: boolean, pipClass: string): string {
   if (!cost) return '';
   const items: string[] = [];
   if (isX) items.push('<span class="generic-pip">X</span>');
-  if (cost.generic > 0) items.push(`<span class="generic-pip">${Number(cost.generic)}</span>`);
+  if (cost.generic > 0) items.push(genericPipMarkup(cost.generic));
   for (const color of COLOR_ORDER) {
     for (let index = 0; index < (cost.pips[color] ?? 0); index += 1) items.push(pipSvg(color, pipClass));
   }
-  return items.join('') || '<span class="generic-pip">0</span>';
+  return items.join('') || genericPipMarkup(0);
 }
 
 pipControls.innerHTML = COLOR_ORDER.map((color) => `
@@ -433,7 +450,7 @@ function renderOpFields(op: ScorableEffectOp, context: string, opIndex: number):
   );
   switch (op.op) {
     case 'damage':
-      return `${selectField('n', String(op.n), ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'X'])}${selectField('to', op.to, ['target', 'opponent', 'controller', 'eachCreature', 'eachOpponentCreature'], { eachCreature: 'Each creature', eachOpponentCreature: 'Each opposing creature' })}`;
+      return `${selectField('n', String(op.n), ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'X'])}${selectField('to', op.to, ['target', 'opponent', 'controller', 'eachCreature', 'eachOpponentCreature', 'eachYourCreature'], { eachCreature: 'Each creature', eachOpponentCreature: 'Each opposing creature', eachYourCreature: 'Each creature you control' })}`;
     case 'gainLife': case 'draw': case 'foresee':
       return numberField('n', op.n);
     case 'loseLife': case 'discardRandom': case 'discard':
@@ -458,10 +475,13 @@ function renderOpFields(op: ScorableEffectOp, context: string, opIndex: number):
       return selectField('scope', op.scope, ['self', 'allYours'], { allYours: 'All yours' });
     case 'raise':
       return selectField('to', op.to ?? 'target', ['target', 'top'], { target: 'Target', top: 'Top creature card in your graveyard' });
+    case 'hunt':
+      return `${selectField('hunter', op.hunter, ['self', 'target'], { self: 'This creature', target: 'Target creature you control' })}${selectField('prey', op.prey ?? 'opponent', ['opponent', 'any', 'yours'], { opponent: 'Creature an opponent controls', any: 'Any other creature', yours: 'Another creature you control' })}`;
+    case 'ifTargetSurvives':
     case 'ifTargetMarked': {
       const thenContext = `${context}|if:${opIndex}:then`;
       const elseContext = `${context}|if:${opIndex}:else`;
-      return `<div class="branch-editor"><h3>Target is marked</h3>${renderOpList(op.then, thenContext)}<h3>Target is not marked</h3>${renderOpList(op.else ?? [], elseContext)}</div>`;
+      return `<div class="branch-editor"><h3>${op.op === 'ifTargetSurvives' ? 'If it survived' : 'Target is marked'}</h3>${renderOpList(op.then, thenContext)}<h3>${op.op === 'ifTargetSurvives' ? 'Otherwise' : 'Target is not marked'}</h3>${renderOpList(op.else ?? [], elseContext)}</div>`;
     }
     default:
       return '<span class="no-fields">No additional fields</span>';
@@ -477,7 +497,7 @@ function renderOpKeywordFields(keywords: Keyword[], context: string, opIndex: nu
 /** The effect kinds offered in a list: branches stop nesting at the validator's depth. */
 function opKindsFor(context: string): OpKind[] {
   const kinds = OP_OPTIONS.map((option) => option.kind);
-  return contextDepth(context) >= FORGE_LIMITS.branchDepth ? kinds.filter((kind) => kind !== 'ifTargetMarked') : kinds;
+  return contextDepth(context) >= FORGE_LIMITS.branchDepth ? kinds.filter((kind) => kind !== 'ifTargetMarked' && kind !== 'ifTargetSurvives') : kinds;
 }
 
 function renderOpList(ops: ScorableEffectOp[], context: string): string {
@@ -629,7 +649,7 @@ function opsForContext(state: BuilderState, context: OpsContext): ScorableEffect
   if (!branch) return rootOpsForContext(state, context as RootOpsContext);
   const parent = opsForContext(state, branch[1]);
   const gate = parent[Number(branch[2])];
-  if (gate?.op !== 'ifTargetMarked') throw new Error(`Invalid marked branch context: ${context}`);
+  if (gate?.op !== 'ifTargetMarked' && gate?.op !== 'ifTargetSurvives') throw new Error(`Invalid target branch context: ${context}`);
   if (branch[3] === 'else' && !gate.else) gate.else = [];
   return branch[3] === 'then' ? gate.then : (gate.else ?? []);
 }
@@ -695,7 +715,8 @@ document.addEventListener('click', (event) => {
 function setOpField(op: ScorableEffectOp, field: string, rawValue: string): void {
   const target = op as unknown as Record<string, unknown>;
   const range = opFieldRange(op.op, field);
-  if (field === 'n' && op.op === 'damage' && rawValue === 'X') target[field] = 'X';
+  if (op.op === 'hunt' && field === 'prey' && rawValue === 'opponent') delete op.prey;
+  else if (field === 'n' && op.op === 'damage' && rawValue === 'X') target[field] = 'X';
   else if (range) target[field] = clampInt(Number(rawValue), range.min, range.max);
   else target[field] = rawValue;
 }

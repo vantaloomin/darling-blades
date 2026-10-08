@@ -5,7 +5,7 @@ import type { CardDb, EffectOp, ManaCost, Permanent, TargetRef } from '../engine
 import { combineManaCosts, solveMana } from '../engine/mana';
 import { enumerateTargets } from '../engine/effects/targeting';
 import { castTargetSpecsFor } from '../engine/resolve';
-import { def, isType, manaValue, opponentOf } from '../engine/types';
+import { def, effectOpUsesTarget, isType, manaValue, opponentOf } from '../engine/types';
 import { getEffectiveStats } from '../engine/statics';
 import type { PlayerView } from '../engine/view';
 import type { AIPlayer } from './AIPlayer';
@@ -22,26 +22,34 @@ import { chooseHauntlinkWindow, chooseUnlinkedHauntlink } from './hauntlinkPolic
 import { chooseReserveLand } from './landPolicy';
 import { choosePlayDraw } from './playDraw';
 import { choosePreserve } from './preservePolicy';
+import { chooseSimplePump } from './pumpPolicy';
 import { applyRitePolicy, riteSacrificeValue } from './ritePolicy';
 import { applyTithePolicy, titheManaSaved } from './tithePolicy';
 import { applyWhispersPolicy } from './whispersPolicy';
 import { applyVocabularyTargetPolicy, chooseTargetAction } from './targeting';
+import { applyDarlingPreyPolicy, applyHuntPolicy, castNamesArrivalPrey, HUNT_SPEND_MARGIN, isFriendlyHuntOrSource, SELF_PROVOKE_MARGIN } from './huntPolicy';
 import {
   cardValue,
   actionManaCost,
+  arrivalHuntCastValue,
   manaPlanKeeping,
   empowerOpportunityCost,
   empowerValue,
   boundCastEffects,
+  castHuntOutcome,
+  castSpellOps,
   faceDamageForCast,
   hauntlinkCastValue,
   markBoardAdjust,
+  usefulMarkCast,
   markedBoardValue,
   permValue,
   removalKind,
   removalValueForCast,
   retellValue,
   skimValue,
+  spellTargetedBodyImpact,
+  spellTargetsValue,
   targetValueForAbility,
   whispersValue,
 } from './value';
@@ -65,6 +73,11 @@ export class MediumAI implements AIPlayer {
   ) {}
 
   chooseAction(view: PlayerView, legal: Action[]): Action {
+    legal = legal.filter((action) => usefulMarkCast(view, this.db, action));
+    // A self-Hunt or a friendly Provoked source only when it beats the plain
+    // choice by a card (A2.b). It runs before the target policy keeps one variant.
+    legal = applyHuntPolicy(view, this.db, legal, SELF_PROVOKE_MARGIN);
+    legal = applyDarlingPreyPolicy(view, this.db, legal);
     legal = applyVocabularyTargetPolicy(view, this.db, legal, true);
     legal = applyTithePolicy(view, this.db, legal, this.pers);
     legal = applyRitePolicy(view, this.db, legal);
@@ -232,7 +245,7 @@ export class MediumAI implements AIPlayer {
   /** Empower competes with the best second develop cast its extra mana displaces. */
   private castScore(view: PlayerView, cast: Cast): number {
     const cardId = this.cardIdFor(view, cast);
-    if (cast.type === 'castDarling') return this.developScore(cardId, view, cast);
+    if (cast.type === 'castDarling') return this.developScore(cardId, view, cast) + this.arrivalHuntValue(view, cast, cardId);
     if (cast.hauntlinked) {
       const host = cast.targets?.[0];
       return host?.kind === 'permanent'
@@ -242,15 +255,116 @@ export class MediumAI implements AIPlayer {
     const value = cast.whispers
       ? whispersValue(this.db, cardId, view) + cardValue(this.db, cardId, view, cast) - cardValue(this.db, cardId)
       : cast.retell
-      ? retellValue(this.db, cardId) + 0.01
+      ? retellValue(this.db, cardId, view) + 0.01
       : this.developScore(cardId, view, cast) + (cast.x ?? 0) +
-          (cast.empowered ? empowerValue(this.db, cardId) + 0.01 -
+          (cast.empowered ? empowerValue(this.db, cardId, view, cast) + 0.01 -
             empowerOpportunityCost(view, this.db, cast, (otherView, other) =>
               this.isDevelopable(otherView, other) ? this.castScore(otherView, other) : 0) : 0);
+    // A Hunt it spends is worth its exchange at the cast's pair, not the
+    // card-shaped floor the printed value gives every Hunt (wave 4, M3).
+    const hunt = cast.whispers || cast.retell ? undefined : this.huntRead(view, cast);
     // Printed value cannot see that Propagate and mark-all multiply by the
     // board; on an empty one they are the wrong card to lead with.
     return value + Math.max(0, this.markCastValue(view, cast)) + titheManaSaved(view, this.db, cast) + markBoardAdjust(view.battlefield, this.db, view.myId, cardId) -
-      riteSacrificeValue(view, this.db, cast);
+      riteSacrificeValue(view, this.db, cast) + this.arrivalHuntValue(view, cast, cardId) +
+      (hunt ? hunt.value - hunt.printed : 0);
+  }
+
+  /**
+   * The Hunt this cast spends from hand (wave 4, M3): a Hunt spell's body, or
+   * an Empower Hunt's, valued on the public board at the cast's own pair
+   * (`spellTargetsValue`: the pump or the damage its earlier ops give, then
+   * the exchange, which charges a hunter it loses). `exchange` is that value
+   * without the pump's own worth (an until-Sunset pump is spent by the fight);
+   * `printed` is what the cast's printed value already counts for the same
+   * target-bound ops, which `value` replaces. `wasted` when the fight loses
+   * the hunter without the kill, or fights nothing at all; `kills` when the
+   * prey dies. Undefined for any other cast (an arrival hunter's Hunt is
+   * `arrivalHuntValue`'s). Responses are not read.
+   */
+  private huntRead(view: PlayerView, cast: Cast): {
+    value: number; exchange: number; printed: number; wasted: boolean; kills: boolean; prey?: number;
+  } | undefined {
+    if (cast.type !== 'castSpell' || cast.retell || cast.hauntlinked) return undefined;
+    const cardId = this.cardIdFor(view, cast);
+    const d = def(this.db, cardId);
+    const spellHunt = !isType(d, 'creature') && this.opBodies(cardId).some((op) => op.op === 'hunt');
+    const empowerHunt = cast.empowered === true && (d.empower?.ops ?? []).some((op) => op.op === 'hunt');
+    if (!spellHunt && !empowerHunt) return undefined;
+    const ops = spellHunt ? castSpellOps(this.db, cardId, { ...cast, empowered: false }, view) : d.empower!.ops;
+    const targets = cast.targets ?? [];
+    const outcome = castHuntOutcome(view, this.db, cardId, cast);
+    const prey = targets[spellHunt ? 1 : 0];
+    const value = spellTargetsValue(view, this.db, ops, targets, false, cast.x ?? 0, cardId);
+    const pump = ops.reduce((sum, op) => {
+      if (op.op !== 'boost' || op.scope !== 'target') return sum;
+      const ref = targets[op.targetIndex ?? 0];
+      return sum + (ref ? targetValueForAbility(view, this.db, undefined, { ops: [op] }, ref) : 0);
+    }, 0);
+    return {
+      value,
+      exchange: value - pump,
+      printed: spellHunt ? spellTargetedBodyImpact(view, this.db, cardId, { ...cast, empowered: false })
+        : empowerValue(this.db, cardId, view, cast, effectOpUsesTarget),
+      wasted: !outcome || outcome.hunterDies && !outcome.preyDies,
+      kills: outcome?.preyDies === true,
+      prey: prey?.kind === 'permanent' ? prey.iid : undefined,
+    };
+  }
+
+  /** Medium spends a Hunt only when it kills, nets a card, and does not lose
+   * the hunter without the kill (wave 4, M3). A friendly choice (a Provoked
+   * source or a self-Hunt) is the exception to the kill: its point is the
+   * Provoked, and `applyHuntPolicy` already held it to the same card. True for
+   * a cast without a Hunt. */
+  private huntPays(view: PlayerView, cast: Cast): boolean {
+    const hunt = this.huntRead(view, cast);
+    return !hunt || !hunt.wasted && hunt.value >= HUNT_SPEND_MARGIN &&
+      (hunt.kills || isFriendlyHuntOrSource(view, this.db, cast));
+  }
+
+  /** A Hunt Charm is instant-speed removal (wave 4, M2): cast it in the
+   * opponent's turn when its pair kills the prey (`prey`, when given, must
+   * accept it), the hunter is not lost without the kill, and the exchange
+   * alone (not the pump, which the fight spends) clears the bar Medium's
+   * other instant-speed removal clears. After blocks the hunter's own fight
+   * still deals it damage, so that damage is marked on it first. Returns the
+   * cast and its exchange. */
+  private huntCharmRemoval(view: PlayerView, casts: SpellCast[], prey?: (iid: number) => boolean):
+    { cast: SpellCast; exchange: number } | undefined {
+    let best: { cast: SpellCast; exchange: number } | undefined;
+    for (const cast of casts) {
+      if (!isType(def(this.db, this.cardIdFor(view, cast)), 'charm')) continue;
+      const hunt = this.huntRead(this.withPendingCombat(view, cast), cast);
+      if (!hunt || hunt.wasted || !hunt.kills || hunt.exchange < 3.5 + this.pers.removalBias) continue;
+      if (prey && (hunt.prey === undefined || !prey(hunt.prey))) continue;
+      if (!best || hunt.exchange > best.exchange) best = { cast, exchange: hunt.exchange };
+    }
+    return best;
+  }
+
+  /** After blocks, the combat damage a Hunt Charm's hunter will still take
+   * from its blocked attacker or its blockers (not from its prey, which the
+   * Hunt fights first), marked on it. The view itself otherwise. */
+  private withPendingCombat(view: PlayerView, cast: SpellCast): PlayerView {
+    const combat = view.combat;
+    const hunter = cast.targets?.[0];
+    const prey = cast.targets?.[1];
+    if (combat?.phase !== 'blockersDeclared' || hunter?.kind !== 'permanent') return view;
+    const foes = combat.blocks.flatMap((block) => block.blocker === hunter.iid ? [block.attacker]
+      : block.attacker === hunter.iid ? [block.blocker] : [])
+      .filter((iid) => !(prey?.kind === 'permanent' && prey.iid === iid) && view.battlefield.some((p) => p.iid === iid));
+    const damage = foes.reduce((sum, iid) => sum + Math.max(0, getEffectiveStats(view.battlefield, this.db, iid).attack), 0);
+    if (damage === 0) return view;
+    return { ...view, battlefield: view.battlefield.map((p) => p.iid === hunter.iid ? { ...p, damage: p.damage + damage } : p) };
+  }
+
+  /** A creature's arrival Hunt on the cast's prey (A1.1b), so a hunter with
+   * prey it kills and survives outranks one whose every prey kills it. 0 for a
+   * card without one (A2.b; the A1.2 hand-off). */
+  private arrivalHuntValue(view: PlayerView, cast: Cast, cardId: string): number {
+    return castNamesArrivalPrey(def(this.db, cardId), cast)
+      ? arrivalHuntCastValue(view, this.db, cardId, cast.targets ?? []) : 0;
   }
 
   /** Does casting this card gain life (lifelink body or a gainLife op)? */
@@ -337,8 +451,26 @@ export class MediumAI implements AIPlayer {
   /** Permanent marks go on bodies that survive, using the shared target scorer. */
   private markCastValue(view: PlayerView, cast: Cast): number {
     let value = 0;
-    for (const { op, targets } of this.castEffects(view, cast)) {
-      if (op.op === 'addCounters' && op.to === 'target') {
+    const effects = this.castEffects(view, cast);
+    const marks = effects.some(({ op }) => op.op === 'addCounters' && op.to === 'target' || op.op === 'moveMark');
+    for (const { op, targets } of effects) {
+      if (marks && op.op === 'damage' && op.to === 'target') {
+        // A Mark spell that first damages a creature of ours (Test of the
+        // Hearth): a body the damage kills spends the card on our loss. The
+        // state check comes after the whole spell, so the Marks it gives that
+        // body count toward the toughness the damage is measured against.
+        for (const ref of targets) {
+          const p = this.targetPerm(view, ref);
+          if (!p || p.controller !== view.myId || !isType(def(this.db, p.cardId), 'creature')) continue;
+          const n = op.n === 'X' ? cast.x ?? 0 : op.n;
+          const added = effects.reduce((sum, { op: mark, targets: refs }) => sum + (mark.op === 'addCounters' &&
+            mark.to === 'target' && refs.some((r) => r.kind === 'permanent' && r.iid === p.iid) ? mark.n : 0), 0);
+          if (n >= getEffectiveStats(view.battlefield, this.db, p.iid).defense + added - p.damage) return -Infinity;
+          const marked = added === 0 ? view : { ...view, battlefield: view.battlefield.map((q) => q.iid === p.iid
+            ? { ...q, plusOneCounters: q.plusOneCounters + added } : q) };
+          value += targetValueForAbility(marked, this.db, undefined, { ops: [{ ...op, n }] }, ref);
+        }
+      } else if (op.op === 'addCounters' && op.to === 'target') {
         for (const ref of targets) {
           const p = this.targetPerm(view, ref);
           if (!p || p.controller !== view.myId || op.n <= 0 ||
@@ -654,8 +786,15 @@ export class MediumAI implements AIPlayer {
           const canMove = !effects.some(({ op }) => op.op === 'moveMark') ||
             targets.length === 2 && targets[0].some((a) => a.kind === 'permanent' &&
               targets[1].some((b) => b.kind === 'permanent' && b.iid !== a.iid));
+          // The Hunt pair rule (A2.b): a hunter of ours without Bulwark, and a
+          // different creature for its prey. The spell form's hunter and prey
+          // are its first two slots (the op's fixed convention).
+          const canHunt = !effects.some(({ op }) => op.op === 'hunt' && op.hunter === 'target') ||
+            targets.length >= 2 && targets[0].some((a) => a.kind === 'permanent' &&
+              !getEffectiveStats(view.battlefield, this.db, a.iid).keywords.has('bulwark') &&
+              targets[1].some((b) => b.kind === 'permanent' && b.iid !== a.iid));
           const minimum = { generic: d.cost.generic + (d.x?.min ?? 0), pips: d.cost.pips };
-          if (hasTargets && canMove && solveMana(view, this.db, view.myId, minimum) !== null) {
+          if (hasTargets && canMove && canHunt && solveMana(view, this.db, view.myId, minimum) !== null) {
             offer(this.pers.counterFloor, minimum);
           }
         }
@@ -669,6 +808,9 @@ export class MediumAI implements AIPlayer {
         const worth = kind === 'massDestroy' || kind === 'destroyNewest'
           ? this.removalCastValue(afterCleanup(), cast) : this.removalWorth(afterCleanup(), cast);
         if (worth >= 3.5 + this.pers.removalBias) offer(worth, actionManaCost(view, this.db, cast));
+        // A Hunt Charm is removal at the next window (wave 4, M2).
+        const hunt = this.huntCharmRemoval(afterCleanup(), [cast]);
+        if (hunt) offer(hunt.exchange, actionManaCost(view, this.db, cast));
       }
       if (casts.some((cast) => this.castEffects(view, cast).some(({ op }) => op.op === 'boost' || op.op === 'preventCombat' ||
         op.op === 'preventCombatTo' || op.op === 'addCounters' || op.op === 'moveMark' ||
@@ -698,6 +840,7 @@ export class MediumAI implements AIPlayer {
     if (ops.some((op) => op.op === 'preventCombat' || op.op === 'preventCombatTo' ||
       op.op === 'tap' || op.op === 'tapAll')) return false;
     if (this.isRemoval(cardId, c)) return false;
+    if (!this.huntPays(view, c)) return false;
     if (ops.some((op) => op.op === 'addCounters' && op.to === 'target' || op.op === 'moveMark')) {
       return this.markCastValue(view, c) > 0;
     }
@@ -828,6 +971,8 @@ export class MediumAI implements AIPlayer {
   // -------------------------------------------------------------------
   private respond(view: PlayerView, legal: Action[]): Action {
     const pass = legal.find((l) => l.type === 'passResponse')!;
+    const pump = chooseSimplePump(view, this.db, legal);
+    if (pump) return pump;
     const casts = legal.filter((l): l is SpellCast => l.type === 'castSpell');
     if (casts.length === 0) return pass;
     const opp = opponentOf(view.myId);
@@ -888,6 +1033,9 @@ export class MediumAI implements AIPlayer {
         const v = this.removalWorth(view, best);
         if (v >= 3.5 + this.pers.removalBias) return best;
       }
+      const attackers = view.combat.attackers;
+      const hunt = this.huntCharmRemoval(view, casts, (iid) => attackers.includes(iid));
+      if (hunt) return hunt.cast;
     }
 
     const globalRemovals = casts.filter((c) => {
@@ -912,7 +1060,9 @@ export class MediumAI implements AIPlayer {
         return best;
     }
 
-    // 3. Pump my creature when it helps combat.
+    // 3. Pump my team or creature when it helps combat.
+    const teamPump = this.teamPumpForCombat(view, casts);
+    if (teamPump) return teamPump;
     if (view.combat) {
       for (const c of casts) {
         const perm = this.targetPerm(view, c.targets?.[0]);
@@ -924,6 +1074,12 @@ export class MediumAI implements AIPlayer {
         // A negative net boost is a debuff/removal effect, not a combat pump.
         // Never aim that class of spell at our own creature.
         if (pump.p + pump.t <= 0) continue;
+        // Damage the same spell deals our creature first (Ember-Tongue, Thick
+        // Hide; wave 4): it counts against the toughness the pump leaves.
+        const hurt = this.castEffects(view, c).reduce((sum, { op, targets }) => sum +
+          (op.op === 'damage' && op.to === 'target' && targets.some((ref) => ref.kind === 'permanent' && ref.iid === perm.iid)
+            ? op.n === 'X' ? c.x ?? 0 : op.n : 0), 0);
+        if (hurt > 0 && hurt >= getEffectiveStats(view.battlefield, this.db, perm.iid).defense - perm.damage + pump.t) continue;
         const isAttacker = view.combat.attackers.includes(perm.iid);
         const inBlocks = view.combat.blocks.some(
           (b) => b.blocker === perm.iid || b.attacker === perm.iid,
@@ -950,15 +1106,58 @@ export class MediumAI implements AIPlayer {
           const mine = getEffectiveStats(view.battlefield, this.db, perm.iid);
           const theirs = getEffectiveStats(view.battlefield, this.db, foe);
           const dieNow = theirs.attack >= mine.defense - perm.damage;
-          const surviveAfter = theirs.attack < mine.defense - perm.damage + pump.t;
+          const surviveAfter = theirs.attack < mine.defense - perm.damage - hurt + pump.t;
           const killNow = mine.attack >= theirs.defense;
           const killAfter = mine.attack + pump.p >= theirs.defense;
-          if ((dieNow && surviveAfter) || (!killNow && killAfter && !dieNow)) return c;
+          if ((dieNow && surviveAfter) || (!killNow && killAfter && !dieNow && (hurt === 0 || surviveAfter))) return c;
           if (dieNow && surviveAfter && killAfter) return c;
         }
       }
     }
     return this.whispersFreebie(view, casts) ?? pass;
+  }
+
+  /** A team Charm earns its card after blocks by changing a fight or adding
+   * damage worth its mana; lethal needs no cost margin. Use the same public
+   * combat forecast as the other response tricks, including prevention. */
+  private teamPumpForCombat(view: PlayerView, casts: SpellCast[]): SpellCast | undefined {
+    if (view.step !== 'combat' || view.combat?.phase !== 'blockersDeclared') return undefined;
+    type Boost = Extract<EffectOp, { op: 'boost' }>;
+    const teamBoosts = (ops: EffectOp[]): Boost[] => ops.filter((op): op is Boost =>
+      op.op === 'boost' && op.scope === 'allYours' && op.p >= 0 && op.t >= 0 &&
+      (op.p + op.t > 0 || (op.keywords?.length ?? 0) > 0));
+    const boosted = (board: Permanent[], controller: number, boosts: Boost[]): Permanent[] =>
+      board.map((perm) => perm.controller === controller && isType(def(this.db, perm.cardId), 'creature')
+        ? { ...perm, untilEotMods: [...perm.untilEotMods,
+          ...boosts.map((op) => ({ p: op.p, t: op.t, keywords: op.keywords ?? [] }))] } : perm);
+    let pendingBoard: Permanent[] | undefined;
+    for (const cast of casts) {
+      if ((cast.targets?.length ?? 0) !== 0) continue;
+      const boosts = teamBoosts(this.castOps(view, cast));
+      if (boosts.length === 0) continue;
+      // A reply can reoffer us a cast while the first pump is still on the
+      // stack. Count uncanceled team pumps already paid for on either side.
+      if (!pendingBoard) {
+        pendingBoard = view.battlefield;
+        for (const item of this.pendingSpells(view)) {
+          const ops = boundCastEffects({ ...view, myId: item.controller }, this.db, item.cardId, item).map(({ op }) => op);
+          const pending = teamBoosts(ops);
+          if (pending.length > 0) pendingBoard = boosted(pendingBoard, item.controller, pending);
+        }
+      }
+      const before = this.combatPrediction(view, pendingBoard);
+      if (!before) return undefined;
+      const projected = boosted(pendingBoard, view.myId, boosts);
+      const after = this.combatPrediction(view, projected)!;
+      const saved = before.dying.some((iid) => !after.dying.includes(iid) &&
+        this.targetPerm(view, { kind: 'permanent', iid })?.controller === view.myId);
+      const killed = after.dying.some((iid) => !before.dying.includes(iid) &&
+        this.targetPerm(view, { kind: 'permanent', iid })?.controller !== view.myId);
+      if (saved || killed) return cast;
+      if (view.activePlayer === view.myId && before.damage < view.opp.life && after.damage > before.damage &&
+        (after.damage >= view.opp.life || after.damage - before.damage >= this.manaForCast(view, cast))) return cast;
+    }
+    return undefined;
   }
 
   /** Spend useful targetless Whispers in any response window before expiry. */
@@ -1013,6 +1212,8 @@ export class MediumAI implements AIPlayer {
       )
         return best;
     }
+    const hunt = this.huntCharmRemoval(view, casts);
+    if (hunt) return hunt.cast;
     // free value instants with no targets (card draw etc.)
     const freebie = casts.find((c) => {
       const d = def(this.db, this.cardIdFor(view, c));

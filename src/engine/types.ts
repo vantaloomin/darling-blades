@@ -54,6 +54,13 @@ export type TriggerWhen =
   | 'youCastCharm'
   | 'allyAttacks'
   | 'sunset'
+  /**
+   * Provoked: this creature was dealt more than 0 damage and survived the
+   * state-based check that followed. Fired from that check, after its deaths
+   * and their dies triggers; at most once each turn per creature, without a
+   * printed `oncePerTurn` (plan-first-dawn-engine.md, Part 1).
+   */
+  | 'provoked'
   | 'static';
 
 export interface TargetSpec {
@@ -86,11 +93,30 @@ export interface TargetSpec {
   marked?: true;
   /** Restricts legal targets to tapped permanents. */
   tapped?: true;
+  /**
+   * Restricts legal targets to creatures declared as attackers in the current
+   * combat and still on the battlefield (1.9, A1.6: "target attacking
+   * creature"). Outside combat nothing is attacking, so a spell with such a
+   * target is castable only after attackers are declared. A creature that
+   * leaves the battlefield is removed from combat: if it returns, it is a new
+   * permanent and not attacking.
+   */
+  attacking?: true;
 }
 
+/**
+ * Hunt (`hunt`): the hunter and its prey each deal damage equal to their
+ * Attack to the other, through the shared creature-damage path. `self`: the
+ * source permanent hunts the bound target (an arrival or attack trigger, a
+ * Duty, an Empower rider). `target`: target slot 0 hunts target slot 1 (a
+ * spell). The op's own rules: the two are different creatures and the hunter
+ * has no Bulwark; otherwise nothing is dealt. `prey` declares a card's own
+ * prey rule (HuntPrey); absent, it is the one default rule.
+ */
 export type EffectOp =
   | { op: 'damage'; n: number | 'X'; to: 'target' | 'opponent' | 'controller'; targetIndex?: number }
   | { op: 'damage'; n: number | 'X'; to: 'eachCreature' | 'eachOpponentCreature'; severOnDeath?: true }
+  | { op: 'damage'; n: number | 'X'; to: 'eachYourCreature'; other?: true } // damage each [other] creature you control; `other` spares the source
   | { op: 'gainLife'; n: number }
   | { op: 'loseLife'; n: number; who: 'opponent' }
   | { op: 'draw'; n: number }
@@ -120,6 +146,14 @@ export type EffectOp =
   | { op: 'loseLifePerTheirMarked'; who: 'opponent' }
   | { op: 'fetchLand' }
   | { op: 'ifTargetMarked'; then: EffectOp[]; else?: EffectOp[]; targetIndex?: number }
+  /**
+   * "If it survived, ..." (1.9, A1.6): runs `then` when the target creature is
+   * still on the battlefield and would not die in the next state-based check
+   * (the test Provoked uses: not lethally damaged, no Deathblade damage, Defense
+   * above 0), otherwise the optional `else`. It reads the board as the op
+   * resolves, so damage an earlier op of the same effect dealt (a Hunt) counts.
+   */
+  | { op: 'ifTargetSurvives'; then: EffectOp[]; else?: EffectOp[]; targetIndex?: number }
   | { op: 'severSelf' }
   | { op: 'tap'; to: 'target'; targetIndex?: number }
   | { op: 'extraLandDrop'; n?: number } // grant the controller extra land drops this turn
@@ -132,7 +166,8 @@ export type EffectOp =
   | { op: 'foresee'; n: number; who?: 'targetOwner'; targetIndex?: number } // look at top n, then choose any subset to bottom
   | { op: 'awaken'; scope: 'self' | 'allYours' } // one-way champion upgrade; trigger-safe
   | { op: 'raise'; to?: 'target'; grantKeywords?: Keyword[]; targetIndex?: number }
-  | { op: 'raise'; to: 'top'; withMarks?: number; grantKeywords?: Keyword[] };
+  | { op: 'raise'; to: 'top'; withMarks?: number; grantKeywords?: Keyword[] }
+  | { op: 'hunt'; hunter: 'self' | 'target'; prey?: HuntPrey }; // see the Hunt note above the union
 
 export interface StaticDef {
   /** `questActive` reads the source controller's public battlefield. */
@@ -229,6 +264,22 @@ export interface ActivatedDef {
   targets?: TargetSpec[];
 }
 
+/**
+ * A repeatable activated ability with a mana-only cost and no tap (1.9, A1.5;
+ * First Dawn's Shivan Dragon pump, "{R}: This gets +1/+0 until Sunset.").
+ * Its controller uses it wherever they could cast a Charm, any number of times:
+ * one `activateMana` action pays the cost `times` times and runs the ops that
+ * many times, off the stack. Narrow by rule (`validateManaActivatedDef`): a
+ * creature's own ability, no tap, no targets, and the ops only boost this
+ * creature until Sunset. Distinct from `ActivatedDef` (a Duty taps) and from
+ * `manaAbility` (what a land or mana creature taps for).
+ */
+export interface ManaActivatedDef {
+  cost: ManaCost;
+  /** Run `times` times in order, with this creature as the source. */
+  ops: EffectOp[];
+}
+
 /** Alternate linked cast for a noncreature Artifact or Enchantment. */
 export interface HauntlinkDef {
   cost: ManaCost;
@@ -259,10 +310,12 @@ export function effectOpUsesTarget(op: EffectOp): boolean {
     case 'moveMark':
     case 'removeMarks':
     case 'reclaim':
+    case 'hunt':
       return true;
     case 'raise':
       return op.to !== 'top';
     case 'ifTargetMarked':
+    case 'ifTargetSurvives':
       return true;
     case 'foresee':
       return op.who === 'targetOwner';
@@ -285,17 +338,21 @@ function effectOpAddsMark(op: EffectOp): boolean {
   if (op.op === 'addCounters' || op.op === 'markAll' || op.op === 'propagate' || op.op === 'moveMark') {
     return true;
   }
-  if (op.op !== 'ifTargetMarked') return false;
+  if (op.op !== 'ifTargetMarked' && op.op !== 'ifTargetSurvives') return false;
   return op.then.some(effectOpAddsMark) || (op.else ?? []).some(effectOpAddsMark);
 }
 
 /**
  * Catalog-facing validation for the narrowly relaxed Empower target contract.
- * Empower riders are target-free except three named shapes:
+ * Empower riders are target-free except four named shapes:
  *   - `moveMark` carries exactly two single-target specs (from, to);
  *   - `reclaim` carries exactly one `yourGraveCreature` spec (Renenutet, Who
  *     Measures the Flood, 2026-09-04 rework);
- *   - `destroy` carries one target spec, including cost/attack qualifiers.
+ *   - `destroy` carries one target spec, including cost/attack qualifiers;
+ *   - `hunt` (the creature hunts, `hunter: 'self'`) carries one single-target
+ *     spec, exactly as `destroy` does (the owner's E4 ruling). Hunt damage only
+ *     marks damage; the deaths follow in the state-based check after the
+ *     stack item, so the rider stays trigger-safe.
  */
 export function validateEmpowerDef(d: CardDef): string[] {
   if (!d.empower) return [];
@@ -304,6 +361,7 @@ export function validateEmpowerDef(d: CardDef): string[] {
   const hasMoveMark = d.empower.ops.some((op) => op.op === 'moveMark');
   const hasReclaim = d.empower.ops.some((op) => op.op === 'reclaim');
   const hasDestroy = d.empower.ops.some((op) => op.op === 'destroy');
+  const hunts = d.empower.ops.filter((op) => op.op === 'hunt');
   if (hasMoveMark && hasReclaim) {
     errors.push('Empower may not combine moveMark and reclaim');
   }
@@ -319,11 +377,34 @@ export function validateEmpowerDef(d: CardDef): string[] {
     }
   } else if (hasDestroy) {
     if (!targets || targets.length !== 1 || targets[0].upTo || targets[0].exactly) errors.push('Empower destroy needs one single-target spec');
+  } else if (hunts.length > 0) {
+    if (!targets || targets.length !== 1 || targets[0].upTo || targets[0].exactly) errors.push('Empower hunt needs one single-target spec');
   } else if (targets) {
-    errors.push('Empower targets require a moveMark or reclaim op');
+    errors.push('Empower targets require a moveMark, reclaim, destroy or hunt op');
   }
-  if (d.empower.ops.some((op) => effectOpUsesTarget(op) && op.op !== 'moveMark' && op.op !== 'reclaim' && op.op !== 'destroy')) {
-    errors.push('Only moveMark and reclaim may target from Empower');
+  if (hunts.length > 0 && (hasMoveMark || hasReclaim || hasDestroy)) {
+    errors.push('Empower hunt cannot combine with another targeted op');
+  }
+  if (hunts.some((op) => op.op === 'hunt' && op.hunter !== 'self') || (hunts.length > 0 && !isType(d, 'creature'))) {
+    errors.push('Empower hunt is the creature itself hunting (hunter self, on a creature)');
+  }
+  if (d.empower.ops.some((op) => effectOpUsesTarget(op) && op.op !== 'moveMark' && op.op !== 'reclaim' && op.op !== 'destroy' && op.op !== 'hunt')) {
+    errors.push('Only moveMark, reclaim, destroy and hunt may target from Empower');
+  }
+  return errors;
+}
+
+/**
+ * Deferred triggers choose one target, unlike spells and Duties, whose
+ * targets are chosen up front. Mirrors fireTriggers/fireObserverEvent.
+ */
+export function validateTriggerTargetsDef(d: { abilities?: readonly Pick<AbilityDef, 'when' | 'targets'>[] }): string[] {
+  const errors: string[] = [];
+  for (const ability of d.abilities ?? []) {
+    if (ability.when === 'spell' || ability.when === 'static' || !ability.targets?.length) continue;
+    if (ability.targets.length !== 1 || ability.targets[0].upTo !== undefined || ability.targets[0].exactly !== undefined) {
+      errors.push(`${ability.when} abilities must have one single target spec`);
+    }
   }
   return errors;
 }
@@ -341,6 +422,193 @@ export function validateMarkTriggerDef(d: CardDef): string[] {
     }
     if (!MARK_EVENT_WHENS.has(ability.when) || !ability.ops?.some(effectOpAddsMark)) continue;
     errors.push(`${ability.when} abilities cannot add marks`);
+  }
+  return errors;
+}
+
+/**
+ * Catalog-facing validation for Provoked: printed on creatures only, at most
+ * one per card, and (P3, the design rule; validateHuntDef holds its "never
+ * Hunts" half) no Provoked effect damages its controller's own creatures. A
+ * targeted damage effect must aim at a side the controller's creatures are not
+ * on: an opponent's creature or a player. So damage to each creature, each
+ * creature you control, or a target that may be yours (any target, any
+ * creature, a creature you control) is refused.
+ */
+export function validateProvokedDef(d: CardDef): string[] {
+  const provoked = (d.abilities ?? []).filter((ability) => ability.when === 'provoked');
+  if (provoked.length === 0) return [];
+  const errors: string[] = [];
+  if (!isType(d, 'creature')) errors.push('Provoked is printed on creatures only');
+  if (provoked.length > 1) errors.push('A card has at most one Provoked ability');
+  if (provoked.some((ability) => ability.oncePerTurn)) {
+    errors.push('Provoked is once each turn by rule; it never sets oncePerTurn');
+  }
+  const damagesOwnSide = (ability: AbilityDef): boolean => flatOps(ability.ops ?? []).some((op) => {
+    if (op.op !== 'damage') return false;
+    if (op.to === 'eachCreature' || op.to === 'eachYourCreature') return true;
+    if (op.to !== 'target') return false;
+    const spec = ability.targets?.[op.targetIndex ?? 0];
+    return spec?.what !== 'opponentCreature' && spec?.what !== 'player';
+  });
+  if (provoked.some(damagesOwnSide)) errors.push("A Provoked effect never damages its controller's own creatures");
+  return errors;
+}
+
+/** Is this op a conditional branch on its target ("If it is Marked", "If it survived")? */
+export function isTargetBranchOp(op: EffectOp): op is Extract<EffectOp, { op: 'ifTargetMarked' | 'ifTargetSurvives' }> {
+  return op.op === 'ifTargetMarked' || op.op === 'ifTargetSurvives';
+}
+
+/** Every op, the ops inside a target branch (If-marked, If-it-survived) included. */
+export function flatOps(list: readonly EffectOp[]): EffectOp[] {
+  return list.flatMap((op) => isTargetBranchOp(op) ? [op, ...flatOps(op.then), ...flatOps(op.else ?? [])] : [op]);
+}
+
+/**
+ * A Hunt's prey. The bare keyword's prey is a creature an opponent controls,
+ * legal-target rules applied, with no fallback (the owner's ruling,
+ * 2026-09-28): the `opponentCreature` spec. Card text overrides it only when
+ * the op declares one:
+ *   - `any`: any other creature, the controller's choice (`creature`);
+ *   - `yours`: another creature you control (`yourCreature`).
+ * A source-bound override's spec carries `other`, so the hunter is never
+ * offered as its own prey. The target spec carries the rule the engine
+ * enforces; `validateHuntDef` checks it matches the declaration, so an
+ * override is always deliberate.
+ */
+export type HuntPrey = 'any' | 'yours';
+
+function preyRuleError(declared: HuntPrey | undefined, spec: TargetSpec | undefined, sourceBound: boolean): string | null {
+  const other = !sourceBound || spec?.other === true;
+  const ok = declared === undefined ? spec?.what === 'opponentCreature'
+    : declared === 'any' ? spec?.what === 'creature' && other
+    : spec?.what === 'yourCreature' && other;
+  if (ok) return null;
+  return declared === undefined
+    ? "A Hunt's prey is a creature an opponent controls (an opponentCreature spec), unless the op declares its prey"
+    : `A Hunt that declares prey '${declared}' needs the matching prey spec`;
+}
+
+/** Is this ability an arrival Hunt ("When this arrives, Hunt.")? One test for the engine and the validator. */
+export function isArrivalHunt(ability: AbilityDef): boolean {
+  return ability.when === 'arrives' && (ability.ops ?? []).some((op) => op.op === 'hunt' && op.hunter === 'self');
+}
+
+/**
+ * Catalog-facing validation for the Hunt op's carriers. The spell form
+ * (`hunter: 'target'`) is a Charm or Ritual body with exactly two single
+ * creature specs, hunter first. The source-bound form (`hunter: 'self'`) is a
+ * creature's triggered ability, Duty or Empower rider with one single-target
+ * spec, never on a creature that prints Bulwark, and never a Provoked effect.
+ * Every Hunt's prey spec matches its prey rule (HuntPrey).
+ */
+export function validateHuntDef(d: CardDef): string[] {
+  const errors: string[] = [];
+  const check = (ops: readonly EffectOp[] | undefined, targets: readonly TargetSpec[] | undefined, where: 'spell' | 'bound'): void => {
+    for (const op of flatOps(ops ?? [])) {
+      if (op.op !== 'hunt') continue;
+      if (op.hunter === 'target') {
+        if (where !== 'spell') errors.push('A spell-form Hunt (hunter target) belongs on a Charm or Ritual body');
+        if (!targets || targets.length !== 2 || targets.some((spec) => spec.upTo !== undefined || spec.exactly !== undefined ||
+          spec.what === 'spell' || spec.what === 'player' || spec.what === 'yourGraveCreature')) {
+          errors.push('A spell-form Hunt needs exactly two single creature target specs (hunter, prey)');
+        }
+        const preyError = preyRuleError(op.prey, targets?.[1], false);
+        if (preyError) errors.push(preyError);
+      } else {
+        if (!isType(d, 'creature')) errors.push('A source-bound Hunt belongs on a creature');
+        if (where === 'spell') errors.push('A spell cannot hunt with itself');
+        if ((d.keywords ?? []).includes('bulwark')) errors.push('A creature with Bulwark cannot print a source-bound Hunt');
+        if (!targets || targets.length !== 1 || targets[0].upTo !== undefined || targets[0].exactly !== undefined) {
+          errors.push('A source-bound Hunt needs one single-target spec');
+        }
+        const preyError = preyRuleError(op.prey, targets?.[0], true);
+        if (preyError) errors.push(preyError);
+      }
+    }
+  };
+  // A branch re-runs its ops against its one bound target, so a Hunt inside
+  // one would never see its prey (or, spell-form, its second slot).
+  const huntInBranch = (ops: readonly EffectOp[] | undefined, gate: 'ifTargetMarked' | 'ifTargetSurvives'): boolean => flatOps(ops ?? []).some((op) =>
+    op.op === gate && [...flatOps(op.then), ...flatOps(op.else ?? [])].some((inner) => inner.op === 'hunt'));
+  const huntInGate = (gate: 'ifTargetMarked' | 'ifTargetSurvives'): boolean =>
+    (d.abilities ?? []).some((ability) => huntInBranch(ability.ops, gate)) ||
+    activatedAbilitiesOf(d).some((activation) => huntInBranch(activation.ops, gate)) || huntInBranch(d.empower?.ops, gate);
+  if (huntInGate('ifTargetMarked')) errors.push('A Hunt cannot sit inside an If-marked branch');
+  if (huntInGate('ifTargetSurvives')) errors.push('A Hunt cannot sit inside an If-it-survived branch');
+  // A creature's arrival Hunt names its prey as the cast target, so the card
+  // has one: never two arrival Hunts, never beside Empower targets.
+  const arrivalHunts = (d.abilities ?? []).filter(isArrivalHunt);
+  if (arrivalHunts.length > 1) errors.push('A creature has at most one arrival Hunt');
+  if (arrivalHunts.length > 0 && d.empower?.targets) errors.push('An arrival Hunt cannot share a card with Empower targets');
+  // A conditional arrival Hunt reads its condition at cast (A1.1c), on the
+  // board before a Rite or Tithe sacrifice is paid, so a sacrificed creature
+  // would still count: never the two together.
+  if (arrivalHunts.some((ability) => ability.condition !== undefined) && (d.rite || d.tithe)) {
+    errors.push('A conditional arrival Hunt cannot share a card with a Rite or Tithe');
+  }
+  // An empowered cast brings the Empower targets instead of the body's, so a
+  // body Hunt would run on them.
+  if (d.empower?.targets && (d.abilities ?? []).some((ability) => ability.when === 'spell' &&
+    flatOps(ability.ops ?? []).some((op) => op.op === 'hunt' && op.hunter === 'target'))) {
+    errors.push('A spell-form Hunt cannot share a card with Empower targets');
+  }
+  for (const ability of d.abilities ?? []) {
+    if (ability.when === 'static') continue;
+    if (ability.when === 'provoked' && flatOps(ability.ops ?? []).some((op) => op.op === 'hunt')) {
+      errors.push('A Provoked effect never hunts');
+    }
+    check(ability.ops, ability.targets, ability.when === 'spell' ? 'spell' : 'bound');
+  }
+  for (const activation of activatedAbilitiesOf(d)) check(activation.ops, activation.targets, 'bound');
+  if (d.empower) check(d.empower.ops, d.empower.targets, 'bound');
+  // A Retell body replaces the printed one with its own ops and targets, and
+  // none of the carriers above covers it, so a Hunt there is refused rather
+  // than left unchecked (Fable's review, 2026-09-29). No First Dawn row has one.
+  if (d.retell?.ops && flatOps(d.retell.ops).some((op) => op.op === 'hunt')) {
+    errors.push('A Retell body never hunts');
+  }
+  return errors;
+}
+
+const CREATURE_SPEC_KINDS: readonly TargetSpec['what'][] = ['creature', 'yourCreature', 'opponentCreature'];
+
+/**
+ * Catalog-facing validation for the A1.6 constructs.
+ *   - `attacking` qualifies a creature spec only (creature, yourCreature,
+ *     opponentCreature), and never a Duty's: a Duty is used in its
+ *     controller's main phase, where nothing is attacking.
+ *   - `ifTargetSurvives` reads a creature: its carrier names a creature spec
+ *     at the gate's slot (`targetIndex`, default 0). A chapter is target-free,
+ *     so it never carries one.
+ */
+export function validateA16Def(d: CardDef): string[] {
+  const errors: string[] = [];
+  const carriers: { ops: readonly EffectOp[]; targets: readonly TargetSpec[]; duty: boolean }[] = [
+    ...(d.abilities ?? []).map((ability) => ({ ops: ability.ops ?? [], targets: ability.targets ?? [], duty: false })),
+    ...activatedAbilitiesOf(d).map((ability) => ({ ops: ability.ops, targets: ability.targets ?? [], duty: true })),
+    ...(d.empower ? [{ ops: d.empower.ops, targets: d.empower.targets ?? [], duty: false }] : []),
+    ...(d.retell?.ops ? [{ ops: d.retell.ops, targets: d.retell.targets ?? [], duty: false }] : []),
+  ];
+  for (const { ops, targets, duty } of carriers) {
+    for (const spec of targets) {
+      if (!spec.attacking) continue;
+      if (!CREATURE_SPEC_KINDS.includes(spec.what)) errors.push('An attacking target is a creature spec');
+      if (duty) errors.push('A Duty cannot target an attacking creature (it is used in a main phase)');
+    }
+    for (const op of flatOps(ops)) {
+      if (op.op !== 'ifTargetSurvives') continue;
+      const spec = targets[op.targetIndex ?? 0];
+      if (!spec || !CREATURE_SPEC_KINDS.includes(spec.what)) {
+        errors.push('If-it-survived reads a creature target: its slot needs a creature spec');
+      } else if (spec.upTo !== undefined || spec.exactly !== undefined) {
+        errors.push('If-it-survived reads one creature: its slot is a single-target spec');
+      }
+    }
+  }
+  if ((d.chapters ?? []).some((chapter) => flatOps(chapter).some((op) => op.op === 'ifTargetSurvives'))) {
+    errors.push('A chapter is target-free: it cannot carry If-it-survived');
   }
   return errors;
 }
@@ -394,15 +662,16 @@ export interface CardDef {
   preserve?: PreserveDef;
   /** Optional main-phase battlefield action with a mandatory tap cost. */
   activated?: ActivatedDef | ActivatedDef[];
+  /** Repeatable non-tap mana abilities at Charm speed (A1.5); creatures only. */
+  manaActivated?: ManaActivatedDef[];
   /** Optional alternative-cost cast that enters attached to a friendly creature. */
   hauntlink?: HauntlinkDef;
   manaAbility?: (Color | 'C')[]; // lands & mana creatures
   entersTapped?: boolean; // dual taplands
   rarity: Rarity;
-  flavor?: string;
   artRef?: string;
   token?: boolean; // non-collectible
-  set?: 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales' | 'yokai-nights' | 'drowned-deep'; // expansion grouping; absent ⇒ 'base' (stamped in catalog.buildDb)
+  set?: 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales' | 'yokai-nights' | 'sands-of-the-duat' | 'starborne' | 'drowned-deep' | 'first-dawn'; // expansion grouping; absent ⇒ 'base' (stamped in catalog.buildDb)
 }
 
 export type CardDb = Readonly<Record<string, CardDef>>;
@@ -594,7 +863,7 @@ export function validateActivatedDef(d: CardDef): string[] {
           if (targets.length === 0) errors.push('Activated target ops need target specs');
           if (deferred) errors.push('Activated ops after Foresee cannot need an inline target');
         }
-        if (op.op === 'ifTargetMarked') {
+        if (isTargetBranchOp(op)) {
           const thenDefers = inspect(op.then, deferred);
           const elseDefers = inspect(op.else ?? [], deferred);
           deferred = thenDefers || elseDefers;
@@ -623,6 +892,49 @@ export function validateActivatedDef(d: CardDef): string[] {
     if (ops.some((op) => op.op === 'moveMark') && (
       targets.length !== 2 || targets.some((target) => target.upTo !== undefined || target.exactly !== undefined || target.what === 'spell')
     )) errors.push('Activated moveMark needs exactly two single-target permanent specs');
+  }
+  return errors;
+}
+
+/**
+ * Catalog-facing validation for the A1.5 construct, kept narrow (the B10
+ * rule): a creature's own ability, a mana cost of at least one and nothing
+ * else (no tap), no targets, and ops that only give this creature +N/+M,
+ * with no keywords. The engine offers an ability only while its card passes this check.
+ */
+export function validateManaActivatedDef(d: CardDef): string[] {
+  if (d.manaActivated === undefined) return [];
+  const errors: string[] = [];
+  if (!isType(d, 'creature') || isType(d, 'land')) errors.push('A mana ability belongs on a creature');
+  if (!Array.isArray(d.manaActivated) || d.manaActivated.length === 0) {
+    errors.push('A mana ability list must not be empty');
+    return errors;
+  }
+  for (const ability of d.manaActivated) {
+    const extra = Object.keys(ability).filter((key) => key !== 'cost' && key !== 'ops');
+    if (extra.includes('targets')) errors.push('A mana ability has no targets');
+    else if (extra.length > 0) errors.push(`A mana ability has only a cost and ops (not ${extra.join(', ')})`);
+    const cost = ability.cost as ManaCost | undefined;
+    if (!cost || Object.keys(cost).some((key) => key !== 'generic' && key !== 'pips')) {
+      errors.push('A mana ability costs mana only (no tap)');
+    } else if (
+      !Number.isInteger(cost.generic) || cost.generic < 0 || typeof cost.pips !== 'object' ||
+      Object.entries(cost.pips).some(([color, pip]) =>
+        !['W', 'U', 'B', 'R', 'G'].includes(color) || !Number.isInteger(pip) || pip < 0)
+    ) {
+      errors.push('A mana ability cost must be non-negative');
+    } else if (manaValue(cost) < 1) {
+      // A free repeatable ability could be used without end.
+      errors.push('A mana ability costs at least one mana');
+    }
+    const ops = ability.ops ?? [];
+    if (ops.length === 0) errors.push('A mana ability needs ops');
+    for (const op of ops) {
+      if (effectOpUsesTarget(op)) errors.push('A mana ability has no targets');
+      else if (op.op !== 'boost' || op.scope !== 'self') errors.push('A mana ability only boosts this creature until Sunset');
+      else if (!Number.isInteger(op.p) || !Number.isInteger(op.t)) errors.push('A mana ability boost is whole numbers');
+      else if (op.keywords !== undefined) errors.push('A mana ability boost grants no keywords (+N/+M only)');
+    }
   }
   return errors;
 }
@@ -666,6 +978,12 @@ export interface Permanent {
   attachments: number[]; // aura/Hauntlink iids attached to me
   attachedTo?: number; // set if I am an attached aura or Hauntlink permanent
   plusOneCounters: number;
+  /**
+   * Overcharges (1.9 A1.7): +1/+1 each, from same-name tokens refused at the
+   * creature cap. NOT a Mark: no Mark rule reads or writes it. Absent means 0.
+   * Public state; it leaves with the permanent and is never copied.
+   */
+  overcharge?: number;
   untilEotMods: UntilEotMod[];
   /** Current chapter number. Arrival enters I; each later controller dawn increments it. */
   chapter?: number;
@@ -673,6 +991,12 @@ export interface Permanent {
   awakened?: boolean;
   grantedKeywords?: Keyword[];
   combatDamagePrevented?: true;
+  /**
+   * Dealt more than 0 damage since the last state-based check. Set only on a
+   * creature whose card has a Provoked ability, and cleared by the check that
+   * judges whether it survived (sba.ts), so no other permanent ever carries it.
+   */
+  struck?: true;
 }
 
 export interface StackItem {
@@ -858,6 +1182,12 @@ export type PendingDecision =
        * what it raises still queues behind them.
        */
       movedAhead?: number;
+      /**
+       * A targeted Provoked effect held for its Hauntlink window after its
+       * target was chosen: it resolves only if its creature is still on the
+       * battlefield and still not lethally damaged.
+       */
+      provoked?: true;
       /**
        * Held in the middle of a stack flush. Once it and every trigger it
        * causes have resolved, the flush carries on before any plain choice

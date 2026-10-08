@@ -29,7 +29,6 @@ export const RAGNAROK = [
       { when: 'arrives', ops: [{ op: 'grind', n: 3, who: 'self' }, { op: 'raise', to: 'top' }] },
     ],
     rarity: 'ur',
-    flavor: 'Half her face is fair. The other half already has plans for you.',
   },
   {
     id: 'rg-freya',
@@ -47,7 +46,6 @@ export const RAGNAROK = [
       { when: 'arrives', ops: [{ op: 'createToken', token: 'tok-valkyrie', count: 2 }] },
     ],
     rarity: 'ur',
-    flavor: 'She takes half the slain. Odin may argue with the other half.',
   },
   {
     id: 'rg-fenrir',
@@ -62,7 +60,6 @@ export const RAGNAROK = [
     keywords: ['overrun', 'warcry'],
     abilities: [{ when: 'arrives', ops: [{ op: 'createToken', token: 'tok-wolf-cub', count: 2 }] }],
     rarity: 'ur',
-    flavor: 'Gleipnir held her once. It will not hold twice.',
   },
   {
     id: 'rg-zhaoyun',
@@ -77,7 +74,6 @@ export const RAGNAROK = [
     keywords: ['twinBlades'],
     abilities: [{ when: 'arrives', ops: [{ op: 'raise', to: 'top' }] }],
     rarity: 'ur',
-    flavor: 'Through a hundred thousand troops, and back, with the fallen carried out alive.',
   },
 
   // =========================================================================
@@ -95,7 +91,6 @@ export const RAGNAROK = [
     defense: 3,
     keywords: ['twinBlades'],
     rarity: 'ssr',
-    flavor: 'Ringed in fire, waiting for the only hero brave enough to be worth it.',
   },
   {
     id: 'rg-norns',
@@ -112,7 +107,6 @@ export const RAGNAROK = [
       { when: 'dawn', ops: [{ op: 'grind', n: 1, who: 'self' }, { op: 'draw', n: 1 }] },
     ],
     rarity: 'ssr',
-    flavor: 'Was, Is, Shall-Be. You get no say in any of them.',
   },
   {
     id: 'rg-angrboda',
@@ -129,7 +123,6 @@ export const RAGNAROK = [
       { when: 'dies', ops: [{ op: 'createToken', token: 'tok-draugr', count: 2 }] },
     ],
     rarity: 'ssr',
-    flavor: 'Wolf, serpent, and the queen of the dead. She is proud of all three.',
   },
   {
     id: 'rg-skadi',
@@ -143,7 +136,6 @@ export const RAGNAROK = [
     defense: 4,
     keywords: ['wardingGaze', 'twinBlades'],
     rarity: 'ssr',
-    flavor: 'Wed to the sea, in love with the mountains, lethal on both.',
   },
   {
     id: 'rg-ragnarok',
@@ -154,7 +146,6 @@ export const RAGNAROK = [
     colors: ['R'],
     abilities: [{ when: 'spell', ops: [{ op: 'damage', n: 3, to: 'eachCreature' }, { op: 'loseLife', n: 2, who: 'opponent' }] }],
     rarity: 'ssr',
-    flavor: 'The wolf swallows the sun. The big ones get to watch.',
   },
 
   // =========================================================================
@@ -175,7 +166,6 @@ export const RAGNAROK = [
       { when: 'static', static: { scope: 'filter', filter: { subtype: 'Valkyrie', other: true }, p: 1, t: 1 } },
     ],
     rarity: 'sr',
-    flavor: 'Form up. The dead do not get to be late.',
   },
   {
     id: 'rg-draugr-jarl',
@@ -188,7 +178,6 @@ export const RAGNAROK = [
     defense: 4,
     abilities: [{ when: 'dies', ops: [{ op: 'raise', to: 'top' }] }],
     rarity: 'sr',
-    flavor: 'She kept her gold, her sword, and a grudge worth more than both.',
   },
   {
     id: 'rg-berserker-chieftain',
@@ -203,7 +192,6 @@ export const RAGNAROK = [
     keywords: ['twinBlades', 'rage'],
     abilities: [{ when: 'attacks', ops: [{ op: 'damage', n: 1, to: 'controller' }] }],
     rarity: 'sr',
-    flavor: 'The bite on the shield is hers. So is the one on the enemy.',
   },
   {
     id: 'rg-jotun-earthshaker',
@@ -216,7 +204,6 @@ export const RAGNAROK = [
     defense: 5,
     keywords: ['overrun'],
     rarity: 'sr',
-    flavor: 'When she walks, the map needs redrawing.',
   },
   {
     id: 'rg-mist-seer',
@@ -229,7 +216,6 @@ export const RAGNAROK = [
     defense: 3,
     abilities: [{ when: 'arrives', ops: [{ op: 'grind', n: 3, who: 'self' }, { op: 'draw', n: 1 }] }],
     rarity: 'sr',
-    flavor: 'She reads the water. The water is not kind.',
   },
   {
     id: 'rg-idun',
@@ -246,7 +232,6 @@ export const RAGNAROK = [
       { when: 'dawn', ops: [{ op: 'addCounters', n: 1, to: 'self' }] },
     ],
     rarity: 'sr',
-    flavor: 'One apple a day keeps the twilight of the gods away.',
   },
 
   // =========================================================================
@@ -263,7 +248,6 @@ export const RAGNAROK = [
     defense: 3,
     keywords: ['skyborne', 'sentinel'],
     rarity: 'r',
-    flavor: 'She watches the whole field because she has seen how it ends.',
   },
   {
     id: 'rg-chooser-of-the-slain',
@@ -277,7 +261,6 @@ export const RAGNAROK = [
     keywords: ['skyborne'],
     abilities: [{ when: 'arrives', ops: [{ op: 'createToken', token: 'tok-valkyrie', count: 1 }] }],
     rarity: 'r',
-    flavor: 'Every fallen hero is a recruitment opportunity.',
   },
   {
     id: 'rg-einherjar-champion',
@@ -290,7 +273,6 @@ export const RAGNAROK = [
     defense: 2,
     keywords: ['twinBlades'],
     rarity: 'r',
-    flavor: 'Dies every night in Valhalla, wins every morning. Good practice.',
   },
   // --- Blue (3) ---
   {
@@ -305,7 +287,6 @@ export const RAGNAROK = [
     defense: 2,
     abilities: [{ when: 'arrives', ops: [{ op: 'grind', n: 2, who: 'self' }, { op: 'draw', n: 1 }] }],
     rarity: 'r',
-    flavor: 'The present is the only thread she will let you touch.',
   },
   {
     id: 'rg-tidecaller-vanir',
@@ -318,7 +299,6 @@ export const RAGNAROK = [
     defense: 3,
     keywords: ['skyborne'],
     rarity: 'r',
-    flavor: 'She calls; the tide answers before she finishes the word.',
   },
   {
     id: 'rg-memory-thief',
@@ -332,7 +312,6 @@ export const RAGNAROK = [
     keywords: ['skyborne'],
     abilities: [{ when: 'combatDamageToPlayer', ops: [{ op: 'grind', n: 2, who: 'opponent' }] }],
     rarity: 'r',
-    flavor: 'She takes the last thing you remember, and the next.',
   },
   // --- Black (4) ---
   {
@@ -347,7 +326,6 @@ export const RAGNAROK = [
     keywords: ['deathblade'],
     abilities: [{ when: 'arrives', ops: [{ op: 'grind', n: 3, who: 'self' }] }],
     rarity: 'r',
-    flavor: 'She tidies the graveyard. Then she stocks it.',
   },
   {
     id: 'rg-barrow-wight',
@@ -360,7 +338,6 @@ export const RAGNAROK = [
     defense: 3,
     keywords: ['deathblade'],
     rarity: 'r',
-    flavor: 'A touch of the grave-cold, and you are hers to keep.',
   },
   {
     id: 'rg-deaths-herald',
@@ -373,7 +350,6 @@ export const RAGNAROK = [
     defense: 3,
     abilities: [{ when: 'dies', ops: [{ op: 'createToken', token: 'tok-draugr', count: 1 }] }],
     rarity: 'r',
-    flavor: 'Kill the messenger. Meet the next messenger.',
   },
   {
     id: 'rg-thanatos',
@@ -388,7 +364,6 @@ export const RAGNAROK = [
     keywords: ['deathblade', 'bloodoath'],
     abilities: [{ when: 'arrives', ops: [{ op: 'raise', to: 'top' }] }],
     rarity: 'r',
-    flavor: 'Gentle, patient, and absolutely certain of the appointment.',
   },
   // --- Red (3) ---
   {
@@ -402,7 +377,6 @@ export const RAGNAROK = [
     defense: 2,
     keywords: ['twinBlades'],
     rarity: 'r',
-    flavor: 'One axe in each hand and no interest in defense.',
   },
   {
     id: 'rg-flamecaller-jotun',
@@ -415,7 +389,6 @@ export const RAGNAROK = [
     defense: 3,
     keywords: ['overrun'],
     rarity: 'r',
-    flavor: 'Surtr lent her a spark. She grew it into a season.',
   },
   {
     id: 'rg-warband-leader',
@@ -429,7 +402,6 @@ export const RAGNAROK = [
     keywords: ['warcry'],
     abilities: [{ when: 'attacks', ops: [{ op: 'damage', n: 1, to: 'opponent' }] }],
     rarity: 'r',
-    flavor: 'She leads from the front because the back is boring.',
   },
   // --- Green (4) ---
   {
@@ -443,7 +415,6 @@ export const RAGNAROK = [
     defense: 5,
     keywords: ['overrun'],
     rarity: 'r',
-    flavor: 'The mountains send their eldest daughter to the war.',
   },
   {
     id: 'rg-alpha-of-the-hunt',
@@ -456,7 +427,6 @@ export const RAGNAROK = [
     defense: 3,
     abilities: [{ when: 'arrives', ops: [{ op: 'createToken', token: 'tok-wolf', count: 1 }] }],
     rarity: 'r',
-    flavor: 'She never hunts alone, and she is never the smaller number.',
   },
   {
     id: 'rg-great-stag',
@@ -469,7 +439,6 @@ export const RAGNAROK = [
     defense: 4,
     keywords: ['sentinel', 'wardingGaze'],
     rarity: 'r',
-    flavor: 'She grazes on the world-tree and answers to no season.',
   },
   {
     id: 'rg-worldroot-tender',
@@ -482,7 +451,6 @@ export const RAGNAROK = [
     defense: 4,
     abilities: [{ when: 'arrives', ops: [{ op: 'extraLandDrop' }] }],
     rarity: 'r',
-    flavor: 'She feeds the root that holds up nine worlds. Bring a bigger watering can.',
   },
   // --- Deepening: Three Kingdoms doublestrike duelists (2) ---
   {
@@ -497,7 +465,6 @@ export const RAGNAROK = [
     defense: 4,
     keywords: ['twinBlades'],
     rarity: 'r',
-    flavor: 'She fought a duel with her armor off. She won it with her armor off.',
   },
   {
     id: 'rg-dianwei',
@@ -512,7 +479,6 @@ export const RAGNAROK = [
     keywords: ['twinBlades'],
     abilities: [{ when: 'dies', ops: [{ op: 'loseLife', n: 1, who: 'opponent' }] }],
     rarity: 'r',
-    flavor: 'She held the gate until the gate no longer mattered, and past that.',
   },
   // --- Spell (1) ---
   {
@@ -526,7 +492,6 @@ export const RAGNAROK = [
       { when: 'spell', targets: [{ what: 'yourGraveCreature' }], ops: [{ op: 'raise' }] },
     ],
     rarity: 'r',
-    flavor: 'Valhalla’s doors swing both ways for the worthy.',
   },
 
   // Returning-mechanics sprinkle (1.6): Champion Awakening visits Ragnarök.
@@ -544,7 +509,6 @@ export const RAGNAROK = [
     awakening: { p: 2, t: 1 },
     abilities: [{ when: 'dawn', ops: [{ op: 'awaken', scope: 'self' }] }],
     rarity: 'r',
-    flavor: 'The choosers passed her over once. She made certain of the second look.',
   },
 
   // =========================================================================
@@ -561,7 +525,6 @@ export const RAGNAROK = [
     defense: 1,
     keywords: ['skyborne'],
     rarity: 'c',
-    flavor: 'First to the field, first to choose.',
   },
   {
     id: 'rg-einherjar-shieldbearer',
@@ -574,7 +537,6 @@ export const RAGNAROK = [
     defense: 3,
     keywords: ['sentinel'],
     rarity: 'c',
-    flavor: 'The wall of Valhalla, one woman wide.',
   },
   {
     id: 'rg-dawn-valkyrie',
@@ -587,7 +549,6 @@ export const RAGNAROK = [
     defense: 2,
     keywords: ['skyborne', 'bloodoath'],
     rarity: 'c',
-    flavor: 'Her wings carry the wounded up and the doomed on.',
   },
   {
     id: 'rg-honored-footman',
@@ -599,7 +560,6 @@ export const RAGNAROK = [
     attack: 3,
     defense: 2,
     rarity: 'c',
-    flavor: 'She earned her place in the feast-hall the hard way. Twice.',
   },
   {
     id: 'rg-oathbound-cleric',
@@ -612,7 +572,6 @@ export const RAGNAROK = [
     defense: 2,
     abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 2 }] }],
     rarity: 'c',
-    flavor: 'Her oath is short. Her memory of it is long.',
   },
   {
     id: 'rg-shieldwall-maiden',
@@ -625,7 +584,6 @@ export const RAGNAROK = [
     defense: 3,
     keywords: ['firstBlade'],
     rarity: 'c',
-    flavor: 'Hold the line, hold the line, hold. Good. Now push.',
   },
   // --- Blue (4) ---
   {
@@ -639,7 +597,6 @@ export const RAGNAROK = [
     defense: 2,
     keywords: ['skyborne'],
     rarity: 'c',
-    flavor: 'You cannot fight the fog. You can only lose in it.',
   },
   {
     id: 'rg-fate-reader',
@@ -652,7 +609,6 @@ export const RAGNAROK = [
     defense: 2,
     abilities: [{ when: 'arrives', ops: [{ op: 'grind', n: 2, who: 'self' }] }],
     rarity: 'c',
-    flavor: 'She reads two threads ahead and buries the rest for later.',
   },
   {
     id: 'rg-well-keeper',
@@ -665,7 +621,6 @@ export const RAGNAROK = [
     defense: 4,
     abilities: [{ when: 'arrives', ops: [{ op: 'draw', n: 1 }] }],
     rarity: 'c',
-    flavor: 'The well remembers everything. She just files it.',
   },
   {
     id: 'rg-runecarver',
@@ -678,7 +633,6 @@ export const RAGNAROK = [
     defense: 3,
     abilities: [{ when: 'arrives', ops: [{ op: 'grind', n: 3, who: 'self' }] }],
     rarity: 'c',
-    flavor: 'Each rune she carves is one the world must now obey.',
   },
   // --- Black (5) ---
   {
@@ -691,7 +645,6 @@ export const RAGNAROK = [
     attack: 2,
     defense: 1,
     rarity: 'c',
-    flavor: 'Death took the fear out of her. Left the greed.',
   },
   {
     id: 'rg-corpse-taker',
@@ -704,7 +657,6 @@ export const RAGNAROK = [
     defense: 2,
     abilities: [{ when: 'arrives', ops: [{ op: 'grind', n: 2, who: 'self' }] }],
     rarity: 'c',
-    flavor: 'Waste not the fallen; there is always more war.',
   },
   {
     id: 'rg-bog-lurker',
@@ -716,7 +668,6 @@ export const RAGNAROK = [
     attack: 3,
     defense: 3,
     rarity: 'c',
-    flavor: 'The fen keeps its dead standing, out of spite.',
   },
   {
     id: 'rg-hungry-shade',
@@ -729,7 +680,6 @@ export const RAGNAROK = [
     defense: 2,
     abilities: [{ when: 'dies', ops: [{ op: 'loseLife', n: 1, who: 'opponent' }] }],
     rarity: 'c',
-    flavor: 'It leaves a little poorer than it found you.',
   },
   {
     id: 'rg-plaguebearer-draugr',
@@ -742,7 +692,6 @@ export const RAGNAROK = [
     defense: 3,
     keywords: ['deathblade'],
     rarity: 'c',
-    flavor: 'Do not block her. Do not touch her. Do not, honestly, look at her.',
   },
   // --- Red (5) ---
   {
@@ -756,7 +705,6 @@ export const RAGNAROK = [
     defense: 1,
     keywords: ['warcry'],
     rarity: 'c',
-    flavor: 'A spark of the fire-realm, in a hurry to spread.',
   },
   {
     id: 'rg-berserker-initiate',
@@ -769,7 +717,6 @@ export const RAGNAROK = [
     defense: 1,
     keywords: ['warcry', 'rage'],
     rarity: 'c',
-    flavor: 'The rage comes first. The technique is optional.',
   },
   {
     id: 'rg-flame-jotun',
@@ -781,7 +728,6 @@ export const RAGNAROK = [
     attack: 4,
     defense: 2,
     rarity: 'c',
-    flavor: 'Big, bright, and brief, like most of her enemies.',
   },
   {
     id: 'rg-raiding-shieldmaiden',
@@ -794,7 +740,6 @@ export const RAGNAROK = [
     defense: 2,
     keywords: ['warcry', 'rage'],
     rarity: 'c',
-    flavor: 'She rows in, burns the dock, rows out. Efficient.',
   },
   {
     id: 'rg-ember-valkyrie',
@@ -807,7 +752,6 @@ export const RAGNAROK = [
     defense: 1,
     keywords: ['skyborne', 'warcry'],
     rarity: 'c',
-    flavor: 'She takes the boldest of the fallen: the ones who ran forward.',
   },
   // --- Green (5) ---
   {
@@ -820,7 +764,6 @@ export const RAGNAROK = [
     attack: 4,
     defense: 4,
     rarity: 'c',
-    flavor: 'Slow to anger, slow to move, impossible to move back.',
   },
   {
     id: 'rg-dire-pup',
@@ -832,7 +775,6 @@ export const RAGNAROK = [
     attack: 2,
     defense: 1,
     rarity: 'c',
-    flavor: 'Fenrir was one of these, once. Just saying.',
   },
   {
     id: 'rg-elder-jotun',
@@ -844,7 +786,6 @@ export const RAGNAROK = [
     attack: 6,
     defense: 6,
     rarity: 'c',
-    flavor: 'She remembers when the mountains were suggestions.',
   },
   {
     id: 'rg-verdant-seidr',
@@ -857,7 +798,6 @@ export const RAGNAROK = [
     defense: 1,
     abilities: [{ when: 'arrives', ops: [{ op: 'extraLandDrop' }] }],
     rarity: 'c',
-    flavor: 'She sings to the soil and the soil pays rent.',
   },
   {
     id: 'rg-wolf-pack-runner',
@@ -870,7 +810,6 @@ export const RAGNAROK = [
     defense: 2,
     keywords: ['overrun'],
     rarity: 'c',
-    flavor: 'The first of the pack over the hill is never the last.',
   },
   // --- Deepening commons (2) ---
   {
@@ -884,7 +823,6 @@ export const RAGNAROK = [
     defense: 2,
     keywords: ['firstBlade'],
     rarity: 'c',
-    flavor: 'The oath at the peach garden outlived everyone who swore it.',
   },
   {
     id: 'rg-charon-ferryman',
@@ -897,7 +835,6 @@ export const RAGNAROK = [
     defense: 3,
     abilities: [{ when: 'arrives', ops: [{ op: 'grind', n: 2, who: 'self' }] }],
     rarity: 'c',
-    flavor: 'She takes coin, and cargo, and her time.',
   },
   // --- Rune cycle (5) — carved runestone Auras ---
   {
@@ -909,7 +846,6 @@ export const RAGNAROK = [
     colors: ['R'],
     abilities: [{ when: 'static', static: { scope: 'attached', p: 2, t: 0, grantKeywords: ['warcry'] } }],
     rarity: 'c',
-    flavor: 'Carve it in red; read it in blood.',
   },
   {
     id: 'rg-rune-of-the-hunt',
@@ -920,7 +856,6 @@ export const RAGNAROK = [
     colors: ['G'],
     abilities: [{ when: 'static', static: { scope: 'attached', p: 2, t: 2, grantKeywords: ['overrun'] } }],
     rarity: 'c',
-    flavor: 'The stone remembers the shape of the chase.',
   },
   {
     id: 'rg-rune-of-hunger',
@@ -931,7 +866,6 @@ export const RAGNAROK = [
     colors: ['B'],
     abilities: [{ when: 'static', static: { scope: 'attached', p: 1, t: 1, grantKeywords: ['deathblade'] } }],
     rarity: 'c',
-    flavor: 'The stone remembers every meal, and wants another.',
   },
   {
     id: 'rg-rune-of-insight',
@@ -942,7 +876,6 @@ export const RAGNAROK = [
     colors: ['U'],
     abilities: [{ when: 'static', static: { scope: 'attached', p: 1, t: 1, grantKeywords: ['skyborne'] } }],
     rarity: 'c',
-    flavor: 'To read this rune is to see the wind and choose to ride it.',
   },
   {
     id: 'rg-rune-of-warding',
@@ -953,7 +886,6 @@ export const RAGNAROK = [
     colors: ['W'],
     abilities: [{ when: 'static', static: { scope: 'attached', p: 1, t: 2, grantKeywords: ['sentinel'] } }],
     rarity: 'c',
-    flavor: 'The oldest ward: stand, and keep standing.',
   },
   // --- Spells (2) ---
   {
@@ -965,7 +897,6 @@ export const RAGNAROK = [
     colors: ['U'],
     abilities: [{ when: 'spell', ops: [{ op: 'grind', n: 3, who: 'self' }, { op: 'draw', n: 1 }] }],
     rarity: 'c',
-    flavor: 'Bury three truths to be certain of one.',
   },
   {
     id: 'rg-berserkers-fury',
@@ -982,7 +913,6 @@ export const RAGNAROK = [
       },
     ],
     rarity: 'c',
-    flavor: 'Twice the swing, half the plan.',
   },
   {
     id: 'rg-yggdrasils-verdict',
@@ -993,6 +923,5 @@ export const RAGNAROK = [
     colors: ['G'],
     abilities: [{ when: 'spell', targets: [{ what: 'artifactOrEnchantment' }], ops: [{ op: 'destroyArtifactOrSeverEnchantment', to: 'target' }] }],
     rarity: 'c',
-    flavor: 'Yggdrasil offers one ruling: roots stay, decorations do not.',
   },
 ] as const satisfies readonly CardDef[];

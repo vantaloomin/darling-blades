@@ -20,7 +20,9 @@ describe('persona measurement speedup', () => {
     const parallelDir = mkdtempSync(join(tmpdir(), 'darling-persona-parallel-'));
     tempDirs.push(sequentialDir, parallelDir);
     const common = [
-      '--metagame', '--personas', 'burn,weenie', '--field', 'starters', '--pool', 'all',
+      // A fixed expansion keeps new sets from changing the games in this
+      // execution-equivalence test. Both paths still run the real Hard engine.
+      '--metagame', '--personas', 'burn,weenie', '--field', 'starters', '--pool', 'base',
       '--seeds', '1', '--iterations', '0', '--rounds', '1', '--seed', '424242',
     ];
     const cli = { today: () => '2026-07-26', log: () => undefined };
@@ -28,8 +30,8 @@ describe('persona measurement speedup', () => {
     resetMeasureCache();
     expect(runCli([...common, '--workers', '1', '--no-memo', '--out', sequentialDir], cli)).toBe(0);
     const names = [
-      '2026-07-26-metagame-burn-all.json',
-      '2026-07-26-metagame-weenie-all.json',
+      '2026-07-26-metagame-burn-base.json',
+      '2026-07-26-metagame-weenie-base.json',
     ];
     const sequential = names.map((name) => readFileSync(join(sequentialDir, name), 'utf8'));
 

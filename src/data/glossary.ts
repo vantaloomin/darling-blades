@@ -1,4 +1,4 @@
-import { DROPS, ECONOMY } from '../config/rules';
+import { DROPS, ECONOMY, RULES } from '../config/rules';
 import type {
   AbilityDef,
   CardDef,
@@ -10,7 +10,7 @@ import type {
   TargetSpec,
   TriggerWhen,
 } from '../engine/types';
-import { activatedAbilitiesOf } from '../engine/types';
+import { activatedAbilitiesOf, isTargetBranchOp } from '../engine/types';
 
 /**
  * The rules vocabulary, as pure data. This lives in `src/data` — not in the
@@ -63,6 +63,8 @@ export type MechanicId =
   | 'foresee'
   | 'mark'
   | 'propagate'
+  | 'hunt'
+  | 'provoked'
   | 'quest'
   | 'championAwakening'
   | 'empower'
@@ -81,6 +83,8 @@ export const MECHANIC_NAMES: Record<MechanicId, string> = {
   foresee: 'Foresee',
   mark: 'Mark',
   propagate: 'Propagate',
+  hunt: 'Hunt',
+  provoked: 'Provoked',
   quest: 'Quest',
   championAwakening: 'Champion Awakening',
   empower: 'Empower',
@@ -99,13 +103,20 @@ export const MECHANIC_NAMES: Record<MechanicId, string> = {
  * One-line, player-facing definitions for non-keyword mechanics. House style,
  * shared with KEYWORD_REMINDER: a lowercase fragment, clauses joined by
  * semicolons, no closing period (the Keyword Guide and the glossary print them
- * after the term's name).
+ * after the term's name, each on its own line).
+ *
+ * The one exception is Hunt, which the owner ruled as full sentences
+ * (2026-09-28): its prey rule and its cast rule do not fit one fragment.
+ * FULL_SENTENCE_DEFINITIONS names it, and the glossary test holds it to the
+ * sentence style instead.
  */
 export const MECHANIC_DEFINITIONS: Record<MechanicId, string> = {
   sever: 'severed from the game; severed cards never return',
   foresee: 'look at the top cards of your deck; put any of them on the bottom',
   mark: 'a lasting +1/+1 increase to a creature\'s Attack and Defense',
   propagate: 'put another Mark on each Marked creature you control; it never starts a Mark',
+  hunt: "Your creature and its prey each deal damage equal to their Attack to the other, at the same time. First Blade and Twin Blades don't apply to a Hunt. The prey is a creature an opponent controls, unless the card says otherwise. A creature with Bulwark cannot hunt. A creature that hunts when it arrives can't be cast unless it has prey.",
+  provoked: 'when this creature is dealt damage and survives, it does the listed effect; this triggers only once each turn',
   quest: 'advances a chapter at each of your dawns; leaves after the last',
   championAwakening: 'a one-way upgrade granting the listed stats and keywords',
   empower: 'pay the extra cost as you cast this for the listed bonus effect',
@@ -119,6 +130,9 @@ export const MECHANIC_DEFINITIONS: Record<MechanicId, string> = {
   preserve: 'pay the listed cost and Sever this card from your graveyard to create a token copy of it; only during Morning or Afternoon',
   duty: 'tap this permanent, and pay any listed cost, during your Morning or Afternoon to perform its Duty; a permanent cannot tap the turn it arrives unless it has Warcry',
 };
+
+/** Mechanic definitions the owner ruled as full sentences rather than the fragment house style. */
+export const FULL_SENTENCE_DEFINITIONS: ReadonlySet<MechanicId> = new Set<MechanicId>(['hunt']);
 
 /** Player-facing rarity tier names, shared by the glossary, the Profile, and pack inspect. */
 export const RARITY_NAMES: Record<Rarity, string> = {
@@ -171,7 +185,7 @@ function opImpliesSever(op: EffectOp): boolean {
 
 function cardOps(d: CardDef): EffectOp[] {
   const flatten = (ops: readonly EffectOp[]): EffectOp[] => ops.flatMap((op) =>
-    op.op === 'ifTargetMarked'
+    isTargetBranchOp(op)
       ? [op, ...flatten(op.then), ...flatten(op.else ?? [])]
       : [op],
   );
@@ -200,8 +214,9 @@ function cardTargetSpecs(d: CardDef): TargetSpec[] {
  * mark-event triggers shipped without teaching Mark because nothing forced the
  * question, so a new trigger now fails the typecheck until it is answered.
  */
-const TRIGGER_MECHANIC: Record<TriggerWhen, 'mark' | 'propagate' | null> = {
+const TRIGGER_MECHANIC: Record<TriggerWhen, 'mark' | 'propagate' | 'provoked' | null> = {
   spell: null,
+  provoked: 'provoked',
   arrives: null,
   dies: null,
   entersGraveyard: null,
@@ -297,6 +312,12 @@ export function cardMechanics(d: CardDef): MechanicId[] {
     present.push('mark');
   }
   if (teachesPropagate) present.push('propagate');
+  // Hunt is a verb keyword on any carrier (a spell, an arrival, an attack, a
+  // Dawn, a Duty, an Empower rider), so it is read off the op, never off a
+  // name: ten shipped names contain the letters and four the whole word.
+  if (ops.some((op) => op.op === 'hunt')) present.push('hunt');
+  // Provoked is a trigger opener ("Provoked: [effect].").
+  if (abilities.some((ab) => TRIGGER_MECHANIC[ab.when] === 'provoked')) present.push('provoked');
   // A Quest payoff ("While a Quest is active") names the word as surely as a
   // Quest's own chapters do.
   if (d.chapters || abilities.some((ab) => (ab.condition ?? ab.static?.condition) === 'questActive')) {
@@ -327,6 +348,8 @@ export function cardTermNames(d: CardDef): string[] {
   for (const k of d.keywords ?? []) names.add(KEYWORD_NAMES[k]);
   for (const op of cardOps(d)) {
     if (op.op === 'boost') for (const k of op.keywords ?? []) names.add(KEYWORD_NAMES[k]);
+    // A raise that grants a keyword prints it ("... to the battlefield. It has Dreaded").
+    if (op.op === 'raise') for (const k of op.grantKeywords ?? []) names.add(KEYWORD_NAMES[k]);
   }
   for (const ab of d.abilities ?? []) {
     for (const k of ab.static?.grantKeywords ?? []) names.add(KEYWORD_NAMES[k]);
@@ -345,10 +368,11 @@ export type GlossarySectionId = 'combat' | 'mechanics' | 'phases' | 'types' | 'm
 
 /**
  * Everything the icon bake draws a mechanic chip for: the named mechanics plus
- * the two zone terms, which have no card field behind them but still need a
- * glyph so the Mechanics tab has no ragged gutter.
+ * the two zone terms and the Overcharge rule, which have no card field behind
+ * them but still need a glyph so the Mechanics tab has no ragged gutter (the
+ * duel tile's Overcharge badge draws the same glyph).
  */
-export type MechanicIconId = MechanicId | 'warchest' | 'darlings';
+export type MechanicIconId = MechanicId | 'warchest' | 'darlings' | 'overcharge';
 
 /** One shared day-cycle glyph for the phase glossary rows. */
 export type PhaseIconId = 'dayCycle';
@@ -401,12 +425,30 @@ const ZONE_TERMS: GlossaryTerm[] = [
   },
 ];
 
+/**
+ * Game rules every card lives under, with no card field behind them. Overcharge
+ * (1.9 A1.7) is where the creature cap is taught: a refused token powers up its
+ * namesake. The numbers are read from `RULES`, so a retune updates the copy.
+ */
+const RULE_TERMS: GlossaryTerm[] = [
+  {
+    name: 'Overcharge',
+    description:
+      `If a token would be created while you control ${RULES.maxCreatures} creatures, it isn't. ` +
+      `Instead, a token you control with the same name gets an Overcharge: +1/+1, up to ${RULES.overchargeLimit} on one creature. ` +
+      "With no such token, nothing happens. Overcharge isn't a Mark.",
+    icon: { kind: 'mechanic', key: 'overcharge' },
+  },
+];
+
 /** Reading order for the Mechanics tab: shared vocabulary first, then riders. */
 const MECHANIC_ORDER: MechanicId[] = [
   'sever',
   'foresee',
   'mark',
   'propagate',
+  'hunt',
+  'provoked',
   'quest',
   'championAwakening',
   'empower',
@@ -443,6 +485,7 @@ export const GLOSSARY_SECTIONS: readonly GlossarySection[] = [
         icon: { kind: 'mechanic', key: mechanic } as GlossaryIcon,
       })),
       ...ZONE_TERMS,
+      ...RULE_TERMS,
     ],
   },
   {

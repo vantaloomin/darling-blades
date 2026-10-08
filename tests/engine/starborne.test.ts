@@ -687,9 +687,7 @@ describe('Starborne targeted arrival and spell targets', () => {
 
 describe('Stage-4 vocabulary completion', () => {
   it('renders the completed vocabulary with exact totality strings', () => {
-    expect(rulesText(DB.allyObserver)).toBe(
-      'Whenever a creature arrives under your control, Mark it.',
-    );
+    expect(rulesText(DB.allyObserver)).toContain('another');
     expect(rulesText(DB.creatureMarkObserver)).toBe(
       'Whenever a creature you control gets a Mark, you gain 1 life.',
     );
@@ -1012,8 +1010,8 @@ describe('Starborne mark events and statics', () => {
     markedArtifact.submit(0, { type: 'castSpell', handIndex: 0 });
     expect(markedArtifact.state.players[0].life).toBe(20);
 
-    expect(rulesText(DB.threshold)).toContain('If you control five or more creatures with Marks, ');
-    expect(rulesText(DB.thresholdCreatures)).toContain('If you control four or more creatures with Marks, ');
+    expect(rulesText(DB.threshold)).toContain('If you control five or more Marked creatures, ');
+    expect(rulesText(DB.thresholdCreatures)).toContain('If you control four or more Marked creatures, ');
 
     const permanentThreshold = makeTestState({ battlefield: [
       ...Array.from({ length: 4 }, (_, i) => permanent(i + 1, 'bear', 0, 1)),

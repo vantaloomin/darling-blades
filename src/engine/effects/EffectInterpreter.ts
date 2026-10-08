@@ -7,7 +7,9 @@ import {
   recallPermanent,
   severPermanent,
 } from '../battlefield';
+import { applyCreatureDamage, markStruck, type CreatureDamageHit } from '../creatureDamage';
 import { anyPayableHauntlink } from '../hauntlinkWindow';
+import { refuseTokenAtCap } from '../overcharge';
 import { drawCards } from '../phases';
 import { freshGraveyardCard, graveRefIndex } from '../graveyard';
 import { rngInt } from '../rng';
@@ -16,6 +18,7 @@ import { enumerateTargets, isLegalTarget } from './targeting';
 import type {
   AbilityDef,
   CardDb,
+  CardDef,
   CardEntry,
   EffectOp,
   EffectContinuation,
@@ -26,7 +29,8 @@ import type {
   TargetSpec,
   TriggerWhen,
 } from '../types';
-import { cardIdOf, def, effectOpUsesTarget, isCardInstance, isType, opponentOf } from '../types';
+import { cardIdOf, def, effectOpUsesTarget, isArrivalHunt, isCardInstance, isTargetBranchOp, isType, opponentOf } from '../types';
+import { survivesOnBattlefield } from '../sba';
 
 export interface EffectContext {
   controller: PlayerId;
@@ -97,9 +101,12 @@ function targetRefsForOp(ctx: EffectContext): TargetRef[] {
 type MarkEvent = 'mark' | 'propagated';
 const MAX_MARK_TRIGGER_DEPTH = 8;
 
-/** Spend the allowance before executing or queuing a trigger, including recursive effects. */
+/**
+ * Spend the allowance before executing or queuing a trigger, including
+ * recursive effects. Provoked is once each turn by rule, with no printed flag.
+ */
 function claimTrigger(perm: Permanent, ability: AbilityDef, abilityIndex: number): boolean {
-  if (!ability.oncePerTurn) return true;
+  if (!ability.oncePerTurn && ability.when !== 'provoked') return true;
   if (perm.firedThisTurn?.includes(abilityIndex)) return false;
   (perm.firedThisTurn ??= []).push(abilityIndex);
   return true;
@@ -328,6 +335,15 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
           if (!isType(def(db, perm.cardId), 'creature') || n <= 0 || (op.to === 'eachOpponentCreature' && perm.controller === ctx.controller)) continue;
           perm.damage += n;
           if (op.severOnDeath) perm.severBranded = true;
+          markStruck(db, perm, n);
+          emit({ e: 'damageMarked', iid: perm.iid, amount: n });
+        }
+      } else if (op.to === 'eachYourCreature') {
+        for (const perm of state.battlefield) {
+          if (!isType(def(db, perm.cardId), 'creature') || n <= 0 || perm.controller !== ctx.controller ||
+            (op.other && perm.iid === ctx.sourceIid)) continue;
+          perm.damage += n;
+          markStruck(db, perm, n);
           emit({ e: 'damageMarked', iid: perm.iid, amount: n });
         }
       } else if (op.to === 'controller') {
@@ -341,6 +357,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
             const perm = targetPermanent(state, ref);
             if (perm && n > 0) {
               perm.damage += n;
+              markStruck(db, perm, n);
               emit({ e: 'damageMarked', iid: perm.iid, amount: n });
             }
           }
@@ -579,6 +596,35 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       );
       return;
     }
+    case 'hunt': {
+      // Hunt's own rules live here, on the moveMark precedent: two different
+      // creatures, and a hunter without Bulwark (a granted one included).
+      // Either one gone or illegal: nothing is dealt.
+      const hunter = op.hunter === 'self'
+        ? state.battlefield.find((perm) => perm.iid === ctx.sourceIid)
+        : targetPermanent(state, ctx.targets[0]);
+      const prey = op.hunter === 'self'
+        ? targetPermanent(state, targetRefsForOp(ctx)[0])
+        : targetPermanent(state, ctx.targets[1]);
+      if (
+        !hunter || !prey || hunter.iid === prey.iid ||
+        !isType(def(db, hunter.cardId), 'creature') || !isType(def(db, prey.cardId), 'creature')
+      ) return;
+      const hunterStats = getEffectiveStats(state.battlefield, db, hunter.iid);
+      if (hunterStats.keywords.has('bulwark')) return;
+      // Both amounts are read before either is dealt: the exchange is simultaneous.
+      const preyAttack = getEffectiveStats(state.battlefield, db, prey.iid).attack;
+      const hits: CreatureDamageHit[] = [];
+      if (hunterStats.attack > 0) {
+        hits.push({ source: hunter.iid, sourceController: hunter.controller, target: { kind: 'permanent', iid: prey.iid }, amount: hunterStats.attack });
+      }
+      if (preyAttack > 0) {
+        hits.push({ source: prey.iid, sourceController: prey.controller, target: { kind: 'permanent', iid: hunter.iid }, amount: preyAttack });
+      }
+      emit({ e: 'hunted', hunter: hunter.iid, prey: prey.iid, hunterDamage: Math.max(0, hunterStats.attack), preyDamage: Math.max(0, preyAttack) });
+      if (hits.length > 0) applyCreatureDamage(state, db, emit, hits);
+      return;
+    }
     case 'removeMarks': {
       for (const ref of targetRefsForOp(ctx)) {
         const perm = targetPermanent(state, ref);
@@ -655,6 +701,41 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       }
       return;
     }
+    case 'ifTargetSurvives': {
+      // "If it survived" (A1.6): the target creature is still on the
+      // battlefield and would not die in the next state-based check, the test
+      // Provoked uses (sba.ts). Damage an earlier op of this effect dealt (a
+      // Hunt) is already marked, since ops resolve in order; Deathblade damage
+      // is fatal; damage that was prevented was never marked. A target that
+      // left the battlefield, or is no longer a legal target, did not survive.
+      const refs = targetRefsForOp(ctx);
+      const branchFor = (ref: TargetRef | undefined): EffectOp[] => {
+        const target = targetPermanent(state, ref);
+        return target && isType(def(db, target.cardId), 'creature') && survivesOnBattlefield(state, db, target.iid)
+          ? op.then : (op.else ?? []);
+      };
+      if (refs.length === 0) {
+        runOps(state, db, emit, { ...ctx, targets: [], targetBatch: false, targetOwners: [] }, op.else ?? []);
+        return;
+      }
+      for (let index = 0; index < refs.length; index++) {
+        const ref = refs[index];
+        runOps(
+          state,
+          db,
+          emit,
+          {
+            ...ctx,
+            targets: [ref],
+            targetBatch: false,
+            ...(ctx.targetSpecs ? { targetSpecs: [ctx.targetSpecs[ctx.targetBatch ? 0 : index]] } : {}),
+            targetOwners: [ctx.targetOwners?.[index]],
+          },
+          branchFor(ref),
+        );
+      }
+      return;
+    }
     case 'tap': {
       for (const ref of targetRefsForOp(ctx)) {
         const perm = targetPermanent(state, ref);
@@ -670,7 +751,12 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         const count = state.battlefield.filter(
           (p) => p.controller === ctx.controller && isType(def(db, p.cardId), 'creature'),
         ).length;
-        if (count >= RULES.maxCreatures) return; // cap: excess tokens are not created
+        // At the cap a token is not created. Each refused token in turn gives
+        // a same-name token an Overcharge instead, if one is eligible (A1.7).
+        if (count >= RULES.maxCreatures) {
+          refuseTokenAtCap(state, db, emit, ctx.controller, op.token);
+          continue;
+        }
         const perm = enterBattlefield(state, db, op.token, ctx.controller, emit, {
           asToken: true,
           ...(op.marks === undefined ? {} : { plusOneCounters: op.marks }),
@@ -837,12 +923,12 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
 
 function containsNewPlayerChoice(ops: readonly EffectOp[]): boolean {
   return ops.some(op => op.op === 'discard' || op.op === 'sacrifice' ||
-    (op.op === 'ifTargetMarked' && (containsNewPlayerChoice(op.then) || containsNewPlayerChoice(op.else ?? []))));
+    (isTargetBranchOp(op) && (containsNewPlayerChoice(op.then) || containsNewPlayerChoice(op.else ?? []))));
 }
 
 function containsSelfReclaim(ops: readonly EffectOp[]): boolean {
   return ops.some(op => op.op === 'reclaimSelf' ||
-    (op.op === 'ifTargetMarked' && (containsSelfReclaim(op.then) || containsSelfReclaim(op.else ?? []))));
+    (isTargetBranchOp(op) && (containsSelfReclaim(op.then) || containsSelfReclaim(op.else ?? []))));
 }
 
 export function runOps(
@@ -877,8 +963,10 @@ export function runOps(
       });
       // A multi-slot spell's implicit target remains slot zero. Filtering the
       // whole list would silently redirect it to the next surviving slot.
+      // A two-target op (moveMark's from and to, a Hunt spell's hunter and
+      // prey) needs every slot legal, or it gets none.
       const selected = ctx.targetBatch ? legalIndexes
-        : op.op === 'moveMark' ? legalIndexes.length === ctx.targets.length ? legalIndexes : []
+        : op.op === 'moveMark' || op.op === 'hunt' ? legalIndexes.length === ctx.targets.length ? legalIndexes : []
         : legalIndexes.includes(0) ? [0] : [];
       bound = { ...ctx,
         originalTargets: ctx.originalTargets ?? ctx.targets,
@@ -1065,19 +1153,63 @@ function fireAllyCreatureArrivesTriggers(
   }
 }
 
+const arrivalHuntCache = new WeakMap<CardDef, number>();
+
+/**
+ * The index of a creature's arrival Hunt ("When this arrives, Hunt."), or -1.
+ * Its prey is chosen when the creature is cast, as a cast target (the owner's
+ * ruling, 2026-09-28): castTargetSpecs reads the ability's one spec, and a
+ * cast arrival runs it inline with that target (fireTriggers, castHuntTargets).
+ * An arrival that is not a cast (a token, a raise, a Nine Lives return) fires
+ * it as an ordinary targeted arrival trigger.
+ */
+export function arrivalHuntIndex(d: CardDef): number {
+  let cached = arrivalHuntCache.get(d);
+  if (cached === undefined) {
+    cached = isType(d, 'creature')
+      ? (d.abilities ?? []).findIndex((ab) => isArrivalHunt(ab) && ab.targets?.length === 1)
+      : -1;
+    arrivalHuntCache.set(d, cached);
+  }
+  return cached;
+}
+
 export function fireTriggers(
   state: GameState,
   db: CardDb,
   emit: Emit,
   when: Exclude<TriggerWhen, 'spell' | 'static'>,
   perm: Permanent,
-  options: { deferPostDies?: boolean; markTriggerDepth?: number; observers?: readonly Permanent[]; sacrifice?: boolean; deferObservers?: boolean } = {},
-): void {
+  options: {
+    deferPostDies?: boolean; markTriggerDepth?: number; observers?: readonly Permanent[]; sacrifice?: boolean; deferObservers?: boolean;
+    /** A cast arrival: the arrival Hunt's prey, chosen when the creature was cast. */
+    castHuntTargets?: TargetRef[];
+  } = {},
+): boolean {
   const d = def(db, perm.cardId);
+  let fired = false;
+  const castHunt = when === 'arrives' && options.castHuntTargets !== undefined ? arrivalHuntIndex(d) : -1;
   for (let abilityIndex = 0; abilityIndex < (d.abilities ?? []).length; abilityIndex++) {
     const ab = d.abilities![abilityIndex];
     if (ab.when !== when || !ab.ops) continue;
     if (ab.condition !== undefined && !conditionSatisfied(state, db, perm.controller, ab.condition, perm.iid)) continue;
+    if (abilityIndex === castHunt) {
+      // The prey was chosen at cast, so the Hunt resolves inline in its printed
+      // place, as an untargeted arrival ability does. The spec is re-checked
+      // first: a prey that is gone or no longer legal leaves nothing to hunt,
+      // and the ability is skipped silently and unspent, as a targeted
+      // trigger with no legal target is below.
+      const spec = ab.targets![0];
+      if (!options.castHuntTargets!.some((ref) => isLegalTarget(state, db, perm.controller, spec, ref, perm.iid))) continue;
+      if (!claimTrigger(perm, ab, abilityIndex)) continue;
+      fired = true;
+      emit({ e: 'triggerFired', iid: perm.iid, when });
+      runOps(state, db, emit, {
+        controller: perm.controller, sourceCardId: perm.cardId, sourceIid: perm.iid,
+        targets: options.castHuntTargets!, targetSpecs: ab.targets!, markTriggerDepth: options.markTriggerDepth,
+      }, ab.ops);
+      continue;
+    }
     if (ab.targets && ab.targets.length > 0) {
       if (ab.targets.length !== 1 || ab.targets[0].upTo !== undefined || ab.targets[0].exactly !== undefined) {
         throw new Error('Targeted arrival abilities must have one single target spec.');
@@ -1085,6 +1217,7 @@ export function fireTriggers(
       const spec = ab.targets[0];
       if (enumerateTargets(state, db, perm.controller, spec, perm.iid).length === 0) continue;
       if (!claimTrigger(perm, ab, abilityIndex)) continue;
+      fired = true;
       emit({ e: 'triggerFired', iid: perm.iid, when });
       state.pendingDecisions.push({
         kind: 'chooseTarget',
@@ -1099,6 +1232,7 @@ export function fireTriggers(
       continue;
     }
     if (!claimTrigger(perm, ab, abilityIndex)) continue;
+    fired = true;
     emit({ e: 'triggerFired', iid: perm.iid, when });
     const selfGraveExclusion =
       when === 'dies'
@@ -1157,6 +1291,7 @@ export function fireTriggers(
   if (when === 'dies' && !options.deferPostDies && state.winner === null) {
     returnWithNineLives(state, db, emit, perm, options.markTriggerDepth);
   }
+  return fired;
 }
 
 /**

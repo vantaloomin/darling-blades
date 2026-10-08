@@ -1,5 +1,6 @@
 ﻿import { describe, expect, it } from 'vitest';
 import { ECONOMY } from '../../src/config/rules';
+import { packPriceForSku } from '../../src/meta/boosterSkus';
 import { CARD_DB } from '../../src/data/catalog';
 import { DARLINGS_PRECONS } from '../../src/data/darlingsPrecons';
 import { DRAFT_PERSONAS } from '../../src/data/draftPersonas';
@@ -403,9 +404,9 @@ describe('PackOpener', () => {
 
   it('a Celtic Fae booster charges its SKU price and pulls only cf- cards', () => {
     const save = freshSave(0);
-    save.gold = ECONOMY.celticFaePackPrice;
+    save.gold = packPriceForSku('celtic-fae');
 
-    expect(spendGold(save, ECONOMY.celticFaePackPrice)).toBe(true);
+    expect(spendGold(save, packPriceForSku('celtic-fae'))).toBe(true);
     const result = openPack(save, CARD_DB, createRngState(20260710), 'celtic-fae');
 
     expect(save.gold).toBe(0);
@@ -418,9 +419,9 @@ describe('PackOpener', () => {
 
   it('a Gothic Monsters booster charges its SKU price and pulls only gm- cards', () => {
     const save = freshSave(0);
-    save.gold = ECONOMY.gothicMonstersPackPrice;
+    save.gold = packPriceForSku('gothic-monsters');
 
-    expect(spendGold(save, ECONOMY.gothicMonstersPackPrice)).toBe(true);
+    expect(spendGold(save, packPriceForSku('gothic-monsters'))).toBe(true);
     const result = openPack(save, CARD_DB, createRngState(20260717), 'gothic-monsters');
 
     expect(save.gold).toBe(0);
@@ -456,6 +457,29 @@ describe('PackOpener', () => {
       }
     }
     expect(srSeen).toBeGreaterThan(0); // the assertion above actually ran
+  });
+
+  it('rolls unowned cards first in the c/r slots', () => {
+    // Own one copy of every common but the last: the first common slot must
+    // roll it (reveal order is sorted, so check membership), and once owned
+    // the whole pool is back for later slots.
+    const commons = packPool(TEST_DB, 'c');
+    expect(commons.length).toBeGreaterThan(1);
+    const missing = commons[commons.length - 1];
+    let checked = 0;
+    for (let seed = 1; seed <= 30; seed++) {
+      const save = freshSave(0);
+      for (const id of commons) {
+        if (id === missing) continue;
+        save.collection[id] = 1;
+        save.collectionVariants[id] = { [variantKey(PLAIN_VARIANT)]: 1 };
+      }
+      const pulled = openPack(save, TEST_DB, createRngState(seed)).cards.filter((c) => c.tier === 'c');
+      if (pulled.length === 0) continue;
+      expect(pulled.map((c) => c.cardId)).toContain(missing);
+      checked++;
+    }
+    expect(checked).toBeGreaterThan(0);
   });
 
   it('falls back one tier down when a tier pool is empty', () => {
@@ -576,6 +600,8 @@ describe('save migration old blobs ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã�
       // false here because this is a migrated save, not a fresh one.
       shareAnonStats: true,
       statsNoticeVersion: 0,
+      textScale: 1, // v36 default
+      highContrast: false, // v36 default
     });
     expect('animSpeed' in m.data.settings).toBe(false);
   });
@@ -666,6 +692,8 @@ describe('save migration old blobs ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã�
       // v35 additions; a migrated save has not been shown the notice.
       shareAnonStats: true,
       statsNoticeVersion: 0,
+      textScale: 1, // v36 default
+      highContrast: false, // v36 default
     });
     expect('animSpeed' in m.data.settings).toBe(false);
     expect(m.data.gauntlet.bestRung).toBe(2);
@@ -1144,12 +1172,12 @@ describe('applyGauntletResult', () => {
   });
 
   it('clearing the final rung pays the completion bonus and ends the run', () => {
-    const finalRung = ECONOMY.gauntletRungGold.length; // 26 with The Marsh-Mother as the Drowned Deep final rung
+    const finalRung = 28;
     const save = freshSave(0);
     save.stats.lastWinDay = '2026-07-02'; // no first-win bonus this time
     save.gauntlet.run = { rung: finalRung, startedAt: 1, seed: 42 };
     const r = applyGauntletResult(save, finalRung, 'hard', true, '2026-07-02');
-    expect(r.gold).toBe(ECONOMY.gauntletRungGold[finalRung - 1] + ECONOMY.gauntletCompletionBonus);
+    expect(r.gold).toBe(840);
     expect(r.completed).toBe(true);
     expect(r.runOver).toBe(true);
     expect(r.nextRung).toBeNull();
@@ -1176,15 +1204,26 @@ describe('applyGauntletResult', () => {
 
   it('a full run pays every rung plus the completion and daily bonuses once', () => {
     const save = freshSave(0);
+    const startingGold = save.gold;
     save.gauntlet.run = { rung: 1, startedAt: 1, seed: 42 };
     let total = 0;
-    for (let rung = 1; rung <= ECONOMY.gauntletRungGold.length; rung++) {
+    for (let rung = 1; rung <= 28; rung++) {
       const diff = rung <= 3 ? 'easy' : rung <= 6 ? 'medium' : 'hard';
-      total += applyGauntletResult(save, rung, diff, true, '2026-07-02').gold;
+      const result = applyGauntletResult(save, rung, diff, true, '2026-07-02');
+      total += result.gold;
+      if (rung === 27) {
+        expect(result.gold).toBe(570);
+        expect(result.completed).toBe(false);
+        expect(result.nextRung).toBe(28);
+        expect(save.gauntlet.run?.rung).toBe(28);
+      }
     }
-    const rungSum = ECONOMY.gauntletRungGold.reduce((s, g) => s + g, 0);
-    expect(total).toBe(rungSum + ECONOMY.gauntletCompletionBonus + ECONOMY.firstWinOfDayBonus);
+    // 8960 rung gold, 250 completion gold, and one 100-gold daily win bonus.
+    expect(total).toBe(9310);
+    expect(save.gold - startingGold).toBe(9310);
     expect(save.gauntlet.completions).toBe(1);
+    expect(save.gauntlet.bestRung).toBe(28);
+    expect(save.gauntlet.run).toBeNull();
   });
 
   it('a loss pays standard loss gold and resets the run', () => {
@@ -1233,6 +1272,36 @@ describe('buyThemeDeck (RagnarÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶k precon
     expect(buyThemeDeck(save, CARD_DB, deck)).toBe(false);
     expect(save.gold).toBe(ECONOMY.preconPrice - 1);
     expect(save.decks.some((d) => d.id === deck.id)).toBe(false);
+  });
+});
+
+describe('buyThemeDeck First Dawn precon', () => {
+  it('charges 500 gold once and grants a playable red-green Warchest deck', () => {
+    const deck = THEME_DECKS.find((entry) => entry.id === 'theme-first-dawn')!;
+    const save = freshSave(0);
+    save.gold = 499;
+    expect(buyThemeDeck(save, CARD_DB, deck)).toBe(false);
+    expect(save.gold).toBe(499);
+    expect(save.decks.some((entry) => entry.id === deck.id)).toBe(false);
+
+    save.gold = 550;
+    save.starterChosen = 'starter-crimson';
+    expect(buyThemeDeck(save, CARD_DB, deck)).toBe(true);
+    expect(save.gold).toBe(50);
+    expect(save.starterChosen).toBe('starter-crimson');
+    const granted = save.decks.find((entry) => entry.id === deck.id)!;
+    expect(granted.format).toBe('warchest');
+    expect(granted.cards).toHaveLength(40);
+    expect(granted.landReserve).toHaveLength(10);
+    expect(granted.cards).toEqual(deck.reserveCards);
+    expect(granted.landReserve).toEqual(deck.landReserve);
+    expect(deckHealth(CARD_DB, save, granted)).toEqual({ blocked: false, issues: [] });
+    for (const id of granted.cards) {
+      expect(CARD_DB[id].colors.every((color) => color === 'R' || color === 'G'), id).toBe(true);
+    }
+    expect(buyThemeDeck(save, CARD_DB, deck)).toBe(false);
+    expect(save.gold).toBe(50);
+    expect(save.decks.filter((entry) => entry.id === deck.id)).toHaveLength(1);
   });
 });
 

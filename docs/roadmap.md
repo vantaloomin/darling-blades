@@ -1,4 +1,4 @@
-<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/scenes/LimitedDraftScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, tests/meta/draftPersonas.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-09-28 · review monthly -->
+<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/scenes/LimitedDraftScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, tests/meta/draftPersonas.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-10-08 · review monthly -->
 
 # Roadmap
 
@@ -13,9 +13,9 @@ _Dated 2026-09-28, at the 1.8.5 cut. Review monthly._
   repo folder is now `DarlingBlades` (renamed from `WaifuTCG`).
 - **Playable end-to-end.** First launch shows the anonymous-stats notice
   with its switch, then offers an optional **tutorial**; a new player claims a
-  free starter deck in the shop and plays the **Avatar Gauntlet** (a 26-rung
-  tower on a daily-reshuffled ladder, the Drowned Deep pair at rungs 25-26
-  since 1.8) or Practice duels, then rewards, shop, pack opening, collection
+  free starter deck in the shop and plays the **Avatar Gauntlet** (a 28-rung
+  tower on a daily-reshuffled ladder, the First Dawn pair at rungs 27-28
+  built for 1.9) or Practice duels, then rewards, shop, pack opening, collection
   and deck builder, all wired, with procedural SFX and ambient music. The menu
   opens in about a second and card art streams behind it (1.8).
 - **Feature- and art-complete for desktop + phone-over-LAN (Tier 1).** The
@@ -37,7 +37,7 @@ _Dated 2026-09-28, at the 1.8.5 cut. Review monthly._
   (Marks, Propagate), and Drowned Deep (Whispers, Tithe), each with its own
   set-scoped booster. Duty, the tap ability, is game-wide since 1.8: 82 cards
   carry one, 27 of them the former utility taplands.
-- **5 starter precons, 9 theme decks and 5 Darlings precons**
+- **5 starter precons, 10 theme decks and 5 Darlings precons**
   (`src/data/starterDecks.ts`), the starters covering all five colours, each
   colour in exactly two lists.
 - **Audio complete in structure**: a procedural WebAudio SFX layer
@@ -558,8 +558,9 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   1.6 to cast normally, then pay a repeatable Charm-speed battlefield link
   cost; a linked carrier dies with its host), engine-first with dedicated tests;
   ally-pair tapped dual cycle replacing
-  the set's five mono taplands; full retail wiring (525g set booster, precon,
-  8 achievements, set icon, attack FX); the entire 120-card art run
+  the set's five mono taplands; full retail wiring (set booster, 525g at launch
+  and 450g in 1.9, precon, 8 achievements, set icon, attack FX); the entire
+  120-card art run
   QA-passed and user-approved with art bible coverage 470/470.
 - **Bosses 19-20 + tower to 20 floors (#151).** Queen of the Lanterned Roof
   and Kitsune Neon Tyrant (R19 71% / R20 75% at 40 seeds, provisional floors
@@ -663,8 +664,9 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   - **Pillar 0 (PR #92): Gothic Monsters, Nocturne Manor.** 81 cards (`gm-`,
     B/R/W vampire-gothic), the **Dreaded** (menace) and **Empower** (kicker)
     engine mechanics landed headless-first and AI-aware at all three
-    difficulties, the `gothic-monsters` booster (525g), the **Bloodmoon
-    Masquerade** precon, eight achievements, bosses **Carmilla** (rung 15) and
+    difficulties, the `gothic-monsters` booster (525g at launch, 450g in 1.9),
+    the **Bloodmoon Masquerade** precon, eight achievements, bosses
+    **Carmilla** (rung 15) and
     **The Bride** (rung 16), full user-accepted art, and a nine-card removal
     answer cycle across five sets (pool to 518).
   - **Pillar 1 (PR #94): daily tower rotation with floor-scaled AI.** A seeded
@@ -762,8 +764,8 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   confirmed one real latent engine bug (an all-whiff dawn foresee drain
   stranded the turn), fixed with a red-test-proven regression. W/U/R
   knight tribal with 7 chapter Quests and five awakening carriers; the
-  1/1 W Squire token (`tok-squire`); set booster SKU at 525g with a
-  five-point crown set icon; the **Questing Table** precon; 8 schema-free
+  1/1 W Squire token (`tok-squire`); set booster SKU at 525g at launch
+  (450g in 1.9) with a five-point crown set icon; the **Questing Table** precon; 8 schema-free
   set achievements; Duel UI chapter badges (I/II plates), awakened gold
   rings, and history narration; the Glossary teaches all four game
   mechanics in a recut 2×2 grid. **Art**: all 80 raws were pre-generated
@@ -1073,9 +1075,10 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   multicolor⇒legendary idiom meaningful). Ships with: DuelScene exile piles +
   zone modals + a mandatory scry picker, 80 smart-cropped finals from
   retained raws (zero generation quota; 41/42 head-detected), a 42-entry
-  art bible with the headroom demand in every prompt, a 525g set-scoped
-  booster with generated pack art (both expansions got real pack fronts;
-  crimp bands now translucent for full-bleed faces), the **Glimmer Bargain**
+  art bible with the headroom demand in every prompt, a set-scoped
+  booster at 525g at launch (450g in 1.9) with generated pack art (both
+  expansions got real pack fronts; crimp bands now translucent for full-bleed
+  faces), the **Glimmer Bargain**
   U/B/G precon, 8 schema-free achievements, and pull-odds "1:N" leading the
   pack-inspect details (runtime-derived from DROPS; god roll ≈ 1:4.94M,
   Monte-Carlo verified over 18M slot rolls). The premium-hero shop toggle
@@ -1110,8 +1113,8 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   bands, in-portrait life squares). The by-eye pass over the new theme system
   is still open (flagged "eyes on deploy" in the impl doc).
 - **Launch economy retune + progression simulation (PRs #35/#36).** Collection
-  boosters are now **9 rolls at 450g** (Ragnarök 525g) — Limited packs stay
-  15 cards; daily quests pay 50g; streak payouts reduced; duplicate refunds
+  boosters became **9 rolls at 450g** (Ragnarök 525g at launch, 450g in 1.9).
+  Limited packs stay 15 cards; daily quests pay 50g; streak payouts reduced; duplicate refunds
   tuned so the expected plain-dupe refund (~68g/pack at full completion) stays
   bounded below pack price. Grounded in a new deterministic
   **progression-sim harness** (`scripts/progression-sim.ts`, 10 personas,
@@ -1736,11 +1739,20 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
 ## Planned
 
 - **The 1.9 train (every decision ruled 2026-09-25; 1.8.1 and 1.8.5 have
-  shipped; wave 0 is next).** [plan-1.9.md](plan-1.9.md) is the program plan.
-  In:
+  shipped; STAGED as 1.9.0 on 2026-10-08 on `release/1.9`).**
+  [plan-1.9.md](plan-1.9.md) is the program plan. Release notes:
+  [release-notes/v1.9.0.md](release-notes/v1.9.0.md). The pre-release sweep's
+  round 0 (8 personas, `sweep-data` `sweeps/2026-10-07-13003-race`) read
+  nothing egregious, so no sweep-driven balance changes ship. In:
   - **First Dawn**, a fresh ~150-card set drafted by an Opus 5.5 agent (the
     July overplan is retired), on **Provoked** and **Hunt**, both approved.
     It is costed on the 1.8.5 scorer (§4u keyword scaling, §4v ramp).
+  - **Back-catalog booster pricing** (owner ruling 2026-10-01). Base and
+    older expansions cost 450g; the three newest live expansions cost 525g.
+    `BOOSTER_SKUS` release order drives the tier in `src/meta/boosterSkus.ts`.
+    Hidden sets take no premium slot. First Dawn, Drowned Deep and Starborne
+    are premium for 1.9; Duat costs 450g when live. Appending a new set
+    automatically moves the oldest premium set to the back catalog.
   - **Accessibility.**
   - **Card art streaming** (load on demand, unload under a budget).
   - The **mechanic usage audit**.
@@ -1771,22 +1783,48 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   sweep gaining personas in First Dawn's colours (D12), and the AI fixes
   1.8.5 handed on approved (D13). Wave 0 cuts `release/1.9` from `main`,
   then lands the duplicate-comparator fix and a Foresee-on-an-empty-deck
-  rules fix on the train, where nothing deploys until the 1.9.0 cut.
+  rules fix on the train, where nothing deploys until the 1.9.0 cut. **Wave 0
+  closed the same day** (#469, #470 on `release/1.9`). Then **D16**: the
+  First Dawn cards are designed before the engine spec (brief, design-first
+  overplan, concretion audit, spec, engine and measured rates, rescore,
+  cut), so the engine builds what the cards need. **Overcharge (A1.7, ruled
+  2026-09-29):** a token refused at the 8-creature cap gives a same-name token
+  its controller controls +1/+1 instead (never another creature; at most
+  `RULES.overchargeLimit` on one, 3, measured; not a Mark), after a
+  28,224-game board-cap study found it recovers First Dawn's go-wide deck where
+  a wider cap does not ([rules.md](rules.md), "Board caps").
 - **2.0 is the itch.io launch (owner ruling 2026-09-25).** The largest update
   the game has had, with the mobile overhaul, Core Set II and Story Mode, and
   the release that is posted on itch.io and advertised. No plan exists yet;
-  one is owed when 2.0 opens. Researched 2026-09-25: itch caps an HTML5
-  game at 1,000 files, so card art ships in range-readable packs (1.9 lane D
-  designs for it); every itch game shares one origin and one small, easily
-  cleared storage, so saves do not carry over from bladedarlings.com and the
-  save-code export matters more (never tick itch's SharedArrayBuffer option,
-  which moves the game to a new origin); the play-stats Worker must allow
-  itch's origin and the itch build's CSP must allow itch's own beacon; the
-  Windows build goes up as the portable app folder with itch's `butler`
+  one is owed when 2.0 opens. **Story Mode's direction was ruled 2026-09-29:**
+  a roguelite run with a story spine, played as one of three characters (a
+  Three Kingdoms, an Olympian and a Beastkin legend, unlocked in that order)
+  and keeping one card per act cleared
+  ([plan-story-mode.md](plan-story-mode.md)). Researched 2026-09-25: itch caps
+  an HTML5 game at 1,000 files, so card art ships in range-readable packs (1.9
+  lane D designs for it); every itch game shares one origin and one small,
+  easily cleared storage, so saves do not carry over from bladedarlings.com
+  and the save-code export matters more (never tick itch's SharedArrayBuffer
+  option, which moves the game to a new origin); the play-stats Worker must
+  allow itch's origin and the itch build's CSP must allow itch's own beacon;
+  the Windows build goes up as the portable app folder with itch's `butler`
   tool, which the itch app updates, rather than the installer; itch asks for
   an AI-content tag (Graphics at least) and hides adult content from browse
-  and search. **Mobile duel layout decided the same day: Version C,
-  "Command column (hand-first)"** ([plan-mobile-overhaul.md](plan-mobile-overhaul.md)).
+  and search. **Mobile duel layout decided the same day: Version C, "Command
+  column (hand-first)"** ([plan-mobile-overhaul.md](plan-mobile-overhaul.md)).
+- **Animated art: a printing rarer than Full Art (proposal 2026-10-02; post-2.0,
+  not scheduled, nothing built).** The owner asked for a new top printing
+  whose art moves in a seamless loop. The two hard parts are perfect loops
+  and storage: the itch.io launch caps a game at 500 MB and 1,000 files,
+  and the shipped art is already 249 MB. Video for every card would not
+  fit. **Direction ruled 2026-10-02: (A) to start, (B) long term "if we can
+  find a good solution".** (A) is procedural "living art" (a small per-card
+  depth and motion map, shader-driven, so every loop is perfect by
+  construction, at about 20-60 KB a card), piloted on about 5 cards; (B) is
+  generated video, adopted only when its loops pass review at a cost the
+  launch budget can carry. Three questions still wait for the owner: which
+  cards, the axis shape and rates, and where any video files would live
+  ([plan-animated-art.md](plan-animated-art.md)).
 - **A metagame sweep that fits in a night (2026-09-22; levers 1 and 4
   shipped in 1.8).** [plan-sweep-speed.md](plan-sweep-speed.md). Fan-out
   across GitHub-hosted runners shipped (#418, #421, #422; the owner's machine
@@ -2146,6 +2184,36 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   (`selectedDuals` on `completeDraftRun`, `run.landReserve`); the work is the
   build-step UI plus persistence. Owner ruling 2026-09-25: after 2.0
   (it had been deferred to 1.9 by the 1.8 ruling D7).
+- **Async PvP: challenge codes piloted by the Hard AI (proposal,
+  2026-09-29; past 2.0, not scheduled).** The owner's request: share a deck
+  code, and a Hard AI pilots that deck against whoever pastes it, "a
+  semblance of PvP without making any P2P connections". No network, server
+  or accounts, so it stands with the ruling that multiplayer is cancelled.
+  It builds on `DBD3-` deck codes, the Hard brain and the duel's
+  opponent-deck override. Plan and open questions:
+  [plan-async-pvp.md](plan-async-pvp.md). Nothing is built.
+- **Starting life above 20, with Core Set II (owner direction, 2026-09-29;
+  2.0).** Games between AIs end around each player's ninth or tenth turn
+  (the First Dawn lab's Hard median is turn 19, counting both players'
+  turns), so the most expensive cards rarely get cast. The owner wants 5 to
+  10 more starting life in 2.0, alongside the return to the original sets;
+  the number waits on a 20 / 25 / 30 measurement. Every scorer rate, test
+  floor and boss tune is measured at 20, so it lands with a full
+  re-measure, and 1.9 (First Dawn included) stays at 20. Details:
+  [plan-road-to-2.0.md](plan-road-to-2.0.md#starting-life-a-20-direction).
+- **Every keyword in every set (owner, 2026-09-29).**
+  - Each set carries all 13 evergreen keywords. Small sets add a handful of
+    returning set mechanics as one- or two-card cameos; Large sets (2.0's Core
+    Set II) carry every named mechanic too.
+  - **First Dawn** fills its gaps before the cut: First Blade, Twin Blades and
+    Blood Oath.
+  - **The ten shipped sets** get a backfill (approved; proposed for 1.9.x
+    beside D8), either as extra cards or as keywords added to underpowered
+    cards that fit.
+  - **A data check** makes every new set carry all 13, starting with First
+    Dawn.
+  - Details: [plan-1.9.md](plan-1.9.md), the decisions record and "Moved out of
+    1.9".
 - **Design plans authored 2026-07-05.** Four senior-level design docs, each
   grounded in the current code and respecting the iron invariants —
   **Commander mode and MOD/UGC were greenlit into the 1.1 program

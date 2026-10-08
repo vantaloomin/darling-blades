@@ -30,6 +30,12 @@ export const RULES = {
   // so it can never exceed the 7-card hand — the source of the old soft-lock.
   maxMulligans: 3,
   maxCreatures: 8, // battlefield cap per player
+  // Overcharge (1.9 A1.7): a token refused at the creature cap gives one
+  // same-name token its controller controls +1/+1 instead. This is the most
+  // Overcharges one creature can hold. Measured 2026-09-29 (13,440 games):
+  // the go-wide deck's gain plateaus from 2 and 3 keeps all of it, while no
+  // limit let one Hatchling reach 24/24; the owner approved 3.
+  overchargeLimit: 3,
   maxNoncreaturePermanents: 4, // noncreature-nonland cap per player
   // Raised 3 -> 4 (user decision 2026-07-31) with the cap now surfaced in the
   // duel UI (DuelScene shows a running count on gang-blocks and a decline
@@ -44,16 +50,9 @@ export const RULES = {
 
 export const ECONOMY = {
   startingGold: 250, // granted with the starter deck — one booster to crack
-  packPrice: 450,
-  ragnarokPackPrice: 525, // expansion booster — only pulls set:'ragnarok' cards (denser 70-card chase)
-  celticFaePackPrice: 525, // expansion booster — only pulls set:'celtic-fae' cards (81-card chase density)
-  arthurianCourtPackPrice: 525, // expansion booster — only pulls set:'arthurian-court' cards (81-card chase density)
-  gothicMonstersPackPrice: 525, // expansion booster - only pulls set:'gothic-monsters' cards (81-card chase density)
-  darkTalesPackPrice: 525, // expansion booster - only pulls set:'dark-tales' cards (120-card chase density)
-  yokaiNightsPackPrice: 525, // expansion booster - only pulls set:'yokai-nights' cards (120-card chase density)
-  sandsOfTheDuatPackPrice: 525, // expansion booster - only pulls set:'sands-of-the-duat' cards (245-card chase density); SKU hidden until FEATURES.duatLive
-  starbornePackPrice: 525,
-  drownedDeepPackPrice: 525,
+  packPrice: 450, // Base and back-catalog boosters
+  premiumPackPrice: 525,
+  premiumSetCount: 3, // newest live expansions in BOOSTER_SKUS release order
   boosterPackSize: 9, // collection boosters: every slot rolls tier + frame + holo + full art independently (DROPS)
   limitedPackSize: 15, // Draft packs stay MTG-sized for pick and pool depth.
   winGold: { easy: 50, medium: 100, hard: 200 } as const,
@@ -96,8 +95,8 @@ export const ECONOMY = {
   shardHoloMult: { none: 1, shiny: 1.5, rainbow: 2, pearlescent: 3, fractal: 6, void: 12 } as const,
   shardFullArtMult: 25,
   // Avatar Gauntlet: gold per rung cleared (index 0 = rung 1), plus a bonus for
-  // a full 26-rung clear. Full run = 50+70+...+550 (=7800) + 250 bonus =
-  // 8050g before the daily first-win bonus.
+  // a full 28-rung clear. Full run = 50+70+...+590 (=8960) + 250 bonus =
+  // 9210g before the daily first-win bonus.
   // ~40% over practice-grinding — the price of run-risk (a loss resets the run).
   // Rungs 9-10 (210/230) are the Ragnarök bosses; 11-12 (250/270) are the
   // Celtic Fae bosses (The Morrigan, Titania); 13-14 (290/310) are the
@@ -109,8 +108,9 @@ export const ECONOMY = {
   // Mistress of the Ninth Return at 22; the Starborne summit is the next
   // authored rung, with Chrome Broodmother at 23 and The Violet Signal Queen
   // at 24). Rungs 25-26 are the Drowned Deep summit pair: The Drowned
-  // Deacon at 25 and The Marsh-Mother as the final rung at 26.
-  gauntletRungGold: [50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 270, 290, 310, 330, 350, 370, 390, 410, 430, 450, 470, 490, 510, 530, 550] as const,
+  // Deacon at 25 and The Marsh-Mother at 26. First Dawn adds The Shepherdess
+  // of Giants at 27 and The Tyrant Queen as the final rung at 28.
+  gauntletRungGold: [50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 270, 290, 310, 330, 350, 370, 390, 410, 430, 450, 470, 490, 510, 530, 550, 570, 590] as const,
   gauntletCompletionBonus: 250,
   // Free Limited runs are free-entry with ephemeral cards and pay the record
   // payout below. Premium Draft pays to keep its picks; the entry fee already

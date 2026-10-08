@@ -12,7 +12,7 @@ import {
   validateRiteDef, validateTitheDef, validateWhispersDef,
 } from '../../src/engine/types';
 import {
-  canReplay, finishReplay, isReplayLog, recordReplayAction,
+  canReplay, finishReplay, isReplayLog, recordReplayAction, REPLAY_LOG_VERSION,
   replayDbStamp, replayGame, startReplayDraft,
 } from '../../src/meta/Replay';
 import { botAction, makeTestState, smallGreenDeck, TEST_DB } from '../helpers';
@@ -571,7 +571,7 @@ describe('Tithe replay and determinism', () => {
 
   it('round-trips a naturally terminal game with Tithe iids and explicit mana plans byte for byte', () => {
     const recorded = recordTitheFixture();
-    expect(recorded.log.v).toBe(15);
+    expect(recorded.log.v).toBe(REPLAY_LOG_VERSION);
     expect(recorded.game.awaiting.kind).toBe('gameOver');
     const sacrifices = recorded.log.actions.filter((step) => step.a.type === 'castSpell' && step.a.tithe);
     expect(sacrifices.length).toBeGreaterThan(0);

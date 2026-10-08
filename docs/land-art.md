@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/lands.ts, src/data/cards/duals.ts, src/data/cards/gothic-monsters.ts, src/meta/SaveManager.ts, src/art/ArtResolver.ts, src/ui/CardView.ts · last-verified: 2026-07-23 -->
+<!-- source-of-truth: src/data/cards/lands.ts, src/data/cards/duals.ts, src/data/cards/gothic-monsters.ts, src/meta/SaveManager.ts, src/art/ArtResolver.ts, src/ui/CardView.ts · last-verified: 2026-09-28 -->
 
 # Land Art — Direction + Generation Contract
 
@@ -34,10 +34,11 @@ never contradict them.
   ridge) where an entry explicitly calls for one. Nothing that could read as a
   card character.
 - **Iconic terrain in the central vertical band (load-bearing).** `CardView`
-  (`src/ui/CardView.ts`, `ART_RECT = { x:-132, y:-164, w:264, h:192 }`)
-  cover-crops the 640×800 source into a **264×192** window, showing only the
-  **middle 58.2 % vertical band: y ≈ 167 → 633** (`docs/art-bible/index.md` §3 —
-  same crop math). Compose the land's **defining terrain element** (the river,
+  (`src/config/cardFaceGeometry.ts`, `CARD_FACE.art = { x:-132, y:-164, w:264, h:216 }`)
+  cover-crops the 640×800 source into a **264×216** window (since 1.9, R13),
+  showing only the **middle 65.5 % vertical band: y ≈ 138 → 662**
+  (`docs/art-bible/index.md` §3, same crop math; the entries below were composed
+  for the older y 167 → 633 band, which sits inside this one). Compose the land's **defining terrain element** (the river,
   the peak, the burning hall, the blossom orchard) so its readable subject sits
   inside that band, horizon roughly centered. The full 640 width is visible;
   keep any critical silhouette ≥ 32 px off the left/right edges. Paint the top
@@ -81,8 +82,10 @@ one-line **Prompt** field. The Prompt is one self-contained generation-ready
 line ending with the standardized suffix
 `— crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait`.
 Basics come first in `src/data/cards/lands.ts` order, then duals in
-`src/data/cards/duals.ts` order. The flavor text quoted in each entry is the
-canon anchor.
+`src/data/cards/duals.ts` order. The flavor text quoted in each entry was the
+canon anchor when it was written; cards no longer carry flavor text (owner
+ruling R13, 2026-09-25), so the quoted lines are kept here as art direction
+only.
 
 ### Plains — `land-plains`
 - **Flavor:** "Dawn over the imperial fields." Single color: **W**.

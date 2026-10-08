@@ -16,7 +16,6 @@ export const SORCERIES = [
     colors: ['U'],
     abilities: [{ when: 'spell', ops: [{ op: 'draw', n: 2 }] }],
     rarity: 'c',
-    flavor: 'Ask once for the answer. Ask twice for the truth.',
   },
   {
     id: 'so-rampant-growth',
@@ -27,7 +26,6 @@ export const SORCERIES = [
     colors: ['G'],
     abilities: [{ when: 'spell', ops: [{ op: 'extraLandDrop' }] }],
     rarity: 'c',
-    flavor: 'The land was always coming. She just sent an invitation.',
   },
   {
     id: 'so-raise-dead',
@@ -38,7 +36,6 @@ export const SORCERIES = [
     colors: ['B'],
     abilities: [{ when: 'spell', targets: [{ what: 'yourGraveCreature' }], ops: [{ op: 'reclaim' }, { op: 'foresee', n: 1 }] }],
     rarity: 'c',
-    flavor: 'Retirement is negotiable.',
   },
   {
     // Charm, not Ritual (owner, 2026-08-29). It STAYS in this file: the id
@@ -53,7 +50,6 @@ export const SORCERIES = [
     colors: ['R'],
     abilities: [{ when: 'spell', ops: [{ op: 'damage', n: 5, to: 'opponent' }] }],
     rarity: 'c',
-    flavor: 'Catch.',
   },
   {
     id: 'so-muster-militia',
@@ -64,7 +60,6 @@ export const SORCERIES = [
     colors: ['W'],
     abilities: [{ when: 'spell', ops: [{ op: 'createToken', token: 'tok-militia', count: 2 }] }],
     rarity: 'c',
-    flavor: 'Farm tools count. Enthusiasm counts double.',
   },
   {
     id: 'so-nurture',
@@ -81,7 +76,6 @@ export const SORCERIES = [
       },
     ],
     rarity: 'c',
-    flavor: 'Eat well, train hard, terrify politely.',
   },
   {
     id: 'so-night-extortion',
@@ -101,7 +95,6 @@ export const SORCERIES = [
       },
     ],
     rarity: 'c',
-    flavor: 'Your secrets, her ledger. The exchange rate is awful.',
   },
   {
     id: 'so-creeping-malaise',
@@ -112,7 +105,6 @@ export const SORCERIES = [
     colors: ['B'],
     abilities: [{ when: 'spell', ops: [{ op: 'boost', p: -1, t: -1, scope: 'all' }] }],
     rarity: 'c',
-    flavor: 'Even the strongest knees forgot their strength.',
   },
   {
     id: 'so-flame-lash',
@@ -123,7 +115,6 @@ export const SORCERIES = [
     colors: ['R'],
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 4, to: 'target' }] }],
     rarity: 'c',
-    flavor: 'Ash to ash. Mostly ash.',
   },
   {
     id: 'so-ember-squall',
@@ -134,7 +125,6 @@ export const SORCERIES = [
     colors: ['R'],
     abilities: [{ when: 'spell', ops: [{ op: 'damage', n: 1, to: 'eachCreature' }] }],
     rarity: 'c',
-    flavor: 'No one kept their footing. The cinders did not care.',
   },
   {
     id: 'so-dirge-of-loss',
@@ -145,7 +135,6 @@ export const SORCERIES = [
     colors: ['B'],
     abilities: [{ when: 'spell', ops: [{ op: 'discardRandom', n: 2, who: 'opponent' }] }],
     rarity: 'r',
-    flavor: 'Two verses. Both yours.',
   },
   {
     id: 'so-parade-of-heroes',
@@ -156,7 +145,6 @@ export const SORCERIES = [
     colors: ['W'],
     abilities: [{ when: 'spell', ops: [{ op: 'createToken', token: 'tok-militia', count: 3 }] }],
     rarity: 'r',
-    flavor: 'The recruitment poster was a mirror.',
   },
   {
     id: 'so-strategic-planning',
@@ -167,7 +155,6 @@ export const SORCERIES = [
     colors: ['U'],
     abilities: [{ when: 'spell', ops: [{ op: 'draw', n: 3 }] }],
     rarity: 'r',
-    flavor: 'Read, plot, sip, repeat.',
   },
   {
     id: 'so-warcry',
@@ -180,7 +167,6 @@ export const SORCERIES = [
       { when: 'spell', ops: [{ op: 'boost', p: 1, t: 0, keywords: ['warcry'], scope: 'allYours' }] },
     ],
     rarity: 'r',
-    flavor: 'One word, everyone sprinting.',
   },
   {
     id: 'so-stampede-season',
@@ -196,7 +182,6 @@ export const SORCERIES = [
       },
     ],
     rarity: 'sr',
-    flavor: 'The wilds called a general assembly. Attendance mandatory. For you.',
   },
   {
     id: 'so-judgment-of-heaven',
@@ -207,7 +192,6 @@ export const SORCERIES = [
     colors: ['W'],
     abilities: [{ when: 'spell', ops: [{ op: 'massDestroy', filter: 'allCreatures' }] }],
     rarity: 'sr',
-    flavor: 'Heaven audits everyone at once.',
   },
   {
     id: 'so-the-wilds-take-it-back',
@@ -222,7 +206,6 @@ export const SORCERIES = [
     colors: ['G', 'W'],
     abilities: [{ when: 'spell', ops: [{ op: 'massDestroy', filter: 'allEnchantments' }] }],
     rarity: 'r',
-    flavor: 'The forest reviewed your enchantments and found them insufficiently feral.',
   },
   // Returning-mechanics sprinkle (1.6): Retell and Skim reach the Base Set.
   // Echo's Refrain sits a mana above Bargain for Time so the Veil cantrip
@@ -239,7 +222,6 @@ export const SORCERIES = [
     abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 2 }, { op: 'draw', n: 1 }] }],
     retell: { cost: cost(3, 'U') },
     rarity: 'c',
-    flavor: 'She answers every question twice, and the second answer is yours.',
   },
   {
     id: 'so-roadside-shrine',
@@ -251,6 +233,5 @@ export const SORCERIES = [
     abilities: [{ when: 'spell', ops: [{ op: 'gainLife', n: 4 }] }],
     skim: { cost: cost(1) },
     rarity: 'c',
-    flavor: 'Leave a coin, take a blessing. The road keeps honest accounts.',
   },
 ] as const satisfies readonly CardDef[];

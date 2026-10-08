@@ -1,4 +1,4 @@
-import { activatedAbilitiesOf } from './types';
+import { activatedAbilitiesOf, isTargetBranchOp } from './types';
 import { DARLING_PAYDOWN_COST, DARLING_PAYDOWN_REDUCTION, RULES } from '../config/rules';
 import {
   blockOptions,
@@ -12,9 +12,10 @@ import {
 import { enumerateTargets, isLegalTarget } from './effects/targeting';
 import { graveInstanceAt, graveRefMoved, sameGraveCard } from './graveyard';
 import { canPay, combineManaCosts, manaSources, maxPayableX, solveMana } from './mana';
+import { arrivalHuntIndex, conditionSatisfied } from './effects/EffectInterpreter';
 import { castTargetSpecs } from './resolve';
 import { getEffectiveStats } from './statics';
-import type { CardDb, CardDef, GameState, ManaCost, Permanent, PlayerId, TargetRef, TargetSpec } from './types';
+import type { ActivatedDef, CardDb, CardDef, EffectOp, GameState, ManaActivatedDef, ManaCost, Permanent, PlayerId, TargetRef, TargetSpec } from './types';
 import {
   cardIdOf,
   def,
@@ -24,6 +25,7 @@ import {
   opponentOf,
   validateEmpowerDef,
   validateHauntlinkDef,
+  validateManaActivatedDef,
   validatePreserveDef,
   validateTitheDef,
   validateWhispersDef,
@@ -41,6 +43,42 @@ function cardHasMoveMark(d: CardDef, empowered: boolean): boolean {
     moveMarkCache.set(d, cached);
   }
   return empowered ? cached.empowered : cached.normal;
+}
+
+function opsInclude(ops: readonly EffectOp[], match: (op: EffectOp) => boolean): boolean {
+  return ops.some((op) => match(op) || (isTargetBranchOp(op) &&
+    (opsInclude(op.then, match) || opsInclude(op.else ?? [], match))));
+}
+
+const spellHuntCache = new WeakMap<CardDef, boolean>();
+
+/**
+ * A spell-form Hunt ("target creature you control hunts another target
+ * creature"): target slot 0 is the hunter, slot 1 the prey. Its pair rule
+ * (a hunter without Bulwark, two different creatures) is enforced here, on
+ * the moveMark precedent, so legal actions never offer an illegal pair and
+ * the AI and the Duel UI inherit it. An empowered cast whose rider brings its
+ * own targets reads those instead.
+ */
+function cardHasSpellHunt(d: CardDef, empowered: boolean): boolean {
+  if (empowered && d.empower?.targets) return false;
+  let cached = spellHuntCache.get(d);
+  if (cached === undefined) {
+    cached = d.abilities?.some((ab) => ab.when === 'spell' &&
+      opsInclude(ab.ops ?? [], (op) => op.op === 'hunt' && op.hunter === 'target')) ?? false;
+    spellHuntCache.set(d, cached);
+  }
+  return cached;
+}
+
+/** A Duty whose source hunts ("this hunts target creature"). */
+function abilityHuntsWithSource(ability: ActivatedDef): boolean {
+  return opsInclude(ability.ops, (op) => op.op === 'hunt' && op.hunter === 'self');
+}
+
+function hasBulwark(state: GameState, db: CardDb, ref: TargetRef | undefined): boolean {
+  return ref?.kind === 'permanent' && state.battlefield.some((perm) => perm.iid === ref.iid) &&
+    getEffectiveStats(state.battlefield, db, ref.iid).keywords.has('bulwark');
 }
 
 function moveMarkTargetIndexes(specs: readonly TargetSpec[]): number[] {
@@ -90,6 +128,13 @@ export type Action =
   | { type: 'preserveCard'; graveIndex: number; /** The card's identity; see castSpell. */ graveInstanceId?: number; manaPlan?: number[] }
   /** Main-phase tap-cost ability; targets are chosen inline, off-stack. */
   | { type: 'activate'; iid: number; abilityIndex?: number; targets?: TargetRef[]; manaPlan?: number[] }
+  /**
+   * Charm-speed repeatable mana ability (A1.5): pay its cost `times` times and
+   * run its ops that many times, off the stack, as one action. Legal actions
+   * list one entry per ability carrying the most the player can pay; any count
+   * from 1 to that is accepted. A `manaPlan` pays the whole count at once.
+   */
+  | { type: 'activateMana'; iid: number; abilityIndex: number; times: number; manaPlan?: number[] }
   /** Normal creature-timing cast from a public Darling zone. */
   | { type: 'castDarling'; targets?: TargetRef[]; x?: number; manaPlan?: number[] }
   /** Main-phase action: pay four mana to remove one two-mana Darling tax step. */
@@ -204,7 +249,7 @@ function pushCastActions(
       castBlockers(state, db, player, d, empowered, 0, retell, hauntlinked, options) !== null) continue;
     const cost = castCost(d, empowered, retell, hauntlinked, options);
     if (!cost) continue;
-    const specs = castTargetSpecsFor(d, retell, hauntlinked, empowered);
+    const specs = castTargetSpecsNow(state, db, player, d, retell, hauntlinked, empowered);
     const targetLists = targetListsForCast(state, db, player, d, specs, empowered);
     // Payability depends only on (empowered, x) — hoisted out of the target loop.
     const payableXs = xs.filter((x) =>
@@ -344,17 +389,58 @@ export function darlingCastCost(d: CardDef, tax: number): ManaCost | undefined {
 
 const DARLING_PAYDOWN_MANA: ManaCost = { generic: DARLING_PAYDOWN_COST, pips: {} };
 
+/**
+ * The cast's printed target specs, and whether they are the body's own
+ * (`body`) rather than an override cast's (Hauntlink, a Retell body, Empower
+ * targets), which bring their own.
+ */
+function castTargetSource(
+  d: CardDef,
+  retell: boolean,
+  hauntlinked = false,
+  empowered = false,
+): { specs: ReturnType<typeof castTargetSpecs>; body: boolean } {
+  if (hauntlinked) return { specs: [{ what: 'yourCreature' }], body: false };
+  // A Retell override replaces the printed body's ops and target requirements.
+  if (retell && d.retell?.ops) return { specs: d.retell.targets ?? [], body: false };
+  if (empowered && d.empower?.targets) return { specs: d.empower.targets, body: false };
+  return { specs: castTargetSpecs(d), body: true };
+}
+
 function castTargetSpecsFor(
   d: CardDef,
   retell: boolean,
   hauntlinked = false,
   empowered = false,
 ): ReturnType<typeof castTargetSpecs> {
-  if (hauntlinked) return [{ what: 'yourCreature' }];
-  // A Retell override replaces the printed body's ops and target requirements.
-  if (retell && d.retell?.ops) return d.retell.targets ?? [];
-  if (empowered && d.empower?.targets) return d.empower.targets;
-  return castTargetSpecs(d);
+  return castTargetSource(d, retell, hauntlinked, empowered).specs;
+}
+
+/**
+ * The cast's target specs on the current board. A conditional arrival Hunt
+ * ("When this arrives, if you control another Dinokin, Hunt.") checks its
+ * condition when the creature is cast (the owner's ruling, 2026-09-29): while
+ * the condition fails, the cast names no prey, so the creature is castable
+ * with or without prey and takes no target. On arrival the ability then runs
+ * as an ordinary targeted arrival trigger, which re-checks the condition.
+ * The override casts bring their own specs and are unaffected.
+ */
+function castTargetSpecsNow(
+  state: GameState,
+  db: CardDb,
+  player: PlayerId,
+  d: CardDef,
+  retell: boolean,
+  hauntlinked = false,
+  empowered = false,
+): ReturnType<typeof castTargetSpecs> {
+  const { specs, body } = castTargetSource(d, retell, hauntlinked, empowered);
+  const hunt = body ? arrivalHuntIndex(d) : -1;
+  if (hunt < 0) return specs;
+  const condition = d.abilities![hunt].condition;
+  // Cast from hand or the Darling zone, the creature is not on the
+  // battlefield yet, so every creature there is "another".
+  return condition !== undefined && !conditionSatisfied(state, db, player, condition) ? [] : specs;
 }
 
 function targetListsForCast(
@@ -366,6 +452,7 @@ function targetListsForCast(
   empowered: boolean,
   sourceIid?: number,
   moveMark = cardHasMoveMark(d, empowered),
+  spellHunt = cardHasSpellHunt(d, empowered),
 ): (TargetRef[] | undefined)[] {
   if (specs.some(spec => spec.exactly !== undefined && (specs.length !== 1 || spec.upTo !== undefined))) return [];
   if (specs.length === 0) return [undefined];
@@ -402,10 +489,12 @@ function targetListsForCast(
   const visit = (index: number, chosen: TargetRef[]): void => {
     if (index === specs.length) {
       if (moveMark && moveIndexes.length === 2 && sameTarget(chosen[moveIndexes[0]], chosen[moveIndexes[1]])) return;
+      if (spellHunt && sameTarget(chosen[0], chosen[1])) return;
       out.push([...chosen]);
       return;
     }
     for (const candidate of candidatesFor(specs[index])) {
+      if (spellHunt && index === 0 && hasBulwark(state, db, candidate)) continue;
       visit(index + 1, [...chosen, candidate]);
     }
   };
@@ -423,7 +512,7 @@ function hasCastableVariant(
   const variants = !retell && canEmpower(d) ? [false, true] : [false];
   for (const empowered of variants) {
     if (castBlockers(state, db, player, d, empowered, 0, retell) !== null) continue;
-    const specs = castTargetSpecsFor(d, retell, false, empowered);
+    const specs = castTargetSpecsNow(state, db, player, d, retell, false, empowered);
     if (targetListsForCast(state, db, player, d, specs, empowered).length > 0) return true;
   }
   return false;
@@ -464,6 +553,7 @@ function validateTargetList(
   empowered: boolean,
   sourceIid?: number,
   moveMark = cardHasMoveMark(d, empowered),
+  spellHunt = cardHasSpellHunt(d, empowered),
 ): string | null {
   if (specs.some(spec => spec.exactly !== undefined && (specs.length !== 1 || spec.upTo !== undefined))) {
     return 'exactly requires one target spec and cannot combine with upTo';
@@ -499,6 +589,10 @@ function validateTargetList(
       sameTarget(targets[moveIndexes[0]], targets[moveIndexes[1]])
     ) return 'moveMark needs two distinct creatures you control';
   }
+  if (spellHunt) {
+    if (hasBulwark(state, db, targets[0])) return 'a creature with Bulwark cannot hunt';
+    if (sameTarget(targets[0], targets[1])) return 'a Hunt needs two different creatures';
+  }
   return null;
 }
 
@@ -523,10 +617,14 @@ function preserveBlockers(
 function activatedTargetLists(state: GameState, db: CardDb, player: PlayerId, perm: Permanent, abilityIndex = 0) {
   const d = def(db, perm.cardId);
   const ability = activatedAbilitiesOf(d)[abilityIndex];
-  return targetListsForCast(
+  const lists = targetListsForCast(
     state, db, player, d, ability.targets ?? [], false, perm.iid,
-    ability.ops.some((op) => op.op === 'moveMark'),
+    ability.ops.some((op) => op.op === 'moveMark'), false,
   );
+  // A hunting Duty's prey is always another creature.
+  return abilityHuntsWithSource(ability)
+    ? lists.filter((targets) => !targets?.some((ref) => ref.kind === 'permanent' && ref.iid === perm.iid))
+    : lists;
 }
 
 /** A reason string for an unavailable activation, or null when it is offered. */
@@ -555,6 +653,9 @@ export function activatedBlockers(
   }
   const ability = activatedAbilitiesOf(d)[abilityIndex];
   if (!Number.isInteger(abilityIndex) || !ability) return 'invalid activated ability index';
+  if (abilityHuntsWithSource(ability) && getEffectiveStats(state.battlefield, db, perm.iid).keywords.has('bulwark')) {
+    return 'a creature with Bulwark cannot hunt';
+  }
   if (ability.cost.mana && !canPay(state, db, player, ability.cost.mana)) {
     return 'cannot pay cost';
   }
@@ -574,6 +675,99 @@ function pushActivatedActions(out: Action[], state: GameState, db: CardDb, playe
       }
     }
   }
+}
+
+const manaActivatedValidity = new WeakMap<CardDef, boolean>();
+
+/** A card's repeatable mana abilities (A1.5), or none unless its shape is valid. */
+export function manaActivationsOf(d: CardDef): readonly ManaActivatedDef[] {
+  if (d.manaActivated === undefined) return [];
+  let valid = manaActivatedValidity.get(d);
+  if (valid === undefined) {
+    valid = validateManaActivatedDef(d).length === 0;
+    manaActivatedValidity.set(d, valid);
+  }
+  return valid ? d.manaActivated : [];
+}
+
+/** The cost of `times` activations, paid as one payment. */
+export function repeatedManaCost(cost: ManaCost, times: number): ManaCost {
+  const pips: ManaCost['pips'] = {};
+  for (const [color, n] of Object.entries(cost.pips) as [keyof ManaCost['pips'], number][]) pips[color] = n * times;
+  return { generic: cost.generic * times, pips };
+}
+
+/** The most activations `player` can pay for right now (0 when not even one). */
+export function maxManaActivations(state: Pick<GameState, 'battlefield'>, db: CardDb, player: PlayerId, cost: ManaCost): number {
+  // The validator keeps the cost at one mana or more, so the untapped sources
+  // bound the count; each probe past what is payable is refused by solveMana's
+  // counting checks, never by its search.
+  const most = Math.floor(manaSources(state, db, player).length / Math.max(1, manaValue(cost)));
+  let times = 0;
+  while (times < most && solveMana(state, db, player, repeatedManaCost(cost, times + 1)) !== null) times++;
+  return times;
+}
+
+/** Charm speed: the controller's own main phase, or any response window they hold. */
+function manaActivationWindow(state: GameState, player: PlayerId): boolean {
+  const a = state.awaiting;
+  if (!('player' in a) || a.player !== player) return false;
+  return (a.kind === 'main' && state.activePlayer === player) || a.kind === 'respond' || a.kind === 'endStepWindow';
+}
+
+/** A reason string for an unavailable mana ability, or null when it is offered. */
+export function manaActivationBlockers(
+  state: GameState,
+  db: CardDb,
+  player: PlayerId,
+  perm: Permanent | undefined,
+  abilityIndex: number,
+): string | null {
+  if (!manaActivationWindow(state, player)) return 'This ability is used at Charm speed';
+  if (!perm || !state.battlefield.some((source) => source.iid === perm.iid)) return 'the creature is not on the battlefield';
+  if (perm.controller !== player) return 'the creature is not under your control';
+  const ability = manaActivationsOf(def(db, perm.cardId))[abilityIndex];
+  if (!Number.isInteger(abilityIndex) || !ability) return 'the creature has no such ability';
+  return canPay(state, db, player, ability.cost) ? null : 'cannot pay cost';
+}
+
+function pushManaActivations(out: Action[], state: GameState, db: CardDb, player: PlayerId): void {
+  for (const perm of state.battlefield) {
+    if (perm.controller !== player) continue;
+    const abilities = manaActivationsOf(def(db, perm.cardId));
+    for (let abilityIndex = 0; abilityIndex < abilities.length; abilityIndex++) {
+      if (manaActivationBlockers(state, db, player, perm, abilityIndex) !== null) continue;
+      out.push({
+        type: 'activateMana', iid: perm.iid, abilityIndex,
+        times: maxManaActivations(state, db, player, abilities[abilityIndex].cost),
+      });
+    }
+  }
+}
+
+/**
+ * The auto-pass rule for mana abilities (A1.5). A payable one keeps a window
+ * open for its controller only in combat, and only on a creature that can
+ * still matter there: an attacker, a blocker, or, before blocks, a defending
+ * creature that can block one of the attackers. Every other window (a spell in
+ * a main phase, Sunset) auto-passes as before, so the ability never makes the
+ * game prompt outside the fight it exists for.
+ */
+export function hasCombatManaActivation(state: GameState, db: CardDb, player: PlayerId): boolean {
+  const combat = state.combat;
+  if (state.step !== 'combat' || !combat) return false;
+  let blockers: number[] | undefined;
+  for (const perm of state.battlefield) {
+    if (perm.controller !== player) continue;
+    const abilities = manaActivationsOf(def(db, perm.cardId));
+    if (abilities.length === 0) continue;
+    const fighting = combat.attackers.includes(perm.iid) || combat.blocks.some((b) => b.blocker === perm.iid) ||
+      (combat.phase === 'attackersDeclared' && player !== state.activePlayer &&
+        (blockers ??= blockOptions(state.battlefield, db, player, combat)
+          .filter((option) => option.canBlock.length > 0).map((option) => option.blocker)).includes(perm.iid));
+    if (fighting && abilities.some((ability) => canPay(state, db, player, ability.cost))) return true;
+  }
+  return false;
 }
 
 function skimWindow(state: GameState, player: PlayerId): boolean {
@@ -663,7 +857,7 @@ function pushDarlingCastActions(
         (_, i) => d.x!.min + i,
       )
     : [undefined];
-  const specs = castTargetSpecs(d);
+  const specs = castTargetSpecsNow(state, db, player, d, false);
   const targetLists: (TargetRef[] | undefined)[] = specs.length === 0
     ? [undefined]
     : enumerateTargets(state, db, player, specs[0]).map((target) => [target]);
@@ -832,6 +1026,7 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
         }
       }
       if (usesActivatedHauntlink(state)) pushHauntlinkActions(out, state, db, player);
+      pushManaActivations(out, state, db, player);
       break;
     }
 
@@ -938,6 +1133,7 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
         pushCastActions(out, state, db, player, graveIndex, d, true);
       });
       if (usesActivatedHauntlink(state)) pushHauntlinkActions(out, state, db, player);
+      pushManaActivations(out, state, db, player);
       break;
     }
 
@@ -1060,12 +1256,26 @@ export function validateAction(
       const ability = activatedAbilitiesOf(d)[action.abilityIndex ?? 0];
       const targetError = validateTargetList(
         state, db, player, d, ability.targets ?? [], action.targets ?? [], false, perm!.iid,
-        ability.ops.some((op) => op.op === 'moveMark'),
+        ability.ops.some((op) => op.op === 'moveMark'), false,
       );
       if (targetError) return targetError;
+      if (abilityHuntsWithSource(ability) &&
+        (action.targets ?? []).some((ref) => ref.kind === 'permanent' && ref.iid === perm!.iid)) {
+        return 'a Hunt needs two different creatures';
+      }
       return action.manaPlan ? validateManaPlanForCost(
         state, db, player, ability.cost.mana ?? { generic: 0, pips: {} }, action.manaPlan,
       ) : null;
+    }
+
+    case 'activateMana': {
+      const perm = state.battlefield.find((source) => source.iid === action.iid);
+      const blocked = manaActivationBlockers(state, db, player, perm, action.abilityIndex);
+      if (blocked) return blocked;
+      if (!Number.isInteger(action.times) || action.times < 1) return 'activation count must be a whole number of at least 1';
+      const cost = repeatedManaCost(manaActivationsOf(def(db, perm!.cardId))[action.abilityIndex].cost, action.times);
+      if (action.manaPlan) return validateManaPlanForCost(state, db, player, cost, action.manaPlan);
+      return solveMana(state, db, player, cost) === null ? 'cannot pay for that many activations' : null;
     }
 
     case 'castSpell': {
@@ -1171,7 +1381,7 @@ export function validateAction(
           return 'cannot pay cost';
         }
       }
-      const specs = castTargetSpecsFor(d, isRetell, isHauntlinked, action.empowered === true);
+      const specs = castTargetSpecsNow(state, db, player, d, isRetell, isHauntlinked, action.empowered === true);
       const targets = action.targets ?? [];
       const targetError = validateTargetList(state, db, player, d, specs, targets, action.empowered === true);
       if (targetError) return targetError;
@@ -1223,7 +1433,7 @@ export function validateAction(
         if (err) return err;
         if (action.manaPlan.length !== manaValue(cost) + (action.x ?? 0)) return 'mana plan has wrong source count';
       }
-      const specs = castTargetSpecs(d);
+      const specs = castTargetSpecsNow(state, db, player, d, false);
       const targets = action.targets ?? [];
       if (targets.length !== specs.length) return 'wrong number of targets';
       const moved = movedGraveTarget(state, targets);
@@ -1409,8 +1619,10 @@ export function reasonUncastable(
   }
 
   if (hasCastableVariant(state, db, player, d)) return null;
-  const specs = castTargetSpecs(d);
+  const specs = castTargetSpecsNow(state, db, player, d, false);
   if (specs.length > 0 && enumerateTargets(state, db, player, specs[0]).length === 0) {
+    // Player copy approved by the owner, 2026-09-29.
+    if (arrivalHuntIndex(d) >= 0) return "It can't be cast: it has no prey to hunt.";
     return 'There are no legal targets for this spell.';
   }
 
@@ -1431,6 +1643,7 @@ function hasWhispersCharm(state: GameState, db: CardDb, player: PlayerId): boole
 export function hasCastableInstant(state: GameState, db: CardDb, player: PlayerId): boolean {
   if (hasWhispersCharm(state, db, player)) return true;
   if (hasPayableHauntlinkAction(state, db, player)) return true;
+  if (hasCombatManaActivation(state, db, player)) return true;
   const me = state.players[player];
   for (const cardId of me.hand) {
     const d = def(db, cardId);
@@ -1460,6 +1673,9 @@ export function hasCastableInstant(state: GameState, db: CardDb, player: PlayerI
 export function hasCastableCharm(state: GameState, db: CardDb, player: PlayerId): boolean {
   if (hasWhispersCharm(state, db, player)) return true;
   if (hasPayableHauntlinkAction(state, db, player)) return true;
+  // A defender who could pump is worth a reopen once one is earned (a resolved
+  // item, or the attacker's own pump in a combat window: Game.apply).
+  if (hasCombatManaActivation(state, db, player)) return true;
   const me = state.players[player];
   for (const cardId of me.hand) {
     const d = def(db, cardId);

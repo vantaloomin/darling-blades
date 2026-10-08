@@ -19,7 +19,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     tithe: { per: 2 },
     abilities: [{ when: 'dawn', condition: { kind: 'controlsOther', subtype: 'Horror' }, ops: [{ op: 'loseLife', n: 2, who: 'opponent' }] }],
     rarity: 'ur',
-    flavor: 'She has been the town\'s landlord for three hundred years and has never once raised the rent.',
     set: 'drowned-deep',
   },
   // Dreaded. Overrun. Tithe. Arrives: each player grinds 3.
@@ -37,7 +36,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     tithe: { per: 2 },
     abilities: [{ when: 'arrives', ops: [{ op: 'grind', n: 3, who: 'self' }, { op: 'grind', n: 3, who: 'opponent' }] }],
     rarity: 'ur',
-    flavor: 'The harbour floor is not the bottom. It is her brow.',
     set: 'drowned-deep',
   },
   // Sentinel. Warding Gaze. Duty, {1}: gain 3 life and tap target creature an opponent controls.
@@ -54,7 +52,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['sentinel', 'wardingGaze'],
     activated: { cost: { tap: true, mana: cost(1) }, targets: [{ what: 'opponentCreature' }], ops: [{ op: 'gainLife', n: 3 }, { op: 'tap', to: 'target' }] },
     rarity: 'ur',
-    flavor: 'The light has not gone dark in three hundred years, and she is why.',
     set: 'drowned-deep',
   },
   // Skim {U}. Duty, {1}: Foresee 2, then draw 1.
@@ -71,7 +68,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     skim: { cost: cost(0, 'U') },
     activated: { cost: { tap: true, mana: cost(1) }, ops: [{ op: 'foresee', n: 2 }, { op: 'draw', n: 1 }] },
     rarity: 'ur',
-    flavor: 'Her charts are accurate to the inch, for a coast that no longer exists.',
     set: 'drowned-deep',
   },
   // Deathblade. Duty: opponent loses 1 life and you gain 1 life. Skim {B}. Whispers {1}{B}{B}.
@@ -90,7 +86,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(1, 'BB') },
     activated: { cost: { tap: true }, ops: [{ op: 'loseLife', n: 1, who: 'opponent' }, { op: 'gainLife', n: 1 }] },
     rarity: 'ur',
-    flavor: 'Four husbands, one wedding ring, and the sea owes her for all of them.',
     set: 'drowned-deep',
   },
   // Tithe. Arrives: create two 2/2 black Deep-Spawn tokens.
@@ -106,7 +101,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     tithe: { per: 2 },
     abilities: [{ when: 'arrives', ops: [{ op: 'createToken', token: 'tok-deep-spawn', count: 2 }] }],
     rarity: 'ur',
-    flavor: 'What the nets bring up in spring is not fish, and the town has learned not to count.',
     set: 'drowned-deep',
   },
   // Overrun. Tithe. Arrives: put a Mark on each other creature you control.
@@ -123,7 +117,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     tithe: { per: 2 },
     abilities: [{ when: 'arrives', ops: [{ op: 'markAll', scope: 'yourCreatures', other: true }] }],
     rarity: 'ur',
-    flavor: 'Coral grows on whatever stands still long enough. The reef stopped standing still.',
     set: 'drowned-deep',
   },
   // Bulwark. Duty, {1}: create a 2/2 green Kelp Shade token.
@@ -140,7 +133,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['bulwark'],
     activated: { cost: { tap: true, mana: cost(1) }, ops: [{ op: 'createToken', token: 'tok-kelp-shade', count: 1 }] },
     rarity: 'ur',
-    flavor: 'She plants the drowned where the reeds are thickest, and something always comes up.',
     set: 'drowned-deep',
   },
   // Warcry. Rage. Duty: damage target creature 2.
@@ -157,7 +149,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['warcry', 'rage'],
     activated: { cost: { tap: true }, targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 2, to: 'target' }] },
     rarity: 'ur',
-    flavor: 'She can hold the storm or hold the line. Not both, and she knows it.',
     set: 'drowned-deep',
   },
   // Warcry. Tithe. Duty, {R}: damage target creature 2. Whenever this attacks, damage opponent 2. Whispers {3}{R}{R}.
@@ -177,7 +168,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     abilities: [{ when: 'attacks', ops: [{ op: 'damage', n: 2, to: 'opponent' }] }],
     activated: { cost: { tap: true, mana: cost(0, 'R') }, targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 2, to: 'target' }] },
     rarity: 'ur',
-    flavor: 'The town burns its wrecks to keep the Deep away. The Deep learned to like it hot.',
     set: 'drowned-deep',
   },
   // Sentinel. Duty, {2}: create a 1/1 white Lantern Wisp token with Skyborne.
@@ -194,7 +184,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['sentinel'],
     activated: { cost: { tap: true, mana: cost(2) }, ops: [{ op: 'createToken', token: 'tok-lantern-wisp', count: 1 }] },
     rarity: 'ssr',
-    flavor: 'She logs every boat that leaves and every boat that returns. The ledgers do not match.',
     set: 'drowned-deep',
   },
   // Warding Gaze. Duty, {1}: gain 2 life. Whenever you gain life, put a Mark on this. This triggers only once each turn.
@@ -211,7 +200,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     abilities: [{ when: 'youGainLife', oncePerTurn: true, ops: [{ op: 'addCounters', n: 1, to: 'self' }] }],
     activated: { cost: { tap: true, mana: cost(1) }, ops: [{ op: 'gainLife', n: 2 }] },
     rarity: 'ssr',
-    flavor: 'She keeps the lamps full and the books balanced, and the second is harder.',
     set: 'drowned-deep',
   },
   // Skyborne. Arrives: grind self 3. Duty: recall target creature with cost 3 or less.
@@ -229,7 +217,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     abilities: [{ when: 'arrives', ops: [{ op: 'grind', n: 3, who: 'self' }] }],
     activated: { cost: { tap: true }, targets: [{ what: 'creature', maxCost: 3 }], ops: [{ op: 'recall', to: 'target' }] },
     rarity: 'ssr',
-    flavor: 'She married the tide. The tide has been very attentive.',
     set: 'drowned-deep',
   },
   // Duty: draw 2 cards, then discard 2 cards.
@@ -245,7 +232,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 4,
     activated: { cost: { tap: true }, ops: [{ op: 'draw', n: 2 }, { op: 'discard', n: 2, who: 'self' }] },
     rarity: 'ssr',
-    flavor: 'Everything she knows she read underwater, and it has not stopped being true.',
     set: 'drowned-deep',
   },
   // Dreaded. Tithe. Dies: return this to your hand.
@@ -262,7 +248,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     tithe: { per: 2 },
     abilities: [{ when: 'dies', ops: [{ op: 'reclaimSelf' }] }],
     rarity: 'ssr',
-    flavor: 'The wedding was held on the wharf. The groom was never described.',
     set: 'drowned-deep',
   },
   // Deathblade. Duty: opponent discards a card at random. Skim {B}.
@@ -280,7 +265,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     skim: { cost: cost(0, 'B') },
     activated: { cost: { tap: true }, ops: [{ op: 'discardRandom', n: 1, who: 'opponent' }] },
     rarity: 'ssr',
-    flavor: 'The town\'s secrets are kept in her cellar, in jars, and the jars are labelled.',
     set: 'drowned-deep',
   },
   // Tithe. Arrives: grind self 2. Whenever another creature you control dies, put a Mark on this.
@@ -296,7 +280,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     tithe: { per: 2 },
     abilities: [{ when: 'arrives', ops: [{ op: 'grind', n: 2, who: 'self' }] }, { when: 'allyDies', filter: { other: true }, ops: [{ op: 'addCounters', n: 1, to: 'self' }] }],
     rarity: 'ssr',
-    flavor: 'It was three fishermen. It remembers all three of their wives.',
     set: 'drowned-deep',
   },
   // Warding Gaze. Duty: put a Mark on target creature you control.
@@ -313,7 +296,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['wardingGaze'],
     activated: { cost: { tap: true }, targets: [{ what: 'yourCreature' }], ops: [{ op: 'addCounters', n: 1, to: 'target' }] },
     rarity: 'ssr',
-    flavor: 'The reef grows where she tells it to, and lately it has started to answer back.',
     set: 'drowned-deep',
   },
   // Tithe. Arrives: gain 2 life.
@@ -329,7 +311,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     tithe: { per: 2 },
     abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 2 }] }],
     rarity: 'ssr',
-    flavor: 'Buried in the reeds by her sisters. The reeds did not keep her.',
     set: 'drowned-deep',
   },
   // Warding Gaze. Duty: tap target creature.
@@ -345,7 +326,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['wardingGaze'],
     activated: { cost: { tap: true }, targets: [{ what: 'creature' }], ops: [{ op: 'tap', to: 'target' }] },
     rarity: 'sr',
-    flavor: 'Every bell in Dunmarrow answers to her, except the one that will not ring.',
     set: 'drowned-deep',
   },
   // Bulwark. Duty: tap target creature an opponent controls.
@@ -361,7 +341,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['bulwark'],
     activated: { cost: { tap: true }, targets: [{ what: 'opponentCreature' }], ops: [{ op: 'tap', to: 'target' }] },
     rarity: 'sr',
-    flavor: 'She has never once left her post. The post has moved twice.',
     set: 'drowned-deep',
   },
   // Skyborne. Arrives: grind self 2. Duty: Foresee 1.
@@ -378,7 +357,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     abilities: [{ when: 'arrives', ops: [{ op: 'grind', n: 2, who: 'self' }] }],
     activated: { cost: { tap: true }, ops: [{ op: 'foresee', n: 1 }] },
     rarity: 'sr',
-    flavor: 'She reads the tide the way the town reads scripture, and with the same results.',
     set: 'drowned-deep',
   },
   // Duty: Foresee 1, then draw a card, then discard a card.
@@ -394,7 +372,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 3,
     activated: { cost: { tap: true }, ops: [{ op: 'foresee', n: 1 }, { op: 'draw', n: 1 }, { op: 'discard', n: 1, who: 'self' }] },
     rarity: 'sr',
-    flavor: 'She mends the nets with what the nets bring in, and the nets have started bringing in thread.',
     set: 'drowned-deep',
   },
   // Tithe. Arrives: recall target creature an opponent controls.
@@ -410,7 +387,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     tithe: { per: 2 },
     abilities: [{ when: 'arrives', targets: [{ what: 'opponentCreature' }], ops: [{ op: 'recall', to: 'target' }] }],
     rarity: 'sr',
-    flavor: 'The cistern was sealed. It has been sealed for a while now. It has opinions.',
     set: 'drowned-deep',
   },
   // Deathblade. Duty: opponent discards a card at random.
@@ -426,7 +402,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['deathblade'],
     activated: { cost: { tap: true }, ops: [{ op: 'discardRandom', n: 1, who: 'opponent' }] },
     rarity: 'sr',
-    flavor: 'Every secret in a jar, every jar on a shelf, and the shelf is not for sale.',
     set: 'drowned-deep',
   },
   // Dreaded. Tithe. Arrives: opponent loses 2 life and you gain 2 life.
@@ -443,7 +418,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     tithe: { per: 2 },
     abilities: [{ when: 'arrives', ops: [{ op: 'loseLife', n: 2, who: 'opponent' }, { op: 'gainLife', n: 2 }] }],
     rarity: 'sr',
-    flavor: 'She wears the vestments of the church that used to be here, and wears them well.',
     set: 'drowned-deep',
   },
   // Tithe. Dies: create a 1/1 black Drowned Spirit token. Whenever another Horror you control dies, you gain 2 life.
@@ -459,7 +433,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     tithe: { per: 2 },
     abilities: [{ when: 'dies', ops: [{ op: 'createToken', token: 'tok-drowned-spirit', count: 1 }] }, { when: 'allyDies', filter: { other: true, subtype: 'Horror' }, ops: [{ op: 'gainLife', n: 2 }] }],
     rarity: 'sr',
-    flavor: 'It has the faces of everyone the nets ever lost, and it is learning to use them.',
     set: 'drowned-deep',
   },
   // Duty: put a Mark on target creature. Whenever you put a Mark on a creature, gain 1 life.
@@ -475,7 +448,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     abilities: [{ when: 'youAddMark', ops: [{ op: 'gainLife', n: 1 }] }],
     activated: { cost: { tap: true }, targets: [{ what: 'creature' }], ops: [{ op: 'addCounters', n: 1, to: 'target' }] },
     rarity: 'sr',
-    flavor: 'The coral takes to her like a garden takes to weather.',
     set: 'drowned-deep',
   },
   // Duty, {1}{G}: create a 2/2 green Kelp Shade token.
@@ -490,7 +462,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 3,
     activated: { cost: { tap: true, mana: cost(1, 'G') }, ops: [{ op: 'createToken', token: 'tok-kelp-shade', count: 1 }] },
     rarity: 'sr',
-    flavor: 'She whistles and the marsh stands up.',
     set: 'drowned-deep',
   },
   // Tithe. Overrun.
@@ -506,7 +477,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     tithe: { per: 2 },
     keywords: ['overrun'],
     rarity: 'sr',
-    flavor: 'It fits in a tidepool the way a cathedral fits in a town: badly, and it does not care.',
     set: 'drowned-deep',
   },
   // Sentinel. Duty, {1}: put a Mark on this.
@@ -522,7 +492,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['sentinel'],
     activated: { cost: { tap: true, mana: cost(1) }, ops: [{ op: 'addCounters', n: 1, to: 'self' }] },
     rarity: 'sr',
-    flavor: 'Her post is the marsh road, and the marsh road is never in the same place twice.',
     set: 'drowned-deep',
   },
   // Warcry. Rage. Duty: damage opponent 2.
@@ -538,7 +507,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['warcry', 'rage'],
     activated: { cost: { tap: true }, ops: [{ op: 'damage', n: 2, to: 'opponent' }] },
     rarity: 'sr',
-    flavor: 'They sing the storm in, and the storm is a good listener.',
     set: 'drowned-deep',
   },
   // First Blade. Skim {R}.
@@ -554,7 +522,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['firstBlade'],
     skim: { cost: cost(0, 'R') },
     rarity: 'sr',
-    flavor: 'Her fire burns green on the wet wood and she likes it that way.',
     set: 'drowned-deep',
   },
   // Sentinel. Arrives: Foresee 1.
@@ -570,7 +537,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['sentinel'],
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'r',
-    flavor: 'She rings the hours and counts the boats, and lately the counts disagree.',
     set: 'drowned-deep',
   },
   // Warding Gaze. Your other Wardens get +0/+1.
@@ -586,7 +552,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['wardingGaze'],
     abilities: [{ when: 'static', static: { scope: 'filter', filter: { other: true, subtype: 'Warden' }, p: 0, t: 1 } }],
     rarity: 'r',
-    flavor: 'Her stair is the last dry step between the town and the harbour.',
     set: 'drowned-deep',
   },
   // Arrives: gain 2 life. Skim {W}. Whispers {W}.
@@ -603,7 +568,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(0, 'W') },
     abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 2 }] }],
     rarity: 'r',
-    flavor: 'The chapel floods at high water and she holds the service anyway.',
     set: 'drowned-deep',
   },
   // Warcry. Duty, {2}: create a 1/1 white Lantern Wisp token with Skyborne.
@@ -619,7 +583,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['warcry'],
     activated: { cost: { tap: true, mana: cost(2) }, ops: [{ op: 'createToken', token: 'tok-lantern-wisp', count: 1 }] },
     rarity: 'r',
-    flavor: 'She hands out lamps like orders and expects both back.',
     set: 'drowned-deep',
   },
   // Skyborne. Warding Gaze. Arrives: gain 3 life. Empower {2}: destroy target creature with cost 3 or less.
@@ -636,7 +599,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     empower: { cost: cost(2), targets: [{ what: 'creature', maxCost: 3 }], ops: [{ op: 'destroy', to: 'target' }] },
     abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 3 }] }],
     rarity: 'r',
-    flavor: 'She went into the water for the town, and the town is not sure she came out.',
     set: 'drowned-deep',
   },
   // First Blade. Warcry.
@@ -651,7 +613,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 2,
     keywords: ['firstBlade', 'warcry'],
     rarity: 'r',
-    flavor: 'Two women and a lantern between the town and the tide.',
     set: 'drowned-deep',
   },
   // Duty: Foresee 2.
@@ -666,7 +627,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 3,
     activated: { cost: { tap: true }, ops: [{ op: 'foresee', n: 2 }] },
     rarity: 'r',
-    flavor: 'The tide tables are printed a year ahead and she corrects them by hand.',
     set: 'drowned-deep',
   },
   // Duty: grind 2, then draw a card, then discard a card.
@@ -682,7 +642,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 3,
     activated: { cost: { tap: true }, ops: [{ op: 'grind', n: 2, who: 'self' }, { op: 'draw', n: 1 }, { op: 'discard', n: 1, who: 'self' }] },
     rarity: 'r',
-    flavor: 'For every cup the harbour gives back, it keeps two. She has stopped haggling.',
     set: 'drowned-deep',
   },
   // Skyborne. Arrives: grind self 2.
@@ -698,7 +657,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['skyborne'],
     abilities: [{ when: 'arrives', ops: [{ op: 'grind', n: 2, who: 'self' }] }],
     rarity: 'r',
-    flavor: 'She does not come up for air. She comes up for names.',
     set: 'drowned-deep',
   },
   // Tithe. Arrives: Foresee 2.
@@ -714,7 +672,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     tithe: { per: 2 },
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 2 }] }],
     rarity: 'r',
-    flavor: 'She brings terms. The terms are reasonable. That is the part nobody can stand.',
     set: 'drowned-deep',
   },
   // Skyborne. Arrives: tap target creature.
@@ -730,7 +687,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['skyborne'],
     abilities: [{ when: 'arrives', targets: [{ what: 'creature' }], ops: [{ op: 'tap', to: 'target' }] }],
     rarity: 'r',
-    flavor: 'You can hear the bells from below at low water, and they are keeping time.',
     set: 'drowned-deep',
   },
   // Skyborne. Arrives: recall target creature. Whispers {2}{U}.
@@ -747,7 +703,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(2, 'U') },
     abilities: [{ when: 'arrives', targets: [{ what: 'creature' }], ops: [{ op: 'recall', to: 'target' }] }],
     rarity: 'r',
-    flavor: 'The first lighthouse is under the harbour now. She still keeps it.',
     set: 'drowned-deep',
   },
   // Skim {U}. Arrives: Foresee 1.
@@ -763,7 +718,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     skim: { cost: cost(0, 'U') },
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'r',
-    flavor: 'She calls the boats home. Sometimes they come.',
     set: 'drowned-deep',
   },
   // Tithe. Untouchable.
@@ -779,7 +733,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     tithe: { per: 2 },
     keywords: ['untouchable'],
     rarity: 'r',
-    flavor: 'It came up under the ice and the ice did not notice.',
     set: 'drowned-deep',
   },
   // Arrives: Foresee 3.
@@ -794,7 +747,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 4,
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 3 }] }],
     rarity: 'r',
-    flavor: 'She reads the future in green glass, and the future is mostly water.',
     set: 'drowned-deep',
   },
   // Tithe. Your other Horrors get +1/+0 and have Dreaded.
@@ -810,7 +762,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     tithe: { per: 2 },
     abilities: [{ when: 'static', static: { scope: 'filter', filter: { other: true, subtype: 'Horror' }, p: 1, t: 0, grantKeywords: ['dreaded'] } }],
     rarity: 'r',
-    flavor: 'The church still holds services. The congregation has changed.',
     set: 'drowned-deep',
   },
   // Deathblade. Duty: draw a card, then discard a card.
@@ -827,7 +778,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['deathblade'],
     activated: { cost: { tap: true }, ops: [{ op: 'draw', n: 1 }, { op: 'discard', n: 1, who: 'self' }] },
     rarity: 'r',
-    flavor: 'The salt line keeps the damp out. The jars are for whoever steps over it.',
     set: 'drowned-deep',
   },
   // Tithe. Dies: opponent loses 2 life.
@@ -843,7 +793,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     tithe: { per: 2 },
     abilities: [{ when: 'dies', ops: [{ op: 'loseLife', n: 2, who: 'opponent' }] }],
     rarity: 'r',
-    flavor: 'The dress was her grandmother\'s. So was the groom.',
     set: 'drowned-deep',
   },
   // Deathblade. Arrives: grind self 2. Whispers {B}{B}.
@@ -860,7 +809,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(0, 'BB') },
     abilities: [{ when: 'arrives', ops: [{ op: 'grind', n: 2, who: 'self' }] }],
     rarity: 'r',
-    flavor: 'She went out in the storm of \'09 and has been coming home ever since.',
     set: 'drowned-deep',
   },
   // Tithe. Duty: opponent loses 1 life and you gain 1 life.
@@ -876,7 +824,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     tithe: { per: 2 },
     activated: { cost: { tap: true }, ops: [{ op: 'loseLife', n: 1, who: 'opponent' }, { op: 'gainLife', n: 1 }] },
     rarity: 'r',
-    flavor: 'She comes round on the first of the month with a basket, and the basket is always heavier leaving.',
     set: 'drowned-deep',
   },
   // Tithe. Arrives: create a 2/2 black Deep-Spawn token.
@@ -892,7 +839,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     tithe: { per: 2 },
     abilities: [{ when: 'arrives', ops: [{ op: 'createToken', token: 'tok-deep-spawn', count: 1 }] }],
     rarity: 'r',
-    flavor: 'Every birth in Dunmarrow has been attended. Not every one by a doctor.',
     set: 'drowned-deep',
   },
   // Tithe. Dies: grind self 2.
@@ -908,7 +854,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     tithe: { per: 2 },
     abilities: [{ when: 'dies', ops: [{ op: 'grind', n: 2, who: 'self' }] }],
     rarity: 'r',
-    flavor: 'It was the right weight. It had the right eyes. It was not the right child.',
     set: 'drowned-deep',
   },
   // Duty: put a Mark on target creature you control.
@@ -923,7 +868,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 3,
     activated: { cost: { tap: true }, targets: [{ what: 'yourCreature' }], ops: [{ op: 'addCounters', n: 1, to: 'target' }] },
     rarity: 'r',
-    flavor: 'Coral grows a finger\'s width a year, unless she asks.',
     set: 'drowned-deep',
   },
   // Sentinel. Arrives: create a 2/2 green Kelp Shade token.
@@ -940,7 +884,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['sentinel'],
     abilities: [{ when: 'arrives', ops: [{ op: 'createToken', token: 'tok-kelp-shade', count: 1 }] }],
     rarity: 'r',
-    flavor: 'The marsh keeps its own watch, and she is its liaison.',
     set: 'drowned-deep',
   },
   // Tithe. Warding Gaze.
@@ -956,7 +899,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     tithe: { per: 2 },
     keywords: ['wardingGaze'],
     rarity: 'r',
-    flavor: 'The reef has a shape now. The shape has a face.',
     set: 'drowned-deep',
   },
   // Bulwark.
@@ -971,7 +913,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 6,
     keywords: ['bulwark'],
     rarity: 'r',
-    flavor: 'It grows a foot a year and has not stopped since the town was founded.',
     set: 'drowned-deep',
   },
   // Sentinel. Duty: put a Mark on each creature you control with a Mark.
@@ -987,7 +928,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['sentinel'],
     activated: { cost: { tap: true }, ops: [{ op: 'propagate' }] },
     rarity: 'r',
-    flavor: 'What she grows, keeps growing.',
     set: 'drowned-deep',
   },
   // Tithe. Overrun.
@@ -1003,7 +943,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     tithe: { per: 2 },
     keywords: ['overrun'],
     rarity: 'r',
-    flavor: 'It has been under there a long time and the pilings are its ribs.',
     set: 'drowned-deep',
   },
   // Skim {G}. Arrives: gain 2 life.
@@ -1019,7 +958,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     skim: { cost: cost(0, 'G') },
     abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 2 }] }],
     rarity: 'r',
-    flavor: 'She talks to the kelp and the kelp is chatty.',
     set: 'drowned-deep',
   },
   // Tithe. Sentinel.
@@ -1035,7 +973,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     tithe: { per: 2 },
     keywords: ['sentinel'],
     rarity: 'r',
-    flavor: 'It was a statue on the point. The tide worked on it. It works back now.',
     set: 'drowned-deep',
   },
   // Warding Gaze. Dies: create a 2/2 green Kelp Shade token. Whispers {3}{G}.
@@ -1052,7 +989,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(3, 'G') },
     abilities: [{ when: 'dies', ops: [{ op: 'createToken', token: 'tok-kelp-shade', count: 1 }] }],
     rarity: 'r',
-    flavor: 'Buried in the marsh, come back as the marsh.',
     set: 'drowned-deep',
   },
   // Warcry. Duty, {1}: damage target creature 1.
@@ -1068,7 +1004,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['warcry'],
     activated: { cost: { tap: true, mana: cost(1) }, targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 1, to: 'target' }] },
     rarity: 'r',
-    flavor: 'A lamp, a rock, and a conscience she keeps in a drawer.',
     set: 'drowned-deep',
   },
   // Duty, {R}: damage target creature 2.
@@ -1083,7 +1018,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 2,
     activated: { cost: { tap: true, mana: cost(0, 'R') }, targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 2, to: 'target' }] },
     rarity: 'r',
-    flavor: 'She does not call the weather. She dares it.',
     set: 'drowned-deep',
   },
   // Rage. When this attacks, damage opponent 1.
@@ -1099,7 +1033,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['rage'],
     abilities: [{ when: 'attacks', ops: [{ op: 'damage', n: 1, to: 'opponent' }] }],
     rarity: 'r',
-    flavor: 'Every argument on the breakwater has been settled the same way for a century.',
     set: 'drowned-deep',
   },
   // Skyborne. Rage. Skim {R}.
@@ -1115,7 +1048,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['skyborne', 'rage'],
     skim: { cost: cost(0, 'R') },
     rarity: 'r',
-    flavor: 'She rides the storm in on a sail she cut from a shroud.',
     set: 'drowned-deep',
   },
   // Rage. Overrun. Whenever this attacks, damage target creature 1.
@@ -1132,7 +1064,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['rage', 'overrun'],
     abilities: [{ when: 'attacks', targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 1, to: 'target' }] }],
     rarity: 'r',
-    flavor: 'Every wreck on the Reach for thirty years, and not one of them her fault, officially.',
     set: 'drowned-deep',
   },
   // Dreaded. Whenever this attacks, damage opponent 2.
@@ -1148,7 +1079,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['dreaded'],
     abilities: [{ when: 'attacks', ops: [{ op: 'damage', n: 2, to: 'opponent' }] }],
     rarity: 'r',
-    flavor: 'It only comes up in the storm, and the storm comes up for it.',
     set: 'drowned-deep',
   },
   // First Blade. Warcry.
@@ -1163,7 +1093,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 2,
     keywords: ['firstBlade', 'warcry'],
     rarity: 'r',
-    flavor: 'She carries the light that leads ships onto the rocks, and sleeps fine.',
     set: 'drowned-deep',
   },
   // Arrives: damage target creature 2. Retell {2}{R}: damage target creature 2.
@@ -1179,7 +1108,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     retell: { cost: cost(2, 'R'), targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 2, to: 'target' }] },
     abilities: [{ when: 'arrives', targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 2, to: 'target' }] }],
     rarity: 'r',
-    flavor: 'The sea put her fire out once. She has been making the sea pay ever since.',
     set: 'drowned-deep',
   },
   // Tithe. Arrives: grind self 3. Duty: Foresee 1.
@@ -1197,7 +1125,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     abilities: [{ when: 'arrives', ops: [{ op: 'grind', n: 3, who: 'self' }] }],
     activated: { cost: { tap: true }, ops: [{ op: 'foresee', n: 1 }] },
     rarity: 'r',
-    flavor: 'She kept the church books. She keeps them still, in a different ink.',
     set: 'drowned-deep',
   },
   // Tithe. Overrun. Dies: create a 2/2 green Kelp Shade token.
@@ -1215,7 +1142,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['overrun'],
     abilities: [{ when: 'dies', ops: [{ op: 'createToken', token: 'tok-kelp-shade', count: 1 }] }],
     rarity: 'r',
-    flavor: 'She feeds the marsh and the marsh feeds her, and the town is in the middle.',
     set: 'drowned-deep',
   },
   // Arrives: gain 1 life.
@@ -1230,7 +1156,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 2,
     abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 1 }] }],
     rarity: 'c',
-    flavor: 'The lamp is heavier than she is and she carries it anyway.',
     set: 'drowned-deep',
   },
   // Sentinel.
@@ -1245,7 +1170,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 2,
     keywords: ['sentinel'],
     rarity: 'c',
-    flavor: 'She counts the boats out and counts them in.',
     set: 'drowned-deep',
   },
   // Warding Gaze.
@@ -1260,7 +1184,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 4,
     keywords: ['wardingGaze'],
     rarity: 'c',
-    flavor: 'The stair is narrow and so is she, and neither gives.',
     set: 'drowned-deep',
   },
   // Arrives: gain 2 life.
@@ -1275,7 +1198,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 3,
     abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 2 }] }],
     rarity: 'c',
-    flavor: 'The chapel floor is wet at every service. She has stopped mentioning it.',
     set: 'drowned-deep',
   },
   // Arrives: tap target creature with cost 2 or less.
@@ -1290,7 +1212,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 2,
     abilities: [{ when: 'arrives', targets: [{ what: 'creature', maxCost: 2 }], ops: [{ op: 'tap', to: 'target' }] }],
     rarity: 'c',
-    flavor: 'She rings the hour and something out on the water rings back.',
     set: 'drowned-deep',
   },
   // Skim {W}. Arrives: gain 1 life.
@@ -1306,7 +1227,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     skim: { cost: cost(0, 'W') },
     abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 1 }] }],
     rarity: 'c',
-    flavor: 'She mends what the sea tears, which is everything, eventually.',
     set: 'drowned-deep',
   },
   // Arrives: gain 2 life.
@@ -1321,7 +1241,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 4,
     abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 2 }] }],
     rarity: 'c',
-    flavor: 'The tide comes, the tide goes, and she writes down the difference.',
     set: 'drowned-deep',
   },
   // Whenever another creature you control dies, gain 1 life.
@@ -1336,7 +1255,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 3,
     abilities: [{ when: 'allyDies', filter: { other: true }, ops: [{ op: 'gainLife', n: 1 }] }],
     rarity: 'c',
-    flavor: 'The sea took her husband and she has been sending it the bill.',
     set: 'drowned-deep',
   },
   // Warcry.
@@ -1351,7 +1269,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 1,
     keywords: ['warcry'],
     rarity: 'c',
-    flavor: 'New to the lamp, new to the town, and already counting boats.',
     set: 'drowned-deep',
   },
   // Sentinel. Warding Gaze.
@@ -1366,7 +1283,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 5,
     keywords: ['sentinel', 'wardingGaze'],
     rarity: 'c',
-    flavor: 'She watches the water and the sky, and prefers the sky.',
     set: 'drowned-deep',
   },
   // Arrives: create a 1/1 white Lantern Wisp token with Skyborne.
@@ -1381,7 +1297,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 3,
     abilities: [{ when: 'arrives', ops: [{ op: 'createToken', token: 'tok-lantern-wisp', count: 1 }] }],
     rarity: 'c',
-    flavor: 'She lights one lamp and the lamp lights another.',
     set: 'drowned-deep',
   },
   // Skyborne.
@@ -1396,7 +1311,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 3,
     keywords: ['skyborne'],
     rarity: 'c',
-    flavor: 'She rides the crests in a boat too small to be sensible.',
     set: 'drowned-deep',
   },
   // Arrives: Foresee 1.
@@ -1411,7 +1325,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 3,
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'c',
-    flavor: 'She keeps the chapel and the chapel keeps its secrets, badly.',
     set: 'drowned-deep',
   },
   // Arrives: gain 3 life. Skim {1}{W}.
@@ -1427,7 +1340,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     skim: { cost: cost(1, 'W') },
     abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 3 }] }],
     rarity: 'c',
-    flavor: 'Every child in Dunmarrow has been pulled from the water by her at least once.',
     set: 'drowned-deep',
   },
   // Skyborne. Whispers {W}.
@@ -1443,7 +1355,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['skyborne'],
     whispers: { cost: cost(0, 'W') },
     rarity: 'c',
-    flavor: 'It went down with the boat and it is still lit.',
     set: 'drowned-deep',
   },
   // Warding Gaze. Sentinel.
@@ -1458,7 +1369,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 4,
     keywords: ['wardingGaze', 'sentinel'],
     rarity: 'c',
-    flavor: 'She holds the breakwater. The breakwater holds the town.',
     set: 'drowned-deep',
   },
   // Arrives: Foresee 1.
@@ -1473,7 +1383,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 3,
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'c',
-    flavor: 'She writes the tides in a ledger and the ledger has begun to disagree.',
     set: 'drowned-deep',
   },
   // Duty: draw a card, then discard a card.
@@ -1488,7 +1397,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 2,
     activated: { cost: { tap: true }, ops: [{ op: 'draw', n: 1 }, { op: 'discard', n: 1, who: 'self' }] },
     rarity: 'c',
-    flavor: 'Everything the tide leaves on Low Street is hers by noon.',
     set: 'drowned-deep',
   },
   // Skyborne. Arrives: grind self 1.
@@ -1504,7 +1412,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['skyborne'],
     abilities: [{ when: 'arrives', ops: [{ op: 'grind', n: 1, who: 'self' }] }],
     rarity: 'c',
-    flavor: 'She surfaces by the wharf at dusk and asks the boats their names.',
     set: 'drowned-deep',
   },
   // Arrives: Foresee 2.
@@ -1519,7 +1426,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 3,
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 2 }] }],
     rarity: 'c',
-    flavor: 'She copies the drowned records in a hand nobody living taught her.',
     set: 'drowned-deep',
   },
   // Arrives: grind self 2. Skim {U}.
@@ -1535,7 +1441,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     skim: { cost: cost(0, 'U') },
     abilities: [{ when: 'arrives', ops: [{ op: 'grind', n: 2, who: 'self' }] }],
     rarity: 'c',
-    flavor: 'What she brings up, she brings up wet and wrong.',
     set: 'drowned-deep',
   },
   // Tithe.
@@ -1550,7 +1455,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 3,
     tithe: { per: 2 },
     rarity: 'c',
-    flavor: 'She comes up under the boats to count them.',
     set: 'drowned-deep',
   },
   // Skyborne.
@@ -1565,7 +1469,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 4,
     keywords: ['skyborne'],
     rarity: 'c',
-    flavor: 'One voice in the choir below, and it knows the words.',
     set: 'drowned-deep',
   },
   // Skim {U}. Arrives: Foresee 1.
@@ -1581,7 +1484,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     skim: { cost: cost(0, 'U') },
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'c',
-    flavor: 'She reads the current the way others read a face.',
     set: 'drowned-deep',
   },
   // Skyborne. Arrives: Foresee 1.
@@ -1597,7 +1499,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['skyborne'],
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'c',
-    flavor: 'She brings the terms. The terms are always the same.',
     set: 'drowned-deep',
   },
   // Arrives: draw a card, then discard a card.
@@ -1612,7 +1513,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 4,
     abilities: [{ when: 'arrives', ops: [{ op: 'draw', n: 1 }, { op: 'discard', n: 1, who: 'self' }] }],
     rarity: 'c',
-    flavor: 'Everything she knows, she learned wet.',
     set: 'drowned-deep',
   },
   // Skyborne. Skim {U}.
@@ -1628,7 +1528,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['skyborne'],
     skim: { cost: cost(0, 'U') },
     rarity: 'c',
-    flavor: 'She sings at the sandbar and the boats do not come back.',
     set: 'drowned-deep',
   },
   // Tithe.
@@ -1643,7 +1542,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 5,
     tithe: { per: 2 },
     rarity: 'c',
-    flavor: 'It moves with the cold water and the cold water moves with it.',
     set: 'drowned-deep',
   },
   // Arrives: grind self 2. Whispers {U}.
@@ -1659,7 +1557,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(0, 'U') },
     abilities: [{ when: 'arrives', ops: [{ op: 'grind', n: 2, who: 'self' }] }],
     rarity: 'c',
-    flavor: 'She draws the coast as it is at low tide, which is to say, as it was.',
     set: 'drowned-deep',
   },
   // Arrives: tap target creature.
@@ -1674,7 +1571,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 3,
     abilities: [{ when: 'arrives', targets: [{ what: 'creature' }], ops: [{ op: 'tap', to: 'target' }] }],
     rarity: 'c',
-    flavor: 'She calls the tide and the tide, being polite, comes.',
     set: 'drowned-deep',
   },
   // Skyborne. Dies: draw a card.
@@ -1690,7 +1586,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['skyborne'],
     abilities: [{ when: 'dies', ops: [{ op: 'draw', n: 1 }] }],
     rarity: 'c',
-    flavor: 'They came up with the storm and they have not blinked since.',
     set: 'drowned-deep',
   },
   // Duty, {1}: draw a card, then discard a card.
@@ -1705,7 +1600,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 1,
     activated: { cost: { tap: true, mana: cost(1) }, ops: [{ op: 'draw', n: 1 }, { op: 'discard', n: 1, who: 'self' }] },
     rarity: 'c',
-    flavor: 'Her cellar is the driest place on Low Street and everyone knows why.',
     set: 'drowned-deep',
   },
   // Arrives: grind self 1.
@@ -1720,7 +1614,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 1,
     abilities: [{ when: 'arrives', ops: [{ op: 'grind', n: 1, who: 'self' }] }],
     rarity: 'c',
-    flavor: 'They come up the wharf steps at night and stand very still.',
     set: 'drowned-deep',
   },
   // Dies: grind self 2.
@@ -1735,7 +1628,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 2,
     abilities: [{ when: 'dies', ops: [{ op: 'grind', n: 2, who: 'self' }] }],
     rarity: 'c',
-    flavor: 'She was born in the town, married in the town, and belongs to the water.',
     set: 'drowned-deep',
   },
   // Arrives: create a 2/2 black Deep-Spawn token.
@@ -1750,7 +1642,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 2,
     abilities: [{ when: 'arrives', ops: [{ op: 'createToken', token: 'tok-deep-spawn', count: 1 }] }],
     rarity: 'c',
-    flavor: 'She keeps them in the cistern until they are big enough to keep themselves.',
     set: 'drowned-deep',
   },
   // Tithe.
@@ -1765,7 +1656,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 3,
     tithe: { per: 2 },
     rarity: 'c',
-    flavor: 'She fights the way the sea does: all at once, and from below.',
     set: 'drowned-deep',
   },
   // Tithe. Dreaded.
@@ -1781,7 +1671,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     tithe: { per: 2 },
     keywords: ['dreaded'],
     rarity: 'c',
-    flavor: 'It wears the town\'s faces and is bad at it, which is worse.',
     set: 'drowned-deep',
   },
   // Skim {B}. Whispers {B}.
@@ -1797,7 +1686,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     skim: { cost: cost(0, 'B') },
     whispers: { cost: cost(0, 'B') },
     rarity: 'c',
-    flavor: 'Lost off the Reach in \'09. Home for supper most nights since.',
     set: 'drowned-deep',
   },
   // Whenever another creature you control dies, opponent loses 1 life.
@@ -1812,7 +1700,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 3,
     abilities: [{ when: 'allyDies', filter: { other: true }, ops: [{ op: 'loseLife', n: 1, who: 'opponent' }] }],
     rarity: 'c',
-    flavor: 'She buries them in the marsh and the marsh sends her a receipt.',
     set: 'drowned-deep',
   },
   // Arrives: grind self 1.
@@ -1827,7 +1714,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 3,
     abilities: [{ when: 'arrives', ops: [{ op: 'grind', n: 1, who: 'self' }] }],
     rarity: 'c',
-    flavor: 'She kneels at the water and the water kneels back.',
     set: 'drowned-deep',
   },
   // Deathblade.
@@ -1842,7 +1728,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 1,
     keywords: ['deathblade'],
     rarity: 'c',
-    flavor: 'Small, quick, and carrying something the sea gave her.',
     set: 'drowned-deep',
   },
   // Tithe. Dies: opponent loses 1 life.
@@ -1858,7 +1743,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     tithe: { per: 2 },
     abilities: [{ when: 'dies', ops: [{ op: 'loseLife', n: 1, who: 'opponent' }] }],
     rarity: 'c',
-    flavor: 'The well water is sweet, and something in it is grateful.',
     set: 'drowned-deep',
   },
   // Warcry. Whispers {1}{B}.
@@ -1874,7 +1758,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['warcry'],
     whispers: { cost: cost(1, 'B') },
     rarity: 'c',
-    flavor: 'Buried in the marsh on Tuesday. Back by Thursday, and hungry.',
     set: 'drowned-deep',
   },
   // Arrives: return target creature card with cost 2 or less from your graveyard to your hand.
@@ -1889,7 +1772,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 2,
     abilities: [{ when: 'arrives', targets: [{ what: 'yourGraveCreature', maxCost: 2 }], ops: [{ op: 'reclaim' }] }],
     rarity: 'c',
-    flavor: 'She tends the sick, and the sick get better, and the sick get strange.',
     set: 'drowned-deep',
   },
   // Dies: grind self 2. Skim {B}.
@@ -1905,7 +1787,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     skim: { cost: cost(0, 'B') },
     abilities: [{ when: 'dies', ops: [{ op: 'grind', n: 2, who: 'self' }] }],
     rarity: 'c',
-    flavor: 'She has attended every funeral on Low Street, including her own.',
     set: 'drowned-deep',
   },
   // Arrives: grind self 3.
@@ -1920,7 +1801,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 3,
     abilities: [{ when: 'arrives', ops: [{ op: 'grind', n: 3, who: 'self' }] }],
     rarity: 'c',
-    flavor: 'Dig at low water. Do not look at what the tide has uncovered.',
     set: 'drowned-deep',
   },
   // Arrives: create a 2/2 green Kelp Shade token.
@@ -1935,7 +1815,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 3,
     abilities: [{ when: 'arrives', ops: [{ op: 'createToken', token: 'tok-kelp-shade', count: 1 }] }],
     rarity: 'c',
-    flavor: 'She plants the reeds and the reeds get up.',
     set: 'drowned-deep',
   },
   // Bulwark.
@@ -1950,7 +1829,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 4,
     keywords: ['bulwark'],
     rarity: 'c',
-    flavor: 'Older than the wharf and harder.',
     set: 'drowned-deep',
   },
   // Sentinel.
@@ -1965,7 +1843,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 3,
     keywords: ['sentinel'],
     rarity: 'c',
-    flavor: 'She keeps the pools and the pools keep her secrets.',
     set: 'drowned-deep',
   },
   // Tithe.
@@ -1980,7 +1857,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 4,
     tithe: { per: 2 },
     rarity: 'c',
-    flavor: 'It was three drowned men and a lot of kelp. It is one thing now.',
     set: 'drowned-deep',
   },
   // Warding Gaze. Arrives: put a Mark on this.
@@ -1996,7 +1872,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['wardingGaze'],
     abilities: [{ when: 'arrives', ops: [{ op: 'addCounters', n: 1, to: 'self' }] }],
     rarity: 'c',
-    flavor: 'The reef grows where she stands guard.',
     set: 'drowned-deep',
   },
   // Tithe.
@@ -2011,7 +1886,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 5,
     tithe: { per: 2 },
     rarity: 'c',
-    flavor: 'The tide made it. The tide is not proud.',
     set: 'drowned-deep',
   },
   // Arrives: gain 2 life.
@@ -2026,7 +1900,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 4,
     abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 2 }] }],
     rarity: 'c',
-    flavor: 'The road moves. She moves with it.',
     set: 'drowned-deep',
   },
   // Skim {G}. Arrives: put a Mark on target creature you control.
@@ -2042,7 +1915,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     skim: { cost: cost(0, 'G') },
     abilities: [{ when: 'arrives', targets: [{ what: 'yourCreature' }], ops: [{ op: 'addCounters', n: 1, to: 'target' }] }],
     rarity: 'c',
-    flavor: 'She talks to the reeds and the reeds talk back, at length.',
     set: 'drowned-deep',
   },
   // Tithe. Overrun. Warding Gaze.
@@ -2059,7 +1931,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     tithe: { per: 2 },
     keywords: ['overrun', 'wardingGaze'],
     rarity: 'c',
-    flavor: 'The forest that was here before the town, and it has a grudge.',
     set: 'drowned-deep',
   },
   // Dies: create a 2/2 green Kelp Shade token. Whispers {2}{G}.
@@ -2075,7 +1946,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(2, 'G') },
     abilities: [{ when: 'dies', ops: [{ op: 'createToken', token: 'tok-kelp-shade', count: 1 }] }],
     rarity: 'c',
-    flavor: 'Buried in the reeds. Back as the reeds.',
     set: 'drowned-deep',
   },
   // Skyborne. Skim {G}.
@@ -2091,7 +1961,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['skyborne'],
     skim: { cost: cost(0, 'G') },
     rarity: 'c',
-    flavor: 'It watches the water and the sky, and something in each watches it.',
     set: 'drowned-deep',
   },
   // Arrives: put a Mark on target creature you control.
@@ -2106,7 +1975,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 3,
     abilities: [{ when: 'arrives', targets: [{ what: 'yourCreature' }], ops: [{ op: 'addCounters', n: 1, to: 'target' }] }],
     rarity: 'c',
-    flavor: 'What she grows keeps growing.',
     set: 'drowned-deep',
   },
   // Bulwark.
@@ -2121,7 +1989,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 7,
     keywords: ['bulwark'],
     rarity: 'c',
-    flavor: 'The harbour wall was stone. It is not stone any more.',
     set: 'drowned-deep',
   },
   // Warcry.
@@ -2136,7 +2003,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 4,
     keywords: ['warcry'],
     rarity: 'c',
-    flavor: 'It came out of the marsh at a run.',
     set: 'drowned-deep',
   },
   // Arrives: gain 1 life. Skim {G}. Whispers {G}.
@@ -2153,7 +2019,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(0, 'G') },
     abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 1 }] }],
     rarity: 'c',
-    flavor: 'The garden flooded. The garden thrived.',
     set: 'drowned-deep',
   },
   // Warding Gaze. Duty, {2}{G}: create a 2/2 green Kelp Shade token.
@@ -2170,7 +2035,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['wardingGaze'],
     activated: { cost: { tap: true, mana: cost(2, 'G') }, ops: [{ op: 'createToken', token: 'tok-kelp-shade', count: 1 }] },
     rarity: 'c',
-    flavor: 'She whistles and the reeds come running.',
     set: 'drowned-deep',
   },
   // Warding Gaze. Arrives: put a Mark on target creature you control.
@@ -2186,7 +2050,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['wardingGaze'],
     abilities: [{ when: 'arrives', targets: [{ what: 'yourCreature' }], ops: [{ op: 'addCounters', n: 1, to: 'target' }] }],
     rarity: 'c',
-    flavor: 'She hunts the flats at low water and comes back with more than fish.',
     set: 'drowned-deep',
   },
   // Sentinel. Your Plant tokens get +0/+1.
@@ -2202,7 +2065,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['sentinel'],
     abilities: [{ when: 'static', static: { scope: 'filter', filter: { subtype: 'Plant', token: true }, p: 0, t: 1 } }],
     rarity: 'c',
-    flavor: 'The oldest reed in the marsh, and the reeds defer to it.',
     set: 'drowned-deep',
   },
   // Warcry.
@@ -2217,7 +2079,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 1,
     keywords: ['warcry'],
     rarity: 'c',
-    flavor: 'First to the wreck, first to the cargo, first back to the tavern.',
     set: 'drowned-deep',
   },
   // When this attacks, it gets +1/+0 until end of turn.
@@ -2232,7 +2093,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 2,
     abilities: [{ when: 'attacks', ops: [{ op: 'boost', p: 1, t: 0, scope: 'self' }] }],
     rarity: 'c',
-    flavor: 'The breakwater settles what the tavern could not.',
     set: 'drowned-deep',
   },
   // Duty: damage target creature 1.
@@ -2247,7 +2107,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 2,
     activated: { cost: { tap: true }, targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 1, to: 'target' }] },
     rarity: 'c',
-    flavor: 'She carries the light that lies.',
     set: 'drowned-deep',
   },
   // Arrives: damage opponent 1.
@@ -2262,7 +2121,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 3,
     abilities: [{ when: 'arrives', ops: [{ op: 'damage', n: 1, to: 'opponent' }] }],
     rarity: 'c',
-    flavor: 'She dares the weather and the weather, so far, has taken the dare.',
     set: 'drowned-deep',
   },
   // Warcry.
@@ -2277,7 +2135,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 3,
     keywords: ['warcry'],
     rarity: 'c',
-    flavor: 'It comes up in the storm and goes back with it.',
     set: 'drowned-deep',
   },
   // Warcry. Skim {R}.
@@ -2293,7 +2150,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['warcry'],
     skim: { cost: cost(0, 'R') },
     rarity: 'c',
-    flavor: 'She watches for ships and lights the wrong lamp.',
     set: 'drowned-deep',
   },
   // Rage.
@@ -2308,7 +2164,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 3,
     keywords: ['rage'],
     rarity: 'c',
-    flavor: 'She has never once backed down, and the sea has noticed.',
     set: 'drowned-deep',
   },
   // Skyborne. Warcry.
@@ -2323,7 +2178,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 1,
     keywords: ['skyborne', 'warcry'],
     rarity: 'c',
-    flavor: 'She rides the gale on a sail cut from a shroud.',
     set: 'drowned-deep',
   },
   // Overrun.
@@ -2338,7 +2192,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 3,
     keywords: ['overrun'],
     rarity: 'c',
-    flavor: 'Every ship she saves, she saves for parts.',
     set: 'drowned-deep',
   },
   // First Blade.
@@ -2353,7 +2206,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 2,
     keywords: ['firstBlade'],
     rarity: 'c',
-    flavor: 'She keeps the storm in a jar and lets it out for fun.',
     set: 'drowned-deep',
   },
   // Arrives: damage target creature 1.
@@ -2368,7 +2220,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 2,
     abilities: [{ when: 'arrives', targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 1, to: 'target' }] }],
     rarity: 'c',
-    flavor: 'The forge is drowned. The work is not done.',
     set: 'drowned-deep',
   },
   // Arrives: damage target creature 1.
@@ -2383,7 +2234,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 4,
     abilities: [{ when: 'arrives', targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 1, to: 'target' }] }],
     rarity: 'c',
-    flavor: 'Thirty years of brawls, and she has never once lost one on the breakwater.',
     set: 'drowned-deep',
   },
   // Warcry. Duty, {1}: draw a card, then discard a card.
@@ -2400,7 +2250,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['warcry'],
     activated: { cost: { tap: true, mana: cost(1) }, ops: [{ op: 'draw', n: 1 }, { op: 'discard', n: 1, who: 'self' }] },
     rarity: 'c',
-    flavor: 'Everything down there is hers, and she keeps a list.',
     set: 'drowned-deep',
   },
   // Dreaded. Warcry.
@@ -2415,7 +2264,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 4,
     keywords: ['dreaded', 'warcry'],
     rarity: 'c',
-    flavor: 'It comes in on the wind and the wind is glad to be rid of it.',
     set: 'drowned-deep',
   },
   // Warcry. Skim {R}.
@@ -2431,7 +2279,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     keywords: ['warcry'],
     skim: { cost: cost(0, 'R') },
     rarity: 'c',
-    flavor: 'She raids the wrecks before the wreckers do.',
     set: 'drowned-deep',
   },
   // Overrun.
@@ -2446,7 +2293,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 4,
     keywords: ['overrun'],
     rarity: 'c',
-    flavor: 'The storm has legs now.',
     set: 'drowned-deep',
   },
   // Arrives: damage target creature 2.
@@ -2461,7 +2307,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     defense: 4,
     abilities: [{ when: 'arrives', targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 2, to: 'target' }] }],
     rarity: 'c',
-    flavor: 'She works the drowned forge and the forge works her.',
     set: 'drowned-deep',
   },
 
@@ -2478,7 +2323,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     abilities: [{ when: 'dawn', ops: [{ op: 'gainLife', n: 1 }] }, { when: 'static', static: { scope: 'filter', filter: { subtype: 'Warden' }, p: 1, t: 1 } }],
     activated: { cost: { tap: true, mana: cost(2) }, targets: [{ what: 'creature' }], ops: [{ op: 'tap', to: 'target' }] },
     rarity: 'ur',
-    flavor: 'It was cast to warn the town. It has decided the town should not know.',
     set: 'drowned-deep',
   },
   // Draw 5, then grind self 3. Whispers {2}{U}{U}.
@@ -2492,7 +2336,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(2, 'UU') },
     abilities: [{ when: 'spell', ops: [{ op: 'draw', n: 5 }, { op: 'grind', n: 3, who: 'self' }] }],
     rarity: 'ur',
-    flavor: 'The water keeps every name it was ever given, and returns them in the wrong order.',
     set: 'drowned-deep',
   },
   // Your creatures get +0/+1. Your creatures have Warding Gaze. Duty: tap target creature.
@@ -2507,7 +2350,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     abilities: [{ when: 'static', static: { scope: 'filter', p: 0, t: 1 } }, { when: 'static', static: { scope: 'filter', grantKeywords: ['wardingGaze'] } }],
     activated: { cost: { tap: true }, targets: [{ what: 'creature' }], ops: [{ op: 'tap', to: 'target' }] },
     rarity: 'ur',
-    flavor: 'Every lamp on the coast has a woman behind it, and every woman has a reason.',
     set: 'drowned-deep',
   },
   // Damage all creatures 5. Damage opponent 5 and you lose 5 life. Whispers {2}{R}{R}.
@@ -2521,7 +2363,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(2, 'RR') },
     abilities: [{ when: 'spell', ops: [{ op: 'damage', n: 5, to: 'eachCreature' }, { op: 'damage', n: 5, to: 'opponent' }, { op: 'damage', n: 5, to: 'controller' }] }],
     rarity: 'ssr',
-    flavor: 'The wreckers light the false beacon, and the sea lights everything else.',
     set: 'drowned-deep',
   },
   // Duty: target creature you control gets +0/+3 and Sentinel until Sunset. During your Dawn: gain 1 life.
@@ -2537,7 +2378,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     abilities: [{ when: 'dawn', ops: [{ op: 'gainLife', n: 1 }] }],
     activated: { cost: { tap: true }, targets: [{ what: 'yourCreature' }], ops: [{ op: 'boost', p: 0, t: 3, keywords: ['sentinel'], scope: 'target' }] },
     rarity: 'ssr',
-    flavor: 'The gate holds the tide out and the town in. Nobody has asked which it was built for.',
     set: 'drowned-deep',
   },
   // Recall target creature and draw 2. Whispers {1}{U}.
@@ -2551,7 +2391,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(1, 'U') },
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'recall', to: 'target' }, { op: 'draw', n: 2 }] }],
     rarity: 'ssr',
-    flavor: 'The current does not take you out to sea. It takes you down.',
     set: 'drowned-deep',
   },
   // Duty: Foresee 2. Duty, {2}: draw a card.
@@ -2564,7 +2403,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['U'],
     activated: [{ cost: { tap: true }, ops: [{ op: 'foresee', n: 2 }] }, { cost: { tap: true, mana: cost(2) }, ops: [{ op: 'draw', n: 1 }] }],
     rarity: 'ssr',
-    flavor: 'It was a bottle. Then it spent a century below. Now it shows you things.',
     set: 'drowned-deep',
   },
   // Your Plant tokens get +1/+1. Duty, {2}{G}: create a 2/2 green Kelp Shade token.
@@ -2578,7 +2416,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     abilities: [{ when: 'static', static: { scope: 'filter', filter: { subtype: 'Plant', token: true }, p: 1, t: 1 } }],
     activated: { cost: { tap: true, mana: cost(2, 'G') }, ops: [{ op: 'createToken', token: 'tok-kelp-shade', count: 1 }] },
     rarity: 'ssr',
-    flavor: 'The congregation is rooted. The sermons are long.',
     set: 'drowned-deep',
   },
   // Duty: damage target creature 1. At Sunset, if a creature died this turn, damage opponent 1.
@@ -2592,7 +2429,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     abilities: [{ when: 'sunset', condition: 'creatureDiedThisTurn', ops: [{ op: 'damage', n: 1, to: 'opponent' }] }],
     activated: { cost: { tap: true }, targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 1, to: 'target' }] },
     rarity: 'ssr',
-    flavor: 'A lamp on the wrong rock is a murder that looks like weather.',
     set: 'drowned-deep',
   },
   // Damage target creature 4. Damage opponent 2. Whispers {R}{R}.
@@ -2606,7 +2442,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(0, 'RR') },
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 4, to: 'target' }, { op: 'damage', n: 2, to: 'opponent' }] }],
     rarity: 'ssr',
-    flavor: 'The surge takes the wharf, the boats, and the argument about whose fault it was.',
     set: 'drowned-deep',
   },
   // Tap all creatures an opponent controls. Foresee 3. Whispers {W}{U}.
@@ -2620,7 +2455,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(0, 'WU') },
     abilities: [{ when: 'spell', ops: [{ op: 'tapAll', who: 'opponent' }, { op: 'foresee', n: 3 }] }],
     rarity: 'ssr',
-    flavor: 'She swore to keep the light. She did not swear to keep it for the living.',
     set: 'drowned-deep',
   },
   // Duty: gain 2 life. Whenever a creature you control dies, gain 1 life.
@@ -2634,7 +2468,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     abilities: [{ when: 'allyDies', ops: [{ op: 'gainLife', n: 1 }] }],
     activated: { cost: { tap: true }, ops: [{ op: 'gainLife', n: 2 }] },
     rarity: 'sr',
-    flavor: 'The women watch the sea from the roofs. The sea watches back, and takes notes.',
     set: 'drowned-deep',
   },
   // Prevent combat this turn. Draw a card. Whispers {1}{W}.
@@ -2649,7 +2482,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(1, 'W') },
     abilities: [{ when: 'spell', ops: [{ op: 'preventCombat' }, { op: 'draw', n: 1 }] }],
     rarity: 'sr',
-    flavor: 'The lamps go up and the boats stay in, and the night is only a night.',
     set: 'drowned-deep',
   },
   // Duty, {1}{W}: gain 2 life and Foresee 1.
@@ -2662,7 +2494,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['W'],
     activated: { cost: { tap: true, mana: cost(1, 'W') }, ops: [{ op: 'gainLife', n: 2 }, { op: 'foresee', n: 1 }] },
     rarity: 'sr',
-    flavor: 'When the others go dark, this one is meant to still be lit. It has been, so far.',
     set: 'drowned-deep',
   },
   // Cancel target spell with cost 3 or less. Whispers {U}.
@@ -2676,7 +2507,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(0, 'U') },
     abilities: [{ when: 'spell', targets: [{ what: 'spell', maxCost: 3 }], ops: [{ op: 'cancel', to: 'target' }] }],
     rarity: 'sr',
-    flavor: 'The sea does not argue. It just declines.',
     set: 'drowned-deep',
   },
   // Target creature gets -3/-3 until end of turn. Whispers {B}.
@@ -2690,7 +2520,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(0, 'B') },
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'boost', p: -3, t: -3, scope: 'target' }] }],
     rarity: 'sr',
-    flavor: 'The sea gets into everything. The sea especially gets into that.',
     set: 'drowned-deep',
   },
   // Opponent sacrifices a creature. Grind self 2. Opponent loses 2 life. Whispers {1}{B}.
@@ -2704,7 +2533,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(1, 'B') },
     abilities: [{ when: 'spell', ops: [{ op: 'sacrifice', who: 'opponent', n: 1 }, { op: 'grind', n: 2, who: 'self' }, { op: 'loseLife', n: 2, who: 'opponent' }] }],
     rarity: 'sr',
-    flavor: 'The collection plate goes round, and it comes back wet.',
     set: 'drowned-deep',
   },
   // Your creatures with Marks get +1/+1. Duty: put a Mark on target creature you control.
@@ -2718,7 +2546,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     abilities: [{ when: 'static', static: { scope: 'filter', filter: { marked: true }, p: 1, t: 1 } }],
     activated: { cost: { tap: true }, targets: [{ what: 'yourCreature' }], ops: [{ op: 'addCounters', n: 1, to: 'target' }] },
     rarity: 'sr',
-    flavor: 'The trees went under a century ago and kept growing. Nobody has told them.',
     set: 'drowned-deep',
   },
   // Duty, {1}{R}: damage any target 1.
@@ -2732,7 +2559,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['R'],
     activated: { cost: { tap: true, mana: cost(1, 'R') }, targets: [{ what: 'any' }], ops: [{ op: 'damage', n: 1, to: 'target' }] },
     rarity: 'sr',
-    flavor: 'Hang it on the wrong rock, wait, and the sea does the rest.',
     set: 'drowned-deep',
   },
   // Rite 1. Damage target creature 7 and damage opponent 3.
@@ -2746,7 +2572,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     rite: { n: 1 },
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 7, to: 'target' }, { op: 'damage', n: 3, to: 'opponent' }] }],
     rarity: 'sr',
-    flavor: 'The lamp needs oil. The lamp is not particular about what burns.',
     set: 'drowned-deep',
   },
   // Duty, {1}{W}: gain 2 life.
@@ -2759,7 +2584,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['W'],
     activated: { cost: { tap: true, mana: cost(1, 'W') }, ops: [{ op: 'gainLife', n: 2 }] },
     rarity: 'r',
-    flavor: 'Lit for a husband. Kept lit for a town.',
     set: 'drowned-deep',
   },
   // Duty, {1}{W}: tap target creature an opponent controls.
@@ -2772,7 +2596,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['W'],
     activated: { cost: { tap: true, mana: cost(1, 'W') }, targets: [{ what: 'opponentCreature' }], ops: [{ op: 'tap', to: 'target' }] },
     rarity: 'r',
-    flavor: 'Iron and prayer, in that order.',
     set: 'drowned-deep',
   },
   // Your creatures get +0/+1.
@@ -2785,7 +2608,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['W'],
     abilities: [{ when: 'static', static: { scope: 'filter', p: 0, t: 1 } }],
     rarity: 'r',
-    flavor: 'A line of salt across the door, renewed every evening, and it has always been enough.',
     set: 'drowned-deep',
   },
   // Destroy target Artifact or Enchantment. Foresee 2. Whispers {1}{W}.
@@ -2799,7 +2621,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(1, 'W') },
     abilities: [{ when: 'spell', targets: [{ what: 'artifactOrEnchantment' }], ops: [{ op: 'destroy', to: 'target' }, { op: 'foresee', n: 2 }] }],
     rarity: 'r',
-    flavor: 'The lamps are lit so the town can see. What the lamps see is another matter.',
     set: 'drowned-deep',
   },
   // Tap all creatures an opponent controls. Foresee 1.
@@ -2812,7 +2633,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['W'],
     abilities: [{ when: 'spell', ops: [{ op: 'tapAll', who: 'opponent' }, { op: 'foresee', n: 1 }] }],
     rarity: 'r',
-    flavor: 'When the vigil bell rings, everyone in Dunmarrow stops what they are doing. Everyone.',
     set: 'drowned-deep',
   },
   // Rite 1. Destroy target creature with attack 4 or more.
@@ -2826,7 +2646,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     rite: { n: 1 },
     abilities: [{ when: 'spell', targets: [{ what: 'creature', minAttack: 4 }], ops: [{ op: 'destroy', to: 'target' }] }],
     rarity: 'r',
-    flavor: 'The gate takes one to hold against many. It has always been a fair trade on paper.',
     set: 'drowned-deep',
   },
   // Gain 4 life. Draw a card.
@@ -2839,7 +2658,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['W'],
     abilities: [{ when: 'spell', ops: [{ op: 'gainLife', n: 4 }, { op: 'draw', n: 1 }] }],
     rarity: 'r',
-    flavor: 'The oil comes in barrels nobody ordered, from a supplier nobody has met.',
     set: 'drowned-deep',
   },
   // During your Dawn: gain 1 life and Foresee 1.
@@ -2852,7 +2670,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['W'],
     abilities: [{ when: 'dawn', ops: [{ op: 'gainLife', n: 1 }, { op: 'foresee', n: 1 }] }],
     rarity: 'r',
-    flavor: 'Every dawn the Watch counts the town. The number is the same. The faces are not.',
     set: 'drowned-deep',
   },
   // Cancel target spell. Whispers {2}{U}.
@@ -2866,7 +2683,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(2, 'U') },
     abilities: [{ when: 'spell', targets: [{ what: 'spell' }], ops: [{ op: 'cancel', to: 'target' }] }],
     rarity: 'r',
-    flavor: 'The harbour went flat at noon. Nobody on the wharf said a word.',
     set: 'drowned-deep',
   },
   // Duty, {3}: Foresee 1, then draw a card.
@@ -2879,7 +2695,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['U'],
     activated: { cost: { tap: true, mana: cost(3) }, ops: [{ op: 'foresee', n: 1 }, { op: 'draw', n: 1 }] },
     rarity: 'r',
-    flavor: 'Accurate to the inch. The inches are underwater.',
     set: 'drowned-deep',
   },
   // During your Dawn: grind self 1. Whenever you cast a Charm, Foresee 2.
@@ -2892,7 +2707,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['U'],
     abilities: [{ when: 'dawn', ops: [{ op: 'grind', n: 1, who: 'self' }] }, { when: 'youCastCharm', ops: [{ op: 'foresee', n: 2 }] }],
     rarity: 'r',
-    flavor: 'One bell in the harbour rings from below the water. It is never wrong about the weather.',
     set: 'drowned-deep',
   },
   // Creatures an opponent controls get -1/-0. During your Dawn: Foresee 1.
@@ -2905,7 +2719,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['U'],
     abilities: [{ when: 'static', static: { scope: 'filter', filter: { who: 'opponent' }, p: -1, t: 0 } }, { when: 'dawn', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'r',
-    flavor: 'It came in with the tide in March. It is September.',
     set: 'drowned-deep',
   },
   // Grind self 3. Draw a card. Retell {2}{U}.
@@ -2919,7 +2732,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     retell: { cost: cost(2, 'U') },
     abilities: [{ when: 'spell', ops: [{ op: 'grind', n: 3, who: 'self' }, { op: 'draw', n: 1 }] }],
     rarity: 'r',
-    flavor: 'The harbourmaster\'s ledger went into the water in 1811 and has been updated since.',
     set: 'drowned-deep',
   },
   // Destroy target creature with cost 3 or less. Whispers {1}{B}.
@@ -2933,7 +2745,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(1, 'B') },
     abilities: [{ when: 'spell', targets: [{ what: 'creature', maxCost: 3 }], ops: [{ op: 'destroy', to: 'target' }] }],
     rarity: 'r',
-    flavor: 'Reasonable. Fair. Final.',
     set: 'drowned-deep',
   },
   // Opponent discards two cards at random. Opponent loses 2 life. Whispers {1}{B}.
@@ -2947,7 +2758,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(1, 'B') },
     abilities: [{ when: 'spell', ops: [{ op: 'discardRandom', n: 2, who: 'opponent' }, { op: 'loseLife', n: 2, who: 'opponent' }] }],
     rarity: 'r',
-    flavor: 'Labelled, dated, and shelved by the sin.',
     set: 'drowned-deep',
   },
   // During your Dawn: grind self 1. Whenever a creature you control dies, opponent loses 1 life.
@@ -2960,7 +2770,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['B'],
     abilities: [{ when: 'dawn', ops: [{ op: 'grind', n: 1, who: 'self' }] }, { when: 'allyDies', ops: [{ op: 'loseLife', n: 1, who: 'opponent' }] }],
     rarity: 'r',
-    flavor: 'The graves on the flats are dug at low water and the sea does the filling.',
     set: 'drowned-deep',
   },
   // Return target creature card from your graveyard to the battlefield. It has Dreaded.
@@ -2973,7 +2782,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['B'],
     abilities: [{ when: 'spell', targets: [{ what: 'yourGraveCreature' }], ops: [{ op: 'raise', to: 'target', grantKeywords: ['dreaded'] }] }],
     rarity: 'r',
-    flavor: 'Something comes back. It is not always what you asked for.',
     set: 'drowned-deep',
   },
   // Destroy all creatures. You lose 3 life. Grind self 2. Whispers {1}{B}{B}.
@@ -2987,7 +2795,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(1, 'BB') },
     abilities: [{ when: 'spell', ops: [{ op: 'massDestroy', filter: 'allCreatures' }, { op: 'damage', n: 3, to: 'controller' }, { op: 'grind', n: 2, who: 'self' }] }],
     rarity: 'r',
-    flavor: 'The harbour turned black on a Tuesday and everything in it stopped.',
     set: 'drowned-deep',
   },
   // Return target creature card from your graveyard to your hand and grind self 2. Retell {2}{B}.
@@ -3001,7 +2808,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     retell: { cost: cost(2, 'B') },
     abilities: [{ when: 'spell', targets: [{ what: 'yourGraveCreature' }], ops: [{ op: 'reclaim' }, { op: 'grind', n: 2, who: 'self' }] }],
     rarity: 'r',
-    flavor: 'The Deep keeps its promises. That is the whole problem.',
     set: 'drowned-deep',
   },
   // Each player sacrifices a creature. Opponent loses 2 life. Grind self 2.
@@ -3014,7 +2820,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['B'],
     abilities: [{ when: 'spell', ops: [{ op: 'sacrifice', who: 'each', n: 1 }, { op: 'loseLife', n: 2, who: 'opponent' }, { op: 'grind', n: 2, who: 'self' }] }],
     rarity: 'r',
-    flavor: 'The count is taken at the waterline, and the water counts too.',
     set: 'drowned-deep',
   },
   // During your Dawn: create a 2/2 green Kelp Shade token.
@@ -3027,7 +2832,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['G'],
     abilities: [{ when: 'dawn', ops: [{ op: 'createToken', token: 'tok-kelp-shade', count: 1 }] }],
     rarity: 'r',
-    flavor: 'The apples are salt now, and the town eats them anyway.',
     set: 'drowned-deep',
   },
   // Create a 2/2 green Kelp Shade token and put a Mark on it.
@@ -3040,7 +2844,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['G'],
     abilities: [{ when: 'spell', ops: [{ op: 'createToken', token: 'tok-kelp-shade', count: 1, marks: 1 }] }],
     rarity: 'r',
-    flavor: 'The catch glowed. The catch was not fish.',
     set: 'drowned-deep',
   },
   // Your Plant tokens get +1/+1. Your Plant tokens have Sentinel.
@@ -3053,7 +2856,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['G'],
     abilities: [{ when: 'static', static: { scope: 'filter', filter: { subtype: 'Plant', token: true }, p: 1, t: 1 } }, { when: 'static', static: { scope: 'filter', filter: { subtype: 'Plant', token: true }, grantKeywords: ['sentinel'] } }],
     rarity: 'r',
-    flavor: 'The road is where the marsh allows it to be, one day at a time.',
     set: 'drowned-deep',
   },
   // Put a Mark on each creature you control and Foresee 1.
@@ -3066,7 +2868,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['G'],
     abilities: [{ when: 'spell', ops: [{ op: 'markAll', scope: 'yourCreatures' }, { op: 'foresee', n: 1 }] }],
     rarity: 'r',
-    flavor: 'One night a year the reef flowers, and the whole coast holds its breath.',
     set: 'drowned-deep',
   },
   // Your creatures with Marks get +1/+1. Your creatures with Marks have Overrun.
@@ -3079,7 +2880,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['G'],
     abilities: [{ when: 'static', static: { scope: 'filter', filter: { marked: true }, p: 1, t: 1 } }, { when: 'static', static: { scope: 'filter', filter: { marked: true }, grantKeywords: ['overrun'] } }],
     rarity: 'r',
-    flavor: 'The forest that was here before the town is still here, underneath.',
     set: 'drowned-deep',
   },
   // Return target creature card from your graveyard to your hand. Put a Mark on target creature you control.
@@ -3092,7 +2892,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['G'],
     abilities: [{ when: 'spell', targets: [{ what: 'yourGraveCreature' }, { what: 'yourCreature' }], ops: [{ op: 'reclaim' }, { op: 'addCounters', n: 1, to: 'target', targetIndex: 1 }] }],
     rarity: 'r',
-    flavor: 'Everything the town buries in the marsh, the marsh gives back a little grown.',
     set: 'drowned-deep',
   },
   // Damage target creature 2. Whispers {R}.
@@ -3106,7 +2905,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(0, 'R') },
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 2, to: 'target' }] }],
     rarity: 'r',
-    flavor: 'Green flame on wet wood. It should not burn. It does.',
     set: 'drowned-deep',
   },
   // Damage target creature 4. Foresee 2. Whispers {R}{R}.
@@ -3121,7 +2919,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(0, 'RR') },
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 4, to: 'target' }, { op: 'foresee', n: 2 }] }],
     rarity: 'r',
-    flavor: 'The whole harbour lit up at once, and for a second everyone saw what was under it.',
     set: 'drowned-deep',
   },
   // Rite 1. Damage target creature 4 and damage opponent 2.
@@ -3135,7 +2932,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     rite: { n: 1 },
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 4, to: 'target' }, { op: 'damage', n: 2, to: 'opponent' }] }],
     rarity: 'r',
-    flavor: 'Somebody has to carry the lamp out onto the rock. Somebody always volunteers.',
     set: 'drowned-deep',
   },
   // Duty, {1}{R}: damage target creature 2.
@@ -3148,7 +2944,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['R'],
     activated: { cost: { tap: true, mana: cost(1, 'R') }, targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 2, to: 'target' }] },
     rarity: 'r',
-    flavor: 'It went under in the great tide. The bellows still work.',
     set: 'drowned-deep',
   },
   // Your creatures get +1/+0. Your creatures have Warcry.
@@ -3161,7 +2956,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['R'],
     abilities: [{ when: 'static', static: { scope: 'filter', p: 1, t: 0 } }, { when: 'static', static: { scope: 'filter', grantKeywords: ['warcry'] } }],
     rarity: 'r',
-    flavor: 'It sits on the horizon for a week, and then it does not.',
     set: 'drowned-deep',
   },
   // Damage each creature an opponent controls 3. Whispers {1}{R}{R}.
@@ -3175,7 +2969,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(1, 'RR') },
     abilities: [{ when: 'spell', ops: [{ op: 'damage', n: 3, to: 'eachOpponentCreature' }] }],
     rarity: 'r',
-    flavor: 'A false beacon, a real wreck, and a night nobody in town will discuss.',
     set: 'drowned-deep',
   },
   // During your Dawn: create a 1/1 black Drowned Spirit token. Whenever you sacrifice a creature, gain 1 life.
@@ -3188,7 +2981,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['B', 'G'],
     abilities: [{ when: 'dawn', ops: [{ op: 'createToken', token: 'tok-drowned-spirit', count: 1 }] }, { when: 'allyDies', filter: { sacrifice: true }, ops: [{ op: 'gainLife', n: 1 }] }],
     rarity: 'r',
-    flavor: 'Planted in the marsh, fed on the drowned, and coming up beautifully.',
     set: 'drowned-deep',
   },
   // Tap target creature, then draw a card. Whispers {W}{U}.
@@ -3202,7 +2994,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(0, 'WU') },
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'tap', to: 'target' }, { op: 'draw', n: 1 }] }],
     rarity: 'r',
-    flavor: 'The Watch sets the lamps by the tide, and the tide by the lamps, and neither has been wrong yet.',
     set: 'drowned-deep',
   },
   // During your Dawn: gain 1 life.
@@ -3215,7 +3006,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['W'],
     abilities: [{ when: 'dawn', ops: [{ op: 'gainLife', n: 1 }] }],
     rarity: 'c',
-    flavor: 'One lamp on the shore, so the boats know where the land still is.',
     set: 'drowned-deep',
   },
   // Prevent combat damage to target creature this turn.
@@ -3228,7 +3018,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['W'],
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'preventCombatTo', to: 'target' }] }],
     rarity: 'c',
-    flavor: 'Stand between the town and the water, and keep standing.',
     set: 'drowned-deep',
   },
   // Tap two target creatures.
@@ -3241,7 +3030,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['W'],
     abilities: [{ when: 'spell', targets: [{ what: 'creature', exactly: 2 }], ops: [{ op: 'tap', to: 'target' }] }],
     rarity: 'c',
-    flavor: 'The bell rings and the town stops. All of it.',
     set: 'drowned-deep',
   },
   // Sever target creature with attack 3 or more. Whispers {2}{W}.
@@ -3255,7 +3043,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(2, 'W') },
     abilities: [{ when: 'spell', targets: [{ what: 'creature', minAttack: 3 }], ops: [{ op: 'sever', to: 'target' }] }],
     rarity: 'c',
-    flavor: 'Salt across the door, a word at the window, and the thing goes back to the water.',
     set: 'drowned-deep',
   },
   // Create two 1/1 white Lantern Wisp tokens with Skyborne.
@@ -3268,7 +3055,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['W'],
     abilities: [{ when: 'spell', ops: [{ op: 'createToken', token: 'tok-lantern-wisp', count: 2 }] }],
     rarity: 'c',
-    flavor: 'Lamp to lamp along the coast, and the message arrives before the tide.',
     set: 'drowned-deep',
   },
   // Rite 1. Gain 8 life and Foresee 2.
@@ -3282,7 +3068,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     rite: { n: 1 },
     abilities: [{ when: 'spell', ops: [{ op: 'gainLife', n: 8 }, { op: 'foresee', n: 2 }] }],
     rarity: 'c',
-    flavor: 'One into the lamp room. The light is brighter for it.',
     set: 'drowned-deep',
   },
   // Whenever a creature arrives under your control, gain 2 life.
@@ -3295,7 +3080,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['W'],
     abilities: [{ when: 'allyCreatureArrives', ops: [{ op: 'gainLife', n: 2 }] }],
     rarity: 'c',
-    flavor: 'The doors are always open. The floor is always wet.',
     set: 'drowned-deep',
   },
   // Gain 3 life. Draw a card.
@@ -3308,7 +3092,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['W'],
     abilities: [{ when: 'spell', ops: [{ op: 'gainLife', n: 3 }, { op: 'draw', n: 1 }] }],
     rarity: 'c',
-    flavor: 'Every lamp accounted for. Every night.',
     set: 'drowned-deep',
   },
   // Destroy target Artifact or Enchantment.
@@ -3321,7 +3104,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['W'],
     abilities: [{ when: 'spell', targets: [{ what: 'artifactOrEnchantment' }], ops: [{ op: 'destroy', to: 'target' }] }],
     rarity: 'c',
-    flavor: 'Salt, prayer, and a hammer, in that order.',
     set: 'drowned-deep',
   },
   // During your Dawn: Foresee 1.
@@ -3334,7 +3116,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['U'],
     abilities: [{ when: 'dawn', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'c',
-    flavor: 'Green glass from the drowned church. Hold it to the light and the coast is different.',
     set: 'drowned-deep',
   },
   // Tap target creature. Whispers {U}.
@@ -3348,7 +3129,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(0, 'U') },
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'tap', to: 'target' }] }],
     rarity: 'c',
-    flavor: 'It came in with the tide and it did not leave with it.',
     set: 'drowned-deep',
   },
   // Recall target creature with cost 2 or less.
@@ -3361,7 +3141,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['U'],
     abilities: [{ when: 'spell', targets: [{ what: 'creature', maxCost: 2 }], ops: [{ op: 'recall', to: 'target' }] }],
     rarity: 'c',
-    flavor: 'The current is a hand, and it is patient.',
     set: 'drowned-deep',
   },
   // Draw 2. Grind self 1. Whispers {2}{U}.
@@ -3375,7 +3154,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(2, 'U') },
     abilities: [{ when: 'spell', ops: [{ op: 'draw', n: 2 }, { op: 'grind', n: 1, who: 'self' }] }],
     rarity: 'c',
-    flavor: 'Out, in, and the town between.',
     set: 'drowned-deep',
   },
   // Cancel target spell with cost 2 or less.
@@ -3388,7 +3166,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['U'],
     abilities: [{ when: 'spell', targets: [{ what: 'spell', maxCost: 2 }], ops: [{ op: 'cancel', to: 'target' }] }],
     rarity: 'c',
-    flavor: 'The water went flat, and the boats stopped, and nobody spoke.',
     set: 'drowned-deep',
   },
   // Duty, {3}: draw a card.
@@ -3401,7 +3178,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['U'],
     activated: { cost: { tap: true, mana: cost(3) }, ops: [{ op: 'draw', n: 1 }] },
     rarity: 'c',
-    flavor: 'Woven from bottle glass and drowned thread, and it catches memory.',
     set: 'drowned-deep',
   },
   // During your Dawn: grind self 1 and Foresee 1.
@@ -3414,7 +3190,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['U'],
     abilities: [{ when: 'dawn', ops: [{ op: 'grind', n: 1, who: 'self' }, { op: 'foresee', n: 1 }] }],
     rarity: 'c',
-    flavor: 'It rings below the harbour at the turn of the tide, and the tide is never late.',
     set: 'drowned-deep',
   },
   // Tap all creatures an opponent controls. Draw a card.
@@ -3427,7 +3202,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['U'],
     abilities: [{ when: 'spell', ops: [{ op: 'tapAll', who: 'opponent' }, { op: 'draw', n: 1 }] }],
     rarity: 'c',
-    flavor: 'It rolled in at dawn and the town stayed in bed.',
     set: 'drowned-deep',
   },
   // Draw a card. Foresee 1. Whispers {U}.
@@ -3441,7 +3215,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(0, 'U') },
     abilities: [{ when: 'spell', ops: [{ op: 'draw', n: 1 }, { op: 'foresee', n: 1 }] }],
     rarity: 'c',
-    flavor: 'The sea gives it back a little at a time.',
     set: 'drowned-deep',
   },
   // Recall target creature. Whispers {U}.
@@ -3455,7 +3228,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(0, 'U') },
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'recall', to: 'target' }] }],
     rarity: 'c',
-    flavor: 'The harbour froze, and the boat in it, and the thing under the boat.',
     set: 'drowned-deep',
   },
   // Duty, {1}{B}: opponent loses 1 life.
@@ -3468,7 +3240,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['B'],
     activated: { cost: { tap: true, mana: cost(1, 'B') }, ops: [{ op: 'loseLife', n: 1, who: 'opponent' }] },
     rarity: 'c',
-    flavor: 'One secret, one jar, one shelf. The shelf is long.',
     set: 'drowned-deep',
   },
   // Target creature gets -2/-1 until end of turn. Whispers {B}.
@@ -3482,7 +3253,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(0, 'B') },
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'boost', p: -2, t: -1, scope: 'target' }] }],
     rarity: 'c',
-    flavor: 'The sea gets into everything.',
     set: 'drowned-deep',
   },
   // Destroy target creature with cost 2 or less.
@@ -3495,7 +3265,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['B'],
     abilities: [{ when: 'spell', targets: [{ what: 'creature', maxCost: 2 }], ops: [{ op: 'destroy', to: 'target' }] }],
     rarity: 'c',
-    flavor: 'It is owed. It comes for what it is owed.',
     set: 'drowned-deep',
   },
   // Opponent discards a card at random. Grind self 1.
@@ -3508,7 +3277,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['B'],
     abilities: [{ when: 'spell', ops: [{ op: 'discardRandom', n: 1, who: 'opponent' }, { op: 'grind', n: 1, who: 'self' }] }],
     rarity: 'c',
-    flavor: 'The plate goes round. It comes back heavier.',
     set: 'drowned-deep',
   },
   // Sever target creature. You lose 2 life.
@@ -3521,7 +3289,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['B'],
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'sever', to: 'target' }, { op: 'damage', n: 2, to: 'controller' }] }],
     rarity: 'c',
-    flavor: 'The terms are fair. The terms are always fair.',
     set: 'drowned-deep',
   },
   // Destroy target creature with cost 2 or less. Whispers {1}{B}.
@@ -3535,10 +3302,9 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(1, 'B') },
     abilities: [{ when: 'spell', targets: [{ what: 'creature', maxCost: 2 }], ops: [{ op: 'destroy', to: 'target' }] }],
     rarity: 'c',
-    flavor: 'It asked nicely. Once.',
     set: 'drowned-deep',
   },
-  // Each creature gets -3/-3 until end of turn.
+  // Each creature gets -2/-2 until end of turn.
   {
     id: 'dd-black-tide-rising',
     name: 'Black Tide Rising',
@@ -3546,9 +3312,8 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     subtypes: [],
     cost: cost(0, 'BB'),
     colors: ['B'],
-    abilities: [{ when: 'spell', ops: [{ op: 'boost', p: -3, t: -3, scope: 'all' }] }],
+    abilities: [{ when: 'spell', ops: [{ op: 'boost', p: -2, t: -2, scope: 'all' }] }],
     rarity: 'c',
-    flavor: 'The water came up black and everything in it went quiet.',
     set: 'drowned-deep',
   },
   // Duty, {3}{B}: create a 2/2 black Deep-Spawn token.
@@ -3561,7 +3326,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['B'],
     activated: { cost: { tap: true, mana: cost(3, 'B') }, ops: [{ op: 'createToken', token: 'tok-deep-spawn', count: 1 }] },
     rarity: 'c',
-    flavor: 'The cistern is warmer than it should be, and fuller.',
     set: 'drowned-deep',
   },
   // During your Dawn: opponent discards a card at random.
@@ -3574,7 +3338,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['B'],
     abilities: [{ when: 'dawn', ops: [{ op: 'discardRandom', n: 1, who: 'opponent' }] }],
     rarity: 'c',
-    flavor: 'Every one of them still open.',
     set: 'drowned-deep',
   },
   // Opponent sacrifices a creature.
@@ -3587,7 +3350,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['B'],
     abilities: [{ when: 'spell', ops: [{ op: 'sacrifice', who: 'opponent', n: 1 }] }],
     rarity: 'c',
-    flavor: 'Follow the light. Everyone does.',
     set: 'drowned-deep',
   },
   // Put a Mark on target creature.
@@ -3600,7 +3362,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['G'],
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'addCounters', n: 1, to: 'target' }] }],
     rarity: 'c',
-    flavor: 'It takes because the sea has already loosened everything.',
     set: 'drowned-deep',
   },
   // Create two 2/2 green Kelp Shade tokens.
@@ -3613,7 +3374,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['G'],
     abilities: [{ when: 'spell', ops: [{ op: 'createToken', token: 'tok-kelp-shade', count: 2 }] }],
     rarity: 'c',
-    flavor: 'The marsh stood up all at once, and it was not a small marsh.',
     set: 'drowned-deep',
   },
   // Duty, {1}{G}: put a Mark on target creature you control.
@@ -3626,7 +3386,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['G'],
     activated: { cost: { tap: true, mana: cost(1, 'G') }, targets: [{ what: 'yourCreature' }], ops: [{ op: 'addCounters', n: 1, to: 'target' }] },
     rarity: 'c',
-    flavor: 'Coral grows toward the light. This light is for coral.',
     set: 'drowned-deep',
   },
   // Put a Mark on target creature. Gain 3 life.
@@ -3639,7 +3398,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['G'],
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'addCounters', n: 1, to: 'target' }, { op: 'gainLife', n: 3 }] }],
     rarity: 'c',
-    flavor: 'One night a year the pools flower and the whole coast comes to see.',
     set: 'drowned-deep',
   },
   // Your creatures with Marks get +1/+1.
@@ -3652,7 +3410,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['G'],
     abilities: [{ when: 'static', static: { scope: 'filter', filter: { marked: true }, p: 1, t: 1 } }],
     rarity: 'c',
-    flavor: 'The coral takes the wharf, then the boats, then the town, and it is only getting started.',
     set: 'drowned-deep',
   },
   // During your Dawn: put a Mark on target creature you control.
@@ -3665,7 +3422,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['G'],
     abilities: [{ when: 'dawn', targets: [{ what: 'yourCreature' }], ops: [{ op: 'addCounters', n: 1, to: 'target' }] }],
     rarity: 'c',
-    flavor: 'The marsh opens for the reeds and closes for everyone else.',
     set: 'drowned-deep',
   },
   // Damage target creature 1. Whispers {R}.
@@ -3679,7 +3435,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(0, 'R') },
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 1, to: 'target' }] }],
     rarity: 'c',
-    flavor: 'Green flame on wet wood.',
     set: 'drowned-deep',
   },
   // Duty, {1}{R}: damage target creature 1.
@@ -3692,7 +3447,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['R'],
     activated: { cost: { tap: true, mana: cost(1, 'R') }, targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 1, to: 'target' }] },
     rarity: 'c',
-    flavor: 'Raised from the drowned forge, still hot.',
     set: 'drowned-deep',
   },
   // Damage target creature 4. Whispers {1}{R}.
@@ -3706,7 +3460,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(1, 'R') },
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 4, to: 'target' }] }],
     rarity: 'c',
-    flavor: 'It does not go out. It goes quiet.',
     set: 'drowned-deep',
   },
   // Whenever a creature you control attacks, damage opponent 1.
@@ -3719,7 +3472,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['R'],
     abilities: [{ when: 'allyAttacks', ops: [{ op: 'damage', n: 1, to: 'opponent' }] }],
     rarity: 'c',
-    flavor: 'The front sits on the horizon for a week and then does not.',
     set: 'drowned-deep',
   },
   // Damage target creature 6. Whispers {R}{R}.
@@ -3733,7 +3485,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     whispers: { cost: cost(0, 'RR') },
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 6, to: 'target' }] }],
     rarity: 'c',
-    flavor: 'The whole harbour, lit at once, and the town saw what was under it.',
     set: 'drowned-deep',
   },
   // Damage target creature 3 and damage opponent 1.
@@ -3746,7 +3497,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     colors: ['R'],
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 3, to: 'target' }, { op: 'damage', n: 1, to: 'opponent' }] }],
     rarity: 'c',
-    flavor: 'The surge takes the wharf and the argument about whose fault it was.',
     set: 'drowned-deep',
   },
   // Damage target creature 2. Retell {2}{R}.
@@ -3760,7 +3510,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     retell: { cost: cost(2, 'R') },
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 2, to: 'target' }] }],
     rarity: 'c',
-    flavor: 'The heat was not drowned. It was stored.',
     set: 'drowned-deep',
   },
   // Rite 1. Damage target creature 5.
@@ -3774,7 +3523,6 @@ export const DROWNED_DEEP: readonly CardDef[] = [
     rite: { n: 1 },
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 5, to: 'target' }] }],
     rarity: 'c',
-    flavor: 'The lamp needs oil and is not particular.',
     set: 'drowned-deep',
   },
 ];

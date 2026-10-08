@@ -10,7 +10,13 @@
  * Usage:
  *   npx tsx scripts/recrop-art.ts [--only id1,id2] [--limit N] [--dry-run]
  *                                 [--force] [--all] [--out <dir>] [--apply]
- *                                 [--sheet-only]
+ *                                 [--sheet-only] [--apply-ids <file>]
+ *
+ * --apply-ids <file> applies only the listed ids (one per line) from an
+ * existing staging run (<out>/results.json and <out>/cards/<id>.png), then
+ * rebuilds the half set and the manifest. It stages nothing and reruns no
+ * detector: the review picks the set, and --apply (which copies every row of
+ * the current run) never has to be trusted with it.
  */
 import { spawnSync } from 'node:child_process';
 import {
@@ -40,7 +46,7 @@ const OUT_H = 800;
 const CARD_W = 300;
 const CARD_H = 420;
 const CARD_ART_W = 264;
-const CARD_ART_H = 192;
+const CARD_ART_H = 216;
 const BOARD_TILE_W = 132;
 const BOARD_TILE_H = 146;
 const BOARD_FRAME_MARGIN = 4;
@@ -61,6 +67,7 @@ interface Args {
   outDir: string;
   apply: boolean;
   sheetOnly: boolean;
+  applyIds?: string;
 }
 
 interface RawJob {
@@ -129,6 +136,7 @@ function parseArgs(argv: string[]): Args {
       args.outDir = isAbsolute(out) ? resolve(out) : resolve(root, out);
     } else if (a === '--apply') args.apply = true;
     else if (a === '--sheet-only') args.sheetOnly = true;
+    else if (a === '--apply-ids') args.applyIds = next(a);
     else fail(`unknown argument: ${a}`);
   }
   return args;
@@ -452,7 +460,7 @@ function writeReview(rows: ReviewRow[], outDir: string): string {
     .art-window > img { position: absolute; left: var(--image-x); top: var(--image-y); width: var(--image-w); height: var(--image-h); max-width: none; object-fit: fill; }
     .card-art-window { box-shadow: inset 0 0 0 1px #06050a; }
     .card-type { height: 22px; display: flex; align-items: center; padding: 0 7px; overflow: hidden; border: 1px solid #bca260; background: #e9d9a9; color: #2a2018; font-size: 10px; font-weight: 700; white-space: nowrap; text-overflow: ellipsis; }
-    .card-textbox { box-sizing: border-box; height: 113px; margin-top: 8px; padding: 9px; border: 1px solid #bca260; border-radius: 3px; background: #eadcb6; color: #786a4e; font-size: 10px; }
+    .card-textbox { box-sizing: border-box; height: 89px; margin-top: 8px; padding: 9px; border: 1px solid #bca260; border-radius: 3px; background: #eadcb6; color: #786a4e; font-size: 10px; }
     .card-textbox span { opacity: 0.6; }
     .card-footer { padding-top: 5px; color: #eadcb6; font-size: 9px; text-align: right; }
     .tile-context { width: ${BOARD_TILE_W}px; }
@@ -499,6 +507,26 @@ function applyStaged(rows: ReviewRow[]): void {
 function main(): void {
   const args = parseArgs(process.argv.slice(2));
   assertSafeOutDir(args.outDir);
+  if (args.applyIds !== undefined) {
+    if (args.apply || args.sheetOnly || args.dryRun || args.all || args.only || args.limit !== undefined) {
+      fail('--apply-ids takes only --out; it applies an existing staging run');
+    }
+    const ids = readFileSync(args.applyIds, 'utf8')
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const wanted = new Set(ids);
+    if (wanted.size !== ids.length) fail(`--apply-ids lists an id twice: ${args.applyIds}`);
+    const rows = readResults(args.outDir).filter((row) => wanted.has(row.job.id));
+    const found = new Set(rows.map((row) => row.job.id));
+    const unknown = ids.filter((id) => !found.has(id));
+    if (unknown.length > 0) fail(`--apply-ids ids not in ${join(args.outDir, 'results.json')}: ${unknown.join(', ')}`);
+    const missing = rows.filter((row) => !existsSync(row.newPath)).map((row) => row.job.id);
+    if (missing.length > 0) fail(`--apply-ids ids with no staged PNG: ${missing.join(', ')}`);
+    applyStaged(rows);
+    console.log(`recrop-art: applied ${rows.length} listed staged crop(s) to shipped art`);
+    return;
+  }
   if (args.sheetOnly) {
     if (args.apply) fail('--sheet-only cannot be combined with --apply');
     const rows = readResults(args.outDir);

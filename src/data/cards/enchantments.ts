@@ -12,7 +12,6 @@ export const ENCHANTMENTS = [
     colors: ['W'],
     abilities: [{ when: 'static', static: { scope: 'attached', p: -4, t: 0 } }],
     rarity: 'c',
-    flavor: 'Sign here. Fight never.',
   },
   {
     id: 'en-wild-blessing',
@@ -23,7 +22,6 @@ export const ENCHANTMENTS = [
     colors: ['G'],
     abilities: [{ when: 'static', static: { scope: 'attached', p: 2, t: 2 } }],
     rarity: 'c',
-    flavor: 'The forest picked a favorite.',
   },
   {
     id: 'en-withering-curse',
@@ -34,7 +32,6 @@ export const ENCHANTMENTS = [
     colors: ['B'],
     abilities: [{ when: 'static', static: { scope: 'attached', p: -2, t: -2 } }],
     rarity: 'c',
-    flavor: 'It starts as a bad morning and stays.',
   },
   {
     id: 'en-clouded-mind',
@@ -45,7 +42,6 @@ export const ENCHANTMENTS = [
     colors: ['U'],
     abilities: [{ when: 'static', static: { scope: 'attached', p: -3, t: 0 } }],
     rarity: 'c',
-    flavor: 'Now, where was the war again?',
   },
   {
     id: 'en-wings-of-dawn',
@@ -61,7 +57,6 @@ export const ENCHANTMENTS = [
       { when: 'static', static: { scope: 'attached', p: 2, t: 2, grantKeywords: ['skyborne', 'sentinel'] } },
     ],
     rarity: 'r',
-    flavor: 'Standard-issue miracle, size medium.',
   },
   {
     id: 'en-battle-fervor',
@@ -74,7 +69,6 @@ export const ENCHANTMENTS = [
       { when: 'static', static: { scope: 'attached', p: 2, t: 0, grantKeywords: ['warcry'] } },
     ],
     rarity: 'c',
-    flavor: 'Patience sold separately. Never restocked.',
   },
   {
     id: 'en-call-of-the-wilds',
@@ -87,7 +81,6 @@ export const ENCHANTMENTS = [
       { when: 'static', static: { scope: 'filter', filter: { subtype: 'Beastkin' }, p: 1, t: 1 } },
     ],
     rarity: 'r',
-    flavor: 'One long howl, and every ear in the wilds tilts.',
   },
   {
     id: 'en-banner-of-the-hegemon',
@@ -100,7 +93,6 @@ export const ENCHANTMENTS = [
       { when: 'static', static: { scope: 'filter', filter: { subtype: 'Wei' }, p: 1, t: 1 } },
     ],
     rarity: 'r',
-    flavor: 'March under it, or march under someone marching under it.',
   },
   {
     id: 'en-peach-garden-oath',
@@ -113,7 +105,6 @@ export const ENCHANTMENTS = [
       { when: 'static', static: { scope: 'filter', filter: { subtype: 'Shu' }, p: 1, t: 1 } },
     ],
     rarity: 'r',
-    flavor: 'Not born on the same day, but stubborn on all the same days.',
   },
   {
     id: 'en-olympus-ascendant',
@@ -126,7 +117,6 @@ export const ENCHANTMENTS = [
       { when: 'static', static: { scope: 'filter', filter: { subtype: 'Olympian' }, p: 2, t: 2 } },
     ],
     rarity: 'sr',
-    flavor: 'The mountain remembers being a throne.',
   },
   // Returning-mechanics sprinkle (1.6): the first Quest outside Grail Oath.
   // All three chapters are trigger-safe and automatic, so every AI tier
@@ -144,6 +134,5 @@ export const ENCHANTMENTS = [
       [{ op: 'boost', p: 1, t: 1, scope: 'allYours' }],
     ],
     rarity: 'r',
-    flavor: 'Six seeds down, one road up. She keeps both appointments.',
   },
 ] as const satisfies readonly CardDef[];

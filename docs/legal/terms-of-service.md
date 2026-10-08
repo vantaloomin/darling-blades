@@ -9,7 +9,7 @@ DRAFT, written as of the 1.8 release. Not published. Not reviewed by a lawyer.
 
 # Darling Blades Terms of Service
 
-**Effective date:** [1.8 RELEASE DATE]
+**Effective date:** [TERMS EFFECTIVE DATE]
 
 These terms are an agreement between you and Blade Darlings ("we", "us")
 about your use of Darling Blades (the "game"), in the web version and the
@@ -18,7 +18,7 @@ play.
 
 ## 1. Who can play
 
-You must be at least 13 years old to play. If you are under the age of
+You must be at least 16 years old to play. If you are under the age of
 majority where you live, a parent or guardian should read these terms with
 you.
 

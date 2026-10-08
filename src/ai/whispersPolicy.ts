@@ -16,7 +16,7 @@ export function applyWhispersPolicy(
     }
     const id = cast.type === 'castDarling' ? view.you.darlingZone! : view.you.hand[cast.handIndex];
     return cardValue(db, id) + (cast.x ?? 0) +
-      (cast.type === 'castSpell' && cast.empowered ? empowerValue(db, id) : 0);
+      (cast.type === 'castSpell' && cast.empowered ? empowerValue(db, id, view, cast) : 0);
   },
 ): Action[] {
   if (!legal.some((action) => action.type === 'castSpell' && action.whispers)) return legal;

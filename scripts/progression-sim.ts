@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 import type { AIPlayer } from '../src/ai/AIPlayer';
 import { buildAI } from '../src/ai/personality';
 import { ECONOMY } from '../src/config/rules';
+import { packPriceForSku, type BoosterSku } from '../src/meta/boosterSkus';
 import { CARD_DB } from '../src/data/catalog';
 import { draftPersonaById } from '../src/data/draftPersonas';
 import { avatarForRung } from '../src/data/opponents';
@@ -595,8 +596,8 @@ export const COARSE_PROGRESSION_BANDS = Object.freeze({
   uniqueCards: Object.freeze({ min: 108, max: 202 }),
 });
 
-export const CANONICAL_FINE_BASELINE_DATE = '2026-07-31';
-export const CANONICAL_FINE_BASELINE_SAMPLE = '10 personas x 8 seeds x 60 days, 1.5 post-balance-pass, 764 collectible (787 catalog)';
+export const CANONICAL_FINE_BASELINE_DATE = '2026-10-05';
+export const CANONICAL_FINE_BASELINE_SAMPLE = '10 personas x 8 seeds x 60 days, 1.9.x missing-first c/r packs, 1648 collectible (1685 catalog)';
 
 /**
  * Flag-only bands measured from balance/econ-baseline-2026-07-31-post-pass.report.json
@@ -627,6 +628,57 @@ export const CANONICAL_FINE_BASELINE_SAMPLE = '10 personas x 8 seeds x 60 days, 
  * that ceiling on purpose). Quest-claim rates are pool-independent and were
  * the instrument check both times.
  *
+ *
+ * RE-DATED 2026-10-05 (the 1.9 collection-dilution revisit, owner ruling the
+ * same day): `npx tsx scripts/progression-sim.ts --check --seeds 8 --days
+ * 7,14,30,60` at the final First Dawn pool, 1,648 collectible (1,685
+ * catalog), after #519 moved back-catalog boosters 525g -> 450g. Two triggers
+ * for a re-centre held: three standing uniqueCards flags (limited-fan 780.5,
+ * theme-deck-buyer 389.1, completionist 612.9, all ABOVE their ceilings) and
+ * that deliberate price change. Every uniqueCards band is re-centred on the
+ * fresh day-60 measurement with its previous relative tolerance kept (edges
+ * divided by the count its band was centred on: the 198.5 measurement for
+ * new-casual, pct x 764 for the rest), floor/ceil rounded. Packs/day, Premium
+ * runs and quest-claim rates all measured inside their existing windows and
+ * stand unchanged. Owned counts rose for every persona while their share of
+ * the pool fell to 10-47%: that share is the dilution, and these count bands
+ * deliberately do not track it (the 2026-07-31 decision above).
+ *
+ * Persona              Uniques   old band    new band   Packs/day  Quest claim
+ * new-casual            217.0   162..235    177..257      0.58       0.47
+ * daily-grinder         441.8   348..500    380..547      1.39       0.76
+ * gauntlet-climber      469.5   338..491    410..597      1.56       0.72
+ * limited-fan           780.5   550..628    758..866      0.46       0.75
+ * collector             389.6   261..422    318..515      1.03       0.75
+ * theme-deck-buyer      389.1   237..323    355..485      0.93       0.63
+ * hardcore-optimizer    539.4   497..598    521..628      2.19       0.87
+ * low-skill-casual      170.6   102..210    121..251      0.28       0.37
+ * high-skill-veteran    502.1   407..556    443..606      1.83       0.76
+ * completionist         612.9   502..597    592..705      1.80       0.90
+ *
+ * craftedUniques stayed 0.0 for every persona: the sim only crafts past 85%
+ * completion, which no persona reaches at this pool.
+ *
+ * RE-CENTRED AGAIN for a deliberate economy change (1.9.x, owner ruling
+ * 2026-10-05): booster c/r slots roll unowned cards first
+ * (`dupeProtectedPool`). Same run shape at the same pool; filtering consumes
+ * no rng, so every other roll is unchanged. uniqueCards moved up, each band
+ * keeping the relative tolerance of the band above; packs/day (0.28-2.25),
+ * Premium runs (17.9) and quest claims stayed inside their windows.
+ *
+ * Persona              Uniques   new band
+ * new-casual    217.0 -> 252.9   206..300
+ * daily-grinder 441.8 -> 546.1   469..677
+ * gauntlet-climber 469.5 -> 570.9 498..726
+ * limited-fan   780.5 -> 849.4   824..943
+ * collector     389.6 -> 479.0   390..634
+ * theme-deck-buyer 389.1 -> 401.9 366..501
+ * hardcore-optimizer 539.4 -> 676.8 653..788
+ * low-skill-casual 170.6 -> 221.0 156..326
+ * high-skill-veteran 502.1 -> 595.9 525..720
+ * completionist 612.9 -> 718.3   693..827
+ *
+ * Retained history (bands as they stood before 2026-10-05, measured 2026-07-31):
  * new-casual 18.77 -> 18..26, 0.45 -> 0.09..1.08, 0 -> 0..1, 42.50 -> 25..64
  * daily-grinder 52.88 -> 46..66, 1.49 -> 0.86..2.28, 0 -> 0..1, 73.82 -> 54..94
  * gauntlet-climber 50.62 -> 44..64, 1.36 -> 0.77..2.14, 0 -> 0..1, 68.89 -> 49..89
@@ -644,32 +696,26 @@ export const CANONICAL_FINE_BANDS: Readonly<Record<string, {
   premiumDraftRuns: readonly [number, number];
   dailyQuestClaimRate: readonly [number, number];
 }>> = Object.freeze({
-  // 17.8%-25.7% of 764 = 135.992-196.348, rounded to [136, 196]. RE-CENTRED
-  // 2026-08-01 for the free Darlings precon endowment (the least-collecting
-  // persona keeps nearly all ~80 granted uniques; measured 198.5 at
-  // 10x8x60): same +/-18.2% relative tolerance around the fresh
-  // measurement = [162, 235]. The other nine personas measured inside
-  // their existing windows (pack/set overlap absorbs the grant) and are
-  // deliberately not re-centred.
-  'new-casual': { uniqueCards: [162, 235], packsPerDay: [0.09, 1.08], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.25, 0.64] },
-  // 45.6%-65.5% of 764 = 348.384-500.420, rounded to [348, 500].
-  'daily-grinder': { uniqueCards: [348, 500], packsPerDay: [0.86, 2.28], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.54, 0.94] },
-  // 44.2%-64.3% of 764 = 337.688-491.252, rounded to [338, 491].
-  'gauntlet-climber': { uniqueCards: [338, 491], packsPerDay: [0.77, 2.14], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.486, 0.886] },
-  // 72.0%-82.2% of 764 = 550.080-628.008, rounded to [550, 628].
-  'limited-fan': { uniqueCards: [550, 628], packsPerDay: [0.07, 0.92], premiumDraftRuns: [16, 20], dailyQuestClaimRate: [0.535, 0.922] },
-  // 34.2%-55.2% of 764 = 261.288-421.728, rounded to [261, 422].
-  collector: { uniqueCards: [261, 422], packsPerDay: [0.48, 1.71], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.436, 0.836] },
-  // 31.0%-42.3% of 764 = 236.840-323.172, rounded to [237, 323].
-  'theme-deck-buyer': { uniqueCards: [237, 323], packsPerDay: [0.34, 1.29], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.4, 0.8] },
-  // 65.1%-78.3% of 764 = 497.364-598.212, rounded to [497, 598].
-  'hardcore-optimizer': { uniqueCards: [497, 598], packsPerDay: [1.48, 3.22], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.7, 1] },
-  // 13.3%-27.5% of 764 = 101.612-210.100, rounded to [102, 210].
-  'low-skill-casual': { uniqueCards: [102, 210], packsPerDay: [0.11, 0.95], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.21, 0.61] },
-  // 53.3%-72.8% of 764 = 407.212-556.192, rounded to [407, 556].
-  'high-skill-veteran': { uniqueCards: [407, 556], packsPerDay: [1.09, 2.71], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.595, 0.945] },
-  // 65.7%-78.1% of 764 = 501.948-596.684, rounded to [502, 597].
-  completionist: { uniqueCards: [502, 597], packsPerDay: [1.36, 3.09], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.698, 1] },
+  // Re-centred 2026-10-05 twice (tables above); was [162, 235], then [177, 257].
+  'new-casual': { uniqueCards: [206, 300], packsPerDay: [0.09, 1.08], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.25, 0.64] },
+  // Re-centred 2026-10-05 twice (tables above); was [348, 500], then [380, 547].
+  'daily-grinder': { uniqueCards: [469, 677], packsPerDay: [0.86, 2.28], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.54, 0.94] },
+  // Re-centred 2026-10-05 twice (tables above); was [338, 491], then [410, 597].
+  'gauntlet-climber': { uniqueCards: [498, 726], packsPerDay: [0.77, 2.14], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.486, 0.886] },
+  // Re-centred 2026-10-05 twice (tables above); was [550, 628], then [758, 866].
+  'limited-fan': { uniqueCards: [824, 943], packsPerDay: [0.07, 0.92], premiumDraftRuns: [16, 20], dailyQuestClaimRate: [0.535, 0.922] },
+  // Re-centred 2026-10-05 twice (tables above); was [261, 422], then [318, 515].
+  collector: { uniqueCards: [390, 634], packsPerDay: [0.48, 1.71], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.436, 0.836] },
+  // Re-centred 2026-10-05 twice (tables above); was [237, 323], then [355, 485].
+  'theme-deck-buyer': { uniqueCards: [366, 501], packsPerDay: [0.34, 1.29], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.4, 0.8] },
+  // Re-centred 2026-10-05 twice (tables above); was [497, 598], then [521, 628].
+  'hardcore-optimizer': { uniqueCards: [653, 788], packsPerDay: [1.48, 3.22], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.7, 1] },
+  // Re-centred 2026-10-05 twice (tables above); was [102, 210], then [121, 251].
+  'low-skill-casual': { uniqueCards: [156, 326], packsPerDay: [0.11, 0.95], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.21, 0.61] },
+  // Re-centred 2026-10-05 twice (tables above); was [407, 556], then [443, 606].
+  'high-skill-veteran': { uniqueCards: [525, 720], packsPerDay: [1.09, 2.71], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.595, 0.945] },
+  // Re-centred 2026-10-05 twice (tables above); was [502, 597], then [592, 705].
+  completionist: { uniqueCards: [693, 827], packsPerDay: [1.36, 3.09], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.698, 1] },
 });
 
 const emptyRewards = (): RewardLedger => ({
@@ -1423,13 +1469,8 @@ function buyPacks(ctx: SimContext, dayIndex: number): void {
  * Every expansion booster a 1.5 player can actually buy, in release order. The
  * rotation is indexed by day, so it stays seed-deterministic.
  */
-const MIXED_EXPANSION_ROTATION: readonly { price: number; set: CardDef['set'] }[] = [
-  { price: ECONOMY.ragnarokPackPrice, set: 'ragnarok' },
-  { price: ECONOMY.celticFaePackPrice, set: 'celtic-fae' },
-  { price: ECONOMY.arthurianCourtPackPrice, set: 'arthurian-court' },
-  { price: ECONOMY.gothicMonstersPackPrice, set: 'gothic-monsters' },
-  { price: ECONOMY.darkTalesPackPrice, set: 'dark-tales' },
-  { price: ECONOMY.yokaiNightsPackPrice, set: 'yokai-nights' },
+const MIXED_EXPANSION_ROTATION: readonly BoosterSku[] = [
+  'ragnarok', 'celtic-fae', 'arthurian-court', 'gothic-monsters', 'dark-tales', 'yokai-nights',
 ];
 
 export function packChoiceForPreference(
@@ -1441,12 +1482,12 @@ export function packChoiceForPreference(
     case 'none':
       return null;
     case 'base':
-      return { price: ECONOMY.packPrice, set: 'base' };
+      return { price: packPriceForSku('base'), set: 'base' };
     case 'ragnarok':
-      return { price: ECONOMY.ragnarokPackPrice, set: 'ragnarok' };
+      return { price: packPriceForSku('ragnarok'), set: 'ragnarok' };
     case 'arthurian-court':
-      return { price: ECONOMY.arthurianCourtPackPrice, set: 'arthurian-court' };
-    case 'mixed':
+      return { price: packPriceForSku('arthurian-court'), set: 'arthurian-court' };
+    case 'mixed': {
       // Mixed preference is a cheap Base Set route with an occasional
       // expansion pack, rotating deterministically through every released
       // expansion. Before 1.5 this branch bought the all-sets product, so one
@@ -1456,9 +1497,11 @@ export function packChoiceForPreference(
       // 2026-07-29 run duly measured every mixed persona pinned at 32-35%.
       // (Those are that era's figures; post-balance-pass the same base-only
       // ceiling is 209/764 = 27% and the ratios re-derive each re-baseline.)
-      return expansionRoll < (dayIndex % 3 === 0 ? 0.6 : 0.35)
+      const set = expansionRoll < (dayIndex % 3 === 0 ? 0.6 : 0.35)
         ? MIXED_EXPANSION_ROTATION[dayIndex % MIXED_EXPANSION_ROTATION.length]
-        : { price: ECONOMY.packPrice, set: 'base' };
+        : 'base';
+      return { price: packPriceForSku(set), set };
+    }
   }
 }
 

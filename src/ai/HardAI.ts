@@ -14,12 +14,13 @@ import { MediumAI } from './MediumAI';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { choosePlayDraw } from './playDraw';
 import { preserveActionValue } from './preservePolicy';
+import { chooseHardPump, withoutPumps } from './pumpPolicy';
 import { applyRitePolicy, isRiteCast, riteSacrificeValue } from './ritePolicy';
 import { applyTithePolicy, isTitheCast, titheManaSaved } from './tithePolicy';
 import { applyWhispersPolicy } from './whispersPolicy';
 import { applyVocabularyTargetPolicy, chooseTargetAction, isVocabularyCast } from './targeting';
 import { chooseSacrifice } from './sacrificePolicy';
-import { actionManaCost, cardValue, empowerValue, faceDamageForCast, hauntlinkCastValue, whispersValue, type SpellMode } from './value';
+import { actionManaCost, cardValue, empowerValue, faceDamageForCast, hauntlinkCastValue, usefulMarkCast, whispersValue, type SpellMode } from './value';
 
 type CreatureCast = Extract<Action, { type: 'castSpell' | 'castDarling' }>;
 
@@ -55,6 +56,7 @@ export class HardAI implements AIPlayer {
   }
 
   chooseAction(view: PlayerView, legal: Action[]): Action {
+    legal = legal.filter((action) => usefulMarkCast(view, this.db, action));
     legal = applyVocabularyTargetPolicy(view, this.db, legal, true);
     legal = applyTithePolicy(view, this.db, legal, this.pers, () =>
       view.step === 'main1' && view.activePlayer === view.myId
@@ -71,7 +73,7 @@ export class HardAI implements AIPlayer {
         (cast.x ?? 0) + (cast.type === 'castSpell' ? titheManaSaved(view, this.db, cast) : 0);
       return cardValue(this.db, id, view, mode) + (cast.type === 'castSpell' && cast.whispers
         ? whispersValue(this.db, id, view) - cardValue(this.db, id) :
-        (cast.x ?? 0) + (cast.type === 'castSpell' && cast.empowered ? empowerValue(this.db, id) : 0));
+        (cast.x ?? 0) + (cast.type === 'castSpell' && cast.empowered ? empowerValue(this.db, id, view, mode) : 0));
     });
     switch (view.awaiting.kind) {
       case 'choosePlayDraw':
@@ -137,7 +139,7 @@ export class HardAI implements AIPlayer {
     }
 
     for (const action of actions) {
-      const a = game.awaiting;
+      const a = game.instanceState.awaiting;
       if (a.kind === 'gameOver') break;
       if (!('player' in a) || a.player !== me) break;
       try {
@@ -151,7 +153,7 @@ export class HardAI implements AIPlayer {
     // evaluation happens at a stable point (stack flushed, damage resolved)
     // instead of mid-stack.
     for (let guard = 0; guard < 20; guard++) {
-      const a = game.awaiting;
+      const a = game.instanceState.awaiting;
       if (a.kind !== 'respond' && a.kind !== 'endStepWindow' && a.kind !== 'hauntlinkWindow') break;
       if (a.player !== me) break;
       try {
@@ -165,7 +167,7 @@ export class HardAI implements AIPlayer {
     // choice is resolving. Keep the sim moving instead of evaluating a
     // mid-queue state or stalling on an unhandled awaiting kind.
     for (let guard = 0; guard < 20; guard++) {
-      const a = game.awaiting;
+      const a = game.instanceState.awaiting;
       const mayResumeNewQueue = a.kind === 'foresee' || a.kind === 'discardToHandSize' ||
         a.kind === 'respond' || a.kind === 'endStepWindow' || a.kind === 'hauntlinkWindow';
       const vocabularyQueue = mayResumeNewQueue && game.viewFor(me).pendingDecisions !== undefined;
@@ -181,9 +183,9 @@ export class HardAI implements AIPlayer {
       this.autoplayOpponent(game, me);
     }
     return {
-      score: evaluate(game.state, this.sdb, me),
-      won: game.state.winner === me,
-      lost: game.state.winner === opp,
+      score: evaluate(game.instanceState, this.sdb, me),
+      won: game.instanceState.winner === me,
+      lost: game.instanceState.winner === opp,
     };
   }
 
@@ -195,7 +197,7 @@ export class HardAI implements AIPlayer {
   private autoplayOpponent(game: Game, me: PlayerId): void {
     const opp = opponentOf(me);
     for (let guard = 0; guard < 30; guard++) {
-      const a = game.awaiting;
+      const a = game.instanceState.awaiting;
       if (a.kind === 'gameOver' || !('player' in a) || a.player !== opp) return;
       if (a.kind === 'declareBlockers') {
         const st = game.state;
@@ -488,14 +490,14 @@ export class HardAI implements AIPlayer {
     let pendingCast = deferred;
     for (let guard = 0; guard < 120; guard++) {
       this.autoplayOpponent(game, me);
-      const awaiting = game.awaiting;
-      if (awaiting.kind === 'gameOver') return evaluate(game.state, this.sdb, me);
-      if (game.state.turn !== turn || game.state.activePlayer !== me ||
+      const awaiting = game.instanceState.awaiting;
+      if (awaiting.kind === 'gameOver') return evaluate(game.instanceState, this.sdb, me);
+      if (game.instanceState.turn !== turn || game.instanceState.activePlayer !== me ||
         !('player' in awaiting) || awaiting.player !== me) return null;
       let action: Action;
       if (awaiting.kind === 'main') {
-        if (game.state.step === 'main2') {
-          if (!pendingCast) return evaluate(game.state, this.sdb, me);
+        if (game.instanceState.step === 'main2') {
+          if (!pendingCast) return evaluate(game.instanceState, this.sdb, me);
           const current = game.viewFor(me);
           const legal = applyRitePolicy(current, this.sdb,
             applyTithePolicy(current, this.sdb,
@@ -516,7 +518,7 @@ export class HardAI implements AIPlayer {
           if (!refreshed) return null;
           action = refreshed;
           pendingCast = false;
-        } else if (game.state.step === 'main1') {
+        } else if (game.instanceState.step === 'main1') {
           action = { type: 'passStep' };
         } else return null;
       } else {
@@ -633,13 +635,13 @@ export class HardAI implements AIPlayer {
     } catch {
       return -Infinity;
     }
-    const startTurn = game.state.turn;
+    const startTurn = game.instanceState.turn;
     for (let guard = 0; guard < 120; guard++) {
-      const a = game.awaiting;
+      const a = game.instanceState.awaiting;
       if (a.kind === 'gameOver') break;
       if (!('player' in a)) break;
       // one full turn cycle — deeper horizons amplify opponent-model error
-      if (a.player === me && a.kind === 'main' && game.state.turn > startTurn) break;
+      if (a.player === me && a.kind === 'main' && game.instanceState.turn > startTurn) break;
       try {
         const p = a.player;
         // My side plays with my personality; the opponent stays neutral.
@@ -649,7 +651,7 @@ export class HardAI implements AIPlayer {
         return -Infinity;
       }
     }
-    return evaluate(game.state, this.sdb, me);
+    return evaluate(game.instanceState, this.sdb, me);
   }
 
   /**
@@ -671,8 +673,19 @@ export class HardAI implements AIPlayer {
       this.openManaBuff(view),
       this.pers,
     );
-    const outcomeOf = (blocks: { blocker: number; attacker: number }[]) =>
-      this.aggregateOutcome(view, [{ type: 'declareBlockers', blocks }]);
+    // The climb revisits plans (undoing the last add rebuilds the plan it came
+    // from), and a simulation is a pure function of the view and the action,
+    // so each distinct assignment, order included, is simulated once.
+    const outcomes = new Map<string, ReturnType<HardAI['aggregateOutcome']>>();
+    const outcomeOf = (blocks: { blocker: number; attacker: number }[]) => {
+      const key = JSON.stringify(blocks);
+      let out = outcomes.get(key);
+      if (out === undefined) {
+        out = this.aggregateOutcome(view, [{ type: 'declareBlockers', blocks }]);
+        outcomes.set(key, out);
+      }
+      return out;
+    };
     const base = outcomeOf(mediumBlocks);
     if (!base) return { type: 'declareBlockers', blocks: mediumBlocks };
 
@@ -756,6 +769,10 @@ export class HardAI implements AIPlayer {
    * clearly better position (terminal discoveries included for free — a win
    * or a dodged loss clears any margin). */
   private searchResponse(view: PlayerView, legal: Action[]): Action {
+    // The mana pump is Hard's own read; Medium's simpler rule never decides it.
+    const pump = chooseHardPump(view, this.db, legal);
+    if (pump) return pump;
+    legal = withoutPumps(legal);
     const mediumChoice = this.medium.chooseAction(view, legal);
     // Graveyard casts come after hand variants in the engine menu. Keep live
     // Whispers Charms reachable even when ten hand variants fill the cap.

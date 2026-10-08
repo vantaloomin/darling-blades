@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import type { DuelA11yFixtureName, DuelA11yFixture } from '../dev/duelA11yFixtures';
 import type { AIPlayer } from '../ai/AIPlayer';
 import { buildTierAI, floorTier } from '../ai/tiers';
 import { Music } from '../audio/music';
@@ -8,7 +9,7 @@ import { buildAI } from '../ai/personality';
 import { ECONOMY, RULES, type ReserveFormat } from '../config/rules';
 import { FEATURES } from '../config/features';
 import { CARD_DB } from '../data/catalog';
-import { tutorialCue, type TutorialCueInput, type TutorialCueKind } from '../data/tutorial';
+import { TUTORIAL_OPPONENT_NAME, TUTORIAL_OPPONENT_PORTRAIT, tutorialCue, type TutorialCueInput, type TutorialCueKind } from '../data/tutorial';
 import { avatarById, avatarForRung, AVATARS, type Avatar } from '../data/opponents';
 import { draftPersonaById, type DraftPersona } from '../data/draftPersonas';
 import { heroById } from '../data/heroes';
@@ -69,6 +70,7 @@ import type { GameEvent } from '../engine/events';
 import { Game } from '../engine/Game';
 import { combineManaCosts, manaSources, solveMana } from '../engine/mana';
 import { ensureSplitPip } from '../ui/ManaSymbols';
+import { ensureNumeralBadgeInk, INTER_FIGURE_HEIGHT } from '../ui/NumeralGlyphs';
 import { getEffectiveStats, isSummoningSick } from '../engine/statics';
 import type { CardDef, Color, ManaColor, PlayerId, Permanent, TargetRef } from '../engine/types';
 import { activatedAbilitiesOf, cardIdOf, def, isType, manaValue } from '../engine/types';
@@ -81,13 +83,42 @@ import {
   setStickyHost,
 } from '../platform/gestures';
 import { darlingFaceCardFor, faceCardFor } from '../meta/deckFace';
-import { Art, landStyleArtKey } from '../art/ArtResolver';
-import { BoardCardView, TILE_W, TILE_H, type BoardHighlight } from '../ui/BoardCardView';
-import { CardZoomPreview } from '../ui/CardZoomPreview';
+import { BoardCardView, TILE_W, TILE_H, } from '../ui/BoardCardView';
+import { CardZoomPreview, rarityLine } from '../ui/CardZoomPreview';
 import { CardView, CARD_W, CARD_H } from '../ui/CardView';
 import { CoachMark } from '../ui/CoachMark';
 import { CombatFx } from '../ui/CombatFx';
-import { planCombat, type CombatHit, type CombatStep } from '../ui/combatSequence';
+import { planCombat, sequencedBatchRoutes, type CombatHit, type CombatStep } from '../ui/combatSequence';
+import { PROVOKED_SPENT_NOTE, provokedSpent, pickBadgeLabel, type CueContext } from '../ui/boardCuePresentation';
+import {
+  huntDrawnDamage,
+  huntExchangeDraw,
+  huntFloatText,
+  huntStepPrompt,
+  planHunts,
+  targetStepTitle,
+  tookPartInHunt,
+  type HuntCreature,
+  type HuntedEvent,
+  type HuntStep,
+  type HuntTargetSource,
+} from '../ui/huntPresentation';
+import {
+  PUMP_TICKER_CANCEL,
+  PUMP_TICKER_TITLE,
+  manaActivatedEffectText,
+  pumpActionsFor,
+  pumpBoost,
+  pumpBoostText,
+  pumpConfirmLabel,
+  pumpSubmission,
+  pumpSummaryText,
+  pumpTicker,
+  pumpTickerLimitText,
+  stepPumpTicker,
+  type ManaPumpAction,
+  type PumpTicker,
+} from '../ui/manaPumpPresentation';
 import {
   COIN_FLIP_ACTION_CENTERS,
   COIN_FLIP_ACTION_WIDTH,
@@ -97,6 +128,7 @@ import {
   type CoinFlipSide,
 } from '../ui/coinFlipLayout';
 import { CommanderPortrait } from '../ui/CommanderPortrait';
+import { addPortraitArt } from '../ui/portraitArt';
 import { fanLayout } from '../ui/handFan';
 import { handDisplayOrder } from '../ui/handSort';
 import { HistoryPanel } from '../ui/HistoryPanel';
@@ -119,8 +151,12 @@ import {
   dutyTargetsNeedPicker,
   dutyWindowReason,
   type DutyAction,
+  departedInBatch,
+  eventHistoryLine,
+  type EventLineLookup,
   forcedAttackNotice,
   permanentActionLabel,
+  duelTilePresentation,
   rageMustAttackNotice,
   refusedMoveLine,
   sacrificeCastChoices,
@@ -142,7 +178,12 @@ import {
   targetRingTone,
   toggleAttacker,
 } from '../ui/duelPresentation';
-import { DUEL_LAYOUT, LIFE_BADGE_SIZE, LIFE_TARGET_RING, SEVERED_PILE_HIT } from '../ui/duelLayout';
+import { fitDuelModal } from '../ui/duelModal';
+import { duelButtonPairCenters, duelModalLayout } from '../ui/duelModalPresentation';
+import type { Rect } from '../ui/layout';
+import { duelRecapLayout } from '../ui/duelRecapPresentation';
+import { currentAccessibility } from '../ui/accessibility';
+import { DUEL_LAYOUT, duelHudType, LIFE_BADGE_SIZE, LIFE_TARGET_RING, SEVERED_PILE_HIT } from '../ui/duelLayout';
 import { shouldPlayVersusBumper, versusLeitmotifPitch } from '../ui/versusBumperPresentation';
 import { activeVisibleSavedDeck } from '../ui/deckBuilderHelpers';
 import { ModalGuard } from '../ui/Modal';
@@ -152,7 +193,7 @@ import { confirmedTargetSelection, removeLastTargetSelection, targetSelectionSte
 import { showDutyPicker, showLootPicker, type ChoiceOverlay } from '../ui/choiceOverlays';
 import { renderManaText } from '../ui/ManaText';
 import { PHASE_TRACK_ROWS, phaseTrackRowForStep, type PhaseTrackRow } from '../ui/phaseTrack';
-import { empowerText, manaCostText, romanNumeral } from '../ui/rulesText';
+import { cardGlossaryEntries, empowerText, manaCostText, romanNumeral } from '../ui/rulesText';
 import { PileView } from '../ui/PileView';
 import { bakeKeywordIcons } from '../ui/KeywordIcons';
 import {
@@ -176,10 +217,11 @@ import {
 import { groupReserveSlots, landFanSlots } from '../ui/reserveModalPresentation';
 import { packRow, type RowPacking } from '../ui/rowPacking';
 import { gateOnArt } from '../ui/artGate';
+import { duelArtIds, nextDuelArt, prefetchDuelArt } from '../ui/duelArt';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { StackDisplay } from '../ui/StackDisplay';
 import { colorInt, theme } from '../ui/theme';
-import { backButton, modalShell, themedButton, type ModalShell, type ThemedButton } from '../ui/themeWidgets';
+import { backButton, modalShell, pager, themedButton, type ModalShell, type ThemedButton } from '../ui/themeWidgets';
 import { showZoneContents, type ZoneContentsEntry, type ZoneContentsModal } from '../ui/ZoneContentsModal';
 
 const HUMAN: PlayerId = 0;
@@ -187,6 +229,14 @@ const AI: PlayerId = 1;
 
 /** Duel launch contract — see `DuelScene.create` / `DuelScene.build`. */
 export interface DuelSceneData {
+  /** Dev-only, presentation fixtures never start a live or recorded game. */
+  a11yFixture?: DuelA11yFixtureName;
+  a11yPage?: number;
+  a11yCommitPick?: boolean;
+  a11yOverlay?: 'pause' | 'replay-complete' | 'replay-unavailable' | 'recap' | 'coin' | 'result'
+    | 'tutorial-pause' | 'tutorial-complete' | 'tutorial-ended';
+  /** Dev-only, with `a11yFixture`: open the full-card inspect on this card. */
+  a11yInspectCardId?: string;
   difficulty?: Difficulty;
   opponentId?: string;
   gauntletRung?: number;
@@ -202,15 +252,6 @@ export interface DuelSceneData {
   limited?: LimitedDuelData['limited'];
   replay?: ReplayLog;
 }
-
-/**
- * Every token a board can make (28 today). The art gate passes all of them
- * rather than walking every card's effects for `createToken`: the set is
- * small, and a token whose art has not arrived would otherwise pop in dim.
- */
-const TOKEN_CARD_IDS: readonly string[] = Object.values(CARD_DB)
-  .filter((d) => d.token === true)
-  .map((d) => d.id);
 
 /**
  * MouseManager.disableContextMenu() adds a DOM listener with no dedupe and
@@ -305,6 +346,7 @@ interface PlayReveal {
  * overlay) away.
  */
 export class DuelScene extends Phaser.Scene {
+  private a11yFixture: DuelA11yFixture | null = null;
   private duel!: Game;
   /** One-deep pre-action snapshot for local Undo; null when undo is unavailable. */
   private undoSnapshot: Game | null = null;
@@ -340,6 +382,8 @@ export class DuelScene extends Phaser.Scene {
   /** Live run roster cached before results can clear the run from the save. */
   private gauntletRosterOrder: readonly number[] | null = null;
   private views = new Map<number, BoardCardView>(); // battlefield iid → tile
+  /** Whose each tile was at the last sync, so a line can still name a permanent that has left. */
+  private viewSides = new Map<number, PlayerId>();
   private handViews: CardView[] = [];
   /** Last rendered hand, retained briefly only so rebuild exits can read as motion. */
   private renderedHand: { cardId: string; view: CardView }[] = [];
@@ -411,6 +455,10 @@ export class DuelScene extends Phaser.Scene {
   /** Visual choice only; pendingCasts keeps the existing targeting input guards active. */
   private pendingSacrifice: { casts: HandCastAction[]; selected: number[] } | null = null;
   private targetPicks: TargetRef[] = [];
+  /** A submitted pick remains readable during the cast presentation, never as an input candidate. */
+  private committedPicks: TargetRef[] = [];
+  private committedPickTimer: Phaser.Time.TimerEvent | null = null;
+  private committedGraveReadout: Phaser.GameObjects.Container | null = null;
   private targetPicksUnordered = false;
   private targetsExact = false;
   private edictPicks: number[] = [];
@@ -423,7 +471,24 @@ export class DuelScene extends Phaser.Scene {
   private dutyFinishButton: ThemedButton | null = null;
   private dutyHighlights = new Set<number>();
   private dutyActionsBySource = new Map<number, DutyAction[]>();
+  /** Your repeatable mana abilities usable now (1.9 A1.5's pump), by creature; enumerated with the Duties. */
+  private pumpActionsBySource = new Map<number, ManaPumpAction[]>();
   private dutyActionsState: Game['state'] | null = null;
+  /** The open pump ticker's step (-1, +1), for the arrow keys; null when no ticker is open. */
+  private pumpTickerStep: ((delta: number) => void) | null = null;
+  /** This batch's `damageMarked` events a Hunt's exchange draws itself (`huntDrawnDamage`). */
+  private huntDrawn: ReadonlySet<GameEvent> = new Set();
+  /**
+   * Hunt exchanges drawn once the board has synced: every Hunt outside a
+   * full-motion sequence, and one whose hunter has no tile yet (an arrival or
+   * Empower hunter, cast this batch). Positions are captured at narration for
+   * the tiles that exist then, so a creature the Hunt killed is still struck
+   * where it stood; each creature's card and side are kept too, so one that
+   * never had a tile (a hunter that died in its own Hunt) still strikes.
+   */
+  private pendingHuntFx: { hunt: HuntedEvent; at: Map<number, { x: number; y: number }>; creatures: Map<number, HuntCreature> }[] = [];
+  /** The pump notice has been shown in this combat (`offerCombatPump`). */
+  private combatPumpOffered = false;
   /** CastIntent carry: a lifted untargeted spell or Reserves land awaiting its placing click. */
   private carry: {
     action: Extract<Action, { type: 'castSpell' | 'playLand' }>;
@@ -514,6 +579,13 @@ export class DuelScene extends Phaser.Scene {
   private tutCharmCast = false;
   private tutCharmInfoShown = false;
   private tutCompleted = false;
+  /**
+   * Dev-only: draw the tutorial's own chrome (the pause menu's Leave Tutorial
+   * row and its "Tutorial" matchup line) over a fixture board without turning
+   * on the live tutorial, so no coach ticks and Leave Tutorial stays inert
+   * (`leaveTutorial` still requires `tutorial`); nothing writes the save.
+   */
+  private a11yTutorialChrome = false;
   /** A tap-to-continue info card is up; the guide waits for its dismissal. */
   private coachInfoActive = false;
   private aiTimer: Phaser.Time.TimerEvent | null = null;
@@ -581,81 +653,34 @@ export class DuelScene extends Phaser.Scene {
    * The card-art gate (1.8, `src/ui/artGate.ts`). Card art streams in behind
    * the menu now, so a duel launched in the first seconds of a session waits
    * for its own cards and nothing else — the tutorial duel is four art files.
+   * While art streams through the art store (1.9 lane D) the gate's lease
+   * holds the duel's set until SHUTDOWN, and a Tower rung's restart keeps what
+   * the next rung shares (`src/ui/duelArt.ts`).
    *
    * The body below is unchanged, wrapped as-is as `build`.
    */
   create(data: DuelSceneData = {}): void {
-    gateOnArt(this, this.duelArtIds(data), () => this.build(data));
-  }
-
-  /**
-   * Every card this duel can draw, derived from the launch data the way
-   * `build` derives the duel: both seats' decks and Warchests, both Darlings,
-   * the portrait/hero faces, every token the board can make, and the styled
-   * basic-land files the human's deck asked for.
-   *
-   * A coarse superset is fine and a miss is survivable (`ArtResolver.getArt`
-   * falls back to the neutral loading texture), so this deliberately does not
-   * re-run the whole avatar/format resolution — it takes the union of the
-   * candidates instead of duplicating the decision.
-   */
-  private duelArtIds(data: DuelSceneData): string[] {
-    const save = Services.save.data;
-    const replay = data.replay ?? null;
-    const myDeckEntry = activeVisibleSavedDeck(save.decks, save.activeDeckId, FEATURES.reserveFormats);
-    const myDeck =
-      replay?.decks[0] ?? data.deckOverride ?? myDeckEntry?.cards ?? STARTER_DECKS[0].cards;
-    const opponentId = replay?.context.opponentId ?? data.opponentId ?? null;
-    const opponent = opponentId !== null ? avatarById(opponentId) : null;
-    const ids: string[] = [...myDeck, ...TOKEN_CARD_IDS];
-
-    // Seat 1: a recorded deck, an override, or the avatar's own list. Both
-    // reserve variants go in — which one the duel fields depends on the saved
-    // deck's format, and an avatar deck is ~70 files either way.
-    if (replay) ids.push(...replay.decks[1]);
-    if (data.oppDeckOverride) ids.push(...data.oppDeckOverride);
-    if (opponent) {
-      ids.push(...opponent.deck, opponent.portraitCardId);
-      for (const format of ['warchest', 'darlings'] as const) {
-        const side = avatarReserveSide(opponent, format, myDeck, myDeckEntry?.darlingId ?? null, CARD_DB);
-        ids.push(...side.deck, ...side.reserve);
-        if (side.darlingId) ids.push(side.darlingId);
-      }
-    } else if (!replay && !data.oppDeckOverride) {
-      ids.push(
-        ...(STARTER_DECKS.find((d) => d.id !== save.activeDeckId)?.cards ?? STARTER_DECKS[1].cards),
-      );
+    this.a11yFixture = null;
+    this.a11yTutorialChrome = false;
+    this.data.set('a11yReady', false);
+    if (import.meta.env.DEV && data.a11yFixture) {
+      void import('../dev/duelA11yFixtures').then(({ wave2DDuelFixture }) => {
+        if (!this.sys.isActive()) return;
+        const fixture = wave2DDuelFixture(data.a11yFixture!);
+        this.a11yFixture = fixture;
+        const ids = [...new Set([
+          ...fixture.state.battlefield.map(p => p.cardId), ...fixture.state.stack.map(p => p.cardId),
+          ...fixture.state.players.flatMap(p => [...p.hand, ...p.graveyard, ...p.deck].map(cardIdOf)),
+        ])];
+        gateOnArt(this, ids, () => this.build({ ...data, deckOverride: STARTER_DECKS[0].cards,
+          oppDeckOverride: STARTER_DECKS[1].cards, seedOverride: 19 }));
+      });
+      return;
     }
-
-    // Both Warchests.
-    for (const reserve of replay?.landReserves ?? []) ids.push(...reserve);
-    for (const reserve of data.landReserveOverride ?? []) ids.push(...reserve);
-    if (Array.isArray(myDeckEntry?.landReserve)) ids.push(...myDeckEntry.landReserve);
-
-    // Darlings, portraits and hero faces.
-    for (const darling of replay?.darlings ?? []) if (darling) ids.push(darling);
-    if (myDeckEntry?.darlingId) ids.push(myDeckEntry.darlingId);
-    if (myDeckEntry?.heroCardId) ids.push(myDeckEntry.heroCardId);
-    if (save.heroCardId) ids.push(save.heroCardId);
-    if (myDeckEntry?.format === 'darlings') {
-      const face = darlingFaceCardFor({ ...myDeckEntry, cards: myDeck }, CARD_DB);
-      if (face) ids.push(face);
-    }
-    const myFace = faceCardFor(myDeck, CARD_DB);
-    if (myFace) ids.push(myFace);
-    const persona = data.limited?.opponentPersonaId
-      ? draftPersonaById(data.limited.opponentPersonaId)
-      : null;
-    if (persona) ids.push(persona.portraitCardId);
-
-    // Styled basic-land art files are their own manifest keys, not card ids.
-    const landStyle = !replay && data.deckOverride === undefined ? myDeckEntry?.landStyle : null;
-    if (landStyle) {
-      for (const [basicId, style] of Object.entries(landStyle)) {
-        if (style) ids.push(landStyleArtKey(basicId, style));
-      }
-    }
-    return ids;
+    // The gate's lease takes over the prefetch made when this opponent was chosen.
+    nextDuelArt.handOver(() =>
+      gateOnArt(this, duelArtIds(data, Services.save.data, FEATURES.reserveFormats), () => this.build(data)),
+    );
   }
 
   private build(data: DuelSceneData): void {
@@ -721,6 +746,7 @@ export class DuelScene extends Phaser.Scene {
     this.coach = null;
     this.tutorialGuard = new ModalGuard();
     this.views = new Map();
+    this.viewSides = new Map();
     this.handViews = [];
     this.renderedHand = [];
     this.previousHand = null;
@@ -766,6 +792,9 @@ export class DuelScene extends Phaser.Scene {
     this.pendingCasts = null;
     this.pendingSacrifice = null;
     this.targetPicks = [];
+    this.committedPicks = [];
+    this.committedPickTimer = null;
+    this.committedGraveReadout = null;
     this.targetPicksUnordered = false;
     this.edictPicks = [];
     this.choiceState = null;
@@ -777,7 +806,12 @@ export class DuelScene extends Phaser.Scene {
     this.dutyFinishButton = null;
     this.dutyHighlights = new Set();
     this.dutyActionsBySource = new Map();
+    this.pumpActionsBySource = new Map();
     this.dutyActionsState = null;
+    this.pumpTickerStep = null;
+    this.huntDrawn = new Set();
+    this.pendingHuntFx = [];
+    this.combatPumpOffered = false;
     this.empowerChooser = null;
     this.empowerChooserGuard = new ModalGuard();
     this.gravePicker = null;
@@ -967,7 +1001,9 @@ export class DuelScene extends Phaser.Scene {
     this.arrows = this.add.graphics().setDepth(50);
     // Duel identities, the opponents.ts "portraits cost zero new art" idiom:
     // your commander portrait is your deck's face card; the opponent's strip
-    // avatar is their curated portraitCardId (gauntlet) or their deck's face.
+    // avatar is their curated portraitCardId (gauntlet), the draft persona's,
+    // the tutorial's own pick (its deck's face is the player's face too), or
+    // their deck's face.
     this.myDeckName = this.replayMode
       ? 'Replay Deck'
       : this.limited
@@ -989,7 +1025,10 @@ export class DuelScene extends Phaser.Scene {
     this.myHeroTextureKey = deckHero ? null : this.resolveHeroPortrait(save);
     this.myFaceCardId = deckHero ?? defaultHero ?? faceCardFor(myDeck, CARD_DB);
     this.oppFaceCardId =
-      this.opponent?.portraitCardId ?? this.limitedPersona?.portraitCardId ?? faceCardFor(aiDeck, CARD_DB);
+      this.opponent?.portraitCardId ??
+      this.limitedPersona?.portraitCardId ??
+      (this.tutorial ? TUTORIAL_OPPONENT_PORTRAIT : null) ??
+      faceCardFor(aiDeck, CARD_DB);
     // Warchest deals a 5-card opener (2026-08-07 ratification); classic and
     // Darlings keep 7. Replays always defer to their recorded value, so
     // pre-flip logs (absent field) reconstruct their original 7-card deals.
@@ -1051,6 +1090,16 @@ export class DuelScene extends Phaser.Scene {
               : {}),
         });
 
+    if (this.a11yFixture) {
+      this.duel = Game.restore(this.a11yFixture.state, CARD_DB);
+      this.replayDraft = null;
+      this.signalDeck = null;
+    }
+    if (this.a11yFixture) {
+      this.myDeckName = this.a11yFixture.humanName;
+      this.myFaceCardId = this.a11yFixture.humanFaceCardId;
+      this.oppFaceCardId = this.a11yFixture.opponentFaceCardId;
+    }
     this.buildHud();
     this.bindHotkeys();
     if (this.replayMode) this.buildReplayControls();
@@ -1082,6 +1131,36 @@ export class DuelScene extends Phaser.Scene {
       // opens each target; the HUD no longer exposes an auto-skip control.
       this.coach = new CoachMark(this);
     }
+    if (this.a11yFixture) {
+      const fixture = this.a11yFixture;
+      this.selectedAttackers = new Set(fixture.selectedAttackers);
+      this.blockAssignments = fixture.blockAssignments;
+      this.pendingCasts = fixture.pendingCasts;
+      this.targetPicks = data.a11yCommitPick ? [] : fixture.targetPicks;
+      this.targetPicksUnordered = fixture.targetPicksUnordered;
+      this.choiceState = this.duel.state;
+      this.sync();
+      if (data.a11yCommitPick && fixture.targetPicks[0]) this.tryTarget(fixture.targetPicks[0]);
+      this.showA11yPanel(fixture, data.a11yPage ?? 0);
+      if (data.a11yOverlay === 'pause') this.showPauseMenu();
+      if (data.a11yOverlay === 'result') this.showPracticeResultPanel(true, '', this.rewardLine(9999999, true, 7, true));
+      if (data.a11yOverlay === 'recap') this.showGauntletRunRecap(false, 28, 'concede', this.rewardLine(9999999, true, 7), data.a11yPage);
+      if (data.a11yOverlay === 'coin') this.buildCoinFlipOverlay(HUMAN);
+      if (data.a11yOverlay === 'tutorial-pause') {
+        this.a11yTutorialChrome = true;
+        this.showPauseMenu();
+      }
+      // The overlay alone: the real path's grant (which writes the save) never runs.
+      if (data.a11yOverlay === 'tutorial-complete') this.showTutorialCompleteOverlay(true, true);
+      if (data.a11yOverlay === 'tutorial-ended') this.showTutorialCompleteOverlay(false, false);
+      if (data.a11yOverlay?.startsWith('replay-')) {
+        this.replayMode = true;
+        this.finishReplayPlayback(data.a11yOverlay === 'replay-complete' ? 'Replay complete' : 'Replay unavailable');
+      }
+      if (data.a11yInspectCardId) this.showInspect(def(CARD_DB, data.a11yInspectCardId));
+      this.data.set('a11yReady', true);
+      return;
+    }
     const showVersusBumper = shouldPlayVersusBumper({
       animations: this.motionLevel(),
       tutorial: this.tutorial,
@@ -1089,7 +1168,7 @@ export class DuelScene extends Phaser.Scene {
       internalRestart,
     });
     if (showVersusBumper) {
-      const opponentName = this.opponent?.name ?? this.limitedPersona?.name ?? `${this.difficulty} AI`;
+      const opponentName = this.opponentName() ?? `${this.difficulty} AI`;
       this.versusBumperActive = true;
       Sfx.play('versus', {
         pitch: versusLeitmotifPitch(this.opponent?.id ?? this.oppFaceCardId ?? opponentName),
@@ -1112,6 +1191,31 @@ export class DuelScene extends Phaser.Scene {
       return;
     }
     this.beginDuel();
+  }
+
+  private showA11yPanel(fixture: DuelA11yFixture, page: number): void {
+    switch (fixture.panel) {
+      case 'history':
+        for (const entry of fixture.history) this.history.push(entry.text, entry.cardId);
+        this.history.showPage(page);
+        break;
+      case 'graveyard': this.showZoneModal(HUMAN, 'graveyard'); this.zoneModal?.showPage(page); break;
+      case 'grave-picker': this.showGravePicker(fixture.pendingCasts ?? []); break;
+      case 'duty': {
+        const card = def(CARD_DB, fixture.dutyCardId!);
+        this.dutyPicker = showDutyPicker(this, { card, touch: false,
+          choices: () => dutyChoices(card,
+            this.duel.state.battlefield.find(p => p.cardId === card.id)!.iid, this.duel.legalActions(HUMAN)),
+          choose: () => {}, cancel: () => { this.dutyPicker?.container.destroy(); this.dutyPicker = null; } });
+        break;
+      }
+      case 'coach-cue': case 'coach-info':
+        this.coach = new CoachMark(this);
+        if (fixture.panel === 'coach-info') this.coach.showInfoCard(fixture.coachText!, () => {});
+        else this.coach.showCue(this.passArc, fixture.coachText!);
+        break;
+    }
+    this.stackDisplay.showPage(page);
   }
 
   /** Keep the deterministic game idle until the entry presentation releases it. */
@@ -1360,48 +1464,83 @@ export class DuelScene extends Phaser.Scene {
     const firstTime = this.grantTutorialOnboarding();
     Music.duck(1.8);
     Sfx.play(success ? 'win' : 'click');
+    this.showTutorialCompleteOverlay(success, firstTime);
+  }
 
-    const width = 1280;
-    const height = 720;
+  /**
+   * The lesson's closing overlay: a full-stage dim with the headline, the
+   * Shop nudge, the first-time gold and two actions. Presentation only (the
+   * grant happened before), so the a11y fixture can draw it without a save.
+   * Release anchors hold at 100% text; larger text pushes a colliding row down
+   * and the two actions apart, never shrinking or clipping a line.
+   */
+  private showTutorialCompleteOverlay(success: boolean, firstTime: boolean): void {
+    const width = theme.design.width;
+    const height = theme.design.height;
+    const cx = theme.design.centerX;
     const c = this.add.container(0, 0).setDepth(120);
-    c.add(this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.8).setInteractive());
-    c.add(
-      this.add
-        .text(width / 2, 244, success ? 'Tutorial Complete!' : 'Tutorial Ended', {
-          fontFamily: 'Cinzel, Georgia, serif', fontSize: '52px', fontStyle: 'bold', color: '#ffd700',
-        })
-        .setOrigin(0.5),
-    );
-    c.add(
-      this.add
-        .text(width / 2, 312, "You've got the basics. Now claim your free deck in the Shop.", {
-          fontFamily: 'Inter, Arial, sans-serif', fontSize: '18px', color: '#c9bde0',
-        })
-        .setOrigin(0.5),
-    );
+    c.add(this.add.rectangle(width / 2, height / 2, width, height, theme.graphics.dim, 0.8).setInteractive());
+    const rows: { y: number; objects: Phaser.GameObjects.Text[] }[] = [];
+    const row = (y: number, ...objects: Phaser.GameObjects.Text[]): void => {
+      for (const object of objects) {
+        c.add(object);
+        object.setData('a11yKeepVisible', true).setData('a11yFullText', object.text);
+      }
+      rows.push({ y, objects });
+    };
+    row(244, this.add
+      .text(cx, 244, success ? 'Tutorial Complete!' : 'Tutorial Ended', {
+        fontFamily: theme.fonts.display, fontSize: `${duelHudType(52, 'display')}px`, fontStyle: 'bold', color: theme.colors.goldHover,
+        align: 'center', wordWrap: { width: 900, useAdvancedWrap: true },
+      })
+      .setOrigin(0.5));
+    row(312, this.add
+      .text(cx, 312, "You've got the basics. Now claim your free deck in the Shop.", {
+        fontFamily: theme.fonts.ui, fontSize: `${duelHudType(18, 'label')}px`, color: theme.colors.body,
+        align: 'center', wordWrap: { width: 720 },
+      })
+      .setOrigin(0.5));
     if (firstTime) {
-      c.add(
-        this.add
-          .text(width / 2, 356, `+${ECONOMY.startingGold} gold`, {
-            fontFamily: 'Inter, Arial, sans-serif', fontSize: '20px', fontStyle: '600', color: '#ffd88a',
-          })
-          .setOrigin(0.5),
-      );
+      row(356, this.add
+        .text(cx, 356, `+${ECONOMY.startingGold} gold`, {
+          fontFamily: theme.fonts.ui, fontSize: `${theme.type.h2}px`, fontStyle: '600', color: theme.colors.gold,
+        })
+        .setOrigin(0.5));
     }
-    const mk = (x: number, label: string, cb: () => void): void => {
+    const mk = (label: string, cb: () => void): Phaser.GameObjects.Text => {
       const btn = this.add
-        .text(x, 440, label, {
-          fontFamily: 'Cinzel, Georgia, serif', fontSize: '24px', color: '#ffd88a',
-          backgroundColor: '#2c2344', padding: { x: 18, y: 10 },
+        .text(cx, 440, label, {
+          fontFamily: theme.fonts.display, fontSize: `${duelHudType(24, 'h1')}px`, color: theme.colors.gold,
+          backgroundColor: theme.colors.btnEmphasisBg, padding: { x: 18, y: 10 },
         })
         .setOrigin(0.5)
         .setInteractive({ useHandCursor: true });
       bindTapButton(this, btn, cb);
-      inflateHitArea(btn, 90, 90);
-      c.add(btn);
+      return btn;
     };
-    mk(width / 2 - 120, 'To the Shop', () => this.scene.start('Shop', { tab: 'decks' }));
-    mk(width / 2 + 120, 'Main Menu', () => this.scene.start('MainMenu'));
+    const shop = mk('To the Shop', () => this.scene.start('Shop', { tab: 'decks' }));
+    const menu = mk('Main Menu', () => this.scene.start('MainMenu'));
+    const textScale = currentAccessibility().textScale;
+    const [shopX, menuX] = duelButtonPairCenters(cx, 120, [shop.width, menu.width], textScale);
+    shop.setX(shopX);
+    menu.setX(menuX);
+    row(440, shop, menu);
+    const union = (objects: readonly Phaser.GameObjects.Text[]): Rect => {
+      const b = objects.map((o) => o.getBounds());
+      const x = Math.min(...b.map((r) => r.x)), y = Math.min(...b.map((r) => r.y));
+      return { x, y, width: Math.max(...b.map((r) => r.right)) - x, height: Math.max(...b.map((r) => r.bottom)) - y };
+    };
+    const layout = duelModalLayout(
+      { x: cx - 320, y: 200, width: 640, height: 290 },
+      rows.map(({ y, objects }) => ({ y, bounds: union(objects) })),
+      textScale,
+      { safe: { x: theme.design.safeLeft, y: theme.design.titleSafe.top, width: theme.design.safeWidth, height: theme.design.safeHeight } },
+    );
+    rows.forEach(({ objects }, index) => {
+      for (const object of objects) object.setY(object.y + layout.rows[index].offsetY);
+    });
+    inflateHitArea(shop, 90, 90);
+    inflateHitArea(menu, 90, 90);
     this.guard.open(this.overlayGuardTargets());
   }
 
@@ -1513,8 +1652,17 @@ export class DuelScene extends Phaser.Scene {
     return this.textures.exists(h.textureKey) ? h.textureKey : null;
   }
 
+  /**
+   * The opponent's display name when she has one: the gauntlet or Tower
+   * opponent, the draft persona, or the tutorial's Alder. Undefined for an
+   * unnamed practice AI, whose callers pick their own fallback.
+   */
+  private opponentName(): string | undefined {
+    return this.a11yFixture?.opponentName ?? this.opponent?.name ?? this.limitedPersona?.name ?? (this.tutorial ? TUTORIAL_OPPONENT_NAME : undefined);
+  }
+
   private matchupLabel(): string {
-    if (this.tutorial) return 'Tutorial';
+    if (this.tutorial || this.a11yTutorialChrome) return 'Tutorial';
     if (this.replayMode && this.replayLog) {
       return `Replay · vs ${this.replayLog.context.opponentName}`;
     }
@@ -1575,7 +1723,7 @@ export class DuelScene extends Phaser.Scene {
     ring.clear();
     if (!targetable) return;
     const half = LIFE_BADGE_SIZE / 2 + LIFE_TARGET_RING.inset;
-    ring.lineStyle(LIFE_TARGET_RING.stroke, colorInt(color), 0.98);
+    ring.lineStyle(theme.outline.state, colorInt(color), 0.98);
     ring.strokeRoundedRect(pos.x - half, pos.y - half, half * 2, half * 2, theme.radius.control + 2);
   }
 
@@ -1587,8 +1735,36 @@ export class DuelScene extends Phaser.Scene {
     const oppColor = this.targetRingColor(AI);
     this.portrait.setFaceTargetable(myTargetable, myColor);
     this.oppPortrait.setFaceTargetable(oppTargetable, oppColor);
+    const myPick = this.pickIndices({ kind: 'player', player: HUMAN });
+    const oppPick = this.pickIndices({ kind: 'player', player: AI });
+    this.portrait.setPickBadge(myPick);
+    this.oppPortrait.setPickBadge(oppPick);
     this.drawLifeTargetRing(this.lifeTargetRings.my, LAYOUT.myLife, myTargetable, myColor);
     this.drawLifeTargetRing(this.lifeTargetRings.opp, LAYOUT.oppLife, oppTargetable, oppColor);
+    if (this.lifePickBadges?.active) this.lifePickBadges.destroy();
+    this.lifePickBadges = this.add.container(0, 0).setDepth(theme.depth.hudLabel);
+    for (const [pick, pos, direction] of [[myPick, LAYOUT.myLife, 1], [oppPick, LAYOUT.oppLife, -1]] as const) {
+      if (pick.length > 0) this.addPickBadge(this.lifePickBadges, pos.x + direction * 34, pos.y, pick);
+    }
+  }
+
+  private lifePickBadges: Phaser.GameObjects.Container | null = null;
+
+  /** Same numbered, opaque badge on grave cards and life totals as on tiles. */
+  private addPickBadge(parent: Phaser.GameObjects.Container, x: number, y: number, index: number | readonly number[]): void {
+    const label = pickBadgeLabel(index);
+    if (label === null) return;
+    const badge = this.add.container(x, y);
+    // Vector numerals ("1", repeated picks "1, 2") centred on their ink.
+    const ink = ensureNumeralBadgeInk(this, label, theme.colors.heading, theme.typeBase.label * INTER_FIGURE_HEIGHT, 24);
+    const radius = ink.diameter / 2;
+    const numeral = this.add.image(0, 0, ink.texture).setDisplaySize(ink.diameter, ink.diameter).setData('a11yNumeral', label);
+    badge.add(this.add.circle(0, 0, radius, theme.graphics.panelFill).setStrokeStyle(theme.outline.state, colorInt(theme.colors.gold)));
+    badge.add(numeral);
+    badge.setData('a11yPickBadge', label);
+    badge.setData('a11ySurface', { x: x - radius, y: y - radius, width: radius * 2, height: radius * 2 });
+    badge.setName('duel-pick-badge');
+    parent.add(badge);
   }
 
   private buildHud(): void {
@@ -1664,7 +1840,7 @@ export class DuelScene extends Phaser.Scene {
       height: LAYOUT.oppPortrait.h,
       edge: 'top',
       cardId: this.oppFaceCardId,
-      label: this.replayLog?.context.opponentName ?? this.opponent?.name ?? this.limitedPersona?.name ?? `${this.difficulty} AI`,
+      label: this.replayLog?.context.opponentName ?? this.opponentName() ?? `${this.difficulty} AI`,
     });
     this.addLifeBadgePlate(LAYOUT.myLife.x, LAYOUT.myLife.y);
     this.addLifeBadgePlate(LAYOUT.oppLife.x, LAYOUT.oppLife.y);
@@ -1708,7 +1884,7 @@ export class DuelScene extends Phaser.Scene {
       oppLife: this.add
         .text(LAYOUT.oppLife.x, LAYOUT.oppLife.y, '', {
           fontFamily: theme.fonts.display,
-          fontSize: '22px',
+          fontSize: `${duelHudType(22, 'label')}px`,
           fontStyle: 'bold',
           color: theme.colors.dangerArmed,
           resolution: 2,
@@ -1718,7 +1894,7 @@ export class DuelScene extends Phaser.Scene {
       myLife: this.add
         .text(LAYOUT.myLife.x, LAYOUT.myLife.y, '', {
           fontFamily: theme.fonts.display,
-          fontSize: '22px',
+          fontSize: `${duelHudType(22, 'label')}px`,
           fontStyle: 'bold',
           color: theme.colors.success,
           resolution: 2,
@@ -1736,10 +1912,10 @@ export class DuelScene extends Phaser.Scene {
       // paint OVER its own caption (adversarial-review major, 2026-07-04).
       button: this.add
         .text(LAYOUT.cluster.x, LAYOUT.cluster.passY, '', {
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '15px',
+          fontFamily: theme.fonts.display,
+          fontSize: `${duelHudType(15, 'label')}px`,
           fontStyle: '600',
-          color: '#ffd88a',
+          color: theme.colors.gold,
           align: 'center',
           resolution: 2,
           wordWrap: { width: 84 },
@@ -1768,8 +1944,8 @@ export class DuelScene extends Phaser.Scene {
     // Text.updateText hit-area trap, and the circle's default 92×92 hit rect
     // already meets the 90px touch floor without inflation.
     this.passArc = this.add
-      .circle(LAYOUT.cluster.x, LAYOUT.cluster.passY, LAYOUT.cluster.passR, 0x2c2344, 0.95)
-      .setStrokeStyle(2.5, 0xffd88a, 0.9)
+      .circle(LAYOUT.cluster.x, LAYOUT.cluster.passY, LAYOUT.cluster.passR, colorInt(theme.colors.btnEmphasisBg), 0.95)
+      .setStrokeStyle(2.5, colorInt(theme.colors.gold), 0.9)
       // With the End Turn chip and skip toast family: above arrows (50) and
       // the stack cards (55) are separate from this control, but keeping the control
       // cluster's established depth (56) keeps the ladder simple.
@@ -1824,9 +2000,12 @@ export class DuelScene extends Phaser.Scene {
     // one tap deeper in the menu, decluttering the board HUD (playtest
     // feedback). Same inboard corner spot (audited off the edge-gesture zone).
     this.menuBtn = this.add
-      .text(LAYOUT.menu.x, LAYOUT.menu.y, '⚙ Menu', { fontFamily: 'Inter, Arial, sans-serif', fontSize: '12px', color: '#c9bde0' })
+      .text(LAYOUT.menu.x, LAYOUT.menu.y, '⚙ Menu', { fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px`, color: theme.colors.body })
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
+    // Release's edge-mounted menu is intentionally outside title-safe; keep
+    // its anchor while still proving the complete label is inside the canvas.
+    this.menuBtn.setData('a11yArea', { x: 1150, y: 660, width: 130, height: 60 });
     bindTapButton(this, this.menuBtn, (p) => {
       if (p.rightButtonReleased()) return; // right-click is inspect/cancel
       this.showPauseMenu();
@@ -1841,8 +2020,8 @@ export class DuelScene extends Phaser.Scene {
     // in place.
     this.skipText = this.add
       .text(BOARD_CENTER_X, LAYOUT.gap.cy, '', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '13px',
+        fontFamily: theme.fonts.ui,
+        fontSize: `${duelHudType(13, 'label')}px`,
         fontStyle: '600',
         color: theme.colors.gold,
         backgroundColor: theme.colors.panelFill,
@@ -1861,10 +2040,10 @@ export class DuelScene extends Phaser.Scene {
     // shown during your own Morning or Afternoon (syncButton toggles it).
     this.endTurnBtn = this.add
       .text(LAYOUT.cluster.x, LAYOUT.cluster.endTurnY, '⏭ End Turn', {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '14px',
-        color: '#e8def7',
-        backgroundColor: '#3a2f5c',
+        fontFamily: theme.fonts.display,
+        fontSize: `${theme.type.label}px`,
+        color: theme.colors.heading,
+        backgroundColor: theme.colors.btnGhostBg,
         padding: { x: 10, y: 5 },
       })
       .setOrigin(0.5)
@@ -1886,16 +2065,18 @@ export class DuelScene extends Phaser.Scene {
     // a mouse hover) says why; alpha only, so the Text hit area never resets.
     this.undoBtn = this.add
       .text(LAYOUT.undo.x, LAYOUT.undo.y, '↶ Undo', {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '14px',
-        color: '#e8def7',
-        backgroundColor: '#3a2f5c',
+        fontFamily: theme.fonts.display,
+        fontSize: `${theme.type.label}px`,
+        color: theme.colors.heading,
+        backgroundColor: theme.colors.btnGhostBg,
         padding: { x: 10, y: 5 },
       })
       .setOrigin(0.5)
       .setDepth(56)
       .setVisible(false)
       .setInteractive({ useHandCursor: true });
+    // Release's left-rail anchor is outside the menu title-safe inset.
+    this.undoBtn.setData('a11yArea', { x: 0, y: LAYOUT.undo.y - 45, width: 104, height: 90 });
     bindTapButton(this, this.undoBtn, (p) => {
       if (p.rightButtonReleased()) return;
       if (this.undoBlocked) {
@@ -1914,7 +2095,7 @@ export class DuelScene extends Phaser.Scene {
     // Even the 1.1x lethal pulse stays between opponent y=285 and player y=319.
     this.combatPreviewText = this.add
       .text(640, LAYOUT.gap.cy, '', {
-        fontFamily: 'Inter, Arial, sans-serif',
+        fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         fontStyle: '600',
         color: theme.colors.body,
@@ -2117,6 +2298,9 @@ export class DuelScene extends Phaser.Scene {
       },
     });
     c.add(exit.container);
+    fitDuelModal(this, shell, { width: 460, height: message === 'Replay complete' ? 170 : 220,
+      rows: [{ y: message === 'Replay complete' ? 320 : 300, wrapWidth: 390 }, { y: 350, wrapWidth: 390 },
+        { y: message === 'Replay complete' ? 390 : 420 }] });
     this.replayOutcome = c;
     this.replayOutcomeShell = shell;
   }
@@ -2185,7 +2369,7 @@ export class DuelScene extends Phaser.Scene {
       // rejected action never counts. Only real plays: `skim` discards the card
       // rather than playing it, and the tutorial's scripted line would bias the
       // corpus with a fixed deck no duel digest ever accompanies.
-      if (playedCardId && action.type !== 'skim' && !this.tutorial) signals.cardsPlayed([playedCardId]);
+      if (playedCardId && action.type !== 'skim' && !this.tutorial && !this.a11yFixture) signals.cardsPlayed([playedCardId]);
       this.rememberRetellAction(action, events);
       if (this.replayDraft) recordReplayAction(this.replayDraft, HUMAN, action);
       if (this.tutorial && action.type === 'declareBlockers' && action.blocks.length > 0) {
@@ -2373,8 +2557,26 @@ export class DuelScene extends Phaser.Scene {
         : this.actionCardId(duty);
       if (!cardId) return;
       const step = this.pendingTargetStep();
+      const card = def(CARD_DB, cardId);
+      // A Hunt asks for its hunter, then its prey (1.9 A2.a); anything else keeps its title.
+      const huntPrompt = huntStepPrompt(card, this.huntTargetSource(duty), step.selected.length,
+        duty.type === 'activate' ? duty.abilityIndex ?? 0 : 0);
       const prompt = this.add.container(0, 0).setDepth(theme.depth.toast);
-      prompt.add(this.add.text(640, LAYOUT.gap.cy, `${targetPromptTitle(def(CARD_DB, cardId).name)} · ${step.countText}`, {
+      // An ordered grave pick stays readable while the next slot is chosen
+      // on the board. This readout never adds a legal target or input handler.
+      this.targetPicks.forEach((ref, index) => {
+        if (ref.kind !== 'grave' || this.targetPicks.slice(0, index).some(pick => this.targetRefEquals(pick, ref))) return;
+        const pickedCard = this.graveTargetCardId(ref);
+        if (!pickedCard) return;
+        const x = 350 - index * 64;
+        const picked = new CardView(this, x, LAYOUT.gap.cy).setScale(0.18);
+        picked.setCard(def(CARD_DB, pickedCard), { fx: 'none' });
+        const indices = this.pickIndices(ref, this.targetPicks);
+        picked.setData('a11yPickBadge', pickBadgeLabel(indices));
+        prompt.add(picked);
+        this.addPickBadge(prompt, x, LAYOUT.gap.cy, indices);
+      });
+      prompt.add(this.add.text(640, LAYOUT.gap.cy, targetStepTitle(card.name, huntPrompt, targetPromptTitle(card.name), step.countText), {
         fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px`, color: theme.colors.gold,
         wordWrap: { width: 480 }, align: 'center', resolution: 2,
       }).setOrigin(0.5));
@@ -2670,6 +2872,7 @@ export class DuelScene extends Phaser.Scene {
   /** Board sync + AI/auto-skip/end-turn; `ended` narrates a combat-deferred game end. */
   private finishStep(ended?: GameEvent): void {
     this.sync();
+    this.flushHuntFx();
     this.flushPlayReveals();
     if (ended) this.narrateEvent(ended);
     if (this.replayMode) {
@@ -2737,6 +2940,7 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private maybeRunAI(): void {
+    if (this.a11yFixture) return;
     if (this.replayMode || this.ended) return;
     if (this.animatingCombat) return; // wait out a combat sequence; finishStep resumes us
     const a = this.duel.awaiting;
@@ -2773,6 +2977,7 @@ export class DuelScene extends Phaser.Scene {
    * at the next real decision naturally.
    */
   private maybeAutoSkip(): void {
+    if (this.a11yFixture) return;
     if (this.replayMode || this.tutorial) return; // the coach-mark guide drives pacing explicitly
     if (this.empowerChooser || this.gravePicker) return;
     if (this.endingTurn) return; // end-turn mode drives its own hops (endTurnTick)
@@ -2940,19 +3145,21 @@ export class DuelScene extends Phaser.Scene {
 
   /**
    * Play back one event batch. A batch that lands combat damage is choreographed
-   * attacker-by-attacker (playCombatSequence) at `animations: 'full'`; every
-   * other batch — and reduced/off motion — narrates instantly, one event at a
-   * time (the pre-sequencing behavior).
+   * attacker-by-attacker (playCombatSequence) at `animations: 'full'`, and so is
+   * a Hunt whose two creatures are both on the board (1.9 A2.a); every other
+   * batch (and reduced/off motion) narrates instantly, one event at a time
+   * (the pre-sequencing behavior), and draws its Hunts once the board syncs.
    */
   private processEvents(events: GameEvent[]): void {
-    if (!this.replayMode && !this.tutorial && events.length > 0) {
+    if (!this.replayMode && !this.tutorial && !this.a11yFixture && events.length > 0) {
       const progress = applyDailyQuestProgress(Services.save.data, CARD_DB, events, todayString());
       if (progress.changed) Services.save.touch();
     }
+    this.huntDrawn = huntDrawnDamage(events, (iid) => this.huntPlaced(iid));
     const sequence =
       Services.save.data.settings.animations === 'full' &&
       !this.animatingCombat &&
-      events.some((e) => e.e === 'combatDamage' && e.hits.length > 0);
+      events.some((e) => (e.e === 'combatDamage' && e.hits.length > 0) || (e.e === 'hunted' && this.huntShownOnBoard(e)));
     if (sequence) {
       this.playCombatSequence(events);
       return;
@@ -2991,9 +3198,32 @@ export class DuelScene extends Phaser.Scene {
         break;
       }
       case 'damageMarked': {
+        // A blow a Hunt's exchange lands is drawn there (renderHuntExchange).
+        if (this.huntDrawn.has(e)) break;
         Sfx.play('hit');
         const v = this.views.get(e.iid);
         if (v) this.float(v.x, v.y - 56, `-${e.amount}`, '#ffb04a');
+        break;
+      }
+      case 'hunted': {
+        // Outside a full-motion sequence the exchange is drawn once the board
+        // has synced, so an arrival hunter cast this batch has its tile.
+        const line = eventHistoryLine(e, this.eventLineLookup(batch));
+        if (line) this.log(line);
+        this.queueHuntFx(e, batch);
+        break;
+      }
+      case 'triggerFired': {
+        // Only a Provoked trigger has a line (1.9); the rest stay silent, as before.
+        const line = eventHistoryLine(e, this.eventLineLookup(batch));
+        const source = this.duel.state.battlefield.find((perm) => perm.iid === e.iid);
+        if (line) this.log(line, source?.cardId);
+        break;
+      }
+      case 'manaActivated': {
+        const line = eventHistoryLine(e, this.eventLineLookup(batch));
+        if (line) this.log(line, e.cardId);
+        this.showManaActivated(e);
         break;
       }
       case 'died': {
@@ -3005,7 +3235,10 @@ export class DuelScene extends Phaser.Scene {
           // departing underlap can visibly sever instead of using the normal
           // generic board-card fade.
           this.log(`${who} ${this.cardRef(e.cardId)} lost its host and went to its owner's graveyard`, e.cardId);
-        } else if (v) this.log(`${who} ${this.cardRef(e.cardId)} died`, e.cardId);
+        } else if (v || tookPartInHunt(batch, e.iid)) {
+          // A hunter that died in its own arrival Hunt never had a tile; its death is still said.
+          this.log(`${who} ${this.cardRef(e.cardId)} died`, e.cardId);
+        }
         break;
       }
       case 'recalled': {
@@ -3041,9 +3274,9 @@ export class DuelScene extends Phaser.Scene {
           // The gold 'eligible' ring means "you can act with this", which reads
           // as an invitation on the foe's tile. A neutral ring rides the tile
           // itself (so it turns with the tap) for the same beat instead.
-          if (view?.active) {
+          if (view?.active && this.cueContext() !== 'targeting') {
             const ring = this.add.rectangle(0, 0, TILE_W + 6, TILE_H + 6, 0x000000, 0)
-              .setStrokeStyle(3, colorInt(theme.colors.heading), 1);
+              .setStrokeStyle(theme.outline.state, colorInt(theme.colors.heading), 1).setName('duel-duty-flash');
             view.add(ring);
             this.time.delayedCall(350, () => {
               if (ring.active) ring.destroy();
@@ -3052,12 +3285,12 @@ export class DuelScene extends Phaser.Scene {
           break;
         }
         this.dutyHighlights.add(e.iid);
-        if (view?.active) view.setHighlight('eligible');
+        if (view?.active && this.cueContext() !== 'targeting') view.setHighlight('eligible');
         this.time.delayedCall(350, () => {
           this.dutyHighlights.delete(e.iid);
           const current = this.views.get(e.iid);
           const source = this.duel.state.battlefield.find((perm) => perm.iid === e.iid);
-          if (current?.active && source) current.setHighlight(this.highlightFor(source));
+          if (current?.active && source) this.syncTileCue(current, source, current.scaleX);
         });
         break;
       }
@@ -3124,8 +3357,12 @@ export class DuelScene extends Phaser.Scene {
         this.whispersSpellIds.delete(e.sid);
         this.log('Spell cancelled!');
         break;
+      case 'stepChanged':
+        this.combatPumpOffered = false; // a new step: the next combat says it again
+        break;
       case 'responseWindowOpened':
         if (e.reopened && e.player === HUMAN) this.showSkipNotice('Respond again');
+        else if (e.player === HUMAN) this.offerCombatPump();
         break;
       case 'targetsFizzled':
         this.whispersSpellIds.delete(e.sid);
@@ -3216,6 +3453,19 @@ export class DuelScene extends Phaser.Scene {
       case 'awakened':
         this.log(`${this.cardRef(e.cardId)} awakens`, e.cardId);
         break;
+      case 'overcharged': {
+        // A token refused at the creature cap powered up its namesake (1.9
+        // A1.7). Said aloud, or the missing token reads as a bug, the lesson
+        // of the silent blocker cap (src/config/rules.ts).
+        const line = eventHistoryLine(e, this.eventLineLookup(batch));
+        if (line) this.log(line, e.cardId);
+        break;
+      }
+      case 'tokenRefused': {
+        const line = eventHistoryLine(e, this.eventLineLookup(batch));
+        if (line) this.log(line, e.tokenCardId);
+        break;
+      }
       case 'turnBegan':
         this.log(`Turn ${e.turn}: ${e.player === HUMAN ? 'your' : "opponent's"} turn`);
         this.showTurnBanner(e.turn, e.player === HUMAN);
@@ -3251,44 +3501,84 @@ export class DuelScene extends Phaser.Scene {
    */
   private playCombatSequence(events: GameEvent[]): void {
     const rounds: { hits: CombatHit[] }[] = [];
+    const hunts: HuntedEvent[] = [];
     const diedInfo = new Map<number, Extract<GameEvent, { e: 'died' }>>();
     const heals: Extract<GameEvent, { e: 'lifeChanged' }>[] = [];
+    const afterStrikes: GameEvent[] = [];
     let ended: Extract<GameEvent, { e: 'gameEnded' }> | undefined;
+    const batch = {
+      combat: events.some((e) => e.e === 'combatDamage' && e.hits.length > 0),
+      huntDrawn: this.huntDrawn,
+    };
 
-    for (const e of events) {
-      switch (e.e) {
-        case 'combatDamage':
-          rounds.push({ hits: e.hits });
+    // sequencedBatchRoutes (combatSequence.ts) decides, per event, what the
+    // strikes draw, what waits for them, and what is narrated at once.
+    const routes = sequencedBatchRoutes(events, batch);
+    events.forEach((e, index) => {
+      switch (routes[index]) {
+        case 'combatRound':
+          if (e.e === 'combatDamage') rounds.push({ hits: e.hits });
+          break;
+        case 'hunt':
+          // A Hunt whose hunter has no tile yet is drawn after the sync.
+          if (e.e === 'hunted') {
+            if (this.huntShownOnBoard(e)) hunts.push(e);
+            else this.narrateEvent(e, events);
+          }
           break;
         case 'died':
-          diedInfo.set(e.iid, e);
+          if (e.e === 'died') diedInfo.set(e.iid, e);
           break;
-        case 'lifeChanged':
+        case 'heal':
           // Player DAMAGE is drawn per-hit (sequenced); keep only lifelink/heal
           // (+delta) to pop once the sequence settles.
-          if (e.delta > 0) heals.push(e);
+          if (e.e === 'lifeChanged') heals.push(e);
           break;
-        case 'damageMarked':
-          break; // creature damage floats are derived per-hit from the strikes
+        case 'afterStrikes':
+          afterStrikes.push(e); // a Provoked trigger, then what it did: said once the blow lands
+          break;
+        case 'drawn':
+          break; // creature and player damage floats are derived from the strikes
         case 'gameEnded':
-          ended = e;
+          if (e.e === 'gameEnded') ended = e;
           break;
-        default:
-          this.narrateEvent(e); // combat triggers etc. — narrate immediately
+        case 'narrate':
+          this.narrateEvent(e, events); // combat triggers etc. — narrate immediately
           break;
       }
-    }
+    });
 
-    const plan = planCombat(rounds, [...diedInfo.keys()]);
-    if (plan.steps.length === 0) {
-      heals.forEach((h) => this.narrateEvent(h));
+    // Hunts play after the batch's combat strikes (a batch rarely holds both);
+    // each death lands with the blow that caused it.
+    const died = [...diedInfo.keys()];
+    const claimed = planHunts(hunts, died);
+    const plan = planCombat(rounds, rounds.length > 0 ? claimed.unclaimed : []);
+    const huntPlan = planHunts(hunts, died, plan.steps.length > 0 ? plan.totalMs : 0);
+    const lastHunt = huntPlan.steps[huntPlan.steps.length - 1];
+    if (plan.steps.length === 0 && lastHunt) lastHunt.deaths.push(...huntPlan.unclaimed);
+    const settle = (): void => {
+      heals.forEach((h) => this.narrateEvent(h)); // lifelink pops as combat settles
+      afterStrikes.forEach((e) => this.narrateEvent(e, events));
+    };
+    if (plan.steps.length === 0 && huntPlan.steps.length === 0) {
+      settle();
       this.finishStep(ended);
       return;
     }
 
     this.animatingCombat = true;
+    // A Hunt-only sequence hands its Undo back when it settles, so a Hunt
+    // spell can be taken back at full motion exactly as at reduced motion.
+    const heldUndo = plan.steps.length === 0 ? { snapshot: this.undoSnapshot, blocked: this.undoBlocked } : null;
     this.undoSnapshot = null; // combat is resolving — no take-backs mid-sequence
     this.undoBlocked = null;
+    // A Hunt spell's own targeting (its prompt, arrow and Confirm) ended with
+    // the cast; clear it now rather than after the held board's sync.
+    if (huntPlan.steps.length > 0) {
+      this.syncTargetPrompt();
+      this.syncButton();
+      this.drawArrows();
+    }
     const dir: -1 | 1 = this.duel.state.activePlayer === HUMAN ? -1 : 1;
     for (const step of plan.steps) {
       this.combatTimers.push(
@@ -3297,15 +3587,40 @@ export class DuelScene extends Phaser.Scene {
         }),
       );
     }
+    for (const step of huntPlan.steps) {
+      this.combatTimers.push(
+        this.time.delayedCall(step.atMs, () => {
+          if (!this.ended) this.renderHuntStep(step, diedInfo, events);
+        }),
+      );
+    }
     this.combatTimers.push(
-      this.time.delayedCall(plan.totalMs, () => {
+      this.time.delayedCall(Math.max(plan.totalMs, huntPlan.totalMs), () => {
         this.combatTimers = [];
         this.animatingCombat = false;
         if (this.ended) return;
-        heals.forEach((h) => this.narrateEvent(h)); // lifelink pops as combat settles
+        if (heldUndo) {
+          this.undoSnapshot = heldUndo.snapshot;
+          this.undoBlocked = heldUndo.blocked;
+        }
+        settle();
         this.finishStep(ended);
       }),
     );
+  }
+
+  /** A Hunt's moment in a full-motion sequence: the exchange on the held board, then its deaths. */
+  private renderHuntStep(
+    step: HuntStep,
+    diedInfo: Map<number, Extract<GameEvent, { e: 'died' }>>,
+    batch: readonly GameEvent[],
+  ): void {
+    const { at, creatures } = this.huntTiles(step.hunt, batch);
+    // The whole batch, so a creature that died, returned or was severed in it is still named.
+    const line = eventHistoryLine(step.hunt, this.eventLineLookup(batch));
+    if (line) this.log(line);
+    this.renderHuntExchange(step.hunt, at, creatures, true);
+    for (const iid of step.deaths) this.logSequencedDeath(iid, diedInfo);
   }
 
   /** Render one attacker's moment: lunge, per-hit strike + damage float, deaths. */
@@ -3331,18 +3646,147 @@ export class DuelScene extends Phaser.Scene {
         this.float(targetPos.x, targetPos.y - 40, `-${hit.amount}`, '#ffb04a');
       }
     }
-    for (const iid of step.deaths) {
-      Sfx.play('death');
-      const info = diedInfo.get(iid);
-      if (info) {
-        const who = info.owner === HUMAN ? 'Your' : 'Enemy';
-        if (this.brokenHauntlinks.delete(iid)) {
-          this.log(`${who} ${this.cardRef(info.cardId)} lost its host and went to its owner's graveyard`, info.cardId);
-        } else {
-          this.log(`${who} ${this.cardRef(info.cardId)} died`, info.cardId);
-        }
-      }
+    for (const iid of step.deaths) this.logSequencedDeath(iid, diedInfo);
+  }
+
+  /** A death in a full-motion sequence, said when the blow that caused it lands. */
+  private logSequencedDeath(iid: number, diedInfo: Map<number, Extract<GameEvent, { e: 'died' }>>): void {
+    Sfx.play('death');
+    const info = diedInfo.get(iid);
+    if (!info) return;
+    const who = info.owner === HUMAN ? 'Your' : 'Enemy';
+    if (this.brokenHauntlinks.delete(iid)) {
+      this.log(`${who} ${this.cardRef(info.cardId)} lost its host and went to its owner's graveyard`, info.cardId);
+    } else {
+      this.log(`${who} ${this.cardRef(info.cardId)} died`, info.cardId);
     }
+  }
+
+  /** A Hunt's two tiles are on the board now, so a full-motion sequence can hold them while it plays. */
+  private huntShownOnBoard(e: HuntedEvent): boolean {
+    return [e.hunter, e.prey].every((iid) => this.views.get(iid)?.active === true);
+  }
+
+  /**
+   * A Hunt's creature has a spot its exchange can draw on: a tile now, or, on
+   * the battlefield after the batch, the tile the next sync gives it.
+   */
+  private huntPlaced(iid: number): boolean {
+    return this.views.get(iid)?.active === true || this.duel.state.battlefield.some((perm) => perm.iid === iid);
+  }
+
+  /**
+   * A Hunt's two creatures as they stand: where each tile is, and each one's
+   * card and side, read from its tile, the battlefield, or the batch it
+   * entered or left in.
+   */
+  private huntTiles(
+    e: HuntedEvent,
+    batch: readonly GameEvent[],
+  ): { at: Map<number, { x: number; y: number }>; creatures: Map<number, HuntCreature> } {
+    const at = new Map<number, { x: number; y: number }>();
+    const creatures = new Map<number, HuntCreature>();
+    for (const iid of [e.hunter, e.prey]) {
+      const view = this.views.get(iid);
+      if (view?.active) at.set(iid, { x: view.x, y: view.y });
+      const perm = this.duel.state.battlefield.find((p) => p.iid === iid)
+        ?? batch.find((ev): ev is Extract<GameEvent, { e: 'permanentEntered' | 'tokenCreated' }> =>
+          (ev.e === 'permanentEntered' || ev.e === 'tokenCreated') && ev.perm.iid === iid)?.perm;
+      const left = departedInBatch(batch, iid);
+      const card = view?.active ? view.card : perm ? def(CARD_DB, perm.cardId) : left ? def(CARD_DB, left.cardId) : null;
+      const side = perm?.controller ?? this.viewSides.get(iid) ?? left?.player;
+      if (card && side !== undefined) creatures.set(iid, { card, side });
+    }
+    return { at, creatures };
+  }
+
+  /** Capture a Hunt's tiles as they stand, to draw its exchange once the board has synced (flushHuntFx). */
+  private queueHuntFx(e: HuntedEvent, batch: readonly GameEvent[]): void {
+    this.pendingHuntFx.push({ hunt: e, ...this.huntTiles(e, batch) });
+  }
+
+  /**
+   * Draw the queued Hunt exchanges after a sync: a creature still on the board
+   * is struck at its tile's settled spot (`boardTargets`, where an arriving
+   * hunter now has a tile), one the Hunt killed where it stood. No lunge: the
+   * sync's own tile tweens are moving the tiles.
+   */
+  private flushHuntFx(): void {
+    const queued = this.pendingHuntFx.splice(0);
+    for (const { hunt, at, creatures } of queued) {
+      for (const iid of [hunt.hunter, hunt.prey]) {
+        const settled = this.boardTargets.get(iid);
+        if (settled && this.duel.state.battlefield.some((p) => p.iid === iid)) at.set(iid, { x: settled.x, y: settled.y });
+      }
+      this.renderHuntExchange(hunt, at, creatures, false);
+    }
+  }
+
+  /**
+   * One Hunt's exchange (1.9 A2.a): both creatures strike at the same instant,
+   * each blow with the striker's own attack effect, and each creature's number
+   * lands on it: the damage it took, or a muted 0 when the other dealt none,
+   * so an exchange with no Attack on either side still reads. `lunge` only on
+   * a held board (a full-motion sequence). What is drawn when a creature has
+   * no spot is `huntExchangeDraw`'s: the other one still takes its blow and
+   * its number, struck from the missing creature's side of the board.
+   */
+  private renderHuntExchange(
+    hunt: HuntedEvent,
+    at: ReadonlyMap<number, { x: number; y: number }>,
+    creatures: ReadonlyMap<number, HuntCreature>,
+    lunge: boolean,
+  ): void {
+    const draw = huntExchangeDraw(hunt, (iid) => at.has(iid));
+    const hunterAt = at.get(hunt.hunter);
+    const preyAt = at.get(hunt.prey);
+    if (draw.tether && hunterAt && preyAt) {
+      const tile = (iid: number) => (lunge ? this.views.get(iid) ?? null : null);
+      this.combatFx.exchange(tile(hunt.hunter), hunterAt, tile(hunt.prey), preyAt, colorInt(theme.colors.heading));
+    }
+    let dealt = false;
+    for (const { blow, strikerPlaced } of draw.landings) {
+      const to = at.get(blow.target);
+      if (!to) continue;
+      const striker = creatures.get(blow.source);
+      if (blow.amount > 0) {
+        dealt = true;
+        const from = strikerPlaced ? at.get(blow.source) : striker && this.creatureRowSpot(striker.side, to.x);
+        if (striker && from) this.combatFx.strike(from, to, striker.card);
+      }
+      this.float(to.x, to.y - 40, huntFloatText(blow.amount), blow.amount > 0 ? '#ffb04a' : theme.colors.muted);
+    }
+    if (dealt) Sfx.play('hit');
+  }
+
+  /** A spot on a side's creature row, for a blow from a creature with no tile. */
+  private creatureRowSpot(side: PlayerId, x: number): { x: number; y: number } {
+    return { x, y: side === HUMAN ? LAYOUT.myCreatures.cy : LAYOUT.oppCreatures.cy };
+  }
+
+  /**
+   * The history lines' view of the board: a permanent on the battlefield, one
+   * that died, returned or was severed in this batch, or, failing both, one
+   * whose tile is still up from the last sync, named with its [card] and its
+   * side, so a Hunt or Provoked line is not dropped for want of a name.
+   */
+  private eventLineLookup(batch: readonly GameEvent[]): EventLineLookup {
+    const side = (player: PlayerId): 'you' | 'opponent' => (player === HUMAN ? 'you' : 'opponent');
+    return {
+      permanent: (iid) => {
+        const perm = this.duel.state.battlefield.find((p) => p.iid === iid);
+        if (perm) return { ref: this.cardRef(perm.cardId), side: side(perm.controller) };
+        const left = departedInBatch(batch, iid);
+        if (left) return { ref: this.cardRef(left.cardId), side: side(left.player) };
+        const tile = this.views.get(iid);
+        const tileSide = this.viewSides.get(iid);
+        return tile && tileSide !== undefined ? { ref: this.cardRef(tile.card.id), side: side(tileSide) } : null;
+      },
+      cardRef: (cardId) => this.cardRef(cardId),
+      card: (cardId) => def(CARD_DB, cardId),
+      sideOf: side,
+      overchargeLimit: RULES.overchargeLimit,
+    };
   }
 
   private log(msg: string, cardId?: string): void {
@@ -3398,11 +3842,11 @@ export class DuelScene extends Phaser.Scene {
   private float(x: number, y: number, text: string, color: string): void {
     const t = this.add
       .text(x, y, text, {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '26px',
+        fontFamily: theme.fonts.display,
+        fontSize: `${duelHudType(26, 'h1')}px`,
         fontStyle: 'bold',
         color,
-        stroke: '#000000',
+        stroke: theme.colors.dim,
         strokeThickness: 4,
       })
       .setOrigin(0.5)
@@ -3696,20 +4140,20 @@ export class DuelScene extends Phaser.Scene {
       this.tweens.killTweensOf(this.turnBanner);
       this.turnBanner.destroy();
     }
-    const who = isYou ? 'Your Turn' : `${this.opponent?.name ?? this.limitedPersona?.name ?? 'Opponent'}'s Turn`;
+    const who = isYou ? 'Your Turn' : `${this.opponentName() ?? 'Opponent'}'s Turn`;
     const accent = isYou ? theme.colors.gold : theme.colors.body;
     const bannerY = 74;
     const banner = this.add.container(BOARD_CENTER_X, bannerY).setDepth(theme.depth.banner).setAlpha(0);
     const sub = this.add
       .text(0, -16, `TURN ${turn}`, {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '12px',
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
         fontStyle: '700',
-        color: '#a89cc6',
+        color: theme.colors.muted,
       })
       .setOrigin(0.5);
     const title = this.add
-      .text(0, 10, who, { fontFamily: 'Cinzel, Georgia, serif', fontSize: '26px', color: accent })
+      .text(0, 10, who, { fontFamily: theme.fonts.display, fontSize: `${duelHudType(26, 'h1')}px`, color: accent })
       .setOrigin(0.5);
     // The frame fits the name, never the reverse: a hardcoded 340 put
     // "Carmilla, Crimson Host's Turn" outside its own border (user playtest
@@ -3719,7 +4163,8 @@ export class DuelScene extends Phaser.Scene {
     const framePad = 28;
     const frameMaxW = 560;
     if (title.width + framePad * 2 > frameMaxW) {
-      title.setFontSize(Math.max(17, Math.floor((26 * (frameMaxW - framePad * 2)) / title.width)));
+      title.setFontSize(Math.max(duelHudType(17, 'h1'), Math.floor((duelHudType(26, 'h1') * (frameMaxW - framePad * 2)) / title.width)));
+      title.setData('a11yFitToBox', true);
     }
     const frameW = Math.max(340, Math.min(frameMaxW, Math.ceil(title.width) + framePad * 2));
     const bg = this.add
@@ -3767,11 +4212,11 @@ export class DuelScene extends Phaser.Scene {
     const reveal = this.add.container(BOARD_CENTER_X, 250).setDepth(theme.depth.reveal).setAlpha(0);
     const label = this.add
       .text(0, -150, 'Opponent casts', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '14px',
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.label}px`,
         fontStyle: '700',
-        color: '#f0a0c0',
-        stroke: '#0a0812',
+        color: theme.colors.danger,
+        stroke: theme.colors.dim,
         strokeThickness: 3,
       })
       .setOrigin(0.5);
@@ -3837,6 +4282,7 @@ export class DuelScene extends Phaser.Scene {
     this.clearManaPlanPreview();
     const st = this.duel.state;
     if (this.choiceState !== st) {
+      if (!this.pendingCasts && this.targetPicks.length > 0) this.holdCommittedPicks();
       this.choiceState = st;
       this.edictPicks = [];
       this.targetPicks = [];
@@ -3941,7 +4387,16 @@ export class DuelScene extends Phaser.Scene {
     this.syncLinkedPermanents(seen);
     for (const [iid, view] of [...this.views]) {
       if (!seen.has(iid)) {
+        const picks = this.pickIndices({ kind: 'permanent', iid }, this.committedPicks);
+        if (picks.length > 0) {
+          // Submission can remove the target before its first picked frame.
+          // Its departing view confirms the pick without remaining clickable.
+          this.tweens.killTweensOf(view);
+          view.disableInput().setAlpha(1).setData('a11yDeparting', true);
+          view.setCue(null, 'targeting').setActionLabel(null).setKeyboardFocus(false).setPickBadge(picks, view.scaleX);
+        }
         this.views.delete(iid);
+        this.viewSides.delete(iid);
         const brokenHauntlink = this.brokenHauntlinks.delete(iid);
         if (brokenHauntlink) view.setHauntlinkBroken(true);
         this.tweens.add({
@@ -3949,6 +4404,7 @@ export class DuelScene extends Phaser.Scene {
           alpha: 0,
           scale: brokenHauntlink ? view.scaleX * 0.82 : 0.2,
           y: brokenHauntlink ? view.y - 18 : view.y,
+          delay: picks.length > 0 ? 640 : 0,
           duration: 260,
           onComplete: () => {
             if (view.active) view.destroy();
@@ -3985,6 +4441,7 @@ export class DuelScene extends Phaser.Scene {
       const x = this.permanentRowX(layout, packed, i, row.length, scale);
       const y = layout.liftSelected ? this.creatureY(perm.iid, layout.cy) : layout.cy;
       this.boardTargets.set(perm.iid, { x, y, scale });
+      this.viewSides.set(perm.iid, perm.controller);
       const d = def(CARD_DB, perm.cardId);
       let view = this.views.get(perm.iid);
       if (!view) {
@@ -4010,7 +4467,7 @@ export class DuelScene extends Phaser.Scene {
           // p.button (initiating button of THIS press), not the live
           // rightButtonDown() bitmask -- a chorded left press while the right
           // button is held must act as a left click, not open inspect.
-          if (p.button === 2 && !this.pendingCasts) this.showInspect(d, ownedVariant);
+          if (p.button === 2 && !this.pendingCasts) this.showInspect(d, ownedVariant, undefined, this.permanentNote(iid));
         });
         if (d.activated) {
           view.on('pointerover', (p: Phaser.Input.Pointer) => {
@@ -4023,7 +4480,7 @@ export class DuelScene extends Phaser.Scene {
           variant: ownedVariant,
           onTap: () => this.onBattlefieldTap(iid, d),
         });
-        this.zoom.attach(view, d, ownedVariant);
+        this.zoom.attach(view, d, ownedVariant, undefined, () => this.permanentNote(iid));
         this.views.set(perm.iid, view);
         view.setAlpha(0);
         this.tweens.add({ targets: view, alpha: 1, duration: 200 });
@@ -4041,25 +4498,18 @@ export class DuelScene extends Phaser.Scene {
       }
       const stats = getEffectiveStats(this.duel.state.battlefield, CARD_DB, perm.iid);
       if (isType(d, 'creature')) {
-        const buffed = stats.attack > (d.attack ?? 0) || stats.defense > (d.defense ?? 0);
-        const weakened = stats.attack < (d.attack ?? 0) || stats.defense < (d.defense ?? 0);
-        view.setStats(
-          stats.attack,
-          stats.defense - perm.damage,
-          perm.damage > 0 ? 'damaged' : buffed ? 'buffed' : weakened ? 'weakened' : 'normal',
-        );
+        view.setStats(stats.attack, stats.defense - perm.damage, {
+          damage: perm.damage,
+          attackDelta: stats.attack - (d.attack ?? 0),
+          defenseDelta: stats.defense - (d.defense ?? 0),
+          marks: perm.plusOneCounters ?? 0,
+        }, scale);
       }
       view.setKeywords(stats.keywords);
       view.setAuraCount(perm.attachments.length);
-      // The gold "eligible" ring alone reads the same for an attacker, a
-      // Hauntlink move and a Duty; the chip names which (legal Duties are
-      // enumerated for your own permanents only).
-      const linkActions = this.hauntlinkActionsFor(perm.iid);
-      view.setActionLabel(permanentActionLabel(
-        hauntlinkActionLabel(linkActions.length > 0, perm.attachedTo !== undefined),
-        this.activateActionsFor(perm.iid).length > 0,
-      ), scale);
-      view.setHighlight(this.highlightFor(perm));
+      view.setOvercharge(perm.overcharge ?? 0, scale);
+      view.setProvokedSpent(provokedSpent(d.abilities, perm.firedThisTurn), scale);
+      this.syncTileCue(view, perm, scale);
       // Summoning-sickness affordance (engine is source of truth: entered
       // this turn + no haste). Only creatures can be sick; the call resets
       // itself when sickness wears off at the controller's untap.
@@ -4103,6 +4553,7 @@ export class DuelScene extends Phaser.Scene {
         const x = target.x + overlap.x;
         const y = target.y + overlap.y;
         seen.add(link.iid);
+        this.viewSides.set(link.iid, link.controller);
         let view = this.views.get(link.iid);
         if (!view) {
           view = new BoardCardView(this, x, y, d);
@@ -4144,7 +4595,7 @@ export class DuelScene extends Phaser.Scene {
           hauntlinkActionLabel(linkActions.length > 0, true),
           this.activateActionsFor(link.iid).length > 0,
         ), scale);
-        view.setHighlight(this.highlightFor(link));
+        this.syncTileCue(view, link, scale);
       });
     }
   }
@@ -4164,41 +4615,93 @@ export class DuelScene extends Phaser.Scene {
     return layout.x1 - scaledTileWidth / 2 - (count - 1 - index) * packed.spacing;
   }
 
-  private creatureY(iid: number, base: number): number {
-    // Lift kept modest: the 170px tile (TILE_H) nearly fills its zone plate,
-    // so a big lift would poke a selected attacker out of the plate into the
-    // gap where the skip toast / stack readout float.
-    return this.selectedAttackers.has(iid) ? base - 12 : base;
+  private cueContext(): CueContext {
+    if (this.pendingCasts || this.pendingSacrifice || this.isHumanChooseTarget()) return 'targeting';
+    const kind = this.duel.awaiting.kind;
+    return kind === 'declareAttackers' || kind === 'declareBlockers' ? kind : 'idle';
   }
 
-  /** Same predicates the old full-card tinting used, mapped to tile states. */
-  private highlightFor(perm: Permanent): BoardHighlight {
-    const a = this.duel.awaiting;
-    const combat = this.duel.state.combat;
-    if (this.pendingSacrifice?.selected.includes(perm.iid) ||
-      (this.isHumanChooseTarget() && this.edictPicks.includes(perm.iid))) return 'selectedSacrifice';
-    if (this.pendingCasts && this.targetPicks.some(ref => ref.kind === 'permanent' && ref.iid === perm.iid)) return 'selectedAttacker';
-    if (this.keyboardTarget?.kind === 'permanent' && this.keyboardTarget.iid === perm.iid &&
-      this.targetRefsForInput().some(ref => this.targetRefEquals(ref, this.keyboardTarget!))) return 'pendingBlocker';
-    if (this.targetRefsForInput().some(
-      (target) => target.kind === 'permanent' && target.iid === perm.iid,
-    ))
-      return targetRingTone(perm.controller === HUMAN ? 'you' : 'opponent') === 'hostile'
-        ? 'legalTargetOpponent'
-        : 'legalTarget';
-    if (this.selectedAttackers.has(perm.iid)) return 'selectedAttacker';
-    if (combat?.attackers.includes(perm.iid)) return 'attacking';
-    if (this.blockAssignments.some((b) => b.blocker === perm.iid)) return 'blocking';
-    if (this.pendingBlocker === perm.iid) return 'pendingBlocker';
-    if (this.dutyHighlights.has(perm.iid) || this.activateActionsFor(perm.iid).length > 0) return 'eligible';
-    if (this.hauntlinkActionsFor(perm.iid).length > 0) return 'eligible';
-    if (
-      a.kind === 'declareAttackers' &&
-      this.isHumanTurnDecision() &&
-      eligibleAttackers(this.duel.state.battlefield, CARD_DB, HUMAN).includes(perm.iid)
-    )
-      return 'eligible';
-    return 'none';
+  private tilePresentation(perm: Permanent): ReturnType<typeof duelTilePresentation> {
+    const context = this.cueContext();
+    const link = hauntlinkActionLabel(this.hauntlinkActionsFor(perm.iid).length > 0, perm.attachedTo !== undefined);
+    return duelTilePresentation({
+      context, opponent: perm.controller !== HUMAN,
+      legal: this.targetRefsForInput().some(ref => ref.kind === 'permanent' && ref.iid === perm.iid),
+      picked: this.targetPicks.some(ref => ref.kind === 'permanent' && ref.iid === perm.iid),
+      sacrifice: Boolean(this.pendingSacrifice?.selected.includes(perm.iid)) ||
+        (this.isHumanChooseTarget() && this.edictPicks.includes(perm.iid)),
+      selectedAttacker: this.selectedAttackers.has(perm.iid),
+      attacking: this.duel.state.combat?.attackers.includes(perm.iid) ?? false,
+      pendingBlocker: this.pendingBlocker === perm.iid,
+      assignedBlocker: this.blockAssignments.some(b => b.blocker === perm.iid),
+      canAttack: context === 'declareAttackers' && this.isHumanTurnDecision() &&
+        eligibleAttackers(this.duel.state.battlefield, CARD_DB, HUMAN).includes(perm.iid),
+      link, dutyUsable: this.activateActionsFor(perm.iid).length > 0,
+      boostUsable: this.boostActionsFor(perm.iid).length > 0, actionFlash: this.dutyHighlights.has(perm.iid),
+    });
+  }
+
+  private creatureY(iid: number, base: number): number {
+    const perm = this.duel.state.battlefield.find(p => p.iid === iid);
+    return perm && this.tilePresentation(perm).lifted ? base - 12 : base;
+  }
+
+  private syncTileCue(view: BoardCardView, perm: Permanent, scale: number): void {
+    view.setData('a11yIid', perm.iid);
+    const cue = this.tilePresentation(perm);
+    view.setCue(cue.state, this.cueContext());
+    if (this.cueContext() === 'targeting') view.list.filter(child => child.name === 'duel-duty-flash').forEach(child => child.destroy());
+    view.setActionLabel(cue.chip, scale);
+    const sacrifice = this.pendingSacrifice?.selected ?? this.edictPicks;
+    const picked = cue.state === 'selectedSacrifice' ? [sacrifice.indexOf(perm.iid)]
+      : this.pickIndices({ kind: 'permanent', iid: perm.iid });
+    view.setPickBadge(picked, scale);
+    view.setKeyboardFocus(this.keyboardTarget?.kind === 'permanent' && this.keyboardTarget.iid === perm.iid &&
+      this.targetRefsForInput().some(ref => this.targetRefEquals(ref, this.keyboardTarget!)));
+  }
+
+  private visiblePicks(): readonly TargetRef[] {
+    return this.cueContext() === 'targeting' ? this.targetPicks : this.committedPicks;
+  }
+
+  private pickIndices(ref: TargetRef, picks: readonly TargetRef[] = this.visiblePicks()): number[] {
+    return picks.flatMap((pick, index) => this.targetRefEquals(pick, ref) ? [index] : []);
+  }
+
+  /** Keep automatic single-target submission unchanged, but let its badge render. */
+  private holdCommittedPicks(): void {
+    this.committedPicks = [...this.targetPicks];
+    this.committedGraveReadout?.destroy();
+    this.committedGraveReadout = null;
+    // choiceState is the pre-submit snapshot. The chosen card may already
+    // have left its graveyard when this sync sees the accepted action.
+    this.committedPicks.forEach((ref, index) => {
+      if (ref.kind !== 'grave' || this.committedPicks.slice(0, index).some(pick => this.targetRefEquals(pick, ref))) return;
+      const cardId = this.choiceState?.players[ref.player].graveyard[ref.index];
+      if (!cardId) return;
+      const readout = this.committedGraveReadout ??= this.add.container(0, 0)
+        .setDepth(theme.depth.modal + 1).setName('duel-committed-grave-picks');
+      const x = 120 + index * 70, y = 125;
+      const picked = new CardView(this, x, y).setScale(0.18);
+      const indices = this.pickIndices(ref, this.committedPicks);
+      picked.setCard(def(CARD_DB, cardId), { fx: 'none' });
+      picked.setData('a11yPickBadge', pickBadgeLabel(indices)).setData('a11yCommittedGravePick', true);
+      readout.add(picked);
+      this.addPickBadge(readout, x, y, indices);
+    });
+    this.committedPickTimer?.remove();
+    this.committedPickTimer = this.time.delayedCall(900, () => {
+      this.committedPickTimer = null;
+      this.committedPicks = [];
+      this.committedGraveReadout?.destroy();
+      this.committedGraveReadout = null;
+      if (!this.sys.isActive()) return;
+      for (const perm of this.duel.state.battlefield) {
+        const view = this.views.get(perm.iid);
+        if (view?.active) this.syncTileCue(view, perm, view.scaleX);
+      }
+      this.syncFaceTargeting();
+    });
   }
 
   private hauntlinkActionsFor(iid: number): LinkHauntAction[] {
@@ -4221,16 +4724,39 @@ export class DuelScene extends Phaser.Scene {
   /** Enumerate once per sync, rather than rebuilding the menu for each tile. */
   private refreshDutyActions(): void {
     this.dutyActionsBySource.clear();
+    this.pumpActionsBySource.clear();
     this.dutyActionsState = this.duel.state;
-    if (this.pendingCasts || this.ended || this.replayMode || !this.dutyActionsState.battlefield.some(
-      (source) => source.controller === HUMAN && def(CARD_DB, source.cardId).activated,
-    )) return;
+    if (this.pendingCasts || this.ended || this.replayMode || !this.dutyActionsState.battlefield.some((source) => {
+      if (source.controller !== HUMAN) return false;
+      const card = def(CARD_DB, source.cardId);
+      return card.activated !== undefined || (card.manaActivated?.length ?? 0) > 0;
+    })) return;
     for (const action of this.duel.legalActions(HUMAN)) {
+      if (action.type === 'activateMana') {
+        const pumps = this.pumpActionsBySource.get(action.iid);
+        if (pumps) pumps.push(action);
+        else this.pumpActionsBySource.set(action.iid, [action]);
+        continue;
+      }
       if (action.type !== 'activate') continue;
       const actions = this.dutyActionsBySource.get(action.iid);
       if (actions) actions.push(action);
       else this.dutyActionsBySource.set(action.iid, [action]);
     }
+  }
+
+  /** Your pump actions on this creature right now (the Duty menu's rules: none while targeting, ended or replaying). */
+  private boostActionsFor(iid: number): ManaPumpAction[] {
+    if (this.pendingCasts || this.ended || this.replayMode) return [];
+    if (this.dutyActionsState !== this.duel.state) return [];
+    return this.pumpActionsBySource.get(iid) ?? [];
+  }
+
+  /** The line a tile's tooltip and inspect add about its state now: a spent Provoked (1.9 A2.a). */
+  private permanentNote(iid: number): string | null {
+    const perm = this.duel.state.battlefield.find((p) => p.iid === iid);
+    if (!perm) return null;
+    return provokedSpent(def(CARD_DB, perm.cardId).abilities, perm.firedThisTurn) ? PROVOKED_SPENT_NOTE : null;
   }
 
   private activateActionsFor(iid: number): DutyAction[] {
@@ -4507,6 +5033,9 @@ export class DuelScene extends Phaser.Scene {
         color: player === HUMAN ? theme.colors.gold : theme.colors.muted,
       }).setOrigin(0.5).setDepth(9);
       this.darlingZoneDecor.push(label);
+      if (player === HUMAN && currentAccessibility().textScale > 1) {
+        this.undoBtn.setY(Math.min(LAYOUT.undo.y, label.getBounds().top - 6 - this.undoBtn.height / 2));
+      }
       if (tax > 0) {
         const chip = this.add.text(layout.taxX, layout.taxY, `+${tax}`, {
           fontFamily: theme.fonts.ui,
@@ -4516,6 +5045,12 @@ export class DuelScene extends Phaser.Scene {
           backgroundColor: theme.colors.panelFill,
           padding: { x: 5, y: 2 },
         }).setOrigin(layout.taxOriginX, 0.5).setDepth(10);
+        if (theme.type.micro > theme.typeBase.micro) {
+          const nameBounds = label.getBounds();
+          chip.setX(player === HUMAN
+            ? Math.max(layout.taxX, nameBounds.right + 6 + chip.width / 2)
+            : Math.min(layout.taxX, nameBounds.left - 6));
+        }
         this.darlingZoneDecor.push(chip);
       }
       if (player !== HUMAN) continue;
@@ -4704,10 +5239,10 @@ export class DuelScene extends Phaser.Scene {
         .setData('baseAlpha', baseAlpha);
       const countText = this.add
         .text(x + pipSize * 0.64, cy, `${slot.untapped}/${slot.total}`, {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '13px',
+          fontFamily: theme.fonts.ui,
+          fontSize: `${duelHudType(13, 'label')}px`,
           fontStyle: '600',
-          color: slot.untapped > 0 ? '#cbc2e0' : '#7d7492',
+          color: slot.untapped > 0 ? theme.colors.body : theme.colors.muted,
           resolution: 2,
         })
         .setOrigin(0, 0.5)
@@ -5567,6 +6102,12 @@ export class DuelScene extends Phaser.Scene {
 
   private onChoiceNavigate(e: KeyboardEvent): void {
     if (this.ended || this.replayMode || this.animatingCombat || this.inspect || this.zoneModal || this.pauseOverlay) return;
+    if (this.pumpTickerStep && this.empowerChooser) {
+      // The ticker counts: right and up add one, left and down take one away.
+      e.preventDefault();
+      this.pumpTickerStep(e.key === 'ArrowLeft' || e.key === 'ArrowDown' || e.keyCode === 37 || e.keyCode === 40 ? -1 : 1);
+      return;
+    }
     const delta = e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.keyCode === 37 || e.keyCode === 38 ? -1 : 1;
     const picker = this.dutyPicker ?? this.lootPicker;
     if (picker?.container.active) {
@@ -5586,7 +6127,10 @@ export class DuelScene extends Phaser.Scene {
       : ref.kind === 'grave' ? this.graveTargetCardId(ref)
         : ref.kind === 'stackItem' ? this.duel.state.stack.find(item => item.sid === ref.sid)?.cardId : undefined;
     this.showTransientNotice(cardId ? `Target: ${def(CARD_DB, cardId).name}` : ref.kind === 'player' ? DUTY_PLAYER_LABELS[ref.player] : 'Choose a target');
-    for (const perm of this.duel.state.battlefield) this.views.get(perm.iid)?.setHighlight(this.highlightFor(perm));
+    for (const perm of this.duel.state.battlefield) {
+      const view = this.views.get(perm.iid);
+      if (view) this.syncTileCue(view, perm, view.scaleX);
+    }
   }
 
   private onTargetBackspace(e: KeyboardEvent): void {
@@ -6121,6 +6665,7 @@ export class DuelScene extends Phaser.Scene {
     // Hauntlink-only window (the legal-action filter inside decides).
     if (this.beginHauntlinkTargeting(iid)) return;
     if (this.beginActivate(iid)) return;
+    if (this.beginBoost(iid)) return;
     // Main and every response window; null in the attacker and blocker steps.
     const dutyReason = this.dutyBlockedReason(iid);
     if (dutyReason) this.showTransientNotice(dutyReason);
@@ -6224,7 +6769,7 @@ export class DuelScene extends Phaser.Scene {
       this.onBattlefieldClick(iid); // assigning a block to this attacker
       return;
     }
-    this.showInspect(d);
+    this.showInspect(d, undefined, undefined, this.permanentNote(iid));
   }
 
   // ---------------------------------------------------------------------
@@ -6583,7 +7128,7 @@ export class DuelScene extends Phaser.Scene {
   // Inspect overlay: right-click any card for the full CardView
   // ---------------------------------------------------------------------
 
-  private showInspect(card: CardDef, variant?: CardVariant, landStyle?: string): void {
+  private showInspect(card: CardDef, variant?: CardVariant, landStyle?: string, note: string | null = null): void {
     if (this.ended) return;
     this.closeInspect();
     this.zoom.setSuppressed(true);
@@ -6599,6 +7144,9 @@ export class DuelScene extends Phaser.Scene {
     const width = 1280; // design-space constants (see buildZones)
     const height = 720;
     const c = this.add.container(0, 0).setDepth(110);
+    // The dim covers the whole board: what is under it is out of view (the
+    // a11y probe reads this the same way as the duel's choice overlays).
+    c.setData('a11ySurface', { x: 0, y: 0, width, height });
     const dim = this.add
       .rectangle(width / 2, height / 2, width, height, 0x000000, 0.8)
       .setInteractive();
@@ -6611,16 +7159,46 @@ export class DuelScene extends Phaser.Scene {
       landStyle,
     });
     c.add(view);
+    // The tier as words (the face shows it only as a gem colour), atop the
+    // keyword column: bottom-anchored over the panel, so larger text grows up
+    // into the free band beside the card; with no panel it takes the panel's
+    // place. Tokens have no rarity, as on the hover zoom.
+    if (!card.token) {
+      const hasGlossary = cardGlossaryEntries(card).length > 0;
+      c.add(
+        this.add
+          .text(875, hasGlossary ? 150 - theme.space(3) : 150, rarityLine(card), {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.label}px`,
+            fontStyle: theme.weight.w600,
+            color: theme.colors.heading,
+            wordWrap: { width: 300 },
+          })
+          .setOrigin(0, hasGlossary ? 1 : 0),
+      );
+    }
     addKeywordGlossaryPanel(this, c, card, { x: 875, y: 150, width: 300 });
-    c.add(
-      this.add
-        .text(width / 2, height - 26, this.touch ? 'Tap anywhere to close' : 'Click anywhere to close', {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '14px',
-          color: '#8f83a8',
-        })
-        .setOrigin(0.5),
-    );
+    // The close hint sits on the title-safe bottom edge, measured from its own
+    // height, so larger text grows it upward and never off the frame.
+    const closeHint = this.add
+      .text(width / 2, theme.design.safeBottom, this.touch ? 'Tap anywhere to close' : 'Click anywhere to close', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.label}px`,
+        color: theme.colors.muted,
+      })
+      .setOrigin(0.5, 1);
+    // A battlefield creature's state the card face cannot print (1.9 A2.a:
+    // "Provoked this turn."), on a plate between the card and the close hint;
+    // the card rises, if it must, to keep clear of the plate.
+    if (note) {
+      const plate = this.statePlate(width / 2, 0, note);
+      const plateHeight = plate.getBounds().height;
+      plate.setY(closeHint.y - closeHint.height - theme.space(1) - plateHeight / 2);
+      const cardBottom = plate.y - plateHeight / 2 - theme.space(1);
+      view.setY(Math.min(view.y, cardBottom - (CARD_H * view.scaleY) / 2));
+      c.add(plate);
+    }
+    c.add(closeHint);
     this.inspectMove = (p: Phaser.Input.Pointer) => view.setHoloPointer(p.worldX, p.worldY);
     this.input.on('pointermove', this.inspectMove);
     dim.on('pointerup', (p: Phaser.Input.Pointer) => {
@@ -6772,7 +7350,7 @@ export class DuelScene extends Phaser.Scene {
     });
     c.add(music.container);
 
-    if (this.tutorial) {
+    if (this.tutorial || this.a11yTutorialChrome) {
       // Leaving the lesson loses nothing (no result is recorded and it stays
       // replayable from How to Play), so it is a quiet, single-tap exit.
       c.add(themedButton(this, 640, 500, 'Leave Tutorial', {
@@ -6782,6 +7360,8 @@ export class DuelScene extends Phaser.Scene {
           if (!p.rightButtonReleased()) this.leaveTutorial();
         },
       }).container);
+      fitDuelModal(this, shell, { width: 420, height: 430, rows: [{ y: 190 }, { y: 226, wrapWidth: 340 },
+      { y: 276 }, { y: 326 }, { y: 376 }, { y: 426 }, { y: 500 }] });
       this.pauseOverlay = c;
       this.pauseGuard.open(this.overlayGuardTargets());
       return;
@@ -6816,6 +7396,8 @@ export class DuelScene extends Phaser.Scene {
     });
     c.add(concede.container);
 
+    fitDuelModal(this, shell, { width: 420, height: 430, rows: [{ y: 190 }, { y: 226, wrapWidth: 340 },
+      { y: 276 }, { y: 326 }, { y: 376 }, { y: 426 }, { y: 500 }] });
     this.pauseOverlay = c;
     this.pauseGuard.open(this.overlayGuardTargets());
   }
@@ -6832,7 +7414,7 @@ export class DuelScene extends Phaser.Scene {
     this.time.delayedCall(CONCEDE_ARM_MS, () => {
       if (!btn.active) return;
       disarm();
-      btn.setText('Concede').setColor('#e0a0a0');
+      btn.setText('Concede').setColor(theme.colors.danger);
       inflateHitArea(btn, 90, 90);
     });
   }
@@ -6877,10 +7459,15 @@ export class DuelScene extends Phaser.Scene {
     const mandatory = this.isHumanChooseTarget();
     const deferred = deferredTargetPrompt(this.duel.instanceState, CARD_DB, HUMAN);
     const edict = edictSacrificeSelection(this.duel.instanceState, CARD_DB, HUMAN, this.edictPicks);
-    const options = this.targetRefsForInput();
+    // Completed ordered picks are no longer remaining legal options, but
+    // their full-opacity cards and numbered badges remain part of the readout.
+    const options = [...this.targetRefsForInput()];
+    for (const picked of this.targetPicks) {
+      if (!options.some(ref => this.targetRefEquals(ref, picked))) options.push(picked);
+    }
     const c = this.add.container(0, 0).setDepth(105);
     const dim = this.add
-      .rectangle(width / 2, height / 2, width, height, 0x000000, 0.82)
+      .rectangle(width / 2, height / 2, width, height, theme.graphics.dim, theme.alpha.overlayDim)
       .setInteractive();
     dim.on('pointerup', (p: Phaser.Input.Pointer) => {
       if (p.rightButtonReleased()) return;
@@ -6891,9 +7478,9 @@ export class DuelScene extends Phaser.Scene {
       this.add
         .text(width / 2, 150, edict ? `${edict.prompt} · ${this.edictPicks.length} of ${edict.count}` :
           deferred?.title ?? `${duty ? DUTY_ACTION_LABEL : 'Choose targets'} · ${this.pendingTargetStep().countText}`, {
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '28px',
-          color: '#f0e6ff',
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.h1}px`,
+          color: theme.colors.heading,
         })
         .setOrigin(0.5),
     );
@@ -6927,9 +7514,11 @@ export class DuelScene extends Phaser.Scene {
       const d = def(CARD_DB, cardId);
       const variant = displayVariantFor(Services.save.data, cardId);
       v.setCard(d, { fx: 'none', variant, fullArt: variant.fullArt });
-      if ((ref.kind === 'permanent' && edict && this.edictPicks.includes(ref.iid)) ||
-        this.targetPicks.some(picked => this.targetRefEquals(picked, ref))) v.setAlpha(theme.alpha.subtle);
       c.add(v);
+      const picked = ref.kind === 'permanent' && edict ? [this.edictPicks.indexOf(ref.iid)]
+        : this.pickIndices(ref, this.targetPicks);
+      if (pickBadgeLabel(picked) !== null) this.addPickBadge(c, x, 370, picked);
+      v.setData('a11yPickBadge', pickBadgeLabel(picked));
       // Same read affordances as the mulligan cards: hover/long-press zoom.
       v.enableInput();
       this.zoom.attach(v, d, variant);
@@ -6953,10 +7542,10 @@ export class DuelScene extends Phaser.Scene {
     }
     const cancel = this.add
       .text(width / 2, 600, 'Cancel', {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '22px',
-        color: '#e0a0a0',
-        backgroundColor: '#3a2030',
+        fontFamily: theme.fonts.display,
+        fontSize: `${duelHudType(22, 'label')}px`,
+        color: theme.colors.danger,
+        backgroundColor: theme.colors.dangerBg,
         padding: { x: 18, y: 10 },
       })
       .setOrigin(0.5)
@@ -6990,13 +7579,13 @@ export class DuelScene extends Phaser.Scene {
   /** The same card-and-cost confirmation composition as the graveyard and cast choosers. */
   private showDutyConfirm(card: CardDef, action: DutyAction): void {
     const c = this.add.container(0, 0).setDepth(105);
-    const dim = this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.82).setInteractive();
+    const dim = this.add.rectangle(640, 360, 1280, 720, theme.graphics.dim, theme.alpha.overlayDim).setInteractive();
     bindTapButton(this, dim, (pointer) => {
       if (!pointer.rightButtonReleased()) this.closeEmpowerChooser();
     });
     c.add(dim);
     c.add(this.add.text(640, 130, DUTY_ACTION_LABEL, {
-      fontFamily: theme.fonts.display, fontSize: '28px', color: theme.colors.heading,
+      fontFamily: theme.fonts.display, fontSize: `${theme.type.h1}px`, color: theme.colors.heading,
     }).setOrigin(0.5));
     const variant = displayVariantFor(Services.save.data, card.id);
     const view = new CardView(this, 640, 340).setScale(0.62);
@@ -7010,7 +7599,7 @@ export class DuelScene extends Phaser.Scene {
     const pipSize = 22;
     const cost = activatedAbilitiesOf(card)[action.abilityIndex ?? 0].cost.mana;
     const mana = renderManaText(this, c, 0, 0, cost && manaValue(cost) > 0 ? `, ${manaCostText(cost)}` : '', {
-      fontFamily: theme.fonts.ui, fontSize: `${pipSize}px`, color: theme.colors.gold, resolution: 2,
+      fontFamily: theme.fonts.ui, fontSize: `${duelHudType(pipSize)}px`, color: theme.colors.gold, resolution: 2,
     });
     const left = 640 - (pipSize + mana.text.width) / 2;
     c.add(this.add.image(left + pipSize / 2, 500, 'pip-T').setDisplaySize(pipSize, pipSize));
@@ -7034,6 +7623,199 @@ export class DuelScene extends Phaser.Scene {
     }).container);
     this.empowerChooser = c;
     this.empowerChooserGuard.open([...this.overlayGuardTargets(), this.undoBtn]);
+  }
+
+  /** Which of the Hunt's target sources a pending cast or Duty is (`huntStepPrompt`). */
+  private huntTargetSource(action: TargetSelectionAction): HuntTargetSource {
+    if (action.type === 'activate') return 'duty';
+    if (action.type === 'castDarling') return 'cast';
+    if (action.hauntlinked) return 'hauntlinkCast';
+    if (action.retell) return 'retellCast';
+    return action.empowered ? 'empoweredCast' : 'cast';
+  }
+
+  /**
+   * A small plate with one line of state, for the inspect overlay and the
+   * zoom preview: `rowFill` under body copy, as the tile's badges sit.
+   */
+  private statePlate(x: number, y: number, line: string): Phaser.GameObjects.Container {
+    const text = this.add.text(0, 0, line, {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.type.label}px`, fontStyle: theme.weight.w600,
+      color: theme.colors.heading, resolution: 2,
+    }).setOrigin(0.5);
+    const w = text.width + theme.space(4);
+    const h = text.height + theme.space(2);
+    const plate = this.add.graphics();
+    plate.fillStyle(colorInt(theme.colors.rowFill), theme.alpha.panel);
+    plate.fillRoundedRect(-w / 2, -h / 2, w, h, theme.radius.control);
+    plate.lineStyle(1, colorInt(theme.colors.panelStroke), theme.alpha.chrome);
+    plate.strokeRoundedRect(-w / 2, -h / 2, w, h, theme.radius.control);
+    return this.add.container(x, y, [plate, text]);
+  }
+
+  /** Open the pump ticker when this creature of yours has a repeatable mana ability it can use now. */
+  private beginBoost(iid: number): boolean {
+    const actions = this.boostActionsFor(iid);
+    const source = this.duel.state.battlefield.find((perm) => perm.iid === iid);
+    if (actions.length === 0 || !source) return false;
+    this.clearManaPlanPreview();
+    // One ticker per creature: every A1.5 carrier prints one such ability.
+    this.showPumpTicker(def(CARD_DB, source.cardId), actions[0]);
+    return true;
+  }
+
+  /**
+   * The mana pump's ticker (1.9 A2.a; the owner approves its look): the Duty
+   * confirm's card-and-cost composition with a bounded +/- count between the
+   * card and the buttons. It opens at 1; the legal action's `times` is its
+   * top; the confirm submits ONE `activateMana` carrying the count, and the
+   * engine pays for the whole count (no mana plan from the UI).
+   */
+  private showPumpTicker(card: CardDef, legal: ManaPumpAction): void {
+    const ability = card.manaActivated?.[legal.abilityIndex];
+    if (!ability) return;
+    let ticker: PumpTicker = pumpTicker(legal.times);
+    // The tile's hover preview would outlive the tap that opened this (the
+    // guard disables the tile's zone, so no pointerout ever reaches it).
+    this.zoom.cancel();
+    const c = this.add.container(0, 0).setDepth(theme.depth.modal);
+    const dim = this.add.rectangle(640, 360, 1280, 720, theme.graphics.dim, theme.alpha.overlayDim).setInteractive();
+    bindTapButton(this, dim, (pointer) => {
+      if (!pointer.rightButtonReleased()) this.closeEmpowerChooser();
+    });
+    c.add(dim);
+    c.add(this.add.text(640, 108, PUMP_TICKER_TITLE, {
+      fontFamily: theme.fonts.display, fontSize: `${theme.type.h1}px`, color: theme.colors.heading,
+    }).setOrigin(0.5));
+    const variant = displayVariantFor(Services.save.data, card.id);
+    const view = new CardView(this, 640, 272).setScale(0.48);
+    view.setCard(card, { fx: 'none', variant, fullArt: variant.fullArt });
+    c.add(view);
+    view.enableInput();
+    this.zoom.attach(view, card, variant);
+
+    // The ability in the card's own words, cost first.
+    const abilityLine = renderManaText(this, c, 0, 0,
+      `${manaCostText(ability.cost)}: ${manaActivatedEffectText(card, legal.abilityIndex)}`, {
+        fontFamily: theme.fonts.ui, fontSize: `${theme.type.body}px`, color: theme.colors.body, resolution: 2,
+      });
+    abilityLine.text.setOrigin(0.5).setPosition(640, 406);
+    abilityLine.reflow();
+
+    // The ticker: - count +, the bound under the count.
+    const tickerY = 462;
+    const count = this.add.text(640, tickerY, '', {
+      fontFamily: theme.fonts.display, fontSize: `${theme.type.h1}px`, fontStyle: theme.weight.w700,
+      color: theme.colors.heading, resolution: 2,
+    }).setOrigin(0.5);
+    c.add(count);
+    const limit = this.add.text(640, tickerY + 30, pumpTickerLimitText(ticker.max), {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px`, color: theme.colors.muted, resolution: 2,
+    }).setOrigin(0.5);
+    c.add(limit);
+    // The row swallows its own taps: a press on a spent - or + (subdued and
+    // inert at the bound) must not fall through to the dim, which cancels.
+    c.add(this.add.zone(640, tickerY, 88 * 2 + 96, 64).setInteractive());
+    const step = (delta: number): void => {
+      const next = stepPumpTicker(ticker, delta);
+      if (next.count === ticker.count) return;
+      ticker = next;
+      refresh();
+    };
+    const minus = themedButton(this, 640 - 88, tickerY, '\u2212', {
+      variant: 'emphasis', minWidth: 56,
+      onTap: (pointer) => { if (!pointer.rightButtonReleased()) step(-1); },
+    });
+    const plus = themedButton(this, 640 + 88, tickerY, '+', {
+      variant: 'emphasis', minWidth: 56,
+      onTap: (pointer) => { if (!pointer.rightButtonReleased()) step(+1); },
+    });
+    c.add([minus.container, plus.container]);
+
+    // What the chosen count costs and does, then the confirm and cancel.
+    let summary: ReturnType<typeof renderManaText> | null = null;
+    const confirm = themedButton(this, 640, 590, pumpConfirmLabel(1), {
+      variant: 'primary', minWidth: 220,
+      onTap: (pointer) => {
+        if (pointer.rightButtonReleased()) return;
+        this.dutyConfirm?.();
+      },
+    });
+    c.add(confirm.container);
+    c.add(themedButton(this, 640, 644, PUMP_TICKER_CANCEL, {
+      variant: 'ghost', minWidth: 180,
+      onTap: (pointer) => { if (!pointer.rightButtonReleased()) this.closeEmpowerChooser(); },
+    }).container);
+    const refresh = (): void => {
+      count.setText(String(ticker.count));
+      minus.setEnabled(ticker.canDecrease);
+      plus.setEnabled(ticker.canIncrease);
+      confirm.setLabel(pumpConfirmLabel(ticker.count));
+      summary?.destroy();
+      summary = renderManaText(this, c, 0, 0, pumpSummaryText(ability.cost, ability.ops, ticker.count), {
+        fontFamily: theme.fonts.ui, fontSize: `${theme.type.label}px`, fontStyle: theme.weight.w600,
+        color: theme.colors.gold, resolution: 2,
+      });
+      summary.text.setOrigin(0.5).setPosition(640, 536);
+      summary.reflow();
+    };
+    refresh();
+
+    this.pumpTickerStep = step;
+    this.dutyConfirm = () => {
+      if (!c.active) return;
+      // Re-read the engine's entry: the count is held to what is payable now.
+      const fresh = pumpActionsFor(this.duel.legalActions(HUMAN), legal.iid)
+        .find((action) => action.abilityIndex === legal.abilityIndex);
+      const action = fresh ? pumpSubmission(fresh, ticker.count) : null;
+      if (!action || validateAction(this.duel.instanceState, CARD_DB, HUMAN, action) !== null) return;
+      this.closeEmpowerChooser();
+      this.act(action);
+    };
+    this.empowerChooser = c;
+    this.empowerChooserGuard.open([...this.overlayGuardTargets(), this.undoBtn]);
+  }
+
+  /**
+   * The `manaActivated` event's small animation (1.9 A2.a): the stat change
+   * the uses gave floats off the creature, and a ring pulses out once from
+   * its tile, riding the tile so it turns with it. The P/T plate itself
+   * updates on the sync that follows.
+   */
+  private showManaActivated(e: Extract<GameEvent, { e: 'manaActivated' }>): void {
+    const view = this.views.get(e.iid);
+    const ability = def(CARD_DB, e.cardId).manaActivated?.[e.abilityIndex];
+    if (!view?.active || !ability) return;
+    this.float(view.x, view.y - 56, pumpBoostText(pumpBoost(ability.ops, e.times)), theme.colors.gold);
+    const ring = this.add.rectangle(0, 0, TILE_W + 6, TILE_H + 6, 0x000000, 0)
+      .setStrokeStyle(3, colorInt(theme.colors.gold), 1);
+    view.add(ring);
+    this.tweens.add({
+      targets: ring,
+      scale: 1.08,
+      alpha: 0,
+      duration: theme.motion.slow + theme.motion.base,
+      ease: theme.motion.easeOut,
+      onComplete: () => { if (ring.active) ring.destroy(); },
+      onStop: () => { if (ring.active) ring.destroy(); },
+    });
+  }
+
+  /**
+   * A combat response window opened for you because you could pump (A1.5's
+   * auto-pass rule keeps it open only then, or for a Charm): say so, so the
+   * window never reads as a dead pause. Said once each combat: the first
+   * window with a pump to offer shows the notice, and the later windows of
+   * that combat do not repeat it. The tile's Boost chip and ring stay for as
+   * long as the pump is usable.
+   */
+  private offerCombatPump(): void {
+    if (this.combatPumpOffered || this.replayMode || this.tutorial || this.duel.state.step !== 'combat') return;
+    const pump = this.duel.legalActions(HUMAN).find((action): action is ManaPumpAction => action.type === 'activateMana');
+    const source = pump && this.duel.state.battlefield.find((perm) => perm.iid === pump.iid);
+    if (!source) return;
+    this.combatPumpOffered = true;
+    this.showTransientNotice(`You can boost ${def(CARD_DB, source.cardId).name} now, or Pass.`);
   }
 
   /**
@@ -7061,13 +7843,13 @@ export class DuelScene extends Phaser.Scene {
     });
     if (!row) return false;
     const c = this.add.container(0, 0).setDepth(105);
-    const dim = this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.82).setInteractive();
+    const dim = this.add.rectangle(640, 360, 1280, 720, theme.graphics.dim, theme.alpha.overlayDim).setInteractive();
     bindTapButton(this, dim, (pointer) => {
       if (!pointer.rightButtonReleased()) this.closeEmpowerChooser();
     });
     c.add(dim);
     c.add(this.add.text(640, 130, 'How will you cast this?', {
-      fontFamily: theme.fonts.display, fontSize: '28px', color: theme.colors.heading,
+      fontFamily: theme.fonts.display, fontSize: `${theme.type.h1}px`, color: theme.colors.heading,
     }).setOrigin(0.5));
     const variant = displayVariantFor(Services.save.data, d.id);
     const card = new CardView(this, 640, 330).setScale(0.62);
@@ -7078,7 +7860,7 @@ export class DuelScene extends Phaser.Scene {
     const option = (x: number, y: number, label: string, cost: CardDef['cost'], enabled: boolean, select: () => void): void => {
       if (cost) {
         const price = renderManaText(this, c, x, y - 40, manaCostText(cost), {
-          fontFamily: theme.fonts.ui, fontSize: '20px', color: theme.colors.gold, resolution: 2,
+          fontFamily: theme.fonts.ui, fontSize: `${theme.type.h2}px`, color: theme.colors.gold, resolution: 2,
         });
         price.text.setOrigin(0.5);
         price.reflow();
@@ -7119,7 +7901,7 @@ export class DuelScene extends Phaser.Scene {
     const height = 720;
     const c = this.add.container(0, 0).setDepth(105);
     const dim = this.add
-      .rectangle(width / 2, height / 2, width, height, 0x000000, 0.82)
+      .rectangle(width / 2, height / 2, width, height, theme.graphics.dim, theme.alpha.overlayDim)
       .setInteractive();
     dim.on('pointerup', (p: Phaser.Input.Pointer) => {
       if (p.rightButtonReleased()) return;
@@ -7129,9 +7911,9 @@ export class DuelScene extends Phaser.Scene {
     c.add(
       this.add
         .text(width / 2, 130, 'Cast, or Skim?', {
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '28px',
-          color: '#f0e6ff',
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.h1}px`,
+          color: theme.colors.heading,
         })
         .setOrigin(0.5),
     );
@@ -7149,9 +7931,9 @@ export class DuelScene extends Phaser.Scene {
       onPick: () => void,
     ): Phaser.GameObjects.Text => {
       const rendered = renderManaText(this, c, 0, 0, label, {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '22px',
-        color: '#f0e6ff',
+        fontFamily: theme.fonts.display,
+        fontSize: `${duelHudType(22, 'label')}px`,
+        color: theme.colors.heading,
         backgroundColor: bg,
         padding: { x: 18, y: 10 },
       });
@@ -7166,11 +7948,11 @@ export class DuelScene extends Phaser.Scene {
       inflateHitArea(t, 90, 60);
       return t;
     };
-    button(width / 2 - 170, `Cast ${manaCostText(d.cost!)}`, '#20303a', () => {
+    button(width / 2 - 170, `Cast ${manaCostText(d.cost!)}`, theme.colors.btnGhostBg, () => {
       this.closeEmpowerChooser();
       this.startCast(casts);
     });
-    button(width / 2 + 170, `Skim ${manaCostText(d.skim!.cost)}`, '#3a2030', () => {
+    button(width / 2 + 170, `Skim ${manaCostText(d.skim!.cost)}`, theme.colors.dangerBg, () => {
       this.closeEmpowerChooser();
       this.act(skims[0]);
     });
@@ -7188,7 +7970,7 @@ export class DuelScene extends Phaser.Scene {
     const height = 720;
     const c = this.add.container(0, 0).setDepth(105);
     const dim = this.add
-      .rectangle(width / 2, height / 2, width, height, 0x000000, 0.82)
+      .rectangle(width / 2, height / 2, width, height, theme.graphics.dim, theme.alpha.overlayDim)
       .setInteractive();
     dim.on('pointerup', (p: Phaser.Input.Pointer) => {
       if (p.rightButtonReleased()) return;
@@ -7198,9 +7980,9 @@ export class DuelScene extends Phaser.Scene {
     c.add(
       this.add
         .text(width / 2, 130, 'Cast, or Hauntlink?', {
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '28px',
-          color: '#f0e6ff',
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.h1}px`,
+          color: theme.colors.heading,
         })
         .setOrigin(0.5),
     );
@@ -7218,9 +8000,9 @@ export class DuelScene extends Phaser.Scene {
       onPick: () => void,
     ): void => {
       const rendered = renderManaText(this, c, 0, 0, label, {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '22px',
-        color: '#f0e6ff',
+        fontFamily: theme.fonts.display,
+        fontSize: `${duelHudType(22, 'label')}px`,
+        color: theme.colors.heading,
         backgroundColor: bg,
         padding: { x: 18, y: 10 },
       });
@@ -7234,11 +8016,11 @@ export class DuelScene extends Phaser.Scene {
       });
       inflateHitArea(t, 90, 60);
     };
-    button(width / 2 - 170, `Cast ${manaCostText(d.cost!)}`, '#20303a', () => {
+    button(width / 2 - 170, `Cast ${manaCostText(d.cost!)}`, theme.colors.btnGhostBg, () => {
       this.closeEmpowerChooser();
       this.startCast(casts);
     });
-    button(width / 2 + 170, `Hauntlink ${manaCostText(d.hauntlink!.cost)}`, '#3a2030', () => {
+    button(width / 2 + 170, `Hauntlink ${manaCostText(d.hauntlink!.cost)}`, theme.colors.dangerBg, () => {
       this.closeEmpowerChooser();
       // Hauntlink skips startCast because it cannot carry an Empower choice.
       this.continueCast(hauntlinkedCasts);
@@ -7259,7 +8041,7 @@ export class DuelScene extends Phaser.Scene {
     const height = 720;
     const c = this.add.container(0, 0).setDepth(105);
     const dim = this.add
-      .rectangle(width / 2, height / 2, width, height, 0x000000, 0.82)
+      .rectangle(width / 2, height / 2, width, height, theme.graphics.dim, theme.alpha.overlayDim)
       .setInteractive();
     dim.on('pointerup', (p: Phaser.Input.Pointer) => {
       if (p.rightButtonReleased()) return;
@@ -7269,9 +8051,9 @@ export class DuelScene extends Phaser.Scene {
     c.add(
       this.add
         .text(width / 2, 130, 'Cast, or pay more to Empower?', {
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '28px',
-          color: '#f0e6ff',
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.h1}px`,
+          color: theme.colors.heading,
         })
         .setOrigin(0.5),
     );
@@ -7294,9 +8076,9 @@ export class DuelScene extends Phaser.Scene {
       onPick: () => void,
     ): Phaser.GameObjects.Text => {
       const rendered = renderManaText(this, c, 0, 0, label, {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '22px',
-        color: '#f0e6ff',
+        fontFamily: theme.fonts.display,
+        fontSize: `${duelHudType(22, 'label')}px`,
+        color: theme.colors.heading,
         backgroundColor: bg,
         padding: { x: 18, y: 10 },
       });
@@ -7312,14 +8094,14 @@ export class DuelScene extends Phaser.Scene {
       return t;
     };
     const total = combineManaCosts(d.cost!, d.empower!.cost);
-    button(width / 2 - 170, `Cast ${manaCostText(d.cost!)}`, '#20303a', () => pick(false));
-    button(width / 2 + 170, `Empower ${manaCostText(total)}`, '#3a2030', () => pick(true));
+    button(width / 2 - 170, `Cast ${manaCostText(d.cost!)}`, theme.colors.btnGhostBg, () => pick(false));
+    button(width / 2 + 170, `Empower ${manaCostText(total)}`, theme.colors.dangerBg, () => pick(true));
     const rider = empowerText(d);
     if (rider) {
       const renderedRider = renderManaText(this, c, width / 2, 605, rider, {
-        fontFamily: 'Georgia, serif',
-        fontSize: '17px',
-        color: '#cdbfe0',
+        fontFamily: theme.fonts.display,
+        fontSize: `${duelHudType(17, 'body')}px`,
+        color: theme.colors.body,
         wordWrap: { width: 640 },
         align: 'center',
       });
@@ -7336,6 +8118,7 @@ export class DuelScene extends Phaser.Scene {
     this.empowerChooser = null;
     this.dutyPicker = null;
     this.dutyConfirm = null;
+    this.pumpTickerStep = null;
     this.empowerChooserGuard.close();
     this.maybeAutoSkip();
     this.endTurnTick();
@@ -7725,11 +8508,11 @@ export class DuelScene extends Phaser.Scene {
     const width = 1280; // design-space constants (see buildZones)
     const height = 720;
     const c = this.add.container(0, 0).setDepth(100);
-    const dim = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.82).setInteractive();
+    const dim = this.add.rectangle(width / 2, height / 2, width, height, theme.graphics.dim, theme.alpha.overlayDim).setInteractive();
     c.add(dim);
     c.add(
       this.add
-        .text(width / 2, 150, title, { fontFamily: 'Cinzel, Georgia, serif', fontSize: '30px', color: '#f0e6ff' })
+        .text(width / 2, 150, title, { fontFamily: theme.fonts.display, fontSize: `${duelHudType(30, 'h1')}px`, color: theme.colors.heading })
         .setOrigin(0.5),
     );
     // The library stack the mulligan riffles; the hand row cedes it the right edge.
@@ -7805,9 +8588,9 @@ export class DuelScene extends Phaser.Scene {
       const concede = label === 'Concede';
       const btn = this.add
         .text(bx, 580, label, {
-          fontFamily: 'Cinzel, Georgia, serif', fontSize: '22px',
-          color: concede ? '#e0a0a0' : '#ffd88a',
-          backgroundColor: concede ? '#3a2030' : '#2c2344', padding: { x: 18, y: 10 },
+          fontFamily: theme.fonts.display, fontSize: `${duelHudType(22, 'label')}px`,
+          color: concede ? theme.colors.danger : theme.colors.gold,
+          backgroundColor: concede ? theme.colors.dangerBg : theme.colors.btnEmphasisBg, padding: { x: 18, y: 10 },
         })
         .setOrigin(0.5)
         .setInteractive({ useHandCursor: true });
@@ -7942,11 +8725,11 @@ export class DuelScene extends Phaser.Scene {
     const width = 1280;
     const height = 720;
     const c = this.add.container(0, 0).setDepth(100);
-    const dim = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.82).setInteractive();
+    const dim = this.add.rectangle(width / 2, height / 2, width, height, theme.graphics.dim, theme.alpha.overlayDim).setInteractive();
     c.add(dim);
     c.add(
       this.add
-        .text(width / 2, 150, bottomingTitle(count), { fontFamily: 'Cinzel, Georgia, serif', fontSize: '30px', color: '#f0e6ff' })
+        .text(width / 2, 150, bottomingTitle(count), { fontFamily: theme.fonts.display, fontSize: `${duelHudType(30, 'h1')}px`, color: theme.colors.heading })
         .setOrigin(0.5),
     );
     const plates = this.buildLibraryStack(c, STACK_X, STACK_Y);
@@ -8091,9 +8874,9 @@ export class DuelScene extends Phaser.Scene {
       const concede = label === 'Concede';
       const btn = this.add
         .text(bx, 580, label, {
-          fontFamily: 'Cinzel, Georgia, serif', fontSize: '22px',
-          color: concede ? '#e0a0a0' : '#ffd88a',
-          backgroundColor: concede ? '#3a2030' : '#2c2344', padding: { x: 18, y: 10 },
+          fontFamily: theme.fonts.display, fontSize: `${duelHudType(22, 'label')}px`,
+          color: concede ? theme.colors.danger : theme.colors.gold,
+          backgroundColor: concede ? theme.colors.dangerBg : theme.colors.btnEmphasisBg, padding: { x: 18, y: 10 },
         })
         .setOrigin(0.5)
         .setInteractive({ useHandCursor: true });
@@ -8138,6 +8921,10 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private showResults(won: boolean, reason: string): void {
+    if (this.a11yFixture) {
+      this.showPracticeResultPanel(won, reason, this.rewardLine(0, false, 0));
+      return;
+    }
     if (this.replayMode) {
       this.completeReplayPlayback();
       return;
@@ -8196,6 +8983,12 @@ export class DuelScene extends Phaser.Scene {
     Music.duck(1.8); // let the sting read clearly over the bed
     Sfx.play(won ? 'win' : 'loss');
 
+    this.showPracticeResultPanel(won, reason, reward.tooEarly ? 'No reward: the match ended too early'
+      : this.rewardLine(reward.gold + streak.gold, reward.firstWinBonus, streak.advanced ? streak.count : 0));
+  }
+
+  /** Rendering only, shared with the dev fixture; reward/save work stays with showResults. */
+  private showPracticeResultPanel(won: boolean, reason: string, rewardCopy: string): void {
     const shell = modalShell(this, {
       width: 560,
       height: 330,
@@ -8239,9 +9032,7 @@ export class DuelScene extends Phaser.Scene {
         .text(
           640,
           388,
-          reward.tooEarly
-            ? 'No reward: the match ended too early'
-            : this.rewardLine(reward.gold + streak.gold, reward.firstWinBonus, streak.advanced ? streak.count : 0),
+          rewardCopy,
           {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.h2}px`,
@@ -8266,6 +9057,8 @@ export class DuelScene extends Phaser.Scene {
     };
     mk(520, 'Rematch', 'primary', () => this.restartDuel());
     mk(760, 'Menu', 'ghost', () => this.scene.start('MainMenu'));
+    fitDuelModal(this, shell, { width: 560, height: 330, rows: [{ y: 278 }, { y: 342, wrapWidth: 480 },
+      { y: 388, wrapWidth: 500 }, { y: 456 }] });
     this.guard.open(this.overlayGuardTargets());
   }
 
@@ -8380,6 +9173,8 @@ export class DuelScene extends Phaser.Scene {
       mk(510, 'Draft', 'primary', () => this.scene.start('Limited'));
       mk(770, 'Menu', 'ghost', () => this.scene.start('MainMenu'));
     }
+    fitDuelModal(this, shell, { width: 620, height: 340, rows: [{ y: 268 }, { y: 328, wrapWidth: 540 },
+      { y: 378, wrapWidth: 560 }, { y: 414, wrapWidth: 540 }, { y: 456 }] });
     this.guard.open(this.overlayGuardTargets());
   }
 
@@ -8487,11 +9282,14 @@ export class DuelScene extends Phaser.Scene {
 
     if (reward.nextRung !== null) {
       const next = reward.nextRung;
+      prefetchDuelArt(this, { opponentId: this.avatarForGauntletFloor(next).id, gauntletRung: next });
       mk(520, 'Next Foe', 'primary', () =>
         this.restartDuel({ opponentId: this.avatarForGauntletFloor(next).id, gauntletRung: next }),
       );
       mk(760, 'Tower', 'ghost', () => this.scene.start('Gauntlet'));
     }
+    fitDuelModal(this, shell, { width: 620, height: 330, rows: [{ y: 270 }, { y: 330, wrapWidth: 540 },
+      { y: 378, wrapWidth: 560 }, { y: 456 }] });
     this.guard.open(this.overlayGuardTargets());
   }
 
@@ -8506,6 +9304,7 @@ export class DuelScene extends Phaser.Scene {
     failedRung: number | null,
     reason: string,
     rewardLine: string,
+    initialPage = 0,
   ): void {
     const shell = modalShell(this, {
       width: 820,
@@ -8569,53 +9368,50 @@ export class DuelScene extends Phaser.Scene {
         .setOrigin(0.5),
     );
 
-    // Count-aware grid inside the shell's content track (mirrors the Tower
-    // ladder's count-aware row sizing in GauntletScene.buildTower). The header
-    // text block above ends at ~y190 (reward line at y178), so the grid owns
-    // the band from gridTop down to the content track's bottom edge; the
-    // footer buttons live in the shell's footer track below it, so the two
-    // can never overlap.
-    //
-    // Arithmetic for the current 14-rung tower (820x640 shell, 24px padding,
-    // 16px track gap, 44px footer): contentBounds y=124 h=472 (bottom 596),
-    // footerTrack y=612. The last row's LABEL extends ~38px below its
-    // portrait (8px gap + two 11px wrapped lines), so that block is reserved
-    // out of the band BEFORE the row pitch is derived — at 3 rows the naive
-    // pitch put the last label 3.5px into the footer margin (caught by
-    // tests/ui/layout.test.ts when #84 grew the tower 12 -> 14). With the
-    // reserve: rows=3, cols=5, yPitch=(390-38)/3~117.3, cellScale~0.752,
-    // last-row label bottom ~579 < 612 footer top.
+    // Keep the release grid and portrait anchors at standard text. Names use
+    // the whole column, in a foreground reading strip; at larger text the
+    // measured rows page above the unchanged result buttons.
     const rungCount = ECONOMY.gauntletRungGold.length;
-    const bounds = shell.contentBounds;
-    const gridTop = Math.max(bounds.y, 206);
-    // 38 = label block below the last portrait row (8px gap + ~30px lines).
-    const gridBottom = bounds.y + bounds.height - 38;
-    const rows = Math.ceil(rungCount / 6);
-    const cols = Math.ceil(rungCount / rows);
-    const xPitch = Math.min(132, bounds.width / cols);
-    const yPitch = Math.min(156, (gridBottom - gridTop) / rows);
-    const cellScale = Math.min(1, xPitch / 132, yPitch / 156);
-    const x0 = 640 - ((cols - 1) * xPitch) / 2;
-    const y0 = gridTop + (gridBottom - gridTop - rows * yPitch) / 2 + yPitch / 2;
+    const textScale = currentAccessibility().textScale;
+    const base = duelRecapLayout(shell.contentBounds, rungCount, 0, textScale);
+    const nameStyle = { fontFamily: theme.fonts.ui, fontSize: `${theme.type.micro}px`,
+      fontStyle: theme.weight.w700, align: 'center', wordWrap: { width: base.labelWidth } };
+    let nameHeight = 0;
     for (let rung = 1; rung <= rungCount; rung++) {
-      const col = (rung - 1) % cols;
-      const row = Math.floor((rung - 1) / cols);
-      const state =
-        completed || rung < (failedRung ?? Number.POSITIVE_INFINITY)
-          ? 'cleared'
-          : rung === failedRung
-            ? 'failed'
-            : 'unreached';
-      this.addGauntletRecapPortrait(
-        c,
-        this.avatarForGauntletFloor(rung),
-        rung,
-        x0 + col * xPitch,
-        y0 + row * yPitch,
-        state,
-        cellScale,
-      );
+      const measure = this.add.text(0, 0, `R${rung} ${this.avatarForGauntletFloor(rung).name.split(',')[0]}`, nameStyle);
+      nameHeight = Math.max(nameHeight, measure.height);
+      measure.destroy();
     }
+    const grid = this.add.container(0, 0);
+    c.add(grid);
+    let pageControl: ReturnType<typeof pager> | null = null;
+    const renderPage = (page: number): void => {
+      grid.removeAll(true);
+      pageControl?.container.destroy();
+      const layout = duelRecapLayout(shell.contentBounds, rungCount, nameHeight, textScale, page);
+      // Rendering every name after the portraits prevents later rows' art
+      // from concealing the tail of a wrapped name in the compact grid.
+      const names = this.add.container(0, 0);
+      for (let index = 0; index < layout.visibleCount; index++) {
+        const rung = layout.start + index + 1;
+        const state = completed || rung < (failedRung ?? Number.POSITIVE_INFINITY) ? 'cleared'
+          : rung === failedRung ? 'failed' : 'unreached';
+        const slot = layout.slot(index);
+        const stampOffset = layout.namesClearPortraits ? -4 : Math.max(-4, nameHeight - layout.labelClearance + 2);
+        this.addGauntletRecapPortrait(grid, names, this.avatarForGauntletFloor(rung), rung,
+          slot.x, slot.y, state, layout.cellScale, layout.labelWidth, stampOffset);
+      }
+      grid.add(names);
+      grid.setData('a11yDensity', {
+        actual: { id: 'duel-recap', rows: layout.rows, columns: layout.columns, pitch: layout.pitch, top: layout.y0 },
+        release: { id: 'duel-recap', rows: 5, columns: 6, pitch: 70.4, top: 241.2 },
+      });
+      if (layout.pageCount > 1) {
+        pageControl = pager(this, 596, layout.pagerY, layout.page, layout.pageCount, renderPage);
+        c.add(pageControl.container);
+      }
+    };
+    renderPage(initialPage);
 
     const footerY = shell.tracks.footerTrack.y + shell.tracks.footerTrack.height / 2;
     const mk = (x: number, label: string, variant: 'primary' | 'ghost', cb: () => void): void => {
@@ -8635,27 +9431,30 @@ export class DuelScene extends Phaser.Scene {
 
   private addGauntletRecapPortrait(
     parent: Phaser.GameObjects.Container,
+    names: Phaser.GameObjects.Container,
     avatar: Avatar,
     rung: number,
     x: number,
     y: number,
     state: 'cleared' | 'failed' | 'unreached',
-    cellScale = 1,
+    cellScale: number,
+    labelWidth: number,
+    stampOffset: number,
   ): void {
     const w = Math.round(92 * cellScale);
     const h = Math.round(112 * cellScale);
-    const border = state === 'failed' ? 0xd84854 : state === 'cleared' ? 0x6f6688 : 0x3d3060;
+    const border = state === 'failed' ? colorInt(theme.colors.dangerArmed) : state === 'cleared' ? theme.graphics.panelStroke : theme.graphics.panelStroke;
     parent.add(
       this.add
-        .rectangle(x, y, w, h, 0x171222, state === 'unreached' ? 0.45 : 0.82)
+        .rectangle(x, y, w, h, theme.graphics.panelFill, state === 'unreached' ? 0.45 : 0.82)
         .setStrokeStyle(state === 'failed' ? 3 : 1, border, state === 'unreached' ? 0.7 : 1),
     );
 
-    const art = Art.resolver?.getArt(avatar.portraitCardId);
-    if (art) {
-      const img = this.add.image(x, y - 6, art.textureKey, art.frameName).setOrigin(0.5);
-      const scale = Math.max((w - 12) / Math.max(1, img.width), (h - 26) / Math.max(1, img.height));
-      img.setScale(scale).setAlpha(state === 'unreached' ? 0.22 : state === 'cleared' ? 0.56 : 0.95);
+    const img = addPortraitArt(this, x, y - 6, avatar.portraitCardId, (image) => {
+      image.setScale(Math.max((w - 12) / Math.max(1, image.width), (h - 26) / Math.max(1, image.height)));
+    });
+    if (img) {
+      img.setAlpha(state === 'unreached' ? 0.22 : state === 'cleared' ? 0.56 : 0.95);
       const maskShape = this.add.rectangle(x, y - 6, w - 12, h - 26, 0xffffff).setVisible(false);
       img.setMask(maskShape.createGeometryMask());
       parent.add(maskShape);
@@ -8663,47 +9462,48 @@ export class DuelScene extends Phaser.Scene {
     }
 
     if (state === 'cleared') {
-      parent.add(this.add.rectangle(x, y, w - 10, h - 12, 0x09070f, 0.34));
+      parent.add(this.add.rectangle(x, y, w - 10, h - 12, theme.graphics.dim, 0.34));
       parent.add(
         this.add
-          .text(x, y - 4, '☠', {
+          .text(x, y + stampOffset, '☠', {
             fontFamily: 'Georgia, serif',
-            fontSize: '34px',
-            color: '#efe9ff',
+            fontSize: `${Math.round(34 * cellScale)}px`,
+            color: theme.colors.heading,
           })
           .setOrigin(0.5)
           .setAlpha(0.86),
       );
     } else if (state === 'failed') {
-      parent.add(this.add.rectangle(x, y, w - 10, h - 12, 0x7a1119, 0.48));
+      parent.add(this.add.rectangle(x, y, w - 10, h - 12, colorInt(theme.colors.dangerBg), 0.48));
       parent.add(
         this.add
-          .text(x, y - 4, 'FAILED', {
-            fontFamily: 'Inter, Arial, sans-serif',
-            fontSize: '13px',
+          .text(x, y + stampOffset, 'FAILED', {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${duelHudType(13, 'label')}px`,
             fontStyle: '800',
-            color: '#ffe3e3',
+            color: theme.colors.danger,
           })
           .setOrigin(0.5),
       );
     } else {
-      parent.add(this.add.rectangle(x, y, w - 10, h - 12, 0x05040a, 0.5));
+      parent.add(this.add.rectangle(x, y, w - 10, h - 12, theme.graphics.dim, 0.5));
     }
 
-    parent.add(
-      this.add
+    const name = this.add
         // Short display name: epithets after a comma are dropped so the recap
         // reads "R7 Yohime", not "R7 Yohime, Kitsune Matriarch" (playtest
         // 2026-07-16). Comma-less names (Hestia, The Morrigan) pass through.
         .text(x, y + h / 2 + 8, `R${rung} ${avatar.name.split(',')[0]}`, {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '11px',
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.micro}px`,
           fontStyle: '700',
-          color: state === 'failed' ? '#f0b0a0' : state === 'cleared' ? '#c9bde0' : '#5d536e',
+          color: state === 'failed' ? theme.colors.danger : state === 'cleared' ? theme.colors.body : theme.colors.muted,
           align: 'center',
-          wordWrap: { width: Math.round(116 * cellScale) },
+          wordWrap: { width: labelWidth },
         })
-        .setOrigin(0.5, 0),
-    );
+        .setOrigin(0.5, 0).setData('a11yKeepVisible', true);
+    name.setData('a11yFullText', name.text);
+    const plate = this.add.rectangle(x, name.y + name.height / 2, name.width + 4, name.height, theme.graphics.panelFill);
+    names.add([plate, name]);
   }
 }

@@ -33,6 +33,8 @@ export const MECHANIC_ICON_KEY: Record<MechanicIconId, string> = {
   foresee: 'mechanic-foresee',
   mark: 'mechanic-mark',
   propagate: 'mechanic-propagate',
+  hunt: 'mechanic-hunt',
+  provoked: 'mechanic-provoked',
   quest: 'mechanic-quest',
   championAwakening: 'mechanic-championAwakening',
   empower: 'mechanic-empower',
@@ -47,6 +49,7 @@ export const MECHANIC_ICON_KEY: Record<MechanicIconId, string> = {
   duty: 'pip-T', // Duty teaches the same tap glyph the card face uses.
   warchest: 'mechanic-warchest',
   darlings: 'mechanic-darlings',
+  overcharge: 'mechanic-overcharge',
 };
 
 /** The phase glossary uses one shared day-cycle glyph for all five rows. */
@@ -105,6 +108,20 @@ const MECHANIC_ICON_PATH: Record<Exclude<MechanicIconId, 'duty'>, string> = {
   propagate:
     'M10 4 L18 4 L18 10 L24 10 L24 18 L18 18 L18 24 L10 24 L10 18 L4 18 L4 10 L10 10 Z ' +
     'M26 20 L34 20 L34 26 L40 26 L40 34 L34 34 L34 40 L26 40 L26 34 L20 34 L20 26 L26 26 Z',
+  // Three claw marks: the predator's stroke. Not a weapon, and never two
+  // blades crossed (Twin Blades owns that); the strokes run parallel, tapered
+  // at both ends, so they read as a raking swipe rather than Sever's clean cut.
+  hunt:
+    'M17 6 Q5 20 7 38 Q15 23 17 6 Z ' +
+    'M27 6 Q15 20 17 38 Q25 23 27 6 Z ' +
+    'M37 6 Q25 20 27 38 Q35 23 37 6 Z',
+  // The anger mark: four swollen veins around a pinched cross. Struck, and
+  // angry about it. No hand (handprints are banned) and no reserved art tell;
+  // the pieces fill the chip's corners, so the dark cross between them never
+  // reads as Mark's solid gold plus.
+  provoked:
+    'M6 19 Q21 21 19 6 L13 6 Q14 14 6 13 Z M38 19 Q23 21 25 6 L31 6 Q30 14 38 13 Z ' +
+    'M6 25 Q21 23 19 38 L13 38 Q14 30 6 31 Z M38 25 Q23 23 25 38 L31 38 Q30 30 38 31 Z',
   // Chapters climbing toward the flag they plant at the end.
   quest: 'M5 35 L14 35 L14 40 L5 40 Z M16 27 L25 27 L25 40 L16 40 Z M27 19 L36 19 L36 40 L27 40 Z M29 4 L32 4 L32 19 L29 19 Z M32 5 L41 9 L32 13 Z',
   // A one-way upgrade, climbing. Was an open eye until 2026-08-24, which read
@@ -148,6 +165,13 @@ const MECHANIC_ICON_PATH: Record<Exclude<MechanicIconId, 'duty'>, string> = {
   warchest: 'M5 15 Q5 11 9 11 L35 11 Q39 11 39 15 L39 19 L5 19 Z M5 22 L39 22 L39 34 Q39 38 35 38 L9 38 Q5 38 5 34 Z M18 15 L26 15 L26 26 L18 26 Z',
   // Her crown: she waits in her own zone and answers when called.
   darlings: 'M5 33 L39 33 L39 40 L5 40 Z M5 31 L8 11 L16 21 L22 6 L28 21 L36 11 L39 31 Z',
+  // A charged cell, standing: a refused token's power stored in its namesake.
+  // Not a bolt (Empower owns it) and not a plus (Mark and Propagate own that);
+  // the two bars are thick enough to survive the 16px keyword-chip size.
+  overcharge:
+    'M17 3 L27 3 L27 8 L17 8 Z ' +
+    'M11 8 L33 8 L33 41 L11 41 Z M15 12 L29 12 L29 37 L15 37 Z ' +
+    'M18 15 L26 15 L26 23 L18 23 Z M18 27 L26 27 L26 34 L18 34 Z',
 };
 
 /** A rising and setting sun marks the shared day-cycle phase vocabulary. */

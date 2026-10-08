@@ -15,6 +15,8 @@ import { makeTestState, TEST_DB } from '../helpers';
 const DB: CardDb = {
   ...TEST_DB,
   'cf-barrow-whisper': CARD_DB['cf-barrow-whisper']!,
+  'sb-prism-current': CARD_DB['sb-prism-current']!,
+  'yn-azure-oni-broker': CARD_DB['yn-azure-oni-broker']!,
   dies_bear: {
     ...TEST_DB.bear,
     id: 'dies_bear',
@@ -465,6 +467,35 @@ describe('foresee continuations', () => {
     expect(pure.state.players[0].deck).toEqual(['bottom', 'middle', 'top']);
     expect(pure.submit(0, { type: 'foresee', bottomIndices: [0] }).map((event) => event.e)).toEqual(['foresaw']);
     expect(pure.state.players[0].deck).toEqual(['top', 'bottom', 'middle']);
+  });
+
+  // A Foresee waits for the rest of the stack or the queue ahead of it, so its
+  // deck can run out before it is offered. With nothing to look at, no choice
+  // is offered, and the rest of the effect still resolves in order: exactly
+  // what it does when the deck is empty as the Foresee begins.
+  it('resolves the rest of the effect when the deck empties before the Foresee is offered', () => {
+    // Prism Current (Foresee 2, then draw 1) answers Azure Oni Broker, whose
+    // arrival grinds the Current's caster out. The Current's draw then finds
+    // an empty deck, and its caster loses.
+    const state = makeTestState({
+      hands: [['yn-azure-oni-broker'], ['sb-prism-current']],
+      active: 0,
+      battlefield: [
+        ...[1, 2, 3, 4, 5].map((iid) => ({ iid, cardId: 'island', controller: 0 as const })),
+        ...[11, 12].map((iid) => ({ iid, cardId: 'island', controller: 1 as const })),
+      ],
+    });
+    state.players[0].deck = ['forest', 'forest'];
+    state.players[1].deck = ['bear', 'elf'];
+    const game = Game.restore(state, DB);
+    game.submit(0, { type: 'castSpell', handIndex: 0 });
+    expect(game.awaiting).toMatchObject({ player: 1, kind: 'respond' });
+    game.submit(1, { type: 'castSpell', handIndex: 0 });
+
+    expect(game.state.players[1].deck).toEqual([]);
+    expect(game.state.winner).toBe(0);
+    expect(game.state.winReason).toBe('deck');
+    expect(game.awaiting).toEqual({ kind: 'gameOver' });
   });
 
   it('rejects a targeted op after foresee instead of dropping its target context', () => {

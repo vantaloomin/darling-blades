@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ECONOMY } from '../../src/config/rules';
 import { theme } from '../../src/ui/theme';
+import { forEachA11yCell } from './a11yCells';
 import {
   cardDwellMs,
   cardRailX,
@@ -12,6 +13,8 @@ import {
   minimapSegments,
   PACK_BUTTON_PANEL,
   PACK_BUTTON_Y,
+  PACK_INSPECT,
+  packInspectLayout,
   PACK_REVEAL_GRID_SCALE,
   PACK_REVEAL_SPECIAL_SCALE,
   packRevealLayout,
@@ -263,5 +266,40 @@ describe('packRevealLayout', () => {
       const { grid: g, specials: s } = packRevealLayout(grid, specials);
       for (const slot of [...g, ...s]) expect(slot.scale).toBeGreaterThanOrEqual(1 / 3);
     }
+  });
+});
+
+describe('packInspectLayout', () => {
+  /** A line box of 1.25 em at the label role in force; the probe measures real glyphs. */
+  const lineHeight = (): number => Math.ceil(theme.type.label * 1.25);
+  const inside = (outer: { x: number; y: number; width: number; height: number }, inner: { x: number; y: number; width: number; height: number }): boolean =>
+    inner.x >= outer.x && inner.y >= outer.y && inner.x + inner.width <= outer.x + outer.width && inner.y + inner.height <= outer.y + outer.height;
+
+  it('keeps the card and every detail line inside the dialog and the frame, above its bottom inset, in every accessibility cell', () => {
+    forEachA11yCell((cell) => {
+      for (let lines = 1; lines <= 6; lines++) {
+        const heights = Array<number>(lines).fill(lineHeight());
+        const layout = packInspectLayout(heights);
+        const frame = { x: theme.design.safeLeft, y: theme.design.safeTop, width: theme.design.safeWidth, height: theme.design.safeHeight };
+        expect(inside(frame, layout.panel), `${cell.name}, ${lines} lines`).toBe(true);
+        expect(inside(layout.panel, layout.detail), `${cell.name}, ${lines} lines`).toBe(true);
+        expect(layout.detail.y + layout.detail.height + PACK_INSPECT.pad, cell.name).toBeLessThanOrEqual(layout.panel.y + layout.panel.height);
+        const card = { x: theme.design.centerX - (RUNWAY_CARD_DESIGN_WIDTH * layout.cardScale) / 2, y: layout.cardY - (RUNWAY_CARD_DESIGN_HEIGHT * layout.cardScale) / 2,
+          width: RUNWAY_CARD_DESIGN_WIDTH * layout.cardScale, height: RUNWAY_CARD_DESIGN_HEIGHT * layout.cardScale };
+        expect(inside(layout.panel, card), `${cell.name}, ${lines} lines: the card`).toBe(true);
+        expect(card.y + card.height + PACK_INSPECT.pad, `${cell.name}: card above the plate`).toBeLessThanOrEqual(layout.detail.y + 1e-9);
+        layout.lineYs.forEach((y, i) => {
+          expect(y - heights[i] / 2, `${cell.name}: line ${i}`).toBeGreaterThanOrEqual(layout.detail.y + PACK_INSPECT.linePad - 1e-9);
+          expect(y + heights[i] / 2, `${cell.name}: line ${i}`).toBeLessThanOrEqual(layout.detail.y + layout.detail.height - PACK_INSPECT.linePad + 1e-9);
+          if (i > 0) expect(y - layout.lineYs[i - 1], `${cell.name}: line gap`).toBeGreaterThanOrEqual(heights[i] + PACK_INSPECT.lineGap - 1e-9);
+        });
+      }
+    });
+  });
+
+  it('never draws the card larger than its release inspect size, and shrinks it only for more lines', () => {
+    const scales = [1, 3, 6, 9].map((n) => packInspectLayout(Array<number>(n).fill(17)).cardScale);
+    expect(scales[0]).toBeLessThanOrEqual(PACK_INSPECT.cardMaxScale);
+    for (let i = 1; i < scales.length; i++) expect(scales[i]).toBeLessThanOrEqual(scales[i - 1]);
   });
 });

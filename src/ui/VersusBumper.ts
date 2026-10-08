@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
-import { Art } from '../art/ArtResolver';
 import type { AnimationLevel } from '../platform/animPolicy';
+import { addPortraitArt } from './portraitArt';
 import { colorInt, theme } from './theme';
 import {
   VERSUS_BUMPER_LAYOUT,
@@ -14,6 +14,35 @@ const HEIGHT = VERSUS_BUMPER_LAYOUT.height;
 const SPLIT_TOP_X = VERSUS_BUMPER_LAYOUT.splitTopX;
 const SPLIT_BOTTOM_X = VERSUS_BUMPER_LAYOUT.splitBottomX;
 const PORTRAIT_COVER_W = 790;
+/** The name's measure under its role line. */
+const NAME_WIDTH = 430;
+
+/**
+ * The deck or opponent name. At standard text it keeps its release
+ * shrink-to-fit on one line (the house look of this lockup). At larger text it
+ * shrinks no lower than the standard heading size, then wraps to a second line
+ * instead of losing characters, growing downward from its release top and
+ * never up into the role line.
+ */
+function fitVersusName(text: Phaser.GameObjects.Text, roleBottom: number): void {
+  const fontSize = theme.type.h1;
+  const base = theme.typeBase.h1;
+  const releaseTop = text.y - text.height / 2;
+  text.setData('a11yFitToBox', true);
+  text.setData('a11yFullText', text.text);
+  text.setData('a11yMaxLines', 2);
+  const ratio = Math.min(1, NAME_WIDTH / Math.max(1, text.width));
+  if (fontSize <= base) {
+    text.setScale(ratio);
+    return;
+  }
+  const scale = Math.max(base / fontSize, ratio);
+  text.setData('a11yMinFontSize', base);
+  if (text.width * scale > NAME_WIDTH) text.setWordWrapWidth(NAME_WIDTH / scale, true);
+  text.setScale(scale);
+  const top = Math.max(releaseTop, roleBottom + theme.space(1));
+  text.setOrigin(0.5, 0).setY(top);
+}
 
 interface VersusIdentity {
   cardId: string | null;
@@ -164,7 +193,7 @@ export class VersusBumper {
     mirror: boolean,
   ): void {
     const shape = this.scene.add.graphics();
-    shape.fillStyle(mirror ? 0x241d3a : 0x161226, 1);
+    shape.fillStyle(mirror ? colorInt(theme.colors.btnGhostBg) : theme.graphics.panelFill, 1);
     shape.fillPoints(points, true);
     panel.add(shape);
 
@@ -194,7 +223,7 @@ export class VersusBumper {
         resolution: 2,
       })
       .setOrigin(0.5);
-    nameText.setScale(Math.min(1, 430 / Math.max(1, nameText.width)));
+    fitVersusName(nameText, roleText.y + roleText.height / 2);
     panel.add([roleText, nameText]);
   }
 
@@ -204,21 +233,24 @@ export class VersusBumper {
     mask: Phaser.Display.Masks.GeometryMask,
     mirror: boolean,
   ): Phaser.GameObjects.Image | null {
+    const fit = (image: Phaser.GameObjects.Image): void => {
+      const scale = Math.max(PORTRAIT_COVER_W / image.frame.width, HEIGHT / image.frame.height) * 1.06;
+      image.setScale(mirror ? -scale : scale, scale);
+    };
     try {
       let image: Phaser.GameObjects.Image;
       if (identity.textureKey && this.scene.textures.exists(identity.textureKey)) {
         image = this.scene.add.image(x, HEIGHT / 2 - 38, identity.textureKey);
+        fit(image);
       } else if (identity.cardId) {
-        const ref = Art.resolver?.getArt(identity.cardId);
-        if (!ref) return null;
-        image = ref.frameName
-          ? this.scene.add.image(x, HEIGHT / 2 - 38, ref.textureKey, ref.frameName)
-          : this.scene.add.image(x, HEIGHT / 2 - 38, ref.textureKey);
+        // Card art still streaming in is swapped for the real file when it lands.
+        const held = addPortraitArt(this.scene, x, HEIGHT / 2 - 38, identity.cardId, fit);
+        if (!held) return null;
+        image = held;
       } else {
         return null;
       }
-      const scale = Math.max(PORTRAIT_COVER_W / image.frame.width, HEIGHT / image.frame.height) * 1.06;
-      image.setScale(mirror ? -scale : scale, scale).setMask(mask);
+      image.setMask(mask);
       return image;
     } catch {
       return null;

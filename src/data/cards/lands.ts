@@ -11,7 +11,6 @@ export const LANDS = [
     colors: [],
     manaAbility: ['W'],
     rarity: 'c',
-    flavor: 'Dawn over the imperial fields.',
   },
   {
     id: 'land-island',
@@ -22,7 +21,6 @@ export const LANDS = [
     colors: [],
     manaAbility: ['U'],
     rarity: 'c',
-    flavor: 'The river remembers every fleet it carried.',
   },
   {
     id: 'land-swamp',
@@ -33,7 +31,6 @@ export const LANDS = [
     colors: [],
     manaAbility: ['B'],
     rarity: 'c',
-    flavor: 'Asphodel blooms where nothing else dares.',
   },
   {
     id: 'land-mountain',
@@ -44,7 +41,6 @@ export const LANDS = [
     colors: [],
     manaAbility: ['R'],
     rarity: 'c',
-    flavor: 'Hulao Gate never fell. It was climbed.',
   },
   {
     id: 'land-forest',
@@ -55,6 +51,5 @@ export const LANDS = [
     colors: [],
     manaAbility: ['G'],
     rarity: 'c',
-    flavor: 'The wilds keep their own census.',
   },
 ] as const satisfies readonly CardDef[];

@@ -63,6 +63,8 @@ function targetNoun(spec: TargetSpec | undefined): string {
   const qualifiers = [
     spec?.marked ? 'Marked' : undefined,
     spec?.tapped ? 'tapped' : undefined,
+    // "target attacking creature" (A1.6); composes with the others.
+    spec?.attacking ? 'attacking' : undefined,
   ].filter((qualifier): qualifier is string => qualifier !== undefined);
   const restrictions = [
     spec?.maxCost !== undefined ? `cost ${spec.maxCost} or less` : undefined,
@@ -123,11 +125,16 @@ function referencesAbilityTarget(op: EffectOp): boolean {
     case 'moveMark':
     case 'removeMarks':
     case 'ifTargetMarked':
+    case 'ifTargetSurvives':
       return true;
     case 'reclaim':
       return true;
     case 'raise':
       return op.to !== 'top';
+    case 'hunt':
+      // The spell form names its hunter ("Target creature you control
+      // Hunts"); the source-bound form names no target on the face.
+      return op.hunter === 'target';
     default:
       return false;
   }
@@ -151,6 +158,9 @@ function opText(
         }
         return `deal ${n} damage to ${recipient}`;
       }
+      // A source that damages its own side (First Dawn, 1.9), approved
+      // 2026-09-28: "deal N damage to each [other] creature you control".
+      if (op.to === 'eachYourCreature') return `deal ${n} damage to each ${op.other ? 'other ' : ''}creature you control`;
       if (op.to === 'controller') return `this deals ${n} damage to you`;
       if (op.to === 'opponent') return `this deals ${n} damage to your opponent`;
       const isCreatureTarget = target?.what === 'creature' || target?.what === 'yourCreature' || target?.what === 'opponentCreature' ||
@@ -227,8 +237,9 @@ function opText(
       return 'put the first land from the top of your deck onto the battlefield tapped';
     case 'severSelf':
       return 'sever this';
-    case 'ifTargetMarked': {
-      const renderBranch = (ops: EffectOp[]): string => ops.map((branchOp) => {
+    case 'ifTargetMarked':
+    case 'ifTargetSurvives': {
+      const renderBranch = (ops: EffectOp[]): string => joinOpTexts(ops, ops.map((branchOp) => {
         const explicitIndex = 'targetIndex' in branchOp ? branchOp.targetIndex : undefined;
         return opText(
           branchOp,
@@ -238,8 +249,16 @@ function opText(
           autoBoundTarget,
           targetSpecs,
         );
-      }).join(', then ');
+      }));
       const thenText = renderBranch(op.then);
+      if (op.op === 'ifTargetSurvives') {
+        // "If it survived, draw a card." (A1.6). The clause opens its own
+        // sentence (joinOpTexts); it names the target already named, or the
+        // target itself when nothing named it first.
+        const subject = targetAlreadyNamed || autoBoundTarget ? 'it' : targetPhrase(target);
+        const gate = `if ${subject} survived, ${thenText}`;
+        return !op.else || op.else.length === 0 ? gate : `${gate}; otherwise, ${renderBranch(op.else)}`;
+      }
       if (!op.else || op.else.length === 0) return `if it is Marked, ${thenText}`;
       return `${renderBranch(op.else)}; if it is Marked, ${thenText} instead`;
     }
@@ -294,6 +313,19 @@ function opText(
       return op.who === 'targetOwner' ? `its owner Foresees ${op.n}` : `Foresee ${op.n}`;
     case 'awaken':
       return op.scope === 'self' ? 'Awaken this' : 'Awaken all creatures you control';
+    case 'hunt': {
+      // Hunt is a bare verb keyword, like Mark (ruled 2026-09-28): a
+      // source-bound Hunt prints its opener, then "Hunt." ("When this arrives,
+      // Hunt.", "{T}: Hunt.", "Empower {2}: Hunt."); the spell form prints
+      // "Target creature you control Hunts.", or ", then it Hunts" after a pump
+      // that already named the hunter. The default prey (a creature an
+      // opponent controls) lives in the glossary, never on the card; a card
+      // that declares its own prey names it (approved 2026-09-29).
+      const prey = op.prey === 'any' ? ' any other creature'
+        : op.prey === 'yours' ? ' another creature you control' : '';
+      if (op.hunter === 'target') return `${targetAlreadyNamed ? 'it' : 'target creature you control'} Hunts${prey}`;
+      return `Hunt${prey}`;
+    }
     case 'raise': {
       // The graveyard is an ordered pile and `raise top` takes the
       // most-recently-buried creature, so the face must say WHICH card it
@@ -314,6 +346,42 @@ function opText(
   }
 }
 
+/**
+ * A clause whose subject is a player other than you ("Each player sacrifices
+ * a creature", "your opponent loses 2 life"). A token made right after one
+ * says who makes it: "then you create ..." (Ash-Rite, 1.9).
+ */
+function otherPlayerSubject(op: EffectOp): boolean {
+  switch (op.op) {
+    case 'sacrifice':
+    case 'loseLife':
+    case 'loseLifePerTheirMarked':
+    case 'discardRandom':
+      return true;
+    case 'grind':
+      return op.who === 'opponent';
+    case 'foresee':
+      return op.who === 'targetOwner';
+    default:
+      return false;
+  }
+}
+
+/**
+ * Join an effect's clauses with ", then ". Two exceptions: "If it survived"
+ * opens its own sentence after the effect it reads (A1.6), and a token made
+ * after another player's clause names you as its maker.
+ */
+function joinOpTexts(ops: readonly EffectOp[], texts: readonly string[]): string {
+  return texts.reduce((body, text, index) => {
+    if (index === 0) return text;
+    const op = ops[index];
+    if (op.op === 'ifTargetSurvives') return `${body}. ${capitalizeFirst(text)}`;
+    const clause = op.op === 'createToken' && otherPlayerSubject(ops[index - 1]) ? `you ${text}` : text;
+    return `${body}, then ${clause}`;
+  }, '');
+}
+
 export function manaCostText(cost: ManaCost): string {
   const parts: string[] = [];
   if (cost.generic > 0) parts.push(`{${cost.generic}}`);
@@ -325,11 +393,11 @@ export function manaCostText(cost: ManaCost): string {
 
 export function empowerText(d: CardDef): string | undefined {
   if (!d.empower) return undefined;
-  const body = d.empower.ops.map((op) =>
+  const body = joinOpTexts(d.empower.ops, d.empower.ops.map((op) =>
     op.op === 'addCounters' && op.to === 'self'
       ? `Arrives with ${markCountText(op.n)}`
       : opText(op, d.empower?.targets?.[opTargetIndex(op)], false, false, false, d.empower?.targets),
-  ).join(', then ');
+  ));
   const cap = capitalizeFirst(body);
   return `Empower ${manaCostText(d.empower.cost)}: ${cap}.`;
 }
@@ -371,6 +439,17 @@ export function activatedText(d: CardDef): string | undefined {
     const effect = abilityText({ when: 'spell', ops: ability.ops, targets: ability.targets }, d);
     return `${cost}: ${effect}`;
   }).join('\n');
+}
+
+/**
+ * A1.5's repeatable mana ability ("{R}: This gets +1/+0 until Sunset."): the
+ * Duty line's template with the mana cost alone in front, no tap symbol.
+ */
+export function manaActivatedText(d: CardDef): string | undefined {
+  const abilities = d.manaActivated ?? [];
+  if (abilities.length === 0) return undefined;
+  return abilities.map((ability) =>
+    `${manaCostText(ability.cost)}: ${abilityText({ when: 'spell', ops: ability.ops }, d)}`).join('\n');
 }
 
 export function retellText(d: CardDef): string | undefined {
@@ -415,7 +494,7 @@ function conditionPhrase(ab: AbilityDef, additionalDawn = false): string | undef
     return `If you ${also}control a Marked creature`;
   }
   if (condition.kind === 'controlsOther') return `If you ${also}control another ${condition.subtype}`;
-  return `If you ${also}control ${countWord(condition.n)} or more creatures with Marks`;
+  return `If you ${also}control ${countWord(condition.n)} or more Marked creatures`;
 }
 
 function abilityText(ab: AbilityDef, d: CardDef, additionalDawn = false): string {
@@ -468,7 +547,7 @@ function abilityText(ab: AbilityDef, d: CardDef, additionalDawn = false): string
   }
 
   const namedTargets = new Set<number>();
-  const body = (ab.ops ?? []).map((op) => {
+  const body = joinOpTexts(ab.ops ?? [], (ab.ops ?? []).map((op) => {
     const targetIndex = opTargetIndex(op);
     // A dies trigger excludes the source's own card from a graveyard raise.
     const text = opText(
@@ -481,7 +560,7 @@ function abilityText(ab: AbilityDef, d: CardDef, additionalDawn = false): string
     );
     if (referencesAbilityTarget(op)) namedTargets.add(targetIndex);
     return text;
-  }).join(', then ');
+  }));
   const cap = capitalizeFirst(body);
   const dawnBody = additionalDawn && (ab.ops ?? []).length === 1 && ab.ops?.[0].op === 'draw' && ab.ops[0].n === 1
     ? 'draw an extra card'
@@ -527,7 +606,7 @@ function abilityText(ab: AbilityDef, d: CardDef, additionalDawn = false): string
       sentence = `Whenever this attacks, ${body}.`;
       break;
     case 'allyCreatureArrives':
-      sentence = `Whenever a creature arrives under your control, ${body}.`;
+      sentence = `Whenever another creature arrives under your control, ${body}.`;
       break;
     case 'allyAttacks':
       sentence = `Whenever a creature you control attacks, ${body}.`;
@@ -552,6 +631,12 @@ function abilityText(ab: AbilityDef, d: CardDef, additionalDawn = false): string
       break;
     case 'propagated':
       sentence = `Whenever you Propagate, ${body}.`;
+      break;
+    case 'provoked':
+      // "Provoked: [effect]." (approved 2026-09-28). The engine claims it once
+      // each turn without the `oncePerTurn` flag, so the face never prints
+      // "This triggers only once each turn"; the glossary definition says it.
+      sentence = `Provoked: ${cap}.`;
       break;
     default:
       sentence = `${cap}.`;
@@ -580,7 +665,7 @@ export function romanNumeral(n: number): string {
 }
 
 function chapterText(ops: EffectOp[], index: number): string {
-  const body = ops.map((op) => opText(op)).join(', then ');
+  const body = joinOpTexts(ops, ops.map((op) => opText(op)));
   if (!body) return `Chapter ${romanNumeral(index + 1)}.`;
   const cap = body.charAt(0).toUpperCase() + body.slice(1);
   return `Chapter ${romanNumeral(index + 1)}: ${cap}.`;
@@ -605,6 +690,8 @@ export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
   if (skim) lines.push(skim);
   const activated = activatedText(d);
   if (activated) lines.push(activated);
+  const manaActivated = manaActivatedText(d);
+  if (manaActivated) lines.push(manaActivated);
   if (d.keywords?.length) {
     if (opts?.reminders) {
       for (const k of d.keywords) lines.push(`${KEYWORD_NAMES[k]}: ${KEYWORD_REMINDER[k]}`);

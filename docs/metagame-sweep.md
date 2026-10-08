@@ -1,18 +1,88 @@
-<!-- source-of-truth: scripts/personas/craft.ts, scripts/run-sweep.ps1, .github/workflows/metagame-sweep.yml, .github/workflows/metagame-sweep-round.yml, tests/personas/fanout.test.ts · last-verified: 2026-09-23 -->
+<!-- source-of-truth: scripts/personas/craft.ts, scripts/personas/templates.ts, scripts/personas/lever.ts, scripts/personas/compare-crafts.ts, scripts/run-sweep.ps1, .github/workflows/metagame-sweep.yml, .github/workflows/metagame-sweep-round.yml, tests/personas/fanout.test.ts, tests/personas/lever.test.ts · last-verified: 2026-09-28 -->
 
 # The persona metagame sweep
 
 The sweep is the last measurement before a cut: it asks whether the card pool
-lets any deck run away from the field. It crafts a deck for each of six
-personas against a reference field, then re-crafts each persona against the
-field the other five produced, for up to four best-response rounds, and reports
+lets any deck run away from the field. It crafts a deck for each of eight
+personas (below) against a reference field, then re-crafts each persona against
+the field the other seven produced, for up to four best-response rounds, and reports
 whether the decks settle, oscillate, or are still moving when the rounds run
 out.
 
 One craft is a hill climb: a greedy build, then up to 80 proposed card swaps,
 each measured by playing the candidate list against every deck in the field at
 150 seeds per matchup, Hard brain on both seats. That is 170,100 games in the
-worst case, per craft, and 30 crafts in a four-round sweep.
+worst case, per round-0 craft, and 40 crafts in a four-round sweep.
+
+## The personas
+
+`scripts/personas/templates.ts` defines each persona: fixed colours (or, for
+midrange, the best two), a curve cap, role quotas for the 40-card Warchest
+deck, the subtypes, keywords and effects its greedy build prefers, and,
+optionally, a colour floor (`minColorShare`, below).
+
+| Persona | Colours | Plan | Curve cap |
+| --- | --- | --- | --- |
+| burn | R/B | face aggro | 4 |
+| draw-go | W/U | counter control | 7 |
+| attrition | B/W | removal grind | 6 |
+| reanimator | U/B | graveyard combo | 8 |
+| weenie | W/G | go-wide aggro | 5 |
+| midrange | best two | goodstuff | 7 |
+| stompy | R/G | big bodies backed by burn; at least half its spells green | 6 |
+| warband | R/W | warcry aggro with pump and self-damage | 5 |
+
+**The colour-gap personas (ruling D12, 2026-09-28).** Stompy and warband
+joined in 1.9. Before them no persona played red-green or red-white, and
+weenie's green-white ran on the first hosted day only, so the sweep could not
+pick a red-green or red-white card: 15 of the 48 nerfs 1.8.5 reverted sat in
+that gap. R/G is First Dawn's core pair (Hunt, Provoked); R/W is the gap the
+ruling names and holds the self-damage sources. Of the 15, warband reaches all
+five R/W gold cards. Stompy reaches six mono-green ones, but four of those
+(Flood Before Noon, Splitlight Corsair, Blackthorn Duelist, Twin-Willow
+Sword Dancer) were already within weenie's reach whenever weenie runs, so stompy newly adds
+two, Rain-Circuit Sovereign and Chart the Reef Road, at mana value 6. The
+other four no persona can pick: two green enchantments with no deck role
+under `cardRoles` (Granary of Rising Years, Old Growth; the climb only
+proposes a card that fills the outgoing slot's role), and two gold cards in
+pairs no persona plays (Skadi, U/G; Morrigan, B/G). Stompy's subtypes include
+Dinokin, First Dawn's R/G tribe, which matches nothing until those cards land
+and needs no edit when they do. A B/G third persona (Hunt plus fossils) waits
+on the sweep's measured night budget.
+
+**The shared red core, and the colour floor.** The greedy build ranks cards by
+`rateCard` times five plus small role, synergy and curve terms, so a colour
+whose top cards out-rate the other's wins nearly every slot, and no synergy
+tag closes a gap that size. At the sweep seed (13003) every persona that
+touches red opens on the same four red cards (Lu Bu, Barge-Fire Brazier,
+Ember-Lane Flare and Wreck-Runner), 15 or 16 copies in each of burn, midrange
+(which picks B/R), stompy and warband; the four personas without red share
+none of them. Left to the rate, stompy built 29 red spells
+to 11 green, a red deck with a splash. So a template may set `minColorShare`,
+the minimum fraction of its spells that must include a colour. The greedy
+build honours it only in the slots that must (once the slots left could not
+reach the floor otherwise), so earlier roles keep their best cards in either
+colour; the hill climb never proposes a swap that would break it. It is
+opt-in: a template without it builds and climbs byte for byte as before,
+proven on the greedy decks of the other seven at three seeds and on a raced
+midrange and warband craft. Stompy sets `G: 0.5`; its greedy build at 13003
+is 20 red, 16 green and 4 red-green, curve 20 early, 12 mid, 8 late. Warband
+sets none and builds 23 red, 8 white, 8 red-white and 1 colourless. The floor
+rides into the artifact's `persona` block. The floor holds the pair, not the
+curve: in a ten-iteration craft stompy's climb kept 21 green spells but
+traded three of its four Gaias for cheaper green cards (curve 21 early, 14
+mid, 5 late), from 67.3% to 77.0% against the prefab field.
+
+Measured 2026-09-28 (6 workers, the prefab field, round 0, a shared
+machine), with `--seeds 60 --iterations 10 --race --screen medium`: midrange
+202 s, stompy with its floor 188 s, warband 161 s, about the same games each
+(an earlier run of the same three crafts, stompy then without its floor,
+took 284, 272 and 261 s: the machine's load moves the totals by a third). A 150-seed greedy measurement took 69 s
+for midrange, 61 s for stompy (before the floor) and 59 s for warband. Per
+game, both cost at most midrange's, far below weenie. In round 0 they run
+beside the others, so they add runner time but no wall clock; in a later round
+every craft measures against 21 decks instead of 19, about a tenth more on the
+slowest chain.
 
 Two ways to run it. They measure the same thing.
 
@@ -38,14 +108,14 @@ step, never a mid-train gate.
 ## Running the sweep on GitHub
 
 `.github/workflows/metagame-sweep.yml` runs the same sweep on GitHub-hosted
-runners, six crafts at a time, and the owner's machine does nothing. The crafts
+runners, one craft per persona at a time, and the owner's machine does nothing. The crafts
 inside a round are independent and every craft's seed derives from the run seed,
 the round and the persona id, so a craft is the same craft wherever it runs.
 Only the rounds are sequential.
 
 **What to dispatch.** Actions tab, "Metagame sweep", Run workflow. The inputs
 default to the real sweep: seed 13003, four rounds, the `prefabs` field, 150
-seeds per matchup, 80 hill-climb iterations, all six personas. For a dry run,
+seeds per matchup, 80 hill-climb iterations, all eight personas. For a dry run,
 set seeds 10, iterations 5, rounds 1.
 
 **What runs.** Round 0, then, for each later round, a check job and the round.
@@ -54,7 +124,7 @@ runs each persona's craft as a chain of chunk jobs (below). The check job merges
 the crafts that exist and asks the loop's own convergence policy whether the
 sweep is already over; if the decks were stable at the previous round, the next
 round skips, exactly as the in-process loop would have stopped. Each chunk job
-gets 350 minutes, and one persona's failure does not cancel the other five.
+gets 350 minutes, and one persona's failure does not cancel the others.
 
 **Why a craft is split into chunks.** GitHub stops a hosted job at 360 minutes,
 and a whole craft at the defaults does not fit on the 4-core `ubuntu-latest`
@@ -132,8 +202,8 @@ engine.
 **What to expect on the wall clock.** Each chunk job waits for every persona's
 previous chunk, so a round lasts as long as its slowest craft. While weenie is
 the slowest persona, a round is about 27 hours of chain, a little more for each
-chunk's setup, and a later round measures against 19 decks (the reference field
-plus the other five personas) instead of 14. The whole sweep is therefore
+chunk's setup, and a later round measures against 21 decks (the reference field
+plus the other seven personas) instead of 14. The whole sweep is therefore
 several days of wall clock on GitHub, with the owner's machine idle throughout.
 The workflow cannot shorten that; the lever that would is the cost of a weenie
 game in the Hard brain, which is a 1.9 item.
@@ -164,6 +234,32 @@ partial sweep still merges: the merge reports
 which personas are missing from an incomplete round, merges the rounds that are
 complete, and fails only when round 0 never finished for every persona.
 
+**Carrying a stopped run.** A run cancelled or failed mid-round publishes
+nothing for that round, because only a round's last chunk uploads its
+`craft-r<n>-*` files. Its chunk artifacts (`chunk-r<n>-c<c>-<persona>`, a
+finished craft or a checkpoint) survive for five days, though, and a new
+dispatch can continue from them: set `resume_from` to `run:<run id>:<chunk>`
+with the other inputs unchanged, naming a chunk whose job completed for every
+persona. Chunk 0 of each round downloads each persona's artifact of that chunk
+from that run, copies a finished craft forward and resumes a checkpoint where it
+stopped, mid-craft. A round the stopped run never reached starts fresh. First
+used 2026-10-07 to carry run 37467035904 (round 0, chunk 4) onto the faster
+Hard brain of #547, which plays the same moves. Its round 0 had six crafts done
+and weenie at iteration 22 of 80; recrafting weenie from zero would have cost
+about a day and a half of chain.
+
+**Resuming a sweep from before stompy and warband.** A sweep dispatched before
+the colour-gap personas joined (1.9, ruling D12) crafted six personas, and the
+persona list is part of every craft's run configuration. To resume one, set
+`personas` to `burn,draw-go,attrition,reanimator,weenie,midrange` with its
+other original inputs: the default now names eight, and the configuration
+check refuses the mismatch rather than mixing the two sweeps. The same holds on
+the owner's machine: `run-sweep.ps1` crafts `--all`, so its `-Resume` over a
+six-persona journal is refused. Finish such a sweep by calling `craft.ts
+--metagame --personas burn,draw-go,attrition,reanimator,weenie,midrange
+--resume --out balance/sweep-current` directly with its original flags, or
+start a fresh one.
+
 **The result is the same measurement.** The merged per-persona artifacts and the
 merged journal are byte-identical to a local `npx tsx scripts/personas/craft.ts
 --metagame --all` at the same seed. `tests/personas/fanout.test.ts` asserts that
@@ -175,6 +271,164 @@ worker ran it (measured 2026-09-22: the same craft at one, two and four workers
 produced byte-identical files), so a four-core runner and a sixteen-worker local
 run agree.
 
+## Racing and screening the swaps (levers 2 and 3)
+
+Two flags make a craft cheaper without changing what accepts a swap. Both are
+**off by default**, and stay off until the one-persona acceptance run in
+[plan-sweep-speed.md](plan-sweep-speed.md) passes (lane F of
+[plan-1.9.md](plan-1.9.md)). Built 2026-09-28; the statistics live in
+`scripts/personas/lever.ts`, the hill-climb step in `craft.ts`.
+
+**`--race`** (lever 2). A proposed swap is measured in batches of
+`--race-batch` seeds per matchup (default 30, so 420 games against the
+14-deck prefab field) and stopped at an interim look once it clearly trails
+the incumbent. The comparison is paired: a game's seed derives from its matchup
+and its index, never from the deck, so the candidate's game j and the
+incumbent's game j share a shuffle seed, an opponent and a seat. The statistic
+is the standardised mean of the per-game differences (win 1, draw 1/2,
+loss 0) over every matchup. Stopping at any of several looks inflates false
+stops, so the boundary is not the one-look critical value: it is the constant
+group sequential (Pocock-type) boundary that holds the chance of stopping an
+exactly-equal swap, across all the interim looks together, to `--race-alpha`
+(default 0.01). At 150 seeds and batch 30 the looks are 30, 60, 90 and 120
+seeds and the boundary is z = -2.705 (one look alone would need -2.326).
+The final look is not a test: a swap that survives the interim looks, or that
+is ahead, runs the full `--seeds` and meets the hill climb's ordinary rule
+(accept when its score beats the incumbent's). **An accepted swap therefore
+always carries its full-precision measurement**, and when the race stops
+nothing that the full measurement would have accepted, a raced craft's
+decks and measurements are the unraced craft's exactly.
+
+**`--screen medium`** (lever 3). Before any Hard game, the swap and the
+incumbent are measured Medium-vs-Medium on `--screen-seeds` per matchup
+(default `--seeds`), and a swap Medium scores worse than the incumbent by more
+than `--screen-threshold` points (default 5) is dropped. This is the plan's
+threshold rule, not a test. A swap that passes goes on to the Hard measurement
+(raced, if `--race` is on), and only the Hard measurement accepts. The
+incumbent's Medium score is measured once, for the greedy build; an accepted
+swap's own Medium score becomes the next incumbent's.
+
+**What a raced craft records.** The flags enter the run configuration
+(`config.race`, `config.screen`), so a raced craft never merges, resumes or
+continues a checkpoint alongside an unraced one: the merge and the resume
+refuse it as a different sweep. An unraced, unscreened craft has no such keys
+and is byte-identical to what it was before the levers existed. The hill-climb
+log of a raced or screened craft gains `lever`: the race plan (batch, alpha,
+looks, boundary), the screen settings, and one record per proposed swap:
+
+| Field | Meaning |
+| --- | --- |
+| `stop` | `screened-out`, `raced-out`, or `full` (measured at the full seeds) |
+| `accepted` | only ever true for `full` |
+| `hardGames`, `screenGames` | the games this swap's decision played |
+| `screenDelta` | candidate minus incumbent Medium score, in points |
+| `racedAt`, `z` | raced out: the look (seeds per matchup) and the statistic there |
+
+Each craft prints its accounting: swaps proposed, screened out, raced out,
+measured in full, accepted, and the Hard and Medium games played against the
+Hard games the same proposals cost unraced (every one a full measurement).
+It prints game counts only, with no Hard-equivalent: the Medium/Hard speed
+ratio depends on the machine and its load (measured 2026-09-28,
+single-threaded, a greedy deck against the 14-deck prefab field: 5.9x to 6.0x
+on the owner's machine, about 3.4x in the review's run), so wall clock on the
+runner is the real measure of the saving.
+
+**Determinism, chunks and resume.** A raced craft's stops are a pure function
+of the games, and the games are a pure function of the seeds, so a raced craft
+is reproducible from its seed at any worker count, and a chunked raced craft
+is byte-identical to one run in a single process (the checkpoint carries the
+incumbent's per-game outcomes, its Medium record and the lever log). The
+in-process loop's `--resume` and the fan-out's `--resume-from` work unchanged;
+give the same lever flags on every call. `tests/personas/lever.test.ts`
+covers the boundary against Pocock's published constants, the false-stop rate
+over repeated looks, constructed win-rate sequences whose right decision is
+known, the chunked byte identity, and a real-engine craft whose race and
+screen never stop anything reproducing the unraced craft byte for byte.
+
+```bash
+# One persona, round 0, raced and screened, as the hosted workflow runs it.
+npx tsx scripts/personas/craft.ts --metagame-craft burn --round 0 \
+  --out out --workers 4 --race --screen medium <same flags as above>
+# The knobs, with their defaults.
+  --race --race-batch 30 --race-alpha 0.01
+  --screen medium --screen-threshold 5 --screen-seeds <--seeds>
+```
+
+On GitHub, the "Metagame sweep" dispatch has three inputs for them: `race`
+(a checkbox) and `screen` (`none` or `medium`), both off by default, and
+`screen_seeds` (blank by default; with `screen` medium, it sets
+`--screen-seeds`). They add the flags with the defaults above to every craft.
+A raced or screened sweep publishes to its own directory,
+`sweeps/<run-date>-<seed>` plus `-race`, `-screen` and `-s<screen seeds>` as
+they apply, so it never overwrites an unraced sweep of the same seed and day.
+Resume it with the same inputs.
+
+### The acceptance run
+
+The flags become the default only if raced crafts accept what unraced crafts
+accept (plan-sweep-speed.md, owner decision 3). The run is one persona, the
+same seed, in separate arms. The Medium screen is not assumed to pay: at the
+reviewer's measured 3.4x, a full-seeds screen costs about 0.29 of a full Hard
+measurement on EVERY proposal, while the swaps it drops (more than five points
+worse under Medium) are ones the race already stops at its first look, about
+0.2 of a full measurement. So race alone is its own arm, and a cheaper screen
+is a fourth:
+
+| Arm | Inputs | Publishes to |
+| --- | --- | --- |
+| plain | none | `sweeps/<date>-13003` |
+| race | `race=true` | `sweeps/<date>-13003-race` |
+| race + screen | `race=true screen=medium` | `sweeps/<date>-13003-race-screen` |
+| race + cheap screen (optional) | `race=true screen=medium screen_seeds=50` | `sweeps/<date>-13003-race-screen-s50` |
+
+```bash
+REF=release/1.9   # any ref holding this workflow and craft.ts
+gh workflow run metagame-sweep.yml --ref $REF -f personas=midrange -f rounds=1
+gh workflow run metagame-sweep.yml --ref $REF -f personas=midrange -f rounds=1 -f race=true
+gh workflow run metagame-sweep.yml --ref $REF -f personas=midrange -f rounds=1 -f race=true -f screen=medium
+gh workflow run metagame-sweep.yml --ref $REF -f personas=midrange -f rounds=1 -f race=true -f screen=medium -f screen_seeds=50
+```
+
+- **Dispatch one arm at a time, each after the previous run finishes.** The
+  workflow's concurrency group holds one running and one pending run, and a
+  newer pending dispatch cancels the older pending one.
+- **Two crafts per arm.** With one persona and `rounds=1`, each run crafts
+  round 0 and round 1. Round 1 answers the same 14 reference decks (there are
+  no other personas) under a different craft seed and different game seeds, so
+  it is a second, independent comparison, not wasted work. The seed is the
+  default 13003 in every arm.
+- **Wall clock** is each run's craft chunk jobs in the Actions tab. The
+  printed `Levers:` lines give the game counts.
+- **Compare** each round's crafts side by side. From `sweep-data`:
+
+```bash
+git fetch origin sweep-data
+for arm in "" -race -race-screen -race-screen-s50; do
+  mkdir -p "acceptance/arm$arm"
+  for r in 0 1; do
+    git show "origin/sweep-data:sweeps/<date>-13003$arm/crafts/craft-midrange-r$r.json" \
+      > "acceptance/arm$arm/craft-midrange-r$r.json"
+  done
+done
+npx tsx scripts/personas/compare-crafts.ts acceptance/arm/craft-midrange-r0.json \
+  acceptance/arm-race/craft-midrange-r0.json acceptance/arm-race-screen/craft-midrange-r0.json \
+  acceptance/arm-race-screen-s50/craft-midrange-r0.json
+# and the same for r1
+```
+
+`scripts/personas/compare-crafts.ts` takes two to four craft files of the same
+persona and round, the unraced one first. It prints the accepted swaps
+iteration by iteration, each arm's final deck against the first arm's, the
+final scores, each arm's games (proposed, screened out, raced out, in full,
+accepted, Hard games as a share of unraced, Medium games), and whether each arm
+is the first arm exactly once `config.race`, `config.screen` and
+`hillClimb.lever` are stripped. The gate's reading: an arm passes when its
+final win rates sit within the noise of the plain arm's (at 2,100 games a
+score's standard error is about 1.1 points, so a gap of about 3 points or
+more is not noise) in both rounds, and its wall clock is materially shorter.
+Identical accepted lists are the best case, not the requirement: one differing
+decision sends the rest of the climb down another path.
+
 ## The command shapes behind both
 
 The workflow calls two modes of the crafting harness directly. They are useful
@@ -185,7 +439,7 @@ by hand when a sweep needs unpicking.
 # round reads the previous round's crafts, one file per persona, from --field-dir.
 npx tsx scripts/personas/craft.ts --metagame-craft burn --round 1 \
   --field-dir field --out out --workers 4 \
-  --personas burn,draw-go,attrition,reanimator,weenie,midrange \
+  --personas burn,draw-go,attrition,reanimator,weenie,midrange,stompy,warband \
   --rounds 4 --field prefabs --pool all --seeds 150 --iterations 80 --seed 13003
 
 # The same craft in chunks of 240 minutes, as the workflow runs it. Each call

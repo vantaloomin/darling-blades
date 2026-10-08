@@ -1,0 +1,908 @@
+/**
+ * The rendered half of the scale-and-contrast gate (1.9 lane C, C5; plan
+ * "Gates", item 1): boots each scene of a wave's list in each of the six
+ * cells (text size 100, 115, 130% by standard and high contrast), walks the
+ * display list and reports every visible Text that
+ * - sits outside the title-safe frame (x 64-1216, y 36-684),
+ * - sits outside its modal panel, or outside a box it declares
+ *   (`text.setData('a11yBox', rect)`),
+ * - overlaps another visible Text on the same layer, or
+ * - is drawn scaled below 1 without declaring itself fit-to-box
+ *   (`text.setData('a11yFitToBox', true)`).
+ * Full menu identities declare `a11yFullText` and `a11yMaxLines`; removing
+ * characters, capping lines or clipping their unmasked bounds is a finding.
+ * Scrolling blurbs declare `a11yWholeLines`, so a partial glyph line at a
+ * mask edge is also a finding, even though its visible fragment fits.
+ * Card faces are exempt (plan: card faces never scale; `CardView` and
+ * `BoardCardView` names/P/T are card-internal geometry). Operational badge
+ * text is enrolled separately: its actual ink must survive masks, its raster
+ * canvas and later widget geometry such as a state-ring stroke.
+ * A Text marked `setData('a11yExpendable', true)` (the design system's
+ * expendable edge content, such as the build stamp) is not held to the
+ * title-safe frame; every other rule still applies to it. A Toast showing
+ * over a scene's text when the probe measures reports as an overlap.
+ *
+ * DEV ONLY, and never in a production bundle: nothing in the app imports this
+ * module. It is loaded by hand through the dev server, the playbook's probe
+ * recipe (docs/claude-playbook.md, section 8):
+ *
+ *   const probe = await import('/src/dev/a11yProbe.ts');
+ *   const report = await probe.runA11yProbe(window.__game, { snapshots: true });
+ *
+ * so a production build (whose entry is `src/main.ts`) never reaches it; the
+ * runtime check below refuses to run outside a dev server as a second guard.
+ * It never touches the save: Profile's fixture replays go in through the
+ * scene's start data. It restores the text size and contrast in force and
+ * restarts the scene that was running, which is why it refuses to start from
+ * anything but a menu scene that needs no start data (`PROBE_RESTARTABLE`):
+ * restarting a Duel, a draft or a pack opening without its data would throw
+ * away the game in progress.
+ */
+
+import Phaser from 'phaser';
+import { WAVE_2D_COACH_CUE, WAVE_2D_COACH_INFO, WAVE_2D_DARLING, WAVE_2D_IIDS, type DuelA11yFixtureName } from './duelA11yFixtures';
+import { wave2CShopSave, wave2CProfileSave, WAVE_2C_LONGEST_DECKS, WAVE_2C_DARLINGS } from './shopProfileFixtures';
+import { REPLAY_LOG_VERSION, replayDbStamp, type ReplayLog } from '../meta/Replay';
+import { AVATARS } from '../data/opponents';
+import { wave2BFixtureSave, WAVE_2B_FIXTURE_IDS, WAVE_2B_LONGEST_CARD_IDS } from './deckCollectionFixtures';
+import type { DeckBuilderSceneData } from '../scenes/DeckBuilderScene';
+import type { SavedDeck } from '../meta/SaveManager';
+import { CLASSIC_RETIRED_ISSUE } from '../meta/deckRepair';
+import { ALL_CARDS, CARD_DB } from '../data/catalog';
+import { collectiblePool } from '../meta/collectionFilter';
+import { rarityLine } from '../ui/CardZoomPreview';
+import { cardGlossaryEntries } from '../ui/rulesText';
+import { currentAccessibility, setAccessibility, TEXT_SCALES } from '../ui/accessibility';
+import { BoardCardView } from '../ui/BoardCardView';
+import { CardView } from '../ui/CardView';
+import { theme } from '../ui/theme';
+import { zonePanelHeaderFindings } from '../ui/duelPanelPresentation';
+import { menuDensityFindings, menuTextFindings, menuTextOverlap, type MenuTextSurface, type MenuDensity } from '../ui/menuText';
+
+export interface ProbeCell {
+  readonly textScale: number;
+  readonly highContrast: boolean;
+}
+
+export interface ProbeScene {
+  /** How the report names it, e.g. "Settings / Audio". */
+  readonly label: string;
+  readonly key: string;
+  readonly data?: object;
+  /** Hand the scene the fixture replay list in its start data (Profile). */
+  readonly replayFixtures?: boolean;
+  /** Copy whose presence is part of this fixture, independently of its geometry. */
+  readonly requiredText?: readonly string[];
+  /** Inspect the live renderer's cue carriers, separately from exempt card text. */
+  readonly duelCue?: 'M1' | 'M2' | 'M3' | 'M4' | 'M5' | 'M6' | 'portrait' | 'two-targets' | 'lethal-pick' | 'repeated-picks';
+  /** A transient accepted-pick cue is captured before its presentation timer ends. */
+  readonly settleMs?: number;
+  /** Use normal mouse input so a targeting snapshot has a meaningful tip. */
+  readonly pointerTargetIid?: number;
+}
+
+export interface ProbeRect {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+export type ProbeFindingKind = 'outsideFrame' | 'outsidePanel' | 'outsideDeclaredBox' | 'overlap' | 'scaledDown' | 'missingText' | 'truncatedText' | 'clippedText' | 'density' | 'cue';
+
+export interface ProbeFinding {
+  readonly kind: ProbeFindingKind;
+  readonly text: string;
+  readonly bounds: ProbeRect;
+  /** The other Text (overlap), the panel or declared box (outside), or the scale (scaledDown). */
+  readonly detail: string;
+}
+
+export interface ProbeSceneReport {
+  readonly scene: string;
+  /** Visible Texts checked (card faces excluded). */
+  readonly texts: number;
+  readonly cardFaceTexts: number;
+  /** Texts a mask hides entirely (the off-screen rows of a scrolling list). */
+  readonly maskedOut: number;
+  readonly density?: readonly MenuDensity[];
+  readonly findings: readonly ProbeFinding[];
+  readonly error?: string;
+}
+
+export interface ProbeCellReport {
+  readonly cell: ProbeCell;
+  readonly name: string;
+  readonly scenes: readonly ProbeSceneReport[];
+  /** One PNG data URL per scene, when `snapshots` was asked for. */
+  readonly snapshots?: Readonly<Record<string, string>>;
+}
+
+export interface ProbeReport {
+  readonly startedAt: string;
+  readonly cells: readonly ProbeCellReport[];
+  readonly totalFindings: number;
+  /** Scenes of the wave's list the probe cannot boot on its own, and why. */
+  readonly skipped: readonly { scene: string; reason: string }[];
+}
+
+export interface ProbeOptions {
+  readonly cells?: readonly ProbeCell[];
+  readonly scenes?: readonly ProbeScene[];
+  readonly snapshots?: boolean;
+  /** Milliseconds to let a scene settle after it becomes active (tweens, art). */
+  readonly settleMs?: number;
+}
+
+/** The six cells. */
+export const PROBE_CELLS: readonly ProbeCell[] = TEXT_SCALES.flatMap((textScale) =>
+  [false, true].map((highContrast) => ({ textScale, highContrast })),
+);
+
+/**
+ * Wave 1's list: Settings on each tab, Profile, and every scene whose header
+ * uses `SCENE_TITLE` (`sceneTitle`) that boots on the save as it is.
+ */
+export const WAVE_1_SCENES: readonly ProbeScene[] = [
+  { label: 'Settings / Game', key: 'Settings', data: { tab: 'game' } },
+  { label: 'Settings / Audio', key: 'Settings', data: { tab: 'audio' } },
+  { label: 'Settings / Accessibility', key: 'Settings', data: { tab: 'accessibility' } },
+  { label: 'Profile', key: 'Profile', replayFixtures: true },
+  { label: 'Collection', key: 'Collection' },
+  { label: 'Gauntlet', key: 'Gauntlet' },
+  { label: 'Glossary', key: 'Glossary' },
+  { label: 'Limited', key: 'Limited' },
+  { label: 'Practice picker', key: 'PracticePicker' },
+  { label: 'Shop', key: 'Shop' },
+];
+
+/** This batch's measured surfaces, including touch copy, dialogs and full lists. */
+const PLAY_FIXTURE_DECKS: SavedDeck[] = AVATARS.map((avatar, i) => ({
+  id: `a11y-${i}`, name: avatar.name, cards: [avatar.portraitCardId], heroCardId: avatar.portraitCardId,
+  landStyle: null, format: i % 2 ? 'darlings' : 'warchest', darlingId: avatar.portraitCardId, landReserve: [],
+}));
+export const WAVE_2A_SCENES: readonly ProbeScene[] = [
+  { label: 'Settings / Game', key: 'Settings', data: { tab: 'game' } },
+  { label: 'Settings / Accessibility / touch', key: 'Settings', data: { tab: 'accessibility', a11yTouch: true },
+    requiredText: ['Makes menus and help text larger. Hold a card to read it up close.'] },
+  { label: 'Main menu / daily quests', key: 'MainMenu', data: { a11yFixture: true } },
+  { label: 'Main menu / tutorial', key: 'MainMenu', data: { a11yFixture: true, tutorial: true } },
+  { label: 'Main menu / repair', key: 'MainMenu', data: { a11yFixture: true,
+    repair: [{ deckId: 'a11y', name: '', issues: [], firstIssue: '' }] } },
+  { label: 'Play / empty', key: 'Play', data: { a11yDecks: [] } },
+  { label: 'Play / active deck', key: 'Play', data: { a11yDecks: PLAY_FIXTURE_DECKS } },
+  { label: 'Play / deck picker', key: 'Play', data: { a11yDecks: PLAY_FIXTURE_DECKS, a11yPicker: true } },
+  { label: 'Play / launch notice', key: 'Play', data: { a11yDecks: PLAY_FIXTURE_DECKS, launchNotice: CLASSIC_RETIRED_ISSUE } },
+  { label: 'Practice picker', key: 'PracticePicker', data: { a11yFixture: true } },
+  ...AVATARS.filter((av) => ['anubis-who-holds-the-scale', 'bastet-mistress-of-the-ninth-return'].includes(av.id)).map((av) => ({
+    label: `Practice picker / ${av.name}`, key: 'PracticePicker', data: { a11yFixture: true, a11yAvatarId: av.id }, requiredText: [av.name],
+  })),
+  ...[21, 22].map((rung) => ({ label: `Gauntlet / rung ${rung}`, key: 'Gauntlet', data: { a11yRung: rung },
+    requiredText: [AVATARS[rung - 1].name, AVATARS[rung - 1].title] })),
+  { label: 'Gauntlet / rung 1', key: 'Gauntlet', data: { a11yRung: 1 } },
+  { label: 'Gauntlet / rung 28', key: 'Gauntlet', data: { a11yRung: 28 } },
+];
+
+/** Batch B: isolated full-catalog saves, full names, every owned scene modal. */
+const BATCH_B_SAVE = wave2BFixtureSave();
+const BATCH_B_CLASSIC = wave2BFixtureSave();
+BATCH_B_CLASSIC.decks[0].format = undefined;
+BATCH_B_CLASSIC.decks[0].darlingId = null;
+BATCH_B_CLASSIC.decks[0].cards.push(...Array<string>(20).fill('land-mountain'));
+const BATCH_B_VARIANTS = wave2BFixtureSave();
+const BATCH_B_CARD = WAVE_2B_LONGEST_CARD_IDS[0];
+const ownedFinishes: Record<string, number> = {};
+for (const frame of ['white', 'blue', 'red', 'gold', 'rainbow', 'black']) {
+  for (const holo of ['none', 'shiny', 'rainbow', 'pearlescent', 'fractal', 'void']) {
+    for (const fullArt of [false, true]) ownedFinishes[`${frame}|${holo}|${fullArt ? 'full-art' : 'standard'}`] = 5;
+  }
+}
+BATCH_B_VARIANTS.collectionVariants[BATCH_B_CARD] = ownedFinishes;
+BATCH_B_VARIANTS.collection[BATCH_B_CARD] = Object.values(ownedFinishes).reduce((a, b) => a + b, 0);
+const builderFixture = (extra: Partial<NonNullable<DeckBuilderSceneData['a11yFixture']>> = {}, deckId = WAVE_2B_FIXTURE_IDS.darlings as string): DeckBuilderSceneData => ({
+  deckId, a11yFixture: { save: BATCH_B_SAVE, ...extra },
+});
+export const WAVE_2B_SCENES: readonly ProbeScene[] = [
+  { label: 'Deck Builder / Darlings 79', key: 'DeckBuilder', data: builderFixture() },
+  { label: 'Deck Builder / full catalog', key: 'DeckBuilder', data: builderFixture({}, WAVE_2B_FIXTURE_IDS.fullCatalog) },
+  { label: 'Deck Builder / full catalog / last page', key: 'DeckBuilder', data: builderFixture({ page: Number.MAX_SAFE_INTEGER }, WAVE_2B_FIXTURE_IDS.fullCatalog) },
+  { label: 'Deck Builder / decks / last page', key: 'DeckBuilder', data: builderFixture({ modal: 'decks', pickerPage: Number.MAX_SAFE_INTEGER }) },
+  { label: 'Deck Builder / classic basics', key: 'DeckBuilder', data: builderFixture({ save: BATCH_B_CLASSIC }) },
+  { label: 'Deck Builder / empty', key: 'DeckBuilder', data: builderFixture({}, WAVE_2B_FIXTURE_IDS.empty) },
+  ...WAVE_2B_LONGEST_CARD_IDS.flatMap((focusCardId) => [false, true].map((touch) => ({
+    label: `Deck Builder / longest card / ${touch ? 'touch' : 'desktop'}`, key: 'DeckBuilder',
+    data: builderFixture({ focusCardId, touch }), requiredText: [CARD_DB[focusCardId].name],
+  }))),
+  ...(['warchest', 'style'] as const).map((mode) => ({ label: `Deck Builder / ${mode}`, key: 'DeckBuilder', data: builderFixture({ mode }) })),
+  ...(['decks', 'darling', 'reserve', 'landStyles', 'repair', 'rename', 'format', 'export', 'import', 'unsaved', 'filters'] as const)
+    .map((modal) => ({ label: `Deck Builder / ${modal}`, key: 'DeckBuilder', data: builderFixture({ modal }, modal === 'repair' ? WAVE_2B_FIXTURE_IDS.fullCatalog : WAVE_2B_FIXTURE_IDS.darlings) })),
+  { label: 'Deck Builder / set options', key: 'DeckBuilder', data: builderFixture({ modal: 'filters', filter: 'set' }) },
+  { label: 'Collection / full catalog', key: 'Collection', data: { a11yFixture: { save: BATCH_B_SAVE } } },
+  { label: 'Collection / empty', key: 'Collection', data: { a11yFixture: { save: BATCH_B_SAVE, cards: [] } } },
+  ...(['set', 'color', 'type', 'rarity', 'sort'] as const).map((openFilter) => ({
+    label: `Collection / ${openFilter} options`, key: 'Collection', data: { a11yFixture: { save: BATCH_B_SAVE, openFilter } },
+  })),
+  ...[0, 9, 71].map((variantPage) => ({ label: `Collection / all finishes / page ${variantPage}`, key: 'Collection',
+    data: { a11yFixture: { save: BATCH_B_VARIANTS, inspectCardId: BATCH_B_CARD, variantPage } } })),
+  { label: 'Collection / finish comparison', key: 'Collection', data: { a11yFixture: {
+    save: BATCH_B_VARIANTS, inspectCardId: BATCH_B_CARD, compareVariantIndex: 9 } } },
+  ...WAVE_2B_LONGEST_CARD_IDS.map((inspectCardId) => ({ label: 'Collection / longest card inspect', key: 'Collection',
+    data: { a11yFixture: { save: BATCH_B_SAVE, inspectCardId } },
+    requiredText: [CARD_DB[inspectCardId].name, rarityLine(CARD_DB[inspectCardId])] })),
+];
+
+/** Shop and Profile: every product, price tier, list end and owned dialog. */
+export const WAVE_2C_SCENES: readonly ProbeScene[] = [
+  ...[0, 4, 7].flatMap((boosterIndex) => [1, 10].map((quantity) => ({
+    label: `Shop / packs ${boosterIndex} / quantity ${quantity}`, key: 'Shop',
+    data: { tab: 'boosters', boosterIndex, a11yFixture: { save: wave2CShopSave(), quantity } },
+  }))),
+  { label: 'Shop / insufficient gold', key: 'Shop', data: { tab: 'boosters', a11yFixture: { save: wave2CShopSave(0), quantity: 10 } } },
+  ...(['standard', 'darlings'] as const).flatMap((deckTab) => [0, 100].map((deckIndex) => ({
+    label: `Shop / ${deckTab} / ${deckIndex}`, key: 'Shop', data: { tab: 'decks', a11yFixture: { save: wave2CShopSave(), deckTab, deckIndex } },
+  }))),
+  ...[...WAVE_2C_LONGEST_DECKS, WAVE_2C_DARLINGS].flatMap((deck) => (deck === WAVE_2C_DARLINGS ? [0, 1, 2, 3, 100] : [0, 100]).map((previewPage) => ({
+    label: `Shop / preview ${deck.id} / ${previewPage}`, key: 'Shop',
+    data: { tab: 'decks', a11yFixture: { save: wave2CShopSave(), deckId: deck.id, previewPage } }, requiredText: [deck.name],
+  }))),
+  { label: 'Shop / signature inspect', key: 'Shop', data: { tab: 'decks', a11yFixture: { save: wave2CShopSave(), deckId: WAVE_2C_DARLINGS.id, inspectIndex: 0 } } },
+  { label: 'Shop / First Dawn odds', key: 'Shop', data: { tab: 'boosters', a11yFixture: { save: wave2CShopSave(), odds: 'first-dawn' } } },
+  { label: 'Profile / empty', key: 'Profile', data: { a11yFixture: { save: wave2CShopSave() } } },
+  { label: 'Profile / picker last page', key: 'Profile', data: { a11yFixture: { save: wave2CProfileSave(), modal: 'picker', pickerPage: 10000 } } },
+  ...(['practice', 'gauntlet', 'draft', 'collection'] as const).map((tab) => ({
+    label: `Profile / ${tab}`, key: 'Profile', replayFixtures: true, data: { a11yFixture: { save: wave2CProfileSave(), tab } },
+  })),
+  { label: 'Profile / replay last page', key: 'Profile', replayFixtures: true, data: { a11yFixture: { save: wave2CProfileSave(), replayPage: 100 } } },
+  { label: 'Profile / full replay name', key: 'Profile', replayFixtures: true, data: { a11yFixture: { save: wave2CProfileSave(), identity: 'Seraphine of the Long Ember Road' } }, requiredText: ['Seraphine of the Long Ember Road'] },
+  ...(['export', 'import', 'confirm', 'picker'] as const).map((modal) => ({
+    label: `Profile / ${modal}`, key: 'Profile', replayFixtures: true,
+    data: { a11yFixture: { save: wave2CProfileSave(), modal, preview: true } },
+  })),
+];
+
+const DUEL_INSPECT_CARD = collectiblePool(ALL_CARDS).filter((card) => card.rarity === 'ssr')
+  .reduce((best, card) => (cardGlossaryEntries(card).length > cardGlossaryEntries(best).length ? card : best));
+const DUEL_PLAIN_CARD = collectiblePool(ALL_CARDS).find((card) => card.rarity === 'ssr' && cardGlossaryEntries(card).length === 0)
+  ?? collectiblePool(ALL_CARDS).find((card) => cardGlossaryEntries(card).length === 0) ?? DUEL_INSPECT_CARD;
+/** Final Wave 2 pass: real boards, cue carriers and both ends of paged panels. */
+const duelFixture = (name: DuelA11yFixtureName, extra: Partial<ProbeScene> = {}, page?: number): ProbeScene => ({
+  label: `Duel / ${name}${page === undefined ? '' : ' / last page'}`, key: 'Duel',
+  data: { a11yFixture: name, ...(page === undefined ? {} : { a11yPage: page }) }, ...extra,
+});
+export const WAVE_2D_SCENES: readonly ProbeScene[] = [
+  duelFixture('full-board'),
+  duelFixture('sick-blocker', { duelCue: 'M1' }),
+  duelFixture('attackers-targeting', { duelCue: 'M2', pointerTargetIid: 1 }),
+  duelFixture('one-target-pick', { duelCue: 'M3' }),
+  duelFixture('portrait-pick', { duelCue: 'portrait' }),
+  ...(['one-target-pick', 'portrait-pick'] as const).map((name) => duelFixture(name, {
+    label: `Duel / ${name} / committed`, data: { a11yFixture: name, a11yCommitPick: true },
+    duelCue: name === 'one-target-pick' ? 'M3' : 'portrait', settleMs: 200,
+  })),
+  duelFixture('lethal-target-pick', { data: { a11yFixture: 'lethal-target-pick', a11yCommitPick: true },
+    duelCue: 'lethal-pick', settleMs: 200 }),
+  duelFixture('single-grave-pick', { data: { a11yFixture: 'single-grave-pick', a11yCommitPick: true },
+    duelCue: 'M4', settleMs: 200 }),
+  duelFixture('repeated-target-picks', { duelCue: 'repeated-picks' }),
+  duelFixture('two-target-picks', { duelCue: 'two-targets' }),
+  duelFixture('graveyard-pick', { duelCue: 'M4' }),
+  duelFixture('marks-boost-damage', { duelCue: 'M5' }),
+  duelFixture('picked-attacker', { duelCue: 'M6' }),
+  // History slides in on a tween that a loaded renderer can stretch past the
+  // default settle (1 pass in 5 measured it mid-slide); give the panels time.
+  ...(['history', 'stack', 'graveyard'] as const).flatMap((name) => [
+    duelFixture(name, { settleMs: 2000 }), duelFixture(name, { settleMs: 2000 }, Number.MAX_SAFE_INTEGER)]),
+  duelFixture('darling', { requiredText: [WAVE_2D_DARLING.name] }),
+  duelFixture('duty'),
+  duelFixture('coach-cue', { requiredText: [WAVE_2D_COACH_CUE] }),
+  duelFixture('coach-info', { requiredText: [WAVE_2D_COACH_INFO] }),
+  ...(['pause', 'result', 'replay-complete', 'replay-unavailable', 'recap', 'coin'] as const).map(a11yOverlay => ({
+    label: `Duel / ${a11yOverlay}`, key: 'Duel', data: { a11yFixture: 'full-board', a11yOverlay },
+  })),
+  { label: 'Duel / recap / last page', key: 'Duel',
+    data: { a11yFixture: 'full-board', a11yOverlay: 'recap', a11yPage: Number.MAX_SAFE_INTEGER } },
+  // The full-card inspect: the longest tier name over the fullest keyword guide.
+  { label: 'Duel / inspect', key: 'Duel',
+    data: { a11yFixture: 'full-board', a11yInspectCardId: DUEL_INSPECT_CARD.id }, requiredText: [rarityLine(DUEL_INSPECT_CARD)] },
+  // No keyword guide: the tier line takes the panel's place.
+  { label: 'Duel / inspect / no keywords', key: 'Duel',
+    data: { a11yFixture: 'full-board', a11yInspectCardId: DUEL_PLAIN_CARD.id }, requiredText: [rarityLine(DUEL_PLAIN_CARD)] },
+];
+
+/** Wave 3, the long tail: one list per batch, each owned by its fixture module. */
+export { WAVE_3A_SCENES } from './wave3LimitedFixtures';
+export { WAVE_3B_SCENES } from './wave3PackGlossaryFixtures';
+export { WAVE_3C_SCENES } from './wave3DialogFixtures';
+
+/** `SCENE_TITLE` scenes this probe cannot open without a fixture it does not build. */
+export const WAVE_1_SKIPPED: readonly { scene: string; reason: string }[] = [];
+
+export function cellName(cell: ProbeCell): string {
+  return `${Math.round(cell.textScale * 100)}${cell.highContrast ? 'hc' : ''}`;
+}
+
+/** Positions compare at half a pixel: antialiasing, not layout. */
+const EPS = 0.5;
+
+function contains(outer: ProbeRect, inner: ProbeRect): boolean {
+  return (
+    inner.x >= outer.x - EPS &&
+    inner.y >= outer.y - EPS &&
+    inner.x + inner.width <= outer.x + outer.width + EPS &&
+    inner.y + inner.height <= outer.y + outer.height + EPS
+  );
+}
+
+const round = (r: ProbeRect): ProbeRect => ({
+  x: Math.round(r.x * 10) / 10,
+  y: Math.round(r.y * 10) / 10,
+  width: Math.round(r.width * 10) / 10,
+  height: Math.round(r.height * 10) / 10,
+});
+
+/**
+ * The extent of a Graphics' straight path segments, arcs and filled rects, in
+ * its own space (Phaser 3.90's Graphics command buffer). Enough for the shapes
+ * the chrome draws: `fillRoundedRect` panels and `fillRect` mask shapes.
+ */
+function graphicsLocalRect(graphics: Phaser.GameObjects.Graphics): ProbeRect | null {
+  const buffer = graphics.commandBuffer as number[];
+  // Command ids and argument counts from phaser/src/gameobjects/graphics/Commands.js and Graphics.js.
+  const ARC = 0;
+  const FILL_RECT = 3;
+  const LINE_TO = 4;
+  const MOVE_TO = 5;
+  const arity: Record<number, number> = { 0: 7, 3: 4, 4: 2, 5: 2, 6: 3, 7: 2, 10: 6, 11: 6, 16: 2, 17: 2, 18: 1, 21: 8, 22: 6 };
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (let i = 0; i < buffer.length; ) {
+    const command = buffer[i];
+    if (command === MOVE_TO || command === LINE_TO) {
+      minX = Math.min(minX, buffer[i + 1]);
+      maxX = Math.max(maxX, buffer[i + 1]);
+      minY = Math.min(minY, buffer[i + 2]);
+      maxY = Math.max(maxY, buffer[i + 2]);
+    } else if (command === FILL_RECT) {
+      minX = Math.min(minX, buffer[i + 1]);
+      minY = Math.min(minY, buffer[i + 2]);
+      maxX = Math.max(maxX, buffer[i + 1] + buffer[i + 3]);
+      maxY = Math.max(maxY, buffer[i + 2] + buffer[i + 4]);
+    } else if (command === ARC) {
+      const [x, y, r] = [buffer[i + 1], buffer[i + 2], buffer[i + 3]];
+      minX = Math.min(minX, x - r);
+      maxX = Math.max(maxX, x + r);
+      minY = Math.min(minY, y - r);
+      maxY = Math.max(maxY, y + r);
+    }
+    i += 1 + (arity[command] ?? 0);
+  }
+  return Number.isFinite(minX) ? { x: minX, y: minY, width: maxX - minX, height: maxY - minY } : null;
+}
+
+function toWorld(object: Phaser.GameObjects.Components.Transform, local: ProbeRect): ProbeRect {
+  const m = object.getWorldTransformMatrix();
+  const corners = [[local.x, local.y], [local.x + local.width, local.y],
+    [local.x, local.y + local.height], [local.x + local.width, local.y + local.height]]
+    .map(([x, y]) => m.transformPoint(x, y));
+  const x = Math.min(...corners.map(p => p.x)), y = Math.min(...corners.map(p => p.y));
+  return { x, y, width: Math.max(...corners.map(p => p.x)) - x, height: Math.max(...corners.map(p => p.y)) - y };
+}
+
+/** Single-line cue ink, using the same baseline/padding as Phaser Text.updateText. */
+function cueGlyphBounds(text: Phaser.GameObjects.Text): ProbeRect {
+  const ink = text.context.measureText(text.text);
+  const stroke = text.style.strokeThickness / 2;
+  const baseline = text.getTextMetrics().ascent + stroke;
+  const x = (text.padding.left ?? 0) + (text.autoRound ? Math.round(stroke) : stroke) - ink.actualBoundingBoxLeft - stroke;
+  const y = (text.padding.top ?? 0) + (text.autoRound ? Math.round(baseline) : baseline) - ink.actualBoundingBoxAscent - stroke;
+  return toWorld(text, { x: x - text.displayOriginX, y: y - text.displayOriginY,
+    width: ink.actualBoundingBoxLeft + ink.actualBoundingBoxRight + stroke * 2,
+    height: ink.actualBoundingBoxAscent + ink.actualBoundingBoxDescent + stroke * 2 });
+}
+
+/** A transparent Rectangle can still cover glyphs with its opaque perimeter. */
+function laterWidgetRects(text: Phaser.GameObjects.Text): ProbeRect[] {
+  const rects: ProbeRect[] = [];
+  const visit = (object: Phaser.GameObjects.GameObject): void => {
+    if ('visible' in object && object.visible === false || 'alpha' in object && object.alpha === 0) return;
+    if (object instanceof Phaser.GameObjects.Container) { object.list.forEach(visit); return; }
+    if (!(object instanceof Phaser.GameObjects.Rectangle)) return;
+    const x = -object.displayOriginX, y = -object.displayOriginY, w = object.width, h = object.height;
+    if (object.isFilled && object.fillAlpha * object.alpha >= 0.95) rects.push(toWorld(object, { x, y, width: w, height: h }));
+    if (object.isStroked && object.strokeAlpha * object.alpha >= 0.95) {
+      const line = object.lineWidth, half = line / 2;
+      for (const edge of [
+        { x: x - half, y: y - half, width: w + line, height: line },
+        { x: x - half, y: y + h - half, width: w + line, height: line },
+        { x: x - half, y: y - half, width: line, height: h + line },
+        { x: x + w - half, y: y - half, width: line, height: h + line },
+      ]) rects.push(toWorld(object, edge));
+    }
+  };
+  let child: Phaser.GameObjects.GameObject = text;
+  while (child.parentContainer) {
+    const parent = child.parentContainer;
+    parent.list.slice(parent.list.indexOf(child) + 1).forEach(visit);
+    child = parent;
+    if (parent instanceof BoardCardView) break;
+  }
+  return rects;
+}
+
+/**
+ * A `modalShell`'s panel rectangle. The shell is a container whose first child
+ * is the full-canvas dim and whose second is the panel Graphics.
+ */
+function modalPanelRect(container: Phaser.GameObjects.Container): ProbeRect | null {
+  const [dim, chrome] = container.list;
+  if (!(dim instanceof Phaser.GameObjects.Rectangle) || !(chrome instanceof Phaser.GameObjects.Graphics)) return null;
+  if (dim.width < theme.design.width || dim.height < theme.design.height) return null;
+  const local = graphicsLocalRect(chrome);
+  return local ? toWorld(chrome, local) : null;
+}
+
+/** The visible rectangle a mask leaves (geometry masks from their shape, bitmap masks from their bounds). */
+function maskRect(object: Phaser.GameObjects.GameObject): ProbeRect | null {
+  const mask = (object as Partial<Phaser.GameObjects.Components.Mask>).mask;
+  if (!mask) return null;
+  if (mask instanceof Phaser.Display.Masks.GeometryMask) {
+    // The mask shape is a Graphics or a Shape (a Rectangle, an Arc...).
+    const shape: unknown = mask.geometryMask;
+    if (shape instanceof Phaser.GameObjects.Graphics) {
+      const local = graphicsLocalRect(shape);
+      return local ? toWorld(shape, local) : null;
+    }
+    return shape instanceof Phaser.GameObjects.Shape ? round(shape.getBounds()) : null;
+  }
+  const source = (mask as Phaser.Display.Masks.BitmapMask).bitmapMask as Partial<Phaser.GameObjects.Components.GetBounds> | undefined;
+  return source?.getBounds ? round(source.getBounds()) : null;
+}
+
+function intersection(a: ProbeRect, b: ProbeRect): ProbeRect | null {
+  const x = Math.max(a.x, b.x);
+  const y = Math.max(a.y, b.y);
+  const right = Math.min(a.x + a.width, b.x + b.width);
+  const bottom = Math.min(a.y + a.height, b.y + b.height);
+  if (right - x <= EPS || bottom - y <= EPS) return null;
+  const r1 = (v: number): number => Math.round(v * 10) / 10;
+  return { x: r1(x), y: r1(y), width: r1(right - x), height: r1(bottom - y) };
+}
+
+interface WalkedText {
+  readonly object: Phaser.GameObjects.Text;
+  readonly bounds: ProbeRect;
+  readonly unclippedBounds: ProbeRect;
+  readonly clip: ProbeRect | null;
+  readonly scale: number;
+  /** The nearest enclosing modal panel, if the Text is inside a modalShell. */
+  readonly panel: ProbeRect | null;
+  /** The display-list layer: the index of its top-level ancestor (a modal is its own layer). */
+  readonly layer: string;
+  readonly surface?: MenuTextSurface;
+  readonly depth: number;
+  readonly order: number;
+  /** Fixed card typography stays exempt except for operational cue clipping. */
+  readonly cueOnCard: boolean;
+}
+
+function walkTexts(scene: Phaser.Scene): { texts: WalkedText[]; cardFaceTexts: number; maskedOut: number } {
+  const texts: WalkedText[] = [];
+  let cardFaceTexts = 0;
+  let maskedOut = 0;
+  const hidden: ProbeRect = { x: 0, y: 0, width: 0, height: 0 };
+  const visit = (
+    object: Phaser.GameObjects.GameObject,
+    panel: ProbeRect | null,
+    layer: string,
+    onCard: boolean,
+    clip: ProbeRect | null,
+    depth: number, order: number, surface?: MenuTextSurface,
+  ): void => {
+    const shown = object as Phaser.GameObjects.GameObject & Partial<Phaser.GameObjects.Components.Visible & Phaser.GameObjects.Components.Alpha>;
+    if (shown.visible === false || shown.alpha === 0) return;
+    const own = maskRect(object);
+    const visibleArea = own ? (clip ? intersection(clip, own) ?? hidden : own) : clip;
+    if (object instanceof Phaser.GameObjects.Container) {
+      const card = onCard || object instanceof CardView || object instanceof BoardCardView;
+      const modal = modalPanelRect(object);
+      const nextLayer = modal ? `${layer}/modal` : layer;
+      const plate = modal ?? object.getData('a11ySurface') as ProbeRect | undefined;
+      const nextSurface = plate ? { id: layer, bounds: plate, depth, order } : surface;
+      for (const child of object.list) visit(child, modal ?? panel, nextLayer, card, visibleArea, depth, order, nextSurface);
+      return;
+    }
+    if (!(object instanceof Phaser.GameObjects.Text) || object.text.trim() === '') return;
+    if (onCard && object.getData('a11yCueText') !== true) {
+      cardFaceTexts++;
+      return;
+    }
+    // A mask shows only part of a scrolling list: check what shows, skip what it hides.
+    const bounds = visibleArea ? intersection(round(object.getBounds()), visibleArea) : round(object.getBounds());
+    if (!bounds && object.getData('a11yKeepVisible') !== true) {
+      maskedOut++;
+      return;
+    }
+    const m = object.getWorldTransformMatrix();
+    texts.push({ object, bounds: bounds ?? round(object.getBounds()), unclippedBounds: round(object.getBounds()), clip: visibleArea, scale: Math.min(Math.abs(m.scaleX), Math.abs(m.scaleY)), panel, layer, surface, depth, order, cueOnCard: onCard });
+  };
+  scene.children.list.forEach((child, index) => visit(child, null, String(index), false, null, (child as Phaser.GameObjects.GameObject & Partial<Phaser.GameObjects.Components.Depth>).depth ?? 0, index));
+  return { texts, cardFaceTexts, maskedOut };
+}
+
+const FRAME: ProbeRect = {
+  x: theme.design.titleSafe.left,
+  y: theme.design.titleSafe.top,
+  width: theme.design.titleSafe.right - theme.design.titleSafe.left,
+  height: theme.design.titleSafe.bottom - theme.design.titleSafe.top,
+};
+
+const label = (text: Phaser.GameObjects.Text): string => text.text.replace(/\s+/g, ' ').slice(0, 60);
+
+function declaredArea(object: Phaser.GameObjects.GameObject): ProbeRect | undefined {
+  const own = object.getData('a11yArea') as ProbeRect | undefined;
+  return own ?? (object.parentContainer ? declaredArea(object.parentContainer) : undefined);
+}
+
+/** The rules over one scene's visible Texts. */
+export function checkScene(scene: Phaser.Scene): Omit<ProbeSceneReport, 'scene'> {
+  const { texts, cardFaceTexts, maskedOut } = walkTexts(scene);
+  const findings: ProbeFinding[] = [];
+  for (const t of texts) {
+    const text = label(t.object);
+    if (t.object.getData('a11yCueText') === true) {
+      const glyphBounds = cueGlyphBounds(t.object);
+      for (const kind of menuTextFindings({ expected: t.object.text, actual: t.object.text,
+        lines: t.object.getWrappedText(), bounds: glyphBounds, glyphBounds,
+        glyphClip: t.unclippedBounds,
+        clip: t.clip ?? { x: 0, y: 0, width: theme.design.width, height: theme.design.height },
+        occluders: laterWidgetRects(t.object), keepVisible: true })) {
+        findings.push({ kind, text, bounds: round(glyphBounds),
+          detail: 'cue ink must fit its raster canvas and mask, and remain clear of later widget geometry' });
+      }
+      if (t.cueOnCard) continue;
+    }
+    // Duel's release has intentional edge anchors (portraits, piles, History).
+    // Their explicit, canvas-bounded area replaces only the title-safe test;
+    // wrapping, unmasked bounds, overlap and density still run unchanged.
+    const area = declaredArea(t.object);
+    const duelArea = scene.sys.settings.key === 'Duel' && area && area.width > 0 && area.height > 0
+      && contains({ x: 0, y: 0, width: theme.design.width, height: theme.design.height }, area) ? area : null;
+    if (!contains(duelArea ?? FRAME, t.bounds) && t.object.getData('a11yExpendable') !== true) findings.push({ kind: 'outsideFrame', text, bounds: t.bounds, detail: duelArea ? `declared release Duel area ${JSON.stringify(duelArea)}` : 'title-safe frame x 64-1216, y 36-684' });
+    if (t.panel && !contains(t.panel, t.bounds)) {
+      findings.push({ kind: 'outsidePanel', text, bounds: t.bounds, detail: `panel ${JSON.stringify(t.panel)}` });
+    }
+    const declared = t.object.getData('a11yBox') as ProbeRect | undefined;
+    // This release contract is declared by the scene, independently of the
+    // fitting helper: replacing shrink-to-fit with ellipsis must fail at 100%.
+    const releaseFullText = t.object.getData('a11yReleaseFullText') as string | undefined;
+    if (currentAccessibility().textScale === 1 && releaseFullText !== undefined) {
+      for (const kind of menuTextFindings({ expected: releaseFullText, actual: t.object.text,
+        lines: t.object.getWrappedText(), bounds: t.unclippedBounds })) {
+        findings.push({ kind, text, bounds: t.unclippedBounds, detail: 'release list names must remain complete at 100%' });
+      }
+    }
+    const fullText = t.object.getData('a11yFullText') as string | undefined;
+    const wholeLines = t.object.getData('a11yWholeLines') as { lineHeight: number; linePitch: number } | undefined;
+    const keepVisible = t.object.getData('a11yKeepVisible') === true;
+    if (fullText !== undefined || wholeLines || keepVisible) {
+      const maxWidth = t.object.getData('a11yTextWidth') as number | undefined;
+      const maxHeight = t.object.getData('a11yTextHeight') as number | undefined;
+      const box = declared ?? ((maxWidth !== undefined || maxHeight !== undefined) ? {
+        ...t.unclippedBounds, width: maxWidth ?? t.unclippedBounds.width, height: maxHeight ?? t.unclippedBounds.height,
+      } : undefined);
+      for (const kind of menuTextFindings({ expected: fullText ?? t.object.text, actual: t.object.text,
+        lines: t.object.getWrappedText(), drawnLines: t.object.style.maxLines,
+        maxLines: t.object.getData('a11yMaxLines') as number | undefined,
+        bounds: t.unclippedBounds, box, clip: t.clip ?? undefined, keepVisible, ...wholeLines })) {
+        findings.push({ kind, text, bounds: t.unclippedBounds,
+          detail: 'full source text, wrapped line count and unmasked glyph-line bounds' });
+      }
+    }
+
+    if (declared && !contains(declared, t.bounds)) {
+      findings.push({ kind: 'outsideDeclaredBox', text, bounds: t.bounds, detail: `box ${JSON.stringify(declared)}` });
+    }
+    if (t.scale < 1 - 1e-3 && t.object.getData('a11yFitToBox') !== true) {
+      findings.push({ kind: 'scaledDown', text, bounds: t.bounds, detail: `scale ${t.scale.toFixed(3)}` });
+    }
+    const minFontSize = t.object.getData('a11yMinFontSize') as number | undefined;
+    if (minFontSize !== undefined && parseFloat(String(t.object.style.fontSize)) * t.scale < minFontSize - 1e-3) {
+      findings.push({ kind: 'scaledDown', text, bounds: t.bounds, detail: `below the ${minFontSize}px base role` });
+    }
+  }
+  const density = sceneDensity(scene);
+  if (density) for (const id of menuDensityFindings(density.actual, density.release, currentAccessibility().textScale)) {
+    findings.push({ kind: 'density', text: id, bounds: { x: 0, y: 0, width: 0, height: 0 }, detail: JSON.stringify({ actual: density.actual.find((item) => item.id === id), release: density.release.find((item) => item.id === id) }) });
+  }
+  // A modal covers what is under it, so only Texts on one layer can collide.
+  for (let i = 0; i < texts.length; i++) {
+    for (let j = i + 1; j < texts.length; j++) {
+      const [a, b] = [texts[i], texts[j]];
+      if (a.cueOnCard || b.cueOnCard) continue;
+      if (menuTextOverlap(a, b)) {
+        findings.push({ kind: 'overlap', text: label(a.object), bounds: a.bounds, detail: `"${label(b.object)}" ${JSON.stringify(b.bounds)}` });
+      }
+    }
+  }
+  // Zone headers must clear non-Text thumbs and badge plates too. Read the
+  // live objects, not the layout's predicted bands, so misplaced draws fail.
+  const checkZone = (object: Phaser.GameObjects.GameObject): void => {
+    if ('visible' in object && object.visible === false) return;
+    if (!(object instanceof Phaser.GameObjects.Container)) return;
+    const header = object.getData('a11yZoneHeader') as {
+      title: Phaser.GameObjects.Text; subtitle: Phaser.GameObjects.Container;
+    } | undefined;
+    if (header) {
+      const grid = object.list.filter(item => item.active && item.getData('a11yZoneGrid') === true)
+        .flatMap(item => {
+          if (item instanceof Phaser.GameObjects.Graphics) {
+            const local = graphicsLocalRect(item);
+            return local ? [toWorld(item, local)] : [];
+          }
+          return item instanceof Phaser.GameObjects.Image ? [item.getBounds()] : [];
+        });
+      const subtitle = header.subtitle.getBounds();
+      for (const edge of zonePanelHeaderFindings(header.title.getBounds(), subtitle, grid)) {
+        findings.push({ kind: 'overlap', text: 'zone subtitle', bounds: round(subtitle),
+          detail: `less than 4px clearance from ${edge}` });
+      }
+    }
+    object.list.forEach(checkZone);
+  };
+  scene.children.list.forEach(checkZone);
+  return { texts: texts.length, cardFaceTexts, maskedOut, findings, density: density?.actual };
+}
+
+/** Widgets own their density metadata; include nested panels as well as scenes. */
+function sceneDensity(scene: Phaser.Scene): { actual: MenuDensity[]; release: MenuDensity[] } | undefined {
+  const actual: MenuDensity[] = [], release: MenuDensity[] = [];
+  const append = (value: unknown): void => {
+    if (!value || typeof value !== 'object' || !('actual' in value) || !('release' in value)) return;
+    const pair = value as { actual: MenuDensity | MenuDensity[]; release: MenuDensity | MenuDensity[] };
+    actual.push(...(Array.isArray(pair.actual) ? pair.actual : [pair.actual]));
+    release.push(...(Array.isArray(pair.release) ? pair.release : [pair.release]));
+  };
+  append(scene.data.get('a11yDensity'));
+  const visit = (object: Phaser.GameObjects.GameObject): void => {
+    if ('visible' in object && object.visible === false) return;
+    append(object.getData('a11yDensity'));
+    if (object instanceof Phaser.GameObjects.Container) object.list.forEach(visit);
+  };
+  scene.children.list.forEach(visit);
+  return actual.length || release.length ? { actual, release } : undefined;
+}
+
+/** The actual tile children and their world bounds prove the cue is drawn. */
+export function checkDuelCue(scene: Phaser.Scene, cue: NonNullable<ProbeScene['duelCue']>): ProbeFinding[] {
+  const objects: Phaser.GameObjects.GameObject[] = [];
+  const visit = (object: Phaser.GameObjects.GameObject): void => {
+    if ('visible' in object && object.visible === false) return;
+    if ('alpha' in object && object.alpha === 0) return;
+    objects.push(object);
+    if (object instanceof Phaser.GameObjects.Container) object.list.forEach(visit);
+  };
+  scene.children.list.forEach(visit);
+  const tiles = objects.filter((object): object is BoardCardView => object instanceof BoardCardView);
+  const tile = (iid: number): BoardCardView | undefined => tiles.find((object) => object.getData('a11yIid') === iid);
+  const child = (view: BoardCardView | undefined, name: string): Phaser.GameObjects.GameObject | undefined =>
+    view?.list.find((object) => object.name === name);
+  const shown = (object: Phaser.GameObjects.GameObject | undefined): boolean => !!object && objects.includes(object);
+  const textIs = (object: Phaser.GameObjects.GameObject | undefined, value: string): boolean =>
+    shown(object) && object instanceof Phaser.GameObjects.Text && object.text === value;
+  // A pick or Mark badge draws vector numerals: an Image tagged with its
+  // label ("1", repeated picks "1, 2", Marks "+2").
+  const numeralIs = (object: Phaser.GameObjects.GameObject | undefined, value: string): boolean =>
+    shown(object) && object instanceof Phaser.GameObjects.Image && object.getData('a11yNumeral') === value;
+  const badgeIs = (view: BoardCardView | undefined, value: string): boolean => {
+    const badge = child(view, 'board-pick-badge');
+    return shown(badge) && badge instanceof Phaser.GameObjects.Container
+      && badge.list.some((item) => numeralIs(item, value));
+  };
+  const fail = (detail: string): ProbeFinding[] => [{ kind: 'cue', text: cue,
+    bounds: { x: 0, y: 0, width: 0, height: 0 }, detail }];
+  if (cue === 'M1') {
+    const view = tile(WAVE_2D_IIDS.blocker), tab = child(view, 'board-action-tab'), swirl = child(view, 'board-sick-swirl');
+    if (!textIs(tab, 'Blocks') || !shown(swirl) || !(tab instanceof Phaser.GameObjects.Text) || !(swirl instanceof Phaser.GameObjects.Image))
+      return fail('summoning-sick assigned blocker must draw both Blocks and the swirl');
+    if (intersection(round(tab.getBounds()), round(swirl.getBounds()))) return fail('Blocks tab overlaps summoning-sickness swirl');
+  }
+  if (cue === 'M2' || cue === 'M6') {
+    const view = tile(cue === 'M2' ? WAVE_2D_IIDS.attacker : WAVE_2D_IIDS.selectedAttacker);
+    const peer = tile(cue === 'M2' ? 10 : 2);
+    if (!view || !peer || view.y >= peer.y - EPS) return fail('attacker must remain lifted above its unselected row peer');
+    if (cue === 'M2' && (shown(child(view, 'board-state-ring')) || !shown(child(tile(1), 'board-state-ring'))))
+      return fail('targeting must leave the non-target attacker without a ring and draw a ring on a legal target');
+    if (cue === 'M2' && (!child(view, 'board-awakening-ring') || shown(child(view, 'board-awakening-ring'))))
+      return fail('targeting must suppress the awakened attacker frame as well as its attack ring');
+    if (cue === 'M6' && !textIs(child(view, 'board-action-tab'), 'Attack')) return fail('picked attacker must keep Attack tab');
+  }
+  if (cue === 'M3' && !badgeIs(tile(4), '1')) return fail('one-target pick must draw its 1 badge');
+  if (cue === 'lethal-pick' && (!badgeIs(tile(1), '1') || tile(1)?.getData('a11yDeparting') !== true))
+    return fail('accepted lethal pick must keep its 1 badge on the departing tile');
+  if (cue === 'repeated-picks' && !badgeIs(tile(4), '1, 2'))
+    return fail('a creature picked for both ordered target slots must draw both pick numbers');
+  if (cue === 'two-targets' && (!badgeIs(tile(3), '1') || !badgeIs(tile(1), '2')))
+    return fail('two-target picks must preserve the order the player chose them');
+  if (cue === 'M4' || cue === 'portrait') {
+    const picked = objects.find((object) => object.getData('a11yPickBadge') === '1'
+      && (cue === 'M4' ? object instanceof CardView : object.getData('a11yPickSurface') === 'portrait'));
+    if (!picked) return fail('picked surface must expose the drawn 1 badge');
+    if (cue === 'M4' && picked instanceof CardView && picked.alpha !== 1) return fail('picked grave card must keep full opacity');
+    const badge = cue === 'portrait' ? picked : objects.find((object) => object.name === 'duel-pick-badge'
+      && object.getData('a11yPickBadge') === '1');
+    if (!(badge instanceof Phaser.GameObjects.Container) || !badge.list.some((item) => numeralIs(item, '1')))
+      return fail('picked surface must visibly render the numeric badge');
+  }
+  if (cue === 'M5') {
+    const view = tile(WAVE_2D_IIDS.marked), glyph = child(view, 'board-stats-glyphs'), mark = child(view, 'board-mark-badge');
+    const stats = view?.getData('a11yStatsCue') as { glyphs: string[]; markBadge: number | null } | undefined;
+    if (!stats?.glyphs.includes('damage') || !stats.glyphs.includes('raised') || stats.markBadge !== 2
+      || !shown(glyph) || !(glyph instanceof Phaser.GameObjects.Graphics) || glyph.commandBuffer.length === 0
+      || !shown(mark) || !(mark instanceof Phaser.GameObjects.Container) || !mark.list.some((item) => numeralIs(item, '+2')))
+      return fail('damage and raised-stat glyphs must coexist with the two-Mark badge');
+  }
+  return [];
+}
+
+const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function snapshot(game: Phaser.Game): Promise<string> {
+  return new Promise((resolve) => {
+    game.renderer.snapshot((image) => resolve(image instanceof HTMLImageElement ? image.src : ''));
+  });
+}
+
+/**
+ * Fixture replays for Profile: a full grid (ten), half replayable and half
+ * recorded on an older version (the note line), with long opponent names and
+ * one- and many-turn meta lines, so every line the replay cell can draw is on
+ * screen.
+ */
+export function fixtureReplays(): ReplayLog[] {
+  const stamp = replayDbStamp(CARD_DB);
+  const names = ['Seraphine of the Long Ember Road', 'Ash', 'Mirelle Vantablack-Ossuary', 'Queen Tamsin the Unhurried', 'Ro'];
+  return Array.from({ length: 10 }, (_, i) => ({
+    v: i % 2 === 0 ? REPLAY_LOG_VERSION : 1,
+    dbStamp: i % 2 === 0 ? stamp : 'old',
+    seed: i + 1,
+    decks: [[], []],
+    context: {
+      mode: (['gauntlet', 'practice', 'limited'] as const)[i % 3],
+      difficulty: 'hard',
+      opponentId: null,
+      opponentName: names[i % names.length],
+      gauntletRung: null,
+    },
+    actions: [],
+    result: i % 3 === 0 ? 'loss' : 'win',
+    endedAt: Date.UTC(2026, 8, 28 - i),
+    turns: i === 0 ? 1 : 10 + i,
+  }));
+}
+
+/** Start a scene alone and wait until it has built and settled. */
+async function openScene(game: Phaser.Game, spec: ProbeScene, settleMs: number): Promise<Phaser.Scene> {
+  for (const running of game.scene.getScenes(true)) {
+    const key = running.sys.settings.key;
+    if (key !== spec.key && key !== 'ArtLoader') game.scene.stop(key);
+  }
+  if (game.scene.isActive(spec.key)) game.scene.stop(spec.key);
+  const data = spec.replayFixtures ? { ...spec.data, replays: fixtureReplays() } : spec.data;
+  game.scene.start(spec.key, data);
+  for (let i = 0; i < 200 && !game.scene.isActive(spec.key); i++) await wait(25);
+  const scene = game.scene.getScene(spec.key);
+  // A scene that builds a fixture asynchronously sets `a11yReady` false in create().
+  if (scene.data.has('a11yReady')) {
+    for (let i = 0; i < 800 && scene.data.get('a11yReady') !== true; i++) await wait(25);
+    if (scene.data.get('a11yReady') !== true) throw new Error(`${spec.key} did not finish building its fixture`);
+  }
+  await wait(spec.settleMs ?? settleMs);
+  if (spec.pointerTargetIid !== undefined) {
+    const target = scene.children.list.find((object): object is BoardCardView =>
+      object instanceof BoardCardView && object.getData('a11yIid') === spec.pointerTargetIid);
+    const state = target?.getData('a11yCue')?.state as string | undefined;
+    if (!target || !['legalTarget', 'legalTargetOpponent'].includes(state ?? '')) {
+      throw new Error(`${spec.label}: pointer fixture must identify a legal target`);
+    }
+    const canvas = game.canvas, rect = canvas.getBoundingClientRect();
+    // Duel renders a 1280x720 design window at any renderScale. Let Phaser's
+    // mouse manager perform its own canvas/camera conversion and redraw.
+    canvas.dispatchEvent(new MouseEvent('mousemove', { bubbles: true,
+      clientX: rect.left + target.x / theme.design.width * rect.width,
+      clientY: rect.top + target.y / theme.design.height * rect.height }));
+    await new Promise<void>(resolve => game.events.once(Phaser.Core.Events.POST_RENDER, () => resolve()));
+    const pointer = scene.input.activePointer;
+    if (Math.hypot(pointer.worldX - target.x, pointer.worldY - target.y) > 1) {
+      throw new Error(`${spec.label}: pointer did not reach its legal target`);
+    }
+    scene.data.set('a11yProbePointer', { iid: spec.pointerTargetIid, x: pointer.worldX, y: pointer.worldY });
+  }
+  return scene;
+}
+
+/**
+ * Scenes the probe may start from and put back: menus that build from the save
+ * alone, with no start data to lose. Anything else (a Duel, a draft, a pack
+ * opening) refuses the run.
+ */
+export const PROBE_RESTARTABLE: readonly string[] = [
+  'MainMenu',
+  'Play',
+  'Settings',
+  'Profile',
+  'Collection',
+  'Glossary',
+  'Gauntlet',
+  'Limited',
+  'PracticePicker',
+  'Shop',
+  'Achievements',
+];
+
+/**
+ * Run the probe. Returns the report; the caller (a CDP driver or the console)
+ * saves it and the snapshots. Scenes listed but missing from the game, or
+ * throwing on boot, are reported with an error rather than stopping the run.
+ */
+export async function runA11yProbe(game: Phaser.Game, options: ProbeOptions = {}): Promise<ProbeReport> {
+  if (!import.meta.env.DEV) throw new Error('a11yProbe is a dev-server tool');
+  const cells = options.cells ?? PROBE_CELLS;
+  const scenes = options.scenes ?? WAVE_1_SCENES;
+  const settleMs = options.settleMs ?? 700;
+  const running = game.scene.getScenes(true).map((s) => s.sys.settings.key).filter((key) => key !== 'ArtLoader');
+  const unsafe = running.filter((key) => !PROBE_RESTARTABLE.includes(key));
+  if (unsafe.length > 0) {
+    throw new Error(`a11yProbe: ${unsafe.join(', ')} is running and cannot be restarted without its data; go to the main menu first`);
+  }
+  const before = currentAccessibility();
+  const returnTo = running[0] ?? 'MainMenu';
+  const report: ProbeCellReport[] = [];
+  let totalFindings = 0;
+  try {
+    // Warm-up: a scene's first visit may still be streaming art or fonts in.
+    for (const spec of scenes) {
+      try {
+        await openScene(game, spec, settleMs);
+      } catch {
+        // Reported by the measured pass below.
+      }
+    }
+    for (const cell of cells) {
+      setAccessibility(cell);
+      const sceneReports: ProbeSceneReport[] = [];
+      const snapshots: Record<string, string> = {};
+      for (const spec of scenes) {
+        try {
+          const scene = await openScene(game, spec, settleMs);
+          const result = checkScene(scene);
+          const visible = walkTexts(scene).texts;
+          const missing: ProbeFinding[] = (spec.requiredText ?? []).filter((text) => !visible.some((entry) => entry.object.text === text))
+            .map((text) => ({ kind: 'missingText', text, bounds: { x: 0, y: 0, width: 0, height: 0 }, detail: 'required visible fixture copy' }));
+          const findings = [...result.findings, ...missing, ...(spec.duelCue ? checkDuelCue(scene, spec.duelCue) : [])];
+          totalFindings += findings.length;
+          sceneReports.push({ scene: spec.label, ...result, findings });
+          if (options.snapshots) snapshots[spec.label] = await snapshot(game);
+        } catch (error) {
+          totalFindings++;
+          sceneReports.push({ scene: spec.label, texts: 0, cardFaceTexts: 0, maskedOut: 0, findings: [], error: String(error) });
+        }
+      }
+      report.push({ cell, name: cellName(cell), scenes: sceneReports, ...(options.snapshots ? { snapshots } : {}) });
+    }
+  } finally {
+    setAccessibility(before);
+    for (const running of game.scene.getScenes(true)) {
+      const key = running.sys.settings.key;
+      if (key !== 'ArtLoader') game.scene.stop(key);
+    }
+    game.scene.start(returnTo);
+  }
+  return {
+    startedAt: new Date().toISOString(),
+    cells: report,
+    totalFindings,
+    skipped: options.scenes ? [] : WAVE_1_SKIPPED,
+  };
+}

@@ -1,22 +1,40 @@
 /**
- * One-off cross-card overlap audit (scratch tool, not part of the doc set).
+ * Cross-card overlap audit: the duplicate comparator every new set is run
+ * through against the live pool (not part of the doc set).
  *
  * Answers four questions the shipped `blades-db.ts` checks do not:
  *   1. IDENTICAL  — clusters of cards that are the same card with a new name.
- *   2. REDESKIN   — the same card printed at a DIFFERENT cost or colour.
+ *   2. REDESKIN   — the same card printed at a DIFFERENT cost or colour, where
+ *                   "cost" is any mana the card asks for: the printed cost, a
+ *                   rider's cost (Empower, Skim, Retell, Whispers, Preserve,
+ *                   Hauntlink) or a Duty's activation mana.
  *   3. DOMINATED  — A is at-least-as-good on every op AND strictly better on one,
  *                   for the same or a lower cost. This is the op-level test that
  *                   catches "White-Veil Collapse vs The Hall Clears": same body,
  *                   plus a rider, same price. `blades-db.ts dominated` compares
  *                   creature stat lines inside a shared shape and misses it.
+ *                   The same rider or Duty at a cheaper price also counts.
  *   4. ODD        — internal inconsistencies: dead abilities, riders that cost
  *                   more than the card, statics that grant nothing, etc.
+ *   5. LADDER     — the same card data at different stat lines, rider
+ *                   prices or effect sizes (a 2/2, 3/3, 4/4 up the curve;
+ *                   Skim {2} against Skim {1}; Foresee 1 against Foresee 3),
+ *                   per set and across sets, with any rung that dominates
+ *                   another. It keeps an effect's sign (-2/-2 is not +2/+2)
+ *                   and op order, except within runs of ops whose order never
+ *                   matters (mill, discard, life loss and gain); two texts
+ *                   that say the same thing through different ops key apart.
  *
- *   npx tsx scripts/audit-overlap.ts [identical|redeskin|dominated|odd|all]
+ *   npx tsx scripts/audit-overlap.ts [identical|redeskin|ladder|dominated|odd|focus|cut|all]
+ *
+ * Importing this file runs nothing; the passes print only when it is the
+ * script tsx was asked to run.
  */
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { ALL_CARDS } from '../src/data/catalog';
-import type { AbilityDef, CardDef, Color, EffectOp, ManaCost } from '../src/engine/types';
-import { manaValue } from '../src/engine/types';
+import type { AbilityDef, ActivatedDef, CardDef, Color, EffectOp, ManaCost, TargetSpec } from '../src/engine/types';
+import { activatedAbilitiesOf, manaValue } from '../src/engine/types';
 
 const MODE = (process.argv[2] ?? 'all').toLowerCase();
 /** Imported as a library (by balance/verify-recost.ts) rather than run as a CLI. */
@@ -26,15 +44,29 @@ export const AS_LIBRARY = process.env.AUDIT_AS_LIBRARY === '1';
 // Normalisation
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Deterministic key for any value: object keys sorted, arrays order-preserved. */
+const isManaCost = (v: unknown): v is ManaCost =>
+  !!v && typeof v === 'object' && !Array.isArray(v) && typeof (v as ManaCost).generic === 'number' && typeof (v as ManaCost).pips === 'object';
+
+/** Lists that hold a set of keywords wherever they appear: authoring order carries no rules meaning. */
+const KEYWORD_LISTS: ReadonlySet<string> = new Set(['keywords', 'grantKeywords']);
+
+/**
+ * Deterministic key for any value: object keys sorted, arrays order-preserved
+ * except keyword lists, which are sets. A zero pip in a mana cost is no pip.
+ */
 function canon(v: unknown): unknown {
   if (Array.isArray(v)) return v.map(canon);
+  if (isManaCost(v)) {
+    const pips: Record<string, number> = {};
+    for (const [col, n] of Object.entries(v.pips).sort()) if (n) pips[col] = n;
+    return { generic: v.generic, pips };
+  }
   if (v && typeof v === 'object') {
     const out: Record<string, unknown> = {};
     for (const k of Object.keys(v as object).sort()) {
       const val = (v as Record<string, unknown>)[k];
       if (val === undefined) continue;
-      out[k] = canon(val);
+      out[k] = KEYWORD_LISTS.has(k) && Array.isArray(val) ? [...(val as string[])].sort() : canon(val);
     }
     return out;
   }
@@ -51,36 +83,140 @@ const costStr = (c?: ManaCost) => {
   return (c.generic || !pips ? `{${c.generic}}` : '') + pips;
 };
 
-/** Sorted ability list — authoring order is not a rules difference. */
-const abilityKeys = (d: CardDef) => (d.abilities ?? []).map((a) => j(a)).sort();
+/**
+ * CardDef fields that name or dress a card but never change how it plays.
+ * `token` marks a non-collectible card, and tokens are never audited.
+ */
+const PRESENTATION: ReadonlySet<string> = new Set(['id', 'name', 'displayTypeLine', 'rarity', 'artRef', 'set', 'token']);
+/**
+ * Compared by `fullKey`, not `bodyKey`, so REDESKIN can group a card with its
+ * re-costs and colour shifts. The engine never reads `colors` (it is deck
+ * identity for the formats and the AI), but it is still part of the card.
+ */
+const PRICE: ReadonlySet<string> = new Set(['cost', 'colors']);
+/** The one subtype the engine reads on the card itself: an Aura attaches as it arrives. */
+const INTRINSIC_SUBTYPES: ReadonlySet<string> = new Set(['Aura']);
 
 /**
- * Everything mechanical about the card EXCEPT its cost and colours. Two cards
- * with the same body key play identically once they are on the stack.
+ * Every subtype some card in `pool` reads on an audited card: a static's
+ * filter, a trigger's filter or a `controlsOther` condition. Any other subtype
+ * is a name only, since nothing in the rules ever looks at it. A static gated
+ * to tokens (`filter.token`) pays off token creatures only, and tokens are
+ * never audited, so its subtype does not count. Trigger filters and
+ * `controlsOther` carry no such gate.
  */
-export function bodyKey(d: CardDef): string {
-  return j({
-    types: [...d.types].sort(),
-    attack: d.attack ?? null,
-    defense: d.defense ?? null,
-    keywords: [...(d.keywords ?? [])].sort(),
-    abilities: abilityKeys(d),
-    chapters: d.chapters ?? null,
-    awakening: d.awakening ?? null,
-    empower: d.empower ?? null,
-    skim: d.skim ?? null,
-    retell: d.retell ?? null,
-    rite: d.rite ?? null,
-    nineLives: d.nineLives ?? null,
-    preserve: d.preserve ?? null,
-    hauntlink: d.hauntlink ?? null,
-    manaAbility: d.manaAbility ? [...d.manaAbility].sort() : null,
-    entersTapped: d.entersTapped ?? false,
-    x: d.x ?? null,
-  });
+export function typalSubtypes(pool: readonly CardDef[]): Set<string> {
+  const out = new Set<string>();
+  for (const d of pool)
+    for (const a of d.abilities ?? []) {
+      if (a.static?.filter?.subtype && !a.static.filter.token) out.add(a.static.filter.subtype);
+      if (a.filter?.subtype) out.add(a.filter.subtype);
+      if (typeof a.condition === 'object' && a.condition.kind === 'controlsOther') out.add(a.condition.subtype);
+    }
+  return out;
 }
 
-const fullKey = (d: CardDef) => j({ body: bodyKey(d), cost: costStr(d.cost), colors: [...d.colors].sort() });
+/** Subtypes that some live card pays off. */
+const POOL_TYPAL = typalSubtypes(ALL_CARDS);
+/** No tribe paid off: only the intrinsic subtypes count. */
+const NO_TYPAL: ReadonlySet<string> = new Set();
+
+/** Replaces every mana cost inside a rider or Duty with one placeholder. */
+function stripCosts(v: unknown): unknown {
+  if (isManaCost(v)) return '{cost}';
+  if (Array.isArray(v)) return v.map(stripCosts);
+  if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, stripCosts(x)]));
+  return v;
+}
+
+/**
+ * The card's rules minus its printed cost and colours, as a plain object.
+ *
+ * Every field that is not presentation or price is kept, including fields this
+ * file has never heard of: an allow-list is how the comparator went blind to
+ * Duty, Tithe and Whispers when 1.8 added them. Lists whose order carries no
+ * rules meaning are compared as sets, and a `false` flag or an empty list
+ * prints the same card as leaving it out.
+ */
+function bodyFields(d: CardDef, typal: ReadonlySet<string>, costs: 'keep' | 'strip'): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [field, raw] of Object.entries(d)) {
+    if (PRESENTATION.has(field) || PRICE.has(field)) continue;
+    if (raw === undefined || raw === false) continue;
+    let value: unknown = costs === 'strip' ? stripCosts(raw) : raw;
+    switch (field) {
+      case 'types':
+      case 'keywords':
+      case 'supertypes':
+      case 'manaAbility':
+        value = [...(value as string[])].sort();
+        break;
+      case 'subtypes':
+        value = (value as string[]).filter((s) => INTRINSIC_SUBTYPES.has(s) || typal.has(s)).sort();
+        break;
+      case 'abilities':
+        value = (value as unknown[]).map(j).sort();
+        break;
+      case 'activated':
+        // One Duty or a list of them: which one to use is the controller's
+        // choice each time, so the list order is authoring order.
+        value = activatedAbilitiesOf(d)
+          .map((a) => j(costs === 'strip' ? { ...(stripCosts(a) as object), cost: '{cost}' } : { ...a, cost: { ...a.cost, mana: dutyMana(a) } }))
+          .sort();
+        break;
+    }
+    if (Array.isArray(value) && value.length === 0 && field !== 'types' && field !== 'chapters') continue;
+    out[field] = value;
+  }
+  return out;
+}
+
+/**
+ * Everything that changes how the card plays EXCEPT its printed cost and
+ * colours. Two cards with the same body key play identically once they are on
+ * the stack. Subtypes count only where the rules read them (an Aura, or a tribe
+ * some card in `typal` pays off); `legendary` counts because the legend rule
+ * does.
+ */
+export function bodyKey(d: CardDef, typal: ReadonlySet<string> = POOL_TYPAL): string {
+  return j(bodyFields(d, typal, 'keep'));
+}
+
+/**
+ * The body with every mana cost removed: printed, rider and Duty. Two cards
+ * that share it differ at most in what they cost to cast, to use a rider, or to
+ * activate a Duty.
+ */
+export function shapeKey(d: CardDef, typal: ReadonlySet<string> = POOL_TYPAL): string {
+  return j(bodyFields(d, typal, 'strip'));
+}
+
+/** Plays identically: same body, same printed cost, same colours. */
+export const fullKey = (d: CardDef, typal: ReadonlySet<string> = POOL_TYPAL) =>
+  j({ body: bodyKey(d, typal), cost: costStr(d.cost), colors: [...d.colors].sort() });
+
+/** The mana each rider and Duty asks for, in rules-text order: "Retell {2}{B}, Duty {1}{T}". */
+export function riderCosts(d: CardDef): string {
+  const parts: string[] = [];
+  if (d.empower) parts.push(`Empower ${costStr(d.empower.cost)}`);
+  if (d.skim) parts.push(`Skim ${costStr(d.skim.cost)}`);
+  if (d.retell) parts.push(`Retell ${costStr(d.retell.cost)}`);
+  if (d.whispers) parts.push(`Whispers ${costStr(d.whispers.cost)}`);
+  if (d.preserve) parts.push(`Preserve ${costStr(d.preserve.cost)}`);
+  if (d.hauntlink) parts.push(`Hauntlink ${costStr(d.hauntlink.cost)}`);
+  for (const a of activatedAbilitiesOf(d)) parts.push(`Duty ${dutyCost(a)}`);
+  return parts.join(', ');
+}
+
+/** A Duty's mana, if it asks for any: `mana: {0}` is the bare tap, the same as no mana. */
+function dutyMana(a: ActivatedDef): ManaCost | undefined {
+  return a.cost.mana && manaValue(a.cost.mana) > 0 ? a.cost.mana : undefined;
+}
+
+const dutyCost = (a: ActivatedDef) => {
+  const mana = dutyMana(a);
+  return `${mana ? costStr(mana) : ''}{T}`;
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Cost comparison
@@ -187,10 +323,12 @@ export function isUpside(op: EffectOp): boolean {
     case 'severSelf':
     case 'massDestroy': // symmetric
     case 'preventCombat': // symmetric
+    case 'hunt': // a trade: the hunter takes the prey's Attack and can die
       return false;
     case 'boost':
       return op.scope === 'target' || op.scope === 'allYours' || op.scope === 'yourMarked';
     case 'ifTargetMarked':
+    case 'ifTargetSurvives':
       return !op.else && (op.then ?? []).every(isUpside);
     case 'gainLife':
     case 'draw':
@@ -222,14 +360,47 @@ export function isUpside(op: EffectOp): boolean {
   }
 }
 
-/** Trigger/target identity of an ability — the "slot" its ops live in. */
-const slotKey = (a: AbilityDef) =>
-  j({ when: a.when, condition: a.condition ?? null, targets: a.targets ?? null, static: a.static ?? null });
+/**
+ * Trigger identity of an ability, the "slot" its ops live in. Targets are
+ * compared separately by `targetsCover`, since a looser cap is an upgrade.
+ */
+const slotKey = (a: AbilityDef) => j({ when: a.when, condition: a.condition ?? null, static: a.static ?? null });
 
 interface Cmp {
   noWorse: boolean;
   better: boolean;
   notes: string[];
+}
+
+/**
+ * True-or-better target lists: the same specs in the same order, except that
+ * A's caps may be looser than B's. The caster chooses targets, so a bigger
+ * `maxCost` (or none) and a smaller `minAttack` (or none) only widen the
+ * choice: "cost 3 or less" is no worse than "cost 2 or less". Returns null when
+ * any other target field differs or A's cap is tighter.
+ */
+export function targetsCover(aTargets?: readonly TargetSpec[], bTargets?: readonly TargetSpec[]): Cmp | null {
+  const aa = aTargets ?? [];
+  const bb = bTargets ?? [];
+  if (aa.length !== bb.length) return null;
+  const notes: string[] = [];
+  let better = false;
+  for (let i = 0; i < aa.length; i++) {
+    const x = aa[i];
+    const y = bb[i];
+    if (j({ ...x, maxCost: undefined, minAttack: undefined }) !== j({ ...y, maxCost: undefined, minAttack: undefined })) return null;
+    if (x.maxCost !== y.maxCost) {
+      if (x.maxCost !== undefined && (y.maxCost === undefined || x.maxCost < y.maxCost)) return null;
+      better = true;
+      notes.push(`targets cost ${x.maxCost ?? 'any'} or less vs ${y.maxCost}`);
+    }
+    if (x.minAttack !== y.minAttack) {
+      if (x.minAttack !== undefined && (y.minAttack === undefined || x.minAttack > y.minAttack)) return null;
+      better = true;
+      notes.push(`targets attack ${x.minAttack ?? 'any'} or more vs ${y.minAttack}`);
+    }
+  }
+  return { noWorse: true, better, notes };
 }
 
 /**
@@ -322,16 +493,21 @@ export function dominates(a: CardDef, b: CardDef): Cmp | null {
   }
   const usedSlot = new Set<AbilityDef>();
   for (const ab of b.abilities ?? []) {
-    const cands = (aBy.get(slotKey(ab)) ?? []).filter((c) => !usedSlot.has(c));
+    // Exact targets first, so a looser-capped ability is not spent on a need a plain twin answers.
+    const cands = (aBy.get(slotKey(ab)) ?? [])
+      .filter((c) => !usedSlot.has(c))
+      .sort((x, y) => Number(j(y.targets ?? null) === j(ab.targets ?? null)) - Number(j(x.targets ?? null) === j(ab.targets ?? null)));
     let matched = false;
     for (const c of cands) {
+      const tgt = targetsCover(c.targets, ab.targets);
+      if (!tgt) continue;
       const cov = opsCover(c.ops ?? [], ab.ops ?? []);
       if (!cov) continue;
       usedSlot.add(c);
       matched = true;
-      if (cov.better) {
+      if (cov.better || tgt.better) {
         better = true;
-        notes.push(...cov.notes);
+        notes.push(...tgt.notes, ...cov.notes);
       }
       break;
     }
@@ -349,20 +525,53 @@ export function dominates(a: CardDef, b: CardDef): Cmp | null {
   const riders: [string, unknown, unknown][] = [
     ['chapters', a.chapters, b.chapters],
     ['awakening', a.awakening, b.awakening],
-    ['empower', a.empower, b.empower],
-    ['skim', a.skim, b.skim],
-    ['retell', a.retell, b.retell],
-    ['preserve', a.preserve, b.preserve],
     ['nineLives', a.nineLives, b.nineLives],
-    ['hauntlink', a.hauntlink, b.hauntlink],
     ['manaAbility', a.manaAbility, b.manaAbility],
     ['x', a.x, b.x],
+    ['tithe', a.tithe, b.tithe],
   ];
   for (const [name, av, bv] of riders) {
     if (j(av ?? null) === j(bv ?? null)) continue;
     if (bv != null) return null; // B has a rider A lacks (or differs) — not dominated
     better = true;
     notes.push(`has ${name}`);
+  }
+  // Priced riders are optional to use, so the same rider for less is upside.
+  const priced: [string, { cost: ManaCost } | undefined, { cost: ManaCost } | undefined][] = [
+    ['Empower', a.empower, b.empower],
+    ['Skim', a.skim, b.skim],
+    ['Retell', a.retell, b.retell],
+    ['Whispers', a.whispers, b.whispers],
+    ['Preserve', a.preserve, b.preserve],
+    ['Hauntlink', a.hauntlink, b.hauntlink],
+  ];
+  for (const [name, av, bv] of priced) {
+    if (!bv) {
+      if (av) {
+        better = true;
+        notes.push(`has ${name}`);
+      }
+      continue;
+    }
+    if (!av || j({ ...av, cost: null }) !== j({ ...bv, cost: null }) || !costNoWorse(av.cost, bv.cost)) return null;
+    if (costStrictlyBetter(av.cost, bv.cost)) {
+      better = true;
+      notes.push(`cheaper ${name} ${costStr(av.cost)} vs ${costStr(bv.cost)}`);
+    }
+  }
+  const duty = dutiesCover(activatedAbilitiesOf(a), activatedAbilitiesOf(b));
+  if (!duty) return null;
+  if (duty.better) {
+    better = true;
+    notes.push(...duty.notes);
+  }
+  // A field this pass does not know how to rank has to match exactly; it may
+  // be a drawback, and this audit refuses to guess.
+  const unranked = [...new Set([...Object.keys(a), ...Object.keys(b)])].filter((f) => !RANKED.has(f) && !PRESENTATION.has(f));
+  if (unranked.length) {
+    const af = bodyFields(a, NO_TYPAL, 'keep');
+    const bf = bodyFields(b, NO_TYPAL, 'keep');
+    if (unranked.some((f) => j(af[f] ?? null) !== j(bf[f] ?? null))) return null;
   }
   // downside riders
   if ((a.rite?.n ?? 0) > (b.rite?.n ?? 0)) return null;
@@ -377,6 +586,67 @@ export function dominates(a: CardDef, b: CardDef): Cmp | null {
   }
 
   if (!better) return null;
+  return { noWorse: true, better, notes };
+}
+
+/**
+ * Fields `dominates` ranks itself. Subtypes and supertypes are left to the
+ * report: a typal payoff or the legend rule is printed on every row, and the
+ * cut list marks TYPAL.
+ */
+const RANKED: ReadonlySet<string> = new Set([
+  'cost', 'colors', 'types', 'subtypes', 'supertypes', 'attack', 'defense', 'keywords', 'abilities',
+  'chapters', 'awakening', 'nineLives', 'manaAbility', 'x', 'tithe',
+  'empower', 'skim', 'retell', 'whispers', 'preserve', 'hauntlink', 'activated', 'rite', 'entersTapped',
+]);
+const ZERO: ManaCost = { generic: 0, pips: {} };
+
+/**
+ * Duty-by-Duty cover, the way abilities are matched slot by slot: every Duty B
+ * has must be answered by a distinct Duty of A's with the same targets, ops no
+ * worse, and activation mana no dearer. Using a Duty is optional, so a spare
+ * one on A is upside whatever it does.
+ */
+export function dutiesCover(aDuties: readonly ActivatedDef[], bDuties: readonly ActivatedDef[]): Cmp | null {
+  const used = new Set<ActivatedDef>();
+  const notes: string[] = [];
+  let better = false;
+  for (const need of bDuties) {
+    let matched = false;
+    // An exact twin first, so a better Duty is not spent on a need a plain copy answers.
+    const exactFirst = [...aDuties].sort((x, y) => Number(j(y) === j(need)) - Number(j(x) === j(need)));
+    for (const c of exactFirst) {
+      if (used.has(c)) continue;
+      const tgt = targetsCover(c.targets, need.targets);
+      if (!tgt) continue;
+      const cm = c.cost.mana ?? ZERO;
+      const nm = need.cost.mana ?? ZERO;
+      if (!costNoWorse(cm, nm)) continue;
+      const cov = opsCover(c.ops, need.ops);
+      if (!cov) continue;
+      if (tgt.better) {
+        better = true;
+        notes.push(...tgt.notes.map((n) => `Duty ${n}`));
+      }
+      used.add(c);
+      matched = true;
+      if (costStrictlyBetter(cm, nm)) {
+        better = true;
+        notes.push(`cheaper Duty ${dutyCost(c)} vs ${dutyCost(need)}`);
+      }
+      if (cov.better) {
+        better = true;
+        notes.push(...cov.notes.map((n) => `Duty ${n}`));
+      }
+      break;
+    }
+    if (!matched) return null;
+  }
+  const spare = aDuties.filter((c) => !used.has(c));
+  if (spare.length) {
+    better = true;
+    notes.push(`extra Duty: ${spare.map((c) => `${dutyCost(c)} ${c.ops.map(describeOp).join('; ')}`).join(' | ')}`);
+  }
   return { noWorse: true, better, notes };
 }
 
@@ -400,37 +670,54 @@ const label = (d: CardDef) => {
 };
 
 /** Subtypes that some card in the pool actually pays off. */
-const TYPAL = new Set<string>();
-for (const d of ALL_CARDS)
-  for (const a of d.abilities ?? []) if (a.static?.filter?.subtype) TYPAL.add(a.static.filter.subtype);
+const TYPAL = POOL_TYPAL;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1 + 2. Identical / redeskin clusters
 // ─────────────────────────────────────────────────────────────────────────────
 
-function clusters() {
-  const byBody = new Map<string, CardDef[]>();
-  for (const d of nonLand) {
-    const k = bodyKey(d);
-    (byBody.get(k) ?? byBody.set(k, []).get(k)!).push(d);
+/**
+ * Groups `pool` by shape (every cost stripped), then by full key. IDENTICAL is
+ * a full-key group; REDESKIN is a shape group holding more than one full key,
+ * that is, the same card at more than one price or colour. SAME TEXT is a group
+ * that only a paid-off tribe or the legend rule splits into several shapes.
+ *
+ * Auditing a set that is not in the catalog yet: pass
+ * `typalSubtypes([...ALL_CARDS, ...candidates])` as `typal` (and to `bodyKey`,
+ * `shapeKey` and `fullKey`), or the candidates' own lords are not counted.
+ */
+export function clusters(pool: readonly CardDef[], typal: ReadonlySet<string> = POOL_TYPAL) {
+  const byShape = new Map<string, CardDef[]>();
+  for (const d of pool) {
+    const k = shapeKey(d, typal);
+    (byShape.get(k) ?? byShape.set(k, []).get(k)!).push(d);
   }
   const identical: CardDef[][] = [];
   const redeskin: CardDef[][] = [];
-  for (const group of byBody.values()) {
+  for (const group of byShape.values()) {
     if (group.length < 2) continue;
     const byFull = new Map<string, CardDef[]>();
     for (const d of group) {
-      const k = fullKey(d);
+      const k = fullKey(d, typal);
       (byFull.get(k) ?? byFull.set(k, []).get(k)!).push(d);
     }
     for (const g of byFull.values()) if (g.length > 1) identical.push(g);
     if (byFull.size > 1) redeskin.push(group);
   }
-  return { identical, redeskin };
+  // The same rules text where a paid-off tribe or the legend rule tells the
+  // printings apart, at any price. Not duplicates (one printing per tribe is
+  // fine), but the review that rules on which sameness is acceptable needs them.
+  const byText = new Map<string, CardDef[]>();
+  for (const d of pool) {
+    const k = shapeKey({ ...d, supertypes: undefined }, NO_TYPAL);
+    (byText.get(k) ?? byText.set(k, []).get(k)!).push(d);
+  }
+  const sameText = [...byText.values()].filter((g) => new Set(g.map((d) => shapeKey(d, typal))).size > 1);
+  return { identical, redeskin, sameText };
 }
 
 function printClusters() {
-  const { identical, redeskin } = clusters();
+  const { identical, redeskin, sameText } = clusters(nonLand);
   console.log(`\n══ IDENTICAL — same body, same cost, same colours (${identical.length} clusters) ══`);
   identical
     .sort((a, b) => b.length - a.length || a[0].name.localeCompare(b[0].name))
@@ -440,16 +727,301 @@ function printClusters() {
       for (const d of g) console.log(`      · ${label(d)}`);
     });
 
-  console.log(`\n\n══ REDESKIN — same body, DIFFERENT cost or colour (${redeskin.length} clusters) ══`);
+  console.log(`\n\n══ SAME TEXT — the same rules text told apart by a paid-off tribe or the legend rule, at any cost (${sameText.length} clusters) ══`);
+  console.log('  A paid-off tribe or the per-name legend rule splits each group; printings that also');
+  console.log('  match on both are the ones IDENTICAL and REDESKIN list.');
+  sameText
+    .sort((a, b) => b.length - a.length || a[0].name.localeCompare(b[0].name))
+    .forEach((g) => {
+      console.log(`\n  ${g.length}x  ${g[0].types.join('/')}  —  ${textOf(g[0])}`);
+      for (const d of g.sort((x, y) => manaValue(x.cost ?? ZERO) - manaValue(y.cost ?? ZERO))) {
+        const paid = d.subtypes.filter((s) => TYPAL.has(s));
+        const riders = riderCosts(d);
+        console.log(`      · ${label(d)} [${d.colors.join('') || 'C'}]${riders ? `  ${riders}` : ''}${paid.length ? `  tribe: ${paid.join(' ')}` : ''}`);
+      }
+    });
+
+  console.log(`\n\n══ REDESKIN — same body, DIFFERENT cost (printed, rider or Duty) or colour (${redeskin.length} clusters) ══`);
   redeskin
     .sort((a, b) => a[0].name.localeCompare(b[0].name))
     .forEach((g) => {
-      const variants = new Set(g.map((d) => `${costStr(d.cost)}|${[...d.colors].sort().join('')}`));
-      if (variants.size < 2) return;
       console.log(`\n  ${g[0].types.join('/')}  —  ${textOf(g[0])}`);
-      for (const d of g.sort((x, y) => manaValue(x.cost ?? { generic: 0, pips: {} }) - manaValue(y.cost ?? { generic: 0, pips: {} })))
-        console.log(`      · ${label(d)} [${d.colors.join('') || 'C'}]`);
+      for (const d of g.sort((x, y) => manaValue(x.cost ?? { generic: 0, pips: {} }) - manaValue(y.cost ?? { generic: 0, pips: {} }))) {
+        const riders = riderCosts(d);
+        console.log(`      · ${label(d)} [${d.colors.join('') || 'C'}]${riders ? `  ${riders}` : ''}`);
+      }
     });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 1b. Stat ladders: the same rules text at different stats, rider prices or effect sizes
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * What varies across a ladder group: the stat line, the printed cost, the
+ * colours, a rider's or Duty's price, or a number inside an effect (Foresee 1
+ * against Foresee 3, a +1/+3 boost against +3/+3, cost 2 or less against 3).
+ */
+export type LadderAxis = 'stats' | 'cost' | 'colours' | 'rider' | 'effect';
+
+/** A card's tribe and legendary identity: its paid-off subtypes and whether it is legendary (any two legendaries share it). */
+export function identityOf(d: CardDef, typal: ReadonlySet<string> = POOL_TYPAL): string {
+  const tribes = d.subtypes.filter((s) => typal.has(s)).sort();
+  return `${tribes.join(' ') || '-'}${d.supertypes?.includes('legendary') ? ' LEGENDARY' : ''}`;
+}
+
+/** Two cards of one ladder group, and what tells them apart. */
+export interface LadderPair {
+  a: CardDef;
+  b: CardDef;
+  /** What differs between the two: always stats, a rider's price or an effect's size, perhaps more. */
+  differs: LadderAxis[];
+  /** Printed in the same set. */
+  sameSet: boolean;
+  /** The same printed cost and the same colours. */
+  sameCost: boolean;
+  /** The same colours. */
+  sameColours: boolean;
+  /** The same paid-off tribes and the same legendary status: only numbers tell them apart. */
+  sameIdentity: boolean;
+  /**
+   * The id of the card that dominates the other, or null when the two trade
+   * off. A winner's colours must fit inside the loser's (colourless beats blue,
+   * blue never beats colourless): every deck that can play the loser can then
+   * play the winner, and another colour identity is otherwise another card.
+   */
+  winner: string | null;
+  /** Why the winner wins. */
+  notes: string[];
+}
+
+export interface LadderGroup {
+  /** Cheapest first, then smallest stat line. */
+  cards: CardDef[];
+  /** The axes that vary across the whole group. */
+  differs: LadderAxis[];
+  /** The shared text is keywords only (a vanilla or keyword-only body), so a stat line is all a card has. */
+  keywordOnly: boolean;
+  /** Sets holding two or more of the group's cards, each with its own axes. */
+  sameSet: { set: string; cards: CardDef[]; differs: LadderAxis[] }[];
+  /**
+   * Every pair of the group whose stats, rider prices or effect sizes differ and
+   * that shares a set, shares a cost, or where one card dominates the other.
+   */
+  pairs: LadderPair[];
+}
+
+/** Numeric fields that size an effect or a target cap: Foresee 1 against Foresee 3, cost 2 or less against 3. */
+const EFFECT_NUMBERS: ReadonlySet<string> = new Set(['n', 'count', 'p', 't', 'maxCost', 'minAttack']);
+
+/**
+ * Ops whose order in one list never changes what they do: milling, discarding,
+ * life loss and gain. A run of them is compared as a set; any other op (Foresee,
+ * draw, a targeted effect) keeps its place and breaks the run, so "Foresee 1,
+ * then draw a card" never matches "draw a card, then Foresee 1".
+ */
+const COMMUTING_OPS: ReadonlySet<string> = new Set(['grind', 'discard', 'discardRandom', 'loseLife', 'gainLife', 'severGrave']);
+
+/**
+ * Replaces every number in `v` with its sign, so -2/-2 (removal) and +2/+2 (a
+ * pump) never share a key while +1/+3 and +3/+3 do. Only called on effect
+ * subtrees, never on a condition or a Rite count.
+ */
+function signOnly(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(signOnly);
+  if (v && typeof v === 'object' && !isManaCost(v))
+    return Object.fromEntries(
+      Object.entries(v).map(([k, x]) => [k, EFFECT_NUMBERS.has(k) && typeof x === 'number' ? (x < 0 ? '#-' : '#+') : signOnly(x)]),
+    );
+  return v;
+}
+
+/** One op list with its commuting runs sorted, and its numbers reduced to signs when `strip`. */
+function normaliseOps(ops: readonly EffectOp[] | undefined, strip: boolean): unknown {
+  if (!ops) return ops;
+  const out: unknown[] = [];
+  let run: EffectOp[] = [];
+  const flush = () => {
+    out.push(...[...run].sort((x, y) => j(x).localeCompare(j(y))));
+    run = [];
+  };
+  for (const op of ops) {
+    if (COMMUTING_OPS.has(op.op)) run.push(op);
+    else {
+      flush();
+      out.push(op);
+    }
+  }
+  flush();
+  return strip ? signOnly(out) : out;
+}
+
+/**
+ * The card with its op lists normalised (`normaliseOps`), and, when `strip`,
+ * the numbers in every effect subtree reduced to signs: ability ops, statics
+ * and target caps, Duty ops and targets, Empower and Retell ops, chapters,
+ * Hauntlink's linked effect and Awakening. Conditions and Rite keep their
+ * numbers, since those gate a card rather than size its effect.
+ */
+function effectForm(d: CardDef, strip: boolean): CardDef {
+  const s = <T>(v: T): T => (strip ? (signOnly(v) as T) : v);
+  const ops = (v: readonly EffectOp[] | undefined) => normaliseOps(v, strip) as EffectOp[] | undefined;
+  const acts = activatedAbilitiesOf(d).map((a) => ({ ...a, targets: s(a.targets), ops: ops(a.ops)! }));
+  return {
+    ...d,
+    attack: undefined,
+    defense: undefined,
+    supertypes: undefined,
+    abilities: d.abilities?.map((a) => ({ ...a, ops: ops(a.ops), static: s(a.static), targets: s(a.targets) })),
+    activated: d.activated === undefined ? undefined : acts,
+    empower: d.empower && { ...d.empower, targets: s(d.empower.targets), ops: ops(d.empower.ops)! },
+    retell: d.retell && { ...d.retell, targets: s(d.retell.targets), ops: ops(d.retell.ops) },
+    chapters: d.chapters?.map((c) => ops(c)!),
+    hauntlink: d.hauntlink && s(d.hauntlink),
+    awakening: s(d.awakening),
+  } as CardDef;
+}
+
+/** The rules text without its stat line, mana costs, tribes or legendary status; effect numbers kept. */
+const effectKey = (d: CardDef) => shapeKey(effectForm(d, false), NO_TYPAL);
+
+/**
+ * The rules text with the stat line, every mana cost, the size of every effect
+ * (its sign kept), every tribe and legendary status stripped, and commuting op
+ * runs compared as sets. Two cards that share it differ at most in stats,
+ * printed cost, colours, a rider's or Duty's price, the size of an effect,
+ * tribe or legendary status. It reads the card's data, so two texts that say
+ * the same thing through different ops still key apart.
+ */
+export function ladderKey(d: CardDef): string {
+  return shapeKey(effectForm(d, true), NO_TYPAL);
+}
+
+const statLine = (d: CardDef) => (d.types.includes('creature') ? `${d.attack ?? 0}/${d.defense ?? 0}` : '');
+const colourKey = (d: CardDef) => [...d.colors].sort().join('');
+
+/** Which of stats, printed cost, colours, rider or Duty prices and effect sizes vary across `cards`. */
+export function ladderAxes(cards: readonly CardDef[]): LadderAxis[] {
+  const varies = (f: (d: CardDef) => string) => new Set(cards.map(f)).size > 1;
+  const out: LadderAxis[] = [];
+  if (varies(statLine)) out.push('stats');
+  if (varies((d) => costStr(d.cost))) out.push('cost');
+  if (varies(colourKey)) out.push('colours');
+  if (varies(riderCosts)) out.push('rider');
+  if (varies(effectKey)) out.push('effect');
+  return out;
+}
+
+/** The axes that make a ladder; printed cost and colours alone are REDESKIN's. */
+const LADDER_AXES: readonly LadderAxis[] = ['stats', 'rider', 'effect'];
+
+/** Fields a keyword-only body carries: no ability, rider or Duty of its own. */
+const BODY_ONLY: ReadonlySet<string> = new Set(['types', 'subtypes', 'keywords', 'attack', 'defense']);
+
+/**
+ * Groups `pool` by `ladderKey` and keeps the groups whose stat lines, rider
+ * prices or effect sizes differ: the same card at 2/2, 3/3 and 4/4 up the
+ * curve, the same cost at two stat lines, the same card with a dearer Skim or
+ * Retell, or Foresee 1 where its twin has Foresee 3. A group
+ * that differs only in printed cost or colours is a REDESKIN or SAME TEXT
+ * cluster and is left to those passes. Tribes and legendary status do not split
+ * a group; each pair says whether they tell its two cards apart, since the
+ * review rules on whether that is enough. A winner's colours must fit inside
+ * the loser's.
+ */
+export function statLadders(pool: readonly CardDef[], typal: ReadonlySet<string> = POOL_TYPAL): LadderGroup[] {
+  const byKey = new Map<string, CardDef[]>();
+  for (const d of pool) {
+    const k = ladderKey(d);
+    (byKey.get(k) ?? byKey.set(k, []).get(k)!).push(d);
+  }
+  const mv = (d: CardDef) => manaValue(d.cost ?? ZERO);
+  const size = (d: CardDef) => (d.attack ?? 0) + (d.defense ?? 0);
+  const out: LadderGroup[] = [];
+  for (const group of byKey.values()) {
+    if (group.length < 2) continue;
+    const differs = ladderAxes(group);
+    if (!LADDER_AXES.some((x) => differs.includes(x))) continue;
+    const cards = [...group].sort((x, y) => mv(x) - mv(y) || size(x) - size(y) || x.name.localeCompare(y.name));
+    const bySet = new Map<string, CardDef[]>();
+    for (const d of cards) {
+      const s = d.set ?? 'base';
+      (bySet.get(s) ?? bySet.set(s, []).get(s)!).push(d);
+    }
+    const sameSet = [...bySet.entries()]
+      .filter(([, g]) => g.length > 1)
+      .map(([set, g]) => ({ set, cards: g, differs: ladderAxes(g) }));
+    const pairs: LadderPair[] = [];
+    for (let i = 0; i < cards.length; i++)
+      for (let k = i + 1; k < cards.length; k++) {
+        const [a, b] = [cards[i], cards[k]];
+        // Two rungs alike in every number are a SAME TEXT or REDESKIN pair, not a ladder.
+        const differs = ladderAxes([a, b]);
+        if (!LADDER_AXES.some((x) => differs.includes(x))) continue;
+        const sameColours = colourKey(a) === colourKey(b);
+        const fits = (w: CardDef, l: CardDef) => w.colors.every((c) => l.colors.includes(c));
+        const ab = fits(a, b) ? dominates(a, b) : null;
+        const ba = !ab && fits(b, a) ? dominates(b, a) : null;
+        const pair: LadderPair = {
+          a,
+          b,
+          differs,
+          sameSet: (a.set ?? 'base') === (b.set ?? 'base'),
+          sameCost: costStr(a.cost) === costStr(b.cost) && sameColours,
+          sameColours,
+          sameIdentity: identityOf(a, typal) === identityOf(b, typal),
+          winner: ab ? a.id : ba ? b.id : null,
+          notes: (ab ?? ba)?.notes ?? [],
+        };
+        if (pair.sameSet || pair.sameCost || pair.winner) pairs.push(pair);
+      }
+    // Every member shares the ladder key, so the first card speaks for the group.
+    const keywordOnly = Object.keys(bodyFields({ ...cards[0], supertypes: undefined }, NO_TYPAL, 'strip')).every((f) => BODY_ONLY.has(f));
+    out.push({ cards, differs, keywordOnly, sameSet, pairs });
+  }
+  return out;
+}
+
+function printLadders() {
+  const groups = statLadders(nonLand);
+  const tight = groups.flatMap((g) => g.pairs.filter((p) => p.sameSet && p.sameCost));
+  const perSet = new Map<string, number>();
+  for (const p of tight) perSet.set(p.a.set ?? 'base', (perSet.get(p.a.set ?? 'base') ?? 0) + 1);
+  const withSet = groups.filter((g) => g.sameSet.length);
+  console.log(`\n\n══ STAT LADDER — the same rules text at different stats, rider prices or effect sizes (${groups.length} groups, ${withSet.length} with a same-set pair) ══`);
+  console.log('  Tribes and legendary status do not split a group; every row prints its paid-off tribe and');
+  console.log('  legendary status (id), and every pair says whether they tell the two cards apart.');
+  console.log("  A winner's colours fit inside the loser's: another colour identity is otherwise another card.");
+  const bySet = [...perSet.entries()].sort().map(([s, n]) => `${s}=${n}`);
+  console.log(`  Same-set pairs at the same printed cost and colours: ${tight.length} (${bySet.join(' ') || 'none'})`);
+  const row = (d: CardDef) => {
+    const riders = riderCosts(d);
+    const stats = statLine(d);
+    return `      · ${label(d)} [${d.colors.join('') || 'C'}]${stats ? `  ${stats}` : ''}${riders ? `  ${riders}` : ''}  id: ${identityOf(d)}`;
+  };
+  const nameOf = (p: LadderPair) => (p.winner === p.a.id ? p.a.name : p.b.name);
+  const verdict = (p: LadderPair) => {
+    const dom = p.winner ? `DOMINATED, ${nameOf(p)} wins (${p.notes.join(' · ')})` : 'trade-off';
+    const colours = p.sameColours ? '' : '; colours differ';
+    return `${dom}; ${p.sameIdentity ? 'same tribe and legendary status' : 'told apart by tribe or legendary status'}${colours}`;
+  };
+  const show = (g: LadderGroup) => {
+    const text = textOf(g.cards[0]).replace(/^\d+\/\d+( \| )?/, '');
+    console.log(`\n  ${g.cards[0].types.join('/')}  differs: ${g.differs.join(', ')}${g.keywordOnly ? '  KEYWORD-ONLY' : ''}  —  ${text || 'no text'}`);
+    for (const d of g.cards) console.log(row(d));
+    for (const p of g.pairs.filter((x) => x.sameSet && x.sameCost))
+      console.log(`      SAME SET, SAME COST  ${p.a.name} / ${p.b.name}: ${verdict(p)}`);
+    for (const p of g.pairs.filter((x) => x.winner && !(x.sameSet && x.sameCost)))
+      console.log(`      ${p.sameSet ? 'same set' : 'across sets'}  ${p.a.name} / ${p.b.name}: ${verdict(p)}`);
+    if (!g.pairs.some((p) => p.winner)) console.log('      no rung dominates another');
+  };
+  console.log('\n  ── Holding a same-set pair ──');
+  withSet.sort((a, b) => a.sameSet[0].set.localeCompare(b.sameSet[0].set) || a.cards[0].name.localeCompare(b.cards[0].name)).forEach(show);
+  console.log('\n  ── Across sets only ──');
+  groups
+    .filter((g) => !g.sameSet.length)
+    .sort((a, b) => a.cards[0].name.localeCompare(b.cards[0].name))
+    .forEach(show);
 }
 
 function textOf(d: CardDef): string {
@@ -460,9 +1032,13 @@ function textOf(d: CardDef): string {
     if (a.static) parts.push(`static ${j(a.static)}`);
     else parts.push(`${a.when}: ${(a.ops ?? []).map(describeOp).join('; ')}`);
   }
+  for (const a of activatedAbilitiesOf(d))
+    parts.push(`Duty ${dutyCost(a)}${a.targets ? ` ${j(a.targets)}` : ''}: ${a.ops.map(describeOp).join('; ')}`);
   if (d.empower) parts.push(`Empower ${costStr(d.empower.cost)}: ${(d.empower.ops ?? []).map(describeOp).join('; ')}`);
   if (d.skim) parts.push(`Skim ${costStr(d.skim.cost)}`);
   if (d.retell) parts.push(`Retell ${costStr(d.retell.cost)}`);
+  if (d.whispers) parts.push(`Whispers ${costStr(d.whispers.cost)}`);
+  if (d.tithe) parts.push('Tithe');
   if (d.preserve) parts.push(`Preserve ${costStr(d.preserve.cost)}`);
   if (d.hauntlink) parts.push(`Hauntlink ${costStr(d.hauntlink.cost)} ${j(d.hauntlink.linked)}`);
   if (d.nineLives) parts.push('Nine Lives');
@@ -553,9 +1129,16 @@ function printOdd() {
     for (const a of d.abilities ?? [])
       if (!a.static && !(a.ops ?? []).length) say('EMPTY-ABILITY', d, `${a.when} does nothing`);
 
-    // zero-value numeric ops
-    for (const a of [...(d.abilities ?? []), ...(d.empower ? [{ when: 'empower', ops: d.empower.ops } as never] : [])])
-      for (const o of ((a as AbilityDef).ops ?? []) as EffectOp[]) {
+    // zero-value numeric ops, wherever ops live: abilities, Duties, riders, chapters
+    const opLists: EffectOp[][] = [
+      ...(d.abilities ?? []).map((a) => a.ops ?? []),
+      ...activatedAbilitiesOf(d).map((a) => a.ops),
+      d.empower?.ops ?? [],
+      d.retell?.ops ?? [],
+      ...(d.chapters ?? []),
+    ];
+    for (const ops of opLists)
+      for (const o of ops) {
         const r = o as Record<string, unknown>;
         for (const k of ['n', 'count'])
           if (typeof r[k] === 'number' && r[k] === 0) say('ZERO-OP', d, `${describeOp(o)}`);
@@ -574,49 +1157,50 @@ function printOdd() {
       !d.chapters &&
       !d.empower &&
       !d.manaAbility &&
-      !d.hauntlink
+      !d.hauntlink &&
+      !activatedAbilitiesOf(d).length
     )
-      say('BLANK', d, 'no abilities, no chapters, no Empower');
+      say('BLANK', d, 'no abilities, no chapters, no Empower, no Duty');
   }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-
-if (!AS_LIBRARY) console.log(`Cards audited: ${cards.length} collectible (${nonLand.length} non-land)`);
-if (!AS_LIBRARY && (MODE === 'all' || MODE === 'identical' || MODE === 'redeskin')) printClusters();
-if (!AS_LIBRARY && (MODE === 'all' || MODE === 'dominated')) printDominated();
-if (!AS_LIBRARY && (MODE === 'all' || MODE === 'odd')) printOdd();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 5. Focused passes — the three findings that need no judgement call.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Same body, same colours, different cost: the pricier printing is dead. */
+/**
+ * Same body and colours, and a strictly better printed cost elsewhere in the
+ * group: the dearer printing is dead. Every printing is checked against every
+ * other, not only against the lowest mana value, because {3}{R} beats
+ * {2}{R}{R} at the same mana value. `best` is the cheapest printing that beats
+ * it. The body key already holds every paid-off tribe and the legendary
+ * supertype, so a twin shares both; two legendary twins are `soft`, since the
+ * legend rule is per name and a deck can field one of each at once.
+ */
+export function worseTwins(pool: readonly CardDef[], typal: ReadonlySet<string> = POOL_TYPAL): { best: CardDef; dead: CardDef; soft: boolean }[] {
+  const by = new Map<string, CardDef[]>();
+  for (const d of pool) {
+    const k = `${bodyKey(d, typal)}|${[...d.colors].sort().join('')}`;
+    (by.get(k) ?? by.set(k, []).get(k)!).push(d);
+  }
+  const rows: { best: CardDef; dead: CardDef; soft: boolean }[] = [];
+  for (const g of by.values()) {
+    if (g.length < 2) continue;
+    const sorted = [...g].sort((a, b) => manaValue(a.cost ?? ZERO) - manaValue(b.cost ?? ZERO));
+    for (const dead of sorted) {
+      const best = sorted.find((b) => b !== dead && costStrictlyBetter(b.cost, dead.cost));
+      if (best) rows.push({ best, dead, soft: best.supertypes?.includes('legendary') ?? false });
+    }
+  }
+  return rows;
+}
+
 function printWorseTwins() {
   console.log('\n\n══ STRICTLY-WORSE TWIN — same body + same colours, higher cost ══');
   console.log('  Nothing distinguishes these but the price. The dearer card is unplayable.\n');
-  const by = new Map<string, CardDef[]>();
-  for (const d of nonLand) {
-    const k = `${bodyKey(d)}|${[...d.colors].sort().join('')}`;
-    (by.get(k) ?? by.set(k, []).get(k)!).push(d);
-  }
-  const hardRows: { best: CardDef; dead: CardDef }[] = [];
-  const softRows: { best: CardDef; dead: CardDef }[] = [];
-  for (const g of [...by.values()]) {
-    if (g.length < 2) continue;
-    const sorted = [...g].sort((a, b) => manaValue(a.cost ?? { generic: 0, pips: {} }) - manaValue(b.cost ?? { generic: 0, pips: {} }));
-    const best = sorted[0];
-    const worse = sorted.filter((d) => d !== best && costStrictlyBetter(best.cost, d.cost));
-    if (!worse.length) continue;
-    for (const d of worse) {
-      // A dearer twin is only truly dead when nothing sets it apart: no typal
-      // home the cheap one lacks, and no legend-rule drawback on the cheap one.
-      const rescuedByTypal = d.subtypes.some((t) => TYPAL.has(t) && !best.subtypes.includes(t));
-      const bestIsLegendary = best.supertypes?.includes('legendary') ?? false;
-      const hard = !rescuedByTypal && !bestIsLegendary;
-      (hard ? hardRows : softRows).push({ best, dead: d });
-    }
-  }
+  const twins = worseTwins(nonLand);
+  const hardRows = twins.filter((r) => !r.soft);
+  const softRows = twins.filter((r) => r.soft);
   const show = (title: string, why: string, rows: { best: CardDef; dead: CardDef }[]) => {
     console.log(`
   ── ${title} (${rows.length}) ──`);
@@ -633,40 +1217,42 @@ function printWorseTwins() {
       console.log(`      dead  ${label(r.dead)}`);
     }
   };
-  show('HARD — nothing differentiates them', 'No typal home of its own, and the cheaper card is not legendary.', hardRows);
-  show('SOFT — a tribe or the legend rule may rescue it', 'The dearer card has a typal identity the cheaper one lacks, or the cheaper one is legendary.', softRows);
+  show('HARD — nothing differentiates them', 'Same paid-off tribes, and neither card is legendary.', hardRows);
+  show('SOFT — the legend rule may rescue it', 'Both cards are legendary, so a deck can field one of each at once.', softRows);
   console.log(`
   ${hardRows.length + softRows.length} dearer printing(s): ${hardRows.length} hard, ${softRows.length} soft.`);
 }
 
-/** Same effect and cost, but one is a Charm (instant) and one a Ritual (sorcery). */
+/**
+ * A Charm that does everything a Ritual does, for no more mana, leaves the
+ * Ritual dead: the Charm can also be held up. Compares the FULL card, riders
+ * and Duties included, not just the spell's ops, so a Ritual carrying Skim or
+ * Retell is not beaten by a bare Charm, and a Charm with an extra Whispers
+ * still beats a bare Ritual. Returns why, or null.
+ */
+export function charmOutclasses(charm: CardDef, ritual: CardDef, typal: ReadonlySet<string> = POOL_TYPAL): string | null {
+  if (!charm.types.includes('charm') || !ritual.types.includes('ritual')) return null;
+  const asRitual: CardDef = { ...charm, types: charm.types.map((t) => (t === 'charm' ? 'ritual' : t)) };
+  if (fullKey(asRitual, typal) === fullKey(ritual, typal)) return 'identical';
+  const cmp = dominates(asRitual, ritual);
+  return cmp ? cmp.notes.join(' · ') : null;
+}
+
 function printSpeedInversions() {
-  console.log('\n══ SPEED — same effect and cost, Charm (instant) vs Ritual (sorcery) ══');
-  console.log('  The Charm does everything the Ritual does and can be held up. The Ritual is dead.\n');
-  // Must compare the FULL body, not just ops: a Ritual carrying Skim, Retell or
-  // Empower is a different card from a bare Charm with the same spell text.
-  const key = (d: CardDef) => {
-    const b = JSON.parse(bodyKey(d)) as Record<string, unknown>;
-    delete b.types;
-    return j({ body: b, cost: costStr(d.cost), colors: [...d.colors].sort() });
-  };
-  const by = new Map<string, CardDef[]>();
-  for (const d of nonLand) {
-    if (!d.types.includes('charm') && !d.types.includes('ritual')) continue;
-    (by.get(key(d)) ?? by.set(key(d), []).get(key(d))!).push(d);
-  }
+  console.log('\n══ SPEED — a Charm (instant) does everything a Ritual (sorcery) does, for no more ══');
+  console.log('  The Charm can also be held up. The Ritual is dead.\n');
+  const charms = nonLand.filter((d) => d.types.includes('charm'));
   let n = 0;
-  for (const g of by.values()) {
-    const charms = g.filter((d) => d.types.includes('charm'));
-    const rituals = g.filter((d) => d.types.includes('ritual'));
-    if (!charms.length || !rituals.length) continue;
-    n += rituals.length;
-    console.log(`  ${textOf(charms[0])}   ${costStr(charms[0].cost)}`);
-    for (const d of charms) console.log(`      Charm   ${label(d)}`);
-    for (const d of rituals) console.log(`      Ritual  ${label(d)}  <- dead`);
-    console.log('');
+  for (const r of nonLand) {
+    if (!r.types.includes('ritual')) continue;
+    const beaters = charms.map((c) => ({ c, why: charmOutclasses(c, r) })).filter((x) => x.why !== null);
+    if (!beaters.length) continue;
+    n++;
+    console.log(`  ${textOf(r)}   ${costStr(r.cost)}`);
+    for (const { c, why } of beaters) console.log(`      Charm   ${label(c)}  ${why}`);
+    console.log(`      Ritual  ${label(r)}  <- dead\n`);
   }
-  console.log(`  ${n} Ritual(s) outclassed by an identical Charm.`);
+  console.log(`  ${n} Ritual(s) outclassed by a Charm.`);
 }
 
 /** Functionally identical cards printed at different rarities. */
@@ -691,12 +1277,6 @@ function printRaritySplits() {
   console.log(`  ${n} cluster(s) split across rarities.`);
 }
 
-if (!AS_LIBRARY && (MODE === 'all' || MODE === 'focus')) {
-  printWorseTwins();
-  printSpeedInversions();
-  printRaritySplits();
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // 6. The cut list — every card beaten by something else, worst first.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -710,18 +1290,11 @@ function printCutList() {
   for (const a of nonLand)
     for (const b of nonLand) if (dominates(a, b)) (beaters.get(b.id) ?? beaters.set(b.id, []).get(b.id)!).push(a);
 
-  // Same-cost Charm beats same-cost Ritual: strictly better speed, same price.
-  const spellKey = (d: CardDef) => {
-    const b = JSON.parse(bodyKey(d)) as Record<string, unknown>;
-    delete b.types;
-    return j({ body: b, cost: costStr(d.cost), colors: [...d.colors].sort() });
-  };
-  const charms = new Map<string, CardDef>();
-  for (const d of nonLand) if (d.types.includes('charm')) charms.set(spellKey(d), d);
+  // A Charm that does everything a Ritual does, for no more, beats it on speed.
+  const charms = nonLand.filter((d) => d.types.includes('charm'));
   for (const d of nonLand) {
     if (!d.types.includes('ritual')) continue;
-    const c = charms.get(spellKey(d));
-    if (c) (beaters.get(d.id) ?? beaters.set(d.id, []).get(d.id)!).push(c);
+    for (const c of charms) if (charmOutclasses(c, d)) (beaters.get(d.id) ?? beaters.set(d.id, []).get(d.id)!).push(c);
   }
 
   const rows = [...beaters.entries()]
@@ -744,4 +1317,22 @@ function printCutList() {
     );
   }
 }
-if (!AS_LIBRARY && (MODE === 'all' || MODE === 'cut')) printCutList();
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+function main() {
+  console.log(`Cards audited: ${cards.length} collectible (${nonLand.length} non-land)`);
+  if (MODE === 'all' || MODE === 'identical' || MODE === 'redeskin') printClusters();
+  if (MODE === 'all' || MODE === 'ladder') printLadders();
+  if (MODE === 'all' || MODE === 'dominated') printDominated();
+  if (MODE === 'all' || MODE === 'odd') printOdd();
+  if (MODE === 'all' || MODE === 'focus') {
+    printWorseTwins();
+    printSpeedInversions();
+    printRaritySplits();
+  }
+  if (MODE === 'all' || MODE === 'cut') printCutList();
+}
+
+const invokedPath = process.argv[1] ? resolve(process.argv[1]).toLowerCase() : '';
+if (!AS_LIBRARY && invokedPath === resolve(fileURLToPath(import.meta.url)).toLowerCase()) main();

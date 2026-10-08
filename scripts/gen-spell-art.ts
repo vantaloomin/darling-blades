@@ -1,13 +1,13 @@
 /**
- * Generates real card art for the 369 non-creature SPELL/ARTIFACT/LAND prompt
+ * Generates real card art for the 417 non-creature SPELL/ARTIFACT/LAND prompt
  * entries: the 85 primary entries (18 instants, 16 sorceries, 10 enchantments,
  * 1 artifact, + 9 Ragnarök spells/runes, + 31 Gothic Monsters
  * charms/rituals/enchantments/artifacts), plus eight removal-answer records,
  * seven 1.6 returning-mechanics sprinkle spells, five Duat lands, two Wave B
  * support spells, seven Wave C spells, 26 Wave D1 non-creatures, and 24 Wave D2
  * non-creatures, 20 Wave D3 non-creatures, 20 Dark Tales companion spells,
- * 62 Starborne non-creatures, 97 Drowned Deep non-creatures, and six regeneration
- * entries. Prompts
+ * 62 Starborne non-creatures, 97 Drowned Deep non-creatures, six regeneration
+ * entries, and 48 First Dawn non-creatures. Prompts
  * live in docs/spell-art.md; the
  * chatgpt-imagegen CLI is backed by the user's ChatGPT
  * subscription — see the `anthropic-skills:chatgpt-imagegen` skill), then
@@ -19,10 +19,10 @@
  *
  * This mirrors scripts/gen-card-art.ts's hardened machinery exactly (temp-file
  * writes, raw-original reuse, Pillow preflight, 3-consecutive-failure abort,
- * win32 CLI fail-fast) with ONE deliberate difference: spells are effect/moment
- * SCENES, not character portraits, so the SPELL preamble below demands a
- * dramatic magical effect centered in the ART_RECT band — it does NOT carry
- * gen-card-art's "waist-up, face at center" character-composition clause.
+ * win32 CLI fail-fast) with one deliberate composition difference: spells are
+ * effect/moment SCENES, not character portraits. PREAMBLE therefore centers the
+ * effect in the ART_RECT band; FIGURE_PREAMBLE pulls First Dawn's woman entries
+ * back to head-to-knees while keeping the effect itself the hero.
  *
  * Each generation prompt is assembled as [SPELL/EFFECT PREAMBLE] + [entry Prompt
  * line] + [NEGATIVES]. Inspect the exact text with --show-prompt.
@@ -31,7 +31,14 @@
  *   npx tsx scripts/gen-spell-art.ts [--only id1,id2] [--limit N]
  *                                    [--dry-run] [--show-prompt] [--force] [--cli <path>]
  *   npx tsx scripts/gen-spell-art.ts --recrop <file> [--out-dir <path>]
+ *   npx tsx scripts/gen-spell-art.ts --spec <file> --out-dir <path> [--only ...]
  *
+ *   --spec <file>     read prompts from this draft file instead of
+ *                     docs/spell-art.md and skip the 417-id roster check (a set
+ *                     with no card data yet, such as the First Dawn pilot);
+ *                     requires --out-dir
+ *   --out-dir <path>  write the WebPs here instead of public/assets/art/cards
+ *                     and skip gen-art-manifest; must lie outside public/
  *   --only a,b        only these card ids
  *   --limit N         generate at most N images this run (skips don't count)
  *   --dry-run         list what would generate, touch nothing
@@ -43,16 +50,16 @@
  *                     skills-plugin install, then `chatgpt-imagegen` on PATH)
  *
  * The backend only supports a few sizes; we generate at 1024×1536 (nearest
- * larger portrait) and run scripts/smartcrop.py in environment mode to produce
- * the 4:5 / 640×800 deliverable. Environment mode is byte-identical to the old
- * Pillow center cover-crop. Raw uncropped originals are kept in
- * <tmp>/gen-spell-art/ for inspection.
+ * larger portrait) and run scripts/smartcrop.py in subject mode to produce the
+ * 4:5 / 640×800 deliverable. First Dawn woman entries pass `--focal-frac 0.1`;
+ * all other entries keep subject mode's default crop. Raw uncropped originals
+ * are kept in <tmp>/gen-spell-art/ for inspection.
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { convertPngToWebp } from './convert-art-webp';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -69,7 +76,7 @@ const GEN_SIZE = '1024x1536';
 const GEN_TIMEOUT_S = 300;
 
 /**
- * The 369 spell ids docs/spell-art.md must cover, in the authored order (instants
+ * The 417 spell ids docs/spell-art.md must cover, in the authored order (instants
  * → sorceries → enchantments → the Jade Seal → Ragnarök → Gothic Monsters →
  * the removal answer cycle).
  * Parsing cross-checks against this
@@ -221,6 +228,21 @@ const EXPECTED_IDS = [
   // Regenerations 2026-09-22, authored order in docs/spell-art.md.
   'ac-mirror-of-avalon', 'ac-secret-of-avalon', 'ac-treasonous-glance',
   'cf-badb-cathas-warning', 'dt-glass-slipper-at-midnight', 'yn-hauntlink-apex',
+  // First Dawn non-creatures (48), added 2026-09-29 - cut-list order (docs/spell-art.md
+  // 'First Dawn non-creatures'); authored from the owner-reviewed final cut before
+  // src/data/cards/first-dawn.ts lands, so ids are the authority here until it does.
+  'fd-great-drum', 'fd-rise-from-tar', 'fdr-ambush-at-the-river', 'fd-fire-pit',
+  'fd-ring-of-embers', 'fd-standing-stone', 'fd-obsidian-knife', 'fd-grip-of-the-old-beast',
+  'fd-thunder-of-hooves', 'fdc-trial-of-first-scars', 'fd-duel-on-the-ridge',
+  'fd-hurled-firebrand', 'fd-clan-hearth', 'fdr-elders-verdict', 'fd-trial-by-ember',
+  'fd-meltwater', 'fd-thaw-old-bones', 'fd-ice-wall-denial', 'fd-tar-bubbles',
+  'fd-swallowed-by-tar', 'fdr-ash-rite', 'fd-stampede-long-grass', 'fd-blaze-horn-charge',
+  'fd-egg-of-first-dawn', 'fd-bone-totem', 'fd-spear-and-fang', 'fd-egg-clutch',
+  'fdc-thick-hide-source', 'fd-challenge-the-beast', 'fd-ember-flick', 'fd-ember-tongue',
+  'fd-test-of-the-hearth', 'fd-guard-the-nest', 'fd-sun-stare', 'fdr-bring-down-the-beast',
+  'fd-nest-caller', 'fd-glide-wing-ambush', 'fd-glacier-memory', 'fd-cold-refusal',
+  'fd-sea-lizard-wake', 'fd-ice-lens', 'fd-tar-rite', 'fd-tar-flat-grave', 'fd-tar-drowned',
+  'fd-bone-whistle', 'fd-ember-pot', 'fdc-carved-tusk-hauntlink', 'fd-resin-cast',
 ] as const;
 
 /**
@@ -230,13 +252,24 @@ const EXPECTED_IDS = [
  * in text-to-image generation (same rationale as gen-card-art's PREAMBLE).
  *
  * Composition is load-bearing and DELIBERATELY DIFFERENT from gen-card-art:
- * spells are effect/moment SCENES, not portraits, so the composition clause
- * demands the dramatic magical action sit at the vertical center of the canvas
- * (inside the card window's visible middle band — docs/spell-art.md §2), with
- * the top and bottom of the canvas reserved as atmospheric bleed. It must NOT
- * reintroduce gen-card-art's "waist-up, face at center" character framing — a
- * spell may have no character at all, and when it does the EFFECT is the hero of
- * the frame.
+ * spells are effect/moment SCENES, not portraits, so the default composition
+ * clause demands the dramatic magical action sit at the vertical center of the
+ * canvas (inside the card window's visible middle band — docs/spell-art.md §2),
+ * with the top and bottom reserved as atmospheric bleed. It must NOT introduce
+ * character framing for an effect-only spell, and when a figure is present the
+ * EFFECT remains the hero of the frame.
+ *
+ * First Dawn needs a second composition. Its spells mostly put a woman beside
+ * the effect, and the default "exact vertical center" sentence made the model
+ * draw her large and centred, with her head high. In the First Dawn bulk run,
+ * after one redo, 16 of 47 spells still had the head above the card's y=179
+ * head line; 11 of those were above the window top at y=138. FIGURE_PREAMBLE
+ * stages those entries as pulled-back head-to-knees scenes and pairs them with
+ * a figure crop. The effect-first subject text and every style byte stay the
+ * same. Selection uses the entry's authored spell-art section, not its id: the
+ * set spans fd-, fdr- and fdc-. Within that section only the positive authored
+ * marker "EXACTLY … adult woman/women" selects figure framing. A "NO woman"
+ * opening and every effect-only entry lack that marker and keep PREAMBLE.
  */
 const PREAMBLE =
   // Subject: this is a spell effect scene, not a portrait (load-bearing).
@@ -258,6 +291,33 @@ const PREAMBLE =
   'separating the effect from the scene. The illustration is completely text-free. ';
 
 /**
+ * First Dawn's pulled-back spell scene. Reuse PREAMBLE's subject and style
+ * spans so their bytes cannot drift; only the composition and anatomy
+ * sentences differ.
+ */
+const FIGURE_PREAMBLE =
+  PREAMBLE.slice(0, PREAMBLE.indexOf('Composition: ')) +
+  "Composition: the spell's moment is staged as a pulled-back scene; any woman's whole " +
+  'figure from the top of her head to her knees fits in the middle half of the canvas ' +
+  'height, the top of her head about one third of the way down with open sky above; the ' +
+  'effect and every story element sit beside her between her head and her knees. ' +
+  // Anatomy and props (owner review round 1, 2026-10-01): four of the First
+  // Dawn spell redraws were a missing arm, an arm not joined to the body, a
+  // haftless axe and a foreshortened throw. Same sentence as gen-card-art's
+  // FIGURE_PREAMBLE; PREAMBLE stays byte for byte for every other entry.
+  'Anatomy: every woman has exactly two arms and two hands, both clearly attached at her ' +
+  'shoulders; every weapon, shield or tool is either gripped in a hand, strapped to her, or ' +
+  'resting on the ground or a surface; nothing floats in the air except fire, sparks, dust ' +
+  'or a thrown missile in flight. ' +
+  PREAMBLE.slice(PREAMBLE.indexOf('Style: '));
+
+/** The authored spell-art section whose woman entries use figure framing. */
+const FIGURE_GROUP = 'First Dawn non-creatures';
+/** Positive figure marker; effect-only prompts may still contain negative woman/women text. */
+const WOMAN_ENTRY_MARKER = /\bEXACTLY [A-Z0-9-]+ adult (?:woman|women)\b/;
+const FIGURE_FOCAL_FRAC = 0.1;
+
+/**
  * Negative block appended after the entry prompt: the NO-TEXT hard rule (extra
  * strict here — banners, seals, and oath-scrolls in this file invite stamped
  * nameplates and garbled CJK) plus the style/anatomy negatives from index.md §2.
@@ -274,13 +334,19 @@ const NEGATIVES =
 
 // The entry Prompt line ends unpunctuated ("… 640×800 portrait"), so close the
 // sentence before the negatives block.
-const assemblePrompt = (entry: Entry): string => PREAMBLE + entry.prompt + '.' + NEGATIVES;
+const hasWoman = (entry: Entry): boolean => WOMAN_ENTRY_MARKER.test(entry.prompt);
+const isFigureEntry = (entry: Entry): boolean => entry.group === FIGURE_GROUP && hasWoman(entry);
+const cropArgsFor = (entry: Entry): string[] =>
+  isFigureEntry(entry) ? ['--focal-frac', String(FIGURE_FOCAL_FRAC)] : [];
+const preambleFor = (entry: Entry): string => isFigureEntry(entry) ? FIGURE_PREAMBLE : PREAMBLE;
+const assemblePrompt = (entry: Entry): string => preambleFor(entry) + entry.prompt + '.' + NEGATIVES;
 
 const PYTHON = process.env.PYTHON ?? (process.platform === 'win32' ? 'python' : 'python3');
 
 // --- arg parsing ---------------------------------------------------------------
 
 interface Args {
+  spec?: string;
   only?: string[];
   limit?: number;
   recrop?: string;
@@ -301,6 +367,7 @@ function parseArgs(argv: string[]): Args {
       return v;
     };
     if (a === '--only') args.only = next(a).split(',').map((s) => s.trim()).filter(Boolean);
+    else if (a === '--spec') args.spec = next(a);
     else if (a === '--recrop') args.recrop = next(a);
     else if (a === '--out-dir') {
       const value = next(a);
@@ -325,11 +392,23 @@ function fail(msg: string): never {
   process.exit(1);
 }
 
+/** Whether `child` is `parent` or lies under it (case-insensitive on Windows). */
+function isSameOrInside(child: string, parent: string): boolean {
+  const norm = (value: string) => {
+    const n = normalize(resolve(value));
+    return process.platform === 'win32' ? n.toLowerCase() : n;
+  };
+  const c = norm(child);
+  const p = norm(parent);
+  return c === p || c.startsWith(p.endsWith(sep) ? p : `${p}${sep}`);
+}
+
 // --- spell-art.md parsing --------------------------------------------------------
 
 interface Entry {
   id: string;
   name: string;
+  group: string;
   prompt: string;
 }
 
@@ -347,15 +426,28 @@ interface SmartcropResult {
   achievedOffsetY: number;
 }
 
-/** (card-id → prompt) pairs from docs/spell-art.md, in file order. */
-function parseSpec(): Entry[] {
-  const content = readFileSync(specPath, 'utf8');
+/**
+ * (card-id → prompt) pairs from docs/spell-art.md, in file order. A draft
+ * `path` (--spec) skips the roster check: its ids are not in EXPECTED_IDS by
+ * design, and it only ever writes to an --out-dir.
+ */
+function parseSpec(path: string = specPath): Entry[] {
+  const draft = path !== specPath;
+  const content = readFileSync(path, 'utf8');
   const entries: Entry[] = [];
   let open: Entry | null = null;
+  let group = '';
   for (const line of content.split(/\r?\n/)) {
+    const section = line.match(/^## (.+?)\s*$/);
+    if (section) {
+      // Counts are documentation, not identity: "First Dawn … (48)" remains
+      // the same group when its roster changes.
+      group = section[1].replace(/\s+\(\d+\)$/, '');
+      continue;
+    }
     const heading = line.match(/^### (.+?) — `([^`]+)`\s*$/);
     if (heading) {
-      open = { id: heading[2], name: heading[1], prompt: '' };
+      open = { id: heading[2], name: heading[1], group, prompt: '' };
       entries.push(open);
       continue;
     }
@@ -365,7 +457,13 @@ function parseSpec(): Entry[] {
 
   const missing = entries.filter((e) => e.prompt === '');
   if (missing.length > 0) {
-    fail(`spell-art.md: entries missing a Prompt field: ${missing.map((e) => e.id).join(', ')}`);
+    fail(`${basename(path)}: entries missing a Prompt field: ${missing.map((e) => e.id).join(', ')}`);
+  }
+  if (draft) {
+    const ids = entries.map((e) => e.id);
+    const dupes = ids.filter((id, i) => ids.indexOf(id) !== i);
+    if (dupes.length) fail(`${basename(path)}: duplicated ids: ${[...new Set(dupes)].join(', ')}`);
+    return entries;
   }
 
   // Cross-check against the expected ids so a dropped/renamed/reordered entry
@@ -593,9 +691,10 @@ function generateOne(
   cliArgv: string[],
   entry: Entry,
   force: boolean,
+  targetDir: string,
 ): { ok: boolean; error?: string; reusedRaw?: boolean } {
   const rawPath = join(rawDir, `${entry.id}.raw.png`);
-  const outPath = join(outDir, `${entry.id}.webp`);
+  const outPath = join(targetDir, `${entry.id}.webp`);
   const tmpPath = `${outPath}.tmp.png`;
   const prompt = assemblePrompt(entry);
 
@@ -634,7 +733,7 @@ function generateOne(
   // resolver trust file presence).
   const post = spawnSync(
     PYTHON,
-    [smartcropPath, rawPath, tmpPath, String(OUT_W), String(OUT_H), 'subject'],
+    [smartcropPath, rawPath, tmpPath, String(OUT_W), String(OUT_H), 'subject', ...cropArgsFor(entry)],
     { encoding: 'utf8' },
   );
   if (post.status !== 0) {
@@ -656,20 +755,31 @@ function generateOne(
 function main(): void {
   const args = parseArgs(process.argv.slice(2));
   if (args.recrop) {
-    if (args.only || args.limit !== undefined || args.showPrompt || args.force || args.cli) {
+    if (args.spec || args.only || args.limit !== undefined || args.showPrompt || args.force || args.cli) {
       fail('--recrop cannot be combined with generation filters or --force/--cli');
     }
     runRecrop(args.recrop, args.dryRun, args.outDir);
     return;
   }
-  if (args.outDir !== undefined) fail('--out-dir is only valid with --recrop');
+  // --out-dir in generation mode writes somewhere the game never reads and
+  // skips the manifest, so a draft set's ids can never ship by accident. A
+  // draft --spec must use it; the target may not lie anywhere under public/.
+  const targetDir = args.outDir === undefined ? outDir : resolve(root, args.outDir);
+  if (args.outDir !== undefined && isSameOrInside(targetDir, join(root, 'public'))) {
+    fail('--out-dir must lie outside public/ (the game serves everything under it)');
+  }
+  if (args.spec !== undefined && args.outDir === undefined) {
+    fail('--spec requires --out-dir (a draft spec never writes shipped art)');
+  }
+  const specFile = args.spec === undefined ? specPath : resolve(root, args.spec);
+  if (!existsSync(specFile)) fail(`spec file not found: ${specFile}`);
 
-  let entries = parseSpec();
+  let entries = parseSpec(specFile);
 
   if (args.only) {
     const known = new Set(entries.map((e) => e.id));
     const unknown = args.only.filter((id) => !known.has(id));
-    if (unknown.length > 0) fail(`--only ids not in spell-art.md: ${unknown.join(', ')}`);
+    if (unknown.length > 0) fail(`--only ids not in ${basename(specFile)}: ${unknown.join(', ')}`);
     const wanted = new Set(args.only);
     entries = entries.filter((e) => wanted.has(e.id));
   }
@@ -685,20 +795,26 @@ function main(): void {
     return;
   }
 
-  const exists = (e: Entry) => existsSync(join(outDir, `${e.id}.webp`));
+  const exists = (e: Entry) => existsSync(join(targetDir, `${e.id}.webp`));
   const skipped = args.force ? [] : entries.filter(exists);
   let todo = args.force ? entries : entries.filter((e) => !exists(e));
   if (args.limit !== undefined) todo = todo.slice(0, args.limit);
 
   console.log(
     `gen-spell-art: ${entries.length} spell entr${entries.length === 1 ? 'y' : 'ies'} matched — ` +
-      `${todo.length} to generate, ${skipped.length} already on disk`,
+      `${todo.length} to generate, ${skipped.length} already on disk in ${targetDir}` +
+      (args.outDir !== undefined ? ' (out-dir: gen-art-manifest will not run)' : ''),
   );
 
   if (args.dryRun) {
     for (const e of entries) {
       const state = !args.force && exists(e) ? 'exists — skip (use --force)' : todo.includes(e) ? 'would generate' : 'beyond --limit';
-      console.log(`  ${e.id.padEnd(28)} ${state}`);
+      const framing = e.group === FIGURE_GROUP
+        ? isFigureEntry(e)
+          ? ` (figure framing: yes; crop ${cropArgsFor(e).join(' ')})`
+          : ' (figure framing: no; default preamble/crop — no positive woman marker)'
+        : '';
+      console.log(`  ${e.id.padEnd(28)} ${state}${framing}`);
     }
     console.log('gen-spell-art: dry run — nothing generated');
     return;
@@ -708,7 +824,7 @@ function main(): void {
     return;
   }
 
-  mkdirSync(outDir, { recursive: true });
+  mkdirSync(targetDir, { recursive: true });
   mkdirSync(rawDir, { recursive: true });
   const cliArgv = resolveCli(args.cli);
 
@@ -729,7 +845,7 @@ function main(): void {
     const entry = todo[i];
     const t0 = Date.now();
     process.stdout.write(`[${i + 1}/${todo.length}] ${entry.id} … `);
-    const res = generateOne(cliArgv, entry, args.force);
+    const res = generateOne(cliArgv, entry, args.force, targetDir);
     const secs = ((Date.now() - t0) / 1000).toFixed(1);
     if (res.ok) {
       generated++;
@@ -757,7 +873,7 @@ function main(): void {
   );
   for (const f of failures) console.error(`  FAIL ${f.id}: ${f.error}`);
 
-  if (generated > 0) {
+  if (generated > 0 && args.outDir === undefined) {
     const manifest = spawnSync('npm run gen-art-manifest', { shell: true, stdio: 'inherit' });
     if (manifest.status !== 0) fail('gen-art-manifest failed — run `npm run gen-art-manifest` manually');
   }

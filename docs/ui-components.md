@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ui/themeWidgets.ts, src/ui/modalDismissPresentation.ts, src/ui/Toast.ts, src/ui/toastQueue.ts, src/ui/StatsPrivacyPanel.ts, src/ui/StatsNoticeDialog.ts, src/ui/statsPrivacyPresentation.ts, src/ui/LegalPanel.ts, src/ui/legalPresentation.ts, src/ui/openExternalPage.ts, src/ui/navigation.ts, src/ui/deckBuilderHelpers.ts, src/ui/Dropdown.ts, src/ui/CardView.ts, src/ui/ManaText.ts, src/ui/CardThumbCache.ts, src/ui/CardZoomPreview.ts, src/ui/ZoneContentsModal.ts, src/ui/inspectHotkeys.ts, src/ui/OverlayCoordinator.ts, src/ui/CoachMark.ts, src/ui/KeywordGlossaryPanel.ts, src/ui/KeywordIcons.ts, src/scenes/GlossaryScene.ts, src/ui/MultilineInput.ts, src/platform/gestures.ts, src/ui/layout.ts, src/ui/theme.ts · last-verified: 2026-09-22
+<!-- source-of-truth: src/ui/themeWidgets.ts, src/ui/modalDismissPresentation.ts, src/ui/Toast.ts, src/ui/toastQueue.ts, src/ui/StatsPrivacyPanel.ts, src/ui/StatsNoticeDialog.ts, src/ui/statsPrivacyPresentation.ts, src/ui/LegalPanel.ts, src/ui/legalPresentation.ts, src/ui/openExternalPage.ts, src/ui/navigation.ts, src/ui/deckBuilderHelpers.ts, src/ui/Dropdown.ts, src/ui/CardView.ts, src/ui/ManaText.ts, src/ui/CardThumbCache.ts, src/ui/CardZoomPreview.ts, src/ui/ZoneContentsModal.ts, src/ui/inspectHotkeys.ts, src/ui/OverlayCoordinator.ts, src/ui/CoachMark.ts, src/ui/KeywordGlossaryPanel.ts, src/ui/KeywordIcons.ts, src/scenes/GlossaryScene.ts, src/ui/MultilineInput.ts, src/platform/gestures.ts, src/ui/layout.ts, src/ui/theme.ts, src/ui/controlStyle.ts · last-verified: 2026-09-28
      If you change those files, update this doc or re-verify the date. -->
 
 # Reusable UI components
@@ -21,7 +21,7 @@ token already names.
 | Export | What it is |
 | --- | --- |
 | `themedButton` | The standard button (primary / emphasis / ghost / danger variants, sm sizing, min-width, enabled state, measured bounds, inflated hit zone). |
-| `roundedTrigger` | Chip-style trigger (the dropdown face): auto-sizes to its label, `setLabel` re-measures, selected/hover states. With `parts` it renders a muted label, a gold value (`setValue`) and a fixed chevron slot that flips while open (`setOpen`), sized once to `maxValueWidth` so a filter row never reflows on selection. |
+| `roundedTrigger` | Chip-style trigger (the dropdown face): auto-sizes to its label, `setLabel` re-measures, selected/hover states. Selected draws a gold bar on the bottom edge under the label (`triggerSelectedMark` in `controlStyle.ts`: half the label's width, 2px, 3px in high contrast), so selection never rests on colour alone; a `parts` select has no bar. With `parts` it renders a muted label, a gold value (`setValue`) and a fixed chevron slot that flips while open (`setOpen`), sized once to `maxValueWidth` so a filter row never reflows on selection. |
 | `modalShell` | The one modal: dim layer, panel, title/content/footer tracks, one named `dismissal` preset resolved by `modalDismissPresentation`, `onClose`, OverlayCoordinator registration, and `close()`. Presets derive Esc, tap-dim, and close-button behavior. The old flags remain deprecated only for shared helpers outside this migration. Every dialog uses this - OddsModal, deck previews, the pack-pull inspect, the touch land-styles picker. |
 | `registerSceneBackNavigation` | One scene-lifetime ESC route. It dismisses the topmost registered modal, then invokes the screen's back action, and removes its keyboard listener on SHUTDOWN. |
 | `createMultilineInput` | DOM textarea with selectable long text, keyboard/touch input, and OverlayCoordinator suppression support. Use it for save-code or other bounded multiline fields. |
@@ -51,7 +51,14 @@ net, keeping 8px between inflated hit rects.
 - `renderManaText` / `segmentManaText` compose brace-token mana costs into
   wrapped text with baked pip images. Use this anywhere player-facing copy
   contains `{2}{B}`-style interchange tokens; keep the returned Text and pips
-  in the same container so dynamic-texture bakes retain them.
+  in the same container so dynamic-texture bakes retain them. Generic
+  amounts are `pip-C-<n>` beads baked on demand by `ensureNumeralPip`
+  (vector digits from `src/art/numeralPaths.ts`, centred on their ink box),
+  never a Text laid over a bead. Round number badges (pick order, repeated
+  picks "1, 2", the pile castable chip) keep their own disc and draw the same
+  glyphs from `ensureNumeralBadgeInk` (`src/ui/NumeralGlyphs.ts`); count
+  plates (the Mark "+2" badge, the pile counts) keep their own plate and use
+  `ensureNumeralPlateInk`. The glyph set is the digits, a comma and a plus.
 - `ensureCardThumb` / `makeCardThumb` bake-and-cache static thumbnails;
   the cache key includes every render-affecting input (card id + land
   style today) - extend the key when you add one, or stale thumbs leak

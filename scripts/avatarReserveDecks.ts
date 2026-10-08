@@ -26,8 +26,8 @@ import { CARD_DB } from '../src/data/catalog';
 import { isLiveCollectible } from '../src/data/liveness';
 import { AVATARS, type Avatar } from '../src/data/opponents';
 import { STARTER_DECKS } from '../src/data/starterDecks';
-import type { CardDb, CardDef, Color, EffectOp, TargetSpec } from '../src/engine/types';
-import { activatedAbilitiesOf } from '../src/engine/types';
+import type { CardDb, CardDef, Color, EffectOp, HuntPrey, TargetSpec } from '../src/engine/types';
+import { activatedAbilitiesOf, flatOps, isTargetBranchOp } from '../src/engine/types';
 import { validateDarlingsDeck, validateWarchestDeck } from '../src/meta/darlings';
 import {
   DARLINGS_DECK_SIZE,
@@ -95,6 +95,16 @@ function isEligibleSpell(card: CardDef | undefined): card is CardDef {
  * controller can target, and `other` composes as a source-exclusion qualifier.
  * `marked` is a separate creature-mark supply capability, while `tapped` needs no capability
  * gate because any permanent can become tapped.
+ *
+ * Two constructs also ask WHOSE creature (1.9, A2.d), so they read the side
+ * supply (`SIDE_SUPPLY`) instead of the pooled categories:
+ *   - `attacking` (A1.6) needs a creature that can attack, one without printed
+ *     Bulwark, on a side the spec allows. Like `tapped`, it is not a timing
+ *     gate: combat happens in every game, so an attacking-only answer is live
+ *     whenever something could attack into it.
+ *   - A Hunt (`huntNeedsOf`) needs its hunter and its prey: the spell form a
+ *     non-Bulwark creature of your own, and every generic Hunt a creature an
+ *     opponent controls (an arrival hunter cannot even be cast without one).
  */
 const NARROW_TARGETS: Record<TargetSpec['what'], boolean> = {
   creature: false,
@@ -112,7 +122,7 @@ const NARROW_TARGETS: Record<TargetSpec['what'], boolean> = {
 
 const MARKED_TARGET = 'marked';
 
-type NarrowTarget = Pick<TargetSpec, 'what' | 'marked' | 'maxCost' | 'minAttack' | 'exactly'>;
+type NarrowTarget = Pick<TargetSpec, 'what' | 'marked' | 'maxCost' | 'minAttack' | 'exactly' | 'attacking'>;
 
 interface SupplyCandidate {
   card: CardDef;
@@ -128,19 +138,70 @@ type SupplyEntry = SupplyCandidate | { alternatives: SupplyEntry[][] };
 // attack supply uses printed attack plus explicitly minted token Marks.
 const QUALIFIED_SUPPLY = new WeakMap<ReadonlySet<string>, readonly SupplyEntry[]>();
 
+/**
+ * The same candidates split by side: `own` is the list being judged, and
+ * `opponents` what it plays against (the starter columns in the Warchest
+ * format; the list itself for a lone list, the mirror every matchup contains).
+ * A Set built without it (a bare `new Set()`) supplies no creature to either.
+ */
+interface SideSupply {
+  own: readonly SupplyEntry[];
+  opponents: readonly SupplyEntry[];
+}
+
+const SIDE_SUPPLY = new WeakMap<ReadonlySet<string>, SideSupply>();
+const NO_SIDES: SideSupply = { own: [], opponents: [] };
+
+/** Every ability and Duty with the target specs it chooses for its ops. */
+function targetedAbilitiesOf(card: CardDef): { targets: readonly TargetSpec[]; ops: readonly EffectOp[] }[] {
+  return [
+    ...(card.abilities ?? []).map((ability) => ({ targets: ability.targets ?? [], ops: ability.ops ?? [] })),
+    ...activatedAbilitiesOf(card).map((ability) => ({ targets: ability.targets ?? [], ops: ability.ops })),
+  ];
+}
+
+const hunts = (ops: readonly EffectOp[]): boolean => flatOps(ops).some((op) => op.op === 'hunt');
+
 function narrowTargetsOf(card: CardDef): NarrowTarget[] {
   // Targeted arrival abilities live in the same `abilities` array as spell
   // bodies. Walk every ability, including non-spell triggers, because a
   // mandatory arrival target can fizzle just as completely as a spell target.
   // A Duty whose only target is narrow (an artifact or a marked creature) is
-  // exactly as dead without supply as a mandatory arrival target.
-  return [
-    ...(card.abilities ?? []).flatMap((ability) => ability.targets ?? []),
-    ...activatedAbilitiesOf(card).flatMap((ability) => ability.targets ?? []),
-  ]
-    .filter((target) => NARROW_TARGETS[target.what] || target.marked === true ||
+  // exactly as dead without supply as a mandatory arrival target. A Hunt's
+  // specs are judged as a pair by `huntNeedsOf` instead.
+  return targetedAbilitiesOf(card)
+    .filter((ability) => !hunts(ability.ops))
+    .flatMap((ability) => ability.targets)
+    .filter((target) => NARROW_TARGETS[target.what] || target.marked === true || target.attacking === true ||
       target.maxCost !== undefined || target.minAttack !== undefined || target.exactly !== undefined)
-    .map(({ what, marked, maxCost, minAttack, exactly }) => ({ what, marked, maxCost, minAttack, exactly }));
+    .map(({ what, marked, maxCost, minAttack, exactly, attacking }) => ({ what, marked, maxCost, minAttack, exactly, attacking }));
+}
+
+/**
+ * One Hunt's needs (plan-first-dawn-engine.md, Part 2; the final Hunt ruling).
+ * `spell`: the spell form, whose hunter is a target creature of your own
+ * (slot 0) and prey slot 1; otherwise the source-bound form (arrival, attack,
+ * Dawn, Duty), whose hunter is the card itself and prey its one target. A
+ * conditional arrival Hunt (A1.1c) is judged like any other: cast without
+ * prey it arrives and never hunts, so it is as dead as a spell with no target.
+ * Empower Hunts are not walked, as Empower targets are not: Empower is
+ * optional, so the card is still a plain cast.
+ */
+interface HuntNeed {
+  spell: boolean;
+  prey: HuntPrey | undefined;
+  hunterSpec?: TargetSpec;
+  preySpec: TargetSpec;
+}
+
+function huntNeedsOf(card: CardDef): HuntNeed[] {
+  return targetedAbilitiesOf(card).flatMap(({ targets, ops }): HuntNeed[] => flatOps(ops).flatMap((op): HuntNeed[] => {
+    if (op.op !== 'hunt') return [];
+    if (op.hunter === 'target') {
+      return targets.length >= 2 ? [{ spell: true, prey: op.prey, hunterSpec: targets[0], preySpec: targets[1] }] : [];
+    }
+    return targets.length >= 1 ? [{ spell: false, prey: op.prey, preySpec: targets[0] }] : [];
+  }));
 }
 
 function typeSuppliedTargets(card: CardDef | undefined): string[] {
@@ -155,7 +216,7 @@ function typeSuppliedTargets(card: CardDef | undefined): string[] {
 function effectOpsOf(card: CardDef): EffectOp[] {
   const flatten = (ops: readonly EffectOp[]): EffectOp[] => ops.flatMap((op) => [
     op,
-    ...(op.op === 'ifTargetMarked' ? flatten([...op.then, ...(op.else ?? [])]) : []),
+    ...(isTargetBranchOp(op) ? flatten([...op.then, ...(op.else ?? [])]) : []),
   ]);
   return flatten([
     ...(card.abilities ?? []).flatMap((ability) => ability.ops ?? []),
@@ -175,7 +236,7 @@ function canGenerateMarks(card: CardDef | undefined): boolean {
   );
   const activatedAddsTargetMark = (op: EffectOp): boolean =>
     (op.op === 'addCounters' && op.to === 'target') ||
-    (op.op === 'ifTargetMarked' && [...op.then, ...(op.else ?? [])].some(activatedAddsTargetMark));
+    (isTargetBranchOp(op) && [...op.then, ...(op.else ?? [])].some(activatedAddsTargetMark));
   const createsTargetMark = (card.abilities ?? []).some((ability) =>
     (ability.targets ?? []).some((target) => target.what === 'creature' || target.what === 'yourCreature') &&
     (ability.ops ?? []).some((op) => op.op === 'addCounters' && op.to === 'target'),
@@ -204,21 +265,19 @@ function suppliedTargets(card: CardDef | undefined, db: CardDb): string[] {
   return supplied;
 }
 
-/** The narrow predicates a whole card list can put on the board. */
-export function deckTargetSupply(cards: readonly string[], db: CardDb = CARD_DB): ReadonlySet<string> {
-  const supply = new Set<string>();
+/** Each card of a list, and each token its effects mint, as a board candidate. */
+function supplyCandidates(cards: readonly string[], db: CardDb): SupplyEntry[] {
   const candidates: SupplyEntry[] = [];
   const tokenCandidates = (ops: readonly EffectOp[]): SupplyEntry[] => ops.flatMap((op): SupplyEntry[] => {
     if (op.op === 'createToken' && db[op.token]) {
       return [{ card: db[op.token], count: op.count, marks: op.marks ?? 0 }];
     }
-    if (op.op === 'ifTargetMarked') return [{ alternatives: [tokenCandidates(op.then), tokenCandidates(op.else ?? [])] }];
+    if (isTargetBranchOp(op)) return [{ alternatives: [tokenCandidates(op.then), tokenCandidates(op.else ?? [])] }];
     return [];
   });
   for (const id of cards) {
     const card = db[id];
     if (!card) continue;
-    for (const what of suppliedTargets(card, db)) supply.add(what);
     candidates.push({ card, count: 1, marks: 0 });
     candidates.push(...tokenCandidates([
       ...(card.abilities ?? []).flatMap((ability) => ability.ops ?? []),
@@ -228,7 +287,28 @@ export function deckTargetSupply(cards: readonly string[], db: CardDb = CARD_DB)
       ...activatedAbilitiesOf(card).flatMap((ability) => ability.ops),
     ]));
   }
-  QUALIFIED_SUPPLY.set(supply, candidates);
+  return candidates;
+}
+
+/**
+ * The narrow predicates a whole card list can put on the board. `opponents`,
+ * when given, is what the list plays against: the pooled categories cover
+ * both (opponents first), and the side supply keeps them apart. Without it
+ * the list is its own opponent.
+ */
+export function deckTargetSupply(
+  cards: readonly string[],
+  db: CardDb = CARD_DB,
+  opponents?: readonly string[],
+): ReadonlySet<string> {
+  const pooled = opponents ? [...opponents, ...cards] : cards;
+  const supply = new Set<string>();
+  for (const id of pooled) {
+    for (const what of suppliedTargets(db[id], db)) supply.add(what);
+  }
+  const own = supplyCandidates(cards, db);
+  QUALIFIED_SUPPLY.set(supply, opponents ? supplyCandidates(pooled, db) : own);
+  SIDE_SUPPLY.set(supply, { own, opponents: opponents ? supplyCandidates(opponents, db) : own });
   return supply;
 }
 
@@ -240,13 +320,12 @@ export function deckTargetSupply(cards: readonly string[], db: CardDb = CARD_DB)
  * keeps `sd-strike-the-lintel` out of Anubis against five starter columns
  * holding ZERO artifacts and ZERO enchantments, and also covers marked-target
  * answers when no card in the format can add a mark. The gate is format-wide,
- * not avatar-specific.
+ * not avatar-specific. Whose creature a card needs (a Hunt's hunter and prey,
+ * an attacker) is judged by side: the source list is the avatar's own, the
+ * starter columns her opponents.
  */
 function formatTargetSupply(source: readonly string[], db: CardDb): ReadonlySet<string> {
-  return deckTargetSupply([
-    ...STARTER_DECKS.flatMap((deck) => deck.reserveCards ?? []),
-    ...source,
-  ], db);
+  return deckTargetSupply(source, db, STARTER_DECKS.flatMap((deck) => deck.reserveCards ?? []));
 }
 
 function candidateMatches(target: NarrowTarget, candidate: SupplyCandidate): boolean {
@@ -278,15 +357,66 @@ function candidateMatches(target: NarrowTarget, candidate: SupplyCandidate): boo
   }
 }
 
+/** How many board candidates pass `test`; exclusive token branches count their larger side. */
+function countMatches(entries: readonly SupplyEntry[], test: (candidate: SupplyCandidate) => boolean): number {
+  return entries.reduce((sum, candidate) =>
+    sum + ('alternatives' in candidate
+      ? Math.max(...candidate.alternatives.map((alternative) => countMatches(alternative, test)))
+      : test(candidate) ? candidate.count : 0), 0);
+}
+
 function qualifiedTargetSupplied(target: NarrowTarget, supply: ReadonlySet<string>): boolean {
   if (target.maxCost === undefined && target.minAttack === undefined && target.exactly === undefined) return true;
   const candidates = QUALIFIED_SUPPLY.get(supply) ?? [];
-  const countMatches = (entries: readonly SupplyEntry[]): number => entries.reduce((sum, candidate) =>
-    sum + ('alternatives' in candidate
-      ? Math.max(...candidate.alternatives.map(countMatches))
-      : candidateMatches(target, candidate) ? candidate.count : 0), 0);
-  const count = countMatches(candidates);
-  return count >= (target.exactly ?? 1);
+  return countMatches(candidates, (candidate) => candidateMatches(target, candidate)) >= (target.exactly ?? 1);
+}
+
+/** A creature that can attack or hunt: no printed Bulwark (a granted one is not visible to a catalog walk). */
+function unwalled(candidate: SupplyCandidate): boolean {
+  return candidate.card.types.includes('creature') && !(candidate.card.keywords ?? []).includes('bulwark');
+}
+
+/** The sides a creature spec can reach: yours, an opponent's, or either. */
+function sideEntries(what: TargetSpec['what'], sides: SideSupply): readonly SupplyEntry[] {
+  if (what === 'yourCreature') return sides.own;
+  if (what === 'opponentCreature') return sides.opponents;
+  return [...sides.own, ...sides.opponents];
+}
+
+/** `attacking` (A1.6): enough creatures that can attack, on a side the spec reaches, meet its other words. */
+function attackerSupplied(target: NarrowTarget, sides: SideSupply): boolean {
+  if (target.attacking !== true) return true;
+  return countMatches(sideEntries(target.what, sides), (candidate) =>
+    unwalled(candidate) && candidateMatches(target, candidate)) >= (target.exactly ?? 1);
+}
+
+/**
+ * Can this Hunt happen in the format? The spell form needs a non-Bulwark
+ * creature of your own to hunt with; the prey is an opponent's creature for
+ * the generic Hunt, another creature of yours for `yours`, and either for
+ * `any`. A spell's hunter and prey are two different creatures; a
+ * source-bound hunter is this card, so a second copy of it can be its prey.
+ */
+function huntSupplied(card: CardDef, need: HuntNeed, supply: ReadonlySet<string>, sides: SideSupply): boolean {
+  const fits = (spec: TargetSpec, candidate: SupplyCandidate): boolean =>
+    candidateMatches(spec, candidate) && (spec.attacking !== true || unwalled(candidate));
+  const isPrey = (candidate: SupplyCandidate): boolean => fits(need.preySpec, candidate);
+  if (need.preySpec.marked === true && !supply.has(MARKED_TARGET)) return false;
+  const opponentPrey = need.prey === 'yours' ? 0 : countMatches(sides.opponents, isPrey);
+  if (need.spell) {
+    const hunterSpec = need.hunterSpec!;
+    if (hunterSpec.marked === true && !supply.has(MARKED_TARGET)) return false;
+    const isHunter = (candidate: SupplyCandidate): boolean => unwalled(candidate) && fits(hunterSpec, candidate);
+    if (countMatches(sides.own, isHunter) === 0) return false;
+    // Two different creatures of yours: one hunts, the other is its prey.
+    const ownPair = need.prey !== undefined && countMatches(sides.own, isPrey) > 0 &&
+      countMatches(sides.own, (candidate) => isHunter(candidate) || isPrey(candidate)) >= 2;
+    return opponentPrey > 0 || ownPair;
+  }
+  if (need.prey === undefined) return opponentPrey > 0;
+  const selves = countMatches(sides.own, (candidate) => candidate.card.id === card.id && isPrey(candidate));
+  const others = countMatches(sides.own, (candidate) => candidate.card.id !== card.id && isPrey(candidate));
+  return opponentPrey > 0 || others + Math.max(0, selves - 1) > 0;
 }
 
 /**
@@ -294,7 +424,8 @@ function qualifiedTargetSupplied(target: NarrowTarget, supply: ReadonlySet<strin
  * categories is supplied by this format. A marked spec needs both its target
  * category and the `marked` capability. Mixed narrow-plus-broad multi-ability
  * cards remain an open authoring question: a broad target never rescues an
- * otherwise unsupplied narrow target under this contract.
+ * otherwise unsupplied narrow target under this contract. A Hunt counts as
+ * one more narrow target, supplied when its hunter and prey both are.
  */
 export function hasNoLegalTargets(
   card: CardDef | undefined,
@@ -302,12 +433,15 @@ export function hasNoLegalTargets(
 ): boolean {
   if (!card) return false;
   const narrow = narrowTargetsOf(card);
-  if (narrow.length === 0) return false;
+  const huntNeeds = huntNeedsOf(card);
+  if (narrow.length === 0 && huntNeeds.length === 0) return false;
+  const sides = SIDE_SUPPLY.get(supply) ?? NO_SIDES;
   return !narrow.some((target) =>
     (!NARROW_TARGETS[target.what] || supply.has(target.what)) &&
     (target.marked !== true || supply.has(MARKED_TARGET)) &&
-    qualifiedTargetSupplied(target, supply),
-  );
+    qualifiedTargetSupplied(target, supply) &&
+    attackerSupplied(target, sides),
+  ) && !huntNeeds.some((need) => huntSupplied(card, need, supply, sides));
 }
 
 function isLegendaryCreature(card: CardDef | undefined): card is CardDef {

@@ -3,7 +3,7 @@ import { getEffectiveStats } from '../engine/statics';
 import type { CardDb, CombatState, Permanent, PlayerId } from '../engine/types';
 import { def, isType, opponentOf } from '../engine/types';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
-import { dawnSelfBleed, permValue } from './value';
+import { createPermanentValuer, dawnSelfBleed, provokedValue } from './value';
 
 /**
  * Combat planning shared by Medium and Hard. Works on public information
@@ -22,6 +22,9 @@ interface Combatant {
   trample: boolean;
   lifelink: boolean;
   dreaded: boolean;
+  /** What its unspent Provoked is worth to its controller if a blow it
+   * survives sets it off; 0 without one (every card today). */
+  provoked: number;
 }
 
 function combatant(bf: readonly Permanent[], db: CardDb, iid: number, trickBuff = 0): Combatant {
@@ -39,6 +42,7 @@ function combatant(bf: readonly Permanent[], db: CardDb, iid: number, trickBuff 
     trample: stats.keywords.has('overrun'),
     lifelink: stats.keywords.has('bloodoath'),
     dreaded: stats.keywords.has('dreaded'),
+    provoked: provokedValue(bf, db, perm),
   };
 }
 
@@ -49,22 +53,31 @@ function strikesInStep(c: Combatant, first: boolean): boolean {
   return first ? c.firstStrike || c.twinBlades : c.twinBlades || !c.firstStrike;
 }
 
+/** One hit of a combat exchange (module-level so the hot loop allocates no
+ * closures). `struck`, when given, collects every combatant dealt damage. */
+function strike(source: Combatant, target: Combatant, amount: number, dying: Set<number>, struck?: Set<number>): void {
+  if (amount <= 0 || target.damagePrevented) return;
+  target.defense -= amount;
+  struck?.add(target.iid);
+  if (source.deathtouch || target.defense <= 0) dying.add(target.iid);
+}
+
+/** The damage the striker must assign to make this blocker lethal. */
+function lethalNeed(striker: Combatant, b: Combatant): number {
+  return striker.deathtouch ? 1 : Math.max(1, b.defense);
+}
+
 /** Public-stat exchange, with simultaneous hits and casualties between steps.
  * Carry marked damage forward and use the engine's cheapest-lethal assignment.
  * Effective stats stay fixed for this heuristic; continuous effects changing
  * after a death and triggered abilities remain the engine sim's job. */
 function combatExchange(
-  attacker: Combatant, blockers: Combatant[], firstStrikeDone = false, wasBlocked = true,
+  attacker: Combatant, blockers: Combatant[], firstStrikeDone = false, wasBlocked = true, struck?: Set<number>,
 ): { damage: number; dying: number[] } {
   const a = { ...attacker };
   const defenders = blockers.map((b) => ({ ...b }));
   const dying = new Set<number>();
   let damage = 0;
-  const hit = (source: Combatant, target: Combatant, amount: number): void => {
-    if (amount <= 0 || target.damagePrevented) return;
-    target.defense -= amount;
-    if (source.deathtouch || target.defense <= 0) dying.add(target.iid);
-  };
   for (const first of [true, false]) {
     if (first && firstStrikeDone) continue;
     if (dying.has(a.iid)) break;
@@ -74,20 +87,35 @@ function combatExchange(
     const returning = living.filter((b) => strikesInStep(b, first));
     if (strikesInStep(a, first)) {
       let power = Math.max(0, a.attack);
-      const need = (b: Combatant): number => a.deathtouch ? 1 : Math.max(1, b.defense);
-      const ordered = [...living].sort((x, y) => need(x) - need(y));
+      const ordered = [...living].sort((x, y) => lethalNeed(a, x) - lethalNeed(a, y));
       for (let i = 0; i < ordered.length && power > 0; i++) {
         const b = ordered[i];
-        const amount = a.trample || i < ordered.length - 1 ? Math.min(power, need(b)) : power;
-        hit(a, b, amount);
+        const amount = a.trample || i < ordered.length - 1 ? Math.min(power, lethalNeed(a, b)) : power;
+        strike(a, b, amount, dying, struck);
         power -= amount;
       }
       // An attacker whose first hit killed every blocker is still blocked.
       if (!wasBlocked || a.trample) damage += power;
     }
-    for (const b of returning) hit(b, a, Math.max(0, b.attack));
+    for (const b of returning) strike(b, a, Math.max(0, b.attack), dying, struck);
   }
   return { damage, dying: [...dying] };
+}
+
+/**
+ * Provoked in the exchange (plan-first-dawn-engine.md, Part 4, item 3): each
+ * combatant dealt damage that survives sets off its unspent Provoked, worth
+ * `provoked` to its controller. Signed for the side `attackerIsMine` names:
+ * plus for that side's survivors, minus for the other's. Returns 0 at once
+ * when no combatant has one, so a board without Provoked runs nothing here.
+ */
+function provokedSwing(attacker: Combatant, blockers: readonly Combatant[], attackerIsMine: boolean): number {
+  if (attacker.provoked <= 0 && !blockers.some((b) => b.provoked > 0)) return 0;
+  const struck = new Set<number>();
+  const { dying } = combatExchange(attacker, [...blockers], false, true, struck);
+  const provoked = (c: Combatant): number => struck.has(c.iid) && !dying.includes(c.iid) ? c.provoked : 0;
+  const theirs = blockers.reduce((sum, b) => sum + provoked(b), 0);
+  return attackerIsMine ? provoked(attacker) - theirs : theirs - provoked(attacker);
 }
 
 /** Does the striker kill the victim before or during their straight exchange? */
@@ -103,6 +131,109 @@ function untappedBlockers(
   return bf.filter(
     (p) => p.controller === defender && !p.tapped && isType(def(db, p.cardId), 'creature'),
   );
+}
+
+/**
+ * One board's pure reads, remembered for the length of one planning call.
+ *
+ * `getEffectiveStats`, `permValue` and `canBlock` are pure functions of the
+ * battlefield array and the card db, and a planning call never mutates the
+ * board it plans on, so a remembered read is exactly the value a fresh call
+ * would return: the memo changes how often the reads run, never what they
+ * return. It is the wide-board fix (1.9 lane F): `chooseAttackers` scores up
+ * to n squared attack sets, and each score re-ran the block heuristic, which
+ * recomputed every creature's effective stats (a full static-layer walk of the
+ * battlefield) for every blocker and attacker pair. A memo lives for one
+ * exported call and is never shared across boards.
+ */
+/** The inner map under `key`, created on first use. Nested maps key the memo
+ * by whole iids, so no two keys can ever collide. */
+function level<K, V>(map: Map<K, Map<number, V>>, key: K): Map<number, V> {
+  let inner = map.get(key);
+  if (!inner) {
+    inner = new Map();
+    map.set(key, inner);
+  }
+  return inner;
+}
+
+class BoardMemo {
+  private readonly combatants = new Map<number, Map<number, Combatant>>();
+  private readonly values = new Map<number, number>();
+  /** defender -> blocker -> attacker. */
+  private readonly blockable = new Map<PlayerId, Map<number, Map<number, boolean>>>();
+  /** trickBuff -> blocker -> attacker. */
+  private readonly duels = new Map<number, Map<number, Map<number, { iKill: boolean; iDie: boolean; provoked: number }>>>();
+  private readonly untapped = new Map<PlayerId, Permanent[]>();
+  private readonly weights = new Map<PlayerId, { pressing: boolean; oppPower: number }>();
+  private valuer?: (iid: number) => number;
+
+  constructor(readonly bf: readonly Permanent[], readonly db: CardDb) {}
+
+  combatant(iid: number, trickBuff = 0): Combatant {
+    const byIid = level(this.combatants, trickBuff);
+    let c = byIid.get(iid);
+    if (!c) {
+      c = combatant(this.bf, this.db, iid, trickBuff);
+      byIid.set(iid, c);
+    }
+    return c;
+  }
+
+  value(iid: number): number {
+    let v = this.values.get(iid);
+    if (v === undefined) {
+      // One valuer for the memo's board: the Duty reads it shares are the
+      // same pure function of the board as `permValue`'s own.
+      this.valuer ??= createPermanentValuer(this.bf, this.db);
+      v = this.valuer(iid);
+      this.values.set(iid, v);
+    }
+    return v;
+  }
+
+  canBlock(defender: PlayerId, blocker: number, attacker: number): boolean {
+    const byAttacker = level(level(this.blockable, defender), blocker);
+    let ok = byAttacker.get(attacker);
+    if (ok === undefined) {
+      ok = canBlock(this.bf, this.db, defender, blocker, attacker);
+      byAttacker.set(attacker, ok);
+    }
+    return ok;
+  }
+
+  /** The straight exchange between one blocker and one (possibly
+   * trick-buffed) attacker, from the blocker's side: `provoked` is the
+   * Provoked swing for the blocker's controller. */
+  duel(blocker: number, attacker: number, trickBuff: number): { iKill: boolean; iDie: boolean; provoked: number } {
+    const byAttacker = level(level(this.duels, trickBuff), blocker);
+    let out = byAttacker.get(attacker);
+    if (!out) {
+      const A = this.combatant(attacker, trickBuff);
+      const bC = this.combatant(blocker);
+      out = { iKill: kills(bC, A), iDie: kills(A, bC), provoked: provokedSwing(A, [bC], false) };
+      byAttacker.set(attacker, out);
+    }
+    return out;
+  }
+
+  untappedBlockers(defender: PlayerId): Permanent[] {
+    let out = this.untapped.get(defender);
+    if (!out) {
+      out = untappedBlockers(this.bf, this.db, defender);
+      this.untapped.set(defender, out);
+    }
+    return out;
+  }
+
+  weightInputs(me: PlayerId): { pressing: boolean; oppPower: number } {
+    let out = this.weights.get(me);
+    if (!out) {
+      out = attackWeightInputs(this.bf, this.db, me);
+      this.weights.set(me, out);
+    }
+    return out;
+  }
 }
 
 /** Untapped mana sources the opponent has open (the trick-risk signal). */
@@ -207,6 +338,24 @@ export function scoreAttack(
   weightBoard: readonly Permanent[] = bf,
 ): number {
   if (attackers.length === 0) return 0;
+  const memo = new BoardMemo(bf, db);
+  return scoreAttackWith(memo, weightBoard === bf ? memo : new BoardMemo(weightBoard, db), me, oppLife,
+    trickBuff, attackers, myLife, pers);
+}
+
+/** `scoreAttack` on memoised reads: `memo` is the board fought on,
+ * `weights` the board that sets the damage weight and holdback penalty. */
+function scoreAttackWith(
+  memo: BoardMemo,
+  weights: BoardMemo,
+  me: PlayerId,
+  oppLife: number,
+  trickBuff: number,
+  attackers: number[],
+  myLife: number,
+  pers: Personality,
+): number {
+  if (attackers.length === 0) return 0;
   const opp = opponentOf(me);
   const virtualCombat: CombatState = {
     attackers,
@@ -216,8 +365,8 @@ export function scoreAttack(
   };
   // The opponent model stays NEUTRAL: we don't know their personality, so we
   // simulate their blocks with the default heuristic.
-  const blocks = chooseBlocks(bf, db, opp, oppLife, virtualCombat, trickBuff, DEFAULT_PERSONALITY);
-  const { pressing, oppPower } = attackWeightInputs(weightBoard, db, me);
+  const blocks = chooseBlocksWith(memo, opp, oppLife, virtualCombat, trickBuff, DEFAULT_PERSONALITY);
+  const { pressing, oppPower } = weights.weightInputs(me);
   let dmgWeight = oppLife <= 12 ? 0.9 : 0.45;
   if (pressing) dmgWeight += 0.2; // press an advantage
   dmgWeight *= pers.aggression;
@@ -229,7 +378,7 @@ export function scoreAttack(
     pers.holdback;
   let total = 0;
   for (const iid of attackers) {
-    const A = combatant(bf, db, iid);
+    const A = memo.combatant(iid);
     if (!A.sentinel) total -= holdbackPenalty;
     const myBlockers = blocks.filter((b) => b.attacker === iid).map((b) => b.blocker);
     if (myBlockers.length === 0) {
@@ -237,16 +386,19 @@ export function scoreAttack(
       if (fullDamage(A) >= oppLife) total += 100; // lethal connection
       continue;
     }
-    const defenders = myBlockers.map((b) => combatant(bf, db, b, trickBuff));
+    const defenders = myBlockers.map((b) => memo.combatant(b, trickBuff));
     const exchange = combatExchange(A, defenders);
     const iDie = exchange.dying.includes(iid);
+    // Feeding a Provoked blocker a blow it survives costs its effect; a
+    // Provoked attacker that survives its blockers earns its own.
+    total += provokedSwing(A, defenders, true);
     // attacker kills the cheapest blocker it can (auto-assignment)
     const killable = defenders.filter((bC) => exchange.dying.includes(bC.iid));
     const killValue =
       killable.length > 0
-        ? Math.min(...killable.map((bC) => permValue(bf, db, bC.iid)))
+        ? Math.min(...killable.map((bC) => memo.value(bC.iid)))
         : 0;
-    total += killValue - (iDie ? permValue(bf, db, iid) : 0);
+    total += killValue - (iDie ? memo.value(iid) : 0);
     if (A.trample && myBlockers.length === 1) {
       const overflow = exchange.damage;
       if (overflow > 0) total += overflow * dmgWeight;
@@ -284,6 +436,8 @@ export function chooseAttackers(
   weightBoard: readonly Permanent[] = bf,
 ): number[] {
   const opp = opponentOf(me);
+  const memo = new BoardMemo(bf, db);
+  const weights = weightBoard === bf ? memo : new BoardMemo(weightBoard, db);
   // Rage removes the choice, so the planner is not allowed to score these away.
   // Read from the UNFILTERED legality call on purpose: a compelled attacker
   // with 0 power is still compelled, and the `attack > 0` filter below would
@@ -295,13 +449,13 @@ export function chooseAttackers(
     return eligibleAttackers(bf, db, me).filter((iid) => keep.has(iid));
   };
   const eligible = eligibleAttackers(bf, db, me).filter(
-    (iid) => combatant(bf, db, iid).attack > 0,
+    (iid) => memo.combatant(iid).attack > 0,
   );
   if (eligible.length === 0) return withCompelled([]);
-  const defenders = untappedBlockers(bf, db, opp);
+  const defenders = memo.untappedBlockers(opp);
 
   // Lethal check: assume each defender absorbs the biggest remaining attacker.
-  const combatants = eligible.map((iid) => combatant(bf, db, iid));
+  const combatants = eligible.map((iid) => memo.combatant(iid));
   let blockersLeft = defenders.length;
   let absorbed = 0;
   for (const c of [...combatants].sort((a, b) => fullDamage(b) - fullDamage(a))) {
@@ -317,13 +471,13 @@ export function chooseAttackers(
   // improves the simulated outcome, until no single drop helps. A compelled
   // attacker is never a drop candidate.
   let current = [...eligible];
-  let best = scoreAttack(bf, db, me, oppLife, trickBuff, current, myLife, pers, weightBoard);
+  let best = scoreAttackWith(memo, weights, me, oppLife, trickBuff, current, myLife, pers);
   for (let iter = 0; iter < eligible.length; iter++) {
     let improved = false;
     for (const drop of [...current]) {
       if (compelled.includes(drop)) continue;
       const candidate = current.filter((iid) => iid !== drop);
-      const score = scoreAttack(bf, db, me, oppLife, trickBuff, candidate, myLife, pers, weightBoard);
+      const score = scoreAttackWith(memo, weights, me, oppLife, trickBuff, candidate, myLife, pers);
       if (score > best + 0.01) {
         best = score;
         current = candidate;
@@ -347,13 +501,13 @@ export function chooseAttackers(
     if (bleed > 0 && myLife <= bleed * 4) {
       const desperate: Personality = { ...pers, holdback: 0, aggression: Math.max(pers.aggression, 1.2) };
       let set = [...eligible];
-      let setScore = scoreAttack(bf, db, me, oppLife, trickBuff, set, myLife, desperate, weightBoard);
+      let setScore = scoreAttackWith(memo, weights, me, oppLife, trickBuff, set, myLife, desperate);
       for (let iter = 0; iter < eligible.length && set.length > 1; iter++) {
         let improved = false;
         for (const drop of [...set]) {
           if (compelled.includes(drop)) continue;
           const candidate = set.filter((iid) => iid !== drop);
-          const score = scoreAttack(bf, db, me, oppLife, trickBuff, candidate, myLife, desperate, weightBoard);
+          const score = scoreAttackWith(memo, weights, me, oppLife, trickBuff, candidate, myLife, desperate);
           if (score > setScore + 0.01) {
             setScore = score;
             set = candidate;
@@ -383,11 +537,23 @@ export function chooseBlocks(
   trickBuff: number,
   pers: Personality = DEFAULT_PERSONALITY,
 ): { blocker: number; attacker: number }[] {
+  return chooseBlocksWith(new BoardMemo(bf, db), me, myLife, combat, trickBuff, pers);
+}
+
+function chooseBlocksWith(
+  memo: BoardMemo,
+  me: PlayerId,
+  myLife: number,
+  combat: CombatState,
+  trickBuff: number,
+  pers: Personality,
+): { blocker: number; attacker: number }[] {
+  const bf = memo.bf;
   const attackers = combat.attackers.filter((iid) => bf.some((p) => p.iid === iid));
-  const myCreatures = untappedBlockers(bf, db, me);
+  const myCreatures = memo.untappedBlockers(me);
   if (attackers.length === 0 || myCreatures.length === 0) return [];
 
-  const incoming = attackers.reduce((s, iid) => s + fullDamage(combatant(bf, db, iid)), 0);
+  const incoming = attackers.reduce((s, iid) => s + fullDamage(memo.combatant(iid)), 0);
   const lethalMode = incoming >= myLife;
   const lifePressure =
     (myLife <= 8 || incoming >= myLife * 0.5 ? 1.0 : myLife <= 14 ? 0.55 : 0.3) *
@@ -401,15 +567,13 @@ export function chooseBlocks(
   const pairs: Pair[] = [];
   for (const B of myCreatures) {
     for (const aIid of attackers) {
-      if (!canBlock(bf, db, me, B.iid, aIid)) continue;
-      const A = combatant(bf, db, aIid, trickBuff);
-      const bC = combatant(bf, db, B.iid);
-      const iKill = kills(bC, A);
-      const iDie = kills(A, bC);
+      if (!memo.canBlock(me, B.iid, aIid)) continue;
+      const { iKill, iDie, provoked } = memo.duel(B.iid, aIid, trickBuff);
       const score =
-        (iKill ? permValue(bf, db, aIid) : 0) -
-        (iDie ? permValue(bf, db, B.iid) : 0) +
-        fullDamage(combatant(bf, db, aIid)) * lifePressure;
+        (iKill ? memo.value(aIid) : 0) -
+        (iDie ? memo.value(B.iid) : 0) +
+        fullDamage(memo.combatant(aIid)) * lifePressure +
+        provoked;
       pairs.push({ blocker: B.iid, attacker: aIid, score });
     }
   }
@@ -420,7 +584,7 @@ export function chooseBlocks(
   const blockedAttackers = new Set<number>();
   for (const pair of pairs) {
     if (usedBlockers.has(pair.blocker) || blockedAttackers.has(pair.attacker)) continue;
-    if (combatant(bf, db, pair.attacker).dreaded) continue;
+    if (memo.combatant(pair.attacker).dreaded) continue;
     // `blockThreshold` replaces the `pair.score > 0` gate (default 0).
     if (pair.score > pers.blockThreshold || lethalMode) {
       blocks.push({ blocker: pair.blocker, attacker: pair.attacker });
@@ -432,15 +596,15 @@ export function chooseBlocks(
   // Double-block search on high-value attackers and every Dreaded attacker.
   for (const aIid of attackers) {
     if (blockedAttackers.has(aIid)) continue;
-    const A = combatant(bf, db, aIid, trickBuff);
-    if (!A.dreaded && permValue(bf, db, aIid) < 4) continue;
+    const A = memo.combatant(aIid, trickBuff);
+    if (!A.dreaded && memo.value(aIid) < 4) continue;
     const free = myCreatures.filter(
-      (B) => !usedBlockers.has(B.iid) && canBlock(bf, db, me, B.iid, aIid),
+      (B) => !usedBlockers.has(B.iid) && memo.canBlock(me, B.iid, aIid),
     );
     for (let i = 0; i < free.length; i++) {
       for (let j = i + 1; j < free.length; j++) {
-        const b1 = combatant(bf, db, free[i].iid);
-        const b2 = combatant(bf, db, free[j].iid);
+        const b1 = memo.combatant(free[i].iid);
+        const b2 = memo.combatant(free[j].iid);
         // Preserve the existing pure-firstBlade gang approximation: Hard's
         // documented three-block search starts from that two-block baseline.
         // Twin Blades gangs must account for casualties before the second hit.
@@ -450,8 +614,8 @@ export function chooseBlocks(
         // A Dreaded attacker may also be double-chumped to survive lethal.
         if (!killsIt && !(A.dreaded && lethalMode)) continue;
         // attacker kills at most one of them (cheapest-kill-first auto-assign)
-        const cheaper = Math.min(permValue(bf, db, free[i].iid), permValue(bf, db, free[j].iid));
-        if (A.dreaded || permValue(bf, db, aIid) - cheaper > 1) {
+        const cheaper = Math.min(memo.value(free[i].iid), memo.value(free[j].iid));
+        if (A.dreaded || memo.value(aIid) - cheaper > 1) {
           blocks.push(
             { blocker: free[i].iid, attacker: aIid },
             { blocker: free[j].iid, attacker: aIid },

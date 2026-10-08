@@ -18,4 +18,38 @@ export const FEATURES = {
    * `reserveFormats`; the two are never independently false/true.
    */
   classicRetired: true,
+  // --- 1.9 lane C: the Accessibility controls' ship gates (C4) ---
+  /**
+   * One switch per Settings control (docs/plan-accessibility-i18n.md, "The
+   * ship gate"). While a switch is false its control is hidden in production
+   * builds (dev builds always show it) and a saved value is not applied, so
+   * no player lands in a half-built state they have no control to undo. Each
+   * flips when every player-facing scene clears the rendered probe in the
+   * cells its control opens; high contrast may ship before 130% text.
+   * Both flipped for 1.9.0 (owner, 2026-10-06): every WAVE_* probe list
+   * read 0 findings in all six cells at the wave-5 QC.
+   */
+  textSizeLive: true,
+  highContrastLive: true,
+  // --- end lane C ship gates ---
+  /**
+   * 1.9 lane D (docs/plan-art-streaming.md): card art loads on demand through
+   * the art store and is evicted under a memory budget by default.
+   * `?artStream=on` / `?artStream=off` override it for one page load.
+   * `?artStream=off` restores the 1.8 whole-manifest loader; `?artEvict=off`
+   * keeps on-demand streaming and disables eviction.
+   */
+  artStream: true,
 };
+
+/**
+ * Whether this page load streams card art through the art store. The
+ * `?artStream=on|off` URL switch (developer and probe use; no player copy)
+ * wins over the flag; anything else leaves the flag's answer.
+ */
+export function artStreamEnabled(search: string, flag: boolean = FEATURES.artStream): boolean {
+  const value = new URLSearchParams(search).get('artStream');
+  if (value === 'on') return true;
+  if (value === 'off') return false;
+  return flag;
+}

@@ -4,7 +4,7 @@ import { CARD_DB } from '../../src/data/catalog';
 import { validateAction, type Action } from '../../src/engine/actions';
 import { Game } from '../../src/engine/Game';
 import { createRngState } from '../../src/engine/rng';
-import type { AbilityDef, CardDb, CardDef, GameState, Permanent } from '../../src/engine/types';
+import type { AbilityDef, CardDb, CardDef, GameState, Keyword, Permanent } from '../../src/engine/types';
 import { makeTestState, TEST_DB } from '../helpers';
 
 const cost = (generic: number) => ({ generic, pips: {} });
@@ -16,9 +16,42 @@ const spell = (id: string, mana: number, ops: NonNullable<AbilityDef['ops']>, ta
   id, name: id, types: [ritual ? 'ritual' : 'charm'], subtypes: [], colors: [], rarity: 'c',
   cost: cost(mana), abilities: [{ when: 'spell', ops, ...(targets ? { targets } : {}) }],
 });
+const grantBody = (id: string, attack: number, keyword: Keyword, empower: boolean): CardDef => {
+  const ops: NonNullable<AbilityDef['ops']> = [{ op: 'boost', scope: 'self', p: 0, t: 0, keywords: [keyword] }];
+  return creature(id, attack, 5, 2, empower
+    ? { empower: { cost: cost(1), ops } } : { abilities: [{ when: 'sunset', ops }] });
+};
 export const DB: CardDb = {
   ...TEST_DB,
+  'in-stand-as-one': CARD_DB['in-stand-as-one'],
+  'gm-red-moon-rampage': CARD_DB['gm-red-moon-rampage'],
+  'ac-shieldwall-call': CARD_DB['ac-shieldwall-call'],
   'tok-kelp-shade': CARD_DB['tok-kelp-shade'],
+  'tok-broodling': CARD_DB['tok-broodling'],
+  'sb-starborne-apotheosis': CARD_DB['sb-starborne-apotheosis'],
+  'sb-rootlight-broodmother': CARD_DB['sb-rootlight-broodmother'],
+  'dd-reef-bloom': CARD_DB['dd-reef-bloom'],
+  'tok-hatchling': CARD_DB['tok-hatchling'],
+  'fd-stampede-long-grass': CARD_DB['fd-stampede-long-grass'],
+  plain_stampede: { ...CARD_DB['fd-stampede-long-grass'], id: 'plain_stampede',
+    abilities: [{ when: 'spell', ops: [{ op: 'createToken', token: 'tok-hatchling', count: 2 },
+      { op: 'boost', p: 1, t: 0, scope: 'allYours' }] }] },
+  grant_flight: { id: 'grant_flight', name: 'grant_flight', types: ['artifact'], subtypes: [], colors: [], rarity: 'c',
+    cost: cost(1), activated: { cost: { tap: true }, targets: [{ what: 'yourCreature' }],
+      ops: [{ op: 'boost', scope: 'target', p: 0, t: 0, keywords: ['skyborne'] }] } },
+  grant_aura: { id: 'grant_aura', name: 'grant_aura', types: ['enchantment'], subtypes: ['Aura'], colors: [], rarity: 'c',
+    cost: cost(3), abilities: [{ when: 'static', static: { scope: 'attached', grantKeywords: ['skyborne'] } }] },
+  prison_aura: { id: 'prison_aura', name: 'prison_aura', types: ['enchantment'], subtypes: ['Aura'], colors: [], rarity: 'c',
+    cost: cost(3), abilities: [{ when: 'static', static: { scope: 'attached', grantKeywords: ['bulwark'] } }] },
+  remove_engine: spell('remove_engine', 0, [{ op: 'destroy', to: 'target' }], [{ what: 'artifactOrEnchantment' }]),
+  sunset_flight_one: grantBody('sunset_flight_one', 1, 'skyborne', false),
+  sunset_death_one: grantBody('sunset_death_one', 1, 'deathblade', false),
+  sunset_flight_five: grantBody('sunset_flight_five', 5, 'skyborne', false),
+  sunset_death_five: grantBody('sunset_death_five', 5, 'deathblade', false),
+  empower_flight_one: grantBody('empower_flight_one', 1, 'skyborne', true),
+  empower_death_one: grantBody('empower_death_one', 1, 'deathblade', true),
+  empower_flight_five: grantBody('empower_flight_five', 5, 'skyborne', true),
+  empower_death_five: grantBody('empower_death_five', 5, 'deathblade', true),
   costly: creature('costly', 1, 1, 8),
   cheap_value: creature('cheap_value', 6, 6, 2),
   expensive_blank: spell('expensive_blank', 5, [], undefined, true),
@@ -100,13 +133,13 @@ export function checked<T>(run: () => T): T {
     throw error;
   }
 }
-export function act(game: Game, brain: AIPlayer = new MediumAI(DB)): Action {
+export function act(game: Game, brain: AIPlayer = new MediumAI(DB), db: CardDb = DB): Action {
   return checked(() => {
     const awaiting = game.awaiting;
     if (awaiting.kind === 'gameOver') throw new Error('Fixture ended before the decision');
     const player = awaiting.player;
     const action = brain.chooseAction(game.viewFor(player), game.legalActions(player));
-    const error = validateAction(game.instanceState, DB, player, action);
+    const error = validateAction(game.instanceState, db, player, action);
     if (error !== null) throw new Error(`Illegal brain action ${JSON.stringify(action)}: ${error}`);
     game.submit(player, action);
     return action;

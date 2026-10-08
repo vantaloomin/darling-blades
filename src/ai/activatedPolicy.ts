@@ -43,9 +43,13 @@ function shapesCombat(ops: readonly EffectOp[]): boolean {
       case 'boost': case 'addCounters': case 'markAll': case 'propagate': case 'moveMark': case 'removeMarks':
       case 'loseLife': case 'loseLifePerTheirMarked':
         return true;
+      case 'hunt':
+        // A Hunt can kill a blocker, or damage (or lose) the creature that hunts.
+        return true;
       case 'damage':
         return op.to !== 'controller';
       case 'ifTargetMarked':
+      case 'ifTargetSurvives':
         return shapesCombat(op.then) || shapesCombat(op.else ?? []);
       default:
         return false;
@@ -162,7 +166,7 @@ export function precombatDutyEdge(
   try {
     const game = determinize(view, sdb);
     game.submit(me, action);
-    if (game.state.winner === me) {
+    if (game.instanceState.winner === me) {
       edge = { lethal: true, gain: PRECOMBAT_LETHAL };
     } else {
       const after = game.viewFor(me);
@@ -212,6 +216,7 @@ function dutyReach(ops: readonly EffectOp[]): number {
       case 'markAll': case 'propagate': case 'loseLifePerTheirMarked':
         return Infinity;
       case 'ifTargetMarked':
+      case 'ifTargetSurvives':
         reach += Math.max(dutyReach(op.then), dutyReach(op.else ?? []));
         break;
       default:
@@ -253,7 +258,7 @@ function lethalScreen(view: PlayerView, sdb: CardDb, action: ActivateAction, con
   try {
     const game = determinize(view, sdb);
     game.submit(me, action);
-    if (game.state.winner === me) {
+    if (game.instanceState.winner === me) {
       lethal = true;
     } else {
       const after = game.viewFor(me);
@@ -313,13 +318,22 @@ export function scoredActivationCandidates(
     const d = def(db, source.cardId);
     const ability = activatedAbilitiesOf(d)[action.abilityIndex ?? 0];
     if (!ability) return;
+    // A Duty the forecast must clear before combat: a paid one, or one whose
+    // body could attack instead.
+    let paidMorning = view.step === 'main1' && manaValue(ability.cost.mana) > 0;
     if (view.step === 'main1' && isType(d, 'creature')) {
       const stats = getEffectiveStats(view.battlefield, db, source.iid);
       // Even a zero-power or Bulwark Rage body never uses the Morning trick.
       if (stats.keywords.has('rage')) return;
-      if (stats.attack > 0 && canAttack(view.battlefield, db, view.myId, source.iid)) return;
+      // A body that could attack spends itself on its Duty only when the
+      // forecast, which plans the attack with that body tapped, says the Duty
+      // buys more (wave 4: since U3 zeroed a main-two tap, Ice-Speaker's had
+      // no live turn). Without a forecast it attacks first, as before.
+      if (stats.attack > 0 && canAttack(view.battlefield, db, view.myId, source.iid)) {
+        if (!precombat) return;
+        paidMorning = true;
+      }
     }
-    const paidMorning = view.step === 'main1' && manaValue(ability.cost.mana) > 0;
     if (paidMorning && (!precombat || !reachesFight(view, simDb(db), action, ability,
       eligible ??= eligibleAttackers(view.battlefield, simDb(db), view.myId)))) return;
     // Never a self-harming ability, whatever the attack would gain.

@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { freshSave } from '../../src/meta/SaveManager';
 import { PLAIN_VARIANT, variantKey, type CardVariant } from '../../src/meta/variants';
+import { CARD_FACE_H, CARD_FACE_W } from '../../src/config/cardFaceGeometry';
+import { setAccessibility } from '../../src/ui/accessibility';
+import { theme } from '../../src/ui/theme';
+import { forEachA11yCell } from './a11yCells';
 import {
+  LIMITED_PICKS_PANEL,
+  limitedPicksLayout,
+  PICK_THUMB_SCALE,
   plainCopiesDrafted,
   premiumGrantNote,
   premiumGrantSummary,
@@ -143,5 +150,60 @@ describe('premium grant note', () => {
     for (const results of [grant(45), grant(44, [5]), grant(30, Array(15).fill(50))]) {
       expect(premiumGrantNote(premiumGrantSummary(results))).not.toContain('—');
     }
+  });
+});
+
+/**
+ * The draft screen's Your Picks panel (1.9 accessibility): its labels moved
+ * onto the text-size resolver, and the pick thumbs (card faces, never
+ * scaled) reflow into more columns when the labels above them grow. Rules,
+ * in every cell: each label keeps at least its release distance to the next
+ * plus its own role's growth, every pick fits inside the panel, and no two
+ * thumbs touch.
+ */
+describe('Your Picks panel at every text size', () => {
+  const P = LIMITED_PICKS_PANEL;
+  const thumbW = CARD_FACE_W * PICK_THUMB_SCALE;
+  const thumbH = CARD_FACE_H * PICK_THUMB_SCALE;
+  const grew = (role: 'h2' | 'caption' | 'micro'): number => theme.type[role] - theme.typeBase[role];
+  const order = (l: ReturnType<typeof limitedPicksLayout>): number[] => [l.colorsTop, l.pipY, l.curveTop, l.axisY, l.countY, l.ruleY, l.gridTop];
+  const release = (() => {
+    setAccessibility({ textScale: 1, highContrast: false });
+    return order(limitedPicksLayout());
+  })();
+
+  it('keeps each label clear of the row under it in every accessibility cell', () => {
+    // The line each gap sits under: COLORS, the pip counts, MANA CURVE, the axis, the counts, the rule band (list label).
+    const above = ['micro', 'caption', 'micro', 'micro', 'caption', 'micro'] as const;
+    forEachA11yCell((cell) => {
+      const now = order(limitedPicksLayout());
+      expect(now[0] - release[0], cell.name).toBeGreaterThanOrEqual(grew('h2'));
+      for (let i = 0; i < above.length; i++) {
+        expect(now[i + 1] - now[i] - (release[i + 1] - release[i]), `${cell.name} gap ${i}`).toBeGreaterThanOrEqual(grew(above[i]) / 2);
+      }
+    });
+  });
+
+  it('fits every pick inside the panel without thumbs touching in every accessibility cell', () => {
+    forEachA11yCell((cell) => {
+      const l = limitedPicksLayout();
+      expect(l.columns * l.rows, cell.name).toBeGreaterThanOrEqual(P.maxPicks);
+      expect(l.rowPitch - thumbH, cell.name).toBeGreaterThanOrEqual(P.minRowGap);
+      expect(l.columnPitch - thumbW, cell.name).toBeGreaterThanOrEqual(P.minRowGap);
+      const firstTop = l.gridTop - thumbH / 2;
+      const lastBottom = l.gridTop + (l.rows - 1) * l.rowPitch + thumbH / 2;
+      const lastRight = P.thumbInset + (l.columns - 1) * l.columnPitch + thumbW / 2;
+      // Below the list label's line, and above the panel's 8px bottom inset.
+      expect(firstTop - l.listTop, cell.name).toBeGreaterThanOrEqual(theme.type.micro);
+      expect(lastBottom, cell.name).toBeLessThanOrEqual(P.height - theme.space(2));
+      expect(lastRight, cell.name).toBeLessThanOrEqual(P.width - theme.space(2));
+    });
+  });
+
+  it('keeps the release grid at the standard size: nine columns, five rows, 43px apart', () => {
+    setAccessibility({ textScale: 1, highContrast: false });
+    const l = limitedPicksLayout();
+    expect({ columns: l.columns, rows: l.rows, rowPitch: l.rowPitch, columnPitch: l.columnPitch, gridTop: l.gridTop })
+      .toEqual({ columns: 9, rows: 5, rowPitch: 43, columnPitch: 37, gridTop: 204 });
   });
 });

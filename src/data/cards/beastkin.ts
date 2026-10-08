@@ -14,7 +14,6 @@ export const BEASTKIN = [
     defense: 1,
     manaAbility: ['G'],
     rarity: 'c',
-    flavor: 'Nine lives, one job: find the good mushrooms.',
   },
   {
     id: 'bk-wolfkin-raider',
@@ -27,7 +26,6 @@ export const BEASTKIN = [
     defense: 1,
     keywords: ['warcry'],
     rarity: 'c',
-    flavor: 'The howl is a courtesy. A short one.',
   },
   {
     id: 'bk-bunny-vanguard',
@@ -40,7 +38,6 @@ export const BEASTKIN = [
     defense: 1,
     keywords: ['sentinel'],
     rarity: 'c',
-    flavor: 'Small, fluffy, and legally a soldier.',
   },
   {
     id: 'bk-harpy-skirmisher',
@@ -53,7 +50,6 @@ export const BEASTKIN = [
     defense: 2,
     keywords: ['skyborne'],
     rarity: 'r',
-    flavor: 'Her opinions arrive at terminal velocity.',
   },
   {
     id: 'bk-bearkin-guardian',
@@ -65,7 +61,6 @@ export const BEASTKIN = [
     attack: 2,
     defense: 2,
     rarity: 'c',
-    flavor: 'Hibernates professionally. Fights recreationally.',
   },
   {
     id: 'bk-rhinokin-charger',
@@ -78,7 +73,6 @@ export const BEASTKIN = [
     defense: 4,
     keywords: ['overrun'],
     rarity: 'r',
-    flavor: 'Doors are a suggestion.',
   },
   {
     id: 'bk-lamia-nightblade',
@@ -91,7 +85,6 @@ export const BEASTKIN = [
     defense: 1,
     keywords: ['deathblade'],
     rarity: 'c',
-    flavor: 'One scratch settles most arguments.',
   },
   {
     id: 'bk-dragonmaid',
@@ -104,7 +97,6 @@ export const BEASTKIN = [
     defense: 4,
     keywords: ['skyborne'],
     rarity: 'sr',
-    flavor: 'She dusts, she polishes, she incinerates.',
   },
   {
     id: 'bk-packmother',
@@ -122,7 +114,6 @@ export const BEASTKIN = [
       },
     ],
     rarity: 'r',
-    flavor: 'The pack eats first. She insists.',
   },
   {
     id: 'bk-kitsune-matriarch',
@@ -142,7 +133,6 @@ export const BEASTKIN = [
       },
     ],
     rarity: 'ssr',
-    flavor: 'Nine tails, nine schemes, one very patient smile.',
   },
   {
     id: 'bk-wolfqueen',
@@ -162,7 +152,6 @@ export const BEASTKIN = [
       },
     ],
     rarity: 'ssr',
-    flavor: 'The pack votes on everything. She counts the howls.',
   },
   {
     id: 'bk-kitsune-illusionist',
@@ -175,7 +164,6 @@ export const BEASTKIN = [
     defense: 1,
     keywords: ['untouchable'],
     rarity: 'c',
-    flavor: 'Which of the five foxes is real? Wrong.',
   },
   {
     id: 'bk-kitsune-dreamweaver',
@@ -195,7 +183,6 @@ export const BEASTKIN = [
     // 4-of in the rung-7 Yohime deck; her baseline re-stamps in W7.
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'r',
-    flavor: 'Sleep now. The battle will still be lost in the morning.',
   },
   {
     id: 'bk-holstaur-milkmaid',
@@ -208,7 +195,6 @@ export const BEASTKIN = [
     defense: 3,
     keywords: ['bloodoath'],
     rarity: 'c',
-    flavor: 'Breakfast is a love language.',
   },
   {
     id: 'bk-sheepkin-dreamherd',
@@ -221,7 +207,6 @@ export const BEASTKIN = [
     defense: 4,
     keywords: ['bulwark'],
     rarity: 'c',
-    flavor: 'Counts herself to sleep. Loses count at one.',
   },
   {
     id: 'bk-mousekin-pantry-guard',
@@ -233,7 +218,6 @@ export const BEASTKIN = [
     attack: 1,
     defense: 1,
     rarity: 'c',
-    flavor: 'Small rations, smaller thief, zero tolerance.',
   },
   {
     id: 'bk-spiderkin-weaver',
@@ -246,7 +230,6 @@ export const BEASTKIN = [
     defense: 3,
     keywords: ['deathblade', 'wardingGaze'],
     rarity: 'c',
-    flavor: 'Her silk is lovely. Do admire it from outside.',
   },
   {
     id: 'bk-batkin-duskwing',
@@ -259,7 +242,6 @@ export const BEASTKIN = [
     defense: 1,
     keywords: ['skyborne'],
     rarity: 'c',
-    flavor: 'Echolocation counts as gossip if you do it loudly enough.',
   },
   {
     id: 'bk-mermaid-chartsinger',
@@ -271,7 +253,6 @@ export const BEASTKIN = [
     attack: 1,
     defense: 3,
     rarity: 'c',
-    flavor: 'Her songs are maps. Her maps are traps.',
   },
   {
     id: 'bk-deerkin-grovekeeper',
@@ -284,7 +265,6 @@ export const BEASTKIN = [
     defense: 2,
     abilities: [{ when: 'arrives', ops: [{ op: 'extraLandDrop' }] }],
     rarity: 'r',
-    flavor: 'The forest follows her home and stays.',
   },
   {
     id: 'bk-foxfire-priestess',
@@ -298,7 +278,6 @@ export const BEASTKIN = [
     keywords: ['bloodoath'],
     abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 3 }] }],
     rarity: 'r',
-    flavor: 'Foxfire never burns. It only warms whom she chooses.',
   },
   {
     id: 'bk-crowkin-shrike',
@@ -311,7 +290,6 @@ export const BEASTKIN = [
     defense: 2,
     keywords: ['skyborne'],
     rarity: 'c',
-    flavor: 'Collects shiny things: rings, buttons, last words.',
   },
   {
     id: 'bk-turtlekin-bulwark',
@@ -324,7 +302,6 @@ export const BEASTKIN = [
     defense: 6,
     keywords: ['bulwark'],
     rarity: 'c',
-    flavor: 'Home is where the shell is. The shell is a fortress.',
   },
   {
     id: 'bk-squirrelkin-hoarder',
@@ -336,7 +313,6 @@ export const BEASTKIN = [
     attack: 1,
     defense: 3,
     rarity: 'c',
-    flavor: 'Winter prep is a year-round lifestyle, and yes, that acorn is hers.',
   },
   {
     id: 'bk-boarkin-rioter',
@@ -349,7 +325,6 @@ export const BEASTKIN = [
     defense: 2,
     keywords: ['warcry'],
     rarity: 'c',
-    flavor: 'First through the fence. Any fence. All fences.',
   },
   {
     id: 'bk-boarkin-rootbreaker',
@@ -362,6 +337,5 @@ export const BEASTKIN = [
     defense: 2,
     abilities: [{ when: 'arrives', ops: [{ op: 'destroyNewestOpponentArtifactOrEnchantment' }] }],
     rarity: 'c',
-    flavor: 'She uproots first and asks whether it was valuable later.',
   },
 ] as const satisfies readonly CardDef[];

@@ -1,6 +1,6 @@
 import { createRngState, rngShuffle } from '../engine/rng';
 import type { CardDb, CardDef, Color, EffectOp, Keyword, TargetSpec } from '../engine/types';
-import { activatedAbilitiesOf, def, isType, manaValue } from '../engine/types';
+import { activatedAbilitiesOf, def, flatOps, isTargetBranchOp, isType, manaValue } from '../engine/types';
 import { TIER_RANK } from './variants';
 
 const COLOR_ORDER: readonly Color[] = ['W', 'U', 'B', 'R', 'G'];
@@ -79,7 +79,7 @@ export function scorePick(
   noise01: number,
 ): number {
   const d = def(db, cardId);
-  let score = scoreBasePick(d, profile);
+  let score = scoreBasePick(d, profile) + huntProvokedPickScore(db, d, picks, profile);
   const committed = profile.forcedColors?.length ? profile.forcedColors : committedColors(db, picks);
 
   if (picks.length >= profile.commitAfter && d.colors.length > 0) {
@@ -138,7 +138,7 @@ export function scoreBasePick(d: CardDef, profile: PickerProfile): number {
   // onto your own creature is a cost, not removal. Generic targets remain useful.
   const collect = (effects: readonly EffectOp[], targets: readonly TargetSpec[] = []): void => {
     for (const op of effects) {
-      if (op.op === 'ifTargetMarked') {
+      if (isTargetBranchOp(op)) {
         collect(op.then, targets);
         collect(op.else ?? [], targets);
       } else {
@@ -224,6 +224,89 @@ export function scoreBasePick(d: CardDef, profile: PickerProfile): number {
     score += Math.max(0, mv - 5) * profile.bigStuffBias;
     score += Math.max(0, 4 - mv) * profile.cheapBias;
   }
+  return score;
+}
+
+/**
+ * What a card is to First Dawn's two mechanics (1.9, A2.b):
+ *   - a Provoked payoff: a creature with a Provoked ability;
+ *   - a Provoked source: it damages its controller's own creatures (damage
+ *     aimed at a creature you control, damage each creature you control, or
+ *     a Hunt that declares `any` or `yours` prey);
+ *   - Hunt removal: a Hunt whose prey can be an opponent's creature (not
+ *     `yours`), either on a spell that needs a creature of yours to hunt, or
+ *     bound to the card itself (it brings its own hunter).
+ * A card with none of these (every card shipped before First Dawn) reads
+ * nothing here.
+ */
+interface HuntProvokedRoles { payoff: boolean; source: boolean; huntRemoval?: 'spell' | 'self' }
+
+const ROLES = new WeakMap<CardDef, HuntProvokedRoles>();
+
+function huntProvokedRoles(d: CardDef): HuntProvokedRoles {
+  const cached = ROLES.get(d);
+  if (cached) return cached;
+  const roles: HuntProvokedRoles = {
+    payoff: isType(d, 'creature') && (d.abilities ?? []).some((ability) => ability.when === 'provoked'),
+    source: false,
+  };
+  const read = (ops: readonly EffectOp[], targets: readonly TargetSpec[] = []): void => {
+    for (const op of flatOps(ops)) {
+      if (op.op === 'hunt') {
+        if (op.prey !== undefined) roles.source = true;
+        if (op.prey !== 'yours') roles.huntRemoval = op.hunter === 'self' || roles.huntRemoval === 'self' ? 'self' : 'spell';
+      } else if (op.op === 'damage' && (op.n === 'X' || op.n > 0)) {
+        const what = op.to === 'target' ? targets[op.targetIndex ?? 0]?.what : undefined;
+        if (op.to === 'eachYourCreature' || what === 'yourCreature') roles.source = true;
+      }
+    }
+  };
+  for (const ability of d.abilities ?? []) read(ability.ops ?? [], ability.targets);
+  for (const duty of activatedAbilitiesOf(d)) read(duty.ops, duty.targets);
+  if (d.empower) read(d.empower.ops, d.empower.targets);
+  if (d.retell) read(d.retell.ops ?? [], d.retell.targets);
+  for (const chapter of d.chapters ?? []) read(chapter);
+  ROLES.set(d, roles);
+  return roles;
+}
+
+/** Each partner in the pool drafted so far adds this much to a Provoked payoff
+ * or source, times `mechanicWeight`, up to `HUNT_PROVOKED_PARTNER_CAP` partners
+ * (at most 3 at the shipped weight, below one removal's 5). Untuned. */
+const HUNT_PROVOKED_PARTNER_STEP = 0.75;
+const HUNT_PROVOKED_PARTNER_CAP = 4;
+/** A Hunt spell counts as full removal once the pool holds this many creatures
+ * to hunt with, and pro rata below it; with none it is not removal yet. Six is
+ * about a third of a Limited deck's creatures. Untuned. */
+const HUNT_SPELL_FULL_CREATURES = 6;
+
+/**
+ * The pick-history terms for Hunt and Provoked (plan-first-dawn-engine.md,
+ * Part 4, A2): a Provoked payoff is weighted by the sources already drafted, a
+ * source by the payoffs, and a Hunt as removal by the drafter's creatures (a
+ * Hunt spell needs one to hunt with; a Hunt bound to the card itself is full
+ * removal, as an arrival damage effect is). 0 for a card with no such role.
+ */
+function huntProvokedPickScore(db: CardDb, d: CardDef, picks: readonly string[], profile: PickerProfile): number {
+  const roles = huntProvokedRoles(d);
+  if (!roles.payoff && !roles.source && !roles.huntRemoval) return 0;
+  let payoffs = 0;
+  let sources = 0;
+  let creatures = 0;
+  for (const id of picks) {
+    const picked = def(db, id);
+    const pickedRoles = huntProvokedRoles(picked);
+    if (pickedRoles.payoff) payoffs++;
+    if (pickedRoles.source) sources++;
+    if (isType(picked, 'creature')) creatures++;
+  }
+  const partners = (n: number): number =>
+    Math.min(HUNT_PROVOKED_PARTNER_CAP, n) * HUNT_PROVOKED_PARTNER_STEP * profile.mechanicWeight;
+  let score = 0;
+  if (roles.payoff) score += partners(sources);
+  if (roles.source) score += partners(payoffs);
+  if (roles.huntRemoval === 'self') score += profile.removalWeight;
+  else if (roles.huntRemoval === 'spell') score += profile.removalWeight * Math.min(1, creatures / HUNT_SPELL_FULL_CREATURES);
   return score;
 }
 

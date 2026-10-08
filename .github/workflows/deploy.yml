@@ -53,6 +53,19 @@ jobs:
       # the runtime falls back to full-res.)
       - name: Generate art manifest
         run: npx tsx scripts/gen-art-manifest.ts --require-half
+      # The web build reads card art from one content-hashed .bin pack per set
+      # per tier by HTTP range (docs/plan-art-streaming.md section 5); this
+      # stages the packs and writes their offset index (bundled once S3 wires in
+      # the source).
+      # --require-half fails the run if the half tier is incomplete. The
+      # `npm run build` below runs it again, finds every pack already staged
+      # under its hashed name, and its art-packs plugin copies them into
+      # dist/assets/art/packs/. Through 1.9 the loose card files stay in dist/
+      # beside the packs (the Forge, tabs on the previous build, the fallback),
+      # so the Pages artifact carries both: 280 MB (267 MiB) more than before,
+      # about 570 MB in all (measured 2026-09-28).
+      - name: Pack card art
+        run: npx tsx scripts/pack-art.ts --require-half
       - name: Typecheck
         run: npx tsc --noEmit
       - name: Lint

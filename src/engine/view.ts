@@ -88,6 +88,22 @@ export interface PlayerView {
   winner: PlayerId | 'draw' | null;
 }
 
+/**
+ * A deep copy of plain state data (objects, arrays, primitives), the same
+ * values `structuredClone` gives, made in a few microseconds rather than tens:
+ * a view is built for every decision, simulated ones included, and its copies
+ * were a tenth of a wide-board Hard game. Anything that is not a plain object
+ * or array still goes through `structuredClone`.
+ */
+function copyData<T>(value: T): T {
+  if (Array.isArray(value)) return value.map(copyData) as T;
+  if (value === null || typeof value !== 'object') return value;
+  if (Object.getPrototypeOf(value) !== Object.prototype) return structuredClone(value);
+  const copy: Record<string, unknown> = {};
+  for (const key of Object.keys(value)) copy[key] = copyData((value as Record<string, unknown>)[key]);
+  return copy as T;
+}
+
 export function viewFor(
   state: GameState,
   player: PlayerId,
@@ -103,7 +119,7 @@ export function viewFor(
       ? { ...state.awaiting, cards: [] }
       : state.awaiting.kind === 'foresee'
         ? { ...state.awaiting, cards: state.awaiting.cards.map(cardIdOf) }
-        : structuredClone(state.awaiting);
+        : copyData(state.awaiting);
   return {
     ...(state.rulesRev === undefined ? {} : { rulesRev: state.rulesRev }),
     myId: player,
@@ -155,14 +171,14 @@ export function viewFor(
       landDropsRemaining: Math.max(0, 1 + them.extraLandDrops - them.landDropsUsed),
       mulligans: them.mulligans,
     },
-    battlefield: structuredClone(state.battlefield),
-    stack: structuredClone(state.stack),
-    combat: structuredClone(state.combat),
+    battlefield: copyData(state.battlefield),
+    stack: copyData(state.stack),
+    combat: copyData(state.combat),
     fogThisTurn: state.fogThisTurn,
     ...(state.creatureDiedThisTurn ? { creatureDiedThisTurn: true as const } : {}),
     ...(state.sunsetPendingWindow ? { sunsetPendingWindow: true as const } : {}),
-    ...(state.decisionResume ? { decisionResume: structuredClone(state.decisionResume) } : {}),
-    ...(publicQueue ? { pendingDecisions: structuredClone(state.pendingDecisions), stackClosed: state.stackClosed } : {}),
+    ...(state.decisionResume ? { decisionResume: copyData(state.decisionResume) } : {}),
+    ...(publicQueue ? { pendingDecisions: copyData(state.pendingDecisions), stackClosed: state.stackClosed } : {}),
     awaiting,
     winner: state.winner,
   };

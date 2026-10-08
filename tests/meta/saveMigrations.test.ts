@@ -1,10 +1,13 @@
+import { createHash } from 'node:crypto';
+import { deflateSync, strToU8 } from 'fflate';
 import { describe, expect, it } from 'vitest';
 import { CARD_DB } from '../../src/data/catalog';
 import { STARTER_DECKS, THEME_DECKS } from '../../src/data/starterDecks';
 import { deckHealth } from '../../src/meta/deckRepair';
 import { grantDeckCards } from '../../src/meta/Economy';
 import { startDraftRun } from '../../src/meta/Limited';
-import { CURRENT_SAVE_VERSION, freshSave, SaveManager, type SaveData } from '../../src/meta/SaveManager';
+import { decode, encode } from '../../src/meta/SaveCode';
+import { CURRENT_SAVE_VERSION, freshSave, SaveManager, storedPremiumGrant, type SaveData } from '../../src/meta/SaveManager';
 import { STATS_NOTICE_VERSION } from '../../src/meta/statsNotice';
 import { parseVariantKey, PLAIN_VARIANT, variantKey } from '../../src/meta/variants';
 import {
@@ -906,7 +909,7 @@ describe('SaveData v35 migration (anonymous-stats preference)', () => {
    * the block entirely. This walks the whole matrix rather than just 34.
    */
   it.each(Array.from({ length: CURRENT_SAVE_VERSION - 1 }, (_, index) => index + 1))(
-    'walks a v%i blob all the way to a valid v35 save',
+    'walks a v%i blob all the way to a valid current save',
     (version) => {
       const storage = fakeStorage();
       const old = freshSave(123) as unknown as Record<string, unknown>;
@@ -978,6 +981,387 @@ describe('SaveData v35 migration (anonymous-stats preference)', () => {
 
     const migrated = new SaveManager(storage, 456).data;
 
+    expect(migrated.pinnedVariants).toEqual({ 'land-plains': variantKey(PLAIN_VARIANT) });
+    expect(migrated.darlingsTutorialSeen).toBe(true);
+    expect(migrated.darlingsFreeDeckClaimed).toBe(true);
+    expect(migrated.deckRepairNoticeAck).toBe('["deck-a"]');
+  });
+});
+
+/**
+ * A v35 blob as the 1.8.5 build writes it, with every existing setting moved
+ * off its default so a step that disturbed one would show. Literal on
+ * purpose: it is an old-version migration input, so it must not follow
+ * `freshSave` forward when the schema grows.
+ */
+const GOLDEN_V35_BLOB = {
+  version: 35,
+  createdAt: 1700000000000,
+  gold: 640,
+  collection: {},
+  collectionVariants: {},
+  pinnedVariants: {},
+  decks: [],
+  activeDeckId: null,
+  starterChosen: null,
+  heroCardId: null,
+  heroPortraitId: null,
+  tutorialDone: true,
+  darlingsTutorialSeen: true,
+  darlingsFreeDeckClaimed: true,
+  deckRepairNoticeAck: '[]',
+  achievements: { unlocked: [], claimed: [], pinned: [] },
+  cosmetics: { owned: [] },
+  daily: {
+    day: '2023-11-14',
+    quests: [
+      { id: 'cast-creatures-5', progress: 2, target: 5, rewardGold: 50, claimed: false },
+      { id: 'enemy-dies-3', progress: 0, target: 3, rewardGold: 50, claimed: false },
+      { id: 'cast-blue-3', progress: 3, target: 3, rewardGold: 50, claimed: true },
+    ],
+    rerollsUsed: 1,
+    streak: { count: 2, lastWinDay: '2023-11-13' },
+  },
+  limited: { activeRun: null, history: [], bestDraftWins: 2, personaSeen: {}, premiumWeek: { week: 2810, entries: 1 } },
+  replays: [],
+  stats: {
+    wins: 9,
+    losses: 4,
+    byDifficulty: { easy: { w: 5, l: 1 }, medium: { w: 4, l: 3 }, hard: { w: 0, l: 0 } },
+    packsOpened: 12,
+    lastWinDay: '2023-11-13',
+  },
+  gauntlet: { run: null, bestRung: 4, completions: 0, clearStyles: { monoColor: 0, dualColor: 0 } },
+  settings: {
+    volume: 0.4,
+    sfxOn: false,
+    musicOn: false,
+    animations: 'reduced',
+    renderScale: 1.5,
+    autoSkip: true,
+    confirmDestructive: false,
+    keywordReminders: false,
+    confirmNoBlock: 'always',
+    instantCast: true,
+    confirmLandDrop: false,
+    shareAnonStats: false,
+    statsNoticeVersion: 1,
+  },
+} as const;
+
+function goldenV35(): Record<string, unknown> {
+  return JSON.parse(JSON.stringify(GOLDEN_V35_BLOB)) as Record<string, unknown>;
+}
+
+function migrateBlob(blob: Record<string, unknown>): SaveData {
+  return new SaveManager(fakeStorage(), 456).migrate(blob, 456);
+}
+
+/** The framing SaveCode writes (as tests/meta/saveCode.test.ts builds it), for a raw payload `encode` would normalize first. */
+function codeForRawPayload(raw: Record<string, unknown>): string {
+  const toBase64Url = (bytes: Uint8Array): string => Buffer.from(bytes).toString('base64url');
+  const payload = toBase64Url(deflateSync(strToU8(JSON.stringify(raw))));
+  const envelope = {
+    magic: 'DBS1',
+    codec: 'deflate-json-v1',
+    schemaVersion: raw.version,
+    checksum: createHash('sha256').update(payload, 'utf8').digest('hex'),
+    payload,
+  };
+  return `DBS1-${toBase64Url(strToU8(JSON.stringify(envelope)))}`;
+}
+
+function decodedSave(code: string): SaveData {
+  const result = decode(code);
+  if (!result.ok) throw new Error(`decode failed: ${result.error.kind}`);
+  return result.save;
+}
+
+/**
+ * v36, the one 1.9 bump: text size and high contrast (accessibility C1), and
+ * the stored Premium draft note (lane I, I7). The two traps the plan names
+ * are the hand-written version list in the shared block, and that block's
+ * every-load re-walk, which turns a step that resets into a step that wipes a
+ * player's choice on every launch.
+ */
+describe('SaveData v36 migration (text size, high contrast, stored Premium note)', () => {
+  it('gives a v35 save the defaults and changes nothing else in it', () => {
+    const migrated = migrateBlob(goldenV35());
+
+    expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
+    expect(migrated.settings.textScale).toBe(1);
+    expect(migrated.settings.highContrast).toBe(false);
+    expect(migrated.limited.premiumGrant).toBeUndefined();
+    // Strict, so a key left behind as `undefined` would count as a change.
+    expect(migrated).toStrictEqual({
+      ...GOLDEN_V35_BLOB,
+      version: CURRENT_SAVE_VERSION,
+      settings: { ...GOLDEN_V35_BLOB.settings, textScale: 1, highContrast: false },
+    });
+  });
+
+  it('is a fresh-save default too', () => {
+    const fresh = freshSave(1);
+    expect(fresh.settings.textScale).toBe(1);
+    expect(fresh.settings.highContrast).toBe(false);
+    expect(fresh.limited.premiumGrant).toBeUndefined();
+  });
+
+  /**
+   * Trap (a): the shared block lists every version from 22 by hand. A v35
+   * save left off that list skips the block and the whole re-walk, so the
+   * block's own repairs (here the weekly allowance and the replay reel) never
+   * reach it.
+   */
+  it('walks a v35 save through the shared canonicalizer', () => {
+    const blob = goldenV35();
+    blob.limited = { ...(blob.limited as object), premiumWeek: { week: 'bad', entries: -4 } };
+    blob.replays = [{ v: 99, junk: true }];
+
+    const migrated = migrateBlob(blob);
+
+    expect(migrated.limited.premiumWeek).toEqual({ week: 0, entries: 0 });
+    expect(migrated.replays).toEqual([]);
+  });
+
+  /**
+   * Trap (b): the block rewinds a current save to v22, so the v35 -> v36 step
+   * runs on every load. It must keep a stored 1.3 and high contrast.
+   */
+  it('keeps 130% and high contrast across save, reload, save and reload', () => {
+    const storage = fakeStorage();
+    const current = freshSave(123);
+    current.settings.textScale = 1.3;
+    current.settings.highContrast = true;
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(current));
+
+    const first = new SaveManager(storage, 456);
+    expect(first.data.settings.textScale).toBe(1.3);
+    expect(first.data.settings.highContrast).toBe(true);
+
+    first.flush();
+    const second = new SaveManager(storage, 789);
+    expect(second.data.settings.textScale).toBe(1.3);
+    expect(second.data.settings.highContrast).toBe(true);
+    expect(second.data.version).toBe(CURRENT_SAVE_VERSION);
+
+    second.flush();
+    const third = new SaveManager(storage, 999).data;
+    expect(third.settings).toEqual(first.data.settings);
+  });
+
+  it('keeps the middle size too, so the step never collapses a choice to the default', () => {
+    const current = freshSave(123) as unknown as Record<string, unknown>;
+    (current.settings as Record<string, unknown>).textScale = 1.15;
+    expect(migrateBlob(current).settings.textScale).toBe(1.15);
+  });
+
+  it.each([
+    ['a word', 'big', 1],
+    ['a numeric string', '1.3', 1],
+    ['NaN', Number.NaN, 1],
+    ['Infinity', Number.POSITIVE_INFINITY, 1],
+    ['null', null, 1],
+    ['a boolean', true, 1],
+    ['a negative number', -1, 1],
+    ['a number above the largest size', 2, 1.3],
+    ['1.2, nearest 1.15', 1.2, 1.15],
+    ['1.28, nearest 1.3', 1.28, 1.3],
+    ['1.05, nearest 1', 1.05, 1],
+    ['an exact tie between 1 and 1.15', 1.075, 1],
+    ['a tie between 1.15 and 1.3 that binary rounding tips upward', 1.225, 1.15],
+  ])('snaps a stored text scale of %s onto the allowed sizes', (_label, stored, expected) => {
+    const current = freshSave(123) as unknown as Record<string, unknown>;
+    (current.settings as Record<string, unknown>).textScale = stored;
+    expect(migrateBlob(current).settings.textScale).toBe(expected);
+  });
+
+  it.each([
+    ['the string "true"', 'true'],
+    ['1', 1],
+    ['null', null],
+  ])('reads high contrast stored as %s as off', (_label, stored) => {
+    const current = freshSave(123) as unknown as Record<string, unknown>;
+    (current.settings as Record<string, unknown>).highContrast = stored;
+    expect(migrateBlob(current).settings.highContrast).toBe(false);
+  });
+
+  it('snaps an out-of-set size and keeps the snapped value on the reload that follows', () => {
+    const storage = fakeStorage();
+    const current = freshSave(123) as unknown as Record<string, unknown>;
+    (current.settings as Record<string, unknown>).textScale = 1.2;
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(current));
+
+    const first = new SaveManager(storage, 456);
+    first.flush();
+    expect(new SaveManager(storage, 789).data.settings.textScale).toBe(1.15);
+  });
+
+  describe('through a save code (Q7: the settings travel with the save)', () => {
+    it('exports and imports 130% and high contrast unchanged', () => {
+      const save = freshSave(1_700_000_000_000);
+      save.settings.textScale = 1.3;
+      save.settings.highContrast = true;
+
+      const imported = decodedSave(encode(save));
+
+      expect(imported.settings.textScale).toBe(1.3);
+      expect(imported.settings.highContrast).toBe(true);
+    });
+
+    it('imports a v35 code with the defaults and every other setting intact', () => {
+      const imported = decodedSave(codeForRawPayload(goldenV35()));
+
+      expect(imported.version).toBe(CURRENT_SAVE_VERSION);
+      expect(imported.settings).toEqual({ ...GOLDEN_V35_BLOB.settings, textScale: 1, highContrast: false });
+    });
+
+    it('snaps garbage in an imported v36 code instead of refusing it', () => {
+      const raw = freshSave(1_700_000_000_000) as unknown as Record<string, unknown>;
+      (raw.settings as Record<string, unknown>).textScale = 'big';
+      (raw.settings as Record<string, unknown>).highContrast = 'yes';
+
+      const imported = decodedSave(codeForRawPayload(raw));
+
+      expect(imported.settings.textScale).toBe(1);
+      expect(imported.settings.highContrast).toBe(false);
+
+      const offList = freshSave(1_700_000_000_000) as unknown as Record<string, unknown>;
+      (offList.settings as Record<string, unknown>).textScale = 1.2;
+      expect(decodedSave(codeForRawPayload(offList)).settings.textScale).toBe(1.15);
+    });
+
+    it('lets an import replace the device accessibility settings, unlike the stats choice', () => {
+      const deviceStorage = fakeStorage();
+      const device = new SaveManager(deviceStorage, 100);
+      expect(device.data.settings.textScale).toBe(1);
+
+      const exported = freshSave(1_700_000_000_000);
+      exported.settings.textScale = 1.3;
+      exported.settings.highContrast = true;
+      expect(device.replace(decodedSave(encode(exported)))).toBe(true);
+
+      expect(device.data.settings.textScale).toBe(1.3);
+      expect(device.data.settings.highContrast).toBe(true);
+      // And it is what the device loads from then on.
+      const reloaded = new SaveManager(deviceStorage, 200).data;
+      expect(reloaded.settings.textScale).toBe(1.3);
+      expect(reloaded.settings.highContrast).toBe(true);
+    });
+  });
+
+  describe('the stored Premium draft note (I7)', () => {
+    function premiumRunSave(): SaveData {
+      const save = freshSave(123);
+      save.limited.activeRun = startDraftRun(CARD_DB, 4242, 123, { premium: true });
+      return save;
+    }
+
+    it('starts empty for a v35 save that is part way through a Premium run', () => {
+      const blob = goldenV35();
+      const run = startDraftRun(CARD_DB, 4242, 123, { premium: true });
+      blob.limited = { ...(blob.limited as object), activeRun: run };
+
+      const migrated = migrateBlob(blob);
+
+      // The grant's numbers were never stored, and the collection has moved
+      // on since, so they cannot be rebuilt: the run carries on without a note.
+      expect(migrated.limited.activeRun?.id).toBe(run.id);
+      expect(migrated.limited.premiumGrant).toBeUndefined();
+    });
+
+    it('keeps a grant for the active Premium run across save and reload', () => {
+      const storage = fakeStorage();
+      const save = premiumRunSave();
+      const grant = { runId: save.limited.activeRun!.id, drafted: 45, added: 41, converted: 4, gold: 120 };
+      save.limited.premiumGrant = grant;
+      storage.raw.set('darlingblades.save.v1', JSON.stringify(save));
+
+      const first = new SaveManager(storage, 456);
+      expect(first.data.limited.premiumGrant).toEqual(grant);
+      first.flush();
+      expect(new SaveManager(storage, 789).data.limited.premiumGrant).toEqual(grant);
+    });
+
+    it('carries the grant through a save code with its run', () => {
+      const save = premiumRunSave();
+      const grant = { runId: save.limited.activeRun!.id, drafted: 45, added: 45, converted: 0, gold: 0 };
+      save.limited.premiumGrant = grant;
+
+      expect(decodedSave(encode(save)).limited.premiumGrant).toEqual(grant);
+    });
+
+    it('drops a grant once its run is over, or when the run is not the Premium run it names', () => {
+      const ended = freshSave(123);
+      ended.limited.premiumGrant = { runId: 'gone', drafted: 45, added: 45, converted: 0, gold: 0 };
+      expect(migrateBlob(ended as unknown as Record<string, unknown>).limited.premiumGrant).toBeUndefined();
+
+      const otherRun = premiumRunSave();
+      otherRun.limited.premiumGrant = { runId: 'an-earlier-run', drafted: 45, added: 45, converted: 0, gold: 0 };
+      expect(migrateBlob(otherRun as unknown as Record<string, unknown>).limited.premiumGrant).toBeUndefined();
+
+      const free = freshSave(123);
+      free.limited.activeRun = startDraftRun(CARD_DB, 4242, 123);
+      free.limited.premiumGrant = { runId: free.limited.activeRun.id, drafted: 45, added: 45, converted: 0, gold: 0 };
+      expect(migrateBlob(free as unknown as Record<string, unknown>).limited.premiumGrant).toBeUndefined();
+    });
+
+    it('reads a grant only for the run in progress, even before the next load drops it', () => {
+      const save = premiumRunSave();
+      const grant = { runId: save.limited.activeRun!.id, drafted: 45, added: 41, converted: 4, gold: 120 };
+      save.limited.premiumGrant = grant;
+      expect(storedPremiumGrant(save.limited)).toEqual(grant);
+
+      // Retiring the run leaves the field in memory until the next load.
+      save.limited.activeRun = null;
+      expect(storedPremiumGrant(save.limited)).toBeNull();
+
+      // A new Premium run in the same session must not show the old run's note.
+      save.limited.activeRun = startDraftRun(CARD_DB, 5151, 456, { premium: true });
+      expect(storedPremiumGrant(save.limited)).toBeNull();
+    });
+
+    it.each([
+      ['counts that do not add up', { drafted: 45, added: 40, converted: 4, gold: 120 }],
+      ['a negative count', { drafted: 45, added: 46, converted: -1, gold: 0 }],
+      ['a fractional count', { drafted: 45, added: 44.5, converted: 0.5, gold: 10 }],
+      ['a string count', { drafted: '45', added: 45, converted: 0, gold: 0 }],
+      ['nothing drafted', { drafted: 0, added: 0, converted: 0, gold: 0 }],
+      ['negative gold', { drafted: 45, added: 44, converted: 1, gold: -30 }],
+    ])('drops a grant with %s', (_label, counts) => {
+      const save = premiumRunSave();
+      (save.limited as unknown as Record<string, unknown>).premiumGrant = { runId: save.limited.activeRun!.id, ...counts };
+      expect(migrateBlob(save as unknown as Record<string, unknown>).limited.premiumGrant).toBeUndefined();
+    });
+
+    it('keeps only the fields of the grant itself', () => {
+      const save = premiumRunSave();
+      const runId = save.limited.activeRun!.id;
+      (save.limited as unknown as Record<string, unknown>).premiumGrant = {
+        runId, drafted: 45, added: 43, converted: 2, gold: 60, junk: 'x',
+      };
+      expect(migrateBlob(save as unknown as Record<string, unknown>).limited.premiumGrant).toEqual({
+        runId, drafted: 45, added: 43, converted: 2, gold: 60,
+      });
+    });
+  });
+
+  /**
+   * One step out from trap (b): a save sitting at the outgoing version still
+   * owns every one-way choice made before it. Upgrading it must not reset the
+   * stats opt-out, the seen notice, or the older flags.
+   */
+  it('preserves every earlier one-way choice through a v35 upgrade', () => {
+    const blob = goldenV35();
+    blob.collection = { 'land-plains': 1 };
+    blob.collectionVariants = { 'land-plains': { [variantKey(PLAIN_VARIANT)]: 1 } };
+    blob.pinnedVariants = { 'land-plains': variantKey(PLAIN_VARIANT) };
+    blob.deckRepairNoticeAck = '["deck-a"]';
+
+    const migrated = migrateBlob(blob);
+
+    expect(migrated.settings.shareAnonStats).toBe(false);
+    expect(migrated.settings.statsNoticeVersion).toBe(1);
     expect(migrated.pinnedVariants).toEqual({ 'land-plains': variantKey(PLAIN_VARIANT) });
     expect(migrated.darlingsTutorialSeen).toBe(true);
     expect(migrated.darlingsFreeDeckClaimed).toBe(true);

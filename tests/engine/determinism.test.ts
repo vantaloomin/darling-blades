@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { RULES } from '../../src/config/rules';
+import type { Action } from '../../src/engine/actions';
 import { Game } from '../../src/engine/Game';
 import { botAction, deckOf, runBotGame, smallGreenDeck, TEST_DB } from '../helpers';
 
@@ -13,6 +14,27 @@ describe('determinism', () => {
     const eventsB = runBotGame(b);
     expect(JSON.stringify(eventsA)).toBe(JSON.stringify(eventsB));
     expect(JSON.stringify(a.state)).toBe(JSON.stringify(b.state));
+  });
+
+  it('plays the same game whether or not anyone reads the legacy public state', () => {
+    // Simulated worlds never read game.state, so its facade is built only on a
+    // read; building one and syncing it back must leave the game unchanged.
+    const mk = (): Game =>
+      new Game({ decks: [smallGreenDeck(), smallGreenDeck()], seed: 515151, db: TEST_DB });
+    const read = mk();
+    const unread = mk();
+    const events: [unknown[], unknown[]] = [[], []];
+    for (let step = 0; step < 20_000; step++) {
+      void read.state;
+      const awaiting = unread.instanceState.awaiting;
+      if (awaiting.kind === 'gameOver') break;
+      const action = botAction(unread.legalActions(awaiting.player));
+      events[0].push(...read.submit(awaiting.player, action));
+      events[1].push(...unread.submit(awaiting.player, action));
+    }
+    expect(unread.instanceState.winner).not.toBeNull();
+    expect(JSON.stringify(events[1])).toBe(JSON.stringify(events[0]));
+    expect(JSON.stringify(unread.instanceState)).toBe(JSON.stringify(read.instanceState));
   });
 
   it('two Game instances built from the same decks and seed share no state', () => {
@@ -38,6 +60,31 @@ describe('determinism', () => {
     aState.players[0].hand.push({ cardId: 'forest', instanceId: 9999, variantKey: null });
     expect(JSON.stringify(aState)).not.toBe(snapshot);
     expect(JSON.stringify(bState)).toBe(snapshot);
+  });
+
+  it('a public state or view handed out earlier is a snapshot that later play never writes through', () => {
+    // game.state and viewFor are projections of the live state, which the
+    // engine mutates in place. Any object a projection shared with the live
+    // state would change under a caller still holding the earlier projection.
+    const g = new Game({ decks: [smallGreenDeck(), smallGreenDeck()], seed: 777, db: TEST_DB });
+    const held: { projections: unknown[]; json: string }[] = [];
+    let mulliganed = false;
+    for (let step = 0; step < 20_000; step++) {
+      const awaiting = g.awaiting;
+      if (awaiting.kind === 'gameOver') break;
+      const projections = [g.state, g.viewFor(0), g.viewFor(1)];
+      held.push({ projections, json: JSON.stringify(projections) });
+      const legal = g.legalActions(awaiting.player);
+      // One mulligan reshuffles through the rng in place, so the earlier
+      // projections' copy of the rng is checked too, not only the zones.
+      const mulligan: Action | undefined = mulliganed ? undefined : legal.find((action) => action.type === 'mulligan');
+      mulliganed ||= mulligan !== undefined;
+      g.submit(awaiting.player, mulligan ?? botAction(legal));
+    }
+    expect(mulliganed).toBe(true);
+    expect(g.state.winner).not.toBeNull();
+    expect(held.length).toBeGreaterThan(100);
+    expect(held.findIndex((h) => JSON.stringify(h.projections) !== h.json)).toBe(-1);
   });
 
   it('keeps an absent hand-size override byte-identical to the shipped default', () => {

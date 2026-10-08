@@ -164,8 +164,8 @@ purpose.
 
 ## 4. Children
 
-Darling Blades is made for players aged 13 and over, and it is not directed
-at children under 13. Play stats summaries contain no name, identifier, or
+Darling Blades is made for players aged 16 and over, and it is not directed
+at children. Play stats summaries contain no name, identifier, or
 other personal information, so we cannot tell a child's summary from anyone
 else's, and we treat every one the same way. If you believe a child
 under 13 has given us personal information, contact admin@bladedarlings.com and we

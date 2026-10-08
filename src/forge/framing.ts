@@ -25,6 +25,8 @@
  * Headless: no Phaser, no DOM.
  */
 
+import { CARD_FACE, FULL_ART_FACE } from '../config/cardFaceGeometry';
+
 /** The art file every card window is cropped from (src/art/ArtResolver.ts). */
 export const ART_FILE_W = 640;
 export const ART_FILE_H = 800;
@@ -33,13 +35,14 @@ export type ArtFrame = 'standard' | 'fullArt';
 export const ART_FRAMES: readonly ArtFrame[] = ['standard', 'fullArt'];
 
 /**
- * CardView's art windows in card-local coordinates (center origin): its
- * ART_RECT and FULL_ART_RECT (src/ui/CardView.ts, not exported there). The
- * ?qa=1 probe checks these against the crop CardView actually applies.
+ * CardView's art windows in card-local coordinates (center origin), read from
+ * the shared card-face geometry that CardView lays out from and the frame bake
+ * draws (src/config/cardFaceGeometry.ts). The ?qa=1 probe checks them against
+ * the crop CardView actually applies.
  */
 export const CARD_ART_RECTS: Record<ArtFrame, { x: number; y: number; w: number; h: number }> = {
-  standard: { x: -132, y: -164, w: 264, h: 192 },
-  fullArt: { x: -141, y: -201, w: 282, h: 402 },
+  standard: CARD_FACE.art,
+  fullArt: FULL_ART_FACE.art,
 };
 
 export const MAX_ZOOM = 5;
