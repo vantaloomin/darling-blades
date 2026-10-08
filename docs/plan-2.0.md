@@ -69,8 +69,8 @@ long rather than cut in a fixed order.
 
 ## Where 2.0 starts from
 
-- **1.9.0** is staged on `release/1.9` (#550, 2026-10-08); the release PR into
-  `main` merges on the owner's word, then the tag.
+- **1.9.0** shipped 2026-10-08 (cut #550, release PR #552, tag v1.9.0), with
+  the art-pack hotfix #555 on `main` the same day.
 - **Pool:** 1,648 collectible cards across eleven sets, a 28-rung tower, the
   Warchest and Darlings formats.
 - **Save:** `CURRENT_SAVE_VERSION` is 36 (`src/meta/SaveManager.ts`); 1.9's
@@ -199,8 +199,8 @@ spec is in [plan-core-set-2.md](plan-core-set-2.md) and stands.
 - **B5, the lab rates** for the scorer: claim, hold and payoff rates measured
   on the overplan's shapes, entered before the rescore.
 
-**Naming (P5):** the July overplan calls the marker "the Crown" in places.
-One name, the Mandate, is recommended for every surface.
+**Naming (P5, RULED 2026-10-08):** the July overplan calls the marker "the
+Crown" in places. One name, the Mandate, is used on every surface.
 
 ### Lane C: Mobile overhaul (priority 2)
 
@@ -361,12 +361,12 @@ of 2026-09-29) or the owner's own runs.
   Darlings summit, Story's matrix.
 - **The floor rule under a life change (P8).** Test gate floors only
   ratchet up (an iron invariant in `CLAUDE.md`), but a life change moves
-  every number for a reason that is not drift. Proposed: one owner-approved
+  every number for a reason that is not drift. RULED 2026-10-08: one owner-approved
   re-baseline at the new life total, every gate floor set from fresh
   200-seed readings by the 1.9 rule (mean - 6.5, rounded down), each that
-  comes down listed in the PR; from there floors ratchet up again. Ruling
-  it means amending the invariant's wording in `CLAUDE.md` and the playbook
-  to name the exception. The harness bands (`RUNG_BANDS`, `FLOOR_BANDS`)
+  comes down listed in the PR; from there floors ratchet up again.
+  The invariant's wording in `CLAUDE.md` and the playbook names the
+  exception. The harness bands (`RUNG_BANDS`, `FLOOR_BANDS`)
   are not gate floors and could already come down (1.9 Q6).
 - **The metagame sweep**, last before the cut, on GitHub Actions (1.9 D9
   precedent), with Core Set II's colour pairs as personas if the brief adds
@@ -461,7 +461,7 @@ which Story's first two characters depend on (the set plan's open decisions).
 
 - No relitigating the spine: Core Set II is the 2.0 Large, Brass Court stays
   2.1, multiplayer is cancelled.
-- No floors lowered except the one re-baseline P8 proposes, if ruled.
+- No floors lowered except the one re-baseline P8 rules.
 - No portrait gameplay, no app-store package.
 - No localization scaffold.
 - No cloud or account code.
