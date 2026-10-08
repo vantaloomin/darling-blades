@@ -157,7 +157,7 @@ describe('Expansion shop retail', () => {
         const save = freshSave(0);
         save.gold = qty * price;
         const restart = vi.fn();
-        const addRailButton = vi.fn<(x: number, label: string, enabled: boolean, buy: () => void) => void>();
+        const buildCtaRail = vi.fn<(label: string, enabled: boolean, buy: () => void) => void>();
         const buildButtons = sceneMethod<(qty?: number) => void>(
           qty === 1 ? 'checkAllRevealed' : 'buildBatchButtons', {
             packPriceForSku, packSetForSku: retail().packSetForSku,
@@ -168,11 +168,11 @@ describe('Expansion shop retail', () => {
         );
         const scene = {
           sku, saveData: save, specials: [], buttons: [], finishAchievementCheckpoint: vi.fn(),
-          addButtonRailPanel: vi.fn(), addRailButton, tweens: { timeScale: 1 },
+          buildCtaRail, tweens: { timeScale: 1 },
           scene: { restart },
         };
         buildButtons.call(scene, qty);
-        const [, label, enabled, buy] = addRailButton.mock.calls[0];
+        const [label, enabled, buy] = buildCtaRail.mock.calls[0];
         expect(label).toContain(String(qty * price));
         expect(enabled).toBe(true);
         buy();
