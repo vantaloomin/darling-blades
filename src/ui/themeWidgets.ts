@@ -232,6 +232,8 @@ export interface RoundedTrigger {
   setVariant(variant: Extract<ButtonVariant, 'emphasis' | 'ghost'>): void;
   setSelected(selected: boolean): void;
   setEnabled(enabled: boolean): void;
+  /** Grow (or restore) the visual box; a grid layout stretches triggers to its columns. */
+  setMinWidth(width: number): void;
 }
 
 /**
@@ -296,15 +298,16 @@ export function roundedTrigger(
   const triggerGap = DROPDOWN_GEOMETRY.triggerGap;
   const glyphSlotWidth = DROPDOWN_GEOMETRY.glyphSlotWidth;
   if (value && parts?.maxValueWidth !== undefined) ellipsizeText(value, parts.maxValueWidth);
-  const fixedMeasurement = parts
+  let minWidth = opts.minWidth ?? 0;
+  const fixedMeasurement = (): ThemedButtonMeasurement | null => parts
     ? measureThemedButton(
         label.width + triggerGap + Math.max(value?.width ?? 0, parts.maxValueWidth ?? 0) + triggerGap + glyphSlotWidth,
         size,
-        opts.minWidth ?? 0,
+        minWidth,
         padding,
       )
     : null;
-  let measurement = fixedMeasurement ?? measureThemedButton(label.width, size, opts.minWidth ?? 0, padding);
+  let measurement = fixedMeasurement() ?? measureThemedButton(label.width, size, minWidth, padding);
   const activeStyle = (): ThemedButtonColors =>
     themedButtonColors(selected && variant === 'ghost' ? 'emphasis' : variant);
   let placed = false;
@@ -313,7 +316,7 @@ export function roundedTrigger(
     // changes its measured label width. FilterBar reflows by that same edge,
     // so redraws must not silently move a CTA back to its construction x.
     const previousLeft = placed ? container.x - measurement.visual.width / 2 : null;
-    measurement = fixedMeasurement ?? measureThemedButton(label.width, size, opts.minWidth ?? 0, padding);
+    measurement = fixedMeasurement() ?? measureThemedButton(label.width, size, minWidth, padding);
     const stateStyle = activeStyle();
     background.clear();
     background.fillStyle(colorInt(stateStyle.bg), 1);
@@ -405,6 +408,10 @@ export function roundedTrigger(
     selected = next;
     redraw();
   };
+  const setMinWidth = (next: number): void => {
+    minWidth = next;
+    redraw();
+  };
 
   bindTapButton(scene, inputZone, (pointer) => {
     if (enabled) opts.onTap?.(pointer);
@@ -470,6 +477,7 @@ export function roundedTrigger(
     setVariant,
     setSelected,
     setEnabled,
+    setMinWidth,
   };
 }
 
@@ -919,6 +927,9 @@ export interface PagerOptions {
   nextFocus?: FocusMetadata;
 }
 
+/** The pager label's centre, from the pager's x: centre a pager at `cx - PAGER_CENTER_OFFSET`. */
+export const PAGER_CENTER_OFFSET = 51;
+
 export function pager(
   scene: Phaser.Scene,
   x: number,
@@ -936,7 +947,7 @@ export function pager(
   // text size (their size before 1.9), following h2 as text grows.
   const chevronSize = `${theme.type.h2 + theme.space(1)}px`;
   const previous = scene.add.text(x, y, '‹', { fontFamily: theme.fonts.display, fontSize: chevronSize, color: theme.colors.gold }).setOrigin(0, 0.5);
-  const label = scene.add.text(x + 51, y, '', { fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px`, color: theme.colors.body }).setOrigin(0.5);
+  const label = scene.add.text(x + PAGER_CENTER_OFFSET, y, '', { fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px`, color: theme.colors.body }).setOrigin(0.5);
   const next = scene.add.text(x + 88, y, '›', { fontFamily: theme.fonts.display, fontSize: chevronSize, color: theme.colors.gold }).setOrigin(0, 0.5);
   const container = scene.add.container(0, 0, [previous, label, next]);
   let current = page;
