@@ -432,7 +432,10 @@ fits a roster. Overplan targets, one to three cards each unless noted:
 **All 31 are a hard floor** (the owner, 2026-10-08: "ALL the keywords
 and mechanics across this set, even if it means that we expand beyond 250"). The cut
 never removes the last card carrying a keyword or mechanic; if keeping one
-means going over 250, the set goes over. **Every keyword appears at C or R
+means going over 250, the set goes over. "Keywords" means the 13 the game ships
+(confirmed by the owner, 2026-10-08); keywords named in
+`docs/keyword-map.md` but not built (Sudden, Unbreakable, Equip) are not
+part of the floor. **Every keyword appears at C or R
 at least once**, so a player meets it in packs, and the per-set data check
 (every new set carries all 13 keywords, 1.9) passes on day one. The cut
 sheet adds a coverage column so the floor is checked as cards are cut, not
