@@ -223,6 +223,7 @@ export const GREEK = [
     colors: ['B'],
     attack: 3,
     defense: 3,
+    keywords: ['dreaded'],
     abilities: [{ when: 'arrives', ops: [{ op: 'discardRandom', n: 1, who: 'opponent' }] }],
     rarity: 'r',
   },

@@ -355,7 +355,7 @@ near-vanilla.
 | dd-the-deep-collects | The Deep Collects | C | B | Ritual | {2}{B} | none | Destroy target creature with cost 2 or less, then grind self 2. | It is owed. It comes for what it is owed. | core |
 | dd-tithe-of-the-wharf | The Wharf's Due | C | B | Ritual | {B} | none | Opponent discards a card at random. Grind self 1. | The plate goes round. It comes back heavier. | core |
 | dd-drowned-sailor | Drowned Sailor | C | B | Creature, Spirit | {2}{B} | 3/2 | Skim {B}. Whispers {B}. | Lost off the Reach in '09. Home for supper most nights since. | core |
-| dd-marsh-widow | Marsh-Widow | C | B | Creature, Human Witch | {3}{B} | 2/3 | Whenever another creature you control dies, opponent loses 1 life. | She buries them in the marsh and the marsh sends her a receipt. | core |
+| dd-marsh-widow | Marsh-Widow | C | B | Creature, Human Witch | {3}{B} | 2/3 | Blood Oath. Whenever another creature you control dies, opponent loses 1 life. | She buries them in the marsh and the marsh sends her a receipt. | core |
 | dd-deep-one-acolyte | Deep One Acolyte | C | B | Creature, Human | {1}{B} | 1/3 | Arrives: grind self 1, then opponent loses 1 life. | She kneels at the water and the water kneels back. | flex |
 | dd-cold-bargain | Cold Bargain | C | B | Ritual | {2}{B} | none | Sever target creature. You lose 2 life. | The terms are fair. The terms are always fair. | core |
 | dd-drowned-grave | Drowned Grave | C | B | Enchantment | {B} | none | During your Dawn: grind self 1. Whenever a card is put into your graveyard from your deck, you gain 1 life. | Dug at low water, filled by the tide. | stretch (AI-risk) |
@@ -432,7 +432,7 @@ near-vanilla.
 | dd-breakwater-riot-lesser | Wharf Brawl | C | R | Ritual | {1}{R} | none | Damage each creature 1. | The whole wharf, all at once. | flex |
 | dd-drowned-fire-lesser | Fire Under Water | C | R | Charm | {2}{R} | none | Damage target creature 4. Whispers {1}{R}. | It does not go out. It goes quiet. | core |
 | dd-storm-rider | Storm-Rider | C | R | Creature, Human | {2}{R} | 2/1 | Skyborne. Warcry. | She rides the gale on a sail cut from a shroud. | flex |
-| dd-wrecker-captain-lesser | Wrecker Mate | C | R | Creature, Human | {2}{R}{R} | 4/3 | Overrun. | Every ship she saves, she saves for parts. | flex |
+| dd-wrecker-captain-lesser | Wrecker Mate | C | R | Creature, Human | {2}{R}{R} | 2/3 | Overrun. Twin Blades. | Every ship she saves, she saves for parts. | flex |
 | dd-storm-front-lesser | Squall Line | C | R | Enchantment | {2}{R} | none | Whenever a creature you control attacks, damage opponent 1. | The front sits on the horizon for a week and then does not. | flex |
 | dd-false-lamp | False Lamp | C | R | Artifact | {2} | none | During your Dawn: damage opponent 1. | A lamp on the wrong rock. | flex |
 | dd-storm-witch-lesser | Squall-Witch | C | R | Creature, Human Witch | {1}{R}{R} | 3/2 | First Blade. Arrives: tap target creature. | She keeps the storm in a jar and lets it out for fun. | flex |

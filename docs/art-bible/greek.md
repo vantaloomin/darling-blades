@@ -239,7 +239,7 @@ over each card's color-identity anchor and never replace it.
 - **Prompt:** Demeter in a golden-green harvest peplos with wheat-woven crown, sweeping a sheaf of wheat and scattering sprouting grain, gilt sickle at hip, ripe golden field under a low sun, serene maternal harvest-goddess with a hard glint, warm harvest key with cool sky rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Hecate, Crossroads Witch — `gk-hecate`
-- **Card facts:** {2}{B}{B} · B · 3/3 · r · holo: auto:sheen
+- **Card facts:** {2}{B}{B} · B · 3/3 · dreaded · r · holo: auto:sheen
 - **Character & source:** Hecate as-is, triple goddess of witchcraft and crossroads; her ETB forces a random discard — she robs a foe's plans at the threshold.
 - **Personality / mood:** "Three faces, three roads, and all of them toll roads." Enigmatic, transactional, everywhere three ways at once.
 - **Pose & composition:** Standing three-quarter at a crossroads, twin torches raised, a subtle triple-face motif (two profiles ghosted behind the main face) reading as her three aspects; face ≈ y 315, gaze steady and appraising. Environmental element (uncommon): a stolen card-scrap dissolving into ash from a foe's hand.
