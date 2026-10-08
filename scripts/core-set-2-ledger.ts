@@ -17,7 +17,10 @@
  * greek.ts is Greek, beastkin.ts is Beastkin, the rest of the base set is
  * "base-generic"); a card from a later set joins a roster only by subtype
  * (Beastkin anywhere; Wei/Shu/Wu/Jin; Olympian). Role tags are structural
- * reads of the card's ops, not a power score.
+ * reads of the card's ops, not a power score; mechanics come from the
+ * glossary's `cardMechanics`. When Core Set II's own card files land, add a
+ * file rule for them here (a Greek mortal without the Olympian subtype would
+ * otherwise fall to "other").
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { ARTIFACTS } from '../src/data/cards/artifacts';
@@ -35,6 +38,7 @@ import { TK_WEI } from '../src/data/cards/tk-wei';
 import { TK_WU } from '../src/data/cards/tk-wu';
 import { CARD_DB } from '../src/data/catalog';
 import { DARLINGS_PRECONS } from '../src/data/darlingsPrecons';
+import { cardMechanics } from '../src/data/glossary';
 import { AVATARS } from '../src/data/opponents';
 import { STARTER_DECKS, THEME_DECKS } from '../src/data/starterDecks';
 import type { CardDef, Color, EffectOp } from '../src/engine/types';
@@ -139,31 +143,10 @@ function rolesOf(d: CardDef): Role[] {
   return ROLES.filter((r) => out.has(r));
 }
 
+/** The glossary's own reader, so the ledger and the Glossary never disagree. */
 function mechanicsOf(d: CardDef): string[] {
-  const ops = allOps(d).map((o) => o.op);
-  const whens = (d.abilities ?? []).map((a) => a.when);
-  const has: Record<(typeof MECHANICS)[number], boolean> = {
-    sever: ops.some((o) => ['sever', 'severGrave', 'severTop', 'severSelf'].includes(o)),
-    foresee: ops.includes('foresee'),
-    mark: ops.some((o) => ['addCounters', 'markAll', 'moveMark', 'removeMarks', 'ifTargetMarked', 'loseLifePerTheirMarked'].includes(o))
-      || whens.some((w) => ['gainsMark', 'yourCreatureMarked', 'yourPermanentMarked', 'youAddMark', 'otherCreatureMarked', 'markedAllyAttacks'].includes(w)),
-    propagate: ops.includes('propagate') || whens.includes('propagated'),
-    quest: d.chapters !== undefined,
-    championAwakening: d.awakening !== undefined || ops.includes('awaken'),
-    empower: d.empower !== undefined,
-    skim: d.skim !== undefined,
-    retell: d.retell !== undefined,
-    whispers: d.whispers !== undefined,
-    tithe: d.tithe !== undefined,
-    rite: d.rite !== undefined,
-    nineLives: d.nineLives === true,
-    preserve: d.preserve !== undefined,
-    duty: activatedAbilitiesOf(d).length > 0,
-    hauntlink: d.hauntlink !== undefined,
-    provoked: whens.includes('provoked'),
-    hunt: ops.includes('hunt'),
-  };
-  return MECHANICS.filter((m) => has[m]);
+  const has = new Set<string>(cardMechanics(d));
+  return MECHANICS.filter((m) => has.has(m));
 }
 
 function costString(d: CardDef): string {

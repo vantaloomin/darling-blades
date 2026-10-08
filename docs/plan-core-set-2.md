@@ -4,11 +4,16 @@
 
 **Refreshed 2026-10-08 for the 2.0 train** (lane A, wave 1 of the 2.0
 program plan, `docs/plan-2.0.md` on draft PR #551). The 2026-07-26 version
-targeted a 120-card set before Darlings' command zone, the Warchest, the
-1.8.5 scorer and the keyword rule, and leaned on multiplayer (cancelled
-2026-08-24), the Tutor (after 2.0, ruled 2026-09-25), localization (English
-only) and the mod whitelist (2.1). Those dependencies are removed below. The
-Mandate's engine, AI and test spec is kept as written; Oath's text is
+targeted a 120-card set and predates Darlings' command zone, the Warchest,
+the 1.8.5 scorer and the keyword rule. It also leaned on four things that
+have since moved, and this refresh removes them:
+
+- **Multiplayer**, cancelled 2026-08-24.
+- **The Tutor**, ruled after 2.0 on 2026-09-25.
+- **Localization**: the game stays English only.
+- **The mod whitelist**, moved to 2.1.
+
+The Mandate's engine, AI and test spec is kept as written; Oath's text is
 updated for the command zone.
 
 **Companion documents (wave 1):**
@@ -320,8 +325,8 @@ full list with recommendations.
 - **Reprint or revise Guan Yu and Persephone:** *recommended no*; Story's
   first two characters stay the shipped cards.
 - **Product scope:** boosters plus one theme deck; no new Darlings precon at
-  2.0 (Suggested Decks shows the legends after 2.0). Rungs 29-30 and two
-  sweep personas as the brief proposes.
+  2.0 (Suggested Decks, which would show the legends, come after 2.0). One
+  new rung (R29) and two sweep personas, as the brief proposes.
 
 ## Risks and dependencies
 
@@ -329,8 +334,15 @@ full list with recommendations.
   first strike, events, views, AI search, replay and UI. A wrong ordering
   creates subtle trigger or deck-out drift; the golden tests are the guard.
 - **Oath and Standard**: a 40-card deck draws a legend late or never. The O5
-  rule (no Oath card is dead without a legend) and legends at R in every
-  colour are the guard; the lab reads Oath's active rate per format.
+  rule (no Oath card is dead without a legend), legends at R or below in
+  every colour and six common legendary sworn champions are the guard; the
+  lab reads Oath's active rate by turn per format, and Oath is costed at
+  Standard's rate.
+- **The Mandate unclaimed or snowballing**: too few claimers leave it
+  unclaimed and its payoffs blank; a holder who keeps drawing snowballs. The
+  brief budgets 20 claimers and leans payoffs toward claiming; the lab
+  measures claim rate and hold length (the brief's question 6a offers a rules
+  alternative).
 - **Roster nostalgia** produces redundant cards unless the ledger leads
   authoring and the duplicate comparator runs on every batch.
 - **The life change touches every cost.** If the life study is late, the

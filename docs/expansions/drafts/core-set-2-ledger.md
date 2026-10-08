@@ -85,13 +85,13 @@ Missing from the three rosters: dreaded.
 
 |  | Three Kingdoms | Greek | Beastkin | Base generic | Three rosters | Base set | Whole pool |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| sever | 0 | 0 | 0 | 1 | 0 | 1 | 60 |
+| sever | 0 | 0 | 0 | 2 | 0 | 2 | 140 |
 | foresee | 1 | 0 | 1 | 2 | 2 | 4 | 234 |
-| mark | 1 | 1 | 1 | 2 | 3 | 4 | 98 |
+| mark | 1 | 1 | 2 | 2 | 4 | 4 | 165 |
 | propagate | 0 | 0 | 1 | 0 | 1 | 0 | 18 |
 | hunt | 0 | 0 | 0 | 0 | 0 | 0 | 21 |
 | provoked | 0 | 0 | 3 | 0 | 3 | 0 | 35 |
-| quest | 0 | 0 | 0 | 1 | 0 | 1 | 10 |
+| quest | 0 | 0 | 0 | 1 | 0 | 1 | 27 |
 | championAwakening | 0 | 0 | 0 | 0 | 0 | 0 | 13 |
 | empower | 0 | 0 | 0 | 1 | 0 | 1 | 42 |
 | skim | 0 | 0 | 0 | 1 | 0 | 1 | 97 |

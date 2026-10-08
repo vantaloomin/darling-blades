@@ -32,6 +32,14 @@ written to the recommendations and marks what moves if a ruling differs:
 | **P13** the Beastkin legend | Blue-inclusive pair, Beastkin anthem; Yohime as the fallback | Section 8 changes |
 | **The starting life number** (lane D) | Picked in the same sitting; costing waits for it | Nothing in this brief is costed, so nothing here moves; section 11 says what the set does with a higher total |
 
+**Terms used below.** The *overplan* is the long list of candidate cards
+(about 320) that the owner cuts down to the set (250). *C, R, SR, SSR, UR*
+are the rarities, common to ultra rare. *NEEDS MATH* marks a card whose cost
+waits on a measured rate. *VOCAB* marks a card that needs a rules construct
+the engine does not have yet. *The Warchest* is the 10 lands beside every
+deck. A *converter-owned* deck is a rung list the deck converter regenerates
+whenever the card pool changes.
+
 ## 1. The world
 
 **The Mandate has fallen.** In the Three Kingdoms the Mandate of Heaven is
@@ -71,7 +79,9 @@ the set:
 
 1. **The rosters are creatures only.** All 158 roster cards (Three Kingdoms
    101, Greek 25, Beastkin 32) are creatures. The base set's 67 other cards
-   (charms, rituals, enchantments, artifacts, lands) are theme-neutral. **Ask:**
+   (charms, rituals, enchantments, artifacts, lands) carry no roster subtype,
+   though several are Three Kingdoms by name (Peach Garden Oath, Empty Fort
+   Stratagem, the Imperial Jade Seal). **Ask:**
    Core Set II's spells belong to a roster by name and art: a Wei stratagem, a
    Styx oath, a Beastkin hunting call.
 2. **The base set has little interaction.** 12 removal cards in 213 (6%,
@@ -81,8 +91,10 @@ the set:
 3. **Greek is the thinnest roster**: 25 cards, one of them red, four blue.
    Persephone's colours (B/G) hold ten Greek cards. **Ask:** Greek grows the
    most, and its red and blue first.
-4. **Beastkin is green**: 13 of 32 (41%), with three blue. The tribe has two
-   payoffs, both green rares (Beastkin Packmother, Call of the Wilds).
+4. **Beastkin is green**: 13 of 32 (41%), with three blue. Beyond its two
+   legendary lords (Yohime, U/G, and Wolfqueen Lupa, R/G, who lead Kitsune
+   and Wolves), the tribe has two Beastkin payoffs, both green rares: Beastkin
+   Packmother and the base enchantment Call of the Wilds.
    **Ask:** blue and the new legend's second colour get Beastkin bodies, and
    the tribe gets payoffs outside green.
 5. **Three Kingdoms is light in green** (10 of 101). **Ask:** Shu's
@@ -94,16 +106,19 @@ the set:
    the histogram's SR band fills (section 4).
 8. **Legends.** 29 Darling-eligible legends in the rosters (Three Kingdoms 17,
    Greek 10, Beastkin 2), and **95 named characters printed without the
-   legendary supertype** (Sun Ce, Gan Ning, Taishi Ci, Lu Xun, Zhang Liao,
+   legendary supertype**, about 90 of them with no legendary version at all
+   (Sun Ce, Gan Ning, Taishi Ci, Lu Xun, Zhang Liao,
    Xiahou Dun, Hermes, Apollo, Hecate, Demeter and others). Three tower
    bosses play a stand-in Darling because their own card is not legendary:
    R1 Meng Huo, R2 Hestia, R5 Zhurong. Among the rosters, **black-red has no
    legend**. Across the pool the thinnest Darling identities are B/G (4), U/R
    (7) and U/G (8). **Ask:** section 7.
 9. **Keywords and mechanics.** The rosters carry 12 of 13 keywords (no
-   Dreaded; Rage once). They carry 5 of the 18 named mechanics (Foresee,
-   Mark, Propagate, Provoked, Nine Lives, each one to three times); the other
-   13 postdate the base set. **Ask:** the cameo map in section 9.
+   Dreaded; Rage once). The roster creatures carry 5 of the 18 named
+   mechanics (Foresee, Mark, Propagate, Provoked, Nine Lives, each one to four
+   times) and none of the other 13. Five of those appear once each on base
+   spells (Sever, Quest, Empower, Skim, Retell); the other eight postdate the
+   base set. **Ask:** the cameo map in section 9.
 10. **Unused cards.** 21 roster cards sit in no authored deck (starter, theme,
     rung or Darlings precon). This is information for the duplicate
     comparator, not a target.
@@ -122,9 +137,15 @@ the set:
 **Faction subtypes stay as they are.** Wei, Shu, Wu and Jin are Axes today
 (`src/data/axes.ts`); Olympian and God are Axes; Beastkin is an Axis. The
 set uses those, adds no new Axis unless the overplan finds three rows that
-need one, and keeps species subtypes inert (Wolf aside, as today).
+need one, and keeps species subtypes inert (Wolf and Kitsune aside, as today).
 Non-officer Three Kingdoms cards may carry no faction subtype, as the base set's
 Nanman do.
+
+**Greek mortals need a subtype.** 22 of Greek's 25 cards are Gods. Growing
+Greek to 110 means oracles, heroes and priestesses, and they need a shared
+subtype (Hero or Oracle, beside Human) so the Axis rules, the ledger and
+Oath-adjacent payoffs can see them. *Recommended*: decided at the overplan,
+with no new Axis unless three rows pay it off.
 
 **Emphasis (an open decision in the set plan):** Three Kingdoms leads the
 Mandate, Greek leads Oath, Beastkin leads neither and steals the Mandate
@@ -153,13 +174,32 @@ Each colour has a job with each hook, and a colour that prints a hook's
 payoffs also prints the means to turn it on (the Starborne lesson,
 2026-08-25).
 
-| Colour | Its part of the set | The Mandate | Oath |
-| --- | --- | --- | --- |
-| **White** | Wei's ordered ranks, Shu's sworn guard, Athena's and Hestia's temples | **claims** (rightful rule: "Claim the Mandate" on arrival bodies) and **keeps** (Sentinel walls, life) | **primary**: sworn guards and officers ("Oath: this gets +0/+2", "Oath: gain 2 life") |
-| **Blue** | Wu's river-fleets, Jin's court strategists, Poseidon's and Hermes' Olympians, the oracles | **primary payoff**: "if you hold the Mandate" draws and selection; claims through intrigue | secondary: oracles sworn to a god (Foresee riders) |
-| **Black** | Jin's usurpers, Wei's executioners, Hades' and Hecate's underworld, oaths sworn on the Styx | **primary claim**: usurpation ("Claim the Mandate" on removal and edicts); drains while you hold it | **secondary**: Styx oaths with a price (sacrifice-shaped, Rite) |
-| **Red** | Wu's fire at Red Cliffs, Lu Bu's riders, Ares and Hephaestus, harpies | **primary stealer**: Warcry, Dreaded and Skyborne attackers that take it by combat; payoffs "whenever you claim the Mandate" | **primary**: sworn brothers in arms (Peach Garden: Guan Yu, Zhang Fei), attack-trigger Oaths |
-| **Green** | Shu's farmlands, the Nanman south, Demeter and Artemis, most Beastkin | secondary stealer: big Overrun bodies | **primary**: Liu Bei's oath; the herd sworn to its leader ("Oath: other creatures you control get +1/+0" at R+) |
+**White** is Wei's ordered ranks, Shu's sworn guard, and Athena's and
+Hestia's temples. It **claims** the Mandate by right (arrival bodies that
+claim it) and **keeps** it with Sentinel walls and life. It is a **primary**
+Oath colour: sworn guards and officers that grow tougher or gain life while
+a legend leads them.
+
+**Blue** is Wu's river-fleets, Jin's court strategists, Poseidon's and
+Hermes' Olympians, and the oracles. It is the **primary Mandate payoff**
+colour: draws and Foresee while you hold it, and claims through intrigue.
+Its Oath cards are few: oracles sworn to a god.
+
+**Black** is Jin's usurpers, Wei's executioners, and Hades' and Hecate's
+underworld. It is the **primary claimer by force of law**: removal and
+edicts that also claim the Mandate, and drains while you hold it. Its Oaths
+are **secondary**: oaths sworn on the Styx, with a price.
+
+**Red** is Wu's fire at Red Cliffs, Lu Bu's riders, Ares and Hephaestus,
+and the harpies. It is the **primary stealer**: Warcry, Dreaded and Skyborne
+attackers that take the Mandate in combat, and payoffs that fire when you
+claim it. It is a **primary** Oath colour: brothers in arms (Guan Yu and
+Zhang Fei of the Peach Garden) whose Oaths fire on the attack.
+
+**Green** is Shu's farmlands, the Nanman south, Demeter and Artemis, and
+most Beastkin. It steals the Mandate with big Overrun bodies. It is a
+**primary** Oath colour: Liu Bei's oath, and a herd sworn to its leader
+(a team pump while a legend leads, at R or above).
 
 - **The Peach Garden oath is the flavour anchor for Oath**: Liu Bei (W/G),
   Guan Yu (W/R), Zhang Fei (R/G). Oath's primary colours are theirs: white,
@@ -190,14 +230,28 @@ payoffs also prints the means to turn it on (the Starborne lesson,
 
 | Hook | Cards | Notes |
 | --- | ---: | --- |
-| **Mandate claimers** | 14 | W 4, B 4, U 3, multicolour 3; at least six at C |
+| **Mandate claimers** | 20 | W 5, B 5, U 4, R 2, G 2, multicolour 2; at least one at C in every colour |
 | **Mandate payoffs** | 16 | U 5, B 4, W 3, R 2, multicolour 2; at least six at C |
-| **Mandate stealers** | counted, not budgeted | every set prints evasive attackers; the minimum below makes sure red and green have them at C |
+| **Mandate stealers** | no separate budget | every set prints evasive attackers anyway; the minimum below makes sure red and green have them at C |
 | **Oath payoffs** | 22 | W 6, R 5, G 5, B 3, multicolour 3; at most eight at C, every one of them still an honest card without its Oath |
-| **New legendary creatures** | 34 | section 7; at least two at R in each colour |
+| **New legendary creatures** | 34 | section 7; at least two at R or below in each colour, and six cheap "sworn champions" at C in white, red and green |
+
+**Why 20 claimers.** The Mandate starts unclaimed, and only a card can
+claim it. With too few claimers, many Standard games never see it claimed
+and the payoffs are blank text. Twenty, with one at common in every colour,
+puts a claimer in most 40-card decks that want one. (The other fix, a rules
+change where the first combat damage to a player claims an unclaimed
+Mandate, is question 6a in section 13.)
+
+**Why common legends.** A 40-card Standard deck with only rare legends holds
+three or four enablers, and a Limited deck often none, so Oath would read as
+free upside for Darlings alone. Six cheap legendary commons (sworn
+champions, mana value 2 to 3) give Standard and Limited a real enabler rate.
+The lab reports Oath's active rate by turn in each format, and Oath is
+costed at Standard's rate.
 
 **Minimums the cut must hold** (a cut constraint, as for First Dawn): every
-colour prints at least one Mandate claimer or payoff at C; red and green
+colour prints at least one Mandate claimer at C; red and green
 each print at least three stealers at C; every colour that prints an Oath
 payoff prints at least two legendary creatures at R or below.
 
@@ -214,6 +268,10 @@ payoff prints at least two legendary creatures at R or below.
 - **M4. No card makes the Mandate leave play or be destroyed.** It only
   changes hands. Keeping it is the defensive game, taking it the aggressive
   one.
+- **M5. Snowball watch.** The holder draws a card each turn and is usually
+  the player who just connected. The lab measures how long a holder keeps
+  it, and the overplan leans payoffs toward "whenever you claim the Mandate"
+  over "while you hold it", which rewards taking it back.
 
 ### Oath (P6 recommended)
 
@@ -254,16 +312,19 @@ Oath choice, Oath naming a specific legend or faction (the July overplan's
 ## 7. Legends
 
 **Proposed: 34 new legendary creatures** across the rosters (Three Kingdoms
-15, Greek 13, Beastkin 6, the legend in section 8 among Beastkin's six). They are Oath's enablers in Standard and the new Darling
-identities.
+15, Greek 13, Beastkin 6, the legend in section 8 among Beastkin's six).
+They are Oath's enablers in Standard and the new Darling identities. Six of
+them are the cheap common sworn champions of section 6.
 
 - **Legendary versions of named officers and gods the base set printed
-  without the supertype.** The ledger lists 95. A new legendary card with a
-  new title (the Zhao Yun precedent: two Zhao Yun cards ship today) gives
-  each famous name a Darling without touching the old card. The overplan
-  picks from Sun Ce, Sun Shangxiang, Gan Ning, Taishi Ci, Lu Xun, Zhang Liao,
-  Xiahou Dun, Ma Chao, Pang Tong, Guo Jia, Zhenji, Hermes, Apollo, Hecate,
-  Demeter, Artemis and others.
+  without the supertype.** The ledger lists 95. About 90 of them have no
+  legendary version at all (Dian Wei, Xu Chu and Thanatos already do, under
+  other titles). A new legendary card with a new title (the Zhao Yun
+  precedent: two Zhao Yun cards ship today) gives each famous name a Darling
+  without touching the old card. The overplan picks from Sun Ce, Sun
+  Shangxiang, Gan Ning, Taishi Ci, Lu Xun, Zhang Liao, Xiahou Dun, Ma Chao,
+  Pang Tong, Guo Jia, Zhenji, Hermes, Apollo, Hecate, Demeter, Artemis and
+  others.
 - **The three stand-in bosses get their own Darlings.** Legendary cards for
   Meng Huo (G, Nanman), Hestia (W) and Zhurong (R, Nanman). Their rung decks
   switch to them in wave 4, measured like any list change.
@@ -289,7 +350,9 @@ are open.
 - **Colours: U/R.** All three Story characters together cover the five
   colours (Guan Yu W/R, Persephone B/G, and blue). Of the blue pairs, U/R has
   the fewest Darlings in the pool (7, against W/U 15 and U/B 11), no sweep
-  persona plays it (the eight play R/W, W/U, W/G, R/B, B/R, R/G, U/B and B/W),
+  persona is fixed to it (seven personas have fixed pairs, R/W, W/U, W/G,
+  R/B, R/G, U/B and B/W; midrange picks its best two, which has not been
+  U/R),
   and red already has Beastkin bodies to build on (four, plus Wolfqueen Lupa
   in R/G). U/G is Yohime's pair, so it is out.
 - **Tribe: Beastkin itself, not Kitsune.** Kitsune is Yokai Nights' Axis (21
@@ -306,18 +369,21 @@ are open.
   Mandate". The overplan writes both and the costing picks. NEEDS MATH.
 - **Working name: Aello, Storm-Wing Matriarch** (Aello is a harpy of Greek
   myth, not a real person). Alternates: Ocypete, Celaeno.
-- **Story plays distinctly**: Guan Yu fights on the ground, Persephone grinds,
-  the harpy queen raids from the air and steals the Mandate.
+- **Story plays distinctly, with one trade-off**: Guan Yu fights on the
+  ground, Persephone grinds, the harpy queen raids from the air and steals
+  the Mandate. Two of the three characters are red attackers, which W/U
+  would avoid. And a Skyborne anthem legend cast from the command zone is a
+  Limited bomb unless she costs about 5 to 6 mana, as Yohime does (6).
 - **Alternatives if the owner prefers**: W/U, a flock of Skyborne Beastkin
   (owls, cranes) that keeps the Mandate (W/U already has 15 Darlings and a
   sweep persona); U/B, the night beasts (bats, spiders, serpents), which
   shares black with Persephone.
 - **Fallback (open since R8c):** Yohime as she is, if Core Set II slips.
 
-**What the tribe needs for her starter pool:** at least twelve U or R Beastkin
-at C and R in the cut (today: three blue, four red), two Beastkin
-payoffs outside green (one blue or red at R, one at SR or above), and her own
-card.
+**What the tribe needs for her starter pool:** at least fourteen new U or R
+Beastkin in the cut, most at C and R (today the pool has three blue and four
+red), among them two Beastkin payoffs outside green (one blue or red at R,
+one at SR or above), plus her own card. Section 10 counts the same fourteen.
 
 ## 9. Keywords and mechanics: the cameo map
 
@@ -393,20 +459,22 @@ the set plan.
   queen, two colours, honest bodies, no multi-turn engine to assemble (what
   sank the two folding decks in 1.8). It doubles as her Story pool's proving
   list.
-- **Two rungs, 29-30 (the tower grows)**, as each Large set's summit pair did
-  (Drowned Deep 25-26, First Dawn 27-28). **R29, the Usurper (B/R)**: takes
-  the Mandate by force with Dreaded and Warcry stealers and keeps it with
-  black's removal, led by the new B/R legend. **R30, the Throne of Olympus
-  (W/U)**: holds the Mandate and wins the long game with Oath, Sentinel walls
-  and blue's Mandate payoffs. Both get converter-owned Darlings decks and the
-  summit gate; at about 77 seconds a rung, the summit gate grows from about
-  460 to 610 seconds, inside CI's 900. Their bosses double as Story Mode act
-  bosses if the Story plan wants them.
+- **One rung, 29 (the tower grows by one).** The last two sets each added
+  a summit pair (Drowned Deep 25-26, First Dawn 27-28). This set adds one:
+  **R29, the Usurper (B/R)**, who takes the Mandate by force with Dreaded and
+  Warcry stealers and keeps it with black's removal, led by the new B/R
+  legend. A second rung, a W/U Throne of Olympus that holds the Mandate and
+  wins the long game, is left out: slow control is the shape the AI pilots
+  worst (the 1.9 summit Darlings reading put rungs 23-26 at 10-28%). R29 gets
+  a converter-owned Darlings deck and its own gate test, sized when it is
+  built (about 77 seconds a rung was measured on rungs 14-22; summit rungs
+  run slower). Its boss doubles as a Story Mode act boss if the Story plan
+  wants one.
 - **Two sweep personas**: **U/R** (the Mandate stealer and the Beastkin
   legend's deck) and **B/G** (Persephone's colours, Oath and Hunt). No
   persona plays either today.
-- **Darlings**: no new Darlings precon at 2.0; the set's legends appear in
-  Suggested Decks (the set plan's recommendation, kept).
+- **Darlings**: no new Darlings precon at 2.0. Suggested Decks, which would
+  show off the new legends, come after 2.0 (ruled 2026-09-25).
 
 ## 13. Questions for the owner
 
@@ -415,17 +483,24 @@ Each leads with the recommendation.
 1. **The world: the fallen Mandate** (section 1): every realm reaching for a
    Mandate of Heaven that can be held and taken. Alternative: the base
    set's world as it is, with the Mandate as a rule rather than a story.
-2. **Roster split at 250: Three Kingdoms 95, Greek 85, Beastkin 55,
-   neutral 15** (section 3). Alternative: an equal return (about 80 each).
-3. **Emphasis: Three Kingdoms leads the Mandate, Greek leads Oath, Beastkin
-   steals.** Alternative: both hooks spread evenly.
-4. **250, overplanned to about 320, 123 / 75 / 23 / 17 / 12** (section 4).
+2. **Split the 250 as Three Kingdoms 95, Greek 85, Beastkin 55 and 15
+   neutral** (section 3). The alternative is an equal return of about 80
+   each.
+3. **Let Three Kingdoms lead the Mandate, Greek lead Oath, and Beastkin
+   steal the Mandate.** The alternative spreads both hooks evenly.
+4. **Cut to 250 from about 320 candidates**, with 123 commons, 75 rares, 23
+   SR, 17 SSR and 12 UR (section 4).
 5. **Oath's colours: white, red and green primary (the Peach Garden),
    black secondary (the Styx)**; the Mandate's blue and black primary
    (section 5).
-6. **Oath as a condition word, active while you control any legendary
-   creature** (P6, section 6). Alternative: "while you control your
-   Darling", which needs public Darling ids in game state.
+6. **Make Oath a condition word, active while you control any legendary
+   creature** (P6, section 6). The alternative, "while you control your
+   Darling", needs public Darling ids in game state.
+
+   6a. **Keep the Mandate's rule as written (only a card claims it when no
+   one holds it), with 20 claimers.** The alternative: the first combat
+   damage to a player claims an unclaimed Mandate, so it is always in play
+   from the first hit, still one public field.
 7. **The name "Oath".** Blood Oath (the lifelink keyword), the Grail Oath
    (Arthurian Court's title), Peach Garden Oath (a card) and Liu Bei,
    Benevolent Oathkeeper already use the word. **Recommended: keep "Oath"**:
@@ -434,20 +509,20 @@ Each leads with the recommendation.
    The same check for "the Mandate": the Shadow Mandate starter deck and two
    achievements ("Mandate In Foil", "Rainbow Mandate") use the word. Keep it;
    neither is a rule.
-8. **34 new legends**, including legendary Meng Huo, Hestia and Zhurong and a
-   B/R legend (section 7).
-9. **The Beastkin legend: U/R, a harpy queen leading all Beastkin, working
-   name Aello** (section 8). Alternatives: W/U sky flock; U/B night beasts.
-   Fallback if the set slips: Yohime as she is.
-10. **No reprint of Guan Yu or Persephone** (section 7).
-11. **All 13 keywords and 18 mechanics by the cameo map** (section 9).
+8. **Print 34 new legends**, including legendary Meng Huo, Hestia and
+   Zhurong, a B/R legend and six common sworn champions (sections 6 and 7).
+9. **Make the Beastkin legend a U/R harpy queen leading all Beastkin,
+   working name Aello** (section 8). The alternatives are a W/U sky flock
+   or U/B night beasts. If the set slips, Yohime stays as she is.
+10. **Do not reprint Guan Yu or Persephone** (section 7).
+11. **Place all 13 keywords and 18 mechanics by the cameo map** (section 9).
 12. **Offer the fallen Mandate to Story Mode as its premise.** The owner's
     call in the same sitting as Story's premise direction.
-13. **Two rungs, 29-30, the Usurper (B/R) and the Throne of Olympus (W/U)**
-    (section 12). Alternative: no new rungs in 2.0, given mobile and Story
-    ride beside the set.
-14. **Two new sweep personas, U/R and B/G** (section 12).
-15. **One theme deck, U/R Beastkin** (section 12).
+13. **Grow the tower by one rung, R29, the Usurper (B/R)** (section 12).
+    The alternatives are a second rung (a W/U throne) or no new rung in
+    2.0, since mobile and Story ride beside the set.
+14. **Add two sweep personas, U/R and B/G** (section 12).
+15. **Add one theme deck, U/R Beastkin** (section 12).
 
 **FYI, no ruling needed now:** every name is a working name until the cut;
 the art register (section 14) is an outline for the art bible, written after
