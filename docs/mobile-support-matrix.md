@@ -41,11 +41,12 @@ Blades" with the supported list. Small and reversible; mobile wave 1.
 
 | Device class | Screen in landscape (CSS px) | Browser | Level | Why it is here |
 | --- | ---: | --- | --- | --- |
-| **6.1 to 6.3-inch iPhone** (iPhone 12 to 17, 16e) | 844x390 to 874x402 | Safari, current iOS | **Tested** | The most common iPhone size; the main design target |
-| **Android, 360 px class** (many Samsung Galaxy A and S phones) | about 780x360 | Chrome and Samsung Internet, current (the Chrome 111 floor is about Samsung Internet 22, which trails Chrome) | **Tested** | The shortest common screen, so the design minimum. A Galaxy A phone is also the weakest common hardware, so it sets the performance floor (M14) |
+| **iPhone 17 Pro Max** (the owner's phone) | 956x440 | Safari, current iOS | **Tested** | The owner's device: the largest phone layout, and the only real-phone pass |
+| 6.1 to 6.3-inch iPhone (iPhone 12 to 17, 16e) | 844x390 to 874x402 | Safari | Supported | The most common iPhone size; the main design target, checked by fixtures |
+| Android, 360 px class (many Samsung Galaxy A and S phones) | about 780x360 | Chrome and Samsung Internet, current (the Chrome 111 floor is about Samsung Internet 22, which trails Chrome) | Supported, **no device yet** | The shortest common screen, so the design minimum. Without a phone it is checked by fixtures only; see the gap below |
 | iPhone SE, 2nd and 3rd generation | 667x375 | Safari | Supported | The narrowest screen (16:9); Version C's three columns must fit it |
 | iPhone 12 and 13 mini | 812x375 | Safari | Supported | Short and notched |
-| Large iPhones (Plus and Pro Max) | 926x428, 932x430, 956x440 | Safari | Supported | The largest phone layout |
+| Other large iPhones (Plus and Pro Max) | 926x428, 932x430 | Safari | Supported | Covered by the owner's Pro Max |
 | Pixel and other 412 px Android | about 915x412 | Chrome | Supported | Common Android size above the minimum |
 | Any phone on Firefox for Android | | Firefox 114+ | Works, not tested | Small share |
 | Chrome, Edge or Firefox on iPhone | | Same WebKit engine as Safari (other engines are allowed only in the EU, and none is widely shipped) | Works, not tested | Safari's testing covers the engine |
@@ -68,10 +69,11 @@ draws at about 0.9 scale on an 11-inch iPad, which reads today.
 
 | Device class | Screen (CSS px) | Browser | Level |
 | --- | ---: | --- | --- |
-| iPad, 10.9 to 11 inch, landscape | 1180x820 | Safari | **Tested** if the owner has one, else Supported |
+| **The owner's Samsung tablet** (model to confirm), landscape | to measure | Chrome and Samsung Internet | **Tested** | The only Android device: it covers Android's browsers, and as older hardware it stands in as the weak-device floor (M14) until an Android phone joins |
+| iPad, 10.9 to 11 inch, landscape | 1180x820 | Safari | Supported |
 | iPad mini, landscape | 1133x744 | Safari | Supported |
 | Any tablet held upright (M11) | e.g. 820x1180 | Safari, Chrome | Supported if M11 is ruled yes; today it shows the rotate screen (a CSS media query in `index.html`; unblocking adds a minimum-size clause to it) |
-| Android tablets, landscape | 1280 wide and up | Chrome | Works, not tested |
+| Other Android tablets, landscape | | Chrome | Works, not tested |
 
 The profile rule's 500 px threshold (plan C1) is checked against this table:
 the iPad mini's 744 px height must land in the wide profile and every phone
@@ -116,19 +118,30 @@ the reserve changes to match.
 
 ## What the real-device testing needs
 
-The owner tests on real devices. The two Tested phones are the minimum: one
-iPhone and one Android of the 360 px class. If the owner has no Android
-phone, the options are a second-hand Galaxy A phone, or a paid real-device
-cloud service for spot checks. Emulation and a resized desktop window find
-layout bugs but never count as the device pass: they miss touch, memory,
-browser bars and audio.
+The owner tests on real devices: an **iPhone 17 Pro Max** and an **older
+Samsung tablet** (owner, 2026-10-08). Emulation and a resized desktop window
+find layout bugs but never count as the device pass: they miss touch,
+memory, browser bars and audio.
+
+**The gap: no small or Android phone.** The Pro Max is the roomiest phone
+there is (956x440), so the cramped cases, the 360 px Android screen, the
+iPhone SE's 667 px width and Chrome's address bar on a phone, are covered
+only by fixtures. The tablet covers Android's browsers and older hardware,
+but in the wide profile, not compact. Options, cheapest first:
+
+- **Accept it** for waves 1-3 and rely on fixtures, with the risk that
+  touch, browser-bar and keyboard bugs on small phones reach players.
+- **A second-hand Galaxy A phone** (recommended) before the Duel wave: it
+  closes the Android phone, short screen and weak hardware cases at once.
+- **A paid real-device cloud service** for spot checks on small phones.
 
 Each pass records device, OS and browser version, text size, scene, and any
 issue in the QA sheet mobile wave 1 adds.
 
 ## Open for the owner
 
-- **Which phones and tablets do you have?** The Tested rows are written for
-  one iPhone and one Galaxy A or S phone; they change to what you own.
+- **The tablet's model and Android version** (Settings, About tablet). If
+  its Chrome is older than 111, the game cannot run on it and it drops out.
+- **The small-phone gap** above: accept it, or add a used Galaxy A phone.
 - **The OS pair** (current and previous iOS, Android 10+) is a proposal.
 - **The old-browser message** above is a proposal.

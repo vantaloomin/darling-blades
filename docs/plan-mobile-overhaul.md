@@ -293,8 +293,8 @@ word.
   to check the 80 px browser-bar reserve. The page height is `100dvh`, which
   in both Safari and Chrome already leaves out a visible browser bar, so the
   reserve may be taking 80 px twice whenever a bar shows (inferred, not
-  measured). The baseline also times a Hard AI turn on the weakest Android
-  phone: the engine and AI run on the page's main thread, and a long think
+  measured). The baseline also times a Hard AI turn on the weakest tested
+  device (the owner's older Samsung tablet until an Android phone joins): the engine and AI run on the page's main thread, and a long think
   freezes the screen. If it does, the fix touches `src/ai` or moves the AI
   to a worker, and the 2.0 plan freezes the AI at the end of 2.0 wave 2, so
   it is found here, not in the Duel wave.
