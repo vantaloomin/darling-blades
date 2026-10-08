@@ -331,7 +331,8 @@ export const ARTHURIAN_COURT = [
   creature('ac-court-minstrel', 'Court Minstrel', ['Bard'], {
     cost: cost(4, 'U'), colors: ['U'], attack: 2, defense: 2,
     abilities: [
-      { when: 'arrives', ops: [{ op: 'foresee', n: 1 }] },
+      // 1.9.1 taste pass (D8 A1, owner 2026-10-08): the set's one targeted trigger.
+      { when: 'arrives', targets: [{ what: 'opponentCreature' }], ops: [{ op: 'tap', to: 'target' }] },
       { when: 'dawn', condition: 'questActive', ops: [{ op: 'draw', n: 1 }] },
     ],
     rarity: 'c',
