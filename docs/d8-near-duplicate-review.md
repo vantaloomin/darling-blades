@@ -362,7 +362,10 @@ The sitting's sheet numbered these D1-D12; each answer leads its question.
    gains Retell)? Recommended: yes; each alternative tried either left the pair one card or made a new
    near-duplicate.
 8. *Ruled (D8): approve.* A1 and A7 are approved for the patch, and both get a taste pass when the
-   patch is written.
+   patch is written. *Taste pass picked 2026-10-08 ("Tempo and guard"):* White-Crown Marshal keeps
+   Sentinel and its Dawn Kit and gains "Other creatures you control gain Warding Gaze" in place of the
+   1 life (v4 0.41, unchanged). Court Minstrel's pick, an arrival tap, needs a targeted trigger that
+   the Arthurian Court trigger law forbids, so it stays as drafted pending the owner's call.
    **A1 Court Minstrel and A7 White-Crown Marshal** pass the comparator without gaining a real job.
    Recommended: approve them for the patch, and give both a taste pass when the patch is written.
 9. *Ruled (D9): 1/5.* A14 as drafted.

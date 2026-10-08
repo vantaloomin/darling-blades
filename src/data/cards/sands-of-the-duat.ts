@@ -1592,7 +1592,10 @@ export const SANDS_OF_THE_DUAT = [
     attack: 3,
     defense: 4,
     keywords: ['sentinel'],
-    abilities: [{ when: 'dawn', ops: [{ op: 'createToken', token: 'tok-bastet-kit', count: 1 }, { op: 'gainLife', n: 1 }] }],
+    abilities: [
+      { when: 'dawn', ops: [{ op: 'createToken', token: 'tok-bastet-kit', count: 1 }] },
+      { when: 'static', static: { scope: 'filter', filter: { other: true }, grantKeywords: ['wardingGaze'] } },
+    ],
     rarity: 'r',
   },
   {
