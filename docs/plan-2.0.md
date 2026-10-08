@@ -425,7 +425,7 @@ Each has a recommendation. None is ruled.
 | **P7** | Set key and size | **RULED 2026-10-08: as recommended.** `core-set-2`; the size from the coverage ledger at the cut, 250+ per the spine |
 | **P8** | Floors under the life change | **RULED 2026-10-08: one-time reset.** One re-baseline at the new life total, then ratchet up as before. The exception is recorded in `CLAUDE.md` and the playbook |
 | **P9** | What "Act 1 + endless" contains | **RULED 2026-10-08: as recommended.** Act 1 complete with all three characters and the unlock chain; endless as generated maps with scaling bosses, plus a daily seed; no keeps in endless |
-| **P10** | Save changes | One bump, v37, for Story; nothing else adds a field unless it rides it |
+| **P10** | Save changes | **RULED 2026-10-08: as recommended.** One bump, v37, for Story; nothing else adds a field unless it rides it |
 | **P11** | Mobile scope | **RULED 2026-10-08: as recommended.** Landscape only, automatic layout, browser only (no PWA or store package), art-first phone card face (a). Settles the mobile plan's M1-M4 |
 | **P12** | Story voice (R7, TBD) | None at 2.0 |
 | **P13** | The new Beastkin legend | **RULED 2026-10-08: a Jade Rabbit (moon rabbit, Chang'e's myth), U/W**, leading a Beastkin anthem. The owner turned down sky, bat, spider and serpent species and asked for something in the vein of the feline and canine Beastkin. Name in the brief; Yohime as the fallback if Core Set II slips. Settles the brief's question 9 |
