@@ -56,9 +56,13 @@ export function practicePickerLayout(nameHeight = menuLineHeight(theme.type.capt
   const rowGap = theme.space(3.5);
   const rowHeight = (columnHeight - rowGap) / rows;
   const nameBand = Math.max(menuLineHeight(theme.type.caption) + theme.space(4), nameHeight + theme.space(2));
+  const selectionY = columnTop + columnHeight + theme.space(4) + menuLineHeight(theme.type.h2) / 2;
   return { rows, columnTop, columnHeight, rowGap, rowHeight, nameBand,
     portraitWidth: 190, portraitHeight: rowHeight - nameBand - theme.space(2.5),
-    selectionY: columnTop + columnHeight + theme.space(4) + menuLineHeight(theme.type.h2) / 2,
+    selectionY,
+    // The page arrows: in the edge columns on the selection line, under the
+    // neighbour peeks rather than drawn over them (owner, 2026-10-08).
+    arrowY: selectionY,
     difficultyY: theme.design.footerCenterY - theme.control.minHitHeight - theme.space(2),
     noticeY: theme.design.footerCenterY,
     viewport: { x: theme.design.safeLeft, y: columnTop - theme.space(1), width: theme.design.safeWidth, height: columnHeight + theme.space(2) } };
