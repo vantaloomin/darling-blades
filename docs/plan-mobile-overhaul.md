@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/mobile-support-matrix.md, docs/mobile-lan-plan.md, docs/plan-accessibility-i18n.md, docs/plan-art-streaming.md, docs/design-system.md, index.html, vite.config.ts, src/gameBoot.ts, src/platform/gestureCore.ts, src/platform/gestures.ts, src/platform/quality.ts, src/platform/renderScale.ts, src/platform/clientProfile.ts, src/ui/accessibility.ts, src/ui/theme.ts, src/ui/layout.ts, src/ui/duelLayout.ts, src/ui/SceneBackdrop.ts, src/art/ArtResolver.ts, src/art/artBudget.ts, src/config/cardFaceGeometry.ts, src/ui/handFan.ts, src/forge/scene.ts, src/dev/a11yProbe.ts, src/scenes/ · last-verified: 2026-10-08 · plan doc, DRAFT for the 2.0 wave-1 sitting: rewritten for 2.0 lane C; P11 (M1-M4) and P1 ruled 2026-10-08, the rest is proposed; re-verify when the owner rules the M decisions, and when each wave ships -->
+<!-- source-of-truth: docs/mobile-support-matrix.md, docs/mobile-lan-plan.md, docs/plan-accessibility-i18n.md, docs/plan-art-streaming.md, docs/design-system.md, index.html, vite.config.ts, src/gameBoot.ts, src/platform/gestureCore.ts, src/platform/gestures.ts, src/platform/quality.ts, src/platform/renderScale.ts, src/platform/clientProfile.ts, src/ui/accessibility.ts, src/ui/theme.ts, src/ui/layout.ts, src/ui/duelLayout.ts, src/ui/SceneBackdrop.ts, src/art/ArtResolver.ts, src/art/artBudget.ts, src/config/cardFaceGeometry.ts, src/ui/handFan.ts, src/forge/scene.ts, src/dev/a11yProbe.ts, src/scenes/ · last-verified: 2026-10-08 · plan doc, DRAFT for the 2.0 wave-1 sitting: rewritten for 2.0 lane C; P11 (M1-M4), P1 and P2 ruled 2026-10-08, the rest is proposed; re-verify when the owner rules the M decisions, and when each wave ships -->
 
 # Mobile overhaul: the 2.0 plan (draft)
 
@@ -20,8 +20,10 @@ under [History](#history). The device list it depends on is its companion,
   turn and phase line between them. The hand is a list of named rows with
   cost pips in a right-hand column, with End turn and To combat beneath it.
 - **Mobile ships in 2.0**, priority 2 (owner, 2026-10-08), on the site and
-  the desktop build first. itch.io follows once 2.0 is stable there
-  (proposed P2 in the 2.0 plan).
+  the desktop build. It is no longer framed as launch-critical for itch.io:
+  **the itch.io launch is a 2.0.x**, once 2.0 is stable on the site, with
+  the itch build target landing in 2.0 behind a flag (owner, 2026-10-08,
+  P2).
 - **Gameplay does not change.** Touch and desktop input produce the same
   engine actions.
 
@@ -400,7 +402,7 @@ M1-M4 were ruled 2026-10-08 as P11. The rest each have a recommendation and are 
 - A saved layout preference.
 - LAN PvP and any multiplayer (cancelled 2026-08-24).
 - Changes to the gesture times without device evidence (the slop's unit change is wave 1's, above).
-- The itch.io embed check, which moves with the itch launch (P2). itch can
+- The itch.io embed check, which moves with the itch launch (2.0.x, P2). itch can
   launch a game full screen on phones, so the embed is a lane F check on
   this plan's layouts, not a separate layout.
 
@@ -434,5 +436,7 @@ M1-M4 were ruled 2026-10-08 as P11. The rest each have a recommendation and are 
   described as launch-critical for itch.io; accessibility shipped alone in
   1.9 and built the resolver this plan reuses. The same day the owner picked
   Version C from three phone-landscape options drawn at the worst-case board.
-- **2026-10-08:** the owner ranked mobile second for 2.0 and moved the itch
-  launch after 2.0 ([plan-2.0.md](plan-2.0.md)). This rewrite follows.
+- **2026-10-08:** the owner ranked mobile second for 2.0, made it a hard
+  requirement (P1), and moved the itch launch to a 2.0.x (P2), which retires
+  the "launch-critical" framing ([plan-2.0.md](plan-2.0.md)). This rewrite
+  follows.
