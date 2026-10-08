@@ -427,7 +427,7 @@ Each has a recommendation. None is ruled.
 | **P9** | What "Act 1 + endless" contains | **RULED 2026-10-08: as recommended.** Act 1 complete with all three characters and the unlock chain; endless as generated maps with scaling bosses, plus a daily seed; no keeps in endless |
 | **P10** | Save changes | **RULED 2026-10-08: as recommended.** One bump, v37, for Story; nothing else adds a field unless it rides it |
 | **P11** | Mobile scope | **RULED 2026-10-08: as recommended.** Landscape only, automatic layout, browser only (no PWA or store package), art-first phone card face (a). Settles the mobile plan's M1-M4 |
-| **P12** | Story voice (R7, TBD) | None at 2.0 |
+| **P12** | Story voice (R7, TBD) | **RULED 2026-10-08: no voice in 2.0.** Text-only scenes; voice revisited for 2.x or a trailer |
 | **P13** | The new Beastkin legend | **RULED 2026-10-08: a Jade Rabbit (moon rabbit, Chang'e's myth), U/W**, leading a Beastkin anthem. The owner turned down sky, bat, spider and serpent species and asked for something in the vein of the feline and canine Beastkin. Name in the brief; Yohime as the fallback if Core Set II slips. Settles the brief's question 9 |
 | **P14** | The difficulty retune | After the life change, measured against a human (play stats or the owner's runs); 2.0.x if it slips |
 | **P15** | The life study's pool | Start it on 1.9.0 without waiting for 1.9.x; its readings are re-taken in the end-of-train measurement |
@@ -465,7 +465,7 @@ which Story's first two characters depend on (the set plan's open decisions).
 - No portrait gameplay, no app-store package.
 - No localization scaffold.
 - No cloud or account code.
-- No AI voice unless the owner rules otherwise (P12).
+- No voice in Story Mode (P12, ruled 2026-10-08).
 
 ## Risks
 
