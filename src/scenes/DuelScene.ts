@@ -183,7 +183,7 @@ import { duelButtonPairCenters, duelModalLayout } from '../ui/duelModalPresentat
 import type { Rect } from '../ui/layout';
 import { duelRecapLayout } from '../ui/duelRecapPresentation';
 import { currentAccessibility } from '../ui/accessibility';
-import { DUEL_LAYOUT, duelHudType, LIFE_BADGE_SIZE, LIFE_TARGET_RING, SEVERED_PILE_HIT } from '../ui/duelLayout';
+import { CLUSTER_BUTTON, clusterControlX, DUEL_LAYOUT, duelHudType, LIFE_BADGE_SIZE, LIFE_TARGET_RING, manaStripPitch, SEVERED_PILE_HIT } from '../ui/duelLayout';
 import { shouldPlayVersusBumper, versusLeitmotifPitch } from '../ui/versusBumperPresentation';
 import { activeVisibleSavedDeck } from '../ui/deckBuilderHelpers';
 import { ModalGuard } from '../ui/Modal';
@@ -402,6 +402,8 @@ export class DuelScene extends Phaser.Scene {
   private darlingZonePositions = new Map<PlayerId, { x: number; y: number; scale: number; angle: number }>();
   private manaPips: (Phaser.GameObjects.Image | Phaser.GameObjects.Text)[] = [];
   private manaStripZones: Phaser.GameObjects.Zone[] = [];
+  /** Your mana strip's live pitch (wider than the tuned step at large text). */
+  private myManaPitch: number = DUEL_LAYOUT.myManaStrip.step;
   /** Desktop-only hover preview markers for the exact auto-tap mana plan. */
   private manaPlanMarks: Phaser.GameObjects.GameObject[] = [];
   private previousManaSignature: string | null = null;
@@ -693,6 +695,7 @@ export class DuelScene extends Phaser.Scene {
     this.carry = null;
     this.landFan = null;
     this.myManaRowEndX = null;
+    this.myManaPitch = DUEL_LAYOUT.myManaStrip.step;
     this.reserveFormatsEnabled = FEATURES.reserveFormats;
     if (!this.reserveFormatsEnabled && data.replay?.format) {
       this.scene.start('Profile');
@@ -2057,6 +2060,7 @@ export class DuelScene extends Phaser.Scene {
       this.startEndTurn();
     });
     inflateHitArea(this.endTurnBtn, 90, 90);
+    this.endTurnBtn.setX(clusterControlX(this.endTurnBtn.width));
 
     // Undo: take back your last committed action while it's still your
     // decision — before priority passes to the AI or combat animates. It is
@@ -2582,9 +2586,10 @@ export class DuelScene extends Phaser.Scene {
       }).setOrigin(0.5));
       this.dutyFinishButton = themedButton(this, LAYOUT.cluster.x, LAYOUT.cluster.endTurnY,
         duty.type === 'activate' ? DUTY_ACTION_LABEL : 'Confirm targets', {
-          variant: 'primary', minWidth: 150, enabled: step.complete !== null,
+          variant: 'primary', ...CLUSTER_BUTTON, enabled: step.complete !== null,
           onTap: (pointer) => { if (!pointer.rightButtonReleased()) this.confirmPendingTargets(); },
         });
+      this.dutyFinishButton.container.setX(clusterControlX(this.dutyFinishButton.getMeasuredBounds().hit.width));
       prompt.add(this.dutyFinishButton.container);
       if (!this.targetPicksUnordered && step.count > 1 && this.targetPicks.length > 0) {
         prompt.add(themedButton(this, 640, LAYOUT.gap.cy + 42, 'Undo target', {
@@ -2677,11 +2682,12 @@ export class DuelScene extends Phaser.Scene {
       });
     }
     this.dutyFinishButton = themedButton(this, LAYOUT.cluster.x, LAYOUT.cluster.endTurnY, edict ? 'Confirm sacrifice' : 'Confirm cast', {
-      variant: 'primary', minWidth: 150, enabled: edict ? edict.action !== null : selection!.actions.length > 0,
+      variant: 'primary', ...CLUSTER_BUTTON, enabled: edict ? edict.action !== null : selection!.actions.length > 0,
       onTap: (pointer) => {
         if (!pointer.rightButtonReleased()) this.confirmSacrificeSelection();
       },
     });
+    this.dutyFinishButton.container.setX(clusterControlX(this.dutyFinishButton.getMeasuredBounds().hit.width));
     prompt.add(this.dutyFinishButton.container);
     this.targetPrompt = prompt;
   }
@@ -5226,10 +5232,24 @@ export class DuelScene extends Phaser.Scene {
           total: totals.get(sig) ?? 0,
         }))
       : [{ texture: 'pip-C', untapped: 0, total: 0 }];
+    const countTexts = slots.map((slot) => this.add
+      .text(0, cy, `${slot.untapped}/${slot.total}`, {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${duelHudType(13, 'label')}px`,
+        fontStyle: '600',
+        color: slot.untapped > 0 ? theme.colors.body : theme.colors.muted,
+        resolution: 2,
+      })
+      .setOrigin(0, 0.5)
+      .setDepth(4)
+      .setData('baseAlpha', 1));
+    // The tuned pitch holds at 100%; larger text widens it so a count never
+    // prints over the next pip (2026-10-08 UI review).
+    const pitch = manaStripPitch(step, pipSize, Math.max(...countTexts.map((t) => t.width)));
     slots.forEach((slot, i) => {
       const x = align === 'right'
-        ? xAnchor - (slots.length - 1 - i) * step
-        : xAnchor + i * step;
+        ? xAnchor - (slots.length - 1 - i) * pitch
+        : xAnchor + i * pitch;
       const baseAlpha = slot.untapped > 0 ? 1 : 0.45;
       const pip = this.add
         .image(x, cy, slot.texture)
@@ -5237,23 +5257,16 @@ export class DuelScene extends Phaser.Scene {
         .setDepth(4)
         .setAlpha(baseAlpha)
         .setData('baseAlpha', baseAlpha);
-      const countText = this.add
-        .text(x + pipSize * 0.64, cy, `${slot.untapped}/${slot.total}`, {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${duelHudType(13, 'label')}px`,
-          fontStyle: '600',
-          color: slot.untapped > 0 ? theme.colors.body : theme.colors.muted,
-          resolution: 2,
-        })
-        .setOrigin(0, 0.5)
-        .setDepth(4)
-        .setData('baseAlpha', 1);
+      const countText = countTexts[i]!.setX(x + pipSize * 0.64);
       minX = Math.min(minX, x - pipSize / 2);
       maxX = Math.max(maxX, x + pipSize / 2, countText.x + countText.width);
       this.manaPips.push(pip);
       this.manaPips.push(countText);
     });
-    if (player === HUMAN) this.myManaRowEndX = xAnchor + slots.length * step;
+    if (player === HUMAN) {
+      this.myManaRowEndX = xAnchor + slots.length * pitch;
+      this.myManaPitch = pitch;
+    }
     const width = Math.max(44, maxX - minX);
     const zone = this.add
       .zone((minX + maxX) / 2, cy, width, 44)
@@ -5386,7 +5399,7 @@ export class DuelScene extends Phaser.Scene {
         if (previous) previous.count++;
         else {
           planned.set(key, {
-            x: LAYOUT.myManaStrip.x0 + slot * LAYOUT.myManaStrip.step,
+            x: LAYOUT.myManaStrip.x0 + slot * this.myManaPitch,
             y: LAYOUT.myManaStrip.cy,
             count: 1,
             kind: 'land',
