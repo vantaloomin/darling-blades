@@ -127,13 +127,23 @@ memory, browser bars and audio.
 there is (956x440), so the cramped cases, the 360 px Android screen, the
 iPhone SE's 667 px width and Chrome's address bar on a phone, are covered
 only by fixtures. The tablet covers Android's browsers and older hardware,
-but in the wide profile, not compact. Options, cheapest first:
+but in the wide profile, not compact.
 
-- **Accept it** for waves 1-3 and rely on fixtures, with the risk that
-  touch, browser-bar and keyboard bugs on small phones reach players.
-- **A second-hand Galaxy A phone** (recommended) before the Duel wave: it
-  closes the Android phone, short screen and weak hardware cases at once.
-- **A paid real-device cloud service** for spot checks on small phones.
+**Closing most of it for free (proposed):**
+
+- **Android Studio's phone emulator** on the owner's PC, set to a 360 px
+  Galaxy-class screen: real Chrome on Android, address bar and keyboard
+  included. It stands in for the 360 px Android row and Chrome's bar.
+- **Display Zoom on the owner's iPhone** (Settings, Display & Brightness,
+  Display Zoom, Larger Text): Safari then reports a smaller phone's
+  viewport, with real touch. The size it reports is measured in the
+  baseline, not assumed.
+- **Chrome's device mode** (DevTools) for quick layout checks only; it is
+  desktop Chrome, so it misses the bars and touch.
+
+None of these measures weak hardware: speed and memory stay with the older
+Samsung tablet. **A second-hand Galaxy A phone** stays optional, to close
+real touch on a small Android phone and weak phone hardware at once.
 
 Each pass records device, OS and browser version, text size, scene, and any
 issue in the QA sheet mobile wave 1 adds.
@@ -142,6 +152,6 @@ issue in the QA sheet mobile wave 1 adds.
 
 - **The tablet's model and Android version** (Settings, About tablet). If
   its Chrome is older than 111, the game cannot run on it and it drops out.
-- **The small-phone gap** above: accept it, or add a used Galaxy A phone.
+- **The small-phone checks** above: the emulator and Display Zoom (proposed), with a used Galaxy A phone optional.
 - **The OS pair** (current and previous iOS, Android 10+) is a proposal.
 - **The old-browser message** above is a proposal.
