@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { ECONOMY } from '../../src/config/rules';
 import { theme } from '../../src/ui/theme';
-import { DECK_SHOP_LAYOUT, deckShopLayout } from '../../src/ui/deckShopLayout';
+import { DECK_SHOP_GRID, DECK_SHOP_LAYOUT, deckShopLayout } from '../../src/ui/deckShopLayout';
+import { practicePickerLayout } from '../../src/ui/playPresentation';
+import { SHOP_STRIP_ARROW_Y, SHOP_TAB_GAP, shopTabCenters } from '../../src/ui/shopPresentation';
 import {
   boosterStripIndexForOffset,
   boosterStripLayout,
@@ -290,6 +292,62 @@ describe('layout geometry', () => {
     }
     // The wide peek is a real target, so the rule is not met by never scrolling.
     expect(scrolled).toBeGreaterThan(0);
+  });
+
+  /**
+   * The owner kept the edge peeks (2026-10-08) and moved the page arrows off
+   * them: each arrow's hit box sits in its edge column, clear of the peek and
+   * of every full tile, inside the frame.
+   */
+  it('keeps every strip arrow off the peeks and the tiles', () => {
+    const picker = practicePickerLayout();
+    const strips: { name: string; layout: ReturnType<typeof boosterStripLayout>; arrowY: number; tileBottom: number }[] = [
+      { name: 'booster strip', layout: boosterStripLayout(10), arrowY: SHOP_STRIP_ARROW_Y.boosters, tileBottom: 540 },
+      {
+        name: 'deck columns',
+        layout: boosterStripLayout(8, 0, {
+          visibleCount: 4, tileWidth: DECK_SHOP_GRID.width, tileHeight: DECK_SHOP_GRID.height, tileStride: DECK_SHOP_GRID.stride,
+          viewport: { x: 64, y: DECK_SHOP_GRID.top - 8, width: 1152, height: DECK_SHOP_GRID.height + 16 },
+          verticalBand: { y: DECK_SHOP_GRID.top, height: DECK_SHOP_GRID.height },
+          tapBand: { y: DECK_SHOP_GRID.top, height: DECK_SHOP_GRID.height }, peekY: DECK_SHOP_GRID.top,
+        }),
+        arrowY: SHOP_STRIP_ARROW_Y.decks,
+        tileBottom: DECK_SHOP_GRID.top + DECK_SHOP_GRID.height,
+      },
+      {
+        name: 'practice picker',
+        layout: boosterStripLayout(13, 0, {
+          visibleCount: 4, tileWidth: 206, tileHeight: picker.columnHeight, tileStride: 248, viewport: picker.viewport,
+          verticalBand: { y: picker.columnTop, height: picker.columnHeight },
+          tapBand: { y: picker.columnTop, height: picker.columnHeight }, peekY: picker.columnTop,
+        }),
+        arrowY: picker.arrowY,
+        tileBottom: picker.viewport.y + picker.viewport.height,
+      },
+    ];
+    for (const { name, layout, arrowY, tileBottom } of strips) {
+      for (const x of [layout.arrowCenters.left, layout.arrowCenters.right]) {
+        const arrow = { x: x - layout.arrowHitWidth / 2, y: arrowY - theme.control.minHitHeight / 2,
+          width: layout.arrowHitWidth, height: theme.control.minHitHeight };
+        expect(isInsideTitleSafe(arrow), name).toBe(true);
+        // Clear of the peek and tile band vertically: the arrow is above or below every card.
+        const peekTop = layout.leftPeek.y;
+        const clear = arrow.y >= tileBottom || arrow.y + arrow.height <= Math.min(peekTop, layout.fullTileRects[0].y);
+        expect(clear, `${name} arrow at y ${arrowY}`).toBe(true);
+      }
+    }
+  });
+
+  it('packs each Shop tab row at one gap, centred on the frame', () => {
+    for (const widths of [[150, 120], [176, 176], [200, 130, 110]]) {
+      const centers = shopTabCenters(widths);
+      const left = centers[0] - widths[0] / 2;
+      const right = centers.at(-1)! + widths.at(-1)! / 2;
+      expect((left + right) / 2).toBeCloseTo(theme.design.centerX, 6);
+      for (let i = 1; i < widths.length; i++) {
+        expect(centers[i] - widths[i] / 2 - (centers[i - 1] + widths[i - 1] / 2)).toBeCloseTo(SHOP_TAB_GAP, 6);
+      }
+    }
   });
 
   it('anchors rectangles to safe edges, corners, and centerlines', () => {

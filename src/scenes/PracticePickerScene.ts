@@ -258,7 +258,7 @@ export class PracticePickerScene extends Phaser.Scene {
       this.tileNodes.push({ id: av.id, column, container: tile, box, selectedMark, name, portrait });
     });
 
-    const arrowY = layout.fullTileRects[0].y + layout.fullTileRects[0].height / 2;
+    const arrowY = this.picker.arrowY;
     const leftArrow = themedButton(this, layout.arrowCenters.left, arrowY, '‹', {
       variant: 'ghost',
       size: 'sm',

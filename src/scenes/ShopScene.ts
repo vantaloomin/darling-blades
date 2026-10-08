@@ -38,7 +38,7 @@ import { IS_DEV } from '../platform/env';
 import type { SaveData } from '../meta/SaveManager';
 import { fitMenuListName, fitMenuName } from '../ui/menuText';
 import { bindMenuScroll } from '../ui/menuScroll';
-import { shopPackLayout, shopPreviewListLayout, shopPreviewModalLayout, type ShopA11yFixture } from '../ui/shopPresentation';
+import { shopPackLayout, shopPreviewListLayout, shopPreviewModalLayout, shopTabCenters, SHOP_STRIP_ARROW_Y, type ShopA11yFixture } from '../ui/shopPresentation';
 import { DECK_SHOP_LAYOUT, DECK_SHOP_GRID, deckShopCardLayout } from '../ui/deckShopLayout';
 import { CARD_H, CardView } from '../ui/CardView';
 import { rarityLine } from '../ui/CardZoomPreview';
@@ -890,15 +890,18 @@ export class ShopScene extends Phaser.Scene {
       { key: 'boosters', label: 'Card Packs' },
       { key: 'decks', label: 'Decks' },
     ];
-    defs.forEach((d, i) => {
-      const button = themedButton(this, 640 - 100 + i * 200, 96, d.label, {
+    const buttons = defs.map((d) => {
+      const button = themedButton(this, 0, 96, d.label, {
         variant: 'ghost',
         minWidth: 120,
         onTap: () => this.setTab(d.key),
       });
       this.tabButtons.set(d.key, button);
       this.shopInteractiveTargets.push(button.inputZone);
+      return button;
     });
+    const centers = shopTabCenters(buttons.map((b) => b.getMeasuredSize().hit.width));
+    buttons.forEach((b, i) => b.container.setX(centers[i]));
   }
 
   private setTab(tab: ShopTab): void {
@@ -1003,13 +1006,13 @@ export class ShopScene extends Phaser.Scene {
     this.boosterStripEdgePeeks = [leftPeek, rightPeek];
     group.add([leftPeek, rightPeek]);
 
-    const leftArrow = themedButton(this, layout.arrowCenters.left, 390, '‹', {
+    const leftArrow = themedButton(this, layout.arrowCenters.left, SHOP_STRIP_ARROW_Y.boosters, '‹', {
       variant: 'ghost',
       size: 'sm',
       minWidth: 52,
       onTap: () => this.setBoosterStripIndex(this.boosterStripIndex - 1),
     });
-    const rightArrow = themedButton(this, layout.arrowCenters.right, 390, '›', {
+    const rightArrow = themedButton(this, layout.arrowCenters.right, SHOP_STRIP_ARROW_Y.boosters, '›', {
       variant: 'ghost',
       size: 'sm',
       minWidth: 52,
@@ -1392,8 +1395,8 @@ export class ShopScene extends Phaser.Scene {
     const sections = this.deckSections();
     // Sub-tab bar: one section shown at a time. The pills name the view, so
     // the old in-band gold headings are gone with the crowding they fought.
-    sections.forEach((section, i) => {
-      const button = themedButton(this, 640 - 110 + i * 220, DECK_SHOP_LAYOUT.subTabY, section.label, {
+    const subTabs = sections.map((section) => {
+      const button = themedButton(this, 0, DECK_SHOP_LAYOUT.subTabY, section.label, {
         variant: section.key === this.deckTab ? 'primary' : 'ghost',
         size: 'sm',
         minWidth: 160,
@@ -1401,7 +1404,10 @@ export class ShopScene extends Phaser.Scene {
       });
       this.deckInteractiveTargets.push(button.inputZone);
       group.add(button.container);
+      return button;
     });
+    const subTabCenters = shopTabCenters(subTabs.map((b) => b.getMeasuredSize().hit.width));
+    subTabs.forEach((b, i) => b.container.setX(subTabCenters[i]));
     const active = sections.find((section) => section.key === this.deckTab) ?? sections[0];
     this.deckStripSkus = active.skus;
     // Open on the first waiting free claim's column so a Claim Free card is
@@ -1459,7 +1465,7 @@ export class ShopScene extends Phaser.Scene {
       this.deckStripControls.push(controls);
     }
 
-    const arrowY = DECK_STRIP_TOP + DECK_COLUMN_H / 2;
+    const arrowY = SHOP_STRIP_ARROW_Y.decks;
     const leftArrow = themedButton(this, layout.arrowCenters.left, arrowY, '‹', {
       variant: 'ghost',
       size: 'sm',
