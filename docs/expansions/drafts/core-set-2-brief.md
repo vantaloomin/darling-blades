@@ -263,7 +263,7 @@ most Beastkin. It steals the Mandate with big Overrun bodies. It is a
 | **Mandate payoffs** | 16 | U 5, B 4, W 3, R 2, multicolour 2; at least six at C |
 | **Mandate stealers** | no separate budget | every set prints evasive attackers anyway; the minimum below makes sure red and green have them at C |
 | **Sworn payoffs** | 22 | W 6, R 5, G 5, B 3, multicolour 3; at most eight at C, every one of them still an honest card without its Sworn |
-| **New legendary creatures** | 34 | section 7; at least two at R or below in each colour, and six cheap "sworn champions" at C in white, red and green |
+| **New legendary creatures** | 34 (the overplan now carries 38) | section 7; at least two at R or below in each colour, and six cheap "sworn champions" at C in white, red and green |
 
 **Why 20 claimers.** The Mandate starts unclaimed, and only a card can
 claim it. With too few claimers, many Standard games never see it claimed
@@ -346,6 +346,9 @@ Sworn choice, Sworn naming a specific legend or faction (the July overplan's
 
 **Proposed: 34 new legendary creatures** across the rosters (Three Kingdoms
 15, Greek 13, Beastkin 6, the legend in section 8 among Beastkin's six).
+**Overtaken by the overplan:** it now carries 38, Beastkin's legends grew
+to 10, and the owner added Lady Gan (Liu Bei's consort, Shu, R) so G/W has
+a legend (2026-10-08). The overplan's files hold the live list.
 They are Sworn's enablers in Standard and the new Darling identities. Six of
 them are the cheap common sworn champions of section 6.
 
@@ -447,7 +450,7 @@ fits a roster. Overplan targets, one to three cards each unless noted:
 | **Tithe** | Styx bargains | 1-2 |
 | **Nine Lives** | the Nekomata and cat Beastkin | 1-2 |
 | **Preserve** | the shades of the underworld | 1-2 |
-| **Duty** | strategists' orders, war drums, temple braziers; every colour | 10-14 |
+| **Duty** | strategists' orders, war drums, temple braziers; every colour | 10-14 (the overplan lands at 19; the owner kept Bronze Automaton's Duty over the band, 2026-10-08) |
 
 **All 31 are a hard floor** (the owner, 2026-10-08: "ALL the keywords
 and mechanics across this set, even if it means that we expand beyond 250"). The cut
@@ -456,7 +459,8 @@ means going over 250, the set goes over. "Keywords" means the 13 the game ships
 (confirmed by the owner, 2026-10-08); keywords named in
 `docs/keyword-map.md` but not built (Sudden, Unbreakable, Equip) are not
 part of the floor. **Every keyword appears at C or R
-at least once**, so a player meets it in packs, and the per-set data check
+at least once**, with one written exception the owner ruled (2026-10-08):
+Twin Blades stays at SR and above. That way a player meets it in packs, and the per-set data check
 (every new set carries all 13 keywords, 1.9) passes on day one. The cut
 sheet adds a coverage column so the floor is checked as cards are cut, not
 after.
@@ -561,10 +565,10 @@ Each leads with the recommendation.
    achievements titled "Mandate In Foil" and "Rainbow Mandate" are renamed
    in another lane (ids unchanged); the Shadow Mandate starter deck keeps
    its name.
-8. **Print 34 new legends**, including a B/R legend and six common sworn
-   champions (sections 6 and 7). Ruled: no legendary Meng Huo, Zhurong or
-   Hestia; new characters take those slots.
-   The Sworn Champions are ruled (no visual crown); the count of 34 is open.
+8. **Ruled through the overplan: 38 new legends**, including a B/R legend,
+   Lady Gan for G/W and six common sworn champions (sections 6 and 7). No
+   legendary Meng Huo, Zhurong or Hestia; new characters take those slots.
+   The Sworn Champions have no visual crown.
 9. **Ruled (P13): the Jade Rabbit, W/U.** Still open: her name. The
    recommendation is **Yutu, Jade Rabbit of the Moon Palace** (section 8).
 10. **Do not reprint Guan Yu or Persephone** (section 7).
