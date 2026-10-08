@@ -72,14 +72,25 @@ export function gauntletPresentation(railHeadingHeight = 2 * menuLineHeight(them
   const railHeadingTop = 116;
   const towerTop = railHeadingTop + railHeadingHeight + theme.space(2);
   const tower = { ...GAUNTLET_TOWER_VIEWPORT, y: towerTop, height: GAUNTLET_TOWER_VIEWPORT.y + GAUNTLET_TOWER_VIEWPORT.height - towerTop };
+  // The detail panel spans the rail's whole column, heading included: its top
+  // on the heading's top and its bottom on the tower's, so the two columns
+  // agree at both ends (they were 45px apart at the top until 2026-10-08).
+  const detailPanel: Rect = { x: theme.design.safeLeft, y: railHeadingTop,
+    width: tower.x - theme.space(3) - theme.design.safeLeft, height: tower.y + tower.height - railHeadingTop };
+  // The portrait card and the text column sit centred as one group, with
+  // equal margins to the panel's edges: the text ran to 8px from the right
+  // edge while the portrait had 66px on its left.
+  const portraitWidth = 268;
   const textWidth = 300;
-  const textX = tower.x - theme.space(5) - textWidth;
+  const groupGap = theme.space(10);
+  const groupLeft = detailPanel.x + (detailPanel.width - (portraitWidth + groupGap + textWidth)) / 2;
+  const textX = groupLeft + portraitWidth + groupGap;
   const detailViewport: Rect = { x: textX, y: 132, width: textWidth, height: 324 };
   const fightY = detailViewport.y + detailViewport.height + theme.space(3) + theme.control.minHitHeight / 2;
   const abandonY = fightY + theme.control.minHitHeight + theme.space(6);
   const warningY = abandonY + theme.control.minHitHeight / 2 + theme.space(2);
-  return { tower, railHeadingTop, textX, textWidth, detailViewport, fightY, abandonY, warningY,
-    portraitX: textX - 200, portraitY: 300, themeTop: 484, themeWidth: 268 };
+  return { tower, railHeadingTop, detailPanel, textX, textWidth, detailViewport, fightY, abandonY, warningY,
+    portraitX: groupLeft + portraitWidth / 2, portraitY: 300, themeTop: 484, themeWidth: portraitWidth };
 }
 
 /** Separate selection affordance for rows and portrait tiles. */
