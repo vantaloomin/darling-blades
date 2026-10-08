@@ -142,10 +142,14 @@ export function isFriendlyHuntOrSource(view: PlayerView, db: CardDb, action: Act
 }
 
 /** The shared value of one option, as the target policies read it. */
-function optionValue(view: PlayerView, db: CardDb, action: Action): number {
+export function huntOptionValue(view: PlayerView, db: CardDb, action: Action): number {
   switch (action.type) {
     case 'castSpell': {
       const cardId = castCardId(view, action);
+      // The ops that name no target (Ember-Flick's Foresee) are left out:
+      // every target of the cast gets them, so they cancel against a plain
+      // target, and against not acting the Provoked alone must net the card
+      // (A2.b; 1.9.1 review).
       return vocabularyCastTargetValue(view, db, action) ?? spellTargetsValue(view, db,
         castSpellOps(db, cardId, action, view), action.targets ?? [], false, action.x ?? 0, cardId);
     }
@@ -220,8 +224,8 @@ export function applyHuntPolicy(view: PlayerView, db: CardDb, legal: Action[], m
       for (const action of friendly) dropped.add(action);
       continue;
     }
-    const baseline = Math.max(forced ? -Infinity : 0, ...plain.map((action) => optionValue(view, db, action)));
-    for (const action of friendly) if (!(optionValue(view, db, action) >= baseline + margin)) dropped.add(action);
+    const baseline = Math.max(forced ? -Infinity : 0, ...plain.map((action) => huntOptionValue(view, db, action)));
+    for (const action of friendly) if (!(huntOptionValue(view, db, action) >= baseline + margin)) dropped.add(action);
   }
   return dropped.size === 0 ? legal : legal.filter((action) => !dropped.has(action));
 }
