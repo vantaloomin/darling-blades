@@ -28,6 +28,9 @@ P5 (it is "the Mandate" everywhere and "Crown" is dropped), P6 (the hook is
 active while you control any legendary creature, and is named **Sworn**
 rather than Oath), P7 (set key `core-set-2`; the count is locked at the cut,
 250+), and P13 (the new Beastkin legend is a Jade Rabbit, U/W, section 8).
+**The set carries every keyword and named mechanic, even if that takes it
+past 250** (the owner, 2026-10-08): the cut never drops the last card
+carrying one (sections 4 and 9).
 
 Also ruled: one replay bump for the 2.0 train, 16 to 17, shared by the
 Mandate, the life field and Story (P16); one save bump, v37 for Story (P10);
@@ -164,7 +167,11 @@ Mandate, Greek leads Sworn, Beastkin leads neither and steals the Mandate
 **Proposed: 250 at the cut, overplanned to about 320** (Drowned Deep's
 precedent, 250 overplanned to 320; Duat shipped 245, Drowned Deep 252). The
 spine says 250+; the ledger does not argue for more, because the gaps it
-names fit in 250. The count stays the owner's at the cut (P7).
+names fit in 250. The count stays the owner's at the cut (P7), with one
+floor: **every keyword and named mechanic survives the cut, even if that
+takes the set past 250** (the owner, 2026-10-08). The overplan carries at
+least two candidates for each, so the cut has a choice and the floor rarely
+forces extra cards.
 
 | | C | R | SR | SSR | UR | Total |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -422,9 +429,14 @@ fits a roster. Overplan targets, one to three cards each unless noted:
 | **Preserve** | the shades of the underworld | 1-2 |
 | **Duty** | strategists' orders, war drums, temple braziers; every colour | 10-14 |
 
-**Every keyword appears at C or R at least once**, so a player meets it in
-packs, and the per-set data check (every new set carries all 13 keywords,
-1.9) passes on day one.
+**All 31 are a hard floor** (the owner, 2026-10-08: "ALL the keywords
+across this set, even if it means that we expand beyond 250"). The cut
+never removes the last card carrying a keyword or mechanic; if keeping one
+means going over 250, the set goes over. **Every keyword appears at C or R
+at least once**, so a player meets it in packs, and the per-set data check
+(every new set carries all 13 keywords, 1.9) passes on day one. The cut
+sheet adds a coverage column so the floor is checked as cards are cut, not
+after.
 
 ## 10. Story Mode's three starter pools
 
@@ -509,7 +521,8 @@ Each leads with the recommendation.
 3. **Let Three Kingdoms lead the Mandate, Greek lead Sworn, and Beastkin
    steal the Mandate.** The alternative spreads both hooks evenly.
 4. **Cut to 250 from about 320 candidates**, with 123 commons, 75 rares, 23
-   SR, 17 SSR and 12 UR (section 4).
+   SR, 17 SSR and 12 UR (section 4). Ruled floor: every keyword and named
+   mechanic stays, even past 250.
 5. **Sworn's colours: white, red and green primary (the Peach Garden),
    black secondary (the Styx)**; the Mandate's blue and black primary
    (section 5).
@@ -531,7 +544,8 @@ Each leads with the recommendation.
 9. **Ruled (P13): the Jade Rabbit, W/U.** Still open: her name. The
    recommendation is **Yutu, Jade Rabbit of the Moon Palace** (section 8).
 10. **Do not reprint Guan Yu or Persephone** (section 7).
-11. **Place all 13 keywords and 18 mechanics by the cameo map** (section 9).
+11. **Ruled: all 13 keywords and 18 mechanics are in the set.** Still open:
+    where each lands; the recommendation is the cameo map (section 9).
 12. **Offer the fallen Mandate to Story Mode as its premise.** The owner's
     call in the same sitting as Story's premise direction.
 13. **Grow the tower by one rung, R29, the Usurper (B/R)** (section 12).

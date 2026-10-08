@@ -41,7 +41,8 @@ geometry is closed, so art is cropped to today's 216 px window (owner,
 mechanic it requires are a hard requirement for 2.0 (P1); the July overplan
 is retired and the set authored fresh, the July file kept as a candidate pool
 (P4); the set key is `core-set-2` and the count is locked at the cut, 250+
-(P7); the new Beastkin legend is a Jade Rabbit, the moon rabbit of Chang'e's
+(P7), and every keyword and named mechanic survives the cut even if that
+takes the set past 250 (the owner, 2026-10-08); the new Beastkin legend is a Jade Rabbit, the moon rabbit of Chang'e's
 myth, in white-blue, leading a Beastkin anthem, with Yohime as the fallback
 (P13); the marker is "the Mandate" everywhere and "Crown" is dropped (P5);
 the hook first called Oath is named **Sworn** and is active while you
@@ -318,7 +319,9 @@ Ruled in the wave-1 sitting unless noted; the brief's section 13 carries the
 full list with recommendations.
 
 - **Size (the brief's question 4):** 250 overplanned to about 320, with the
-  count fixed at the cut (P7 ruled the key and the cut).
+  count fixed at the cut (P7 ruled the key and the cut). Floor ruled
+  2026-10-08: every keyword and named mechanic survives the cut, even if
+  that takes the set past 250.
 - **The Jade Rabbit's name:** the brief recommends Yutu, Jade Rabbit of the
   Moon Palace.
 - **Roster emphasis:** the brief recommends Three Kingdoms leading the
