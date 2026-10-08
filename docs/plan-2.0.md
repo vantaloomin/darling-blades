@@ -272,7 +272,7 @@ permanent buys with run gold. Voice is TBD. The spec is
 [plan-story-mode.md](plan-story-mode.md).
 
 **Scope for 2.0 (owner, 2026-10-08):** Act 1 plus an endless run. This is the
-scope lever the Story Mode plan recorded. Proposed reading (P9):
+scope lever the Story Mode plan recorded. Its contents (P9, RULED 2026-10-08):
 
 - **Act 1:** the full run shell (character select, boon, map, fight, elite,
   event, shop, rest, the act boss), its scenes, the Act 1 keep, permanent
@@ -424,7 +424,7 @@ Each has a recommendation. None is ruled.
 | **P6** | Oath's semantic | **RULED 2026-10-08: active while you control any legendary creature, and the mechanic is named "Sworn", not "Oath"** (avoids Blood Oath, the Grail Oath, Peach Garden Oath and Liu Bei, Benevolent Oathkeeper). "Oath" in this plan and the set plan is the working name for Sworn. Settles brief Q6 and Q7 |
 | **P7** | Set key and size | **RULED 2026-10-08: as recommended.** `core-set-2`; the size from the coverage ledger at the cut, 250+ per the spine |
 | **P8** | Floors under the life change | **RULED 2026-10-08: one-time reset.** One re-baseline at the new life total, then ratchet up as before. The exception is recorded in `CLAUDE.md` and the playbook |
-| **P9** | What "Act 1 + endless" contains | Act 1 complete with all three characters and the unlock chain; endless as generated maps with scaling bosses, plus a daily seed; no keeps in endless |
+| **P9** | What "Act 1 + endless" contains | **RULED 2026-10-08: as recommended.** Act 1 complete with all three characters and the unlock chain; endless as generated maps with scaling bosses, plus a daily seed; no keeps in endless |
 | **P10** | Save changes | One bump, v37, for Story; nothing else adds a field unless it rides it |
 | **P11** | Mobile scope | **RULED 2026-10-08: as recommended.** Landscape only, automatic layout, browser only (no PWA or store package), art-first phone card face (a). Settles the mobile plan's M1-M4 |
 | **P12** | Story voice (R7, TBD) | None at 2.0 |
