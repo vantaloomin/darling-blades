@@ -429,7 +429,7 @@ Each has a recommendation. None is ruled.
 | **P11** | Mobile scope | **RULED 2026-10-08: as recommended.** Landscape only, automatic layout, browser only (no PWA or store package), art-first phone card face (a). Settles the mobile plan's M1-M4 |
 | **P12** | Story voice (R7, TBD) | **RULED 2026-10-08: no voice in 2.0.** Text-only scenes; voice revisited for 2.x or a trailer |
 | **P13** | The new Beastkin legend | **RULED 2026-10-08: a Jade Rabbit (moon rabbit, Chang'e's myth), U/W**, leading a Beastkin anthem. The owner turned down sky, bat, spider and serpent species and asked for something in the vein of the feline and canine Beastkin. Name in the brief; Yohime as the fallback if Core Set II slips. Settles the brief's question 9 |
-| **P14** | The difficulty retune | After the life change, measured against a human (play stats or the owner's runs); 2.0.x if it slips |
+| **P14** | The difficulty retune | **RULED 2026-10-08: after the life change, in wave 4,** as the one deliberate change to the frozen AI (the tier dial in `src/ai/tiers.ts`), with the target checked against a human (the owner's runs or play stats), not only the Medium proxy. Negotiable to a 2.0.x under P1 |
 | **P15** | The life study's pool | Start it on 1.9.0 without waiting for 1.9.x; its readings are re-taken in the end-of-train measurement |
 | **P16** | Replay versions | One `REPLAY_LOG_VERSION` bump (16 to 17) shared by the Mandate, the life field and Story |
 | **P17** | If the life study is late | Wait for it; moving the change to 2.1 is the fallback only if waiting would hold Core Set II's costing |
