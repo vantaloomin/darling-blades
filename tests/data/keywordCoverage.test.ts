@@ -33,7 +33,7 @@ const GRANDFATHERED_GAPS: Partial<Record<SetId, readonly Keyword[]>> = {
   'gothic-monsters': ['twinBlades'],
   'dark-tales': ['twinBlades', 'rage'],
   'yokai-nights': ['rage'],
-  'sands-of-the-duat': ['firstBlade', 'deathblade', 'rage'],
+  'sands-of-the-duat': ['deathblade', 'rage'],
   starborne: ['rage'],
   'drowned-deep': ['twinBlades', 'bloodoath'],
 };

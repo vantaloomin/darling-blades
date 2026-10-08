@@ -665,7 +665,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Kitsune Adept)",
     "cost": "{1}{W}",
     "stats": "2/1",
-    "mechanics": "Arrives: Foresee 1."
+    "mechanics": "Sentinel. Arrives: Foresee 1."
   },
   {
     "id": "yn-white-noise-exorcist",
@@ -815,7 +815,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Ritual",
     "cost": "{U}",
     "stats": "-",
-    "mechanics": "Foresee 2."
+    "mechanics": "Foresee 4."
   },
   {
     "id": "yn-backdoor-recall",
@@ -833,7 +833,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "C",
     "color": "U",
     "type": "Charm",
-    "cost": "{2}{U}",
+    "cost": "{1}{U}{U}",
     "stats": "-",
     "mechanics": "Cancel target spell."
   },
@@ -1134,7 +1134,7 @@ export const YOKAI_SPEC_ROWS = [
     "color": "G",
     "type": "Creature (Dryad Guardian)",
     "cost": "{3}{G}",
-    "stats": "3/4",
+    "stats": "4/3",
     "mechanics": "Sentinel."
   },
   {

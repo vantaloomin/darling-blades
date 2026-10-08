@@ -421,7 +421,7 @@ patterned, never lettered.
 - **Prompt:** Shieldmaiden Warband-Leader, a viking Shieldmaiden of the raiding-line, in braided hair, ring-mail over leather, a painted round shield; shield up, axe cocked back over the shoulder for the swing, against a burning coastal longhouse and a beached longship at low tide; fierce and laughing, in her element; a hot firelight key from the burning hall, cool sea rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Jotun Warleader — `rg-jotun-warleader`
-- **Card facts:** {4}{G} · G · 4/5 · overrun · r · holo: shiny
+- **Card facts:** {4}{G} · G · 6/4 · overrun · r · holo: shiny
 - **Character & source:** a towering Jotun giant-woman of the elemental wilds; mechanically an unstoppable bruiser.
 - **Personality / mood:** "The mountains send their eldest daughter to the war." — slow, immovable, and entirely certain.
 - **Pose & composition:** looming from a low angle, one stride that is itself an earthquake; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -736,7 +736,7 @@ patterned, never lettered.
 - **Prompt:** Hungry Shade, a mist-wraith shade of the fens, in tattered translucent shrouds trailing away into vapor; seen from further back so its whole ghostly apparition is in frame, floating clear above the fen water, the lower body dissolving entirely into ragged trailing vapor with no legs at all, drifting forward faster than mist should move, against a fog-drowned fen at dusk, shapes half-guessed in the murk; hollow and hungry; a low grey diffuse key, no hard shadows — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Plaguebearer Draugr — `rg-plaguebearer-draugr`
-- **Card facts:** {3}{B} · B · 2/3 · deathblade · c · holo: none
+- **Card facts:** {3}{B} · B · 1/5 · deathblade · c · holo: none
 - **Character & source:** a Draugr, a barrow-dead warrior risen from the howe; mechanically lethal at a touch.
 - **Personality / mood:** "Do not block her. Do not touch her. Do not, honestly, look at her." — hateful and patient, robbed of everything but the grudge.
 - **Pose & composition:** hauling upright out of the grave-earth, blade first; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
