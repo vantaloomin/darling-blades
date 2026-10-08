@@ -1205,7 +1205,9 @@ export const GAUNTLET_TOWER_VIEWPORT: Readonly<Rect> = {
   x: theme.design.safeRight - TOWER_SCROLLBAR_REACH - 420,
   y: 156,
   width: 420,
-  height: 500,
+  // Ends on the detail panel's bottom (the footer hit track's top, 640) so the
+  // two columns share a baseline; it ran 16px past the panel until 2026-10-08.
+  height: theme.design.footerCenterY - theme.control.minHitHeight / 2 - 156,
 };
 
 export interface GauntletTowerLayout {
@@ -1269,6 +1271,19 @@ export function gauntletTowerLayout(
     maxScroll: Math.max(0, contentHeight - viewport.height),
     overflow: contentHeight > viewport.height,
   };
+}
+
+/**
+ * The row gap that makes a whole number of rows fill the viewport exactly, so
+ * the ladder rests on whole rows at either end of its scroll (the climb opens
+ * at rung 1, at the bottom). As many rows as fit at the default 12px gap,
+ * with the leftover height shared between them, so the gap never shrinks.
+ */
+export function gauntletFittedRowGap(viewportHeight: number, rowHeight: number): number {
+  const base = theme.space(3);
+  const rows = Math.floor((viewportHeight + base) / (rowHeight + base));
+  if (rows < 2) return base;
+  return (viewportHeight - rows * rowHeight) / (rows - 1);
 }
 
 /**

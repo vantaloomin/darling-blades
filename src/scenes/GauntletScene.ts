@@ -22,6 +22,7 @@ import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestur
 import {
   GAUNTLET_TOWER_SCROLLBAR,
   gauntletScrollToRung,
+  gauntletFittedRowGap,
   gauntletTowerLayout,
   scrollOffsetByDelta,
   type GauntletTowerLayout,
@@ -146,7 +147,8 @@ export class GauntletScene extends Phaser.Scene {
       { fontSize: theme.type.label },
     );
 
-    panel(this, theme.design.safeLeft, 120, gauntletPresentation().tower.x - theme.design.safeLeft - theme.space(3), 520);
+    const { detailPanel } = gauntletPresentation();
+    panel(this, detailPanel.x, detailPanel.y, detailPanel.width, detailPanel.height);
     this.buildTower();
     this.buildPanel();
     this.buildSeedBar();
@@ -188,9 +190,11 @@ export class GauntletScene extends Phaser.Scene {
     const viewport = gauntletPresentation(heading.height).tower;
     const starMeasure = this.add.text(0, 0, '★★★', { fontFamily: theme.fonts.ui, fontSize: `${theme.type.label}px` });
     const labelMeasure = this.add.text(0, 0, 'Rung', { fontFamily: theme.fonts.display, fontSize: `${theme.type.body}px` });
+    const rowHeight = Math.max(theme.control.minHitHeight, labelMeasure.height + theme.space(4), starMeasure.height + theme.space(4));
     const layout = gauntletTowerLayout(rungs, viewport, {
       starColumnWidth: starMeasure.width,
-      rowHeight: Math.max(theme.control.minHitHeight, labelMeasure.height + theme.space(4), starMeasure.height + theme.space(4)),
+      rowHeight,
+      rowGap: gauntletFittedRowGap(viewport.height, rowHeight),
     });
     starMeasure.destroy(); labelMeasure.destroy();
     this.towerLayout = layout;
@@ -607,7 +611,7 @@ export class GauntletScene extends Phaser.Scene {
         this.pendingSeed = clampSeed(Math.floor(Math.random() * 2 ** 31));
         this.buildSeedBar();
       });
-      chip('⌨ Set…', () => this.promptSeed());
+      chip('⌨ Set Seed…', () => this.promptSeed());
     }
 
     this.seedBar = c;

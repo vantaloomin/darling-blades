@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ECONOMY } from '../../src/config/rules';
 import { theme } from '../../src/ui/theme';
 import { DECK_SHOP_GRID, DECK_SHOP_LAYOUT, deckShopLayout } from '../../src/ui/deckShopLayout';
-import { practicePickerLayout } from '../../src/ui/playPresentation';
+import { gauntletPresentation, practicePickerLayout } from '../../src/ui/playPresentation';
 import { SHOP_STRIP_ARROW_Y, SHOP_TAB_GAP, shopTabCenters } from '../../src/ui/shopPresentation';
 import {
   boosterStripIndexForOffset,
@@ -18,6 +18,7 @@ import {
   COMPACT_TOUCH_GAP_RANGE,
   GAP_FLOORS,
   GAUNTLET_TOWER_VIEWPORT,
+  gauntletFittedRowGap,
   HEADER_CURRENCY_ANCHOR,
   SCENE_TITLE,
   anchoredControlBounds,
@@ -896,6 +897,32 @@ describe('title-safe frame: every placed control', () => {
     // Rows span the viewport's width, so the viewport bounds every rung's tap target.
     expectInside('tower viewport', layout.viewport);
     expectInside('tower scrollbar', layout.scrollbar);
+  });
+
+  it('fits whole Gauntlet rows to the ladder viewport without shrinking the gap', () => {
+    for (const rowHeight of [44, 52, 56, 64]) {
+      const gap = gauntletFittedRowGap(GAUNTLET_TOWER_VIEWPORT.height, rowHeight);
+      const l = gauntletTowerLayout(ECONOMY.gauntletRungGold.length, GAUNTLET_TOWER_VIEWPORT, { rowHeight, rowGap: gap });
+      expect(gap).toBeGreaterThanOrEqual(theme.space(3));
+      const rows = (GAUNTLET_TOWER_VIEWPORT.height + gap) / l.rowPitch;
+      expect(rows).toBeCloseTo(Math.round(rows), 6);
+      // Resting at either end, the viewport's edge falls on a row boundary.
+      expect(l.maxScroll / l.rowPitch).toBeCloseTo(Math.round(l.maxScroll / l.rowPitch), 6);
+    }
+  });
+
+  it('lines the Gauntlet detail panel up with the ladder and centres its contents', () => {
+    const p = gauntletPresentation();
+    const panel = p.detailPanel;
+    expectInside('detail panel', panel);
+    expect(panel.x).toBe(theme.design.safeLeft);
+    expect(panel.y).toBe(p.railHeadingTop);
+    expect(panel.y + panel.height).toBe(p.tower.y + p.tower.height);
+    // The portrait card and text column leave equal margins inside the panel.
+    const leftMargin = p.portraitX - p.themeWidth / 2 - panel.x;
+    const rightMargin = panel.x + panel.width - (p.textX + p.textWidth);
+    expect(leftMargin).toBeCloseTo(rightMargin, 5);
+    expect(leftMargin).toBeGreaterThanOrEqual(theme.space(6));
   });
 
   it('keeps the Glossary rail, content panel, and search inside the frame', () => {
