@@ -29,7 +29,7 @@ Expansions alternate **Large / Small / Large**, with **Large on even patches**:
 | **1.7** | **Starborne** (sci-fi) · Small ~150 | Propagate | none | Debt and measurement |
 | **1.8** | **Drowned Deep** (cosmic horror) · Large 250+ | Whispers | **Activated abilities with tap costs** | Land economy treatment |
 | **1.9** | **First Dawn** (prehistoric) · Small ~150 | Provoked, Hunt | none | Accessibility (Mobile moved to 2.0, ruled 2026-09-25) |
-| **2.0** | **Core Set II** (RoTK / Greek / Beastkin) · Large 250+ | The Mandate | Shared game state | Story Mode + Mobile; the itch.io launch (ruled 2026-09-25) |
+| **2.0** | **Core Set II** (RoTK / Greek / Beastkin) · Large 250+ | The Mandate | Shared game state | Story Mode + Mobile; the itch.io launch (ruled 2026-09-25; moved to 2.0.x 2026-10-08, see [plan-2.0.md](plan-2.0.md)) |
 | **2.1+** | **Brass Court** (steampunk) · Large | Salvage, Contraption thresholds, Union rigs | — | Cloud saves, UGC, replay coaching |
 
 **Patches between 1.8 and 1.9 (no set, no new mechanic):**
@@ -108,6 +108,8 @@ Art lead time for Drowned Deep starts from this decision.
 
 ## Load risk
 
+> **Revised 2026-10-08 ([plan-2.0.md](plan-2.0.md), P2):** 2.0 ships on bladedarlings.com and the desktop build first; the itch.io launch is a 2.0.x once 2.0 is stable on the site. The itch build target lands in 2.0 behind a flag.
+>
 > **Superseded in part 2026-09-25.** The owner ruled 1.9's scope
 > ([plan-1.9.md](plan-1.9.md)): Mobile moves to 2.0, AI suggested decks and
 > the editable Limited Warchest move past 2.0, and 1.9 carries First Dawn,
@@ -268,7 +270,7 @@ Every Road-to-2.0 feature, and where it lands.
 | Share replay codes | Spec'd, no code | 1.7 |
 | Accessibility / i18n | Partial (settings ship); approved 2026-09-25; localization RULED English only 2026-09-25 | 1.9 |
 | Mobile rebuild | Spec'd; competitive research and mockups done 2026-09-23 | 2.0 (ruled and confirmed 2026-09-25) |
-| itch.io launch and advertising | Owner ruling 2026-09-25; no plan yet | 2.0 |
+| itch.io launch and advertising | Owner ruling 2026-09-25; moved after 2.0 on 2026-10-08 (P2); the build target lands in 2.0 behind a flag | 2.0.x |
 | AI suggested decks | Spec'd, no code | After 2.0 (ruled 2026-09-25) |
 | Story Mode | Direction ruled 2026-09-29: a roguelite with a story spine ([plan](plan-story-mode.md)); no code | 2.0 |
 | AI replay coaching | Spec'd, no code | 2.1 |

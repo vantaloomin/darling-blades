@@ -58,11 +58,13 @@ waves below order the work by dependency:
 - **The difficulty retune (8) comes after the life change (4).** Every floor
   and the tier dial move when life moves, so retuning first would be undone.
 
-**What priority does mean (proposed, P1):** the cut order. If 2.0 runs long,
-the lowest priority moves to a 2.0.x first: the difficulty retune, then full
-Story Mode. The **2.0 minimum** (the 1.9 D17 pattern) is Core Set II with
-Oath, the Mandate engine, mobile, and bug fixes. Starting life and Story Mode
-Act 1 are in 2.0 unless the owner moves them.
+**What happens when 2.0 runs long (P1, RULED 2026-10-08):** "We cut, Core
+Set 2 (and all required mechanics), Mandate, Mobile, and Fixes are hard
+requirements. Everything else can be discussed." The **2.0 minimum** (the 1.9
+D17 pattern) is Core Set II with Oath and its other mechanics, the Mandate
+engine, mobile, and bug fixes. Starting life, Story Mode (Act 1 and full),
+itch.io and the retune are negotiable, decided with the owner if 2.0 runs
+long rather than cut in a fixed order.
 
 ## Where 2.0 starts from
 
@@ -296,7 +298,7 @@ script before wave 3.
 
 ### Lane F: itch.io (priority 6)
 
-**Proposed (P2): the launch itself is a 2.0.x**, once 2.0 is stable on the
+**RULED (P2, 2026-10-08): the launch itself is a 2.0.x**, once 2.0 is stable on the
 site. The known work (researched 2026-09-25, roadmap "2.0 is the itch.io
 launch"; [plan-art-streaming.md](plan-art-streaming.md) section 8):
 
@@ -320,12 +322,11 @@ launch"; [plan-art-streaming.md](plan-art-streaming.md) section 8):
   ([docs/legal/README.md](legal/README.md) says "ideally before 2.1"; an
   advertised launch with play stats on by default is when it matters).
 
-**The doc fan-out once P2 is ruled.** "2.0 is the itch.io launch" is written
-as ruled in: the roadmap's Planned section, the spine row and the Load risk
-note in [plan-road-to-2.0.md](plan-road-to-2.0.md), 1.9's D4, the mobile
-plan's header ("launch-critical"), the Story Mode plan's Goal ("the mode the
-itch.io launch advertises") and the art streaming plan's section 8 ("Always
-2.0"). Each gets a dated note pointing here, in wave 0.
+**The doc fan-out (done 2026-10-08, with P2).** Dated notes now point here from
+the roadmap's Planned section, the spine row, feature table and Load risk note
+in [plan-road-to-2.0.md](plan-road-to-2.0.md), 1.9's D4, the Story Mode plan's
+Goal and the art streaming plan's section 8. The mobile plan's header is being
+rewritten in its own PR (#553), which carries the change.
 
 **In 2.0 itself (cheap, behind a flag):** the itch build target and its gate
 in CI, so the target is proven every release instead of the week of the
@@ -414,8 +415,8 @@ Each has a recommendation. None is ruled.
 
 | # | Decision | Recommendation |
 | --- | --- | --- |
-| **P1** | What the priority order means when 2.0 runs long | It is the cut order: the retune, then full Story Mode, move to 2.0.x first. The minimum is Core Set II with Oath, the Mandate, mobile and bug fixes |
-| **P2** | When itch.io launches | A 2.0.x, once 2.0 is stable on the site. The itch build target and its CI gate land in 2.0 behind a flag |
+| **P1** | What the priority order means when 2.0 runs long | **RULED 2026-10-08:** "We cut, Core Set 2 (and all required mechanics), Mandate, Mobile, and Fixes are hard requirements. Everything else can be discussed." The hard minimum is Core Set II with its mechanics (Oath included), the Mandate engine, mobile and fixes. Starting life, Story Mode (Act 1 and full), itch.io and the retune are all negotiable if 2.0 runs long, decided with the owner at the time rather than by a fixed order |
+| **P2** | When itch.io launches | **RULED 2026-10-08: as recommended.** A 2.0.x, once 2.0 is stable on the site. The itch build target and its CI gate land in 2.0 behind a flag |
 | **P3** | 1.9.x before 2.0 | Ship the 1.9.x patch (near-duplicates, backfill, full sweep, re-gated floors) before 2.0's wave 2 |
 | **P4** | Core Set II's July overplan | **RULED 2026-10-08: retire it.** Author fresh, as Drowned Deep and First Dawn did; keep it as a candidate pool |
 | **P5** | The marker's name | "The Mandate" everywhere; drop "the Crown" |

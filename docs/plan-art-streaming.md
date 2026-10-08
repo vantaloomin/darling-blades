@@ -1259,6 +1259,7 @@ The earlier deferral boundary is retained here as release context.
   5. No code caches a `Frame` or `Texture` reference across frames. Hold
      keys and resolve them when drawing, so an eviction can never leave a
      stale reference behind.
+- **Revised 2026-10-08 ([plan-2.0.md](plan-2.0.md), P2):** the itch launch is a 2.0.x; the itch target below still lands in 2.0, behind a flag.
 - **Always 2.0, whatever 1.9 does:** the itch target's deletion of the loose
   folders and `dist/forge/`, its file-count gate, the itch target's
   `connect-src` gaining `https://itch.io` for the beacon itch injects
