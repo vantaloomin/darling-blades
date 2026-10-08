@@ -1,4 +1,4 @@
-<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/scenes/LimitedDraftScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, tests/meta/draftPersonas.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-09-28 · review monthly -->
+<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/scenes/LimitedDraftScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, tests/meta/draftPersonas.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-10-08 · review monthly -->
 
 # Roadmap
 
@@ -1739,8 +1739,11 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
 ## Planned
 
 - **The 1.9 train (every decision ruled 2026-09-25; 1.8.1 and 1.8.5 have
-  shipped; wave 0 is next).** [plan-1.9.md](plan-1.9.md) is the program plan.
-  In:
+  shipped; STAGED as 1.9.0 on 2026-10-08 on `release/1.9`).**
+  [plan-1.9.md](plan-1.9.md) is the program plan. Release notes:
+  [release-notes/v1.9.0.md](release-notes/v1.9.0.md). The pre-release sweep's
+  round 0 (8 personas, `sweep-data` `sweeps/2026-10-07-13003-race`) read
+  nothing egregious, so no sweep-driven balance changes ship. In:
   - **First Dawn**, a fresh ~150-card set drafted by an Opus 5.5 agent (the
     July overplan is retired), on **Provoked** and **Hunt**, both approved.
     It is costed on the 1.8.5 scorer (§4u keyword scaling, §4v ramp).
