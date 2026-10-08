@@ -519,8 +519,13 @@ export function createPackSource(opts: PackSourceOpts): ArtSource {
     }
     const cr = parseContentRange(ex.headers.get('content-range'));
     if (!cr || cr.start !== loc.offset || bytes.length !== loc.length || !isWebp(bytes)) {
-      if (st.mode === 'unknown') st.mode = 'range';
-      throw failKey(loc, key, `the range for ${key} came back wrong (length ${bytes.length}, want ${loc.length})`);
+      // Something between us and the pack rewrote the range (1.9.0 on
+      // bladedarlings.com, where Cloudflare compresses the packs), so no range
+      // from this pack can be trusted. The loose files sit beside the packs,
+      // so read those instead; a key with no loose file fails there.
+      st.mode = 'loose';
+      errorOnce(st, `the range for ${key} came back wrong (start ${cr?.start ?? 'none'}, want ${loc.offset}; length ${bytes.length}, want ${loc.length}); reading loose files`);
+      return null;
     }
     if (st.mode === 'unknown') st.mode = 'range';
     return webpBlob(bytes as Uint8Array<ArrayBuffer>);
