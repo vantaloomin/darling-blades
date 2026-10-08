@@ -97,29 +97,34 @@ export function limitedListRow(panelX: number): {
 
 /**
  * The Pool and Deck lists' vertical ledger, as offsets from the panel top:
- * the h2 heading, then rows of one caption line in a padded plate, then the
- * pager centred 23px above the panel's bottom edge. At 100% this is the
- * release list (13 rows at a 31px pitch from y+56, plates 25px tall, the pager
- * at y+477). Larger text grows the plates and pitch and lowers the first row
- * under the taller heading, and the page holds as many whole rows as fit
- * above the pager.
+ * the h2 heading, then rows of one caption line centred in a plate, then the
+ * pager centred 23px above the panel's bottom edge. At 100% the rows are 36px
+ * plates on a 44px pitch from y+56 (9 per page), so each row's +/- target
+ * gets the full hit height without reaching into its neighbour's: the
+ * release list packed 13 rows at a 31px pitch and its 44px targets overlapped
+ * by 13px (owner's call 2026-10-08: full targets over density). Larger text
+ * grows the plates and pitch and lowers the first row under the taller
+ * heading, and the page holds as many whole rows as fit above the pager.
  */
 export function limitedListLayout(): {
   rowsTop: number;
   rowHeight: number;
+  /** Vertical padding that centres the caption line on its plate. */
+  textPadY: number;
   pitch: number;
   rows: number;
   pagerY: number;
 } {
   const height = LIMITED_BUILDER_COLUMNS.height;
   const rowsTop = 56 + limitedLineGrowth('h2');
-  const rowHeight = 25 + limitedLineGrowth('caption');
-  const pitch = 31 + limitedLineGrowth('caption');
+  const rowHeight = 36 + limitedLineGrowth('caption');
+  const textPadY = Math.floor((rowHeight - captionLineHeight()) / 2);
+  const pitch = Math.max(theme.control.minHitHeight, 44 + limitedLineGrowth('caption'));
   const pagerY = height - 23;
   // The pager's chevrons (h2 + 4px) reach about 18px above its centre at 100%.
   const listBottom = pagerY - 18 - limitedLineGrowth('h2') / 2;
   const rows = Math.max(1, Math.floor((listBottom - rowsTop + pitch - rowHeight) / pitch));
-  return { rowsTop, rowHeight, pitch, rows, pagerY };
+  return { rowsTop, rowHeight, textPadY, pitch, rows, pagerY };
 }
 
 /**
