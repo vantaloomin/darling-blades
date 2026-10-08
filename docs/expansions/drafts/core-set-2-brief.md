@@ -18,18 +18,22 @@ named mechanic (the owner, 2026-09-29). It supplies Story Mode's three
 starter pools and its new Beastkin legend (Story Mode R8c, 2026-09-29). No
 flavor text (1.9, R13); art is cropped to today's frame at the 216 px window
 (frame geometry closed, 2026-10-08). The cards come before the engine spec
-(1.9's D16 order).
+(1.9's D16 order). **Core Set II and every mechanic it requires are a hard
+requirement for 2.0** (the owner, 2026-10-08, P1): the set is never what
+slips.
 
-**Waiting on decisions not yet ruled** (the 2.0 plan's P-list). This brief is
+**Ruled 2026-10-08 in the 2.0 decision walk:** P4 (the July overplan is
+retired and the set authored fresh; the July file stays a candidate pool),
+P7 (set key `core-set-2`; the count is locked at the cut, 250+), and P13
+(the new Beastkin legend is a Jade Rabbit, U/W, section 8).
+
+**Still waiting** (the 2.0 plan's P-list). This brief is
 written to the recommendations and marks what moves if a ruling differs:
 
 | Decision | Recommendation this brief assumes | If ruled otherwise |
 | --- | --- | --- |
-| **P4** the July overplan | Retired; the set is authored fresh; the July pool is a candidate source | Sections 4-9 become a revision list for the July pool instead of a fresh pool's targets |
 | **P5** the marker's name | "the Mandate" everywhere | Only names change |
 | **P6** Oath's semantic | Active while you control any legendary creature | Section 6 changes; "your Darling" needs public Darling ids in game state and its own spike |
-| **P7** set key and size | `core-set-2`; 250 at the cut, overplanned to about 320 | Section 4's histogram rescales |
-| **P13** the Beastkin legend | Blue-inclusive pair, Beastkin anthem; Yohime as the fallback | Section 8 changes |
 | **The starting life number** (lane D) | Picked in the same sitting; costing waits for it | Nothing in this brief is costed, so nothing here moves; section 11 says what the set does with a higher total |
 
 **Terms used below.** The *overplan* is the long list of candidate cards
@@ -191,7 +195,7 @@ edicts that also claim the Mandate, and drains while you hold it. Its Oaths
 are **secondary**: oaths sworn on the Styx, with a price.
 
 **Red** is Wu's fire at Red Cliffs, Lu Bu's riders, Ares and Hephaestus,
-and the harpies. It is the **primary stealer**: Warcry, Dreaded and Skyborne
+and the Nanman war-beasts. It is the **primary stealer**: Warcry, Dreaded and Skyborne
 attackers that take the Mandate in combat, and payoffs that fire when you
 claim it. It is a **primary** Oath colour: brothers in arms (Guan Yu and
 Zhang Fei of the Peach Garden) whose Oaths fire on the attack.
@@ -208,8 +212,8 @@ most Beastkin. It steals the Mandate with big Overrun bodies. It is a
   the Mandate; Sima Yi is U/B), with white claiming by right and red stealing
   by force.
 - **Multicolour under ten percent, at R or above** (24 cards). Signposted
-  pairs: W/B and U/B (Mandate control: Wei and Jin), U/R (Wu fire and the
-  Beastkin legend, section 8), R/W and R/G (sworn brothers, Oath aggro), B/G
+  pairs: W/B and U/B (Mandate control: Wei and Jin), U/R (Wu fire), W/U (the
+  Jade Rabbit's Beastkin, section 8), R/W and R/G (sworn brothers, Oath aggro), B/G
   (Persephone, Styx oaths and the underworld garden), G/W (Liu Bei), B/R (the
   usurper, the roster pair with no legend, section 7).
 
@@ -340,50 +344,51 @@ them are the cheap common sworn champions of section 6.
 
 ## 8. The new Beastkin legend (P13)
 
-**What is ruled** (Story Mode R8c, 2026-09-29): a new Core Set II Beastkin
-legend replaces Yohime as Story Mode's third character. Blue and an anthem
-were part of the option the owner accepted; the colour pair, tribe and name
-are open.
+**What is ruled.** Story Mode R8c (2026-09-29): a new Core Set II Beastkin
+legend replaces Yohime as Story Mode's third character, blue and with an
+anthem. **P13 (2026-10-08): she is a Jade Rabbit, the moon rabbit of
+Chang'e's myth, in white-blue, leading a Beastkin anthem.** The owner turned
+down sky, bat, spider and serpent species (and the harpy this brief first
+proposed) and asked for something in the vein of the feline and canine
+Beastkin. Her deck plays card draw, evasion and tricks. Yohime stays the
+fallback if Core Set II slips.
 
-**Recommended: blue-red, a harpy queen leading the whole Beastkin tribe.**
-
-- **Colours: U/R.** All three Story characters together cover the five
-  colours (Guan Yu W/R, Persephone B/G, and blue). Of the blue pairs, U/R has
-  the fewest Darlings in the pool (7, against W/U 15 and U/B 11), no sweep
-  persona is fixed to it (seven personas have fixed pairs, R/W, W/U, W/G,
-  R/B, R/G, U/B and B/W; midrange picks its best two, which has not been
-  U/R),
-  and red already has Beastkin bodies to build on (four, plus Wolfqueen Lupa
-  in R/G). U/G is Yohime's pair, so it is out.
+- **Colours: W/U.** With Guan Yu (W/R) and Persephone (B/G) the three Story
+  characters cover all five colours. White is shared with Guan Yu, but the
+  decks play apart: Guan Yu fights on the ground, Persephone grinds, and the
+  Jade Rabbit draws, slips past blockers and wins with tricks.
 - **Tribe: Beastkin itself, not Kitsune.** Kitsune is Yokai Nights' Axis (21
-  of its 25 Kitsune are Yokai Nights cards, with white lords), so a Kitsune
-  anthem would lead another set's tribe. A Beastkin anthem leads the roster
-  this set returns to. The legend's species is a **harpy** (Beastkin Bird,
-  the base set's Harpy Skirmisher pattern), which ties the tribe to Greek
-  myth and gives the U/R deck its sky.
-- **Shape**: a Skyborne legend that leads from the command zone; an anthem
-  on other Beastkin with one piece of texture (the tribal pass: 19 of 23
-  shipped lords are flat anthems). The draft shape: "Your other Beastkin get
-  +1/+0 and have Warcry" or "+1/+1"; and a stealer's hook, "whenever a
-  Beastkin you control deals combat damage to the player who holds the
-  Mandate". The overplan writes both and the costing picks. NEEDS MATH.
-- **Working name: Aello, Storm-Wing Matriarch** (Aello is a harpy of Greek
-  myth, not a real person). Alternates: Ocypete, Celaeno.
-- **Story plays distinctly, with one trade-off**: Guan Yu fights on the
-  ground, Persephone grinds, the harpy queen raids from the air and steals
-  the Mandate. Two of the three characters are red attackers, which W/U
-  would avoid. And a Skyborne anthem legend cast from the command zone is a
-  Limited bomb unless she costs about 5 to 6 mana, as Yohime does (6).
-- **Alternatives if the owner prefers**: W/U, a flock of Skyborne Beastkin
-  (owls, cranes) that keeps the Mandate (W/U already has 15 Darlings and a
-  sweep persona); U/B, the night beasts (bats, spiders, serpents), which
-  shares black with Persephone.
-- **Fallback (open since R8c):** Yohime as she is, if Core Set II slips.
+  of its 25 Kitsune are Yokai Nights cards, with white lords), so her anthem
+  leads the whole Beastkin roster this set returns to. Rabbits already fit
+  it: the base set's Lop-Ear Vanguard is a white rabbit Beastkin.
+- **The moon rabbit fits the homecoming.** She comes from Chinese myth, the
+  companion of Chang'e on the moon, pounding the elixir of immortality with
+  her pestle. That ties the Beastkin roster to the Three Kingdoms' world.
+- **Shape**: a legend that leads from the command zone, with an anthem on
+  other Beastkin and one piece of texture (the tribal pass: 19 of 23 shipped
+  lords are flat anthems). Draft shapes for the overplan, all in today's
+  vocabulary: "Your other Beastkin get +1/+1"; a draw hook, "whenever another
+  Beastkin you control arrives, draw a card" once each turn; or a trick hook,
+  "whenever you cast a Charm, Foresee 1". Her own evasion is the leap to the
+  moon: Skyborne. The costing picks; NEEDS MATH. An evasive anthem legend
+  cast from the command zone is a Limited bomb unless she costs about 5 to 6
+  mana, as Yohime does (6).
+- **Working name: Yutu, Jade Rabbit of the Moon Palace** (Yutu, "jade
+  rabbit", is the myth's own name for her; it is also the name of China's
+  lunar rovers, which the name check notes). Alternates: Jade Hare of the
+  Moon Palace, Tsukiusagi.
+- **The cast around her** is the moon court and the feline and canine
+  Beastkin the owner named as the model: rabbits and hares, the
+  moon-palace cats, fox and wolf retainers in white and blue. No sky, bat,
+  spider or serpent species lead her pool.
+- **Fallback (open since R8c, kept by P13):** Yohime as she is, if Core Set II
+  slips.
 
-**What the tribe needs for her starter pool:** at least fourteen new U or R
-Beastkin in the cut, most at C and R (today the pool has three blue and four
-red), among them two Beastkin payoffs outside green (one blue or red at R,
-one at SR or above), plus her own card. Section 10 counts the same fourteen.
+**What the tribe needs for her starter pool:** at least fourteen new W or U
+Beastkin in the cut, most at C and R (today the pool has five white and
+three blue), among them two Beastkin payoffs outside green (one white or
+blue at R, one at SR or above), plus her own card. Section 10 counts the
+same fourteen.
 
 ## 9. Keywords and mechanics: the cameo map
 
@@ -427,7 +432,7 @@ which the overplan meets and the cut protects:
 | --- | --- | --- | --- | --- |
 | **Guan Yu, Saint of War** (UR card, open at the start) | W/R | Three Kingdoms | about 38 Three Kingdoms cards | 15: Shu's sworn brothers, Oath on the ground, the Mandate taken by force |
 | **Persephone, Queen of Two Courts** (SSR, unlocks second) | B/G | Greek | 10 Greek cards | 20: the underworld and Demeter's fields, Styx oaths, Preserve and Hunt cameos |
-| **The Beastkin legend** (unlocks third) | U/R (section 8) | Beastkin | 7 Beastkin cards | 14: the tribe in blue and red, its two payoffs, Skyborne stealers |
+| **Yutu, the Jade Rabbit** (unlocks third) | W/U (section 8) | Beastkin | 8 Beastkin cards | 14: the tribe in white and blue, its two payoffs, draw, evasion and tricks |
 
 Pool counts are cut constraints, protected like First Dawn's source
 minimums. Act 1's rewards draw on the same pools.
@@ -455,8 +460,8 @@ the set plan.
 - **Boosters** as every set; pricing follows `src/meta/boosterSkus.ts`'s
   release-order rule (appending the set moves Starborne to the back
   catalogue).
-- **One theme deck** (the eleventh), **U/R Beastkin** under the harpy
-  queen, two colours, honest bodies, no multi-turn engine to assemble (what
+- **One theme deck** (the eleventh), **W/U Beastkin** under the Jade
+  Rabbit, two colours, honest bodies, no multi-turn engine to assemble (what
   sank the two folding decks in 1.8). It doubles as her Story pool's proving
   list.
 - **One rung, 29 (the tower grows by one).** The last two sets each added
@@ -470,9 +475,11 @@ the set plan.
   built (about 77 seconds a rung was measured on rungs 14-22; summit rungs
   run slower). Its boss doubles as a Story Mode act boss if the Story plan
   wants one.
-- **Two sweep personas**: **U/R** (the Mandate stealer and the Beastkin
-  legend's deck) and **B/G** (Persephone's colours, Oath and Hunt). No
-  persona plays either today.
+- **Two sweep personas**: **U/R** (the Mandate stealer; U/R has the fewest
+  Darlings of the blue pairs, 7) and **B/G** (Persephone's colours, Oath and
+  Hunt). No persona is fixed to either today: seven personas have fixed
+  pairs (R/W, W/U, W/G, R/B, R/G, U/B, B/W) and midrange picks its best two.
+  The Jade Rabbit's W/U is the draw-go persona's pair already.
 - **Darlings**: no new Darlings precon at 2.0. Suggested Decks, which would
   show off the new legends, come after 2.0 (ruled 2026-09-25).
 
@@ -511,9 +518,8 @@ Each leads with the recommendation.
    neither is a rule.
 8. **Print 34 new legends**, including legendary Meng Huo, Hestia and
    Zhurong, a B/R legend and six common sworn champions (sections 6 and 7).
-9. **Make the Beastkin legend a U/R harpy queen leading all Beastkin,
-   working name Aello** (section 8). The alternatives are a W/U sky flock
-   or U/B night beasts. If the set slips, Yohime stays as she is.
+9. **Ruled (P13): the Jade Rabbit, W/U.** Still open: her name. The
+   recommendation is **Yutu, Jade Rabbit of the Moon Palace** (section 8).
 10. **Do not reprint Guan Yu or Persephone** (section 7).
 11. **Place all 13 keywords and 18 mechanics by the cameo map** (section 9).
 12. **Offer the fallen Mandate to Story Mode as its premise.** The owner's
@@ -522,7 +528,7 @@ Each leads with the recommendation.
     The alternatives are a second rung (a W/U throne) or no new rung in
     2.0, since mobile and Story ride beside the set.
 14. **Add two sweep personas, U/R and B/G** (section 12).
-15. **Add one theme deck, U/R Beastkin** (section 12).
+15. **Add one theme deck, W/U Beastkin under the Jade Rabbit** (section 12).
 
 **FYI, no ruling needed now:** every name is a working name until the cut;
 the art register (section 14) is an outline for the art bible, written after
@@ -547,8 +553,10 @@ For the art bible after the cut; the global rules hold.
   beyond the base set's established Three Kingdoms and Greek register; no
   real-person likeness; no text, seals with characters, or inscriptions; no
   gore.
-- **Large subjects**: harpies follow the Beastkin monster-girl idiom (wings
-  as arms or from the shoulders, at most three stated species tells); the
+- **Beastkin**: the Jade Rabbit and her court follow the Beastkin
+  monster-girl idiom of the feline and canine cards (ears, tail, at most
+  three stated species tells), the moon palace in white jade and pale blue;
+  the
   gods read divine by light and scale of setting, never by shrinking the
   woman.
 

@@ -37,12 +37,18 @@ starter pools and a new Beastkin legend (R8c, 2026-09-29); card frame
 geometry is closed, so art is cropped to today's 216 px window (owner,
 2026-10-08).
 
-**What waits on the owner** (the 2.0 plan's decisions; this plan follows the
-recommendations and the brief marks what moves if a ruling differs): P4
-(retire the July overplan, author fresh), P5 (the name "the Mandate"), P6
-(Oath's semantic), P7 (set key `core-set-2`, size from the ledger, 250+),
-P13 (the Beastkin legend), P16 (one shared replay bump), and the starting
-life number (lane D), which every cost waits on.
+**Ruled 2026-10-08 in the 2.0 decision walk:** Core Set II and every
+mechanic it requires are a hard requirement for 2.0 (P1); the July overplan
+is retired and the set authored fresh, the July file kept as a candidate pool
+(P4); the set key is `core-set-2` and the count is locked at the cut, 250+
+(P7); the new Beastkin legend is a Jade Rabbit, the moon rabbit of Chang'e's
+myth, in white-blue, leading a Beastkin anthem, with Yohime as the fallback
+(P13).
+
+**What waits on the owner** (this plan follows the recommendations and the
+brief marks what moves if a ruling differs): P5 (the name "the Mandate"), P6
+(Oath's semantic), P16 (one shared replay bump), the brief's own questions,
+and the starting life number (lane D), which every cost waits on.
 
 ## Goal
 
@@ -308,15 +314,13 @@ Oath-active, pack, collection and economy outcomes are **TO MEASURE**.
 Ruled in the wave-1 sitting unless noted; the brief's section 13 carries the
 full list with recommendations.
 
-- **The overplan (P4):** retire the July pool and author fresh, keeping it as
-  a candidate source. *Recommended*, as Drowned Deep and First Dawn did.
 - **Oath's semantic (P6):** any legendary creature. *Recommended*: it
   composes cleanly, stays playable in Standard and Limited, and needs no
   format identity in game state.
-- **Set key and size (P7):** `core-set-2`; 250 overplanned to about 320, the
-  count fixed at the cut.
-- **The Beastkin legend (P13):** the brief recommends U/R, a harpy queen
-  leading all Beastkin; Yohime as the fallback.
+- **Size (the brief's question 4):** 250 overplanned to about 320, with the
+  count fixed at the cut (P7 ruled the key and the cut).
+- **The Jade Rabbit's name:** the brief recommends Yutu, Jade Rabbit of the
+  Moon Palace.
 - **Roster emphasis:** the brief recommends Three Kingdoms leading the
   Mandate, Greek leading Oath, Beastkin stealing it.
 - **The Mandate timing:** dawn draw before permanent dawn triggers.
