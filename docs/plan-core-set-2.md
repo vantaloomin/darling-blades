@@ -1,6 +1,6 @@
 <!-- source-of-truth: docs/roadmap.md, docs/plan-road-to-2.0.md, docs/plan-expansion-slate.md, docs/plan-story-mode.md, docs/plan-darlings.md, docs/plan-1.9.md, docs/rules.md, docs/ai.md, docs/expansions/drafts/core-set-2-brief.md, docs/expansions/drafts/core-set-2-ledger.md, src/engine/types.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/sba.ts, src/engine/combat/damage.ts, src/engine/effects/EffectInterpreter.ts, src/engine/events.ts, src/engine/view.ts, src/data/catalog.ts, src/meta/Replay.ts, src/meta/boosterSkus.ts, scripts/balance-matrix.ts, scripts/personas/craft.ts, scripts/progression-sim.ts · last-verified: 2026-10-08 · design/plan doc, refreshed for the 2.0 train (DRAFT until the owner's wave-1 sitting); re-verify when the referenced code changes -->
 
-# Core Set II, the Mandate, and Oath: set plan
+# Core Set II, the Mandate, and Sworn: set plan
 
 **Refreshed 2026-10-08 for the 2.0 train** (lane A, wave 1 of the 2.0
 program plan, `docs/plan-2.0.md` on draft PR #551). The 2026-07-26 version
@@ -13,13 +13,13 @@ have since moved, and this refresh removes them:
 - **Localization**: the game stays English only.
 - **The mod whitelist**, moved to 2.1.
 
-The Mandate's engine, AI and test spec is kept as written; Oath's text is
+The Mandate's engine, AI and test spec is kept as written; Sworn's text is
 updated for the command zone.
 
 **Companion documents (wave 1):**
 
 - [core-set-2-brief.md](expansions/drafts/core-set-2-brief.md), the set
-  identity brief: world, roster split, size, colour pie, the Mandate and Oath
+  identity brief: world, roster split, size, colour pie, the Mandate and Sworn
   budgets, legends, the Beastkin legend, the keyword and mechanic cameo map,
   Story's starter pools, rungs and personas, and the questions for the owner.
 - [core-set-2-ledger.md](expansions/drafts/core-set-2-ledger.md), the coverage
@@ -30,7 +30,7 @@ updated for the command zone.
 
 **What is ruled:** Core Set II is 2.0's Large set (250+, spine 2026-08-24),
 returning to the Three Kingdoms, Greek and Beastkin rosters; the Mandate is
-its engine feature; Oath rides inside it (owner, 2026-10-08); Core Set II is
+its engine feature; Sworn rides inside it (owner, 2026-10-08); Core Set II is
 2.0's first priority (owner, 2026-10-08); a Large set carries every keyword
 and named mechanic (owner, 2026-09-29); it supplies Story Mode's three
 starter pools and a new Beastkin legend (R8c, 2026-09-29); card frame
@@ -43,18 +43,19 @@ is retired and the set authored fresh, the July file kept as a candidate pool
 (P4); the set key is `core-set-2` and the count is locked at the cut, 250+
 (P7); the new Beastkin legend is a Jade Rabbit, the moon rabbit of Chang'e's
 myth, in white-blue, leading a Beastkin anthem, with Yohime as the fallback
-(P13).
+(P13); the marker is "the Mandate" everywhere and "Crown" is dropped (P5);
+the hook first called Oath is named **Sworn** and is active while you
+control any legendary creature (P6).
 
 **What waits on the owner** (this plan follows the recommendations and the
-brief marks what moves if a ruling differs): P5 (the name "the Mandate"), P6
-(Oath's semantic), P16 (one shared replay bump), the brief's own questions,
+brief marks what moves if a ruling differs): P16 (one shared replay bump), the brief's own questions,
 and the starting life number (lane D), which every cost waits on.
 
 ## Goal
 
 2.0 ships Core Set II as the anniversary return to the base set's rosters,
 grown where the coverage ledger says they are thin, with two hooks: the
-Mandate, a public contested advantage, and Oath, legendary-led synergy that
+Mandate, a public contested advantage, and Sworn, legendary-led synergy that
 composes with Darlings. The set follows original naming, cards-first design
 with engine work fitted to the cards, AI-pilotable decisions, full data and
 tooling coverage, and dated balance and progression evidence, all measured
@@ -66,7 +67,7 @@ at 2.0's starting life.
   owner's cut; the brief proposes, the cut decides.
 - The Mandate is not a second life total, a card type, a permanent or a
   hidden object, and it never leaves the game.
-- Oath does not create a new zone and does not name a specific legend or
+- Sworn does not create a new zone and does not name a specific legend or
   faction.
 - No rewrite of shipped Three Kingdoms, Greek or Beastkin cards to make the
   new hooks prevalent. New legendary versions of named characters are new
@@ -79,13 +80,13 @@ at 2.0's starting life.
    companions). The owner's wave-1 sitting rules the brief, the life number,
    and the decisions above.
 2. **The design-first overplan** of about 320 candidates (wave 2), written in
-   the engine's existing vocabulary plus the Mandate and Oath; anything else
+   the engine's existing vocabulary plus the Mandate and Sworn; anything else
    marked VOCAB and admitted only at three rows in the cut. The duplicate
    comparator (`scripts/audit-overlap.ts`) runs against the whole pool from
    the first row.
 3. **The concretion audit**: the overplan's rows mapped to engine
    vocabulary.
-4. **The engine spec** (`plan-core-set-2-engine.md`): the Mandate, Oath, and
+4. **The engine spec** (`plan-core-set-2-engine.md`): the Mandate, Sworn, and
    every admitted VOCAB construct, with the timing rulings, the event, the
    view field, the shared replay bump (P16). **A second owner sitting**
    rules the overplan and the spec.
@@ -116,23 +117,23 @@ Hunt is not combat, ruled 1.9). If no player holds it, combat damage alone
 does nothing; a card must claim it first. A card may say `Claim the Mandate`,
 which gives it to that card's controller.
 
-Recommended Oath reminder (P6):
+Sworn reminder (P6, ruled 2026-10-08; the hook was called Oath until then):
 
-> Oath is active while you control a legendary creature.
+> Sworn is active while you control a legendary creature.
 
-Oath prefixes an existing trigger or static, for example
-`Oath: At your dawn, put a mark on another creature you control.` It is a
+Sworn prefixes an existing trigger or static, for example
+`Sworn: At your dawn, put a mark on another creature you control.` It is a
 condition word, not a keyword. **In Darlings, the Darling starts in the
-public command zone (the 2026-08-01 respec), so Oath turns on when she is
+public command zone (the 2026-08-01 respec), so Sworn turns on when she is
 cast and off if she leaves the battlefield**; recasting her (with the
 command tax) turns it on again. In Standard and Limited any legendary
 creature enables it, and the existing legend rule (`src/engine/sba.ts`)
-keeps two copies of one legend from stacking. Every Oath card at C and R is
-a fair card without its Oath (the brief, O5).
+keeps two copies of one legend from stacking. Every Sworn card at C and R is
+a fair card without its Sworn (the brief, O5).
 
 Pack, collection, deck-builder, glossary and card-detail surfaces explain
 both hooks before purchase or deck entry. The Mandate marker never covers
-life, priority, the stack or a Darling portrait. Oath cards show whether the
+life, priority, the stack or a Darling portrait. Sworn cards show whether the
 condition is currently active through icon plus text, not colour alone (the
 1.9 accessibility rule).
 
@@ -178,8 +179,8 @@ caller-defined point. A normal-damage batch does not emit a second claim when
 the attacker already took it during first-strike damage. Fog or zero damage
 never claims.
 
-Oath extends `AbilityDef.condition` and `StaticDef.condition` with
-`'oathActive'`. The pure predicate is true when the source controller
+Sworn extends `AbilityDef.condition` and `StaticDef.condition` with
+`'swornActive'`. The pure predicate is true when the source controller
 currently controls at least one permanent whose `CardDef.supertypes` contains
 `legendary`. It reads only public battlefield data, needs no new GameState,
 and works the same in Standard, Darlings, Limited, Story, AI simulations and
@@ -216,7 +217,7 @@ extra card in search evaluation without inspecting hidden order. Attack
 heuristics weigh the public draw advantage against lethal, profitable trades
 and defense; they never attack blindly.
 
-Oath asks the evaluator to price conditional text by current public
+Sworn asks the evaluator to price conditional text by current public
 legendary presence and the plausible loss of that enabler. Legal action
 generation already enforces conditions through engine helpers. The persona
 craft scorer recognizes both hooks through structural fields or measured
@@ -227,19 +228,19 @@ end of 2.0's wave 2, as in 1.9.
 ### UI
 
 `src/scenes/DuelScene.ts` renders the Mandate marker, the claim event and
-history line, Oath's active state and the card reminders from the public
+history line, Sworn's active state and the card reminders from the public
 view and events. The marker must also fit the mobile Duel's command column
 (Version C, lane C); the shared-file order in the 2.0 plan lands it on the
 desktop Duel first. Collection, Deck Builder, Pack Opening, Shop, Glossary
 and CardView gain the set and its hooks through shared helpers; Darlings
-surfaces show Oath without implying the Darling starts in hand.
+surfaces show Sworn without implying the Darling starts in hand.
 
 ### Tooling and invariants
 
 Engine golden tests for initial state, effect claim, dawn ordering,
 starting-player draw, deck-out, first-strike and normal batches, several
 attackers, Fog, zero damage, already-holder no-op, lethal damage, triggers
-observing the new holder, clone and replay, and redacted views. Oath tests
+observing the new holder, clone and replay, and redacted views. Sworn tests
 for no legend, a friendly legend, an opponent's legend only, the source
 leaving, several legends, static and triggered abilities, and Darlings with
 the Darling in the command zone, cast, and gone.
@@ -247,7 +248,7 @@ the Darling in the command zone, cast, and gone.
 The new-set checklist: art-bible entries and `check-art-bible`; the art
 packs rebuilt with the set's pack and index (the art streaming plan,
 section 5); the Forge's set union, labels and a `power-scores.json` rescore;
-the blades-db rebuild and `terms --check` for the Mandate and Oath; glossary,
+the blades-db rebuild and `terms --check` for the Mandate and Sworn; glossary,
 rules and tutorial text; the duplicate comparator over the whole pool; the
 per-set data check that every new set carries all 13 keywords; tokens each
 with a minter in the cut, checked by test. Pure layers stay Phaser- and
@@ -258,17 +259,15 @@ the owner's ruling to make).
 ## Save and replay impact
 
 No SaveData field and no schema bump. `mandateHolder` is transient
-`GameState`; `oathActive` derives from public battlefield data; collection
+`GameState`; `swornActive` derives from public battlefield data; collection
 maps already accept new card ids; Darlings already stores its Darling. The
 Mandate changes engine behaviour, so it needs a `REPLAY_LOG_VERSION` change:
 **one bump for the 2.0 train, 16 to 17, shared with the life field and
 Story's mode** (P16), landed by whichever arrives first. Database stamps and
 golden fixtures move with it.
 
-If the owner rules a strict "your Darling" Oath instead (P6), public
-`darlingIds` are added to `GameInit`, `GameState`, `PlayerView` and the
-replay log's context, which needs its own engine and replay spike before
-card authoring.
+A strict "your Darling" form (public `darlingIds` in game state and the
+replay log) was the alternative to P6 and is not built.
 
 ## Balance and measurement
 
@@ -276,8 +275,8 @@ Nothing is costed until the starting life number is picked; every rate is
 measured at the new total. The order:
 
 1. The overplan's rows carry provisional scores flagged **NEEDS MATH** for
-   the Mandate and Oath.
-2. The lab measures claim, hold and payoff rates (the Mandate) and Oath's
+   the Mandate and Sworn.
+2. The lab measures claim, hold and payoff rates (the Mandate) and Sworn's
    active rate per format, on the overplan's shapes, at the new life total.
 3. The rescore, then the cut.
 4. Products, the theme deck and any new rungs are built from stable rows;
@@ -297,14 +296,14 @@ npx tsx scripts/progression-sim.ts --seeds 8 --days 60
 
 Heavy jobs one at a time, at most 4 workers, on GitHub Actions or the
 owner's PC in light mode. Set, mechanic, matchup, Mandate hold and transfer,
-Oath-active, pack, collection and economy outcomes are **TO MEASURE**.
+Sworn-active, pack, collection and economy outcomes are **TO MEASURE**.
 
 ## Waves (2.0's, for this lane)
 
 | 2.0 wave | Core Set II work | Owner sitting |
 | ---: | --- | --- |
 | **1** | This refresh, the coverage ledger, the identity brief | The brief, with the life number and the P-decisions |
-| **2** | The overplan, its concretion audit, the Mandate and Oath engine spec; then the engine on synthetic fixtures, the AI reads and the lab rates | The overplan and the engine spec |
+| **2** | The overplan, its concretion audit, the Mandate and Sworn engine spec; then the engine on synthetic fixtures, the AI reads and the lab rates | The overplan and the engine spec |
 | **3** | The rescore at the new life total, the cut, the art bible, the art run, transcription | The cut, then art review rounds |
 | **4** | Products, the theme deck, rungs if ruled, tunes, the one measurement | The measured tables |
 | **5** | QC, the sweep, release notes, the cut | The 2.0.0 cut |
@@ -314,15 +313,12 @@ Oath-active, pack, collection and economy outcomes are **TO MEASURE**.
 Ruled in the wave-1 sitting unless noted; the brief's section 13 carries the
 full list with recommendations.
 
-- **Oath's semantic (P6):** any legendary creature. *Recommended*: it
-  composes cleanly, stays playable in Standard and Limited, and needs no
-  format identity in game state.
 - **Size (the brief's question 4):** 250 overplanned to about 320, with the
   count fixed at the cut (P7 ruled the key and the cut).
 - **The Jade Rabbit's name:** the brief recommends Yutu, Jade Rabbit of the
   Moon Palace.
 - **Roster emphasis:** the brief recommends Three Kingdoms leading the
-  Mandate, Greek leading Oath, Beastkin stealing it.
+  Mandate, Greek leading Sworn, Beastkin stealing it.
 - **The Mandate timing:** dawn draw before permanent dawn triggers.
   *Recommended*: a simple deterministic sequence with no pending-choice
   resume state.
@@ -337,10 +333,10 @@ full list with recommendations.
 - **The Mandate is simple state with wide reach**: dawn, simultaneous combat,
   first strike, events, views, AI search, replay and UI. A wrong ordering
   creates subtle trigger or deck-out drift; the golden tests are the guard.
-- **Oath and Standard**: a 40-card deck draws a legend late or never. The O5
-  rule (no Oath card is dead without a legend), legends at R or below in
+- **Sworn and Standard**: a 40-card deck draws a legend late or never. The O5
+  rule (no Sworn card is dead without a legend), legends at R or below in
   every colour and six common legendary sworn champions are the guard; the
-  lab reads Oath's active rate by turn per format, and Oath is costed at
+  lab reads Sworn's active rate by turn per format, and Sworn is costed at
   Standard's rate.
 - **The Mandate unclaimed or snowballing**: too few claimers leave it
   unclaimed and its payoffs blank; a holder who keeps drawing snowballs. The
@@ -366,10 +362,10 @@ full list with recommendations.
   golden engine event test.
 - The public holder is identical in GameState projections, the Duel UI (desktop
   and mobile) and replay, with no hidden-state leak.
-- Oath uses one shared public predicate, works for static and triggered
+- Sworn uses one shared public predicate, works for static and triggered
   abilities, and follows the owner's ruled semantic, including the Darlings
   command-zone cases.
-- The AI recognizes claim, retention and Oath state through `PlayerView`
+- The AI recognizes claim, retention and Sworn state through `PlayerView`
   alone, with no hardcoded Core Set II card-id strategy.
 - Every card in the cut maps to a ledger need or a brief budget line, with
   engine test status, AI-pilotability review, original-name review, art

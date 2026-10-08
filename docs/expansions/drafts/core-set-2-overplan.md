@@ -8,8 +8,8 @@ Warchest, the 1.8.5 scorer, Darlings' command zone and the keyword rule. The
 2.0 refresh authors the set fresh from the identity brief
 ([core-set-2-brief.md](core-set-2-brief.md)) and the coverage ledger, as
 Drowned Deep and First Dawn did; this pool stays a candidate source the new
-overplan may draw on. Its "Crown" is the Mandate (P5), and its Oath form
-("a legendary [leader]") is replaced by any legendary creature (P6).
+overplan may draw on. Its "Crown" is the Mandate (P5, ruled), and its Oath (now Sworn) form
+("a legendary [leader]") is replaced by any legendary creature (P6, ruled).
 
 ## Set Identity
 
