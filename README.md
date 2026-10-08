@@ -1,4 +1,4 @@
-<!-- source-of-truth: package.json, src/config/rules.ts, src/data/cards/*.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/scenes/, docs/rules.md, docs/ai.md, docs/roadmap.md, docs/release-notes/ · last-verified: 2026-09-28
+<!-- source-of-truth: package.json, src/config/rules.ts, src/data/cards/*.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/scenes/, docs/rules.md, docs/ai.md, docs/roadmap.md, docs/release-notes/ · last-verified: 2026-10-08
      If you change those files, update this doc or re-verify the date.
      Writing rules for this file: no em-dashes or en-dashes (use period/comma/colon/semicolon/parentheses; plain hyphens in numeric ranges), no emojis, and avoid formulaic AI prose patterns (no "X is here" openers, no anthropomorphized marketing lines, no rhetorical triads or dramatic reveal colons). Section order: What is Darling Blades, Features, the latest release, then everything else. This file is the front door, not the manual: card lists, boss rosters, exact odds and mechanic definitions belong in docs/ and docs/release-notes/, and this file links to them. -->
 
@@ -22,13 +22,13 @@
 
 Darling Blades is a single-player trading card game in the style of Magic: the Gathering, specifically the 8th/9th/10th-edition era: five colors of mana, creatures and combat, instants and sorceries resolving off a stack, and the familiar rhythm of curving out and then racing or grinding to a win. If you played that era of Magic, you already know most of the rules.
 
-The cast is what's different. The **1,482 collectible cards across ten sets** draw on the officers of the Three Kingdoms, the Greek pantheon, tribal Beastkin, Norse Ragnarök, the Celtic Fae courts, Arthurian knights, Gothic Monsters, storybook Dark Tales, cyberpunk Yokai, the Egyptian Duat, living starships, and a drowned fishing town. Every card carries finished cel-shaded gacha-anime art; nothing in the shipped game is programmer-art or a placeholder.
+The cast is what's different. The **1,648 collectible cards across eleven sets** draw on the officers of the Three Kingdoms, the Greek pantheon, tribal Beastkin, Norse Ragnarök, the Celtic Fae courts, Arthurian knights, Gothic Monsters, storybook Dark Tales, cyberpunk Yokai, the Egyptian Duat, living starships, a drowned fishing town, and the five clans of a valley where the sun rose for the first time this morning. Every card carries finished cel-shaded gacha-anime art; nothing in the shipped game is programmer-art or a placeholder.
 
 You play or skip a short tutorial, claim a free starter deck, crack booster packs, and build a 40-spell deck with its ten-land Warchest. Then you duel: Practice matches against any tower boss, the 28-rung **Avatar Gauntlet** of named bosses reshuffled daily, or a seat at the **Draft** table against seven AI rivals.
 
 ## Features
 
-- **A 1,482-card pool across ten sets**, each with its own booster, its own mechanics, and its own shop deck. The newest, Drowned Deep, adds 252 cards built around Whispers, Tithe, and Duty.
+- **A 1,648-card pool across eleven sets**, each with its own booster, its own mechanics, and its own shop deck. The newest, First Dawn, adds 166 cards built around Provoked and Hunt.
 - **Five two-color starter decks**, one per archetype, and every color in exactly two of them.
 - **MTG-style deckbuilding with one departure:** your lands live in a ten-land **Warchest** beside a 40-spell deck, and an auto-tap mana solver pays your costs.
 - **Two formats.** **Warchest** is the standard constructed game. **Darlings** is the EDH-style one, where your Darling waits in her own zone over a 79-card singleton deck.
@@ -40,22 +40,19 @@ You play or skip a short tutorial, claim a free starter deck, crack booster pack
 - **Deterministic replays.** Your last ten duels replay as byte-exact re-simulations with play, pause, step, and speed controls.
 - **AI that never cheats.** Every difficulty plays through the same redacted view you do, and the gap between difficulties is measured in seeded AI-vs-AI games, not assumed.
 - **Fully illustrated, nothing placeholder,** with painted backdrops for every scene and a procedural soundtrack synthesized live over WebAudio, with no audio files at all.
-- **Accessibility settings** for audio, animation level, render size, and phase auto-skip, and the whole game **plays comfortably by touch on a phone** over your local network.
+- **Accessibility settings** for text size, high contrast, audio, animation level, render size, and phase auto-skip, cues that never rely on colour alone, and the whole game **plays comfortably by touch on a phone** over your local network.
 
-## What's new in 1.8
+## What's new in 1.9
 
-- **Drowned Deep**, a 252-card set with two new mechanics: **Whispers**, which lets a card cast itself from the graveyard, and **Tithe**, which pays for a Horror with your own creatures.
-- **Duty**, the tap ability, on 82 cards across the game.
-- **Twenty-seven lands that no deck could use** are now playable artifacts, with the same art.
-- **The tower climbs to 26**, and six bosses were rebuilt on measured evidence.
-- **Opponents play the whole card now.** Forty written-down AI behaviours are tested.
-- **Anonymous play stats**, shown to you with the off switch before anything is sent. See [Privacy](#privacy).
+- **First Dawn**, a 166-card set with two new mechanics: **Provoked**, which triggers when a creature is dealt damage and survives, and **Hunt**, which has a creature fight one of your opponent's.
+- **Overcharge**, a new rule across the whole game for when the board is full.
+- **The tower climbs to 28**, and the summit's Darlings decks were rebuilt.
+- **Card faces lose their flavor text** and gain a taller art window.
+- **Art loads when a screen needs it**, so the Collection opens at once on far less memory.
+- **Older boosters cost less** and fill your collection faster.
+- **Text size and High contrast** settings, and cues that never rely on colour alone.
 
-The full patch notes, with the cards, are in [docs/release-notes/v1.8.0.md](docs/release-notes/v1.8.0.md).
-
-**1.8.1** fixes two crashes and two freezes, keeps removal's second effect when a Hauntlink is ready, teaches opponents to use their Duties before combat, adds 21 achievements, and opens **the Forge** at [bladedarlings.com/forge/](https://bladedarlings.com/forge/): design a card and see what it is worth on the same scorer the game is balanced with. Notes: [docs/release-notes/v1.8.1.md](docs/release-notes/v1.8.1.md).
-
-**1.8.5** is a balance patch. Keywords like Twin Blades and Skyborne are now worth more on a creature that hits harder, and ramp is priced by when you cast it. 90 cards change. 27 are toned down, only where our deck-building simulation shows they win games, and 63 are improved. The Forge and the opponents use the same math. Notes: [docs/release-notes/v1.8.5.md](docs/release-notes/v1.8.5.md).
+The full patch notes, with the cards, are in [docs/release-notes/v1.9.0.md](docs/release-notes/v1.9.0.md). Earlier releases: [1.8.0](docs/release-notes/v1.8.0.md), [1.8.1](docs/release-notes/v1.8.1.md), [1.8.5](docs/release-notes/v1.8.5.md).
 
 ## How to play
 
@@ -93,15 +90,15 @@ Darling Blades is TypeScript on Vite, rendered with Phaser 3 (pinned; never v4),
 
 The codebase is split into two halves. `src/engine/` is a pure, Phaser-free, deterministic rules engine: given decklists, a seed, and a sequence of actions, it produces the same game state and event stream on every machine, every time. The Phaser scenes only consume that event stream to animate, and hold no rules logic of their own. The AI plays through the same engine via the identical redacted view a human sees, which is what makes "the AI never reads hidden information" structural rather than a promise in a comment.
 
-That separation is what makes a real test suite possible: **4,238 tests across 278 files**, from engine rules and save migrations to the win-rate gates, in about thirteen minutes on the release-prep host.
+That separation is what makes a real test suite possible: **5,644 tests across 349 files**, from engine rules and save migrations to the win-rate gates, in about sixteen minutes on four workers.
 
 For deeper dives: [docs/architecture.md](docs/architecture.md) (layers, the event model, determinism), [docs/rules.md](docs/rules.md) (the full ruleset as implemented), [docs/adding-cards.md](docs/adding-cards.md) (the card schema), [docs/ai.md](docs/ai.md) (how each difficulty thinks and how the bosses are measured), [docs/design-system.md](docs/design-system.md) (the visual language), [docs/art-pipeline.md](docs/art-pipeline.md) (the art pipeline), and [docs/roadmap.md](docs/roadmap.md) (current status in detail).
 
 ## Project status
 
-**Darling Blades is 1.8.5** (tag v1.8.5). The full solo loop is wired end to end, all 1,482 collectible cards have finished art, the 26-rung tower is measured against win-rate floors, and the test suite is green.
+**Darling Blades is 1.9.0** (tag v1.9.0). The full solo loop is wired end to end, all 1,648 collectible cards have finished art, the 28-rung tower is measured against win-rate floors, and the test suite is green.
 
-**Coming next:** three more expansions through 2.0, a full accessibility pass, a mobile rebuild, deck suggestions built from your own collection, and Story Mode. Multiplayer is not planned; the game is single-player by design.
+**Coming next:** three more expansions through 2.0, a mobile rebuild, deck suggestions built from your own collection, and Story Mode. Multiplayer is not planned; the game is single-player by design.
 
 ## About this project
 

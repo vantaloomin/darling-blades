@@ -9,7 +9,7 @@ DRAFT, written as of the 1.8 release. Not published. Not reviewed by a lawyer.
 
 # Darling Blades Terms of Service
 
-**Effective date:** [1.8 RELEASE DATE]
+**Effective date:** [TERMS EFFECTIVE DATE]
 
 These terms are an agreement between you and Blade Darlings ("we", "us")
 about your use of Darling Blades (the "game"), in the web version and the
