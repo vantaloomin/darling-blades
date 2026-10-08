@@ -76,8 +76,17 @@ export function settingsRhythm(): SettingsRhythm {
 
 /** The tab row sits on the band under the 72px title row, above the panels. */
 const TAB_ROW_TOP = 124;
-const PANEL_WIDTH = 540;
 const PANEL_INSET = theme.space(10); // 40
+/** Between the Game tab's two panels: the between-groups gap. */
+const PANEL_GAP = GAP_BETWEEN;
+/** Each Game tab panel: half the title-safe width less the gap, so the pair spans the frame. */
+const HALF_PANEL_WIDTH = (theme.design.safeRight - theme.design.safeLeft - PANEL_GAP) / 2; // 564
+/**
+ * A one-column tab's panel: wide enough that its chip rows sit beside their
+ * labels at 130% (at 540 Animations and Render size stacked while Text size
+ * did not, so one panel read two ways).
+ */
+const CENTER_PANEL_WIDTH = 760;
 
 export const SETTINGS_TAB_ROW = {
   top: TAB_ROW_TOP,
@@ -86,16 +95,21 @@ export const SETTINGS_TAB_ROW = {
   bottom: TAB_ROW_TOP + theme.control.minHitHeight, // 168
 } as const;
 
-/** The panels: under the tab row by the within-group gap, down to the title-safe bottom. */
+/**
+ * The panels: under the tab row by the within-group gap. They are sized to
+ * their content (`SettingsTabLayout.panelBottom`), never past the title-safe
+ * bottom; the Game tab's pair sits on the frame's 64 and 1216 gutters.
+ */
 export const SETTINGS_PANELS = {
   top: SETTINGS_TAB_ROW.bottom + GAP_WITHIN, // 180
+  /** The furthest a panel may reach: the title-safe bottom. */
   bottom: theme.design.safeBottom, // 684
   inset: PANEL_INSET,
   /** The Game tab's two mirrored panels. */
-  left: { x: 70, width: PANEL_WIDTH },
-  right: { x: 670, width: PANEL_WIDTH },
+  left: { x: theme.design.safeLeft, width: HALF_PANEL_WIDTH },
+  right: { x: theme.design.safeRight - HALF_PANEL_WIDTH, width: HALF_PANEL_WIDTH },
   /** The single panel of a one-column tab (Audio, Accessibility), centred. */
-  center: { x: theme.design.centerX - PANEL_WIDTH / 2, width: PANEL_WIDTH },
+  center: { x: theme.design.centerX - CENTER_PANEL_WIDTH / 2, width: CENTER_PANEL_WIDTH },
 } as const;
 
 /** Every panel shares one vertical band. */
@@ -112,14 +126,17 @@ export const SETTINGS_GAMEPLAY_PANEL = {
   right: SETTINGS_PANELS.right.x + SETTINGS_PANELS.right.width,
 } as const;
 
-/** A panel's text column: labels at the inset, controls on its control axis or at its right edge. */
+/**
+ * A panel's text column: labels at the left inset, every control
+ * right-aligned to the right inset. One rule on every tab (the left column
+ * used to centre its toggles on an axis mid-panel while the right column
+ * right-aligned them).
+ */
 export interface SettingsColumnFrame {
   panelX: number;
   panelWidth: number;
   labelX: number;
-  /** The toggle axis of a left-style column; the volume stepper straddles it. */
-  controlX: number;
-  /** The right text inset: right-aligned controls end here. */
+  /** The right text inset: every row's controls end here. */
   controlRight: number;
 }
 
@@ -128,22 +145,20 @@ function columnFrame(panel: { x: number; width: number }): SettingsColumnFrame {
     panelX: panel.x,
     panelWidth: panel.width,
     labelX: panel.x + PANEL_INSET,
-    controlX: panel.x + 350,
     controlRight: panel.x + panel.width - PANEL_INSET,
   };
 }
 
 export const SETTINGS_FRAMES = {
-  left: columnFrame(SETTINGS_PANELS.left), // labels 110, toggles on 420, right edge 570
-  right: columnFrame(SETTINGS_PANELS.right), // labels 710, right edge 1170
-  center: columnFrame(SETTINGS_PANELS.center), // labels 410, toggles on 720, right edge 870
+  left: columnFrame(SETTINGS_PANELS.left), // labels 104, controls end 588
+  right: columnFrame(SETTINGS_PANELS.right), // labels 692, controls end 1176
+  center: columnFrame(SETTINGS_PANELS.center), // labels 300, controls end 980
 } as const;
 
 /** The Game tab's text columns, by their long-standing names. */
 export const SETTINGS_COLUMNS = {
   left: {
     labelX: SETTINGS_FRAMES.left.labelX,
-    controlX: SETTINGS_FRAMES.left.controlX,
     controlRight: SETTINGS_FRAMES.left.controlRight,
   },
   right: {
@@ -407,6 +422,14 @@ export function layoutSettingsColumn(
 export interface SettingsTabLayout {
   tab: SettingsTab;
   columns: readonly (SettingsColumnSpec & { layout: SettingsColumnLayout })[];
+  /**
+   * Where every panel on the tab ends: the between-groups gap under the
+   * lowest content (the same air the first heading has above it), shared by
+   * both Game panels so they end level, never past the title-safe bottom.
+   * The panels used to run to 684 whatever they held, leaving the Audio
+   * panel two-thirds empty.
+   */
+  panelBottom: number;
 }
 
 /** The lowest y content may reach: the panel bottom less the 16px inset. */
@@ -433,7 +456,12 @@ export function layoutSettingsTab(
     const levelled = specs.map((spec) => layoutSettingsColumn(spec.sections, SETTINGS_PANELS.top, measured, level));
     if (levelled.every((layout) => layout.contentBottom <= SETTINGS_CONTENT_LIMIT)) layouts = levelled;
   }
-  return { tab, columns: specs.map((spec, i) => ({ ...spec, layout: layouts[i] })) };
+  const lowest = Math.max(...layouts.map((layout) => layout.contentBottom));
+  return {
+    tab,
+    columns: specs.map((spec, i) => ({ ...spec, layout: layouts[i] })),
+    panelBottom: Math.min(SETTINGS_PANELS.bottom, lowest + GAP_BETWEEN),
+  };
 }
 
 /**
@@ -645,19 +673,17 @@ export function settingsRowStacks(labelX: number, labelWidth: number, controlsVi
 }
 
 /**
- * Keep a placed group inside its column: when any control's visual right edge
- * passes `right`, the whole group shifts left by the overrun, so the gaps the
- * group was placed with survive (the Privacy pair, whose "What is sent" button
- * is pushed right of the toggle, can otherwise pass the inset at a large text
- * size).
+ * The volume bar: drawn segments, not a glyph string (the ▰▱ glyphs fell back
+ * to a different font per platform and read as text). A fixed size, since it
+ * carries no text.
  */
-export function shiftGroupInside(
-  centers: readonly number[],
-  controls: readonly MeasuredControl[],
-  right: number,
-): number[] {
-  const overrun = Math.max(0, ...centers.map((c, i) => c + controls[i].visualWidth / 2 - right));
-  return centers.map((c) => c - overrun);
+export const VOLUME_BAR = { segments: 10, segmentWidth: 14, segmentGap: 4, height: 12 } as const;
+export const VOLUME_BAR_WIDTH =
+  VOLUME_BAR.segments * VOLUME_BAR.segmentWidth + (VOLUME_BAR.segments - 1) * VOLUME_BAR.segmentGap; // 176
+
+/** Each segment's left x within the bar. */
+export function volumeSegmentXs(): number[] {
+  return Array.from({ length: VOLUME_BAR.segments }, (_, i) => i * (VOLUME_BAR.segmentWidth + VOLUME_BAR.segmentGap));
 }
 
 export interface VolumeStepperXs {
@@ -667,25 +693,18 @@ export interface VolumeStepperXs {
 }
 
 /**
- * The volume stepper: the measured bar centred on the column's control axis,
- * a button either side of it one within-group gap from the bar's ends
- * (visual edges; the bar is text, not a target). Should the group pass the
- * column's control edge (a wide bar at a large text size), it shifts left as
- * a whole.
+ * The volume stepper, right-aligned like every other row's controls: the "+"
+ * button's visual edge on the column's control edge, the bar one within-group
+ * gap left of it, and "−" one gap left of the bar.
  */
 export function volumeStepperXs(
   barWidth: number,
   buttonVisualWidth: number,
-  frame: Pick<SettingsColumnFrame, 'controlX' | 'controlRight'>,
+  frame: Pick<SettingsColumnFrame, 'controlRight'>,
 ): VolumeStepperXs {
-  const centred = frame.controlX - barWidth / 2;
-  const overrun = Math.max(0, centred + barWidth + GAP_WITHIN + buttonVisualWidth - frame.controlRight);
-  const barLeft = centred - overrun;
-  return {
-    minusX: barLeft - GAP_WITHIN - buttonVisualWidth / 2,
-    barLeft,
-    plusX: barLeft + barWidth + GAP_WITHIN + buttonVisualWidth / 2,
-  };
+  const plusX = frame.controlRight - buttonVisualWidth / 2;
+  const barLeft = plusX - buttonVisualWidth / 2 - GAP_WITHIN - barWidth;
+  return { minusX: barLeft - GAP_WITHIN - buttonVisualWidth / 2, barLeft, plusX };
 }
 
 export interface SettingsHeaderCenters {

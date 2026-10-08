@@ -165,7 +165,7 @@ const ENROLLED: readonly Enrolled[] = [
       inset: {
         file: 'tests/ui/settingsPresentation.test.ts',
         tests: [
-          'keeps every column inside the panel band with the bottom inset',
+          'sizes the panels to their content, inside the band, with the bottom inset',
           'fits one more caption wrap and one more stacked row per column than rendered, on every tab at every size',
         ],
       },
