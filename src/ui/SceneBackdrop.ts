@@ -2,6 +2,8 @@ import type Phaser from 'phaser';
 import { Services } from '../meta/services';
 import { animTimeScale } from '../platform/animPolicy';
 import { activeRenderScale } from '../platform/renderScale';
+import { currentAccessibility } from './accessibility';
+import { backdropDimAlpha } from './layout';
 import { theme } from './theme';
 
 /**
@@ -119,14 +121,16 @@ export function applyBackdrop(
   // Per-scene dim/tint rect drawn over the art so existing UI stays readable
   // (docs/scene-art.md §3 dim table). Calibrated starting points; raise the
   // dim before ever asking for darker regenerated art.
-  if (opts.dim !== undefined && (opts.dimAlpha ?? 0) > 0) {
+  const highContrast = currentAccessibility().highContrast;
+  const dimAlpha = backdropDimAlpha(opts.dimAlpha, highContrast);
+  if ((opts.dim !== undefined || highContrast) && dimAlpha > 0) {
     const dimRect = scene.add.rectangle(
       DESIGN_W / 2,
       DESIGN_H / 2,
       DESIGN_W,
       DESIGN_H,
-      opts.dim,
-      opts.dimAlpha,
+      opts.dim ?? theme.graphics.dim,
+      dimAlpha,
     );
     created.push(dimRect);
   }
