@@ -1,12 +1,13 @@
-<!-- source-of-truth: scripts/audit-overlap.ts, tests/scripts/auditOverlap.test.ts, src/data/cards/, src/power/scoreCore.ts, src/data/opponents.ts, src/data/starterDecks.ts, src/data/darlingsPrecons.ts, src/data/duatArchetypeDecks.ts · last-verified: 2026-09-28 · D8 of plan-1.9: the rule and the slate RULED 2026-09-28, nothing applied yet; the fixes ship in a 1.9.x patch -->
+<!-- source-of-truth: scripts/audit-overlap.ts, tests/scripts/auditOverlap.test.ts, src/data/cards/, src/power/scoreCore.ts, src/data/opponents.ts, src/data/starterDecks.ts, src/data/darlingsPrecons.ts, src/data/duatArchetypeDecks.ts · last-verified: 2026-10-08 · D8 of plan-1.9: the rule and the slate RULED 2026-09-28; the slate is APPLIED in the 1.9.1 patch -->
 
 # D8: the older-set near-duplicate review (proposed and ruled 2026-09-28)
 
-**Status: RULED 2026-09-28** (the owner's second 1.9 sitting). The rule is approved as written and
-the whole slate as drafted: the 41 cards, A1 to A33 and B1 to B8, with no row's text changed by a
-ruling. Plan-1.9 ruling D8 (2026-09-25): the older-set near-duplicates get a whole-pool review and a
+**Status: APPLIED in the 1.9.1 patch** (2026-10-08): all 41 rows are in the card data as drafted,
+every rendered text and Δ matching its row. **RULED 2026-09-28** (the owner's second 1.9 sitting).
+The rule is approved as written and the whole slate as drafted: the 41 cards, A1 to A33 and B1 to
+B8, with no row's text changed by a ruling. Plan-1.9 ruling D8 (2026-09-25): the older-set near-duplicates get a whole-pool review and a
 resolution plan; the owner approves the rule (which kinds of sameness are acceptable) and the slate;
-the fixes ship in a 1.9.x patch, not in 1.9.0. No card data changes with this document. The owner's
+the fixes ship in a 1.9.x patch, not in 1.9.0 (they shipped in 1.9.1). The owner's
 questions are at the end, each with its answer; two leave follow-ups (D11, a one-sided tribe rescue
 of about seven cards, not drafted; D12, four out-of-band cards, to the balance track).
 

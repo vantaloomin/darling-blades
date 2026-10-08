@@ -133,7 +133,8 @@ describe('Drowned Deep transcription', () => {
     const commons = DROWNED_DEEP.filter((d) => d.rarity === 'c');
     const nearVanilla = commons.filter((d) => d.types.includes('creature') &&
       !(d.abilities?.length || d.activated || d.skim || d.whispers || d.retell || d.tithe || d.rite || d.empower || d.manaAbility || d.chapters));
-    expect(nearVanilla).toHaveLength(20);
+    // 1.9.1 (D8 row B6): Squall-Witch gained an arrival tap, so 20 -> 19.
+    expect(nearVanilla).toHaveLength(19);
     expect(nearVanilla.length / commons.length).toBeLessThanOrEqual(0.3);
   });
 

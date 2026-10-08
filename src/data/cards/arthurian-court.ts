@@ -194,7 +194,7 @@ export const ARTHURIAN_COURT = [
   }),
   {
     id: 'ac-mirror-of-avalon', name: 'Mirror of Avalon', types: ['artifact'], subtypes: [],
-    cost: cost(0, 'U'), colors: ['U'], abilities: [{ when: 'dawn', ops: [{ op: 'foresee', n: 1 }] }],
+    cost: cost(0, 'U'), colors: ['U'], abilities: [{ when: 'dawn', ops: [{ op: 'foresee', n: 2 }] }],
     rarity: 'r',
   },
   {
@@ -324,13 +324,16 @@ export const ARTHURIAN_COURT = [
     rarity: 'c',
   }),
   creature('ac-lake-attendant', 'Lake Attendant', ['Attendant'], {
-    cost: cost(2, 'U'), colors: ['U'], attack: 1, defense: 3,
+    cost: cost(2, 'U'), colors: ['U'], attack: 1, defense: 3, keywords: ['skyborne'],
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'c',
   }),
   creature('ac-court-minstrel', 'Court Minstrel', ['Bard'], {
     cost: cost(4, 'U'), colors: ['U'], attack: 2, defense: 2,
-    abilities: [{ when: 'dawn', condition: 'questActive', ops: [{ op: 'draw', n: 1 }] }],
+    abilities: [
+      { when: 'arrives', ops: [{ op: 'foresee', n: 1 }] },
+      { when: 'dawn', condition: 'questActive', ops: [{ op: 'draw', n: 1 }] },
+    ],
     rarity: 'c',
   }),
   creature('ac-torchbearer-knight', 'Torchbearer Knight', ['Knight', 'Soldier'], {

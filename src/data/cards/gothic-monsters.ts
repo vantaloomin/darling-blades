@@ -223,7 +223,7 @@ export const GOTHIC_MONSTERS = [
     rarity: 'r',
   }),
   creature('gm-widow-of-the-west-wing', 'Widow of the West Wing', ['Revenant', 'Spirit'], {
-    cost: cost(3, 'B'), colors: ['B'], attack: 3, defense: 3, keywords: ['skyborne', 'dreaded'],
+    cost: cost(3, 'B'), colors: ['B'], attack: 2, defense: 4, keywords: ['skyborne', 'dreaded'],
     rarity: 'r',
   }),
   {
@@ -295,7 +295,7 @@ export const GOTHIC_MONSTERS = [
   {
     id: 'gm-stitched-footman', name: 'Stitched Footman', types: ['artifact', 'creature'],
     subtypes: ['Construct'], cost: cost(1, 'U'), colors: ['U'], attack: 1, defense: 4,
-    keywords: ['bulwark'], rarity: 'c',
+    rarity: 'c',
   },
   creature('gm-blood-drop-initiate', 'Blood-Drop Initiate', ['Vampire', 'Initiate'], {
     cost: cost(1, 'B'), colors: ['B'], attack: 1, defense: 2, keywords: ['bloodoath'],
