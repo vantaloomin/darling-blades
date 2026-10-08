@@ -45,11 +45,15 @@ is retired and the set authored fresh, the July file kept as a candidate pool
 myth, in white-blue, leading a Beastkin anthem, with Yohime as the fallback
 (P13); the marker is "the Mandate" everywhere and "Crown" is dropped (P5);
 the hook first called Oath is named **Sworn** and is active while you
-control any legendary creature (P6).
+control any legendary creature (P6); the train has one replay bump, 16 to
+17, shared by the Mandate, the life field and Story (P16), and one save bump,
+v37 for Story, that anything else rides (P10); **the rescore always waits for
+the new starting life number, with no 20-life fallback (P17)**, so the life
+study is on this set's critical path; the difficulty retune comes after the
+life change, in wave 4 (P14).
 
-**What waits on the owner** (this plan follows the recommendations and the
-brief marks what moves if a ruling differs): P16 (one shared replay bump), the brief's own questions,
-and the starting life number (lane D), which every cost waits on.
+**What waits on the owner:** the brief's own questions and the starting life
+number itself (lane D), which every cost waits on.
 
 ## Goal
 
@@ -345,9 +349,12 @@ full list with recommendations.
   alternative).
 - **Roster nostalgia** produces redundant cards unless the ledger leads
   authoring and the duplicate comparator runs on every batch.
-- **The life change touches every cost.** If the life study is late, the
-  choice is to wait or to cost at 20 and move the change to 2.1 (the 2.0
-  plan's P17); the owner aimed the change at this set.
+- **The life study is on the critical path.** Every cost waits on the new
+  starting life number and the set is never costed at 20 (P17, the owner
+  chose to always wait). A late study delays the rescore, the cut and the
+  art run behind it. The guard is to start the study as soon as 1.9.0 is on
+  `main` and to do all the cost-free work (overplan, concretion audit,
+  engine, AI reads, art pilot) while it runs.
 - **Art volume**: about 250 card images, the tokens, any rung portraits and
   the Beastkin legend.
 - **Depends on**: Darlings' command zone (`docs/plan-darlings.md`), the

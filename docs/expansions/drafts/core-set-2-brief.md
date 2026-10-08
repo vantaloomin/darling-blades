@@ -29,12 +29,16 @@ active while you control any legendary creature, and is named **Sworn**
 rather than Oath), P7 (set key `core-set-2`; the count is locked at the cut,
 250+), and P13 (the new Beastkin legend is a Jade Rabbit, U/W, section 8).
 
-**Still waiting** (the 2.0 plan's P-list). This brief is
-written to the recommendations and marks what moves if a ruling differs:
+Also ruled: one replay bump for the 2.0 train, 16 to 17, shared by the
+Mandate, the life field and Story (P16); one save bump, v37 for Story (P10);
+the difficulty retune after the life change, in wave 4 (P14); and **the
+rescore always waits for the new starting life number, with no 20-life
+fallback (P17)**, which puts the life study on this set's critical path.
 
-| Decision | Recommendation this brief assumes | If ruled otherwise |
-| --- | --- | --- |
-| **The starting life number** (lane D) | Picked in the same sitting; costing waits for it | Nothing in this brief is costed, so nothing here moves; section 11 says what the set does with a higher total |
+**Still waiting:** the starting life number itself, picked from the life
+study. Nothing in this brief is costed, so nothing here moves when it lands;
+section 11 says what the set does with a higher total. The questions in
+section 13 are the brief's own.
 
 **Terms used below.** The *overplan* is the long list of candidate cards
 (about 320) that the owner cuts down to the set (250). *C, R, SR, SSR, UR*
@@ -442,7 +446,9 @@ minimums. Act 1's rewards draw on the same pools.
 The owner aimed the life change at 2.0 with this set ("If we are never
 getting to even playing 10 lands, a lot of our most expensive cards are never
 being played", 2026-09-29). The number is picked in the same wave-1 sitting,
-and **no row is costed until it is picked**. What the brief does about it now:
+and **no row is costed until it is picked**: the owner ruled that the
+rescore always waits for the new number, with no fallback to 20 (P17), so
+the life study sits on this set's critical path. What the brief does about it now:
 
 - **A real top end**: about 40 cards at mana value 5 or more in the 250 (16%,
   against the rosters' 11% today), with at least four per colour, so the
