@@ -41,6 +41,8 @@ itch.io launch. This draft reads it as: 2.0 ships on bladedarlings.com and the
 desktop build first, and the itch.io launch follows once 2.0 is stable there
 (proposed as a 2.0.x, decision **P2**).
 
+**Naming (P6, ruled 2026-10-08):** the hook this plan calls Oath ships as **Sworn**.
+
 **Closed the same day:** card frame geometry (1.8's D8, "deferred to 2.0").
 1.9's flavor removal already grew the art window from 192 px to 216 px (image
 rows 21-79% to 17-83%, [plan-1.9.md](plan-1.9.md) D18), so a new card shape
@@ -419,7 +421,7 @@ Each has a recommendation. None is ruled.
 | **P3** | 1.9.x before 2.0 | **RULED 2026-10-08: keep the 1.9.1 patch.** The owner first picked folding it into 2.0, then confirmed keeping it once told the patch was already under way (`release/1.9.1`, cut from v1.9.0; the near-duplicate slate in #556). It ships before 2.0's wave 2, so Core Set II is costed on the fixed pool |
 | **P4** | Core Set II's July overplan | **RULED 2026-10-08: retire it.** Author fresh, as Drowned Deep and First Dawn did; keep it as a candidate pool |
 | **P5** | The marker's name | **RULED 2026-10-08: "the Mandate" everywhere; drop "the Crown".** Rename the two RoTK achievement titles that use the word ("Mandate In Foil", "Rainbow Mandate" in `src/meta/Achievements.ts`; titles only, ids unchanged, so no save impact), working titles "Three Lords in Foil" and "Rainbow Lords". The Shadow Mandate starter deck keeps its name. Lands with lane B's UI and glossary work. Settles the Mandate half of brief Q7 |
-| **P6** | Oath's semantic | Active while you control any legendary creature |
+| **P6** | Oath's semantic | **RULED 2026-10-08: active while you control any legendary creature, and the mechanic is named "Sworn", not "Oath"** (avoids Blood Oath, the Grail Oath, Peach Garden Oath and Liu Bei, Benevolent Oathkeeper). "Oath" in this plan and the set plan is the working name for Sworn. Settles brief Q6 and Q7 |
 | **P7** | Set key and size | **RULED 2026-10-08: as recommended.** `core-set-2`; the size from the coverage ledger at the cut, 250+ per the spine |
 | **P8** | Floors under the life change | One approved re-baseline at the new life total, then ratchet up as before |
 | **P9** | What "Act 1 + endless" contains | Act 1 complete with all three characters and the unlock chain; endless as generated maps with scaling bosses, plus a daily seed; no keeps in endless |
