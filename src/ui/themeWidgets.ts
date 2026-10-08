@@ -96,6 +96,7 @@ export function themedButton(
       fontSize: `${fontSize}px`,
       fontStyle: theme.weight.w600,
       color: themedButtonColors(variant).fg,
+      align: 'center',
     })
     .setOrigin(0.5);
   if (opts.maxTextWidth !== undefined) fitMenuName(label, opts.maxTextWidth, Number.POSITIVE_INFINITY);

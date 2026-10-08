@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CLUSTER_BUTTON,
+  clusterControlX,
   DUEL_LAYOUT,
+  manaStripPitch,
   lifeBadgeBounds,
   passButtonBounds,
   pileBounds,
@@ -69,5 +72,31 @@ describe('Duel HUD: isolation from the board and the smart button', () => {
       const hits = [...column].sort((a, b) => a.y - b.y).map((pile) => pileHitBounds(pile.x, pile.y));
       for (let i = 1; i < hits.length; i++) expect(gapBetween(hits[i - 1], hits[i])).toBeGreaterThanOrEqual(8);
     }
+  });
+});
+
+describe('Duel HUD: controls that grow with text', () => {
+  it('keeps a mana count clear of the next pip at any count width', () => {
+    for (const strip of [L.myManaStrip, L.oppManaStrip]) {
+      for (const countWidth of [20, 28, 40]) {
+        const pitch = manaStripPitch(strip.step, strip.pipSize, countWidth);
+        const countRight = strip.pipSize * 0.64 + countWidth;
+        expect(pitch - strip.pipSize / 2 - countRight).toBeGreaterThanOrEqual(8);
+        expect(pitch).toBeGreaterThanOrEqual(strip.step);
+      }
+    }
+  });
+
+  it('keeps sidebar confirm buttons off your pile column', () => {
+    const y = L.cluster.endTurnY;
+    for (const width of [CLUSTER_BUTTON.minWidth, 180]) {
+      const x = clusterControlX(width);
+      const button = { x: x - width / 2, y: y - 22, width, height: 44 };
+      for (const pileY of [L.piles.deckY, L.piles.graveY]) {
+        expect(gapBetween(button, pileHitBounds(L.piles.x, pileY))).toBeGreaterThanOrEqual(8);
+      }
+    }
+    // A narrow control stays on the cluster's own column.
+    expect(clusterControlX(90)).toBe(L.cluster.x);
   });
 });
