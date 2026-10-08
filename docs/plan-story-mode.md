@@ -8,7 +8,7 @@ How to read this doc: the **Owner rulings** section is the only ruled part. Item
 
 ## Goal
 
-2.0 ships a replayable Story Mode: pick a character, fight through a seeded run of duels, keep a few cards from it, with short authored scenes carrying a story through the run. It is 2.0's headline feature and the mode the itch.io launch advertises. Content (acts, maps, events, scenes, rewards) is data, so it can be added or reordered without narrative branches in `DuelScene` and without weakening replay, save, AI or economy invariants.
+2.0 ships a replayable Story Mode: pick a character, fight through a seeded run of duels, keep a few cards from it, with short authored scenes carrying a story through the run. It is 2.0's headline feature and the mode the itch.io launch advertises (the itch launch moved to a 2.0.x on 2026-10-08, [plan-2.0.md](plan-2.0.md) P2; 2.0 itself ships Act 1 plus an endless run, the owner's 2026-10-08 order). Content (acts, maps, events, scenes, rewards) is data, so it can be added or reordered without narrative branches in `DuelScene` and without weakening replay, save, AI or economy invariants.
 
 ## Non-goals
 
