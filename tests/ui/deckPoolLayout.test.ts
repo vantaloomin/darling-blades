@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DECK_POOL_LAYOUT, poolCellPosition } from '../../src/ui/deckPoolLayout';
+import { CARD_FACE } from '../../src/config/cardFaceGeometry';
+import { menuLineHeight } from '../../src/ui/mainMenuPresentation';
 import { theme } from '../../src/ui/theme';
 import { forEachA11yCell } from './a11yCells';
 
@@ -26,16 +28,13 @@ describe('deck builder pool layout', () => {
     expect(lastCard.x + grid.cardWidth / 2).toBeLessThanOrEqual(grid.paneLeft);
   });
 
-  it("keeps each card's badge and playset chip on that card", () => {
-    // Both centre on the card's top edge band, inside its corners.
-    expect(-grid.badgeOffsetY).toBeLessThanOrEqual(grid.cardHeight / 2);
-    expect(grid.badgeOffsetX).toBeLessThanOrEqual(grid.cardWidth / 2);
-    expect(-grid.chipOffsetX).toBeLessThanOrEqual(grid.cardWidth / 2);
-    // The chip's tap target never reaches the card in the row above.
-    const rowGapBelowCardAbove = grid.pitchY - grid.cardHeight / 2;
-    expect(-grid.badgeOffsetY + grid.chipHitHeight / 2).toBeLessThanOrEqual(rowGapBelowCardAbove);
-    // Nor the card in the column to its left.
-    expect(-grid.chipOffsetX + grid.chipHitWidth / 2).toBeLessThanOrEqual(grid.pitchX - grid.cardWidth / 2);
+  it("hangs each card's badge and playset chip inside its art window, clear of the name", () => {
+    // The name plate ends where the art window begins; the chips start below it.
+    expect(grid.chipTopY).toBeGreaterThan(CARD_FACE.art.y * grid.cardScale);
+    expect(grid.badgeRightX).toBeLessThanOrEqual((CARD_FACE.art.x + CARD_FACE.art.w) * grid.cardScale);
+    expect(grid.chipLeftX).toBeGreaterThanOrEqual(CARD_FACE.art.x * grid.cardScale);
+    // Nor does the chip's tap target reach the card in the column to its left.
+    expect(-grid.chipLeftX + grid.chipHitWidth / 2).toBeLessThanOrEqual(grid.pitchX - grid.cardWidth / 2);
   });
 });
 
@@ -52,8 +51,9 @@ describe('deck builder pool accessibility layout', () => {
         expect(grid.chipHitHeight).toBeGreaterThanOrEqual(theme.control.minHitHeight);
         if (index >= grid.cols) {
           const previous = poolCellPosition(index - grid.cols);
-          expect(cell.y + grid.badgeOffsetY - grid.chipHitHeight / 2)
-            .toBeGreaterThanOrEqual(previous.y + grid.cardHeight / 2);
+          // The chip's tap target, centred on its text, never reaches the card above.
+          const chipCentre = cell.y + grid.chipTopY + menuLineHeight(theme.type.caption) / 2;
+          expect(chipCentre - grid.chipHitHeight / 2).toBeGreaterThanOrEqual(previous.y + grid.cardHeight / 2);
         }
       }
     });

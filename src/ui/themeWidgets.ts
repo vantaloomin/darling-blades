@@ -17,6 +17,7 @@ import {
   DROPDOWN_GEOMETRY,
   measureThemedButton,
   modalShellLayout,
+  PAGER_CENTER_OFFSET,
   sceneHeaderFooterLayout,
   type ControlSize,
   type FocusMetadata,
@@ -927,8 +928,7 @@ export interface PagerOptions {
   nextFocus?: FocusMetadata;
 }
 
-/** The pager label's centre, from the pager's x: centre a pager at `cx - PAGER_CENTER_OFFSET`. */
-export const PAGER_CENTER_OFFSET = 51;
+export { PAGER_CENTER_OFFSET };
 
 export function pager(
   scene: Phaser.Scene,

@@ -40,7 +40,7 @@ import {
   type Rect,
 } from '../../src/ui/layout';
 import { CURVE_MAX } from '../../src/ui/deckStats';
-import { DECK_PANE_LAYOUT, deckReserveLayout } from '../../src/ui/deckPanePresentation';
+import { DECK_PANE_LAYOUT, deckPaneTabRow, deckReserveLayout } from '../../src/ui/deckPanePresentation';
 import {
   LIMITED_BUILDER_COLUMNS,
   LIMITED_BUILDER_HEADER,
@@ -841,11 +841,12 @@ describe('title-safe frame: every placed control', () => {
   it('keeps the Deck Builder pane inside the frame, the bottom action row included', () => {
     const d = DECK_PANE_LAYOUT;
     const t = d.toggle;
-    for (const [name, x] of [['Cards', t.cardsX], ['Warchest', t.warchestX], ['Style', t.styleX]] as const) {
-      expectInside(`${name} view`, buttonHit(x, t.y, 'sm', t.minWidth));
-    }
+    // The widest measured labels (130% text, the Warchest warning; see deckPanePresentation.test.ts).
+    const viewWidths = [84, 111, 84];
+    deckPaneTabRow(50, viewWidths).forEach((x, i) => expectInside(`view ${i}`, buttonHit(x, t.y, 'sm', viewWidths[i])));
     const f = d.formatRow;
-    for (let i = 0; i < 2; i++) expectInside(`format tab ${i}`, buttonHit(f.tabFirstX + i * f.tabPitch, f.y, 'sm', f.tabMinWidth));
+    const formatWidths = [87, 81];
+    deckPaneTabRow(50, formatWidths).forEach((x, i) => expectInside(`format tab ${i}`, buttonHit(x, f.y, 'sm', formatWidths[i])));
     const reserve = deckReserveLayout({ top: d.content.top, bottom: d.content.bottom,
       headerHeights: [24, 20, 20], rulesHeight: 56, slotHeight: 44, slotCount: 10 });
     for (let i = 0; i < Math.min(10, reserve.pageSize); i++) {
