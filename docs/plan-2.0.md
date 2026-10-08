@@ -89,15 +89,14 @@ long rather than cut in a fixed order.
   tier (T6) reads about 66% against its .585 band (72 in 1.7), accepted for
   1.9 (Q4).
 
-## Carried in: the 1.9.x patch
+## Carried in: the 1.9.1 patch
 
 These are ruled or proposed for 1.9.x, not 2.0. They are listed because they
-change the ground 2.0 measures on. **Proposed (P3): 1.9.x ships before 2.0's
-wave 2**, so Core Set II's costing and the end-of-train measurement start
-from a pool that already has these fixes. The life study (D1) starts on
-1.9.0 without waiting: it measures how game length moves with life, which
-the near-duplicate and backfill edits barely touch, and its numbers are
-re-read in the one end-of-train measurement anyway (P15).
+change the ground 2.0 measures on. **RULED (P3, 2026-10-08): the 1.9.1 patch ships before 2.0's wave 2.** It is
+under way on `release/1.9.1` (cut from v1.9.0), in its own thread, and also
+carries the art-pack compression fix behind the 1.9.0 hotfix. So Core Set II's
+costing and the end-of-train measurement start from a pool that already has
+these fixes. The life study (D1) starts on 1.9.0 without waiting (P15).
 
 - **The older-set near-duplicates** (D8 of 1.9, 41 cards ruled 2026-09-28,
   [d8-near-duplicate-review.md](d8-near-duplicate-review.md)), with the boss
@@ -417,7 +416,7 @@ Each has a recommendation. None is ruled.
 | --- | --- | --- |
 | **P1** | What the priority order means when 2.0 runs long | **RULED 2026-10-08:** "We cut, Core Set 2 (and all required mechanics), Mandate, Mobile, and Fixes are hard requirements. Everything else can be discussed." The hard minimum is Core Set II with its mechanics (Oath included), the Mandate engine, mobile and fixes. Starting life, Story Mode (Act 1 and full), itch.io and the retune are all negotiable if 2.0 runs long, decided with the owner at the time rather than by a fixed order |
 | **P2** | When itch.io launches | **RULED 2026-10-08: as recommended.** A 2.0.x, once 2.0 is stable on the site. The itch build target and its CI gate land in 2.0 behind a flag |
-| **P3** | 1.9.x before 2.0 | Ship the 1.9.x patch (near-duplicates, backfill, full sweep, re-gated floors) before 2.0's wave 2 |
+| **P3** | 1.9.x before 2.0 | **RULED 2026-10-08: keep the 1.9.1 patch.** The owner first picked folding it into 2.0, then confirmed keeping it once told the patch was already under way (`release/1.9.1`, cut from v1.9.0; the near-duplicate slate in #556). It ships before 2.0's wave 2, so Core Set II is costed on the fixed pool |
 | **P4** | Core Set II's July overplan | **RULED 2026-10-08: retire it.** Author fresh, as Drowned Deep and First Dawn did; keep it as a candidate pool |
 | **P5** | The marker's name | "The Mandate" everywhere; drop "the Crown" |
 | **P6** | Oath's semantic | Active while you control any legendary creature |
