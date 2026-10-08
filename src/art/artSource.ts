@@ -8,7 +8,7 @@
  * - **loose**: one `.webp` per key under `assets/art/cards/` and
  *   `assets/art/cards-half/`. The dev server and the desktop app read these
  *   (Tauri's asset protocol ignores `Range`, see docs/desktop-build.md).
- * - **packs**: one content-hashed `.bin` per set per tier under
+ * - **packs**: one content-hashed `.webp` pack per set per tier under
  *   `assets/art/packs/`, written by `scripts/pack-art.ts`, read one card at a
  *   time by an HTTP range request. The offset index is bundled into the
  *   JavaScript, so the pack names and offsets always come from the same build.
@@ -56,7 +56,7 @@ export const PACK_INDEX_VERSION = 1;
 export type PackEntry = readonly [number, number, number];
 
 export interface PackTierIndex {
-  /** Pack file names, e.g. `full-base.1a2b3c4d5e.bin`, under `assets/art/packs/`. */
+  /** Pack file names, e.g. `full-base.1a2b3c4d5e.webp`, under `assets/art/packs/`. */
   packs: string[];
   /** Each pack's byte length, parallel to `packs`: the whole-pack length check. */
   sizes: number[];
@@ -519,8 +519,13 @@ export function createPackSource(opts: PackSourceOpts): ArtSource {
     }
     const cr = parseContentRange(ex.headers.get('content-range'));
     if (!cr || cr.start !== loc.offset || bytes.length !== loc.length || !isWebp(bytes)) {
-      if (st.mode === 'unknown') st.mode = 'range';
-      throw failKey(loc, key, `the range for ${key} came back wrong (length ${bytes.length}, want ${loc.length})`);
+      // Something between us and the pack rewrote the range (1.9.0 on
+      // bladedarlings.com, where Cloudflare compresses the packs), so no range
+      // from this pack can be trusted. The loose files sit beside the packs,
+      // so read those instead; a key with no loose file fails there.
+      st.mode = 'loose';
+      errorOnce(st, `the range for ${key} came back wrong (start ${cr?.start ?? 'none'}, want ${loc.offset}; length ${bytes.length}, want ${loc.length}); reading loose files`);
+      return null;
     }
     if (st.mode === 'unknown') st.mode = 'range';
     return webpBlob(bytes as Uint8Array<ArrayBuffer>);

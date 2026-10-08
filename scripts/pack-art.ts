@@ -4,12 +4,16 @@
  * per tier, names each pack by its content hash, and writes the offset index
  * the game bundles (`src/data/art-packs.json`, gitignored like the manifest).
  *
- *   public/assets/art/cards/<key>.webp       -> .art-packs/full-<set>.<hash>.bin
- *   public/assets/art/cards-half/<key>.webp  -> .art-packs/half-<set>.<hash>.bin
+ *   public/assets/art/cards/<key>.webp       -> .art-packs/full-<set>.<hash>.webp
+ *   public/assets/art/cards-half/<key>.webp  -> .art-packs/half-<set>.<hash>.webp
  *
  * Why: itch.io caps an HTML5 game at 1,000 files (the art alone is 3,074) and
- * 200 MB a file, and the same packs serve Pages. The `.bin` extension is not
- * on itch's pre-gzip list, so byte ranges stay byte ranges. The vite plugin
+ * 200 MB a file, and the same packs serve Pages. A pack is webp files end to
+ * end and is named `.webp` so hosts serve it as an image, which they leave
+ * uncompressed: GitHub Pages gzips `.bin` (application/octet-stream), and
+ * Cloudflare then cut byte ranges from the gzipped copy (1.9.0 gate 7), while
+ * image/webp ranges came back byte-exact. Cloudflare Polish would rewrite an
+ * image, so it must stay off for `/assets/art/packs/`. The vite plugin
  * `art-packs` (vite.config.ts) copies the packs the index names into
  * `dist/assets/art/packs/` for web builds; the desktop build keeps loose files
  * only (Tauri ignores Range, docs/desktop-build.md).
@@ -35,6 +39,8 @@ export const PACK_STAGING_DIR = join(root, '.art-packs');
 export const PACK_INDEX_FILE = join(root, 'src', 'data', 'art-packs.json');
 /** Where the packs live in a built site, relative to its root (the source's `base`). */
 export const PACKS_URL_DIR = 'assets/art/packs';
+/** A pack's extension: hosts serve `.webp` as an image and leave it uncompressed (see the header). */
+export const PACK_EXT = '.webp';
 /** itch.io refuses files over 200 MB; stay clear of it. */
 export const MAX_PACK_BYTES = 190_000_000;
 /** The pack for keys that are not a card of a set: styled lands, non-card keys. */
@@ -116,7 +122,7 @@ export function buildPacks(input: PackInput, emit: (pack: BuiltPack) => void): P
         throw new Error(`pack-art: ${tier}-${group} is ${offset} bytes, over the ${MAX_PACK_BYTES}-byte cap`);
       }
       const data = Buffer.concat(parts, offset);
-      const name = `${tier}-${group}.${packHash(data)}.bin`;
+      const name = `${tier}-${group}.${packHash(data)}${PACK_EXT}`;
       index.packs.push(name);
       index.sizes.push(offset);
       emit({ name, tier, group, data, keys: members.length });
@@ -175,8 +181,8 @@ export interface StagedPack {
 /**
  * Build the packs into `stagingDir` and write the index to `indexFile`. A pack
  * already staged under its name at the same length is not rewritten (the name
- * carries the content hash); any other `.bin` in the folder is a pack no build
- * names any more and is deleted; other files are left alone. The index is
+ * carries the content hash); any other pack in the folder (`.webp`, or `.bin`
+ * from before 1.9.1) is one no build names any more and is deleted; other files are left alone. The index is
  * written only when its text changed, so the dev server does not reload for
  * nothing.
  */
@@ -195,7 +201,7 @@ export function stagePacks(
   });
   const keep = new Set(packNames(index));
   for (const file of readdirSync(out.stagingDir)) {
-    if (file.endsWith('.bin') && !keep.has(file)) rmSync(join(out.stagingDir, file));
+    if ((file.endsWith(PACK_EXT) || file.endsWith('.bin')) && !keep.has(file)) rmSync(join(out.stagingDir, file));
   }
   const json = `${JSON.stringify(index)}
 `;

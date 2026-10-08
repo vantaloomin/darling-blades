@@ -154,7 +154,7 @@ rather than trimming code.
 
 ### Loose card files, not packs
 
-The web build also packs the card art into one `.bin` file per set per tier
+The web build also packs the card art into one `.webp` pack per set per tier
 (`scripts/pack-art.ts`, 22 files, 267 MiB) and reads each card out of its pack
 by an HTTP range request ([plan-art-streaming.md](plan-art-streaming.md)
 section 5). **The desktop build does not.** Tauri 2.11's asset protocol ignores

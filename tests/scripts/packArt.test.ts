@@ -98,8 +98,8 @@ describe('pack-art', () => {
         expect(pack.data.subarray(offset, offset + length).equals(files[key])).toBe(true);
       });
       tierIndex.packs.forEach((name, p) => {
-        // The name carries the tier, the group and a content hash; `.bin` keeps itch from gzipping it.
-        expect(name).toMatch(new RegExp(`^${tier}-${packs.get(name)!.group}\\.[0-9a-f]{10}\\.bin$`));
+        // The name carries the tier, the group and a content hash; `.webp` keeps hosts from gzipping it.
+        expect(name).toMatch(new RegExp(`^${tier}-${packs.get(name)!.group}\\.[0-9a-f]{10}\\.webp$`));
         expect(tierIndex.sizes[p]).toBe(packs.get(name)!.data.length);
       });
     }
@@ -167,7 +167,8 @@ describe('pack-art', () => {
     mkdirSync(stagingDir, { recursive: true });
     // Same name, same length, different bytes: only a skipped write leaves these zeros in place.
     writeFileSync(join(stagingDir, kept), Buffer.alloc(keptSize));
-    writeFileSync(join(stagingDir, 'full-alpha.0000000000.bin'), 'a pack from an older build');
+    writeFileSync(join(stagingDir, 'full-alpha.0000000000.webp'), 'a pack from an older build');
+    writeFileSync(join(stagingDir, 'full-alpha.0000000001.bin'), 'a pack named before 1.9.1');
     writeFileSync(join(stagingDir, 'README.txt'), 'not a pack');
 
     const staged = stagePacks(input, { stagingDir, indexFile });
