@@ -909,7 +909,7 @@ export class ShopScene extends Phaser.Scene {
     this.boostersGroup.setVisible(tab === 'boosters');
     this.decksGroup.setVisible(tab === 'decks');
     for (const [key, btn] of this.tabButtons) {
-      btn.setVariant(key === tab ? 'primary' : 'ghost');
+      btn.setVariant(key === tab ? 'selected' : 'ghost');
     }
   }
 
@@ -1193,7 +1193,7 @@ export class ShopScene extends Phaser.Scene {
   private refreshQtyChips(): void {
     const gold = this.saveData.gold;
     for (const [n, chip] of this.qtyChips) {
-      chip.setVariant(n === this.qty ? 'primary' : 'ghost');
+      chip.setVariant(n === this.qty ? 'selected' : 'ghost');
       chip.setEnabled(this.skuButtons.some(({ price }) => gold >= price * n));
     }
   }
@@ -1397,7 +1397,7 @@ export class ShopScene extends Phaser.Scene {
     // the old in-band gold headings are gone with the crowding they fought.
     const subTabs = sections.map((section) => {
       const button = themedButton(this, 0, DECK_SHOP_LAYOUT.subTabY, section.label, {
-        variant: section.key === this.deckTab ? 'primary' : 'ghost',
+        variant: section.key === this.deckTab ? 'selected' : 'ghost',
         size: 'sm',
         minWidth: 160,
         onTap: () => this.setDeckTab(section.key),

@@ -171,9 +171,9 @@ export class CardShowcaseScene extends Phaser.Scene {
       `${TIER_LABEL[card.rarity]} · ${this.frame.toUpperCase()} FRAME · ${this.holo.toUpperCase()} · FULL ART ${this.fullArt ? 'ON' : 'OFF'}`,
     );
     const style = (chips: ThemedButton[], selected: number): void =>
-      chips.forEach((chip, index) => chip.setVariant(index === selected ? 'primary' : 'ghost'));
+      chips.forEach((chip, index) => chip.setVariant(index === selected ? 'selected' : 'ghost'));
     style(this.frameChips, FRAMES.indexOf(this.frame));
     style(this.holoChips, HOLOS.indexOf(this.holo));
-    this.fullArtChip.setVariant(this.fullArt ? 'primary' : 'ghost');
+    this.fullArtChip.setVariant(this.fullArt ? 'selected' : 'ghost');
   }
 }

@@ -187,7 +187,7 @@ export class SettingsScene extends Phaser.Scene {
     const buttons = SETTINGS_TABS.map(({ key, label }) =>
       this.track(
         themedButton(this, 0, SETTINGS_TAB_ROW.y, label, {
-          variant: key === this.tab ? 'primary' : 'ghost',
+          variant: key === this.tab ? 'selected' : 'ghost',
           size: 'sm',
           minWidth: scaledChipWidth(SETTINGS_TAB_BASE_WIDTH),
           onTap: () => {
@@ -715,13 +715,13 @@ export class SettingsScene extends Phaser.Scene {
     for (const { button, on } of this.toggles) {
       const value = on();
       button.setLabel(value ? 'On' : 'Off');
-      button.setVariant(value ? 'primary' : 'ghost');
+      button.setVariant(value ? 'selected' : 'ghost');
     }
   }
   private refreshChipGroups(): void {
     for (const { buttons, selected } of this.chipGroups) {
       const current = selected();
-      for (const [value, button] of buttons) button.setVariant(value === current ? 'primary' : 'ghost');
+      for (const [value, button] of buttons) button.setVariant(value === current ? 'selected' : 'ghost');
     }
   }
   private pickRenderScale(value: RenderScaleSetting): void {

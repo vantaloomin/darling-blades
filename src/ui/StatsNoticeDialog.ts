@@ -145,13 +145,13 @@ export function createStatsNoticeDialog(
     rowCenterY,
     statsToggleLabel(controller.sharing()),
     {
-      variant: controller.sharing() ? 'primary' : 'ghost',
+      variant: controller.sharing() ? 'selected' : 'ghost',
       size: 'sm',
       minWidth: STATS_NOTICE_LAYOUT.toggleMinWidth,
       onTap: () => {
         const on = controller.toggle();
         toggle.setLabel(statsToggleLabel(on));
-        toggle.setVariant(on ? 'primary' : 'ghost');
+        toggle.setVariant(on ? 'selected' : 'ghost');
       },
     },
   );

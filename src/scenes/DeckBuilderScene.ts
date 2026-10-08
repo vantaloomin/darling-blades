@@ -717,7 +717,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     if (!this.filterButton?.container.active) return;
     const activeCount = this.activePoolFilterCount();
     this.filterButton.setLabel(activeCount > 0 ? `Filters (${activeCount})` : 'Filters');
-    this.filterButton.setVariant(this.filterPanel ? 'emphasis' : activeCount > 0 ? 'primary' : 'ghost');
+    this.filterButton.setVariant(this.filterPanel ? 'emphasis' : activeCount > 0 ? 'selected' : 'ghost');
   }
 
   /** The art keys the pool thumbs of `cards` still need before they can bake over real art. */
@@ -1538,7 +1538,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       formatPageSlice(choices, Math.max(0, nextPage), pageSize).forEach((choice, choiceIndex) => {
         const position = gridPosition(choiceIndex, 2, centerX - 230, content.y + 2 * menuLineHeight(theme.type.caption) + theme.space(4) + rowHeight / 2, 440, rowPitch);
         const button = themedButton(this, position.x, position.y, choice.label, {
-          variant: choice.id === this.landReserve[index] ? 'primary' : 'ghost',
+          variant: choice.id === this.landReserve[index] ? 'selected' : 'ghost',
           size: 'sm',
           minWidth: 276,
           maxTextWidth: 252,
@@ -1603,7 +1603,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       }).setOrigin(0, 0.5),
     );
     const buttons = tabs.map((choice) => themedButton(this, 0, layout.y, formatLabel(choice), {
-      variant: choice === format ? 'primary' : 'ghost',
+      variant: choice === format ? 'selected' : 'ghost',
       size: 'sm',
       minWidth: layout.tabMinWidth,
       onTap: () => this.selectFormat(choice),
@@ -1642,7 +1642,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       }).setOrigin(0, 0.5),
     );
     const cards = themedButton(this, 0, y, 'Cards', {
-      variant: state.cardsSelected ? 'primary' : 'ghost',
+      variant: state.cardsSelected ? 'selected' : 'ghost',
       size: 'sm',
       minWidth: layout.minWidth,
       onTap: () => {
@@ -1651,7 +1651,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       },
     });
     const warchest = themedButton(this, 0, y, state.warchestLabel, {
-      variant: state.warchestSelected ? 'primary' : state.warchestWarning ? 'danger' : 'ghost',
+      variant: state.warchestSelected ? 'selected' : state.warchestWarning ? 'danger' : 'ghost',
       size: 'sm',
       minWidth: layout.minWidth,
       onTap: () => {
@@ -1660,7 +1660,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       },
     });
     const style = themedButton(this, 0, y, 'Style', {
-      variant: state.styleSelected ? 'primary' : 'ghost',
+      variant: state.styleSelected ? 'selected' : 'ghost',
       size: 'sm',
       minWidth: layout.minWidth,
       onTap: () => {
@@ -2019,7 +2019,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       const actionY0 = top + pickerLayout.actions.firstY;
       const actionY1 = top + pickerLayout.actions.secondY;
       const useBtn = themedButton(this, actionX0 + actionW / 2, actionY0, isActive ? 'Using' : 'Use', {
-        variant: isActive ? 'primary' : 'ghost',
+        variant: isActive ? 'selected' : 'ghost',
         size: 'sm',
         minWidth: actionW,
         onTap: () => setActiveDeck(deck.id),
