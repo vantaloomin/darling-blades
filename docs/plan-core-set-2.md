@@ -239,6 +239,11 @@ view and events. The marker must also fit the mobile Duel's command column
 desktop Duel first. Collection, Deck Builder, Pack Opening, Shop, Glossary
 and CardView gain the set and its hooks through shared helpers; Darlings
 surfaces show Sworn without implying the Darling starts in hand.
+Sworn Champions are legendary but hide the legendary crown: `CardView`
+(the `crown` image) and the frame/thumbnail paths (`CardFrameFactory`,
+`CardThumbCache`) read a per-card flag instead of the bare `legendary`
+supertype for that one visual, while the engine, filters and glossary keep
+treating the card as legendary.
 
 ### Tooling and invariants
 
@@ -318,10 +323,13 @@ Sworn-active, pack, collection and economy outcomes are **TO MEASURE**.
 Ruled in the wave-1 sitting unless noted; the brief's section 13 carries the
 full list with recommendations.
 
-- **Size (the brief's question 4):** 250 overplanned to about 320, with the
-  count fixed at the cut (P7 ruled the key and the cut). Floor ruled
-  2026-10-08: every keyword and named mechanic survives the cut, even if
-  that takes the set past 250.
+- **Size (the brief's question 4), ruled 2026-10-08:** aim for 250, flexing
+  up to about 275 if the pitched cards are strong, overplanned to about 320;
+  every keyword and named mechanic survives the cut. Also ruled that day:
+  roster split Three Kingdoms 85, Greek 80, Beastkin 65, neutral 20; about
+  54 cards at 5+ with about 6 at 7+; and six common Sworn Champions,
+  legendary in every way except the visual crown (a render flag on the
+  frame). Detailed counts: the overplan thread's `00-card-counts.md`.
 - **The Jade Rabbit's name:** the brief recommends Yutu, Jade Rabbit of the
   Moon Palace.
 - **Roster emphasis:** the brief recommends Three Kingdoms leading the
@@ -360,8 +368,8 @@ full list with recommendations.
   engine, AI reads, art pilot) while it runs.
 - **Expensive cards stay unplayed whatever the life total.** The life study
   measured spells at 7 or more cast about 0.3 a game even at 30 life, since
-  Standard caps lands at 10. The set's costs are the lever: keep the top end
-  at 5-6 with few 7+ cards (brief question 16).
+  Standard caps lands at 10. The set's costs are the lever: the top end sits
+  at 5-6 with about 6 cards at 7+ (ruled, brief question 16).
 - **Art volume**: about 250 card images, the tokens, any rung portraits and
   the Beastkin legend.
 - **Depends on**: Darlings' command zone (`docs/plan-darlings.md`), the

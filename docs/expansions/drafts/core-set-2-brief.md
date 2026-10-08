@@ -30,7 +30,13 @@ rather than Oath), P7 (set key `core-set-2`; the count is locked at the cut,
 250+), and P13 (the new Beastkin legend is a Jade Rabbit, U/W, section 8).
 **The set carries every keyword and named mechanic, even if that takes it
 past 250** (the owner, 2026-10-08): the cut never drops the last card
-carrying one (sections 4 and 9).
+carrying one (sections 4 and 9). **Later the same day** (the owner, on
+the overplan's questions): the set aims for 250 and may flex to about 275
+if the pitched cards are strong; the roster split is Three Kingdoms 85,
+Greek 80, Beastkin 65, neutral 20; the top end is about 54 cards at 5+
+with about 6 at 7+; and the six **Sworn Champions** are approved, legendary
+in every way except the visual crown (sections 3, 4, 6 and 11). The
+overplan thread owns the detailed counts.
 
 Also ruled: one replay bump for the 2.0 train, 16 to 17, shared by the
 Mandate, the life field and Story (P16); one save bump, v37 for Story (P10);
@@ -136,14 +142,16 @@ the set:
 
 ## 3. Roster split
 
-**The set is the three rosters plus a small neutral slice.** Proposed at 250:
+**The set is the three rosters plus a small neutral slice.** Ruled at 250
+(the owner, 2026-10-08, revised from this brief's 95 / 85 / 55 / 15 toward
+an even split; the detail is in the overplan's card counts):
 
 | Roster | Cards | After the set | Why |
 | --- | ---: | ---: | --- |
-| **Three Kingdoms** (Wei, Wu, Shu, Jin, and the Nanman and other unaligned officers) | 95 | 196 | leads the Mandate; the largest existing roster grows by the least share |
-| **Greek** (Olympians, their oracles, heroes and sworn champions) | 85 | 110 | the thinnest roster grows the most; leads Sworn |
-| **Beastkin** | 55 | 87 | the tribe, its payoffs outside green, the new legend's colours |
-| **Neutral** (colourless artifacts, the set's few multi-roster spells) | 15 | | no lands (the reserve takes only basics and duals; First Dawn printed none) |
+| **Three Kingdoms** (Wei, Wu, Shu, Jin, and the Nanman and other unaligned officers) | 85 | 186 | leads the Mandate; the largest existing roster grows by the least share |
+| **Greek** (Olympians, their oracles, heroes and sworn champions) | 80 | 105 | the thinnest roster grows the most; leads Sworn |
+| **Beastkin** | 65 | 97 | the tribe, a lord and payoff in every colour, the new legend's colours |
+| **Neutral** (colourless artifacts, the set's few multi-roster spells) | 20 | | no lands (the reserve takes only basics and duals; First Dawn printed none) |
 
 **Faction subtypes stay as they are.** Wei, Shu, Wu and Jin are Axes today
 (`src/data/axes.ts`); Olympian and God are Axes; Beastkin is an Axis. The
@@ -153,7 +161,7 @@ Non-officer Three Kingdoms cards may carry no faction subtype, as the base set's
 Nanman do.
 
 **Greek mortals need a subtype.** 22 of Greek's 25 cards are Gods. Growing
-Greek to 110 means oracles, heroes and priestesses, and they need a shared
+Greek to 105 means oracles, heroes and priestesses, and they need a shared
 subtype (Hero or Oracle, beside Human) so the Axis rules, the ledger and
 Sworn-adjacent payoffs can see them. *Recommended*: decided at the overplan,
 with no new Axis unless three rows pay it off.
@@ -164,7 +172,8 @@ Mandate, Greek leads Sworn, Beastkin leads neither and steals the Mandate
 
 ## 4. Size and rarity
 
-**Proposed: 250 at the cut, overplanned to about 320** (Drowned Deep's
+**Ruled: aim for 250, flexing up to about 275 if the pitched cards are
+strong** (the owner, 2026-10-08). **Overplanned to about 320** (Drowned Deep's
 precedent, 250 overplanned to 320; Duat shipped 245, Drowned Deep 252). The
 spine says 250+; the ledger does not argue for more, because the gaps it
 names fit in 250. The count stays the owner's at the cut (P7), with one
@@ -262,6 +271,10 @@ Mandate, is question 6a in section 13.)
 three or four enablers, and a Limited deck often none, so Sworn would read as
 free upside for Darlings alone. Six cheap legendary commons (sworn
 champions, mana value 2 to 3) give Standard and Limited a real enabler rate.
+**Ruled (the owner, 2026-10-08): Sworn Champions are legendary in every way**
+(the supertype, the legend rule, Sworn, legend payoffs) **except the visual
+crown**: their frame does not show the legendary crown, so they read as
+commons. That is a small render flag on the card, not a new supertype.
 The lab reports Sworn's active rate by turn in each format, and Sworn is
 costed at Standard's rate.
 
@@ -465,9 +478,10 @@ and **no row is costed until it is picked**: the owner ruled that the
 rescore always waits for the new number, with no fallback to 20 (P17), so
 the life study sits on this set's critical path. What the brief does about it now:
 
-- **A real top end**: about 40 cards at mana value 5 or more in the 250 (16%,
-  against the rosters' 11% today), with at least four per colour, so the
-  longer games the change buys have something to cast.
+- **A real top end**: ruled at about 54 cards at mana value 5 or more in the
+  250 (22%, in line with Duat and Drowned Deep; this brief first proposed
+  40), with at least four per colour, so the longer games the change buys
+  have something to cast (the owner, 2026-10-08).
 - **Concentrate that top end at mana value 5 and 6.** The life study
   (`plans/2.0/life-study-d1.md`, recommending 25 life, the owner's pick
   pending) found spells costing 7 or more are almost never cast at any
@@ -518,14 +532,13 @@ Each leads with the recommendation.
 1. **The world: the fallen Mandate** (section 1): every realm reaching for a
    Mandate of Heaven that can be held and taken. Alternative: the base
    set's world as it is, with the Mandate as a rule rather than a story.
-2. **Split the 250 as Three Kingdoms 95, Greek 85, Beastkin 55 and 15
-   neutral** (section 3). The alternative is an equal return of about 80
-   each.
+2. **Ruled: Three Kingdoms 85, Greek 80, Beastkin 65 and 20 neutral**
+   (section 3).
 3. **Let Three Kingdoms lead the Mandate, Greek lead Sworn, and Beastkin
    steal the Mandate.** The alternative spreads both hooks evenly.
 4. **Cut to 250 from about 320 candidates**, with 123 commons, 75 rares, 23
-   SR, 17 SSR and 12 UR (section 4). Ruled floor: every keyword and named
-   mechanic stays, even past 250.
+   SR, 17 SSR and 12 UR (section 4). Ruled: aim for 250, flex to about 275
+   for strong cards, and every keyword and named mechanic stays.
 5. **Sworn's colours: white, red and green primary (the Peach Garden),
    black secondary (the Styx)**; the Mandate's blue and black primary
    (section 5).
@@ -544,6 +557,7 @@ Each leads with the recommendation.
    its name.
 8. **Print 34 new legends**, including legendary Meng Huo, Hestia and
    Zhurong, a B/R legend and six common sworn champions (sections 6 and 7).
+   The Sworn Champions are ruled (no visual crown); the count of 34 is open.
 9. **Ruled (P13): the Jade Rabbit, W/U.** Still open: her name. The
    recommendation is **Yutu, Jade Rabbit of the Moon Palace** (section 8).
 10. **Do not reprint Guan Yu or Persephone** (section 7).
@@ -556,11 +570,9 @@ Each leads with the recommendation.
     2.0, since mobile and Story ride beside the set.
 14. **Add two sweep personas, U/R and B/G** (section 12).
 15. **Add one theme deck, W/U Beastkin under the Jade Rabbit** (section 12).
-16. **Keep cards costing 7 or more to about six in the 250, rare and above,
-    with most of the top end at 5 and 6** (section 11). The life study
-    shows 7+ spells are rarely cast even at 30 life, so cost is the lever,
-    not life. The alternative is a cost-reduction mechanic (say, cheaper
-    while you hold the Mandate) so a few big cards stay big but castable.
+16. **Ruled: about six cards at 7 or more, rare and above, with most of
+    the 54-card top end at 5 and 6** (section 11; the owner approved the
+    cost-scaling guidance, 2026-10-08).
 
 **FYI, no ruling needed now:** every name is a working name until the cut;
 the art register (section 14) is an outline for the art bible, written after
