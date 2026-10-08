@@ -567,11 +567,12 @@ Each leads with the recommendation.
    Lady Gan for G/W and six common sworn champions (sections 6 and 7). No
    legendary Meng Huo, Zhurong or Hestia; new characters take those slots.
    The Sworn Champions have no visual crown.
-9. **Ruled (P13): the Jade Rabbit, W/U.** Still open: her name. The
-   recommendation is **Yutu, Jade Rabbit of the Moon Palace** (section 8).
-10. **Do not reprint Guan Yu or Persephone** (section 7).
-11. **Ruled: all 13 keywords and 18 mechanics are in the set.** Still open:
-    where each lands; the recommendation is the cameo map (section 9).
+9. **Ruled (P13): the Jade Rabbit, W/U, named Yutu** (section 8; her name
+   came with the overplan's approved Beastkin legend names).
+10. **Ruled: no reprint of Guan Yu or Persephone** (section 7; the owner
+    ruled no repeated characters from earlier sets, with no exceptions).
+11. **Ruled: all 13 keywords and 18 mechanics are in the set**, placed by
+    the overplan's protected floors (section 9).
 12. **Offer the fallen Mandate to Story Mode as its premise.** The owner's
     call in the same sitting as Story's premise direction.
 13. **Grow the tower by one rung, R29, the Usurper (B/R)** (section 12).
