@@ -53,8 +53,9 @@ the new starting life number, with no 20-life fallback (P17)**, so the life
 study is on this set's critical path; the difficulty retune comes after the
 life change, in wave 4 (P14).
 
-**What waits on the owner:** the brief's own questions and the starting life
-number itself (lane D), which every cost waits on.
+**Starting life is 25** (D2, picked by the owner 2026-10-08 from the life
+study); every cost is measured there. **What waits on the owner:** the
+brief's remaining questions.
 
 ## Goal
 
@@ -281,8 +282,8 @@ replay log) was the alternative to P6 and is not built.
 
 ## Balance and measurement
 
-Nothing is costed until the starting life number is picked; every rate is
-measured at the new total. The order:
+Every rate is measured at the new starting life, 25 (D2, picked
+2026-10-08). The order:
 
 1. The overplan's rows carry provisional scores flagged **NEEDS MATH** for
    the Mandate and Sworn.
@@ -363,12 +364,9 @@ full list with recommendations.
   alternative).
 - **Roster nostalgia** produces redundant cards unless the ledger leads
   authoring and the duplicate comparator runs on every batch.
-- **The life study is on the critical path.** Every cost waits on the new
-  starting life number and the set is never costed at 20 (P17, the owner
-  chose to always wait). A late study delays the rescore, the cut and the
-  art run behind it. The guard is to start the study as soon as 1.9.0 is on
-  `main` and to do all the cost-free work (overplan, concretion audit,
-  engine, AI reads, art pilot) while it runs.
+- **The life study was on the critical path; cleared 2026-10-08.** The owner
+  picked 25 (D2), so the rescore can run. The set is never costed at 20
+  (P17).
 - **Expensive cards stay unplayed whatever the life total.** The life study
   measured spells at 7 or more cast about 0.3 a game even at 30 life, since
   Standard caps lands at 10. The set's costs are the lever: the top end sits

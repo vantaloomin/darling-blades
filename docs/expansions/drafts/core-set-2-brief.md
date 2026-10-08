@@ -49,9 +49,10 @@ the difficulty retune after the life change, in wave 4 (P14); and **the
 rescore always waits for the new starting life number, with no 20-life
 fallback (P17)**, which puts the life study on this set's critical path.
 
-**Still waiting:** the starting life number itself, picked from the life
-study. Nothing in this brief is costed, so nothing here moves when it lands;
-section 11 says what the set does with a higher total. The questions in
+**Starting life is 25** (D2, the owner picked it from the life study,
+2026-10-08). Costing can now begin at 25; nothing in this brief was costed,
+so nothing here moves. Section 11 says what the set does with the higher
+total. The questions in
 section 13 are the brief's own.
 
 **Terms used below.** The *overplan* is the long list of candidate cards
@@ -480,22 +481,19 @@ which the overplan meets and the cut protects:
 Pool counts are cut constraints, protected like First Dawn's source
 minimums. Act 1's rewards draw on the same pools.
 
-## 11. With starting life above 20
+## 11. With starting life at 25
 
 The owner aimed the life change at 2.0 with this set ("If we are never
 getting to even playing 10 lands, a lot of our most expensive cards are never
-being played", 2026-09-29). The number is picked in the same wave-1 sitting,
-and **no row is costed until it is picked**: the owner ruled that the
-rescore always waits for the new number, with no fallback to 20 (P17), so
-the life study sits on this set's critical path. What the brief does about it now:
+being played", 2026-09-29). **The owner picked 25 on 2026-10-08** (D2),
+from the life study. Every row is costed at 25, never at 20 (P17). What the brief does about it now:
 
 - **A real top end**: ruled at about 54 cards at mana value 5 or more in the
   250 (22%, in line with Duat and Drowned Deep; this brief first proposed
   40), with at least four per colour, so the longer games the change buys
   have something to cast (the owner, 2026-10-08).
 - **Concentrate that top end at mana value 5 and 6.** The life study
-  (`plans/2.0/life-study-d1.md`, recommending 25 life, the owner's pick
-  pending) found spells costing 7 or more are almost never cast at any
+  (`plans/2.0/life-study-d1.md`, which led to the pick of 25) found spells costing 7 or more are almost never cast at any
   total, about 0.3 a game even at 30 life, because Standard caps a player
   at 10 lands. Longer games alone will not get them played; their costs
   will. So the set prints few cards at 7 or more, only at rare and above,
@@ -587,7 +585,7 @@ Each leads with the recommendation.
 
 **FYI, no ruling needed now:** every name is a working name until the cut;
 the art register (section 14) is an outline for the art bible, written after
-the cut; the costing waits for the life number and the Mandate lab.
+the cut; the costing runs at 25 life and waits on the Mandate lab.
 
 ## 14. Art direction, in outline
 
