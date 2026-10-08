@@ -31,7 +31,6 @@ import {
   STATS_ROW_NOTE_DEVELOPMENT,
   STATS_ROW_NOTE_PLAIN,
   STATS_SECTION_TITLE,
-  STATS_SETTINGS_ROW,
   createStatsNoticeController,
   menuArrivalSteps,
   stampStatsNotice,
@@ -43,7 +42,6 @@ import {
   statsNoticeOwed,
   statsNoticeShellHeight,
   statsNoticeToggleCenterX,
-  statsPanelButtonCenterX,
   statsPanelColumns,
   statsPanelMaxScroll,
   statsRowNoteKind,
@@ -485,29 +483,6 @@ describe('the stamp', () => {
     expect(written).toBeLessThan(order.indexOf('acknowledge'));
     expect(target.touch).toHaveBeenCalledTimes(1);
     expect(target.acknowledge).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe('the Settings row layout', () => {
-  // The row's y, label and caption follow the Settings rhythm and are held to
-  // the layout rules in every text-size cell by tests/ui/settingsPresentation.test.ts;
-  // only the x placement of its button is this module's.
-  it('places the panel button clear of the toggle at every plausible width', () => {
-    const toggleRight = STATS_SETTINGS_ROW.toggleX + STATS_SETTINGS_ROW.toggleHitHalfWidth;
-    for (let hitWidth = theme.control.minHitWidth; hitWidth <= 130; hitWidth += 2) {
-      const center = statsPanelButtonCenterX(hitWidth);
-      expect(center - hitWidth / 2, `gap at ${hitWidth}`).toBeGreaterThanOrEqual(
-        toggleRight + STATS_SETTINGS_ROW.minControlGap,
-      );
-      // Still inside the panel (70 + 540 = 610), never past its edge.
-      expect(center + hitWidth / 2, `edge at ${hitWidth}`).toBeLessThanOrEqual(610);
-    }
-  });
-
-  it('right-aligns the button to the panel inset when there is room', () => {
-    expect(statsPanelButtonCenterX(theme.control.minHitWidth)).toBe(
-      STATS_SETTINGS_ROW.buttonRightX - theme.control.minHitWidth / 2,
-    );
   });
 });
 

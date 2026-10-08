@@ -602,41 +602,14 @@ export function statsNoticeFooterCenters(
 // ---------------------------------------------------------------------------
 
 /**
- * The Privacy row's controls in the Settings scene's Game tab, left column.
- * Only its x positions live here: its y, its label and its caption follow
- * the scene's shared rhythm at build time (settingsPresentation.ts), so the
- * row reads the text size in force like every other row.
+ * The Privacy row's "What is sent" button in the Settings scene's Game tab.
+ * Its x is placed by the scene's shared right-aligned rule and its y follows
+ * the shared rhythm (settingsPresentation.ts), like every other row.
  */
 export const STATS_SETTINGS_ROW = {
-  /** The left column's shared control track, shared with every other toggle. */
-  toggleX: 420,
-  /** Half of `theme.control.minHitWidth`; the toggle is at the 90px floor. */
-  toggleHitHalfWidth: 45,
-  /** The panel's right text inset, mirroring the 40px inset at the left. */
-  buttonRightX: 570,
   /** Enough for the label at caption size plus the shared button padding. */
   buttonMinWidth: 96,
-  /** Isolation space between two inflated hit rectangles. */
-  minControlGap: 8,
 } as const;
-
-/**
- * Where the "What is sent" button's centre goes once its hit width is measured.
- *
- * Right-aligned to the panel's text inset, and pushed right if that would put
- * it within the isolation gap of the toggle. Measure-then-place: the label's
- * rendered width is font-fallback dependent on Windows (playbook trap), so the
- * scene measures the real button and asks this function where to put it.
- */
-export function statsPanelButtonCenterX(hitWidth: number): number {
-  const rightAligned = STATS_SETTINGS_ROW.buttonRightX - hitWidth / 2;
-  const clearOfToggle =
-    STATS_SETTINGS_ROW.toggleX +
-    STATS_SETTINGS_ROW.toggleHitHalfWidth +
-    STATS_SETTINGS_ROW.minControlGap +
-    hitWidth / 2;
-  return Math.max(rightAligned, clearOfToggle);
-}
 
 /**
  * The "What is sent" modal. Wider and taller than the game's other dialogs
