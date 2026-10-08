@@ -1812,8 +1812,8 @@ export function spellTargetedBodyImpact(view: PlayerView, db: CardDb, cardId: st
 
 /** What `cardValue` counts for a spell's ops that name no target (Ember-Flick's
  * Foresee, a removal spell's draw), at the printed rates (`opImpactValue`).
- * A caller that values a cast by its targets alone (Medium's removal worth,
- * the Hunt policy's options) adds this so the rest of the card is not worth 0
+ * A caller that values a cast by its targets alone (Medium's removal worth)
+ * adds this so the rest of the card is not worth 0
  * to it (1.9.1). 0 for a creature or a permanent. */
 export function spellUntargetedBodyImpact(view: PlayerView, db: CardDb, cardId: string, mode: SpellMode = {}): number {
   const d = def(db, cardId);

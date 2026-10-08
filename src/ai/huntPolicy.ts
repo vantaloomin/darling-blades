@@ -5,7 +5,7 @@ import type { CardDb, CardDef, EffectOp, Permanent, TargetRef } from '../engine/
 import { activatedAbilitiesOf, def, flatOps, isType } from '../engine/types';
 import type { PlayerView } from '../engine/view';
 import { targetChoiceValue, vocabularyCastTargetValue } from './targeting';
-import { activateActionValue, arrivalHuntCastValue, boundCastEffects, castSpellOps, spellTargetsValue, spellUntargetedBodyImpact } from './value';
+import { activateActionValue, arrivalHuntCastValue, boundCastEffects, castSpellOps, spellTargetsValue } from './value';
 
 /**
  * Medium and Easy's own Hunt and Provoked policy (plan-first-dawn-engine.md,
@@ -146,11 +146,12 @@ export function huntOptionValue(view: PlayerView, db: CardDb, action: Action): n
   switch (action.type) {
     case 'castSpell': {
       const cardId = castCardId(view, action);
-      // The ops that name no target (Ember-Flick's Foresee) come with every
-      // target, so they matter only against not acting (1.9.1).
-      return (vocabularyCastTargetValue(view, db, action) ?? spellTargetsValue(view, db,
-        castSpellOps(db, cardId, action, view), action.targets ?? [], false, action.x ?? 0, cardId)) +
-        spellUntargetedBodyImpact(view, db, cardId, action);
+      // The ops that name no target (Ember-Flick's Foresee) are left out:
+      // every target of the cast gets them, so they cancel against a plain
+      // target, and against not acting the Provoked alone must net the card
+      // (A2.b; 1.9.1 review).
+      return vocabularyCastTargetValue(view, db, action) ?? spellTargetsValue(view, db,
+        castSpellOps(db, cardId, action, view), action.targets ?? [], false, action.x ?? 0, cardId);
     }
     case 'castDarling':
       return arrivalHuntCastValue(view, db, castCardId(view, action), action.targets ?? []);

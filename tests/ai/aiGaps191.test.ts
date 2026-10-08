@@ -79,9 +79,18 @@ describe('gap 1: Medium aims Ember-Flick at its own Provoked creature when it pa
   it('holds it when our 4/4 has no Provoked, or when the Provoked does not pay for the card', () => {
     const plain = gameOf([{ iid: 1, cardId: 'plain_brawler' }, theirs(5, 'ogre')], ['fd-ember-flick'], theirEndStep);
     expect(decide(plain, medium())).toEqual({ type: 'passResponse' });
-    // Hot-Blooded's Provoked deals 1 to the opponent: less than a card.
-    const small = gameOf([{ iid: 1, cardId: 'fd-hot-blooded' }, theirs(5, 'ogre')], ['fd-ember-flick'], theirEndStep);
-    expect(decide(small, medium())).toEqual({ type: 'passResponse' });
+    // Hot-Blooded's Provoked deals 1 to the opponent: less than a card. With
+    // no other target, the Foresee rider (0.9 + 0.5 = 1.4 over the 1.25
+    // margin) must not pay for it: the Provoked alone has to net the card.
+    for (const board of [[{ iid: 1, cardId: 'fd-hot-blooded' }, theirs(5, 'ogre')], [{ iid: 1, cardId: 'fd-hot-blooded' }]]) {
+      const small = gameOf(board, ['fd-ember-flick'], theirEndStep);
+      expect(decide(small, medium())).toEqual({ type: 'passResponse' });
+    }
+  });
+
+  it('flicks its own Brawler with no other target on the board', () => {
+    const game = gameOf([{ iid: 1, cardId: 'fd-rage-kin-brawler' }], ['fd-ember-flick'], theirEndStep);
+    expect(decide(game, medium())).toEqual({ type: 'castSpell', handIndex: 0, targets: [ref(1)] });
   });
 
   it("holds it on Cinder-Crest at the opponent's end step: its +2/+0 ends at cleanup unused", () => {
@@ -99,12 +108,15 @@ describe('gap 1: Medium aims Ember-Flick at its own Provoked creature when it pa
 
 describe("gap 2: a removal Charm's Foresee counts toward Medium's removal bar", () => {
   it("kills a 3/1 worth 3.0 with Ember-Flick at the opponent's end step, where the Foresee-less copy holds", () => {
-    // Medium's instant-speed removal bar is 3.5; the Foresee 1 rider is worth
-    // 0.5 at the value layer's rate (opImpactValue: 0.5 a card).
+    // Medium's instant-speed removal bar is 3.5 plus `removalBias`; at -0.25
+    // it is 3.25, a quarter clear of both sides: the kill alone (3.0) stays
+    // under it and the kill with the Foresee 1 rider (0.5 at the value layer's
+    // rate, opImpactValue's 0.5 a card) clears it.
+    const brain = (): MediumAI => new MediumAI(DB, makePersonality({ removalBias: -0.25 }));
     const withForesee = gameOf([theirs(5, 'glass')], ['fd-ember-flick'], theirEndStep);
-    expect(decide(withForesee, medium())).toEqual({ type: 'castSpell', handIndex: 0, targets: [ref(5)] });
+    expect(decide(withForesee, brain())).toEqual({ type: 'castSpell', handIndex: 0, targets: [ref(5)] });
     const without = gameOf([theirs(5, 'glass')], ['plain_flick'], theirEndStep);
-    expect(decide(without, medium())).toEqual({ type: 'passResponse' });
+    expect(decide(without, brain())).toEqual({ type: 'passResponse' });
   });
 });
 

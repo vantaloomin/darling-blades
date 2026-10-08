@@ -283,7 +283,7 @@ function lethalScreen(view: PlayerView, sdb: CardDb, action: ActivateAction, con
  */
 const DAMAGE_TO_US_RATE = 0.9;
 
-const LOST_BLOCK_CACHE = new WeakMap<PlayerView, WeakMap<CardDb, Map<string, number>>>();
+const LOST_BLOCK_CACHE = new WeakMap<PlayerView, WeakMap<CardDb, WeakMap<Personality, Map<number, number>>>>();
 
 /**
  * What tapping our creature `iid` on our own turn costs at the opponent's
@@ -300,10 +300,11 @@ const LOST_BLOCK_CACHE = new WeakMap<PlayerView, WeakMap<CardDb, Map<string, num
 export function lostBlockCost(view: PlayerView, db: CardDb, iid: number, pers: Personality): number {
   let byDb = LOST_BLOCK_CACHE.get(view);
   if (!byDb) LOST_BLOCK_CACHE.set(view, byDb = new WeakMap());
-  let memo = byDb.get(db);
-  if (!memo) byDb.set(db, memo = new Map());
-  const key = `${iid}|${JSON.stringify(pers)}`;
-  const known = memo.get(key);
+  let byPers = byDb.get(db);
+  if (!byPers) byDb.set(db, byPers = new WeakMap());
+  let memo = byPers.get(pers);
+  if (!memo) byPers.set(pers, memo = new Map());
+  const known = memo.get(iid);
   if (known !== undefined) return known;
   const me = view.myId;
   const opp = opponentOf(me);
@@ -312,13 +313,27 @@ export function lostBlockCost(view: PlayerView, db: CardDb, iid: number, pers: P
     ...(perm.controller === opp ? { tapped: false, enteredThisTurn: false } : {}),
     ...(perm.iid === iid ? { tapped: true } : {}),
   }));
+  const untapped = tapped.map((perm) => perm.iid === iid ? { ...perm, tapped: false } : perm);
+  // Cheap screens, before any planner runs: a creature of theirs that could
+  // swing (Attack above 0, no Bulwark) and that `iid` could block alone and
+  // live through. Without one there is no safe block to lose.
+  if (!untapped.some((perm) => {
+    if (perm.controller !== opp || !isType(def(db, perm.cardId), 'creature')) return false;
+    const stats = getEffectiveStats(untapped, db, perm.iid);
+    if (stats.attack <= 0 || stats.keywords.has('bulwark') || !canBlock(untapped, db, me, iid, perm.iid)) return false;
+    const alone = { attackers: [perm.iid], blocks: [{ blocker: iid, attacker: perm.iid }],
+      phase: 'blockersDeclared' as const, damagePrevented: false };
+    return !combatForecast(untapped, db, alone).dying.includes(iid);
+  })) {
+    memo.set(iid, 0);
+    return 0;
+  }
   let prevented = 0;
   const attackers = chooseAttackers(tapped, db, opp, view.you.life, 0, view.opp.life);
   if (attackers.length > 0) {
     const declared = { attackers, blocks: [], phase: 'attackersDeclared' as const, damagePrevented: false };
     const blocks = chooseBlocks(tapped, db, me, view.you.life, declared, 0, pers);
     const combat = { ...declared, blocks, phase: 'blockersDeclared' as const };
-    const untapped = tapped.map((perm) => perm.iid === iid ? { ...perm, tapped: false } : perm);
     const before = combatForecast(untapped, db, combat).damage;
     for (const attacker of attackers) {
       if (blocks.some((block) => block.attacker === attacker)) continue;
@@ -329,7 +344,7 @@ export function lostBlockCost(view: PlayerView, db: CardDb, iid: number, pers: P
     }
   }
   const cost = prevented * DAMAGE_TO_US_RATE;
-  memo.set(key, cost);
+  memo.set(iid, cost);
   return cost;
 }
 

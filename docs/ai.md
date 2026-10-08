@@ -478,6 +478,15 @@ back twice, where low-life boards do run screens: Medium 33-34 ms a game
 before G9, 46-47 without the screen, 57-61 with it; Hard 146-147, 165-173
 and 184-193.
 
+**Cost, 1.9.1 (the lost blocker).** Medium's main-two decision with four
+Salvage Divers (tap Duty) against four of their creatures, mean of 400
+decisions on a shared machine: 0.12 ms before 1.9.1 and 1.1-1.2 ms with
+`lostBlockCost` against 2/2s, which each Diver blocks safely, so their
+attack is planned once per Diver. The screens run first and skip the
+planners when no creature of theirs could swing (0/4 walls: 0.08 to 0.09
+ms) or none could be blocked safely by that Diver alone (5/5s: 0.05 to
+0.14 ms). It runs in Hard's rollouts through its Medium too.
+
 **Exposure, 2026-09-25 (usage counts, not win rates).** No starter reserve
 build and no gauntlet `reserveDeck` carries a paid Duty or any tapper Duty,
 and the two brain gates play the TEST_DB decks, so every gate in
@@ -589,9 +598,11 @@ creature. Each claim is pinned in `tests/ai/huntPolicyA2b.test.ts` and
   own creature is cast only when the Provoked it sets off nets a card, and a
   hunter takes its own Provoked creature over the opponent's only when that
   is better by a card. The margin is untuned: no lab arm measures Medium.
-  **As built (1.9.1):** a spell's options also carry the ops that name no
-  target (`spellUntargetedBodyImpact`: Ember-Flick's Foresee), which matter
-  only against not acting. Medium casts a kept friendly source at the
+  **As built (1.9.1):** the margin is judged on the target-bound value alone.
+  A rider that names no target (Ember-Flick's Foresee) comes with every
+  target, so it never pays for the friendly choice: the Provoked must net
+  the card by itself (Hot-Blooded's 1 to the face does not, even with no
+  other target). Medium casts a kept friendly source at the
   opponent's end step (Ember-Flick on its own Rage-Kin Brawler for the Pack
   Raptor). In an end step, damage a creature survives is worth nothing on
   either side, since it wears off at cleanup, and so is an until-Sunset

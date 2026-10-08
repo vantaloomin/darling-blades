@@ -1548,7 +1548,7 @@ The stock CLI runs every row in one process. The 4-worker sharded run took about
 
 - **AI gaps, logged for later: fixed in 1.9.1** ([ai.md](ai.md), "AI gaps logged in 1.9, as built (1.9.1)"; `tests/ai/aiGaps191.test.ts`):
   - Medium never aimed a target-creature damage spell at its own Provoked creature (Ember-Flick): fixed; it now flicks its own Provoked creature at the opponent's end step when that nets a card;
-  - Foresee was worth 0 to Medium: fixed; its removal worth and Hunt-policy options count a spell's untargeted ops at the printed rates;
+  - Foresee was worth 0 to Medium: fixed; its removal worth counts a spell's untargeted ops at the printed rates;
   - a creature Duty used in main phase two left its creature tapped: fixed; the safe block it loses at the next opposing attack is charged;
   - Festival Rocket activations net-negative in Medium's hands: not reproduced (activations +3.0 pp at 1,500 games), so no change.
 - **Numeral follow-ups: done.** The numerals gained a comma and a plus, so repeated picks ("1, 2"), the Mark "+2" badge (on a rounded plate) and the pile counts draw vector numerals too.
