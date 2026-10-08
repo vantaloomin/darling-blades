@@ -395,15 +395,19 @@ export class AchievementsScene extends Phaser.Scene {
       .setOrigin(originX, 0.5);
   }
 
-  /** Hall ⇄ List chips at the content's left edge; a bucket chip clears the wing scope. */
+  /** Hall ⇄ List chips on the content's left edge; a bucket chip clears the wing scope. */
   private drawViewToggle(): void {
-    (['hall', 'list'] as const).forEach((key, index) => {
-      roundedTrigger(this, CONTENT_X + 52 + index * 120, FILTER_Y, key === 'hall' ? 'Hall' : 'List', {
+    let left = CONTENT_X;
+    (['hall', 'list'] as const).forEach((key) => {
+      const chip = roundedTrigger(this, 0, FILTER_Y, key === 'hall' ? 'Hall' : 'List', {
         size: 'sm',
-        minWidth: 104,
+        minWidth: FILTER_W,
         selected: this.route.view === key,
         onTap: () => this.restartAt({ ...this.route, page: 0, view: key }),
       });
+      const width = chip.getMeasuredSize().visual.width;
+      chip.container.setX(left + width / 2);
+      left += width + FILTER_GAP;
     });
     if (this.route.view === 'list' && this.route.bucket !== 'all') {
       // Right-aligned on the content edge (its left edge sat at 1120, which

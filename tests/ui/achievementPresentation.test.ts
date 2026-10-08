@@ -62,8 +62,8 @@ describe('hallWingFrames', () => {
     const frames = hallWingFrames();
     expect(frames).toHaveLength(5);
     for (const frame of frames) {
-      expect(frame.x).toBeGreaterThanOrEqual(72);
-      expect(frame.x + frame.w).toBeLessThanOrEqual(1208);
+      expect(frame.x).toBeGreaterThanOrEqual(64);
+      expect(frame.x + frame.w).toBeLessThanOrEqual(1216);
       expect(frame.y + frame.h).toBeLessThanOrEqual(660);
     }
     for (let i = 0; i < frames.length; i++) {
@@ -187,7 +187,7 @@ describe('the measured goal list', () => {
     expect(row).toEqual({ height: 50, titleTop: 5.5, goalTop: 27.5 });
     const list = achievementListLayout(row.height);
     expect([list.rowsPerColumn, list.perPage, list.pitch]).toEqual([8, 16, 56]);
-    expect([list.cell(0), list.cell(8)]).toEqual([{ x: 72, y: 196 }, { x: 72 + 552 + 32, y: 196 }]);
+    expect([list.cell(0), list.cell(8)]).toEqual([{ x: 64, y: 196 }, { x: 64 + 560 + 32, y: 196 }]);
   });
 
   it('keeps a wing plinth inside its wing and below the wing summary in every accessibility cell', () => {
