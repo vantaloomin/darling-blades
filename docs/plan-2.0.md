@@ -417,16 +417,16 @@ Each has a recommendation. None is ruled.
 | **P1** | What the priority order means when 2.0 runs long | It is the cut order: the retune, then full Story Mode, move to 2.0.x first. The minimum is Core Set II with Oath, the Mandate, mobile and bug fixes |
 | **P2** | When itch.io launches | A 2.0.x, once 2.0 is stable on the site. The itch build target and its CI gate land in 2.0 behind a flag |
 | **P3** | 1.9.x before 2.0 | Ship the 1.9.x patch (near-duplicates, backfill, full sweep, re-gated floors) before 2.0's wave 2 |
-| **P4** | Core Set II's July overplan | Retire it and author fresh, as Drowned Deep and First Dawn did; keep it as a candidate pool |
+| **P4** | Core Set II's July overplan | **RULED 2026-10-08: retire it.** Author fresh, as Drowned Deep and First Dawn did; keep it as a candidate pool |
 | **P5** | The marker's name | "The Mandate" everywhere; drop "the Crown" |
 | **P6** | Oath's semantic | Active while you control any legendary creature |
-| **P7** | Set key and size | `core-set-2`; the size from the coverage ledger at the cut, 250+ per the spine |
+| **P7** | Set key and size | **RULED 2026-10-08: as recommended.** `core-set-2`; the size from the coverage ledger at the cut, 250+ per the spine |
 | **P8** | Floors under the life change | One approved re-baseline at the new life total, then ratchet up as before |
 | **P9** | What "Act 1 + endless" contains | Act 1 complete with all three characters and the unlock chain; endless as generated maps with scaling bosses, plus a daily seed; no keeps in endless |
 | **P10** | Save changes | One bump, v37, for Story; nothing else adds a field unless it rides it |
-| **P11** | Mobile scope | Landscape only, automatic layout, browser only (no PWA or store package), art-first phone card face (a) |
+| **P11** | Mobile scope | **RULED 2026-10-08: as recommended.** Landscape only, automatic layout, browser only (no PWA or store package), art-first phone card face (a). Settles the mobile plan's M1-M4 |
 | **P12** | Story voice (R7, TBD) | None at 2.0 |
-| **P13** | The new Beastkin legend | A blue-inclusive pair with a Beastkin anthem, named in the identity brief; Yohime as the fallback if Core Set II slips |
+| **P13** | The new Beastkin legend | **RULED 2026-10-08: a Jade Rabbit (moon rabbit, Chang'e's myth), U/W**, leading a Beastkin anthem. The owner turned down sky, bat, spider and serpent species and asked for something in the vein of the feline and canine Beastkin. Name in the brief; Yohime as the fallback if Core Set II slips. Settles the brief's question 9 |
 | **P14** | The difficulty retune | After the life change, measured against a human (play stats or the owner's runs); 2.0.x if it slips |
 | **P15** | The life study's pool | Start it on 1.9.0 without waiting for 1.9.x; its readings are re-taken in the end-of-train measurement |
 | **P16** | Replay versions | One `REPLAY_LOG_VERSION` bump (16 to 17) shared by the Mandate, the life field and Story |
