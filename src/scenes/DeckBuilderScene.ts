@@ -73,6 +73,8 @@ import { showDarlingsTutorial } from '../ui/DarlingsTutorial';
 import { computeDeckStats, curveBars, deckCountsLine, deckPipCounts, PIE_COLORS } from '../ui/deckStats';
 import {
   DECK_PANE_LAYOUT,
+  deckListPagerPosition,
+  deckPaneTabRow,
   deckPickerLayout,
   deckPaneHeaderLayout,
   deckPaneSummaryLayout,
@@ -808,7 +810,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       this.cells.push(thumb);
       const inDeck = this.countIn(this.deck, d.id);
       const badge = this.add
-        .text(x + grid.badgeOffsetX, y + grid.badgeOffsetY, inDeck + '/' + Math.min(this.copyLimit(), ownedCount(save, d.id)), {
+        .text(x + grid.badgeRightX, y + grid.chipTopY, inDeck + '/' + Math.min(this.copyLimit(), ownedCount(save, d.id)), {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           fontStyle: '700',
@@ -816,14 +818,14 @@ export class DeckBuilderScene extends Phaser.Scene {
           backgroundColor: theme.colors.panelFill,
           padding: { x: 6, y: 2 },
         })
-        .setOrigin(0.5);
+        .setOrigin(1, 0);
       this.cells.push(badge);
       // Add-a-playset chip (top-left corner) — one tap fills this card to the
       // cap. Shown only when ≥2 are addable (a single card tap already adds one).
       const addable = Math.min(this.copyLimit(), ownedCount(save, d.id)) - inDeck;
       if (addable > 1) {
         const addAll = this.add
-          .text(x + grid.chipOffsetX, y + grid.badgeOffsetY, `+${addable}`, {
+          .text(x + grid.chipLeftX, y + grid.chipTopY, `+${addable}`, {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.caption}px`,
             fontStyle: '700',
@@ -831,7 +833,7 @@ export class DeckBuilderScene extends Phaser.Scene {
             backgroundColor: theme.colors.panelFill,
             padding: { x: 6, y: 2 },
           })
-          .setOrigin(0.5)
+          .setOrigin(0, 0)
           .setInteractive({ useHandCursor: true });
         bindTapButton(this, addAll, () => this.addPlayset(d.id));
         inflateHitArea(addAll, grid.chipHitWidth, grid.chipHitHeight);
@@ -1601,13 +1603,29 @@ export class DeckBuilderScene extends Phaser.Scene {
         color: retired ? theme.colors.danger : theme.colors.muted,
       }).setOrigin(0, 0.5),
     );
-    tabs.forEach((choice, index) => {
-      const button = themedButton(this, layout.tabFirstX + index * layout.tabPitch, layout.y, formatLabel(choice), {
-        variant: choice === format ? 'primary' : 'ghost',
-        size: 'sm',
-        minWidth: layout.tabMinWidth,
-        onTap: () => this.selectFormat(choice),
-      });
+    const buttons = tabs.map((choice) => themedButton(this, 0, layout.y, formatLabel(choice), {
+      variant: choice === format ? 'primary' : 'ghost',
+      size: 'sm',
+      minWidth: layout.tabMinWidth,
+      onTap: () => this.selectFormat(choice),
+    }));
+    this.placePaneTabs(buttons);
+  }
+
+  /** The Format and View rows' labels, measured: the shared tab column starts past the wider. */
+  private paneLabelWidth(): number {
+    const probe = this.add.text(0, 0, '', {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.type.micro}px`, fontStyle: theme.weight.w700,
+    });
+    const width = Math.max(...['Format', 'Classic', 'View'].map((label) => probe.setText(label).width));
+    probe.destroy();
+    return width;
+  }
+
+  private placePaneTabs(buttons: readonly ThemedButton[]): void {
+    const xs = deckPaneTabRow(this.paneLabelWidth(), buttons.map((b) => b.getMeasuredBounds().visual.width));
+    buttons.forEach((button, index) => {
+      button.container.setX(xs[index]);
       this.rightPane.push(button.container);
     });
   }
@@ -1624,7 +1642,7 @@ export class DeckBuilderScene extends Phaser.Scene {
         color: theme.colors.muted,
       }).setOrigin(0, 0.5),
     );
-    const cards = themedButton(this, layout.cardsX, y, 'Cards', {
+    const cards = themedButton(this, 0, y, 'Cards', {
       variant: state.cardsSelected ? 'primary' : 'ghost',
       size: 'sm',
       minWidth: layout.minWidth,
@@ -1633,7 +1651,7 @@ export class DeckBuilderScene extends Phaser.Scene {
         this.renderDeck();
       },
     });
-    const warchest = themedButton(this, layout.warchestX, y, state.warchestLabel, {
+    const warchest = themedButton(this, 0, y, state.warchestLabel, {
       variant: state.warchestSelected ? 'primary' : state.warchestWarning ? 'danger' : 'ghost',
       size: 'sm',
       minWidth: layout.minWidth,
@@ -1642,7 +1660,7 @@ export class DeckBuilderScene extends Phaser.Scene {
         this.renderDeck();
       },
     });
-    const style = themedButton(this, layout.styleX, y, 'Style', {
+    const style = themedButton(this, 0, y, 'Style', {
       variant: state.styleSelected ? 'primary' : 'ghost',
       size: 'sm',
       minWidth: layout.minWidth,
@@ -1651,7 +1669,7 @@ export class DeckBuilderScene extends Phaser.Scene {
         this.renderDeck();
       },
     });
-    this.rightPane.push(cards.container, warchest.container, style.container);
+    this.placePaneTabs([cards, warchest, style]);
   }
 
   /**
@@ -1870,8 +1888,9 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.rightPane.push(panel);
   }
 
-  private renderDeckPagers(pages: number): void {
-    const deckPager = pager(this, this.summaryLayout.pagerX, this.summaryLayout.pagerY, this.deckPage, pages, (page) => {
+  private renderDeckPagers(pages: number, lastRowBottom: number): void {
+    const at = deckListPagerPosition(lastRowBottom, this.summaryLayout);
+    const deckPager = pager(this, at.x, at.y, this.deckPage, pages, (page) => {
       this.deckPage = page;
       this.renderDeck();
     });
@@ -2761,7 +2780,14 @@ export class DeckBuilderScene extends Phaser.Scene {
         this.rightPane.push(minus.container);
       }
     });
-    if (pages > 1) this.renderDeckPagers(pages);
+    if (pages > 1) {
+      // The fullest page's last row, so the pager holds still across pages.
+      const lastRowBottom = Math.max(...layout.pages.map((page) => {
+        const last = page[page.length - 1];
+        return last ? last.y + Math.max(last.height, profile.rowPitch) / 2 : listY0;
+      }));
+      this.renderDeckPagers(pages, lastRowBottom);
+    }
   }
 
   /**

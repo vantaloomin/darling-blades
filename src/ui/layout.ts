@@ -580,6 +580,9 @@ function centeredRect(centerX: number, centerY: number, size: RectSize): Rect {
  * (2026-09-23), 34px outside the frame the design system reserves for
  * currency; the shared scene header already anchored it here.
  */
+/** The pager label's centre, from the pager's x: centre a pager at `cx - PAGER_CENTER_OFFSET`. */
+export const PAGER_CENTER_OFFSET = 51;
+
 export const HEADER_CURRENCY_ANCHOR: Readonly<Point> = {
   x: theme.design.safeRight,
   y: theme.design.headerCenterY,
