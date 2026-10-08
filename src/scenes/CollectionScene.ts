@@ -1089,7 +1089,7 @@ export class CollectionScene extends Phaser.Scene {
           row.text.setText(`${selected ? '▸ ' : '   '}${variantLabel(row.variant)}  ×${row.count}`)
             .setColor(selected ? theme.colors.gold : theme.colors.body);
           fitMenuName(row.text, rowTextWidth, 3);
-          row.pin.setVariant(pinnedKey === variantKey(row.variant) ? 'primary' : 'ghost');
+          row.pin.setVariant(pinnedKey === variantKey(row.variant) ? 'selected' : 'ghost');
         }
       };
       let variantPageControl: Pager | null = null;
@@ -1118,7 +1118,7 @@ export class CollectionScene extends Phaser.Scene {
             selectedKey = variantKey(entry.variant); presentVariant(entry.variant); restyle();
           });
           const pin = themedButton(this, columns.right - theme.control.minHitWidth / 2, y, '📌', {
-            variant: pinnedKey === variantKey(entry.variant) ? 'primary' : 'ghost', size: 'sm',
+            variant: pinnedKey === variantKey(entry.variant) ? 'selected' : 'ghost', size: 'sm',
             onTap: () => {
               if (ritualInProgress) return;
               const key = variantKey(entry.variant);
@@ -1175,7 +1175,7 @@ export class CollectionScene extends Phaser.Scene {
     x: number,
     y: number,
     label: string,
-    variant: 'primary' | 'emphasis' = 'emphasis',
+    variant: 'primary' | 'emphasis' | 'selected' = 'emphasis',
     onTap: (pointer: Phaser.Input.Pointer) => void,
   ): ThemedButton {
     const columns = collectionInspectColumns();
@@ -1214,7 +1214,7 @@ export class CollectionScene extends Phaser.Scene {
         panelX,
         0,
         heroLabel(),
-        save.heroCardId === d.id ? 'primary' : 'emphasis',
+        save.heroCardId === d.id ? 'selected' : 'emphasis',
         (pointer) => {
           if (isRitualInProgress()) return;
           heroVerb = pointer.wasTouch ? 'tap' : 'click';
@@ -1222,7 +1222,7 @@ export class CollectionScene extends Phaser.Scene {
           this.flushSave();
           Sfx.play('shimmer');
           heroBtn.setLabel(heroLabel());
-          heroBtn.setVariant(save.heroCardId === d.id ? 'primary' : 'emphasis');
+          heroBtn.setVariant(save.heroCardId === d.id ? 'selected' : 'emphasis');
         },
       );
       heroBtn.setLabel(`★ Default hero (${heroVerb} to clear)`);

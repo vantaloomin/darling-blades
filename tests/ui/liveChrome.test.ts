@@ -31,7 +31,7 @@ afterEach(() => {
   setAccessibility({ textScale: 1, highContrast: false });
 });
 
-const VARIANTS: readonly ThemedButtonVariant[] = ['primary', 'emphasis', 'ghost', 'danger'];
+const VARIANTS: readonly ThemedButtonVariant[] = ['primary', 'emphasis', 'ghost', 'danger', 'selected'];
 const SIZES: readonly ControlSize[] = ['sm', 'md'];
 
 /**
@@ -43,6 +43,9 @@ const RELEASE_1_9_BUTTON_STYLE: Record<ThemedButtonVariant, { bg: string; fg: st
   emphasis: { bg: '#2c2344', fg: '#ffd88a', stroke: '#4a3f6e', hoverStroke: '#ffd700' },
   ghost: { bg: '#241d3a', fg: '#c9bde0', stroke: '#4a3f6e', hoverStroke: '#ffd700' },
   danger: { bg: '#3a1f28', fg: '#f0b0a0', stroke: '#f08a8a', hoverStroke: '#f0b0a0' },
+  // Added 2026-10-08 (the selection language): the on state of a toggle,
+  // segment or tab, filled but never in the primary action's gold.
+  selected: { bg: '#2c2344', fg: '#ffd88a', stroke: '#ffd88a', hoverStroke: '#f0e6ff' },
 };
 
 describe('the shared button colours', () => {

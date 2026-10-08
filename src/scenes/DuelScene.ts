@@ -7331,41 +7331,41 @@ export class DuelScene extends Phaser.Scene {
     // Toggles fill when on, but never in gold: Resume is the menu's one
     // primary action (the selection language ruled 2026-10-08).
     const autoSkip = themedButton(this, 640, 326, `Auto-skip: ${onOff(s.autoSkip)}`, {
-      variant: s.autoSkip ? 'emphasis' : 'ghost',
+      variant: s.autoSkip ? 'selected' : 'ghost',
       minWidth: 220,
       onTap: (p) => {
         if (p.rightButtonReleased()) return;
         s.autoSkip = !s.autoSkip;
         Services.save.touch();
         autoSkip.setLabel(`Auto-skip: ${onOff(s.autoSkip)}`);
-        autoSkip.setVariant(s.autoSkip ? 'emphasis' : 'ghost');
+        autoSkip.setVariant(s.autoSkip ? 'selected' : 'ghost');
         if (s.autoSkip) this.maybeAutoSkip();
       },
     });
     c.add(autoSkip.container);
 
     const sfx = themedButton(this, 640, 376, `Sound: ${onOff(s.sfxOn)}`, {
-      variant: s.sfxOn ? 'emphasis' : 'ghost',
+      variant: s.sfxOn ? 'selected' : 'ghost',
       minWidth: 220,
       onTap: (p) => {
         if (p.rightButtonReleased()) return;
         s.sfxOn = !s.sfxOn;
         Services.save.touch();
         sfx.setLabel(`Sound: ${onOff(s.sfxOn)}`);
-        sfx.setVariant(s.sfxOn ? 'emphasis' : 'ghost');
+        sfx.setVariant(s.sfxOn ? 'selected' : 'ghost');
         if (s.sfxOn) Sfx.play('click');
       },
     });
     c.add(sfx.container);
 
     const music = themedButton(this, 640, 426, `Music: ${onOff(Music.enabled)}`, {
-      variant: Music.enabled ? 'emphasis' : 'ghost',
+      variant: Music.enabled ? 'selected' : 'ghost',
       minWidth: 220,
       onTap: (p) => {
         if (p.rightButtonReleased()) return;
         Music.setEnabled(!Music.enabled);
         music.setLabel(`Music: ${onOff(Music.enabled)}`);
-        music.setVariant(Music.enabled ? 'emphasis' : 'ghost');
+        music.setVariant(Music.enabled ? 'selected' : 'ghost');
       },
     });
     c.add(music.container);

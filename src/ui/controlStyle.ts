@@ -14,7 +14,12 @@ export function controlFontSize(size: ControlSize): number {
   return size === 'sm' ? theme.type.caption : theme.type.label;
 }
 
-export type ThemedButtonVariant = 'primary' | 'emphasis' | 'ghost' | 'danger';
+/**
+ * `selected` is the on state of a toggle, segment or tab (the selection
+ * language ruled 2026-10-08): a filled plate with a gold border and label,
+ * never the gold fill, which belongs to a screen's one primary action.
+ */
+export type ThemedButtonVariant = 'primary' | 'emphasis' | 'ghost' | 'danger' | 'selected';
 
 export interface ThemedButtonColors {
   bg: string;
@@ -39,6 +44,8 @@ export function themedButtonColors(variant: ThemedButtonVariant): ThemedButtonCo
       return { bg: c.btnGhostBg, fg: c.body, stroke: c.panelStroke, hoverStroke: c.goldHover };
     case 'danger':
       return { bg: c.dangerBg, fg: c.danger, stroke: c.dangerArmed, hoverStroke: c.danger };
+    case 'selected':
+      return { bg: c.rowFillActive, fg: c.gold, stroke: c.gold, hoverStroke: c.heading };
   }
 }
 

@@ -318,7 +318,7 @@ export function roundedTrigger(
     : null;
   let measurement = fixedMeasurement() ?? measureThemedButton(label.width, size, minWidth, padding);
   const activeStyle = (): ThemedButtonColors =>
-    themedButtonColors(selected && variant === 'ghost' ? 'emphasis' : variant);
+    themedButtonColors(selected && variant === 'ghost' ? 'selected' : variant);
   let placed = false;
   const redraw = (): void => {
     // Keep the trigger's visual left edge fixed when a hover/selection redraw
