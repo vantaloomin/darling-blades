@@ -5,8 +5,8 @@
 **Status 2026-10-08: DRAFT, decision M7 of
 [plan-mobile-overhaul.md](plan-mobile-overhaul.md).** Nothing here is ruled.
 The 1.8 draft asked for "a small named matrix before wave 1" and "no generic
-`mobile` label"; this is that list. It assumes P11's recommendation
-(landscape phones, browser only) and is marked where it depends on it.
+`mobile` label"; this is that list. It follows P11, ruled 2026-10-08 as recommended
+(landscape phones, browser only).
 
 ## The four levels
 
@@ -59,7 +59,7 @@ at the sitting), and **Android 10 or later with an up-to-date Chrome or Samsung
 Internet.** iOS 26 runs on the iPhone 11 and later, including the second and
 third generation SE.
 
-**Phones held upright** [P11]: the rotate screen, as today.
+**Phones held upright** (ruled, P11): the rotate screen, as today.
 
 ## Tablets (wide profile)
 

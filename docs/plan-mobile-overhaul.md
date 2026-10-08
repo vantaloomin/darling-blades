@@ -1,15 +1,15 @@
-<!-- source-of-truth: docs/mobile-support-matrix.md, docs/mobile-lan-plan.md, docs/plan-accessibility-i18n.md, docs/plan-art-streaming.md, docs/design-system.md, index.html, vite.config.ts, src/gameBoot.ts, src/platform/gestureCore.ts, src/platform/gestures.ts, src/platform/quality.ts, src/platform/renderScale.ts, src/platform/clientProfile.ts, src/ui/accessibility.ts, src/ui/theme.ts, src/ui/layout.ts, src/ui/duelLayout.ts, src/ui/SceneBackdrop.ts, src/art/ArtResolver.ts, src/art/artBudget.ts, src/config/cardFaceGeometry.ts, src/ui/handFan.ts, src/forge/scene.ts, src/dev/a11yProbe.ts, src/scenes/ · last-verified: 2026-10-08 · plan doc, DRAFT for the 2.0 wave-1 sitting: rewritten for 2.0 lane C; nothing below is ruled except what it quotes with a date; re-verify when the owner rules P11 or the M decisions, and when each wave ships -->
+<!-- source-of-truth: docs/mobile-support-matrix.md, docs/mobile-lan-plan.md, docs/plan-accessibility-i18n.md, docs/plan-art-streaming.md, docs/design-system.md, index.html, vite.config.ts, src/gameBoot.ts, src/platform/gestureCore.ts, src/platform/gestures.ts, src/platform/quality.ts, src/platform/renderScale.ts, src/platform/clientProfile.ts, src/ui/accessibility.ts, src/ui/theme.ts, src/ui/layout.ts, src/ui/duelLayout.ts, src/ui/SceneBackdrop.ts, src/art/ArtResolver.ts, src/art/artBudget.ts, src/config/cardFaceGeometry.ts, src/ui/handFan.ts, src/forge/scene.ts, src/dev/a11yProbe.ts, src/scenes/ · last-verified: 2026-10-08 · plan doc, DRAFT for the 2.0 wave-1 sitting: rewritten for 2.0 lane C; P11 (M1-M4) and P1 ruled 2026-10-08, the rest is proposed; re-verify when the owner rules the M decisions, and when each wave ships -->
 
 # Mobile overhaul: the 2.0 plan (draft)
 
 **Status 2026-10-08: DRAFT for the owner's 2.0 wave-1 sitting.** This is
-lane C of [plan-2.0.md](plan-2.0.md), priority 2 in the owner's 2.0 order.
+lane C of [plan-2.0.md](plan-2.0.md), priority 2 in the owner's 2.0 order and one of its hard requirements (P1).
 It replaces the 1.8-era body of this file, which listed scenes and
 dependencies that have since changed. The older slot notes are kept, short,
 under [History](#history). The device list it depends on is its companion,
 [mobile-support-matrix.md](mobile-support-matrix.md).
 
-## What is ruled, and what this draft assumes
+## What is ruled
 
 **Ruled:**
 
@@ -25,16 +25,18 @@ under [History](#history). The device list it depends on is its companion,
 - **Gameplay does not change.** Touch and desktop input produce the same
   engine actions.
 
-**Assumed until the owner rules P11** (the 2.0 plan's mobile scope
-recommendation). Every line that depends on one of these is marked
-**[P11]**:
+- **Mobile is a hard requirement for 2.0** (owner, 2026-10-08, P1): with
+  Core Set II and its mechanics, the Mandate and the fixes, it is not cut if
+  2.0 runs long. Everything else can be discussed.
+- **The mobile scope, P11** (owner, 2026-10-08, as recommended; these are
+  M1-M4 below):
 
-| P11 part | This draft assumes | If ruled the other way |
-| --- | --- | --- |
-| Orientation | **Landscape only.** Portrait phones keep the rotate screen | Portrait layouts for every scene: roughly doubles waves 2-4 |
-| Layout choice | **Automatic only.** No save field, no setting | A `settings.layoutPreference` field rides Story's v37 bump (P10) |
-| Distribution | **Browser only.** No PWA, no offline mode, no app-store package | A separate spike; see M9 for why the home-screen mode is not free |
-| Phone card face | **Art-first (a).** Name, art at the desktop band, cost, P/T and a keyword row; full rules in the panel beside the enlarged card | (b) rules on the face at a ~46% art band, or (c) a rules box sized per card ([plan-1.9.md](plan-1.9.md), "Mobile (2.0)") |
+| P11 part | Ruled |
+| --- | --- |
+| Orientation | **Landscape only.** Portrait phones keep the rotate screen |
+| Layout choice | **Automatic only.** No save field, no setting |
+| Distribution | **Browser only.** No PWA, no offline mode, no app-store package |
+| Phone card face | **Art-first (a).** Name, art at the desktop band, cost, P/T and a keyword row; full rules in the panel beside the enlarged card |
 
 ## Where mobile stands today
 
@@ -125,7 +127,7 @@ headless Edge on 2026-09-25) carry over unchanged.
   letterbox and turns every token into a per-profile pair, the per-scene
   fork the accessibility plan ruled out (plan-accessibility-i18n, "For 2.0").
 
-**Profile rule (proposed, M2 [P11]):** compact when the device is touch,
+**Profile rule (proposed; automatic layout is ruled, M2):** compact when the device is touch,
 landscape, and the content box is under 500 CSS px tall; wide otherwise.
 Portrait phones keep the rotate screen. Nothing is saved: the profile is
 worked out on each load, so moving a save between devices cannot strand
@@ -206,7 +208,7 @@ one stays as it is), Phaser-free and rule-tested the same way:
   prompt with the stack open, Foresee, 130% text) so the owner approves the
   shapes before code.
 
-### C5. The phone card face [P11]
+### C5. The phone card face (ruled, M4)
 
 Art-first (a): the name, the art at the desktop band (216 px window in
 desktop terms, 65% of the image shown), the cost, P/T and a keyword row. The
@@ -244,7 +246,7 @@ pages or sheets, never smaller text.
   through the compact and the wide Duel input paths and gets the same action
   log. The AI matrices run only after the Duel input work lands (wave 3), as
   a regression check, not because pixels moved.
-- **Save:** none, under P11's automatic layout. No viewport size or inset is
+- **Save:** none, under the ruled automatic layout. No viewport size or inset is
   ever stored.
 - **Play stats (proposed):** the form factor label classifies by the
   viewport's shorter side instead of its width, so a landscape phone reports
@@ -372,14 +374,14 @@ sheet wave 1 adds.
 
 ## Decisions for the owner
 
-Each has a recommendation. None is ruled. M1-M4 are P11's parts.
+M1-M4 were ruled 2026-10-08 as P11. The rest each have a recommendation and are not ruled.
 
 | # | Decision | Recommendation |
 | --- | --- | --- |
-| **M1** [P11] | Portrait | Landscape only; the rotate screen stays |
-| **M2** [P11] | Layout choice | Automatic, by the profile rule in C1; no setting, no save field |
-| **M3** [P11] | Distribution | Browser only in 2.0 |
-| **M4** [P11] | Phone card face | Art-first (a) |
+| **M1** | Portrait | Landscape only; the rotate screen stays **(ruled 2026-10-08, P11)** |
+| **M2** | Layout choice | Automatic, by the profile rule in C1; no setting, no save field **(ruled 2026-10-08, P11)** |
+| **M3** | Distribution | Browser only in 2.0 **(ruled 2026-10-08, P11)** |
+| **M4** | Phone card face | Art-first (a) **(ruled 2026-10-08, P11)** |
 | **M5** | How phones get their own layout | A compact design space where one design pixel is one CSS pixel, rendered at up to 2x (C1) |
 | **M6** | Ship scenes one at a time | Yes, each behind its own switch; unmigrated scenes fit by camera zoom inside a canvas sized once (C2) |
 | **M7** | The supported devices | The matrix in [mobile-support-matrix.md](mobile-support-matrix.md) |
@@ -393,9 +395,9 @@ Each has a recommendation. None is ruled. M1-M4 are P11's parts.
 
 ## Not in 2.0
 
-- Portrait layouts [P11].
-- An installable app, offline play or an app-store package [P11].
-- A saved layout preference [P11].
+- Portrait layouts.
+- An installable app, offline play or an app-store package.
+- A saved layout preference.
 - LAN PvP and any multiplayer (cancelled 2026-08-24).
 - Changes to the gesture times without device evidence (the slop's unit change is wave 1's, above).
 - The itch.io embed check, which moves with the itch launch (P2). itch can
