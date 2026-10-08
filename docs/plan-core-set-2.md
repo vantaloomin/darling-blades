@@ -332,8 +332,11 @@ full list with recommendations.
   frame). Detailed counts: the overplan thread's `00-card-counts.md`.
 - **The Jade Rabbit's name:** the brief recommends Yutu, Jade Rabbit of the
   Moon Palace.
-- **Roster emphasis:** the brief recommends Three Kingdoms leading the
-  Mandate, Greek leading Sworn, Beastkin stealing it.
+- **World and roster emphasis, ruled 2026-10-08:** the fallen Mandate is the
+  world; Three Kingdoms leads the Mandate, Greek leads Sworn, Beastkin steals
+  it. No legendary Meng Huo, Zhurong or Hestia (they already exist); new
+  characters take those legend slots, and rungs 1, 2 and 5 keep their
+  stand-in Darlings.
 - **The Mandate timing:** dawn draw before permanent dawn triggers.
   *Recommended*: a simple deterministic sequence with no pending-choice
   resume state.

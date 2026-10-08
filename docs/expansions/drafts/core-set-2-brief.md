@@ -36,7 +36,12 @@ if the pitched cards are strong; the roster split is Three Kingdoms 85,
 Greek 80, Beastkin 65, neutral 20; the top end is about 54 cards at 5+
 with about 6 at 7+; and the six **Sworn Champions** are approved, legendary
 in every way except the visual crown (sections 3, 4, 6 and 11). The
-overplan thread owns the detailed counts.
+overplan thread owns the detailed counts. **Also ruled that evening:** the
+fallen-Mandate world (section 1) and the hook leads (Three Kingdoms the
+Mandate, Greek Sworn, Beastkin steals it) are approved as recommended, and
+the set prints **no legendary Meng Huo, Zhurong or Hestia**, since those
+characters already exist; their three legend slots go to new characters
+(section 7).
 
 Also ruled: one replay bump for the 2.0 train, 16 to 17, shared by the
 Mandate, the life field and Story (P16); one save bump, v37 for Story (P10);
@@ -353,9 +358,11 @@ them are the cheap common sworn champions of section 6.
   Shangxiang, Gan Ning, Taishi Ci, Lu Xun, Zhang Liao, Xiahou Dun, Ma Chao,
   Pang Tong, Guo Jia, Zhenji, Hermes, Apollo, Hecate, Demeter, Artemis and
   others.
-- **The three stand-in bosses get their own Darlings.** Legendary cards for
-  Meng Huo (G, Nanman), Hestia (W) and Zhurong (R, Nanman). Their rung decks
-  switch to them in wave 4, measured like any list change.
+- **Ruled: no legendary Meng Huo, Zhurong or Hestia** (the owner,
+  2026-10-08, reversing this brief's proposal): the characters already
+  exist, so the set does not print a second version. Their three legend
+  slots go to new characters the overplan proposes, and rungs 1, 2 and 5
+  keep their stand-in Darlings.
 - **Black-red gets a roster legend**, the one pair the rosters lack. Dong
   Zhuo and Lu Bu are mono-colour today; a B/R usurper (Lu Bu turning on Dong
   Zhuo, or a new Jin schemer) fits the Mandate's stealer side.
@@ -529,13 +536,12 @@ the set plan.
 
 Each leads with the recommendation.
 
-1. **The world: the fallen Mandate** (section 1): every realm reaching for a
-   Mandate of Heaven that can be held and taken. Alternative: the base
-   set's world as it is, with the Mandate as a rule rather than a story.
+1. **Ruled: the world is the fallen Mandate** (section 1), every realm
+   reaching for a Mandate of Heaven that can be held and taken.
 2. **Ruled: Three Kingdoms 85, Greek 80, Beastkin 65 and 20 neutral**
    (section 3).
-3. **Let Three Kingdoms lead the Mandate, Greek lead Sworn, and Beastkin
-   steal the Mandate.** The alternative spreads both hooks evenly.
+3. **Ruled: Three Kingdoms leads the Mandate, Greek leads Sworn, and
+   Beastkin steals the Mandate.**
 4. **Cut to 250 from about 320 candidates**, with 123 commons, 75 rares, 23
    SR, 17 SSR and 12 UR (section 4). Ruled: aim for 250, flex to about 275
    for strong cards, and every keyword and named mechanic stays.
@@ -555,8 +561,9 @@ Each leads with the recommendation.
    achievements titled "Mandate In Foil" and "Rainbow Mandate" are renamed
    in another lane (ids unchanged); the Shadow Mandate starter deck keeps
    its name.
-8. **Print 34 new legends**, including legendary Meng Huo, Hestia and
-   Zhurong, a B/R legend and six common sworn champions (sections 6 and 7).
+8. **Print 34 new legends**, including a B/R legend and six common sworn
+   champions (sections 6 and 7). Ruled: no legendary Meng Huo, Zhurong or
+   Hestia; new characters take those slots.
    The Sworn Champions are ruled (no visual crown); the count of 34 is open.
 9. **Ruled (P13): the Jade Rabbit, W/U.** Still open: her name. The
    recommendation is **Yutu, Jade Rabbit of the Moon Palace** (section 8).
