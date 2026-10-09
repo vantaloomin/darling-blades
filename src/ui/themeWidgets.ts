@@ -8,6 +8,7 @@ import {
   controlStrokeWidth,
   themedButtonColors,
   triggerSelectedMark,
+  tabUnderline,
   type ThemedButtonColors,
   type ThemedButtonVariant,
 } from './controlStyle';
@@ -54,6 +55,12 @@ export interface ThemedButtonOptions {
   onTap?: (pointer: Phaser.Input.Pointer) => void;
   enabled?: boolean;
   focus?: FocusMetadata;
+  /**
+   * `tab` draws a text tab: a borderless ghost plate, and when the variant is
+   * `selected`, a gold label over a gold underline instead of the selected
+   * plate (toggles and segments keep the plate).
+   */
+  look?: 'plate' | 'tab';
 }
 
 export interface ThemedButton {
@@ -114,8 +121,9 @@ export function themedButton(
     // Disabled fades the plate, not the words: a price or reason on a button
     // the player can't press yet must stay readable (2026-10-08 UI review).
     const plateAlpha = enabled ? 1 : theme.alpha.subtle;
+    const tab = opts.look === 'tab';
     background.clear();
-    background.fillStyle(colorInt(style.bg), plateAlpha);
+    background.fillStyle(colorInt(tab ? themedButtonColors('ghost').bg : style.bg), plateAlpha);
     background.fillRoundedRect(
       measurement.visual.x,
       measurement.visual.y,
@@ -123,18 +131,26 @@ export function themedButton(
       measurement.visual.height,
       theme.radius.control,
     );
-    background.lineStyle(
-      controlStrokeWidth(hovered, variant),
-      colorInt(hovered ? style.hoverStroke : style.stroke),
-      hovered ? 1 : theme.alpha.chrome * plateAlpha,
-    );
-    background.strokeRoundedRect(
-      measurement.visual.x,
-      measurement.visual.y,
-      measurement.visual.width,
-      measurement.visual.height,
-      theme.radius.control,
-    );
+    // A tab shows its border only on hover; the underline marks the open one.
+    if (!tab || hovered) {
+      background.lineStyle(
+        controlStrokeWidth(hovered, variant),
+        colorInt(hovered ? style.hoverStroke : style.stroke),
+        hovered ? 1 : theme.alpha.chrome * plateAlpha,
+      );
+      background.strokeRoundedRect(
+        measurement.visual.x,
+        measurement.visual.y,
+        measurement.visual.width,
+        measurement.visual.height,
+        theme.radius.control,
+      );
+    }
+    if (tab && variant === 'selected') {
+      const bar = tabUnderline(measurement.visual, label.width);
+      background.fillStyle(colorInt(theme.colors.gold), 1);
+      background.fillRect(bar.x, bar.y, bar.width, bar.height);
+    }
     inputZone.setSize(measurement.width, measurement.height);
     // The Zone is the input surface. Re-apply after every label update so a
     // Phaser size/input refresh cannot regress the minimum touch target.

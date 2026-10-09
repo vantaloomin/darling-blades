@@ -4,6 +4,7 @@ import {
   controlFontSize,
   controlStrokeWidth,
   themedButtonColors,
+  tabUnderline,
   triggerSelectedMark,
   listRowAccentBar,
   type ThemedButtonVariant,
@@ -179,5 +180,32 @@ describe('the list row accent bar', () => {
         expect(visual.x + labelInset - (bar.x + bar.width)).toBeGreaterThanOrEqual(theme.space(1));
       }
     });
+  });
+});
+
+describe('the text tab underline', () => {
+  it('spans the whole label on the tab plate\'s bottom edge, clear of the label and the rounded corners', () => {
+    forEachA11yCell((cell) => {
+      for (const size of ['sm', 'md'] as const) {
+        for (const [labelWidth, minWidth] of [[40, 0], [90, 120], [150, 160], [220, 0]] as const) {
+          const at = `${size} ${labelWidth}/${minWidth}, ${cell.name}`;
+          const { visual } = measureThemedButton(labelWidth, size, minWidth);
+          const bar = tabUnderline(visual, labelWidth);
+          expect(bar.y + bar.height, at).toBe(visual.y + visual.height);
+          expect(bar.width, at).toBeGreaterThanOrEqual(labelWidth);
+          expect(bar.x, at).toBeGreaterThanOrEqual(visual.x + theme.radius.control);
+          expect(bar.x + bar.width, at).toBeLessThanOrEqual(visual.x + visual.width - theme.radius.control);
+          const labelBottom = visual.y + visual.height / 2 + textBlockHeight(controlFontSize(size), 1) / 2;
+          expect(bar.y - labelBottom, at).toBeGreaterThanOrEqual(1);
+        }
+      }
+    });
+  });
+
+  it('is thicker in high contrast', () => {
+    const { visual } = measureThemedButton(60, 'md');
+    const standard = tabUnderline(visual, 60).height;
+    setAccessibility({ textScale: 1, highContrast: true });
+    expect(tabUnderline(visual, 60).height).toBeGreaterThan(standard);
   });
 });

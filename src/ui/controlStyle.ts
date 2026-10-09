@@ -102,6 +102,34 @@ export function triggerSelectedMark(input: TriggerSelectedMarkInput): Rect {
 }
 
 /**
+ * The selected mark on a text tab (the selection language ruled 2026-10-08:
+ * the underline for text tabs). A tab keeps a borderless plate, so it stays
+ * readable over scene art, and the open tab is the one with the gold label
+ * and this bar: on the plate's bottom edge, spanning the whole label, clear
+ * of the rounded corners. 3px thick, 4px in high contrast.
+ */
+export const TAB_UNDERLINE = {
+  thickness: 3,
+  highContrastThickness: 4,
+  /** How far the bar reaches past each end of the label. */
+  overhang: theme.space(1),
+} as const;
+
+export function tabUnderline(visual: Rect, labelWidth: number): Rect {
+  const thickness = currentAccessibility().highContrast
+    ? TAB_UNDERLINE.highContrastThickness
+    : TAB_UNDERLINE.thickness;
+  const maxWidth = Math.max(0, visual.width - 2 * theme.radius.control);
+  const width = Math.min(maxWidth, labelWidth + 2 * TAB_UNDERLINE.overhang);
+  return {
+    x: visual.x + visual.width / 2 - width / 2,
+    y: visual.y + visual.height - thickness,
+    width,
+    height: thickness,
+  };
+}
+
+/**
  * The selected mark on a list row (the selection language ruled 2026-10-08:
  * border plus a left accent bar for list rows, the underline for text tabs):
  * a gold bar just inside the row's left border, inset from its top and

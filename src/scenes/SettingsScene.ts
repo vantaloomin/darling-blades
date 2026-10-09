@@ -188,6 +188,7 @@ export class SettingsScene extends Phaser.Scene {
       this.track(
         themedButton(this, 0, SETTINGS_TAB_ROW.y, label, {
           variant: key === this.tab ? 'selected' : 'ghost',
+          look: 'tab',
           size: 'sm',
           minWidth: scaledChipWidth(SETTINGS_TAB_BASE_WIDTH),
           onTap: () => {
