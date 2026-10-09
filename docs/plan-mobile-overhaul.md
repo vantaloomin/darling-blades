@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-2.0.md, docs/mobile-support-matrix.md, docs/mobile-lan-plan.md, docs/plan-accessibility-i18n.md, docs/plan-art-streaming.md, docs/design-system.md, index.html, vite.config.ts, src/gameBoot.ts, src/platform/gestureCore.ts, src/platform/gestures.ts, src/platform/quality.ts, src/platform/renderScale.ts, src/platform/clientProfile.ts, src/ui/accessibility.ts, src/ui/theme.ts, src/ui/layout.ts, src/ui/duelLayout.ts, src/ui/SceneBackdrop.ts, src/art/ArtResolver.ts, src/art/artBudget.ts, src/config/cardFaceGeometry.ts, src/ui/handFan.ts, src/forge/scene.ts, src/dev/a11yProbe.ts, src/scenes/ · last-verified: 2026-10-09 · plan doc, DRAFT for the 2.0 wave-1 sitting: rewritten for 2.0 lane C on the Version C mock set; P11 (M1-M4), P1 and P2 ruled 2026-10-08, M5, M8, M11, M12 and M22 ruled 2026-10-09, the rest is proposed; re-verify when the owner rules the M decisions, and when each wave ships -->
+<!-- source-of-truth: docs/plan-2.0.md, docs/mobile-support-matrix.md, docs/mobile-lan-plan.md, docs/plan-accessibility-i18n.md, docs/plan-art-streaming.md, docs/design-system.md, index.html, vite.config.ts, src/gameBoot.ts, src/platform/gestureCore.ts, src/platform/gestures.ts, src/platform/quality.ts, src/platform/renderScale.ts, src/platform/clientProfile.ts, src/ui/accessibility.ts, src/ui/theme.ts, src/ui/layout.ts, src/ui/duelLayout.ts, src/ui/SceneBackdrop.ts, src/art/ArtResolver.ts, src/art/artBudget.ts, src/config/cardFaceGeometry.ts, src/ui/handFan.ts, src/forge/scene.ts, src/dev/a11yProbe.ts, src/scenes/ · last-verified: 2026-10-09 · plan doc, DRAFT for the 2.0 wave-1 sitting: rewritten for 2.0 lane C on the Version C mock set; P11 (M1-M4), P1 and P2 ruled 2026-10-08, M5-M29 ruled 2026-10-09 except M20 (proposed); re-verify when the owner rules the M decisions, and when each wave ships -->
 
 # Mobile overhaul: the 2.0 plan (draft)
 
@@ -52,12 +52,14 @@ Overcharge, life above 20, Story Mode, Core Set II), which needs new frames.
 | --- | --- |
 | Orientation | **Landscape only.** Portrait phones keep the rotate screen |
 | Layout choice | **Automatic only.** No save field, no setting |
-| Distribution | **Browser only.** No PWA, no offline mode, no app-store package |
+| Distribution | **Browser only.** No PWA, no offline mode, no app-store package. Amended 2026-10-09 by M9: a home-screen manifest (no service worker, no offline play) is in |
 | Phone card face | **Art-first (a).** Name, art at the desktop band, cost, P/T and a keyword row; full rules in the panel beside the enlarged card |
 
 - **Ruled 2026-10-09 in the wave-1 sitting** (owner, in the plan thread):
-  M5 (the compact design space, scaled as each screen needs), M8 (a
-  full-screen button where the browser allows it), M11 (upright tablets
+  M5 to M29 except M20 (undo), each as recommended except M16; among
+  them M5 (the compact design space, scaled as each screen needs), M8 (a
+  full-screen button where the browser allows it), M9 (home-screen mode
+  in 2.0, with a bring-your-save-over message), M11 (upright tablets
   follow the mocks: the phone layout letterboxed), M12 (a scene image on
   the rotate screen) and the tablet question, M22: **touch tablets get the
   phone layout scaled up** for now, ideally a taller tablet composition
@@ -232,7 +234,8 @@ rule-tested the same way. The mocks' geometry (`DUEL_L` in the bundle's
   mana and library, graveyard and Severed counts, plus the history and menu
   buttons. Life badges are legal targets, so their targeting ring is inside
   the column's hit area. The mana and zone counts are one framed button
-  that opens the zone sheet (M15), and a third colour folds into "+1"
+  that opens the zone sheet (M15), and a third colour folds into a
+  neutral "more" pip, with every colour at full size in the zone sheet
   (M16). **The Mandate marker** sits beside its holder's portrait here
   (lane B4 builds it on the desktop Duel first; this wave places it; it
   needs a new frame).
@@ -249,6 +252,9 @@ rule-tested the same way. The mocks' geometry (`DUEL_L` in the bundle's
 - **Casting:** a tap on a hand row opens the card with Cast and Empower;
   a single-target spell then picks its target on the board and Cast
   confirms (M17; today one tap casts).
+- **Undo:** the one-deep Undo moves off the desktop's left rail; proposed
+  as a toast at the top of the command column after each undoable action,
+  plus a duel menu entry (M20).
 - **Inspecting a card:** a long press opens the enlarged face with the
   rules panel beside it, and a tap on an opposing permanent with no action
   for the player does the same. Opening it never fires the action under the
@@ -371,7 +377,9 @@ word.
 - **The probe learns viewports.** `src/dev/a11yProbe.ts` renders the
   1280x720 window at three text sizes and two contrasts; it gains a
   profile and viewport axis so it can render the matrix's fixtures.
-- **Small fixes that ride this wave:** the form factor label (above), the
+- **Small items that ride this wave:** the full-screen button (M8), the
+  home-screen manifest and its one-time "bring your save over" message
+  (M9), the form factor label (above), the
   old-browser message ([mobile-support-matrix.md](mobile-support-matrix.md)),
   and the tap slop re-expressed in CSS px (C1 makes the 10 px slop 10 CSS px
   instead of about 4; Android's own slop is 8 dp, so 10 is kept unless the
@@ -450,48 +458,48 @@ sheet wave 1 adds.
 
 ## Decisions for the owner
 
-M1-M4 were ruled 2026-10-08 as P11; M5, M8, M11, M12 and M22 on
-2026-10-09. M15-M29 are the decisions the full mock set forces
-(`DECISIONS.md` in the bundle), each with the mocks' recommendation. The
-rest each have a recommendation and are not ruled.
+M1-M4 were ruled 2026-10-08 as P11, and everything else on 2026-10-09
+except M20 (undo), which has a proposal. M15-M29 are the decisions the full
+mock set forces (`DECISIONS.md` in the bundle); the owner took the mocks'
+recommendation on each except M16, which takes the owner's variant.
 
 | # | Decision | Recommendation |
 | --- | --- | --- |
 | **M1** | Portrait | Landscape only; the rotate screen stays **(ruled 2026-10-08, P11)** |
 | **M2** | Layout choice | Automatic, by the profile rule in C1; no setting, no save field **(ruled 2026-10-08, P11)** |
-| **M3** | Distribution | Browser only in 2.0 **(ruled 2026-10-08, P11)** |
+| **M3** | Distribution | Browser only in 2.0 **(ruled 2026-10-08, P11;** amended by M9 to allow a home-screen manifest) |
 | **M4** | Phone card face | Art-first (a) **(ruled 2026-10-08, P11)** |
 | **M5** | How phones get their own layout | A compact design space where one design pixel is one CSS pixel, rendered at up to 2x, sized to each screen (C1) **(ruled 2026-10-09)** |
-| **M6** | Ship scenes one at a time | Yes, each behind its own switch; unmigrated scenes fit by camera zoom inside a canvas sized once (C2) |
-| **M7** | The supported devices | The matrix in [mobile-support-matrix.md](mobile-support-matrix.md) |
+| **M6** | Ship scenes one at a time | Yes, each behind its own switch; unmigrated scenes fit by camera zoom inside a canvas sized once (C2) **(ruled 2026-10-09)** |
+| **M7** | The supported devices | The matrix in [mobile-support-matrix.md](mobile-support-matrix.md) **(ruled 2026-10-09)** |
 | **M8** | A full-screen button | Yes, where the browser allows it (Android Chrome, iPad Safari); iPhone Safari allows full screen only for video **(ruled 2026-10-09)** |
-| **M9** | Home-screen mode (a web app manifest) | Asked 2026-10-09. On iPhone a home-screen web app keeps its own storage, so it opens with an empty save. Export and Import save codes already exist, so the choice is: add it in 2.0 with a one-time "bring your save over" message pointing to them, or leave it out of 2.0 |
+| **M9** | Home-screen mode (a web app manifest) | In 2.0. On iPhone a home-screen web app keeps its own storage and opens with an empty save, so the first time it does, a one-time "bring your save over" message points to Export and Import save codes **(ruled 2026-10-09)** |
 | **M10** | The Duel hand | Closed by Version C: named rows |
 | **M11** | Upright tablets | Follow the mocks: the compact layout letterboxed at about 96% width-fit, the commanders' art in the bands (mock P4) **(ruled 2026-10-09)** |
 | **M12** | The rotate screen | A scene image behind the message **(ruled 2026-10-09;** mock P2 draws a card illustration, the ruling is a scene) |
-| **M13** | Art resolution on phones | Half art on the board and hand; the full texture for the one card being inspected |
-| **M14** | Performance targets | Set from the wave-1 baseline on the weakest tested device, then only raised |
-| **M15** | The Duel's resources block | One framed button for mana and zone counts that opens the zone sheet; on a phone it is also the land drop |
-| **M16** | Three-colour mana in the 96 px column | Two colours plus "+1"; the full list in the zone sheet |
-| **M17** | Casting by touch | A tap opens the card (Cast, Empower); a single-target spell picks its target, then Cast confirms |
-| **M18** | Confirms | A dialog for anything that spends or destroys (craft, delete, retire run, replace save, concede); the two-tap arm only where the second tap sits away from the first (Reset save, Abandon run); Shard stays a hold |
-| **M19** | "Stops · Auto" from the first C mock | No game feature behind it; add a real Stops control or drop it (the duel menu's "Auto-skip forced turns" stays) |
-| **M20** | Undo | No slot in the command column; matters only if undo is added |
-| **M21** | Short viewport | A short variant of the compact profile for about 297 pt of height: 72 pt portraits, 44 pt medallions, pile counts behind the menu (mock P3) |
+| **M13** | Art resolution on phones | Half art on the board and hand; the full texture for the one card being inspected **(ruled 2026-10-09)** |
+| **M14** | Performance targets | Set from the wave-1 baseline on the weakest tested device, then only raised **(ruled 2026-10-09)** |
+| **M15** | The Duel's resources block | One framed button for mana and zone counts that opens the zone sheet; on a phone it is also the land drop **(ruled 2026-10-09)** |
+| **M16** | Three-colour mana in the 96 px column | Two colours plus a neutral "more" pip in place of the third; tapping the block opens the zone sheet, which leads with every colour's mana at full size (owner, 2026-10-09: "a little full display"; the mocks drew "+1") **(ruled 2026-10-09)** |
+| **M17** | Casting by touch | A tap opens the card (Cast, Empower); a single-target spell picks its target, then Cast confirms. The research backs it: Duel Links and Master Duel open options on a tap, and Slay the Spire's largest complaint cluster is cards played while being read **(ruled 2026-10-09)** |
+| **M18** | Confirms | A dialog for anything that spends or destroys (craft, delete, retire run, replace save, concede); the two-tap arm only where the second tap sits away from the first (Reset save, Abandon run); Shard stays a hold **(ruled 2026-10-09)** |
+| **M19** | "Stops · Auto" from the first C mock | Dropped for now; the duel menu's "Auto-skip forced turns" stays. **Revisit** after mobile wave 3's device sessions, when real play shows whether players want response stops **(ruled 2026-10-09)** |
+| **M20** | Undo | The game has a one-deep Undo (`DuelScene`: the last committed action, until priority passes or a hidden card is shown) with no slot in the command column. Proposed: after each undoable action an "Undo" toast sits at the top of the command column until the window closes, and the duel menu carries Undo too. Owner, 2026-10-09: "maybe add it to menu? Open to suggestions" |
+| **M21** | Short viewport | A short variant of the compact profile for about 297 pt of height: 72 pt portraits, 44 pt medallions, pile counts behind the menu (mock P3) **(ruled 2026-10-09)** |
 | **M22** | Tablets in landscape | The compact layout scaled to the width (mock P5) for now; a taller tablet composition later **(ruled 2026-10-09)** |
-| **M23** | Back button | Chevron only on phones, with the destination as its accessible name |
-| **M24** | Paging and dropdowns | Paging becomes vertical scroll (binder, Practice, Achievements, save card, Gauntlet ladder); dropdowns take over the column; ceremony screens drop it |
-| **M25** | Text entry | Dialogs dock above the keyboard; an in-game field replaces the Gauntlet seed's `window.prompt`; Import gets a Paste button |
-| **M26** | Legal pages | An in-game reader with Open in browser (a new tab leaves an embed) |
-| **M27** | List rows | 44 to 48 px pitch with touching 44 px hit areas, as table rows under the 8 px spacing rule |
-| **M28** | Medallion badges | Keyword top-left; state top-right with the Rage lock beside it; Hauntlink left-middle; Marks right-middle; P/T bottom; tapped in the centre, or a corner badge on attackers |
-| **M29** | Copy sign-off | Sentence-case buttons and the new strings each frame's note lists ("Face <rival>", "Open in browser", "Paste") |
+| **M23** | Back button | Chevron only on phones, with the destination as its accessible name **(ruled 2026-10-09)** |
+| **M24** | Paging and dropdowns | Paging becomes vertical scroll (binder, Practice, Achievements, save card, Gauntlet ladder); dropdowns take over the column; ceremony screens drop it **(ruled 2026-10-09)** |
+| **M25** | Text entry | Dialogs dock above the keyboard; an in-game field replaces the Gauntlet seed's `window.prompt`; Import gets a Paste button **(ruled 2026-10-09)** |
+| **M26** | Legal pages | An in-game reader with Open in browser (a new tab leaves an embed) **(ruled 2026-10-09)** |
+| **M27** | List rows | 44 to 48 px pitch with touching 44 px hit areas, as table rows under the 8 px spacing rule **(ruled 2026-10-09)** |
+| **M28** | Medallion badges | Keyword top-left; state top-right with the Rage lock beside it; Hauntlink left-middle; Marks right-middle; P/T bottom; tapped in the centre, or a corner badge on attackers **(ruled 2026-10-09)** |
+| **M29** | Copy sign-off | Sentence-case buttons and the new strings each frame's note lists ("Face <rival>", "Open in browser", "Paste") **(ruled 2026-10-09)** |
 
 ## Not in 2.0
 
 - Portrait layouts for phones.
 - A taller tablet composition (M22's later ideal).
-- An installable app, offline play or an app-store package.
+- Offline play, a service worker or an app-store package (the home-screen manifest, M9, is in).
 - A saved layout preference.
 - LAN PvP and any multiplayer (cancelled 2026-08-24).
 - Changes to the gesture times without device evidence (the slop's unit change is wave 1's, above).
@@ -534,6 +542,5 @@ rest each have a recommendation and are not ruled.
   the "launch-critical" framing ([plan-2.0.md](plan-2.0.md)). This rewrite
   follows.
 - **2026-10-09:** the owner pointed this plan at the Version C mock set
-  (the first draft wrongly said it was lost), ruled M5, M8, M11, M12 and
-  M22, and reported that the desktop composition was unreadable on the
+  (the first draft wrongly said it was lost), ruled M5 to M29 except M20 (undo, proposed), and reported that the desktop composition was unreadable on the
   Galaxy Tab A8, which moved touch tablets to the compact profile.
