@@ -4,6 +4,7 @@ import { bestOwnedVariant, ownedCount } from '../meta/Collection';
 import type { SaveData } from '../meta/SaveManager';
 import { finishOdds } from '../meta/pullOdds';
 import { PLAIN_VARIANT, TIER_RANK } from '../meta/variants';
+import { SET_IDS } from '../data/setTitles';
 
 /** The explicit sort choices exposed by the Collection binder. */
 export type CollectionSortSelection =
@@ -12,7 +13,8 @@ export type CollectionSortSelection =
   | 'variant-rarity-high'
   | 'variant-rarity-low'
   | 'name-az'
-  | 'name-za';
+  | 'name-za'
+  | 'set-newest';
 
 export const DEFAULT_COLLECTION_SORT: CollectionSortSelection = 'card-rarity-high';
 
@@ -23,6 +25,7 @@ export const COLLECTION_SORT_OPTIONS: readonly { value: CollectionSortSelection;
   { value: 'variant-rarity-low', label: 'Variant rarity: common' },
   { value: 'name-az', label: 'Name: A to Z' },
   { value: 'name-za', label: 'Name: Z to A' },
+  { value: 'set-newest', label: 'Set: newest first' },
 ];
 
 function byName(a: CardDef, b: CardDef): number {
@@ -31,6 +34,12 @@ function byName(a: CardDef, b: CardDef): number {
 
 function cardRarity(a: CardDef, b: CardDef): number {
   return TIER_RANK[b.rarity] - TIER_RANK[a.rarity] || manaValue(a.cost) - manaValue(b.cost) || byName(a, b);
+}
+
+/** Newest set first (SET_IDS is in release order); within a set, highest card rarity first, then name. */
+function bySet(a: CardDef, b: CardDef): number {
+  const rank = (d: CardDef): number => SET_IDS.indexOf(d.set ?? 'base');
+  return rank(b) - rank(a) || TIER_RANK[b.rarity] - TIER_RANK[a.rarity] || byName(a, b);
 }
 
 function ownedVariantFinishOdds(save: SaveData, cardId: string): number {
@@ -58,6 +67,8 @@ export function sortCollectionCards(
         return byName(a, b);
       case 'name-za':
         return byName(b, a);
+      case 'set-newest':
+        return bySet(a, b);
     }
   });
 }

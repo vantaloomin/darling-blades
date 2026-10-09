@@ -8,9 +8,10 @@ import {
   sortCollectionCards,
 } from '../../src/ui/collectionSort';
 
-function card(id: string, name: string, rarity: CardDef['rarity']): CardDef {
+function card(id: string, name: string, rarity: CardDef['rarity'], set?: CardDef['set']): CardDef {
   return {
     id,
+    set,
     name,
     types: ['creature'],
     subtypes: [],
@@ -55,6 +56,26 @@ describe('collection sort choices', () => {
     const cards = [card('z', 'Twin', 'c'), card('a', 'Twin', 'c'), card('m', 'Alpha', 'c')];
     expect(sortCollectionCards(cards, 'name-az', save).map((entry) => entry.id)).toEqual(['m', 'a', 'z']);
     expect(sortCollectionCards(cards, 'name-za', save).map((entry) => entry.id)).toEqual(['z', 'a', 'm']);
+  });
+
+  it('groups by set newest first, then card rarity, then name', () => {
+    const save = freshSave(0);
+    const cards = [
+      card('base-c', 'Alpha', 'c'),
+      card('fd-c', 'Beta', 'c', 'first-dawn'),
+      card('rag-ur', 'Gamma', 'ur', 'ragnarok'),
+      card('fd-ur', 'Zeta', 'ur', 'first-dawn'),
+      card('fd-c2', 'Alpha', 'c', 'first-dawn'),
+      card('base-ur', 'Delta', 'ur', 'base'),
+    ];
+    expect(sortCollectionCards(cards, 'set-newest', save).map((entry) => entry.id)).toEqual([
+      'fd-ur',
+      'fd-c2',
+      'fd-c',
+      'rag-ur',
+      'base-ur',
+      'base-c',
+    ]);
   });
 
   it('keeps every player-facing choice free of em-dashes', () => {
