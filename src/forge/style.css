@@ -145,11 +145,11 @@ input[type='range'] { height: 28px; min-height: 28px; padding: 0; border: 0; bac
 .range-field > span { display: grid; grid-template-columns: 1fr 38px; align-items: center; gap: 8px; }
 .range-field output, .section-heading output { color: var(--gold); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
 
-.pip-controls { display: grid; grid-template-columns: repeat(5, minmax(58px, 1fr)); gap: 6px; margin-top: 12px; }
+.pip-controls { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; margin-top: 12px; }
 .pip-stepper { display: grid; grid-template-columns: repeat(3, 1fr); align-items: center; gap: 3px; padding: 7px 4px; border: 1px solid var(--stroke-soft); border-radius: 6px; background: #120f20; }
 .pip-stepper > svg { grid-column: 1 / -1; justify-self: center; }
 .pip-stepper > span { grid-column: 1 / -1; color: var(--muted); font-size: 9px; text-align: center; }
-.pip-stepper button { width: 24px; height: 24px; border: 1px solid var(--stroke); border-radius: 5px; background: var(--ghost); color: var(--heading); }
+.pip-stepper button { width: 100%; max-width: 24px; min-width: 0; justify-self: center; padding: 0; height: 24px; border: 1px solid var(--stroke); border-radius: 5px; background: var(--ghost); color: var(--heading); }
 .pip-stepper output { color: var(--gold); font-size: 12px; text-align: center; font-variant-numeric: tabular-nums; }
 .mana-pip { width: 25px; height: 25px; display: block; }
 .mana-pip.small { width: 28px; height: 28px; }
@@ -285,6 +285,9 @@ button.keyword-chip { cursor: grab; }
   background: radial-gradient(circle at 50% 36%, rgba(70, 52, 94, 0.28), transparent 54%), rgba(8, 6, 14, 0.86);
   scrollbar-width: thin;
 }
+/* The column scrolls; its children keep their size instead of squashing
+   (the keyword box shrank to 52px and its chips spilled over the buttons). */
+.preview-column > * { flex-shrink: 0; }
 .preview-heading { width: min(100%, 520px); min-height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 7px; }
 .preview-heading p { margin: 4px 0 0; color: var(--muted); font-size: 10px; }
 .mana-preview { display: flex; min-height: 32px; align-items: center; justify-content: end; gap: 3px; }
@@ -425,7 +428,6 @@ button.keyword-chip { cursor: grab; }
   .rail { overflow: visible; }
   .verdict-rail { grid-column: auto; display: block; }
   .field-grid.three-up { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .pip-controls { grid-template-columns: repeat(5, minmax(52px, 1fr)); overflow-x: auto; }
   .color-identity-editor { grid-template-columns: 1fr; }
   .art-grid { grid-template-columns: repeat(4, 1fr); }
 }
