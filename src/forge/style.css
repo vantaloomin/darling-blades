@@ -155,6 +155,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--gold); backgroun
 /* One ring, not two: the focus outline sits on the field's own border. */
 input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offset: -1px; }
 textarea { resize: vertical; line-height: 1.4; }
+/* Number boxes look the same everywhere: no spin arrows (they showed on some rows and not others). */
+input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
+input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 input[type='checkbox'] { width: 16px; min-height: 16px; height: 16px; padding: 0; accent-color: var(--gold); }
 input[type='range'] { height: 28px; min-height: 28px; padding: 0; border: 0; background: transparent; accent-color: var(--gold); }
 /* The picture sliders paint their own fill (--fill-from/--fill-to, set by
@@ -194,10 +197,12 @@ input.themed-range:disabled { cursor: not-allowed; opacity: 0.6; }
 .generic-pip.inline { border-width: 1px; font-size: 0.85em; }
 /* The numeral draws in currentColor; keep it dark even inside copy that sets a light colour. */
 span.generic-pip.inline { color: #292d33; }
-.color-identity-editor { display: grid; grid-template-columns: minmax(160px, 0.75fr) minmax(0, 1.25fr); align-items: end; gap: 8px; margin-top: 10px; }
-.color-override-controls { display: grid; grid-template-columns: repeat(5, minmax(32px, 1fr)); gap: 4px; margin: 0; padding: 7px; border: 1px solid var(--stroke-soft); border-radius: 6px; }
+.color-identity-editor { display: grid; gap: 6px; margin-top: 12px; }
+.color-identity-editor .art-source-switch { margin-bottom: 0; }
+.field-label { color: var(--muted); font-size: var(--fs-sm); font-weight: 600; }
+.color-override-controls { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin: 0; padding: 8px; border: 1px solid var(--stroke-soft); border-radius: 6px; }
 .color-override-controls legend { padding: 0 4px; color: var(--muted); font-size: var(--fs-xs); font-weight: 600; }
-.color-override-controls label { display: flex; align-items: center; justify-content: center; gap: 4px; color: var(--body); font-size: var(--fs-xs); font-weight: 400; }
+.color-override-controls label { display: grid; justify-items: center; gap: 4px; padding: 4px 0; color: var(--body); font-size: var(--fs-sm); font-weight: 400; cursor: pointer; }
 .color-override-controls input { flex: 0 0 auto; }
 
 .small-button, .add-op-row button, .hint-row button {
@@ -281,9 +286,12 @@ button.keyword-chip:hover { border-color: var(--gold-hover); color: var(--headin
 
 .mechanic-toggles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
 .mechanic-toggles label, .mana-ability-colors label { display: flex; align-items: center; gap: 8px; min-height: 28px; color: var(--body); font-size: var(--fs-sm); font-weight: 400; }
-.cost-editor { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin-bottom: 9px; }
+/* Generic on its own row, then the five colors in one row, at every width. */
+.cost-editor { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 7px; margin-bottom: 9px; }
+.cost-editor .cost-generic { grid-column: 1 / -1; max-width: 50%; }
 .cost-editor .field-note { grid-column: 1 / -1; }
-.cost-editor label { display: flex; align-items: center; gap: 4px; }
+.cost-editor label { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.cost-editor input { min-width: 0; padding-left: 4px; padding-right: 4px; }
 .cost-editor input { text-align: center; }
 .mana-ability-colors { display: grid; grid-template-columns: repeat(2, 1fr); border: 1px solid var(--stroke-soft); border-radius: 6px; }
 
@@ -527,7 +535,6 @@ summary.warning-head:hover { color: var(--heading); }
   .rail { overflow: visible; }
   .verdict-rail { grid-column: auto; display: block; }
   .field-grid.three-up { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .color-identity-editor { grid-template-columns: 1fr; }
   .art-grid { grid-template-columns: repeat(4, 1fr); }
 }
 

@@ -176,7 +176,8 @@ const genericMana = byId<HTMLInputElement>('generic-mana');
 const genericValue = byId<HTMLOutputElement>('generic-value');
 const manaValueOutput = byId<HTMLOutputElement>('mana-value');
 const pipControls = byId<HTMLDivElement>('pip-controls');
-const colorIdentityMode = byId<HTMLSelectElement>('color-identity-mode');
+const colorIdentityMode = byId<HTMLDivElement>('color-identity-mode');
+const colorIdentityValue = (): string => colorIdentityMode.querySelector<HTMLInputElement>('input:checked')?.value ?? 'cost';
 const colorOverrideControls = byId<HTMLFieldSetElement>('color-override-controls');
 const xSpell = byId<HTMLInputElement>('x-spell');
 const bodySection = byId<HTMLElement>('body-section');
@@ -279,9 +280,10 @@ pipControls.innerHTML = COLOR_ORDER.map((color) => `
   </div>
 `).join('');
 colorOverrideControls.innerHTML = `<legend>Colors</legend>${COLOR_ORDER.map((color) => `
-  <label title="${PIP_VISUALS[color].label}">
+  <label>
+    <input type="checkbox" data-color-identity="${color}" />
     ${pipSvg(color, 'tiny')}
-    <input type="checkbox" data-color-identity="${color}" aria-label="${PIP_VISUALS[color].label} color identity" />
+    <span>${PIP_VISUALS[color].label}</span>
   </label>
 `).join('')}`;
 
@@ -311,7 +313,7 @@ cardSet.addEventListener('change', () => mutate((next) => { next.set = cardSet.v
 cardLegendary.addEventListener('change', () => mutate((next) => { next.legendary = cardLegendary.checked; }));
 genericMana.addEventListener('input', () => mutate((next) => { next.cost.generic = clampInt(Number(genericMana.value), 0, FORGE_LIMITS.generic); }));
 colorIdentityMode.addEventListener('change', () => mutate((next) => {
-  next.colorOverride = colorIdentityMode.value === 'override' ? colorsForCost(next.cost) : null;
+  next.colorOverride = colorIdentityValue() === 'override' ? colorsForCost(next.cost) : null;
 }));
 colorOverrideControls.addEventListener('change', (event) => {
   const checkbox = (event.target as HTMLElement).closest<HTMLInputElement>('[data-color-identity]');
@@ -617,7 +619,7 @@ function costEditor(key: string, cost: CostState, note: string): string {
   const max = FORGE_LIMITS.generic;
   return `<div class="cost-editor" data-cost-editor="${key}">
     <p class="field-note">${escapeHtml(note)}</p>
-    <label>Generic<input type="number" min="0" max="${max}" step="1" value="${cost.generic}" data-mechanic-cost="${key}" data-cost-color="generic" /></label>
+    <label class="cost-generic">Generic<input type="number" min="0" max="${max}" step="1" value="${cost.generic}" data-mechanic-cost="${key}" data-cost-color="generic" /></label>
     ${COLOR_ORDER.map((color) => `<label>${pipSvg(color, 'tiny')}<input type="number" min="0" max="${FORGE_LIMITS.pip}" step="1" value="${cost.pips[color]}" data-mechanic-cost="${key}" data-cost-color="${color}" aria-label="${PIP_VISUALS[color].label} mana" /></label>`).join('')}
   </div>`;
 }
@@ -1651,7 +1653,8 @@ function syncBasicControls(state: BuilderState): void {
   genericMana.value = String(state.cost.generic);
   genericValue.value = String(state.cost.generic);
   manaValueOutput.value = `Mana value ${printedManaValue(state)}`;
-  colorIdentityMode.value = state.colorOverride === null ? 'cost' : 'override';
+  const identityMode = state.colorOverride === null ? 'cost' : 'override';
+  for (const radio of colorIdentityMode.querySelectorAll<HTMLInputElement>('input')) radio.checked = radio.value === identityMode;
   colorOverrideControls.hidden = state.colorOverride === null;
   for (const checkbox of colorOverrideControls.querySelectorAll<HTMLInputElement>('[data-color-identity]')) {
     checkbox.checked = state.colorOverride?.includes(checkbox.dataset.colorIdentity as Color) ?? false;
