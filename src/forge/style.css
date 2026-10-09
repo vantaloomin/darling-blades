@@ -150,9 +150,25 @@ input, select, textarea {
 }
 input:hover, select:hover, textarea:hover { border-color: #9a8cc8; }
 input:focus, select:focus, textarea:focus { border-color: var(--gold); background: #181328; }
+/* One ring, not two: the focus outline sits on the field's own border. */
+input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offset: -1px; }
 textarea { resize: vertical; line-height: 1.4; }
 input[type='checkbox'] { width: 16px; min-height: 16px; height: 16px; padding: 0; accent-color: var(--gold); }
 input[type='range'] { height: 28px; min-height: 28px; padding: 0; border: 0; background: transparent; accent-color: var(--gold); }
+/* The picture sliders paint their own fill (--fill-from/--fill-to, set by
+   customArtPanel): from the left for Zoom, from the centre for the sliders
+   whose zero is in the middle. */
+input.themed-range { -webkit-appearance: none; appearance: none; cursor: pointer; }
+input.themed-range::-webkit-slider-runnable-track {
+  height: 8px; border-radius: 4px;
+  background: linear-gradient(to right, var(--stroke) var(--fill-from, 0%), var(--gold) var(--fill-from, 0%), var(--gold) var(--fill-to, 0%), var(--stroke) var(--fill-to, 0%));
+}
+input.themed-range::-moz-range-track { height: 8px; border-radius: 4px; background: var(--stroke); }
+input.themed-range::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; margin-top: -5px; border: 1px solid var(--on-gold); border-radius: 50%; background: var(--gold); }
+input.themed-range::-moz-range-thumb { width: 16px; height: 16px; border: 1px solid var(--on-gold); border-radius: 50%; background: var(--gold); }
+input.themed-range:hover::-webkit-slider-thumb { background: var(--gold-hover); }
+input.themed-range:disabled { cursor: not-allowed; opacity: 0.6; }
+.range-note { margin: 6px 0 0; color: var(--muted); font-size: var(--fs-sm); line-height: 1.4; }
 
 .check-row { display: flex; align-items: center; min-height: 34px; gap: 8px; padding: 4px 0; color: var(--body); font-size: var(--fs-sm); font-weight: 400; }
 /* Beside a field, a checkbox lines up with the field's box, not with its label. */
@@ -217,6 +233,7 @@ button.keyword-chip:hover { border-color: var(--gold-hover); color: var(--headin
 .editor-list { display: grid; gap: 8px; }
 .empty-editor { margin: 0; color: var(--muted); font-size: var(--fs-sm); line-height: 1.45; }
 .ability-editor, #mechanic-editors > details {
+  position: relative;
   border: 1px solid var(--stroke-soft);
   border-radius: 7px;
   background: rgba(20, 16, 34, 0.72);
@@ -224,7 +241,7 @@ button.keyword-chip:hover { border-color: var(--gold-hover); color: var(--headin
 .ability-editor > summary, #mechanic-editors > details > summary {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   min-height: 38px;
   padding: 8px 10px;
   color: var(--gold);
@@ -234,6 +251,17 @@ button.keyword-chip:hover { border-color: var(--gold-hover); color: var(--headin
   list-style: none;
 }
 .ability-editor > summary::-webkit-details-marker, #mechanic-editors > details > summary::-webkit-details-marker { display: none; }
+/* A chevron shows the panel folds: it points right when closed, down when open. */
+.ability-editor > summary::before, #mechanic-editors > details > summary::before {
+  content: ''; flex: none; width: 7px; height: 7px; margin: 0 10px 0 2px;
+  border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg); transition: transform 120ms ease;
+}
+.ability-editor[open] > summary::before, #mechanic-editors > details[open] > summary::before { transform: translateY(-2px) rotate(45deg); }
+.ability-editor > summary { padding-right: 48px; }
+/* The remove button sits beside the summary, not inside it, so the keyboard sees one control at a time. */
+.details-remove { position: absolute; top: 3px; right: 6px; }
+.grid-wide { grid-column: 1 / -1; }
 .ability-body, #mechanic-editors > details > :not(summary) { margin: 0 10px 10px; }
 .op-editor { margin-top: 9px; padding: 9px; border: 1px solid #352a49; border-radius: 6px; background: #100d1c; }
 .op-head { display: flex; gap: 8px; align-items: end; justify-content: space-between; }
@@ -497,6 +525,7 @@ button.keyword-chip:hover { border-color: var(--gold-hover); color: var(--headin
   input[type='checkbox'] { width: 20px; height: 20px; min-height: 20px; }
   input[type='range'] { height: 44px; }
   .icon-button { width: 44px; height: 44px; }
+  .ability-editor > summary { min-height: 50px; padding-right: 60px; }
   /* One row per colour: pip, name, then a full-size − count + stepper. */
   .pip-controls { grid-template-columns: 1fr; }
   .pip-stepper { grid-template-columns: 28px 1fr 44px 40px 44px; gap: 8px; padding: 4px 8px; }

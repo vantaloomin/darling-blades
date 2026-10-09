@@ -552,8 +552,8 @@ function renderOpList(ops: ScorableEffectOp[], context: string): string {
   const full = ops.length >= FORGE_LIMITS.opsPerList;
   return `${rows || '<p class="empty-editor">No effects yet. Add one below.</p>'}
     <div class="add-op-row">
-      <select data-new-op-context="${escapeHtml(context)}"${full ? ' disabled' : ''}>${optionMarkup(kinds, 'damage', labels)}</select>
-      <button type="button" data-add-op data-op-context="${escapeHtml(context)}"${full ? ' disabled' : ''}>Add Effect</button>
+      <select data-new-op-context="${escapeHtml(context)}" aria-label="Effect to add"${full ? ' disabled' : ''}><option value="" selected disabled>Choose an effect</option>${optionMarkup(kinds, '', labels)}</select>
+      <button type="button" data-add-op data-op-context="${escapeHtml(context)}" disabled>Add Effect</button>
     </div>`;
 }
 
@@ -584,7 +584,8 @@ function renderAbilities(): void {
   }
   abilityList.innerHTML = state.abilities.map((ability, abilityIndex) => `
     <details class="ability-editor" open>
-      <summary><span>Ability ${abilityIndex + 1}</span><button type="button" class="icon-button" data-remove-ability="${abilityIndex}" aria-label="Remove ability">×</button></summary>
+      <summary><span>Ability ${abilityIndex + 1}</span></summary>
+      <button type="button" class="icon-button details-remove" data-remove-ability="${abilityIndex}" aria-label="Remove ability ${abilityIndex + 1}">×</button>
       <div class="ability-body">
         <div class="field-grid two-up">
           <label>Trigger<select data-ability-index="${abilityIndex}" data-ability-field="when">${optionMarkup(TRIGGERS, ability.when, TRIGGER_LABELS)}</select></label>
@@ -818,6 +819,12 @@ document.addEventListener('input', (event) => {
 
 document.addEventListener('change', (event) => {
   const input = event.target as HTMLInputElement | HTMLSelectElement;
+  if (input.matches('[data-new-op-context]')) {
+    // Add Effect waits until an effect is picked, so nothing reads as already chosen.
+    const button = input.parentElement?.querySelector<HTMLButtonElement>('[data-add-op]');
+    if (button) button.disabled = input.value === '';
+    return;
+  }
   if (input.matches('[data-op-kind]')) {
     const context = input.dataset.opContext as OpsContext;
     const kind = input.value as OpKind;
@@ -1559,7 +1566,7 @@ function renderArtGrid(): void {
       <img src="${escapeHtml(forgeThumbUrl(artKey))}" alt="" loading="lazy" decoding="async" />
       <span>${escapeHtml(card.name)}</span>
     </button>`;
-  }).join('') || '<p class="empty-editor">No pictures match these filters.</p>';
+  }).join('') || '<p class="empty-editor grid-wide">No pictures match these filters.</p>';
   artPageLabel.textContent = `${matches.length} pictures · page ${artPage + 1} of ${pages}`;
   artPrev.disabled = artPage === 0;
   artNext.disabled = artPage >= pages - 1;
@@ -1654,7 +1661,9 @@ function renderEvaluation(state: BuilderState): void {
   byId('metric-power').textContent = format(score.power);
   byId('metric-budget').textContent = format(score.budget);
   byId('metric-delta').textContent = signed(score.delta);
-  byId('verdict-label').textContent = VERDICT_LABELS[band];
+  // The label is a live region, so only a change of band is announced.
+  const verdictLabel = byId('verdict-label');
+  if (verdictLabel.textContent !== VERDICT_LABELS[band]) verdictLabel.textContent = VERDICT_LABELS[band];
   byId('verdict-subtitle').innerHTML = textWithPips(verdictSubtitle(state, band));
   const verdict = byId('verdict-copy');
   verdict.className = `verdict-copy ${band}`;
@@ -1666,6 +1675,9 @@ function renderEvaluation(state: BuilderState): void {
   needle.classList.toggle('pinned-left', clamped <= -GAUGE_RANGE + 0.5);
   needle.classList.toggle('pinned-right', clamped >= GAUGE_RANGE - 0.5);
   needle.classList.toggle('off-scale', Math.abs(score.delta) > GAUGE_RANGE);
+  const gauge = byId('difference-gauge');
+  gauge.setAttribute('aria-valuenow', clamped.toFixed(2));
+  gauge.setAttribute('aria-valuetext', `${signed(score.delta)}, ${VERDICT_LABELS[band]}`);
   byId('gauge-value').textContent = Math.abs(score.delta) > GAUGE_RANGE
     ? `${signed(score.delta)} (off the scale)`
     : signed(score.delta);
