@@ -56,7 +56,7 @@ Each trailer is a HyperFrames project under `trailer/`. The first one is `traile
 ```
 cd trailer/teaser
 npm install                 # GSAP, used by the composition
-node prepare.mjs --footage showcase/hel-vs-marsh.mp4   # or several: --footage a.mp4,b.mp4,c.mp4
+node prepare.mjs --footage showcase/hel-vs-marsh-23-27.mp4,showcase/hel-vs-marsh-41-48.mp4,showcase/hel-vs-marsh-64-72.mp4
 npm run check               # lint, runtime, layout and contrast checks
 npx hyperframes@0.8.143 render --output renders/teaser.mp4
 ```
