@@ -980,6 +980,7 @@ function renderSetPanel(): void {
   setEmpty.hidden = forgeSet.cards.length > 0;
   exportImagesNote.hidden = !forgeSet.cards.some(hasCustomArt);
   setCount.textContent = cardCount(forgeSet.cards.length);
+  byId('set-tray-count').textContent = String(forgeSet.cards.length);
   clearSetButton.disabled = forgeSet.cards.length === 0;
 }
 
@@ -1025,6 +1026,11 @@ function saveCurrentCard(): boolean {
 }
 
 byId<HTMLButtonElement>('save-to-set').addEventListener('click', () => { saveCurrentCard(); });
+// The action bar stays in view; this takes you down to the set below the card.
+byId<HTMLButtonElement>('show-set').addEventListener('click', () => {
+  byId('set-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  byId<HTMLInputElement>('set-name').focus({ preventScroll: true });
+});
 byId<HTMLButtonElement>('save-and-next').addEventListener('click', () => {
   if (saveCurrentCard()) startFreshCard();
 });

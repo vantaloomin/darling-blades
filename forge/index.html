@@ -261,13 +261,14 @@
             <div class="action-group">
               <button id="copy-link" class="small-button" type="button">Copy Link</button>
               <button id="save-image" class="ghost-button" type="button">Save Image</button>
+              <button id="show-set" class="ghost-button set-tray-button" type="button" aria-controls="set-panel">Your Set · <span id="set-tray-count">0</span></button>
             </div>
           </div>
           <p id="action-message" class="action-message" aria-live="polite"></p>
           <label id="share-fallback" class="share-fallback" hidden>Copy this link:<input id="share-fallback-input" type="text" readonly /></label>
         </div>
 
-        <section class="set-panel" aria-labelledby="set-heading">
+        <section id="set-panel" class="set-panel" aria-labelledby="set-heading">
           <div class="section-heading"><h2 id="set-heading">Your Set</h2><span id="autosave-status" class="autosave-status" hidden>Saved in this browser</span></div>
           <label>Set Name<input id="set-name" type="text" maxlength="60" /></label>
           <ol id="set-list" class="set-list" aria-label="Cards in your set"></ol>
