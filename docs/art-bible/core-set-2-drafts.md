@@ -2,59 +2,32 @@
 
 # Core Set II Art-Bible Drafts
 
-> **DRAFT (2026-10-09).** This file covers the 250 cards the owner agreed in
-> the Core Set II cut. Card data does not exist yet: transcription follows
-> the art run (`docs/plan-core-set-2.md`, wave 3). So, like the Sands of the
-> Duat drafts, it sits outside `check-art-bible`. Its **Card facts** lines
-> are transcribed from the overplan working copy, not from `src/data/`.
-> Costs are the provisional 25-life rescore, and the scorer's life terms are
-> re-derived in D3, so a cost can still move.
->
-> When the cards are transcribed:
->
-> - the set register below is promoted to `index.md` as section 4e,
-> - the creature entries move to `core-set-2.md`, where the checker covers
->   them,
-> - the spell and permanent prompts move to `docs/spell-art.md`.
->
-> Card ids here use the overplan's `cs2-` working prefix, and the final
-> prefix is set at transcription. Every character is an adult woman.
+> **DRAFT (2026-10-09).** This file covers the 250 cards the owner agreed in the Core Set II cut. Card data does not exist yet: transcription follows the art run (`docs/plan-core-set-2.md`, wave 3). So, like the Sands of the Duat drafts, it sits outside `check-art-bible`. Its **Card facts** lines are transcribed from the overplan working copy, not from `src/data/`. Costs are the provisional 25-life rescore, and the scorer's life terms are re-derived in D3, so a cost can still move. When the cards are transcribed, the set register below is promoted to `index.md` as section 4e, the creature entries move to `core-set-2.md` (where the checker covers them), and the spell and permanent prompts move to `docs/spell-art.md`. Card ids here use the overplan's `cs2-` working prefix, and the final prefix is set at transcription. Every character is an adult woman.
 
 ## Owner-gate register
 
 | # | Question | Draft position | Status |
 | --- | --- | --- | --- |
-| G1 | **The Mandate's sign.** Echo the base set's Imperial Jade Seal, or use a new object? | Echo it: the same dragon-topped jade seal on a crimson silk cord (see "The Mandate's sign" below) | asked 2026-10-09; drafted on the recommendation |
+| G1 | **The Mandate's sign.** Echo the base set's Imperial Jade Seal, or use a new object? | A new object: a pierced jade disc (*bi*) on a crimson silk cord | **RULED 2026-10-09: a new object** |
 | G2 | **Cerberus's three heads.** A woman cannot carry three heads without reading as body horror. | One woman's head with hound ears. Her other two heads are two great hounds at her sides, one at each hip, collared to her by chains: three heads, three colours, one Beastkin | open, flagged in her entry |
 | G3 | **Jiuwei's nine tails against the Kitsune row** of `beastkin.md` ("matriarch = nine"). | Jiuwei is a Chinese fox spirit: hanfu silk and jade, never a miko's red-and-white. The tail count is shared and the costume tells them apart | open |
 | G4 | **The daylight share.** | About two thirds of frames are golden-hour daylight. Night is kept for black (the Styx, Jin plots) and for the Moon Court, lit by the moon | open |
 
 ## Set register (proposed section 4e of `index.md`)
 
-This register applies to every Core Set II art-bible entry, to every
-spell-art entry for the set, and to every set-scoped key visual. The global
-rules in `index.md` sections 2 to 6 remain in force. Its source is section 14
-of the identity brief.
+This register applies to every Core Set II art-bible entry, to every spell-art entry for the set, and to every set-scoped key visual. The global rules in `index.md` sections 2 to 6 remain in force. Its source is section 14 of the identity brief.
 
-**The Mandate has fallen.** The sign of the right to rule has come loose
-from heaven. It can be held, carried into battle, and taken by whoever
-strikes its keeper, and every realm reaches for it:
+**The Mandate has fallen.** The sign of the right to rule has come loose from heaven. It can be held, carried into battle, and taken by whoever strikes its keeper, and every realm reaches for it:
 
 - **The Three Kingdoms** fight for it as they always have.
 - **Olympus** claims the right to grant it, and swears its oaths on the Styx.
 - **The Beastkin** of the wilds raid whoever holds it.
 
-**The tone is the homecoming.** The base set's look returns with a larger
-cast and a sharper eye: lacquer and marble, crimson and gold, banners,
-river-fleets, temples on cliffs. It is elegant, glamorous and adult, grand
-rather than grim, and lit warmer than the base set. The register's job is to
-make the old houses look like the best version of themselves, and to make
-one small object, the Mandate's sign, readable in a 216 px window.
+**The tone is the homecoming.** The base set's look returns with a larger cast and a sharper eye: lacquer and marble, crimson and gold, banners, river-fleets, temples on cliffs. It is elegant, glamorous and adult, grand rather than grim, and lit warmer than the base set. The register's job is to make the old houses look like the best version of themselves, and to make one small object, the Mandate's sign, readable in a 216 px window.
 
 ### Accent palette
 
-Layer these accents over the card's colour-identity palette (section 4), the
-way the faction accents already work. The base set's faction accents stand:
+Layer these accents over the card's colour-identity palette (section 4), the way the faction accents already work. The base set's faction accents stand:
 
 - Wei: lapis and bronze.
 - Wu: crimson and river-gold.
@@ -80,87 +53,42 @@ The new accents below are the homecoming's shared vocabulary.
 | **Pale moon blue** | `#bcd6f2` / `#8fb4e0` | moonlight on the Moon Court, the night key of the Moon Palace |
 | **Nanman sun-bronze** | `#c07a2c` / `#e8b060` | the Nanman south: bronze drums, sun-beaten bronze, feather and bead work |
 
-**The Styx keeps its own colour.** Its water is a deep oath-violet
-`#3b2a5a` with a faint silver surface sheen `#cfd3e8`. It is never black
-water and never lit from below, so it can't be mistaken for the Drowned
-Deep's water.
+**The Styx keeps its own colour.** Its water is a deep oath-violet `#3b2a5a` with a faint silver surface sheen `#cfd3e8`. It is never black water and never lit from below, so it can't be mistaken for the Drowned Deep's water.
 
 ### The Mandate's sign (reserved object)
 
-**The sign is the Heirloom Seal** (G1, drafted on the recommendation): the
-base set's carved translucent jade seal with a coiled-dragon top, now hung
-on a **crimson silk cord** so a woman can wear it, lift it, grab it or tear
-it away.
+**The sign is the Mandate disc** (G1, ruled 2026-10-09: a new object): a palm-sized **pierced jade disc**, a *bi*, flat and round with a round hole at its centre, in pale translucent celadon jade, hung on a **crimson silk cord** threaded through the hole so a woman can wear it, lift it, grab it or tear it away. It is deliberately not the base set's Imperial Jade Seal (`ar-imperial-jade-seal`, a carved block with a dragon top), and the two never appear in the same frame.
 
-- **Its face is always plain.** It carries no characters, no seal script and
-  no inscription, and it is never turned to show writing. The coiled dragon
-  on top is abstract relief.
-- **It glows with one reserved light.** A soft inner glow of heaven-gold
-  `#fff1b0` lives inside the jade. No other object in a Core Set II frame
-  glows with that light, so lamps, braziers, sunsets and halos get their own
-  colour words in the prompt.
-- **There is exactly one in any frame.** A Mandate card names who holds it,
-  and where.
-- **The size rule.** The seal is fist-sized and the cord is long. At
-  battlefield crop it reads as a bright jade-gold point on a red line, so it
-  sits at mid-height inside the band, never at the bottom edge.
+- **Its faces are always plain.** It carries no characters, no inscription and no carved figures, only a smooth polished surface with at most a fine raised rim at its outer and inner edges.
+- **It glows with one reserved light.** A soft inner glow of heaven-gold `#fff1b0` lives inside the jade. No other object in a Core Set II frame glows with that light, so lamps, braziers, sunsets and halos get their own colour words in the prompt.
+- **There is exactly one in any frame.** A Mandate card names who holds it, and where.
+- **The size rule.** The disc is palm-sized and the cord is long. At battlefield crop it reads as a bright jade-gold ring on a red line, so it sits at mid-height inside the band, never at the bottom edge.
 
 Three rules for every mention of the sign in a prompt:
 
-1. **Name the bearer and the place:** "the jade seal on its crimson cord
-   wound round her left fist", never "a glowing jade object" loose in the
-   scene.
-2. **Name the light as the seal's own:** "the seal's soft inner heaven-gold
-   glow", and give any other light in the frame its own colour word (lamp
-   amber, brazier orange, sunset rose).
-3. **Carry the plain-face clause:** "the seal's face plain and blank, no
-   characters, no inscription".
-
-The base set's `ar-imperial-jade-seal` stays as it is. It was drawn as an
-object on a pedestal with no cord, which reads as the seal at rest before
-the fall.
+1. **Name the bearer and the place:** "the jade Mandate disc on its crimson cord wound round her left fist", never "a glowing jade object" loose in the scene.
+2. **Name the light as the disc's own:** "the disc's soft inner heaven-gold glow", and give any other light in the frame its own colour word (lamp amber, brazier orange, sunset rose).
+3. **Carry the plain-face clause:** "the disc's faces plain and polished, no characters, no inscription, no carving".
 
 ### Marks
 
-A mark is drawn as in section 4b: **biolume cyan `#5ff0e0` / `#aefff6`,
-reserved**. In this set it is one small pearl of living cyan light set just
-under the skin, one per mark, countable, at mid-height on the body, with the
-three 4b rules (a stated count on a named bearer, a state never a
-transition, the placement clause) on every mark prompt. Cyan appears nowhere
-else in a Core Set II frame: not in jade, not in the Moon Palace, not in
-water. Jade is green (`#3f9a78`) and the Moon Court is white and pale blue,
-and the prompts say so.
+A mark is drawn as in section 4b: **biolume cyan `#5ff0e0` / `#aefff6`, reserved**. In this set it is one small pearl of living cyan light set just under the skin, one per mark, countable, at mid-height on the body, with the three 4b rules (a stated count on a named bearer, a state never a transition, the placement clause) on every mark prompt. Cyan appears nowhere else in a Core Set II frame: not in jade, not in the Moon Palace, not in water. Jade is green (`#3f9a78`) and the Moon Court is white and pale blue, and the prompts say so.
 
 ### Value floor and lighting doctrine
 
-- **Warm by default.** The default key is a low golden-hour sun from one
-  side, with a cool river-blue or Aegean-blue rim opposite. This is
-  warmer than the base set's upper-left default.
+- **Warm by default.** The default key is a low golden-hour sun from one side, with a cool river-blue or Aegean-blue rim opposite. This is warmer than the base set's upper-left default.
 - **About two thirds of frames are daylight (G4).** The rest are night:
-  - **Black's night** (the Styx, Jin's intrigues, curses) is lit by a named
-    practical: a lantern, a brazier, or the Styx's silver sheen.
-  - **The Moon Court's night** is lit by the full moon as the key, in pale
-    moon blue, with white jade surfaces catching it.
-- **The value floor.** The darkest visible value inside the band is deep
-  lacquer-brown `#2b1a17`, and there is no true black. Every illustration
-  carries one surface above roughly 70% luminance inside the band (y 138 to
-  662): a lit face, marble, a sunlit banner, or white jade.
+  - **Black's night** (the Styx, Jin's intrigues, curses) is lit by a named practical: a lantern, a brazier, or the Styx's silver sheen.
+  - **The Moon Court's night** is lit by the full moon as the key, in pale moon blue, with white jade surfaces catching it.
+- **The value floor.** The darkest visible value inside the band is deep lacquer-brown `#2b1a17`, and there is no true black. Every illustration carries one surface above roughly 70% luminance inside the band (y 138 to 662): a lit face, marble, a sunlit banner, or white jade.
 
 ### NO-TEXT, and the homecoming's variant
 
-The global NO-TEXT rule applies, and this set tests it hardest: Three
-Kingdoms banners, seals and plaques are where the generators stamp garbled
-characters.
+The global NO-TEXT rule applies, and this set tests it hardest: Three Kingdoms banners, seals and plaques are where the generators stamp garbled characters.
 
-- **The negative carried on every Core Set II prompt:** `no text, no
-  letters, no numerals, no Chinese characters, no calligraphy, no seal
-  script, no lettered banners, no plaques with writing, no Greek letters, no
-  inscriptions on any surface, no writing on the seal`.
-- **Banners are blank or patterned.** House banners carry colour fields,
-  borders and an abstract emblem (Wei's tiger-and-cloud, Wu's flame-wave,
-  Shu's peach blossom, Jin's crane), never a character.
-- **Greek friezes are pattern only.** Meander borders and figure-free
-  palmettes, never lettered dedications.
+- **The negative carried on every Core Set II prompt:** `no text, no letters, no numerals, no Chinese characters, no calligraphy, no seal script, no lettered banners, no plaques with writing, no Greek letters, no inscriptions on any surface, no writing on the disc`.
+- **Banners are blank or patterned.** House banners carry colour fields, borders and an abstract emblem (Wei's tiger-and-cloud, Wu's flame-wave, Shu's peach blossom, Jin's crane), never a character.
+- **Greek friezes are pattern only.** Meander borders and figure-free palmettes, never lettered dedications.
 
 ### Composition by mechanic family
 
@@ -174,10 +102,10 @@ These are the families new to this set, or drawn differently here:
 
 | Family | The moment to draw |
 | --- | --- |
-| **Claim the Mandate** | The instant of taking: a hand closing on the crimson cord, the seal swinging at the end of it and catching its own heaven-gold light. When a card claims on arrival, she has just lifted it. When it claims by combat, she tears it from a fallen rival's grasp: the rival is whole and only her hand shows, entering from the frame edge. Never the throne room afterwards. |
-| **While you hold the Mandate** | A state: the seal worn openly on its cord at her hip, her breast or her wrist, lit and steady, the woman stronger for it. The seal sits at mid-height. |
-| **Whenever you claim it** | A banner, a host or a beast answering the seal, its light thrown across them. |
-| **Lose or Nemesis** | The seal held by someone else, out of reach: a cord running out of frame, or an empty hand where the cord was. |
+| **Claim the Mandate** | The instant of taking: a hand closing on the crimson cord, the disc swinging at the end of it and catching its own heaven-gold light. When a card claims on arrival, she has just lifted it. When it claims by combat, she tears it from a fallen rival's grasp: the rival is whole and only her hand shows, entering from the frame edge. Never the throne room afterwards. |
+| **While you hold the Mandate** | A state: the disc worn openly on its cord at her hip, her breast or her wrist, lit and steady, the woman stronger for it. The disc sits at mid-height. |
+| **Whenever you claim it** | A banner, a host or a beast answering the disc, its light thrown across them. |
+| **Lose or Nemesis** | The disc held by someone else, out of reach: a cord running out of frame, or an empty hand where the cord was. |
 | **Sworn** | **No reserved tell** (brief, section 14). Sworn cards show loyalty in the pose (a knee bent to a legend, a blade raised in salute, an oath cup lifted), but no colour, glow or mark belongs to the mechanic. |
 | **Sworn Champions** (the six common legends) | Named heroines drawn as legends in everything but scene: single figure, one idea, the common's two-value background. They wear no crown and no rarity tell, matching the card frame. |
 | **Tithe** (non-horror) | The offering made with dignity: the given allies stepping back into light, kneeling and fading to silhouette, or a line of banners lowered. Never bodies, never blood. The card's own subject stands brighter for it. |
@@ -187,47 +115,27 @@ These are the families new to this set, or drawn differently here:
 
 ### The peoples and their tells
 
-**The Three Kingdoms officers** are the house cast as the base set drew
-them: genderswapped historicals who keep each source character's signature
-weapon, insignia and colour (global rule). There are no species tells, ever.
-Each house reads through the base set's costume language:
+**The Three Kingdoms officers** are the house cast as the base set drew them: genderswapped historicals who keep each source character's signature weapon, insignia and colour (global rule). There are no species tells, ever. Each house reads through the base set's costume language:
 
 - **Wei:** lapis lamellar, bronze, black lacquer, the tiger-and-cloud emblem.
-- **Wu:** crimson and river-gold, fire and river-fleet imagery, the
-  flame-wave emblem.
+- **Wu:** crimson and river-gold, fire and river-fleet imagery, the flame-wave emblem.
 - **Shu:** jade and ivory, peach blossom, sworn-brother red cords.
 - **Jin:** slate-teal silks, tarnished silver, cranes, court intrigue.
-- **The others:** the Han court, the Liang frontier and the Yellow Turbans,
-  each per the base set.
+- **The others:** the Han court, the Liang frontier and the Yellow Turbans, each per the base set.
 
-**The Nanman south** (Mulu, Dailai Dongzhu, the war-beasts) wears jungle
-war-regalia: bronze-scale leather, feather and bead work, and the Nanman
-sun-bronze accent. Its beasts are plain animals: elephants, tigers and
-rhinos.
+**The Nanman south** (Mulu, Dailai Dongzhu, the war-beasts) wears jungle war-regalia: bronze-scale leather, feather and bead work, and the Nanman sun-bronze accent. Its beasts are plain animals: elephants, tigers and rhinos.
 
-**Greek mortals** (Amazons, hoplites, huntresses, oracles) wear chitons,
-bronze, and leather pteryges over marble-and-Aegean scenes, per
-`greek.md`.
+**Greek mortals** (Amazons, hoplites, huntresses, oracles) wear chitons, bronze, and leather pteryges over marble-and-Aegean scenes, per `greek.md`.
 
 **The gods** read divine by light and by the scale of their setting:
 
 - A god is set among vast temples, clouds or the mouth of the Styx.
-- Her light is her own: Hephaestus's forge-glow, Nemesis's cold silver,
-  Dionysus's torchlit revel.
-- A god is never drawn smaller than a mortal woman, and never as a giant
-  dwarfing a mortal woman in the same frame.
+- Her light is her own: Hephaestus's forge-glow, Nemesis's cold silver, Dionysus's torchlit revel.
+- A god is never drawn smaller than a mortal woman, and never as a giant dwarfing a mortal woman in the same frame.
 
-**Nüwa** is drawn as a woman, not a serpent (ruled 2026-10-08), and so are
-Medusa and every other monster of myth. A monster's nature is carried by at
-most three stated tells, as Beastkin are.
+**Nüwa** is drawn as a woman, not a serpent (ruled 2026-10-08), and so are Medusa and every other monster of myth. A monster's nature is carried by at most three stated tells, as Beastkin are.
 
-**Beastkin** follow `beastkin.md`: an adult woman with **at most three
-stated species tells**, all named in every prompt and at least two of them
-inside the card window, and tails stated with count, root and tip. Core Set
-II's Beastkin are Chinese-myth and wild-country Beastkin, not the base set's
-Japanese yokai register. Costume is handcraft: hemp, felted wool, bamboo,
-river shell, leather and jade beads. **The Moon Court** (Yutu, the rabbits,
-Lanlan's otters) wears white jade, pale silk and silver, in the Moon Palace.
+**Beastkin** follow `beastkin.md`: an adult woman with **at most three stated species tells**, all named in every prompt and at least two of them inside the card window, and tails stated with count, root and tip. Core Set II's Beastkin are Chinese-myth and wild-country Beastkin, not the base set's Japanese yokai register. Costume is handcraft: hemp, felted wool, bamboo, river shell, leather and jade beads. **The Moon Court** (Yutu, the rabbits, Lanlan's otters) wears white jade, pale silk and silver, in the Moon Palace.
 
 The species sheet additions, to be merged into `beastkin.md` at promotion:
 
@@ -249,23 +157,16 @@ The species sheet additions, to be merged into `beastkin.md` at promotion:
 | **Panda** (Panda) | small round black ears | short white stub tail | black eye-patch markings round both eyes, and black fur on the forearms and shoulders |
 | **Holstaur, Boar** | the existing rows | | |
 
-Antlered and horned species follow the headroom rule: antlers count toward
-the head top, so they are swept back, never towering.
+Antlered and horned species follow the headroom rule: antlers count toward the head top, so they are swept back, never towering.
 
-**Constructs** (Bronze Automaton, the Crete sentries, the tomb's clay
-soldiers) follow `constructs-and-tokens.md`. Hephaestus's automata are
-golden-bronze women with visible joint seams. The tomb's clay soldiers are
-terracotta women with a painted-pigment finish, and none of them is drawn
-after the Qin army's real faces.
+**Constructs** (Bronze Automaton, the Crete sentries, the tomb's clay soldiers) follow `constructs-and-tokens.md`. Hephaestus's automata are golden-bronze women with visible joint seams. The tomb's clay soldiers are terracotta women with a painted-pigment finish, and none of them is drawn after the Qin army's real faces.
 
 ---
 
 ## Creature entries
 
-*(Drafting in progress. They follow the 13-field template of `index.md`
-section 8, by roster: legends first, then the rest in overplan order.)*
+*(Drafting in progress. They follow the 13-field template of `index.md` section 8, by roster: legends first, then the rest in overplan order.)*
 
 ## Spell and permanent prompts
 
-*(Drafting in progress. They follow the heading-plus-Prompt form of
-`docs/spell-art.md`, with the spell preamble's suffix.)*
+*(Drafting in progress. They follow the heading-plus-Prompt form of `docs/spell-art.md`, with the spell preamble's suffix.)*
