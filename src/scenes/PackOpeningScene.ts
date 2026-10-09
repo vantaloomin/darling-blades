@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { formatGold, goldPrice } from '../ui/goldFormat';
 import { liveArtStore } from '../art/artLoader';
 import { PackRequests } from '../art/packRequests';
 import { Music } from '../audio/music';
@@ -452,7 +453,7 @@ export class PackOpeningScene extends Phaser.Scene {
         width / 2,
         116,
         `${all.length} cards · ${newCards} new · ${specials.length} Super Rare+` +
-          (dupeGold > 0 ? ` · +🪙 ${dupeGold} from duplicates` : ''),
+          (dupeGold > 0 ? ` · +${formatGold(dupeGold)} from duplicates` : ''),
         { fontFamily: theme.fonts.ui, fontSize: `${theme.type.body}px`, color: theme.colors.body },
       )
       .setOrigin(0.5);
@@ -524,7 +525,7 @@ export class PackOpeningScene extends Phaser.Scene {
     const gold = this.saveData.gold;
     const steps = [10, 5, 1].filter((n) => n <= openedQty);
     const qty = steps.find((n) => gold >= n * price) ?? 1;
-    const label = qty === 1 ? `Open Another (🪙 ${price})` : `Open ×${qty} More (🪙 ${qty * price})`;
+    const label = qty === 1 ? `Open Another · ${goldPrice(price)}` : `Open ×${qty} More · ${goldPrice(qty * price)}`;
 
     // Short of even one pack: the re-buy shows disabled with its price, as
     // the Shop's Buy buttons do, instead of looking live and doing nothing.
@@ -1160,7 +1161,7 @@ export class PackOpeningScene extends Phaser.Scene {
         width / 2,
         600,
         `${all.length} cards · ${newCards} new · ${specials} Super Rare+` +
-          (dupeGold > 0 ? ` · +🪙 ${dupeGold} from duplicates` : ''),
+          (dupeGold > 0 ? ` · +${formatGold(dupeGold)} from duplicates` : ''),
         { fontFamily: theme.fonts.ui, fontSize: `${theme.type.body}px`, color: theme.colors.body },
       )
       .setOrigin(0.5)
@@ -1589,7 +1590,7 @@ export class PackOpeningScene extends Phaser.Scene {
         .setAlpha(0);
       this.tweens.add({ targets: callout, alpha: 1, duration: 250 });
     }
-    const label = card.isNew ? 'NEW' : card.dupeGold > 0 ? `🪙 +${card.dupeGold}` : null;
+    const label = card.isNew ? 'NEW' : card.dupeGold > 0 ? `+${formatGold(card.dupeGold)}` : null;
     if (!label) return;
     const t = this.add
       .text(view.x, view.y + 220 * view.scaleY + 12, label, {
@@ -1771,7 +1772,7 @@ export class PackOpeningScene extends Phaser.Scene {
     // Short of the price: disabled with the price still readable, never a live
     // button that silently does nothing (review 2026-09-23).
     const canAfford = this.saveData.gold >= openPrice;
-    this.buildCtaRail(`Open Another (🪙 ${openPrice})`, canAfford, () => {
+    this.buildCtaRail(`Open Another · ${goldPrice(openPrice)}`, canAfford, () => {
       if (this.fixture) return;
       const save = Services.save.data;
       if (!spendGold(save, openPrice)) return;

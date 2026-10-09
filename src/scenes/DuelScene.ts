@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { formatGold } from '../ui/goldFormat';
 import type { DuelA11yFixtureName, DuelA11yFixture } from '../dev/duelA11yFixtures';
 import type { AIPlayer } from '../ai/AIPlayer';
 import { buildTierAI, floorTier } from '../ai/tiers';
@@ -1511,7 +1512,7 @@ export class DuelScene extends Phaser.Scene {
       .setOrigin(0.5));
     if (firstTime) {
       row(356, this.add
-        .text(cx, 356, `+${ECONOMY.startingGold} gold`, {
+        .text(cx, 356, `+${formatGold(ECONOMY.startingGold)}`, {
           fontFamily: theme.fonts.ui, fontSize: `${theme.type.h2}px`, fontStyle: '600', color: theme.colors.gold,
         })
         .setOrigin(0.5));
@@ -8937,7 +8938,7 @@ export class DuelScene extends Phaser.Scene {
     if (completion) parts.push('completion bonus');
     if (firstWinBonus) parts.push('first win');
     if (streakCount > 0) parts.push(`streak ${streakCount}`);
-    return `+${totalGold} gold${parts.length > 0 ? `  (${parts.join(' + ')})` : ''}`;
+    return `+${formatGold(totalGold)}${parts.length > 0 ? `  (${parts.join(' + ')})` : ''}`;
   }
 
   private showResults(won: boolean, reason: string): void {

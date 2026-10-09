@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { formatGold } from '../ui/goldFormat';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { ALL_CARDS, CARD_DB } from '../data/catalog';
@@ -263,7 +264,7 @@ export class AchievementsScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     if (claimable.length > 0) {
-      claimAllButton = themedButton(this, 0, theme.design.headerCenterY, `Claim All +${claimableGold} Gold`, {
+      claimAllButton = themedButton(this, 0, theme.design.headerCenterY, `Claim All +${formatGold(claimableGold)}`, {
         variant: 'primary',
         minWidth: 220,
         onTap: () => {
@@ -598,7 +599,7 @@ export class AchievementsScene extends Phaser.Scene {
     const claimable = status.unlocked && !status.claimed;
     const claimed = status.claimed;
     const reward = this.add
-      .text(0, 0, `+${status.def.reward.gold} Gold`, {
+      .text(0, 0, `+${formatGold(status.def.reward.gold)}`, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         fontStyle: theme.weight.w600,

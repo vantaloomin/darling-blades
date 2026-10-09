@@ -141,7 +141,7 @@ export class MainMenuScene extends Phaser.Scene {
     ];
     const gear = headerButton('⚙ Settings', () => this.scene.start('Settings'));
     const header = mainMenuHeaderRow(learning.map((b) => b.getMeasuredSize().hit.width),
-      gear.getMeasuredSize().hit.width, badge.text.width);
+      gear.getMeasuredSize().hit.width, badge.width());
     learning.forEach((button, i) => button.container.setX(header.leftX[i]));
     gear.container.setX(header.rightX);
     this.drawDailyPanel(today, fixture);

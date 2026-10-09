@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { formatGold } from '../ui/goldFormat';
 import { floorBrain, floorDifficultyPips } from '../ai/tiers';
 import { fitMenuName } from '../ui/menuText';
 import { currentAccessibility } from '../ui/accessibility';
@@ -432,7 +433,7 @@ export class GauntletScene extends Phaser.Scene {
     });
     const reward = ECONOMY.gauntletRungGold[floor - 1];
     const rewardLine = floor === ECONOMY.gauntletRungGold.length
-      ? `Reward: 🪙 ${reward}  +  🪙 ${ECONOMY.gauntletCompletionBonus} completion bonus` : `Reward: 🪙 ${reward}`;
+      ? `Reward: ${formatGold(reward)} + ${formatGold(ECONOMY.gauntletCompletionBonus)} completion bonus` : `Reward: ${formatGold(reward)}`;
     const rewardText = this.add.text(textX, 0, rewardLine, {
       fontFamily: theme.fonts.ui, fontSize: `${theme.type.body}px`, fontStyle: theme.weight.w600,
       color: theme.colors.gold, wordWrap: { width: COL_W },

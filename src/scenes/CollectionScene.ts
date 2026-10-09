@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { formatGold } from '../ui/goldFormat';
 import { IS_DEV } from '../platform/env';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
@@ -1234,7 +1235,7 @@ export class CollectionScene extends Phaser.Scene {
     const owned = ownedCount(save, d.id);
     if (owned === 0 && !d.token && !d.supertypes?.includes('basic')) {
       const cost = craftCost(CARD_DB, d.id);
-      const costLabel = `-${cost.toLocaleString('en-US')}g`;
+      const costLabel = `-${formatGold(cost)}`;
       let armed = false;
       let armedVerb = 'Click';
       let disarmTimer: Phaser.Time.TimerEvent | null = null;
@@ -1295,13 +1296,13 @@ export class CollectionScene extends Phaser.Scene {
         c,
         panelX,
         0,
-        `⛏ Hold to shard ×${excess} extra (+${gold}🪙)`,
+        `Hold to shard ×${excess} extra (+${formatGold(gold)})`,
         'emphasis',
         () => undefined,
       );
 
       buttons.push(shardBtn);
-      const holdLabel = `⛏ Hold to shard ×${excess} extra (+${gold}🪙)`;
+      const holdLabel = `Hold to shard ×${excess} extra (+${formatGold(gold)})`;
       const progressFill = this.add.graphics();
       // The progress visual belongs inside the CTA instead of around the
       // cursor. Insert it above the button surface and below its label.
@@ -1364,7 +1365,7 @@ export class CollectionScene extends Phaser.Scene {
         holding = true;
         progress = 0;
         drawProgress(0);
-        shardBtn.setLabel(`Hold to release (+${gold}🪙)`);
+        shardBtn.setLabel(`Hold to release (+${formatGold(gold)})`);
         const duration = shardHoldDuration(gold);
         const startedAt = this.time.now;
         progressTimer = this.time.addEvent({
@@ -1392,7 +1393,7 @@ export class CollectionScene extends Phaser.Scene {
           this.flushSave();
           if (!this.fixture && checkpoint.changed) queueAchievementUnlockToasts(checkpoint.ids);
           startRitual();
-          shardBtn.setLabel(`Released (+${result.gold}🪙)`);
+          shardBtn.setLabel(`Released (+${formatGold(result.gold)})`);
           Sfx.play('shatter');
           this.playShardRitual(c, view, displayedVariant(), save.gold - result.gold, result.gold, () => {
             this.renderPage(); // refresh the ×N / ✦N badges beneath the overlay
@@ -1426,7 +1427,7 @@ export class CollectionScene extends Phaser.Scene {
     const policy = fxPolicy(this);
     const duration = shardDissolveDuration(variant?.fullArt === true);
     const timers: Phaser.Time.TimerEvent[] = [];
-    const badge = this.goldBadge.text;
+    const badge = this.goldBadge.container;
     const badgeDepth = badge.depth;
     const isCurrent = (): boolean => c.active && view.active && this.inspect === c;
     let finished = false;
@@ -1528,7 +1529,7 @@ export class CollectionScene extends Phaser.Scene {
           if (!isCurrent() || !mote.active) return;
           this.tweens.add({
             targets: mote,
-            x: badge.x,
+            x: badge.x + this.goldBadge.coin.x,
             y: badge.y,
             alpha: 0,
             scale: 0.18,
