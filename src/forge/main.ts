@@ -182,9 +182,7 @@ const colorOverrideControls = byId<HTMLFieldSetElement>('color-override-controls
 const xSpell = byId<HTMLInputElement>('x-spell');
 const bodySection = byId<HTMLElement>('body-section');
 const cardAttack = byId<HTMLInputElement>('card-attack');
-const attackValue = byId<HTMLOutputElement>('attack-value');
 const cardDefense = byId<HTMLInputElement>('card-defense');
-const defenseValue = byId<HTMLOutputElement>('defense-value');
 const keywordPalette = byId<HTMLDivElement>('keyword-palette');
 const keywordScoreNote = byId<HTMLParagraphElement>('keyword-score-note');
 const abilityList = byId<HTMLDivElement>('ability-list');
@@ -327,8 +325,15 @@ colorOverrideControls.addEventListener('change', (event) => {
   });
 });
 xSpell.addEventListener('change', () => mutate((next) => { next.isX = xSpell.checked; }));
-cardAttack.addEventListener('input', () => mutate((next) => { next.attack = clampInt(Number(cardAttack.value), 0, FORGE_LIMITS.stat); }));
-cardDefense.addEventListener('input', () => mutate((next) => { next.defense = clampInt(Number(cardDefense.value), 0, FORGE_LIMITS.stat); }));
+// Typed stats commit on change (so clearing the box to type doesn't snap it to 0); the − and + buttons step by one.
+cardAttack.addEventListener('change', () => mutate((next) => { next.attack = clampInt(Number(cardAttack.value), 0, FORGE_LIMITS.stat); }));
+cardDefense.addEventListener('change', () => mutate((next) => { next.defense = clampInt(Number(cardDefense.value), 0, FORGE_LIMITS.stat); }));
+bodySection.addEventListener('click', (event) => {
+  const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-stat]');
+  if (!button) return;
+  const stat = button.dataset.stat === 'defense' ? 'defense' : 'attack';
+  mutate((next) => { next[stat] = clampInt(next[stat] + Number(button.dataset.step), 0, FORGE_LIMITS.stat); });
+});
 frameStyle.addEventListener('change', () => mutate((next) => { next.appearance.frame = frameStyle.value as BuilderState['appearance']['frame']; }));
 holoFinish.addEventListener('change', () => mutate((next) => { next.appearance.holo = holoFinish.value as BuilderState['appearance']['holo']; }));
 fullArt.addEventListener('change', () => mutate((next) => { next.appearance.fullArt = fullArt.checked; }));
@@ -374,15 +379,38 @@ function showTermInfo(list: HTMLElement, info: HTMLElement, selector: string): v
 showTermInfo(keywordPalette, byId('keyword-info'), '[data-keyword]');
 showTermInfo(byId('mechanic-toggles'), byId('mechanic-info'), '[data-mechanic-id]');
 
+/**
+ * Rebuilds a container's markup without losing the user's place: the focused
+ * control (found again by its id and data attributes) keeps focus, and any
+ * editor section they folded stays folded (matched by its summary text).
+ */
+function rebuildKeepingPlace(container: HTMLElement, rebuild: () => void): void {
+  const active = document.activeElement;
+  let focusSelector: string | null = null;
+  if (active instanceof HTMLElement && active !== container && container.contains(active)) {
+    const attrs = [...active.attributes].filter((attr) => attr.name === 'id' || attr.name.startsWith('data-'));
+    if (attrs.length > 0) focusSelector = active.tagName.toLowerCase() + attrs.map((attr) => `[${attr.name}="${CSS.escape(attr.value)}"]`).join('');
+  }
+  const folded = new Set([...container.querySelectorAll<HTMLDetailsElement>('details:not([open])')]
+    .map((details) => details.querySelector(':scope > summary')?.textContent?.trim() ?? ''));
+  rebuild();
+  for (const details of container.querySelectorAll<HTMLDetailsElement>('details')) {
+    if (folded.has(details.querySelector(':scope > summary')?.textContent?.trim() ?? '')) details.open = false;
+  }
+  if (focusSelector) container.querySelector<HTMLElement>(focusSelector)?.focus({ preventScroll: true });
+}
+
 function renderKeywordPalette(state: BuilderState): void {
-  keywordPalette.innerHTML = KEYWORD_OPTIONS.map(({ keyword, name, reminder }) => {
-    const selected = state.keywords.includes(keyword);
-    const value = keywordValueOnCard(state, keyword);
-    return `<button type="button" class="keyword-chip palette-chip ${selected ? 'selected' : ''} ${value < 0 ? 'negative' : ''}"
-      aria-pressed="${selected}" draggable="true" data-keyword="${keyword}" title="${escapeHtml(keywordChipTitle(state, reminder, keyword))}">
-      <span>${escapeHtml(name)}</span><strong>${signed(value)}</strong>
-    </button>`;
-  }).join('');
+  rebuildKeepingPlace(keywordPalette, () => {
+    keywordPalette.innerHTML = KEYWORD_OPTIONS.map(({ keyword, name, reminder }) => {
+      const selected = state.keywords.includes(keyword);
+      const value = keywordValueOnCard(state, keyword);
+      return `<button type="button" class="keyword-chip palette-chip ${selected ? 'selected' : ''} ${value < 0 ? 'negative' : ''}"
+        aria-pressed="${selected}" draggable="true" data-keyword="${keyword}" title="${escapeHtml(keywordChipTitle(state, reminder, keyword))}">
+        <span>${escapeHtml(name)}</span><strong>${signed(value)}</strong>
+      </button>`;
+    }).join('');
+  });
 }
 
 function addKeyword(keyword: Keyword): void {
@@ -454,9 +482,11 @@ appliedKeywords.addEventListener('click', (event) => {
 
 function renderAppliedKeywords(state: BuilderState): void {
   if (state.keywords.length === 0) {
-    appliedKeywords.innerHTML = '<span class="empty-drop-copy">Keywords you add show here</span>';
+    appliedKeywords.innerHTML = '<span class="empty-drop-copy">Drop a keyword here</span>';
+    appliedKeywords.classList.add('empty');
     return;
   }
+  appliedKeywords.classList.remove('empty');
   appliedKeywords.innerHTML = state.keywords.map((keyword) => {
     const option = KEYWORD_OPTIONS.find((candidate) => candidate.keyword === keyword)!;
     const value = keywordValueOnCard(state, keyword);
@@ -578,6 +608,10 @@ function renderStaticEditor(staticDef: StaticDef, abilityIndex: number): string 
 }
 
 function renderAbilities(): void {
+  rebuildKeepingPlace(abilityList, renderAbilityMarkup);
+}
+
+function renderAbilityMarkup(): void {
   const state = store.getState();
   addAbilityButton.disabled = state.abilities.length >= FORGE_LIMITS.abilities;
   if (state.abilities.length === 0) {
@@ -642,6 +676,10 @@ function dutyPlural(count: number): string {
 }
 
 function renderMechanicEditors(): void {
+  rebuildKeepingPlace(mechanicEditors, renderMechanicMarkup);
+}
+
+function renderMechanicMarkup(): void {
   const mechanics = store.getState().mechanics;
   const names = MECHANIC_NAMES;
   const panels: string[] = [];
@@ -761,6 +799,17 @@ function setOpField(op: ScorableEffectOp, field: string, rawValue: string): void
 }
 
 const STAT_LIMIT = FORGE_LIMITS.statChange;
+
+// Every number box is clamped where it's read; once the edit lands, the box shows the clamped value too,
+// so it never says 999 while the card uses 20. (Runs last, after each control's own change handler.)
+document.addEventListener('change', (event) => {
+  const input = event.target;
+  if (!(input instanceof HTMLInputElement) || input.type !== 'number' || !input.isConnected) return;
+  const min = input.min === '' ? -Infinity : Number(input.min);
+  const max = input.max === '' ? Infinity : Number(input.max);
+  const clamped = String(Math.min(max, Math.max(min, Math.round(Number(input.value) || 0))));
+  if (input.value !== clamped) input.value = clamped;
+});
 
 document.addEventListener('input', (event) => {
   const input = event.target as HTMLInputElement | HTMLSelectElement;
@@ -1510,9 +1559,12 @@ function cardColorLabel(card: ScorableCardDef): string {
 function renderLoadResults(): void {
   const matches = filteredLoadCards();
   const selectedId = loadedSourceCard?.id;
+  // The list is one Tab stop (the loaded card, else the first); arrow keys move within it, so the
+  // catalogue's 1,600-odd rows don't stand between the keyboard and the rest of the page.
+  const tabStopId = matches.some((card) => card.id === selectedId) ? selectedId : matches[0]?.id;
   loadResultCount.textContent = cardCount(matches.length);
   loadResults.innerHTML = matches.map((card) => `
-    <button type="button" class="load-card-row ${card.id === selectedId ? 'selected' : ''}" data-load-card-id="${escapeHtml(card.id)}">
+    <button type="button" class="load-card-row ${card.id === selectedId ? 'selected' : ''}" tabindex="${card.id === tabStopId ? 0 : -1}" data-load-card-id="${escapeHtml(card.id)}">
       <strong>${escapeHtml(card.name)}</strong>
       <span>${escapeHtml(RARITY_LABELS[card.rarity])}</span>
       <small>${escapeHtml(setLabel(card.set ?? 'base'))} / ${escapeHtml(cardColorLabel(card))}</small>
@@ -1541,6 +1593,21 @@ function renderLoadedCardStatus(state: BuilderState): void {
 loadSearch.addEventListener('input', () => { loadSearchValue = loadSearch.value; renderLoadResults(); });
 loadSetFilter.addEventListener('change', () => { loadSetValue = loadSetFilter.value; renderLoadResults(); });
 loadColorFilter.addEventListener('change', () => { loadColorValue = loadColorFilter.value; renderLoadResults(); });
+loadResults.addEventListener('keydown', (event) => {
+  const rows = [...loadResults.querySelectorAll<HTMLButtonElement>('.load-card-row')];
+  const current = rows.indexOf(document.activeElement as HTMLButtonElement);
+  if (current < 0) return;
+  const page = Math.max(1, Math.floor(loadResults.clientHeight / (rows[current].offsetHeight || 1)) - 1);
+  const target = {
+    ArrowDown: current + 1, ArrowUp: current - 1, PageDown: current + page, PageUp: current - page, Home: 0, End: rows.length - 1,
+  }[event.key];
+  if (target === undefined) return;
+  event.preventDefault();
+  const next = rows[Math.min(rows.length - 1, Math.max(0, target))];
+  rows[current].tabIndex = -1;
+  next.tabIndex = 0;
+  next.focus();
+});
 loadResults.addEventListener('click', (event) => {
   const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-load-card-id]');
   if (!button) return;
@@ -1669,9 +1736,11 @@ function syncBasicControls(state: BuilderState): void {
   manaSection.hidden = builderHasType(state, 'land');
   bodySection.hidden = !builderHasType(state, 'creature');
   cardAttack.value = String(state.attack);
-  attackValue.value = String(state.attack);
   cardDefense.value = String(state.defense);
-  defenseValue.value = String(state.defense);
+  for (const button of bodySection.querySelectorAll<HTMLButtonElement>('button[data-stat]')) {
+    const value = button.dataset.stat === 'defense' ? state.defense : state.attack;
+    button.disabled = Number(button.dataset.step) < 0 ? value <= 0 : value >= FORGE_LIMITS.stat;
+  }
   for (const color of COLOR_ORDER) byId<HTMLOutputElement>(`pip-count-${color}`).value = String(state.cost.pips[color]);
   frameStyle.value = state.appearance.frame;
   holoFinish.value = state.appearance.holo;
@@ -1698,6 +1767,20 @@ function verdictSubtitle(state: BuilderState, band: VerdictBand): string {
 /** The Difference gauge runs from -GAUGE_RANGE to +GAUGE_RANGE. */
 const GAUGE_RANGE = 3;
 
+const scoreStrip = byId<HTMLButtonElement>('score-strip');
+const verdictRail = byId<HTMLElement>('verdict-rail');
+
+function setScoreSheet(open: boolean): void {
+  verdictRail.classList.toggle('sheet-open', open);
+  scoreStrip.setAttribute('aria-expanded', String(open));
+  byId('strip-action').textContent = open ? 'Hide score' : 'Show score';
+}
+
+scoreStrip.addEventListener('click', () => setScoreSheet(!verdictRail.classList.contains('sheet-open')));
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && verdictRail.classList.contains('sheet-open')) setScoreSheet(false);
+});
+
 const VERDICT_LABELS: Record<VerdictBand, string> = { under: 'Under Value', accurate: 'Accurate Value', over: 'Over Value' };
 
 function renderEvaluation(state: BuilderState): void {
@@ -1712,6 +1795,9 @@ function renderEvaluation(state: BuilderState): void {
   byId('verdict-subtitle').innerHTML = textWithPips(verdictSubtitle(state, band));
   const verdict = byId('verdict-copy');
   verdict.className = `verdict-copy ${band}`;
+  scoreStrip.className = `score-strip ${band}`;
+  byId('strip-delta').textContent = signed(score.delta);
+  byId('strip-band').textContent = VERDICT_LABELS[band];
   // The gauge spans -3 to +3. Past that the needle pins to the edge and says
   // so, and its number turns inward so it stays over the bar.
   const clamped = Math.min(GAUGE_RANGE, Math.max(-GAUGE_RANGE, score.delta));
@@ -1731,7 +1817,7 @@ function renderEvaluation(state: BuilderState): void {
   warningList.innerHTML = warningListMarkup([...evaluation.warnings, ...loadedFidelityWarnings], notesOpen);
   byId('score-ledger').innerHTML = score.parts.map((part) => {
     const line = translatePart(evaluation.card, part);
-    return `<div><span>${escapeHtml(line.text)}${line.estimate ? estimateTag() : ''}</span><strong class="${part.v < 0 ? 'negative' : ''}">${signed(part.v)}</strong></div>`;
+    return `<div><span>${textWithPips(line.text)}${line.estimate ? estimateTag() : ''}</span><strong class="${part.v < 0 ? 'negative' : ''}">${signed(part.v)}</strong></div>`;
   }).join('') || '<p class="empty-editor">Nothing on this card is priced yet.</p>';
   byId('ledger-total').textContent = format(score.power);
   byId('budget-ledger').innerHTML = budgetParts(state).map((part) => (

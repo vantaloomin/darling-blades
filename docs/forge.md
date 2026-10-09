@@ -1,4 +1,4 @@
-<!-- source-of-truth: forge/index.html, src/forge, src/power/scoreCore.ts, vite.forge.config.ts, scripts/build-forge.ts, tests/forge, tests/power · last-verified: 2026-09-27 -->
+<!-- source-of-truth: forge/index.html, src/forge, src/power/scoreCore.ts, vite.forge.config.ts, scripts/build-forge.ts, tests/forge, tests/power · last-verified: 2026-10-09 -->
 
 # The Forge
 
@@ -15,6 +15,18 @@ game.
 
 ## Features
 
+- **Layout.** The left rail folds into four groups: Start From a Card (the
+  game's catalogue, one Tab stop with arrow keys inside), Basics (card, mana
+  cost, Attack and Defense steppers), Text (keywords, abilities, mechanics) and
+  Look (art, appearance). The right panel leads with the Difference as one large
+  number in its band's colour (Under lilac, Accurate gold, Over the game's
+  danger colour), the band named under it, and Power minus Budget beneath. On
+  desktop the card's actions (including "Your Set · n", which jumps to the set)
+  stick to the bottom of the middle column. Below 1181px a strip at the bottom
+  of the screen shows the Difference and opens the full score panel. The empty
+  keyword box under the card shows only while a keyword is dragged. Editors
+  keep focus and their folded state when the page redraws them, and a number
+  box shows its clamped value once the edit lands.
 - **Set builder.** Save to Set adds the card in the editor to the set, or
   updates the set card being edited; Save and New Card saves, then opens a
   fresh card; New Card opens a fresh card (asking first over unsaved changes).
