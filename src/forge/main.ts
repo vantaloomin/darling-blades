@@ -13,6 +13,7 @@ import { imageIdsInText, referencedImageIds } from './customArt';
 import { CUSTOM_ART_COPY, initCustomArtPanel } from './customArtPanel';
 import { runCustomArtQa, type CustomArtQaResult } from './customArtQa';
 import { buildHints, type CostingHint } from './hints';
+import { applyGameTheme } from './gameTheme';
 import { ForgeImageLibrary } from './imageLibrary';
 import { translatePart } from './ledger';
 import {
@@ -157,6 +158,8 @@ function optionMarkup<T extends string>(
     `<option value="${escapeHtml(option)}"${option === selected ? ' selected' : ''}>${escapeHtml(labels[option] ?? titleCase(option))}</option>`
   )).join('');
 }
+
+applyGameTheme(document.documentElement);
 
 const store = createBuilderStore();
 /** The player's own images (IndexedDB, or memory when the browser refuses it; see imageStore.ts). */
@@ -341,7 +344,7 @@ function renderKeywordPalette(state: BuilderState): void {
     const selected = state.keywords.includes(keyword);
     const value = keywordValueOnCard(state, keyword);
     return `<button type="button" class="keyword-chip palette-chip ${selected ? 'selected' : ''} ${value < 0 ? 'negative' : ''}"
-      draggable="true" data-keyword="${keyword}" title="${escapeHtml(keywordChipTitle(state, reminder, keyword))}">
+      aria-pressed="${selected}" draggable="true" data-keyword="${keyword}" title="${escapeHtml(keywordChipTitle(state, reminder, keyword))}">
       <span>${escapeHtml(name)}</span><strong>${signed(value)}</strong>
     </button>`;
   }).join('');

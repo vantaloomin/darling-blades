@@ -14,6 +14,7 @@
   --stroke-soft: #302743;
   --ghost: #241d3a;
   --emphasis: #2c2344;
+  --row: #211a34;
   --dim: #0a0812;
   --under: #8a6ab0;
   --accurate: #b89446;
@@ -43,7 +44,8 @@ body {
 
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
-button:disabled { cursor: default; opacity: 0.35; }
+/* Disabled reads as "not yet", not as a ghost button: the game fades the plate and keeps the words legible. */
+button:disabled { cursor: not-allowed; opacity: 0.6; }
 
 :focus-visible {
   outline: 2px solid var(--gold-hover);
@@ -170,26 +172,30 @@ input[type='range'] { height: 28px; min-height: 28px; padding: 0; border: 0; bac
 .color-override-controls label { display: flex; align-items: center; justify-content: center; gap: 4px; color: var(--body); font-size: var(--fs-xs); font-weight: 400; }
 .color-override-controls input { flex: 0 0 auto; }
 
-.small-button, .add-op-row button, .art-pager button, .hint-row button {
+.small-button, .add-op-row button, .hint-row button {
+  /* The game's "emphasis" button: gold words on the emphasis plate. */
   min-height: 30px;
-  border: 1px solid #8d743c;
+  border: 1px solid var(--stroke);
   border-radius: 6px;
   padding: 6px 10px;
-  background: var(--ghost);
+  background: var(--emphasis);
   color: var(--gold);
   font-size: var(--fs-sm);
   font-weight: 700;
 }
-.small-button:hover, .add-op-row button:hover, .art-pager button:hover, .hint-row button:hover { background: var(--emphasis); border-color: var(--gold); }
+.small-button:hover:not(:disabled), .add-op-row button:hover:not(:disabled), .hint-row button:hover:not(:disabled) { border-color: var(--gold-hover); }
 .icon-button { width: 28px; height: 28px; border: 1px solid var(--stroke); border-radius: 6px; background: transparent; color: var(--muted); font-size: 18px; line-height: 1; }
 .icon-button:hover { border-color: var(--danger); color: var(--danger); }
 
 .keyword-palette, .applied-keywords { display: flex; flex-wrap: wrap; gap: 6px; }
-.keyword-chip { display: inline-flex; align-items: center; gap: 7px; min-height: 30px; border: 1px solid var(--stroke); border-radius: 6px; padding: 5px 8px; background: var(--ghost); color: var(--body); font-size: var(--fs-sm); }
-button.keyword-chip { cursor: grab; }
+.keyword-chip { position: relative; display: inline-flex; align-items: center; gap: 7px; min-height: 30px; border: 1px solid var(--stroke); border-radius: 6px; padding: 5px 8px; background: var(--ghost); color: var(--body); font-size: var(--fs-sm); }
+button.keyword-chip:hover { border-color: var(--gold-hover); color: var(--heading); }
 .keyword-chip strong { color: var(--success); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
 .keyword-chip.negative strong { color: var(--danger); }
-.keyword-chip.selected { border-color: #9c78c8; background: var(--emphasis); color: var(--heading); }
+/* A toggle shows selection by fill: the game's "selected" plate, gold words and border. */
+.keyword-chip.selected { border-color: var(--gold); background: var(--emphasis); color: var(--gold); }
+/* Plus the game's selected mark for chips and filter tabs (TRIGGER_SELECTED_MARK): a short gold bar under the label, so selection doesn't rest on colour alone. */
+.palette-chip.selected::after { content: ''; position: absolute; left: 25%; right: 25%; bottom: 3px; height: 2px; border-radius: 1px; background: var(--gold); }
 .applied-chip { border-color: #79628f; background: #251d38; }
 .applied-chip button { width: 20px; height: 20px; border: 0; background: transparent; color: var(--muted); font-size: 16px; }
 .applied-chip button:hover { color: var(--danger); }
@@ -246,9 +252,11 @@ button.keyword-chip { cursor: grab; }
 .loaded-card-chip .small-button { flex: 0 0 auto; }
 .picker-result-heading { display: flex; justify-content: space-between; gap: 8px; margin: 12px 0 6px; color: var(--muted); font-size: var(--fs-xs); font-weight: 600; }
 .load-results { max-height: 270px; overflow-y: auto; display: grid; gap: 5px; padding-right: 3px; scrollbar-color: var(--stroke) transparent; scrollbar-width: thin; }
-.load-card-row { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 8px; padding: 8px 9px; border: 1px solid var(--stroke-soft); border-radius: 6px; background: #120f20; color: var(--body); text-align: left; }
-.load-card-row:hover { border-color: var(--gold); background: var(--ghost); }
-.load-card-row.selected { border-color: var(--gold-hover); background: var(--emphasis); }
+.load-card-row { position: relative; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 8px; padding: 8px 9px; border: 1px solid var(--stroke-soft); border-radius: 6px; background: #120f20; color: var(--body); text-align: left; }
+.load-card-row:hover { border-color: var(--gold-hover); background: var(--row); }
+/* A list row shows selection by border plus a left accent bar (the game's listRowAccentBar: 4px, inset 7px). */
+.load-card-row.selected, .set-row.editing .set-row-open { border-color: var(--gold); background: var(--emphasis); padding-left: 16px; }
+.load-card-row.selected::before, .set-row.editing .set-row-open::before { content: ''; position: absolute; left: 4px; top: 7px; bottom: 7px; width: 4px; border-radius: 2px; background: var(--gold); }
 .load-card-row strong, .load-card-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .load-card-row strong { color: var(--heading); font-size: var(--fs-md); }
 .load-card-row span { color: var(--muted); font-size: var(--fs-xs); }
@@ -381,7 +389,7 @@ button.keyword-chip { cursor: grab; }
 .hint-result { display: grid; justify-items: end; align-content: center; gap: 4px; min-width: 86px; }
 .hint-result > span { color: var(--muted); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
 .hint-result > strong { color: var(--gold); font-variant-numeric: tabular-nums; }
-.hint-row button { min-width: 62px; background: linear-gradient(#5b471f, #3a2e19); }
+.hint-row button { min-width: 62px; }
 .accurate-note { margin: 0; padding: 14px; color: var(--body); font-size: var(--fs-sm); line-height: 1.45; border: 1px solid #6c5a2f; border-radius: 7px; background: rgba(90, 69, 30, 0.18); }
 
 [hidden] { display: none !important; }
@@ -396,11 +404,11 @@ button.keyword-chip { cursor: grab; }
 .editor-status { margin: 0 0 7px; color: var(--muted); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
 .action-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 .action-group { display: flex; flex-wrap: wrap; gap: 6px; }
-.primary-button, .ghost-button, .set-footer .small-button { min-height: 30px; border-radius: 6px; padding: 6px 10px; font-size: var(--fs-sm); font-weight: 700; }
-.primary-button { border: 1px solid var(--gold); background: var(--gold); color: var(--on-gold); }
-.primary-button:hover { background: var(--gold-hover); border-color: var(--gold-hover); }
-.ghost-button { border: 1px solid var(--stroke); background: transparent; color: var(--body); }
-.ghost-button:hover { border-color: #665887; background: var(--ghost); color: var(--heading); }
+.primary-button, .ghost-button, .art-pager button, .set-footer .small-button { min-height: 30px; border-radius: 6px; padding: 6px 10px; font-size: var(--fs-sm); font-weight: 700; }
+.primary-button { min-height: 40px; padding: 8px 18px; border: 1px solid var(--gold-hover); background: var(--gold); color: var(--on-gold); font-size: var(--fs-md); }
+.primary-button:hover:not(:disabled) { border: 2px solid var(--heading); padding: 7px 17px; }
+.ghost-button, .art-pager button { border: 1px solid var(--stroke); background: var(--ghost); color: var(--body); }
+.ghost-button:hover:not(:disabled), .art-pager button:hover:not(:disabled) { border-color: var(--gold-hover); color: var(--heading); }
 .ghost-button.danger:hover { border-color: var(--danger); color: var(--danger); }
 .action-message { min-height: 15px; margin: 7px 0 0; color: var(--body); font-size: var(--fs-sm); line-height: 1.45; }
 .action-message.problem { color: var(--danger); }
@@ -410,9 +418,8 @@ button.keyword-chip { cursor: grab; }
 .set-panel h2 { margin: 0; color: var(--heading); font-size: var(--fs-lg); letter-spacing: 0.035em; }
 .set-list { max-height: 320px; overflow-y: auto; display: grid; gap: 5px; margin: 10px 0 0; padding: 0 3px 0 0; list-style: none; scrollbar-color: var(--stroke) transparent; scrollbar-width: thin; }
 .set-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px; }
-.set-row-open { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 7px 8px; border: 1px solid var(--stroke-soft); border-radius: 6px; background: #120f20; color: var(--body); text-align: left; }
-.set-row-open:hover { border-color: var(--gold); background: var(--ghost); }
-.set-row.editing .set-row-open { border-color: var(--gold-hover); background: var(--emphasis); }
+.set-row-open { position: relative; min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 7px 8px; border: 1px solid var(--stroke-soft); border-radius: 6px; background: #120f20; color: var(--body); text-align: left; }
+.set-row-open:hover { border-color: var(--gold-hover); background: var(--row); }
 .set-row-cost { display: flex; align-items: center; gap: 2px; min-width: 20px; }
 .set-row-cost .generic-pip { width: 18px; height: 18px; border-width: 1px; font-size: 10px; }
 .set-row-text { min-width: 0; display: grid; gap: 2px; }
