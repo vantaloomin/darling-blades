@@ -58,7 +58,7 @@ describe('collection sort choices', () => {
     expect(sortCollectionCards(cards, 'name-za', save).map((entry) => entry.id)).toEqual(['z', 'a', 'm']);
   });
 
-  it('groups by set newest first, then card rarity, then name', () => {
+  it('groups by set in either release direction, then card rarity, then name', () => {
     const save = freshSave(0);
     const cards = [
       card('base-c', 'Alpha', 'c'),
@@ -75,6 +75,14 @@ describe('collection sort choices', () => {
       'rag-ur',
       'base-ur',
       'base-c',
+    ]);
+    expect(sortCollectionCards(cards, 'set-oldest', save).map((entry) => entry.id)).toEqual([
+      'base-ur',
+      'base-c',
+      'rag-ur',
+      'fd-ur',
+      'fd-c2',
+      'fd-c',
     ]);
   });
 
