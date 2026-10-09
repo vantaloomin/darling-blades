@@ -4,12 +4,12 @@ import type { Keyword } from '../../src/engine/types';
 import { buildHints, candidateHints, type HintKind } from '../../src/forge/hints';
 import {
   bandForDelta,
+  budgetParts,
   cloneBuilderState,
   createInitialAbility,
   createInitialBuilderState,
   evaluateBuilder,
   fromCardDef,
-  rarityBudgetLabel,
   toCardDef,
   type ForgeWarning,
 } from '../../src/forge/logic';
@@ -178,10 +178,9 @@ describe('budget', () => {
     // past the first, and the rare bonus.
     expect(evaluateBuilder(state).score.budget)
       .toBeCloseTo(CARD_FLOOR + MANA_STEP * 4 + PIP_PREMIUM * 2 + RARITY_BONUS.r, 2);
-    const shown = rarityBudgetLabel(state).match(/\d+(?:\.\d+)?/g) ?? [];
-    expect(shown).toEqual(expect.arrayContaining([
-      CARD_FLOOR.toFixed(2), MANA_STEP.toFixed(2), '4', PIP_PREMIUM.toFixed(2), '2', RARITY_BONUS.r.toFixed(2),
-    ]));
+    const parts = budgetParts(state);
+    expect(parts.map((part) => part.v)).toEqual([CARD_FLOOR, MANA_STEP * 4, PIP_PREMIUM * 2, RARITY_BONUS.r]);
+    expect(parts.reduce((sum, part) => sum + part.v, 0)).toBeCloseTo(evaluateBuilder(state).score.budget, 2);
   });
 
   it('keeps the rarity lever additive and independent of MV', () => {

@@ -28,7 +28,7 @@ import {
   type ScorableTriggerWhen,
 } from '../power/scoreCore';
 import type { CustomArt } from './customArt';
-import { SET_LABELS } from './vocab';
+import { RARITY_LABELS, SET_LABELS } from './vocab';
 
 export const COLOR_ORDER = ['W', 'U', 'B', 'R', 'G'] as const satisfies readonly Color[];
 
@@ -733,10 +733,25 @@ export function manaCostLabel(cost: CostState): string {
 }
 
 /** The Budget as its four terms, in the order the scorer adds them. */
-export function rarityBudgetLabel(state: BuilderState): string {
+export interface BudgetPart {
+  text: string;
+  v: number;
+}
+
+/**
+ * The Budget as breakdown rows, one per term of the formula (floor, mana and
+ * coloured pips past the first, rarity), so the score panel can show it the
+ * same way as Power.
+ */
+export function budgetParts(state: BuilderState): BudgetPart[] {
   const mv = printedManaValue(state);
   const pips = COLOR_ORDER.reduce((sum, color) => sum + state.cost.pips[color], 0);
-  return `${CARD_FLOOR.toFixed(2)} base + ${MANA_STEP.toFixed(2)} × ${mv - 1} mana + ${PIP_PREMIUM.toFixed(2)} × ${pips - 1} pips + ${RARITY_BONUS[state.rarity].toFixed(2)} rarity`;
+  return [
+    { text: 'Base for any card', v: CARD_FLOOR },
+    { text: `Costs ${mv} mana`, v: MANA_STEP * (mv - 1) },
+    { text: `${pips} colored ${pips === 1 ? 'pip' : 'pips'}`, v: PIP_PREMIUM * (pips - 1) },
+    { text: `${RARITY_LABELS[state.rarity]} rarity`, v: RARITY_BONUS[state.rarity] },
+  ];
 }
 
 /**

@@ -25,8 +25,8 @@ import {
   fidelityNotes,
   fromCardDef,
   manaCostLabel,
+  budgetParts,
   printedManaValue,
-  rarityBudgetLabel,
   toCardDef,
   type BuilderMechanics,
   type BuilderConditionKind,
@@ -1607,6 +1607,9 @@ function verdictSubtitle(state: BuilderState, band: VerdictBand): string {
   return `Fair for ${cost} at ${rarity}.`;
 }
 
+/** The Difference gauge runs from -GAUGE_RANGE to +GAUGE_RANGE. */
+const GAUGE_RANGE = 3;
+
 const VERDICT_LABELS: Record<VerdictBand, string> = { under: 'Under Value', accurate: 'Accurate Value', over: 'Over Value' };
 
 function renderEvaluation(state: BuilderState): void {
@@ -1615,35 +1618,44 @@ function renderEvaluation(state: BuilderState): void {
   byId('metric-power').textContent = format(score.power);
   byId('metric-budget').textContent = format(score.budget);
   byId('metric-delta').textContent = signed(score.delta);
-  const budgetFormula = byId('budget-formula');
-  budgetFormula.textContent = rarityBudgetLabel(state);
-  budgetFormula.title = budgetFormula.textContent;
   byId('verdict-label').textContent = VERDICT_LABELS[band];
   byId('verdict-subtitle').textContent = verdictSubtitle(state, band);
   const verdict = byId('verdict-copy');
   verdict.className = `verdict-copy ${band}`;
-  const clamped = Math.min(3, Math.max(-3, score.delta));
-  byId('gauge-needle').style.left = `${((clamped + 3) / 6) * 100}%`;
-  byId('gauge-value').textContent = signed(score.delta);
+  // The gauge spans -3 to +3. Past that the needle pins to the edge and says
+  // so, and its number turns inward so it stays over the bar.
+  const clamped = Math.min(GAUGE_RANGE, Math.max(-GAUGE_RANGE, score.delta));
+  const needle = byId('gauge-needle');
+  needle.style.left = `${((clamped + GAUGE_RANGE) / (2 * GAUGE_RANGE)) * 100}%`;
+  needle.classList.toggle('pinned-left', clamped <= -GAUGE_RANGE + 0.5);
+  needle.classList.toggle('pinned-right', clamped >= GAUGE_RANGE - 0.5);
+  needle.classList.toggle('off-scale', Math.abs(score.delta) > GAUGE_RANGE);
+  byId('gauge-value').textContent = Math.abs(score.delta) > GAUGE_RANGE
+    ? `${signed(score.delta)} (off the scale)`
+    : signed(score.delta);
   byId('warning-chips').innerHTML = [...evaluation.warnings, ...loadedFidelityWarnings].map(warningChipMarkup).join('');
-  byId('ledger-count').textContent = `${score.parts.length} ${score.parts.length === 1 ? 'part' : 'parts'}`;
   byId('score-ledger').innerHTML = score.parts.map((part) => {
     const line = translatePart(evaluation.card, part);
     return `<div><span>${escapeHtml(line.text)}${line.estimate ? estimateTag() : ''}</span><strong class="${part.v < 0 ? 'negative' : ''}">${signed(part.v)}</strong></div>`;
-  }).join('') || '<p class="empty-editor">No priced parts.</p>';
+  }).join('') || '<p class="empty-editor">Nothing on this card is priced yet.</p>';
   byId('ledger-total').textContent = format(score.power);
+  byId('budget-ledger').innerHTML = budgetParts(state).map((part) => (
+    `<div><span>${escapeHtml(part.text)}</span><strong class="${part.v < 0 ? 'negative' : ''}">${signed(part.v)}</strong></div>`
+  )).join('');
+  byId('ledger-budget').textContent = format(score.budget);
+  byId('ledger-delta').textContent = signed(score.delta);
   renderHints(band, buildHints(state));
 }
 
 function renderHints(band: VerdictBand, hints: CostingHint[]): void {
   const list = byId('hint-list');
   if (band === 'accurate') {
-    list.innerHTML = '<div class="accurate-note"><strong>Accurate Value</strong><span>The difference is already within 0.75. Nothing to change.</span></div>';
+    list.innerHTML = '<p class="accurate-note">The difference is within 0.75 either way, so there is nothing to change.</p>';
     return;
   }
   list.innerHTML = hints.map((hint, index) => `<article class="hint-row">
     <div><strong>${escapeHtml(hint.title)}</strong><span>${escapeHtml(hint.detail)}</span><small>${escapeHtml(hint.rateSource)}</small></div>
-    <div class="hint-result"><span>${signed(hint.movement)} change</span><strong>Difference after: ${signed(hint.resultingDelta)}</strong><button type="button" data-apply-hint="${index}">Apply</button></div>
+    <div class="hint-result"><strong>Difference after: ${signed(hint.resultingDelta)}</strong><span>moves it ${signed(hint.movement)}</span><button type="button" data-apply-hint="${index}">Apply</button></div>
   </article>`).join('') || '<p class="empty-editor">No single change brings the difference closer to zero.</p>';
   list.querySelectorAll<HTMLButtonElement>('[data-apply-hint]').forEach((button) => {
     button.addEventListener('click', () => {
