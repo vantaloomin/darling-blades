@@ -53,6 +53,7 @@ branch / commit / PR / merge flow: [docs/git-workflow.md](docs/git-workflow.md).
 | `npm run signals-dash` | local viewer for the anonymous play-stats daily totals (:5186; reads the `signals-data` branch's `rollups/`, set `SIGNALS_ROLLUP_DIR`) |
 | `.\scripts\run-sweep.ps1` | launch the metagame sweep as a Windows Scheduled Task so it outlives the shell (`-Status`, `-Resume`, `-Stop`) |
 | `npm run app:build` / `npm run app:dev` | Tauri desktop app — NSIS installer / dev window (needs Rust + MSVC; see [docs/desktop-build.md](docs/desktop-build.md)) |
+| `npx tsx scripts/showcase-match.ts` / `node scripts/showcase-capture.mjs` | trailer footage: pick a seeded AI-vs-AI showcase duel, then film it frame by frame from the dev server (`?showcase=<name>`); trailers are cut in `trailer/` with HyperFrames. See [docs/trailers.md](docs/trailers.md) |
 
 ## Iron invariants
 
