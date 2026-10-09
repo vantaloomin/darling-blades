@@ -89,7 +89,7 @@ import type { Difficulty } from '../src/meta/Economy';
 
 const SELF = fileURLToPath(import.meta.url);
 const MAX_WORKERS = 6;
-const MAX_DECISIONS = 40_000;
+export const MAX_DECISIONS = 40_000;
 
 // ---------------------------------------------------------------------------
 // Sides
@@ -97,7 +97,7 @@ const MAX_DECISIONS = 40_000;
 export type HarnessFormat = 'warchest' | 'darlings' | 'classic';
 const FORMATS: readonly HarnessFormat[] = ['warchest', 'darlings', 'classic'];
 
-interface ResolvedSide {
+export interface ResolvedSide {
   spec: string;
   deck: string[];
   /** Empty in classic, where the lands are in the deck. */
@@ -110,7 +110,7 @@ interface ResolvedSide {
 
 const greedyBuilds = new Map<string, { deck: string[]; landReserve: string[] }>();
 
-function resolveSide(spec: string, defaultDifficulty: Difficulty, format: HarnessFormat): ResolvedSide {
+export function resolveSide(spec: string, defaultDifficulty: Difficulty, format: HarnessFormat): ResolvedSide {
   const [deckRef, brain] = spec.split('@');
   const colon = deckRef.indexOf(':');
   if (colon < 0) throw new Error(`Side "${spec}" needs a kind: starter:, theme:, avatar:, darlings:, persona: or greedy:`);

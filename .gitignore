@@ -119,3 +119,10 @@ public/THIRD_PARTY_NOTICES.txt
 # Third-party screenshots, video stills and quoted player feedback gathered for
 # internal design research. Not ours to redistribute, and the repo is public.
 research/
+showcase/
+
+# Trailer compositions: art, fonts and footage copied in by each prepare.mjs, and renders.
+trailer/*/assets/
+trailer/*/renders/
+trailer/*/.hyperframes/
+trailer/*/node_modules/

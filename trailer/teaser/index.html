@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>Darling Blades teaser</title>
+    <script src="node_modules/gsap/dist/gsap.min.js"></script>
+    <style>
+      @font-face {
+        font-family: 'Cinzel';
+        src: url('assets/fonts/cinzel-latin-var.woff2') format('woff2');
+        font-weight: 400 900;
+      }
+      @font-face {
+        font-family: 'Inter';
+        src: url('assets/fonts/inter-latin-var.woff2') format('woff2');
+        font-weight: 100 900;
+      }
+      :root {
+        --ink: #0d0a14;
+        --gold: #f2c96d;
+        --gold-deep: #b8862f;
+        --paper: #f4ecdc;
+        --violet: #8f6bd6;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--ink);
+      }
+      #root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font-family: 'Inter', sans-serif;
+        color: var(--paper);
+      }
+      .clip {
+        position: absolute;
+        inset: 0;
+      }
+      /* Footage: the camera wrapper is untimed so it can push in; the video owns its window. */
+      .cam {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+      }
+      .cam-move {
+        position: absolute;
+        inset: 0;
+      }
+      video.clip {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .vignette {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(ellipse at center, rgba(13, 10, 20, 0) 55%, rgba(13, 10, 20, 0.75) 100%);
+        pointer-events: none;
+      }
+      /* Lower-third captions over gameplay. */
+      .caption {
+        display: flex;
+        align-items: flex-end;
+        padding: 0 0 96px 120px;
+      }
+      .caption-plate {
+        display: block;
+        max-width: 1500px;
+        padding: 22px 36px 24px;
+        background: linear-gradient(90deg, rgba(13, 10, 20, 0.92) 0%, rgba(13, 10, 20, 0.85) 75%, rgba(13, 10, 20, 0) 100%);
+        border-left: 4px solid var(--gold);
+      }
+      .caption-text {
+        display: block;
+        font-family: 'Cinzel', serif;
+        font-weight: 700;
+        font-size: 58px;
+        letter-spacing: 0.02em;
+        line-height: 1.15;
+        color: var(--paper);
+        text-shadow: 0 4px 18px rgba(0, 0, 0, 0.6);
+      }
+      /* Title card: the card fan rises behind the name. */
+      .scene-bg {
+        position: absolute;
+        inset: -40px;
+        background-image: url('assets/scenes/scene-mainmenu.webp');
+        background-size: cover;
+        background-position: center;
+        filter: blur(6px) brightness(0.35) saturate(1.1);
+      }
+      .fan {
+        position: absolute;
+        left: 50%;
+        top: 44%;
+        width: 0;
+        height: 0;
+      }
+      .fan-card {
+        position: absolute;
+        left: -150px;
+        top: -190px;
+        width: 300px;
+        height: 375px;
+        border-radius: 14px;
+        background-size: cover;
+        background-position: center top;
+        border: 3px solid var(--gold);
+        box-shadow: 0 30px 60px rgba(0, 0, 0, 0.7), 0 0 30px rgba(242, 201, 109, 0.25);
+        transform-origin: 50% 160%;
+      }
+      .title-block {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 22px;
+      }
+      .title-block.low {
+        justify-content: flex-end;
+        padding-bottom: 120px;
+      }
+      .wordmark {
+        display: flex;
+        gap: 6px;
+        font-family: 'Cinzel', serif;
+        font-weight: 900;
+        font-size: 150px;
+        letter-spacing: 0.08em;
+        color: var(--gold);
+        text-shadow: 0 6px 30px rgba(0, 0, 0, 0.85), 0 0 40px rgba(242, 201, 109, 0.35);
+      }
+      .wordmark .ch {
+        display: inline-block;
+      }
+      .wordmark .gap {
+        display: inline-block;
+        width: 48px;
+      }
+      .subline {
+        display: block;
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        font-size: 34px;
+        letter-spacing: 0.32em;
+        text-transform: uppercase;
+        color: var(--paper);
+        text-shadow: 0 3px 14px rgba(0, 0, 0, 0.9);
+      }
+      .rule {
+        display: block;
+        width: 520px;
+        height: 2px;
+        background: linear-gradient(90deg, rgba(242, 201, 109, 0), var(--gold), rgba(242, 201, 109, 0));
+        transform-origin: 50% 50%;
+      }
+      /* Card reveal: five cards flip face up in turn. */
+      .reveal {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 64px;
+      }
+      .reveal-row {
+        position: relative;
+        display: flex;
+        gap: 40px;
+        perspective: 1600px;
+      }
+      .flip {
+        position: relative;
+        width: 300px;
+        height: 375px;
+        transform-style: preserve-3d;
+      }
+      .face {
+        position: absolute;
+        inset: 0;
+        border-radius: 14px;
+        background-size: cover;
+        background-position: center top;
+        backface-visibility: hidden;
+        border: 3px solid var(--gold);
+        box-shadow: 0 24px 50px rgba(0, 0, 0, 0.7);
+      }
+      .face.back {
+        transform: rotateY(180deg);
+        background-image: url('assets/scenes/card-back.webp');
+        border-color: var(--gold-deep);
+      }
+      .reveal-caption {
+        position: relative;
+        display: block;
+        font-family: 'Cinzel', serif;
+        font-weight: 700;
+        font-size: 56px;
+        color: var(--paper);
+        text-shadow: 0 4px 18px rgba(0, 0, 0, 0.7);
+      }
+      .url {
+        display: block;
+        font-family: 'Inter', sans-serif;
+        font-weight: 700;
+        font-size: 44px;
+        letter-spacing: 0.04em;
+        color: var(--gold);
+      }
+      .flash {
+        position: absolute;
+        inset: 0;
+        background: #fff6dd;
+        opacity: 0;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="30" data-width="1920" data-height="1080">
+      <!-- Shot A: open on play. -->
+      <div class="cam"><div class="cam-move" id="cam-a" data-layout-allow-overflow>
+        <video id="shot-a" class="clip" src="assets/footage.mp4" muted playsinline data-start="0" data-duration="3.2" data-media-start="30" data-track-index="0"></video>
+      </div></div>
+      <section id="cap-a" class="clip caption" data-start="0.3" data-duration="2.8" data-track-index="2">
+        <div class="caption-plate" id="cap-a-plate"><span class="caption-text">1,648 cards across eleven sets</span></div>
+      </section>
+
+      <!-- Title card. -->
+      <section id="title" class="clip" data-start="3.2" data-duration="4" data-track-index="1">
+        <div class="scene-bg" id="title-bg"></div>
+        <div class="fan" id="fan">
+          <div class="fan-card" style="background-image: url('assets/cards/tk-shu-guanyu.webp')"></div>
+          <div class="fan-card" style="background-image: url('assets/cards/cf-titania-silver-court.webp')"></div>
+          <div class="fan-card" style="background-image: url('assets/cards/rg-hel.webp')"></div>
+          <div class="fan-card" style="background-image: url('assets/cards/gk-zeus.webp')"></div>
+          <div class="fan-card" style="background-image: url('assets/cards/ac-artoria-once-future.webp')"></div>
+          <div class="fan-card" style="background-image: url('assets/cards/yn-kitsune-neon-tyrant.webp')"></div>
+          <div class="fan-card" style="background-image: url('assets/cards/sb-eclipse-red-queen.webp')"></div>
+        </div>
+        <div class="vignette"></div>
+        <div class="title-block low">
+          <div class="wordmark" id="wordmark"></div>
+          <span class="rule" id="title-rule"></span>
+          <span class="subline" id="title-sub">A single-player trading card game</span>
+        </div>
+      </section>
+
+      <!-- Shot B: the Darling and the deck at work. -->
+      <div class="cam"><div class="cam-move" id="cam-b" data-layout-allow-overflow>
+        <video id="shot-b" class="clip" src="assets/footage.mp4" muted playsinline data-start="7.2" data-duration="6" data-media-start="55" data-track-index="0"></video>
+      </div></div>
+      <section id="cap-b" class="clip caption" data-start="7.6" data-duration="5.4" data-track-index="2">
+        <div class="caption-plate" id="cap-b-plate"><span class="caption-text">Build a deck. Bring your Darling.</span></div>
+      </section>
+
+      <!-- Card reveal. -->
+      <section id="reveal" class="clip reveal" data-start="13.2" data-duration="5.2" data-track-index="1">
+        <div class="scene-bg"></div>
+        <div class="reveal-row">
+          <div class="flip"><div class="face" style="background-image: url('assets/cards/gk-zeus.webp')"></div><div class="face back"></div></div>
+          <div class="flip"><div class="face" style="background-image: url('assets/cards/tk-shu-guanyu.webp')"></div><div class="face back"></div></div>
+          <div class="flip"><div class="face" style="background-image: url('assets/cards/sd-bastet-mistress-of-the-ninth-return.webp')"></div><div class="face back"></div></div>
+          <div class="flip"><div class="face" style="background-image: url('assets/cards/yn-kitsune-neon-tyrant.webp')"></div><div class="face back"></div></div>
+          <div class="flip"><div class="face" style="background-image: url('assets/cards/cf-titania-silver-court.webp')"></div><div class="face back"></div></div>
+        </div>
+        <span class="reveal-caption" id="reveal-caption">Finished art on every card</span>
+      </section>
+
+      <!-- Shot C: the finish. -->
+      <div class="cam"><div class="cam-move" id="cam-c" data-layout-allow-overflow>
+        <video id="shot-c" class="clip" src="assets/footage.mp4" muted playsinline data-start="18.4" data-duration="6.6" data-media-start="95" data-track-index="0"></video>
+      </div></div>
+      <section id="cap-c" class="clip caption" data-start="18.8" data-duration="6" data-track-index="2">
+        <div class="caption-plate" id="cap-c-plate"><span class="caption-text">Climb a 28-rung gauntlet of named bosses</span></div>
+      </section>
+
+      <!-- End card. -->
+      <section id="end" class="clip" data-start="25" data-duration="5" data-track-index="1">
+        <div class="scene-bg" id="end-bg"></div>
+        <div class="vignette"></div>
+        <div class="title-block">
+          <div class="wordmark" id="end-wordmark"></div>
+          <span class="rule" id="end-rule"></span>
+          <span class="subline" id="end-sub">Free in your browser</span>
+          <span class="url" id="end-url">bladedarlings.com</span>
+        </div>
+      </section>
+
+      <div class="flash" id="flash"></div>
+    </div>
+    <script>
+      // Split the wordmarks into letters so they can rise in a stagger.
+      for (const id of ['wordmark', 'end-wordmark']) {
+        const host = document.getElementById(id);
+        for (const ch of 'DARLING BLADES') {
+          const span = document.createElement('span');
+          span.className = ch === ' ' ? 'gap' : 'ch';
+          span.textContent = ch === ' ' ? '' : ch;
+          host.appendChild(span);
+        }
+      }
+
+      const tl = gsap.timeline({ paused: true });
+
+      // Cuts land on a short warm flash; exits are quicker than entrances.
+      const flashAt = (t) => tl.fromTo('#flash', { opacity: 0.55 }, { opacity: 0, duration: 0.35, ease: 'power2.out', immediateRender: false }, t);
+
+      // Shot A: a slow push-in on the board.
+      tl.fromTo('#cam-a', { scale: 1.0 }, { scale: 1.08, duration: 3.2, ease: 'none' }, 0);
+      tl.fromTo('#cap-a-plate', { x: -60, opacity: 0 }, { x: 0, opacity: 1, duration: 0.6, ease: 'power3.out' }, 0.3);
+      tl.to('#cap-a-plate', { opacity: 0, duration: 0.3, ease: 'power2.in' }, 2.8);
+
+      // Title: background drifts, the fan rises and spreads, letters land.
+      flashAt(3.2);
+      tl.fromTo('#title-bg', { scale: 1.12 }, { scale: 1.0, duration: 4, ease: 'power1.out' }, 3.2);
+      const fanCards = gsap.utils.toArray('#fan .fan-card');
+      fanCards.forEach((card, i) => {
+        const spread = i - (fanCards.length - 1) / 2;
+        tl.fromTo(card,
+          { y: 420, rotation: 0, opacity: 0 },
+          { y: -120 + Math.abs(spread) * 18, rotation: spread * 11, opacity: 1, duration: 0.9, ease: 'expo.out' },
+          3.35 + Math.abs(spread) * 0.07);
+      });
+      tl.fromTo('#wordmark .ch', { y: 60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55, ease: 'power3.out', stagger: 0.045 }, 4.0);
+      tl.fromTo('#title-rule', { scaleX: 0 }, { scaleX: 1, duration: 0.7, ease: 'power2.out' }, 4.5);
+      tl.fromTo('#title-sub', { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: 'power2.out' }, 4.7);
+
+      // Shot B.
+      flashAt(7.2);
+      tl.fromTo('#cam-b', { scale: 1.1, x: -40 }, { scale: 1.02, x: 0, duration: 6, ease: 'power1.inOut' }, 7.2);
+      tl.fromTo('#cap-b-plate', { x: -60, opacity: 0 }, { x: 0, opacity: 1, duration: 0.6, ease: 'power3.out' }, 7.6);
+      tl.to('#cap-b-plate', { opacity: 0, duration: 0.3, ease: 'power2.in' }, 12.7);
+
+      // Reveal: cards rise face down, then flip one by one.
+      flashAt(13.2);
+      const flips = gsap.utils.toArray('#reveal .flip');
+      flips.forEach((card, i) => {
+        tl.fromTo(card, { y: 80, opacity: 0, rotationY: 180 }, { y: 0, opacity: 1, duration: 0.5, ease: 'power3.out' }, 13.3 + i * 0.06);
+        tl.to(card, { rotationY: 0, duration: 0.7, ease: 'back.out(1.4)' }, 14.0 + i * 0.32);
+      });
+      tl.fromTo('#reveal-caption', { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: 'power3.out' }, 15.8);
+
+      // Shot C: punch in toward the finish.
+      flashAt(18.4);
+      tl.fromTo('#cam-c', { scale: 1.0 }, { scale: 1.12, duration: 6.6, ease: 'power1.in' }, 18.4);
+      tl.fromTo('#cap-c-plate', { x: -60, opacity: 0 }, { x: 0, opacity: 1, duration: 0.6, ease: 'power3.out' }, 18.8);
+      tl.to('#cap-c-plate', { opacity: 0, duration: 0.3, ease: 'power2.in' }, 24.5);
+
+      // End card.
+      flashAt(25);
+      tl.fromTo('#end-bg', { scale: 1.08 }, { scale: 1.0, duration: 5, ease: 'power1.out' }, 25);
+      tl.fromTo('#end-wordmark .ch', { y: 50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: 'power3.out', stagger: 0.035 }, 25.2);
+      tl.fromTo('#end-rule', { scaleX: 0 }, { scaleX: 1, duration: 0.6, ease: 'power2.out' }, 25.7);
+      tl.fromTo('#end-sub', { y: 14, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: 'power2.out' }, 25.9);
+      tl.fromTo('#end-url', { y: 14, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: 'power2.out' }, 26.2);
+
+      window.__timelines['main'] = tl;
+    </script>
+  </body>
+</html>

@@ -9,6 +9,7 @@ import { qualityTier } from './platform/quality';
 import {
   RENDER_SCALE_UNLOCKED,
   resolveRenderScale,
+  type RenderK,
   setActiveRenderScale,
 } from './platform/renderScale';
 import { BootScene } from './scenes/BootScene';
@@ -50,9 +51,15 @@ export function bootGame(): void {
 // Changing the setting persists + reloads (SettingsScene owns that flow).
 // RENDER_SCALE_UNLOCKED is the kill-switch that re-clamps k to 1 — live
 // (true) since the scene-layout migration; see src/platform/renderScale.ts.
-const k = RENDER_SCALE_UNLOCKED
+// Dev-only showcase mode (src/dev/showcase.ts) films at a fixed scale,
+// `&scale=` 1, 1.5 or 2, default 1.5 (1920x1080), whatever the save says.
+const showcaseScale = import.meta.env.DEV && new URLSearchParams(window.location.search).has('showcase')
+  ? ([1, 1.5, 2] as const satisfies readonly RenderK[])
+    .find((s) => s === Number(new URLSearchParams(window.location.search).get('scale') ?? 1.5)) ?? 1.5
+  : null;
+const k = showcaseScale ?? (RENDER_SCALE_UNLOCKED
   ? resolveRenderScale(Services.save.data.settings.renderScale, qualityTier())
-  : 1;
+  : 1);
 setActiveRenderScale(k);
 
 // Desktop (Tauri) only: make the chosen resolution the actual OS window size
@@ -198,6 +205,11 @@ if (import.meta.env.DEV) {
   for (const loadDevModule of Object.values(import.meta.glob('./dev/*.local.ts'))) {
     void loadDevModule();
   }
+  // `?showcase=<name>`: play a recorded showcase duel for trailer footage.
+  void import('./dev/showcase').then(({ showcaseParams, startShowcase }) => {
+    const params = showcaseParams(window.location.search);
+    if (params) void startShowcase(game, params);
+  });
 }
 
 }

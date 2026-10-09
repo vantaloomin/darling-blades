@@ -35,6 +35,7 @@ branch / commit / PR / merge flow: [docs/git-workflow.md](docs/git-workflow.md).
 | `npm run check-docs` / `check-art-bible` / `gen-docs-tables -- --check` | doc anti-rot checkers (must be green, zero warnings) |
 | `npx tsx scripts/balance-matrix.ts --avatars --seeds 40` | balance matrices (call tsx directly — PowerShell eats `--` via npm run) |
 | `npm run app:build` / `npm run app:dev` | Tauri desktop app — NSIS installer / dev window (needs Rust + MSVC; see [docs/desktop-build.md](docs/desktop-build.md)) |
+| `npx tsx scripts/showcase-match.ts` / `node scripts/showcase-capture.mjs` | trailer footage: pick a seeded AI-vs-AI showcase duel, then film it frame by frame from the dev server (`?showcase=<name>`); trailers are cut in `trailer/` with HyperFrames. See [docs/trailers.md](docs/trailers.md) |
 
 ## Iron invariants
 

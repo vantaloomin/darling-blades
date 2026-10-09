@@ -252,6 +252,8 @@ export interface DuelSceneData {
   tutorial?: boolean;
   limited?: LimitedDuelData['limited'];
   replay?: ReplayLog;
+  /** Dev-only, with `replay`: trailer footage, no replay chrome (src/dev/showcase.ts). */
+  showcase?: { speed: number; deckName: string };
 }
 
 /**
@@ -365,6 +367,8 @@ export class DuelScene extends Phaser.Scene {
   private replayCursor = 0;
   private replayPlaying = false;
   private replaySpeed: 1 | 2 | 4 = 1;
+  /** Dev-only showcase playback: the replay plays itself with no chrome. */
+  private showcase: { speed: number; deckName: string } | null = null;
   private replayTimer: Phaser.Time.TimerEvent | null = null;
   private replayGuard = new ModalGuard();
   private replayControls: Phaser.GameObjects.Container | null = null;
@@ -707,6 +711,7 @@ export class DuelScene extends Phaser.Scene {
     // override the brain tier while keeping the real deck and temperament.
     this.replayLog = data.replay ?? null;
     this.replayMode = this.replayLog !== null;
+    this.showcase = import.meta.env.DEV && this.replayMode && data.showcase ? data.showcase : null;
     this.replayCursor = 0;
     this.replayPlaying = false;
     this.replaySpeed = 1;
@@ -1008,7 +1013,9 @@ export class DuelScene extends Phaser.Scene {
     // avatar is their curated portraitCardId (gauntlet), the draft persona's,
     // the tutorial's own pick (its deck's face is the player's face too), or
     // their deck's face.
-    this.myDeckName = this.replayMode
+    this.myDeckName = this.showcase
+      ? this.showcase.deckName
+      : this.replayMode
       ? 'Replay Deck'
       : this.limited
         ? 'Draft Deck'
@@ -1106,7 +1113,8 @@ export class DuelScene extends Phaser.Scene {
     }
     this.buildHud();
     this.bindHotkeys();
-    if (this.replayMode) this.buildReplayControls();
+    if (this.replayMode && !this.showcase) this.buildReplayControls();
+    if (this.showcase) window.__showcase = { state: 'playing' };
     // Right-edge history slide-out + attack-FX renderer. Both are fresh per
     // create(); the old history auto-destroys on the scene SHUTDOWN it hooks,
     // and the old combatFx's objects/timers died with the previous scene. Built
@@ -1673,7 +1681,7 @@ export class DuelScene extends Phaser.Scene {
   private matchupLabel(): string {
     if (this.tutorial || this.a11yTutorialChrome) return 'Tutorial';
     if (this.replayMode && this.replayLog) {
-      return `Replay · vs ${this.replayLog.context.opponentName}`;
+      return `${this.showcase ? '' : 'Replay · '}vs ${this.replayLog.context.opponentName}`;
     }
     if (this.opponent) {
       return `${this.gauntletRung ? `Rung ${this.gauntletRung} · ` : ''}vs ${this.opponent.name}`;
@@ -2209,7 +2217,7 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private replayDelay(): number {
-    return 850 / this.replaySpeed;
+    return 850 / (this.showcase?.speed ?? this.replaySpeed);
   }
 
   private scheduleReplayAction(delay = this.replayDelay()): void {
@@ -2250,7 +2258,8 @@ export class DuelScene extends Phaser.Scene {
       this.pendingSacrifice = null;
       this.processEvents(events);
       this.afterEvents();
-    } catch {
+    } catch (error) {
+      if (this.showcase) console.error('[showcase] replay stopped', error);
       this.failReplayPlayback();
     }
   }
@@ -2316,11 +2325,20 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private completeReplayPlayback(): void {
-    this.finishReplayPlayback('Replay complete');
+    if (this.showcase) this.finishShowcase('done');
+    else this.finishReplayPlayback('Replay complete');
   }
 
   private failReplayPlayback(): void {
-    this.finishReplayPlayback('Replay unavailable');
+    if (this.showcase) this.finishShowcase('failed');
+    else this.finishReplayPlayback('Replay unavailable');
+  }
+
+  /** A showcase holds its final board for the camera and tells the capture script. */
+  private finishShowcase(state: 'done' | 'failed'): void {
+    this.stopReplayPlayback();
+    this.ended = true;
+    window.__showcase = { state };
   }
 
   private stopReplayPlayback(): void {
