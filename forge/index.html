@@ -148,7 +148,7 @@
           <p class="field-note">Open any card from the game and change it.</p>
           <div id="loaded-card-chip" class="loaded-card-chip" aria-live="polite" hidden>
             <span id="loaded-card-label"></span>
-            <button id="reset-loaded" class="small-button" type="button">Undo My Changes</button>
+            <button id="reset-loaded" class="ghost-button" type="button">Undo My Changes</button>
           </div>
           <div class="field-grid load-filters">
             <label class="span-two">Search<input id="load-search" type="search" placeholder="Card name" /></label>
@@ -160,7 +160,7 @@
         </section>
 
         <section class="tool-section art-picker-section">
-          <div class="section-heading"><h2>Art</h2><button id="random-art" class="small-button" type="button">Random Art</button></div>
+          <div class="section-heading"><h2>Art</h2><button id="random-art" class="ghost-button" type="button">Random Art</button></div>
           <div class="art-source-switch" role="radiogroup" aria-label="Art">
             <label><input type="radio" name="art-source" value="game" checked /> Game Art</label>
             <label><input type="radio" name="art-source" value="custom" /> Your Image</label>
@@ -199,15 +199,15 @@
                 <span><input id="custom-art-rotation" type="range" min="-180" max="180" step="1" /><output id="custom-art-rotation-value">0°</output></span>
               </label>
               <div class="custom-art-buttons">
-                <button id="custom-art-flip" class="small-button" type="button" aria-pressed="false">Flip</button>
-                <button id="custom-art-fit" class="small-button" type="button">Fit Whole Image</button>
-                <button id="custom-art-fill" class="small-button" type="button">Fill the Frame</button>
+                <button id="custom-art-flip" class="ghost-button" type="button" aria-pressed="false">Flip</button>
+                <button id="custom-art-fit" class="ghost-button" type="button">Fit Whole Image</button>
+                <button id="custom-art-fill" class="ghost-button" type="button">Fill the Frame</button>
                 <button id="custom-art-reset" class="ghost-button" type="button">Reset</button>
               </div>
               <label id="custom-art-background-field" class="custom-art-background" hidden>Background<input id="custom-art-background" type="color" value="#000000" /></label>
               <p class="field-note">Drag on the card to move the picture.</p>
               <div class="custom-art-buttons">
-                <button id="custom-art-replace" class="small-button" type="button">Choose Another</button>
+                <button id="custom-art-replace" class="ghost-button" type="button">Choose Another</button>
                 <button id="custom-art-remove" class="ghost-button danger" type="button">Remove Image</button>
               </div>
             </div>
@@ -258,7 +258,7 @@
             </div>
             <div class="action-group">
               <button id="copy-link" class="small-button" type="button">Copy Link</button>
-              <button id="save-image" class="small-button" type="button">Save Image</button>
+              <button id="save-image" class="ghost-button" type="button">Save Image</button>
             </div>
           </div>
           <p id="action-message" class="action-message" aria-live="polite"></p>
@@ -272,8 +272,8 @@
           <p id="set-empty" class="empty-editor set-empty">No cards yet. Design one and press Save to Set.</p>
           <div class="set-footer">
             <span id="set-count" class="set-count">0 cards</span>
-            <button id="export-set" class="small-button" type="button">Export JSON</button>
-            <button id="import-set" class="small-button" type="button">Import JSON</button>
+            <button id="export-set" class="ghost-button" type="button">Export JSON</button>
+            <button id="import-set" class="ghost-button" type="button">Import JSON</button>
             <button id="clear-set" class="ghost-button danger" type="button">Clear Set</button>
             <input id="import-file" type="file" accept=".json,application/json" hidden />
           </div>
