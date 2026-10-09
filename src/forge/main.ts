@@ -13,6 +13,7 @@ import { imageIdsInText, referencedImageIds } from './customArt';
 import { CUSTOM_ART_COPY, initCustomArtPanel } from './customArtPanel';
 import { runCustomArtQa, type CustomArtQaResult } from './customArtQa';
 import { buildHints, type CostingHint } from './hints';
+import { applyGameTheme } from './gameTheme';
 import { ForgeImageLibrary } from './imageLibrary';
 import { translatePart } from './ledger';
 import {
@@ -25,8 +26,8 @@ import {
   fidelityNotes,
   fromCardDef,
   manaCostLabel,
+  budgetParts,
   printedManaValue,
-  rarityBudgetLabel,
   toCardDef,
   type BuilderMechanics,
   type BuilderConditionKind,
@@ -38,7 +39,7 @@ import {
   type TargetCount,
   type VerdictBand,
 } from './logic';
-import { escapeHtml, estimateTag, setRowMarkup, signedNumber, warningChipMarkup } from './markup';
+import { escapeHtml, estimateTag, setRowMarkup, signedNumber, warningListMarkup } from './markup';
 import {
   MAX_IMPORT_BYTES,
   MAX_IMPORT_LABEL,
@@ -158,6 +159,8 @@ function optionMarkup<T extends string>(
   )).join('');
 }
 
+applyGameTheme(document.documentElement);
+
 const store = createBuilderStore();
 /** The player's own images (IndexedDB, or memory when the browser refuses it; see imageStore.ts). */
 const images = await ForgeImageLibrary.open();
@@ -173,14 +176,13 @@ const genericMana = byId<HTMLInputElement>('generic-mana');
 const genericValue = byId<HTMLOutputElement>('generic-value');
 const manaValueOutput = byId<HTMLOutputElement>('mana-value');
 const pipControls = byId<HTMLDivElement>('pip-controls');
-const colorIdentityMode = byId<HTMLSelectElement>('color-identity-mode');
+const colorIdentityMode = byId<HTMLDivElement>('color-identity-mode');
+const colorIdentityValue = (): string => colorIdentityMode.querySelector<HTMLInputElement>('input:checked')?.value ?? 'cost';
 const colorOverrideControls = byId<HTMLFieldSetElement>('color-override-controls');
 const xSpell = byId<HTMLInputElement>('x-spell');
 const bodySection = byId<HTMLElement>('body-section');
 const cardAttack = byId<HTMLInputElement>('card-attack');
-const attackValue = byId<HTMLOutputElement>('attack-value');
 const cardDefense = byId<HTMLInputElement>('card-defense');
-const defenseValue = byId<HTMLOutputElement>('defense-value');
 const keywordPalette = byId<HTMLDivElement>('keyword-palette');
 const keywordScoreNote = byId<HTMLParagraphElement>('keyword-score-note');
 const abilityList = byId<HTMLDivElement>('ability-list');
@@ -251,6 +253,21 @@ function costMarkup(cost: ManaCost | undefined, isX: boolean, pipClass: string):
   return items.join('') || genericPipMarkup(0);
 }
 
+/**
+ * Copy with mana costs drawn as pips: each {1}, {G} or {X} token in the text
+ * becomes the same pip the card and the mana row draw, so the verdict and the
+ * hints stop speaking brace notation. Everything else is escaped.
+ */
+function textWithPips(text: string): string {
+  return text.split(/(\{(?:[WUBRG]|X|\d+)\})/).map((part) => {
+    const token = /^\{([WUBRG]|X|\d+)\}$/.exec(part)?.[1];
+    if (!token) return escapeHtml(part);
+    if (token === 'X') return '<span class="generic-pip inline">X</span>';
+    if (/^\d+$/.test(token)) return genericPipMarkup(Number(token)).replace('class="generic-pip"', 'class="generic-pip inline"');
+    return pipSvg(token as Color, 'inline');
+  }).join('');
+}
+
 pipControls.innerHTML = COLOR_ORDER.map((color) => `
   <div class="pip-stepper" data-pip-stepper="${color}">
     ${pipSvg(color)}
@@ -261,9 +278,10 @@ pipControls.innerHTML = COLOR_ORDER.map((color) => `
   </div>
 `).join('');
 colorOverrideControls.innerHTML = `<legend>Colors</legend>${COLOR_ORDER.map((color) => `
-  <label title="${PIP_VISUALS[color].label}">
+  <label>
+    <input type="checkbox" data-color-identity="${color}" />
     ${pipSvg(color, 'tiny')}
-    <input type="checkbox" data-color-identity="${color}" aria-label="${PIP_VISUALS[color].label} color identity" />
+    <span>${PIP_VISUALS[color].label}</span>
   </label>
 `).join('')}`;
 
@@ -293,7 +311,7 @@ cardSet.addEventListener('change', () => mutate((next) => { next.set = cardSet.v
 cardLegendary.addEventListener('change', () => mutate((next) => { next.legendary = cardLegendary.checked; }));
 genericMana.addEventListener('input', () => mutate((next) => { next.cost.generic = clampInt(Number(genericMana.value), 0, FORGE_LIMITS.generic); }));
 colorIdentityMode.addEventListener('change', () => mutate((next) => {
-  next.colorOverride = colorIdentityMode.value === 'override' ? colorsForCost(next.cost) : null;
+  next.colorOverride = colorIdentityValue() === 'override' ? colorsForCost(next.cost) : null;
 }));
 colorOverrideControls.addEventListener('change', (event) => {
   const checkbox = (event.target as HTMLElement).closest<HTMLInputElement>('[data-color-identity]');
@@ -307,8 +325,15 @@ colorOverrideControls.addEventListener('change', (event) => {
   });
 });
 xSpell.addEventListener('change', () => mutate((next) => { next.isX = xSpell.checked; }));
-cardAttack.addEventListener('input', () => mutate((next) => { next.attack = clampInt(Number(cardAttack.value), 0, FORGE_LIMITS.stat); }));
-cardDefense.addEventListener('input', () => mutate((next) => { next.defense = clampInt(Number(cardDefense.value), 0, FORGE_LIMITS.stat); }));
+// Typed stats commit on change (so clearing the box to type doesn't snap it to 0); the − and + buttons step by one.
+cardAttack.addEventListener('change', () => mutate((next) => { next.attack = clampInt(Number(cardAttack.value), 0, FORGE_LIMITS.stat); }));
+cardDefense.addEventListener('change', () => mutate((next) => { next.defense = clampInt(Number(cardDefense.value), 0, FORGE_LIMITS.stat); }));
+bodySection.addEventListener('click', (event) => {
+  const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-stat]');
+  if (!button) return;
+  const stat = button.dataset.stat === 'defense' ? 'defense' : 'attack';
+  mutate((next) => { next[stat] = clampInt(next[stat] + Number(button.dataset.step), 0, FORGE_LIMITS.stat); });
+});
 frameStyle.addEventListener('change', () => mutate((next) => { next.appearance.frame = frameStyle.value as BuilderState['appearance']['frame']; }));
 holoFinish.addEventListener('change', () => mutate((next) => { next.appearance.holo = holoFinish.value as BuilderState['appearance']['holo']; }));
 fullArt.addEventListener('change', () => mutate((next) => { next.appearance.fullArt = fullArt.checked; }));
@@ -333,18 +358,59 @@ function keywordValueOnCard(state: BuilderState, keyword: Keyword): number {
 
 /** The chip's tooltip: the reminder text, then what the keyword is worth here and how it scales. */
 function keywordChipTitle(state: BuilderState, reminder: string, keyword: Keyword): string {
-  return `${reminder} ${keywordWorthSentence(keyword, state.attack, keywordsWith(state, keyword))}`;
+  const sentence = /[.!?]$/.test(reminder) ? reminder : `${reminder}.`;
+  return `${sentence} ${keywordWorthSentence(keyword, state.attack, keywordsWith(state, keyword))}`;
+}
+
+/**
+ * Keyword and mechanic meanings used to live only in hover tooltips, which
+ * touch never shows. The last one pointed at, focused or tapped is written
+ * out under its list instead.
+ */
+function showTermInfo(list: HTMLElement, info: HTMLElement, selector: string): void {
+  const reveal = (event: Event): void => {
+    const term = (event.target as HTMLElement | null)?.closest<HTMLElement>(selector);
+    if (!term || !list.contains(term) || !term.title) return;
+    const name = term.querySelector('span')?.textContent?.trim() ?? term.textContent?.trim() ?? '';
+    info.textContent = name ? `${name}: ${term.title}` : term.title;
+  };
+  for (const type of ['pointerover', 'focusin', 'click']) list.addEventListener(type, reveal);
+}
+showTermInfo(keywordPalette, byId('keyword-info'), '[data-keyword]');
+showTermInfo(byId('mechanic-toggles'), byId('mechanic-info'), '[data-mechanic-id]');
+
+/**
+ * Rebuilds a container's markup without losing the user's place: the focused
+ * control (found again by its id and data attributes) keeps focus, and any
+ * editor section they folded stays folded (matched by its summary text).
+ */
+function rebuildKeepingPlace(container: HTMLElement, rebuild: () => void): void {
+  const active = document.activeElement;
+  let focusSelector: string | null = null;
+  if (active instanceof HTMLElement && active !== container && container.contains(active)) {
+    const attrs = [...active.attributes].filter((attr) => attr.name === 'id' || attr.name.startsWith('data-'));
+    if (attrs.length > 0) focusSelector = active.tagName.toLowerCase() + attrs.map((attr) => `[${attr.name}="${CSS.escape(attr.value)}"]`).join('');
+  }
+  const folded = new Set([...container.querySelectorAll<HTMLDetailsElement>('details:not([open])')]
+    .map((details) => details.querySelector(':scope > summary')?.textContent?.trim() ?? ''));
+  rebuild();
+  for (const details of container.querySelectorAll<HTMLDetailsElement>('details')) {
+    if (folded.has(details.querySelector(':scope > summary')?.textContent?.trim() ?? '')) details.open = false;
+  }
+  if (focusSelector) container.querySelector<HTMLElement>(focusSelector)?.focus({ preventScroll: true });
 }
 
 function renderKeywordPalette(state: BuilderState): void {
-  keywordPalette.innerHTML = KEYWORD_OPTIONS.map(({ keyword, name, reminder }) => {
-    const selected = state.keywords.includes(keyword);
-    const value = keywordValueOnCard(state, keyword);
-    return `<button type="button" class="keyword-chip palette-chip ${selected ? 'selected' : ''} ${value < 0 ? 'negative' : ''}"
-      draggable="true" data-keyword="${keyword}" title="${escapeHtml(keywordChipTitle(state, reminder, keyword))}">
-      <span>${escapeHtml(name)}</span><strong>${signed(value)}</strong>
-    </button>`;
-  }).join('');
+  rebuildKeepingPlace(keywordPalette, () => {
+    keywordPalette.innerHTML = KEYWORD_OPTIONS.map(({ keyword, name, reminder }) => {
+      const selected = state.keywords.includes(keyword);
+      const value = keywordValueOnCard(state, keyword);
+      return `<button type="button" class="keyword-chip palette-chip ${selected ? 'selected' : ''} ${value < 0 ? 'negative' : ''}"
+        aria-pressed="${selected}" draggable="true" data-keyword="${keyword}" title="${escapeHtml(keywordChipTitle(state, reminder, keyword))}">
+        <span>${escapeHtml(name)}</span><strong>${signed(value)}</strong>
+      </button>`;
+    }).join('');
+  });
 }
 
 function addKeyword(keyword: Keyword): void {
@@ -416,9 +482,11 @@ appliedKeywords.addEventListener('click', (event) => {
 
 function renderAppliedKeywords(state: BuilderState): void {
   if (state.keywords.length === 0) {
-    appliedKeywords.innerHTML = '<span class="empty-drop-copy">Drop keywords here</span>';
+    appliedKeywords.innerHTML = '<span class="empty-drop-copy">Drop a keyword here</span>';
+    appliedKeywords.classList.add('empty');
     return;
   }
+  appliedKeywords.classList.remove('empty');
   appliedKeywords.innerHTML = state.keywords.map((keyword) => {
     const option = KEYWORD_OPTIONS.find((candidate) => candidate.keyword === keyword)!;
     const value = keywordValueOnCard(state, keyword);
@@ -516,8 +584,8 @@ function renderOpList(ops: ScorableEffectOp[], context: string): string {
   const full = ops.length >= FORGE_LIMITS.opsPerList;
   return `${rows || '<p class="empty-editor">No effects yet. Add one below.</p>'}
     <div class="add-op-row">
-      <select data-new-op-context="${escapeHtml(context)}"${full ? ' disabled' : ''}>${optionMarkup(kinds, 'damage', labels)}</select>
-      <button type="button" data-add-op data-op-context="${escapeHtml(context)}"${full ? ' disabled' : ''}>Add Effect</button>
+      <select data-new-op-context="${escapeHtml(context)}" aria-label="Effect to add"${full ? ' disabled' : ''}><option value="" selected disabled>Choose an effect</option>${optionMarkup(kinds, '', labels)}</select>
+      <button type="button" data-add-op data-op-context="${escapeHtml(context)}" disabled>Add Effect</button>
     </div>`;
 }
 
@@ -540,6 +608,10 @@ function renderStaticEditor(staticDef: StaticDef, abilityIndex: number): string 
 }
 
 function renderAbilities(): void {
+  rebuildKeepingPlace(abilityList, renderAbilityMarkup);
+}
+
+function renderAbilityMarkup(): void {
   const state = store.getState();
   addAbilityButton.disabled = state.abilities.length >= FORGE_LIMITS.abilities;
   if (state.abilities.length === 0) {
@@ -548,9 +620,10 @@ function renderAbilities(): void {
   }
   abilityList.innerHTML = state.abilities.map((ability, abilityIndex) => `
     <details class="ability-editor" open>
-      <summary><span>Ability ${abilityIndex + 1}</span><button type="button" class="icon-button" data-remove-ability="${abilityIndex}" aria-label="Remove ability">×</button></summary>
+      <summary><span>Ability ${abilityIndex + 1}</span></summary>
+      <button type="button" class="icon-button details-remove" data-remove-ability="${abilityIndex}" aria-label="Remove ability ${abilityIndex + 1}">×</button>
       <div class="ability-body">
-        <div class="field-grid three-up">
+        <div class="field-grid two-up">
           <label>Trigger<select data-ability-index="${abilityIndex}" data-ability-field="when">${optionMarkup(TRIGGERS, ability.when, TRIGGER_LABELS)}</select></label>
           ${ability.when !== 'static' ? `<label>Target<select data-ability-index="${abilityIndex}" data-ability-field="target">${optionMarkup(TARGETS, ability.target, TARGET_LABELS)}</select></label>` : ''}
           ${ability.when === 'spell' && ability.target !== 'none' ? `<label>How Many<select data-ability-index="${abilityIndex}" data-ability-field="target-count">${optionMarkup(TARGET_COUNTS, ability.targetCount ?? 'one', TARGET_COUNT_LABELS)}</select></label>` : ''}
@@ -580,7 +653,7 @@ function costEditor(key: string, cost: CostState, note: string): string {
   const max = FORGE_LIMITS.generic;
   return `<div class="cost-editor" data-cost-editor="${key}">
     <p class="field-note">${escapeHtml(note)}</p>
-    <label>Generic<input type="number" min="0" max="${max}" step="1" value="${cost.generic}" data-mechanic-cost="${key}" data-cost-color="generic" /></label>
+    <label class="cost-generic">Generic<input type="number" min="0" max="${max}" step="1" value="${cost.generic}" data-mechanic-cost="${key}" data-cost-color="generic" /></label>
     ${COLOR_ORDER.map((color) => `<label>${pipSvg(color, 'tiny')}<input type="number" min="0" max="${FORGE_LIMITS.pip}" step="1" value="${cost.pips[color]}" data-mechanic-cost="${key}" data-cost-color="${color}" aria-label="${PIP_VISUALS[color].label} mana" /></label>`).join('')}
   </div>`;
 }
@@ -603,6 +676,10 @@ function dutyPlural(count: number): string {
 }
 
 function renderMechanicEditors(): void {
+  rebuildKeepingPlace(mechanicEditors, renderMechanicMarkup);
+}
+
+function renderMechanicMarkup(): void {
   const mechanics = store.getState().mechanics;
   const names = MECHANIC_NAMES;
   const panels: string[] = [];
@@ -723,6 +800,17 @@ function setOpField(op: ScorableEffectOp, field: string, rawValue: string): void
 
 const STAT_LIMIT = FORGE_LIMITS.statChange;
 
+// Every number box is clamped where it's read; once the edit lands, the box shows the clamped value too,
+// so it never says 999 while the card uses 20. (Runs last, after each control's own change handler.)
+document.addEventListener('change', (event) => {
+  const input = event.target;
+  if (!(input instanceof HTMLInputElement) || input.type !== 'number' || !input.isConnected) return;
+  const min = input.min === '' ? -Infinity : Number(input.min);
+  const max = input.max === '' ? Infinity : Number(input.max);
+  const clamped = String(Math.min(max, Math.max(min, Math.round(Number(input.value) || 0))));
+  if (input.value !== clamped) input.value = clamped;
+});
+
 document.addEventListener('input', (event) => {
   const input = event.target as HTMLInputElement | HTMLSelectElement;
   const opField = input.dataset.opField;
@@ -782,6 +870,12 @@ document.addEventListener('input', (event) => {
 
 document.addEventListener('change', (event) => {
   const input = event.target as HTMLInputElement | HTMLSelectElement;
+  if (input.matches('[data-new-op-context]')) {
+    // Add Effect waits until an effect is picked, so nothing reads as already chosen.
+    const button = input.parentElement?.querySelector<HTMLButtonElement>('[data-add-op]');
+    if (button) button.disabled = input.value === '';
+    return;
+  }
   if (input.matches('[data-op-kind]')) {
     const context = input.dataset.opContext as OpsContext;
     const kind = input.value as OpKind;
@@ -850,10 +944,25 @@ document.addEventListener('change', (event) => {
 // ── Confirmations, messages and the banner ───────────────────────────────────
 
 const DISCARD_CHANGES = 'Discard your unsaved changes to this card?';
-/** The ?qa=1 probe answers confirmations itself; everyone else gets the browser's dialog. */
+/** The ?qa=1 probe answers confirmations itself; everyone else gets the Forge's own dialog. */
 let confirmOverride: ((message: string) => boolean) | null = null;
-function confirmAction(message: string): boolean {
-  return confirmOverride ? confirmOverride(message) : window.confirm(message);
+const confirmDialog = byId<HTMLDialogElement>('forge-confirm');
+const confirmText = byId<HTMLParagraphElement>('forge-confirm-text');
+const confirmYes = byId<HTMLButtonElement>('forge-confirm-yes');
+/**
+ * Ask before something that can't be undone, in a panel styled like the
+ * game's own rather than the browser's grey box. Escape or Cancel says no.
+ */
+function confirmAction(message: string, yesLabel = 'Continue'): Promise<boolean> {
+  if (confirmOverride) return Promise.resolve(confirmOverride(message));
+  confirmText.textContent = message;
+  confirmYes.textContent = yesLabel;
+  return new Promise((resolve) => {
+    confirmDialog.addEventListener('close', () => resolve(confirmDialog.returnValue === 'yes'), { once: true });
+    confirmDialog.returnValue = '';
+    confirmDialog.showModal();
+    byId<HTMLButtonElement>('forge-confirm-no').focus();
+  });
 }
 
 const banner = byId<HTMLDivElement>('forge-banner');
@@ -920,6 +1029,7 @@ function renderSetPanel(): void {
   setEmpty.hidden = forgeSet.cards.length > 0;
   exportImagesNote.hidden = !forgeSet.cards.some(hasCustomArt);
   setCount.textContent = cardCount(forgeSet.cards.length);
+  byId('set-tray-count').textContent = String(forgeSet.cards.length);
   clearSetButton.disabled = forgeSet.cards.length === 0;
 }
 
@@ -965,25 +1075,30 @@ function saveCurrentCard(): boolean {
 }
 
 byId<HTMLButtonElement>('save-to-set').addEventListener('click', () => { saveCurrentCard(); });
+// The action bar stays in view; this takes you down to the set below the card.
+byId<HTMLButtonElement>('show-set').addEventListener('click', () => {
+  byId('set-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  byId<HTMLInputElement>('set-name').focus({ preventScroll: true });
+});
 byId<HTMLButtonElement>('save-and-next').addEventListener('click', () => {
   if (saveCurrentCard()) startFreshCard();
 });
-byId<HTMLButtonElement>('new-card').addEventListener('click', () => {
-  if (hasUnsaved() && !confirmAction(DISCARD_CHANGES)) return;
+byId<HTMLButtonElement>('new-card').addEventListener('click', async () => {
+  if (hasUnsaved() && !await confirmAction(DISCARD_CHANGES, 'Discard')) return;
   startFreshCard();
 });
 
-function openSetCard(id: string): void {
+async function openSetCard(id: string): Promise<void> {
   if (id === session.editingId) return;
   const entry = forgeSet.cards.find((candidate) => candidate.card.id === id);
   if (!entry) return;
-  if (hasUnsaved() && !confirmAction(DISCARD_CHANGES)) return;
+  if (hasUnsaved() && !await confirmAction(DISCARD_CHANGES, 'Discard')) return;
   openInEditor(stateFromEntry(entry), { editingId: id, baseline: null }, null);
 }
 
-function removeSetCard(id: string): void {
+async function removeSetCard(id: string): Promise<void> {
   const entry = forgeSet.cards.find((candidate) => candidate.card.id === id);
-  if (!entry || !confirmAction(`Remove ${entry.card.name} from the set?`)) return;
+  if (!entry || !await confirmAction(`Remove ${entry.card.name} from the set?`, 'Remove')) return;
   forgeSet = { ...forgeSet, cards: forgeSet.cards.filter((candidate) => candidate !== entry) };
   // The editor keeps the card, now as a new card that is not in the set.
   if (session.editingId === id) session = { editingId: null, baseline: null };
@@ -996,11 +1111,11 @@ setList.addEventListener('click', (event) => {
   const target = event.target as HTMLElement;
   const remove = target.closest<HTMLButtonElement>('[data-remove-card]');
   if (remove) {
-    removeSetCard(remove.dataset.removeCard ?? '');
+    void removeSetCard(remove.dataset.removeCard ?? '');
     return;
   }
   const open = target.closest<HTMLButtonElement>('[data-open-card]');
-  if (open) openSetCard(open.dataset.openCard ?? '');
+  if (open) void openSetCard(open.dataset.openCard ?? '');
 });
 
 setNameInput.addEventListener('input', () => {
@@ -1020,14 +1135,14 @@ function detachEditor(): void {
   if (session.editingId !== null) session = { editingId: null, baseline: null };
 }
 
-clearSetButton.addEventListener('click', () => {
+clearSetButton.addEventListener('click', async () => {
   const n = forgeSet.cards.length;
   if (n === 0) return;
   const name = setDisplayName(forgeSet);
   const question = n === 1
     ? `Remove the 1 card in ${name}? Export it first if you want to keep it.`
     : `Remove all ${n} cards from ${name}? Export it first if you want to keep them.`;
-  if (!confirmAction(question)) return;
+  if (!await confirmAction(question, 'Clear Set')) return;
   forgeSet = { ...forgeSet, cards: [] };
   detachEditor();
   showMessage(setMessage, '');
@@ -1121,7 +1236,7 @@ async function applyImport(text: string): Promise<ImportResult> {
     const question = n === 1
       ? `Replace the 1 card in ${name} with the imported set?`
       : `Replace the ${n} cards in ${name} with the imported set?`;
-    if (!confirmAction(question)) return result;
+    if (!await confirmAction(question, 'Replace')) return result;
   }
   const stored = await storeImportedImages(result.set, result.imageFailures);
   forgeSet = stored.set;
@@ -1197,12 +1312,24 @@ function flushAutosave(): void {
   autosaveTimer = 0;
   if (autosaveSuspended || !storage) return;
   const ok = writeAutosave(storage, autosaveSnapshot());
+  showAutosaved(ok);
   if (ok !== storageWorking) {
     storageWorking = ok;
     renderStorageNote();
   }
   // Another tab's clean-up may have deleted an image this tab still shows: put it back.
   void images.ensureStored(imageRoots(false));
+}
+
+const autosaveStatus = byId<HTMLSpanElement>('autosave-status');
+let autosaveFlashTimer = 0;
+/** "Saved in this browser" by the set heading, lit up briefly after each save. */
+function showAutosaved(ok: boolean): void {
+  autosaveStatus.hidden = !ok;
+  if (!ok) return;
+  autosaveStatus.classList.add('fresh');
+  window.clearTimeout(autosaveFlashTimer);
+  autosaveFlashTimer = window.setTimeout(() => autosaveStatus.classList.remove('fresh'), 1200);
 }
 
 function scheduleAutosave(): void {
@@ -1333,7 +1460,7 @@ async function openSharedPayload(payload: string): Promise<boolean> {
     showBanner('That link didn\'t contain a card the Forge could open.', true);
     return false;
   }
-  if (hasUnsaved() && !confirmAction(DISCARD_CHANGES)) return false;
+  if (hasUnsaved() && !await confirmAction(DISCARD_CHANGES, 'Discard')) return false;
   openInEditor(stateFromEntry(decoded.entry), { editingId: null, baseline: null }, null);
   showBanner('Opened a shared card. Save it to your set to keep it.');
   return true;
@@ -1432,9 +1559,12 @@ function cardColorLabel(card: ScorableCardDef): string {
 function renderLoadResults(): void {
   const matches = filteredLoadCards();
   const selectedId = loadedSourceCard?.id;
+  // The list is one Tab stop (the loaded card, else the first); arrow keys move within it, so the
+  // catalogue's 1,600-odd rows don't stand between the keyboard and the rest of the page.
+  const tabStopId = matches.some((card) => card.id === selectedId) ? selectedId : matches[0]?.id;
   loadResultCount.textContent = cardCount(matches.length);
   loadResults.innerHTML = matches.map((card) => `
-    <button type="button" class="load-card-row ${card.id === selectedId ? 'selected' : ''}" data-load-card-id="${escapeHtml(card.id)}">
+    <button type="button" class="load-card-row ${card.id === selectedId ? 'selected' : ''}" tabindex="${card.id === tabStopId ? 0 : -1}" data-load-card-id="${escapeHtml(card.id)}">
       <strong>${escapeHtml(card.name)}</strong>
       <span>${escapeHtml(RARITY_LABELS[card.rarity])}</span>
       <small>${escapeHtml(setLabel(card.set ?? 'base'))} / ${escapeHtml(cardColorLabel(card))}</small>
@@ -1442,8 +1572,8 @@ function renderLoadResults(): void {
   `).join('') || '<p class="empty-editor">No cards match these filters.</p>';
 }
 
-function applyLoadedCard(card: ScorableCardDef): void {
-  if (hasUnsaved() && !confirmAction(DISCARD_CHANGES)) return;
+async function applyLoadedCard(card: ScorableCardDef): Promise<void> {
+  if (hasUnsaved() && !await confirmAction(DISCARD_CHANGES, 'Discard')) return;
   const loaded = fromCardDef(card);
   loaded.appearance = { ...store.getState().appearance };
   openInEditor(loaded, { editingId: null, baseline: entryFromState(loaded, '') }, { source: card, baseline: loaded });
@@ -1463,16 +1593,31 @@ function renderLoadedCardStatus(state: BuilderState): void {
 loadSearch.addEventListener('input', () => { loadSearchValue = loadSearch.value; renderLoadResults(); });
 loadSetFilter.addEventListener('change', () => { loadSetValue = loadSetFilter.value; renderLoadResults(); });
 loadColorFilter.addEventListener('change', () => { loadColorValue = loadColorFilter.value; renderLoadResults(); });
+loadResults.addEventListener('keydown', (event) => {
+  const rows = [...loadResults.querySelectorAll<HTMLButtonElement>('.load-card-row')];
+  const current = rows.indexOf(document.activeElement as HTMLButtonElement);
+  if (current < 0) return;
+  const page = Math.max(1, Math.floor(loadResults.clientHeight / (rows[current].offsetHeight || 1)) - 1);
+  const target = {
+    ArrowDown: current + 1, ArrowUp: current - 1, PageDown: current + page, PageUp: current - page, Home: 0, End: rows.length - 1,
+  }[event.key];
+  if (target === undefined) return;
+  event.preventDefault();
+  const next = rows[Math.min(rows.length - 1, Math.max(0, target))];
+  rows[current].tabIndex = -1;
+  next.tabIndex = 0;
+  next.focus();
+});
 loadResults.addEventListener('click', (event) => {
   const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-load-card-id]');
   if (!button) return;
   const card = loadCardById.get(button.dataset.loadCardId!);
-  if (card) applyLoadedCard(card);
+  if (card) void applyLoadedCard(card);
 });
 byId<HTMLButtonElement>('random-card').addEventListener('click', () => {
   const matches = filteredLoadCards();
   if (matches.length === 0) return;
-  applyLoadedCard(matches[Math.floor(Math.random() * matches.length)]);
+  void applyLoadedCard(matches[Math.floor(Math.random() * matches.length)]);
 });
 resetLoaded.addEventListener('click', () => {
   if (!loadedBaseline) return;
@@ -1484,7 +1629,9 @@ resetLoaded.addEventListener('click', () => {
 
 // ── Art ─────────────────────────────────────────────────────────────────────
 
-const ART_PAGE_SIZE = 32;
+/** 32 pictures a page, 12 on a phone-width screen, where each page is a long scroll. */
+const narrowArtPages = window.matchMedia('(max-width: 760px)');
+const artPageSize = (): number => (narrowArtPages.matches ? 12 : 32);
 const artCards = ALL_CARDS.filter((card) => manifestCards.has(card.artRef ?? card.id));
 let artSearchValue = '';
 let artSetValue = 'all';
@@ -1513,9 +1660,10 @@ function filteredArtCards(): CardDef[] {
 
 function renderArtGrid(): void {
   const matches = filteredArtCards();
-  const pages = Math.max(1, Math.ceil(matches.length / ART_PAGE_SIZE));
+  const pageSize = artPageSize();
+  const pages = Math.max(1, Math.ceil(matches.length / pageSize));
   artPage = Math.min(Math.max(0, artPage), pages - 1);
-  const visible = matches.slice(artPage * ART_PAGE_SIZE, (artPage + 1) * ART_PAGE_SIZE);
+  const visible = matches.slice(artPage * pageSize, (artPage + 1) * pageSize);
   const selected = store.getState().artDonorId;
   artGrid.innerHTML = visible.map((card) => {
     const artKey = card.artRef ?? card.id;
@@ -1523,7 +1671,12 @@ function renderArtGrid(): void {
       <img src="${escapeHtml(forgeThumbUrl(artKey))}" alt="" loading="lazy" decoding="async" />
       <span>${escapeHtml(card.name)}</span>
     </button>`;
-  }).join('') || '<p class="empty-editor">No pictures match these filters.</p>';
+  }).join('') || '<p class="empty-editor grid-wide">No pictures match these filters.</p>';
+  // A tile shows its placeholder until the picture arrives, then fades it in.
+  for (const img of artGrid.querySelectorAll<HTMLImageElement>('img')) {
+    if (img.complete && img.naturalWidth > 0) img.classList.add('loaded');
+    else img.addEventListener('load', () => img.classList.add('loaded'), { once: true });
+  }
   artPageLabel.textContent = `${matches.length} pictures · page ${artPage + 1} of ${pages}`;
   artPrev.disabled = artPage === 0;
   artNext.disabled = artPage >= pages - 1;
@@ -1534,6 +1687,7 @@ artSetFilter.addEventListener('change', () => { artSetValue = artSetFilter.value
 artColorFilter.addEventListener('change', () => { artColorValue = artColorFilter.value; artPage = 0; renderArtGrid(); });
 artPrev.addEventListener('click', () => { artPage -= 1; renderArtGrid(); });
 artNext.addEventListener('click', () => { artPage += 1; renderArtGrid(); });
+narrowArtPages.addEventListener('change', () => { artPage = 0; renderArtGrid(); });
 artGrid.addEventListener('click', (event) => {
   const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-art-id]');
   if (!button) return;
@@ -1571,8 +1725,9 @@ function syncBasicControls(state: BuilderState): void {
   cardLegendary.checked = state.legendary;
   genericMana.value = String(state.cost.generic);
   genericValue.value = String(state.cost.generic);
-  manaValueOutput.value = `MV ${printedManaValue(state)}`;
-  colorIdentityMode.value = state.colorOverride === null ? 'cost' : 'override';
+  manaValueOutput.value = `Mana value ${printedManaValue(state)}`;
+  const identityMode = state.colorOverride === null ? 'cost' : 'override';
+  for (const radio of colorIdentityMode.querySelectorAll<HTMLInputElement>('input')) radio.checked = radio.value === identityMode;
   colorOverrideControls.hidden = state.colorOverride === null;
   for (const checkbox of colorOverrideControls.querySelectorAll<HTMLInputElement>('[data-color-identity]')) {
     checkbox.checked = state.colorOverride?.includes(checkbox.dataset.colorIdentity as Color) ?? false;
@@ -1581,9 +1736,11 @@ function syncBasicControls(state: BuilderState): void {
   manaSection.hidden = builderHasType(state, 'land');
   bodySection.hidden = !builderHasType(state, 'creature');
   cardAttack.value = String(state.attack);
-  attackValue.value = String(state.attack);
   cardDefense.value = String(state.defense);
-  defenseValue.value = String(state.defense);
+  for (const button of bodySection.querySelectorAll<HTMLButtonElement>('button[data-stat]')) {
+    const value = button.dataset.stat === 'defense' ? state.defense : state.attack;
+    button.disabled = Number(button.dataset.step) < 0 ? value <= 0 : value >= FORGE_LIMITS.stat;
+  }
   for (const color of COLOR_ORDER) byId<HTMLOutputElement>(`pip-count-${color}`).value = String(state.cost.pips[color]);
   frameStyle.value = state.appearance.frame;
   holoFinish.value = state.appearance.holo;
@@ -1607,6 +1764,23 @@ function verdictSubtitle(state: BuilderState, band: VerdictBand): string {
   return `Fair for ${cost} at ${rarity}.`;
 }
 
+/** The Difference gauge runs from -GAUGE_RANGE to +GAUGE_RANGE. */
+const GAUGE_RANGE = 3;
+
+const scoreStrip = byId<HTMLButtonElement>('score-strip');
+const verdictRail = byId<HTMLElement>('verdict-rail');
+
+function setScoreSheet(open: boolean): void {
+  verdictRail.classList.toggle('sheet-open', open);
+  scoreStrip.setAttribute('aria-expanded', String(open));
+  byId('strip-action').textContent = open ? 'Hide score' : 'Show score';
+}
+
+scoreStrip.addEventListener('click', () => setScoreSheet(!verdictRail.classList.contains('sheet-open')));
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && verdictRail.classList.contains('sheet-open')) setScoreSheet(false);
+});
+
 const VERDICT_LABELS: Record<VerdictBand, string> = { under: 'Under Value', accurate: 'Accurate Value', over: 'Over Value' };
 
 function renderEvaluation(state: BuilderState): void {
@@ -1615,44 +1789,90 @@ function renderEvaluation(state: BuilderState): void {
   byId('metric-power').textContent = format(score.power);
   byId('metric-budget').textContent = format(score.budget);
   byId('metric-delta').textContent = signed(score.delta);
-  const budgetFormula = byId('budget-formula');
-  budgetFormula.textContent = rarityBudgetLabel(state);
-  budgetFormula.title = budgetFormula.textContent;
-  byId('verdict-label').textContent = VERDICT_LABELS[band];
-  byId('verdict-subtitle').textContent = verdictSubtitle(state, band);
+  // The label is a live region, so only a change of band is announced.
+  const verdictLabel = byId('verdict-label');
+  if (verdictLabel.textContent !== VERDICT_LABELS[band]) verdictLabel.textContent = VERDICT_LABELS[band];
+  byId('verdict-subtitle').innerHTML = textWithPips(verdictSubtitle(state, band));
   const verdict = byId('verdict-copy');
   verdict.className = `verdict-copy ${band}`;
-  const clamped = Math.min(3, Math.max(-3, score.delta));
-  byId('gauge-needle').style.left = `${((clamped + 3) / 6) * 100}%`;
-  byId('gauge-value').textContent = signed(score.delta);
-  byId('warning-chips').innerHTML = [...evaluation.warnings, ...loadedFidelityWarnings].map(warningChipMarkup).join('');
-  byId('ledger-count').textContent = `${score.parts.length} ${score.parts.length === 1 ? 'part' : 'parts'}`;
+  scoreStrip.className = `score-strip ${band}`;
+  byId('strip-delta').textContent = signed(score.delta);
+  byId('strip-band').textContent = VERDICT_LABELS[band];
+  // The gauge spans -3 to +3. Past that the needle pins to the edge and says
+  // so, and its number turns inward so it stays over the bar.
+  const clamped = Math.min(GAUGE_RANGE, Math.max(-GAUGE_RANGE, score.delta));
+  const needle = byId('gauge-needle');
+  needle.style.left = `${((clamped + GAUGE_RANGE) / (2 * GAUGE_RANGE)) * 100}%`;
+  needle.classList.toggle('pinned-left', clamped <= -GAUGE_RANGE + 0.5);
+  needle.classList.toggle('pinned-right', clamped >= GAUGE_RANGE - 0.5);
+  needle.classList.toggle('off-scale', Math.abs(score.delta) > GAUGE_RANGE);
+  const gauge = byId('difference-gauge');
+  gauge.setAttribute('aria-valuenow', clamped.toFixed(2));
+  gauge.setAttribute('aria-valuetext', `${signed(score.delta)}, ${VERDICT_LABELS[band]}`);
+  byId('gauge-value').textContent = Math.abs(score.delta) > GAUGE_RANGE
+    ? `${signed(score.delta)} (off the scale)`
+    : signed(score.delta);
+  const warningList = byId('warning-chips');
+  const notesOpen = warningList.querySelector('details.warning-group')?.hasAttribute('open') ?? false;
+  warningList.innerHTML = warningListMarkup([...evaluation.warnings, ...loadedFidelityWarnings], notesOpen);
   byId('score-ledger').innerHTML = score.parts.map((part) => {
     const line = translatePart(evaluation.card, part);
-    return `<div><span>${escapeHtml(line.text)}${line.estimate ? estimateTag() : ''}</span><strong class="${part.v < 0 ? 'negative' : ''}">${signed(part.v)}</strong></div>`;
-  }).join('') || '<p class="empty-editor">No priced parts.</p>';
+    return `<div><span>${textWithPips(line.text)}${line.estimate ? estimateTag() : ''}</span><strong class="${part.v < 0 ? 'negative' : ''}">${signed(part.v)}</strong></div>`;
+  }).join('') || '<p class="empty-editor">Nothing on this card is priced yet.</p>';
   byId('ledger-total').textContent = format(score.power);
+  byId('budget-ledger').innerHTML = budgetParts(state).map((part) => (
+    `<div><span>${escapeHtml(part.text)}</span><strong class="${part.v < 0 ? 'negative' : ''}">${signed(part.v)}</strong></div>`
+  )).join('');
+  byId('ledger-budget').textContent = format(score.budget);
+  byId('ledger-delta').textContent = signed(score.delta);
   renderHints(band, buildHints(state));
 }
 
+/**
+ * The last hint applied, so it can be undone. It stays offered only while the
+ * card is exactly as the hint left it: any other edit makes a new state object
+ * and the Undo quietly goes.
+ */
+let appliedHint: { before: BuilderState; after: BuilderState; title: string } | null = null;
+
 function renderHints(band: VerdictBand, hints: CostingHint[]): void {
   const list = byId('hint-list');
+  if (appliedHint && appliedHint.after !== store.getState()) appliedHint = null;
+  const undo = appliedHint
+    ? `<div class="hint-undo" role="status"><span>Applied: ${textWithPips(appliedHint.title)}.</span><button type="button" class="ghost-button" data-undo-hint>Undo</button></div>`
+    : '';
   if (band === 'accurate') {
-    list.innerHTML = '<div class="accurate-note"><strong>Accurate Value</strong><span>The difference is already within 0.75. Nothing to change.</span></div>';
-    return;
+    list.innerHTML = `${undo}<p class="accurate-note">The difference is within 0.75 either way, so there is nothing to change.</p>`;
+  } else {
+    list.innerHTML = undo + (hints.map((hint, index) => `<article class="hint-row">
+    <div><strong>${escapeHtml(hint.title)}</strong><span>${textWithPips(hint.detail)}</span><small>${escapeHtml(hint.rateSource)}</small></div>
+    <div class="hint-result"><strong>Difference after: ${signed(hint.resultingDelta)}</strong><span>moves it ${signed(hint.movement)}</span><button type="button" data-apply-hint="${index}">Apply</button></div>
+  </article>`).join('') || '<p class="empty-editor">No single change brings the difference closer to zero.</p>');
   }
-  list.innerHTML = hints.map((hint, index) => `<article class="hint-row">
-    <div><strong>${escapeHtml(hint.title)}</strong><span>${escapeHtml(hint.detail)}</span><small>${escapeHtml(hint.rateSource)}</small></div>
-    <div class="hint-result"><span>${signed(hint.movement)} change</span><strong>Difference after: ${signed(hint.resultingDelta)}</strong><button type="button" data-apply-hint="${index}">Apply</button></div>
-  </article>`).join('') || '<p class="empty-editor">No single change brings the difference closer to zero.</p>';
+  list.querySelector<HTMLButtonElement>('[data-undo-hint]')?.addEventListener('click', () => {
+    if (!appliedHint) return;
+    const { before } = appliedHint;
+    appliedHint = null;
+    store.update(() => cloneBuilderState(before));
+    renderAllEditors();
+    renderArtGrid();
+  });
   list.querySelectorAll<HTMLButtonElement>('[data-apply-hint]').forEach((button) => {
     button.addEventListener('click', () => {
       const hint = hints[Number(button.dataset.applyHint)];
-      store.update(() => cloneBuilderState(hint.nextState));
+      const before = cloneBuilderState(store.getState());
+      const after = cloneBuilderState(hint.nextState);
+      appliedHint = { before, after, title: `${hint.title}. ${plainDetail(hint.detail)}` };
+      store.update(() => after);
       renderAllEditors();
       renderArtGrid();
     });
   });
+}
+
+/** A hint's detail without its final full stop, for the "Applied" line. */
+function plainDetail(detail: string): string {
+  return detail.replace(/\.$/, '');
 }
 
 store.subscribe(() => {
@@ -1952,13 +2172,13 @@ async function runBrowserQa(): Promise<void> {
     if (qaResult.draggedKeywordPart?.v !== skyborneHere) throw new Error(`Skyborne was not worth ${signed(skyborneHere)} points in the breakdown`);
     if (qaResult.hintPromisedDelta !== qaResult.deltaAfterHint) throw new Error('Applied hint did not land on the difference it promised');
 
-    // Set builder: Save to Set, Save and Start Next, then a second card.
+    // Set builder: Save to Set, Save and New Card, then a second card.
     byId<HTMLButtonElement>('save-to-set').click();
     const editingAfterSave = editingIndex(forgeSet, session);
     cardName.value = 'QA First Card';
     cardName.dispatchEvent(new Event('input', { bubbles: true }));
     byId<HTMLButtonElement>('save-and-next').click();
-    if (session.editingId !== null) throw new Error('Save and Start Next did not open a new card');
+    if (session.editingId !== null) throw new Error('Save and New Card did not open a new card');
     cardName.value = 'QA Second Card';
     cardName.dispatchEvent(new Event('input', { bubbles: true }));
     byId<HTMLButtonElement>('save-to-set').click();

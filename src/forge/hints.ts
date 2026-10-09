@@ -108,6 +108,29 @@ function addCandidate(
   });
 }
 
+/**
+ * How far to move one lever: every step count from 1 to `maxSteps` is scored,
+ * and the one that lands closest to zero wins (the smaller move on a tie). So
+ * a 12/2 that is far over value hears "Set Attack to 5", not "Set Attack to 11".
+ */
+function bestStep(
+  current: Evaluation,
+  maxSteps: number,
+  apply: (steps: number) => BuilderState,
+): BuilderState | null {
+  let best: BuilderState | null = null;
+  let bestDistance = Math.abs(current.score.delta);
+  for (let steps = 1; steps <= maxSteps; steps += 1) {
+    const next = apply(steps);
+    const distance = Math.abs(evaluateBuilder(next).score.delta);
+    if (distance < bestDistance - 0.0001) {
+      best = next;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
+
 function keywordSuggestions(state: BuilderState): Keyword[] {
   const colors = colorsForCost(state.cost);
   const ordered = new Set<Keyword>();
@@ -123,31 +146,37 @@ function keywordSuggestions(state: BuilderState): Keyword[] {
 
 function addCostCandidates(hints: CostingHint[], state: BuilderState, current: Evaluation): void {
   if (state.cardType === 'land') return;
-  if (state.cost.generic < 9) {
+  const raised = bestStep(current, 9 - state.cost.generic, (steps) => {
     const next = cloneBuilderState(state);
-    next.cost.generic += 1;
+    next.cost.generic += steps;
+    return next;
+  });
+  if (raised) {
     addCandidate(
       hints,
       current,
       'increase-cost',
       'Increase Mana Cost',
-      `Raise the cost to ${manaCostLabel(next.cost)}.`,
+      `Raise the cost to ${manaCostLabel(raised.cost)}.`,
       manaReason,
-      next,
+      raised,
       'increase-generic',
     );
   }
-  if (state.cost.generic > 0) {
+  const lowered = bestStep(current, state.cost.generic, (steps) => {
     const next = cloneBuilderState(state);
-    next.cost.generic -= 1;
+    next.cost.generic -= steps;
+    return next;
+  });
+  if (lowered) {
     addCandidate(
       hints,
       current,
       'reduce-cost',
       'Reduce Mana Cost',
-      `Lower the cost to ${manaCostLabel(next.cost)}.`,
+      `Lower the cost to ${manaCostLabel(lowered.cost)}.`,
       manaReason,
-      next,
+      lowered,
       'reduce-generic',
     );
   }
@@ -194,9 +223,12 @@ function addStatCandidates(hints: CostingHint[], state: BuilderState, current: E
   ] as const;
   for (const [kind, title, field, amount] of levers) {
     const value = state[field];
-    if ((amount > 0 && value >= 12) || (amount < 0 && value <= 0)) continue;
-    const next = cloneBuilderState(state);
-    next[field] += amount;
+    const next = bestStep(current, amount > 0 ? 12 - value : value, (steps) => {
+      const moved = cloneBuilderState(state);
+      moved[field] += amount * steps;
+      return moved;
+    });
+    if (!next) continue;
     addCandidate(
       hints,
       current,

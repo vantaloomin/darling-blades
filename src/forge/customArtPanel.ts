@@ -38,7 +38,7 @@ const KEYWORD_DRAG_TYPE = 'application/x-darlingblades-keyword';
 export interface CustomArtPanelOptions {
   store: BuilderStore;
   images: ForgeImageLibrary;
-  confirmAction(message: string): boolean;
+  confirmAction(message: string, yesLabel?: string): Promise<boolean>;
 }
 
 export interface CustomArtPanel {
@@ -186,8 +186,8 @@ export function initCustomArtPanel({ store, images, confirmAction }: CustomArtPa
     reframe((framing, image) => fillFrame(image, framing, frameOf(store.getState())))
   ));
   element<HTMLButtonElement>('custom-art-reset').addEventListener('click', () => reframe((_framing, image) => resetFraming(image)));
-  element<HTMLButtonElement>('custom-art-remove').addEventListener('click', () => {
-    if (!store.getState().customArt || !confirmAction(CUSTOM_ART_COPY.removeConfirm)) return;
+  element<HTMLButtonElement>('custom-art-remove').addEventListener('click', async () => {
+    if (!store.getState().customArt || !await confirmAction(CUSTOM_ART_COPY.removeConfirm, 'Remove Image')) return;
     showMessage('');
     update((next) => { next.customArt = null; });
   });
@@ -197,13 +197,25 @@ export function initCustomArtPanel({ store, images, confirmAction }: CustomArtPa
   const setValue = (input: HTMLInputElement, value: string): void => {
     if (input.value !== value) input.value = value;
   };
+  // Left/Right, Up/Down and Rotate have zero in the middle, so their fill
+  // runs from the centre to the thumb; Zoom fills from the left edge.
+  const paintFill = (input: HTMLInputElement): void => {
+    const min = Number(input.min);
+    const max = Number(input.max);
+    const at = ((Number(input.value) - min) / (max - min)) * 100;
+    const origin = input.classList.contains('centered-range') ? 50 : 0;
+    input.style.setProperty('--fill-from', `${Math.min(origin, at)}%`);
+    input.style.setProperty('--fill-to', `${Math.max(origin, at)}%`);
+  };
+  const panNote = element<HTMLParagraphElement>('custom-art-pan-note');
 
   function render(): void {
     const state = store.getState();
     const custom = state.artSource === 'custom';
     for (const input of sourceInputs) input.checked = input.value === state.artSource;
     gamePanel.hidden = custom;
-    randomArt.hidden = custom;
+    // Kept in place (just not shown) so the Art heading doesn't jump when the source changes.
+    randomArt.style.visibility = custom ? 'hidden' : '';
     panel.hidden = !custom;
     const art = state.customArt;
     dropZone.hidden = art !== null;
@@ -226,18 +238,25 @@ export function initCustomArtPanel({ store, images, confirmAction }: CustomArtPa
     panYValue.value = String(Math.round(art.y * 100));
     setValue(panX, String(Math.round(art.x * 100)));
     setValue(panY, String(Math.round(art.y * 100)));
+    for (const input of [panX, panY, rotation]) paintFill(input);
+    rotation.setAttribute('aria-valuetext', `${Math.round(art.rotation)} degrees`);
     if (background.value !== art.background) background.value = art.background;
     if (!info) {
       backgroundField.hidden = true;
+      panNote.hidden = true;
       return;
     }
     const frame = frameOf(state);
     setValue(zoom, String(zoomToSlider(info, art.zoom)));
+    paintFill(zoom);
     zoom.setAttribute('aria-valuetext', `${art.zoom.toFixed(2)}×`);
     const room = panRoom(info, art, frame);
     // An axis the picture can't move along (it spans the window exactly) is switched off.
     panX.disabled = room.x < 0.5;
     panY.disabled = room.y < 0.5;
+    const stuck = [panX.disabled ? 'left or right' : '', panY.disabled ? 'up or down' : ''].filter(Boolean);
+    panNote.hidden = stuck.length === 0;
+    panNote.textContent = stuck.length === 0 ? '' : `The picture exactly fits the frame, so it can't move ${stuck.length === 2 ? 'at all' : stuck[0]}. Zoom in to move it.`;
     backgroundField.hidden = !(info.hasAlpha || leavesFrameEmpty(info, art, frame));
   }
 
