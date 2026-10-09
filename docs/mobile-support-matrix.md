@@ -2,8 +2,10 @@
 
 # Mobile support matrix (draft)
 
-**Status 2026-10-08: DRAFT, decision M7 of
-[plan-mobile-overhaul.md](plan-mobile-overhaul.md).** Nothing here is ruled.
+**Status 2026-10-09: DRAFT, decision M7 of
+[plan-mobile-overhaul.md](plan-mobile-overhaul.md).** The list itself is
+not ruled; the tablet rows follow the owner's 2026-10-09 rulings (M11,
+M22).
 The 1.8 draft asked for "a small named matrix before wave 1" and "no generic
 `mobile` label"; this is that list. It follows P11, ruled 2026-10-08 as recommended
 (landscape phones, browser only).
@@ -39,6 +41,8 @@ Blades" with the supported list. Small and reversible; mobile wave 1.
 
 ## Phones (landscape, compact profile)
 
+The Version C mocks are drawn at the iPhone 15/16 landscape reference, 852x393, with a 718x356 content box.
+
 | Device class | Screen in landscape (CSS px) | Browser | Level | Why it is here |
 | --- | ---: | --- | --- | --- |
 | **iPhone 17 Pro Max** (the owner's phone) | 956x440 | Safari, current iOS | **Tested** | The owner's device: the largest phone layout, and the only real-phone pass |
@@ -62,27 +66,31 @@ third generation SE.
 
 **Phones held upright** (ruled, P11): the rotate screen, as today.
 
-## Tablets (wide profile)
+## Tablets (compact profile, scaled up)
 
-Tablets keep the desktop composition, fit to the screen. In landscape that
-draws at about 0.9 scale on an 11-inch iPad, which reads today.
+Ruled 2026-10-09 (M22, M11): touch tablets get the phone layout drawn
+larger, not the desktop composition. The owner tried today's desktop
+composition on the Galaxy Tab A8 and could not read it or hit its buttons
+reliably. In landscape the compact layout is scaled to the width (138% on
+an 11-inch iPad, mock P5); held upright it is letterboxed at about 96%
+width-fit with the commanders' art above and below (mock P4).
 
 | Device class | Screen (CSS px) | Browser | Level |
 | --- | ---: | --- | --- |
-| **The owner's Galaxy Tab A8** (Android 14, One UI 6.1), landscape | about 1280x800 (to measure) | Chrome and Samsung Internet | **Tested** | The only Android device: it covers Android's browsers, and as older hardware it stands in as the weak-device floor (M14) until an Android phone joins |
+| **The owner's Galaxy Tab A8** (Android 14, One UI 6.1), landscape and upright | about 1280x800 (to measure) | Chrome and Samsung Internet | **Tested** | The only Android device: it covers Android's browsers, and as older hardware it stands in as the weak-device floor (M14) until an Android phone joins |
 | iPad, 10.9 to 11 inch, landscape | 1180x820 | Safari | Supported |
 | iPad mini, landscape | 1133x744 | Safari | Supported |
-| Any tablet held upright (M11) | e.g. 820x1180 | Safari, Chrome | Supported if M11 is ruled yes; today it shows the rotate screen (a CSS media query in `index.html`; unblocking adds a minimum-size clause to it) |
+| Any tablet held upright (M11, ruled) | e.g. 820x1180 | Safari, Chrome | Supported, letterboxed; today it shows the rotate screen (a CSS media query in `index.html`; unblocking adds a minimum-size clause to it) |
 | Other Android tablets, landscape | | Chrome | Works, not tested |
 
-The profile rule's 500 px threshold (plan C1) is checked against this table:
-the iPad mini's 744 px height must land in the wide profile and every phone
-above in compact.
+Every row here and above is compact; the plan's phone and tablet split
+(by the screen's shorter side, C1) is checked against these tables so the
+iPad mini lands as a tablet and every phone above as a phone.
 
 ## Desktop (unchanged)
 
 Current Chrome, Edge, Firefox and Mac Safari, and the desktop app, all on
-the wide profile; touchscreen laptops included. No new desktop testing.
+the wide profile; touchscreen laptops included (their primary pointer is the trackpad). No new desktop testing.
 
 ## The layout fixtures
 
@@ -100,8 +108,8 @@ devices, browser bars included.
 | `phone-island` | 852x393 | 59, 59, 21 | 6.1-inch iPhone with the Dynamic Island |
 | `phone-android` | 915x412 | 0, 0, 0 | Pixel class |
 | `phone-large` | 956x440 | 62, 62, 21 | Pro Max class (16 and 17) |
-| `tablet-mini` | 1133x744 | 0, 0, 20 | iPad mini (must resolve to wide) |
-| `tablet-upright` | 820x1180 | 0, 0, 20 | Upright tablet (M11) |
+| `tablet-mini` | 1133x744 | 0, 0, 20 | iPad mini (must resolve to a tablet, compact scaled up) |
+| `tablet-upright` | 820x1180 | 0, 0, 20 | Upright tablet, letterboxed (M11) |
 
 Android rows are 0 because Chrome reports a nonzero safe-area inset only
 in full screen on a phone with a camera cutout; with M8's full-screen
@@ -127,7 +135,7 @@ memory, browser bars and audio.
 there is (956x440), so the cramped cases, the 360 px Android screen, the
 iPhone SE's 667 px width and Chrome's address bar on a phone, are covered
 only by fixtures. The tablet covers Android's browsers and older hardware,
-but in the wide profile, not compact.
+but at tablet size, not a phone's.
 
 **Closing most of it for free (proposed):**
 
@@ -141,8 +149,8 @@ but in the wide profile, not compact.
 - **Chrome's device mode** (DevTools) for quick layout checks only; it is
   desktop Chrome, so it misses the bars and touch.
 
-None of these measures weak hardware: speed and memory stay with the older
-Samsung tablet. **A second-hand Galaxy A phone** stays optional, to close
+None of these measures weak hardware: speed and memory stay with the Galaxy
+Tab A8. **A second-hand Galaxy A phone** stays optional, to close
 real touch on a small Android phone and weak phone hardware at once.
 
 Each pass records device, OS and browser version, text size, scene, and any

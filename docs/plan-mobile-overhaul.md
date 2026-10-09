@@ -1,13 +1,28 @@
-<!-- source-of-truth: docs/plan-2.0.md, docs/mobile-support-matrix.md, docs/mobile-lan-plan.md, docs/plan-accessibility-i18n.md, docs/plan-art-streaming.md, docs/design-system.md, index.html, vite.config.ts, src/gameBoot.ts, src/platform/gestureCore.ts, src/platform/gestures.ts, src/platform/quality.ts, src/platform/renderScale.ts, src/platform/clientProfile.ts, src/ui/accessibility.ts, src/ui/theme.ts, src/ui/layout.ts, src/ui/duelLayout.ts, src/ui/SceneBackdrop.ts, src/art/ArtResolver.ts, src/art/artBudget.ts, src/config/cardFaceGeometry.ts, src/ui/handFan.ts, src/forge/scene.ts, src/dev/a11yProbe.ts, src/scenes/ · last-verified: 2026-10-09 · plan doc, DRAFT for the 2.0 wave-1 sitting: rewritten for 2.0 lane C; P11 (M1-M4), P1 and P2 ruled 2026-10-08, the rest is proposed; re-verify when the owner rules the M decisions, and when each wave ships -->
+<!-- source-of-truth: docs/plan-2.0.md, docs/mobile-support-matrix.md, docs/mobile-lan-plan.md, docs/plan-accessibility-i18n.md, docs/plan-art-streaming.md, docs/design-system.md, index.html, vite.config.ts, src/gameBoot.ts, src/platform/gestureCore.ts, src/platform/gestures.ts, src/platform/quality.ts, src/platform/renderScale.ts, src/platform/clientProfile.ts, src/ui/accessibility.ts, src/ui/theme.ts, src/ui/layout.ts, src/ui/duelLayout.ts, src/ui/SceneBackdrop.ts, src/art/ArtResolver.ts, src/art/artBudget.ts, src/config/cardFaceGeometry.ts, src/ui/handFan.ts, src/forge/scene.ts, src/dev/a11yProbe.ts, src/scenes/ · last-verified: 2026-10-09 · plan doc, DRAFT for the 2.0 wave-1 sitting: rewritten for 2.0 lane C on the Version C mock set; P11 (M1-M4), P1 and P2 ruled 2026-10-08, M5, M8, M11, M12 and M22 ruled 2026-10-09, the rest is proposed; re-verify when the owner rules the M decisions, and when each wave ships -->
 
 # Mobile overhaul: the 2.0 plan (draft)
 
-**Status 2026-10-08: DRAFT for the owner's 2.0 wave-1 sitting.** This is
+**Status 2026-10-09: DRAFT for the owner's 2.0 wave-1 sitting.** This is
 lane C of [plan-2.0.md](plan-2.0.md), priority 2 in the owner's 2.0 order and one of its hard requirements (P1).
 It replaces the 1.8-era body of this file, which listed scenes and
 dependencies that have since changed. The older slot notes are kept, short,
 under [History](#history). The device list it depends on is its companion,
 [mobile-support-matrix.md](mobile-support-matrix.md).
+
+**The design source is the Version C mock set** (owner-picked 2026-09-25):
+139 frames covering every scene and Duel state at the iPhone 15/16
+landscape reference (852x393 pt, one frame px = one CSS px), with Largest
+text variants and itch.io, short-viewport and tablet frames. Each frame
+carries a scene note for its implementer. They live outside the repo: the
+private Design canvas "Darling Blades mobile: Version C, every screen", and
+the owner's bundle `darling-blades-mobile-version-c.zip` under
+`research/mobile-tcg-ux/` (gitignored). Its `VERSION-C.md` is the design
+contract (content box, the 230 px command column, the 11 pt text floor, the
+44 pt touch floor), `FRAMES.md` the per-frame notes, and `DECISIONS.md` the
+open questions listed below as M15-M29. Where this plan and a frame
+disagree, the frame wins unless a ruling below says otherwise. The mocks
+predate 1.9 and 2.0 content (First Dawn, Provoked, Hunt, the Mandate,
+Overcharge, life above 20, Story Mode, Core Set II), which needs new frames.
 
 ## What is ruled
 
@@ -16,8 +31,8 @@ under [History](#history). The device list it depends on is its companion,
 - **Phone play is landscape** and the Duel is **Version C, "Command column
   (hand-first)"** (owner, 2026-09-25). The portraits, life, mana and piles
   sit in a narrow left column. The battlefield is the centre, two rows of
-  circular medallions per side with a "Board full" chip at the cap and the
-  turn and phase line between them. The hand is a list of named rows with
+  circular creature medallions per side plus a strip for other permanents,
+  with the turn and phase line between them. The hand is a list of named rows with
   cost pips in a right-hand column, with End turn and To combat beneath it.
 - **Mobile ships in 2.0**, priority 2 (owner, 2026-10-08), on the site and
   the desktop build. It is no longer framed as launch-critical for itch.io:
@@ -39,6 +54,15 @@ under [History](#history). The device list it depends on is its companion,
 | Layout choice | **Automatic only.** No save field, no setting |
 | Distribution | **Browser only.** No PWA, no offline mode, no app-store package |
 | Phone card face | **Art-first (a).** Name, art at the desktop band, cost, P/T and a keyword row; full rules in the panel beside the enlarged card |
+
+- **Ruled 2026-10-09 in the wave-1 sitting** (owner, in the plan thread):
+  M5 (the compact design space, scaled as each screen needs), M8 (a
+  full-screen button where the browser allows it), M11 (upright tablets
+  follow the mocks: the phone layout letterboxed), M12 (a scene image on
+  the rotate screen) and the tablet question, M22: **touch tablets get the
+  phone layout scaled up** for now, ideally a taller tablet composition
+  later. The owner's Galaxy Tab A8 report decided it: today's desktop
+  composition on that tablet was unreadable and its buttons hard to hit.
 
 ## Where mobile stands today
 
@@ -98,47 +122,66 @@ Version C is.
 
 ## The design
 
-### C1. A second design space for phones (M5)
+### C1. A second design space for touch screens (M5, ruled)
 
-**Recommended:** phones get a **compact-landscape profile** whose design
+**Ruled 2026-10-09:** phones get a **compact profile** whose design
 space is the phone's own content box in CSS px, so **one design pixel is one
-CSS pixel.** On the 6.1-inch iPhone that is about 750x310. The 44 px hit
-floor then means 44 pt on the glass, the type ramp reads at its stated size,
-and the research session's measurements (a 240 pt card face, taken in
-headless Edge on 2026-09-25) carry over unchanged.
+CSS pixel.** The mocks' reference content box is 718x356 (x 67..785,
+y 8..364 on the 852x393 iPhone 15/16, inside its 59 px side and 21 px bottom
+safe areas). The 44 px hit floor then means 44 pt on the glass, the type
+ramp reads at its stated size, and the mocks' measurements (the 240 pt
+card face, the 230 px command column) carry over unchanged. "Scaled as
+necessary" (the owner's words): the space follows each phone's content box,
+so every phone from the SE to the Pro Max gets more or less room, never
+smaller text; and above the largest phone box (tablets) the compact
+composition is drawn larger rather than stretched.
 
 - **Height sets the scale, width follows the phone.** The compact design
   space takes the content box as it is, so a 19.5:9 phone gets its full
   width instead of the letterbox bars `Scale.FIT` leaves today.
 - **Sharp on the glass.** The canvas backing store renders at the device
   pixel ratio, capped at 2 (a new cap; today `lite` is clamped to 1). At
-  750x310 and a factor of 2 that is about 0.9 megapixels, under the desktop's
-  3.7 at k = 2. Text rasterizes at the same factor through the existing hook
+  718x356 and a factor of 2 that is about 1 megapixel, under the desktop's
+  3.7 at k = 2. A tablet's larger screen lowers the factor so its backing
+  store stays at or under that 3.7. Text rasterizes at the same factor through the existing hook
   in `gameBoot.ts`. Most iPhones are 3x screens, so the cap leaves a 1.5x
   upscale: slightly soft, accepted for fill rate and memory on weak phones.
   A 2.625x Android screen snaps to 2, so `RenderK` stays `1 | 1.5 | 2`.
-- **Desktop and tablets are untouched.** They keep the **wide** profile,
-  1280x720 fit to the window. A tablet in landscape draws the canvas at
-  about 0.9 (an 11-inch iPad is 1180x820), which already reads.
-- **Two profiles, not three.** The 1.8 draft's `short-landscape` profile is
-  dropped: the compact space follows the content height, so a short phone
-  gets a short layout from the same rules. Layout code reads one
-  `ScreenMetrics` (width, height, safe insets, touch) and composes from it.
+- **Tablets get the compact profile, scaled up (ruled 2026-10-09, M22).**
+  The 1.8 assumption that a tablet reads the desktop composition at about
+  0.9 scale was wrong on a real device: the owner's Galaxy Tab A8 was
+  unreadable with hard-to-hit buttons. In landscape the compact
+  composition is scaled to the width (mock P5: 138% on an 11-inch iPad,
+  11 pt text landing at 15.2 pt); held upright it is letterboxed at about
+  96% width-fit with the commanders' art in the bands (mock P4, M11). A
+  taller tablet composition (a bigger board, the hand as cards) is the
+  owner's stated ideal and a later item, not 2.0 scope.
+- **Desktop is untouched:** the **wide** profile, 1280x720 fit to the
+  window.
+- **The short viewport is open (M21).** Phone Safari leaves about 297 pt
+  of height (mock P3), and the mocks recommend a short variant of the
+  compact profile (72 pt portraits, 44 pt medallions, pile counts behind
+  the menu). This plan had proposed that the compact rules absorb short
+  screens with no second profile; the mock shows they need a denser
+  variant. Either way layout code reads one `ScreenMetrics` (width, height,
+  safe insets, touch) and composes from it.
 - **Alternative (not recommended):** keep 1280x720 for phones and double
   every size inside it. It needs no canvas change, but it keeps the
   letterbox and turns every token into a per-profile pair, the per-scene
   fork the accessibility plan ruled out (plan-accessibility-i18n, "For 2.0").
 
-**Profile rule (proposed; automatic layout is ruled, M2):** compact when the device is touch,
-landscape, and the content box is under 500 CSS px tall; wide otherwise.
-Portrait phones keep the rotate screen. Nothing is saved: the profile is
+**Profile rule (automatic layout is ruled, M2; the rule follows M22):**
+compact when the primary pointer is coarse (`(pointer: coarse)`: phones and
+tablets, not a touchscreen laptop driven by its trackpad); wide otherwise.
+A phone held upright keeps the rotate screen; a tablet held upright is
+letterboxed (M11). Phone versus tablet is told by the screen's shorter
+side, the same split the play-stats label uses. Nothing is saved: the profile is
 worked out on each load, so moving a save between devices cannot strand
 it. A resize while playing (rotation, browser bars) re-fits the canvas but
 changes the profile only at the next scene start, and a resize while a text
 field has focus is ignored, because the phone's keyboard shrinks the
-viewport (C6). The threshold is set from the matrix's fixtures in
-wave 1, so no listed tablet lands in compact and no listed phone lands in
-wide.
+viewport (C6). The phone and tablet split is set from the matrix's
+fixtures in wave 1.
 
 ### C2. Scenes move one at a time (M6)
 
@@ -179,36 +222,46 @@ phones exactly as on desktop, and every compact scene is checked at 130%.
 
 ### C4. The Duel on Version C
 
-Built on a new geometry module beside `src/ui/duelLayout.ts` (the desktop
-one stays as it is), Phaser-free and rule-tested the same way:
+Drawn in the mocks' T (turn flow) and W (windows, pickers and zones)
+frames, all at the worst-case board. Built on a new geometry module beside
+`src/ui/duelLayout.ts` (the desktop one stays as it is), Phaser-free and
+rule-tested the same way. The mocks' geometry (`DUEL_L` in the bundle's
+`lib.mjs`): a 96 px left column, a 376 px centre, the 230 px command column.
 
-- **Left column:** both portraits, life, mana, library, graveyard and Sever
-  counts. Life badges are legal targets, so their targeting ring is inside
-  the column's hit area. **The Mandate marker** sits beside its holder's
-  portrait here (lane B4 builds it on the desktop Duel first; this wave
-  places it).
-- **Centre:** each side's battlefield as two rows of medallions, creatures
-  on the inner row and lands and other permanents on the outer row, at the
-  worst-case board of 9 against 8 creatures plus the permanent rows. A full
-  side shows the "Board full" chip. The turn and phase line runs between the
-  halves.
-- **Right column:** the hand as named rows with cost pips; a row that cannot
-  be cast is dimmed (proposed). End turn and To combat
-  sit at the bottom, under the right thumb. This closes the 1.8 draft's open
-  question (fan, tray or pages): Version C chose rows.
+- **Left column:** both portraits with life, and between them each side's
+  mana and library, graveyard and Severed counts, plus the history and menu
+  buttons. Life badges are legal targets, so their targeting ring is inside
+  the column's hit area. The mana and zone counts are one framed button
+  that opens the zone sheet (M15), and a third colour folds into "+1"
+  (M16). **The Mandate marker** sits beside its holder's portrait here
+  (lane B4 builds it on the desktop Duel first; this wave places it; it
+  needs a new frame).
+- **Centre:** each side's creatures as two rows of medallions, with a
+  strip of smaller medallions for lands and other permanents at the outer
+  edge, at the worst-case board of 9 against 8 creatures plus 4 other
+  permanents each. The turn and phase line runs between the halves.
+  Badge positions on a medallion are fixed (M28).
+- **Command column:** the hand as named rows with art, type and cost pips,
+  at a 44 to 48 px pitch with touching hit areas (M27); a card that cannot
+  be cast says why ("Board full"). End turn and To combat sit at the
+  bottom, under the right thumb. This closes the 1.8 draft's open question
+  (fan, tray or pages): Version C chose rows.
+- **Casting:** a tap on a hand row opens the card with Cast and Empower;
+  a single-target spell then picks its target on the board and Cast
+  confirms (M17; today one tap casts).
 - **Inspecting a card:** a long press opens the enlarged face with the
-  rules panel beside it. Opening it never fires the action under the finger
-  (the existing sticky-preview rule in `src/platform/gestures.ts`).
-- **Overlays** become sheets that cover the centre and leave the left column
-  visible, so life and mana stay readable while choosing: targeting, stack
-  responses, Foresee, Overcharge, marks, Hunt, sacrifice choices, the
-  mulligan, the history log, zone contents, results, replay controls and the
-  tutorials. Only one is open at a time (the existing `OverlayCoordinator`).
-- **The research session's mocks of every scene and Duel state on Version C
-  are not in the repo.** Wave 1 either brings them in, if the owner still has
-  them, or re-mocks the Duel's worst cases first (full boards, a targeting
-  prompt with the stack open, Foresee, 130% text) so the owner approves the
-  shapes before code.
+  rules panel beside it, and a tap on an opposing permanent with no action
+  for the player does the same. Opening it never fires the action under the
+  finger (the existing sticky-preview rule in `src/platform/gestures.ts`).
+- **Prompts take over the command column and the board stays visible.**
+  Choices made on the board (targets, attackers, blockers, sacrifices,
+  Hauntlink hosts) happen on the medallions while the column explains and
+  holds Confirm and Cancel. Choices that show cards (Foresee, loot, discard,
+  Whispers, zone viewers, the mulligan) use a sheet over the centre and
+  left, or the column itself. Only one is open at a time (the existing
+  `OverlayCoordinator`). Mechanics newer than the mocks (Overcharge, Hunt,
+  Provoked, First Dawn, the Mandate) follow the same pattern in new
+  frames.
 
 ### C5. The phone card face (ruled, M4)
 
@@ -228,16 +281,23 @@ time.
 
 ### C6. Lists, menus and dialogs
 
-One shared set of compact primitives on `src/ui/layout.ts`: a header with
-back and title, a bottom action bar, tabs, a search field, a pager, a card
-grid sized from the content box, and sheets in place of fixed-height
-modals. The game's text fields are real page inputs (`SearchInput`,
+One shared set of compact primitives on `src/ui/layout.ts`, matching the
+mocks' shell (top bar, main pane, command column with the primary action
+at its bottom): a top bar with a back chevron and title (M23), tabs in the
+top bar, a search field, a card grid sized from the content box, list rows,
+switches, sheets in place of fixed-height modals, and dialogs (cancel left,
+primary right, a danger kind for destructive actions; M18). Paging becomes
+vertical scroll, dropdowns open as a takeover of the command column, and
+ceremony screens (pack opening, results) drop the column (M24). The game's text fields are real page inputs (`SearchInput`,
 `MultilineInput`, two in `DeckBuilderScene`, and the save-card code in
 `saveCard.ts`). Focusing one raises the phone's keyboard, so each compact
 scene keeps its focused field above the keyboard, read from
-`window.visualViewport`, and the profile ignores that resize (C1). List scenes page or scroll
-in bounded regions with their filters kept on screen. Dense dialogs become
-pages or sheets, never smaller text.
+`window.visualViewport`, and the profile ignores that resize (C1). The
+mocks dock text-entry dialogs to the top of the screen, replace the
+Gauntlet seed's `window.prompt` with an in-game field, and give Import a
+Paste button (M25). List scenes scroll in bounded regions with their
+filters kept on screen. Dense dialogs become pages or sheets, never
+smaller text.
 
 ### Engine, AI, save and balance
 
@@ -262,17 +322,22 @@ exist yet; lane E builds them on these primitives from the start, so they
 need no migration. (The 2.0 plan's lane C lists Story in mobile wave 4; this plan
 reads it as built compact-ready instead, and wave 4 only checks it.)
 
-| Scene | Wave | Notes |
-| --- | ---: | --- |
-| Boot, Preload, ArtLoader | 2 | Loading screens; the art-loader progress bar re-anchors |
-| MainMenu, Play, PracticePicker, Gauntlet | 2 | Menus on the shared header and action bar |
-| Settings, Profile, Achievements, Glossary | 2 | Settings' chip groups were made to place by measurement in 1.9 (accessibility C4) |
-| Collection, Shop | 2 | Grids sized from the content box; Shop's shelves page |
-| DeckBuilder | 2 | The densest list scene: pool grid, deck list and filters cannot all show; the deck list becomes a sheet |
-| Duel | 3 | Version C (C4) |
-| PackOpening | 4 | The reveal runway re-composed; effects already gated by `lite` |
-| Limited, LimitedDraft, LimitedDeckBuilder | 4 | Draft picks as a grid with a pick sheet; deck builder reuses wave 2's |
-| CardShowcase | none | A frame and finish QA surface, not a player journey |
+Mock frames are named by file (`M-` start, menus and meta; `D-` collection
+and deck builder; `S-` shop, packs and Limited; `T-` Duel turn flow; `W-`
+Duel windows; `P-` platform). Their titles also carry codes like "M3",
+which are frame numbers, not this plan's decisions.
+
+| Scene | Wave | Mock frames | Notes |
+| --- | ---: | --- | --- |
+| Boot, Preload, ArtLoader | 2 | `M-Loading`, `M-ArtWait` | Loading screens; the art-loader progress bar re-anchors |
+| MainMenu, Play, PracticePicker, Gauntlet | 2 | `M-MainMenu` to `M-GauntletAbandon`, first-run notices, toasts | The Play hub's column is the deck quick-select |
+| Settings, Profile, Achievements, Glossary | 2 | `M-Profile` to `M-AchievementsList` | Settings is one scrolling pane with jump chips; legal pages in an in-game reader (M26) |
+| Collection, Shop | 2 | `D-Binder` to `D-Shard`, `S-Shop-*` | The binder becomes one vertical grid; Shop's packs keep their strip |
+| DeckBuilder | 2 | `D-Cards` to `D-Cards130` | The densest list scene: pool in the centre, deck list in the column, Warchest and Style as views; Export and Import merge into one Deck code sheet |
+| Duel | 3 | `T-*`, `W-*`, tutorial `M-Tut*` | Version C (C4) |
+| PackOpening | 4 | `S-Pack-*` | The reveal runway re-composed; the tear drops the column; effects already gated by `lite` |
+| Limited, LimitedDraft, LimitedDeckBuilder | 4 | `S-Limited-*`, `S-Draft-*` | Draft picks as a grid with the pick under the thumb; Pool and Deck toggle in the builder |
+| CardShowcase | none | none | A frame and finish QA surface, not a player journey |
 
 ## Waves
 
@@ -311,9 +376,13 @@ word.
   and the tap slop re-expressed in CSS px (C1 makes the 10 px slop 10 CSS px
   instead of about 4; Android's own slop is 8 dp, so 10 is kept unless the
   devices say otherwise).
-- The Duel mocks (C4), for the owner to approve before wave 3.
-- The cheap proposals parked on 2026-09-25 (M11, M12) if the owner takes
-  them.
+- **New frames for what the mocks predate,** for the owner to approve
+  before the wave that builds them: the Mandate marker and its swings,
+  Overcharge, Hunt, Provoked, First Dawn, life totals above 20 in the 96 px
+  column, Core Set II's new mechanics, and Story Mode's run shell. Drawn
+  with the mocks' own generator and contract (`VERSION-C.md`).
+- The upright-tablet letterbox (M11) and the rotate screen's scene image
+  (M12), both ruled.
 
 **Gate:** unit tests for the metrics and profile rule; the probe's fixtures
 render at every matrix viewport with no control outside the safe box; the
@@ -381,7 +450,10 @@ sheet wave 1 adds.
 
 ## Decisions for the owner
 
-M1-M4 were ruled 2026-10-08 as P11. The rest each have a recommendation and are not ruled.
+M1-M4 were ruled 2026-10-08 as P11; M5, M8, M11, M12 and M22 on
+2026-10-09. M15-M29 are the decisions the full mock set forces
+(`DECISIONS.md` in the bundle), each with the mocks' recommendation. The
+rest each have a recommendation and are not ruled.
 
 | # | Decision | Recommendation |
 | --- | --- | --- |
@@ -389,20 +461,36 @@ M1-M4 were ruled 2026-10-08 as P11. The rest each have a recommendation and are 
 | **M2** | Layout choice | Automatic, by the profile rule in C1; no setting, no save field **(ruled 2026-10-08, P11)** |
 | **M3** | Distribution | Browser only in 2.0 **(ruled 2026-10-08, P11)** |
 | **M4** | Phone card face | Art-first (a) **(ruled 2026-10-08, P11)** |
-| **M5** | How phones get their own layout | A compact design space where one design pixel is one CSS pixel, rendered at up to 2x (C1) |
+| **M5** | How phones get their own layout | A compact design space where one design pixel is one CSS pixel, rendered at up to 2x, sized to each screen (C1) **(ruled 2026-10-09)** |
 | **M6** | Ship scenes one at a time | Yes, each behind its own switch; unmigrated scenes fit by camera zoom inside a canvas sized once (C2) |
 | **M7** | The supported devices | The matrix in [mobile-support-matrix.md](mobile-support-matrix.md) |
-| **M8** | A full-screen button | Yes, where the browser allows it (Android Chrome, iPad Safari). iPhone Safari allows full screen only for video, so on iPhone the only way past Safari's bars is M9 |
-| **M9** | Home-screen mode (a web app manifest) | Not in 2.0. On iPhone (as of current iOS) a home-screen web app keeps its own storage, so a player's save would not follow them from Safari. Android shares Chrome's storage, so the problem is iPhone's; revisit with save codes in front |
+| **M8** | A full-screen button | Yes, where the browser allows it (Android Chrome, iPad Safari); iPhone Safari allows full screen only for video **(ruled 2026-10-09)** |
+| **M9** | Home-screen mode (a web app manifest) | Asked 2026-10-09. On iPhone a home-screen web app keeps its own storage, so it opens with an empty save. Export and Import save codes already exist, so the choice is: add it in 2.0 with a one-time "bring your save over" message pointing to them, or leave it out of 2.0 |
 | **M10** | The Duel hand | Closed by Version C: named rows |
-| **M11** | Upright tablets (parked 2026-09-25) | Stop blocking them: a tablet held upright gets the wide profile instead of the rotate screen. Wave 1 |
-| **M12** | Art on the rotate screen (parked 2026-09-25) | Yes, one scene image behind the message. Wave 1 |
+| **M11** | Upright tablets | Follow the mocks: the compact layout letterboxed at about 96% width-fit, the commanders' art in the bands (mock P4) **(ruled 2026-10-09)** |
+| **M12** | The rotate screen | A scene image behind the message **(ruled 2026-10-09;** mock P2 draws a card illustration, the ruling is a scene) |
 | **M13** | Art resolution on phones | Half art on the board and hand; the full texture for the one card being inspected |
 | **M14** | Performance targets | Set from the wave-1 baseline on the weakest tested device, then only raised |
+| **M15** | The Duel's resources block | One framed button for mana and zone counts that opens the zone sheet; on a phone it is also the land drop |
+| **M16** | Three-colour mana in the 96 px column | Two colours plus "+1"; the full list in the zone sheet |
+| **M17** | Casting by touch | A tap opens the card (Cast, Empower); a single-target spell picks its target, then Cast confirms |
+| **M18** | Confirms | A dialog for anything that spends or destroys (craft, delete, retire run, replace save, concede); the two-tap arm only where the second tap sits away from the first (Reset save, Abandon run); Shard stays a hold |
+| **M19** | "Stops · Auto" from the first C mock | No game feature behind it; add a real Stops control or drop it (the duel menu's "Auto-skip forced turns" stays) |
+| **M20** | Undo | No slot in the command column; matters only if undo is added |
+| **M21** | Short viewport | A short variant of the compact profile for about 297 pt of height: 72 pt portraits, 44 pt medallions, pile counts behind the menu (mock P3) |
+| **M22** | Tablets in landscape | The compact layout scaled to the width (mock P5) for now; a taller tablet composition later **(ruled 2026-10-09)** |
+| **M23** | Back button | Chevron only on phones, with the destination as its accessible name |
+| **M24** | Paging and dropdowns | Paging becomes vertical scroll (binder, Practice, Achievements, save card, Gauntlet ladder); dropdowns take over the column; ceremony screens drop it |
+| **M25** | Text entry | Dialogs dock above the keyboard; an in-game field replaces the Gauntlet seed's `window.prompt`; Import gets a Paste button |
+| **M26** | Legal pages | An in-game reader with Open in browser (a new tab leaves an embed) |
+| **M27** | List rows | 44 to 48 px pitch with touching 44 px hit areas, as table rows under the 8 px spacing rule |
+| **M28** | Medallion badges | Keyword top-left; state top-right with the Rage lock beside it; Hauntlink left-middle; Marks right-middle; P/T bottom; tapped in the centre, or a corner badge on attackers |
+| **M29** | Copy sign-off | Sentence-case buttons and the new strings each frame's note lists ("Face <rival>", "Open in browser", "Paste") |
 
 ## Not in 2.0
 
-- Portrait layouts.
+- Portrait layouts for phones.
+- A taller tablet composition (M22's later ideal).
 - An installable app, offline play or an app-store package.
 - A saved layout preference.
 - LAN PvP and any multiplayer (cancelled 2026-08-24).
@@ -445,3 +533,7 @@ M1-M4 were ruled 2026-10-08 as P11. The rest each have a recommendation and are 
   requirement (P1), and moved the itch launch to a 2.0.x (P2), which retires
   the "launch-critical" framing ([plan-2.0.md](plan-2.0.md)). This rewrite
   follows.
+- **2026-10-09:** the owner pointed this plan at the Version C mock set
+  (the first draft wrongly said it was lost), ruled M5, M8, M11, M12 and
+  M22, and reported that the desktop composition was unreadable on the
+  Galaxy Tab A8, which moved touch tablets to the compact profile.
