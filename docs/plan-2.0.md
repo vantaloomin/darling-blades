@@ -245,6 +245,9 @@ data and the touch list are in [plan-road-to-2.0.md](plan-road-to-2.0.md#startin
   per game. Heavy-job rules apply (one at a time, at most 4 workers); it runs
   on GitHub Actions like the sweep, or on the owner's PC in light mode.
 - **D2, the owner picks the number** from the study (wave 1 sitting).
+  **RULED 2026-10-08: 25 life** (owner, 22:12Z), from the study's
+  recommendation (`plans/2.0/life-study-d1.md` in the project files).
+  D3 below is not started.
 - **D3, the change**, before Core Set II's rescore: `RULES.startingLife`, the
   scorer's life-related terms re-derived, rules, glossary and tutorial copy
   that says 20.
