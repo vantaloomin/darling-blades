@@ -86,12 +86,11 @@
           </label>
           <div id="pip-controls" class="pip-controls" aria-label="Colored mana pips"></div>
           <div class="color-identity-editor">
-            <label>Color Identity
-              <select id="color-identity-mode">
-                <option value="cost">Same as mana cost</option>
-                <option value="override">Choose colors</option>
-              </select>
-            </label>
+            <span id="color-identity-label" class="field-label">Color Identity</span>
+            <div id="color-identity-mode" class="art-source-switch" role="radiogroup" aria-labelledby="color-identity-label">
+              <label><input type="radio" name="color-identity-mode" value="cost" checked /> Same as mana cost</label>
+              <label><input type="radio" name="color-identity-mode" value="override" /> Choose colors</label>
+            </div>
             <fieldset id="color-override-controls" class="color-override-controls" hidden>
               <legend>Colors</legend>
             </fieldset>
