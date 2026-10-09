@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ALL_CARDS } from '../../src/data/catalog';
 import { KEYWORD_NAMES, cardTermNames } from '../../src/data/glossary';
-import { SET_IDS, type SetId } from '../../src/data/setTitles';
+import { SET_IDS } from '../../src/data/setTitles';
 import type { AbilityDef, CardDef, Keyword } from '../../src/engine/types';
 import { rulesText } from '../../src/ui/rulesText';
 
@@ -18,26 +18,10 @@ import { rulesText } from '../../src/ui/rulesText';
  * `cardTermNames`, the same vocabulary the card face and Collection search
  * use. A token the card creates does not count: the token is not in the set.
  *
- * Shipped sets that failed when this check landed are grandfathered below,
- * with the exact keywords each lacks. The list is a ratchet in both
- * directions: a grandfathered set that gains a missing keyword fails until
- * that keyword is struck from its entry (and the entry is removed once it is
- * empty), and one that loses a keyword it carried fails too. A set that is not
- * listed (First Dawn and every later set) must carry all of them.
+ * The shipped sets that failed when this check landed were grandfathered
+ * until the 1.9.1 keyword backfill closed every gap
+ * (docs/keyword-backfill-1.9.1.md); no set is exempt now.
  */
-const GRANDFATHERED_GAPS: Partial<Record<SetId, readonly Keyword[]>> = {
-  base: ['dreaded'],
-  ragnarok: ['bulwark', 'untouchable', 'dreaded'],
-  'celtic-fae': ['twinBlades', 'rage'],
-  'arthurian-court': ['dreaded', 'rage'],
-  'gothic-monsters': ['twinBlades'],
-  'dark-tales': ['twinBlades', 'rage'],
-  'yokai-nights': ['rage'],
-  'sands-of-the-duat': ['firstBlade', 'deathblade', 'rage'],
-  starborne: ['rage'],
-  'drowned-deep': ['twinBlades', 'bloodoath'],
-};
-
 const EVERGREEN = Object.keys(KEYWORD_NAMES) as Keyword[];
 
 function inSetPool(card: CardDef): boolean {
@@ -60,22 +44,9 @@ const names = (keywords: readonly Keyword[]): string =>
   keywords.map((keyword) => KEYWORD_NAMES[keyword]).join(', ');
 
 describe('keyword coverage: every set carries every evergreen keyword', () => {
-  it.each(CHECKED_SETS)('%s carries every keyword outside its grandfathered gaps', (setId) => {
+  it.each(CHECKED_SETS)('%s carries every keyword', (setId) => {
     const missing = missingKeywords(setId);
-    const allowed = GRANDFATHERED_GAPS[setId as SetId] ?? [];
-    const uncovered = missing.filter((keyword) => !allowed.includes(keyword));
-    const backfilled = allowed.filter((keyword) => !missing.includes(keyword));
-    const problems: string[] = [];
-    if (uncovered.length > 0) {
-      problems.push(`${setId} has no collectible card carrying: ${names(uncovered)}`);
-    }
-    if (backfilled.length > 0) {
-      problems.push(
-        `${setId} now carries ${names(backfilled)}: strike ${backfilled.length === 1 ? 'it' : 'them'} from ` +
-          `GRANDFATHERED_GAPS${backfilled.length === allowed.length ? ' (and remove the entry)' : ''}`,
-      );
-    }
-    expect(problems, problems.join('; ')).toEqual([]);
+    expect(missing, `${setId} has no collectible card carrying: ${names(missing)}`).toEqual([]);
   });
 
   it('counts a keyword a raise grants, as the card face prints it', () => {

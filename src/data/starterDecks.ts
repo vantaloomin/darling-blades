@@ -1277,7 +1277,7 @@ export const THEME_DECKS: DeckList[] = [
   {
     id: 'theme-first-dawn',
     name: 'Hooves and Fire',
-    // Hooves and Fire: R/G First Dawn Dinokin stampede. Every creature is an honest body on a steady curve; cheap Provoked creatures and Ember-Flick wake each other, Hunt and burn clear the blockers, the Herd-Caller gives the pack Overrun, and two tyrants close.
+    // Hooves and Fire: R/G First Dawn Dinokin stampede. Every creature is an honest body on a steady curve; cheap Provoked creatures and Ember-Flick wake each other, Hunt and burn clear the blockers, the Herd-Caller gives the pack Overrun, and the tyrants close: the two SSR tyrants and Oru, the Tyrant Queen (owner ruling 2026-10-09: the 1.9.0 list had nothing above Rare, the only shop deck without one).
     cards: expand([
       ['land-mountain', 12],
       ['land-forest', 12],
@@ -1290,10 +1290,11 @@ export const THEME_DECKS: DeckList[] = [
       ['fd-fern-and-fire', 2],
       ['fd-fern-shadow-stalker', 2],
       ['fd-hot-blooded', 2],
-      ['fd-horn-crest-charger', 2],
+      ['fd-horn-crest-charger', 1],
       ['fd-tusk-rage', 1],
-      ['fd-blaze-crest', 1],
-      ['fd-rage-kin-brawler', 1],
+      ['fd-ember-crest-tyrant', 1],
+      ['fd-fern-crown-tyrant', 1],
+      ['fd-oru-tyrant-queen', 1],
       ['fd-spear-and-fang', 2],
       ['fd-challenge-the-beast', 2],
       ['fd-hurled-firebrand', 2],
@@ -1301,7 +1302,7 @@ export const THEME_DECKS: DeckList[] = [
       ['fd-thunder-of-hooves', 1],
       ['fd-blaze-horn-charge', 1],
     ]),
-    // Generated 2026-10-01 by scripts/avatarReserveDecks.ts.
+    // Generated 2026-10-09 by scripts/avatarReserveDecks.ts.
     reserveCards: expand([
       ['fd-fern-crest-raptor', 3],
       ['fd-cinder-crest', 3],
@@ -1312,10 +1313,11 @@ export const THEME_DECKS: DeckList[] = [
       ['fd-fern-and-fire', 2],
       ['fd-fern-shadow-stalker', 2],
       ['fd-hot-blooded', 2],
-      ['fd-horn-crest-charger', 2],
+      ['fd-horn-crest-charger', 1],
       ['fd-tusk-rage', 1],
-      ['fd-blaze-crest', 1],
-      ['fd-rage-kin-brawler', 1],
+      ['fd-ember-crest-tyrant', 1],
+      ['fd-fern-crown-tyrant', 1],
+      ['fd-oru-tyrant-queen', 1],
       ['fd-spear-and-fang', 2],
       ['fd-challenge-the-beast', 2],
       ['fd-hurled-firebrand', 2],

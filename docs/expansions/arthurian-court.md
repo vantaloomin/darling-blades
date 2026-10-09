@@ -12,7 +12,7 @@ Visual anchors: polished steel, white-gold sunlight, crimson pennants, moonlit l
 
 ## Mechanic Summary
 
-- **Quests**: chapter enchantments (`subtypes: ['Quest']`) that advance one chapter at each of the controller's dawns and deliver a final payoff, then leave the battlefield. Chapter effects are triggers, so they obey the trigger law (never target); chapter op lists live in `CardDef.chapters`.
+- **Quests**: chapter enchantments (`subtypes: ['Quest']`) that advance one chapter at each of the controller's dawns and deliver a final payoff, then leave the battlefield. Chapter effects are triggers, so they obey the trigger law (never target; the one exception is Court Minstrel's arrival tap, ruled 2026-10-08); chapter op lists live in `CardDef.chapters`.
 - **Champion Awakening**: creatures with an `awakening` block (stat/keyword upgrade) flip to a persistent awakened state when an `awaken` effect resolves. The flip is one-way.
 - **Quest riders**: "while a Quest is active" (`questActive` condition on abilities and statics) rewards keeping a Quest on the battlefield.
 - Primary colors: W/U/R, with B Morgan curse/control and G Grail nature support.

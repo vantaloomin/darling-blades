@@ -14,7 +14,7 @@ const STARBORNE_PACK_SET = STARBORNE_SET;
 const RARITIES = ['c', 'r', 'sr', 'ssr', 'ur'] as const;
 const KNOWN_KEYWORDS = new Set([
   'skyborne', 'wardingGaze', 'firstBlade', 'twinBlades', 'warcry', 'overrun',
-  'sentinel', 'bulwark', 'deathblade', 'bloodoath', 'untouchable', 'dreaded',
+  'sentinel', 'bulwark', 'deathblade', 'bloodoath', 'untouchable', 'dreaded', 'rage',
 ]);
 const KNOWN_TRIGGERS = new Set([
   'spell', 'arrives', 'dies', 'entersGraveyard', 'dawn',

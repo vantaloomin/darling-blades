@@ -108,12 +108,12 @@ const SR: CardDef[] = [
   }),
   creature('dt-tide-reader-of-the-far-reef', 'Tide-Reader of the Far Reef', ['Human', 'Wayfinder'], {
     supertypes: ['legendary'], cost: cost(2, 'UG'), colors: ['U', 'G'], attack: 2, defense: 4,
-    abilities: [arrives([{ op: 'extraLandDrop' }, { op: 'foresee', n: 1 }])], skim: { cost: cost(1) },
+    abilities: [arrives([{ op: 'foresee', n: 2 }, { op: 'draw', n: 1 }])], skim: { cost: cost(1) },
     rarity: 'sr',
   }),
   creature('dt-bell-tower-dancer', 'Bell-Tower Dancer', ['Human', 'Dancer'], {
     supertypes: ['legendary'], cost: cost(1, 'WR'), colors: ['W', 'R'], attack: 2, defense: 2,
-    keywords: ['warcry', 'firstBlade'], skim: { cost: cost(1) },
+    keywords: ['warcry', 'twinBlades'], skim: { cost: cost(1) },
     rarity: 'sr',
   }),
   creature('dt-duchess-of-the-lost-winter', 'Duchess of the Lost Winter', ['Human', 'Duchess'], {
@@ -290,7 +290,7 @@ const C: CardDef[] = [
   }),
   charm('dt-ember-lantern-toss', 'Ember-Lantern Toss', {
     cost: cost(1, 'R'), colors: ['R'], abilities: [spell([{ op: 'damage', n: 2, to: 'target' }], target('any'))],
-    retell: { cost: cost(3, 'R') }, rarity: 'c',
+    retell: { cost: cost(2, 'R') }, rarity: 'c',
   }),
   creature('dt-bayou-lamplighter', 'Bayou Lamplighter', ['Human', 'Lamplighter'], {
     cost: cost(1, 'G'), colors: ['G'], attack: 1, defense: 1,

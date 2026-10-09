@@ -22,7 +22,7 @@ redraws when its art lands (G10, and I9 for portraits in wave 1), so drawing
 a stand-in and swapping it becomes the normal case, and each of those views
 also holds a lease for what it draws. Bytes come from an **art source**:
 loose files for the dev server and the desktop app, and on the web a few
-content-hashed `.bin` packs per quality tier (one per set) read by HTTP range
+content-hashed `.webp` packs per quality tier (one per set) read by HTTP range
 requests, with the offset index bundled into the game's JavaScript. The
 same packs serve Pages now and itch.io in 2.0, whose 1,000-file cap they
 exist for. Decoding moves from Phaser's loader to `fetch` plus
@@ -460,12 +460,19 @@ already reads).
   full at 38 MiB. Per set, not by rarity or size, because a set is the unit
   that changes: an art regeneration invalidates one pack's cache, and a new
   set adds a pack without touching the others.
-- **Name:** `assets/art/packs/<tier>-<set>.<sha256 first 10 hex>.bin`, for
-  example `full-drowned-deep.3f9a1c2e7b.bin`. `.bin` is not on itch's
-  pre-gzip list (`.html .js .css .svg .wasm .wav .glb .pck`), and
-  Cloudflare does not compress `application/octet-stream` by default. The
-  hash keeps a range read from mixing two builds and makes itch's uneven CDN
-  caching safe.
+- **Name:** `assets/art/packs/<tier>-<set>.<sha256 first 10 hex>.webp`, for
+  example `full-drowned-deep.3f9a1c2e7b.webp`. A pack is webp files end to
+  end, served as `image/webp`, which no host in the chain compresses:
+  `.webp` is not on itch's pre-gzip list (`.html .js .css .svg .wasm .wav
+  .glb .pck`). 1.9.0 shipped `.bin`. GitHub Pages gzips
+  `application/octet-stream` itself, and Cloudflare cut ranges from the
+  gzipped copy and dropped `Content-Encoding`. The 2026-10-08 probe found
+  image/webp, image/png and font/woff2 come back with strong ETags and
+  byte-exact ranges, and `.bin` and `.js` do not. Cloudflare Polish would
+  rewrite an image, so it stays off (it is a paid-plan setting, off by
+  default); the zone also carries a compression-off rule for
+  `/assets/art/packs/`. The hash keeps a range read from mixing two builds
+  and makes itch's uneven CDN caching safe.
 - **Inside a pack**, the webp files are concatenated in art-key order with
   no header and no padding.
 
@@ -479,7 +486,7 @@ come from the same build and nothing extra is fetched:
 {
   "version": 1,
   "tiers": {
-    "full": { "packs": ["full-base.1a2b3c4d5e.bin", "..."], "at": [[0, 0, 185036], "..."] },
+    "full": { "packs": ["full-base.1a2b3c4d5e.webp", "..."], "at": [[0, 0, 185036], "..."] },
     "half": { "packs": ["..."], "at": ["..."] }
   }
 }
@@ -555,8 +562,8 @@ cache behaviour. A persistent art cache was ruled out of 1.9 (S-Q5).
 Observed 2026-09-28: `bladedarlings.com` (Cloudflare in front of Pages)
 answers a range request on a card `.webp` with `206` and
 `Cache-Control: max-age=14400`, on a cache miss (`cf-cache-status: EXPIRED`).
-The same on a `.bin` pack is part of the first Pages deploy's gate (gate 7),
-since packs cannot reach Pages before the 1.9 cut.
+The same on a `.bin` pack failed the first Pages deploy's gate 7
+(2026-10-08), as GitHub Pages gzips `.bin`; 1.9.1 renames packs `.webp`.
 
 ## 6. Measurements and gates
 

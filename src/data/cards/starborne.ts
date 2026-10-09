@@ -83,7 +83,7 @@ export const STARBORNE = [
     abilities: [{ when: 'gainsMark', ops: [{ op: 'gainLife', n: 1 }] }], rarity: 'c',
   }),
   creature('sb-cosmic-shieldmaiden', 'Cosmic Shieldmaiden', ['Vanguard'], {
-    cost: cost(3, 'W'), colors: W, attack: 3, defense: 3, keywords: ['firstBlade'], rarity: 'c',
+    cost: cost(3, 'W'), colors: W, attack: 3, defense: 3, keywords: ['firstBlade', 'sentinel'], rarity: 'c',
   }),
   creature('sb-radiant-deckhand', 'Radiant Deckhand', ['Deckhand'], {
     cost: cost(1, 'W'), colors: W, attack: 2, defense: 1, keywords: ['warcry'], rarity: 'c',
@@ -141,7 +141,7 @@ export const STARBORNE = [
     cost: cost(2, 'R'), colors: R, attack: 2, defense: 2, keywords: ['warcry'], skim: { cost: cost(1) }, rarity: 'c',
   }),
   creature('sb-comet-kick-marauder', 'Comet-Kick Marauder', ['Marauder'], {
-    cost: cost(3, 'R'), colors: R, attack: 4, defense: 3, keywords: ['overrun'], rarity: 'c',
+    cost: cost(3, 'R'), colors: R, attack: 5, defense: 2, keywords: ['overrun'], rarity: 'c',
   }),
   creature('sb-starfire-lancer', 'Starfire Lancer', ['Soldier'], {
     cost: cost(2, 'R'), colors: R, attack: 3, defense: 2, keywords: ['firstBlade'], rarity: 'c',
@@ -155,7 +155,7 @@ export const STARBORNE = [
     abilities: [{ when: 'static', condition: 'controlMarked', static: { scope: 'self', p: 1, t: 0 } }], rarity: 'c',
   }),
   creature('sb-mycelial-star-gardener', 'Mycelial Star Gardener', ['Alien', 'Druid'], {
-    cost: cost(2, 'G'), colors: G, attack: 2, defense: 2,
+    cost: cost(2, 'G'), colors: G, attack: 2, defense: 2, keywords: ['wardingGaze'],
     abilities: [arrivesTargeted({ what: 'creature', other: true }, [{ op: 'addCounters', n: 1, to: 'target' }])], rarity: 'c',
   }),
   creature('sb-cometroot-grafter', 'Cometroot Grafter', ['Engineer'], {
@@ -214,7 +214,7 @@ export const STARBORNE = [
     cost: cost(1, 'U'), colors: U, abilities: [dawn([{ op: 'foresee', n: 1 }])], skim: { cost: cost(1) }, rarity: 'c',
   }),
   ritual('sb-sky-map', 'Sky Map', {
-    cost: cost(1), colors: C, skim: { cost: cost(1) }, abilities: [spell([{ op: 'foresee', n: 1 }])], rarity: 'c',
+    cost: cost(1), colors: C, abilities: [spell([{ op: 'foresee', n: 3 }])], rarity: 'c',
   }),
   artifact('sb-deepfield-lands', 'Deepfield Array', {
     cost: cost(0, 'U'), colors: U,
@@ -352,7 +352,7 @@ export const STARBORNE = [
     cost: cost(3, 'B'), colors: B, attack: 3, defense: 2, keywords: ['deathblade'], skim: { cost: cost(1) }, rarity: 'r',
   }),
   creature('sb-flare-orbit-captain', 'Flare-Orbit Captain', ['Commander'], {
-    cost: cost(2, 'RR'), colors: R, attack: 4, defense: 3, keywords: ['warcry'], rarity: 'r',
+    cost: cost(2, 'RR'), colors: R, attack: 5, defense: 2, keywords: ['warcry'], rarity: 'r',
   }),
   creature('sb-chrome-sunbreaker', 'Chrome Sunbreaker', ['Brute'], {
     cost: cost(3, 'R'), colors: R, attack: 4, defense: 4, keywords: ['overrun'], rarity: 'r',
@@ -587,7 +587,7 @@ export const STARBORNE = [
     abilities: [{ when: 'static', static: { scope: 'filter', filter: { marked: true, who: 'opponent' }, p: -1, t: 0 } }],
   }),
   creature('sb-lance-of-two-suns', 'Lance of Two Suns', ['Alien', 'Duelist'], {
-    cost: cost(2, 'R'), colors: R, attack: 2, defense: 1, keywords: ['twinBlades'], rarity: 'c',
+    cost: cost(2, 'R'), colors: R, attack: 2, defense: 1, keywords: ['twinBlades', 'rage'], rarity: 'c',
     abilities: [arrivesTargeted({ what: 'creature', other: true }, [{ op: 'addCounters', n: 1, to: 'target' }])],
   }),
   creature('sb-mirrorblade-consort', 'Mirrorblade Consort', ['Lumenborn'], {

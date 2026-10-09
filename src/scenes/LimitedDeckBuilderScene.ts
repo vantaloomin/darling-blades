@@ -359,7 +359,7 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
       L.contentX,
       issuesY,
       issues.length
-        ? issues.map((issue) => `${issue.kind}: ${issue.message}`).join('\n')
+        ? issues.map((issue) => issue.message).join('\n')
         : 'Deck is legal.',
       {
         fontFamily: theme.fonts.ui,
@@ -373,7 +373,7 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
     issueText.setData('a11yBox', { x: L.x, y: L.y, width: L.width, height: limitedDetailsBottom() - L.y - theme.space(2) });
   }
 
-  /** The release list density (13 rows at a 31px pitch from y+56) is the 100% contract. */
+  /** The list density at the standard size (9 rows at a 44px pitch from y+56) is the 100% contract. */
   private recordListDensity(id: 'pool' | 'deck', panelY: number): void {
     const list = limitedListLayout();
     const density = this.data.get('a11yDensity') as { actual: MenuDensity[]; release: MenuDensity[] } | undefined
@@ -381,7 +381,7 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
     density.actual = density.actual.filter((item) => item.id !== id);
     density.release = density.release.filter((item) => item.id !== id);
     density.actual.push({ id, rows: list.rows, columns: 1, pitch: list.pitch, top: panelY + list.rowsTop });
-    density.release.push({ id, rows: 13, columns: 1, pitch: 31, top: 184 });
+    density.release.push({ id, rows: 9, columns: 1, pitch: 44, top: 184 });
     this.data.set('a11yDensity', density);
   }
 
@@ -490,6 +490,8 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
       themedButton(this, 0, footerY, 'Start Match', {
         variant: 'primary',
         minWidth: 140,
+        // Reads as unavailable until the deck is legal; the Details panel says why.
+        enabled: !validateLimitedDeck(CARD_DB, run.pool, this.deck).some((issue) => issue.kind === 'error'),
         onTap: () => this.startMatch(run),
       }),
     ];
@@ -535,7 +537,7 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
         fontSize: `${theme.type.caption}px`,
         color: theme.colors.heading,
         backgroundColor: theme.colors.rowFill,
-        padding: { x: 8, y: 5 },
+        padding: { x: 8, y: list.textPadY },
       })
       .setFixedSize(geometry.plateWidth, list.rowHeight)
       .setInteractive({ useHandCursor: true });

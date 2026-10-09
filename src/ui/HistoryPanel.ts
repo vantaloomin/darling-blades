@@ -73,7 +73,7 @@ export class HistoryPanel {
     // Panel body: a semi-transparent dark plate docked to the panel's right
     // portion (drawn in container-local space, left edge at local x=0).
     const bg = scene.add.graphics();
-    bg.fillStyle(theme.graphics.panelFill, duelPanelAlpha(0.82));
+    bg.fillStyle(theme.graphics.panelFill, 1);
     bg.fillRoundedRect(0, 40, PANEL_W, DESIGN_H - 80, 10);
     bg.lineStyle(1, theme.graphics.panelStroke, 1);
     bg.strokeRoundedRect(0, 40, PANEL_W, DESIGN_H - 80, 10);

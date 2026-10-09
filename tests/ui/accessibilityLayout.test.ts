@@ -2,7 +2,7 @@ import { fitMenuName, menuTextFindings, menuScrollOffset, type MenuNameText } fr
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { setAccessibility, TEXT_SCALES } from '../../src/ui/accessibility';
-import { mainMenuButtonY, mainMenuCornerY, mainMenuCornerLayout, mainMenuDailyLayout, menuNoticeLayout, menuLineHeight, MAIN_MENU_ITEMS, MAIN_MENU_X } from '../../src/ui/mainMenuPresentation';
+import { mainMenuDailyLayout, mainMenuHeaderRow, mainMenuNavRows, menuNoticeLayout, menuLineHeight } from '../../src/ui/mainMenuPresentation';
 import { menuSelectionMark, gauntletDetailLayout, gauntletNameLineLimit, playDeckPickerLayout, playDeckRowColumns, playMenuLayout, playTextStack, practicePickerLayout, gauntletPresentation } from '../../src/ui/playPresentation';
 import { gauntletTowerLayout, gauntletScrollToRung } from '../../src/ui/layout';
 import { controlFontSize } from '../../src/ui/controlStyle';
@@ -165,7 +165,7 @@ const ENROLLED: readonly Enrolled[] = [
       inset: {
         file: 'tests/ui/settingsPresentation.test.ts',
         tests: [
-          'keeps every column inside the panel band with the bottom inset',
+          'sizes the panels to their content, inside the band, with the bottom inset',
           'fits one more caption wrap and one more stacked row per column than rendered, on every tab at every size',
         ],
       },
@@ -858,12 +858,13 @@ function coreMenuRules(textScale: number): void {
   });
 
   describe('Main menu: measured chrome and content-sized notices', () => {
-    it('anchors measured corner controls to the frame, clear of one another and the menu', () => {
-      for (const width of [150, 180, 240, 280]) {
-        const l = mainMenuCornerLayout([width, width - 20, width - 40], width);
-        const controls: [string, Rect][] = [0, 1, 2].map((i) => [`corner ${i}`, hitBox(l.leftX, mainMenuCornerY(i), l.leftWidth)]);
-        controls.push(['settings', hitBox(l.rightX, mainMenuCornerY(1), width)]);
-        MAIN_MENU_ITEMS.forEach((_, i) => controls.push([`menu ${i}`, hitBox(MAIN_MENU_X, mainMenuButtonY(i), 300)]));
+    it('anchors measured header controls to the frame, clear of one another and the nav column', () => {
+      for (const width of [110, 150, 180, 220]) {
+        const row = mainMenuHeaderRow([width, width + 20, width - 10], width, 160);
+        const widths = [width, width + 20, width - 10];
+        const controls: [string, Rect][] = row.leftX.map((x, i) => [`header ${i}`, hitBox(x, row.y, widths[i])]);
+        controls.push(['settings', hitBox(row.rightX, row.y, width)]);
+        mainMenuNavRows().forEach((rect, i) => controls.push([`nav ${i}`, rect]));
         for (const [name, rect] of controls) expect(isInsideTitleSafe(rect), name).toBe(true);
         expectPairwiseGap(controls, GAP_FLOORS.ordinary);
       }
@@ -1038,7 +1039,7 @@ describe('the matrix itself', () => {
       JSON.stringify({
         title: [SCENE_TITLE.fontSize, SCENE_TITLE.subtitleTop],
         settings: [SETTINGS_PANELS, SETTINGS_FRAMES, SETTINGS_TAB_ROW, settingsRhythm(), layoutSettingsTab('game'), layoutSettingsTab('accessibility')],
-        mainMenu: [mainMenuCornerLayout([180, 220], 180), mainMenuDailyLayout(menuLineHeight(theme.type.h1), menuLineHeight(theme.type.label), [{ title: menuLineHeight(theme.type.label), description: menuLineHeight(theme.type.caption), progress: menuLineHeight(theme.type.caption), action: HIT }])],
+        mainMenu: [mainMenuHeaderRow([180, 220], 180, 160), mainMenuNavRows(), mainMenuDailyLayout(menuLineHeight(theme.type.h1), menuLineHeight(theme.type.label), [{ title: menuLineHeight(theme.type.label), description: menuLineHeight(theme.type.caption), progress: menuLineHeight(theme.type.caption), action: HIT }])],
         play: [playMenuLayout(), playDeckPickerLayout(28), practicePickerLayout(), gauntletPresentation(), gauntletTowerLayout(28, gauntletPresentation().tower)],
         profile: [PROFILE_HEADER, PROFILE_RECORD, PROFILE_SHOWCASE, PROFILE_PANELS, PROFILE_REPLAYS, PROFILE_REPLAY_ROW, profileReplayCell(9)],
       });

@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
-import { currentAccessibility } from '../ui/accessibility';
-import { menuSelectionMark, playDeckPickerLayout, playDeckRowColumns, playMenuLayout, playTextStack } from '../ui/playPresentation';
+import { playDeckPickerLayout, playDeckRowColumns, playMenuLayout, playTextStack } from '../ui/playPresentation';
+import { listRowAccentBar } from '../ui/controlStyle';
 import { ellipsizeText } from '../ui/textFit';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
@@ -93,7 +93,7 @@ export class PlayScene extends Phaser.Scene {
     const width = 1280;
     applyBackdrop(this, 'mainmenu', {
       dim: theme.graphics.dim,
-      dimAlpha: currentAccessibility().highContrast ? theme.alpha.overlayDim : 0.5,
+      dimAlpha: 0.5,
       fallback: () => {
         /* the clear colour shows, matching MainMenu's bare fallback */
       },
@@ -405,8 +405,7 @@ export class PlayScene extends Phaser.Scene {
       r.badge.setPosition(r.name.x, -stack.bottom / 2 + stack.ys[1]);
       row.add([band, r.name, r.badge, r.count, r.state]);
       if (r.active) {
-        const mark = menuSelectionMark({ visual: { x: content.x, y: -layout.rowHeight / 2, width: rowWidth, height: layout.rowHeight },
-          labelWidth: r.name.width, padding: theme.space(4) });
+        const mark = listRowAccentBar({ x: content.x, y: -layout.rowHeight / 2, width: rowWidth, height: layout.rowHeight });
         row.add(this.add.graphics().fillStyle(colorInt(theme.colors.gold), 1).fillRect(mark.x, mark.y, mark.width, mark.height));
       }
       c.add(row);

@@ -108,8 +108,10 @@ describe('Limited builder ledger at every text size', () => {
       const c = LIMITED_BUILDER_COLUMNS;
       const list = limitedListLayout();
       expect(list.rows, cell.name).toBeGreaterThanOrEqual(1);
-      // The caption line plus the plate's 5px padding above and below.
+      // The caption line plus the plate's padding above and below.
       expect(list.rowHeight - release.list.rowHeight, cell.name).toBeGreaterThanOrEqual(grew('caption'));
+      // Each row's 44px +/- target stays inside its own pitch, so neighbours never overlap.
+      expect(list.pitch, cell.name).toBeGreaterThanOrEqual(theme.control.minHitHeight);
       expect(list.pitch - list.rowHeight, cell.name).toBeGreaterThanOrEqual(release.list.pitch - release.list.rowHeight);
       expect(list.rowsTop - release.list.rowsTop, cell.name).toBeGreaterThanOrEqual(grew('h2'));
       const lastRowBottom = list.rowsTop + (list.rows - 1) * list.pitch + list.rowHeight;
@@ -122,7 +124,7 @@ describe('Limited builder ledger at every text size', () => {
   it('keeps the release list density at the standard size', () => {
     setAccessibility({ textScale: 1, highContrast: false });
     const list = limitedListLayout();
-    expect({ rows: list.rows, pitch: list.pitch, top: LIMITED_BUILDER_COLUMNS.y + list.rowsTop }).toEqual({ rows: 13, pitch: 31, top: 184 });
+    expect({ rows: list.rows, pitch: list.pitch, top: LIMITED_BUILDER_COLUMNS.y + list.rowsTop }).toEqual({ rows: 9, pitch: 44, top: 184 });
   });
 
   it('stacks the Details ledger in reading order above the panel inset in every accessibility cell', () => {

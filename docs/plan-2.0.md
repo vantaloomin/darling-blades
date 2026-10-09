@@ -287,7 +287,7 @@ scope lever the Story Mode plan recorded. Its contents (P9, RULED 2026-10-08):
 - **Run counting** applies to both (R9: three fights counts a run).
 
 **Waves** (the plan's own, scoped): one headless run with Guan Yu on current
-cards and the save field (v37, the train's one bump, P10), with save
+cards and the save field (v38, the train's one bump, P10; 1.9.1 took v37 for the Hooves and Fire grant), with save
 portability in the same wave: the save code's `hasCompleteSaveShape` check
 and the import preview learn the `story` field, so save codes and save
 cards carry it (lane F's itch export prompt depends on this); the run shell
@@ -403,7 +403,7 @@ Waves are dependency-ordered; each starts on the owner's word.
   lane H's tier dial last, each proven on the matrices in turn.
 - `src/data/opponents.ts`, `tests/ai/winrate.test.ts`,
   `scripts/balance-matrix.ts`: one agent at a time in wave 4's order.
-- `src/meta/SaveManager.ts`: Story's v37 bump is the train's one save change
+- `src/meta/SaveManager.ts`: Story's v38 bump is the train's one save change
   (P10); anything else that needs a field rides it.
 
 **For scale:** 1.8 (252 cards, an engine feature and telemetry) ran
@@ -428,7 +428,7 @@ differs from the recommendation, the row says so.
 | **P7** | Set key and size | **RULED 2026-10-08: as recommended.** `core-set-2`; the size from the coverage ledger at the cut, 250+ per the spine |
 | **P8** | Floors under the life change | **RULED 2026-10-08: one-time reset.** One re-baseline at the new life total, then ratchet up as before. The exception is recorded in `CLAUDE.md` and the playbook |
 | **P9** | What "Act 1 + endless" contains | **RULED 2026-10-08: as recommended.** Act 1 complete with all three characters and the unlock chain; endless as generated maps with scaling bosses, plus a daily seed; no keeps in endless |
-| **P10** | Save changes | **RULED 2026-10-08: as recommended.** One bump, v37, for Story; nothing else adds a field unless it rides it |
+| **P10** | Save changes | **RULED 2026-10-08: as recommended.** One bump, v37, for Story; nothing else adds a field unless it rides it. **Now v38:** 1.9.1 took v37 for the Hooves and Fire grant (2026-10-09) |
 | **P11** | Mobile scope | **RULED 2026-10-08: as recommended.** Landscape only, automatic layout, browser only (no PWA or store package), art-first phone card face (a). Settles the mobile plan's M1-M4 |
 | **P12** | Story voice (R7, TBD) | **RULED 2026-10-08: no voice in 2.0.** Text-only scenes; voice revisited for 2.x or a trailer |
 | **P13** | The new Beastkin legend | **RULED 2026-10-08: a Jade Rabbit (moon rabbit, Chang'e's myth), U/W**, leading a Beastkin anthem. The owner turned down sky, bat, spider and serpent species and asked for something in the vein of the feline and canine Beastkin. Name in the brief; Yohime as the fallback if Core Set II slips. Settles the brief's question 9 |

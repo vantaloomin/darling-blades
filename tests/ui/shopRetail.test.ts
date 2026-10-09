@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { formatCount, formatGold, goldPrice } from '../../src/ui/goldFormat';
 import { runInNewContext } from 'node:vm';
 import * as ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
@@ -157,23 +158,23 @@ describe('Expansion shop retail', () => {
         const save = freshSave(0);
         save.gold = qty * price;
         const restart = vi.fn();
-        const addRailButton = vi.fn<(x: number, label: string, enabled: boolean, buy: () => void) => void>();
+        const buildCtaRail = vi.fn<(label: string, enabled: boolean, buy: () => void) => void>();
         const buildButtons = sceneMethod<(qty?: number) => void>(
           qty === 1 ? 'checkAllRevealed' : 'buildBatchButtons', {
             packPriceForSku, packSetForSku: retail().packSetForSku,
             Services: { save: { data: save, flush: vi.fn() } },
-            spendGold, openPack, openPacks, CARD_DB, createRngState,
+            spendGold, openPack, openPacks, CARD_DB, createRngState, goldPrice, formatGold,
             Sfx: { play: vi.fn() }, Date: { now: () => 12345 },
           }, source, 'PackOpeningScene',
         );
         const scene = {
           sku, saveData: save, specials: [], buttons: [], finishAchievementCheckpoint: vi.fn(),
-          addButtonRailPanel: vi.fn(), addRailButton, tweens: { timeScale: 1 },
+          buildCtaRail, tweens: { timeScale: 1 },
           scene: { restart },
         };
         buildButtons.call(scene, qty);
-        const [, label, enabled, buy] = addRailButton.mock.calls[0];
-        expect(label).toContain(String(qty * price));
+        const [label, enabled, buy] = buildCtaRail.mock.calls[0];
+        expect(label).toContain(formatCount(qty * price));
         expect(enabled).toBe(true);
         buy();
         expect(save.gold).toBe(0);
@@ -199,7 +200,7 @@ describe('Expansion shop retail', () => {
         group: { add: ReturnType<typeof vi.fn> }, x: number, label: string,
         textureKey: string, price: number, sku: Sku, onBuy: () => void,
       ) => void>('buildPackSku', {
-        NEWEST_SKU: shop.NEWEST_SKU, SET_BLURBS, theme, colorInt, CARD_DB, fitMenuName, shopPackLayout,
+        NEWEST_SKU: shop.NEWEST_SKU, SET_BLURBS, theme, colorInt, CARD_DB, fitMenuName, shopPackLayout, goldPrice,
         Services: { save: { data: freshSave(0) } }, packPoolSummary,
         packSetForSku: shop.packSetForSku, fxPolicy: () => ({ shine: false }),
         themedButton: () => ({ container: {}, inputZone: {}, label: displayObject() }),
@@ -208,6 +209,7 @@ describe('Expansion shop retail', () => {
       const scene = {
         saveData: freshSave(0), add: { text, image: displayObject, graphics: displayObject },
         skuButtons: [], shopInteractiveTargets: [],
+        shopBadge: sceneMethod('shopBadge', { theme, colorInt }),
       };
       for (const row of visible) {
         text.mockClear();

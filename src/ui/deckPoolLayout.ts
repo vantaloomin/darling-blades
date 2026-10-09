@@ -10,12 +10,15 @@
  * Columns keep their x, so every card sits where it did, a little smaller.
  */
 
+import { CARD_FACE as FACE_GEOMETRY } from '../config/cardFaceGeometry';
 import { DECK_PANE_LAYOUT } from './deckPanePresentation';
 import { theme } from './theme';
 
 /** Scale 1 card face, the size every thumbnail scale is relative to. */
 const CARD_FACE = { width: 300, height: 420 } as const;
 const CARD_SCALE = 0.41;
+/** The count chips' inset from the art window's corner. */
+const CHIP_INSET = 3;
 
 export const DECK_POOL_LAYOUT = {
   /** Title, search and Filters on the shared header line (the back button's). */
@@ -33,11 +36,13 @@ export const DECK_POOL_LAYOUT = {
   pitchY: 189,
   /**
    * The in-deck count badge (top right) and the add-a-playset chip (top left)
-   * ride the thumbnail's top edge, just inside its corners.
+   * hang from the top corners of the art window, under the name plate, so
+   * neither covers the card's name. Offsets are the chips' top edge and
+   * their outer edges, from the card centre.
    */
-  badgeOffsetY: -80,
-  badgeOffsetX: 57,
-  chipOffsetX: -55,
+  chipTopY: FACE_GEOMETRY.art.y * CARD_SCALE + CHIP_INSET,
+  badgeRightX: (FACE_GEOMETRY.art.x + FACE_GEOMETRY.art.w) * CARD_SCALE - CHIP_INSET,
+  chipLeftX: FACE_GEOMETRY.art.x * CARD_SCALE + CHIP_INSET,
   /** The chip's inflated tap target. */
   chipHitWidth: 52,
   chipHitHeight: theme.control.minHitHeight,

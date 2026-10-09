@@ -11,10 +11,12 @@ permissions:
   contents: read
 
 # Serialize Pages deploys and never cancel one mid-publish (GitHub's recommended
-# pattern for Pages). Verify-only PR runs share the group but never deploy.
+# pattern for Pages). PR runs get a group of their own per branch: a group holds
+# one pending run, so a PR run sharing 'pages' cancelled a waiting deploy (the
+# 1.9.0 hotfix, 2026-10-08). A newer push to the same PR replaces its old run.
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: ${{ github.event_name == 'push' && 'pages' || format('ci-{0}', github.head_ref) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # ── Full verification ladder — gates the deploy below ──────────────────────
@@ -53,7 +55,7 @@ jobs:
       # the runtime falls back to full-res.)
       - name: Generate art manifest
         run: npx tsx scripts/gen-art-manifest.ts --require-half
-      # The web build reads card art from one content-hashed .bin pack per set
+      # The web build reads card art from one content-hashed .webp pack per set
       # per tier by HTTP range (docs/plan-art-streaming.md section 5); this
       # stages the packs and writes their offset index (bundled once S3 wires in
       # the source).

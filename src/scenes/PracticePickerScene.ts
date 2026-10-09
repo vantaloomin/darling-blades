@@ -1,5 +1,4 @@
 import Phaser from 'phaser';
-import { currentAccessibility } from '../ui/accessibility';
 import { fitMenuName } from '../ui/menuText';
 import { practicePickerLayout, menuSelectionMark } from '../ui/playPresentation';
 import { ellipsizeText } from '../ui/textFit';
@@ -123,7 +122,7 @@ export class PracticePickerScene extends Phaser.Scene {
     const height = 720;
     applyBackdrop(this, 'gauntlet', {
       dim: colorInt(theme.colors.dim),
-      dimAlpha: currentAccessibility().highContrast ? theme.alpha.overlayDim : 0.58,
+      dimAlpha: 0.58,
       fallback: () => {
         const bg = this.add.graphics();
         bg.fillGradientStyle(
@@ -259,7 +258,7 @@ export class PracticePickerScene extends Phaser.Scene {
       this.tileNodes.push({ id: av.id, column, container: tile, box, selectedMark, name, portrait });
     });
 
-    const arrowY = layout.fullTileRects[0].y + layout.fullTileRects[0].height / 2;
+    const arrowY = this.picker.arrowY;
     const leftArrow = themedButton(this, layout.arrowCenters.left, arrowY, '‹', {
       variant: 'ghost',
       size: 'sm',

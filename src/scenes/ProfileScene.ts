@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { formatCount } from '../ui/goldFormat';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { FEATURES } from '../config/features';
@@ -911,7 +912,7 @@ export class ProfileScene extends Phaser.Scene {
     return [
       `Creation date: ${new Date(preview.creationDate).toLocaleString()}`,
       `Collection: ${preview.collectionCount.toLocaleString('en-US')} copies (${preview.collectionDistinctCount.toLocaleString('en-US')} distinct cards)`,
-      `Gold: ${preview.gold.toLocaleString('en-US')}g`,
+      `Gold: ${formatCount(preview.gold)}`,
       `Decks: ${preview.deckCount}`,
       `Progress: ${preview.progressSummary.wins} W / ${preview.progressSummary.losses} L. Best gauntlet rung ${preview.progressSummary.bestGauntletRung}. Full clears ${preview.progressSummary.gauntletCompletions}.`,
       `Source schema: v${preview.sourceSchemaVersion}`,
@@ -1000,7 +1001,8 @@ export class ProfileScene extends Phaser.Scene {
     // 22px left of the rows it switches).
     PROFILE_STAT_TABS.forEach((tab, index) => {
       const button = themedButton(this, PROFILE_TAB_STRIP.xs[index], PROFILE_TAB_STRIP.y, tab.label, {
-        variant: this.statTab === tab.key ? 'primary' : 'ghost',
+        variant: this.statTab === tab.key ? 'selected' : 'ghost',
+        look: 'tab',
         size: 'sm',
         minWidth: PROFILE_TAB_STRIP.width,
         onTap: () => {

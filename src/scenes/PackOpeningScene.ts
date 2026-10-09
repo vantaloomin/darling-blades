@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { formatGold, goldPrice } from '../ui/goldFormat';
 import { liveArtStore } from '../art/artLoader';
 import { PackRequests } from '../art/packRequests';
 import { Music } from '../audio/music';
@@ -31,7 +32,8 @@ import {
   indexAtGate,
   inertiaStep,
   minimapSegments,
-  PACK_BUTTON_PANEL,
+  packRailLayout,
+  packSummaryGrid,
   PACK_INSPECT,
   packInspectLayout,
   PACK_BUTTON_Y,
@@ -451,7 +453,7 @@ export class PackOpeningScene extends Phaser.Scene {
         width / 2,
         116,
         `${all.length} cards · ${newCards} new · ${specials.length} Super Rare+` +
-          (dupeGold > 0 ? ` · +🪙 ${dupeGold} from duplicates` : ''),
+          (dupeGold > 0 ? ` · +${formatGold(dupeGold)} from duplicates` : ''),
         { fontFamily: theme.fonts.ui, fontSize: `${theme.type.body}px`, color: theme.colors.body },
       )
       .setOrigin(0.5);
@@ -468,22 +470,17 @@ export class PackOpeningScene extends Phaser.Scene {
         })
         .setOrigin(0.5);
     } else {
-      const cols = Math.min(8, notable.length);
-      const dx = 150;
+      const grid = packSummaryGrid(notable.length, stats.y + stats.height / 2);
       const policy = fxPolicy(this);
       let animatedHoloCount = 0;
       const maxAnimatedHoloCards = 8;
       notable.forEach((c, i) => {
-        const row = Math.floor(i / cols);
-        const col = i - row * cols;
-        const rowLen = Math.min(cols, notable.length - row * cols);
-        const x = width / 2 - ((rowLen - 1) * dx) / 2 + col * dx;
-        const y = 300 + row * 210;
+        const { x, y } = grid.cells[i];
         const variant: CardVariant = { frame: c.frame, holo: c.holo, fullArt: c.fullArt };
         const animateHolo =
           variant.holo !== 'none' && policy.particleScale >= 1 && animatedHoloCount < maxAnimatedHoloCards;
         if (animateHolo) animatedHoloCount++;
-        const view = new CardView(this, x, y).setScale(0.42).setCard(def(CARD_DB, c.cardId), {
+        const view = new CardView(this, x, y).setScale(grid.scale).setCard(def(CARD_DB, c.cardId), {
           // A batch can contain many special pulls. Keep the first eight holo
           // treatments animated on the full tier; reduced/off policy gets a
           // static summary so the reveal never exceeds the FX budget.
@@ -524,17 +521,15 @@ export class PackOpeningScene extends Phaser.Scene {
    * bulk size (10 -> 5 -> 1), plus Shop / Menu.
    */
   private buildBatchButtons(openedQty: number): void {
-    const width = 1280;
     const price = packPriceForSku(this.sku);
     const gold = this.saveData.gold;
     const steps = [10, 5, 1].filter((n) => n <= openedQty);
     const qty = steps.find((n) => gold >= n * price) ?? 1;
-    const label = qty === 1 ? `Open Another (🪙 ${price})` : `Open ×${qty} More (🪙 ${qty * price})`;
+    const label = qty === 1 ? `Open Another · ${goldPrice(price)}` : `Open ×${qty} More · ${goldPrice(qty * price)}`;
 
-    this.addButtonRailPanel();
     // Short of even one pack: the re-buy shows disabled with its price, as
     // the Shop's Buy buttons do, instead of looking live and doing nothing.
-    this.addRailButton(width / 2 - 200, label, gold >= qty * price, () => {
+    this.buildCtaRail(label, gold >= qty * price, () => {
       if (this.fixture) return;
       const save = Services.save.data;
       if (!spendGold(save, qty * price)) return;
@@ -551,32 +546,30 @@ export class PackOpeningScene extends Phaser.Scene {
         this.scene.restart({ batch: packs, sku: this.sku, shopBoosterIndex: this.shopBoosterIndex });
       }
     });
-    this.addRailButton(width / 2 + 60, 'Shop', true, () => this.returnToShop());
-    this.addRailButton(width / 2 + 200, 'Menu', true, () => this.scene.start('MainMenu'));
   }
 
-  /** The CTA rail's backing panel, centred on the rail line. */
-  private addButtonRailPanel(): void {
-    panel(
-      this,
-      theme.design.centerX - PACK_BUTTON_PANEL.width / 2,
-      BUTTON_Y - PACK_BUTTON_PANEL.height / 2,
-      PACK_BUTTON_PANEL.width,
-      PACK_BUTTON_PANEL.height,
-      { alpha: 0.76 },
-    ).setDepth(66);
-  }
-
-  /** One CTA-rail button; a disabled one stays legible with its price and cannot fire. */
-  private addRailButton(x: number, text: string, enabled: boolean, onTap: () => void): void {
-    const btn = themedButton(this, x, BUTTON_Y, text, {
-      variant: 'primary',
+  /**
+   * The CTA rail: Open Another is the one primary action, Shop and Menu are
+   * ghost navigation. Measured, centred as one group, on a panel that hugs it.
+   */
+  private buildCtaRail(openLabel: string, canOpen: boolean, onOpen: () => void): void {
+    const specs: { label: string; primary: boolean; enabled: boolean; onTap: () => void }[] = [
+      { label: openLabel, primary: true, enabled: canOpen, onTap: onOpen },
+      { label: 'Shop', primary: false, enabled: true, onTap: () => this.returnToShop() },
+      { label: 'Menu', primary: false, enabled: true, onTap: () => this.scene.start('MainMenu') },
+    ];
+    const buttons = specs.map((spec) => themedButton(this, 0, BUTTON_Y, spec.label, {
+      variant: spec.primary ? 'primary' : 'ghost',
       minWidth: 130,
-      enabled,
-      onTap,
+      enabled: spec.enabled,
+      onTap: spec.onTap,
+    }));
+    const rail = packRailLayout(buttons.map((b) => b.getMeasuredBounds().hit.width));
+    panel(this, rail.panel.x, rail.panel.y, rail.panel.width, rail.panel.height, { alpha: 0.76 }).setDepth(66);
+    buttons.forEach((btn, i) => {
+      btn.container.setX(rail.xs[i]).setDepth(70);
+      this.buttons.push(btn);
     });
-    btn.container.setDepth(70);
-    this.buttons.push(btn);
   }
 
   /**
@@ -1168,7 +1161,7 @@ export class PackOpeningScene extends Phaser.Scene {
         width / 2,
         600,
         `${all.length} cards · ${newCards} new · ${specials} Super Rare+` +
-          (dupeGold > 0 ? ` · +🪙 ${dupeGold} from duplicates` : ''),
+          (dupeGold > 0 ? ` · +${formatGold(dupeGold)} from duplicates` : ''),
         { fontFamily: theme.fonts.ui, fontSize: `${theme.type.body}px`, color: theme.colors.body },
       )
       .setOrigin(0.5)
@@ -1597,7 +1590,7 @@ export class PackOpeningScene extends Phaser.Scene {
         .setAlpha(0);
       this.tweens.add({ targets: callout, alpha: 1, duration: 250 });
     }
-    const label = card.isNew ? 'NEW' : card.dupeGold > 0 ? `🪙 +${card.dupeGold}` : null;
+    const label = card.isNew ? 'NEW' : card.dupeGold > 0 ? `+${formatGold(card.dupeGold)}` : null;
     if (!label) return;
     const t = this.add
       .text(view.x, view.y + 220 * view.scaleY + 12, label, {
@@ -1775,13 +1768,11 @@ export class PackOpeningScene extends Phaser.Scene {
     this.skipBtn = null;
     if (this.buttons.length > 0) return;
 
-    const width = 1280; // design-space width (see create())
-    this.addButtonRailPanel();
     const openPrice = packPriceForSku(this.sku);
     // Short of the price: disabled with the price still readable, never a live
     // button that silently does nothing (review 2026-09-23).
     const canAfford = this.saveData.gold >= openPrice;
-    this.addRailButton(width / 2 - 200, `Open Another (🪙 ${openPrice})`, canAfford, () => {
+    this.buildCtaRail(`Open Another · ${goldPrice(openPrice)}`, canAfford, () => {
       if (this.fixture) return;
       const save = Services.save.data;
       if (!spendGold(save, openPrice)) return;
@@ -1791,8 +1782,6 @@ export class PackOpeningScene extends Phaser.Scene {
       this.tweens.timeScale = 1;
       this.scene.restart({ ...result, sku: this.sku, shopBoosterIndex: this.shopBoosterIndex });
     });
-    this.addRailButton(width / 2 + 60, 'Shop', true, () => this.returnToShop());
-    this.addRailButton(width / 2 + 200, 'Menu', true, () => this.scene.start('MainMenu'));
   }
 
   /** Pack collection changes become visible only after the reveal has settled. */

@@ -24,15 +24,24 @@ describe.each(A11Y_CELLS)('Collection layout at $name', (cell) => {
     setAccessibility(cell);
     const label = menuLineHeight(theme.type.label), caption = menuLineHeight(theme.type.caption);
     const header = collectionHeaderLayout(label, caption);
-    const search = { x: header.search.x, y: header.search.y - theme.control.minHitHeight / 2,
-      width: header.search.width, height: theme.control.minHitHeight };
-    expect(isInsideTitleSafe(search)).toBe(true);
     expect(header.filterTop - (header.completionY + caption)).toBeGreaterThanOrEqual(theme.space(3));
-    expect(header.filterTop - (search.y + search.height)).toBeGreaterThanOrEqual(theme.space(3));
     // Measured-width inputs include compact controls and the longest selected names.
     for (const widths of [[160, 120, 160, 150, 260, 170], [286, 246, 250, 264, 340, 192]]) {
       const filters = collectionFilterLayout(widths, header.filterTop);
-      for (const control of filters.controls) expect(isInsideTitleSafe(control)).toBe(true);
+      // The search box takes the grid's first column.
+      const search = { x: header.search.x, y: header.search.y - theme.control.minHitHeight / 2,
+        width: filters.columnWidth, height: theme.control.minHitHeight };
+      expect(isInsideTitleSafe(search)).toBe(true);
+      expect(header.filterTop - (search.y + search.height)).toBeGreaterThanOrEqual(theme.space(3));
+      for (const [index, control] of filters.controls.entries()) {
+        expect(isInsideTitleSafe(control)).toBe(true);
+        // Stretched to its column, never shrunk below its measured width.
+        expect(control.width).toBeGreaterThanOrEqual(widths[index]);
+      }
+      // Full rows span the safe frame, so the bar's edges are the binder's edges.
+      const rowEnds = new Map<number, number>();
+      for (const control of filters.controls) rowEnds.set(control.y, Math.max(rowEnds.get(control.y) ?? 0, control.x + control.width));
+      expect([...rowEnds.values()][0]).toBeCloseTo(theme.design.safeRight, 5);
       for (let index = 1; index < filters.controls.length; index++) {
         const a = filters.controls[index - 1], b = filters.controls[index];
         expect(intersects(a, b)).toBe(false);
@@ -62,8 +71,10 @@ describe.each(A11Y_CELLS)('Collection layout at $name', (cell) => {
           for (const y of binder.rowYs) {
             const face = { x: x - binder.faceWidth / 2, y: y - binder.faceHeight / 2,
               width: binder.faceWidth, height: binder.faceHeight };
-            const badges = { x: x - binder.badgeWidth / 2, y: y + binder.labelOffset - badgeHeight / 2,
-              width: binder.badgeWidth, height: badgeHeight };
+            // The widest strip long counts may grow to.
+            const badges = { x: x - binder.cellWidth / 2, y: y + binder.labelOffset - badgeHeight / 2,
+              width: binder.cellWidth, height: badgeHeight };
+            expect(binder.cellWidth).toBeGreaterThanOrEqual(binder.badgeWidth);
             expect(isRectContained(face, page)).toBe(true);
             expect(isRectContained(badges, page)).toBe(true);
             expect(face.y).toBeGreaterThanOrEqual(previousBottom);

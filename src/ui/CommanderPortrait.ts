@@ -2,7 +2,6 @@ import Phaser from 'phaser';
 import { faceTargetSurfaceState } from './faceTargetPresentation';
 import { addPortraitArt } from './portraitArt';
 import { colorInt, theme } from './theme';
-import { currentAccessibility } from './accessibility';
 import { pickBadgeLabel, CUE_MIN_SCREEN_PX } from './boardCuePresentation';
 import { duelPanelAlpha } from './duelPanelPresentation';
 import { fitMenuName } from './menuText';
@@ -28,6 +27,8 @@ const CORNER_R = 12;
 /** Art window inset inside the 1px border so the frame stroke stays visible. */
 const INSET = 2;
 const LABEL_H = 22;
+/** Two lines is the aim; a name too long for two at the floor size takes a third. */
+const LABEL_MAX_LINES = 3;
 
 export interface CommanderPortraitOpts {
   width: number;
@@ -77,7 +78,7 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
       fontStyle: theme.weight.w700, color: theme.colors.gold, resolution: 2, align: 'center',
     }).setOrigin(0.5).setData('a11yReleaseFullText', opts.label).setData('a11yKeepVisible', true);
     this.fitLabel();
-    const labelH = currentAccessibility().textScale === 1 ? LABEL_H : Math.max(LABEL_H, this.labelText.height + 8);
+    const labelH = Math.max(LABEL_H, this.labelText.height + 8);
     this.labelText.setY(h - labelH / 2);
     this.setData('a11yArea', { x, y, width: w, height: h });
 
@@ -232,7 +233,7 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
     }
   }
 
-  /** Update the bottom plate text (fit-to-width by scale, BoardCardView-style). */
+  /** Update the bottom plate text (the plate keeps the height it was built with). */
   setLabel(text: string): this {
     if (!this.labelText.active) return this;
     this.labelText.setText(text);
@@ -270,13 +271,19 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
     return this;
   }
 
+  /**
+   * The name wraps to at most two lines at a readable size. Larger text steps
+   * down toward the 100% caption size only as far as two lines need; it never
+   * shrinks below it (scaling one line to fit made long names microtext, and
+   * full-size wrapping ran three lines over the art; 2026-10-08 UI review).
+   */
   private fitLabel(): void {
-    if (currentAccessibility().textScale === 1) {
-      this.labelText.setScale(Math.min(1, (this.frameW - 14) / Math.max(1, this.labelText.width)))
-        .setData('a11yFitToBox', true);
-    } else {
-      this.labelText.setScale(1);
-      fitMenuName(this.labelText, this.frameW - 14, 6);
+    const width = this.frameW - 14;
+    this.labelText.setScale(1);
+    for (let px = theme.type.caption; px >= theme.typeBase.caption; px--) {
+      this.labelText.setFontSize(px);
+      fitMenuName(this.labelText, width, LABEL_MAX_LINES);
+      if (this.labelText.getWrappedText().length <= 2) break;
     }
   }
 

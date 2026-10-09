@@ -572,6 +572,9 @@ function centeredRect(centerX: number, centerY: number, size: RectSize): Rect {
   };
 }
 
+/** The pager label's centre, from the pager's x: centre a pager at `cx - PAGER_CENTER_OFFSET`. */
+export const PAGER_CENTER_OFFSET = 51;
+
 /**
  * Where the currency badge hangs on every screen that shows one: its RIGHT
  * edge on the title-safe frame's right edge, centred on the shared header
@@ -714,6 +717,36 @@ export function sceneHeaderFooterLayout(opts: HeaderFooterLayoutOptions): Header
   };
 }
 
+/**
+ * The lightest dim a modal may sit on. Callers asked for anything from 0.45
+ * to 0.92, and below about 0.75 the screen behind reads through as a second
+ * layer of UI (the 2026-10-08 UI review). Lighter requests are raised to this.
+ */
+export const MODAL_DIM_FLOOR = 0.78;
+
+/**
+ * The dim alpha a modal shell actually draws: the caller's request (or the
+ * theme default), never lighter than `MODAL_DIM_FLOOR`, and never lighter
+ * than the theme's own modal dim when that is opaque (high contrast).
+ */
+export function modalDimAlpha(requested: number | undefined, themeDim: number): number {
+  const floor = themeDim >= 1 ? 1 : MODAL_DIM_FLOOR;
+  return Math.min(1, Math.max(requested ?? themeDim, floor));
+}
+
+/**
+ * High contrast's scene-art dim: one uniform scrim on every screen. Six
+ * screens used to go fully opaque in high contrast, dropping their art, while
+ * the rest kept their standard dim; the owner ruled on 2026-10-08 to keep the
+ * art everywhere behind one dark scrim.
+ */
+export const HIGH_CONTRAST_BACKDROP_DIM = 0.8;
+
+/** The dim a scene backdrop draws: its own in standard contrast, the uniform scrim in high contrast. */
+export function backdropDimAlpha(requested: number | undefined, highContrast: boolean): number {
+  return highContrast ? HIGH_CONTRAST_BACKDROP_DIM : requested ?? 0;
+}
+
 export interface ModalShellLayoutOptions {
   width: number;
   height: number;
@@ -725,12 +758,19 @@ export interface ModalShellLayoutOptions {
   footerTrackHeight?: number;
   closeHitWidth?: number;
   closeHitHeight?: number;
+  /** False when the shell draws no close button, so no title space is held for one. */
+  hasClose?: boolean;
 }
 
 export interface ModalShellLayout {
   panel: Rect;
   inner: Rect;
   titleTrack: Rect;
+  /**
+   * The title track trimmed equally on both sides, so a centred title sits on
+   * the panel's centre line, not the close-shortened track's.
+   */
+  centredTitleTrack: Rect;
   contentBounds: Rect;
   /** Alias for callers that think in terms of reserved tracks. */
   contentTrack: Rect;
@@ -773,10 +813,17 @@ export function modalShellLayout(opts: ModalShellLayoutOptions): ModalShellLayou
     width: closeWidth,
     height: closeHeight,
   };
+  const closeReach = opts.hasClose === false ? 0 : closeWidth + trackGap;
   const titleTrack = {
     x: inner.x,
     y: inner.y,
-    width: Math.max(0, closeTrack.x - trackGap - inner.x),
+    width: Math.max(0, inner.width - closeReach),
+    height: titleHeight,
+  };
+  const centredTitleTrack = {
+    x: inner.x + closeReach,
+    y: inner.y,
+    width: Math.max(0, inner.width - closeReach * 2),
     height: titleHeight,
   };
   const footerTrack = {
@@ -799,6 +846,7 @@ export function modalShellLayout(opts: ModalShellLayoutOptions): ModalShellLayou
     panel,
     inner,
     titleTrack,
+    centredTitleTrack,
     contentBounds,
     contentTrack: contentBounds,
     footerTrack,
@@ -1157,7 +1205,9 @@ export const GAUNTLET_TOWER_VIEWPORT: Readonly<Rect> = {
   x: theme.design.safeRight - TOWER_SCROLLBAR_REACH - 420,
   y: 156,
   width: 420,
-  height: 500,
+  // Ends on the detail panel's bottom (the footer hit track's top, 640) so the
+  // two columns share a baseline; it ran 16px past the panel until 2026-10-08.
+  height: theme.design.footerCenterY - theme.control.minHitHeight / 2 - 156,
 };
 
 export interface GauntletTowerLayout {
@@ -1197,7 +1247,8 @@ export function gauntletTowerLayout(
   const rowWidth = Math.max(0, viewport.width);
   const padX = theme.space(3);
   const starColumnWidth = Math.max(0, opts.starColumnWidth ?? Math.ceil(theme.space(9) * theme.type.label / theme.typeBase.label));
-  const labelX = padX;
+  // The label clears the selected row's left accent bar (listRowAccentBar).
+  const labelX = padX + theme.space(2);
   const count = Math.max(0, rungs);
   const contentHeight = count === 0 ? 0 : count * rowPitch - rowGap;
   const { gap, railWidth, thumbWidth } = GAUNTLET_TOWER_SCROLLBAR;
@@ -1215,12 +1266,25 @@ export function gauntletTowerLayout(
     labelX,
     // The star column and both paddings come out of the name's budget, which
     // is what makes the overlap unrepresentable rather than merely unlikely.
-    labelWidth: Math.max(0, rowWidth - padX * 2 - starColumnWidth - theme.space(2)),
+    labelWidth: Math.max(0, rowWidth - labelX - padX - starColumnWidth - theme.space(2)),
     starRightX: rowWidth - padX,
     contentHeight,
     maxScroll: Math.max(0, contentHeight - viewport.height),
     overflow: contentHeight > viewport.height,
   };
+}
+
+/**
+ * The row gap that makes a whole number of rows fill the viewport exactly, so
+ * the ladder rests on whole rows at either end of its scroll (the climb opens
+ * at rung 1, at the bottom). As many rows as fit at the default 12px gap,
+ * with the leftover height shared between them, so the gap never shrinks.
+ */
+export function gauntletFittedRowGap(viewportHeight: number, rowHeight: number): number {
+  const base = theme.space(3);
+  const rows = Math.floor((viewportHeight + base) / (rowHeight + base));
+  if (rows < 2) return base;
+  return (viewportHeight - rows * rowHeight) / (rows - 1);
 }
 
 /**

@@ -104,18 +104,20 @@ export interface WingFrame {
   h: number;
 }
 
-/** Five plinth frames: three wings up, two centered beneath, inside 72..1208. */
+/** Five plinth frames: three wings up, two centered beneath, on the title-safe frame. */
 export function hallWingFrames(): WingFrame[] {
-  const w = 362;
+  const left = theme.design.safeLeft;
+  const span = theme.design.safeRight - left;
+  const gap = theme.space(6);
+  const w = (span - 2 * gap) / 3;
   const h = 208;
-  const gap = 25;
   const topY = 196;
   const bottomY = topY + h + 24;
-  const bottomX0 = 72 + (1136 - (2 * w + gap)) / 2;
+  const bottomX0 = left + (span - (2 * w + gap)) / 2;
   return [
-    { x: 72, y: topY, w, h },
-    { x: 72 + w + gap, y: topY, w, h },
-    { x: 72 + 2 * (w + gap), y: topY, w, h },
+    { x: left, y: topY, w, h },
+    { x: left + w + gap, y: topY, w, h },
+    { x: left + 2 * (w + gap), y: topY, w, h },
     { x: bottomX0, y: bottomY, w, h },
     { x: bottomX0 + w + gap, y: bottomY, w, h },
   ];
@@ -158,8 +160,8 @@ export function wingFurnishings(
  * grows the rows and pages fewer of them.
  */
 export const ACHIEVEMENT_LIST = {
-  x: 72,
-  width: 1136,
+  x: theme.design.safeLeft,
+  width: theme.design.safeRight - theme.design.safeLeft,
   columnGap: 32,
   top: 196,
   bottom: 638,

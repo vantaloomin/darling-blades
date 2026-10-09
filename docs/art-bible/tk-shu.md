@@ -245,7 +245,7 @@ Shu is the faction of oaths kept past all reason: sworn siblings, volunteers, an
 - **Prompt:** Genderbent Ma Dai in a muted green scout's coat with ivory undertrim and dust-scarf, half-turned arriving on cue with saber low and ready, quiet alert face, rocky pass edge background, low daylight — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Bao Sanniang, Cat-Loving Duelist — `tk-shu-baosanniang`
-- **Card facts:** {1}{G} · G · 2/1 · c · holo: none
+- **Card facts:** {1}{G} · G · 2/1 · overrun · c · holo: none
 - **Character & source:** Genderbent Bao Sanniang, the duelist who won her own marriage in single combat and kept her cats; a fragile 2/1 aggressor.
 - **Personality / mood:** "Won her own wedding by duel. The cats came with her." Playful, fierce, charming.
 - **Pose & composition:** Chest-up, twin daggers spun in a flashy en-garde flourish, a small jade-collared cat perched on her shoulder; face ≈ y 330, grinning. One idea: the flirtatious duelist. Two-value background.

@@ -215,6 +215,7 @@ export const TK_SHU = [
     colors: ['G'],
     attack: 2,
     defense: 1,
+    keywords: ['overrun'],
     rarity: 'c',
   },
   {

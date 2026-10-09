@@ -4,10 +4,17 @@ import { describe, expect, it } from 'vitest';
 import { CARD_DB } from '../../src/data/catalog';
 import { STARTER_DECKS, THEME_DECKS } from '../../src/data/starterDecks';
 import { deckHealth } from '../../src/meta/deckRepair';
-import { grantDeckCards } from '../../src/meta/Economy';
+import { buyThemeDeck, grantDeckCards } from '../../src/meta/Economy';
 import { startDraftRun } from '../../src/meta/Limited';
 import { decode, encode } from '../../src/meta/SaveCode';
-import { CURRENT_SAVE_VERSION, freshSave, SaveManager, storedPremiumGrant, type SaveData } from '../../src/meta/SaveManager';
+import {
+  CURRENT_SAVE_VERSION,
+  freshSave,
+  HOOVES_AND_FIRE_1_9_1_ADDS,
+  SaveManager,
+  storedPremiumGrant,
+  type SaveData,
+} from '../../src/meta/SaveManager';
 import { STATS_NOTICE_VERSION } from '../../src/meta/statsNotice';
 import { parseVariantKey, PLAIN_VARIANT, variantKey } from '../../src/meta/variants';
 import {
@@ -1366,5 +1373,122 @@ describe('SaveData v36 migration (text size, high contrast, stored Premium note)
     expect(migrated.darlingsTutorialSeen).toBe(true);
     expect(migrated.darlingsFreeDeckClaimed).toBe(true);
     expect(migrated.deckRepairNoticeAck).toBe('["deck-a"]');
+  });
+});
+
+/**
+ * v37, the 1.9.1 bump (owner 2026-10-09): owners of Hooves and Fire from 1.9.0
+ * get the three cards the list upgrade added. buyThemeDeck is idempotent by
+ * deck id, so a 1.9.0 buyer has no other way to receive them.
+ */
+describe('SaveData v37 migration (Hooves and Fire 1.9.1 back-grant)', () => {
+  const HOOVES_ID = 'theme-first-dawn';
+  const plainKey = variantKey(PLAIN_VARIANT);
+  // What each 1.9.1 add replaced in the 1.9.0 list (PR #578).
+  const REPLACED: Record<string, string> = {
+    'fd-ember-crest-tyrant': 'fd-rage-kin-brawler',
+    'fd-fern-crown-tyrant': 'fd-blaze-crest',
+    'fd-oru-tyrant-queen': 'fd-horn-crest-charger',
+  };
+
+  /**
+   * A v36 save that bought Hooves and Fire on 1.9.0: the deck is owned, its
+   * list carries the 1.9.0 cards in the three upgraded slots, and the
+   * collection never received the three 1.9.1 adds.
+   */
+  function v36HoovesOwner(): Record<string, unknown> {
+    const save = freshSave(1);
+    save.gold = 10_000;
+    const deck = THEME_DECKS.find((d) => d.id === HOOVES_ID);
+    if (!deck) throw new Error('Hooves and Fire is missing from THEME_DECKS');
+    expect(buyThemeDeck(save, CARD_DB, deck)).toBe(true);
+    for (const id of HOOVES_AND_FIRE_1_9_1_ADDS) {
+      delete save.collection[id];
+      delete save.collectionVariants[id];
+    }
+    const owned = save.decks.find((d) => d.id === HOOVES_ID)!;
+    owned.cards = owned.cards.map((id) => REPLACED[id] ?? id);
+    return { ...JSON.parse(JSON.stringify(save)), version: 36 } as Record<string, unknown>;
+  }
+
+  function load(blob: Record<string, unknown>): SaveData {
+    const storage = fakeStorage();
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(blob));
+    return new SaveManager(storage, 456).data;
+  }
+
+  it('grants a v36 owner one plain copy of each 1.9.1 add and leaves the deck list alone', () => {
+    const blob = v36HoovesOwner();
+    const before = blob as unknown as SaveData;
+
+    const migrated = load(blob);
+
+    expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
+    // The grant matches the shipped 1.9.1 list: each add appears there exactly once.
+    const shipped = THEME_DECKS.find((d) => d.id === HOOVES_ID)!.reserveCards ?? [];
+    for (const id of HOOVES_AND_FIRE_1_9_1_ADDS) {
+      expect(shipped.filter((c) => c === id)).toHaveLength(1);
+    }
+    for (const id of HOOVES_AND_FIRE_1_9_1_ADDS) {
+      expect(migrated.collection[id]).toBe(1);
+      expect(migrated.collectionVariants[id]).toEqual({ [plainKey]: 1 });
+    }
+    // Nothing else in the collection moved, and no gold was spent or melted.
+    const rest = { ...migrated.collection };
+    for (const id of HOOVES_AND_FIRE_1_9_1_ADDS) delete rest[id];
+    expect(rest).toEqual(before.collection);
+    expect(migrated.gold).toBe(before.gold);
+    // The player's saved list keeps its 1.9.0 cards; the grant is collection-only.
+    const deck = migrated.decks.find((d) => d.id === HOOVES_ID)!;
+    const savedDeck = before.decks.find((d) => d.id === HOOVES_ID)!;
+    expect(deck.cards).toEqual(savedDeck.cards);
+    expect(deck.cards).toContain('fd-rage-kin-brawler');
+    expect(deck.cards).not.toContain('fd-oru-tyrant-queen');
+  });
+
+  it('tops up like a purchase, so a copy already owned from packs is not doubled', () => {
+    const blob = v36HoovesOwner();
+    blob.collection = { ...(blob.collection as object), 'fd-oru-tyrant-queen': 2 };
+    blob.collectionVariants = {
+      ...(blob.collectionVariants as object),
+      'fd-oru-tyrant-queen': { [plainKey]: 2 },
+    };
+
+    const migrated = load(blob);
+
+    expect(migrated.collection['fd-oru-tyrant-queen']).toBe(2);
+    expect(migrated.collection['fd-ember-crest-tyrant']).toBe(1);
+    expect(migrated.collection['fd-fern-crown-tyrant']).toBe(1);
+  });
+
+  it('grants once: a migrated save that later loses a copy is not re-granted on reload', () => {
+    const migrated = load(v36HoovesOwner());
+    // The shared block re-walks every step on every load; the grant must not.
+    delete migrated.collection['fd-oru-tyrant-queen'];
+    delete migrated.collectionVariants['fd-oru-tyrant-queen'];
+
+    const reloaded = load(JSON.parse(JSON.stringify(migrated)) as Record<string, unknown>);
+
+    expect(reloaded.version).toBe(CURRENT_SAVE_VERSION);
+    expect(reloaded.collection['fd-oru-tyrant-queen']).toBeUndefined();
+    expect(reloaded.collection['fd-ember-crest-tyrant']).toBe(1);
+  });
+
+  it('grants nothing to a v36 save that does not own Hooves and Fire', () => {
+    const save = freshSave(1);
+    save.gold = 10_000;
+    const other = THEME_DECKS.find((d) => d.id !== HOOVES_ID)!;
+    expect(buyThemeDeck(save, CARD_DB, other)).toBe(true);
+    const blob = { ...JSON.parse(JSON.stringify(save)), version: 36 } as Record<string, unknown>;
+
+    const migrated = load(blob);
+
+    expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
+    expect(migrated.collection).toEqual(save.collection);
+    expect(migrated.collectionVariants).toEqual(save.collectionVariants);
+    for (const id of HOOVES_AND_FIRE_1_9_1_ADDS) {
+      expect(save.collection[id]).toBeUndefined();
+      expect(migrated.collection[id]).toBeUndefined();
+    }
   });
 });

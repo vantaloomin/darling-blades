@@ -228,7 +228,7 @@ export function openCosmeticPicker(scene: Phaser.Scene, opts: CosmeticPickerOpti
       const equipped = equippedId === entry.id;
       tag.setText(equipped ? 'EQUIPPED' : owned ? '' : 'LOCKED');
       tag.setColor(equipped ? theme.colors.success : theme.colors.danger);
-      button.setVariant(equipped ? 'primary' : 'ghost');
+      button.setVariant(equipped ? 'selected' : 'ghost');
       button.setLabel(owned ? (equipped ? 'Equipped' : 'Equip') : 'Locked');
       button.setEnabled(owned);
     };
