@@ -87,7 +87,8 @@ const SUMMARY_Y = 106;
 const SUMMARY_H = 40;
 const SUMMARY_POOL_W = 250;
 const SUMMARY_SPECIAL_W = 190;
-const FILTER_Y = 164;
+/** Centred between the summary strip (bottom 146) and the content top (196). */
+const FILTER_Y = 171;
 /** The release list's density, held at standard text (the probe checks it). */
 const RELEASE_LIST_DENSITY = { id: 'achievement list', rows: 8, columns: 2, pitch: 56, top: 196 } as const;
 const FILTER_W = 104;
