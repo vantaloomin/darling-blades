@@ -13,7 +13,21 @@ import { CARD_BACKS, PLAYMATS, cosmeticById, isKnownCosmeticId } from './cosmeti
 import { normalizeStatsNoticeVersion } from './statsNotice';
 import { DEFAULT_TEXT_SCALE, normalizeHighContrast, normalizeTextScale } from './accessibilitySettings';
 
-export const CURRENT_SAVE_VERSION = 36 as const;
+export const CURRENT_SAVE_VERSION = 37 as const;
+
+/** The theme deck whose 1.9.1 list upgrade the v36 -> v37 step back-grants. */
+export const HOOVES_AND_FIRE_DECK_ID = 'theme-first-dawn';
+/**
+ * The cards PR #578 (1.9.1) added to Hooves and Fire, one copy each: Ember-Crest
+ * Tyrant (replacing Rage-Kin Brawler), Fern-Crown Tyrant (replacing Blaze-Crest
+ * Tyrant) and Oru, the Tyrant Queen (replacing one Horn-Crest Charger).
+ */
+export const HOOVES_AND_FIRE_1_9_1_ADDS: readonly string[] = [
+  'fd-ember-crest-tyrant',
+  'fd-fern-crown-tyrant',
+  'fd-oru-tyrant-queen',
+];
+
 const LEGACY_WARCHEST_FORMAT = 'battle' + 'box';
 
 /**
@@ -497,7 +511,9 @@ export class SaveManager {
    * cosmetics fields that v33 superseded; v35 -> v36 adds `settings.textScale`
    * (default 1, snapped onto `TEXT_SCALES`), `settings.highContrast` (default
    * off) and `limited.premiumGrant` (the stored Premium draft note, absent
-   * unless the active Premium run has one).
+   * unless the active Premium run has one); v36 -> v37 adds no field: a save
+   * that owns Hooves and Fire (`theme-first-dawn`) from before v37 is granted
+   * the three cards the 1.9.1 list upgrade added (`HOOVES_AND_FIRE_1_9_1_ADDS`).
    * An unknown/garbage version starts fresh rather than crash.
    *
    * Public and this-free by design: SaveCode (the export/import codec) routes
@@ -789,7 +805,7 @@ export class SaveManager {
     // Every version from 22 upward is enumerated BY HAND, including the
     // outgoing current one. A bump that forgets to add the version it is
     // replacing makes every save sitting at it skip this whole block.
-    if (cur.version === 22 || cur.version === 23 || cur.version === 24 || cur.version === 25 || cur.version === 26 || cur.version === 27 || cur.version === 28 || cur.version === 29 || cur.version === 30 || cur.version === 31 || cur.version === 32 || cur.version === 33 || cur.version === 34 || cur.version === 35 || cur.version === CURRENT_SAVE_VERSION) {
+    if (cur.version === 22 || cur.version === 23 || cur.version === 24 || cur.version === 25 || cur.version === 26 || cur.version === 27 || cur.version === 28 || cur.version === 29 || cur.version === 30 || cur.version === 31 || cur.version === 32 || cur.version === 33 || cur.version === 34 || cur.version === 35 || cur.version === 36 || cur.version === CURRENT_SAVE_VERSION) {
       const decks = Array.isArray(cur.decks)
         ? (cur.decks as Array<Record<string, unknown>>).map((deck) => ({
             ...deck,
@@ -1031,6 +1047,35 @@ export class SaveManager {
         },
         limited: premiumGrant ? { ...limited, premiumGrant } : limited,
       };
+    }
+    if (cur.version === 36) {
+      // 1.9.1 (owner 2026-10-09): owners of Hooves and Fire from 1.9.0 get the
+      // three cards the upgrade added. buyThemeDeck is idempotent by deck id,
+      // so without this a 1.9.0 buyer could never receive them.
+      //
+      // Gated on `arrivedAtVersion < 37` because the shared block above
+      // rewinds every current save to v22 and re-walks this step on every
+      // load; an ungated grant would re-top-up a card the player had since
+      // disenchanted. The grant goes through grantDeckCards, the helper
+      // buyThemeDeck uses, so it tops up to one copy each exactly as a 1.9.1
+      // purchase would (a copy already owned from packs is not duplicated).
+      // The player's saved deck list is left alone: they may have edited it.
+      const ownsHooves = Array.isArray(cur.decks)
+        && (cur.decks as Array<{ id?: unknown }>).some((deck) => deck.id === HOOVES_AND_FIRE_DECK_ID);
+      if (arrivedAtVersion < 37 && ownsHooves) {
+        const granted = {
+          ...cur,
+          collection: { ...((cur.collection ?? {}) as Record<string, number>) },
+          collectionVariants: Object.fromEntries(
+            Object.entries((cur.collectionVariants ?? {}) as Record<string, Record<string, number>>)
+              .map(([id, perCard]) => [id, { ...perCard }]),
+          ),
+        } as unknown as SaveData;
+        grantDeckCards(granted, CARD_DB, HOOVES_AND_FIRE_1_9_1_ADDS);
+        cur = { ...granted, version: 37 } as unknown as typeof cur;
+      } else {
+        cur = { ...cur, version: 37 };
+      }
     }
     if (cur.version === CURRENT_SAVE_VERSION) {
       const legacyHero = typeof cur.heroCardId === 'string' ? cur.heroCardId : null;

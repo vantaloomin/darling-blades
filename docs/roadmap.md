@@ -1793,6 +1793,8 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   `RULES.overchargeLimit` on one, 3, measured; not a Mark), after a
   28,224-game board-cap study found it recovers First Dawn's go-wide deck where
   a wider cap does not ([rules.md](rules.md), "Board caps").
+- **Revised 2026-10-08 ([plan-2.0.md](plan-2.0.md), P2):** 2.0 ships on bladedarlings.com and the desktop build first; the itch.io launch is a 2.0.x once 2.0 is stable on the site. The itch build target lands in 2.0 behind a flag.
+  The 2026-09-25 entry follows as written.
 - **2.0 is the itch.io launch (owner ruling 2026-09-25).** The largest update
   the game has had, with the mobile overhaul, Core Set II and Story Mode, and
   the release that is posted on itch.io and advertised. No plan exists yet;
