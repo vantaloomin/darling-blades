@@ -134,12 +134,12 @@ export class MainMenuScene extends Phaser.Scene {
       return button;
     };
     const learning = [
-      headerButton('👤 Profile', () => this.scene.start('Profile')),
+      headerButton('{profile} Profile', () => this.scene.start('Profile')),
       // Replay the optional tutorial anytime; makes skipping reversible.
-      headerButton('❔ How to Play', () => this.startTutorial()),
-      headerButton('📖 Glossary', () => this.scene.start('Glossary')),
+      headerButton('{help} How to Play', () => this.startTutorial()),
+      headerButton('{book} Glossary', () => this.scene.start('Glossary')),
     ];
-    const gear = headerButton('⚙ Settings', () => this.scene.start('Settings'));
+    const gear = headerButton('{gear} Settings', () => this.scene.start('Settings'));
     const header = mainMenuHeaderRow(learning.map((b) => b.getMeasuredSize().hit.width),
       gear.getMeasuredSize().hit.width, badge.width());
     learning.forEach((button, i) => button.container.setX(header.leftX[i]));

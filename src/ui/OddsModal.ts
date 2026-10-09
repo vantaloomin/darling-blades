@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { RARITY_NAMES } from '../data/glossary';
+import type { Rarity } from '../engine/types';
 import { DROPS } from '../config/rules';
 import { SET_TITLES } from '../data/setTitles';
 import type { BoosterSku } from '../meta/boosterSkus';
@@ -38,7 +40,6 @@ const PACK_ODDS_META: Record<BoosterSku, PackOddsMeta> = {
   'first-dawn': { packName: SET_TITLES['first-dawn'], setName: SET_TITLES['first-dawn'] },
 };
 
-const TIER_LABELS: Record<string, string> = { c: 'C', r: 'R', sr: 'SR', ssr: 'SSR', ur: 'UR' };
 const FRAME_LABELS: Record<string, string> = {
   white: 'White',
   blue: 'Blue',
@@ -74,7 +75,7 @@ export function createOddsModal(
     {
       heading: 'RARITY',
       rows: DROPS.tier,
-      labelFor: (value) => TIER_LABELS[value] ?? value,
+      labelFor: (value) => RARITY_NAMES[value as Rarity] ?? value,
       colorFor: (value) => theme.rarity[value as keyof typeof theme.rarity] ?? theme.colors.body,
     },
     {
@@ -215,7 +216,7 @@ export function createOddsModal(
     })
     .setOrigin(0, 0);
   const noteOne = scene.add
-    .text(content.x, notesTop + notesLabel.height + theme.space(1), 'SR, SSR, and UR slots only roll cards you own fewer than 4 copies of, until the whole tier is complete.', {
+    .text(content.x, notesTop + notesLabel.height + theme.space(1), 'Super Rare and higher slots only roll cards you own fewer than 4 copies of, until the whole tier is complete.', {
       fontFamily: theme.fonts.ui,
       fontSize: `${theme.type.caption}px`,
       color: theme.colors.muted,
