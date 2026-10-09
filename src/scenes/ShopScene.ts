@@ -894,6 +894,7 @@ export class ShopScene extends Phaser.Scene {
       const button = themedButton(this, 0, 96, d.label, {
         variant: 'ghost',
         minWidth: 120,
+        look: 'tab',
         onTap: () => this.setTab(d.key),
       });
       this.tabButtons.set(d.key, button);
@@ -1399,6 +1400,7 @@ export class ShopScene extends Phaser.Scene {
       const button = themedButton(this, 0, DECK_SHOP_LAYOUT.subTabY, section.label, {
         variant: section.key === this.deckTab ? 'selected' : 'ghost',
         size: 'sm',
+        look: 'tab',
         minWidth: 160,
         onTap: () => this.setDeckTab(section.key),
       });

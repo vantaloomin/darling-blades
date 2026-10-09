@@ -1001,6 +1001,7 @@ export class ProfileScene extends Phaser.Scene {
     PROFILE_STAT_TABS.forEach((tab, index) => {
       const button = themedButton(this, PROFILE_TAB_STRIP.xs[index], PROFILE_TAB_STRIP.y, tab.label, {
         variant: this.statTab === tab.key ? 'selected' : 'ghost',
+        look: 'tab',
         size: 'sm',
         minWidth: PROFILE_TAB_STRIP.width,
         onTap: () => {
