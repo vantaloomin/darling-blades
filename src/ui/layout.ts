@@ -1112,6 +1112,8 @@ export interface GlossaryRowsLayout {
   contentHeight: number;
   maxScroll: number;
   overflow: boolean;
+  /** Centre x of the scroll rail, in the gutter right of the row plates. */
+  railX: number;
 }
 
 /**
@@ -1130,10 +1132,11 @@ export function glossaryRowsLayout(
   const minRowHeight = Math.max(0, opts.minRowHeight ?? theme.space(9));
   const iconWidth = opts.hasIcons ? theme.space(9) : 0;
   const badgeWidth = opts.hasBadge ? theme.space(24) : 0;
-  // The scroll rail lives inside the row width, so every row reserves it and
-  // the thumb can never sit on top of the reminder copy.
-  const railWidth = theme.space(3);
-  const width = Math.max(0, viewport.width);
+  // The scroll rail gets its own gutter right of the row plates. It used to
+  // sit inside them, where the plates painted over it and the list read as
+  // having no scrollbar (owner, 2026-10-09).
+  const railWidth = theme.space(4);
+  const width = Math.max(0, viewport.width - railWidth);
   const nameWidth = theme.space(42);
   const columnGap = theme.space(4);
   const descriptionX = rowPaddingX + iconWidth + nameWidth + columnGap;
@@ -1142,8 +1145,8 @@ export function glossaryRowsLayout(
     nameX: rowPaddingX + iconWidth,
     nameWidth,
     descriptionX,
-    descriptionWidth: Math.max(0, width - descriptionX - rowPaddingX - badgeWidth - railWidth),
-    badgeX: width - rowPaddingX - railWidth,
+    descriptionWidth: Math.max(0, width - descriptionX - rowPaddingX - badgeWidth),
+    badgeX: width - rowPaddingX,
   };
 
   const rows: GlossaryRowRect[] = [];
@@ -1163,6 +1166,7 @@ export function glossaryRowsLayout(
     contentHeight,
     maxScroll: Math.max(0, contentHeight - maxHeight),
     overflow: contentHeight > maxHeight,
+    railX: width + railWidth / 2,
   };
 }
 
