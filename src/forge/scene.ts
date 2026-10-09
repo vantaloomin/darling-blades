@@ -83,7 +83,8 @@ export function composeCustomArt(
 
 export const CARD_BUILDER_GAME_CONFIG = { width: 520, height: 660 } as const;
 const CARD_SCALE = 1.45;
-const BACKGROUND = '#0a0812';
+// Clear, so the card sits straight on the preview column's own backdrop with no box around it.
+const BACKGROUND = 'rgba(0,0,0,0)';
 
 /**
  * Save Image renders the card at twice its canonical size: 600 x 840, the
