@@ -208,6 +208,7 @@ describe('Expansion shop retail', () => {
       const scene = {
         saveData: freshSave(0), add: { text, image: displayObject, graphics: displayObject },
         skuButtons: [], shopInteractiveTargets: [],
+        shopBadge: sceneMethod('shopBadge', { theme, colorInt }),
       };
       for (const row of visible) {
         text.mockClear();

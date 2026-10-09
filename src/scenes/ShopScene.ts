@@ -1095,20 +1095,7 @@ export class ShopScene extends Phaser.Scene {
     if (sku === NEWEST_SKU) {
       // Left of the caption: the info bubble rides its right edge, and the
       // two collided when both sat on the same side.
-      const chip = this.add
-        .text(x - 84, poolCaption.y, 'New', {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.micro}px`,
-          fontStyle: theme.weight.w700,
-          color: theme.colors.gold,
-        })
-        .setOrigin(0.5);
-      const chipBg = this.add.graphics();
-      chipBg.fillStyle(theme.graphics.rowFillActive, theme.alpha.panel);
-      chipBg.fillRoundedRect(chip.x - chip.width / 2 - 6, chip.y - chip.height / 2 - 2, chip.width + 12, chip.height + 4, theme.radius.control);
-      chipBg.lineStyle(1, colorInt(theme.colors.gold), theme.alpha.chrome);
-      chipBg.strokeRoundedRect(chip.x - chip.width / 2 - 6, chip.y - chip.height / 2 - 2, chip.width + 12, chip.height + 4, theme.radius.control);
-      group.add([chipBg, chip]);
+      group.add(this.shopBadge(x - 84, poolCaption.y, 'New'));
     }
     // The bubble rides the short pool caption, not the title: wide theme
     // titles (Nocturne Manor) pushed a title-anchored bubble to the screen
@@ -1493,6 +1480,28 @@ export class ShopScene extends Phaser.Scene {
   }
 
   /** Starter and Zhou Yu grants are independent, one-time FREE claims. */
+  /**
+   * A small gold-bordered tag centred on (x, y): the newest pack's "New" and
+   * a free deck's "Free". Its plate is the active row fill, so it reads over
+   * art as well as over a panel.
+   */
+  private shopBadge(x: number, y: number, label: string): Phaser.GameObjects.GameObject[] {
+    const chip = this.add
+      .text(x, y, label, {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.micro}px`,
+        fontStyle: theme.weight.w700,
+        color: theme.colors.gold,
+      })
+      .setOrigin(0.5);
+    const chipBg = this.add.graphics();
+    chipBg.fillStyle(theme.graphics.rowFillActive, theme.alpha.panel);
+    chipBg.fillRoundedRect(chip.x - chip.width / 2 - 6, chip.y - chip.height / 2 - 2, chip.width + 12, chip.height + 4, theme.radius.control);
+    chipBg.lineStyle(1, colorInt(theme.colors.gold), theme.alpha.chrome);
+    chipBg.strokeRoundedRect(chip.x - chip.width / 2 - 6, chip.y - chip.height / 2 - 2, chip.width + 12, chip.height + 4, theme.radius.control);
+    return [chipBg, chip];
+  }
+
   private isFreeClaim(deck: DeckList | DarlingsPrecon): boolean {
     const save = this.saveData;
     if (isDarlingsPrecon(deck)) {
@@ -1528,12 +1537,22 @@ export class ShopScene extends Phaser.Scene {
 
     const plate = panel(this, -halfW, rowTop, DECK_CARD_W, DECK_CARD_H, { alpha: 0.7 });
     tile.add(plate);
+    // Every product keeps its gold Buy (owner, 2026-10-09), so the one action
+    // that costs nothing is set apart by its tile instead: a gold frame and a
+    // Free tag on the art.
+    if (freeClaim) {
+      const frame = this.add.graphics();
+      frame.lineStyle(theme.outline.state, colorInt(theme.colors.gold), 1);
+      frame.strokeRoundedRect(-halfW, rowTop, DECK_CARD_W, DECK_CARD_H, theme.radius.panel);
+      tile.add(frame);
+    }
 
     // The art window: a Darlings precon leads with its Darling; a standard
     // deck leads with its first signature card (the preview's featured list).
     // Same helper the create-time art gate waits on, so the two cannot drift.
     const portraitId = this.deckGridPortraitId(deck);
     this.addDeckPortrait(portraitId, 0, rowTop + 8 + DECK_CARD_ART_H / 2, DECK_CARD_W - 20, DECK_CARD_ART_H, tile);
+    if (freeClaim) tile.add(this.shopBadge(-halfW + 10 + theme.space(6), rowTop + 8 + theme.space(4), 'Free'));
 
     const name = this.add
       .text(0, rowTop + DECK_CARD_ART_H + 22, deck.name, {
