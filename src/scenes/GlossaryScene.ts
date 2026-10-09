@@ -82,6 +82,8 @@ export class GlossaryScene extends Phaser.Scene {
   private listMask: Phaser.GameObjects.Graphics | null = null;
   private scrollTrack: Phaser.GameObjects.Graphics | null = null;
   private scrollThumb: Phaser.GameObjects.Graphics | null = null;
+  /** Edge fades on the list's clipped sides: they say there is more that way. */
+  private scrollFades: Phaser.GameObjects.Graphics | null = null;
 
   constructor() {
     super('Glossary');
@@ -261,8 +263,10 @@ export class GlossaryScene extends Phaser.Scene {
       )
       .setOrigin(0.5, 0)
       .setVisible(false);
-    this.scrollTrack = this.add.graphics();
-    this.scrollThumb = this.add.graphics();
+    // Above the list content, which is built later on every tab change.
+    this.scrollFades = this.add.graphics().setDepth(1);
+    this.scrollTrack = this.add.graphics().setDepth(1);
+    this.scrollThumb = this.add.graphics().setDepth(1);
   }
 
   private buildSearchInput(): void {
@@ -333,6 +337,7 @@ export class GlossaryScene extends Phaser.Scene {
       this.emptyNotice?.setText(`No term matches “${this.query.trim()}”.`);
       this.scrollTrack?.clear();
       this.scrollThumb?.clear();
+      this.scrollFades?.clear();
       this.layout = null;
       return;
     }
@@ -527,18 +532,37 @@ export class GlossaryScene extends Phaser.Scene {
     const layout = this.layout;
     this.scrollTrack?.clear();
     this.scrollThumb?.clear();
+    this.scrollFades?.clear();
     if (!layout || layout.maxScroll <= 0 || !this.scrollTrack || !this.scrollThumb) return;
-    const railX = list.x + list.width - theme.space(2);
+    const railX = list.x + layout.railX;
     const thumbHeight = Math.max(
       theme.space(8),
       list.height * (list.height / Math.max(list.height, layout.contentHeight)),
     );
     const thumbY = list.y + (this.scrollOffset / layout.maxScroll) * Math.max(0, list.height - thumbHeight);
+    const trackWidth = theme.space(1);
+    const thumbWidth = theme.space(1.5);
     this.scrollTrack
-      .fillStyle(theme.graphics.panelStroke, theme.alpha.subtle)
-      .fillRoundedRect(railX, list.y, theme.space(0.5), list.height, theme.radius.control);
+      .fillStyle(theme.graphics.panelStroke, 1)
+      .fillRoundedRect(railX - trackWidth / 2, list.y, trackWidth, list.height, trackWidth / 2);
     this.scrollThumb
-      .fillStyle(theme.graphics.rowFillActive, theme.alpha.chrome)
-      .fillRoundedRect(railX - theme.space(0.5), thumbY, theme.space(1.5), thumbHeight, theme.radius.control);
+      .fillStyle(colorInt(theme.colors.muted), 1)
+      .fillRoundedRect(railX - thumbWidth / 2, thumbY, thumbWidth, thumbHeight, thumbWidth / 2);
+    // A fade over whichever edge still hides rows, drawn as stepped bands of
+    // the panel colour so it works on the canvas renderer too.
+    const fades = this.scrollFades;
+    if (!fades) return;
+    const fadeHeight = theme.space(8);
+    const steps = 8;
+    const rowsWidth = layout.railX - theme.space(2);
+    const band = (edgeY: number, direction: 1 | -1): void => {
+      for (let i = 0; i < steps; i++) {
+        const alpha = 0.85 * (1 - i / steps);
+        const y = direction === 1 ? edgeY + (i * fadeHeight) / steps : edgeY - ((i + 1) * fadeHeight) / steps;
+        fades.fillStyle(theme.graphics.panelFill, alpha).fillRect(list.x, y, rowsWidth, fadeHeight / steps);
+      }
+    };
+    if (this.scrollOffset > 0) band(list.y, 1);
+    if (this.scrollOffset < layout.maxScroll) band(list.y + list.height, -1);
   }
 }
