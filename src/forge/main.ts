@@ -893,10 +893,25 @@ document.addEventListener('change', (event) => {
 // ── Confirmations, messages and the banner ───────────────────────────────────
 
 const DISCARD_CHANGES = 'Discard your unsaved changes to this card?';
-/** The ?qa=1 probe answers confirmations itself; everyone else gets the browser's dialog. */
+/** The ?qa=1 probe answers confirmations itself; everyone else gets the Forge's own dialog. */
 let confirmOverride: ((message: string) => boolean) | null = null;
-function confirmAction(message: string): boolean {
-  return confirmOverride ? confirmOverride(message) : window.confirm(message);
+const confirmDialog = byId<HTMLDialogElement>('forge-confirm');
+const confirmText = byId<HTMLParagraphElement>('forge-confirm-text');
+const confirmYes = byId<HTMLButtonElement>('forge-confirm-yes');
+/**
+ * Ask before something that can't be undone, in a panel styled like the
+ * game's own rather than the browser's grey box. Escape or Cancel says no.
+ */
+function confirmAction(message: string, yesLabel = 'Continue'): Promise<boolean> {
+  if (confirmOverride) return Promise.resolve(confirmOverride(message));
+  confirmText.textContent = message;
+  confirmYes.textContent = yesLabel;
+  return new Promise((resolve) => {
+    confirmDialog.addEventListener('close', () => resolve(confirmDialog.returnValue === 'yes'), { once: true });
+    confirmDialog.returnValue = '';
+    confirmDialog.showModal();
+    byId<HTMLButtonElement>('forge-confirm-no').focus();
+  });
 }
 
 const banner = byId<HTMLDivElement>('forge-banner');
@@ -1011,22 +1026,22 @@ byId<HTMLButtonElement>('save-to-set').addEventListener('click', () => { saveCur
 byId<HTMLButtonElement>('save-and-next').addEventListener('click', () => {
   if (saveCurrentCard()) startFreshCard();
 });
-byId<HTMLButtonElement>('new-card').addEventListener('click', () => {
-  if (hasUnsaved() && !confirmAction(DISCARD_CHANGES)) return;
+byId<HTMLButtonElement>('new-card').addEventListener('click', async () => {
+  if (hasUnsaved() && !await confirmAction(DISCARD_CHANGES, 'Discard')) return;
   startFreshCard();
 });
 
-function openSetCard(id: string): void {
+async function openSetCard(id: string): Promise<void> {
   if (id === session.editingId) return;
   const entry = forgeSet.cards.find((candidate) => candidate.card.id === id);
   if (!entry) return;
-  if (hasUnsaved() && !confirmAction(DISCARD_CHANGES)) return;
+  if (hasUnsaved() && !await confirmAction(DISCARD_CHANGES, 'Discard')) return;
   openInEditor(stateFromEntry(entry), { editingId: id, baseline: null }, null);
 }
 
-function removeSetCard(id: string): void {
+async function removeSetCard(id: string): Promise<void> {
   const entry = forgeSet.cards.find((candidate) => candidate.card.id === id);
-  if (!entry || !confirmAction(`Remove ${entry.card.name} from the set?`)) return;
+  if (!entry || !await confirmAction(`Remove ${entry.card.name} from the set?`, 'Remove')) return;
   forgeSet = { ...forgeSet, cards: forgeSet.cards.filter((candidate) => candidate !== entry) };
   // The editor keeps the card, now as a new card that is not in the set.
   if (session.editingId === id) session = { editingId: null, baseline: null };
@@ -1039,11 +1054,11 @@ setList.addEventListener('click', (event) => {
   const target = event.target as HTMLElement;
   const remove = target.closest<HTMLButtonElement>('[data-remove-card]');
   if (remove) {
-    removeSetCard(remove.dataset.removeCard ?? '');
+    void removeSetCard(remove.dataset.removeCard ?? '');
     return;
   }
   const open = target.closest<HTMLButtonElement>('[data-open-card]');
-  if (open) openSetCard(open.dataset.openCard ?? '');
+  if (open) void openSetCard(open.dataset.openCard ?? '');
 });
 
 setNameInput.addEventListener('input', () => {
@@ -1063,14 +1078,14 @@ function detachEditor(): void {
   if (session.editingId !== null) session = { editingId: null, baseline: null };
 }
 
-clearSetButton.addEventListener('click', () => {
+clearSetButton.addEventListener('click', async () => {
   const n = forgeSet.cards.length;
   if (n === 0) return;
   const name = setDisplayName(forgeSet);
   const question = n === 1
     ? `Remove the 1 card in ${name}? Export it first if you want to keep it.`
     : `Remove all ${n} cards from ${name}? Export it first if you want to keep them.`;
-  if (!confirmAction(question)) return;
+  if (!await confirmAction(question, 'Clear Set')) return;
   forgeSet = { ...forgeSet, cards: [] };
   detachEditor();
   showMessage(setMessage, '');
@@ -1164,7 +1179,7 @@ async function applyImport(text: string): Promise<ImportResult> {
     const question = n === 1
       ? `Replace the 1 card in ${name} with the imported set?`
       : `Replace the ${n} cards in ${name} with the imported set?`;
-    if (!confirmAction(question)) return result;
+    if (!await confirmAction(question, 'Replace')) return result;
   }
   const stored = await storeImportedImages(result.set, result.imageFailures);
   forgeSet = stored.set;
@@ -1240,12 +1255,24 @@ function flushAutosave(): void {
   autosaveTimer = 0;
   if (autosaveSuspended || !storage) return;
   const ok = writeAutosave(storage, autosaveSnapshot());
+  showAutosaved(ok);
   if (ok !== storageWorking) {
     storageWorking = ok;
     renderStorageNote();
   }
   // Another tab's clean-up may have deleted an image this tab still shows: put it back.
   void images.ensureStored(imageRoots(false));
+}
+
+const autosaveStatus = byId<HTMLSpanElement>('autosave-status');
+let autosaveFlashTimer = 0;
+/** "Saved in this browser" by the set heading, lit up briefly after each save. */
+function showAutosaved(ok: boolean): void {
+  autosaveStatus.hidden = !ok;
+  if (!ok) return;
+  autosaveStatus.classList.add('fresh');
+  window.clearTimeout(autosaveFlashTimer);
+  autosaveFlashTimer = window.setTimeout(() => autosaveStatus.classList.remove('fresh'), 1200);
 }
 
 function scheduleAutosave(): void {
@@ -1376,7 +1403,7 @@ async function openSharedPayload(payload: string): Promise<boolean> {
     showBanner('That link didn\'t contain a card the Forge could open.', true);
     return false;
   }
-  if (hasUnsaved() && !confirmAction(DISCARD_CHANGES)) return false;
+  if (hasUnsaved() && !await confirmAction(DISCARD_CHANGES, 'Discard')) return false;
   openInEditor(stateFromEntry(decoded.entry), { editingId: null, baseline: null }, null);
   showBanner('Opened a shared card. Save it to your set to keep it.');
   return true;
@@ -1485,8 +1512,8 @@ function renderLoadResults(): void {
   `).join('') || '<p class="empty-editor">No cards match these filters.</p>';
 }
 
-function applyLoadedCard(card: ScorableCardDef): void {
-  if (hasUnsaved() && !confirmAction(DISCARD_CHANGES)) return;
+async function applyLoadedCard(card: ScorableCardDef): Promise<void> {
+  if (hasUnsaved() && !await confirmAction(DISCARD_CHANGES, 'Discard')) return;
   const loaded = fromCardDef(card);
   loaded.appearance = { ...store.getState().appearance };
   openInEditor(loaded, { editingId: null, baseline: entryFromState(loaded, '') }, { source: card, baseline: loaded });
@@ -1510,12 +1537,12 @@ loadResults.addEventListener('click', (event) => {
   const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-load-card-id]');
   if (!button) return;
   const card = loadCardById.get(button.dataset.loadCardId!);
-  if (card) applyLoadedCard(card);
+  if (card) void applyLoadedCard(card);
 });
 byId<HTMLButtonElement>('random-card').addEventListener('click', () => {
   const matches = filteredLoadCards();
   if (matches.length === 0) return;
-  applyLoadedCard(matches[Math.floor(Math.random() * matches.length)]);
+  void applyLoadedCard(matches[Math.floor(Math.random() * matches.length)]);
 });
 resetLoaded.addEventListener('click', () => {
   if (!loadedBaseline) return;
@@ -1527,7 +1554,9 @@ resetLoaded.addEventListener('click', () => {
 
 // ── Art ─────────────────────────────────────────────────────────────────────
 
-const ART_PAGE_SIZE = 32;
+/** 32 pictures a page, 12 on a phone-width screen, where each page is a long scroll. */
+const narrowArtPages = window.matchMedia('(max-width: 760px)');
+const artPageSize = (): number => (narrowArtPages.matches ? 12 : 32);
 const artCards = ALL_CARDS.filter((card) => manifestCards.has(card.artRef ?? card.id));
 let artSearchValue = '';
 let artSetValue = 'all';
@@ -1556,9 +1585,10 @@ function filteredArtCards(): CardDef[] {
 
 function renderArtGrid(): void {
   const matches = filteredArtCards();
-  const pages = Math.max(1, Math.ceil(matches.length / ART_PAGE_SIZE));
+  const pageSize = artPageSize();
+  const pages = Math.max(1, Math.ceil(matches.length / pageSize));
   artPage = Math.min(Math.max(0, artPage), pages - 1);
-  const visible = matches.slice(artPage * ART_PAGE_SIZE, (artPage + 1) * ART_PAGE_SIZE);
+  const visible = matches.slice(artPage * pageSize, (artPage + 1) * pageSize);
   const selected = store.getState().artDonorId;
   artGrid.innerHTML = visible.map((card) => {
     const artKey = card.artRef ?? card.id;
@@ -1567,6 +1597,11 @@ function renderArtGrid(): void {
       <span>${escapeHtml(card.name)}</span>
     </button>`;
   }).join('') || '<p class="empty-editor grid-wide">No pictures match these filters.</p>';
+  // A tile shows its placeholder until the picture arrives, then fades it in.
+  for (const img of artGrid.querySelectorAll<HTMLImageElement>('img')) {
+    if (img.complete && img.naturalWidth > 0) img.classList.add('loaded');
+    else img.addEventListener('load', () => img.classList.add('loaded'), { once: true });
+  }
   artPageLabel.textContent = `${matches.length} pictures · page ${artPage + 1} of ${pages}`;
   artPrev.disabled = artPage === 0;
   artNext.disabled = artPage >= pages - 1;
@@ -1577,6 +1612,7 @@ artSetFilter.addEventListener('change', () => { artSetValue = artSetFilter.value
 artColorFilter.addEventListener('change', () => { artColorValue = artColorFilter.value; artPage = 0; renderArtGrid(); });
 artPrev.addEventListener('click', () => { artPage -= 1; renderArtGrid(); });
 artNext.addEventListener('click', () => { artPage += 1; renderArtGrid(); });
+narrowArtPages.addEventListener('change', () => { artPage = 0; renderArtGrid(); });
 artGrid.addEventListener('click', (event) => {
   const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-art-id]');
   if (!button) return;

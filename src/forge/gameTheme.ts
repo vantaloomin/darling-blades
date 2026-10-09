@@ -15,6 +15,8 @@ export const FORGE_THEME_VARS: Readonly<Record<string, string>> = Object.freeze(
   '--muted': STANDARD_COLORS.muted,
   '--success': STANDARD_COLORS.success,
   '--danger': STANDARD_COLORS.danger,
+  '--danger-bg': STANDARD_COLORS.dangerBg,
+  '--danger-armed': STANDARD_COLORS.dangerArmed,
   '--panel': STANDARD_COLORS.panelFill,
   '--stroke': STANDARD_COLORS.panelStroke,
   '--ghost': STANDARD_COLORS.btnGhostBg,

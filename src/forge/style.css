@@ -8,6 +8,8 @@
   --muted: #9589ac;
   --success: #9be6a8;
   --danger: #f0b0a0;
+  --danger-bg: #3a1f28;
+  --danger-armed: #f08a8a;
   --panel: #161226;
   --panel-deep: #100d1d;
   --stroke: #4a3f6e;
@@ -303,8 +305,9 @@ button.keyword-chip:hover { border-color: var(--gold-hover); color: var(--headin
 .load-card-row span { color: var(--muted); font-size: var(--fs-xs); }
 .load-card-row small { grid-column: 1 / -1; color: var(--muted); font-size: var(--fs-xs); }
 .art-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 10px; }
-.art-thumb { position: relative; min-width: 0; aspect-ratio: 4 / 5; overflow: hidden; border: 1px solid var(--stroke-soft); border-radius: 6px; padding: 0; background: var(--dim); }
-.art-thumb img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.art-thumb { position: relative; min-width: 0; aspect-ratio: 4 / 5; overflow: hidden; border: 1px solid var(--stroke-soft); border-radius: 6px; padding: 0; background: var(--row); }
+.art-thumb img { width: 100%; height: 100%; display: block; object-fit: cover; opacity: 0; transition: opacity 160ms ease; }
+.art-thumb img.loaded { opacity: 1; }
 .art-thumb span { position: absolute; inset: auto 0 0; overflow: hidden; padding: 12px 4px 4px; background: linear-gradient(transparent, rgba(0, 0, 0, 0.88)); color: white; font-size: var(--fs-xs); text-overflow: ellipsis; white-space: nowrap; }
 .art-thumb:hover { border-color: var(--gold); }
 .art-thumb.selected { border: 2px solid var(--gold-hover); box-shadow: 0 0 0 2px rgba(255, 216, 138, 0.16); }
@@ -358,6 +361,12 @@ button.keyword-chip:hover { border-color: var(--gold-hover); color: var(--headin
 #canvas-shell { position: relative; width: min(100%, 520px); aspect-ratio: 520 / 660; flex: 0 0 auto; overflow: hidden; border: 1px solid #403552; border-radius: 8px; background: #0a0812; box-shadow: 0 24px 52px rgba(0, 0, 0, 0.4); }
 #canvas-shell canvas { width: 100%; height: 100%; display: block; }
 .loading-note { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; color: var(--muted); font-size: var(--fs-md); }
+/* Before the renderer starts: a card-shaped placeholder in the game's row colour, not an empty black box. */
+.loading-note::before { content: ''; position: absolute; inset: 4.5% 5.5%; border: 1px solid var(--stroke); border-radius: 14px; background: linear-gradient(110deg, var(--row) 40%, var(--emphasis) 50%, var(--row) 60%) 0 0 / 250% 100%; animation: forge-shimmer 1.6s linear infinite; }
+.loading-note span { position: relative; }
+.art-thumb:has(img:not(.loaded))::before { content: ''; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 40%, rgba(44, 35, 68, 0.9) 50%, transparent 60%) 0 0 / 250% 100%; animation: forge-shimmer 1.6s linear infinite; }
+@keyframes forge-shimmer { from { background-position: 100% 0; } to { background-position: -150% 0; } }
+@media (prefers-reduced-motion: reduce) { .loading-note::before, .art-thumb::before { animation: none; } }
 .canvas-drop-overlay { position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; border: 2px dashed transparent; background: transparent; color: transparent; pointer-events: none; transition: 100ms ease; }
 .dragging-keyword .canvas-drop-overlay { border-color: var(--gold); background: rgba(10, 8, 18, 0.68); color: var(--gold); pointer-events: auto; }
 .applied-keywords { width: min(100%, 520px); min-height: 52px; align-items: center; justify-content: center; margin-top: 8px; padding: 9px; border: 1px dashed var(--stroke); border-radius: 7px; background: rgba(22, 18, 38, 0.66); }
@@ -464,7 +473,19 @@ summary.warning-head:hover { color: var(--heading); }
 .ghost-button:hover:not(:disabled), .art-pager button:hover:not(:disabled) { border-color: var(--gold-hover); color: var(--heading); }
 .ghost-button.danger:hover { border-color: var(--danger); color: var(--danger); }
 .action-message { min-height: 15px; margin: 7px 0 0; color: var(--body); font-size: var(--fs-sm); line-height: 1.45; }
-.action-message.problem { color: var(--danger); }
+.action-message.problem { padding-left: 10px; border-left: 3px solid var(--danger); color: var(--danger); }
+.autosave-status { color: var(--muted); font-size: var(--fs-sm); transition: color 300ms ease; }
+.autosave-status::before { content: ''; display: inline-block; width: 4px; height: 8px; margin: 0 8px 2px 0; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); }
+.autosave-status.fresh { color: var(--success); transition: none; }
+/* The Forge's own confirm box, in the game's panel style. */
+.forge-confirm { width: min(420px, calc(100vw - 32px)); padding: 20px; border: 1px solid var(--stroke); border-radius: 8px; background: var(--panel); color: var(--body); box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55); }
+.forge-confirm::backdrop { background: rgba(10, 8, 18, 0.72); }
+.forge-confirm p { margin: 0 0 18px; color: var(--heading); font-size: var(--fs-lg); line-height: 1.45; }
+.forge-confirm-buttons { display: flex; justify-content: flex-end; gap: 10px; }
+.forge-confirm-buttons .ghost-button { min-height: 40px; padding: 8px 18px; font-size: var(--fs-md); }
+/* The game's danger button: for the yes of a step that can't be undone. */
+.danger-button { min-height: 40px; padding: 8px 18px; border: 1px solid var(--danger-armed); border-radius: 6px; background: var(--danger-bg); color: var(--danger); font-size: var(--fs-md); font-weight: 700; }
+.danger-button:hover { border: 2px solid var(--danger); padding: 7px 17px; }
 .share-fallback { margin-top: 6px; font-size: var(--fs-sm); color: var(--body); }
 
 .set-panel { width: min(100%, 520px); margin-top: 14px; padding: 14px; border: 1px solid var(--stroke); border-radius: 8px; background: rgba(16, 13, 29, 0.95); }

@@ -244,7 +244,7 @@
           <div id="mana-preview" class="mana-preview" aria-label="Printed mana cost"></div>
         </div>
         <div id="canvas-shell">
-          <p class="loading-note">Loading the card...</p>
+          <p class="loading-note"><span>Loading the card…</span></p>
           <div id="canvas-drop-overlay" class="canvas-drop-overlay">Drop keyword on the card</div>
         </div>
         <div id="applied-keywords" class="applied-keywords" aria-label="Applied keywords">
@@ -269,7 +269,7 @@
         </div>
 
         <section class="set-panel" aria-labelledby="set-heading">
-          <div class="section-heading"><h2 id="set-heading">Your Set</h2></div>
+          <div class="section-heading"><h2 id="set-heading">Your Set</h2><span id="autosave-status" class="autosave-status" hidden>Saved in this browser</span></div>
           <label>Set Name<input id="set-name" type="text" maxlength="60" /></label>
           <ol id="set-list" class="set-list" aria-label="Cards in your set"></ol>
           <p id="set-empty" class="empty-editor set-empty">No cards yet. Design one and press Save to Set.</p>
@@ -337,6 +337,16 @@
         </section>
       </aside>
     </main>
+
+    <dialog id="forge-confirm" class="forge-confirm" aria-labelledby="forge-confirm-text">
+      <form method="dialog">
+        <p id="forge-confirm-text"></p>
+        <div class="forge-confirm-buttons">
+          <button id="forge-confirm-no" class="ghost-button" type="submit" value="no">Cancel</button>
+          <button id="forge-confirm-yes" class="danger-button" type="submit" value="yes">Continue</button>
+        </div>
+      </form>
+    </dialog>
 
     <script type="module" src="/src/forge/main.ts"></script>
   </body>
