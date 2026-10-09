@@ -1197,7 +1197,7 @@ Numbered so rulings can cite them. Recommendations are the first option.
   design, the cadence rule that a Large release carries little besides its
   set and engine feature. If 2.0 needs relief, Story Mode stays the spine's
   separable piece. The itch.io launch has no plan yet; one is owed when 2.0
-  opens (see the roadmap entry).
+  opens (see the roadmap entry). Revised 2026-10-08 ([plan-2.0.md](plan-2.0.md), P2): 2.0 ships on bladedarlings.com and the desktop build first; the itch.io launch is a 2.0.x once 2.0 is stable on the site. The itch build target lands in 2.0 behind a flag. Mobile stays in 2.0.
 - **D5 Usage audit U2-U5. RULED: the audit plan's own answers.** Code in
   `scripts/`; no passive mechanics in waves 0-2; no usage gate in CI until a
   full audit shows what normal is; Hard first, then one Medium pass for the

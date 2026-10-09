@@ -1,6 +1,15 @@
-<!-- source-of-truth: docs/plan-expansion-slate.md, docs/keyword-map.md · last-verified: 2026-07-26 · concept draft — overplanned candidate list for a future set; nothing here is implemented -->
+<!-- source-of-truth: docs/plan-expansion-slate.md, docs/keyword-map.md · last-verified: 2026-10-08 · concept draft, RETIRED 2026-10-08 (2.0 P4); kept as a candidate pool — overplanned candidate list for a future set; nothing here is implemented -->
 
 # Core Set II: Crown and Olympus
+
+**Status: retired 2026-10-08 (owner ruling, the 2.0 plan's P4).** This is
+the July pool: sized for 120 cards, with no Beastkin, written before the
+Warchest, the 1.8.5 scorer, Darlings' command zone and the keyword rule. The
+2.0 refresh authors the set fresh from the identity brief
+([core-set-2-brief.md](core-set-2-brief.md)) and the coverage ledger, as
+Drowned Deep and First Dawn did; this pool stays a candidate source the new
+overplan may draw on. Its "Crown" is the Mandate (P5, ruled), and its Oath (now Sworn) form
+("a legendary [leader]") is replaced by any legendary creature (P6, ruled).
 
 ## Set Identity
 

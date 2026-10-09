@@ -62,7 +62,11 @@ branch / commit / PR / merge flow: [docs/git-workflow.md](docs/git-workflow.md).
 - Save schema changes bump `SaveData.version` with a real `migrate()` +
   test; the storage key `darlingblades.save.v1` is a slot name, not a version
   (the legacy `waifutcg.save.v1` key is still read once for save migration).
-- Test gate floors only ratchet upward, with fresh measured numbers.
+- Test gate floors only ratchet upward, with fresh measured numbers. One
+  owner-approved exception (2026-10-08, [plan-2.0.md](docs/plan-2.0.md) P8):
+  when 2.0 raises starting life, every gate floor is reset once from fresh
+  200-seed readings at the new total, each one that drops listed in the PR;
+  then they ratchet up again.
 - Never `setInteractive` a scaled Container; more traps in the playbook §11.
 
 ## Where things live
