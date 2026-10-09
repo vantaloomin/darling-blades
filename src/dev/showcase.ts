@@ -40,7 +40,13 @@ declare global {
      * timer and tween runs on Phaser's clock, so the footage is smooth at any
      * fps however slowly the machine draws.
      */
-    __showcaseStepper?: { begin(fps: number): void; step(frames?: number): string | undefined };
+    __showcaseStepper?: {
+      begin(fps: number): void;
+      /** Advance and draw frames; returns the showcase state. */
+      step(frames?: number): string | undefined;
+      /** Advance without drawing (cheap): fast-forward to the next shot. */
+      skip(frames: number): string | undefined;
+    };
   }
 }
 
@@ -57,6 +63,13 @@ function installStepper(game: Phaser.Game): void {
       for (let i = 0; i < frames; i++) {
         time += frameMs;
         game.step(time, frameMs);
+      }
+      return window.__showcase?.state;
+    },
+    skip(frames: number) {
+      for (let i = 0; i < frames && window.__showcase?.state === 'playing'; i++) {
+        time += frameMs;
+        game.headlessStep(time, frameMs);
       }
       return window.__showcase?.state;
     },

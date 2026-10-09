@@ -24,14 +24,23 @@
 //   --out <file>      the MP4 (default showcase/<name>.mp4)
 //   --browser <path>  Chrome or Edge (default: $CHROME, then the usual paths)
 //   --headed          show the browser window instead of running headless
+//   --ranges a-b,...  film only these spans (seconds of footage, e.g. 12-18,40-47),
+//                     one MP4 each (showcase/<name>-<a>-<b>.mp4); the game
+//                     fast-forwards between them without drawing
+//   --preview [s]     no video: one small still every s seconds (default 2) and
+//                     contact sheets in showcase/<name>-preview/, to pick ranges
 //   --realtime        record the live screencast instead of stepping frames
 //                     (frame rate follows the machine; ffmpeg holds each frame
 //                     for its real duration)
+//
+// Drawing is the slow part on a machine with no GPU (a cloud box draws about
+// one 1080p frame a second late in a busy game), so there the usual flow is
+// --preview, then --ranges for the shots a trailer uses.
 
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 
 function parseArgs(argv) {
   const opts = new Map();
@@ -58,6 +67,12 @@ const fps = Number(opts.get('fps') ?? 60);
 const holdMs = Number(opts.get('hold') ?? 3) * 1000;
 const maxMs = Number(opts.get('max') ?? 900) * 1000;
 const out = resolve(opts.get('out') ?? join('showcase', `${name}.mp4`));
+const previewEvery = opts.has('preview') ? Number(opts.get('preview') === 'true' ? 2 : opts.get('preview')) : null;
+const ranges = (opts.get('ranges') ?? '').split(',').filter(Boolean).map((r) => {
+  const [a, b] = r.split('-').map(Number);
+  if (!(a >= 0 && b > a)) throw new Error(`Bad range "${r}"; use start-end in seconds, e.g. 12-18`);
+  return { a, b, out: resolve(join('showcase', `${name}-${a}-${b}.mp4`)), frames: [] };
+});
 const width = Math.round(1280 * scale);
 const height = Math.round(720 * scale);
 
@@ -136,6 +151,46 @@ function runFfmpeg(args) {
   });
 }
 
+/** Hold each frame for its real duration, then resample to a constant rate. */
+async function encode(frames, file) {
+  const list = frames.map((f, i) => {
+    const next = frames[i + 1]?.t ?? f.t + 1 / fps;
+    return `file '${f.file.replace(/\\/g, '/')}'\nduration ${Math.max(next - f.t, 0.001).toFixed(4)}`;
+  });
+  list.push(`file '${frames[frames.length - 1].file.replace(/\\/g, '/')}'`);
+  const listFile = `${frames[0].file}.txt`;
+  writeFileSync(listFile, list.join('\n'));
+  mkdirSync(resolve(file, '..'), { recursive: true });
+  const seconds = frames[frames.length - 1].t - frames[0].t;
+  console.log(`${frames.length} frames over ${seconds.toFixed(1)}s; encoding ${file}`);
+  await runFfmpeg([
+    '-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', listFile,
+    '-vf', `fps=${fps},scale=${width}:${height}:flags=lanczos,format=yuv420p`,
+    '-c:v', 'libx264', '-preset', 'slow', '-crf', '16', '-movflags', '+faststart', file,
+  ]);
+  console.log(`Wrote ${file}`);
+}
+
+/** Keep the preview stills, and tile them into contact sheets of 40 seconds each. */
+async function writePreview(stills) {
+  const dir = resolve(join('showcase', `${name}-preview`));
+  rmSync(dir, { recursive: true, force: true });
+  mkdirSync(dir, { recursive: true });
+  for (const still of stills) copyFileSync(still.file, join(dir, basename(still.file)));
+  const perSheet = 20;
+  for (let i = 0; i < stills.length; i += perSheet) {
+    const sheet = stills.slice(i, i + perSheet);
+    const list = join(dir, 'sheet.txt');
+    writeFileSync(list, sheet.map((f) => `file '${join(dir, basename(f.file)).replace(/\\/g, '/')}'`).join('\n'));
+    const file = join(dir, `sheet-${String(Math.round(sheet[0].t)).padStart(4, '0')}s.jpg`);
+    await runFfmpeg(['-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', list,
+      '-vf', 'tile=5x4:padding=6:color=black', '-frames:v', '1', '-q:v', '3', file]);
+    rmSync(list);
+    console.log(`${basename(file)}: ${sheet[0].t}s to ${sheet[sheet.length - 1].t}s, left to right, top to bottom`);
+  }
+  console.log(`Wrote ${stills.length} stills and contact sheets to ${dir}`);
+}
+
 async function main() {
   const port = 9333 + Math.floor(Math.random() * 500);
   const profile = mkdtempSync(join(tmpdir(), 'showcase-profile-'));
@@ -211,48 +266,76 @@ async function main() {
       await cdp.send('Page.stopScreencast', {}, sessionId);
     } else {
       await cdp.send('Runtime.evaluate', { expression: `window.__showcaseStepper.begin(${fps})` }, sessionId);
-      console.log(`Recording frame by frame at ${fps} fps...`);
+      const evalState = async (expression) =>
+        (await cdp.send('Runtime.evaluate', { expression, returnByValue: true }, sessionId)).result.value;
+      const shoot = async (quality, scaleDown = 1) => {
+        const shot = await cdp.send('Page.captureScreenshot', {
+          format: 'jpeg', quality, optimizeForSpeed: true,
+          ...(scaleDown === 1 ? {} : { clip: { x: 0, y: 0, width, height, scale: scaleDown } }),
+        }, sessionId);
+        return Buffer.from(shot.data, 'base64');
+      };
+      // What to film: every frame (the default), the --ranges, or a still every few seconds.
+      const spans = previewEvery ? [] : ranges.length > 0 ? ranges : [{ a: 0, b: Infinity, out, frames }];
       const maxFrames = Math.round((maxMs / 1000) * fps);
       let holdFrames = Math.round((holdMs / 1000) * fps);
       const wallStart = Date.now();
-      for (let i = 0; i < maxFrames; i++) {
-        const { result } = await cdp.send('Runtime.evaluate', { expression: 'window.__showcaseStepper.step(1)', returnByValue: true }, sessionId);
-        s = result.value;
-        const shot = await cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: 92, optimizeForSpeed: true }, sessionId);
-        const file = join(frameDir, `${String(frames.length).padStart(6, '0')}.jpg`);
-        writeFileSync(file, Buffer.from(shot.data, 'base64'));
-        frames.push({ file, t: i / fps });
-        if (i % (fps * 10) === 0 && i > 0) {
-          console.log(`  ${i / fps}s of footage (${((Date.now() - wallStart) / 1000).toFixed(0)}s wall)`);
+      let lastLog = 0;
+      let i = 0;
+      while (i < maxFrames) {
+        const t = i / fps;
+        let advanced = 0;
+        const span = spans.find((r) => t >= r.a && t < r.b);
+        if (previewEvery && i % Math.round(previewEvery * fps) === 0) {
+          s = await evalState('window.__showcaseStepper.step(1)');
+          const file = join(frameDir, `t${String(Math.round(t)).padStart(4, '0')}.jpg`);
+          writeFileSync(file, await shoot(70, 0.4));
+          frames.push({ file, t });
+          advanced = 1;
+        } else if (span) {
+          s = await evalState('window.__showcaseStepper.step(1)');
+          const file = join(frameDir, `${String(i).padStart(6, '0')}.jpg`);
+          writeFileSync(file, await shoot(92));
+          span.frames.push({ file, t });
+          advanced = 1;
+        } else {
+          // Fast-forward, without drawing, to the next frame that is filmed.
+          const nextT = previewEvery
+            ? (Math.floor(t / previewEvery) + 1) * previewEvery
+            : Math.min(...spans.filter((r) => r.a > t).map((r) => r.a));
+          if (!Number.isFinite(nextT)) break;
+          const n = Math.max(1, Math.round(nextT * fps) - i);
+          s = await evalState(`window.__showcaseStepper.skip(${n})`);
+          advanced = n;
         }
-        if ((s === 'done' || s === 'failed') && holdFrames-- <= 0) break;
+        if (t - lastLog >= 10) {
+          lastLog = t;
+          console.log(`  ${Math.round(t)}s of game time (${((Date.now() - wallStart) / 1000).toFixed(0)}s wall)`);
+        }
+        i += advanced;
+        // Keep filming for --hold seconds of game time after the duel ends.
+        if (s === 'done' || s === 'failed') {
+          holdFrames -= advanced;
+          if (holdFrames <= 0) break;
+        }
       }
+      if (previewEvery) await writePreview(frames);
     }
     if (s === 'failed') console.error('The duel stopped early (replay failed); keeping what was recorded');
   } finally {
     cdp.close();
     browser.kill();
   }
-  if (frames.length < 2) throw new Error('No frames were recorded');
-  // Hold each frame for its real duration, then resample to a constant rate.
-  const list = frames.map((f, i) => {
-    const next = frames[i + 1]?.t ?? f.t + 1 / fps;
-    return `file '${f.file.replace(/\\/g, '/')}'\nduration ${Math.max(next - f.t, 0.001).toFixed(4)}`;
-  });
-  list.push(`file '${frames[frames.length - 1].file.replace(/\\/g, '/')}'`);
-  const listFile = join(frameDir, 'frames.txt');
-  writeFileSync(listFile, list.join('\n'));
-  mkdirSync(resolve(out, '..'), { recursive: true });
-  const seconds = frames[frames.length - 1].t - frames[0].t;
-  console.log(`${frames.length} frames over ${seconds.toFixed(1)}s (${(frames.length / seconds).toFixed(1)} fps captured); encoding ${out}`);
-  await runFfmpeg([
-    '-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', listFile,
-    '-vf', `fps=${fps},scale=${width}:${height}:flags=lanczos,format=yuv420p`,
-    '-c:v', 'libx264', '-preset', 'slow', '-crf', '16', '-movflags', '+faststart', out,
-  ]);
+  const outputs = previewEvery ? [] : ranges.length > 0 && !opts.get('realtime') ? ranges : [{ out, frames }];
+  for (const target of outputs) {
+    if (target.frames.length < 2) {
+      console.error(`No frames recorded for ${target.out} (did the duel end first?)`);
+      continue;
+    }
+    await encode(target.frames, target.out);
+  }
   rmSync(frameDir, { recursive: true, force: true });
-  rmSync(profile, { recursive: true, force: true });
-  console.log(`Wrote ${out}`);
+  rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
 }
 
 main().catch((error) => {

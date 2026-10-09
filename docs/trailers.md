@@ -35,9 +35,10 @@ node scripts/showcase-capture.mjs --name hel-vs-marsh
 
 This opens the page in headless Chrome or Edge and waits until the board is built. It then stops the game's own loop and steps it one fixed frame at a time, taking a screenshot of each. Every timer and tween in the duel runs on Phaser's clock, so the result is a smooth 60 fps MP4 at `showcase/<name>.mp4` however slowly the machine draws.
 
-- On a cloud box with no GPU this runs at about 3 frames a second.
-- A gaming PC is far faster.
+- On a cloud box with no GPU a busy late-game frame takes about a second to draw at 1080p. A gaming PC is far faster.
 - `--fps 30` halves the work.
+- `--preview 2` films nothing: it takes one small still every 2 seconds of footage, fast-forwarding between them, and tiles them into contact sheets in `showcase/<name>-preview/` (each sheet names the seconds it covers). It takes under a minute, so it is the quick way to find the moments worth filming.
+- `--ranges 23-27,41-48` then films only those spans, one MP4 each (`showcase/<name>-23-27.mp4`), fast-forwarding between them without drawing. Keep `--speed` the same as the preview's so the seconds line up.
 - `--realtime` records the live screen instead, at whatever rate the machine paints.
 - The game's audio is not recorded. Trailer music and sound are laid on in the edit.
 
@@ -55,14 +56,14 @@ Each trailer is a HyperFrames project under `trailer/`. The first one is `traile
 ```
 cd trailer/teaser
 npm install                 # GSAP, used by the composition
-node prepare.mjs --footage showcase/hel-vs-marsh.mp4
+node prepare.mjs --footage showcase/hel-vs-marsh.mp4   # or several: --footage a.mp4,b.mp4,c.mp4
 npm run check               # lint, runtime, layout and contrast checks
 npx hyperframes@0.8.143 render --output renders/teaser.mp4
 ```
 
-`prepare.mjs` copies the card art, scene art, fonts and footage that the composition uses into `assets/`. Each gameplay shot picks its moment with `data-media-start` (seconds into the footage), so a new recording usually needs those three numbers retuned and nothing else.
+`prepare.mjs` copies the card art, scene art, fonts and footage that the composition uses into `assets/`. Given several clips (from `--ranges`), it joins them into one `assets/footage.mp4` and prints where each one starts. Each gameplay shot picks its moment with `data-media-start` (seconds into that footage), so a new recording usually needs those three numbers retuned and nothing else.
 
-Rendering needs Chrome and FFmpeg. `npx hyperframes doctor` checks both, and `npx hyperframes browser ensure` fetches the headless Chrome it prefers.
+Rendering needs Chrome and FFmpeg (with ffprobe, which joining clips uses). `npx hyperframes doctor` checks both, and `npx hyperframes browser ensure` fetches the headless Chrome it prefers.
 
 ## Copy and claims
 
