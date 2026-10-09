@@ -53,8 +53,11 @@ import { fxAvailable, fxPolicy } from '../ui/fx/FXSupport';
 import {
   COLLECTION_SORT_OPTIONS,
   DEFAULT_COLLECTION_SORT,
+  SORT_DIRECTION_LABELS,
   sortCollectionCards,
-  type CollectionSortSelection,
+  sortDirectionLabel,
+  type CollectionSort,
+  type CollectionSortKey,
 } from '../ui/collectionSort';
 import { addKeywordGlossaryPanel } from '../ui/KeywordGlossaryPanel';
 import { rarityLine } from '../ui/CardZoomPreview';
@@ -134,7 +137,7 @@ export class CollectionScene extends Phaser.Scene {
   // stays neutral so the pure filter + its tests are unaffected.
   private state: CollectionFilterState = { ...defaultFilterState(), ownedOnly: true };
   private page = 0;
-  private sortSelection: CollectionSortSelection = DEFAULT_COLLECTION_SORT;
+  private sortSelection: CollectionSort = { ...DEFAULT_COLLECTION_SORT };
   /** Interactive thumbs of the current page (ModalGuard targets). */
   private cells: Phaser.GameObjects.GameObject[] = [];
   private guardTargets: Phaser.GameObjects.GameObject[] = [];
@@ -192,7 +195,7 @@ export class CollectionScene extends Phaser.Scene {
   private build(): void {
     this.state = { ...defaultFilterState(), ownedOnly: true, ...this.fixture?.filter };
     this.page = 0;
-    this.sortSelection = DEFAULT_COLLECTION_SORT;
+    this.sortSelection = { ...DEFAULT_COLLECTION_SORT };
     this.cells = [];
     this.guardTargets = [];
     this.guard = new ModalGuard();
@@ -263,9 +266,18 @@ export class CollectionScene extends Phaser.Scene {
       y: header.filterTop + theme.control.minHitHeight / 2,
       sortControl: {
         options: COLLECTION_SORT_OPTIONS,
-        get: () => this.sortSelection,
+        get: () => this.sortSelection.key,
+        // A new criterion starts in its own default direction, so Name never
+        // opens on Z to A because Card rarity was flipped (UI review 2026-10-09).
         set: (value) => {
-          this.sortSelection = value as CollectionSortSelection;
+          this.sortSelection = { key: value as CollectionSortKey, reversed: false };
+        },
+        direction: {
+          label: () => sortDirectionLabel(this.sortSelection),
+          labels: SORT_DIRECTION_LABELS,
+          flip: () => {
+            this.sortSelection = { ...this.sortSelection, reversed: !this.sortSelection.reversed };
+          },
         },
       },
       onChange: () => {

@@ -5,6 +5,7 @@ import { variantKey } from '../../src/meta/variants';
 import {
   COLLECTION_SORT_OPTIONS,
   DEFAULT_COLLECTION_SORT,
+  SORT_DIRECTION_LABELS,
   sortCollectionCards,
 } from '../../src/ui/collectionSort';
 
@@ -41,11 +42,11 @@ describe('collection sort choices', () => {
       rare: { [variantKey({ frame: 'rainbow', holo: 'void', fullArt: true })]: 1 },
     };
     const cards = [card('plain', 'Plain', 'c'), card('rare', 'Rare finish', 'c')];
-    expect(sortCollectionCards(cards, 'variant-rarity-high', save).map((entry) => entry.id)).toEqual([
+    expect(sortCollectionCards(cards, { key: 'variant-rarity', reversed: false }, save).map((entry) => entry.id)).toEqual([
       'rare',
       'plain',
     ]);
-    expect(sortCollectionCards(cards, 'variant-rarity-low', save).map((entry) => entry.id)).toEqual([
+    expect(sortCollectionCards(cards, { key: 'variant-rarity', reversed: true }, save).map((entry) => entry.id)).toEqual([
       'plain',
       'rare',
     ]);
@@ -54,8 +55,8 @@ describe('collection sort choices', () => {
   it('supports both name directions with deterministic ties', () => {
     const save = freshSave(0);
     const cards = [card('z', 'Twin', 'c'), card('a', 'Twin', 'c'), card('m', 'Alpha', 'c')];
-    expect(sortCollectionCards(cards, 'name-az', save).map((entry) => entry.id)).toEqual(['m', 'a', 'z']);
-    expect(sortCollectionCards(cards, 'name-za', save).map((entry) => entry.id)).toEqual(['z', 'a', 'm']);
+    expect(sortCollectionCards(cards, { key: 'name', reversed: false }, save).map((entry) => entry.id)).toEqual(['m', 'a', 'z']);
+    expect(sortCollectionCards(cards, { key: 'name', reversed: true }, save).map((entry) => entry.id)).toEqual(['z', 'a', 'm']);
   });
 
   it('groups by set in either release direction, then card rarity, then name', () => {
@@ -68,7 +69,7 @@ describe('collection sort choices', () => {
       card('fd-c2', 'Alpha', 'c', 'first-dawn'),
       card('base-ur', 'Delta', 'ur', 'base'),
     ];
-    expect(sortCollectionCards(cards, 'set-newest', save).map((entry) => entry.id)).toEqual([
+    expect(sortCollectionCards(cards, { key: 'set', reversed: false }, save).map((entry) => entry.id)).toEqual([
       'fd-ur',
       'fd-c2',
       'fd-c',
@@ -76,7 +77,7 @@ describe('collection sort choices', () => {
       'base-ur',
       'base-c',
     ]);
-    expect(sortCollectionCards(cards, 'set-oldest', save).map((entry) => entry.id)).toEqual([
+    expect(sortCollectionCards(cards, { key: 'set', reversed: true }, save).map((entry) => entry.id)).toEqual([
       'base-ur',
       'base-c',
       'rag-ur',
@@ -87,6 +88,7 @@ describe('collection sort choices', () => {
   });
 
   it('keeps every player-facing choice free of em-dashes', () => {
-    expect(COLLECTION_SORT_OPTIONS.every((option) => !option.label.includes('—'))).toBe(true);
+    const labels = [...COLLECTION_SORT_OPTIONS.map((option) => option.label), ...SORT_DIRECTION_LABELS];
+    expect(labels.every((label) => !label.includes('—'))).toBe(true);
   });
 });
