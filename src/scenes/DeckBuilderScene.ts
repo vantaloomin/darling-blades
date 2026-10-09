@@ -68,6 +68,7 @@ import { Services } from '../meta/services';
 import { PLAIN_VARIANT, TIER_LABEL, variantKey, type CardVariant } from '../meta/variants';
 import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestures';
 import { makeCardThumb, thumbArtWanted } from '../ui/CardThumbCache';
+import { CARD_H } from '../ui/CardView';
 import { CardZoomPreview } from '../ui/CardZoomPreview';
 import { showDarlingsTutorial } from '../ui/DarlingsTutorial';
 import { computeDeckStats, curveBars, deckCountsLine, deckPipCounts, PIE_COLORS } from '../ui/deckStats';
@@ -165,6 +166,8 @@ const POOL_SEARCH_X = FILTER_BUTTON_X - FILTER_BUTTON_WIDTH / 2 - theme.space(3)
 /** The pool-filter popover opens on the title-safe frame's left edge. */
 const FILTER_PANEL = { x: theme.design.safeLeft, y: 82, width: 300, height: 554, inset: 24 } as const;
 const DECK_NAME_MAX_LENGTH = 24;
+/** The Darling chooser: three cards a page at a readable size, each inspectable on hover (UI review finding 26). */
+const DARLING_PICKER = { width: 1040, rulesWidth: 920, cardScale: 0.5, pitch: 300, nameWidth: 260 } as const;
 
 export interface DeckBuilderSceneData {
   deckId?: string;
@@ -1338,16 +1341,19 @@ export class DeckBuilderScene extends Phaser.Scene {
   private showDarlingPicker(): void {
     this.closeFilterPanel();
     this.setSearchInputVisible(false);
-    this.zoom.setSuppressed(true);
+    // The zoom stays live here: it draws above the inspect layer, so hovering
+    // a candidate shows her full card (UI review finding 26).
+    this.zoom.cancel();
     const candidates = listOwnedLegendaryCreatures(CARD_DB, this.save);
     const measure = this.add.text(0, 0, '', { fontFamily: theme.fonts.ui, fontSize: theme.type.caption,
-      wordWrap: { width: 208 }, align: 'center' }).setVisible(false);
+      wordWrap: { width: DARLING_PICKER.nameWidth }, align: 'center' }).setVisible(false);
     const nameHeight = Math.max(menuLineHeight(theme.type.caption), ...candidates.map((card) => { measure.setText(card.name); return measure.height; }));
     measure.destroy();
     const rules = this.add.text(0, 0, DARLINGS_RULES_COPY, { fontFamily: theme.fonts.ui, fontSize: theme.type.caption,
-      color: theme.colors.body, align: 'center', wordWrap: { width: 700 } }).setOrigin(0.5, 0);
-    const galleryHeight = rules.height + theme.space(4) + 420 * 0.22 + theme.space(3) + nameHeight + theme.space(3) + theme.control.minHitHeight;
-    const picker = menuNoticeLayout(850, menuLineHeight(theme.type.h1), galleryHeight);
+      color: theme.colors.body, align: 'center', wordWrap: { width: DARLING_PICKER.rulesWidth } }).setOrigin(0.5, 0);
+    const thumbH = CARD_H * DARLING_PICKER.cardScale;
+    const galleryHeight = rules.height + theme.space(4) + thumbH + theme.space(3) + nameHeight + theme.space(3) + theme.control.minHitHeight;
+    const picker = menuNoticeLayout(DARLING_PICKER.width, menuLineHeight(theme.type.h1), galleryHeight);
     const shell = modalShell(this, {
       ...picker,
       dimAlpha: 0.56,
@@ -1422,16 +1428,19 @@ export class DeckBuilderScene extends Phaser.Scene {
         return;
       }
       visible.forEach((candidate, index) => {
-        const position = gridPosition(index, 3, 400, shell.contentBounds.y + rules.height + theme.space(4) + 420 * 0.22 / 2, 240, 0);
-        const thumb = makeCardThumb(this, position.x, position.y, candidate, 0.22, undefined, this.ownedVariantFor(candidate.id));
-        const name = this.add.text(position.x, position.y + 420 * 0.22 / 2 + theme.space(3), candidate.name, {
+        const position = gridPosition(index, 3, 640 - DARLING_PICKER.pitch, shell.contentBounds.y + rules.height + theme.space(4) + thumbH / 2, DARLING_PICKER.pitch, 0);
+        const variant = this.ownedVariantFor(candidate.id);
+        const thumb = makeCardThumb(this, position.x, position.y, candidate, DARLING_PICKER.cardScale, undefined, variant);
+        thumb.setInteractive({ useHandCursor: true });
+        this.zoom.attach(thumb, candidate, variant);
+        const name = this.add.text(position.x, position.y + thumbH / 2 + theme.space(3), candidate.name, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           color: theme.colors.body,
         }).setOrigin(0.5);
         name.setOrigin(0.5, 0);
-        fitMenuName(name, 208, Number.POSITIVE_INFINITY);
-        const button = themedButton(this, position.x, position.y + 420 * 0.22 / 2 + theme.space(3) + nameHeight + theme.space(3) + theme.control.minHitHeight / 2, 'Choose', {
+        fitMenuName(name, DARLING_PICKER.nameWidth, Number.POSITIVE_INFINITY);
+        const button = themedButton(this, position.x, position.y + thumbH / 2 + theme.space(3) + nameHeight + theme.space(3) + theme.control.minHitHeight / 2, 'Choose', {
           variant: 'primary',
           size: 'sm',
           minWidth: 108,
