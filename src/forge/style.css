@@ -12,6 +12,8 @@
   --panel-deep: #100d1d;
   --stroke: #4a3f6e;
   --stroke-soft: #302743;
+  /* Field borders use the game's high-contrast stroke so inputs clear 3:1 against the panel. */
+  --field-stroke: #7768a8;
   --ghost: #241d3a;
   --emphasis: #2c2344;
   --row: #211a34;
@@ -114,6 +116,7 @@ h2, h3 { font-family: Cinzel, Georgia, serif; font-weight: 700; }
 .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .section-note { color: var(--muted); font-size: var(--fs-sm); }
 .section-note.block { display: block; margin: 0 0 12px; line-height: 1.45; }
+.term-info { min-height: 2.9em; margin: 10px 0 0; padding: 8px 10px; border-left: 2px solid var(--stroke); color: var(--body); font-size: var(--fs-sm); line-height: 1.45; }
 .field-note { margin: 7px 0 0; color: var(--muted); font-size: var(--fs-sm); line-height: 1.45; }
 
 .field-grid { display: grid; gap: 10px; }
@@ -134,7 +137,7 @@ input, select, textarea {
   width: 100%;
   min-width: 0;
   min-height: 34px;
-  border: 1px solid var(--stroke);
+  border: 1px solid var(--field-stroke);
   border-radius: 6px;
   padding: 7px 9px;
   background: #141022;
@@ -145,13 +148,15 @@ input, select, textarea {
   line-height: 1.3;
   transition: border-color 100ms ease, background 100ms ease;
 }
-input:hover, select:hover, textarea:hover { border-color: #665887; }
+input:hover, select:hover, textarea:hover { border-color: #9a8cc8; }
 input:focus, select:focus, textarea:focus { border-color: var(--gold); background: #181328; }
 textarea { resize: vertical; line-height: 1.4; }
 input[type='checkbox'] { width: 16px; min-height: 16px; height: 16px; padding: 0; accent-color: var(--gold); }
 input[type='range'] { height: 28px; min-height: 28px; padding: 0; border: 0; background: transparent; accent-color: var(--gold); }
 
-.check-row { display: flex; align-items: center; min-height: 34px; gap: 8px; padding: 4px 0; color: var(--body); }
+.check-row { display: flex; align-items: center; min-height: 34px; gap: 8px; padding: 4px 0; color: var(--body); font-size: var(--fs-sm); font-weight: 400; }
+/* Beside a field, a checkbox lines up with the field's box, not with its label. */
+.field-grid > .check-row { align-self: end; }
 .check-row.compact { min-height: 26px; margin-top: 8px; }
 .range-field { margin-top: 10px; }
 .range-field > span { display: grid; grid-template-columns: 1fr 38px; align-items: center; gap: 8px; }
@@ -161,12 +166,17 @@ input[type='range'] { height: 28px; min-height: 28px; padding: 0; border: 0; bac
 .pip-stepper { display: grid; grid-template-columns: repeat(3, 1fr); align-items: center; gap: 3px; padding: 7px 4px; border: 1px solid var(--stroke-soft); border-radius: 6px; background: #120f20; }
 .pip-stepper > svg { grid-column: 1 / -1; justify-self: center; }
 .pip-stepper > span { grid-column: 1 / -1; color: var(--muted); font-size: var(--fs-xs); text-align: center; }
-.pip-stepper button { width: 100%; max-width: 24px; min-width: 0; justify-self: center; padding: 0; height: 24px; border: 1px solid var(--stroke); border-radius: 5px; background: var(--ghost); color: var(--heading); }
+.pip-stepper button { position: relative; width: 100%; max-width: 24px; min-width: 0; justify-self: center; padding: 0; height: 24px; border: 1px solid var(--stroke); border-radius: 5px; background: var(--ghost); color: var(--heading); }
 .pip-stepper output { color: var(--gold); font-size: var(--fs-md); text-align: center; font-variant-numeric: tabular-nums; }
 .mana-pip { width: 25px; height: 25px; display: block; }
 .mana-pip.small { width: 28px; height: 28px; }
 .mana-pip.tiny { width: 18px; height: 18px; }
-.color-identity-editor { display: grid; grid-template-columns: minmax(120px, 0.75fr) minmax(0, 1.25fr); align-items: end; gap: 8px; margin-top: 10px; }
+/* Pips inside a line of copy (the verdict, the hints) sit on the text like a word. */
+.mana-pip.inline, .generic-pip.inline { display: inline-flex; width: 1.4em; height: 1.4em; margin: 0 0.06em; vertical-align: -0.28em; }
+.generic-pip.inline { border-width: 1px; font-size: 0.85em; }
+/* The numeral draws in currentColor; keep it dark even inside copy that sets a light colour. */
+span.generic-pip.inline { color: #292d33; }
+.color-identity-editor { display: grid; grid-template-columns: minmax(160px, 0.75fr) minmax(0, 1.25fr); align-items: end; gap: 8px; margin-top: 10px; }
 .color-override-controls { display: grid; grid-template-columns: repeat(5, minmax(32px, 1fr)); gap: 4px; margin: 0; padding: 7px; border: 1px solid var(--stroke-soft); border-radius: 6px; }
 .color-override-controls legend { padding: 0 4px; color: var(--muted); font-size: var(--fs-xs); font-weight: 600; }
 .color-override-controls label { display: flex; align-items: center; justify-content: center; gap: 4px; color: var(--body); font-size: var(--fs-xs); font-weight: 400; }
@@ -174,7 +184,7 @@ input[type='range'] { height: 28px; min-height: 28px; padding: 0; border: 0; bac
 
 .small-button, .add-op-row button, .hint-row button {
   /* The game's "emphasis" button: gold words on the emphasis plate. */
-  min-height: 30px;
+  min-height: 32px;
   border: 1px solid var(--stroke);
   border-radius: 6px;
   padding: 6px 10px;
@@ -184,11 +194,11 @@ input[type='range'] { height: 28px; min-height: 28px; padding: 0; border: 0; bac
   font-weight: 700;
 }
 .small-button:hover:not(:disabled), .add-op-row button:hover:not(:disabled), .hint-row button:hover:not(:disabled) { border-color: var(--gold-hover); }
-.icon-button { width: 28px; height: 28px; border: 1px solid var(--stroke); border-radius: 6px; background: transparent; color: var(--muted); font-size: 18px; line-height: 1; }
+.icon-button { width: 32px; height: 32px; border: 1px solid var(--stroke); border-radius: 6px; background: transparent; color: var(--muted); font-size: 18px; line-height: 1; }
 .icon-button:hover { border-color: var(--danger); color: var(--danger); }
 
 .keyword-palette, .applied-keywords { display: flex; flex-wrap: wrap; gap: 6px; }
-.keyword-chip { position: relative; display: inline-flex; align-items: center; gap: 7px; min-height: 30px; border: 1px solid var(--stroke); border-radius: 6px; padding: 5px 8px; background: var(--ghost); color: var(--body); font-size: var(--fs-sm); }
+.keyword-chip { position: relative; display: inline-flex; align-items: center; gap: 7px; min-height: 32px; border: 1px solid var(--stroke); border-radius: 6px; padding: 5px 8px; background: var(--ghost); color: var(--body); font-size: var(--fs-sm); }
 button.keyword-chip:hover { border-color: var(--gold-hover); color: var(--heading); }
 .keyword-chip strong { color: var(--success); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
 .keyword-chip.negative strong { color: var(--danger); }
@@ -197,8 +207,11 @@ button.keyword-chip:hover { border-color: var(--gold-hover); color: var(--headin
 /* Plus the game's selected mark for chips and filter tabs (TRIGGER_SELECTED_MARK): a short gold bar under the label, so selection doesn't rest on colour alone. */
 .palette-chip.selected::after { content: ''; position: absolute; left: 25%; right: 25%; bottom: 3px; height: 2px; border-radius: 1px; background: var(--gold); }
 .applied-chip { border-color: #79628f; background: #251d38; }
-.applied-chip button { width: 20px; height: 20px; border: 0; background: transparent; color: var(--muted); font-size: 16px; }
+.applied-chip button { position: relative; width: 20px; height: 20px; border: 0; background: transparent; color: var(--muted); font-size: 16px; }
 .applied-chip button:hover { color: var(--danger); }
+/* Small buttons keep their look but get a hit area of at least 32px (44px on touch, below). */
+.pip-stepper button::after { content: ''; position: absolute; inset: -4px; }
+.applied-chip button::after { content: ''; position: absolute; inset: -6px; }
 .empty-drop-copy { color: var(--muted); font-size: var(--fs-sm); }
 
 .editor-list { display: grid; gap: 8px; }
@@ -232,12 +245,12 @@ button.keyword-chip:hover { border-color: var(--gold-hover); color: var(--headin
 .add-op-row { display: grid; grid-template-columns: 1fr auto; gap: 7px; margin-top: 9px; }
 .mini-keywords { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; margin: 5px 0 0; padding: 8px; border: 1px solid var(--stroke-soft); border-radius: 6px; }
 .mini-keywords legend { color: var(--muted); font-size: var(--fs-xs); font-weight: 600; }
-.mini-keywords label { display: flex; align-items: center; gap: 5px; color: var(--body); font-size: var(--fs-xs); font-weight: 400; }
+.mini-keywords label { display: flex; align-items: center; gap: 8px; color: var(--body); font-size: var(--fs-sm); font-weight: 400; }
 .static-editor { margin-top: 10px; }
 .chapter-editor { margin: 8px 0; padding: 9px; border-left: 2px solid #765b92; background: #100d1c; }
 
 .mechanic-toggles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
-.mechanic-toggles label, .mana-ability-colors label { display: flex; align-items: center; gap: 7px; min-height: 28px; color: var(--body); font-size: var(--fs-sm); font-weight: 400; }
+.mechanic-toggles label, .mana-ability-colors label { display: flex; align-items: center; gap: 8px; min-height: 28px; color: var(--body); font-size: var(--fs-sm); font-weight: 400; }
 .cost-editor { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin-bottom: 9px; }
 .cost-editor .field-note { grid-column: 1 / -1; }
 .cost-editor label { display: flex; align-items: center; gap: 4px; }
@@ -272,7 +285,7 @@ button.keyword-chip:hover { border-color: var(--gold-hover); color: var(--headin
 
 /* Art: Game Art / Your Image, and the framing controls for the player's own image. */
 .art-source-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 10px; padding: 3px; border: 1px solid var(--stroke-soft); border-radius: 7px; background: #120f20; }
-.art-source-switch label { position: relative; display: flex; align-items: center; justify-content: center; min-height: 30px; border-radius: 5px; color: var(--body); font-size: var(--fs-sm); cursor: pointer; }
+.art-source-switch label { position: relative; display: flex; align-items: center; justify-content: center; min-height: 32px; border-radius: 5px; color: var(--body); font-size: var(--fs-sm); cursor: pointer; }
 .art-source-switch input { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; margin: 0; opacity: 0; cursor: pointer; }
 .art-source-switch label:has(input:checked) { background: var(--emphasis); color: var(--gold); box-shadow: inset 0 0 0 1px #8d743c; }
 .art-source-switch label:has(input:focus-visible) { outline: 2px solid var(--gold-hover); outline-offset: 1px; }
@@ -285,10 +298,10 @@ button.keyword-chip:hover { border-color: var(--gold-hover); color: var(--headin
 .custom-art-controls { display: grid; gap: 2px; padding: 4px 10px 10px; border: 1px solid var(--stroke-soft); border-radius: 7px; background: rgba(20, 16, 34, 0.6); }
 .custom-art-controls .range-field > span { grid-template-columns: 1fr 46px; }
 .custom-art-buttons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-.custom-art-buttons .ghost-button { min-height: 30px; }
+.custom-art-buttons .ghost-button { min-height: 32px; }
 .custom-art-buttons [aria-pressed='true'] { background: var(--emphasis); border-color: var(--gold-hover); }
 .custom-art-background { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
-.custom-art-background input { width: 52px; min-height: 30px; padding: 2px; }
+.custom-art-background input { width: 52px; min-height: 32px; padding: 2px; }
 #canvas-shell.file-over { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(255, 216, 138, 0.35), 0 24px 52px rgba(0, 0, 0, 0.4); }
 
 .preview-column {
@@ -404,7 +417,7 @@ button.keyword-chip:hover { border-color: var(--gold-hover); color: var(--headin
 .editor-status { margin: 0 0 7px; color: var(--muted); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
 .action-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 .action-group { display: flex; flex-wrap: wrap; gap: 6px; }
-.primary-button, .ghost-button, .art-pager button, .set-footer .small-button { min-height: 30px; border-radius: 6px; padding: 6px 10px; font-size: var(--fs-sm); font-weight: 700; }
+.primary-button, .ghost-button, .art-pager button, .set-footer .small-button { min-height: 32px; border-radius: 6px; padding: 6px 10px; font-size: var(--fs-sm); font-weight: 700; }
 .primary-button { min-height: 40px; padding: 8px 18px; border: 1px solid var(--gold-hover); background: var(--gold); color: var(--on-gold); font-size: var(--fs-md); }
 .primary-button:hover:not(:disabled) { border: 2px solid var(--heading); padding: 7px 17px; }
 .ghost-button, .art-pager button { border: 1px solid var(--stroke); background: var(--ghost); color: var(--body); }
@@ -475,3 +488,21 @@ button.keyword-chip:hover { border-color: var(--gold-hover); color: var(--headin
 
 .qa-badge.pass { border-color: #5aa67b; color: #91ddb1; }
 .qa-badge.fail { border-color: #b85b68; color: #ffabb4; }
+
+/* Touch: every control is at least 44px, the game's minimum hit height. */
+@media (pointer: coarse) {
+  input:not([type='checkbox']):not([type='range']), select,
+  button, .keyword-chip, .small-button, .ghost-button, .primary-button, .art-pager button, .hint-row button, .add-op-row button,
+  .load-card-row, .set-row-open, .art-source-switch label, .check-row, .mechanic-toggles label, .mini-keywords label { min-height: 44px; }
+  input[type='checkbox'] { width: 20px; height: 20px; min-height: 20px; }
+  input[type='range'] { height: 44px; }
+  .icon-button { width: 44px; height: 44px; }
+  /* One row per colour: pip, name, then a full-size − count + stepper. */
+  .pip-controls { grid-template-columns: 1fr; }
+  .pip-stepper { grid-template-columns: 28px 1fr 44px 40px 44px; gap: 8px; padding: 4px 8px; }
+  .pip-stepper > svg, .pip-stepper > span { grid-column: auto; }
+  .pip-stepper > span { color: var(--body); font-size: var(--fs-md); text-align: left; }
+  .pip-stepper button { max-width: none; height: 44px; }
+  .pip-stepper button::after { inset: 0; }
+  .applied-chip button::after { inset: -12px; }
+}

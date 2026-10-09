@@ -16,7 +16,7 @@ game.
 ## Features
 
 - **Set builder.** Save to Set adds the card in the editor to the set, or
-  updates the set card being edited; Save and Start Next saves, then opens a
+  updates the set card being edited; Save and New Card saves, then opens a
   fresh card; New Card opens a fresh card (asking first over unsaved changes).
   The set panel lists every card (cost, name, type line, and a verdict chip
   with its Difference); clicking a row opens that card, and each row can be
@@ -101,7 +101,7 @@ game.
 The page's QA probe runs with `?qa=1` (`/forge/?qa=1`): it starts from a fresh
 card and an empty set, waits for the first card, waits for the card to be
 redrawn with its real art, checks that both webfonts loaded, drives the mana
-slider, a pip, a keyword drag and a hint, then Save to Set, Save and Start Next
+slider, a pip, a keyword drag and a hint, then Save to Set, Save and New Card
 and a second save, exports the set and imports the file back (the same cards
 and scores must return), encodes a share link, decodes it and opens it the way
 a link does. Then the own-image steps (`src/forge/customArtQa.ts`): it paints a

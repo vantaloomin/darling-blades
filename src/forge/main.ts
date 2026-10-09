@@ -254,6 +254,21 @@ function costMarkup(cost: ManaCost | undefined, isX: boolean, pipClass: string):
   return items.join('') || genericPipMarkup(0);
 }
 
+/**
+ * Copy with mana costs drawn as pips: each {1}, {G} or {X} token in the text
+ * becomes the same pip the card and the mana row draw, so the verdict and the
+ * hints stop speaking brace notation. Everything else is escaped.
+ */
+function textWithPips(text: string): string {
+  return text.split(/(\{(?:[WUBRG]|X|\d+)\})/).map((part) => {
+    const token = /^\{([WUBRG]|X|\d+)\}$/.exec(part)?.[1];
+    if (!token) return escapeHtml(part);
+    if (token === 'X') return '<span class="generic-pip inline">X</span>';
+    if (/^\d+$/.test(token)) return genericPipMarkup(Number(token)).replace('class="generic-pip"', 'class="generic-pip inline"');
+    return pipSvg(token as Color, 'inline');
+  }).join('');
+}
+
 pipControls.innerHTML = COLOR_ORDER.map((color) => `
   <div class="pip-stepper" data-pip-stepper="${color}">
     ${pipSvg(color)}
@@ -336,8 +351,26 @@ function keywordValueOnCard(state: BuilderState, keyword: Keyword): number {
 
 /** The chip's tooltip: the reminder text, then what the keyword is worth here and how it scales. */
 function keywordChipTitle(state: BuilderState, reminder: string, keyword: Keyword): string {
-  return `${reminder} ${keywordWorthSentence(keyword, state.attack, keywordsWith(state, keyword))}`;
+  const sentence = /[.!?]$/.test(reminder) ? reminder : `${reminder}.`;
+  return `${sentence} ${keywordWorthSentence(keyword, state.attack, keywordsWith(state, keyword))}`;
 }
+
+/**
+ * Keyword and mechanic meanings used to live only in hover tooltips, which
+ * touch never shows. The last one pointed at, focused or tapped is written
+ * out under its list instead.
+ */
+function showTermInfo(list: HTMLElement, info: HTMLElement, selector: string): void {
+  const reveal = (event: Event): void => {
+    const term = (event.target as HTMLElement | null)?.closest<HTMLElement>(selector);
+    if (!term || !list.contains(term) || !term.title) return;
+    const name = term.querySelector('span')?.textContent?.trim() ?? term.textContent?.trim() ?? '';
+    info.textContent = name ? `${name}: ${term.title}` : term.title;
+  };
+  for (const type of ['pointerover', 'focusin', 'click']) list.addEventListener(type, reveal);
+}
+showTermInfo(keywordPalette, byId('keyword-info'), '[data-keyword]');
+showTermInfo(byId('mechanic-toggles'), byId('mechanic-info'), '[data-mechanic-id]');
 
 function renderKeywordPalette(state: BuilderState): void {
   keywordPalette.innerHTML = KEYWORD_OPTIONS.map(({ keyword, name, reminder }) => {
@@ -419,7 +452,7 @@ appliedKeywords.addEventListener('click', (event) => {
 
 function renderAppliedKeywords(state: BuilderState): void {
   if (state.keywords.length === 0) {
-    appliedKeywords.innerHTML = '<span class="empty-drop-copy">Drop keywords here</span>';
+    appliedKeywords.innerHTML = '<span class="empty-drop-copy">Keywords you add show here</span>';
     return;
   }
   appliedKeywords.innerHTML = state.keywords.map((keyword) => {
@@ -1574,7 +1607,7 @@ function syncBasicControls(state: BuilderState): void {
   cardLegendary.checked = state.legendary;
   genericMana.value = String(state.cost.generic);
   genericValue.value = String(state.cost.generic);
-  manaValueOutput.value = `MV ${printedManaValue(state)}`;
+  manaValueOutput.value = `Mana value ${printedManaValue(state)}`;
   colorIdentityMode.value = state.colorOverride === null ? 'cost' : 'override';
   colorOverrideControls.hidden = state.colorOverride === null;
   for (const checkbox of colorOverrideControls.querySelectorAll<HTMLInputElement>('[data-color-identity]')) {
@@ -1622,7 +1655,7 @@ function renderEvaluation(state: BuilderState): void {
   byId('metric-budget').textContent = format(score.budget);
   byId('metric-delta').textContent = signed(score.delta);
   byId('verdict-label').textContent = VERDICT_LABELS[band];
-  byId('verdict-subtitle').textContent = verdictSubtitle(state, band);
+  byId('verdict-subtitle').innerHTML = textWithPips(verdictSubtitle(state, band));
   const verdict = byId('verdict-copy');
   verdict.className = `verdict-copy ${band}`;
   // The gauge spans -3 to +3. Past that the needle pins to the edge and says
@@ -1657,7 +1690,7 @@ function renderHints(band: VerdictBand, hints: CostingHint[]): void {
     return;
   }
   list.innerHTML = hints.map((hint, index) => `<article class="hint-row">
-    <div><strong>${escapeHtml(hint.title)}</strong><span>${escapeHtml(hint.detail)}</span><small>${escapeHtml(hint.rateSource)}</small></div>
+    <div><strong>${escapeHtml(hint.title)}</strong><span>${textWithPips(hint.detail)}</span><small>${escapeHtml(hint.rateSource)}</small></div>
     <div class="hint-result"><strong>Difference after: ${signed(hint.resultingDelta)}</strong><span>moves it ${signed(hint.movement)}</span><button type="button" data-apply-hint="${index}">Apply</button></div>
   </article>`).join('') || '<p class="empty-editor">No single change brings the difference closer to zero.</p>';
   list.querySelectorAll<HTMLButtonElement>('[data-apply-hint]').forEach((button) => {
@@ -1967,13 +2000,13 @@ async function runBrowserQa(): Promise<void> {
     if (qaResult.draggedKeywordPart?.v !== skyborneHere) throw new Error(`Skyborne was not worth ${signed(skyborneHere)} points in the breakdown`);
     if (qaResult.hintPromisedDelta !== qaResult.deltaAfterHint) throw new Error('Applied hint did not land on the difference it promised');
 
-    // Set builder: Save to Set, Save and Start Next, then a second card.
+    // Set builder: Save to Set, Save and New Card, then a second card.
     byId<HTMLButtonElement>('save-to-set').click();
     const editingAfterSave = editingIndex(forgeSet, session);
     cardName.value = 'QA First Card';
     cardName.dispatchEvent(new Event('input', { bubbles: true }));
     byId<HTMLButtonElement>('save-and-next').click();
-    if (session.editingId !== null) throw new Error('Save and Start Next did not open a new card');
+    if (session.editingId !== null) throw new Error('Save and New Card did not open a new card');
     cardName.value = 'QA Second Card';
     cardName.dispatchEvent(new Event('input', { bubbles: true }));
     byId<HTMLButtonElement>('save-to-set').click();
