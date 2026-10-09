@@ -550,7 +550,7 @@ function renderAbilities(): void {
     <details class="ability-editor" open>
       <summary><span>Ability ${abilityIndex + 1}</span><button type="button" class="icon-button" data-remove-ability="${abilityIndex}" aria-label="Remove ability">×</button></summary>
       <div class="ability-body">
-        <div class="field-grid three-up">
+        <div class="field-grid two-up">
           <label>Trigger<select data-ability-index="${abilityIndex}" data-ability-field="when">${optionMarkup(TRIGGERS, ability.when, TRIGGER_LABELS)}</select></label>
           ${ability.when !== 'static' ? `<label>Target<select data-ability-index="${abilityIndex}" data-ability-field="target">${optionMarkup(TARGETS, ability.target, TARGET_LABELS)}</select></label>` : ''}
           ${ability.when === 'spell' && ability.target !== 'none' ? `<label>How Many<select data-ability-index="${abilityIndex}" data-ability-field="target-count">${optionMarkup(TARGET_COUNTS, ability.targetCount ?? 'one', TARGET_COUNT_LABELS)}</select></label>` : ''}
