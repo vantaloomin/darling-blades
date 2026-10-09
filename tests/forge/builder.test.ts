@@ -363,6 +363,24 @@ describe('costing hints', () => {
     expect(pip?.resultingDelta).toBe(evaluateBuilder(pip!.nextState).score.delta);
   });
 
+  it('moves a lever as far as it takes to get closest to zero, not one step', () => {
+    const state = createInitialBuilderState();
+    state.attack = 12;
+    state.defense = 2;
+    const hint = candidateHints(state).find((candidate) => candidate.kind === 'decrease-attack');
+    expect(hint).toBeDefined();
+    const distanceAt = (attack: number): number => {
+      const next = cloneBuilderState(state);
+      next.attack = attack;
+      return Math.abs(evaluateBuilder(next).score.delta);
+    };
+    const chosen = hint!.nextState.attack;
+    expect(chosen).toBeLessThan(11);
+    for (let attack = 0; attack < 12; attack += 1) {
+      expect(distanceAt(chosen), `Attack ${attack}`).toBeLessThanOrEqual(distanceAt(attack) + 0.0001);
+    }
+  });
+
   it('returns independent one-click states', () => {
     const state = overValueState();
     const hint = buildHints(state, 1)[0];

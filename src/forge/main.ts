@@ -39,7 +39,7 @@ import {
   type TargetCount,
   type VerdictBand,
 } from './logic';
-import { escapeHtml, estimateTag, setRowMarkup, signedNumber, warningChipMarkup } from './markup';
+import { escapeHtml, estimateTag, setRowMarkup, signedNumber, warningListMarkup } from './markup';
 import {
   MAX_IMPORT_BYTES,
   MAX_IMPORT_LABEL,
@@ -1681,7 +1681,9 @@ function renderEvaluation(state: BuilderState): void {
   byId('gauge-value').textContent = Math.abs(score.delta) > GAUGE_RANGE
     ? `${signed(score.delta)} (off the scale)`
     : signed(score.delta);
-  byId('warning-chips').innerHTML = [...evaluation.warnings, ...loadedFidelityWarnings].map(warningChipMarkup).join('');
+  const warningList = byId('warning-chips');
+  const notesOpen = warningList.querySelector('details.warning-group')?.hasAttribute('open') ?? false;
+  warningList.innerHTML = warningListMarkup([...evaluation.warnings, ...loadedFidelityWarnings], notesOpen);
   byId('score-ledger').innerHTML = score.parts.map((part) => {
     const line = translatePart(evaluation.card, part);
     return `<div><span>${escapeHtml(line.text)}${line.estimate ? estimateTag() : ''}</span><strong class="${part.v < 0 ? 'negative' : ''}">${signed(part.v)}</strong></div>`;
@@ -1695,24 +1697,51 @@ function renderEvaluation(state: BuilderState): void {
   renderHints(band, buildHints(state));
 }
 
+/**
+ * The last hint applied, so it can be undone. It stays offered only while the
+ * card is exactly as the hint left it: any other edit makes a new state object
+ * and the Undo quietly goes.
+ */
+let appliedHint: { before: BuilderState; after: BuilderState; title: string } | null = null;
+
 function renderHints(band: VerdictBand, hints: CostingHint[]): void {
   const list = byId('hint-list');
+  if (appliedHint && appliedHint.after !== store.getState()) appliedHint = null;
+  const undo = appliedHint
+    ? `<div class="hint-undo" role="status"><span>Applied: ${textWithPips(appliedHint.title)}.</span><button type="button" class="ghost-button" data-undo-hint>Undo</button></div>`
+    : '';
   if (band === 'accurate') {
-    list.innerHTML = '<p class="accurate-note">The difference is within 0.75 either way, so there is nothing to change.</p>';
-    return;
-  }
-  list.innerHTML = hints.map((hint, index) => `<article class="hint-row">
+    list.innerHTML = `${undo}<p class="accurate-note">The difference is within 0.75 either way, so there is nothing to change.</p>`;
+  } else {
+    list.innerHTML = undo + (hints.map((hint, index) => `<article class="hint-row">
     <div><strong>${escapeHtml(hint.title)}</strong><span>${textWithPips(hint.detail)}</span><small>${escapeHtml(hint.rateSource)}</small></div>
     <div class="hint-result"><strong>Difference after: ${signed(hint.resultingDelta)}</strong><span>moves it ${signed(hint.movement)}</span><button type="button" data-apply-hint="${index}">Apply</button></div>
-  </article>`).join('') || '<p class="empty-editor">No single change brings the difference closer to zero.</p>';
+  </article>`).join('') || '<p class="empty-editor">No single change brings the difference closer to zero.</p>');
+  }
+  list.querySelector<HTMLButtonElement>('[data-undo-hint]')?.addEventListener('click', () => {
+    if (!appliedHint) return;
+    const { before } = appliedHint;
+    appliedHint = null;
+    store.update(() => cloneBuilderState(before));
+    renderAllEditors();
+    renderArtGrid();
+  });
   list.querySelectorAll<HTMLButtonElement>('[data-apply-hint]').forEach((button) => {
     button.addEventListener('click', () => {
       const hint = hints[Number(button.dataset.applyHint)];
-      store.update(() => cloneBuilderState(hint.nextState));
+      const before = cloneBuilderState(store.getState());
+      const after = cloneBuilderState(hint.nextState);
+      appliedHint = { before, after, title: `${hint.title}. ${plainDetail(hint.detail)}` };
+      store.update(() => after);
       renderAllEditors();
       renderArtGrid();
     });
   });
+}
+
+/** A hint's detail without its final full stop, for the "Applied" line. */
+function plainDetail(detail: string): string {
+  return detail.replace(/\.$/, '');
 }
 
 store.subscribe(() => {

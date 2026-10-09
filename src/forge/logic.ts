@@ -605,7 +605,6 @@ export function warningsFor(state: BuilderState, score: Score): ForgeWarning[] {
   const {
     duty, whispers, tithe, retell, rite, hauntlink, empower, skim, preserve,
   } = MECHANIC_NAMES;
-  const refused = 'The game won\'t allow this card.';
 
   if (score.isX) add('x-nominal', 'note', 'X is scored as if X were 3. Judge the rate per mana rather than the total.');
   for (const unknown of score.unknowns) {
@@ -627,13 +626,16 @@ export function warningsFor(state: BuilderState, score: Score): ForgeWarning[] {
     add('land-no-budget', 'note', 'Lands have no mana cost, so there is no Budget to measure them against.');
   }
   if (m.skim.enabled || m.preserve.enabled) {
-    add('skim-preserve-flat', 'note', `${skim} and ${preserve} costs print on the card, but they count a flat amount whatever the cost.`);
+    const flat = [m.skim.enabled ? skim : '', m.preserve.enabled ? preserve : ''].filter(Boolean);
+    add('skim-preserve-flat', 'note', flat.length === 2
+      ? `${skim} and ${preserve} costs print on the card, but they count a flat amount whatever the cost.`
+      : `The ${flat[0]} cost prints on the card, but it counts a flat amount whatever the cost.`);
   }
   if (m.activated.enabled) {
-    if (builderHasType(state, 'land')) add('duty-on-land', 'illegal', `Lands can't have a ${duty} (tapping a land is its mana ability). ${refused}`);
-    if (m.manaAbility.enabled) add('duty-with-mana-ability', 'illegal', `A ${duty} can't share a card with a mana ability. ${refused}`);
-    if (m.hauntlink.enabled) add('duty-with-hauntlink', 'illegal', `A ${duty} can't share a card with ${hauntlink}. ${refused}`);
-    if (state.isX) add('duty-with-x', 'illegal', `A ${duty}'s effects can't use X. ${refused}`);
+    if (builderHasType(state, 'land')) add('duty-on-land', 'illegal', `Lands can't have a ${duty} (tapping a land is its mana ability).`);
+    if (m.manaAbility.enabled) add('duty-with-mana-ability', 'illegal', `A ${duty} can't share a card with a mana ability.`);
+    if (m.hauntlink.enabled) add('duty-with-hauntlink', 'illegal', `A ${duty} can't share a card with ${hauntlink}.`);
+    if (state.isX) add('duty-with-x', 'illegal', `A ${duty}'s effects can't use X.`);
     if (m.activated.ops.length === 0) add('duty-no-effects', 'illegal', `This ${duty} has no effects. Add one, or the game won't allow the card.`);
     if (m.activated.target === 'none' && m.activated.ops.some((op) => opNeedsTarget(op))) {
       add('duty-needs-target', 'illegal', `One of the ${duty}'s effects needs a target. Pick one.`);
@@ -647,10 +649,10 @@ export function warningsFor(state: BuilderState, score: Score): ForgeWarning[] {
     if (activatedManaValue(state) > 0) add('duty-mana-discount', 'estimate', `The discount for mana spent on a ${duty} uses a provisional rate.`);
   }
   if (m.whispers.enabled) {
-    if (m.retell.enabled) add('whispers-with-retell', 'illegal', `${whispers} can't share a card with ${retell}. ${refused}`);
-    if (m.rite.enabled) add('whispers-with-rite', 'illegal', `${whispers} can't share a card with ${rite}. ${refused}`);
-    if (m.hauntlink.enabled) add('whispers-with-hauntlink', 'illegal', `${whispers} can't share a card with ${hauntlink}. ${refused}`);
-    if (state.isX) add('whispers-with-x', 'illegal', `${whispers} can't be used with an X cost. ${refused}`);
+    if (m.retell.enabled) add('whispers-with-retell', 'illegal', `${whispers} can't share a card with ${retell}.`);
+    if (m.rite.enabled) add('whispers-with-rite', 'illegal', `${whispers} can't share a card with ${rite}.`);
+    if (m.hauntlink.enabled) add('whispers-with-hauntlink', 'illegal', `${whispers} can't share a card with ${hauntlink}.`);
+    if (state.isX) add('whispers-with-x', 'illegal', `${whispers} can't be used with an X cost.`);
     if (m.empower.enabled) add('whispers-empower', 'note', `${empower} never applies when you cast with ${whispers}, so it's priced as printed.`);
     const wmv = whispersManaValue(state);
     if (wmv >= printedManaValue(state)) add('whispers-not-lower', 'note', `The ${whispers} cost isn't lower than the printed cost, so it adds nothing.`);
@@ -672,11 +674,11 @@ export function warningsFor(state: BuilderState, score: Score): ForgeWarning[] {
     else if (!splitSubtypes(state.subtypesText).includes('Horror') && state.set === 'drowned-deep') {
       add('tithe-drowned-deep-horror', 'note', `In the ${SET_LABELS['drowned-deep']} set, only Horrors have ${tithe}.`);
     }
-    if (state.isX) add('tithe-with-x', 'illegal', `${tithe} can't be used with an X cost. ${refused}`);
-    if (m.retell.enabled) add('tithe-with-retell', 'illegal', `${tithe} can't share a card with ${retell}. ${refused}`);
-    if (m.hauntlink.enabled) add('tithe-with-hauntlink', 'illegal', `${tithe} can't share a card with ${hauntlink}. ${refused}`);
-    if (m.whispers.enabled) add('tithe-with-whispers', 'illegal', `${tithe} can't share a card with ${whispers}. ${refused}`);
-    if (m.rite.enabled) add('tithe-with-rite', 'illegal', `${tithe} can't share a card with ${rite} (one sacrifice mechanic per card). ${refused}`);
+    if (state.isX) add('tithe-with-x', 'illegal', `${tithe} can't be used with an X cost.`);
+    if (m.retell.enabled) add('tithe-with-retell', 'illegal', `${tithe} can't share a card with ${retell}.`);
+    if (m.hauntlink.enabled) add('tithe-with-hauntlink', 'illegal', `${tithe} can't share a card with ${hauntlink}.`);
+    if (m.whispers.enabled) add('tithe-with-whispers', 'illegal', `${tithe} can't share a card with ${whispers}.`);
+    if (m.rite.enabled) add('tithe-with-rite', 'illegal', `${tithe} can't share a card with ${rite} (one sacrifice mechanic per card).`);
     if (state.abilities.some((ability) => ability.ops.some((op) => op.op === 'addCounters'))) {
       add('tithe-mark-gain', 'note', `${tithe} with a mark gain would need an extra rate the Forge doesn't apply yet.`);
     }

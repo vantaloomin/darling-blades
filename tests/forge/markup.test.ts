@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { setRowMarkup, warningChipMarkup } from '../../src/forge/markup';
+import { setRowMarkup, warningListMarkup } from '../../src/forge/markup';
 
 const HOSTILE = '"><img src=x onerror=alert(1)><script>alert(\'x\')</script>&';
 
@@ -30,9 +30,12 @@ describe('set row markup', () => {
     expect(html).toMatch(/aria-label="[^"]*&quot;&gt;&lt;img/);
   });
 
-  it('escapes the text of a warning chip', () => {
-    const html = warningChipMarkup({ id: 'fidelity', kind: 'note', text: HOSTILE });
-    expect(new Set(tags(html))).toEqual(new Set(['span']));
+  it('escapes the text of a warning', () => {
+    const html = warningListMarkup([
+      { id: 'refused', kind: 'illegal', text: HOSTILE },
+      ...['a', 'b', 'c'].map((id) => ({ id, kind: 'note' as const, text: HOSTILE })),
+    ]);
+    expect(new Set(tags(html))).toEqual(new Set(['div', 'p', 'ul', 'li', 'span', 'details', 'summary']));
     expect(html).not.toContain('<img');
   });
 });
