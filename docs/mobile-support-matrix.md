@@ -1,11 +1,11 @@
-<!-- source-of-truth: docs/plan-mobile-overhaul.md, vite.config.ts, package.json, index.html, src/gameBoot.ts, src/platform/clientProfile.ts, src/platform/quality.ts, src/platform/gestures.ts · last-verified: 2026-10-09 · DRAFT device list for the 2.0 mobile pass (decision M7); re-verify at each mobile wave, at the 2.0 cut, and when a new iOS or Android major ships -->
+<!-- source-of-truth: docs/plan-mobile-overhaul.md, vite.config.ts, package.json, index.html, src/gameBoot.ts, src/platform/clientProfile.ts, src/platform/quality.ts, src/platform/gestures.ts · last-verified: 2026-10-09 · device list for the 2.0 mobile pass (decision M7, ruled 2026-10-09); re-verify at each mobile wave, at the 2.0 cut, and when a new iOS or Android major ships -->
 
-# Mobile support matrix (draft)
+# Mobile support matrix
 
-**Status 2026-10-09: DRAFT, decision M7 of
-[plan-mobile-overhaul.md](plan-mobile-overhaul.md).** The list itself is
-not ruled; the tablet rows follow the owner's 2026-10-09 rulings (M11,
-M22).
+**Status 2026-10-09: RULED as decision M7 of
+[plan-mobile-overhaul.md](plan-mobile-overhaul.md),** with the tablet rows
+following M11 and M22. The fixtures and OS pair are re-checked at each
+mobile wave.
 The 1.8 draft asked for "a small named matrix before wave 1" and "no generic
 `mobile` label"; this is that list. It follows P11, ruled 2026-10-08 as recommended
 (landscape phones, browser only).
@@ -33,7 +33,7 @@ and `dvh` units in `index.html` (Safari 15.4, Chrome 108). No full audit of
 browser features was done (inferred floor). WebGL is needed for the tested
 levels.
 
-**Proposed: an old-browser message.** Below the floor the game's script fails
+**The old-browser message (ruled with M7).** Below the floor the game's script fails
 to parse and the player sees the dark page and nothing else. A few lines of
 plain inline script in `index.html`, run before the game's module, can check
 for the floor's features and show "This browser is too old to run Darling
@@ -57,7 +57,7 @@ The Version C mocks are drawn at the iPhone 15/16 landscape reference, 852x393, 
 | iOS 16.4 to the version before last | | Safari | Works, not tested | Above the build floor; outside the tested pair |
 | Below Safari 16.4 or Chrome 111 | | | Not supported | The build floor |
 
-**OS versions (proposed):** Tested and Supported mean **the current iOS
+**OS versions (ruled with M7):** Tested and Supported mean **the current iOS
 and the one before** (iOS 26 and iOS 18 at the last check this doc could
 make; if iOS 27 shipped in September 2026 the pair is 27 and 26, to confirm
 at the sitting), and **Android 10 or later with an up-to-date Chrome or Samsung
@@ -137,7 +137,7 @@ iPhone SE's 667 px width and Chrome's address bar on a phone, are covered
 only by fixtures. The tablet covers Android's browsers and older hardware,
 but at tablet size, not a phone's.
 
-**Closing most of it for free (proposed):**
+**Closing most of it for free (ruled with M7):**
 
 - **Android Studio's phone emulator** on the owner's PC, set to a 360 px
   Galaxy-class screen: real Chrome on Android, address bar and keyboard
@@ -156,8 +156,10 @@ real touch on a small Android phone and weak phone hardware at once.
 Each pass records device, OS and browser version, text size, scene, and any
 issue in the QA sheet mobile wave 1 adds.
 
-## Open for the owner
+## Ruled with M7
 
-- **The small-phone checks** above: the emulator and Display Zoom (proposed), with a used Galaxy A phone optional.
-- **The OS pair** (current and previous iOS, Android 10+) is a proposal.
-- **The old-browser message** above is a proposal.
+The owner took the matrix as drafted (2026-10-09), so these are ruled:
+
+- **The small-phone checks:** the emulator and Display Zoom, with a used Galaxy A phone optional.
+- **The OS pair:** current and previous iOS, Android 10 or later.
+- **The old-browser message,** in mobile wave 1.
