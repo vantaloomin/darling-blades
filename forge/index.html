@@ -189,16 +189,17 @@
             </div>
             <div id="custom-art-controls" class="custom-art-controls" hidden>
               <label class="range-field">Zoom
-                <span><input id="custom-art-zoom" type="range" min="0" max="1000" step="1" /><output id="custom-art-zoom-value">1.00×</output></span>
+                <span><input id="custom-art-zoom" class="themed-range" type="range" min="0" max="1000" step="1" /><output id="custom-art-zoom-value">1.00×</output></span>
               </label>
               <label class="range-field">Left and Right
-                <span><input id="custom-art-x" type="range" min="-100" max="100" step="1" /><output id="custom-art-x-value">0</output></span>
+                <span><input id="custom-art-x" class="themed-range centered-range" type="range" min="-100" max="100" step="1" /><output id="custom-art-x-value">0</output></span>
               </label>
               <label class="range-field">Up and Down
-                <span><input id="custom-art-y" type="range" min="-100" max="100" step="1" /><output id="custom-art-y-value">0</output></span>
+                <span><input id="custom-art-y" class="themed-range centered-range" type="range" min="-100" max="100" step="1" /><output id="custom-art-y-value">0</output></span>
               </label>
+              <p id="custom-art-pan-note" class="range-note" hidden></p>
               <label class="range-field">Rotate
-                <span><input id="custom-art-rotation" type="range" min="-180" max="180" step="1" /><output id="custom-art-rotation-value">0°</output></span>
+                <span><input id="custom-art-rotation" class="themed-range centered-range" type="range" min="-180" max="180" step="1" /><output id="custom-art-rotation-value">0°</output></span>
               </label>
               <div class="custom-art-buttons">
                 <button id="custom-art-flip" class="ghost-button" type="button" aria-pressed="false">Flip</button>
@@ -293,10 +294,10 @@
             <div><span>Difference</span><strong id="metric-delta">+0.00</strong><small>near zero is fair</small></div>
           </div>
           <div id="verdict-copy" class="verdict-copy">
-            <h2 id="verdict-label">Accurate Value</h2>
+            <h2 id="verdict-label" aria-live="polite">Accurate Value</h2>
             <p id="verdict-subtitle"></p>
           </div>
-          <div class="gauge" aria-label="Difference gauge">
+          <div id="difference-gauge" class="gauge" role="meter" aria-label="Difference" aria-valuemin="-3" aria-valuemax="3" aria-valuenow="0" aria-valuetext="+0.00, Accurate Value">
             <div class="gauge-labels" aria-hidden="true"><span>Under Value</span><span>Accurate Value</span><span>Over Value</span></div>
             <div class="gauge-zones"><span></span><span></span><span></span></div>
             <div class="outlier-mark left"><span>-1.5</span></div>
