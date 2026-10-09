@@ -171,7 +171,7 @@ const SR: CardDef[] = [
   }),
   creature('dt-red-hood-wolfslayer', 'Red Hood Wolfslayer', ['Human', 'Hunter'], {
     supertypes: ['legendary'], cost: cost(2, 'RG'), colors: ['R', 'G'], attack: 4, defense: 4,
-    keywords: ['firstBlade', 'overrun'], rarity: 'sr',
+    keywords: ['firstBlade', 'overrun', 'rage'], rarity: 'sr',
   }),
   enchantment('dt-rose-cage-ballad', 'Rose-Cage Ballad', [], {
     cost: cost(3, 'B'), colors: ['B'], abilities: [dawn([{ op: 'loseLife', n: 2, who: 'opponent' }, { op: 'gainLife', n: 2 }])],
@@ -335,7 +335,7 @@ const C: CardDef[] = [
   creature('dt-poisoned-courtier', 'Poisoned Courtier', ['Human', 'Courtier'], { cost: cost(2, 'B'), colors: ['B'], attack: 2, defense: 2, keywords: ['deathblade'], rarity: 'c' }),
   creature('dt-red-cloak-runner', 'Red-Cloak Runner', ['Human', 'Hunter'], { cost: cost(1, 'R'), colors: ['R'], attack: 2, defense: 1, keywords: ['warcry'], rarity: 'c' }),
   creature('dt-tower-window-seer', 'Tower-Window Seer', ['Human', 'Seer'], { cost: cost(2, 'U'), colors: ['U'], attack: 1, defense: 3, abilities: [arrives([{ op: 'foresee', n: 1 }])], skim: { cost: cost(1) }, rarity: 'c' }),
-  make('dt-satin-slipper', 'Satin Slipper', ['ritual'], ['Relic'], { cost: cost(1), colors: [], skim: { cost: cost(1) }, abilities: [spell([{ op: 'gainLife', n: 1 }])], rarity: 'c' }),
+  make('dt-satin-slipper', 'Satin Slipper', ['ritual'], ['Relic'], { cost: cost(1), colors: [], skim: { cost: cost(1) }, abilities: [spell([{ op: 'boost', p: 1, t: 1, scope: 'target' }], target('yourCreature'))], rarity: 'c' }),
   charm('dt-page-torn-free', 'Page Torn Free', { cost: cost(2, 'U'), colors: ['U'], abilities: [spell([{ op: 'draw', n: 1 }])], retell: { cost: cost(2, 'U') }, rarity: 'c' }),
   charm('dt-once-more-with-magic', 'Once More With Magic', { cost: cost(0, 'W'), colors: ['W'], abilities: [spell([{ op: 'boost', p: 1, t: 1, scope: 'target' }], target('creature'))], retell: { cost: cost(2, 'W') }, rarity: 'c' }),
   ritual('dt-wicked-step', 'Wicked Step', { cost: cost(0, 'B'), colors: ['B'], abilities: [spell([{ op: 'discardRandom', n: 1, who: 'opponent' }])], rarity: 'c' }),
@@ -358,7 +358,7 @@ const C: CardDef[] = [
   artifact('dt-hearth-cinders', 'Banked Cinders', [], { cost: cost(1, 'R'), colors: ['R'], activated: { cost: { tap: true }, ops: [{ op: 'damage', n: 1, to: 'opponent' }] }, rarity: 'c' }),
   charm('dt-dream-prick', 'Dream Prick', { cost: cost(0, 'U'), colors: ['U'], abilities: [spell([{ op: 'tap', to: 'target' }, { op: 'grind', n: 1, who: 'self' }], target('creature'))], rarity: 'c' }),
   charm('dt-rose-petal-shield', 'Rose-Petal Shield', { cost: cost(0, 'W'), colors: ['W'], abilities: [spell([{ op: 'boost', p: 0, t: 2, scope: 'target' }], target('creature'))], retell: { cost: cost(2, 'W') }, rarity: 'c' }),
-  make('dt-singing-shell', 'Singing Shell', ['ritual'], ['Relic'], { cost: cost(0, 'U'), colors: ['U'], skim: { cost: cost(1) }, abilities: [spell([{ op: 'foresee', n: 1 }, { op: 'grind', n: 1, who: 'self' }])], rarity: 'c' }),
+  make('dt-singing-shell', 'Singing Shell', ['ritual'], ['Relic'], { cost: cost(0, 'U'), colors: ['U'], skim: { cost: cost(1) }, abilities: [spell([{ op: 'foresee', n: 2 }])], rarity: 'c' }),
   creature('dt-forest-grandmother', 'Forest Grandmother', ['Human', 'Elder'], { cost: cost(3, 'G'), colors: ['G'], attack: 2, defense: 4, abilities: [arrives([{ op: 'gainLife', n: 2 }, { op: 'foresee', n: 1 }])], rarity: 'c' }),
   creature('dt-gilded-stepmother', 'Gilded Stepmother', ['Human', 'Courtier'], { cost: cost(2, 'B'), colors: ['B'], attack: 2, defense: 2, abilities: [arrives([{ op: 'loseLife', n: 1, who: 'opponent' }, { op: 'gainLife', n: 1 }])], rarity: 'c' }),
   ritual('dt-palace-masquerade', 'Palace Masquerade', { cost: cost(2, 'W'), colors: ['W'], abilities: [spell([{ op: 'createToken', token: 'tok-masked-guest', count: 2 }, { op: 'foresee', n: 1 }])], rarity: 'c' }),

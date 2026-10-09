@@ -38,7 +38,7 @@ import {
   settingsRowStacks,
   settingsTabCenters,
   settingsTabColumns,
-  shiftGroupInside,
+  VOLUME_BAR_WIDTH,
   volumeStepperXs,
   yourTurnRowY,
   type AccessibilityControlsShown,
@@ -47,7 +47,7 @@ import {
   type SettingsTab,
   type SettingsTabLayout,
 } from '../../src/ui/settingsPresentation';
-import { STATS_SETTINGS_ROW, statsPanelButtonCenterX } from '../../src/ui/statsPrivacyPresentation';
+import { STATS_SETTINGS_ROW } from '../../src/ui/statsPrivacyPresentation';
 import { theme } from '../../src/ui/theme';
 import { forEachA11yCell } from './a11yCells';
 
@@ -155,19 +155,24 @@ describe('the rhythm follows the text size', () => {
 
 describe.each(TABS)('the %s tab', (tab) => {
   for (const [shownName, shown] of SHOWN) {
-    it(`keeps every column inside the panel band with the bottom inset (${shownName}, every size and contrast)`, () => {
+    it(`sizes the panels to their content, inside the band, with the bottom inset (${shownName}, every size and contrast)`, () => {
       forEveryCell((cell, scale) => {
         for (const [scenario, measured] of scenarios(scale)) {
           const layout = layoutSettingsTab(tab, shown, measured);
+          expect(layout.panelBottom, `${cell}, ${scenario}`).toBeLessThanOrEqual(SETTINGS_PANEL_BAND.bottom);
+          const lowest = Math.max(...layout.columns.map((column) => column.layout.contentBottom));
+          // The air under the lowest content matches the air over the first heading.
+          expect(layout.panelBottom - lowest, `${cell}, ${scenario}`).toBeCloseTo(
+            layout.columns[0].layout.headings[layout.columns[0].sections[0].key] - settingsRhythm().headingHalf -
+              SETTINGS_PANEL_BAND.top,
+            6,
+          );
           columnExtents(layout).forEach((items, c) => {
             for (const item of items) {
               const at = `${cell}, ${scenario}, column ${c}, ${item.what}`;
               expect(item.top, at).toBeGreaterThanOrEqual(SETTINGS_PANEL_BAND.top + MIN_GAP_BETWEEN - EPS);
-              expect(item.bottom, at).toBeLessThanOrEqual(SETTINGS_PANEL_BAND.bottom - MIN_PANEL_INSET + EPS);
+              expect(item.bottom, at).toBeLessThanOrEqual(layout.panelBottom - MIN_PANEL_INSET + EPS);
             }
-            expect(layout.columns[c].layout.contentBottom).toBeLessThanOrEqual(
-              SETTINGS_PANEL_BAND.bottom - MIN_PANEL_INSET + EPS,
-            );
           });
         }
       });
@@ -322,10 +327,12 @@ describe('the Game tab', () => {
     expect(yourTurnRowY(1).note).toBe(SETTINGS_LEFT.rows.landDrop.note);
   });
 
-  it('mirrors its two panels, with the same text inset on both sides of each', () => {
+  it('mirrors its two panels on the frame gutters, with the same text inset on both sides of each', () => {
     const { left, right } = SETTINGS_FRAMES;
     expect(left.panelWidth).toBe(right.panelWidth);
-    expect(left.panelX + left.panelWidth).toBeLessThan(right.panelX);
+    expect(left.panelX).toBe(theme.design.safeLeft);
+    expect(right.panelX + right.panelWidth).toBe(theme.design.safeRight);
+    expect(right.panelX - (left.panelX + left.panelWidth)).toBeGreaterThanOrEqual(MIN_GAP_BETWEEN);
     for (const frame of [left, right]) {
       expect(frame.labelX - frame.panelX).toBe(SETTINGS_PANELS.inset);
       expect(frame.panelX + frame.panelWidth - frame.controlRight).toBe(SETTINGS_PANELS.inset);
@@ -491,51 +498,32 @@ describe('the chip groups, placed from measured widths', () => {
 });
 
 describe('the Privacy pair and the volume stepper', () => {
-  it('keeps the Privacy pair inside the column and clear of each other at every plausible button width', () => {
+  it('right-aligns the Privacy pair: the toggle on the control edge, the button clear of it, both inside the column', () => {
+    const frame = SETTINGS_FRAMES.left;
     const toggle = control(TOGGLE_WIDTH);
     for (let visual = STATS_SETTINGS_ROW.buttonMinWidth; visual <= 180; visual += 2) {
       const button = control(visual);
-      const centers = shiftGroupInside(
-        [STATS_SETTINGS_ROW.toggleX, statsPanelButtonCenterX(button.hitWidth)],
-        [toggle, button],
-        SETTINGS_FRAMES.left.controlRight,
-      );
+      const [buttonX, toggleX] = rightAlignedControlCenters([button, toggle], frame.controlRight);
       const at = `button ${visual}`;
-      expect(centers[1] + button.visualWidth / 2, at).toBeLessThanOrEqual(SETTINGS_FRAMES.left.controlRight + EPS);
-      expect(centers[1] - button.hitWidth / 2 - (centers[0] + toggle.hitWidth / 2), at).toBeGreaterThanOrEqual(
-        STATS_SETTINGS_ROW.minControlGap - EPS,
+      expect(toggleX + toggle.visualWidth / 2, at).toBeCloseTo(frame.controlRight, 6);
+      expect(toggleX - toggle.hitWidth / 2 - (buttonX + button.hitWidth / 2), at).toBeGreaterThanOrEqual(
+        SETTINGS_CONTROL_GAP - EPS,
       );
-      expect(centers[0] - toggle.visualWidth / 2, at).toBeGreaterThanOrEqual(SETTINGS_FRAMES.left.labelX);
+      expect(buttonX - button.visualWidth / 2, at).toBeGreaterThanOrEqual(frame.labelX);
     }
-    // With room to spare, nothing moves: the toggle stays on the column's toggle axis.
-    const narrow = control(STATS_SETTINGS_ROW.buttonMinWidth);
-    expect(
-      shiftGroupInside(
-        [STATS_SETTINGS_ROW.toggleX, statsPanelButtonCenterX(narrow.hitWidth)],
-        [toggle, narrow],
-        SETTINGS_FRAMES.left.controlRight,
-      )[0],
-    ).toBe(SETTINGS_FRAMES.left.controlX);
   });
 
-  /** The bar measured 136px at 14px (rendered check); 18px at 130% makes it about 175. */
-  it('centres the measured volume bar on the control axis, buttons clear of it, the group inside the column', () => {
-    const frame = SETTINGS_FRAMES.center;
-    for (let bar = 100; bar <= 220; bar += 4) {
+  it('right-aligns the volume stepper to the control edge, buttons clear of the bar, the group inside the column', () => {
+    for (const frame of [SETTINGS_FRAMES.center, SETTINGS_FRAMES.left]) {
       const button = control(44);
-      const xs = volumeStepperXs(bar, button.visualWidth, frame);
-      const at = `bar ${bar}`;
-      // Centred on the axis, unless it had to shift left to stay inside the edge.
-      const atEdge = Math.abs(xs.plusX + button.visualWidth / 2 - frame.controlRight) <= EPS;
-      if (!atEdge) expect(xs.barLeft + bar / 2, at).toBeCloseTo(frame.controlX, 6);
-      expect(xs.barLeft + bar / 2, at).toBeLessThanOrEqual(frame.controlX + EPS);
-      expect(xs.barLeft - (xs.minusX + button.visualWidth / 2), at).toBeGreaterThanOrEqual(MIN_GAP_WITHIN);
-      expect(xs.plusX - button.visualWidth / 2 - (xs.barLeft + bar), at).toBeGreaterThanOrEqual(MIN_GAP_WITHIN);
-      expect(xs.plusX - button.hitWidth / 2 - (xs.minusX + button.hitWidth / 2), at).toBeGreaterThanOrEqual(
+      const xs = volumeStepperXs(VOLUME_BAR_WIDTH, button.visualWidth, frame);
+      expect(xs.plusX + button.visualWidth / 2).toBeCloseTo(frame.controlRight, 6);
+      expect(xs.barLeft - (xs.minusX + button.visualWidth / 2)).toBeGreaterThanOrEqual(MIN_GAP_WITHIN);
+      expect(xs.plusX - button.visualWidth / 2 - (xs.barLeft + VOLUME_BAR_WIDTH)).toBeGreaterThanOrEqual(MIN_GAP_WITHIN);
+      expect(xs.plusX - button.hitWidth / 2 - (xs.minusX + button.hitWidth / 2)).toBeGreaterThanOrEqual(
         SETTINGS_CONTROL_GAP,
       );
-      expect(xs.minusX - button.visualWidth / 2, at).toBeGreaterThanOrEqual(frame.labelX);
-      expect(xs.plusX + button.visualWidth / 2, at).toBeLessThanOrEqual(frame.controlRight + EPS);
+      expect(xs.minusX - button.visualWidth / 2).toBeGreaterThanOrEqual(frame.labelX);
     }
   });
 });

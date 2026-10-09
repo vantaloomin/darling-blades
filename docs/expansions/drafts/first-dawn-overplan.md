@@ -762,6 +762,15 @@ Blaze-Horn Charge (one): seven slots. Sources: Coal-Thrower, Ember-Flick,
 Blaze-Horn Charge and the Empower on Ridge-Raptor. Top: Tusk-Rage Tyrant and
 Blaze-Crest Tyrant.
 
+**1.9.1 upgrade (owner ruling 2026-10-09).** The premise above, "mostly
+commons, as a theme deck's is", was wrong: every other shop deck, the 350g
+starters included, carries Super Rares or better, and this list shipped in
+1.9.0 with nothing above Rare (about 1,350g of craft value against 2,190 to
+20,460 for the other theme decks) at the same 500g. The owner chose to
+upgrade the list rather than cut the price: Ember-Crest Tyrant (SSR) replaces
+Rage-Kin Brawler, Fern-Crown Tyrant (SSR) replaces Blaze-Crest Tyrant, and
+Oru, the Tyrant Queen (UR) replaces one Horn-Crest Charger. Price stays 500g.
+
 ## The summit pair, rungs 27 and 28 (draft lists)
 
 Built 2026-10-01: Hooves and Fire and the summit pair, rungs 27-28; theme: Frill-Flare Hornback -> Fern-Crest Raptor, Flint-Spear Toss -> Hurled Firebrand; R27: Shepherdess of the Long Grass -> Longneck Calf-Guard x2 + Nest-Guard Longneck, Hearth-Shield Maiden uses `fdr-hearth-shield-bulwark`; R28: Frill-Neck Stalker -> Spear-Sister, Fang and Horn -> Grip of the Old Beast, Flint-Spear Toss -> Hurled Firebrand, Fern-Crown Tyrant is back in the cut. Win-rate floors remain provisional until wave 4.

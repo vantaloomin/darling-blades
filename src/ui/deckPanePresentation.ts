@@ -3,6 +3,7 @@
 import { DESKTOP_DECK_PITCH } from './deckListPaging';
 import { menuLineHeight } from './mainMenuPresentation';
 import { playTextStack } from './playPresentation';
+import { PAGER_CENTER_OFFSET } from './layout';
 import { theme } from './theme';
 
 /**
@@ -66,6 +67,21 @@ export function deckPaneSummaryLayout(measured: Partial<DeckPaneSummaryMeasure> 
     manaValueY: barBaseY + manaValueHeight / 2, countOffsetY, listBottom };
 }
 
+/**
+ * Where the deck list's pager goes. It belongs to the list, so it sits centred
+ * under the fullest page's last row when that leaves room above the Mana Curve
+ * heading; otherwise (large text, touch rows) it keeps the Mana Curve
+ * heading's line, where it costs the list no rows.
+ */
+export function deckListPagerPosition(lastRowBottom: number, summary = deckPaneSummaryLayout()): { x: number; y: number } {
+  const y = lastRowBottom + theme.space(2) + theme.control.minHitHeight / 2;
+  // Its hit band may use the gap above the heading, never the heading itself.
+  const headingTop = summary.listBottom + theme.space(3);
+  return y + theme.control.minHitHeight / 2 <= headingTop
+    ? { x: PANE_LEFT + PANE_WIDTH / 2 - PAGER_CENTER_OFFSET, y }
+    : { x: summary.pagerX, y: summary.pagerY };
+}
+
 /** Wrapped title, Format and View tracks start at the safe edge and grow down. */
 export function deckPaneHeaderLayout(titleHeight = 2 * menuLineHeight(theme.type.h2)) {
   const titleHalfHeight = Math.max(titleHeight, theme.control.minHitHeight) / 2;
@@ -74,6 +90,21 @@ export function deckPaneHeaderLayout(titleHeight = 2 * menuLineHeight(theme.type
   const toggleY = formatY + theme.control.minHitHeight;
   return { titleY, titleHalfHeight, titleWidth: PANE_WIDTH - 46 - 100, formatY, toggleY,
     contentTop: toggleY + theme.control.minHitHeight / 2 };
+}
+
+/**
+ * The Format and View rows share one tab column: it starts one gap past the
+ * wider of their two measured labels, so the tabs never run into a label that
+ * grew with the text size, and both rows start on the same line. Returns each
+ * tab's centre, laid left to right at their measured widths.
+ */
+export function deckPaneTabRow(labelWidth: number, widths: readonly number[]): number[] {
+  let x = PANE_LEFT + labelWidth + theme.space(3);
+  return widths.map((width) => {
+    const centre = x + width / 2;
+    x += width + theme.space(2);
+    return centre;
+  });
 }
 
 export const DECK_PANE_LAYOUT = {
@@ -93,10 +124,7 @@ export const DECK_PANE_LAYOUT = {
   },
   toggle: {
     labelX: PANE_LEFT,
-    /** Three views share the row since v33; 84px slots keep them inside the pane. */
-    cardsX: PANE_LEFT + 100,
-    warchestX: PANE_LEFT + 192,
-    styleX: PANE_LEFT + 284,
+    /** Three views share the row since v33; deckPaneTabRow places them. */
     get y() { return deckPaneHeaderLayout().toggleY; },
     minWidth: 84,
   },
@@ -152,8 +180,6 @@ export const DECK_PANE_LAYOUT = {
   formatRow: {
     labelX: PANE_LEFT,
     get y() { return deckPaneHeaderLayout().formatY; },
-    tabFirstX: PANE_LEFT + 90,
-    tabPitch: 90,
     tabMinWidth: 78,
     decksHitLeft: PANE_RIGHT - 100,
   },

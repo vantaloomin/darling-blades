@@ -127,7 +127,7 @@ Story duels pick an existing avatar or difficulty. Brains read only the redacted
 
 ## Save-schema impact
 
-One top-level field, added in the next free `SaveData` version when wave 1 lands (`CURRENT_SAVE_VERSION` is 36 on `release/1.9`; v36 was 1.9's one bump):
+One top-level field, added in the next free `SaveData` version when wave 1 lands (`CURRENT_SAVE_VERSION` is 37 as of 1.9.1; v36 was 1.9's one bump and v37 the 1.9.1 Hooves and Fire grant, so Story takes v38):
 
 ```ts
 story: {

@@ -8,7 +8,7 @@
  * - **loose**: one `.webp` per key under `assets/art/cards/` and
  *   `assets/art/cards-half/`. The dev server and the desktop app read these
  *   (Tauri's asset protocol ignores `Range`, see docs/desktop-build.md).
- * - **packs**: one content-hashed `.bin` per set per tier under
+ * - **packs**: one content-hashed `.webp` pack per set per tier under
  *   `assets/art/packs/`, written by `scripts/pack-art.ts`, read one card at a
  *   time by an HTTP range request. The offset index is bundled into the
  *   JavaScript, so the pack names and offsets always come from the same build.
@@ -56,7 +56,7 @@ export const PACK_INDEX_VERSION = 1;
 export type PackEntry = readonly [number, number, number];
 
 export interface PackTierIndex {
-  /** Pack file names, e.g. `full-base.1a2b3c4d5e.bin`, under `assets/art/packs/`. */
+  /** Pack file names, e.g. `full-base.1a2b3c4d5e.webp`, under `assets/art/packs/`. */
   packs: string[];
   /** Each pack's byte length, parallel to `packs`: the whole-pack length check. */
   sizes: number[];

@@ -1,6 +1,7 @@
 import { TIER_RANK, variantRank } from '../meta/variants';
 import type { FrameStyle, HoloFinish } from '../meta/variants';
 import type { AnimationLevel } from '../platform/animPolicy';
+import { CARD_FACE_H, CARD_FACE_W } from '../config/cardFaceGeometry';
 import { theme } from './theme';
 
 /**
@@ -187,6 +188,28 @@ export const PACK_REVEAL_GROUP_GAP = 24;
 export const PACK_BUTTON_Y = theme.design.footerCenterY;
 export const PACK_BUTTON_PANEL = { width: 720, height: 72 } as const;
 
+/** Air between the rail's neighbouring hit boxes, and the panel's side inset. */
+export const PACK_RAIL_GAP = theme.space(3);
+export const PACK_RAIL_INSET = theme.space(4);
+
+/**
+ * The CTA rail from its buttons' measured hit widths: one group centred on
+ * the screen with one gap throughout, on a panel that hugs it. The buttons
+ * sat at hand-set offsets (centre -200, +60, +200) until 2026-10-08, so the
+ * gaps read 128px and 11px and the group sat 17px left of its panel.
+ */
+export function packRailLayout(hitWidths: readonly number[]) {
+  const total = hitWidths.reduce((sum, w) => sum + w, 0) + PACK_RAIL_GAP * Math.max(0, hitWidths.length - 1);
+  let next = theme.design.centerX - total / 2;
+  const xs = hitWidths.map((w) => {
+    const x = next + w / 2;
+    next += w + PACK_RAIL_GAP;
+    return x;
+  });
+  const width = Math.min(theme.design.safeWidth, total + 2 * PACK_RAIL_INSET);
+  return { xs, panel: { x: theme.design.centerX - width / 2, y: PACK_BUTTON_Y - PACK_BUTTON_PANEL.height / 2, width, height: PACK_BUTTON_PANEL.height } };
+}
+
 /**
  * Where revealed cards may sit: the title-safe frame, below the header row
  * (back link on the left, Skip on the right) and clear of the CTA rail's panel.
@@ -358,4 +381,36 @@ export function packInspectLayout(lineHeights: readonly number[]): PackInspectLa
     cardY: cardTop + cardSpace / 2,
     cardScale,
   };
+}
+
+/** The batch summary's best-pulls grid: up to two rows of eight. */
+export const PACK_SUMMARY = { maxCols: 8, maxScale: 0.42, gap: theme.space(4) } as const;
+
+/**
+ * Card centres and scale for the batch summary's best pulls: the grid sits
+ * inside the title-safe frame (it ran 52-1228 at a fixed 150px pitch until
+ * 2026-10-08) and centres vertically between the heading block and the rail.
+ */
+export function packSummaryGrid(count: number, headingBottom: number) {
+  const n = Math.min(count, PACK_SUMMARY.maxCols * 2);
+  if (n === 0) return { scale: PACK_SUMMARY.maxScale, cells: [] as { x: number; y: number }[] };
+  const cols = Math.min(PACK_SUMMARY.maxCols, n);
+  const rows = Math.ceil(n / cols);
+  const gap = PACK_SUMMARY.gap;
+  const top = headingBottom + theme.space(6);
+  const bottom = PACK_BUTTON_Y - PACK_BUTTON_PANEL.height / 2 - theme.space(6);
+  const scale = Math.min(PACK_SUMMARY.maxScale,
+    (theme.design.safeWidth - (cols - 1) * gap) / (cols * CARD_FACE_W),
+    (bottom - top - (rows - 1) * gap) / (rows * CARD_FACE_H));
+  const w = CARD_FACE_W * scale;
+  const h = CARD_FACE_H * scale;
+  const blockTop = top + (bottom - top - (rows * h + (rows - 1) * gap)) / 2;
+  const cells = Array.from({ length: n }, (_, i) => {
+    const row = Math.floor(i / cols);
+    const col = i - row * cols;
+    const rowLen = Math.min(cols, n - row * cols);
+    const rowLeft = theme.design.centerX - (rowLen * w + (rowLen - 1) * gap) / 2;
+    return { x: rowLeft + col * (w + gap) + w / 2, y: blockTop + row * (h + gap) + h / 2 };
+  });
+  return { scale, cells };
 }

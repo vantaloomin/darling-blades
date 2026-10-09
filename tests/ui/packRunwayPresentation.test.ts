@@ -3,6 +3,9 @@ import { ECONOMY } from '../../src/config/rules';
 import { theme } from '../../src/ui/theme';
 import { forEachA11yCell } from './a11yCells';
 import {
+  packRailLayout,
+  packSummaryGrid,
+  PACK_RAIL_GAP,
   cardDwellMs,
   cardRailX,
   clampRailOffset,
@@ -301,5 +304,41 @@ describe('packInspectLayout', () => {
     const scales = [1, 3, 6, 9].map((n) => packInspectLayout(Array<number>(n).fill(17)).cardScale);
     expect(scales[0]).toBeLessThanOrEqual(PACK_INSPECT.cardMaxScale);
     for (let i = 1; i < scales.length; i++) expect(scales[i]).toBeLessThanOrEqual(scales[i - 1]);
+  });
+});
+
+describe('pack CTA rail', () => {
+  it('centres the buttons as one group with one gap, on a panel that holds them inside the frame', () => {
+    for (const widths of [[230, 130, 130], [300, 130, 130], [180, 150, 150]]) {
+      const rail = packRailLayout(widths);
+      const lefts = rail.xs.map((x, i) => x - widths[i] / 2);
+      const rights = rail.xs.map((x, i) => x + widths[i] / 2);
+      expect((lefts[0] + rights.at(-1)!) / 2).toBeCloseTo(theme.design.centerX);
+      for (let i = 1; i < widths.length; i++) expect(lefts[i] - rights[i - 1]).toBeCloseTo(PACK_RAIL_GAP);
+      expect(rail.panel.x).toBeLessThan(lefts[0]);
+      expect(rail.panel.x + rail.panel.width).toBeGreaterThan(rights.at(-1)!);
+      expect(rail.panel.x).toBeGreaterThanOrEqual(theme.design.safeLeft);
+    }
+  });
+});
+
+describe('batch summary grid', () => {
+  it('keeps every best pull inside the frame, apart, and between the heading and the rail', () => {
+    const headingBottom = 130;
+    const railTop = PACK_BUTTON_Y - PACK_BUTTON_PANEL.height / 2;
+    for (const count of [1, 5, 8, 9, 16, 20]) {
+      const { scale, cells } = packSummaryGrid(count, headingBottom);
+      expect(cells).toHaveLength(Math.min(count, 16));
+      const w = 300 * scale, h = 420 * scale;
+      for (const c of cells) {
+        expect(c.x - w / 2).toBeGreaterThanOrEqual(theme.design.safeLeft);
+        expect(c.x + w / 2).toBeLessThanOrEqual(theme.design.safeRight);
+        expect(c.y - h / 2).toBeGreaterThan(headingBottom);
+        expect(c.y + h / 2).toBeLessThan(railTop);
+      }
+      for (let i = 1; i < cells.length; i++) {
+        if (cells[i].y === cells[i - 1].y) expect(cells[i].x - cells[i - 1].x - w).toBeGreaterThanOrEqual(12);
+      }
+    }
   });
 });

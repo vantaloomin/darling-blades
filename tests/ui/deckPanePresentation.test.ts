@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   DECK_PANE_LAYOUT,
+  deckListPagerPosition,
+  deckPaneTabRow,
   DECK_PICKER_LAYOUT,
   PAGER_HIT_REACH,
   constructedBasicsRowY,
@@ -18,6 +20,7 @@ import {
   toggleDeckPaneMode,
   warchestSlotLabel,
 } from '../../src/ui/deckPanePresentation';
+import { PAGER_CENTER_OFFSET } from '../../src/ui/layout';
 import { theme } from '../../src/ui/theme';
 import { menuLineHeight } from '../../src/ui/mainMenuPresentation';
 import { forEachA11yCell } from './a11yCells';
@@ -27,6 +30,16 @@ import { forEachA11yCell } from './a11yCells';
  * sat on y 32 until 1.8.1, its text and its Decks button above the frame. Hit
  * bands are 44px tall; a control's visual is its sm height (30).
  */
+/**
+ * Rendered widths (Chromium, 2026-10-08) at 100% and 130% text: the wider of
+ * the Format/Classic/View labels, the two Format tabs, and the three View
+ * buttons with the Warchest warning label, the widest it gets.
+ */
+const MEASURED = [
+  { label: 40, format: [78, 78], view: [84, 87, 84] },
+  { label: 50, format: [87, 81], view: [84, 111, 84] },
+] as const;
+
 describe('deck pane header rows', () => {
   const layout = DECK_PANE_LAYOUT;
   const hitHalf = theme.control.minHitHeight / 2;
@@ -49,7 +62,7 @@ describe('deck pane header rows', () => {
     // The Darling portrait sits above the Format label (micro type, ~14px box).
     expect(f.y - 7).toBeGreaterThanOrEqual(title.y + (420 * title.portraitScale) / 2 + 4);
     // Title-row controls may run level with the tabs only in columns no tab reaches.
-    const firstTabHitLeft = f.tabFirstX - theme.control.minHitWidth / 2;
+    const firstTabHitLeft = deckPaneTabRow(MEASURED[0].label, [f.tabMinWidth])[0] - theme.control.minHitWidth / 2;
     expect(title.portraitX + title.portraitHitWidth / 2).toBeLessThan(firstTabHitLeft);
     expect(layout.decks.x - layout.decks.minWidth / 2).toBeGreaterThanOrEqual(f.decksHitLeft);
     // The View row shares every column with the tabs, and Style shares Decks'.
@@ -83,14 +96,26 @@ describe('deck pane presentation', () => {
     expect(resolveDeckPaneMode('warchest', true)).toBe('warchest');
   });
 
-  it('keeps the Format tabs clear of the Decks CTA hit column', () => {
+  it('keeps the Format tabs clear of the Decks CTA hit column and past the measured label', () => {
     const f = DECK_PANE_LAYOUT.formatRow;
-    // Two tabs; the right edge of the last one stays left of Decks' inflated
-    // hit column with breathing room (interactive isolation rule).
-    const lastTabRight = f.tabFirstX + f.tabPitch + f.tabMinWidth / 2;
-    expect(lastTabRight).toBeLessThanOrEqual(f.decksHitLeft - 8);
-    // The Format label clears the first tab's left edge.
-    expect(f.tabFirstX - f.tabMinWidth / 2).toBeGreaterThanOrEqual(f.labelX + 44);
+    for (const m of MEASURED) {
+      const xs = deckPaneTabRow(m.label, m.format);
+      // Two tabs; the right edge of the last one stays left of Decks' inflated
+      // hit column with breathing room (interactive isolation rule).
+      expect(xs[1] + m.format[1] / 2).toBeLessThanOrEqual(f.decksHitLeft - 8);
+      // The Format label, at its measured width, clears the first tab.
+      expect(xs[0] - m.format[0] / 2).toBeGreaterThanOrEqual(f.labelX + m.label + theme.space(2));
+      // The View row starts on the same line as the Format row.
+      expect(deckPaneTabRow(m.label, m.view)[0] - m.view[0] / 2).toBe(xs[0] - m.format[0] / 2);
+    }
+  });
+
+  it('puts the list pager under the list when it fits, else on the heading line', () => {
+    const s = DECK_PANE_LAYOUT.summary;
+    const roomy = deckListPagerPosition(s.listBottom - 100);
+    expect(roomy.y + theme.control.minHitHeight / 2).toBeLessThanOrEqual(s.statsHeadingY - menuLineHeight(theme.type.label) / 2);
+    expect(roomy.x + PAGER_CENTER_OFFSET).toBe((DECK_PANE_LAYOUT.left + DECK_PANE_LAYOUT.right) / 2);
+    expect(deckListPagerPosition(s.listBottom - 10)).toEqual({ x: s.pagerX, y: s.pagerY });
   });
 
   it('stretches the mana curve across the pane width', () => {
@@ -298,13 +323,14 @@ describe('deck pane style view', () => {
     expect(resolveDeckPaneMode('warchest', false)).toBe('cards');
   });
 
-  it('fits three buttons inside the pane without overlapping', () => {
-    const t = DECK_PANE_LAYOUT.toggle;
-    const half = t.minWidth / 2;
-    expect(t.cardsX - half).toBeGreaterThan(t.labelX);
-    expect(t.warchestX - half).toBeGreaterThanOrEqual(t.cardsX + half);
-    expect(t.styleX - half).toBeGreaterThanOrEqual(t.warchestX + half);
-    expect(t.styleX + half).toBeLessThanOrEqual(DECK_PANE_LAYOUT.right);
+  it('fits three View buttons inside the pane without overlapping', () => {
+    for (const m of MEASURED) {
+      const xs = deckPaneTabRow(m.label, m.view);
+      for (let i = 1; i < xs.length; i++) {
+        expect(xs[i] - m.view[i] / 2).toBeGreaterThanOrEqual(xs[i - 1] + m.view[i - 1] / 2 + theme.space(2));
+      }
+      expect(xs[2] + m.view[2] / 2).toBeLessThanOrEqual(DECK_PANE_LAYOUT.right);
+    }
   });
 });
 

@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { bakeUiIcon, uiIconSize } from '../ui/uiIcons';
+import { formatGold } from '../ui/goldFormat';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { ALL_CARDS, CARD_DB } from '../data/catalog';
@@ -85,7 +87,8 @@ const SUMMARY_Y = 106;
 const SUMMARY_H = 40;
 const SUMMARY_POOL_W = 250;
 const SUMMARY_SPECIAL_W = 190;
-const FILTER_Y = 164;
+/** Centred between the summary strip (bottom 146) and the content top (196). */
+const FILTER_Y = 171;
 /** The release list's density, held at standard text (the probe checks it). */
 const RELEASE_LIST_DENSITY = { id: 'achievement list', rows: 8, columns: 2, pitch: 56, top: 196 } as const;
 const FILTER_W = 104;
@@ -263,7 +266,7 @@ export class AchievementsScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     if (claimable.length > 0) {
-      claimAllButton = themedButton(this, 0, theme.design.headerCenterY, `Claim All +${claimableGold} Gold`, {
+      claimAllButton = themedButton(this, 0, theme.design.headerCenterY, `Claim All +${formatGold(claimableGold)}`, {
         variant: 'primary',
         minWidth: 220,
         onTap: () => {
@@ -395,15 +398,19 @@ export class AchievementsScene extends Phaser.Scene {
       .setOrigin(originX, 0.5);
   }
 
-  /** Hall ⇄ List chips at the content's left edge; a bucket chip clears the wing scope. */
+  /** Hall ⇄ List chips on the content's left edge; a bucket chip clears the wing scope. */
   private drawViewToggle(): void {
-    (['hall', 'list'] as const).forEach((key, index) => {
-      roundedTrigger(this, CONTENT_X + 52 + index * 120, FILTER_Y, key === 'hall' ? 'Hall' : 'List', {
+    let left = CONTENT_X;
+    (['hall', 'list'] as const).forEach((key) => {
+      const chip = roundedTrigger(this, 0, FILTER_Y, key === 'hall' ? 'Hall' : 'List', {
         size: 'sm',
-        minWidth: 104,
+        minWidth: FILTER_W,
         selected: this.route.view === key,
         onTap: () => this.restartAt({ ...this.route, page: 0, view: key }),
       });
+      const width = chip.getMeasuredSize().visual.width;
+      chip.container.setX(left + width / 2);
+      left += width + FILTER_GAP;
     });
     if (this.route.view === 'list' && this.route.bucket !== 'all') {
       // Right-aligned on the content edge (its left edge sat at 1120, which
@@ -543,14 +550,16 @@ export class AchievementsScene extends Phaser.Scene {
       .setOrigin(0.5);
   }
 
-  /** 📌 on a claimed row: pin to (or unpin from) the Profile showcase. */
+  /** The pin on a claimed row: pin to (or unpin from) the Profile showcase. */
   private drawPinToggle(id: string, x: number, y: number): void {
     const save = this.saveData;
     const pinned = save.achievements.pinned.includes(id);
+    const size = uiIconSize(theme.type.label);
     this.add
-      .text(x, y, '📌', { fontSize: '18px' })
-      .setOrigin(0.5)
-      .setAlpha(pinned ? 1 : 0.3);
+      .image(x, y, bakeUiIcon(this, 'pin'))
+      .setDisplaySize(size, size)
+      .setTint(colorInt(pinned ? theme.colors.gold : theme.colors.muted))
+      .setAlpha(pinned ? 1 : 0.6);
     const zone = this.add.zone(x, y, 44, 44).setInteractive({ useHandCursor: true });
     zone.on('pointerup', (p: Phaser.Input.Pointer) => {
       if (p.rightButtonReleased()) return;
@@ -594,7 +603,7 @@ export class AchievementsScene extends Phaser.Scene {
     const claimable = status.unlocked && !status.claimed;
     const claimed = status.claimed;
     const reward = this.add
-      .text(0, 0, `+${status.def.reward.gold} Gold`, {
+      .text(0, 0, `+${formatGold(status.def.reward.gold)}`, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         fontStyle: theme.weight.w600,

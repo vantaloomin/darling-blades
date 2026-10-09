@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { formatGold, goldPrice } from '../ui/goldFormat';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { ECONOMY } from '../config/rules';
@@ -38,7 +39,7 @@ import { IS_DEV } from '../platform/env';
 import type { SaveData } from '../meta/SaveManager';
 import { fitMenuListName, fitMenuName } from '../ui/menuText';
 import { bindMenuScroll } from '../ui/menuScroll';
-import { shopPackLayout, shopPreviewListLayout, shopPreviewModalLayout, type ShopA11yFixture } from '../ui/shopPresentation';
+import { shopPackLayout, shopPreviewListLayout, shopPreviewModalLayout, shopTabCenters, SHOP_STRIP_ARROW_Y, type ShopA11yFixture } from '../ui/shopPresentation';
 import { DECK_SHOP_LAYOUT, DECK_SHOP_GRID, deckShopCardLayout } from '../ui/deckShopLayout';
 import { CARD_H, CardView } from '../ui/CardView';
 import { rarityLine } from '../ui/CardZoomPreview';
@@ -870,7 +871,7 @@ export class ShopScene extends Phaser.Scene {
       const short = Math.max(0, total - gold);
       const anyAffordable = this.skuButtons.some(({ price }) => gold >= price * this.qty);
       this.boosterQtyStatus.setText(
-        `You need 🪙 ${short} more to buy ${this.qty} ${this.qty === 1 ? 'pack' : 'packs'} at a time.`,
+        `You need ${formatGold(short)} more to buy ${this.qty} ${this.qty === 1 ? 'pack' : 'packs'} at a time.`,
       );
       this.boosterQtyStatus.setVisible(this.skuButtons.length > 0 && !anyAffordable);
     }
@@ -890,15 +891,19 @@ export class ShopScene extends Phaser.Scene {
       { key: 'boosters', label: 'Card Packs' },
       { key: 'decks', label: 'Decks' },
     ];
-    defs.forEach((d, i) => {
-      const button = themedButton(this, 640 - 100 + i * 200, 96, d.label, {
+    const buttons = defs.map((d) => {
+      const button = themedButton(this, 0, 96, d.label, {
         variant: 'ghost',
         minWidth: 120,
+        look: 'tab',
         onTap: () => this.setTab(d.key),
       });
       this.tabButtons.set(d.key, button);
       this.shopInteractiveTargets.push(button.inputZone);
+      return button;
     });
+    const centers = shopTabCenters(buttons.map((b) => b.getMeasuredSize().hit.width));
+    buttons.forEach((b, i) => b.container.setX(centers[i]));
   }
 
   private setTab(tab: ShopTab): void {
@@ -906,7 +911,7 @@ export class ShopScene extends Phaser.Scene {
     this.boostersGroup.setVisible(tab === 'boosters');
     this.decksGroup.setVisible(tab === 'decks');
     for (const [key, btn] of this.tabButtons) {
-      btn.setVariant(key === tab ? 'primary' : 'ghost');
+      btn.setVariant(key === tab ? 'selected' : 'ghost');
     }
   }
 
@@ -1003,13 +1008,13 @@ export class ShopScene extends Phaser.Scene {
     this.boosterStripEdgePeeks = [leftPeek, rightPeek];
     group.add([leftPeek, rightPeek]);
 
-    const leftArrow = themedButton(this, layout.arrowCenters.left, 390, '‹', {
+    const leftArrow = themedButton(this, layout.arrowCenters.left, SHOP_STRIP_ARROW_Y.boosters, '‹', {
       variant: 'ghost',
       size: 'sm',
       minWidth: 52,
       onTap: () => this.setBoosterStripIndex(this.boosterStripIndex - 1),
     });
-    const rightArrow = themedButton(this, layout.arrowCenters.right, 390, '›', {
+    const rightArrow = themedButton(this, layout.arrowCenters.right, SHOP_STRIP_ARROW_Y.boosters, '›', {
       variant: 'ghost',
       size: 'sm',
       minWidth: 52,
@@ -1079,7 +1084,7 @@ export class ShopScene extends Phaser.Scene {
     // (dark bg, gold text) to stand out, but beside a rail of gold primaries
     // it read as LESS clickable (owner catch, 2026-07-31); the New chip
     // already carries the differentiation.
-    const buyBtn = themedButton(this, x, 578, `Buy · 🪙 ${price}`, {
+    const buyBtn = themedButton(this, x, 578, `Buy · ${goldPrice(price)}`, {
       variant: 'primary',
       minWidth: 178,
       onTap: () => {
@@ -1091,20 +1096,7 @@ export class ShopScene extends Phaser.Scene {
     if (sku === NEWEST_SKU) {
       // Left of the caption: the info bubble rides its right edge, and the
       // two collided when both sat on the same side.
-      const chip = this.add
-        .text(x - 84, poolCaption.y, 'New', {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.micro}px`,
-          fontStyle: theme.weight.w700,
-          color: theme.colors.gold,
-        })
-        .setOrigin(0.5);
-      const chipBg = this.add.graphics();
-      chipBg.fillStyle(theme.graphics.rowFillActive, theme.alpha.panel);
-      chipBg.fillRoundedRect(chip.x - chip.width / 2 - 6, chip.y - chip.height / 2 - 2, chip.width + 12, chip.height + 4, theme.radius.control);
-      chipBg.lineStyle(1, colorInt(theme.colors.gold), theme.alpha.chrome);
-      chipBg.strokeRoundedRect(chip.x - chip.width / 2 - 6, chip.y - chip.height / 2 - 2, chip.width + 12, chip.height + 4, theme.radius.control);
-      group.add([chipBg, chip]);
+      group.add(this.shopBadge(x - 84, poolCaption.y, 'New'));
     }
     // The bubble rides the short pool caption, not the title: wide theme
     // titles (Nocturne Manor) pushed a title-anchored bubble to the screen
@@ -1190,14 +1182,14 @@ export class ShopScene extends Phaser.Scene {
   private refreshQtyChips(): void {
     const gold = this.saveData.gold;
     for (const [n, chip] of this.qtyChips) {
-      chip.setVariant(n === this.qty ? 'primary' : 'ghost');
+      chip.setVariant(n === this.qty ? 'selected' : 'ghost');
       chip.setEnabled(this.skuButtons.some(({ price }) => gold >= price * n));
     }
   }
 
   private refreshQtyLabels(): void {
     for (const { btn, price } of this.skuButtons) {
-      btn.setLabel(this.qty > 1 ? `Buy ×${this.qty} · 🪙 ${price * this.qty}` : `Buy · 🪙 ${price}`);
+      btn.setLabel(this.qty > 1 ? `Buy ×${this.qty} · ${goldPrice(price * this.qty)}` : `Buy · ${goldPrice(price)}`);
     }
   }
 
@@ -1392,16 +1384,20 @@ export class ShopScene extends Phaser.Scene {
     const sections = this.deckSections();
     // Sub-tab bar: one section shown at a time. The pills name the view, so
     // the old in-band gold headings are gone with the crowding they fought.
-    sections.forEach((section, i) => {
-      const button = themedButton(this, 640 - 110 + i * 220, DECK_SHOP_LAYOUT.subTabY, section.label, {
-        variant: section.key === this.deckTab ? 'primary' : 'ghost',
+    const subTabs = sections.map((section) => {
+      const button = themedButton(this, 0, DECK_SHOP_LAYOUT.subTabY, section.label, {
+        variant: section.key === this.deckTab ? 'selected' : 'ghost',
         size: 'sm',
+        look: 'tab',
         minWidth: 160,
         onTap: () => this.setDeckTab(section.key),
       });
       this.deckInteractiveTargets.push(button.inputZone);
       group.add(button.container);
+      return button;
     });
+    const subTabCenters = shopTabCenters(subTabs.map((b) => b.getMeasuredSize().hit.width));
+    subTabs.forEach((b, i) => b.container.setX(subTabCenters[i]));
     const active = sections.find((section) => section.key === this.deckTab) ?? sections[0];
     this.deckStripSkus = active.skus;
     // Open on the first waiting free claim's column so a Claim Free card is
@@ -1459,7 +1455,7 @@ export class ShopScene extends Phaser.Scene {
       this.deckStripControls.push(controls);
     }
 
-    const arrowY = DECK_STRIP_TOP + DECK_COLUMN_H / 2;
+    const arrowY = SHOP_STRIP_ARROW_Y.decks;
     const leftArrow = themedButton(this, layout.arrowCenters.left, arrowY, '‹', {
       variant: 'ghost',
       size: 'sm',
@@ -1485,6 +1481,28 @@ export class ShopScene extends Phaser.Scene {
   }
 
   /** Starter and Zhou Yu grants are independent, one-time FREE claims. */
+  /**
+   * A small gold-bordered tag centred on (x, y): the newest pack's "New" and
+   * a free deck's "Free". Its plate is the active row fill, so it reads over
+   * art as well as over a panel.
+   */
+  private shopBadge(x: number, y: number, label: string): Phaser.GameObjects.GameObject[] {
+    const chip = this.add
+      .text(x, y, label, {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.micro}px`,
+        fontStyle: theme.weight.w700,
+        color: theme.colors.gold,
+      })
+      .setOrigin(0.5);
+    const chipBg = this.add.graphics();
+    chipBg.fillStyle(theme.graphics.rowFillActive, theme.alpha.panel);
+    chipBg.fillRoundedRect(chip.x - chip.width / 2 - 6, chip.y - chip.height / 2 - 2, chip.width + 12, chip.height + 4, theme.radius.control);
+    chipBg.lineStyle(1, colorInt(theme.colors.gold), theme.alpha.chrome);
+    chipBg.strokeRoundedRect(chip.x - chip.width / 2 - 6, chip.y - chip.height / 2 - 2, chip.width + 12, chip.height + 4, theme.radius.control);
+    return [chipBg, chip];
+  }
+
   private isFreeClaim(deck: DeckList | DarlingsPrecon): boolean {
     const save = this.saveData;
     if (isDarlingsPrecon(deck)) {
@@ -1520,12 +1538,22 @@ export class ShopScene extends Phaser.Scene {
 
     const plate = panel(this, -halfW, rowTop, DECK_CARD_W, DECK_CARD_H, { alpha: 0.7 });
     tile.add(plate);
+    // Every product keeps its gold Buy (owner, 2026-10-09), so the one action
+    // that costs nothing is set apart by its tile instead: a gold frame and a
+    // Free tag on the art.
+    if (freeClaim) {
+      const frame = this.add.graphics();
+      frame.lineStyle(theme.outline.state, colorInt(theme.colors.gold), 1);
+      frame.strokeRoundedRect(-halfW, rowTop, DECK_CARD_W, DECK_CARD_H, theme.radius.panel);
+      tile.add(frame);
+    }
 
     // The art window: a Darlings precon leads with its Darling; a standard
     // deck leads with its first signature card (the preview's featured list).
     // Same helper the create-time art gate waits on, so the two cannot drift.
     const portraitId = this.deckGridPortraitId(deck);
     this.addDeckPortrait(portraitId, 0, rowTop + 8 + DECK_CARD_ART_H / 2, DECK_CARD_W - 20, DECK_CARD_ART_H, tile);
+    if (freeClaim) tile.add(this.shopBadge(-halfW + 10 + theme.space(6), rowTop + 8 + theme.space(4), 'Free'));
 
     const name = this.add
       .text(0, rowTop + DECK_CARD_ART_H + 22, deck.name, {
@@ -1570,7 +1598,7 @@ export class ShopScene extends Phaser.Scene {
             if (!this.deckStripDragging) this.onCloneDeck(sku);
           },
         })
-      : themedButton(this, 0, ctaY, freeClaim ? 'Claim Free ✦' : `Buy · 🪙 ${price}`, {
+      : themedButton(this, 0, ctaY, freeClaim ? 'Claim Free ✦' : `Buy · ${goldPrice(price)}`, {
           variant: 'primary',
           size: 'sm',
           minWidth: 160,
@@ -1987,8 +2015,8 @@ export class ShopScene extends Phaser.Scene {
     const contentCenterX = content.x + content.width / 2;
 
     // Header: name, color identity as real mana beads + archetype, how-it-plays.
-    const titleY = shell.tracks.titleTrack.y + shell.tracks.titleTrack.height / 2;
-    const titleX = shell.tracks.titleTrack.x + shell.tracks.titleTrack.width / 2;
+    const titleY = shell.tracks.centredTitleTrack.y + shell.tracks.centredTitleTrack.height / 2;
+    const titleX = shell.tracks.centredTitleTrack.x + shell.tracks.centredTitleTrack.width / 2;
     title.setPosition(titleX, titleY);
     c.add(title);
     const idY = content.y + 8;
@@ -2297,17 +2325,17 @@ export class ShopScene extends Phaser.Scene {
             // The free Darlings deck is its own claim, independent of the
             // starter's; the other Darlings decks always cost their price.
             text: darlings
-              ? `✦ Your one free Darling deck. The other Darling decks cost 🪙 ${ECONOMY.darlingsPreconPrice}.`
-              : `✦ Your one free starter. The other starters cost 🪙 ${ECONOMY.starterDeckPrice} once you claim it.`,
+              ? `✦ Your one free Darling deck. The other Darling decks cost ${formatGold(ECONOMY.darlingsPreconPrice)}.`
+              : `✦ Your one free starter. The other starters cost ${formatGold(ECONOMY.starterDeckPrice)} once you claim it.`,
             color: theme.colors.gold,
           }
         : affordable
           ? {
-              text: `Price 🪙 ${price} · Balance 🪙 ${save.gold} → 🪙 ${save.gold - price} after`,
+              text: `Price ${formatGold(price)} · Balance ${formatGold(save.gold)} → ${formatGold(save.gold - price)} after`,
               color: theme.colors.body,
             }
           : {
-              text: `Price 🪙 ${price} · Balance 🪙 ${save.gold} · 🪙 ${price - save.gold} short`,
+              text: `Price ${formatGold(price)} · Balance ${formatGold(save.gold)} · ${formatGold(price - save.gold)} short`,
               color: theme.colors.danger,
             };
     const footerText = this.add
@@ -2337,7 +2365,7 @@ export class ShopScene extends Phaser.Scene {
       bindMenuScroll(this, grantColumn, viewport, grantBody.height, undefined, undefined, linePitch, shell);
     }
     if (!owned) {
-      const buy = themedButton(this, footerRight - 216, footY, freeClaim ? 'Claim Free ✦' : `Buy · 🪙 ${price}`, {
+      const buy = themedButton(this, footerRight - 216, footY, freeClaim ? 'Claim Free ✦' : `Buy · ${goldPrice(price)}`, {
         variant: 'primary',
         minWidth: 170,
         enabled: affordable,

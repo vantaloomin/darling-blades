@@ -116,10 +116,14 @@ export const DUEL_LAYOUT = {
       castX: 1156, castY: 0, payDownX: 0, payDownY: 0,
     },
   },
-  /** Turn chip atop the phase track — all turn info lives in one column. */
-  turnPill: { x: 1113, y: 292 },
-  /** Display-only phase track in the right sidebar above End Turn. */
-  phaseTrack: { x: 1113, firstRowY: 326, rowStep: 34 },
+  /**
+   * Turn chip atop the phase track — all turn info lives in one column. It
+   * sits 4px below the foe's Darling card (bottom ~282); at 292 it overlapped
+   * it (2026-10-08 UI review), so the track moved down with it.
+   */
+  turnPill: { x: 1113, y: 300 },
+  /** Display-only phase track in the right sidebar above End Turn; last row clears the smart button (top 490). */
+  phaseTrack: { x: 1113, firstRowY: 334, rowStep: 34 },
   /** Right-side control cluster: smart button · ⏭ End Turn chip (top→bottom). */
   cluster: { x: 1108, passY: 536, endTurnY: 639, passR: 46 },
   /** Opponent hand/grave/deck icon stack in the left pile column. */
@@ -144,6 +148,31 @@ export const DUEL_LAYOUT = {
    */
   menu: { x: 1206, y: 688 },
 } as const;
+
+/**
+ * Pip-to-pip pitch for a mana strip: the tuned `step`, widened when the
+ * widest `n/m` count (it starts at `pipSize * 0.64` from its pip's centre)
+ * would otherwise reach the next pip. Keeps one space(2) of air before it.
+ */
+export function manaStripPitch(step: number, pipSize: number, widestCount: number): number {
+  return Math.max(step, Math.ceil(pipSize * 0.64 + widestCount + theme.space(2) + pipSize / 2));
+}
+
+/**
+ * The sidebar's confirm buttons hold one width at every text size: a longer
+ * label wraps to two lines instead of widening into the hand or the piles.
+ */
+export const CLUSTER_BUTTON = { minWidth: 150, maxTextWidth: 150 - 2 * theme.space(3) } as const;
+
+/**
+ * Centre x for a right-sidebar control (Confirm targets, End Turn): the
+ * cluster's column, pulled left only as far as needed to keep its right edge
+ * one space(2) clear of your pile column's tap targets.
+ */
+export function clusterControlX(visualWidth: number): number {
+  const limit = MY_PILES_X - PILE_VISUAL.hitHalfWidth - theme.space(2);
+  return Math.min(DUEL_LAYOUT.cluster.x, limit - visualWidth / 2);
+}
 
 /** A pile's visible icon-and-badge rectangle at its container position. */
 export function pileBounds(x: number, y: number): Rect {

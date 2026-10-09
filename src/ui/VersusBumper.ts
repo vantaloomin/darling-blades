@@ -14,6 +14,8 @@ const HEIGHT = VERSUS_BUMPER_LAYOUT.height;
 const SPLIT_TOP_X = VERSUS_BUMPER_LAYOUT.splitTopX;
 const SPLIT_BOTTOM_X = VERSUS_BUMPER_LAYOUT.splitBottomX;
 const PORTRAIT_COVER_W = 790;
+/** Where the floor scrim under the name lockup starts fading in. */
+const VERSUS_FLOOR_TOP = 400;
 /** The name's measure under its role line. */
 const NAME_WIDTH = 430;
 
@@ -133,9 +135,19 @@ export class VersusBumper {
         color: theme.colors.body,
         resolution: 2,
       })
-      .setOrigin(0.5, 1)
+      .setOrigin(0.5, 0.5);
+    // A pill behind the hint: it sits across the seam's foot, where the gold
+    // rule otherwise strikes through the words.
+    const pillW = hint.width + theme.space(6);
+    const pillH = hint.height + theme.space(2);
+    const pill = scene.add
+      .graphics()
+      .fillStyle(theme.graphics.panelFill, 0.92)
+      .fillRoundedRect(-pillW / 2, -pillH / 2, pillW, pillH, pillH / 2);
+    const hintLockup = scene.add
+      .container(WIDTH / 2, theme.design.safeBottom - 8 - pillH / 2, [pill, hint.setPosition(0, 0)])
       .setAlpha(0);
-    this.root.add(hint);
+    this.root.add(hintLockup);
 
     const ease = theme.motion.easeOut;
     scene.tweens.add({
@@ -162,8 +174,8 @@ export class VersusBumper {
       ease,
     });
     scene.tweens.add({
-      targets: hint,
-      alpha: theme.alpha.subtle,
+      targets: hintLockup,
+      alpha: 1,
       delay: motion.entranceMs,
       duration: theme.motion.base,
       ease,
@@ -203,13 +215,24 @@ export class VersusBumper {
     const shade = this.scene.add.graphics();
     shade.fillStyle(theme.graphics.dim, 0.46).fillPoints(points, true);
     panel.add(shade);
+    // A floor scrim under the name lockup, clear at the portrait's chest and
+    // near-opaque at the bottom edge, so the role line, the name and the
+    // continue hint read on any art (they sat on the bare painting until
+    // 2026-10-08, the role line in muted grey over bright stone).
+    const floor = this.scene.add.graphics();
+    floor
+      .fillGradientStyle(theme.graphics.dim, theme.graphics.dim, theme.graphics.dim, theme.graphics.dim, 0, 0, 0.88, 0.88)
+      .fillRect(0, VERSUS_FLOOR_TOP, WIDTH, HEIGHT - VERSUS_FLOOR_TOP);
+    floor.setMask(mask);
+    panel.add(floor);
 
     const roleText = this.scene.add
       .text(centerX, 536, role, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         fontStyle: theme.weight.w700,
-        color: theme.colors.muted,
+        color: theme.colors.gold,
+        letterSpacing: 2,
         resolution: 2,
       })
       .setOrigin(0.5);

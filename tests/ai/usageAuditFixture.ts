@@ -1,6 +1,6 @@
 import { CARD_DB } from '../../src/data/catalog';
 import { AVATARS } from '../../src/data/opponents';
-import { STARTER_DECKS, THEME_DECKS } from '../../src/data/starterDecks';
+import { STARTER_DECKS, THEME_DECKS, expand } from '../../src/data/starterDecks';
 import { DARLINGS_PRECON_MATRIX_FLEET } from '../../src/data/darlingsPrecons';
 import { Game } from '../../src/engine/Game';
 import type { Action } from '../../src/engine/actions';
@@ -16,12 +16,26 @@ import positions from './fixtures/usageAuditPositions.json';
  * Replay the history through the engine so earlier improvements cannot erase
  * the decision under test. No battlefield, hand or RNG state is fabricated.
  * Cell numbering and seats follow scripts/balance-matrix.ts's runCell. */
+/** Hooves and Fire's reserve list as audited in wave 4 (blazeHorn, lostHunt).
+ * 1.9.1 upgraded the shipped list (two SSR tyrants and Oru), which reshuffles
+ * those games, so the replay keeps the list the positions were recorded on. */
+const AUDITED_HOOVES_RESERVE = expand([
+  ['fd-fern-crest-raptor', 3], ['fd-cinder-crest', 3], ['fd-horn-bearer', 3],
+  ['fd-herd-caller-hornback', 2], ['fd-coal-thrower', 2], ['fd-ridge-raptor', 2],
+  ['fd-fern-and-fire', 2], ['fd-fern-shadow-stalker', 2], ['fd-hot-blooded', 2],
+  ['fd-horn-crest-charger', 2], ['fd-tusk-rage', 1], ['fd-blaze-crest', 1],
+  ['fd-rage-kin-brawler', 1], ['fd-spear-and-fang', 2], ['fd-challenge-the-beast', 2],
+  ['fd-hurled-firebrand', 2], ['fd-ember-flick', 4], ['fd-thunder-of-hooves', 1],
+  ['fd-blaze-horn-charge', 3],
+]);
+
 export function usageAuditGame(name: keyof typeof positions): Game {
   const position = positions[name];
   const avatar = AVATARS.find((entry) => entry.tier === position.rung)!;
   const decks = [...STARTER_DECKS, ...THEME_DECKS];
   const proxy = position.matrix === 'darlings' ? DARLINGS_PRECON_MATRIX_FLEET[position.column] : {
-    cards: decks[position.column].reserveCards!, landReserve: decks[position.column].landReserve!, darlingId: null,
+    cards: decks[position.column].id === 'theme-first-dawn' ? AUDITED_HOOVES_RESERVE : decks[position.column].reserveCards!,
+    landReserve: decks[position.column].landReserve!, darlingId: null,
   };
   const seats = <T>(row: T, column: T): [T, T] => position.game % 2 === 0 ? [row, column] : [column, row];
   const game = new Game({

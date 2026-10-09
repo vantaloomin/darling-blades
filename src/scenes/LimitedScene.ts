@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { formatGold } from '../ui/goldFormat';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { ECONOMY } from '../config/rules';
@@ -19,6 +20,7 @@ import { Services } from '../meta/services';
 import { isTouchDevice } from '../platform/gestures';
 import { IS_DEV } from '../platform/env';
 import type { SaveData } from '../meta/SaveManager';
+import { DECK_STYLE_LABEL } from '../meta/profileStats';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { HEADER_CURRENCY_ANCHOR } from '../ui/layout';
 import {
@@ -33,20 +35,37 @@ import { Toast } from '../ui/Toast';
 import { backButton, goldBadge, panel, registerSceneBackNavigation, themedButton, type ThemedButton } from '../ui/themeWidgets';
 
 /**
+ * Two equal columns on the title-safe frame's edges (64 and 1216) with the
+ * major-region gap between them: the run and start panels on the left, the
+ * records on the right. Until 2026-10-08 they sat at 70 and 670, 540 wide.
+ */
+const PANEL_GAP = theme.space(6);
+const PANEL_W = (theme.design.safeRight - theme.design.safeLeft - PANEL_GAP) / 2; // 564
+const LEFT_X = theme.design.safeLeft;
+const RIGHT_X = theme.design.safeRight - PANEL_W;
+/** The panels' top at the standard size; a subtitle wrapped by larger text pushes it down. */
+const PANELS_TOP = 140;
+const RUN_PANEL_H = 235;
+const START_PANEL_MIN_H = 180;
+/**
  * One shared two-column CTA grid for every button row in the left panels
- * (Resume/Retire, Bot Draft/Premium, Reroll/Set Seed): a fixed width wide
- * enough for the longest label ("Premium Draft · 1,000g", the armed "Click
- * again to retire"), the left column's edge flush with the x+24 text inset
- * and the right column's edge flush with the right inset of the 540 panel.
+ * (Resume/Retire, Free/Premium): a fixed width wide enough for the longest
+ * label ("Premium Draft · 1,000g", the armed "Click again to retire"), the
+ * left column's edge flush with the x+24 text inset and the right column's
+ * edge flush with the panel's right inset.
  */
 const CTA_W = 220;
 const CTA_COL_LEFT = 24 + CTA_W / 2; // 134
-const CTA_COL_RIGHT = 540 - 24 - CTA_W / 2; // 406
+const CTA_COL_RIGHT = PANEL_W - 24 - CTA_W / 2; // 430
 /** How long an armed Retire waits for its second press, as Settings' Reset does. */
 const RETIRE_ARM_MS = 4000;
 /** The records list: eight rows of one heading-and-caption line each, which fit at every text size. */
 const HISTORY_ROWS = 8;
 const HISTORY_PITCH = 42;
+const HISTORY_TOP = 104;
+const HISTORY_ROW_H = 36;
+/** Eight rows plus the bottom inset: the records panel's floor, which the left column's bottom matches. */
+const HISTORY_PANEL_MIN_H = HISTORY_TOP + (HISTORY_ROWS - 1) * HISTORY_PITCH + HISTORY_ROW_H + 18;
 
 export class LimitedScene extends Phaser.Scene {
   private retireArmed = false;
@@ -108,7 +127,7 @@ export class LimitedScene extends Phaser.Scene {
     sceneTitle(this, 'Draft');
     // One line at the standard size; larger text wraps it inside the frame
     // (it ended past both frame edges at 130%), and the panels start below it.
-    sceneSubtitle(
+    const subtitle = sceneSubtitle(
       this,
       `Draft from packs against seven rivals, build exactly ${LIMITED_DECK_SIZE} spells, then play three matches. Your Warchest of 10 lands is provided.`,
       { fontSize: theme.type.body },
@@ -118,16 +137,19 @@ export class LimitedScene extends Phaser.Scene {
     // Gold is spendable here (the Premium Draft entry), so show the balance in
     // its usual top-right corner spot.
     goldBadge(this, HEADER_CURRENCY_ANCHOR.x, HEADER_CURRENCY_ANCHOR.y, { getValue: () => this.saveData.gold });
-    this.drawRunPanel();
-    this.drawStartPanel();
-    this.drawHistory();
+    const top = Math.max(PANELS_TOP, Math.ceil(subtitle.getBounds().bottom) + theme.space(3));
+    this.drawRunPanel(top);
+    // Both columns end on one line: the taller of the start panel's content
+    // and the records list sets it, and the other grows to meet it.
+    const startY = top + RUN_PANEL_H + PANEL_GAP;
+    const bottom = this.drawStartPanel(startY, top + HISTORY_PANEL_MIN_H);
+    this.drawHistory(top, bottom);
     if (this.fixture?.armRetire && this.retireBtn) this.armRetire(false);
   }
-  private drawRunPanel(): void {
+  private drawRunPanel(y: number): void {
     const run = this.saveData.limited.activeRun;
-    const x = 70;
-    const y = 140;
-    panel(this, x, y, 540, 235);
+    const x = LEFT_X;
+    panel(this, x, y, PANEL_W, RUN_PANEL_H);
     this.title(x + 24, y + 28, 'Active Run');
     if (!run) {
       this.text(x + 24, y + 76, 'No Limited run is active.', theme.type.body, theme.colors.muted);
@@ -179,15 +201,15 @@ export class LimitedScene extends Phaser.Scene {
       this.retireRun(pointer),
     );
   }
-  private drawStartPanel(): void {
+  /** Returns the panel's bottom edge: its content's, or `minBottom` if lower. */
+  private drawStartPanel(y: number, minBottom: number): number {
     const save = this.saveData;
     const runActive = !!save.limited.activeRun;
     const premiumStatus = premiumEntryStatus(save, todayString());
     const premiumUnaffordable = save.gold < ECONOMY.premiumDraftEntry;
     const premiumDisabled = runActive || !premiumStatus.allowed || premiumUnaffordable;
-    const x = 70;
-    const y = 410;
-    const startPanel = panel(this, x, y, 540, 180);
+    const x = LEFT_X;
+    const startPanel = panel(this, x, y, PANEL_W, START_PANEL_MIN_H);
     this.title(x + 24, y + 28, 'New Run', runActive ? theme.colors.muted : theme.colors.heading);
     // Seed controls are deliberately NOT exposed here (user decision
     // 2026-07-14): draft runs roll a fresh hidden seed at start — the
@@ -196,7 +218,8 @@ export class LimitedScene extends Phaser.Scene {
       x + CTA_COL_LEFT,
       y + 84,
       'Free Draft',
-      'primary',
+      // One gold action per screen: Continue owns it while a run is active.
+      runActive ? 'ghost' : 'primary',
       () => {
         if (!runActive && !this.fixture) {
           this.saveData.limited.activeRun = startDraftRun(CARD_DB, freshRunSeed(), Date.now());
@@ -209,8 +232,8 @@ export class LimitedScene extends Phaser.Scene {
     this.button(
       x + CTA_COL_RIGHT,
       y + 84,
-      `Premium Draft · ${ECONOMY.premiumDraftEntry.toLocaleString('en-US')}g`,
-      'primary',
+      `Premium Draft · ${formatGold(ECONOMY.premiumDraftEntry)}`,
+      'ghost',
       () => {
         if (runActive || this.fixture) return;
         if (!payPremiumDraftEntry(save, todayString())) return;
@@ -242,14 +265,15 @@ export class LimitedScene extends Phaser.Scene {
         [152, 'Every pick is yours to keep.'],
       ]),
     );
-    const height = Math.max(180, captionsBottom + theme.space(3) - y);
-    if (height > 180) {
+    const height = Math.max(START_PANEL_MIN_H, captionsBottom + theme.space(3) - y, minBottom - y);
+    if (height > START_PANEL_MIN_H) {
       // Redrawn at the measured height in the release panel's place in the
       // display order (behind its title, buttons and captions).
-      const grown = panel(this, x, y, 540, height);
+      const grown = panel(this, x, y, PANEL_W, height);
       this.children.moveBelow(grown, startPanel);
       startPanel.destroy();
     }
+    return y + height;
   }
   /** One caption under a CTA column; returns its bottom edge. */
   private ctaCaption(x: number, y: number, text: string, muted: boolean): number {
@@ -264,11 +288,10 @@ export class LimitedScene extends Phaser.Scene {
       .setOrigin(0.5, 0);
     return caption.y + caption.height;
   }
-  private drawHistory(): void {
+  private drawHistory(y: number, bottom: number): void {
     const save = this.saveData;
-    const x = 670;
-    const y = 140;
-    panel(this, x, y, 540, 480);
+    const x = RIGHT_X;
+    panel(this, x, y, PANEL_W, bottom - y);
     this.title(x + 24, y + 28, 'Draft Records');
     this.text(
       x + 24,
@@ -290,35 +313,40 @@ export class LimitedScene extends Phaser.Scene {
     }
     // Release density, the 100% contract: eight records at a 42px pitch.
     this.data.set('a11yDensity', {
-      actual: [{ id: 'records', rows: HISTORY_ROWS, columns: 1, pitch: HISTORY_PITCH, top: y + 104 }],
+      actual: [{ id: 'records', rows: HISTORY_ROWS, columns: 1, pitch: HISTORY_PITCH, top: y + HISTORY_TOP }],
       release: [{ id: 'records', rows: 8, columns: 1, pitch: 42, top: 244 }],
     });
-    draftHistory.slice(0, HISTORY_ROWS).forEach((entry, i) => {
-      const rowY = y + 104 + i * HISTORY_PITCH;
-      const row = this.add.rectangle(
-        x + 270,
-        rowY + 12,
-        492,
-        36,
-        theme.graphics.rowFill,
-        theme.alpha.chrome,
-      );
-      row.setStrokeStyle(1, theme.graphics.panelStroke, theme.alpha.subtle);
-      this.title(
-        x + 24,
-        rowY + 2,
-        `${entry.premium ? '[P] Draft' : draftModeLabel(entry)} ${entry.wins}-${entry.losses}`,
+    // Each record is one plate with its text centred on it, inset from the
+    // plate's edge; the detail column starts past the widest title so no
+    // title runs into it at any text size.
+    const plateX = x + 24;
+    const plateW = PANEL_W - 48;
+    const textX = plateX + theme.space(3);
+    const rows = draftHistory.slice(0, HISTORY_ROWS).map((entry, i) => {
+      const centerY = y + HISTORY_TOP + i * HISTORY_PITCH + HISTORY_ROW_H / 2;
+      this.add
+        .rectangle(plateX + plateW / 2, centerY, plateW, HISTORY_ROW_H, theme.graphics.rowFill, theme.alpha.chrome)
+        .setStrokeStyle(1, theme.graphics.panelStroke, theme.alpha.subtle);
+      const title = this.title(
+        textX,
+        centerY,
+        `${draftModeLabel(entry)} ${entry.wins}-${entry.losses}`,
         entry.wins === 3 ? theme.colors.gold : theme.colors.heading,
         theme.type.label,
       );
+      return { entry, centerY, title };
+    });
+    const detailX = textX + Math.max(...rows.map((row) => row.title.width)) + theme.space(6);
+    for (const { entry, centerY } of rows) {
+      const style = DECK_STYLE_LABEL[entry.deckStyle];
       this.text(
-        x + 174,
-        rowY + 2,
-        entry.premium ? entry.deckStyle : `${entry.deckStyle}   +${entry.rewardGold} gold`,
+        detailX,
+        centerY,
+        entry.premium ? style : `${style} · +${formatGold(entry.rewardGold)}`,
         theme.type.caption,
         theme.colors.muted,
       );
-    });
+    }
   }
   /** Fixtures never reach storage. */
   private persist(): void {
@@ -378,8 +406,8 @@ export class LimitedScene extends Phaser.Scene {
     text: string,
     color: string = theme.colors.heading,
     size: number = theme.type.h2,
-  ): void {
-    this.text(x, y, text, size, color, undefined, theme.fonts.display);
+  ): Phaser.GameObjects.Text {
+    return this.text(x, y, text, size, color, undefined, theme.fonts.display);
   }
   private text(
     x: number,
@@ -403,7 +431,7 @@ export class LimitedScene extends Phaser.Scene {
  */
 function retireConsequence(run: LimitedRun): string {
   if (!run.premium) return 'Retiring discards this run (pool, deck, record) and its gold payout.';
-  const fee = `${ECONOMY.premiumDraftEntry.toLocaleString('en-US')}g`;
+  const fee = formatGold(ECONOMY.premiumDraftEntry);
   return run.status === 'draft'
     ? `Retiring forfeits the ${fee} entry fee and your picks so far.`
     : `Retiring forfeits the ${fee} entry fee; your drafted cards are kept.`;
@@ -420,7 +448,7 @@ function freshRunSeed(): number {
  */
 function freeDraftPayoutCopy(): string {
   const table = ECONOMY.limitedRunGold;
-  return `Pays ${table[0]}g to ${table[table.length - 1]}g after three matches, by wins.`;
+  return `Pays ${formatGold(table[0])} to ${formatGold(table[table.length - 1])} after three matches, by wins.`;
 }
 
 function draftModeLabel(run: { premium?: boolean }): string {

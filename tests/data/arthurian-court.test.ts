@@ -24,6 +24,8 @@ const KEYWORDS = new Set<Keyword>([
   'deathblade',
   'bloodoath',
   'untouchable',
+  'dreaded',
+  'rage',
 ]);
 const OPS = new Set([
   'damage',
@@ -116,7 +118,8 @@ describe('Arthurian Court data integrity', () => {
         expect(KEYWORDS.has(keyword), card.id + ' keyword ' + keyword).toBe(true);
       }
       for (const ability of card.abilities ?? []) {
-        if (ability.when !== 'spell') {
+        // Court Minstrel's arrival tap is the one ruled exception (owner, 2026-10-08).
+        if (ability.when !== 'spell' && !(card.id === 'ac-court-minstrel' && ability.when === 'arrives')) {
           expect(ability.targets, card.id + ' ' + ability.when + ' trigger must not target').toBeUndefined();
         }
         expect(ability.condition === undefined || ability.condition === 'questActive').toBe(true);

@@ -1,10 +1,12 @@
 import Phaser from 'phaser';
+import { bakeUiIcon, uiIconSize } from '../ui/uiIcons';
+import { formatGold } from '../ui/goldFormat';
 import { floorBrain, floorDifficultyPips } from '../ai/tiers';
 import { fitMenuName } from '../ui/menuText';
 import { currentAccessibility } from '../ui/accessibility';
 import { gauntletPresentation, gauntletDetailLayout, gauntletNameLineLimit } from '../ui/playPresentation';
 import { bindMenuScroll } from '../ui/menuScroll';
-import { triggerSelectedMark } from '../ui/controlStyle';
+import { listRowAccentBar } from '../ui/controlStyle';
 import { IS_DEV } from '../platform/env';
 import type { SaveData } from '../meta/SaveManager';
 import { Music } from '../audio/music';
@@ -22,6 +24,7 @@ import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestur
 import {
   GAUNTLET_TOWER_SCROLLBAR,
   gauntletScrollToRung,
+  gauntletFittedRowGap,
   gauntletTowerLayout,
   scrollOffsetByDelta,
   type GauntletTowerLayout,
@@ -107,7 +110,7 @@ export class GauntletScene extends Phaser.Scene {
     // Backdrop first (docs/scene-art.md §3); the gradient is the fallback.
     applyBackdrop(this, 'gauntlet', {
       dim: colorInt(theme.colors.dim),
-      dimAlpha: currentAccessibility().highContrast ? theme.alpha.overlayDim : 0.5,
+      dimAlpha: 0.5,
       fallback: () => {
         const bg = this.add.graphics();
         bg.fillGradientStyle(
@@ -146,7 +149,8 @@ export class GauntletScene extends Phaser.Scene {
       { fontSize: theme.type.label },
     );
 
-    panel(this, theme.design.safeLeft, 120, gauntletPresentation().tower.x - theme.design.safeLeft - theme.space(3), 520);
+    const { detailPanel } = gauntletPresentation();
+    panel(this, detailPanel.x, detailPanel.y, detailPanel.width, detailPanel.height);
     this.buildTower();
     this.buildPanel();
     this.buildSeedBar();
@@ -188,9 +192,11 @@ export class GauntletScene extends Phaser.Scene {
     const viewport = gauntletPresentation(heading.height).tower;
     const starMeasure = this.add.text(0, 0, '★★★', { fontFamily: theme.fonts.ui, fontSize: `${theme.type.label}px` });
     const labelMeasure = this.add.text(0, 0, 'Rung', { fontFamily: theme.fonts.display, fontSize: `${theme.type.body}px` });
+    const rowHeight = Math.max(theme.control.minHitHeight, labelMeasure.height + theme.space(4), starMeasure.height + theme.space(4));
     const layout = gauntletTowerLayout(rungs, viewport, {
       starColumnWidth: starMeasure.width,
-      rowHeight: Math.max(theme.control.minHitHeight, labelMeasure.height + theme.space(4), starMeasure.height + theme.space(4)),
+      rowHeight,
+      rowGap: gauntletFittedRowGap(viewport.height, rowHeight),
     });
     starMeasure.destroy(); labelMeasure.destroy();
     this.towerLayout = layout;
@@ -351,8 +357,8 @@ export class GauntletScene extends Phaser.Scene {
       );
       node.mark.clear();
       if (isSelected) {
-        const mark = triggerSelectedMark({ visual: { x: 0, y: node.box.y - node.box.height / 2,
-          width: node.box.width, height: node.box.height }, labelWidth: node.label.width, padding: theme.space(3) });
+        const mark = listRowAccentBar({ x: 0, y: node.box.y - node.box.height / 2,
+          width: node.box.width, height: node.box.height }, theme.outline.state);
         node.mark.fillStyle(colorInt(theme.colors.gold), 1).fillRect(mark.x, mark.y, mark.width, mark.height);
       }
     }
@@ -428,7 +434,7 @@ export class GauntletScene extends Phaser.Scene {
     });
     const reward = ECONOMY.gauntletRungGold[floor - 1];
     const rewardLine = floor === ECONOMY.gauntletRungGold.length
-      ? `Reward: 🪙 ${reward}  +  🪙 ${ECONOMY.gauntletCompletionBonus} completion bonus` : `Reward: 🪙 ${reward}`;
+      ? `Reward: ${formatGold(reward)} + ${formatGold(ECONOMY.gauntletCompletionBonus)} completion bonus` : `Reward: ${formatGold(reward)}`;
     const rewardText = this.add.text(textX, 0, rewardLine, {
       fontFamily: theme.fonts.ui, fontSize: `${theme.type.body}px`, fontStyle: theme.weight.w600,
       color: theme.colors.gold, wordWrap: { width: COL_W },
@@ -465,16 +471,22 @@ export class GauntletScene extends Phaser.Scene {
     } else {
       const locked =
         floor < this.currentRung ? 'Already cleared this run' : 'Clear the rungs below first';
-      c.add(
+      const lockSize = uiIconSize(theme.type.label);
+      const lockGap = theme.space(2);
+      c.add([
         this.add
-          .text(textX, layout.fightY, `🔒 ${locked}`, {
+          .image(textX + lockSize / 2, layout.fightY, bakeUiIcon(this, 'lock'))
+          .setDisplaySize(lockSize, lockSize)
+          .setTint(colorInt(theme.colors.muted)),
+        this.add
+          .text(textX + lockSize + lockGap, layout.fightY, locked, {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.label}px`,
             color: theme.colors.muted,
-            wordWrap: { width: COL_W },
+            wordWrap: { width: COL_W - lockSize - lockGap },
           })
           .setOrigin(0, 0.5),
-      );
+      ]);
     }
 
     // Abandon Run (two-press confirm) — only while a run is in progress. Now a
@@ -573,8 +585,13 @@ export class GauntletScene extends Phaser.Scene {
     // (30, 690) until the 1.8 cut (2026-09-23), outside the frame on two sides.
     const y = theme.design.footerCenterY;
 
+    const diceSize = uiIconSize(theme.type.label);
+    c.add(this.add
+      .image(theme.design.safeLeft + diceSize / 2, y, bakeUiIcon(this, 'dice'))
+      .setDisplaySize(diceSize, diceSize)
+      .setTint(colorInt(active ? theme.colors.gold : theme.colors.body)));
     const label = this.add
-      .text(theme.design.safeLeft, y, `🎲 ${active ? 'Run seed' : 'Next run seed'} ${seed}`, {
+      .text(theme.design.safeLeft + diceSize + theme.space(2), y, `${active ? 'Run seed' : 'Next run seed'} ${seed}`, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.label}px`,
         fontStyle: theme.weight.w600,
@@ -607,7 +624,7 @@ export class GauntletScene extends Phaser.Scene {
         this.pendingSeed = clampSeed(Math.floor(Math.random() * 2 ** 31));
         this.buildSeedBar();
       });
-      chip('⌨ Set…', () => this.promptSeed());
+      chip('Set Seed…', () => this.promptSeed());
     }
 
     this.seedBar = c;

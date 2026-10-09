@@ -4,7 +4,9 @@ import {
   controlFontSize,
   controlStrokeWidth,
   themedButtonColors,
+  tabUnderline,
   triggerSelectedMark,
+  listRowAccentBar,
   type ThemedButtonVariant,
 } from '../../src/ui/controlStyle';
 import {
@@ -17,6 +19,7 @@ import {
 } from '../../src/ui/layout';
 import { textBlockHeight } from '../../src/ui/profilePresentation';
 import { theme } from '../../src/ui/theme';
+import { gauntletTowerLayout } from '../../src/ui/layout';
 import { forEachA11yCell } from './a11yCells';
 
 /**
@@ -31,7 +34,7 @@ afterEach(() => {
   setAccessibility({ textScale: 1, highContrast: false });
 });
 
-const VARIANTS: readonly ThemedButtonVariant[] = ['primary', 'emphasis', 'ghost', 'danger'];
+const VARIANTS: readonly ThemedButtonVariant[] = ['primary', 'emphasis', 'ghost', 'danger', 'selected'];
 const SIZES: readonly ControlSize[] = ['sm', 'md'];
 
 /**
@@ -43,6 +46,9 @@ const RELEASE_1_9_BUTTON_STYLE: Record<ThemedButtonVariant, { bg: string; fg: st
   emphasis: { bg: '#2c2344', fg: '#ffd88a', stroke: '#4a3f6e', hoverStroke: '#ffd700' },
   ghost: { bg: '#241d3a', fg: '#c9bde0', stroke: '#4a3f6e', hoverStroke: '#ffd700' },
   danger: { bg: '#3a1f28', fg: '#f0b0a0', stroke: '#f08a8a', hoverStroke: '#f0b0a0' },
+  // Added 2026-10-08 (the selection language): the on state of a toggle,
+  // segment or tab, filled but never in the primary action's gold.
+  selected: { bg: '#2c2344', fg: '#ffd88a', stroke: '#ffd88a', hoverStroke: '#f0e6ff' },
 };
 
 describe('the shared button colours', () => {
@@ -156,5 +162,50 @@ describe('the rounded trigger\'s selected mark', () => {
     const standard = triggerSelectedMark(input).height;
     setAccessibility({ textScale: 1, highContrast: true });
     expect(triggerSelectedMark(input).height).toBeGreaterThan(standard);
+  });
+});
+
+describe('the list row accent bar', () => {
+  it('sits inside the row border, clear of its top, bottom and the row label', () => {
+    forEachA11yCell(() => {
+      for (const [visual, border, labelInset] of [
+        [{ x: 0, y: 0, width: 420, height: 56 }, theme.outline.state, gauntletTowerLayout(28, { x: 0, y: 0, width: 420, height: 484 }).labelX],
+        [{ x: 64, y: -30, width: 772, height: 60 }, theme.control.borderWidth, theme.space(4)],
+      ] as const) {
+        const bar = listRowAccentBar(visual, border);
+        expect(bar.x).toBeGreaterThanOrEqual(visual.x + border);
+        expect(bar.y).toBeGreaterThan(visual.y + border);
+        expect(bar.y + bar.height).toBeLessThan(visual.y + visual.height - border);
+        expect(bar.height).toBeGreaterThan(visual.height / 2);
+        expect(visual.x + labelInset - (bar.x + bar.width)).toBeGreaterThanOrEqual(theme.space(1));
+      }
+    });
+  });
+});
+
+describe('the text tab underline', () => {
+  it('spans the whole label on the tab plate\'s bottom edge, clear of the label and the rounded corners', () => {
+    forEachA11yCell((cell) => {
+      for (const size of ['sm', 'md'] as const) {
+        for (const [labelWidth, minWidth] of [[40, 0], [90, 120], [150, 160], [220, 0]] as const) {
+          const at = `${size} ${labelWidth}/${minWidth}, ${cell.name}`;
+          const { visual } = measureThemedButton(labelWidth, size, minWidth);
+          const bar = tabUnderline(visual, labelWidth);
+          expect(bar.y + bar.height, at).toBe(visual.y + visual.height);
+          expect(bar.width, at).toBeGreaterThanOrEqual(labelWidth);
+          expect(bar.x, at).toBeGreaterThanOrEqual(visual.x + theme.radius.control);
+          expect(bar.x + bar.width, at).toBeLessThanOrEqual(visual.x + visual.width - theme.radius.control);
+          const labelBottom = visual.y + visual.height / 2 + textBlockHeight(controlFontSize(size), 1) / 2;
+          expect(bar.y - labelBottom, at).toBeGreaterThanOrEqual(1);
+        }
+      }
+    });
+  });
+
+  it('is thicker in high contrast', () => {
+    const { visual } = measureThemedButton(60, 'md');
+    const standard = tabUnderline(visual, 60).height;
+    setAccessibility({ textScale: 1, highContrast: true });
+    expect(tabUnderline(visual, 60).height).toBeGreaterThan(standard);
   });
 });

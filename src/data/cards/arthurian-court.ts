@@ -146,7 +146,7 @@ export const ARTHURIAN_COURT = [
   },
   creature('ac-mordred-bastard-star', 'Mordred, Bastard Star', ['Knight', 'Rebel'], {
     supertypes: ['legendary'], cost: cost(3, 'BR'), colors: ['B', 'R'], attack: 4, defense: 4,
-    keywords: ['overrun', 'warcry'],
+    keywords: ['overrun', 'warcry', 'dreaded'],
     abilities: [{ when: 'attacks', ops: [{ op: 'damage', n: 2, to: 'opponent' }] }],
     rarity: 'sr',
   }),
@@ -194,7 +194,7 @@ export const ARTHURIAN_COURT = [
   }),
   {
     id: 'ac-mirror-of-avalon', name: 'Mirror of Avalon', types: ['artifact'], subtypes: [],
-    cost: cost(0, 'U'), colors: ['U'], abilities: [{ when: 'dawn', ops: [{ op: 'foresee', n: 1 }] }],
+    cost: cost(0, 'U'), colors: ['U'], abilities: [{ when: 'dawn', ops: [{ op: 'foresee', n: 2 }] }],
     rarity: 'r',
   },
   {
@@ -324,13 +324,17 @@ export const ARTHURIAN_COURT = [
     rarity: 'c',
   }),
   creature('ac-lake-attendant', 'Lake Attendant', ['Attendant'], {
-    cost: cost(2, 'U'), colors: ['U'], attack: 1, defense: 3,
+    cost: cost(2, 'U'), colors: ['U'], attack: 1, defense: 3, keywords: ['skyborne'],
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'c',
   }),
   creature('ac-court-minstrel', 'Court Minstrel', ['Bard'], {
     cost: cost(4, 'U'), colors: ['U'], attack: 2, defense: 2,
-    abilities: [{ when: 'dawn', condition: 'questActive', ops: [{ op: 'draw', n: 1 }] }],
+    abilities: [
+      // 1.9.1 taste pass (D8 A1, owner 2026-10-08): the set's one targeted trigger.
+      { when: 'arrives', targets: [{ what: 'opponentCreature' }], ops: [{ op: 'tap', to: 'target' }] },
+      { when: 'dawn', condition: 'questActive', ops: [{ op: 'draw', n: 1 }] },
+    ],
     rarity: 'c',
   }),
   creature('ac-torchbearer-knight', 'Torchbearer Knight', ['Knight', 'Soldier'], {
@@ -431,7 +435,7 @@ export const ARTHURIAN_COURT = [
     rarity: 'c',
   },
   creature('ac-errant-duelist', 'Errant Duelist', ['Knight', 'Duelist'], {
-    cost: cost(2, 'R'), colors: ['R'], attack: 2, defense: 2, keywords: ['firstBlade'],
+    cost: cost(2, 'R'), colors: ['R'], attack: 2, defense: 2, keywords: ['firstBlade', 'rage'],
     awakening: { p: 1, t: 1, keywords: ['untouchable'] },
     rarity: 'c',
   }),

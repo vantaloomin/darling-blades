@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { ECONOMY } from '../../src/config/rules';
 import { theme } from '../../src/ui/theme';
-import { DECK_SHOP_LAYOUT, deckShopLayout } from '../../src/ui/deckShopLayout';
+import { DECK_SHOP_GRID, DECK_SHOP_LAYOUT, deckShopLayout } from '../../src/ui/deckShopLayout';
+import { gauntletPresentation, practicePickerLayout } from '../../src/ui/playPresentation';
+import { SHOP_STRIP_ARROW_Y, SHOP_TAB_GAP, shopTabCenters } from '../../src/ui/shopPresentation';
 import {
   boosterStripIndexForOffset,
   boosterStripLayout,
@@ -16,6 +18,7 @@ import {
   COMPACT_TOUCH_GAP_RANGE,
   GAP_FLOORS,
   GAUNTLET_TOWER_VIEWPORT,
+  gauntletFittedRowGap,
   HEADER_CURRENCY_ANCHOR,
   SCENE_TITLE,
   anchoredControlBounds,
@@ -33,6 +36,10 @@ import {
   measureThemedButton,
   measureControlCluster,
   measuredRowsLayout,
+  backdropDimAlpha,
+  HIGH_CONTRAST_BACKDROP_DIM,
+  modalDimAlpha,
+  MODAL_DIM_FLOOR,
   modalShellLayout,
   scrollOffsetByDelta,
   sceneHeaderFooterLayout,
@@ -40,14 +47,14 @@ import {
   type Rect,
 } from '../../src/ui/layout';
 import { CURVE_MAX } from '../../src/ui/deckStats';
-import { DECK_PANE_LAYOUT, deckReserveLayout } from '../../src/ui/deckPanePresentation';
+import { DECK_PANE_LAYOUT, deckPaneTabRow, deckReserveLayout } from '../../src/ui/deckPanePresentation';
 import {
   LIMITED_BUILDER_COLUMNS,
   LIMITED_BUILDER_HEADER,
   LIMITED_DETAILS_PANEL,
   limitedListRow,
 } from '../../src/ui/limitedPanePresentation';
-import { MAIN_MENU_CORNER, mainMenuCornerY } from '../../src/ui/mainMenuPresentation';
+import { mainMenuHeaderRow, mainMenuNavRows, MAIN_MENU_VERSION } from '../../src/ui/mainMenuPresentation';
 
 const pickerStripOptions: StripLayoutOptions = {
   visibleCount: 4,
@@ -288,6 +295,62 @@ describe('layout geometry', () => {
     expect(scrolled).toBeGreaterThan(0);
   });
 
+  /**
+   * The owner kept the edge peeks (2026-10-08) and moved the page arrows off
+   * them: each arrow's hit box sits in its edge column, clear of the peek and
+   * of every full tile, inside the frame.
+   */
+  it('keeps every strip arrow off the peeks and the tiles', () => {
+    const picker = practicePickerLayout();
+    const strips: { name: string; layout: ReturnType<typeof boosterStripLayout>; arrowY: number; tileBottom: number }[] = [
+      { name: 'booster strip', layout: boosterStripLayout(10), arrowY: SHOP_STRIP_ARROW_Y.boosters, tileBottom: 540 },
+      {
+        name: 'deck columns',
+        layout: boosterStripLayout(8, 0, {
+          visibleCount: 4, tileWidth: DECK_SHOP_GRID.width, tileHeight: DECK_SHOP_GRID.height, tileStride: DECK_SHOP_GRID.stride,
+          viewport: { x: 64, y: DECK_SHOP_GRID.top - 8, width: 1152, height: DECK_SHOP_GRID.height + 16 },
+          verticalBand: { y: DECK_SHOP_GRID.top, height: DECK_SHOP_GRID.height },
+          tapBand: { y: DECK_SHOP_GRID.top, height: DECK_SHOP_GRID.height }, peekY: DECK_SHOP_GRID.top,
+        }),
+        arrowY: SHOP_STRIP_ARROW_Y.decks,
+        tileBottom: DECK_SHOP_GRID.top + DECK_SHOP_GRID.height,
+      },
+      {
+        name: 'practice picker',
+        layout: boosterStripLayout(13, 0, {
+          visibleCount: 4, tileWidth: 206, tileHeight: picker.columnHeight, tileStride: 248, viewport: picker.viewport,
+          verticalBand: { y: picker.columnTop, height: picker.columnHeight },
+          tapBand: { y: picker.columnTop, height: picker.columnHeight }, peekY: picker.columnTop,
+        }),
+        arrowY: picker.arrowY,
+        tileBottom: picker.viewport.y + picker.viewport.height,
+      },
+    ];
+    for (const { name, layout, arrowY, tileBottom } of strips) {
+      for (const x of [layout.arrowCenters.left, layout.arrowCenters.right]) {
+        const arrow = { x: x - layout.arrowHitWidth / 2, y: arrowY - theme.control.minHitHeight / 2,
+          width: layout.arrowHitWidth, height: theme.control.minHitHeight };
+        expect(isInsideTitleSafe(arrow), name).toBe(true);
+        // Clear of the peek and tile band vertically: the arrow is above or below every card.
+        const peekTop = layout.leftPeek.y;
+        const clear = arrow.y >= tileBottom || arrow.y + arrow.height <= Math.min(peekTop, layout.fullTileRects[0].y);
+        expect(clear, `${name} arrow at y ${arrowY}`).toBe(true);
+      }
+    }
+  });
+
+  it('packs each Shop tab row at one gap, centred on the frame', () => {
+    for (const widths of [[150, 120], [176, 176], [200, 130, 110]]) {
+      const centers = shopTabCenters(widths);
+      const left = centers[0] - widths[0] / 2;
+      const right = centers.at(-1)! + widths.at(-1)! / 2;
+      expect((left + right) / 2).toBeCloseTo(theme.design.centerX, 6);
+      for (let i = 1; i < widths.length; i++) {
+        expect(centers[i] - widths[i] / 2 - (centers[i - 1] + widths[i - 1] / 2)).toBeCloseTo(SHOP_TAB_GAP, 6);
+      }
+    }
+  });
+
   it('anchors rectangles to safe edges, corners, and centerlines', () => {
     expect(anchoredRect('top-left', 100, 40)).toEqual({ x: 64, y: 36, width: 100, height: 40 });
     expect(anchoredRect('top-center', 100, 40)).toEqual({ x: 590, y: 36, width: 100, height: 40 });
@@ -384,6 +447,34 @@ describe('layout geometry', () => {
       expect(inactiveGap(layout.titleTrack, layout.contentBounds).gap).toBe(16);
       expect(inactiveGap(layout.contentBounds, layout.footerTrack).gap).toBe(16);
     }
+  });
+
+  it('centres a modal title on the panel whether or not a close button is shown', () => {
+    for (const hasClose of [true, false]) {
+      const layout = modalShellLayout({ width: 900, height: 600, hasClose });
+      const track = layout.centredTitleTrack;
+      expect(track.x + track.width / 2).toBe(layout.panel.x + layout.panel.width / 2);
+      expect(isRectContained(track, layout.titleTrack)).toBe(true);
+    }
+    // With no close button the title may use the full inner width.
+    const open = modalShellLayout({ width: 900, height: 600, hasClose: false });
+    expect(open.centredTitleTrack.width).toBe(open.inner.width);
+  });
+
+  it('keeps scene art behind one uniform scrim in high contrast', () => {
+    for (const requested of [undefined, 0.45, 0.5, 0.82]) {
+      expect(backdropDimAlpha(requested, true)).toBe(HIGH_CONTRAST_BACKDROP_DIM);
+    }
+    expect(HIGH_CONTRAST_BACKDROP_DIM).toBeLessThan(1);
+    expect(backdropDimAlpha(0.5, false)).toBe(0.5);
+  });
+
+  it('never lets a modal sit on a dim light enough to read the screen behind', () => {
+    expect(modalDimAlpha(0.45, 0.92)).toBe(MODAL_DIM_FLOOR);
+    expect(modalDimAlpha(0.82, 0.92)).toBe(0.82);
+    expect(modalDimAlpha(undefined, 0.92)).toBe(0.92);
+    // High contrast's opaque dim wins over any lighter request.
+    expect(modalDimAlpha(0.52, 1)).toBe(1);
   });
 
   it('keeps the gauntlet recap grid clear of the 820x640 modal footer track', () => {
@@ -789,14 +880,16 @@ describe('title-safe frame: every placed control', () => {
     // at the badge's 20px size is well under 160px wide.
     const badge = (x: number, y: number): Rect => ({ x: x - 160, y: y - 13, width: 160, height: 26 });
     expectInside('scene badge', badge(HEADER_CURRENCY_ANCHOR.x, HEADER_CURRENCY_ANCHOR.y));
-    expectInside('main menu badge', badge(MAIN_MENU_CORNER.badgeX, mainMenuCornerY(0)));
+    const header = mainMenuHeaderRow([110, 130, 110], 120, 160);
+    expectInside('main menu badge', badge(header.badgeX, header.y));
   });
 
-  it('keeps both main menu corner columns inside the frame', () => {
-    for (let i = 0; i < 3; i++) {
-      expectInside(`left corner ${i}`, buttonHit(MAIN_MENU_CORNER.leftX, mainMenuCornerY(i), 'sm', MAIN_MENU_CORNER.minWidth));
-    }
-    expectInside('Settings', buttonHit(MAIN_MENU_CORNER.rightX, mainMenuCornerY(1), 'sm', MAIN_MENU_CORNER.rightMinWidth));
+  it('keeps the main menu header row, nav column and build stamp inside the frame', () => {
+    const header = mainMenuHeaderRow([110, 130, 110], 120, 160);
+    header.leftX.forEach((x, i) => expectInside(`header ${i}`, buttonHit(x, header.y, 'sm', 110)));
+    expectInside('Settings', buttonHit(header.rightX, header.y, 'sm', 120));
+    mainMenuNavRows().forEach((row, i) => expectInside(`nav ${i}`, row));
+    expectInside('build stamp', { x: MAIN_MENU_VERSION.x, y: MAIN_MENU_VERSION.y - 24, width: 120, height: 24 });
   });
 
   it('keeps the Gauntlet ladder and its scrollbar inside the frame', () => {
@@ -804,6 +897,32 @@ describe('title-safe frame: every placed control', () => {
     // Rows span the viewport's width, so the viewport bounds every rung's tap target.
     expectInside('tower viewport', layout.viewport);
     expectInside('tower scrollbar', layout.scrollbar);
+  });
+
+  it('fits whole Gauntlet rows to the ladder viewport without shrinking the gap', () => {
+    for (const rowHeight of [44, 52, 56, 64]) {
+      const gap = gauntletFittedRowGap(GAUNTLET_TOWER_VIEWPORT.height, rowHeight);
+      const l = gauntletTowerLayout(ECONOMY.gauntletRungGold.length, GAUNTLET_TOWER_VIEWPORT, { rowHeight, rowGap: gap });
+      expect(gap).toBeGreaterThanOrEqual(theme.space(3));
+      const rows = (GAUNTLET_TOWER_VIEWPORT.height + gap) / l.rowPitch;
+      expect(rows).toBeCloseTo(Math.round(rows), 6);
+      // Resting at either end, the viewport's edge falls on a row boundary.
+      expect(l.maxScroll / l.rowPitch).toBeCloseTo(Math.round(l.maxScroll / l.rowPitch), 6);
+    }
+  });
+
+  it('lines the Gauntlet detail panel up with the ladder and centres its contents', () => {
+    const p = gauntletPresentation();
+    const panel = p.detailPanel;
+    expectInside('detail panel', panel);
+    expect(panel.x).toBe(theme.design.safeLeft);
+    expect(panel.y).toBe(p.railHeadingTop);
+    expect(panel.y + panel.height).toBe(p.tower.y + p.tower.height);
+    // The portrait card and text column leave equal margins inside the panel.
+    const leftMargin = p.portraitX - p.themeWidth / 2 - panel.x;
+    const rightMargin = panel.x + panel.width - (p.textX + p.textWidth);
+    expect(leftMargin).toBeCloseTo(rightMargin, 5);
+    expect(leftMargin).toBeGreaterThanOrEqual(theme.space(6));
   });
 
   it('keeps the Glossary rail, content panel, and search inside the frame', () => {
@@ -841,11 +960,12 @@ describe('title-safe frame: every placed control', () => {
   it('keeps the Deck Builder pane inside the frame, the bottom action row included', () => {
     const d = DECK_PANE_LAYOUT;
     const t = d.toggle;
-    for (const [name, x] of [['Cards', t.cardsX], ['Warchest', t.warchestX], ['Style', t.styleX]] as const) {
-      expectInside(`${name} view`, buttonHit(x, t.y, 'sm', t.minWidth));
-    }
+    // The widest measured labels (130% text, the Warchest warning; see deckPanePresentation.test.ts).
+    const viewWidths = [84, 111, 84];
+    deckPaneTabRow(50, viewWidths).forEach((x, i) => expectInside(`view ${i}`, buttonHit(x, t.y, 'sm', viewWidths[i])));
     const f = d.formatRow;
-    for (let i = 0; i < 2; i++) expectInside(`format tab ${i}`, buttonHit(f.tabFirstX + i * f.tabPitch, f.y, 'sm', f.tabMinWidth));
+    const formatWidths = [87, 81];
+    deckPaneTabRow(50, formatWidths).forEach((x, i) => expectInside(`format tab ${i}`, buttonHit(x, f.y, 'sm', formatWidths[i])));
     const reserve = deckReserveLayout({ top: d.content.top, bottom: d.content.bottom,
       headerHeights: [24, 20, 20], rulesHeight: 56, slotHeight: 44, slotCount: 10 });
     for (let i = 0; i < Math.min(10, reserve.pageSize); i++) {

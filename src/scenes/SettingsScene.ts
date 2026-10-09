@@ -31,6 +31,8 @@ import {
   TEXT_SIZE_CHIPS,
   TEXT_SIZE_CHIP_WIDTH,
   TOGGLE_WIDTH,
+  VOLUME_BAR,
+  VOLUME_BAR_WIDTH,
   accessibilityControlsShown,
   applySavedAccessibility,
   captionWrapWidth,
@@ -44,7 +46,7 @@ import {
   settingsTabCenters,
   settingsTabColumns,
   settingsTextSizeCaption,
-  shiftGroupInside,
+  volumeSegmentXs,
   volumeStepperXs,
   type AccessibilityControlsShown,
   type MeasuredControl,
@@ -59,17 +61,15 @@ import {
   STATS_ROW_LABEL,
   STATS_SECTION_TITLE,
   STATS_SETTINGS_ROW,
-  statsPanelButtonCenterX,
   statsRowNoteKind,
   statsRowNoteState,
   statsRowNoteText,
   toggleShareAnonStats,
 } from '../ui/statsPrivacyPresentation';
-import { theme } from '../ui/theme';
+import { colorInt, theme } from '../ui/theme';
 import { backButton, panel, registerSceneBackNavigation, themedButton, type ModalShell, type ThemedButton } from '../ui/themeWidgets';
 import { VERSION_LABEL, checkForUpdate } from '../version';
 
-const SEGMENTS = 10;
 const STEP = 0.1;
 
 const ANIM_CHIPS: { value: AnimationLevel; label: string }[] = [
@@ -124,7 +124,7 @@ export class SettingsScene extends Phaser.Scene {
   private shown: AccessibilityControlsShown = accessibilityControlsShown(IS_DEV);
   private toggles: { button: ThemedButton; on: () => boolean }[] = [];
   private chipGroups: ChipGroup[] = [];
-  private volumeBar: Phaser.GameObjects.Text | null = null;
+  private volumeBar: Phaser.GameObjects.Graphics | null = null;
   /** Every control the "What is sent" and Legal panels deaden while open. */
   private guardTargets: Phaser.GameObjects.GameObject[] = [];
   private guard = new ModalGuard();
@@ -187,7 +187,8 @@ export class SettingsScene extends Phaser.Scene {
     const buttons = SETTINGS_TABS.map(({ key, label }) =>
       this.track(
         themedButton(this, 0, SETTINGS_TAB_ROW.y, label, {
-          variant: key === this.tab ? 'primary' : 'ghost',
+          variant: key === this.tab ? 'selected' : 'ghost',
+          look: 'tab',
           size: 'sm',
           minWidth: scaledChipWidth(SETTINGS_TAB_BASE_WIDTH),
           onTap: () => {
@@ -204,8 +205,10 @@ export class SettingsScene extends Phaser.Scene {
   private buildTabContent(): void {
     const columns = settingsTabColumns(this.tab, this.shown);
     const built = new Map<SettingsRowKey, BuiltRow>();
+    // The panels are drawn once the layout knows their height, then slotted
+    // in under the rows built here.
+    const panelDepthIndex = this.children.length;
     for (const column of columns) {
-      panel(this, column.frame.panelX, SETTINGS_PANELS.top, column.frame.panelWidth, SETTINGS_PANELS.bottom - SETTINGS_PANELS.top);
       for (const section of column.sections) {
         for (const row of section.rows) built.set(row.key, this.buildRow(row.key, column.frame));
       }
@@ -213,6 +216,11 @@ export class SettingsScene extends Phaser.Scene {
     const measured: SettingsMeasured = {};
     for (const [key, row] of built) measured[key] = { stacked: row.stacked, captionLines: row.captionLines };
     const layout = layoutSettingsTab(this.tab, this.shown, measured);
+    for (const column of layout.columns) {
+      const plate = panel(this, column.frame.panelX, SETTINGS_PANELS.top, column.frame.panelWidth,
+        layout.panelBottom - SETTINGS_PANELS.top);
+      this.children.moveTo(plate, panelDepthIndex);
+    }
     for (const column of layout.columns) {
       for (const section of column.sections) {
         const title = section.key === 'privacy' ? STATS_SECTION_TITLE : section.title;
@@ -231,7 +239,7 @@ export class SettingsScene extends Phaser.Scene {
     const settings = (): typeof Services.save.data.settings => Services.save.data.settings;
     switch (key) {
       case 'sfx':
-        return this.toggleRow(frame, 'Sound effects', frame.controlX, () => settings().sfxOn, () => {
+        return this.rightToggleRow(frame, 'Sound effects', () => settings().sfxOn, () => {
           settings().sfxOn = !settings().sfxOn;
           Services.save.touch();
           this.refreshToggles();
@@ -240,16 +248,15 @@ export class SettingsScene extends Phaser.Scene {
       case 'volume':
         return this.volumeRow(frame);
       case 'music':
-        return this.toggleRow(frame, 'Music', frame.controlX, () => settings().musicOn, () => {
+        return this.rightToggleRow(frame, 'Music', () => settings().musicOn, () => {
           Music.setEnabled(!Music.enabled);
           this.refreshToggles();
         });
       // Both "Your turn" rows decide how a turn's actions get committed.
       case 'instantCast':
-        return this.toggleRow(
+        return this.rightToggleRow(
           frame,
           'Instant cast',
-          frame.controlX,
           () => settings().instantCast,
           () => {
             settings().instantCast = !settings().instantCast;
@@ -259,10 +266,9 @@ export class SettingsScene extends Phaser.Scene {
           `Casts spells on a single ${isTouchDevice() ? 'tap' : 'click'} instead of picking the card up.`,
         );
       case 'landDrop':
-        return this.toggleRow(
+        return this.rightToggleRow(
           frame,
           'Confirm land drop',
-          frame.controlX,
           () => settings().confirmLandDrop,
           () => {
             settings().confirmLandDrop = !settings().confirmLandDrop;
@@ -391,7 +397,7 @@ export class SettingsScene extends Phaser.Scene {
     labelText: string,
     controls: readonly ThemedButton[],
     captionText: string | undefined,
-    extras: readonly Phaser.GameObjects.Text[] = [],
+    extras: readonly (Phaser.GameObjects.Components.Transform)[] = [],
   ): BuiltRow {
     const label = this.add
       .text(frame.labelX, 0, labelText, {
@@ -442,20 +448,7 @@ export class SettingsScene extends Phaser.Scene {
     };
   }
 
-  /** A left-style toggle row: the toggle on the column's control axis. */
-  private toggleRow(
-    frame: SettingsColumnFrame,
-    label: string,
-    x: number,
-    on: () => boolean,
-    onTap: () => void,
-    caption?: string,
-  ): BuiltRow {
-    const button = this.toggle(x, onTap, on);
-    return this.rowParts(frame, label, [button], caption);
-  }
-
-  /** A right-style toggle row: the toggle's edge on the column's control edge. */
+  /** A toggle row: the toggle's edge on the column's control edge. */
   private rightToggleRow(
     frame: SettingsColumnFrame,
     label: string,
@@ -500,7 +493,7 @@ export class SettingsScene extends Phaser.Scene {
     return this.rowParts(frame, label, built, caption);
   }
 
-  /** Master volume: the measured bar centred on the control axis, a step button either side. */
+  /** Master volume: "−", the drawn bar, "+", right-aligned to the control edge. */
   private volumeRow(frame: SettingsColumnFrame): BuiltRow {
     const minus = this.track(
       themedButton(this, 0, 0, '−', { variant: 'ghost', size: 'sm', minWidth: 44, onTap: () => this.stepVolume(-STEP) }),
@@ -508,17 +501,10 @@ export class SettingsScene extends Phaser.Scene {
     const plus = this.track(
       themedButton(this, 0, 0, '+', { variant: 'ghost', size: 'sm', minWidth: 44, onTap: () => this.stepVolume(STEP) }),
     );
-    const bar = this.add
-      .text(0, 0, '▰'.repeat(SEGMENTS), {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.label}px`,
-        color: theme.colors.body,
-      })
-      .setOrigin(0, 0.5);
-    const xs = volumeStepperXs(bar.width, minus.getMeasuredSize().visual.width, frame);
+    const xs = volumeStepperXs(VOLUME_BAR_WIDTH, minus.getMeasuredSize().visual.width, frame);
     minus.container.setX(xs.minusX);
-    bar.setX(xs.barLeft);
     plus.container.setX(xs.plusX);
+    const bar = this.add.graphics({ x: xs.barLeft });
     this.volumeBar = bar;
     return this.rowParts(frame, 'Master volume', [minus, plus], 'Volume is the master level; music follows it too.', [bar]);
   }
@@ -534,7 +520,7 @@ export class SettingsScene extends Phaser.Scene {
   private privacyRow(frame: SettingsColumnFrame): BuiltRow {
     const settings = (): typeof Services.save.data.settings => Services.save.data.settings;
     const toggle = this.toggle(
-      STATS_SETTINGS_ROW.toggleX,
+      0,
       () => {
         toggleShareAnonStats(settings());
         Services.save.touch();
@@ -544,27 +530,22 @@ export class SettingsScene extends Phaser.Scene {
       // what is actually stopping the sends. The caption explains that.
       () => settings().shareAnonStats,
     );
-    // Measure-then-place: the label's rendered width is font-fallback dependent
-    // on Windows, so the button is built and then asked where it fits.
     const panelButton = this.track(
-      themedButton(this, STATS_SETTINGS_ROW.buttonRightX, 0, STATS_PANEL_BUTTON_LABEL, {
+      themedButton(this, 0, 0, STATS_PANEL_BUTTON_LABEL, {
         variant: 'ghost',
         size: 'sm',
         minWidth: STATS_SETTINGS_ROW.buttonMinWidth,
         onTap: () => this.openStatsPanel(),
       }),
     );
-    // Then the pair as a whole is kept inside the column's control edge.
-    const pair = [toggle, panelButton];
-    const centers = shiftGroupInside(
-      [STATS_SETTINGS_ROW.toggleX, statsPanelButtonCenterX(panelButton.getMeasuredSize().hit.width)],
-      pair.map(measuredControl),
-      frame.controlRight,
-    );
+    // Measure-then-place, right-aligned like every row: the toggle on the
+    // column's control edge with the other toggles, "What is sent" left of it.
+    const pair = [panelButton, toggle];
+    const centers = rightAlignedControlCenters(pair.map(measuredControl), frame.controlRight);
     pair.forEach((button, i) => button.container.setX(centers[i]));
     // The gate decides, not this scene: `signalsAllowed` is handed in whole.
     const note = statsRowNoteText(statsRowNoteKind(statsRowNoteState(readSignalsGateInput(null), signalsAllowed)));
-    return this.rowParts(frame, STATS_ROW_LABEL, [toggle, panelButton], note);
+    return this.rowParts(frame, STATS_ROW_LABEL, [panelButton, toggle], note);
   }
 
   /**
@@ -580,6 +561,7 @@ export class SettingsScene extends Phaser.Scene {
     const reset = this.track(
       themedButton(this, right, 0, 'Reset', {
         variant: 'danger',
+        size: 'sm',
         minWidth: SETTINGS_RESET_BLOCK.buttonMinWidth,
         onTap: (pointer) => {
           if (!armed) {
@@ -657,29 +639,21 @@ export class SettingsScene extends Phaser.Scene {
   }
 
   /**
-   * The version stays in the corner outside the title-safe frame (expendable
-   * by the design system's rule); the update check is a control, so it sits
-   * in the header at the right, mirroring the back button, with its status
-   * line under it. "Legal" sits beside it, one isolation gap to its left:
-   * both are about the whole game rather than any one setting, and the pair is
-   * placed from its measured widths so neither label's font fallback can push
-   * it past the title-safe edge or into the centred title.
+   * The update check is a control, so it sits in the header at the right,
+   * mirroring the back button, and the version sits on the line under it: the
+   * check is about the version. (The version used to sit at x 14 in muted
+   * text, outside the frame and unreadable on the art; owner, 2026-10-08.)
+   * "Legal" sits beside the check, one isolation gap to its left: both are
+   * about the whole game rather than any one setting, and the pair is placed
+   * from its measured widths so neither label's font fallback can push it
+   * past the title-safe edge or into the centred title.
    */
   private buildVersionFooter(): void {
-    this.add
-      .text(14, 702, VERSION_LABEL, {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.caption}px`,
-        color: theme.colors.muted,
-      })
-      .setOrigin(0, 0.5)
-      // Expendable corner text: sits outside the title-safe frame on purpose (design system).
-      .setData('a11yExpendable', true);
     const status = this.add
-      .text(SETTINGS_HEADER_ACTION.right, SETTINGS_HEADER_ACTION.statusY, '', {
+      .text(SETTINGS_HEADER_ACTION.right, SETTINGS_HEADER_ACTION.statusY, VERSION_LABEL, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
-        color: theme.colors.muted,
+        color: theme.colors.body,
       })
       .setOrigin(1, 0.5);
     const check = this.track(themedButton(this, SETTINGS_HEADER_ACTION.right, SETTINGS_HEADER_ACTION.y, 'Check for updates', {
@@ -687,11 +661,11 @@ export class SettingsScene extends Phaser.Scene {
       size: 'sm',
       minWidth: SETTINGS_HEADER_ACTION.minWidth,
       onTap: () => {
-        status.setText('Checking…').setColor(theme.colors.muted);
+        status.setText(`${VERSION_LABEL} · Checking…`).setColor(theme.colors.body);
         void checkForUpdate().then((result) => {
           if (!status.active) return;
           status
-            .setText(result.message)
+            .setText(`${VERSION_LABEL} · ${result.message}`)
             .setColor(
               result.state === 'available'
                 ? theme.colors.gold
@@ -723,23 +697,32 @@ export class SettingsScene extends Phaser.Scene {
     Sfx.play('click');
   }
   private refreshVolume(): void {
-    if (!this.volumeBar) return;
-    const filled = Math.round(Sfx.volume * SEGMENTS);
-    this.volumeBar
-      .setText('▰'.repeat(filled) + '▱'.repeat(SEGMENTS - filled))
-      .setColor(filled <= 0 ? theme.colors.muted : theme.colors.body);
+    const bar = this.volumeBar;
+    if (!bar) return;
+    const filled = Math.round(Sfx.volume * VOLUME_BAR.segments);
+    const top = -VOLUME_BAR.height / 2;
+    bar.clear();
+    volumeSegmentXs().forEach((x, i) => {
+      if (i < filled) {
+        bar.fillStyle(colorInt(theme.colors.gold), 1)
+          .fillRoundedRect(x, top, VOLUME_BAR.segmentWidth, VOLUME_BAR.height, 3);
+      } else {
+        bar.lineStyle(1, colorInt(theme.colors.muted), 0.9)
+          .strokeRoundedRect(x + 0.5, top + 0.5, VOLUME_BAR.segmentWidth - 1, VOLUME_BAR.height - 1, 3);
+      }
+    });
   }
   private refreshToggles(): void {
     for (const { button, on } of this.toggles) {
       const value = on();
       button.setLabel(value ? 'On' : 'Off');
-      button.setVariant(value ? 'primary' : 'ghost');
+      button.setVariant(value ? 'selected' : 'ghost');
     }
   }
   private refreshChipGroups(): void {
     for (const { buttons, selected } of this.chipGroups) {
       const current = selected();
-      for (const [value, button] of buttons) button.setVariant(value === current ? 'primary' : 'ghost');
+      for (const [value, button] of buttons) button.setVariant(value === current ? 'selected' : 'ghost');
     }
   }
   private pickRenderScale(value: RenderScaleSetting): void {

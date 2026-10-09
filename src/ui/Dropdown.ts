@@ -116,6 +116,23 @@ export class Dropdown<T extends string> {
     return { x: m.hit.x, width: m.hit.width };
   }
 
+  /** Natural trigger width (its minW and longest value), before any grid stretch. */
+  naturalWidth(): number {
+    this.trigger.setMinWidth(this.minW);
+    return this.trigger.getMeasuredBounds().visual.width;
+  }
+
+  /** Stretch the trigger to a grid column; the chevron stays on its right edge. */
+  setWidth(width: number): void {
+    this.trigger.setMinWidth(width);
+  }
+
+  /** Visual box relative to the trigger container. */
+  visualBounds(): { x: number; width: number } {
+    const m = this.trigger.getMeasuredBounds();
+    return { x: m.visual.x, width: m.visual.width };
+  }
+
   get containerX(): number {
     return this.trigger.container.x;
   }

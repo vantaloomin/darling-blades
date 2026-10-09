@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { formatGold } from '../ui/goldFormat';
 import type { DuelA11yFixtureName, DuelA11yFixture } from '../dev/duelA11yFixtures';
 import type { AIPlayer } from '../ai/AIPlayer';
 import { buildTierAI, floorTier } from '../ai/tiers';
@@ -183,7 +184,7 @@ import { duelButtonPairCenters, duelModalLayout } from '../ui/duelModalPresentat
 import type { Rect } from '../ui/layout';
 import { duelRecapLayout } from '../ui/duelRecapPresentation';
 import { currentAccessibility } from '../ui/accessibility';
-import { DUEL_LAYOUT, duelHudType, LIFE_BADGE_SIZE, LIFE_TARGET_RING, SEVERED_PILE_HIT } from '../ui/duelLayout';
+import { CLUSTER_BUTTON, clusterControlX, DUEL_LAYOUT, duelHudType, LIFE_BADGE_SIZE, LIFE_TARGET_RING, manaStripPitch, SEVERED_PILE_HIT } from '../ui/duelLayout';
 import { shouldPlayVersusBumper, versusLeitmotifPitch } from '../ui/versusBumperPresentation';
 import { activeVisibleSavedDeck } from '../ui/deckBuilderHelpers';
 import { ModalGuard } from '../ui/Modal';
@@ -221,7 +222,7 @@ import { duelArtIds, nextDuelArt, prefetchDuelArt } from '../ui/duelArt';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { StackDisplay } from '../ui/StackDisplay';
 import { colorInt, theme } from '../ui/theme';
-import { backButton, modalShell, pager, themedButton, type ModalShell, type ThemedButton } from '../ui/themeWidgets';
+import { backButton, modalShell, pager, panel, themedButton, type ModalShell, type ThemedButton } from '../ui/themeWidgets';
 import { showZoneContents, type ZoneContentsEntry, type ZoneContentsModal } from '../ui/ZoneContentsModal';
 
 const HUMAN: PlayerId = 0;
@@ -402,6 +403,8 @@ export class DuelScene extends Phaser.Scene {
   private darlingZonePositions = new Map<PlayerId, { x: number; y: number; scale: number; angle: number }>();
   private manaPips: (Phaser.GameObjects.Image | Phaser.GameObjects.Text)[] = [];
   private manaStripZones: Phaser.GameObjects.Zone[] = [];
+  /** Your mana strip's live pitch (wider than the tuned step at large text). */
+  private myManaPitch: number = DUEL_LAYOUT.myManaStrip.step;
   /** Desktop-only hover preview markers for the exact auto-tap mana plan. */
   private manaPlanMarks: Phaser.GameObjects.GameObject[] = [];
   private previousManaSignature: string | null = null;
@@ -693,6 +696,7 @@ export class DuelScene extends Phaser.Scene {
     this.carry = null;
     this.landFan = null;
     this.myManaRowEndX = null;
+    this.myManaPitch = DUEL_LAYOUT.myManaStrip.step;
     this.reserveFormatsEnabled = FEATURES.reserveFormats;
     if (!this.reserveFormatsEnabled && data.replay?.format) {
       this.scene.start('Profile');
@@ -1478,60 +1482,63 @@ export class DuelScene extends Phaser.Scene {
     const width = theme.design.width;
     const height = theme.design.height;
     const cx = theme.design.centerX;
+    // Wide enough for the title and the one-line message at 130% text; every
+    // line wraps inside the panel's 24px inset.
+    const TUTORIAL_PANEL_WIDTH = 760;
     const c = this.add.container(0, 0).setDepth(120);
     c.add(this.add.rectangle(width / 2, height / 2, width, height, theme.graphics.dim, 0.8).setInteractive());
-    const rows: { y: number; objects: Phaser.GameObjects.Text[] }[] = [];
-    const row = (y: number, ...objects: Phaser.GameObjects.Text[]): void => {
+    type RowObject = Phaser.GameObjects.Text | Phaser.GameObjects.Container;
+    const rows: { y: number; objects: RowObject[] }[] = [];
+    const row = (y: number, ...objects: RowObject[]): void => {
       for (const object of objects) {
         c.add(object);
-        object.setData('a11yKeepVisible', true).setData('a11yFullText', object.text);
+        if (object instanceof Phaser.GameObjects.Text) {
+          object.setData('a11yKeepVisible', true).setData('a11yFullText', object.text);
+        }
       }
       rows.push({ y, objects });
     };
     row(244, this.add
       .text(cx, 244, success ? 'Tutorial Complete!' : 'Tutorial Ended', {
         fontFamily: theme.fonts.display, fontSize: `${duelHudType(52, 'display')}px`, fontStyle: 'bold', color: theme.colors.goldHover,
-        align: 'center', wordWrap: { width: 900, useAdvancedWrap: true },
+        align: 'center', wordWrap: { width: TUTORIAL_PANEL_WIDTH - 48, useAdvancedWrap: true },
       })
       .setOrigin(0.5));
     row(312, this.add
       .text(cx, 312, "You've got the basics. Now claim your free deck in the Shop.", {
         fontFamily: theme.fonts.ui, fontSize: `${duelHudType(18, 'label')}px`, color: theme.colors.body,
-        align: 'center', wordWrap: { width: 720 },
+        align: 'center', wordWrap: { width: TUTORIAL_PANEL_WIDTH - 48 },
       })
       .setOrigin(0.5));
     if (firstTime) {
       row(356, this.add
-        .text(cx, 356, `+${ECONOMY.startingGold} gold`, {
+        .text(cx, 356, `+${formatGold(ECONOMY.startingGold)}`, {
           fontFamily: theme.fonts.ui, fontSize: `${theme.type.h2}px`, fontStyle: '600', color: theme.colors.gold,
         })
         .setOrigin(0.5));
     }
-    const mk = (label: string, cb: () => void): Phaser.GameObjects.Text => {
-      const btn = this.add
-        .text(cx, 440, label, {
-          fontFamily: theme.fonts.display, fontSize: `${duelHudType(24, 'h1')}px`, color: theme.colors.gold,
-          backgroundColor: theme.colors.btnEmphasisBg, padding: { x: 18, y: 10 },
-        })
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true });
-      bindTapButton(this, btn, cb);
-      return btn;
-    };
-    const shop = mk('To the Shop', () => this.scene.start('Shop', { tab: 'decks' }));
-    const menu = mk('Main Menu', () => this.scene.start('MainMenu'));
+    // The same buttons as every other result panel: the Shop is the one gold
+    // action (the free deck waits there), the menu the quiet way out. They
+    // were display-font text plates until 2026-10-08, unlike any other modal.
+    const shop = themedButton(this, cx, 440, 'To the Shop', {
+      variant: 'primary', minWidth: 200, onTap: () => this.scene.start('Shop', { tab: 'decks' }),
+    });
+    const menu = themedButton(this, cx, 440, 'Main Menu', {
+      variant: 'ghost', minWidth: 200, onTap: () => this.scene.start('MainMenu'),
+    });
     const textScale = currentAccessibility().textScale;
-    const [shopX, menuX] = duelButtonPairCenters(cx, 120, [shop.width, menu.width], textScale);
-    shop.setX(shopX);
-    menu.setX(menuX);
-    row(440, shop, menu);
-    const union = (objects: readonly Phaser.GameObjects.Text[]): Rect => {
+    const [shopX, menuX] = duelButtonPairCenters(cx, 120,
+      [shop.getMeasuredSize().hit.width, menu.getMeasuredSize().hit.width], textScale);
+    shop.container.setX(shopX);
+    menu.container.setX(menuX);
+    row(440, shop.container, menu.container);
+    const union = (objects: readonly RowObject[]): Rect => {
       const b = objects.map((o) => o.getBounds());
       const x = Math.min(...b.map((r) => r.x)), y = Math.min(...b.map((r) => r.y));
       return { x, y, width: Math.max(...b.map((r) => r.right)) - x, height: Math.max(...b.map((r) => r.bottom)) - y };
     };
     const layout = duelModalLayout(
-      { x: cx - 320, y: 200, width: 640, height: 290 },
+      { x: cx - TUTORIAL_PANEL_WIDTH / 2, y: 180, width: TUTORIAL_PANEL_WIDTH, height: 310 },
       rows.map(({ y, objects }) => ({ y, bounds: union(objects) })),
       textScale,
       { safe: { x: theme.design.safeLeft, y: theme.design.titleSafe.top, width: theme.design.safeWidth, height: theme.design.safeHeight } },
@@ -1539,8 +1546,10 @@ export class DuelScene extends Phaser.Scene {
     rows.forEach(({ objects }, index) => {
       for (const object of objects) object.setY(object.y + layout.rows[index].offsetY);
     });
-    inflateHitArea(shop, 90, 90);
-    inflateHitArea(menu, 90, 90);
+    // An opaque panel like the other result modals, sized by the layout and
+    // drawn behind the rows (just above the dim).
+    const plate = panel(this, layout.panel.x, layout.panel.y, layout.panel.width, layout.panel.height, { alpha: 1 });
+    c.addAt(plate, 1);
     this.guard.open(this.overlayGuardTargets());
   }
 
@@ -2057,6 +2066,7 @@ export class DuelScene extends Phaser.Scene {
       this.startEndTurn();
     });
     inflateHitArea(this.endTurnBtn, 90, 90);
+    this.endTurnBtn.setX(clusterControlX(this.endTurnBtn.width));
 
     // Undo: take back your last committed action while it's still your
     // decision — before priority passes to the AI or combat animates. It is
@@ -2582,9 +2592,10 @@ export class DuelScene extends Phaser.Scene {
       }).setOrigin(0.5));
       this.dutyFinishButton = themedButton(this, LAYOUT.cluster.x, LAYOUT.cluster.endTurnY,
         duty.type === 'activate' ? DUTY_ACTION_LABEL : 'Confirm targets', {
-          variant: 'primary', minWidth: 150, enabled: step.complete !== null,
+          variant: 'primary', ...CLUSTER_BUTTON, enabled: step.complete !== null,
           onTap: (pointer) => { if (!pointer.rightButtonReleased()) this.confirmPendingTargets(); },
         });
+      this.dutyFinishButton.container.setX(clusterControlX(this.dutyFinishButton.getMeasuredBounds().hit.width));
       prompt.add(this.dutyFinishButton.container);
       if (!this.targetPicksUnordered && step.count > 1 && this.targetPicks.length > 0) {
         prompt.add(themedButton(this, 640, LAYOUT.gap.cy + 42, 'Undo target', {
@@ -2677,11 +2688,12 @@ export class DuelScene extends Phaser.Scene {
       });
     }
     this.dutyFinishButton = themedButton(this, LAYOUT.cluster.x, LAYOUT.cluster.endTurnY, edict ? 'Confirm sacrifice' : 'Confirm cast', {
-      variant: 'primary', minWidth: 150, enabled: edict ? edict.action !== null : selection!.actions.length > 0,
+      variant: 'primary', ...CLUSTER_BUTTON, enabled: edict ? edict.action !== null : selection!.actions.length > 0,
       onTap: (pointer) => {
         if (!pointer.rightButtonReleased()) this.confirmSacrificeSelection();
       },
     });
+    this.dutyFinishButton.container.setX(clusterControlX(this.dutyFinishButton.getMeasuredBounds().hit.width));
     prompt.add(this.dutyFinishButton.container);
     this.targetPrompt = prompt;
   }
@@ -5226,10 +5238,24 @@ export class DuelScene extends Phaser.Scene {
           total: totals.get(sig) ?? 0,
         }))
       : [{ texture: 'pip-C', untapped: 0, total: 0 }];
+    const countTexts = slots.map((slot) => this.add
+      .text(0, cy, `${slot.untapped}/${slot.total}`, {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${duelHudType(13, 'label')}px`,
+        fontStyle: '600',
+        color: slot.untapped > 0 ? theme.colors.body : theme.colors.muted,
+        resolution: 2,
+      })
+      .setOrigin(0, 0.5)
+      .setDepth(4)
+      .setData('baseAlpha', 1));
+    // The tuned pitch holds at 100%; larger text widens it so a count never
+    // prints over the next pip (2026-10-08 UI review).
+    const pitch = manaStripPitch(step, pipSize, Math.max(...countTexts.map((t) => t.width)));
     slots.forEach((slot, i) => {
       const x = align === 'right'
-        ? xAnchor - (slots.length - 1 - i) * step
-        : xAnchor + i * step;
+        ? xAnchor - (slots.length - 1 - i) * pitch
+        : xAnchor + i * pitch;
       const baseAlpha = slot.untapped > 0 ? 1 : 0.45;
       const pip = this.add
         .image(x, cy, slot.texture)
@@ -5237,23 +5263,16 @@ export class DuelScene extends Phaser.Scene {
         .setDepth(4)
         .setAlpha(baseAlpha)
         .setData('baseAlpha', baseAlpha);
-      const countText = this.add
-        .text(x + pipSize * 0.64, cy, `${slot.untapped}/${slot.total}`, {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${duelHudType(13, 'label')}px`,
-          fontStyle: '600',
-          color: slot.untapped > 0 ? theme.colors.body : theme.colors.muted,
-          resolution: 2,
-        })
-        .setOrigin(0, 0.5)
-        .setDepth(4)
-        .setData('baseAlpha', 1);
+      const countText = countTexts[i]!.setX(x + pipSize * 0.64);
       minX = Math.min(minX, x - pipSize / 2);
       maxX = Math.max(maxX, x + pipSize / 2, countText.x + countText.width);
       this.manaPips.push(pip);
       this.manaPips.push(countText);
     });
-    if (player === HUMAN) this.myManaRowEndX = xAnchor + slots.length * step;
+    if (player === HUMAN) {
+      this.myManaRowEndX = xAnchor + slots.length * pitch;
+      this.myManaPitch = pitch;
+    }
     const width = Math.max(44, maxX - minX);
     const zone = this.add
       .zone((minX + maxX) / 2, cy, width, 44)
@@ -5386,7 +5405,7 @@ export class DuelScene extends Phaser.Scene {
         if (previous) previous.count++;
         else {
           planned.set(key, {
-            x: LAYOUT.myManaStrip.x0 + slot * LAYOUT.myManaStrip.step,
+            x: LAYOUT.myManaStrip.x0 + slot * this.myManaPitch,
             y: LAYOUT.myManaStrip.cy,
             count: 1,
             kind: 'land',
@@ -7310,42 +7329,44 @@ export class DuelScene extends Phaser.Scene {
     });
     c.add(resume.container);
 
+    // Toggles fill when on, but never in gold: Resume is the menu's one
+    // primary action (the selection language ruled 2026-10-08).
     const autoSkip = themedButton(this, 640, 326, `Auto-skip: ${onOff(s.autoSkip)}`, {
-      variant: s.autoSkip ? 'primary' : 'ghost',
+      variant: s.autoSkip ? 'selected' : 'ghost',
       minWidth: 220,
       onTap: (p) => {
         if (p.rightButtonReleased()) return;
         s.autoSkip = !s.autoSkip;
         Services.save.touch();
         autoSkip.setLabel(`Auto-skip: ${onOff(s.autoSkip)}`);
-        autoSkip.setVariant(s.autoSkip ? 'primary' : 'ghost');
+        autoSkip.setVariant(s.autoSkip ? 'selected' : 'ghost');
         if (s.autoSkip) this.maybeAutoSkip();
       },
     });
     c.add(autoSkip.container);
 
     const sfx = themedButton(this, 640, 376, `Sound: ${onOff(s.sfxOn)}`, {
-      variant: s.sfxOn ? 'primary' : 'ghost',
+      variant: s.sfxOn ? 'selected' : 'ghost',
       minWidth: 220,
       onTap: (p) => {
         if (p.rightButtonReleased()) return;
         s.sfxOn = !s.sfxOn;
         Services.save.touch();
         sfx.setLabel(`Sound: ${onOff(s.sfxOn)}`);
-        sfx.setVariant(s.sfxOn ? 'primary' : 'ghost');
+        sfx.setVariant(s.sfxOn ? 'selected' : 'ghost');
         if (s.sfxOn) Sfx.play('click');
       },
     });
     c.add(sfx.container);
 
     const music = themedButton(this, 640, 426, `Music: ${onOff(Music.enabled)}`, {
-      variant: Music.enabled ? 'primary' : 'ghost',
+      variant: Music.enabled ? 'selected' : 'ghost',
       minWidth: 220,
       onTap: (p) => {
         if (p.rightButtonReleased()) return;
         Music.setEnabled(!Music.enabled);
         music.setLabel(`Music: ${onOff(Music.enabled)}`);
-        music.setVariant(Music.enabled ? 'primary' : 'ghost');
+        music.setVariant(Music.enabled ? 'selected' : 'ghost');
       },
     });
     c.add(music.container);
@@ -8917,7 +8938,7 @@ export class DuelScene extends Phaser.Scene {
     if (completion) parts.push('completion bonus');
     if (firstWinBonus) parts.push('first win');
     if (streakCount > 0) parts.push(`streak ${streakCount}`);
-    return `+${totalGold} gold${parts.length > 0 ? `  (${parts.join(' + ')})` : ''}`;
+    return `+${formatGold(totalGold)}${parts.length > 0 ? `  (${parts.join(' + ')})` : ''}`;
   }
 
   private showResults(won: boolean, reason: string): void {

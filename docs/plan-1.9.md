@@ -894,7 +894,8 @@ by the 1.8.1 AI review and is recorded here:
 - Lethal is judged against greedy blocks.
 - Medium's re-pick after a Hard veto skips Hard's search.
 - A Duty used in main phase 2 leaves its creature tapped through the
-  opponent's turn, and nothing counts that cost.
+  opponent's turn, and nothing counts that cost. **Fixed in 1.9.1**: the
+  safe block it loses is charged (ai.md, Duty timing).
 
 **The first audit's note is in, and its questions are RULED (the wave-2
 sitting, 2026-09-28; U1-U4, all as recommended):**
@@ -1106,7 +1107,7 @@ Rocket x4 re-measure ([ai.md](ai.md)) join D7's wave-4 pass.
 | **Editable Limited Warchest** | **After 2.0** | The pip-demand-weighted automatic fill from #279 stays the only build |
 | Live spectating ([plan-player-replays.md](plan-player-replays.md) wave 4) | Cancelled | It rode multiplayer, cancelled 2026-08-24 |
 | **Older-set near-duplicates** (D8) | **1.9.x** | A whole-pool review and resolution plan once the comparator is fixed (wave 0); the owner approves the rule and the slate; fixes ship in a 1.9.x patch. **Rule and slate RULED 2026-09-28** (41 cards; [d8-near-duplicate-review.md](d8-near-duplicate-review.md)). First Dawn transcription also flagged Blood-Horn Brute / Hot-Blooded Hornback, Cliff-Top Scout / Egg-Snatcher, Tracker of the Long Grass / Tall-Grass Tracker, and the set's clustered fern-raptor commons for that patch review |
-| **Keyword backfill of the shipped sets** (the owner approved it 2026-09-29; see the decisions record) | **1.9.x** (proposed, beside D8) | Each shipped set gains the evergreen keywords it lacks, as a handful of extra cards or as keywords added to underpowered cards that fit. The gaps (a keyword a card grants counts, as on the card face): Base (Dreaded); Ragnarok (Bulwark, Untouchable, Dreaded); Celtic Fae (Twin Blades, Rage); Arthurian Court (Dreaded, Rage); Gothic Monsters (Twin Blades); Dark Tales (Twin Blades, Rage); Yokai Nights (Rage); Sands of the Duat (First Blade, Deathblade, Rage); Starborne (Rage); Drowned Deep (Twin Blades, Blood Oath). A backfilled set leaves the data check's grandfather list |
+| **Keyword backfill of the shipped sets** (the owner approved it 2026-09-29; see the decisions record) | **1.9.1** (applied, beside D8) | Each shipped set gains the evergreen keywords it lacks, as a handful of extra cards or as keywords added to underpowered cards that fit. The gaps (a keyword a card grants counts, as on the card face): Base (Dreaded); Ragnarok (Bulwark, Untouchable, Dreaded); Celtic Fae (Twin Blades, Rage); Arthurian Court (Dreaded, Rage); Gothic Monsters (Twin Blades); Dark Tales (Twin Blades, Rage); Yokai Nights (Rage); Sands of the Duat (First Blade, Deathblade, Rage); Starborne (Rage); Drowned Deep (Twin Blades, Blood Oath). A backfilled set leaves the data check's grandfather list. **Slate APPROVED 2026-10-08 and applied in 1.9.1:** 17 existing cards gain a keyword (D8's Ninth-Step Duelist closes Duat's First Blade), no new card, every gap closed and the grandfather list removed ([keyword-backfill-1.9.1.md](keyword-backfill-1.9.1.md)) |
 
 ## Sequencing
 
@@ -1545,10 +1546,11 @@ The stock CLI runs every row in one process. The 4-worker sharded run took about
 
 ### Carried, not blocking
 
-- **AI gaps, logged for later:**
-  - Medium never aims a target-creature damage spell at its own Provoked creature (Ember-Flick), and Foresee is worth 0 to Medium;
-  - a creature Duty used in main phase two leaves its creature tapped;
-  - Festival Rocket activations are net-negative in Medium's hands.
+- **AI gaps, logged for later: fixed in 1.9.1** ([ai.md](ai.md), "AI gaps logged in 1.9, as built (1.9.1)"; `tests/ai/aiGaps191.test.ts`):
+  - Medium never aimed a target-creature damage spell at its own Provoked creature (Ember-Flick): fixed; it now flicks its own Provoked creature at the opponent's end step when that nets a card;
+  - Foresee was worth 0 to Medium: fixed; its removal worth counts a spell's untargeted ops at the printed rates;
+  - a creature Duty used in main phase two left its creature tapped: fixed; the safe block it loses at the next opposing attack is charged;
+  - Festival Rocket activations net-negative in Medium's hands: not reproduced (activations +3.0 pp at 1,500 games), so no change.
 - **Numeral follow-ups: done.** The numerals gained a comma and a plus, so repeated picks ("1, 2"), the Mark "+2" badge (on a rounded plate) and the pile counts draw vector numerals too.
 - **Local-only tooling, not in the repo:**
   - the Forge's `power-scores.json` was not rescored after the Maiden recost;

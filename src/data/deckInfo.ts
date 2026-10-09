@@ -118,7 +118,7 @@ export const DECK_INFO: Record<string, DeckInfo> = {
     colors: 'R/G',
     archetype: 'First Dawn Dinokin stampede',
     plays:
-      'Dinokin on a steady curve, every one an honest body. Cheap Provoked creatures and Ember-Flick wake each other up, Hunt and burn clear the blockers, and the Herd-Caller gives the whole pack Overrun. Two tyrants close it out.',
-    featured: ['fd-herd-caller-hornback', 'fd-tusk-rage', 'fd-fern-and-fire'],
+      'Dinokin on a steady curve, every one an honest body. Cheap Provoked creatures and Ember-Flick wake each other up, Hunt and burn clear the blockers, and the Herd-Caller gives the whole pack Overrun. The tyrants close it out, led by Oru, the Tyrant Queen.',
+    featured: ['fd-oru-tyrant-queen', 'fd-herd-caller-hornback', 'fd-ember-crest-tyrant'],
   },
 };

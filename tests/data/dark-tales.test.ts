@@ -18,7 +18,7 @@ const RARITY_COUNTS = { c: 60, r: 36, sr: 11, ssr: 8, ur: 5 } as const;
 const COMPANION_RARITY_COUNTS = { c: 30, r: 18, sr: 6, ssr: 4, ur: 2 } as const;
 const KEYWORDS = new Set<Keyword>([
   'skyborne', 'wardingGaze', 'firstBlade', 'twinBlades', 'warcry', 'overrun',
-  'sentinel', 'bulwark', 'deathblade', 'bloodoath', 'untouchable', 'dreaded',
+  'sentinel', 'bulwark', 'deathblade', 'bloodoath', 'untouchable', 'dreaded', 'rage',
 ]);
 const OPS = new Set([
   'damage', 'gainLife', 'loseLife', 'draw', 'discardRandom', 'destroy', 'sever',

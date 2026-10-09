@@ -8,6 +8,7 @@ import {
   controlStrokeWidth,
   themedButtonColors,
   triggerSelectedMark,
+  tabUnderline,
   type ThemedButtonColors,
   type ThemedButtonVariant,
 } from './controlStyle';
@@ -17,6 +18,8 @@ import {
   DROPDOWN_GEOMETRY,
   measureThemedButton,
   modalShellLayout,
+  modalDimAlpha,
+  PAGER_CENTER_OFFSET,
   sceneHeaderFooterLayout,
   type ControlSize,
   type FocusMetadata,
@@ -38,6 +41,9 @@ import {
   type OverlayRegistration,
 } from './OverlayCoordinator';
 import type { BackLabel } from './navigation';
+import { formatCount } from './goldFormat';
+import { splitIconLabel } from './iconLabel';
+import { bakeUiIcon, uiIconSize, uiIconTinted } from './uiIcons';
 
 export type ButtonVariant = ThemedButtonVariant;
 export type ButtonSize = ControlSize;
@@ -52,6 +58,12 @@ export interface ThemedButtonOptions {
   onTap?: (pointer: Phaser.Input.Pointer) => void;
   enabled?: boolean;
   focus?: FocusMetadata;
+  /**
+   * `tab` draws a text tab: a borderless ghost plate, and when the variant is
+   * `selected`, a gold label over a gold underline instead of the selected
+   * plate (toggles and segments keep the plate).
+   */
+  look?: 'plate' | 'tab';
 }
 
 export interface ThemedButton {
@@ -71,6 +83,9 @@ export interface ThemedButton {
   setEnabled(enabled: boolean): void;
 }
 
+/** A disabled button's label: visibly off, still readable (a price, a reason). */
+const DISABLED_LABEL_ALPHA = 0.72;
+
 /** Rounded button chrome with an explicit Zone input target (never the container). */
 export function themedButton(
   scene: Phaser.Scene,
@@ -85,28 +100,76 @@ export function themedButton(
   const fontSize = controlFontSize(size);
   const container = scene.add.container(x, y);
   const background = scene.add.graphics();
-  const label = scene.add
-    .text(0, 0, initialLabel, {
-      fontFamily: theme.fonts.ui,
-      fontSize: `${fontSize}px`,
-      fontStyle: theme.weight.w600,
-      color: themedButtonColors(variant).fg,
-    })
-    .setOrigin(0.5);
+  const labelStyle = {
+    fontFamily: theme.fonts.ui,
+    fontSize: `${fontSize}px`,
+    fontStyle: theme.weight.w600,
+    color: themedButtonColors(variant).fg,
+    align: 'center',
+  };
+  let iconParts = splitIconLabel(initialLabel);
+  const label = scene.add.text(0, 0, iconParts ? iconParts.head : initialLabel, labelStyle).setOrigin(0.5);
   if (opts.maxTextWidth !== undefined) fitMenuName(label, opts.maxTextWidth, Number.POSITIVE_INFINITY);
   const inputZone = scene.add.zone(0, 0, 1, height).setInteractive({ useHandCursor: true });
   container.add([background, label, inputZone]);
 
+  // A label with an icon token (`Buy · {gold} 500`, `{gear} Settings`)
+  // draws the icon between its two runs of text. The tail and the icon are
+  // made on first use; a tinted icon takes the label's colour.
+  let priceTail: Phaser.GameObjects.Text | null = null;
+  let coin: Phaser.GameObjects.Image | null = null;
+  const coinSize = uiIconSize(fontSize);
+  const coinGap = theme.space(1.5);
+  const tintIcon = (): void => {
+    if (!coin || !iconParts) return;
+    if (uiIconTinted(iconParts.icon)) coin.setTint(colorInt(themedButtonColors(variant).fg));
+    else coin.clearTint();
+  };
+  const contentWidth = (): number => {
+    if (!iconParts || !priceTail) return label.width;
+    return (iconParts.head ? label.width + coinGap : 0) + coinSize + (iconParts.tail ? coinGap + priceTail.width : 0);
+  };
+  const layoutLabel = (): void => {
+    if (iconParts && !priceTail) {
+      priceTail = scene.add.text(0, 0, '', labelStyle).setOrigin(0.5);
+      coin = scene.add.image(0, 0, bakeUiIcon(scene, iconParts.icon));
+      container.addAt([priceTail, coin], container.getIndex(label) + 1);
+    }
+    if (!iconParts || !priceTail || !coin) {
+      label.setX(0);
+      priceTail?.setVisible(false);
+      coin?.setVisible(false);
+      return;
+    }
+    coin.setTexture(bakeUiIcon(scene, iconParts.icon)).setDisplaySize(coinSize, coinSize);
+    tintIcon();
+    priceTail.setText(iconParts.tail).setVisible(iconParts.tail !== '');
+    coin.setVisible(true);
+    let left = -contentWidth() / 2;
+    if (iconParts.head) {
+      label.setX(left + label.width / 2);
+      left += label.width + coinGap;
+    }
+    coin.setX(left + coinSize / 2);
+    left += coinSize + coinGap;
+    priceTail.setX(left + priceTail.width / 2);
+  };
+  layoutLabel();
+
   let enabled = opts.enabled ?? true;
   let hovered = false;
-  const measure = (): ThemedButtonMeasurement => measureThemedButton(label.width, size, opts.minWidth ?? 0, opts.padding,
+  const measure = (): ThemedButtonMeasurement => measureThemedButton(contentWidth(), size, opts.minWidth ?? 0, opts.padding,
     opts.maxTextWidth !== undefined ? label.height : 0);
   let measurement = measure();
   const redraw = (): void => {
     measurement = measure();
     const style = themedButtonColors(variant);
+    // Disabled fades the plate, not the words: a price or reason on a button
+    // the player can't press yet must stay readable (2026-10-08 UI review).
+    const plateAlpha = enabled ? 1 : theme.alpha.subtle;
+    const tab = opts.look === 'tab';
     background.clear();
-    background.fillStyle(colorInt(style.bg), 1);
+    background.fillStyle(colorInt(tab ? themedButtonColors('ghost').bg : style.bg), plateAlpha);
     background.fillRoundedRect(
       measurement.visual.x,
       measurement.visual.y,
@@ -114,18 +177,26 @@ export function themedButton(
       measurement.visual.height,
       theme.radius.control,
     );
-    background.lineStyle(
-      controlStrokeWidth(hovered, variant),
-      colorInt(hovered ? style.hoverStroke : style.stroke),
-      hovered ? 1 : theme.alpha.chrome,
-    );
-    background.strokeRoundedRect(
-      measurement.visual.x,
-      measurement.visual.y,
-      measurement.visual.width,
-      measurement.visual.height,
-      theme.radius.control,
-    );
+    // A tab shows its border only on hover; the underline marks the open one.
+    if (!tab || hovered) {
+      background.lineStyle(
+        controlStrokeWidth(hovered, variant),
+        colorInt(hovered ? style.hoverStroke : style.stroke),
+        hovered ? 1 : theme.alpha.chrome * plateAlpha,
+      );
+      background.strokeRoundedRect(
+        measurement.visual.x,
+        measurement.visual.y,
+        measurement.visual.width,
+        measurement.visual.height,
+        theme.radius.control,
+      );
+    }
+    if (tab && variant === 'selected') {
+      const bar = tabUnderline(measurement.visual, label.width);
+      background.fillStyle(colorInt(theme.colors.gold), 1);
+      background.fillRect(bar.x, bar.y, bar.width, bar.height);
+    }
     inputZone.setSize(measurement.width, measurement.height);
     // The Zone is the input surface. Re-apply after every label update so a
     // Phaser size/input refresh cannot regress the minimum touch target.
@@ -138,19 +209,24 @@ export function themedButton(
   const setEnabled = (next: boolean): void => {
     enabled = next;
     if (!enabled) hovered = false;
-    container.setAlpha(enabled ? 1 : theme.alpha.subtle);
+    for (const part of [label, priceTail, coin]) part?.setAlpha(enabled ? 1 : DISABLED_LABEL_ALPHA);
     if (enabled) inputZone.setInteractive({ useHandCursor: true });
     else inputZone.disableInteractive();
     redraw();
   };
   const setLabel = (next: string): void => {
-    label.setText(next);
+    iconParts = splitIconLabel(next);
+    label.setText(iconParts ? iconParts.head : next);
     if (opts.maxTextWidth !== undefined) fitMenuName(label, opts.maxTextWidth, Number.POSITIVE_INFINITY);
+    layoutLabel();
+    for (const part of [label, priceTail, coin]) part?.setAlpha(enabled ? 1 : DISABLED_LABEL_ALPHA);
     redraw();
   };
   const setVariant = (next: ButtonVariant): void => {
     variant = next;
     label.setColor(themedButtonColors(variant).fg);
+    priceTail?.setColor(themedButtonColors(variant).fg);
+    tintIcon();
     redraw();
   };
 
@@ -232,6 +308,8 @@ export interface RoundedTrigger {
   setVariant(variant: Extract<ButtonVariant, 'emphasis' | 'ghost'>): void;
   setSelected(selected: boolean): void;
   setEnabled(enabled: boolean): void;
+  /** Grow (or restore) the visual box; a grid layout stretches triggers to its columns. */
+  setMinWidth(width: number): void;
 }
 
 /**
@@ -296,24 +374,25 @@ export function roundedTrigger(
   const triggerGap = DROPDOWN_GEOMETRY.triggerGap;
   const glyphSlotWidth = DROPDOWN_GEOMETRY.glyphSlotWidth;
   if (value && parts?.maxValueWidth !== undefined) ellipsizeText(value, parts.maxValueWidth);
-  const fixedMeasurement = parts
+  let minWidth = opts.minWidth ?? 0;
+  const fixedMeasurement = (): ThemedButtonMeasurement | null => parts
     ? measureThemedButton(
         label.width + triggerGap + Math.max(value?.width ?? 0, parts.maxValueWidth ?? 0) + triggerGap + glyphSlotWidth,
         size,
-        opts.minWidth ?? 0,
+        minWidth,
         padding,
       )
     : null;
-  let measurement = fixedMeasurement ?? measureThemedButton(label.width, size, opts.minWidth ?? 0, padding);
+  let measurement = fixedMeasurement() ?? measureThemedButton(label.width, size, minWidth, padding);
   const activeStyle = (): ThemedButtonColors =>
-    themedButtonColors(selected && variant === 'ghost' ? 'emphasis' : variant);
+    themedButtonColors(selected && variant === 'ghost' ? 'selected' : variant);
   let placed = false;
   const redraw = (): void => {
     // Keep the trigger's visual left edge fixed when a hover/selection redraw
     // changes its measured label width. FilterBar reflows by that same edge,
     // so redraws must not silently move a CTA back to its construction x.
     const previousLeft = placed ? container.x - measurement.visual.width / 2 : null;
-    measurement = fixedMeasurement ?? measureThemedButton(label.width, size, opts.minWidth ?? 0, padding);
+    measurement = fixedMeasurement() ?? measureThemedButton(label.width, size, minWidth, padding);
     const stateStyle = activeStyle();
     background.clear();
     background.fillStyle(colorInt(stateStyle.bg), 1);
@@ -405,6 +484,10 @@ export function roundedTrigger(
     selected = next;
     redraw();
   };
+  const setMinWidth = (next: number): void => {
+    minWidth = next;
+    redraw();
+  };
 
   bindTapButton(scene, inputZone, (pointer) => {
     if (enabled) opts.onTap?.(pointer);
@@ -470,6 +553,7 @@ export function roundedTrigger(
     setVariant,
     setSelected,
     setEnabled,
+    setMinWidth,
   };
 }
 
@@ -539,7 +623,7 @@ export function sceneHeaderFooter(
     .setOrigin(0.5);
   const currency = goldBadge(scene, 0, 0, opts.currency);
   const showCurrency = opts.showCurrency ?? true;
-  currency.text.setVisible(showCurrency);
+  currency.container.setVisible(showCurrency);
   const footerActions = (opts.footerActions ?? []).map((action) => {
     const { label, ...buttonOpts } = action;
     return themedButton(scene, 0, 0, label, buttonOpts);
@@ -548,7 +632,7 @@ export function sceneHeaderFooter(
     backVisual: { width: back.width, height: back.height },
     titleVisual: { width: title.width, height: title.height },
     currencyVisual: showCurrency
-      ? { width: currency.text.width, height: currency.text.height }
+      ? { width: currency.width(), height: currency.text.height }
       : { width: 0, height: 0 },
     footerActionVisuals: footerActions.map((action) => {
       const size = action.getMeasuredSize().visual;
@@ -557,7 +641,7 @@ export function sceneHeaderFooter(
   });
   back.setPosition(layout.back.visual.x, layout.back.visual.y + layout.back.visual.height / 2);
   title.setPosition(layout.title.x + layout.title.width / 2, layout.title.y + layout.title.height / 2);
-  currency.text.setPosition(
+  currency.container.setPosition(
     layout.currency.x + layout.currency.width,
     layout.currency.y + layout.currency.height / 2,
   );
@@ -566,7 +650,7 @@ export function sceneHeaderFooter(
     action.container.setPosition(visual.x + visual.width / 2, visual.y + visual.height / 2);
   });
   const container = scene.add
-    .container(0, 0, [back, title, currency.text, ...footerActions.map((action) => action.container)])
+    .container(0, 0, [back, title, currency.container, ...footerActions.map((action) => action.container)])
     .setDepth(opts.depth ?? theme.depth.hud);
   return { container, back, title, currency, footerActions, layout, focus: opts.focus };
 }
@@ -578,10 +662,8 @@ export interface ModalShellOptions {
   y?: number;
   dimAlpha?: number;
   /**
-   * Fill the panel fully opaque instead of the shared `panel` alpha (0.9).
-   * For reading surfaces opened over bright text behind a light dim, where a
-   * 10% see-through panel lets the screen underneath ghost through the copy.
-   * Off by default, so every other modal keeps its look.
+   * @deprecated Every modal panel is now opaque: a 10% see-through panel let
+   * the screen underneath ghost through the copy (2026-10-08 UI review).
    */
   opaque?: boolean;
   /** Named dismissal behavior. Every migrated scene call site sets this. */
@@ -610,7 +692,7 @@ export interface ModalShell {
   panel: Phaser.GameObjects.Graphics;
   closeButton?: ThemedButton;
   interactiveChildren: Phaser.GameObjects.GameObject[];
-  tracks: Pick<ModalShellLayout, 'titleTrack' | 'contentBounds' | 'footerTrack' | 'closeTrack'>;
+  tracks: Pick<ModalShellLayout, 'titleTrack' | 'centredTitleTrack' | 'contentBounds' | 'footerTrack' | 'closeTrack'>;
   contentBounds: Rect;
   /** Inert metadata for the future shared focus manager. */
   focus?: FocusMetadata;
@@ -680,7 +762,7 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
     theme.design.width,
     theme.design.height,
     theme.graphics.dim,
-    opts.dimAlpha ?? theme.alpha.overlayDim,
+    modalDimAlpha(opts.dimAlpha, theme.alpha.overlayDim),
   );
   const chrome = panel(
     scene,
@@ -688,7 +770,7 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
     y - opts.height / 2,
     opts.width,
     opts.height,
-    opts.opaque ? { alpha: 1 } : {},
+    { alpha: 1 },
   );
   const container = scene.add.container(0, 0, [dim, chrome]).setDepth(opts.depth ?? theme.depth.modal);
   const interactiveChildren: Phaser.GameObjects.GameObject[] = [];
@@ -762,6 +844,7 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
     footerTrackHeight: opts.footerTrackHeight,
     closeHitWidth: closeSize.width,
     closeHitHeight: closeSize.height,
+    hasClose: closeButton !== undefined,
   });
   if (closeButton) {
     closeButton.container.setPosition(
@@ -801,6 +884,7 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
     interactiveChildren,
     tracks: {
       titleTrack: layout.titleTrack,
+      centredTitleTrack: layout.centredTitleTrack,
       contentBounds: layout.contentBounds,
       footerTrack: layout.footerTrack,
       closeTrack: layout.closeTrack,
@@ -835,20 +919,27 @@ export function backButton(
     })
     .setOrigin(0, 0.5)
     .setInteractive({ useHandCursor: true });
+  // The label starts on the title-safe left edge, the line every panel and
+  // grid starts on; its inflated hit band grows rightward from there instead
+  // of centring the label inside it (which set "← Menu" ~12px inboard).
   const placement = anchoredControlBounds('top-left', button.width, button.height);
-  button.setPosition(placement.visual.x, placement.visual.y + placement.visual.height / 2);
+  button.setPosition(placement.hit.x, placement.visual.y + placement.visual.height / 2);
+  const inflate = (): void => {
+    inflateHitArea(button, theme.control.minHitWidth, theme.control.minHitHeight,
+      { biasX: (placement.hit.width - button.width) / 2 });
+  };
   bindTapButton(scene, button, onTap);
-  inflateHitArea(button, theme.control.minHitWidth, theme.control.minHitHeight);
+  inflate();
   button.on('pointerover', (pointer: Phaser.Input.Pointer) => {
     if (!pointer.wasTouch) {
       button.setColor(theme.colors.goldHover);
-      inflateHitArea(button, theme.control.minHitWidth, theme.control.minHitHeight);
+      inflate();
     }
   });
   button.on('pointerout', (pointer: Phaser.Input.Pointer) => {
     if (!pointer.wasTouch) {
       button.setColor(theme.colors.gold);
-      inflateHitArea(button, theme.control.minHitWidth, theme.control.minHitHeight);
+      inflate();
     }
   });
   const focusable = button as FocusableText;
@@ -862,7 +953,12 @@ export interface GoldBadgeOptions {
 }
 
 export interface GoldBadge {
+  /** The coin and the number, right-aligned on the badge's x. */
+  container: Phaser.GameObjects.Container;
   text: Phaser.GameObjects.Text;
+  coin: Phaser.GameObjects.Image;
+  /** The coin, the gap and the number, as drawn. */
+  width(): number;
   refresh(value?: number): void;
 }
 
@@ -872,19 +968,26 @@ export function goldBadge(
   y: number,
   opts: GoldBadgeOptions = {},
 ): GoldBadge {
+  const fontSize = theme.type.h2;
   const text = scene.add
-    .text(x, y, '🪙 0', {
+    .text(0, 0, '0', {
       fontFamily: theme.fonts.ui,
-      fontSize: `${theme.type.h2}px`,
+      fontSize: `${fontSize}px`,
       fontStyle: theme.weight.w600,
       color: theme.colors.gold,
     })
     .setOrigin(1, 0.5);
+  const coinSize = uiIconSize(fontSize);
+  const gap = theme.space(2);
+  const coin = scene.add.image(0, 0, bakeUiIcon(scene, 'gold')).setDisplaySize(coinSize, coinSize);
+  const container = scene.add.container(x, y, [coin, text]);
+  const width = (): number => coinSize + gap + text.width;
   let lastValue: number | null = null;
   const refresh = (value = opts.getValue?.() ?? 0): void => {
     const changed = lastValue !== null && value !== lastValue;
     lastValue = value;
-    text.setText(`🪙 ${value}`);
+    text.setText(formatCount(value));
+    coin.setX(-text.width - gap - coinSize / 2);
     if (changed && opts.flashOnChange && text.active) {
       scene.tweens.add({
         targets: text,
@@ -899,7 +1002,7 @@ export function goldBadge(
     }
   };
   refresh();
-  return { text, refresh };
+  return { container, text, coin, width, refresh };
 }
 
 export interface Pager {
@@ -919,6 +1022,8 @@ export interface PagerOptions {
   nextFocus?: FocusMetadata;
 }
 
+export { PAGER_CENTER_OFFSET };
+
 export function pager(
   scene: Phaser.Scene,
   x: number,
@@ -936,7 +1041,7 @@ export function pager(
   // text size (their size before 1.9), following h2 as text grows.
   const chevronSize = `${theme.type.h2 + theme.space(1)}px`;
   const previous = scene.add.text(x, y, '‹', { fontFamily: theme.fonts.display, fontSize: chevronSize, color: theme.colors.gold }).setOrigin(0, 0.5);
-  const label = scene.add.text(x + 51, y, '', { fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px`, color: theme.colors.body }).setOrigin(0.5);
+  const label = scene.add.text(x + PAGER_CENTER_OFFSET, y, '', { fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px`, color: theme.colors.body }).setOrigin(0.5);
   const next = scene.add.text(x + 88, y, '›', { fontFamily: theme.fonts.display, fontSize: chevronSize, color: theme.colors.gold }).setOrigin(0, 0.5);
   const container = scene.add.container(0, 0, [previous, label, next]);
   let current = page;
