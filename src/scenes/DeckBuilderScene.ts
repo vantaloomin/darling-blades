@@ -827,20 +827,33 @@ export class DeckBuilderScene extends Phaser.Scene {
       // cap. Shown only when ≥2 are addable (a single card tap already adds one).
       const addable = Math.min(this.copyLimit(), ownedCount(save, d.id)) - inDeck;
       if (addable > 1) {
+        // Drawn as a small button (plate, border, hover) so it reads as the
+        // action it is, not as a second count beside the in-deck chip.
         const addAll = this.add
           .text(x + grid.chipLeftX, y + grid.chipTopY, `+${addable}`, {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.caption}px`,
             fontStyle: '700',
             color: theme.colors.success,
-            backgroundColor: theme.colors.panelFill,
             padding: { x: 6, y: 2 },
           })
           .setOrigin(0, 0)
           .setInteractive({ useHandCursor: true });
+        const plate = this.add.graphics();
+        const drawPlate = (hovered: boolean): void => {
+          plate.clear();
+          plate.fillStyle(hovered ? theme.graphics.rowFillActive : theme.graphics.panelFill, 1);
+          plate.fillRoundedRect(addAll.x, addAll.y, addAll.width, addAll.height, 4);
+          plate.lineStyle(theme.control.borderWidth, hovered ? colorInt(theme.colors.goldHover) : colorInt(theme.colors.success), 1);
+          plate.strokeRoundedRect(addAll.x, addAll.y, addAll.width, addAll.height, 4);
+        };
+        drawPlate(false);
+        this.children.moveBelow(plate, addAll);
+        addAll.on('pointerover', () => drawPlate(true));
+        addAll.on('pointerout', () => drawPlate(false));
         bindTapButton(this, addAll, () => this.addPlayset(d.id));
         inflateHitArea(addAll, grid.chipHitWidth, grid.chipHitHeight);
-        this.cells.push(addAll);
+        this.cells.push(plate, addAll);
       }
     });
   }
