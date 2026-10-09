@@ -287,7 +287,7 @@
         <section class="verdict-panel">
           <div class="metric-row">
             <div><span>Power</span><strong id="metric-power">0.00</strong><small>what it does</small></div>
-            <div><span>Budget</span><strong id="metric-budget">0.00</strong><small id="budget-formula"></small></div>
+            <div><span>Budget</span><strong id="metric-budget">0.00</strong><small>what the cost buys</small></div>
             <div><span>Difference</span><strong id="metric-delta">+0.00</strong><small>Power minus Budget</small></div>
           </div>
           <div id="verdict-copy" class="verdict-copy">
@@ -295,12 +295,32 @@
             <p id="verdict-subtitle"></p>
           </div>
           <div class="gauge" aria-label="Difference gauge">
-            <div class="gauge-zones"><span>Under Value</span><span>Accurate Value</span><span>Over Value</span></div>
+            <div class="gauge-labels" aria-hidden="true"><span>Under Value</span><span>Accurate Value</span><span>Over Value</span></div>
+            <div class="gauge-zones"><span></span><span></span><span></span></div>
             <div class="outlier-mark left"><span>-1.5</span></div>
             <div class="outlier-mark right"><span>+1.5</span></div>
             <div id="gauge-needle" class="gauge-needle"><span id="gauge-value">+0.00</span></div>
           </div>
           <div id="warning-chips" class="warning-chips"></div>
+        </section>
+
+        <section class="tool-section ledger-section">
+          <h2>Score Breakdown</h2>
+          <div class="ledger-head"><span>What it does</span><span>Points</span></div>
+          <div id="score-ledger" class="score-ledger"></div>
+          <div class="ledger-total"><span>Power</span><strong id="ledger-total">0.00</strong></div>
+          <div class="ledger-head budget-head"><span>What the cost buys</span><span>Points</span></div>
+          <div id="budget-ledger" class="score-ledger"></div>
+          <div class="ledger-total"><span>Budget</span><strong id="ledger-budget">0.00</strong></div>
+          <div class="ledger-total ledger-difference"><span>Difference: Power minus Budget</span><strong id="ledger-delta">+0.00</strong></div>
+        </section>
+
+        <section class="tool-section hint-section">
+          <div class="section-heading"><h2>Costing Hints</h2><span class="section-note">Closest first</span></div>
+          <div id="hint-list" class="hint-list"></div>
+        </section>
+
+        <section class="tool-section explainer-section">
           <details class="explainer">
             <summary>How the math works</summary>
             <p>Every effect on a card is worth some number of points. One point is roughly what one mana buys. Add them up and you get the card's Power.</p>
@@ -311,18 +331,6 @@
             <p>A rate tagged Estimate hasn't been measured in play yet, so treat it as a best guess.</p>
             <p>The game's own cards are costed with this formula. It is a guide: real cards also get playtested before they ship.</p>
           </details>
-        </section>
-
-        <section class="tool-section ledger-section">
-          <div class="section-heading"><h2>Power Breakdown</h2><span id="ledger-count" class="section-note"></span></div>
-          <div class="ledger-head"><span>What it does</span><span>Points</span></div>
-          <div id="score-ledger" class="score-ledger"></div>
-          <div class="ledger-total"><span>Power</span><strong id="ledger-total">0.00</strong></div>
-        </section>
-
-        <section class="tool-section hint-section">
-          <div class="section-heading"><h2>Costing Hints</h2><span class="section-note">Closest first</span></div>
-          <div id="hint-list" class="hint-list"></div>
         </section>
       </aside>
     </main>
