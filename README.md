@@ -52,7 +52,7 @@ You play or skip a short tutorial, claim a free starter deck, crack booster pack
 - **Older boosters cost less** and fill your collection faster.
 - **Text size and High contrast** settings, and cues that never rely on colour alone.
 
-The full patch notes, with the cards, are in [docs/release-notes/v1.9.0.md](docs/release-notes/v1.9.0.md); the 1.9.1 patch is in [docs/release-notes/v1.9.1.md](docs/release-notes/v1.9.1.md). Earlier releases: [1.8.0](docs/release-notes/v1.8.0.md), [1.8.1](docs/release-notes/v1.8.1.md), [1.8.5](docs/release-notes/v1.8.5.md).
+The full patch notes, with the cards, are in [docs/release-notes/v1.9.0.md](docs/release-notes/v1.9.0.md); the 1.9.1 patch is in [docs/release-notes/v1.9.1.md](docs/release-notes/v1.9.1.md), and the 1.9.2 patch is in [docs/release-notes/v1.9.2.md](docs/release-notes/v1.9.2.md). Earlier releases: [1.8.0](docs/release-notes/v1.8.0.md), [1.8.1](docs/release-notes/v1.8.1.md), [1.8.5](docs/release-notes/v1.8.5.md).
 
 ## How to play
 
@@ -96,7 +96,7 @@ For deeper dives: [docs/architecture.md](docs/architecture.md) (layers, the even
 
 ## Project status
 
-**Darling Blades is 1.9.1** (tag v1.9.1). The full solo loop is wired end to end, all 1,648 collectible cards have finished art, the 28-rung tower is measured against win-rate floors, and the test suite is green.
+**Darling Blades is 1.9.2** (tag v1.9.2). The full solo loop is wired end to end, all 1,648 collectible cards have finished art, the 28-rung tower is measured against win-rate floors, and the test suite is green.
 
 **Coming next:** three more expansions through 2.0, a mobile rebuild, deck suggestions built from your own collection, and Story Mode. Multiplayer is not planned; the game is single-player by design.
 

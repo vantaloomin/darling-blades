@@ -63,169 +63,192 @@
         <h1>Darling Blades Forge</h1>
         <p>Design a card and see how its cost measures up.</p>
       </div>
-      <a class="play-link" href="../">Play Darling Blades</a>
+      <a class="play-link" href="../"><svg aria-hidden="true" viewBox="0 0 12 12" width="12" height="12"><path d="M3 1.5v9l7.5-4.5z" fill="currentColor"/></svg>Play<span class="play-link-name"> Darling Blades</span></a>
     </header>
 
     <main class="workspace-grid">
       <aside class="rail control-rail" aria-label="Card design controls">
-        <section class="tool-section">
-          <h2>Card</h2>
-          <div class="field-grid two-up">
-            <label class="span-two">Name<input id="card-name" type="text" maxlength="80" /></label>
-            <label>Card Type<select id="card-type"></select></label>
-            <label>Rarity<select id="card-rarity"></select></label>
-            <label class="span-two">Subtypes<input id="card-subtypes" type="text" maxlength="120" placeholder="Warrior, Spirit" /></label>
-            <label>Set<select id="card-set"></select></label>
-            <label class="check-row"><input id="card-legendary" type="checkbox" /> Legendary</label>          </div>
-        </section>
+        <!-- Grouped and collapsible (owner taste call 4): the quickest way in first, then what the card is, what it says, how it looks. -->
+        <details class="rail-group" data-rail-group="start" open>
+          <summary>Start From a Card</summary>
+          <section class="tool-section load-card-section">
+            <div class="section-heading"><h2 class="visually-hidden">Start From a Card</h2><button id="random-card" class="small-button" type="button">Random Card</button></div>
+            <p class="field-note">Open any card from the game and change it.</p>
+            <div id="loaded-card-chip" class="loaded-card-chip" aria-live="polite" hidden>
+              <span id="loaded-card-label"></span>
+              <button id="reset-loaded" class="ghost-button" type="button">Revert to Original</button>
+            </div>
+            <div class="field-grid load-filters">
+              <label class="span-two">Search<input id="load-search" type="search" placeholder="Card name" /></label>
+              <label>Set<select id="load-set-filter"></select></label>
+              <label>Color<select id="load-color-filter"></select></label>
+            </div>
+            <div class="picker-result-heading"><span>Results</span><span id="load-result-count"></span></div>
+            <div id="load-results" class="load-results" role="group" aria-label="Cards from the game (arrow keys move through the list)"></div>
+          </section>
 
-        <section id="mana-section" class="tool-section">
-          <div class="section-heading"><h2>Mana Cost</h2><output id="mana-value">MV 2</output></div>
-          <label class="range-field">Generic Mana
-            <span><input id="generic-mana" type="range" min="0" max="9" step="1" /><output id="generic-value">1</output></span>
-          </label>
-          <div id="pip-controls" class="pip-controls" aria-label="Colored mana pips"></div>
-          <div class="color-identity-editor">
-            <label>Color Identity
-              <select id="color-identity-mode">
-                <option value="cost">From mana cost</option>
-                <option value="override">Choose colors</option>
-              </select>
+        </details>
+        <details class="rail-group" data-rail-group="basics" open>
+          <summary>Basics</summary>
+          <section class="tool-section">
+            <h2>Card</h2>
+            <div class="field-grid two-up">
+              <label class="span-two">Name<input id="card-name" type="text" maxlength="80" /></label>
+              <label>Card Type<select id="card-type"></select></label>
+              <label>Rarity<select id="card-rarity"></select></label>
+              <label class="span-two">Subtypes<input id="card-subtypes" type="text" maxlength="120" placeholder="Warrior, Spirit" /></label>
+              <label>Set<select id="card-set"></select></label>
+              <label class="check-row"><input id="card-legendary" type="checkbox" /> Legendary</label>          </div>
+          </section>
+
+          <section id="mana-section" class="tool-section">
+            <div class="section-heading"><h2>Mana Cost</h2><output id="mana-value">Mana value 2</output></div>
+            <label class="range-field">Generic Mana
+              <span><input id="generic-mana" type="range" min="0" max="9" step="1" /><output id="generic-value">1</output></span>
             </label>
-            <fieldset id="color-override-controls" class="color-override-controls" hidden>
-              <legend>Colors</legend>
-            </fieldset>
-          </div>
-          <p class="field-note">Effects outside a card's colors cost a little extra.</p>
-          <label class="check-row compact"><input id="x-spell" type="checkbox" /> X spell (scored as X = 3)</label>
-        </section>
-
-        <section id="body-section" class="tool-section">
-          <h2>Body</h2>
-          <label class="range-field">Attack
-            <span><input id="card-attack" type="range" min="0" max="12" step="1" /><output id="attack-value">2</output></span>
-          </label>
-          <label class="range-field">Defense
-            <span><input id="card-defense" type="range" min="0" max="12" step="1" /><output id="defense-value">2</output></span>
-          </label>
-        </section>
-
-        <section class="tool-section">
-          <div class="section-heading"><h2>Keywords</h2><span class="section-note">Drag or click to add</span></div>
-          <div id="keyword-palette" class="keyword-palette" aria-label="Keyword palette"></div>
-          <p id="keyword-score-note" class="field-note">Keywords add their value on creatures.</p>
-        </section>
-
-        <section class="tool-section">
-          <div class="section-heading"><h2>Abilities</h2><button id="add-ability" class="small-button" type="button">Add Ability</button></div>
-          <div id="ability-list" class="editor-list"></div>
-        </section>
-
-        <section class="tool-section">
-          <h2>Mechanics</h2>
-          <p class="section-note block">Card-wide mechanics. A few print on the card without changing the score; their notes say so.</p>
-          <div id="mechanic-toggles" class="mechanic-toggles">
-            <label data-mechanic-id="empower"><input type="checkbox" data-mechanic-toggle="empower" /> <span data-mechanic-name="empower">Empower</span></label>
-            <label data-mechanic-id="rite"><input type="checkbox" data-mechanic-toggle="rite" /> <span data-mechanic-name="rite">Rite</span></label>
-            <label data-mechanic-id="nineLives"><input type="checkbox" data-mechanic-toggle="nineLives" /> <span data-mechanic-name="nineLives">Nine Lives</span></label>
-            <label data-mechanic-id="preserve"><input type="checkbox" data-mechanic-toggle="preserve" /> <span data-mechanic-name="preserve">Preserve</span></label>
-            <label data-mechanic-id="skim"><input type="checkbox" data-mechanic-toggle="skim" /> <span data-mechanic-name="skim">Skim</span></label>
-            <label data-mechanic-id="retell"><input type="checkbox" data-mechanic-toggle="retell" /> <span data-mechanic-name="retell">Retell</span></label>
-            <label data-mechanic-id="hauntlink"><input type="checkbox" data-mechanic-toggle="hauntlink" /> <span data-mechanic-name="hauntlink">Hauntlink</span></label>
-            <label data-mechanic-id="championAwakening"><input type="checkbox" data-mechanic-toggle="awakening" /> <span data-mechanic-name="championAwakening">Champion Awakening</span></label>
-            <label data-mechanic-id="quest"><input type="checkbox" data-mechanic-toggle="chapters" /> <span data-mechanic-name="quest">Quest</span></label>
-            <label><input type="checkbox" data-mechanic-toggle="manaAbility" /> Mana Ability</label>
-            <label><input type="checkbox" data-mechanic-toggle="entersTapped" /> Enters Tapped</label>
-            <label data-mechanic-id="duty"><input type="checkbox" data-mechanic-toggle="activated" /> <span data-mechanic-name="duty">Duty</span></label>
-            <label data-mechanic-id="whispers"><input type="checkbox" data-mechanic-toggle="whispers" /> <span data-mechanic-name="whispers">Whispers</span></label>
-            <label data-mechanic-id="tithe"><input type="checkbox" data-mechanic-toggle="tithe" /> <span data-mechanic-name="tithe">Tithe</span></label>
-          </div>
-          <div id="mechanic-editors" class="editor-list"></div>
-        </section>
-
-        <section class="tool-section load-card-section">
-          <div class="section-heading"><h2>Start From a Card</h2><button id="random-card" class="small-button" type="button">Random Card</button></div>
-          <p class="field-note">Open any card from the game and change it.</p>
-          <div id="loaded-card-chip" class="loaded-card-chip" aria-live="polite" hidden>
-            <span id="loaded-card-label"></span>
-            <button id="reset-loaded" class="small-button" type="button">Undo My Changes</button>
-          </div>
-          <div class="field-grid load-filters">
-            <label class="span-two">Search<input id="load-search" type="search" placeholder="Card name" /></label>
-            <label>Set<select id="load-set-filter"></select></label>
-            <label>Color<select id="load-color-filter"></select></label>
-          </div>
-          <div class="picker-result-heading"><span>Results</span><span id="load-result-count"></span></div>
-          <div id="load-results" class="load-results" aria-label="Cards from the game"></div>
-        </section>
-
-        <section class="tool-section art-picker-section">
-          <div class="section-heading"><h2>Art</h2><button id="random-art" class="small-button" type="button">Random Art</button></div>
-          <div class="art-source-switch" role="radiogroup" aria-label="Art">
-            <label><input type="radio" name="art-source" value="game" checked /> Game Art</label>
-            <label><input type="radio" name="art-source" value="custom" /> Your Image</label>
-          </div>
-          <div id="game-art-panel">
-            <p class="field-note">Borrow any card's art. It changes the picture only.</p>
-            <div class="field-grid art-filters">
-              <label class="span-two">Search<input id="art-search" type="search" placeholder="Card name" /></label>
-              <label>Set<select id="art-set-filter"></select></label>
-              <label>Color<select id="art-color-filter"></select></label>
-            </div>
-            <div id="art-grid" class="art-grid" aria-label="Art picker"></div>
-            <div class="art-pager">
-              <button id="art-prev" type="button">Previous</button>
-              <span id="art-page-label"></span>
-              <button id="art-next" type="button">Next</button>
-            </div>
-          </div>
-          <div id="custom-art-panel" class="custom-art-panel" hidden>
-            <p class="field-note privacy-note">Your image stays on this device. Nothing is uploaded.</p>
-            <div id="custom-art-drop" class="custom-art-drop">
-              <p>Drop an image here, or choose one.</p>
-              <button id="custom-art-choose" class="small-button" type="button">Choose Image</button>
-            </div>
-            <div id="custom-art-controls" class="custom-art-controls" hidden>
-              <label class="range-field">Zoom
-                <span><input id="custom-art-zoom" type="range" min="0" max="1000" step="1" /><output id="custom-art-zoom-value">1.00×</output></span>
-              </label>
-              <label class="range-field">Left and Right
-                <span><input id="custom-art-x" type="range" min="-100" max="100" step="1" /><output id="custom-art-x-value">0</output></span>
-              </label>
-              <label class="range-field">Up and Down
-                <span><input id="custom-art-y" type="range" min="-100" max="100" step="1" /><output id="custom-art-y-value">0</output></span>
-              </label>
-              <label class="range-field">Rotate
-                <span><input id="custom-art-rotation" type="range" min="-180" max="180" step="1" /><output id="custom-art-rotation-value">0°</output></span>
-              </label>
-              <div class="custom-art-buttons">
-                <button id="custom-art-flip" class="small-button" type="button" aria-pressed="false">Flip</button>
-                <button id="custom-art-fit" class="small-button" type="button">Fit Whole Image</button>
-                <button id="custom-art-fill" class="small-button" type="button">Fill the Frame</button>
-                <button id="custom-art-reset" class="ghost-button" type="button">Reset</button>
+            <div id="pip-controls" class="pip-controls" aria-label="Colored mana pips"></div>
+            <div class="color-identity-editor">
+              <span id="color-identity-label" class="field-label">Color Identity</span>
+              <div id="color-identity-mode" class="art-source-switch" role="radiogroup" aria-labelledby="color-identity-label">
+                <label><input type="radio" name="color-identity-mode" value="cost" checked /> Same as mana cost</label>
+                <label><input type="radio" name="color-identity-mode" value="override" /> Choose colors</label>
               </div>
-              <label id="custom-art-background-field" class="custom-art-background" hidden>Background<input id="custom-art-background" type="color" value="#000000" /></label>
-              <p class="field-note">Drag on the card to move the picture.</p>
-              <div class="custom-art-buttons">
-                <button id="custom-art-replace" class="small-button" type="button">Choose Another</button>
-                <button id="custom-art-remove" class="ghost-button danger" type="button">Remove Image</button>
+              <fieldset id="color-override-controls" class="color-override-controls" hidden>
+                <legend>Colors</legend>
+              </fieldset>
+            </div>
+            <p class="field-note">Effects outside a card's colors cost a little extra.</p>
+            <label class="check-row compact"><input id="x-spell" type="checkbox" /> X spell (priced as if X is 3)</label>
+          </section>
+
+          <section id="body-section" class="tool-section">
+            <h2>Body</h2>
+            <div class="stat-steppers">
+              <div class="stat-stepper" role="group" aria-labelledby="attack-label">
+                <label id="attack-label" for="card-attack">Attack</label>
+                <button type="button" data-stat="attack" data-step="-1" aria-label="Lower Attack">−</button>
+                <input id="card-attack" type="number" min="0" max="12" step="1" inputmode="numeric" />
+                <button type="button" data-stat="attack" data-step="1" aria-label="Raise Attack">+</button>
+              </div>
+              <div class="stat-stepper" role="group" aria-labelledby="defense-label">
+                <label id="defense-label" for="card-defense">Defense</label>
+                <button type="button" data-stat="defense" data-step="-1" aria-label="Lower Defense">−</button>
+                <input id="card-defense" type="number" min="0" max="12" step="1" inputmode="numeric" />
+                <button type="button" data-stat="defense" data-step="1" aria-label="Raise Defense">+</button>
               </div>
             </div>
-            <p class="field-note">PNG, JPEG, WebP or GIF, up to 20 MB.</p>
-            <p id="custom-art-message" class="action-message" aria-live="polite"></p>
-            <input id="custom-art-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
-          </div>
-        </section>
+          </section>
 
-        <section class="tool-section appearance-section">
-          <h2>Appearance</h2>
-          <p class="field-note">Looks only. These never change the score.</p>
-          <div class="field-grid two-up">
-            <label>Frame<select id="frame-style"></select></label>
-            <label>Holo Finish<select id="holo-finish"></select></label>
-            <label class="check-row span-two"><input id="full-art" type="checkbox" /> Full Art</label>
-          </div>
-        </section>
+        </details>
+        <details class="rail-group" data-rail-group="text" open>
+          <summary>Text</summary>
+          <section class="tool-section">
+            <div class="section-heading"><h2>Keywords</h2><span class="section-note">Click to add or remove</span></div>
+            <div id="keyword-palette" class="keyword-palette" aria-label="Keyword palette"></div>
+            <p id="keyword-info" class="term-info" aria-live="polite">Point at or tap a keyword to read what it does.</p>
+            <p id="keyword-score-note" class="field-note">Keywords add their value on creatures.</p>
+          </section>
+
+          <section class="tool-section">
+            <div class="section-heading"><h2>Abilities</h2><button id="add-ability" class="small-button" type="button">Add Ability</button></div>
+            <div id="ability-list" class="editor-list"></div>
+          </section>
+
+          <section class="tool-section">
+            <h2>Mechanics</h2>
+            <p class="section-note block">Rules for the whole card. A few print on the card but don't change the score, and their notes say which.</p>
+            <div id="mechanic-toggles" class="mechanic-toggles">
+              <label data-mechanic-id="empower"><input type="checkbox" data-mechanic-toggle="empower" /> <span data-mechanic-name="empower">Empower</span></label>
+              <label data-mechanic-id="rite"><input type="checkbox" data-mechanic-toggle="rite" /> <span data-mechanic-name="rite">Rite</span></label>
+              <label data-mechanic-id="nineLives"><input type="checkbox" data-mechanic-toggle="nineLives" /> <span data-mechanic-name="nineLives">Nine Lives</span></label>
+              <label data-mechanic-id="preserve"><input type="checkbox" data-mechanic-toggle="preserve" /> <span data-mechanic-name="preserve">Preserve</span></label>
+              <label data-mechanic-id="skim"><input type="checkbox" data-mechanic-toggle="skim" /> <span data-mechanic-name="skim">Skim</span></label>
+              <label data-mechanic-id="retell"><input type="checkbox" data-mechanic-toggle="retell" /> <span data-mechanic-name="retell">Retell</span></label>
+              <label data-mechanic-id="hauntlink"><input type="checkbox" data-mechanic-toggle="hauntlink" /> <span data-mechanic-name="hauntlink">Hauntlink</span></label>
+              <label data-mechanic-id="championAwakening"><input type="checkbox" data-mechanic-toggle="awakening" /> <span data-mechanic-name="championAwakening">Champion Awakening</span></label>
+              <label data-mechanic-id="quest"><input type="checkbox" data-mechanic-toggle="chapters" /> <span data-mechanic-name="quest">Quest</span></label>
+              <label><input type="checkbox" data-mechanic-toggle="manaAbility" /> Mana Ability</label>
+              <label><input type="checkbox" data-mechanic-toggle="entersTapped" /> Enters Tapped</label>
+              <label data-mechanic-id="duty"><input type="checkbox" data-mechanic-toggle="activated" /> <span data-mechanic-name="duty">Duty</span></label>
+              <label data-mechanic-id="whispers"><input type="checkbox" data-mechanic-toggle="whispers" /> <span data-mechanic-name="whispers">Whispers</span></label>
+              <label data-mechanic-id="tithe"><input type="checkbox" data-mechanic-toggle="tithe" /> <span data-mechanic-name="tithe">Tithe</span></label>
+            </div>
+            <p id="mechanic-info" class="term-info" aria-live="polite">Point at or tap a mechanic to read what it does.</p>
+            <div id="mechanic-editors" class="editor-list"></div>
+          </section>
+
+        </details>
+        <details class="rail-group" data-rail-group="look" open>
+          <summary>Look</summary>
+          <section class="tool-section art-picker-section">
+            <div class="section-heading"><h2>Art</h2><button id="random-art" class="ghost-button" type="button">Random Art</button></div>
+            <div class="art-source-switch" role="radiogroup" aria-label="Art">
+              <label><input type="radio" name="art-source" value="game" checked /> Game Art</label>
+              <label><input type="radio" name="art-source" value="custom" /> Your Image</label>
+            </div>
+            <div id="game-art-panel">
+              <p class="field-note">Borrow any card's art. It changes the picture only.</p>
+              <div class="field-grid art-filters">
+                <label class="span-two">Search<input id="art-search" type="search" placeholder="Card name" /></label>
+                <label>Set<select id="art-set-filter"></select></label>
+                <label>Color<select id="art-color-filter"></select></label>
+              </div>
+              <div id="art-grid" class="art-grid" aria-label="Art picker"></div>
+              <div class="art-pager">
+                <button id="art-prev" type="button">Previous</button>
+                <span id="art-page-label"></span>
+                <button id="art-next" type="button">Next</button>
+              </div>
+            </div>
+            <div id="custom-art-panel" class="custom-art-panel" hidden>
+              <p class="field-note privacy-note">Your image stays on this device. Nothing is uploaded.</p>
+              <div id="custom-art-drop" class="custom-art-drop">
+                <p>Drop an image here, or choose one.</p>
+                <button id="custom-art-choose" class="small-button" type="button">Choose Image</button>
+              </div>
+              <div id="custom-art-controls" class="custom-art-controls" hidden>
+                <label class="range-field">Zoom
+                  <span><input id="custom-art-zoom" class="themed-range" type="range" min="0" max="1000" step="1" /><output id="custom-art-zoom-value">1.00×</output></span>
+                </label>
+                <label class="range-field">Left and Right
+                  <span><input id="custom-art-x" class="themed-range centered-range" type="range" min="-100" max="100" step="1" /><output id="custom-art-x-value">0</output></span>
+                </label>
+                <label class="range-field">Up and Down
+                  <span><input id="custom-art-y" class="themed-range centered-range" type="range" min="-100" max="100" step="1" /><output id="custom-art-y-value">0</output></span>
+                </label>
+                <p id="custom-art-pan-note" class="range-note" hidden></p>
+                <label class="range-field">Rotate
+                  <span><input id="custom-art-rotation" class="themed-range centered-range" type="range" min="-180" max="180" step="1" /><output id="custom-art-rotation-value">0°</output></span>
+                </label>
+                <div class="custom-art-buttons">
+                  <button id="custom-art-flip" class="ghost-button" type="button" aria-pressed="false">Flip</button>
+                  <button id="custom-art-fit" class="ghost-button" type="button">Fit Whole Image</button>
+                  <button id="custom-art-fill" class="ghost-button" type="button">Fill the Frame</button>
+                  <button id="custom-art-reset" class="ghost-button" type="button">Reset</button>
+                </div>
+                <label id="custom-art-background-field" class="custom-art-background" hidden>Background<input id="custom-art-background" type="color" value="#000000" /></label>
+                <p class="field-note">Drag on the card to move the picture.</p>
+                <div class="custom-art-buttons">
+                  <button id="custom-art-replace" class="ghost-button" type="button">Choose Another</button>
+                  <button id="custom-art-remove" class="ghost-button danger" type="button">Remove Image</button>
+                </div>
+              </div>
+              <p class="field-note">PNG, JPEG, WebP or GIF, up to 20 MB.</p>
+              <p id="custom-art-message" class="action-message" aria-live="polite"></p>
+              <input id="custom-art-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
+            </div>
+          </section>
+
+          <section class="tool-section appearance-section">
+            <h2>Appearance</h2>
+            <p class="field-note">Looks only. These never change the score.</p>
+            <div class="field-grid two-up">
+              <label>Frame<select id="frame-style"></select></label>
+              <label>Holo Finish<select id="holo-finish"></select></label>
+              <label class="check-row span-two"><input id="full-art" type="checkbox" /> Full Art</label>
+            </div>
+          </section>
+        </details>
       </aside>
 
       <section class="preview-column" aria-label="Live card preview">
@@ -241,7 +264,7 @@
           <div id="mana-preview" class="mana-preview" aria-label="Printed mana cost"></div>
         </div>
         <div id="canvas-shell">
-          <p class="loading-note">Loading the card...</p>
+          <p class="loading-note"><span>Loading the card…</span></p>
           <div id="canvas-drop-overlay" class="canvas-drop-overlay">Drop keyword on the card</div>
         </div>
         <div id="applied-keywords" class="applied-keywords" aria-label="Applied keywords">
@@ -253,27 +276,28 @@
           <div class="action-row">
             <div class="action-group">
               <button id="save-to-set" class="primary-button" type="button">Save to Set</button>
-              <button id="save-and-next" class="small-button" type="button">Save and Start Next</button>
+              <button id="save-and-next" class="small-button" type="button">Save and New Card</button>
               <button id="new-card" class="ghost-button" type="button">New Card</button>
             </div>
             <div class="action-group">
               <button id="copy-link" class="small-button" type="button">Copy Link</button>
-              <button id="save-image" class="small-button" type="button">Save Image</button>
+              <button id="save-image" class="ghost-button" type="button">Save Image</button>
+              <button id="show-set" class="ghost-button set-tray-button" type="button" aria-controls="set-panel">Your Set · <span id="set-tray-count">0</span></button>
             </div>
           </div>
           <p id="action-message" class="action-message" aria-live="polite"></p>
           <label id="share-fallback" class="share-fallback" hidden>Copy this link:<input id="share-fallback-input" type="text" readonly /></label>
         </div>
 
-        <section class="set-panel" aria-labelledby="set-heading">
-          <div class="section-heading"><h2 id="set-heading">Your Set</h2></div>
+        <section id="set-panel" class="set-panel" aria-labelledby="set-heading">
+          <div class="section-heading"><h2 id="set-heading">Your Set</h2><span id="autosave-status" class="autosave-status" hidden>Saved in this browser</span></div>
           <label>Set Name<input id="set-name" type="text" maxlength="60" /></label>
           <ol id="set-list" class="set-list" aria-label="Cards in your set"></ol>
           <p id="set-empty" class="empty-editor set-empty">No cards yet. Design one and press Save to Set.</p>
           <div class="set-footer">
             <span id="set-count" class="set-count">0 cards</span>
-            <button id="export-set" class="small-button" type="button">Export JSON</button>
-            <button id="import-set" class="small-button" type="button">Import JSON</button>
+            <button id="export-set" class="ghost-button" type="button">Export JSON</button>
+            <button id="import-set" class="ghost-button" type="button">Import JSON</button>
             <button id="clear-set" class="ghost-button danger" type="button">Clear Set</button>
             <input id="import-file" type="file" accept=".json,application/json" hidden />
           </div>
@@ -283,24 +307,48 @@
         </section>
       </section>
 
-      <aside class="rail verdict-rail" aria-label="Power verdict and costing hints">
+      <!-- Below 1181px the score sits under the editors, so a strip at the bottom of the screen keeps the Difference in view and opens the full panel (owner taste call 7). -->
+      <button id="score-strip" class="score-strip accurate" type="button" aria-controls="verdict-rail" aria-expanded="false">
+        <span class="score-strip-value"><strong id="strip-delta">+0.00</strong> · <span id="strip-band">Accurate Value</span></span>
+        <span id="strip-action" class="score-strip-action">Show score</span>
+      </button>
+      <aside id="verdict-rail" class="rail verdict-rail" aria-label="Power verdict and costing hints">
         <section class="verdict-panel">
-          <div class="metric-row">
-            <div><span>Power</span><strong id="metric-power">0.00</strong><small>what it does</small></div>
-            <div><span>Budget</span><strong id="metric-budget">0.00</strong><small id="budget-formula"></small></div>
-            <div><span>Difference</span><strong id="metric-delta">+0.00</strong><small>Power minus Budget</small></div>
-          </div>
-          <div id="verdict-copy" class="verdict-copy">
-            <h2 id="verdict-label">Accurate Value</h2>
+          <!-- The Difference is the one number that answers "is this fair?", so it leads, in its band's colour, with the band named under it. -->
+          <div id="verdict-copy" class="verdict-copy accurate">
+            <span class="hero-caption">Difference</span>
+            <strong id="metric-delta" class="hero-number">+0.00</strong>
+            <h2 id="verdict-label" aria-live="polite">Accurate Value</h2>
+            <p class="hero-sum">Power <strong id="metric-power">0.00</strong> <span aria-hidden="true">&minus;</span><span class="visually-hidden">minus</span> Budget <strong id="metric-budget">0.00</strong></p>
             <p id="verdict-subtitle"></p>
           </div>
-          <div class="gauge" aria-label="Difference gauge">
-            <div class="gauge-zones"><span>Under Value</span><span>Accurate Value</span><span>Over Value</span></div>
+          <div id="difference-gauge" class="gauge" role="meter" aria-label="Difference" aria-valuemin="-3" aria-valuemax="3" aria-valuenow="0" aria-valuetext="+0.00, Accurate Value">
+            <div class="gauge-labels" aria-hidden="true"><span>Under Value</span><span>Accurate Value</span><span>Over Value</span></div>
+            <div class="gauge-zones"><span></span><span></span><span></span></div>
             <div class="outlier-mark left"><span>-1.5</span></div>
             <div class="outlier-mark right"><span>+1.5</span></div>
             <div id="gauge-needle" class="gauge-needle"><span id="gauge-value">+0.00</span></div>
           </div>
           <div id="warning-chips" class="warning-chips"></div>
+        </section>
+
+        <section class="tool-section ledger-section">
+          <h2>Score Breakdown</h2>
+          <div class="ledger-head"><span>What it does</span><span>Points</span></div>
+          <div id="score-ledger" class="score-ledger"></div>
+          <div class="ledger-total"><span>Power</span><strong id="ledger-total">0.00</strong></div>
+          <div class="ledger-head budget-head"><span>What the cost buys</span><span>Points</span></div>
+          <div id="budget-ledger" class="score-ledger"></div>
+          <div class="ledger-total"><span>Budget</span><strong id="ledger-budget">0.00</strong></div>
+          <div class="ledger-total ledger-difference"><span>Difference: Power minus Budget</span><strong id="ledger-delta">+0.00</strong></div>
+        </section>
+
+        <section class="tool-section hint-section">
+          <div class="section-heading"><h2>Costing Hints</h2><span class="section-note">Closest first</span></div>
+          <div id="hint-list" class="hint-list"></div>
+        </section>
+
+        <section class="tool-section explainer-section">
           <details class="explainer">
             <summary>How the math works</summary>
             <p>Every effect on a card is worth some number of points. One point is roughly what one mana buys. Add them up and you get the card's Power.</p>
@@ -312,20 +360,18 @@
             <p>The game's own cards are costed with this formula. It is a guide: real cards also get playtested before they ship.</p>
           </details>
         </section>
-
-        <section class="tool-section ledger-section">
-          <div class="section-heading"><h2>Power Breakdown</h2><span id="ledger-count" class="section-note"></span></div>
-          <div class="ledger-head"><span>What it does</span><span>Points</span></div>
-          <div id="score-ledger" class="score-ledger"></div>
-          <div class="ledger-total"><span>Power</span><strong id="ledger-total">0.00</strong></div>
-        </section>
-
-        <section class="tool-section hint-section">
-          <div class="section-heading"><h2>Costing Hints</h2><span class="section-note">Closest first</span></div>
-          <div id="hint-list" class="hint-list"></div>
-        </section>
       </aside>
     </main>
+
+    <dialog id="forge-confirm" class="forge-confirm" aria-labelledby="forge-confirm-text">
+      <form method="dialog">
+        <p id="forge-confirm-text"></p>
+        <div class="forge-confirm-buttons">
+          <button id="forge-confirm-no" class="ghost-button" type="submit" value="no">Cancel</button>
+          <button id="forge-confirm-yes" class="danger-button" type="submit" value="yes">Continue</button>
+        </div>
+      </form>
+    </dialog>
 
     <script type="module" src="/src/forge/main.ts"></script>
   </body>

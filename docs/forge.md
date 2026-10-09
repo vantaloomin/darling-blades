@@ -1,4 +1,4 @@
-<!-- source-of-truth: forge/index.html, src/forge, src/power/scoreCore.ts, vite.forge.config.ts, scripts/build-forge.ts, tests/forge, tests/power · last-verified: 2026-09-27 -->
+<!-- source-of-truth: forge/index.html, src/forge, src/power/scoreCore.ts, vite.forge.config.ts, scripts/build-forge.ts, tests/forge, tests/power · last-verified: 2026-10-09 -->
 
 # The Forge
 
@@ -15,8 +15,20 @@ game.
 
 ## Features
 
+- **Layout.** The left rail folds into four groups: Start From a Card (the
+  game's catalogue, one Tab stop with arrow keys inside), Basics (card, mana
+  cost, Attack and Defense steppers), Text (keywords, abilities, mechanics) and
+  Look (art, appearance). The right panel leads with the Difference as one large
+  number in its band's colour (Under lilac, Accurate gold, Over the game's
+  danger colour), the band named under it, and Power minus Budget beneath. On
+  desktop the card's actions (including "Your Set · n", which jumps to the set)
+  stick to the bottom of the middle column. Below 1181px a strip at the bottom
+  of the screen shows the Difference and opens the full score panel. The empty
+  keyword box under the card shows only while a keyword is dragged. Editors
+  keep focus and their folded state when the page redraws them, and a number
+  box shows its clamped value once the edit lands.
 - **Set builder.** Save to Set adds the card in the editor to the set, or
-  updates the set card being edited; Save and Start Next saves, then opens a
+  updates the set card being edited; Save and New Card saves, then opens a
   fresh card; New Card opens a fresh card (asking first over unsaved changes).
   The set panel lists every card (cost, name, type line, and a verdict chip
   with its Difference); clicking a row opens that card, and each row can be
@@ -26,6 +38,10 @@ game.
 - **Autosave.** The set and the card in the editor are saved in the browser as
   you work and come back on reload (see Storage below). A second tab picks up
   the set the first one saved; each tab keeps its own card in the editor.
+  "Saved in this browser" by the Your Set heading lights up after each save.
+- **Confirmations.** Discarding changes, removing a card or an image, clearing
+  the set and replacing it on import ask first, in the Forge's own dialog
+  (Escape or Cancel says no).
 - **Share link.** Copy Link puts the card in the URL fragment (format below).
   Opening such a link puts the card in the editor as a new, unsaved card and
   never changes the set.
@@ -101,7 +117,7 @@ game.
 The page's QA probe runs with `?qa=1` (`/forge/?qa=1`): it starts from a fresh
 card and an empty set, waits for the first card, waits for the card to be
 redrawn with its real art, checks that both webfonts loaded, drives the mana
-slider, a pip, a keyword drag and a hint, then Save to Set, Save and Start Next
+slider, a pip, a keyword drag and a hint, then Save to Set, Save and New Card
 and a second save, exports the set and imports the file back (the same cards
 and scores must return), encodes a share link, decodes it and opens it the way
 a link does. Then the own-image steps (`src/forge/customArtQa.ts`): it paints a

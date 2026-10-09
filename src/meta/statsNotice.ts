@@ -25,3 +25,29 @@ export const STATS_NOTICE_VERSION = 1;
 export function normalizeStatsNoticeVersion(raw: unknown): number {
   return typeof raw === 'number' && Number.isInteger(raw) && raw >= 0 ? raw : 0;
 }
+
+/**
+ * Start the sharing choice at Off when the browser asks not to be tracked.
+ *
+ * A fresh save defaults `shareAnonStats` to on, and `src/meta` cannot read the
+ * browser, so the default is decided before Do Not Track or Global Privacy
+ * Control is ever looked at. The gate still refused every send on such a
+ * browser, but the toggle said On, which reads as opted in. The boot layer
+ * (gameBoot.ts) reads the signal and hands it here, so a player whose browser
+ * opts out starts opted out too.
+ *
+ * Only a save that has never been told (`statsNoticeVersion` 0) is changed:
+ * that is the save still holding the untouched default. A player who has seen
+ * the notice has made their choice, and it stands. Returns whether the
+ * setting changed, so the caller knows to persist it.
+ */
+export function applyBrowserOptOutDefault(
+  settings: { shareAnonStats: boolean; statsNoticeVersion: unknown },
+  browserOptsOut: boolean,
+): boolean {
+  if (!browserOptsOut) return false;
+  if (normalizeStatsNoticeVersion(settings.statsNoticeVersion) !== 0) return false;
+  if (settings.shareAnonStats !== true) return false;
+  settings.shareAnonStats = false;
+  return true;
+}

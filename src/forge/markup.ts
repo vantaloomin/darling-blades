@@ -57,8 +57,26 @@ export function setRowMarkup(row: SetRowView): string {
   </li>`;
 }
 
-/** A warning chip: a problem, an estimate (with its tag), or a note. */
-export function warningChipMarkup(warning: ForgeWarning): string {
-  const tag = warning.kind === 'estimate' ? estimateTag() : '';
-  return `<span class="warning-chip ${warning.kind}">${tag}<span>${escapeHtml(warning.text)}</span></span>`;
+/**
+ * The score's warnings as two groups: what the game would refuse (always
+ * shown, in the danger colour) and notes on reading the score, estimates
+ * tagged. More than two notes fold into a closed list so they don't push the
+ * breakdown off screen; `notesOpen` keeps it open across re-renders.
+ */
+export function warningListMarkup(warnings: readonly ForgeWarning[], notesOpen = false): string {
+  const item = (warning: ForgeWarning): string => (
+    `<li>${warning.kind === 'estimate' ? estimateTag() : ''}<span>${escapeHtml(warning.text)}</span></li>`
+  );
+  const illegal = warnings.filter((warning) => warning.kind === 'illegal');
+  const notes = warnings.filter((warning) => warning.kind !== 'illegal');
+  const parts: string[] = [];
+  if (illegal.length > 0) {
+    parts.push(`<div class="warning-group illegal"><p class="warning-head">The game won't allow this card</p><ul>${illegal.map(item).join('')}</ul></div>`);
+  }
+  if (notes.length > 0 && notes.length <= 2) {
+    parts.push(`<div class="warning-group notes"><p class="warning-head">Notes on this score</p><ul>${notes.map(item).join('')}</ul></div>`);
+  } else if (notes.length > 2) {
+    parts.push(`<details class="warning-group notes"${notesOpen ? ' open' : ''}><summary class="warning-head">${notes.length} notes on this score</summary><ul>${notes.map(item).join('')}</ul></details>`);
+  }
+  return parts.join('');
 }
