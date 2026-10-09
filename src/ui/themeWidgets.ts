@@ -41,6 +41,8 @@ import {
   type OverlayRegistration,
 } from './OverlayCoordinator';
 import type { BackLabel } from './navigation';
+import { formatCount, splitGoldLabel } from './goldFormat';
+import { bakeGoldIcon, GOLD_ICON_KEY, goldIconSize } from './goldIcon';
 
 export type ButtonVariant = ThemedButtonVariant;
 export type ButtonSize = ControlSize;
@@ -97,22 +99,58 @@ export function themedButton(
   const fontSize = controlFontSize(size);
   const container = scene.add.container(x, y);
   const background = scene.add.graphics();
-  const label = scene.add
-    .text(0, 0, initialLabel, {
-      fontFamily: theme.fonts.ui,
-      fontSize: `${fontSize}px`,
-      fontStyle: theme.weight.w600,
-      color: themedButtonColors(variant).fg,
-      align: 'center',
-    })
-    .setOrigin(0.5);
+  const labelStyle = {
+    fontFamily: theme.fonts.ui,
+    fontSize: `${fontSize}px`,
+    fontStyle: theme.weight.w600,
+    color: themedButtonColors(variant).fg,
+    align: 'center',
+  };
+  let goldParts = splitGoldLabel(initialLabel);
+  const label = scene.add.text(0, 0, goldParts ? goldParts.head : initialLabel, labelStyle).setOrigin(0.5);
   if (opts.maxTextWidth !== undefined) fitMenuName(label, opts.maxTextWidth, Number.POSITIVE_INFINITY);
   const inputZone = scene.add.zone(0, 0, 1, height).setInteractive({ useHandCursor: true });
   container.add([background, label, inputZone]);
 
+  // A price label (`Buy · {gold} 500`) draws the coin between its two runs
+  // of text. The tail and the coin are made on first use.
+  let priceTail: Phaser.GameObjects.Text | null = null;
+  let coin: Phaser.GameObjects.Image | null = null;
+  const coinSize = goldIconSize(fontSize);
+  const coinGap = theme.space(1.5);
+  const contentWidth = (): number => {
+    if (!goldParts || !priceTail) return label.width;
+    return (goldParts.head ? label.width + coinGap : 0) + coinSize + (goldParts.tail ? coinGap + priceTail.width : 0);
+  };
+  const layoutLabel = (): void => {
+    if (goldParts && !priceTail) {
+      bakeGoldIcon(scene);
+      priceTail = scene.add.text(0, 0, '', labelStyle).setOrigin(0.5);
+      coin = scene.add.image(0, 0, GOLD_ICON_KEY).setDisplaySize(coinSize, coinSize);
+      container.addAt([priceTail, coin], container.getIndex(label) + 1);
+    }
+    if (!goldParts || !priceTail || !coin) {
+      label.setX(0);
+      priceTail?.setVisible(false);
+      coin?.setVisible(false);
+      return;
+    }
+    priceTail.setText(goldParts.tail).setVisible(goldParts.tail !== '');
+    coin.setVisible(true);
+    let left = -contentWidth() / 2;
+    if (goldParts.head) {
+      label.setX(left + label.width / 2);
+      left += label.width + coinGap;
+    }
+    coin.setX(left + coinSize / 2);
+    left += coinSize + coinGap;
+    priceTail.setX(left + priceTail.width / 2);
+  };
+  layoutLabel();
+
   let enabled = opts.enabled ?? true;
   let hovered = false;
-  const measure = (): ThemedButtonMeasurement => measureThemedButton(label.width, size, opts.minWidth ?? 0, opts.padding,
+  const measure = (): ThemedButtonMeasurement => measureThemedButton(contentWidth(), size, opts.minWidth ?? 0, opts.padding,
     opts.maxTextWidth !== undefined ? label.height : 0);
   let measurement = measure();
   const redraw = (): void => {
@@ -163,19 +201,23 @@ export function themedButton(
   const setEnabled = (next: boolean): void => {
     enabled = next;
     if (!enabled) hovered = false;
-    label.setAlpha(enabled ? 1 : DISABLED_LABEL_ALPHA);
+    for (const part of [label, priceTail, coin]) part?.setAlpha(enabled ? 1 : DISABLED_LABEL_ALPHA);
     if (enabled) inputZone.setInteractive({ useHandCursor: true });
     else inputZone.disableInteractive();
     redraw();
   };
   const setLabel = (next: string): void => {
-    label.setText(next);
+    goldParts = splitGoldLabel(next);
+    label.setText(goldParts ? goldParts.head : next);
     if (opts.maxTextWidth !== undefined) fitMenuName(label, opts.maxTextWidth, Number.POSITIVE_INFINITY);
+    layoutLabel();
+    for (const part of [label, priceTail, coin]) part?.setAlpha(enabled ? 1 : DISABLED_LABEL_ALPHA);
     redraw();
   };
   const setVariant = (next: ButtonVariant): void => {
     variant = next;
     label.setColor(themedButtonColors(variant).fg);
+    priceTail?.setColor(themedButtonColors(variant).fg);
     redraw();
   };
 
@@ -572,7 +614,7 @@ export function sceneHeaderFooter(
     .setOrigin(0.5);
   const currency = goldBadge(scene, 0, 0, opts.currency);
   const showCurrency = opts.showCurrency ?? true;
-  currency.text.setVisible(showCurrency);
+  currency.container.setVisible(showCurrency);
   const footerActions = (opts.footerActions ?? []).map((action) => {
     const { label, ...buttonOpts } = action;
     return themedButton(scene, 0, 0, label, buttonOpts);
@@ -581,7 +623,7 @@ export function sceneHeaderFooter(
     backVisual: { width: back.width, height: back.height },
     titleVisual: { width: title.width, height: title.height },
     currencyVisual: showCurrency
-      ? { width: currency.text.width, height: currency.text.height }
+      ? { width: currency.width(), height: currency.text.height }
       : { width: 0, height: 0 },
     footerActionVisuals: footerActions.map((action) => {
       const size = action.getMeasuredSize().visual;
@@ -590,7 +632,7 @@ export function sceneHeaderFooter(
   });
   back.setPosition(layout.back.visual.x, layout.back.visual.y + layout.back.visual.height / 2);
   title.setPosition(layout.title.x + layout.title.width / 2, layout.title.y + layout.title.height / 2);
-  currency.text.setPosition(
+  currency.container.setPosition(
     layout.currency.x + layout.currency.width,
     layout.currency.y + layout.currency.height / 2,
   );
@@ -599,7 +641,7 @@ export function sceneHeaderFooter(
     action.container.setPosition(visual.x + visual.width / 2, visual.y + visual.height / 2);
   });
   const container = scene.add
-    .container(0, 0, [back, title, currency.text, ...footerActions.map((action) => action.container)])
+    .container(0, 0, [back, title, currency.container, ...footerActions.map((action) => action.container)])
     .setDepth(opts.depth ?? theme.depth.hud);
   return { container, back, title, currency, footerActions, layout, focus: opts.focus };
 }
@@ -902,7 +944,12 @@ export interface GoldBadgeOptions {
 }
 
 export interface GoldBadge {
+  /** The coin and the number, right-aligned on the badge's x. */
+  container: Phaser.GameObjects.Container;
   text: Phaser.GameObjects.Text;
+  coin: Phaser.GameObjects.Image;
+  /** The coin, the gap and the number, as drawn. */
+  width(): number;
   refresh(value?: number): void;
 }
 
@@ -912,19 +959,27 @@ export function goldBadge(
   y: number,
   opts: GoldBadgeOptions = {},
 ): GoldBadge {
+  const fontSize = theme.type.h2;
   const text = scene.add
-    .text(x, y, '🪙 0', {
+    .text(0, 0, '0', {
       fontFamily: theme.fonts.ui,
-      fontSize: `${theme.type.h2}px`,
+      fontSize: `${fontSize}px`,
       fontStyle: theme.weight.w600,
       color: theme.colors.gold,
     })
     .setOrigin(1, 0.5);
+  bakeGoldIcon(scene);
+  const coinSize = goldIconSize(fontSize);
+  const gap = theme.space(2);
+  const coin = scene.add.image(0, 0, GOLD_ICON_KEY).setDisplaySize(coinSize, coinSize);
+  const container = scene.add.container(x, y, [coin, text]);
+  const width = (): number => coinSize + gap + text.width;
   let lastValue: number | null = null;
   const refresh = (value = opts.getValue?.() ?? 0): void => {
     const changed = lastValue !== null && value !== lastValue;
     lastValue = value;
-    text.setText(`🪙 ${value}`);
+    text.setText(formatCount(value));
+    coin.setX(-text.width - gap - coinSize / 2);
     if (changed && opts.flashOnChange && text.active) {
       scene.tweens.add({
         targets: text,
@@ -939,7 +994,7 @@ export function goldBadge(
     }
   };
   refresh();
-  return { text, refresh };
+  return { container, text, coin, width, refresh };
 }
 
 export interface Pager {

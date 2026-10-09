@@ -1,4 +1,5 @@
 import { ownedVariants, PLAYSET } from '../meta/Collection';
+import { formatGold } from './goldFormat';
 import type { DraftState, PremiumGrantSummary } from '../meta/Limited';
 import type { SaveData } from '../meta/SaveManager';
 import { isPlainVariant, PLAIN_VARIANT, variantKey, type CardVariant } from '../meta/variants';
@@ -74,7 +75,7 @@ export function premiumGrantNote(summary: PremiumGrantSummary): string {
   const melted = converted === 1
     ? '1 was a duplicate that was converted'
     : `${converted} were duplicates that were converted`;
-  return `${lead} ${kept}, and ${melted} to ${gold.toLocaleString('en-US')} gold.`;
+  return `${lead} ${kept}, and ${melted} to ${formatGold(gold)}.`;
 }
 
 /**

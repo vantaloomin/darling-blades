@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { formatCount } from '../ui/goldFormat';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { FEATURES } from '../config/features';
@@ -911,7 +912,7 @@ export class ProfileScene extends Phaser.Scene {
     return [
       `Creation date: ${new Date(preview.creationDate).toLocaleString()}`,
       `Collection: ${preview.collectionCount.toLocaleString('en-US')} copies (${preview.collectionDistinctCount.toLocaleString('en-US')} distinct cards)`,
-      `Gold: ${preview.gold.toLocaleString('en-US')}g`,
+      `Gold: ${formatCount(preview.gold)}`,
       `Decks: ${preview.deckCount}`,
       `Progress: ${preview.progressSummary.wins} W / ${preview.progressSummary.losses} L. Best gauntlet rung ${preview.progressSummary.bestGauntletRung}. Full clears ${preview.progressSummary.gauntletCompletions}.`,
       `Source schema: v${preview.sourceSchemaVersion}`,

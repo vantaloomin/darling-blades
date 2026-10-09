@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { formatGold } from '../ui/goldFormat';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { ECONOMY } from '../config/rules';
@@ -231,7 +232,7 @@ export class LimitedScene extends Phaser.Scene {
     this.button(
       x + CTA_COL_RIGHT,
       y + 84,
-      `Premium Draft · ${ECONOMY.premiumDraftEntry.toLocaleString('en-US')}g`,
+      `Premium Draft · ${formatGold(ECONOMY.premiumDraftEntry)}`,
       'ghost',
       () => {
         if (runActive || this.fixture) return;
@@ -341,7 +342,7 @@ export class LimitedScene extends Phaser.Scene {
       this.text(
         detailX,
         centerY,
-        entry.premium ? style : `${style} · +${entry.rewardGold} gold`,
+        entry.premium ? style : `${style} · +${formatGold(entry.rewardGold)}`,
         theme.type.caption,
         theme.colors.muted,
       );
@@ -430,7 +431,7 @@ export class LimitedScene extends Phaser.Scene {
  */
 function retireConsequence(run: LimitedRun): string {
   if (!run.premium) return 'Retiring discards this run (pool, deck, record) and its gold payout.';
-  const fee = `${ECONOMY.premiumDraftEntry.toLocaleString('en-US')}g`;
+  const fee = formatGold(ECONOMY.premiumDraftEntry);
   return run.status === 'draft'
     ? `Retiring forfeits the ${fee} entry fee and your picks so far.`
     : `Retiring forfeits the ${fee} entry fee; your drafted cards are kept.`;
@@ -447,7 +448,7 @@ function freshRunSeed(): number {
  */
 function freeDraftPayoutCopy(): string {
   const table = ECONOMY.limitedRunGold;
-  return `Pays ${table[0]}g to ${table[table.length - 1]}g after three matches, by wins.`;
+  return `Pays ${formatGold(table[0])} to ${formatGold(table[table.length - 1])} after three matches, by wins.`;
 }
 
 function draftModeLabel(run: { premium?: boolean }): string {

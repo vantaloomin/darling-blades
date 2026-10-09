@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { formatGold, goldPrice } from '../ui/goldFormat';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { ECONOMY } from '../config/rules';
@@ -870,7 +871,7 @@ export class ShopScene extends Phaser.Scene {
       const short = Math.max(0, total - gold);
       const anyAffordable = this.skuButtons.some(({ price }) => gold >= price * this.qty);
       this.boosterQtyStatus.setText(
-        `You need 🪙 ${short} more to buy ${this.qty} ${this.qty === 1 ? 'pack' : 'packs'} at a time.`,
+        `You need ${formatGold(short)} more to buy ${this.qty} ${this.qty === 1 ? 'pack' : 'packs'} at a time.`,
       );
       this.boosterQtyStatus.setVisible(this.skuButtons.length > 0 && !anyAffordable);
     }
@@ -1083,7 +1084,7 @@ export class ShopScene extends Phaser.Scene {
     // (dark bg, gold text) to stand out, but beside a rail of gold primaries
     // it read as LESS clickable (owner catch, 2026-07-31); the New chip
     // already carries the differentiation.
-    const buyBtn = themedButton(this, x, 578, `Buy · 🪙 ${price}`, {
+    const buyBtn = themedButton(this, x, 578, `Buy · ${goldPrice(price)}`, {
       variant: 'primary',
       minWidth: 178,
       onTap: () => {
@@ -1188,7 +1189,7 @@ export class ShopScene extends Phaser.Scene {
 
   private refreshQtyLabels(): void {
     for (const { btn, price } of this.skuButtons) {
-      btn.setLabel(this.qty > 1 ? `Buy ×${this.qty} · 🪙 ${price * this.qty}` : `Buy · 🪙 ${price}`);
+      btn.setLabel(this.qty > 1 ? `Buy ×${this.qty} · ${goldPrice(price * this.qty)}` : `Buy · ${goldPrice(price)}`);
     }
   }
 
@@ -1597,7 +1598,7 @@ export class ShopScene extends Phaser.Scene {
             if (!this.deckStripDragging) this.onCloneDeck(sku);
           },
         })
-      : themedButton(this, 0, ctaY, freeClaim ? 'Claim Free ✦' : `Buy · 🪙 ${price}`, {
+      : themedButton(this, 0, ctaY, freeClaim ? 'Claim Free ✦' : `Buy · ${goldPrice(price)}`, {
           variant: 'primary',
           size: 'sm',
           minWidth: 160,
@@ -2324,17 +2325,17 @@ export class ShopScene extends Phaser.Scene {
             // The free Darlings deck is its own claim, independent of the
             // starter's; the other Darlings decks always cost their price.
             text: darlings
-              ? `✦ Your one free Darling deck. The other Darling decks cost 🪙 ${ECONOMY.darlingsPreconPrice}.`
-              : `✦ Your one free starter. The other starters cost 🪙 ${ECONOMY.starterDeckPrice} once you claim it.`,
+              ? `✦ Your one free Darling deck. The other Darling decks cost ${formatGold(ECONOMY.darlingsPreconPrice)}.`
+              : `✦ Your one free starter. The other starters cost ${formatGold(ECONOMY.starterDeckPrice)} once you claim it.`,
             color: theme.colors.gold,
           }
         : affordable
           ? {
-              text: `Price 🪙 ${price} · Balance 🪙 ${save.gold} → 🪙 ${save.gold - price} after`,
+              text: `Price ${formatGold(price)} · Balance ${formatGold(save.gold)} → ${formatGold(save.gold - price)} after`,
               color: theme.colors.body,
             }
           : {
-              text: `Price 🪙 ${price} · Balance 🪙 ${save.gold} · 🪙 ${price - save.gold} short`,
+              text: `Price ${formatGold(price)} · Balance ${formatGold(save.gold)} · ${formatGold(price - save.gold)} short`,
               color: theme.colors.danger,
             };
     const footerText = this.add
@@ -2364,7 +2365,7 @@ export class ShopScene extends Phaser.Scene {
       bindMenuScroll(this, grantColumn, viewport, grantBody.height, undefined, undefined, linePitch, shell);
     }
     if (!owned) {
-      const buy = themedButton(this, footerRight - 216, footY, freeClaim ? 'Claim Free ✦' : `Buy · 🪙 ${price}`, {
+      const buy = themedButton(this, footerRight - 216, footY, freeClaim ? 'Claim Free ✦' : `Buy · ${goldPrice(price)}`, {
         variant: 'primary',
         minWidth: 170,
         enabled: affordable,

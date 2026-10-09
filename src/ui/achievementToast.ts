@@ -1,4 +1,5 @@
 import { ACHIEVEMENTS } from '../meta/Achievements';
+import { formatGold } from './goldFormat';
 import { queueToast } from './Toast';
 import type { ToastSummary } from './toastQueue';
 
@@ -16,7 +17,7 @@ export function queueAchievementUnlockToasts(ids: readonly string[]): void {
   const collapseSummary: ToastSummary = {
     title: 'ACHIEVEMENTS UNLOCKED',
     body: `${defs.length} new goals are ready.`,
-    detail: `Claim +${totalGold} Gold in Achievements`,
+    detail: `Claim +${formatGold(totalGold)} in Achievements`,
     cue: 'seal',
     action: ACHIEVEMENTS_ROUTE,
   };
@@ -24,7 +25,7 @@ export function queueAchievementUnlockToasts(ids: readonly string[]): void {
     queueToast({
       title: 'ACHIEVEMENT UNLOCKED',
       body: achievement.title,
-      detail: `Claim +${achievement.reward.gold} Gold in Achievements`,
+      detail: `Claim +${formatGold(achievement.reward.gold)} in Achievements`,
       cue: 'seal',
       action: ACHIEVEMENTS_ROUTE,
       collapseSummary,
