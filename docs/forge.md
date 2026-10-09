@@ -26,6 +26,10 @@ game.
 - **Autosave.** The set and the card in the editor are saved in the browser as
   you work and come back on reload (see Storage below). A second tab picks up
   the set the first one saved; each tab keeps its own card in the editor.
+  "Saved in this browser" by the Your Set heading lights up after each save.
+- **Confirmations.** Discarding changes, removing a card or an image, clearing
+  the set and replacing it on import ask first, in the Forge's own dialog
+  (Escape or Cancel says no).
 - **Share link.** Copy Link puts the card in the URL fragment (format below).
   Opening such a link puts the card in the editor as a new, unsaved card and
   never changes the set.

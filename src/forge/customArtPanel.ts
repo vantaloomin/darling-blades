@@ -38,7 +38,7 @@ const KEYWORD_DRAG_TYPE = 'application/x-darlingblades-keyword';
 export interface CustomArtPanelOptions {
   store: BuilderStore;
   images: ForgeImageLibrary;
-  confirmAction(message: string): boolean;
+  confirmAction(message: string, yesLabel?: string): Promise<boolean>;
 }
 
 export interface CustomArtPanel {
@@ -186,8 +186,8 @@ export function initCustomArtPanel({ store, images, confirmAction }: CustomArtPa
     reframe((framing, image) => fillFrame(image, framing, frameOf(store.getState())))
   ));
   element<HTMLButtonElement>('custom-art-reset').addEventListener('click', () => reframe((_framing, image) => resetFraming(image)));
-  element<HTMLButtonElement>('custom-art-remove').addEventListener('click', () => {
-    if (!store.getState().customArt || !confirmAction(CUSTOM_ART_COPY.removeConfirm)) return;
+  element<HTMLButtonElement>('custom-art-remove').addEventListener('click', async () => {
+    if (!store.getState().customArt || !await confirmAction(CUSTOM_ART_COPY.removeConfirm, 'Remove Image')) return;
     showMessage('');
     update((next) => { next.customArt = null; });
   });
@@ -214,7 +214,8 @@ export function initCustomArtPanel({ store, images, confirmAction }: CustomArtPa
     const custom = state.artSource === 'custom';
     for (const input of sourceInputs) input.checked = input.value === state.artSource;
     gamePanel.hidden = custom;
-    randomArt.hidden = custom;
+    // Kept in place (just not shown) so the Art heading doesn't jump when the source changes.
+    randomArt.style.visibility = custom ? 'hidden' : '';
     panel.hidden = !custom;
     const art = state.customArt;
     dropZone.hidden = art !== null;
