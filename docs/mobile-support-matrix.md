@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-mobile-overhaul.md, vite.config.ts, package.json, index.html, src/gameBoot.ts, src/platform/clientProfile.ts, src/platform/quality.ts, src/platform/gestures.ts · last-verified: 2026-10-08 · DRAFT device list for the 2.0 mobile pass (decision M7); re-verify at each mobile wave, at the 2.0 cut, and when a new iOS or Android major ships -->
+<!-- source-of-truth: docs/plan-mobile-overhaul.md, vite.config.ts, package.json, index.html, src/gameBoot.ts, src/platform/clientProfile.ts, src/platform/quality.ts, src/platform/gestures.ts · last-verified: 2026-10-09 · DRAFT device list for the 2.0 mobile pass (decision M7); re-verify at each mobile wave, at the 2.0 cut, and when a new iOS or Android major ships -->
 
 # Mobile support matrix (draft)
 
@@ -69,7 +69,7 @@ draws at about 0.9 scale on an 11-inch iPad, which reads today.
 
 | Device class | Screen (CSS px) | Browser | Level |
 | --- | ---: | --- | --- |
-| **The owner's Samsung tablet** (model to confirm), landscape | to measure | Chrome and Samsung Internet | **Tested** | The only Android device: it covers Android's browsers, and as older hardware it stands in as the weak-device floor (M14) until an Android phone joins |
+| **The owner's Galaxy Tab A8** (Android 14, One UI 6.1), landscape | about 1280x800 (to measure) | Chrome and Samsung Internet | **Tested** | The only Android device: it covers Android's browsers, and as older hardware it stands in as the weak-device floor (M14) until an Android phone joins |
 | iPad, 10.9 to 11 inch, landscape | 1180x820 | Safari | Supported |
 | iPad mini, landscape | 1133x744 | Safari | Supported |
 | Any tablet held upright (M11) | e.g. 820x1180 | Safari, Chrome | Supported if M11 is ruled yes; today it shows the rotate screen (a CSS media query in `index.html`; unblocking adds a minimum-size clause to it) |
@@ -118,8 +118,8 @@ the reserve changes to match.
 
 ## What the real-device testing needs
 
-The owner tests on real devices: an **iPhone 17 Pro Max** and an **older
-Samsung tablet** (owner, 2026-10-08). Emulation and a resized desktop window
+The owner tests on real devices: an **iPhone 17 Pro Max** and a **Galaxy
+Tab A8** on Android 14 (owner, 2026-10-08 and 10-09). Emulation and a resized desktop window
 find layout bugs but never count as the device pass: they miss touch,
 memory, browser bars and audio.
 
@@ -150,8 +150,6 @@ issue in the QA sheet mobile wave 1 adds.
 
 ## Open for the owner
 
-- **The tablet's model and Android version** (Settings, About tablet). If
-  its Chrome is older than 111, the game cannot run on it and it drops out.
 - **The small-phone checks** above: the emulator and Display Zoom (proposed), with a used Galaxy A phone optional.
 - **The OS pair** (current and previous iOS, Android 10+) is a proposal.
 - **The old-browser message** above is a proposal.

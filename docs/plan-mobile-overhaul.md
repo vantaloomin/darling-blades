@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-2.0.md, docs/mobile-support-matrix.md, docs/mobile-lan-plan.md, docs/plan-accessibility-i18n.md, docs/plan-art-streaming.md, docs/design-system.md, index.html, vite.config.ts, src/gameBoot.ts, src/platform/gestureCore.ts, src/platform/gestures.ts, src/platform/quality.ts, src/platform/renderScale.ts, src/platform/clientProfile.ts, src/ui/accessibility.ts, src/ui/theme.ts, src/ui/layout.ts, src/ui/duelLayout.ts, src/ui/SceneBackdrop.ts, src/art/ArtResolver.ts, src/art/artBudget.ts, src/config/cardFaceGeometry.ts, src/ui/handFan.ts, src/forge/scene.ts, src/dev/a11yProbe.ts, src/scenes/ · last-verified: 2026-10-08 · plan doc, DRAFT for the 2.0 wave-1 sitting: rewritten for 2.0 lane C; P11 (M1-M4), P1 and P2 ruled 2026-10-08, the rest is proposed; re-verify when the owner rules the M decisions, and when each wave ships -->
+<!-- source-of-truth: docs/plan-2.0.md, docs/mobile-support-matrix.md, docs/mobile-lan-plan.md, docs/plan-accessibility-i18n.md, docs/plan-art-streaming.md, docs/design-system.md, index.html, vite.config.ts, src/gameBoot.ts, src/platform/gestureCore.ts, src/platform/gestures.ts, src/platform/quality.ts, src/platform/renderScale.ts, src/platform/clientProfile.ts, src/ui/accessibility.ts, src/ui/theme.ts, src/ui/layout.ts, src/ui/duelLayout.ts, src/ui/SceneBackdrop.ts, src/art/ArtResolver.ts, src/art/artBudget.ts, src/config/cardFaceGeometry.ts, src/ui/handFan.ts, src/forge/scene.ts, src/dev/a11yProbe.ts, src/scenes/ · last-verified: 2026-10-09 · plan doc, DRAFT for the 2.0 wave-1 sitting: rewritten for 2.0 lane C; P11 (M1-M4), P1 and P2 ruled 2026-10-08, the rest is proposed; re-verify when the owner rules the M decisions, and when each wave ships -->
 
 # Mobile overhaul: the 2.0 plan (draft)
 
@@ -299,7 +299,7 @@ word.
   in both Safari and Chrome already leaves out a visible browser bar, so the
   reserve may be taking 80 px twice whenever a bar shows (inferred, not
   measured). The baseline also times a Hard AI turn on the weakest tested
-  device (the owner's older Samsung tablet until an Android phone joins): the engine and AI run on the page's main thread, and a long think
+  device (the owner's Galaxy Tab A8, a budget tablet, until an Android phone joins): the engine and AI run on the page's main thread, and a long think
   freezes the screen. If it does, the fix touches `src/ai` or moves the AI
   to a worker, and the 2.0 plan freezes the AI at the end of 2.0 wave 2, so
   it is found here, not in the Duel wave.
