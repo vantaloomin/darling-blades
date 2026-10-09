@@ -80,7 +80,7 @@
         </section>
 
         <section id="mana-section" class="tool-section">
-          <div class="section-heading"><h2>Mana Cost</h2><output id="mana-value">MV 2</output></div>
+          <div class="section-heading"><h2>Mana Cost</h2><output id="mana-value">Mana value 2</output></div>
           <label class="range-field">Generic Mana
             <span><input id="generic-mana" type="range" min="0" max="9" step="1" /><output id="generic-value">1</output></span>
           </label>
@@ -88,7 +88,7 @@
           <div class="color-identity-editor">
             <label>Color Identity
               <select id="color-identity-mode">
-                <option value="cost">From mana cost</option>
+                <option value="cost">Same as mana cost</option>
                 <option value="override">Choose colors</option>
               </select>
             </label>
@@ -97,7 +97,7 @@
             </fieldset>
           </div>
           <p class="field-note">Effects outside a card's colors cost a little extra.</p>
-          <label class="check-row compact"><input id="x-spell" type="checkbox" /> X spell (scored as X = 3)</label>
+          <label class="check-row compact"><input id="x-spell" type="checkbox" /> X spell (priced as if X is 3)</label>
         </section>
 
         <section id="body-section" class="tool-section">
@@ -111,8 +111,9 @@
         </section>
 
         <section class="tool-section">
-          <div class="section-heading"><h2>Keywords</h2><span class="section-note">Drag or click to add</span></div>
+          <div class="section-heading"><h2>Keywords</h2><span class="section-note">Click to add or remove</span></div>
           <div id="keyword-palette" class="keyword-palette" aria-label="Keyword palette"></div>
+          <p id="keyword-info" class="term-info" aria-live="polite">Point at or tap a keyword to read what it does.</p>
           <p id="keyword-score-note" class="field-note">Keywords add their value on creatures.</p>
         </section>
 
@@ -123,7 +124,7 @@
 
         <section class="tool-section">
           <h2>Mechanics</h2>
-          <p class="section-note block">Card-wide mechanics. A few print on the card without changing the score; their notes say so.</p>
+          <p class="section-note block">Rules for the whole card. A few print on the card but don't change the score, and their notes say which.</p>
           <div id="mechanic-toggles" class="mechanic-toggles">
             <label data-mechanic-id="empower"><input type="checkbox" data-mechanic-toggle="empower" /> <span data-mechanic-name="empower">Empower</span></label>
             <label data-mechanic-id="rite"><input type="checkbox" data-mechanic-toggle="rite" /> <span data-mechanic-name="rite">Rite</span></label>
@@ -140,6 +141,7 @@
             <label data-mechanic-id="whispers"><input type="checkbox" data-mechanic-toggle="whispers" /> <span data-mechanic-name="whispers">Whispers</span></label>
             <label data-mechanic-id="tithe"><input type="checkbox" data-mechanic-toggle="tithe" /> <span data-mechanic-name="tithe">Tithe</span></label>
           </div>
+          <p id="mechanic-info" class="term-info" aria-live="polite">Point at or tap a mechanic to read what it does.</p>
           <div id="mechanic-editors" class="editor-list"></div>
         </section>
 
@@ -148,7 +150,7 @@
           <p class="field-note">Open any card from the game and change it.</p>
           <div id="loaded-card-chip" class="loaded-card-chip" aria-live="polite" hidden>
             <span id="loaded-card-label"></span>
-            <button id="reset-loaded" class="ghost-button" type="button">Undo My Changes</button>
+            <button id="reset-loaded" class="ghost-button" type="button">Revert to Original</button>
           </div>
           <div class="field-grid load-filters">
             <label class="span-two">Search<input id="load-search" type="search" placeholder="Card name" /></label>
@@ -253,7 +255,7 @@
           <div class="action-row">
             <div class="action-group">
               <button id="save-to-set" class="primary-button" type="button">Save to Set</button>
-              <button id="save-and-next" class="small-button" type="button">Save and Start Next</button>
+              <button id="save-and-next" class="small-button" type="button">Save and New Card</button>
               <button id="new-card" class="ghost-button" type="button">New Card</button>
             </div>
             <div class="action-group">
@@ -286,9 +288,9 @@
       <aside class="rail verdict-rail" aria-label="Power verdict and costing hints">
         <section class="verdict-panel">
           <div class="metric-row">
-            <div><span>Power</span><strong id="metric-power">0.00</strong><small>what it does</small></div>
-            <div><span>Budget</span><strong id="metric-budget">0.00</strong><small>what the cost buys</small></div>
-            <div><span>Difference</span><strong id="metric-delta">+0.00</strong><small>Power minus Budget</small></div>
+            <div><span>Power</span><strong id="metric-power">0.00</strong><small>what the card does</small></div>
+            <div><span>Budget</span><strong id="metric-budget">0.00</strong><small>what its cost pays for</small></div>
+            <div><span>Difference</span><strong id="metric-delta">+0.00</strong><small>near zero is fair</small></div>
           </div>
           <div id="verdict-copy" class="verdict-copy">
             <h2 id="verdict-label">Accurate Value</h2>
