@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { bakeUiIcon, uiIconSize } from '../ui/uiIcons';
 import { formatGold } from '../ui/goldFormat';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
@@ -548,14 +549,16 @@ export class AchievementsScene extends Phaser.Scene {
       .setOrigin(0.5);
   }
 
-  /** 📌 on a claimed row: pin to (or unpin from) the Profile showcase. */
+  /** The pin on a claimed row: pin to (or unpin from) the Profile showcase. */
   private drawPinToggle(id: string, x: number, y: number): void {
     const save = this.saveData;
     const pinned = save.achievements.pinned.includes(id);
+    const size = uiIconSize(theme.type.label);
     this.add
-      .text(x, y, '📌', { fontSize: '18px' })
-      .setOrigin(0.5)
-      .setAlpha(pinned ? 1 : 0.3);
+      .image(x, y, bakeUiIcon(this, 'pin'))
+      .setDisplaySize(size, size)
+      .setTint(colorInt(pinned ? theme.colors.gold : theme.colors.muted))
+      .setAlpha(pinned ? 1 : 0.6);
     const zone = this.add.zone(x, y, 44, 44).setInteractive({ useHandCursor: true });
     zone.on('pointerup', (p: Phaser.Input.Pointer) => {
       if (p.rightButtonReleased()) return;

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { bakeUiIcon, uiIconSize } from '../ui/uiIcons';
 import { IS_DEV } from '../platform/env';
 import { fitMenuName } from '../ui/menuText';
 import { bindMenuScroll } from '../ui/menuScroll';
@@ -2574,7 +2575,7 @@ export class DeckBuilderScene extends Phaser.Scene {
   }
 
   private basicDeckRowLabel(id: BasicLandId): string {
-    return `${byId(id).name}: ${this.countIn(this.deck, id)}${this.hasPinnedDisplay(id) ? '  📌' : ''}`;
+    return `${byId(id).name}: ${this.countIn(this.deck, id)}${this.hasPinnedDisplay(id) ? ' · pinned art' : ''}`;
   }
 
   private renderConstructedBasicRow(id: BasicLandId, y: number): void {
@@ -2714,13 +2715,13 @@ export class DeckBuilderScene extends Phaser.Scene {
         inflateHitArea(star, 44, rowPitch);
       }
       const hasPinnedDisplay = d && this.hasPinnedDisplay(entry.cardId, entry.hasLegacyVariantPin);
+      const pinSize = uiIconSize(DECK_PANE_LAYOUT.cards.pinSize);
       const marker = this.add
-        .text(x0 + (this.touch ? 27 : 24), cy, hasPinnedDisplay ? '📌' : '', {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${DECK_PANE_LAYOUT.cards.pinSize}px`,
-          color: theme.colors.gold,
-        })
-        .setOrigin(0, 0.5);
+        .image(x0 + (this.touch ? 27 : 24), cy, bakeUiIcon(this, 'pin'))
+        .setDisplaySize(pinSize, pinSize)
+        .setTint(colorInt(theme.colors.gold))
+        .setOrigin(0, 0.5)
+        .setVisible(Boolean(hasPinnedDisplay));
       const variant = d ? this.ownedVariantFor(entry.cardId) : undefined;
       const cardsLayout = DECK_PANE_LAYOUT.cards;
       // Names carry no mana-value suffix (owner, 2026-08-18): the curve chart

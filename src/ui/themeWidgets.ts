@@ -41,8 +41,9 @@ import {
   type OverlayRegistration,
 } from './OverlayCoordinator';
 import type { BackLabel } from './navigation';
-import { formatCount, splitGoldLabel } from './goldFormat';
-import { bakeGoldIcon, GOLD_ICON_KEY, goldIconSize } from './goldIcon';
+import { formatCount } from './goldFormat';
+import { splitIconLabel } from './iconLabel';
+import { bakeUiIcon, uiIconSize, uiIconTinted } from './uiIcons';
 
 export type ButtonVariant = ThemedButtonVariant;
 export type ButtonSize = ControlSize;
@@ -106,39 +107,46 @@ export function themedButton(
     color: themedButtonColors(variant).fg,
     align: 'center',
   };
-  let goldParts = splitGoldLabel(initialLabel);
-  const label = scene.add.text(0, 0, goldParts ? goldParts.head : initialLabel, labelStyle).setOrigin(0.5);
+  let iconParts = splitIconLabel(initialLabel);
+  const label = scene.add.text(0, 0, iconParts ? iconParts.head : initialLabel, labelStyle).setOrigin(0.5);
   if (opts.maxTextWidth !== undefined) fitMenuName(label, opts.maxTextWidth, Number.POSITIVE_INFINITY);
   const inputZone = scene.add.zone(0, 0, 1, height).setInteractive({ useHandCursor: true });
   container.add([background, label, inputZone]);
 
-  // A price label (`Buy · {gold} 500`) draws the coin between its two runs
-  // of text. The tail and the coin are made on first use.
+  // A label with an icon token (`Buy · {gold} 500`, `{gear} Settings`)
+  // draws the icon between its two runs of text. The tail and the icon are
+  // made on first use; a tinted icon takes the label's colour.
   let priceTail: Phaser.GameObjects.Text | null = null;
   let coin: Phaser.GameObjects.Image | null = null;
-  const coinSize = goldIconSize(fontSize);
+  const coinSize = uiIconSize(fontSize);
   const coinGap = theme.space(1.5);
+  const tintIcon = (): void => {
+    if (!coin || !iconParts) return;
+    if (uiIconTinted(iconParts.icon)) coin.setTint(colorInt(themedButtonColors(variant).fg));
+    else coin.clearTint();
+  };
   const contentWidth = (): number => {
-    if (!goldParts || !priceTail) return label.width;
-    return (goldParts.head ? label.width + coinGap : 0) + coinSize + (goldParts.tail ? coinGap + priceTail.width : 0);
+    if (!iconParts || !priceTail) return label.width;
+    return (iconParts.head ? label.width + coinGap : 0) + coinSize + (iconParts.tail ? coinGap + priceTail.width : 0);
   };
   const layoutLabel = (): void => {
-    if (goldParts && !priceTail) {
-      bakeGoldIcon(scene);
+    if (iconParts && !priceTail) {
       priceTail = scene.add.text(0, 0, '', labelStyle).setOrigin(0.5);
-      coin = scene.add.image(0, 0, GOLD_ICON_KEY).setDisplaySize(coinSize, coinSize);
+      coin = scene.add.image(0, 0, bakeUiIcon(scene, iconParts.icon));
       container.addAt([priceTail, coin], container.getIndex(label) + 1);
     }
-    if (!goldParts || !priceTail || !coin) {
+    if (!iconParts || !priceTail || !coin) {
       label.setX(0);
       priceTail?.setVisible(false);
       coin?.setVisible(false);
       return;
     }
-    priceTail.setText(goldParts.tail).setVisible(goldParts.tail !== '');
+    coin.setTexture(bakeUiIcon(scene, iconParts.icon)).setDisplaySize(coinSize, coinSize);
+    tintIcon();
+    priceTail.setText(iconParts.tail).setVisible(iconParts.tail !== '');
     coin.setVisible(true);
     let left = -contentWidth() / 2;
-    if (goldParts.head) {
+    if (iconParts.head) {
       label.setX(left + label.width / 2);
       left += label.width + coinGap;
     }
@@ -207,8 +215,8 @@ export function themedButton(
     redraw();
   };
   const setLabel = (next: string): void => {
-    goldParts = splitGoldLabel(next);
-    label.setText(goldParts ? goldParts.head : next);
+    iconParts = splitIconLabel(next);
+    label.setText(iconParts ? iconParts.head : next);
     if (opts.maxTextWidth !== undefined) fitMenuName(label, opts.maxTextWidth, Number.POSITIVE_INFINITY);
     layoutLabel();
     for (const part of [label, priceTail, coin]) part?.setAlpha(enabled ? 1 : DISABLED_LABEL_ALPHA);
@@ -218,6 +226,7 @@ export function themedButton(
     variant = next;
     label.setColor(themedButtonColors(variant).fg);
     priceTail?.setColor(themedButtonColors(variant).fg);
+    tintIcon();
     redraw();
   };
 
@@ -968,10 +977,9 @@ export function goldBadge(
       color: theme.colors.gold,
     })
     .setOrigin(1, 0.5);
-  bakeGoldIcon(scene);
-  const coinSize = goldIconSize(fontSize);
+  const coinSize = uiIconSize(fontSize);
   const gap = theme.space(2);
-  const coin = scene.add.image(0, 0, GOLD_ICON_KEY).setDisplaySize(coinSize, coinSize);
+  const coin = scene.add.image(0, 0, bakeUiIcon(scene, 'gold')).setDisplaySize(coinSize, coinSize);
   const container = scene.add.container(x, y, [coin, text]);
   const width = (): number => coinSize + gap + text.width;
   let lastValue: number | null = null;

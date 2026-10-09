@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { bakeUiIcon, uiIconSize } from '../ui/uiIcons';
 import { formatGold } from '../ui/goldFormat';
 import { floorBrain, floorDifficultyPips } from '../ai/tiers';
 import { fitMenuName } from '../ui/menuText';
@@ -470,16 +471,22 @@ export class GauntletScene extends Phaser.Scene {
     } else {
       const locked =
         floor < this.currentRung ? 'Already cleared this run' : 'Clear the rungs below first';
-      c.add(
+      const lockSize = uiIconSize(theme.type.label);
+      const lockGap = theme.space(2);
+      c.add([
         this.add
-          .text(textX, layout.fightY, `🔒 ${locked}`, {
+          .image(textX + lockSize / 2, layout.fightY, bakeUiIcon(this, 'lock'))
+          .setDisplaySize(lockSize, lockSize)
+          .setTint(colorInt(theme.colors.muted)),
+        this.add
+          .text(textX + lockSize + lockGap, layout.fightY, locked, {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.label}px`,
             color: theme.colors.muted,
-            wordWrap: { width: COL_W },
+            wordWrap: { width: COL_W - lockSize - lockGap },
           })
           .setOrigin(0, 0.5),
-      );
+      ]);
     }
 
     // Abandon Run (two-press confirm) — only while a run is in progress. Now a
@@ -578,8 +585,13 @@ export class GauntletScene extends Phaser.Scene {
     // (30, 690) until the 1.8 cut (2026-09-23), outside the frame on two sides.
     const y = theme.design.footerCenterY;
 
+    const diceSize = uiIconSize(theme.type.label);
+    c.add(this.add
+      .image(theme.design.safeLeft + diceSize / 2, y, bakeUiIcon(this, 'dice'))
+      .setDisplaySize(diceSize, diceSize)
+      .setTint(colorInt(active ? theme.colors.gold : theme.colors.body)));
     const label = this.add
-      .text(theme.design.safeLeft, y, `🎲 ${active ? 'Run seed' : 'Next run seed'} ${seed}`, {
+      .text(theme.design.safeLeft + diceSize + theme.space(2), y, `${active ? 'Run seed' : 'Next run seed'} ${seed}`, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.label}px`,
         fontStyle: theme.weight.w600,
@@ -612,7 +624,7 @@ export class GauntletScene extends Phaser.Scene {
         this.pendingSeed = clampSeed(Math.floor(Math.random() * 2 ** 31));
         this.buildSeedBar();
       });
-      chip('⌨ Set Seed…', () => this.promptSeed());
+      chip('Set Seed…', () => this.promptSeed());
     }
 
     this.seedBar = c;

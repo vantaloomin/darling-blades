@@ -1118,7 +1118,7 @@ export class CollectionScene extends Phaser.Scene {
             if (ritualInProgress) return;
             selectedKey = variantKey(entry.variant); presentVariant(entry.variant); restyle();
           });
-          const pin = themedButton(this, columns.right - theme.control.minHitWidth / 2, y, '📌', {
+          const pin = themedButton(this, columns.right - theme.control.minHitWidth / 2, y, '{pin}', {
             variant: pinnedKey === variantKey(entry.variant) ? 'selected' : 'ghost', size: 'sm',
             onTap: () => {
               if (ritualInProgress) return;
