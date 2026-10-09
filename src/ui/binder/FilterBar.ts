@@ -1,11 +1,11 @@
 import Phaser from 'phaser';
+import { RARITY_NAMES } from '../../data/glossary';
 import type { CardType, Color, Rarity } from '../../engine/types';
 import {
   SORT_LABEL,
   type CollectionFilterState,
   type SortMode,
 } from '../../meta/collectionFilter';
-import { TIER_LABEL } from '../../meta/variants';
 import { isLiveSet } from '../../data/liveness';
 import { SET_IDS, SET_TITLES } from '../../data/setTitles';
 import { theme } from '../theme';
@@ -113,11 +113,11 @@ export class FilterBar {
 
     const rarityOpts: DropdownOption<Rarity | 'all'>[] = [
       { value: 'all', label: 'All' },
-      { value: 'c', label: TIER_LABEL.c },
-      { value: 'r', label: TIER_LABEL.r },
-      { value: 'sr', label: TIER_LABEL.sr },
-      { value: 'ssr', label: TIER_LABEL.ssr },
-      { value: 'ur', label: TIER_LABEL.ur },
+      { value: 'c', label: RARITY_NAMES.c },
+      { value: 'r', label: RARITY_NAMES.r },
+      { value: 'sr', label: RARITY_NAMES.sr },
+      { value: 'ssr', label: RARITY_NAMES.ssr },
+      { value: 'ur', label: RARITY_NAMES.ur },
     ];
     mk(600, 'Rarity', rarityOpts, () => state.rarity, (v) => (state.rarity = v), 90);
 
