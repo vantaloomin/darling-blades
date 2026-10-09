@@ -7,7 +7,7 @@ import type Phaser from 'phaser';
  * largest display size. The coin keeps its own colours; the rest are white
  * silhouettes, tinted to the text they sit beside.
  */
-export const UI_ICON_NAMES = ['gold', 'profile', 'help', 'book', 'gear', 'pin', 'lock', 'dice'] as const;
+export const UI_ICON_NAMES = ['gold', 'profile', 'help', 'book', 'gear', 'pin', 'lock', 'dice', 'sort'] as const;
 export type UiIconName = (typeof UI_ICON_NAMES)[number];
 
 const SIZE = 64;
@@ -181,6 +181,28 @@ const drawDice: Draw = (ctx, c) => {
   ctx.globalCompositeOperation = 'source-over';
 };
 
+const drawSort: Draw = (ctx, c) => {
+  // Up and down arrows side by side: the Collection's sort-direction flip.
+  ctx.fillStyle = WHITE;
+  ctx.strokeStyle = WHITE;
+  ctx.lineWidth = 6;
+  ctx.lineCap = 'round';
+  for (const [x, up] of [[c - 12, true], [c + 12, false]] as const) {
+    const tip = up ? c - 26 : c + 26;
+    const base = up ? c - 8 : c + 8;
+    ctx.beginPath();
+    ctx.moveTo(x, tip);
+    ctx.lineTo(x - 11, base);
+    ctx.lineTo(x + 11, base);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(x, base);
+    ctx.lineTo(x, up ? c + 25 : c - 25);
+    ctx.stroke();
+  }
+};
+
 const DRAW: Record<UiIconName, Draw> = {
   gold: drawGold,
   profile: drawProfile,
@@ -190,6 +212,7 @@ const DRAW: Record<UiIconName, Draw> = {
   pin: drawPin,
   lock: drawLock,
   dice: drawDice,
+  sort: drawSort,
 };
 
 export function bakeUiIcon(scene: Phaser.Scene, name: UiIconName): string {
