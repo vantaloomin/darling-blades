@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SIGNAL_FIELDS, SIGNAL_SETTINGS_FIELDS, STATS_NOTICE_VERSION } from '../../src/meta/playSignals';
 import { freshSave, SaveManager } from '../../src/meta/SaveManager';
-import { normalizeStatsNoticeVersion } from '../../src/meta/statsNotice';
+import { applyBrowserOptOutDefault, normalizeStatsNoticeVersion } from '../../src/meta/statsNotice';
 
 /**
  * The allowlist as it stood at each notice version. The privacy policy
@@ -86,5 +86,26 @@ describe('stats notice version', () => {
     const reloaded = Object.create(SaveManager.prototype).migrate(current, 1);
     expect(reloaded.settings.statsNoticeVersion).toBe(0);
     expect(reloaded.settings.shareAnonStats).toBe(false);
+  });
+});
+
+describe('a browser that opts out starts opted out', () => {
+  it('turns a never-told fresh save off when Do Not Track or GPC is on', () => {
+    const save = freshSave(1);
+    expect(applyBrowserOptOutDefault(save.settings, true)).toBe(true);
+    expect(save.settings.shareAnonStats).toBe(false);
+  });
+
+  it('leaves the default alone when the browser sends no signal', () => {
+    const save = freshSave(1);
+    expect(applyBrowserOptOutDefault(save.settings, false)).toBe(false);
+    expect(save.settings.shareAnonStats).toBe(true);
+  });
+
+  it('never overrides a choice made after the notice was shown', () => {
+    const save = freshSave(1);
+    save.settings.statsNoticeVersion = STATS_NOTICE_VERSION;
+    expect(applyBrowserOptOutDefault(save.settings, true)).toBe(false);
+    expect(save.settings.shareAnonStats).toBe(true);
   });
 });

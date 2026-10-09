@@ -2,7 +2,9 @@ import Phaser from 'phaser';
 import { CARD_DB } from './data/catalog';
 import { syncAchievements } from './meta/Achievements';
 import { Services } from './meta/services';
+import { applyBrowserOptOutDefault } from './meta/statsNotice';
 import { signals } from './net/signals';
+import { browserOptsOutOfTracking } from './net/signalsGate';
 import { applyDesktopWindowSize } from './platform/desktopWindow';
 import { IS_DEV } from './platform/env';
 import { qualityTier } from './platform/quality';
@@ -95,6 +97,14 @@ if (k > 1) {
 // the controls' ship gates (src/ui/settingsPresentation.ts). A reset reloads
 // the page, so it comes back through here with the defaults.
 applySavedAccessibility(Services.save.data.settings, IS_DEV);
+
+// Do Not Track and Global Privacy Control: a save that has never seen the
+// stats notice still holds the fresh default (sharing on), which src/meta
+// decides without being able to read the browser. Here, before any scene or
+// send, a browser that opts out makes that starting choice Off, so the toggle
+// and the notice say what the browser asked for. A choice the player has
+// already made is never touched (src/meta/statsNotice.ts).
+if (applyBrowserOptOutDefault(Services.save.data.settings, browserOptsOutOfTracking())) Services.save.flush();
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,

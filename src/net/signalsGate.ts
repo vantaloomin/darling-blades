@@ -125,6 +125,26 @@ function readGlobalPrivacyControl(): boolean | null {
   }
 }
 
+/**
+ * Whether Do Not Track or Global Privacy Control is on in this browser. The
+ * gate itself answers: every other suppressor is held open, so only the two
+ * browser signals can close it and no rule is restated here. The boot layer
+ * uses it to start a never-told save at Off (`applyBrowserOptOutDefault`,
+ * src/meta/statsNotice.ts).
+ */
+export function browserOptsOutOfTracking(): boolean {
+  return !signalsAllowed({
+    shareAnonStats: true,
+    statsNoticeVersion: STATS_NOTICE_VERSION,
+    requiredNoticeVersion: STATS_NOTICE_VERSION,
+    doNotTrack: readDoNotTrack(),
+    globalPrivacyControl: readGlobalPrivacyControl(),
+    telemetryParam: null,
+    isDev: false,
+    testEndpoint: null,
+  }).allowed;
+}
+
 /** The `telemetry` URL parameter, or null when there is no URL to read. */
 function readTelemetryParam(): string | null {
   try {
