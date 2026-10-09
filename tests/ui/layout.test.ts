@@ -775,6 +775,12 @@ describe('glossary rows', () => {
     expect(columns.badgeX).toBeLessThanOrEqual(frame.list.width);
   });
 
+  it('keeps the scroll rail in its own gutter, clear of every row plate', () => {
+    const layout = rows(Array.from({ length: 40 }, () => 40), { hasIcons: true, hasBadge: true });
+    for (const row of layout.rows) expect(row.x + row.width).toBeLessThan(layout.railX);
+    expect(layout.railX).toBeLessThan(frame.list.width);
+  });
+
   it('reclaims the icon and badge gutters when a section needs neither', () => {
     const plain = rows([40]).columns;
     const dressed = rows([40], { hasIcons: true, hasBadge: true }).columns;

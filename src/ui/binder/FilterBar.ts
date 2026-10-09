@@ -11,7 +11,11 @@ import { SET_IDS, SET_TITLES } from '../../data/setTitles';
 import { colorInt, theme } from '../theme';
 import { Dropdown, type DropdownOption } from '../Dropdown';
 import { bindTapButton } from '../../platform/gestures';
-import { controlPadding } from '../layout';
+import { controlPadding, measureThemedButton } from '../layout';
+import { controlFontSize } from '../controlStyle';
+import { themedButton, type ThemedButton } from '../themeWidgets';
+import { iconToken } from '../iconLabel';
+import { uiIconSize } from '../uiIcons';
 import { TIER_TEXT_COLOR } from '../theme';
 import { collectionFilterLayout, type CollectionFilterName } from '../collectionPresentation';
 
@@ -40,6 +44,17 @@ export class FilterBar {
     zone: Phaser.GameObjects.Zone;
     hover: boolean;
   };
+  /**
+   * The sort-direction flip (2026-10-09 UI review): a ghost button that shows
+   * the current direction and flips it on tap. It shares the last grid cell
+   * with Owned only, sized to its longest label so the checkbox never moves.
+   */
+  private readonly flip: {
+    button: ThemedButton;
+    label: () => string;
+    width: number;
+    showIcon: boolean;
+  } | null = null;
   private readonly state: CollectionFilterState;
   private readonly top: number;
   bottom = 0;
@@ -56,6 +71,12 @@ export class FilterBar {
         options: readonly DropdownOption<string>[];
         get: () => string;
         set: (value: string) => void;
+        /** A direction flip beside Owned only; `labels` sizes it to its longest state. */
+        direction?: {
+          label: () => string;
+          labels: readonly string[];
+          flip: () => void;
+        };
       };
     },
   ) {
@@ -137,7 +158,7 @@ export class FilterBar {
     if (opts.sortControl) {
       mk(
         775,
-        'Sort',
+        'Sort by',
         [...opts.sortControl.options],
         opts.sortControl.get,
         opts.sortControl.set,
@@ -176,6 +197,30 @@ export class FilterBar {
       change();
     });
     this.targets.push(ownedZone);
+    const direction = opts.sortControl?.direction;
+    if (direction) {
+      // Keep the arrows only while the shared cell has room for them; at large
+      // text sizes they go before any of the words do.
+      const widths = flipWidths(scene, direction.labels);
+      const fits = (width: number): boolean => {
+        const need = width + theme.space(2) + this.checkboxWidth();
+        return collectionFilterLayout([...this.dropdowns.map((dd) => dd.naturalWidth()), need], this.top).columnWidth >= need;
+      };
+      const showIcon = fits(widths.withIcon);
+      const width = showIcon ? widths.withIcon : widths.textOnly;
+      const button = themedButton(scene, 0, y, '', {
+        variant: 'ghost',
+        size: 'md',
+        minWidth: width,
+        onTap: () => {
+          direction.flip();
+          this.refreshFlip();
+          change();
+        },
+      });
+      this.flip = { button, label: direction.label, width, showIcon };
+      this.targets.push(button.inputZone);
+    }
     this.refreshOwned();
     this.reflow();
 
@@ -195,8 +240,11 @@ export class FilterBar {
    * Owned only checkbox takes the last cell, left-aligned on the labels' inset.
    */
   private reflow(): void {
-    const ownedWidth = controlPadding('md') * 2 + this.ownedBoxSize() + theme.space(2) + this.owned.label.width;
-    const layout = collectionFilterLayout([...this.dropdowns.map((dd) => dd.naturalWidth()), ownedWidth], this.top);
+    const flipWidth = this.flip ? this.flip.width + theme.space(2) : 0;
+    const layout = collectionFilterLayout(
+      [...this.dropdowns.map((dd) => dd.naturalWidth()), flipWidth + this.checkboxWidth()],
+      this.top,
+    );
     this.columnWidth = layout.columnWidth;
     this.dropdowns.forEach((dd, index) => {
       const rect = layout.controls[index];
@@ -204,10 +252,16 @@ export class FilterBar {
       dd.setPosition(rect.x - dd.visualBounds().x, rect.y + rect.height / 2);
     });
     const rect = layout.controls[layout.controls.length - 1];
-    this.owned.container.setPosition(rect.x, rect.y + rect.height / 2);
+    const ownedX = rect.x + flipWidth;
+    const ownedWidth = rect.x + rect.width - ownedX;
+    if (this.flip) {
+      this.flip.button.container.setPosition(rect.x + this.flip.width / 2, rect.y + rect.height / 2);
+      this.refreshFlip();
+    }
+    this.owned.container.setPosition(ownedX, rect.y + rect.height / 2);
     this.owned.label.setX(controlPadding('md') + this.ownedBoxSize() + theme.space(2));
-    this.owned.zone.setSize(rect.width, rect.height);
-    this.owned.zone.input?.hitArea.setTo(0, 0, rect.width, rect.height);
+    this.owned.zone.setSize(ownedWidth, rect.height);
+    this.owned.zone.input?.hitArea.setTo(0, 0, ownedWidth, rect.height);
     this.refreshOwned();
     this.bottom = layout.bottom;
   }
@@ -228,6 +282,17 @@ export class FilterBar {
   /** Close any open dropdown - the scene calls this before opening an overlay. */
   closeAll(): void {
     for (const dd of this.dropdowns) dd.close();
+  }
+
+  /** Show the current direction; picking a new criterion resets it, so the dropdown's reflow calls this too. */
+  private refreshFlip(): void {
+    if (!this.flip) return;
+    const text = this.flip.label();
+    this.flip.button.setLabel(this.flip.showIcon ? `${iconToken('sort')} ${text}` : text);
+  }
+
+  private checkboxWidth(): number {
+    return controlPadding('md') * 2 + this.ownedBoxSize() + theme.space(2) + this.owned.label.width;
   }
 
   private ownedBoxSize(): number {
@@ -256,4 +321,25 @@ export class FilterBar {
     }
     label.setColor(on || hover ? c.gold : c.body);
   }
+}
+
+/**
+ * The flip button's fixed width, with and without its arrows: the longest
+ * label decides it, so the button and the checkbox beside it hold still as
+ * the label changes. Mirrors themedButton's icon-label metrics.
+ */
+function flipWidths(scene: Phaser.Scene, labels: readonly string[]): { withIcon: number; textOnly: number } {
+  const fontSize = controlFontSize('md');
+  const probe = scene.add.text(0, 0, '', {
+    fontFamily: theme.fonts.ui,
+    fontSize: `${fontSize}px`,
+    fontStyle: theme.weight.w600,
+  });
+  const longest = Math.max(0, ...labels.map((label) => probe.setText(label).width));
+  probe.destroy();
+  const icon = uiIconSize(fontSize) + theme.space(1.5);
+  return {
+    withIcon: measureThemedButton(icon + longest, 'md', 0).visual.width,
+    textOnly: measureThemedButton(longest, 'md', 0).visual.width,
+  };
 }

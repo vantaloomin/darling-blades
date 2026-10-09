@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { STATS_NOTICE_VERSION } from '../../src/meta/statsNotice';
 import {
+  browserOptsOutOfTracking,
   signalsAllowed,
   type SignalsBlockReason,
   type SignalsGateInput,
@@ -139,5 +140,18 @@ describe('the test endpoint override', () => {
     for (const { field } of SUPPRESSORS.filter((s) => s.reason !== 'devBuild')) {
       expect(signalsAllowed(open({ ...field, isDev: true, testEndpoint: endpoint })).allowed).toBe(false);
     }
+  });
+});
+
+describe('browserOptsOutOfTracking reads the live browser', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('is true for Do Not Track "1" and for GPC true, and false otherwise', () => {
+    vi.stubGlobal('navigator', { doNotTrack: '1' });
+    expect(browserOptsOutOfTracking()).toBe(true);
+    vi.stubGlobal('navigator', { doNotTrack: null, globalPrivacyControl: true });
+    expect(browserOptsOutOfTracking()).toBe(true);
+    vi.stubGlobal('navigator', { doNotTrack: '0', globalPrivacyControl: false });
+    expect(browserOptsOutOfTracking()).toBe(false);
   });
 });
