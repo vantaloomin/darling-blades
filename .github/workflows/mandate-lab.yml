@@ -1,0 +1,138 @@
+# The Mandate lab (2.0 plan, lane B, B5), fanned out across GitHub-hosted
+# runners so the owner's machine stays free.
+#
+# Every pair of the 29-deck Warchest field (the sweep's 15 prefabs, the 1.9.0
+# sweep's eight round-0 crafts, the six First Dawn summit bosses) is played in
+# each arm of scripts/mandate-lab/cards.ts on the same seeds, Hard on both
+# seats, at the lab's starting life. It measures and changes nothing: the lab
+# cards live in a copy of the card database built in the lab process.
+#
+# TO RUN IT. Dispatch "Mandate lab" from the Actions tab (once this file is on
+# the default branch), or push a commit whose message contains [mandate-lab]
+# to a branch carrying this file; the push run uses the defaults below.
+#
+# WHAT COMES BACK. The summarize job prints the report to its log and commits
+# the shards and the report (Markdown and JSON) to the orphan branch
+# `study-data` under `mandate-lab/<date>-<run id>/`. Never to `main`.
+
+name: Mandate lab
+
+on:
+  workflow_dispatch:
+    inputs:
+      life:
+        description: Starting life for every game
+        default: '25'
+      seeds:
+        description: Games per pair per arm (keep it even, seats alternate)
+        default: '80'
+      sweep_dir:
+        description: The sweep directory on sweep-data whose round-0 crafts join the field
+        default: 'sweeps/2026-10-07-13003-race'
+  push:
+    paths:
+      - '.github/workflows/mandate-lab.yml'
+      - 'scripts/mandate-lab/**'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mandate-lab
+  cancel-in-progress: false
+
+env:
+  LIFE: ${{ inputs.life || '25' }}
+  SEEDS: ${{ inputs.seeds || '80' }}
+  SWEEP_DIR: ${{ inputs.sweep_dir || 'sweeps/2026-10-07-13003-race' }}
+  SHARDS: '8'
+  # Stop starting new games after this long, so a slow shard still uploads
+  # inside GitHub's 360-minute job cap. Finished slots stay paired.
+  BUDGET_MINUTES: '300'
+  OMP_NUM_THREADS: '1'
+
+jobs:
+  shard:
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[mandate-lab]') }}
+    name: Shard ${{ matrix.shard }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Fetch the sweep's crafts
+        run: |
+          set -euo pipefail
+          git fetch --depth 1 origin sweep-data
+          mkdir -p crafts
+          git archive FETCH_HEAD "$SWEEP_DIR/crafts" | tar -x -C crafts --strip-components 3
+          ls crafts
+      - name: Play the shard
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          npx tsx scripts/mandate-lab/lab.ts --crafts crafts \
+            --out "out/shard-$SHARD.jsonl" --life "$LIFE" --seeds "$SEEDS" \
+            --shard "$SHARD" --shards "$SHARDS" --workers 4 --budget-minutes "$BUDGET_MINUTES"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mandate-shard-${{ matrix.shard }}
+          path: out/
+          retention-days: 14
+
+  summarize:
+    name: Summarize and publish
+    needs: shard
+    if: ${{ always() && needs.shard.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: mandate-shard-*
+          path: shards
+          merge-multiple: true
+      - name: Summarize
+        run: |
+          set -euo pipefail
+          npx tsx scripts/mandate-lab/summarize.ts shards --out report.md
+      - name: Publish to study-data
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          DIR="mandate-lab/$(date -u +%Y-%m-%d)-${GITHUB_RUN_ID}"
+          if git ls-remote --exit-code --heads origin study-data >/dev/null 2>&1; then
+            git fetch --depth 1 origin study-data
+            git worktree add data FETCH_HEAD
+            cd data && git checkout -B study-data && cd ..
+          else
+            mkdir data && cd data && git init -q -b study-data
+            echo "Measurement studies from Darling Blades (orphan branch, never merged). See .github/workflows/mandate-lab.yml." > README.md
+            cd ..
+          fi
+          mkdir -p "data/$DIR"
+          gzip -9 shards/*.jsonl
+          cp shards/* report.md report.json "data/$DIR/"
+          cd data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "mandate lab: run ${GITHUB_RUN_ID} on ${GITHUB_SHA::7}"
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:study-data
+          echo "Published to study-data:$DIR"
