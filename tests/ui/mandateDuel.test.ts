@@ -4,15 +4,15 @@ import { sequencedBatchRoutes } from '../../src/ui/combatSequence';
 import { eventHistoryLine, type EventLineLookup } from '../../src/ui/duelPresentation';
 import { DUEL_LAYOUT, LIFE_BADGE_REACH } from '../../src/ui/duelLayout';
 import {
-  MANDATE_SEAL_HIT, MANDATE_SEAL_SIZE, mandateSealCenter, mandateShown, mandateSpot, type MandateSpot,
+  MANDATE_SEAL_HIT, MANDATE_SEAL_SIZE, mandateSealCenter, mandateSpot,
 } from '../../src/ui/mandatePresentation';
 import { swornChip } from '../../src/ui/swornPresentation';
 import { theme } from '../../src/ui/theme';
-import { board, card, dbOf, spell } from '../drownedDeepFixture';
+import { card, dbOf, spell } from '../drownedDeepFixture';
 
 /**
- * The Mandate on the duel board (2.0 lane B4): when the seal shows at all,
- * where it docks, and what the history says when it changes hands.
+ * The Mandate on the duel board (2.0 lane B4): where the seal docks, and
+ * what the history says when it changes hands.
  */
 
 const usurp = spell('usurp', [{ op: 'claimMandate' }]);
@@ -21,52 +21,22 @@ const banner = card('banner', {
 });
 const db = dbOf(usurp, banner);
 
-describe('whether the duel shows the Mandate', () => {
-  it('stays hidden in a duel where no card the human can see names it', () => {
-    expect(mandateShown(board(), db, 0)).toBe(false);
-  });
-
-  it('shows once someone holds it', () => {
-    const state = board();
-    state.mandateHolder = 1;
-    expect(mandateShown(state, db, 0)).toBe(true);
-  });
-
-  it('shows unclaimed when the human\'s own deck names it, wherever the card is', () => {
-    const inDeck = board();
-    inDeck.players[0].deck.push('usurp');
-    expect(mandateShown(inDeck, db, 0)).toBe(true);
-    expect(mandateShown(board([['usurp'], []]), db, 0)).toBe(true);
-  });
-
-  it('never reveals the opponent\'s hidden cards: only their public ones count', () => {
-    const hidden = board([[], ['usurp']]);
-    hidden.players[1].deck.push('banner');
-    expect(mandateShown(hidden, db, 0)).toBe(false);
-    expect(mandateShown(board([[], []], [{ iid: 5, cardId: 'banner', controller: 1, owner: 1 }]), db, 0)).toBe(true);
-    const grave = board();
-    grave.players[1].graveyard.push('usurp');
-    expect(mandateShown(grave, db, 0)).toBe(true);
-  });
-});
-
 describe('where the seal docks', () => {
-  const center = (spot: MandateSpot) => mandateSealCenter(spot, 52);
   const lifeOf = { you: DUEL_LAYOUT.myLife, opponent: DUEL_LAYOUT.oppLife } as const;
 
   it('beside the holder\'s life badge, clear of the badge and its target ring', () => {
     for (const spot of ['you', 'opponent'] as const) {
-      const seal = center(spot);
+      const seal = mandateSealCenter(spot);
       const life = lifeOf[spot];
       expect(seal.y).toBe(life.y);
       expect(Math.abs(seal.x - life.x) - MANDATE_SEAL_SIZE / 2).toBeGreaterThan(LIFE_BADGE_REACH);
     }
   });
 
-  it('inside the title-safe frame with its whole touch area, held or unclaimed', () => {
+  it('inside the title-safe frame with its whole touch area', () => {
     const safe = theme.design.titleSafe;
-    for (const spot of ['you', 'opponent', 'unclaimed'] as const) {
-      const { x, y } = center(spot);
+    for (const spot of ['you', 'opponent'] as const) {
+      const { x, y } = mandateSealCenter(spot);
       expect(x - MANDATE_SEAL_HIT / 2).toBeGreaterThanOrEqual(safe.left);
       expect(x + MANDATE_SEAL_HIT / 2).toBeLessThanOrEqual(safe.right);
       expect(y - MANDATE_SEAL_SIZE / 2).toBeGreaterThanOrEqual(safe.top);
@@ -74,16 +44,8 @@ describe('where the seal docks', () => {
     }
   });
 
-  it('unclaimed, past the turn chip however wide its turn number draws', () => {
-    for (const width of [52, 70]) {
-      const { x, y } = mandateSealCenter('unclaimed', width);
-      expect(y).toBe(DUEL_LAYOUT.turnPill.y);
-      expect(x - MANDATE_SEAL_SIZE / 2).toBeGreaterThan(DUEL_LAYOUT.turnPill.x + width / 2);
-    }
-  });
-
-  it('follows the holder from the human\'s side of the table', () => {
-    expect(mandateSpot(undefined, 0)).toBe('unclaimed');
+  it('follows the holder from the human\'s side of the table, and shows nothing while unclaimed', () => {
+    expect(mandateSpot(undefined, 0)).toBeNull();
     expect(mandateSpot(0, 0)).toBe('you');
     expect(mandateSpot(0, 1)).toBe('opponent');
   });
