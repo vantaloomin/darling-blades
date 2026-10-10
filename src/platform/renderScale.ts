@@ -135,10 +135,21 @@ export function activeRenderScale(): RenderK {
 // ---------------------------------------------------------------------------
 
 let sceneZoom: number | null = null;
+let sceneWidthShare = 1;
 
-/** Set by src/gameBoot.ts once, before the Phaser.Game is constructed. */
-export function setActiveSceneZoom(zoom: number | null): void {
+/**
+ * Set by src/gameBoot.ts once, before the Phaser.Game is constructed.
+ * `widthShare` is the share of the canvas width the window may fill: below 1
+ * on an upright tablet, letterboxed at 96% of its width (M11).
+ */
+export function setActiveSceneZoom(zoom: number | null, widthShare = 1): void {
   sceneZoom = zoom !== null && Number.isFinite(zoom) && zoom > 0 ? zoom : null;
+  sceneWidthShare = sceneZoom !== null && widthShare > 0 && widthShare <= 1 ? widthShare : 1;
+}
+
+/** The share of the canvas width the fitted window may fill (1 except on an upright tablet). */
+export function activeSceneWidthShare(): number {
+  return sceneWidthShare;
 }
 
 /** True under the compact profile, where scenes fit 1280×720 into a screen-shaped canvas. */

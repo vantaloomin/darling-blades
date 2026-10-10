@@ -435,7 +435,12 @@ word.
   2026-10-10:** 29 frames (N1-N21 Duel, N30-N38 Story), approved with
   M30-M34.
 - The upright-tablet letterbox (M11) and the rotate screen's scene image
-  (M12), both ruled.
+  (M12), both ruled. **Built in wave 1** (under `?layout=compact`): an
+  upright tablet never gets the rotate screen; its 1280x720 window fits
+  96% of the width, and the game clears to transparent outside it so the
+  main menu's vista fills the bands (`layout-letterbox` in `index.html`;
+  the Duel wave puts the commanders' art there). A phone held upright
+  shows the vista's pagoda edge behind the rotate message.
 
 **Gate:** unit tests for the metrics and profile rule; the probe's fixtures
 render at every matrix viewport with no control outside the safe box; the

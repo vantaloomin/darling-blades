@@ -262,8 +262,8 @@ export function compactCanvasSize(m: ScreenMetrics): { width: number; height: nu
  * how a scene not yet migrated to the compact layout keeps drawing as it does
  * today, centred, with the background colour around it.
  */
-export function designWindowZoom(canvasWidth: number, canvasHeight: number): number {
-  const w = dim(canvasWidth);
+export function designWindowZoom(canvasWidth: number, canvasHeight: number, widthShare = 1): number {
+  const w = dim(canvasWidth) * widthShare;
   const h = dim(canvasHeight);
   if (!w || !h) return 1;
   return Math.min(w / 1280, h / 720);
@@ -275,8 +275,8 @@ export function designWindowZoom(canvasWidth: number, canvasHeight: number): num
  * just off its 1280x720 stage stay off screen (the emulator showed a panel
  * parked right of x 1280 beside the board, 2026-10-10).
  */
-export function designWindowViewport(canvasWidth: number, canvasHeight: number): { x: number; y: number; width: number; height: number } {
-  const zoom = designWindowZoom(canvasWidth, canvasHeight);
+export function designWindowViewport(canvasWidth: number, canvasHeight: number, widthShare = 1): { x: number; y: number; width: number; height: number } {
+  const zoom = designWindowZoom(canvasWidth, canvasHeight, widthShare);
   const width = Math.round(1280 * zoom);
   const height = Math.round(720 * zoom);
   return { x: Math.round((dim(canvasWidth) - width) / 2), y: Math.round((dim(canvasHeight) - height) / 2), width, height };

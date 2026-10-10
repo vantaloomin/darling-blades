@@ -21,8 +21,10 @@ import {
   designWindowZoom,
   resolveScreenMetrics,
   type ScreenMetrics,
+  UPRIGHT_TABLET_WIDTH_SHARE,
 } from './platform/screenMetrics';
 import { screenFixtureNamed } from './platform/screenFixtures';
+import { CANVAS_CLEAR } from './ui/SceneBackdrop';
 import { BootScene } from './scenes/BootScene';
 import { AchievementsScene } from './scenes/AchievementsScene';
 import { ArtLoaderScene } from './scenes/ArtLoaderScene';
@@ -107,8 +109,13 @@ const k = compact?.renderK ?? showcaseScale ?? (RENDER_SCALE_UNLOCKED
   : 1);
 setActiveRenderScale(k);
 const canvas = compact ? compactCanvasSize(compact) : { width: 1280 * k, height: 720 * k };
-const sceneZoom = compact ? designWindowZoom(canvas.width, canvas.height) : k;
-setActiveSceneZoom(compact ? sceneZoom : null);
+// An upright tablet letterboxes the window at 96% of its width (M11), with
+// the page's scene image in the bands: the game clears to transparent there.
+const letterbox = compact?.presentation === 'letterbox';
+const widthShare = letterbox ? UPRIGHT_TABLET_WIDTH_SHARE : 1;
+if (letterbox) document.documentElement.classList.add('layout-letterbox');
+const sceneZoom = compact ? designWindowZoom(canvas.width, canvas.height, widthShare) : k;
+setActiveSceneZoom(compact ? sceneZoom : null, widthShare);
 // Text rasterizes at the scene's zoom (canvas px per design px), never below
 // 1: on desktop that is k, as before. Under the compact profile a text drawn
 // at k and then shrunk by a fractional zoom smeared, measured on the Android
@@ -169,7 +176,8 @@ const game = new Phaser.Game({
   parent: 'app',
   width: canvas.width,
   height: canvas.height,
-  backgroundColor: '#0d0a14',
+  backgroundColor: CANVAS_CLEAR,
+  transparent: letterbox,
   // Snap every draw to whole pixels: kills the sub-pixel sampling that softens
   // text glyphs and sprite edges (compounds with the Scale.FIT CSS upscale).
   // Trade-off: tweened motion quantises to integer pixels, so slow drifts can
