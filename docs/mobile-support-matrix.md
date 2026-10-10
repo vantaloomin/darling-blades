@@ -38,6 +38,9 @@ to parse and the player sees the dark page and nothing else. A few lines of
 plain inline script in `index.html`, run before the game's module, can check
 for the floor's features and show "This browser is too old to run Darling
 Blades" with the supported list. Small and reversible; mobile wave 1.
+**Built in wave 1:** it checks class static blocks and optional chaining
+(the syntax floor), `structuredClone` and `dvh`, and names Chrome and Edge
+111, Firefox 114, Safari 16.4 and Samsung Internet 22.
 
 ## Phones (landscape, compact profile)
 

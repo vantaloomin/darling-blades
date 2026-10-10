@@ -31,6 +31,8 @@
  * construction); the Settings UI persists + flushes + reloads.
  */
 
+import { TAP_SLOP_PX } from './gestureCore';
+
 /**
  * LIVE (unlocked 2026-07-04) — the render-scale pipeline runs end-to-end:
  * setting → resolution → canvas sizing (1280k × 720k) → per-scene camera zoom
@@ -147,4 +149,15 @@ export function sceneFitActive(): boolean {
 /** The base camera zoom for a scene laid out in the 1280×720 design window. */
 export function activeSceneZoom(): number {
   return sceneZoom ?? active;
+}
+
+/**
+ * The tap slop (gestureCore.ts) in world px. Under the compact profile the
+ * slop means TAP_SLOP_PX CSS px (docs/plan-mobile-overhaul.md, wave 1): the
+ * canvas is the screen times k, so one CSS px is k / zoom world px, and a
+ * 1280x720 scene shrunk onto a phone no longer cancels a tap after a 4 px
+ * wobble. On desktop it stays TAP_SLOP_PX world px, as before.
+ */
+export function tapSlopWorldPx(): number {
+  return sceneZoom === null ? TAP_SLOP_PX : (TAP_SLOP_PX * active) / sceneZoom;
 }

@@ -25,6 +25,7 @@ import {
   rerollDailyQuest,
 } from '../meta/Quests';
 import { Services } from '../meta/services';
+import { markSaveOverNoticeShown, readSaveOverNoticeOwed } from '../platform/homeScreen';
 import { normalizeStatsNoticeVersion, STATS_NOTICE_VERSION } from '../meta/statsNotice';
 import { signals } from '../net/signals';
 import { readSignalsGateInput, signalsAllowed } from '../net/signalsGate';
@@ -205,6 +206,8 @@ export class MainMenuScene extends Phaser.Scene {
       }),
       deckRepairOwed: flagged !== null,
       tutorialDone: Services.save.data.tutorialDone === true,
+      saveOverOwed: readSaveOverNoticeOwed(Services.save.data.tutorialDone !== true
+        && Services.save.data.stats.wins + Services.save.data.stats.losses === 0),
     });
     this.runArrivalStep(steps, 0, flagged);
   }
@@ -223,6 +226,10 @@ export class MainMenuScene extends Phaser.Scene {
     if (step === undefined) return;
     if (step === 'statsNotice') {
       this.showStatsNotice(() => this.runArrivalStep(steps, index + 1, flagged));
+      return;
+    }
+    if (step === 'saveOver') {
+      this.showSaveOverNotice(() => this.runArrivalStep(steps, index + 1, flagged));
       return;
     }
     if (step === 'deckRepair') {
@@ -522,6 +529,48 @@ export class MainMenuScene extends Phaser.Scene {
     const start = themedButton(this, 510, y, 'Start Tutorial', { variant: 'primary', minWidth: 180, onTap: () => this.startTutorial() });
     const skip = themedButton(this, 770, y, 'Skip', { variant: 'ghost', minWidth: 180, onTap: () => this.skipTutorial() });
     shell.container.add([start.container, skip.container]);
+  }
+
+  /**
+   * The one-time "bring your save over" message (M9): an iPhone or iPad
+   * home-screen app keeps its own storage, so it opens on a fresh save.
+   * Import code goes to Profile's import dialog; Not now carries on down the
+   * arrival chain. Either way it is never shown in this storage again.
+   */
+  private showSaveOverNotice(onNotNow: () => void): void {
+    const title = this.add.text(0, 0, 'Bring your save over', {
+      fontFamily: theme.fonts.display, fontSize: `${theme.type.h1}px`, color: theme.colors.heading,
+    });
+    const message = this.add.text(0, 0,
+      'Your home-screen game starts fresh: it keeps its own save, apart from Safari\'s. ' +
+      'To carry on where you were, open Darling Blades in Safari, go to Profile and Export save, then Import that code here.', {
+        fontFamily: theme.fonts.ui, fontSize: `${theme.type.body}px`, color: theme.colors.body,
+        wordWrap: { width: 696 }, lineSpacing: theme.space(1),
+      });
+    const layout = menuNoticeLayout(760, title.height, message.height);
+    let importing = false;
+    const shell = modalShell(this, {
+      width: layout.width, height: layout.height, titleTrackHeight: layout.titleTrackHeight,
+      dismissal: 'mandatory',
+      onClose: () => {
+        this.guard.close();
+        if (importing) this.scene.start('Profile', { openImport: true });
+        else onNotNow();
+      },
+    });
+    this.guard.open(this.menuItems);
+    title.setPosition(shell.tracks.titleTrack.x, shell.tracks.titleTrack.y);
+    message.setPosition(shell.tracks.contentBounds.x, shell.tracks.contentBounds.y);
+    shell.container.add([title, message]);
+    const y = shell.tracks.footerTrack.y + shell.tracks.footerTrack.height / 2;
+    const close = (toImport: boolean): void => {
+      if (!this.fixture) markSaveOverNoticeShown();
+      importing = toImport;
+      shell.close();
+    };
+    const importButton = themedButton(this, 520, y, 'Import code', { variant: 'primary', minWidth: 180, onTap: () => close(true) });
+    const notNow = themedButton(this, 760, y, 'Not now', { variant: 'ghost', minWidth: 160, onTap: () => close(false) });
+    shell.container.add([importButton.container, notNow.container]);
   }
 
   /** Launch the scripted tutorial duel. */

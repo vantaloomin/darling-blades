@@ -35,6 +35,16 @@
     <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png" />
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <!-- Home-screen mode (docs/plan-mobile-overhaul.md M9): a web app manifest,
+         no service worker and no offline play. Android opens it full screen
+         and in landscape; iPhone and iPad open it without Safari's bars. The
+         icons are the favicon's card-back emblem at 192 and 512, plus a
+         maskable one with the margin Android's icon mask crops. -->
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Darling Blades" />
     <title>Darling Blades</title>
     <!-- Link previews (Discord, Slack, X, Bluesky, Mastodon, iMessage) read the
          Open Graph and Twitter Card tags below. The image and the URL must be
@@ -181,6 +191,30 @@
           transform: rotate(-90deg);
         }
       }
+      #old-browser {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 1001;
+        background: #0d0a14;
+        color: #c9bde0;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        font-family: Georgia, serif;
+        text-align: center;
+        padding: 24px;
+      }
+      #old-browser .title {
+        font-size: 22px;
+      }
+      #old-browser .sub {
+        max-width: 34em;
+        font-size: 15px;
+        line-height: 1.45;
+        color: #8f83a8;
+      }
       @media (orientation: portrait) and (pointer: coarse) {
         #rotate-overlay {
           display: flex;
@@ -198,6 +232,31 @@
       <div class="title">Rotate your device</div>
       <div class="sub">Darling Blades plays in landscape</div>
     </div>
+    <!-- The old-browser message (docs/mobile-support-matrix.md, ruled with M7).
+         Below the build's floor the game's module fails to parse and the page
+         stays dark, so this plain script checks the floor first: class static
+         blocks and optional chaining (the syntax floor, Safari 16.4, Chrome
+         94), structuredClone and dvh units (the newest features the game
+         calls). It never blocks a browser that passes; it only explains a
+         page that would otherwise stay blank. -->
+    <div id="old-browser" role="alert">
+      <div class="title">This browser is too old to run Darling Blades</div>
+      <div class="sub">Darling Blades needs Chrome or Edge 111, Firefox 114, Safari 16.4 (iOS 16.4 on iPhone and iPad), or Samsung Internet 22, or newer. Updating your browser or your device's system should fix it.</div>
+    </div>
+    <script>
+      (function () {
+        var ok = false;
+        try {
+          ok =
+            new Function('class A { static { this.x = 1; } } var a = null; return (a?.b ?? A.x) === 1;')() === true &&
+            typeof structuredClone === 'function' &&
+            !!window.CSS && CSS.supports('height', '1dvh');
+        } catch (e) {
+          ok = false;
+        }
+        if (!ok) document.getElementById('old-browser').style.display = 'flex';
+      })();
+    </script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

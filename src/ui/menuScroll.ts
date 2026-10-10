@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { TAP_SLOP_PX } from '../platform/gestureCore';
+import { tapSlopWorldPx } from '../platform/renderScale';
 import { isRectContained, type Rect } from './layout';
 import { menuScrollOffset } from './menuText';
 import { theme } from './theme';
@@ -52,7 +52,7 @@ export function bindMenuScroll(
   };
   const move = (p: Phaser.Input.Pointer): void => {
     if (unavailable()) { drag = null; return; }
-    if (drag?.id === p.id && Math.abs(p.worldY - drag.y) > TAP_SLOP_PX) place(drag.offset + drag.y - p.worldY);
+    if (drag?.id === p.id && Math.abs(p.worldY - drag.y) > tapSlopWorldPx()) place(drag.offset + drag.y - p.worldY);
   };
   const up = (p: Phaser.Input.Pointer): void => { if (drag?.id === p.id) drag = null; };
   let disposed = false;
