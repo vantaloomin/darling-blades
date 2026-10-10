@@ -416,12 +416,12 @@ word.
   freezes the screen. If it does, the fix touches `src/ai` or moves the AI
   to a worker, and the 2.0 plan freezes the AI at the end of 2.0 wave 2, so
   it is found here, not in the Duel wave. **Measured in wave 1** (1.9.2 live site, 2026-10-10, from the owner's
-  screen recordings): on the Tab A8 in Chrome, six Hard turns from the
-  Hestia practice deck (turns 1 to 6, up to seven creatures in play) showed
-  no freeze. Each turn's first action came about a second after the turn
-  banner, and the longest still screen in the AI's own stretches was 1.6 s,
-  at the turn handover (think time and pacing together; a recording cannot
-  split them). Late games with full boards are not covered yet. Chrome's
+  screen recordings): on the Tab A8 in Chrome, eight Hard AI turns against the
+  Hestia practice opponent (game turns 1 to 16, up to seven AI creatures in play) showed
+  no freeze: no still screen of 0.45 s or more fell inside the AI's own
+  stretches (every longer one waited on the player: blocks, targets, the
+  Warchest), and each turn's first action came about a second after the
+  turn banner. Late games with full boards are not covered yet. Chrome's
   tab strip and address bar take the top 15% of the A8's screen, and the
   80 px reserve showed there too, as on the iPhone (see C2).
 - **The probe learns viewports.** `src/dev/a11yProbe.ts` renders the
@@ -557,7 +557,7 @@ recommendation on each except M16, which takes the owner's variant.
 | **M11** | Upright tablets | Follow the mocks: the compact layout letterboxed at about 96% width-fit, the commanders' art in the bands (mock P4) **(ruled 2026-10-09)** |
 | **M12** | The rotate screen | A scene image behind the message **(ruled 2026-10-09;** mock P2 draws a card illustration, the ruling is a scene) |
 | **M13** | Art resolution on phones | Half art on the board and hand; the full texture for the one card being inspected **(ruled 2026-10-09)** |
-| **M14** | Performance targets | Set from the wave-1 baseline on the weakest tested device, then only raised **(ruled 2026-10-09)** |
+| **M14** | Performance targets | Set from the wave-1 baseline on the weakest tested device, then only raised **(ruled 2026-10-09)**. Set 2026-10-10: on the Galaxy Tab A8, no still screen longer than 1.5 s during an AI turn |
 | **M15** | The Duel's resources block | One framed button for mana and zone counts that opens the zone sheet; on a phone it is also the land drop **(ruled 2026-10-09)** |
 | **M16** | Three-colour mana in the 96 px column | Two colours plus a neutral "more" pip in place of the third; tapping the block opens the zone sheet, which leads with every colour's mana at full size (owner, 2026-10-09: "a little full display"; the mocks drew "+1") **(ruled 2026-10-09)** |
 | **M17** | Casting by touch | A tap opens the card (Cast, Empower); a single-target spell picks its target, then Cast confirms. The research backs it: Duel Links and Master Duel open options on a tap, and Slay the Spire's largest complaint cluster is cards played while being read **(ruled 2026-10-09)** |
