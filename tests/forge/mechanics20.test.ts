@@ -173,9 +173,9 @@ describe('the effect palette', () => {
     expect(Object.keys(OP_RULES).filter((kind) => !offered.has(kind as never))).toEqual([]);
   });
 
-  it('builds a Mandate claim the gate accepts and the builder flags as unpriced', () => {
+  it('builds a Mandate claim the gate accepts, priced at its measured rate', () => {
     const card = ritual({ abilities: [{ when: 'spell', ops: [defaultOp('claimMandate')] }] });
     expect(reason(card)).toBe('ok');
-    expect(warningRules(fromCardDef(card))).toContain('estimate:mandate-claim');
+    expect(warningRules(fromCardDef(card)).filter((rule) => rule.includes('claim') || rule.includes('Mandate'))).toEqual([]);
   });
 });

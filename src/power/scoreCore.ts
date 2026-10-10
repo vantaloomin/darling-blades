@@ -643,9 +643,12 @@ export const TRIGGER_MULT: Record<Exclude<ScorableTriggerWhen, CarrierTriggerWhe
   combatDamageToPlayer: 0.7,
   spell: 1.0,
   static: 1.0,
-  // NEEDS MATH (2.0): how often a claim trigger fires comes from the Mandate
-  // lab (B5). Held at the arrival rate meanwhile, and reported as unpriced.
-  youClaimMandate: 0.75,
+  // 2.0 B5, the Mandate lab (2.0 B5, run 38020450249 on study-data, 25 life, Hard on both seats, 32,480 paired slots): a deck with four
+  // claimers takes the Mandate about twice a game when the opponent contests
+  // it (1.08 claims by a card, 0.93 steals in combat), once with no rival
+  // claimer (1.03 and 0.42). A permanent sees roughly half of those, so it
+  // fires about as often as an attack trigger.
+  youClaimMandate: 0.8,
   entersGraveyard: 0.5, // v2 — a "when this creature would die" rider; narrower than `dies` (fires on card-leaves-battlefield-to-grave specifically, not e.g. a bounced/severed exit that dies also would not cover), and it stacks with the death itself, so it is priced BELOW `dies` (0.6).
 
   // ── §4m Starborne mark observers (2026-08-29) ─────────────────────────────
@@ -789,7 +792,6 @@ export function triggerMult(w: ScorableTriggerWhen, card: ScorableCardDef, unkno
     return card.types.includes('creature') ? split.creature : split.noncreature;
   }
   if (w === 'provoked') return provokedSurvival(card.defense ?? 0);
-  if (w === 'youClaimMandate') unknowns.add('when:youClaimMandate');
   const v = TRIGGER_MULT[w];
   if (v === undefined) {
     unknowns.add(`when:${w}`);
@@ -874,6 +876,17 @@ export const FILTER_SACRIFICE_MULT = 0.5;
 //     carrier is a 7-drop checking at Dawn in a tribal deck.
 export const COND_CREATURE_DIED = 0.4;
 export const COND_CONTROLS_OTHER = 0.6;
+// 2.0 B5, the Mandate lab (2.0 B5, run 38020450249 on study-data, 25 life, Hard on both seats, 32,480 paired slots):
+//   swornActive x0.5: the share of a deck's dawns with a legendary creature
+//     in play is 27% over the Warchest field, but 45-52% in the five
+//     legend-rich decks a Sworn card is built for (Wild Communion 52%).
+//   youHoldMandate x0.45: a claiming deck holds it on 47% of its dawns after
+//     its first claim when the opponent contests it (63% when it can't),
+//     23% of all its dawns.
+//   youDontHoldMandate x0.75: the complement of that 23-27% overall hold share.
+export const COND_SWORN = 0.5;
+export const COND_HOLD_MANDATE = 0.45;
+export const COND_DONT_HOLD_MANDATE = 0.75;
 // 1.9 (A1.4b, in-engine): the CONDITIONAL ARRIVAL HUNT ("If you control another
 // Dinokin, when this arrives, Hunt."; the condition is checked at cast, A1.1c).
 // Measured by the A1.1c re-run (balance/study/lab/fd/first-dawn-findings-a11c.md,
@@ -1516,11 +1529,12 @@ export function valueOp(
       // (Codex: Call the Einherjar {2}{B} beats Zombify {3}{B}). 2.2 undervalued it.
       return { label: 'reanimate', v: 3.5 };
     case 'claimMandate':
-      // NEEDS MATH: the Mandate's claim, hold and payoff rates come from its
-      // lab (2.0 lane B5) at 25 life. Until then a claim adds nothing and is
-      // reported, rather than inventing a rate.
-      unknowns.add('op:claimMandate');
-      return { label: 'claim the Mandate', v: 0 };
+      // 2.0 B5, the Mandate lab (2.0 B5, run 38020450249 on study-data, 25 life, Hard on both seats, 32,480 paired slots):
+      // "When this arrives, claim the Mandate" on a 3/3 is worth 0.52 mana
+      // when the opponent claims too (2.83 +/- 0.21 pts against a mana's
+      // 5.49) and 0.57 when it can't. The set contests it, so 0.52 at the
+      // arrival rate (0.75) puts the op at 0.7.
+      return { label: 'claim the Mandate', v: 0.7 };
     case 'hunt':
       // 1.9 (A1.4): see the Hunt block above. The spell form is priced here
       // with no pump; scoreCard folds a pump on the hunter in (huntSpellValue).
@@ -1830,11 +1844,9 @@ export function scoreCard(card: ScorableCardDef): Score {
       if (cond === 'questActive') condMult = 0.7;
       else if (cond === 'controlMarked') condMult = 0.85;
       else if (cond === 'creatureDiedThisTurn') condMult = COND_CREATURE_DIED;
-      // NEEDS MATH: Sworn's active rate per format comes from the Core Set II
-      // lab (2.0 B5). Until then it is priced at full rate and reported.
-      else if (cond === 'swornActive') unknowns.add('condition:swornActive');
-      // NEEDS MATH: likewise the Mandate's hold rate (B5).
-      else if (cond === 'youHoldMandate' || cond === 'youDontHoldMandate') unknowns.add(`condition:${cond}`);
+      else if (cond === 'swornActive') condMult = COND_SWORN;
+      else if (cond === 'youHoldMandate') condMult = COND_HOLD_MANDATE;
+      else if (cond === 'youDontHoldMandate') condMult = COND_DONT_HOLD_MANDATE;
       // The same kind of turn-history gate as "a creature died this turn";
       // a life-gain deck meets it most turns. NEEDS MATH: lab-measured with
       // Core Set II's life-gain shells; reported meanwhile.

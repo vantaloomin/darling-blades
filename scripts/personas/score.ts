@@ -61,7 +61,7 @@ const OP_VALUE: Readonly<Record<EffectOp['op'], number>> = {
   foresee: 0.7,
   awaken: 1.2,
   raise: 2.2,
-  claimMandate: 0, // NEEDS MATH: the Mandate is unpriced until its lab (2.0 lane B5) measures a claim.
+  claimMandate: 0.7, // 2.0 B5: the Mandate lab's claim, as in scoreCore.ts.
   hunt: 0, // NEEDS MATH: Hunt is unpriced until the A1.3 lab measures it; 0 adds nothing rather than invent a rate.
 };
 
