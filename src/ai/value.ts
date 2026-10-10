@@ -6,7 +6,7 @@ import { combineManaCosts, solveMana } from '../engine/mana';
 import { castTargetSpecsFor } from '../engine/resolve';
 import { getEffectiveStats, isQuestActive, isSwornActive } from '../engine/statics';
 import type { AbilityDef, ActivatedDef, CardDb, EffectOp, Keyword, ManaCost, Permanent, PlayerId, TargetRef, TargetSpec } from '../engine/types';
-import { activatedAbilitiesOf, def, effectOpUsesTarget, isTargetBranchOp, isType, manaValue, opponentOf } from '../engine/types';
+import { activatedAbilitiesOf, def, effectOpUsesTarget, isTargetBranchOp, isType, manaValue, markCostOf, opponentOf } from '../engine/types';
 import type { PlayerView } from '../engine/view';
 import { extraManaByTurn, RAMP_ANCHOR, RAMP_DAWN_SHARE, RAMP_STACK, RAMP_TURN_DECAY } from '../power/scoreCore';
 import { determinize } from './determinize';
@@ -1335,8 +1335,14 @@ function activatedActionImpact(
     targets: action.targets ?? [],
     targetBatch: ability.targets?.length === 1 && (ability.targets[0].upTo !== undefined || ability.targets[0].exactly !== undefined),
   };
-  return activatedOpsImpact(ability.ops, ctx);
+  return activatedOpsImpact(ability.ops, ctx) - markCostOf(ability) * MARK_SPENT_VALUE;
 }
+
+/**
+ * A mark spent as an activation cost (2.0, Nüwa's stones) is a +1/+1 the
+ * source loses for good, priced as the mark a targeted `addCounters` gives.
+ */
+const MARK_SPENT_VALUE = 1.2;
 
 /** Potential targets from public battlefield data; no GameState or hidden zones. */
 function activatedPotentialTargets(view: PlayerView, db: CardDb, source: Permanent, spec: TargetSpec): TargetRef[] {

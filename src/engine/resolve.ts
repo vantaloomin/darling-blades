@@ -137,7 +137,9 @@ export function resolveStackItem(
       (isAura(d) || item.hauntlinked === true) && item.targets[0]?.kind === 'permanent'
         ? item.targets[0].iid
         : undefined;
-    const perm = enterBattlefield(state, db, stackCard(state, item), item.controller, emit, { attachedTo });
+    const perm = enterBattlefield(state, db, stackCard(state, item), item.controller, emit, {
+      attachedTo, ...(item.titheMarks ? { plusOneCounters: item.titheMarks } : {}),
+    });
     if (item.hauntlinked && attachedTo !== undefined) {
       emit({
         e: 'hauntlinkFormed',

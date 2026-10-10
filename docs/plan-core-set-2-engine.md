@@ -11,8 +11,9 @@ Build order (the 2.0 plan's shared-file order: the Mandate first in `types.ts` a
 3. Sworn, and the crownless flag for the Sworn Champions. **As built (B2.2).**
 4. The Mandate's card wording: "while you hold the Mandate", "if you don't hold the Mandate", "whenever you claim the Mandate". **As built (B2.3).**
 5. Small constructs the overplan names: an arrival trigger filtered by subtype (Yutu, Jiuwei, Lanlan); "if you gained life this turn" (Hebe); a token created for a target's controller (Circe's Pig). **As built (B2.4).**
-6. Larger constructs: a modal "choose up to N" (Nüwa, ruled into the engine 2026-10-08); removing a mark as an activation cost, without a tap (Nüwa); Tithe on a Darling cast (ruled 2026-10-08: it reduces the base cost, never the Darling tax).
-7. The AI reads (B3), the duel UI (B4), the lab rates (B5).
+6. Nüwa's pieces: removing marks as an activation cost, without a tap; a Tithe that grants marks; Tithe on a Darling cast (ruled 2026-10-08: it reduces the base cost, never the Darling tax). **As built (B2.5).**
+7. The modal "choose up to N" (ruled into the engine 2026-10-08 for later sets).
+8. The AI reads (B3), the duel UI (B4), the lab rates (B5).
 
 ## Part 1. The Mandate
 
@@ -93,12 +94,29 @@ Build order (the 2.0 plan's shared-file order: the Mandate first in `types.ts` a
 - **Token for the target's controller.** `createToken.for: 'targetController'` reads the first target's owner captured before the effect moved it (`ctx.targetOwners`; no card changes control, so owner and controller are the same). With no target left it creates nothing. The scorer and the AI price it as the negation of the token. The card reads "..., then its controller creates a 1/1 Pig token."
 - **Tests.** `tests/engine/coreSet2Constructs.test.ts`.
 
-## Part 6. Larger constructs (to be specified as they are built)
+## Part 6. Nüwa's pieces
 
-The modal "choose up to N" (Nüwa, ruled into the engine 2026-10-08), removing a mark as an activation cost without a tap (Nüwa's five stones), and Tithe on a Darling cast (ruled 2026-10-08: it reduces the base cost, never the Darling tax).
+The overplan's latest Nüwa (owner's design, 2026-10-08) is a 4/4 Tithe Darling that arrives with a mark for each {1} the Tithe saved (at most 5), claims the Mandate, and spends those marks as five stones. That needs three engine pieces. The modal "choose up to N" (ruled into the engine the same day, for later sets) is Part 7.
+
+### Rules (for the owner)
+
+- **Stones (abilities paid with marks).** "{R}, remove a mark from this: deal 3 damage to any target." The mark is the cost, so the creature never taps: it can use a stone while tapped, on the turn it arrives, and as many times a turn as its marks and mana allow. Stones are used when Duties are, in your Morning or Afternoon with nothing waiting to resolve. Each mark spent is gone for good, so the creature shrinks back toward its printed size.
+- **Tithe marks.** "This arrives with a mark for each {1} Tithe saved (at most 5)." Saved means generic mana the sacrifices actually took off the cost, so a cast at full price arrives with none.
+- **Tithe from the Darling zone.** A Tithe Darling can Tithe when cast from the Darling zone. The sacrifices come off the printed cost only; the Darling tax is always paid in full (ruled 2026-10-08). So Nüwa's first cast is {5}{W}{U}{B}{R}{G}, Tithed to {W}{U}{B}{R}{G}; after she dies, the {2} tax stays on top of whatever Tithe leaves.
+
+### As built (B2.5)
+
+- **Mark costs.** `ActivatedDef.cost` is now either a Duty's `{ tap: true, mana? }` or `{ removeMarks: n, mana? }` (`src/engine/types.ts`, `markCostOf`). `canActivate` (`src/engine/combat/legality.ts`) takes the ability index: a mark cost needs only the marks, a Duty still needs an untapped, non-sick source. `activate` (`Game.ts`) removes the marks instead of tapping, and the `activated` event carries `marksSpent`. The validator allows a mark cost on creatures only.
+- **Tithe marks.** `TitheDef.marks?` caps the marks; the cast records `StackItem.titheMarks` (the printed generic minus the Tithed generic, capped) and the creature enters with them. Entering with marks is not "putting a mark on", so no mark trigger fires, as with tokens made with marks.
+- **Darling Tithe.** `castDarling` takes `tithe` and `sacrifices`. `darlingCastCost(d, tax, tithe?)` discounts the printed cost, then adds the tax. `legalActions` offers one canonical fodder cast beside the full-price one, as from hand. The sacrifice payment is shared with the hand cast (`Game.paySacrifices`).
+- **AI reads.** A stone is valued as its effect minus 1.2 per mark spent (the AI's price for a targeted mark), and never competes with the body's attack since it does not tap. The Tithe policy (`src/ai/tithePolicy.ts`) now picks fodder for a Darling cast as well, pricing against the printed cost and paying the tax on top; all three brains add the saved mana to a Darling cast's score, as they do from hand.
+- **Scorer.** A mark-cost ability scores 0 and reports `activated:removeMarks`; Tithe marks report `tithe:marks` (the Devour rate the Tithe comment already flags). Both wait on the lab (B5).
+- **Not yet.** The Forge's builder and validator still accept only tap costs, and the duel UI shows a stone like a Duty; both land with B4.
+- **Tests.** `tests/engine/markCostAndDarlingTithe.test.ts`: marks spent with no tap on an arriving creature, repeated use while tapped until the marks run out, a Duty beside stones still taps and waits, the card wording, Tithe marks capped and absent on a full-price cast, the tax paid in full (including when the fodder could cover more than the printed generic), the canonical Darling Tithe offer, and refused sacrifices.
 
 ## Questions for the owner
 
 - **Q1. When does the default become 25?** Every win-rate floor in CI was measured at 20. Recommended: the field lands now at 20, the labs and the rescore run at 25 through it, and the default flips together with the one-time floor reset (P8).
 - **Q2. Dawn order** (taken as recommended by the set plan): the Mandate's draw comes before the holder's other dawn abilities.
 - **Q3. Claim point** (taken as recommended): once per damage batch, after the damage and before combat-damage triggers.
+- **Q4. Stone timing** (taken as the default): stones are used at Duty speed, in your own Morning or Afternoon. The alternative is Charm speed (any time you could cast a Charm), which would let Nüwa answer an attack with 3 damage.

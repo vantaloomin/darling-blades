@@ -120,7 +120,7 @@ export class EasyAI implements AIPlayer {
   private castScore(view: PlayerView, action: MainCast): number {
     const cardId = this.cardIdFor(view, action);
     const d = def(this.db, cardId);
-    if (action.type === 'castDarling') return manaValue(d.cost) + nineLivesValue(d) + conditionalAbilityValue(this.db, cardId);
+    if (action.type === 'castDarling') return manaValue(d.cost) + nineLivesValue(d) + conditionalAbilityValue(this.db, cardId) + titheManaSaved(view, this.db, action);
     if (action.hauntlinked) {
       const host = action.targets?.[0];
       return host?.kind === 'permanent'

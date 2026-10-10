@@ -246,7 +246,7 @@ export class MediumAI implements AIPlayer {
   /** Empower competes with the best second develop cast its extra mana displaces. */
   private castScore(view: PlayerView, cast: Cast): number {
     const cardId = this.cardIdFor(view, cast);
-    if (cast.type === 'castDarling') return this.developScore(cardId, view, cast) + this.arrivalHuntValue(view, cast, cardId);
+    if (cast.type === 'castDarling') return this.developScore(cardId, view, cast) + this.arrivalHuntValue(view, cast, cardId) + titheManaSaved(view, this.db, cast);
     if (cast.hauntlinked) {
       const host = cast.targets?.[0];
       return host?.kind === 'permanent'

@@ -1,7 +1,7 @@
 import { RULES } from '../../config/rules';
 import { boardOf, getEffectiveStats, isSummoningSick, type BoardInput } from '../statics';
 import type { CardDb, CombatState, Permanent, PlayerId } from '../types';
-import { def, isType } from '../types';
+import { activatedAbilitiesOf, def, isType, markCostOf } from '../types';
 
 /**
  * Attack/block legality — the ONE place these rules live. The engine
@@ -28,17 +28,26 @@ export function canAttack(
   return true;
 }
 
-/** Tap-ability source eligibility, shared by main-phase activation callers. */
+/**
+ * Activation source eligibility, shared by main-phase activation callers. A
+ * Duty needs its source untapped and past summoning sickness; a mark-cost
+ * ability (2.0) needs neither, only enough marks on the source.
+ */
 export function canActivate(
   board: BoardInput,
   db: CardDb,
   perm: Permanent,
   player: PlayerId,
+  abilityIndex = 0,
 ): boolean {
   const battlefield = boardOf(board).battlefield;
   const source = battlefield.find((candidate) => candidate.iid === perm.iid);
-  return !!source && source.controller === player && !!def(db, source.cardId).activated &&
-    !source.tapped && !isSummoningSick(board, db, source);
+  if (!source || source.controller !== player) return false;
+  const ability = activatedAbilitiesOf(def(db, source.cardId))[abilityIndex];
+  if (!ability) return false;
+  const marks = markCostOf(ability);
+  if (marks > 0) return source.plusOneCounters >= marks;
+  return !source.tapped && !isSummoningSick(board, db, source);
 }
 
 export function canBlock(

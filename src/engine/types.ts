@@ -253,6 +253,7 @@ export interface WhispersDef {
 /** Optional creature sacrifices discount one generic per two combined Defense. */
 export interface TitheDef {
   per: 2;
+  marks?: number; // 2.0 (Nüwa): arrives with a mark per {1} the Tithe saved, at most this many
 }
 
 /** Additional creature-sacrifice cost paid while casting the card. */
@@ -265,9 +266,15 @@ export interface PreserveDef {
   cost: ManaCost;
 }
 
-/** A tap-cost activated ability; cards may expose an ordered list of Duties. */
+/**
+ * An activated ability; cards may expose an ordered list. A Duty's cost taps
+ * the source. A mark-cost ability (2.0, Nüwa's stones) instead removes marks
+ * from the source and never taps it, so it can be used while the source is
+ * tapped or has just arrived, as often as its marks and mana allow. Both run
+ * at Duty speed: your Morning or Afternoon, with an empty stack.
+ */
 export interface ActivatedDef {
-  cost: { tap: true; mana?: ManaCost };
+  cost: { tap: true; mana?: ManaCost } | { removeMarks: number; mana?: ManaCost };
   /** Run immediately in order, with this permanent as the source. */
   ops: EffectOp[];
   /** Chosen inline when activating, using the spell target rules. */
@@ -696,6 +703,11 @@ export function activatedAbilitiesOf(d: CardDef): readonly ActivatedDef[] {
   return d.activated ? (Array.isArray(d.activated) ? d.activated : [d.activated]) : [];
 }
 
+/** The marks an ability removes from its source as its cost; 0 for a Duty, which taps instead. */
+export function markCostOf(ability: ActivatedDef): number {
+  return 'removeMarks' in ability.cost ? ability.cost.removeMarks : 0;
+}
+
 /**
  * Physical identity for one copy of a card. `cardId` is the only rules
  * identity; `variantKey` is opaque presentation metadata and is never read by
@@ -817,6 +829,9 @@ export function validateTitheDef(d: CardDef): string[] {
   if (d.rite) errors.push('Tithe card cannot combine with Rite');
   if (d.hauntlink) errors.push('Tithe card cannot combine with Hauntlink');
   if (d.x) errors.push('Tithe card cannot be X');
+  if (d.tithe.marks !== undefined && (!Number.isInteger(d.tithe.marks) || d.tithe.marks < 1)) {
+    errors.push('Tithe marks must be a whole number of at least 1');
+  }
   return errors;
 }
 
@@ -861,9 +876,14 @@ export function validateActivatedDef(d: CardDef): string[] {
   if (activatedAbilitiesOf(d).length === 0) errors.push('Activated list must not be empty');
   for (const activation of activatedAbilitiesOf(d)) {
     const { cost, ops, targets = [] } = activation;
-    if (!cost || cost.tap !== true || Object.keys(cost).some((key) => key !== 'tap' && key !== 'mana')) {
-      errors.push('Activated cost must be tap or tap plus mana');
+    const tapCost = cost && 'tap' in cost && cost.tap === true &&
+      Object.keys(cost).every((key) => key === 'tap' || key === 'mana');
+    const markCost = cost && 'removeMarks' in cost && Number.isInteger(cost.removeMarks) && cost.removeMarks >= 1 &&
+      Object.keys(cost).every((key) => key === 'removeMarks' || key === 'mana');
+    if (!tapCost && !markCost) {
+      errors.push('Activated cost must be tap or tap plus mana, or removing marks with optional mana');
     }
+    if (markCost && !isType(d, 'creature')) errors.push('Only a creature can remove its own marks as a cost');
     if (cost?.mana && (
       !Number.isInteger(cost.mana.generic) || cost.mana.generic < 0 ||
       Object.entries(cost.mana.pips).some(([color, pip]) =>
@@ -1033,6 +1053,8 @@ export interface StackItem {
   whispered?: true;
   /** Omitted means the ordinary cast; true means pay Hauntlink and attach. */
   hauntlinked?: boolean;
+  /** Marks the creature arrives with: one per {1} its Tithe saved, capped by `TitheDef.marks` (2.0). */
+  titheMarks?: number;
 }
 
 export type TargetRef =

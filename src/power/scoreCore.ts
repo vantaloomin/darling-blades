@@ -142,7 +142,7 @@ export function dutiesOf(card: Pick<ScorableCardDef, 'activated'>): readonly Sco
 export type ScorableWhispers = { cost: ManaCost };
 /** Tithe (1.8, Drowned Deep; renamed from Dread 2026-09-11): any-number sacrifice, one generic per two
  * points of combined Defense. `per` is fixed at 2 by the ruling. */
-export type ScorableTithe = { per: 2 };
+export type ScorableTithe = { per: 2; marks?: number };
 
 export type ScorableCardDef = Omit<
   CardDef,
@@ -1743,6 +1743,12 @@ function spellHuntPump(ab: ScorableAbilityDef): { defense: number; folded: Set<S
 
 /** One Duty at the §4q rate (see the `activated` block in scoreCard). */
 function valueDuty(ability: ScorableActivated, card: ScorableCardDef, unknowns: UnknownCollector): Part {
+  // 2.0 (Nüwa): an ability paid by removing marks spends a +1/+1 for good and
+  // never taps; it has no rate until the lab (B5) measures one (NEEDS MATH).
+  if ('removeMarks' in ability.cost) {
+    unknowns.add('activated:removeMarks');
+    return { label: 'mark-cost ability (NEEDS MATH)', v: 0 };
+  }
   const face = (ability.targets ?? []).some((t) => t.what === 'any');
   const fan = targetFan(ability.targets);
   let perTrigger = 0;
@@ -2148,6 +2154,8 @@ export function scoreCard(card: ScorableCardDef): Score {
     // the builder warns; the scorer does not police it.
     mechanics.push('tithe');
     parts.push({ label: 'tithe option (any-number sacrifice, 1 per 2 Defense)', v: 0.5 });
+    // 2.0 (Nüwa): marks for the mana saved is the Devour rate on top (NEEDS MATH).
+    if (card.tithe.marks !== undefined) unknowns.add('tithe:marks');
   }
 
   if (card.chapters) {

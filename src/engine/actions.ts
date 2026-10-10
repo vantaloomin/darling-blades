@@ -1,4 +1,4 @@
-import { activatedAbilitiesOf, isTargetBranchOp } from './types';
+import { activatedAbilitiesOf, isTargetBranchOp, markCostOf } from './types';
 import { DARLING_PAYDOWN_COST, DARLING_PAYDOWN_REDUCTION, RULES } from '../config/rules';
 import {
   blockOptions,
@@ -136,7 +136,12 @@ export type Action =
    */
   | { type: 'activateMana'; iid: number; abilityIndex: number; times: number; manaPlan?: number[] }
   /** Normal creature-timing cast from a public Darling zone. */
-  | { type: 'castDarling'; targets?: TargetRef[]; x?: number; manaPlan?: number[] }
+  | {
+      type: 'castDarling'; targets?: TargetRef[]; x?: number; manaPlan?: number[];
+      /** Tithe from the Darling zone (2.0): the sacrifices discount the printed generic, never the Darling tax. */
+      tithe?: true;
+      sacrifices?: number[];
+    }
   /** Main-phase action: pay four mana to remove one two-mana Darling tax step. */
   | { type: 'payDownDarlingTax'; manaPlan?: number[] }
   | { type: 'skim'; handIndex: number; manaPlan?: number[] }
@@ -382,9 +387,16 @@ function pushAdditionalCastActions(out: Action[], state: GameState, db: CardDb, 
 }
 
 /** Printed Darling cost plus its accumulated generic command-zone tax. */
-export function darlingCastCost(d: CardDef, tax: number): ManaCost | undefined {
+/**
+ * A Darling's cost: the printed cost plus the Darling tax. A Tithe cast (2.0,
+ * ruled 2026-10-08) discounts the printed generic exactly as from hand, and
+ * the tax is then added in full, so Tithe never pays the tax down.
+ */
+export function darlingCastCost(d: CardDef, tax: number, tithe?: CastCostOptions): ManaCost | undefined {
   if (!d.cost) return undefined;
-  return { generic: d.cost.generic + tax, pips: { ...d.cost.pips } };
+  const base = tithe?.tithe ? titheDiscounted(d.cost, tithe) : d.cost;
+  if (!base) return undefined;
+  return { generic: base.generic + tax, pips: { ...base.pips } };
 }
 
 const DARLING_PAYDOWN_MANA: ManaCost = { generic: DARLING_PAYDOWN_COST, pips: {} };
@@ -645,14 +657,15 @@ export function activatedBlockers(
     return 'Activated source is not on the battlefield';
   }
   const d = def(db, perm.cardId);
-  if (!canActivate(state, db, perm, player)) {
+  const ability = activatedAbilitiesOf(d)[abilityIndex];
+  if (!canActivate(state, db, perm, player, abilityIndex)) {
     if (perm.controller !== player) return 'Activated source is not under your control';
     if (!d.activated) return 'permanent has no activated ability';
+    if (!Number.isInteger(abilityIndex) || !ability) return 'invalid activated ability index';
+    if (markCostOf(ability) > 0) return 'not enough marks on the source';
     if (perm.tapped) return 'Activated source is tapped';
     return 'Activated source cannot tap the turn it arrives unless it has Warcry';
   }
-  const ability = activatedAbilitiesOf(d)[abilityIndex];
-  if (!Number.isInteger(abilityIndex) || !ability) return 'invalid activated ability index';
   if (abilityHuntsWithSource(ability) && getEffectiveStats(state, db, perm.iid).keywords.has('bulwark')) {
     return 'a creature with Bulwark cannot hunt';
   }
@@ -827,6 +840,23 @@ function darlingCastableNow(state: GameState, player: PlayerId, d: CardDef): boo
   return isType(d, 'creature') && a.kind === 'main' && a.player === player && state.activePlayer === player;
 }
 
+/** Rite and Tithe sacrifices: distinct creatures the caster controls. */
+function sacrificeListError(
+  state: GameState, db: CardDb, player: PlayerId, sacrifices: readonly number[], mechanic: 'Rite' | 'Tithe',
+): string | null {
+  const seen = new Set<number>();
+  for (const iid of sacrifices) {
+    if (!Number.isInteger(iid)) return `bad ${mechanic} sacrifice iid`;
+    if (seen.has(iid)) return `duplicate ${mechanic} sacrifice`;
+    seen.add(iid);
+    const perm = state.battlefield.find((candidate) => candidate.iid === iid);
+    if (!perm || perm.controller !== player || !isType(def(db, perm.cardId), 'creature')) {
+      return `${mechanic} sacrifices must be creatures you control`;
+    }
+  }
+  return null;
+}
+
 function darlingCastBlockers(
   state: GameState,
   db: CardDb,
@@ -834,10 +864,12 @@ function darlingCastBlockers(
   d: CardDef,
   tax: number,
   x = d.x ? d.x.min : 0,
+  sacrifices?: readonly number[],
 ): string | null {
   if (!isType(d, 'creature') || !d.cost) return 'Darling has no creature mana cost';
-  if (creatureCount(state, db, player) >= RULES.maxCreatures) return 'creature battlefield cap reached';
-  const cost = darlingCastCost(d, tax)!;
+  if (sacrifices && (!d.tithe || validateTitheDef(d).length > 0)) return 'invalid Tithe cast';
+  if (creatureCount(state, db, player) - (sacrifices?.length ?? 0) >= RULES.maxCreatures) return 'creature battlefield cap reached';
+  const cost = darlingCastCost(d, tax, sacrifices ? { tithe: true, sacrifices, state, db } : undefined)!;
   return canPay(state, db, player, cost, d.x ? x : 0) ? null : 'cannot pay cost';
 }
 
@@ -861,10 +893,17 @@ function pushDarlingCastActions(
   const targetLists: (TargetRef[] | undefined)[] = specs.length === 0
     ? [undefined]
     : enumerateTargets(state, db, player, specs[0]).map((target) => [target]);
+  // A Tithe Darling also offers one canonical fodder cast, as from hand.
+  const fodder = d.tithe && validateTitheDef(d).length === 0
+    ? canonicalTitheSacrifices(state, db, player, d, false) : [];
   for (const targets of targetLists) {
     for (const x of xs) {
-      if (darlingCastBlockers(state, db, player, d, tax, x ?? 0) !== null) continue;
-      out.push({ type: 'castDarling', ...(targets ? { targets } : {}), ...(x === undefined ? {} : { x }) });
+      if (darlingCastBlockers(state, db, player, d, tax, x ?? 0) === null) {
+        out.push({ type: 'castDarling', ...(targets ? { targets } : {}), ...(x === undefined ? {} : { x }) });
+      }
+      if (fodder.length > 0 && darlingCastBlockers(state, db, player, d, tax, x ?? 0, fodder) === null) {
+        out.push({ type: 'castDarling', ...(targets ? { targets } : {}), ...(x === undefined ? {} : { x }), tithe: true, sacrifices: fodder });
+      }
     }
   }
 }
@@ -1323,21 +1362,8 @@ export function validateAction(
         }
       }
       if (d.rite || isTithe) {
-        const mechanic = isTithe ? 'Tithe' : 'Rite';
-        const seen = new Set<number>();
-        for (const iid of action.sacrifices ?? []) {
-          if (!Number.isInteger(iid)) return `bad ${mechanic} sacrifice iid`;
-          if (seen.has(iid)) return `duplicate ${mechanic} sacrifice`;
-          seen.add(iid);
-          const perm = state.battlefield.find((candidate) => candidate.iid === iid);
-          if (
-            !perm ||
-            perm.controller !== player ||
-            !isType(def(db, perm.cardId), 'creature')
-          ) {
-            return `${mechanic} sacrifices must be creatures you control`;
-          }
-        }
+        const sacrificeError = sacrificeListError(state, db, player, action.sacrifices ?? [], isTithe ? 'Tithe' : 'Rite');
+        if (sacrificeError) return sacrificeError;
       }
       const options = { whispers: isWhispers, tithe: isTithe, sacrifices: action.sacrifices, graveIndex: action.graveIndex, state, db };
       const blocked = castBlockers(
@@ -1425,9 +1451,16 @@ export function validateAction(
       if (!darlingCastableNow(state, player, d)) return 'cannot cast Darling now';
       if (d.x && (action.x === undefined || action.x < d.x.min)) return 'bad X';
       if (!d.x && action.x !== undefined) return 'Darling has no X';
-      const blocked = darlingCastBlockers(state, db, player, d, me.darlingTax ?? 0, action.x ?? 0);
+      if (!action.tithe && action.sacrifices !== undefined) return 'only a Tithe cast sacrifices';
+      if (action.tithe) {
+        if (action.sacrifices === undefined) return 'a Tithe cast needs its sacrifices';
+        const sacrificeError = sacrificeListError(state, db, player, action.sacrifices, 'Tithe');
+        if (sacrificeError) return sacrificeError;
+      }
+      const sacrifices = action.tithe ? action.sacrifices : undefined;
+      const blocked = darlingCastBlockers(state, db, player, d, me.darlingTax ?? 0, action.x ?? 0, sacrifices);
       if (blocked) return blocked;
-      const cost = darlingCastCost(d, me.darlingTax ?? 0)!;
+      const cost = darlingCastCost(d, me.darlingTax ?? 0, sacrifices ? { tithe: true, sacrifices, state, db } : undefined)!;
       if (action.manaPlan) {
         const err = validateManaPlanForCost(state, db, player, cost, action.manaPlan, action.x ?? 0);
         if (err) return err;
