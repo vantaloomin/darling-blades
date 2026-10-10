@@ -1,5 +1,6 @@
 import { applyCreatureDamage, type CreatureDamageHit } from '../creatureDamage';
 import { fireTriggers } from '../effects/EffectInterpreter';
+import { claimMandate, mandateHolderOf } from '../mandate';
 import { checkStateBased } from '../sba';
 import { endGame } from '../phases';
 import { getEffectiveStats } from '../statics';
@@ -205,9 +206,18 @@ function dealCombatDamage(
     firstStrike: firstStrikeStep,
   });
 
+  // The holder at the start of this batch: a batch claims at most once.
+  const holder = mandateHolderOf(state);
+
   // Apply simultaneously, through the shared creature-damage path: the
   // damage, Deathblade, Blood Oath and its observers, and the Provoked mark.
   applyCreatureDamage(state, db, emit, hits);
+
+  // Positive combat damage to the Mandate's holder passes it to the attacking
+  // player, after the batch lands and before any combat-damage trigger.
+  if (holder === defender && hits.some((h) => h.target.kind === 'player' && h.target.player === defender && h.amount > 0)) {
+    claimMandate(state, emit, state.activePlayer, 'combat');
+  }
 
   // combat-damage-to-player triggers, after all simultaneous damage lands
   for (const hit of hits) {

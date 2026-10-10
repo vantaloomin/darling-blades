@@ -54,6 +54,7 @@ import {
   pushReplay,
   recordReplayAction,
   replayDbStamp,
+  replayStartingLife,
   startReplayDraft,
   undoReplayAction,
   type ReplayDraft,
@@ -1052,6 +1053,8 @@ export class DuelScene extends Phaser.Scene {
       seed,
       db: CARD_DB,
       ...(startingHandSize === undefined ? {} : { startingHandSize }),
+      // A replay plays at the life its game was recorded at.
+      ...(this.replayLog ? { startingLife: replayStartingLife(this.replayLog) } : {}),
       ...(reserveFormat === 'darlings' && landReserves && darlings
         ? { format: reserveFormat, landReserves, darlings }
         : reserveFormat === 'warchest' && landReserves
@@ -2819,7 +2822,7 @@ export class DuelScene extends Phaser.Scene {
     const selection = selectDuelMood({
       humanLife: st.players[HUMAN].life,
       opponentLife: st.players[AI].life,
-      startingLife: RULES.startingLife,
+      startingLife: this.duel.startingLife,
       tensionActive: this.duelTensionActive,
       lethalVisible,
     });

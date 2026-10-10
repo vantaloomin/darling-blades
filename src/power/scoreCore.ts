@@ -1502,6 +1502,12 @@ export function valueOp(
       // Unconditional reanimation-to-battlefield of any grave creature is strong
       // (Codex: Call the Einherjar {2}{B} beats Zombify {3}{B}). 2.2 undervalued it.
       return { label: 'reanimate', v: 3.5 };
+    case 'claimMandate':
+      // NEEDS MATH: the Mandate's claim, hold and payoff rates come from its
+      // lab (2.0 lane B5) at 25 life. Until then a claim adds nothing and is
+      // reported, rather than inventing a rate.
+      unknowns.add('op:claimMandate');
+      return { label: 'claim the Mandate', v: 0 };
     case 'hunt':
       // 1.9 (A1.4): see the Hunt block above. The spell form is priced here
       // with no pump; scoreCard folds a pump on the hunter in (huntSpellValue).

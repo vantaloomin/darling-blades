@@ -106,6 +106,8 @@ export type GameEvent =
   | { e: 'overcharged'; player: PlayerId; iid: number; cardId: string; tokenCardId: string; total: number }
   /** A token refused at the creature cap with no same-name token eligible for an Overcharge: nothing entered and nothing changed (1.9 A1.7). */
   | { e: 'tokenRefused'; player: PlayerId; tokenCardId: string }
+  /** The Mandate changed hands: claimed by an effect, or taken by combat damage to its holder. */
+  | { e: 'mandateChanged'; from: PlayerId | null; to: PlayerId; reason: 'effect' | 'combat' }
   | { e: 'positionNote'; note: string } // debug/log line, never load-bearing
   | {
       e: 'gameEnded';

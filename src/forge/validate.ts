@@ -229,6 +229,7 @@ export const OP_RULES: Record<OpKind, Record<string, OpFieldRule>> = {
   markAll: { scope: ENUM(['yourCreatures'], true), other: { kind: 'flag', optional: true } },
   moveMark: {},
   hunt: { hunter: ENUM(['self', 'target']), prey: ENUM(['any', 'yours'], true) },
+  claimMandate: {},
   removeMarks: TO_TARGET,
   severSelf: {},
   loseLifePerTheirMarked: { who: ENUM(['opponent'], true) },
