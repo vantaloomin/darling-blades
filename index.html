@@ -83,6 +83,15 @@
         --chrome-top: 32px;
         --chrome-bottom: 48px;
       }
+      /* The compact profile (?layout=compact, src/gameBoot.ts) drops the
+         reserve: the page is 100dvh, which already leaves out a visible
+         browser bar, so the reserve counted it twice. Measured on the Android
+         360 emulator 2026-10-10: Chrome leaves 780x256 and the reserve cut the
+         game to 780x176. The safe-area insets still apply. */
+      :root.layout-compact {
+        --chrome-top: 0px;
+        --chrome-bottom: 0px;
+      }
       html,
       body {
         margin: 0;

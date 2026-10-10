@@ -214,8 +214,20 @@ times the render factor, and every scene's base zoom is the one that fits
 1280x720 inside it (`activeSceneZoom` in `src/platform/renderScale.ts`,
 which PackOpening's zoom escalation now composes with). The art loader
 and Boot scenes draw nothing, so neither needs a camera. Text stayed crisp
-at a fractional zoom in desktop Chromium emulating a 3x phone; the proof
-on a real phone is still owed.
+at a fractional zoom in desktop Chromium emulating a 3x phone.
+
+**The emulator run (2026-10-10, Android 360 class, Chrome):** every tap
+landed, but text was soft and the board no bigger than today's. Three
+causes, all fixed under the switch: index.html's 80 px bar reserve counted
+Chrome's visible bar twice (the 100dvh page already leaves it out), so the
+game got 780x176 of a 780x256 page, and the reserve is now dropped under
+the compact profile; text rasterized at k = 2 and then shrunk by a 0.49
+camera zoom smeared, so text now rasterizes at the scene's zoom (never
+below 1; on desktop that is still k); and the camera's view was wider than
+the stage, showing a panel parked right of x 1280, so the camera is now
+clipped to the fitted 1280x720 window. The 1.3x upscale from the ruled
+cap of 2 on a 2.625x screen remains (accepted in C1). Safari's bars are
+not measured yet.
 
 ### C3. The resolver gets a device term, not a fork
 
