@@ -3,13 +3,13 @@ import {
   DECK_PANE_LAYOUT,
   deckListPagerPosition,
   deckPaneTabRow,
-  DECK_PICKER_LAYOUT,
   PAGER_HIT_REACH,
   constructedBasicsRowY,
   deckPaneHeaderLayout,
   deckPaneSummaryLayout,
   deckPaneOffsetY,
-  deckPickerTilePosition,
+  deckPickerContentHeight,
+  deckPickerScrollTo,
   deckPickerLayout,
   deckPaneToggleState,
   deckReserveLayout,
@@ -265,37 +265,41 @@ describe('deck reserve measured accessibility layout', () => {
 
 /**
  * The ☰ Decks picker inside the title-safe frame: Close sat on y 678 (drawn
- * 658-698) across the panel's bottom edge, and the pager's hit band ran 8px
- * into the second tile row, until 1.8.1. Close is a md button (40 drawn, 44
- * hit); the pager's reach comes from the shared pager's own geometry.
+ * 658-698) across the panel's bottom edge until 1.8.1. Since 2026-10-10 the
+ * decks are one scrolling list and New Deck sits in the footer beside Close.
  */
 describe('deck picker footer', () => {
-  const picker = DECK_PICKER_LAYOUT;
+  const picker = deckPickerLayout({ count: 20 });
   const hitHalf = theme.control.minHitHeight / 2;
   const panelTop = theme.design.centerY - picker.panelHeight / 2;
   const panelBottom = theme.design.centerY + picker.panelHeight / 2;
-  const lastTile = deckPickerTilePosition(picker.tile.cols * picker.tile.rows - 1);
-  const gridBottom = lastTile.y + picker.tile.height / 2;
 
-  it('keeps the panel, the tiles and the footer inside the frame', () => {
+  it('keeps the panel, the list and the footer inside the frame', () => {
     expect(panelTop).toBeGreaterThanOrEqual(theme.design.safeTop);
     expect(panelBottom).toBeLessThanOrEqual(theme.design.safeBottom);
     expect(picker.footerY + hitHalf).toBeLessThanOrEqual(theme.design.safeBottom);
     // Close is drawn inside the panel with a margin, not across its edge.
     expect(picker.footerY + theme.control.heightMd / 2).toBeLessThanOrEqual(panelBottom - 8);
-    expect(picker.gridLeft).toBeGreaterThanOrEqual(theme.design.safeLeft);
-    expect(lastTile.x + picker.tile.width / 2).toBeLessThanOrEqual(theme.design.safeRight);
-    expect(picker.gridTop).toBeGreaterThan(picker.titleY);
+    expect(picker.viewport.x).toBeGreaterThanOrEqual(theme.design.safeLeft);
+    expect(picker.viewport.x + picker.viewport.width).toBeLessThanOrEqual(theme.design.safeRight);
+    expect(picker.listTop).toBeGreaterThan(picker.titleY);
+    expect(picker.footerY - hitHalf).toBeGreaterThan(picker.viewport.y + picker.viewport.height);
   });
 
-  it('puts the footer below the second tile row and the pager clear of Close', () => {
-    // The footer's hit bands (pager and Close share its line) start below the tiles.
-    expect(picker.footerY - hitHalf).toBeGreaterThan(gridBottom);
-    const pagerLeft = picker.pagerX - PAGER_HIT_REACH.left;
-    const pagerRight = picker.pagerX + PAGER_HIT_REACH.right;
-    const closeLeft = picker.closeX - Math.max(picker.closeMinWidth, theme.control.minHitWidth) / 2;
-    expect(pagerLeft).toBeGreaterThanOrEqual(picker.gridLeft);
-    expect(pagerRight).toBeLessThan(closeLeft);
+  it('shows several whole rows at once and scrolls in whole rows to the last', () => {
+    expect(picker.row.rowsVisible).toBeGreaterThanOrEqual(4);
+    expect(picker.viewport.height).toBe(picker.row.rowsVisible * picker.row.pitch - picker.row.gap);
+    const end = deckPickerScrollTo(Number.MAX_SAFE_INTEGER, 20, picker);
+    expect(end).toBe(deckPickerContentHeight(20, picker) - picker.viewport.height);
+    expect(end % picker.row.pitch).toBe(0);
+    expect(deckPickerScrollTo(0, 20, picker)).toBe(0);
+    expect(deckPickerScrollTo(3, 2, picker)).toBe(0);
+  });
+
+  it('sizes the panel to a short list', () => {
+    const two = deckPickerLayout({ count: 2 });
+    expect(two.row.rowsVisible).toBe(2);
+    expect(two.panelHeight).toBeLessThan(picker.panelHeight);
   });
 });
 
@@ -425,7 +429,7 @@ describe('deck pane measured accessibility layout', () => {
 });
 
 describe('deck picker measured accessibility layout', () => {
-  it('fits full measured identities and action hit bands inside every paged tile in every accessibility cell', () => {
+  it('fits full measured identities and action hit bands inside every row in every accessibility cell', () => {
     forEachA11yCell(() => {
       for (const lines of [1, 2, 3]) {
         const nameHeight = lines * menuLineHeight(theme.type.label);
@@ -433,25 +437,30 @@ describe('deck picker measured accessibility layout', () => {
         const noteHeight = 2 * menuLineHeight(theme.type.micro);
         for (const actionWidth of [90, 110, 138]) {
           const layout = deckPickerLayout({ count: 17, nameHeight, badgeHeight, deleteNoteHeight: noteHeight, actionWidth });
+          const { row, actions, portrait } = layout;
           const hitHalf = theme.control.minHitHeight / 2;
           expect(theme.design.centerY - layout.panelHeight / 2).toBeGreaterThanOrEqual(theme.design.safeTop);
           expect(theme.design.centerY + layout.panelHeight / 2).toBeLessThanOrEqual(theme.design.safeBottom);
+          expect(row.rowsVisible).toBeGreaterThanOrEqual(1);
+          // Name over its format line, both inside the row.
+          expect(layout.nameTop).toBeGreaterThanOrEqual(0);
           expect(layout.nameTop + nameHeight).toBeLessThanOrEqual(layout.badgeTop - theme.space(1));
-          expect(layout.badgeTop + badgeHeight).toBeLessThanOrEqual(layout.portrait.y - layout.portrait.height / 2 - theme.space(3));
-          expect(layout.portrait.x + layout.portrait.width / 2).toBeLessThanOrEqual(layout.actions.firstX - actionWidth / 2 - theme.space(3));
-          expect(layout.actions.firstX + actionWidth / 2).toBeLessThanOrEqual(layout.actions.secondX - actionWidth / 2 - theme.space(3));
-          expect(layout.actions.secondX + actionWidth / 2).toBeLessThanOrEqual(layout.tile.width - layout.padding);
-          expect(layout.actions.firstY + hitHalf).toBeLessThanOrEqual(layout.actions.secondY - hitHalf - theme.space(2));
-          expect(layout.actions.secondY + hitHalf).toBeLessThanOrEqual(layout.actions.noteY - theme.space(2));
-          expect(layout.actions.noteY + noteHeight).toBeLessThanOrEqual(layout.tile.height - layout.padding);
-          expect(layout.portrait.y + layout.portrait.height / 2).toBeLessThanOrEqual(layout.tile.height - layout.padding);
-          for (let i = 0; i < layout.pageSize; i++) {
-            const position = deckPickerTilePosition(i, layout);
-            expect(position.x - layout.tile.width / 2).toBeGreaterThanOrEqual(theme.design.safeLeft);
-            expect(position.x + layout.tile.width / 2).toBeLessThanOrEqual(theme.design.safeRight);
-            expect(position.y - layout.tile.height / 2).toBeGreaterThanOrEqual(layout.gridTop);
-            expect(position.y + layout.tile.height / 2).toBeLessThanOrEqual(layout.footerY - hitHalf - theme.space(4));
+          expect(layout.badgeTop + Math.max(badgeHeight, noteHeight)).toBeLessThanOrEqual(row.height);
+          expect(portrait.height).toBeLessThanOrEqual(row.height);
+          expect(hitHalf * 2).toBeLessThanOrEqual(row.height);
+          // Left to right: accent, portrait, text, pips and count, four actions.
+          expect(portrait.x - portrait.width / 2).toBeGreaterThanOrEqual(row.accentWidth);
+          expect(portrait.x + portrait.width / 2).toBeLessThanOrEqual(layout.nameX - theme.space(3));
+          expect(layout.nameWidth).toBeGreaterThanOrEqual(200);
+          expect(layout.nameX + layout.nameWidth).toBeLessThan(layout.countRight);
+          expect(layout.countRight).toBeLessThanOrEqual(actions.xs[0] - actionWidth / 2 - theme.space(3));
+          for (let i = 1; i < actions.xs.length; i++) {
+            expect(actions.xs[i - 1] + actionWidth / 2).toBeLessThanOrEqual(actions.xs[i] - actionWidth / 2 - theme.space(2));
           }
+          expect(actions.xs[3] + actionWidth / 2).toBeLessThanOrEqual(row.width);
+          // Armed Delete spans Rename's slot and its own, no further.
+          expect(actions.armedX - actions.armedWidth / 2).toBeCloseTo(actions.xs[2] - actionWidth / 2);
+          expect(actions.armedX + actions.armedWidth / 2).toBeCloseTo(actions.xs[3] + actionWidth / 2);
         }
       }
     });
