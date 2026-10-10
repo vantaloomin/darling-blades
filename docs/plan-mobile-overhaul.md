@@ -242,6 +242,13 @@ changes is **which roles a compact scene picks** (no 64 px marquee in a
 310 px tall screen) and **the spacing scale**, both read through the
 resolver. The three text sizes (100, 115, 130%) and high contrast apply on
 phones exactly as on desktop, and every compact scene is checked at 130%.
+**Built in wave 1:** `TYPE_BASE_COMPACT` in `src/ui/accessibility.ts`, read
+as `theme.compactType` by migrated compact scenes only: the same roles at
+the mocks' sizes (h1 20, h2 18, body 14, label 12, caption and micro 11;
+the display roles 28 and 24, inferred, as the mocks draw no marquee), with
+the same text-size policy. The spacing needs no term: the mocks' 8 px gap
+and 44 px touch row are the existing 4 px unit (`theme.space(2)`), and
+the compact composition lives in `src/ui/compactLayout.ts`.
 
 ### C4. The Duel on Version C
 
