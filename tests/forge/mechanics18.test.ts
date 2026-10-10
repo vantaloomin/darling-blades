@@ -48,6 +48,8 @@ describe('Duty in the builder', () => {
     expect(state.mechanics.activated).toEqual({
       enabled: true,
       cost: { generic: 1, pips: { W: 0, U: 0, B: 0, R: 0, G: 0 } },
+      payWith: 'tap',
+      marks: 1,
       target: 'any',
       targets: [{ what: 'any' }],
       ops: [{ op: 'damage', n: 1, to: 'target' }],

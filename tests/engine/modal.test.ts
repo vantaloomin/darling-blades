@@ -8,6 +8,7 @@ import type { GameEvent } from '../../src/engine/events';
 import { Game } from '../../src/engine/Game';
 import { resolveStackItem } from '../../src/engine/resolve';
 import { cardIdOf, validateModalDef, type CardDb, type CardDef, type GameState, type Permanent } from '../../src/engine/types';
+import { castsForModes, modeChooserTitle, modeRows, toggleMode } from '../../src/ui/modeChoice';
 import { rulesText } from '../../src/ui/rulesText';
 import { makeTestState, TEST_DB } from '../helpers';
 
@@ -126,5 +127,29 @@ describe('modal spells', () => {
     const game = Game.restore(boardState([{ iid: 1, cardId: 'ox', controller: 1 }], ['choice']), DB);
     const cast = brain().chooseAction(game.viewFor(0), game.legalActions(0));
     expect(cast).toMatchObject({ type: 'castSpell', modes: [1], targets: [creature(1)] });
+  });
+});
+
+describe('the duel\'s mode chooser', () => {
+  it('lists every mode, dims one with no legal target, and narrows to the engine\'s casts for the chosen set', () => {
+    const empty = Game.restore(boardState([], ['stones']), DB);
+    const rows = modeRows(DB.stones, casts(empty));
+    expect(rows.map((r) => r.available)).toEqual([true, false, false]);
+    expect(rows[0].line).toMatch(/^You gain 3 life/);
+    expect(modeChooserTitle(DB.stones)).toBe('Choose up to two');
+    expect(modeChooserTitle(DB.choice)).toBe('Choose one');
+
+    const game = Game.restore(boardState([{ iid: 1, cardId: 'ox', controller: 1 }], ['stones']), DB);
+    const picked = castsForModes(casts(game), [0, 1]);
+    expect(picked).toEqual([{ type: 'castSpell', handIndex: 0, modes: [0, 1], targets: [creature(1)] }]);
+    expect(castsForModes(casts(empty), [0, 1])).toEqual([]);
+  });
+
+  it('picks one mode alone for "choose one", and toggles up to the limit, in printed order, for more', () => {
+    expect(toggleMode([0], 1, 1)).toEqual([1]);
+    expect(toggleMode([], 2, 2)).toEqual([2]);
+    expect(toggleMode([2], 0, 2)).toEqual([0, 2]);
+    expect(toggleMode([0, 2], 1, 2)).toEqual([0, 2]);
+    expect(toggleMode([0, 2], 0, 2)).toEqual([2]);
   });
 });

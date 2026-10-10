@@ -64,7 +64,7 @@ import { Services } from '../meta/services';
 import { checkpointAchievements } from '../meta/achievementCheckpoint';
 import { deckColorStyle, type DeckColorStyle } from '../meta/deckColorIdentity';
 import { signals, type DuelSignalDeck } from '../net/signals';
-import { activatedBlockers, forcedAction, reasonUncastable, validateAction, type Action } from '../engine/actions';
+import { activatedBlockers, forcedAction, modalTargetSpecs, reasonUncastable, validateAction, type Action } from '../engine/actions';
 import { castTargetSpecsFor } from '../engine/resolve';
 import { previewCombat } from '../engine/combat/damage';
 import { compelledAttackers, eligibleAttackers, blockOptions, minimumBlockersForAttacker } from '../engine/combat/legality';
@@ -73,9 +73,9 @@ import { Game } from '../engine/Game';
 import { combineManaCosts, manaSources, solveMana } from '../engine/mana';
 import { ensureSplitPip } from '../ui/ManaSymbols';
 import { ensureNumeralBadgeInk, INTER_FIGURE_HEIGHT } from '../ui/NumeralGlyphs';
-import { getEffectiveStats, isSummoningSick } from '../engine/statics';
+import { getEffectiveStats, isSummoningSick, isSwornActive } from '../engine/statics';
 import type { CardDef, Color, ManaColor, PlayerId, Permanent, TargetRef } from '../engine/types';
-import { activatedAbilitiesOf, cardIdOf, def, isType, manaValue } from '../engine/types';
+import { activatedAbilitiesOf, cardIdOf, def, isType, manaValue, markCostOf } from '../engine/types';
 import { graveRefCard, sameGraveCard } from '../engine/graveyard';
 import {
   attachTouchGestures,
@@ -130,6 +130,11 @@ import {
   type CoinFlipSide,
 } from '../ui/coinFlipLayout';
 import { CommanderPortrait } from '../ui/CommanderPortrait';
+import { MandateSeal } from '../ui/MandateSeal';
+import { swornChip, type SwornChip } from '../ui/swornPresentation';
+import { CARD_FACE } from '../config/cardFaceGeometry';
+import { castsForModes, modeChooserTitle, modeRows, toggleMode } from '../ui/modeChoice';
+import { mandateSealCenter, mandateShown, mandateSpot } from '../ui/mandatePresentation';
 import { addPortraitArt } from '../ui/portraitArt';
 import { fanLayout } from '../ui/handFan';
 import { handDisplayOrder } from '../ui/handSort';
@@ -145,6 +150,7 @@ import {
   CARD_TRAVEL_MOTION,
   CONCEDE_ARM_MS,
   DUTY_ACTION_LABEL,
+  dutyActionLabel,
   DUTY_CANCEL_LABEL,
   DUTY_PLAYER_LABELS,
   dutyBlockedCopy,
@@ -630,6 +636,10 @@ export class DuelScene extends Phaser.Scene {
   /** transient center banner shown on each turn change (self-destroys). */
   private turnBanner?: Phaser.GameObjects.Container;
   private previousLife: [number, number] | null = null;
+  /** The Mandate's seal (2.0 lane B4); null until the board is built. */
+  private mandateSeal: MandateSeal | null = null;
+  /** The turn chip's drawn width: the unclaimed seal waits just past it. */
+  private turnPillWidth = 52;
   private previousPhaseRow: PhaseTrackRow | null = null;
   private forecastWasLethal = false;
   /** Underlying life-driven tension survives a temporary lethal-visible bed. */
@@ -1747,10 +1757,43 @@ export class DuelScene extends Phaser.Scene {
     ring.strokeRoundedRect(pos.x - half, pos.y - half, half * 2, half * 2, theme.radius.control + 2);
   }
 
+  /**
+   * Snap the Mandate's seal to its holder's life, or beside the turn chip
+   * while unclaimed; hidden in a duel where no visible card names it
+   * (`mandateShown`). A claim in flight finishes first (`flyMandateSeal`).
+   */
+  private syncMandateSeal(): void {
+    const seal = this.mandateSeal;
+    if (!seal || seal.flying) return;
+    const st = this.duel.state;
+    if (!mandateShown(st, CARD_DB, HUMAN)) {
+      seal.place(null, null);
+      return;
+    }
+    const spot = mandateSpot(st.mandateHolder, HUMAN);
+    seal.place(spot, mandateSealCenter(spot, this.turnPillWidth));
+  }
+
+  /** A claim: the seal flies from where it was to its new holder (instant unless motion is full). */
+  private flyMandateSeal(from: PlayerId | null, to: PlayerId): void {
+    const seal = this.mandateSeal;
+    if (!seal) return;
+    const origin = mandateSpot(from, HUMAN);
+    const spot = mandateSpot(to, HUMAN);
+    seal.fly(
+      mandateSealCenter(origin, this.turnPillWidth),
+      mandateSealCenter(spot, this.turnPillWidth),
+      spot,
+      Services.save.data.settings.animations === 'full',
+      () => this.syncMandateSeal(),
+    );
+  }
+
   /** While a face is legal, its badge and whole portrait resolve to the same target. */
   private syncFaceTargeting(): void {
     const myTargetable = this.isPlayerTargetable(HUMAN);
     const oppTargetable = this.isPlayerTargetable(AI);
+    this.mandateSeal?.setInputAllowed(!myTargetable && !oppTargetable);
     const myColor = this.targetRingColor(HUMAN);
     const oppColor = this.targetRingColor(AI);
     this.portrait.setFaceTargetable(myTargetable, myColor);
@@ -1864,6 +1907,7 @@ export class DuelScene extends Phaser.Scene {
     });
     this.addLifeBadgePlate(LAYOUT.myLife.x, LAYOUT.myLife.y);
     this.addLifeBadgePlate(LAYOUT.oppLife.x, LAYOUT.oppLife.y);
+    this.mandateSeal = new MandateSeal(this);
     this.lifeTargetRings = {
       my: this.add.graphics().setDepth(theme.depth.hudLabel),
       opp: this.add.graphics().setDepth(theme.depth.hudLabel),
@@ -2612,7 +2656,7 @@ export class DuelScene extends Phaser.Scene {
         wordWrap: { width: 480 }, align: 'center', resolution: 2,
       }).setOrigin(0.5));
       this.dutyFinishButton = themedButton(this, LAYOUT.cluster.x, LAYOUT.cluster.endTurnY,
-        duty.type === 'activate' ? DUTY_ACTION_LABEL : 'Confirm targets', {
+        duty.type === 'activate' ? this.dutyLabelOf(duty) : 'Confirm targets', {
           variant: 'primary', ...CLUSTER_BUTTON, enabled: step.complete !== null,
           onTap: (pointer) => { if (!pointer.rightButtonReleased()) this.confirmPendingTargets(); },
         });
@@ -2853,6 +2897,7 @@ export class DuelScene extends Phaser.Scene {
     label.setText(turn === 0 ? '' : `T${turn}`);
     label.setColor(yours ? theme.colors.gold : theme.colors.body);
     const w = Math.max(52, label.width + 22);
+    this.turnPillWidth = w;
     fill.clear();
     fill.fillStyle(theme.graphics.rowFillActive, 1);
     fill.fillRoundedRect(LAYOUT.turnPill.x - w / 2, LAYOUT.turnPill.y - 14, w, 28, theme.radius.control);
@@ -3301,6 +3346,7 @@ export class DuelScene extends Phaser.Scene {
           this.cardRef(e.cardId),
           e.player === HUMAN ? 'you' : 'opponent',
           dutyEffectText(def(CARD_DB, e.cardId), e.abilityIndex),
+          e.marksSpent,
         ), e.cardId);
         const view = this.views.get(e.iid);
         if (e.player !== HUMAN) {
@@ -3497,6 +3543,17 @@ export class DuelScene extends Phaser.Scene {
       case 'tokenRefused': {
         const line = eventHistoryLine(e, this.eventLineLookup(batch));
         if (line) this.log(line, e.tokenCardId);
+        break;
+      }
+      case 'mandateDraw': {
+        const line = eventHistoryLine(e, this.eventLineLookup(batch));
+        if (line) this.log(line);
+        break;
+      }
+      case 'mandateChanged': {
+        const line = eventHistoryLine(e, this.eventLineLookup(batch));
+        if (line) this.log(line);
+        this.flyMandateSeal(e.from, e.to);
         break;
       }
       case 'turnBegan':
@@ -4361,6 +4418,7 @@ export class DuelScene extends Phaser.Scene {
 
     const yours = st.turn !== 0 && st.activePlayer === HUMAN;
     this.syncTurnPill(st.turn, yours);
+    this.syncMandateSeal();
     this.syncPhaseTrack(st.turn === 0 ? null : phaseTrackRowForStep(st.step), yours);
     this.syncUndoButton();
     this.syncCombatPreview();
@@ -4853,6 +4911,7 @@ export class DuelScene extends Phaser.Scene {
     if (!cardId) return;
     const card = def(CARD_DB, cardId);
     const specs = action.type === 'activate' ? activatedAbilitiesOf(card)[action.abilityIndex ?? 0].targets ?? []
+      : action.type === 'castSpell' && action.modes && card.modal ? modalTargetSpecs(card.modal, action.modes)
       : castTargetSpecsFor(card, action.type === 'castSpell' && action.retell === true,
         action.type === 'castSpell' && action.hauntlinked === true, action.type === 'castSpell' && action.empowered === true);
     this.targetPicks = [];
@@ -5471,6 +5530,43 @@ export class DuelScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * The Sworn chip on a hand card: a filled check or an open ring, and the
+   * words. A child of the card, so it tilts and lifts with it; its sizes are
+   * divided by the card's scale so the words draw at the caption size.
+   */
+  private addSwornChip(view: CardView, chip: SwornChip, scale: number): void {
+    const k = 1 / scale;
+    const text = this.add.text(0, 0, chip.label, {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption * k}px`, fontStyle: theme.weight.w700,
+      color: chip.active ? theme.colors.gold : theme.colors.body, resolution: 2,
+    }).setOrigin(0, 0.5).setData('a11yFitToBox', true);
+    const r = 5 * k;
+    const padX = 6 * k;
+    const h = 20 * k;
+    const w = padX + r * 2 + 5 * k + text.width + padX;
+    // Inside the art window's top-left corner: the left edge is the part of a
+    // fanned card its right-hand neighbour never covers.
+    const x = CARD_FACE.art.x + 6;
+    const y = CARD_FACE.art.y + 6;
+    const plate = this.add.graphics()
+      .fillStyle(theme.graphics.panelFill, 0.92).fillRoundedRect(x, y, w, h, h / 2)
+      .lineStyle(1.5 * k, colorInt(chip.active ? theme.colors.gold : theme.colors.muted), 1)
+      .strokeRoundedRect(x, y, w, h, h / 2);
+    const cx = x + padX + r;
+    const cy = y + h / 2;
+    const mark = this.add.graphics().lineStyle(1.5 * k, colorInt(chip.active ? theme.colors.gold : theme.colors.muted), 1);
+    if (chip.active) {
+      mark.fillStyle(colorInt(theme.colors.gold), 1).fillCircle(cx, cy, r);
+      mark.lineStyle(1.6 * k, theme.graphics.panelFill, 1).beginPath()
+        .moveTo(cx - r * 0.5, cy).lineTo(cx - r * 0.1, cy + r * 0.45).lineTo(cx + r * 0.55, cy - r * 0.4).strokePath();
+    } else {
+      mark.strokeCircle(cx, cy, r);
+    }
+    text.setPosition(cx + r + 5 * k, cy);
+    view.add([plate, mark, text]);
+  }
+
   private syncHand(): void {
     this.clearManaPlanPreview();
     const hand = this.duel.state.players[HUMAN].hand;
@@ -5538,6 +5634,7 @@ export class DuelScene extends Phaser.Scene {
     // is the fan slot / depth (visual), `handIdx` is the true engine index used
     // for legality + clicks — the two are no longer the same. (handSort.ts)
     const order = handDisplayOrder(hand, CARD_DB);
+    const swornNow = isSwornActive(this.duel.state.battlefield, CARD_DB, HUMAN);
     const previousRemaining = new Map<string, number>();
     if (this.previousHand) {
       for (const cardId of this.previousHand) previousRemaining.set(cardId, (previousRemaining.get(cardId) ?? 0) + 1);
@@ -5560,6 +5657,8 @@ export class DuelScene extends Phaser.Scene {
         landStyle,
       });
       view.setDepth(theme.depth.hand + pos);
+      const sworn = swornChip(d, swornNow);
+      if (sworn) this.addSwornChip(view, sworn, scale);
       const playable = playableIdx.has(handIdx);
       const priorCount = previousRemaining.get(cardId) ?? 0;
       const entered = this.previousHand !== null && priorCount === 0;
@@ -6284,6 +6383,11 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private startCast(casts: Extract<Action, { type: 'castSpell' }>[]): void {
+    const modalId = this.actionCardId(casts[0]);
+    if (modalId && def(CARD_DB, modalId).modal && casts.some((c) => c.modes !== undefined)) {
+      this.showModeChooser(def(CARD_DB, modalId), casts);
+      return;
+    }
     if (casts.some((c) => c.empowered) && casts.some((c) => !c.empowered)) {
       const cardId = this.actionCardId(casts[0]);
       if (cardId) this.showEmpowerChooser(def(CARD_DB, cardId), casts);
@@ -7498,6 +7602,7 @@ export class DuelScene extends Phaser.Scene {
     const width = 1280;
     const height = 720;
     const duty = casts[0]?.type === 'activate';
+    const dutyLabel = casts[0]?.type === 'activate' ? this.dutyLabelOf(casts[0]) : DUTY_ACTION_LABEL;
     const mandatory = this.isHumanChooseTarget();
     const deferred = deferredTargetPrompt(this.duel.instanceState, CARD_DB, HUMAN);
     const edict = edictSacrificeSelection(this.duel.instanceState, CARD_DB, HUMAN, this.edictPicks);
@@ -7519,7 +7624,7 @@ export class DuelScene extends Phaser.Scene {
     c.add(
       this.add
         .text(width / 2, 150, edict ? `${edict.prompt} · ${this.edictPicks.length} of ${edict.count}` :
-          deferred?.title ?? `${duty ? DUTY_ACTION_LABEL : 'Choose targets'} · ${this.pendingTargetStep().countText}`, {
+          deferred?.title ?? `${duty ? dutyLabel : 'Choose targets'} · ${this.pendingTargetStep().countText}`, {
           fontFamily: theme.fonts.display,
           fontSize: `${theme.type.h1}px`,
           color: theme.colors.heading,
@@ -7573,7 +7678,7 @@ export class DuelScene extends Phaser.Scene {
     });
     const complete = this.pendingTargetStep().complete;
     if (!mandatory || edict) {
-      c.add(themedButton(this, width / 2, 540, edict ? 'Confirm sacrifice' : duty ? DUTY_ACTION_LABEL : 'Confirm targets', {
+      c.add(themedButton(this, width / 2, 540, edict ? 'Confirm sacrifice' : duty ? dutyLabel : 'Confirm targets', {
         variant: 'primary', minWidth: 180, enabled: edict ? edict.action !== null : complete !== null,
         onTap: (pointer) => {
           if (pointer.rightButtonReleased()) return;
@@ -7618,6 +7723,12 @@ export class DuelScene extends Phaser.Scene {
     this.endTurnTick();
   }
 
+  /** The confirm label for a pending activation: "Perform Duty", or the marks it removes. */
+  private dutyLabelOf(action: { iid: number; abilityIndex?: number }): string {
+    const source = this.duel.state.battlefield.find((perm) => perm.iid === action.iid);
+    return dutyActionLabel(source ? activatedAbilitiesOf(def(CARD_DB, source.cardId))[action.abilityIndex ?? 0] : undefined);
+  }
+
   /** The same card-and-cost confirmation composition as the graveyard and cast choosers. */
   private showDutyConfirm(card: CardDef, action: DutyAction): void {
     const c = this.add.container(0, 0).setDepth(105);
@@ -7626,7 +7737,9 @@ export class DuelScene extends Phaser.Scene {
       if (!pointer.rightButtonReleased()) this.closeEmpowerChooser();
     });
     c.add(dim);
-    c.add(this.add.text(640, 130, DUTY_ACTION_LABEL, {
+    const ability = activatedAbilitiesOf(card)[action.abilityIndex ?? 0];
+    const label = dutyActionLabel(ability);
+    c.add(this.add.text(640, 130, label, {
       fontFamily: theme.fonts.display, fontSize: `${theme.type.h1}px`, color: theme.colors.heading,
     }).setOrigin(0.5));
     const variant = displayVariantFor(Services.save.data, card.id);
@@ -7639,20 +7752,38 @@ export class DuelScene extends Phaser.Scene {
     // ManaText understands mana tokens only. Draw the baked tap pip directly
     // beside the mana run, so no literal T or Duty replaces the cost's icon.
     const pipSize = 22;
-    const cost = activatedAbilitiesOf(card)[action.abilityIndex ?? 0].cost.mana;
-    const mana = renderManaText(this, c, 0, 0, cost && manaValue(cost) > 0 ? `, ${manaCostText(cost)}` : '', {
-      fontFamily: theme.fonts.ui, fontSize: `${duelHudType(pipSize)}px`, color: theme.colors.gold, resolution: 2,
-    });
-    const left = 640 - (pipSize + mana.text.width) / 2;
-    c.add(this.add.image(left + pipSize / 2, 500, 'pip-T').setDisplaySize(pipSize, pipSize));
-    mana.text.setPosition(left + pipSize, 500).setOrigin(0, 0.5);
-    mana.reflow();
+    const cost = ability.cost.mana;
+    const paysMana = cost !== undefined && manaValue(cost) > 0;
+    if (markCostOf(ability) > 0) {
+      // Marks, not a tap: the mana (if any), then the words, never the tap pip.
+      const mana = renderManaText(this, c, 0, 0, paysMana ? `${manaCostText(cost)}, ` : '', {
+        fontFamily: theme.fonts.ui, fontSize: `${duelHudType(pipSize)}px`, color: theme.colors.gold, resolution: 2,
+      });
+      const marks = markCostOf(ability);
+      const spend = `${paysMana ? 'remove' : 'Remove'} ${marks === 1 ? 'a mark' : `${marks} marks`} from this`;
+      const words = this.add.text(0, 500, spend, {
+        fontFamily: theme.fonts.ui, fontSize: `${duelHudType(pipSize)}px`, color: theme.colors.gold, resolution: 2,
+      }).setOrigin(0, 0.5);
+      const left = 640 - (mana.text.width + words.width) / 2;
+      mana.text.setPosition(left, 500).setOrigin(0, 0.5);
+      mana.reflow();
+      words.setX(left + mana.text.width);
+      c.add(words);
+    } else {
+      const mana = renderManaText(this, c, 0, 0, paysMana ? `, ${manaCostText(cost)}` : '', {
+        fontFamily: theme.fonts.ui, fontSize: `${duelHudType(pipSize)}px`, color: theme.colors.gold, resolution: 2,
+      });
+      const left = 640 - (pipSize + mana.text.width) / 2;
+      c.add(this.add.image(left + pipSize / 2, 500, 'pip-T').setDisplaySize(pipSize, pipSize));
+      mana.text.setPosition(left + pipSize, 500).setOrigin(0, 0.5);
+      mana.reflow();
+    }
     this.dutyConfirm = () => {
       if (!c.active || validateAction(this.duel.instanceState, CARD_DB, HUMAN, action) !== null) return;
       this.closeEmpowerChooser();
       this.act(action);
     };
-    c.add(themedButton(this, 640, 555, DUTY_ACTION_LABEL, {
+    c.add(themedButton(this, 640, 555, label, {
       variant: 'primary', minWidth: 220,
       onTap: (pointer) => {
         if (pointer.rightButtonReleased()) return;
@@ -8152,6 +8283,102 @@ export class DuelScene extends Phaser.Scene {
     }
     this.empowerChooser = c;
     this.empowerChooserGuard.open(this.overlayGuardTargets());
+  }
+
+  /**
+   * The mode chooser for a modal Ritual or Charm (2.0): the card beside one
+   * row per mode. "Choose one" casts on the tap; "Choose up to N" toggles
+   * rows and casts on Cast. A mode with no legal target now stays listed,
+   * dimmed and saying so. Only the engine's own legal casts are narrowed, so
+   * an illegal set can't be offered; targets follow as for any spell.
+   */
+  private showModeChooser(
+    d: CardDef,
+    casts: Extract<Action, { type: 'castSpell' }>[],
+    selected: number[] = [],
+    redraw = false,
+  ): void {
+    this.empowerChooser?.destroy();
+    this.empowerChooser = null;
+    const upTo = d.modal?.upTo ?? 1;
+    const c = this.add.container(0, 0).setDepth(105);
+    const dim = this.add.rectangle(640, 360, 1280, 720, theme.graphics.dim, theme.alpha.overlayDim).setInteractive();
+    bindTapButton(this, dim, (p) => {
+      if (!p.rightButtonReleased()) this.closeEmpowerChooser();
+    });
+    c.add(dim);
+    c.add(this.add.text(640, 96, modeChooserTitle(d), {
+      fontFamily: theme.fonts.display, fontSize: `${theme.type.h1}px`, color: theme.colors.heading,
+    }).setOrigin(0.5));
+    const v = new CardView(this, 330, 370).setScale(0.62);
+    const variant = displayVariantFor(Services.save.data, d.id);
+    v.setCard(d, { fx: 'none', variant, fullArt: variant.fullArt });
+    c.add(v);
+    v.enableInput();
+    this.zoom.attach(v, d, variant);
+
+    const cast = (modes: number[]): void => {
+      const subset = castsForModes(casts, modes);
+      if (subset.length === 0) return;
+      this.closeEmpowerChooser();
+      this.continueCast(subset);
+    };
+    const rowX = 560;
+    const rowW = 600;
+    let y = 170;
+    for (const row of modeRows(d, casts)) {
+      const chosen = selected.includes(row.index);
+      const text = this.add.text(rowX + 48, 0, row.available ? row.line : `${row.line}\nNo legal target right now.`, {
+        fontFamily: theme.fonts.ui, fontSize: `${duelHudType(17, 'body')}px`, color: theme.colors.body,
+        wordWrap: { width: rowW - 64 }, resolution: 2,
+      });
+      const h = Math.max(56, text.height + 24);
+      const plate = this.add.graphics()
+        .fillStyle(chosen ? theme.graphics.rowFillActive : theme.graphics.panelFill, 0.96)
+        .fillRoundedRect(rowX, y, rowW, h, theme.radius.control)
+        .lineStyle(chosen ? theme.outline.state : 1, colorInt(chosen ? theme.colors.gold : theme.colors.panelStroke), 1)
+        .strokeRoundedRect(rowX, y, rowW, h, theme.radius.control);
+      // A ring for "pick one", a box for "pick several"; filled when chosen. Shape and word, never colour alone.
+      const mark = this.add.graphics().lineStyle(2, colorInt(theme.colors.gold), 1);
+      const mx = rowX + 24;
+      const my = y + h / 2;
+      if (upTo === 1) mark.strokeCircle(mx, my, 9);
+      else mark.strokeRoundedRect(mx - 9, my - 9, 18, 18, 3);
+      if (chosen) mark.fillStyle(colorInt(theme.colors.gold), 1).fillRect(mx - 5, my - 5, 10, 10);
+      text.setY(y + (h - text.height) / 2);
+      const hit = this.add.rectangle(rowX + rowW / 2, y + h / 2, rowW, h, 0x000000, 0).setName(`duel-mode-${row.index}`);
+      c.add([plate, mark, text, hit]);
+      if (row.available) {
+        hit.setInteractive({ useHandCursor: true });
+        bindTapButton(this, hit, (p) => {
+          if (p.rightButtonReleased()) return;
+          if (upTo === 1) cast([row.index]);
+          else this.showModeChooser(d, casts, toggleMode(selected, row.index, upTo), true);
+        });
+      } else {
+        plate.setAlpha(0.5);
+        mark.setAlpha(0.5);
+        text.setAlpha(0.6);
+      }
+      y += h + 12;
+    }
+    const buttonY = Math.max(y + 36, 560);
+    if (upTo > 1) {
+      c.add(this.add.text(rowX, y + 2, `${selected.length} of up to ${upTo} chosen`, {
+        fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px`, color: theme.colors.muted, resolution: 2,
+      }));
+      c.add(themedButton(this, rowX + rowW / 2 - 110, buttonY, 'Cast', {
+        variant: 'primary', minWidth: 180, enabled: castsForModes(casts, selected).length > 0,
+        onTap: (p) => { if (!p.rightButtonReleased()) cast(selected); },
+      }).container);
+    }
+    c.add(themedButton(this, upTo > 1 ? rowX + rowW / 2 + 110 : rowX + rowW / 2, buttonY, 'Cancel', {
+      variant: 'ghost', minWidth: 180,
+      onTap: (p) => { if (!p.rightButtonReleased()) this.closeEmpowerChooser(); },
+    }).container);
+    this.empowerChooser = c;
+    // A toggle redraws the chooser in place; the board stays guarded from the first draw.
+    if (!redraw) this.empowerChooserGuard.open(this.overlayGuardTargets());
   }
 
   private closeEmpowerChooser(): void {

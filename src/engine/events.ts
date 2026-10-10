@@ -108,6 +108,8 @@ export type GameEvent =
   | { e: 'tokenRefused'; player: PlayerId; tokenCardId: string }
   /** The Mandate changed hands: claimed by an effect, or taken by combat damage to its holder. */
   | { e: 'mandateChanged'; from: PlayerId | null; to: PlayerId; reason: 'effect' | 'combat' }
+  /** The Mandate's dawn draw for its holder, emitted just before that draw. */
+  | { e: 'mandateDraw'; player: PlayerId }
   | { e: 'positionNote'; note: string } // debug/log line, never load-bearing
   | {
       e: 'gameEnded';

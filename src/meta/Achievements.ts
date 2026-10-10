@@ -397,7 +397,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
   {
     id: 'theme-rotk-three-lords-special',
     bucket: 'theme',
-    title: 'Mandate In Foil',
+    title: 'Three Lords In Foil',
     description: 'Own all three RoTK leaders as special variants.',
     reward: { gold: 350 },
     progress: (save, db) => themeVariantProgress(save, ROTK_LEADERS, db, isSpecialVariant),
@@ -405,7 +405,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
   {
     id: 'theme-rotk-three-lords-rainbow',
     bucket: 'theme',
-    title: 'Rainbow Mandate',
+    title: 'Rainbow Lords',
     description: 'Own all three RoTK leaders with rainbow borders.',
     reward: { gold: 600 },
     progress: (save, db) => themeVariantProgress(save, ROTK_LEADERS, db, isRainbowBorder),

@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-2.0.md, docs/plan-core-set-2.md, src/engine/mandate.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/effects/EffectInterpreter.ts, src/engine/types.ts, src/engine/events.ts, src/engine/view.ts, src/engine/Game.ts, src/ai/determinize.ts, src/meta/Replay.ts, src/power/scoreCore.ts · last-verified: 2026-10-10 · engine spec, DRAFT: lane B1 of plan-2.0; the parts marked "as built" are on release/2.0, the rest is proposed; re-verify when the owner rules a question below or the overplan's cut changes -->
+<!-- source-of-truth: docs/plan-2.0.md, docs/plan-core-set-2.md, src/engine/mandate.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/effects/EffectInterpreter.ts, src/engine/types.ts, src/engine/events.ts, src/engine/view.ts, src/engine/Game.ts, src/ai/determinize.ts, src/meta/Replay.ts, src/power/scoreCore.ts, src/ui/mandatePresentation.ts, src/ui/modeChoice.ts · last-verified: 2026-10-10 · engine spec, DRAFT: lane B1 of plan-2.0; the parts marked "as built" are on release/2.0, the rest is proposed; re-verify when the owner rules a question below or the overplan's cut changes -->
 
 # Core Set II engine spec: the Mandate, Sworn, and what the cards need (2.0 lane B)
 
@@ -13,7 +13,7 @@ Build order (the 2.0 plan's shared-file order: the Mandate first in `types.ts` a
 5. Small constructs the overplan names: an arrival trigger filtered by subtype (Yutu, Jiuwei, Lanlan); "if you gained life this turn" (Hebe); a token created for a target's controller (Circe's Pig). **As built (B2.4).**
 6. Nüwa's pieces: removing marks as an activation cost, without a tap; a Tithe that grants marks; Tithe on a Darling cast (ruled 2026-10-08: it reduces the base cost, never the Darling tax). **As built (B2.5).**
 7. The modal "choose up to N" (ruled into the engine 2026-10-08 for later sets). **As built (B2.6), for Rituals and Charms.**
-8. The AI reads (B3), the duel UI (B4), the lab rates (B5).
+8. The AI reads (B3), the duel UI (B4, **as built**, Part 8), the lab rates (B5).
 
 ## Part 1. The Mandate
 
@@ -33,7 +33,7 @@ Build order (the 2.0 plan's shared-file order: the Mandate first in `types.ts` a
 - **Combat.** `dealCombatDamage` (`src/engine/combat/damage.ts`) reads the holder at the start of each batch; if it was the defending player and any hit to that player was positive, the attacking player claims after `applyCreatureDamage` and before the `combatDamageToPlayer` triggers. State-based actions stay where they were. A normal batch after a first-strike claim finds the attacker already holding it, so it never claims twice.
 - **Views and the AI.** `viewFor` copies the holder into every `PlayerView` (it is public); `determinize` copies it back, so Hard's simulations see the same holder. `Game.restore`'s legacy-state sync carries it.
 - **Scorer.** `claimMandate` scores 0 and is reported as an unknown (`op:claimMandate`) until the lab (B5) measures a claim. The personas' op table also holds it at 0. Neither invents a rate.
-- **Words.** `rulesText` renders the op as "claim the Mandate". The Forge accepts it in its validator; it is not yet in the Forge's effect palette (B4 adds the palette entry with the glossary text).
+- **Words.** `rulesText` renders the op as "claim the Mandate". The Forge offers it in its effect palette (added in B4).
 - **Tests.** `tests/engine/mandate.test.ts`: initial state, effect claim, claiming from the other player, already-holder no-op, dawn order, turn-one draw, deck-out at dawn, combat claim, several attackers, claim-before-trigger order, first strike then normal, unclaimed and attacker-holds, blocked damage, zero Attack, Fog, lethal damage, restore and determinize.
 
 ## Part 2. The starting-life field (D3a)
@@ -111,7 +111,7 @@ The overplan's latest Nüwa (owner's design, 2026-10-08) is a 4/4 Tithe Darling 
 - **Darling Tithe.** `castDarling` takes `tithe` and `sacrifices`. `darlingCastCost(d, tax, tithe?)` discounts the printed cost, then adds the tax. `legalActions` offers one canonical fodder cast beside the full-price one, as from hand. The sacrifice payment is shared with the hand cast (`Game.paySacrifices`).
 - **AI reads.** A stone is valued as its effect minus 1.2 per mark spent (the AI's price for a targeted mark), and never competes with the body's attack since it does not tap. The Tithe policy (`src/ai/tithePolicy.ts`) now picks fodder for a Darling cast as well, pricing against the printed cost and paying the tax on top; all three brains add the saved mana to a Darling cast's score, as they do from hand.
 - **Scorer.** A mark-cost ability scores 0 and reports `activated:removeMarks`; Tithe marks report `tithe:marks` (the Devour rate the Tithe comment already flags). Both wait on the lab (B5).
-- **Not yet.** The Forge's builder and validator still accept only tap costs, and the duel UI shows a stone like a Duty; both land with B4.
+- **Duel and Forge.** Built with B4 (Part 8).
 - **Tests.** `tests/engine/markCostAndDarlingTithe.test.ts`: marks spent with no tap on an arriving creature, repeated use while tapped until the marks run out, a Duty beside stones still taps and waits, the card wording, Tithe marks capped and absent on a full-price cast, the tax paid in full (including when the fodder could cover more than the printed generic), the canonical Darling Tithe offer, and refused sacrifices.
 
 ## Part 7. Modal spells
@@ -132,8 +132,24 @@ Ruled into the engine 2026-10-08 so later sets can print "some of these effects"
 - **Words.** `modalText` in `src/ui/rulesText.ts`.
 - **AI reads.** `modalCastValue` (`src/ai/value.ts`) adds each chosen mode's value: its target-free ops at printed rates and its targeted ops on the target the cast names. `cardValue` folds it in for Medium and Hard; Easy adds it to its cast score. Medium still holds every Charm for a response window, as it does today.
 - **Scorer.** A modal card scores 0 for its modes and reports `modal` until the lab (B5) measures a rate.
-- **Not yet.** Modal triggers and Duties, the Forge's builder, and a mode picker in the duel UI (B4).
+- **Not yet.** Modal triggers and Duties, and a mode editor in the Forge (a modal card loads, previews and exports as printed). The duel's mode chooser is built (Part 8).
 - **Tests.** `tests/engine/modal.test.ts`: the offered choices (and a mode with no target left out), printed-order resolution on separate targets, a gone target skipping its mode and fizzling only when every mode lost its target, refused choices, the wording, the validator, and all three brains picking a removal mode over a life point.
+
+## Part 8. The duel UI (B4)
+
+### As built
+
+- **The Mandate's seal.** `MandateSeal` (`src/ui/MandateSeal.ts`) draws a gold seal with a star beside its holder's life badge, on the commander portrait and never over the life number; unclaimed, a dark seal with a dashed gold rim waits beside the turn chip. Placement, visibility and copy are pure (`src/ui/mandatePresentation.ts`). This follows the mobile frames' recommended options (owner calls M1 and M2, still open there), so the desktop is provisional until those are ruled.
+- **When it shows.** Only in a duel where someone holds it, or a card that names it is one the human can see: anywhere in their own deck, or face up anywhere public (`mandateShown`). The opponent's hidden cards never count. No shipped card names it yet, so no live duel shows it before Core Set II.
+- **The claim.** On `mandateChanged` the seal flies from where it was to the new holder (600 ms, one tween, a fading ring left behind; instant unless motion is full). Taken in combat, it flies once the blows have landed (`sequencedEventRoute` holds it with the strikes). Hover, or a tap on touch, opens a card saying who holds it and the rules reminder. While a player's face is a legal target the seal takes no input, so the whole portrait stays the target.
+- **History.** "You claim the Mandate", "Your opponent takes the Mandate in combat", and, from the engine's new `mandateDraw` event emitted just before the holder's dawn draw, "You hold the Mandate: draw a card".
+- **Glossary.** The Mandate and Sworn are Mechanics rows with their own glyphs (a seal; a laurel). `cardMechanics` detects them from structure (a claim op, a "whenever you claim" trigger, a hold or don't-hold condition; the Sworn condition), so the inspect Keyword Guide and Collection search find them. It also reads a modal spell's modes now, and an ability paid by removing marks teaches Mark rather than Duty.
+- **Stones.** A mark-paid ability is offered beside Duties as before, but its confirm and targeting say "Remove a mark" (or "Remove N marks") with the cost written out instead of the tap pip, and its history line reads "Your [Nüwa] removes a mark: …".
+- **Modal spells.** Casting one opens a mode chooser (`src/ui/modeChoice.ts`): the card beside a row per mode. "Choose one" casts on the tap; "choose up to N" toggles rows and casts on Cast. A mode with no legal target stays listed, dimmed, saying so. The chooser only narrows the engine's own legal casts; targets follow as for any spell.
+- **Sworn in hand.** A card with a Sworn ability carries a chip in its art window's corner: a filled check and "Sworn on", or an open ring and "Sworn off" (`src/ui/swornPresentation.ts`).
+- **Achievements (P5).** "Mandate In Foil" and "Rainbow Mandate" are now "Three Lords In Foil" and "Rainbow Lords" (ids unchanged; "In" matches the sibling foil titles).
+- **Tests.** `tests/ui/mandateDuel.test.ts` (visibility, docking, history, combat routing, the Sworn chip), additions to `tests/engine/mandate.test.ts`, `tests/engine/modal.test.ts` (the chooser), `tests/ui/activatedDuel.test.ts` (stones) and `tests/data/glossary.test.ts`. The dev fixtures `mandate-yours` and `mandate-theirs` put the seal in the rendered a11y probe.
+- **Not yet.** The Mandate's tap-to-open rules sheet with this duel's claims (mobile frame N4) and the Duty chip's wording on a stone-only creature.
 
 ## Questions for the owner
 

@@ -123,7 +123,8 @@ export function planCombat(
  * - `died`: logged when the blow that caused it lands.
  * - `heal`: a life gain (Blood Oath), popped once the strikes settle.
  * - `afterStrikes`: a Provoked trigger (1.9), logged once the strikes settle,
- *   so "is provoked" never reads before the blow that provoked it. A whole
+ *   so "is provoked" never reads before the blow that provoked it; likewise
+ *   the Mandate taken in combat (2.0). A whole
  *   batch (`sequencedBatchRoutes`) holds the trigger's effect with it.
  * - `drawn`: already shown by a strike's own number (a combat hit, a Hunt's
  *   blow, a combat hit on a player).
@@ -159,6 +160,10 @@ export function sequencedEventRoute(
     case 'overcharged':
     case 'tokenRefused':
       return 'narrate';
+    case 'mandateChanged':
+      // Combat takes the Mandate after the damage lands: the seal flies once
+      // the blows have, never ahead of them.
+      return e.reason === 'combat' ? 'afterStrikes' : 'narrate';
     default:
       return 'narrate';
   }

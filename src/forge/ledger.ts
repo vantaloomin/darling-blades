@@ -165,6 +165,9 @@ function cardLevelText(label: string, card: ScorableCardDef | undefined): string
     const mana = match[2] ? `, {${match[2]}} to use` : '';
     return `${carrier}${mana}${match[3] ? ' (shares the tap)' : ''}`;
   }
+  // 2.0: an ability paid by removing marks, and a modal spell's modes.
+  if (label === 'mark-cost ability') return 'Ability paid by removing marks';
+  if ((match = /^modal \(choose up to (\d+) of (\d+)\)$/.exec(label))) return `Modal spell (choose up to ${match[1]} of ${match[2]} modes)`;
   if ((match = /^enemy anthem ([+-]?\d+)\/([+-]?\d+)$/.exec(label))) {
     return staticText('Opposing creatures', 'get', 'gain', match[1], match[2], staticFor(card, 'filter', match[1], match[2], true));
   }
@@ -233,6 +236,7 @@ function rampDetail(detail: string): string {
 function effectText(effect: string): string | null {
   let match: RegExpExecArray | null;
   const n = (value: string): number => Number(value);
+  if (effect === 'claim the Mandate') return `Claim ${MECHANIC_NAMES.mandate.replace(/^The\b/, 'the')}`;
   if ((match = /^scry (\d+)$/.exec(effect))) return `${MECHANIC_NAMES.foresee} ${match[1]}`;
   if ((match = /^draw (\d+)$/.exec(effect))) return `${opLabel('draw')} ${match[1]}`;
   if ((match = /^gain (\d+)$/.exec(effect))) return `Gain ${match[1]} life`;

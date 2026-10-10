@@ -82,6 +82,7 @@ export function startTurn(state: GameState, db: CardDb, emit: Emit): void {
   // The Mandate's dawn draw comes before every permanent's dawn trigger, so
   // no global trigger has to resume. Deck-out can end the game here.
   if (mandateHolderOf(state) === active) {
+    emit({ e: 'mandateDraw', player: active });
     drawCards(state, emit, active, 1);
     if (state.winner !== null) return;
   }
