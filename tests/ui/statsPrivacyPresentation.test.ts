@@ -267,6 +267,13 @@ describe("the menu's arrival order", () => {
     }
   });
 
+  it('puts the home-screen save message after the stats notice and before the tutorial prompt', () => {
+    expect(menuArrivalSteps({ noticeOwed: true, deckRepairOwed: false, tutorialDone: false, saveOverOwed: true }))
+      .toEqual(['statsNotice', 'saveOver', 'tutorialPrompt']);
+    expect(menuArrivalSteps({ noticeOwed: false, deckRepairOwed: false, tutorialDone: false, saveOverOwed: true }))
+      .toEqual(['saveOver', 'tutorialPrompt']);
+  });
+
   it('keeps the old rule that a repair notice replaces the tutorial prompt', () => {
     for (const noticeOwed of [false, true]) {
       const steps = menuArrivalSteps({ noticeOwed, deckRepairOwed: true, tutorialDone: false });

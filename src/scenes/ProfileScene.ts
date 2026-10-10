@@ -133,7 +133,11 @@ export class ProfileScene extends Phaser.Scene {
     super('Profile');
   }
 
-  create(data: { notice?: string; replays?: readonly ReplayLog[]; a11yFixture?: ProfileA11yFixture } = {}): void {
+  create(data: {
+    notice?: string; replays?: readonly ReplayLog[]; a11yFixture?: ProfileA11yFixture;
+    /** Open the import dialog on arrival (the main menu's home-screen save message, M9). */
+    openImport?: boolean;
+  } = {}): void {
     // The notice is one-shot: Phaser keeps a start's data for the next start
     // that passes none (Systems.start only replaces it when given some), so a
     // later plain visit would show "Save imported" again.
@@ -280,7 +284,7 @@ export class ProfileScene extends Phaser.Scene {
     this.profileInteractiveTargets.push(backButton(this, 'Menu', () => this.scene.start('MainMenu')));
     if (this.fixture?.modal === 'export' || this.fixture?.modal === 'picker') this.openExportModal();
     if (this.fixture?.modal === 'picker') this.openSaveCardPicker(() => this.tryEncode(false) ?? '');
-    if (this.fixture?.modal === 'import' || this.fixture?.modal === 'confirm') this.openImportModal();
+    if (this.fixture?.modal === 'import' || this.fixture?.modal === 'confirm' || (!this.fixture && data.openImport === true)) this.openImportModal();
     if (this.fixture?.modal === 'confirm') this.openImportConfirmation(this.saveData);
     if (this.fixture?.identity) this.showIdentity(this.fixture.identity);
     if (this.fixture?.modal !== 'picker') this.data.set('a11yReady', true);

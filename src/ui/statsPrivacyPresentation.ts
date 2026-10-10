@@ -322,7 +322,7 @@ export function statsNoticeOwed(input: StatsNoticeOwedInput): boolean {
 // ---------------------------------------------------------------------------
 
 /** One thing the main menu does on arrival, before the player touches it. */
-export type MenuArrivalStep = 'statsNotice' | 'deckRepair' | 'tutorialPrompt';
+export type MenuArrivalStep = 'statsNotice' | 'saveOver' | 'deckRepair' | 'tutorialPrompt';
 
 export interface MenuArrivalInput {
   /** `statsNoticeOwed(...)`. */
@@ -331,6 +331,8 @@ export interface MenuArrivalInput {
   deckRepairOwed: boolean;
   /** `save.tutorialDone`. */
   tutorialDone: boolean;
+  /** The home-screen "bring your save over" message is owed (src/platform/homeScreen.ts). */
+  saveOverOwed?: boolean;
 }
 
 /**
@@ -344,10 +346,15 @@ export interface MenuArrivalInput {
  * After it, the rule that was already in the scene is unchanged: a deck-repair
  * notice wins over the tutorial prompt, and a player who sees the repair notice
  * is not also asked about the tutorial on the same visit.
+ *
+ * The home-screen save message (M9) comes straight after the stats notice and
+ * before the tutorial prompt: a player about to import their save has no need
+ * of the tutorial, and one who picks Not now carries on down the chain.
  */
 export function menuArrivalSteps(input: MenuArrivalInput): readonly MenuArrivalStep[] {
   const steps: MenuArrivalStep[] = [];
   if (input.noticeOwed) steps.push('statsNotice');
+  if (input.saveOverOwed) steps.push('saveOver');
   if (input.deckRepairOwed) steps.push('deckRepair');
   else if (!input.tutorialDone) steps.push('tutorialPrompt');
   return steps;

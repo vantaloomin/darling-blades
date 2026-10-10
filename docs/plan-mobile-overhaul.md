@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-2.0.md, docs/mobile-support-matrix.md, docs/mobile-lan-plan.md, docs/plan-accessibility-i18n.md, docs/plan-art-streaming.md, docs/design-system.md, index.html, vite.config.ts, src/gameBoot.ts, src/platform/gestureCore.ts, src/platform/gestures.ts, src/platform/quality.ts, src/platform/renderScale.ts, src/platform/clientProfile.ts, src/platform/screenMetrics.ts, src/platform/screenFixtures.ts, src/ui/accessibility.ts, src/ui/theme.ts, src/ui/layout.ts, src/ui/compactLayout.ts, src/ui/duelLayout.ts, src/ui/SceneBackdrop.ts, src/art/ArtResolver.ts, src/art/artBudget.ts, src/config/cardFaceGeometry.ts, src/ui/handFan.ts, src/forge/scene.ts, src/dev/a11yProbe.ts, src/scenes/ · last-verified: 2026-10-10 · plan doc, ruled in the 2.0 wave-1 sitting: rewritten for 2.0 lane C on the Version C mock set; P11 (M1-M4), P1 and P2 ruled 2026-10-08, M5-M29 ruled 2026-10-09, M30-M34 ruled 2026-10-10; re-verify when the owner rules the M decisions, and when each wave ships -->
+<!-- source-of-truth: docs/plan-2.0.md, docs/mobile-support-matrix.md, docs/mobile-lan-plan.md, docs/plan-accessibility-i18n.md, docs/plan-art-streaming.md, docs/design-system.md, index.html, vite.config.ts, src/gameBoot.ts, src/platform/gestureCore.ts, src/platform/gestures.ts, src/platform/quality.ts, src/platform/renderScale.ts, src/platform/clientProfile.ts, src/platform/screenMetrics.ts, src/platform/screenFixtures.ts, src/platform/homeScreen.ts, src/ui/accessibility.ts, src/ui/theme.ts, src/ui/layout.ts, src/ui/compactLayout.ts, src/ui/duelLayout.ts, src/ui/SceneBackdrop.ts, src/art/ArtResolver.ts, src/art/artBudget.ts, src/config/cardFaceGeometry.ts, src/ui/handFan.ts, src/forge/scene.ts, src/dev/a11yProbe.ts, src/scenes/ · last-verified: 2026-10-10 · plan doc, ruled in the 2.0 wave-1 sitting: rewritten for 2.0 lane C on the Version C mock set; P11 (M1-M4), P1 and P2 ruled 2026-10-08, M5-M29 ruled 2026-10-09, M30-M34 ruled 2026-10-10; re-verify when the owner rules the M decisions, and when each wave ships -->
 
 # Mobile overhaul: the 2.0 plan
 
@@ -405,14 +405,28 @@ word.
   it is found here, not in the Duel wave.
 - **The probe learns viewports.** `src/dev/a11yProbe.ts` renders the
   1280x720 window at three text sizes and two contrasts; it gains a
-  profile and viewport axis so it can render the matrix's fixtures.
+  profile and viewport axis so it can render the matrix's fixtures. **Built
+  in wave 1:** a dev load of `?layout=compact&viewport=<fixture>` (names in
+  `src/platform/screenFixtures.ts`) boots the compact profile as that
+  screen on any browser, and the probe's report names the viewport and,
+  under the compact profile, lists each scene's tap targets under 44 CSS px
+  (measured, not findings: every unmigrated scene has them, and a migrated
+  scene's list is empty).
 - **Small items that ride this wave:** the full-screen button (M8), the
   home-screen manifest and its one-time "bring your save over" message
   (M9), the form factor label (above), the
   old-browser message ([mobile-support-matrix.md](mobile-support-matrix.md)),
   and the tap slop re-expressed in CSS px (C1 makes the 10 px slop 10 CSS px
   instead of about 4; Android's own slop is 8 dp, so 10 is kept unless the
-  devices say otherwise).
+  devices say otherwise). **Built in wave 1:** the manifest
+  (`public/manifest.webmanifest`: full screen, landscape, the card-back
+  emblem icons at 192 and 512 plus a maskable one) and the save message,
+  shown once on the main menu when an iPhone or iPad home-screen app opens
+  on a fresh save (`src/platform/homeScreen.ts`; Import code opens
+  Profile's import dialog); the old-browser message (an inline check in
+  `index.html`); the slop in CSS px under the compact profile
+  (`tapSlopWorldPx` in `src/platform/renderScale.ts`, desktop unchanged).
+  The full-screen button waits on the owner's placement call.
 - **New frames for what the mocks predate,** for the owner to approve
   before the wave that builds them: the Mandate marker and its swings,
   Overcharge, Hunt, Provoked, First Dawn, life totals above 20 in the 96 px

@@ -22,6 +22,7 @@ import {
   resolveScreenMetrics,
   type ScreenMetrics,
 } from './platform/screenMetrics';
+import { screenFixtureNamed } from './platform/screenFixtures';
 import { BootScene } from './scenes/BootScene';
 import { AchievementsScene } from './scenes/AchievementsScene';
 import { ArtLoaderScene } from './scenes/ArtLoaderScene';
@@ -76,11 +77,21 @@ const showcaseScale = import.meta.env.DEV && new URLSearchParams(window.location
 // leaves out a visible bar), so the #app box read here is the screen less
 // only its safe areas, and the insets read as zero. The profile is worked out
 // once per load and never saved.
+// Dev only: `&viewport=<fixture>` stands the page in for a fixture screen from
+// the support matrix (src/platform/screenFixtures.ts) on any browser, the a11y
+// probe's viewport axis: #app is sized to the fixture and its pixel ratio and
+// safe areas are the fixture's.
 const compact: ScreenMetrics | null = (() => {
   if (showcaseScale !== null || !compactLayoutRequested(window.location.search)) return null;
+  const app = document.getElementById('app');
+  const fixture = import.meta.env.DEV ? screenFixtureNamed(window.location.search) : null;
+  if (fixture) {
+    document.documentElement.classList.add('layout-compact');
+    if (app) Object.assign(app.style, { inset: 'auto', left: '0', top: '0', width: `${fixture.viewportWidth}px`, height: `${fixture.viewportHeight}px` });
+    return resolveScreenMetrics(fixture);
+  }
   if (window.matchMedia?.('(pointer: coarse)').matches !== true) return null;
   document.documentElement.classList.add('layout-compact');
-  const app = document.getElementById('app');
   const m = resolveScreenMetrics({
     viewportWidth: app?.clientWidth || window.innerWidth,
     viewportHeight: app?.clientHeight || window.innerHeight,

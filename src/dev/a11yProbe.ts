@@ -29,6 +29,13 @@
  *   const probe = await import('/src/dev/a11yProbe.ts');
  *   const report = await probe.runA11yProbe(window.__game, { snapshots: true });
  *
+ * The viewport axis (mobile wave 1): load the page as a support matrix
+ * fixture, `?layout=compact&viewport=phone-short` (names in
+ * src/platform/screenFixtures.ts), and run the same call. The report names
+ * the viewport, and under the compact profile each scene also lists its tap
+ * targets under 44 CSS px (`smallTargets`, measured, not findings). One load
+ * per fixture: the profile and canvas are fixed when the page boots.
+ *
  * so a production build (whose entry is `src/main.ts`) never reaches it; the
  * runtime check below refuses to run outside a dev server as a second guard.
  * It never touches the save: Profile's fixture replays go in through the
@@ -58,6 +65,9 @@ import { CardView } from '../ui/CardView';
 import { theme } from '../ui/theme';
 import { zonePanelHeaderFindings } from '../ui/duelPanelPresentation';
 import { menuDensityFindings, menuTextFindings, menuTextOverlap, type MenuTextSurface, type MenuDensity } from '../ui/menuText';
+import { activeSceneZoom } from '../platform/renderScale';
+import { screenFixtureNamed } from '../platform/screenFixtures';
+import { COMPACT } from '../ui/compactLayout';
 
 export interface ProbeCell {
   readonly textScale: number;
@@ -107,7 +117,36 @@ export interface ProbeSceneReport {
   readonly maskedOut: number;
   readonly density?: readonly MenuDensity[];
   readonly findings: readonly ProbeFinding[];
+  /** Compact profile only: enabled tap targets, and those under 44 CSS px (smallest first). */
+  readonly targets?: number;
+  readonly smallTargets?: readonly ProbeSmallTarget[];
   readonly error?: string;
+}
+
+/**
+ * A tap target below the compact profile's 44 CSS px floor (C6), as drawn on
+ * this viewport. Measured, not a finding: no scene is migrated yet, so on a
+ * phone every 1280x720 scene shrinks its controls; the count is the size of
+ * each scene's migration, and a migrated scene's count is zero.
+ */
+export interface ProbeSmallTarget {
+  /** The target's own text or its nearest Text child, else its type. */
+  readonly label: string;
+  /** Hit area in CSS px. */
+  readonly width: number;
+  readonly height: number;
+}
+
+/** The viewport a run measured: the page's own screen, or a dev `&viewport=` fixture. */
+export interface ProbeViewport {
+  /** The support matrix fixture, or null for the page's own screen. */
+  readonly fixture: string | null;
+  readonly profile: 'compact' | 'wide';
+  readonly canvas: { readonly width: number; readonly height: number };
+  /** The canvas's box on the page, in CSS px. */
+  readonly css: { readonly width: number; readonly height: number };
+  /** CSS px per design px: how large a 1280x720 scene's 44 px is drawn. */
+  readonly cssPerDesignPx: number;
 }
 
 export interface ProbeCellReport {
@@ -120,6 +159,7 @@ export interface ProbeCellReport {
 
 export interface ProbeReport {
   readonly startedAt: string;
+  readonly viewport: ProbeViewport;
   readonly cells: readonly ProbeCellReport[];
   readonly totalFindings: number;
   /** Scenes of the wave's list the probe cannot boot on its own, and why. */
@@ -748,6 +788,65 @@ export function checkDuelCue(scene: Phaser.Scene, cue: NonNullable<ProbeScene['d
   return [];
 }
 
+/** The viewport this page runs at (the profile and canvas are fixed per load). */
+export function probeViewport(game: Phaser.Game): ProbeViewport {
+  const rect = game.canvas.getBoundingClientRect();
+  const css = { width: Math.round(rect.width), height: Math.round(rect.height) };
+  return {
+    fixture: screenFixtureNamed(window.location.search)?.name ?? null,
+    profile: document.documentElement.classList.contains('layout-compact') ? 'compact' : 'wide',
+    canvas: { width: game.canvas.width, height: game.canvas.height },
+    css,
+    cssPerDesignPx: game.canvas.width > 0 ? Math.round(rect.width / game.canvas.width * activeSceneZoom() * 1000) / 1000 : 0,
+  };
+}
+
+/** Whether an object and every container above it draws. */
+function drawn(object: Phaser.GameObjects.GameObject): boolean {
+  for (let o: Phaser.GameObjects.GameObject | null = object; o; o = o.parentContainer ?? null) {
+    const v = o as Partial<Phaser.GameObjects.Components.Visible & Phaser.GameObjects.Components.Alpha>;
+    if (v.visible === false || v.alpha === 0) return false;
+  }
+  return object.active;
+}
+
+function targetLabel(object: Phaser.GameObjects.GameObject, texts: readonly WalkedText[]): string {
+  if (object instanceof Phaser.GameObjects.Text) return object.text;
+  if (object instanceof Phaser.GameObjects.Container) {
+    const text = object.list.find((child): child is Phaser.GameObjects.Text => child instanceof Phaser.GameObjects.Text && child.text !== '');
+    if (text) return text.text;
+  }
+  // A bare Zone or Rectangle hit area: the visible Text under its centre.
+  const bounds = (object as Partial<Phaser.GameObjects.Components.GetBounds>).getBounds?.();
+  const under = bounds && texts.find((t) => contains(t.bounds, { x: bounds.centerX, y: bounds.centerY, width: 0, height: 0 }));
+  return under ? under.object.text : object.name || object.type;
+}
+
+/**
+ * Every enabled, drawn tap target and those whose hit area falls under 44 CSS
+ * px on either side at `cssPerDesignPx`.
+ */
+export function measureTapTargets(scene: Phaser.Scene, cssPerDesignPx: number): { targets: number; small: ProbeSmallTarget[] } {
+  const list = (scene.input as unknown as { _list?: Phaser.GameObjects.GameObject[] })._list ?? [];
+  const small: ProbeSmallTarget[] = [];
+  const texts = walkTexts(scene).texts;
+  let targets = 0;
+  for (const object of list) {
+    const input = object.input;
+    if (!input?.enabled || !drawn(object)) continue;
+    const area = input.hitArea as Partial<{ width: number; height: number; radius: number }>;
+    const local = area.radius !== undefined ? { width: area.radius * 2, height: area.radius * 2 } : { width: area.width ?? 0, height: area.height ?? 0 };
+    if (local.width <= 0 || local.height <= 0) continue;
+    const m = (object as unknown as Phaser.GameObjects.Components.Transform).getWorldTransformMatrix?.();
+    const width = local.width * (m?.scaleX ?? 1) * cssPerDesignPx;
+    const height = local.height * (m?.scaleY ?? 1) * cssPerDesignPx;
+    targets++;
+    if (Math.min(width, height) < COMPACT.touch - EPS) small.push({ label: targetLabel(object, texts), width: Math.round(width), height: Math.round(height) });
+  }
+  small.sort((a, b) => Math.min(a.width, a.height) - Math.min(b.width, b.height));
+  return { targets, small };
+}
+
 const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function snapshot(game: Phaser.Game): Promise<string> {
@@ -861,6 +960,7 @@ export async function runA11yProbe(game: Phaser.Game, options: ProbeOptions = {}
   const before = currentAccessibility();
   const returnTo = running[0] ?? 'MainMenu';
   const report: ProbeCellReport[] = [];
+  const viewport = probeViewport(game);
   let totalFindings = 0;
   try {
     // Warm-up: a scene's first visit may still be streaming art or fonts in.
@@ -884,7 +984,8 @@ export async function runA11yProbe(game: Phaser.Game, options: ProbeOptions = {}
             .map((text) => ({ kind: 'missingText', text, bounds: { x: 0, y: 0, width: 0, height: 0 }, detail: 'required visible fixture copy' }));
           const findings = [...result.findings, ...missing, ...(spec.duelCue ? checkDuelCue(scene, spec.duelCue) : [])];
           totalFindings += findings.length;
-          sceneReports.push({ scene: spec.label, ...result, findings });
+          const taps = viewport.profile === 'compact' ? measureTapTargets(scene, viewport.cssPerDesignPx) : null;
+          sceneReports.push({ scene: spec.label, ...result, findings, ...(taps ? { targets: taps.targets, smallTargets: taps.small } : {}) });
           if (options.snapshots) snapshots[spec.label] = await snapshot(game);
         } catch (error) {
           totalFindings++;
@@ -903,6 +1004,7 @@ export async function runA11yProbe(game: Phaser.Game, options: ProbeOptions = {}
   }
   return {
     startedAt: new Date().toISOString(),
+    viewport,
     cells: report,
     totalFindings,
     skipped: options.scenes ? [] : WAVE_1_SKIPPED,
