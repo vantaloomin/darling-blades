@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { setQualityTier } from '../../platform/quality';
+import { installTextRasterGuards } from '../../ui/textRaster';
 import './style.css';
 import {
   cardproofPageSize,
@@ -101,6 +102,7 @@ store.update((state) => state);
 // The proof sheet is intentionally always on the full quality tier. FXSupport
 // still gates shader-specific work on the actual renderer, as the real game does.
 setQualityTier('full');
+installTextRasterGuards();
 const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'canvas-shell',

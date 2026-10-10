@@ -17,7 +17,8 @@ export interface ScreenFixture extends ScreenEnv {
   standsFor: string;
 }
 
-const fixture = (
+// Pure, so a production build that never names a fixture drops the table.
+const fixture = /* #__NO_SIDE_EFFECTS__ */ (
   name: string,
   viewportWidth: number,
   viewportHeight: number,
@@ -45,3 +46,17 @@ export const SCREEN_FIXTURES: readonly ScreenFixture[] = [
   fixture('tablet-mini', 1133, 744, [0, 0, 20], 2, 'iPad mini'),
   fixture('tablet-upright', 820, 1180, [0, 0, 20], 2, 'Upright tablet, letterboxed (M11)'),
 ];
+
+/**
+ * The fixture a dev URL's `viewport=<name>` names (`?layout=compact&viewport=phone-island`),
+ * or null. The a11y probe's viewport axis: the dev server boots the compact
+ * profile as if on that screen, on any desktop browser.
+ */
+export function screenFixtureNamed(search: string): ScreenFixture | null {
+  try {
+    const name = new URLSearchParams(search).get('viewport');
+    return SCREEN_FIXTURES.find((f) => f.name === name) ?? null;
+  } catch {
+    return null;
+  }
+}

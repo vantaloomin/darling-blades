@@ -25,6 +25,7 @@ import { IridescencePostFX } from './fx/IridescencePostFX';
 import { manaPipPadding, renderManaText, type ManaTextRender } from './ManaText';
 import { ensureNumeralPip, pipsFor } from './ManaSymbols';
 import { rulesText, typeLine } from './rulesText';
+import { TEXT_BOTTOM_ROOM } from './textRaster';
 import { showsLegendaryCrown } from './legendaryCrown';
 
 export const CARD_W = CARD_FACE_W;
@@ -64,7 +65,8 @@ function fitWrappedText(obj: Phaser.GameObjects.Text, boxH: number): void {
   // iterating (which parks a step too small when a rewrap drops a line).
   const fitsAt = (s: number): boolean => {
     obj.setWordWrapWidth(TEXT_WIDTH / s);
-    return obj.height * s <= boxH + 0.5;
+    // The bottom descender room (textRaster.ts) is not part of the line box.
+    return (obj.height - TEXT_BOTTOM_ROOM) * s <= boxH + 0.5;
   };
   obj.setScale(1);
   if (fitsAt(1)) {

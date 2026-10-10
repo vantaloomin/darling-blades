@@ -1,7 +1,8 @@
 import type Phaser from 'phaser';
 import { Services } from '../meta/services';
 import { animTimeScale } from '../platform/animPolicy';
-import { activeSceneZoom } from '../platform/renderScale';
+import { activeSceneWidthShare, activeSceneZoom, sceneFitActive } from '../platform/renderScale';
+import { designWindowViewport } from '../platform/screenMetrics';
 import { currentAccessibility } from './accessibility';
 import { backdropDimAlpha } from './layout';
 import { theme } from './theme';
@@ -45,6 +46,9 @@ export function sceneTextureKey(manifestKey: string): string {
   return manifestKey.startsWith('scene-') ? manifestKey : `scene-${manifestKey}`;
 }
 
+/** The canvas clear colour (index.html's ground, gameBoot's backgroundColor). */
+export const CANVAS_CLEAR = '#0d0a14';
+
 /**
  * Per-scene settings hook — runs first inside applyBackdrop, i.e. at the top
  * of every scene's create(), and is idempotent (safe across DuelScene's
@@ -70,6 +74,16 @@ export function applySceneSettings(scene: Phaser.Scene): void {
   const zoom = activeSceneZoom();
   const cam = scene.cameras?.main;
   if (cam) {
+    if (sceneFitActive()) {
+      // Clip the camera to the fitted 1280×720 window: the camera's view is
+      // the canvas size over the zoom, wider than the stage, so anything a
+      // scene parks just off-stage would otherwise show beside it.
+      const vp = designWindowViewport(scene.scale.width, scene.scale.height, activeSceneWidthShare());
+      cam.setViewport(vp.x, vp.y, vp.width, vp.height);
+      // The game's own clear is transparent on an upright tablet, so the page's
+      // scene image shows in the bands (M11); the stage keeps its ground colour.
+      cam.setBackgroundColor(CANVAS_CLEAR);
+    }
     cam.setZoom(zoom);
     cam.centerOn(DESIGN_W / 2, DESIGN_H / 2);
   }

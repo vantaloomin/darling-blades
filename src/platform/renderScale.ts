@@ -31,6 +31,8 @@
  * construction); the Settings UI persists + flushes + reloads.
  */
 
+import { TAP_SLOP_PX } from './gestureCore';
+
 /**
  * LIVE (unlocked 2026-07-04) — the render-scale pipeline runs end-to-end:
  * setting → resolution → canvas sizing (1280k × 720k) → per-scene camera zoom
@@ -133,13 +135,40 @@ export function activeRenderScale(): RenderK {
 // ---------------------------------------------------------------------------
 
 let sceneZoom: number | null = null;
+let sceneWidthShare = 1;
 
-/** Set by src/gameBoot.ts once, before the Phaser.Game is constructed. */
-export function setActiveSceneZoom(zoom: number | null): void {
+/**
+ * Set by src/gameBoot.ts once, before the Phaser.Game is constructed.
+ * `widthShare` is the share of the canvas width the window may fill: below 1
+ * on an upright tablet, letterboxed at 96% of its width (M11).
+ */
+export function setActiveSceneZoom(zoom: number | null, widthShare = 1): void {
   sceneZoom = zoom !== null && Number.isFinite(zoom) && zoom > 0 ? zoom : null;
+  sceneWidthShare = sceneZoom !== null && widthShare > 0 && widthShare <= 1 ? widthShare : 1;
+}
+
+/** The share of the canvas width the fitted window may fill (1 except on an upright tablet). */
+export function activeSceneWidthShare(): number {
+  return sceneWidthShare;
+}
+
+/** True under the compact profile, where scenes fit 1280×720 into a screen-shaped canvas. */
+export function sceneFitActive(): boolean {
+  return sceneZoom !== null;
 }
 
 /** The base camera zoom for a scene laid out in the 1280×720 design window. */
 export function activeSceneZoom(): number {
   return sceneZoom ?? active;
+}
+
+/**
+ * The tap slop (gestureCore.ts) in world px. Under the compact profile the
+ * slop means TAP_SLOP_PX CSS px (docs/plan-mobile-overhaul.md, wave 1): the
+ * canvas is the screen times k, so one CSS px is k / zoom world px, and a
+ * 1280x720 scene shrunk onto a phone no longer cancels a tap after a 4 px
+ * wobble. On desktop it stays TAP_SLOP_PX world px, as before.
+ */
+export function tapSlopWorldPx(): number {
+  return sceneZoom === null ? TAP_SLOP_PX : (TAP_SLOP_PX * active) / sceneZoom;
 }

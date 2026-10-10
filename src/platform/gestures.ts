@@ -28,6 +28,7 @@ import type Phaser from 'phaser';
 import type { CardDef } from '../engine/types';
 import type { CardVariant } from '../meta/variants';
 import { GestureRecognizer, LONGPRESS_MS } from './gestureCore';
+import { tapSlopWorldPx } from './renderScale';
 
 // ---------------------------------------------------------------------------
 // Device-level touch predicate (layout profiles + copy text)
@@ -225,7 +226,7 @@ class SceneGestureLayer {
       onPressEnd: () => this.clearPressVisual(),
       onTap: () => this.handleTap(),
       onLongPress: () => this.handleLongPress(),
-    });
+    }, { slopPx: tapSlopWorldPx() });
     scene.input.on('pointermove', this.onMove, this);
     scene.input.on('pointerup', this.onUp, this);
     scene.input.on('pointerupoutside', this.onUp, this);

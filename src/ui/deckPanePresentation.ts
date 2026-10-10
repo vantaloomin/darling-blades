@@ -121,6 +121,9 @@ export const DECK_PANE_LAYOUT = {
     portraitScale: 0.09,
     portraitHitWidth: 34,
     portraitHitHeight: theme.control.minHitHeight,
+    /** The rename pencil between the deck's name and its count, and its hit band. */
+    renameIconSize: Math.round(theme.type.h2 * 0.75),
+    renameHitWidth: theme.control.minHitWidth,
   },
   toggle: {
     labelX: PANE_LEFT,
@@ -312,65 +315,76 @@ export interface DeckPickerMeasure {
   nameHeight?: number;
   badgeHeight?: number;
   deleteNoteHeight?: number;
-  /** Widest unarmed action hit band. Armed Delete occupies the whole pair. */
+  /** Widest unarmed action hit band. Armed Delete occupies Rename's slot too. */
   actionWidth?: number;
 }
 
-/** Full identities and measured controls determine tile size and page capacity. */
+/**
+ * The ☰ Decks picker is one scrolling list (owner request 2026-10-10: with
+ * every shop deck owned it ran to 11 pages of two tiles, and New Deck sat on
+ * the last). Each deck is a row: accent bar, a small hero card, the name over
+ * its format line, colour pips and count, then Use / Copy / Rename / Delete.
+ * New Deck lives in the footer, so it never moves. Row-local x runs from the
+ * row's left edge; the list's own y runs from its viewport's top.
+ */
 export function deckPickerLayout(measured: DeckPickerMeasure = {}) {
   const padding = theme.space(4.5);
-  const gapX = theme.space(6);
-  const gapY = theme.space(4.5);
-  const cols = 2;
-  const width = (theme.design.safeWidth - padding * 2 - gapX) / cols;
+  const listWidth = theme.design.safeWidth - padding * 2;
+  // The rows stop short of the list's right edge, where the scroll thumb runs.
+  const rowWidth = listWidth - theme.space(3);
   const actionWidth = Math.max(theme.control.minHitWidth, measured.actionWidth ?? theme.control.minHitWidth);
-  const actionGap = theme.space(3);
-  const nameHeight = measured.nameHeight ?? 2 * menuLineHeight(theme.type.label);
-  const badgeHeight = measured.badgeHeight ?? menuLineHeight(theme.type.micro);
-  const noteHeight = measured.deleteNoteHeight ?? 2 * menuLineHeight(theme.type.micro);
-  const nameTop = padding;
-  const badgeTop = nameTop + nameHeight + theme.space(1);
-  const bodyTop = badgeTop + badgeHeight + theme.space(3);
-  const portraitWidth = 142;
-  const portraitHeight = 184;
-  const firstX = width - padding - actionWidth * 1.5 - actionGap;
-  const secondX = width - padding - actionWidth / 2;
-  const firstY = bodyTop + theme.control.minHitHeight / 2;
-  const secondY = firstY + theme.control.minHitHeight + theme.space(2);
-  const noteY = secondY + theme.control.minHitHeight / 2 + theme.space(2);
-  const height = Math.max(bodyTop + portraitHeight, noteY + noteHeight) + padding;
+  const actionGap = theme.space(2);
+  const nameHeight = measured.nameHeight ?? menuLineHeight(theme.type.label);
+  const badgeHeight = Math.max(measured.badgeHeight ?? menuLineHeight(theme.type.micro), measured.deleteNoteHeight ?? 0);
+  const rowPad = theme.space(2);
+  const accentWidth = theme.space(1);
+  const portrait = { width: 70, height: 98 };
+  const textHeight = nameHeight + theme.space(1) + badgeHeight;
+  const rowHeight = Math.max(portrait.height, textHeight, theme.control.minHitHeight) + rowPad * 2;
+  const rowGap = theme.space(2);
+  const pitch = rowHeight + rowGap;
+  const portraitX = accentWidth + rowPad + theme.space(1) + portrait.width / 2;
+  const textX = portraitX + portrait.width / 2 + theme.space(3);
+  const actionsRight = rowWidth - rowPad - theme.space(1);
+  // Use, Copy, Rename, Delete, left to right.
+  const actionXs = [3, 2, 1, 0].map((slot) => actionsRight - actionWidth / 2 - slot * (actionWidth + actionGap));
+  const countRight = actionXs[0] - actionWidth / 2 - theme.space(5);
+  /** Five 18px pips at a 21px pitch, a gap, and the widest count ("40/40"). */
+  const statsWidth = 5 * 21 + theme.space(2) + 64;
+  const nameWidth = countRight - statsWidth - theme.space(3) - textX;
+  const nameTop = (rowHeight - textHeight) / 2;
   const titleTrackHeight = Math.max(theme.control.minHitHeight, menuLineHeight(theme.type.h1));
   const overhead = padding * 2 + titleTrackHeight + theme.space(4) * 2 + theme.control.minHitHeight;
-  const maxRows = Math.max(1, Math.floor((theme.design.safeHeight - overhead + gapY) / (height + gapY)));
-  const rows = Math.min(maxRows, Math.max(1, Math.ceil((measured.count ?? cols) / cols)));
-  const panelHeight = overhead + rows * height + (rows - 1) * gapY;
+  const maxRows = Math.max(1, Math.floor((theme.design.safeHeight - overhead + rowGap) / pitch));
+  const rows = Math.min(maxRows, Math.max(1, measured.count ?? maxRows));
+  const viewportHeight = rows * pitch - rowGap;
+  const panelHeight = overhead + viewportHeight;
   const panelTop = theme.design.centerY - panelHeight / 2;
-  const gridLeft = theme.design.safeLeft + padding;
+  const listLeft = theme.design.safeLeft + padding;
   const titleY = panelTop + padding + titleTrackHeight / 2;
-  const gridTop = panelTop + padding + titleTrackHeight + theme.space(4);
-  const footerY = gridTop + rows * height + (rows - 1) * gapY + theme.space(4) + theme.control.minHitHeight / 2;
-  return { panelHeight, titleY, tile: { width, height, gapX, gapY, cols, rows }, gridLeft, gridTop,
-    footerY, closeX: theme.design.centerX, closeMinWidth: 100,
-    pagerX: gridLeft + theme.control.minHitHeight / 2, pageSize: cols * rows,
-    padding, nameWidth: width - padding * 2, nameTop, badgeTop, pipsY: bodyTop + theme.control.minHitHeight / 2,
-    portrait: { x: padding + portraitWidth / 2, y: bodyTop + portraitHeight / 2, width: portraitWidth, height: portraitHeight },
-    actions: { firstX, secondX, firstY, secondY, columnX: (firstX + secondX) / 2, noteY,
-      width: actionWidth * 2 + actionGap } };
+  const listTop = panelTop + padding + titleTrackHeight + theme.space(4);
+  const footerY = listTop + viewportHeight + theme.space(4) + theme.control.minHitHeight / 2;
+  return { panelHeight, titleY, padding, listLeft, listTop, footerY,
+    viewport: { x: listLeft, y: listTop, width: listWidth, height: viewportHeight },
+    row: { width: rowWidth, height: rowHeight, gap: rowGap, pitch, pad: rowPad, accentWidth, rowsVisible: rows },
+    closeX: theme.design.centerX, closeMinWidth: 100, newDeckLeft: listLeft,
+    nameX: textX, nameWidth, nameTop, badgeTop: nameTop + nameHeight + theme.space(1), countRight,
+    portrait: { x: portraitX, width: portrait.width, height: portrait.height },
+    actions: { width: actionWidth, gap: actionGap, xs: actionXs,
+      /** Armed Delete spans Rename's slot and its own. */
+      armedX: (actionXs[2] + actionXs[3]) / 2, armedWidth: actionWidth * 2 + actionGap } };
 }
 
-/** Default picker geometry stays live; rendered callers pass their measured text. */
-export const DECK_PICKER_LAYOUT = {
-  get panelHeight() { return deckPickerLayout().panelHeight; },
-  get titleY() { return deckPickerLayout().titleY; },
-  get tile() { return deckPickerLayout().tile; },
-  get gridLeft() { return deckPickerLayout().gridLeft; },
-  get gridTop() { return deckPickerLayout().gridTop; },
-  get footerY() { return deckPickerLayout().footerY; },
-  get closeX() { return deckPickerLayout().closeX; },
-  get closeMinWidth() { return deckPickerLayout().closeMinWidth; },
-  /** The pager's left chevron sits at pagerX; its hit band starts on the grid's left edge. */
-  get pagerX() { return deckPickerLayout().pagerX; },
-} as const;
+/** How tall the whole list is, so the scroll knows its range. */
+export function deckPickerContentHeight(count: number, layout = deckPickerLayout()): number {
+  return Math.max(1, count) * layout.row.pitch - layout.row.gap;
+}
+
+/** The scroll offset that brings row `index` into view, as near the top as the range allows. */
+export function deckPickerScrollTo(index: number, count: number, layout = deckPickerLayout()): number {
+  const max = Math.max(0, deckPickerContentHeight(count, layout) - layout.viewport.height);
+  return Math.max(0, Math.min(max, index * layout.row.pitch));
+}
 
 /**
  * How far the shared pager's hit bands reach either side of its x: the left
@@ -381,17 +395,6 @@ export const PAGER_HIT_REACH = {
   left: theme.control.minHitHeight / 2,
   right: 88 + 10 + theme.control.minHitHeight / 2,
 } as const;
-
-/** Centre of picker tile `index` on a page (row-major). */
-export function deckPickerTilePosition(index: number, layout = deckPickerLayout()): { x: number; y: number } {
-  const { tile, gridLeft, gridTop } = layout;
-  const col = index % tile.cols;
-  const row = Math.floor(index / tile.cols);
-  return {
-    x: gridLeft + tile.width / 2 + col * (tile.width + tile.gapX),
-    y: gridTop + tile.height / 2 + row * (tile.height + tile.gapY),
-  };
-}
 
 export type DeckStatusTone = 'success' | 'danger';
 

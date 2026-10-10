@@ -238,6 +238,11 @@ export const SETTINGS_TABS: readonly { key: SettingsTab; label: string }[] = [
   { key: 'accessibility', label: 'Accessibility' },
 ];
 
+/** A tab's label: the Audio tab reads "Audio & screen" when it carries the Screen section (M8). */
+export function settingsTabLabel(tab: { key: SettingsTab; label: string }, fullScreen: boolean): string {
+  return tab.key === 'audio' && fullScreen ? 'Audio & screen' : tab.label;
+}
+
 export const DEFAULT_SETTINGS_TAB: SettingsTab = 'game';
 
 /** A12: the instruction follows the device's card-preview gesture. */
@@ -267,7 +272,8 @@ export type SettingsRowKey =
   | 'textSize'
   | 'highContrast'
   | 'animations'
-  | 'renderSize';
+  | 'renderSize'
+  | 'fullScreen';
 
 export interface SettingsRowSpec {
   key: SettingsRowKey;
@@ -313,6 +319,16 @@ export const SETTINGS_AUDIO_SECTIONS: readonly SettingsSectionSpec[] = [
   { key: 'audio', title: 'Audio', rows: [{ key: 'sfx' }, { key: 'volume', caption: true }, { key: 'music' }] },
 ];
 
+/**
+ * The Audio tab with a "Screen" section under Audio (M8), shown only where the
+ * browser offers full screen on a touch device (src/platform/fullscreen.ts).
+ * The Game and Accessibility tabs have no room for another row at 130% text.
+ */
+export const SETTINGS_AUDIO_SECTIONS_WITH_SCREEN: readonly SettingsSectionSpec[] = [
+  ...SETTINGS_AUDIO_SECTIONS,
+  { key: 'screen', title: 'Screen', rows: [{ key: 'fullScreen' }] },
+];
+
 /** The Accessibility tab's one section; a hidden control's row is simply absent. */
 export function settingsAccessibilitySections(shown: AccessibilityControlsShown): readonly SettingsSectionSpec[] {
   const rows: SettingsRowSpec[] = [];
@@ -326,6 +342,7 @@ export function settingsAccessibilitySections(shown: AccessibilityControlsShown)
 export function settingsTabColumns(
   tab: SettingsTab,
   shown: AccessibilityControlsShown,
+  fullScreen = false,
 ): readonly SettingsColumnSpec[] {
   switch (tab) {
     case 'game':
@@ -334,7 +351,7 @@ export function settingsTabColumns(
         { frame: SETTINGS_FRAMES.right, sections: SETTINGS_RIGHT_SECTIONS },
       ];
     case 'audio':
-      return [{ frame: SETTINGS_FRAMES.center, sections: SETTINGS_AUDIO_SECTIONS }];
+      return [{ frame: SETTINGS_FRAMES.center, sections: fullScreen ? SETTINGS_AUDIO_SECTIONS_WITH_SCREEN : SETTINGS_AUDIO_SECTIONS }];
     case 'accessibility':
       return [{ frame: SETTINGS_FRAMES.center, sections: settingsAccessibilitySections(shown) }];
   }
@@ -446,8 +463,9 @@ export function layoutSettingsTab(
   tab: SettingsTab,
   shown: AccessibilityControlsShown = ALL_ACCESSIBILITY_CONTROLS,
   measured: SettingsMeasured = {},
+  fullScreen = false,
 ): SettingsTabLayout {
-  const specs = settingsTabColumns(tab, shown);
+  const specs = settingsTabColumns(tab, shown, fullScreen);
   let layouts = specs.map((spec) => layoutSettingsColumn(spec.sections, SETTINGS_PANELS.top, measured));
   if (specs.length > 1) {
     const level = Math.max(

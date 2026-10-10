@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-2.0.md, docs/mobile-support-matrix.md, docs/mobile-lan-plan.md, docs/plan-accessibility-i18n.md, docs/plan-art-streaming.md, docs/design-system.md, index.html, vite.config.ts, src/gameBoot.ts, src/platform/gestureCore.ts, src/platform/gestures.ts, src/platform/quality.ts, src/platform/renderScale.ts, src/platform/clientProfile.ts, src/platform/screenMetrics.ts, src/platform/screenFixtures.ts, src/ui/accessibility.ts, src/ui/theme.ts, src/ui/layout.ts, src/ui/compactLayout.ts, src/ui/duelLayout.ts, src/ui/SceneBackdrop.ts, src/art/ArtResolver.ts, src/art/artBudget.ts, src/config/cardFaceGeometry.ts, src/ui/handFan.ts, src/forge/scene.ts, src/dev/a11yProbe.ts, src/scenes/ · last-verified: 2026-10-10 · plan doc, ruled in the 2.0 wave-1 sitting: rewritten for 2.0 lane C on the Version C mock set; P11 (M1-M4), P1 and P2 ruled 2026-10-08, M5-M29 ruled 2026-10-09, M30-M34 ruled 2026-10-10; re-verify when the owner rules the M decisions, and when each wave ships -->
+<!-- source-of-truth: docs/plan-2.0.md, docs/mobile-support-matrix.md, docs/mobile-lan-plan.md, docs/plan-accessibility-i18n.md, docs/plan-art-streaming.md, docs/design-system.md, index.html, vite.config.ts, src/gameBoot.ts, src/platform/gestureCore.ts, src/platform/gestures.ts, src/platform/quality.ts, src/platform/renderScale.ts, src/platform/clientProfile.ts, src/platform/screenMetrics.ts, src/platform/screenFixtures.ts, src/platform/homeScreen.ts, src/platform/fullscreen.ts, src/ui/accessibility.ts, src/ui/theme.ts, src/ui/layout.ts, src/ui/compactLayout.ts, src/ui/duelLayout.ts, src/ui/SceneBackdrop.ts, src/art/ArtResolver.ts, src/art/artBudget.ts, src/config/cardFaceGeometry.ts, src/ui/handFan.ts, src/forge/scene.ts, src/dev/a11yProbe.ts, src/scenes/ · last-verified: 2026-10-10 · plan doc, ruled in the 2.0 wave-1 sitting: rewritten for 2.0 lane C on the Version C mock set; P11 (M1-M4), P1 and P2 ruled 2026-10-08, M5-M29 ruled 2026-10-09, M30-M34 ruled 2026-10-10; re-verify when the owner rules the M decisions, and when each wave ships -->
 
 # Mobile overhaul: the 2.0 plan
 
@@ -214,8 +214,20 @@ times the render factor, and every scene's base zoom is the one that fits
 1280x720 inside it (`activeSceneZoom` in `src/platform/renderScale.ts`,
 which PackOpening's zoom escalation now composes with). The art loader
 and Boot scenes draw nothing, so neither needs a camera. Text stayed crisp
-at a fractional zoom in desktop Chromium emulating a 3x phone; the proof
-on a real phone is still owed.
+at a fractional zoom in desktop Chromium emulating a 3x phone.
+
+**The emulator run (2026-10-10, Android 360 class, Chrome):** every tap
+landed, but text was soft and the board no bigger than today's. Three
+causes, all fixed under the switch: index.html's 80 px bar reserve counted
+Chrome's visible bar twice (the 100dvh page already leaves it out), so the
+game got 780x176 of a 780x256 page, and the reserve is now dropped under
+the compact profile; text rasterized at k = 2 and then shrunk by a 0.49
+camera zoom smeared, so text now rasterizes at the scene's zoom (never
+below 1; on desktop that is still k); and the camera's view was wider than
+the stage, showing a panel parked right of x 1280, so the camera is now
+clipped to the fitted 1280x720 window. The 1.3x upscale from the ruled
+cap of 2 on a 2.625x screen remains (accepted in C1). Safari's bars are
+not measured yet.
 
 ### C3. The resolver gets a device term, not a fork
 
@@ -230,6 +242,13 @@ changes is **which roles a compact scene picks** (no 64 px marquee in a
 310 px tall screen) and **the spacing scale**, both read through the
 resolver. The three text sizes (100, 115, 130%) and high contrast apply on
 phones exactly as on desktop, and every compact scene is checked at 130%.
+**Built in wave 1:** `TYPE_BASE_COMPACT` in `src/ui/accessibility.ts`, read
+as `theme.compactType` by migrated compact scenes only: the same roles at
+the mocks' sizes (h1 20, h2 18, body 14, label 12, caption and micro 11;
+the display roles 28 and 24, inferred, as the mocks draw no marquee), with
+the same text-size policy. The spacing needs no term: the mocks' 8 px gap
+and 44 px touch row are the existing 4 px unit (`theme.space(2)`), and
+the compact composition lives in `src/ui/compactLayout.ts`.
 
 ### C4. The Duel on Version C
 
@@ -393,14 +412,35 @@ word.
   it is found here, not in the Duel wave.
 - **The probe learns viewports.** `src/dev/a11yProbe.ts` renders the
   1280x720 window at three text sizes and two contrasts; it gains a
-  profile and viewport axis so it can render the matrix's fixtures.
+  profile and viewport axis so it can render the matrix's fixtures. **Built
+  in wave 1:** a dev load of `?layout=compact&viewport=<fixture>` (names in
+  `src/platform/screenFixtures.ts`) boots the compact profile as that
+  screen on any browser, and the probe's report names the viewport and,
+  under the compact profile, lists each scene's tap targets under 44 CSS px
+  (measured, not findings: every unmigrated scene has them, and a migrated
+  scene's list is empty).
 - **Small items that ride this wave:** the full-screen button (M8), the
   home-screen manifest and its one-time "bring your save over" message
   (M9), the form factor label (above), the
   old-browser message ([mobile-support-matrix.md](mobile-support-matrix.md)),
   and the tap slop re-expressed in CSS px (C1 makes the 10 px slop 10 CSS px
   instead of about 4; Android's own slop is 8 dp, so 10 is kept unless the
-  devices say otherwise).
+  devices say otherwise). **Built in wave 1:** the manifest
+  (`public/manifest.webmanifest`: full screen, landscape, the card-back
+  emblem icons at 192 and 512 plus a maskable one) and the save message,
+  shown once on the main menu when an iPhone or iPad home-screen app opens
+  on a fresh save (`src/platform/homeScreen.ts`; Import code opens
+  Profile's import dialog); the old-browser message (an inline check in
+  `index.html`); the slop in CSS px under the compact profile
+  (`tapSlopWorldPx` in `src/platform/renderScale.ts`, desktop unchanged).
+  The full-screen button (M8, placed 2026-10-10): a corner-bracket icon
+  left of Settings in the main menu's header, and a Full screen switch in
+  a Screen section on Settings' Audio tab, which then reads "Audio &
+  screen" (owner's pick, 2026-10-10; the Game and Accessibility tabs have
+  no room for another row at 130% text). Both show only on a touch
+  device whose browser allows full screen and that did not already launch
+  full screen from the home screen; entering it also asks for landscape
+  (`src/platform/fullscreen.ts`).
 - **New frames for what the mocks predate,** for the owner to approve
   before the wave that builds them: the Mandate marker and its swings,
   Overcharge, Hunt, Provoked, First Dawn, life totals above 20 in the 96 px
@@ -409,7 +449,12 @@ word.
   2026-10-10:** 29 frames (N1-N21 Duel, N30-N38 Story), approved with
   M30-M34.
 - The upright-tablet letterbox (M11) and the rotate screen's scene image
-  (M12), both ruled.
+  (M12), both ruled. **Built in wave 1** (under `?layout=compact`): an
+  upright tablet never gets the rotate screen; its 1280x720 window fits
+  96% of the width, and the game clears to transparent outside it so the
+  main menu's vista fills the bands (`layout-letterbox` in `index.html`;
+  the Duel wave puts the commanders' art there). A phone held upright
+  shows the vista's pagoda edge behind the rotate message.
 
 **Gate:** unit tests for the metrics and profile rule; the probe's fixtures
 render at every matrix viewport with no control outside the safe box; the

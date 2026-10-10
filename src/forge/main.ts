@@ -8,6 +8,7 @@ import { FORGE_NUMERAL_BOX, FORGE_NUMERAL_OPTIONS, NUMERAL_PATHS, numeralLayout 
 import type { CardDef, Color, Keyword, ManaCost, StaticDef } from '../engine/types';
 import { setQualityTier } from '../platform/quality';
 import { frameKeyFor } from '../ui/CardFrameFactory';
+import { installTextRasterGuards } from '../ui/textRaster';
 import type { ScorableCardDef, ScorableEffectOp } from '../power/scoreCore';
 import { imageIdsInText, referencedImageIds } from './customArt';
 import { CUSTOM_ART_COPY, initCustomArtPanel } from './customArtPanel';
@@ -1957,6 +1958,7 @@ if (qaMode) {
 }
 
 setQualityTier('full');
+installTextRasterGuards();
 const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'canvas-shell',

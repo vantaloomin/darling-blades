@@ -4,6 +4,8 @@ import {
   desktopWindowSize,
   resolveRenderScale,
   setActiveRenderScale,
+  setActiveSceneZoom,
+  tapSlopWorldPx,
 } from '../../src/platform/renderScale';
 
 describe('resolveRenderScale', () => {
@@ -67,5 +69,25 @@ describe('active render scale store', () => {
     expect(activeRenderScale()).toBe(2);
     setActiveRenderScale(1.5);
     expect(activeRenderScale()).toBe(1.5);
+  });
+});
+
+describe('tapSlopWorldPx', () => {
+  afterEach(() => {
+    setActiveRenderScale(1);
+    setActiveSceneZoom(null);
+  });
+
+  it('is 10 world px on desktop at every render factor', () => {
+    setActiveRenderScale(2);
+    expect(tapSlopWorldPx()).toBe(10);
+  });
+
+  it('is 10 CSS px under the compact profile', () => {
+    // The Android 360 class: 780x360 CSS at k = 2, a 1560x720 canvas, the
+    // 1280x720 window fitted at zoom 1, so a world px is half a CSS px.
+    setActiveRenderScale(2);
+    setActiveSceneZoom(1);
+    expect(tapSlopWorldPx()).toBe(20);
   });
 });

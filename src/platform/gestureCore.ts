@@ -43,7 +43,7 @@
 
 /** Max down→up time for a tap (~250 ms per the plan; tune on device). */
 export const TAP_MAX_MS = 250;
-/** Max movement from the press origin, in design px (~10 per the plan). */
+/** Max movement from the press origin (~10 per the plan): world px on desktop, CSS px under the compact profile (renderScale.ts tapSlopWorldPx converts). */
 export const TAP_SLOP_PX = 10;
 /** Hold time for a long-press (~450 ms per the plan; tune on device). */
 export const LONGPRESS_MS = 450;

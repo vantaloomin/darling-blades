@@ -34,6 +34,30 @@ export const TYPE_BASE = Object.freeze({
 } as const);
 
 export type TypeRole = keyof typeof TYPE_BASE;
+
+/**
+ * The device term (docs/plan-mobile-overhaul.md C3): the compact profile's
+ * 100% ramp, the same roles at the Version C mocks' sizes (VERSION-C.md:
+ * page titles 20, sheet titles 18, body 13-14, labels 12, metadata 11, an
+ * 11 pt floor). A design px is a CSS px on a phone (C1), so these are the
+ * sizes on the glass. The display roles have no mock size: compact screens
+ * have no 64 px marquee, and 28 / 24 (inferred) keep a ceremony heading
+ * above the page title. Text size and contrast apply exactly as on desktop.
+ * Only a compact scene reads this ramp (`theme.compactType`); unmigrated
+ * scenes keep `theme.type` inside their fitted 1280x720 window.
+ */
+export const TYPE_BASE_COMPACT: Readonly<Record<TypeRole, number>> = Object.freeze({
+  displayXL: 28,
+  display: 24,
+  h1: 20,
+  h2: 18,
+  body: 14,
+  label: 12,
+  caption: 11,
+  micro: 11,
+});
+
+export type LayoutProfile = 'wide' | 'compact';
 export type TypeRamp = Readonly<Record<TypeRole, number>>;
 
 /**
@@ -61,15 +85,16 @@ const SCALING_SHARE: Readonly<Record<RoleScaling, number>> = { full: 1, half: 0.
  * worked in whole percent so 20px at a half step of 115% is exactly 21.5 and
  * rounds up to 22, not down on float noise.
  */
-export function scaledTypeSize(role: TypeRole, textScale: number): number {
+export function scaledTypeSize(role: TypeRole, textScale: number, profile: LayoutProfile = 'wide'): number {
   const stepPercent = Math.round(normalizeTextScale(textScale) * 100) - 100;
   const percent = 100 + stepPercent * SCALING_SHARE[TYPE_ROLE_SCALING[role]];
-  return Math.round((TYPE_BASE[role] * percent) / 100);
+  const base = profile === 'compact' ? TYPE_BASE_COMPACT : TYPE_BASE;
+  return Math.round((base[role] * percent) / 100);
 }
 
-export function resolveType(textScale: number): TypeRamp {
+export function resolveType(textScale: number, profile: LayoutProfile = 'wide'): TypeRamp {
   const ramp = {} as Record<TypeRole, number>;
-  for (const role of Object.keys(TYPE_BASE) as TypeRole[]) ramp[role] = scaledTypeSize(role, textScale);
+  for (const role of Object.keys(TYPE_BASE) as TypeRole[]) ramp[role] = scaledTypeSize(role, textScale, profile);
   return Object.freeze(ramp);
 }
 
@@ -274,6 +299,8 @@ export function normalizeAccessibility(input: AccessibilityInput | null | undefi
 
 export interface ResolvedTokens {
   readonly type: TypeRamp;
+  /** The compact profile's ramp at the same text size (C3). */
+  readonly compactType: TypeRamp;
   readonly colors: Palette;
   readonly graphics: GraphicsPalette;
   readonly alpha: AlphaSet;
@@ -286,6 +313,7 @@ export function resolveTokens(input: AccessibilityInput | null | undefined): Res
   const colors = settings.highContrast ? HIGH_CONTRAST_COLORS : STANDARD_COLORS;
   return Object.freeze({
     type: resolveType(settings.textScale),
+    compactType: resolveType(settings.textScale, 'compact'),
     colors,
     graphics: resolveGraphics(colors),
     alpha: settings.highContrast ? HIGH_CONTRAST_ALPHA : STANDARD_ALPHA,

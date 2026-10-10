@@ -7,7 +7,7 @@ import type Phaser from 'phaser';
  * largest display size. The coin keeps its own colours; the rest are white
  * silhouettes, tinted to the text they sit beside.
  */
-export const UI_ICON_NAMES = ['gold', 'profile', 'help', 'book', 'gear', 'pin', 'lock', 'dice', 'sort'] as const;
+export const UI_ICON_NAMES = ['gold', 'profile', 'help', 'book', 'gear', 'pin', 'lock', 'dice', 'sort', 'pencil', 'expand', 'shrink'] as const;
 export type UiIconName = (typeof UI_ICON_NAMES)[number];
 
 const SIZE = 64;
@@ -203,6 +203,63 @@ const drawSort: Draw = (ctx, c) => {
   }
 };
 
+const drawPencil: Draw = (ctx, c) => {
+  // A pencil on the diagonal, point at the lower left: the rename control.
+  ctx.save();
+  ctx.translate(c, c);
+  ctx.rotate(-Math.PI / 4);
+  ctx.fillStyle = WHITE;
+  // Eraser cap, split from the barrel by a cut-out band.
+  ctx.beginPath();
+  ctx.roundRect(17, -9, 11, 18, 3);
+  ctx.fill();
+  ctx.fillRect(-13, -9, 27, 18);
+  // The sharpened point, with its graphite tip cut out.
+  ctx.beginPath();
+  ctx.moveTo(-14, -9);
+  ctx.lineTo(-30, 0);
+  ctx.lineTo(-14, 9);
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.fillRect(13.5, -10, 3, 20);
+  ctx.beginPath();
+  ctx.moveTo(-17, -4.5);
+  ctx.lineTo(-17, 4.5);
+  ctx.lineTo(-25, 1.6);
+  ctx.lineTo(-25, -1.6);
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.beginPath();
+  ctx.moveTo(-24, -3.4);
+  ctx.lineTo(-30, 0);
+  ctx.lineTo(-24, 3.4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+};
+
+/** Four corner brackets pointing out (enter full screen, M8) or in (leave it). */
+const drawCorners = (outward: boolean): Draw => (ctx, c) => {
+  ctx.strokeStyle = WHITE;
+  ctx.lineWidth = 6;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  const far = 24;
+  const near = outward ? 10 : 6;
+  for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const) {
+    // The bracket's corner sits at the far point (outward) or the near one (inward).
+    const corner = outward ? far : near;
+    const end = outward ? near : far;
+    ctx.beginPath();
+    ctx.moveTo(c + sx * end, c + sy * corner);
+    ctx.lineTo(c + sx * corner, c + sy * corner);
+    ctx.lineTo(c + sx * corner, c + sy * end);
+    ctx.stroke();
+  }
+};
+
 const DRAW: Record<UiIconName, Draw> = {
   gold: drawGold,
   profile: drawProfile,
@@ -213,6 +270,9 @@ const DRAW: Record<UiIconName, Draw> = {
   lock: drawLock,
   dice: drawDice,
   sort: drawSort,
+  pencil: drawPencil,
+  expand: drawCorners(true),
+  shrink: drawCorners(false),
 };
 
 export function bakeUiIcon(scene: Phaser.Scene, name: UiIconName): string {

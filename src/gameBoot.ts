@@ -21,7 +21,10 @@ import {
   designWindowZoom,
   resolveScreenMetrics,
   type ScreenMetrics,
+  UPRIGHT_TABLET_WIDTH_SHARE,
 } from './platform/screenMetrics';
+import { screenFixtureNamed } from './platform/screenFixtures';
+import { CANVAS_CLEAR } from './ui/SceneBackdrop';
 import { BootScene } from './scenes/BootScene';
 import { AchievementsScene } from './scenes/AchievementsScene';
 import { ArtLoaderScene } from './scenes/ArtLoaderScene';
@@ -43,6 +46,7 @@ import { MainMenuScene } from './scenes/MainMenuScene';
 import { SettingsScene } from './scenes/SettingsScene';
 import { ShopScene } from './scenes/ShopScene';
 import { applySavedAccessibility } from './ui/settingsPresentation';
+import { installTextRasterGuards } from './ui/textRaster';
 
 declare global {
   interface Window {
@@ -71,26 +75,53 @@ const showcaseScale = import.meta.env.DEV && new URLSearchParams(window.location
 // `?layout=compact` switch until the camera fit is proven on a real phone. On
 // a touch screen it sizes the canvas to the screen at the device's own pixel
 // ratio (capped at 2), and every scene, none of them migrated yet, fits its
-// 1280×720 design window inside by camera zoom. The #app box already leaves
-// out the safe areas and the browser-bar reserve (index.html), so the insets
-// read as zero here. The profile is worked out once per load and never saved.
+// 1280×720 design window inside by camera zoom. The `layout-compact` class
+// drops index.html's browser-bar reserve first (the 100dvh page already
+// leaves out a visible bar), so the #app box read here is the screen less
+// only its safe areas, and the insets read as zero. The profile is worked out
+// once per load and never saved.
+// Dev only: `&viewport=<fixture>` stands the page in for a fixture screen from
+// the support matrix (src/platform/screenFixtures.ts) on any browser, the a11y
+// probe's viewport axis: #app is sized to the fixture and its pixel ratio and
+// safe areas are the fixture's.
 const compact: ScreenMetrics | null = (() => {
   if (showcaseScale !== null || !compactLayoutRequested(window.location.search)) return null;
   const app = document.getElementById('app');
+  const fixture = import.meta.env.DEV ? screenFixtureNamed(window.location.search) : null;
+  if (fixture) {
+    document.documentElement.classList.add('layout-compact');
+    if (app) Object.assign(app.style, { inset: 'auto', left: '0', top: '0', width: `${fixture.viewportWidth}px`, height: `${fixture.viewportHeight}px` });
+    return resolveScreenMetrics(fixture);
+  }
+  if (window.matchMedia?.('(pointer: coarse)').matches !== true) return null;
+  document.documentElement.classList.add('layout-compact');
   const m = resolveScreenMetrics({
     viewportWidth: app?.clientWidth || window.innerWidth,
     viewportHeight: app?.clientHeight || window.innerHeight,
-    coarsePointer: window.matchMedia?.('(pointer: coarse)').matches === true,
+    coarsePointer: true,
     devicePixelRatio: window.devicePixelRatio,
   });
-  return m.profile === 'compact' ? m : null;
+  if (m.profile === 'compact') return m;
+  document.documentElement.classList.remove('layout-compact');
+  return null;
 })();
 const k = compact?.renderK ?? showcaseScale ?? (RENDER_SCALE_UNLOCKED
   ? resolveRenderScale(Services.save.data.settings.renderScale, qualityTier())
   : 1);
 setActiveRenderScale(k);
 const canvas = compact ? compactCanvasSize(compact) : { width: 1280 * k, height: 720 * k };
-setActiveSceneZoom(compact ? designWindowZoom(canvas.width, canvas.height) : null);
+// An upright tablet letterboxes the window at 96% of its width (M11), with
+// the page's scene image in the bands: the game clears to transparent there.
+const letterbox = compact?.presentation === 'letterbox';
+const widthShare = letterbox ? UPRIGHT_TABLET_WIDTH_SHARE : 1;
+if (letterbox) document.documentElement.classList.add('layout-letterbox');
+const sceneZoom = compact ? designWindowZoom(canvas.width, canvas.height, widthShare) : k;
+setActiveSceneZoom(compact ? sceneZoom : null, widthShare);
+// Text rasterizes at the scene's zoom (canvas px per design px), never below
+// 1: on desktop that is k, as before. Under the compact profile a text drawn
+// at k and then shrunk by a fractional zoom smeared, measured on the Android
+// emulator 2026-10-10; at the zoom it lands on the canvas about 1:1.
+const textResolution = Math.max(1, sceneZoom);
 
 // Desktop (Tauri) only: make the chosen resolution the actual OS window size
 // (1280·k × 720·k, clamped to the screen). Fire-and-forget and a hard no-op in
@@ -108,7 +139,7 @@ void applyDesktopWindowSize(k);
 // per-Text resolutions (none in this repo today) are respected. Object
 // width/height stay in logical units (Text.js divides by resolution), so
 // layout and inflated hit areas are unaffected.
-if (k > 1) {
+if (textResolution > 1) {
   type TextStyleLike = { resolution: number };
   type SetStyleFn = (
     this: TextStyleLike,
@@ -122,10 +153,13 @@ if (k > 1) {
     const explicit =
       !!style && ((style as { resolution?: number }).resolution ?? 0) > 0;
     const out = origSetStyle.call(this, style, updateText, setDefaults);
-    if (!explicit && (!this.resolution || this.resolution <= 1)) this.resolution = k;
+    if (!explicit && (!this.resolution || this.resolution <= 1)) this.resolution = textResolution;
     return out;
   };
 }
+
+// Descender room for every Text (src/ui/textRaster.ts), before any is built.
+installTextRasterGuards();
 
 // Accessibility (settings.textScale, settings.highContrast): the loaded save's
 // text size and contrast go in force before the first scene builds, through
@@ -146,7 +180,8 @@ const game = new Phaser.Game({
   parent: 'app',
   width: canvas.width,
   height: canvas.height,
-  backgroundColor: '#0d0a14',
+  backgroundColor: CANVAS_CLEAR,
+  transparent: letterbox,
   // Snap every draw to whole pixels: kills the sub-pixel sampling that softens
   // text glyphs and sprite edges (compounds with the Scale.FIT CSS upscale).
   // Trade-off: tweened motion quantises to integer pixels, so slow drifts can

@@ -35,6 +35,16 @@
     <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png" />
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <!-- Home-screen mode (docs/plan-mobile-overhaul.md M9): a web app manifest,
+         no service worker and no offline play. Android opens it full screen
+         and in landscape; iPhone and iPad open it without Safari's bars. The
+         icons are the favicon's card-back emblem at 192 and 512, plus a
+         maskable one with the margin Android's icon mask crops. -->
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Darling Blades" />
     <title>Darling Blades</title>
     <!-- Link previews (Discord, Slack, X, Bluesky, Mastodon, iMessage) read the
          Open Graph and Twitter Card tags below. The image and the URL must be
@@ -82,6 +92,15 @@
       :root {
         --chrome-top: 32px;
         --chrome-bottom: 48px;
+      }
+      /* The compact profile (?layout=compact, src/gameBoot.ts) drops the
+         reserve: the page is 100dvh, which already leaves out a visible
+         browser bar, so the reserve counted it twice. Measured on the Android
+         360 emulator 2026-10-10: Chrome leaves 780x256 and the reserve cut the
+         game to 780x176. The safe-area insets still apply. */
+      :root.layout-compact {
+        --chrome-top: 0px;
+        --chrome-bottom: 0px;
       }
       html,
       body {
@@ -172,9 +191,57 @@
           transform: rotate(-90deg);
         }
       }
+      #old-browser {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 1001;
+        background: #0d0a14;
+        color: #c9bde0;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        font-family: Georgia, serif;
+        text-align: center;
+        padding: 24px;
+      }
+      #old-browser .title {
+        font-size: 22px;
+      }
+      #old-browser .sub {
+        max-width: 34em;
+        font-size: 15px;
+        line-height: 1.45;
+        color: #8f83a8;
+      }
       @media (orientation: portrait) and (pointer: coarse) {
         #rotate-overlay {
           display: flex;
+        }
+      }
+      /* The compact profile (?layout=compact, src/gameBoot.ts), mobile wave 1.
+         M12: the rotate screen shows a scene image behind its message. M11: a
+         tablet held upright is never sent to rotate; it is letterboxed at 96%
+         of its width, the same scene image filling the bands (the game clears
+         to transparent outside its window). A tablet's portrait width is its
+         shorter side, so 600 px and up is the phone/tablet split. */
+      :root.layout-compact #rotate-overlay,
+      :root.layout-letterbox #app {
+        background:
+          linear-gradient(rgba(13, 10, 20, 0.1), rgba(13, 10, 20, 0.3) 55%, rgba(13, 10, 20, 0.9)),
+          #0d0a14 url('assets/art/scenes/scene-mainmenu.webp') 50% 100% / cover no-repeat;
+      }
+      :root.layout-compact #rotate-overlay {
+        /* The menu vista's right edge (pagoda and banners) reads as a scene
+           when cropped upright; its centre is open sky. */
+        background-position: 0 0, 96% 100%;
+        justify-content: flex-end;
+        padding-bottom: max(18vh, env(safe-area-inset-bottom));
+      }
+      @media (orientation: portrait) and (pointer: coarse) and (min-width: 600px) {
+        :root.layout-compact #rotate-overlay {
+          display: none;
         }
       }
     </style>
@@ -189,6 +256,31 @@
       <div class="title">Rotate your device</div>
       <div class="sub">Darling Blades plays in landscape</div>
     </div>
+    <!-- The old-browser message (docs/mobile-support-matrix.md, ruled with M7).
+         Below the build's floor the game's module fails to parse and the page
+         stays dark, so this plain script checks the floor first: class static
+         blocks and optional chaining (the syntax floor, Safari 16.4, Chrome
+         94), structuredClone and dvh units (the newest features the game
+         calls). It never blocks a browser that passes; it only explains a
+         page that would otherwise stay blank. -->
+    <div id="old-browser" role="alert">
+      <div class="title">This browser is too old to run Darling Blades</div>
+      <div class="sub">Darling Blades needs Chrome or Edge 111, Firefox 114, Safari 16.4 (iOS 16.4 on iPhone and iPad), or Samsung Internet 22, or newer. Updating your browser or your device's system should fix it.</div>
+    </div>
+    <script>
+      (function () {
+        var ok = false;
+        try {
+          ok =
+            new Function('class A { static { this.x = 1; } } var a = null; return (a?.b ?? A.x) === 1;')() === true &&
+            typeof structuredClone === 'function' &&
+            !!window.CSS && CSS.supports('height', '1dvh');
+        } catch (e) {
+          ok = false;
+        }
+        if (!ok) document.getElementById('old-browser').style.display = 'flex';
+      })();
+    </script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

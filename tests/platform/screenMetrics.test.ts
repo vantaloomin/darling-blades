@@ -4,6 +4,7 @@ import {
   compactCanvasSize,
   compactLayoutRequested,
   compactRenderK,
+  designWindowViewport,
   designWindowZoom,
   REFERENCE_PHONE,
   resolveScreenMetrics,
@@ -169,5 +170,24 @@ describe('the compact canvas and the design-window fit (C2)', () => {
     expect(compactLayoutRequested('?showcase=x&layout=compact')).toBe(true);
     expect(compactLayoutRequested('')).toBe(false);
     expect(compactLayoutRequested('?layout=wide')).toBe(false);
+  });
+});
+
+describe('designWindowViewport', () => {
+  it('is the fitted 1280x720 window, centred, in whole canvas px', () => {
+    // The Android 360 emulator's measured canvas with the reserve dropped: 780x256 CSS at k = 2.
+    const vp = designWindowViewport(1560, 512);
+    expect(vp.height).toBe(512);
+    expect(vp.width).toBe(Math.round(1280 * (512 / 720)));
+    expect(vp.x).toBe(Math.round((1560 - vp.width) / 2));
+    expect(vp.y).toBe(0);
+  });
+
+  it('an upright tablet fits the window to 96% of the width, centred (M11)', () => {
+    // The tablet-upright fixture at k = 1.5: a 1230x1770 canvas.
+    const vp = designWindowViewport(1230, 1770, 0.96);
+    expect(vp.width).toBe(Math.round(1230 * 0.96));
+    expect(vp.x).toBe(Math.round((1230 - vp.width) / 2));
+    expect(vp.y).toBe(Math.round((1770 - vp.height) / 2));
   });
 });
