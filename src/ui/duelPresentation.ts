@@ -7,8 +7,8 @@
 import { activatedBlockers, reasonUncastable, type Action } from '../engine/actions';
 import { compelledAttackers } from '../engine/combat/legality';
 import type { GameEvent } from '../engine/events';
-import type { CardDb, CardDef, GameState, PlayerId, TargetRef } from '../engine/types';
-import { activatedAbilitiesOf, def } from '../engine/types';
+import type { ActivatedDef, CardDb, CardDef, GameState, PlayerId, TargetRef } from '../engine/types';
+import { activatedAbilitiesOf, def, markCostOf } from '../engine/types';
 import { BOOST_CHIP_LABEL, cueIn, tileChipLabel, type BoardCueState, type CueContext, type TileChipInput } from './boardCuePresentation';
 import { manaActivatedEffectText } from './manaPumpPresentation';
 import { activatedText, rulesText } from './rulesText';
@@ -174,6 +174,17 @@ export function hauntlinkActionLabel(hasLegalAction: boolean, linked: boolean): 
 }
 
 export const DUTY_ACTION_LABEL = 'Perform Duty';
+
+/**
+ * The confirm label for one activated ability: a Duty is performed; an
+ * ability paid by removing marks (2.0, Nüwa's stones) never taps, so its
+ * button says what it costs instead.
+ */
+export function dutyActionLabel(ability: ActivatedDef | undefined): string {
+  const marks = ability ? markCostOf(ability) : 0;
+  if (marks === 0) return DUTY_ACTION_LABEL;
+  return marks === 1 ? 'Remove a mark' : `Remove ${marks} marks`;
+}
 export const DUTY_CANCEL_LABEL = 'Cancel';
 export const DUTY_PLAYER_LABELS = ['You', 'Opponent'] as const;
 /** Tile chip for a permanent whose Duty you can perform now, beside Hauntlink's Link/Relink. */
@@ -200,8 +211,9 @@ export function dutyEffectText(card: CardDef, abilityIndex = 0): string {
   const ability = activatedAbilitiesOf(card)[abilityIndex];
   if (!ability) return '';
   const line = activatedText({ ...card, activated: ability }) ?? '';
-  // Every Duty cost ends on the tap symbol, so the effect is what follows it.
-  return line.replace(/^.*?\{T\}:\s*/, '').replace(/\s*\n\s*/g, ' ').trim();
+  // Every Duty cost ends on the tap symbol, and a mark-paid ability's on its
+  // marks, so the effect is what follows.
+  return line.replace(/^.*?(?:\{T\}|remove (?:a mark|\d+ marks) from this):\s*/i, '').replace(/\s*\n\s*/g, ' ').trim();
 }
 
 /**
@@ -209,8 +221,12 @@ export function dutyEffectText(card: CardDef, abilityIndex = 0): string {
  * effect is quoted because it is card text: its "you" is the Duty's
  * controller, which for the foe's Duty is not the reader.
  */
-export function dutyNarration(cardName: string, controller: DuelSide, effect = ''): string {
-  const line = `${controller === 'you' ? 'Your' : 'Enemy'} ${cardName} performs its Duty`;
+export function dutyNarration(cardName: string, controller: DuelSide, effect = '', marksSpent = 0): string {
+  // An ability paid by removing marks never taps, so it is not a Duty (2.0, Nüwa).
+  const act = marksSpent > 0
+    ? `removes ${marksSpent === 1 ? 'a mark' : `${marksSpent} marks`}`
+    : 'performs its Duty';
+  const line = `${controller === 'you' ? 'Your' : 'Enemy'} ${cardName} ${act}`;
   return effect ? `${line}: “${effect}”` : line;
 }
 

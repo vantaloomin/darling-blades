@@ -6,7 +6,7 @@ import { solveMana } from '../../src/engine/mana';
 import type { ActivatedDef, CardDb, CardDef, GameState, TargetRef } from '../../src/engine/types';
 import { dutyChoices } from '../../src/ui/drownedDeepChoices';
 import {
-  DUTY_ACTION_LABEL, DUTY_CANCEL_LABEL, DUTY_PLAYER_LABELS,
+  DUTY_ACTION_LABEL, DUTY_CANCEL_LABEL, DUTY_PLAYER_LABELS, dutyActionLabel,
   dutyBlockedCopy, dutyEffectText, dutyNarration, dutyRowPips, dutyTargetStep, dutyTargetsNeedPicker, dutyWindowReason,
   type DutyAction, permanentActionLabel,
 } from '../../src/ui/duelPresentation';
@@ -87,6 +87,24 @@ describe('Duty duel presentation', () => {
       dutyNarration('Keeper', 'you'), dutyNarration('Keeper', 'opponent')]) {
       expect(copy).not.toContain('\u2014');
     }
+  });
+
+  it('names an ability paid by removing marks for its cost, never as a Duty', () => {
+    const stone: CardDef = {
+      id: 'stone', name: 'Stone Keeper', types: ['creature'], subtypes: [], colors: ['G'], rarity: 'r', attack: 1, defense: 1,
+      activated: [
+        { cost: { removeMarks: 1 }, ops: [{ op: 'gainLife', n: 2 }] },
+        { cost: { removeMarks: 2, mana: { generic: 0, pips: { R: 1 } } }, ops: [{ op: 'draw', n: 1 }] },
+        { cost: { tap: true }, ops: [{ op: 'foresee', n: 1 }] },
+      ],
+    };
+    const [one, two, tap] = activatedAbilitiesOf(stone);
+    expect([dutyActionLabel(one), dutyActionLabel(two), dutyActionLabel(tap)])
+      .toEqual(['Remove a mark', 'Remove 2 marks', DUTY_ACTION_LABEL]);
+    expect(dutyEffectText(stone, 0)).toMatch(/^You gain 2 life/i);
+    expect(dutyEffectText(stone, 1)).toMatch(/^Draw a card/i);
+    expect(dutyNarration('[Stone Keeper]', 'you', dutyEffectText(stone, 1), 2)).toMatch(/^Your \[Stone Keeper\] removes 2 marks: “Draw a card/);
+    expect(dutyNarration('[Stone Keeper]', 'opponent', '', 1)).toBe('Enemy [Stone Keeper] removes a mark');
   });
 
   it('says in the history what the Duty did, for either side, without its cost', () => {
