@@ -1,5 +1,5 @@
 /**
- * One game of the Mandate lab (2.0 plan, lane B, B5): two field decks, each
+ * One game of the rate lab (2.0 plan, lanes B5 and D3): two field decks, each
  * with its arm's four lab cards added, Hard on both seats, at the lab's
  * starting life, reduced to a compact record of what the rates need.
  */
@@ -29,6 +29,7 @@ export interface LabGameJob {
  */
 export interface LabGameRecord {
   arm: ArmName;
+  life: number;
   pair: number;
   game: number;
   rowIsP0: boolean;
@@ -112,6 +113,7 @@ export function playLabGame(job: LabGameJob): LabGameRecord {
   const w: 0 | 1 | 2 = st.winner === 'draw' || st.winner === null ? 2 : st.winner === rowSeat ? 0 : 1;
   return {
     arm: job.arm,
+    life: job.life,
     pair: job.pair,
     game: job.game,
     rowIsP0: job.rowIsP0,

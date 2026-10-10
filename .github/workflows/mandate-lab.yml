@@ -1,27 +1,32 @@
-# The Mandate lab (2.0 plan, lane B, B5), fanned out across GitHub-hosted
-# runners so the owner's machine stays free.
+# The rate lab (2.0 plan: the Mandate's rates, B5; the life rates, D3),
+# fanned out across GitHub-hosted runners so the owner's machine stays free.
 #
 # Every pair of the 29-deck Warchest field (the sweep's 15 prefabs, the 1.9.0
 # sweep's eight round-0 crafts, the six First Dawn summit bosses) is played in
-# each arm of scripts/mandate-lab/cards.ts on the same seeds, Hard on both
-# seats, at the lab's starting life. It measures and changes nothing: the lab
+# each arm of one arm set in scripts/mandate-lab/cards.ts on the same seeds,
+# Hard on both seats, at each starting life asked for. It measures and changes nothing: the lab
 # cards live in a copy of the card database built in the lab process.
 #
 # TO RUN IT. Dispatch "Mandate lab" from the Actions tab (once this file is on
 # the default branch), or push a commit whose message contains [mandate-lab]
-# to a branch carrying this file; the push run uses the defaults below.
+# to a branch carrying this file; the push run uses the defaults below (the
+# Mandate set at 25 life). [mandate-lab:life] runs the life set at 20 and 25.
 #
 # WHAT COMES BACK. The summarize job prints the report to its log and commits
 # the shards and the report (Markdown and JSON) to the orphan branch
-# `study-data` under `mandate-lab/<date>-<run id>/`. Never to `main`.
+# `study-data` under `<set>-lab/<date>-<run id>/` (mandate-lab, life-lab).
+# Never to `main`.
 
 name: Mandate lab
 
 on:
   workflow_dispatch:
     inputs:
+      arms:
+        description: The arm set (mandate or life)
+        default: 'mandate'
       life:
-        description: Starting life for every game
+        description: Starting life, or a comma list (20,25) played on the same seeds
         default: '25'
       seeds:
         description: Games per pair per arm (keep it even, seats alternate)
@@ -42,7 +47,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  LIFE: ${{ inputs.life || '25' }}
+  ARMS: ${{ inputs.arms || (contains(github.event.head_commit.message, '[mandate-lab:life]') && 'life' || 'mandate') }}
+  LIFE: ${{ inputs.life || (contains(github.event.head_commit.message, '[mandate-lab:life]') && '20,25' || '25') }}
   SEEDS: ${{ inputs.seeds || '80' }}
   SWEEP_DIR: ${{ inputs.sweep_dir || 'sweeps/2026-10-07-13003-race' }}
   SHARDS: '8'
@@ -53,7 +59,7 @@ env:
 
 jobs:
   shard:
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[mandate-lab]') }}
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[mandate-lab') }}
     name: Shard ${{ matrix.shard }}
     runs-on: ubuntu-latest
     timeout-minutes: 350
@@ -82,7 +88,7 @@ jobs:
           set -euo pipefail
           mkdir -p out
           npx tsx scripts/mandate-lab/lab.ts --crafts crafts \
-            --out "out/shard-$SHARD.jsonl" --life "$LIFE" --seeds "$SEEDS" \
+            --out "out/shard-$SHARD.jsonl" --arms "$ARMS" --life "$LIFE" --seeds "$SEEDS" \
             --shard "$SHARD" --shards "$SHARDS" --workers 4 --budget-minutes "$BUDGET_MINUTES"
       - uses: actions/upload-artifact@v4
         with:
@@ -116,7 +122,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          DIR="mandate-lab/$(date -u +%Y-%m-%d)-${GITHUB_RUN_ID}"
+          DIR="${ARMS}-lab/$(date -u +%Y-%m-%d)-${GITHUB_RUN_ID}"
           if git ls-remote --exit-code --heads origin study-data >/dev/null 2>&1; then
             git fetch --depth 1 origin study-data
             git worktree add data FETCH_HEAD
@@ -133,6 +139,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -q -m "mandate lab: run ${GITHUB_RUN_ID} on ${GITHUB_SHA::7}"
+          git commit -q -m "${ARMS} lab: run ${GITHUB_RUN_ID} on ${GITHUB_SHA::7}"
           git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:study-data
           echo "Published to study-data:$DIR"

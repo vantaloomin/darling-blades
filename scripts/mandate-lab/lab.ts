@@ -1,20 +1,23 @@
 /**
- * The Mandate lab (2.0 plan, lane B, B5): the Warchest field with lab cards
- * added (scripts/mandate-lab/cards.ts), every arm played game for game on
- * the same seeds, Hard on both seats. It measures only; it changes nothing
- * in the game.
+ * The rate lab (2.0 plan: the Mandate's rates, B5; the life rates, D3): the
+ * Warchest field with lab cards added (scripts/mandate-lab/cards.ts), every
+ * arm of one arm set played game for game on the same seeds, at each
+ * starting life asked for, Hard on both seats. It measures only; it changes
+ * nothing in the game.
  *
  * USAGE
  *   npx tsx scripts/mandate-lab/lab.ts --crafts <dir> --out <file.jsonl>
- *     [--life 25] [--seeds 24] [--shard 0 --shards 1]
+ *     [--arms mandate] [--life 25] [--seeds 24] [--shard 0 --shards 1]
  *     [--workers 4] [--budget-minutes 330] [--pairs 0-9]
  *
  *   --crafts   a sweep directory's crafts/ (the round-0 craft-*-r0.json files),
  *              checked out from the `sweep-data` branch.
- *   --life     the starting life every game is played at.
+ *   --arms     the arm set (cards.ts ARM_SETS): mandate or life.
+ *   --life     the starting life, or a comma list (20,25): every slot is
+ *              played in every arm at every life.
  *   --seeds    games per pair per arm (seats alternate, so keep it even).
  *   --shard/--shards  this job's slice: game slots whose index mod shards is
- *              the shard. A slot is one (pair, game) played in every arm,
+ *              the shard. A slot is one (pair, game) played in every arm and life,
  *              so a shard always holds whole paired sets.
  *   --budget-minutes  stop dispatching new slots after this long; slots
  *              already started finish, so the output stays paired.
@@ -28,7 +31,7 @@ import { writeFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import { Worker } from 'node:worker_threads';
 import { fieldPairs, gameSeed, loadField } from './field';
-import { ARM_NAMES, ARMS } from './cards';
+import { ARM_SETS, armNames, type ArmSetName } from './cards';
 import type { LabGameJob, LabGameRecord } from './game';
 
 function arg(name: string): string | undefined {
@@ -39,10 +42,17 @@ function arg(name: string): string | undefined {
 const craftsDir = arg('crafts');
 const out = arg('out');
 if (!craftsDir || !out) {
-  console.error('usage: lab.ts --crafts <dir> --out <file.jsonl> [--life 25] [--seeds n] ...');
+  console.error('usage: lab.ts --crafts <dir> --out <file.jsonl> [--arms mandate] [--life 25] [--seeds n] ...');
   process.exit(2);
 }
-const life = Number(arg('life') ?? '25');
+const armSet = (arg('arms') ?? 'mandate') as ArmSetName;
+if (!(armSet in ARM_SETS)) {
+  console.error(`--arms must be one of ${Object.keys(ARM_SETS).join(', ')}`);
+  process.exit(2);
+}
+const ARM_NAMES = armNames(armSet);
+const lives = (arg('life') ?? '25').split(',').map(Number);
+const perSlot = ARM_NAMES.length * lives.length;
 const seeds = Number(arg('seeds') ?? '24');
 const shard = Number(arg('shard') ?? '0');
 const shards = Number(arg('shards') ?? '1');
@@ -67,7 +77,7 @@ for (const [p] of pairs.entries()) {
 
 function jobsFor(slot: Slot): LabGameJob[] {
   const [r, c] = pairs[slot.pair];
-  return ARM_NAMES.map((arm) => ({
+  return lives.flatMap((life) => ARM_NAMES.map((arm) => ({
     arm,
     life,
     pair: slot.pair,
@@ -78,7 +88,7 @@ function jobsFor(slot: Slot): LabGameJob[] {
     colDeck: field[c].deck,
     rowReserve: field[r].landReserve,
     colReserve: field[c].landReserve,
-  }));
+  })));
 }
 
 const started = performance.now();
@@ -100,9 +110,9 @@ function refill(): void {
 }
 
 console.error(
-  `mandate lab: ${field.length} decks, ${pairs.length} pairs, ${ARM_NAMES.length} arms at ${life} life, ` +
+  `rate lab (${armSet}): ${field.length} decks, ${pairs.length} pairs, ${ARM_NAMES.length} arms at ${lives.join('/')} life, ` +
     `${seeds} seeds; shard ${shard}/${shards} holds ${slots.length} slots ` +
-    `(${slots.length * ARM_NAMES.length} games) on ${workers} workers`,
+    `(${slots.length * perSlot} games) on ${workers} workers`,
 );
 
 await new Promise<void>((resolveAll, rejectAll) => {
@@ -136,7 +146,7 @@ await new Promise<void>((resolveAll, rejectAll) => {
         lastReport = now;
         const min = (now - started) / 60_000;
         console.error(
-          `  ${records.length}/${slots.length * ARM_NAMES.length} games, ${min.toFixed(1)} min, ` +
+          `  ${records.length}/${slots.length * perSlot} games, ${min.toFixed(1)} min, ` +
             `${(records.length / min).toFixed(1)} games/min`,
         );
       }
@@ -158,9 +168,9 @@ for (const rec of records) {
   bySlot.set(key, [...(bySlot.get(key) ?? []), rec]);
 }
 const complete = [...bySlot.values()]
-  .filter((group) => group.length === ARM_NAMES.length)
+  .filter((group) => group.length === perSlot)
   .flat()
-  .sort((a, b) => a.pair - b.pair || a.game - b.game || ARM_NAMES.indexOf(a.arm) - ARM_NAMES.indexOf(b.arm));
+  .sort((a, b) => a.pair - b.pair || a.game - b.game || a.life - b.life || ARM_NAMES.indexOf(a.arm) - ARM_NAMES.indexOf(b.arm));
 
 writeFileSync(out, complete.map((r) => JSON.stringify(r)).join('\n') + '\n');
 const minutes = (performance.now() - started) / 60_000;
@@ -168,14 +178,15 @@ writeFileSync(
   `${out}.meta.json`,
   JSON.stringify(
     {
-      life,
-      arms: ARMS,
+      armSet,
+      lives,
+      arms: ARM_SETS[armSet],
       seeds,
       shard,
       shards,
       workers,
       slotsPlanned: slots.length,
-      slotsComplete: complete.length / ARM_NAMES.length,
+      slotsComplete: complete.length / perSlot,
       stoppedEarly,
       minutes: Number(minutes.toFixed(2)),
       field: field.map((d) => ({ id: d.id, name: d.name, kind: d.kind })),
@@ -186,6 +197,6 @@ writeFileSync(
   ),
 );
 console.error(
-  `done: ${complete.length} games (${complete.length / ARM_NAMES.length} slots of ${slots.length})` +
+  `done: ${complete.length} games (${complete.length / perSlot} slots of ${slots.length})` +
     `${stoppedEarly ? ', STOPPED AT BUDGET' : ''} in ${minutes.toFixed(1)} min`,
 );
