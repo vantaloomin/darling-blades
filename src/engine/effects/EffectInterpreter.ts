@@ -9,6 +9,7 @@ import {
 } from '../battlefield';
 import { applyCreatureDamage, markStruck, type CreatureDamageHit } from '../creatureDamage';
 import { anyPayableHauntlink } from '../hauntlinkWindow';
+import { claimMandate } from '../mandate';
 import { refuseTokenAtCap } from '../overcharge';
 import { drawCards } from '../phases';
 import { freshGraveyardCard, graveRefIndex } from '../graveyard';
@@ -745,6 +746,9 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
     }
     case 'extraLandDrop':
       state.players[ctx.controller].extraLandDrops += op.n ?? 1;
+      return;
+    case 'claimMandate':
+      claimMandate(state, emit, ctx.controller, 'effect');
       return;
     case 'createToken': {
       for (let i = 0; i < op.count; i++) {

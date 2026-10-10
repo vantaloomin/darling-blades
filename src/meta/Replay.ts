@@ -2,7 +2,7 @@ import type { Action } from '../engine/actions';
 import type { GameEvent } from '../engine/events';
 import { Game } from '../engine/Game';
 import type { CardDb, PlayerId } from '../engine/types';
-import type { GameFormat, ReserveFormat } from '../config/rules';
+import { RULES, type GameFormat, type ReserveFormat } from '../config/rules';
 
 /**
  * Deterministic replays (1.2, plan-road-to-1.0 Feature 4's deferred slice).
@@ -37,7 +37,14 @@ import type { GameFormat, ReserveFormat } from '../config/rules';
 // differently wherever that happened. `tokenRefused` is derived into the
 // returned eventLog like every engine event; ReplayLog remains action-only and
 // its format is unchanged. v11 through v16 all map to rules revision 4.
-export const REPLAY_LOG_VERSION = 16 as const;
+// v17 (2.0, the train's one bump, plan-2.0 P16) records each game's starting
+// life (`startingLife`), since 2.0 raises it from 20; a log without the field
+// was recorded at 20 and replays at 20. v17 also marks the Mandate (Core Set
+// II): only cards that claim it change play, and the db stamp already refuses
+// a log recorded against other cards, so v17 still maps to rules revision 4.
+export const REPLAY_LOG_VERSION = 17 as const;
+/** Every log before v17 was recorded at this starting life. */
+const LEGACY_REPLAY_STARTING_LIFE = 20;
 /** Newest-first FIFO cap for SaveData.replays (mirrors limited.history's 20). */
 export const REPLAY_CAP = 10;
 const LEGACY_WARCHEST_FORMATS = new Set(['battle' + 'box', 'battle' + 'Box']);
@@ -63,6 +70,8 @@ export interface ReplayLog {
   decks: [string[], string[]];
   /** Optional simulation override; absent logs reconstruct the shipped seven-card deal. */
   startingHandSize?: number;
+  /** Each player's starting life. Always recorded from v17; absent means 20. */
+  startingLife?: number;
   /** Present only for reserve-format logs. Classic logs retain their old shape. */
   format?: ReserveFormat;
   /** Ordered reserve payload reconstructed before replaying reserve choices. */
@@ -101,6 +110,8 @@ export function startReplayDraft(init: {
   seed: number;
   decks: [string[], string[]];
   startingHandSize?: number;
+  /** Defaults to the current `RULES.startingLife`, the total `new Game` uses. */
+  startingLife?: number;
   context: ReplayContext;
   format?: GameFormat;
   landReserves?: [string[], string[]];
@@ -111,6 +122,7 @@ export function startReplayDraft(init: {
     dbStamp: init.dbStamp,
     seed: init.seed,
     decks: [init.decks[0].slice(), init.decks[1].slice()],
+    startingLife: init.startingLife ?? RULES.startingLife,
     context: { ...init.context },
     actions: [],
   };
@@ -127,6 +139,11 @@ export function startReplayDraft(init: {
     draft.darlings = [init.darlings[0], init.darlings[1]];
   }
   return draft;
+}
+
+/** The starting life a log's game was played at (20 for every log before v17). */
+export function replayStartingLife(log: Pick<ReplayLog, 'startingLife'>): number {
+  return log.startingLife ?? LEGACY_REPLAY_STARTING_LIFE;
 }
 
 /** Record one successful submit. The action is deep-copied so later mutation
@@ -205,6 +222,7 @@ export function replayGame(log: ReplayLog, db: CardDb): { game: Game; eventLog: 
       ? 2
       : log.v >= 11 ? 4 : log.v >= 8 ? 3 : log.v >= 7 ? 2 : 1,
     ...(log.startingHandSize === undefined ? {} : { startingHandSize: log.startingHandSize }),
+    startingLife: replayStartingLife(log),
     ...(format === 'warchest'
       ? {
           format,
@@ -241,6 +259,8 @@ export function isReplayLog(value: unknown): value is ReplayLog {
     log.darlings.every((id) => id === null || typeof id === 'string');
   const startingHandSizeShape = log.startingHandSize === undefined ||
     (Number.isSafeInteger(log.startingHandSize) && log.startingHandSize > 0);
+  const startingLifeShape = log.startingLife === undefined ||
+    (Number.isSafeInteger(log.startingLife) && log.startingLife > 0);
   // v5 added the Darlings command-zone payload. Keep old blobs structurally
   // valid for save preservation and revision-specific replay.
   const currentPayloadShape = rawFormat === undefined
@@ -263,6 +283,7 @@ export function isReplayLog(value: unknown): value is ReplayLog {
     typeof log.dbStamp === 'string' &&
     typeof log.seed === 'number' &&
     startingHandSizeShape &&
+    startingLifeShape &&
     Array.isArray(log.decks) &&
     log.decks.length === 2 &&
     log.decks.every((d) => Array.isArray(d) && d.every((id) => typeof id === 'string')) &&

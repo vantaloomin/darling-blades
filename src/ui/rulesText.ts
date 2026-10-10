@@ -313,6 +313,8 @@ function opText(
       return op.who === 'targetOwner' ? `its owner Foresees ${op.n}` : `Foresee ${op.n}`;
     case 'awaken':
       return op.scope === 'self' ? 'Awaken this' : 'Awaken all creatures you control';
+    case 'claimMandate':
+      return 'claim the Mandate';
     case 'hunt': {
       // Hunt is a bare verb keyword, like Mark (ruled 2026-09-28): a
       // source-bound Hunt prints its opener, then "Hunt." ("When this arrives,

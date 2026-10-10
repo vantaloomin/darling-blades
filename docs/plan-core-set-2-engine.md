@@ -1,0 +1,55 @@
+<!-- source-of-truth: docs/plan-2.0.md, docs/plan-core-set-2.md, src/engine/mandate.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/effects/EffectInterpreter.ts, src/engine/types.ts, src/engine/events.ts, src/engine/view.ts, src/engine/Game.ts, src/ai/determinize.ts, src/meta/Replay.ts, src/power/scoreCore.ts · last-verified: 2026-10-10 · engine spec, DRAFT: lane B1 of plan-2.0; the parts marked "as built" are on release/2.0, the rest is proposed; re-verify when the owner rules a question below or the overplan's cut changes -->
+
+# Core Set II engine spec: the Mandate, Sworn, and what the cards need (2.0 lane B)
+
+**Status: DRAFT, building.** This is lane B's spec ([plan-2.0.md](plan-2.0.md), B1) and the home of its "as built" notes. The Mandate's rules and Sworn's semantic are already ruled ([plan-core-set-2.md](plan-core-set-2.md), "Engine"; P5, P6, P16). Where that plan left a timing call open, the build takes its recommendation and says so below; each such call is listed under [Questions](#questions-for-the-owner) so the owner can overturn it at the engine sitting.
+
+Build order (the 2.0 plan's shared-file order: the Mandate first in `types.ts` and `Game.ts`, then the life change):
+
+1. The Mandate core. **As built (B2.1).**
+2. The starting-life field, sharing the train's one replay bump. **As built (D3a).**
+3. Sworn, and the crownless flag for the Sworn Champions.
+4. The Mandate's card wording: "while you hold the Mandate", "if you don't hold the Mandate", "whenever you claim the Mandate".
+5. Small constructs the overplan names: an arrival trigger filtered by subtype (Yutu, Jiuwei, Lanlan); "if you gained life this turn" (Hebe); a token created for a target's controller (Circe's Pig).
+6. Larger constructs: a modal "choose up to N" (Nüwa, ruled into the engine 2026-10-08); removing a mark as an activation cost, without a tap (Nüwa); Tithe on a Darling cast (ruled 2026-10-08: it reduces the base cost, never the Darling tax).
+7. The AI reads (B3), the duel UI (B4), the lab rates (B5).
+
+## Part 1. The Mandate
+
+### Rules (for the owner)
+
+- The Mandate begins unclaimed. A card that says "claim the Mandate" gives it to that card's controller. Claiming it when you already hold it does nothing.
+- At your dawn, if you hold the Mandate, you draw a card. This happens before any of your permanents' dawn abilities, and the normal draw still follows. The player who goes first still skips only the normal draw on turn one. Drawing from an empty deck loses the game, as always.
+- When your creatures deal combat damage to the player who holds the Mandate, you claim it. It changes hands once per damage step, however many creatures connect. It is taken after the damage lands and before any "whenever this deals combat damage to a player" ability.
+- Only combat damage to the holder takes it. Spells, Hunts, damage to blocking creatures, prevented damage (Fog) and creatures with no Attack never do. If nobody holds the Mandate, combat damage does nothing; a card has to claim it first.
+
+### As built (B2.1)
+
+- **State.** `GameState.mandateHolder?: PlayerId`, absent while unclaimed (`src/engine/types.ts`). This follows the engine's idiom for optional public flags (`creatureDiedThisTurn?`), so every hand-built state, saved fixture and legacy JSON stays valid unchanged. `mandateHolderOf(state)` reads it as `PlayerId | null` (`src/engine/mandate.ts`). The set plan sketched a required `PlayerId | null` field; the optional form behaves the same and touches nothing else.
+- **Claiming.** `claimMandate(state, emit, player, reason)` in `src/engine/mandate.ts`, the one writer. The effect op `{ op: 'claimMandate' }` calls it for the effect's controller (`EffectInterpreter.ts`). It consumes no RNG and opens no window.
+- **Event.** `{ e: 'mandateChanged'; from: PlayerId | null; to: PlayerId; reason: 'effect' | 'combat' }` (`src/engine/events.ts`, documented in [architecture.md](architecture.md)). A no-op claim emits nothing.
+- **Dawn.** `startTurn` (`src/engine/phases.ts`) draws for the holder right after entering `dawn`, before the per-permanent dawn loop, and returns if that draw ends the game.
+- **Combat.** `dealCombatDamage` (`src/engine/combat/damage.ts`) reads the holder at the start of each batch; if it was the defending player and any hit to that player was positive, the attacking player claims after `applyCreatureDamage` and before the `combatDamageToPlayer` triggers. State-based actions stay where they were. A normal batch after a first-strike claim finds the attacker already holding it, so it never claims twice.
+- **Views and the AI.** `viewFor` copies the holder into every `PlayerView` (it is public); `determinize` copies it back, so Hard's simulations see the same holder. `Game.restore`'s legacy-state sync carries it.
+- **Scorer.** `claimMandate` scores 0 and is reported as an unknown (`op:claimMandate`) until the lab (B5) measures a claim. The personas' op table also holds it at 0. Neither invents a rate.
+- **Words.** `rulesText` renders the op as "claim the Mandate". The Forge accepts it in its validator; it is not yet in the Forge's effect palette (B4 adds the palette entry with the glossary text).
+- **Tests.** `tests/engine/mandate.test.ts`: initial state, effect claim, claiming from the other player, already-holder no-op, dawn order, turn-one draw, deck-out at dawn, combat claim, several attackers, claim-before-trigger order, first strike then normal, unclaimed and attacker-holds, blocked damage, zero Attack, Fog, lethal damage, restore and determinize.
+
+## Part 2. The starting-life field (D3a)
+
+**As built.** D2 ruled 25 life. D3 is split so the field lands with the Mandate's replay bump, while the total itself waits on the owner's call (Q1):
+
+- `GameConfig.startingLife?: number` (`src/engine/Game.ts`), default `RULES.startingLife`, rejected unless a positive whole number. `Game.startingLife` exposes the game's own total; the duel's music mood reads it instead of the global.
+- `ReplayLog.startingLife?: number` (`src/meta/Replay.ts`). Every new draft records it. A log without it was recorded before v17, at 20, and replays at 20 whatever `RULES.startingLife` says (`replayStartingLife`). The replay viewer in `DuelScene` passes it to its `Game`.
+- **The replay bump, 16 to 17** (P16), is shared with the Mandate and later Story's mode. **The rules revision stays 4.** The 2.0 plan proposed revision 5, but nothing needs an executable branch: the life comes from the log as data, and the Mandate is reachable only through cards that claim it, which a log recorded against the old card database can't contain (the db stamp refuses it). A revision with no behaviour behind it would only be bookkeeping.
+- **Still to do for D3:** the scorer's life-related terms re-derived in the engine at 25 (Core Set II's costing waits on this, P17); rules, glossary and tutorial copy that says 20; and flipping the default, timed by Q1.
+
+## Parts 3 to 6 (to be specified as they are built)
+
+Sworn's predicate is ruled (P6): `'swornActive'` on `AbilityDef.condition` and `StaticDef.condition`, true while the source's controller controls a creature whose supertypes include `legendary`. The crownless flag is presentation only. The constructs in steps 4 to 6 are specified here as each lands, with its tests.
+
+## Questions for the owner
+
+- **Q1. When does the default become 25?** Every win-rate floor in CI was measured at 20. Recommended: the field lands now at 20, the labs and the rescore run at 25 through it, and the default flips together with the one-time floor reset (P8).
+- **Q2. Dawn order** (taken as recommended by the set plan): the Mandate's draw comes before the holder's other dawn abilities.
+- **Q3. Claim point** (taken as recommended): once per damage batch, after the damage and before combat-damage triggers.

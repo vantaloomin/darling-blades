@@ -167,7 +167,8 @@ export type EffectOp =
   | { op: 'awaken'; scope: 'self' | 'allYours' } // one-way champion upgrade; trigger-safe
   | { op: 'raise'; to?: 'target'; grantKeywords?: Keyword[]; targetIndex?: number }
   | { op: 'raise'; to: 'top'; withMarks?: number; grantKeywords?: Keyword[] }
-  | { op: 'hunt'; hunter: 'self' | 'target'; prey?: HuntPrey }; // see the Hunt note above the union
+  | { op: 'hunt'; hunter: 'self' | 'target'; prey?: HuntPrey } // see the Hunt note above the union
+  | { op: 'claimMandate' }; // the effect's controller claims the Mandate; trigger-safe, no target
 
 export interface StaticDef {
   /** `questActive` reads the source controller's public battlefield. */
@@ -1215,6 +1216,8 @@ export interface GameState {
   combat: CombatState | null;
   fogThisTurn: boolean;
   creatureDiedThisTurn?: true;
+  /** Who holds the Mandate (2.0). Absent means unclaimed, as every game begins. */
+  mandateHolder?: PlayerId;
   sunsetPendingWindow?: true;
   decisionResume?: Awaiting & { offerAfterDecision?: true };
   awaiting: Awaiting;

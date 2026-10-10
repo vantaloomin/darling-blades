@@ -179,7 +179,7 @@ draws a card at dawn; a combat-damage batch to the holder passes it to the
 attacker; `claimMandate` claims it by effect. The full engine, AI and test
 spec is in [plan-core-set-2.md](plan-core-set-2.md) and stands.
 
-- **B1, the spec** (`plan-core-set-2-engine.md`, after the overplan, as First
+- **B1, the spec** ([plan-core-set-2-engine.md](plan-core-set-2-engine.md), after the overplan, as First
   Dawn's engine spec did): the timing rulings (dawn draw before permanent dawn
   triggers, recommended), the claim point in first-strike and normal batches,
   the event, the view field, its part of the train's one replay bump (P16),

@@ -391,6 +391,7 @@ export function determinize(view: PlayerView, db: CardDb, seed = 1): Game {
     fogThisTurn: view.fogThisTurn,
     awaiting,
     ...(view.creatureDiedThisTurn ? { creatureDiedThisTurn: true } : {}),
+    ...(view.mandateHolder === undefined ? {} : { mandateHolder: view.mandateHolder }),
     ...(view.sunsetPendingWindow ? { sunsetPendingWindow: true } : {}),
     ...(view.decisionResume ? { decisionResume: view.decisionResume } : {}),
     // No fetch can be mid-flight at a Hard entry point, and stand-in lands

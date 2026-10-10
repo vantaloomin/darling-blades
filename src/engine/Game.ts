@@ -90,6 +90,8 @@ export interface GameConfig {
   db: CardDb;
   /** Simulation override for opening deals and full mulligan redraws. */
   startingHandSize?: number;
+  /** Each player's starting life. Defaults to `RULES.startingLife`; replays pass their recorded total. */
+  startingLife?: number;
   /** Classic is the default. Warchest and Darlings use ordered land reserves. */
   format?: GameFormat;
   /** One ordered ten-land payload per seat for reserve formats. */
@@ -223,6 +225,8 @@ export class Game {
   private st: GameState;
   private readonly db: CardDb;
   private readonly startingHandSize: number;
+  /** The life total both players began this game with. */
+  readonly startingLife: number;
   private readonly eventObserver?: GameConfig['eventObserver'];
   private buf: GameEvent[] = [];
   /** Legacy state facade retained so existing callers can make scalar edits before submit. */
@@ -235,6 +239,10 @@ export class Game {
     this.startingHandSize = cfg.startingHandSize ?? RULES.startingHandSize;
     if (!Number.isSafeInteger(this.startingHandSize) || this.startingHandSize <= 0) {
       throw new Error('startingHandSize must be a positive integer.');
+    }
+    this.startingLife = cfg.startingLife ?? RULES.startingLife;
+    if (!Number.isSafeInteger(this.startingLife) || this.startingLife <= 0) {
+      throw new Error('startingLife must be a positive integer.');
     }
     this.eventObserver = cfg.eventObserver;
     const rng = createRngState(cfg.seed);
@@ -312,7 +320,7 @@ export class Game {
     darlingZone?: CardInstance | null,
   ): GameState['players'][0] {
     const player: GameState['players'][0] = {
-      life: RULES.startingLife,
+      life: this.startingLife,
       deck,
       hand: [],
       graveyard: [],
@@ -481,7 +489,7 @@ export class Game {
     this.st.stackClosed = pub.stackClosed;
     this.st.combat = structuredClone(pub.combat);
     this.st.fogThisTurn = pub.fogThisTurn;
-    for (const key of ['creatureDiedThisTurn', 'sunsetPendingWindow', 'decisionResume'] as const) {
+    for (const key of ['creatureDiedThisTurn', 'mandateHolder', 'sunsetPendingWindow', 'decisionResume'] as const) {
       if (pub[key] === undefined) delete this.st[key];
       else Object.assign(this.st, { [key]: structuredClone(pub[key]) });
     }

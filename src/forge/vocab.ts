@@ -282,6 +282,7 @@ export function defaultOp(kind: OpKind): ScorableEffectOp {
     case 'markAll': return { op: 'markAll' };
     case 'moveMark': return { op: 'moveMark' };
     case 'hunt': return { op: 'hunt', hunter: 'self' };
+    case 'claimMandate': return { op: 'claimMandate' };
     case 'removeMarks': return { op: 'removeMarks' };
     case 'severSelf': return { op: 'severSelf' };
     case 'loseLifePerTheirMarked': return { op: 'loseLifePerTheirMarked' };
