@@ -47,8 +47,11 @@ on:
 permissions:
   contents: write
 
+# Only lab runs share the queue. A push without the tag still starts a
+# (skipped) run, and GitHub keeps one pending run per group, so in the shared
+# group it would cancel a lab run waiting its turn.
 concurrency:
-  group: mandate-lab
+  group: ${{ (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[mandate-lab')) && 'mandate-lab' || format('mandate-lab-skip-{0}', github.run_id) }}
   cancel-in-progress: false
 
 env:
