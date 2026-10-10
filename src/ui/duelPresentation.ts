@@ -549,7 +549,7 @@ function refusalReason(state: GameState, db: CardDb, player: PlayerId, action: A
       ));
     }
     case 'declareAttackers': {
-      const missing = compelledAttackers(state.battlefield, db, player).find((iid) => !action.attackers.includes(iid));
+      const missing = compelledAttackers(state, db, player).find((iid) => !action.attackers.includes(iid));
       const perm = state.battlefield.find((candidate) => candidate.iid === missing);
       return perm ? rageMustAttackNotice(def(db, perm.cardId).name) : null;
     }

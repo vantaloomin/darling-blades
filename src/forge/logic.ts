@@ -43,7 +43,7 @@ export type TargetCount = 'upTo' | 'exactly';
  * both the older `Color[]` engine union and the newer one that adds 'C'. */
 export type ManaAbilityColor = NonNullable<CardDef['manaAbility']>[number];
 export type ObserverFilter = NonNullable<ScorableAbilityDef['filter']>;
-export type BuilderConditionKind = 'none' | 'questActive' | 'swornActive' | 'controlMarked' | 'markedThreshold' | 'creatureDiedThisTurn' | 'controlsOther';
+export type BuilderConditionKind = 'none' | 'questActive' | 'swornActive' | 'youHoldMandate' | 'youDontHoldMandate' | 'controlMarked' | 'markedThreshold' | 'creatureDiedThisTurn' | 'controlsOther';
 export type MarkedThresholdSubject = NonNullable<
   Extract<ScorableCondition, { kind: 'markedThreshold' }>['subject']
 >;
@@ -292,7 +292,7 @@ function abilityToDef(ability: BuilderAbility): ScorableAbilityDef {
       condition,
       static: {
         ...ability.static,
-        condition: condition === 'questActive' || condition === 'swornActive' ? condition : undefined,
+        condition: condition === 'questActive' || condition === 'swornActive' || condition === 'youHoldMandate' ? condition : undefined,
         filter: ability.static.scope === 'filter' ? ability.static.filter : undefined,
         grantKeywords: ability.static.grantKeywords?.length ? ability.static.grantKeywords : undefined,
       },

@@ -27,7 +27,7 @@ function creatureTargetable(
   if (!isType(def(db, perm.cardId), 'creature')) return false;
   if (
     perm.controller !== caster &&
-    getEffectiveStats(state.battlefield, db, iid).keywords.has('untouchable')
+    getEffectiveStats(state, db, iid).keywords.has('untouchable')
   ) {
     return false;
   }
@@ -153,7 +153,7 @@ export function isLegalTarget(
     const stackX = ref.kind === 'stackItem' && d.x ? state.stack.find(item => item.sid === ref.sid)?.x ?? 0 : 0;
     if (spec.maxCost !== undefined && manaValue(d.cost) + stackX > spec.maxCost) return false;
     if (spec.minAttack !== undefined && (!isType(d, 'creature') ||
-      (ref.kind === 'permanent' ? getEffectiveStats(state.battlefield, db, ref.iid).attack : d.attack ?? 0) < spec.minAttack)) return false;
+      (ref.kind === 'permanent' ? getEffectiveStats(state, db, ref.iid).attack : d.attack ?? 0) < spec.minAttack)) return false;
   }
   if (!spec.marked && !spec.tapped && !spec.attacking && !spec.other) return true;
   if (!satisfiesPermanentQualifiers(state, db, spec, ref)) return false;

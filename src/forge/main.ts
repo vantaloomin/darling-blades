@@ -133,11 +133,13 @@ function clampInt(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, whole));
 }
 
-const CONDITIONS = ['none', 'questActive', 'swornActive', 'controlMarked', 'markedThreshold', 'creatureDiedThisTurn', 'controlsOther'] as const satisfies readonly BuilderConditionKind[];
+const CONDITIONS = ['none', 'questActive', 'swornActive', 'youHoldMandate', 'youDontHoldMandate', 'controlMarked', 'markedThreshold', 'creatureDiedThisTurn', 'controlsOther'] as const satisfies readonly BuilderConditionKind[];
 const CONDITION_LABELS: Record<BuilderConditionKind, string> = {
   none: 'No condition',
   questActive: 'Quest active',
   swornActive: 'Sworn (control a legendary creature)',
+  youHoldMandate: 'You hold the Mandate',
+  youDontHoldMandate: "You don't hold the Mandate",
   controlMarked: 'Control marked permanent',
   markedThreshold: 'Marked threshold',
   creatureDiedThisTurn: 'A creature died this turn',

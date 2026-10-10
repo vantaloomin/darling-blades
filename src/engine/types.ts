@@ -52,6 +52,8 @@ export type TriggerWhen =
   | 'allyDies'
   | 'youGainLife'
   | 'youCastCharm'
+  /** Whenever you claim the Mandate (2.0), by an effect or by combat damage. */
+  | 'youClaimMandate'
   | 'allyAttacks'
   | 'sunset'
   /**
@@ -171,8 +173,8 @@ export type EffectOp =
   | { op: 'claimMandate' }; // the effect's controller claims the Mandate; trigger-safe, no target
 
 export interface StaticDef {
-  /** Both read the source controller's public battlefield. */
-  condition?: 'questActive' | 'swornActive';
+  /** Read from the source controller's public board. */
+  condition?: 'questActive' | 'swornActive' | 'youHoldMandate';
   scope: 'self' | 'attached' | 'filter';
   /** filter scope: your creatures matching; `other` excludes the source. */
   filter?: {
@@ -196,6 +198,9 @@ export interface AbilityDef {
     | 'questActive'
     /** Sworn (2.0, P6): the source's controller controls a legendary creature. */
     | 'swornActive'
+    /** The source's controller holds the Mandate (2.0), or does not. */
+    | 'youHoldMandate'
+    | 'youDontHoldMandate'
     | 'controlMarked'
     | 'creatureDiedThisTurn'
     | { kind: 'controlsOther'; subtype: string }

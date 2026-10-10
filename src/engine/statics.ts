@@ -1,4 +1,19 @@
 import type { AbilityDef, CardDb, CardDef, Keyword, Permanent, PlayerId } from './types';
+
+/**
+ * What a static ability can read: the public battlefield and the public
+ * Mandate holder. `GameState` and `PlayerView` both are one. A bare
+ * battlefield array is still accepted, and reads the Mandate as unclaimed,
+ * so callers holding only a hypothetical board keep working; every engine
+ * call passes its state.
+ */
+export interface StaticBoard {
+  readonly battlefield: readonly Permanent[];
+  readonly mandateHolder?: PlayerId;
+}
+export type BoardInput = readonly Permanent[] | StaticBoard;
+export const boardOf = (input: BoardInput): StaticBoard =>
+  Array.isArray(input) ? { battlefield: input as readonly Permanent[] } : input as StaticBoard;
 import { def, isType, opponentOf } from './types';
 
 export interface EffectiveStats {
@@ -40,13 +55,16 @@ export function isSwornActive(
 }
 
 function staticConditionSatisfied(
-  battlefield: readonly Permanent[],
+  board: StaticBoard,
   db: CardDb,
   controller: PlayerId,
   condition: AbilityDef['condition'] | undefined,
   sourceIid: number,
 ): boolean {
   if (condition === undefined) return true;
+  const battlefield = board.battlefield;
+  if (condition === 'youHoldMandate') return board.mandateHolder === controller;
+  if (condition === 'youDontHoldMandate') return board.mandateHolder !== controller;
   if (condition === 'questActive') return isQuestActive(battlefield, db, controller);
   if (condition === 'swornActive') return isSwornActive(battlefield, db, controller);
   // Turn-history conditions belong to triggered abilities, not static layers.
@@ -95,10 +113,12 @@ function staticLayersOf(d: CardDef): readonly AbilityDef[] | null {
  * information), so AI code can call it on a redacted view too.
  */
 export function getEffectiveStats(
-  battlefield: readonly Permanent[],
+  boardInput: BoardInput,
   db: CardDb,
   iid: number,
 ): EffectiveStats {
+  const board = boardOf(boardInput);
+  const battlefield = board.battlefield;
   const perm = battlefield.find((p) => p.iid === iid);
   if (!perm) throw new Error(`getEffectiveStats: no permanent ${iid}`);
   const d = def(db, perm.cardId);
@@ -139,7 +159,7 @@ export function getEffectiveStats(
     for (const ab of layers) {
       const st = ab.static!;
       const condition = ab.condition ?? st.condition;
-      if (condition !== undefined && !staticConditionSatisfied(battlefield, db, src.controller, condition, src.iid)) continue;
+      if (condition !== undefined && !staticConditionSatisfied(board, db, src.controller, condition, src.iid)) continue;
 
       let applies: boolean;
       if (st.scope === 'self') {
@@ -191,19 +211,19 @@ export function getEffectiveStats(
 }
 
 export function hasKeyword(
-  battlefield: readonly Permanent[],
+  board: BoardInput,
   db: CardDb,
   iid: number,
   k: Keyword,
 ): boolean {
-  return getEffectiveStats(battlefield, db, iid).keywords.has(k);
+  return getEffectiveStats(board, db, iid).keywords.has(k);
 }
 
 /** A creature is summoning-sick if it entered this turn and lacks Warcry (checked on read). */
 export function isSummoningSick(
-  battlefield: readonly Permanent[],
+  board: BoardInput,
   db: CardDb,
   perm: Permanent,
 ): boolean {
-  return perm.enteredThisTurn && !hasKeyword(battlefield, db, perm.iid, 'warcry');
+  return perm.enteredThisTurn && !hasKeyword(board, db, perm.iid, 'warcry');
 }

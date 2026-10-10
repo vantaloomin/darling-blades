@@ -9,7 +9,7 @@ import {
 } from '../battlefield';
 import { applyCreatureDamage, markStruck, type CreatureDamageHit } from '../creatureDamage';
 import { anyPayableHauntlink } from '../hauntlinkWindow';
-import { claimMandate } from '../mandate';
+import { claimMandate, mandateHolderOf } from '../mandate';
 import { refuseTokenAtCap } from '../overcharge';
 import { drawCards } from '../phases';
 import { freshGraveyardCard, graveRefIndex } from '../graveyard';
@@ -249,6 +249,8 @@ export function conditionSatisfied(
     def(db, p.cardId).subtypes.includes(condition.subtype));
   if (condition === 'questActive') return isQuestActive(state.battlefield, db, controller);
   if (condition === 'swornActive') return isSwornActive(state.battlefield, db, controller);
+  if (condition === 'youHoldMandate') return mandateHolderOf(state) === controller;
+  if (condition === 'youDontHoldMandate') return mandateHolderOf(state) !== controller;
   if (condition === 'controlMarked') {
     // The condition name is retained for replay compatibility, but Marks are
     // now creature-scoped throughout the engine.
@@ -612,10 +614,10 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         !hunter || !prey || hunter.iid === prey.iid ||
         !isType(def(db, hunter.cardId), 'creature') || !isType(def(db, prey.cardId), 'creature')
       ) return;
-      const hunterStats = getEffectiveStats(state.battlefield, db, hunter.iid);
+      const hunterStats = getEffectiveStats(state, db, hunter.iid);
       if (hunterStats.keywords.has('bulwark')) return;
       // Both amounts are read before either is dealt: the exchange is simultaneous.
-      const preyAttack = getEffectiveStats(state.battlefield, db, prey.iid).attack;
+      const preyAttack = getEffectiveStats(state, db, prey.iid).attack;
       const hits: CreatureDamageHit[] = [];
       if (hunterStats.attack > 0) {
         hits.push({ source: hunter.iid, sourceController: hunter.controller, target: { kind: 'permanent', iid: prey.iid }, amount: hunterStats.attack });
@@ -749,7 +751,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       state.players[ctx.controller].extraLandDrops += op.n ?? 1;
       return;
     case 'claimMandate':
-      claimMandate(state, emit, ctx.controller, 'effect');
+      claimMandate(state, db, emit, ctx.controller, 'effect');
       return;
     case 'createToken': {
       for (let i = 0; i < op.count; i++) {
@@ -798,7 +800,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         if (op.filter === 'allEnchantments') return isType(d, 'enchantment');
         if (!isType(d, 'creature')) return false;
         if (op.filter === 'allFliers') {
-          return getEffectiveStats(state.battlefield, db, p.iid).keywords.has('skyborne');
+          return getEffectiveStats(state, db, p.iid).keywords.has('skyborne');
         }
         return true;
       });
@@ -1346,7 +1348,7 @@ export function fireMarkedAllyAttackTriggers(
 
 /** Public player events and battlefield-ordered creature observers. */
 export function firePlayerObservers(state: GameState, db: CardDb, emit: Emit,
-  when: 'youGainLife' | 'youCastCharm', player: PlayerId, markTriggerDepth = 0): void {
+  when: 'youGainLife' | 'youCastCharm' | 'youClaimMandate', player: PlayerId, markTriggerDepth = 0): void {
   if (when === 'youGainLife' && markTriggerDepth > MAX_MARK_TRIGGER_DEPTH) return;
   for (const source of [...state.battlefield]) {
     if (source.controller === player) fireTriggers(state, db, emit, when, source, { markTriggerDepth });

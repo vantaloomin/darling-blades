@@ -64,7 +64,7 @@ export function titheManaSaved(view: PlayerView, db: CardDb, cast: SpellCast): n
   if (cardId === undefined) return 0;
   const generic = titheBaseCost(db, cardId, cast)?.generic ?? 0;
   const defense = (cast.sacrifices ?? []).reduce((sum, iid) =>
-    sum + getEffectiveStats(view.battlefield, db, iid).defense, 0);
+    sum + getEffectiveStats(view, db, iid).defense, 0);
   return Math.min(generic, Math.floor(defense / 2));
 }
 
@@ -91,9 +91,9 @@ export function chooseTitheSacrifices(
     const bodyDef = def(db, perm.cardId);
     if (!isType(bodyDef, 'creature')) return [];
     const value = permValue(view.battlefield, db, perm.iid);
-    const defense = getEffectiveStats(view.battlefield, db, perm.iid).defense;
+    const defense = getEffectiveStats(view, db, perm.iid).defense;
     const token = perm.isToken === true || (perm.isToken === undefined && bodyDef.token === true);
-    const fodderClass = token || defense <= 2 || isSummoningSick(view.battlefield, db, perm);
+    const fodderClass = token || defense <= 2 || isSummoningSick(view, db, perm);
     return [{ iid: perm.iid, index, value, defense,
       saleValue: value * (fodderClass ? FODDER_VALUE_RATE : 1) }];
   });

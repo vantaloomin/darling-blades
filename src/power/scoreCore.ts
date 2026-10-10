@@ -90,6 +90,8 @@ export type ScorableTriggerWhen = TriggerWhen | (typeof STARBORNE_TRIGGERS)[numb
 export type ScorableCondition =
   | 'questActive'
   | 'swornActive'
+  | 'youHoldMandate'
+  | 'youDontHoldMandate'
   | 'controlMarked'
   | 'creatureDiedThisTurn'
   | { kind: 'controlsOther'; subtype: string }
@@ -640,6 +642,9 @@ export const TRIGGER_MULT: Record<Exclude<ScorableTriggerWhen, CarrierTriggerWhe
   combatDamageToPlayer: 0.7,
   spell: 1.0,
   static: 1.0,
+  // NEEDS MATH (2.0): how often a claim trigger fires comes from the Mandate
+  // lab (B5). Held at the arrival rate meanwhile, and reported as unpriced.
+  youClaimMandate: 0.75,
   entersGraveyard: 0.5, // v2 — a "when this creature would die" rider; narrower than `dies` (fires on card-leaves-battlefield-to-grave specifically, not e.g. a bounced/severed exit that dies also would not cover), and it stacks with the death itself, so it is priced BELOW `dies` (0.6).
 
   // ── §4m Starborne mark observers (2026-08-29) ─────────────────────────────
@@ -783,6 +788,7 @@ export function triggerMult(w: ScorableTriggerWhen, card: ScorableCardDef, unkno
     return card.types.includes('creature') ? split.creature : split.noncreature;
   }
   if (w === 'provoked') return provokedSurvival(card.defense ?? 0);
+  if (w === 'youClaimMandate') unknowns.add('when:youClaimMandate');
   const v = TRIGGER_MULT[w];
   if (v === undefined) {
     unknowns.add(`when:${w}`);
@@ -1815,6 +1821,8 @@ export function scoreCard(card: ScorableCardDef): Score {
       // NEEDS MATH: Sworn's active rate per format comes from the Core Set II
       // lab (2.0 B5). Until then it is priced at full rate and reported.
       else if (cond === 'swornActive') unknowns.add('condition:swornActive');
+      // NEEDS MATH: likewise the Mandate's hold rate (B5).
+      else if (cond === 'youHoldMandate' || cond === 'youDontHoldMandate') unknowns.add(`condition:${cond}`);
       else if (typeof cond === 'object' && cond.kind === 'controlsOther') condMult = COND_CONTROLS_OTHER;
       else if (typeof cond === 'object' && cond.kind === 'markedThreshold') {
         condMult = cond.n >= 4 ? 0.55 : cond.n === 3 ? 0.65 : 0.75;

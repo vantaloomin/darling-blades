@@ -491,6 +491,8 @@ function conditionPhrase(ab: AbilityDef, additionalDawn = false): string | undef
   if (condition === undefined) return undefined;
   if (condition === 'questActive') return 'While a Quest is active';
   if (condition === 'swornActive') return 'Sworn';
+  if (condition === 'youHoldMandate') return ab.when === 'static' ? 'While you hold the Mandate' : 'If you hold the Mandate';
+  if (condition === 'youDontHoldMandate') return "If you don't hold the Mandate";
   if (condition === 'creatureDiedThisTurn') return 'If a creature died this turn';
   const also = additionalDawn ? 'also ' : '';
   if (condition === 'controlMarked') {
@@ -600,6 +602,9 @@ function abilityText(ab: AbilityDef, d: CardDef, additionalDawn = false): string
       break;
     case 'youCastCharm':
       sentence = `Whenever you cast a Charm, ${body}.`;
+      break;
+    case 'youClaimMandate':
+      sentence = `Whenever you claim the Mandate, ${body}.`;
       break;
     case 'entersGraveyard':
       sentence = `When this enters your graveyard, ${body}.`;

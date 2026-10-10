@@ -324,7 +324,7 @@ function readTargets(value: unknown): TargetSpec[] {
 }
 
 function readCondition(value: unknown): ScorableCondition {
-  if (typeof value === 'string') return oneOf(value, ['questActive', 'swornActive', 'controlMarked', 'creatureDiedThisTurn'] as const, 'trigger');
+  if (typeof value === 'string') return oneOf(value, ['questActive', 'swornActive', 'youHoldMandate', 'youDontHoldMandate', 'controlMarked', 'creatureDiedThisTurn'] as const, 'trigger');
   const raw = object(value, ['kind', 'n', 'subject', 'subtype']);
   if (raw.kind === 'markedThreshold') {
     if (raw.subtype !== undefined) fail('field');
@@ -344,7 +344,7 @@ function readCondition(value: unknown): ScorableCondition {
 function readStatic(value: unknown): StaticDef {
   const raw = object(value, ['scope', 'condition', 'filter', 'p', 't', 'grantKeywords']);
   const out: StaticDef = { scope: oneOf(raw.scope, ['self', 'attached', 'filter'] as const) };
-  if (raw.condition !== undefined) out.condition = oneOf(raw.condition, ['questActive', 'swornActive'] as const, 'trigger');
+  if (raw.condition !== undefined) out.condition = oneOf(raw.condition, ['questActive', 'swornActive', 'youHoldMandate'] as const, 'trigger');
   if (raw.filter !== undefined) {
     const filter = object(raw.filter, ['subtype', 'other', 'marked', 'token', 'who']);
     out.filter = {

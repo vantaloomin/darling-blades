@@ -60,7 +60,7 @@ export function applyCreatureDamage(
   for (const hit of hits) {
     if (keywordsOf.has(hit.source)) continue;
     const onBoard = state.battlefield.some((perm) => perm.iid === hit.source);
-    keywordsOf.set(hit.source, onBoard ? getEffectiveStats(state.battlefield, db, hit.source).keywords : new Set());
+    keywordsOf.set(hit.source, onBoard ? getEffectiveStats(state, db, hit.source).keywords : new Set());
   }
   const deathblade = (hit: CreatureDamageHit): boolean => keywordsOf.get(hit.source)!.has('deathblade');
   const bloodOath = (hit: CreatureDamageHit): boolean => keywordsOf.get(hit.source)!.has('bloodoath');

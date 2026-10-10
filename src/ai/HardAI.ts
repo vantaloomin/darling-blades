@@ -708,7 +708,7 @@ export class HardAI implements AIPlayer {
         const gang = plan.filter((b) => b.attacker === attacker).length;
         if (gang >= 3) continue;
         const free = myCreatures.filter((c) => !used.has(c.iid));
-        if (gang === 0 && minimumBlockersForAttacker(view.battlefield, this.db, attacker) === 2) {
+        if (gang === 0 && minimumBlockersForAttacker(view, this.db, attacker) === 2) {
           // A single add to an unblocked Dreaded attacker is illegal, so the
           // climb could never reach a gang block: mutate by whole pairs.
           for (let i = 0; i < free.length; i++) {
@@ -728,12 +728,12 @@ export class HardAI implements AIPlayer {
       }
       for (const b of plan) {
         const left = plan.filter((x) => x.attacker === b.attacker).length - 1;
-        if (left > 0 && minimumBlockersForAttacker(view.battlefield, this.db, b.attacker) > left) continue;
+        if (left > 0 && minimumBlockersForAttacker(view, this.db, b.attacker) > left) continue;
         for (const attacker of attackers) {
           if (attacker === b.attacker) continue;
           if (!view.battlefield.some((p) => p.iid === attacker)) continue;
           const gang = plan.filter((x) => x.attacker === attacker).length;
-          if (gang >= 3 || gang + 1 < minimumBlockersForAttacker(view.battlefield, this.db, attacker)) continue;
+          if (gang >= 3 || gang + 1 < minimumBlockersForAttacker(view, this.db, attacker)) continue;
           out.push(plan.map((x) => (x === b ? { blocker: b.blocker, attacker } : x))); // move
         }
       }

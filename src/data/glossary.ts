@@ -234,6 +234,9 @@ const TRIGGER_MECHANIC: Record<TriggerWhen, 'mark' | 'propagate' | 'provoked' | 
   allyDies: null,
   youGainLife: null,
   youCastCharm: null,
+  // The Mandate is not a keyword mechanic; its glossary entry lands with the
+  // duel's Mandate UI (2.0 lane B4).
+  youClaimMandate: null,
   allyAttacks: null,
   sunset: null,
   static: null,

@@ -18,7 +18,7 @@ const BASE_PASSES = 30;
  * which is what Provoked reads.
  */
 export function isLethallyDamaged(state: GameState, db: CardDb, perm: Permanent): boolean {
-  const stats = getEffectiveStats(state.battlefield, db, perm.iid);
+  const stats = getEffectiveStats(state, db, perm.iid);
   return stats.defense <= 0 || perm.damage >= stats.defense || (perm.deathtouched && perm.damage > 0);
 }
 
@@ -182,7 +182,7 @@ export function checkStateBased(state: GameState, db: CardDb, emit: Emit, option
           plusOneCounters: p.plusOneCounters,
           overcharge: p.overcharge,
           attachedTo: p.attachedTo,
-          def: getEffectiveStats(state.battlefield, db, p.iid).defense,
+          def: getEffectiveStats(state, db, p.iid).defense,
         })),
       }),
   );

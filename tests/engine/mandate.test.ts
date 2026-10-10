@@ -3,7 +3,9 @@ import { determinize } from '../../src/ai/determinize';
 import type { GameEvent } from '../../src/engine/events';
 import { Game } from '../../src/engine/Game';
 import { startTurn } from '../../src/engine/phases';
+import { getEffectiveStats } from '../../src/engine/statics';
 import type { CardDb, CardDef, GameState, Permanent, PlayerId } from '../../src/engine/types';
+import { rulesText } from '../../src/ui/rulesText';
 import { makeTestState, TEST_DB } from '../helpers';
 
 /**
@@ -27,6 +29,11 @@ const DB: CardDb = {
   raider: creature('raider', 2, 2, { abilities: [{ when: 'combatDamageToPlayer', ops: [{ op: 'gainLife', n: 1 }] }] }),
   seer: creature('seer', 1, 1, { abilities: [{ when: 'dawn', ops: [{ op: 'gainLife', n: 1 }] }] }),
   fog: { ...creature('fog', 0, 0), types: ['charm'], attack: undefined, defense: undefined, abilities: [{ when: 'spell', ops: [{ op: 'preventCombat' }] }] },
+  banner: { ...creature('banner', 0, 0), types: ['artifact'], attack: undefined, defense: undefined, abilities: [{ when: 'static', static: { scope: 'filter', p: 1, t: 0, condition: 'youHoldMandate' } }] },
+  library: { ...creature('library', 0, 0), types: ['enchantment'], attack: undefined, defense: undefined, abilities: [{ when: 'dawn', condition: 'youHoldMandate', ops: [{ op: 'gainLife', n: 3 }] }] },
+  nemesis: creature('nemesis', 2, 4, { abilities: [{ when: 'dawn', condition: 'youDontHoldMandate', ops: [{ op: 'loseLife', n: 2, who: 'opponent' }] }] }),
+  kite: creature('kite', 2, 3, { abilities: [{ when: 'youClaimMandate', ops: [{ op: 'gainLife', n: 1 }] }] }),
+  usurper: creature('usurper', 4, 4, { abilities: [{ when: 'youClaimMandate', targets: [{ what: 'opponentCreature' }], ops: [{ op: 'sever', to: 'target' }] }] }),
 };
 
 function boardState(
@@ -201,5 +208,64 @@ describe('the Mandate', () => {
     expect(game.instanceState.mandateHolder).toBe(1);
     expect(determinize(game.viewFor(0), DB).instanceState.mandateHolder).toBe(1);
     expect(game.clone().instanceState.mandateHolder).toBe(1);
+  });
+
+  describe('on cards', () => {
+    it('"while you hold the Mandate" statics follow the holder, including a combat steal', () => {
+      const game = Game.restore(boardState([
+        { iid: 1, cardId: 'brute' }, { iid: 2, cardId: 'banner', controller: 1 }, { iid: 3, cardId: 'brute', controller: 1 },
+      ], { holder: 1 }), DB);
+      const attackOf = (iid: number) => getEffectiveStats(game.instanceState, DB, iid).attack;
+      expect(attackOf(3)).toBe(4);
+      attack(game, [1]);
+      expect(game.instanceState.mandateHolder).toBe(0);
+      expect(attackOf(3)).toBe(3);
+    });
+
+    it('a bare battlefield reads the Mandate as unclaimed', () => {
+      const state = boardState([{ iid: 2, cardId: 'banner' }, { iid: 3, cardId: 'brute' }], { holder: 0 });
+      expect(getEffectiveStats(state, DB, 3).attack).toBe(4);
+      expect(getEffectiveStats(state.battlefield, DB, 3).attack).toBe(3);
+    });
+
+    it('"if you hold" and "if you don\'t hold" dawn abilities read the holder when they fire', () => {
+      for (const holder of [0, 1, undefined] as const) {
+        const state = boardState([{ iid: 1, cardId: 'library' }, { iid: 2, cardId: 'nemesis' }], { holder });
+        startTurn(state, DB, () => {});
+        expect(state.players[0].life).toBe(holder === 0 ? 23 : 20);
+        expect(state.players[1].life).toBe(holder === 0 ? 20 : 18);
+      }
+    });
+
+    it('"whenever you claim the Mandate" fires for the claimant only, and not on a claim that changes nothing', () => {
+      const game = Game.restore(boardState([{ iid: 1, cardId: 'kite' }, { iid: 2, cardId: 'kite', controller: 1 }], { hands: [['edict', 'edict'], []] }), DB);
+      game.submit(0, { type: 'castSpell', handIndex: 0 });
+      expect(game.instanceState.players.map((p) => p.life)).toEqual([21, 20]);
+      game.submit(0, { type: 'castSpell', handIndex: 0 });
+      expect(game.instanceState.players.map((p) => p.life)).toEqual([21, 20]);
+    });
+
+    it('a combat claim fires claim abilities before combat-damage triggers', () => {
+      const game = Game.restore(boardState([{ iid: 1, cardId: 'raider' }, { iid: 2, cardId: 'kite' }], { holder: 1 }), DB);
+      const events = attack(game, [1]);
+      const claimTrigger = events.findIndex((e) => e.e === 'triggerFired' && e.iid === 2);
+      const damageTrigger = events.findIndex((e) => e.e === 'triggerFired' && e.iid === 1);
+      expect(claimTrigger).toBeGreaterThan(events.findIndex((e) => e.e === 'mandateChanged'));
+      expect(damageTrigger).toBeGreaterThan(claimTrigger);
+    });
+
+    it('a targeted claim ability asks its controller for a target', () => {
+      const game = Game.restore(boardState([{ iid: 1, cardId: 'usurper' }, { iid: 2, cardId: 'brute', controller: 1 }], { hands: [['edict'], []] }), DB);
+      game.submit(0, { type: 'castSpell', handIndex: 0 });
+      expect(game.awaiting).toMatchObject({ kind: 'chooseTarget', player: 0 });
+      game.submit(0, { type: 'chooseTarget', target: { kind: 'permanent', iid: 2 } });
+      expect(game.instanceState.battlefield.some((p) => p.iid === 2)).toBe(false);
+    });
+
+    it('reads as card text', () => {
+      expect(rulesText(DB.banner)).toBe('While you hold the Mandate, creatures you control get +1/+0.');
+      expect(rulesText(DB.kite)).toBe('Whenever you claim the Mandate, you gain 1 life.');
+      expect(rulesText(DB.nemesis)).toMatch(/If you don't hold the Mandate, .*loses 2 life/);
+    });
   });
 });

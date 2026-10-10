@@ -1,5 +1,5 @@
 import { RULES } from '../../config/rules';
-import { getEffectiveStats, isSummoningSick } from '../statics';
+import { boardOf, getEffectiveStats, isSummoningSick, type BoardInput } from '../statics';
 import type { CardDb, CombatState, Permanent, PlayerId } from '../types';
 import { def, isType } from '../types';
 
@@ -7,53 +7,57 @@ import { def, isType } from '../types';
  * Attack/block legality — the ONE place these rules live. The engine
  * validator, the legalActions enumerator, the UI highlighting, and the AI's
  * block construction all call in here. Operates on the battlefield array so
- * it works on redacted views.
+ * it works on redacted views. `board` is the state or view (a bare
+ * battlefield also works, reading the Mandate as unclaimed).
  */
 
 export function canAttack(
-  battlefield: readonly Permanent[],
+  board: BoardInput,
   db: CardDb,
   active: PlayerId,
   iid: number,
 ): boolean {
+  const battlefield = boardOf(board).battlefield;
   const perm = battlefield.find((p) => p.iid === iid);
   if (!perm || perm.controller !== active || perm.tapped) return false;
   const d = def(db, perm.cardId);
   if (!isType(d, 'creature')) return false;
-  const stats = getEffectiveStats(battlefield, db, iid);
+  const stats = getEffectiveStats(board, db, iid);
   if (stats.keywords.has('bulwark')) return false;
-  if (isSummoningSick(battlefield, db, perm)) return false;
+  if (isSummoningSick(board, db, perm)) return false;
   return true;
 }
 
 /** Tap-ability source eligibility, shared by main-phase activation callers. */
 export function canActivate(
-  battlefield: readonly Permanent[],
+  board: BoardInput,
   db: CardDb,
   perm: Permanent,
   player: PlayerId,
 ): boolean {
+  const battlefield = boardOf(board).battlefield;
   const source = battlefield.find((candidate) => candidate.iid === perm.iid);
   return !!source && source.controller === player && !!def(db, source.cardId).activated &&
-    !source.tapped && !isSummoningSick(battlefield, db, source);
+    !source.tapped && !isSummoningSick(board, db, source);
 }
 
 export function canBlock(
-  battlefield: readonly Permanent[],
+  board: BoardInput,
   db: CardDb,
   defender: PlayerId,
   blockerIid: number,
   attackerIid: number,
 ): boolean {
+  const battlefield = boardOf(board).battlefield;
   const blocker = battlefield.find((p) => p.iid === blockerIid);
   const attacker = battlefield.find((p) => p.iid === attackerIid);
   if (!blocker || !attacker) return false;
   if (blocker.controller !== defender || blocker.tapped) return false;
   if (!isType(def(db, blocker.cardId), 'creature')) return false;
   // Summoning sickness does not restrict blocking.
-  const atkStats = getEffectiveStats(battlefield, db, attackerIid);
+  const atkStats = getEffectiveStats(board, db, attackerIid);
   if (atkStats.keywords.has('skyborne')) {
-    const blkStats = getEffectiveStats(battlefield, db, blockerIid);
+    const blkStats = getEffectiveStats(board, db, blockerIid);
     if (!blkStats.keywords.has('skyborne') && !blkStats.keywords.has('wardingGaze')) return false;
   }
   return true;
@@ -61,15 +65,15 @@ export function canBlock(
 
 /** The minimum final assignment size for one attacker. */
 export function minimumBlockersForAttacker(
-  battlefield: readonly Permanent[],
+  board: BoardInput,
   db: CardDb,
   attackerIid: number,
 ): number {
-  return getEffectiveStats(battlefield, db, attackerIid).keywords.has('dreaded') ? 2 : 1;
+  return getEffectiveStats(board, db, attackerIid).keywords.has('dreaded') ? 2 : 1;
 }
 
 export function validateAttackers(
-  battlefield: readonly Permanent[],
+  board: BoardInput,
   db: CardDb,
   active: PlayerId,
   attackers: readonly number[],
@@ -78,24 +82,25 @@ export function validateAttackers(
   for (const iid of attackers) {
     if (seen.has(iid)) return `duplicate attacker ${iid}`;
     seen.add(iid);
-    if (!canAttack(battlefield, db, active, iid)) return `illegal attacker ${iid}`;
+    if (!canAttack(board, db, active, iid)) return `illegal attacker ${iid}`;
   }
   // Rage is a requirement, not a permission, so it is checked over the whole
   // declaration rather than per attacker: the empty declaration that skips
   // combat is exactly the one a compelled attacker has to reject.
-  for (const iid of compelledAttackers(battlefield, db, active)) {
+  for (const iid of compelledAttackers(board, db, active)) {
     if (!seen.has(iid)) return `attacker ${iid} has Rage and must attack`;
   }
   return null;
 }
 
 export function validateBlocks(
-  battlefield: readonly Permanent[],
+  board: BoardInput,
   db: CardDb,
   defender: PlayerId,
   combat: CombatState,
   blocks: readonly { blocker: number; attacker: number }[],
 ): string | null {
+  const battlefield = boardOf(board).battlefield;
   const blockersSeen = new Set<number>();
   const perAttacker = new Map<number, number>();
   const liveAttackers = new Set(
@@ -105,7 +110,7 @@ export function validateBlocks(
     if (blockersSeen.has(b.blocker)) return `blocker ${b.blocker} assigned twice`;
     blockersSeen.add(b.blocker);
     if (!liveAttackers.has(b.attacker)) return `${b.attacker} is not an attacker`;
-    if (!canBlock(battlefield, db, defender, b.blocker, b.attacker))
+    if (!canBlock(board, db, defender, b.blocker, b.attacker))
       return `illegal block ${b.blocker} -> ${b.attacker}`;
     const n = (perAttacker.get(b.attacker) ?? 0) + 1;
     if (n > RULES.maxBlockersPerAttacker)
@@ -116,7 +121,7 @@ export function validateBlocks(
   // incremental UI/AI flows can show a lone block-in-progress. A submitted
   // action is final, however, so Dreaded's minimum is enforced here.
   for (const [attacker, count] of perAttacker) {
-    const minimum = minimumBlockersForAttacker(battlefield, db, attacker);
+    const minimum = minimumBlockersForAttacker(board, db, attacker);
     if (count < minimum) return `${attacker} requires at least ${minimum} blockers`;
   }
   return null;
@@ -128,11 +133,12 @@ export function validateBlocks(
  * validateBlocks rejects it when the player submits the final assignment.
  */
 export function blockOptions(
-  battlefield: readonly Permanent[],
+  board: BoardInput,
   db: CardDb,
   defender: PlayerId,
   combat: CombatState,
 ): { blocker: number; canBlock: number[] }[] {
+  const battlefield = boardOf(board).battlefield;
   const out: { blocker: number; canBlock: number[] }[] = [];
   for (const perm of battlefield) {
     if (perm.controller !== defender || perm.tapped) continue;
@@ -140,7 +146,7 @@ export function blockOptions(
     const targets = combat.attackers.filter(
       (a) =>
         battlefield.some((p) => p.iid === a) &&
-        canBlock(battlefield, db, defender, perm.iid, a),
+        canBlock(board, db, defender, perm.iid, a),
     );
     if (targets.length > 0) out.push({ blocker: perm.iid, canBlock: targets });
   }
@@ -149,12 +155,13 @@ export function blockOptions(
 
 /** Eligible attackers for the active player (UI highlighting, AI, enumerator). */
 export function eligibleAttackers(
-  battlefield: readonly Permanent[],
+  board: BoardInput,
   db: CardDb,
   active: PlayerId,
 ): number[] {
+  const battlefield = boardOf(board).battlefield;
   return battlefield
-    .filter((p) => canAttack(battlefield, db, active, p.iid))
+    .filter((p) => canAttack(board, db, active, p.iid))
     .map((p) => p.iid);
 }
 
@@ -174,11 +181,11 @@ export function eligibleAttackers(
  * compelled attacker.
  */
 export function compelledAttackers(
-  battlefield: readonly Permanent[],
+  board: BoardInput,
   db: CardDb,
   active: PlayerId,
 ): number[] {
-  return eligibleAttackers(battlefield, db, active).filter((iid) =>
-    getEffectiveStats(battlefield, db, iid).keywords.has('rage'),
+  return eligibleAttackers(board, db, active).filter((iid) =>
+    getEffectiveStats(board, db, iid).keywords.has('rage'),
   );
 }

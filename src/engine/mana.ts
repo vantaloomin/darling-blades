@@ -28,7 +28,7 @@ export function manaSources(state: Pick<GameState, 'battlefield'>, db: CardDb, p
     const isLand = isType(d, 'land');
     // Simplification (documented in the plan): summoning-sick mana creatures
     // cannot be tapped for mana — ramp arrives on a one-turn delay.
-    if (!isLand && isSummoningSick(state.battlefield, db, perm)) continue;
+    if (!isLand && isSummoningSick(state, db, perm)) continue;
     out.push({ iid: perm.iid, colors: [...d.manaAbility], isLand });
   }
   return out;
