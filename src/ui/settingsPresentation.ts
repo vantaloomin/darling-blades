@@ -238,6 +238,11 @@ export const SETTINGS_TABS: readonly { key: SettingsTab; label: string }[] = [
   { key: 'accessibility', label: 'Accessibility' },
 ];
 
+/** A tab's label: the Audio tab reads "Audio & screen" when it carries the Screen section (M8). */
+export function settingsTabLabel(tab: { key: SettingsTab; label: string }, fullScreen: boolean): string {
+  return tab.key === 'audio' && fullScreen ? 'Audio & screen' : tab.label;
+}
+
 export const DEFAULT_SETTINGS_TAB: SettingsTab = 'game';
 
 /** A12: the instruction follows the device's card-preview gesture. */

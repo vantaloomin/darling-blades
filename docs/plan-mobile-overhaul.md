@@ -435,8 +435,9 @@ word.
   (`tapSlopWorldPx` in `src/platform/renderScale.ts`, desktop unchanged).
   The full-screen button (M8, placed 2026-10-10): a corner-bracket icon
   left of Settings in the main menu's header, and a Full screen switch in
-  a Screen section on Settings' Audio tab (the Game and Accessibility tabs
-  have no room for another row at 130% text). Both show only on a touch
+  a Screen section on Settings' Audio tab, which then reads "Audio &
+  screen" (owner's pick, 2026-10-10; the Game and Accessibility tabs have
+  no room for another row at 130% text). Both show only on a touch
   device whose browser allows full screen and that did not already launch
   full screen from the home screen; entering it also asks for landscape
   (`src/platform/fullscreen.ts`).

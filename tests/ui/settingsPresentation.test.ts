@@ -21,6 +21,7 @@ import {
   SETTINGS_TAB_GAP,
   SETTINGS_TAB_ROW,
   SETTINGS_TABS,
+  settingsTabLabel,
   SETTINGS_TITLE_TRACK,
   TEXT_SIZE_CHIP_WIDTH,
   TOGGLE_WIDTH,
@@ -431,6 +432,11 @@ describe('the tab row', () => {
       );
       expect(SETTINGS_TAB_ROW.bottom + MIN_GAP_WITHIN, at).toBeLessThanOrEqual(SETTINGS_PANELS.top);
     });
+  });
+
+  it('names the Audio tab "Audio & screen" only when it carries the Screen section', () => {
+    expect(SETTINGS_TABS.map((tab) => settingsTabLabel(tab, true))).toEqual(['Game', 'Audio & screen', 'Accessibility']);
+    expect(SETTINGS_TABS.map((tab) => settingsTabLabel(tab, false))).toEqual(['Game', 'Audio', 'Accessibility']);
   });
 
   it('keeps the three tabs centred, disjoint by the gap, and inside the frame at every plausible width', () => {

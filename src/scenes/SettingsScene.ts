@@ -29,6 +29,7 @@ import {
   SETTINGS_TAB_BASE_WIDTH,
   SETTINGS_TAB_ROW,
   SETTINGS_TABS,
+  settingsTabLabel,
   TEXT_SIZE_CHIPS,
   TEXT_SIZE_CHIP_WIDTH,
   TOGGLE_WIDTH,
@@ -194,7 +195,7 @@ export class SettingsScene extends Phaser.Scene {
   private buildTabs(): void {
     const buttons = SETTINGS_TABS.map(({ key, label }) =>
       this.track(
-        themedButton(this, 0, SETTINGS_TAB_ROW.y, label, {
+        themedButton(this, 0, SETTINGS_TAB_ROW.y, settingsTabLabel({ key, label }, this.fullScreen), {
           variant: key === this.tab ? 'selected' : 'ghost',
           look: 'tab',
           size: 'sm',
