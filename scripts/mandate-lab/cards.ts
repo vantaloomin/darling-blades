@@ -16,6 +16,14 @@ const stone = (mana: number, ops: EffectOp[], targets?: TargetSpec[]): Activated
   ...(targets ? { targets } : {}),
 });
 
+const NUWA: Partial<CardDef> = {
+  supertypes: ['legendary'],
+  attack: 4,
+  defense: 4,
+  tithe: { per: 2 },
+  abilities: [{ when: 'arrives', ops: [{ op: 'claimMandate' }] }],
+};
+
 const body = (id: string, name: string, mana: number, extra: Partial<CardDef> = {}): CardDef => ({
   id,
   name,
@@ -69,6 +77,25 @@ export const LAB_CARDS = {
   /** Tithe marks (Nüwa): a 3/3 Tithe for five, without and with "arrives with a mark per {1} saved (at most 5)". */
   tithe5: body('lab-tithe5', 'Lab Offering', 5, { tithe: { per: 2 } }),
   titheMarks5: body('lab-tithe-marks5', 'Lab Offering (marks)', 5, { tithe: { per: 2, marks: 5 } }),
+  /**
+   * Nüwa on her own chassis, colourless so any deck can cast her (each stone
+   * at {1}, Sever at {2}): a legendary 4/4 Tithe for ten that claims the
+   * Mandate on arrival; then with "arrives with a mark per {1} Tithe saved (at
+   * most 5)"; then with the marks and her five stones.
+   */
+  nuwaBody: body('lab-nuwa-body', 'Lab Goddess', 10, NUWA),
+  nuwaMarks: body('lab-nuwa-marks', 'Lab Goddess (marks)', 10, { ...NUWA, tithe: { per: 2, marks: 5 } }),
+  nuwaFull: body('lab-nuwa-full', 'Lab Goddess (stones)', 10, {
+    ...NUWA,
+    tithe: { per: 2, marks: 5 },
+    activated: [
+      stone(1, [{ op: 'damage', n: 3, to: 'target' }], [{ what: 'any' }]),
+      stone(1, [{ op: 'markAll', scope: 'yourCreatures', other: true }]),
+      stone(1, [{ op: 'gainLife', n: 5 }]),
+      stone(1, [{ op: 'draw', n: 2 }]),
+      stone(2, [{ op: 'sever', to: 'target' }], [{ what: 'opponentCreature' }]),
+    ],
+  }),
 } satisfies Record<string, CardDef>;
 
 export type LabCard = keyof typeof LAB_CARDS;
@@ -101,6 +128,9 @@ export const LAB_DB: CardDb = Object.freeze({
  * The dawn set (Core Set II costing) checks the small life lines the set
  * prints most: gain 1 on arrival, and gain 1, gain 2 or drain 1 at each of
  * your dawns.
+ *
+ * The nuwa set reads Nüwa's marks and stones on her own chassis (a 4/4
+ * Tithe for ten that claims), each against the chassis alone.
  *
  * The stones set (Core Set II costing) prices Nüwa's two unpriced pieces on
  * colourless carriers, each read against its own control (`vs`):
@@ -152,6 +182,12 @@ export const ARM_SETS = {
     stoneMarkAll: { row: 'stoneMarkAll', col: 'ctl3', vs: 'marks' },
     tithe: { row: 'tithe5', col: 'ctl3' },
     titheMarks: { row: 'titheMarks5', col: 'ctl3', vs: 'tithe' },
+  },
+  nuwa: {
+    ...SHARED,
+    nuwaBody: { row: 'nuwaBody', col: 'ctl3' },
+    nuwaMarks: { row: 'nuwaMarks', col: 'ctl3', vs: 'nuwaBody' },
+    nuwaFull: { row: 'nuwaFull', col: 'ctl3', vs: 'nuwaBody' },
   },
 } as const satisfies Record<string, Record<string, { row: LabCard; col: LabCard; vs?: string }>>;
 
