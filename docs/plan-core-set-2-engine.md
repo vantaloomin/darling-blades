@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-2.0.md, docs/plan-core-set-2.md, src/engine/mandate.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/effects/EffectInterpreter.ts, src/engine/types.ts, src/engine/events.ts, src/engine/view.ts, src/engine/Game.ts, src/ai/determinize.ts, src/meta/Replay.ts, src/power/scoreCore.ts, src/ui/mandatePresentation.ts, src/ui/modeChoice.ts · last-verified: 2026-10-10 · engine spec, DRAFT: lane B1 of plan-2.0; the parts marked "as built" are on release/2.0, the rest is proposed; re-verify when the owner rules a question below or the overplan's cut changes -->
+<!-- source-of-truth: docs/plan-2.0.md, docs/plan-core-set-2.md, src/engine/mandate.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/effects/EffectInterpreter.ts, src/engine/types.ts, src/engine/events.ts, src/engine/view.ts, src/engine/Game.ts, src/ai/determinize.ts, src/ai/combatPlans.ts, src/ai/evaluate.ts, src/meta/Replay.ts, src/power/scoreCore.ts, src/ui/mandatePresentation.ts, src/ui/modeChoice.ts · last-verified: 2026-10-10 · engine spec, DRAFT: lane B1 of plan-2.0; the parts marked "as built" are on release/2.0, the rest is proposed; re-verify when the owner rules a question below or the overplan's cut changes -->
 
 # Core Set II engine spec: the Mandate, Sworn, and what the cards need (2.0 lane B)
 
@@ -13,7 +13,7 @@ Build order (the 2.0 plan's shared-file order: the Mandate first in `types.ts` a
 5. Small constructs the overplan names: an arrival trigger filtered by subtype (Yutu, Jiuwei, Lanlan); "if you gained life this turn" (Hebe); a token created for a target's controller (Circe's Pig). **As built (B2.4).**
 6. Nüwa's pieces: removing marks as an activation cost, without a tap; a Tithe that grants marks; Tithe on a Darling cast (ruled 2026-10-08: it reduces the base cost, never the Darling tax). **As built (B2.5).**
 7. The modal "choose up to N" (ruled into the engine 2026-10-08 for later sets). **As built (B2.6), for Rituals and Charms.**
-8. The AI reads (B3), the duel UI (B4, **as built**, Part 8), the lab rates (B5).
+8. The AI reads (B3, **as built**, Part 1), the duel UI (B4, **as built**, Part 8), the lab rates (B5).
 
 ## Part 1. The Mandate
 
@@ -35,6 +35,17 @@ Build order (the 2.0 plan's shared-file order: the Mandate first in `types.ts` a
 - **Scorer.** `claimMandate` scores 0 and is reported as an unknown (`op:claimMandate`) until the lab (B5) measures a claim. The personas' op table also holds it at 0. Neither invents a rate.
 - **Words.** `rulesText` renders the op as "claim the Mandate". The Forge offers it in its effect palette (added in B4).
 - **Tests.** `tests/engine/mandate.test.ts`: initial state, effect claim, claiming from the other player, already-holder no-op, dawn order, turn-one draw, deck-out at dawn, combat claim, several attackers, claim-before-trigger order, first strike then normal, unclaimed and attacker-holds, blocked damage, zero Attack, Fog, lethal damage, restore and determinize.
+
+### AI reads (B3, as built)
+
+Every brain sees the public holder in its view. On top of that, with two provisional prices in `src/ai/value.ts`, both marked NEEDS MATH until the lab (B5):
+
+- **A claim.** `opImpactValue` prices `claimMandate` at `MANDATE_HOLD_VALUE` (2.5, about two dawn draws at 1.25), and at 0 for a player who already holds it.
+- **Stealing it (Medium, and Hard's candidate sets).** `scoreAttack` and `chooseAttackers` take the holder. When the defender holds it, an attack set where anything connects (an unblocked attacker, or Overrun spill) gains `MANDATE_COMBAT_VALUE` (4.5, about one cheap creature in `permValue`'s units) once. So Medium trades a 2-drop to take it, and never throws a real threat at it.
+- **Keeping it.** `chooseBlocks` takes the holder too. While we hold it, after the normal blocks it tries to cover every attacker that would still connect, each with the free blocker whose exchange costs least, and blocks only if all of them can be covered for less than `MANDATE_COMBAT_VALUE`. A Dreaded attacker, or Overrun that would spill over its blocker anyway, means it can't be kept and nothing is thrown away. The attacker's own block model makes the same calculation, so attacks expect these chumps.
+- **Statics in the fight.** The combat planner reads stats and block legality through a board that carries the holder, so "while you hold the Mandate" bonuses count in planned fights.
+- **Hard.** Its search's blocks and attack candidates go through the same planner. `evaluate` (`src/ai/evaluate.ts`) adds `MANDATE_HOLD_VALUE` for holding it (subtracting it when the opponent does), from the public holder and deck size only. The value fades as the holder's deck runs low and turns negative at an empty deck.
+- **Proof.** No shipped card claims the Mandate, so every standing floor and matrix plays exactly as before. The new reads are tested in `tests/ai/mandateReads.test.ts`. They're measured for real once Core Set II's cards exist, in the lab (B5) and the train's one measurement.
 
 ## Part 2. The starting-life field (D3a)
 
@@ -73,7 +84,7 @@ Build order (the 2.0 plan's shared-file order: the Mandate first in `types.ts` a
 ### As built (B2.3)
 
 - **Conditions.** `'youHoldMandate'` and `'youDontHoldMandate'` on `AbilityDef.condition`, read from the state by `conditionSatisfied`; `'youHoldMandate'` also on `StaticDef.condition`.
-- **Statics read a board, not a battlefield.** `getEffectiveStats` (and `hasKeyword`, `isSummoningSick` and every function in `combat/legality.ts`) now take a `StaticBoard`, `{ battlefield, mandateHolder? }`, which `GameState` and `PlayerView` both already are. Every engine call passes its state, and the AI passes its view wherever it had passed the view's battlefield, so the rules and the AI see the same holder as the game. A bare battlefield array is still accepted and reads the Mandate as unclaimed; the AI's hypothetical boards (a creature removed, a block simulated) still pass arrays, and B3 decides whether any of them needs the holder.
+- **Statics read a board, not a battlefield.** `getEffectiveStats` (and `hasKeyword`, `isSummoningSick` and every function in `combat/legality.ts`) now take a `StaticBoard`, `{ battlefield, mandateHolder? }`, which `GameState` and `PlayerView` both already are. Every engine call passes its state, and the AI passes its view wherever it had passed the view's battlefield, so the rules and the AI see the same holder as the game. A bare battlefield array is still accepted and reads the Mandate as unclaimed; the AI's hypothetical boards (a creature removed, a block simulated) still pass arrays. B3 gave the combat planner the holder (below), so its fights read held and not-held statics; the other hypothetical boards still read unclaimed, which no shipped card can tell apart yet.
 - **The trigger.** `'youClaimMandate'` fires through `firePlayerObservers` from `claimMandate`, for the claimant's permanents in battlefield order, so a targeted one (Jia Nanfeng's Sever) queues the usual target choice.
 - **Words.** "While you hold the Mandate, ..." on statics; on triggers the existing conditional style, "During your Dawn: If you hold the Mandate, draw a card."; "Whenever you claim the Mandate, ...". The Forge offers all three.
 - **AI and scorer.** The AI reads the holder from the view; without one, a held or not-held ability is valued at half, provisional. The scorer reports `condition:youHoldMandate`, `condition:youDontHoldMandate` and `when:youClaimMandate` as unpriced until the lab (the claim trigger is held at the arrival rate, 0.75, meanwhile).

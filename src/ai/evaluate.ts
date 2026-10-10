@@ -1,7 +1,7 @@
 import { getEffectiveStats } from '../engine/statics';
 import type { CardDb, GameState, PlayerId } from '../engine/types';
 import { cardIdOf, def, isType, opponentOf } from '../engine/types';
-import { createPermanentValuer, dawnSelfBleed, markedBoardValue, questBoardValue } from './value';
+import { createPermanentValuer, dawnSelfBleed, MANDATE_HOLD_VALUE, markedBoardValue, questBoardValue } from './value';
 
 /** Life below this scale is increasingly expensive on the evaluation curve. */
 export const LIFE_CURVE_KNEE = 9;
@@ -67,6 +67,16 @@ export function evaluate(state: GameState, db: CardDb, me: PlayerId): number {
 
   // Mana development.
   score += 0.4 * (myLands - theirLands);
+
+  // The Mandate (2.0 B3): its holder draws an extra card each dawn until it
+  // is taken. Read from the public holder and deck size only, never the
+  // order; the edge fades as the deck runs low, and turns against the holder
+  // at an empty deck, where the extra draw hastens the loss.
+  if (state.mandateHolder !== undefined) {
+    const deck = state.players[state.mandateHolder].deck.length;
+    const hold = MANDATE_HOLD_VALUE * Math.min(1, (deck - 1) / 2);
+    score += state.mandateHolder === me ? hold : -hold;
+  }
 
   // Clock: who is winning the race?
   score += 0.6 * Math.max(0, myPower - their.life * 0.5);
