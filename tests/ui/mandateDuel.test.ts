@@ -6,6 +6,7 @@ import { DUEL_LAYOUT, LIFE_BADGE_REACH } from '../../src/ui/duelLayout';
 import {
   MANDATE_SEAL_HIT, MANDATE_SEAL_SIZE, mandateSealCenter, mandateShown, mandateSpot, type MandateSpot,
 } from '../../src/ui/mandatePresentation';
+import { swornChip } from '../../src/ui/swornPresentation';
 import { theme } from '../../src/ui/theme';
 import { board, card, dbOf, spell } from '../drownedDeepFixture';
 
@@ -117,5 +118,14 @@ describe('the Mandate in the history', () => {
     ];
     expect(sequencedBatchRoutes(events, { combat: true, huntDrawn: new Set() }))
       .toEqual(['combatRound', 'afterStrikes', 'narrate']);
+  });
+});
+
+describe('Sworn on a hand card', () => {
+  it('says whether it is on, in words, and only on a card with a Sworn ability', () => {
+    const oath = card('oath', { abilities: [{ when: 'dawn', condition: 'swornActive', ops: [{ op: 'draw', n: 1 }] }] });
+    expect(swornChip(oath, true)).toEqual({ active: true, label: 'Sworn on' });
+    expect(swornChip(oath, false)).toEqual({ active: false, label: 'Sworn off' });
+    expect(swornChip(banner, true)).toBeNull();
   });
 });

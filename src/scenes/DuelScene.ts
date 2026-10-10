@@ -73,7 +73,7 @@ import { Game } from '../engine/Game';
 import { combineManaCosts, manaSources, solveMana } from '../engine/mana';
 import { ensureSplitPip } from '../ui/ManaSymbols';
 import { ensureNumeralBadgeInk, INTER_FIGURE_HEIGHT } from '../ui/NumeralGlyphs';
-import { getEffectiveStats, isSummoningSick } from '../engine/statics';
+import { getEffectiveStats, isSummoningSick, isSwornActive } from '../engine/statics';
 import type { CardDef, Color, ManaColor, PlayerId, Permanent, TargetRef } from '../engine/types';
 import { activatedAbilitiesOf, cardIdOf, def, isType, manaValue, markCostOf } from '../engine/types';
 import { graveRefCard, sameGraveCard } from '../engine/graveyard';
@@ -131,6 +131,8 @@ import {
 } from '../ui/coinFlipLayout';
 import { CommanderPortrait } from '../ui/CommanderPortrait';
 import { MandateSeal } from '../ui/MandateSeal';
+import { swornChip, type SwornChip } from '../ui/swornPresentation';
+import { CARD_FACE } from '../config/cardFaceGeometry';
 import { castsForModes, modeChooserTitle, modeRows, toggleMode } from '../ui/modeChoice';
 import { mandateSealCenter, mandateShown, mandateSpot } from '../ui/mandatePresentation';
 import { addPortraitArt } from '../ui/portraitArt';
@@ -5528,6 +5530,43 @@ export class DuelScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * The Sworn chip on a hand card: a filled check or an open ring, and the
+   * words. A child of the card, so it tilts and lifts with it; its sizes are
+   * divided by the card's scale so the words draw at the caption size.
+   */
+  private addSwornChip(view: CardView, chip: SwornChip, scale: number): void {
+    const k = 1 / scale;
+    const text = this.add.text(0, 0, chip.label, {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption * k}px`, fontStyle: theme.weight.w700,
+      color: chip.active ? theme.colors.gold : theme.colors.body, resolution: 2,
+    }).setOrigin(0, 0.5).setData('a11yFitToBox', true);
+    const r = 5 * k;
+    const padX = 6 * k;
+    const h = 20 * k;
+    const w = padX + r * 2 + 5 * k + text.width + padX;
+    // Inside the art window's top-left corner: the left edge is the part of a
+    // fanned card its right-hand neighbour never covers.
+    const x = CARD_FACE.art.x + 6;
+    const y = CARD_FACE.art.y + 6;
+    const plate = this.add.graphics()
+      .fillStyle(theme.graphics.panelFill, 0.92).fillRoundedRect(x, y, w, h, h / 2)
+      .lineStyle(1.5 * k, colorInt(chip.active ? theme.colors.gold : theme.colors.muted), 1)
+      .strokeRoundedRect(x, y, w, h, h / 2);
+    const cx = x + padX + r;
+    const cy = y + h / 2;
+    const mark = this.add.graphics().lineStyle(1.5 * k, colorInt(chip.active ? theme.colors.gold : theme.colors.muted), 1);
+    if (chip.active) {
+      mark.fillStyle(colorInt(theme.colors.gold), 1).fillCircle(cx, cy, r);
+      mark.lineStyle(1.6 * k, theme.graphics.panelFill, 1).beginPath()
+        .moveTo(cx - r * 0.5, cy).lineTo(cx - r * 0.1, cy + r * 0.45).lineTo(cx + r * 0.55, cy - r * 0.4).strokePath();
+    } else {
+      mark.strokeCircle(cx, cy, r);
+    }
+    text.setPosition(cx + r + 5 * k, cy);
+    view.add([plate, mark, text]);
+  }
+
   private syncHand(): void {
     this.clearManaPlanPreview();
     const hand = this.duel.state.players[HUMAN].hand;
@@ -5595,6 +5634,7 @@ export class DuelScene extends Phaser.Scene {
     // is the fan slot / depth (visual), `handIdx` is the true engine index used
     // for legality + clicks — the two are no longer the same. (handSort.ts)
     const order = handDisplayOrder(hand, CARD_DB);
+    const swornNow = isSwornActive(this.duel.state.battlefield, CARD_DB, HUMAN);
     const previousRemaining = new Map<string, number>();
     if (this.previousHand) {
       for (const cardId of this.previousHand) previousRemaining.set(cardId, (previousRemaining.get(cardId) ?? 0) + 1);
@@ -5617,6 +5657,8 @@ export class DuelScene extends Phaser.Scene {
         landStyle,
       });
       view.setDepth(theme.depth.hand + pos);
+      const sworn = swornChip(d, swornNow);
+      if (sworn) this.addSwornChip(view, sworn, scale);
       const playable = playableIdx.has(handIdx);
       const priorCount = previousRemaining.get(cardId) ?? 0;
       const entered = this.previousHand !== null && priorCount === 0;
