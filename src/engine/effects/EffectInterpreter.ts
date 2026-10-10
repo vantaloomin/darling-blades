@@ -14,7 +14,7 @@ import { refuseTokenAtCap } from '../overcharge';
 import { drawCards } from '../phases';
 import { freshGraveyardCard, graveRefIndex } from '../graveyard';
 import { rngInt } from '../rng';
-import { getEffectiveStats, isQuestActive } from '../statics';
+import { getEffectiveStats, isQuestActive, isSwornActive } from '../statics';
 import { enumerateTargets, isLegalTarget } from './targeting';
 import type {
   AbilityDef,
@@ -248,6 +248,7 @@ export function conditionSatisfied(
     p.controller === controller && p.iid !== sourceIid && isType(def(db, p.cardId), 'creature') &&
     def(db, p.cardId).subtypes.includes(condition.subtype));
   if (condition === 'questActive') return isQuestActive(state.battlefield, db, controller);
+  if (condition === 'swornActive') return isSwornActive(state.battlefield, db, controller);
   if (condition === 'controlMarked') {
     // The condition name is retained for replay compatibility, but Marks are
     // now creature-scoped throughout the engine.

@@ -171,8 +171,8 @@ export type EffectOp =
   | { op: 'claimMandate' }; // the effect's controller claims the Mandate; trigger-safe, no target
 
 export interface StaticDef {
-  /** `questActive` reads the source controller's public battlefield. */
-  condition?: 'questActive';
+  /** Both read the source controller's public battlefield. */
+  condition?: 'questActive' | 'swornActive';
   scope: 'self' | 'attached' | 'filter';
   /** filter scope: your creatures matching; `other` excludes the source. */
   filter?: {
@@ -194,6 +194,8 @@ export interface AbilityDef {
   /** The source controller must control a CardDef with `chapters` present. */
   condition?:
     | 'questActive'
+    /** Sworn (2.0, P6): the source's controller controls a legendary creature. */
+    | 'swornActive'
     | 'controlMarked'
     | 'creatureDiedThisTurn'
     | { kind: 'controlsOther'; subtype: string }
@@ -634,6 +636,12 @@ export interface CardDef {
   displayTypeLine?: string;
   subtypes: string[];
   supertypes?: ('legendary' | 'basic')[];
+  /**
+   * Presentation only (2.0, Core Set II's Sworn Champions): a legendary card
+   * whose frame shows no legendary crown. The rules, the AI, filters and the
+   * type line still treat it as legendary; nothing below the UI reads this.
+   */
+  crownless?: true;
   cost?: ManaCost; // absent on lands
   colors: Color[];
   attack?: number;

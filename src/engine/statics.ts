@@ -22,6 +22,23 @@ export function isQuestActive(
   );
 }
 
+/**
+ * Sworn (2.0, P6, ruled 2026-10-08) is active while `controller` controls a
+ * legendary creature: any one, the source itself included. In Darlings the
+ * Darling enables it once she is cast, not from the command zone.
+ */
+export function isSwornActive(
+  battlefield: readonly Permanent[],
+  db: CardDb,
+  controller: PlayerId,
+): boolean {
+  return battlefield.some((perm) => {
+    if (perm.controller !== controller) return false;
+    const d = def(db, perm.cardId);
+    return isType(d, 'creature') && (d.supertypes?.includes('legendary') ?? false);
+  });
+}
+
 function staticConditionSatisfied(
   battlefield: readonly Permanent[],
   db: CardDb,
@@ -31,6 +48,7 @@ function staticConditionSatisfied(
 ): boolean {
   if (condition === undefined) return true;
   if (condition === 'questActive') return isQuestActive(battlefield, db, controller);
+  if (condition === 'swornActive') return isSwornActive(battlefield, db, controller);
   // Turn-history conditions belong to triggered abilities, not static layers.
   if (condition === 'creatureDiedThisTurn') return false;
   if (typeof condition === 'object' && condition.kind === 'controlsOther') {

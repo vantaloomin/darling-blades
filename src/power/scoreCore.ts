@@ -89,6 +89,7 @@ export const STARBORNE_TRIGGERS = [
 export type ScorableTriggerWhen = TriggerWhen | (typeof STARBORNE_TRIGGERS)[number];
 export type ScorableCondition =
   | 'questActive'
+  | 'swornActive'
   | 'controlMarked'
   | 'creatureDiedThisTurn'
   | { kind: 'controlsOther'; subtype: string }
@@ -1811,6 +1812,9 @@ export function scoreCard(card: ScorableCardDef): Score {
       if (cond === 'questActive') condMult = 0.7;
       else if (cond === 'controlMarked') condMult = 0.85;
       else if (cond === 'creatureDiedThisTurn') condMult = COND_CREATURE_DIED;
+      // NEEDS MATH: Sworn's active rate per format comes from the Core Set II
+      // lab (2.0 B5). Until then it is priced at full rate and reported.
+      else if (cond === 'swornActive') unknowns.add('condition:swornActive');
       else if (typeof cond === 'object' && cond.kind === 'controlsOther') condMult = COND_CONTROLS_OTHER;
       else if (typeof cond === 'object' && cond.kind === 'markedThreshold') {
         condMult = cond.n >= 4 ? 0.55 : cond.n === 3 ? 0.65 : 0.75;

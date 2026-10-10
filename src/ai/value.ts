@@ -4,7 +4,7 @@ import { cardHasProvoked } from '../engine/creatureDamage';
 import { arrivalHuntIndex } from '../engine/effects/EffectInterpreter';
 import { combineManaCosts, solveMana } from '../engine/mana';
 import { castTargetSpecsFor } from '../engine/resolve';
-import { getEffectiveStats, isQuestActive } from '../engine/statics';
+import { getEffectiveStats, isQuestActive, isSwornActive } from '../engine/statics';
 import type { AbilityDef, ActivatedDef, CardDb, EffectOp, Keyword, ManaCost, Permanent, PlayerId, TargetRef, TargetSpec } from '../engine/types';
 import { activatedAbilitiesOf, def, effectOpUsesTarget, isTargetBranchOp, isType, manaValue, opponentOf } from '../engine/types';
 import type { PlayerView } from '../engine/view';
@@ -269,6 +269,8 @@ export function abilityConditionMultiplier(condition: AbilityDef['condition'], q
   // No public context preserves the legacy shared-policy estimate (Easy).
   if (condition === 'questActive' && questActive !== undefined) return questActive ? 1 : 0.55;
   if (condition === 'creatureDiedThisTurn') return 0.6;
+  // NEEDS MATH: Sworn's active rate comes from the Core Set II lab (2.0 B5).
+  if (condition === 'swornActive') return 0.6;
   if (typeof condition === 'object' && condition.kind === 'controlsOther') return 0.65;
   if (condition === 'controlMarked') return 0.55;
   if (typeof condition === 'object' && condition.kind === 'markedThreshold') return 0.5;
@@ -1469,6 +1471,7 @@ function publicCondition(view: PlayerView, db: CardDb, condition: AbilityDef['co
   if (condition === undefined) return true;
   if (condition === 'questActive') return isQuestActive(view.battlefield, db, view.myId);
   if (condition === 'creatureDiedThisTurn') return view.creatureDiedThisTurn === true;
+  if (condition === 'swornActive') return isSwornActive(view.battlefield, db, view.myId);
   const mine = view.battlefield.filter((p) => p.controller === view.myId && isType(def(db, p.cardId), 'creature'));
   if (condition === 'controlMarked') return mine.some((p) => p.plusOneCounters > 0);
   if (condition.kind === 'controlsOther') return mine.some((p) => def(db, p.cardId).subtypes.includes(condition.subtype));
@@ -1774,7 +1777,7 @@ export function conditionalAbilityValue(db: CardDb, cardId: string, view?: Playe
       ab.condition === 'controlMarked' ||
       (typeof ab.condition === 'object' && ab.condition.kind === 'markedThreshold');
     const vocabularyTrigger = ['allyDies', 'youGainLife', 'youCastCharm', 'allyAttacks', 'sunset'].includes(ab.when);
-    const vocabularyCondition = ab.condition === 'creatureDiedThisTurn' ||
+    const vocabularyCondition = ab.condition === 'creatureDiedThisTurn' || ab.condition === 'swornActive' ||
       typeof ab.condition === 'object' && ab.condition.kind === 'controlsOther';
     if (!markedOps && !markedCondition && !vocabularyTrigger && !vocabularyCondition &&
       !(view && ab.condition === 'questActive')) continue;

@@ -490,6 +490,7 @@ function conditionPhrase(ab: AbilityDef, additionalDawn = false): string | undef
   const condition = ab.condition ?? ab.static?.condition;
   if (condition === undefined) return undefined;
   if (condition === 'questActive') return 'While a Quest is active';
+  if (condition === 'swornActive') return 'Sworn';
   if (condition === 'creatureDiedThisTurn') return 'If a creature died this turn';
   const also = additionalDawn ? 'also ' : '';
   if (condition === 'controlMarked') {
@@ -500,6 +501,15 @@ function conditionPhrase(ab: AbilityDef, additionalDawn = false): string | undef
 }
 
 function abilityText(ab: AbilityDef, d: CardDef, additionalDawn = false): string {
+  // Sworn is a condition word, not a clause: "Sworn: this gets +1/+1."
+  if ((ab.condition ?? ab.static?.condition) === 'swornActive') {
+    const bare = abilityText({
+      ...ab,
+      condition: undefined,
+      ...(ab.static ? { static: { ...ab.static, condition: undefined } } : {}),
+    }, d, additionalDawn);
+    return bare ? `Sworn: ${lowerFirst(bare)}` : '';
+  }
   const questCondition = (ab.condition ?? ab.static?.condition) === 'questActive';
   const conditionalArrival = questCondition && ab.when === 'arrives';
   const condition = conditionalArrival ? undefined : conditionPhrase(ab, additionalDawn);
