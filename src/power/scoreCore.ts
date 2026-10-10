@@ -1028,6 +1028,19 @@ function faceRate(n: number, when: ScorableTriggerWhen, card: ScorableCardDef): 
   return (when === 'spell' && !isPermanentCard(card) ? 0.7 : 0) + 0.5 * n;
 }
 
+/**
+ * Life gain by the amount (2.0, the rate lab's gain set, run 38032348013 on
+ * study-data, 25 life, 32,480 paired slots): a colourless 3/3 for three
+ * that gains 2, 4 or 8 life on arrival measured 0.55, 1.00 and 1.64 mana,
+ * 0.73, 1.33 and 2.19 before the arrival rate. Each point is worth 0.3 up
+ * to 4 and 0.215 past it; gain 1 (0.43) is the line extended, not measured. It holds at 20 life too (the life set, run
+ * 38025775738: gain 4 read 0.92 mana at 20, 1.00 at 25). Magic's 0.2 a
+ * point, used until then, priced gain 4 at 0.6 mana.
+ */
+export function gainLifeRate(n: number): number {
+  return n <= 0 ? 0 : 0.13 + 0.3 * Math.min(n, 4) + 0.215 * Math.max(0, n - 4);
+}
+
 /** Skim's option value by the card's mana value (§4u): 0.35 at 4 and below,
  * 0.8 at 6 and up, and linear between. */
 export function skimValue(mv: number): number {
@@ -1192,9 +1205,7 @@ export function valueOp(
       }
     }
     case 'gainLife':
-      // The v4 audit's proposed intercept was noise on the wider window
-      // (0.05-0.10); the 0.2 slope is confirmed. Unchanged.
-      return { label: `gain ${op.n}`, v: 0.2 * op.n };
+      return { label: `gain ${op.n}`, v: gainLifeRate(op.n) };
     case 'loseLife':
       // v4 (D6, in-engine): drain rides the face-damage curve.
       return { label: `drain ${op.n}`, v: faceRate(op.n, when, card) };

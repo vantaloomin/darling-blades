@@ -1,7 +1,7 @@
 /**
  * Summarise the rate lab's shards (scripts/mandate-lab/lab.ts): the
- * Mandate set into the rates lane B5 enters in the scorer and the AI, the
- * life set into lane D3's life rates at each starting life.
+ * Mandate set into the rates lane B5 enters in the scorer and the AI; any
+ * other set into each arm's value in mana at each starting life.
  *
  * USAGE
  *   npx tsx scripts/mandate-lab/summarize.ts <dir of shard-*.jsonl> [--out report.md]
@@ -170,50 +170,57 @@ function mandateReport(): { report: object; lines: string[] } {
 }
 
 /**
- * The life set: at each life, a mana's lift and the gain and drain cards'
- * lifts in those mana, so a point of life is priced against the same mana
- * at 20 and at 25. The scale is each card's value at a life over its value
- * at the first life asked for.
+ * Any set but the Mandate's: at each life, a mana's lift and every other
+ * arm's lift over base in those mana, so a card is priced against the same
+ * mana at each life. With several lives, the scale is each arm's value in
+ * mana at a life over its value at the first life asked for.
  */
-function lifeReport(): { report: object; lines: string[] } {
+function armReport(): { report: object; lines: string[] } {
+  const subjects = ARM_NAMES.filter((a) => a !== 'base' && a !== 'mana');
   const atLife = lives.map((life) => {
     const slots = slotsAt(life);
     const mana = lift(slots, 'mana', 'base');
-    const gain = lift(slots, 'gain', 'base');
-    const drain = lift(slots, 'drain', 'base');
     return {
       life,
       slots: slots.length,
       baseWinRate: winRate(slots, 'base'),
       meanTurns: est(slots.map((s) => s.base!.turns)).mean,
       mana,
-      gain: { lift: gain, mana: ratio(gain.mean, mana.mean) },
-      drain: { lift: drain, mana: ratio(drain.mean, mana.mean) },
+      arms: Object.fromEntries(subjects.map((a) => {
+        const l = lift(slots, a, 'base');
+        return [a, { lift: l, mana: ratio(l.mean, mana.mean) }];
+      })) as Record<string, { lift: Est; mana: number }>,
     };
   });
   const first = atLife[0];
   const report = { armSet, lives, stoppedEarly, minutes, atLife };
   const lines = [
-    `# Life rate lab (2.0 D3) at ${lives.join(' and ')} life`,
+    `# Rate lab, ${armSet} set, at ${lives.join(' and ')} life`,
     '',
     `Each slot played in all ${ARM_NAMES.length} arms at every life, Hard on both seats.${stoppedEarly ? ' **Some shards stopped at their time budget.**' : ''}`,
     '',
-    '| Life | Slots | Mean turns | One mana | Gain 4 on arrival | In mana | Drain 3 on arrival | In mana |',
-    '| --- | --- | --- | --- | --- | --- | --- | --- |',
-    ...atLife.map((a) =>
-      `| ${a.life} | ${a.slots} | ${a.meanTurns.toFixed(1)} | ${pts(a.mana)} | ${pts(a.gain.lift)} | ${a.gain.mana.toFixed(2)} | ${pts(a.drain.lift)} | ${a.drain.mana.toFixed(2)} |`),
+    '| Life | Arm | Slots | Mean turns | Paired lift over base | In mana |',
+    '| --- | --- | --- | --- | --- | --- |',
+    ...atLife.flatMap((a) => [
+      `| ${a.life} | mana (the unit) | ${a.slots} | ${a.meanTurns.toFixed(1)} | ${pts(a.mana)} | 1 |`,
+      ...subjects.map((s) => `| ${a.life} | ${s} | ${a.slots} | ${a.meanTurns.toFixed(1)} | ${pts(a.arms[s].lift)} | ${a.arms[s].mana.toFixed(2)} |`),
+    ]),
     '',
-    `Scale against ${first.life} life (value in mana at that life over value at ${first.life}):`,
-    '',
-    '| Life | Gain | Drain |',
-    '| --- | --- | --- |',
-    ...atLife.map((a) => `| ${a.life} | ${ratio(a.gain.mana, first.gain.mana).toFixed(2)} | ${ratio(a.drain.mana, first.drain.mana).toFixed(2)} |`),
-    '',
+    ...(lives.length > 1
+      ? [
+          `Scale against ${first.life} life (value in mana at that life over value at ${first.life}):`,
+          '',
+          `| Life | ${subjects.join(' | ')} |`,
+          `| --- | ${subjects.map(() => '---').join(' | ')} |`,
+          ...atLife.map((a) => `| ${a.life} | ${subjects.map((s) => ratio(a.arms[s].mana, first.arms[s].mana).toFixed(2)).join(' | ')} |`),
+          '',
+        ]
+      : []),
   ];
   return { report, lines };
 }
 
-const { report, lines } = armSet === 'life' ? lifeReport() : mandateReport();
+const { report, lines } = armSet === 'mandate' ? mandateReport() : armReport();
 writeFileSync(out.replace(/\.md$/, '.json'), JSON.stringify(report, null, 2));
 writeFileSync(out, lines.join('\n'));
 console.log(lines.join('\n'));
