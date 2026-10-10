@@ -1,0 +1,87 @@
+{
+  "armSet": "dawn",
+  "lives": [
+    25
+  ],
+  "stoppedEarly": false,
+  "minutes": 80.63,
+  "atLife": [
+    {
+      "life": 25,
+      "slots": 32480,
+      "baseWinRate": {
+        "mean": 0.4210591133004926,
+        "se": 0.002738995446417714,
+        "n": 32480
+      },
+      "meanTurns": 22.396305418719212,
+      "mana": {
+        "mean": 0.05486453201970443,
+        "se": 0.0021303725333312777,
+        "n": 32480
+      },
+      "arms": {
+        "gain1": {
+          "vs": "base",
+          "lift": {
+            "mean": 0.016948891625615765,
+            "se": 0.0015960937907394898,
+            "n": 32480
+          },
+          "mana": 0.30892255892255893,
+          "use": {
+            "entered": 1.493165024630542,
+            "enteredMarks": 0,
+            "activations": 0,
+            "marksSpent": 0
+          }
+        },
+        "dawnGain1": {
+          "vs": "base",
+          "lift": {
+            "mean": 0.026216133004926107,
+            "se": 0.001618360863398058,
+            "n": 32480
+          },
+          "mana": 0.47783389450056113,
+          "use": {
+            "entered": 1.493411330049261,
+            "enteredMarks": 0,
+            "activations": 0,
+            "marksSpent": 0
+          }
+        },
+        "dawnGain2": {
+          "vs": "base",
+          "lift": {
+            "mean": 0.04270320197044335,
+            "se": 0.0017361552738359536,
+            "n": 32480
+          },
+          "mana": 0.7783389450056116,
+          "use": {
+            "entered": 1.5136699507389162,
+            "enteredMarks": 0,
+            "activations": 0,
+            "marksSpent": 0
+          }
+        },
+        "dawnDrain1": {
+          "vs": "base",
+          "lift": {
+            "mean": 0.035591133004926105,
+            "se": 0.0016476550846740994,
+            "n": 32480
+          },
+          "mana": 0.648709315375982,
+          "use": {
+            "entered": 1.4402401477832512,
+            "enteredMarks": 0,
+            "activations": 0,
+            "marksSpent": 0
+          }
+        }
+      }
+    }
+  ]
+}
