@@ -1,7 +1,7 @@
 import type Phaser from 'phaser';
 import { Services } from '../meta/services';
 import { animTimeScale } from '../platform/animPolicy';
-import { activeRenderScale } from '../platform/renderScale';
+import { activeSceneZoom } from '../platform/renderScale';
 import { currentAccessibility } from './accessibility';
 import { backdropDimAlpha } from './layout';
 import { theme } from './theme';
@@ -54,7 +54,9 @@ export function sceneTextureKey(manifestKey: string): string {
  *   src/platform/renderScale.ts); zooming the main camera by k and
  *   re-centering on the design midpoint keeps every scene in its 1280×720
  *   logical coordinate space while rendering at the higher backing
- *   resolution. At k=1 this is exactly today's identity setup.
+ *   resolution. At k=1 this is exactly today's identity setup. Under the
+ *   compact profile the canvas follows the screen, and the zoom is the one
+ *   that fits 1280×720 inside it (activeSceneZoom, plan-mobile-overhaul C2).
  * - Animations: 'off' fast-forwards the scene's tweens (high timeScale —
  *   callbacks still fire, tweens are never removed, so tween-driven flow
  *   can't deadlock); 'full'/'reduced' explicitly reset to 1 so flipping the
@@ -62,13 +64,13 @@ export function sceneTextureKey(manifestKey: string): string {
  *
  * NOTE for scenes that animate the camera zoom themselves (PackOpening's
  * zoomTo escalation): absolute zoom targets must be multiplied by
- * activeRenderScale() to compose with the base zoom.
+ * activeSceneZoom() to compose with the base zoom.
  */
 export function applySceneSettings(scene: Phaser.Scene): void {
-  const k = activeRenderScale();
+  const zoom = activeSceneZoom();
   const cam = scene.cameras?.main;
   if (cam) {
-    cam.setZoom(k);
+    cam.setZoom(zoom);
     cam.centerOn(DESIGN_W / 2, DESIGN_H / 2);
   }
   scene.tweens.timeScale = animTimeScale(Services.save.data.settings.animations);

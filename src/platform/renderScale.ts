@@ -122,3 +122,24 @@ export function setActiveRenderScale(k: RenderK): void {
 export function activeRenderScale(): RenderK {
   return active;
 }
+
+// ---------------------------------------------------------------------------
+// The base camera zoom every 1280×720 scene gets. On desktop it is the render
+// factor (the canvas is exactly 1280·k × 720·k). Under the compact profile
+// (docs/plan-mobile-overhaul.md C2) the canvas follows the screen instead, so
+// the zoom is whatever fits the 1280×720 design window inside it, and the
+// background colour letterboxes the rest. Unset, it reads the render factor,
+// so headless runs and desktop behave exactly as before.
+// ---------------------------------------------------------------------------
+
+let sceneZoom: number | null = null;
+
+/** Set by src/gameBoot.ts once, before the Phaser.Game is constructed. */
+export function setActiveSceneZoom(zoom: number | null): void {
+  sceneZoom = zoom !== null && Number.isFinite(zoom) && zoom > 0 ? zoom : null;
+}
+
+/** The base camera zoom for a scene laid out in the 1280×720 design window. */
+export function activeSceneZoom(): number {
+  return sceneZoom ?? active;
+}

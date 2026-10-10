@@ -20,7 +20,7 @@ import { checkpointAchievements } from '../meta/achievementCheckpoint';
 import { CARD_BACKS, cardBackTextureKey, resolveDeckCardBackId } from '../meta/cosmetics';
 import { isPlainVariant, TIER_LABEL, TIER_RANK, type CardVariant } from '../meta/variants';
 import { animTimeScale } from '../platform/animPolicy';
-import { activeRenderScale } from '../platform/renderScale';
+import { activeSceneZoom } from '../platform/renderScale';
 import { CARD_H, CARD_W, CardView, type CardFxLevel } from '../ui/CardView';
 import { fxPolicy } from '../ui/fx/FXSupport';
 import { dragMoved } from '../ui/mulliganRitualPresentation';
@@ -974,7 +974,7 @@ export class PackOpeningScene extends Phaser.Scene {
     rw.root.remove(view);
     this.add.existing(view);
     view.setDepth(50);
-    this.cameras.main.zoomTo(esc.zoom * activeRenderScale(), 380);
+    this.cameras.main.zoomTo(esc.zoom * activeSceneZoom(), 380);
     this.tweens.add({ targets: view, scale: 0.85, x: width / 2, y: height / 2 + 20, duration: 320, ease: 'Cubic.easeOut' });
     const burst = this.add.particles(RUNWAY_GATE_X, RUNWAY_CARD_Y, 'fx-star', {
       speed: { min: 220, max: 640 },
@@ -1015,7 +1015,7 @@ export class PackOpeningScene extends Phaser.Scene {
     // no-op while one is active — the restore would be silently dropped and
     // the camera stuck zoomed. Stop the in-flight effect first.
     this.cameras.main.zoomEffect.reset();
-    this.cameras.main.zoomTo(activeRenderScale(), 300);
+    this.cameras.main.zoomTo(activeSceneZoom(), 300);
     const spot = rw.spotlight;
     rw.spotlight = null;
     if (spot) {
@@ -1180,7 +1180,7 @@ export class PackOpeningScene extends Phaser.Scene {
     rw.spotlight?.hint.destroy();
     rw.spotlight?.dim.destroy();
     this.cameras.main.zoomEffect.reset(); // a live effect would keep re-zooming past setZoom
-    this.cameras.main.setZoom(activeRenderScale());
+    this.cameras.main.setZoom(activeSceneZoom());
     this.skipBtn?.container.destroy();
     this.skipBtn = null;
     rw.resumeChip?.container.destroy();
@@ -1648,7 +1648,7 @@ export class PackOpeningScene extends Phaser.Scene {
     // zoomTo targets are ABSOLUTE camera zooms: multiply by the render-scale
     // base zoom k (applySceneSettings set the camera to k, not 1) or the
     // escalation would stomp it and reveal the full 1280k×720k canvas.
-    this.cameras.main.zoomTo(esc.zoom * activeRenderScale(), 380);
+    this.cameras.main.zoomTo(esc.zoom * activeSceneZoom(), 380);
     this.tweens.add({
       targets: view,
       scale: 0.85,
@@ -1729,7 +1729,7 @@ export class PackOpeningScene extends Phaser.Scene {
     // silently lost for the rest of the pack once any SR+ card escalates.
     this.tweens.timeScale = animTimeScale(this.saveData.settings.animations);
     // restore to the render-scale base zoom, not 1 (zoomTo is absolute)
-    this.cameras.main.zoomTo(activeRenderScale(), 300);
+    this.cameras.main.zoomTo(activeSceneZoom(), 300);
     if (skipHint.active) skipHint.destroy();
     this.tweens.add({
       targets: dim,

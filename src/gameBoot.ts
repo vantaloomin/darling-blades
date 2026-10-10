@@ -13,7 +13,15 @@ import {
   resolveRenderScale,
   type RenderK,
   setActiveRenderScale,
+  setActiveSceneZoom,
 } from './platform/renderScale';
+import {
+  compactCanvasSize,
+  compactLayoutRequested,
+  designWindowZoom,
+  resolveScreenMetrics,
+  type ScreenMetrics,
+} from './platform/screenMetrics';
 import { BootScene } from './scenes/BootScene';
 import { AchievementsScene } from './scenes/AchievementsScene';
 import { ArtLoaderScene } from './scenes/ArtLoaderScene';
@@ -59,10 +67,30 @@ const showcaseScale = import.meta.env.DEV && new URLSearchParams(window.location
   ? ([1, 1.5, 2] as const satisfies readonly RenderK[])
     .find((s) => s === Number(new URLSearchParams(window.location.search).get('scale') ?? 1.5)) ?? 1.5
   : null;
-const k = showcaseScale ?? (RENDER_SCALE_UNLOCKED
+// The compact profile (docs/plan-mobile-overhaul.md C1, C2), behind its
+// `?layout=compact` switch until the camera fit is proven on a real phone. On
+// a touch screen it sizes the canvas to the screen at the device's own pixel
+// ratio (capped at 2), and every scene, none of them migrated yet, fits its
+// 1280×720 design window inside by camera zoom. The #app box already leaves
+// out the safe areas and the browser-bar reserve (index.html), so the insets
+// read as zero here. The profile is worked out once per load and never saved.
+const compact: ScreenMetrics | null = (() => {
+  if (showcaseScale !== null || !compactLayoutRequested(window.location.search)) return null;
+  const app = document.getElementById('app');
+  const m = resolveScreenMetrics({
+    viewportWidth: app?.clientWidth || window.innerWidth,
+    viewportHeight: app?.clientHeight || window.innerHeight,
+    coarsePointer: window.matchMedia?.('(pointer: coarse)').matches === true,
+    devicePixelRatio: window.devicePixelRatio,
+  });
+  return m.profile === 'compact' ? m : null;
+})();
+const k = compact?.renderK ?? showcaseScale ?? (RENDER_SCALE_UNLOCKED
   ? resolveRenderScale(Services.save.data.settings.renderScale, qualityTier())
   : 1);
 setActiveRenderScale(k);
+const canvas = compact ? compactCanvasSize(compact) : { width: 1280 * k, height: 720 * k };
+setActiveSceneZoom(compact ? designWindowZoom(canvas.width, canvas.height) : null);
 
 // Desktop (Tauri) only: make the chosen resolution the actual OS window size
 // (1280·k × 720·k, clamped to the screen). Fire-and-forget and a hard no-op in
@@ -116,8 +144,8 @@ if (applyBrowserOptOutDefault(Services.save.data.settings, browserOptsOutOfTrack
 const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'app',
-  width: 1280 * k,
-  height: 720 * k,
+  width: canvas.width,
+  height: canvas.height,
   backgroundColor: '#0d0a14',
   // Snap every draw to whole pixels: kills the sub-pixel sampling that softens
   // text glyphs and sprite edges (compounds with the Scale.FIT CSS upscale).

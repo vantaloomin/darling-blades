@@ -5,9 +5,9 @@
  * three as "no source anywhere in src/ today").
  *
  * Everything here is deliberately *coarse*. `formFactor()` reads the viewport
- * width, but the width never leaves this module: it is compared against two
+ * size, but the size never leaves this module: it is compared against two
  * thresholds and collapses to one of three labels before it is returned, so the
- * number itself has nowhere to go. That is the privacy policy's promise in
+ * numbers themselves have nowhere to go. That is the privacy policy's promise in
  * section 3.3 ("device size category (phone, tablet, or computer), never your
  * screen size") expressed as a function signature rather than as discipline.
  *
@@ -18,15 +18,18 @@
  */
 
 import { isTouchDevice } from './gestures';
+import { PHONE_MAX_SHORT_SIDE } from './screenMetrics';
 
 export type FormFactor = 'mobile' | 'tablet' | 'desktop';
 
 /**
- * Upper bound of the phone class, in CSS px. 768 is the long-standing tablet
- * breakpoint and the exact portrait width of an iPad, so `<= 767` puts phones
- * below it and tablets at or above it.
+ * Upper bound of the phone class: the longest *shorter side* a phone has, in
+ * CSS px. It is the layout's own phone line (src/platform/screenMetrics.ts), so
+ * the label and the layout agree. Measuring the shorter side keeps a phone held
+ * in landscape (780 to 956 px wide) a phone; the old 767 px width line called
+ * it a tablet (docs/plan-mobile-overhaul.md, "Play stats").
  */
-export const FORM_FACTOR_MOBILE_MAX_WIDTH = 767;
+export const FORM_FACTOR_MOBILE_MAX_SHORT_SIDE = PHONE_MAX_SHORT_SIDE;
 
 /**
  * Upper bound of the tablet class, in CSS px. 1280 is this game's own design
@@ -42,6 +45,8 @@ export interface FormFactorEnv {
   touch: boolean;
   /** Viewport width in CSS px. Used for comparison only; never emitted. */
   viewportWidth: number;
+  /** Viewport height in CSS px. Used for comparison only; never emitted. */
+  viewportHeight: number;
 }
 
 /**
@@ -49,27 +54,31 @@ export interface FormFactorEnv {
  *
  * A pointer device is a computer whatever size its window is, so a non-touch
  * client is always `desktop`: a narrow browser window on a desktop must not
- * masquerade as a phone. Only touch clients are split by width.
+ * masquerade as a phone. Touch clients are a phone when the screen's shorter
+ * side is a phone's, then split by width into tablet and touchscreen computer.
  */
 export function classifyFormFactor(env: FormFactorEnv): FormFactor {
   if (!env.touch) return 'desktop';
-  // A width we could not read (0, negative, NaN, Infinity) reads as 0, so an
+  // A size we could not read (0, negative, NaN, Infinity) reads as 0, so an
   // unreadable touch client lands in `mobile`: at that point the only fact we
-  // have is that it is a touch device, and a phone is the likeliest one.
-  const width = Number.isFinite(env.viewportWidth) ? env.viewportWidth : 0;
-  if (width <= FORM_FACTOR_MOBILE_MAX_WIDTH) return 'mobile';
+  // have is that it is a touch device, and a phone is the likeliest one. With
+  // only one side readable, that side stands in for the shorter one.
+  const width = Number.isFinite(env.viewportWidth) && env.viewportWidth > 0 ? env.viewportWidth : 0;
+  const height = Number.isFinite(env.viewportHeight) && env.viewportHeight > 0 ? env.viewportHeight : 0;
+  const shortSide = width && height ? Math.min(width, height) : width || height;
+  if (shortSide <= FORM_FACTOR_MOBILE_MAX_SHORT_SIDE) return 'mobile';
   if (width <= FORM_FACTOR_TABLET_MAX_WIDTH) return 'tablet';
   return 'desktop';
 }
 
-/** Viewport width in CSS px, or 0 when there is no window (headless, tests). */
-function viewportWidth(): number {
+/** One viewport side in CSS px, or 0 when there is no window (headless, tests). */
+function viewportSide(side: 'Width' | 'Height'): number {
   if (typeof window === 'undefined') return 0;
   try {
-    const inner = window.innerWidth;
+    const inner = window[`inner${side}`];
     if (typeof inner === 'number' && inner > 0) return inner;
     if (typeof document === 'undefined') return 0;
-    const client = document.documentElement?.clientWidth;
+    const client = document.documentElement?.[`client${side}`];
     return typeof client === 'number' && client > 0 ? client : 0;
   } catch {
     return 0;
@@ -82,7 +91,7 @@ function viewportWidth(): number {
  */
 export function formFactor(): FormFactor {
   try {
-    return classifyFormFactor({ touch: isTouchDevice(), viewportWidth: viewportWidth() });
+    return classifyFormFactor({ touch: isTouchDevice(), viewportWidth: viewportSide('Width'), viewportHeight: viewportSide('Height') });
   } catch {
     return 'desktop';
   }
