@@ -226,8 +226,14 @@ camera zoom smeared, so text now rasterizes at the scene's zoom (never
 below 1; on desktop that is still k); and the camera's view was wider than
 the stage, showing a panel parked right of x 1280, so the camera is now
 clipped to the fitted 1280x720 window. The 1.3x upscale from the ruled
-cap of 2 on a 2.625x screen remains (accepted in C1). Safari's bars are
-not measured yet.
+cap of 2 on a 2.625x screen remains (accepted in C1). Safari's bars,
+measured on the owner's iPhone 17 Pro Max in landscape (1.9.2, 2026-10-10,
+from a screenshot): the address bar and tab bar take the top 110 of 438
+CSS px and cannot be hidden, leaving a 956x328 content box; 1.9.2 drew the
+game at 443x249, because the 80 px reserve came off a height that already
+left the bars out (328 - 80 = 248). With the reserve dropped under the
+compact profile the same box fits the window at 583x328. Home-screen mode
+(M9) has no bars at all.
 
 ### C3. The resolver gets a device term, not a fork
 
@@ -409,7 +415,15 @@ word.
   device (the owner's Galaxy Tab A8, a budget tablet, until an Android phone joins): the engine and AI run on the page's main thread, and a long think
   freezes the screen. If it does, the fix touches `src/ai` or moves the AI
   to a worker, and the 2.0 plan freezes the AI at the end of 2.0 wave 2, so
-  it is found here, not in the Duel wave.
+  it is found here, not in the Duel wave. **Measured in wave 1** (1.9.2 live site, 2026-10-10, from the owner's
+  screen recordings): on the Tab A8 in Chrome, six Hard turns from the
+  Hestia practice deck (turns 1 to 6, up to seven creatures in play) showed
+  no freeze. Each turn's first action came about a second after the turn
+  banner, and the longest still screen in the AI's own stretches was 1.6 s,
+  at the turn handover (think time and pacing together; a recording cannot
+  split them). Late games with full boards are not covered yet. Chrome's
+  tab strip and address bar take the top 15% of the A8's screen, and the
+  80 px reserve showed there too, as on the iPhone (see C2).
 - **The probe learns viewports.** `src/dev/a11yProbe.ts` renders the
   1280x720 window at three text sizes and two contrasts; it gains a
   profile and viewport axis so it can render the matrix's fixtures. **Built
