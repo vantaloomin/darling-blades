@@ -7,7 +7,14 @@
  */
 import { cost } from '../../src/data/cardTypes';
 import { CARD_DB } from '../../src/data/catalog';
-import type { CardDb, CardDef } from '../../src/engine/types';
+import type { ActivatedDef, CardDb, CardDef, EffectOp, TargetSpec } from '../../src/engine/types';
+
+const MARKS2: CardDef['abilities'] = [{ when: 'arrives', ops: [{ op: 'addCounters', n: 2, to: 'self' }] }];
+const stone = (mana: number, ops: EffectOp[], targets?: TargetSpec[]): ActivatedDef => ({
+  cost: { removeMarks: 1, mana: cost(mana) },
+  ops,
+  ...(targets ? { targets } : {}),
+});
 
 const body = (id: string, name: string, mana: number, extra: Partial<CardDef> = {}): CardDef => ({
   id,
@@ -36,6 +43,26 @@ export const LAB_CARDS = {
   gain8: body('lab-gain8', 'Lab Surgeon', 3, { abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 8 }] }] }),
   /** "When this arrives, each opponent loses 3 life." */
   drain3: body('lab-drain3', 'Lab Raider', 3, { abilities: [{ when: 'arrives', ops: [{ op: 'loseLife', n: 3, who: 'opponent' }] }] }),
+  /** The stones' carrier (Core Set II costing, Nüwa): "When this arrives, put two marks on it." */
+  marks2: body('lab-marks2', 'Lab Vessel', 3, { abilities: MARKS2 }),
+  /** Each stone on the carrier: "{1}, remove a mark from this: ..." ({2} for Sever, Nüwa's {B}{B}). */
+  stoneDraw: body('lab-stone-draw', 'Lab Vessel (draw)', 3, { abilities: MARKS2, activated: [stone(1, [{ op: 'draw', n: 2 }])] }),
+  stoneBurn: body('lab-stone-burn', 'Lab Vessel (burn)', 3, {
+    abilities: MARKS2,
+    activated: [stone(1, [{ op: 'damage', n: 3, to: 'target' }], [{ what: 'any' }])],
+  }),
+  stoneLife: body('lab-stone-life', 'Lab Vessel (life)', 3, { abilities: MARKS2, activated: [stone(1, [{ op: 'gainLife', n: 5 }])] }),
+  stoneSever: body('lab-stone-sever', 'Lab Vessel (sever)', 3, {
+    abilities: MARKS2,
+    activated: [stone(2, [{ op: 'sever', to: 'target' }], [{ what: 'opponentCreature' }])],
+  }),
+  stoneMarkAll: body('lab-stone-markall', 'Lab Vessel (mark all)', 3, {
+    abilities: MARKS2,
+    activated: [stone(1, [{ op: 'markAll', scope: 'yourCreatures', other: true }])],
+  }),
+  /** Tithe marks (Nüwa): a 3/3 Tithe for five, without and with "arrives with a mark per {1} saved (at most 5)". */
+  tithe5: body('lab-tithe5', 'Lab Offering', 5, { tithe: { per: 2 } }),
+  titheMarks5: body('lab-tithe-marks5', 'Lab Offering (marks)', 5, { tithe: { per: 2, marks: 5 } }),
 } satisfies Record<string, CardDef>;
 
 export type LabCard = keyof typeof LAB_CARDS;
@@ -64,6 +91,16 @@ export const LAB_DB: CardDb = Object.freeze({
  * - drain: the subject's opponent loses 3 life on arrival.
  *
  * The gain set prices a point of life gain: 2, 4 and 8 life on arrival.
+ *
+ * The stones set (Core Set II costing) prices Nüwa's two unpriced pieces on
+ * colourless carriers, each read against its own control (`vs`):
+ * - marks: a 3/3 for three that puts two marks on itself as it arrives (read
+ *   against base: the scorer's mark rate, checked).
+ * - stoneDraw, stoneBurn, stoneLife, stoneSever, stoneMarkAll: that carrier
+ *   with one stone, "{1}, remove a mark from this: ..." ({2} for Sever), read
+ *   against marks, so each lift is the stone's option value with two marks.
+ * - tithe / titheMarks: a 3/3 Tithe for five, then the same with "arrives with
+ *   a mark per {1} Tithe saved (at most 5)"; titheMarks reads against tithe.
  */
 const SHARED = {
   base: { row: 'ctl3', col: 'ctl3' },
@@ -88,11 +125,24 @@ export const ARM_SETS = {
     gain4: { row: 'gain3', col: 'ctl3' },
     gain8: { row: 'gain8', col: 'ctl3' },
   },
-} as const satisfies Record<string, Record<string, { row: LabCard; col: LabCard }>>;
+  stones: {
+    ...SHARED,
+    marks: { row: 'marks2', col: 'ctl3' },
+    stoneDraw: { row: 'stoneDraw', col: 'ctl3', vs: 'marks' },
+    stoneBurn: { row: 'stoneBurn', col: 'ctl3', vs: 'marks' },
+    stoneLife: { row: 'stoneLife', col: 'ctl3', vs: 'marks' },
+    stoneSever: { row: 'stoneSever', col: 'ctl3', vs: 'marks' },
+    stoneMarkAll: { row: 'stoneMarkAll', col: 'ctl3', vs: 'marks' },
+    tithe: { row: 'tithe5', col: 'ctl3' },
+    titheMarks: { row: 'titheMarks5', col: 'ctl3', vs: 'tithe' },
+  },
+} as const satisfies Record<string, Record<string, { row: LabCard; col: LabCard; vs?: string }>>;
 
 export type ArmSetName = keyof typeof ARM_SETS;
 export type ArmName = { [S in ArmSetName]: keyof (typeof ARM_SETS)[S] }[ArmSetName];
-export const ARMS: Record<ArmName, { row: LabCard; col: LabCard }> = Object.assign({}, ...Object.values(ARM_SETS));
+/** An arm: the cards each side adds, and the arm it is read against (base when absent). */
+export interface Arm { row: LabCard; col: LabCard; vs?: ArmName }
+export const ARMS: Record<ArmName, Arm> = Object.assign({}, ...Object.values(ARM_SETS));
 export const armNames = (set: ArmSetName): ArmName[] => Object.keys(ARM_SETS[set]) as ArmName[];
 
 /** A field deck with an arm's four copies added. */
