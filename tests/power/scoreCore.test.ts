@@ -231,3 +231,23 @@ describe('Tithe scoring, section 4s', () => {
     expect(scoreCard(horror).power - scoreCard(plain).power).toBeCloseTo(0.5);
   });
 });
+
+describe('Sworn and Mandate gates', () => {
+  const soldier = (extra: Partial<ScorableCardDef> = {}): ScorableCardDef => artifact({
+    types: ['creature'], subtypes: ['Soldier'], attack: 2, defense: 2, colors: ['W'], cost: { generic: 1, pips: { W: 1 } }, ...extra,
+  });
+  const lift = (card: ScorableCardDef, plain: ScorableCardDef): number => scoreCard(card).power - scoreCard(plain).power;
+  const selfPlus1 = (condition?: 'swornActive' | 'youHoldMandate') =>
+    ({ when: 'static' as const, static: { scope: 'self' as const, p: 1, t: 1, ...(condition ? { condition } : {}) } });
+
+  it('reads a gate printed on the static itself, as the engine does', () => {
+    const always = lift(soldier({ abilities: [selfPlus1()] }), soldier());
+    expect(lift(soldier({ abilities: [selfPlus1('swornActive')] }), soldier())).toBeCloseTo(always * 0.5);
+    expect(lift(soldier({ abilities: [selfPlus1('youHoldMandate')] }), soldier())).toBeCloseTo(always * 0.45);
+  });
+
+  it("prices a legendary creature's own Sworn line as always on", () => {
+    const legend = (abilities?: ScorableCardDef['abilities']) => soldier({ supertypes: ['legendary'], abilities });
+    expect(lift(legend([selfPlus1('swornActive')]), legend())).toBeCloseTo(lift(legend([selfPlus1()]), legend()));
+  });
+});
