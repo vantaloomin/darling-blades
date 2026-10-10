@@ -1,0 +1,204 @@
+{
+  "life": 25,
+  "slots": 32480,
+  "stoppedEarly": false,
+  "minutes": 60.68,
+  "baseWinRate": {
+    "mean": 0.4210591133004926,
+    "se": 0.002738995446417714,
+    "n": 32480
+  },
+  "mana": {
+    "mean": 0.05486453201970443,
+    "se": 0.0021303725333312777,
+    "n": 32480
+  },
+  "claim": {
+    "lift": {
+      "mean": 0.031188423645320196,
+      "se": 0.002162978054108711,
+      "n": 32480
+    },
+    "mana": 0.5684624017957352
+  },
+  "contested": {
+    "lift": {
+      "mean": 0.02829433497536946,
+      "se": 0.002059964985899624,
+      "n": 32480
+    },
+    "mana": 0.5157126823793491
+  },
+  "hold": {
+    "claim": {
+      "holdShare": 0.2735410942327131,
+      "holdAfterClaim": 0.6340853288275207,
+      "claimedIn": 0.7661637931034483,
+      "claimsPerGame": 1.0283559113300493,
+      "stealsPerGame": 0.42404556650246306
+    },
+    "contested": {
+      "holdShare": 0.22579993685270466,
+      "holdAfterClaim": 0.4684962228517469,
+      "claimedIn": 0.8479371921182266,
+      "claimsPerGame": 1.0806958128078819,
+      "stealsPerGame": 0.9260775862068965
+    },
+    "contestedOpponent": {
+      "holdShare": 0.21522987855899048,
+      "holdAfterClaim": 0.4582320229182214,
+      "claimedIn": 0.864039408866995,
+      "claimsPerGame": 1.0250923645320198,
+      "stealsPerGame": 0.9961514778325123
+    }
+  },
+  "medianTurnsMean": 22.396305418719212,
+  "swornField": 0.27174911194448415,
+  "sworn": [
+    {
+      "id": "starter-crimson",
+      "name": "Crimson Muster",
+      "rate": 0.37931186202041534
+    },
+    {
+      "id": "starter-wild",
+      "name": "Wild Communion",
+      "rate": 0.5209829513520264
+    },
+    {
+      "id": "starter-tides",
+      "name": "Burning Tides",
+      "rate": 0.3591415246978205
+    },
+    {
+      "id": "starter-mandate",
+      "name": "Shadow Mandate",
+      "rate": 0.4655847789591494
+    },
+    {
+      "id": "starter-harvest",
+      "name": "Grave Harvest",
+      "rate": 0.31728536144800384
+    },
+    {
+      "id": "theme-ragnarok",
+      "name": "Valhalla's Muster",
+      "rate": 0.16033052343984275
+    },
+    {
+      "id": "theme-celtic-fae",
+      "name": "Glimmer Bargain",
+      "rate": 0.40446357001223476
+    },
+    {
+      "id": "theme-arthurian-court",
+      "name": "Questing Table",
+      "rate": 0.30895174163972
+    },
+    {
+      "id": "theme-gothic-monsters",
+      "name": "Bloodmoon Masquerade",
+      "rate": 0.26769735301007264
+    },
+    {
+      "id": "theme-dark-tales",
+      "name": "Midnight Storybook",
+      "rate": 0.3194819212088505
+    },
+    {
+      "id": "theme-yokai-nights",
+      "name": "Neon Afterimage",
+      "rate": 0.3014250023133154
+    },
+    {
+      "id": "theme-sands-of-the-duat",
+      "name": "Pride at the Ninth Gate",
+      "rate": 0.2934703196347032
+    },
+    {
+      "id": "theme-starborne",
+      "name": "Chrome-Violet Broodship",
+      "rate": 0
+    },
+    {
+      "id": "theme-drowned-deep",
+      "name": "Lanterns Below",
+      "rate": 0.05873895208694549
+    },
+    {
+      "id": "theme-first-dawn",
+      "name": "Hooves and Fire",
+      "rate": 0
+    },
+    {
+      "id": "craft-attrition",
+      "name": "Crafted attrition",
+      "rate": 0.46758204956463495
+    },
+    {
+      "id": "craft-burn",
+      "name": "Crafted burn",
+      "rate": 0.22751906864712967
+    },
+    {
+      "id": "craft-draw-go",
+      "name": "Crafted draw-go",
+      "rate": 0.3360325567875088
+    },
+    {
+      "id": "craft-midrange",
+      "name": "Crafted midrange",
+      "rate": 0.16223810697559773
+    },
+    {
+      "id": "craft-reanimator",
+      "name": "Crafted reanimator",
+      "rate": 0.2670157068062827
+    },
+    {
+      "id": "craft-stompy",
+      "name": "Crafted stompy",
+      "rate": 0.38561646748607153
+    },
+    {
+      "id": "craft-warband",
+      "name": "Crafted warband",
+      "rate": 0.44508196721311477
+    },
+    {
+      "id": "craft-weenie",
+      "name": "Crafted weenie",
+      "rate": 0.2952982384373482
+    },
+    {
+      "id": "r23-chrome-broodmother",
+      "name": "R23 Chrome Broodmother",
+      "rate": 0.14026579088062324
+    },
+    {
+      "id": "r24-the-violet-signal-queen",
+      "name": "R24 The Violet Signal Queen",
+      "rate": 0.35570646056877014
+    },
+    {
+      "id": "r25-the-drowned-deacon",
+      "name": "R25 The Drowned Deacon",
+      "rate": 0.2586346063978929
+    },
+    {
+      "id": "r26-the-marsh-mother",
+      "name": "R26 The Marsh-Mother",
+      "rate": 0.09771594016406628
+    },
+    {
+      "id": "r27-the-shepherdess-of-giants",
+      "name": "R27 The Shepherdess of Giants",
+      "rate": 0.09262144946554034
+    },
+    {
+      "id": "r28-the-tyrant-queen",
+      "name": "R28 The Tyrant Queen",
+      "rate": 0.1723018147086915
+    }
+  ]
+}
