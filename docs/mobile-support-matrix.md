@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-mobile-overhaul.md, vite.config.ts, package.json, index.html, src/gameBoot.ts, src/platform/clientProfile.ts, src/platform/quality.ts, src/platform/gestures.ts · last-verified: 2026-10-09 · device list for the 2.0 mobile pass (decision M7, ruled 2026-10-09); re-verify at each mobile wave, at the 2.0 cut, and when a new iOS or Android major ships -->
+<!-- source-of-truth: docs/plan-mobile-overhaul.md, vite.config.ts, package.json, index.html, src/gameBoot.ts, src/platform/clientProfile.ts, src/platform/screenMetrics.ts, src/platform/screenFixtures.ts, src/platform/quality.ts, src/platform/gestures.ts · last-verified: 2026-10-10 · device list for the 2.0 mobile pass (decision M7, ruled 2026-10-09); re-verify at each mobile wave, at the 2.0 cut, and when a new iOS or Android major ships -->
 
 # Mobile support matrix
 
@@ -94,7 +94,8 @@ the wide profile; touchscreen laptops included (their primary pointer is the tra
 
 ## The layout fixtures
 
-The automated checks render each compact scene at these sizes. They start
+The automated checks render each compact scene at these sizes (as data
+in `src/platform/screenFixtures.ts`; keep the two in step). They start
 from published screen sizes and typical insets; mobile wave 1's device
 baseline replaces them with the content boxes measured on the Tested
 devices, browser bars included.

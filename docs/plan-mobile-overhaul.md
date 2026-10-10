@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-2.0.md, docs/mobile-support-matrix.md, docs/mobile-lan-plan.md, docs/plan-accessibility-i18n.md, docs/plan-art-streaming.md, docs/design-system.md, index.html, vite.config.ts, src/gameBoot.ts, src/platform/gestureCore.ts, src/platform/gestures.ts, src/platform/quality.ts, src/platform/renderScale.ts, src/platform/clientProfile.ts, src/ui/accessibility.ts, src/ui/theme.ts, src/ui/layout.ts, src/ui/duelLayout.ts, src/ui/SceneBackdrop.ts, src/art/ArtResolver.ts, src/art/artBudget.ts, src/config/cardFaceGeometry.ts, src/ui/handFan.ts, src/forge/scene.ts, src/dev/a11yProbe.ts, src/scenes/ · last-verified: 2026-10-09 · plan doc, ruled in the 2.0 wave-1 sitting: rewritten for 2.0 lane C on the Version C mock set; P11 (M1-M4), P1 and P2 ruled 2026-10-08, M5-M29 ruled 2026-10-09; re-verify when the owner rules the M decisions, and when each wave ships -->
+<!-- source-of-truth: docs/plan-2.0.md, docs/mobile-support-matrix.md, docs/mobile-lan-plan.md, docs/plan-accessibility-i18n.md, docs/plan-art-streaming.md, docs/design-system.md, index.html, vite.config.ts, src/gameBoot.ts, src/platform/gestureCore.ts, src/platform/gestures.ts, src/platform/quality.ts, src/platform/renderScale.ts, src/platform/clientProfile.ts, src/platform/screenMetrics.ts, src/platform/screenFixtures.ts, src/ui/accessibility.ts, src/ui/theme.ts, src/ui/layout.ts, src/ui/duelLayout.ts, src/ui/SceneBackdrop.ts, src/art/ArtResolver.ts, src/art/artBudget.ts, src/config/cardFaceGeometry.ts, src/ui/handFan.ts, src/forge/scene.ts, src/dev/a11yProbe.ts, src/scenes/ · last-verified: 2026-10-10 · plan doc, ruled in the 2.0 wave-1 sitting: rewritten for 2.0 lane C on the Version C mock set; P11 (M1-M4), P1 and P2 ruled 2026-10-08, M5-M29 ruled 2026-10-09, M30-M34 ruled 2026-10-10; re-verify when the owner rules the M decisions, and when each wave ships -->
 
 # Mobile overhaul: the 2.0 plan
 
@@ -100,8 +100,9 @@ Overcharge, life above 20, Story Mode, Core Set II), which needs new frames.
   has been held back by the k = 10 privacy floor (`signals-data` branch,
   `rollups/`). The label also splits touch devices by viewport **width**
   (767 and 1279 px), so a phone held in landscape (780 to 956 px wide)
-  reports as a tablet. The device list is chosen from market share and the
-  build's own floor instead.
+  reports as a tablet (fixed in wave 1: phones are now told by the shorter
+  side). The device list is chosen from market share and the build's own
+  floor instead.
 
 ### The problem in numbers
 
@@ -236,14 +237,17 @@ rule-tested the same way. The mocks' geometry (`DUEL_L` in the bundle's
   the column's hit area. The mana and zone counts are one framed button
   that opens the zone sheet (M15), and a third colour folds into a
   neutral "more" pip, with every colour at full size in the zone sheet
-  (M16). **The Mandate marker** sits beside its holder's portrait here
-  (lane B4 builds it on the desktop Duel first; this wave places it; it
-  needs a new frame).
+  (M16). **The Mandate marker** sits beside its holder's life total on
+  the portrait's inner corner, and nothing is drawn while it is unclaimed
+  (M30, M31; lane B4 builds it on the desktop Duel first).
 - **Centre:** each side's creatures as two rows of medallions, with a
   strip of smaller medallions for lands and other permanents at the outer
   edge, at the worst-case board of 9 against 8 creatures plus 4 other
   permanents each. The turn and phase line runs between the halves.
-  Badge positions on a medallion are fixed (M28).
+  Badge positions on a medallion are fixed (M28). The 2.0 additions follow
+  the new frames: a crown badge on legendary creatures (M32), Overcharge
+  on the left edge and the spent Provoked badge on the right (M33), and a
+  gold bolt for a ready Boost (M34).
 - **Command column:** the hand as named rows with art, type and cost pips,
   at a 44 to 48 px pitch with touching hit areas (M27); a card that cannot
   be cast says why ("Board full"). End turn and To combat sit at the
@@ -316,7 +320,7 @@ smaller text.
   a regression check, not because pixels moved.
 - **Save:** none, under the ruled automatic layout. No viewport size or inset is
   ever stored.
-- **Play stats (proposed):** the form factor label classifies by the
+- **Play stats (built in wave 1):** the form factor label classifies by the
   viewport's shorter side instead of its width, so a landscape phone reports
   as a phone. A one-line change in `classifyFormFactor`; the privacy policy's
   "phone, tablet or computer" wording stays true. Mobile wave 1.
@@ -354,7 +358,8 @@ word.
 ### Mobile wave 1 (2.0 wave 2): profiles, primitives, device baseline
 
 - `ScreenMetrics` and the profile rule, Phaser-free and unit-tested over the
-  matrix's viewport fixtures.
+  matrix's viewport fixtures (`src/platform/screenMetrics.ts`, fixtures in
+  `src/platform/screenFixtures.ts`).
 - The per-scene camera fit (C2), proven on the owner's phone first.
 - The compact design space and the render factor (C1); the resolver's
   device term (C3).
@@ -388,7 +393,9 @@ word.
   before the wave that builds them: the Mandate marker and its swings,
   Overcharge, Hunt, Provoked, First Dawn, life totals above 20 in the 96 px
   column, Core Set II's new mechanics, and Story Mode's run shell. Drawn
-  with the mocks' own generator and contract (`VERSION-C.md`).
+  with the mocks' own generator and contract (`VERSION-C.md`). **Done
+  2026-10-10:** 29 frames (N1-N21 Duel, N30-N38 Story), approved with
+  M30-M34.
 - The upright-tablet letterbox (M11) and the rotate screen's scene image
   (M12), both ruled.
 
@@ -458,8 +465,9 @@ sheet wave 1 adds.
 
 ## Decisions for the owner
 
-M1-M4 were ruled 2026-10-08 as P11, and M5-M29 on 2026-10-09: every
-decision in this plan is ruled. M15-M29 are the decisions the full
+M1-M4 were ruled 2026-10-08 as P11, M5-M29 on 2026-10-09, and M30-M34
+(from wave 1's new frames for 2.0 content) on 2026-10-10: every decision
+in this plan is ruled. M15-M29 are the decisions the full
 mock set forces (`DECISIONS.md` in the bundle); the owner took the mocks'
 recommendation on each except M16, which takes the owner's variant.
 
@@ -494,6 +502,11 @@ recommendation on each except M16, which takes the owner's variant.
 | **M27** | List rows | 44 to 48 px pitch with touching 44 px hit areas, as table rows under the 8 px spacing rule **(ruled 2026-10-09)** |
 | **M28** | Medallion badges | Keyword top-left; state top-right with the Rage lock beside it; Hauntlink left-middle; Marks right-middle; P/T bottom; tapped in the centre, or a corner badge on attackers **(ruled 2026-10-09)** |
 | **M29** | Copy sign-off | Sentence-case buttons and the new strings each frame's note lists ("Face <rival>", "Open in browser", "Paste") **(ruled 2026-10-09)** |
+| **M30** | Where the held Mandate sits | Beside the holder's life total on the portrait's inner corner, a 26 px seal with a 44 px hit area (new frame N2); the strip-end alternative is dropped **(ruled 2026-10-10)** |
+| **M31** | The unclaimed Mandate | Nothing is drawn until someone claims it; its rules stay one tap away on any card that names it and in the glossary (N1) **(ruled 2026-10-10)** |
+| **M32** | Legendary creatures | A small crown badge on the medallion, since Sworn makes "do I control a legend?" a question every turn (N19) **(ruled 2026-10-10)** |
+| **M33** | Overcharge and Provoked badges | Overcharge on the left edge at mid-height, the spent Provoked badge on the right, clear of the Marks badge (N9, N11) **(ruled 2026-10-10)** |
+| **M34** | A ready Boost | A gold bolt badge with the gold ring, in place of the desktop's "Boost" chip (N16) **(ruled 2026-10-10)** |
 
 ## Not in 2.0
 
