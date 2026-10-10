@@ -12,11 +12,12 @@
 # to a branch carrying this file; the push run uses the defaults below (the
 # Mandate set at 25 life). [mandate-lab:life] runs the life set at 20 and 25;
 # [mandate-lab:gain] the gain set at 25; [mandate-lab:stones] the stones set
-# (Nüwa's stones and Tithe marks, Core Set II costing) at 25.
+# (Nüwa's stones and Tithe marks, Core Set II costing) at 25; [mandate-lab:dawn]
+# the dawn set (gain 1, and gain 1 / gain 2 / drain 1 at each dawn) at 25.
 #
 # WHAT COMES BACK. The summarize job prints the report to its log and commits
 # the shards and the report (Markdown and JSON) to the orphan branch
-# `study-data` under `<set>-lab/<date>-<run id>/` (mandate-lab, life-lab, gain-lab, stones-lab).
+# `study-data` under `<set>-lab/<date>-<run id>/` (mandate-lab, life-lab, gain-lab, stones-lab, dawn-lab).
 # Never to `main`.
 
 name: Mandate lab
@@ -25,7 +26,7 @@ on:
   workflow_dispatch:
     inputs:
       arms:
-        description: The arm set (mandate, life, gain or stones)
+        description: The arm set (mandate, life, gain, stones or dawn)
         default: 'mandate'
       life:
         description: Starting life, or a comma list (20,25) played on the same seeds
@@ -49,7 +50,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  ARMS: ${{ inputs.arms || (contains(github.event.head_commit.message, '[mandate-lab:life]') && 'life' || contains(github.event.head_commit.message, '[mandate-lab:gain]') && 'gain' || contains(github.event.head_commit.message, '[mandate-lab:stones]') && 'stones' || 'mandate') }}
+  ARMS: ${{ inputs.arms || (contains(github.event.head_commit.message, '[mandate-lab:life]') && 'life' || contains(github.event.head_commit.message, '[mandate-lab:gain]') && 'gain' || contains(github.event.head_commit.message, '[mandate-lab:stones]') && 'stones' || contains(github.event.head_commit.message, '[mandate-lab:dawn]') && 'dawn' || 'mandate') }}
   LIFE: ${{ inputs.life || (contains(github.event.head_commit.message, '[mandate-lab:life]') && '20,25' || '25') }}
   SEEDS: ${{ inputs.seeds || '80' }}
   SWEEP_DIR: ${{ inputs.sweep_dir || 'sweeps/2026-10-07-13003-race' }}

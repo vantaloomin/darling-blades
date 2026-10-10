@@ -43,6 +43,12 @@ export const LAB_CARDS = {
   gain8: body('lab-gain8', 'Lab Surgeon', 3, { abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 8 }] }] }),
   /** "When this arrives, each opponent loses 3 life." */
   drain3: body('lab-drain3', 'Lab Raider', 3, { abilities: [{ when: 'arrives', ops: [{ op: 'loseLife', n: 3, who: 'opponent' }] }] }),
+  /** "When this arrives, you gain 1 life." (gain 1 is the gain line extended, not measured.) */
+  gain1: body('lab-gain1', 'Lab Orderly', 3, { abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 1 }] }] }),
+  /** Recurring life at your dawn: "At your dawn, you gain 1 life." / "...gain 2 life." / "...each opponent loses 1 life." */
+  dawnGain1: body('lab-dawn-gain1', 'Lab Hearth', 3, { abilities: [{ when: 'dawn', ops: [{ op: 'gainLife', n: 1 }] }] }),
+  dawnGain2: body('lab-dawn-gain2', 'Lab Spring', 3, { abilities: [{ when: 'dawn', ops: [{ op: 'gainLife', n: 2 }] }] }),
+  dawnDrain1: body('lab-dawn-drain1', 'Lab Leech', 3, { abilities: [{ when: 'dawn', ops: [{ op: 'loseLife', n: 1, who: 'opponent' }] }] }),
   /** The stones' carrier (Core Set II costing, Nüwa): "When this arrives, put two marks on it." */
   marks2: body('lab-marks2', 'Lab Vessel', 3, { abilities: MARKS2 }),
   /** Each stone on the carrier: "{1}, remove a mark from this: ..." ({2} for Sever, Nüwa's {B}{B}). */
@@ -92,6 +98,10 @@ export const LAB_DB: CardDb = Object.freeze({
  *
  * The gain set prices a point of life gain: 2, 4 and 8 life on arrival.
  *
+ * The dawn set (Core Set II costing) checks the small life lines the set
+ * prints most: gain 1 on arrival, and gain 1, gain 2 or drain 1 at each of
+ * your dawns.
+ *
  * The stones set (Core Set II costing) prices Nüwa's two unpriced pieces on
  * colourless carriers, each read against its own control (`vs`):
  * - marks: a 3/3 for three that puts two marks on itself as it arrives (read
@@ -124,6 +134,13 @@ export const ARM_SETS = {
     gain2: { row: 'gain2', col: 'ctl3' },
     gain4: { row: 'gain3', col: 'ctl3' },
     gain8: { row: 'gain8', col: 'ctl3' },
+  },
+  dawn: {
+    ...SHARED,
+    gain1: { row: 'gain1', col: 'ctl3' },
+    dawnGain1: { row: 'dawnGain1', col: 'ctl3' },
+    dawnGain2: { row: 'dawnGain2', col: 'ctl3' },
+    dawnDrain1: { row: 'dawnDrain1', col: 'ctl3' },
   },
   stones: {
     ...SHARED,
