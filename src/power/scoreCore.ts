@@ -777,6 +777,22 @@ function isCarrierWhen(w: ScorableTriggerWhen): w is CarrierTriggerWhen {
 export const DAWN_MULT_NONCREATURE = 3.0; // artifacts/enchantments — scarce removal here, at the fair-fit rate
 export const DAWN_MULT_CREATURE = 2.0; // creatures — dies more, already has a priced body
 
+// 2.0 (the rate lab's dawn sets, runs on study-data dawn-lab/ and
+// dawnArt-lab/, 25 life, 32,480 paired slots each): a life line at each of
+// its controller's dawns measured well under the dawn multiplier. On a 3/3
+// for three, gain 1, gain 2 and drain 1 at dawn read 0.48, 0.78 and 0.65
+// mana (the scorer paid 0.86, 1.46, 1.00); on a colourless artifact for two,
+// 0.69, 1.34 and 1.22 (it paid 1.29, 2.19, 1.50). Gain 1 on arrival read
+// 0.31 against the scorer's 0.32, so the per-firing rates hold and it is the
+// recurrence that is over-paid: life gained at dawn takes 0.55 of the
+// multiplier, life lost or face damage 0.7.
+export const DAWN_GAIN_SCALE = 0.55;
+export const DAWN_DRAIN_SCALE = 0.7;
+const dawnLifeScale = (op: ScorableEffectOp): number =>
+  op.op === 'gainLife' ? DAWN_GAIN_SCALE
+    : op.op === 'loseLife' || (op.op === 'damage' && op.to === 'opponent') ? DAWN_DRAIN_SCALE
+      : 1;
+
 export function dawnMult(card: ScorableCardDef): number {
   return card.types.includes('creature') ? DAWN_MULT_CREATURE : DAWN_MULT_NONCREATURE;
 }
@@ -1938,6 +1954,7 @@ export function scoreCard(card: ScorableCardDef): Score {
       }
       // 1.9 (A1.4b): a gated Hunt takes its own factor in place of the ability's gate.
       let opMult = mult;
+      if (ab.when === 'dawn') opMult *= dawnLifeScale(op);
       if (op.op === 'hunt' && huntGate) {
         p = { ...p, label: `${p.label}, ${huntGate.label}` };
         if (huntGate.factor !== undefined) opMult = mult * (huntGate.factor / condMult);

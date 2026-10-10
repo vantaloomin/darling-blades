@@ -251,3 +251,23 @@ describe('Sworn and Mandate gates', () => {
     expect(lift(legend([selfPlus1('swornActive')]), legend())).toBeCloseTo(lift(legend([selfPlus1()]), legend()));
   });
 });
+
+describe('life lines at dawn, the rate lab dawn sets', () => {
+  const carrier = (types: ScorableCardDef['types'], ops: NonNullable<ScorableCardDef['abilities']>[number]['ops']): ScorableCardDef => artifact({
+    types, cost: { generic: 3, pips: {} }, ...(types.includes('creature') ? { attack: 3, defense: 3 } : {}),
+    abilities: [{ when: 'dawn', ops }],
+  });
+  const dawnPart = (card: ScorableCardDef): number => scoreCard(card).parts.filter((p) => p.label.startsWith('dawn:')).reduce((s, p) => s + p.v, 0);
+
+  it('prices them near what the lab measured on both carriers', () => {
+    // Measured in mana: creature 0.48 / 0.78 / 0.65, artifact 0.69 / 1.34 / 1.22.
+    const gain = (n: number) => [{ op: 'gainLife' as const, n }];
+    const drain = [{ op: 'loseLife' as const, n: 1, who: 'opponent' as const }];
+    expect(dawnPart(carrier(['creature'], gain(1)))).toBeCloseTo(0.48, 1);
+    expect(dawnPart(carrier(['creature'], gain(2)))).toBeCloseTo(0.78, 1);
+    expect(dawnPart(carrier(['creature'], drain))).toBeCloseTo(0.65, 1);
+    expect(dawnPart(carrier(['artifact'], gain(1)))).toBeCloseTo(0.69, 1);
+    expect(dawnPart(carrier(['artifact'], gain(2)))).toBeCloseTo(1.34, 0);
+    expect(dawnPart(carrier(['artifact'], drain))).toBeCloseTo(1.22, 0);
+  });
+});
