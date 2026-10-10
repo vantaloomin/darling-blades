@@ -8,7 +8,8 @@ import { determinize } from './determinize';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { permValue } from './value';
 
-type SpellCast = Extract<Action, { type: 'castSpell' }>;
+/** A Tithe cast from hand (or a whispered one), or from the Darling zone (2.0). */
+type SpellCast = Extract<Action, { type: 'castSpell' | 'castDarling' }>;
 
 // D5: only fodder-class bodies may trade long-term board value for this turn's
 // mana. One fifth lets two ordinary one-mana 1/1s buy one mana of real tempo.
@@ -31,6 +32,7 @@ const FODDER_VALUE_RATE = 0.2;
  * graveIndex. Every Tithe reader resolves its card through here.
  */
 function titheCastCardId(view: PlayerView, action: SpellCast): string | undefined {
+  if (action.type === 'castDarling') return view.you.darlingZone ?? undefined;
   return action.whispers && action.graveIndex !== undefined
     ? view.you.graveyard[action.graveIndex]
     : view.you.hand[action.handIndex];
@@ -38,11 +40,18 @@ function titheCastCardId(view: PlayerView, action: SpellCast): string | undefine
 
 /** The cost the fodder pays down: the Whispers cost on a whispered cast. */
 function titheBaseCost(db: CardDb, cardId: string, cast: SpellCast): ReturnType<typeof castCost> {
+  // A Darling's fodder pays down only the printed cost, never the tax.
+  if (cast.type === 'castDarling') return def(db, cardId).cost;
   return castCost(def(db, cardId), cast.empowered === true, false, false, { whispers: cast.whispers });
 }
 
+/** The Darling tax a Darling Tithe cast still pays in full on top of the discounted cost. */
+function titheTax(view: PlayerView, cast: SpellCast): number {
+  return cast.type === 'castDarling' ? view.you.darlingTax ?? 0 : 0;
+}
+
 export function isTitheCast(view: PlayerView, db: CardDb, action: Action): action is SpellCast {
-  if (action.type !== 'castSpell' || action.tithe !== true) return false;
+  if ((action.type !== 'castSpell' && action.type !== 'castDarling') || action.tithe !== true) return false;
   const cardId = titheCastCardId(view, action);
   return cardId !== undefined && db[cardId]?.tithe !== undefined;
 }
@@ -133,8 +142,9 @@ export function chooseTitheSacrifices(
   // The floor applies to the whole sale, not each increment while pairing.
   // Payment precedes sacrifice, so a sold mana creature can still fund this
   // cast. Both checks intentionally use the same pre-payment public board.
-  if (saved < 2 && (canPay(view, db, view.myId, fullCost) ||
-    !canPay(view, db, view.myId, { ...fullCost, generic: generic - saved }))) return [];
+  const tax = titheTax(view, cast);
+  if (saved < 2 && (canPay(view, db, view.myId, { ...fullCost, generic: generic + tax }) ||
+    !canPay(view, db, view.myId, { ...fullCost, generic: generic - saved + tax }))) return [];
   return chosen;
 }
 
@@ -162,10 +172,11 @@ export function applyTithePolicy(
     delete candidate.tithe;
     delete candidate.sacrifices;
     if (validateAction(world.instanceState, db, view.myId, candidate) !== null) continue;
-    const alreadyOffered = legal.some((other) => other.type === 'castSpell' && !other.tithe &&
-      other.handIndex === candidate.handIndex && other.empowered === candidate.empowered &&
-      // A whispered Tithe cast falls back to the plain Whispers cast, never a hand cast.
-      !!other.whispers === !!candidate.whispers && other.graveIndex === candidate.graveIndex &&
+    const alreadyOffered = legal.some((other) => other.type === candidate.type && !other.tithe &&
+      (other.type === 'castDarling' ? other.x === candidate.x : candidate.type === 'castSpell' &&
+        other.handIndex === candidate.handIndex && other.empowered === candidate.empowered &&
+        // A whispered Tithe cast falls back to the plain Whispers cast, never a hand cast.
+        !!other.whispers === !!candidate.whispers && other.graveIndex === candidate.graveIndex) &&
       JSON.stringify(other.targets ?? []) === JSON.stringify(candidate.targets ?? []));
     if (!alreadyOffered) prepared.push(candidate);
   }

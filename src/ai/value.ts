@@ -6,7 +6,7 @@ import { combineManaCosts, solveMana } from '../engine/mana';
 import { castTargetSpecsFor } from '../engine/resolve';
 import { getEffectiveStats, isQuestActive, isSwornActive } from '../engine/statics';
 import type { AbilityDef, ActivatedDef, CardDb, EffectOp, Keyword, ManaCost, Permanent, PlayerId, TargetRef, TargetSpec } from '../engine/types';
-import { activatedAbilitiesOf, def, effectOpUsesTarget, isTargetBranchOp, isType, manaValue, opponentOf } from '../engine/types';
+import { activatedAbilitiesOf, def, effectOpUsesTarget, isTargetBranchOp, isType, manaValue, markCostOf, opponentOf } from '../engine/types';
 import type { PlayerView } from '../engine/view';
 import { extraManaByTurn, RAMP_ANCHOR, RAMP_DAWN_SHARE, RAMP_STACK, RAMP_TURN_DECAY } from '../power/scoreCore';
 import { determinize } from './determinize';
@@ -1335,8 +1335,14 @@ function activatedActionImpact(
     targets: action.targets ?? [],
     targetBatch: ability.targets?.length === 1 && (ability.targets[0].upTo !== undefined || ability.targets[0].exactly !== undefined),
   };
-  return activatedOpsImpact(ability.ops, ctx);
+  return activatedOpsImpact(ability.ops, ctx) - markCostOf(ability) * MARK_SPENT_VALUE;
 }
+
+/**
+ * A mark spent as an activation cost (2.0, Nüwa's stones) is a +1/+1 the
+ * source loses for good, priced as the mark a targeted `addCounters` gives.
+ */
+const MARK_SPENT_VALUE = 1.2;
 
 /** Potential targets from public battlefield data; no GameState or hidden zones. */
 function activatedPotentialTargets(view: PlayerView, db: CardDb, source: Permanent, spec: TargetSpec): TargetRef[] {
@@ -1469,7 +1475,29 @@ export type RemovalKind =
 
 /** Explicit cast context opts the stronger brains into spell-body decisions. */
 export type SpellMode = Pick<Extract<Action, { type: 'castSpell' }>,
-  'targets' | 'x' | 'retell' | 'whispers' | 'empowered' | 'hauntlinked'>;
+  'targets' | 'x' | 'retell' | 'whispers' | 'empowered' | 'hauntlinked' | 'modes'>;
+
+/**
+ * A modal spell's chosen modes (2.0): each mode's target-free ops at their
+ * printed rates, plus its targeted ops on the target the cast names for it.
+ * 0 for a card that is not modal or a cast that names no modes.
+ */
+export function modalCastValue(view: PlayerView, db: CardDb, cardId: string, mode: SpellMode): number {
+  const modal = def(db, cardId).modal;
+  if (!modal || !mode.modes) return 0;
+  let slot = 0;
+  let value = 0;
+  for (const index of mode.modes) {
+    const chosen = modal.modes[index];
+    if (!chosen) continue;
+    const width = chosen.targets?.length ?? 0;
+    const targets = (mode.targets ?? []).slice(slot, slot + width);
+    slot += width;
+    value += spellAbilityImpact(view, db, cardId, { ops: chosen.ops }, {}, (op) => !effectOpUsesTarget(op)) +
+      spellTargetsValue(view, db, chosen.ops, targets);
+  }
+  return value;
+}
 
 function publicCondition(view: PlayerView, db: CardDb, condition: AbilityDef['condition']): boolean {
   if (condition === undefined) return true;
@@ -1860,6 +1888,7 @@ export function cardValue(db: CardDb, cardId: string, view?: PlayerView, mode: S
   v += conditionalAbilityValue(db, cardId, view);
   // Explicit public context keeps Easy and the shared discard/fodder policies
   // byte-identical. Medium/Hard can price a spell's actual body and target.
+  if (view && d.modal) v += modalCastValue(view, db, cardId, mode);
   if (view && !isType(d, 'creature') && (isType(d, 'charm') || isType(d, 'ritual'))) {
     const abilities = mode.retell && d.retell?.ops
       ? [{ when: 'spell' as const, ops: d.retell.ops }] : d.abilities ?? [];

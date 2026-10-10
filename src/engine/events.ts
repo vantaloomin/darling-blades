@@ -83,7 +83,7 @@ export type GameEvent =
       iid?: number;
     }
   | { e: 'preserved'; player: PlayerId; cardId: string }
-  | { e: 'activated'; player: PlayerId; iid: number; cardId: string; abilityIndex?: number }
+  | { e: 'activated'; player: PlayerId; iid: number; cardId: string; abilityIndex?: number; marksSpent?: number }
   /** A repeatable mana ability used several times as one action (A1.5), and the events of its ops follow. */
   | { e: 'manaActivated'; player: PlayerId; iid: number; cardId: string; abilityIndex: number; times: number }
   | {

@@ -2,7 +2,7 @@ import type { Action } from '../engine/actions';
 import { canAttack, canBlock, eligibleAttackers, validateBlocks } from '../engine/combat/legality';
 import { getEffectiveStats } from '../engine/statics';
 import type { ActivatedDef, CardDb, EffectOp, Permanent, PlayerId } from '../engine/types';
-import { activatedAbilitiesOf, def, isType, manaValue, opponentOf } from '../engine/types';
+import { activatedAbilitiesOf, def, isType, manaValue, markCostOf, opponentOf } from '../engine/types';
 import type { PlayerView } from '../engine/view';
 import { attackReach, attackWeightInputs, cautiousThrough, chooseAttackers, chooseBlocks, combatForecast, scoreAttack } from './combatPlans';
 import { determinize, simDb } from './determinize';
@@ -393,7 +393,8 @@ export function scoredActivationCandidates(
     // A Duty the forecast must clear before combat: a paid one, or one whose
     // body could attack instead.
     let paidMorning = view.step === 'main1' && manaValue(ability.cost.mana) > 0;
-    if (view.step === 'main1' && isType(d, 'creature')) {
+    // A mark-cost ability never taps its body, so it never competes with the attack.
+    if (view.step === 'main1' && isType(d, 'creature') && markCostOf(ability) === 0) {
       const stats = getEffectiveStats(view, db, source.iid);
       // Even a zero-power or Bulwark Rage body never uses the Morning trick.
       if (stats.keywords.has('rage')) return;
@@ -414,7 +415,7 @@ export function scoredActivationCandidates(
     // A creature its Duty taps stays tapped through the opponent's turn, so a
     // Duty that does not compete with its attack is charged the safe block
     // the body loses (1.9.1). Only a brain with a forecast pays it.
-    if (precombat && !paidMorning && isType(d, 'creature') && ability.cost.tap) {
+    if (precombat && !paidMorning && isType(d, 'creature') && markCostOf(ability) === 0) {
       value -= lostBlockCost(view, db, source.iid, precombat.pers);
       if (!(value > 0)) return;
     }

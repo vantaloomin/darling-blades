@@ -70,7 +70,7 @@ export class HardAI implements AIPlayer {
       const mode: SpellMode = cast.type === 'castSpell' ? cast : {};
       if (faceDamageForCast(view, this.db, id, mode) >= view.opp.life) return 1e6 -
         manaValue(castCost(this.db[id], !!mode.empowered, !!mode.retell, !!mode.hauntlinked, { whispers: mode.whispers })) -
-        (cast.x ?? 0) + (cast.type === 'castSpell' ? titheManaSaved(view, this.db, cast) : 0);
+        (cast.x ?? 0) + titheManaSaved(view, this.db, cast);
       return cardValue(this.db, id, view, mode) + (cast.type === 'castSpell' && cast.whispers
         ? whispersValue(this.db, id, view) - cardValue(this.db, id) :
         (cast.x ?? 0) + (cast.type === 'castSpell' && cast.empowered ? empowerValue(this.db, id, view, mode) : 0));
@@ -310,7 +310,7 @@ export class HardAI implements AIPlayer {
       if (candidate.type === 'castDarling') {
         return view.you.darlingZone === null || view.you.darlingZone === undefined
           ? -Infinity
-          : cardValue(this.db, view.you.darlingZone, view);
+          : cardValue(this.db, view.you.darlingZone, view) + titheManaSaved(view, this.db, candidate);
       }
       if (candidate.type === 'preserveCard') {
         return preserveActionValue(view, this.db, candidate);
@@ -507,6 +507,7 @@ export class HardAI implements AIPlayer {
               (candidate.type !== 'castSpell' && candidate.type !== 'castDarling') ||
               this.castInstance(game, candidate) !== instanceId) return false;
             if (JSON.stringify(candidate.targets ?? []) !== JSON.stringify(cast.targets ?? [])) return false;
+            if (Boolean(candidate.tithe) !== Boolean(cast.tithe)) return false;
             return candidate.type !== 'castSpell' || cast.type !== 'castSpell' ||
               (Boolean(candidate.retell) === Boolean(cast.retell) &&
                 Boolean(candidate.whispers) === Boolean(cast.whispers) &&

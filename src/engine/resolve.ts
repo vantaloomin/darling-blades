@@ -9,7 +9,7 @@ import {
   targetSpecsOf,
 } from './effects/EffectInterpreter';
 import { isLegalTarget } from './effects/targeting';
-import type { CardDb, CardDef, CardEntry, EffectOp, GameState, StackItem, TargetSpec } from './types';
+import type { CardDb, CardDef, CardEntry, EffectOp, GameState, ModalDef, StackItem, TargetSpec } from './types';
 import { def, isTargetBranchOp, isType } from './types';
 
 export type { Emit };
@@ -95,6 +95,10 @@ export function resolveStackItem(
   emit: Emit,
 ): void {
   const d = def(db, item.cardId);
+  if (d.modal && item.modes) {
+    resolveModalSpell(state, db, item, d.modal, item.modes, emit);
+    return;
+  }
 
   const specs = castTargetSpecsFor(
     d,
@@ -137,7 +141,9 @@ export function resolveStackItem(
       (isAura(d) || item.hauntlinked === true) && item.targets[0]?.kind === 'permanent'
         ? item.targets[0].iid
         : undefined;
-    const perm = enterBattlefield(state, db, stackCard(state, item), item.controller, emit, { attachedTo });
+    const perm = enterBattlefield(state, db, stackCard(state, item), item.controller, emit, {
+      attachedTo, ...(item.titheMarks ? { plusOneCounters: item.titheMarks } : {}),
+    });
     if (item.hauntlinked && attachedTo !== undefined) {
       emit({
         e: 'hauntlinkFormed',
@@ -198,6 +204,41 @@ export function resolveStackItem(
   }
 
   throw new Error(`resolveStackItem: cannot resolve card type of ${item.cardId}`);
+}
+
+/**
+ * A modal spell (2.0): each chosen mode runs in printed order with its own
+ * target slot. A mode whose target became illegal does nothing; the spell
+ * fizzles only when every chosen mode targets and none is still legal.
+ */
+function resolveModalSpell(
+  state: GameState, db: CardDb, item: StackItem, modal: ModalDef, modes: readonly number[], emit: Emit,
+): void {
+  let slot = 0;
+  const chosen = modes.map((index) => {
+    const mode = modal.modes[index];
+    const specs = mode.targets ?? [];
+    const targets = item.targets.slice(slot, slot + specs.length);
+    slot += specs.length;
+    const legal = specs.every((spec, i) => targets[i] !== undefined && isLegalTarget(state, db, item.controller, spec, targets[i]));
+    return { mode, specs, targets, legal };
+  });
+  if (chosen.every((entry) => entry.specs.length > 0 && !entry.legal)) {
+    moveSpellOnExit(state, db, item, emit);
+    emit({ e: 'targetsFizzled', sid: item.sid });
+    return;
+  }
+  emit({ e: 'spellResolved', sid: item.sid });
+  for (const { mode, specs, targets, legal } of chosen) {
+    if (!legal) continue;
+    runOps(state, db, emit, {
+      controller: item.controller,
+      sourceCardId: item.cardId,
+      targets,
+      ...(specs.some((spec) => spec.maxCost !== undefined || spec.minAttack !== undefined || spec.attacking) ? { targetSpecs: specs } : {}),
+    }, mode.ops);
+  }
+  moveSpellOnExit(state, db, item, emit);
 }
 
 /** Empower rider: trigger-safe extra ops that run after the card's normal resolution. */

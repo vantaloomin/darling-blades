@@ -27,6 +27,7 @@ import {
   empowerValue,
   empowerOpportunityCost,
   hauntlinkCastValue,
+  modalCastValue,
   nineLivesValue,
   removalKind,
   removalValueForCast,
@@ -120,7 +121,7 @@ export class EasyAI implements AIPlayer {
   private castScore(view: PlayerView, action: MainCast): number {
     const cardId = this.cardIdFor(view, action);
     const d = def(this.db, cardId);
-    if (action.type === 'castDarling') return manaValue(d.cost) + nineLivesValue(d) + conditionalAbilityValue(this.db, cardId);
+    if (action.type === 'castDarling') return manaValue(d.cost) + nineLivesValue(d) + conditionalAbilityValue(this.db, cardId) + titheManaSaved(view, this.db, action);
     if (action.hauntlinked) {
       const host = action.targets?.[0];
       return host?.kind === 'permanent'
@@ -134,7 +135,8 @@ export class EasyAI implements AIPlayer {
       : manaValue(d.cost) + nineLivesValue(d) + conditionalAbilityValue(this.db, cardId) + (action.x ?? 0) +
           (action.empowered ? empowerValue(this.db, cardId, view, action) + 0.01 -
             empowerOpportunityCost(view, this.db, action, (otherView, other) => this.castScore(otherView, other)) : 0);
-    return castValue + titheManaSaved(view, this.db, action) - riteSacrificeValue(view, this.db, action);
+    return castValue + titheManaSaved(view, this.db, action) - riteSacrificeValue(view, this.db, action) +
+      modalCastValue(view, this.db, cardId, action);
   }
 
   /** Targeted damage should not default to a friendly permanent or player. */

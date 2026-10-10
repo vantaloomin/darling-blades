@@ -1,4 +1,4 @@
-import { activatedAbilitiesOf, isType, type EffectContinuation } from './types';
+import { activatedAbilitiesOf, isType, markCostOf, type EffectContinuation } from './types';
 import {
   CURRENT_RULES_REV,
   DARLING_PAYDOWN_COST,
@@ -1009,9 +1009,13 @@ export class Game {
           : []);
         for (const iid of plan) findPermanent(st, iid)!.tapped = true;
         if (plan.length > 0) emit({ e: 'manaTapped', player, iids: plan });
-        perm.tapped = true;
+        // A Duty taps its source; a mark-cost ability spends marks instead.
+        const marks = markCostOf(ability);
+        if (marks > 0) perm.plusOneCounters -= marks;
+        else perm.tapped = true;
         emit({ e: 'activated', player, iid: perm.iid, cardId: perm.cardId,
-          ...(Array.isArray(definition.activated) ? { abilityIndex: action.abilityIndex ?? 0 } : {}) });
+          ...(Array.isArray(definition.activated) ? { abilityIndex: action.abilityIndex ?? 0 } : {}),
+          ...(marks > 0 ? { marksSpent: marks } : {}) });
         const specs = ability.targets ?? [];
         runOps(st, this.db, emit, {
           controller: player,
@@ -1069,6 +1073,8 @@ export class Game {
         const cost = castCost(d, action.empowered === true, isRetell, isHauntlinked, {
           whispers: isWhispers, tithe: action.tithe, sacrifices: action.sacrifices, state: st, db: this.db,
         })!;
+        const titheMarks = action.tithe && d.tithe?.marks ? Math.min(d.tithe.marks,
+          castCost(d, action.empowered === true, isRetell, isHauntlinked, { whispers: isWhispers })!.generic - cost.generic) : 0;
         const plan = action.manaPlan ?? solveMana(
           st,
           this.db,
@@ -1085,42 +1091,7 @@ export class Game {
         if (fromGrave) me.graveyard.splice(sourceIndex, 1);
         else me.hand.splice(sourceIndex, 1);
 
-        // Rite and Tithe are paid before the spell reaches the stack. Snapshot in
-        // battlefield order, remove every sacrifice, then fire their dies
-        // triggers in that same order so no trigger observes a half-paid cost.
-        if (d.rite || action.tithe) {
-          const observers = [...st.battlefield];
-          const sacrificeIids = new Set(action.sacrifices ?? []);
-          const sacrifices = st.battlefield.filter((perm) => sacrificeIids.has(perm.iid));
-          const fallen: typeof sacrifices = [];
-          const graveyardEntries: { card: CardEntry; owner: PlayerId }[] = [];
-          for (const perm of sacrifices) {
-            if (destroyPermanent(
-              st,
-              this.db,
-              perm,
-              emit,
-              (graveCard, owner) => graveyardEntries.push({ card: graveCard, owner }),
-            ) && firesDiesForDestroy(st, this.db, perm)) {
-              fallen.push(perm);
-            }
-          }
-          for (const entry of graveyardEntries) {
-            if (st.winner !== null) return;
-            fireGraveyardTriggers(st, this.db, emit, entry.card, entry.owner);
-          }
-          for (const perm of fallen) {
-            if (st.winner !== null) return;
-            fireTriggers(st, this.db, emit, 'dies', perm, { observers, sacrifice: true });
-          }
-          if (st.winner !== null) return;
-          // The payment is a mutation batch like any other, so it gets its
-          // own state-based check before anyone is offered a window: a player
-          // drained to 0 by a fodder's dies trigger loses here, and a
-          // Hauntlink whose host was sacrificed goes with it.
-          checkStateBased(st, this.db, emit);
-          if (st.winner !== null) return;
-        }
+        if ((d.rite || action.tithe) && !this.paySacrifices(action.sacrifices ?? [], emit)) return;
 
         const item: StackItem = {
           sid: st.nextSid++,
@@ -1134,6 +1105,8 @@ export class Game {
           ...(isRetell ? { retell: true } : {}),
           ...(isWhispers ? { whispered: true } : {}),
           ...(isHauntlinked ? { hauntlinked: true } : {}),
+          ...(titheMarks > 0 ? { titheMarks } : {}),
+          ...(action.modes ? { modes: [...action.modes] } : {}),
         };
         st.stack.push(item);
         emit({
@@ -1183,7 +1156,11 @@ export class Game {
         const cardId = cardIdOf(card);
         const d = def(this.db, card);
         const extra = action.x ?? 0;
-        const cost = darlingCastCost(d, me.darlingTax ?? 0)!;
+        // Priced against the pre-payment board, as a cast from hand.
+        const cost = darlingCastCost(d, me.darlingTax ?? 0,
+          action.tithe ? { tithe: true, sacrifices: action.sacrifices, state: st, db: this.db } : undefined)!;
+        const titheMarks = action.tithe && d.tithe?.marks
+          ? Math.min(d.tithe.marks, darlingCastCost(d, me.darlingTax ?? 0)!.generic - cost.generic) : 0;
         const plan = action.manaPlan ?? solveMana(st, this.db, player, cost, extra)!;
         for (const iid of plan) {
           findPermanent(st, iid)!.tapped = true;
@@ -1191,6 +1168,7 @@ export class Game {
         if (plan.length > 0) emit({ e: 'manaTapped', player, iids: plan });
 
         me.darlingZone = null;
+        if (action.tithe && !this.paySacrifices(action.sacrifices ?? [], emit)) return;
         const item: StackItem = {
           sid: st.nextSid++,
           instanceId: isCardInstance(card) ? card.instanceId : st.nextInstanceId!++,
@@ -1199,6 +1177,7 @@ export class Game {
           controller: player,
           targets: action.targets ?? [],
           ...(action.x === undefined ? {} : { x: action.x }),
+          ...(titheMarks > 0 ? { titheMarks } : {}),
         };
         st.stack.push(item);
         emit({ e: 'spellCast', sid: item.sid, cardId, controller: player, targets: item.targets, fromDarlingZone: true });
@@ -1324,6 +1303,47 @@ export class Game {
    * Offer `responder` a window over the just-announced item. Auto-passes when
    * they have no castable instant (Arena-style; saves clicks and AI calls).
    */
+  /**
+   * Pay a Rite or Tithe cost before the spell reaches the stack. Snapshot in
+   * battlefield order, remove every sacrifice, then fire their dies triggers
+   * in that same order so no trigger observes a half-paid cost. False when
+   * the payment ended the game.
+   */
+  private paySacrifices(iids: readonly number[], emit: Emit): boolean {
+    const st = this.st;
+    const observers = [...st.battlefield];
+    const sacrificeIids = new Set(iids);
+    const sacrifices = st.battlefield.filter((perm) => sacrificeIids.has(perm.iid));
+    const fallen: typeof sacrifices = [];
+    const graveyardEntries: { card: CardEntry; owner: PlayerId }[] = [];
+    for (const perm of sacrifices) {
+      if (destroyPermanent(
+        st,
+        this.db,
+        perm,
+        emit,
+        (graveCard, owner) => graveyardEntries.push({ card: graveCard, owner }),
+      ) && firesDiesForDestroy(st, this.db, perm)) {
+        fallen.push(perm);
+      }
+    }
+    for (const entry of graveyardEntries) {
+      if (st.winner !== null) return false;
+      fireGraveyardTriggers(st, this.db, emit, entry.card, entry.owner);
+    }
+    for (const perm of fallen) {
+      if (st.winner !== null) return false;
+      fireTriggers(st, this.db, emit, 'dies', perm, { observers, sacrifice: true });
+    }
+    if (st.winner !== null) return false;
+    // The payment is a mutation batch like any other, so it gets its own
+    // state-based check before anyone is offered a window: a player drained
+    // to 0 by a fodder's dies trigger loses here, and a Hauntlink whose host
+    // was sacrificed goes with it.
+    checkStateBased(st, this.db, emit);
+    return st.winner === null;
+  }
+
   private openResponseWindow(
     responder: PlayerId,
     over: Extract<Awaiting, { kind: 'respond' }>['over'],

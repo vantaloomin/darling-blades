@@ -12,6 +12,7 @@ import {
   validateNineLivesDef,
   validatePreserveDef,
   validateProvokedDef,
+  validateModalDef,
   validateRiteDef,
 } from '../../src/engine/types';
 import type { CardDef, EffectOp } from '../../src/engine/types';
@@ -96,6 +97,13 @@ describe('catalog integrity', () => {
       if (!card.rite) continue;
       const errors = validateRiteDef(card);
       expect(errors, `${card.id} has invalid Rite: ${errors.join('; ')}`).toEqual([]);
+    }
+  });
+
+  it('has no invalid modal spells', () => {
+    for (const card of Object.values(CARD_DB)) {
+      const errors = validateModalDef(card);
+      expect(errors, `${card.id} has an invalid modal: ${errors.join('; ')}`).toEqual([]);
     }
   });
 

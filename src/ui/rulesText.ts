@@ -7,7 +7,7 @@ import type {
   ManaCost,
   TargetSpec,
 } from '../engine/types';
-import { activatedAbilitiesOf } from '../engine/types';
+import { activatedAbilitiesOf, markCostOf } from '../engine/types';
 import { CARD_DB } from '../data/catalog';
 import {
   cardMechanics,
@@ -412,7 +412,8 @@ export function riteText(d: CardDef): string | undefined {
 
 export function titheText(d: CardDef): string | undefined {
   if (!d.tithe) return undefined;
-  return 'Tithe.';
+  if (d.tithe.marks === undefined) return 'Tithe.';
+  return `Tithe. This arrives with a mark for each {1} Tithe saved (at most ${d.tithe.marks}).`;
 }
 
 export function nineLivesText(d: CardDef): string | undefined {
@@ -426,6 +427,16 @@ export function preserveText(d: CardDef): string | undefined {
   return `Preserve ${cost}.`;
 }
 
+/** A modal spell (2.0): "Choose up to two —", then one bulleted line per mode. */
+export function modalText(d: CardDef): string | undefined {
+  if (!d.modal) return undefined;
+  const { upTo, modes } = d.modal;
+  const head = upTo === 1 ? 'Choose one —'
+    : upTo === modes.length ? modes.length === 2 ? 'Choose one or both —' : 'Choose one or more —'
+    : `Choose up to ${countWord(upTo)} —`;
+  return [head, ...modes.map((mode) => `• ${abilityText({ when: 'spell', ops: mode.ops, targets: mode.targets }, d)}`)].join('\n');
+}
+
 export function skimText(d: CardDef): string | undefined {
   if (!d.skim) return undefined;
   return `Skim ${manaCostText(d.skim.cost)}`;
@@ -437,8 +448,10 @@ export function activatedText(d: CardDef): string | undefined {
   if (abilities.length === 0) return undefined;
   return abilities.map((ability) => {
     const mana = ability.cost.mana ? manaCostText(ability.cost.mana) : undefined;
-    // Mana first, then the tap: `{2}, {T}:`, the order card players already read.
-    const cost = mana && mana !== '{0}' ? `${mana}, {T}` : '{T}';
+    const marks = markCostOf(ability);
+    // Mana first, then the tap or the marks: `{2}, {T}:`, the order card players already read.
+    const spend = marks === 0 ? '{T}' : marks === 1 ? 'remove a mark from this' : `remove ${marks} marks from this`;
+    const cost = mana && mana !== '{0}' ? `${mana}, ${spend}` : marks === 0 ? spend : capitalizeFirst(spend);
     const effect = abilityText({ when: 'spell', ops: ability.ops, targets: ability.targets }, d);
     return `${cost}: ${effect}`;
   }).join('\n');
@@ -745,6 +758,8 @@ export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
     lines.push(sentence + limit);
     hasDawnAbility ||= ab.when === 'dawn';
   }
+  const modal = modalText(d);
+  if (modal) lines.push(modal);
   const empower = empowerText(d);
   if (empower) lines.push(empower);
   const preserve = preserveText(d);

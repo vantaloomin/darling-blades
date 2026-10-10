@@ -82,9 +82,10 @@ From `CardDef` in `src/engine/types.ts` (re-exported through
 | `skim`        | `{ cost: ManaCost }?`                  | Instant-speed **hand** action: pay the cost, discard this card, draw one. Type-agnostic; never touches the battlefield. |
 | `retell`      | `{ cost: ManaCost; ops?: EffectOp[] }?`| Alternative-cost cast from your graveyard; the card is severed after resolving. With `ops` the override resolves instead of the body (target-free); **without `ops` Retell recasts the printed body** — prefer that unless the override is a genuinely different mode. |
 | `hauntlink`   | `HauntlinkDef?`                        | Charm-speed, stack-free battlefield link action with its own cost. Noncreature Artifact/Enchantment only (validated); the linked rider is an attached-static layer, the cost may be paid again to move it immediately, and a linked carrier dies when its host leaves play. |
-| `activated`   | `ActivatedDef?`                        | **Duty** (1.8): a repeatable tap-cost ability, `{ cost: { tap: true, mana? }, ops, targets? }`. Creatures, artifacts and enchantments only, never lands; never beside `hauntlink` or `manaAbility`. Own Morning or Afternoon, empty stack, off-stack resolution; the carrier cannot tap the turn it arrives unless it has Warcry. Targets are chosen inline under the spell target rules. Validator rules below; the rules line is generated, never written. |
+| `activated`   | `ActivatedDef?`                        | **Duty** (1.8): a repeatable tap-cost ability, `{ cost: { tap: true, mana? }, ops, targets? }`. Creatures, artifacts and enchantments only, never lands; never beside `hauntlink` or `manaAbility`. Own Morning or Afternoon, empty stack, off-stack resolution; the carrier cannot tap the turn it arrives unless it has Warcry. Targets are chosen inline under the spell target rules. **Mark costs** (2.0, Nüwa's stones): `{ cost: { removeMarks: n, mana? }, ... }` removes `n` of the creature's own marks instead of tapping, so it works while tapped or on the turn it arrives, as often as marks and mana last; same timing and targets. Validator rules below; the rules line is generated, never written. |
 | `whispers`    | `WhispersDef?`                         | **Whispers** (1.8): a fresh-graveyard alternative cost, `{ cost }`. Castable from your graveyard only while the entry carries the `whispersUntilDawnOf` marker (hand and deck origins, cleared at the named player's Dawn), at the window rules of the card's own type; the Whispers cost replaces the printed cost with no Empower and no X. Never beside `retell`, `rite`, `hauntlink` or an X cost. The rules line is generated. |
-| `tithe`       | `TitheDef?`                            | **Tithe** (1.8): an any-number sacrifice discount, `{ per: 2 }`. Creatures only in Drowned Deep (Horrors, a catalog rule); each two combined Defense among the sacrificed creatures pays one generic mana. Never beside `retell`, `rite`, `hauntlink`, `whispers` or an X cost. The rules line is the bare keyword. |
+| `tithe`       | `TitheDef?`                            | **Tithe** (1.8): an any-number sacrifice discount, `{ per: 2, marks? }`. Creatures only in Drowned Deep (Horrors, a catalog rule); each two combined Defense among the sacrificed creatures pays one generic mana. Never beside `retell`, `rite`, `hauntlink`, `whispers` or an X cost. A Tithe Darling may Tithe from the Darling zone (2.0): the discount comes off the printed generic and the Darling tax is paid in full. `marks` (2.0, Nüwa): the creature arrives with a mark per {1} the Tithe saved, at most `marks`. The rules line is the bare keyword, plus the marks sentence when `marks` is set. |
+| `modal`       | `ModalDef?`                            | **Modal** (2.0): "Choose up to N —", `{ upTo, modes: [{ ops, targets? }] }`. A Ritual or Charm whose modes are its whole text (no `spell` abilities), never beside X, `empower`, `retell`, `whispers`, `tithe`, `rite` or `hauntlink`. 2 to 5 modes; each has at most one plain target of its own and no Hunt, `moveMark`, X or target after Foresee. The caster picks 1 to `upTo` different modes as it is cast; they resolve in printed order, a mode whose target is gone does nothing, and the spell fizzles only when every chosen mode lost its target. Rules text: "Choose one —", "Choose up to two —", "Choose one or both —" or "Choose one or more —", then a bullet per mode. |
 
 ### `activated` (Duty) validator rules
 
@@ -94,8 +95,10 @@ catalog test and refuses:
 - a carrier that is a land, or anything other than a creature, artifact or
   enchantment;
 - a carrier that also has `hauntlink` or `manaAbility`;
-- a cost that is not `{ tap: true }` or `{ tap: true, mana }`, or a mana cost
-  with a negative or non-integer part;
+- a cost that is not `{ tap: true }`, `{ tap: true, mana }`, `{ removeMarks }`
+  or `{ removeMarks, mana }`, a `removeMarks` below 1 or not a whole number, a
+  mark cost on anything but a creature, or a mana cost with a negative or
+  non-integer part;
 - an empty `ops` list, or any op with `n: 'X'`;
 - an op that uses a target while `targets` is empty, or an op that needs an
   inline target after a `foresee` (the tail resumes after the look-and-bottom
@@ -107,8 +110,9 @@ catalog test and refuses:
   exactly two single-target permanent specs.
 
 The rules line is rendered by `activatedText` in `src/ui/rulesText.ts`: the
-mana cost if any, then the tap pip (`{2}, {T}:`, mana first since 2026-09-18),
-a colon, then the ops in the spell template.
+mana cost if any, then the tap pip (`{2}, {T}:`, mana first since 2026-09-18)
+or the mark cost (`{R}, remove a mark from this:`), a colon, then the ops in
+the spell template.
 The glossary entry (`duty` in `src/data/glossary.ts`) carries the taught
 definition and the arrival rule; card text never repeats it.
 
@@ -132,7 +136,8 @@ catalog test and refuses:
 - a carrier that is not a creature;
 - a `per` other than 2 (the only rate this revision prints);
 - a carrier that also has `retell`, `rite`, `hauntlink` or `whispers`, or an
-  X cost.
+  X cost;
+- a `marks` cap below 1 or not a whole number.
 
 The Horror-only rule of Drowned Deep is a set test in `tests/data`, not a
 validator rule, so a later set can print Tithe elsewhere.
