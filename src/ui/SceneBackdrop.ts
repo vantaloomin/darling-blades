@@ -1,7 +1,8 @@
 import type Phaser from 'phaser';
 import { Services } from '../meta/services';
 import { animTimeScale } from '../platform/animPolicy';
-import { activeSceneZoom } from '../platform/renderScale';
+import { activeSceneZoom, sceneFitActive } from '../platform/renderScale';
+import { designWindowViewport } from '../platform/screenMetrics';
 import { currentAccessibility } from './accessibility';
 import { backdropDimAlpha } from './layout';
 import { theme } from './theme';
@@ -70,6 +71,13 @@ export function applySceneSettings(scene: Phaser.Scene): void {
   const zoom = activeSceneZoom();
   const cam = scene.cameras?.main;
   if (cam) {
+    if (sceneFitActive()) {
+      // Clip the camera to the fitted 1280×720 window: the camera's view is
+      // the canvas size over the zoom, wider than the stage, so anything a
+      // scene parks just off-stage would otherwise show beside it.
+      const vp = designWindowViewport(scene.scale.width, scene.scale.height);
+      cam.setViewport(vp.x, vp.y, vp.width, vp.height);
+    }
     cam.setZoom(zoom);
     cam.centerOn(DESIGN_W / 2, DESIGN_H / 2);
   }

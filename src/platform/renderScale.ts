@@ -139,6 +139,11 @@ export function setActiveSceneZoom(zoom: number | null): void {
   sceneZoom = zoom !== null && Number.isFinite(zoom) && zoom > 0 ? zoom : null;
 }
 
+/** True under the compact profile, where scenes fit 1280×720 into a screen-shaped canvas. */
+export function sceneFitActive(): boolean {
+  return sceneZoom !== null;
+}
+
 /** The base camera zoom for a scene laid out in the 1280×720 design window. */
 export function activeSceneZoom(): number {
   return sceneZoom ?? active;

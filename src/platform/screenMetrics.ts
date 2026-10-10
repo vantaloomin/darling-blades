@@ -270,6 +270,19 @@ export function designWindowZoom(canvasWidth: number, canvasHeight: number): num
 }
 
 /**
+ * The canvas rect the fitted 1280x720 window covers, in canvas px, rounded to
+ * whole pixels. A scene's camera is clipped to it, so objects a scene parks
+ * just off its 1280x720 stage stay off screen (the emulator showed a panel
+ * parked right of x 1280 beside the board, 2026-10-10).
+ */
+export function designWindowViewport(canvasWidth: number, canvasHeight: number): { x: number; y: number; width: number; height: number } {
+  const zoom = designWindowZoom(canvasWidth, canvasHeight);
+  const width = Math.round(1280 * zoom);
+  const height = Math.round(720 * zoom);
+  return { x: Math.round((dim(canvasWidth) - width) / 2), y: Math.round((dim(canvasHeight) - height) / 2), width, height };
+}
+
+/**
  * The compact profile ships behind a switch until wave 1's camera fit is
  * proven on a real phone (M6): `?layout=compact` in the page address turns it
  * on for that load. Without it, every device boots as it does today.
