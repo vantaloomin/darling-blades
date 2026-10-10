@@ -439,7 +439,9 @@ export class SettingsScene extends Phaser.Scene {
       })
       .setOrigin(0, 0);
     const lines = Math.max(1, note.getWrappedText().length);
-    const lineHeight = note.height / lines;
+    // One line's box as Phaser lays it out (the drawn height also carries the
+    // descender room src/ui/textRaster.ts adds under the last line).
+    const lineHeight = note.style.getTextMetrics().fontSize;
     note.setLineSpacing(rhythm.captionLine - lineHeight);
     return {
       lines,
