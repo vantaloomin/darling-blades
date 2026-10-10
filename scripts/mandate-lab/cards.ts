@@ -31,6 +31,9 @@ export const LAB_CARDS = {
   claim3: body('lab-claim3', 'Lab Usurper', 3, { abilities: [{ when: 'arrives', ops: [{ op: 'claimMandate' }] }] }),
   /** "When this arrives, you gain 4 life." */
   gain3: body('lab-gain3', 'Lab Medic', 3, { abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 4 }] }] }),
+  /** "When this arrives, you gain 2 life." / "...gain 8 life." */
+  gain2: body('lab-gain2', 'Lab Nurse', 3, { abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 2 }] }] }),
+  gain8: body('lab-gain8', 'Lab Surgeon', 3, { abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 8 }] }] }),
   /** "When this arrives, each opponent loses 3 life." */
   drain3: body('lab-drain3', 'Lab Raider', 3, { abilities: [{ when: 'arrives', ops: [{ op: 'loseLife', n: 3, who: 'opponent' }] }] }),
 } satisfies Record<string, CardDef>;
@@ -59,6 +62,8 @@ export const LAB_DB: CardDb = Object.freeze({
  * The life set (D3), played at each starting life under study:
  * - gain: the subject gains 4 life on arrival.
  * - drain: the subject's opponent loses 3 life on arrival.
+ *
+ * The gain set prices a point of life gain: 2, 4 and 8 life on arrival.
  */
 const SHARED = {
   base: { row: 'ctl3', col: 'ctl3' },
@@ -76,6 +81,12 @@ export const ARM_SETS = {
     ...SHARED,
     gain: { row: 'gain3', col: 'ctl3' },
     drain: { row: 'drain3', col: 'ctl3' },
+  },
+  gain: {
+    ...SHARED,
+    gain2: { row: 'gain2', col: 'ctl3' },
+    gain4: { row: 'gain3', col: 'ctl3' },
+    gain8: { row: 'gain8', col: 'ctl3' },
   },
 } as const satisfies Record<string, Record<string, { row: LabCard; col: LabCard }>>;
 
