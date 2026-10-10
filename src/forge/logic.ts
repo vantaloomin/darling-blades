@@ -6,11 +6,12 @@ import type {
   Keyword,
   ManaCost,
   ManaActivatedDef,
+  ModalDef,
   Rarity,
   StaticDef,
   TargetSpec,
 } from '../engine/types';
-import { manaValue } from '../engine/types';
+import { manaValue, validateModalDef } from '../engine/types';
 import { MECHANIC_NAMES } from '../data/glossary';
 import {
   CARD_FLOOR,
@@ -73,6 +74,9 @@ export interface BuilderAbility {
   static: StaticDef;
 }
 
+/** What an activated ability spends besides mana: the tap, or marks (2.0). */
+export type DutyPayment = 'tap' | 'marks';
+
 export interface BuilderMechanics {
   empower: { enabled: boolean; cost: CostState; ops: ScorableEffectOp[]; targets?: TargetSpec[] };
   rite: { enabled: boolean; n: number };
@@ -91,10 +95,16 @@ export interface BuilderMechanics {
   chapters: { enabled: boolean; chapters: ScorableEffectOp[][] };
   manaAbility: { enabled: boolean; colors: ManaAbilityColor[] };
   entersTapped: { enabled: boolean };
-  /** Duty (1.8): tap-cost activated ability. `cost` is the mana part; the tap is implied. */
+  /**
+   * Duty (1.8): an activated ability. `cost` is the mana part; `payWith` is
+   * the rest: the tap, or (2.0) removing `marks` marks from the creature.
+   */
   activated: {
     enabled: boolean;
     cost: CostState;
+    payWith: DutyPayment;
+    /** Marks removed when `payWith` is 'marks' (kept while it is the tap, so switching back finds it). */
+    marks: number;
     target: TargetChoice;
     targets?: TargetSpec[];
     ops: ScorableEffectOp[];
@@ -105,8 +115,12 @@ export interface BuilderMechanics {
   manaActivated: { enabled: boolean; abilities: ManaActivatedDef[] };
   /** Whispers (1.8): fresh-graveyard alternative cost. */
   whispers: { enabled: boolean; cost: CostState };
-  /** Tithe (1.8): any-number sacrifice, one generic per two Defense. */
-  tithe: { enabled: boolean };
+  /**
+   * Tithe (1.8): any-number sacrifice, one generic per two Defense. `marks`
+   * (2.0): it arrives with a mark for each {1} the Tithe saved, at most this
+   * many; 0 prints no marks clause.
+   */
+  tithe: { enabled: boolean; marks: number };
 }
 
 export interface BuilderState {
@@ -137,6 +151,14 @@ export interface BuilderState {
   keywords: Keyword[];
   abilities: BuilderAbility[];
   mechanics: BuilderMechanics;
+  /**
+   * A loaded modal spell's modes (2.0), kept as printed: the Forge has no
+   * modes editor yet, so it carries them through unchanged, the way it keeps
+   * a card's further Duties.
+   */
+  modal: ModalDef | null;
+  /** Presentation only (2.0): a legendary card printed without the crown, kept as loaded. */
+  crownless: boolean;
   appearance: {
     frame: FrameChoice;
     holo: HoloChoice;
@@ -223,11 +245,13 @@ export function createInitialBuilderState(): BuilderState {
       },
       manaAbility: { enabled: false, colors: ['G'] },
       entersTapped: { enabled: false },
-      activated: { enabled: false, cost: emptyCost(0), target: 'none', ops: [{ op: 'foresee', n: 1 }] },
+      activated: { enabled: false, cost: emptyCost(0), payWith: 'tap', marks: 1, target: 'none', ops: [{ op: 'foresee', n: 1 }] },
       manaActivated: { enabled: false, abilities: [] },
       whispers: { enabled: false, cost: emptyCost(1) },
-      tithe: { enabled: false },
+      tithe: { enabled: false, marks: 0 },
     },
+    modal: null,
+    crownless: false,
     appearance: { frame: 'default', holo: 'default', fullArt: false },
   };
 }
@@ -457,6 +481,8 @@ export function fromCardDef(card: ScorableCardDef): BuilderState {
     ? {
         enabled: true,
         cost: fromManaCost(duty.cost.mana),
+        payWith: 'removeMarks' in duty.cost ? 'marks' : 'tap',
+        marks: 'removeMarks' in duty.cost ? duty.cost.removeMarks : 1,
         target: duty.targets?.[0]?.what ?? 'none',
         ...(duty.targets ? { targets: structuredClone(duty.targets) } : {}),
         ops: structuredClone(duty.ops),
@@ -469,7 +495,9 @@ export function fromCardDef(card: ScorableCardDef): BuilderState {
   state.mechanics.whispers = card.whispers
     ? { enabled: true, cost: fromManaCost(card.whispers.cost) }
     : state.mechanics.whispers;
-  state.mechanics.tithe.enabled = card.tithe !== undefined;
+  state.mechanics.tithe = { enabled: card.tithe !== undefined, marks: card.tithe?.marks ?? 0 };
+  state.modal = card.modal ? structuredClone(card.modal) : null;
+  state.crownless = card.crownless === true;
 
   return state;
 }
@@ -539,9 +567,7 @@ export function toCardDef(state: BuilderState): ScorableCardDef {
     manaAbility: mechanics.manaAbility.enabled ? manaColors : undefined,
     entersTapped: mechanics.entersTapped.enabled || undefined,
     activated: mechanics.activated.enabled ? withExtraDuties({
-      cost: activatedManaValue(state) > 0
-        ? { tap: true, mana: toManaCost(mechanics.activated.cost) }
-        : { tap: true },
+      cost: dutyCost(state),
       ops: mechanics.activated.ops,
       ...(mechanics.activated.target !== 'none'
         ? { targets: builderTargets(mechanics.activated.target, mechanics.activated.targets) }
@@ -549,7 +575,11 @@ export function toCardDef(state: BuilderState): ScorableCardDef {
     }, mechanics.activated.extra) : undefined,
     manaActivated: mechanics.manaActivated.enabled ? structuredClone(mechanics.manaActivated.abilities) : undefined,
     whispers: mechanics.whispers.enabled ? { cost: toManaCost(mechanics.whispers.cost) } : undefined,
-    tithe: mechanics.tithe.enabled ? { per: 2 } : undefined,
+    tithe: mechanics.tithe.enabled
+      ? { per: 2, ...(mechanics.tithe.marks > 0 ? { marks: mechanics.tithe.marks } : {}) }
+      : undefined,
+    modal: state.modal ? structuredClone(state.modal) : undefined,
+    crownless: state.crownless || undefined,
     rarity: state.rarity,
     // Never `flavor` (R13): this def is what CardView draws, what Save Image
     // captures, and what export and share links carry.
@@ -570,6 +600,22 @@ export function printedManaValue(state: BuilderState): number {
 
 function withExtraDuties(first: ScorableActivated, extra: ScorableActivated[] | undefined): ScorableActivated | ScorableActivated[] {
   return extra?.length ? [first, ...extra] : first;
+}
+
+/** The edited Duty's cost: the tap or its marks, with the mana part only when there is some. */
+function dutyCost(state: BuilderState): ScorableActivated['cost'] {
+  const { payWith, marks, cost } = state.mechanics.activated;
+  const mana = activatedManaValue(state) > 0 ? { mana: toManaCost(cost) } : {};
+  return payWith === 'marks' ? { removeMarks: Math.max(1, Math.round(marks)), ...mana } : { tap: true, ...mana };
+}
+
+/**
+ * What the builder calls the edited activated ability in its own copy: the
+ * glossary's Duty for a tap ability, and plainly an ability for one paid with
+ * marks, which never taps.
+ */
+export function dutyWord(state: BuilderState): string {
+  return state.mechanics.activated.payWith === 'marks' ? 'mark-paid ability' : MECHANIC_NAMES.duty;
 }
 
 export function activatedManaValue(state: BuilderState): number {
@@ -607,8 +653,19 @@ export function warningsFor(state: BuilderState, score: Score): ForgeWarning[] {
   } = MECHANIC_NAMES;
 
   if (score.isX) add('x-nominal', 'note', 'X is scored as if X were 3. Judge the rate per mana rather than the total.');
+  // 2.0 parts the scorer knows but has no measured rate for yet: provisional,
+  // so they read as estimates in plain words rather than as unknown vocabulary.
+  const theMandate = MECHANIC_NAMES.mandate.replace(/^The\b/, 'the');
+  const provisional: Record<string, [id: string, text: string]> = {
+    'activated:removeMarks': ['duty-mark-cost', 'An ability paid by removing marks has no measured rate yet, so it counts as 0.'],
+    'tithe:marks': ['tithe-marks', `The marks ${tithe} gives for the mana it saved have no measured rate yet, so they count as 0.`],
+    modal: ['modal-rate', 'A modal spell has no measured rate yet, so its modes count as 0.'],
+    'op:claimMandate': ['mandate-claim', `Claiming ${theMandate} has no measured rate yet, so it counts as 0.`],
+  };
   for (const unknown of score.unknowns) {
-    add(`unknown:${unknown}`, 'note', `The Forge can't price "${plainVocabulary(unknown)}" yet, so it counts as 0.`);
+    const known = provisional[unknown];
+    if (known) add(known[0], 'estimate', known[1]);
+    else add(`unknown:${unknown}`, 'note', `The Forge can't price "${plainVocabulary(unknown)}" yet, so it counts as 0.`);
   }
   if (m.empower.enabled) {
     const total = empowerTotalManaValue(state);
@@ -632,21 +689,30 @@ export function warningsFor(state: BuilderState, score: Score): ForgeWarning[] {
       : `The ${flat[0]} cost prints on the card, but it counts a flat amount whatever the cost.`);
   }
   if (m.activated.enabled) {
-    if (builderHasType(state, 'land')) add('duty-on-land', 'illegal', `Lands can't have a ${duty} (tapping a land is its mana ability).`);
-    if (m.manaAbility.enabled) add('duty-with-mana-ability', 'illegal', `A ${duty} can't share a card with a mana ability.`);
-    if (m.hauntlink.enabled) add('duty-with-hauntlink', 'illegal', `A ${duty} can't share a card with ${hauntlink}.`);
-    if (state.isX) add('duty-with-x', 'illegal', `A ${duty}'s effects can't use X.`);
-    if (m.activated.ops.length === 0) add('duty-no-effects', 'illegal', `This ${duty} has no effects. Add one, or the game won't allow the card.`);
-    if (m.activated.target === 'none' && m.activated.ops.some((op) => opNeedsTarget(op))) {
-      add('duty-needs-target', 'illegal', `One of the ${duty}'s effects needs a target. Pick one.`);
+    // A mark-paid ability never taps, so the builder doesn't call it a Duty.
+    const marksPaid = m.activated.payWith === 'marks';
+    const word = dutyWord(state);
+    const article = /^[aeiou]/i.test(word) ? 'an' : 'a';
+    if (builderHasType(state, 'land')) {
+      add('duty-on-land', 'illegal', marksPaid ? `Lands can't have ${article} ${word}.` : `Lands can't have a ${duty} (tapping a land is its mana ability).`);
     }
-    if (m.activated.target === 'spell') add('duty-spell-target', 'illegal', `A ${duty} can't target a spell.`);
-    if (builderHasType(state, 'creature')) {
+    if (marksPaid && !builderHasType(state, 'creature')) {
+      add('duty-marks-noncreature', 'illegal', 'Only a creature can remove its own marks to pay for an ability.');
+    }
+    if (m.manaAbility.enabled) add('duty-with-mana-ability', 'illegal', `${capitalize(article)} ${word} can't share a card with a mana ability.`);
+    if (m.hauntlink.enabled) add('duty-with-hauntlink', 'illegal', `${capitalize(article)} ${word} can't share a card with ${hauntlink}.`);
+    if (state.isX) add('duty-with-x', 'illegal', `${capitalize(article)} ${word}'s effects can't use X.`);
+    if (m.activated.ops.length === 0) add('duty-no-effects', 'illegal', `This ${word} has no effects. Add one, or the game won't allow the card.`);
+    if (m.activated.target === 'none' && m.activated.ops.some((op) => opNeedsTarget(op))) {
+      add('duty-needs-target', 'illegal', `One of the ${word}'s effects needs a target. Pick one.`);
+    }
+    if (m.activated.target === 'spell') add('duty-spell-target', 'illegal', `${capitalize(article)} ${word} can't target a spell.`);
+    if (builderHasType(state, 'creature') && !marksPaid) {
       const part = score.parts.find((candidate) => candidate.label.startsWith('duty'));
       if (part && part.label.includes('NEEDS MATH')) add('duty-creature-band', 'estimate', `Strong ${pluralDuty(duty)} on creatures use a provisional rate.`);
       add('duty-creature-attack', 'note', `A ${duty} on a creature is priced against the attack it gives up. Bigger attackers lose more by tapping, and the Forge doesn't count that yet.`);
     }
-    if (activatedManaValue(state) > 0) add('duty-mana-discount', 'estimate', `The discount for mana spent on a ${duty} uses a provisional rate.`);
+    if (activatedManaValue(state) > 0 && !marksPaid) add('duty-mana-discount', 'estimate', `The discount for mana spent on a ${duty} uses a provisional rate.`);
   }
   if (m.whispers.enabled) {
     if (m.retell.enabled) add('whispers-with-retell', 'illegal', `${whispers} can't share a card with ${retell}.`);
@@ -684,7 +750,14 @@ export function warningsFor(state: BuilderState, score: Score): ForgeWarning[] {
     }
     add('tithe-flat', 'estimate', `${tithe} counts a flat +0.50. The value of the discount itself isn't measured yet.`);
   }
+  if (state.modal && validateModalDef(toCardDef(state) as unknown as CardDef).length > 0) {
+    add('modal-illegal', 'illegal', `The game won't allow these modes on this card. A modal spell is a Ritual or Charm with no spell abilities of its own, and no X, ${empower}, ${retell}, ${whispers}, ${tithe}, ${rite} or ${hauntlink}.`);
+  }
   return warnings;
+}
+
+function capitalize(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 /** "Duty" to "Duties"; any other name gets a plain "s". */

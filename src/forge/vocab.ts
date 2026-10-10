@@ -198,6 +198,11 @@ export const COLOR_PIE_KEYWORDS: Record<Color, readonly Keyword[]> = {
 
 export type OpKind = ScorableEffectOp['op'];
 
+/** The Mandate's glossary name mid-sentence ("the Mandate"), so a rename there reaches the palette. */
+function theMandate(): string {
+  return MECHANIC_NAMES.mandate.replace(/^The\b/, 'the');
+}
+
 export interface OpOption {
   kind: OpKind;
   label: string;
@@ -232,6 +237,11 @@ export const OP_OPTIONS: readonly OpOption[] = [
   { kind: 'markAll', label: 'Mark All', description: 'Add one mark to each creature you control.' },
   { kind: 'moveMark', label: 'Move Mark', description: 'Move one mark between your permanents.' },
   { kind: 'hunt', label: MECHANIC_NAMES.hunt, description: MECHANIC_DEFINITIONS.hunt },
+  {
+    kind: 'claimMandate',
+    label: `Claim ${theMandate()}`,
+    description: `You take ${theMandate()} for yourself. While you hold it, you draw a card at your Dawn.`,
+  },
   { kind: 'removeMarks', label: 'Remove Marks', description: 'Remove all marks from the target.' },
   { kind: 'severSelf', label: 'Sever Self', description: 'Sever the source as an ability cost.' },
   { kind: 'loseLifePerTheirMarked', label: 'Marked Life Loss', description: 'Opponent loses life for each marked creature they control.' },

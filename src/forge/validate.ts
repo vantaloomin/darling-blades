@@ -18,8 +18,8 @@
  * Headless: no Phaser, no DOM, no Node built-ins.
  */
 import { ALL_CARDS } from '../data/catalog';
-import type { Color, Keyword, ManaActivatedDef, ManaCost, StaticDef, TargetSpec } from '../engine/types';
-import { validateTriggerTargetsDef } from '../engine/types';
+import type { CardDef, Color, Keyword, ManaActivatedDef, ManaCost, ModalDef, StaticDef, TargetSpec } from '../engine/types';
+import { validateModalDef, validateTriggerTargetsDef } from '../engine/types';
 import type {
   ScorableAbilityDef,
   ScorableActivated,
@@ -65,6 +65,12 @@ export const FORGE_LIMITS = {
   opsPerList: 12,
   chapters: 9,
   duties: 4,
+  /** Marks an ability may remove from its creature as its cost (2.0). */
+  markCost: 5,
+  /** The most marks a Tithe may give the creature for the mana it saved (2.0). */
+  titheMarks: 9,
+  /** A modal spell's modes (the game allows 2 to 5). */
+  modes: 5,
   targets: 4,
   /** How deep "If the target is marked" branches may nest. */
   branchDepth: 4,
@@ -89,7 +95,8 @@ export type SkipReason =
   | 'target'
   | 'token'
   | 'number'
-  | 'size';
+  | 'size'
+  | 'modes';
 
 export const SKIP_REASON_TEXT: Record<SkipReason, string> = {
   shape: 'it isn\'t a card the Forge can read',
@@ -107,6 +114,7 @@ export const SKIP_REASON_TEXT: Record<SkipReason, string> = {
   token: 'it makes a token the Forge doesn\'t know',
   number: 'a number on it is outside what the Forge allows',
   size: 'it has more abilities or effects than the Forge allows',
+  modes: 'its modes break the game\'s rules for a modal spell',
 };
 
 class Invalid extends Error {
@@ -381,12 +389,26 @@ function readAbility(value: unknown): ScorableAbilityDef {
   return out;
 }
 
+/**
+ * A Duty's cost: the tap, or (2.0) removing marks from the creature, either
+ * with optional mana. Exactly one of the two: a cost with both or neither is
+ * refused.
+ */
+function readDutyCost(value: unknown): ScorableActivated['cost'] {
+  const cost = object(value, ['tap', 'removeMarks', 'mana']);
+  if ((cost.tap === undefined) === (cost.removeMarks === undefined)) fail('shape');
+  const mana = cost.mana !== undefined ? { mana: readCost(cost.mana) } : {};
+  if (cost.tap !== undefined) {
+    oneOf(cost.tap, [true] as const);
+    return { tap: true, ...mana };
+  }
+  return { removeMarks: int(cost.removeMarks, 1, FORGE_LIMITS.markCost), ...mana };
+}
+
 function readDuty(value: unknown): ScorableActivated {
   const raw = object(value, ['cost', 'ops', 'targets']);
-  const cost = object(raw.cost, ['tap', 'mana']);
-  oneOf(cost.tap, [true] as const);
   return {
-    cost: cost.mana !== undefined ? { tap: true, mana: readCost(cost.mana) } : { tap: true },
+    cost: readDutyCost(raw.cost),
     ops: readOps(raw.ops),
     ...(raw.targets !== undefined ? { targets: readTargets(raw.targets) } : {}),
   };
@@ -411,10 +433,29 @@ function readStatBlock(value: unknown, keywordField: 'grantKeywords' | 'keywords
   };
 }
 
+/**
+ * A modal spell (2.0): "Choose up to N", each mode with its own effects and
+ * at most one target. The rules the game holds a modal card to (a Ritual or
+ * Charm, 2 to 5 modes, no X or Empower beside it, ...) are the engine's own
+ * `validateModalDef`, run on the whole card once it is read.
+ */
+function readModal(value: unknown): ModalDef {
+  const raw = object(value, ['upTo', 'modes']);
+  const modes = array(raw.modes, FORGE_LIMITS.modes).map((item) => {
+    const mode = object(item, ['ops', 'targets']);
+    return {
+      ops: readOps(mode.ops) as ModalDef['modes'][number]['ops'],
+      ...(mode.targets !== undefined ? { targets: readTargets(mode.targets) } : {}),
+    };
+  });
+  return { upTo: int(raw.upTo, 1, FORGE_LIMITS.modes), modes };
+}
+
 const CARD_FIELDS = [
   'id', 'name', 'types', 'subtypes', 'supertypes', 'cost', 'colors', 'attack', 'defense', 'keywords', 'x',
   'abilities', 'empower', 'rite', 'nineLives', 'preserve', 'skim', 'retell', 'hauntlink', 'awakening',
-  'chapters', 'manaAbility', 'entersTapped', 'activated', 'manaActivated', 'whispers', 'tithe', 'rarity', 'set',
+  'chapters', 'manaAbility', 'entersTapped', 'activated', 'manaActivated', 'whispers', 'tithe', 'modal', 'crownless',
+  'rarity', 'set',
 ] as const satisfies readonly (keyof ScorableCardDef)[];
 
 /**
@@ -443,6 +484,7 @@ function readCard(value: unknown): ScorableCardDef {
     set: (raw.set === undefined ? 'base' : oneOf(raw.set, SETS, 'set')) as ScorableCardDef['set'],
   };
   if (raw.supertypes !== undefined) card.supertypes = distinct(raw.supertypes, ['legendary'] as const, 'type');
+  if (raw.crownless !== undefined) card.crownless = oneOf(raw.crownless, [true] as const);
   if (raw.cost !== undefined) card.cost = readCost(raw.cost);
   if (raw.attack !== undefined) card.attack = int(raw.attack, 0, FORGE_LIMITS.stat);
   if (raw.defense !== undefined) card.defense = int(raw.defense, 0, FORGE_LIMITS.stat);
@@ -487,7 +529,18 @@ function readCard(value: unknown): ScorableCardDef {
     card.manaActivated = array(raw.manaActivated, FORGE_LIMITS.duties).map(readManaActivation);
     if (!card.manaActivated.length) fail('shape');
   }
-  if (raw.tithe !== undefined) card.tithe = { per: oneOf(object(raw.tithe, ['per']).per, [2] as const) };
+  if (raw.tithe !== undefined) {
+    const tithe = object(raw.tithe, ['per', 'marks']);
+    card.tithe = {
+      per: oneOf(tithe.per, [2] as const),
+      ...(tithe.marks !== undefined ? { marks: int(tithe.marks, 1, FORGE_LIMITS.titheMarks) } : {}),
+    };
+  }
+  if (raw.modal !== undefined) {
+    card.modal = readModal(raw.modal);
+    // Read last, so the engine sees the whole card: what a modal card may not combine with.
+    if (validateModalDef(card as unknown as CardDef).length > 0) fail('modes');
+  }
   return card;
 }
 

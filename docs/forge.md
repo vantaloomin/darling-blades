@@ -1,4 +1,4 @@
-<!-- source-of-truth: forge/index.html, src/forge, src/power/scoreCore.ts, vite.forge.config.ts, scripts/build-forge.ts, tests/forge, tests/power · last-verified: 2026-10-09 -->
+<!-- source-of-truth: forge/index.html, src/forge, src/power/scoreCore.ts, vite.forge.config.ts, scripts/build-forge.ts, tests/forge, tests/power · last-verified: 2026-10-10 -->
 
 # The Forge
 
@@ -88,6 +88,7 @@ game.
 - **Two targets.** A spell's target can reach one creature, up to two, or
   exactly two (the ability editor's How Many); an effect on two targets is
   priced once per target.
+- **2.0 mechanics.** The Duty editor's **Pay With** choice pays with the tap or by removing 1 to 5 marks from the creature (2.0, Nüwa's stones), each with optional mana; a mark-paid ability never taps, so the builder's own copy calls it a mark-paid ability rather than a Duty, warns that only a creature can pay that way, and leaves out the tap Duty's notes. The Tithe panel takes an optional **Arrives With Marks** count (0 prints no marks clause, at most 9). The effect palette offers **Claim the Mandate** (its name read from the glossary). A modal spell ("Choose up to N") loaded from a card keeps its modes as printed, the way a card's further Duties are kept: they show on the card and in a Modes panel, and the Forge has no modes editor yet. A crownless legend keeps its crownless flag. The scorer has no measured rate yet for mark-paid abilities, Tithe marks, modal spells or the Mandate claim (it reports them as unknowns and counts 0), so the builder shows each as an `estimate` warning in plain words rather than as unknown vocabulary, and flags a modal card the game would refuse (say, after changing it to a creature) as `illegal`.
 - **The game's own words.** Keyword, mechanic, rarity, set and effect names are
   read from game data at runtime (the glossary, `src/data/setTitles.ts`, and the
   builder's effect menu), so a rename in the game reaches the Forge with no
@@ -367,6 +368,8 @@ says so ("Exported sets include your images, so the file can be large.") while
 any card has one; an export over the 100 MB import cap still downloads, with a
 warning.
 
+**2.0 card shapes at the gate.** A Duty's cost is the tap (`{ tap: true, mana? }`) or removing marks (`{ removeMarks: 1..5, mana? }`); a cost with both or neither is refused. `tithe` may carry `marks` (a whole number from 1 to 9) beside `per: 2`. `modal` is read as `{ upTo, modes: [{ ops, targets? }] }` (at most 5 modes, each mode's effects and targets checked like any other), and the whole card is then run through the engine's own `validateModalDef`: a modal card the game would refuse (on a permanent, with fewer than 2 modes, choosing more modes than it has, beside X, Empower, Retell, Whispers, Tithe, Rite or Hauntlink, or with a targeting mode that has no target) is skipped with "its modes break the game's rules for a modal spell". `crownless` is accepted as `true` only.
+
 **Own images coming in** (`src/forge/imageIntake.ts`): a chosen or dropped
 file over 20 MB is refused before it is read; its header must be PNG, JPEG,
 WebP or GIF and claim at most 100 megapixels (so SVG, HTML and decompression
@@ -438,6 +441,7 @@ reaches a server.
 - `tests/forge/mechanics18.test.ts`: Duty, Whispers and Tithe in the builder
   (round trips, and the combinations the game refuses surfacing as `illegal`
   warnings; tests assert a warning's kind and rule, never its wording).
+- `tests/forge/mechanics20.test.ts`: the 2.0 shapes at the import gate and in the builder: mark-paid abilities (accepted with a mark count and optional mana, refused with both the tap and marks, with neither, or out of range; round trip and the switch back to the tap; the warnings that replace the tap Duty's), Tithe marks, modal spells (exact round trip, and refused in the shapes `validateModalDef` refuses), crownless legends, and the palette offering every effect the gate accepts, the Mandate claim among them.
 - `tests/forge/setFormat.test.ts`: the **export/import round trip** over every
   collectible catalog card, the validator refusing malformed and hostile cards
   while importing the good ones, the size and card caps, ids, the editor
