@@ -226,8 +226,14 @@ camera zoom smeared, so text now rasterizes at the scene's zoom (never
 below 1; on desktop that is still k); and the camera's view was wider than
 the stage, showing a panel parked right of x 1280, so the camera is now
 clipped to the fitted 1280x720 window. The 1.3x upscale from the ruled
-cap of 2 on a 2.625x screen remains (accepted in C1). Safari's bars are
-not measured yet.
+cap of 2 on a 2.625x screen remains (accepted in C1). Safari's bars,
+measured on the owner's iPhone 17 Pro Max in landscape (1.9.2, 2026-10-10,
+from a screenshot): the address bar and tab bar take the top 110 of 438
+CSS px and cannot be hidden, leaving a 956x328 content box; 1.9.2 drew the
+game at 443x249, because the 80 px reserve came off a height that already
+left the bars out (328 - 80 = 248). With the reserve dropped under the
+compact profile the same box fits the window at 583x328. Home-screen mode
+(M9) has no bars at all.
 
 ### C3. The resolver gets a device term, not a fork
 
@@ -409,7 +415,15 @@ word.
   device (the owner's Galaxy Tab A8, a budget tablet, until an Android phone joins): the engine and AI run on the page's main thread, and a long think
   freezes the screen. If it does, the fix touches `src/ai` or moves the AI
   to a worker, and the 2.0 plan freezes the AI at the end of 2.0 wave 2, so
-  it is found here, not in the Duel wave.
+  it is found here, not in the Duel wave. **Measured in wave 1** (1.9.2 live site, 2026-10-10, from the owner's
+  screen recordings): on the Tab A8 in Chrome, eight Hard AI turns against the
+  Hestia practice opponent (game turns 1 to 16, up to seven AI creatures in play) showed
+  no freeze: no still screen of 0.45 s or more fell inside the AI's own
+  stretches (every longer one waited on the player: blocks, targets, the
+  Warchest), and each turn's first action came about a second after the
+  turn banner. Late games with full boards are not covered yet. Chrome's
+  tab strip and address bar take the top 15% of the A8's screen, and the
+  80 px reserve showed there too, as on the iPhone (see C2).
 - **The probe learns viewports.** `src/dev/a11yProbe.ts` renders the
   1280x720 window at three text sizes and two contrasts; it gains a
   profile and viewport axis so it can render the matrix's fixtures. **Built
@@ -543,7 +557,7 @@ recommendation on each except M16, which takes the owner's variant.
 | **M11** | Upright tablets | Follow the mocks: the compact layout letterboxed at about 96% width-fit, the commanders' art in the bands (mock P4) **(ruled 2026-10-09)** |
 | **M12** | The rotate screen | A scene image behind the message **(ruled 2026-10-09;** mock P2 draws a card illustration, the ruling is a scene) |
 | **M13** | Art resolution on phones | Half art on the board and hand; the full texture for the one card being inspected **(ruled 2026-10-09)** |
-| **M14** | Performance targets | Set from the wave-1 baseline on the weakest tested device, then only raised **(ruled 2026-10-09)** |
+| **M14** | Performance targets | Set from the wave-1 baseline on the weakest tested device, then only raised **(ruled 2026-10-09)**. Set 2026-10-10: on the Galaxy Tab A8, no still screen longer than 1.5 s during an AI turn |
 | **M15** | The Duel's resources block | One framed button for mana and zone counts that opens the zone sheet; on a phone it is also the land drop **(ruled 2026-10-09)** |
 | **M16** | Three-colour mana in the 96 px column | Two colours plus a neutral "more" pip in place of the third; tapping the block opens the zone sheet, which leads with every colour's mana at full size (owner, 2026-10-09: "a little full display"; the mocks drew "+1") **(ruled 2026-10-09)** |
 | **M17** | Casting by touch | A tap opens the card (Cast, Empower); a single-target spell picks its target, then Cast confirms. The research backs it: Duel Links and Master Duel open options on a tap, and Slay the Spire's largest complaint cluster is cards played while being read **(ruled 2026-10-09)** |
