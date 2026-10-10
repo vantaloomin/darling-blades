@@ -220,6 +220,30 @@
           display: flex;
         }
       }
+      /* The compact profile (?layout=compact, src/gameBoot.ts), mobile wave 1.
+         M12: the rotate screen shows a scene image behind its message. M11: a
+         tablet held upright is never sent to rotate; it is letterboxed at 96%
+         of its width, the same scene image filling the bands (the game clears
+         to transparent outside its window). A tablet's portrait width is its
+         shorter side, so 600 px and up is the phone/tablet split. */
+      :root.layout-compact #rotate-overlay,
+      :root.layout-letterbox #app {
+        background:
+          linear-gradient(rgba(13, 10, 20, 0.1), rgba(13, 10, 20, 0.3) 55%, rgba(13, 10, 20, 0.9)),
+          #0d0a14 url('assets/art/scenes/scene-mainmenu.webp') 50% 100% / cover no-repeat;
+      }
+      :root.layout-compact #rotate-overlay {
+        /* The menu vista's right edge (pagoda and banners) reads as a scene
+           when cropped upright; its centre is open sky. */
+        background-position: 0 0, 96% 100%;
+        justify-content: flex-end;
+        padding-bottom: max(18vh, env(safe-area-inset-bottom));
+      }
+      @media (orientation: portrait) and (pointer: coarse) and (min-width: 600px) {
+        :root.layout-compact #rotate-overlay {
+          display: none;
+        }
+      }
     </style>
   </head>
   <body>
