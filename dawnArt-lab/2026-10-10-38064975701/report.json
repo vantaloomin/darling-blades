@@ -1,0 +1,87 @@
+{
+  "armSet": "dawnArt",
+  "lives": [
+    25
+  ],
+  "stoppedEarly": false,
+  "minutes": 78.68,
+  "atLife": [
+    {
+      "life": 25,
+      "slots": 32480,
+      "baseWinRate": {
+        "mean": 0.4210591133004926,
+        "se": 0.002738995446417714,
+        "n": 32480
+      },
+      "meanTurns": 22.396305418719212,
+      "mana": {
+        "mean": 0.05486453201970443,
+        "se": 0.0021303725333312777,
+        "n": 32480
+      },
+      "arms": {
+        "artBlank": {
+          "vs": "base",
+          "lift": {
+            "mean": -0.03882389162561577,
+            "se": 0.002067783579867252,
+            "n": 32480
+          },
+          "mana": -0.707631874298541,
+          "use": {
+            "entered": 1.033158866995074,
+            "enteredMarks": 0,
+            "activations": 0,
+            "marksSpent": 0
+          }
+        },
+        "artDawnGain1": {
+          "vs": "artBlank",
+          "lift": {
+            "mean": 0.03799261083743842,
+            "se": 0.0014555958458095397,
+            "n": 32480
+          },
+          "mana": 0.6924803591470258,
+          "use": {
+            "entered": 1.1350369458128078,
+            "enteredMarks": 0,
+            "activations": 0,
+            "marksSpent": 0
+          }
+        },
+        "artDawnGain2": {
+          "vs": "artBlank",
+          "lift": {
+            "mean": 0.07356834975369458,
+            "se": 0.001710075650228569,
+            "n": 32480
+          },
+          "mana": 1.340909090909091,
+          "use": {
+            "entered": 1.169365763546798,
+            "enteredMarks": 0,
+            "activations": 0,
+            "marksSpent": 0
+          }
+        },
+        "artDawnDrain1": {
+          "vs": "artBlank",
+          "lift": {
+            "mean": 0.0669027093596059,
+            "se": 0.0016413904490077613,
+            "n": 32480
+          },
+          "mana": 1.2194163860830527,
+          "use": {
+            "entered": 1.042549261083744,
+            "enteredMarks": 0,
+            "activations": 0,
+            "marksSpent": 0
+          }
+        }
+      }
+    }
+  ]
+}
