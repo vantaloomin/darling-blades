@@ -153,12 +153,16 @@ describe('the rhythm follows the text size', () => {
   });
 });
 
-describe.each(TABS)('the %s tab', (tab) => {
+// The Audio tab with and without its Screen section (M8: touch devices whose browser allows full screen).
+const TAB_CASES: readonly [string, SettingsTab, boolean][] = TABS.flatMap((tab): [string, SettingsTab, boolean][] =>
+  tab === 'audio' ? [[tab, tab, false], ['audio with Screen', tab, true]] : [[tab, tab, false]]);
+
+describe.each(TAB_CASES)('the %s tab', (_name, tab, fullScreen) => {
   for (const [shownName, shown] of SHOWN) {
     it(`sizes the panels to their content, inside the band, with the bottom inset (${shownName}, every size and contrast)`, () => {
       forEveryCell((cell, scale) => {
         for (const [scenario, measured] of scenarios(scale)) {
-          const layout = layoutSettingsTab(tab, shown, measured);
+          const layout = layoutSettingsTab(tab, shown, measured, fullScreen);
           expect(layout.panelBottom, `${cell}, ${scenario}`).toBeLessThanOrEqual(SETTINGS_PANEL_BAND.bottom);
           const lowest = Math.max(...layout.columns.map((column) => column.layout.contentBottom));
           // The air under the lowest content matches the air over the first heading.
@@ -181,7 +185,7 @@ describe.each(TABS)('the %s tab', (tab) => {
     it(`never overlaps, and separates groups by more than rows (${shownName}, every size and contrast)`, () => {
       forEveryCell((cell, scale) => {
         for (const [scenario, measured] of scenarios(scale)) {
-          for (const items of columnExtents(layoutSettingsTab(tab, shown, measured))) {
+          for (const items of columnExtents(layoutSettingsTab(tab, shown, measured, fullScreen))) {
             for (let i = 1; i < items.length; i++) {
               const gap = items[i].top - items[i - 1].bottom;
               expect(gap, `${cell}, ${scenario}: ${items[i - 1].what} -> ${items[i].what}`).toBeGreaterThanOrEqual(
@@ -197,7 +201,7 @@ describe.each(TABS)('the %s tab', (tab) => {
       forEveryCell((cell, scale) => {
         const r = settingsRhythm();
         for (const [scenario, measured] of scenarios(scale)) {
-          const layout = layoutSettingsTab(tab, shown, measured);
+          const layout = layoutSettingsTab(tab, shown, measured, fullScreen);
           for (const column of layout.columns) {
             for (const section of column.sections) {
               for (const spec of section.rows) {
@@ -233,9 +237,9 @@ describe('the overflow budget', () => {
   it('fits one more caption wrap and one more stacked row per column than rendered, on every tab at every size', () => {
     forEveryCell((cell, scale) => {
       const base = MEASURED_BY_SCALE[scale];
-      for (const tab of TABS) {
+      for (const [tabName, tab, fullScreen] of TAB_CASES) {
         for (const [shownName, shown] of SHOWN) {
-          const columns = settingsTabColumns(tab, shown);
+          const columns = settingsTabColumns(tab, shown, fullScreen);
           const options = columns.map((column) => {
             const rows = column.sections.flatMap((section) => section.rows);
             const wraps = rows.filter((row) => row.caption);
@@ -256,9 +260,9 @@ describe('the overflow budget', () => {
           });
           const combine = (i: number, acc: SettingsMeasured): void => {
             if (i === options.length) {
-              const layout = layoutSettingsTab(tab, shown, acc);
+              const layout = layoutSettingsTab(tab, shown, acc, fullScreen);
               layout.columns.forEach((column, c) => {
-                expect(column.layout.contentBottom, `${cell}, ${tab}, ${shownName}, column ${c}, ${JSON.stringify(acc)}`)
+                expect(column.layout.contentBottom, `${cell}, ${tabName}, ${shownName}, column ${c}, ${JSON.stringify(acc)}`)
                   .toBeLessThanOrEqual(SETTINGS_CONTENT_LIMIT + EPS);
               });
               return;

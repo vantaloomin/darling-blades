@@ -25,6 +25,7 @@ import {
   rerollDailyQuest,
 } from '../meta/Quests';
 import { Services } from '../meta/services';
+import { fullScreenOffered, isFullScreen, onFullScreenChange, toggleFullScreen } from '../platform/fullscreen';
 import { markSaveOverNoticeShown, readSaveOverNoticeOwed } from '../platform/homeScreen';
 import { normalizeStatsNoticeVersion, STATS_NOTICE_VERSION } from '../meta/statsNotice';
 import { signals } from '../net/signals';
@@ -32,7 +33,7 @@ import { readSignalsGateInput, signalsAllowed } from '../net/signalsGate';
 import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { createStatsNoticeDialog } from '../ui/StatsNoticeDialog';
-import { mainMenuDailyLayout, mainMenuHeaderRow, mainMenuNavRows, menuNoticeLayout, MAIN_MENU_DAILY, MAIN_MENU_ITEMS, MAIN_MENU_VERSION } from '../ui/mainMenuPresentation';
+import { mainMenuDailyLayout, mainMenuHeaderRow, MAIN_MENU_HEADER_GAP, mainMenuNavRows, menuNoticeLayout, MAIN_MENU_DAILY, MAIN_MENU_ITEMS, MAIN_MENU_VERSION } from '../ui/mainMenuPresentation';
 import { menuNavButton } from '../ui/MenuNavButton';
 import { activeVisibleSavedDeck } from '../ui/deckBuilderHelpers';
 import { FEATURES } from '../config/features';
@@ -145,6 +146,19 @@ export class MainMenuScene extends Phaser.Scene {
       gear.getMeasuredSize().hit.width, badge.width());
     learning.forEach((button, i) => button.container.setX(header.leftX[i]));
     gear.container.setX(header.rightX);
+    // M8: a full-screen icon left of Settings, only where the browser allows
+    // it on a touch device (never iPhone Safari, never desktop).
+    if (fullScreenOffered()) {
+      const screenIcon = () => (isFullScreen() ? '{shrink}' : '{expand}');
+      // Icon-only: a square plate; the tap box keeps the 90px floor.
+      const expand = themedButton(this, 0, theme.design.headerCenterY, screenIcon(), {
+        variant: 'ghost', size: 'sm', onTap: () => { void toggleFullScreen(); } });
+      this.menuItems.push(expand.inputZone);
+      const expandHit = expand.getMeasuredSize().hit.width;
+      expand.container.setX(header.rightX - gear.getMeasuredSize().hit.width / 2 - MAIN_MENU_HEADER_GAP - expandHit / 2);
+      const unsubscribe = onFullScreenChange(() => expand.setLabel(screenIcon()));
+      this.events.once(Phaser.Scenes.Events.SHUTDOWN, unsubscribe);
+    }
     this.drawDailyPanel(today, fixture);
 
     const unlocked = achievements.filter((status) => status.unlocked).length;

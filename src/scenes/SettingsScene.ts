@@ -7,6 +7,7 @@ import { Services } from '../meta/services';
 import { readSignalsGateInput, signalsAllowed } from '../net/signalsGate';
 import { isTauri } from '../platform/desktopWindow';
 import { IS_DEV } from '../platform/env';
+import { fullScreenOffered, isFullScreen, onFullScreenChange, toggleFullScreen } from '../platform/fullscreen';
 import { isTouchDevice } from '../platform/gestures';
 import { qualityTier } from '../platform/quality';
 import type { AnimationLevel } from '../platform/animPolicy';
@@ -122,6 +123,8 @@ export class SettingsScene extends Phaser.Scene {
   private tab: SettingsTab = 'game';
   private touchCaption = false;
   private shown: AccessibilityControlsShown = accessibilityControlsShown(IS_DEV);
+  /** The Game tab carries the Full screen switch (M8). */
+  private fullScreen = false;
   private toggles: { button: ThemedButton; on: () => boolean }[] = [];
   private chipGroups: ChipGroup[] = [];
   private volumeBar: Phaser.GameObjects.Graphics | null = null;
@@ -155,6 +158,11 @@ export class SettingsScene extends Phaser.Scene {
     this.statsPanel = null;
     this.legalPanel = null;
     this.shown = accessibilityControlsShown(IS_DEV);
+    this.fullScreen = fullScreenOffered();
+    if (this.fullScreen) {
+      const unsubscribe = onFullScreenChange(() => this.refreshToggles());
+      this.events.once(Phaser.Scenes.Events.SHUTDOWN, unsubscribe);
+    }
     applyBackdrop(this, 'mainmenu', {
       dim: theme.graphics.dim,
       dimAlpha: 0.62,
@@ -203,7 +211,7 @@ export class SettingsScene extends Phaser.Scene {
 
   /** Build the open tab's rows at their x, measure them, lay the tab out, then place them. */
   private buildTabContent(): void {
-    const columns = settingsTabColumns(this.tab, this.shown);
+    const columns = settingsTabColumns(this.tab, this.shown, this.fullScreen);
     const built = new Map<SettingsRowKey, BuiltRow>();
     // The panels are drawn once the layout knows their height, then slotted
     // in under the rows built here.
@@ -215,7 +223,7 @@ export class SettingsScene extends Phaser.Scene {
     }
     const measured: SettingsMeasured = {};
     for (const [key, row] of built) measured[key] = { stacked: row.stacked, captionLines: row.captionLines };
-    const layout = layoutSettingsTab(this.tab, this.shown, measured);
+    const layout = layoutSettingsTab(this.tab, this.shown, measured, this.fullScreen);
     for (const column of layout.columns) {
       const plate = panel(this, column.frame.panelX, SETTINGS_PANELS.top, column.frame.panelWidth,
         layout.panelBottom - SETTINGS_PANELS.top);
@@ -247,6 +255,10 @@ export class SettingsScene extends Phaser.Scene {
         });
       case 'volume':
         return this.volumeRow(frame);
+      // M8: the switch follows the browser's state, so Escape or a swipe out
+      // of full screen turns it off too (the listener in create()).
+      case 'fullScreen':
+        return this.rightToggleRow(frame, 'Full screen', () => isFullScreen(), () => { void toggleFullScreen(); });
       case 'music':
         return this.rightToggleRow(frame, 'Music', () => settings().musicOn, () => {
           Music.setEnabled(!Music.enabled);
