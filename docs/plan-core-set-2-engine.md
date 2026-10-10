@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-2.0.md, docs/plan-core-set-2.md, src/engine/mandate.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/effects/EffectInterpreter.ts, src/engine/types.ts, src/engine/events.ts, src/engine/view.ts, src/engine/Game.ts, src/ai/determinize.ts, src/ai/combatPlans.ts, src/ai/evaluate.ts, src/meta/Replay.ts, src/power/scoreCore.ts, src/ui/mandatePresentation.ts, src/ui/modeChoice.ts · last-verified: 2026-10-10 · engine spec, DRAFT: lane B1 of plan-2.0; the parts marked "as built" are on release/2.0, the rest is proposed; re-verify when the owner rules a question below or the overplan's cut changes -->
+<!-- source-of-truth: docs/plan-2.0.md, docs/plan-core-set-2.md, src/engine/mandate.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/effects/EffectInterpreter.ts, src/engine/types.ts, src/engine/events.ts, src/engine/view.ts, src/engine/Game.ts, src/ai/determinize.ts, src/ai/combatPlans.ts, src/ai/evaluate.ts, src/meta/Replay.ts, src/power/scoreCore.ts, scripts/mandate-lab/cards.ts, src/ui/mandatePresentation.ts, src/ui/modeChoice.ts · last-verified: 2026-10-10 · engine spec, DRAFT: lane B1 of plan-2.0; the parts marked "as built" are on release/2.0, the rest is proposed; re-verify when the owner rules a question below or the overplan's cut changes -->
 
 # Core Set II engine spec: the Mandate, Sworn, and what the cards need (2.0 lane B)
 
@@ -13,7 +13,7 @@ Build order (the 2.0 plan's shared-file order: the Mandate first in `types.ts` a
 5. Small constructs the overplan names: an arrival trigger filtered by subtype (Yutu, Jiuwei, Lanlan); "if you gained life this turn" (Hebe); a token created for a target's controller (Circe's Pig). **As built (B2.4).**
 6. Nüwa's pieces: removing marks as an activation cost, without a tap; a Tithe that grants marks; Tithe on a Darling cast (ruled 2026-10-08: it reduces the base cost, never the Darling tax). **As built (B2.5).**
 7. The modal "choose up to N" (ruled into the engine 2026-10-08 for later sets). **As built (B2.6), for Rituals and Charms.**
-8. The AI reads (B3, **as built**, Part 1), the duel UI (B4, **as built**, Part 8), the lab rates (B5).
+8. The AI reads (B3, **as built**, Part 1), the duel UI (B4, **as built**, Part 8), the lab rates (B5, **as built** for the Mandate and Sworn, Part 9).
 
 ## Part 1. The Mandate
 
@@ -32,7 +32,7 @@ Build order (the 2.0 plan's shared-file order: the Mandate first in `types.ts` a
 - **Dawn.** `startTurn` (`src/engine/phases.ts`) draws for the holder right after entering `dawn`, before the per-permanent dawn loop, and returns if that draw ends the game.
 - **Combat.** `dealCombatDamage` (`src/engine/combat/damage.ts`) reads the holder at the start of each batch; if it was the defending player and any hit to that player was positive, the attacking player claims after `applyCreatureDamage` and before the `combatDamageToPlayer` triggers. State-based actions stay where they were. A normal batch after a first-strike claim finds the attacker already holding it, so it never claims twice.
 - **Views and the AI.** `viewFor` copies the holder into every `PlayerView` (it is public); `determinize` copies it back, so Hard's simulations see the same holder. `Game.restore`'s legacy-state sync carries it.
-- **Scorer.** `claimMandate` scores 0 and is reported as an unknown (`op:claimMandate`) until the lab (B5) measures a claim. The personas' op table also holds it at 0. Neither invents a rate.
+- **Scorer.** `claimMandate` is priced from the lab (B5, Part 9): 0.7 an op, so a claim on arrival is about half a mana. The personas' op table matches it.
 - **Words.** `rulesText` renders the op as "claim the Mandate". The Forge offers it in its effect palette (added in B4).
 - **Tests.** `tests/engine/mandate.test.ts`: initial state, effect claim, claiming from the other player, already-holder no-op, dawn order, turn-one draw, deck-out at dawn, combat claim, several attackers, claim-before-trigger order, first strike then normal, unclaimed and attacker-holds, blocked damage, zero Attack, Fog, lethal damage, restore and determinize.
 
@@ -69,7 +69,7 @@ Every brain sees the public holder in its view. On top of that, with two provisi
 
 - **The predicate.** `isSwornActive(battlefield, db, controller)` in `src/engine/statics.ts`, beside `isQuestActive`. `'swornActive'` is a value of `AbilityDef.condition` (triggers, read by `conditionSatisfied` when the ability would fire) and of `StaticDef.condition` (read on every stat calculation, so it switches on and off with the board). No new state; works the same in every format, in simulations and in replays.
 - **Words.** `rulesText` prints "Sworn: " and the ability's own sentence, lower-cased. The Forge offers it in its condition picker and accepts it in both trigger and static conditions.
-- **AI and scorer.** The AI reads it from the public board (`publicCondition`); without a board, a Sworn ability is valued at 0.6 of its printed value, provisional until the lab. The scorer prices it at full rate and reports `condition:swornActive` until the lab (B5) measures Sworn's active rate per format.
+- **AI and scorer.** The AI reads it from the public board (`publicCondition`); without a board, a Sworn ability is valued at half its printed value. The scorer prices it at x0.5 (`COND_SWORN`), from the lab's legend-rich decks (B5, Part 9).
 - **Crownless.** `CardDef.crownless?: true`, presentation only: `showsLegendaryCrown` (`src/ui/legendaryCrown.ts`) hides the crown in `CardView` and the Forge's preview. Nothing in the engine, the AI or the filters reads it.
 - **Tests.** `tests/engine/sworn.test.ts`: no legend, an opponent's legend, a friendly legend and a crownless one, the source as its own legend, a legendary non-creature, the legend leaving, several legends, a gated trigger, the Darling in her zone and then cast, and the card wording.
 
@@ -87,7 +87,7 @@ Every brain sees the public holder in its view. On top of that, with two provisi
 - **Statics read a board, not a battlefield.** `getEffectiveStats` (and `hasKeyword`, `isSummoningSick` and every function in `combat/legality.ts`) now take a `StaticBoard`, `{ battlefield, mandateHolder? }`, which `GameState` and `PlayerView` both already are. Every engine call passes its state, and the AI passes its view wherever it had passed the view's battlefield, so the rules and the AI see the same holder as the game. A bare battlefield array is still accepted and reads the Mandate as unclaimed; the AI's hypothetical boards (a creature removed, a block simulated) still pass arrays. B3 gave the combat planner the holder (below), so its fights read held and not-held statics; the other hypothetical boards still read unclaimed, which no shipped card can tell apart yet.
 - **The trigger.** `'youClaimMandate'` fires through `firePlayerObservers` from `claimMandate`, for the claimant's permanents in battlefield order, so a targeted one (Jia Nanfeng's Sever) queues the usual target choice.
 - **Words.** "While you hold the Mandate, ..." on statics; on triggers the existing conditional style, "During your Dawn: If you hold the Mandate, draw a card."; "Whenever you claim the Mandate, ...". The Forge offers all three.
-- **AI and scorer.** The AI reads the holder from the view; without one, a held or not-held ability is valued at half, provisional. The scorer reports `condition:youHoldMandate`, `condition:youDontHoldMandate` and `when:youClaimMandate` as unpriced until the lab (the claim trigger is held at the arrival rate, 0.75, meanwhile).
+- **AI and scorer.** The AI reads the holder from the view. Without one, both it and the scorer use the lab's rates (B5, Part 9): a held ability x0.45, a not-held one x0.75, and a claim trigger at 0.8, about an attack trigger's rate.
 - **Tests.** In `tests/engine/mandate.test.ts`: a static following a combat steal, a bare battlefield reading it unclaimed, both dawn conditions for each holder, claim triggers for the claimant only and not on a no-op, claim triggers before combat-damage triggers, a targeted claim trigger, and the card wording.
 
 ## Part 5. Small constructs
@@ -161,6 +161,26 @@ Ruled into the engine 2026-10-08 so later sets can print "some of these effects"
 - **Achievements (P5).** "Mandate In Foil" and "Rainbow Mandate" are now "Three Lords In Foil" and "Rainbow Lords" (ids unchanged; "In" matches the sibling foil titles).
 - **Tests.** `tests/ui/mandateDuel.test.ts` (docking, history, combat routing, the Sworn chip), additions to `tests/engine/mandate.test.ts`, `tests/engine/modal.test.ts` (the chooser), `tests/ui/activatedDuel.test.ts` (stones) and `tests/data/glossary.test.ts`. The dev fixtures `mandate-yours` and `mandate-theirs` put the seal in the rendered a11y probe.
 - **Not yet.** The Mandate's tap-to-open rules sheet with this duel's claims (mobile frame N4) and the Duty chip's wording on a stone-only creature.
+
+## Part 9. The lab rates (B5)
+
+### As built (the Mandate and Sworn)
+
+- **The lab.** `scripts/mandate-lab/` and `.github/workflows/mandate-lab.yml`, modelled on the starting-life study. The 29-deck Warchest field is played with four colourless 3/3 lab cards added to each deck, in five arms on the same seeds, Hard on both seats, at 25 life. The arms are: a vanilla control on both sides; the subject's copies one mana cheaper (the conversion unit); "When this arrives, claim the Mandate" against an opponent who can't claim; both decks claiming; and that arm's control. Results go to the `study-data` branch, never `main`.
+- **The run.** Run 38020450249, 2026-10-10, 32,480 paired slots (162,400 games), 61 minutes on eight runners. Report: `study-data:mandate-lab/2026-10-10-38020450249/report.md`.
+
+| Reading | Measured | Entered |
+| --- | --- | --- |
+| One mana (3/3 for 2 over for 3) | 5.49 ± 0.21 pts | the unit |
+| Claim on arrival, opponent claims too | 2.83 ± 0.21 pts, 0.52 mana | `claimMandate` op 0.7 (0.52 at the arrival rate) |
+| Claim on arrival, opponent can't | 3.12 ± 0.22 pts, 0.57 mana | (the set contests it, so the contested reading is used) |
+| Hold share after first claim | 47% contested, 63% not | `youHoldMandate` x0.45 |
+| Hold share of all dawns | 23% contested, 27% not | `youDontHoldMandate` x0.75 |
+| Takes it a game (claims + steals) | 2.0 contested, 1.45 not | `youClaimMandate` 0.8 |
+| Dawns with a legendary creature | 27% over the field, 45-52% in the five legend-rich decks | `swornActive` x0.5 |
+
+- **AI.** `abilityConditionMultiplier` (no board to read) uses the same three gates. `MANDATE_HOLD_VALUE` stays at about two draws, which the lab bears out (a contested claimer holds it on 2.5 of its 11 dawns a game). `MANDATE_COMBAT_VALUE` stays a judgement: the lab prices the claim in mana, not the combat swing.
+- **Not yet.** Nüwa's stones (`activated:removeMarks`), Tithe marks (`tithe:marks`) and modal spells (`modal`) are still reported as unpriced. Each is one card's shape rather than a shared rate, so they are measured as their own lab arms when those cards are costed.
 
 ## Questions for the owner
 

@@ -655,12 +655,10 @@ export function warningsFor(state: BuilderState, score: Score): ForgeWarning[] {
   if (score.isX) add('x-nominal', 'note', 'X is scored as if X were 3. Judge the rate per mana rather than the total.');
   // 2.0 parts the scorer knows but has no measured rate for yet: provisional,
   // so they read as estimates in plain words rather than as unknown vocabulary.
-  const theMandate = MECHANIC_NAMES.mandate.replace(/^The\b/, 'the');
   const provisional: Record<string, [id: string, text: string]> = {
     'activated:removeMarks': ['duty-mark-cost', 'An ability paid by removing marks has no measured rate yet, so it counts as 0.'],
     'tithe:marks': ['tithe-marks', `The marks ${tithe} gives for the mana it saved have no measured rate yet, so they count as 0.`],
     modal: ['modal-rate', 'A modal spell has no measured rate yet, so its modes count as 0.'],
-    'op:claimMandate': ['mandate-claim', `Claiming ${theMandate} has no measured rate yet, so it counts as 0.`],
   };
   for (const unknown of score.unknowns) {
     const known = provisional[unknown];

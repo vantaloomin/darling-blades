@@ -269,10 +269,11 @@ export function abilityConditionMultiplier(condition: AbilityDef['condition'], q
   // No public context preserves the legacy shared-policy estimate (Easy).
   if (condition === 'questActive' && questActive !== undefined) return questActive ? 1 : 0.55;
   if (condition === 'creatureDiedThisTurn') return 0.6;
-  // NEEDS MATH: Sworn's active rate comes from the Core Set II lab (2.0 B5).
-  if (condition === 'swornActive') return 0.6;
-  // NEEDS MATH: the Mandate's hold rate comes from its lab (2.0 B5).
-  if (condition === 'youHoldMandate' || condition === 'youDontHoldMandate') return 0.5;
+  // 2.0 B5, the Mandate lab: the scorer's measured gates (COND_SWORN and the
+  // hold rates in src/power/scoreCore.ts), for a card with no board to read.
+  if (condition === 'swornActive') return 0.5;
+  if (condition === 'youHoldMandate') return 0.45;
+  if (condition === 'youDontHoldMandate') return 0.75;
   if (condition === 'youGainedLifeThisTurn') return 0.6;
   if (typeof condition === 'object' && condition.kind === 'controlsOther') return 0.65;
   if (condition === 'controlMarked') return 0.55;
@@ -1006,7 +1007,8 @@ export const HUNT_CARD_FLOOR = 1.5;
  * What holding the Mandate is worth (2.0 B3), in the same card-shaped units:
  * about two of its dawn draws (a draw is 1.25) before someone takes it back.
  * A claim prices this much, and Hard's evaluation (where a card in hand is
- * 1.2) the same. NEEDS MATH: the hold rate comes from the Core Set II lab (B5).
+ * 1.2) the same. The Mandate lab (B5) agrees: a claiming deck facing another
+ * holds it on 2.5 of its 11 dawns a game, so a claim mid-game buys about two.
  */
 export const MANDATE_HOLD_VALUE = 2.5;
 
@@ -1014,7 +1016,8 @@ export const MANDATE_HOLD_VALUE = 2.5;
  * The Mandate in combat's units, where a creature is priced by `permValue`
  * (a vanilla 2/2 is about 4, a 1/1 about 3): about one cheap creature, so
  * Medium trades a 2-drop to steal it and chumps with a small one to keep it,
- * but never a real threat. NEEDS MATH: from the lab (B5), with the hold rate.
+ * but never a real threat. Provisional: the lab (B5) prices the claim in
+ * mana, not this combat swing, so it stays a judgement on the hold value.
  */
 export const MANDATE_COMBAT_VALUE = 4.5;
 
