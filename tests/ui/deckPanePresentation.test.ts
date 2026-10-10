@@ -287,7 +287,7 @@ describe('deck picker footer', () => {
   });
 
   it('shows several whole rows at once and scrolls in whole rows to the last', () => {
-    expect(picker.row.rowsVisible).toBeGreaterThanOrEqual(4);
+    expect(picker.row.rowsVisible).toBe(4);
     expect(picker.viewport.height).toBe(picker.row.rowsVisible * picker.row.pitch - picker.row.gap);
     const end = deckPickerScrollTo(Number.MAX_SAFE_INTEGER, 20, picker);
     expect(end).toBe(deckPickerContentHeight(20, picker) - picker.viewport.height);
