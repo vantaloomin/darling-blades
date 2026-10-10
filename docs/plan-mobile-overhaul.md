@@ -209,6 +209,14 @@ always-running art loader scene sets its own camera. If the camera approach
 fails, the fallback is Phaser's `setGameSize` at scene start, which the
 Forge already uses (`src/forge/scene.ts`).
 
+**Built in wave 1, behind `?layout=compact`:** the canvas is the screen
+times the render factor, and every scene's base zoom is the one that fits
+1280x720 inside it (`activeSceneZoom` in `src/platform/renderScale.ts`,
+which PackOpening's zoom escalation now composes with). The art loader
+and Boot scenes draw nothing, so neither needs a camera. Text stayed crisp
+at a fractional zoom in desktop Chromium emulating a 3x phone; the proof
+on a real phone is still owed.
+
 ### C3. The resolver gets a device term, not a fork
 
 The accessibility plan already says how ([plan-accessibility-i18n.md](plan-accessibility-i18n.md),

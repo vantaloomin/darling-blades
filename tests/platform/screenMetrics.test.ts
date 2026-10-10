@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   BACKING_STORE_BUDGET,
+  compactCanvasSize,
+  compactLayoutRequested,
   compactRenderK,
+  designWindowZoom,
   REFERENCE_PHONE,
   resolveScreenMetrics,
   type ScreenMetrics,
@@ -133,5 +136,38 @@ describe('compactRenderK', () => {
 
   it('never goes below 1, even for a screen past the budget at k = 1', () => {
     expect(compactRenderK(4000, 3000, 2)).toBe(1);
+  });
+});
+
+describe('the compact canvas and the design-window fit (C2)', () => {
+  it('the canvas is the screen times the render factor, so FIT leaves no bars', () => {
+    const m = byName('phone-island');
+    expect(compactCanvasSize(m)).toEqual({ width: 852 * 2, height: 393 * 2 });
+    const t = byName('tablet-mini');
+    const c = compactCanvasSize(t);
+    expect(c.width / c.height).toBeCloseTo(1133 / 744, 2);
+  });
+
+  it('an unmigrated 1280x720 scene fits inside every fixture canvas', () => {
+    for (const f of SCREEN_FIXTURES) {
+      const c = compactCanvasSize(resolveScreenMetrics(f));
+      const z = designWindowZoom(c.width, c.height);
+      expect(1280 * z, f.name).toBeLessThanOrEqual(c.width + 1e-9);
+      expect(720 * z, f.name).toBeLessThanOrEqual(c.height + 1e-9);
+      // It touches one pair of edges: it is as large as it can be.
+      expect(Math.max(1280 * z / c.width, 720 * z / c.height), f.name).toBeCloseTo(1, 9);
+    }
+  });
+
+  it('on the desktop canvas the fit is the render factor, as today', () => {
+    expect(designWindowZoom(1280 * 1.5, 720 * 1.5)).toBe(1.5);
+    expect(designWindowZoom(0, 720)).toBe(1);
+  });
+
+  it('only ?layout=compact turns the compact profile on', () => {
+    expect(compactLayoutRequested('?layout=compact')).toBe(true);
+    expect(compactLayoutRequested('?showcase=x&layout=compact')).toBe(true);
+    expect(compactLayoutRequested('')).toBe(false);
+    expect(compactLayoutRequested('?layout=wide')).toBe(false);
   });
 });

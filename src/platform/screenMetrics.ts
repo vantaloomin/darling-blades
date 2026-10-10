@@ -244,3 +244,40 @@ export function resolveScreenMetrics(env: ScreenEnv): ScreenMetrics {
     renderK: compactRenderK(width, height, env.devicePixelRatio),
   };
 }
+
+/**
+ * The game canvas under the compact profile, in device px: the screen's own
+ * CSS size times the render factor, so Phaser's FIT mode fills the screen
+ * with no letterbox of its own (C1). Never below 1x1.
+ */
+export function compactCanvasSize(m: ScreenMetrics): { width: number; height: number } {
+  return {
+    width: Math.max(1, Math.round(m.design.width * m.scale * m.renderK)),
+    height: Math.max(1, Math.round(m.design.height * m.scale * m.renderK)),
+  };
+}
+
+/**
+ * The camera zoom that fits the 1280x720 design window inside a canvas (C2):
+ * how a scene not yet migrated to the compact layout keeps drawing as it does
+ * today, centred, with the background colour around it.
+ */
+export function designWindowZoom(canvasWidth: number, canvasHeight: number): number {
+  const w = dim(canvasWidth);
+  const h = dim(canvasHeight);
+  if (!w || !h) return 1;
+  return Math.min(w / 1280, h / 720);
+}
+
+/**
+ * The compact profile ships behind a switch until wave 1's camera fit is
+ * proven on a real phone (M6): `?layout=compact` in the page address turns it
+ * on for that load. Without it, every device boots as it does today.
+ */
+export function compactLayoutRequested(search: string): boolean {
+  try {
+    return new URLSearchParams(search).get('layout') === 'compact';
+  } catch {
+    return false;
+  }
+}
