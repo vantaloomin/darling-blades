@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-2.0.md, docs/mobile-support-matrix.md, docs/mobile-lan-plan.md, docs/plan-accessibility-i18n.md, docs/plan-art-streaming.md, docs/design-system.md, index.html, vite.config.ts, src/gameBoot.ts, src/platform/gestureCore.ts, src/platform/gestures.ts, src/platform/quality.ts, src/platform/renderScale.ts, src/platform/clientProfile.ts, src/platform/screenMetrics.ts, src/platform/screenFixtures.ts, src/platform/homeScreen.ts, src/ui/accessibility.ts, src/ui/theme.ts, src/ui/layout.ts, src/ui/compactLayout.ts, src/ui/duelLayout.ts, src/ui/SceneBackdrop.ts, src/art/ArtResolver.ts, src/art/artBudget.ts, src/config/cardFaceGeometry.ts, src/ui/handFan.ts, src/forge/scene.ts, src/dev/a11yProbe.ts, src/scenes/ · last-verified: 2026-10-10 · plan doc, ruled in the 2.0 wave-1 sitting: rewritten for 2.0 lane C on the Version C mock set; P11 (M1-M4), P1 and P2 ruled 2026-10-08, M5-M29 ruled 2026-10-09, M30-M34 ruled 2026-10-10; re-verify when the owner rules the M decisions, and when each wave ships -->
+<!-- source-of-truth: docs/plan-2.0.md, docs/mobile-support-matrix.md, docs/mobile-lan-plan.md, docs/plan-accessibility-i18n.md, docs/plan-art-streaming.md, docs/design-system.md, index.html, vite.config.ts, src/gameBoot.ts, src/platform/gestureCore.ts, src/platform/gestures.ts, src/platform/quality.ts, src/platform/renderScale.ts, src/platform/clientProfile.ts, src/platform/screenMetrics.ts, src/platform/screenFixtures.ts, src/platform/homeScreen.ts, src/platform/fullscreen.ts, src/ui/accessibility.ts, src/ui/theme.ts, src/ui/layout.ts, src/ui/compactLayout.ts, src/ui/duelLayout.ts, src/ui/SceneBackdrop.ts, src/art/ArtResolver.ts, src/art/artBudget.ts, src/config/cardFaceGeometry.ts, src/ui/handFan.ts, src/forge/scene.ts, src/dev/a11yProbe.ts, src/scenes/ · last-verified: 2026-10-10 · plan doc, ruled in the 2.0 wave-1 sitting: rewritten for 2.0 lane C on the Version C mock set; P11 (M1-M4), P1 and P2 ruled 2026-10-08, M5-M29 ruled 2026-10-09, M30-M34 ruled 2026-10-10; re-verify when the owner rules the M decisions, and when each wave ships -->
 
 # Mobile overhaul: the 2.0 plan
 
@@ -433,7 +433,14 @@ word.
   Profile's import dialog); the old-browser message (an inline check in
   `index.html`); the slop in CSS px under the compact profile
   (`tapSlopWorldPx` in `src/platform/renderScale.ts`, desktop unchanged).
-  The full-screen button waits on the owner's placement call.
+  The full-screen button (M8, placed 2026-10-10): a corner-bracket icon
+  left of Settings in the main menu's header, and a Full screen switch in
+  a Screen section on Settings' Audio tab, which then reads "Audio &
+  screen" (owner's pick, 2026-10-10; the Game and Accessibility tabs have
+  no room for another row at 130% text). Both show only on a touch
+  device whose browser allows full screen and that did not already launch
+  full screen from the home screen; entering it also asks for landscape
+  (`src/platform/fullscreen.ts`).
 - **New frames for what the mocks predate,** for the owner to approve
   before the wave that builds them: the Mandate marker and its swings,
   Overcharge, Hunt, Provoked, First Dawn, life totals above 20 in the 96 px
