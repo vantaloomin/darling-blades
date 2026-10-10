@@ -675,6 +675,9 @@ function whose(side: DuelSide, leading: boolean): string {
  *   until Sunset.”" ("once" for one use), the effect quoted as a Duty's is.
  * - `overcharged`: the approved Overcharge line.
  * - `tokenRefused`: the approved board-full explanation when no Overcharge is possible.
+ * - `mandateChanged` (2.0): "You claim the Mandate", or "Your opponent takes the
+ *   Mandate in combat" when combat damage took it.
+ * - `mandateDraw` (2.0): the holder's extra dawn draw, said once before it.
  */
 export function eventHistoryLine(e: GameEvent, lookup: EventLineLookup): string | null {
   switch (e.e) {
@@ -704,6 +707,15 @@ export function eventHistoryLine(e: GameEvent, lookup: EventLineLookup): string 
       const side = lookup.sideOf(e.player) === 'you' ? 'your' : "the opponent's";
       return `Board full: no room for ${side} ${lookup.cardRef(e.tokenCardId)}`;
     }
+    case 'mandateChanged': {
+      const you = lookup.sideOf(e.to) === 'you';
+      if (e.reason === 'combat') return you ? 'You take the Mandate in combat' : 'Your opponent takes the Mandate in combat';
+      return you ? 'You claim the Mandate' : 'Your opponent claims the Mandate';
+    }
+    case 'mandateDraw':
+      return lookup.sideOf(e.player) === 'you'
+        ? 'You hold the Mandate: draw a card'
+        : 'Your opponent holds the Mandate: they draw a card';
     default:
       return null;
   }

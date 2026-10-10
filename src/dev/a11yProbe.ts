@@ -294,6 +294,8 @@ export const WAVE_2D_SCENES: readonly ProbeScene[] = [
     duelFixture(name, { settleMs: 2000 }), duelFixture(name, { settleMs: 2000 }, Number.MAX_SAFE_INTEGER)]),
   duelFixture('darling', { requiredText: [WAVE_2D_DARLING.name] }),
   duelFixture('duty'),
+  duelFixture('mandate-yours'),
+  duelFixture('mandate-theirs'),
   duelFixture('coach-cue', { requiredText: [WAVE_2D_COACH_CUE] }),
   duelFixture('coach-info', { requiredText: [WAVE_2D_COACH_INFO] }),
   ...(['pause', 'result', 'replay-complete', 'replay-unavailable', 'recap', 'coin'] as const).map(a11yOverlay => ({

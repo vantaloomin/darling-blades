@@ -50,6 +50,8 @@ export const MECHANIC_ICON_KEY: Record<MechanicIconId, string> = {
   warchest: 'mechanic-warchest',
   darlings: 'mechanic-darlings',
   overcharge: 'mechanic-overcharge',
+  mandate: 'mechanic-mandate',
+  sworn: 'mechanic-sworn',
 };
 
 /** The phase glossary uses one shared day-cycle glyph for all five rows. */
@@ -94,6 +96,15 @@ const KEYWORD_ICON_PATH: Record<Keyword, string> = {
  * Awakening already own that motif) and Rite is a chalice rather than a blade
  * or a droplet (First Blade, Deathblade and Blood Oath own those).
  */
+/**
+ * The Mandate's seal: a disc with a five-pointed star knocked out. The duel's
+ * Mandate marker bakes the same path at its own size, so the glossary chip and
+ * the board teach one shape.
+ */
+export const MANDATE_SEAL_PATH =
+  'M22 4 A18 18 0 1 0 22 40 A18 18 0 1 0 22 4 Z ' +
+  'M22 13 L24.5 19.6 L31.5 19.9 L26 24.3 L27.9 31.1 L22 27.2 L16.1 31.1 L18 24.3 L12.5 19.9 L19.5 19.6 Z';
+
 const MECHANIC_ICON_PATH: Record<Exclude<MechanicIconId, 'duty'>, string> = {
   // A card parted along a clean diagonal: cut out, never coming back.
   sever: 'M6 6 L14 6 L26 38 L6 38 Z M20 6 L38 6 L38 38 L32 38 Z',
@@ -172,6 +183,13 @@ const MECHANIC_ICON_PATH: Record<Exclude<MechanicIconId, 'duty'>, string> = {
     'M17 3 L27 3 L27 8 L17 8 Z ' +
     'M11 8 L33 8 L33 41 L11 41 Z M15 12 L29 12 L29 37 L15 37 Z ' +
     'M18 15 L26 15 L26 23 L18 23 Z M18 27 L26 27 L26 34 L18 34 Z',
+  mandate: MANDATE_SEAL_PATH,
+  // A laurel wreath, open at the top: sworn to a legend. Not a crown (the
+  // Darlings glyph and the card frame own that) and not a blade.
+  sworn:
+    'M20 39 Q5 33 7 9 Q11 27 22 34 Z M24 39 Q39 33 37 9 Q33 27 22 34 Z ' +
+    'M7 16 L2 13 L6 20 Z M37 16 L42 13 L38 20 Z M9 26 L3 25 L9 31 Z M35 26 L41 25 L35 31 Z ' +
+    'M22 10 L26 16 L22 22 L18 16 Z',
 };
 
 /** A rising and setting sun marks the shared day-cycle phase vocabulary. */

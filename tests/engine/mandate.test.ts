@@ -101,6 +101,8 @@ describe('the Mandate', () => {
       const draws = events.flatMap((e, i) => (e.e === 'drew' && e.player === 1 ? [i] : []));
       const dawnTrigger = events.findIndex((e) => e.e === 'triggerFired' && e.iid === 1);
       expect(draws).toHaveLength(2);
+      // The duel's history names the Mandate's draw by the event just before it.
+      expect(events[draws[0] - 1]).toEqual({ e: 'mandateDraw', player: 1 });
       expect(draws[0]).toBeLessThan(dawnTrigger);
       expect(draws[1]).toBeGreaterThan(dawnTrigger);
       expect(state.players[1].hand).toHaveLength(2);
@@ -109,8 +111,10 @@ describe('the Mandate', () => {
     it('a player who does not hold it draws only the normal card', () => {
       const state = boardState([], { holder: 0 });
       state.activePlayer = 1;
-      startTurn(state, DB, () => {});
+      const events: GameEvent[] = [];
+      startTurn(state, DB, (e) => events.push(e));
       expect(state.players[1].hand).toHaveLength(1);
+      expect(events.some((e) => e.e === 'mandateDraw')).toBe(false);
     });
 
     it('still draws on the starting player\'s first turn, which skips only the normal draw', () => {

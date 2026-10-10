@@ -130,6 +130,8 @@ import {
   type CoinFlipSide,
 } from '../ui/coinFlipLayout';
 import { CommanderPortrait } from '../ui/CommanderPortrait';
+import { MandateSeal } from '../ui/MandateSeal';
+import { mandateSealCenter, mandateShown, mandateSpot } from '../ui/mandatePresentation';
 import { addPortraitArt } from '../ui/portraitArt';
 import { fanLayout } from '../ui/handFan';
 import { handDisplayOrder } from '../ui/handSort';
@@ -630,6 +632,10 @@ export class DuelScene extends Phaser.Scene {
   /** transient center banner shown on each turn change (self-destroys). */
   private turnBanner?: Phaser.GameObjects.Container;
   private previousLife: [number, number] | null = null;
+  /** The Mandate's seal (2.0 lane B4); null until the board is built. */
+  private mandateSeal: MandateSeal | null = null;
+  /** The turn chip's drawn width: the unclaimed seal waits just past it. */
+  private turnPillWidth = 52;
   private previousPhaseRow: PhaseTrackRow | null = null;
   private forecastWasLethal = false;
   /** Underlying life-driven tension survives a temporary lethal-visible bed. */
@@ -1747,10 +1753,43 @@ export class DuelScene extends Phaser.Scene {
     ring.strokeRoundedRect(pos.x - half, pos.y - half, half * 2, half * 2, theme.radius.control + 2);
   }
 
+  /**
+   * Snap the Mandate's seal to its holder's life, or beside the turn chip
+   * while unclaimed; hidden in a duel where no visible card names it
+   * (`mandateShown`). A claim in flight finishes first (`flyMandateSeal`).
+   */
+  private syncMandateSeal(): void {
+    const seal = this.mandateSeal;
+    if (!seal || seal.flying) return;
+    const st = this.duel.state;
+    if (!mandateShown(st, CARD_DB, HUMAN)) {
+      seal.place(null, null);
+      return;
+    }
+    const spot = mandateSpot(st.mandateHolder, HUMAN);
+    seal.place(spot, mandateSealCenter(spot, this.turnPillWidth));
+  }
+
+  /** A claim: the seal flies from where it was to its new holder (instant unless motion is full). */
+  private flyMandateSeal(from: PlayerId | null, to: PlayerId): void {
+    const seal = this.mandateSeal;
+    if (!seal) return;
+    const origin = mandateSpot(from, HUMAN);
+    const spot = mandateSpot(to, HUMAN);
+    seal.fly(
+      mandateSealCenter(origin, this.turnPillWidth),
+      mandateSealCenter(spot, this.turnPillWidth),
+      spot,
+      Services.save.data.settings.animations === 'full',
+      () => this.syncMandateSeal(),
+    );
+  }
+
   /** While a face is legal, its badge and whole portrait resolve to the same target. */
   private syncFaceTargeting(): void {
     const myTargetable = this.isPlayerTargetable(HUMAN);
     const oppTargetable = this.isPlayerTargetable(AI);
+    this.mandateSeal?.setInputAllowed(!myTargetable && !oppTargetable);
     const myColor = this.targetRingColor(HUMAN);
     const oppColor = this.targetRingColor(AI);
     this.portrait.setFaceTargetable(myTargetable, myColor);
@@ -1864,6 +1903,7 @@ export class DuelScene extends Phaser.Scene {
     });
     this.addLifeBadgePlate(LAYOUT.myLife.x, LAYOUT.myLife.y);
     this.addLifeBadgePlate(LAYOUT.oppLife.x, LAYOUT.oppLife.y);
+    this.mandateSeal = new MandateSeal(this);
     this.lifeTargetRings = {
       my: this.add.graphics().setDepth(theme.depth.hudLabel),
       opp: this.add.graphics().setDepth(theme.depth.hudLabel),
@@ -2853,6 +2893,7 @@ export class DuelScene extends Phaser.Scene {
     label.setText(turn === 0 ? '' : `T${turn}`);
     label.setColor(yours ? theme.colors.gold : theme.colors.body);
     const w = Math.max(52, label.width + 22);
+    this.turnPillWidth = w;
     fill.clear();
     fill.fillStyle(theme.graphics.rowFillActive, 1);
     fill.fillRoundedRect(LAYOUT.turnPill.x - w / 2, LAYOUT.turnPill.y - 14, w, 28, theme.radius.control);
@@ -3497,6 +3538,17 @@ export class DuelScene extends Phaser.Scene {
       case 'tokenRefused': {
         const line = eventHistoryLine(e, this.eventLineLookup(batch));
         if (line) this.log(line, e.tokenCardId);
+        break;
+      }
+      case 'mandateDraw': {
+        const line = eventHistoryLine(e, this.eventLineLookup(batch));
+        if (line) this.log(line);
+        break;
+      }
+      case 'mandateChanged': {
+        const line = eventHistoryLine(e, this.eventLineLookup(batch));
+        if (line) this.log(line);
+        this.flyMandateSeal(e.from, e.to);
         break;
       }
       case 'turnBegan':
@@ -4361,6 +4413,7 @@ export class DuelScene extends Phaser.Scene {
 
     const yours = st.turn !== 0 && st.activePlayer === HUMAN;
     this.syncTurnPill(st.turn, yours);
+    this.syncMandateSeal();
     this.syncPhaseTrack(st.turn === 0 ? null : phaseTrackRowForStep(st.step), yours);
     this.syncUndoButton();
     this.syncCombatPreview();

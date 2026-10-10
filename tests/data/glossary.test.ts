@@ -180,6 +180,33 @@ describe('cardMechanics', () => {
     expect(cardGlossaryEntries(fixture)).toContainEqual({ name: 'Duty', reminder: MECHANIC_DEFINITIONS.duty });
   });
 
+  it('teaches the Mandate from a claim, its trigger or a hold check, and Sworn from its condition', () => {
+    const claim: CardDef = { ...mechanicFixture, types: ['ritual'], abilities: [{ when: 'spell', ops: [{ op: 'claimMandate' }] }] };
+    const onClaim: CardDef = { ...mechanicFixture, abilities: [{ when: 'youClaimMandate', ops: [{ op: 'draw', n: 1 }] }] };
+    const holds: CardDef = {
+      ...mechanicFixture, abilities: [{ when: 'static', static: { scope: 'self', p: 1, t: 0, condition: 'youHoldMandate' } }],
+    };
+    const lacks: CardDef = { ...mechanicFixture, abilities: [{ when: 'dawn', condition: 'youDontHoldMandate', ops: [{ op: 'draw', n: 1 }] }] };
+    const sworn: CardDef = { ...mechanicFixture, abilities: [{ when: 'dawn', condition: 'swornActive', ops: [{ op: 'draw', n: 1 }] }] };
+    for (const card of [claim, onClaim, holds, lacks]) expect(cardMechanics(card)).toEqual(['mandate']);
+    expect(cardMechanics(sworn)).toEqual(['sworn']);
+    expect(cardTermNames(claim)).toEqual(['The Mandate']);
+    expect(cardGlossaryEntries(sworn)).toEqual([{ name: 'Sworn', reminder: MECHANIC_DEFINITIONS.sworn }]);
+  });
+
+  it('teaches Mark, not Duty, for an ability paid by removing marks, and reads a modal spell\'s modes', () => {
+    const stone: CardDef = {
+      ...mechanicFixture,
+      activated: { cost: { removeMarks: 1 }, ops: [{ op: 'gainLife', n: 2 }] },
+    };
+    expect(cardMechanics(stone)).toEqual(['mark']);
+    const modal: CardDef = {
+      ...mechanicFixture, types: ['charm'],
+      modal: { upTo: 1, modes: [{ ops: [{ op: 'foresee', n: 2 }] }, { ops: [{ op: 'hunt', hunter: 'target' }], targets: [{ what: 'yourCreature' }] }] },
+    };
+    expect(cardMechanics(modal)).toEqual(['foresee', 'hunt']);
+  });
+
   it('reads mechanics off structured fields, not generated prose', () => {
     const morrigan = CARD_DB['cf-morrigan-black-wing']; // severGrave + foresee
     expect(cardMechanics(morrigan)).toEqual(['foresee', 'sever']);
