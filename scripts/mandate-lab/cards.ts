@@ -16,6 +16,10 @@ const stone = (mana: number, ops: EffectOp[], targets?: TargetSpec[]): Activated
   ...(targets ? { targets } : {}),
 });
 
+const relic = (id: string, name: string, abilities: CardDef['abilities']): CardDef => ({
+  id, name, types: ['artifact'], subtypes: [], cost: cost(2), colors: [], rarity: 'c', abilities,
+});
+
 const NUWA: Partial<CardDef> = {
   supertypes: ['legendary'],
   attack: 4,
@@ -57,6 +61,11 @@ export const LAB_CARDS = {
   dawnGain1: body('lab-dawn-gain1', 'Lab Hearth', 3, { abilities: [{ when: 'dawn', ops: [{ op: 'gainLife', n: 1 }] }] }),
   dawnGain2: body('lab-dawn-gain2', 'Lab Spring', 3, { abilities: [{ when: 'dawn', ops: [{ op: 'gainLife', n: 2 }] }] }),
   dawnDrain1: body('lab-dawn-drain1', 'Lab Leech', 3, { abilities: [{ when: 'dawn', ops: [{ op: 'loseLife', n: 1, who: 'opponent' }] }] }),
+  /** The same dawn lines on a colourless artifact for two (the noncreature carrier), and the blank artifact they read against. */
+  artBlank: relic('lab-art-blank', 'Lab Relic', []),
+  artDawnGain1: relic('lab-art-dawn-gain1', 'Lab Relic (hearth)', [{ when: 'dawn', ops: [{ op: 'gainLife', n: 1 }] }]),
+  artDawnGain2: relic('lab-art-dawn-gain2', 'Lab Relic (spring)', [{ when: 'dawn', ops: [{ op: 'gainLife', n: 2 }] }]),
+  artDawnDrain1: relic('lab-art-dawn-drain1', 'Lab Relic (leech)', [{ when: 'dawn', ops: [{ op: 'loseLife', n: 1, who: 'opponent' }] }]),
   /** The stones' carrier (Core Set II costing, Nüwa): "When this arrives, put two marks on it." */
   marks2: body('lab-marks2', 'Lab Vessel', 3, { abilities: MARKS2 }),
   /** Each stone on the carrier: "{1}, remove a mark from this: ..." ({2} for Sever, Nüwa's {B}{B}). */
@@ -129,6 +138,9 @@ export const LAB_DB: CardDb = Object.freeze({
  * prints most: gain 1 on arrival, and gain 1, gain 2 or drain 1 at each of
  * your dawns.
  *
+ * The dawnArt set reads the same dawn lines on a colourless artifact for
+ * two, each against the blank artifact (the noncreature dawn rate).
+ *
  * The nuwa set reads Nüwa's marks and stones on her own chassis (a 4/4
  * Tithe for ten that claims), each against the chassis alone.
  *
@@ -182,6 +194,13 @@ export const ARM_SETS = {
     stoneMarkAll: { row: 'stoneMarkAll', col: 'ctl3', vs: 'marks' },
     tithe: { row: 'tithe5', col: 'ctl3' },
     titheMarks: { row: 'titheMarks5', col: 'ctl3', vs: 'tithe' },
+  },
+  dawnArt: {
+    ...SHARED,
+    artBlank: { row: 'artBlank', col: 'ctl3' },
+    artDawnGain1: { row: 'artDawnGain1', col: 'ctl3', vs: 'artBlank' },
+    artDawnGain2: { row: 'artDawnGain2', col: 'ctl3', vs: 'artBlank' },
+    artDawnDrain1: { row: 'artDawnDrain1', col: 'ctl3', vs: 'artBlank' },
   },
   nuwa: {
     ...SHARED,
