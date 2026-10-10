@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-2.0.md, docs/mobile-support-matrix.md, docs/mobile-lan-plan.md, docs/plan-accessibility-i18n.md, docs/plan-art-streaming.md, docs/design-system.md, index.html, vite.config.ts, src/gameBoot.ts, src/platform/gestureCore.ts, src/platform/gestures.ts, src/platform/quality.ts, src/platform/renderScale.ts, src/platform/clientProfile.ts, src/platform/screenMetrics.ts, src/platform/screenFixtures.ts, src/ui/accessibility.ts, src/ui/theme.ts, src/ui/layout.ts, src/ui/duelLayout.ts, src/ui/SceneBackdrop.ts, src/art/ArtResolver.ts, src/art/artBudget.ts, src/config/cardFaceGeometry.ts, src/ui/handFan.ts, src/forge/scene.ts, src/dev/a11yProbe.ts, src/scenes/ · last-verified: 2026-10-10 · plan doc, ruled in the 2.0 wave-1 sitting: rewritten for 2.0 lane C on the Version C mock set; P11 (M1-M4), P1 and P2 ruled 2026-10-08, M5-M29 ruled 2026-10-09, M30-M34 ruled 2026-10-10; re-verify when the owner rules the M decisions, and when each wave ships -->
+<!-- source-of-truth: docs/plan-2.0.md, docs/mobile-support-matrix.md, docs/mobile-lan-plan.md, docs/plan-accessibility-i18n.md, docs/plan-art-streaming.md, docs/design-system.md, index.html, vite.config.ts, src/gameBoot.ts, src/platform/gestureCore.ts, src/platform/gestures.ts, src/platform/quality.ts, src/platform/renderScale.ts, src/platform/clientProfile.ts, src/platform/screenMetrics.ts, src/platform/screenFixtures.ts, src/ui/accessibility.ts, src/ui/theme.ts, src/ui/layout.ts, src/ui/compactLayout.ts, src/ui/duelLayout.ts, src/ui/SceneBackdrop.ts, src/art/ArtResolver.ts, src/art/artBudget.ts, src/config/cardFaceGeometry.ts, src/ui/handFan.ts, src/forge/scene.ts, src/dev/a11yProbe.ts, src/scenes/ · last-verified: 2026-10-10 · plan doc, ruled in the 2.0 wave-1 sitting: rewritten for 2.0 lane C on the Version C mock set; P11 (M1-M4), P1 and P2 ruled 2026-10-08, M5-M29 ruled 2026-10-09, M30-M34 ruled 2026-10-10; re-verify when the owner rules the M decisions, and when each wave ships -->
 
 # Mobile overhaul: the 2.0 plan
 
@@ -372,6 +372,10 @@ word.
 - The compact design space and the render factor (C1); the resolver's
   device term (C3).
 - The shared compact primitives (C6), with hit-target checks on every one.
+  The geometry is built (`src/ui/compactLayout.ts`: shell, list rows, card
+  grid, tabs, settings switch, dialog, sheet, and `compactHitProblems`),
+  checked on every landscape fixture; the Phaser widgets that draw them
+  arrive with the first wave-2 scene that uses each one.
 - **The emulator** (owner, 2026-10-08: set up at the start of this wave, not before): a session on the owner's PC installs the
   Android command-line tools (not the full Studio app), makes a 360 px
   Galaxy-class phone, and drives its Chrome over the debugging bridge for
