@@ -1002,6 +1002,22 @@ interface ActivatedImpactContext {
 /** A Hunt's card-shaped floor (`opImpactValue`, `empowerValue`): half a destroy. */
 export const HUNT_CARD_FLOOR = 1.5;
 
+/**
+ * What holding the Mandate is worth (2.0 B3), in the same card-shaped units:
+ * about two of its dawn draws (a draw is 1.25) before someone takes it back.
+ * A claim prices this much, and Hard's evaluation (where a card in hand is
+ * 1.2) the same. NEEDS MATH: the hold rate comes from the Core Set II lab (B5).
+ */
+export const MANDATE_HOLD_VALUE = 2.5;
+
+/**
+ * The Mandate in combat's units, where a creature is priced by `permValue`
+ * (a vanilla 2/2 is about 4, a 1/1 about 3): about one cheap creature, so
+ * Medium trades a 2-drop to steal it and chumps with a small one to keep it,
+ * but never a real threat. NEEDS MATH: from the lab (B5), with the hold rate.
+ */
+export const MANDATE_COMBAT_VALUE = 4.5;
+
 interface RampImpactContext {
   view: PlayerView;
   db: CardDb;
@@ -1130,6 +1146,9 @@ export function opImpactValue(op: EffectOp, activated?: ActivatedImpactContext, 
       return op.filter === 'allEnchantments' ? 2.5 : 2;
     case 'destroyNewestOpponentArtifactOrEnchantment':
       return 3;
+    case 'claimMandate':
+      // Nothing to gain when we already hold it; card-shaped, assume we don't.
+      return ramp && ramp.view.mandateHolder === ramp.view.myId ? 0 : MANDATE_HOLD_VALUE;
     case 'hunt':
       // Card-shaped: the creatures are unknown, so a Hunt is priced at a
       // conditional removal floor, half of Empower's destroy. Its board value

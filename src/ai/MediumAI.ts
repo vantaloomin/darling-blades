@@ -108,6 +108,8 @@ export class MediumAI implements AIPlayer {
           this.trickBuff(view),
           view.you.life,
           this.pers,
+          view.battlefield,
+          view.mandateHolder ?? null,
         );
         return { type: 'declareAttackers', attackers };
       }
@@ -121,6 +123,7 @@ export class MediumAI implements AIPlayer {
           view.combat,
           this.trickBuff(view),
           this.pers,
+          view.mandateHolder ?? null,
         );
         return { type: 'declareBlockers', blocks };
       }

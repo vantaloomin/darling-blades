@@ -202,7 +202,7 @@ export class HardAI implements AIPlayer {
       if (a.kind === 'declareBlockers') {
         const st = game.state;
         const blocks = st.combat
-          ? chooseBlocks(st.battlefield, this.sdb, opp, st.players[opp].life, st.combat, 0)
+          ? chooseBlocks(st.battlefield, this.sdb, opp, st.players[opp].life, st.combat, 0, DEFAULT_PERSONALITY, st.mandateHolder ?? null)
           : [];
         try {
           game.submit(opp, { type: 'declareBlockers', blocks });
@@ -573,6 +573,8 @@ export class HardAI implements AIPlayer {
       this.openManaBuff(view),
       view.you.life,
       this.pers,
+      bf,
+      view.mandateHolder ?? null,
     );
     const allIn = legal
       .filter((l): l is Extract<Action, { type: 'declareAttackers' }> => l.type === 'declareAttackers')
@@ -673,6 +675,7 @@ export class HardAI implements AIPlayer {
       view.combat,
       this.openManaBuff(view),
       this.pers,
+      view.mandateHolder ?? null,
     );
     // The climb revisits plans (undoing the last add rebuilds the plan it came
     // from), and a simulation is a pure function of the view and the action,

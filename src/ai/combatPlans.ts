@@ -1,9 +1,9 @@
 import { canBlock, compelledAttackers, eligibleAttackers } from '../engine/combat/legality';
-import { getEffectiveStats } from '../engine/statics';
+import { getEffectiveStats, type BoardInput } from '../engine/statics';
 import type { CardDb, CombatState, Permanent, PlayerId } from '../engine/types';
 import { def, isType, opponentOf } from '../engine/types';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
-import { createPermanentValuer, dawnSelfBleed, provokedValue } from './value';
+import { createPermanentValuer, dawnSelfBleed, MANDATE_COMBAT_VALUE, provokedValue } from './value';
 
 /**
  * Combat planning shared by Medium and Hard. Works on public information
@@ -27,8 +27,9 @@ interface Combatant {
   provoked: number;
 }
 
-function combatant(bf: readonly Permanent[], db: CardDb, iid: number, trickBuff = 0): Combatant {
-  const stats = getEffectiveStats(bf, db, iid);
+function combatant(bf: readonly Permanent[], db: CardDb, iid: number, trickBuff = 0, board: BoardInput = bf): Combatant {
+  // `board` carries the Mandate's holder when known, for "while you hold the Mandate" statics.
+  const stats = getEffectiveStats(board, db, iid);
   const perm = bf.find((p) => p.iid === iid)!;
   return {
     iid,
@@ -168,13 +169,18 @@ class BoardMemo {
   private readonly weights = new Map<PlayerId, { pressing: boolean; oppPower: number }>();
   private valuer?: (iid: number) => number;
 
-  constructor(readonly bf: readonly Permanent[], readonly db: CardDb) {}
+  /** `mandateHolder` is the public holder (null while unclaimed): the steal and keep-it terms read it. */
+  private readonly board: BoardInput;
+
+  constructor(readonly bf: readonly Permanent[], readonly db: CardDb, readonly mandateHolder: PlayerId | null = null) {
+    this.board = mandateHolder === null ? bf : { battlefield: bf, mandateHolder };
+  }
 
   combatant(iid: number, trickBuff = 0): Combatant {
     const byIid = level(this.combatants, trickBuff);
     let c = byIid.get(iid);
     if (!c) {
-      c = combatant(this.bf, this.db, iid, trickBuff);
+      c = combatant(this.bf, this.db, iid, trickBuff, this.board);
       byIid.set(iid, c);
     }
     return c;
@@ -196,7 +202,7 @@ class BoardMemo {
     const byAttacker = level(level(this.blockable, defender), blocker);
     let ok = byAttacker.get(attacker);
     if (ok === undefined) {
-      ok = canBlock(this.bf, this.db, defender, blocker, attacker);
+      ok = canBlock(this.board, this.db, defender, blocker, attacker);
       byAttacker.set(attacker, ok);
     }
     return ok;
@@ -325,6 +331,11 @@ export function cautiousThrough(
  * damage weight and the holdback penalty; it defaults to `bf`. The pre-combat
  * Duty forecast pins it (with the life totals) to the board before the Duty,
  * so a kill or a ping prices only what it changes in the fight itself.
+ *
+ * `mandateHolder` (2.0 B3): when the defender holds the Mandate, an attack
+ * that connects at all steals it, worth `MANDATE_COMBAT_VALUE` once however
+ * many creatures connect; the simulated defender knows it, so it blocks to
+ * keep it (see `chooseBlocks`).
  */
 export function scoreAttack(
   bf: readonly Permanent[],
@@ -336,9 +347,10 @@ export function scoreAttack(
   myLife = 20,
   pers: Personality = DEFAULT_PERSONALITY,
   weightBoard: readonly Permanent[] = bf,
+  mandateHolder: PlayerId | null = null,
 ): number {
   if (attackers.length === 0) return 0;
-  const memo = new BoardMemo(bf, db);
+  const memo = new BoardMemo(bf, db, mandateHolder);
   return scoreAttackWith(memo, weightBoard === bf ? memo : new BoardMemo(weightBoard, db), me, oppLife,
     trickBuff, attackers, myLife, pers);
 }
@@ -377,11 +389,13 @@ function scoreAttackWith(
     (myLife <= 10 && oppPower >= myLife * 0.6 ? 0.4 : myLife <= 14 && oppPower >= myLife ? 0.25 : 0) *
     pers.holdback;
   let total = 0;
+  let connects = false;
   for (const iid of attackers) {
     const A = memo.combatant(iid);
     if (!A.sentinel) total -= holdbackPenalty;
     const myBlockers = blocks.filter((b) => b.attacker === iid).map((b) => b.blocker);
     if (myBlockers.length === 0) {
+      if (fullDamage(A) > 0 && !A.damagePrevented) connects = true;
       total += fullDamage(A) * dmgWeight;
       if (fullDamage(A) >= oppLife) total += 100; // lethal connection
       continue;
@@ -401,9 +415,13 @@ function scoreAttackWith(
     total += killValue - (iDie ? memo.value(iid) : 0);
     if (A.trample && myBlockers.length === 1) {
       const overflow = exchange.damage;
-      if (overflow > 0) total += overflow * dmgWeight;
+      if (overflow > 0) {
+        total += overflow * dmgWeight;
+        if (!A.damagePrevented) connects = true;
+      }
     }
   }
+  if (connects && memo.mandateHolder === opp) total += MANDATE_COMBAT_VALUE;
   return total;
 }
 
@@ -434,9 +452,10 @@ export function chooseAttackers(
   myLife = 20,
   pers: Personality = DEFAULT_PERSONALITY,
   weightBoard: readonly Permanent[] = bf,
+  mandateHolder: PlayerId | null = null,
 ): number[] {
   const opp = opponentOf(me);
-  const memo = new BoardMemo(bf, db);
+  const memo = new BoardMemo(bf, db, mandateHolder);
   const weights = weightBoard === bf ? memo : new BoardMemo(weightBoard, db);
   // Rage removes the choice, so the planner is not allowed to score these away.
   // Read from the UNFILTERED legality call on purpose: a compelled attacker
@@ -526,7 +545,9 @@ export function chooseAttackers(
 /**
  * Greedy block assignment (the plan's algorithm): positive-score single
  * blocks, chump blocking under lethal pressure, double-blocks on big
- * attackers, and a trick-risk margin that drops blowout-prone blocks.
+ * attackers, and a trick-risk margin that drops blowout-prone blocks. While
+ * we hold the Mandate (`mandateHolder`, 2.0 B3) it also covers every
+ * attacker that would still connect when that costs less than the Mandate.
  */
 export function chooseBlocks(
   bf: readonly Permanent[],
@@ -536,8 +557,9 @@ export function chooseBlocks(
   combat: CombatState,
   trickBuff: number,
   pers: Personality = DEFAULT_PERSONALITY,
+  mandateHolder: PlayerId | null = null,
 ): { blocker: number; attacker: number }[] {
-  return chooseBlocksWith(new BoardMemo(bf, db), me, myLife, combat, trickBuff, pers);
+  return chooseBlocksWith(new BoardMemo(bf, db, mandateHolder), me, myLife, combat, trickBuff, pers);
 }
 
 function chooseBlocksWith(
@@ -629,5 +651,51 @@ function chooseBlocksWith(
       }
     }
   }
+  if (memo.mandateHolder === me && !lethalMode) blocks.push(...keepMandateBlocks(memo, me, attackers, blocks, trickBuff));
   return blocks;
+}
+
+/**
+ * Blocks that keep the Mandate (2.0 B3): any damage that connects steals it,
+ * so cover every attacker still unblocked, each with the free blocker whose
+ * exchange costs least, and only when all of them can be covered for less
+ * than the Mandate is worth. Overrun spilling over a blocker counts as a
+ * connection; a Dreaded attacker needs two blockers and is not covered.
+ */
+function keepMandateBlocks(
+  memo: BoardMemo,
+  me: PlayerId,
+  attackers: readonly number[],
+  blocks: readonly { blocker: number; attacker: number }[],
+  trickBuff: number,
+): { blocker: number; attacker: number }[] {
+  const connecting = (iid: number, blockers: readonly number[]): boolean => {
+    const A = memo.combatant(iid, trickBuff);
+    if (A.damagePrevented || fullDamage(A) === 0) return false;
+    if (blockers.length === 0) return true;
+    return combatExchange(A, blockers.map((b) => memo.combatant(b))).damage > 0;
+  };
+  const blockersOf = (iid: number): number[] => blocks.filter((b) => b.attacker === iid).map((b) => b.blocker);
+  const open = attackers.filter((iid) => connecting(iid, blockersOf(iid)));
+  if (open.length === 0) return [];
+  // A blocked attacker that still spills over can't be fixed by one more chump here.
+  if (open.some((iid) => blockersOf(iid).length > 0 || memo.combatant(iid).dreaded)) return [];
+  const used = new Set(blocks.map((b) => b.blocker));
+  const added: { blocker: number; attacker: number }[] = [];
+  let cost = 0;
+  const biggestFirst = [...open].sort((a, b) => fullDamage(memo.combatant(b)) - fullDamage(memo.combatant(a)));
+  for (const aIid of biggestFirst) {
+    let best: { blocker: number; cost: number } | null = null;
+    for (const B of memo.untappedBlockers(me)) {
+      if (used.has(B.iid) || !memo.canBlock(me, B.iid, aIid) || connecting(aIid, [B.iid])) continue;
+      const { iKill, iDie } = memo.duel(B.iid, aIid, trickBuff);
+      const c = (iDie ? memo.value(B.iid) : 0) - (iKill ? memo.value(aIid) : 0);
+      if (!best || c < best.cost) best = { blocker: B.iid, cost: c };
+    }
+    if (!best) return [];
+    used.add(best.blocker);
+    added.push({ blocker: best.blocker, attacker: aIid });
+    cost += best.cost;
+  }
+  return cost < MANDATE_COMBAT_VALUE ? added : [];
 }
