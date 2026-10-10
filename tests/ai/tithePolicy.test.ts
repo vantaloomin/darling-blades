@@ -215,6 +215,12 @@ describe('Tithe phase-B undamaged fodder and tempo', () => {
       .filter((action) => action.type === 'castSpell')).toEqual([{ type: 'castSpell', handIndex: 0 }]);
   });
 
+  it('sells for one mana when that mana also buys a Tithe mark, even with the full price affordable', () => {
+    const db: CardDb = { ...FODDER_DB, tithe_horror: { ...FODDER_DB.tithe_horror, tithe: { per: 2, marks: 5 } } };
+    const game = freshFodderGame([...lands(4), behaviourBody(10, 'cheap_value'), behaviourBody(11, 'tok-kelp-shade')], db);
+    submitSale(game, [11], db);
+  });
+
   it('accepts two mana of savings even when the full-price cast is affordable', () => {
     const game = freshFodderGame([...lands(4), behaviourBody(10, 'cheap_value'),
       behaviourBody(11, 'tok-kelp-shade'), behaviourBody(12, 'tok-kelp-shade')]);
