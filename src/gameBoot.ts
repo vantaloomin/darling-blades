@@ -44,6 +44,7 @@ import { MainMenuScene } from './scenes/MainMenuScene';
 import { SettingsScene } from './scenes/SettingsScene';
 import { ShopScene } from './scenes/ShopScene';
 import { applySavedAccessibility } from './ui/settingsPresentation';
+import { installTextRasterGuards } from './ui/textRaster';
 
 declare global {
   interface Window {
@@ -149,6 +150,9 @@ if (textResolution > 1) {
     return out;
   };
 }
+
+// Descender room for every Text (src/ui/textRaster.ts), before any is built.
+installTextRasterGuards();
 
 // Accessibility (settings.textScale, settings.highContrast): the loaded save's
 // text size and contrast go in force before the first scene builds, through
