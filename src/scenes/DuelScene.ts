@@ -134,7 +134,7 @@ import { MandateSeal } from '../ui/MandateSeal';
 import { swornChip, type SwornChip } from '../ui/swornPresentation';
 import { CARD_FACE } from '../config/cardFaceGeometry';
 import { castsForModes, modeChooserTitle, modeRows, toggleMode } from '../ui/modeChoice';
-import { mandateSealCenter, mandateShown, mandateSpot } from '../ui/mandatePresentation';
+import { mandateSealCenter, mandateSpot } from '../ui/mandatePresentation';
 import { addPortraitArt } from '../ui/portraitArt';
 import { fanLayout } from '../ui/handFan';
 import { handDisplayOrder } from '../ui/handSort';
@@ -638,8 +638,6 @@ export class DuelScene extends Phaser.Scene {
   private previousLife: [number, number] | null = null;
   /** The Mandate's seal (2.0 lane B4); null until the board is built. */
   private mandateSeal: MandateSeal | null = null;
-  /** The turn chip's drawn width: the unclaimed seal waits just past it. */
-  private turnPillWidth = 52;
   private previousPhaseRow: PhaseTrackRow | null = null;
   private forecastWasLethal = false;
   /** Underlying life-driven tension survives a temporary lethal-visible bed. */
@@ -1758,31 +1756,25 @@ export class DuelScene extends Phaser.Scene {
   }
 
   /**
-   * Snap the Mandate's seal to its holder's life, or beside the turn chip
-   * while unclaimed; hidden in a duel where no visible card names it
-   * (`mandateShown`). A claim in flight finishes first (`flyMandateSeal`).
+   * Snap the Mandate's seal to its holder's life; nothing while unclaimed
+   * (owner's call M2). A claim in flight finishes first (`flyMandateSeal`).
    */
   private syncMandateSeal(): void {
     const seal = this.mandateSeal;
     if (!seal || seal.flying) return;
-    const st = this.duel.state;
-    if (!mandateShown(st, CARD_DB, HUMAN)) {
-      seal.place(null, null);
-      return;
-    }
-    const spot = mandateSpot(st.mandateHolder, HUMAN);
-    seal.place(spot, mandateSealCenter(spot, this.turnPillWidth));
+    const spot = mandateSpot(this.duel.state.mandateHolder, HUMAN);
+    seal.place(spot, spot && mandateSealCenter(spot));
   }
 
-  /** A claim: the seal flies from where it was to its new holder (instant unless motion is full). */
+  /** A claim: the seal flies from its old holder to the new one, or grows in place on a first claim (instant unless motion is full). */
   private flyMandateSeal(from: PlayerId | null, to: PlayerId): void {
     const seal = this.mandateSeal;
-    if (!seal) return;
-    const origin = mandateSpot(from, HUMAN);
     const spot = mandateSpot(to, HUMAN);
+    if (!seal || !spot) return;
+    const origin = mandateSpot(from, HUMAN);
     seal.fly(
-      mandateSealCenter(origin, this.turnPillWidth),
-      mandateSealCenter(spot, this.turnPillWidth),
+      origin && mandateSealCenter(origin),
+      mandateSealCenter(spot),
       spot,
       Services.save.data.settings.animations === 'full',
       () => this.syncMandateSeal(),
@@ -2897,7 +2889,6 @@ export class DuelScene extends Phaser.Scene {
     label.setText(turn === 0 ? '' : `T${turn}`);
     label.setColor(yours ? theme.colors.gold : theme.colors.body);
     const w = Math.max(52, label.width + 22);
-    this.turnPillWidth = w;
     fill.clear();
     fill.fillStyle(theme.graphics.rowFillActive, 1);
     fill.fillRoundedRect(LAYOUT.turnPill.x - w / 2, LAYOUT.turnPill.y - 14, w, 28, theme.radius.control);

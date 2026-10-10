@@ -20,8 +20,8 @@ const RULES_W = 300;
 
 /**
  * The Mandate on the duel board (2.0 lane B4): one gold seal with a star,
- * beside its holder's life, or a dark seal with a dashed gold rim while no one
- * holds it. Hover (or tap on touch) shows who holds it and the rules reminder.
+ * beside its holder's life; nothing while no one holds it. Hover (or tap on
+ * touch) shows who holds it and the rules reminder.
  *
  * The seal is a plain Container that is never interactive; its 44px hit area
  * is a separate Zone that follows it (never `setInteractive` a scaled
@@ -43,6 +43,7 @@ export class MandateSeal {
   constructor(private readonly scene: Phaser.Scene) {
     this.face = scene.add.graphics();
     this.seal = scene.add.container(0, 0, [this.face]).setDepth(theme.depth.hudLabel).setVisible(false);
+    this.draw();
     this.hit = scene.add.zone(0, 0, MANDATE_SEAL_HIT, MANDATE_SEAL_HIT).setDepth(theme.depth.hudLabel);
     this.hit.setInteractive({ useHandCursor: true }).setName('duel-mandate-seal');
     this.hit.disableInteractive();
@@ -85,7 +86,6 @@ export class MandateSeal {
       this.showTip(false);
       return;
     }
-    if (spot !== this.spot) this.draw(spot);
     this.spot = spot;
     this.seal.setPosition(at.x, at.y).setScale(1).setAlpha(1).setVisible(true);
     this.hit.setPosition(at.x, at.y);
@@ -109,11 +109,12 @@ export class MandateSeal {
 
   /**
    * The claim: the seal flies from `from` to `to` (about 600 ms), swelling at
-   * mid-flight, and leaves a fading ring where it was. Instant when motion is
-   * reduced. `done` runs once it has landed.
+   * mid-flight, and leaves a fading ring where it was. A first claim has no
+   * `from`: the seal grows in place with the ring around it. Instant when
+   * motion is reduced. `done` runs once it has landed.
    */
   fly(
-    from: { x: number; y: number },
+    from: { x: number; y: number } | null,
     to: { x: number; y: number },
     spot: MandateSpot,
     animate: boolean,
@@ -127,25 +128,30 @@ export class MandateSeal {
       done();
       return;
     }
-    this.draw(spot);
     this.spot = spot;
     this.hit.disableInteractive();
-    this.seal.setPosition(from.x, from.y).setScale(1).setAlpha(1).setVisible(true);
-    const ring = this.scene.add.graphics().setDepth(theme.depth.hudLabel).setPosition(from.x, from.y);
+    const start = from ?? to;
+    this.seal.setPosition(start.x, start.y).setScale(from ? 1 : 0.2).setAlpha(1).setVisible(true);
+    const ring = this.scene.add.graphics().setDepth(theme.depth.hudLabel).setPosition(start.x, start.y);
     ring.lineStyle(2, colorInt(theme.colors.gold), 1).strokeCircle(0, 0, MANDATE_SEAL_SIZE / 2);
     this.scene.tweens.add({
       targets: ring, scale: 1.8, alpha: 0, duration: 420, ease: 'Quad.easeOut',
       onComplete: () => ring.destroy(),
     });
-    this.flight = this.scene.tweens.add({
-      targets: this.seal, x: to.x, y: to.y, duration: MANDATE_CLAIM_MS, ease: 'Cubic.easeInOut',
-      onUpdate: (tween) => this.seal.setScale(1 + 0.35 * Math.sin(Math.PI * tween.progress)),
-      onComplete: () => {
-        this.flight = null;
-        this.place(spot, to);
-        done();
-      },
-    });
+    const land = (): void => {
+      this.flight = null;
+      this.place(spot, to);
+      done();
+    };
+    this.flight = from
+      ? this.scene.tweens.add({
+        targets: this.seal, x: to.x, y: to.y, duration: MANDATE_CLAIM_MS, ease: 'Cubic.easeInOut',
+        onUpdate: (tween) => this.seal.setScale(1 + 0.35 * Math.sin(Math.PI * tween.progress)),
+        onComplete: land,
+      })
+      : this.scene.tweens.add({
+        targets: this.seal, scale: 1, duration: MANDATE_CLAIM_MS / 2, ease: 'Back.easeOut', onComplete: land,
+      });
   }
 
   destroy(): void {
@@ -156,27 +162,14 @@ export class MandateSeal {
     this.tip.destroy();
   }
 
-  private draw(spot: MandateSpot): void {
+  /** A solid gold seal with the star knocked out in the panel colour. */
+  private draw(): void {
     const r = MANDATE_SEAL_SIZE / 2;
-    const gold = colorInt(theme.colors.gold);
-    const g = this.face.clear();
     const star = STAR.map((p) => new Phaser.Math.Vector2(p.x * r, p.y * r));
-    if (spot === 'unclaimed') {
-      // Dark disc, dashed gold rim, the star in outline: waiting for a claim.
-      g.fillStyle(theme.graphics.panelFill, 0.95).fillCircle(0, 0, r);
-      g.lineStyle(2, gold, 0.95);
-      const dashes = 12;
-      for (let i = 0; i < dashes; i++) {
-        const a0 = (i * 2 * Math.PI) / dashes;
-        g.beginPath().arc(0, 0, r - 1, a0, a0 + Math.PI / dashes).strokePath();
-      }
-      g.lineStyle(1.5, gold, 0.8).strokePoints(star, true, true);
-      return;
-    }
-    // Held: a solid gold seal with the star knocked out in the panel colour.
-    g.fillStyle(gold, 1).fillCircle(0, 0, r);
-    g.lineStyle(1, theme.graphics.panelFill, 0.8).strokeCircle(0, 0, r - 2.5);
-    g.fillStyle(theme.graphics.panelFill, 1).fillPoints(star, true, true);
+    this.face.clear()
+      .fillStyle(colorInt(theme.colors.gold), 1).fillCircle(0, 0, r)
+      .lineStyle(1, theme.graphics.panelFill, 0.8).strokeCircle(0, 0, r - 2.5)
+      .fillStyle(theme.graphics.panelFill, 1).fillPoints(star, true, true);
   }
 
   private showTip(show: boolean): void {
