@@ -246,7 +246,7 @@ export const WAVE_2B_SCENES: readonly ProbeScene[] = [
   { label: 'Deck Builder / Darlings 79', key: 'DeckBuilder', data: builderFixture() },
   { label: 'Deck Builder / full catalog', key: 'DeckBuilder', data: builderFixture({}, WAVE_2B_FIXTURE_IDS.fullCatalog) },
   { label: 'Deck Builder / full catalog / last page', key: 'DeckBuilder', data: builderFixture({ page: Number.MAX_SAFE_INTEGER }, WAVE_2B_FIXTURE_IDS.fullCatalog) },
-  { label: 'Deck Builder / decks / last page', key: 'DeckBuilder', data: builderFixture({ modal: 'decks', pickerPage: Number.MAX_SAFE_INTEGER }) },
+  { label: 'Deck Builder / decks / scrolled to the end', key: 'DeckBuilder', data: builderFixture({ modal: 'decks', pickerRow: Number.MAX_SAFE_INTEGER }) },
   { label: 'Deck Builder / classic basics', key: 'DeckBuilder', data: builderFixture({ save: BATCH_B_CLASSIC }) },
   { label: 'Deck Builder / empty', key: 'DeckBuilder', data: builderFixture({}, WAVE_2B_FIXTURE_IDS.empty) },
   ...WAVE_2B_LONGEST_CARD_IDS.flatMap((focusCardId) => [false, true].map((touch) => ({

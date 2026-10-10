@@ -9,6 +9,7 @@ import { sceneHasOpenModal, type ModalShell, type ThemedButton } from './themeWi
 export function bindMenuScroll(
   scene: Phaser.Scene, content: Phaser.GameObjects.Container, viewport: Rect, contentHeight: number,
   blocked: () => boolean = () => false, buttons: readonly ThemedButton[] = [], step = 0, modal?: ModalShell,
+  initialOffset = 0,
 ): void {
   const maxScroll = Math.max(0, contentHeight - viewport.height);
   const mask = scene.add.graphics().fillStyle(theme.graphics.panelFill, 1)
@@ -39,7 +40,7 @@ export function bindMenuScroll(
         theme.space(1), height, theme.space(0.5));
     }
   };
-  place(0);
+  place(initialOffset);
   if (maxScroll <= 0) {
     content.once('destroy', () => { mask.destroy(); thumb.destroy(); });
     return;

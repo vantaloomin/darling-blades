@@ -67,6 +67,7 @@ import {
 import { Services } from '../meta/services';
 import { PLAIN_VARIANT, TIER_LABEL, variantKey, type CardVariant } from '../meta/variants';
 import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestures';
+import { tapSlopWorldPx } from '../platform/renderScale';
 import { makeCardThumb, thumbArtWanted } from '../ui/CardThumbCache';
 import { CARD_H } from '../ui/CardView';
 import { CardZoomPreview } from '../ui/CardZoomPreview';
@@ -81,7 +82,8 @@ import {
   deckPaneSummaryLayout,
   deckReserveLayout,
   deckPaneOffsetY,
-  deckPickerTilePosition,
+  deckPickerContentHeight,
+  deckPickerScrollTo,
   deckPaneToggleState,
   deckStatusTone,
   defaultDeckPaneMode,
@@ -148,6 +150,7 @@ const DECK_CODE_CARD_IDS = ALL_CARDS.map((card) => card.id);
  * Reset and the Gauntlet's Abandon do.
  */
 const DELETE_ARM_MS = 4000;
+const DECK_DELETE_NOTE = 'Its cards stay in your collection.';
 /**
  * The right panel's content column. Its fill runs from DECK_PANE_LAYOUT.panelX
  * to the screen edge, and the content sits between the pane's left edge and
@@ -172,7 +175,7 @@ const DARLING_PICKER = { width: 1040, rulesWidth: 920, cardScale: 0.5, pitch: 30
 export interface DeckBuilderSceneData {
   deckId?: string;
   /** Read-only dev fixture clone; never installed in Services. */
-  a11yFixture?: { save: SaveData; mode?: DeckPaneMode; page?: number; touch?: boolean; focusCardId?: string; pickerPage?: number;
+  a11yFixture?: { save: SaveData; mode?: DeckPaneMode; page?: number; touch?: boolean; focusCardId?: string; pickerRow?: number;
     modal?: 'decks' | 'darling' | 'reserve' | 'landStyles' | 'repair' | 'rename' | 'format' | 'export' | 'import' | 'unsaved' | 'filters';
     filter?: 'set' | 'color' | 'type' | 'rarity' | 'sort' };
 }
@@ -197,7 +200,7 @@ interface DeckHeroDisplay {
 export class DeckBuilderScene extends Phaser.Scene {
   private fixtureSave: SaveData | null = null;
   private fixtureFocusCardId: string | null = null;
-  private fixturePickerPage = 0;
+  private fixturePickerRow = 0;
   private get save(): SaveData { return this.fixtureSave ?? Services.save.data; }
   private flush(): void { if (!this.fixtureSave) Services.save.flush(); }
   private deck: string[] = [];
@@ -278,7 +281,7 @@ export class DeckBuilderScene extends Phaser.Scene {
   create(data: DeckBuilderSceneData = {}): void {
     this.sys.settings.data = {};
     this.data.set('a11yReady', false);
-    this.fixturePickerPage = IS_DEV ? data.a11yFixture?.pickerPage ?? 0 : 0;
+    this.fixturePickerRow = IS_DEV ? data.a11yFixture?.pickerRow ?? 0 : 0;
     this.fixtureFocusCardId = IS_DEV ? data.a11yFixture?.focusCardId ?? null : null;
     this.fixtureSave = IS_DEV && data.a11yFixture ? structuredClone(data.a11yFixture.save) : null;
     gateOnPagedArt(this, () => this.build(data));
@@ -1929,19 +1932,23 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.confirmUnsavedChanges('decks', () => this.openDeckPicker());
   }
 
-  private openDeckPicker(initialPage = this.fixturePickerPage, focusDeckId?: string): void {
+  private openDeckPicker(initialRow = this.fixturePickerRow, focusDeckId?: string, initialOffset?: number): void {
     const save = this.save;
     this.closeFilterPanel();
     this.setSearchInputVisible(false);
     const decks = visibleSavedDecks(save.decks, this.reserveFormatsEnabled);
-    const measure = this.add.text(0, 0, '', { fontFamily: theme.fonts.display, fontSize: theme.type.label,
-      wordWrap: { width: deckPickerLayout().nameWidth, useAdvancedWrap: true } }).setVisible(false);
-    const nameHeight = Math.max(menuLineHeight(theme.type.label), ...decks.map((deck) => { measure.setText(deck.name); return measure.height; }));
-    measure.destroy();
     const measureActions = ['Using', 'Copy', 'Rename', 'Delete'].map((label) => themedButton(this, 0, 0, label, { size: 'sm' }));
     const actionW = Math.max(...measureActions.map((button) => button.getMeasuredSize().hit.width));
     measureActions.forEach((button) => button.container.destroy());
-    const pickerLayout = deckPickerLayout({ count: decks.length + 1, nameHeight, actionWidth: actionW });
+    const nameWidth = deckPickerLayout({ actionWidth: actionW }).nameWidth;
+    const measure = this.add.text(0, 0, '', { fontFamily: theme.fonts.display, fontSize: theme.type.label,
+      wordWrap: { width: nameWidth, useAdvancedWrap: true } }).setVisible(false);
+    const nameHeight = Math.max(menuLineHeight(theme.type.label), ...decks.map((deck) => { measure.setText(deck.name); return measure.height; }));
+    measure.setStyle({ fontFamily: theme.fonts.ui, fontSize: `${theme.type.micro}px` }).setText(DECK_DELETE_NOTE);
+    const deleteNoteHeight = measure.height;
+    measure.destroy();
+    const pickerLayout = deckPickerLayout({ count: decks.length, nameHeight, actionWidth: actionW, deleteNoteHeight });
+    const { viewport, row } = pickerLayout;
     const deckPickerShell = modalShell(this, {
       // The title-safe frame's full width: at 1200 the panel's border ran
       // 24px past the frame on both sides (1.8 cut, 2026-09-23).
@@ -1956,7 +1963,9 @@ export class DeckBuilderScene extends Phaser.Scene {
     overlay.once(Phaser.GameObjects.Events.DESTROY, () => {
       this.setSearchInputVisible(true);
     });
-    let renderGrid = (): void => {};
+    let list: Phaser.GameObjects.Container | null = null;
+    const scrollOffset = (): number => (list ? viewport.y - list.y : 0);
+    let renderList: (offset: number) => void = () => {};
     const setActiveDeck = (id: string | null): void => {
       // Dirty tracking follows the deck actually being edited, which is the
       // working deck rather than the saved active id (they diverge when a
@@ -1967,7 +1976,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       this.flush();
       this.renderPool();
       this.renderDeck();
-      renderGrid();
+      renderList(scrollOffset());
     };
     overlay.add(
       this.add
@@ -1975,80 +1984,78 @@ export class DeckBuilderScene extends Phaser.Scene {
         .setOrigin(0.5),
     );
 
-    const gridLayer = this.add.container(0, 0);
-    overlay.add(gridLayer);
-    // Tile grid and footer line: deckPanePresentation.ts (pickerLayout).
-    const tileW = pickerLayout.tile.width;
-    const tileH = pickerLayout.tile.height;
-    const pageSize = pickerLayout.tile.cols * pickerLayout.tile.rows;
-    const focusIndex = focusDeckId ? decks.findIndex((deck) => deck.id === focusDeckId) : -1;
-    let pickerPage = focusIndex >= 0 ? Math.floor(focusIndex / pageSize) : initialPage;
     const reopenPicker = (focusId?: string): void => {
+      const offset = scrollOffset();
       closeOverlay();
-      this.openDeckPicker(pickerPage, focusId);
+      this.openDeckPicker(0, focusId, focusId ? undefined : offset);
     };
+    // A row is tapped only where the list shows it, and a drag that scrolled
+    // the list is not a tap (the mouse's pointerup fires either way).
+    const tapInList = (pointer: Phaser.Input.Pointer): boolean =>
+      pointer.worldY >= viewport.y && pointer.worldY <= viewport.y + viewport.height &&
+      Math.hypot(pointer.upX - pointer.downX, pointer.upY - pointer.downY) <= tapSlopWorldPx();
 
-    const renderDeckTile = (parent: Phaser.GameObjects.Container, deck: SavedDeck, x: number, y: number): void => {
+    // One row per deck (deckPanePresentation.ts, deckPickerLayout): content
+    // x is world x, content y runs from the list's top.
+    const renderDeckRow = (parent: Phaser.GameObjects.Container, deck: SavedDeck, top: number, buttons: ThemedButton[]): void => {
       const isActive = deck.id === this.workingDeckId;
       const deckFormat = deck.format === 'darlings' || deck.format === 'warchest' ? deck.format : 'constructed';
       const repair = deckHealth(CARD_DB, save, deck);
-      const left = x - tileW / 2;
-      const top = y - tileH / 2;
-      const rightGuideX = left + tileW - 13;
+      const left = viewport.x;
+      const midY = top + row.height / 2;
+      // List-row selection: a border plus a left accent bar (UI review).
       const bg = this.add
-        .rectangle(x, y, tileW, tileH, isActive ? theme.graphics.rowFillActive : theme.graphics.panelFill, theme.alpha.panel)
+        .rectangle(left + row.width / 2, midY, row.width, row.height, isActive ? theme.graphics.rowFillActive : theme.graphics.panelFill, theme.alpha.panel)
         .setStrokeStyle(1, colorInt(isActive ? theme.colors.gold : theme.colors.panelStroke), isActive ? 1 : theme.alpha.chrome)
         .setInteractive({ useHandCursor: true });
-      bindTapButton(this, bg, () => setActiveDeck(deck.id));
+      bindTapButton(this, bg, (pointer) => { if (tapInList(pointer)) setActiveDeck(deck.id); });
       parent.add(bg);
+      if (isActive) {
+        parent.add(this.add.rectangle(left + row.accentWidth / 2, midY, row.accentWidth, row.height, colorInt(theme.colors.gold), 1));
+      }
+      const hero = this.deckPickerHero(deck);
+      this.addDeckHeroPortrait(parent, left + pickerLayout.portrait.x, midY, hero, pickerLayout.portrait.width, pickerLayout.portrait.height);
 
       const title = this.add
-        .text(left + pickerLayout.padding, top + pickerLayout.nameTop, deck.name, {
+        .text(left + pickerLayout.nameX, top + pickerLayout.nameTop, deck.name, {
           fontFamily: theme.fonts.display,
           fontSize: `${theme.type.label}px`,
           color: isActive ? theme.colors.gold : theme.colors.heading,
         })
-        .setOrigin(0, 0.5);
-      title.setOrigin(0, 0);
+        .setOrigin(0, 0);
       fitMenuName(title, pickerLayout.nameWidth, Number.POSITIVE_INFINITY);
       parent.add(title);
       const blockKind = deckBlockKind(deck, repair.blocked, this.classicRetired);
-      parent.add(
-        this.add
-          .text(left + 18, top + pickerLayout.badgeTop + menuLineHeight(theme.type.micro) / 2, blockKind ? `${formatLabel(deckFormat)} · ${deckBlockLabel(blockKind)}` : formatLabel(deckFormat), {
-            fontFamily: theme.fonts.ui,
-            fontSize: theme.type.micro + 'px',
-            fontStyle: theme.weight.w700,
-            color: repair.blocked ? theme.colors.danger : isActive ? theme.colors.gold : theme.colors.muted,
-          })
-          .setOrigin(0, 0.5),
-      );
-      const hero = this.deckPickerHero(deck);
-      this.addDeckHeroPortrait(parent, left + pickerLayout.portrait.x, top + pickerLayout.portrait.y, hero, pickerLayout.portrait.width, pickerLayout.portrait.height);
+      const badgeColor = repair.blocked ? theme.colors.danger : isActive ? theme.colors.gold : theme.colors.muted;
+      const badge = this.add
+        .text(left + pickerLayout.nameX, top + pickerLayout.badgeTop, blockKind ? `${formatLabel(deckFormat)} · ${deckBlockLabel(blockKind)}` : formatLabel(deckFormat), {
+          fontFamily: theme.fonts.ui,
+          fontSize: theme.type.micro + 'px',
+          fontStyle: theme.weight.w700,
+          color: badgeColor,
+          wordWrap: { width: pickerLayout.nameWidth, useAdvancedWrap: true },
+        })
+        .setOrigin(0, 0);
+      parent.add(badge);
       const countLabel = this.add
-          .text(rightGuideX, top + pickerLayout.badgeTop + menuLineHeight(theme.type.micro) / 2, deck.cards.length + '/' + formatDeckSize(deckFormat), {
-            fontFamily: theme.fonts.ui,
-            fontSize: `${theme.type.body}px`,
-            fontStyle: '700',
-            color: repair.blocked ? theme.colors.danger : deck.cards.length === formatDeckSize(deckFormat) ? theme.colors.success : theme.colors.danger,
-          })
-          .setOrigin(1, 0.5);
+        .text(left + pickerLayout.countRight, midY, deck.cards.length + '/' + formatDeckSize(deckFormat), {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.body}px`,
+          fontStyle: '700',
+          color: repair.blocked ? theme.colors.danger : deck.cards.length === formatDeckSize(deckFormat) ? theme.colors.success : theme.colors.danger,
+        })
+        .setOrigin(1, 0.5);
       parent.add(countLabel);
-      this.addDeckColorPips(parent, rightGuideX - countLabel.width - theme.space(2),
-        top + pickerLayout.badgeTop + menuLineHeight(theme.type.micro) / 2, deck.cards);
+      this.addDeckColorPips(parent, left + pickerLayout.countRight - countLabel.width - theme.space(2), midY, deck.cards);
 
-      const actionX0 = left + pickerLayout.actions.firstX - actionW / 2;
-      const actionX1 = left + pickerLayout.actions.secondX + actionW / 2;
-      const actionY0 = top + pickerLayout.actions.firstY;
-      const actionY1 = top + pickerLayout.actions.secondY;
-      const useBtn = themedButton(this, actionX0 + actionW / 2, actionY0, isActive ? 'Using' : 'Use', {
+      const [useX, copyX, renameX, deleteX] = pickerLayout.actions.xs.map((x) => left + x);
+      const useBtn = themedButton(this, useX, midY, isActive ? 'Using' : 'Use', {
         variant: isActive ? 'selected' : 'ghost',
         size: 'sm',
         minWidth: actionW,
         onTap: () => setActiveDeck(deck.id),
       });
-      parent.add(useBtn.container);
-      const copyBtn = themedButton(this, actionX1 - actionW / 2, actionY0, 'Copy', {
+      const copyBtn = themedButton(this, copyX, midY, 'Copy', {
         variant: 'emphasis',
         size: 'sm',
         minWidth: actionW,
@@ -2061,162 +2068,117 @@ export class DeckBuilderScene extends Phaser.Scene {
           reopenPicker(id);
         },
       });
-      parent.add(copyBtn.container);
-      const renameBtn = themedButton(this, actionX0 + actionW / 2, actionY1, 'Rename', {
+      const renameBtn = themedButton(this, renameX, midY, 'Rename', {
         variant: 'ghost',
         size: 'sm',
         minWidth: actionW,
         onTap: () => {
-        this.promptRename(deck.id, () => {
-          if (deck.id === this.workingDeckId) this.renderDeck();
-          reopenPicker(deck.id);
-        });
+          this.promptRename(deck.id, () => {
+            if (deck.id === this.workingDeckId) this.renderDeck();
+            reopenPicker(deck.id);
+          });
         },
       });
-      parent.add(renameBtn.container);
       // Two-press Delete, the pattern Settings' Reset, the Gauntlet's Abandon
       // and Limited's Retire share: the first press arms it, names the press
       // that confirms (Tap or Click, by the pointer that pressed it) and what
       // is kept, and it stands down after DELETE_ARM_MS unanswered. The armed
-      // label needs the whole action column, so Rename steps aside meanwhile.
-      const deleteRestX = actionX1 - actionW / 2;
-      const actionColumnX = (actionX0 + actionX1) / 2;
-      const delNote = this.add
-        .text(actionColumnX, actionY1 + 30, 'Its cards stay in your collection.', {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.micro}px`,
-          color: theme.colors.danger,
-          align: 'center',
-          wordWrap: { width: actionX1 - actionX0 },
-        })
-        .setOrigin(0.5, 0)
-        .setVisible(false);
-      parent.add(delNote);
+      // label takes Rename's slot too, and the note takes the format line's.
       let delArmed = false;
       const setDeleteArmed = (armed: boolean, touch = false): void => {
         delArmed = armed;
         delBtn.setLabel(armed ? `${touch ? 'Tap' : 'Click'} again to delete` : 'Delete');
-        delBtn.container.setX(armed ? actionColumnX : deleteRestX);
+        delBtn.container.setX(armed ? left + pickerLayout.actions.armedX : deleteX);
         renameBtn.container.setVisible(!armed);
         renameBtn.setEnabled(!armed);
-        delNote.setVisible(armed);
+        badge.setText(armed ? DECK_DELETE_NOTE : blockKind ? `${formatLabel(deckFormat)} · ${deckBlockLabel(blockKind)}` : formatLabel(deckFormat));
+        badge.setColor(armed ? theme.colors.danger : badgeColor);
       };
-      const delBtn = themedButton(this, deleteRestX, actionY1, 'Delete', {
+      const delBtn = themedButton(this, deleteX, midY, 'Delete', {
         variant: 'danger',
         size: 'sm',
         minWidth: actionW,
-        maxTextWidth: pickerLayout.actions.width - theme.space(6),
+        maxTextWidth: pickerLayout.actions.armedWidth - theme.space(6),
         onTap: (pointer) => {
-        if (save.settings.confirmDestructive && !delArmed) {
-          setDeleteArmed(true, pointer.wasTouch);
-          // A re-rendered grid has new buttons and has already disarmed, so
-          // a timer from this one leaves them alone.
-          this.time.delayedCall(DELETE_ARM_MS, () => {
-            if (delBtn.container.active && delArmed) setDeleteArmed(false);
-          });
-          return;
-        }
-        deleteDeck(save, deck.id);
-        if (isActive) {
-          // loadWorkingDeck also moves the unsaved-changes baseline to the
-          // fallback deck. Keeping the deleted deck's baseline made Leave
-          // Without Saving write the deleted deck over this one.
-          this.loadWorkingDeck(activeVisibleSavedDeck(save.decks, save.activeDeckId, this.reserveFormatsEnabled));
-          this.deckPaneMode = defaultDeckPaneMode();
-          this.renderPool();
-          this.renderDeck();
-        }
-        this.flush();
-        reopenPicker();
+          if (save.settings.confirmDestructive && !delArmed) {
+            setDeleteArmed(true, pointer.wasTouch);
+            // A re-rendered list has new buttons and has already disarmed, so
+            // a timer from this one leaves them alone.
+            this.time.delayedCall(DELETE_ARM_MS, () => {
+              if (delBtn.container.active && delArmed) setDeleteArmed(false);
+            });
+            return;
+          }
+          deleteDeck(save, deck.id);
+          if (isActive) {
+            // loadWorkingDeck also moves the unsaved-changes baseline to the
+            // fallback deck. Keeping the deleted deck's baseline made Leave
+            // Without Saving write the deleted deck over this one.
+            this.loadWorkingDeck(activeVisibleSavedDeck(save.decks, save.activeDeckId, this.reserveFormatsEnabled));
+            this.deckPaneMode = defaultDeckPaneMode();
+            this.renderPool();
+            this.renderDeck();
+          }
+          this.flush();
+          reopenPicker();
         },
       });
-      parent.add(delBtn.container);
-    };
-
-    const renderNewTile = (parent: Phaser.GameObjects.Container, x: number, y: number): void => {
-      const left = x - tileW / 2;
-      const top = y - tileH / 2;
-      const create = (format: BuilderFormat): void => {
-        const id = generateDeckId(save);
-        const index = visibleSavedDecks(save.decks, this.reserveFormatsEnabled).length;
-        saveDeck(save, {
-          id,
-          name: `Deck ${save.decks.length + 1}`,
-          cards: [],
-          format,
-          darlingId: null,
-          landReserve: format === 'constructed' ? null : [],
-        });
-        // An empty deck cannot be played; the player just made it, so the
-        // menu's "the rules changed" repair notice must not call it broken.
-        const created = save.decks.find((d) => d.id === id);
-        if (created) this.acknowledgeUnplayableDeck(created);
-        pickerPage = Math.floor(index / pageSize);
-        setActiveDeck(id);
-        closeOverlay();
-        // A Darlings deck is unplayable until she is chosen, and her chooser
-        // was otherwise reachable only through the already-lit Darlings tab.
-        if (format === 'darlings') this.openDarlingsFormat();
-      };
-      const chooseFormat = (): void => this.showNewDeckFormatPrompt(create);
-      const bg = this.add
-        .rectangle(x, y, tileW, tileH, theme.graphics.panelFill, theme.alpha.panel)
-        .setStrokeStyle(1, theme.graphics.panelStroke, theme.alpha.chrome)
-        .setInteractive({ useHandCursor: true });
-      bindTapButton(this, bg, chooseFormat);
-      parent.add(bg);
-      parent.add(
-        this.add
-          .rectangle(left + 18, top + 18, tileW - 36, tileH - 36, theme.graphics.dim, 0)
-          .setOrigin(0, 0)
-          .setStrokeStyle(1, theme.graphics.panelStroke, theme.alpha.subtle),
-      );
-      parent.add(
-        this.add
-          .text(x, top + 70, '+', { fontFamily: theme.fonts.ui, fontSize: `${theme.type.display}px`, color: theme.colors.success })
-          .setOrigin(0.5),
-      );
-      parent.add(
-        this.add
-          .text(x, top + 118, 'New Deck', {
-            fontFamily: theme.fonts.display,
-            fontSize: `${theme.type.h2}px`,
-            color: theme.colors.success,
-          })
-          .setOrigin(0.5),
-      );
-      const btn = themedButton(this, x, top + 158, 'Create Empty Deck', {
-        variant: 'emphasis',
-        size: 'sm',
-        minWidth: 160,
-        onTap: chooseFormat,
-      });
-      parent.add(btn.container);
-    };
-
-    renderGrid = (): void => {
-      gridLayer.removeAll(true);
-      const decks = visibleSavedDecks(save.decks, this.reserveFormatsEnabled);
-      const tiles: Array<{ kind: 'deck'; deck: SavedDeck } | { kind: 'new' }> = [
-        ...decks.map((deck) => ({ kind: 'deck' as const, deck })),
-        { kind: 'new' as const },
-      ];
-      const pages = Math.max(1, Math.ceil(tiles.length / pageSize));
-      pickerPage = Phaser.Math.Clamp(pickerPage, 0, pages - 1);
-      tiles.slice(pickerPage * pageSize, (pickerPage + 1) * pageSize).forEach((tile, i) => {
-        const { x, y } = deckPickerTilePosition(i, pickerLayout);
-        if (tile.kind === 'deck') renderDeckTile(gridLayer, tile.deck, x, y);
-        else renderNewTile(gridLayer, x, y);
-      });
-      if (pages > 1) {
-        const pickerPager = pager(this, pickerLayout.pagerX, pickerLayout.footerY, pickerPage, pages, (page) => {
-          pickerPage = page;
-          renderGrid();
-        });
-        gridLayer.add(pickerPager.container);
+      for (const button of [useBtn, copyBtn, renameBtn, delBtn]) {
+        parent.add(button.container);
+        buttons.push(button);
       }
     };
-    renderGrid();
+
+    renderList = (offset: number): void => {
+      list?.destroy();
+      const content = this.add.container(0, viewport.y);
+      list = content;
+      overlay.add(content);
+      const shown = visibleSavedDecks(save.decks, this.reserveFormatsEnabled);
+      const buttons: ThemedButton[] = [];
+      shown.forEach((deck, i) => renderDeckRow(content, deck, i * row.pitch, buttons));
+      if (shown.length === 0) {
+        content.add(this.add.text(theme.design.centerX, row.height / 2, 'No decks yet. Start one with New Deck.', {
+          fontFamily: theme.fonts.ui, fontSize: `${theme.type.body}px`, color: theme.colors.muted,
+        }).setOrigin(0.5));
+      }
+      // The wheel, a drag, or the scrollbar's thumb runs the list; it rests
+      // on whole rows, so no row is left cut in half at the top.
+      bindMenuScroll(this, content, viewport, deckPickerContentHeight(shown.length, pickerLayout),
+        undefined, buttons, row.pitch, deckPickerShell, offset);
+    };
+    const focusIndex = focusDeckId ? decks.findIndex((deck) => deck.id === focusDeckId) : -1;
+    const activeIndex = decks.findIndex((deck) => deck.id === this.workingDeckId);
+    renderList(initialOffset ?? deckPickerScrollTo(focusIndex >= 0 ? focusIndex : initialRow || Math.max(0, activeIndex), decks.length, pickerLayout));
+
+    // New Deck stays in the footer, wherever the list is scrolled.
+    const create = (format: BuilderFormat): void => {
+      const id = generateDeckId(save);
+      saveDeck(save, {
+        id,
+        name: `Deck ${save.decks.length + 1}`,
+        cards: [],
+        format,
+        darlingId: null,
+        landReserve: format === 'constructed' ? null : [],
+      });
+      // An empty deck cannot be played; the player just made it, so the
+      // menu's "the rules changed" repair notice must not call it broken.
+      const created = save.decks.find((d) => d.id === id);
+      if (created) this.acknowledgeUnplayableDeck(created);
+      setActiveDeck(id);
+      closeOverlay();
+      // A Darlings deck is unplayable until she is chosen, and her chooser
+      // was otherwise reachable only through the already-lit Darlings tab.
+      if (format === 'darlings') this.openDarlingsFormat();
+    };
+    const newBtn = themedButton(this, 0, pickerLayout.footerY, '+ New Deck', {
+      variant: 'primary',
+      minWidth: pickerLayout.closeMinWidth,
+      onTap: () => this.showNewDeckFormatPrompt(create),
+    });
+    newBtn.container.setX(pickerLayout.newDeckLeft + newBtn.getMeasuredSize().hit.width / 2);
+    overlay.add(newBtn.container);
 
     const closeBtn = themedButton(this, pickerLayout.closeX, pickerLayout.footerY, 'Close', {
       variant: 'ghost',
@@ -2964,16 +2926,52 @@ export class DeckBuilderScene extends Phaser.Scene {
     const titleLayout = DECK_PANE_LAYOUT.title;
     const darlingId = this.activeDarlingId();
     const deckTitleX = format === 'darlings' && active && darlingId ? x0 + 46 : x0;
-    const title = this.add
-      .text(deckTitleX, titleLayout.y, (active?.name ?? 'Custom Deck') + ' · ' + this.deck.length + '/' + formatDeckSize(format), {
-        fontFamily: theme.fonts.display,
-        fontSize: theme.type.h2 + 'px',
-        color: this.deck.length === formatDeckSize(format) ? theme.colors.success : theme.colors.gold,
-      })
-      .setOrigin(0, 0.5);
-    fitMenuName(title, PANEL_RIGHT_X - 100 - deckTitleX, Number.POSITIVE_INFINITY);
+    // The title reads "name ✎ count": the pencil takes the old " · "
+    // separator's place, so it sits right by the name (owner request
+    // 2026-10-10) without costing the row any width. The name, the pencil and
+    // the count all open the rename prompt; with no saved deck there is
+    // nothing to rename, and the separator stays.
+    const renameId = active ? active.id : null;
+    const titleColor = this.deck.length === formatDeckSize(format) ? theme.colors.success : theme.colors.gold;
+    const titleStyle = { fontFamily: theme.fonts.display, fontSize: theme.type.h2 + 'px', color: titleColor };
+    const countText = this.add.text(0, 0, `${renameId ? '' : '· '}${this.deck.length}/${formatDeckSize(format)}`, titleStyle).setOrigin(0, 0.5);
+    const pencilSize = titleLayout.renameIconSize;
+    const gap = theme.space(1.5);
+    const tailWidth = (renameId ? pencilSize + gap * 2 : gap) + countText.width;
+    const title = this.add.text(deckTitleX, titleLayout.y, active?.name ?? 'Custom Deck', titleStyle).setOrigin(0, 0.5);
+    fitMenuName(title, PANEL_RIGHT_X - 100 - deckTitleX - tailWidth, Number.POSITIVE_INFINITY);
     this.headerLayout = deckPaneHeaderLayout(title.height);
     title.setY(this.headerLayout.titleY);
+    // The pencil and the count follow the name's last line.
+    const lines = title.getWrappedText();
+    const lineMeasure = this.add.text(0, 0, lines[lines.length - 1] ?? '', titleStyle).setVisible(false);
+    const lastLineWidth = lineMeasure.width;
+    lineMeasure.destroy();
+    const lastLineY = title.y + title.height / 2 - title.height / Math.max(1, lines.length) / 2;
+    let tailX = deckTitleX + lastLineWidth + gap;
+    if (renameId) {
+      const rename = (): void => this.promptRename(renameId, () => this.renderDeck());
+      const pencil = this.add.image(tailX + pencilSize / 2, lastLineY, bakeUiIcon(this, 'pencil'))
+        .setDisplaySize(pencilSize, pencilSize)
+        .setTint(colorInt(titleColor))
+        .setAlpha(theme.alpha.chrome);
+      // The pencil's own hit band meets the hit-width floor; it reaches back
+      // over the name, which renames too, and never forward toward ☰ Decks.
+      const pencilHit = this.add
+        .zone(tailX + pencilSize - titleLayout.renameHitWidth / 2, lastLineY, titleLayout.renameHitWidth, theme.control.minHitHeight)
+        .setInteractive({ useHandCursor: true });
+      pencilHit.on('pointerover', () => pencil.setAlpha(1));
+      pencilHit.on('pointerout', () => pencil.setAlpha(theme.alpha.chrome));
+      bindTapButton(this, pencilHit, rename);
+      for (const target of [title, countText]) {
+        target.setInteractive({ useHandCursor: true });
+        bindTapButton(this, target, rename);
+      }
+      this.rightPane.push(pencil, pencilHit);
+      tailX += pencilSize + gap;
+    }
+    countText.setPosition(tailX, lastLineY);
+    this.rightPane.push(countText);
     const stats = computeDeckStats(this.deck, CARD_DB);
     const summaryMeasure = this.add.text(0, 0, deckCountsLine(stats, hasWarchest
       ? { kind: 'warchest', filled: this.landReserve.length, size: LAND_RESERVE_SIZE } : { kind: 'list' }), {
