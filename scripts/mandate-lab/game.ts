@@ -50,6 +50,12 @@ export interface LabGameRecord {
   dawnsSinceClaim: [number, number];
   /** Dawns where the side controlled a legendary creature: Sworn's active rate. */
   legendDawns: [number, number];
+  /** Lab cards each side put onto the battlefield, and the marks they arrived with (Tithe marks). */
+  labEntered?: [number, number];
+  labEnteredMarks?: [number, number];
+  /** Abilities each side activated on its lab cards (the stones), and the marks those spent. */
+  labActivations?: [number, number];
+  labMarksSpent?: [number, number];
 }
 
 export function playLabGame(job: LabGameJob): LabGameRecord {
@@ -65,9 +71,21 @@ export function playLabGame(job: LabGameJob): LabGameRecord {
   const claims = [0, 0];
   const steals = [0, 0];
   const firstHold: (number | null)[] = [null, null];
+  const labEntered = [0, 0];
+  const labEnteredMarks = [0, 0];
+  const labActivations = [0, 0];
+  const labMarksSpent = [0, 0];
+  const isLab = (cardId: string): boolean => cardId.startsWith('lab-');
   let turnNow = 0;
   const onEvent = (e: Readonly<GameEvent>): void => {
     if (e.e === 'mandateDraw') holdDawns[e.player]++;
+    else if (e.e === 'permanentEntered' && isLab(e.perm.cardId)) {
+      labEntered[e.perm.controller]++;
+      labEnteredMarks[e.perm.controller] += e.perm.plusOneCounters;
+    } else if (e.e === 'activated' && isLab(e.cardId)) {
+      labActivations[e.player]++;
+      labMarksSpent[e.player] += e.marksSpent ?? 0;
+    }
     else if (e.e === 'mandateChanged') {
       (e.reason === 'combat' ? steals : claims)[e.to]++;
       firstHold[e.to] ??= turnNow;
@@ -127,5 +145,9 @@ export function playLabGame(job: LabGameJob): LabGameRecord {
     firstHold: rel(firstHold),
     dawnsSinceClaim: rel(dawnsSinceClaim),
     legendDawns: rel(legendDawns),
+    labEntered: rel(labEntered),
+    labEnteredMarks: rel(labEnteredMarks),
+    labActivations: rel(labActivations),
+    labMarksSpent: rel(labMarksSpent),
   };
 }

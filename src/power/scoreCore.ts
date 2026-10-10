@@ -777,6 +777,22 @@ function isCarrierWhen(w: ScorableTriggerWhen): w is CarrierTriggerWhen {
 export const DAWN_MULT_NONCREATURE = 3.0; // artifacts/enchantments — scarce removal here, at the fair-fit rate
 export const DAWN_MULT_CREATURE = 2.0; // creatures — dies more, already has a priced body
 
+// 2.0 (the rate lab's dawn sets, runs on study-data dawn-lab/ and
+// dawnArt-lab/, 25 life, 32,480 paired slots each): a life line at each of
+// its controller's dawns measured well under the dawn multiplier. On a 3/3
+// for three, gain 1, gain 2 and drain 1 at dawn read 0.48, 0.78 and 0.65
+// mana (the scorer paid 0.86, 1.46, 1.00); on a colourless artifact for two,
+// 0.69, 1.34 and 1.22 (it paid 1.29, 2.19, 1.50). Gain 1 on arrival read
+// 0.31 against the scorer's 0.32, so the per-firing rates hold and it is the
+// recurrence that is over-paid: life gained at dawn takes 0.55 of the
+// multiplier, life lost or face damage 0.7.
+export const DAWN_GAIN_SCALE = 0.55;
+export const DAWN_DRAIN_SCALE = 0.7;
+const dawnLifeScale = (op: ScorableEffectOp): number =>
+  op.op === 'gainLife' ? DAWN_GAIN_SCALE
+    : op.op === 'loseLife' || (op.op === 'damage' && op.to === 'opponent') ? DAWN_DRAIN_SCALE
+      : 1;
+
 export function dawnMult(card: ScorableCardDef): number {
   return card.types.includes('creature') ? DAWN_MULT_CREATURE : DAWN_MULT_NONCREATURE;
 }
@@ -885,6 +901,8 @@ export const COND_CONTROLS_OTHER = 0.6;
 //     23% of all its dawns.
 //   youDontHoldMandate x0.75: the complement of that 23-27% overall hold share.
 export const COND_SWORN = 0.5;
+const isLegendaryCreature = (card: ScorableCardDef): boolean =>
+  card.types.includes('creature') && (card.supertypes ?? []).includes('legendary');
 export const COND_HOLD_MANDATE = 0.45;
 export const COND_DONT_HOLD_MANDATE = 0.75;
 // 1.9 (A1.4b, in-engine): the CONDITIONAL ARRIVAL HUNT ("If you control another
@@ -1850,12 +1868,17 @@ export function scoreCard(card: ScorableCardDef): Score {
     //     NEEDS MATH: no clean MTG analog for counter-count thresholds,
     //     re-check against seeded win rates when the mark decks land.
     let condMult = 1.0;
-    if (ab.condition !== undefined) {
-      const cond = ab.condition;
+    // A static's gate sits on the static itself (StaticDef.condition: a Sworn
+    // or Mandate-hold anthem), so it is read there too.
+    const gate = ab.condition ?? (ab.when === 'static' ? ab.static?.condition : undefined);
+    if (gate !== undefined) {
+      const cond = gate;
       if (cond === 'questActive') condMult = 0.7;
       else if (cond === 'controlMarked') condMult = 0.85;
       else if (cond === 'creatureDiedThisTurn') condMult = COND_CREATURE_DIED;
-      else if (cond === 'swornActive') condMult = COND_SWORN;
+      // A legendary creature's own Sworn line is always on: it is the legend
+      // the line asks for whenever the ability can matter.
+      else if (cond === 'swornActive') condMult = isLegendaryCreature(card) ? 1 : COND_SWORN;
       else if (cond === 'youHoldMandate') condMult = COND_HOLD_MANDATE;
       else if (cond === 'youDontHoldMandate') condMult = COND_DONT_HOLD_MANDATE;
       // The same kind of turn-history gate as "a creature died this turn";
@@ -1895,9 +1918,14 @@ export function scoreCard(card: ScorableCardDef): Score {
     // all (fixing an ordering bug that discarded Umbral Antenna's gate).
     mult *= condMult;
     if (ab.when === 'static' && ab.static) {
+      // A 2.0 gated static (a Sworn or Mandate-hold line) is on only part of
+      // the time, so it takes its gate like any other ability. The older gates
+      // on statics (a quest, another of a tribe) have always scored at full;
+      // they keep that until the owner rules on moving the six shipped cards.
       const p = valueStatic(ab.static, card, unknowns);
-      parts.push({ label: p.label, v: p.v });
-      if (!isCreature) spellEffect += p.v;
+      const v = p.v * (gate === 'swornActive' || gate === 'youHoldMandate' || gate === 'youDontHoldMandate' ? condMult : 1);
+      parts.push({ label: v === p.v ? p.label : `${p.label} (gated x${condMult})`, v });
+      if (!isCreature) spellEffect += v;
       continue;
     }
     const face = canFaceOf(ab);
@@ -1926,6 +1954,7 @@ export function scoreCard(card: ScorableCardDef): Score {
       }
       // 1.9 (A1.4b): a gated Hunt takes its own factor in place of the ability's gate.
       let opMult = mult;
+      if (ab.when === 'dawn') opMult *= dawnLifeScale(op);
       if (op.op === 'hunt' && huntGate) {
         p = { ...p, label: `${p.label}, ${huntGate.label}` };
         if (huntGate.factor !== undefined) opMult = mult * (huntGate.factor / condMult);

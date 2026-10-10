@@ -25,6 +25,11 @@ type SpellCast = Extract<Action, { type: 'castSpell' | 'castDarling' }>;
 // under every trial. V1/V2/V3 gained only 0.6pp on Marsh-Mother, inside
 // the 3pp band: retain V0, the smallest change. Tempo unlock stays intact.
 const FODDER_VALUE_RATE = 0.2;
+// 2.0 (Nüwa): a Tithe that also grants a mark per {1} saved buys a +1/+1 with
+// each mana, not only the mana. The rate lab's stones set (study-data
+// stones-lab/, 25 life) read two marks on arrival at 1.50 mana: 0.75 a mark.
+// Without it the AI sold almost nothing for Nüwa (0.36 marks a cast).
+const TITHE_MARK_VALUE = 0.75;
 
 /**
  * A Tithe cast is normally a hand cast, but a card carrying both Whispers and
@@ -95,6 +100,9 @@ export function chooseTitheSacrifices(
   const fullCost = titheBaseCost(db, cardId, cast);
   const generic = fullCost?.generic ?? 0;
   if (!fullCost || generic <= 0) return [];
+  const markCap = d.tithe.marks ?? 0;
+  /** What saving this much buys: the mana, and a mark for each {1} up to the cap. */
+  const worth = (saving: number): number => saving + TITHE_MARK_VALUE * Math.min(saving, markCap);
   const bodies = view.battlefield.flatMap((perm, index) => {
     if (perm.controller !== view.myId) return [];
     const bodyDef = def(db, perm.cardId);
@@ -128,9 +136,10 @@ export function chooseTitheSacrifices(
         const added = bundle.reduce((sum, entry) => sum + entry.defense, 0);
         const value = bundle.reduce((sum, entry) => sum + entry.saleValue, 0);
         const saving = Math.min(generic, Math.floor((defense + added) / 2)) - saved;
-        return { bundle, value, saving, waste: defense + added - (saved + saving) * 2 };
-      }).filter((bundle) => bundle.saving > 0 && bundle.saving > bundle.value)
-        .sort((a, b) => a.value / a.saving - b.value / b.saving ||
+        const gain = worth(saved + saving) - worth(saved);
+        return { bundle, value, saving, gain, waste: defense + added - (saved + saving) * 2 };
+      }).filter((bundle) => bundle.saving > 0 && bundle.gain > bundle.value)
+        .sort((a, b) => a.value / a.gain - b.value / b.gain ||
           a.waste - b.waste || a.bundle.length - b.bundle.length);
       if (profitable.length > 0) { pick = profitable[0].bundle; break; }
     }
@@ -142,8 +151,10 @@ export function chooseTitheSacrifices(
   // The floor applies to the whole sale, not each increment while pairing.
   // Payment precedes sacrifice, so a sold mana creature can still fund this
   // cast. Both checks intentionally use the same pre-payment public board.
+  // A sale that also buys marks is worth making even when the full price is
+  // affordable.
   const tax = titheTax(view, cast);
-  if (saved < 2 && (canPay(view, db, view.myId, { ...fullCost, generic: generic + tax }) ||
+  if (saved < 2 && ((markCap === 0 && canPay(view, db, view.myId, { ...fullCost, generic: generic + tax })) ||
     !canPay(view, db, view.myId, { ...fullCost, generic: generic - saved + tax }))) return [];
   return chosen;
 }

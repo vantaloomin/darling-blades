@@ -14,7 +14,7 @@
  */
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { armNames, type ArmName, type ArmSetName } from './cards';
+import { ARMS, armNames, type ArmName, type ArmSetName } from './cards';
 import type { LabGameRecord } from './game';
 
 const dir = process.argv[2];
@@ -187,9 +187,18 @@ function armReport(): { report: object; lines: string[] } {
       meanTurns: est(slots.map((s) => s.base!.turns)).mean,
       mana,
       arms: Object.fromEntries(subjects.map((a) => {
-        const l = lift(slots, a, 'base');
-        return [a, { lift: l, mana: ratio(l.mean, mana.mean) }];
-      })) as Record<string, { lift: Est; mana: number }>,
+        const vs = ARMS[a].vs ?? 'base';
+        const l = lift(slots, a, vs);
+        // What the row did with its lab cards a game (older runs recorded none).
+        const perGame = (f: (r: LabGameRecord) => number | undefined): number => ratio(slots.reduce((t, s) => t + (f(s[a]!) ?? 0), 0), slots.length);
+        const use = {
+          entered: perGame((r) => r.labEntered?.[0]),
+          enteredMarks: perGame((r) => r.labEnteredMarks?.[0]),
+          activations: perGame((r) => r.labActivations?.[0]),
+          marksSpent: perGame((r) => r.labMarksSpent?.[0]),
+        };
+        return [a, { vs, lift: l, mana: ratio(l.mean, mana.mean), use }];
+      })) as Record<string, { vs: ArmName; lift: Est; mana: number; use: Record<string, number> }>,
     };
   });
   const first = atLife[0];
@@ -199,11 +208,14 @@ function armReport(): { report: object; lines: string[] } {
     '',
     `Each slot played in all ${ARM_NAMES.length} arms at every life, Hard on both seats.${stoppedEarly ? ' **Some shards stopped at their time budget.**' : ''}`,
     '',
-    '| Life | Arm | Slots | Mean turns | Paired lift over base | In mana |',
-    '| --- | --- | --- | --- | --- | --- |',
+    '| Life | Arm | Read against | Slots | Mean turns | Paired lift | In mana | Lab cards in play a game | Marks they arrived with | Activations a game |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
     ...atLife.flatMap((a) => [
-      `| ${a.life} | mana (the unit) | ${a.slots} | ${a.meanTurns.toFixed(1)} | ${pts(a.mana)} | 1 |`,
-      ...subjects.map((s) => `| ${a.life} | ${s} | ${a.slots} | ${a.meanTurns.toFixed(1)} | ${pts(a.arms[s].lift)} | ${a.arms[s].mana.toFixed(2)} |`),
+      `| ${a.life} | mana (the unit) | base | ${a.slots} | ${a.meanTurns.toFixed(1)} | ${pts(a.mana)} | 1 | | | |`,
+      ...subjects.map((s) => {
+        const r = a.arms[s];
+        return `| ${a.life} | ${s} | ${r.vs} | ${a.slots} | ${a.meanTurns.toFixed(1)} | ${pts(r.lift)} | ${r.mana.toFixed(2)} | ${r.use.entered.toFixed(2)} | ${r.use.enteredMarks.toFixed(2)} | ${r.use.activations.toFixed(2)} |`;
+      }),
     ]),
     '',
     ...(lives.length > 1

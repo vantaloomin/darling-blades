@@ -7,7 +7,26 @@
  */
 import { cost } from '../../src/data/cardTypes';
 import { CARD_DB } from '../../src/data/catalog';
-import type { CardDb, CardDef } from '../../src/engine/types';
+import type { ActivatedDef, CardDb, CardDef, EffectOp, TargetSpec } from '../../src/engine/types';
+
+const MARKS2: CardDef['abilities'] = [{ when: 'arrives', ops: [{ op: 'addCounters', n: 2, to: 'self' }] }];
+const stone = (mana: number, ops: EffectOp[], targets?: TargetSpec[]): ActivatedDef => ({
+  cost: { removeMarks: 1, mana: cost(mana) },
+  ops,
+  ...(targets ? { targets } : {}),
+});
+
+const relic = (id: string, name: string, abilities: CardDef['abilities']): CardDef => ({
+  id, name, types: ['artifact'], subtypes: [], cost: cost(2), colors: [], rarity: 'c', abilities,
+});
+
+const NUWA: Partial<CardDef> = {
+  supertypes: ['legendary'],
+  attack: 4,
+  defense: 4,
+  tithe: { per: 2 },
+  abilities: [{ when: 'arrives', ops: [{ op: 'claimMandate' }] }],
+};
 
 const body = (id: string, name: string, mana: number, extra: Partial<CardDef> = {}): CardDef => ({
   id,
@@ -36,6 +55,56 @@ export const LAB_CARDS = {
   gain8: body('lab-gain8', 'Lab Surgeon', 3, { abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 8 }] }] }),
   /** "When this arrives, each opponent loses 3 life." */
   drain3: body('lab-drain3', 'Lab Raider', 3, { abilities: [{ when: 'arrives', ops: [{ op: 'loseLife', n: 3, who: 'opponent' }] }] }),
+  /** "When this arrives, you gain 1 life." (gain 1 is the gain line extended, not measured.) */
+  gain1: body('lab-gain1', 'Lab Orderly', 3, { abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 1 }] }] }),
+  /** Recurring life at your dawn: "At your dawn, you gain 1 life." / "...gain 2 life." / "...each opponent loses 1 life." */
+  dawnGain1: body('lab-dawn-gain1', 'Lab Hearth', 3, { abilities: [{ when: 'dawn', ops: [{ op: 'gainLife', n: 1 }] }] }),
+  dawnGain2: body('lab-dawn-gain2', 'Lab Spring', 3, { abilities: [{ when: 'dawn', ops: [{ op: 'gainLife', n: 2 }] }] }),
+  dawnDrain1: body('lab-dawn-drain1', 'Lab Leech', 3, { abilities: [{ when: 'dawn', ops: [{ op: 'loseLife', n: 1, who: 'opponent' }] }] }),
+  /** The same dawn lines on a colourless artifact for two (the noncreature carrier), and the blank artifact they read against. */
+  artBlank: relic('lab-art-blank', 'Lab Relic', []),
+  artDawnGain1: relic('lab-art-dawn-gain1', 'Lab Relic (hearth)', [{ when: 'dawn', ops: [{ op: 'gainLife', n: 1 }] }]),
+  artDawnGain2: relic('lab-art-dawn-gain2', 'Lab Relic (spring)', [{ when: 'dawn', ops: [{ op: 'gainLife', n: 2 }] }]),
+  artDawnDrain1: relic('lab-art-dawn-drain1', 'Lab Relic (leech)', [{ when: 'dawn', ops: [{ op: 'loseLife', n: 1, who: 'opponent' }] }]),
+  /** The stones' carrier (Core Set II costing, Nüwa): "When this arrives, put two marks on it." */
+  marks2: body('lab-marks2', 'Lab Vessel', 3, { abilities: MARKS2 }),
+  /** Each stone on the carrier: "{1}, remove a mark from this: ..." ({2} for Sever, Nüwa's {B}{B}). */
+  stoneDraw: body('lab-stone-draw', 'Lab Vessel (draw)', 3, { abilities: MARKS2, activated: [stone(1, [{ op: 'draw', n: 2 }])] }),
+  stoneBurn: body('lab-stone-burn', 'Lab Vessel (burn)', 3, {
+    abilities: MARKS2,
+    activated: [stone(1, [{ op: 'damage', n: 3, to: 'target' }], [{ what: 'any' }])],
+  }),
+  stoneLife: body('lab-stone-life', 'Lab Vessel (life)', 3, { abilities: MARKS2, activated: [stone(1, [{ op: 'gainLife', n: 5 }])] }),
+  stoneSever: body('lab-stone-sever', 'Lab Vessel (sever)', 3, {
+    abilities: MARKS2,
+    activated: [stone(2, [{ op: 'sever', to: 'target' }], [{ what: 'opponentCreature' }])],
+  }),
+  stoneMarkAll: body('lab-stone-markall', 'Lab Vessel (mark all)', 3, {
+    abilities: MARKS2,
+    activated: [stone(1, [{ op: 'markAll', scope: 'yourCreatures', other: true }])],
+  }),
+  /** Tithe marks (Nüwa): a 3/3 Tithe for five, without and with "arrives with a mark per {1} saved (at most 5)". */
+  tithe5: body('lab-tithe5', 'Lab Offering', 5, { tithe: { per: 2 } }),
+  titheMarks5: body('lab-tithe-marks5', 'Lab Offering (marks)', 5, { tithe: { per: 2, marks: 5 } }),
+  /**
+   * Nüwa on her own chassis, colourless so any deck can cast her (each stone
+   * at {1}, Sever at {2}): a legendary 4/4 Tithe for ten that claims the
+   * Mandate on arrival; then with "arrives with a mark per {1} Tithe saved (at
+   * most 5)"; then with the marks and her five stones.
+   */
+  nuwaBody: body('lab-nuwa-body', 'Lab Goddess', 10, NUWA),
+  nuwaMarks: body('lab-nuwa-marks', 'Lab Goddess (marks)', 10, { ...NUWA, tithe: { per: 2, marks: 5 } }),
+  nuwaFull: body('lab-nuwa-full', 'Lab Goddess (stones)', 10, {
+    ...NUWA,
+    tithe: { per: 2, marks: 5 },
+    activated: [
+      stone(1, [{ op: 'damage', n: 3, to: 'target' }], [{ what: 'any' }]),
+      stone(1, [{ op: 'markAll', scope: 'yourCreatures', other: true }]),
+      stone(1, [{ op: 'gainLife', n: 5 }]),
+      stone(1, [{ op: 'draw', n: 2 }]),
+      stone(2, [{ op: 'sever', to: 'target' }], [{ what: 'opponentCreature' }]),
+    ],
+  }),
 } satisfies Record<string, CardDef>;
 
 export type LabCard = keyof typeof LAB_CARDS;
@@ -64,6 +133,26 @@ export const LAB_DB: CardDb = Object.freeze({
  * - drain: the subject's opponent loses 3 life on arrival.
  *
  * The gain set prices a point of life gain: 2, 4 and 8 life on arrival.
+ *
+ * The dawn set (Core Set II costing) checks the small life lines the set
+ * prints most: gain 1 on arrival, and gain 1, gain 2 or drain 1 at each of
+ * your dawns.
+ *
+ * The dawnArt set reads the same dawn lines on a colourless artifact for
+ * two, each against the blank artifact (the noncreature dawn rate).
+ *
+ * The nuwa set reads Nüwa's marks and stones on her own chassis (a 4/4
+ * Tithe for ten that claims), each against the chassis alone.
+ *
+ * The stones set (Core Set II costing) prices Nüwa's two unpriced pieces on
+ * colourless carriers, each read against its own control (`vs`):
+ * - marks: a 3/3 for three that puts two marks on itself as it arrives (read
+ *   against base: the scorer's mark rate, checked).
+ * - stoneDraw, stoneBurn, stoneLife, stoneSever, stoneMarkAll: that carrier
+ *   with one stone, "{1}, remove a mark from this: ..." ({2} for Sever), read
+ *   against marks, so each lift is the stone's option value with two marks.
+ * - tithe / titheMarks: a 3/3 Tithe for five, then the same with "arrives with
+ *   a mark per {1} Tithe saved (at most 5)"; titheMarks reads against tithe.
  */
 const SHARED = {
   base: { row: 'ctl3', col: 'ctl3' },
@@ -88,11 +177,44 @@ export const ARM_SETS = {
     gain4: { row: 'gain3', col: 'ctl3' },
     gain8: { row: 'gain8', col: 'ctl3' },
   },
-} as const satisfies Record<string, Record<string, { row: LabCard; col: LabCard }>>;
+  dawn: {
+    ...SHARED,
+    gain1: { row: 'gain1', col: 'ctl3' },
+    dawnGain1: { row: 'dawnGain1', col: 'ctl3' },
+    dawnGain2: { row: 'dawnGain2', col: 'ctl3' },
+    dawnDrain1: { row: 'dawnDrain1', col: 'ctl3' },
+  },
+  stones: {
+    ...SHARED,
+    marks: { row: 'marks2', col: 'ctl3' },
+    stoneDraw: { row: 'stoneDraw', col: 'ctl3', vs: 'marks' },
+    stoneBurn: { row: 'stoneBurn', col: 'ctl3', vs: 'marks' },
+    stoneLife: { row: 'stoneLife', col: 'ctl3', vs: 'marks' },
+    stoneSever: { row: 'stoneSever', col: 'ctl3', vs: 'marks' },
+    stoneMarkAll: { row: 'stoneMarkAll', col: 'ctl3', vs: 'marks' },
+    tithe: { row: 'tithe5', col: 'ctl3' },
+    titheMarks: { row: 'titheMarks5', col: 'ctl3', vs: 'tithe' },
+  },
+  dawnArt: {
+    ...SHARED,
+    artBlank: { row: 'artBlank', col: 'ctl3' },
+    artDawnGain1: { row: 'artDawnGain1', col: 'ctl3', vs: 'artBlank' },
+    artDawnGain2: { row: 'artDawnGain2', col: 'ctl3', vs: 'artBlank' },
+    artDawnDrain1: { row: 'artDawnDrain1', col: 'ctl3', vs: 'artBlank' },
+  },
+  nuwa: {
+    ...SHARED,
+    nuwaBody: { row: 'nuwaBody', col: 'ctl3' },
+    nuwaMarks: { row: 'nuwaMarks', col: 'ctl3', vs: 'nuwaBody' },
+    nuwaFull: { row: 'nuwaFull', col: 'ctl3', vs: 'nuwaBody' },
+  },
+} as const satisfies Record<string, Record<string, { row: LabCard; col: LabCard; vs?: string }>>;
 
 export type ArmSetName = keyof typeof ARM_SETS;
 export type ArmName = { [S in ArmSetName]: keyof (typeof ARM_SETS)[S] }[ArmSetName];
-export const ARMS: Record<ArmName, { row: LabCard; col: LabCard }> = Object.assign({}, ...Object.values(ARM_SETS));
+/** An arm: the cards each side adds, and the arm it is read against (base when absent). */
+export interface Arm { row: LabCard; col: LabCard; vs?: ArmName }
+export const ARMS: Record<ArmName, Arm> = Object.assign({}, ...Object.values(ARM_SETS));
 export const armNames = (set: ArmSetName): ArmName[] => Object.keys(ARM_SETS[set]) as ArmName[];
 
 /** A field deck with an arm's four copies added. */
