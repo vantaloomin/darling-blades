@@ -10,7 +10,7 @@ Build order (the 2.0 plan's shared-file order: the Mandate first in `types.ts` a
 2. The starting-life field, sharing the train's one replay bump. **As built (D3a).**
 3. Sworn, and the crownless flag for the Sworn Champions. **As built (B2.2).**
 4. The Mandate's card wording: "while you hold the Mandate", "if you don't hold the Mandate", "whenever you claim the Mandate". **As built (B2.3).**
-5. Small constructs the overplan names: an arrival trigger filtered by subtype (Yutu, Jiuwei, Lanlan); "if you gained life this turn" (Hebe); a token created for a target's controller (Circe's Pig).
+5. Small constructs the overplan names: an arrival trigger filtered by subtype (Yutu, Jiuwei, Lanlan); "if you gained life this turn" (Hebe); a token created for a target's controller (Circe's Pig). **As built (B2.4).**
 6. Larger constructs: a modal "choose up to N" (Nüwa, ruled into the engine 2026-10-08); removing a mark as an activation cost, without a tap (Nüwa); Tithe on a Darling cast (ruled 2026-10-08: it reduces the base cost, never the Darling tax).
 7. The AI reads (B3), the duel UI (B4), the lab rates (B5).
 
@@ -78,9 +78,24 @@ Build order (the 2.0 plan's shared-file order: the Mandate first in `types.ts` a
 - **AI and scorer.** The AI reads the holder from the view; without one, a held or not-held ability is valued at half, provisional. The scorer reports `condition:youHoldMandate`, `condition:youDontHoldMandate` and `when:youClaimMandate` as unpriced until the lab (the claim trigger is held at the arrival rate, 0.75, meanwhile).
 - **Tests.** In `tests/engine/mandate.test.ts`: a static following a combat steal, a bare battlefield reading it unclaimed, both dawn conditions for each holder, claim triggers for the claimant only and not on a no-op, claim triggers before combat-damage triggers, a targeted claim trigger, and the card wording.
 
-## Parts 5 and 6 (to be specified as they are built)
+## Part 5. Small constructs
 
-The subtype-filtered arrival trigger, "if you gained life this turn", a token for the target's controller, the modal "choose up to N", mark removal as an activation cost, and Tithe on a Darling cast.
+### Rules (for the owner)
+
+- **"Whenever another Beastkin arrives under your control"** (Yutu, Jiuwei, Lanlan) fires only for a creature of that subtype.
+- **"If you gained life this turn"** (Hebe) is on once you have gained any life this turn, from a card or from Blood Oath, and resets at the start of the next turn. Your opponent's life gain doesn't count.
+- **"Its controller creates a token"** (Circe's Pig) gives the token to the controller of the creature the effect targeted, even after that creature is gone.
+
+### As built (B2.4)
+
+- **Subtype filter.** `AbilityDef.filter.subtype` on `allyCreatureArrives`, checked in `fireAllyCreatureArrivesTriggers`; the card reads "Whenever another Beastkin arrives under your control". The scorer prices the filter like the other observers' (`FILTER_SUBTYPE_MULT`) instead of reporting it as ignored.
+- **Life gained.** `GameState.gainedLifeThisTurn?: PlayerId[]`, set by `noteLifeGained` from the `gainLife` op and Blood Oath (the engine's two ways to gain life), cleared at dawn beside `creatureDiedThisTurn`, public in the view and carried by `determinize` and `restore`. Condition `'youGainedLifeThisTurn'` on triggered abilities; statics treat it as off, like the other turn-history conditions. The scorer prices it like "a creature died this turn" and reports it; the AI values it at 0.6 without a board.
+- **Token for the target's controller.** `createToken.for: 'targetController'` reads the first target's owner captured before the effect moved it (`ctx.targetOwners`; no card changes control, so owner and controller are the same). With no target left it creates nothing. The scorer and the AI price it as the negation of the token. The card reads "..., then its controller creates a 1/1 Pig token."
+- **Tests.** `tests/engine/coreSet2Constructs.test.ts`.
+
+## Part 6. Larger constructs (to be specified as they are built)
+
+The modal "choose up to N" (Nüwa, ruled into the engine 2026-10-08), removing a mark as an activation cost without a tap (Nüwa's five stones), and Tithe on a Darling cast (ruled 2026-10-08: it reduces the base cost, never the Darling tax).
 
 ## Questions for the owner
 

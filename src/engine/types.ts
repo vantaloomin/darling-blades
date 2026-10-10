@@ -159,7 +159,7 @@ export type EffectOp =
   | { op: 'severSelf' }
   | { op: 'tap'; to: 'target'; targetIndex?: number }
   | { op: 'extraLandDrop'; n?: number } // grant the controller extra land drops this turn
-  | { op: 'createToken'; token: string; count: number; marks?: number }
+  | { op: 'createToken'; token: string; count: number; marks?: number; for?: 'targetController' } // `for`: the first target's controller makes them (2.0)
   | { op: 'destroyNewestOpponentArtifactOrEnchantment' } // trigger-safe, no target
   | { op: 'massDestroy'; filter: 'allCreatures' | 'allFliers' | 'allEnchantments' }
   | { op: 'preventCombat' } // prevent all combat damage this turn
@@ -201,6 +201,8 @@ export interface AbilityDef {
     /** The source's controller holds the Mandate (2.0), or does not. */
     | 'youHoldMandate'
     | 'youDontHoldMandate'
+    /** The source's controller gained life this turn (2.0, Hebe). */
+    | 'youGainedLifeThisTurn'
     | 'controlMarked'
     | 'creatureDiedThisTurn'
     | { kind: 'controlsOther'; subtype: string }
@@ -1229,6 +1231,8 @@ export interface GameState {
   combat: CombatState | null;
   fogThisTurn: boolean;
   creatureDiedThisTurn?: true;
+  /** Players who gained life this turn (2.0); cleared at each turn's dawn. */
+  gainedLifeThisTurn?: PlayerId[];
   /** Who holds the Mandate (2.0). Absent means unclaimed, as every game begins. */
   mandateHolder?: PlayerId;
   sunsetPendingWindow?: true;

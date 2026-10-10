@@ -391,6 +391,7 @@ export function determinize(view: PlayerView, db: CardDb, seed = 1): Game {
     fogThisTurn: view.fogThisTurn,
     awaiting,
     ...(view.creatureDiedThisTurn ? { creatureDiedThisTurn: true } : {}),
+    ...(view.gainedLifeThisTurn ? { gainedLifeThisTurn: view.gainedLifeThisTurn.slice() } : {}),
     ...(view.mandateHolder === undefined ? {} : { mandateHolder: view.mandateHolder }),
     ...(view.sunsetPendingWindow ? { sunsetPendingWindow: true } : {}),
     ...(view.decisionResume ? { decisionResume: view.decisionResume } : {}),

@@ -251,6 +251,7 @@ export function conditionSatisfied(
   if (condition === 'swornActive') return isSwornActive(state.battlefield, db, controller);
   if (condition === 'youHoldMandate') return mandateHolderOf(state) === controller;
   if (condition === 'youDontHoldMandate') return mandateHolderOf(state) !== controller;
+  if (condition === 'youGainedLifeThisTurn') return state.gainedLifeThisTurn?.includes(controller) ?? false;
   if (condition === 'controlMarked') {
     // The condition name is retained for replay compatibility, but Marks are
     // now creature-scoped throughout the engine.
@@ -377,7 +378,10 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         delta: op.n,
         now: state.players[ctx.controller].life,
       });
-      if (op.n > 0) firePlayerObservers(state, db, emit, 'youGainLife', ctx.controller, ctx.markTriggerDepth);
+      if (op.n > 0) {
+        noteLifeGained(state, ctx.controller);
+        firePlayerObservers(state, db, emit, 'youGainLife', ctx.controller, ctx.markTriggerDepth);
+      }
       return;
     }
     case 'loseLife':
@@ -754,17 +758,22 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       claimMandate(state, db, emit, ctx.controller, 'effect');
       return;
     case 'createToken': {
+      // "Its controller creates": the first target's, captured before the
+      // effect moved it. Nothing control-changing exists, so its owner is its
+      // controller. With no target left, nobody creates anything.
+      const maker = op.for === 'targetController' ? ctx.targetOwners?.[0] : ctx.controller;
+      if (maker === undefined) return;
       for (let i = 0; i < op.count; i++) {
         const count = state.battlefield.filter(
-          (p) => p.controller === ctx.controller && isType(def(db, p.cardId), 'creature'),
+          (p) => p.controller === maker && isType(def(db, p.cardId), 'creature'),
         ).length;
         // At the cap a token is not created. Each refused token in turn gives
         // a same-name token an Overcharge instead, if one is eligible (A1.7).
         if (count >= RULES.maxCreatures) {
-          refuseTokenAtCap(state, db, emit, ctx.controller, op.token);
+          refuseTokenAtCap(state, db, emit, maker, op.token);
           continue;
         }
-        const perm = enterBattlefield(state, db, op.token, ctx.controller, emit, {
+        const perm = enterBattlefield(state, db, op.token, maker, emit, {
           asToken: true,
           ...(op.marks === undefined ? {} : { plusOneCounters: op.marks }),
         });
@@ -1134,6 +1143,8 @@ function fireAllyCreatureArrivesTriggers(
     ) continue;
     for (const [abilityIndex, ability] of (def(db, holder.cardId).abilities ?? []).entries()) {
       if (ability.when !== 'allyCreatureArrives' || !ability.ops) continue;
+      // "Whenever another Beastkin arrives under your control" (2.0).
+      if (ability.filter?.subtype && !arrivingDef.subtypes.includes(ability.filter.subtype)) continue;
       if (
         ability.condition !== undefined &&
         !conditionSatisfied(state, db, holder.controller, ability.condition, holder.iid)
@@ -1347,6 +1358,12 @@ export function fireMarkedAllyAttackTriggers(
 }
 
 /** Public player events and battlefield-ordered creature observers. */
+/** Record a positive life gain for "if you gained life this turn" (2.0). */
+export function noteLifeGained(state: GameState, player: PlayerId): void {
+  if (state.gainedLifeThisTurn?.includes(player)) return;
+  state.gainedLifeThisTurn = [...(state.gainedLifeThisTurn ?? []), player];
+}
+
 export function firePlayerObservers(state: GameState, db: CardDb, emit: Emit,
   when: 'youGainLife' | 'youCastCharm' | 'youClaimMandate', player: PlayerId, markTriggerDepth = 0): void {
   if (when === 'youGainLife' && markTriggerDepth > MAX_MARK_TRIGGER_DEPTH) return;

@@ -72,6 +72,7 @@ export function startTurn(state: GameState, db: CardDb, emit: Emit): void {
   // Chapter ops are trigger-safe and can queue FIFO pending decisions.
   setStep(state, 'dawn', emit);
   delete state.creatureDiedThisTurn;
+  delete state.gainedLifeThisTurn;
   // Expire both graveyards before this player's Dawn triggers can add new tags.
   for (const player of state.players) {
     for (const card of player.graveyard) {

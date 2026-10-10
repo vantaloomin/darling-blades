@@ -489,7 +489,7 @@ export class Game {
     this.st.stackClosed = pub.stackClosed;
     this.st.combat = structuredClone(pub.combat);
     this.st.fogThisTurn = pub.fogThisTurn;
-    for (const key of ['creatureDiedThisTurn', 'mandateHolder', 'sunsetPendingWindow', 'decisionResume'] as const) {
+    for (const key of ['creatureDiedThisTurn', 'gainedLifeThisTurn', 'mandateHolder', 'sunsetPendingWindow', 'decisionResume'] as const) {
       if (pub[key] === undefined) delete this.st[key];
       else Object.assign(this.st, { [key]: structuredClone(pub[key]) });
     }

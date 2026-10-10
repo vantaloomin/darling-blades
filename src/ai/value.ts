@@ -273,6 +273,7 @@ export function abilityConditionMultiplier(condition: AbilityDef['condition'], q
   if (condition === 'swornActive') return 0.6;
   // NEEDS MATH: the Mandate's hold rate comes from its lab (2.0 B5).
   if (condition === 'youHoldMandate' || condition === 'youDontHoldMandate') return 0.5;
+  if (condition === 'youGainedLifeThisTurn') return 0.6;
   if (typeof condition === 'object' && condition.kind === 'controlsOther') return 0.65;
   if (condition === 'controlMarked') return 0.55;
   if (typeof condition === 'object' && condition.kind === 'markedThreshold') return 0.5;
@@ -1065,7 +1066,8 @@ export function opImpactValue(op: EffectOp, activated?: ActivatedImpactContext, 
     case 'discardRandom':
       return op.n * 1;
     case 'createToken':
-      return op.count * (1.5 + (op.marks ?? 0) * 1.2);
+      // A token made for the target's controller is theirs, a cost to us.
+      return (op.for === 'targetController' ? -1 : 1) * op.count * (1.5 + (op.marks ?? 0) * 1.2);
     case 'addCounters':
       return op.n * (op.to === 'self' ? 1.5 : 1.2);
     case 'propagate':
@@ -1476,6 +1478,7 @@ function publicCondition(view: PlayerView, db: CardDb, condition: AbilityDef['co
   if (condition === 'swornActive') return isSwornActive(view.battlefield, db, view.myId);
   if (condition === 'youHoldMandate') return view.mandateHolder === view.myId;
   if (condition === 'youDontHoldMandate') return view.mandateHolder !== view.myId;
+  if (condition === 'youGainedLifeThisTurn') return view.gainedLifeThisTurn?.includes(view.myId) ?? false;
   const mine = view.battlefield.filter((p) => p.controller === view.myId && isType(def(db, p.cardId), 'creature'));
   if (condition === 'controlMarked') return mine.some((p) => p.plusOneCounters > 0);
   if (condition.kind === 'controlsOther') return mine.some((p) => def(db, p.cardId).subtypes.includes(condition.subtype));
@@ -1782,7 +1785,7 @@ export function conditionalAbilityValue(db: CardDb, cardId: string, view?: Playe
       (typeof ab.condition === 'object' && ab.condition.kind === 'markedThreshold');
     const vocabularyTrigger = ['allyDies', 'youGainLife', 'youCastCharm', 'youClaimMandate', 'allyAttacks', 'sunset'].includes(ab.when);
     const vocabularyCondition = ab.condition === 'creatureDiedThisTurn' || ab.condition === 'swornActive' ||
-      ab.condition === 'youHoldMandate' || ab.condition === 'youDontHoldMandate' ||
+      ab.condition === 'youHoldMandate' || ab.condition === 'youDontHoldMandate' || ab.condition === 'youGainedLifeThisTurn' ||
       typeof ab.condition === 'object' && ab.condition.kind === 'controlsOther';
     if (!markedOps && !markedCondition && !vocabularyTrigger && !vocabularyCondition &&
       !(view && ab.condition === 'questActive')) continue;
@@ -1922,7 +1925,7 @@ export function empowerValue(
         // pricing here is limited to the granted-keyword change (U2).
         return 1.5;
       case 'createToken':
-        return op.count * 2;
+        return (op.for === 'targetController' ? -1 : 1) * op.count * 2;
       case 'raise':
         return op.to === 'target' ? 0 : 3;
       case 'foresee':

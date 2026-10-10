@@ -238,7 +238,7 @@ export const OP_RULES: Record<OpKind, Record<string, OpFieldRule>> = {
   tap: TO_TARGET,
   propagate: {},
   extraLandDrop: { n: COUNT(1, 9, true) },
-  createToken: { token: { kind: 'token' }, count: COUNT(1, 12), marks: MARKS },
+  createToken: { token: { kind: 'token' }, count: COUNT(1, 12), marks: MARKS, for: ENUM(['targetController'], true) },
   destroyNewestOpponentArtifactOrEnchantment: {},
   massDestroy: { filter: ENUM(['allCreatures', 'allFliers', 'allEnchantments']) },
   preventCombat: {},
@@ -324,7 +324,7 @@ function readTargets(value: unknown): TargetSpec[] {
 }
 
 function readCondition(value: unknown): ScorableCondition {
-  if (typeof value === 'string') return oneOf(value, ['questActive', 'swornActive', 'youHoldMandate', 'youDontHoldMandate', 'controlMarked', 'creatureDiedThisTurn'] as const, 'trigger');
+  if (typeof value === 'string') return oneOf(value, ['questActive', 'swornActive', 'youHoldMandate', 'youDontHoldMandate', 'youGainedLifeThisTurn', 'controlMarked', 'creatureDiedThisTurn'] as const, 'trigger');
   const raw = object(value, ['kind', 'n', 'subject', 'subtype']);
   if (raw.kind === 'markedThreshold') {
     if (raw.subtype !== undefined) fail('field');

@@ -68,7 +68,7 @@ function staticConditionSatisfied(
   if (condition === 'questActive') return isQuestActive(battlefield, db, controller);
   if (condition === 'swornActive') return isSwornActive(battlefield, db, controller);
   // Turn-history conditions belong to triggered abilities, not static layers.
-  if (condition === 'creatureDiedThisTurn') return false;
+  if (condition === 'creatureDiedThisTurn' || condition === 'youGainedLifeThisTurn') return false;
   if (typeof condition === 'object' && condition.kind === 'controlsOther') {
     return battlefield.some((perm) => perm.controller === controller &&
       perm.iid !== sourceIid && isType(def(db, perm.cardId), 'creature') &&
