@@ -81,6 +81,10 @@ export const theme = {
   get type() {
     return currentTokens().type;
   },
+  /** The compact profile's chrome sizes at the text size in force; only migrated compact scenes read it (plan-mobile-overhaul C3). */
+  get compactType() {
+    return currentTokens().compactType;
+  },
   weight: {
     w600: '600',
     w700: '700',
